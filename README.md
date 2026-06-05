@@ -1,4 +1,8 @@
-# 🤖 TS3 Free Game Notification Bot 🎮
+<p align="center">
+  <img src="logo.png" width="160" alt="TS3News Logo" />
+</p>
+
+# TS3 Free Game Notification Bot 🎮
 
 A Dockerized TeamSpeak 3 bot that automatically notifies users of free limited-time Steam and Epic Games Store giveaways. 
 
