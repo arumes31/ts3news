@@ -133,19 +133,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			continue
 		}
 
-		var candidates []games.Game
-		for _, g := range freeGames {
-			sent := false
-			for _, id := range alreadySent {
-				if id == g.ID {
-					sent = true
-					break
-				}
-			}
-			if !sent {
-				candidates = append(candidates, g)
-			}
-		}
+		candidates := b.filterNewGames(freeGames, alreadySent)
 
 		if len(candidates) > 0 {
 			game := candidates[rand.Intn(len(candidates))]
@@ -186,6 +174,23 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 
 	log.Printf("Cycle finished. Poked %d users.", pokedCount)
 	return nil
+}
+
+func (b *Bot) filterNewGames(all []games.Game, alreadySent []int) []games.Game {
+	var candidates []games.Game
+	for _, g := range all {
+		sent := false
+		for _, id := range alreadySent {
+			if id == g.ID {
+				sent = true
+				break
+			}
+		}
+		if !sent {
+			candidates = append(candidates, g)
+		}
+	}
+	return candidates
 }
 
 func (b *Bot) getSentGames(nickname string) ([]int, error) {
