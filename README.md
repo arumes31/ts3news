@@ -54,17 +54,37 @@ graph TD
     end
     
     GoBot -->|3. Fetches giveaways| GamerPower["🌐 GamerPower API"]
+    GoBot -->|4. Shortens links| Redrx["🔗 RedRx API"]
     TS3Client -->|UDP:9987| TS3Server["🔊 TS3 Voice Server"]
-    TS3Client -->|4. Sends Poke & PM| TS3Users["👥 Online TS3 Users"]
+    TS3Client -->|5. Sends Poke & PM| TS3Users["👥 Online TS3 Users"]
     
     classDef default fill:#2d3748,stroke:#4a5568,stroke-width:1px,color:#fff;
     classDef GamerPower fill:#d69e2e,stroke:#b7791f,stroke-width:1px,color:#fff;
+    classDef Redrx fill:#e53e3e,stroke:#c53030,stroke-width:1px,color:#fff;
     classDef TS3Server fill:#3182ce,stroke:#2b6cb0,stroke-width:1px,color:#fff;
     classDef DB fill:#336791,stroke:#224466,stroke-width:1px,color:#fff;
     class GamerPower GamerPower;
+    class Redrx Redrx;
     class TS3Server TS3Server;
     class PostgresDB DB;
 ```
+
+---
+
+## 🔗 RedRx URL Shortening
+
+To keep TeamSpeak pokes clean and within the 100-character limit, this bot integrates with [redrx.eu](https://redrx.eu/), a specialized URL shortening service.
+
+### Why RedRx?
+*   **Space Efficiency**: TeamSpeak pokes are extremely limited. Shortened links ensure the game title and link both fit.
+*   **Clickability**: Provides clean, professional-looking links that users are more likely to trust.
+
+### How to get an API Key:
+1.  Visit [redrx.eu](https://redrx.eu/).
+2.  Register for a free account.
+3.  Navigate to your **Dashboard** or **API Settings**.
+4.  Generate a new **API Key**.
+5.  Add this key to your `config.env` as `REDRX_API_KEY`.
 
 ---
 
