@@ -15,11 +15,20 @@ export QTWEBENGINE_DISABLE_SANDBOX=1
 export QTWEBENGINE_CHROMIUM_FLAGS="--no-sandbox --disable-gpu --disable-dev-shm-usage"
 export LD_LIBRARY_PATH=/opt/ts3
 
-# Load config.env (CR-stripped so Windows CRLF files work) and export to the bot.
+# Load config.env (CR-stripped) but do NOT overwrite existing environment variables.
+# This ensures that variables set in docker-compose.yml 'environment' take precedence.
 if [ -f /app/config.env ]; then
-  set -a
-  . <(sed 's/\r$//' /app/config.env)
-  set +a
+  echo "[entrypoint] Loading config.env (preserving existing environment)..."
+  while IFS='=' read -r key value || [ -n "$key" ]; do
+    # Skip comments and empty lines
+    [[ "$key" =~ ^[[:space:]]*#.*$ || -z "$key" ]] && continue
+    # Trim whitespace from key and value
+    key=$(echo "$key" | xargs)
+    value=$(echo "$value" | sed "s/^[[:space:]]*[\"']//;s/[\"'][[:space:]]*$//" | xargs)
+    if [ -n "$key" ] && [ -z "${!key}" ]; then
+      export "$key=$value"
+    fi
+  done < <(sed 's/\r$//' /app/config.env)
 fi
 
 : "${TS3_HOST:?TS3_HOST is required}"
