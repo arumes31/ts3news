@@ -23,7 +23,15 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://${DB_USER:-ts3bot}:${DB_PASS:-ts3botpass}@db:5432/${DB_NAME:-ts3news}?sslmode=disable
+      - TS3_HOST=${TS3_HOST}
+      - TS3_PORT=${TS3_PORT:-9987}
+      - TS3_NICKNAME=${TS3_NICKNAME:-MrFree}
+      - TS3_IDENTITY=${TS3_IDENTITY}
+      - CHECK_INTERVAL_HOURS=${CHECK_INTERVAL_HOURS:-12}
+      - POKE_DELAY_MS=${POKE_DELAY_MS:-1200}
+      - REDRX_API_KEY=${REDRX_API_KEY}
+      - TS3_TARGET_NICK=${TS3_TARGET_NICK}
+      - DATABASE_URL=${DATABASE_URL:-postgres://${DB_USER:-ts3bot}:${DB_PASS:-ts3botpass}@db:5432/${DB_NAME:-ts3news}?sslmode=disable}
     env_file:
       - config.env
     logging:
