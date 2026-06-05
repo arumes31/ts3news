@@ -1,0 +1,8 @@
+# The bot no longer uses the TS3 SDK; the official client is downloaded at build time.
+lib/
+temp/
+data/
+*.png
+*.run
+.git/
+.github/

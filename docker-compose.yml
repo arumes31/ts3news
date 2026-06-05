@@ -1,0 +1,9 @@
+services:
+  ts3-bot:
+    build: .
+    volumes:
+      # The entrypoint sources this (CR-stripped) and exports it to the bot.
+      - ./config.env:/app/config.env:ro
+    # The Qt/WebEngine client is happier with a bit of shared memory
+    shm_size: "256m"
+    restart: unless-stopped
