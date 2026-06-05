@@ -146,6 +146,21 @@ All options are specified as environment variables in `config.env`.
 
 ---
 
+## 💻 Local Development & Testing
+
+If you have Go installed, you can run the automated tests to verify the bot logic:
+
+```bash
+# Run unit tests
+go test -v ./internal/bot/...
+```
+
+The tests verify:
+*   **Notification Filtering**: Ensures the bot correctly identifies and skips games already sent to a user.
+*   **Database Persistence**: Validates that the bot correctly interacts with the PostgreSQL history table.
+
+---
+
 ## 📄 License
 
 This project is licensed under the MIT License.
