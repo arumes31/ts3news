@@ -2,244 +2,231 @@ package bot
 
 import (
 	"bufio"
-	"encoding/json"
+	"database/sql"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"strings"
-	"sync"
 	"time"
+
+	_ "github.com/lib/pq"
 	"ts3news/internal/clientquery"
 	"ts3news/internal/config"
 	"ts3news/internal/games"
 )
 
-// Where the IDs of already-announced giveaways are persisted, so the same deal
-// is not poked on every cycle. Lives in the client profile dir (survives restarts).
-const sentGamesPath = "/root/.ts3client/sent_games.json"
-
-var (
-	botInstance *Bot
-	once        sync.Once
-)
-
 type Bot struct {
-	Cfg  *config.Config
-	mu   sync.Mutex
-	sent map[int]bool
+	Cfg *config.Config
+	DB  *sql.DB
 }
 
 func NewBot(cfg *config.Config) *Bot {
-	once.Do(func() {
-		botInstance = &Bot{Cfg: cfg, sent: loadSent()}
-	})
-	return botInstance
-}
-
-// Run performs a single notification cycle: it waits for the TeamSpeak client to
-// be connected (via ClientQuery), then pokes the recipients about each new
-// limited-time paid Steam/Epic giveaway, and returns. The entrypoint invokes the
-// bot once per cycle and disconnects the client afterwards.
-func (b *Bot) Run() error {
-	apiKey := b.apiKey()
-	if apiKey == "" {
-		return fmt.Errorf("no ClientQuery API key (set TS3_APIKEY or ensure %s exists)", b.Cfg.ClientQueryINI)
-	}
-
-	if b.Cfg.TargetNick != "" {
-		log.Printf("Poke target restricted to nickname %q (testing mode)", b.Cfg.TargetNick)
-	}
-
-	cq, err := b.connectAndWait(apiKey, 90*time.Second)
+	db, err := sql.Open("postgres", cfg.DatabaseURL)
 	if err != nil {
-		return err
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer cq.Close()
 
-	return b.notify(cq)
+	// Simple health check and table initialization
+	if err := db.Ping(); err != nil {
+		log.Printf("Warning: Database ping failed: %v", err)
+	}
+
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS sent_notifications (
+		client_nickname TEXT,
+		game_id INTEGER,
+		PRIMARY KEY (client_nickname, game_id)
+	)`)
+	if err != nil {
+		log.Fatalf("Failed to initialize database table: %v", err)
+	}
+
+	return &Bot{
+		Cfg: cfg,
+		DB:  db,
+	}
 }
 
-// connectAndWait dials ClientQuery (retrying until the plugin's port is up) and
-// waits until the client reports it is connected to the server.
-func (b *Bot) connectAndWait(apiKey string, timeout time.Duration) (*clientquery.Client, error) {
-	deadline := time.Now().Add(timeout)
-	for {
-		cq, err := clientquery.Dial(b.Cfg.ClientQueryAddr, 5*time.Second)
+func (b *Bot) Run() error {
+	addr := b.Cfg.ClientQueryAddr
+	if addr == "" {
+		addr = "127.0.0.1:25639"
+	}
+
+	var c *clientquery.Client
+	var err error
+
+	log.Printf("Connecting to ClientQuery at %s...", addr)
+	for i := 0; i < 60; i++ {
+		c, err = clientquery.Dial(addr, 2*time.Second)
 		if err == nil {
-			if err = cq.Auth(apiKey); err == nil {
-				_ = cq.Use(1)
-				if cq.IsConnected() {
-					return cq, nil
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to dial ClientQuery after retries: %w", err)
+	}
+	defer c.Close()
+
+	// Authenticate with ClientQuery API Key
+	apiKey := b.getAPIKey()
+	if apiKey != "" {
+		log.Println("Authenticating with ClientQuery...")
+		if _, err := c.Command("auth apikey=" + apiKey); err != nil {
+			log.Printf("Warning: ClientQuery authentication failed: %v", err)
+		}
+	}
+
+	// Wait for connection to TS3 server
+	log.Println("Waiting for TS3 client to be connected to server (max 120s)...")
+	connected := false
+	for i := 0; i < 120; i++ {
+		if c.IsConnected() {
+			connected = true
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	if !connected {
+		return fmt.Errorf("TS3 client did not connect to server in time")
+	}
+
+	log.Println("TS3 client connected. Running notification cycle...")
+
+	if err := c.Use(1); err != nil {
+		log.Printf("Warning: 'use 1' failed: %v", err)
+	}
+
+	return b.RunCycle(c)
+}
+
+func (b *Bot) RunCycle(c *clientquery.Client) error {
+	freeGames, err := games.FetchFreeGames()
+	if err != nil {
+		return fmt.Errorf("failed to fetch games: %w", err)
+	}
+
+	clients, err := c.ClientList()
+	if err != nil {
+		return fmt.Errorf("failed to list clients: %w", err)
+	}
+
+	targetNick := b.Cfg.TargetNick
+	log.Printf("Online clients: %d. Target filter: '%s'. Found %d free games.", len(clients), targetNick, len(freeGames))
+
+	pokedCount := 0
+	for _, client := range clients {
+		if client.Type != 0 {
+			continue
+		}
+
+		if targetNick != "" && client.Nickname != targetNick {
+			continue
+		}
+
+		alreadySent, err := b.getSentGames(client.Nickname)
+		if err != nil {
+			log.Printf("Failed to get sent games for %s: %v", client.Nickname, err)
+			continue
+		}
+
+		var candidates []games.Game
+		for _, g := range freeGames {
+			sent := false
+			for _, id := range alreadySent {
+				if id == g.ID {
+					sent = true
+					break
 				}
 			}
-			cq.Close()
-		}
-		if time.Now().After(deadline) {
-			return nil, fmt.Errorf("timed out waiting for the TeamSpeak client to connect: %v", err)
-		}
-		log.Printf("Waiting for the TeamSpeak client to connect...")
-		time.Sleep(3 * time.Second)
-	}
-}
-
-// notify finds the recipients and pokes them about each new qualifying giveaway.
-func (b *Bot) notify(cq *clientquery.Client) error {
-	clients, err := cq.ClientList()
-	if err != nil {
-		return fmt.Errorf("clientlist: %w", err)
-	}
-	targets := b.selectTargets(clients)
-	if len(targets) == 0 {
-		if b.Cfg.TargetNick != "" {
-			log.Printf("Target %q is not online; nothing to poke.", b.Cfg.TargetNick)
-		} else {
-			log.Println("No clients online to poke.")
-		}
-		return nil
-	}
-
-	all, err := games.FetchGiveaways()
-	if err != nil {
-		return fmt.Errorf("fetching giveaways: %w", err)
-	}
-
-	// Keep only limited-time, normally-paid Steam/Epic giveaways we haven't sent yet.
-	var fresh []games.Game
-	for _, g := range all {
-		if g.IsLimitedTimePaidGiveaway() && !b.alreadySent(g.ID) {
-			fresh = append(fresh, g)
-		}
-	}
-	if len(fresh) == 0 {
-		log.Println("No new limited-time paid Steam/Epic giveaways to announce.")
-		return nil
-	}
-
-	pokeDelay := time.Duration(b.Cfg.PokeDelayMS) * time.Millisecond
-	first := true
-	pause := func() {
-		if !first {
-			time.Sleep(pokeDelay) // space out commands to avoid anti-flood
-		}
-		first = false
-	}
-
-	for _, g := range fresh {
-		poke := formatPoke(g)    // short popup (pokes are limited to ~100 chars)
-		msg := formatMessage(g)  // full details incl. link, via private message
-		for _, t := range targets {
-			pause()
-			if err := cq.Poke(t.CLID, poke); err != nil {
-				log.Printf("Failed to poke %s (clid %d): %v", t.Nickname, t.CLID, err)
+			if !sent {
+				candidates = append(candidates, g)
 			}
-			pause()
-			if err := cq.SendPrivateMessage(t.CLID, msg); err != nil {
-				log.Printf("Failed to message %s (clid %d): %v", t.Nickname, t.CLID, err)
-				continue
-			}
-			log.Printf("Notified %s (clid %d): %s", t.Nickname, t.CLID, msg)
 		}
-		b.markSent(g.ID)
+
+		if len(candidates) > 0 {
+			game := candidates[rand.Intn(len(candidates))]
+
+			shortURL, err := games.ShortenURL(game.URL)
+			if err != nil {
+				log.Printf("Shortening failed: %v", err)
+				shortURL = game.URL
+			}
+
+			// POKE: max 100 chars, MUST include link.
+			prefix := "Free: "
+			availableLen := 100 - len(prefix) - 1 - len(shortURL)
+			title := game.Title
+			if len(title) > availableLen {
+				title = title[:availableLen-3] + "..."
+			}
+			pokeMsg := fmt.Sprintf("%s%s %s", prefix, title, shortURL)
+			pmMsg := fmt.Sprintf("Daily Free Game! Title: %s. Link: %s", game.Title, shortURL)
+
+			log.Printf("Notifying %s about %s (%s)", client.Nickname, game.Title, shortURL)
+
+			if err := c.Poke(client.CLID, pokeMsg); err != nil {
+				log.Printf("Poke failed for %s: %v", client.Nickname, err)
+			}
+			if err := c.SendPrivateMessage(client.CLID, pmMsg); err != nil {
+				log.Printf("PM failed for %s: %v", client.Nickname, err)
+			}
+
+			if err := b.markAsSent(client.Nickname, game.ID); err != nil {
+				log.Printf("Failed to mark game as sent for %s: %v", client.Nickname, err)
+			}
+			pokedCount++
+
+			time.Sleep(time.Duration(b.Cfg.PokeDelayMS) * time.Millisecond)
+		}
 	}
+
+	log.Printf("Cycle finished. Poked %d users.", pokedCount)
 	return nil
 }
 
-// selectTargets returns the clients to poke: only real voice clients (type 0),
-// excluding the bot itself, and — when TargetNick is set — only that nickname.
-func (b *Bot) selectTargets(clients []clientquery.ClientInfo) []clientquery.ClientInfo {
-	var out []clientquery.ClientInfo
-	for _, c := range clients {
-		if c.Type != 0 {
-			continue
-		}
-		if strings.EqualFold(c.Nickname, b.Cfg.TS3Nickname) {
-			continue
-		}
-		if b.Cfg.TargetNick != "" && !strings.EqualFold(c.Nickname, b.Cfg.TargetNick) {
-			continue
-		}
-		out = append(out, c)
-	}
-	return out
-}
-
-// formatPoke builds a short poke text, limited to 100 characters.
-func formatPoke(g games.Game) string {
-	text := fmt.Sprintf("Free on %s: %s (was %s)", g.Store(), cleanTitle(g.Title), g.Worth)
-	if len(text) > 100 {
-		return text[:97] + "..."
-	}
-	return text
-}
-
-// formatMessage builds the private message text including link and full details.
-func formatMessage(g games.Game) string {
-	return fmt.Sprintf("Free on %s (was %s): %s - %s", g.Store(), g.Worth, cleanTitle(g.Title), g.URL)
-}
-
-
-// cleanTitle strips GamerPower's "(Steam) Giveaway" / "(Epic Games) Giveaway" suffixes.
-func cleanTitle(title string) string {
-	if i := strings.Index(title, " ("); i > 0 {
-		return strings.TrimSpace(title[:i])
-	}
-	return strings.TrimSpace(strings.TrimSuffix(title, " Giveaway"))
-}
-
-func (b *Bot) alreadySent(id int) bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.sent[id]
-}
-
-func (b *Bot) markSent(id int) {
-	b.mu.Lock()
-	b.sent[id] = true
-	snapshot := make([]int, 0, len(b.sent))
-	for k := range b.sent {
-		snapshot = append(snapshot, k)
-	}
-	b.mu.Unlock()
-	saveSent(snapshot)
-}
-
-func loadSent() map[int]bool {
-	m := make(map[int]bool)
-	data, err := os.ReadFile(sentGamesPath)
+func (b *Bot) getSentGames(nickname string) ([]int, error) {
+	rows, err := b.DB.Query("SELECT game_id FROM sent_notifications WHERE client_nickname = $1", nickname)
 	if err != nil {
-		return m
+		return nil, err
 	}
+	defer rows.Close()
+
 	var ids []int
-	if json.Unmarshal(data, &ids) == nil {
-		for _, id := range ids {
-			m[id] = true
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
 		}
+		ids = append(ids, id)
 	}
-	return m
+	return ids, nil
 }
 
-func saveSent(ids []int) {
-	if data, err := json.Marshal(ids); err == nil {
-		_ = os.WriteFile(sentGamesPath, data, 0644)
-	}
+func (b *Bot) markAsSent(nickname string, gameID int) error {
+	_, err := b.DB.Exec("INSERT INTO sent_notifications (client_nickname, game_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", nickname, gameID)
+	return err
 }
 
-// apiKey returns the ClientQuery API key, preferring the explicit config value
-// and otherwise reading it from clientquery.ini.
-func (b *Bot) apiKey() string {
+func (b *Bot) getAPIKey() string {
 	if b.Cfg.APIKey != "" {
 		return b.Cfg.APIKey
 	}
-	f, err := os.Open(b.Cfg.ClientQueryINI)
+	path := b.Cfg.ClientQueryINI
+	f, err := os.Open(path)
 	if err != nil {
 		return ""
 	}
 	defer f.Close()
+
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if k, v, ok := strings.Cut(line, "="); ok && strings.TrimSpace(k) == "api_key" {
-			return strings.TrimSpace(v)
+		line := scanner.Text()
+		if strings.HasPrefix(line, "api_key=") {
+			return strings.TrimPrefix(line, "api_key=")
 		}
 	}
 	return ""

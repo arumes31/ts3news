@@ -26,8 +26,11 @@
 *   🖥️ **Headless TS3 Client**: Runs the official TS3 desktop client in Xvfb, bypassing SDK-based server connection blocks.
 *   🔑 **Identity Injection**: Automates injecting high security-level identities (e.g. Level 29) directly into `settings.db`.
 *   📣 **Double Notifications**: Sends a short, non-intrusive **Poke** popup (under 100 characters) + a detailed **Private Message** containing the game link.
+*   🔗 **Short Link Integration**: Uses [redrx.eu](https://redrx.eu/) to provide clean, clickable links in pokes.
+*   🎮 **PC Only**: Filters for PC-specific giveaways (Steam, Epic, GOG, etc.), ignoring mobile and console-only offers.
 *   ⏱️ **Anti-Flood Control**: Customizable delay between actions to avoid server query anti-flood triggering.
-*   🔄 **Single-Cycle Flow**: Designed to connect, notify, disconnect, and sleep to conserve system memory.
+*   🔄 **Single-Cycle Flow**: Designed to connect, notify, close the client, and sleep to conserve system memory.
+*   🗄️ **Persistent History**: Stores game notification history in a **PostgreSQL** database to prevent duplicate pokes across restarts.
 
 ---
 
@@ -47,6 +50,7 @@ graph TD
         Entrypoint -->|1. Starts client & connects| TS3Client
         Entrypoint -->|2. Runs poke cycle| GoBot
         GoBot <-->|ClientQuery TCP:25639| TS3Client
+        GoBot <-->|SQL| PostgresDB["🗄️ PostgreSQL DB"]
     end
     
     GoBot -->|3. Fetches giveaways| GamerPower["🌐 GamerPower API"]
@@ -56,71 +60,72 @@ graph TD
     classDef default fill:#2d3748,stroke:#4a5568,stroke-width:1px,color:#fff;
     classDef GamerPower fill:#d69e2e,stroke:#b7791f,stroke-width:1px,color:#fff;
     classDef TS3Server fill:#3182ce,stroke:#2b6cb0,stroke-width:1px,color:#fff;
+    classDef DB fill:#336791,stroke:#224466,stroke-width:1px,color:#fff;
     class GamerPower GamerPower;
     class TS3Server TS3Server;
+    class PostgresDB DB;
 ```
+
+---
+
+## 💬 Notification Formats
+
+### Poke (High Visibility)
+The poke is strictly limited to 100 characters and always includes the shortened link.
+> **Format:** `Free: [Game Title] [Link]`
+
+### Private Message (Details)
+A private message is sent simultaneously with the full title and link.
+> **Format:** `Daily Free Game! Title: [Game Title]. Link: [Link]`
+
+---
+
+## 📋 Prerequisites
+
+Before deploying the bot, ensure you have the following ready:
+
+1.  **TeamSpeak 3 Identity**:
+    *   Generate a TeamSpeak 3 identity in your desktop client (**Tools > Identities**).
+    *   Export the identity string. It should look like `358981685Veb71QAWiw...`.
+    *   **Security Level**: Ensure the identity has a security level high enough to connect to your target server (e.g., Level 29).
+2.  **Server Permissions**:
+    *   The bot must be assigned to a server group with the following permissions:
+        *   `b_virtualserver_client_list` (See all users)
+        *   `b_virtualserver_channel_list` (See all channels)
+        *   `i_client_poke_power` (Ability to poke users)
+        *   `i_client_private_textmessage_power` (Ability to send PMs)
+3.  **RedRx API Key**:
+    *   Obtain an API key from [redrx.eu](https://redrx.eu/) for URL shortening.
 
 ---
 
 ## ⚙️ Configuration Options
 
-All options are specified as environment variables, which can be defined in a `config.env` file or passed directly to Docker Compose.
+All options are specified as environment variables in `config.env`.
 
 | Variable | Description | Default | Required |
 | :--- | :--- | :---: | :---: |
-| `TS3_HOST` | Hostname or IP of the TeamSpeak 3 server to connect to. | *None* | 🔴 **Yes** |
+| `TS3_HOST` | Hostname or IP of the TeamSpeak 3 server. | *None* | 🔴 **Yes** |
 | `TS3_PORT` | Voice port of the TeamSpeak 3 server (UDP). | `9987` | 🟢 No |
 | `TS3_NICKNAME` | Nickname for the bot client. | `MrFree` | 🟢 No |
-| `TS3_IDENTITY` | Exported identity string (must meet target server security level). | *None* | 🟢 No |
-| `CHECK_INTERVAL_HOURS` | Delay in hours between each check for new game giveaways. | `12` | 🟢 No |
-| `POKE_DELAY_MS` | Milliseconds to wait between pokes/messages to prevent anti-flood bans. | `1200` | 🟢 No |
-| `TS3_TARGET_NICK` | Strict nickname target for testing (if set, only this user is poked). | *None* | 🟢 No |
-| `CLIENTQUERY_ADDR` | Local telnet address for the ClientQuery plugin. | `127.0.0.1:25639` | 🟢 No |
-| `CLIENTQUERY_INI` | Configuration file path of ClientQuery plugin to retrieve api_key. | `/root/.ts3client/clientquery.ini` | 🟢 No |
+| `TS3_IDENTITY` | Exported identity string. | *None* | 🟢 No |
+| `CHECK_INTERVAL_HOURS` | Delay in hours between cycles. | `12` | 🟢 No |
+| `POKE_DELAY_MS` | Delay between pokes (anti-flood). | `1200` | 🟢 No |
+| `REDRX_API_KEY` | API Key for redrx.eu URL shortening. | *None* | 🔴 **Yes** |
+| `TS3_TARGET_NICK` | If set, only this nickname is poked (testing). | *None* | 🟢 No |
 
 ---
 
 ## 🛠️ Setup & Deployment
 
-### 1. Edit the Configuration
-Create a `config.env` file in the project root containing your parameters:
-
-```env
-TS3_HOST=wowcraft.pw
-TS3_PORT=9987
-TS3_NICKNAME=FreeGameAnnouncer
-TS3_IDENTITY=V2...your_exported_identity_string...
-CHECK_INTERVAL_HOURS=12
-POKE_DELAY_MS=1200
-# TS3_TARGET_NICK=MyTestName
-```
-
-> [!NOTE]
-> `TS3_IDENTITY` should contain the value of the exported identity (e.g. `identity="V2...="`). You can export this from your desktop client. Make sure it meets the target server's minimum security level.
-
-### 2. Run the Container
-Start the container using Docker Compose:
-
-```bash
-docker compose up -d --build
-```
-
----
-
-## 💻 Local Development
-
-If you have Go installed, you can run tests and lint check locally:
-
-```powershell
-# Run golangci-lint
-golangci-lint run
-
-# Run unit tests
-go test ./...
-```
+1.  **Configure**: Rename `example.env` to `config.env` and fill in your values.
+2.  **Run**: Start the container:
+    ```bash
+    docker compose up -d --build
+    ```
 
 ---
 
 ## 📄 License
 
-This project is licensed under the [MIT License](file:///c:/DR/Nextcloud/BUILD/ts3news/LICENSE) - see the [LICENSE](file:///c:/DR/Nextcloud/BUILD/ts3news/LICENSE) file for details.
+This project is licensed under the MIT License.

@@ -45,8 +45,19 @@ eval "$(dbus-launch --sh-syntax)"
 URL="ts3server://${TS3_HOST}?port=${TS3_PORT}&nickname=${NICK}"
 TS3PID=""
 stop_client() {
-  if [ -n "$TS3PID" ] && kill -0 "$TS3PID" 2>/dev/null; then
+  if [ -n "$TS3PID" ]; then
+    echo "[entrypoint] Stopping TS3 client (PID $TS3PID)..."
     kill "$TS3PID" 2>/dev/null || true
+    # Give it 5 seconds to exit gracefully
+    for _ in 1 2 3 4 5; do
+      if ! kill -0 "$TS3PID" 2>/dev/null; then break; fi
+      sleep 1
+    done
+    # Force kill if still running
+    if kill -0 "$TS3PID" 2>/dev/null; then
+       echo "[entrypoint] TS3 client still running, sending SIGKILL..."
+       kill -9 "$TS3PID" 2>/dev/null || true
+    fi
     wait "$TS3PID" 2>/dev/null || true
   fi
   TS3PID=""
@@ -56,7 +67,8 @@ trap 'stop_client; exit 0' INT TERM
 run_cycle() {
   echo "[entrypoint] Connecting to ${TS3_HOST}:${TS3_PORT} as ${NICK}..."
   : > /tmp/ts3.log
-  ( cd /opt/ts3 && ./ts3client_linux_amd64 -nosingleinstance "$URL" >/tmp/ts3.log 2>&1 ) &
+  # Run directly to capture correct PID
+  /opt/ts3/ts3client_linux_amd64 -nosingleinstance "$URL" >/tmp/ts3.log 2>&1 &
   TS3PID=$!
 
   # Clear any first-run/promo popups that could appear.

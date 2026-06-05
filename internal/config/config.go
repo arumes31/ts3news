@@ -24,6 +24,9 @@ type Config struct {
 	APIKey          string // optional explicit API key (overrides the .ini)
 	TargetNick      string // if set, only poke clients with this nickname (testing)
 	PokeDelayMS     int    // delay between consecutive pokes, to avoid anti-flood
+
+	// Database
+	DatabaseURL string // PostgreSQL connection URL
 }
 
 func LoadConfig() *Config {
@@ -57,6 +60,7 @@ func LoadConfig() *Config {
 		APIKey:             os.Getenv("TS3_APIKEY"),
 		TargetNick:         os.Getenv("TS3_TARGET_NICK"),
 		PokeDelayMS:        pokeDelay,
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
 	}
 }
 

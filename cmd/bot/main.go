@@ -6,20 +6,14 @@ import (
 	"ts3news/internal/config"
 )
 
-// The bot runs a single poke cycle and exits; the container entrypoint connects
-// the TeamSpeak client, invokes this once, disconnects, and sleeps until the next
-// cycle.
 func main() {
-	log.Println("Starting poke cycle...")
-
 	cfg := config.LoadConfig()
-	if cfg.TS3Host == "" {
-		log.Fatal("TS3_HOST is not set; check config.env")
-	}
-
 	b := bot.NewBot(cfg)
+
+	log.Println("Starting notification cycle...")
 	if err := b.Run(); err != nil {
-		log.Fatalf("Poke cycle failed: %v", err)
+		log.Fatalf("Error during run: %v", err)
 	}
-	log.Println("Poke cycle complete.")
+	
+	log.Println("Notification cycle finished successfully.")
 }

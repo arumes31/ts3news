@@ -1,9 +1,36 @@
 services:
+  db:
+    image: postgres:15-alpine
+    container_name: ts3-news-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-ts3bot}
+      POSTGRES_PASSWORD: ${DB_PASS:-ts3botpass}
+      POSTGRES_DB: ${DB_NAME:-ts3news}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ts3bot} -d ${DB_NAME:-ts3news}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   ts3-bot:
     build: .
-    volumes:
-      # The entrypoint sources this (CR-stripped) and exports it to the bot.
-      - ./config.env:/app/config.env:ro
-    # The Qt/WebEngine client is happier with a bit of shared memory
-    shm_size: "256m"
+    container_name: ts3-news-bot
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${DB_USER:-ts3bot}:${DB_PASS:-ts3botpass}@db:5432/${DB_NAME:-ts3news}?sslmode=disable
+    env_file:
+      - config.env
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:

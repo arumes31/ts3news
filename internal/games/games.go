@@ -1,25 +1,23 @@
 package games
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"strings"
+	"os"
 	"time"
 )
 
 type Game struct {
-	ID        int    `json:"id"`
-	Title     string `json:"title"`
-	Worth     string `json:"worth"`      // e.g. "$29.99", or "N/A" for always-free games
-	URL       string `json:"open_giveaway_url"`
-	Platforms string `json:"platforms"`  // e.g. "PC, Steam" / "PC, Epic Games Store"
-	EndDate   string `json:"end_date"`   // e.g. "2026-06-11 23:59:00", or "N/A"
-	Type      string `json:"type"`       // e.g. "Game"
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+	URL   string `json:"open_giveaway_url"`
 }
 
-// FetchGiveaways returns all current game giveaways from GamerPower.
-func FetchGiveaways() ([]Game, error) {
-	resp, err := http.Get("https://www.gamerpower.com/api/giveaways?type=game&sort-by=date")
+func FetchFreeGames() ([]Game, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get("https://www.gamerpower.com/api/giveaways?type=game&platform=pc")
 	if err != nil {
 		return nil, err
 	}
@@ -32,46 +30,48 @@ func FetchGiveaways() ([]Game, error) {
 	return games, nil
 }
 
-// IsLimitedTimePaidGiveaway reports whether this is a normally-paid Steam or Epic
-// game that is free only for a limited time — i.e. a real "was €X, now free"
-// deal, not an always-free / free-to-play title.
-func (g Game) IsLimitedTimePaidGiveaway() bool {
-	return g.isSteamOrEpic() && g.isNormallyPaid() && g.isLimitedTime()
+type ShortenRequest struct {
+	LongURL     string `json:"long_url"`
+	PreviewMode bool   `json:"preview_mode"`
 }
 
-// Store returns the friendly store name ("Steam" or "Epic Games"), or "" if neither.
-func (g Game) Store() string {
-	p := strings.ToLower(g.Platforms)
-	switch {
-	case strings.Contains(p, "steam"):
-		return "Steam"
-	case strings.Contains(p, "epic games"):
-		return "Epic Games"
-	default:
-		return ""
-	}
+type ShortenResponse struct {
+	ShortURL string `json:"short_url"`
 }
 
-func (g Game) isSteamOrEpic() bool { return g.Store() != "" }
+func ShortenURL(longURL string) (string, error) {
+	apiKey := os.Getenv("REDRX_API_KEY")
+	if apiKey == "" {
+		return longURL, nil
+	}
 
-func (g Game) isNormallyPaid() bool {
-	w := strings.TrimSpace(g.Worth)
-	if w == "" || strings.EqualFold(w, "N/A") {
-		return false
+	reqBody, _ := json.Marshal(ShortenRequest{
+		LongURL:     longURL,
+		PreviewMode: false,
+	})
+	req, err := http.NewRequest("POST", "https://redrx.eu/api/v1/shorten", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return longURL, err
 	}
-	// Treat "$0.00" / "0" as not paid.
-	digits := strings.NewReplacer("$", "", "€", "", ".", "", ",", "", " ", "").Replace(w)
-	return strings.Trim(digits, "0") != ""
-}
 
-func (g Game) isLimitedTime() bool {
-	e := strings.TrimSpace(g.EndDate)
-	if e == "" || strings.EqualFold(e, "N/A") {
-		return false
+	req.Header.Set("X-API-KEY", apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return longURL, err
 	}
-	// If the end date is parseable and already in the past, it is no longer offered.
-	if t, err := time.Parse("2006-01-02 15:04:05", e); err == nil {
-		return t.After(time.Now())
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return longURL, fmt.Errorf("redrx returned status %d", resp.StatusCode)
 	}
-	return true
+
+	var res ShortenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return longURL, err
+	}
+
+	return res.ShortURL, nil
 }
