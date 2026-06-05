@@ -99,3 +99,26 @@ func (c *Client) SendPrivateMessage(clid int, message string) error {
 func (c *Client) WhoAmI() ([]string, error) {
 	return c.Command("whoami")
 }
+
+// IsConnected reports whether the client is currently connected to a server
+// (whoami returns a non-zero own client id).
+func (c *Client) IsConnected() bool {
+	data, err := c.WhoAmI()
+	if err != nil {
+		return false // "currently not possible" => not connected
+	}
+	for _, line := range data {
+		for _, f := range strings.Fields(line) {
+			if v, ok := strings.CutPrefix(f, "clid="); ok {
+				return v != "0" && v != ""
+			}
+		}
+	}
+	return false
+}
+
+// Disconnect disconnects the client from the current server (it stays running).
+func (c *Client) Disconnect() error {
+	_, err := c.Command("disconnect")
+	return err
+}

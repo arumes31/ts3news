@@ -23,6 +23,7 @@ type Config struct {
 	ClientQueryINI  string // path to clientquery.ini (to read the API key)
 	APIKey          string // optional explicit API key (overrides the .ini)
 	TargetNick      string // if set, only poke clients with this nickname (testing)
+	PokeDelayMS     int    // delay between consecutive pokes, to avoid anti-flood
 }
 
 func LoadConfig() *Config {
@@ -36,6 +37,10 @@ func LoadConfig() *Config {
 	interval, _ := strconv.Atoi(os.Getenv("CHECK_INTERVAL_HOURS"))
 	if interval == 0 {
 		interval = 12
+	}
+	pokeDelay, _ := strconv.Atoi(os.Getenv("POKE_DELAY_MS"))
+	if pokeDelay == 0 {
+		pokeDelay = 1200
 	}
 
 	return &Config{
@@ -51,6 +56,7 @@ func LoadConfig() *Config {
 		ClientQueryINI:     envDefault("CLIENTQUERY_INI", "/root/.ts3client/clientquery.ini"),
 		APIKey:             os.Getenv("TS3_APIKEY"),
 		TargetNick:         os.Getenv("TS3_TARGET_NICK"),
+		PokeDelayMS:        pokeDelay,
 	}
 }
 
