@@ -7,7 +7,7 @@
 # ---- Stage 1: build the Go bot (pure Go, no cgo) ----
 FROM golang:1.26-bookworm AS gobuilder
 WORKDIR /app
-COPY go.mod ./
+COPY go.mod go.sum ./
 COPY cmd ./cmd
 COPY internal ./internal
 RUN CGO_ENABLED=0 GOOS=linux go build -o /bot ./cmd/bot
