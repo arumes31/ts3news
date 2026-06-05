@@ -2,26 +2,28 @@
   <img src="logo.png" width="160" alt="TS3News Logo" />
 </p>
 
-# TS3 Free Game Notification Bot 🎮
+<h1 align="center">TS3 Free Game Notification Bot 🎮</h1>
 
-A Dockerized TeamSpeak 3 bot that automatically notifies users of free limited-time Steam and Epic Games Store giveaways. 
+<p align="center">
+  <a href="https://github.com/arumes31/ts3news"><img src="https://img.shields.io/github/go-mod/go-version/arumes31/ts3news?style=for-the-badge&logo=go&logoColor=white&color=00ADD8" alt="Go Version" /></a>
+  <a href="https://github.com/arumes31/ts3news/blob/main/LICENSE"><img src="https://img.shields.io/github/license/arumes31/ts3news?style=for-the-badge&logo=mit&logoColor=white&color=FF5733" alt="License" /></a>
+  <a href="https://github.com/arumes31/ts3news/stargazers"><img src="https://img.shields.io/github/stars/arumes31/ts3news?style=for-the-badge&logo=github&logoColor=white&color=FFD700" alt="GitHub Stars" /></a>
+  <a href="https://github.com/arumes31/ts3news/issues"><img src="https://img.shields.io/github/issues/arumes31/ts3news?style=for-the-badge&logo=github&logoColor=white&color=8A2BE2" alt="GitHub Issues" /></a>
+</p>
 
-It runs a headless instance of the official TeamSpeak 3 client inside Docker, connects to the server, and utilizes the **ClientQuery** plugin to poke and message online clients.
+<p align="center">
+  <strong>A Dockerized TeamSpeak 3 bot that automatically notifies users of free limited-time Steam and Epic Games Store giveaways.</strong>
+</p>
 
----
-
-## 🌟 Badges
-
-[![Go Version](https://img.shields.io/github/go-mod/go-version/arumes31/ts3news?style=for-the-badge&logo=go&logoColor=white&color=00ADD8)](https://github.com/arumes31/ts3news)
-[![License](https://img.shields.io/github/license/arumes31/ts3news?style=for-the-badge&logo=mit&logoColor=white&color=FF5733)](https://github.com/arumes31/ts3news/blob/main/LICENSE)
-[![GitHub Stars](https://img.shields.io/github/stars/arumes31/ts3news?style=for-the-badge&logo=github&logoColor=white&color=FFD700)](https://github.com/arumes31/ts3news/stargazers)
-[![GitHub Issues](https://img.shields.io/github/issues/arumes31/ts3news?style=for-the-badge&logo=github&logoColor=white&color=8A2BE2)](https://github.com/arumes31/ts3news/issues)
+<p align="center">
+  It runs a headless instance of the official TeamSpeak 3 client inside Docker, connects to the server, and utilizes the <strong>ClientQuery</strong> plugin to poke and private message online clients.
+</p>
 
 ---
 
 ## 🚀 Key Features
 
-*   🛡️ **Headless TS3 Client**: Runs the official TS3 desktop client in Xvfb, bypassing SDK-based server connection blocks.
+*   🖥️ **Headless TS3 Client**: Runs the official TS3 desktop client in Xvfb, bypassing SDK-based server connection blocks.
 *   🔑 **Identity Injection**: Automates injecting high security-level identities (e.g. Level 29) directly into `settings.db`.
 *   📣 **Double Notifications**: Sends a short, non-intrusive **Poke** popup (under 100 characters) + a detailed **Private Message** containing the game link.
 *   ⏱️ **Anti-Flood Control**: Customizable delay between actions to avoid server query anti-flood triggering.
@@ -65,16 +67,16 @@ graph TD
 All options are specified as environment variables, which can be defined in a `config.env` file or passed directly to Docker Compose.
 
 | Variable | Description | Default | Required |
-| :--- | :--- | :--- | :---: |
-| `TS3_HOST` | Hostname or IP of the TeamSpeak 3 server to connect to. | | **Yes** |
-| `TS3_PORT` | Voice port of the TeamSpeak 3 server (UDP). | `9987` | No |
-| `TS3_NICKNAME` | Nickname for the bot client. | `MrFree` | No |
-| `TS3_IDENTITY` | Exported identity string (must meet target server security level). | | No |
-| `CHECK_INTERVAL_HOURS` | Delay in hours between each check for new game giveaways. | `12` | No |
-| `POKE_DELAY_MS` | Milliseconds to wait between pokes/messages to prevent anti-flood bans. | `1200` | No |
-| `TS3_TARGET_NICK` | Strict nickname target for testing (if set, only this user is poked). | | No |
-| `CLIENTQUERY_ADDR` | Local telnet address for the ClientQuery plugin. | `127.0.0.1:25639` | No |
-| `CLIENTQUERY_INI` | Configuration file path of ClientQuery plugin to retrieve api_key. | `/root/.ts3client/clientquery.ini` | No |
+| :--- | :--- | :---: | :---: |
+| `TS3_HOST` | Hostname or IP of the TeamSpeak 3 server to connect to. | *None* | 🔴 **Yes** |
+| `TS3_PORT` | Voice port of the TeamSpeak 3 server (UDP). | `9987` | 🟢 No |
+| `TS3_NICKNAME` | Nickname for the bot client. | `MrFree` | 🟢 No |
+| `TS3_IDENTITY` | Exported identity string (must meet target server security level). | *None* | 🟢 No |
+| `CHECK_INTERVAL_HOURS` | Delay in hours between each check for new game giveaways. | `12` | 🟢 No |
+| `POKE_DELAY_MS` | Milliseconds to wait between pokes/messages to prevent anti-flood bans. | `1200` | 🟢 No |
+| `TS3_TARGET_NICK` | Strict nickname target for testing (if set, only this user is poked). | *None* | 🟢 No |
+| `CLIENTQUERY_ADDR` | Local telnet address for the ClientQuery plugin. | `127.0.0.1:25639` | 🟢 No |
+| `CLIENTQUERY_INI` | Configuration file path of ClientQuery plugin to retrieve api_key. | `/root/.ts3client/clientquery.ini` | 🟢 No |
 
 ---
 
