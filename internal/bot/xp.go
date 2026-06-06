@@ -186,12 +186,18 @@ func (b *Bot) computeMiscMult(uid, nickname string, cid int, ctx cycleContext) f
 		mult *= partyMult
 	}
 
-	// Group size XP penalty: Groups of 1-4 get 100% XP. Groups of 5+ get a 5% penalty per extra member (min 50%).
+	// Group size XP penalty: Solo players get 100% XP. Groups of 2-4 get a 10% penalty.
+	// Groups of 5+ get an additional 5% penalty per extra member (min 50%).
 	groupSize := ctx.channelNormalCount[cid]
-	if groupSize > 4 {
-		groupPenalty := 1.0 - float64(groupSize-4)*0.05
-		if groupPenalty < 0.5 {
-			groupPenalty = 0.5
+	if groupSize >= 2 {
+		var groupPenalty float64
+		if groupSize <= 4 {
+			groupPenalty = 0.9 // 10% penalty for small groups
+		} else {
+			groupPenalty = 0.9 - float64(groupSize-4)*0.05
+			if groupPenalty < 0.5 {
+				groupPenalty = 0.5
+			}
 		}
 		mult *= groupPenalty
 	}
@@ -1199,6 +1205,9 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 			}
 		}
 	}
+	// Calculate gear XP multiplier
+	// Only Rare+ items provide XP bonuses (Common/Uncommon have 1.0-1.05x)
+	// Max possible from gear: 30 slots × 1.30x = ~2600x (capped by rarity distribution)
 	rows, err := b.DB.Query("SELECT gear_id, durability, enchantment_id FROM user_gear WHERE client_uid = $1", uid)
 	if err == nil {
 		defer func() { _ = rows.Close() }()
