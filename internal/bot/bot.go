@@ -141,7 +141,23 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		// 2. Resolve Group Combat
 		battleLogs, rewardXP, victory := b.resolveChannelCombat(users, mobs)
 
-		// 3. Post-battle processing for each user
+		// 3. Pool Loot for Channel (Shared cross-channel)
+		type lootResult struct {
+			uid  string
+			note string
+		}
+		var channelLoot []lootResult
+		if victory {
+			for _, mob := range mobs {
+				// Each mob can drop items to ONE random member of the party
+				winner := users[rand.Intn(len(users))]
+				if note := b.rollLootForUser(winner.UID, mob); note != "" {
+					channelLoot = append(channelLoot, lootResult{uid: winner.UID, note: note})
+				}
+			}
+		}
+
+		// 4. Post-battle processing for each user
 		for _, user := range users {
 			_ = b.touchUser(user.UID, user.Nickname, 0)
 
@@ -173,16 +189,12 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			// Durability & Loot Drops
 			b.applyDurabilityLoss(user.UID, !victory)
 			
-			var allLootNotes []string
-			if victory {
-				for _, mob := range mobs {
-					if lootNote := b.rollLootForUser(user.UID, mob); lootNote != "" {
-						allLootNotes = append(allLootNotes, lootNote)
-					}
+			userLootFound := false
+			for _, cl := range channelLoot {
+				if cl.uid == user.UID {
+					notes = append(notes, cl.note)
+					userLootFound = true
 				}
-			}
-			if len(allLootNotes) > 0 {
-				notes = append(notes, allLootNotes...)
 			}
 
 			// Apply Groups & Titles
@@ -202,7 +214,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 
 			// Persona check
 			botNick := b.Cfg.TS3Nickname
-			if len(allLootNotes) > 0 || artifactPoke != "" {
+			if userLootFound || artifactPoke != "" {
 				botNick = "godsfinger"
 			}
 			_ = c.SetNickname(botNick)

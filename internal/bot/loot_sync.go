@@ -20,6 +20,19 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 	// 1. Get all active items for this user
 	activeItemNames := map[string]bool{}
 
+	// Helper to format group names with 30-char limit: "(gs:XXXX) Name..."
+	formatGSName := func(score int, name string) string {
+		prefix := fmt.Sprintf("(gs:%d) ", score)
+		avail := 30 - len(prefix)
+		if avail <= 0 {
+			return prefix[:30]
+		}
+		if len(name) > avail {
+			name = name[:avail]
+		}
+		return prefix + name
+	}
+
 	// Gear
 	grows, err := b.DB.Query("SELECT gear_id FROM user_gear WHERE client_uid = $1", uid)
 	if err == nil {
@@ -28,8 +41,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 			var id string
 			if err := grows.Scan(&id); err == nil {
 				if g, ok := content.GetGearByID(id); ok {
-					name := fmt.Sprintf("(gs:%d) %s", g.Stats.Score(), g.Name)
-					activeItemNames[name] = true
+					activeItemNames[formatGSName(g.Stats.Score(), g.Name)] = true
 				}
 			}
 		}
@@ -39,8 +51,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 	var aName sql.NullString
 	if err := b.DB.QueryRow("SELECT artifact_name FROM users WHERE client_uid = $1", uid).Scan(&aName); err == nil && aName.Valid && aName.String != "" {
 		if art, ok := content.GetArtifactByName(aName.String); ok {
-			name := fmt.Sprintf("(gs:%d) %s", art.Score(), art.Name)
-			activeItemNames[name] = true
+			activeItemNames[formatGSName(art.Score(), art.Name)] = true
 		}
 	}
 
@@ -52,8 +63,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 			var id string
 			if err := srows.Scan(&id); err == nil {
 				if s, ok := content.GetSkillByID(id); ok {
-					name := fmt.Sprintf("(gs:%d) %s", s.Score(), s.Name)
-					activeItemNames[name] = true
+					activeItemNames[formatGSName(s.Score(), s.Name)] = true
 				}
 			}
 		}
