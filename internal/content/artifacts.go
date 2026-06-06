@@ -9,18 +9,46 @@ import (
 type GearSlot string
 
 const (
-	SlotWeapon GearSlot = "Weapon"
-	SlotArmor  GearSlot = "Armor"
-	SlotRelic  GearSlot = "Relic"
+	SlotHead      GearSlot = "Head"
+	SlotNeck      GearSlot = "Neck"
+	SlotShoulders GearSlot = "Shoulders"
+	SlotBack      GearSlot = "Back"
+	SlotChest     GearSlot = "Chest"
+	SlotWrists    GearSlot = "Wrists"
+	SlotHands     GearSlot = "Hands"
+	SlotWaist     GearSlot = "Waist"
+	SlotLegs      GearSlot = "Legs"
+	SlotFeet      GearSlot = "Feet"
+	SlotFinger1   GearSlot = "Finger1"
+	SlotFinger2   GearSlot = "Finger2"
+	SlotTrinket1  GearSlot = "Trinket1"
+	SlotTrinket2  GearSlot = "Trinket2"
+	SlotMainHand  GearSlot = "MainHand"
+	SlotOffHand   GearSlot = "OffHand"
+	SlotRanged    GearSlot = "Ranged"
+	SlotRelic     GearSlot = "Relic"
+	SlotArtifact  GearSlot = "Artifact"
+	SlotSoul      GearSlot = "Soul"
+	SlotAura      GearSlot = "Aura"
+	SlotCharm     GearSlot = "Charm"
+	SlotMount     GearSlot = "Mount"
+	SlotCompanion GearSlot = "Companion"
 )
 
+var AllSlots = []GearSlot{
+	SlotHead, SlotNeck, SlotShoulders, SlotBack, SlotChest, SlotWrists,
+	SlotHands, SlotWaist, SlotLegs, SlotFeet, SlotFinger1, SlotFinger2,
+	SlotTrinket1, SlotTrinket2, SlotMainHand, SlotOffHand, SlotRanged,
+	SlotRelic, SlotArtifact, SlotSoul, SlotAura, SlotCharm, SlotMount, SlotCompanion,
+}
+
 type Gear struct {
-	ID          string
-	Name        string
-	Slot        GearSlot
+	ID           string
+	Name         string
+	Slot         GearSlot
 	XPMultiplier float64
-	Duration    time.Duration
-	Description string
+	Duration     time.Duration
+	Description  string
 }
 
 type Artifact struct {
@@ -39,31 +67,38 @@ func (a Artifact) Effect() string {
 	return fmt.Sprintf("-%.0f%%", (1.0-a.Mult)*100)
 }
 
-var allGear = []Gear{
-	// Weapons (Small buffs, 3 days)
-	{"W1", "Rusty Broadsword", SlotWeapon, 1.05, 72 * time.Hour, "+5% XP"},
-	{"W2", "Silver Dagger", SlotWeapon, 1.10, 72 * time.Hour, "+10% XP"},
-	{"W3", "Golden Halberd", SlotWeapon, 1.15, 72 * time.Hour, "+15% XP"},
-	{"W4", "Void Bow", SlotWeapon, 1.20, 72 * time.Hour, "+20% XP"},
-	{"W5", "Cursed Blade", SlotWeapon, 0.90, 72 * time.Hour, "-10% XP"},
-
-	// Armor (Medium buffs, 5 days)
-	{"A1", "Leather Tunic", SlotArmor, 1.10, 120 * time.Hour, "+10% XP"},
-	{"A2", "Iron Plate", SlotArmor, 1.15, 120 * time.Hour, "+15% XP"},
-	{"A3", "Mithril Chainmail", SlotArmor, 1.25, 120 * time.Hour, "+25% XP"},
-	{"A4", "Abyssal Cloak", SlotArmor, 1.30, 120 * time.Hour, "+30% XP"},
-	{"A5", "Heavy Shackles", SlotArmor, 0.80, 120 * time.Hour, "-20% XP"},
-
-	// Relics (Utility, 7 days)
-	{"R1", "Lucky Rabbit's Foot", SlotRelic, 1.15, 168 * time.Hour, "+15% XP"},
-	{"R2", "Amulet of Haste", SlotRelic, 1.20, 168 * time.Hour, "+20% XP"},
-	{"R3", "Crown of the Sovereign", SlotRelic, 1.50, 168 * time.Hour, "+50% XP"},
-	{"R4", "Broken Compass", SlotRelic, 0.75, 168 * time.Hour, "-25% XP"},
+type Title struct {
+	Name         string
+	XPMultiplier float64
 }
 
+var allGear []Gear
 var corruptedArtifacts []Artifact
+var positiveTitles []Title
+var negativeTitles []Title
 
 func init() {
+	// Generate base gear for each slot
+	for _, slot := range AllSlots {
+		allGear = append(allGear, Gear{
+			ID:           fmt.Sprintf("B_%s", slot),
+			Name:         fmt.Sprintf("Novice %s", slot),
+			Slot:         slot,
+			XPMultiplier: 1.01,
+			Duration:     168 * time.Hour, // 7 days
+			Description:  "+1% XP",
+		})
+	}
+
+	// Add more interesting gear
+	allGear = append(allGear, []Gear{
+		{"W1", "Rusty Broadsword", SlotMainHand, 1.05, 72 * time.Hour, "+5% XP"},
+		{"W2", "Silver Dagger", SlotMainHand, 1.10, 72 * time.Hour, "+10% XP"},
+		{"A1", "Leather Tunic", SlotChest, 1.10, 120 * time.Hour, "+10% XP"},
+		{"R1", "Lucky Rabbit's Foot", SlotRelic, 1.15, 168 * time.Hour, "+15% XP"},
+	}...)
+
+	// Generate 100 unique corrupted artifacts
 	prefixes := []string{"Cursed", "Blighted", "Tainted", "Demonic", "Shadow", "Void", "Ruined", "Shattered", "Forbidden", "Malevolent"}
 	nouns := []string{"Chalice", "Orb", "Scepter", "Tome", "Crown", "Amulet", "Skull", "Idol", "Heart", "Eye"}
 	
@@ -84,6 +119,26 @@ func init() {
 			idx++
 		}
 	}
+
+	// Generate 100 Positive Titles
+	posPrefixes := []string{"Divine", "Glorious", "Eternal", "Radiant", "Immortal", "Mythic", "Legendary", "Ancient", "Primal", "Celestial"}
+	posNouns := []string{"Sovereign", "Overlord", "Godslayer", "Archon", "Paragon", "Vanguard", "Sentinel", "Oracle", "Exarch", "Titan"}
+	for _, p := range posPrefixes {
+		for _, n := range posNouns {
+			mult := 2.0 + (rand.Float64() * 3.0) // 2x to 5x
+			positiveTitles = append(positiveTitles, Title{Name: p + " " + n, XPMultiplier: mult})
+		}
+	}
+
+	// Generate 20 Negative Titles
+	negPrefixes := []string{"Wretched", "Damned", "Forlorn", "Forsaken"}
+	negNouns := []string{"Peon", "Outcast", "Traitor", "Coward", "Scum"}
+	for _, p := range negPrefixes {
+		for _, n := range negNouns {
+			mult := 0.05 + (rand.Float64() * 0.2) // 0.05x to 0.25x
+			negativeTitles = append(negativeTitles, Title{Name: p + " " + n, XPMultiplier: mult})
+		}
+	}
 }
 
 func RandomArtifact() Artifact {
@@ -92,6 +147,32 @@ func RandomArtifact() Artifact {
 
 func RandomGearDrop() Gear {
 	return allGear[rand.Intn(len(allGear))]
+}
+
+func RandomStarterGear() Gear {
+	// Pick a random novice gear
+	return allGear[rand.Intn(len(AllSlots))]
+}
+
+func RandomTitle() Title {
+	if rand.Float64() < 0.8 {
+		return positiveTitles[rand.Intn(len(positiveTitles))]
+	}
+	return negativeTitles[rand.Intn(len(negativeTitles))]
+}
+
+func IsTitle(name string) bool {
+	for _, t := range positiveTitles {
+		if t.Name == name {
+			return true
+		}
+	}
+	for _, t := range negativeTitles {
+		if t.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func GetGearByID(id string) (Gear, bool) {

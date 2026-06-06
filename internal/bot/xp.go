@@ -29,10 +29,8 @@ const (
 	slothGraceDays     = 7    // days offline before the Sloth debuff applies
 	slothDailyDecay    = 0.02 // 2% XP lost per offline day after the grace period
 	artifactChance     = 0.01 // 1% chance per cycle to receive a corrupted artifact
-	artifactDays       = 1    // artifact lasts ~1 day
-	streakBronze       = 3
-	streakSilver       = 5
-	streakGold         = 7
+	titleChance        = 0.005 // 0.5% chance per cycle to receive a rare title
+	gearChance         = 0.05  // 5% chance per cycle to receive random gear
 )
 
 // cycleContext holds per-cycle shared facts used by the XP modifiers.
@@ -54,19 +52,20 @@ func (b *Bot) buildCycleContext(clients []clientquery.ClientInfo) cycleContext {
 	return cycleContext{onlineNormal: normal, onlineNicks: online, today: time.Now()}
 }
 
-// processUserXP applies all XP gains for one user this cycle: daily login bonus,
-// the (multiplier-adjusted) main award, loot boxes, and rolling a new artifact.
-// hasGame=false applies the no-game penalty. It returns the resulting level
-// change, human-readable notes for the PM, and an optional artifact-announcement
-// poke (empty if none was granted).
+// processUserXP applies all XP gains for one user this cycle.
 func (b *Bot) processUserXP(uid, nickname string, base int, hasGame bool, ctx cycleContext) (*levelResult, []string, string) {
 	var notes []string
 	delta := 0
 
-	if b.Cfg.EnableXPModifiers && b.dailyLoginDue(uid, ctx.today) {
-		delta += dailyLoginXP
-		notes = append(notes, fmt.Sprintf("daily login +%d", dailyLoginXP))
-		b.setLastLogin(uid, ctx.today)
+	if b.Cfg.EnableXPModifiers {
+		// Rule: Every user must have at least one gear.
+		b.ensureUserHasGear(uid)
+
+		if b.dailyLoginDue(uid, ctx.today) {
+			delta += dailyLoginXP
+			notes = append(notes, fmt.Sprintf("daily login +%d", dailyLoginXP))
+			b.setLastLogin(uid, ctx.today)
+		}
 	}
 
 	mult, mnotes := b.computeAwardMult(uid, nickname, ctx)
@@ -98,13 +97,12 @@ func (b *Bot) processUserXP(uid, nickname string, base int, hasGame bool, ctx cy
 
 	artifactPoke := ""
 	if b.Cfg.EnableXPModifiers {
-		artifactPoke = b.rollArtifact(uid, ctx.today)
+		artifactPoke = b.rollLootAndTitles(uid, ctx.today)
 	}
 	return lr, notes, artifactPoke
 }
 
-// computeAwardMult returns the combined XP multiplier from streaks, crits, the
-// server population, party bonus and any active artifact, plus display notes.
+// computeAwardMult returns the combined XP multiplier.
 func (b *Bot) computeAwardMult(uid, nickname string, ctx cycleContext) (float64, []string) {
 	if !b.Cfg.EnableXPModifiers {
 		return 1.0, nil
@@ -129,20 +127,21 @@ func (b *Bot) computeAwardMult(uid, nickname string, ctx cycleContext) (float64,
 		mult *= partyMult
 		notes = append(notes, fmt.Sprintf("party x%g", partyMult))
 	}
-	if am, label := b.activeGearMult(uid, ctx.today); am != 1 {
-		mult *= am
-		notes = append(notes, label...)
-	}
+	
+	am, lnotes := b.activeLootMult(uid, ctx.today)
+	mult *= am
+	notes = append(notes, lnotes...)
+
 	return mult, notes
 }
 
 func streakMultiplier(streak int) float64 {
 	switch {
-	case streak >= streakGold:
+	case streak >= 7: // Gold
 		return 2.0
-	case streak >= streakSilver:
+	case streak >= 5: // Silver
 		return 1.5
-	case streak >= streakBronze:
+	case streak >= 3: // Bronze
 		return 1.25
 	default:
 		return 1.0
@@ -150,7 +149,7 @@ func streakMultiplier(streak int) float64 {
 }
 
 func serverMultiplier(onlineNormal int) float64 {
-	humans := onlineNormal - 1 // exclude the bot's own client
+	humans := onlineNormal - 1 // exclude the bot
 	if humans < 1 {
 		humans = 1
 	}
@@ -208,7 +207,7 @@ func (b *Bot) updateStreak(uid string, today time.Time) int {
 		return 0
 	}
 	if last.Valid && sameDay(last.Time, today) {
-		return streak // already counted today
+		return streak
 	}
 	if last.Valid && sameDay(last.Time, today.AddDate(0, 0, -1)) {
 		streak++
@@ -231,110 +230,103 @@ func (b *Bot) setLastLogin(uid string, today time.Time) {
 	_, _ = b.DB.Exec("UPDATE users SET last_login_date=$2 WHERE client_uid=$1", uid, today)
 }
 
-// ---- gear / artifacts ----
+// ---- gear / artifacts / titles ----
 
-func (b *Bot) activeGearMult(uid string, today time.Time) (float64, []string) {
+func (b *Bot) ensureUserHasGear(uid string) {
+	var count int
+	if err := b.DB.QueryRow("SELECT COUNT(*) FROM user_gear WHERE client_uid = $1", uid).Scan(&count); err == nil && count == 0 {
+		gear := content.RandomStarterGear()
+		expires := time.Now().Add(gear.Duration)
+		_, _ = b.DB.Exec("INSERT INTO user_gear (client_uid, slot, gear_id, expires) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+			uid, string(gear.Slot), gear.ID, expires)
+		log.Printf("mandatory loot: granted %s to %s", gear.Name, uid)
+	}
+}
+
+func (b *Bot) activeLootMult(uid string, today time.Time) (float64, []string) {
 	mult := 1.0
 	var notes []string
 
-	query := `SELECT 
-		artifact_mult, artifact_name, artifact_expires,
-		weapon_id, weapon_expires,
-		armor_id, armor_expires,
-		relic_id, relic_expires
-		FROM users WHERE client_uid=$1`
-		
-	var artMult sql.NullFloat64
-	var artName sql.NullString
-	var artExpires sql.NullTime
-	var wID, aID, rID sql.NullString
-	var wExp, aExp, rExp sql.NullTime
-
-	if err := b.DB.QueryRow(query, uid).Scan(
-		&artMult, &artName, &artExpires,
-		&wID, &wExp,
-		&aID, &aExp,
-		&rID, &rExp,
-	); err != nil {
-		return mult, notes
+	// 1. Title
+	var title sql.NullString
+	var tMult sql.NullFloat64
+	var tExp sql.NullTime
+	if err := b.DB.QueryRow("SELECT title, title_mult, title_expires FROM users WHERE client_uid=$1", uid).Scan(&title, &tMult, &tExp); err == nil {
+		if tExp.Valid && !today.After(tExp.Time) && title.Valid {
+			mult *= tMult.Float64
+			notes = append(notes, fmt.Sprintf("%s x%g", title.String, tMult.Float64))
+		} else if title.Valid {
+			_, _ = b.DB.Exec("UPDATE users SET title=NULL, title_mult=NULL, title_expires=NULL WHERE client_uid=$1", uid)
+		}
 	}
 
-	// Artifacts (from the original system)
-	if artExpires.Valid && !today.After(artExpires.Time) && artMult.Valid {
-		m := artMult.Float64
-		mult *= m
-		label := "artifact"
-		if artName.Valid && artName.String != "" {
-			label = artName.String
+	// 2. Corrupted Artifact
+	var aMult sql.NullFloat64
+	var aName sql.NullString
+	var aExp sql.NullTime
+	if err := b.DB.QueryRow("SELECT artifact_mult, artifact_name, artifact_expires FROM users WHERE client_uid=$1", uid).Scan(&aMult, &aName, &aExp); err == nil {
+		if aExp.Valid && !today.After(aExp.Time) && aMult.Valid {
+			mult *= aMult.Float64
+			notes = append(notes, fmt.Sprintf("%s x%g", aName.String, aMult.Float64))
+		} else if aMult.Valid && aMult.Float64 != 1 {
+			_, _ = b.DB.Exec("UPDATE users SET artifact_mult=1, artifact_name=NULL, artifact_expires=NULL WHERE client_uid=$1", uid)
 		}
-		notes = append(notes, fmt.Sprintf("%s x%g", label, m))
-	} else if artMult.Valid && artMult.Float64 != 1 {
-		_, _ = b.DB.Exec("UPDATE users SET artifact_mult=1, artifact_name=NULL, artifact_expires=NULL WHERE client_uid=$1", uid)
 	}
 
-	// Check other gear slots
-	checkSlot := func(idCol sql.NullString, expCol sql.NullTime, clearQuery string) {
-		if !idCol.Valid || idCol.String == "" {
-			return
-		}
-		if expCol.Valid && !today.After(expCol.Time) {
-			if gear, ok := content.GetGearByID(idCol.String); ok {
-				mult *= gear.XPMultiplier
-				notes = append(notes, fmt.Sprintf("%s x%g", gear.Name, gear.XPMultiplier))
+	// 3. 24 Gear Slots
+	rows, err := b.DB.Query("SELECT slot, gear_id, expires FROM user_gear WHERE client_uid = $1", uid)
+	if err == nil {
+		defer func() { _ = rows.Close() }()
+		for rows.Next() {
+			var slot, gearID string
+			var expires time.Time
+			if err := rows.Scan(&slot, &gearID, &expires); err == nil {
+				if today.After(expires) {
+					_, _ = b.DB.Exec("DELETE FROM user_gear WHERE client_uid = $1 AND slot = $2", uid, slot)
+					continue
+				}
+				if gear, ok := content.GetGearByID(gearID); ok {
+					mult *= gear.XPMultiplier
+					notes = append(notes, fmt.Sprintf("%s x%g", gear.Name, gear.XPMultiplier))
+				}
 			}
-		} else {
-			// Expired
-			_, _ = b.DB.Exec(clearQuery, uid)
 		}
 	}
-
-	checkSlot(wID, wExp, "UPDATE users SET weapon_id=NULL, weapon_expires=NULL WHERE client_uid=$1")
-	checkSlot(aID, aExp, "UPDATE users SET armor_id=NULL, armor_expires=NULL WHERE client_uid=$1")
-	checkSlot(rID, rExp, "UPDATE users SET relic_id=NULL, relic_expires=NULL WHERE client_uid=$1")
 
 	return mult, notes
 }
 
-// rollArtifact has a small chance to grant gear/artifacts (applied to
-// future XP gains), returning a short announcement poke (<=100 chars) or "".
-func (b *Bot) rollArtifact(uid string, today time.Time) string {
-	if rand.Float64() >= artifactChance {
-		return ""
+func (b *Bot) rollLootAndTitles(uid string, today time.Time) string {
+	r := rand.Float64()
+	if r < titleChance {
+		t := content.RandomTitle()
+		expires := today.AddDate(0, 0, 7) // 7 days
+		_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=$4 WHERE client_uid=$1",
+			uid, t.Name, t.XPMultiplier, expires)
+		return clampRunes(fmt.Sprintf("👑 RARE TITLE: You are now known as '%s'! (x%g XP for 7d)", t.Name, t.XPMultiplier), 100)
 	}
-
-	// 50% chance for a corrupted artifact, 50% chance for other gear
-	if rand.Float64() < 0.5 {
+	
+	if r < artifactChance {
 		a := content.RandomArtifact()
-		expires := today.AddDate(0, 0, 1) // 1 day for corrupted
+		expires := today.AddDate(0, 0, 1) // 1 day
 		_, _ = b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_expires=$4 WHERE client_uid=$1",
 			uid, a.Mult, a.Name, expires)
-
-		verb := "boosts"
-		if !a.IsBoon() {
-			verb = "drains"
-		}
-		return clampRunes(fmt.Sprintf("🩸 Corrupted Artifact: %s (%s) %s your XP for 24h!", a.Name, a.Effect(), verb), 100)
+		return clampRunes(fmt.Sprintf("🩸 Corrupted Artifact: %s (%s) your XP for 24h!", a.Name, a.Effect()), 100)
 	}
 
-	gear := content.RandomGearDrop()
-	expires := today.Add(gear.Duration)
-
-	switch gear.Slot {
-	case content.SlotWeapon:
-		_, _ = b.DB.Exec("UPDATE users SET weapon_id=$2, weapon_expires=$3 WHERE client_uid=$1", uid, gear.ID, expires)
-	case content.SlotArmor:
-		_, _ = b.DB.Exec("UPDATE users SET armor_id=$2, armor_expires=$3 WHERE client_uid=$1", uid, gear.ID, expires)
-	case content.SlotRelic:
-		_, _ = b.DB.Exec("UPDATE users SET relic_id=$2, relic_expires=$3 WHERE client_uid=$1", uid, gear.ID, expires)
+	if r < gearChance {
+		gear := content.RandomGearDrop()
+		expires := today.Add(gear.Duration)
+		_, _ = b.DB.Exec("INSERT INTO user_gear (client_uid, slot, gear_id, expires) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, expires = $4",
+			uid, string(gear.Slot), gear.ID, expires)
+		return clampRunes(fmt.Sprintf("🛡️ Loot Drop: %s! (%s) Equipped in %s slot.", gear.Name, gear.Description, gear.Slot), 100)
 	}
 
-	return clampRunes(fmt.Sprintf("🛡️ Loot Drop: %s! (%s) Equipped in %s slot.", gear.Name, gear.Description, gear.Slot), 100)
+	return ""
 }
 
-// ---- Sloth decay (inactivity penalty) ----
+// ---- Sloth decay ----
 
-// slothDecay applies the Sloth debuff to users offline past the grace period: 2%
-// XP lost per offline day. If a user's level drops they lose their level group.
 func (b *Bot) slothDecay(c *clientquery.Client, today time.Time) {
 	if !b.Cfg.EnableXPModifiers {
 		return
@@ -360,11 +352,11 @@ func (b *Bot) slothDecay(c *clientquery.Client, today time.Time) {
 			batch = append(batch, d)
 		}
 	}
-	rows.Close()
+	_ = rows.Close()
 
 	decayed := 0
 	for _, d := range batch {
-		from := d.lastSeen.AddDate(0, 0, slothGraceDays) // decay starts after the grace period
+		from := d.lastSeen.AddDate(0, 0, slothGraceDays)
 		if d.lastDecay.Valid && d.lastDecay.Time.After(from) {
 			from = d.lastDecay.Time
 		}
@@ -379,7 +371,6 @@ func (b *Bot) slothDecay(c *clientquery.Client, today time.Time) {
 			d.uid, newXP, newLevel, today)
 		decayed++
 
-		// Lock: drop the level group if decay pushed them below its boundary.
 		if newLevel < d.groupLevel && b.Cfg.XPServerGroups && d.cldbid > 0 {
 			if sgid, ok := b.xpGroups[d.groupLevel]; ok {
 				_ = c.ServerGroupDelClient(sgid, d.cldbid)

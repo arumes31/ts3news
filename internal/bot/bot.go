@@ -203,6 +203,11 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			}
 		}
 
+		// Feature: Rare titles with group display as name prefix.
+		if b.Cfg.EnableLeveling {
+			b.applyTitleGroup(c, client.CLID, client.UID, client.Nickname)
+		}
+
 		if !hasGame {
 			continue // XP processed; nothing new to announce
 		}
