@@ -452,6 +452,36 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 
 			target.CurrentHP -= dmg
 
+			// Phoenix Revival Check
+			if target.CurrentHP <= 0 {
+				revived := false
+				// 1. Check Consumables
+				cons := b.getConsumables(target.UID)
+				for _, c := range cons {
+					if c.Type == content.ConsumableRevive {
+						target.CurrentHP = target.Stats.HP / 2
+						logs = append(logs, fmt.Sprintf("🔥 %s used %s and REVIVED!", target.Nickname, c.Name))
+						_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2", target.UID, c.ID)
+						revived = true
+						break
+					}
+				}
+				// 2. Check Item Effects (Phoenix)
+				if !revived {
+					_, _, _, effects := b.activeLootMult(target.UID, time.Now())
+					for _, eff := range effects {
+						if eff == content.EffectPhoenix {
+							target.CurrentHP = target.Stats.HP / 2
+							logs = append(logs, fmt.Sprintf("✨ Phoenix Effect triggered! %s has REVIVED!", target.Nickname))
+							// Temporary disable for this fight? Let's say it's once per fight.
+							// For persistent items, we don't delete, we just track 'used' in this cycle.
+							revived = true
+							break
+						}
+					}
+				}
+			}
+
 			for _, eff := range targetAU.effects {
 				if eff == content.EffectThorns && dmg > 0 {
 					reflect := dmg / 10

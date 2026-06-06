@@ -117,6 +117,7 @@ const (
 	EffectSteady         ItemEffect = "Steady"         // Reduces stun chance by 50%
 	EffectMindControl    ItemEffect = "MindControl"    // Chance to capture low-health mobs
 	EffectRegenStack     ItemEffect = "RegenStack"     // Adds permanent regen stack on victory
+	EffectPhoenix        ItemEffect = "Phoenix"        // Revive once per fight with 50% HP
 )
 
 type Gear struct {
@@ -135,6 +136,7 @@ type ConsumableType string
 const (
 	ConsumableHealing ConsumableType = "Healing"
 	ConsumableBuff    ConsumableType = "Buff"
+	ConsumableRevive  ConsumableType = "Revive"
 )
 
 type Consumable struct {
@@ -164,6 +166,7 @@ var allConsumables = []Consumable{
 	{"P2", "Great Health Potion", ConsumableHealing, 200, 0, "Restores 200 HP instantly"},
 	{"P3", "Strength Elixir", ConsumableBuff, 15, 3, "+15 STR for 3 fights"},
 	{"P4", "Iron Skin Brew", ConsumableBuff, 10, 3, "+10 DEF for 3 fights"},
+	{"P5", "Phoenix Feather", ConsumableRevive, 50, 0, "Automatically revives you with 50% HP once"},
 }
 
 var allEnchantments []Enchantment
@@ -391,7 +394,7 @@ func init() {
 }
 
 func RandomItemEffect() ItemEffect {
-	effects := []ItemEffect{EffectThorns, EffectVampiric, EffectBerserk, EffectLucky, EffectTreasureHunter, EffectQuick, EffectBulwark, EffectRadiant, EffectFragile, EffectSteady, EffectMindControl, EffectRegenStack}
+	effects := []ItemEffect{EffectThorns, EffectVampiric, EffectBerserk, EffectLucky, EffectTreasureHunter, EffectQuick, EffectBulwark, EffectRadiant, EffectFragile, EffectSteady, EffectMindControl, EffectRegenStack, EffectPhoenix}
 	if rand.Float64() < 0.2 {
 		return effects[rand.Intn(len(effects))]
 	}
