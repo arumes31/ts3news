@@ -200,6 +200,31 @@ func (b *Bot) updatePetHP(uid, name string, hp int) {
 	}
 }
 
+func (b *Bot) checkUserRevive(u *UserInCombat, logs *[]string) bool {
+	if u.CurrentHP > 0 { return false }
+	
+	// 1. Check Consumables
+	cons := b.getConsumables(u.UID)
+	for _, c := range cons {
+		if c.Type == content.ConsumableRevive {
+			u.CurrentHP = u.Stats.HP / 2
+			*logs = append(*logs, fmt.Sprintf("🔥 %s REVIVED (Item)!", u.Nickname))
+			_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2", u.UID, c.ID)
+			return true
+		}
+	}
+	// 2. Check Item Effects (Phoenix)
+	_, _, _, effects := b.activeLootMult(u.UID, time.Now())
+	for _, eff := range effects {
+		if eff == content.EffectPhoenix {
+			u.CurrentHP = u.Stats.HP / 2
+			*logs = append(*logs, fmt.Sprintf("✨ %s REVIVED (Phoenix)!", u.Nickname))
+			return true
+		}
+	}
+	return false
+}
+
 func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool) {
 	var logs []string
 	mobs := initialMobs
@@ -420,6 +445,22 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			// Pet Attack (Silent damage)
 			for _, p := range u.Pets {
 				if p.Stats.HP <= 0 { continue }
+
+				// Betrayal check (3% chance)
+				if rand.Float64() < 0.03 {
+					targetAU := activeUsers[rand.Intn(len(activeUsers))]
+					target := targetAU.u
+					if target.CurrentHP > 0 {
+						pdmg := p.Stats.STR - target.Stats.DEF
+						if pdmg < 1 { pdmg = 1 }
+						target.CurrentHP -= pdmg
+						logs = append(logs, fmt.Sprintf("⚠️ Rogue Pet %s bit %s for %d!", p.Name, target.Nickname, pdmg))
+						totalMobDamage += pdmg
+						b.checkUserRevive(target, &logs)
+						continue
+					}
+				}
+
 				aliveMobs := b.getAliveMobs(mobs)
 				if len(aliveMobs) == 0 { break }
 				ptarget := aliveMobs[rand.Intn(len(aliveMobs))]
@@ -482,31 +523,8 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			target.CurrentHP -= dmg
 			totalMobDamage += dmg
 
-			// Phoenix Revival Check
-			if target.CurrentHP <= 0 {
-				revived := false
-				cons := b.getConsumables(target.UID)
-				for _, c := range cons {
-					if c.Type == content.ConsumableRevive {
-						target.CurrentHP = target.Stats.HP / 2
-						logs = append(logs, fmt.Sprintf("🔥 %s REVIVED (Item)!", target.Nickname))
-						_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2", target.UID, c.ID)
-						revived = true
-						break
-					}
-				}
-				if !revived {
-					_, _, _, effects := b.activeLootMult(target.UID, time.Now())
-					for _, eff := range effects {
-						if eff == content.EffectPhoenix {
-							target.CurrentHP = target.Stats.HP / 2
-							logs = append(logs, fmt.Sprintf("✨ %s REVIVED (Phoenix)!", target.Nickname))
-							revived = true
-							break
-						}
-					}
-				}
-			}
+			// Check Revival
+			b.checkUserRevive(target, &logs)
 
 			for _, eff := range targetAU.effects {
 				if eff == content.EffectThorns && dmg > 0 {
