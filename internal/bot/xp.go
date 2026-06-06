@@ -229,6 +229,22 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	var logs []string
 	mobs := initialMobs
 
+	// 1. Battle Header (What we fighting)
+	var partyNames []string
+	for _, u := range users { partyNames = append(partyNames, u.Nickname) }
+	
+	mobCounts := make(map[string]int)
+	for _, m := range mobs { mobCounts[m.DisplayName()]++ }
+	var enemyNames []string
+	for name, count := range mobCounts {
+		if count > 1 {
+			enemyNames = append(enemyNames, fmt.Sprintf("%dx %s", count, name))
+		} else {
+			enemyNames = append(enemyNames, name)
+		}
+	}
+	logs = append(logs, fmt.Sprintf("⚔️ BATTLE: %s VS %s", strings.Join(partyNames, ", "), strings.Join(enemyNames, ", ")))
+
 	var activeUsers []activeUser
 	for i := range users {
 		_, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
@@ -273,7 +289,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	// Log mob effects
 	for _, m := range mobs {
 		for _, eff := range m.Effects {
-			logs = append(logs, fmt.Sprintf("%s is %s!", m.Name, eff))
+			logs = append(logs, fmt.Sprintf("❕ %s is %s!", m.Name, eff))
 		}
 	}
 
@@ -587,10 +603,10 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	}
 
 	if victory {
-		logs = append(logs, fmt.Sprintf("VICTORY! Party defeated all mobs. (Avg Lvl: %d)", avgLvl))
+		logs = append(logs, fmt.Sprintf("🏁 VICTORY! Party defeated all %d mobs in %s.", len(mobs), zone.Name))
 		return logs, totalRewardXP / len(users), true
 	}
-	logs = append(logs, "DEFEAT! Party was overrun.")
+	logs = append(logs, fmt.Sprintf("🏁 DEFEAT! Party was overrun in %s.", zone.Name))
 	return logs, -totalRewardXP / (2 * len(users)), false
 }
 
