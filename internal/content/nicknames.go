@@ -75,7 +75,7 @@ func NicknameForGame(title string) string {
 		if clean == "" {
 			continue
 		}
-		word.WriteString(strings.Title(strings.ToLower(clean)))
+		word.WriteString(capitalize(strings.ToLower(clean)))
 		wordCount++
 		if wordCount >= 2 {
 			break
@@ -87,6 +87,15 @@ func NicknameForGame(title string) string {
 	}
 	suffix := gamerSuffixes[rand.Intn(len(gamerSuffixes))]
 	return clampNick(base + suffix)
+}
+
+func capitalize(s string) string {
+	if s == "" {
+		return ""
+	}
+	r := []rune(s)
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
 }
 
 func keepAlnum(s string) string {

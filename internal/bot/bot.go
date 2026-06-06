@@ -49,7 +49,9 @@ func NewBot(cfg *config.Config) *Bot {
 
 func (b *Bot) Close() {
 	if b.DB != nil {
-		_ = b.DB.Close()
+		if err := b.DB.Close(); err != nil {
+			log.Printf("Error closing database: %v", err)
+		}
 	}
 }
 
