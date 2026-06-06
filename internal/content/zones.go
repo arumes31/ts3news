@@ -103,7 +103,7 @@ func GetRandomZone(partyAvgLvl int, partyGearScore int) Zone {
 	}
 
 	// Scaling Difficulty: harder zones for better players, dampened by tier
-	z.Difficulty = baseDiff + (float64(partyAvgLvl) * 0.002) + (float64(partyGearScore) * 0.00005)
+	z.Difficulty = baseDiff + (float64(partyAvgLvl) * 0.001) + (float64(partyGearScore) * 0.00005)
 	
 	// Add 1-3 stacking effects (Legendary zones have more)
 	effectCount := 1 + rand.Intn(2)

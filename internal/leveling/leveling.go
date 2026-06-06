@@ -57,10 +57,10 @@ var baseTierNames = []string{
 }
 
 // XP curve tuning for 10000 levels.
-// Sharpened curve: 1-1000 is easier, then it gets exponentially harder.
+// Sharpened curve: 1-1000 is much easier, then it gets exponentially harder.
 const (
-	xpMin      = 10
-	xpMax      = 25
+	xpMin      = 20 // Increased from 10
+	xpMax      = 50 // Increased from 25
 	xpCurveK   = 1.0
 )
 
@@ -101,10 +101,19 @@ func XPForLevel(level int) int {
 	if level <= 1 {
 		return 0
 	}
-	// Dynamic exponent: grows as level increases to make prestige levels harder.
-	// Starts at 1.5, reaches ~1.8 at level 1000, and ~5.0+ at level 10000.
-	exponent := 1.5 + (float64(level) / 3000.0)
-	return int(math.Round(xpCurveK * math.Pow(float64(level-1), exponent)))
+	// Dynamic exponent: grows as level increases.
+	// Starts at 1.1 (very fast early levels), reaches ~1.6 at level 1000, and caps at 5.0.
+	exponent := 1.1 + (float64(level) / 2000.0)
+	if exponent > 5.0 {
+		exponent = 5.0
+	}
+	
+	val := math.Pow(float64(level-1), exponent)
+	// Cap at a large integer to prevent overflow during search
+	if val > 2e15 {
+		return 2e15
+	}
+	return int(math.Round(val))
 }
 
 // LevelForXP returns the level for a total XP amount.
