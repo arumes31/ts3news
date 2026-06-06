@@ -240,10 +240,19 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 
 	// 1. Battle Header (What we fighting)
 	var partyNames []string
-	for _, u := range users { partyNames = append(partyNames, u.Nickname) }
+	totalPartyGS := 0
+	for _, u := range users {
+		gs := u.Stats.Score()
+		totalPartyGS += gs
+		partyNames = append(partyNames, fmt.Sprintf("%s (%d)", u.Nickname, gs))
+	}
 	
 	mobCounts := make(map[string]int)
-	for _, m := range mobs { mobCounts[m.DisplayName()]++ }
+	totalEnemyCR := 0
+	for _, m := range mobs {
+		mobCounts[m.DisplayName()]++
+		totalEnemyCR += m.Score()
+	}
 	var enemyNames []string
 	for name, count := range mobCounts {
 		if count > 1 {
@@ -252,7 +261,8 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			enemyNames = append(enemyNames, name)
 		}
 	}
-	logs = append(logs, fmt.Sprintf("⚔️ BATTLE: %s VS %s", strings.Join(partyNames, ", "), strings.Join(enemyNames, ", ")))
+	logs = append(logs, fmt.Sprintf("⚔️ BATTLE [GS:%d VS CR:%d]", totalPartyGS, totalEnemyCR))
+	logs = append(logs, fmt.Sprintf("🛡️ %s VS %s", strings.Join(partyNames, ", "), strings.Join(enemyNames, ", ")))
 
 	var activeUsers []activeUser
 	for i := range users {
@@ -739,10 +749,39 @@ func (b *Bot) setLastLogin(uid string, today time.Time) {
 
 func (b *Bot) ensureUserHasGear(uid string) {
 	var count int
-	if err := b.DB.QueryRow("SELECT COUNT(*) FROM user_gear WHERE client_uid = $1", uid).Scan(&count); err == nil && count == 0 {
-		gear := content.RandomStarterGear()
-		_, _ = b.DB.Exec("INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
-			uid, string(gear.Slot), gear.ID, gear.MaxDurability)
+	// Count gear, skills, and check artifact
+	_ = b.DB.QueryRow(`
+		SELECT 
+			(SELECT COUNT(*) FROM user_gear WHERE client_uid = $1) + 
+			(SELECT COUNT(*) FROM user_skills WHERE client_uid = $1) + 
+			(CASE WHEN artifact_name IS NOT NULL AND artifact_durability > 0 THEN 1 ELSE 0 END)
+		FROM users WHERE client_uid = $1`, uid).Scan(&count)
+
+	if count > 5 {
+		return
+	}
+
+	// Get currently equipped slots
+	rows, err := b.DB.Query("SELECT slot FROM user_gear WHERE client_uid = $1", uid)
+	if err != nil { return }
+	defer func() { _ = rows.Close() }()
+	
+	equipped := make(map[string]bool)
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err == nil { equipped[s] = true }
+	}
+
+	// Fill ALL empty slots with Novice gear
+	for _, slot := range content.AllSlots {
+		slotStr := string(slot)
+		if !equipped[slotStr] {
+			gearID := fmt.Sprintf("B_%s", slotStr)
+			if gear, ok := content.GetGearByID(gearID); ok {
+				_, _ = b.DB.Exec("INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+					uid, slotStr, gear.ID, gear.MaxDurability)
+			}
+		}
 	}
 }
 
