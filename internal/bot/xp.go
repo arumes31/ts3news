@@ -200,7 +200,7 @@ func (b *Bot) updatePetHP(uid, name string, hp int) {
 	}
 }
 
-func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64) ([]string, int, bool) {
+func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool) {
 	var logs []string
 	mobs := initialMobs
 
@@ -254,7 +254,21 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 
 	victory := false
 	for r := 1; r <= 20; r++ {
-		// 1. Round Start Effects (Regen/Poison/Pets)
+		// 1. Round Start Effects (Regen/Poison/Pets/Hazards)
+		for _, eff := range zone.Effects {
+			if eff.Type == content.ZoneHazard {
+				dmg := int(eff.Power * 25) // slightly nerfed hazard
+				if dmg < 1 { dmg = 1 }
+				for i := range activeUsers {
+					activeUsers[i].u.CurrentHP -= dmg
+				}
+				for _, m := range mobs {
+					m.Stats.HP -= dmg
+				}
+				logs = append(logs, fmt.Sprintf("⛈️ %s Hazard dealt %d damage!", eff.Name, dmg))
+			}
+		}
+
 		for i := range mobs {
 			m := mobs[i]
 			if m.Stats.HP <= 0 { continue }
@@ -293,6 +307,14 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 		for _, au := range activeUsers {
 			u := au.u
 			if u.CurrentHP <= 0 { continue }
+
+			// Zone Buff check
+			uSTR := u.Stats.STR
+			for _, eff := range zone.Effects {
+				if eff.Type == content.ZoneBuff {
+					uSTR = int(float64(uSTR) * (1.0 + eff.Power))
+				}
+			}
 
 			var lifesteal int
 			var multiStrike int
@@ -360,7 +382,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				}
 
 				effDef := float64(target.Stats.DEF) * (1.0 - ignoreDef)
-				dmg := int(float64(u.Stats.STR)*dmgMult - effDef)
+				dmg := int(float64(uSTR)*dmgMult - effDef)
 				if dmg < 1 { dmg = 1 }
 				target.Stats.HP -= dmg
 
@@ -436,6 +458,13 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			}
 
 			mSTR := m.Stats.STR
+			// Zone Debuff check
+			for _, eff := range zone.Effects {
+				if eff.Type == content.ZoneDebuff {
+					mSTR = int(float64(mSTR) * (1.0 - eff.Power))
+				}
+			}
+
 			for _, eff := range m.Effects {
 				switch eff {
 				case content.EffectEnraged: mSTR = int(float64(mSTR) * 1.5)
@@ -455,7 +484,6 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			// Phoenix Revival Check
 			if target.CurrentHP <= 0 {
 				revived := false
-				// 1. Check Consumables
 				cons := b.getConsumables(target.UID)
 				for _, c := range cons {
 					if c.Type == content.ConsumableRevive {
@@ -466,15 +494,12 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 						break
 					}
 				}
-				// 2. Check Item Effects (Phoenix)
 				if !revived {
 					_, _, _, effects := b.activeLootMult(target.UID, time.Now())
 					for _, eff := range effects {
 						if eff == content.EffectPhoenix {
 							target.CurrentHP = target.Stats.HP / 2
 							logs = append(logs, fmt.Sprintf("✨ Phoenix Effect triggered! %s has REVIVED!", target.Nickname))
-							// Temporary disable for this fight? Let's say it's once per fight.
-							// For persistent items, we don't delete, we just track 'used' in this cycle.
 							revived = true
 							break
 						}
@@ -497,7 +522,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 		if aliveUsers == 0 { victory = false; break }
 	}
 
-	// Update persistent state
+	// Update pity, quests, consumables AND persistent stats
 	for i := range users {
 		u := &users[i]
 		// Save pets state

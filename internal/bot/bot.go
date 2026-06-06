@@ -139,14 +139,19 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		if diffFactor < 0.5 { diffFactor = 0.5 }
 		if diffFactor > 1.5 { diffFactor = 1.5 }
 
-		mobs := content.SpawnMobGroup(avgLvl, diffFactor)
+		// 2. Select Zone
+		zone := content.GetRandomZone(avgLvl, totalStatScore/len(users))
+		battleLogs := []string{zone.Display()}
+
+		mobs := content.SpawnMobGroup(avgLvl, diffFactor*zone.Difficulty)
 		var mobPtrs []*content.Mob
 		for i := range mobs {
 			mobPtrs = append(mobPtrs, &mobs[i])
 		}
 
-		// 2. Resolve Group Combat
-		battleLogs, rewardXP, victory := b.resolveChannelCombat(users, mobPtrs, avgLvl, diffFactor)
+		// 3. Resolve Group Combat
+		resLogs, rewardXP, victory := b.resolveChannelCombat(users, mobPtrs, avgLvl, diffFactor, zone)
+		battleLogs = append(battleLogs, resLogs...)
 
 		// 3. Pool Loot for Channel (Shared cross-channel)
 		type lootResult struct {
