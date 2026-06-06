@@ -113,7 +113,7 @@ func (s *Supervisor) runCycleWithClient(shutdownCtx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	log.Println("TS3 client connected. Running notification cycle...")
 	if err := c.Use(1); err != nil {

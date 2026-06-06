@@ -218,11 +218,11 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 	sb.WriteString("\n")
 
 	name := g.DisplayTitle()
-	sb.WriteString(fmt.Sprintf("🎮 %s\n", name))
+	fmt.Fprintf(&sb, "🎮 %s\n", name)
 	if g.WorthShown() {
-		sb.WriteString(fmt.Sprintf("💰 Worth %s → FREE now\n", g.Worth))
+		fmt.Fprintf(&sb, "💰 Worth %s → FREE now\n", g.Worth)
 	}
-	sb.WriteString(fmt.Sprintf("🔗 Claim: %s\n", shortURL))
+	fmt.Fprintf(&sb, "🔗 Claim: %s\n", shortURL)
 
 	if b.Cfg.EnableYouTubeTrailer {
 		sb.WriteString(fmt.Sprintf("▶️ Trailer: %s\n", games.TrailerSearchURL(name)))

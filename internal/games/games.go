@@ -138,7 +138,7 @@ func FetchFreeGames(opts Options) ([]Game, error) {
 			if !matchesDRM(g, opts.DRMFilter) {
 				continue
 			}
-			if !(g.isNormallyPaid() || g.AssumePaid) {
+			if !g.isNormallyPaid() && !g.AssumePaid {
 				continue
 			}
 			if !g.isActive() {
