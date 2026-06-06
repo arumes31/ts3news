@@ -31,67 +31,82 @@ type Skill struct {
 var allSkills []Skill
 
 func init() {
-	// Procedurally generate 300+ skills
+	// WoW-Inspired Prefix & Action pools for 1500+ variants
 	prefixes := []string{
-		"Fiery", "Frosty", "Thunderous", "Corrupting", "Divine", "Abyssal", "Spectral", "Ancient", "Primal", "Cursed",
-		"Gilded", "Shattered", "Void", "Hallowed", "Toxic", "Metallic", "Stormy", "Shadowy", "Luminous", "Blighted",
-		"Arcane", "Raging", "Silent", "Eternal", "Volcanic", "Glacial", "Static", "Celestial", "Infernal", "Mystic",
+		"Mortal", "Heroic", "Flash", "Greater", "Lesser", "Chaos", "Fel", "Shadow", "Holy", "Frost",
+		"Fire", "Arcane", "Divine", "Primal", "Ancient", "Abyssal", "Spectral", "Vengeful", "Spiteful", "Cursed",
+		"Hallowed", "Glacial", "Volcanic", "Static", "Thunderous", "Corrupting", "Blighted", "Toxic", "Metallic", "Glass",
+		"Lunar", "Solar", "Celestial", "Infernal", "Mystic", "Raging", "Silent", "Eternal", "Void", "Astral",
+		"Iron", "Steel", "Mithril", "Adamant", "Crystalline", "Nebulous", "Star-Forged", "Storm-Born", "Shadow-Bound", "Light-Blessed",
 	}
 	actions := []string{
 		"Strike", "Blast", "Roar", "Slash", "Burst", "Touch", "Winds", "Nova", "Pulse", "Drain",
 		"Bolt", "Ray", "Wave", "Aura", "Shield", "Plea", "Call", "Fury", "Vortex", "Sunder",
+		"Mend", "Heal", "Bash", "Cleave", "Execute", "Rend", "Charge", "Leap", "Smite", "Shock",
+		"Breath", "Bite", "Sting", "Claw", "Maul", "Swipe", "Growl", "Prowl", "Shred", "Blink",
 	}
 
 	idx := 1
 	for _, p := range prefixes {
 		for _, a := range actions {
-			name := p + " " + a
-			rarity := Rarity(idx % 5)
-			
-			// Balance based on action type or index - using priority chain for determinism
-			sType := SkillPhysical
-			if idx%15 == 0 {
-				sType = SkillDebuff
-			} else if idx%10 == 0 {
-				sType = SkillBuff
-			} else if idx%2 == 0 {
-				sType = SkillMagic
-			}
+			// Generate 5 rarity tiers for every name combination (50 * 40 * 5 = 10,000 potential skills)
+			// But let's keep it manageable at ~1500 by using a selection logic
+			for rIdx := 0; rIdx < 5; rIdx++ {
+				rarity := Rarity(rIdx)
+				name := p + " " + a
+				
+				// Only keep ~30% of combinations to reach ~1500-2000 total
+				if (idx+rIdx)%3 != 0 {
+					continue
+				}
 
-			s := Skill{
-				ID:     fmt.Sprintf("S%d", idx),
-				Name:   name,
-				Type:   sType,
-				Rarity: rarity,
-				Power:  1.2 + (0.5 * float64(rarity)),
-			}
+				sType := SkillPhysical
+				if strings.Contains(name, "Bolt") || strings.Contains(name, "Blast") || strings.Contains(name, "Nova") { sType = SkillMagic }
+				if strings.Contains(name, "Heal") || strings.Contains(name, "Mend") || strings.Contains(name, "Shield") { sType = SkillBuff }
+				if strings.Contains(name, "Curse") || strings.Contains(name, "Sunder") || strings.Contains(name, "Drain") { sType = SkillDebuff }
 
-			// Add unique mechanics based on name/rarity
-			if strings.Contains(name, "Sunder") || strings.Contains(name, "Blast") {
-				s.IgnoreDef = 0.2 + (0.1 * float64(rarity))
-			}
-			if strings.Contains(name, "Strike") || strings.Contains(name, "Roar") {
-				s.StunChance = 0.05 + (0.05 * float64(rarity))
-			}
-			if strings.Contains(name, "Touch") || strings.Contains(name, "Plea") {
-				s.HealPercent = 0.05 + (0.05 * float64(rarity))
-			}
+				s := Skill{
+					ID:     fmt.Sprintf("S%d_%d", idx, rIdx),
+					Name:   name,
+					Type:   sType,
+					Rarity: rarity,
+					Power:  1.2 + (0.6 * float64(rarity)),
+				}
 
-			s.Description = fmt.Sprintf("%s skill with %.1fx power.", s.Type, s.Power)
-			allSkills = append(allSkills, s)
+				// WoW Mechanics
+				if strings.Contains(name, "Sunder") || strings.Contains(name, "Execute") { s.IgnoreDef = 0.3 + (0.1 * float64(rarity)) }
+				if strings.Contains(name, "Bash") || strings.Contains(name, "Shock") { s.StunChance = 0.1 + (0.05 * float64(rarity)) }
+				if strings.Contains(name, "Heal") || strings.Contains(name, "Mend") { s.HealPercent = 0.1 + (0.05 * float64(rarity)) }
+				
+				// Rare special effects
+				if rarity >= RarityEpic && rand.Float64() < 0.1 {
+					s.Special = EffectMindControl
+				}
+				if rarity == RarityLegendary && rand.Float64() < 0.05 {
+					s.Special = EffectPhoenix
+				}
+
+				s.Description = fmt.Sprintf("%s %s rank %d.", s.Rarity, s.Name, int(rarity)+1)
+				allSkills = append(allSkills, s)
+			}
 			idx++
 		}
 	}
 }
 
 func (s Skill) Score() int {
-	return int(s.Power*100) + int(s.IgnoreDef*100) + int(s.StunChance*100) + int(s.HealPercent*100)
+	score := int(s.Power*100) + int(s.IgnoreDef*100) + int(s.StunChance*100) + int(s.HealPercent*100)
+	if s.Special == EffectMindControl { score += 500 }
+	if s.Special == EffectPhoenix { score += 1000 }
+	return score
 }
-
 
 func RandomSkill() Skill {
 	s := allSkills[rand.Intn(len(allSkills))]
-	s.Special = RandomItemEffect()
+	// Roll for additional effect if it doesn't have one
+	if s.Special == EffectNone {
+		s.Special = RandomItemEffect()
+	}
 	return s
 }
 
