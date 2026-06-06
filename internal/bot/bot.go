@@ -117,6 +117,19 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		if len(candidates) == 0 {
 			continue
 		}
+
+		// Feature: Prefer GamerPower links. If any GamerPower games are in the
+		// candidates list, pick randomly from only those. If none, pick from the rest.
+		var gpCandidates []games.Game
+		for _, g := range candidates {
+			if strings.EqualFold(g.Source, "GamerPower") {
+				gpCandidates = append(gpCandidates, g)
+			}
+		}
+		if len(gpCandidates) > 0 {
+			candidates = gpCandidates
+		}
+
 		game := candidates[rand.Intn(len(candidates))]
 
 		shortURL, err := games.ShortenURL(game.URL)
