@@ -34,6 +34,7 @@ type Mob struct {
 	RewardXP int
 	Effects  []MobEffect
 	Spells   []Skill
+	Equipped []Gear
 }
 
 func (m Mob) DisplayName() string {
@@ -110,6 +111,15 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	}
 	for i := 0; i < spellCount; i++ {
 		m.Spells = append(m.Spells, RandomSkill())
+	}
+
+	// 1-2 Equipped items that drop as loot
+	itemCount := 1
+	if rand.Float64() < 0.3 {
+		itemCount = 2
+	}
+	for i := 0; i < itemCount; i++ {
+		m.Equipped = append(m.Equipped, RandomGearDrop())
 	}
 
 	return m

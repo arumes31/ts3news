@@ -172,9 +172,17 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 
 			// Durability & Loot Drops
 			b.applyDurabilityLoss(user.UID, !victory)
-			lootNote := b.rollLootForUser(user.UID, mobs[0])
-			if lootNote != "" {
-				notes = append(notes, lootNote)
+			
+			var allLootNotes []string
+			if victory {
+				for _, mob := range mobs {
+					if lootNote := b.rollLootForUser(user.UID, mob); lootNote != "" {
+						allLootNotes = append(allLootNotes, lootNote)
+					}
+				}
+			}
+			if len(allLootNotes) > 0 {
+				notes = append(notes, allLootNotes...)
 			}
 
 			// Apply Groups & Titles
@@ -192,8 +200,9 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			pokeMsg := composePoke(game, shortURL, theme, lr)
 			pmMsg := b.composePM(game, shortURL, theme, lr, notes)
 
+			// Persona check
 			botNick := b.Cfg.TS3Nickname
-			if artifactPoke != "" || lootNote != "" {
+			if len(allLootNotes) > 0 || artifactPoke != "" {
 				botNick = "godsfinger"
 			}
 			_ = c.SetNickname(botNick)
