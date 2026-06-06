@@ -190,7 +190,7 @@ func (b *Bot) computeMiscMult(uid, nickname string, cid int, ctx cycleContext) f
 	// Groups of 5+ get an additional 5% penalty per extra member (min 50%).
 	groupSize := ctx.channelNormalCount[cid]
 	if groupSize >= 2 {
-		groupPenalty := 1.0
+		var groupPenalty float64
 		if groupSize <= 4 {
 			groupPenalty = 0.9 // 10% penalty for small groups
 		} else {

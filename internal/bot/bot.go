@@ -503,9 +503,7 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 		}
 
 		var sb strings.Builder
-		sb.WriteString("🎮 RPG Players: ")
-		sb.WriteString(fmt.Sprintf("%d", len(users)))
-		sb.WriteString("\n")
+		fmt.Fprintf(&sb, "🎮 RPG Players: %d\n", len(users))
 
 		for i, u := range users {
 			var level, prestige int
@@ -523,12 +521,14 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 			}
 
 			// Format: Nick [Lvl:X GS:Y HP:Z/Z P:P STR:A DEF:B SPD:C LCK:D INT:E STA:F CRT:G DGE:H CHA:I STN:J SHN:K HGR:L]
-			sb.WriteString(fmt.Sprintf("• %s [Lvl:%d GS:%.0f HP:%d/%d P:%d STR:%d DEF:%d SPD:%d LCK:%d INT:%d STA:%d CRT:%d DGE:%d CHA:%d STN:%d SHN:%d HGR:%d]",
-				u.Nick, level, gearScore, actualCurrentHP, stats.HP, prestige,
-				stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE, stats.CHA, stats.STN, stats.SHN, stats.HGR))
-
 			if i < len(users)-1 {
-				sb.WriteString("\n")
+				fmt.Fprintf(&sb, "• %s [Lvl:%d GS:%.0f HP:%d/%d P:%d STR:%d DEF:%d SPD:%d LCK:%d INT:%d STA:%d CRT:%d DGE:%d CHA:%d STN:%d SHN:%d HGR:%d]\n",
+					u.Nick, level, gearScore, actualCurrentHP, stats.HP, prestige,
+					stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE, stats.CHA, stats.STN, stats.SHN, stats.HGR)
+			} else {
+				fmt.Fprintf(&sb, "• %s [Lvl:%d GS:%.0f HP:%d/%d P:%d STR:%d DEF:%d SPD:%d LCK:%d INT:%d STA:%d CRT:%d DGE:%d CHA:%d STN:%d SHN:%d HGR:%d]",
+					u.Nick, level, gearScore, actualCurrentHP, stats.HP, prestige,
+					stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE, stats.CHA, stats.STN, stats.SHN, stats.HGR)
 			}
 		}
 
