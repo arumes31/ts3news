@@ -796,6 +796,18 @@ func (b *Bot) ensureUserHasGear(uid string) {
 		}
 	}
 
+	// Give 2 Random "Better" Items (Head Start)
+	for i := 0; i < 2; i++ {
+		g := content.RandomGearDrop()
+		// Only give if it's actually an improvement or filling a low-tier slot
+		if b.shouldEquip(uid, g) {
+			_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) 
+			                  VALUES ($1, $2, $3, $4) 
+			                  ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, 
+			                  uid, string(g.Slot), g.ID, g.MaxDurability)
+		}
+	}
+
 	// Also give Novice Skills if empty
 	var skillCount int
 	_ = b.DB.QueryRow("SELECT COUNT(*) FROM user_skills WHERE client_uid = $1", uid).Scan(&skillCount)
