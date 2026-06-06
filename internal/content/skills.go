@@ -25,6 +25,7 @@ type Skill struct {
 	StunChance  float64 // Percentage (0.0 - 1.0)
 	HealPercent float64 // Percentage of max HP
 	Description string
+	Special     ItemEffect
 }
 
 var allSkills []Skill
@@ -89,7 +90,9 @@ func (s Skill) Score() int {
 
 
 func RandomSkill() Skill {
-	return allSkills[rand.Intn(len(allSkills))]
+	s := allSkills[rand.Intn(len(allSkills))]
+	s.Special = RandomItemEffect()
+	return s
 }
 
 func GetSkillByID(id string) (Skill, bool) {

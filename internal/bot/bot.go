@@ -107,11 +107,13 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		stats, _, _ := b.calculateTotalStats(cl.UID, ctx.today)
 		skills := b.getSkills(cl.UID)
 		
-		var lvl int
-		_ = b.DB.QueryRow("SELECT level FROM users WHERE client_uid=$1", cl.UID).Scan(&lvl)
+		var lvl, curHP, regen int
+		_ = b.DB.QueryRow("SELECT level, current_hp, regen_stacks FROM users WHERE client_uid=$1", cl.UID).Scan(&lvl, &curHP, &regen)
+		if curHP <= 0 { curHP = stats.HP } // Auto-fill if new/dead
 
 		chanUsers[cl.CID] = append(chanUsers[cl.CID], UserInCombat{
 			UID: cl.UID, Nickname: cl.Nickname, CLID: cl.CLID, Stats: stats, Level: lvl, Skills: skills,
+			CurrentHP: curHP, RegenStacks: regen,
 		})
 	}
 
@@ -137,9 +139,13 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		if diffFactor > 1.5 { diffFactor = 1.5 }
 
 		mobs := content.SpawnMobGroup(avgLvl, diffFactor)
+		var mobPtrs []*content.Mob
+		for i := range mobs {
+			mobPtrs = append(mobPtrs, &mobs[i])
+		}
 
 		// 2. Resolve Group Combat
-		battleLogs, rewardXP, victory := b.resolveChannelCombat(users, mobs)
+		battleLogs, rewardXP, victory := b.resolveChannelCombat(users, mobPtrs, avgLvl, diffFactor)
 
 		// 3. Pool Loot for Channel (Shared cross-channel)
 		type lootResult struct {
@@ -148,10 +154,10 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		}
 		var channelLoot []lootResult
 		if victory {
-			for _, mob := range mobs {
+			for _, mob := range mobPtrs {
 				// Each mob can drop items to ONE random member of the party
 				winner := users[rand.Intn(len(users))]
-				if note := b.rollLootForUser(winner.UID, mob); note != "" {
+				if note := b.rollLootForUser(winner.UID, *mob); note != "" {
 					channelLoot = append(channelLoot, lootResult{uid: winner.UID, note: note})
 				}
 			}

@@ -26,21 +26,40 @@ const (
 	EffectRegen      MobEffect = "Regenerative" // Heals 5% HP per round
 )
 
+type DeathEffectType string
+
+const (
+	DeathSummon    DeathEffectType = "Summon"
+	DeathExplosion DeathEffectType = "Explosion"
+	DeathCurse     DeathEffectType = "Curse"
+	DeathXP        DeathEffectType = "Bonus XP"
+	DeathLoot      DeathEffectType = "Loot Rain"
+)
+
+type MobDeathEffect struct {
+	Name string
+	Type DeathEffectType
+}
+
 type Mob struct {
-	Name     string
-	Type     MobType
-	Level    int
-	Stats    Stats
-	RewardXP int
-	Effects  []MobEffect
-	Spells   []Skill
-	Equipped []Gear
+	Name        string
+	Type        MobType
+	Level       int
+	Stats       Stats
+	RewardXP    int
+	Effects     []MobEffect
+	Spells      []Skill
+	Equipped    []Gear
+	DeathEffect *MobDeathEffect
 }
 
 func (m Mob) DisplayName() string {
 	eff := ""
 	if len(m.Effects) > 0 {
 		eff = fmt.Sprintf(" (%s)", m.Effects[0])
+	}
+	if m.DeathEffect != nil {
+		eff += fmt.Sprintf(" [💀 %s]", m.DeathEffect.Name)
 	}
 	return fmt.Sprintf("Lvl %d %s [%s]%s", m.Level, m.Name, m.Type, eff)
 }
@@ -141,6 +160,33 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	}
 	for i := 0; i < itemCount; i++ {
 		m.Equipped = append(m.Equipped, RandomGearDrop())
+	}
+
+	// Death Effect (Rare or based on type)
+	chance := 0.1
+	if m.Type == MobCommon {
+		chance = 0.2 // Trash mobs often have effects
+	}
+	if rand.Float64() < chance {
+		prefixes := []string{"Last", "Final", "Dying", "Bitter", "Vengeful", "Spiteful", "Desperate", "Echoing", "Ghostly", "Cursed"}
+		actions := []string{"Roar", "Whimper", "Gasp", "Curse", "Blast", "Wail", "Howl", "Scream", "Sigh", "Command"}
+		
+		dType := DeathExplosion
+		r := rand.Float64()
+		if r < 0.4 {
+			dType = DeathSummon
+		} else if r < 0.6 {
+			dType = DeathCurse
+		} else if r < 0.8 {
+			dType = DeathXP
+		} else if r < 0.9 {
+			dType = DeathLoot
+		}
+
+		m.DeathEffect = &MobDeathEffect{
+			Name: prefixes[rand.Intn(len(prefixes))] + " " + actions[rand.Intn(len(actions))],
+			Type: dType,
+		}
 	}
 
 	return m

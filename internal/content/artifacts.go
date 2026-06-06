@@ -65,22 +65,6 @@ func (s Stats) Score() int {
 	return s.HP/5 + s.STR + s.DEF + s.SPD + s.LCK + s.INT + s.STA + s.CRT + s.DGE
 }
 
-func (a Artifact) Score() int {
-	return a.Stats.Score() + int(a.Mult*100)
-}
-
-func (t Title) Score() int {
-	score := t.Stats.Score() + int(t.XPMultiplier*100)
-	score += t.ExtraSkills * 500
-	score += t.Lifesteal * 50
-	score += t.MultiStrike * 30
-	if t.DoubleLoot {
-		score += 2000
-	}
-	return score
-}
-
-
 type GearSlot string
 
 const (
@@ -117,6 +101,24 @@ var AllSlots = []GearSlot{
 	SlotRelic, SlotArtifact, SlotSoul, SlotAura, SlotCharm, SlotMount, SlotCompanion,
 }
 
+type ItemEffect string
+
+const (
+	EffectNone           ItemEffect = ""
+	EffectThorns         ItemEffect = "Thorns"         // Reflect 10% damage
+	EffectVampiric       ItemEffect = "Vampiric"       // 5% passive lifesteal
+	EffectBerserk        ItemEffect = "Berserk"        // +20% STR when HP < 50%
+	EffectLucky          ItemEffect = "Lucky"          // +10% LCK
+	EffectTreasureHunter ItemEffect = "TreasureHunter" // +5% item find chance
+	EffectQuick          ItemEffect = "Quick"          // +10% SPD
+	EffectBulwark        ItemEffect = "Bulwark"        // +10% DEF
+	EffectRadiant        ItemEffect = "Radiant"        // +10% XP bonus
+	EffectFragile        ItemEffect = "Fragile"        // +30% STR but double durability loss
+	EffectSteady         ItemEffect = "Steady"         // Reduces stun chance by 50%
+	EffectMindControl    ItemEffect = "MindControl"    // Chance to capture low-health mobs
+	EffectRegenStack     ItemEffect = "RegenStack"     // Adds permanent regen stack on victory
+)
+
 type Gear struct {
 	ID            string
 	Name          string
@@ -125,6 +127,7 @@ type Gear struct {
 	XPMultiplier  float64
 	MaxDurability int
 	Stats         Stats
+	Special       ItemEffect
 }
 
 type ConsumableType string
@@ -151,6 +154,7 @@ type Enchantment struct {
 	Stats        Stats
 	DuraBonus    int
 	Description  string
+	Special      ItemEffect
 }
 
 var allGear []Gear
@@ -174,19 +178,23 @@ type Artifact struct {
 	Mult          float64
 	Stats         Stats
 	MaxDurability int
+	Special       ItemEffect
 }
 
 func (a Artifact) IsBoon() bool {
 	return a.Mult > 1.0
 }
 
-func (a Artifact) Effect() string {
+func (a Artifact) XPBonusDesc() string {
 	if a.Mult > 1.0 {
 		return fmt.Sprintf("+%.0f%%", (a.Mult-1.0)*100)
 	}
 	return fmt.Sprintf("-%.0f%%", (1.0-a.Mult)*100)
 }
 
+func (a Artifact) Score() int {
+	return a.Stats.Score() + int(a.Mult*100)
+}
 
 type Title struct {
 	Name         string
@@ -196,6 +204,17 @@ type Title struct {
 	Lifesteal    int  // % of damage dealt healed
 	MultiStrike  int  // % chance to hit twice
 	DoubleLoot   bool // Chance to double all mob drops
+}
+
+func (t Title) Score() int {
+	score := t.Stats.Score() + int(t.XPMultiplier*100)
+	score += t.ExtraSkills * 500
+	score += t.Lifesteal * 50
+	score += t.MultiStrike * 30
+	if t.DoubleLoot {
+		score += 2000
+	}
+	return score
 }
 
 func init() {
@@ -310,7 +329,7 @@ func init() {
 
 	// 100 Extreme Titles
 	extremePrefixes := []string{"God-Mode", "One-Punch", "Loot-Hoarder", "Time-Warp", "Vampiric", "Skill-Master", "Unbreakable", "Invincible", "Berserker", "Ghost"}
-	extremeNouns := []string{"King", "Wraith", "Demon", "Saint", "Phantom", "Exile", "Prophet", "Avenger", "Harbinger", "Zenith"}
+	extremeNouns := []string{"King", "Wraith", "Demon", "Phantom", "Exile", "Prophet", "Avenger", "Harbinger", "Zenith", "Saint"}
 	for _, p := range extremePrefixes {
 		for _, n := range extremeNouns {
 			t := Title{
@@ -318,7 +337,6 @@ func init() {
 				XPMultiplier: 5.0 + rand.Float64()*10.0,
 				Stats:        Stats{HP: 1000, STR: 500, DEF: 250, SPD: 200, LCK: 150, INT: 100, STA: 100, CHA: 5000},
 			}
-			// Apply "Extreme" effects based on prefix
 			switch p {
 			case "Skill-Master": t.ExtraSkills = 5
 			case "Vampiric": t.Lifesteal = 50
@@ -372,43 +390,54 @@ func init() {
 	}
 }
 
+func RandomItemEffect() ItemEffect {
+	effects := []ItemEffect{EffectThorns, EffectVampiric, EffectBerserk, EffectLucky, EffectTreasureHunter, EffectQuick, EffectBulwark, EffectRadiant, EffectFragile, EffectSteady, EffectMindControl, EffectRegenStack}
+	if rand.Float64() < 0.2 {
+		return effects[rand.Intn(len(effects))]
+	}
+	return EffectNone
+}
+
 func RandomConsumable() Consumable { return allConsumables[rand.Intn(len(allConsumables))] }
 func RandomGearDrop() Gear {
-	// 5% chance for a Unique Legendary if rolling for a Legendary or better
+	var g Gear
 	if rand.Float64() < 0.05 {
-		return uniqueLegendaries[rand.Intn(len(uniqueLegendaries))]
+		g = uniqueLegendaries[rand.Intn(len(uniqueLegendaries))]
+	} else {
+		g = allGear[rand.Intn(len(allGear))]
 	}
-	return allGear[rand.Intn(len(allGear))]
+	g.Special = RandomItemEffect()
+	return g
 }
 func RandomStarterGear() Gear      { return allGear[rand.Intn(len(AllSlots))] }
-func RandomArtifact() Artifact     { return corruptedArtifacts[rand.Intn(len(corruptedArtifacts))] }
-func RandomEnchantment() Enchantment { return allEnchantments[rand.Intn(len(allEnchantments))] }
+func RandomArtifact() Artifact {
+	a := corruptedArtifacts[rand.Intn(len(corruptedArtifacts))]
+	a.Special = RandomItemEffect()
+	return a
+}
+func RandomEnchantment() Enchantment {
+	e := allEnchantments[rand.Intn(len(allEnchantments))]
+	e.Special = RandomItemEffect()
+	return e
+}
 func RandomTitle() Title {
 	if rand.Float64() < 0.8 { return positiveTitles[rand.Intn(len(positiveTitles))] }
 	return negativeTitles[rand.Intn(len(negativeTitles))]
 }
 
 func GetGearByID(id string) (Gear, bool) {
-	for _, g := range allGear {
-		if g.ID == id { return g, true }
-	}
-	for _, g := range uniqueLegendaries {
-		if g.ID == id { return g, true }
-	}
+	for _, g := range allGear { if g.ID == id { return g, true } }
+	for _, g := range uniqueLegendaries { if g.ID == id { return g, true } }
 	return Gear{}, false
 }
 
 func GetEnchantmentByID(id string) (Enchantment, bool) {
-	for _, e := range allEnchantments {
-		if e.ID == id { return e, true }
-	}
+	for _, e := range allEnchantments { if e.ID == id { return e, true } }
 	return Enchantment{}, false
 }
 
 func GetConsumableByID(id string) (Consumable, bool) {
-	for _, c := range allConsumables {
-		if c.ID == id { return c, true }
-	}
+	for _, c := range allConsumables { if c.ID == id { return c, true } }
 	return Consumable{}, false
 }
 

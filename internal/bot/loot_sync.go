@@ -20,9 +20,31 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 	// 1. Get all active items for this user
 	activeItemNames := map[string]bool{}
 
-	// Helper to format group names with 30-char limit: "(gs:XXXX) Name..."
-	formatGSName := func(score int, name string) string {
-		prefix := fmt.Sprintf("(gs:%d) ", score)
+	// Helper to format group names with 30-char limit: "(gs:XXXX)[E] Name..."
+	formatGSName := func(score int, name string, effect content.ItemEffect) string {
+		effCode := ""
+		if effect != content.EffectNone {
+			// Map effects to short codes to save space
+			mapping := map[content.ItemEffect]string{
+				content.EffectThorns:         "T",
+				content.EffectVampiric:       "V",
+				content.EffectBerserk:        "B",
+				content.EffectLucky:          "L",
+				content.EffectTreasureHunter: "H",
+				content.EffectQuick:          "Q",
+				content.EffectBulwark:        "W",
+				content.EffectRadiant:        "R",
+				content.EffectFragile:        "F",
+				content.EffectSteady:         "S",
+				content.EffectMindControl:    "M",
+				content.EffectRegenStack:     "G",
+			}
+			if code, ok := mapping[effect]; ok {
+				effCode = "[" + code + "] "
+			}
+		}
+
+		prefix := fmt.Sprintf("(gs:%d) %s", score, effCode)
 		avail := 30 - len(prefix)
 		if avail <= 0 {
 			return prefix[:30]
@@ -41,7 +63,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 			var id string
 			if err := grows.Scan(&id); err == nil {
 				if g, ok := content.GetGearByID(id); ok {
-					activeItemNames[formatGSName(g.Stats.Score(), g.Name)] = true
+					activeItemNames[formatGSName(g.Stats.Score(), g.Name, g.Special)] = true
 				}
 			}
 		}
@@ -51,7 +73,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 	var aName sql.NullString
 	if err := b.DB.QueryRow("SELECT artifact_name FROM users WHERE client_uid = $1", uid).Scan(&aName); err == nil && aName.Valid && aName.String != "" {
 		if art, ok := content.GetArtifactByName(aName.String); ok {
-			activeItemNames[formatGSName(art.Score(), art.Name)] = true
+			activeItemNames[formatGSName(art.Score(), art.Name, art.Special)] = true
 		}
 	}
 
@@ -63,7 +85,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 			var id string
 			if err := srows.Scan(&id); err == nil {
 				if s, ok := content.GetSkillByID(id); ok {
-					activeItemNames[formatGSName(s.Score(), s.Name)] = true
+					activeItemNames[formatGSName(s.Score(), s.Name, s.Special)] = true
 				}
 			}
 		}
