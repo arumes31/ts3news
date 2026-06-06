@@ -45,7 +45,7 @@ func TestDatabasePersistence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open sqlmock: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	b := &Bot{Cfg: &config.Config{}, DB: db}
 

@@ -8,4 +8,5 @@ venv/
 temp/
 .claude/
 .gemini/
+.gemini_security/
 /bot

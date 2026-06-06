@@ -58,7 +58,7 @@ func TestXPForPriceDirection(t *testing.T) {
 	// Pricier = more XP (default direction).
 	cheap := XPForPrice(5, false)
 	pricey := XPForPrice(60, false)
-	if !(pricey > cheap) {
+	if pricey <= cheap {
 		t.Errorf("pricier should give more XP: cheap=%d pricey=%d", cheap, pricey)
 	}
 	// Inverted direction.

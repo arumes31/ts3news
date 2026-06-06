@@ -113,7 +113,7 @@ func (s *Supervisor) runCycleWithClient(shutdownCtx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	log.Println("TS3 client connected. Running notification cycle...")
 	if err := c.Use(1); err != nil {
@@ -172,18 +172,18 @@ func (s *Supervisor) connect(shutdownCtx, cycleCtx context.Context) (*clientquer
 	log.Println("Waiting for TS3 client to be connected to the server...")
 	for time.Now().Before(deadline) {
 		if err := ctxErr(shutdownCtx, cycleCtx); err != nil {
-			c.Close()
+			_ = c.Close()
 			return nil, err
 		}
 		if c.IsConnected() {
 			return c, nil
 		}
 		if sleepCtx(shutdownCtx, time.Second) {
-			c.Close()
+			_ = c.Close()
 			return nil, errShutdown
 		}
 	}
-	c.Close()
+	_ = c.Close()
 	return nil, errConnectTO
 }
 

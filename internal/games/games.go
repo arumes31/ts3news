@@ -138,7 +138,7 @@ func FetchFreeGames(opts Options) ([]Game, error) {
 			if !matchesDRM(g, opts.DRMFilter) {
 				continue
 			}
-			if !(g.isNormallyPaid() || g.AssumePaid) {
+			if !g.isNormallyPaid() && !g.AssumePaid {
 				continue
 			}
 			if !g.isActive() {
@@ -265,7 +265,7 @@ func ShortenURL(longURL string) (string, error) {
 	if err != nil {
 		return longURL, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return longURL, fmt.Errorf("redrx returned status %d", resp.StatusCode)

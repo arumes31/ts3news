@@ -160,7 +160,7 @@ func loadDotEnv(path string) {
 	if err != nil {
 		return // No file is fine; env vars may be supplied another way.
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	log.Printf("Loading configuration from %s", path)
 	scanner := bufio.NewScanner(f)
@@ -179,7 +179,7 @@ func loadDotEnv(path string) {
 			continue
 		}
 		if _, exists := os.LookupEnv(key); !exists {
-			os.Setenv(key, value)
+			_ = os.Setenv(key, value)
 		}
 	}
 }
