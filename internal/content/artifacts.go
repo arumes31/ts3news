@@ -156,6 +156,18 @@ type Artifact struct {
 	MaxDurability int
 }
 
+func (a Artifact) IsBoon() bool {
+	return a.Mult > 1.0
+}
+
+func (a Artifact) Effect() string {
+	if a.Mult > 1.0 {
+		return fmt.Sprintf("+%.0f%%", (a.Mult-1.0)*100)
+	}
+	return fmt.Sprintf("-%.0f%%", (1.0-a.Mult)*100)
+}
+
+
 type Title struct {
 	Name         string
 	XPMultiplier float64

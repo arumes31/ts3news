@@ -304,9 +304,6 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 	for _, note := range notes {
 		fmt.Fprintf(&sb, "✨ %s\n", note)
 	}
-	if b.Cfg.EnableTrivia {
-		fmt.Fprintf(&sb, "💡 Did you know? %s\n", content.RandomTrivia())
-	}
 	if theme != nil && theme.Signoff != "" {
 		sb.WriteString(theme.Signoff)
 	}

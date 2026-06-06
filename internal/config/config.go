@@ -38,7 +38,6 @@ type Config struct {
 
 	// Message flavour
 	EnableYouTubeTrailer bool
-	EnableTrivia         bool
 	EnableGreetings      bool
 	EnableHolidayThemes  bool
 	DynamicNickname      bool // change the bot's TS3 nickname based on the announced game
@@ -92,12 +91,10 @@ func LoadConfig() *Config {
 		DRMFilter:        envList("DRM_FILTER", []string{"steam", "epic"}),
 
 		EnableYouTubeTrailer: envBool("ENABLE_YOUTUBE_TRAILER", true),
-		EnableTrivia:         envBool("ENABLE_TRIVIA", true),
 		EnableGreetings:      envBool("ENABLE_GREETINGS", true),
 		EnableHolidayThemes:  envBool("ENABLE_HOLIDAY_THEMES", true),
 		DynamicNickname:      envBool("DYNAMIC_NICKNAME", true),
-
-		EnableLeveling:    envBool("ENABLE_LEVELING", true),
+		EnableLeveling:       envBool("ENABLE_LEVELING", true),
 		LevelGroups:       os.Getenv("LEVEL_GROUPS"),
 		CheaperMoreXP:     envBool("CHEAPER_MORE_XP", false),
 		XPServerGroups:    envBool("XP_SERVER_GROUPS", false),

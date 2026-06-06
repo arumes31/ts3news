@@ -1,7 +1,7 @@
 // Package content provides the flavour text the bot mixes into its messages:
-// random greetings, gaming trivia, holiday theming and game-based nicknames.
-// Everything here is deterministic-free (uses math/rand) and side-effect free so
-// it is trivially unit-testable.
+// random greetings, holiday theming and game-based nicknames.
+// Everything here is deterministic-free (uses math/rand) and side-effect free,
+// so it is trivially unit-testable.
 package content
 
 import "math/rand"

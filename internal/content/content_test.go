@@ -14,15 +14,6 @@ func TestGreetingsCount(t *testing.T) {
 	}
 }
 
-func TestTrivia(t *testing.T) {
-	if TriviaCount() == 0 {
-		t.Error("no trivia facts")
-	}
-	if RandomTrivia() == "" {
-		t.Error("RandomTrivia returned empty")
-	}
-}
-
 func TestNicknameForGame(t *testing.T) {
 	if got := NicknameForGame("Fallout 4"); got != "VaultBoy" {
 		t.Errorf("Fallout -> %q, want VaultBoy", got)
