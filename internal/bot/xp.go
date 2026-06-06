@@ -240,10 +240,19 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 
 	// 1. Battle Header (What we fighting)
 	var partyNames []string
-	for _, u := range users { partyNames = append(partyNames, u.Nickname) }
+	totalPartyGS := 0
+	for _, u := range users {
+		gs := u.Stats.Score()
+		totalPartyGS += gs
+		partyNames = append(partyNames, fmt.Sprintf("%s (%d)", u.Nickname, gs))
+	}
 	
 	mobCounts := make(map[string]int)
-	for _, m := range mobs { mobCounts[m.DisplayName()]++ }
+	totalEnemyCR := 0
+	for _, m := range mobs {
+		mobCounts[m.DisplayName()]++
+		totalEnemyCR += m.Score()
+	}
 	var enemyNames []string
 	for name, count := range mobCounts {
 		if count > 1 {
@@ -252,7 +261,8 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			enemyNames = append(enemyNames, name)
 		}
 	}
-	logs = append(logs, fmt.Sprintf("⚔️ BATTLE: %s VS %s", strings.Join(partyNames, ", "), strings.Join(enemyNames, ", ")))
+	logs = append(logs, fmt.Sprintf("⚔️ BATTLE [GS:%d VS CR:%d]", totalPartyGS, totalEnemyCR))
+	logs = append(logs, fmt.Sprintf("🛡️ %s VS %s", strings.Join(partyNames, ", "), strings.Join(enemyNames, ", ")))
 
 	var activeUsers []activeUser
 	for i := range users {
