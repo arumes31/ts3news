@@ -91,3 +91,12 @@ func GetSkillByID(id string) (Skill, bool) {
 	}
 	return Skill{}, false
 }
+
+func IsSkill(name string) bool {
+	for _, s := range allSkills {
+		if s.Name == name {
+			return true
+		}
+	}
+	return false
+}

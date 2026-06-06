@@ -39,6 +39,20 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 		activeItemNames[aName.String] = true
 	}
 
+	// Skills
+	srows, err := b.DB.Query("SELECT skill_id FROM user_skills WHERE client_uid = $1", uid)
+	if err == nil {
+		defer func() { _ = srows.Close() }()
+		for srows.Next() {
+			var id string
+			if err := srows.Scan(&id); err == nil {
+				if s, ok := content.GetSkillByID(id); ok {
+					activeItemNames[s.Name] = true
+				}
+			}
+		}
+	}
+
 	// 2. Ensure user is in these groups
 	for name := range activeItemNames {
 		sgid, err := b.getOrCreateItemGroup(c, name)
@@ -47,14 +61,15 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 		}
 	}
 
-	// 3. Remove from groups that are no longer active loot
+	// 3. Remove from groups that are no longer active loot or skills
 	groups, err := c.ServerGroupList()
 	if err != nil {
 		return
 	}
 
 	for _, g := range groups {
-		if content.IsGearOrArtifact(g.Name) && !activeItemNames[g.Name] {
+		isRPGRelated := content.IsGearOrArtifact(g.Name) || content.IsSkill(g.Name)
+		if isRPGRelated && !activeItemNames[g.Name] {
 			_ = c.ServerGroupDelClient(g.ID, cldbid)
 			b.maybeDeleteEmptyTitleGroup(c, g.ID, g.Name) // reuse helper
 		}
