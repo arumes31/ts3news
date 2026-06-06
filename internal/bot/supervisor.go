@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"os/exec"
 	"os/signal"
 	"syscall"
@@ -90,6 +91,7 @@ func (s *Supervisor) runCycleWithClient(shutdownCtx context.Context) error {
 	defer cancelCycle()
 
 	log.Printf("Launching TS3 client: %s %s", cfg.TS3ClientPath, url)
+	// #nosec G204 -- TS3ClientPath is loaded securely from environment configuration
 	cmd := exec.Command(cfg.TS3ClientPath, "-nosingleinstance", url)
 	cmd.Stdout = nil
 	cmd.Stderr = nil
@@ -118,6 +120,18 @@ func (s *Supervisor) runCycleWithClient(shutdownCtx context.Context) error {
 	log.Println("TS3 client connected. Running notification cycle...")
 	if err := c.Use(1); err != nil {
 		log.Printf("Warning: 'use 1' failed: %v", err)
+	}
+
+	// Server-group "list" commands deliver their replies via notification events;
+	// subscribe before any server-group operations this cycle.
+	if s.bot.Cfg.XPServerGroups {
+		if err := c.RegisterServerGroupEvents(); err != nil {
+			log.Printf("Warning: registering server-group events failed: %v", err)
+		}
+	}
+
+	if os.Getenv("CQ_PROBE") == "1" {
+		probeClientQuery(c)
 	}
 
 	// The poke cycle itself is intentionally NOT cancelled by shutdownCtx so an
@@ -225,6 +239,22 @@ func (s *Supervisor) randomInterval() time.Duration {
 	span := max - min + 1
 	hours := min + rand.Intn(span)
 	return time.Duration(hours) * time.Hour
+}
+
+// probeClientQuery issues a battery of raw ClientQuery commands and logs the full
+// replies, to diagnose how the server-group admin commands respond. Enabled with
+// CQ_PROBE=1.
+func probeClientQuery(c *clientquery.Client) {
+	cmds := []string{
+		"clientnotifyregister schandlerid=1 event=any",
+		"ftinitupload clientftfid=1 name=\\/icon_77777777 cid=0 cpw= size=120 overwrite=1 resume=0",
+	}
+	for _, cmd := range cmds {
+		lines, err := c.Raw(cmd, 6*time.Second)
+		log.Printf("PROBE %q -> err=%v lines=%d %q", cmd, err, len(lines), lines)
+	}
+	// Drain any asynchronous notifications (e.g. the file-transfer key/port).
+	log.Printf("PROBE drain -> %q", c.DrainRaw(5*time.Second))
 }
 
 // clearPopups periodically sends Escape via xdotool to dismiss first-run dialogs.

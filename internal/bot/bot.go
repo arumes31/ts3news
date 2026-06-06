@@ -22,7 +22,9 @@ import (
 type Bot struct {
 	Cfg         *config.Config
 	DB          *sql.DB
-	levelGroups map[int]int // level milestone -> TS3 server group id
+	levelGroups map[int]int // manual level milestone -> existing TS3 server group id
+	xpGroups    map[int]int // auto-created level group -> TS3 server group id (XP_SERVER_GROUPS)
+	parties     [][]string  // each party is a list of lowercased member nicknames
 }
 
 func NewBot(cfg *config.Config) *Bot {
@@ -40,11 +42,34 @@ func NewBot(cfg *config.Config) *Bot {
 		log.Fatalf("Failed to run database migrations: %v", err)
 	}
 
-	return &Bot{
+	b := &Bot{
 		Cfg:         cfg,
 		DB:          database,
 		levelGroups: leveling.ParseLevelGroups(cfg.LevelGroups),
+		xpGroups:    map[int]int{},
+		parties:     parseParties(cfg.Parties),
 	}
+	if cfg.XPServerGroups {
+		b.loadLevelGroups()
+	}
+	return b
+}
+
+// parseParties parses "Nick1,Nick2;Nick3,Nick4" into lowercased member lists.
+func parseParties(s string) [][]string {
+	var out [][]string
+	for _, party := range strings.Split(s, ";") {
+		var members []string
+		for _, m := range strings.Split(party, ",") {
+			if m = strings.ToLower(strings.TrimSpace(m)); m != "" {
+				members = append(members, m)
+			}
+		}
+		if len(members) > 0 {
+			out = append(out, members)
+		}
+	}
+	return out
 }
 
 func (b *Bot) Close() {
@@ -81,28 +106,48 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		return fmt.Errorf("failed to list clients: %w", err)
 	}
 
-	targetNick := b.Cfg.TargetNick
+	targetNick := strings.TrimSpace(b.Cfg.TargetNick)
 	log.Printf("Online clients: %d. Target filter: '%s'. Found %d free games.", len(clients), targetNick, len(freeGames))
+
+	// Diagnostic: list the online normal (voice) clients so it is easy to see who
+	// is connected and pick the right TS3_TARGET_NICK.
+	var onlineNames []string
+	for _, cl := range clients {
+		if cl.Type == 0 {
+			onlineNames = append(onlineNames, cl.Nickname)
+		}
+	}
+	log.Printf("Online normal clients: %v", onlineNames)
 
 	theme := b.activeTheme()
 	if theme != nil {
 		log.Printf("Holiday theme active: %s %s", theme.Emoji, theme.Name)
 	}
 
+	// Remove any auto-created level groups that have been left empty.
+	if b.Cfg.XPServerGroups {
+		b.cleanupEmptyLevelGroups(c)
+	}
+
+	// Shared per-cycle context, then apply the inactivity (Sloth) decay to users
+	// who have been offline past the grace period.
+	ctx := b.buildCycleContext(clients)
+	b.slothDecay(c, ctx.today)
+
 	pokedCount := 0
+	usedDynamicNick := false
 	for _, client := range clients {
 		if client.Type != 0 {
 			continue
 		}
-		if targetNick != "" && client.Nickname != targetNick {
+		if targetNick != "" && !strings.EqualFold(strings.TrimSpace(client.Nickname), targetNick) {
 			continue
 		}
 		if client.UID == "" {
 			continue // need a stable unique id to track per user
 		}
 
-		// Mark every eligible user as seen (drives dead-user cleanup) even if there
-		// is nothing new to send this cycle.
+		// Mark every eligible user as seen (drives dead-user cleanup).
 		if err := b.touchUser(client.UID, client.Nickname); err != nil {
 			log.Printf("touchUser failed for %s: %v", client.Nickname, err)
 		}
@@ -114,12 +159,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		}
 
 		candidates := filterNewGames(freeGames, alreadySent)
-		if len(candidates) == 0 {
-			continue
-		}
-
-		// Feature: Prefer GamerPower links. If any GamerPower games are in the
-		// candidates list, pick randomly from only those. If none, pick from the rest.
+		// Prefer GamerPower links when any are available.
 		var gpCandidates []games.Game
 		for _, g := range candidates {
 			if strings.EqualFold(g.Source, "GamerPower") {
@@ -130,45 +170,61 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			candidates = gpCandidates
 		}
 
-		game := candidates[rand.Intn(len(candidates))]
-
-		shortURL, err := games.ShortenURL(game.URL)
-		if err != nil {
-			log.Printf("Shortening failed: %v", err)
-			shortURL = game.URL
-		}
-
-		// Award XP / level up before composing the message so the PM is accurate.
-		var lvl *levelResult
-		if b.Cfg.EnableLeveling {
-			lr, err := b.awardXP(client.UID, client.Nickname, b.xpForGame(game))
-			if err != nil {
-				log.Printf("awardXP failed for %s: %v", client.Nickname, err)
-			} else {
-				lvl = lr
-				b.applyMilestones(c, client.CLID, client.Nickname, lr)
+		hasGame := len(candidates) > 0
+		var game games.Game
+		var shortURL string
+		if hasGame {
+			game = candidates[rand.Intn(len(candidates))]
+			if shortURL, err = games.ShortenURL(game.URL); err != nil {
+				log.Printf("Shortening failed: %v", err)
+				shortURL = game.URL
 			}
 		}
 
-		// Feature: bot adopts a game-themed nickname while announcing.
+		// Process XP (login bonus, multipliers, loot boxes, artifact roll). With no
+		// new game a 50% penalty applies but XP/levels/groups still progress.
+		var lvl *levelResult
+		var notes []string
+		var artifactPoke string
+		if b.Cfg.EnableLeveling {
+			lvl, notes, artifactPoke = b.processUserXP(client.UID, client.Nickname, b.xpForGame(game), hasGame, ctx)
+			if lvl != nil {
+				b.applyMilestones(c, client.CLID, client.Nickname, lvl)
+				if b.Cfg.XPServerGroups {
+					b.applyLevelGroup(c, client.CLID, client.UID, client.Nickname, lvl.NewLevel)
+				}
+			}
+		}
+
+		// Extra poke announcing a freshly granted corrupted artifact (game or not).
+		if artifactPoke != "" {
+			if err := c.Poke(client.CLID, artifactPoke); err != nil {
+				log.Printf("Artifact poke failed for %s: %v", client.Nickname, err)
+			}
+		}
+
+		if !hasGame {
+			continue // XP processed; nothing new to announce
+		}
+
+		// Bot adopts a game-themed nickname while announcing.
 		if b.Cfg.DynamicNickname {
+			usedDynamicNick = true
 			if err := c.SetNickname(content.NicknameForGame(game.Title)); err != nil {
 				log.Printf("SetNickname failed: %v", err)
 			}
 		}
 
 		pokeMsg := composePoke(game, shortURL, theme, lvl)
-		pmMsg := b.composePM(game, shortURL, theme, lvl)
+		pmMsg := b.composePM(game, shortURL, theme, lvl, notes)
 
 		log.Printf("Notifying %s about %s [%s] (%s)", client.Nickname, game.DisplayTitle(), game.Source, shortURL)
-
 		if err := c.Poke(client.CLID, pokeMsg); err != nil {
 			log.Printf("Poke failed for %s: %v", client.Nickname, err)
 		}
 		if err := c.SendPrivateMessage(client.CLID, pmMsg); err != nil {
 			log.Printf("PM failed for %s: %v", client.Nickname, err)
 		}
-
 		if err := b.markAsSent(client.UID, client.Nickname, game.Key(), game.DisplayTitle()); err != nil {
 			log.Printf("Failed to mark game as sent for %s: %v", client.Nickname, err)
 		}
@@ -177,7 +233,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 	}
 
 	// Restore the bot's configured nickname after a dynamic-nickname cycle.
-	if b.Cfg.DynamicNickname && pokedCount > 0 {
+	if usedDynamicNick {
 		if err := c.SetNickname(b.Cfg.TS3Nickname); err != nil {
 			log.Printf("Restoring nickname failed: %v", err)
 		}
@@ -216,8 +272,8 @@ func composePoke(g games.Game, shortURL string, theme *content.Theme, lvl *level
 }
 
 // composePM builds the rich private message with greeting, trailer, XP/level,
-// trivia and holiday flavour.
-func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl *levelResult) string {
+// trivia, holiday flavour, and any progression notes.
+func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl *levelResult, notes []string) string {
 	var sb strings.Builder
 
 	// Greeting / themed banner.
@@ -247,6 +303,10 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 		if lvl.NewLevel > lvl.OldLevel {
 			fmt.Fprintf(&sb, "🎉 Level up! You are now a %s!\n", leveling.LevelName(lvl.NewLevel))
 		}
+	}
+	
+	for _, note := range notes {
+		fmt.Fprintf(&sb, "✨ %s\n", note)
 	}
 
 	if b.Cfg.EnableTrivia {
