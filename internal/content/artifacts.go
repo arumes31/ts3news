@@ -103,6 +103,14 @@ type Consumable struct {
 	Description string
 }
 
+type Enchantment struct {
+	ID          string
+	Name        string
+	Rarity      Rarity
+	Stats       Stats
+	Description string
+}
+
 var allGear []Gear
 var allConsumables = []Consumable{
 	{"P1", "Small Health Potion", ConsumableHealing, 50, 0, "Restores 50 HP instantly"},
@@ -110,6 +118,8 @@ var allConsumables = []Consumable{
 	{"P3", "Strength Elixir", ConsumableBuff, 15, 3, "+15 STR for 3 fights"},
 	{"P4", "Iron Skin Brew", ConsumableBuff, 10, 3, "+10 DEF for 3 fights"},
 }
+
+var allEnchantments []Enchantment
 
 // Global pools
 var corruptedArtifacts []Artifact
@@ -139,7 +149,7 @@ func init() {
 			Rarity:        RarityCommon,
 			XPMultiplier:  1.01,
 			MaxDurability: 50,
-			Stats:         Stats{HP: 5, STR: 1, DEF: 1, SPD: 1},
+			Stats:         Stats{HP: 10, STR: 2, DEF: 2, SPD: 2},
 		})
 	}
 	// Add Rares
@@ -156,30 +166,54 @@ func init() {
 			var s Stats
 			if idx%2 == 0 {
 				mult = 1.5 + (rand.Float64() * 2.5)
-				s = Stats{HP: 50, STR: 20, DEF: 10, SPD: 15, LCK: 10}
+				s = Stats{HP: 150, STR: 60, DEF: 30, SPD: 45, LCK: 30}
 			} else {
 				mult = 0.1 + (rand.Float64() * 0.4)
-				s = Stats{HP: -20, STR: -10, DEF: -5, SPD: -5, LCK: -10}
+				s = Stats{HP: -100, STR: -40, DEF: -20, SPD: -20, LCK: -30}
 			}
 			corruptedArtifacts = append(corruptedArtifacts, Artifact{Name: name, Mult: mult, Stats: s, MaxDurability: 15})
 			idx++
 		}
 	}
 
-	// 3. Titles
+	// 3. Titles (Buffed massively)
 	posPrefixes := []string{"Divine", "Glorious", "Eternal", "Radiant", "Immortal", "Mythic", "Legendary", "Ancient", "Primal", "Celestial"}
 	posNouns := []string{"Sovereign", "Overlord", "Godslayer", "Archon", "Paragon", "Vanguard", "Sentinel", "Oracle", "Exarch", "Titan"}
 	for _, p := range posPrefixes {
 		for _, n := range posNouns {
-			positiveTitles = append(positiveTitles, Title{Name: p + " " + n, XPMultiplier: 2.0 + rand.Float64()*3.0, Stats: Stats{HP: 100, STR: 50, DEF: 30, SPD: 25, LCK: 20}})
+			positiveTitles = append(positiveTitles, Title{
+				Name:         p + " " + n,
+				XPMultiplier: 3.0 + rand.Float64()*7.0, // 3x to 10x
+				Stats:        Stats{HP: 500, STR: 200, DEF: 100, SPD: 100, LCK: 80},
+			})
 		}
 	}
 	negPrefixes := []string{"Wretched", "Damned", "Forlorn", "Forsaken"}
 	negNouns := []string{"Peon", "Outcast", "Traitor", "Coward", "Scum"}
 	for _, p := range negPrefixes {
 		for _, n := range negNouns {
-			negativeTitles = append(negativeTitles, Title{Name: p + " " + n, XPMultiplier: 0.05 + rand.Float64()*0.2, Stats: Stats{HP: -50, STR: -20, DEF: -15, SPD: -10, LCK: -15}})
+			negativeTitles = append(negativeTitles, Title{
+				Name:         p + " " + n,
+				XPMultiplier: 0.01 + rand.Float64()*0.1, // 0.01x to 0.11x
+				Stats:        Stats{HP: -300, STR: -150, DEF: -80, SPD: -80, LCK: -100},
+			})
 		}
+	}
+
+	// 4. Generate Enchantments
+	enchPrefixes := []string{"Fiery", "Icy", "Shocking", "Venomous", "Holy", "Vampiric", "Arcane", "Stone", "Wind", "Shadow"}
+	for i, p := range enchPrefixes {
+		rarity := RarityRare
+		if i > 6 { rarity = RarityEpic }
+		if i > 8 { rarity = RarityLegendary }
+		
+		allEnchantments = append(allEnchantments, Enchantment{
+			ID:          fmt.Sprintf("E%d", i),
+			Name:        p,
+			Rarity:      rarity,
+			Stats:       Stats{STR: 15 * (int(rarity) + 1), SPD: 10 * (int(rarity) + 1)},
+			Description: fmt.Sprintf("Adds %s power", p),
+		})
 	}
 }
 
@@ -187,6 +221,7 @@ func RandomConsumable() Consumable { return allConsumables[rand.Intn(len(allCons
 func RandomGearDrop() Gear         { return allGear[rand.Intn(len(allGear))] }
 func RandomStarterGear() Gear      { return allGear[rand.Intn(len(AllSlots))] }
 func RandomArtifact() Artifact     { return corruptedArtifacts[rand.Intn(len(corruptedArtifacts))] }
+func RandomEnchantment() Enchantment { return allEnchantments[rand.Intn(len(allEnchantments))] }
 func RandomTitle() Title {
 	if rand.Float64() < 0.8 { return positiveTitles[rand.Intn(len(positiveTitles))] }
 	return negativeTitles[rand.Intn(len(negativeTitles))]
@@ -197,6 +232,13 @@ func GetGearByID(id string) (Gear, bool) {
 		if g.ID == id { return g, true }
 	}
 	return Gear{}, false
+}
+
+func GetEnchantmentByID(id string) (Enchantment, bool) {
+	for _, e := range allEnchantments {
+		if e.ID == id { return e, true }
+	}
+	return Enchantment{}, false
 }
 
 func GetConsumableByID(id string) (Consumable, bool) {

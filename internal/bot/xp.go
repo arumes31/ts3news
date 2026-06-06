@@ -32,6 +32,7 @@ const (
 	titleChance        = 0.005
 	gearChance         = 0.05
 	consChance         = 0.1
+	enchChance         = 0.02
 	duraLossPerFight   = 1
 	duraLossPenalty    = 3
 	occupiedSlotRare   = 0.1
@@ -118,11 +119,7 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 		}
 	}
 
-	artifactPoke := ""
-	if b.Cfg.EnableXPModifiers {
-		artifactPoke = b.rollLootAndTitles(uid, ctx.today)
-	}
-	return lr, notes, artifactPoke
+	return lr, notes, "" // artifacts rolled separately in RunCycle now
 }
 
 func (b *Bot) computeMiscMult(uid, nickname string, cid int, ctx cycleContext) float64 {
@@ -282,17 +279,25 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 			if art, ok := content.GetArtifactByName(aName.String); ok { stats = stats.Add(art.Stats) }
 		}
 	}
-	rows, err := b.DB.Query("SELECT gear_id, durability FROM user_gear WHERE client_uid = $1", uid)
+	rows, err := b.DB.Query("SELECT gear_id, durability, enchantment_id FROM user_gear WHERE client_uid = $1", uid)
 	if err == nil {
 		defer func() { _ = rows.Close() }()
 		for rows.Next() {
 			var gearID string
 			var dura int
-			if err := rows.Scan(&gearID, &dura); err == nil {
+			var enchID sql.NullString
+			if err := rows.Scan(&gearID, &dura, &enchID); err == nil {
 				if gear, ok := content.GetGearByID(gearID); ok {
 					mult *= gear.XPMultiplier
 					stats = stats.Add(gear.Stats)
-					notes = append(notes, fmt.Sprintf("%s x%g (%d dura)", gear.Name, gear.XPMultiplier, dura))
+					note := fmt.Sprintf("%s x%g (%d dura)", gear.Name, gear.XPMultiplier, dura)
+					if enchID.Valid && enchID.String != "" {
+						if ench, ok := content.GetEnchantmentByID(enchID.String); ok {
+							stats = stats.Add(ench.Stats)
+							note = fmt.Sprintf("[%s] %s", ench.Name, note)
+						}
+					}
+					notes = append(notes, note)
 				}
 			}
 		}
@@ -327,10 +332,40 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob) string {
 			c := content.RandomConsumable()
 			_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
 			results = append(results, "Item: "+c.Name)
+		} else if r < enchChance {
+			ench := content.RandomEnchantment()
+			if slot, ok := b.applyEnchantment(uid, ench); ok {
+				results = append(results, fmt.Sprintf("Enchanted %s with %s", slot, ench.Name))
+			}
 		}
 	}
 	if len(results) > 0 { return "🎁 Loot: " + strings.Join(results, ", ") }
 	return ""
+}
+
+func (b *Bot) applyEnchantment(uid string, ench content.Enchantment) (string, bool) {
+	rows, err := b.DB.Query("SELECT slot, enchantment_id FROM user_gear WHERE client_uid = $1", uid)
+	if err != nil { return "", false }
+	defer func() { _ = rows.Close() }()
+	type slotInfo struct { slot, enchID string }
+	var slots []slotInfo
+	for rows.Next() {
+		var s slotInfo
+		var e sql.NullString
+		if err := rows.Scan(&s.slot, &e); err == nil {
+			if e.Valid { s.enchID = e.String }
+			slots = append(slots, s)
+		}
+	}
+	if len(slots) == 0 { return "", false }
+	target := slots[rand.Intn(len(slots))]
+	if target.enchID != "" {
+		if cur, ok := content.GetEnchantmentByID(target.enchID); ok {
+			if ench.Rarity < cur.Rarity { return "", false }
+		}
+	}
+	_, _ = b.DB.Exec("UPDATE user_gear SET enchantment_id = $3 WHERE client_uid = $1 AND slot = $2", uid, target.slot, ench.ID)
+	return target.slot, true
 }
 
 func (b *Bot) shouldEquip(uid string, newGear content.Gear) bool {
@@ -342,8 +377,6 @@ func (b *Bot) shouldEquip(uid string, newGear content.Gear) bool {
 	}
 	return true
 }
-
-func (b *Bot) rollLootAndTitles(uid string, today time.Time) string { return "" }
 
 func (b *Bot) awardXP(uid, nickname string, awarded int) (*levelResult, error) {
 	var curXP, curLevel int
@@ -359,9 +392,7 @@ func (b *Bot) awardXP(uid, nickname string, awarded int) (*levelResult, error) {
 func (b *Bot) slothDecay(c *clientquery.Client, today time.Time) {
 	cutoff := today.AddDate(0, 0, -slothGraceDays)
 	rows, err := b.DB.Query(`SELECT client_uid, nickname, xp, level, last_seen FROM users WHERE last_seen < $1`, cutoff)
-	if err != nil {
-		return
-	}
+	if err != nil { return }
 	type decayRow struct {
 		uid, nick string
 		xp, level int
@@ -369,9 +400,7 @@ func (b *Bot) slothDecay(c *clientquery.Client, today time.Time) {
 	var batch []decayRow
 	for rows.Next() {
 		var d decayRow
-		if err := rows.Scan(&d.uid, &d.nick, &d.xp, &d.level); err == nil {
-			batch = append(batch, d)
-		}
+		if err := rows.Scan(&d.uid, &d.nick, &d.xp, &d.level); err == nil { batch = append(batch, d) }
 	}
 	_ = rows.Close()
 	for _, d := range batch {
@@ -387,4 +416,3 @@ func sameDay(a, b time.Time) bool {
 	by, bm, bd := b.Date()
 	return ay == by && am == bm && ad == bd
 }
-
