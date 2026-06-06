@@ -128,7 +128,11 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 	m.Stats.HP = int(float64(m.Stats.HP) * totalScale)
 	m.Stats.STR = int(float64(m.Stats.STR) * totalScale)
-	m.Stats.DEF = int(float64(m.Stats.DEF) * totalScale)
+	
+	// Flatten DEF scaling: 50% slower growth than STR/HP to prevent 'DEF Wall'
+	defScale := 1.0 + (totalScale-1.0)*0.5
+	m.Stats.DEF = int(float64(m.Stats.DEF) * defScale)
+	
 	m.Stats.SPD = int(float64(m.Stats.SPD) * totalScale)
 
 	// XP rewards still scale fully to reward the risk
@@ -209,22 +213,22 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64) []Mob {
 	// Difficulty affects count: higher difficulty = more mobs
-	baseCount := 1 + rand.Intn(3)
+	baseCount := 2 + rand.Intn(3) // Increased base from 1 to 2
 	
 	// Zone Special effect: extra mobs
 	for _, eff := range zone.Effects {
 		if eff.Type == ZoneSpecial && strings.Contains(eff.Name, "Surge") {
-			baseCount += 1
+			baseCount += 2 // Increased surge from 1 to 2
 		}
 	}
 
 	// Dampen count scaling
-	count := int(float64(baseCount) * (1.0 + (difficulty-1.0)*0.2))
+	count := int(float64(baseCount) * (1.0 + (difficulty-1.0)*0.3))
 	if count < 1 { count = 1 }
-	if count > 6 { count = 6 } // Reduced cap for balance
+	if count > 8 { count = 8 } // Increased cap from 6 to 8 for better balance
 
 	var out []Mob
-	hasBoss := rand.Float64() < 0.08 * difficulty
+	hasBoss := rand.Float64() < 0.1 * difficulty // Slightly increased boss chance
 	for i := 0; i < count; i++ {
 		out = append(out, SpawnMob(avgLevel, hasBoss && i == 0, difficulty))
 	}

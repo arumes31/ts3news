@@ -972,6 +972,10 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		if eff == content.EffectTreasureHunter { lootFindBonus += 0.05 }
 	}
 
+	// Loot Quality Multiplier: Higher difficulty = better chance for Rares
+	qualityMult := zoneDifficulty
+	if qualityMult < 1.0 { qualityMult = 1.0 }
+
 	if tName.Valid {
 		if t, ok := content.GetTitleByName(tName.String); ok && t.DoubleLoot {
 			count *= 2
@@ -981,12 +985,12 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 	for i := 0; i < count; i++ {
 		r := rand.Float64() - lootFindBonus
 		lootFound := false
-		if r < titleChance {
+		if r < titleChance*qualityMult {
 			t := content.RandomTitle()
 			_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days' WHERE client_uid=$1", uid, t.Name, t.XPMultiplier)
 			results = append(results, "Title: "+t.Name)
 			lootFound = true
-		} else if r < artifactChance {
+		} else if r < artifactChance*qualityMult {
 			a := content.RandomArtifact()
 			// Scale Artifact stats with zone difficulty
 			a.Stats.HP = int(float64(a.Stats.HP) * zoneDifficulty)
@@ -995,43 +999,40 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			_, _ = b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1", uid, a.Mult, a.Name, a.MaxDurability)
 			results = append(results, "Artifact: "+a.Name)
 			lootFound = true
-		} else if r < gearChance {
+		} else if r < gearChance*qualityMult {
 			g := content.RandomGearDrop()
 			// Scale Gear stats with zone difficulty
 			g.Stats.HP = int(float64(g.Stats.HP) * zoneDifficulty)
 			g.Stats.STR = int(float64(g.Stats.STR) * zoneDifficulty)
 			g.Stats.DEF = int(float64(g.Stats.DEF) * zoneDifficulty)
 			g.Stats.SPD = int(float64(g.Stats.SPD) * zoneDifficulty)
-
 			if b.shouldEquip(uid, g) {
 				_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
 				results = append(results, "Equipped: "+g.Name)
 			} else {
-				// Disenchant
 				xp := 1 + int(g.Rarity)*2
 				_, _ = b.awardXP(uid, "", xp)
 				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", g.Name, xp))
 			}
 			lootFound = true
-		} else if r < skillChance {
+		} else if r < skillChance*qualityMult {
 			s := content.RandomSkill()
 			// Scale Skill power with zone difficulty
 			s.Power *= zoneDifficulty
 			if slot, ok := b.equipSkill(uid, s); ok {
 				results = append(results, fmt.Sprintf("Learned %s (Slot %d)", s.Name, slot))
 			} else {
-				// Disenchant
 				xp := 2 + int(s.Rarity)*3
 				_, _ = b.awardXP(uid, "", xp)
 				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", s.Name, xp))
 			}
 			lootFound = true
-		} else if r < consChance {
+		} else if r < consChance*qualityMult {
 			c := content.RandomConsumable()
 			_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
 			results = append(results, "Item: "+c.Name)
 			lootFound = true
-		} else if r < enchChance {
+		} else if r < enchChance*qualityMult {
 			ench := content.RandomEnchantment()
 			// Scale Enchantment stats with zone difficulty
 			ench.Stats.STR = int(float64(ench.Stats.STR) * zoneDifficulty)
