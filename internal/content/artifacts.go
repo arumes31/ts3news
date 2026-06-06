@@ -65,6 +65,23 @@ func (s Stats) Score() int {
 	return s.HP/5 + s.STR + s.DEF + s.SPD + s.LCK + s.INT + s.STA + s.CRT + s.DGE
 }
 
+// Scaled multiplies the combat stats by f (flavour stats left unchanged). Used
+// for the permanent per-prestige stat bonus.
+func (s Stats) Scaled(f float64) Stats {
+	return Stats{
+		HP:  int(float64(s.HP) * f),
+		STR: int(float64(s.STR) * f),
+		DEF: int(float64(s.DEF) * f),
+		SPD: int(float64(s.SPD) * f),
+		LCK: int(float64(s.LCK) * f),
+		INT: int(float64(s.INT) * f),
+		STA: int(float64(s.STA) * f),
+		CRT: int(float64(s.CRT) * f),
+		DGE: int(float64(s.DGE) * f),
+		CHA: s.CHA, STN: s.STN, SHN: s.SHN, HGR: s.HGR,
+	}
+}
+
 type GearSlot string
 
 const (
@@ -290,6 +307,13 @@ func init() {
 			}
 		}
 	}
+
+	// Two solid "Novice+" starter items every new player is equipped with, so the
+	// early game is not painfully weak (better than Novice, far below endgame gear).
+	allGear = append(allGear,
+		Gear{ID: "B_GOOD_1", Name: "Trusty Longsword", Slot: SlotMainHand, Rarity: RarityUncommon, XPMultiplier: getXPMult(RarityUncommon), MaxDurability: 120, Stats: Stats{HP: 25, STR: 14, DEF: 4, SPD: 7, CRT: 5, LCK: 3}},
+		Gear{ID: "B_GOOD_2", Name: "Reinforced Breastplate", Slot: SlotChest, Rarity: RarityUncommon, XPMultiplier: getXPMult(RarityUncommon), MaxDurability: 150, Stats: Stats{HP: 70, STR: 4, DEF: 20, SPD: 2, STA: 6}},
+	)
 
 	// Add some Unique Legendaries with massive stats but very low durability
 	uniqueLegendaries = append(uniqueLegendaries, []Gear{

@@ -471,7 +471,12 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				}
 
 				if target.Stats.HP <= 0 {
-					logs = append(logs, fmt.Sprintf("☠️ %s defeated!", target.Name))
+					logs = append(logs, fmt.Sprintf("☠️ %s defeated by %s!", target.Name, u.Nickname))
+					// Award loot for every mob defeated, regardless of final outcome
+					winner := users[rand.Intn(len(users))]
+					if note := b.rollLootForUser(winner.UID, *target, zone.Difficulty); note != "" {
+						logs = append(logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, target.Name, note))
+					}
 					b.handleDeathEffects(target, &mobs, &logs, avgLvl, diffFactor, activeUsers)
 				}
 				if len(b.getAliveMobs(mobs)) == 0 { break }
@@ -504,7 +509,11 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				ptarget.Stats.HP -= pdmg
 				totalUserDamage += pdmg
 				if ptarget.Stats.HP <= 0 {
-					logs = append(logs, fmt.Sprintf("☠️ %s killed by pet!", ptarget.Name))
+					logs = append(logs, fmt.Sprintf("☠️ %s killed by pet %s!", ptarget.Name, p.Name))
+					winner := users[rand.Intn(len(users))]
+					if note := b.rollLootForUser(winner.UID, *ptarget, zone.Difficulty); note != "" {
+						logs = append(logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, ptarget.Name, note))
+					}
 					b.handleDeathEffects(ptarget, &mobs, &logs, avgLvl, diffFactor, activeUsers)
 				}
 			}
@@ -559,7 +568,11 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			totalMobDamage += dmg
 
 			// Check Revival
-			b.checkUserRevive(target, &logs)
+			if target.CurrentHP <= 0 {
+				if !b.checkUserRevive(target, &logs) {
+					logs = append(logs, fmt.Sprintf("💀 %s was slain by %s!", target.Nickname, m.Name))
+				}
+			}
 
 			for _, eff := range targetAU.effects {
 				if eff == content.EffectThorns && dmg > 0 {
@@ -608,7 +621,6 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			finalXP -= penalty
 			u.CurrentHP = 0 // dead
 			u.RegenStacks = 0 // lose stacks on death
-			logs = append(logs, fmt.Sprintf("💀 %s lost %d XP due to death.", u.Nickname, penalty))
 		}
 		
 		_, _ = b.DB.Exec("UPDATE users SET current_hp = $2, regen_stacks = $3 WHERE client_uid = $1", u.UID, u.CurrentHP, u.RegenStacks)
@@ -783,6 +795,13 @@ func (b *Bot) ensureUserHasGear(uid string) {
 			}
 		}
 	}
+
+	// Also give Novice Skills if empty
+	var skillCount int
+	_ = b.DB.QueryRow("SELECT COUNT(*) FROM user_skills WHERE client_uid = $1", uid).Scan(&skillCount)
+	if skillCount == 0 {
+		_, _ = b.DB.Exec("INSERT INTO user_skills (client_uid, slot, skill_id) VALUES ($1, 1, 'S0_1'), ($1, 2, 'S0_2')", uid)
+	}
 }
 
 func (b *Bot) applyDurabilityLoss(uid string, defeat bool) {
@@ -807,12 +826,22 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) {
 }
 
 func (b *Bot) calculateTotalStats(uid string, today time.Time) (content.Stats, float64, []string) {
-	var level int
-	_ = b.DB.QueryRow("SELECT level FROM users WHERE client_uid=$1", uid).Scan(&level)
+	var level, prestige int
+	_ = b.DB.QueryRow("SELECT level, prestige FROM users WHERE client_uid=$1", uid).Scan(&level, &prestige)
 	base := content.Stats{
 		HP: 100 + level*5, STR: 10 + level, DEF: 5 + level/2, SPD: 10 + level, LCK: level/5,
 		INT: level/10, STA: level/10, CRT: 5 + level/50, DGE: 5 + level/50,
 	}
+	
+	// Apply Prestige Bonus
+	if prestige > 0 {
+		pMult := 1.0 + (float64(prestige) * prestigeStatBonus)
+		base.HP = int(float64(base.HP) * pMult)
+		base.STR = int(float64(base.STR) * pMult)
+		base.DEF = int(float64(base.DEF) * pMult)
+		base.SPD = int(float64(base.SPD) * pMult)
+	}
+
 	mult, lootStats, notes, effects := b.activeLootMult(uid, today)
 	totalStats := base.Add(lootStats)
 
@@ -947,6 +976,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			lootFound = true
 		} else if r < artifactChance {
 			a := content.RandomArtifact()
+			// Scale Artifact stats with zone difficulty
 			a.Stats.HP = int(float64(a.Stats.HP) * zoneDifficulty)
 			a.Stats.STR = int(float64(a.Stats.STR) * zoneDifficulty)
 			a.Stats.DEF = int(float64(a.Stats.DEF) * zoneDifficulty)
@@ -955,14 +985,17 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			lootFound = true
 		} else if r < gearChance {
 			g := content.RandomGearDrop()
+			// Scale Gear stats with zone difficulty
 			g.Stats.HP = int(float64(g.Stats.HP) * zoneDifficulty)
 			g.Stats.STR = int(float64(g.Stats.STR) * zoneDifficulty)
 			g.Stats.DEF = int(float64(g.Stats.DEF) * zoneDifficulty)
 			g.Stats.SPD = int(float64(g.Stats.SPD) * zoneDifficulty)
+
 			if b.shouldEquip(uid, g) {
 				_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
 				results = append(results, "Equipped: "+g.Name)
 			} else {
+				// Disenchant
 				xp := 1 + int(g.Rarity)*2
 				_, _ = b.awardXP(uid, "", xp)
 				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", g.Name, xp))
@@ -970,10 +1003,12 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			lootFound = true
 		} else if r < skillChance {
 			s := content.RandomSkill()
+			// Scale Skill power with zone difficulty
 			s.Power *= zoneDifficulty
 			if slot, ok := b.equipSkill(uid, s); ok {
 				results = append(results, fmt.Sprintf("Learned %s (Slot %d)", s.Name, slot))
 			} else {
+				// Disenchant
 				xp := 2 + int(s.Rarity)*3
 				_, _ = b.awardXP(uid, "", xp)
 				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", s.Name, xp))
@@ -986,11 +1021,14 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			lootFound = true
 		} else if r < enchChance {
 			ench := content.RandomEnchantment()
+			// Scale Enchantment stats with zone difficulty
 			ench.Stats.STR = int(float64(ench.Stats.STR) * zoneDifficulty)
 			ench.Stats.SPD = int(float64(ench.Stats.SPD) * zoneDifficulty)
+
 			if slot, ok := b.applyEnchantment(uid, ench); ok {
 				results = append(results, fmt.Sprintf("Enchanted %s with %s", slot, ench.Name))
 			} else {
+				// Disenchant
 				xp := 3 + int(ench.Rarity)*5
 				_, _ = b.awardXP(uid, "", xp)
 				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", ench.Name, xp))

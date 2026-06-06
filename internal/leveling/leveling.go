@@ -57,11 +57,11 @@ var baseTierNames = []string{
 }
 
 // XP curve tuning for 10000 levels.
+// Sharpened curve: 1-1000 is easier, then it gets exponentially harder.
 const (
 	xpMin      = 10
 	xpMax      = 25
 	xpCurveK   = 1.0
-	xpCurveExp = 1.2
 )
 
 // SubRank returns a level's rank within its tier (1..30).
@@ -101,7 +101,10 @@ func XPForLevel(level int) int {
 	if level <= 1 {
 		return 0
 	}
-	return int(math.Round(xpCurveK * math.Pow(float64(level-1), xpCurveExp)))
+	// Dynamic exponent: grows as level increases to make prestige levels harder.
+	// Starts at 1.2, reaches ~1.6 at level 1000, and ~2.5+ at level 10000.
+	exponent := 1.2 + (float64(level) / 4000.0)
+	return int(math.Round(xpCurveK * math.Pow(float64(level-1), exponent)))
 }
 
 // LevelForXP returns the level for a total XP amount.
@@ -109,17 +112,19 @@ func LevelForXP(xp int) int {
 	if xp <= 0 {
 		return 1
 	}
-	level := int(math.Pow(float64(xp)/xpCurveK, 1.0/xpCurveExp)) + 1
-	if level < 1 {
-		level = 1
+	// Binary search since the curve is no longer a simple static exponent.
+	low, high := 1, absoluteMaxLevel
+	ans := 1
+	for low <= high {
+		mid := low + (high-low)/2
+		if XPForLevel(mid) <= xp {
+			ans = mid
+			low = mid + 1
+		} else {
+			high = mid - 1
+		}
 	}
-	for level < absoluteMaxLevel && XPForLevel(level+1) <= xp {
-		level++
-	}
-	for level > 1 && XPForLevel(level) > xp {
-		level--
-	}
-	return level
+	return ans
 }
 
 // LevelName returns the fantasy name for a level.

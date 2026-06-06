@@ -3,6 +3,7 @@ package icon
 import (
 	"fmt"
 	"image/color"
+	"math"
 	"os"
 	"path/filepath"
 
@@ -10,13 +11,18 @@ import (
 	"golang.org/x/image/font/basicfont"
 )
 
-// tierColors maps to 5 major rank groups (Bronze, Silver, Gold, Emerald, Amethyst).
+// tierColors maps to 10 major rank groups to provide more variety.
 var tierColors = []color.RGBA{
-	{205, 127, 50, 255},  // 0-4: Bronze
-	{192, 192, 192, 255}, // 5-9: Silver
-	{255, 215, 0, 255},   // 10-14: Gold
-	{50, 205, 50, 255},   // 15-19: Emerald
-	{148, 0, 211, 255},   // 20-24: Amethyst
+	{205, 127, 50, 255},  // Bronze
+	{192, 192, 192, 255}, // Silver
+	{255, 215, 0, 255},   // Gold
+	{50, 205, 50, 255},   // Emerald
+	{30, 144, 255, 255},  // DodgerBlue
+	{148, 0, 211, 255},   // Amethyst
+	{255, 69, 0, 255},    // OrangeRed
+	{0, 255, 255, 255},   // Cyan
+	{255, 20, 147, 255},  // DeepPink
+	{255, 255, 255, 255}, // White/Diamond
 }
 
 const MaxTiers = 1000
@@ -31,55 +37,63 @@ func GenerateTierIcons(outputDir string, numTiers int) error {
 		return err
 	}
 
-	const S = 16
+	const S = 16.0
 
 	for i := 0; i < numTiers; i++ {
-		dc := gg.NewContext(S, S)
+		dc := gg.NewContext(16, 16)
 
-		colorIdx := (i / 5) % len(tierColors)
-		shapeIdx := i % 5
+		// tier is 1..numTiers
+		tier := i + 1
+		colorIdx := ((tier - 1) / 5) % len(tierColors)
+		shapeIdx := (tier - 1) % 5
 
 		baseColor := tierColors[colorIdx]
-
 		dc.SetColor(baseColor)
 
-		// Draw a progression of shapes within each color group
+		// Draw progression of shapes: Circle -> Square -> Diamond -> Pentagon -> Hexagon
 		switch shapeIdx {
 		case 0: // Circle
 			dc.DrawCircle(S/2, S/2, S/2-1)
 		case 1: // Square
 			dc.DrawRectangle(1, 1, S-2, S-2)
 		case 2: // Diamond
-			dc.MoveTo(S/2, 0)
-			dc.LineTo(S, S/2)
-			dc.LineTo(S/2, S)
-			dc.LineTo(0, S/2)
+			dc.MoveTo(S/2, 1)
+			dc.LineTo(S-1, S/2)
+			dc.LineTo(S/2, S-1)
+			dc.LineTo(1, S/2)
 			dc.ClosePath()
 		case 3: // Pentagon
-			dc.DrawRegularPolygon(5, S/2, S/2, S/2-1, 0)
+			dc.DrawRegularPolygon(5, S/2, S/2, S/2-1, math.Pi)
 		case 4: // Hexagon
-			dc.DrawRegularPolygon(6, S/2, S/2, S/2-1, 0)
+			dc.DrawRegularPolygon(6, S/2, S/2, S/2-1, math.Pi/2)
 		}
 		dc.FillPreserve()
 
-		// Black border for contrast
+		// Black border
 		dc.SetColor(color.Black)
 		dc.SetLineWidth(1)
 		dc.Stroke()
 
 		// Draw the tier number in the center
 		dc.SetFontFace(basicfont.Face7x13)
-		dc.SetColor(color.White)
+		if isLight(baseColor) {
+			dc.SetColor(color.Black)
+		} else {
+			dc.SetColor(color.White)
+		}
 		
-		text := fmt.Sprintf("%d", i+1)
-		// For a 16x16 icon, 7x13 font needs careful anchoring. 
-		// Y is adjusted slightly to optically center the basicfont glyphs.
+		text := fmt.Sprintf("%d", tier)
 		dc.DrawStringAnchored(text, S/2, S/2-1, 0.5, 0.5)
 
-		outPath := filepath.Join(outputDir, fmt.Sprintf("tier_%d.png", i+1))
+		outPath := filepath.Join(outputDir, fmt.Sprintf("tier_%d.png", tier))
 		if err := dc.SavePNG(outPath); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func isLight(c color.RGBA) bool {
+	lum := (int(c.R)*299 + int(c.G)*587 + int(c.B)*114) / 1000
+	return lum > 140
 }

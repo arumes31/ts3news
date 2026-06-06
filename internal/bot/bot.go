@@ -198,6 +198,18 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			baseXP := b.xpForGame(game)
 			lr, notes, artifactPoke := b.processUserXP(user.UID, user.Nickname, cid, baseXP+rewardXP, hasGame, ctx)
 
+			// Auto-prestige at the level cap: reset to level 1, +1 prestige (with a
+			// permanent stat bonus) and grant the prestige rank group. Future leveling
+			// then resumes from level 1 at the new prestige.
+			if lr != nil && lr.NewLevel >= leveling.MaxLevel {
+				newP := b.doPrestige(user.UID)
+				notes = append(notes, fmt.Sprintf("🌟 PRESTIGE %d! Reset to Lvl 1 — permanent +%d%% stats!", newP, int(prestigeStatBonus*100)*newP))
+				lr.OldLevel, lr.NewLevel, lr.TotalXP = 1, 1, 0
+				if b.Cfg.XPServerGroups {
+					b.applyPrestigeGroup(c, user.CLID, user.UID, user.Nickname, newP)
+				}
+			}
+
 			// Durability & Loot Drops
 			b.applyDurabilityLoss(user.UID, !victory)
 			
@@ -221,6 +233,13 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 
 			// Messaging
 			notes = append(notes, battleLogs...)
+			if lr != nil {
+				outcome := "🏆 Battle XP"
+				if lr.Awarded < 0 {
+					outcome = "💀 XP lost"
+				}
+				notes = append(notes, fmt.Sprintf("%s: %+d → %s (Lvl %d)", outcome, lr.Awarded, leveling.LevelName(lr.NewLevel), lr.NewLevel))
+			}
 			pokeMsg := composePoke(game, shortURL, theme, lr)
 			pmMsg := b.composePM(game, shortURL, theme, lr, notes, user.Stats.Score())
 
@@ -281,25 +300,18 @@ func splitMessage(msg string, limit int) []string {
 }
 
 func composePoke(g games.Game, shortURL string, theme *content.Theme, lvl *levelResult) string {
+	// Poke is just the clean game name + link (no XP/level — those go in the PM).
+	_ = lvl
 	prefix := "Free: "
 	if theme != nil && theme.Emoji != "" {
 		prefix = theme.Emoji + " Free: "
 	}
-	suffix := ""
-	if lvl != nil {
-		sign := "+"
-		amt := lvl.Awarded
-		if amt < 0 {
-			sign = "" // amt already has "-"
-		}
-		suffix = fmt.Sprintf(" %s%dXP L%d", sign, amt, lvl.NewLevel)
-	}
 	title := g.DisplayTitle()
-	avail := 100 - len(prefix) - 1 - len(shortURL) - len(suffix)
+	avail := 100 - len(prefix) - 1 - len(shortURL)
 	if avail > 4 && len(title) > avail {
 		title = title[:avail-3] + "..."
 	}
-	return fmt.Sprintf("%s%s %s%s", prefix, title, shortURL, suffix)
+	return fmt.Sprintf("%s%s %s", prefix, title, shortURL)
 }
 
 func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl *levelResult, notes []string, totalGS int) string {
@@ -325,7 +337,7 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 	}
 
 	if lvl != nil {
-		fmt.Fprintf(&sb, "🏆 %s (Lvl %d) [GS: %d] — +%d XP (%d total)\n",
+		fmt.Fprintf(&sb, "🏆 %s [LvL: %d] [GS: %d] — +%d XP (%d total)\n",
 			leveling.LevelName(lvl.NewLevel), lvl.NewLevel, totalGS, lvl.Awarded, lvl.TotalXP)
 		if lvl.NewLevel > lvl.OldLevel {
 			fmt.Fprintf(&sb, "🎉 Level up! You are now a %s!\n", leveling.LevelName(lvl.NewLevel))

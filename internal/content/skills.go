@@ -46,6 +46,24 @@ func init() {
 		"Breath", "Bite", "Sting", "Claw", "Maul", "Swipe", "Growl", "Prowl", "Shred", "Blink",
 	}
 
+	// Add basic novice skills
+	allSkills = append(allSkills, Skill{
+		ID:     "S0_1",
+		Name:   "Novice Spark",
+		Type:   SkillMagic,
+		Rarity: RarityCommon,
+		Power:  1.1,
+		Description: "A weak magical spark.",
+	})
+	allSkills = append(allSkills, Skill{
+		ID:     "S0_2",
+		Name:   "Novice Punch",
+		Type:   SkillPhysical,
+		Rarity: RarityCommon,
+		Power:  1.1,
+		Description: "A basic physical punch.",
+	})
+
 	idx := 1
 	for _, p := range prefixes {
 		for _, a := range actions {
