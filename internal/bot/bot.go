@@ -105,12 +105,13 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			continue
 		}
 		stats, _, _ := b.calculateTotalStats(cl.UID, ctx.today)
+		skills := b.getSkills(cl.UID)
 		
 		var lvl int
 		_ = b.DB.QueryRow("SELECT level FROM users WHERE client_uid=$1", cl.UID).Scan(&lvl)
 
 		chanUsers[cl.CID] = append(chanUsers[cl.CID], UserInCombat{
-			UID: cl.UID, Nickname: cl.Nickname, CLID: cl.CLID, Stats: stats, Level: lvl,
+			UID: cl.UID, Nickname: cl.Nickname, CLID: cl.CLID, Stats: stats, Level: lvl, Skills: skills,
 		})
 	}
 

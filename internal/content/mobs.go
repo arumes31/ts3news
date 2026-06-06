@@ -33,6 +33,7 @@ type Mob struct {
 	Stats    Stats
 	RewardXP int
 	Effects  []MobEffect
+	Spells   []Skill
 }
 
 func (m Mob) DisplayName() string {
@@ -100,6 +101,15 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	if rand.Float64() < 0.3 {
 		effects := []MobEffect{EffectEnraged, EffectArmored, EffectFleet, EffectPoisoned, EffectWeakened, EffectBlinded, EffectRegen}
 		m.Effects = append(m.Effects, effects[rand.Intn(len(effects))])
+	}
+
+	// 1-2 Spells for mobs
+	spellCount := 1
+	if isBoss || m.Type == MobLegendary {
+		spellCount = 2
+	}
+	for i := 0; i < spellCount; i++ {
+		m.Spells = append(m.Spells, RandomSkill())
 	}
 
 	return m
