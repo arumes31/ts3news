@@ -221,9 +221,13 @@ func (t Title) Score() int {
 }
 
 func init() {
+	// Use a fixed seed for procedural generation to ensure Gear IDs (G1, G2...) 
+	// are stable across bot restarts/rebuilds.
+	r := rand.New(rand.NewSource(42))
+
 	// XP Multiplier Logic: The better the gear/enchantment, the LESS XP it adds.
-	getXPMult := func(r Rarity) float64 {
-		return 1.5 - (0.1 * float64(r))
+	getXPMult := func(rar Rarity) float64 {
+		return 1.5 - (0.1 * float64(rar))
 	}
 
 	// Pools for procedural generation
@@ -252,14 +256,14 @@ func init() {
 			Rarity:        RarityCommon,
 			XPMultiplier:  getXPMult(RarityCommon),
 			MaxDurability: 50,
-			Stats:         Stats{HP: 10, STR: 2, DEF: 2, SPD: 2, CHA: 1, STN: rand.Intn(5)},
+			Stats:         Stats{HP: 10, STR: 2, DEF: 2, SPD: 2, CHA: 1, STN: r.Intn(5)},
 		})
 
 		// Procedural variants
 		for _, rar := range []Rarity{RarityUncommon, RarityRare, RarityEpic, RarityLegendary} {
 			for i := 0; i < 10; i++ { // 24 slots * 4 rarities * 10 variants = 960 items
-				p := prefixes[rand.Intn(len(prefixes))]
-				s := suffixes[rand.Intn(len(suffixes))]
+				p := prefixes[r.Intn(len(prefixes))]
+				s := suffixes[r.Intn(len(suffixes))]
 				name := fmt.Sprintf("%s %s %s", p, slot, s)
 				
 				mul := float64(rar) + 1.0
@@ -278,8 +282,8 @@ func init() {
 						LCK: int(2 * mul),
 						INT: int(rar),
 						STA: int(rar),
-						CHA: rand.Intn(10),
-						SHN: rand.Intn(20),
+						CHA: r.Intn(10),
+						SHN: r.Intn(20),
 					},
 				})
 				idx++
@@ -306,10 +310,10 @@ func init() {
 			var mult float64
 			var s Stats
 			if idx%2 == 0 {
-				mult = 1.5 + (rand.Float64() * 2.5)
+				mult = 1.5 + (r.Float64() * 2.5)
 				s = Stats{HP: 150, STR: 60, DEF: 30, SPD: 45, LCK: 30, CRT: 15, CHA: 50}
 			} else {
-				mult = 0.1 + (rand.Float64() * 0.4)
+				mult = 0.1 + (r.Float64() * 0.4)
 				s = Stats{HP: -100, STR: -40, DEF: -20, SPD: -20, LCK: -30, STN: 100, HGR: 50}
 			}
 			corruptedArtifacts = append(corruptedArtifacts, Artifact{Name: name, Mult: mult, Stats: s, MaxDurability: 15})
@@ -324,7 +328,7 @@ func init() {
 		for _, n := range posNouns {
 			positiveTitles = append(positiveTitles, Title{
 				Name:         p + " " + n,
-				XPMultiplier: 3.0 + rand.Float64()*7.0,
+				XPMultiplier: 3.0 + r.Float64()*7.0,
 				Stats:        Stats{HP: 500, STR: 200, DEF: 100, SPD: 100, LCK: 80, INT: 50, STA: 50, CHA: 1000},
 			})
 		}
@@ -337,7 +341,7 @@ func init() {
 		for _, n := range extremeNouns {
 			t := Title{
 				Name:         p + " " + n,
-				XPMultiplier: 5.0 + rand.Float64()*10.0,
+				XPMultiplier: 5.0 + r.Float64()*10.0,
 				Stats:        Stats{HP: 1000, STR: 500, DEF: 250, SPD: 200, LCK: 150, INT: 100, STA: 100, CHA: 5000},
 			}
 			switch p {
@@ -362,7 +366,7 @@ func init() {
 		for _, n := range negNouns {
 			negativeTitles = append(negativeTitles, Title{
 				Name:         p + " " + n,
-				XPMultiplier: 0.01 + rand.Float64()*0.1,
+				XPMultiplier: 0.01 + r.Float64()*0.1,
 				Stats:        Stats{HP: -300, STR: -150, DEF: -80, SPD: -80, LCK: -100, STN: 500, HGR: 100},
 			})
 		}

@@ -271,7 +271,8 @@ func splitMessage(msg string, limit int) []string {
 			idx = limit
 		}
 		chunks = append(chunks, msg[:idx])
-		msg = msg[idx:]
+		// Skip the newline itself to prevent leading newlines in chunks
+		msg = strings.TrimLeft(msg[idx:], "\n")
 	}
 	if len(msg) > 0 {
 		chunks = append(chunks, msg)
