@@ -900,64 +900,80 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 
 	for i := 0; i < count; i++ {
 		r := rand.Float64() - lootFindBonus
+		lootFound := false
 		if r < titleChance {
 			t := content.RandomTitle()
 			_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days' WHERE client_uid=$1", uid, t.Name, t.XPMultiplier)
 			results = append(results, "Title: "+t.Name)
+			lootFound = true
 		} else if r < artifactChance {
 			a := content.RandomArtifact()
-			// Scale Artifact stats with zone difficulty
 			a.Stats.HP = int(float64(a.Stats.HP) * zoneDifficulty)
 			a.Stats.STR = int(float64(a.Stats.STR) * zoneDifficulty)
 			a.Stats.DEF = int(float64(a.Stats.DEF) * zoneDifficulty)
 			_, _ = b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1", uid, a.Mult, a.Name, a.MaxDurability)
 			results = append(results, "Artifact: "+a.Name)
+			lootFound = true
 		} else if r < gearChance {
 			g := content.RandomGearDrop()
-			// Scale Gear stats with zone difficulty
 			g.Stats.HP = int(float64(g.Stats.HP) * zoneDifficulty)
 			g.Stats.STR = int(float64(g.Stats.STR) * zoneDifficulty)
 			g.Stats.DEF = int(float64(g.Stats.DEF) * zoneDifficulty)
 			g.Stats.SPD = int(float64(g.Stats.SPD) * zoneDifficulty)
-
 			if b.shouldEquip(uid, g) {
 				_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
 				results = append(results, "Equipped: "+g.Name)
 			} else {
-				// Disenchant
 				xp := 1 + int(g.Rarity)*2
 				_, _ = b.awardXP(uid, "", xp)
 				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", g.Name, xp))
 			}
+			lootFound = true
 		} else if r < skillChance {
 			s := content.RandomSkill()
-			// Scale Skill power with zone difficulty
 			s.Power *= zoneDifficulty
 			if slot, ok := b.equipSkill(uid, s); ok {
 				results = append(results, fmt.Sprintf("Learned %s (Slot %d)", s.Name, slot))
 			} else {
-				// Disenchant
 				xp := 2 + int(s.Rarity)*3
 				_, _ = b.awardXP(uid, "", xp)
 				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", s.Name, xp))
 			}
+			lootFound = true
 		} else if r < consChance {
 			c := content.RandomConsumable()
 			_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
 			results = append(results, "Item: "+c.Name)
+			lootFound = true
 		} else if r < enchChance {
 			ench := content.RandomEnchantment()
-			// Scale Enchantment stats with zone difficulty
 			ench.Stats.STR = int(float64(ench.Stats.STR) * zoneDifficulty)
 			ench.Stats.SPD = int(float64(ench.Stats.SPD) * zoneDifficulty)
-
 			if slot, ok := b.applyEnchantment(uid, ench); ok {
 				results = append(results, fmt.Sprintf("Enchanted %s with %s", slot, ench.Name))
 			} else {
-				// Disenchant
 				xp := 3 + int(ench.Rarity)*5
 				_, _ = b.awardXP(uid, "", xp)
 				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", ench.Name, xp))
+			}
+			lootFound = true
+		}
+
+		// 100% Drop Guarantee: If nothing else found, drop a Common item or Scrap
+		if !lootFound {
+			if rand.Float64() < 0.7 {
+				// Drop a basic common gear (Trash/Scrap fallback)
+				g := content.RandomStarterGear()
+				if b.shouldEquip(uid, g) {
+					_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
+					results = append(results, "Found: "+g.Name)
+				} else {
+					results = append(results, "Looted Scrap (+1 XP)")
+					_, _ = b.awardXP(uid, "", 1)
+				}
+			} else {
+				results = append(results, "Item: Small Health Potion")
+				_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, 'P1', 0) ON CONFLICT DO NOTHING", uid)
 			}
 		}
 	}
