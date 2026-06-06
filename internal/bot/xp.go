@@ -157,7 +157,28 @@ func (b *Bot) computeMiscMult(uid, nickname string, cid int, ctx cycleContext) f
 func (b *Bot) resolveChannelCombat(users []UserInCombat, mobs []content.Mob) ([]string, int, bool) {
 	var logs []string
 	totalUserHP := 0
-	for _, u := range users { totalUserHP += u.Stats.HP }
+	
+	// Pity system: Check average consecutive losses in the party
+	totalLosses := 0
+	for _, u := range users {
+		var l int
+		_ = b.DB.QueryRow("SELECT consecutive_losses FROM users WHERE client_uid=$1", u.UID).Scan(&l)
+		totalLosses += l
+	}
+	avgLosses := float64(totalLosses) / float64(len(users))
+	pityBuff := 1.0 + (avgLosses * 0.2) // +20% stats per avg loss
+	if pityBuff > 1.0 {
+		logs = append(logs, fmt.Sprintf("⚠️ Combat Pity active: Stats boosted by %.0f%%!", (pityBuff-1.0)*100))
+	}
+
+	for i := range users {
+		u := &users[i]
+		u.Stats.HP = int(float64(u.Stats.HP) * pityBuff)
+		u.Stats.STR = int(float64(u.Stats.STR) * pityBuff)
+		u.Stats.DEF = int(float64(u.Stats.DEF) * pityBuff)
+		totalUserHP += u.Stats.HP
+	}
+	
 	totalMobHP := 0
 	for _, m := range mobs { totalMobHP += m.Stats.HP }
 	totalRewardXP := 0
@@ -192,7 +213,8 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, mobs []content.Mob) ([]
 		}
 
 		// User turn
-		for _, u := range users {
+		for i := range users {
+			u := &users[i]
 			target := &mobs[rand.Intn(len(mobs))]
 			if target.Stats.HP <= 0 { continue }
 			
@@ -206,7 +228,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, mobs []content.Mob) ([]
 
 			// Mob Blinded
 			for _, eff := range target.Effects {
-				if eff == content.EffectBlinded && rand.Float64() < 0.2 { // Blinded mobs take more dmg or miss? Let's say user hit harder
+				if eff == content.EffectBlinded && rand.Float64() < 0.2 { 
 					dmg = int(float64(dmg) * 1.5)
 				}
 			}
@@ -233,7 +255,6 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, mobs []content.Mob) ([]
 				case content.EffectEnraged: mSTR = int(float64(mSTR) * 1.5)
 				case content.EffectArmored: mDEF = int(float64(mDEF) * 1.5)
 				case content.EffectWeakened: mSTR = int(float64(mSTR) * 0.5)
-				case content.EffectFleet: // already scales SPD which isn't used in this simple round loop but could be
 				}
 			}
 
@@ -251,6 +272,15 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, mobs []content.Mob) ([]
 			totalUserHP -= dmg
 		}
 		if totalUserHP <= 0 { victory = false; break }
+	}
+
+	// Update pity stats
+	for _, u := range users {
+		if victory {
+			_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = 0 WHERE client_uid = $1", u.UID)
+		} else {
+			_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = consecutive_losses + 1 WHERE client_uid = $1", u.UID)
+		}
 	}
 
 	if victory {
