@@ -1,9 +1,10 @@
 // Package leveling implements the bot's internal XP / leveling system: every time
-// a user is poked they earn XP, which maps to one of 1000 fantasy-themed levels.
+// a user is poked they earn XP, which maps to one of 10000 fantasy-themed levels.
 // Crossing configured level milestones can grant TeamSpeak server groups.
 package leveling
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"sort"
@@ -11,109 +12,157 @@ import (
 	"strings"
 )
 
-// MaxLevel is the highest attainable level.
-const MaxLevel = 1000
+// MaxLevel is the boundary for fixed tier names.
+const MaxLevel = 10000
 
-// XP curve tuning.
-//
-// A user earns XP once per poke (one poke per *new* free game they receive).
-// Assuming roughly one notification per day on average (there is usually at least
-// one fresh Steam/Epic giveaway daily across all sources), reaching the level cap
-// should take about ten years:
-//
-//	~1 poke/day * 365 * 10  ≈ 3650 pokes
-//	avg XP per poke          = (xpMin+xpMax)/2 = 17.5
-//	XP needed for level 1000 ≈ 3650 * 17.5     ≈ 63,875
-//
-// We model cumulative XP as XPForLevel(l) = xpCurveK * (l-1)^xpCurveExp. With
-// exp 1.5 the climb is quick early and slow late; K is chosen so the cap lands
-// near the ~64k target above (XPForLevel(1000) ≈ 63,150).
+// absoluteMaxLevel bounds LevelForXP.
+const absoluteMaxLevel = 1000000
+
+const levelsPerTier = 30
+
+// NumTiers is the number of level tiers (10000 / 30 ≈ 334).
+const NumTiers = 334
+
+// Procedural name pools used for late tiers and beyond.
+var (
+	epicAdjectives = []string{
+		"Ascendant", "Eternal", "Astral", "Radiant", "Infernal", "Celestial", "Primordial", "Transcendent", "Mythic", "Abyssal",
+		"Void-Touched", "Star-Forged", "Ancient", "Gilded", "Spectral", "Divine", "Forbidden", "Ethereal", "Storm-Born", "Shadow-Bound",
+		"Nebulous", "Crystalline", "Forgotten", "Hallowed", "Vengeful", "Silent", "Shattered", "Burning", "Frozen", "Twisted",
+	}
+	epicTitles = []string{
+		"Champion", "Warlord", "Sovereign", "Archon", "Overlord", "Demigod", "Titan", "Vanguard", "Conqueror", "Paragon",
+		"Sentinel", "Exarch", "Oracle", "Deity", "Avatar", "Godslayer", "Reaper", "Prophet", "High-King", "Omni-Slayer",
+		"Harbinger", "Executioner", "Watcher", "Keeper", "Lord", "Baron", "Shaman", "Sage", "Priest", "Templar",
+	}
+	epicRealms = []string{
+		"Void", "Abyss", "Cosmos", "Eternity", "Storm", "Dawn", "Flame", "Frost", "Shadow", "Light",
+		"Nebula", "Continuum", "Aether", "Hellfire", "Zero-Point", "Singularity", "Genesis", "Revelation", "Oblivion", "Nexus",
+		"Underworld", "Sky-Reach", "Dream-World", "End-Times", "Sun-Forge", "Moon-Rise", "Deep-Sea", "Ever-Green", "Iron-Hold", "Dragon-Spire",
+	}
+)
+
+// tierNames are the base fantasy rank names. We'll use a dense list and procedural expansion.
+var baseTierNames = []string{
+	"Drifter", "Pauper", "Peasant", "Thrall", "Bondman", "Scavenger", "Straggler", "Outcast", "Refugee", "Exile",
+	"Vagabond", "Seeker", "Wanderer", "Nomad", "Initiate", "Neophyte", "Novice", "Apprentice", "Page", "Squire",
+	"Footman", "Recruit", "Conscript", "Soldier", "Warrior", "Guard", "Sentry", "Watchman", "Warden", "Keeper",
+	"Adventurer", "Mercenary", "Contractor", "Skirmisher", "Scout", "Ranger", "Pathfinder", "Tracker", "Hunter", "Stalker",
+	"Knight", "Paladin", "Chevalier", "Cavalier", "Dragoon", "Templar", "Crusader", "Avenger", "Justicar", "Inquisitor",
+	"Warlock", "Sorcerer", "Mage", "Wizard", "Arcanist", "Elementalist", "Summoner", "Necromancer", "Occultist", "Shaman",
+	"Slayer", "Executioner", "Assassin", "Shinobi", "Ninja", "Raider", "Marauder", "Berserker", "Gladiator", "Combatant",
+	"Battlemaster", "Commander", "Captain", "Major", "Colonel", "General", "Marshal", "Legate", "Centurion", "Tribune",
+	"Champion", "Hero", "Legend", "Myth", "Vanguard", "Frontliner", "Guardian", "Defender", "Protector", "Sentinel",
+	"Warlord", "Conqueror", "Overlord", "Sovereign", "Monarch", "Emperor", "Godslayer", "Titan", "Ascendant", "Transcendent",
+}
+
+// XP curve tuning for 10000 levels.
 const (
 	xpMin      = 10
 	xpMax      = 25
-	xpCurveK   = 2.0
-	xpCurveExp = 1.5
+	xpCurveK   = 1.0
+	xpCurveExp = 1.2
 )
 
-// tierNames are 25 fantasy rank tiers; each spans 40 levels (25 * 40 = 1000).
-var tierNames = []string{
-	"Peasant", "Squire", "Footman", "Adventurer", "Mercenary",
-	"Knight", "Ranger", "Warden", "Templar", "Crusader",
-	"Vanguard", "Champion", "Slayer", "Warlord", "Battlemaster",
-	"Conqueror", "Paladin", "Archon", "Warlock", "Sorcerer",
-	"Mystic", "Demigod", "Ascendant", "Eternal", "Godslayer",
+// SubRank returns a level's rank within its tier (1..30).
+func SubRank(level int) int {
+	if level < 1 {
+		level = 1
+	}
+	return (level-1)%levelsPerTier + 1
 }
 
-const levelsPerTier = MaxLevel / 25 // 40
+// TierForLevel returns the 1..NumTiers tier a level belongs to.
+func TierForLevel(level int) int {
+	if level < 1 {
+		level = 1
+	}
+	tier := (level-1)/levelsPerTier + 1
+	if tier > NumTiers {
+		tier = NumTiers
+	}
+	return tier
+}
+
+// TierName returns the fantasy name of a tier (1..NumTiers).
+func TierName(tier int) string {
+	idx := tier - 1
+	if idx < len(baseTierNames) {
+		return baseTierNames[idx]
+	}
+	// Procedural tiers for the rest
+	adj := epicAdjectives[(idx/len(epicTitles))%len(epicAdjectives)]
+	tit := epicTitles[idx%len(epicTitles)]
+	return adj + " " + tit
+}
 
 // XPForLevel returns the cumulative XP required to reach the given level.
-// Level 1 starts at 0 XP. See the curve-tuning notes above for the ~10-year design.
 func XPForLevel(level int) int {
 	if level <= 1 {
 		return 0
 	}
-	if level > MaxLevel {
-		level = MaxLevel
-	}
 	return int(math.Round(xpCurveK * math.Pow(float64(level-1), xpCurveExp)))
 }
 
-// LevelForXP returns the level (1..MaxLevel) corresponding to a total XP amount.
+// LevelForXP returns the level for a total XP amount.
 func LevelForXP(xp int) int {
 	if xp <= 0 {
 		return 1
 	}
-	level := 1
-	for level < MaxLevel && XPForLevel(level+1) <= xp {
+	level := int(math.Pow(float64(xp)/xpCurveK, 1.0/xpCurveExp)) + 1
+	if level < 1 {
+		level = 1
+	}
+	for level < absoluteMaxLevel && XPForLevel(level+1) <= xp {
 		level++
+	}
+	for level > 1 && XPForLevel(level) > xp {
+		level--
 	}
 	return level
 }
 
-// LevelName returns the fantasy name for a level, e.g. "Knight XII".
+// LevelName returns the fantasy name for a level.
 func LevelName(level int) string {
 	if level < 1 {
 		level = 1
 	}
-	if level > MaxLevel {
-		level = MaxLevel
+	tier := TierForLevel(level)
+	sub := SubRank(level)
+	
+	name := TierName(tier)
+	
+	// Add Realm flair for very high levels
+	if level > 6000 {
+		realm := epicRealms[(level/300)%len(epicRealms)]
+		return fmt.Sprintf("%s of the %s %s", name, realm, roman(sub))
 	}
-	tier := (level - 1) / levelsPerTier
-	if tier >= len(tierNames) {
-		tier = len(tierNames) - 1
-	}
-	sub := (level-1)%levelsPerTier + 1 // 1..40
-	return tierNames[tier] + " " + roman(sub)
+	
+	return name + " " + roman(sub)
 }
 
-// XPPerPoke returns a randomised XP award (used when the game price is unknown).
+// XPPerPoke returns a randomised XP award.
 func XPPerPoke() int {
-	return xpMin + rand.Intn(xpMax-xpMin+1) // xpMin..xpMax
+	return xpMin + rand.Intn(xpMax-xpMin+1)
 }
 
-// priceCapEUR is the price at which the price-based XP scale saturates.
-const priceCapEUR = 60.0
-
-// XPForPrice maps a game's original price to an XP award within [xpMin, xpMax].
-// cheaperMoreXP=true gives more XP for cheaper games; false rewards pricier games.
-// The midpoint price yields the average award, preserving the ~10-year curve.
+// XPForPrice maps a game's original price to an XP award.
 func XPForPrice(priceEUR float64, cheaperMoreXP bool) int {
+	const priceCapEUR = 60.0
 	if priceEUR < 0 {
 		priceEUR = 0
 	}
 	if priceEUR > priceCapEUR {
 		priceEUR = priceCapEUR
 	}
-	frac := priceEUR / priceCapEUR // 0 (free-ish) .. 1 (>= cap)
+	frac := priceEUR / priceCapEUR
 	if cheaperMoreXP {
 		frac = 1 - frac
 	}
 	return int(math.Round(float64(xpMin) + frac*float64(xpMax-xpMin)))
 }
 
-// ParseLevelGroups parses a "level:groupID,level:groupID" string (e.g.
-// "10:7,50:8,100:9") into a map of level -> server group id. Invalid entries
-// are skipped.
+// ParseLevelGroups parses a "level:groupID,level:groupID" string.
 func ParseLevelGroups(s string) map[int]int {
 	out := map[int]int{}
 	for _, part := range strings.Split(s, ",") {
@@ -135,9 +184,7 @@ func ParseLevelGroups(s string) map[int]int {
 	return out
 }
 
-// MilestonesCrossed returns the server group ids whose milestone level falls in
-// the half-open interval (oldLevel, newLevel] — i.e. groups newly earned by
-// leveling up from oldLevel to newLevel. The result is sorted by milestone level.
+// MilestonesCrossed returns the server group ids newly earned.
 func MilestonesCrossed(oldLevel, newLevel int, groups map[int]int) []int {
 	type ms struct{ level, group int }
 	var crossed []ms
@@ -154,7 +201,7 @@ func MilestonesCrossed(oldLevel, newLevel int, groups map[int]int) []int {
 	return out
 }
 
-// roman converts 1..3999 to a Roman numeral (used for sub-tier rank display).
+// roman converts 1..9999 to a Roman numeral.
 func roman(n int) string {
 	if n <= 0 {
 		return "I"
@@ -169,4 +216,55 @@ func roman(n int) string {
 		}
 	}
 	return b.String()
+}
+
+// LevelByName returns the level number for a level name.
+func LevelByName(name string) (int, bool) {
+	parts := strings.Fields(name)
+	if len(parts) < 2 {
+		return 0, false
+	}
+	
+	rom := parts[len(parts)-1]
+	sub := deroman(rom)
+	if sub == 0 {
+		return 0, false
+	}
+
+	// 1. Strip roman numeral and realm flair if present
+	fullTName := strings.Join(parts[:len(parts)-1], " ")
+	tName := fullTName
+	if strings.Contains(fullTName, " of the ") {
+		tName = strings.Split(fullTName, " of the ")[0]
+	}
+	
+	// 2. Check all tiers (base + procedural)
+	for t := 1; t <= NumTiers; t++ {
+		if TierName(t) == tName {
+			level := (t-1)*levelsPerTier + sub
+			// Re-verify with full LevelName to handle realm flair and exact match
+			if LevelName(level) == name {
+				return level, true
+			}
+		}
+	}
+
+	return 0, false 
+}
+
+func deroman(s string) int {
+	m := map[rune]int{'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
+	res := 0
+	prev := 0
+	for i := len(s) - 1; i >= 0; i-- {
+		val, ok := m[rune(s[i])]
+		if !ok { return 0 }
+		if val < prev {
+			res -= val
+		} else {
+			res += val
+		}
+		prev = val
+	}
+	return res
 }

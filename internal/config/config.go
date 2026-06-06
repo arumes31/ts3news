@@ -38,15 +38,16 @@ type Config struct {
 
 	// Message flavour
 	EnableYouTubeTrailer bool
-	EnableTrivia         bool
 	EnableGreetings      bool
 	EnableHolidayThemes  bool
 	DynamicNickname      bool // change the bot's TS3 nickname based on the announced game
 
 	// Leveling
-	EnableLeveling bool
-	LevelGroups    string // "level:groupID,level:groupID" milestones -> server group
-	CheaperMoreXP  bool   // true: cheaper games grant more XP; false (default): pricier games do
+	EnableLeveling    bool
+	LevelGroups       string // "level:groupID,level:groupID" milestones -> existing server group
+	CheaperMoreXP     bool   // true: cheaper games grant more XP; false (default): pricier games do
+	XPServerGroups    bool   // auto-create one server group per level tier, with a generated icon
+	EnableXPModifiers bool   // streaks, crits, loot boxes, login bonus, parties, server mult, decay, artifacts
 
 	// Supervisor / client lifecycle
 	TS3ClientPath     string // path to ts3client_linux_amd64
@@ -90,14 +91,14 @@ func LoadConfig() *Config {
 		DRMFilter:        envList("DRM_FILTER", []string{"steam", "epic"}),
 
 		EnableYouTubeTrailer: envBool("ENABLE_YOUTUBE_TRAILER", true),
-		EnableTrivia:         envBool("ENABLE_TRIVIA", true),
 		EnableGreetings:      envBool("ENABLE_GREETINGS", true),
 		EnableHolidayThemes:  envBool("ENABLE_HOLIDAY_THEMES", true),
 		DynamicNickname:      envBool("DYNAMIC_NICKNAME", true),
-
-		EnableLeveling: envBool("ENABLE_LEVELING", true),
-		LevelGroups:    os.Getenv("LEVEL_GROUPS"),
-		CheaperMoreXP:  envBool("CHEAPER_MORE_XP", false),
+		EnableLeveling:       envBool("ENABLE_LEVELING", true),
+		LevelGroups:       os.Getenv("LEVEL_GROUPS"),
+		CheaperMoreXP:     envBool("CHEAPER_MORE_XP", false),
+		XPServerGroups:    envBool("XP_SERVER_GROUPS", false),
+		EnableXPModifiers: envBool("ENABLE_XP_MODIFIERS", true),
 
 		TS3ClientPath:     envDefault("TS3_CLIENT_PATH", "/opt/ts3/ts3client_linux_amd64"),
 		MinIntervalHours:  envInt("MIN_INTERVAL_HOURS", 1),
@@ -156,6 +157,7 @@ func envList(key string, def []string) []string {
 // loadDotEnv reads a simple KEY=VALUE file and sets any variables that are not
 // already present in the environment.
 func loadDotEnv(path string) {
+	// #nosec G304 -- Path is a hardcoded or explicitly trusted environment variable
 	f, err := os.Open(path)
 	if err != nil {
 		return // No file is fine; env vars may be supplied another way.

@@ -1,177 +1,128 @@
 <p align="center">
-  <img src="logo.png" width="160" alt="TS3News Logo" />
+  <img src="logo.png" width="180" alt="TS3News Logo" />
 </p>
 
-<h1 align="center">TS3 Free Game Notification Bot 🎮</h1>
+<h1 align="center">TS3 Free Game RPG Bot 🎮</h1>
 
 <p align="center">
-  <a href="https://github.com/arumes31/ts3news"><img src="https://img.shields.io/github/go-mod/go-version/arumes31/ts3news?style=for-the-badge&logo=go&logoColor=white&color=00ADD8" alt="Go Version" /></a>
-  <a href="https://github.com/arumes31/ts3news/blob/main/LICENSE"><img src="https://img.shields.io/github/license/arumes31/ts3news?style=for-the-badge&logo=mit&logoColor=white&color=FF5733" alt="License" /></a>
-  <a href="https://github.com/arumes31/ts3news/stargazers"><img src="https://img.shields.io/github/stars/arumes31/ts3news?style=for-the-badge&logo=github&logoColor=white&color=FFD700" alt="GitHub Stars" /></a>
-  <a href="https://github.com/arumes31/ts3news/issues"><img src="https://img.shields.io/github/issues/arumes31/ts3news?style=for-the-badge&logo=github&logoColor=white&color=8A2BE2" alt="GitHub Issues" /></a>
-</p>
-
-<p align="center">
-  <strong>A Dockerized TeamSpeak 3 bot that automatically notifies users of free limited-time Steam and Epic Games Store giveaways.</strong>
+  <a href="https://github.com/arumes31/ts3news/releases"><img src="https://img.shields.io/github/v/release/arumes31/ts3news?style=for-the-badge&color=7289da" alt="Latest Release" /></a>
+  <a href="https://github.com/arumes31/ts3news/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/arumes31/ts3news/ci.yml?branch=main&style=for-the-badge" alt="CI Status" /></a>
+  <a href="https://github.com/arumes31/ts3news/pkgs/container/ts3news"><img src="https://img.shields.io/badge/Container-GHCR-blue?style=for-the-badge&logo=docker" alt="GHCR Image" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/arumes31/ts3news?style=for-the-badge&color=success" alt="License" /></a>
 </p>
 
 <p align="center">
-  It runs a headless instance of the official TeamSpeak 3 client inside Docker, connects to the server, and utilizes the <strong>ClientQuery</strong> plugin to poke and private message online clients.
+  <strong>A sophisticated, headless TeamSpeak 3 bot that notifies users of free PC games while featuring a deep, automated RPG progression system.</strong>
 </p>
-
----
-
-## 🚀 Key Features
-
-*   🖥️ **Headless TS3 Client**: Runs the official TS3 desktop client in Xvfb, bypassing SDK-based server connection blocks.
-*   🔑 **Identity Injection**: Automates injecting high security-level identities (e.g. Level 29) directly into `settings.db`.
-*   📣 **Double Notifications**: Sends a short, non-intrusive **Poke** popup (under 100 characters) + a detailed **Private Message** containing the game link.
-*   🔗 **Short Link Integration**: Uses [redrx.eu](https://redrx.eu/) to provide clean, clickable links in pokes.
-*   🌐 **Multi-Source Fetching**: Merges giveaways from **GamerPower**, the **Epic Games Store API**, **Reddit `/r/FreeGameFindings`** and (optionally) **IsThereAnyDeal**, de-duplicated across sources by title.
-*   🎮 **DRM Filtering**: Only announces normally-paid titles on the platforms you choose (`steam`, `epic`, `gog`) — skipping free-to-play, expired, and unwanted-store giveaways.
-*   ▶️ **Rich Messages**: Each PM includes a random greeting (100 variants), a YouTube trailer link, a gaming trivia fact, and seasonal **holiday theming**.
-*   🏆 **Leveling System**: Users earn XP per poke across **1000 fantasy-named levels**, shown in every PM, with optional TS3 server-group rewards at milestones.
-*   🤖 **Dynamic Nickname**: The bot renames itself to match the announced game (e.g. *VaultBoy* for Fallout).
-*   ⏱️ **Anti-Flood Control**: Customizable delay between actions to avoid server query anti-flood triggering.
-*   🔄 **Go Supervisor**: A long-running supervisor connects, notifies, disconnects and sleeps a random interval — with a **watchdog** that restarts an unresponsive client and **graceful SIGTERM** shutdown that finishes the current cycle first.
-*   🗄️ **Persistent History + Migrations**: Stores per-user history in **PostgreSQL** (schema managed by embedded **golang-migrate** migrations), with a per-user resend window and automatic **dead-user cleanup**.
 
 ---
 
 ## 📐 Architecture & Flow
 
+The bot runs a headless official TeamSpeak 3 client in a virtual framebuffer (Xvfb), controlled by a high-performance Go supervisor.
+
 ```mermaid
 graph TD
-    subgraph DockerContainer ["Docker Container Environment"]
-        style DockerContainer fill:#1a233a,stroke:#4a5568,stroke-width:2px,color:#fff
-        
-        Xvfb["🖥️ Xvfb (:99 Virtual Framebuffer)"]
+    subgraph "Docker Container"
         TS3Client["🎮 Headless TS3 Client"]
-        GoBot["🤖 Go Supervisor (loop + watchdog + graceful shutdown)"]
-        Entrypoint["🔧 entrypoint.sh (Xvfb + dbus + identity)"]
+        GoBot["🤖 Go Bot Supervisor"]
+        PostgresDB["🗄️ PostgreSQL DB"]
+        Xvfb["🖥️ Virtual Display"]
         
         Xvfb --> TS3Client
-        Entrypoint -->|exec| GoBot
-        GoBot -->|1. Starts & supervises client| TS3Client
-        GoBot <-->|2. ClientQuery TCP:25639| TS3Client
-        GoBot <-->|SQL + migrations| PostgresDB["🗄️ PostgreSQL DB"]
+        GoBot <-->|ClientQuery TCP:25639| TS3Client
+        GoBot <-->|SQL| PostgresDB
     end
     
-    GoBot -->|3. Fetches giveaways| GamerPower["🌐 GamerPower · Epic · Reddit · ITAD"]
-    GoBot -->|4. Shortens links| Redrx["🔗 RedRx API"]
-    TS3Client -->|UDP:9987| TS3Server["🔊 TS3 Voice Server"]
-    TS3Client -->|5. Sends Poke & PM| TS3Users["👥 Online TS3 Users"]
+    GoBot -->|Fetch| GamerPower["🌐 GamerPower API"]
+    GoBot -->|Shorten| Redrx["🔗 RedRx API"]
+    GoBot -->|Scrape| Reddit["📰 Reddit /r/FreeGameFindings"]
+    
+    TS3Client <-->|UDP:9987| TS3Server["🔊 TS3 Voice Server"]
+    TS3Client -->|Poke & PM| TS3Users["👥 Online TS3 Users"]
     
     classDef default fill:#2d3748,stroke:#4a5568,stroke-width:1px,color:#fff;
-    classDef GamerPower fill:#d69e2e,stroke:#b7791f,stroke-width:1px,color:#fff;
-    classDef Redrx fill:#e53e3e,stroke:#c53030,stroke-width:1px,color:#fff;
-    classDef TS3Server fill:#3182ce,stroke:#2b6cb0,stroke-width:1px,color:#fff;
+    classDef Ext fill:#d69e2e,stroke:#b7791f,stroke-width:1px,color:#fff;
+    classDef TS3 fill:#3182ce,stroke:#2b6cb0,stroke-width:1px,color:#fff;
     classDef DB fill:#336791,stroke:#224466,stroke-width:1px,color:#fff;
-    class GamerPower GamerPower;
-    class Redrx Redrx;
-    class TS3Server TS3Server;
+    class GamerPower,Redrx,Reddit Ext;
+    class TS3Server TS3;
     class PostgresDB DB;
 ```
 
 ---
 
-## 🔗 RedRx URL Shortening
+## 🚀 Key Features
 
-To keep TeamSpeak pokes clean and within the 100-character limit, this bot integrates with [redrx.eu](https://redrx.eu/), a specialized URL shortening service.
-
-### Why RedRx?
-*   **Space Efficiency**: TeamSpeak pokes are extremely limited. Shortened links ensure the game title and link both fit.
-*   **Clickability**: Provides clean, professional-looking links that users are more likely to trust.
-
-### How to get an API Key:
-1.  Visit [redrx.eu](https://redrx.eu/).
-2.  Register for a free account.
-3.  Navigate to your **Dashboard** or **API Settings**.
-4.  Generate a new **API Key**.
-5.  Add this key to your `config.env` as `REDRX_API_KEY`.
+*   🏆 **Legendary Leveling**: 10,000+ levels across 330+ tiers with procedurally generated fantasy names.
+*   ⚔️ **Group Combat**: Users in the same channel automatically form a **Party** to fight randomly spawned mobs and bosses during every cycle.
+*   🦾 **Massive Loot**: 24 equipment slots, 1,200+ gear variants, and 120+ rare titles.
+*   🪄 **Skill System**: Over **300 unique skills and spells**. Users have 5 slots and automatically learn better skills found from loot.
+*   ✨ **Enchantment System**: Rare mob drops that can be applied to gear for additional power or increased **Durability**.
+*   🧪 **Consumables**: Potions and elixirs that are automatically consumed to restore HP or provide buffs.
+*   🕒 **Persistence**: Full lifetime connection tracking and notification history stored in PostgreSQL.
+*   ⚖️ **Auto-Balancing**: A **Combat Pity** system that buffs party stats if they suffer consecutive defeats.
+*   🤖 **Contextual Personas**: The bot renames itself based on context, adopting the **godsfinger** persona for rare loot.
+*   🖥️ **Headless Reliability**: Runs the official TS3 desktop client in Xvfb with a robust Go watchdog for 24/7 uptime.
 
 ---
 
-## 💬 Notification Formats
+## 🕹️ RPG Systems Deep-Dive
 
-### Poke (High Visibility)
-The poke is strictly limited to 100 characters, always includes the shortened link, uses the clean game name (no platform tags / "Giveaway"), and ends with a short XP/level note.
-> **Format:** `Free: [Game Name] [Link] +[XP]XP L[Level]`
-> **Example:** `Free: Gravity Circuit https://redrx.eu/F73EA6 +21XP L3`
+### 📈 Progression Mechanics
+Your XP award per cycle is influenced by a complex set of multipliers:
+| Modifier | Condition | Bonus |
+| :--- | :--- | :---: |
+| **Critical Hit** | 5% random chance on every poke. | **3.0x** |
+| **Claim Streak** | Stay active for 3 / 5 / 7+ consecutive days. | **1.25x / 1.5x / 2.0x** |
+| **Server Population** | Every additional online user (excluding the bot). | **+5% per user (2x cap)** |
+| **Party System** | Multiple users sitting in the same channel. | **1.25x** |
+| **INT Stat** | Cumulative Intelligence stat from your gear. | **Passive % Boost** |
 
-### Private Message (Details)
-A richer private message is sent simultaneously, e.g.:
-> 🎄 Frohe Weihnachten, gamer! A festive freebie for you:
-> 🎮 Gravity Circuit
-> 💰 Worth €19.99 → FREE now
-> 🔗 Claim: https://redrx.eu/F73EA6
-> ▶️ Trailer: https://www.youtube.com/results?search_query=Gravity+Circuit
-> 🏆 Squire III (Lvl 53) — +21 XP (1,240 total)
-> 💡 Did you know? Doom (1993) runs on everything — including pregnancy tests and fridges.
-> Ho ho ho — happy holidays and happy gaming! 🎅
+### 🛡️ Equipment & Stats
+Users manage **24 slots**. The bot follows a **Smart Auto-Equip** policy: it only replaces items if the new drop has a higher rarity or better overall stat score.
 
-Greeting, trailer, trivia, leveling and holiday theming are each individually toggleable (see config).
+*   **Combat Stats**: HP (Health), STR (Damage), DEF (Damage Reduction), SPD (Turn Priority), LCK (Drop Quality), INT (XP Boost), STA (Reduces Dura Loss), CRT (Crit Chance), DGE (Dodge).
+*   **Flavour Stats**: Charisma, Stench, Shiny, Hunger — affecting your personal report messages.
+*   **Durability**: Gear loses 1 durability per fight (**3 on defeat**). Broken gear is automatically deleted. Use **Reinforcing Enchantments** to restore or increase max durability.
+*   **Unique Legendaries**: Ultra-rare, named items with massive stats but very low durability (e.g. *Infinity Edge*).
 
-**XP & levels:** users earn XP per poke, scaled by the game's price (a pricier game going free grants more XP — invert with `CHEAPER_MORE_XP=true`). The 1000-level curve is tuned so the cap takes roughly **ten years** at ~one notification per day.
-
----
-
-## 📋 Prerequisites
-
-Before deploying the bot, ensure you have the following ready:
-
-1.  **TeamSpeak 3 Identity**:
-    *   Generate a TeamSpeak 3 identity in your desktop client (**Tools > Identities**).
-    *   Export the identity string. It should look like `358981685Veb71QAWiw...`.
-    *   **Security Level**: Ensure the identity has a security level high enough to connect to your target server (e.g., Level 29).
-2.  **Server Permissions**:
-    *   The bot must be assigned to a server group with the following permissions:
-        *   `b_virtualserver_client_list` (See all users)
-        *   `b_virtualserver_channel_list` (See all channels)
-        *   `i_client_poke_power` (Ability to poke users)
-        *   `i_client_private_textmessage_power` (Ability to send PMs)
-3.  **RedRx API Key**:
-    *   Obtain an API key from [redrx.eu](https://redrx.eu/) for URL shortening.
+### ⚔️ Combat & Mobs
+During every notification cycle, a random encounter occurs for each party.
+*   **Mob Scaling**: Enemies level up with you and gain gear-aware difficulty boosts.
+*   **Mob Effects**: Enemies can spawn with effects like **Enraged** (+STR), **Armored** (+DEF), **Regenerative**, or **Poisoned**.
+*   **World Bosses**: Rarely, a legendary boss will spawn, requiring high stats and party cooperation to defeat.
 
 ---
 
-## ⚙️ Configuration Options
+## ⚙️ Configuration
 
-All options are specified as environment variables in `config.env`.
+The bot is configured via environment variables or a `config.env` file.
 
-| Variable | Description | Default | Required |
-| :--- | :--- | :---: | :---: |
-| `TS3_HOST` | Hostname or IP of the TeamSpeak 3 server. | *None* | 🔴 **Yes** |
-| `TS3_PORT` | Voice port of the TeamSpeak 3 server (UDP). | `9987` | 🟢 No |
-| `TS3_NICKNAME` | Nickname for the bot client. | `MrFree` | 🟢 No |
-| `TS3_IDENTITY` | Exported identity string. | *None* | 🟢 No |
-| `MIN_INTERVAL_HOURS` | Minimum random sleep (hours) between cycles. | `1` | 🟢 No |
-| `MAX_INTERVAL_HOURS` | Maximum random sleep (hours) between cycles. | `12` | 🟢 No |
-| `POKE_DELAY_MS` | Delay between pokes (anti-flood). | `1200` | 🟢 No |
-| `CONNECT_TIMEOUT_SEC` | Max seconds to wait for client to connect each cycle. | `120` | 🟢 No |
-| `REDRX_API_KEY` | API Key for redrx.eu URL shortening. | *None* | 🟢 No |
-| `TS3_TARGET_NICK` | If set, only this nickname is poked (testing). | *None* | 🟢 No |
-| `RESEND_AFTER_DAYS` | Re-allow sending a game after N days (0 = never). | `60` | 🟢 No |
-| `DEAD_USER_DAYS` | Purge users not seen for N days (0 = never). | `180` | 🟢 No |
-| **Sources** | | | |
-| `ENABLE_GAMERPOWER` / `ENABLE_EPIC` / `ENABLE_REDDIT` | Toggle each game source. | `true` | 🟢 No |
-| `ITAD_API_KEY` | IsThereAnyDeal API key (empty disables ITAD). | *None* | 🟢 No |
-| `DRM_FILTER` | Platforms to keep: `steam`, `epic`, `gog`. | `steam,epic` | 🟢 No |
-| **Message flavour** | | | |
-| `ENABLE_YOUTUBE_TRAILER` / `ENABLE_TRIVIA` / `ENABLE_GREETINGS` / `ENABLE_HOLIDAY_THEMES` | Toggle PM extras. | `true` | 🟢 No |
-| `DYNAMIC_NICKNAME` | Rename the bot to match the announced game. | `true` | 🟢 No |
-| **Leveling** | | | |
-| `ENABLE_LEVELING` | Track XP / levels and show them in the PM. | `true` | 🟢 No |
-| `LEVEL_GROUPS` | Milestone → server group, e.g. `10:7,50:8` (needs permission). | *None* | 🟢 No |
-| **Lifecycle** | | | |
-| `TS3_CLIENT_PATH` | Path to the TS3 client binary. | `/opt/ts3/ts3client_linux_amd64` | 🟢 No |
-| `CONNECT_TIMEOUT_SEC` | Watchdog: max wait for the client to connect each cycle. | `120` | 🟢 No |
+| Category | Variable | Description | Default |
+| :--- | :--- | :--- | :---: |
+| **Server** | `TS3_HOST` | Hostname or IP of the TeamSpeak 3 server. | *Required* |
+| | `TS3_PORT` | Voice port of the server (UDP). | `9987` |
+| | `TS3_IDENTITY` | Your exported TeamSpeak identity string. | *None* |
+| | `TS3_NICKNAME` | Default nickname for the bot. | `MrFree` |
+| **Cycle** | `MIN_INTERVAL_HOURS` | Minimum random sleep between cycles. | `1` |
+| | `MAX_INTERVAL_HOURS` | Maximum random sleep between cycles. | `12` |
+| | `POKE_DELAY_MS` | Delay between individual pokes (anti-flood). | `1200` |
+| **RPG** | `ENABLE_LEVELING` | Master switch for the XP and Rank systems. | `true` |
+| | `ENABLE_XP_MODIFIERS` | Enable streaks, crits, and gear multipliers. | `true` |
+| | `XP_SERVER_GROUPS` | Auto-create TS3 server groups for rank tiers. | `false` |
+| | `CHEAPER_MORE_XP` | Invert XP scaling (cheaper games give more). | `false` |
+| | `RESEND_AFTER_DAYS` | Allow re-sending a game after N days. | `60` |
+| **Sources** | `ENABLE_GAMERPOWER` | Fetch from GamerPower API. | `true` |
+| | `ENABLE_EPIC` | Fetch from Epic Games Store API. | `true` |
+| | `ENABLE_REDDIT` | Fetch from /r/FreeGameFindings RSS. | `true` |
+| | `REDRX_API_KEY` | API Key for [redrx.eu](https://redrx.eu/) link shortening. | *None* |
+| **Database** | `DATABASE_URL` | PostgreSQL connection string. | *None* |
+| | `DEAD_USER_DAYS` | Purge users inactive for N days. | `180` |
 
 ---
 
 ## 🛠️ Setup & Deployment
-
-You can either use the pre-built image from the GitHub Container Registry or build it yourself.
 
 ### Option A: Using the Pre-built GHCR Image (Recommended)
 
@@ -215,17 +166,14 @@ You can either use the pre-built image from the GitHub Container Registry or bui
     volumes:
       postgres_data:
     ```
-2.  **Configure**: Create `config.env` and fill in your values (see `example.env` in this repo).
-3.  **Run**: Start the container:
-    ```bash
-    docker compose up -d
-    ```
+2.  **Configure**: Create `config.env` using `example.env` as a template.
+3.  **Run**: `docker compose up -d`
 
 ### Option B: Building from Source
 
 1.  **Clone the repository**.
-2.  **Configure**: Rename `example.env` to `config.env` and fill in your values.
-3.  **Run**: Start the container:
+2.  **Configure**: Create `config.env` with your settings.
+3.  **Run**: Start the container and build:
     ```bash
     docker compose up -d --build
     ```
@@ -234,19 +182,21 @@ You can either use the pre-built image from the GitHub Container Registry or bui
 
 ## 💻 Local Development & Testing
 
-If you have Go installed, you can run the automated tests to verify the bot logic:
+If you have Go installed, you can run the automated tests to verify the RPG logic:
 
 ```bash
-# Run unit tests
-go test -v ./internal/bot/...
+# Run all unit tests
+go test -v ./...
 ```
 
-The tests verify:
-*   **Notification Filtering**: Ensures the bot correctly identifies and skips games already sent to a user.
-*   **Database Persistence**: Validates that the bot correctly interacts with the PostgreSQL history table.
+The tests verify notification filtering, database persistence, combat resolution, and loot logic.
 
 ---
 
 ## 📄 License
 
 This project is licensed under the MIT License.
+
+<p align="center">
+  <em>Made with ⚔️ and 🎲 for the TeamSpeak community.</em>
+</p>

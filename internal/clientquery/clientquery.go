@@ -75,8 +75,68 @@ func (c *Client) Command(cmd string) ([]string, error) {
 
 // Auth authenticates with the ClientQuery API key.
 func (c *Client) Auth(apiKey string) error {
-	_, err := c.Command("auth apikey=" + apiKey)
+	_, err := c.Command("auth apikey=" + Escape(apiKey))
 	return err
+}
+
+// DrainRaw reads and returns any lines that arrive within timeout (used to
+// capture asynchronous notification events). It always returns when the timeout
+// elapses.
+func (c *Client) DrainRaw(timeout time.Duration) []string {
+	var lines []string
+	_ = c.conn.SetReadDeadline(time.Now().Add(timeout))
+	defer func() { _ = c.conn.SetReadDeadline(time.Time{}) }()
+	for {
+		line, err := c.reader.ReadString('\n')
+		if t := strings.Trim(line, "\r\n"); t != "" {
+			lines = append(lines, t)
+		}
+		if err != nil {
+			return lines
+		}
+	}
+}
+
+// ReadNotify reads lines until one starts with prefix (returning its parsed
+// key=value fields) or the timeout elapses.
+func (c *Client) ReadNotify(prefix string, timeout time.Duration) (map[string]string, bool) {
+	deadline := time.Now().Add(timeout)
+	_ = c.conn.SetReadDeadline(deadline)
+	defer func() { _ = c.conn.SetReadDeadline(time.Time{}) }()
+	for time.Now().Before(deadline) {
+		line, err := c.reader.ReadString('\n')
+		if t := strings.Trim(line, "\r\n"); strings.HasPrefix(t, prefix) {
+			return firstKV([]string{t}), true
+		}
+		if err != nil {
+			return nil, false
+		}
+	}
+	return nil, false
+}
+
+// Raw sends a command and returns every line received until a terminating
+// "error ..." line or the timeout, for diagnostics. It never desyncs the caller
+// because it consumes through the error line when present.
+func (c *Client) Raw(cmd string, timeout time.Duration) ([]string, error) {
+	if _, err := fmt.Fprint(c.conn, cmd+"\n"); err != nil {
+		return nil, err
+	}
+	var lines []string
+	_ = c.conn.SetReadDeadline(time.Now().Add(timeout))
+	defer func() { _ = c.conn.SetReadDeadline(time.Time{}) }()
+	for {
+		line, err := c.reader.ReadString('\n')
+		if line != "" {
+			lines = append(lines, strings.Trim(line, "\r\n"))
+		}
+		if err != nil {
+			return lines, err
+		}
+		if strings.HasPrefix(strings.Trim(line, "\r\n"), "error ") {
+			return lines, nil
+		}
+	}
 }
 
 func firstWord(s string) string {

@@ -78,9 +78,15 @@ for k, v in items.items():
 if target is None:
     sys.exit("ERROR: identity item not found in ProtobufItems")
 
+# Rebuild the top-level item, keeping only ONE identity (field 17). Any extra
+# stacked identities are dropped so re-running never accumulates old identities.
 newtop = []
+seen_identity = False
 for fn, wt, payload in parse(items[target]):
     if fn == 17 and wt == 2:
+        if seen_identity:
+            continue  # drop duplicate/stacked identity entries
+        seen_identity = True
         newsub = []
         for sfn, swt, spayload in parse(payload):
             if sfn == 1:

@@ -44,9 +44,17 @@ else
 fi
 
 # Virtual display + dbus session (shared across all cycles).
+# Clear stale X locks/sockets left by a previous run (a `docker restart` reuses
+# the container filesystem, so an old /tmp/.X99-lock would stop Xvfb from
+# starting and the client would exit immediately with no display).
+echo "[entrypoint] Clearing stale X locks..."
+rm -f /tmp/.X99-lock 2>/dev/null || true
+rm -rf /tmp/.X11-unix 2>/dev/null || true
+mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
+
 echo "[entrypoint] Starting Xvfb + dbus..."
 Xvfb :99 -screen 0 1280x720x24 -ac >/tmp/xvfb.log 2>&1 &
-sleep 2
+sleep 3
 export DISPLAY=:99
 eval "$(dbus-launch --sh-syntax)"
 
