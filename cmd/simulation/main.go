@@ -374,9 +374,11 @@ func XPNeededForNextLevel(level int, cap float64) float64 {
 
 func NewPlayer() *Player {
 	p := &Player{
-		Level:     1,
-		Gear:      make(map[string]*Gear),
-		GroupSize: 1,
+		Level:                   1,
+		Gear:                    make(map[string]*Gear),
+		GroupSize:               1,
+		UniqueItemsCollected:    make(map[string]bool),
+		UltimateSkillsCollected: make(map[string]bool),
 	}
 	p.RecalculateStats(DefaultParams())
 	p.XPNeeded = XPNeededForNextLevel(1, 5.0)
@@ -685,6 +687,14 @@ func SimulateCombat(rng *rand.Rand, player *Player, mobs []Mob, params SimParams
 	for round := 1; round <= params.MaxRounds; round++ {
 		escalation := 1.0 + params.EscalationRate*float64(round-1)
 
+		// Evaluate ultimate skill ONCE at start of player attack phase
+		ultMult := 1.0
+		if player.UltimateSkill != nil && player.UltimateSkill.CurrentCooldown <= 0 {
+			ultMult = player.UltimateSkill.Power
+			player.UltimateSkill.CurrentCooldown = player.UltimateSkill.CooldownRounds
+			player.TotalUltimatesUsed++
+		}
+
 		// Player attacks each living mob
 		for i := range mobs {
 			if mobs[i].HP <= 0 {
@@ -709,14 +719,6 @@ func SimulateCombat(rng *rand.Rand, player *Player, mobs []Mob, params SimParams
 			skillMult := 1.0
 			if rng.Float64() < params.SkillChanceCombat {
 				skillMult = params.SkillPowerBase + rng.Float64()*1.5
-			}
-
-			// Ultimate Skill: use if equipped and off cooldown (hits ALL living mobs)
-			ultMult := 1.0
-			if player.UltimateSkill != nil && player.UltimateSkill.CurrentCooldown <= 0 {
-				ultMult = player.UltimateSkill.Power
-				player.UltimateSkill.CurrentCooldown = player.UltimateSkill.CooldownRounds
-				player.TotalUltimatesUsed++
 			}
 
 			// Player damage with balanced scaling (includes ultimate skill multiplier)

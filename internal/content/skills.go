@@ -200,24 +200,27 @@ var ultimateNouns = []string{
 var allUltimateSkills []UltimateSkill
 
 func init() {
-	// Generate 1000 unique ultimate skills
+	// Generate 1000 unique ultimate skills using deterministic RNG like artifacts.go
+	// Use a fixed seed for procedural generation to ensure UltimateSkill IDs (ULT_1, ULT_2...)
+	// are stable across bot restarts/rebuilds.
+	r := rand.New(rand.NewPCG(42, 42)) // #nosec G404
+
 	idx := 1
 	for _, v := range ultimateVerbs {
 		for _, n := range ultimateNouns {
 			name := v + " " + n
 
 			// Determine rarity (ultimate skills are inherently rare)
-			// #nosec G404
-			r := rand.Float64() // #nosec G404
+			rr := r.Float64()
 			var rarity Rarity
 			switch {
-			case r < 0.50:
+			case rr < 0.50:
 				rarity = RarityRare
-			case r < 0.80:
+			case rr < 0.80:
 				rarity = RarityEpic
-			case r < 0.95:
+			case rr < 0.95:
 				rarity = RarityLegendary
-			case r < 0.99:
+			case rr < 0.99:
 				rarity = RarityMythic
 			default:
 				rarity = RarityDivine

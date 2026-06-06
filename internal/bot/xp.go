@@ -1098,9 +1098,9 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) {
 				_, _ = b.DB.Exec("UPDATE user_gear SET durability = LEAST(durability + $2, max_durability) WHERE client_uid = $1 AND durability < max_durability", uid, repairAmt/brokenCount)
 				// Also repair artifact
 				_, _ = b.DB.Exec("UPDATE users SET artifact_durability = LEAST(artifact_durability + 15, 30) WHERE client_uid = $1 AND artifact_durability > 0 AND artifact_durability < 30", uid)
+				// Consume one repair kit
+				_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE ctid IN (SELECT ctid FROM user_consumables WHERE client_uid = $1 AND cons_id = $2 LIMIT 1)", uid, cid)
 			}
-			// Consume one repair kit
-			_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE ctid IN (SELECT ctid FROM user_consumables WHERE client_uid = $1 AND cons_id = $2 LIMIT 1)", uid, cid)
 		}
 	}
 
@@ -1298,46 +1298,76 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		// #nosec G404
 		r := rand.Float64() - lootFindBonus // #nosec G404
 		lootFound := false
-		if r < titleChance*qualityMult {
+		// Checks ordered by ascending threshold so smaller chances are evaluated first
+		// Thresholds: title=0.005, ultimateSkill=0.005, uniqueItem=0.01, artifact=0.01, ench=0.02, skill=0.05, cons=0.1, gear=0.10
+		if r < ultimateSkillChance*qualityMult {
+			// Ultimate skill drop (0.5%)
+			us := content.RandomUltimateSkill()
+			var exists bool
+			_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_ultimate_skills WHERE client_uid=$1 AND ultimate_id=$2)", uid, us.ID).Scan(&exists)
+			if !exists {
+				_, _ = b.DB.Exec("INSERT INTO user_ultimate_skills (client_uid, ultimate_id) VALUES ($1, $2)", uid, us.ID)
+				_, _ = b.DB.Exec("UPDATE users SET ultimate_skills_count = ultimate_skills_count + 1 WHERE client_uid=$1", uid)
+				var currentUltimate sql.NullString
+				_ = b.DB.QueryRow("SELECT ultimate_skill_id FROM users WHERE client_uid=$1", uid).Scan(&currentUltimate)
+				if !currentUltimate.Valid {
+					_, _ = b.DB.Exec("UPDATE users SET ultimate_skill_id=$2, ultimate_cooldown=0 WHERE client_uid=$1", uid, us.ID)
+					results = append(results, fmt.Sprintf("Ultimate: %s (Equipped)", us.Name))
+				} else {
+					results = append(results, fmt.Sprintf("Ultimate: %s (Collected)", us.Name))
+				}
+			} else {
+				xp := 10 + int(us.Rarity)*20
+				_, _ = b.awardXP(uid, "", xp)
+				results = append(results, fmt.Sprintf("Duplicate %s (+%d XP)", us.Name, xp))
+			}
+			lootFound = true
+		} else if r < titleChance*qualityMult {
 			t := content.RandomTitle()
 			_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days' WHERE client_uid=$1", uid, t.Name, t.XPMultiplier)
 			results = append(results, "Title: "+t.Name)
 			lootFound = true
+		} else if r < uniqueItemChance*qualityMult {
+			// Unique item drop (1%)
+			ui := content.RandomUniqueItem()
+			var exists bool
+			_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_unique_items WHERE client_uid=$1 AND item_name=$2)", uid, ui.Name).Scan(&exists)
+			if !exists {
+				_, _ = b.DB.Exec("INSERT INTO user_unique_items (client_uid, item_name, rarity, power) VALUES ($1, $2, $3, $4)", uid, ui.Name, ui.Rarity, ui.Power)
+				_, _ = b.DB.Exec("UPDATE users SET unique_items_count = unique_items_count + 1 WHERE client_uid=$1", uid)
+				results = append(results, fmt.Sprintf("Unique: %s (%s)", ui.Name, ui.Rarity.String()))
+			} else {
+				xp := 5 + int(ui.Rarity)*10
+				_, _ = b.awardXP(uid, "", xp)
+				results = append(results, fmt.Sprintf("Duplicate %s (+%d XP)", ui.Name, xp))
+			}
+			lootFound = true
 		} else if r < artifactChance*qualityMult {
 			a := content.RandomArtifact()
-			// Scale Artifact stats with zone difficulty
 			a.Stats.HP = int(float64(a.Stats.HP) * zoneDifficulty)
 			a.Stats.STR = int(float64(a.Stats.STR) * zoneDifficulty)
 			a.Stats.DEF = int(float64(a.Stats.DEF) * zoneDifficulty)
 			_, _ = b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1", uid, a.Mult, a.Name, a.MaxDurability)
 			results = append(results, "Artifact: "+a.Name)
 			lootFound = true
-		} else if r < gearChance*qualityMult {
-			g := content.RandomGearDrop()
-			// Scale Gear stats with zone difficulty
-			g.Stats.HP = int(float64(g.Stats.HP) * zoneDifficulty)
-			g.Stats.STR = int(float64(g.Stats.STR) * zoneDifficulty)
-			g.Stats.DEF = int(float64(g.Stats.DEF) * zoneDifficulty)
-			g.Stats.SPD = int(float64(g.Stats.SPD) * zoneDifficulty)
-
-			if b.shouldEquip(uid, g) {
-				_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
-				results = append(results, "Equipped: "+g.Name)
+		} else if r < enchChance*qualityMult {
+			ench := content.RandomEnchantment()
+			ench.Stats.STR = int(float64(ench.Stats.STR) * zoneDifficulty)
+			ench.Stats.SPD = int(float64(ench.Stats.SPD) * zoneDifficulty)
+			if slot, ok := b.applyEnchantment(uid, ench); ok {
+				results = append(results, fmt.Sprintf("Enchanted %s with %s", slot, ench.Name))
 			} else {
-				// Disenchant
-				xp := 1 + int(g.Rarity)*2
+				xp := 3 + int(ench.Rarity)*5
 				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", g.Name, xp))
+				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", ench.Name, xp))
 			}
 			lootFound = true
 		} else if r < skillChance*qualityMult {
 			s := content.RandomSkill()
-			// Scale Skill power with zone difficulty
 			s.Power *= zoneDifficulty
 			if slot, ok := b.equipSkill(uid, s); ok {
 				results = append(results, fmt.Sprintf("Learned %s (Slot %d)", s.Name, slot))
 			} else {
-				// Disenchant
 				xp := 2 + int(s.Rarity)*3
 				_, _ = b.awardXP(uid, "", xp)
 				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", s.Name, xp))
@@ -1348,61 +1378,19 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
 			results = append(results, "Item: "+c.Name)
 			lootFound = true
-		} else if r < enchChance*qualityMult {
-			ench := content.RandomEnchantment()
-			// Scale Enchantment stats with zone difficulty
-			ench.Stats.STR = int(float64(ench.Stats.STR) * zoneDifficulty)
-			ench.Stats.SPD = int(float64(ench.Stats.SPD) * zoneDifficulty)
-
-			if slot, ok := b.applyEnchantment(uid, ench); ok {
-				results = append(results, fmt.Sprintf("Enchanted %s with %s", slot, ench.Name))
+		} else if r < gearChance*qualityMult {
+			g := content.RandomGearDrop()
+			g.Stats.HP = int(float64(g.Stats.HP) * zoneDifficulty)
+			g.Stats.STR = int(float64(g.Stats.STR) * zoneDifficulty)
+			g.Stats.DEF = int(float64(g.Stats.DEF) * zoneDifficulty)
+			g.Stats.SPD = int(float64(g.Stats.SPD) * zoneDifficulty)
+			if b.shouldEquip(uid, g) {
+				_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
+				results = append(results, "Equipped: "+g.Name)
 			} else {
-				// Disenchant
-				xp := 3 + int(ench.Rarity)*5
+				xp := 1 + int(g.Rarity)*2
 				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", ench.Name, xp))
-			}
-			lootFound = true
-		} else if r < uniqueItemChance*qualityMult {
-			// Unique item drop
-			ui := content.RandomUniqueItem()
-			// Check if user already has this unique item
-			var exists bool
-			_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_unique_items WHERE client_uid=$1 AND item_name=$2)", uid, ui.Name).Scan(&exists)
-			if !exists {
-				_, _ = b.DB.Exec("INSERT INTO user_unique_items (client_uid, item_name, rarity, power) VALUES ($1, $2, $3, $4)", uid, ui.Name, ui.Rarity, ui.Power)
-				_, _ = b.DB.Exec("UPDATE users SET unique_items_count = unique_items_count + 1 WHERE client_uid=$1", uid)
-				results = append(results, fmt.Sprintf("Unique: %s (%s)", ui.Name, ui.Rarity.String()))
-			} else {
-				// Already have it, convert to XP
-				xp := 5 + int(ui.Rarity)*10
-				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Duplicate %s (+%d XP)", ui.Name, xp))
-			}
-			lootFound = true
-		} else if r < ultimateSkillChance*qualityMult {
-			// Ultimate skill drop
-			us := content.RandomUltimateSkill()
-			// Check if user already has this ultimate skill
-			var exists bool
-			_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_ultimate_skills WHERE client_uid=$1 AND ultimate_id=$2)", uid, us.ID).Scan(&exists)
-			if !exists {
-				_, _ = b.DB.Exec("INSERT INTO user_ultimate_skills (client_uid, ultimate_id) VALUES ($1, $2)", uid, us.ID)
-				_, _ = b.DB.Exec("UPDATE users SET ultimate_skills_count = ultimate_skills_count + 1 WHERE client_uid=$1", uid)
-				// Auto-equip if no ultimate equipped
-				var currentUltimate sql.NullString
-				_ = b.DB.QueryRow("SELECT ultimate_skill_id FROM users WHERE client_uid=$1", uid).Scan(&currentUltimate)
-				if !currentUltimate.Valid {
-					_, _ = b.DB.Exec("UPDATE users SET ultimate_skill_id=$2, ultimate_cooldown=0 WHERE client_uid=$1", uid, us.ID)
-					results = append(results, fmt.Sprintf("Ultimate: %s (Equipped)", us.Name))
-				} else {
-					results = append(results, fmt.Sprintf("Ultimate: %s (Collected)", us.Name))
-				}
-			} else {
-				// Already have it, convert to XP
-				xp := 10 + int(us.Rarity)*20
-				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Duplicate %s (+%d XP)", us.Name, xp))
+				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", g.Name, xp))
 			}
 			lootFound = true
 		}
