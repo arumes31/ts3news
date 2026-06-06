@@ -19,6 +19,9 @@ services:
     build: .
     container_name: ts3-news-bot
     restart: unless-stopped
+    # Give the Go supervisor time to finish an in-progress poke cycle on SIGTERM
+    # (graceful shutdown) before Docker escalates to SIGKILL.
+    stop_grace_period: 30s
     depends_on:
       db:
         condition: service_healthy
@@ -27,7 +30,8 @@ services:
       - TS3_PORT=${TS3_PORT:-9987}
       - TS3_NICKNAME=${TS3_NICKNAME:-MrFree}
       - TS3_IDENTITY=${TS3_IDENTITY}
-      - CHECK_INTERVAL_HOURS=${CHECK_INTERVAL_HOURS:-12}
+      - MIN_INTERVAL_HOURS=${MIN_INTERVAL_HOURS:-1}
+      - MAX_INTERVAL_HOURS=${MAX_INTERVAL_HOURS:-12}
       - POKE_DELAY_MS=${POKE_DELAY_MS:-1200}
       - REDRX_API_KEY=${REDRX_API_KEY}
       - TS3_TARGET_NICK=${TS3_TARGET_NICK}

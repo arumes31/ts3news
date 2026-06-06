@@ -27,10 +27,14 @@
 *   🔑 **Identity Injection**: Automates injecting high security-level identities (e.g. Level 29) directly into `settings.db`.
 *   📣 **Double Notifications**: Sends a short, non-intrusive **Poke** popup (under 100 characters) + a detailed **Private Message** containing the game link.
 *   🔗 **Short Link Integration**: Uses [redrx.eu](https://redrx.eu/) to provide clean, clickable links in pokes.
-*   🎮 **Steam & Epic Premium**: Only announces normally-paid Steam / Epic Games Store titles that are free for a limited time — skipping free-to-play, expired, and other-store giveaways.
+*   🌐 **Multi-Source Fetching**: Merges giveaways from **GamerPower**, the **Epic Games Store API**, **Reddit `/r/FreeGameFindings`** and (optionally) **IsThereAnyDeal**, de-duplicated across sources by title.
+*   🎮 **DRM Filtering**: Only announces normally-paid titles on the platforms you choose (`steam`, `epic`, `gog`) — skipping free-to-play, expired, and unwanted-store giveaways.
+*   ▶️ **Rich Messages**: Each PM includes a random greeting (100 variants), a YouTube trailer link, a gaming trivia fact, and seasonal **holiday theming**.
+*   🏆 **Leveling System**: Users earn XP per poke across **1000 fantasy-named levels**, shown in every PM, with optional TS3 server-group rewards at milestones.
+*   🤖 **Dynamic Nickname**: The bot renames itself to match the announced game (e.g. *VaultBoy* for Fallout).
 *   ⏱️ **Anti-Flood Control**: Customizable delay between actions to avoid server query anti-flood triggering.
-*   🔄 **Single-Cycle Flow**: Designed to connect, notify, close the client, and sleep to conserve system memory.
-*   🗄️ **Persistent History**: Stores game notification history in a **PostgreSQL** database to prevent duplicate pokes across restarts.
+*   🔄 **Go Supervisor**: A long-running supervisor connects, notifies, disconnects and sleeps a random interval — with a **watchdog** that restarts an unresponsive client and **graceful SIGTERM** shutdown that finishes the current cycle first.
+*   🗄️ **Persistent History + Migrations**: Stores per-user history in **PostgreSQL** (schema managed by embedded **golang-migrate** migrations), with a per-user resend window and automatic **dead-user cleanup**.
 
 ---
 
@@ -43,17 +47,17 @@ graph TD
         
         Xvfb["🖥️ Xvfb (:99 Virtual Framebuffer)"]
         TS3Client["🎮 Headless TS3 Client"]
-        GoBot["🤖 Go Bot Application"]
-        Entrypoint["🔁 entrypoint.sh Loop"]
+        GoBot["🤖 Go Supervisor (loop + watchdog + graceful shutdown)"]
+        Entrypoint["🔧 entrypoint.sh (Xvfb + dbus + identity)"]
         
         Xvfb --> TS3Client
-        Entrypoint -->|1. Starts client & connects| TS3Client
-        Entrypoint -->|2. Runs poke cycle| GoBot
-        GoBot <-->|ClientQuery TCP:25639| TS3Client
-        GoBot <-->|SQL| PostgresDB["🗄️ PostgreSQL DB"]
+        Entrypoint -->|exec| GoBot
+        GoBot -->|1. Starts & supervises client| TS3Client
+        GoBot <-->|2. ClientQuery TCP:25639| TS3Client
+        GoBot <-->|SQL + migrations| PostgresDB["🗄️ PostgreSQL DB"]
     end
     
-    GoBot -->|3. Fetches giveaways| GamerPower["🌐 GamerPower API"]
+    GoBot -->|3. Fetches giveaways| GamerPower["🌐 GamerPower · Epic · Reddit · ITAD"]
     GoBot -->|4. Shortens links| Redrx["🔗 RedRx API"]
     TS3Client -->|UDP:9987| TS3Server["🔊 TS3 Voice Server"]
     TS3Client -->|5. Sends Poke & PM| TS3Users["👥 Online TS3 Users"]
@@ -91,12 +95,24 @@ To keep TeamSpeak pokes clean and within the 100-character limit, this bot integ
 ## 💬 Notification Formats
 
 ### Poke (High Visibility)
-The poke is strictly limited to 100 characters and always includes the shortened link.
-> **Format:** `Free: [Game Title] [Link]`
+The poke is strictly limited to 100 characters, always includes the shortened link, uses the clean game name (no platform tags / "Giveaway"), and ends with a short XP/level note.
+> **Format:** `Free: [Game Name] [Link] +[XP]XP L[Level]`
+> **Example:** `Free: Gravity Circuit https://redrx.eu/F73EA6 +21XP L3`
 
 ### Private Message (Details)
-A private message is sent simultaneously with the full title and link.
-> **Format:** `Daily Free Game! Title: [Game Title]. Link: [Link]`
+A richer private message is sent simultaneously, e.g.:
+> 🎄 Frohe Weihnachten, gamer! A festive freebie for you:
+> 🎮 Gravity Circuit
+> 💰 Worth €19.99 → FREE now
+> 🔗 Claim: https://redrx.eu/F73EA6
+> ▶️ Trailer: https://www.youtube.com/results?search_query=Gravity+Circuit
+> 🏆 Squire III (Lvl 53) — +21 XP (1,240 total)
+> 💡 Did you know? Doom (1993) runs on everything — including pregnancy tests and fridges.
+> Ho ho ho — happy holidays and happy gaming! 🎅
+
+Greeting, trailer, trivia, leveling and holiday theming are each individually toggleable (see config).
+
+**XP & levels:** users earn XP per poke, scaled by the game's price (a pricier game going free grants more XP — invert with `CHEAPER_MORE_XP=true`). The 1000-level curve is tuned so the cap takes roughly **ten years** at ~one notification per day.
 
 ---
 
@@ -129,10 +145,27 @@ All options are specified as environment variables in `config.env`.
 | `TS3_PORT` | Voice port of the TeamSpeak 3 server (UDP). | `9987` | 🟢 No |
 | `TS3_NICKNAME` | Nickname for the bot client. | `MrFree` | 🟢 No |
 | `TS3_IDENTITY` | Exported identity string. | *None* | 🟢 No |
-| `CHECK_INTERVAL_HOURS` | Delay in hours between cycles. | `12` | 🟢 No |
+| `MIN_INTERVAL_HOURS` | Minimum random sleep (hours) between cycles. | `1` | 🟢 No |
+| `MAX_INTERVAL_HOURS` | Maximum random sleep (hours) between cycles. | `12` | 🟢 No |
 | `POKE_DELAY_MS` | Delay between pokes (anti-flood). | `1200` | 🟢 No |
-| `REDRX_API_KEY` | API Key for redrx.eu URL shortening. | *None* | 🔴 **Yes** |
+| `CONNECT_TIMEOUT_SEC` | Max seconds to wait for client to connect each cycle. | `120` | 🟢 No |
+| `REDRX_API_KEY` | API Key for redrx.eu URL shortening. | *None* | 🟢 No |
 | `TS3_TARGET_NICK` | If set, only this nickname is poked (testing). | *None* | 🟢 No |
+| `RESEND_AFTER_DAYS` | Re-allow sending a game after N days (0 = never). | `60` | 🟢 No |
+| `DEAD_USER_DAYS` | Purge users not seen for N days (0 = never). | `180` | 🟢 No |
+| **Sources** | | | |
+| `ENABLE_GAMERPOWER` / `ENABLE_EPIC` / `ENABLE_REDDIT` | Toggle each game source. | `true` | 🟢 No |
+| `ITAD_API_KEY` | IsThereAnyDeal API key (empty disables ITAD). | *None* | 🟢 No |
+| `DRM_FILTER` | Platforms to keep: `steam`, `epic`, `gog`. | `steam,epic` | 🟢 No |
+| **Message flavour** | | | |
+| `ENABLE_YOUTUBE_TRAILER` / `ENABLE_TRIVIA` / `ENABLE_GREETINGS` / `ENABLE_HOLIDAY_THEMES` | Toggle PM extras. | `true` | 🟢 No |
+| `DYNAMIC_NICKNAME` | Rename the bot to match the announced game. | `true` | 🟢 No |
+| **Leveling** | | | |
+| `ENABLE_LEVELING` | Track XP / levels and show them in the PM. | `true` | 🟢 No |
+| `LEVEL_GROUPS` | Milestone → server group, e.g. `10:7,50:8` (needs permission). | *None* | 🟢 No |
+| **Lifecycle** | | | |
+| `TS3_CLIENT_PATH` | Path to the TS3 client binary. | `/opt/ts3/ts3client_linux_amd64` | 🟢 No |
+| `CONNECT_TIMEOUT_SEC` | Watchdog: max wait for the client to connect each cycle. | `120` | 🟢 No |
 
 ---
 
