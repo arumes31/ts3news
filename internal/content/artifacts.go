@@ -123,11 +123,12 @@ type Consumable struct {
 }
 
 type Enchantment struct {
-	ID          string
-	Name        string
-	Rarity      Rarity
-	Stats       Stats
-	Description string
+	ID           string
+	Name         string
+	Rarity       Rarity
+	XPMultiplier float64
+	Stats        Stats
+	Description  string
 }
 
 var allGear []Gear
@@ -159,6 +160,12 @@ type Title struct {
 }
 
 func init() {
+	// XP Multiplier Logic: The better the gear/enchantment, the LESS XP it adds.
+	// Base multiplier is high (e.g., 1.5x) and decreases with rarity.
+	getXPMult := func(r Rarity) float64 {
+		return 1.5 - (0.1 * float64(r))
+	}
+
 	// 1. Generate Gear
 	for _, slot := range AllSlots {
 		allGear = append(allGear, Gear{
@@ -166,13 +173,19 @@ func init() {
 			Name:          fmt.Sprintf("Novice %s", slot),
 			Slot:          slot,
 			Rarity:        RarityCommon,
-			XPMultiplier:  1.01,
+			XPMultiplier:  getXPMult(RarityCommon), // 1.5x
 			MaxDurability: 50,
 			Stats:         Stats{HP: 10, STR: 2, DEF: 2, SPD: 2, CHA: 1, STN: rand.Intn(5)},
 		})
 	}
 	// Add Rares
-	allGear = append(allGear, Gear{ID: "W_EPIC_1", Name: "Soul-Eater Blade", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.5, MaxDurability: 100, Stats: Stats{STR: 50, SPD: 20, CRT: 10, SHN: 100}})
+	allGear = append(allGear, []Gear{
+		{ID: "W_EPIC_1", Name: "Soul-Eater Blade", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: getXPMult(RarityEpic), MaxDurability: 100, Stats: Stats{STR: 50, SPD: 20, CRT: 10, SHN: 100}},
+		{ID: "W1", Name: "Rusty Broadsword", Slot: SlotMainHand, Rarity: RarityCommon, XPMultiplier: getXPMult(RarityCommon), MaxDurability: 30, Stats: Stats{STR: 5}},
+		{ID: "W2", Name: "Silver Dagger", Slot: SlotMainHand, Rarity: RarityUncommon, XPMultiplier: getXPMult(RarityUncommon), MaxDurability: 25, Stats: Stats{STR: 8, SPD: 5}},
+		{ID: "A1", Name: "Leather Tunic", Slot: SlotChest, Rarity: RarityUncommon, XPMultiplier: getXPMult(RarityUncommon), MaxDurability: 40, Stats: Stats{DEF: 5, HP: 10}},
+		{ID: "R1", Name: "Lucky Rabbit's Foot", Slot: SlotRelic, Rarity: RarityRare, XPMultiplier: getXPMult(RarityRare), MaxDurability: 20, Stats: Stats{LCK: 10}},
+	}...)
 
 	// 2. Generate 100 Corrupted Artifacts
 	prefixes := []string{"Cursed", "Blighted", "Tainted", "Demonic", "Shadow", "Void", "Ruined", "Shattered", "Forbidden", "Malevolent"}
@@ -227,11 +240,12 @@ func init() {
 		if i > 8 { rarity = RarityLegendary }
 		
 		allEnchantments = append(allEnchantments, Enchantment{
-			ID:          fmt.Sprintf("E%d", i),
-			Name:        p,
-			Rarity:      rarity,
-			Stats:       Stats{STR: 15 * (int(rarity) + 1), SPD: 10 * (int(rarity) + 1), CRT: 5 * (int(rarity) + 1)},
-			Description: fmt.Sprintf("Adds %s power", p),
+			ID:           fmt.Sprintf("E%d", i),
+			Name:         p,
+			Rarity:       rarity,
+			XPMultiplier: getXPMult(rarity) - 0.1, // Enchantments add extra penalty
+			Stats:        Stats{STR: 15 * (int(rarity) + 1), SPD: 10 * (int(rarity) + 1), CRT: 5 * (int(rarity) + 1)},
+			Description:  fmt.Sprintf("Adds %s power", p),
 		})
 	}
 }

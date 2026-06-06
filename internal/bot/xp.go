@@ -455,7 +455,8 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 					if enchID.Valid && enchID.String != "" {
 						if ench, ok := content.GetEnchantmentByID(enchID.String); ok {
 							stats = stats.Add(ench.Stats)
-							note = fmt.Sprintf("[%s] %s", ench.Name, note)
+							mult *= ench.XPMultiplier // Apply enchantment XP penalty
+							note = fmt.Sprintf("[%s] %s (x%g XP)", ench.Name, note, ench.XPMultiplier)
 						}
 					}
 					notes = append(notes, note)
