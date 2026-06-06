@@ -78,13 +78,23 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 		}
 	}
 
-	mult, mnotes := b.computeAwardMult(uid, nickname, cid, ctx)
+	stats, mult, mnotes := b.calculateTotalStats(uid, ctx.today)
 	notes = append(notes, mnotes...)
+
+	if b.Cfg.EnableXPModifiers {
+		// SPANW MOB & FIGHT
+		mob := content.SpawnRandomMob()
+		combatXP, combatMsg := b.resolveCombat(stats, mob)
+		delta += combatXP
+		notes = append(notes, combatMsg)
+	}
+
+	awardMult := b.computeMiscMult(uid, nickname, cid, ctx)
 	if !hasGame {
 		mult *= noGamePenalty
 		notes = append(notes, "no new game -50%")
 	}
-	award := int(math.Round(float64(base) * mult))
+	award := int(math.Round(float64(base) * mult * awardMult))
 	if award < 1 {
 		award = 1
 	}
@@ -112,39 +122,28 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 	return lr, notes, artifactPoke
 }
 
-// computeAwardMult returns the combined XP multiplier.
-func (b *Bot) computeAwardMult(uid, nickname string, cid int, ctx cycleContext) (float64, []string) {
+// computeMiscMult returns combined multipliers from streaks, crits, and server/party.
+func (b *Bot) computeMiscMult(uid, nickname string, cid int, ctx cycleContext) float64 {
 	if !b.Cfg.EnableXPModifiers {
-		return 1.0, nil
+		return 1.0
 	}
 	mult := 1.0
-	var notes []string
 
 	if streak := b.updateStreak(uid, ctx.today); streakMultiplier(streak) > 1 {
-		sm := streakMultiplier(streak)
-		mult *= sm
-		notes = append(notes, fmt.Sprintf("%dd streak x%g", streak, sm))
+		mult *= streakMultiplier(streak)
 	}
 	if rand.Float64() < critChance {
 		mult *= critMult
-		notes = append(notes, fmt.Sprintf("CRIT x%g", critMult))
 	}
 	if sv := serverMultiplier(ctx.onlineNormal); sv > 1 {
 		mult *= sv
-		notes = append(notes, fmt.Sprintf("server x%.2f", sv))
 	}
-	
 	// Automatic party: if other normal users are in the same channel.
 	if cid >= 0 && ctx.channelNormalCount[cid] > 1 {
 		mult *= partyMult
-		notes = append(notes, fmt.Sprintf("party x%g", partyMult))
 	}
-	
-	am, lnotes := b.activeLootMult(uid, ctx.today)
-	mult *= am
-	notes = append(notes, lnotes...)
 
-	return mult, notes
+	return mult
 }
 
 func streakMultiplier(streak int) float64 {
@@ -228,8 +227,9 @@ func (b *Bot) ensureUserHasGear(uid string) {
 	}
 }
 
-func (b *Bot) activeLootMult(uid string, today time.Time) (float64, []string) {
+func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stats, []string) {
 	mult := 1.0
+	var stats content.Stats
 	var notes []string
 
 	// 1. Title
@@ -240,6 +240,9 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, []string) {
 		if tExp.Valid && !today.After(tExp.Time) && title.Valid {
 			mult *= tMult.Float64
 			notes = append(notes, fmt.Sprintf("%s x%g", title.String, tMult.Float64))
+			if t, ok := content.GetTitleByName(title.String); ok {
+				stats = stats.Add(t.Stats)
+			}
 		} else if title.Valid {
 			_, _ = b.DB.Exec("UPDATE users SET title=NULL, title_mult=NULL, title_expires=NULL WHERE client_uid=$1", uid)
 		}
@@ -253,6 +256,8 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, []string) {
 		if aExp.Valid && !today.After(aExp.Time) && aMult.Valid {
 			mult *= aMult.Float64
 			notes = append(notes, fmt.Sprintf("%s x%g", aName.String, aMult.Float64))
+			// Corrupted artifacts have stats too
+			stats = stats.Add(content.Stats{HP: 50, STR: 20, DEF: 10, SPD: 15}) // approximate for now
 		} else if aMult.Valid && aMult.Float64 != 1 {
 			_, _ = b.DB.Exec("UPDATE users SET artifact_mult=1, artifact_name=NULL, artifact_expires=NULL WHERE client_uid=$1", uid)
 		}
@@ -272,13 +277,56 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, []string) {
 				}
 				if gear, ok := content.GetGearByID(gearID); ok {
 					mult *= gear.XPMultiplier
+					stats = stats.Add(gear.Stats)
 					notes = append(notes, fmt.Sprintf("%s x%g", gear.Name, gear.XPMultiplier))
 				}
 			}
 		}
 	}
 
-	return mult, notes
+	return mult, stats, notes
+}
+
+func (b *Bot) calculateTotalStats(uid string, today time.Time) (content.Stats, float64, []string) {
+	// Base stats from level
+	var level int
+	_ = b.DB.QueryRow("SELECT level FROM users WHERE client_uid=$1", uid).Scan(&level)
+	base := content.Stats{
+		HP:  50 + (level / 10),
+		STR: 10 + (level / 50),
+		DEF: 5 + (level / 100),
+		SPD: 10 + (level / 50),
+		LCK: level / 200,
+	}
+
+	mult, lootStats, notes := b.activeLootMult(uid, today)
+	return base.Add(lootStats), mult, notes
+}
+
+func (b *Bot) resolveCombat(userStats content.Stats, mob content.Mob) (int, string) {
+	uHP := userStats.HP
+	mHP := mob.Stats.HP
+	
+	// Max 10 rounds
+	for r := 0; r < 10; r++ {
+		// User attacks
+		uDmg := userStats.STR - mob.Stats.DEF
+		if uDmg < 1 { uDmg = 1 }
+		mHP -= uDmg
+		if mHP <= 0 {
+			return mob.RewardXP, fmt.Sprintf("Victory! You slew %s (%s).", mob.Name, mob.Type)
+		}
+
+		// Mob attacks
+		mDmg := mob.Stats.STR - userStats.DEF
+		if mDmg < 1 { mDmg = 1 }
+		uHP -= mDmg
+		if uHP <= 0 {
+			penalty := -mob.RewardXP
+			return penalty, fmt.Sprintf("Defeat! You were crushed by %s (%s).", mob.Name, mob.Type)
+		}
+	}
+	return 0, fmt.Sprintf("Draw! You and %s (%s) both retreated.", mob.Name, mob.Type)
 }
 
 func (b *Bot) rollLootAndTitles(uid string, today time.Time) string {

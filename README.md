@@ -143,10 +143,17 @@ Your XP award per cycle is modified by:
 | **Artifact** | Held for 24 hours (e.g. *Void Orb*). | **Massive Buff or Debuff** |
 
 ### 🛡️ Gear & Equipment
-Every user is guaranteed to own at least one item. The bot manages **24 equipment slots** (Head, Chest, MainHand, Mount, Companion, etc.).
+Every user is guaranteed to own at least one item. The bot manages **24 equipment slots** (Head, Chest, MainHand, Mount, Companion, etc.).     
 *   **Loot Drops**: Randomly occur during notification cycles.
+*   **Stats**: Gear provides **HP, Strength, Defense, Speed, and Luck**.
 *   **Automatic Management**: New loot automatically replaces old items in the same slot.
 *   **Godsfinger**: When the bot delivers gear or artifacts, it adopts the **godsfinger** nickname for that specific notification.
+
+### ⚔️ Combat & Mobs
+Every notification cycle, a random mob spawns that you must fight using your current stats.
+*   **Mob Types**: Common, Elite, Boss, and Legendary.
+*   **Combat Results**: Winning grants bonus XP, while losing to powerful mobs can result in XP penalties.
+*   **Battle Reports**: Detailed battle logs are included in your private message.
 
 ### 💀 De-progression (The Sloth Penalty)
 To keep the leaderboard competitive, an inactivity penalty is enforced:
