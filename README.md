@@ -16,13 +16,14 @@ A sophisticated, headless TeamSpeak 3 bot that notifies users of free PC games a
 
 ## 🚀 Key Features
 
-*   🏆 **Leveling System**: Users earn XP across **10,000 levels** (30 levels per tier), with procedurally generated names and Roman numerals.
+*   🏆 **Leveling System**: Users earn XP across **10,000+ levels** (30 levels per tier), with procedurally generated names (e.g. *Ascendant Champion of the Void*) and Roman numerals.
 *   ⚔️ **Group Combat**: Users in the same channel automatically form a **Party** to fight randomly spawned mobs and bosses during every notification cycle.
 *   🦾 **24 Gear Slots**: A complete equipment system (Head, Chest, Finger 1 & 2, Mount, Companion, etc.) with functional combat stats.
-*   ✨ **Enchantment System**: Rare mob drops that can be applied to gear for additional power. Overriden by higher-tier enchants.
-*   👑 **Rare Titles**: Over 120 unique fantasy titles (e.g. *Overlord*, *Godslayer*) assigned as TS3 server groups with a **name prefix**.
-*   🧪 **Consumables**: Potions and elixirs that are automatically consumed to restore HP or provide combat buffs.
-*   🕒 **Stat Tracking**: Tracks **lifetime connection time** to reward long-term community members.
+*   🪄 **Skill System**: Over **300 unique skills and spells** (e.g. *Fiery Strike*, *Spectral Nova*). Users have 5 slots and automatically learn better skills found from loot.
+*   ✨ **Enchantment System**: Rare mob drops that can be applied to gear for additional power or increased **Durability**.
+*   👑 **Rare Titles**: Over 120 unique fantasy titles (e.g. *Divine Overlord*) assigned as TS3 server groups with a **name prefix** for 7 days.
+*   🧪 **Consumables**: Potions and elixirs that are automatically consumed to restore HP or provide temporary combat buffs.
+*   🕒 **Stat Tracking**: Tracks **lifetime connection time** and **mobs slain** to reward long-term community members.
 *   💀 **Sloth Decay**: Inactivity penalty for users offline for more than 7 days (2% XP loss per day).
 *   ⚖️ **Auto-Balancing**: A **Combat Pity** system that buffs party stats if they suffer consecutive defeats.
 *   🤖 **Persona Switching**: The bot renames itself based on context, adopting the **godsfinger** persona when delivering rare loot.
@@ -33,9 +34,9 @@ A sophisticated, headless TeamSpeak 3 bot that notifies users of free PC games a
 
 ### 📈 Earning XP
 *   **Game Pokes**: Scaled by the game's original price.
-*   **Idle XP**: Even without new games, online users receive 50% base XP.
+*   **Idle XP**: Even without new games, online users receive 50% base XP for participating in the combat cycle.
 *   **Daily Login**: A flat **+5 XP** for the first connection each day.
-*   **Combat**: Victory against mobs provides a significant XP boost.
+*   **Combat**: Victory against mobs provides a significant XP boost based on mob level and rarity.
 
 ### ✖️ XP Multipliers
 | Modifier | Condition | Bonus |
@@ -48,15 +49,16 @@ A sophisticated, headless TeamSpeak 3 bot that notifies users of free PC games a
 
 ### 🛡️ Equipment & Stats
 Users manage **24 slots**. The bot follows a **Smart Auto-Equip** policy: it only replaces items if the new drop has a higher rarity or better overall stat score.
-*   **Stats**: HP, STR (Damage), DEF (Reduces Damage), SPD (Turn Priority), LCK (Drop Rates), INT (XP Boost), STA (Reduces Dura Loss), CRT (Crit Chance), DGE (Dodge).
+*   **Combat Stats**: HP, STR (Damage), DEF (Reduces Damage), SPD (Turn Priority), LCK (Drop Rates), INT (XP Boost), STA (Reduces Dura Loss), CRT (Crit Chance), DGE (Dodge).
+*   **Flavour Stats**: CHA (Charisma), STN (Stench), SHN (Shiny), HGR (Hunger) — triggering unique report messages.
 *   **Durability**: Gear loses 1 durability per fight (3 on defeat). Broken gear is automatically deleted.
-*   **Unique Legendaries**: Rare, named items with massive stats but very low durability (e.g. *God-Slayer's Heart*).
-*   **Enchantments**: Rare drops that add extra stats to a specific gear slot. Some enchantments specifically increase the item's **Durability**.
+*   **Unique Legendaries**: Ultra-rare, named items with massive stats but very low durability (e.g. *Infinity Edge*).
 
 ### ⚔️ Combat & Mobs
 During every cycle, the bot spawns a group of mobs for each party.
 *   **Mob Levels**: Mobs scale based on the party's average level and gear strength.
-*   **Mob Effects**: Enemies can be **Enraged**, **Armored**, **Regenerative**, **Poisoned**, etc.
+*   **Mob Effects**: Enemies can be **Enraged** (+STR), **Armored** (+DEF), **Regenerative**, **Poisoned**, etc.
+*   **Loot Drops**: Defeated mobs drop gear, consumables, enchantments, and skills. Legendary mobs drop up to 4 items at once.
 *   **Pity System**: Each consecutive defeat adds a stack of the **Combat Pity** buff (+20% stats per stack) until a victory is achieved.
 
 ---
@@ -105,7 +107,7 @@ During every cycle, the bot spawns a group of mobs for each party.
     volumes:
       postgres_data:
     ```
-2.  **Configure**: Create `config.env` (see `example.env`).
+2.  **Configure**: Create `config.env` (see `example.env` for all variables).
 3.  **Run**: `docker compose up -d`
 
 ---
