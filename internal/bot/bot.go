@@ -265,17 +265,17 @@ func splitMessage(msg string, limit int) []string {
 		return []string{msg}
 	}
 	var chunks []string
-	for len(msg) > limit {
+	for len(msg) > 0 {
+		if len(msg) <= limit {
+			chunks = append(chunks, msg)
+			break
+		}
 		idx := strings.LastIndex(msg[:limit], "\n")
 		if idx == -1 {
 			idx = limit
 		}
 		chunks = append(chunks, msg[:idx])
-		// Skip the newline itself to prevent leading newlines in chunks
-		msg = strings.TrimLeft(msg[idx:], "\n")
-	}
-	if len(msg) > 0 {
-		chunks = append(chunks, msg)
+		msg = strings.TrimPrefix(msg[idx:], "\n")
 	}
 	return chunks
 }
