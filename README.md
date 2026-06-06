@@ -161,16 +161,6 @@ The tests verify:
 
 ---
 
-## 🏷️ GitHub Repository Metadata
-
-**Description:**
-> 🎮 Headless TeamSpeak 3 bot notifying users of free PC games (Steam, Epic, GOG). Powered by Go, PostgreSQL, and Xvfb. 🚀
-
-**Topics (Tags):**
-`teamspeak3` `ts3-bot` `free-games` `gamerpower-api` `docker` `golang` `postgresql` `notification-bot` `headless-client` `xvfb` `steam-giveaways` `epic-games-giveaway` `automation` `redrx`
-
----
-
 ## 📄 License
 
 This project is licensed under the MIT License.
