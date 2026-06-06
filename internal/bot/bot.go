@@ -186,12 +186,6 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		for _, user := range users {
 			_ = b.touchUser(user.UID, user.Nickname, 0)
 
-			// Update user's Teamspeak description with their stats
-			// Only update occasionally to avoid spamming the server
-			if pokedCount%10 == 0 { // Update every 10th user processed to reduce frequency
-				_ = b.UpdateUserDescription(c, user.UID)
-			}
-
 			alreadySent, _ := b.getSentGames(user.UID)
 			candidates := filterNewGames(freeGames, alreadySent)
 			// Prioritize GamerPower
@@ -259,9 +253,6 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 					outcome = "💀 XP lost"
 				}
 				notes = append(notes, fmt.Sprintf("%s: %+d → %s (Lvl %d)", outcome, lr.Awarded, leveling.LevelName(lr.NewLevel), lr.NewLevel))
-
-				// Update user description immediately when they level up
-				_ = b.UpdateUserDescription(c, user.UID)
 			}
 			pokeMsg := composePoke(game, shortURL, theme, lr)
 			pmMsg := b.composePM(game, shortURL, theme, lr, notes, user.Stats.Score())
@@ -290,6 +281,9 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			time.Sleep(time.Duration(b.Cfg.PokeDelayMS) * time.Millisecond)
 		}
 	}
+
+	// Update channel descriptions with all players' stats
+	_ = b.UpdateChannelDescriptions(c)
 
 	log.Printf("Cycle finished. Poked %d users.", pokedCount)
 	return nil
@@ -480,46 +474,71 @@ func (b *Bot) CleanupDeadUsers() (int, error) {
 	return int(n), nil
 }
 
-// UpdateUserDescription updates the Teamspeak description for a user with their stats
-func (b *Bot) UpdateUserDescription(c *clientquery.Client, uid string) error {
-	// Get user info from DB
-	var nickname string
-	var level, prestige int
-	var currentHP sql.NullInt64
-	err := b.DB.QueryRow("SELECT nickname, level, prestige, current_hp FROM users WHERE client_uid=$1", uid).Scan(&nickname, &level, &prestige, &currentHP)
+// UpdateChannelDescriptions updates all channel descriptions with the stats of players in each channel
+func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
+	clients, err := c.ClientList()
 	if err != nil {
-		return fmt.Errorf("failed to get user info: %w", err)
+		return fmt.Errorf("failed to list clients: %w", err)
 	}
 
-	// Calculate total stats for the user
-	stats, gearScore, _ := b.calculateTotalStats(uid, time.Now())
-
-	// Determine current HP - use max HP if current HP is NULL (new user)
-	actualCurrentHP := stats.HP // Default to max HP
-	if currentHP.Valid {
-		actualCurrentHP = int(currentHP.Int64)
+	// Group clients by channel
+	chanUsers := make(map[int][]struct {
+		UID  string
+		Nick string
+	})
+	for _, cl := range clients {
+		if cl.Type != 0 || cl.UID == "" {
+			continue
+		}
+		chanUsers[cl.CID] = append(chanUsers[cl.CID], struct {
+			UID  string
+			Nick string
+		}{UID: cl.UID, Nick: cl.Nickname})
 	}
 
-	// Format the description with user stats
-	description := fmt.Sprintf(
-		"Lvl:%d | GS:%.0f | HP:%d/%d | Prestige:%d\n"+
-			"STR:%d | DEF:%d | SPD:%d | LCK:%d | CRT:%d%%",
-		level,
-		gearScore,
-		actualCurrentHP,
-		stats.HP, // Max HP
-		prestige,
-		stats.STR,
-		stats.DEF,
-		stats.SPD,
-		stats.LCK,
-		stats.CRT,
-	)
+	// Update each channel's description
+	for cid, users := range chanUsers {
+		if len(users) == 0 {
+			continue
+		}
 
-	// Update the user's description in Teamspeak
-	err = c.SetDescription(description)
-	if err != nil {
-		return fmt.Errorf("failed to update user description: %w", err)
+		var sb strings.Builder
+		sb.WriteString("🎮 RPG Players: ")
+		sb.WriteString(fmt.Sprintf("%d", len(users)))
+		sb.WriteString("\n")
+
+		for i, u := range users {
+			var level, prestige int
+			var currentHP sql.NullInt64
+			err := b.DB.QueryRow("SELECT level, prestige, current_hp FROM users WHERE client_uid=$1", u.UID).Scan(&level, &prestige, &currentHP)
+			if err != nil {
+				continue
+			}
+
+			stats, gearScore, _ := b.calculateTotalStats(u.UID, time.Now())
+
+			actualCurrentHP := stats.HP
+			if currentHP.Valid {
+				actualCurrentHP = int(currentHP.Int64)
+			}
+
+			// Format: Nick [Lvl:X GS:Y HP:Z/Z P:P STR:A DEF:B SPD:C LCK:D INT:E STA:F CRT:G DGE:H CHA:I STN:J SHN:K HGR:L]
+			sb.WriteString(fmt.Sprintf("• %s [Lvl:%d GS:%.0f HP:%d/%d P:%d STR:%d DEF:%d SPD:%d LCK:%d INT:%d STA:%d CRT:%d DGE:%d CHA:%d STN:%d SHN:%d HGR:%d]",
+				u.Nick, level, gearScore, actualCurrentHP, stats.HP, prestige,
+				stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE, stats.CHA, stats.STN, stats.SHN, stats.HGR))
+
+			if i < len(users)-1 {
+				sb.WriteString("\n")
+			}
+		}
+
+		// Truncate if too long (TeamSpeak channel description limit is ~8000 chars)
+		desc := sb.String()
+		if len(desc) > 4000 {
+			desc = desc[:4000] + "..."
+		}
+
+		_ = c.SetChannelDescription(cid, desc)
 	}
 
 	return nil

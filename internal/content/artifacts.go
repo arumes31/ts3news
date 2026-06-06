@@ -254,9 +254,27 @@ func init() {
 	// are stable across bot restarts/rebuilds.
 	r := rand.New(rand.NewPCG(42, 42)) // #nosec G404
 
-	// XP Multiplier Logic: The better the gear/enchantment, the LESS XP it adds.
+	// XP Multiplier Logic:
+	// - Novice/Common items: NO XP bonus (1.0x)
+	// - Uncommon: +5% XP (1.05x)
+	// - Rare: +10% XP (1.10x)
+	// - Epic: +20% XP (1.20x)
+	// - Legendary: +30% XP (1.30x) - maximum
 	getXPMult := func(rar Rarity) float64 {
-		return 1.5 - (0.1 * float64(rar))
+		switch rar {
+		case RarityCommon:
+			return 1.0 // No XP bonus for basic items
+		case RarityUncommon:
+			return 1.05 // +5% XP
+		case RarityRare:
+			return 1.10 // +10% XP
+		case RarityEpic:
+			return 1.20 // +20% XP
+		case RarityLegendary:
+			return 1.30 // +30% XP (max)
+		default:
+			return 1.0
+		}
 	}
 
 	// Pools for procedural generation
