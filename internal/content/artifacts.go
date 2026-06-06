@@ -70,7 +70,14 @@ func (a Artifact) Score() int {
 }
 
 func (t Title) Score() int {
-	return t.Stats.Score() + int(t.XPMultiplier*100)
+	score := t.Stats.Score() + int(t.XPMultiplier*100)
+	score += t.ExtraSkills * 500
+	score += t.Lifesteal * 50
+	score += t.MultiStrike * 30
+	if t.DoubleLoot {
+		score += 2000
+	}
+	return score
 }
 
 
@@ -185,6 +192,10 @@ type Title struct {
 	Name         string
 	XPMultiplier float64
 	Stats        Stats
+	ExtraSkills  int  // +X more skill slots
+	Lifesteal    int  // % of damage dealt healed
+	MultiStrike  int  // % chance to hit twice
+	DoubleLoot   bool // Chance to double all mob drops
 }
 
 func init() {
@@ -296,6 +307,34 @@ func init() {
 			})
 		}
 	}
+
+	// 100 Extreme Titles
+	extremePrefixes := []string{"God-Mode", "One-Punch", "Loot-Hoarder", "Time-Warp", "Vampiric", "Skill-Master", "Unbreakable", "Invincible", "Berserker", "Ghost"}
+	extremeNouns := []string{"King", "Wraith", "Demon", "Saint", "Phantom", "Exile", "Prophet", "Avenger", "Harbinger", "Zenith"}
+	for _, p := range extremePrefixes {
+		for _, n := range extremeNouns {
+			t := Title{
+				Name:         p + " " + n,
+				XPMultiplier: 5.0 + rand.Float64()*10.0,
+				Stats:        Stats{HP: 1000, STR: 500, DEF: 250, SPD: 200, LCK: 150, INT: 100, STA: 100, CHA: 5000},
+			}
+			// Apply "Extreme" effects based on prefix
+			switch p {
+			case "Skill-Master": t.ExtraSkills = 5
+			case "Vampiric": t.Lifesteal = 50
+			case "Time-Warp": t.MultiStrike = 100
+			case "Loot-Hoarder": t.DoubleLoot = true
+			case "One-Punch": t.Stats.STR = 10000; t.Stats.CRT = 100
+			case "Invincible": t.Stats.DEF = 10000; t.Stats.HP = 5000
+			case "Berserker": t.MultiStrike = 50; t.Stats.STR = 2000
+			case "Ghost": t.Stats.DGE = 90; t.Stats.SPD = 1000
+			case "Unbreakable": t.Stats.STA = 100; t.Stats.DEF = 1000
+			case "God-Mode": t.ExtraSkills = 5; t.Lifesteal = 100; t.DoubleLoot = true; t.MultiStrike = 100
+			}
+			positiveTitles = append(positiveTitles, t)
+		}
+	}
+
 	negPrefixes := []string{"Wretched", "Damned", "Forlorn", "Forsaken"}
 	negNouns := []string{"Peon", "Outcast", "Traitor", "Coward", "Scum"}
 	for _, p := range negPrefixes {

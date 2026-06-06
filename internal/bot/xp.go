@@ -227,28 +227,61 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, mobs []content.Mob) ([]
 
 		// User turn
 		for _, u := range users {
-			target := &mobs[rand.Intn(len(mobs))]
-			if target.Stats.HP <= 0 { continue }
-			
-			// Skill check
-			dmgMult := 1.0
-			ignoreDef := 0.0
-			if len(u.Skills) > 0 && rand.Float64() < 0.3 {
-				s := u.Skills[rand.Intn(len(u.Skills))]
-				dmgMult = s.Power
-				ignoreDef = s.IgnoreDef
-				logs = append(logs, fmt.Sprintf("✨ %s used %s!", u.Nickname, s.Name))
-				if s.StunChance > 0 && rand.Float64() < s.StunChance {
-					logs = append(logs, fmt.Sprintf("💫 %s was STUNNED!", target.Name))
-					target.Stats.SPD = 0
+			// Check for Title-based extra effects
+			var lifesteal int
+			var multiStrike int
+			var extraHits = 1
+
+			var tName sql.NullString
+			_ = b.DB.QueryRow("SELECT title FROM users WHERE client_uid=$1", u.UID).Scan(&tName)
+			if tName.Valid {
+				if t, ok := content.GetTitleByName(tName.String); ok {
+					lifesteal = t.Lifesteal
+					multiStrike = t.MultiStrike
 				}
 			}
 
-			effDef := float64(target.Stats.DEF) * (1.0 - ignoreDef)
-			dmg := int(float64(u.Stats.STR)*dmgMult - effDef)
-			if dmg < 1 { dmg = 1 }
-			target.Stats.HP -= dmg
-			totalMobHP -= dmg
+			if multiStrike > 0 && rand.Intn(100) < multiStrike {
+				extraHits = 2
+				logs = append(logs, fmt.Sprintf("⚔️ %s attacks twice!", u.Nickname))
+			}
+
+			for h := 0; h < extraHits; h++ {
+				target := &mobs[rand.Intn(len(mobs))]
+				if target.Stats.HP <= 0 { continue }
+				
+				// Skill check
+				dmgMult := 1.0
+				ignoreDef := 0.0
+				if len(u.Skills) > 0 && rand.Float64() < 0.3 {
+					s := u.Skills[rand.Intn(len(u.Skills))]
+					dmgMult = s.Power
+					ignoreDef = s.IgnoreDef
+					logs = append(logs, fmt.Sprintf("✨ %s used %s!", u.Nickname, s.Name))
+					if s.StunChance > 0 && rand.Float64() < s.StunChance {
+						logs = append(logs, fmt.Sprintf("💫 %s was STUNNED!", target.Name))
+						target.Stats.SPD = 0
+					}
+				}
+
+				effDef := float64(target.Stats.DEF) * (1.0 - ignoreDef)
+				dmg := int(float64(u.Stats.STR)*dmgMult - effDef)
+				if dmg < 1 { dmg = 1 }
+				target.Stats.HP -= dmg
+				totalMobHP -= dmg
+
+				// Lifesteal
+				if lifesteal > 0 {
+					heal := int(float64(dmg) * float64(lifesteal) / 100.0)
+					if heal > 0 {
+						u.Stats.HP += heal
+						logs = append(logs, fmt.Sprintf("🩸 %s leeched %d HP!", u.Nickname, heal))
+					}
+				}
+				
+				if totalMobHP <= 0 { break }
+			}
+			if totalMobHP <= 0 { break }
 		}
 		if totalMobHP <= 0 { victory = true; break }
 
@@ -280,7 +313,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, mobs []content.Mob) ([]
 				}
 			}
 
-			effUserDef := float64(target.Stats.DEF) // could add blind here
+			effUserDef := float64(target.Stats.DEF)
 			dmg := int(float64(mSTR)*dmgMult - effUserDef)
 			if dmg < 1 { dmg = 1 }
 			
@@ -480,6 +513,16 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob) string {
 	count := 1
 	if mob.Type == content.MobBoss { count = 2 }
 	if mob.Type == content.MobLegendary { count = 4 }
+
+	// Double Loot Title check
+	var tName sql.NullString
+	_ = b.DB.QueryRow("SELECT title FROM users WHERE client_uid=$1", uid).Scan(&tName)
+	if tName.Valid {
+		if t, ok := content.GetTitleByName(tName.String); ok && t.DoubleLoot {
+			count *= 2
+		}
+	}
+
 	for i := 0; i < count; i++ {
 		r := rand.Float64()
 		if r < titleChance {
@@ -519,6 +562,17 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob) string {
 }
 
 func (b *Bot) equipSkill(uid string, newSkill content.Skill) (int, bool) {
+	// Check for Title-based extra slots
+	extraSlots := 0
+	var tName sql.NullString
+	_ = b.DB.QueryRow("SELECT title FROM users WHERE client_uid=$1", uid).Scan(&tName)
+	if tName.Valid {
+		if t, ok := content.GetTitleByName(tName.String); ok {
+			extraSlots = t.ExtraSkills
+		}
+	}
+	maxSlots := 5 + extraSlots
+
 	// Find slot to replace (empty first, then lowest rarity)
 	rows, err := b.DB.Query("SELECT slot, skill_id FROM user_skills WHERE client_uid = $1", uid)
 	if err != nil { return 0, false }
@@ -532,7 +586,7 @@ func (b *Bot) equipSkill(uid string, newSkill content.Skill) (int, bool) {
 	}
 
 	// 1. Empty slot
-	for i := 1; i <= 5; i++ {
+	for i := 1; i <= maxSlots; i++ {
 		if _, ok := slots[i]; !ok {
 			_, _ = b.DB.Exec("INSERT INTO user_skills (client_uid, slot, skill_id) VALUES ($1, $2, $3)", uid, i, newSkill.ID)
 			return i, true
@@ -540,7 +594,7 @@ func (b *Bot) equipSkill(uid string, newSkill content.Skill) (int, bool) {
 	}
 
 	// 2. Replace lowest rarity if new one is better
-	for i := 1; i <= 5; i++ {
+	for i := 1; i <= maxSlots; i++ {
 		if curID := slots[i]; curID != "" {
 			if cur, ok := content.GetSkillByID(curID); ok {
 				if newSkill.Rarity > cur.Rarity {
