@@ -121,9 +121,18 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 		mult *= noGamePenalty
 		notes = append(notes, "no new game -50%")
 	}
-	award := int(math.Round(float64(base) * mult * awardMult))
-	if award < 1 && base > 0 {
-		award = 1
+	award := 0
+	if base > 0 {
+		award = int(math.Round(float64(base) * mult * awardMult))
+		if award < 1 { award = 1 }
+	} else {
+		// Penalty should NOT be subject to positive multipliers (streak, etc.)
+		award = base // base is already negative here
+		// Cap loss at 10% of total XP or a reasonable flat amount for low levels
+		var curXP int
+		_ = b.DB.QueryRow("SELECT xp FROM users WHERE client_uid=$1", uid).Scan(&curXP)
+		maxLoss := -(10 + int(float64(curXP)*0.1))
+		if award < maxLoss { award = maxLoss }
 	}
 	delta += award
 

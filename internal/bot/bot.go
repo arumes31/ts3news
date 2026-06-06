@@ -286,7 +286,12 @@ func composePoke(g games.Game, shortURL string, theme *content.Theme, lvl *level
 	}
 	suffix := ""
 	if lvl != nil {
-		suffix = fmt.Sprintf(" +%dXP L%d", lvl.Awarded, lvl.NewLevel)
+		sign := "+"
+		amt := lvl.Awarded
+		if amt < 0 {
+			sign = "" // amt already has "-"
+		}
+		suffix = fmt.Sprintf(" %s%dXP L%d", sign, amt, lvl.NewLevel)
 	}
 	title := g.DisplayTitle()
 	avail := 100 - len(prefix) - 1 - len(shortURL) - len(suffix)

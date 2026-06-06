@@ -96,19 +96,19 @@ func init() {
 // SpawnMob scales a mob to the given level and difficulty factor (0.1 to 1.0+)
 func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	idx := rand.Intn(100) // index for common mobs
-	if isBoss {
+	if isBoss && level >= 10 { // Bosses require level 10+
 		idx = len(baseMobs) - 2 // Ancient Dragon
 	}
 	
 	m := baseMobs[idx]
 	if !isBoss {
 		r := rand.Float64()
-		if r < 0.01 {
-			m = baseMobs[len(baseMobs)-1] // Legendary
-		} else if r < 0.05 {
-			m = baseMobs[len(baseMobs)-2] // Boss
-		} else if r < 0.15 {
-			m = baseMobs[len(baseMobs)-3] // Elite
+		if r < 0.01 && level >= 25 { // Legendaries require level 25+
+			m = baseMobs[len(baseMobs)-1]
+		} else if r < 0.05 && level >= 10 { // Bosses require level 10+
+			m = baseMobs[len(baseMobs)-2]
+		} else if r < 0.15 && level >= 5 { // Elites require level 5+
+			m = baseMobs[len(baseMobs)-3]
 		}
 	}
 
