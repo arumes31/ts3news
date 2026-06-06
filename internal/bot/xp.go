@@ -253,11 +253,13 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	}
 
 	victory := false
-	for r := 1; r <= 20; r++ {
+	var totalUserDamage, totalMobDamage int
+
+	for r := 1; r <= 10; r++ { // Reduced to 10 rounds max for speed
 		// 1. Round Start Effects (Regen/Poison/Pets/Hazards)
 		for _, eff := range zone.Effects {
 			if eff.Type == content.ZoneHazard {
-				dmg := int(eff.Power * 25) // slightly nerfed hazard
+				dmg := int(eff.Power * 25)
 				if dmg < 1 { dmg = 1 }
 				for i := range activeUsers {
 					activeUsers[i].u.CurrentHP -= dmg
@@ -265,7 +267,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				for _, m := range mobs {
 					m.Stats.HP -= dmg
 				}
-				logs = append(logs, fmt.Sprintf("⛈️ %s Hazard dealt %d damage!", eff.Name, dmg))
+				if r == 1 { logs = append(logs, fmt.Sprintf("⛈️ %s Hazard is active!", eff.Name)) }
 			}
 		}
 
@@ -298,7 +300,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			// Pets Regen
 			for _, p := range u.Pets {
 				if p.Stats.HP > 0 {
-					p.Stats.HP += p.Level * 2 // Fixed regen for pets
+					p.Stats.HP += p.Level * 2
 				}
 			}
 		}
@@ -355,7 +357,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 
 			if multiStrike > 0 && rand.Intn(100) < multiStrike {
 				extraHits = 2
-				logs = append(logs, fmt.Sprintf("⚔️ %s attacks twice!", u.Nickname))
+				logs = append(logs, fmt.Sprintf("⚔️ %s double attack!", u.Nickname))
 			}
 
 			for h := 0; h < extraHits; h++ {
@@ -374,9 +376,9 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 					s := u.Skills[rand.Intn(len(u.Skills))]
 					dmgMult *= s.Power
 					ignoreDef = s.IgnoreDef
-					logs = append(logs, fmt.Sprintf("✨ %s used %s!", u.Nickname, s.Name))
+					logs = append(logs, fmt.Sprintf("✨ %s: %s!", u.Nickname, s.Name))
 					if s.StunChance > 0 && rand.Float64() < s.StunChance {
-						logs = append(logs, fmt.Sprintf("💫 %s was STUNNED!", target.Name))
+						logs = append(logs, fmt.Sprintf("💫 %s STUNNED!", target.Name))
 						target.Stats.SPD = 0
 					}
 				}
@@ -385,15 +387,15 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				dmg := int(float64(uSTR)*dmgMult - effDef)
 				if dmg < 1 { dmg = 1 }
 				target.Stats.HP -= dmg
+				totalUserDamage += dmg
 
 				// Mind Control Logic (Scale with level)
 				if mindControlLevel > 0 && len(u.Pets) < mindControlLevel && target.Stats.HP > 0 && float64(target.Stats.HP) < float64(target.Level*20)*0.2 { 
 					if rand.Float64() < 0.5 {
-						logs = append(logs, fmt.Sprintf("🌀 %s mind-controlled %s! (Pet Slots: %d/%d)", u.Nickname, target.Name, len(u.Pets)+1, mindControlLevel))
+						logs = append(logs, fmt.Sprintf("🌀 Captive: %s!", target.Name))
 						u.Pets = append(u.Pets, target)
 						b.savePet(u.UID, target)
 						target.Stats.HP = target.Level * 10
-						// Remove from active mobs
 						newMobs := []*content.Mob{}
 						for _, xm := range mobs { if xm != target { newMobs = append(newMobs, xm) } }
 						mobs = newMobs
@@ -405,18 +407,17 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 					if heal > 0 { 
 						u.CurrentHP += heal
 						if u.CurrentHP > u.Stats.HP { u.CurrentHP = u.Stats.HP }
-						logs = append(logs, fmt.Sprintf("🩸 %s leeched %d HP!", u.Nickname, heal)) 
 					}
 				}
 
 				if target.Stats.HP <= 0 {
-					logs = append(logs, fmt.Sprintf("☠️ %s was defeated!", target.Name))
+					logs = append(logs, fmt.Sprintf("☠️ %s defeated!", target.Name))
 					b.handleDeathEffects(target, &mobs, &logs, avgLvl, diffFactor, activeUsers)
 				}
 				if len(b.getAliveMobs(mobs)) == 0 { break }
 			}
 			
-			// Pet Attack
+			// Pet Attack (Silent damage)
 			for _, p := range u.Pets {
 				if p.Stats.HP <= 0 { continue }
 				aliveMobs := b.getAliveMobs(mobs)
@@ -425,9 +426,9 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				pdmg := p.Stats.STR - ptarget.Stats.DEF
 				if pdmg < 1 { pdmg = 1 }
 				ptarget.Stats.HP -= pdmg
-				logs = append(logs, fmt.Sprintf("🐾 Pet %s bit %s for %d!", p.Name, ptarget.Name, pdmg))
+				totalUserDamage += pdmg
 				if ptarget.Stats.HP <= 0 {
-					logs = append(logs, fmt.Sprintf("☠️ %s was killed by pet!", ptarget.Name))
+					logs = append(logs, fmt.Sprintf("☠️ %s killed by pet!", ptarget.Name))
 					b.handleDeathEffects(ptarget, &mobs, &logs, avgLvl, diffFactor, activeUsers)
 				}
 			}
@@ -443,7 +444,6 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				continue 
 			}
 			
-			// Decide target (Users or Pets)
 			targetAU := activeUsers[rand.Intn(len(activeUsers))]
 			target := targetAU.u
 			if target.CurrentHP <= 0 { continue }
@@ -480,6 +480,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			}
 
 			target.CurrentHP -= dmg
+			totalMobDamage += dmg
 
 			// Phoenix Revival Check
 			if target.CurrentHP <= 0 {
@@ -488,7 +489,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				for _, c := range cons {
 					if c.Type == content.ConsumableRevive {
 						target.CurrentHP = target.Stats.HP / 2
-						logs = append(logs, fmt.Sprintf("🔥 %s used %s and REVIVED!", target.Nickname, c.Name))
+						logs = append(logs, fmt.Sprintf("🔥 %s REVIVED (Item)!", target.Nickname))
 						_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2", target.UID, c.ID)
 						revived = true
 						break
@@ -499,7 +500,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 					for _, eff := range effects {
 						if eff == content.EffectPhoenix {
 							target.CurrentHP = target.Stats.HP / 2
-							logs = append(logs, fmt.Sprintf("✨ Phoenix Effect triggered! %s has REVIVED!", target.Nickname))
+							logs = append(logs, fmt.Sprintf("✨ %s REVIVED (Phoenix)!", target.Nickname))
 							revived = true
 							break
 						}
@@ -512,7 +513,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 					reflect := dmg / 10
 					if reflect < 1 { reflect = 1 }
 					m.Stats.HP -= reflect
-					logs = append(logs, fmt.Sprintf("🛡️ %s reflected %d damage!", target.Nickname, reflect))
+					totalUserDamage += reflect
 				}
 			}
 		}
@@ -521,6 +522,9 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 		for _, u := range users { if u.CurrentHP > 0 { aliveUsers++ } }
 		if aliveUsers == 0 { victory = false; break }
 	}
+
+	// Summarize Combat
+	logs = append(logs, fmt.Sprintf("📊 Battle Summary: Party %d dmg vs Mobs %d dmg.", totalUserDamage, totalMobDamage))
 
 	// Update pity, quests, consumables AND persistent stats
 	for i := range users {
