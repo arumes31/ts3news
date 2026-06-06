@@ -3,7 +3,6 @@ package content
 import (
 	"fmt"
 	"math/rand"
-	"time"
 )
 
 type Stats struct {
@@ -65,7 +64,7 @@ type Gear struct {
 	Name         string
 	Slot         GearSlot
 	XPMultiplier float64
-	Duration     time.Duration
+	MaxDurability int
 	Description  string
 	Stats        Stats
 }
@@ -74,6 +73,7 @@ type Artifact struct {
 	Name  string
 	Mult  float64
 	Stats Stats
+	MaxDurability int
 }
 
 func (a Artifact) IsBoon() bool {
@@ -106,13 +106,21 @@ func init() {
 			Name:         fmt.Sprintf("Novice %s", slot),
 			Slot:         slot,
 			XPMultiplier: 1.01,
-			Duration:     168 * time.Hour,
+			MaxDurability: 50,
 			Description:  "+1% XP",
 			Stats:        Stats{HP: 5, STR: 1, DEF: 1, SPD: 1, LCK: 0},
 		})
 	}
 
-	// Add 100 Corrupted Artifacts with Stats
+	// Add more interesting gear
+	allGear = append(allGear, []Gear{
+		{"W1", "Rusty Broadsword", SlotMainHand, 1.05, 30, "+5% XP", Stats{STR: 5}},
+		{"W2", "Silver Dagger", SlotMainHand, 1.10, 25, "+10% XP", Stats{STR: 8, SPD: 5}},
+		{"A1", "Leather Tunic", SlotChest, 1.10, 40, "+10% XP", Stats{DEF: 5, HP: 10}},
+		{"R1", "Lucky Rabbit's Foot", SlotRelic, 1.15, 20, "+15% XP", Stats{LCK: 10}},
+	}...)
+
+	// Generate 100 Corrupted Artifacts with Stats
 	prefixes := []string{"Cursed", "Blighted", "Tainted", "Demonic", "Shadow", "Void", "Ruined", "Shattered", "Forbidden", "Malevolent"}
 	nouns := []string{"Chalice", "Orb", "Scepter", "Tome", "Crown", "Amulet", "Skull", "Idol", "Heart", "Eye"}
 	idx := 1
@@ -128,12 +136,12 @@ func init() {
 				mult = 0.1 + (rand.Float64() * 0.4)
 				s = Stats{HP: -20, STR: -10, DEF: -5, SPD: -5, LCK: -10}
 			}
-			corruptedArtifacts = append(corruptedArtifacts, Artifact{Name: name, Mult: mult, Stats: s})
+			corruptedArtifacts = append(corruptedArtifacts, Artifact{Name: name, Mult: mult, Stats: s, MaxDurability: 15})
 			idx++
 		}
 	}
 
-	// Generate 100 Positive Titles with Stats
+	// Generate 100 Positive Titles
 	posPrefixes := []string{"Divine", "Glorious", "Eternal", "Radiant", "Immortal", "Mythic", "Legendary", "Ancient", "Primal", "Celestial"}
 	posNouns := []string{"Sovereign", "Overlord", "Godslayer", "Archon", "Paragon", "Vanguard", "Sentinel", "Oracle", "Exarch", "Titan"}
 	for _, p := range posPrefixes {
@@ -144,7 +152,7 @@ func init() {
 		}
 	}
 
-	// Generate 20 Negative Titles with Stats
+	// Generate 20 Negative Titles
 	negPrefixes := []string{"Wretched", "Damned", "Forlorn", "Forsaken"}
 	negNouns := []string{"Peon", "Outcast", "Traitor", "Coward", "Scum"}
 	for _, p := range negPrefixes {
@@ -176,6 +184,16 @@ func IsTitle(name string) bool {
 	return false
 }
 
+func IsGearOrArtifact(name string) bool {
+	for _, g := range allGear {
+		if g.Name == name { return true }
+	}
+	for _, a := range corruptedArtifacts {
+		if a.Name == name { return true }
+	}
+	return false
+}
+
 func GetGearByID(id string) (Gear, bool) {
 	for _, g := range allGear {
 		if g.ID == id { return g, true }
@@ -191,4 +209,11 @@ func GetTitleByName(name string) (Title, bool) {
 		if t.Name == name { return t, true }
 	}
 	return Title{}, false
+}
+
+func GetArtifactByName(name string) (Artifact, bool) {
+	for _, a := range corruptedArtifacts {
+		if a.Name == name { return a, true }
+	}
+	return Artifact{}, false
 }

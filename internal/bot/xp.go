@@ -16,28 +16,30 @@ import (
 
 // XP-modifier tuning constants.
 const (
-	critChance         = 0.05 // 5% chance of a critical hit
-	critMult           = 3.0  // critical hit multiplier
-	partyMult          = 1.25 // +25% when a full party is online
-	serverMultPerUser  = 0.05 // +5% per extra online user
-	serverMultCap      = 2.0  // server multiplier ceiling
-	noGamePenalty      = 0.5  // XP factor when there is no new game to poke
-	dailyLoginXP       = 5    // flat XP for connecting once a day
-	lootBoxEveryLevels = 25   // a loot box every N levels
+	critChance         = 0.05
+	critMult           = 3.0
+	partyMult          = 1.25
+	serverMultPerUser  = 0.05
+	serverMultCap      = 2.0
+	noGamePenalty      = 0.5
+	dailyLoginXP       = 5
+	lootBoxEveryLevels = 25
 	lootBoxMin         = 50
 	lootBoxMax         = 500
-	slothGraceDays     = 7    // days offline before the Sloth debuff applies
-	slothDailyDecay    = 0.02 // 2% XP lost per offline day after the grace period
-	artifactChance     = 0.01 // 1% chance per cycle to receive a corrupted artifact
-	titleChance        = 0.005 // 0.5% chance per cycle to receive a rare title
-	gearChance         = 0.05  // 5% chance per cycle to receive random gear
+	slothGraceDays     = 7
+	slothDailyDecay    = 0.02
+	artifactChance     = 0.01
+	titleChance        = 0.005
+	gearChance         = 0.05
+	duraLossPerFight   = 1 // Each fight loses 1 durability
+	occupiedSlotRare   = 0.1 // 10% of normal chance if slot is occupied
 )
 
 // cycleContext holds per-cycle shared facts used by the XP modifiers.
 type cycleContext struct {
-	onlineNormal       int             // number of online normal (voice) clients, incl. the bot
-	channelNormalCount map[int]int     // map from channel ID to count of normal clients
-	onlineNicks        map[string]bool // lowercased nicknames currently online
+	onlineNormal       int
+	channelNormalCount map[int]int
+	onlineNicks        map[string]bool
 	today              time.Time
 }
 
@@ -68,7 +70,6 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 	delta := 0
 
 	if b.Cfg.EnableXPModifiers {
-		// Rule: Every user must have at least one gear.
 		b.ensureUserHasGear(uid)
 
 		if b.dailyLoginDue(uid, ctx.today) {
@@ -82,11 +83,13 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 	notes = append(notes, mnotes...)
 
 	if b.Cfg.EnableXPModifiers {
-		// SPANW MOB & FIGHT
 		mob := content.SpawnRandomMob()
 		combatXP, combatMsg := b.resolveCombat(stats, mob)
 		delta += combatXP
 		notes = append(notes, combatMsg)
+		
+		// Durability system: lose dura every fight
+		b.applyDurabilityLoss(uid)
 	}
 
 	awardMult := b.computeMiscMult(uid, nickname, cid, ctx)
@@ -122,13 +125,11 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 	return lr, notes, artifactPoke
 }
 
-// computeMiscMult returns combined multipliers from streaks, crits, and server/party.
 func (b *Bot) computeMiscMult(uid, nickname string, cid int, ctx cycleContext) float64 {
 	if !b.Cfg.EnableXPModifiers {
 		return 1.0
 	}
 	mult := 1.0
-
 	if streak := b.updateStreak(uid, ctx.today); streakMultiplier(streak) > 1 {
 		mult *= streakMultiplier(streak)
 	}
@@ -138,51 +139,35 @@ func (b *Bot) computeMiscMult(uid, nickname string, cid int, ctx cycleContext) f
 	if sv := serverMultiplier(ctx.onlineNormal); sv > 1 {
 		mult *= sv
 	}
-	// Automatic party: if other normal users are in the same channel.
 	if cid >= 0 && ctx.channelNormalCount[cid] > 1 {
 		mult *= partyMult
 	}
-
 	return mult
 }
 
 func streakMultiplier(streak int) float64 {
 	switch {
-	case streak >= 7: // Gold
-		return 2.0
-	case streak >= 5: // Silver
-		return 1.5
-	case streak >= 3: // Bronze
-		return 1.25
-	default:
-		return 1.0
+	case streak >= 7: return 2.0
+	case streak >= 5: return 1.5
+	case streak >= 3: return 1.25
+	default: return 1.0
 	}
 }
 
 func serverMultiplier(onlineNormal int) float64 {
-	humans := onlineNormal - 1 // exclude the bot
-	if humans < 1 {
-		humans = 1
-	}
+	humans := onlineNormal - 1
+	if humans < 1 { humans = 1 }
 	m := 1 + serverMultPerUser*float64(humans-1)
-	if m > serverMultCap {
-		m = serverMultCap
-	}
+	if m > serverMultCap { m = serverMultCap }
 	return m
 }
 
 func lootBoxForCross(oldLevel, newLevel int) int {
-	if newLevel <= oldLevel {
-		return 0
-	}
+	if newLevel <= oldLevel { return 0 }
 	first := (oldLevel/lootBoxEveryLevels + 1) * lootBoxEveryLevels
-	if first <= newLevel {
-		return lootBoxMin + rand.Intn(lootBoxMax-lootBoxMin+1)
-	}
+	if first <= newLevel { return lootBoxMin + rand.Intn(lootBoxMax-lootBoxMin+1) }
 	return 0
 }
-
-// ---- streak / login state ----
 
 func (b *Bot) updateStreak(uid string, today time.Time) int {
 	var last sql.NullTime
@@ -190,9 +175,7 @@ func (b *Bot) updateStreak(uid string, today time.Time) int {
 	if err := b.DB.QueryRow("SELECT last_poke_date, streak_days FROM users WHERE client_uid=$1", uid).Scan(&last, &streak); err != nil {
 		return 0
 	}
-	if last.Valid && sameDay(last.Time, today) {
-		return streak
-	}
+	if last.Valid && sameDay(last.Time, today) { return streak }
 	if last.Valid && sameDay(last.Time, today.AddDate(0, 0, -1)) {
 		streak++
 	} else {
@@ -220,11 +203,22 @@ func (b *Bot) ensureUserHasGear(uid string) {
 	var count int
 	if err := b.DB.QueryRow("SELECT COUNT(*) FROM user_gear WHERE client_uid = $1", uid).Scan(&count); err == nil && count == 0 {
 		gear := content.RandomStarterGear()
-		expires := time.Now().Add(gear.Duration)
-		_, _ = b.DB.Exec("INSERT INTO user_gear (client_uid, slot, gear_id, expires) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
-			uid, string(gear.Slot), gear.ID, expires)
+		_, _ = b.DB.Exec("INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+			uid, string(gear.Slot), gear.ID, gear.MaxDurability)
 		log.Printf("mandatory loot: granted %s to %s", gear.Name, uid)
 	}
+}
+
+func (b *Bot) applyDurabilityLoss(uid string) {
+	// Lose dura on gear
+	_, _ = b.DB.Exec("UPDATE user_gear SET durability = durability - $2 WHERE client_uid = $1", uid, duraLossPerFight)
+	// Delete broken gear
+	_, _ = b.DB.Exec("DELETE FROM user_gear WHERE client_uid = $1 AND durability <= 0", uid)
+	
+	// Lose dura on artifact
+	_, _ = b.DB.Exec("UPDATE users SET artifact_durability = artifact_durability - $2 WHERE client_uid = $1 AND artifact_durability > 0", uid, duraLossPerFight)
+	// Clear broken artifact
+	_, _ = b.DB.Exec("UPDATE users SET artifact_mult=1, artifact_name=NULL, artifact_durability=0 WHERE client_uid=$1 AND artifact_durability <= 0 AND artifact_name IS NOT NULL", uid)
 }
 
 func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stats, []string) {
@@ -232,7 +226,7 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 	var stats content.Stats
 	var notes []string
 
-	// 1. Title
+	// 1. Title (Time-based)
 	var title sql.NullString
 	var tMult sql.NullFloat64
 	var tExp sql.NullTime
@@ -248,37 +242,32 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 		}
 	}
 
-	// 2. Corrupted Artifact
+	// 2. Corrupted Artifact (Durability-based)
 	var aMult sql.NullFloat64
 	var aName sql.NullString
-	var aExp sql.NullTime
-	if err := b.DB.QueryRow("SELECT artifact_mult, artifact_name, artifact_expires FROM users WHERE client_uid=$1", uid).Scan(&aMult, &aName, &aExp); err == nil {
-		if aExp.Valid && !today.After(aExp.Time) && aMult.Valid {
+	var aDura int
+	if err := b.DB.QueryRow("SELECT artifact_mult, artifact_name, artifact_durability FROM users WHERE client_uid=$1", uid).Scan(&aMult, &aName, &aDura); err == nil {
+		if aName.Valid && aName.String != "" && aDura > 0 {
 			mult *= aMult.Float64
-			notes = append(notes, fmt.Sprintf("%s x%g", aName.String, aMult.Float64))
-			// Corrupted artifacts have stats too
-			stats = stats.Add(content.Stats{HP: 50, STR: 20, DEF: 10, SPD: 15}) // approximate for now
-		} else if aMult.Valid && aMult.Float64 != 1 {
-			_, _ = b.DB.Exec("UPDATE users SET artifact_mult=1, artifact_name=NULL, artifact_expires=NULL WHERE client_uid=$1", uid)
+			notes = append(notes, fmt.Sprintf("%s x%g (%d dura)", aName.String, aMult.Float64, aDura))
+			if art, ok := content.GetArtifactByName(aName.String); ok {
+				stats = stats.Add(art.Stats)
+			}
 		}
 	}
 
-	// 3. 24 Gear Slots
-	rows, err := b.DB.Query("SELECT slot, gear_id, expires FROM user_gear WHERE client_uid = $1", uid)
+	// 3. 24 Gear Slots (Durability-based)
+	rows, err := b.DB.Query("SELECT slot, gear_id, durability FROM user_gear WHERE client_uid = $1", uid)
 	if err == nil {
 		defer func() { _ = rows.Close() }()
 		for rows.Next() {
 			var slot, gearID string
-			var expires time.Time
-			if err := rows.Scan(&slot, &gearID, &expires); err == nil {
-				if today.After(expires) {
-					_, _ = b.DB.Exec("DELETE FROM user_gear WHERE client_uid = $1 AND slot = $2", uid, slot)
-					continue
-				}
+			var dura int
+			if err := rows.Scan(&slot, &gearID, &dura); err == nil {
 				if gear, ok := content.GetGearByID(gearID); ok {
 					mult *= gear.XPMultiplier
 					stats = stats.Add(gear.Stats)
-					notes = append(notes, fmt.Sprintf("%s x%g", gear.Name, gear.XPMultiplier))
+					notes = append(notes, fmt.Sprintf("%s x%g (%d dura)", gear.Name, gear.XPMultiplier, dura))
 				}
 			}
 		}
@@ -288,43 +277,26 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 }
 
 func (b *Bot) calculateTotalStats(uid string, today time.Time) (content.Stats, float64, []string) {
-	// Base stats from level
 	var level int
 	_ = b.DB.QueryRow("SELECT level FROM users WHERE client_uid=$1", uid).Scan(&level)
 	base := content.Stats{
-		HP:  50 + (level / 10),
-		STR: 10 + (level / 50),
-		DEF: 5 + (level / 100),
-		SPD: 10 + (level / 50),
-		LCK: level / 200,
+		HP: 50 + (level / 10), STR: 10 + (level / 50), DEF: 5 + (level / 100), SPD: 10 + (level / 50), LCK: level / 200,
 	}
-
 	mult, lootStats, notes := b.activeLootMult(uid, today)
 	return base.Add(lootStats), mult, notes
 }
 
 func (b *Bot) resolveCombat(userStats content.Stats, mob content.Mob) (int, string) {
-	uHP := userStats.HP
-	mHP := mob.Stats.HP
-	
-	// Max 10 rounds
+	uHP, mHP := userStats.HP, mob.Stats.HP
 	for r := 0; r < 10; r++ {
-		// User attacks
 		uDmg := userStats.STR - mob.Stats.DEF
 		if uDmg < 1 { uDmg = 1 }
 		mHP -= uDmg
-		if mHP <= 0 {
-			return mob.RewardXP, fmt.Sprintf("Victory! You slew %s (%s).", mob.Name, mob.Type)
-		}
-
-		// Mob attacks
+		if mHP <= 0 { return mob.RewardXP, fmt.Sprintf("Victory! You slew %s (%s).", mob.Name, mob.Type) }
 		mDmg := mob.Stats.STR - userStats.DEF
 		if mDmg < 1 { mDmg = 1 }
 		uHP -= mDmg
-		if uHP <= 0 {
-			penalty := -mob.RewardXP
-			return penalty, fmt.Sprintf("Defeat! You were crushed by %s (%s).", mob.Name, mob.Type)
-		}
+		if uHP <= 0 { return -mob.RewardXP, fmt.Sprintf("Defeat! You were crushed by %s (%s).", mob.Name, mob.Type) }
 	}
 	return 0, fmt.Sprintf("Draw! You and %s (%s) both retreated.", mob.Name, mob.Type)
 }
@@ -333,50 +305,44 @@ func (b *Bot) rollLootAndTitles(uid string, today time.Time) string {
 	r := rand.Float64()
 	if r < titleChance {
 		t := content.RandomTitle()
-		expires := today.AddDate(0, 0, 7) // 7 days
-		_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=$4 WHERE client_uid=$1",
-			uid, t.Name, t.XPMultiplier, expires)
+		expires := today.AddDate(0, 0, 7)
+		_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=$4 WHERE client_uid=$1", uid, t.Name, t.XPMultiplier, expires)
 		return clampRunes(fmt.Sprintf("👑 RARE TITLE: You are now known as '%s'! (x%g XP for 7d)", t.Name, t.XPMultiplier), 100)
 	}
 	
 	if r < artifactChance {
 		a := content.RandomArtifact()
-		expires := today.AddDate(0, 0, 1) // 1 day
-		_, _ = b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_expires=$4 WHERE client_uid=$1",
-			uid, a.Mult, a.Name, expires)
-		return clampRunes(fmt.Sprintf("🩸 Corrupted Artifact: %s (%s) your XP for 24h!", a.Name, a.Effect()), 100)
+		_, _ = b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1", uid, a.Mult, a.Name, a.MaxDurability)
+		return clampRunes(fmt.Sprintf("🩸 Corrupted Artifact: %s (%s) assigned! (%d dura)", a.Name, a.Effect(), a.MaxDurability), 100)
 	}
 
 	if r < gearChance {
 		gear := content.RandomGearDrop()
-		expires := today.Add(gear.Duration)
-		_, _ = b.DB.Exec("INSERT INTO user_gear (client_uid, slot, gear_id, expires) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, expires = $4",
-			uid, string(gear.Slot), gear.ID, expires)
+		
+		// Check if slot is occupied
+		var exists bool
+		_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE client_uid=$1 AND slot=$2)", uid, string(gear.Slot)).Scan(&exists)
+		if exists && rand.Float64() >= occupiedSlotRare {
+			return "" // Very rare to find gear for occupied slot
+		}
+
+		_, _ = b.DB.Exec("INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4",
+			uid, string(gear.Slot), gear.ID, gear.MaxDurability)
 		return clampRunes(fmt.Sprintf("🛡️ Loot Drop: %s! (%s) Equipped in %s slot.", gear.Name, gear.Description, gear.Slot), 100)
 	}
-
 	return ""
 }
 
-// ---- Sloth decay ----
-
 func (b *Bot) slothDecay(c *clientquery.Client, today time.Time) {
-	if !b.Cfg.EnableXPModifiers {
-		return
-	}
+	if !b.Cfg.EnableXPModifiers { return }
 	cutoff := today.AddDate(0, 0, -slothGraceDays)
-	rows, err := b.DB.Query(
-		`SELECT client_uid, nickname, xp, level, group_level, cldbid, last_seen, last_decay_date
-		 FROM users WHERE last_seen < $1`, cutoff)
-	if err != nil {
-		log.Printf("sloth: query failed: %v", err)
-		return
-	}
+	rows, err := b.DB.Query(`SELECT client_uid, nickname, xp, level, group_level, cldbid, last_seen, last_decay_date FROM users WHERE last_seen < $1`, cutoff)
+	if err != nil { return }
 	type decayRow struct {
-		uid, nick                       string
-		xp, level, groupLevel, cldbid   int
-		lastSeen                        time.Time
-		lastDecay                       sql.NullTime
+		uid, nick string
+		xp, level, groupLevel, cldbid int
+		lastSeen time.Time
+		lastDecay sql.NullTime
 	}
 	var batch []decayRow
 	for rows.Next() {
@@ -386,59 +352,39 @@ func (b *Bot) slothDecay(c *clientquery.Client, today time.Time) {
 		}
 	}
 	_ = rows.Close()
-
-	decayed := 0
 	for _, d := range batch {
 		from := d.lastSeen.AddDate(0, 0, slothGraceDays)
-		if d.lastDecay.Valid && d.lastDecay.Time.After(from) {
-			from = d.lastDecay.Time
-		}
+		if d.lastDecay.Valid && d.lastDecay.Time.After(from) { from = d.lastDecay.Time }
 		days := daysBetween(from, today)
-		if days <= 0 {
-			continue
-		}
+		if days <= 0 { continue }
 		factor := math.Pow(1-slothDailyDecay, float64(days))
 		newXP := int(float64(d.xp) * factor)
 		newLevel := leveling.LevelForXP(newXP)
-		_, _ = b.DB.Exec("UPDATE users SET xp=$2, level=$3, last_decay_date=$4 WHERE client_uid=$1",
-			d.uid, newXP, newLevel, today)
-		decayed++
-
+		_, _ = b.DB.Exec("UPDATE users SET xp=$2, level=$3, last_decay_date=$4 WHERE client_uid=$1", d.uid, newXP, newLevel, today)
 		if newLevel < d.groupLevel && b.Cfg.XPServerGroups && d.cldbid > 0 {
 			if sgid, ok := b.xpGroups[d.groupLevel]; ok {
 				_ = c.ServerGroupDelClient(sgid, d.cldbid)
 				b.maybeDeleteEmptyLevel(c, d.groupLevel, sgid)
 			}
 			_, _ = b.DB.Exec("UPDATE users SET group_level=0 WHERE client_uid=$1", d.uid)
-			log.Printf("sloth: %s decayed to level %d (was group level %d) — group removed", d.nick, newLevel, d.groupLevel)
 		}
 	}
-	if decayed > 0 {
-		log.Printf("sloth: applied inactivity decay to %d offline user(s)", decayed)
-	}
 }
-
-// ---- helpers ----
 
 func sameDay(a, b time.Time) bool {
 	ay, am, ad := a.Date()
 	by, bm, bd := b.Date()
 	return ay == by && am == bm && ad == bd
 }
-
 func dayFloor(t time.Time) time.Time {
 	y, m, d := t.Date()
 	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
 }
-
 func daysBetween(from, to time.Time) int {
 	return int(dayFloor(to).Sub(dayFloor(from)).Hours() / 24)
 }
-
 func clampRunes(s string, max int) string {
 	r := []rune(s)
-	if len(r) <= max {
-		return s
-	}
+	if len(r) <= max { return s }
 	return string(r[:max])
 }

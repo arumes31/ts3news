@@ -190,6 +190,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		// Feature: Rare titles with group display as name prefix.
 		if b.Cfg.EnableLeveling {
 			b.applyTitleGroup(c, client.CLID, client.UID, client.Nickname)
+			b.syncLootGroups(c, client.CLID, client.UID)
 		}
 
 		if !hasGame {
