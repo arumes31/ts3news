@@ -175,6 +175,7 @@ type atomEntry struct {
 	Title   string `xml:"title"`
 	Link    link   `xml:"link"`
 	Content string `xml:"content"`
+	Updated string `xml:"updated"`
 }
 
 type link struct {
@@ -195,6 +196,15 @@ func fetchReddit(_ Options) ([]Game, error) {
 
 	var out []Game
 	for _, e := range feed.Entries {
+		// Skip posts older than 48 hours to avoid expired giveaways
+		if e.Updated != "" {
+			if t, err := time.Parse(time.RFC3339, e.Updated); err == nil {
+				if time.Since(t) > 48*time.Hour {
+					continue
+				}
+			}
+		}
+
 		title := e.Title
 		lower := strings.ToLower(title)
 
