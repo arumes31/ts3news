@@ -64,6 +64,11 @@ func (m Mob) DisplayName() string {
 	return fmt.Sprintf("Lvl %d %s [%s]%s", m.Level, m.Name, m.Type, eff)
 }
 
+func (m Mob) Score() int {
+	return m.Stats.HP/5 + m.Stats.STR + m.Stats.DEF + m.Stats.SPD + m.Level*10
+}
+
+
 var baseMobs []Mob
 
 func init() {

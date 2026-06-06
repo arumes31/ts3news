@@ -10,21 +10,20 @@ import (
 )
 
 // syncLootGroups ensures the user is in the correct TS3 server groups for their
-// currently equipped gear and artifacts.
+// currently equipped gear, artifacts, skills, and pets.
 func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 	cldbid, err := c.ClientDBID(clid)
 	if err != nil {
 		return
 	}
 
-	// 1. Get all active items for this user
+	// 1. Get all active items and pets for this user
 	activeItemNames := map[string]bool{}
 
 	// Helper to format group names with 30-char limit: "(gs:XXXX)[E] Name..."
 	formatGSName := func(score int, name string, effect content.ItemEffect) string {
 		effCode := ""
 		if effect != content.EffectNone {
-			// Map effects to short codes to save space
 			mapping := map[content.ItemEffect]string{
 				content.EffectThorns:         "T",
 				content.EffectVampiric:       "V",
@@ -91,6 +90,20 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 		}
 	}
 
+	// Pets
+	prows, err := b.DB.Query("SELECT name, mob_type, level, hp, str, def, spd FROM user_pets WHERE client_uid = $1", uid)
+	if err == nil {
+		defer func() { _ = prows.Close() }()
+		for prows.Next() {
+			var m content.Mob
+			var mType string
+			if err := prows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD); err == nil {
+				m.Type = content.MobType(mType)
+				activeItemNames[formatGSName(m.Score(), "Pet "+m.Name, content.EffectNone)] = true
+			}
+		}
+	}
+
 	// 2. Ensure user is in these groups
 	for name := range activeItemNames {
 		sgid, err := b.getOrCreateItemGroup(c, name)
@@ -99,7 +112,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 		}
 	}
 
-	// 3. Remove from groups that are no longer active loot or skills
+	// 3. Remove from groups that are no longer active
 	groups, err := c.ServerGroupList()
 	if err != nil {
 		return
@@ -109,7 +122,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 		isRPGRelated := strings.Contains(g.Name, "(gs:")
 		if isRPGRelated && !activeItemNames[g.Name] {
 			_ = c.ServerGroupDelClient(g.ID, cldbid)
-			b.maybeDeleteEmptyTitleGroup(c, g.ID, g.Name) // reuse helper
+			b.maybeDeleteEmptyTitleGroup(c, g.ID, g.Name)
 		}
 	}
 }
@@ -124,17 +137,15 @@ func (b *Bot) getOrCreateItemGroup(c *clientquery.Client, name string) (int, err
 		}
 	}
 
-	// Create group
 	if err := c.ServerGroupAdd(name); err != nil {
 		return 0, err
 	}
 
-	// Re-list to find ID
 	groups, _ = c.ServerGroupList()
 	for _, g := range groups {
 		if g.Name == name {
 			return g.ID, nil
 		}
 	}
-	return 0, fmt.Errorf("failed to find created item group")
+	return 0, fmt.Errorf("failed to find created group")
 }

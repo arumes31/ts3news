@@ -165,6 +165,41 @@ func (b *Bot) computeMiscMult(uid, nickname string, cid int, ctx cycleContext) f
 	return mult
 }
 
+func (b *Bot) getPets(uid string) []*content.Mob {
+	rows, err := b.DB.Query("SELECT name, mob_type, level, hp, max_hp, str, def, spd FROM user_pets WHERE client_uid = $1", uid)
+	if err != nil { return nil }
+	defer func() { _ = rows.Close() }()
+	var out []*content.Mob
+	for rows.Next() {
+		var m content.Mob
+		var mType string
+		var maxHP int
+		if err := rows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &maxHP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD); err == nil {
+			m.Type = content.MobType(mType)
+			out = append(out, &m)
+		}
+	}
+	return out
+}
+
+func (b *Bot) savePet(uid string, m *content.Mob) {
+	_, _ = b.DB.Exec(`INSERT INTO user_pets (client_uid, name, mob_type, level, hp, max_hp, str, def, spd) 
+	                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, 
+	                  uid, m.Name, string(m.Type), m.Level, m.Stats.HP, m.Stats.HP, m.Stats.STR, m.Stats.DEF, m.Stats.SPD)
+}
+
+func (b *Bot) deletePet(uid, name string) {
+	_, _ = b.DB.Exec("DELETE FROM user_pets WHERE client_uid = $1 AND name = $2", uid, name)
+}
+
+func (b *Bot) updatePetHP(uid, name string, hp int) {
+	if hp <= 0 {
+		b.deletePet(uid, name)
+	} else {
+		_, _ = b.DB.Exec("UPDATE user_pets SET hp = $3 WHERE client_uid = $1 AND name = $2", uid, name, hp)
+	}
+}
+
 func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64) ([]string, int, bool) {
 	var logs []string
 	mobs := initialMobs
@@ -249,7 +284,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			// Pets Regen
 			for _, p := range u.Pets {
 				if p.Stats.HP > 0 {
-					p.Stats.HP += p.Stats.HP / 20 // 5% pet regen
+					p.Stats.HP += p.Level * 2 // Fixed regen for pets
 				}
 			}
 		}
@@ -261,7 +296,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 
 			var lifesteal int
 			var multiStrike int
-			var mindControl bool
+			var mindControlLevel int
 			var extraHits = 1
 
 			var tName sql.NullString
@@ -272,9 +307,28 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 					multiStrike = t.MultiStrike
 				}
 			}
+			
+			// Calculate Mind Control Level
+			rows, _ := b.DB.Query("SELECT gear_id FROM user_gear WHERE client_uid = $1", u.UID)
+			if rows != nil {
+				for rows.Next() {
+					var gid string
+					if err := rows.Scan(&gid); err == nil {
+						if g, ok := content.GetGearByID(gid); ok && g.Special == content.EffectMindControl {
+							mindControlLevel += int(g.Rarity) + 1
+						}
+					}
+				}
+				_ = rows.Close()
+			}
+			for _, s := range u.Skills {
+				if s.Special == content.EffectMindControl {
+					mindControlLevel += int(s.Rarity) + 1
+				}
+			}
+
 			for _, eff := range au.effects {
 				if eff == content.EffectVampiric { lifesteal += 5 }
-				if eff == content.EffectMindControl { mindControl = true }
 			}
 
 			if multiStrike > 0 && rand.Intn(100) < multiStrike {
@@ -303,7 +357,6 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 						logs = append(logs, fmt.Sprintf("💫 %s was STUNNED!", target.Name))
 						target.Stats.SPD = 0
 					}
-					if s.Special == content.EffectMindControl { mindControl = true }
 				}
 
 				effDef := float64(target.Stats.DEF) * (1.0 - ignoreDef)
@@ -311,12 +364,13 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				if dmg < 1 { dmg = 1 }
 				target.Stats.HP -= dmg
 
-				// Mind Control Logic
-				if mindControl && target.Stats.HP > 0 && float64(target.Stats.HP) < float64(target.Level*20)*0.2 { // <20% HP
+				// Mind Control Logic (Scale with level)
+				if mindControlLevel > 0 && len(u.Pets) < mindControlLevel && target.Stats.HP > 0 && float64(target.Stats.HP) < float64(target.Level*20)*0.2 { 
 					if rand.Float64() < 0.5 {
-						logs = append(logs, fmt.Sprintf("🌀 %s mind-controlled %s!", u.Nickname, target.Name))
+						logs = append(logs, fmt.Sprintf("🌀 %s mind-controlled %s! (Pet Slots: %d/%d)", u.Nickname, target.Name, len(u.Pets)+1, mindControlLevel))
 						u.Pets = append(u.Pets, target)
-						target.Stats.HP = target.Level * 5 // Partial reset
+						b.savePet(u.UID, target)
+						target.Stats.HP = target.Level * 10
 						// Remove from active mobs
 						newMobs := []*content.Mob{}
 						for _, xm := range mobs { if xm != target { newMobs = append(newMobs, xm) } }
@@ -413,9 +467,14 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 		if aliveUsers == 0 { victory = false; break }
 	}
 
-	// Update pity, quests, consumables AND persistent stats
+	// Update persistent state
 	for i := range users {
 		u := &users[i]
+		// Save pets state
+		for _, p := range u.Pets {
+			b.updatePetHP(u.UID, p.Name, p.Stats.HP)
+		}
+
 		finalXP := 0
 		if victory {
 			_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = 0 WHERE client_uid = $1", u.UID)
@@ -440,7 +499,6 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			logs = append(logs, fmt.Sprintf("💀 %s lost %d XP due to death.", u.Nickname, penalty))
 		}
 		
-		// Save persistent state
 		_, _ = b.DB.Exec("UPDATE users SET current_hp = $2, regen_stacks = $3 WHERE client_uid = $1", u.UID, u.CurrentHP, u.RegenStacks)
 		
 		_, _ = b.DB.Exec("UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1", u.UID)

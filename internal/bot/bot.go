@@ -110,10 +110,11 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		var lvl, curHP, regen int
 		_ = b.DB.QueryRow("SELECT level, current_hp, regen_stacks FROM users WHERE client_uid=$1", cl.UID).Scan(&lvl, &curHP, &regen)
 		if curHP <= 0 { curHP = stats.HP } // Auto-fill if new/dead
+		pets := b.getPets(cl.UID)
 
 		chanUsers[cl.CID] = append(chanUsers[cl.CID], UserInCombat{
 			UID: cl.UID, Nickname: cl.Nickname, CLID: cl.CLID, Stats: stats, Level: lvl, Skills: skills,
-			CurrentHP: curHP, RegenStacks: regen,
+			CurrentHP: curHP, RegenStacks: regen, Pets: pets,
 		})
 	}
 
