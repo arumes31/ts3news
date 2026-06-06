@@ -539,12 +539,20 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob) string {
 				_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
 				results = append(results, "Equipped: "+g.Name)
 			} else {
-				results = append(results, "Found: "+g.Name)
+				// Disenchant
+				xp := 1 + int(g.Rarity)*2
+				_, _ = b.awardXP(uid, "", xp)
+				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", g.Name, xp))
 			}
 		} else if r < skillChance {
 			s := content.RandomSkill()
 			if slot, ok := b.equipSkill(uid, s); ok {
 				results = append(results, fmt.Sprintf("Learned %s (Slot %d)", s.Name, slot))
+			} else {
+				// Disenchant
+				xp := 2 + int(s.Rarity)*3
+				_, _ = b.awardXP(uid, "", xp)
+				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", s.Name, xp))
 			}
 		} else if r < consChance {
 			c := content.RandomConsumable()
@@ -554,6 +562,11 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob) string {
 			ench := content.RandomEnchantment()
 			if slot, ok := b.applyEnchantment(uid, ench); ok {
 				results = append(results, fmt.Sprintf("Enchanted %s with %s", slot, ench.Name))
+			} else {
+				// Disenchant
+				xp := 3 + int(ench.Rarity)*5
+				_, _ = b.awardXP(uid, "", xp)
+				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", ench.Name, xp))
 			}
 		}
 	}
