@@ -374,7 +374,7 @@ func (b *Bot) updateStreak(uid string, today time.Time) int {
 func (b *Bot) dailyLoginDue(uid string, today time.Time) bool {
 	var last sql.NullTime
 	if err := b.DB.QueryRow("SELECT last_login_date FROM users WHERE client_uid=$1", uid).Scan(&last); err != nil { return false }
-	return !(last.Valid && sameDay(last.Time, today))
+	return !last.Valid || !sameDay(last.Time, today)
 }
 
 func (b *Bot) setLastLogin(uid string, today time.Time) {

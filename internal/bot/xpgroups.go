@@ -41,7 +41,7 @@ func (b *Bot) loadLevelGroups() {
 		log.Printf("xpgroups: loading cache failed: %v", err)
 		return
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var level, sgid int
 		if err := rows.Scan(&level, &sgid); err == nil {

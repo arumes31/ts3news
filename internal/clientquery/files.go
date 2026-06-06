@@ -188,7 +188,7 @@ func rawUpload(addr, key string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	_ = conn.SetDeadline(time.Now().Add(15 * time.Second))
 
 	if _, err := conn.Write([]byte(key)); err != nil {
