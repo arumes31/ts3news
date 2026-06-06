@@ -30,8 +30,12 @@
 *   🌐 **Multi-Source Fetching**: Merges giveaways from **GamerPower**, the **Epic Games Store API**, **Reddit `/r/FreeGameFindings`** and (optionally) **IsThereAnyDeal**, de-duplicated across sources by title.
 *   🎮 **DRM Filtering**: Only announces normally-paid titles on the platforms you choose (`steam`, `epic`, `gog`) — skipping free-to-play, expired, and unwanted-store giveaways.
 *   ▶️ **Rich Messages**: Each PM includes a random greeting (100 variants), a YouTube trailer link, a gaming trivia fact, and seasonal **holiday theming**.
-*   🏆 **Leveling System**: Users earn XP per poke across **1000 fantasy-named levels**, shown in every PM, with optional TS3 server-group rewards at milestones.
-*   🤖 **Dynamic Nickname**: The bot renames itself to match the announced game (e.g. *VaultBoy* for Fallout).
+*   🏆 **Leveling System**: Users earn XP per poke across **10,000 fantasy-named levels** (30 levels per tier), shown in every PM, with optional TS3 server-group rewards at milestones.
+*   🦾 **RPG Mechanics**: Features **24 unique gear slots**, mandatory starter loot, streaks, critical hits, and server-wide XP multipliers based on active population.
+*   👑 **Rare Titles**: Rare fantasy titles (e.g. *Overlord*, *Godslayer*) are dynamically assigned as TS3 server groups with a **name prefix** for up to 7 days, granting massive XP buffs.
+*   🩸 **Corrupted Artifacts**: High-risk, high-reward artifacts (e.g. *Cursed Chalice*) drop randomly, altering XP gains for 24 hours.
+*   🕒 **Stat Tracking**: Automatically tracks every user's **total connection time** and session activity to reward long-term community members.
+*   🤖 **Dynamic Nickname**: The bot renames itself to match the announced game, or adopts the **godsfinger** persona when delivering divine loot.
 *   ⏱️ **Anti-Flood Control**: Customizable delay between actions to avoid server query anti-flood triggering.
 *   🔄 **Go Supervisor**: A long-running supervisor connects, notifies, disconnects and sleeps a random interval — with a **watchdog** that restarts an unresponsive client and **graceful SIGTERM** shutdown that finishes the current cycle first.
 *   🗄️ **Persistent History + Migrations**: Stores per-user history in **PostgreSQL** (schema managed by embedded **golang-migrate** migrations), with a per-user resend window and automatic **dead-user cleanup**.
@@ -112,7 +116,44 @@ A richer private message is sent simultaneously, e.g.:
 
 Greeting, trailer, trivia, leveling and holiday theming are each individually toggleable (see config).
 
-**XP & levels:** users earn XP per poke, scaled by the game's price (a pricier game going free grants more XP — invert with `CHEAPER_MORE_XP=true`). The 1000-level curve is tuned so the cap takes roughly **ten years** at ~one notification per day.
+**XP & levels:** users earn XP per poke, scaled by the game's price (a pricier game going free grants more XP — invert with `CHEAPER_MORE_XP=true`). The 10,000-level curve is tuned so the cap takes roughly **ten years** at ~one notification per day.
+
+---
+
+## 🕹️ Progression & RPG Systems
+
+The bot features a deep, automated RPG layer that turns TeamSpeak activity into a long-term progression game.
+
+### 📈 Earning XP
+Users earn XP through multiple channels:
+*   **Game Pokes**: The primary source. XP is scaled by the game's original price (e.g., a $60 game gives more than a $5 game). 
+    *   *Note: If no new game is available, users still receive 50% XP just for being online during the cycle.*
+*   **Daily Login**: The first connection of the day grants a flat **+5 XP**.
+*   **Connection Time**: Total lifetime connection seconds are tracked and rewarded.
+
+### ✖️ XP Multipliers (Buffs & Debuffs)
+Your XP award per cycle is modified by:
+| Modifier | Condition | Bonus |
+| :--- | :--- | :---: |
+| **Critical Hit** | 5% random chance on every poke. | **3.0x** |
+| **Claim Streak** | Stay active for 3 / 5 / 7+ consecutive days. | **1.25x / 1.5x / 2.0x** |
+| **Server Pop** | Every additional online user (excluding the bot). | **+5% per user (2x cap)** |
+| **Party System** | All 4 members of a configured party are online. | **1.25x** |
+| **Rare Title** | Held for 7 days (e.g. *Sovereign*, *Archon*). | **2.0x - 5.0x** |
+| **Artifact** | Held for 24 hours (e.g. *Void Orb*). | **Massive Buff or Debuff** |
+
+### 🛡️ Gear & Equipment
+Every user is guaranteed to own at least one item. The bot manages **24 equipment slots** (Head, Chest, MainHand, Mount, Companion, etc.).
+*   **Loot Drops**: Randomly occur during notification cycles.
+*   **Automatic Management**: New loot automatically replaces old items in the same slot.
+*   **Godsfinger**: When the bot delivers gear or artifacts, it adopts the **godsfinger** nickname for that specific notification.
+
+### 💀 De-progression (The Sloth Penalty)
+To keep the leaderboard competitive, an inactivity penalty is enforced:
+*   **Trigger**: If a user is not seen on the server for **7 consecutive days**.
+*   **The Drain**: The user loses **2% of their total XP every day** they remain offline.
+*   **The Lock**: If decay causes a user to drop below a level milestone, they **lose the associated TS3 server group**.
+
 
 ---
 
