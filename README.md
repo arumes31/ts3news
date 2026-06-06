@@ -138,7 +138,7 @@ Your XP award per cycle is modified by:
 | **Critical Hit** | 5% random chance on every poke. | **3.0x** |
 | **Claim Streak** | Stay active for 3 / 5 / 7+ consecutive days. | **1.25x / 1.5x / 2.0x** |
 | **Server Pop** | Every additional online user (excluding the bot). | **+5% per user (2x cap)** |
-| **Party System** | All 4 members of a configured party are online. | **1.25x** |
+| **Party System** | Multiple users are in the same TeamSpeak channel. | **1.25x** |
 | **Rare Title** | Held for 7 days (e.g. *Sovereign*, *Archon*). | **2.0x - 5.0x** |
 | **Artifact** | Held for 24 hours (e.g. *Void Orb*). | **Massive Buff or Debuff** |
 

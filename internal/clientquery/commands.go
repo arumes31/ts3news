@@ -44,6 +44,7 @@ type ClientInfo struct {
 	Nickname        string
 	UID             string // client_unique_identifier (stable TeamSpeak identity id)
 	Type            int    // 0 = normal voice client, 1 = ServerQuery/ClientQuery client
+	CID             int    // channel id
 	ConnectedTimeMS int64  // client_connected_time (ms since session start)
 }
 
@@ -58,7 +59,7 @@ func (c *Client) ClientList() ([]ClientInfo, error) {
 	for _, line := range data {
 		// Records are separated by "|", fields by spaces as key=value pairs.
 		for _, rec := range strings.Split(line, "|") {
-			ci := ClientInfo{CLID: -1}
+			ci := ClientInfo{CLID: -1, CID: -1}
 			for _, field := range strings.Fields(rec) {
 				k, v, ok := strings.Cut(field, "=")
 				if !ok {
@@ -67,6 +68,8 @@ func (c *Client) ClientList() ([]ClientInfo, error) {
 				switch k {
 				case "clid":
 					ci.CLID, _ = strconv.Atoi(v)
+				case "cid":
+					ci.CID, _ = strconv.Atoi(v)
 				case "client_nickname":
 					ci.Nickname = Unescape(v)
 				case "client_unique_identifier":

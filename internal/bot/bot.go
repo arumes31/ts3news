@@ -24,7 +24,6 @@ type Bot struct {
 	DB          *sql.DB
 	levelGroups map[int]int // manual level milestone -> existing TS3 server group id
 	xpGroups    map[int]int // auto-created level group -> TS3 server group id (XP_SERVER_GROUPS)
-	parties     [][]string  // each party is a list of lowercased member nicknames
 }
 
 func NewBot(cfg *config.Config) *Bot {
@@ -47,29 +46,11 @@ func NewBot(cfg *config.Config) *Bot {
 		DB:          database,
 		levelGroups: leveling.ParseLevelGroups(cfg.LevelGroups),
 		xpGroups:    map[int]int{},
-		parties:     parseParties(cfg.Parties),
 	}
 	if cfg.XPServerGroups {
 		b.loadLevelGroups()
 	}
 	return b
-}
-
-// parseParties parses "Nick1,Nick2;Nick3,Nick4" into lowercased member lists.
-func parseParties(s string) [][]string {
-	var out [][]string
-	for _, party := range strings.Split(s, ";") {
-		var members []string
-		for _, m := range strings.Split(party, ",") {
-			if m = strings.ToLower(strings.TrimSpace(m)); m != "" {
-				members = append(members, m)
-			}
-		}
-		if len(members) > 0 {
-			out = append(out, members)
-		}
-	}
-	return out
 }
 
 func (b *Bot) Close() {
@@ -187,7 +168,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		var notes []string
 		var artifactPoke string
 		if b.Cfg.EnableLeveling {
-			lvl, notes, artifactPoke = b.processUserXP(client.UID, client.Nickname, b.xpForGame(game), hasGame, ctx)
+			lvl, notes, artifactPoke = b.processUserXP(client.UID, client.Nickname, client.CID, b.xpForGame(game), hasGame, ctx)
 			if lvl != nil {
 				b.applyMilestones(c, client.CLID, client.Nickname, lvl)
 				if b.Cfg.XPServerGroups {

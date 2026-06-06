@@ -35,25 +35,35 @@ const (
 
 // cycleContext holds per-cycle shared facts used by the XP modifiers.
 type cycleContext struct {
-	onlineNormal int             // number of online normal (voice) clients, incl. the bot
-	onlineNicks  map[string]bool // lowercased nicknames currently online
-	today        time.Time
+	onlineNormal       int             // number of online normal (voice) clients, incl. the bot
+	channelNormalCount map[int]int     // map from channel ID to count of normal clients
+	onlineNicks        map[string]bool // lowercased nicknames currently online
+	today              time.Time
 }
 
 func (b *Bot) buildCycleContext(clients []clientquery.ClientInfo) cycleContext {
 	online := map[string]bool{}
+	chans := map[int]int{}
 	normal := 0
 	for _, cl := range clients {
 		if cl.Type == 0 {
 			normal++
 			online[strings.ToLower(cl.Nickname)] = true
+			if cl.CID >= 0 {
+				chans[cl.CID]++
+			}
 		}
 	}
-	return cycleContext{onlineNormal: normal, onlineNicks: online, today: time.Now()}
+	return cycleContext{
+		onlineNormal:       normal,
+		channelNormalCount: chans,
+		onlineNicks:        online,
+		today:              time.Now(),
+	}
 }
 
 // processUserXP applies all XP gains for one user this cycle.
-func (b *Bot) processUserXP(uid, nickname string, base int, hasGame bool, ctx cycleContext) (*levelResult, []string, string) {
+func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, ctx cycleContext) (*levelResult, []string, string) {
 	var notes []string
 	delta := 0
 
@@ -68,7 +78,7 @@ func (b *Bot) processUserXP(uid, nickname string, base int, hasGame bool, ctx cy
 		}
 	}
 
-	mult, mnotes := b.computeAwardMult(uid, nickname, ctx)
+	mult, mnotes := b.computeAwardMult(uid, nickname, cid, ctx)
 	notes = append(notes, mnotes...)
 	if !hasGame {
 		mult *= noGamePenalty
@@ -103,7 +113,7 @@ func (b *Bot) processUserXP(uid, nickname string, base int, hasGame bool, ctx cy
 }
 
 // computeAwardMult returns the combined XP multiplier.
-func (b *Bot) computeAwardMult(uid, nickname string, ctx cycleContext) (float64, []string) {
+func (b *Bot) computeAwardMult(uid, nickname string, cid int, ctx cycleContext) (float64, []string) {
 	if !b.Cfg.EnableXPModifiers {
 		return 1.0, nil
 	}
@@ -123,7 +133,9 @@ func (b *Bot) computeAwardMult(uid, nickname string, ctx cycleContext) (float64,
 		mult *= sv
 		notes = append(notes, fmt.Sprintf("server x%.2f", sv))
 	}
-	if b.partyAllOnline(nickname, ctx.onlineNicks) {
+	
+	// Automatic party: if other normal users are in the same channel.
+	if cid >= 0 && ctx.channelNormalCount[cid] > 1 {
 		mult *= partyMult
 		notes = append(notes, fmt.Sprintf("party x%g", partyMult))
 	}
@@ -169,33 +181,6 @@ func lootBoxForCross(oldLevel, newLevel int) int {
 		return lootBoxMin + rand.Intn(lootBoxMax-lootBoxMin+1)
 	}
 	return 0
-}
-
-func (b *Bot) partyAllOnline(nickname string, online map[string]bool) bool {
-	ln := strings.ToLower(nickname)
-	for _, party := range b.parties {
-		inParty := false
-		for _, m := range party {
-			if m == ln {
-				inParty = true
-				break
-			}
-		}
-		if !inParty {
-			continue
-		}
-		all := true
-		for _, m := range party {
-			if !online[m] {
-				all = false
-				break
-			}
-		}
-		if all && len(party) > 1 {
-			return true
-		}
-	}
-	return false
 }
 
 // ---- streak / login state ----
