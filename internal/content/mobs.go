@@ -115,8 +115,8 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	m.Level = level
 	
 	// --- BALANCED SCALING ---
-	// 1. Level Scaling (Base power) - Slightly reduced growth
-	lvlScale := 1.0 + 0.12*float64(level-1)
+	// 1. Level Scaling (Base power) - Flatter growth
+	lvlScale := 1.0 + 0.05*float64(level-1)
 	
 	// 2. Difficulty Dampening
 	// Instead of full multiplication, difficulty only affects 30% of the scaling
@@ -133,6 +133,16 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 	// XP rewards still scale fully to reward the risk
 	m.RewardXP = int(float64(m.RewardXP) * lvlScale * difficulty)
+
+	// XP Scaling: Higher types provide even more rewards.
+	switch m.Type {
+	case MobElite:
+		m.RewardXP = int(float64(m.RewardXP) * 1.5)
+	case MobBoss:
+		m.RewardXP = int(float64(m.RewardXP) * 2.5)
+	case MobLegendary:
+		m.RewardXP = int(float64(m.RewardXP) * 5.0) // Significant payout but balanced
+	}
 
 	// Random effect
 	if rand.Float64() < 0.3 {

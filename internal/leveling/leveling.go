@@ -102,8 +102,8 @@ func XPForLevel(level int) int {
 		return 0
 	}
 	// Dynamic exponent: grows as level increases to make prestige levels harder.
-	// Starts at 1.2, reaches ~1.6 at level 1000, and ~2.5+ at level 10000.
-	exponent := 1.2 + (float64(level) / 4000.0)
+	// Starts at 1.5, reaches ~1.8 at level 1000, and ~5.0+ at level 10000.
+	exponent := 1.5 + (float64(level) / 3000.0)
 	return int(math.Round(xpCurveK * math.Pow(float64(level-1), exponent)))
 }
 
