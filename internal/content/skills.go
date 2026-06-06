@@ -13,6 +13,7 @@ const (
 	SkillMagic    SkillType = "Magic"
 	SkillBuff     SkillType = "Buff"
 	SkillDebuff   SkillType = "Debuff"
+	SkillUltimate SkillType = "Ultimate"
 )
 
 type Skill struct {
@@ -26,6 +27,17 @@ type Skill struct {
 	HealPercent float64 // Percentage of max HP
 	Description string
 	Special     ItemEffect
+}
+
+// UltimateSkill represents a powerful ability with multi-round cooldown
+type UltimateSkill struct {
+	ID              string
+	Name            string
+	Rarity          Rarity
+	Power           float64 // Damage multiplier (e.g., 5.0 = 5x normal damage)
+	CooldownRounds  int     // Total rounds to wait after use
+	CurrentCooldown int     // Current cooldown counter (0 = ready)
+	Description     string
 }
 
 var allSkills []Skill
@@ -48,19 +60,19 @@ func init() {
 
 	// Add basic novice skills
 	allSkills = append(allSkills, Skill{
-		ID:     "S0_1",
-		Name:   "Novice Spark",
-		Type:   SkillMagic,
-		Rarity: RarityCommon,
-		Power:  1.1,
+		ID:          "S0_1",
+		Name:        "Novice Spark",
+		Type:        SkillMagic,
+		Rarity:      RarityCommon,
+		Power:       1.1,
 		Description: "A weak magical spark.",
 	})
 	allSkills = append(allSkills, Skill{
-		ID:     "S0_2",
-		Name:   "Novice Punch",
-		Type:   SkillPhysical,
-		Rarity: RarityCommon,
-		Power:  1.1,
+		ID:          "S0_2",
+		Name:        "Novice Punch",
+		Type:        SkillPhysical,
+		Rarity:      RarityCommon,
+		Power:       1.1,
 		Description: "A basic physical punch.",
 	})
 
@@ -72,16 +84,22 @@ func init() {
 			for rIdx := 0; rIdx < 5; rIdx++ {
 				rarity := Rarity(rIdx)
 				name := p + " " + a
-				
+
 				// Only keep ~30% of combinations to reach ~1500-2000 total
 				if (idx+rIdx)%3 != 0 {
 					continue
 				}
 
 				sType := SkillPhysical
-				if strings.Contains(name, "Bolt") || strings.Contains(name, "Blast") || strings.Contains(name, "Nova") { sType = SkillMagic }
-				if strings.Contains(name, "Heal") || strings.Contains(name, "Mend") || strings.Contains(name, "Shield") { sType = SkillBuff }
-				if strings.Contains(name, "Curse") || strings.Contains(name, "Sunder") || strings.Contains(name, "Drain") { sType = SkillDebuff }
+				if strings.Contains(name, "Bolt") || strings.Contains(name, "Blast") || strings.Contains(name, "Nova") {
+					sType = SkillMagic
+				}
+				if strings.Contains(name, "Heal") || strings.Contains(name, "Mend") || strings.Contains(name, "Shield") {
+					sType = SkillBuff
+				}
+				if strings.Contains(name, "Curse") || strings.Contains(name, "Sunder") || strings.Contains(name, "Drain") {
+					sType = SkillDebuff
+				}
 
 				s := Skill{
 					ID:     fmt.Sprintf("S%d_%d", idx, rIdx),
@@ -92,16 +110,22 @@ func init() {
 				}
 
 				// Mechanics
-				if strings.Contains(name, "Sunder") || strings.Contains(name, "Execute") { s.IgnoreDef = 0.3 + (0.1 * float64(rarity)) }
-				if strings.Contains(name, "Bash") || strings.Contains(name, "Shock") { s.StunChance = 0.1 + (0.05 * float64(rarity)) }
-				if strings.Contains(name, "Heal") || strings.Contains(name, "Mend") { s.HealPercent = 0.1 + (0.05 * float64(rarity)) }
-				
+				if strings.Contains(name, "Sunder") || strings.Contains(name, "Execute") {
+					s.IgnoreDef = 0.3 + (0.1 * float64(rarity))
+				}
+				if strings.Contains(name, "Bash") || strings.Contains(name, "Shock") {
+					s.StunChance = 0.1 + (0.05 * float64(rarity))
+				}
+				if strings.Contains(name, "Heal") || strings.Contains(name, "Mend") {
+					s.HealPercent = 0.1 + (0.05 * float64(rarity))
+				}
+
 				// Rare special effects
-// #nosec G404
+				// #nosec G404
 				if rarity >= RarityEpic && rand.Float64() < 0.1 { // #nosec G404
 					s.Special = EffectMindControl
 				}
-// #nosec G404
+				// #nosec G404
 				if rarity == RarityLegendary && rand.Float64() < 0.05 { // #nosec G404
 					s.Special = EffectPhoenix
 				}
@@ -116,13 +140,17 @@ func init() {
 
 func (s Skill) Score() int {
 	score := int(s.Power*100) + int(s.IgnoreDef*100) + int(s.StunChance*100) + int(s.HealPercent*100)
-	if s.Special == EffectMindControl { score += 500 }
-	if s.Special == EffectPhoenix { score += 1000 }
+	if s.Special == EffectMindControl {
+		score += 500
+	}
+	if s.Special == EffectPhoenix {
+		score += 1000
+	}
 	return score
 }
 
 func RandomSkill() Skill {
-// #nosec G404
+	// #nosec G404
 	s := allSkills[rand.IntN(len(allSkills))] // #nosec G404
 	// Roll for additional effect if it doesn't have one
 	if s.Special == EffectNone {
@@ -142,6 +170,100 @@ func GetSkillByID(id string) (Skill, bool) {
 
 func IsSkill(name string) bool {
 	for _, s := range allSkills {
+		if s.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+// Ultimate Skill name generation (50 verbs × 20 nouns = 1000 combinations)
+var ultimateVerbs = []string{
+	"Annihilating", "Devastating", "Obliterating", "Shattering", "Eradicating",
+	"Decimating", "Destroying", "Crushing", "Smashing", "Pulverizing",
+	"Vaporizing", "Incinerating", "Freezing", "Electrifying", "Corrupting",
+	"Purifying", "Banishing", "Summoning", "Channeling", "Unleashing",
+	"Igniting", "Extinguishing", "Rending", "Cleaving", "Piercing",
+	"Shredding", "Blasting", "Bombarding", "Storming", "Ravaging",
+	"Consuming", "Devouring", "Absorbing", "Reflecting", "Amplifying",
+	"Nullifying", "Silencing", "Blinding", "Stunning", "Paralyzing",
+	"Poisoning", "Cursing", "Blessing", "Healing", "Shielding",
+	"Empowering", "Enraging", "Terrifying", "Inspiring", "Transcending",
+}
+var ultimateNouns = []string{
+	"Strike", "Blast", "Wave", "Storm", "Fury",
+	"Wrath", "Rage", "Nova", "Burst", "Flare",
+	"Surge", "Pulse", "Beam", "Ray", "Bolt",
+	"Slash", "Thrust", "Barrage", "Volley", "Onslaught",
+}
+
+var allUltimateSkills []UltimateSkill
+
+func init() {
+	// Generate 1000 unique ultimate skills
+	idx := 1
+	for _, v := range ultimateVerbs {
+		for _, n := range ultimateNouns {
+			name := v + " " + n
+
+			// Determine rarity (ultimate skills are inherently rare)
+			// #nosec G404
+			r := rand.Float64() // #nosec G404
+			var rarity Rarity
+			switch {
+			case r < 0.50:
+				rarity = RarityRare
+			case r < 0.80:
+				rarity = RarityEpic
+			case r < 0.95:
+				rarity = RarityLegendary
+			case r < 0.99:
+				rarity = RarityMythic
+			default:
+				rarity = RarityDivine
+			}
+
+			// Power scales with rarity
+			rarityMult := float64(rarity+1) * 0.5 // Rare=1.5, Epic=2.0, Legendary=2.5, Mythic=3.0, Divine=3.5
+			power := 4.0 * rarityMult
+
+			// Cooldown scales with rarity (higher rarity = longer cooldown but more power)
+			cooldown := 5 + int(rarity)*2 // Rare=9, Epic=11, Legendary=13, Mythic=15, Divine=17
+
+			skill := UltimateSkill{
+				ID:              fmt.Sprintf("ULT_%d", idx),
+				Name:            name,
+				Rarity:          rarity,
+				Power:           power,
+				CooldownRounds:  cooldown,
+				CurrentCooldown: 0,
+				Description:     fmt.Sprintf("%s ultimate: %.1fx damage, %d round cooldown", rarity, power, cooldown),
+			}
+			allUltimateSkills = append(allUltimateSkills, skill)
+			idx++
+		}
+	}
+}
+
+// RandomUltimateSkill returns a random ultimate skill
+func RandomUltimateSkill() UltimateSkill {
+	// #nosec G404
+	return allUltimateSkills[rand.IntN(len(allUltimateSkills))] // #nosec G404
+}
+
+// GetUltimateSkillByID returns an ultimate skill by ID
+func GetUltimateSkillByID(id string) (UltimateSkill, bool) {
+	for _, s := range allUltimateSkills {
+		if s.ID == id {
+			return s, true
+		}
+	}
+	return UltimateSkill{}, false
+}
+
+// IsUltimateSkill checks if a name is an ultimate skill
+func IsUltimateSkill(name string) bool {
+	for _, s := range allUltimateSkills {
 		if s.Name == name {
 			return true
 		}

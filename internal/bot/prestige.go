@@ -12,6 +12,7 @@ import (
 )
 
 const prestigeStatBonus = 0.05 // +5% permanent stat boost per prestige level
+const PrestigeThreshold = 5000 // Level required to prestige (was 10000)
 
 // doPrestige increments a user's prestige and resets their level/xp to the start,
 // returning the new prestige number.

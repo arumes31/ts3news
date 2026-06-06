@@ -14,10 +14,12 @@ const (
 	RarityRare
 	RarityEpic
 	RarityLegendary
+	RarityMythic
+	RarityDivine
 )
 
 func (r Rarity) String() string {
-	list := []string{"Common", "Uncommon", "Rare", "Epic", "Legendary"}
+	list := []string{"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Divine"}
 	if int(r) < 0 || int(r) >= len(list) {
 		return fmt.Sprintf("Rarity(%d)", r)
 	}
@@ -109,6 +111,12 @@ const (
 	SlotCharm     GearSlot = "Charm"
 	SlotMount     GearSlot = "Mount"
 	SlotCompanion GearSlot = "Companion"
+	SlotPet1      GearSlot = "Pet1"
+	SlotPet2      GearSlot = "Pet2"
+	SlotEmblem1   GearSlot = "Emblem1"
+	SlotEmblem2   GearSlot = "Emblem2"
+	SlotBanner    GearSlot = "Banner"
+	SlotTotem     GearSlot = "Totem"
 )
 
 var AllSlots = []GearSlot{
@@ -116,6 +124,7 @@ var AllSlots = []GearSlot{
 	SlotHands, SlotWaist, SlotLegs, SlotFeet, SlotFinger1, SlotFinger2,
 	SlotTrinket1, SlotTrinket2, SlotMainHand, SlotOffHand, SlotRanged,
 	SlotRelic, SlotArtifact, SlotSoul, SlotAura, SlotCharm, SlotMount, SlotCompanion,
+	SlotPet1, SlotPet2, SlotEmblem1, SlotEmblem2, SlotBanner, SlotTotem,
 }
 
 type ItemEffect string
@@ -154,6 +163,7 @@ const (
 	ConsumableHealing ConsumableType = "Healing"
 	ConsumableBuff    ConsumableType = "Buff"
 	ConsumableRevive  ConsumableType = "Revive"
+	ConsumableRepair  ConsumableType = "Repair"
 )
 
 type Consumable struct {
@@ -184,6 +194,8 @@ var allConsumables = []Consumable{
 	{"P3", "Strength Elixir", ConsumableBuff, 15, 3, "+15 STR for 3 fights"},
 	{"P4", "Iron Skin Brew", ConsumableBuff, 10, 3, "+10 DEF for 3 fights"},
 	{"P5", "Phoenix Feather", ConsumableRevive, 50, 0, "Automatically revives you with 50% HP once"},
+	{"P6", "Repair Kit", ConsumableRepair, 30, 0, "Restores 30 durability to a random equipped item"},
+	{"P7", "Master Repair Kit", ConsumableRepair, 75, 0, "Restores 75 durability to a random equipped item"},
 }
 
 var allEnchantments []Enchantment
@@ -282,7 +294,7 @@ func init() {
 				p := prefixes[r.IntN(len(prefixes))]
 				s := suffixes[r.IntN(len(suffixes))]
 				name := fmt.Sprintf("%s %s %s", p, slot, s)
-				
+
 				mul := float64(rar) + 1.0
 				allGear = append(allGear, Gear{
 					ID:            fmt.Sprintf("G%d", idx),
@@ -290,7 +302,7 @@ func init() {
 					Slot:          slot,
 					Rarity:        rar,
 					XPMultiplier:  getXPMult(rar),
-					MaxDurability: 30 + int(rar)*20,
+					MaxDurability: 50 + int(rar)*30,
 					Stats: Stats{
 						HP:  int(10 * mul),
 						STR: int(5 * mul),
@@ -369,16 +381,34 @@ func init() {
 				Stats:        Stats{HP: 1000, STR: 500, DEF: 250, SPD: 200, LCK: 150, INT: 100, STA: 100, CHA: 5000},
 			}
 			switch p {
-			case "Skill-Master": t.ExtraSkills = 5
-			case "Vampiric": t.Lifesteal = 50
-			case "Time-Warp": t.MultiStrike = 100
-			case "Loot-Hoarder": t.DoubleLoot = true
-			case "One-Punch": t.Stats.STR = 10000; t.Stats.CRT = 100
-			case "Invincible": t.Stats.DEF = 10000; t.Stats.HP = 5000
-			case "Berserker": t.MultiStrike = 50; t.Stats.STR = 2000
-			case "Ghost": t.Stats.DGE = 90; t.Stats.SPD = 1000
-			case "Unbreakable": t.Stats.STA = 100; t.Stats.DEF = 1000
-			case "God-Mode": t.ExtraSkills = 5; t.Lifesteal = 100; t.DoubleLoot = true; t.MultiStrike = 100
+			case "Skill-Master":
+				t.ExtraSkills = 5
+			case "Vampiric":
+				t.Lifesteal = 50
+			case "Time-Warp":
+				t.MultiStrike = 100
+			case "Loot-Hoarder":
+				t.DoubleLoot = true
+			case "One-Punch":
+				t.Stats.STR = 10000
+				t.Stats.CRT = 100
+			case "Invincible":
+				t.Stats.DEF = 10000
+				t.Stats.HP = 5000
+			case "Berserker":
+				t.MultiStrike = 50
+				t.Stats.STR = 2000
+			case "Ghost":
+				t.Stats.DGE = 90
+				t.Stats.SPD = 1000
+			case "Unbreakable":
+				t.Stats.STA = 100
+				t.Stats.DEF = 1000
+			case "God-Mode":
+				t.ExtraSkills = 5
+				t.Lifesteal = 100
+				t.DoubleLoot = true
+				t.MultiStrike = 100
 			}
 			positiveTitles = append(positiveTitles, t)
 		}
@@ -400,13 +430,19 @@ func init() {
 	enchPrefixes := []string{"Fiery", "Icy", "Shocking", "Venomous", "Holy", "Vampiric", "Arcane", "Stone", "Wind", "Shadow", "Reinforced", "Unbreakable", "Diamond-Coated"}
 	for i, p := range enchPrefixes {
 		rarity := RarityRare
-		if i > 6 { rarity = RarityEpic }
-		if i > 10 { rarity = RarityLegendary }
-		
+		if i > 6 {
+			rarity = RarityEpic
+		}
+		if i > 10 {
+			rarity = RarityLegendary
+		}
+
 		duraBonus := 0
 		if strings.Contains(p, "Reinforced") || strings.Contains(p, "Unbreakable") || strings.Contains(p, "Diamond") {
 			duraBonus = 50 * (int(rarity) - 1)
-			if duraBonus < 20 { duraBonus = 20 }
+			if duraBonus < 20 {
+				duraBonus = 20
+			}
 		}
 
 		allEnchantments = append(allEnchantments, Enchantment{
@@ -423,9 +459,9 @@ func init() {
 
 func RandomItemEffect() ItemEffect {
 	effects := []ItemEffect{EffectThorns, EffectVampiric, EffectBerserk, EffectLucky, EffectTreasureHunter, EffectQuick, EffectBulwark, EffectRadiant, EffectFragile, EffectSteady, EffectMindControl, EffectRegenStack, EffectPhoenix}
-// #nosec G404
+	// #nosec G404
 	if rand.Float64() < 0.2 { // #nosec G404
-// #nosec G404
+		// #nosec G404
 		return effects[rand.IntN(len(effects))] // #nosec G404
 	}
 	return EffectNone
@@ -435,62 +471,93 @@ func RandomItemEffect() ItemEffect {
 func RandomConsumable() Consumable { return allConsumables[rand.IntN(len(allConsumables))] } // #nosec G404
 func RandomGearDrop() Gear {
 	var g Gear
-// #nosec G404
+	// #nosec G404
 	if rand.Float64() < 0.05 { // #nosec G404
-// #nosec G404
+		// #nosec G404
 		g = uniqueLegendaries[rand.IntN(len(uniqueLegendaries))] // #nosec G404
 	} else {
-// #nosec G404
+		// #nosec G404
 		g = allGear[rand.IntN(len(allGear))] // #nosec G404
 	}
 	g.Special = RandomItemEffect()
 	return g
 }
+
 // #nosec G404
-func RandomStarterGear() Gear      { return allGear[rand.IntN(len(AllSlots))] } // #nosec G404
+func RandomStarterGear() Gear { return allGear[rand.IntN(len(AllSlots))] } // #nosec G404
 func RandomArtifact() Artifact {
-// #nosec G404
+	// #nosec G404
 	a := corruptedArtifacts[rand.IntN(len(corruptedArtifacts))] // #nosec G404
 	a.Special = RandomItemEffect()
 	return a
 }
 func RandomEnchantment() Enchantment {
-// #nosec G404
+	// #nosec G404
 	e := allEnchantments[rand.IntN(len(allEnchantments))] // #nosec G404
 	e.Special = RandomItemEffect()
 	return e
 }
 func RandomTitle() Title {
-// #nosec G404
-	if rand.Float64() < 0.8 { return positiveTitles[rand.IntN(len(positiveTitles))] } // #nosec G404
-// #nosec G404
+	// #nosec G404
+	if rand.Float64() < 0.8 {
+		return positiveTitles[rand.IntN(len(positiveTitles))]
+	} // #nosec G404
+	// #nosec G404
 	return negativeTitles[rand.IntN(len(negativeTitles))] // #nosec G404
 }
 
 func GetGearByID(id string) (Gear, bool) {
-	for _, g := range allGear { if g.ID == id { return g, true } }
-	for _, g := range uniqueLegendaries { if g.ID == id { return g, true } }
+	for _, g := range allGear {
+		if g.ID == id {
+			return g, true
+		}
+	}
+	for _, g := range uniqueLegendaries {
+		if g.ID == id {
+			return g, true
+		}
+	}
 	return Gear{}, false
 }
 
 func GetEnchantmentByID(id string) (Enchantment, bool) {
-	for _, e := range allEnchantments { if e.ID == id { return e, true } }
+	for _, e := range allEnchantments {
+		if e.ID == id {
+			return e, true
+		}
+	}
 	return Enchantment{}, false
 }
 
 func GetConsumableByID(id string) (Consumable, bool) {
-	for _, c := range allConsumables { if c.ID == id { return c, true } }
+	for _, c := range allConsumables {
+		if c.ID == id {
+			return c, true
+		}
+	}
 	return Consumable{}, false
 }
 
 func GetTitleByName(name string) (Title, bool) {
-	for _, t := range positiveTitles { if t.Name == name { return t, true } }
-	for _, t := range negativeTitles { if t.Name == name { return t, true } }
+	for _, t := range positiveTitles {
+		if t.Name == name {
+			return t, true
+		}
+	}
+	for _, t := range negativeTitles {
+		if t.Name == name {
+			return t, true
+		}
+	}
 	return Title{}, false
 }
 
 func GetArtifactByName(name string) (Artifact, bool) {
-	for _, a := range corruptedArtifacts { if a.Name == name { return a, true } }
+	for _, a := range corruptedArtifacts {
+		if a.Name == name {
+			return a, true
+		}
+	}
 	return Artifact{}, false
 }
 
@@ -500,8 +567,20 @@ func IsTitle(name string) bool {
 }
 
 func IsGearOrArtifact(name string) bool {
-	for _, g := range allGear { if g.Name == name { return true } }
-	for _, g := range uniqueLegendaries { if g.Name == name { return true } }
-	for _, a := range corruptedArtifacts { if a.Name == name { return true } }
+	for _, g := range allGear {
+		if g.Name == name {
+			return true
+		}
+	}
+	for _, g := range uniqueLegendaries {
+		if g.Name == name {
+			return true
+		}
+	}
+	for _, a := range corruptedArtifacts {
+		if a.Name == name {
+			return true
+		}
+	}
 	return false
 }

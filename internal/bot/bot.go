@@ -10,13 +10,14 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq"
 	"ts3news/internal/clientquery"
 	"ts3news/internal/config"
 	"ts3news/internal/content"
 	"ts3news/internal/db"
 	"ts3news/internal/games"
 	"ts3news/internal/leveling"
+
+	_ "github.com/lib/pq"
 )
 
 type Bot struct {
@@ -106,15 +107,18 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		}
 		stats, _, _ := b.calculateTotalStats(cl.UID, ctx.today)
 		skills := b.getSkills(cl.UID)
-		
+		ultimate := b.getUltimateSkill(cl.UID)
+
 		var lvl, curHP, regen int
 		_ = b.DB.QueryRow("SELECT level, current_hp, regen_stacks FROM users WHERE client_uid=$1", cl.UID).Scan(&lvl, &curHP, &regen)
-		if curHP <= 0 { curHP = stats.HP } // Auto-fill if new/dead
+		if curHP <= 0 {
+			curHP = stats.HP
+		} // Auto-fill if new/dead
 		pets := b.getPets(cl.UID)
 
 		chanUsers[cl.CID] = append(chanUsers[cl.CID], UserInCombat{
 			UID: cl.UID, Nickname: cl.Nickname, CLID: cl.CLID, Stats: stats, Level: lvl, Skills: skills,
-			CurrentHP: curHP, RegenStacks: regen, Pets: pets,
+			UltimateSkill: ultimate, CurrentHP: curHP, RegenStacks: regen, Pets: pets,
 		})
 	}
 
@@ -122,7 +126,9 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 	pokedCount := 0
 
 	for cid, users := range chanUsers {
-		if len(users) == 0 { continue }
+		if len(users) == 0 {
+			continue
+		}
 
 		// 1. Party Stats & Difficulty
 		totalLvl := 0
@@ -132,18 +138,24 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			totalStatScore += u.Stats.Score()
 		}
 		avgLvl := totalLvl / len(users)
-		if avgLvl < 1 { avgLvl = 1 }
+		if avgLvl < 1 {
+			avgLvl = 1
+		}
 
 		expectedScore := 45 + (avgLvl / 5)
 		diffFactor := float64(totalStatScore) / float64(len(users)) / float64(expectedScore)
-		if diffFactor < 0.5 { diffFactor = 0.5 }
-		if diffFactor > 1.5 { diffFactor = 1.5 }
+		if diffFactor < 0.5 {
+			diffFactor = 0.5
+		}
+		if diffFactor > 1.5 {
+			diffFactor = 1.5
+		}
 
 		// 2. Select Zone
 		zone := content.GetRandomZone(avgLvl, totalStatScore/len(users))
 		battleLogs := []string{zone.Display()}
 
-		mobs := content.SpawnMobGroup(avgLvl, zone, diffFactor*zone.Difficulty)
+		mobs := content.SpawnMobGroup(avgLvl, zone, diffFactor*zone.Difficulty, len(users))
 		var mobPtrs []*content.Mob
 		for i := range mobs {
 			mobPtrs = append(mobPtrs, &mobs[i])
@@ -162,7 +174,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		if victory {
 			for _, mob := range mobPtrs {
 				// Each mob can drop items to ONE random member of the party
-// #nosec G404
+				// #nosec G404
 				winner := users[rand.IntN(len(users))] // #nosec G404
 				if note := b.rollLootForUser(winner.UID, *mob, zone.Difficulty); note != "" {
 					channelLoot = append(channelLoot, lootResult{uid: winner.UID, note: note})
@@ -191,7 +203,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			var game games.Game
 			var shortURL string
 			if hasGame {
-// #nosec G404
+				// #nosec G404
 				game = candidates[rand.IntN(len(candidates))] // #nosec G404
 				shortURL, _ = games.ShortenURL(game.URL)
 			}
@@ -203,7 +215,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			// Auto-prestige at the level cap: reset to level 1, +1 prestige (with a
 			// permanent stat bonus) and grant the prestige rank group. Future leveling
 			// then resumes from level 1 at the new prestige.
-			if lr != nil && lr.NewLevel >= leveling.MaxLevel {
+			if lr != nil && lr.NewLevel >= PrestigeThreshold {
 				newP := b.doPrestige(user.UID)
 				notes = append(notes, fmt.Sprintf("🌟 PRESTIGE %d! Reset to Lvl 1 — permanent +%d%% stats!", newP, int(prestigeStatBonus*100)*newP))
 				lr.OldLevel, lr.NewLevel, lr.TotalXP = 1, 1, 0
@@ -214,7 +226,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 
 			// Durability & Loot Drops
 			b.applyDurabilityLoss(user.UID, !victory)
-			
+
 			userLootFound := false
 			for _, cl := range channelLoot {
 				if cl.uid == user.UID {
@@ -400,8 +412,14 @@ func (b *Bot) touchUser(uid, nickname string, sessionMS int64) error {
 	err := b.DB.QueryRow("SELECT last_session_connected_ms FROM users WHERE client_uid = $1", uid).Scan(&lastMS)
 	deltaSec := int64(0)
 	if err == nil {
-		if sessionMS > lastMS { deltaSec = (sessionMS - lastMS) / 1000 } else { deltaSec = sessionMS / 1000 }
-	} else { deltaSec = sessionMS / 1000 }
+		if sessionMS > lastMS {
+			deltaSec = (sessionMS - lastMS) / 1000
+		} else {
+			deltaSec = sessionMS / 1000
+		}
+	} else {
+		deltaSec = sessionMS / 1000
+	}
 	_, err = b.DB.Exec(`INSERT INTO users (client_uid, nickname, last_seen, total_connection_seconds, last_session_connected_ms) VALUES ($1, $2, NOW(), $3, $4) ON CONFLICT (client_uid) DO UPDATE SET last_seen = NOW(), nickname = $2, total_connection_seconds = users.total_connection_seconds + $3, last_session_connected_ms = $4`, uid, nickname, deltaSec, sessionMS)
 	return err
 }
