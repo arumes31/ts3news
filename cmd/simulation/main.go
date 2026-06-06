@@ -784,7 +784,6 @@ func SimulateCombat(rng *rand.Rand, player *Player, mobs []Mob, params SimParams
 
 			playerHP -= mobDamage
 			if playerHP <= 0 {
-				playerHP = 0
 				result.Won = false
 				result.Rounds = round
 				goto combatEnd
