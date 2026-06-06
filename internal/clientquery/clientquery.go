@@ -75,7 +75,7 @@ func (c *Client) Command(cmd string) ([]string, error) {
 
 // Auth authenticates with the ClientQuery API key.
 func (c *Client) Auth(apiKey string) error {
-	_, err := c.Command("auth apikey=" + apiKey)
+	_, err := c.Command("auth apikey=" + Escape(apiKey))
 	return err
 }
 

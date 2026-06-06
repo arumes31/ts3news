@@ -157,6 +157,7 @@ func lerp(a, b color.RGBA, t float64) color.RGBA {
 }
 
 func darken(c color.RGBA) color.RGBA {
+	// #nosec G115 -- Calculation results in max 153, fits safely in uint8
 	d := func(x uint8) uint8 { return uint8(int(x) * 6 / 10) }
 	return color.RGBA{d(c.R), d(c.G), d(c.B), 255}
 }
