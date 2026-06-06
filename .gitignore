@@ -10,3 +10,15 @@ temp/
 .gemini/
 .gemini_security/
 /bot
+
+# Go
+/bot.exe
+/ts3news
+*.test
+*.prof
+
+# OS/IDE
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini

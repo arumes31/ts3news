@@ -828,7 +828,7 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 	return mult, stats, notes, effects
 }
 
-func (b *Bot) rollLootForUser(uid string, mob content.Mob) string {
+func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float64) string {
 	var results []string
 	count := 1
 	if mob.Type == content.MobBoss { count = 2 }
@@ -859,10 +859,20 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob) string {
 			results = append(results, "Title: "+t.Name)
 		} else if r < artifactChance {
 			a := content.RandomArtifact()
+			// Scale Artifact stats with zone difficulty
+			a.Stats.HP = int(float64(a.Stats.HP) * zoneDifficulty)
+			a.Stats.STR = int(float64(a.Stats.STR) * zoneDifficulty)
+			a.Stats.DEF = int(float64(a.Stats.DEF) * zoneDifficulty)
 			_, _ = b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1", uid, a.Mult, a.Name, a.MaxDurability)
 			results = append(results, "Artifact: "+a.Name)
 		} else if r < gearChance {
 			g := content.RandomGearDrop()
+			// Scale Gear stats with zone difficulty
+			g.Stats.HP = int(float64(g.Stats.HP) * zoneDifficulty)
+			g.Stats.STR = int(float64(g.Stats.STR) * zoneDifficulty)
+			g.Stats.DEF = int(float64(g.Stats.DEF) * zoneDifficulty)
+			g.Stats.SPD = int(float64(g.Stats.SPD) * zoneDifficulty)
+
 			if b.shouldEquip(uid, g) {
 				_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
 				results = append(results, "Equipped: "+g.Name)
@@ -874,6 +884,8 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob) string {
 			}
 		} else if r < skillChance {
 			s := content.RandomSkill()
+			// Scale Skill power with zone difficulty
+			s.Power *= zoneDifficulty
 			if slot, ok := b.equipSkill(uid, s); ok {
 				results = append(results, fmt.Sprintf("Learned %s (Slot %d)", s.Name, slot))
 			} else {
@@ -888,6 +900,10 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob) string {
 			results = append(results, "Item: "+c.Name)
 		} else if r < enchChance {
 			ench := content.RandomEnchantment()
+			// Scale Enchantment stats with zone difficulty
+			ench.Stats.STR = int(float64(ench.Stats.STR) * zoneDifficulty)
+			ench.Stats.SPD = int(float64(ench.Stats.SPD) * zoneDifficulty)
+
 			if slot, ok := b.applyEnchantment(uid, ench); ok {
 				results = append(results, fmt.Sprintf("Enchanted %s with %s", slot, ench.Name))
 			} else {

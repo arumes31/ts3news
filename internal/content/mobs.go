@@ -3,6 +3,7 @@ package content
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 )
 
 type MobType string
@@ -197,10 +198,23 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	return m
 }
 
-func SpawnMobGroup(avgLevel int, difficulty float64) []Mob {
-	count := 1 + rand.Intn(4) // 1 to 4 mobs
+func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64) []Mob {
+	// Difficulty affects count: higher difficulty = more mobs
+	baseCount := 1 + rand.Intn(4)
+	
+	// Zone Special effect: extra mobs
+	for _, eff := range zone.Effects {
+		if eff.Type == ZoneSpecial && strings.Contains(eff.Name, "Surge") {
+			baseCount += 2
+		}
+	}
+
+	count := int(float64(baseCount) * difficulty)
+	if count < 1 { count = 1 }
+	if count > 10 { count = 10 } // Cap at 10 mobs per party
+
 	var out []Mob
-	hasBoss := rand.Float64() < 0.1
+	hasBoss := rand.Float64() < 0.1 * difficulty
 	for i := 0; i < count; i++ {
 		out = append(out, SpawnMob(avgLevel, hasBoss && i == 0, difficulty))
 	}

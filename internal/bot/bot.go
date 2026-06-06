@@ -143,7 +143,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		zone := content.GetRandomZone(avgLvl, totalStatScore/len(users))
 		battleLogs := []string{zone.Display()}
 
-		mobs := content.SpawnMobGroup(avgLvl, diffFactor*zone.Difficulty)
+		mobs := content.SpawnMobGroup(avgLvl, zone, diffFactor*zone.Difficulty)
 		var mobPtrs []*content.Mob
 		for i := range mobs {
 			mobPtrs = append(mobPtrs, &mobs[i])
@@ -163,7 +163,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			for _, mob := range mobPtrs {
 				// Each mob can drop items to ONE random member of the party
 				winner := users[rand.Intn(len(users))]
-				if note := b.rollLootForUser(winner.UID, *mob); note != "" {
+				if note := b.rollLootForUser(winner.UID, *mob, zone.Difficulty); note != "" {
 					channelLoot = append(channelLoot, lootResult{uid: winner.UID, note: note})
 				}
 			}
