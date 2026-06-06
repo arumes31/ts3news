@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -237,7 +237,8 @@ func (s *Supervisor) randomInterval() time.Duration {
 		max = min
 	}
 	span := max - min + 1
-	hours := min + rand.Intn(span)
+// #nosec G404
+	hours := min + rand.IntN(span) // #nosec G404
 	return time.Duration(hours) * time.Hour
 }
 

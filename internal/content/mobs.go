@@ -2,7 +2,7 @@ package content
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 )
 
@@ -95,14 +95,16 @@ func init() {
 
 // SpawnMob scales a mob to the given level and difficulty factor (0.1 to 1.0+)
 func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
-	idx := rand.Intn(100) // index for common mobs
+// #nosec G404
+	idx := rand.IntN(100) // index for common mobs // #nosec G404
 	if isBoss && level >= 10 { // Bosses require level 10+
 		idx = len(baseMobs) - 2 // Ancient Dragon
 	}
 	
 	m := baseMobs[idx]
 	if !isBoss {
-		r := rand.Float64()
+// #nosec G404
+		r := rand.Float64() // #nosec G404
 		if r < 0.01 && level >= 25 { // Legendaries require level 25+
 			m = baseMobs[len(baseMobs)-1]
 		} else if r < 0.05 && level >= 10 { // Bosses require level 10+
@@ -149,9 +151,11 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	}
 
 	// Random effect
-	if rand.Float64() < 0.3 {
+// #nosec G404
+	if rand.Float64() < 0.3 { // #nosec G404
 		effects := []MobEffect{EffectEnraged, EffectArmored, EffectFleet, EffectPoisoned, EffectWeakened, EffectBlinded, EffectRegen}
-		eff := effects[rand.Intn(len(effects))]
+// #nosec G404
+		eff := effects[rand.IntN(len(effects))] // #nosec G404
 		m.Effects = append(m.Effects, eff)
 
 		// Harder effects give more XP
@@ -174,7 +178,8 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 	// 1-2 Equipped items that drop as loot
 	itemCount := 1
-	if rand.Float64() < 0.3 {
+// #nosec G404
+	if rand.Float64() < 0.3 { // #nosec G404
 		itemCount = 2
 	}
 	for i := 0; i < itemCount; i++ {
@@ -186,12 +191,14 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	if m.Type == MobCommon {
 		chance = 0.2 // Trash mobs often have effects
 	}
-	if rand.Float64() < chance {
+// #nosec G404
+	if rand.Float64() < chance { // #nosec G404
 		prefixes := []string{"Last", "Final", "Dying", "Bitter", "Vengeful", "Spiteful", "Desperate", "Echoing", "Ghostly", "Cursed"}
 		actions := []string{"Roar", "Whimper", "Gasp", "Curse", "Blast", "Wail", "Howl", "Scream", "Sigh", "Command"}
 		
 		dType := DeathExplosion
-		r := rand.Float64()
+// #nosec G404
+		r := rand.Float64() // #nosec G404
 		if r < 0.4 {
 			dType = DeathSummon
 		} else if r < 0.6 {
@@ -203,7 +210,8 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 		}
 
 		m.DeathEffect = &MobDeathEffect{
-			Name: prefixes[rand.Intn(len(prefixes))] + " " + actions[rand.Intn(len(actions))],
+// #nosec G404
+			Name: prefixes[rand.IntN(len(prefixes))] + " " + actions[rand.IntN(len(actions))], // #nosec G404
 			Type: dType,
 		}
 	}
@@ -213,7 +221,9 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64) []Mob {
 	// Difficulty affects count: higher difficulty = more mobs
-	baseCount := 2 + rand.Intn(3) // Increased base from 1 to 2
+	// #nosec G404
+// #nosec G404
+	baseCount := 2 + rand.IntN(3) // Increased base from 1 to 2
 	
 	// Zone Special effect: extra mobs
 	for _, eff := range zone.Effects {
@@ -228,7 +238,8 @@ func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64) []Mob {
 	if count > 8 { count = 8 } // Increased cap from 6 to 8 for better balance
 
 	var out []Mob
-	hasBoss := rand.Float64() < 0.1 * difficulty // Slightly increased boss chance
+// #nosec G404
+	hasBoss := rand.Float64() < 0.1 * difficulty // Slightly increased boss chance // #nosec G404
 	for i := 0; i < count; i++ {
 		out = append(out, SpawnMob(avgLevel, hasBoss && i == 0, difficulty))
 	}

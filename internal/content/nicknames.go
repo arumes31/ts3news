@@ -1,7 +1,7 @@
 package content
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 	"unicode"
 )
@@ -85,7 +85,8 @@ func NicknameForGame(title string) string {
 	if base == "" {
 		base = "MrFree"
 	}
-	suffix := gamerSuffixes[rand.Intn(len(gamerSuffixes))]
+// #nosec G404
+	suffix := gamerSuffixes[rand.IntN(len(gamerSuffixes))] // #nosec G404
 	return clampNick(base + suffix)
 }
 

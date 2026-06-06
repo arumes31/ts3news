@@ -2,7 +2,7 @@ package content
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 )
 
@@ -238,9 +238,9 @@ func (t Title) Score() int {
 }
 
 func init() {
-	// Use a fixed seed for procedural generation to ensure Gear IDs (G1, G2...) 
+	// Use a fixed seed for procedural generation to ensure Gear IDs (G1, G2...)
 	// are stable across bot restarts/rebuilds.
-	r := rand.New(rand.NewSource(42))
+	r := rand.New(rand.NewPCG(42, 42)) // #nosec G404
 
 	// XP Multiplier Logic: The better the gear/enchantment, the LESS XP it adds.
 	getXPMult := func(rar Rarity) float64 {
@@ -273,14 +273,14 @@ func init() {
 			Rarity:        RarityCommon,
 			XPMultiplier:  getXPMult(RarityCommon),
 			MaxDurability: 50,
-			Stats:         Stats{HP: 10, STR: 2, DEF: 2, SPD: 2, CHA: 1, STN: r.Intn(5)},
+			Stats:         Stats{HP: 10, STR: 2, DEF: 2, SPD: 2, CHA: 1, STN: r.IntN(5)},
 		})
 
 		// Procedural variants
 		for _, rar := range []Rarity{RarityUncommon, RarityRare, RarityEpic, RarityLegendary} {
 			for i := 0; i < 10; i++ { // 24 slots * 4 rarities * 10 variants = 960 items
-				p := prefixes[r.Intn(len(prefixes))]
-				s := suffixes[r.Intn(len(suffixes))]
+				p := prefixes[r.IntN(len(prefixes))]
+				s := suffixes[r.IntN(len(suffixes))]
 				name := fmt.Sprintf("%s %s %s", p, slot, s)
 				
 				mul := float64(rar) + 1.0
@@ -299,8 +299,8 @@ func init() {
 						LCK: int(2 * mul),
 						INT: int(rar),
 						STA: int(rar),
-						CHA: r.Intn(10),
-						SHN: r.Intn(20),
+						CHA: r.IntN(10),
+						SHN: r.IntN(20),
 					},
 				})
 				idx++
@@ -423,37 +423,48 @@ func init() {
 
 func RandomItemEffect() ItemEffect {
 	effects := []ItemEffect{EffectThorns, EffectVampiric, EffectBerserk, EffectLucky, EffectTreasureHunter, EffectQuick, EffectBulwark, EffectRadiant, EffectFragile, EffectSteady, EffectMindControl, EffectRegenStack, EffectPhoenix}
-	if rand.Float64() < 0.2 {
-		return effects[rand.Intn(len(effects))]
+// #nosec G404
+	if rand.Float64() < 0.2 { // #nosec G404
+// #nosec G404
+		return effects[rand.IntN(len(effects))] // #nosec G404
 	}
 	return EffectNone
 }
 
-func RandomConsumable() Consumable { return allConsumables[rand.Intn(len(allConsumables))] }
+// #nosec G404
+func RandomConsumable() Consumable { return allConsumables[rand.IntN(len(allConsumables))] } // #nosec G404
 func RandomGearDrop() Gear {
 	var g Gear
-	if rand.Float64() < 0.05 {
-		g = uniqueLegendaries[rand.Intn(len(uniqueLegendaries))]
+// #nosec G404
+	if rand.Float64() < 0.05 { // #nosec G404
+// #nosec G404
+		g = uniqueLegendaries[rand.IntN(len(uniqueLegendaries))] // #nosec G404
 	} else {
-		g = allGear[rand.Intn(len(allGear))]
+// #nosec G404
+		g = allGear[rand.IntN(len(allGear))] // #nosec G404
 	}
 	g.Special = RandomItemEffect()
 	return g
 }
-func RandomStarterGear() Gear      { return allGear[rand.Intn(len(AllSlots))] }
+// #nosec G404
+func RandomStarterGear() Gear      { return allGear[rand.IntN(len(AllSlots))] } // #nosec G404
 func RandomArtifact() Artifact {
-	a := corruptedArtifacts[rand.Intn(len(corruptedArtifacts))]
+// #nosec G404
+	a := corruptedArtifacts[rand.IntN(len(corruptedArtifacts))] // #nosec G404
 	a.Special = RandomItemEffect()
 	return a
 }
 func RandomEnchantment() Enchantment {
-	e := allEnchantments[rand.Intn(len(allEnchantments))]
+// #nosec G404
+	e := allEnchantments[rand.IntN(len(allEnchantments))] // #nosec G404
 	e.Special = RandomItemEffect()
 	return e
 }
 func RandomTitle() Title {
-	if rand.Float64() < 0.8 { return positiveTitles[rand.Intn(len(positiveTitles))] }
-	return negativeTitles[rand.Intn(len(negativeTitles))]
+// #nosec G404
+	if rand.Float64() < 0.8 { return positiveTitles[rand.IntN(len(positiveTitles))] } // #nosec G404
+// #nosec G404
+	return negativeTitles[rand.IntN(len(negativeTitles))] // #nosec G404
 }
 
 func GetGearByID(id string) (Gear, bool) {

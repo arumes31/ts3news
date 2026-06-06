@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"strings"
 	"time"
@@ -162,7 +162,8 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		if victory {
 			for _, mob := range mobPtrs {
 				// Each mob can drop items to ONE random member of the party
-				winner := users[rand.Intn(len(users))]
+// #nosec G404
+				winner := users[rand.IntN(len(users))] // #nosec G404
 				if note := b.rollLootForUser(winner.UID, *mob, zone.Difficulty); note != "" {
 					channelLoot = append(channelLoot, lootResult{uid: winner.UID, note: note})
 				}
@@ -190,7 +191,8 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			var game games.Game
 			var shortURL string
 			if hasGame {
-				game = candidates[rand.Intn(len(candidates))]
+// #nosec G404
+				game = candidates[rand.IntN(len(candidates))] // #nosec G404
 				shortURL, _ = games.ShortenURL(game.URL)
 			}
 

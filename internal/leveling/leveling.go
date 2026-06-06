@@ -6,7 +6,7 @@ package leveling
 import (
 	"fmt"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"sort"
 	"strconv"
 	"strings"
@@ -157,7 +157,8 @@ func LevelName(level int) string {
 
 // XPPerPoke returns a randomised XP award.
 func XPPerPoke() int {
-	return xpMin + rand.Intn(xpMax-xpMin+1)
+// #nosec G404
+	return xpMin + rand.IntN(xpMax-xpMin+1) // #nosec G404
 }
 
 // XPForPrice maps a game's original price to an XP award.

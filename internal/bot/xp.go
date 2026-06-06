@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 	"time"
 
@@ -162,7 +162,8 @@ func (b *Bot) computeMiscMult(uid, nickname string, cid int, ctx cycleContext) f
 	if streak := b.updateStreak(uid, ctx.today); streakMultiplier(streak) > 1 {
 		mult *= streakMultiplier(streak)
 	}
-	if rand.Float64() < critChance {
+// #nosec G404
+	if rand.Float64() < critChance { // #nosec G404
 		mult *= critMult
 	}
 	if sv := serverMultiplier(ctx.onlineNormal); sv > 1 {
@@ -424,7 +425,8 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				if eff == content.EffectVampiric { lifesteal += 5 }
 			}
 
-			if multiStrike > 0 && rand.Intn(100) < multiStrike {
+// #nosec G404
+			if multiStrike > 0 && rand.IntN(100) < multiStrike { // #nosec G404
 				extraHits = 2
 				logs = append(logs, fmt.Sprintf("⚔️ %s double attack!", u.Nickname))
 			}
@@ -432,7 +434,8 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			for h := 0; h < extraHits; h++ {
 				aliveMobs := b.getAliveMobs(mobs)
 				if len(aliveMobs) == 0 { break }
-				target := aliveMobs[rand.Intn(len(aliveMobs))]
+// #nosec G404
+				target := aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
 				
 				dmgMult := 1.0
 				ignoreDef := 0.0
@@ -441,12 +444,15 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 					if eff == content.EffectFragile { dmgMult += 0.3 }
 				}
 
-				if len(u.Skills) > 0 && rand.Float64() < 0.3 {
-					s := u.Skills[rand.Intn(len(u.Skills))]
+// #nosec G404
+				if len(u.Skills) > 0 && rand.Float64() < 0.3 { // #nosec G404
+// #nosec G404
+					s := u.Skills[rand.IntN(len(u.Skills))] // #nosec G404
 					dmgMult *= s.Power
 					ignoreDef = s.IgnoreDef
 					logs = append(logs, fmt.Sprintf("✨ %s: %s!", u.Nickname, s.Name))
-					if s.StunChance > 0 && rand.Float64() < s.StunChance {
+// #nosec G404
+					if s.StunChance > 0 && rand.Float64() < s.StunChance { // #nosec G404
 						logs = append(logs, fmt.Sprintf("💫 %s STUNNED!", target.Name))
 						target.Stats.SPD = 0
 					}
@@ -464,7 +470,8 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				totalUserDamage += dmg
 
 				// Chain Attack Logic for groups (3+ players)
-				if len(users) >= 3 && rand.Float64() < 0.3 {
+// #nosec G404
+				if len(users) >= 3 && rand.Float64() < 0.3 { // #nosec G404
 					others := b.getAliveMobs(mobs)
 					if len(others) > 1 {
 						var chainTarget *content.Mob
@@ -480,7 +487,8 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 
 				// Mind Control Logic (Scale with level)
 				if mindControlLevel > 0 && len(u.Pets) < mindControlLevel && target.Stats.HP > 0 && float64(target.Stats.HP) < float64(target.Level*20)*0.2 { 
-					if rand.Float64() < 0.5 {
+// #nosec G404
+					if rand.Float64() < 0.5 { // #nosec G404
 						logs = append(logs, fmt.Sprintf("🌀 Captive: %s!", target.Name))
 						u.Pets = append(u.Pets, target)
 						b.savePet(u.UID, target)
@@ -502,7 +510,8 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				if target.Stats.HP <= 0 {
 					logs = append(logs, fmt.Sprintf("☠️ %s defeated by %s!", target.Name, u.Nickname))
 					// Award loot for every mob defeated, regardless of final outcome
-					winner := users[rand.Intn(len(users))]
+// #nosec G404
+					winner := users[rand.IntN(len(users))] // #nosec G404
 					if note := b.rollLootForUser(winner.UID, *target, zone.Difficulty); note != "" {
 						logs = append(logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, target.Name, note))
 					}
@@ -516,8 +525,10 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				if p.Stats.HP <= 0 { continue }
 
 				// Betrayal check (3% chance)
-				if rand.Float64() < 0.03 {
-					targetAU := activeUsers[rand.Intn(len(activeUsers))]
+// #nosec G404
+				if rand.Float64() < 0.03 { // #nosec G404
+// #nosec G404
+					targetAU := activeUsers[rand.IntN(len(activeUsers))] // #nosec G404
 					target := targetAU.u
 					if target.CurrentHP > 0 {
 						pdmg := int(float64(p.Stats.STR - target.Stats.DEF) * intensify)
@@ -532,14 +543,16 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 
 				aliveMobs := b.getAliveMobs(mobs)
 				if len(aliveMobs) == 0 { break }
-				ptarget := aliveMobs[rand.Intn(len(aliveMobs))]
+// #nosec G404
+				ptarget := aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
 				pdmg := int(float64(p.Stats.STR - ptarget.Stats.DEF) * intensify)
 				if pdmg < 1 { pdmg = 1 }
 				ptarget.Stats.HP -= pdmg
 				totalUserDamage += pdmg
 				if ptarget.Stats.HP <= 0 {
 					logs = append(logs, fmt.Sprintf("☠️ %s killed by pet %s!", ptarget.Name, p.Name))
-					winner := users[rand.Intn(len(users))]
+// #nosec G404
+					winner := users[rand.IntN(len(users))] // #nosec G404
 					if note := b.rollLootForUser(winner.UID, *ptarget, zone.Difficulty); note != "" {
 						logs = append(logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, ptarget.Name, note))
 					}
@@ -558,15 +571,19 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				continue 
 			}
 			
-			targetAU := activeUsers[rand.Intn(len(activeUsers))]
+// #nosec G404
+			targetAU := activeUsers[rand.IntN(len(activeUsers))] // #nosec G404
 			target := targetAU.u
 			if target.CurrentHP <= 0 { continue }
 			
-			if rand.Intn(100) < target.Stats.DGE { continue }
+// #nosec G404
+			if rand.IntN(100) < target.Stats.DGE { continue } // #nosec G404
 
 			dmgMult := 1.0
-			if len(m.Spells) > 0 && rand.Float64() < 0.2 {
-				s := m.Spells[rand.Intn(len(m.Spells))]
+// #nosec G404
+			if len(m.Spells) > 0 && rand.Float64() < 0.2 { // #nosec G404
+// #nosec G404
+				s := m.Spells[rand.IntN(len(m.Spells))] // #nosec G404
 				dmgMult = s.Power
 				logs = append(logs, fmt.Sprintf("🔥 %s cast %s!", m.Name, s.Name))
 			}
@@ -594,7 +611,8 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			if dmg < 1 { dmg = 1 }
 			
 			for _, eff := range m.Effects {
-				if eff == content.EffectBlinded && rand.Float64() < 0.5 { dmg = 0 }
+// #nosec G404
+				if eff == content.EffectBlinded && rand.Float64() < 0.5 { dmg = 0 } // #nosec G404
 			}
 
 			target.CurrentHP -= dmg
@@ -768,7 +786,8 @@ func serverMultiplier(onlineNormal int) float64 {
 func lootBoxForCross(oldLevel, newLevel int) int {
 	if newLevel <= oldLevel { return 0 }
 	first := (oldLevel/lootBoxEveryLevels + 1) * lootBoxEveryLevels
-	if first <= newLevel { return lootBoxMin + rand.Intn(lootBoxMax-lootBoxMin+1) }
+// #nosec G404
+	if first <= newLevel { return lootBoxMin + rand.IntN(lootBoxMax-lootBoxMin+1) } // #nosec G404
 	return 0
 }
 
@@ -860,7 +879,8 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) {
 		if eff == content.EffectFragile { lossMult = 2 }
 	}
 
-	if rand.Intn(100) < stats.STA { return }
+// #nosec G404
+	if rand.IntN(100) < stats.STA { return } // #nosec G404
 
 	loss := duraLossPerFight * lossMult
 	if defeat { loss = duraLossPenalty * lossMult }
@@ -1016,7 +1036,8 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 	}
 
 	for i := 0; i < count; i++ {
-		r := rand.Float64() - lootFindBonus
+// #nosec G404
+		r := rand.Float64() - lootFindBonus // #nosec G404
 		lootFound := false
 		if r < titleChance*qualityMult {
 			t := content.RandomTitle()
@@ -1087,7 +1108,8 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 
 		// 100% Drop Guarantee: If nothing else found, drop a Common item or Scrap
 		if !lootFound {
-			if rand.Float64() < 0.7 {
+// #nosec G404
+			if rand.Float64() < 0.7 { // #nosec G404
 				// Drop a basic common gear (Trash/Scrap fallback)
 				g := content.RandomStarterGear()
 				if b.shouldEquip(uid, g) {
@@ -1183,7 +1205,8 @@ func (b *Bot) applyEnchantment(uid string, ench content.Enchantment) (string, bo
 		}
 	}
 	if len(slots) == 0 { return "", false }
-	target := slots[rand.Intn(len(slots))]
+// #nosec G404
+	target := slots[rand.IntN(len(slots))] // #nosec G404
 	if target.enchID != "" {
 		if cur, ok := content.GetEnchantmentByID(target.enchID); ok {
 			if ench.Rarity < cur.Rarity { return "", false }
