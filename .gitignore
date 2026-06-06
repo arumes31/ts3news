@@ -8,3 +8,4 @@ venv/
 temp/
 .claude/
 .gemini/
+bot

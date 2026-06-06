@@ -2,50 +2,38 @@ package bot
 
 import (
 	"testing"
-	"ts3news/internal/games"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"ts3news/internal/config"
+	"ts3news/internal/games"
 )
 
 func TestFilterNewGames(t *testing.T) {
-	b := &Bot{}
 	allGames := []games.Game{
-		{ID: 1, Title: "Game 1"},
-		{ID: 2, Title: "Game 2"},
-		{ID: 3, Title: "Game 3"},
+		{ID: 1, Title: "Game One"},
+		{ID: 2, Title: "Game Two"},
+		{ID: 3, Title: "Game Three"},
 	}
 
 	tests := []struct {
 		name        string
-		alreadySent []int
-		wantIDs     []int
+		alreadySent []string // game keys
+		wantTitles  []string
 	}{
-		{
-			name:        "None sent",
-			alreadySent: []int{},
-			wantIDs:     []int{1, 2, 3},
-		},
-		{
-			name:        "Some sent",
-			alreadySent: []int{1, 3},
-			wantIDs:     []int{2},
-		},
-		{
-			name:        "All sent",
-			alreadySent: []int{1, 2, 3},
-			wantIDs:     []int{},
-		},
+		{"None sent", nil, []string{"Game One", "Game Two", "Game Three"}},
+		{"Some sent", []string{"gameone", "gamethree"}, []string{"Game Two"}},
+		{"All sent", []string{"gameone", "gametwo", "gamethree"}, nil},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := b.filterNewGames(allGames, tt.alreadySent)
-			if len(got) != len(tt.wantIDs) {
-				t.Errorf("got %d candidates, want %d", len(got), len(tt.wantIDs))
+			got := filterNewGames(allGames, tt.alreadySent)
+			if len(got) != len(tt.wantTitles) {
+				t.Fatalf("got %d candidates, want %d", len(got), len(tt.wantTitles))
 			}
-			for i, id := range tt.wantIDs {
-				if got[i].ID != id {
-					t.Errorf("at index %d: got ID %d, want %d", i, got[i].ID, id)
+			for i, title := range tt.wantTitles {
+				if got[i].Title != title {
+					t.Errorf("at index %d: got %q, want %q", i, got[i].Title, title)
 				}
 			}
 		})
@@ -59,36 +47,34 @@ func TestDatabasePersistence(t *testing.T) {
 	}
 	defer db.Close()
 
-	b := &Bot{
-		Cfg: &config.Config{},
-		DB:  db,
-	}
+	b := &Bot{Cfg: &config.Config{}, DB: db}
 
+	uid := "abc123uniqueid="
 	nickname := "Daniel"
-	gameID := 123
+	gameKey := "gravitycircuit"
+	gameTitle := "Gravity Circuit"
 
-	// Test markAsSent
+	// markAsSent inserts (client_uid, game_key, game_title, client_nickname).
 	mock.ExpectExec("INSERT INTO sent_notifications").
-		WithArgs(nickname, gameID).
+		WithArgs(uid, gameKey, gameTitle, nickname).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	if err := b.markAsSent(nickname, gameID); err != nil {
+	if err := b.markAsSent(uid, nickname, gameKey, gameTitle); err != nil {
 		t.Errorf("markAsSent failed: %v", err)
 	}
 
-	// Test getSentGames
-	rows := sqlmock.NewRows([]string{"game_id"}).AddRow(gameID)
-	mock.ExpectQuery("SELECT game_id FROM sent_notifications").
-		WithArgs(nickname).
+	// getSentGames (ResendAfterDays = 0 => no time filter) returns game keys.
+	rows := sqlmock.NewRows([]string{"game_key"}).AddRow(gameKey)
+	mock.ExpectQuery("SELECT game_key FROM sent_notifications").
+		WithArgs(uid).
 		WillReturnRows(rows)
 
-	ids, err := b.getSentGames(nickname)
+	keys, err := b.getSentGames(uid)
 	if err != nil {
 		t.Errorf("getSentGames failed: %v", err)
 	}
-
-	if len(ids) != 1 || ids[0] != gameID {
-		t.Errorf("got ids %v, want [%d]", ids, gameID)
+	if len(keys) != 1 || keys[0] != gameKey {
+		t.Errorf("got keys %v, want [%s]", keys, gameKey)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
