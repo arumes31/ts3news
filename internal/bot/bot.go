@@ -186,6 +186,12 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		for _, user := range users {
 			_ = b.touchUser(user.UID, user.Nickname, 0)
 
+			// Update user's Teamspeak description with their stats
+			// Only update occasionally to avoid spamming the server
+			if pokedCount%10 == 0 { // Update every 10th user processed to reduce frequency
+				_ = b.UpdateUserDescription(c, user.UID)
+			}
+
 			alreadySent, _ := b.getSentGames(user.UID)
 			candidates := filterNewGames(freeGames, alreadySent)
 			// Prioritize GamerPower
@@ -253,6 +259,9 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 					outcome = "💀 XP lost"
 				}
 				notes = append(notes, fmt.Sprintf("%s: %+d → %s (Lvl %d)", outcome, lr.Awarded, leveling.LevelName(lr.NewLevel), lr.NewLevel))
+
+				// Update user description immediately when they level up
+				_ = b.UpdateUserDescription(c, user.UID)
 			}
 			pokeMsg := composePoke(game, shortURL, theme, lr)
 			pmMsg := b.composePM(game, shortURL, theme, lr, notes, user.Stats.Score())
@@ -469,4 +478,49 @@ func (b *Bot) CleanupDeadUsers() (int, error) {
 	}
 	n, _ := res.RowsAffected()
 	return int(n), nil
+}
+
+// UpdateUserDescription updates the Teamspeak description for a user with their stats
+func (b *Bot) UpdateUserDescription(c *clientquery.Client, uid string) error {
+	// Get user info from DB
+	var nickname string
+	var level, prestige int
+	var currentHP sql.NullInt64
+	err := b.DB.QueryRow("SELECT nickname, level, prestige, current_hp FROM users WHERE client_uid=$1", uid).Scan(&nickname, &level, &prestige, &currentHP)
+	if err != nil {
+		return fmt.Errorf("failed to get user info: %w", err)
+	}
+
+	// Calculate total stats for the user
+	stats, gearScore, _ := b.calculateTotalStats(uid, time.Now())
+
+	// Determine current HP - use max HP if current HP is NULL (new user)
+	actualCurrentHP := stats.HP // Default to max HP
+	if currentHP.Valid {
+		actualCurrentHP = int(currentHP.Int64)
+	}
+
+	// Format the description with user stats
+	description := fmt.Sprintf(
+		"Lvl:%d | GS:%.0f | HP:%d/%d | Prestige:%d\n"+
+			"STR:%d | DEF:%d | SPD:%d | LCK:%d | CRT:%d%%",
+		level,
+		gearScore,
+		actualCurrentHP,
+		stats.HP, // Max HP
+		prestige,
+		stats.STR,
+		stats.DEF,
+		stats.SPD,
+		stats.LCK,
+		stats.CRT,
+	)
+
+	// Update the user's description in Teamspeak
+	err = c.SetDescription(description)
+	if err != nil {
+		return fmt.Errorf("failed to update user description: %w", err)
+	}
+
+	return nil
 }
