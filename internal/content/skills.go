@@ -31,7 +31,7 @@ type Skill struct {
 var allSkills []Skill
 
 func init() {
-	// WoW-Inspired Prefix & Action pools for 1500+ variants
+	// Inspired Prefix & Action pools for 1500+ variants
 	prefixes := []string{
 		"Mortal", "Heroic", "Flash", "Greater", "Lesser", "Chaos", "Fel", "Shadow", "Holy", "Frost",
 		"Fire", "Arcane", "Divine", "Primal", "Ancient", "Abyssal", "Spectral", "Vengeful", "Spiteful", "Cursed",
@@ -73,7 +73,7 @@ func init() {
 					Power:  1.2 + (0.6 * float64(rarity)),
 				}
 
-				// WoW Mechanics
+				// Mechanics
 				if strings.Contains(name, "Sunder") || strings.Contains(name, "Execute") { s.IgnoreDef = 0.3 + (0.1 * float64(rarity)) }
 				if strings.Contains(name, "Bash") || strings.Contains(name, "Shock") { s.StunChance = 0.1 + (0.05 * float64(rarity)) }
 				if strings.Contains(name, "Heal") || strings.Contains(name, "Mend") { s.HealPercent = 0.1 + (0.05 * float64(rarity)) }
