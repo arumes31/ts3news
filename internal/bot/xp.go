@@ -289,7 +289,8 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 		_ = b.DB.QueryRow("SELECT consecutive_losses FROM users WHERE client_uid=$1", u.UID).Scan(&l)
 		totalLosses += l
 	}
-	avgLosses := float64(totalLosses) / float64(len(users))
+	avgLosses := 0.0
+	if len(users) > 0 { avgLosses = float64(totalLosses) / float64(len(users)) }
 	pityBuff := 1.0 + (avgLosses * 0.2)
 	if pityBuff > 1.0 {
 		logs = append(logs, fmt.Sprintf("⚠️ Combat Pity active: Stats boosted by %.0f%%!", (pityBuff-1.0)*100))
@@ -316,10 +317,18 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	var totalUserDamage, totalMobDamage int
 
 	for r := 1; r <= 10; r++ { // Reduced to 10 rounds max for speed
+		// Escalating Intensity: Damage increases by 15% per round to prevent stalls
+		intensify := 1.0 + float64(r-1)*0.15
+		
+		// Healing Exhaustion: Reduced healing after round 5
+		healPenalty := 1.0
+		if r > 5 { healPenalty = 1.0 - float64(r-5)*0.2 }
+		if healPenalty < 0 { healPenalty = 0 }
+
 		// 1. Round Start Effects (Regen/Poison/Pets/Hazards)
 		for _, eff := range zone.Effects {
 			if eff.Type == content.ZoneHazard {
-				dmg := int(eff.Power * 25)
+				dmg := int(eff.Power * 25 * intensify)
 				if dmg < 1 { dmg = 1 }
 				for i := range activeUsers {
 					activeUsers[i].u.CurrentHP -= dmg
@@ -337,11 +346,11 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			for _, eff := range m.Effects {
 				switch eff {
 				case content.EffectPoisoned: 
-					delta := m.Stats.HP/20
+					delta := int(float64(m.Stats.HP/20) * intensify)
 					if delta < 1 { delta = 1 }
 					m.Stats.HP -= delta
 				case content.EffectRegen: 
-					delta := m.Stats.HP/20
+					delta := int(float64(m.Stats.HP/20) * healPenalty)
 					if delta < 1 { delta = 1 }
 					m.Stats.HP += delta
 				}
@@ -353,14 +362,14 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			if u.CurrentHP <= 0 { continue }
 			// Passive Regen Stacks
 			if u.RegenStacks > 0 {
-				heal := u.RegenStacks * 2
+				heal := int(float64(u.RegenStacks * 2) * healPenalty)
 				u.CurrentHP += heal
 				if u.CurrentHP > u.Stats.HP { u.CurrentHP = u.Stats.HP }
 			}
 			// Pets Regen
 			for _, p := range u.Pets {
 				if p.Stats.HP > 0 {
-					p.Stats.HP += p.Level * 2
+					p.Stats.HP += int(float64(p.Level * 2) * healPenalty)
 				}
 			}
 		}
@@ -444,10 +453,30 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				}
 
 				effDef := float64(target.Stats.DEF) * (1.0 - ignoreDef)
-				dmg := int(float64(uSTR)*dmgMult - effDef)
+				dmg := int((float64(uSTR)*dmgMult - effDef) * intensify)
+				
+				// Percentage-Based Damage Floor (15% of STR) to prevent DEF stalemates
+				minDmg := int(float64(uSTR) * 0.15 * intensify)
+				if dmg < minDmg { dmg = minDmg }
 				if dmg < 1 { dmg = 1 }
+
 				target.Stats.HP -= dmg
 				totalUserDamage += dmg
+
+				// Chain Attack Logic for groups (3+ players)
+				if len(users) >= 3 && rand.Float64() < 0.3 {
+					others := b.getAliveMobs(mobs)
+					if len(others) > 1 {
+						var chainTarget *content.Mob
+						for _, xm := range others { if xm != target { chainTarget = xm; break } }
+						if chainTarget != nil {
+							chainDmg := dmg / 2
+							if chainDmg < 1 { chainDmg = 1 }
+							chainTarget.Stats.HP -= chainDmg
+							totalUserDamage += chainDmg
+						}
+					}
+				}
 
 				// Mind Control Logic (Scale with level)
 				if mindControlLevel > 0 && len(u.Pets) < mindControlLevel && target.Stats.HP > 0 && float64(target.Stats.HP) < float64(target.Level*20)*0.2 { 
@@ -463,7 +492,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				}
 
 				if lifesteal > 0 {
-					heal := int(float64(dmg) * float64(lifesteal) / 100.0)
+					heal := int(float64(dmg) * float64(lifesteal) / 100.0 * healPenalty)
 					if heal > 0 { 
 						u.CurrentHP += heal
 						if u.CurrentHP > u.Stats.HP { u.CurrentHP = u.Stats.HP }
@@ -491,7 +520,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 					targetAU := activeUsers[rand.Intn(len(activeUsers))]
 					target := targetAU.u
 					if target.CurrentHP > 0 {
-						pdmg := p.Stats.STR - target.Stats.DEF
+						pdmg := int(float64(p.Stats.STR - target.Stats.DEF) * intensify)
 						if pdmg < 1 { pdmg = 1 }
 						target.CurrentHP -= pdmg
 						logs = append(logs, fmt.Sprintf("⚠️ Rogue Pet %s bit %s for %d!", p.Name, target.Nickname, pdmg))
@@ -504,7 +533,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				aliveMobs := b.getAliveMobs(mobs)
 				if len(aliveMobs) == 0 { break }
 				ptarget := aliveMobs[rand.Intn(len(aliveMobs))]
-				pdmg := p.Stats.STR - ptarget.Stats.DEF
+				pdmg := int(float64(p.Stats.STR - ptarget.Stats.DEF) * intensify)
 				if pdmg < 1 { pdmg = 1 }
 				ptarget.Stats.HP -= pdmg
 				totalUserDamage += pdmg
@@ -557,7 +586,11 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				}
 			}
 
-			dmg := int(float64(mSTR)*dmgMult - float64(target.Stats.DEF))
+			dmg := int((float64(mSTR)*dmgMult - float64(target.Stats.DEF)) * intensify)
+			
+			// Percentage-Based Damage Floor (10% of STR)
+			minDmg := int(float64(mSTR) * 0.10 * intensify)
+			if dmg < minDmg { dmg = minDmg }
 			if dmg < 1 { dmg = 1 }
 			
 			for _, eff := range m.Effects {
@@ -1006,10 +1039,12 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			g.Stats.STR = int(float64(g.Stats.STR) * zoneDifficulty)
 			g.Stats.DEF = int(float64(g.Stats.DEF) * zoneDifficulty)
 			g.Stats.SPD = int(float64(g.Stats.SPD) * zoneDifficulty)
+
 			if b.shouldEquip(uid, g) {
 				_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
 				results = append(results, "Equipped: "+g.Name)
 			} else {
+				// Disenchant
 				xp := 1 + int(g.Rarity)*2
 				_, _ = b.awardXP(uid, "", xp)
 				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", g.Name, xp))
@@ -1022,6 +1057,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			if slot, ok := b.equipSkill(uid, s); ok {
 				results = append(results, fmt.Sprintf("Learned %s (Slot %d)", s.Name, slot))
 			} else {
+				// Disenchant
 				xp := 2 + int(s.Rarity)*3
 				_, _ = b.awardXP(uid, "", xp)
 				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", s.Name, xp))
