@@ -153,7 +153,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		resLogs, rewardXP, victory := b.resolveChannelCombat(users, mobPtrs, avgLvl, diffFactor, zone)
 		battleLogs = append(battleLogs, resLogs...)
 
-		// 3. Pool Loot for Channel (Shared cross-channel)
+		// 4. Pool Loot for Channel (Shared cross-channel)
 		type lootResult struct {
 			uid  string
 			note string
@@ -169,7 +169,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			}
 		}
 
-		// 4. Post-battle processing for each user
+		// 5. Post-battle processing for each user
 		for _, user := range users {
 			_ = b.touchUser(user.UID, user.Nickname, 0)
 
@@ -222,7 +222,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			// Messaging
 			notes = append(notes, battleLogs...)
 			pokeMsg := composePoke(game, shortURL, theme, lr)
-			pmMsg := b.composePM(game, shortURL, theme, lr, notes)
+			pmMsg := b.composePM(game, shortURL, theme, lr, notes, user.Stats.Score())
 
 			// Persona check
 			botNick := b.Cfg.TS3Nickname
@@ -286,7 +286,12 @@ func composePoke(g games.Game, shortURL string, theme *content.Theme, lvl *level
 	}
 	suffix := ""
 	if lvl != nil {
-		suffix = fmt.Sprintf(" +%dXP L%d", lvl.Awarded, lvl.NewLevel)
+		sign := "+"
+		amt := lvl.Awarded
+		if amt < 0 {
+			sign = "" // amt already has "-"
+		}
+		suffix = fmt.Sprintf(" %s%dXP L%d", sign, amt, lvl.NewLevel)
 	}
 	title := g.DisplayTitle()
 	avail := 100 - len(prefix) - 1 - len(shortURL) - len(suffix)
@@ -296,7 +301,7 @@ func composePoke(g games.Game, shortURL string, theme *content.Theme, lvl *level
 	return fmt.Sprintf("%s%s %s%s", prefix, title, shortURL, suffix)
 }
 
-func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl *levelResult, notes []string) string {
+func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl *levelResult, notes []string, totalGS int) string {
 	var sb strings.Builder
 	if theme != nil {
 		sb.WriteString(theme.Emoji + " " + theme.Banner)
@@ -319,8 +324,8 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 	}
 
 	if lvl != nil {
-		fmt.Fprintf(&sb, "🏆 %s (Lvl %d) — +%d XP (%d total)\n",
-			leveling.LevelName(lvl.NewLevel), lvl.NewLevel, lvl.Awarded, lvl.TotalXP)
+		fmt.Fprintf(&sb, "🏆 %s (Lvl %d) [GS: %d] — +%d XP (%d total)\n",
+			leveling.LevelName(lvl.NewLevel), lvl.NewLevel, totalGS, lvl.Awarded, lvl.TotalXP)
 		if lvl.NewLevel > lvl.OldLevel {
 			fmt.Fprintf(&sb, "🎉 Level up! You are now a %s!\n", leveling.LevelName(lvl.NewLevel))
 		}

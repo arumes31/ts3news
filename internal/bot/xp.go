@@ -121,9 +121,18 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 		mult *= noGamePenalty
 		notes = append(notes, "no new game -50%")
 	}
-	award := int(math.Round(float64(base) * mult * awardMult))
-	if award < 1 && base > 0 {
-		award = 1
+	award := 0
+	if base > 0 {
+		award = int(math.Round(float64(base) * mult * awardMult))
+		if award < 1 { award = 1 }
+	} else {
+		// Penalty should NOT be subject to positive multipliers (streak, etc.)
+		award = base // base is already negative here
+		// Cap loss at 10% of total XP or a reasonable flat amount for low levels
+		var curXP int
+		_ = b.DB.QueryRow("SELECT xp FROM users WHERE client_uid=$1", uid).Scan(&curXP)
+		maxLoss := -(10 + int(float64(curXP)*0.1))
+		if award < maxLoss { award = maxLoss }
 	}
 	delta += award
 
@@ -229,6 +238,22 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	var logs []string
 	mobs := initialMobs
 
+	// 1. Battle Header (What we fighting)
+	var partyNames []string
+	for _, u := range users { partyNames = append(partyNames, u.Nickname) }
+	
+	mobCounts := make(map[string]int)
+	for _, m := range mobs { mobCounts[m.DisplayName()]++ }
+	var enemyNames []string
+	for name, count := range mobCounts {
+		if count > 1 {
+			enemyNames = append(enemyNames, fmt.Sprintf("%dx %s", count, name))
+		} else {
+			enemyNames = append(enemyNames, name)
+		}
+	}
+	logs = append(logs, fmt.Sprintf("⚔️ BATTLE: %s VS %s", strings.Join(partyNames, ", "), strings.Join(enemyNames, ", ")))
+
 	var activeUsers []activeUser
 	for i := range users {
 		_, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
@@ -273,7 +298,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	// Log mob effects
 	for _, m := range mobs {
 		for _, eff := range m.Effects {
-			logs = append(logs, fmt.Sprintf("%s is %s!", m.Name, eff))
+			logs = append(logs, fmt.Sprintf("❕ %s is %s!", m.Name, eff))
 		}
 	}
 
@@ -587,10 +612,10 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	}
 
 	if victory {
-		logs = append(logs, fmt.Sprintf("VICTORY! Party defeated all mobs. (Avg Lvl: %d)", avgLvl))
+		logs = append(logs, fmt.Sprintf("🏁 VICTORY! Party defeated all %d mobs in %s.", len(mobs), zone.Name))
 		return logs, totalRewardXP / len(users), true
 	}
-	logs = append(logs, "DEFEAT! Party was overrun.")
+	logs = append(logs, fmt.Sprintf("🏁 DEFEAT! Party was overrun in %s.", zone.Name))
 	return logs, -totalRewardXP / (2 * len(users)), false
 }
 
