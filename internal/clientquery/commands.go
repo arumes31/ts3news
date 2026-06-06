@@ -152,6 +152,12 @@ func (c *Client) SetNickname(nickname string) error {
 	return err
 }
 
+// SetDescription updates the client's description field.
+func (c *Client) SetDescription(description string) error {
+	_, err := c.Command("clientupdate client_description=" + Escape(description))
+	return err
+}
+
 // ClientDBID returns the server-side database id (cldbid) for a connected client,
 // needed for server-group operations.
 func (c *Client) ClientDBID(clid int) (int, error) {

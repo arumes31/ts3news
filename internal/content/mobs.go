@@ -18,13 +18,13 @@ const (
 type MobEffect string
 
 const (
-	EffectEnraged    MobEffect = "Enraged"     // +50% STR
-	EffectArmored    MobEffect = "Armored"     // +50% DEF
-	EffectFleet      MobEffect = "Fleet-foot"  // +50% SPD
-	EffectPoisoned   MobEffect = "Poisoned"    // Loses 5% HP per round
-	EffectWeakened   MobEffect = "Weakened"    // -50% STR
-	EffectBlinded    MobEffect = "Blinded"     // 50% miss chance
-	EffectRegen      MobEffect = "Regenerative" // Heals 5% HP per round
+	EffectEnraged  MobEffect = "Enraged"      // +50% STR
+	EffectArmored  MobEffect = "Armored"      // +50% DEF
+	EffectFleet    MobEffect = "Fleet-foot"   // +50% SPD
+	EffectPoisoned MobEffect = "Poisoned"     // Loses 5% HP per round
+	EffectWeakened MobEffect = "Weakened"     // -50% STR
+	EffectBlinded  MobEffect = "Blinded"      // 50% miss chance
+	EffectRegen    MobEffect = "Regenerative" // Heals 5% HP per round
 )
 
 type DeathEffectType string
@@ -69,7 +69,6 @@ func (m Mob) Score() int {
 	return m.Stats.HP/5 + m.Stats.STR + m.Stats.DEF + m.Stats.SPD + m.Level*10
 }
 
-
 var baseMobs []Mob
 
 func init() {
@@ -80,9 +79,9 @@ func init() {
 		for _, n := range nouns {
 			name := p + " " + n
 			baseMobs = append(baseMobs, Mob{
-				Name:  name,
-				Type:  MobCommon,
-				Stats: Stats{HP: 20, STR: 5, DEF: 2, SPD: 5, LCK: 0},
+				Name:     name,
+				Type:     MobCommon,
+				Stats:    Stats{HP: 20, STR: 5, DEF: 2, SPD: 5, LCK: 0},
 				RewardXP: 5,
 			})
 		}
@@ -95,16 +94,16 @@ func init() {
 
 // SpawnMob scales a mob to the given level and difficulty factor (0.1 to 1.0+)
 func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
-// #nosec G404
-	idx := rand.IntN(100) // index for common mobs // #nosec G404
+	// #nosec G404
+	idx := rand.IntN(100)      // index for common mobs // #nosec G404
 	if isBoss && level >= 10 { // Bosses require level 10+
 		idx = len(baseMobs) - 2 // Ancient Dragon
 	}
-	
+
 	m := baseMobs[idx]
 	if !isBoss {
-// #nosec G404
-		r := rand.Float64() // #nosec G404
+		// #nosec G404
+		r := rand.Float64()          // #nosec G404
 		if r < 0.01 && level >= 25 { // Legendaries require level 25+
 			m = baseMobs[len(baseMobs)-1]
 		} else if r < 0.05 && level >= 10 { // Bosses require level 10+
@@ -115,26 +114,28 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	}
 
 	m.Level = level
-	
+
 	// --- BALANCED SCALING ---
 	// 1. Level Scaling (Base power) - Flatter growth
-	lvlScale := 1.0 + 0.05*float64(level-1)
-	
+	lvlScale := 1.0 + 0.005*float64(level-1)
+
 	// 2. Difficulty Dampening
 	// Instead of full multiplication, difficulty only affects 30% of the scaling
 	// Example: difficulty 2.0 (Zone + Gear) becomes a 1.3x multiplier
 	effectiveDiff := 1.0 + (difficulty-1.0)*0.3
-	
+
 	totalScale := lvlScale * effectiveDiff
-	if totalScale < 0.1 { totalScale = 0.1 }
+	if totalScale < 0.1 {
+		totalScale = 0.1
+	}
 
 	m.Stats.HP = int(float64(m.Stats.HP) * totalScale)
 	m.Stats.STR = int(float64(m.Stats.STR) * totalScale)
-	
+
 	// Flatten DEF scaling: 50% slower growth than STR/HP to prevent 'DEF Wall'
 	defScale := 1.0 + (totalScale-1.0)*0.5
 	m.Stats.DEF = int(float64(m.Stats.DEF) * defScale)
-	
+
 	m.Stats.SPD = int(float64(m.Stats.SPD) * totalScale)
 
 	// XP rewards still scale fully to reward the risk
@@ -151,10 +152,10 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	}
 
 	// Random effect
-// #nosec G404
+	// #nosec G404
 	if rand.Float64() < 0.3 { // #nosec G404
 		effects := []MobEffect{EffectEnraged, EffectArmored, EffectFleet, EffectPoisoned, EffectWeakened, EffectBlinded, EffectRegen}
-// #nosec G404
+		// #nosec G404
 		eff := effects[rand.IntN(len(effects))] // #nosec G404
 		m.Effects = append(m.Effects, eff)
 
@@ -178,7 +179,7 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 	// 1-2 Equipped items that drop as loot
 	itemCount := 1
-// #nosec G404
+	// #nosec G404
 	if rand.Float64() < 0.3 { // #nosec G404
 		itemCount = 2
 	}
@@ -191,13 +192,13 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	if m.Type == MobCommon {
 		chance = 0.2 // Trash mobs often have effects
 	}
-// #nosec G404
+	// #nosec G404
 	if rand.Float64() < chance { // #nosec G404
 		prefixes := []string{"Last", "Final", "Dying", "Bitter", "Vengeful", "Spiteful", "Desperate", "Echoing", "Ghostly", "Cursed"}
 		actions := []string{"Roar", "Whimper", "Gasp", "Curse", "Blast", "Wail", "Howl", "Scream", "Sigh", "Command"}
-		
+
 		dType := DeathExplosion
-// #nosec G404
+		// #nosec G404
 		r := rand.Float64() // #nosec G404
 		if r < 0.4 {
 			dType = DeathSummon
@@ -210,7 +211,7 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 		}
 
 		m.DeathEffect = &MobDeathEffect{
-// #nosec G404
+			// #nosec G404
 			Name: prefixes[rand.IntN(len(prefixes))] + " " + actions[rand.IntN(len(actions))], // #nosec G404
 			Type: dType,
 		}
@@ -219,12 +220,15 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	return m
 }
 
-func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64) []Mob {
+func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64, groupSize int) []Mob {
+	// 15% chance to spawn a HORDE of weaker mobs (great for farming drops/XP)
+	// #nosec G404
+	isHorde := rand.Float64() < 0.15 // #nosec G404
+
 	// Difficulty affects count: higher difficulty = more mobs
 	// #nosec G404
-// #nosec G404
 	baseCount := 2 + rand.IntN(3) // Increased base from 1 to 2
-	
+
 	// Zone Special effect: extra mobs
 	for _, eff := range zone.Effects {
 		if eff.Type == ZoneSpecial && strings.Contains(eff.Name, "Surge") {
@@ -232,16 +236,56 @@ func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64) []Mob {
 		}
 	}
 
+	// Horde spawns: 5-10 weaker mobs
+	if isHorde {
+		baseCount = 5 + rand.IntN(6) // 5 to 10 mobs in a horde // #nosec G404
+	}
+
 	// Dampen count scaling
 	count := int(float64(baseCount) * (1.0 + (difficulty-1.0)*0.3))
-	if count < 1 { count = 1 }
-	if count > 8 { count = 8 } // Increased cap from 6 to 8 for better balance
+	if count < 1 {
+		count = 1
+	}
+	if count > 12 {
+		count = 12
+	} // Increased cap for hordes
+
+	// Mobs scale slightly with group size to prevent trivial farming
+	groupMult := 1.0 + float64(groupSize-1)*0.1
+	if groupMult > 2.5 {
+		groupMult = 2.5
+	}
 
 	var out []Mob
-// #nosec G404
-	hasBoss := rand.Float64() < 0.1 * difficulty // Slightly increased boss chance // #nosec G404
+	// #nosec G404
+	hasBoss := rand.Float64() < 0.1*difficulty && !isHorde // Bosses don't spawn in hordes // #nosec G404
 	for i := 0; i < count; i++ {
-		out = append(out, SpawnMob(avgLevel, hasBoss && i == 0, difficulty))
+		mob := SpawnMob(avgLevel, hasBoss && i == 0, difficulty)
+		// Apply group scaling
+		mob.Stats.HP = int(float64(mob.Stats.HP) * groupMult)
+		mob.Stats.STR = int(float64(mob.Stats.STR) * groupMult)
+		mob.Stats.DEF = int(float64(mob.Stats.DEF) * groupMult)
+		mob.Stats.SPD = int(float64(mob.Stats.SPD) * groupMult)
+
+		if isHorde {
+			// Horde mobs are weaker (50-80% of normal level)
+			// #nosec G404
+			levelMult := 0.5 + rand.Float64()*0.3 // #nosec G404
+			mob.Level = int(float64(mob.Level) * levelMult)
+			if mob.Level < 1 {
+				mob.Level = 1
+			}
+			// Scale stats down proportionally
+			mob.Stats.HP = int(float64(mob.Stats.HP) * levelMult)
+			mob.Stats.STR = int(float64(mob.Stats.STR) * levelMult)
+			mob.Stats.DEF = int(float64(mob.Stats.DEF) * levelMult)
+			mob.Stats.SPD = int(float64(mob.Stats.SPD) * levelMult)
+			// Rename to indicate horde
+			mob.Name = "Horde " + mob.Name
+			// Hordes give slightly less XP per mob
+			mob.RewardXP = int(float64(mob.RewardXP) * 0.6)
+		}
+		out = append(out, mob)
 	}
 	return out
 }

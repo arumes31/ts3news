@@ -1,24 +1,53 @@
+# Environment/Config
 config.env
+.env
+
+# Python simulation files (development only)
+data_structures.py
+gearing_simulation.py
+progression_to_prestige_simulation.py
+win_lose_rates_calculation.py
+gear_rates_calculation.py
+item_level_improvements.py
+level_up_simulation.py
+main_simulation.py
+simulation_requirements.md
+
+# Python cache/venv
 __pycache__/
 *.pyc
-.env
-*.json
 venv/
+.venv/
 .pytest_cache/
 temp/
+
+# AI Assistant data
 .claude/
 .gemini/
 .gemini_security/
-/bot
+.qodo/
+.qwen/
 
-# Go
+# Go binaries
+/bot
 /bot.exe
 /ts3news
+/ts3news.exe
 *.test
 *.prof
 
-# OS/IDE
+# Simulation binary
+cmd/simulation/sim.exe
+cmd/simulation/ts3news_sim.exe
+
+# IDE
 .vscode/
 .idea/
 Thumbs.db
 Desktop.ini
+
+# OS files
+*.log
+*.tmp
+*.swp
+*~

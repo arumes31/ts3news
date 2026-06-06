@@ -59,9 +59,9 @@ var baseTierNames = []string{
 // XP curve tuning for 10000 levels.
 // Sharpened curve: 1-1000 is much easier, then it gets exponentially harder.
 const (
-	xpMin      = 20 // Increased from 10
-	xpMax      = 50 // Increased from 25
-	xpCurveK   = 1.0
+	xpMin    = 30 // Tuned: was 20
+	xpMax    = 65 // Tuned: was 50
+	xpCurveK = 1.0
 )
 
 // SubRank returns a level's rank within its tier (1..30).
@@ -107,7 +107,7 @@ func XPForLevel(level int) int {
 	if exponent > 5.0 {
 		exponent = 5.0
 	}
-	
+
 	val := math.Pow(float64(level-1), exponent)
 	// Cap at a large integer to prevent overflow during search
 	if val > 2e15 {
@@ -143,21 +143,21 @@ func LevelName(level int) string {
 	}
 	tier := TierForLevel(level)
 	sub := SubRank(level)
-	
+
 	name := TierName(tier)
-	
+
 	// Add Realm flair for very high levels
 	if level > 6000 {
 		realm := epicRealms[(level/300)%len(epicRealms)]
 		return fmt.Sprintf("%s of the %s %s", name, realm, roman(sub))
 	}
-	
+
 	return name + " " + roman(sub)
 }
 
 // XPPerPoke returns a randomised XP award.
 func XPPerPoke() int {
-// #nosec G404
+	// #nosec G404
 	return xpMin + rand.IntN(xpMax-xpMin+1) // #nosec G404
 }
 
@@ -239,7 +239,7 @@ func LevelByName(name string) (int, bool) {
 	if len(parts) < 2 {
 		return 0, false
 	}
-	
+
 	rom := parts[len(parts)-1]
 	sub := deroman(rom)
 	if sub == 0 {
@@ -252,7 +252,7 @@ func LevelByName(name string) (int, bool) {
 	if strings.Contains(fullTName, " of the ") {
 		tName = strings.Split(fullTName, " of the ")[0]
 	}
-	
+
 	// 2. Check all tiers (base + procedural)
 	for t := 1; t <= NumTiers; t++ {
 		if TierName(t) == tName {
@@ -264,7 +264,7 @@ func LevelByName(name string) (int, bool) {
 		}
 	}
 
-	return 0, false 
+	return 0, false
 }
 
 func deroman(s string) int {
@@ -273,7 +273,9 @@ func deroman(s string) int {
 	prev := 0
 	for i := len(s) - 1; i >= 0; i-- {
 		val, ok := m[rune(s[i])]
-		if !ok { return 0 }
+		if !ok {
+			return 0
+		}
 		if val < prev {
 			res -= val
 		} else {
