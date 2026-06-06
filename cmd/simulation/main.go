@@ -1569,40 +1569,40 @@ func main() {
 	fmt.Println("KEY FINDINGS")
 	fmt.Println(strings.Repeat("=", 80))
 
-	fmt.Println(`
+	fmt.Print(`
 1. BASE CONFIG: 0% win rate — combat math is fundamentally broken.
-   Mobs have too much HP and deal too much damage relative to players.
-   This makes all progression (XP, gear, prestige) effectively non-functional.
+	  Mobs have too much HP and deal too much damage relative to players.
+	  This makes all progression (XP, gear, prestige) effectively non-functional.
 
 2. BALANCED CONFIG: Fixing mob HP (0.5x) and damage (0.4x) while boosting
-   player HP (2x) and damage (1.5x) creates a viable fight curve.
-   Pity system (20% per loss, cap 200%) ensures losing streaks auto-correct.
+	  player HP (2x) and damage (1.5x) creates a viable fight curve.
+	  Pity system (20% per loss, cap 200%) ensures losing streaks auto-correct.
 
 3. OPTIMIZED CONFIG: Further tuning + faster XP (40-80 base), better drops
-   (10% gear, 8% skill, 2% artifact), lower prestige threshold (5000).
-   This creates engaging short-term and long-term progression loops.
+	  (10% gear, 8% skill, 2% artifact), lower prestige threshold (5000).
+	  This creates engaging short-term and long-term progression loops.
 
 4. PRESTIGE: At 10000 level threshold with base params, prestige is never
-   reached in 15 years. Lowering to 5000 makes it achievable while still
-   requiring significant investment.
+	  reached in 15 years. Lowering to 5000 makes it achievable while still
+	  requiring significant investment.
 
 5. GEAR: With 5% base drop rate and 24 slots, filling all slots takes
-   thousands of fights. Increasing to 10% + guaranteed drops at milestones
-   creates satisfying gear progression without making it trivial.
+	  thousands of fights. Increasing to 10% + guaranteed drops at milestones
+	  creates satisfying gear progression without making it trivial.
 
 6. DURABILITY: At 1 durability loss/fight and 30-110 max durability,
-   gear lasts 30-110 fights. With 1-5 fights/day, that's 6-110 days.
-   Increasing max durability to 80+ keeps gear around longer for
-   meaningful progression tracking.
+	  gear lasts 30-110 fights. With 1-5 fights/day, that's 6-110 days.
+	  Increasing max durability to 80+ keeps gear around longer for
+	  meaningful progression tracking.
 
 RECOMMENDED CHANGES TO ACTUAL CODE:
-  - internal/bot/xp.go: Reduce mob HP/damage scaling in resolveChannelCombat
-  - internal/bot/xp.go: Add pity system (already partially tracked via consecutive_losses)
-  - internal/bot/xp.go: Increase base XP from 20-50 to 30-65
-  - internal/content/artifacts.go: Increase gear drop chance from 5% to 8-10%
-  - internal/bot/prestige.go: Lower prestige threshold from 10000 to 5000
-  - internal/content/artifacts.go: Increase max durability base from 30 to 50
-  - Add gear repair/upgrade system for mid-late game progression
+	 - internal/bot/xp.go: Reduce mob HP/damage scaling in resolveChannelCombat
+	 - internal/bot/xp.go: Add pity system (already partially tracked via consecutive_losses)
+	 - internal/bot/xp.go: Increase base XP from 20-50 to 30-65
+	 - internal/content/artifacts.go: Increase gear drop chance from 5% to 8-10%
+	 - internal/bot/prestige.go: Lower prestige threshold from 10000 to 5000
+	 - internal/content/artifacts.go: Increase max durability base from 30 to 50
+	 - Add gear repair/upgrade system for mid-late game progression
 `)
 	fmt.Println(strings.Repeat("=", 80))
 	fmt.Println("SIMULATION COMPLETE")
