@@ -1,0 +1,9 @@
+ALTER TABLE users DROP COLUMN IF EXISTS group_level;
+ALTER TABLE users DROP COLUMN IF EXISTS cldbid;
+ALTER TABLE users DROP COLUMN IF EXISTS last_decay_date;
+ALTER TABLE users DROP COLUMN IF EXISTS streak_days;
+ALTER TABLE users DROP COLUMN IF EXISTS last_poke_date;
+ALTER TABLE users DROP COLUMN IF EXISTS last_login_date;
+ALTER TABLE users DROP COLUMN IF EXISTS artifact_mult;
+ALTER TABLE users DROP COLUMN IF EXISTS artifact_name;
+ALTER TABLE users DROP COLUMN IF EXISTS artifact_expires;

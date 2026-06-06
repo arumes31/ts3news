@@ -12,13 +12,30 @@ func TestLevelForXPMonotonic(t *testing.T) {
 		if l < prev {
 			t.Fatalf("level decreased at xp=%d: %d < %d", xp, l, prev)
 		}
-		if l < 1 || l > MaxLevel {
+		if l < 1 {
 			t.Fatalf("level %d out of range at xp=%d", l, xp)
 		}
 		prev = l
 	}
-	if l := LevelForXP(XPForLevel(MaxLevel) + 1_000_000); l != MaxLevel {
-		t.Errorf("huge xp should cap at %d, got %d", MaxLevel, l)
+	// Infinite tiers: huge XP keeps climbing past MaxLevel (no cap).
+	if l := LevelForXP(XPForLevel(MaxLevel) + 1_000_000); l <= MaxLevel {
+		t.Errorf("huge xp should exceed %d (infinite tiers), got %d", MaxLevel, l)
+	}
+}
+
+func TestInfiniteTiers(t *testing.T) {
+	// Names beyond MaxLevel are procedural and non-empty, and round-trip via LevelByName.
+	for _, lvl := range []int{1001, 1041, 2000, 4999} {
+		name := LevelName(lvl)
+		if name == "" {
+			t.Fatalf("empty procedural name at level %d", lvl)
+		}
+		if got, ok := LevelByName(name); !ok || got != lvl {
+			t.Errorf("LevelByName(%q) = %d,%v want %d", name, got, ok, lvl)
+		}
+	}
+	if got := LevelForXP(XPForLevel(1041)); got != 1041 {
+		t.Errorf("round-trip past cap failed: %d", got)
 	}
 }
 

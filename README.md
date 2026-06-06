@@ -162,7 +162,9 @@ All options are specified as environment variables in `config.env`.
 | `DYNAMIC_NICKNAME` | Rename the bot to match the announced game. | `true` | 🟢 No |
 | **Leveling** | | | |
 | `ENABLE_LEVELING` | Track XP / levels and show them in the PM. | `true` | 🟢 No |
-| `LEVEL_GROUPS` | Milestone → server group, e.g. `10:7,50:8` (needs permission). | *None* | 🟢 No |
+| `CHEAPER_MORE_XP` | `true` = cheaper games grant more XP; `false` = pricier games do. | `false` | 🟢 No |
+| `LEVEL_GROUPS` | Milestone → existing server group, e.g. `10:7,50:8` (needs permission). | *None* | 🟢 No |
+| `XP_SERVER_GROUPS` | Auto-create an icon'd server group per level tier; lazily created, auto-removed when empty (needs admin permission). | `false` | 🟢 No |
 | **Lifecycle** | | | |
 | `TS3_CLIENT_PATH` | Path to the TS3 client binary. | `/opt/ts3/ts3client_linux_amd64` | 🟢 No |
 | `CONNECT_TIMEOUT_SEC` | Watchdog: max wait for the client to connect each cycle. | `120` | 🟢 No |

@@ -11,8 +11,24 @@ import (
 	"strings"
 )
 
-// MaxLevel is the highest attainable level.
+// MaxLevel is the boundary up to which levels have fixed, hand-written tier
+// names. Levels are NOT capped here — beyond MaxLevel the names are generated
+// procedurally ("infinite tiers", e.g. "Ascendant Champion of the Void III").
 const MaxLevel = 1000
+
+// absoluteMaxLevel bounds LevelForXP so it can never loop unboundedly.
+const absoluteMaxLevel = 100000
+
+// nameMapMax is how far the reverse name->level lookup is precomputed (covers the
+// procedural range so empty level-group cleanup still recognises those names).
+const nameMapMax = 5000
+
+// Procedural name pools used for levels beyond MaxLevel ("infinite tiers").
+var (
+	epicAdjectives = []string{"Ascendant", "Eternal", "Astral", "Radiant", "Infernal", "Celestial", "Primordial", "Transcendent", "Mythic", "Abyssal"}
+	epicTitles     = []string{"Champion", "Warlord", "Sovereign", "Archon", "Overlord", "Demigod", "Titan", "Vanguard", "Conqueror", "Paragon"}
+	epicRealms     = []string{"Void", "Abyss", "Cosmos", "Eternity", "Storm", "Dawn", "Flame", "Frost", "Shadow", "Light"}
+)
 
 // XP curve tuning.
 //
@@ -46,44 +62,105 @@ var tierNames = []string{
 
 const levelsPerTier = MaxLevel / 25 // 40
 
-// XPForLevel returns the cumulative XP required to reach the given level.
-// Level 1 starts at 0 XP. See the curve-tuning notes above for the ~10-year design.
-func XPForLevel(level int) int {
-	if level <= 1 {
-		return 0
+// NumTiers is the number of level tiers (each spanning levelsPerTier levels).
+const NumTiers = 25
+
+// SubRank returns a level's rank within its tier (1..levelsPerTier), i.e. the
+// number shown as a roman numeral in the level name ("Peasant XVI" -> 16).
+func SubRank(level int) int {
+	if level < 1 {
+		level = 1
 	}
-	if level > MaxLevel {
-		level = MaxLevel
-	}
-	return int(math.Round(xpCurveK * math.Pow(float64(level-1), xpCurveExp)))
+	return (level-1)%levelsPerTier + 1
 }
 
-// LevelForXP returns the level (1..MaxLevel) corresponding to a total XP amount.
-func LevelForXP(xp int) int {
-	if xp <= 0 {
-		return 1
-	}
-	level := 1
-	for level < MaxLevel && XPForLevel(level+1) <= xp {
-		level++
-	}
-	return level
-}
-
-// LevelName returns the fantasy name for a level, e.g. "Knight XII".
-func LevelName(level int) string {
+// TierForLevel returns the 1..NumTiers tier a level belongs to.
+func TierForLevel(level int) int {
 	if level < 1 {
 		level = 1
 	}
 	if level > MaxLevel {
 		level = MaxLevel
 	}
-	tier := (level - 1) / levelsPerTier
-	if tier >= len(tierNames) {
-		tier = len(tierNames) - 1
+	tier := (level-1)/levelsPerTier + 1
+	if tier > NumTiers {
+		tier = NumTiers
+	}
+	return tier
+}
+
+// levelNameToLevel is a reverse lookup from a level's name back to its number.
+var levelNameToLevel = func() map[string]int {
+	m := make(map[string]int, nameMapMax)
+	for l := 1; l <= nameMapMax; l++ {
+		m[LevelName(l)] = l
+	}
+	return m
+}()
+
+// LevelByName returns the level number for a level name (e.g. "Peasant IX" -> 9),
+// reporting whether the name is a recognised level name.
+func LevelByName(name string) (int, bool) {
+	l, ok := levelNameToLevel[name]
+	return l, ok
+}
+
+// TierName returns the fantasy name of a tier (1..NumTiers), e.g. "Mercenary".
+func TierName(tier int) string {
+	if tier < 1 {
+		tier = 1
+	}
+	if tier > len(tierNames) {
+		tier = len(tierNames)
+	}
+	return tierNames[tier-1]
+}
+
+// XPForLevel returns the cumulative XP required to reach the given level.
+// Level 1 starts at 0 XP. See the curve-tuning notes above for the ~10-year design.
+func XPForLevel(level int) int {
+	if level <= 1 {
+		return 0
+	}
+	return int(math.Round(xpCurveK * math.Pow(float64(level-1), xpCurveExp)))
+}
+
+// LevelForXP returns the level for a total XP amount (uncapped — infinite tiers).
+func LevelForXP(xp int) int {
+	if xp <= 0 {
+		return 1
+	}
+	// Closed-form estimate (invert the curve), then nudge to the exact boundary.
+	level := int(math.Pow(float64(xp)/xpCurveK, 1.0/xpCurveExp)) + 1
+	if level < 1 {
+		level = 1
+	}
+	for level < absoluteMaxLevel && XPForLevel(level+1) <= xp {
+		level++
+	}
+	for level > 1 && XPForLevel(level) > xp {
+		level--
+	}
+	return level
+}
+
+// LevelName returns the fantasy name for a level, e.g. "Knight XII". Beyond
+// MaxLevel the name is generated procedurally (infinite tiers).
+func LevelName(level int) string {
+	if level < 1 {
+		level = 1
 	}
 	sub := (level-1)%levelsPerTier + 1 // 1..40
-	return tierNames[tier] + " " + roman(sub)
+	if level <= MaxLevel {
+		tier := (level - 1) / levelsPerTier
+		return tierNames[tier] + " " + roman(sub)
+	}
+	// Procedural "infinite" tiers: a unique adjective/title/realm per 40-level band.
+	band := (level - MaxLevel - 1) / levelsPerTier
+	adj := epicAdjectives[band%len(epicAdjectives)]
+	title := epicTitles[(band/len(epicAdjectives))%len(epicTitles)]
+	realm := epicRealms[(band/(len(epicAdjectives)*len(epicTitles)))%len(epicRealms)]
+	return adj + " " + title + " of the " + realm + " " + roman(sub)
 }
 
 // XPPerPoke returns a randomised XP award (used when the game price is unknown).
