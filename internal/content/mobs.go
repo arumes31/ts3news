@@ -89,19 +89,40 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 	m.Level = level
 	// Scaling logic: base level scaling * gear-aware difficulty factor
-	scale := (1.0 + 0.1*float64(level-1)) * difficulty
+	// Level scaling increased from 0.1 to 0.15 for better rewards at high levels.
+	scale := (1.0 + 0.15*float64(level-1)) * difficulty
 	if scale < 0.1 { scale = 0.1 }
 
 	m.Stats.HP = int(float64(m.Stats.HP) * scale)
 	m.Stats.STR = int(float64(m.Stats.STR) * scale)
 	m.Stats.DEF = int(float64(m.Stats.DEF) * scale)
 	m.Stats.SPD = int(float64(m.Stats.SPD) * scale)
-	m.RewardXP = int(float64(m.RewardXP) * scale)
+
+	// XP Scaling: Higher types provide even more rewards.
+	xpScale := scale
+	switch m.Type {
+	case MobElite:
+		xpScale *= 1.2
+	case MobBoss:
+		xpScale *= 1.5
+	case MobLegendary:
+		xpScale *= 2.5 // Legendary mobs are massive XP windfalls
+	}
+	m.RewardXP = int(float64(m.RewardXP) * xpScale)
 
 	// Random effect
 	if rand.Float64() < 0.3 {
 		effects := []MobEffect{EffectEnraged, EffectArmored, EffectFleet, EffectPoisoned, EffectWeakened, EffectBlinded, EffectRegen}
-		m.Effects = append(m.Effects, effects[rand.Intn(len(effects))])
+		eff := effects[rand.Intn(len(effects))]
+		m.Effects = append(m.Effects, eff)
+
+		// Harder effects give more XP
+		switch eff {
+		case EffectEnraged, EffectArmored, EffectRegen:
+			m.RewardXP = int(float64(m.RewardXP) * 1.3)
+		case EffectFleet:
+			m.RewardXP = int(float64(m.RewardXP) * 1.1)
+		}
 	}
 
 	// 1-2 Spells for mobs
