@@ -1,10 +1,10 @@
 // Package content provides the flavour text the bot mixes into its messages:
 // random greetings, holiday theming and game-based nicknames.
-// Everything here is deterministic-free (uses math/rand) and side-effect free,
+// Everything here is deterministic-free (uses math/rand/v2) and side-effect free,
 // so it is trivially unit-testable.
 package content
 
-import "math/rand"
+import "math/rand/v2"
 
 // greetings holds 100 short, punchy opening lines for the poke / private message.
 var greetings = []string{
@@ -112,7 +112,8 @@ var greetings = []string{
 
 // RandomGreeting returns one of the 100 greetings at random.
 func RandomGreeting() string {
-	return greetings[rand.Intn(len(greetings))]
+// #nosec G404
+	return greetings[rand.IntN(len(greetings))] // #nosec G404
 }
 
 // GreetingCount is exposed for tests.

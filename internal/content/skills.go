@@ -2,7 +2,7 @@ package content
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 )
 
@@ -46,6 +46,24 @@ func init() {
 		"Breath", "Bite", "Sting", "Claw", "Maul", "Swipe", "Growl", "Prowl", "Shred", "Blink",
 	}
 
+	// Add basic novice skills
+	allSkills = append(allSkills, Skill{
+		ID:     "S0_1",
+		Name:   "Novice Spark",
+		Type:   SkillMagic,
+		Rarity: RarityCommon,
+		Power:  1.1,
+		Description: "A weak magical spark.",
+	})
+	allSkills = append(allSkills, Skill{
+		ID:     "S0_2",
+		Name:   "Novice Punch",
+		Type:   SkillPhysical,
+		Rarity: RarityCommon,
+		Power:  1.1,
+		Description: "A basic physical punch.",
+	})
+
 	idx := 1
 	for _, p := range prefixes {
 		for _, a := range actions {
@@ -79,10 +97,12 @@ func init() {
 				if strings.Contains(name, "Heal") || strings.Contains(name, "Mend") { s.HealPercent = 0.1 + (0.05 * float64(rarity)) }
 				
 				// Rare special effects
-				if rarity >= RarityEpic && rand.Float64() < 0.1 {
+// #nosec G404
+				if rarity >= RarityEpic && rand.Float64() < 0.1 { // #nosec G404
 					s.Special = EffectMindControl
 				}
-				if rarity == RarityLegendary && rand.Float64() < 0.05 {
+// #nosec G404
+				if rarity == RarityLegendary && rand.Float64() < 0.05 { // #nosec G404
 					s.Special = EffectPhoenix
 				}
 
@@ -102,7 +122,8 @@ func (s Skill) Score() int {
 }
 
 func RandomSkill() Skill {
-	s := allSkills[rand.Intn(len(allSkills))]
+// #nosec G404
+	s := allSkills[rand.IntN(len(allSkills))] // #nosec G404
 	// Roll for additional effect if it doesn't have one
 	if s.Special == EffectNone {
 		s.Special = RandomItemEffect()

@@ -6,7 +6,7 @@ package leveling
 import (
 	"fmt"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"sort"
 	"strconv"
 	"strings"
@@ -57,11 +57,11 @@ var baseTierNames = []string{
 }
 
 // XP curve tuning for 10000 levels.
+// Sharpened curve: 1-1000 is much easier, then it gets exponentially harder.
 const (
-	xpMin      = 10
-	xpMax      = 25
+	xpMin      = 20 // Increased from 10
+	xpMax      = 50 // Increased from 25
 	xpCurveK   = 1.0
-	xpCurveExp = 1.2
 )
 
 // SubRank returns a level's rank within its tier (1..30).
@@ -101,7 +101,19 @@ func XPForLevel(level int) int {
 	if level <= 1 {
 		return 0
 	}
-	return int(math.Round(xpCurveK * math.Pow(float64(level-1), xpCurveExp)))
+	// Dynamic exponent: grows as level increases.
+	// Starts at 1.1 (very fast early levels), reaches ~1.6 at level 1000, and caps at 5.0.
+	exponent := 1.1 + (float64(level) / 2000.0)
+	if exponent > 5.0 {
+		exponent = 5.0
+	}
+	
+	val := math.Pow(float64(level-1), exponent)
+	// Cap at a large integer to prevent overflow during search
+	if val > 2e15 {
+		return 2e15
+	}
+	return int(math.Round(val))
 }
 
 // LevelForXP returns the level for a total XP amount.
@@ -109,17 +121,19 @@ func LevelForXP(xp int) int {
 	if xp <= 0 {
 		return 1
 	}
-	level := int(math.Pow(float64(xp)/xpCurveK, 1.0/xpCurveExp)) + 1
-	if level < 1 {
-		level = 1
+	// Binary search since the curve is no longer a simple static exponent.
+	low, high := 1, absoluteMaxLevel
+	ans := 1
+	for low <= high {
+		mid := low + (high-low)/2
+		if XPForLevel(mid) <= xp {
+			ans = mid
+			low = mid + 1
+		} else {
+			high = mid - 1
+		}
 	}
-	for level < absoluteMaxLevel && XPForLevel(level+1) <= xp {
-		level++
-	}
-	for level > 1 && XPForLevel(level) > xp {
-		level--
-	}
-	return level
+	return ans
 }
 
 // LevelName returns the fantasy name for a level.
@@ -143,7 +157,8 @@ func LevelName(level int) string {
 
 // XPPerPoke returns a randomised XP award.
 func XPPerPoke() int {
-	return xpMin + rand.Intn(xpMax-xpMin+1)
+// #nosec G404
+	return xpMin + rand.IntN(xpMax-xpMin+1) // #nosec G404
 }
 
 // XPForPrice maps a game's original price to an XP award.

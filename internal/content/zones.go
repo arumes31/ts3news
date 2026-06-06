@@ -2,7 +2,7 @@ package content
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 )
 
@@ -56,7 +56,8 @@ func init() {
 				ID:    fmt.Sprintf("ZE%d", idx),
 				Name:  name,
 				Type:  zType,
-				Power: 0.1 + (0.05 * float64(rand.Intn(10))),
+// #nosec G404
+				Power: 0.1 + (0.05 * float64(rand.IntN(10))), // #nosec G404
 			}
 
 			switch zType {
@@ -82,19 +83,23 @@ func GetRandomZone(partyAvgLvl int, partyGearScore int) Zone {
 	rareZones := []string{"Stranglethorn Vale", "Tanaris", "Un'Goro Crater", "Winterspring", "Searing Gorge", "Burning Steppes"}
 	legendaryZones := []string{"Molten Core", "Sunwell Plateau", "Icecrown Citadel", "Void Rift", "The Maelstrom"}
 
-	r := rand.Float64()
+// #nosec G404
+	r := rand.Float64() // #nosec G404
 	var name string
 	var baseDiff float64
 
 	switch {
 	case r < 0.70: // Common
-		name = commonZones[rand.Intn(len(commonZones))]
+// #nosec G404
+		name = commonZones[rand.IntN(len(commonZones))] // #nosec G404
 		baseDiff = 0.8 // Easier than average
 	case r < 0.90: // Rare
-		name = rareZones[rand.Intn(len(rareZones))]
+// #nosec G404
+		name = rareZones[rand.IntN(len(rareZones))] // #nosec G404
 		baseDiff = 1.2
 	default: // Legendary
-		name = legendaryZones[rand.Intn(len(legendaryZones))]
+// #nosec G404
+		name = legendaryZones[rand.IntN(len(legendaryZones))] // #nosec G404
 		baseDiff = 1.8 // Dangerous
 	}
 
@@ -103,14 +108,16 @@ func GetRandomZone(partyAvgLvl int, partyGearScore int) Zone {
 	}
 
 	// Scaling Difficulty: harder zones for better players, dampened by tier
-	z.Difficulty = baseDiff + (float64(partyAvgLvl) * 0.01) + (float64(partyGearScore) * 0.0002)
+	z.Difficulty = baseDiff + (float64(partyAvgLvl) * 0.001) + (float64(partyGearScore) * 0.00005)
 	
 	// Add 1-3 stacking effects (Legendary zones have more)
-	effectCount := 1 + rand.Intn(2)
+// #nosec G404
+	effectCount := 1 + rand.IntN(2) // #nosec G404
 	if r >= 0.90 { effectCount = 3 }
 	
 	for i := 0; i < effectCount; i++ {
-		z.Effects = append(z.Effects, allZoneEffects[rand.Intn(len(allZoneEffects))])
+// #nosec G404
+		z.Effects = append(z.Effects, allZoneEffects[rand.IntN(len(allZoneEffects))]) // #nosec G404
 	}
 
 	return z

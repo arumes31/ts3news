@@ -3,6 +3,8 @@ package bot
 import (
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 
 	"ts3news/internal/clientquery"
 	"ts3news/internal/icons"
@@ -29,9 +31,33 @@ func (b *Bot) applyMilestones(c *clientquery.Client, clid int, nickname string, 
 // iconSizePx is the generated icon resolution. TeamSpeak group icons are 16x16.
 const iconSizePx = 16
 
-// xpGroupName is the server-group name for a level, e.g. "Peasant I".
+// maxGroupNameLen is TeamSpeak's server-group name limit (longer names fail with
+// error 1541 "invalid parameter size").
+const maxGroupNameLen = 30
+
+// xpGroupName is the server-group name for a level. For named tiers it uses the
+// flavour name ("Peasant I"); for the long procedural "infinite tier" names that
+// would exceed the TS3 limit it falls back to a compact, unique "Lvl N" form.
 func xpGroupName(level int) string {
-	return leveling.LevelName(level)
+	n := leveling.LevelName(level)
+	if len([]rune(n)) <= maxGroupNameLen {
+		return n
+	}
+	return fmt.Sprintf("Lvl %d", level)
+}
+
+// levelFromGroupName maps a server-group name back to its level (the inverse of
+// xpGroupName), recognising both the flavour names and the compact "Lvl N" form.
+func levelFromGroupName(name string) (int, bool) {
+	if l, ok := leveling.LevelByName(name); ok {
+		return l, true
+	}
+	if rest, ok := strings.CutPrefix(name, "Lvl "); ok {
+		if n, err := strconv.Atoi(strings.TrimSpace(rest)); err == nil {
+			return n, true
+		}
+	}
+	return 0, false
 }
 
 // loadLevelGroups populates the in-memory level->sgid cache from the database.
@@ -177,7 +203,7 @@ func (b *Bot) applyLevelGroup(c *clientquery.Client, clid int, uid, nickname str
 	// against stale state), then delete any that become empty.
 	if groups, lerr := c.ServerGroupList(); lerr == nil {
 		for _, g := range groups {
-			lvl, ok := leveling.LevelByName(g.Name)
+			lvl, ok := levelFromGroupName(g.Name)
 			if !ok || g.ID == newSgid {
 				continue
 			}
