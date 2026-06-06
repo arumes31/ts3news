@@ -3,6 +3,7 @@ package content
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 )
 
 type Rarity int
@@ -128,10 +129,12 @@ type Enchantment struct {
 	Rarity       Rarity
 	XPMultiplier float64
 	Stats        Stats
+	DuraBonus    int
 	Description  string
 }
 
 var allGear []Gear
+var uniqueLegendaries []Gear
 var allConsumables = []Consumable{
 	{"P1", "Small Health Potion", ConsumableHealing, 50, 0, "Restores 50 HP instantly"},
 	{"P2", "Great Health Potion", ConsumableHealing, 200, 0, "Restores 200 HP instantly"},
@@ -226,6 +229,15 @@ func init() {
 		}
 	}
 
+	// Add some Unique Legendaries with massive stats but very low durability
+	uniqueLegendaries = append(uniqueLegendaries, []Gear{
+		{ID: "U_LEG_1", Name: "God-Slayer's Heart", Slot: SlotChest, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 5, Stats: Stats{HP: 1000, STR: 500, DEF: 200, SPD: 200, LCK: 100}},
+		{ID: "U_LEG_2", Name: "Infinity Edge", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 8, Stats: Stats{STR: 1000, SPD: 300, CRT: 50}},
+		{ID: "U_LEG_3", Name: "Chrono-Guard", Slot: SlotWrists, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 6, Stats: Stats{SPD: 500, DGE: 80, INT: 100}},
+		{ID: "U_LEG_4", Name: "Eye of the Storm", Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 7, Stats: Stats{HP: 800, INT: 200, STR: 100}},
+		{ID: "U_LEG_5", Name: "Titan's Pillar", Slot: SlotLegs, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 1500, DEF: 400, STA: 100}},
+	}...)
+
 	// 2. Generate 100 Corrupted Artifacts
 	idx = 1
 	prefixesArt := []string{"Cursed", "Blighted", "Tainted", "Demonic", "Shadow", "Void", "Ruined", "Shattered", "Forbidden", "Malevolent"}
@@ -247,7 +259,7 @@ func init() {
 		}
 	}
 
-	// 3. Titles (Buffed massively)
+	// 3. Titles
 	posPrefixes := []string{"Divine", "Glorious", "Eternal", "Radiant", "Immortal", "Mythic", "Legendary", "Ancient", "Primal", "Celestial"}
 	posNouns := []string{"Sovereign", "Overlord", "Godslayer", "Archon", "Paragon", "Vanguard", "Sentinel", "Oracle", "Exarch", "Titan"}
 	for _, p := range posPrefixes {
@@ -272,25 +284,38 @@ func init() {
 	}
 
 	// 4. Generate Enchantments
-	enchPrefixes := []string{"Fiery", "Icy", "Shocking", "Venomous", "Holy", "Vampiric", "Arcane", "Stone", "Wind", "Shadow"}
+	enchPrefixes := []string{"Fiery", "Icy", "Shocking", "Venomous", "Holy", "Vampiric", "Arcane", "Stone", "Wind", "Shadow", "Reinforced", "Unbreakable", "Diamond-Coated"}
 	for i, p := range enchPrefixes {
 		rarity := RarityRare
 		if i > 6 { rarity = RarityEpic }
-		if i > 8 { rarity = RarityLegendary }
+		if i > 10 { rarity = RarityLegendary }
 		
+		duraBonus := 0
+		if strings.Contains(p, "Reinforced") || strings.Contains(p, "Unbreakable") || strings.Contains(p, "Diamond") {
+			duraBonus = 50 * (int(rarity) - 1)
+			if duraBonus < 20 { duraBonus = 20 }
+		}
+
 		allEnchantments = append(allEnchantments, Enchantment{
 			ID:           fmt.Sprintf("E%d", i),
-			Name:        p,
-			Rarity:      rarity,
+			Name:         p,
+			Rarity:       rarity,
 			XPMultiplier: getXPMult(rarity) - 0.1,
 			Stats:        Stats{STR: 15 * (int(rarity) + 1), SPD: 10 * (int(rarity) + 1), CRT: 5 * (int(rarity) + 1)},
+			DuraBonus:    duraBonus,
 			Description:  fmt.Sprintf("Adds %s power", p),
 		})
 	}
 }
 
 func RandomConsumable() Consumable { return allConsumables[rand.Intn(len(allConsumables))] }
-func RandomGearDrop() Gear         { return allGear[rand.Intn(len(allGear))] }
+func RandomGearDrop() Gear {
+	// 5% chance for a Unique Legendary if rolling for a Legendary or better
+	if rand.Float64() < 0.05 {
+		return uniqueLegendaries[rand.Intn(len(uniqueLegendaries))]
+	}
+	return allGear[rand.Intn(len(allGear))]
+}
 func RandomStarterGear() Gear      { return allGear[rand.Intn(len(AllSlots))] }
 func RandomArtifact() Artifact     { return corruptedArtifacts[rand.Intn(len(corruptedArtifacts))] }
 func RandomEnchantment() Enchantment { return allEnchantments[rand.Intn(len(allEnchantments))] }
@@ -301,6 +326,9 @@ func RandomTitle() Title {
 
 func GetGearByID(id string) (Gear, bool) {
 	for _, g := range allGear {
+		if g.ID == id { return g, true }
+	}
+	for _, g := range uniqueLegendaries {
 		if g.ID == id { return g, true }
 	}
 	return Gear{}, false
@@ -338,6 +366,7 @@ func IsTitle(name string) bool {
 
 func IsGearOrArtifact(name string) bool {
 	for _, g := range allGear { if g.Name == name { return true } }
+	for _, g := range uniqueLegendaries { if g.Name == name { return true } }
 	for _, a := range corruptedArtifacts { if a.Name == name { return true } }
 	return false
 }

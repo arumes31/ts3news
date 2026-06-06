@@ -581,7 +581,7 @@ func (b *Bot) applyEnchantment(uid string, ench content.Enchantment) (string, bo
 			if ench.Rarity < cur.Rarity { return "", false }
 		}
 	}
-	_, _ = b.DB.Exec("UPDATE user_gear SET enchantment_id = $3 WHERE client_uid = $1 AND slot = $2", uid, target.slot, ench.ID)
+	_, _ = b.DB.Exec("UPDATE user_gear SET enchantment_id = $3, durability = durability + $4 WHERE client_uid = $1 AND slot = $2", uid, target.slot, ench.ID, ench.DuraBonus)
 	return target.slot, true
 }
 

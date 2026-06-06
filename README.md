@@ -50,7 +50,8 @@ A sophisticated, headless TeamSpeak 3 bot that notifies users of free PC games a
 Users manage **24 slots**. The bot follows a **Smart Auto-Equip** policy: it only replaces items if the new drop has a higher rarity or better overall stat score.
 *   **Stats**: HP, STR (Damage), DEF (Reduces Damage), SPD (Turn Priority), LCK (Drop Rates), INT (XP Boost), STA (Reduces Dura Loss), CRT (Crit Chance), DGE (Dodge).
 *   **Durability**: Gear loses 1 durability per fight (3 on defeat). Broken gear is automatically deleted.
-*   **Enchantments**: Rare drops that add extra stats to a specific gear slot.
+*   **Unique Legendaries**: Rare, named items with massive stats but very low durability (e.g. *God-Slayer's Heart*).
+*   **Enchantments**: Rare drops that add extra stats to a specific gear slot. Some enchantments specifically increase the item's **Durability**.
 
 ### ⚔️ Combat & Mobs
 During every cycle, the bot spawns a group of mobs for each party.
