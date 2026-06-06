@@ -161,38 +161,77 @@ type Title struct {
 
 func init() {
 	// XP Multiplier Logic: The better the gear/enchantment, the LESS XP it adds.
-	// Base multiplier is high (e.g., 1.5x) and decreases with rarity.
 	getXPMult := func(r Rarity) float64 {
 		return 1.5 - (0.1 * float64(r))
 	}
 
-	// 1. Generate Gear
+	// Pools for procedural generation
+	prefixes := []string{
+		"Ancient", "Broken", "Cursed", "Divine", "Ethereal", "Forgotten", "Gilded", "Hallowed", "Iron", "Jade",
+		"Kings", "Lunar", "Mithril", "Night", "Obsidian", "Primal", "Quartz", "Radiant", "Shadow", "Titan",
+		"Unbound", "Void", "Whispering", "Xenon", "Young", "Zealous", "Blighted", "Celestial", "Demonic", "Eternal",
+		"Frost", "Glass", "Hellfire", "Ivory", "Keepers", "Lost", "Mystic", "Noble", "Oracle", "Phantom",
+		"Relic", "Spectral", "Thundering", "Underworld", "Vampiric", "Warlord", "Yawning", "Zodiac",
+	}
+	suffixes := []string{
+		"of Power", "of the Sun", "of Night", "of the Moon", "of the Stars", "of the Void", "of the Deep", "of the Peaks", "of the Forest", "of the Sands",
+		"of Fire", "of Ice", "of Storms", "of Shadows", "of Light", "of the Earth", "of the Sea", "of the Winds", "of the Ancients", "of the Moderns",
+		"of Courage", "of Wisdom", "of Strength", "of Speed", "of Luck", "of Health", "of Defense", "of Intellect", "of Stamina", "of the Spirit",
+		"of Corruption", "of Redemption", "of Silence", "of Echoes", "of the Grave", "of Eternity", "of the Moment", "of the Infinite", "of the Finite", "of the Soul",
+	}
+
+	// 1. Generate ~1200 unique gear variants
+	idx := 1
 	for _, slot := range AllSlots {
+		// Starter Novice gear
 		allGear = append(allGear, Gear{
 			ID:            fmt.Sprintf("B_%s", slot),
 			Name:          fmt.Sprintf("Novice %s", slot),
 			Slot:          slot,
 			Rarity:        RarityCommon,
-			XPMultiplier:  getXPMult(RarityCommon), // 1.5x
+			XPMultiplier:  getXPMult(RarityCommon),
 			MaxDurability: 50,
 			Stats:         Stats{HP: 10, STR: 2, DEF: 2, SPD: 2, CHA: 1, STN: rand.Intn(5)},
 		})
+
+		// Procedural variants
+		for _, rar := range []Rarity{RarityUncommon, RarityRare, RarityEpic, RarityLegendary} {
+			for i := 0; i < 10; i++ { // 24 slots * 4 rarities * 10 variants = 960 items
+				p := prefixes[rand.Intn(len(prefixes))]
+				s := suffixes[rand.Intn(len(suffixes))]
+				name := fmt.Sprintf("%s %s %s", p, slot, s)
+				
+				mul := float64(rar) + 1.0
+				allGear = append(allGear, Gear{
+					ID:            fmt.Sprintf("G%d", idx),
+					Name:          name,
+					Slot:          slot,
+					Rarity:        rar,
+					XPMultiplier:  getXPMult(rar),
+					MaxDurability: 30 + int(rar)*20,
+					Stats: Stats{
+						HP:  int(10 * mul),
+						STR: int(5 * mul),
+						DEF: int(3 * mul),
+						SPD: int(4 * mul),
+						LCK: int(2 * mul),
+						INT: int(rar),
+						STA: int(rar),
+						CHA: rand.Intn(10),
+						SHN: rand.Intn(20),
+					},
+				})
+				idx++
+			}
+		}
 	}
-	// Add Rares
-	allGear = append(allGear, []Gear{
-		{ID: "W_EPIC_1", Name: "Soul-Eater Blade", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: getXPMult(RarityEpic), MaxDurability: 100, Stats: Stats{STR: 50, SPD: 20, CRT: 10, SHN: 100}},
-		{ID: "W1", Name: "Rusty Broadsword", Slot: SlotMainHand, Rarity: RarityCommon, XPMultiplier: getXPMult(RarityCommon), MaxDurability: 30, Stats: Stats{STR: 5}},
-		{ID: "W2", Name: "Silver Dagger", Slot: SlotMainHand, Rarity: RarityUncommon, XPMultiplier: getXPMult(RarityUncommon), MaxDurability: 25, Stats: Stats{STR: 8, SPD: 5}},
-		{ID: "A1", Name: "Leather Tunic", Slot: SlotChest, Rarity: RarityUncommon, XPMultiplier: getXPMult(RarityUncommon), MaxDurability: 40, Stats: Stats{DEF: 5, HP: 10}},
-		{ID: "R1", Name: "Lucky Rabbit's Foot", Slot: SlotRelic, Rarity: RarityRare, XPMultiplier: getXPMult(RarityRare), MaxDurability: 20, Stats: Stats{LCK: 10}},
-	}...)
 
 	// 2. Generate 100 Corrupted Artifacts
-	prefixes := []string{"Cursed", "Blighted", "Tainted", "Demonic", "Shadow", "Void", "Ruined", "Shattered", "Forbidden", "Malevolent"}
-	nouns := []string{"Chalice", "Orb", "Scepter", "Tome", "Crown", "Amulet", "Skull", "Idol", "Heart", "Eye"}
-	idx := 1
-	for _, p := range prefixes {
-		for _, n := range nouns {
+	idx = 1
+	prefixesArt := []string{"Cursed", "Blighted", "Tainted", "Demonic", "Shadow", "Void", "Ruined", "Shattered", "Forbidden", "Malevolent"}
+	nounsArt := []string{"Chalice", "Orb", "Scepter", "Tome", "Crown", "Amulet", "Skull", "Idol", "Heart", "Eye"}
+	for _, p := range prefixesArt {
+		for _, n := range nounsArt {
 			name := p + " " + n
 			var mult float64
 			var s Stats
@@ -215,7 +254,7 @@ func init() {
 		for _, n := range posNouns {
 			positiveTitles = append(positiveTitles, Title{
 				Name:         p + " " + n,
-				XPMultiplier: 3.0 + rand.Float64()*7.0, // 3x to 10x
+				XPMultiplier: 3.0 + rand.Float64()*7.0,
 				Stats:        Stats{HP: 500, STR: 200, DEF: 100, SPD: 100, LCK: 80, INT: 50, STA: 50, CHA: 1000},
 			})
 		}
@@ -226,7 +265,7 @@ func init() {
 		for _, n := range negNouns {
 			negativeTitles = append(negativeTitles, Title{
 				Name:         p + " " + n,
-				XPMultiplier: 0.01 + rand.Float64()*0.1, // 0.01x to 0.11x
+				XPMultiplier: 0.01 + rand.Float64()*0.1,
 				Stats:        Stats{HP: -300, STR: -150, DEF: -80, SPD: -80, LCK: -100, STN: 500, HGR: 100},
 			})
 		}
@@ -241,9 +280,9 @@ func init() {
 		
 		allEnchantments = append(allEnchantments, Enchantment{
 			ID:           fmt.Sprintf("E%d", i),
-			Name:         p,
-			Rarity:       rarity,
-			XPMultiplier: getXPMult(rarity) - 0.1, // Enchantments add extra penalty
+			Name:        p,
+			Rarity:      rarity,
+			XPMultiplier: getXPMult(rarity) - 0.1,
 			Stats:        Stats{STR: 15 * (int(rarity) + 1), SPD: 10 * (int(rarity) + 1), CRT: 5 * (int(rarity) + 1)},
 			Description:  fmt.Sprintf("Adds %s power", p),
 		})
