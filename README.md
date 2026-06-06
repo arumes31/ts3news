@@ -171,8 +171,61 @@ All options are specified as environment variables in `config.env`.
 
 ## 🛠️ Setup & Deployment
 
-1.  **Configure**: Rename `example.env` to `config.env` and fill in your values.
-2.  **Run**: Start the container:
+You can either use the pre-built image from the GitHub Container Registry or build it yourself.
+
+### Option A: Using the Pre-built GHCR Image (Recommended)
+
+1.  **Create `docker-compose.yml`**:
+    ```yaml
+    services:
+      db:
+        image: postgres:15-alpine
+        container_name: ts3-news-db
+        restart: unless-stopped
+        environment:
+          POSTGRES_USER: ${DB_USER:-ts3bot}
+          POSTGRES_PASSWORD: ${DB_PASS:-ts3botpass}
+          POSTGRES_DB: ${DB_NAME:-ts3news}
+        volumes:
+          - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+          test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ts3bot} -d ${DB_NAME:-ts3news}"]
+          interval: 5s
+          timeout: 5s
+          retries: 5
+
+      ts3-bot:
+        image: ghcr.io/arumes31/ts3news:latest
+        container_name: ts3-news-bot
+        restart: unless-stopped
+        stop_grace_period: 30s
+        depends_on:
+          db:
+            condition: service_healthy
+        env_file:
+          - config.env
+        environment:
+          - DATABASE_URL=postgres://${DB_USER:-ts3bot}:${DB_PASS:-ts3botpass}@db:5432/${DB_NAME:-ts3news}?sslmode=disable
+        logging:
+          driver: "json-file"
+          options:
+            max-size: "10m"
+            max-file: "3"
+
+    volumes:
+      postgres_data:
+    ```
+2.  **Configure**: Create `config.env` and fill in your values (see `example.env` in this repo).
+3.  **Run**: Start the container:
+    ```bash
+    docker compose up -d
+    ```
+
+### Option B: Building from Source
+
+1.  **Clone the repository**.
+2.  **Configure**: Rename `example.env` to `config.env` and fill in your values.
+3.  **Run**: Start the container:
     ```bash
     docker compose up -d --build
     ```
