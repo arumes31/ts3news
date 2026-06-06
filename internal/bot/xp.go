@@ -90,8 +90,20 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 		}
 	}
 
-	_, mult, mnotes := b.calculateTotalStats(uid, ctx.today)
+	stats, mult, mnotes := b.calculateTotalStats(uid, ctx.today)
 	notes = append(notes, mnotes...)
+
+	// Intelligence bonus
+	if stats.INT > 0 {
+		intMult := 1.0 + float64(stats.INT)/1000.0
+		mult *= intMult
+		notes = append(notes, fmt.Sprintf("INT bonus x%.3f", intMult))
+	}
+
+	// Flavour stats
+	if stats.STN > 50 { notes = append(notes, "You smell terrible!") }
+	if stats.CHA > 100 { notes = append(notes, "You are remarkably charming today.") }
+	if stats.SHN > 50 { notes = append(notes, "You are literally glowing.") }
 
 	awardMult := b.computeMiscMult(uid, nickname, cid, ctx)
 	if !hasGame {
@@ -119,7 +131,7 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 		}
 	}
 
-	return lr, notes, "" // artifacts rolled separately in RunCycle now
+	return lr, notes, ""
 }
 
 func (b *Bot) computeMiscMult(uid, nickname string, cid int, ctx cycleContext) float64 {
@@ -151,22 +163,90 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, mobs []content.Mob) ([]
 	totalRewardXP := 0
 	for _, m := range mobs { totalRewardXP += m.RewardXP }
 
+	// Log mob effects
+	for _, m := range mobs {
+		for _, eff := range m.Effects {
+			logs = append(logs, fmt.Sprintf("%s is %s!", m.Name, eff))
+		}
+	}
+
 	victory := false
 	for r := 0; r < 20; r++ {
+		// round start effects
+		for i := range mobs {
+			m := &mobs[i]
+			if m.Stats.HP <= 0 { continue }
+			for _, eff := range m.Effects {
+				switch eff {
+				case content.EffectPoisoned:
+					dmg := m.Stats.HP / 20
+					if dmg < 1 { dmg = 1 }
+					m.Stats.HP -= dmg
+					totalMobHP -= dmg
+				case content.EffectRegen:
+					heal := m.Stats.HP / 20
+					m.Stats.HP += heal
+					totalMobHP += heal
+				}
+			}
+		}
+
+		// User turn
 		for _, u := range users {
 			target := &mobs[rand.Intn(len(mobs))]
 			if target.Stats.HP <= 0 { continue }
-			dmg := u.Stats.STR - target.Stats.DEF
+			
+			// Critical check
+			dmgMult := 1.0
+			isCrit := rand.Intn(100) < u.Stats.CRT
+			if isCrit { dmgMult = 2.0 }
+
+			dmg := int(float64(u.Stats.STR-target.Stats.DEF) * dmgMult)
 			if dmg < 1 { dmg = 1 }
+
+			// Mob Blinded
+			for _, eff := range target.Effects {
+				if eff == content.EffectBlinded && rand.Float64() < 0.2 { // Blinded mobs take more dmg or miss? Let's say user hit harder
+					dmg = int(float64(dmg) * 1.5)
+				}
+			}
+
 			target.Stats.HP -= dmg
 			totalMobHP -= dmg
 		}
 		if totalMobHP <= 0 { victory = true; break }
+
+		// Mob turn
 		for _, m := range mobs {
 			if m.Stats.HP <= 0 { continue }
 			target := &users[rand.Intn(len(users))]
-			dmg := m.Stats.STR - target.Stats.DEF
+			
+			// Dodge check
+			if rand.Intn(100) < target.Stats.DGE {
+				continue
+			}
+
+			mSTR := m.Stats.STR
+			mDEF := m.Stats.DEF
+			for _, eff := range m.Effects {
+				switch eff {
+				case content.EffectEnraged: mSTR = int(float64(mSTR) * 1.5)
+				case content.EffectArmored: mDEF = int(float64(mDEF) * 1.5)
+				case content.EffectWeakened: mSTR = int(float64(mSTR) * 0.5)
+				case content.EffectFleet: // already scales SPD which isn't used in this simple round loop but could be
+				}
+			}
+
+			dmg := mSTR - target.Stats.DEF
 			if dmg < 1 { dmg = 1 }
+
+			// Mob Blinded miss chance
+			for _, eff := range m.Effects {
+				if eff == content.EffectBlinded && rand.Float64() < 0.5 {
+					dmg = 0
+				}
+			}
+
 			target.Stats.HP -= dmg
 			totalUserHP -= dmg
 		}
@@ -235,6 +315,11 @@ func (b *Bot) ensureUserHasGear(uid string) {
 }
 
 func (b *Bot) applyDurabilityLoss(uid string, defeat bool) {
+	// Stamina reduces dura loss chance
+	var stats content.Stats
+	stats, _, _ = b.calculateTotalStats(uid, time.Now())
+	if rand.Intn(100) < stats.STA { return } // Saved by stamina!
+
 	loss := duraLossPerFight
 	if defeat { loss = duraLossPenalty }
 	_, _ = b.DB.Exec("UPDATE user_gear SET durability = durability - $2 WHERE client_uid = $1", uid, loss)
@@ -247,7 +332,8 @@ func (b *Bot) calculateTotalStats(uid string, today time.Time) (content.Stats, f
 	var level int
 	_ = b.DB.QueryRow("SELECT level FROM users WHERE client_uid=$1", uid).Scan(&level)
 	base := content.Stats{
-		HP: 100 + level, STR: 10 + level/10, DEF: 5 + level/20, SPD: 10 + level/10, LCK: level/50,
+		HP: 100 + level*5, STR: 10 + level, DEF: 5 + level/2, SPD: 10 + level, LCK: level/5,
+		INT: level/10, STA: level/10, CRT: 5 + level/50, DGE: 5 + level/50,
 	}
 	mult, lootStats, notes := b.activeLootMult(uid, today)
 	return base.Add(lootStats), mult, notes

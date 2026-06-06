@@ -20,11 +20,22 @@ func (r Rarity) String() string {
 }
 
 type Stats struct {
+	// Combat Stats
 	HP  int
 	STR int
 	DEF int
 	SPD int
 	LCK int
+	INT int // Intelligence (boosts XP slightly)
+	STA int // Stamina (reduces durability loss chance)
+	CRT int // Critical Chance %
+	DGE int // Dodge Chance %
+
+	// Useless / Flavour Stats
+	CHA int // Charisma
+	STN int // Stench
+	SHN int // Shiny
+	HGR int // Hunger
 }
 
 func (s Stats) Add(o Stats) Stats {
@@ -34,11 +45,19 @@ func (s Stats) Add(o Stats) Stats {
 		DEF: s.DEF + o.DEF,
 		SPD: s.SPD + o.SPD,
 		LCK: s.LCK + o.LCK,
+		INT: s.INT + o.INT,
+		STA: s.STA + o.STA,
+		CRT: s.CRT + o.CRT,
+		DGE: s.DGE + o.DGE,
+		CHA: s.CHA + o.CHA,
+		STN: s.STN + o.STN,
+		SHN: s.SHN + o.SHN,
+		HGR: s.HGR + o.HGR,
 	}
 }
 
 func (s Stats) Score() int {
-	return s.HP/5 + s.STR + s.DEF + s.SPD + s.LCK
+	return s.HP/5 + s.STR + s.DEF + s.SPD + s.LCK + s.INT + s.STA + s.CRT + s.DGE
 }
 
 type GearSlot string
@@ -149,11 +168,11 @@ func init() {
 			Rarity:        RarityCommon,
 			XPMultiplier:  1.01,
 			MaxDurability: 50,
-			Stats:         Stats{HP: 10, STR: 2, DEF: 2, SPD: 2},
+			Stats:         Stats{HP: 10, STR: 2, DEF: 2, SPD: 2, CHA: 1, STN: rand.Intn(5)},
 		})
 	}
 	// Add Rares
-	allGear = append(allGear, Gear{ID: "W_EPIC_1", Name: "Soul-Eater Blade", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.5, MaxDurability: 100, Stats: Stats{STR: 50, SPD: 20}})
+	allGear = append(allGear, Gear{ID: "W_EPIC_1", Name: "Soul-Eater Blade", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.5, MaxDurability: 100, Stats: Stats{STR: 50, SPD: 20, CRT: 10, SHN: 100}})
 
 	// 2. Generate 100 Corrupted Artifacts
 	prefixes := []string{"Cursed", "Blighted", "Tainted", "Demonic", "Shadow", "Void", "Ruined", "Shattered", "Forbidden", "Malevolent"}
@@ -166,10 +185,10 @@ func init() {
 			var s Stats
 			if idx%2 == 0 {
 				mult = 1.5 + (rand.Float64() * 2.5)
-				s = Stats{HP: 150, STR: 60, DEF: 30, SPD: 45, LCK: 30}
+				s = Stats{HP: 150, STR: 60, DEF: 30, SPD: 45, LCK: 30, CRT: 15, CHA: 50}
 			} else {
 				mult = 0.1 + (rand.Float64() * 0.4)
-				s = Stats{HP: -100, STR: -40, DEF: -20, SPD: -20, LCK: -30}
+				s = Stats{HP: -100, STR: -40, DEF: -20, SPD: -20, LCK: -30, STN: 100, HGR: 50}
 			}
 			corruptedArtifacts = append(corruptedArtifacts, Artifact{Name: name, Mult: mult, Stats: s, MaxDurability: 15})
 			idx++
@@ -184,7 +203,7 @@ func init() {
 			positiveTitles = append(positiveTitles, Title{
 				Name:         p + " " + n,
 				XPMultiplier: 3.0 + rand.Float64()*7.0, // 3x to 10x
-				Stats:        Stats{HP: 500, STR: 200, DEF: 100, SPD: 100, LCK: 80},
+				Stats:        Stats{HP: 500, STR: 200, DEF: 100, SPD: 100, LCK: 80, INT: 50, STA: 50, CHA: 1000},
 			})
 		}
 	}
@@ -195,7 +214,7 @@ func init() {
 			negativeTitles = append(negativeTitles, Title{
 				Name:         p + " " + n,
 				XPMultiplier: 0.01 + rand.Float64()*0.1, // 0.01x to 0.11x
-				Stats:        Stats{HP: -300, STR: -150, DEF: -80, SPD: -80, LCK: -100},
+				Stats:        Stats{HP: -300, STR: -150, DEF: -80, SPD: -80, LCK: -100, STN: 500, HGR: 100},
 			})
 		}
 	}
@@ -211,7 +230,7 @@ func init() {
 			ID:          fmt.Sprintf("E%d", i),
 			Name:        p,
 			Rarity:      rarity,
-			Stats:       Stats{STR: 15 * (int(rarity) + 1), SPD: 10 * (int(rarity) + 1)},
+			Stats:       Stats{STR: 15 * (int(rarity) + 1), SPD: 10 * (int(rarity) + 1), CRT: 5 * (int(rarity) + 1)},
 			Description: fmt.Sprintf("Adds %s power", p),
 		})
 	}

@@ -14,16 +14,33 @@ const (
 	MobLegendary MobType = "Legendary"
 )
 
+type MobEffect string
+
+const (
+	EffectEnraged    MobEffect = "Enraged"     // +50% STR
+	EffectArmored    MobEffect = "Armored"     // +50% DEF
+	EffectFleet      MobEffect = "Fleet-foot"  // +50% SPD
+	EffectPoisoned   MobEffect = "Poisoned"    // Loses 5% HP per round
+	EffectWeakened   MobEffect = "Weakened"    // -50% STR
+	EffectBlinded    MobEffect = "Blinded"     // 50% miss chance
+	EffectRegen      MobEffect = "Regenerative" // Heals 5% HP per round
+)
+
 type Mob struct {
 	Name     string
 	Type     MobType
 	Level    int
 	Stats    Stats
 	RewardXP int
+	Effects  []MobEffect
 }
 
 func (m Mob) DisplayName() string {
-	return fmt.Sprintf("Lvl %d %s [%s]", m.Level, m.Name, m.Type)
+	eff := ""
+	if len(m.Effects) > 0 {
+		eff = fmt.Sprintf(" (%s)", m.Effects[0])
+	}
+	return fmt.Sprintf("Lvl %d %s [%s]%s", m.Level, m.Name, m.Type, eff)
 }
 
 var baseMobs []Mob
@@ -78,6 +95,12 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	m.Stats.DEF = int(float64(m.Stats.DEF) * scale)
 	m.Stats.SPD = int(float64(m.Stats.SPD) * scale)
 	m.RewardXP = int(float64(m.RewardXP) * scale)
+
+	// Random effect
+	if rand.Float64() < 0.3 {
+		effects := []MobEffect{EffectEnraged, EffectArmored, EffectFleet, EffectPoisoned, EffectWeakened, EffectBlinded, EffectRegen}
+		m.Effects = append(m.Effects, effects[rand.Intn(len(effects))])
+	}
 
 	return m
 }
