@@ -1,65 +1,124 @@
 <p align="center">
-  <img src="logo.png" width="160" alt="TS3News Logo" />
+  <img src="logo.png" width="180" alt="TS3News Logo" />
 </p>
 
-<h1 align="center">TS3 Free Game Notification Bot 🎮</h1>
+<h1 align="center">TS3 Free Game RPG Bot 🎮</h1>
 
 <p align="center">
-  <a href="https://github.com/arumes31/ts3news"><img src="https://img.shields.io/github/v/release/arumes31/ts3news?style=flat-square" alt="Latest Release" /></a>
-  <a href="https://github.com/arumes31/ts3news/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/arumes31/ts3news/ci.yml?branch=main&style=flat-square" alt="CI Status" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/arumes31/ts3news?style=flat-square" alt="License" /></a>
+  <a href="https://github.com/arumes31/ts3news/releases"><img src="https://img.shields.io/github/v/release/arumes31/ts3news?style=for-the-badge&color=7289da" alt="Latest Release" /></a>
+  <a href="https://github.com/arumes31/ts3news/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/arumes31/ts3news/ci.yml?branch=main&style=for-the-badge" alt="CI Status" /></a>
+  <a href="https://github.com/arumes31/ts3news/pkgs/container/ts3news"><img src="https://img.shields.io/badge/Container-GHCR-blue?style=for-the-badge&logo=docker" alt="GHCR Image" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/arumes31/ts3news?style=for-the-badge&color=success" alt="License" /></a>
 </p>
 
-A sophisticated, headless TeamSpeak 3 bot that notifies users of free PC games across multiple platforms (Steam, Epic, GOG, and more) while featuring a deep, automated RPG progression system.
+<p align="center">
+  <strong>A sophisticated, headless TeamSpeak 3 bot that notifies users of free PC games while featuring a deep, automated RPG progression system.</strong>
+</p>
+
+---
+
+## 📐 Architecture & Flow
+
+The bot runs a headless official TeamSpeak 3 client in a virtual framebuffer (Xvfb), controlled by a high-performance Go supervisor.
+
+```mermaid
+graph TD
+    subgraph "Docker Container"
+        TS3Client["🎮 Headless TS3 Client"]
+        GoBot["🤖 Go Bot Supervisor"]
+        PostgresDB["🗄️ PostgreSQL DB"]
+        Xvfb["🖥️ Virtual Display"]
+        
+        Xvfb --> TS3Client
+        GoBot <-->|ClientQuery TCP:25639| TS3Client
+        GoBot <-->|SQL| PostgresDB
+    end
+    
+    GoBot -->|Fetch| GamerPower["🌐 GamerPower API"]
+    GoBot -->|Shorten| Redrx["🔗 RedRx API"]
+    GoBot -->|Scrape| Reddit["📰 Reddit /r/FreeGameFindings"]
+    
+    TS3Client <-->|UDP:9987| TS3Server["🔊 TS3 Voice Server"]
+    TS3Client -->|Poke & PM| TS3Users["👥 Online TS3 Users"]
+    
+    classDef default fill:#2d3748,stroke:#4a5568,stroke-width:1px,color:#fff;
+    classDef Ext fill:#d69e2e,stroke:#b7791f,stroke-width:1px,color:#fff;
+    classDef TS3 fill:#3182ce,stroke:#2b6cb0,stroke-width:1px,color:#fff;
+    classDef DB fill:#336791,stroke:#224466,stroke-width:1px,color:#fff;
+    class GamerPower,Redrx,Reddit Ext;
+    class TS3Server TS3;
+    class PostgresDB DB;
+```
 
 ---
 
 ## 🚀 Key Features
 
-*   🏆 **Leveling System**: Users earn XP across **10,000+ levels** (30 levels per tier), with procedurally generated names (e.g. *Ascendant Champion of the Void*) and Roman numerals.
-*   ⚔️ **Group Combat**: Users in the same channel automatically form a **Party** to fight randomly spawned mobs and bosses during every notification cycle.
-*   🦾 **24 Gear Slots**: A complete equipment system (Head, Chest, Finger 1 & 2, Mount, Companion, etc.) with functional combat stats.
-*   🪄 **Skill System**: Over **300 unique skills and spells** (e.g. *Fiery Strike*, *Spectral Nova*). Users have 5 slots and automatically learn better skills found from loot.
+*   🏆 **Legendary Leveling**: 10,000+ levels across 330+ tiers with procedurally generated fantasy names.
+*   ⚔️ **Group Combat**: Users in the same channel automatically form a **Party** to fight randomly spawned mobs and bosses during every cycle.
+*   🦾 **Massive Loot**: 24 equipment slots, 1,200+ gear variants, and 120+ rare titles.
+*   🪄 **Skill System**: Over **300 unique skills and spells**. Users have 5 slots and automatically learn better skills found from loot.
 *   ✨ **Enchantment System**: Rare mob drops that can be applied to gear for additional power or increased **Durability**.
-*   👑 **Rare Titles**: Over 120 unique fantasy titles (e.g. *Divine Overlord*) assigned as TS3 server groups with a **name prefix** for 7 days.
-*   🧪 **Consumables**: Potions and elixirs that are automatically consumed to restore HP or provide temporary combat buffs.
-*   🕒 **Stat Tracking**: Tracks **lifetime connection time** and **mobs slain** to reward long-term community members.
-*   💀 **Sloth Decay**: Inactivity penalty for users offline for more than 7 days (2% XP loss per day).
+*   🧪 **Consumables**: Potions and elixirs that are automatically consumed to restore HP or provide buffs.
+*   🕒 **Persistence**: Full lifetime connection tracking and notification history stored in PostgreSQL.
 *   ⚖️ **Auto-Balancing**: A **Combat Pity** system that buffs party stats if they suffer consecutive defeats.
-*   🤖 **Persona Switching**: The bot renames itself based on context, adopting the **godsfinger** persona when delivering rare loot.
+*   🤖 **Contextual Personas**: The bot renames itself based on context, adopting the **godsfinger** persona for rare loot.
+*   🖥️ **Headless Reliability**: Runs the official TS3 desktop client in Xvfb with a robust Go watchdog for 24/7 uptime.
 
 ---
 
-## 🕹️ Progression & RPG Systems
+## 🕹️ RPG Systems Deep-Dive
 
-### 📈 Earning XP
-*   **Game Pokes**: Scaled by the game's original price.
-*   **Idle XP**: Even without new games, online users receive 50% base XP for participating in the combat cycle.
-*   **Daily Login**: A flat **+5 XP** for the first connection each day.
-*   **Combat**: Victory against mobs provides a significant XP boost based on mob level and rarity.
-
-### ✖️ XP Multipliers
+### 📈 Progression Mechanics
+Your XP award per cycle is influenced by a complex set of multipliers:
 | Modifier | Condition | Bonus |
 | :--- | :--- | :---: |
 | **Critical Hit** | 5% random chance on every poke. | **3.0x** |
 | **Claim Streak** | Stay active for 3 / 5 / 7+ consecutive days. | **1.25x / 1.5x / 2.0x** |
-| **Server Pop** | Every additional online user (excluding the bot). | **+5% per user (2x cap)** |
-| **Party System** | Multiple users in the same channel. | **1.25x** |
-| **INT Stat** | Base Intelligence stat from gear. | **Passive % Boost** |
+| **Server Population** | Every additional online user (excluding the bot). | **+5% per user (2x cap)** |
+| **Party System** | Multiple users sitting in the same channel. | **1.25x** |
+| **INT Stat** | Cumulative Intelligence stat from your gear. | **Passive % Boost** |
 
 ### 🛡️ Equipment & Stats
 Users manage **24 slots**. The bot follows a **Smart Auto-Equip** policy: it only replaces items if the new drop has a higher rarity or better overall stat score.
-*   **Combat Stats**: HP, STR (Damage), DEF (Reduces Damage), SPD (Turn Priority), LCK (Drop Rates), INT (XP Boost), STA (Reduces Dura Loss), CRT (Crit Chance), DGE (Dodge).
-*   **Flavour Stats**: CHA (Charisma), STN (Stench), SHN (Shiny), HGR (Hunger) — triggering unique report messages.
-*   **Durability**: Gear loses 1 durability per fight (3 on defeat). Broken gear is automatically deleted.
+
+*   **Combat Stats**: HP (Health), STR (Damage), DEF (Damage Reduction), SPD (Turn Priority), LCK (Drop Quality), INT (XP Boost), STA (Reduces Dura Loss), CRT (Crit Chance), DGE (Dodge).
+*   **Flavour Stats**: Charisma, Stench, Shiny, Hunger — affecting your personal report messages.
+*   **Durability**: Gear loses 1 durability per fight (**3 on defeat**). Broken gear is automatically deleted. Use **Reinforcing Enchantments** to restore or increase max durability.
 *   **Unique Legendaries**: Ultra-rare, named items with massive stats but very low durability (e.g. *Infinity Edge*).
 
 ### ⚔️ Combat & Mobs
-During every cycle, the bot spawns a group of mobs for each party.
-*   **Mob Levels**: Mobs scale based on the party's average level and gear strength.
-*   **Mob Effects**: Enemies can be **Enraged** (+STR), **Armored** (+DEF), **Regenerative**, **Poisoned**, etc.
-*   **Loot Drops**: Defeated mobs drop gear, consumables, enchantments, and skills. Legendary mobs drop up to 4 items at once.
-*   **Pity System**: Each consecutive defeat adds a stack of the **Combat Pity** buff (+20% stats per stack) until a victory is achieved.
+During every notification cycle, a random encounter occurs for each party.
+*   **Mob Scaling**: Enemies level up with you and gain gear-aware difficulty boosts.
+*   **Mob Effects**: Enemies can spawn with effects like **Enraged** (+STR), **Armored** (+DEF), **Regenerative**, or **Poisoned**.
+*   **World Bosses**: Rarely, a legendary boss will spawn, requiring high stats and party cooperation to defeat.
+
+---
+
+## ⚙️ Configuration
+
+The bot is configured via environment variables or a `config.env` file.
+
+| Category | Variable | Description | Default |
+| :--- | :--- | :--- | :---: |
+| **Server** | `TS3_HOST` | Hostname or IP of the TeamSpeak 3 server. | *Required* |
+| | `TS3_PORT` | Voice port of the server (UDP). | `9987` |
+| | `TS3_IDENTITY` | Your exported TeamSpeak identity string. | *None* |
+| | `TS3_NICKNAME` | Default nickname for the bot. | `MrFree` |
+| **Cycle** | `MIN_INTERVAL_HOURS` | Minimum random sleep between cycles. | `1` |
+| | `MAX_INTERVAL_HOURS` | Maximum random sleep between cycles. | `12` |
+| | `POKE_DELAY_MS` | Delay between individual pokes (anti-flood). | `1200` |
+| **RPG** | `ENABLE_LEVELING` | Master switch for the XP and Rank systems. | `true` |
+| | `ENABLE_XP_MODIFIERS` | Enable streaks, crits, and gear multipliers. | `true` |
+| | `XP_SERVER_GROUPS` | Auto-create TS3 server groups for rank tiers. | `false` |
+| | `CHEAPER_MORE_XP` | Invert XP scaling (cheaper games give more). | `false` |
+| | `RESEND_AFTER_DAYS` | Allow re-sending a game after N days. | `60` |
+| **Sources** | `ENABLE_GAMERPOWER` | Fetch from GamerPower API. | `true` |
+| | `ENABLE_EPIC` | Fetch from Epic Games Store API. | `true` |
+| | `ENABLE_REDDIT` | Fetch from /r/FreeGameFindings RSS. | `true` |
+| | `REDRX_API_KEY` | API Key for [redrx.eu](https://redrx.eu/) link shortening. | *None* |
+| **Database** | `DATABASE_URL` | PostgreSQL connection string. | *None* |
+| | `DEAD_USER_DAYS` | Purge users inactive for N days. | `180` |
 
 ---
 
@@ -107,11 +166,37 @@ During every cycle, the bot spawns a group of mobs for each party.
     volumes:
       postgres_data:
     ```
-2.  **Configure**: Create `config.env` (see `example.env` for all variables).
+2.  **Configure**: Create `config.env` using `example.env` as a template.
 3.  **Run**: `docker compose up -d`
+
+### Option B: Building from Source
+
+1.  **Clone the repository**.
+2.  **Configure**: Create `config.env` with your settings.
+3.  **Run**: Start the container and build:
+    ```bash
+    docker compose up -d --build
+    ```
+
+---
+
+## 💻 Local Development & Testing
+
+If you have Go installed, you can run the automated tests to verify the RPG logic:
+
+```bash
+# Run all unit tests
+go test -v ./...
+```
+
+The tests verify notification filtering, database persistence, combat resolution, and loot logic.
 
 ---
 
 ## 📄 License
 
 This project is licensed under the MIT License.
+
+<p align="center">
+  <em>Made with ⚔️ and 🎲 for the TeamSpeak community.</em>
+</p>
