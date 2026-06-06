@@ -113,27 +113,26 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	}
 
 	m.Level = level
-	// Scaling logic: base level scaling * gear-aware difficulty factor
-	// Level scaling increased from 0.1 to 0.15 for better rewards at high levels.
-	scale := (1.0 + 0.15*float64(level-1)) * difficulty
-	if scale < 0.1 { scale = 0.1 }
+	
+	// --- BALANCED SCALING ---
+	// 1. Level Scaling (Base power) - Slightly reduced growth
+	lvlScale := 1.0 + 0.12*float64(level-1)
+	
+	// 2. Difficulty Dampening
+	// Instead of full multiplication, difficulty only affects 30% of the scaling
+	// Example: difficulty 2.0 (Zone + Gear) becomes a 1.3x multiplier
+	effectiveDiff := 1.0 + (difficulty-1.0)*0.3
+	
+	totalScale := lvlScale * effectiveDiff
+	if totalScale < 0.1 { totalScale = 0.1 }
 
-	m.Stats.HP = int(float64(m.Stats.HP) * scale)
-	m.Stats.STR = int(float64(m.Stats.STR) * scale)
-	m.Stats.DEF = int(float64(m.Stats.DEF) * scale)
-	m.Stats.SPD = int(float64(m.Stats.SPD) * scale)
+	m.Stats.HP = int(float64(m.Stats.HP) * totalScale)
+	m.Stats.STR = int(float64(m.Stats.STR) * totalScale)
+	m.Stats.DEF = int(float64(m.Stats.DEF) * totalScale)
+	m.Stats.SPD = int(float64(m.Stats.SPD) * totalScale)
 
-	// XP Scaling: Higher types provide even more rewards.
-	xpScale := scale
-	switch m.Type {
-	case MobElite:
-		xpScale *= 1.2
-	case MobBoss:
-		xpScale *= 1.5
-	case MobLegendary:
-		xpScale *= 2.5 // Legendary mobs are massive XP windfalls
-	}
-	m.RewardXP = int(float64(m.RewardXP) * xpScale)
+	// XP rewards still scale fully to reward the risk
+	m.RewardXP = int(float64(m.RewardXP) * lvlScale * difficulty)
 
 	// Random effect
 	if rand.Float64() < 0.3 {
@@ -200,21 +199,22 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64) []Mob {
 	// Difficulty affects count: higher difficulty = more mobs
-	baseCount := 1 + rand.Intn(4)
+	baseCount := 1 + rand.Intn(3)
 	
 	// Zone Special effect: extra mobs
 	for _, eff := range zone.Effects {
 		if eff.Type == ZoneSpecial && strings.Contains(eff.Name, "Surge") {
-			baseCount += 2
+			baseCount += 1
 		}
 	}
 
-	count := int(float64(baseCount) * difficulty)
+	// Dampen count scaling
+	count := int(float64(baseCount) * (1.0 + (difficulty-1.0)*0.2))
 	if count < 1 { count = 1 }
-	if count > 10 { count = 10 } // Cap at 10 mobs per party
+	if count > 6 { count = 6 } // Reduced cap for balance
 
 	var out []Mob
-	hasBoss := rand.Float64() < 0.1 * difficulty
+	hasBoss := rand.Float64() < 0.08 * difficulty
 	for i := 0; i < count; i++ {
 		out = append(out, SpawnMob(avgLevel, hasBoss && i == 0, difficulty))
 	}

@@ -59,7 +59,6 @@ func init() {
 				Power: 0.1 + (0.05 * float64(rand.Intn(10))),
 			}
 
-			// Custom logic for effects
 			switch zType {
 			case ZoneBuff:
 				ze.Description = fmt.Sprintf("Provides +%.0f%% to random combat stat.", ze.Power*100)
@@ -78,22 +77,38 @@ func init() {
 }
 
 func GetRandomZone(partyAvgLvl int, partyGearScore int) Zone {
-	zoneNames := []string{
-		"Obsidian Sanctum", "Azure Plateau", "Emerald Dreamscape", "Searing Gorge", "Whispering Woods",
-		"Frozen Tundra", "Twilight Highlands", "Molten Core", "Shadowfen", "Thunder Bluff",
-		"Astral Nexus", "Void Rift", "Hellfire Peninsula", "Deadwind Pass", "Sunwell Plateau",
+	// Tiered Zone Selection: Common (70%), Rare (20%), Legendary (10%)
+	commonZones := []string{"Elwynn Forest", "Westfall", "Durotar", "Mulgore", "Teldrassil", "Loch Modan", "Silverpine"}
+	rareZones := []string{"Stranglethorn Vale", "Tanaris", "Un'Goro Crater", "Winterspring", "Searing Gorge", "Burning Steppes"}
+	legendaryZones := []string{"Molten Core", "Sunwell Plateau", "Icecrown Citadel", "Void Rift", "The Maelstrom"}
+
+	r := rand.Float64()
+	var name string
+	var baseDiff float64
+
+	switch {
+	case r < 0.70: // Common
+		name = commonZones[rand.Intn(len(commonZones))]
+		baseDiff = 0.8 // Easier than average
+	case r < 0.90: // Rare
+		name = rareZones[rand.Intn(len(rareZones))]
+		baseDiff = 1.2
+	default: // Legendary
+		name = legendaryZones[rand.Intn(len(legendaryZones))]
+		baseDiff = 1.8 // Dangerous
 	}
 
 	z := Zone{
-		Name: zoneNames[rand.Intn(len(zoneNames))],
+		Name: name,
 	}
 
-	// Scaling Difficulty: harder zones for better players
-	// Base difficulty 1.0, increases with level and GS
-	z.Difficulty = 1.0 + (float64(partyAvgLvl) * 0.02) + (float64(partyGearScore) * 0.0005)
+	// Scaling Difficulty: harder zones for better players, dampened by tier
+	z.Difficulty = baseDiff + (float64(partyAvgLvl) * 0.01) + (float64(partyGearScore) * 0.0002)
 	
-	// Add 1-3 stacking effects
-	effectCount := 1 + rand.Intn(3)
+	// Add 1-3 stacking effects (Legendary zones have more)
+	effectCount := 1 + rand.Intn(2)
+	if r >= 0.90 { effectCount = 3 }
+	
 	for i := 0; i < effectCount; i++ {
 		z.Effects = append(z.Effects, allZoneEffects[rand.Intn(len(allZoneEffects))])
 	}
