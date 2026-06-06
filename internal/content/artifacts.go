@@ -5,6 +5,20 @@ import (
 	"math/rand"
 )
 
+type Rarity int
+
+const (
+	RarityCommon Rarity = iota
+	RarityUncommon
+	RarityRare
+	RarityEpic
+	RarityLegendary
+)
+
+func (r Rarity) String() string {
+	return []string{"Common", "Uncommon", "Rare", "Epic", "Legendary"}[r]
+}
+
 type Stats struct {
 	HP  int
 	STR int
@@ -21,6 +35,10 @@ func (s Stats) Add(o Stats) Stats {
 		SPD: s.SPD + o.SPD,
 		LCK: s.LCK + o.LCK,
 	}
+}
+
+func (s Stats) Score() int {
+	return s.HP/5 + s.STR + s.DEF + s.SPD + s.LCK
 }
 
 type GearSlot string
@@ -60,31 +78,49 @@ var AllSlots = []GearSlot{
 }
 
 type Gear struct {
-	ID           string
-	Name         string
-	Slot         GearSlot
-	XPMultiplier float64
+	ID            string
+	Name          string
+	Slot          GearSlot
+	Rarity        Rarity
+	XPMultiplier  float64
 	MaxDurability int
-	Description  string
-	Stats        Stats
+	Stats         Stats
 }
+
+type ConsumableType string
+
+const (
+	ConsumableHealing ConsumableType = "Healing"
+	ConsumableBuff    ConsumableType = "Buff"
+)
+
+type Consumable struct {
+	ID          string
+	Name        string
+	Type        ConsumableType
+	EffectValue int
+	Duration    int // Number of fights
+	Description string
+}
+
+var allGear []Gear
+var allConsumables = []Consumable{
+	{"P1", "Small Health Potion", ConsumableHealing, 50, 0, "Restores 50 HP instantly"},
+	{"P2", "Great Health Potion", ConsumableHealing, 200, 0, "Restores 200 HP instantly"},
+	{"P3", "Strength Elixir", ConsumableBuff, 15, 3, "+15 STR for 3 fights"},
+	{"P4", "Iron Skin Brew", ConsumableBuff, 10, 3, "+10 DEF for 3 fights"},
+}
+
+// Global pools
+var corruptedArtifacts []Artifact
+var positiveTitles []Title
+var negativeTitles []Title
 
 type Artifact struct {
-	Name  string
-	Mult  float64
-	Stats Stats
+	Name          string
+	Mult          float64
+	Stats         Stats
 	MaxDurability int
-}
-
-func (a Artifact) IsBoon() bool {
-	return a.Mult > 1.0
-}
-
-func (a Artifact) Effect() string {
-	if a.Mult > 1.0 {
-		return fmt.Sprintf("+%.0f%%", (a.Mult-1.0)*100)
-	}
-	return fmt.Sprintf("-%.0f%%", (1.0-a.Mult)*100)
 }
 
 type Title struct {
@@ -93,34 +129,23 @@ type Title struct {
 	Stats        Stats
 }
 
-var allGear []Gear
-var corruptedArtifacts []Artifact
-var positiveTitles []Title
-var negativeTitles []Title
-
 func init() {
-	// Generate base gear for each slot
+	// 1. Generate Gear
 	for _, slot := range AllSlots {
 		allGear = append(allGear, Gear{
-			ID:           fmt.Sprintf("B_%s", slot),
-			Name:         fmt.Sprintf("Novice %s", slot),
-			Slot:         slot,
-			XPMultiplier: 1.01,
+			ID:            fmt.Sprintf("B_%s", slot),
+			Name:          fmt.Sprintf("Novice %s", slot),
+			Slot:          slot,
+			Rarity:        RarityCommon,
+			XPMultiplier:  1.01,
 			MaxDurability: 50,
-			Description:  "+1% XP",
-			Stats:        Stats{HP: 5, STR: 1, DEF: 1, SPD: 1, LCK: 0},
+			Stats:         Stats{HP: 5, STR: 1, DEF: 1, SPD: 1},
 		})
 	}
+	// Add Rares
+	allGear = append(allGear, Gear{ID: "W_EPIC_1", Name: "Soul-Eater Blade", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.5, MaxDurability: 100, Stats: Stats{STR: 50, SPD: 20}})
 
-	// Add more interesting gear
-	allGear = append(allGear, []Gear{
-		{"W1", "Rusty Broadsword", SlotMainHand, 1.05, 30, "+5% XP", Stats{STR: 5}},
-		{"W2", "Silver Dagger", SlotMainHand, 1.10, 25, "+10% XP", Stats{STR: 8, SPD: 5}},
-		{"A1", "Leather Tunic", SlotChest, 1.10, 40, "+10% XP", Stats{DEF: 5, HP: 10}},
-		{"R1", "Lucky Rabbit's Foot", SlotRelic, 1.15, 20, "+15% XP", Stats{LCK: 10}},
-	}...)
-
-	// Generate 100 Corrupted Artifacts with Stats
+	// 2. Generate 100 Corrupted Artifacts
 	prefixes := []string{"Cursed", "Blighted", "Tainted", "Demonic", "Shadow", "Void", "Ruined", "Shattered", "Forbidden", "Malevolent"}
 	nouns := []string{"Chalice", "Orb", "Scepter", "Tome", "Crown", "Amulet", "Skull", "Idol", "Heart", "Eye"}
 	idx := 1
@@ -141,57 +166,30 @@ func init() {
 		}
 	}
 
-	// Generate 100 Positive Titles
+	// 3. Titles
 	posPrefixes := []string{"Divine", "Glorious", "Eternal", "Radiant", "Immortal", "Mythic", "Legendary", "Ancient", "Primal", "Celestial"}
 	posNouns := []string{"Sovereign", "Overlord", "Godslayer", "Archon", "Paragon", "Vanguard", "Sentinel", "Oracle", "Exarch", "Titan"}
 	for _, p := range posPrefixes {
 		for _, n := range posNouns {
-			mult := 2.0 + (rand.Float64() * 3.0)
-			s := Stats{HP: 100, STR: 50, DEF: 30, SPD: 25, LCK: 20}
-			positiveTitles = append(positiveTitles, Title{Name: p + " " + n, XPMultiplier: mult, Stats: s})
+			positiveTitles = append(positiveTitles, Title{Name: p + " " + n, XPMultiplier: 2.0 + rand.Float64()*3.0, Stats: Stats{HP: 100, STR: 50, DEF: 30, SPD: 25, LCK: 20}})
 		}
 	}
-
-	// Generate 20 Negative Titles
 	negPrefixes := []string{"Wretched", "Damned", "Forlorn", "Forsaken"}
 	negNouns := []string{"Peon", "Outcast", "Traitor", "Coward", "Scum"}
 	for _, p := range negPrefixes {
 		for _, n := range negNouns {
-			mult := 0.05 + (rand.Float64() * 0.2)
-			s := Stats{HP: -50, STR: -20, DEF: -15, SPD: -10, LCK: -15}
-			negativeTitles = append(negativeTitles, Title{Name: p + " " + n, XPMultiplier: mult, Stats: s})
+			negativeTitles = append(negativeTitles, Title{Name: p + " " + n, XPMultiplier: 0.05 + rand.Float64()*0.2, Stats: Stats{HP: -50, STR: -20, DEF: -15, SPD: -10, LCK: -15}})
 		}
 	}
 }
 
-func RandomArtifact() Artifact { return corruptedArtifacts[rand.Intn(len(corruptedArtifacts))] }
-func RandomGearDrop() Gear     { return allGear[rand.Intn(len(allGear))] }
-func RandomStarterGear() Gear  { return allGear[rand.Intn(len(AllSlots))] }
+func RandomConsumable() Consumable { return allConsumables[rand.Intn(len(allConsumables))] }
+func RandomGearDrop() Gear         { return allGear[rand.Intn(len(allGear))] }
+func RandomStarterGear() Gear      { return allGear[rand.Intn(len(AllSlots))] }
+func RandomArtifact() Artifact     { return corruptedArtifacts[rand.Intn(len(corruptedArtifacts))] }
 func RandomTitle() Title {
-	if rand.Float64() < 0.8 {
-		return positiveTitles[rand.Intn(len(positiveTitles))]
-	}
+	if rand.Float64() < 0.8 { return positiveTitles[rand.Intn(len(positiveTitles))] }
 	return negativeTitles[rand.Intn(len(negativeTitles))]
-}
-
-func IsTitle(name string) bool {
-	for _, t := range positiveTitles {
-		if t.Name == name { return true }
-	}
-	for _, t := range negativeTitles {
-		if t.Name == name { return true }
-	}
-	return false
-}
-
-func IsGearOrArtifact(name string) bool {
-	for _, g := range allGear {
-		if g.Name == name { return true }
-	}
-	for _, a := range corruptedArtifacts {
-		if a.Name == name { return true }
-	}
-	return false
 }
 
 func GetGearByID(id string) (Gear, bool) {
@@ -201,19 +199,31 @@ func GetGearByID(id string) (Gear, bool) {
 	return Gear{}, false
 }
 
+func GetConsumableByID(id string) (Consumable, bool) {
+	for _, c := range allConsumables {
+		if c.ID == id { return c, true }
+	}
+	return Consumable{}, false
+}
+
 func GetTitleByName(name string) (Title, bool) {
-	for _, t := range positiveTitles {
-		if t.Name == name { return t, true }
-	}
-	for _, t := range negativeTitles {
-		if t.Name == name { return t, true }
-	}
+	for _, t := range positiveTitles { if t.Name == name { return t, true } }
+	for _, t := range negativeTitles { if t.Name == name { return t, true } }
 	return Title{}, false
 }
 
 func GetArtifactByName(name string) (Artifact, bool) {
-	for _, a := range corruptedArtifacts {
-		if a.Name == name { return a, true }
-	}
+	for _, a := range corruptedArtifacts { if a.Name == name { return a, true } }
 	return Artifact{}, false
+}
+
+func IsTitle(name string) bool {
+	_, ok := GetTitleByName(name)
+	return ok
+}
+
+func IsGearOrArtifact(name string) bool {
+	for _, g := range allGear { if g.Name == name { return true } }
+	for _, a := range corruptedArtifacts { if a.Name == name { return true } }
+	return false
 }

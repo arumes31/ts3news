@@ -9,6 +9,23 @@ import (
 	"ts3news/internal/leveling"
 )
 
+func (b *Bot) applyMilestones(c *clientquery.Client, clid int, nickname string, lr *levelResult) {
+	if lr == nil { return }
+	crossed := leveling.MilestonesCrossed(lr.OldLevel, lr.NewLevel, b.levelGroups)
+	if len(crossed) == 0 { return }
+
+	cldbid, err := c.ClientDBID(clid)
+	if err != nil { return }
+
+	for _, sgid := range crossed {
+		if err := c.AddServerGroup(sgid, cldbid); err != nil {
+			log.Printf("milestone: failed to add group %d to %s: %v", sgid, nickname, err)
+		} else {
+			log.Printf("milestone: %s reached level and earned group %d", nickname, sgid)
+		}
+	}
+}
+
 // iconSizePx is the generated icon resolution. TeamSpeak group icons are 16x16.
 const iconSizePx = 16
 

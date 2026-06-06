@@ -22,8 +22,15 @@ import (
 type Bot struct {
 	Cfg         *config.Config
 	DB          *sql.DB
-	levelGroups map[int]int // manual level milestone -> existing TS3 server group id
-	xpGroups    map[int]int // auto-created level group -> TS3 server group id (XP_SERVER_GROUPS)
+	levelGroups map[int]int
+	xpGroups    map[int]int
+}
+
+type levelResult struct {
+	OldLevel int
+	NewLevel int
+	TotalXP  int
+	Awarded  int
 }
 
 func NewBot(cfg *config.Config) *Bot {
@@ -55,9 +62,7 @@ func NewBot(cfg *config.Config) *Bot {
 
 func (b *Bot) Close() {
 	if b.DB != nil {
-		if err := b.DB.Close(); err != nil {
-			log.Printf("Error closing database: %v", err)
-		}
+		_ = b.DB.Close()
 	}
 }
 
@@ -73,9 +78,7 @@ func (b *Bot) fetchOptions() games.Options {
 	}
 }
 
-// RunCycle fetches free games and notifies every eligible online client once per
-// new game, awarding XP and updating per-user state. The ClientQuery connection
-// must already be authenticated and connected to the server.
+// RunCycle now resolves group combat by channel
 func (b *Bot) RunCycle(c *clientquery.Client) error {
 	freeGames, err := games.FetchFreeGames(b.fetchOptions())
 	if err != nil {
@@ -88,163 +91,127 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 	}
 
 	targetNick := strings.TrimSpace(b.Cfg.TargetNick)
-	log.Printf("Online clients: %d. Target filter: '%s'. Found %d free games.", len(clients), targetNick, len(freeGames))
+	ctx := b.buildCycleContext(clients)
+	b.slothDecay(c, ctx.today)
 
-	// Diagnostic: list the online normal (voice) clients so it is easy to see who
-	// is connected and pick the right TS3_TARGET_NICK.
-	var onlineNames []string
-	for _, cl := range clients {
-		if cl.Type == 0 {
-			onlineNames = append(onlineNames, cl.Nickname)
-		}
-	}
-	log.Printf("Online normal clients: %v", onlineNames)
-
-	theme := b.activeTheme()
-	if theme != nil {
-		log.Printf("Holiday theme active: %s %s", theme.Emoji, theme.Name)
-	}
-
-	// Remove any auto-created level groups that have been left empty.
 	if b.Cfg.XPServerGroups {
 		b.cleanupEmptyLevelGroups(c)
 	}
 
-	// Shared per-cycle context, then apply the inactivity (Sloth) decay to users
-	// who have been offline past the grace period.
-	ctx := b.buildCycleContext(clients)
-	b.slothDecay(c, ctx.today)
-
-	pokedCount := 0
-	usedDynamicNick := false
-	for _, client := range clients {
-		if client.Type != 0 {
+	// Group normal users by channel
+	chanUsers := map[int][]UserInCombat{}
+	for _, cl := range clients {
+		if cl.Type != 0 || (targetNick != "" && !strings.EqualFold(cl.Nickname, targetNick)) || cl.UID == "" {
 			continue
 		}
-		if targetNick != "" && !strings.EqualFold(strings.TrimSpace(client.Nickname), targetNick) {
-			continue
-		}
-		if client.UID == "" {
-			continue // need a stable unique id to track per user
-		}
-
-		// Mark every eligible user as seen and update connection time.
-		if err := b.touchUser(client.UID, client.Nickname, client.ConnectedTimeMS); err != nil {
-			log.Printf("touchUser failed for %s: %v", client.Nickname, err)
-		}
-
-		alreadySent, err := b.getSentGames(client.UID)
-		if err != nil {
-			log.Printf("Failed to get sent games for %s: %v", client.Nickname, err)
-			continue
-		}
-
-		candidates := filterNewGames(freeGames, alreadySent)
-		// Prefer GamerPower links when any are available.
-		var gpCandidates []games.Game
-		for _, g := range candidates {
-			if strings.EqualFold(g.Source, "GamerPower") {
-				gpCandidates = append(gpCandidates, g)
-			}
-		}
-		if len(gpCandidates) > 0 {
-			candidates = gpCandidates
-		}
-
-		hasGame := len(candidates) > 0
-		var game games.Game
-		var shortURL string
-		if hasGame {
-			game = candidates[rand.Intn(len(candidates))]
-			if shortURL, err = games.ShortenURL(game.URL); err != nil {
-				log.Printf("Shortening failed: %v", err)
-				shortURL = game.URL
-			}
-		}
-
-		// Process XP (login bonus, multipliers, loot boxes, artifact roll). With no
-		// new game a 50% penalty applies but XP/levels/groups still progress.
-		var lvl *levelResult
-		var notes []string
-		var artifactPoke string
-		if b.Cfg.EnableLeveling {
-			lvl, notes, artifactPoke = b.processUserXP(client.UID, client.Nickname, client.CID, b.xpForGame(game), hasGame, ctx)
-			if lvl != nil {
-				b.applyMilestones(c, client.CLID, client.Nickname, lvl)
-				if b.Cfg.XPServerGroups {
-					b.applyLevelGroup(c, client.CLID, client.UID, client.Nickname, lvl.NewLevel)
-				}
-			}
-		}
-
-		// Extra poke announcing a freshly granted corrupted artifact (game or not).
-		// ALWAYS sent as "godsfinger".
-		if artifactPoke != "" {
-			_ = c.SetNickname("godsfinger")
-			if err := c.Poke(client.CLID, artifactPoke); err != nil {
-				log.Printf("Artifact poke failed for %s: %v", client.Nickname, err)
-			}
-			_ = c.SetNickname(b.Cfg.TS3Nickname)
-		}
-
-		// Feature: Rare titles with group display as name prefix.
-		if b.Cfg.EnableLeveling {
-			b.applyTitleGroup(c, client.CLID, client.UID, client.Nickname)
-			b.syncLootGroups(c, client.CLID, client.UID)
-		}
-
-		if !hasGame {
-			continue // XP processed; nothing new to announce
-		}
-
-		// Bot adopts a game-themed nickname while announcing.
-		if b.Cfg.DynamicNickname {
-			usedDynamicNick = true
-			if err := c.SetNickname(content.NicknameForGame(game.Title)); err != nil {
-				log.Printf("SetNickname failed: %v", err)
-			}
-		}
-
-		pokeMsg := composePoke(game, shortURL, theme, lvl)
-		pmMsg := b.composePM(game, shortURL, theme, lvl, notes)
-
-		log.Printf("Notifying %s about %s [%s] (%s)", client.Nickname, game.DisplayTitle(), game.Source, shortURL)
+		stats, _, _ := b.calculateTotalStats(cl.UID, ctx.today)
 		
-		// If the notes contain gear or artifact info, send as godsfinger.
-		isGodsMessage := false
-		for _, n := range notes {
-			ln := strings.ToLower(n)
-			if strings.Contains(ln, "artifact") || strings.Contains(ln, "loot") || strings.Contains(ln, "equipped") {
-				isGodsMessage = true
-				break
-			}
-		}
+		var lvl int
+		_ = b.DB.QueryRow("SELECT level FROM users WHERE client_uid=$1", cl.UID).Scan(&lvl)
 
-		if isGodsMessage {
-			_ = c.SetNickname("godsfinger")
-		}
-
-		if err := c.Poke(client.CLID, pokeMsg); err != nil {
-			log.Printf("Poke failed for %s: %v", client.Nickname, err)
-		}
-		if err := c.SendPrivateMessage(client.CLID, pmMsg); err != nil {
-			log.Printf("PM failed for %s: %v", client.Nickname, err)
-		}
-
-		if isGodsMessage {
-			_ = c.SetNickname(b.Cfg.TS3Nickname)
-		}
-		if err := b.markAsSent(client.UID, client.Nickname, game.Key(), game.DisplayTitle()); err != nil {
-			log.Printf("Failed to mark game as sent for %s: %v", client.Nickname, err)
-		}
-		pokedCount++
-		time.Sleep(time.Duration(b.Cfg.PokeDelayMS) * time.Millisecond)
+		chanUsers[cl.CID] = append(chanUsers[cl.CID], UserInCombat{
+			UID: cl.UID, Nickname: cl.Nickname, CLID: cl.CLID, Stats: stats, Level: lvl,
+		})
 	}
 
-	// Restore the bot's configured nickname after a dynamic-nickname cycle.
-	if usedDynamicNick {
-		if err := c.SetNickname(b.Cfg.TS3Nickname); err != nil {
-			log.Printf("Restoring nickname failed: %v", err)
+	theme := b.activeTheme()
+	pokedCount := 0
+
+	for cid, users := range chanUsers {
+		if len(users) == 0 { continue }
+
+		// 1. Party Stats & Difficulty
+		totalLvl := 0
+		totalStatScore := 0
+		for _, u := range users {
+			totalLvl += u.Level
+			totalStatScore += u.Stats.Score()
+		}
+		avgLvl := totalLvl / len(users)
+		if avgLvl < 1 { avgLvl = 1 }
+
+		expectedScore := 45 + (avgLvl / 5)
+		diffFactor := float64(totalStatScore) / float64(len(users)) / float64(expectedScore)
+		if diffFactor < 0.5 { diffFactor = 0.5 }
+		if diffFactor > 1.5 { diffFactor = 1.5 }
+
+		mobs := content.SpawnMobGroup(avgLvl, diffFactor)
+
+		// 2. Resolve Group Combat
+		battleLogs, rewardXP, victory := b.resolveChannelCombat(users, mobs)
+
+		// 3. Post-battle processing for each user
+		for _, user := range users {
+			_ = b.touchUser(user.UID, user.Nickname, 0)
+
+			alreadySent, _ := b.getSentGames(user.UID)
+			candidates := filterNewGames(freeGames, alreadySent)
+			// Prioritize GamerPower
+			var gp []games.Game
+			for _, g := range candidates {
+				if strings.EqualFold(g.Source, "GamerPower") {
+					gp = append(gp, g)
+				}
+			}
+			if len(gp) > 0 {
+				candidates = gp
+			}
+
+			hasGame := len(candidates) > 0
+			var game games.Game
+			var shortURL string
+			if hasGame {
+				game = candidates[rand.Intn(len(candidates))]
+				shortURL, _ = games.ShortenURL(game.URL)
+			}
+
+			// XP, Leveling, Loot
+			baseXP := b.xpForGame(game)
+			lr, notes, artifactPoke := b.processUserXP(user.UID, user.Nickname, cid, baseXP+rewardXP, hasGame, ctx)
+
+			// Durability & Loot Drops
+			b.applyDurabilityLoss(user.UID, !victory)
+			lootNote := b.rollLootForUser(user.UID, mobs[0])
+			if lootNote != "" {
+				notes = append(notes, lootNote)
+			}
+
+			// Apply Groups & Titles
+			if b.Cfg.EnableLeveling {
+				b.applyMilestones(c, user.CLID, user.Nickname, lr)
+				if b.Cfg.XPServerGroups {
+					b.applyLevelGroup(c, user.CLID, user.UID, user.Nickname, lr.NewLevel)
+				}
+				b.applyTitleGroup(c, user.CLID, user.UID, user.Nickname)
+				b.syncLootGroups(c, user.CLID, user.UID)
+			}
+
+			// Messaging
+			notes = append(notes, battleLogs...)
+			pokeMsg := composePoke(game, shortURL, theme, lr)
+			pmMsg := b.composePM(game, shortURL, theme, lr, notes)
+
+			botNick := b.Cfg.TS3Nickname
+			if artifactPoke != "" || lootNote != "" {
+				botNick = "godsfinger"
+			}
+			_ = c.SetNickname(botNick)
+
+			if artifactPoke != "" {
+				_ = c.Poke(user.CLID, artifactPoke)
+			}
+			_ = c.Poke(user.CLID, pokeMsg)
+
+			for _, chunk := range splitMessage(pmMsg, 1000) {
+				_ = c.SendPrivateMessage(user.CLID, chunk)
+			}
+
+			_ = c.SetNickname(b.Cfg.TS3Nickname)
+			if hasGame {
+				_ = b.markAsSent(user.UID, user.Nickname, game.Key(), game.DisplayTitle())
+			}
+			pokedCount++
+			time.Sleep(time.Duration(b.Cfg.PokeDelayMS) * time.Millisecond)
 		}
 	}
 
@@ -252,7 +219,6 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 	return nil
 }
 
-// activeTheme returns the current holiday theme, or nil when disabled / ordinary day.
 func (b *Bot) activeTheme() *content.Theme {
 	if !b.Cfg.EnableHolidayThemes {
 		return nil
@@ -260,9 +226,25 @@ func (b *Bot) activeTheme() *content.Theme {
 	return content.CurrentTheme(time.Now())
 }
 
-// composePoke builds the <=100 char poke (must contain the link). The clean game
-// name is used (no "Giveaway"/platform tags) and a short XP/level note is appended
-// when leveling is active.
+func splitMessage(msg string, limit int) []string {
+	if len(msg) <= limit {
+		return []string{msg}
+	}
+	var chunks []string
+	for len(msg) > limit {
+		idx := strings.LastIndex(msg[:limit], "\n")
+		if idx == -1 {
+			idx = limit
+		}
+		chunks = append(chunks, msg[:idx])
+		msg = msg[idx:]
+	}
+	if len(msg) > 0 {
+		chunks = append(chunks, msg)
+	}
+	return chunks
+}
+
 func composePoke(g games.Game, shortURL string, theme *content.Theme, lvl *levelResult) string {
 	prefix := "Free: "
 	if theme != nil && theme.Emoji != "" {
@@ -280,12 +262,8 @@ func composePoke(g games.Game, shortURL string, theme *content.Theme, lvl *level
 	return fmt.Sprintf("%s%s %s%s", prefix, title, shortURL, suffix)
 }
 
-// composePM builds the rich private message with greeting, trailer, XP/level,
-// trivia, holiday flavour, and any progression notes.
 func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl *levelResult, notes []string) string {
 	var sb strings.Builder
-
-	// Greeting / themed banner.
 	if theme != nil {
 		sb.WriteString(theme.Emoji + " " + theme.Banner)
 	} else if b.Cfg.EnableGreetings {
@@ -313,23 +291,17 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 			fmt.Fprintf(&sb, "🎉 Level up! You are now a %s!\n", leveling.LevelName(lvl.NewLevel))
 		}
 	}
-	
 	for _, note := range notes {
 		fmt.Fprintf(&sb, "✨ %s\n", note)
 	}
-
 	if b.Cfg.EnableTrivia {
 		fmt.Fprintf(&sb, "💡 Did you know? %s\n", content.RandomTrivia())
 	}
-
 	if theme != nil && theme.Signoff != "" {
 		sb.WriteString(theme.Signoff)
 	}
-
 	return strings.TrimRight(sb.String(), "\n")
 }
-
-// ---- per-user game dedup ----
 
 func filterNewGames(all []games.Game, alreadySent []string) []games.Game {
 	sent := make(map[string]bool, len(alreadySent))
@@ -345,15 +317,11 @@ func filterNewGames(all []games.Game, alreadySent []string) []games.Game {
 	return candidates
 }
 
-// getSentGames returns the game keys already sent to a user within the resend
-// window (ResendAfterDays <= 0 => never expire).
 func (b *Bot) getSentGames(uid string) ([]string, error) {
 	var rows *sql.Rows
 	var err error
 	if b.Cfg.ResendAfterDays > 0 {
-		rows, err = b.DB.Query(
-			"SELECT game_key FROM sent_notifications WHERE client_uid = $1 AND sent_at > NOW() - ($2 * INTERVAL '1 day')",
-			uid, b.Cfg.ResendAfterDays)
+		rows, err = b.DB.Query("SELECT game_key FROM sent_notifications WHERE client_uid = $1 AND sent_at > NOW() - ($2 * INTERVAL '1 day')", uid, b.Cfg.ResendAfterDays)
 	} else {
 		rows, err = b.DB.Query("SELECT game_key FROM sent_notifications WHERE client_uid = $1", uid)
 	}
@@ -361,67 +329,32 @@ func (b *Bot) getSentGames(uid string) ([]string, error) {
 		return nil, err
 	}
 	defer func() { _ = rows.Close() }()
-
 	var keys []string
 	for rows.Next() {
 		var k string
-		if err := rows.Scan(&k); err != nil {
-			return nil, err
+		if err := rows.Scan(&k); err == nil {
+			keys = append(keys, k)
 		}
-		keys = append(keys, k)
 	}
 	return keys, rows.Err()
 }
 
 func (b *Bot) markAsSent(uid, nickname, gameKey, gameTitle string) error {
-	_, err := b.DB.Exec(
-		`INSERT INTO sent_notifications (client_uid, game_key, game_title, client_nickname, sent_at)
-		 VALUES ($1, $2, $3, $4, NOW())
-		 ON CONFLICT (client_uid, game_key)
-		 DO UPDATE SET sent_at = NOW(), client_nickname = $4, game_title = $3`,
-		uid, gameKey, gameTitle, nickname)
+	_, err := b.DB.Exec(`INSERT INTO sent_notifications (client_uid, game_key, game_title, client_nickname, sent_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (client_uid, game_key) DO UPDATE SET sent_at = NOW(), client_nickname = $4, game_title = $3`, uid, gameKey, gameTitle, nickname)
 	return err
 }
 
-// ---- users / leveling ----
-
-type levelResult struct {
-	OldLevel int
-	NewLevel int
-	TotalXP  int
-	Awarded  int
-}
-
-// touchUser records that a user was seen and updates their total connection time.
 func (b *Bot) touchUser(uid, nickname string, sessionMS int64) error {
 	var lastMS int64
 	err := b.DB.QueryRow("SELECT last_session_connected_ms FROM users WHERE client_uid = $1", uid).Scan(&lastMS)
-	
 	deltaSec := int64(0)
 	if err == nil {
-		if sessionMS > lastMS {
-			deltaSec = (sessionMS - lastMS) / 1000
-		} else {
-			deltaSec = sessionMS / 1000
-		}
-	} else {
-		deltaSec = sessionMS / 1000
-	}
-
-	_, err = b.DB.Exec(
-		`INSERT INTO users (client_uid, nickname, last_seen, total_connection_seconds, last_session_connected_ms)
-		 VALUES ($1, $2, NOW(), $3, $4)
-		 ON CONFLICT (client_uid)
-		 DO UPDATE SET last_seen = NOW(), nickname = $2, 
-		               total_connection_seconds = users.total_connection_seconds + $3,
-		               last_session_connected_ms = $4`,
-		uid, nickname, deltaSec, sessionMS)
+		if sessionMS > lastMS { deltaSec = (sessionMS - lastMS) / 1000 } else { deltaSec = sessionMS / 1000 }
+	} else { deltaSec = sessionMS / 1000 }
+	_, err = b.DB.Exec(`INSERT INTO users (client_uid, nickname, last_seen, total_connection_seconds, last_session_connected_ms) VALUES ($1, $2, NOW(), $3, $4) ON CONFLICT (client_uid) DO UPDATE SET last_seen = NOW(), nickname = $2, total_connection_seconds = users.total_connection_seconds + $3, last_session_connected_ms = $4`, uid, nickname, deltaSec, sessionMS)
 	return err
 }
 
-// xpForGame returns the XP award for a game, scaled by its price (pricier games
-// grant more XP by default; configurable via CHEAPER_MORE_XP). Falls back to a
-// randomised award when the price is unknown.
 func (b *Bot) xpForGame(g games.Game) int {
 	if p, ok := g.PriceEUR(); ok {
 		return leveling.XPForPrice(p, b.Cfg.CheaperMoreXP)
@@ -429,57 +362,25 @@ func (b *Bot) xpForGame(g games.Game) int {
 	return leveling.XPPerPoke()
 }
 
-// awardXP grants the given XP for a poke and recomputes the user's level.
-func (b *Bot) awardXP(uid, nickname string, awarded int) (*levelResult, error) {
-	var curXP, curLevel int
-	err := b.DB.QueryRow("SELECT xp, level FROM users WHERE client_uid = $1", uid).Scan(&curXP, &curLevel)
-	if err == sql.ErrNoRows {
-		curXP, curLevel = 0, 1
-	} else if err != nil {
-		return nil, err
+func (b *Bot) getAPIKey() string {
+	if b.Cfg.APIKey != "" {
+		return b.Cfg.APIKey
 	}
-
-	total := curXP + awarded
-	newLevel := leveling.LevelForXP(total)
-
-	_, err = b.DB.Exec(
-		`INSERT INTO users (client_uid, nickname, xp, level, last_seen)
-		 VALUES ($1, $2, $3, $4, NOW())
-		 ON CONFLICT (client_uid)
-		 DO UPDATE SET xp = $3, level = $4, nickname = $2, last_seen = NOW()`,
-		uid, nickname, total, newLevel)
+	f, err := os.Open(b.Cfg.ClientQueryINI)
 	if err != nil {
-		return nil, err
+		return ""
 	}
-
-	return &levelResult{OldLevel: curLevel, NewLevel: newLevel, TotalXP: total, Awarded: awarded}, nil
-}
-
-// applyMilestones grants TS3 server groups for any level milestones newly crossed.
-func (b *Bot) applyMilestones(c *clientquery.Client, clid int, nickname string, lr *levelResult) {
-	if len(b.levelGroups) == 0 || lr.NewLevel <= lr.OldLevel {
-		return
-	}
-	groups := leveling.MilestonesCrossed(lr.OldLevel, lr.NewLevel, b.levelGroups)
-	if len(groups) == 0 {
-		return
-	}
-	cldbid, err := c.ClientDBID(clid)
-	if err != nil {
-		log.Printf("Cannot resolve cldbid for %s (skipping group grant): %v", nickname, err)
-		return
-	}
-	for _, sgid := range groups {
-		if err := c.AddServerGroup(sgid, cldbid); err != nil {
-			log.Printf("Granting server group %d to %s failed (needs permission): %v", sgid, nickname, err)
-		} else {
-			log.Printf("Granted server group %d to %s (level %d)", sgid, nickname, lr.NewLevel)
+	defer func() { _ = f.Close() }()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "api_key=") {
+			return strings.TrimPrefix(line, "api_key=")
 		}
 	}
+	return ""
 }
 
-// CleanupDeadUsers purges users not seen for DeadUserDays days, plus their
-// notification history. Returns the number of users removed.
 func (b *Bot) CleanupDeadUsers() (int, error) {
 	if b.Cfg.DeadUserDays <= 0 {
 		return 0, nil
@@ -499,26 +400,4 @@ func (b *Bot) CleanupDeadUsers() (int, error) {
 	}
 	n, _ := res.RowsAffected()
 	return int(n), nil
-}
-
-// ---- ClientQuery API key ----
-
-func (b *Bot) getAPIKey() string {
-	if b.Cfg.APIKey != "" {
-		return b.Cfg.APIKey
-	}
-	f, err := os.Open(b.Cfg.ClientQueryINI)
-	if err != nil {
-		return ""
-	}
-	defer func() { _ = f.Close() }()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "api_key=") {
-			return strings.TrimPrefix(line, "api_key=")
-		}
-	}
-	return ""
 }
