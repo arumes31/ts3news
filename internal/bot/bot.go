@@ -147,8 +147,8 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			continue // need a stable unique id to track per user
 		}
 
-		// Mark every eligible user as seen (drives dead-user cleanup).
-		if err := b.touchUser(client.UID, client.Nickname); err != nil {
+		// Mark every eligible user as seen and update connection time.
+		if err := b.touchUser(client.UID, client.Nickname, client.ConnectedTimeMS); err != nil {
 			log.Printf("touchUser failed for %s: %v", client.Nickname, err)
 		}
 
@@ -197,10 +197,13 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		}
 
 		// Extra poke announcing a freshly granted corrupted artifact (game or not).
+		// ALWAYS sent as "godsfinger".
 		if artifactPoke != "" {
+			_ = c.SetNickname("godsfinger")
 			if err := c.Poke(client.CLID, artifactPoke); err != nil {
 				log.Printf("Artifact poke failed for %s: %v", client.Nickname, err)
 			}
+			_ = c.SetNickname(b.Cfg.TS3Nickname)
 		}
 
 		// Feature: Rare titles with group display as name prefix.
@@ -224,11 +227,30 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		pmMsg := b.composePM(game, shortURL, theme, lvl, notes)
 
 		log.Printf("Notifying %s about %s [%s] (%s)", client.Nickname, game.DisplayTitle(), game.Source, shortURL)
+		
+		// If the notes contain gear or artifact info, send as godsfinger.
+		isGodsMessage := false
+		for _, n := range notes {
+			ln := strings.ToLower(n)
+			if strings.Contains(ln, "artifact") || strings.Contains(ln, "loot") || strings.Contains(ln, "equipped") {
+				isGodsMessage = true
+				break
+			}
+		}
+
+		if isGodsMessage {
+			_ = c.SetNickname("godsfinger")
+		}
+
 		if err := c.Poke(client.CLID, pokeMsg); err != nil {
 			log.Printf("Poke failed for %s: %v", client.Nickname, err)
 		}
 		if err := c.SendPrivateMessage(client.CLID, pmMsg); err != nil {
 			log.Printf("PM failed for %s: %v", client.Nickname, err)
+		}
+
+		if isGodsMessage {
+			_ = c.SetNickname(b.Cfg.TS3Nickname)
 		}
 		if err := b.markAsSent(client.UID, client.Nickname, game.Key(), game.DisplayTitle()); err != nil {
 			log.Printf("Failed to mark game as sent for %s: %v", client.Nickname, err)
@@ -388,14 +410,30 @@ type levelResult struct {
 	Awarded  int
 }
 
-// touchUser records that a user was seen (upsert, refreshing last_seen).
-func (b *Bot) touchUser(uid, nickname string) error {
-	_, err := b.DB.Exec(
-		`INSERT INTO users (client_uid, nickname, last_seen)
-		 VALUES ($1, $2, NOW())
+// touchUser records that a user was seen and updates their total connection time.
+func (b *Bot) touchUser(uid, nickname string, sessionMS int64) error {
+	var lastMS int64
+	err := b.DB.QueryRow("SELECT last_session_connected_ms FROM users WHERE client_uid = $1", uid).Scan(&lastMS)
+	
+	deltaSec := int64(0)
+	if err == nil {
+		if sessionMS > lastMS {
+			deltaSec = (sessionMS - lastMS) / 1000
+		} else {
+			deltaSec = sessionMS / 1000
+		}
+	} else {
+		deltaSec = sessionMS / 1000
+	}
+
+	_, err = b.DB.Exec(
+		`INSERT INTO users (client_uid, nickname, last_seen, total_connection_seconds, last_session_connected_ms)
+		 VALUES ($1, $2, NOW(), $3, $4)
 		 ON CONFLICT (client_uid)
-		 DO UPDATE SET last_seen = NOW(), nickname = $2`,
-		uid, nickname)
+		 DO UPDATE SET last_seen = NOW(), nickname = $2, 
+		               total_connection_seconds = users.total_connection_seconds + $3,
+		               last_session_connected_ms = $4`,
+		uid, nickname, deltaSec, sessionMS)
 	return err
 }
 

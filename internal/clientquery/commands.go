@@ -40,10 +40,11 @@ func Unescape(s string) string { return unescaper.Replace(s) }
 
 // Client describes one client visible on the server.
 type ClientInfo struct {
-	CLID     int
-	Nickname string
-	UID      string // client_unique_identifier (stable TeamSpeak identity id)
-	Type     int    // 0 = normal voice client, 1 = ServerQuery/ClientQuery client
+	CLID            int
+	Nickname        string
+	UID             string // client_unique_identifier (stable TeamSpeak identity id)
+	Type            int    // 0 = normal voice client, 1 = ServerQuery/ClientQuery client
+	ConnectedTimeMS int64  // client_connected_time (ms since session start)
 }
 
 // ClientList returns all clients on the currently selected virtual server,
@@ -74,6 +75,20 @@ func (c *Client) ClientList() ([]ClientInfo, error) {
 					ci.Type, _ = strconv.Atoi(v)
 				}
 			}
+
+			// For voice clients, fetch additional session stats (connected time)
+			if ci.CLID >= 0 && ci.Type == 0 {
+				if info, ierr := c.Command(fmt.Sprintf("clientinfo clid=%d", ci.CLID)); ierr == nil {
+					for _, iline := range info {
+						for _, f := range strings.Fields(iline) {
+							if val, ok := strings.CutPrefix(f, "client_connected_time="); ok {
+								ci.ConnectedTimeMS, _ = strconv.ParseInt(val, 10, 64)
+							}
+						}
+					}
+				}
+			}
+
 			if ci.CLID >= 0 {
 				out = append(out, ci)
 			}

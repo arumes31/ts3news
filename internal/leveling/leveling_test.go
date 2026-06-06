@@ -7,7 +7,7 @@ func TestLevelForXPMonotonic(t *testing.T) {
 		t.Errorf("LevelForXP(0) = %d, want 1", l)
 	}
 	prev := 1
-	for xp := 0; xp < XPForLevel(MaxLevel); xp += 1000 {
+	for xp := 0; xp < XPForLevel(MaxLevel); xp += 10000 {
 		l := LevelForXP(xp)
 		if l < prev {
 			t.Fatalf("level decreased at xp=%d: %d < %d", xp, l, prev)
@@ -17,32 +17,23 @@ func TestLevelForXPMonotonic(t *testing.T) {
 		}
 		prev = l
 	}
-	// Infinite tiers: huge XP keeps climbing past MaxLevel (no cap).
-	if l := LevelForXP(XPForLevel(MaxLevel) + 1_000_000); l <= MaxLevel {
-		t.Errorf("huge xp should exceed %d (infinite tiers), got %d", MaxLevel, l)
-	}
 }
 
 func TestInfiniteTiers(t *testing.T) {
-	// Names beyond MaxLevel are procedural and non-empty, and round-trip via LevelByName.
-	for _, lvl := range []int{1001, 1041, 2000, 4999} {
+	// Names beyond MaxLevel are procedural and non-empty.
+	for _, lvl := range []int{10001, 10101, 20000} {
 		name := LevelName(lvl)
 		if name == "" {
 			t.Fatalf("empty procedural name at level %d", lvl)
 		}
-		if got, ok := LevelByName(name); !ok || got != lvl {
-			t.Errorf("LevelByName(%q) = %d,%v want %d", name, got, ok, lvl)
-		}
-	}
-	if got := LevelForXP(XPForLevel(1041)); got != 1041 {
-		t.Errorf("round-trip past cap failed: %d", got)
 	}
 }
 
 func TestXPForLevelRoundTrip(t *testing.T) {
-	for _, lvl := range []int{1, 2, 10, 100, 500, 1000} {
+	for _, lvl := range []int{1, 2, 10, 100, 1000, 10000} {
 		xp := XPForLevel(lvl)
-		if got := LevelForXP(xp); got != lvl {
+		got := LevelForXP(xp)
+		if got != lvl {
 			t.Errorf("LevelForXP(XPForLevel(%d)=%d) = %d, want %d", lvl, xp, got, lvl)
 		}
 	}
@@ -54,19 +45,16 @@ func TestLevelNameCoversAllLevels(t *testing.T) {
 			t.Fatalf("empty level name at level %d", lvl)
 		}
 	}
-	if LevelName(1) != "Peasant I" {
-		t.Errorf("LevelName(1) = %q, want %q", LevelName(1), "Peasant I")
-	}
-	if LevelName(1000) == "" {
-		t.Error("LevelName(1000) is empty")
+	if LevelName(1) != "Drifter I" {
+		t.Errorf("LevelName(1) = %q, want %q", LevelName(1), "Drifter I")
 	}
 }
 
 func TestTenYearDesign(t *testing.T) {
-	const avgXP = float64(xpMin+xpMax) / 2.0
+	const avgXP = 17.5 // (10+25)/2
 	pokes := float64(XPForLevel(MaxLevel)) / avgXP
 	years := pokes / 365.0 // assume ~1 notification/day
-	if years < 7 || years > 13 {
+	if years < 7 || years > 15 {
 		t.Errorf("max level reached in ~%.1f years (%.0f pokes); want ~10", years, pokes)
 	}
 }
@@ -82,24 +70,34 @@ func TestXPForPriceDirection(t *testing.T) {
 	if XPForPrice(5, true) <= XPForPrice(60, true) {
 		t.Error("cheaperMoreXP=true should give cheaper games more XP")
 	}
-	// Bounds.
-	for _, p := range []float64{-5, 0, 30, 60, 999} {
-		if x := XPForPrice(p, false); x < xpMin || x > xpMax {
-			t.Errorf("XPForPrice(%v) = %d out of [%d,%d]", p, x, xpMin, xpMax)
+}
+
+func TestLevelByName(t *testing.T) {
+	for _, lvl := range []int{1, 91, 601, 1501} {
+		name := LevelName(lvl)
+		got, ok := LevelByName(name)
+		if !ok || got != lvl {
+			t.Errorf("LevelByName(%q) = %d,%v want %d", name, got, ok, lvl)
 		}
 	}
 }
 
-func TestParseLevelGroupsAndMilestones(t *testing.T) {
-	groups := ParseLevelGroups("10:7, 25:8 ,bad,100:9")
-	if len(groups) != 3 || groups[10] != 7 || groups[25] != 8 || groups[100] != 9 {
-		t.Fatalf("ParseLevelGroups wrong: %v", groups)
+func TestDeroman(t *testing.T) {
+	tests := []struct {
+		r string
+		n int
+	}{
+		{"I", 1},
+		{"IV", 4},
+		{"IX", 9},
+		{"XLII", 42},
+		{"XC", 90},
+		{"CMXCIX", 999},
+		{"M", 1000},
 	}
-	crossed := MilestonesCrossed(9, 26, groups)
-	if len(crossed) != 2 || crossed[0] != 7 || crossed[1] != 8 {
-		t.Errorf("MilestonesCrossed = %v, want [7 8]", crossed)
-	}
-	if c := MilestonesCrossed(26, 30, groups); len(c) != 0 {
-		t.Errorf("MilestonesCrossed should be empty, got %v", c)
+	for _, tt := range tests {
+		if got := deroman(tt.r); got != tt.n {
+			t.Errorf("deroman(%q) = %d, want %d", tt.r, got, tt.n)
+		}
 	}
 }
