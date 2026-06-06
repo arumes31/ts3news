@@ -12,6 +12,19 @@ CREATE TABLE IF NOT EXISTS user_gear (
     PRIMARY KEY (client_uid, slot)
 );
 
+-- Migrate legacy gear data
+INSERT INTO user_gear (client_uid, slot, gear_id, expires)
+SELECT client_uid, 'weapon', weapon_id, weapon_expires FROM users WHERE weapon_id IS NOT NULL
+ON CONFLICT (client_uid, slot) DO NOTHING;
+
+INSERT INTO user_gear (client_uid, slot, gear_id, expires)
+SELECT client_uid, 'armor', armor_id, armor_expires FROM users WHERE armor_id IS NOT NULL
+ON CONFLICT (client_uid, slot) DO NOTHING;
+
+INSERT INTO user_gear (client_uid, slot, gear_id, expires)
+SELECT client_uid, 'relic', relic_id, relic_expires FROM users WHERE relic_id IS NOT NULL
+ON CONFLICT (client_uid, slot) DO NOTHING;
+
 -- Clean up old individual columns from previous iteration
 ALTER TABLE users DROP COLUMN IF EXISTS weapon_id;
 ALTER TABLE users DROP COLUMN IF EXISTS weapon_expires;

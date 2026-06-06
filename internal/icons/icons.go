@@ -75,8 +75,17 @@ func drawNumber(img *image.RGBA, n int, fg color.RGBA, size int) {
 		scale = 1
 	}
 	totalW := len(digits)*(glyphW+1)*scale - scale
+	if totalW > size {
+		totalW = size
+	}
 	startX := (size - totalW) / 2
 	startY := (size - glyphH*scale) / 2
+	if startX < 0 {
+		startX = 0
+	}
+	if startY < 0 {
+		startY = 0
+	}
 
 	x := startX
 	for _, d := range digits {
@@ -90,6 +99,9 @@ func drawNumber(img *image.RGBA, n int, fg color.RGBA, size int) {
 			}
 		}
 		x += (glyphW + 1) * scale
+		if x >= size {
+			break
+		}
 	}
 }
 

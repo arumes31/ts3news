@@ -73,7 +73,7 @@ func TestXPForPriceDirection(t *testing.T) {
 }
 
 func TestLevelByName(t *testing.T) {
-	for _, lvl := range []int{1, 91, 601, 1501} {
+	for _, lvl := range []int{1, 91, 601, 1501, 3001, 6001, 9999} {
 		name := LevelName(lvl)
 		got, ok := LevelByName(name)
 		if !ok || got != lvl {

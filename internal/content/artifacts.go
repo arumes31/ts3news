@@ -17,7 +17,11 @@ const (
 )
 
 func (r Rarity) String() string {
-	return []string{"Common", "Uncommon", "Rare", "Epic", "Legendary"}[r]
+	list := []string{"Common", "Uncommon", "Rare", "Epic", "Legendary"}
+	if int(r) < 0 || int(r) >= len(list) {
+		return fmt.Sprintf("Rarity(%d)", r)
+	}
+	return list[r]
 }
 
 type Stats struct {
@@ -60,6 +64,15 @@ func (s Stats) Add(o Stats) Stats {
 func (s Stats) Score() int {
 	return s.HP/5 + s.STR + s.DEF + s.SPD + s.LCK + s.INT + s.STA + s.CRT + s.DGE
 }
+
+func (a Artifact) Score() int {
+	return a.Stats.Score() + int(a.Mult*100)
+}
+
+func (t Title) Score() int {
+	return t.Stats.Score() + int(t.XPMultiplier*100)
+}
+
 
 type GearSlot string
 

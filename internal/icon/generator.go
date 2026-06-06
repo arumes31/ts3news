@@ -19,9 +19,14 @@ var tierColors = []color.RGBA{
 	{148, 0, 211, 255},   // 20-24: Amethyst
 }
 
+const MaxTiers = 1000
+
 // GenerateTierIcons creates 16x16 PNG icons for the given number of tiers.
 // TS3 server group icons are strictly 16x16 pixels.
 func GenerateTierIcons(outputDir string, numTiers int) error {
+	if numTiers < 1 || numTiers > MaxTiers {
+		return fmt.Errorf("invalid numTiers %d (must be 1-%d)", numTiers, MaxTiers)
+	}
 	if err := os.MkdirAll(outputDir, 0750); err != nil {
 		return err
 	}

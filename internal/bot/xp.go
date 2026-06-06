@@ -121,7 +121,7 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 	lr, err := b.awardXP(uid, nickname, delta)
 	if err != nil {
 		log.Printf("processUserXP: awardXP failed for %s: %v", nickname, err)
-		return nil, notes, ""
+		return &levelResult{}, notes, ""
 	}
 
 	if b.Cfg.EnableXPModifiers {
@@ -211,8 +211,16 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, mobs []content.Mob) ([]
 			if m.Stats.HP <= 0 { continue }
 			for _, eff := range m.Effects {
 				switch eff {
-				case content.EffectPoisoned: m.Stats.HP -= m.Stats.HP/20; totalMobHP -= m.Stats.HP/20
-				case content.EffectRegen: m.Stats.HP += m.Stats.HP/20; totalMobHP += m.Stats.HP/20
+				case content.EffectPoisoned: 
+					delta := m.Stats.HP/20
+					if delta < 1 { delta = 1 }
+					m.Stats.HP -= delta
+					totalMobHP -= delta
+				case content.EffectRegen: 
+					delta := m.Stats.HP/20
+					if delta < 1 { delta = 1 }
+					m.Stats.HP += delta
+					totalMobHP += delta
 				}
 			}
 		}

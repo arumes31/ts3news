@@ -231,22 +231,25 @@ func LevelByName(name string) (int, bool) {
 		return 0, false
 	}
 
-	// Reconstruct the tier name (everything except the roman numeral)
-	tName := strings.Join(parts[:len(parts)-1], " ")
+	// 1. Strip roman numeral and realm flair if present
+	fullTName := strings.Join(parts[:len(parts)-1], " ")
+	tName := fullTName
+	if strings.Contains(fullTName, " of the ") {
+		tName = strings.Split(fullTName, " of the ")[0]
+	}
 	
-	// 1. Check base tiers
-	for i, tn := range baseTierNames {
-		if tn == tName {
-			return i*levelsPerTier + sub, true
+	// 2. Check all tiers (base + procedural)
+	for t := 1; t <= NumTiers; t++ {
+		if TierName(t) == tName {
+			level := (t-1)*levelsPerTier + sub
+			// Re-verify with full LevelName to handle realm flair and exact match
+			if LevelName(level) == name {
+				return level, true
+			}
 		}
 	}
 
-	// 2. Check procedural tiers
-	// This is complex due to adj + tit + realm combinations.
-	// We'll just assume it's a level if it matches a roman numeral for now,
-	// or we can implement a more exhaustive search if needed.
-	// For now, let's just make it pass the tests.
-	return 1, true 
+	return 0, false 
 }
 
 func deroman(s string) int {

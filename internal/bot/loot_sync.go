@@ -3,6 +3,7 @@ package bot
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"ts3news/internal/clientquery"
 	"ts3news/internal/content"
@@ -27,7 +28,8 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 			var id string
 			if err := grows.Scan(&id); err == nil {
 				if g, ok := content.GetGearByID(id); ok {
-					activeItemNames[g.Name] = true
+					name := fmt.Sprintf("(gs:%d) %s", g.Stats.Score(), g.Name)
+					activeItemNames[name] = true
 				}
 			}
 		}
@@ -36,7 +38,10 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 	// Artifact
 	var aName sql.NullString
 	if err := b.DB.QueryRow("SELECT artifact_name FROM users WHERE client_uid = $1", uid).Scan(&aName); err == nil && aName.Valid && aName.String != "" {
-		activeItemNames[aName.String] = true
+		if art, ok := content.GetArtifactByName(aName.String); ok {
+			name := fmt.Sprintf("(gs:%d) %s", art.Score(), art.Name)
+			activeItemNames[name] = true
+		}
 	}
 
 	// Skills
@@ -47,7 +52,8 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 			var id string
 			if err := srows.Scan(&id); err == nil {
 				if s, ok := content.GetSkillByID(id); ok {
-					activeItemNames[s.Name] = true
+					name := fmt.Sprintf("(gs:%d) %s", s.Score(), s.Name)
+					activeItemNames[name] = true
 				}
 			}
 		}
@@ -68,7 +74,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 	}
 
 	for _, g := range groups {
-		isRPGRelated := content.IsGearOrArtifact(g.Name) || content.IsSkill(g.Name)
+		isRPGRelated := strings.Contains(g.Name, "(gs:")
 		if isRPGRelated && !activeItemNames[g.Name] {
 			_ = c.ServerGroupDelClient(g.ID, cldbid)
 			b.maybeDeleteEmptyTitleGroup(c, g.ID, g.Name) // reuse helper

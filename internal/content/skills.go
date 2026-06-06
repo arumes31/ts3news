@@ -47,11 +47,15 @@ func init() {
 			name := p + " " + a
 			rarity := Rarity(idx % 5)
 			
-			// Balance based on action type or index
+			// Balance based on action type or index - using priority chain for determinism
 			sType := SkillPhysical
-			if idx%2 == 0 { sType = SkillMagic }
-			if idx%10 == 0 { sType = SkillBuff }
-			if idx%15 == 0 { sType = SkillDebuff }
+			if idx%15 == 0 {
+				sType = SkillDebuff
+			} else if idx%10 == 0 {
+				sType = SkillBuff
+			} else if idx%2 == 0 {
+				sType = SkillMagic
+			}
 
 			s := Skill{
 				ID:     fmt.Sprintf("S%d", idx),
@@ -78,6 +82,11 @@ func init() {
 		}
 	}
 }
+
+func (s Skill) Score() int {
+	return int(s.Power*100) + int(s.IgnoreDef*100) + int(s.StunChance*100) + int(s.HealPercent*100)
+}
+
 
 func RandomSkill() Skill {
 	return allSkills[rand.Intn(len(allSkills))]
