@@ -225,19 +225,19 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 	fmt.Fprintf(&sb, "🔗 Claim: %s\n", shortURL)
 
 	if b.Cfg.EnableYouTubeTrailer {
-		sb.WriteString(fmt.Sprintf("▶️ Trailer: %s\n", games.TrailerSearchURL(name)))
+		fmt.Fprintf(&sb, "▶️ Trailer: %s\n", games.TrailerSearchURL(name))
 	}
 
 	if lvl != nil {
-		sb.WriteString(fmt.Sprintf("🏆 %s (Lvl %d) — +%d XP (%d total)\n",
-			leveling.LevelName(lvl.NewLevel), lvl.NewLevel, lvl.Awarded, lvl.TotalXP))
+		fmt.Fprintf(&sb, "🏆 %s (Lvl %d) — +%d XP (%d total)\n",
+			leveling.LevelName(lvl.NewLevel), lvl.NewLevel, lvl.Awarded, lvl.TotalXP)
 		if lvl.NewLevel > lvl.OldLevel {
-			sb.WriteString(fmt.Sprintf("🎉 Level up! You are now a %s!\n", leveling.LevelName(lvl.NewLevel)))
+			fmt.Fprintf(&sb, "🎉 Level up! You are now a %s!\n", leveling.LevelName(lvl.NewLevel))
 		}
 	}
 
 	if b.Cfg.EnableTrivia {
-		sb.WriteString(fmt.Sprintf("💡 Did you know? %s\n", content.RandomTrivia()))
+		fmt.Fprintf(&sb, "💡 Did you know? %s\n", content.RandomTrivia())
 	}
 
 	if theme != nil && theme.Signoff != "" {
@@ -278,7 +278,7 @@ func (b *Bot) getSentGames(uid string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var keys []string
 	for rows.Next() {
