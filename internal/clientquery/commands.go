@@ -1,6 +1,7 @@
 package clientquery
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -41,12 +42,14 @@ func Unescape(s string) string { return unescaper.Replace(s) }
 type ClientInfo struct {
 	CLID     int
 	Nickname string
-	Type     int // 0 = normal voice client, 1 = ServerQuery/ClientQuery client
+	UID      string // client_unique_identifier (stable TeamSpeak identity id)
+	Type     int    // 0 = normal voice client, 1 = ServerQuery/ClientQuery client
 }
 
-// ClientList returns all clients on the currently selected virtual server.
+// ClientList returns all clients on the currently selected virtual server,
+// including each client's unique identifier (-uid).
 func (c *Client) ClientList() ([]ClientInfo, error) {
-	data, err := c.Command("clientlist")
+	data, err := c.Command("clientlist -uid")
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +68,8 @@ func (c *Client) ClientList() ([]ClientInfo, error) {
 					ci.CLID, _ = strconv.Atoi(v)
 				case "client_nickname":
 					ci.Nickname = Unescape(v)
+				case "client_unique_identifier":
+					ci.UID = Unescape(v)
 				case "client_type":
 					ci.Type, _ = strconv.Atoi(v)
 				}
@@ -98,4 +103,57 @@ func (c *Client) SendPrivateMessage(clid int, message string) error {
 // WhoAmI returns the raw whoami fields (useful to confirm we are connected).
 func (c *Client) WhoAmI() ([]string, error) {
 	return c.Command("whoami")
+}
+
+// IsConnected reports whether the client is currently connected to a server
+// (whoami returns a non-zero own client id).
+func (c *Client) IsConnected() bool {
+	data, err := c.WhoAmI()
+	if err != nil {
+		return false // "currently not possible" => not connected
+	}
+	for _, line := range data {
+		for _, f := range strings.Fields(line) {
+			if v, ok := strings.CutPrefix(f, "clid="); ok {
+				return v != "0" && v != ""
+			}
+		}
+	}
+	return false
+}
+
+// Disconnect disconnects the client from the current server (it stays running).
+func (c *Client) Disconnect() error {
+	_, err := c.Command("disconnect")
+	return err
+}
+
+// SetNickname changes the bot's own nickname on the connected server.
+func (c *Client) SetNickname(nickname string) error {
+	_, err := c.Command("clientupdate client_nickname=" + Escape(nickname))
+	return err
+}
+
+// ClientDBID returns the server-side database id (cldbid) for a connected client,
+// needed for server-group operations.
+func (c *Client) ClientDBID(clid int) (int, error) {
+	data, err := c.Command("clientvariable clid=" + strconv.Itoa(clid) + " client_database_id")
+	if err != nil {
+		return 0, err
+	}
+	for _, line := range data {
+		for _, f := range strings.Fields(line) {
+			if v, ok := strings.CutPrefix(f, "client_database_id="); ok {
+				return strconv.Atoi(v)
+			}
+		}
+	}
+	return 0, fmt.Errorf("client_database_id not found for clid=%d", clid)
+}
+
+// AddServerGroup adds a client (by database id) to a server group. Requires the
+// bot's identity to hold the necessary group-management permission.
+func (c *Client) AddServerGroup(sgid, cldbid int) error {
+	_, err := c.Command(fmt.Sprintf("servergroupaddclient sgid=%d cldbid=%d", sgid, cldbid))
+	return err
 }

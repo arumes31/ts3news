@@ -2,223 +2,410 @@ package bot
 
 import (
 	"bufio"
-	"encoding/json"
+	"database/sql"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"strings"
-	"sync"
 	"time"
+
+	_ "github.com/lib/pq"
 	"ts3news/internal/clientquery"
 	"ts3news/internal/config"
+	"ts3news/internal/content"
+	"ts3news/internal/db"
 	"ts3news/internal/games"
-)
-
-// Where the IDs of already-announced giveaways are persisted, so the same deal
-// is not poked on every cycle. Lives in the client profile dir (survives restarts).
-const sentGamesPath = "/root/.ts3client/sent_games.json"
-
-var (
-	botInstance *Bot
-	once        sync.Once
+	"ts3news/internal/leveling"
 )
 
 type Bot struct {
-	Cfg  *config.Config
-	mu   sync.Mutex
-	sent map[int]bool
+	Cfg         *config.Config
+	DB          *sql.DB
+	levelGroups map[int]int // level milestone -> TS3 server group id
 }
 
 func NewBot(cfg *config.Config) *Bot {
-	once.Do(func() {
-		botInstance = &Bot{Cfg: cfg, sent: loadSent()}
-	})
-	return botInstance
+	database, err := sql.Open("postgres", cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+
+	if err := database.Ping(); err != nil {
+		log.Printf("Warning: Database ping failed: %v", err)
+	}
+
+	// Schema is managed by versioned, embedded migrations (golang-migrate).
+	if err := db.Migrate(database); err != nil {
+		log.Fatalf("Failed to run database migrations: %v", err)
+	}
+
+	return &Bot{
+		Cfg:         cfg,
+		DB:          database,
+		levelGroups: leveling.ParseLevelGroups(cfg.LevelGroups),
+	}
 }
 
-// Run connects to the local TeamSpeak client via ClientQuery, sends an initial
-// notification, and then keeps notifying on the configured interval. It returns
-// once the initial connection and notification have been attempted; the periodic
-// loop runs in the background.
-func (b *Bot) Run() error {
-	apiKey := b.apiKey()
-	if apiKey == "" {
-		return fmt.Errorf("no ClientQuery API key (set TS3_APIKEY or ensure %s exists)", b.Cfg.ClientQueryINI)
+func (b *Bot) Close() {
+	if b.DB != nil {
+		if err := b.DB.Close(); err != nil {
+			log.Printf("Error closing database: %v", err)
+		}
+	}
+}
+
+// fetchOptions builds the games fetch options from config.
+func (b *Bot) fetchOptions() games.Options {
+	return games.Options{
+		DRMFilter:        b.Cfg.DRMFilter,
+		EnableGamerPower: b.Cfg.EnableGamerPower,
+		EnableEpic:       b.Cfg.EnableEpic,
+		EnableReddit:     b.Cfg.EnableReddit,
+		EnableITAD:       b.Cfg.ITADKey != "",
+		ITADKey:          b.Cfg.ITADKey,
+	}
+}
+
+// RunCycle fetches free games and notifies every eligible online client once per
+// new game, awarding XP and updating per-user state. The ClientQuery connection
+// must already be authenticated and connected to the server.
+func (b *Bot) RunCycle(c *clientquery.Client) error {
+	freeGames, err := games.FetchFreeGames(b.fetchOptions())
+	if err != nil {
+		return fmt.Errorf("failed to fetch games: %w", err)
 	}
 
-	if b.Cfg.TargetNick != "" {
-		log.Printf("Poke target restricted to nickname %q (testing mode)", b.Cfg.TargetNick)
+	clients, err := c.ClientList()
+	if err != nil {
+		return fmt.Errorf("failed to list clients: %w", err)
 	}
 
-	if err := b.waitAndNotify(apiKey); err != nil {
-		log.Printf("Initial notification failed: %v", err)
+	targetNick := b.Cfg.TargetNick
+	log.Printf("Online clients: %d. Target filter: '%s'. Found %d free games.", len(clients), targetNick, len(freeGames))
+
+	theme := b.activeTheme()
+	if theme != nil {
+		log.Printf("Holiday theme active: %s %s", theme.Emoji, theme.Name)
 	}
 
-	interval := time.Duration(b.Cfg.CheckIntervalHours) * time.Hour
-	go func() {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for range ticker.C {
-			if err := b.notifyOnce(apiKey); err != nil {
-				log.Printf("Notification cycle failed: %v", err)
+	pokedCount := 0
+	for _, client := range clients {
+		if client.Type != 0 {
+			continue
+		}
+		if targetNick != "" && client.Nickname != targetNick {
+			continue
+		}
+		if client.UID == "" {
+			continue // need a stable unique id to track per user
+		}
+
+		// Mark every eligible user as seen (drives dead-user cleanup) even if there
+		// is nothing new to send this cycle.
+		if err := b.touchUser(client.UID, client.Nickname); err != nil {
+			log.Printf("touchUser failed for %s: %v", client.Nickname, err)
+		}
+
+		alreadySent, err := b.getSentGames(client.UID)
+		if err != nil {
+			log.Printf("Failed to get sent games for %s: %v", client.Nickname, err)
+			continue
+		}
+
+		candidates := filterNewGames(freeGames, alreadySent)
+		if len(candidates) == 0 {
+			continue
+		}
+		game := candidates[rand.Intn(len(candidates))]
+
+		shortURL, err := games.ShortenURL(game.URL)
+		if err != nil {
+			log.Printf("Shortening failed: %v", err)
+			shortURL = game.URL
+		}
+
+		// Award XP / level up before composing the message so the PM is accurate.
+		var lvl *levelResult
+		if b.Cfg.EnableLeveling {
+			lr, err := b.awardXP(client.UID, client.Nickname, b.xpForGame(game))
+			if err != nil {
+				log.Printf("awardXP failed for %s: %v", client.Nickname, err)
+			} else {
+				lvl = lr
+				b.applyMilestones(c, client.CLID, client.Nickname, lr)
 			}
 		}
-	}()
+
+		// Feature: bot adopts a game-themed nickname while announcing.
+		if b.Cfg.DynamicNickname {
+			if err := c.SetNickname(content.NicknameForGame(game.Title)); err != nil {
+				log.Printf("SetNickname failed: %v", err)
+			}
+		}
+
+		pokeMsg := composePoke(game, shortURL, theme, lvl)
+		pmMsg := b.composePM(game, shortURL, theme, lvl)
+
+		log.Printf("Notifying %s about %s [%s] (%s)", client.Nickname, game.DisplayTitle(), game.Source, shortURL)
+
+		if err := c.Poke(client.CLID, pokeMsg); err != nil {
+			log.Printf("Poke failed for %s: %v", client.Nickname, err)
+		}
+		if err := c.SendPrivateMessage(client.CLID, pmMsg); err != nil {
+			log.Printf("PM failed for %s: %v", client.Nickname, err)
+		}
+
+		if err := b.markAsSent(client.UID, client.Nickname, game.Key(), game.DisplayTitle()); err != nil {
+			log.Printf("Failed to mark game as sent for %s: %v", client.Nickname, err)
+		}
+		pokedCount++
+		time.Sleep(time.Duration(b.Cfg.PokeDelayMS) * time.Millisecond)
+	}
+
+	// Restore the bot's configured nickname after a dynamic-nickname cycle.
+	if b.Cfg.DynamicNickname && pokedCount > 0 {
+		if err := c.SetNickname(b.Cfg.TS3Nickname); err != nil {
+			log.Printf("Restoring nickname failed: %v", err)
+		}
+	}
+
+	log.Printf("Cycle finished. Poked %d users.", pokedCount)
 	return nil
 }
 
-// waitAndNotify retries until the client's ClientQuery interface is reachable and
-// the client is connected to the server, then performs one notification.
-func (b *Bot) waitAndNotify(apiKey string) error {
-	deadline := time.Now().Add(90 * time.Second)
-	for {
-		err := b.notifyOnce(apiKey)
-		if err == nil {
-			return nil
-		}
-		if time.Now().After(deadline) {
-			return err
-		}
-		log.Printf("Waiting for TeamSpeak client to be ready: %v", err)
-		time.Sleep(3 * time.Second)
-	}
-}
-
-// notifyOnce opens a fresh ClientQuery session, finds the recipients, and pokes
-// them about each new limited-time paid Steam/Epic giveaway.
-func (b *Bot) notifyOnce(apiKey string) error {
-	cq, err := clientquery.Dial(b.Cfg.ClientQueryAddr, 5*time.Second)
-	if err != nil {
-		return fmt.Errorf("connect ClientQuery: %w", err)
-	}
-	defer cq.Close()
-
-	if err := cq.Auth(apiKey); err != nil {
-		return fmt.Errorf("auth: %w", err)
-	}
-	if err := cq.Use(1); err != nil {
-		return fmt.Errorf("use 1: %w", err)
-	}
-
-	clients, err := cq.ClientList()
-	if err != nil {
-		return fmt.Errorf("clientlist: %w", err)
-	}
-	targets := b.selectTargets(clients)
-	if len(targets) == 0 {
-		if b.Cfg.TargetNick != "" {
-			log.Printf("Target %q is not online; nothing to poke.", b.Cfg.TargetNick)
-		} else {
-			log.Println("No clients online to poke.")
-		}
+// activeTheme returns the current holiday theme, or nil when disabled / ordinary day.
+func (b *Bot) activeTheme() *content.Theme {
+	if !b.Cfg.EnableHolidayThemes {
 		return nil
 	}
+	return content.CurrentTheme(time.Now())
+}
 
-	all, err := games.FetchGiveaways()
-	if err != nil {
-		return fmt.Errorf("fetching giveaways: %w", err)
+// composePoke builds the <=100 char poke (must contain the link). The clean game
+// name is used (no "Giveaway"/platform tags) and a short XP/level note is appended
+// when leveling is active.
+func composePoke(g games.Game, shortURL string, theme *content.Theme, lvl *levelResult) string {
+	prefix := "Free: "
+	if theme != nil && theme.Emoji != "" {
+		prefix = theme.Emoji + " Free: "
+	}
+	suffix := ""
+	if lvl != nil {
+		suffix = fmt.Sprintf(" +%dXP L%d", lvl.Awarded, lvl.NewLevel)
+	}
+	title := g.DisplayTitle()
+	avail := 100 - len(prefix) - 1 - len(shortURL) - len(suffix)
+	if avail > 4 && len(title) > avail {
+		title = title[:avail-3] + "..."
+	}
+	return fmt.Sprintf("%s%s %s%s", prefix, title, shortURL, suffix)
+}
+
+// composePM builds the rich private message with greeting, trailer, XP/level,
+// trivia and holiday flavour.
+func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl *levelResult) string {
+	var sb strings.Builder
+
+	// Greeting / themed banner.
+	if theme != nil {
+		sb.WriteString(theme.Emoji + " " + theme.Banner)
+	} else if b.Cfg.EnableGreetings {
+		sb.WriteString(content.RandomGreeting())
+	} else {
+		sb.WriteString("Daily Free Game!")
+	}
+	sb.WriteString("\n")
+
+	name := g.DisplayTitle()
+	sb.WriteString(fmt.Sprintf("🎮 %s\n", name))
+	if g.WorthShown() {
+		sb.WriteString(fmt.Sprintf("💰 Worth %s → FREE now\n", g.Worth))
+	}
+	sb.WriteString(fmt.Sprintf("🔗 Claim: %s\n", shortURL))
+
+	if b.Cfg.EnableYouTubeTrailer {
+		sb.WriteString(fmt.Sprintf("▶️ Trailer: %s\n", games.TrailerSearchURL(name)))
 	}
 
-	// Keep only limited-time, normally-paid Steam/Epic giveaways we haven't sent yet.
-	var fresh []games.Game
+	if lvl != nil {
+		sb.WriteString(fmt.Sprintf("🏆 %s (Lvl %d) — +%d XP (%d total)\n",
+			leveling.LevelName(lvl.NewLevel), lvl.NewLevel, lvl.Awarded, lvl.TotalXP))
+		if lvl.NewLevel > lvl.OldLevel {
+			sb.WriteString(fmt.Sprintf("🎉 Level up! You are now a %s!\n", leveling.LevelName(lvl.NewLevel)))
+		}
+	}
+
+	if b.Cfg.EnableTrivia {
+		sb.WriteString(fmt.Sprintf("💡 Did you know? %s\n", content.RandomTrivia()))
+	}
+
+	if theme != nil && theme.Signoff != "" {
+		sb.WriteString(theme.Signoff)
+	}
+
+	return strings.TrimRight(sb.String(), "\n")
+}
+
+// ---- per-user game dedup ----
+
+func filterNewGames(all []games.Game, alreadySent []string) []games.Game {
+	sent := make(map[string]bool, len(alreadySent))
+	for _, k := range alreadySent {
+		sent[k] = true
+	}
+	var candidates []games.Game
 	for _, g := range all {
-		if g.IsLimitedTimePaidGiveaway() && !b.alreadySent(g.ID) {
-			fresh = append(fresh, g)
+		if !sent[g.Key()] {
+			candidates = append(candidates, g)
 		}
 	}
-	if len(fresh) == 0 {
-		log.Println("No new limited-time paid Steam/Epic giveaways to announce.")
-		return nil
+	return candidates
+}
+
+// getSentGames returns the game keys already sent to a user within the resend
+// window (ResendAfterDays <= 0 => never expire).
+func (b *Bot) getSentGames(uid string) ([]string, error) {
+	var rows *sql.Rows
+	var err error
+	if b.Cfg.ResendAfterDays > 0 {
+		rows, err = b.DB.Query(
+			"SELECT game_key FROM sent_notifications WHERE client_uid = $1 AND sent_at > NOW() - ($2 * INTERVAL '1 day')",
+			uid, b.Cfg.ResendAfterDays)
+	} else {
+		rows, err = b.DB.Query("SELECT game_key FROM sent_notifications WHERE client_uid = $1", uid)
 	}
-
-	for _, g := range fresh {
-		msg := formatGame(g)
-		for _, t := range targets {
-			if err := cq.Poke(t.CLID, msg); err != nil {
-				log.Printf("Failed to poke %s (clid %d): %v", t.Nickname, t.CLID, err)
-				continue
-			}
-			log.Printf("Poked %s (clid %d): %s", t.Nickname, t.CLID, msg)
-		}
-		b.markSent(g.ID)
-	}
-	return nil
-}
-
-// selectTargets returns the clients to poke: only real voice clients (type 0),
-// excluding the bot itself, and — when TargetNick is set — only that nickname.
-func (b *Bot) selectTargets(clients []clientquery.ClientInfo) []clientquery.ClientInfo {
-	var out []clientquery.ClientInfo
-	for _, c := range clients {
-		if c.Type != 0 {
-			continue
-		}
-		if strings.EqualFold(c.Nickname, b.Cfg.TS3Nickname) {
-			continue
-		}
-		if b.Cfg.TargetNick != "" && !strings.EqualFold(c.Nickname, b.Cfg.TargetNick) {
-			continue
-		}
-		out = append(out, c)
-	}
-	return out
-}
-
-// formatGame builds the poke text for a giveaway, e.g.
-// "Free on Steam (was $29.99): Tell Me Why - https://...".
-func formatGame(g games.Game) string {
-	return fmt.Sprintf("Free on %s (was %s): %s - %s", g.Store(), g.Worth, cleanTitle(g.Title), g.URL)
-}
-
-// cleanTitle strips GamerPower's "(Steam) Giveaway" / "(Epic Games) Giveaway" suffixes.
-func cleanTitle(title string) string {
-	if i := strings.Index(title, " ("); i > 0 {
-		return strings.TrimSpace(title[:i])
-	}
-	return strings.TrimSpace(strings.TrimSuffix(title, " Giveaway"))
-}
-
-func (b *Bot) alreadySent(id int) bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.sent[id]
-}
-
-func (b *Bot) markSent(id int) {
-	b.mu.Lock()
-	b.sent[id] = true
-	snapshot := make([]int, 0, len(b.sent))
-	for k := range b.sent {
-		snapshot = append(snapshot, k)
-	}
-	b.mu.Unlock()
-	saveSent(snapshot)
-}
-
-func loadSent() map[int]bool {
-	m := make(map[int]bool)
-	data, err := os.ReadFile(sentGamesPath)
 	if err != nil {
-		return m
+		return nil, err
 	}
-	var ids []int
-	if json.Unmarshal(data, &ids) == nil {
-		for _, id := range ids {
-			m[id] = true
+	defer rows.Close()
+
+	var keys []string
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			return nil, err
+		}
+		keys = append(keys, k)
+	}
+	return keys, rows.Err()
+}
+
+func (b *Bot) markAsSent(uid, nickname, gameKey, gameTitle string) error {
+	_, err := b.DB.Exec(
+		`INSERT INTO sent_notifications (client_uid, game_key, game_title, client_nickname, sent_at)
+		 VALUES ($1, $2, $3, $4, NOW())
+		 ON CONFLICT (client_uid, game_key)
+		 DO UPDATE SET sent_at = NOW(), client_nickname = $4, game_title = $3`,
+		uid, gameKey, gameTitle, nickname)
+	return err
+}
+
+// ---- users / leveling ----
+
+type levelResult struct {
+	OldLevel int
+	NewLevel int
+	TotalXP  int
+	Awarded  int
+}
+
+// touchUser records that a user was seen (upsert, refreshing last_seen).
+func (b *Bot) touchUser(uid, nickname string) error {
+	_, err := b.DB.Exec(
+		`INSERT INTO users (client_uid, nickname, last_seen)
+		 VALUES ($1, $2, NOW())
+		 ON CONFLICT (client_uid)
+		 DO UPDATE SET last_seen = NOW(), nickname = $2`,
+		uid, nickname)
+	return err
+}
+
+// xpForGame returns the XP award for a game, scaled by its price (pricier games
+// grant more XP by default; configurable via CHEAPER_MORE_XP). Falls back to a
+// randomised award when the price is unknown.
+func (b *Bot) xpForGame(g games.Game) int {
+	if p, ok := g.PriceEUR(); ok {
+		return leveling.XPForPrice(p, b.Cfg.CheaperMoreXP)
+	}
+	return leveling.XPPerPoke()
+}
+
+// awardXP grants the given XP for a poke and recomputes the user's level.
+func (b *Bot) awardXP(uid, nickname string, awarded int) (*levelResult, error) {
+	var curXP, curLevel int
+	err := b.DB.QueryRow("SELECT xp, level FROM users WHERE client_uid = $1", uid).Scan(&curXP, &curLevel)
+	if err == sql.ErrNoRows {
+		curXP, curLevel = 0, 1
+	} else if err != nil {
+		return nil, err
+	}
+
+	total := curXP + awarded
+	newLevel := leveling.LevelForXP(total)
+
+	_, err = b.DB.Exec(
+		`INSERT INTO users (client_uid, nickname, xp, level, last_seen)
+		 VALUES ($1, $2, $3, $4, NOW())
+		 ON CONFLICT (client_uid)
+		 DO UPDATE SET xp = $3, level = $4, nickname = $2, last_seen = NOW()`,
+		uid, nickname, total, newLevel)
+	if err != nil {
+		return nil, err
+	}
+
+	return &levelResult{OldLevel: curLevel, NewLevel: newLevel, TotalXP: total, Awarded: awarded}, nil
+}
+
+// applyMilestones grants TS3 server groups for any level milestones newly crossed.
+func (b *Bot) applyMilestones(c *clientquery.Client, clid int, nickname string, lr *levelResult) {
+	if len(b.levelGroups) == 0 || lr.NewLevel <= lr.OldLevel {
+		return
+	}
+	groups := leveling.MilestonesCrossed(lr.OldLevel, lr.NewLevel, b.levelGroups)
+	if len(groups) == 0 {
+		return
+	}
+	cldbid, err := c.ClientDBID(clid)
+	if err != nil {
+		log.Printf("Cannot resolve cldbid for %s (skipping group grant): %v", nickname, err)
+		return
+	}
+	for _, sgid := range groups {
+		if err := c.AddServerGroup(sgid, cldbid); err != nil {
+			log.Printf("Granting server group %d to %s failed (needs permission): %v", sgid, nickname, err)
+		} else {
+			log.Printf("Granted server group %d to %s (level %d)", sgid, nickname, lr.NewLevel)
 		}
 	}
-	return m
 }
 
-func saveSent(ids []int) {
-	if data, err := json.Marshal(ids); err == nil {
-		_ = os.WriteFile(sentGamesPath, data, 0644)
+// CleanupDeadUsers purges users not seen for DeadUserDays days, plus their
+// notification history. Returns the number of users removed.
+func (b *Bot) CleanupDeadUsers() (int, error) {
+	if b.Cfg.DeadUserDays <= 0 {
+		return 0, nil
 	}
+	_, err := b.DB.Exec(
+		`DELETE FROM sent_notifications WHERE client_uid IN (
+			SELECT client_uid FROM users WHERE last_seen < NOW() - ($1 * INTERVAL '1 day'))`,
+		b.Cfg.DeadUserDays)
+	if err != nil {
+		return 0, err
+	}
+	res, err := b.DB.Exec(
+		"DELETE FROM users WHERE last_seen < NOW() - ($1 * INTERVAL '1 day')",
+		b.Cfg.DeadUserDays)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return int(n), nil
 }
 
-// apiKey returns the ClientQuery API key, preferring the explicit config value
-// and otherwise reading it from clientquery.ini.
-func (b *Bot) apiKey() string {
+// ---- ClientQuery API key ----
+
+func (b *Bot) getAPIKey() string {
 	if b.Cfg.APIKey != "" {
 		return b.Cfg.APIKey
 	}
@@ -227,11 +414,12 @@ func (b *Bot) apiKey() string {
 		return ""
 	}
 	defer f.Close()
+
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if k, v, ok := strings.Cut(line, "="); ok && strings.TrimSpace(k) == "api_key" {
-			return strings.TrimSpace(v)
+		line := scanner.Text()
+		if strings.HasPrefix(line, "api_key=") {
+			return strings.TrimPrefix(line, "api_key=")
 		}
 	}
 	return ""

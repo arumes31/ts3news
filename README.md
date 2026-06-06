@@ -1,46 +1,199 @@
-# ts3-free-game-bot
+<p align="center">
+  <img src="logo.png" width="160" alt="TS3News Logo" />
+</p>
 
-A Dockerized TeamSpeak 3 bot that pokes users about free Steam/Epic games.
+<h1 align="center">TS3 Free Game Notification Bot 🎮</h1>
 
-## How it works
+<p align="center">
+  <a href="https://github.com/arumes31/ts3news"><img src="https://img.shields.io/github/go-mod/go-version/arumes31/ts3news?style=for-the-badge&logo=go&logoColor=white&color=00ADD8" alt="Go Version" /></a>
+  <a href="https://github.com/arumes31/ts3news/blob/main/LICENSE"><img src="https://img.shields.io/github/license/arumes31/ts3news?style=for-the-badge&logo=mit&logoColor=white&color=FF5733" alt="License" /></a>
+  <a href="https://github.com/arumes31/ts3news/stargazers"><img src="https://img.shields.io/github/stars/arumes31/ts3news?style=for-the-badge&logo=github&logoColor=white&color=FFD700" alt="GitHub Stars" /></a>
+  <a href="https://github.com/arumes31/ts3news/issues"><img src="https://img.shields.io/github/issues/arumes31/ts3news?style=for-the-badge&logo=github&logoColor=white&color=8A2BE2" alt="GitHub Issues" /></a>
+</p>
 
-The TeamSpeak **SDK** client cannot connect to a retail TeamSpeak 3 server (they
-use incompatible protocols/licensing), so this image instead runs the **official
-TeamSpeak 3 client headless** (under Xvfb) and connects it to the server on the
-voice port (UDP 9987). A small Go bot then drives that client through the
-**ClientQuery** plugin (telnet on `127.0.0.1:25639`) to poke users.
+<p align="center">
+  <strong>A Dockerized TeamSpeak 3 bot that automatically notifies users of free limited-time Steam and Epic Games Store giveaways.</strong>
+</p>
 
+<p align="center">
+  It runs a headless instance of the official TeamSpeak 3 client inside Docker, connects to the server, and utilizes the <strong>ClientQuery</strong> plugin to poke and private message online clients.
+</p>
+
+---
+
+## 🚀 Key Features
+
+*   🖥️ **Headless TS3 Client**: Runs the official TS3 desktop client in Xvfb, bypassing SDK-based server connection blocks.
+*   🔑 **Identity Injection**: Automates injecting high security-level identities (e.g. Level 29) directly into `settings.db`.
+*   📣 **Double Notifications**: Sends a short, non-intrusive **Poke** popup (under 100 characters) + a detailed **Private Message** containing the game link.
+*   🔗 **Short Link Integration**: Uses [redrx.eu](https://redrx.eu/) to provide clean, clickable links in pokes.
+*   🌐 **Multi-Source Fetching**: Merges giveaways from **GamerPower**, the **Epic Games Store API**, **Reddit `/r/FreeGameFindings`** and (optionally) **IsThereAnyDeal**, de-duplicated across sources by title.
+*   🎮 **DRM Filtering**: Only announces normally-paid titles on the platforms you choose (`steam`, `epic`, `gog`) — skipping free-to-play, expired, and unwanted-store giveaways.
+*   ▶️ **Rich Messages**: Each PM includes a random greeting (100 variants), a YouTube trailer link, a gaming trivia fact, and seasonal **holiday theming**.
+*   🏆 **Leveling System**: Users earn XP per poke across **1000 fantasy-named levels**, shown in every PM, with optional TS3 server-group rewards at milestones.
+*   🤖 **Dynamic Nickname**: The bot renames itself to match the announced game (e.g. *VaultBoy* for Fallout).
+*   ⏱️ **Anti-Flood Control**: Customizable delay between actions to avoid server query anti-flood triggering.
+*   🔄 **Go Supervisor**: A long-running supervisor connects, notifies, disconnects and sleeps a random interval — with a **watchdog** that restarts an unresponsive client and **graceful SIGTERM** shutdown that finishes the current cycle first.
+*   🗄️ **Persistent History + Migrations**: Stores per-user history in **PostgreSQL** (schema managed by embedded **golang-migrate** migrations), with a per-user resend window and automatic **dead-user cleanup**.
+
+---
+
+## 📐 Architecture & Flow
+
+```mermaid
+graph TD
+    subgraph DockerContainer ["Docker Container Environment"]
+        style DockerContainer fill:#1a233a,stroke:#4a5568,stroke-width:2px,color:#fff
+        
+        Xvfb["🖥️ Xvfb (:99 Virtual Framebuffer)"]
+        TS3Client["🎮 Headless TS3 Client"]
+        GoBot["🤖 Go Supervisor (loop + watchdog + graceful shutdown)"]
+        Entrypoint["🔧 entrypoint.sh (Xvfb + dbus + identity)"]
+        
+        Xvfb --> TS3Client
+        Entrypoint -->|exec| GoBot
+        GoBot -->|1. Starts & supervises client| TS3Client
+        GoBot <-->|2. ClientQuery TCP:25639| TS3Client
+        GoBot <-->|SQL + migrations| PostgresDB["🗄️ PostgreSQL DB"]
+    end
+    
+    GoBot -->|3. Fetches giveaways| GamerPower["🌐 GamerPower · Epic · Reddit · ITAD"]
+    GoBot -->|4. Shortens links| Redrx["🔗 RedRx API"]
+    TS3Client -->|UDP:9987| TS3Server["🔊 TS3 Voice Server"]
+    TS3Client -->|5. Sends Poke & PM| TS3Users["👥 Online TS3 Users"]
+    
+    classDef default fill:#2d3748,stroke:#4a5568,stroke-width:1px,color:#fff;
+    classDef GamerPower fill:#d69e2e,stroke:#b7791f,stroke-width:1px,color:#fff;
+    classDef Redrx fill:#e53e3e,stroke:#c53030,stroke-width:1px,color:#fff;
+    classDef TS3Server fill:#3182ce,stroke:#2b6cb0,stroke-width:1px,color:#fff;
+    classDef DB fill:#336791,stroke:#224466,stroke-width:1px,color:#fff;
+    class GamerPower GamerPower;
+    class Redrx Redrx;
+    class TS3Server TS3Server;
+    class PostgresDB DB;
 ```
-┌─────────────────────── container ───────────────────────┐
-│  Xvfb ── ts3client (official) ──UDP 9987──► TS3 server   │
-│                  │ ClientQuery :25639                    │
-│                  ▼                                        │
-│   Go bot ── fetches free games ── clientpoke ──► users   │
-└──────────────────────────────────────────────────────────┘
+
+---
+
+## 🔗 RedRx URL Shortening
+
+To keep TeamSpeak pokes clean and within the 100-character limit, this bot integrates with [redrx.eu](https://redrx.eu/), a specialized URL shortening service.
+
+### Why RedRx?
+*   **Space Efficiency**: TeamSpeak pokes are extremely limited. Shortened links ensure the game title and link both fit.
+*   **Clickability**: Provides clean, professional-looking links that users are more likely to trust.
+
+### How to get an API Key:
+1.  Visit [redrx.eu](https://redrx.eu/).
+2.  Register for a free account.
+3.  Navigate to your **Dashboard** or **API Settings**.
+4.  Generate a new **API Key**.
+5.  Add this key to your `config.env` as `REDRX_API_KEY`.
+
+---
+
+## 💬 Notification Formats
+
+### Poke (High Visibility)
+The poke is strictly limited to 100 characters, always includes the shortened link, uses the clean game name (no platform tags / "Giveaway"), and ends with a short XP/level note.
+> **Format:** `Free: [Game Name] [Link] +[XP]XP L[Level]`
+> **Example:** `Free: Gravity Circuit https://redrx.eu/F73EA6 +21XP L3`
+
+### Private Message (Details)
+A richer private message is sent simultaneously, e.g.:
+> 🎄 Frohe Weihnachten, gamer! A festive freebie for you:
+> 🎮 Gravity Circuit
+> 💰 Worth €19.99 → FREE now
+> 🔗 Claim: https://redrx.eu/F73EA6
+> ▶️ Trailer: https://www.youtube.com/results?search_query=Gravity+Circuit
+> 🏆 Squire III (Lvl 53) — +21 XP (1,240 total)
+> 💡 Did you know? Doom (1993) runs on everything — including pregnancy tests and fridges.
+> Ho ho ho — happy holidays and happy gaming! 🎅
+
+Greeting, trailer, trivia, leveling and holiday theming are each individually toggleable (see config).
+
+**XP & levels:** users earn XP per poke, scaled by the game's price (a pricier game going free grants more XP — invert with `CHEAPER_MORE_XP=true`). The 1000-level curve is tuned so the cap takes roughly **ten years** at ~one notification per day.
+
+---
+
+## 📋 Prerequisites
+
+Before deploying the bot, ensure you have the following ready:
+
+1.  **TeamSpeak 3 Identity**:
+    *   Generate a TeamSpeak 3 identity in your desktop client (**Tools > Identities**).
+    *   Export the identity string. It should look like `358981685Veb71QAWiw...`.
+    *   **Security Level**: Ensure the identity has a security level high enough to connect to your target server (e.g., Level 29).
+2.  **Server Permissions**:
+    *   The bot must be assigned to a server group with the following permissions:
+        *   `b_virtualserver_client_list` (See all users)
+        *   `b_virtualserver_channel_list` (See all channels)
+        *   `i_client_poke_power` (Ability to poke users)
+        *   `i_client_private_textmessage_power` (Ability to send PMs)
+3.  **RedRx API Key**:
+    *   Obtain an API key from [redrx.eu](https://redrx.eu/) for URL shortening.
+
+---
+
+## ⚙️ Configuration Options
+
+All options are specified as environment variables in `config.env`.
+
+| Variable | Description | Default | Required |
+| :--- | :--- | :---: | :---: |
+| `TS3_HOST` | Hostname or IP of the TeamSpeak 3 server. | *None* | 🔴 **Yes** |
+| `TS3_PORT` | Voice port of the TeamSpeak 3 server (UDP). | `9987` | 🟢 No |
+| `TS3_NICKNAME` | Nickname for the bot client. | `MrFree` | 🟢 No |
+| `TS3_IDENTITY` | Exported identity string. | *None* | 🟢 No |
+| `MIN_INTERVAL_HOURS` | Minimum random sleep (hours) between cycles. | `1` | 🟢 No |
+| `MAX_INTERVAL_HOURS` | Maximum random sleep (hours) between cycles. | `12` | 🟢 No |
+| `POKE_DELAY_MS` | Delay between pokes (anti-flood). | `1200` | 🟢 No |
+| `CONNECT_TIMEOUT_SEC` | Max seconds to wait for client to connect each cycle. | `120` | 🟢 No |
+| `REDRX_API_KEY` | API Key for redrx.eu URL shortening. | *None* | 🟢 No |
+| `TS3_TARGET_NICK` | If set, only this nickname is poked (testing). | *None* | 🟢 No |
+| `RESEND_AFTER_DAYS` | Re-allow sending a game after N days (0 = never). | `60` | 🟢 No |
+| `DEAD_USER_DAYS` | Purge users not seen for N days (0 = never). | `180` | 🟢 No |
+| **Sources** | | | |
+| `ENABLE_GAMERPOWER` / `ENABLE_EPIC` / `ENABLE_REDDIT` | Toggle each game source. | `true` | 🟢 No |
+| `ITAD_API_KEY` | IsThereAnyDeal API key (empty disables ITAD). | *None* | 🟢 No |
+| `DRM_FILTER` | Platforms to keep: `steam`, `epic`, `gog`. | `steam,epic` | 🟢 No |
+| **Message flavour** | | | |
+| `ENABLE_YOUTUBE_TRAILER` / `ENABLE_TRIVIA` / `ENABLE_GREETINGS` / `ENABLE_HOLIDAY_THEMES` | Toggle PM extras. | `true` | 🟢 No |
+| `DYNAMIC_NICKNAME` | Rename the bot to match the announced game. | `true` | 🟢 No |
+| **Leveling** | | | |
+| `ENABLE_LEVELING` | Track XP / levels and show them in the PM. | `true` | 🟢 No |
+| `LEVEL_GROUPS` | Milestone → server group, e.g. `10:7,50:8` (needs permission). | *None* | 🟢 No |
+| **Lifecycle** | | | |
+| `TS3_CLIENT_PATH` | Path to the TS3 client binary. | `/opt/ts3/ts3client_linux_amd64` | 🟢 No |
+| `CONNECT_TIMEOUT_SEC` | Watchdog: max wait for the client to connect each cycle. | `120` | 🟢 No |
+
+---
+
+## 🛠️ Setup & Deployment
+
+1.  **Configure**: Rename `example.env` to `config.env` and fill in your values.
+2.  **Run**: Start the container:
+    ```bash
+    docker compose up -d --build
+    ```
+
+---
+
+## 💻 Local Development & Testing
+
+If you have Go installed, you can run the automated tests to verify the bot logic:
+
+```bash
+# Run unit tests
+go test -v ./internal/bot/...
 ```
 
-The server requires an identity **security level 29**; the client's profile is
-baked into the image with the license pre-accepted and the ClientQuery plugin
-installed, and the configured identity is injected into the client's
-`settings.db` at startup.
+The tests verify:
+*   **Notification Filtering**: Ensures the bot correctly identifies and skips games already sent to a user.
+*   **Database Persistence**: Validates that the bot correctly interacts with the PostgreSQL history table.
 
-## Setup
+---
 
-1. Edit `config.env`:
-   ```
-   TS3_HOST=217.154.216.239        # public IP of the server (UDP 9987)
-   TS3_PORT=9987
-   TS3_NICKNAME=MrFree
-   TS3_IDENTITY=<exported identity string with the required security level>
-   CHECK_INTERVAL_HOURS=12
-   TS3_TARGET_NICK=Daniel          # testing: only poke this nickname (empty = everyone)
-   ```
-2. `docker compose up -d --build`
+## 📄 License
 
-## Notes
-
-- `TS3_IDENTITY` is the identity string from a TeamSpeak client identity export
-  (the `identity="..."` value). It must already meet the server's security level.
-- `TS3_TARGET_NICK` restricts pokes to a single nickname — handy for testing.
-  Leave it empty in production to poke every online user.
-- Logs show the connection progress (`Connection established`) and each poke sent.
+This project is licensed under the MIT License.

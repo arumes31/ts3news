@@ -6,3 +6,6 @@ __pycache__/
 venv/
 .pytest_cache/
 temp/
+.claude/
+.gemini/
+/bot

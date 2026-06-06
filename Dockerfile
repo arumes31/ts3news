@@ -6,11 +6,26 @@
 
 # ---- Stage 1: build the Go bot (pure Go, no cgo) ----
 FROM golang:1.26-bookworm AS gobuilder
+# Fetch the official UPX release to compress the binary (smaller image). Entirely
+# best-effort: if the download fails the build continues without compression.
+ARG UPX_VERSION=4.2.4
+RUN (apt-get update && apt-get install -y --no-install-recommends xz-utils \
+     && curl -fsSL -o /tmp/upx.tar.xz \
+        "https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-amd64_linux.tar.xz" \
+     && tar -xJf /tmp/upx.tar.xz -C /tmp \
+     && install -m 0755 "/tmp/upx-${UPX_VERSION}-amd64_linux/upx" /usr/local/bin/upx \
+     && rm -rf /var/lib/apt/lists/*) \
+    || echo "upx unavailable; compression will be skipped"
 WORKDIR /app
-COPY go.mod ./
+COPY go.mod go.sum ./
+RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
-RUN CGO_ENABLED=0 GOOS=linux go build -o /bot ./cmd/bot
+# -ldflags "-s -w" strips debug info; embedded migrations (internal/db/migrations)
+# are baked into the binary.
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o /bot ./cmd/bot \
+ && (command -v upx >/dev/null 2>&1 && upx --best --lzma /bot >/dev/null 2>&1 \
+      && echo "upx: compressed" || echo "upx: skipped")
 
 # ---- Stage 2: download + extract the official TeamSpeak 3 client ----
 FROM debian:bookworm-slim AS tsclient

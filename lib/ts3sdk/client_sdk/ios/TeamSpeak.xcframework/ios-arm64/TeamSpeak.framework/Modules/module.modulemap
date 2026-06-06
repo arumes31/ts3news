@@ -1,5 +1,0 @@
-framework module TeamSpeak {
-    umbrella "."
-    export *
-    module * { export * }
-}
