@@ -2,6 +2,7 @@ package games
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -9,18 +10,20 @@ import (
 	"time"
 )
 
-func httpGetJSON(url, userAgent string, v interface{}) error {
+func httpGet(url, userAgent string) (*http.Response, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if userAgent != "" {
 		req.Header.Set("User-Agent", userAgent)
 	}
-	req.Header.Set("Accept", "application/json")
-
 	client := &http.Client{Timeout: 12 * time.Second}
-	resp, err := client.Do(req)
+	return client.Do(req)
+}
+
+func httpGetJSON(url, userAgent string, v interface{}) error {
+	resp, err := httpGet(url, userAgent)
 	if err != nil {
 		return err
 	}
@@ -29,6 +32,18 @@ func httpGetJSON(url, userAgent string, v interface{}) error {
 		return fmt.Errorf("GET %s: status %d", url, resp.StatusCode)
 	}
 	return json.NewDecoder(resp.Body).Decode(v)
+}
+
+func httpGetXML(url, userAgent string, v interface{}) error {
+	resp, err := httpGet(url, userAgent)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("GET %s: status %d", url, resp.StatusCode)
+	}
+	return xml.NewDecoder(resp.Body).Decode(v)
 }
 
 // ---- GamerPower ----
@@ -150,52 +165,65 @@ func fmtCents(cents int, currency string) string {
 	return fmt.Sprintf("%s%.2f", sym, float64(cents)/100.0)
 }
 
-// ---- Reddit /r/FreeGameFindings ----
+// ---- Reddit /r/FreeGameFindings (RSS) ----
 
-type redditResponse struct {
-	Data struct {
-		Children []struct {
-			Data struct {
-				Title     string `json:"title"`
-				URL       string `json:"url"`
-				FlairText string `json:"link_flair_text"`
-			} `json:"data"`
-		} `json:"children"`
-	} `json:"data"`
+type atomFeed struct {
+	Entries []atomEntry `xml:"entry"`
+}
+
+type atomEntry struct {
+	Title   string `xml:"title"`
+	Link    link   `xml:"link"`
+	Content string `xml:"content"`
+}
+
+type link struct {
+	Href string `xml:"href,attr"`
 }
 
 var bracketTag = regexp.MustCompile(`\[[^\]]*\]|\([^)]*\)`)
+var hrefRe = regexp.MustCompile(`(?i)href="(https?://[^"]+)"`)
 
 func fetchReddit(_ Options) ([]Game, error) {
-	var r redditResponse
-	if err := httpGetJSON(
-		"https://www.reddit.com/r/FreeGameFindings/new.json?limit=75",
-		"ts3news:free-game-bot:v2 (by /u/ts3news)", &r,
+	var feed atomFeed
+	if err := httpGetXML(
+		"https://www.reddit.com/r/FreeGameFindings/new.rss?limit=75",
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", &feed,
 	); err != nil {
 		return nil, err
 	}
 
 	var out []Game
-	for _, c := range r.Data.Children {
-		title := c.Data.Title
+	for _, e := range feed.Entries {
+		title := e.Title
 		lower := strings.ToLower(title)
-		flair := strings.ToLower(c.Data.FlairText)
 
-		if strings.Contains(lower, "expired") || strings.Contains(flair, "expired") {
+		if strings.Contains(lower, "expired") {
 			continue
 		}
 		// Only full games (FreeGameFindings tags type as "(Game)").
 		if !strings.Contains(lower, "(game)") {
 			continue
 		}
-		drm := redditDRM(lower, flair)
+		drm := redditDRM(lower, "") // Flair is not easily available in RSS, rely on title
 		if drm == "" {
 			continue
 		}
 
+		// Try to extract the external link from the HTML content (often marked with >[link]<)
+		// If not found, fallback to the Reddit post URL.
+		gameURL := e.Link.Href
+		if m := hrefRe.FindStringSubmatch(e.Content); len(m) > 1 {
+			// Often the first link in content is the actual external link,
+			// or we can look specifically for steam/epic links.
+			if !strings.Contains(m[1], "reddit.com") {
+				gameURL = m[1]
+			}
+		}
+
 		out = append(out, Game{
 			Title:      cleanRedditTitle(title),
-			URL:        c.Data.URL,
+			URL:        strings.ReplaceAll(gameURL, "&amp;", "&"),
 			Worth:      "", // price unknown from Reddit
 			Platforms:  "PC, " + drm,
 			EndDate:    "N/A",
