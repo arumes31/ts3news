@@ -27,7 +27,7 @@
 *   🔑 **Identity Injection**: Automates injecting high security-level identities (e.g. Level 29) directly into `settings.db`.
 *   📣 **Double Notifications**: Sends a short, non-intrusive **Poke** popup (under 100 characters) + a detailed **Private Message** containing the game link.
 *   🔗 **Short Link Integration**: Uses [redrx.eu](https://redrx.eu/) to provide clean, clickable links in pokes.
-*   🎮 **PC Only**: Filters for PC-specific giveaways (Steam, Epic, GOG, etc.), ignoring mobile and console-only offers.
+*   🎮 **Steam & Epic Premium**: Only announces normally-paid Steam / Epic Games Store titles that are free for a limited time — skipping free-to-play, expired, and other-store giveaways.
 *   ⏱️ **Anti-Flood Control**: Customizable delay between actions to avoid server query anti-flood triggering.
 *   🔄 **Single-Cycle Flow**: Designed to connect, notify, close the client, and sleep to conserve system memory.
 *   🗄️ **Persistent History**: Stores game notification history in a **PostgreSQL** database to prevent duplicate pokes across restarts.
@@ -158,6 +158,16 @@ go test -v ./internal/bot/...
 The tests verify:
 *   **Notification Filtering**: Ensures the bot correctly identifies and skips games already sent to a user.
 *   **Database Persistence**: Validates that the bot correctly interacts with the PostgreSQL history table.
+
+---
+
+## 🏷️ GitHub Repository Metadata
+
+**Description:**
+> 🎮 Headless TeamSpeak 3 bot notifying users of free PC games (Steam, Epic, GOG). Powered by Go, PostgreSQL, and Xvfb. 🚀
+
+**Topics (Tags):**
+`teamspeak3` `ts3-bot` `free-games` `gamerpower-api` `docker` `golang` `postgresql` `notification-bot` `headless-client` `xvfb` `steam-giveaways` `epic-games-giveaway` `automation` `redrx`
 
 ---
 
