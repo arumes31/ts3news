@@ -41,7 +41,8 @@ func (b *Bot) autoListUnwantedItems(uid string, item interface{}) {
 	// Check if player already has better gear in this slot
 	var currentID string
 	err := b.DB.QueryRow("SELECT gear_id FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(g.Slot)).Scan(&currentID)
-	if err == nil {
+	switch {
+	case err == nil:
 		if cur, ok := content.GetGearByID(currentID); ok {
 			if cur.Rarity >= g.Rarity && cur.CombatRating() >= g.CombatRating() {
 				// Item is unwanted, list it!
@@ -53,9 +54,11 @@ func (b *Bot) autoListUnwantedItems(uid string, item interface{}) {
 				b.listAuctionItem(uid, itype, g.ID, g.Name, g, price)
 			}
 		}
-	} else if err == sql.ErrNoRows {
+	case err == sql.ErrNoRows:
 		// Even if slot is empty, we might want to list it if we don't want to equip it
 		// (though usually shouldEquip handles this before autoList)
+	default:
+		// Other error
 	}
 }
 
@@ -86,7 +89,7 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 	if err != nil {
 		return ""
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var ahID, itype, itemID, name, sellerUID string
@@ -109,31 +112,31 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 					// 1. Deduct gold
 					res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", price, uid)
 					if err != nil {
-						tx.Rollback()
+						_ = tx.Rollback()
 						continue
 					}
 					rowsAffected, _ := res.RowsAffected()
 					if rowsAffected == 0 {
-						tx.Rollback()
+						_ = tx.Rollback()
 						continue
 					}
 					
 					// 2. Mark sold (ensure it wasn't bought concurrently)
 					res, err = tx.Exec("UPDATE auction_house SET buyer_uid = $1, sold_at = NOW() WHERE id = $2 AND buyer_uid IS NULL", uid, ahID)
 					if err != nil {
-						tx.Rollback()
+						_ = tx.Rollback()
 						continue
 					}
 					rowsAffected, _ = res.RowsAffected()
 					if rowsAffected == 0 {
-						tx.Rollback()
+						_ = tx.Rollback()
 						continue
 					}
 					
 					// 3. Give gold to seller
 					_, err = tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", price, sellerUID)
 					if err != nil {
-						tx.Rollback()
+						_ = tx.Rollback()
 						continue
 					}
 					
@@ -143,13 +146,13 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 					                  ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`,
 						uid, string(g.Slot), g.ID, g.MaxDurability)
 					if err != nil {
-						tx.Rollback()
+						_ = tx.Rollback()
 						continue
 					}
 					
 					if err := tx.Commit(); err != nil {
 						log.Printf("Failed to commit AH purchase: %v", err)
-						tx.Rollback()
+						_ = tx.Rollback()
 						continue
 					}
 					return fmt.Sprintf("AH Purchase: %s for %s gold!", name, FormatGold(price))

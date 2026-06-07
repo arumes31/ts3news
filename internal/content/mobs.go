@@ -140,6 +140,7 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	// #nosec G404
 	idx := rand.IntN(100)      // index for common mobs // #nosec G404
 	if isBoss && level >= 10 { // Bosses require level 10+
+		// #nosec G404
 		idx = 106 + rand.IntN(2) // Bosses: 106-107
 	}
 
@@ -148,14 +149,19 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 		// #nosec G404
 		r := rand.Float64()          // #nosec G404
 		if r < 0.01 && level >= 25 { // Legendaries require level 25+
+			// #nosec G404
 			m = baseMobs[108+rand.IntN(2)]
 		} else if r < 0.05 && level >= 10 { // Bosses require level 10+
+			// #nosec G404
 			m = baseMobs[106+rand.IntN(2)]
 		} else if r < 0.12 && level >= 8 { // Minibosses require level 8+
+			// #nosec G404
 			m = baseMobs[104+rand.IntN(2)]
 		} else if r < 0.25 && level >= 5 { // Elites require level 5+
+			// #nosec G404
 			m = baseMobs[102+rand.IntN(2)]
 		} else if r < 0.40 && level >= 3 { // EliteMinions require level 3+
+			// #nosec G404
 			m = baseMobs[100+rand.IntN(2)]
 		}
 	}
@@ -302,6 +308,7 @@ func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64, groupSize int) [
 
 	// Horde spawns: 5-10 weaker mobs
 	if isHorde {
+		// #nosec G404
 		baseCount = 5 + rand.IntN(6) // 5 to 10 mobs in a horde // #nosec G404
 	}
 

@@ -8,18 +8,18 @@ import (
 
 func TestLoadConfig(t *testing.T) {
 	// Setup env vars
-	os.Setenv("TS3_HOST", "localhost")
-	os.Setenv("TS3_PORT", "9987")
-	os.Setenv("TS3_SERVER_ID", "1")
-	os.Setenv("ENABLE_GAMERPOWER", "false")
-	os.Setenv("DRM_FILTER", "steam,gog")
+	_ = os.Setenv("TS3_HOST", "localhost")
+	_ = os.Setenv("TS3_PORT", "9987")
+	_ = os.Setenv("TS3_SERVER_ID", "1")
+	_ = os.Setenv("ENABLE_GAMERPOWER", "false")
+	_ = os.Setenv("DRM_FILTER", "steam,gog")
 	
 	defer func() {
-		os.Unsetenv("TS3_HOST")
-		os.Unsetenv("TS3_PORT")
-		os.Unsetenv("TS3_SERVER_ID")
-		os.Unsetenv("ENABLE_GAMERPOWER")
-		os.Unsetenv("DRM_FILTER")
+		_ = os.Unsetenv("TS3_HOST")
+		_ = os.Unsetenv("TS3_PORT")
+		_ = os.Unsetenv("TS3_SERVER_ID")
+		_ = os.Unsetenv("ENABLE_GAMERPOWER")
+		_ = os.Unsetenv("DRM_FILTER")
 	}()
 
 	cfg := LoadConfig()
@@ -53,11 +53,11 @@ func TestEnvBool(t *testing.T) {
 		{"TEST_BOOL", "invalid", true, false},
 	}
 	for _, tt := range tests {
-		os.Setenv(tt.key, tt.val)
+		_ = os.Setenv(tt.key, tt.val)
 		if got := envBool(tt.key, tt.def); got != tt.want {
 			t.Errorf("envBool(%q, %v) with val %q = %v, want %v", tt.key, tt.def, tt.val, got, tt.want)
 		}
-		os.Unsetenv(tt.key)
+		_ = os.Unsetenv(tt.key)
 	}
 }
 
@@ -73,11 +73,11 @@ func TestEnvInt(t *testing.T) {
 		{"TEST_INT", "", 20, 20},
 	}
 	for _, tt := range tests {
-		os.Setenv(tt.key, tt.val)
+		_ = os.Setenv(tt.key, tt.val)
 		if got := envInt(tt.key, tt.def); got != tt.want {
 			t.Errorf("envInt(%q, %v) with val %q = %v, want %v", tt.key, tt.def, tt.val, got, tt.want)
 		}
-		os.Unsetenv(tt.key)
+		_ = os.Unsetenv(tt.key)
 	}
 }
 
@@ -93,12 +93,12 @@ func TestEnvList(t *testing.T) {
 		{"TEST_LIST", " , ", []string{"def"}, []string{"def"}},
 	}
 	for _, tt := range tests {
-		os.Setenv(tt.key, tt.val)
+		_ = os.Setenv(tt.key, tt.val)
 		got := envList(tt.key, tt.def)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("envList(%q, %v) with val %q = %v, want %v", tt.key, tt.def, tt.val, got, tt.want)
 		}
-		os.Unsetenv(tt.key)
+		_ = os.Unsetenv(tt.key)
 	}
 }
 
@@ -113,14 +113,14 @@ INVALID_LINE
 =VALUE
 ONLYKEY
 `
-	os.WriteFile(filename, []byte(content), 0644)
-	defer os.Remove(filename)
+	_ = os.WriteFile(filename, []byte(content), 0644)
+	defer func() { _ = os.Remove(filename) }()
 
 	// Set one existing to test precedence
-	os.Setenv("KEY1", "ORIGINAL")
-	defer os.Unsetenv("KEY1")
-	defer os.Unsetenv("KEY2")
-	defer os.Unsetenv("KEY3")
+	_ = os.Setenv("KEY1", "ORIGINAL")
+	defer func() { _ = os.Unsetenv("KEY1") }()
+	defer func() { _ = os.Unsetenv("KEY2") }()
+	defer func() { _ = os.Unsetenv("KEY3") }()
 
 	loadDotEnv(filename)
 

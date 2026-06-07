@@ -48,14 +48,17 @@ func runChaosSim(userCount int, cycles int) {
 				diff := 1.0 + float64(uLvl)*0.001
 				
 				// Simulate victory/defeat chance (simplified from xp.go)
+				// #nosec G404
 				winChance := 0.7 + (float64(uPrestige) * 0.05) - (diff * 0.1)
 				if winChance > 0.95 { winChance = 0.95 }
 				if winChance < 0.2 { winChance = 0.2 }
 				
+				// #nosec G404
 				if rand.Float64() < winChance {
 					atomic.AddInt64(&totalWins, 1)
 					
 					// Reward
+					// #nosec G404
 					rewardXP := int(float64(20+rand.IntN(30)) * diff)
 					rewardGold := int64(rewardXP * 5)
 					
@@ -126,6 +129,7 @@ func runLootSim(rolls int) {
 	counts := make(map[content.Rarity]int)
 	
 	for i := 0; i < rolls; i++ {
+		// #nosec G404
 		r := rand.Float64()
 		var rarity content.Rarity
 		switch {

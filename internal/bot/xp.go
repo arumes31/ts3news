@@ -326,9 +326,11 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	// Determine number of waves (1-3)
 	// #nosec G404
 	waves := 1
+	// #nosec G404
 	if rand.Float64() < 0.2 {
 		waves = 2
 	}
+	// #nosec G404
 	if rand.Float64() < 0.05 {
 		waves = 3
 	}
@@ -478,11 +480,6 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	return logs, finalAwardedXP, victory, loots
 }
 
-func (b *Bot) initializeCombat(users []UserInCombat, mobs []*content.Mob) ([]activeUser, []string, int) {
-	// Refactored into resolveChannelCombat for wave support
-	return nil, nil, 0
-}
-
 func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone content.Zone, round int, intensify, healPenalty float64, logs *[]string) {
 	for _, eff := range zone.Effects {
 		if eff.Type == content.ZoneHazard {
@@ -610,6 +607,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 		}
 
 		// Momentum check (from simulation): 10% chance for 10% STR boost
+		// #nosec G404
 		if rand.Float64() < 0.1 {
 			uSTR = int(float64(uSTR) * 1.1)
 		}
@@ -703,13 +701,12 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 
 			// Elemental System (Improvement 1)
-			elementMult := 1.0
 			// Determine user's active element from MainHand
 			userElement := content.ElementPhysical
 			if mh, ok := u.Equipped[content.SlotMainHand]; ok {
 				userElement = mh.Element
 			}
-			elementMult = getElementMult(userElement, target.Element)
+			elementMult := getElementMult(userElement, target.Element)
 			if elementMult > 1.0 {
 				*logs = append(*logs, fmt.Sprintf("💥 %s is effective against %s!", userElement, target.Element))
 			} else if elementMult < 1.0 {
@@ -1829,13 +1826,12 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 					_, _ = b.DB.Exec("UPDATE users SET scrap_stack = 0 WHERE client_uid=$1", uid)
 				} else {
 					// Stack multiple scraps for increased XP (up to 5 consecutive scraps = 5 XP)
-					stackSize := 1
 					// Check if the user already has a "scrap stack" going
 					var scrapCount int
 					_ = b.DB.QueryRow("SELECT COALESCE(scrap_stack, 0) FROM users WHERE client_uid=$1", uid).Scan(&scrapCount)
 
 					// Increment the stack (cap at 5)
-					stackSize = scrapCount + 1
+					stackSize := scrapCount + 1
 					if stackSize > 5 {
 						stackSize = 5
 					}

@@ -1429,6 +1429,7 @@ func (sim *Simulation) generateRecommendations() {
 // ============================================================
 
 func runSimulation(days int, seed int64, params SimParams, label string) *Simulation {
+	// #nosec G404
 	rng := rand.New(rand.NewSource(seed))
 	player := NewPlayerWithParams(params)
 
