@@ -259,11 +259,23 @@ func redditDRM(lowerTitle, flair string) string {
 func cleanRedditTitle(title string) string {
 	t := bracketTag.ReplaceAllString(title, " ")
 	t = strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(t, " "))
-	for _, suffix := range []string{" is free", " free", " is now free", " giveaway", " (100% off)"} {
-		t = strings.TrimSuffix(t, suffix)
-		t = strings.TrimSuffix(strings.TrimSpace(t), suffix)
+	
+	suffixes := []string{" is free", " free", " is now free", " giveaway", " giveaways", " (100% off)"}
+	
+	changed := true
+	for changed {
+		changed = false
+		lower := strings.ToLower(t)
+		for _, s := range suffixes {
+			if strings.HasSuffix(lower, s) {
+				t = t[:len(t)-len(s)]
+				t = strings.TrimSpace(t)
+				lower = strings.ToLower(t)
+				changed = true
+			}
+		}
 	}
-	return strings.TrimSpace(t)
+	return t
 }
 
 // ---- IsThereAnyDeal (optional; requires an API key) ----

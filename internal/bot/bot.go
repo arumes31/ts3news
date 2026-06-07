@@ -367,7 +367,7 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 	}
 
 	if lvl != nil {
-		fmt.Fprintf(&sb, "\n🏆 [b]%s[/b] [LvL: %d] [GS: %d]\n📈 +%d XP (%d total)\n",
+		fmt.Fprintf(&sb, "\n🏆 [b]%s[/b] [LvL: %d] [gs: %d]\n📈 +%d XP (%d total)\n",
 			leveling.LevelName(lvl.NewLevel), lvl.NewLevel, totalGS, lvl.Awarded, lvl.TotalXP)
 		if lvl.NewLevel > lvl.OldLevel {
 			fmt.Fprintf(&sb, "🎉 [b]Level up! You are now a %s![/b]\n", leveling.LevelName(lvl.NewLevel))
@@ -660,7 +660,7 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 			}
 
 			// Format: Nick [Lvl:X GS:Y HP:Z/Z P:P Gold:G STR:A DEF:B SPD:C LCK:D INT:E STA:F CRT:G DGE:H]
-			fmt.Fprintf(&sb, "• [b]%s[/b] [color=#78909c][Lvl:%d][/color] [color=#00bcd4][GS:%d][/color] [color=%s][HP:%d/%d][/color] [color=#ffc107][P:%d][/color] [color=#fbc02d][Gold:%s][/color]\n",
+			fmt.Fprintf(&sb, "• [b]%s[/b] [color=#78909c][Lvl:%d][/color] [color=#00bcd4][gs:%d][/color] [color=%s][HP:%d/%d][/color] [color=#ffc107][P:%d][/color] [color=#fbc02d][Gold:%s][/color]\n",
 				u.Nick, level, gearScore, hpColor, actualCurrentHP, stats.HP, prestige, FormatGold(gold))
 
 			fmt.Fprintf(&sb, "  [size=9][color=#90a4ae]STR:%d DEF:%d SPD:%d LCK:%d INT:%d STA:%d CRT:%d DGE:%d[/color][/size]\n",

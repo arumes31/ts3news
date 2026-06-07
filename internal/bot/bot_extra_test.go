@@ -33,7 +33,7 @@ func TestComposePM(t *testing.T) {
 	lr := &levelResult{OldLevel: 1, NewLevel: 2, Awarded: 100, TotalXP: 100}
 	
 	// Test without theme
-	pm := b.composePM(g, "http://short", nil, lr, []string{"note1", "note2", "10/10 dura"}, 50)
+	pm := b.composePM(g, "http://short", nil, lr, []string{"note1", "note2", "10/10 dur"}, 50)
 	if !strings.Contains(pm, "Test Game") || !strings.Contains(pm, "note1") || !strings.Contains(pm, "LvL: 2") {
 		t.Errorf("pm without theme = %q", pm)
 	}

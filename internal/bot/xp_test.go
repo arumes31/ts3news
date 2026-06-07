@@ -2,6 +2,7 @@ package bot
 
 import (
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"ts3news/internal/config"
@@ -30,6 +31,85 @@ func mockUserState(mock sqlmock.Sqlmock, uid string) {
 	mock.ExpectQuery(`SELECT ultimate_skill_id FROM users WHERE client_uid = \$1`).
 		WithArgs(uid).
 		WillReturnRows(sqlmock.NewRows([]string{"ultimate_skill_id"}).AddRow(nil))
+}
+
+func TestComputeMiscMult(t *testing.T) {
+	db, mock, _ := sqlmock.New()
+	defer func() { _ = db.Close() }()
+	b := &Bot{Cfg: &config.Config{EnableXPModifiers: true}, DB: db}
+
+	ctx := cycleContext{
+		onlineNormal:       1,
+		channelNormalCount: map[int]int{1: 1},
+		today:              time.Now(),
+	}
+
+	// Mock updateStreak
+	mock.ExpectQuery(`SELECT last_poke_date, streak_days FROM users`).
+		WithArgs("user1").
+		WillReturnRows(sqlmock.NewRows([]string{"last_poke_date", "streak_days"}).AddRow(time.Now(), 1))
+
+	m := b.computeMiscMult("user1", "Hero", 1, ctx)
+	if m < 1.0 {
+		t.Errorf("expected multiplier >= 1.0, got %f", m)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unmet expectations: %s", err)
+	}
+}
+
+func TestAwardXP(t *testing.T) {
+	db, mock, _ := sqlmock.New()
+	defer func() { _ = db.Close() }()
+	b := &Bot{Cfg: &config.Config{}, DB: db}
+
+	uid := "user1"
+	nickname := "Hero"
+
+	// Existing user
+	mock.ExpectQuery(`SELECT xp, level FROM users`).
+		WithArgs(uid).
+		WillReturnRows(sqlmock.NewRows([]string{"xp", "level"}).AddRow(100, 5))
+	mock.ExpectExec(`INSERT INTO users`).
+		WithArgs(uid, nickname, 150, 8). // 100 + 50 = 150 XP which is level 8
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	lr, err := b.awardXP(uid, nickname, 50)
+	if err != nil || lr.NewLevel != 8 || lr.TotalXP != 150 {
+		t.Errorf("awardXP failed: %v, %+v", err, lr)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unmet expectations: %s", err)
+	}
+}
+
+func TestUpdateStreak(t *testing.T) {
+	db, mock, _ := sqlmock.New()
+	defer func() { _ = db.Close() }()
+	b := &Bot{Cfg: &config.Config{}, DB: db}
+
+	uid := "user1"
+	today := time.Now()
+	yesterday := today.AddDate(0, 0, -1)
+
+	// 1. New streak
+	mock.ExpectQuery(`SELECT last_poke_date, streak_days FROM users`).
+		WithArgs(uid).
+		WillReturnRows(sqlmock.NewRows([]string{"last_poke_date", "streak_days"}).AddRow(yesterday, 5))
+	mock.ExpectExec(`UPDATE users SET streak_days=\$2, last_poke_date=\$3 WHERE client_uid=\$1`).
+		WithArgs(uid, 6, today).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	s := b.updateStreak(uid, today)
+	if s != 6 {
+		t.Errorf("streak = %d, want 6", s)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unmet expectations: %s", err)
+	}
 }
 
 func TestResolveChannelCombat_Comprehensive(t *testing.T) {
