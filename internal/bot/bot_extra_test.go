@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 	"ts3news/internal/config"
+	"ts3news/internal/content"
 	"ts3news/internal/games"
 )
 
@@ -28,20 +29,42 @@ func TestComposePoke(t *testing.T) {
 
 func TestComposePM(t *testing.T) {
 	b := &Bot{Cfg: &config.Config{}}
-	g := games.Game{Title: "Test Game", Worth: "20€"}
+	g := games.Game{Title: "Test Game", Worth: "20.00€", URL: "http://example.com"}
 	lr := &levelResult{OldLevel: 1, NewLevel: 2, Awarded: 100, TotalXP: 100}
-	pm := b.composePM(g, "http://short", nil, lr, []string{"note1", "note2"}, 50)
+	
+	// Test without theme
+	pm := b.composePM(g, "http://short", nil, lr, []string{"note1", "note2", "10/10 dura"}, 50)
 	if !strings.Contains(pm, "Test Game") || !strings.Contains(pm, "note1") || !strings.Contains(pm, "LvL: 2") {
-		t.Errorf("pm = %q", pm)
+		t.Errorf("pm without theme = %q", pm)
+	}
+
+	// Test with theme
+	theme := &content.Theme{Emoji: "🎄", Banner: "Holiday!", Signoff: "Merry X-Mas"}
+	pmTheme := b.composePM(g, "http://short", theme, lr, nil, 50)
+	if !strings.Contains(pmTheme, "🎄") || !strings.Contains(pmTheme, "Holiday!") || !strings.Contains(pmTheme, "Merry X-Mas") {
+		t.Errorf("pm with theme = %q", pmTheme)
 	}
 }
 
 func TestXPForGame(t *testing.T) {
 	b := &Bot{Cfg: &config.Config{}}
-	g := games.Game{Worth: "10.00€"}
-	xp := b.xpForGame(g)
-	if xp <= 0 {
-		t.Error("xpForGame returned zero or negative")
+	
+	tests := []struct {
+		worth   string
+		cheaper bool
+	}{
+		{"10.00€", false},
+		{"0.00€", false},
+		{"invalid", false},
+		{"5.00€", true},
+	}
+	for _, tt := range tests {
+		g := games.Game{Worth: tt.worth}
+		b.Cfg.CheaperMoreXP = tt.cheaper
+		xp := b.xpForGame(g)
+		if xp <= 0 {
+			t.Errorf("xpForGame(%q, cheaper=%v) = %d", tt.worth, tt.cheaper, xp)
+		}
 	}
 }
 

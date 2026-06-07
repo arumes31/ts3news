@@ -49,12 +49,36 @@ func (b *Bot) applyPrestigeGroup(c *clientquery.Client, clid int, uid, nickname 
 	}
 
 	name := prestigeGroupName(prestige)
-	sgid, ok := b.findServerGroupByName(c, name)
-	if !ok {
+	groups, err := c.ServerGroupList()
+	if err != nil {
+		log.Printf("prestige: servergrouplist failed: %v", err)
+		return
+	}
+
+	var sgid int
+	found := false
+	for _, g := range groups {
+		if g.Name == name {
+			sgid = g.ID
+			found = true
+			if g.IconID == 0 {
+				// Re-upload icon if missing
+				if png, ierr := icons.Icon(prestige, leveling.NumTiers, leveling.NumTiers, iconSizePx); ierr == nil {
+					if id, uerr := c.UploadIcon(png, b.Cfg.TS3Host); uerr == nil {
+						_ = c.ServerGroupAddPerm(sgid, "i_icon_id", int(id))
+					}
+				}
+			}
+			break
+		}
+	}
+
+	if !found {
 		if err := c.ServerGroupAdd(name); err != nil {
 			log.Printf("prestige: servergroupadd %q: %v", name, err)
 		}
-		if sgid, ok = b.findServerGroupByName(c, name); !ok {
+		sgid, ok := b.findServerGroupByName(c, name)
+		if !ok {
 			log.Printf("prestige: group %q was not created", name)
 			return
 		}
@@ -92,5 +116,8 @@ func (b *Bot) findServerGroupByName(c *clientquery.Client, name string) (int, bo
 	if err != nil {
 		return 0, false
 	}
-	return findGroupByName(groups, name)
+	if sg, ok := findGroupAndIconByName(groups, name); ok {
+		return sg.ID, true
+	}
+	return 0, false
 }

@@ -102,23 +102,7 @@ func (b *Bot) setUserGroupLevel(uid string, level int) error {
 	return err
 }
 
-func findGroupByName(groups []clientquery.ServerGroup, name string) (int, bool) {
-	for _, g := range groups {
-		if g.Name == name {
-			return g.ID, true
-		}
-	}
-	return 0, false
-}
-
-// getOrCreateLevelGroup returns the server group id for a level, creating the
-// group (and uploading its generated icon) on first use. Because the ClientQuery
-// servergroupadd reply does not always echo the new sgid, we re-list the groups
-// and look the new group up by name.
 func (b *Bot) getOrCreateLevelGroup(c *clientquery.Client, level int) (int, error) {
-	if sgid, ok := b.xpGroups[level]; ok {
-		return sgid, nil
-	}
 	name := xpGroupName(level)
 
 	groups, err := c.ServerGroupList()
@@ -126,9 +110,18 @@ func (b *Bot) getOrCreateLevelGroup(c *clientquery.Client, level int) (int, erro
 		log.Printf("xpgroups: servergrouplist failed: %v", err)
 	} else {
 		log.Printf("xpgroups: %d server groups visible", len(groups))
-		if sgid, ok := findGroupByName(groups, name); ok {
-			return b.finishGroup(c, level, sgid)
+		if sg, ok := findGroupAndIconByName(groups, name); ok {
+			// If group exists but icon is missing, finish it (re-upload icon)
+			if sg.IconID == 0 {
+				return b.finishGroup(c, level, sg.ID)
+			}
+			b.xpGroups[level] = sg.ID
+			return sg.ID, nil
 		}
+	}
+
+	if sgid, ok := b.xpGroups[level]; ok {
+		return sgid, nil
 	}
 
 	// Create it; the sgid is not echoed, so re-list and look it up by name.
@@ -140,10 +133,19 @@ func (b *Bot) getOrCreateLevelGroup(c *clientquery.Client, level int) (int, erro
 	if err != nil {
 		return 0, fmt.Errorf("re-list after creating %q failed: %w", name, err)
 	}
-	if sgid, ok := findGroupByName(groups2, name); ok {
-		return b.finishGroup(c, level, sgid)
+	if sg, ok := findGroupAndIconByName(groups2, name); ok {
+		return b.finishGroup(c, level, sg.ID)
 	}
 	return 0, fmt.Errorf("group %q was not created or found after add", name)
+}
+
+func findGroupAndIconByName(groups []clientquery.ServerGroup, name string) (clientquery.ServerGroup, bool) {
+	for _, g := range groups {
+		if g.Name == name {
+			return g, true
+		}
+	}
+	return clientquery.ServerGroup{}, false
 }
 
 // finishGroup caches a group and ensures it has its generated icon (idempotent:

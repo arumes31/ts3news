@@ -348,11 +348,11 @@ func composePoke(g games.Game, shortURL string, theme *content.Theme, lvl *level
 func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl *levelResult, notes []string, totalGS int) string {
 	var sb strings.Builder
 	if theme != nil {
-		sb.WriteString(theme.Emoji + " " + theme.Banner)
+		sb.WriteString(theme.Emoji + " [b]" + theme.Banner + "[/b]")
 	} else if b.Cfg.EnableGreetings {
-		sb.WriteString(content.RandomGreeting())
+		sb.WriteString("[b]" + content.RandomGreeting() + "[/b]")
 	} else {
-		sb.WriteString("Daily Free Game!")
+		sb.WriteString("[b]Daily Free Game![/b]")
 	}
 	sb.WriteString("\n")
 
@@ -360,69 +360,102 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 	if name != "" {
 		fmt.Fprintf(&sb, "🎮 %s\n", name)
 		if g.WorthShown() {
-			fmt.Fprintf(&sb, "💰 Worth %s → FREE now\n", g.Worth)
+			fmt.Fprintf(&sb, "💰 Worth %s → [b]FREE[/b] now\n", g.Worth)
 		}
 	} else {
 		sb.WriteString("🎮 No new games discovered in this cycle.\n")
 	}
 
 	if lvl != nil {
-		fmt.Fprintf(&sb, "🏆 %s [LvL: %d] [GS: %d] — +%d XP (%d total)\n",
+		fmt.Fprintf(&sb, "\n🏆 [b]%s[/b] [LvL: %d] [GS: %d]\n📈 +%d XP (%d total)\n",
 			leveling.LevelName(lvl.NewLevel), lvl.NewLevel, totalGS, lvl.Awarded, lvl.TotalXP)
 		if lvl.NewLevel > lvl.OldLevel {
-			fmt.Fprintf(&sb, "🎉 Level up! You are now a %s!\n", leveling.LevelName(lvl.NewLevel))
+			fmt.Fprintf(&sb, "🎉 [b]Level up! You are now a %s![/b]\n", leveling.LevelName(lvl.NewLevel))
 		}
 	}
-	// Pack notes efficiently: group gear/item notes on the same line,
-	// keep other notes (battle, XP, etc.) on separate lines.
-	// TeamSpeak PM line limit is ~1000 chars per chunk.
-	const maxNoteLineLen = 900
-	var gearNotes []string
-	var otherNotes []string
+
+	// Categorize notes
+	var combatNotes []string
+	var rewardNotes []string
+	var equipNotes []string
+	var miscNotes []string
+
 	for _, note := range notes {
-		// Gear notes are identified by containing "dura" or "x1." (XP multiplier)
-		if strings.Contains(note, "dura") || strings.Contains(note, "XP") {
-			gearNotes = append(gearNotes, note)
-		} else {
-			otherNotes = append(otherNotes, note)
+		note = strings.TrimSpace(note)
+		if note == "" {
+			continue
+		}
+		switch {
+		case strings.Contains(note, "📍") || strings.Contains(note, "⚔️") || strings.Contains(note, "WAVE") ||
+			strings.Contains(note, "☠️") || strings.Contains(note, "🏁") || strings.Contains(note, "💥") ||
+			strings.Contains(note, "📊") || strings.Contains(note, "AMBUSH") || strings.Contains(note, "slain") ||
+			strings.Contains(note, "cast") || strings.Contains(note, "used") || strings.Contains(note, "defeated") ||
+			(strings.Contains(note, "✨") && strings.Contains(note, ":")): // Skill/Pet logs
+			combatNotes = append(combatNotes, note)
+		case strings.Contains(note, "🎁") || strings.Contains(note, "💰") || strings.Contains(note, "🌟") ||
+			strings.Contains(note, "listed on AH") || strings.Contains(note, "Learned") || strings.Contains(note, "Equipped") ||
+			strings.Contains(note, "XP") || strings.Contains(note, "🏆"):
+			rewardNotes = append(rewardNotes, note)
+		case strings.Contains(note, "dura"):
+			equipNotes = append(equipNotes, note)
+		default:
+			miscNotes = append(miscNotes, note)
 		}
 	}
 
-	// Other notes get their own lines
-	for _, note := range otherNotes {
-		fmt.Fprintf(&sb, "✨ %s\n", note)
+	if len(miscNotes) > 0 {
+		sb.WriteString("\n[b]✨ BONUSES & MODIFIERS[/b]\n")
+		for _, n := range miscNotes {
+			fmt.Fprintf(&sb, " • %s\n", n)
+		}
 	}
 
-	// Gear notes are packed into lines respecting max length
-	if len(gearNotes) > 0 {
+	if len(combatNotes) > 0 {
+		sb.WriteString("\n[b]⚔️ COMBAT LOG[/b]\n")
+		for _, n := range combatNotes {
+			fmt.Fprintf(&sb, " • %s\n", n)
+		}
+	}
+
+	if len(rewardNotes) > 0 {
+		sb.WriteString("\n[b]🎁 LOOT & REWARDS[/b]\n")
+		for _, n := range rewardNotes {
+			fmt.Fprintf(&sb, " • %s\n", n)
+		}
+	}
+
+	if len(equipNotes) > 0 {
+		sb.WriteString("\n[b]🛡️ EQUIPMENT STATUS[/b]\n")
+		const maxNoteLineLen = 900
 		var line string
-		for i, gn := range gearNotes {
+		for i, gn := range equipNotes {
 			entry := gn
 			if i > 0 {
 				entry = " | " + gn
 			}
 			if len(line)+len(entry) > maxNoteLineLen && line != "" {
-				fmt.Fprintf(&sb, "✨ %s\n", line)
+				fmt.Fprintf(&sb, " %s\n", line)
 				line = gn
 			} else {
 				line += entry
 			}
 		}
 		if line != "" {
-			fmt.Fprintf(&sb, "✨ %s\n", line)
+			fmt.Fprintf(&sb, " %s\n", line)
 		}
 	}
 
 	// Add game claim and YouTube trailer at the end for better readability
 	if shortURL != "" {
-		fmt.Fprintf(&sb, "🔗 Claim: %s\n", shortURL)
+		sb.WriteString("\n")
+		fmt.Fprintf(&sb, "🔗 [b]Claim:[/b] %s\n", shortURL)
 		if b.Cfg.EnableYouTubeTrailer {
-			fmt.Fprintf(&sb, "▶️ Trailer: %s\n", games.TrailerSearchURL(name))
+			fmt.Fprintf(&sb, "▶️ [b]Trailer:[/b] %s\n", games.TrailerSearchURL(name))
 		}
 	}
 
 	if theme != nil && theme.Signoff != "" {
-		sb.WriteString(theme.Signoff)
+		sb.WriteString("\n" + theme.Signoff)
 	}
 	return strings.TrimRight(sb.String(), "\n")
 }

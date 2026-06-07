@@ -12,9 +12,10 @@ import (
 
 // ServerGroup is one server group as returned by servergrouplist.
 type ServerGroup struct {
-	ID   int
-	Name string
-	Type int // 1 = regular server group
+	ID     int
+	Name   string
+	Type   int // 1 = regular server group
+	IconID int
 }
 
 // firstKV parses the first data line into an unescaped key=value map.
@@ -68,6 +69,8 @@ func (c *Client) ServerGroupList() ([]ServerGroup, error) {
 					sg.Name = Unescape(v)
 				case "type":
 					sg.Type, _ = strconv.Atoi(v)
+				case "iconid":
+					sg.IconID, _ = strconv.Atoi(v)
 				}
 			}
 			if sg.ID >= 0 {
