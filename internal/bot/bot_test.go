@@ -77,6 +77,19 @@ func TestDatabasePersistence(t *testing.T) {
 		t.Errorf("got keys %v, want [%s]", keys, gameKey)
 	}
 
+	// touchUser
+	mock.ExpectQuery("SELECT last_session_connected_ms FROM users WHERE client_uid = \\$1").
+		WithArgs(uid).
+		WillReturnRows(sqlmock.NewRows([]string{"last_session_connected_ms"}).AddRow(0))
+	mock.ExpectExec("INSERT INTO users").WillReturnResult(sqlmock.NewResult(1, 1))
+	_ = b.touchUser(uid, nickname, 1000)
+
+	// CleanupDeadUsers
+	b.Cfg.DeadUserDays = 30
+	mock.ExpectExec("DELETE FROM sent_notifications").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("DELETE FROM users").WillReturnResult(sqlmock.NewResult(1, 1))
+	_, _ = b.CleanupDeadUsers()
+
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unmet expectations: %s", err)
 	}

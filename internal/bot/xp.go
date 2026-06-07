@@ -1541,7 +1541,7 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 	if err := b.DB.QueryRow("SELECT artifact_mult, artifact_name, artifact_durability FROM users WHERE client_uid=$1", uid).Scan(&aMult, &aName, &aDura); err == nil {
 		if aName.Valid && aName.String != "" && aDura > 0 {
 			mult *= aMult.Float64
-			notes = append(notes, fmt.Sprintf("%s x%g (%d dura)", aName.String, aMult.Float64, aDura))
+			notes = append(notes, fmt.Sprintf("%s x%g (%d dur)", aName.String, aMult.Float64, aDura))
 			if art, ok := content.GetArtifactByName(aName.String); ok {
 				stats = stats.Add(art.Stats)
 				gearScore += art.Stats.Score()
@@ -1592,14 +1592,14 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 
 					// Show gear in notes with appropriate XP multiplier
 					if xpMultiplier > 1.0 {
-						note := fmt.Sprintf("%s x%g (%d dura)", gear.Name, xpMultiplier, dura)
+						note := fmt.Sprintf("%s x%g (%d dur)", gear.Name, xpMultiplier, dura)
 						if gear.Special != content.EffectNone {
 							note = fmt.Sprintf("[%s] %s", gear.Special, note)
 						}
 						notes = append(notes, note)
 					} else {
 						// For gear without XP bonus, just show the gear
-						note := fmt.Sprintf("%s (%d dura)", gear.Name, dura)
+						note := fmt.Sprintf("%s (%d dur)", gear.Name, dura)
 						if gear.Special != content.EffectNone {
 							note = fmt.Sprintf("[%s] %s", gear.Special, note)
 						}
@@ -1774,7 +1774,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			ench.Stats.STR = int(float64(ench.Stats.STR) * zoneDifficulty)
 			ench.Stats.SPD = int(float64(ench.Stats.SPD) * zoneDifficulty)
 			if slot, ok := b.applyEnchantment(uid, ench); ok {
-				results = append(results, fmt.Sprintf("Enchanted [slot:%s] with %s [enchant:%s]", slot, ench.Name, ench.Name))
+				results = append(results, fmt.Sprintf("Enchanted [s:%s] with %s [enchant:%s]", slot, ench.Name, ench.Name))
 			} else {
 				// Improvement 50: Salvaging (Enchantments)
 				scrapAmt := 2 + int(ench.Rarity)*2
@@ -1807,7 +1807,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			g.Stats.SPD = int(float64(g.Stats.SPD) * zoneDifficulty)
 			if b.shouldEquip(uid, g) {
 				_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
-				results = append(results, fmt.Sprintf("Equipped: %s [slot:%s] (GS:%d CR:%.1f R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String()))
+				results = append(results, fmt.Sprintf("Equipped: %s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String()))
 				if g.Rarity >= content.RarityLegendary {
 					pokes = append(pokes, fmt.Sprintf("⚔️ LEGENDARY GEAR: Equipped %s!", g.Name))
 				}
@@ -1815,12 +1815,12 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				// Auto-list rare+ items on AH if not an upgrade
 				if g.Rarity >= content.RarityRare {
 					b.autoListUnwantedItems(uid, g)
-					results = append(results, fmt.Sprintf("Listed on AH: %s [slot:%s] (R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Rarity.Color(), g.Rarity.String()))
+					results = append(results, fmt.Sprintf("Listed on AH: %s [s:%s] (R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Rarity.Color(), g.Rarity.String()))
 				} else {
 					// Improvement 50: Salvaging (Gear)
 					scrapAmt := 1 + int(g.Rarity)
 					_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
-					results = append(results, fmt.Sprintf("Salvaged %s [slot:%s]: +%d Scrap", g.Name, string(g.Slot), scrapAmt))
+					results = append(results, fmt.Sprintf("Salvaged %s [s:%s]: +%d Scrap", g.Name, string(g.Slot), scrapAmt))
 				}
 			}
 			lootFound = true
@@ -1839,7 +1839,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				g := content.RandomStarterGear()
 				if b.shouldEquip(uid, g) {
 					_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
-					results = append(results, fmt.Sprintf("Found: %s [slot:%s] (GS:%d CR:%.1f R:%s)", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.String()))
+					results = append(results, fmt.Sprintf("Found: %s [s:%s] (gs:%d CR:%.1f R:%s)", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.String()))
 					// Also reset stack if we actually equipped something useful
 					_, _ = b.DB.Exec("UPDATE users SET scrap_stack = 0 WHERE client_uid=$1", uid)
 				} else {
@@ -1859,7 +1859,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 
 					// Award XP based on stack size
 					totalXP := stackSize
-					results = append(results, fmt.Sprintf("Looted Scrap [slot:%s] (+%d XP) (R:%s)", string(g.Slot), totalXP, g.Rarity.String()))
+					results = append(results, fmt.Sprintf("Looted Scrap [s:%s] (+%d XP) (R:%s)", string(g.Slot), totalXP, g.Rarity.String()))
 					_, _ = b.awardXP(uid, "", totalXP)
 				}
 			} else {
