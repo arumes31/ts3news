@@ -1123,13 +1123,57 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) {
 		return
 	} // #nosec G404
 
-	loss := duraLossPerFight * lossMult
+	baseLoss := duraLossPerFight * lossMult
 	if defeat {
-		loss = duraLossPenalty * lossMult
+		baseLoss = duraLossPenalty * lossMult
 	}
-	_, _ = b.DB.Exec("UPDATE user_gear SET durability = durability - $2 WHERE client_uid = $1", uid, loss)
+
+	// XP items lose durability faster: the higher the XP multiplier, the faster they decay.
+	// This ensures powerful XP-boosting gear is a tradeoff (more XP but shorter lifespan).
+	grows, gerr := b.DB.Query("SELECT gear_id, enchantment_id FROM user_gear WHERE client_uid = $1", uid)
+	if gerr == nil {
+		type gearLoss struct {
+			gearID string
+			loss   int
+		}
+		var losses []gearLoss
+		for grows.Next() {
+			var gearID string
+			var enchID sql.NullString
+			if grows.Scan(&gearID, &enchID) == nil {
+				itemLoss := baseLoss
+				if gear, ok := content.GetGearByID(gearID); ok {
+					// Gear with XP multiplier > 1.0 loses extra durability proportional to the bonus
+					if gear.XPMultiplier > 1.0 {
+						xpPenalty := int((gear.XPMultiplier - 1.0) * 10) // e.g. 1.30x = +3 extra loss
+						itemLoss += xpPenalty
+					}
+				}
+				if enchID.Valid && enchID.String != "" {
+					if ench, ok := content.GetEnchantmentByID(enchID.String); ok {
+						// Enchantments with XP multiplier also increase durability loss
+						if ench.XPMultiplier > 1.0 {
+							xpPenalty := int((ench.XPMultiplier - 1.0) * 10)
+							itemLoss += xpPenalty
+						}
+					}
+				}
+				losses = append(losses, gearLoss{gearID: gearID, loss: itemLoss})
+			}
+		}
+		_ = grows.Close()
+
+		// Apply individual durability losses
+		for _, gl := range losses {
+			_, _ = b.DB.Exec("UPDATE user_gear SET durability = durability - $2 WHERE client_uid = $1 AND gear_id = $3", uid, gl.loss, gl.gearID)
+		}
+	} else {
+		// Fallback: uniform loss if query fails
+		_, _ = b.DB.Exec("UPDATE user_gear SET durability = durability - $2 WHERE client_uid = $1", uid, baseLoss)
+	}
+
 	_, _ = b.DB.Exec("DELETE FROM user_gear WHERE client_uid = $1 AND durability <= 0", uid)
-	_, _ = b.DB.Exec("UPDATE users SET artifact_durability = artifact_durability - $2 WHERE client_uid = $1 AND artifact_durability > 0", uid, loss)
+	_, _ = b.DB.Exec("UPDATE users SET artifact_durability = artifact_durability - $2 WHERE client_uid = $1 AND artifact_durability > 0", uid, baseLoss)
 	_, _ = b.DB.Exec("UPDATE users SET artifact_mult=1, artifact_name=NULL, artifact_durability=0 WHERE client_uid=$1 AND artifact_durability <= 0 AND artifact_name IS NOT NULL", uid)
 }
 
@@ -1217,15 +1261,52 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 			var enchID sql.NullString
 			if err := rows.Scan(&gearID, &dura, &enchID); err == nil {
 				if gear, ok := content.GetGearByID(gearID); ok {
-					mult *= gear.XPMultiplier
+					// Define which slots can have high XP multipliers (more than 20%)
+					highXPSlots := map[content.GearSlot]bool{
+						content.SlotMainHand: true,
+						content.SlotChest:    true,
+						content.SlotHead:     true,
+						content.SlotLegs:     true,
+						content.SlotFeet:     true,
+						content.SlotFinger1:  true,
+					}
+
+					// Apply XP multiplier based on slot and rarity restrictions
+					xpMultiplier := 1.0
+					if gear.Rarity >= content.RarityRare {
+						if highXPSlots[gear.Slot] {
+							// High XP slots can have full multiplier
+							xpMultiplier = gear.XPMultiplier
+						} else {
+							// Other slots limited to max 1-2% XP bonus
+							if gear.XPMultiplier > 1.02 {
+								xpMultiplier = 1.02
+							} else {
+								xpMultiplier = gear.XPMultiplier
+							}
+						}
+						mult *= xpMultiplier
+					}
+
+					// Show gear in notes with appropriate XP multiplier
+					if xpMultiplier > 1.0 {
+						note := fmt.Sprintf("%s x%g (%d dura)", gear.Name, xpMultiplier, dura)
+						if gear.Special != content.EffectNone {
+							note = fmt.Sprintf("[%s] %s", gear.Special, note)
+						}
+						notes = append(notes, note)
+					} else {
+						// For gear without XP bonus, just show the gear
+						note := fmt.Sprintf("%s (%d dura)", gear.Name, dura)
+						if gear.Special != content.EffectNone {
+							note = fmt.Sprintf("[%s] %s", gear.Special, note)
+						}
+						notes = append(notes, note)
+					}
+
 					stats = stats.Add(gear.Stats)
 					if gear.Special != content.EffectNone {
 						effects = append(effects, gear.Special)
-					}
-
-					note := fmt.Sprintf("%s x%g (%d dura)", gear.Name, gear.XPMultiplier, dura)
-					if gear.Special != content.EffectNone {
-						note = fmt.Sprintf("[%s] %s", gear.Special, note)
 					}
 
 					if enchID.Valid && enchID.String != "" {
@@ -1240,10 +1321,9 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 							if ench.Special != content.EffectNone {
 								eName = fmt.Sprintf("%s (%s)", eName, ench.Special)
 							}
-							note = fmt.Sprintf("[%s] %s (x%g XP)", eName, note, ench.XPMultiplier)
+							notes = append(notes, fmt.Sprintf("[%s] %s (x%g XP)", eName, gear.Name, ench.XPMultiplier))
 						}
 					}
-					notes = append(notes, note)
 				}
 			}
 		}

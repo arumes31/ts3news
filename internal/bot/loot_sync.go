@@ -20,8 +20,8 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 	// 1. Get all active items and pets for this user
 	activeItemNames := map[string]bool{}
 
-	// Helper to format group names with 30-char limit: "(gs:XXXX)[E] Name..."
-	formatGSName := func(score int, name string, effect content.ItemEffect) string {
+	// Helper to format group names with 30-char limit: "(gs:XXXX)[E] [Slot] Name..."
+	formatGSName := func(score int, name string, effect content.ItemEffect, slot content.GearSlot) string {
 		effCode := ""
 		if effect != content.EffectNone {
 			mapping := map[content.ItemEffect]string{
@@ -43,7 +43,10 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 			}
 		}
 
-		prefix := fmt.Sprintf("(gs:%d) %s", score, effCode)
+		// Add slot information
+		slotCode := "[" + string(slot) + "] "
+
+		prefix := fmt.Sprintf("(gs:%d) %s%s", score, effCode, slotCode)
 		avail := 30 - len(prefix)
 		if avail <= 0 {
 			return prefix[:30]
@@ -55,14 +58,15 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 	}
 
 	// Gear
-	grows, err := b.DB.Query("SELECT gear_id FROM user_gear WHERE client_uid = $1", uid)
+	grows, err := b.DB.Query("SELECT gear_id, slot FROM user_gear WHERE client_uid = $1", uid)
 	if err == nil {
 		defer func() { _ = grows.Close() }()
 		for grows.Next() {
 			var id string
-			if err := grows.Scan(&id); err == nil {
+			var slot string
+			if err := grows.Scan(&id, &slot); err == nil {
 				if g, ok := content.GetGearByID(id); ok {
-					activeItemNames[formatGSName(g.Stats.Score(), g.Name, g.Special)] = true
+					activeItemNames[formatGSName(g.Stats.Score(), g.Name, g.Special, content.GearSlot(slot))] = true
 				}
 			}
 		}
@@ -72,7 +76,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 	var aName sql.NullString
 	if err := b.DB.QueryRow("SELECT artifact_name FROM users WHERE client_uid = $1", uid).Scan(&aName); err == nil && aName.Valid && aName.String != "" {
 		if art, ok := content.GetArtifactByName(aName.String); ok {
-			activeItemNames[formatGSName(art.Score(), art.Name, art.Special)] = true
+			activeItemNames[formatGSName(art.Score(), art.Name, art.Special, "Artifact")] = true
 		}
 	}
 
@@ -84,7 +88,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 			var id string
 			if err := srows.Scan(&id); err == nil {
 				if s, ok := content.GetSkillByID(id); ok {
-					activeItemNames[formatGSName(s.Score(), s.Name, s.Special)] = true
+					activeItemNames[formatGSName(s.Score(), s.Name, s.Special, "Skill")] = true
 				}
 			}
 		}
@@ -99,7 +103,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 			var mType string
 			if err := prows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD); err == nil {
 				m.Type = content.MobType(mType)
-				activeItemNames[formatGSName(m.Score(), "Pet "+m.Name, content.EffectNone)] = true
+				activeItemNames[formatGSName(m.Score(), "Pet "+m.Name, content.EffectNone, "Pet")] = true
 			}
 		}
 	}
