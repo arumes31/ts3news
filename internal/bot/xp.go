@@ -503,6 +503,12 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 					continue
 				}
 				u.CurrentHP -= dmg
+				if u.CurrentHP <= 0 {
+					u.CurrentHP = 0
+					if !b.checkUserRevive(u, logs) {
+						*logs = append(*logs, fmt.Sprintf("💀 %s was slain by %s hazard!", u.Nickname, eff.Name))
+					}
+				}
 			}
 			for _, m := range mobs {
 				m.Stats.HP -= dmg
@@ -829,7 +835,12 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					target.CurrentHP -= pdmg
 					*logs = append(*logs, fmt.Sprintf("⚠️ Rogue Pet %s bit %s for %d!", p.Name, target.Nickname, pdmg))
 					*totalMobDamage += pdmg
-					b.checkUserRevive(target, logs)
+					if target.CurrentHP <= 0 {
+						target.CurrentHP = 0
+						if !b.checkUserRevive(target, logs) {
+							*logs = append(*logs, fmt.Sprintf("💀 %s was slain by pet %s!", target.Nickname, p.Name))
+						}
+					}
 					continue
 				}
 			}
@@ -1172,13 +1183,20 @@ func (b *Bot) handleDeathEffects(m *content.Mob, mobs *[]*content.Mob, logs *[]s
 
 	case content.DeathExplosion:
 		dmg := m.Level * 10
+		*logs = append(*logs, fmt.Sprintf("💥 Explosion dealt %d damage to everyone!", dmg))
 		for i := range users {
-			users[i].u.CurrentHP -= dmg
-			if users[i].u.CurrentHP < 0 {
-				users[i].u.CurrentHP = 0
+			target := users[i].u
+			if target.CurrentHP <= 0 {
+				continue
+			}
+			target.CurrentHP -= dmg
+			if target.CurrentHP <= 0 {
+				target.CurrentHP = 0
+				if !b.checkUserRevive(target, logs) {
+					*logs = append(*logs, fmt.Sprintf("💀 %s was slain by explosion!", target.Nickname))
+				}
 			}
 		}
-		*logs = append(*logs, fmt.Sprintf("💥 Explosion dealt %d damage to everyone!", dmg))
 
 	case content.DeathCurse:
 		for i := range users {

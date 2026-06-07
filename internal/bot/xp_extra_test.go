@@ -9,9 +9,13 @@ func TestStreakMultiplier(t *testing.T) {
 		streak int
 		want   float64
 	}{
+		{0, 1.0},
 		{1, 1.0},
+		{2, 1.0},
 		{3, 1.25},
+		{4, 1.25},
 		{5, 1.5},
+		{6, 1.5},
 		{7, 2.0},
 		{10, 2.0},
 	}
@@ -27,31 +31,37 @@ func TestServerMultiplier_Logic(t *testing.T) {
 		online int
 		want   float64
 	}{
+		{0, 1.5},
 		{1, 1.5},
 		{2, 1.5},
-		{5, 1.7}, // 1.5 + 0.05 * (4-1)? No, 1.5 + 0.05 * (humans-1). 
-		          // humans = 5-1=4. 1.5 + 0.05*(4-1) = 1.5+0.15 = 1.65?
+		{3, 1.55},
+		{5, 1.65},
+		{100, serverMultCap},
 	}
-	// Let's re-verify the formula in xp.go
-	/*
-	func serverMultiplier(onlineNormal int) float64 {
-		humans := onlineNormal - 1
-		if humans < 1 {
-			humans = 1
-		}
-		// Simulation-tuned base: 1.5x for any human presence
-		m := 1.5 + serverMultPerUser*float64(humans-1)
-		if m > serverMultCap {
-			m = serverMultCap
-		}
-		return m
-	}
-	*/
-	// for online=5: humans=4. m = 1.5 + 0.05*(4-1) = 1.65.
 	for _, tt := range tests {
 		got := serverMultiplier(tt.online)
-		if tt.online == 5 && got != 1.65 {
-			t.Errorf("serverMultiplier(5) = %f, want 1.65", got)
+		if got != tt.want {
+			t.Errorf("serverMultiplier(%d) = %f, want %f", tt.online, got, tt.want)
 		}
 	}
 }
+
+func TestLootBoxForCross(t *testing.T) {
+	tests := []struct {
+		old, new int
+		wantBox  bool
+	}{
+		{1, 1, false},
+		{24, 25, true},
+		{25, 26, false},
+		{1, 50, true},
+		{49, 51, true},
+	}
+	for _, tt := range tests {
+		box := lootBoxForCross(tt.old, tt.new)
+		if (box > 0) != tt.wantBox {
+			t.Errorf("lootBoxForCross(%d, %d) = %d, wantBox = %v", tt.old, tt.new, box, tt.wantBox)
+		}
+	}
+}
+

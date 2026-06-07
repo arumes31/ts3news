@@ -45,6 +45,11 @@ temp/
 cmd/simulation/sim.exe
 cmd/simulation/ts3news_sim.exe
 
+# Coverage files
+*.out
+coverage.html
+.coverage/
+
 # OS files
 Thumbs.db
 Desktop.ini

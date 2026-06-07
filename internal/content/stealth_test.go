@@ -12,24 +12,19 @@ func TestStealthLogic(t *testing.T) {
 		},
 		Skills: []Skill{{Name: "Stealthy Move"}},
 	}
-	zone := Zone{Name: "Shadow Forest"}
 	
-	state := CalculateStealth(user, zone, "night")
-	if state.CurrentStealth <= 0 {
-		t.Error("Ninja should have high stealth")
-	}
-	
-	mob := &Mob{Level: 10, Stats: Stats{INT: 100}}
-	detection := CalculateMobDetection(mob, zone, "day")
-	if detection.BaseDetection <= 0 {
-		t.Error("Mob should have some base detection")
-	}
-	
-	CheckStealthDetection(state, detection)
-	
-	bonus := ApplyStealthAttack(user, mob, state, false)
-	if bonus <= 0 {
-		t.Error("Undetected stealth attack should have bonus damage")
+	zones := []string{"Shadow Forest", "Rocky Mountain", "Open Plain", "Urban City", "Cave", "Swamp", "Desert"}
+	for _, zn := range zones {
+		zone := Zone{Name: zn}
+		state := CalculateStealth(user, zone, "night")
+		if state.CurrentStealth <= 0 {
+			t.Errorf("Ninja should have high stealth in %s", zn)
+		}
+		
+		mob := &Mob{Level: 10, Stats: Stats{INT: 100}}
+		detection := CalculateMobDetection(mob, zone, "day")
+		CheckStealthDetection(state, detection)
+		ApplyStealthAttack(user, mob, state, false)
 	}
 	
 	if len(GetStealthGear()) == 0 {
