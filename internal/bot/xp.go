@@ -1633,7 +1633,8 @@ func (b *Bot) shouldEquip(uid string, newGear content.Gear) bool {
 		return true
 	}
 	if cur, ok := content.GetGearByID(currentID); ok {
-		return newGear.Rarity > cur.Rarity || newGear.Stats.Score() > cur.Stats.Score()
+		// Equip if higher rarity OR if CombatRating is better (replaces stale gear with fresh durability)
+		return newGear.Rarity > cur.Rarity || newGear.CombatRating() > cur.CombatRating()
 	}
 	return true
 }
