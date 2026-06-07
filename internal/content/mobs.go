@@ -60,7 +60,7 @@ func (m Mob) DisplayName() string {
 		eff = fmt.Sprintf(" (%s)", m.Effects[0])
 	}
 	if m.DeathEffect != nil {
-		eff += fmt.Sprintf(" [💀 %s]", m.DeathEffect.Name)
+		eff += fmt.Sprintf(" [death:%s]", m.DeathEffect.Name)
 	}
 	return fmt.Sprintf("Lvl %d %s [%s]%s", m.Level, m.Name, m.Type, eff)
 }

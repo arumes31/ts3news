@@ -252,7 +252,7 @@ func (b *Bot) checkUserRevive(u *UserInCombat, logs *[]string) bool {
 	for _, c := range cons {
 		if c.Type == content.ConsumableRevive {
 			u.CurrentHP = u.Stats.HP / 2
-			*logs = append(*logs, fmt.Sprintf("🔥 %s REVIVED (Item)!", u.Nickname))
+			*logs = append(*logs, fmt.Sprintf("🔥 %s REVIVED [item:%s]!", u.Nickname, c.ID))
 			_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2", u.UID, c.ID)
 			return true
 		}
@@ -262,7 +262,7 @@ func (b *Bot) checkUserRevive(u *UserInCombat, logs *[]string) bool {
 	for _, eff := range effects {
 		if eff == content.EffectPhoenix {
 			u.CurrentHP = u.Stats.HP / 2
-			*logs = append(*logs, fmt.Sprintf("✨ %s REVIVED (Phoenix)!", u.Nickname))
+			*logs = append(*logs, fmt.Sprintf("✨ %s REVIVED [item:phoenix]!", u.Nickname))
 			return true
 		}
 	}
@@ -612,7 +612,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 					// #nosec G404
 					winner := users[rand.IntN(len(users))] // #nosec G404
 					if note := b.rollLootForUser(winner.UID, *target, zone.Difficulty); note != "" {
-						logs = append(logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, target.Name, note))
+						logs = append(logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, target.DisplayName(), note))
 					}
 					b.handleDeathEffects(target, &mobs, &logs, avgLvl, diffFactor, activeUsers)
 				}
@@ -663,7 +663,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 					// #nosec G404
 					winner := users[rand.IntN(len(users))] // #nosec G404
 					if note := b.rollLootForUser(winner.UID, *ptarget, zone.Difficulty); note != "" {
-						logs = append(logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, ptarget.Name, note))
+						logs = append(logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, ptarget.DisplayName(), note))
 					}
 					b.handleDeathEffects(ptarget, &mobs, &logs, avgLvl, diffFactor, activeUsers)
 				}
@@ -1401,20 +1401,20 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				_ = b.DB.QueryRow("SELECT ultimate_skill_id FROM users WHERE client_uid=$1", uid).Scan(&currentUltimate)
 				if !currentUltimate.Valid {
 					_, _ = b.DB.Exec("UPDATE users SET ultimate_skill_id=$2, ultimate_cooldown=0 WHERE client_uid=$1", uid, us.ID)
-					results = append(results, fmt.Sprintf("Ultimate: %s (Equipped)", us.Name))
+					results = append(results, fmt.Sprintf("Ultimate: %s [ultimate:equipped]", us.Name))
 				} else {
-					results = append(results, fmt.Sprintf("Ultimate: %s (Collected)", us.Name))
+					results = append(results, fmt.Sprintf("Ultimate: %s [ultimate:collected]", us.Name))
 				}
 			} else {
 				xp := 10 + int(us.Rarity)*20
 				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Duplicate %s (+%d XP)", us.Name, xp))
+				results = append(results, fmt.Sprintf("Duplicate %s [ultimate] (+%d XP)", us.Name, xp))
 			}
 			lootFound = true
 		} else if r < titleChance*qualityMult {
 			t := content.RandomTitle()
 			_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days' WHERE client_uid=$1", uid, t.Name, t.XPMultiplier)
-			results = append(results, "Title: "+t.Name)
+			results = append(results, fmt.Sprintf("Title: %s [title:%s]", t.Name, t.Name))
 			lootFound = true
 		} else if r < uniqueItemChance*qualityMult {
 			// Unique item drop (1%)
@@ -1424,11 +1424,11 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			if !exists {
 				_, _ = b.DB.Exec("INSERT INTO user_unique_items (client_uid, item_name, rarity, power) VALUES ($1, $2, $3, $4)", uid, ui.Name, ui.Rarity, ui.Power)
 				_, _ = b.DB.Exec("UPDATE users SET unique_items_count = unique_items_count + 1 WHERE client_uid=$1", uid)
-				results = append(results, fmt.Sprintf("Unique: %s (%s)", ui.Name, ui.Rarity.String()))
+				results = append(results, fmt.Sprintf("Unique: %s [unique:%s] (%s)", ui.Name, ui.Name, ui.Rarity.String()))
 			} else {
 				xp := 5 + int(ui.Rarity)*10
 				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Duplicate %s (+%d XP)", ui.Name, xp))
+				results = append(results, fmt.Sprintf("Duplicate %s [unique] (+%d XP)", ui.Name, xp))
 			}
 			lootFound = true
 		} else if r < artifactChance*qualityMult {
@@ -1437,35 +1437,35 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			a.Stats.STR = int(float64(a.Stats.STR) * zoneDifficulty)
 			a.Stats.DEF = int(float64(a.Stats.DEF) * zoneDifficulty)
 			_, _ = b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1", uid, a.Mult, a.Name, a.MaxDurability)
-			results = append(results, "Artifact: "+a.Name)
+			results = append(results, fmt.Sprintf("Artifact: %s [artifact:%s]", a.Name, a.Name))
 			lootFound = true
 		} else if r < enchChance*qualityMult {
 			ench := content.RandomEnchantment()
 			ench.Stats.STR = int(float64(ench.Stats.STR) * zoneDifficulty)
 			ench.Stats.SPD = int(float64(ench.Stats.SPD) * zoneDifficulty)
 			if slot, ok := b.applyEnchantment(uid, ench); ok {
-				results = append(results, fmt.Sprintf("Enchanted %s with %s", slot, ench.Name))
+				results = append(results, fmt.Sprintf("Enchanted [slot:%s] with %s [enchant:%s]", slot, ench.Name, ench.Name))
 			} else {
 				xp := 3 + int(ench.Rarity)*5
 				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", ench.Name, xp))
+				results = append(results, fmt.Sprintf("Disenchanted %s [enchant] (+%d XP)", ench.Name, xp))
 			}
 			lootFound = true
 		} else if r < skillChance*qualityMult {
 			s := content.RandomSkill()
 			s.Power *= zoneDifficulty
 			if slot, ok := b.equipSkill(uid, s); ok {
-				results = append(results, fmt.Sprintf("Learned %s (Slot %d)", s.Name, slot))
+				results = append(results, fmt.Sprintf("Learned %s [skill:%s] (Slot %d)", s.Name, s.Name, slot))
 			} else {
 				xp := 2 + int(s.Rarity)*3
 				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", s.Name, xp))
+				results = append(results, fmt.Sprintf("Disenchanted %s [skill] (+%d XP)", s.Name, xp))
 			}
 			lootFound = true
 		} else if r < consChance*qualityMult {
 			c := content.RandomConsumable()
 			_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
-			results = append(results, "Item: "+c.Name)
+			results = append(results, fmt.Sprintf("Item: %s [item:%s]", c.Name, c.ID))
 			lootFound = true
 		} else if r < gearChance*qualityMult {
 			g := content.RandomGearDrop()
@@ -1475,11 +1475,11 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			g.Stats.SPD = int(float64(g.Stats.SPD) * zoneDifficulty)
 			if b.shouldEquip(uid, g) {
 				_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
-				results = append(results, fmt.Sprintf("Equipped: %s [%s] (GS:%d CR:%.1f R:%s)", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.String()))
+				results = append(results, fmt.Sprintf("Equipped: %s [slot:%s] (GS:%d CR:%.1f R:%s)", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.String()))
 			} else {
 				xp := 1 + int(g.Rarity)*2
 				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Disenchanted %s [%s] (+%d XP) (R:%s)", g.Name, string(g.Slot), xp, g.Rarity.String()))
+				results = append(results, fmt.Sprintf("Disenchanted %s [slot:%s] (+%d XP) (R:%s)", g.Name, string(g.Slot), xp, g.Rarity.String()))
 			}
 			lootFound = true
 		}
@@ -1492,7 +1492,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				g := content.RandomStarterGear()
 				if b.shouldEquip(uid, g) {
 					_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
-					results = append(results, fmt.Sprintf("Found: %s [%s] (GS:%d CR:%.1f R:%s)", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.String()))
+					results = append(results, fmt.Sprintf("Found: %s [slot:%s] (GS:%d CR:%.1f R:%s)", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.String()))
 				} else {
 					// Stack multiple scraps for increased XP (up to 5 consecutive scraps = 5 XP)
 					stackSize := 1
@@ -1510,7 +1510,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 
 					// Award XP based on stack size
 					totalXP := stackSize
-					results = append(results, fmt.Sprintf("Looted Scrap [%s] (+%d XP) (R:%s)", string(g.Slot), totalXP, g.Rarity.String()))
+					results = append(results, fmt.Sprintf("Looted Scrap [slot:%s] (+%d XP) (R:%s)", string(g.Slot), totalXP, g.Rarity.String()))
 					_, _ = b.awardXP(uid, "", totalXP)
 
 					// Reset stack after a non-scrap drop
@@ -1519,7 +1519,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 					}
 				}
 			} else {
-				results = append(results, "Item: Small Health Potion")
+				results = append(results, "Item: Small Health Potion [item:P1]")
 				_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, 'P1', 0) ON CONFLICT DO NOTHING", uid)
 			}
 		}
