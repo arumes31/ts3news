@@ -30,13 +30,13 @@ func TestCommands(t *testing.T) {
 			line := scanner.Text()
 			switch {
 			case line == "clientlist -uid":
-				fmt.Fprint(conn, "clid=1 cid=1 client_nickname=Daniel client_type=0 client_unique_identifier=abc123uniqueid=\nerror id=0 msg=ok\n")
+				_, _ = fmt.Fprint(conn, "clid=1 cid=1 client_nickname=Daniel client_type=0 client_unique_identifier=abc123uniqueid=\nerror id=0 msg=ok\n")
 			case strings.HasPrefix(line, "clientinfo clid=1"):
-				fmt.Fprint(conn, "client_connected_time=12345\nerror id=0 msg=ok\n")
+				_, _ = fmt.Fprint(conn, "client_connected_time=12345\nerror id=0 msg=ok\n")
 			case line == "servergrouplist":
-				fmt.Fprint(conn, "sgid=1 name=Drifter\\sI type=1 iconid=123\nerror id=0 msg=ok\n")
+				_, _ = fmt.Fprint(conn, "sgid=1 name=Drifter\\sI type=1 iconid=123\nerror id=0 msg=ok\n")
 			default:
-				fmt.Fprint(conn, "error id=0 msg=ok\n")
+				_, _ = fmt.Fprint(conn, "error id=0 msg=ok\n")
 			}
 		}
 	}()
