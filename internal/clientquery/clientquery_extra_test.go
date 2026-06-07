@@ -15,22 +15,23 @@ func TestCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 
 	go func() {
 		conn, err := l.Accept()
 		if err != nil {
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		
 		scanner := bufio.NewScanner(conn)
 		for scanner.Scan() {
 			cmd := scanner.Text()
-			if cmd == "testcommand" {
-				fmt.Fprint(conn, "data line 1\ndata line 2\nerror id=0 msg=ok\n")
-			} else if cmd == "failcommand" {
-				fmt.Fprint(conn, "error id=256 msg=invalid\\sparameter\n")
+			switch cmd {
+			case "testcommand":
+				_, _ = fmt.Fprint(conn, "data line 1\ndata line 2\nerror id=0 msg=ok\n")
+			case "failcommand":
+				_, _ = fmt.Fprint(conn, "error id=256 msg=invalid\\sparameter\n")
 			}
 		}
 	}()
@@ -39,7 +40,7 @@ func TestCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// 1. Success command
 	data, err := client.Command("testcommand")
@@ -61,14 +62,14 @@ func TestCommand(t *testing.T) {
 
 func TestAuth(t *testing.T) {
 	l, _ := net.Listen("tcp", "127.0.0.1:0")
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 	go func() {
 		conn, _ := l.Accept()
-		defer conn.Close()
-		fmt.Fprint(conn, "error id=0 msg=ok\n") // for greeting drain
+		defer func() { _ = conn.Close() }()
+		_, _ = fmt.Fprint(conn, "error id=0 msg=ok\n") // for greeting drain
 		scanner := bufio.NewScanner(conn)
 		if scanner.Scan() {
-			fmt.Fprint(conn, "error id=0 msg=ok\n")
+			_, _ = fmt.Fprint(conn, "error id=0 msg=ok\n")
 		}
 	}()
 

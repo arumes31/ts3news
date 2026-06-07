@@ -14,16 +14,16 @@ func TestCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 
 	go func() {
 		conn, err := l.Accept()
 		if err != nil {
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		
-		fmt.Fprint(conn, "error id=0 msg=ok\n") // Greeting drain
+		_, _ = fmt.Fprint(conn, "error id=0 msg=ok\n") // Greeting drain
 		
 		scanner := bufio.NewScanner(conn)
 		for scanner.Scan() {
@@ -45,7 +45,7 @@ func TestCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// clientlist
 	cls, err := client.ClientList()
