@@ -57,6 +57,9 @@ type Mob struct {
 	Spells      []Skill
 	Equipped    []Gear
 	DeathEffect *MobDeathEffect
+	STRMod      float64
+	DEFMod      float64
+	SPDMod      float64
 }
 
 func (m Mob) Clone() *Mob {
@@ -74,6 +77,7 @@ func (m Mob) Clone() *Mob {
 		newMob.Equipped = make([]Gear, len(m.Equipped))
 		copy(newMob.Equipped, m.Equipped)
 	}
+	// Modifiers are copied by value (struct copy)
 	return &newMob
 }
 

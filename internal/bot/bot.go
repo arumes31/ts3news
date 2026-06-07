@@ -109,9 +109,12 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		skills := b.getSkills(cl.UID)
 		ultimate := b.getUltimateSkill(cl.UID)
 
-		var lvl, curHP, regen int
+		var lvl, prestige, curHP, regen int
 		var gold int64
-		_ = b.DB.QueryRow("SELECT level, prestige, current_hp, regen_stacks, gold FROM users WHERE client_uid=$1", cl.UID).Scan(&lvl, &curHP, &regen, &gold)
+		err := b.DB.QueryRow("SELECT level, prestige, current_hp, regen_stacks, gold FROM users WHERE client_uid=$1", cl.UID).Scan(&lvl, &prestige, &curHP, &regen, &gold)
+		if err != nil && err != sql.ErrNoRows {
+			log.Printf("Failed to scan user combat state for %s: %v", cl.UID, err)
+		}
 		if curHP <= 0 {
 			curHP = stats.HP
 		} // Auto-fill if new/dead

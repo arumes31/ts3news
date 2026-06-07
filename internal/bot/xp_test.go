@@ -52,7 +52,7 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 				UID:      "user1",
 				Nickname: "Hero",
 				Level:    10,
-				Stats:    content.Stats{HP: 200, STR: 100, DEF: 50, SPD: 50},
+				Stats:    content.Stats{HP: 200, STR: 1000, DEF: 50, SPD: 50},
 				CurrentHP: 200,
 			},
 		}
@@ -70,9 +70,6 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 		mock.ExpectQuery(`SELECT cons_id, remaining_fights FROM user_consumables WHERE client_uid = \$1`).
 			WithArgs("user1").
 			WillReturnRows(sqlmock.NewRows([]string{"cons_id", "remaining_fights"}))
-		mock.ExpectQuery(`SELECT consecutive_losses FROM users WHERE client_uid=\$1`).
-			WithArgs("user1").
-			WillReturnRows(sqlmock.NewRows([]string{"consecutive_losses"}).AddRow(0))
 
 		// userTurn: SELECT title
 		mock.ExpectQuery(`SELECT title FROM users WHERE client_uid=\$1`).
@@ -93,7 +90,7 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 		// Regen stacks check
 		mockUserState(mock, "user1")
 		// Update persistent state
-		mock.ExpectExec(`UPDATE users SET current_hp = \$2, regen_stacks = \$3 WHERE client_uid = \$1`).
+		mock.ExpectExec(`UPDATE users SET current_hp = \$2, regen_stacks = \$3, gold = users.gold \+ \$4 WHERE client_uid = \$1`).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		// Consumables update
 		mock.ExpectExec(`UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = \$1`).
@@ -139,9 +136,6 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 		mock.ExpectQuery(`SELECT cons_id, remaining_fights FROM user_consumables WHERE client_uid = \$1`).
 			WithArgs("user2").
 			WillReturnRows(sqlmock.NewRows([]string{"cons_id", "remaining_fights"}))
-		mock.ExpectQuery(`SELECT consecutive_losses FROM users WHERE client_uid=\$1`).
-			WithArgs("user2").
-			WillReturnRows(sqlmock.NewRows([]string{"consecutive_losses"}).AddRow(0))
 
 		// Combat happens... user dies.
 		// checkUserRevive: 1. getConsumables
@@ -159,7 +153,7 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 			WithArgs("user2").
 			WillReturnRows(sqlmock.NewRows([]string{"xp"}).AddRow(1000))
 		// Update persistent state
-		mock.ExpectExec(`UPDATE users SET current_hp = \$2, regen_stacks = \$3 WHERE client_uid = \$1`).
+		mock.ExpectExec(`UPDATE users SET current_hp = \$2, regen_stacks = \$3, gold = users.gold \+ \$4 WHERE client_uid = \$1`).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		// Consumables update
 		mock.ExpectExec(`UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = \$1`).
@@ -171,7 +165,7 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 		mock.ExpectQuery(`SELECT xp, level FROM users WHERE client_uid = \$1`).
 			WithArgs("user2").
 			WillReturnRows(sqlmock.NewRows([]string{"xp", "level"}).AddRow(1000, 1))
-		mock.ExpectExec("INSERT INTO users").WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec(`UPDATE users SET xp = \$2, level = \$3, last_seen = NOW\(\) WHERE client_uid = \$1`).WillReturnResult(sqlmock.NewResult(1, 1))
 
 		_, xp, victory, loots := b.resolveChannelCombat(users, mobs, 5, 1.0, zone)
 		_ = loots

@@ -29,7 +29,12 @@ def get_element_mult(attacker, defender):
     return 1.0
 
 def spawn_mob(player_level, difficulty=1.0):
-    lvl_scale = 1.0 + 0.005 * max(0, player_level - 1)
+    # Mob level varies based on difficulty and variance (Improvement 24 fix)
+    level_variance = random.randint(-2, 2)
+    mob_level = int(player_level * difficulty) + level_variance
+    if mob_level < 1: mob_level = 1
+
+    lvl_scale = 1.0 + 0.005 * max(0, mob_level - 1)
     effective_diff = 1.0 + (difficulty - 1.0) * 0.3
     total_scale = lvl_scale * effective_diff
     
@@ -43,7 +48,7 @@ def spawn_mob(player_level, difficulty=1.0):
     reward_gold = int(reward_xp * 5)
     
     element = random.choice(ELEMENTS) if random.random() < 0.4 else 'Physical'
-    return Mob("Test Mob", "Common", player_level, stats, reward_xp, reward_gold, element)
+    return Mob("Test Mob", "Common", mob_level, stats, reward_xp, reward_gold, element)
 
 def resolve_round(player, mob, intensify=1.0, heal_penalty=1.0, round_num=1, party_size=1, player_starts=True):
     logs = []
@@ -80,7 +85,9 @@ def resolve_round(player, mob, intensify=1.0, heal_penalty=1.0, round_num=1, par
         user_element = 'Physical'
         for g in player.gear:
             if g.gear_type == 'MainHand':
-                user_element = g.element
+                new_elem = getattr(g, 'element', None)
+                if new_elem:
+                    user_element = new_elem
         
         e_mult = get_element_mult(user_element, mob.element)
         dmg_mult *= e_mult
@@ -114,9 +121,10 @@ def resolve_round(player, mob, intensify=1.0, heal_penalty=1.0, round_num=1, par
             target_element = 'Physical'
             for g in player.gear:
                 if g.gear_type == 'Chest':
-                    target_element = g.element
+                    target_element = getattr(g, 'element', 'Physical')
             
-            e_mult = get_element_mult(mob.element, target_element)
+            mob_element = getattr(mob, 'element', 'Neutral')
+            e_mult = get_element_mult(mob_element, target_element)
             dmg_mult *= e_mult
             
             # Position Targeting (Improvement 2)
@@ -149,9 +157,13 @@ def simulate_battle(player, difficulty=1.0, party_size=1):
     max_rounds = 10
     
     # Wave Logic (1-3 waves)
-    waves = 1
-    if random.random() < 0.2: waves = 2
-    if random.random() < 0.05: waves = 3
+    r = random.random()
+    if r < 0.05:
+        waves = 3
+    elif r < 0.25:
+        waves = 2
+    else:
+        waves = 1
     
     victory = False
     all_mobs = []

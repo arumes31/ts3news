@@ -60,10 +60,14 @@ func (b *Bot) autoListUnwantedItems(uid string, item interface{}) {
 }
 
 func (b *Bot) listAuctionItem(uid, itype, id, name string, data interface{}, price int64) {
-	dataJSON, _ := json.Marshal(data)
+	dataJSON, err := json.Marshal(data)
+	if err != nil {
+		log.Printf("Failed to marshal AH item data: %v", err)
+		return
+	}
 	expires := time.Now().Add(24 * time.Hour)
 	
-	_, err := b.DB.Exec(`INSERT INTO auction_house (seller_uid, item_type, item_id, item_name, item_data, price, expires_at) 
+	_, err = b.DB.Exec(`INSERT INTO auction_house (seller_uid, item_type, item_id, item_name, item_data, price, expires_at) 
 	                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		uid, itype, id, name, dataJSON, price, expires)
 	if err != nil {
@@ -91,7 +95,10 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 		if err := rows.Scan(&ahID, &itype, &itemID, &name, &dataJSON, &price, &sellerUID); err == nil {
 			if itype == "gear" {
 				var g content.Gear
-				json.Unmarshal(dataJSON, &g)
+				if err := json.Unmarshal(dataJSON, &g); err != nil {
+					log.Printf("Failed to unmarshal AH item: %v", err)
+					continue
+				}
 				if b.shouldEquip(uid, g) {
 					// Purchase!
 					tx, err := b.DB.Begin()
@@ -100,15 +107,25 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 					}
 					
 					// 1. Deduct gold
-					_, err = tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", price, uid)
+					res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", price, uid)
 					if err != nil {
 						tx.Rollback()
 						continue
 					}
+					rowsAffected, _ := res.RowsAffected()
+					if rowsAffected == 0 {
+						tx.Rollback()
+						continue
+					}
 					
-					// 2. Mark sold
-					_, err = tx.Exec("UPDATE auction_house SET buyer_uid = $1, sold_at = NOW() WHERE id = $2", uid, ahID)
+					// 2. Mark sold (ensure it wasn't bought concurrently)
+					res, err = tx.Exec("UPDATE auction_house SET buyer_uid = $1, sold_at = NOW() WHERE id = $2 AND buyer_uid IS NULL", uid, ahID)
 					if err != nil {
+						tx.Rollback()
+						continue
+					}
+					rowsAffected, _ = res.RowsAffected()
+					if rowsAffected == 0 {
 						tx.Rollback()
 						continue
 					}
@@ -130,7 +147,11 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 						continue
 					}
 					
-					tx.Commit()
+					if err := tx.Commit(); err != nil {
+						log.Printf("Failed to commit AH purchase: %v", err)
+						tx.Rollback()
+						continue
+					}
 					return fmt.Sprintf("AH Purchase: %s for %s gold!", name, FormatGold(price))
 				}
 			}

@@ -56,6 +56,9 @@ type UserInCombat struct {
 	Pets          []*content.Mob
 	Equipped      map[content.GearSlot]content.Gear
 	Position      content.Position
+	STRMod        float64
+	DEFMod        float64
+	SPDMod        float64
 }
 
 type activeUser struct {
@@ -334,6 +337,9 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	for i := range users {
 		_, _, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
 		activeUsers[i] = activeUser{u: &users[i], effects: effects}
+		activeUsers[i].u.STRMod = 1.0
+		activeUsers[i].u.DEFMod = 1.0
+		activeUsers[i].u.SPDMod = 1.0
 	}
 
 	for w := 1; w <= waves; w++ {
@@ -343,6 +349,9 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			currentMobs = make([]*content.Mob, len(initialMobs))
 			for i, m := range initialMobs {
 				currentMobs[i] = m.Clone()
+				currentMobs[i].STRMod = 1.0
+				currentMobs[i].DEFMod = 1.0
+				currentMobs[i].SPDMod = 1.0
 			}
 		} else {
 			// Spawn new wave
@@ -351,6 +360,9 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			currentMobs = make([]*content.Mob, len(newMobs))
 			for i := range newMobs {
 				currentMobs[i] = (&newMobs[i]).Clone()
+				currentMobs[i].STRMod = 1.0
+				currentMobs[i].DEFMod = 1.0
+				currentMobs[i].SPDMod = 1.0
 				initialMobs = append(initialMobs, currentMobs[i]) // track for rewards
 			}
 		}
@@ -582,14 +594,15 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 }
 
 func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone content.Zone, intensify, healPenalty float64, logs *[]string, totalUserDamage, totalMobDamage *int, avgLvl int, diffFactor float64, originalUsers []UserInCombat, loots *[]LootResult) {
-	for _, au := range activeUsers {
+	for i := range activeUsers {
+		au := &activeUsers[i]
 		u := au.u
 		if u.CurrentHP <= 0 {
 			continue
 		}
 
 		// Zone Buff check
-		uSTR := u.Stats.STR
+		uSTR := int(float64(u.Stats.STR) * u.STRMod)
 		for _, eff := range zone.Effects {
 			if eff.Type == content.ZoneBuff {
 				uSTR = int(float64(uSTR) * (1.0 + eff.Power))
@@ -716,7 +729,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				u.UltimateSkill.CurrentCooldown = u.UltimateSkill.CooldownRounds
 			}
 
-			effDef := float64(target.Stats.DEF) * (1.0 - ignoreDef)
+			effDef := float64(target.Stats.DEF) * target.DEFMod * (1.0 - ignoreDef)
 			dmg := int((float64(uSTR)*dmgMult - effDef) * intensify)
 
 			// Percentage-Based Damage Floor (15% of STR) to prevent DEF stalemates
@@ -957,7 +970,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 		elementMult := getElementMult(m.Element, targetElement)
 		dmgMult *= elementMult
 
-		mSTR := m.Stats.STR
+		mSTR := int(float64(m.Stats.STR) * m.STRMod)
 		// Zone Debuff check
 		for _, eff := range zone.Effects {
 			if eff.Type == content.ZoneDebuff {
@@ -974,7 +987,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			}
 		}
 
-		dmg := int((float64(mSTR)*dmgMult - float64(target.Stats.DEF)) * intensify)
+		dmg := int((float64(mSTR)*dmgMult - float64(target.Stats.DEF)*target.DEFMod) * intensify)
 
 		// Frontline Defense Bonus (Improvement 2)
 		if target.Position == content.PositionFrontline {
@@ -1586,8 +1599,12 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 
 					if enchID.Valid && enchID.String != "" {
 						if ench, ok := content.GetEnchantmentByID(enchID.String); ok {
-							stats = stats.Add(ench.Stats)
-							gearScore += ench.Stats.Score()
+							// Apply doubled stats at runtime (Unstable Enchantments mechanic)
+							eStats := ench.Stats
+							eStats.STR *= 2
+							eStats.SPD *= 2
+							stats = stats.Add(eStats)
+							gearScore += eStats.Score()
 							mult *= ench.XPMultiplier // Apply enchantment XP penalty
 							if ench.Special != content.EffectNone {
 								effects = append(effects, ench.Special)

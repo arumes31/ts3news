@@ -146,6 +146,9 @@ type UserInCombat struct {
 	Gold          int64
 	Pets          []*Mob
 	Equipped      map[GearSlot]Gear
+	STRMod        float64
+	DEFMod        float64
+	SPDMod        float64
 }
 
 type GearSlot string

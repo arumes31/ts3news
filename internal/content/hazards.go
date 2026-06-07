@@ -234,6 +234,18 @@ func ApplyHazardEffects(
 ) []HazardEffect {
 	var remainingEffects []HazardEffect
 
+	// Reset temporary modifiers before applying active hazards to prevent compounding
+	for _, u := range users {
+		u.STRMod = 1.0
+		u.DEFMod = 1.0
+		u.SPDMod = 1.0
+	}
+	for _, m := range mobs {
+		m.STRMod = 1.0
+		m.DEFMod = 1.0
+		m.SPDMod = 1.0
+	}
+
 	for _, effect := range hazards {
 		// Decrement duration
 		effect.Remaining--
@@ -274,17 +286,17 @@ func ApplyHazardEffects(
 				*logs = append(*logs, fmt.Sprintf("☠️ %s takes %d damage from %s", m.Name, damage, effect.Hazard.Name))
 			}
 		case HazardStatReduction:
-			// Apply stat reduction to all combatants
+			// Apply stat reduction to all combatants via modifiers
 			for _, u := range users {
 				if u.CurrentHP <= 0 {
 					continue
 				}
 				resistance := getResistanceValue(u.Stats, effect.Hazard.Resistance)
 				reduction := effect.Hazard.EffectValue * (1.0 - resistance)
-				// Apply to primary stats (Temporary reduction)
-				u.Stats.STR = int(float64(u.Stats.STR) * (1.0 - reduction))
-				u.Stats.DEF = int(float64(u.Stats.DEF) * (1.0 - reduction))
-				u.Stats.SPD = int(float64(u.Stats.SPD) * (1.0 - reduction))
+				// Apply to temporary modifiers instead of base stats
+				u.STRMod *= (1.0 - reduction)
+				u.DEFMod *= (1.0 - reduction)
+				u.SPDMod *= (1.0 - reduction)
 				*logs = append(*logs, fmt.Sprintf("🌪️ %s is weakened by %s (%.0f%%)", u.Nickname, effect.Hazard.Name, reduction*100))
 			}
 			for _, m := range mobs {
@@ -294,9 +306,9 @@ func ApplyHazardEffects(
 				// Mobs also have resistance now
 				resistance := getResistanceValue(m.Stats, effect.Hazard.Resistance)
 				reduction := effect.Hazard.EffectValue * (1.0 - resistance)
-				m.Stats.STR = int(float64(m.Stats.STR) * (1.0 - reduction))
-				m.Stats.DEF = int(float64(m.Stats.DEF) * (1.0 - reduction))
-				m.Stats.SPD = int(float64(m.Stats.SPD) * (1.0 - reduction))
+				m.STRMod *= (1.0 - reduction)
+				m.DEFMod *= (1.0 - reduction)
+				m.SPDMod *= (1.0 - reduction)
 				*logs = append(*logs, fmt.Sprintf("🌪️ %s is weakened by %s (%.0f%%)", m.Name, effect.Hazard.Name, reduction*100))
 			}
 		case HazardVisionImpair:
@@ -311,14 +323,14 @@ func ApplyHazardEffects(
 				*logs = append(*logs, fmt.Sprintf("👁️ %s's vision is impaired by %s (%.0f%% miss chance)", u.Nickname, effect.Hazard.Name, impairment*100))
 			}
 		case HazardMovementImpair:
-			// Apply speed reduction to users
+			// Apply speed reduction to users via modifiers
 			for _, u := range users {
 				if u.CurrentHP <= 0 {
 					continue
 				}
 				resistance := getResistanceValue(u.Stats, effect.Hazard.Resistance)
 				reduction := effect.Hazard.EffectValue * (1.0 - resistance)
-				u.Stats.SPD = int(float64(u.Stats.SPD) * (1.0 - reduction))
+				u.SPDMod *= (1.0 - reduction)
 				*logs = append(*logs, fmt.Sprintf("🏃 %s's movement is impaired by %s (%.0f%% slower)", u.Nickname, effect.Hazard.Name, reduction*100))
 			}
 		}
