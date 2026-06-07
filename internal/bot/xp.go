@@ -1475,11 +1475,11 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			g.Stats.SPD = int(float64(g.Stats.SPD) * zoneDifficulty)
 			if b.shouldEquip(uid, g) {
 				_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
-				results = append(results, "Equipped: "+g.Name)
+				results = append(results, fmt.Sprintf("Equipped: %s [%s] (GS:%d CR:%.1f R:%s)", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.String()))
 			} else {
 				xp := 1 + int(g.Rarity)*2
 				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Disenchanted %s (+%d XP)", g.Name, xp))
+				results = append(results, fmt.Sprintf("Disenchanted %s [%s] (+%d XP) (R:%s)", g.Name, string(g.Slot), xp, g.Rarity.String()))
 			}
 			lootFound = true
 		}
@@ -1492,9 +1492,9 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				g := content.RandomStarterGear()
 				if b.shouldEquip(uid, g) {
 					_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
-					results = append(results, "Found: "+g.Name)
+					results = append(results, fmt.Sprintf("Found: %s [%s] (GS:%d CR:%.1f R:%s)", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.String()))
 				} else {
-					results = append(results, "Looted Scrap (+1 XP)")
+					results = append(results, fmt.Sprintf("Looted Scrap [%s] (+1 XP) (R:%s)", string(g.Slot), g.Rarity.String()))
 					_, _ = b.awardXP(uid, "", 1)
 				}
 			} else {
