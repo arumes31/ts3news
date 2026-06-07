@@ -1,6 +1,9 @@
 package leveling
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestLevelForXPMonotonic(t *testing.T) {
 	if l := LevelForXP(0); l != 1 {
@@ -122,3 +125,89 @@ func TestDeroman(t *testing.T) {
 		}
 	}
 }
+
+func TestLevelForXP_Table(t *testing.T) {
+	tests := []struct {
+		xp   int
+		want int
+	}{
+		{0, 1},
+		{-10, 1},
+		{XPForLevel(1), 1},
+		{XPForLevel(2), 2},
+		{XPForLevel(10), 10},
+		{XPForLevel(100), 100},
+		{XPForLevel(1000), 1000},
+		{XPForLevel(10000), 10000},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("XP=%d", tt.xp), func(t *testing.T) {
+			if got := LevelForXP(tt.xp); got != tt.want {
+				t.Errorf("LevelForXP() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestXPForLevel_Table(t *testing.T) {
+	tests := []struct {
+		level int
+		want  int
+	}{
+		{0, 0},
+		{1, 0},
+		{2, 5},
+		{10, 188},
+		{100, 9812},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("Level=%d", tt.level), func(t *testing.T) {
+			if got := XPForLevel(tt.level); got != tt.want {
+				t.Errorf("XPForLevel() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func FuzzRoman(f *testing.F) {
+	f.Add(1)
+	f.Add(10)
+	f.Add(100)
+	f.Add(3999)
+	f.Fuzz(func(t *testing.T, n int) {
+		if n < 1 || n > 3999 {
+			return
+		}
+		r := roman(n)
+		d := deroman(r)
+		if d != n {
+			t.Errorf("roman(%d) = %s, deroman(%s) = %d", n, r, r, d)
+		}
+	})
+}
+
+func FuzzLevelNameGeneration(f *testing.F) {
+	f.Add(1)
+	f.Add(100)
+	f.Add(1000)
+	f.Add(10000)
+	f.Fuzz(func(t *testing.T, level int) {
+		if level < 1 || level > 1000000 {
+			return
+		}
+		name := LevelName(level)
+		if name == "" {
+			t.Errorf("LevelName(%d) returned empty string", level)
+		}
+		parsed, ok := LevelByName(name)
+		if !ok {
+			t.Errorf("LevelByName could not parse generated name %q for level %d", name, level)
+		}
+		if parsed != level {
+			if level <= 10000 {
+				t.Errorf("LevelByName(%q) = %d, want %d", name, parsed, level)
+			}
+		}
+	})
+}
+

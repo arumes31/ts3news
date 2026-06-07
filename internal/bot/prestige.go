@@ -11,7 +11,7 @@ import (
 	"ts3news/internal/leveling"
 )
 
-const prestigeStatBonus = 0.05 // +5% permanent stat boost per prestige level
+const prestigeStatBonus = 0.15 // +15% permanent stat boost per prestige level
 const PrestigeThreshold = 9999 // Level required to prestige (was 10000)
 
 // doPrestige increments a user's prestige and resets their level/xp to the start,

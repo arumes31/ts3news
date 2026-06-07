@@ -15,6 +15,9 @@ const (
 	ZoneSpecial ZoneEffectType = "Special"
 )
 
+// ZoneEffect represents a temporary environmental effect tied to a specific zone instance.
+// Note: These are distinct from Hazards in hazards.go; ZoneEffects are simpler round-based 
+// modifications while Hazards are status effects that can be resisted and have durations.
 type ZoneEffect struct {
 	ID          string
 	Name        string
@@ -75,13 +78,27 @@ func init() {
 			idx++
 		}
 	}
+
+	// Add specific hazards (Renamed to distinguish from Hazard system)
+	allZoneEffects = append(allZoneEffects, ZoneEffect{
+		ID: "ZE_LAVA_POOLS", Name: "Lava Pools", Type: ZoneHazard, Power: 0.8, Description: "Intense heat deals 40 damage per round to everyone.",
+	})
+	allZoneEffects = append(allZoneEffects, ZoneEffect{
+		ID: "ZE_GAS_FUMES", Name: "Toxic Fumes", Type: ZoneHazard, Power: 0.6, Description: "Toxic fumes deal 30 damage per round to everyone.",
+	})
+	allZoneEffects = append(allZoneEffects, ZoneEffect{
+		ID: "ZE_SAND_GUSTS", Name: "Sandstorm Gusts", Type: ZoneHazard, Power: 0.4, Description: "Blinding sands deal 20 damage per round and reduce accuracy.",
+	})
+	allZoneEffects = append(allZoneEffects, ZoneEffect{
+		ID: "ZE_BLIZ_WINDS", Name: "Blizzard Winds", Type: ZoneHazard, Power: 0.5, Description: "Freezing winds deal 25 damage per round and slow everyone.",
+	})
 }
 
 func GetRandomZone(partyAvgLvl int, partyGearScore int) Zone {
 	// Tiered Zone Selection: Common (70%), Rare (20%), Legendary (10%)
-	commonZones := []string{"Elwynn Forest", "Westfall", "Durotar", "Mulgore", "Teldrassil", "Loch Modan", "Silverpine"}
-	rareZones := []string{"Stranglethorn Vale", "Tanaris", "Un'Goro Crater", "Winterspring", "Searing Gorge", "Burning Steppes"}
-	legendaryZones := []string{"Molten Core", "Sunwell Plateau", "Icecrown Citadel", "Void Rift", "The Maelstrom"}
+	commonZones := []string{"Elwynn Forest", "Westfall", "Durotar", "Mulgore", "Teldrassil", "Loch Modan", "Silverpine", "Desolace"}
+	rareZones := []string{"Stranglethorn Vale", "Tanaris", "Un'Goro Crater", "Winterspring", "Searing Gorge", "Burning Steppes", "Deadwind Pass", "Eastern Plaguelands"}
+	legendaryZones := []string{"Molten Core", "Sunwell Plateau", "Icecrown Citadel", "Void Rift", "The Maelstrom", "Firelands", "Shadowlands"}
 
 // #nosec G404
 	r := rand.Float64() // #nosec G404

@@ -27,6 +27,23 @@ func (r Rarity) String() string {
 	return list[r]
 }
 
+// Color returns a BBCode color string for this rarity
+func (r Rarity) Color() string {
+	colors := []string{
+		"#b0bec5", // Common (Gray)
+		"#4caf50", // Uncommon (Green)
+		"#2196f3", // Rare (Blue)
+		"#9c27b0", // Epic (Purple)
+		"#ff9800", // Legendary (Orange)
+		"#f44336", // Mythic (Red)
+		"#ffeb3b", // Divine (Gold)
+	}
+	if int(r) < 0 || int(r) >= len(colors) {
+		return "#ffffff"
+	}
+	return colors[r]
+}
+
 type Stats struct {
 	// Combat Stats
 	HP  int
@@ -115,6 +132,25 @@ func (s Stats) Scaled(f float64) Stats {
 	}
 }
 
+// UserInCombat represents a user in combat
+type UserInCombat struct {
+	UID           string
+	Nickname      string
+	CLID          int
+	Level         int
+	Stats         Stats
+	Skills        []Skill
+	UltimateSkill *UltimateSkill
+	CurrentHP     int
+	RegenStacks   int
+	Gold          int64
+	Pets          []*Mob
+	Equipped      map[GearSlot]Gear
+	STRMod        float64
+	DEFMod        float64
+	SPDMod        float64
+}
+
 type GearSlot string
 
 const (
@@ -175,6 +211,26 @@ const (
 	EffectMindControl    ItemEffect = "MindControl"    // Chance to capture low-health mobs
 	EffectRegenStack     ItemEffect = "RegenStack"     // Adds permanent regen stack on victory
 	EffectPhoenix        ItemEffect = "Phoenix"        // Revive once per fight with 50% HP
+	EffectStealth        ItemEffect = "Stealth"        // Skip first round mob damage
+	EffectParry          ItemEffect = "Parry"          // 10% chance to take 0 damage and counter for 50%
+	EffectCleanse        ItemEffect = "Cleanse"        // Remove one negative effect/hazard at start of turn
+)
+
+type Element string
+
+const (
+	ElementPhysical Element = "Physical"
+	ElementFire     Element = "Fire"
+	ElementWater    Element = "Water"
+	ElementEarth    Element = "Earth"
+	ElementAir      Element = "Air"
+)
+
+type Position string
+
+const (
+	PositionFrontline Position = "Frontline"
+	PositionBackline  Position = "Backline"
 )
 
 type Gear struct {
@@ -186,14 +242,15 @@ type Gear struct {
 	MaxDurability int
 	Stats         Stats
 	Special       ItemEffect
+	Element       Element
 }
 
 type ConsumableType string
 
 const (
 	ConsumableHealing ConsumableType = "Healing"
-	ConsumableBuff    ConsumableType = "Buff"
 	ConsumableRevive  ConsumableType = "Revive"
+	ConsumableBuff    ConsumableType = "Buff"
 	ConsumableRepair  ConsumableType = "Repair"
 )
 
@@ -201,8 +258,8 @@ type Consumable struct {
 	ID          string
 	Name        string
 	Type        ConsumableType
-	EffectValue int
-	Duration    int // Number of fights
+	EffectValue float64 // Changed to float64 for % scaling
+	Duration    int     // Number of fights
 	Description string
 }
 
@@ -507,7 +564,11 @@ func init() {
 }
 
 func RandomItemEffect() ItemEffect {
-	effects := []ItemEffect{EffectThorns, EffectVampiric, EffectBerserk, EffectLucky, EffectTreasureHunter, EffectQuick, EffectBulwark, EffectRadiant, EffectFragile, EffectSteady, EffectMindControl, EffectRegenStack, EffectPhoenix}
+	effects := []ItemEffect{
+		EffectThorns, EffectVampiric, EffectBerserk, EffectLucky, EffectTreasureHunter,
+		EffectQuick, EffectBulwark, EffectRadiant, EffectFragile, EffectSteady,
+		EffectMindControl, EffectRegenStack, EffectPhoenix, EffectStealth, EffectParry, EffectCleanse,
+	}
 	// #nosec G404
 	if rand.Float64() < 0.2 { // #nosec G404
 		// #nosec G404

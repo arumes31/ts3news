@@ -38,6 +38,7 @@ type UltimateSkill struct {
 	CooldownRounds  int     // Total rounds to wait after use
 	CurrentCooldown int     // Current cooldown counter (0 = ready)
 	Description     string
+	Special         ItemEffect
 }
 
 var allSkills []Skill
@@ -246,6 +247,17 @@ func init() {
 			idx++
 		}
 	}
+
+	// Task 66: Revival Ultimate Skill
+	allUltimateSkills = append(allUltimateSkills, UltimateSkill{
+		ID:             "ULT_REVIVAL",
+		Name:           "Divine Revival",
+		Rarity:         RarityDivine,
+		Power:          0.0,
+		CooldownRounds: 15,
+		Description:    "Divine ultimate: Automatically revives you once per fight with 50% HP",
+		Special:        EffectPhoenix,
+	})
 }
 
 // RandomUltimateSkill returns a random ultimate skill
