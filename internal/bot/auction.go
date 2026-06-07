@@ -41,8 +41,8 @@ func (b *Bot) autoListUnwantedItems(uid string, item interface{}) {
 	// Check if player already has better gear in this slot
 	var currentID string
 	err := b.DB.QueryRow("SELECT gear_id FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(g.Slot)).Scan(&currentID)
-	switch {
-	case err == nil:
+	switch err {
+	case nil:
 		if cur, ok := content.GetGearByID(currentID); ok {
 			if cur.Rarity >= g.Rarity && cur.CombatRating() >= g.CombatRating() {
 				// Item is unwanted, list it!
@@ -54,7 +54,7 @@ func (b *Bot) autoListUnwantedItems(uid string, item interface{}) {
 				b.listAuctionItem(uid, itype, g.ID, g.Name, g, price)
 			}
 		}
-	case err == sql.ErrNoRows:
+	case sql.ErrNoRows:
 		// Even if slot is empty, we might want to list it if we don't want to equip it
 		// (though usually shouldEquip handles this before autoList)
 	default:
