@@ -1494,8 +1494,29 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 					_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
 					results = append(results, fmt.Sprintf("Found: %s [%s] (GS:%d CR:%.1f R:%s)", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.String()))
 				} else {
-					results = append(results, fmt.Sprintf("Looted Scrap [%s] (+1 XP) (R:%s)", string(g.Slot), g.Rarity.String()))
-					_, _ = b.awardXP(uid, "", 1)
+					// Stack multiple scraps for increased XP (up to 5 consecutive scraps = 5 XP)
+					stackSize := 1
+					// Check if the user already has a "scrap stack" going
+					var scrapCount int
+					_ = b.DB.QueryRow("SELECT COALESCE(scrap_stack, 0) FROM users WHERE client_uid=$1", uid).Scan(&scrapCount)
+
+					// 30% chance to extend the stack (but cap at 5)
+					if rand.Float64() < 0.3 && scrapCount < 5 {
+						stackSize = scrapCount + 1
+					}
+
+					// Update the user's scrap stack
+					_, _ = b.DB.Exec("UPDATE users SET scrap_stack = $2 WHERE client_uid=$1", uid, stackSize)
+
+					// Award XP based on stack size
+					totalXP := stackSize
+					results = append(results, fmt.Sprintf("Looted Scrap [%s] (+%d XP) (R:%s)", string(g.Slot), totalXP, g.Rarity.String()))
+					_, _ = b.awardXP(uid, "", totalXP)
+
+					// Reset stack after a non-scrap drop
+					if stackSize < 5 {
+						_, _ = b.DB.Exec("UPDATE users SET scrap_stack = 0 WHERE client_uid=$1", uid)
+					}
 				}
 			} else {
 				results = append(results, "Item: Small Health Potion")
@@ -1504,7 +1525,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		}
 	}
 	if len(results) > 0 {
-		return "🎁 Loot: " + strings.Join(results, ", ")
+		return strings.Join(results, ", ")
 	}
 	return ""
 }

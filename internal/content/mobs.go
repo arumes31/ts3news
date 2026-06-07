@@ -81,15 +81,15 @@ func init() {
 			baseMobs = append(baseMobs, Mob{
 				Name:     name,
 				Type:     MobCommon,
-				Stats:    Stats{HP: 20, STR: 5, DEF: 2, SPD: 5, LCK: 0},
+				Stats:    Stats{HP: 20, STR: 12, DEF: 2, SPD: 5, LCK: 0},
 				RewardXP: 5,
 			})
 		}
 	}
 
-	baseMobs = append(baseMobs, Mob{Name: "Dread Knight", Type: MobElite, Stats: Stats{HP: 150, STR: 30, DEF: 20, SPD: 10, LCK: 5}, RewardXP: 25})
-	baseMobs = append(baseMobs, Mob{Name: "Ancient Dragon", Type: MobBoss, Stats: Stats{HP: 1000, STR: 100, DEF: 50, SPD: 20, LCK: 10}, RewardXP: 100})
-	baseMobs = append(baseMobs, Mob{Name: "THE VOID LORD", Type: MobLegendary, Stats: Stats{HP: 5000, STR: 300, DEF: 100, SPD: 50, LCK: 25}, RewardXP: 500})
+	baseMobs = append(baseMobs, Mob{Name: "Dread Knight", Type: MobElite, Stats: Stats{HP: 150, STR: 45, DEF: 20, SPD: 10, LCK: 5}, RewardXP: 25})
+	baseMobs = append(baseMobs, Mob{Name: "Ancient Dragon", Type: MobBoss, Stats: Stats{HP: 1000, STR: 150, DEF: 50, SPD: 20, LCK: 10}, RewardXP: 100})
+	baseMobs = append(baseMobs, Mob{Name: "THE VOID LORD", Type: MobLegendary, Stats: Stats{HP: 5000, STR: 450, DEF: 100, SPD: 50, LCK: 25}, RewardXP: 500})
 }
 
 // SpawnMob scales a mob to the given level and difficulty factor (0.1 to 1.0+)
