@@ -2,6 +2,7 @@ package content
 
 import (
 	"fmt"
+	"math"
 	"math/rand/v2"
 	"strings"
 )
@@ -65,6 +66,36 @@ func (s Stats) Add(o Stats) Stats {
 
 func (s Stats) Score() int {
 	return s.HP/5 + s.STR + s.DEF + s.SPD + s.LCK + s.INT + s.STA + s.CRT + s.DGE
+}
+
+// CombatRating calculates a comprehensive Combat Rating (CR) for gear.
+// Each stat is weighted by its combat effectiveness, then multiplied by a rarity factor.
+func (g Gear) CombatRating() float64 {
+	// Weight stats by their combat impact
+	cr := float64(g.Stats.STR)*1.2 + // Direct damage dealer
+		float64(g.Stats.DEF)*0.9 + // Survivability
+		float64(g.Stats.HP)*0.3 + // Health pool (lower per-point value)
+		float64(g.Stats.SPD)*1.1 + // Speed: dodge + attack speed
+		float64(g.Stats.CRT)*1.5 + // Crit chance: high damage multiplier
+		float64(g.Stats.DGE)*1.3 + // Dodge: pure avoidance
+		float64(g.Stats.LCK)*0.8 + // Luck: loot + misc bonuses
+		float64(g.Stats.INT)*0.7 + // Intelligence: XP + spell power
+		float64(g.Stats.STA)*0.6 // Stamina: durability reduction
+
+	// Rarity multiplier: ensures higher rarity items generally have higher CR
+	rarityMult := map[Rarity]float64{
+		RarityCommon:    1.0,
+		RarityUncommon:  1.25,
+		RarityRare:      1.55,
+		RarityEpic:      1.9,
+		RarityLegendary: 2.3,
+		RarityMythic:    2.8,
+	}
+	if mult, ok := rarityMult[g.Rarity]; ok {
+		cr *= mult
+	}
+
+	return math.Round(cr*10) / 10 // Round to 1 decimal
 }
 
 // Scaled multiplies the combat stats by f (flavour stats left unchanged). Used
