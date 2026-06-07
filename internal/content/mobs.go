@@ -52,6 +52,7 @@ type Mob struct {
 	CurrentHP   int
 	MaxHP       int
 	RewardXP    int
+	Element     Element
 	Effects     []MobEffect
 	Spells      []Skill
 	Equipped    []Gear
@@ -265,6 +266,16 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 	m.MaxHP = m.Stats.HP
 	m.CurrentHP = m.MaxHP
+
+	// Assign random element
+	elements := []Element{ElementFire, ElementWater, ElementEarth, ElementAir}
+	// #nosec G404
+	if rand.Float64() < 0.4 { // 40% chance for elemental mob
+		// #nosec G404
+		m.Element = elements[rand.IntN(len(elements))]
+	} else {
+		m.Element = ElementPhysical
+	}
 
 	return m
 }

@@ -55,11 +55,13 @@ type UserInCombat struct {
 	Gold          int64
 	Pets          []*content.Mob
 	Equipped      map[content.GearSlot]content.Gear
+	Position      content.Position
 }
 
 type activeUser struct {
-	u       *UserInCombat
-	effects []content.ItemEffect
+	u           *UserInCombat
+	effects     []content.ItemEffect
+	lastSkillID string
 }
 
 // cycleContext holds per-cycle shared facts used by the XP modifiers.
@@ -271,8 +273,50 @@ func (b *Bot) checkUserRevive(u *UserInCombat, logs *[]string) bool {
 	return false
 }
 
-func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool) {
+func getElementMult(attacker, defender content.Element) float64 {
+	// Fire > Air > Earth > Water > Fire
+	switch attacker {
+	case content.ElementFire:
+		if defender == content.ElementAir {
+			return 2.0
+		}
+		if defender == content.ElementWater {
+			return 0.5
+		}
+	case content.ElementAir:
+		if defender == content.ElementEarth {
+			return 2.0
+		}
+		if defender == content.ElementFire {
+			return 0.5
+		}
+	case content.ElementEarth:
+		if defender == content.ElementWater {
+			return 2.0
+		}
+		if defender == content.ElementAir {
+			return 0.5
+		}
+	case content.ElementWater:
+		if defender == content.ElementFire {
+			return 2.0
+		}
+		if defender == content.ElementEarth {
+			return 0.5
+		}
+	}
+	return 1.0
+}
+
+type LootResult struct {
+	UID  string
+	Note string
+	Poke string
+}
+
+func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool, []LootResult) {
 	var logs []string
+	var loots []LootResult
 	victory := false
 	var totalUserDamage, totalMobDamage, totalRewardXP int
 
@@ -367,7 +411,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			b.applyEffects(activeUsers, currentMobs, zone, r, intensify, healPenalty, &logs)
 
 			if playerStarts {
-				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users)
+				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots)
 				if len(b.getAliveMobs(currentMobs)) == 0 {
 					waveVictory = true
 					break
@@ -384,7 +428,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				if aliveUsers == 0 {
 					break
 				}
-				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users)
+				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots)
 				if len(b.getAliveMobs(currentMobs)) == 0 {
 					waveVictory = true
 					break
@@ -417,7 +461,9 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 		}
 	}
 
-	return b.distributeRewards(users, activeUsers, victory, totalUserDamage, totalMobDamage, totalRewardXP, initialMobs, nil, zone, logs)
+	var finalAwardedXP int
+	logs, finalAwardedXP, victory = b.distributeRewards(users, activeUsers, victory, totalUserDamage, totalMobDamage, totalRewardXP, initialMobs, nil, zone, logs, avgLvl)
+	return logs, finalAwardedXP, victory, loots
 }
 
 func (b *Bot) initializeCombat(users []UserInCombat, mobs []*content.Mob) ([]activeUser, []string, int) {
@@ -463,21 +509,34 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 		if m.Stats.HP <= 0 {
 			continue
 		}
+		// Improvement 4: Status Effect Stacking
+		poisonStacks := 0
+		regenStacks := 0
 		for _, eff := range m.Effects {
-			switch eff {
-			case content.EffectPoisoned:
-				delta := int(float64(m.Stats.HP/20) * intensify)
-				if delta < 1 {
-					delta = 1
-				}
-				m.Stats.HP -= delta
-			case content.EffectRegen:
-				delta := int(float64(m.Stats.HP/20) * healPenalty)
-				if delta < 1 {
-					delta = 1
-				}
-				m.Stats.HP += delta
+			if eff == content.EffectPoisoned {
+				poisonStacks++
 			}
+			if eff == content.EffectRegen {
+				regenStacks++
+			}
+		}
+
+		if poisonStacks > 0 {
+			delta := int(float64(m.Stats.HP/20) * float64(poisonStacks) * intensify)
+			if delta < 1 {
+				delta = 1
+			}
+			m.Stats.HP -= delta
+			if round%3 == 0 {
+				*logs = append(*logs, fmt.Sprintf("🤢 %s takes %d poison damage (%d stacks)!", m.Name, delta, poisonStacks))
+			}
+		}
+		if regenStacks > 0 {
+			delta := int(float64(m.Stats.HP/20) * float64(regenStacks) * healPenalty)
+			if delta < 1 {
+				delta = 1
+			}
+			m.Stats.HP += delta
 		}
 	}
 
@@ -486,6 +545,25 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 		if u.CurrentHP <= 0 {
 			continue
 		}
+
+		// Improvement 40: Scaling Consumables (Auto-use healing if < 50% HP)
+		if u.CurrentHP < u.Stats.HP/2 {
+			cons := b.getConsumables(u.UID)
+			for _, c := range cons {
+				if c.Type == content.ConsumableHealing {
+					healAmt := int(float64(u.Stats.HP) * c.EffectValue)
+					u.CurrentHP += healAmt
+					if u.CurrentHP > u.Stats.HP {
+						u.CurrentHP = u.Stats.HP
+					}
+					*logs = append(*logs, fmt.Sprintf("🧪 %s used %s: Restored %d HP (%.0f%%)!", u.Nickname, c.Name, healAmt, c.EffectValue*100))
+					// Consume the item
+					_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE ctid IN (SELECT ctid FROM user_consumables WHERE client_uid = $1 AND cons_id = $2 LIMIT 1)", u.UID, c.ID)
+					break // Only use one potion per round
+				}
+			}
+		}
+
 		// Passive Regen Stacks
 		if u.RegenStacks > 0 {
 			heal := int(float64(u.RegenStacks*2) * healPenalty)
@@ -503,7 +581,7 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 	}
 }
 
-func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone content.Zone, intensify, healPenalty float64, logs *[]string, totalUserDamage, totalMobDamage *int, avgLvl int, diffFactor float64, originalUsers []UserInCombat) {
+func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone content.Zone, intensify, healPenalty float64, logs *[]string, totalUserDamage, totalMobDamage *int, avgLvl int, diffFactor float64, originalUsers []UserInCombat, loots *[]LootResult) {
 	for _, au := range activeUsers {
 		u := au.u
 		if u.CurrentHP <= 0 {
@@ -594,17 +672,47 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				dmgMult *= s.Power
 				ignoreDef = s.IgnoreDef
 				*logs = append(*logs, fmt.Sprintf("✨ %s: %s!", u.Nickname, s.Name))
+
+				// Combo System (Improvement 6)
+				if au.lastSkillID != "" && au.lastSkillID == s.ID {
+					dmgMult *= 1.25
+					*logs = append(*logs, fmt.Sprintf("🔥 COMBO! %s deals 25%% more damage!", s.Name))
+				}
+				au.lastSkillID = s.ID
+
 				// #nosec G404
 				if s.StunChance > 0 && rand.Float64() < s.StunChance { // #nosec G404
 					*logs = append(*logs, fmt.Sprintf("💫 %s STUNNED!", target.Name))
 					target.Stats.SPD = 0
 				}
+			} else {
+				au.lastSkillID = "" // Reset combo if no skill used
+			}
+
+			// Elemental System (Improvement 1)
+			elementMult := 1.0
+			// Determine user's active element from MainHand
+			userElement := content.ElementPhysical
+			if mh, ok := u.Equipped[content.SlotMainHand]; ok {
+				userElement = mh.Element
+			}
+			elementMult = getElementMult(userElement, target.Element)
+			if elementMult > 1.0 {
+				*logs = append(*logs, fmt.Sprintf("💥 %s is effective against %s!", userElement, target.Element))
+			} else if elementMult < 1.0 {
+				*logs = append(*logs, fmt.Sprintf("🛡️ %s is weak against %s...", userElement, target.Element))
+			}
+			dmgMult *= elementMult
+
+			// Position Bonus (Improvement 2)
+			if u.Position == content.PositionBackline {
+				dmgMult *= 1.10 // 10% damage bonus for backline
 			}
 
 			// Ultimate Skill activation
 			if u.UltimateSkill != nil && u.UltimateSkill.CurrentCooldown == 0 {
 				dmgMult *= u.UltimateSkill.Power
-				*logs = append(*logs, fmt.Sprintf("💥 %s unleashes %s!", u.Nickname, u.UltimateSkill.Name))
+				*logs = append(*logs, fmt.Sprintf("🌟 ULTIMATE: %s!", u.UltimateSkill.Name))
 				u.UltimateSkill.CurrentCooldown = u.UltimateSkill.CooldownRounds
 			}
 
@@ -679,8 +787,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				// Award loot for every mob defeated, regardless of final outcome
 				// #nosec G404
 				winner := originalUsers[rand.IntN(len(originalUsers))] // #nosec G404
-				if note := b.rollLootForUser(winner.UID, *target, zone.Difficulty); note != "" {
+				note, poke := b.rollLootForUser(winner.UID, *target, zone.Difficulty)
+				if note != "" {
 					*logs = append(*logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, target.DisplayName(), note))
+					*loots = append(*loots, LootResult{UID: winner.UID, Note: note, Poke: poke})
 				}
 				b.handleDeathEffects(target, mobs, logs, avgLvl, diffFactor, activeUsers)
 			}
@@ -730,8 +840,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				*logs = append(*logs, fmt.Sprintf("☠️ %s killed by pet %s!", ptarget.Name, p.Name))
 				// #nosec G404
 				winner := originalUsers[rand.IntN(len(originalUsers))] // #nosec G404
-				if note := b.rollLootForUser(winner.UID, *ptarget, zone.Difficulty); note != "" {
+				note, poke := b.rollLootForUser(winner.UID, *ptarget, zone.Difficulty)
+				if note != "" {
 					*logs = append(*logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, ptarget.DisplayName(), note))
+					*loots = append(*loots, LootResult{UID: winner.UID, Note: note, Poke: poke})
 				}
 				b.handleDeathEffects(ptarget, mobs, logs, avgLvl, diffFactor, activeUsers)
 			}
@@ -752,11 +864,37 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			continue
 		}
 
-		// #nosec G404
-		targetAU := activeUsers[rand.IntN(len(activeUsers))] // #nosec G404
-		target := targetAU.u
-		if target.CurrentHP <= 0 {
+		// Positional Combat: Prioritize Frontline (Improvement 2)
+		var potentialTargets []activeUser
+		for _, au := range activeUsers {
+			if au.u.CurrentHP > 0 && au.u.Position == content.PositionFrontline {
+				potentialTargets = append(potentialTargets, au)
+			}
+		}
+		// If no frontline, target anyone
+		if len(potentialTargets) == 0 {
+			for _, au := range activeUsers {
+				if au.u.CurrentHP > 0 {
+					potentialTargets = append(potentialTargets, au)
+				}
+			}
+		}
+
+		if len(potentialTargets) == 0 {
 			continue
+		}
+
+		// #nosec G404
+		targetAU := potentialTargets[rand.IntN(len(potentialTargets))] // #nosec G404
+		target := targetAU.u
+
+		// Physical Evasion for Backline
+		if target.Position == content.PositionBackline && m.Element == content.ElementPhysical {
+			// #nosec G404
+			if rand.Float64() < 0.5 { // 50% extra miss chance for physical mobs vs backline
+				*logs = append(*logs, fmt.Sprintf("💨 %s slipped into the shadows! %s missed.", target.Nickname, m.Name))
+				continue
+			}
 		}
 
 		// Task 60: Stealth check - skip first round mob attacks
@@ -810,6 +948,15 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			*logs = append(*logs, fmt.Sprintf("🔥 %s cast %s!", m.Name, s.Name))
 		}
 
+		// Elemental System (Improvement 1)
+		targetElement := content.ElementPhysical
+		// Determine user's defensive element from Chest/OffHand
+		if ch, ok := target.Equipped[content.SlotChest]; ok {
+			targetElement = ch.Element
+		}
+		elementMult := getElementMult(m.Element, targetElement)
+		dmgMult *= elementMult
+
 		mSTR := m.Stats.STR
 		// Zone Debuff check
 		for _, eff := range zone.Effects {
@@ -828,6 +975,11 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 		}
 
 		dmg := int((float64(mSTR)*dmgMult - float64(target.Stats.DEF)) * intensify)
+
+		// Frontline Defense Bonus (Improvement 2)
+		if target.Position == content.PositionFrontline {
+			dmg = int(float64(dmg) * 0.9) // 10% damage reduction for frontline
+		}
 
 		// Percentage-Based Damage Floor (15% of STR)
 		minDmg := int(float64(mSTR) * 0.15 * intensify)
@@ -868,7 +1020,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 	}
 }
 
-func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, victory bool, totalUserDamage, totalMobDamage, totalRewardXP int, initialMobs []*content.Mob, mobs []*content.Mob, zone content.Zone, logs []string) ([]string, int, bool) {
+func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, victory bool, totalUserDamage, totalMobDamage, totalRewardXP int, initialMobs []*content.Mob, mobs []*content.Mob, zone content.Zone, logs []string, avgLvl int) ([]string, int, bool) {
 	// Summarize Combat
 	logs = append(logs, fmt.Sprintf("📊 Battle Summary: Party %d dmg vs Mobs %d dmg.", totalUserDamage, totalMobDamage))
 
@@ -914,10 +1066,18 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 		// Gold Drop logic
 		goldDrop := 0
 		if victory {
+			// Economic Inflation (Improvement 44)
+			var totalGold int64
+			_ = b.DB.QueryRow("SELECT SUM(gold) FROM users").Scan(&totalGold)
+			inflationMult := 1.0
+			if totalGold > 10000000 { // 10M Gold threshold
+				inflationMult = 1.0 / (1.0 + float64(totalGold-10000000)/5000000.0)
+			}
+
 			for _, m := range initialMobs {
 				// Gold drop proportional to XP but with some variance
 				// #nosec G404
-				goldDrop += int(float64(m.RewardXP) * (0.5 + rand.Float64()*0.5))
+				goldDrop += int(float64(m.RewardXP) * (0.5 + rand.Float64()*0.5) * inflationMult)
 			}
 			u.Gold += int64(goldDrop)
 		}
@@ -933,6 +1093,19 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 		_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND remaining_fights < 0", u.UID)
 
 		if finalXP > 0 {
+			// Improvement 24: Dynamic Level Scaling
+			// Penalize high level players in low level zones
+			if u.Level > avgLvl+20 {
+				penalty := float64(u.Level-(avgLvl+20)) * 0.1
+				if penalty > 1.0 {
+					penalty = 1.0
+				}
+				finalXP = int(float64(finalXP) * (1.0 - penalty))
+				if finalXP < 0 {
+					finalXP = 0
+				}
+			}
+
 			// Apply gear XP multipliers to combat rewards
 			mult, _, _, _, _ := b.activeLootMult(u.UID, time.Now())
 			if mult > 1.0 {
@@ -945,7 +1118,7 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 	}
 
 	if victory {
-		logs = append(logs, fmt.Sprintf("🏁 VICTORY! Party defeated all %d mobs in %s.", len(mobs), zone.Name))
+		logs = append(logs, fmt.Sprintf("🏁 VICTORY! Party defeated all %d mobs in %s.", len(initialMobs), zone.Name))
 		return logs, totalRewardXP / len(users), true
 	}
 	logs = append(logs, fmt.Sprintf("🏁 DEFEAT! Party was overrun in %s.", zone.Name))
@@ -1463,8 +1636,9 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 	return mult, stats, gearScore, notes, effects
 }
 
-func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float64) string {
+func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float64) (string, string) {
 	var results []string
+	var pokes []string
 	count := 1
 	if mob.Type == content.MobBoss {
 		count = 2
@@ -1520,10 +1694,14 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				} else {
 					results = append(results, fmt.Sprintf("Ultimate: %s [ultimate:collected]", us.Name))
 				}
+				if us.Rarity >= content.RarityLegendary {
+					pokes = append(pokes, fmt.Sprintf("🌟 MAJOR LOOT: Learned Ultimate Skill %s!", us.Name))
+				}
 			} else {
-				xp := 10 + int(us.Rarity)*20
-				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Duplicate %s [ultimate] (+%d XP)", us.Name, xp))
+				// Improvement 50: Salvaging (Duplicate Ultimates)
+				scrapAmt := 5 + int(us.Rarity)*5
+				_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
+				results = append(results, fmt.Sprintf("Duplicate %s [ultimate]: Salvaged for %d Scrap", us.Name, scrapAmt))
 			}
 			lootFound = true
 		} else if r < titleChance*qualityMult {
@@ -1540,10 +1718,14 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				_, _ = b.DB.Exec("INSERT INTO user_unique_items (client_uid, item_name, rarity, power) VALUES ($1, $2, $3, $4)", uid, ui.Name, ui.Rarity, ui.Power)
 				_, _ = b.DB.Exec("UPDATE users SET unique_items_count = unique_items_count + 1 WHERE client_uid=$1", uid)
 				results = append(results, fmt.Sprintf("Unique: %s [unique:%s] (%s)", ui.Name, ui.Name, ui.Rarity.String()))
+				if ui.Rarity >= content.RarityLegendary {
+					pokes = append(pokes, fmt.Sprintf("💎 UNIQUE DROP: %s!", ui.Name))
+				}
 			} else {
-				xp := 5 + int(ui.Rarity)*10
-				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Duplicate %s [unique] (+%d XP)", ui.Name, xp))
+				// Improvement 50: Salvaging (Duplicate Uniques)
+				scrapAmt := 10 + int(ui.Rarity)*10
+				_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
+				results = append(results, fmt.Sprintf("Duplicate %s [unique]: Salvaged for %d Scrap", ui.Name, scrapAmt))
 			}
 			lootFound = true
 		} else if r < artifactChance*qualityMult {
@@ -1553,6 +1735,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			a.Stats.DEF = int(float64(a.Stats.DEF) * zoneDifficulty)
 			_, _ = b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1", uid, a.Mult, a.Name, a.MaxDurability)
 			results = append(results, fmt.Sprintf("Artifact: %s [artifact:%s]", a.Name, a.Name))
+			pokes = append(pokes, fmt.Sprintf("🏺 ARTIFACT FOUND: %s!", a.Name))
 			lootFound = true
 		} else if r < enchChance*qualityMult {
 			ench := content.RandomEnchantment()
@@ -1561,9 +1744,10 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			if slot, ok := b.applyEnchantment(uid, ench); ok {
 				results = append(results, fmt.Sprintf("Enchanted [slot:%s] with %s [enchant:%s]", slot, ench.Name, ench.Name))
 			} else {
-				xp := 3 + int(ench.Rarity)*5
-				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Disenchanted %s [enchant] (+%d XP)", ench.Name, xp))
+				// Improvement 50: Salvaging (Enchantments)
+				scrapAmt := 2 + int(ench.Rarity)*2
+				_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
+				results = append(results, fmt.Sprintf("Salvaged %s [enchant]: +%d Scrap", ench.Name, scrapAmt))
 			}
 			lootFound = true
 		} else if r < skillChance*qualityMult {
@@ -1572,9 +1756,10 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			if slot, ok := b.equipSkill(uid, s); ok {
 				results = append(results, fmt.Sprintf("Learned %s [skill:%s] (Slot %d)", s.Name, s.Name, slot))
 			} else {
-				xp := 2 + int(s.Rarity)*3
-				_, _ = b.awardXP(uid, "", xp)
-				results = append(results, fmt.Sprintf("Disenchanted %s [skill] (+%d XP)", s.Name, xp))
+				// Improvement 50: Salvaging (Skills)
+				scrapAmt := 1 + int(s.Rarity)
+				_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
+				results = append(results, fmt.Sprintf("Salvaged %s [skill]: +%d Scrap", s.Name, scrapAmt))
 			}
 			lootFound = true
 		} else if r < consChance*qualityMult {
@@ -1591,15 +1776,19 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			if b.shouldEquip(uid, g) {
 				_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
 				results = append(results, fmt.Sprintf("Equipped: %s [slot:%s] (GS:%d CR:%.1f R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String()))
+				if g.Rarity >= content.RarityLegendary {
+					pokes = append(pokes, fmt.Sprintf("⚔️ LEGENDARY GEAR: Equipped %s!", g.Name))
+				}
 			} else {
 				// Auto-list rare+ items on AH if not an upgrade
 				if g.Rarity >= content.RarityRare {
 					b.autoListUnwantedItems(uid, g)
 					results = append(results, fmt.Sprintf("Listed on AH: %s [slot:%s] (R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Rarity.Color(), g.Rarity.String()))
 				} else {
-					xp := 1 + int(g.Rarity)*2
-					_, _ = b.awardXP(uid, "", xp)
-					results = append(results, fmt.Sprintf("Disenchanted %s [slot:%s] (+%d XP) (R:[color=%s]%s[/color])", g.Name, string(g.Slot), xp, g.Rarity.Color(), g.Rarity.String()))
+					// Improvement 50: Salvaging (Gear)
+					scrapAmt := 1 + int(g.Rarity)
+					_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
+					results = append(results, fmt.Sprintf("Salvaged %s [slot:%s]: +%d Scrap", g.Name, string(g.Slot), scrapAmt))
 				}
 			}
 			lootFound = true
@@ -1648,10 +1837,15 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			}
 		}
 	}
+	resStr := ""
 	if len(results) > 0 {
-		return strings.Join(results, ", ")
+		resStr = strings.Join(results, ", ")
 	}
-	return ""
+	pokeStr := ""
+	if len(pokes) > 0 {
+		pokeStr = strings.Join(pokes, " ")
+	}
+	return resStr, pokeStr
 }
 
 func (b *Bot) equipSkill(uid string, newSkill content.Skill) (int, bool) {
@@ -1760,6 +1954,19 @@ func (b *Bot) applyEnchantment(uid string, ench content.Enchantment) (string, bo
 	}
 	// #nosec G404
 	target := slots[rand.IntN(len(slots))] // #nosec G404
+
+	// Improvement 39: Unstable Enchantments
+	// #nosec G404
+	if rand.Float64() < 0.05 {
+		// 5% chance to break item
+		_, _ = b.DB.Exec("DELETE FROM user_gear WHERE client_uid = $1 AND slot = $2", uid, target.slot)
+		return target.slot, false
+	}
+
+	// 95% chance for success + double stats boost
+	ench.Stats.STR *= 2
+	ench.Stats.SPD *= 2
+
 	if target.enchID != "" {
 		if cur, ok := content.GetEnchantmentByID(target.enchID); ok {
 			if ench.Rarity < cur.Rarity {

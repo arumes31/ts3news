@@ -165,27 +165,10 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		}
 
 		// 3. Resolve Group Combat
-		resLogs, rewardXP, victory := b.resolveChannelCombat(users, mobPtrs, avgLvl, diffFactor, zone)
+		resLogs, rewardXP, victory, combatLoots := b.resolveChannelCombat(users, mobPtrs, avgLvl, diffFactor, zone)
 		battleLogs = append(battleLogs, resLogs...)
 
-		// 4. Pool Loot for Channel (Shared cross-channel)
-		type lootResult struct {
-			uid  string
-			note string
-		}
-		var channelLoot []lootResult
-		if victory {
-			for _, mob := range mobPtrs {
-				// Each mob can drop items to ONE random member of the party
-				// #nosec G404
-				winner := users[rand.IntN(len(users))] // #nosec G404
-				if note := b.rollLootForUser(winner.UID, *mob, zone.Difficulty); note != "" {
-					channelLoot = append(channelLoot, lootResult{uid: winner.UID, note: note})
-				}
-			}
-		}
-
-		// 5. Post-battle processing for each user
+		// 4. Post-battle processing for each user
 		for _, user := range users {
 			_ = b.touchUser(user.UID, user.Nickname, 0)
 
@@ -220,12 +203,18 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 				notes = append(notes, ahNote)
 			}
 
+			extraPoke := artifactPoke
+
 			// Auto-prestige at the level cap: reset to level 1, +1 prestige (with a
 			// permanent stat bonus) and grant the prestige rank group. Future leveling
 			// then resumes from level 1 at the new prestige.
 			if lr != nil && lr.NewLevel >= PrestigeThreshold {
 				newP := b.doPrestige(user.UID)
-				notes = append(notes, fmt.Sprintf("🌟 PRESTIGE %d! Reset to Lvl 1 — permanent +%d%% stats!", newP, int(prestigeStatBonus*100)*newP))
+				notes = append(notes, fmt.Sprintf("🌟 PRESTIGE %d! Reset to Lvl 1 — permanent +%d%% stats!", newP, int(prestigeStatBonus*100)))
+				if extraPoke != "" {
+					extraPoke += " "
+				}
+				extraPoke += fmt.Sprintf("🌟 CONGRATULATIONS! You have reached Prestige %d!", newP)
 				lr.OldLevel, lr.NewLevel, lr.TotalXP = 1, 1, 0
 				if b.Cfg.XPServerGroups {
 					b.applyPrestigeGroup(c, user.CLID, user.UID, user.Nickname, newP)
@@ -236,9 +225,15 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			b.applyDurabilityLoss(user.UID, !victory)
 
 			userLootFound := false
-			for _, cl := range channelLoot {
-				if cl.uid == user.UID {
-					notes = append(notes, cl.note)
+			for _, cl := range combatLoots {
+				if cl.UID == user.UID {
+					notes = append(notes, cl.Note)
+					if cl.Poke != "" {
+						if extraPoke != "" {
+							extraPoke += " "
+						}
+						extraPoke += cl.Poke
+					}
 					userLootFound = true
 				}
 			}
@@ -267,15 +262,17 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 
 			// Persona check
 			botNick := b.Cfg.TS3Nickname
-			if userLootFound || artifactPoke != "" {
+			if userLootFound || extraPoke != "" {
 				botNick = "godsfinger"
 			}
 			_ = c.SetNickname(botNick)
 
+			// Send Pokes
+			if extraPoke != "" {
+				_ = c.Poke(user.CLID, strings.TrimSpace(extraPoke))
+			}
+
 			if hasGame && shortURL != "" {
-				if artifactPoke != "" {
-					_ = c.Poke(user.CLID, artifactPoke)
-				}
 				_ = c.Poke(user.CLID, pokeMsg)
 			}
 

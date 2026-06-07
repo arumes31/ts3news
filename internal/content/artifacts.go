@@ -213,6 +213,23 @@ const (
 	EffectCleanse        ItemEffect = "Cleanse"        // Remove one negative effect/hazard at start of turn
 )
 
+type Element string
+
+const (
+	ElementPhysical Element = "Physical"
+	ElementFire     Element = "Fire"
+	ElementWater    Element = "Water"
+	ElementEarth    Element = "Earth"
+	ElementAir      Element = "Air"
+)
+
+type Position string
+
+const (
+	PositionFrontline Position = "Frontline"
+	PositionBackline  Position = "Backline"
+)
+
 type Gear struct {
 	ID            string
 	Name          string
@@ -222,14 +239,15 @@ type Gear struct {
 	MaxDurability int
 	Stats         Stats
 	Special       ItemEffect
+	Element       Element
 }
 
 type ConsumableType string
 
 const (
 	ConsumableHealing ConsumableType = "Healing"
-	ConsumableBuff    ConsumableType = "Buff"
 	ConsumableRevive  ConsumableType = "Revive"
+	ConsumableBuff    ConsumableType = "Buff"
 	ConsumableRepair  ConsumableType = "Repair"
 )
 
@@ -237,8 +255,8 @@ type Consumable struct {
 	ID          string
 	Name        string
 	Type        ConsumableType
-	EffectValue int
-	Duration    int // Number of fights
+	EffectValue float64 // Changed to float64 for % scaling
+	Duration    int     // Number of fights
 	Description string
 }
 

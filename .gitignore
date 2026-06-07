@@ -9,6 +9,7 @@ data_structures.py
 battle_simulation.py
 level_up_simulation.py
 main_simulation.py
+monte_carlo_simulation.py
 simulation_requirements.md
 
 # Python cache/venv

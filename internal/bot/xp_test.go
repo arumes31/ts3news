@@ -101,7 +101,8 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 		mock.ExpectExec(`DELETE FROM user_consumables WHERE client_uid = \$1 AND remaining_fights < 0`).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
-		logs, xp, victory := b.resolveChannelCombat(users, mobs, 10, 1.0, zone)
+		logs, xp, victory, loots := b.resolveChannelCombat(users, mobs, 10, 1.0, zone)
+		_ = loots
 
 		if !victory {
 			t.Errorf("expected victory")
@@ -172,7 +173,8 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"xp", "level"}).AddRow(1000, 1))
 		mock.ExpectExec("INSERT INTO users").WillReturnResult(sqlmock.NewResult(1, 1))
 
-		_, xp, victory := b.resolveChannelCombat(users, mobs, 5, 1.0, zone)
+		_, xp, victory, loots := b.resolveChannelCombat(users, mobs, 5, 1.0, zone)
+		_ = loots
 
 		if victory {
 			t.Errorf("expected defeat")
