@@ -283,7 +283,11 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 	}
 
 	// Update channel descriptions with all players' stats
-	_ = b.UpdateChannelDescriptions(c)
+	if err := b.UpdateChannelDescriptions(c); err != nil {
+		log.Printf("Warning: Failed to update channel descriptions: %v", err)
+	} else {
+		log.Printf("Updated channel descriptions")
+	}
 
 	log.Printf("Cycle finished. Poked %d users.", pokedCount)
 	return nil
@@ -347,11 +351,6 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 	if g.WorthShown() {
 		fmt.Fprintf(&sb, "💰 Worth %s → FREE now\n", g.Worth)
 	}
-	fmt.Fprintf(&sb, "🔗 Claim: %s\n", shortURL)
-
-	if b.Cfg.EnableYouTubeTrailer {
-		fmt.Fprintf(&sb, "▶️ Trailer: %s\n", games.TrailerSearchURL(name))
-	}
 
 	if lvl != nil {
 		fmt.Fprintf(&sb, "🏆 %s [LvL: %d] [GS: %d] — +%d XP (%d total)\n",
@@ -360,9 +359,52 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 			fmt.Fprintf(&sb, "🎉 Level up! You are now a %s!\n", leveling.LevelName(lvl.NewLevel))
 		}
 	}
+	// Pack notes efficiently: group gear/item notes on the same line,
+	// keep other notes (battle, XP, etc.) on separate lines.
+	// TeamSpeak PM line limit is ~1000 chars per chunk.
+	const maxNoteLineLen = 900
+	var gearNotes []string
+	var otherNotes []string
 	for _, note := range notes {
+		// Gear notes are identified by containing "dura" or "x1." (XP multiplier)
+		if strings.Contains(note, "dura") || strings.Contains(note, "XP") {
+			gearNotes = append(gearNotes, note)
+		} else {
+			otherNotes = append(otherNotes, note)
+		}
+	}
+
+	// Other notes get their own lines
+	for _, note := range otherNotes {
 		fmt.Fprintf(&sb, "✨ %s\n", note)
 	}
+
+	// Gear notes are packed into lines respecting max length
+	if len(gearNotes) > 0 {
+		var line string
+		for i, gn := range gearNotes {
+			entry := gn
+			if i > 0 {
+				entry = " | " + gn
+			}
+			if len(line)+len(entry) > maxNoteLineLen && line != "" {
+				fmt.Fprintf(&sb, "✨ %s\n", line)
+				line = gn
+			} else {
+				line += entry
+			}
+		}
+		if line != "" {
+			fmt.Fprintf(&sb, "✨ %s\n", line)
+		}
+	}
+
+	// Add game claim and YouTube trailer at the end for better readability
+	fmt.Fprintf(&sb, "🔗 Claim: %s\n", shortURL)
+	if b.Cfg.EnableYouTubeTrailer {
+		fmt.Fprintf(&sb, "▶️ Trailer: %s\n", games.TrailerSearchURL(name))
+	}
+
 	if theme != nil && theme.Signoff != "" {
 		sb.WriteString(theme.Signoff)
 	}
@@ -476,10 +518,13 @@ func (b *Bot) CleanupDeadUsers() (int, error) {
 
 // UpdateChannelDescriptions updates all channel descriptions with the stats of players in each channel
 func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
+	log.Printf("Starting UpdateChannelDescriptions...")
+
 	clients, err := c.ClientList()
 	if err != nil {
 		return fmt.Errorf("failed to list clients: %w", err)
 	}
+	log.Printf("Found %d clients", len(clients))
 
 	// Group clients by channel
 	chanUsers := make(map[int][]struct {
@@ -495,12 +540,15 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 			Nick string
 		}{UID: cl.UID, Nick: cl.Nickname})
 	}
+	log.Printf("Found %d channels with players", len(chanUsers))
 
 	// Update each channel's description
 	for cid, users := range chanUsers {
 		if len(users) == 0 {
 			continue
 		}
+
+		log.Printf("Updating channel %d with %d users", cid, len(users))
 
 		var sb strings.Builder
 		fmt.Fprintf(&sb, "🎮 RPG Players: %d\n", len(users))
@@ -510,6 +558,7 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 			var currentHP sql.NullInt64
 			err := b.DB.QueryRow("SELECT level, prestige, current_hp FROM users WHERE client_uid=$1", u.UID).Scan(&level, &prestige, &currentHP)
 			if err != nil {
+				log.Printf("Failed to get user info for %s: %v", u.UID, err)
 				continue
 			}
 
@@ -538,8 +587,13 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 			desc = desc[:4000] + "..."
 		}
 
-		_ = c.SetChannelDescription(cid, desc)
+		if err := c.SetChannelDescription(cid, desc); err != nil {
+			log.Printf("Failed to set channel %d description: %v", cid, err)
+		} else {
+			log.Printf("Updated channel %d description", cid)
+		}
 	}
 
+	log.Printf("Completed UpdateChannelDescriptions")
 	return nil
 }
