@@ -2,7 +2,7 @@
 # Aligned with Go: internal/bot/xp.go, internal/content/mobs.go, skills.go
 
 import random
-from data_structures import Player, Gear, Mob, xp_for_level, do_prestige
+from data_structures import Player, Gear, Mob, xp_for_level, do_prestige, ALL_SLOTS
 
 CRIT_CHANCE = 0.05
 CRIT_MULT = 3.0
@@ -71,7 +71,7 @@ def generate_ultimate():
                         weights=[50, 25, 15, 7, 3])[0]
     power_map = {'Rare': 6.0, 'Epic': 8.0, 'Legendary': 10.0, 'Mythic': 12.0, 'Divine': 14.0}
     cd_map = {'Rare': 5, 'Epic': 7, 'Legendary': 9, 'Mythic': 11, 'Divine': 13}
-    return {'name': name, 'rarity': rar, 'power': power_map[rar], 'cooldown': cd_map[rar], 'current_cd': 0}
+    return {'name': name, 'rarity': rar, 'power': power_map[rar], 'cooldown': cd_map[rar], 'current_cd': 0} 
 
 # Drop rates from Go xp.go rollLootForUser
 ULTIMATE_SKILL_CHANCE = 0.005
@@ -82,12 +82,6 @@ ENCHANT_CHANCE = 0.02
 SKILL_CHANCE = 0.05
 CONS_CHANCE = 0.1
 GEAR_CHANCE = 0.10
-
-ZONES = [
-    ('Poison Swamp', 'Hazard', 0.5),
-    ('Blessed Ground', 'Buff', 0.1),
-    ('Hexed Ruins', 'Debuff', 0.15),
-]
 
 MOB_TEMPLATES = [
     ('Rat',      'Common',  {'HP': 20,  'STR': 5,  'DEF': 2,  'SPD': 5},  5),
@@ -100,21 +94,28 @@ MOB_TEMPLATES = [
     ('Bat',      'Common',  {'HP': 15,  'STR': 6,  'DEF': 1,  'SPD': 12}, 4),
     ('Orc',      'Common',  {'HP': 45,  'STR': 12, 'DEF': 5,  'SPD': 5},  12),
     ('Troll',    'Common',  {'HP': 60,  'STR': 14, 'DEF': 4,  'SPD': 4},  15),
+    ('Skeletal Warrior', 'EliteMinion', {'HP': 70, 'STR': 18, 'DEF': 10, 'SPD': 8}, 20),
+    ('Frenzied Ghoul',   'EliteMinion', {'HP': 65, 'STR': 22, 'DEF': 6,  'SPD': 12}, 22),
     ('Dread Knight', 'Elite', {'HP': 150, 'STR': 30, 'DEF': 20, 'SPD': 10}, 25),
+    ('Orc Warchief', 'Miniboss', {'HP': 350, 'STR': 60, 'DEF': 35, 'SPD': 15}, 60),
     ('Ancient Dragon', 'Boss', {'HP': 1000, 'STR': 100, 'DEF': 50, 'SPD': 20}, 100),
     ('THE VOID LORD', 'Legendary', {'HP': 5000, 'STR': 300, 'DEF': 100, 'SPD': 50}, 500),
 ]
 
 MOB_SPAWN_WEIGHTS = {
-    'Common': 0.85,
-    'Elite': 0.10,
-    'Boss': 0.04,
+    'Common': 0.70,
+    'EliteMinion': 0.15,
+    'Elite': 0.08,
+    'Miniboss': 0.04,
+    'Boss': 0.02,
     'Legendary': 0.01,
 }
 
 MOB_RARITY_BONUS_XP = {
     'Common': 1.0,
+    'EliteMinion': 1.25,
     'Elite': 1.5,
+    'Miniboss': 2.0,
     'Boss': 2.5,
     'Legendary': 4.0,
 }
@@ -131,7 +132,9 @@ def spawn_mob(player_level, difficulty=1.0):
             break
     if mob_type == 'Legendary' and player_level < 25:
         mob_type = 'Common'
-    elif mob_type == 'Boss' and player_level < 10:
+    elif mob_type == 'Boss' and player_level < 15:
+        mob_type = 'Common'
+    elif mob_type == 'Miniboss' and player_level < 10:
         mob_type = 'Common'
     elif mob_type == 'Elite' and player_level < 5:
         mob_type = 'Common'
@@ -163,157 +166,202 @@ def spawn_mob(player_level, difficulty=1.0):
     if reward_xp < 1:
         reward_xp = 1
 
-    return Mob(name, mtype, level, scaled_stats, reward_xp)
+    # Increased gold drop for better AH simulation
+    reward_gold = int(reward_xp * (5.0 + random.random() * 5.0))
+
+    return Mob(name, mtype, level, scaled_stats, reward_xp, reward_gold)
 
 
-def resolve_round(player, mob, intensify=1.0, heal_penalty=1.0):
+def resolve_round(player, mob, intensify=1.0, heal_penalty=1.0, round_num=1, party_size=1, player_starts=True):
     logs = []
     user_dmg = 0
     mob_dmg = 0
-    player_hp = player.current_hp
-    mob_hp = mob.hp
+    
+    # Helper for user turn
+    def user_turn_action():
+        nonlocal user_dmg
+        u_stats = player.total_stats()
+        u_str = u_stats['STR']
+        if random.random() < 0.1: u_str = int(u_str * 1.1)
 
-    # User turn
-    if player_hp > 0 and mob_hp > 0:
-        u_str = player.str_stat
-        if random.random() < 0.1:
-            u_str = int(u_str * 1.1)
+        fatigue_mult = 1.0
+        if round_num > 5: fatigue_mult = max(0.1, 1.0 - (round_num - 5) * 0.1)
 
-        dmg_mult = 1.0
-        ignore_def = 0.0
-        heal_amount = 0
-        stun_applied = False
+        lifesteal = 0
+        multi_strike = 0
+        if player.title:
+            lifesteal = getattr(player.title, 'lifesteal', 0)
+            multi_strike = getattr(player.title, 'multi_strike', 0)
+        for g in player.gear:
+            if getattr(g, 'special', '') == 'Vampiric': lifesteal += 5
 
-        crit_chance = min(player.crt_stat / 100.0, 0.25)
-        if random.random() < crit_chance:
-            dmg_mult *= CRIT_MULT
-            logs.append("💥 CRITICAL HIT!")
+        hits = 1
+        if multi_strike > 0 and random.randint(0, 99) < multi_strike:
+            hits = 2
+            logs.append(f"⚔️ Double attack!")
 
-        # Skill activation
-        skill = None
-        if random.random() < SKILL_CHANCE:
-            skill = generate_skill(player.level)
-            dmg_mult *= skill['power']
-            ignore_def = skill['ignore_def']
-            heal_amount = int(player.total_stats()['HP'] * skill['heal'])
-            stun_applied = skill['stun'] > 0 and random.random() < skill['stun']
-            logs.append(f"📖 {skill['rarity']} Skill: {skill['name']}!")
+        for _ in range(hits):
+            if mob.stats['HP'] <= 0: break
+            dmg_mult = 1.0 * fatigue_mult
+            ignore_def = 0.0
+            heal_amount = 0
+            stun_applied = False
 
-        # Ultimate skill activation
-        ultimate = None
-        if random.random() < ULT_CHANCE:
-            ultimate = generate_ultimate()
-            dmg_mult *= ultimate['power']
-            ultimate['current_cd'] = ultimate['cooldown']
-            logs.append(f"🌟 ULTIMATE: {ultimate['name']} ({ultimate['rarity']})!")
+            crit_chance = min(u_stats['CRT'] / 100.0, 0.25)
+            if random.random() < crit_chance:
+                dmg_mult *= CRIT_MULT
+                logs.append("💥 CRITICAL HIT!")
 
-        min_dmg = int(u_str * 0.15 * intensify)
-        raw_dmg = int((u_str * dmg_mult - mob.stats['DEF'] * (1.0 - ignore_def)) * intensify)
-        dmg = max(min_dmg, raw_dmg)
-        if dmg < 1:
-            dmg = 1
+            if player.skills and random.random() < 0.3:
+                skill = random.choice(player.skills)
+                if isinstance(skill, dict):
+                    dmg_mult *= skill.get('power', 1.0)
+                    ignore_def = skill.get('ignore_def', 0.0)
+                    heal_amount = int(u_stats['HP'] * skill.get('heal', 0.0))
+                    stun_applied = skill.get('stun', 0) > 0 and random.random() < skill['stun']
+                    logs.append(f"📖 Skill: {skill['name']}!")
 
-        mob.stats['HP'] -= dmg
-        user_dmg += dmg
+            eff_def = mob.stats['DEF'] * (1.0 - ignore_def)
+            dmg = int((u_str * dmg_mult - eff_def) * intensify)
+            min_dmg = int(u_str * 0.15 * intensify)
+            dmg = max(min_dmg, dmg)
+            if dmg < 1: dmg = 1
 
-        # Stun: skip mob turn
-        if stun_applied and mob.stats['HP'] > 0:
-            logs.append(f"💫 {mob.name} stunned!")
-            mob.effects.append('Stunned')
-            return logs, user_dmg, mob_dmg, player_hp, mob.stats['HP']
+            mob.stats['HP'] -= dmg
+            user_dmg += dmg
+            if lifesteal > 0:
+                ls_heal = int(dmg * lifesteal / 100.0 * heal_penalty)
+                player.current_hp = min(u_stats['HP'], player.current_hp + ls_heal)
+            if party_size >= 3 and random.random() < 0.3:
+                user_dmg += dmg // 2
+            if stun_applied and mob.stats['HP'] > 0:
+                logs.append(f"💫 {mob.name} stunned!")
+                mob.effects.append('Stunned')
+            if heal_amount > 0 and player.current_hp > 0:
+                player.current_hp = min(u_stats['HP'], player.current_hp + heal_amount)
 
-        # Chain attack
-        if len(player.gear) >= 3 and random.random() < 0.3:
-            chain_dmg = dmg // 2
-            if chain_dmg < 1:
-                chain_dmg = 1
-            mob.stats['HP'] -= chain_dmg
-            user_dmg += chain_dmg
-            logs.append("⚔️ Chain attack!")
+    # Helper for mob turn
+    def mob_turn_action():
+        nonlocal mob_dmg
+        if mob.stats['HP'] > 0 and 'Stunned' not in mob.effects:
+            # Stealth check
+            has_stealth = any(getattr(g, 'special', '') == 'Stealth' for g in player.gear)
+            if round_num == 1 and has_stealth:
+                logs.append("👤 Stealthed! Mob attack missed.")
+                return
 
-        if mob.stats['HP'] <= 0:
-            logs.append(f"☠️ {mob.name} defeated!")
+            # Parry check
+            has_parry = any(getattr(g, 'special', '') == 'Parry' for g in player.gear)
+            if has_parry and random.random() < 0.1:
+                counter_dmg = int(player.total_stats()['STR'] * 0.5 * intensify)
+                mob.stats['HP'] -= counter_dmg
+                logs.append(f"🛡️ PARRIED and countered {mob.name} for {counter_dmg}!")
+                return
 
-        # Heal from skill
-        if heal_amount > 0 and player_hp > 0:
-            player_hp = min(player.total_stats()['HP'], player_hp + heal_amount)
-            logs.append(f"💚 Healed {heal_amount} HP!")
+            dodge = min(player.total_stats()['DGE'], 25)
+            if random.randint(0, 99) < dodge:
+                logs.append(f"💨 Dodged {mob.name}!")
+                return
 
-    # Mob turn
-    if mob.stats['HP'] > 0 and 'Stunned' not in mob.effects:
-        dodge = min(player.dge_stat, 25)
-        if random.randint(0, 99) < dodge:
-            logs.append(f"💨 Dodged {mob.name}!")
-            return logs, 0, 0, player_hp, mob.stats['HP']
+            m_str = mob.stats['STR']
+            for eff in mob.effects:
+                if eff == 'Enraged': m_str = int(m_str * 1.5)
+                elif eff == 'Weakened': m_str = int(m_str * 0.5)
 
-        m_str = mob.stats['STR']
-        for eff in mob.effects:
-            if eff == 'Enraged':
-                m_str = int(m_str * 1.5)
-            elif eff == 'Weakened':
-                m_str = int(m_str * 0.5)
+            spell_mult = 1.0
+            if mob.spells and random.random() < 0.2:
+                spell = random.choice(mob.spells)
+                spell_mult = spell['power']
 
-        spell_mult = 1.0
-        if mob.spells and random.random() < 0.2:
-            spell = random.choice(mob.spells)
-            spell_mult = spell['power']
+            dmg = int((m_str * spell_mult - player.total_stats()['DEF']) * intensify)
+            # Tuned Damage Floor: 20% of STR
+            min_dmg = int(m_str * 0.20 * intensify)
+            dmg = max(min_dmg, dmg)
+            if dmg < 1: dmg = 1
 
-        dmg = int((m_str * spell_mult - player.def_stat) * intensify)
-        min_dmg = int(m_str * 0.10 * intensify)
-        if dmg < min_dmg:
-            dmg = min_dmg
-        if dmg < 1:
-            dmg = 1
+            if 'Blinded' in mob.effects and random.random() < 0.5:
+                dmg = 0
 
-        if 'Blinded' in mob.effects and random.random() < 0.5:
-            dmg = 0
+            player.current_hp -= dmg
+            mob_dmg += dmg
 
-        player_hp -= dmg
-        mob_dmg += dmg
+            if player.current_hp <= 0:
+                has_phoenix = any(getattr(g, 'special', '') == 'Phoenix' for g in player.gear)
+                if has_phoenix:
+                    player.current_hp = player.total_stats()['HP'] // 2
+                    logs.append("🔥 PHOENIX REBIRTH! Revived with 50% HP.")
+                else:
+                    logs.append(f"💀 You were slain by {mob.name}!")
 
-        if player_hp <= 0:
-            logs.append(f"💀 You were slain by {mob.name}!")
+    if player_starts:
+        user_turn_action()
+        if mob.stats['HP'] > 0: mob_turn_action()
+    else:
+        mob_turn_action()
+        if player.current_hp > 0: user_turn_action()
 
-    return logs, user_dmg, mob_dmg, max(0, player_hp), mob.stats['HP']
+    return logs, user_dmg, mob_dmg, max(0, player.current_hp), mob.stats['HP']
 
 
-def simulate_battle(player, difficulty=1.0):
-    max_rounds = 4
+def simulate_battle(player, difficulty=1.0, party_size=1):
+    max_rounds = 10
     mob_count = 1
-    mobs = [spawn_mob(player.level, difficulty) for _ in range(mob_count)]
-
+    
     player_hp = player.total_stats()['HP']
     player.current_hp = player_hp
-    logs = [f"⚔️ BATTLE! vs {' + '.join(str(m) for m in mobs)}"]
-    rounds = 0
+    
+    # Wave Logic (1-3 waves)
+    waves = 1
+    if random.random() < 0.2: waves = 2
+    if random.random() < 0.05: waves = 3
+    
+    total_logs = [f"⚔️ BATTLE! {waves} Waves incoming!"]
     victory = False
-
-    for rnd in range(1, max_rounds + 1):
-        rounds += 1
-        intensify = 1.0 + (rnd - 1) * 0.15
-        heal_penalty = 1.0 if rnd <= 5 else max(0, 1.0 - (rnd - 5) * 0.2)
-
-        alive_mobs = [m for m in mobs if m.stats['HP'] > 0]
-        if not alive_mobs:
-            victory = True
-            break
-
-        for mob in alive_mobs:
-            rlogs, _, _, new_hp, new_mob_hp = resolve_round(player, mob, intensify, heal_penalty)
-            logs.extend(rlogs)
-            player.current_hp = new_hp
-            mob.stats['HP'] = new_mob_hp
-
-        if player.regen_stacks > 0 and rnd > 5:
-            heal = int(player.regen_stacks * 2 * heal_penalty)
-            if heal > 0:
+    all_encountered_mobs = []
+    
+    for w in range(1, waves + 1):
+        mobs = [spawn_mob(player.level, difficulty) for _ in range(mob_count)]
+        all_encountered_mobs.extend(mobs)
+        if w > 1:
+            total_logs.append(f"📢 WAVE {w} APPROACHES!")
+            
+        player_starts = random.random() < 0.5
+        if not player_starts: total_logs.append("⚠️ AMBUSH! Enemies attack first!")
+        
+        wave_victory = False
+        for rnd in range(1, max_rounds + 1):
+            intensify = 1.0 + (rnd - 1) * 0.15
+            heal_penalty = 1.0 if rnd <= 5 else max(0, 1.0 - (rnd - 5) * 0.2)
+            
+            alive_mobs = [m for m in mobs if m.stats['HP'] > 0]
+            if not alive_mobs:
+                wave_victory = True
+                break
+                
+            for mob in alive_mobs:
+                rlogs, ud, md, ph, mh = resolve_round(player, mob, intensify, heal_penalty, rnd, party_size, player_starts)
+                total_logs.extend(rlogs)
+                player.current_hp = ph
+                mob.stats['HP'] = mh
+                
+            if player.regen_stacks > 0:
+                heal = int(player.regen_stacks * 2 * heal_penalty)
                 player.current_hp = min(player.total_stats()['HP'], player.current_hp + heal)
-
+            
+            if player.current_hp <= 0: break
+            
         if player.current_hp <= 0:
+            victory = False
             break
-
-    victory = all(m.stats['HP'] <= 0 for m in mobs)
-    return victory, rounds, mobs, logs
+        if wave_victory:
+            if w == waves: 
+                victory = True
+                total_logs.append("🏁 VICTORY! All waves defeated.")
+            else: 
+                total_logs.append(f"🏁 WAVE {w} CLEARED!")
+                continue
+            
+    return victory, 10, all_encountered_mobs, total_logs
 
 
 def roll_loot(player, difficulty=1.0):
@@ -325,8 +373,8 @@ def roll_loot(player, difficulty=1.0):
     elif r < (ULTIMATE_SKILL_CHANCE + TITLE_CHANCE) * quality_mult:
         return None
     elif r < (ULTIMATE_SKILL_CHANCE + TITLE_CHANCE + UNIQUE_ITEM_CHANCE) * quality_mult:
-        return {'type': 'gear', 'item': random_legendary(), 'note': 'Unique Item drop!'}
-    elif r < (ULTIMATE_SKILL_CHANCE + TITLE_CHANCE + UNIQUE_ITEM_CHANCE + ARTIFACT_CHANCE) * quality_mult:
+        return {'type': 'gear', 'item': None, 'note': 'Unique Item drop!'} 
+    elif r < (ULTIMATE_SKILL_CHANCE + TITLE_CHANCE + UNIQUE_ITEM_CHANCE + ARTIFACT_CHANCE) * quality_mult:  
         return None
     elif r < (ULTIMATE_SKILL_CHANCE + TITLE_CHANCE + UNIQUE_ITEM_CHANCE + ARTIFACT_CHANCE + ENCHANT_CHANCE) * quality_mult:
         return None
@@ -335,14 +383,12 @@ def roll_loot(player, difficulty=1.0):
     elif r < (ULTIMATE_SKILL_CHANCE + TITLE_CHANCE + UNIQUE_ITEM_CHANCE + ARTIFACT_CHANCE + ENCHANT_CHANCE + SKILL_CHANCE + CONS_CHANCE) * quality_mult:
         return {'type': 'xp', 'item': 1, 'note': 'Consumable'}
     elif r < (ULTIMATE_SKILL_CHANCE + TITLE_CHANCE + UNIQUE_ITEM_CHANCE + ARTIFACT_CHANCE + ENCHANT_CHANCE + SKILL_CHANCE + CONS_CHANCE + GEAR_CHANCE) * quality_mult:
-        gear = random_gear_drop(player.level, difficulty)
-        return {'type': 'gear', 'item': gear, 'note': f"Equipped {gear.rarity} {gear.name}"}
+        return None
     else:
-        if random.random() < 0.7:
-            gear = starter_gear()
-            return {'type': 'gear', 'item': gear, 'note': f"Found {gear.name}"}
-        else:
-            return {'type': 'xp', 'item': 1, 'note': 'Looted Scrap (+1 XP)'}
+        # Scrap Stack Logic
+        player.scrap_stack = getattr(player, 'scrap_stack', 0) + 1
+        if player.scrap_stack > 5: player.scrap_stack = 5
+        return {'type': 'xp', 'item': player.scrap_stack, 'note': f'Looted Scrap (+{player.scrap_stack} XP)'}
 
 
 def run_combat_cycle(player, difficulty=1.0):
@@ -351,6 +397,7 @@ def run_combat_cycle(player, difficulty=1.0):
     losses = 0
     gear_drops = []
     total_xp = 0
+    total_gold = 0
     logs = []
 
     for _ in range(battles):
@@ -362,15 +409,22 @@ def run_combat_cycle(player, difficulty=1.0):
             wins += 1
             player.win_count += 1
             player.consecutive_losses = 0
+            battle_xp_accum = 0
             for mob in mobs:
                 if mob.stats['HP'] <= 0:
-                    total_xp += mob.reward_xp
+                    battle_xp_accum += mob.reward_xp
+                    total_gold += mob.reward_gold
                     drop = roll_loot(player, difficulty)
                     if drop:
                         if drop['type'] == 'gear':
-                            player.equip_gear(drop['item'])
-                            gear_drops.append(drop['item'])
+                            pass
+                        elif drop['type'] == 'xp':
+                            battle_xp_accum += drop['item']
                         logs.append(f"🎁 {drop['note']}")
+            
+            # Apply gear XP multipliers to combat rewards
+            total_xp += int(battle_xp_accum * player.gear_xp_multiplier())
+            
             if player.regen_stacks > 0:
                 player.regen_stacks += 1
         else:
@@ -388,23 +442,7 @@ def run_combat_cycle(player, difficulty=1.0):
             total_xp -= penalty
             player.regen_stacks = 0
 
-    # Durability loss per fight
-    if wins > 0:
-        for g in player.gear:
-            if hasattr(g, 'durability') and isinstance(g.durability, int):
-                if g.durability > 1:
-                    g.durability -= DURA_LOSS_PER_FIGHT
-    if player.sta_stat > 0:
-        if random.randint(0, 99) < player.sta_stat:
-            for g in player.gear:
-                if hasattr(g, 'durability') and isinstance(g.durability, int):
-                    g.durability = min(g.max_durability, g.durability + DURA_LOSS_PER_FIGHT)
-
-    before = len(player.gear)
-    player.gear = [g for g in player.gear if not hasattr(g, 'durability') or g.durability > 0]
-    broken = before - len(player.gear)
-
     return {
         'wins': wins, 'losses': losses, 'gear_drops': gear_drops,
-        'total_xp': total_xp, 'logs': logs, 'broken': broken
+        'total_xp': total_xp, 'total_gold': total_gold, 'logs': logs, 'broken': 0
     }

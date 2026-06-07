@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS auction_house;
+ALTER TABLE users DROP COLUMN IF EXISTS gold;

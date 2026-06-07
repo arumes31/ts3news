@@ -9,10 +9,12 @@ import (
 type MobType string
 
 const (
-	MobCommon    MobType = "Common"
-	MobElite     MobType = "Elite"
-	MobBoss      MobType = "Boss"
-	MobLegendary MobType = "Legendary"
+	MobCommon      MobType = "Common"
+	MobEliteMinion MobType = "EliteMinion"
+	MobElite       MobType = "Elite"
+	MobMiniboss    MobType = "Miniboss"
+	MobBoss        MobType = "Boss"
+	MobLegendary   MobType = "Legendary"
 )
 
 type MobEffect string
@@ -47,11 +49,31 @@ type Mob struct {
 	Type        MobType
 	Level       int
 	Stats       Stats
+	CurrentHP   int
+	MaxHP       int
 	RewardXP    int
 	Effects     []MobEffect
 	Spells      []Skill
 	Equipped    []Gear
 	DeathEffect *MobDeathEffect
+}
+
+func (m Mob) Clone() *Mob {
+	newMob := m
+	// Deep copy slices
+	if m.Effects != nil {
+		newMob.Effects = make([]MobEffect, len(m.Effects))
+		copy(newMob.Effects, m.Effects)
+	}
+	if m.Spells != nil {
+		newMob.Spells = make([]Skill, len(m.Spells))
+		copy(newMob.Spells, m.Spells)
+	}
+	if m.Equipped != nil {
+		newMob.Equipped = make([]Gear, len(m.Equipped))
+		copy(newMob.Equipped, m.Equipped)
+	}
+	return &newMob
 }
 
 func (m Mob) DisplayName() string {
@@ -62,11 +84,11 @@ func (m Mob) DisplayName() string {
 	if m.DeathEffect != nil {
 		eff += fmt.Sprintf(" [death:%s]", m.DeathEffect.Name)
 	}
-	return fmt.Sprintf("Lvl %d %s [%s]%s", m.Level, m.Name, m.Type, eff)
+	return fmt.Sprintf("Lvl %d %s [%s]%s (%d/%d HP)", m.Level, m.Name, m.Type, eff, m.CurrentHP, m.MaxHP)
 }
 
 func (m Mob) Score() int {
-	return m.Stats.HP/5 + m.Stats.STR + m.Stats.DEF + m.Stats.SPD + m.Level*10
+	return m.MaxHP/5 + m.Stats.STR + m.Stats.DEF + m.Stats.SPD + m.Level*10
 }
 
 var baseMobs []Mob
@@ -87,9 +109,25 @@ func init() {
 		}
 	}
 
+	// EliteMinions (stronger common)
+	baseMobs = append(baseMobs, Mob{Name: "Corrupted Guard", Type: MobEliteMinion, Stats: Stats{HP: 60, STR: 25, DEF: 10, SPD: 7, LCK: 2}, RewardXP: 12})
+	baseMobs = append(baseMobs, Mob{Name: "Shadow Assassin", Type: MobEliteMinion, Stats: Stats{HP: 50, STR: 35, DEF: 5, SPD: 15, LCK: 5}, RewardXP: 15})
+
+	// Elites
 	baseMobs = append(baseMobs, Mob{Name: "Dread Knight", Type: MobElite, Stats: Stats{HP: 150, STR: 45, DEF: 20, SPD: 10, LCK: 5}, RewardXP: 25})
+	baseMobs = append(baseMobs, Mob{Name: "Frost Lich", Type: MobElite, Stats: Stats{HP: 120, STR: 60, DEF: 15, SPD: 12, LCK: 8}, RewardXP: 30})
+
+	// Minibosses (between Elite and Boss)
+	baseMobs = append(baseMobs, Mob{Name: "Gatekeeper", Type: MobMiniboss, Stats: Stats{HP: 400, STR: 80, DEF: 35, SPD: 15, LCK: 7}, RewardXP: 60})
+	baseMobs = append(baseMobs, Mob{Name: "Raging Behemoth", Type: MobMiniboss, Stats: Stats{HP: 600, STR: 100, DEF: 20, SPD: 5, LCK: 3}, RewardXP: 70})
+
+	// Bosses
 	baseMobs = append(baseMobs, Mob{Name: "Ancient Dragon", Type: MobBoss, Stats: Stats{HP: 1000, STR: 150, DEF: 50, SPD: 20, LCK: 10}, RewardXP: 100})
+	baseMobs = append(baseMobs, Mob{Name: "Kraken of the Deep", Type: MobBoss, Stats: Stats{HP: 1200, STR: 130, DEF: 40, SPD: 15, LCK: 12}, RewardXP: 120})
+
+	// Legendaries
 	baseMobs = append(baseMobs, Mob{Name: "THE VOID LORD", Type: MobLegendary, Stats: Stats{HP: 5000, STR: 450, DEF: 100, SPD: 50, LCK: 25}, RewardXP: 500})
+	baseMobs = append(baseMobs, Mob{Name: "CHRONOS, TIME EATER", Type: MobLegendary, Stats: Stats{HP: 4500, STR: 500, DEF: 80, SPD: 100, LCK: 50}, RewardXP: 600})
 }
 
 // SpawnMob scales a mob to the given level and difficulty factor (0.1 to 1.0+)
@@ -97,7 +135,7 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	// #nosec G404
 	idx := rand.IntN(100)      // index for common mobs // #nosec G404
 	if isBoss && level >= 10 { // Bosses require level 10+
-		idx = len(baseMobs) - 2 // Ancient Dragon
+		idx = 106 + rand.IntN(2) // Bosses: 106-107
 	}
 
 	m := baseMobs[idx]
@@ -105,11 +143,15 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 		// #nosec G404
 		r := rand.Float64()          // #nosec G404
 		if r < 0.01 && level >= 25 { // Legendaries require level 25+
-			m = baseMobs[len(baseMobs)-1]
+			m = baseMobs[108+rand.IntN(2)]
 		} else if r < 0.05 && level >= 10 { // Bosses require level 10+
-			m = baseMobs[len(baseMobs)-2]
-		} else if r < 0.15 && level >= 5 { // Elites require level 5+
-			m = baseMobs[len(baseMobs)-3]
+			m = baseMobs[106+rand.IntN(2)]
+		} else if r < 0.12 && level >= 8 { // Minibosses require level 8+
+			m = baseMobs[104+rand.IntN(2)]
+		} else if r < 0.25 && level >= 5 { // Elites require level 5+
+			m = baseMobs[102+rand.IntN(2)]
+		} else if r < 0.40 && level >= 3 { // EliteMinions require level 3+
+			m = baseMobs[100+rand.IntN(2)]
 		}
 	}
 
@@ -143,8 +185,12 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 	// XP Scaling: Higher types provide even more rewards.
 	switch m.Type {
+	case MobEliteMinion:
+		m.RewardXP = int(float64(m.RewardXP) * 1.2)
 	case MobElite:
 		m.RewardXP = int(float64(m.RewardXP) * 1.5)
+	case MobMiniboss:
+		m.RewardXP = int(float64(m.RewardXP) * 2.0)
 	case MobBoss:
 		m.RewardXP = int(float64(m.RewardXP) * 2.5)
 	case MobLegendary:
@@ -170,7 +216,7 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 	// 1-2 Spells for mobs
 	spellCount := 1
-	if isBoss || m.Type == MobLegendary {
+	if isBoss || m.Type == MobLegendary || m.Type == MobMiniboss {
 		spellCount = 2
 	}
 	for i := 0; i < spellCount; i++ {
@@ -216,6 +262,9 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 			Type: dType,
 		}
 	}
+
+	m.MaxHP = m.Stats.HP
+	m.CurrentHP = m.MaxHP
 
 	return m
 }
@@ -285,6 +334,9 @@ func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64, groupSize int) [
 			// Hordes give slightly less XP per mob
 			mob.RewardXP = int(float64(mob.RewardXP) * 0.6)
 		}
+
+		mob.MaxHP = mob.Stats.HP
+		mob.CurrentHP = mob.MaxHP
 		out = append(out, mob)
 	}
 	return out

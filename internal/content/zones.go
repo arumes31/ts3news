@@ -75,13 +75,27 @@ func init() {
 			idx++
 		}
 	}
+
+	// Add specific hazards
+	allZoneEffects = append(allZoneEffects, ZoneEffect{
+		ID: "ZE_LAVA", Name: "Lava", Type: ZoneHazard, Power: 0.8, Description: "Intense heat deals 40 damage per round to everyone.",
+	})
+	allZoneEffects = append(allZoneEffects, ZoneEffect{
+		ID: "ZE_GAS", Name: "Poison Gas", Type: ZoneHazard, Power: 0.6, Description: "Toxic fumes deal 30 damage per round to everyone.",
+	})
+	allZoneEffects = append(allZoneEffects, ZoneEffect{
+		ID: "ZE_SAND", Name: "Sandstorm", Type: ZoneHazard, Power: 0.4, Description: "Blinding sands deal 20 damage per round and reduce accuracy.",
+	})
+	allZoneEffects = append(allZoneEffects, ZoneEffect{
+		ID: "ZE_BLIZ", Name: "Blizzard", Type: ZoneHazard, Power: 0.5, Description: "Freezing winds deal 25 damage per round and slow everyone.",
+	})
 }
 
 func GetRandomZone(partyAvgLvl int, partyGearScore int) Zone {
 	// Tiered Zone Selection: Common (70%), Rare (20%), Legendary (10%)
-	commonZones := []string{"Elwynn Forest", "Westfall", "Durotar", "Mulgore", "Teldrassil", "Loch Modan", "Silverpine"}
-	rareZones := []string{"Stranglethorn Vale", "Tanaris", "Un'Goro Crater", "Winterspring", "Searing Gorge", "Burning Steppes"}
-	legendaryZones := []string{"Molten Core", "Sunwell Plateau", "Icecrown Citadel", "Void Rift", "The Maelstrom"}
+	commonZones := []string{"Elwynn Forest", "Westfall", "Durotar", "Mulgore", "Teldrassil", "Loch Modan", "Silverpine", "Desolace"}
+	rareZones := []string{"Stranglethorn Vale", "Tanaris", "Un'Goro Crater", "Winterspring", "Searing Gorge", "Burning Steppes", "Deadwind Pass", "Eastern Plaguelands"}
+	legendaryZones := []string{"Molten Core", "Sunwell Plateau", "Icecrown Citadel", "Void Rift", "The Maelstrom", "Firelands", "Shadowlands"}
 
 // #nosec G404
 	r := rand.Float64() // #nosec G404

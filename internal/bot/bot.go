@@ -105,20 +105,23 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		if cl.Type != 0 || (targetNick != "" && !strings.EqualFold(cl.Nickname, targetNick)) || cl.UID == "" {
 			continue
 		}
-		stats, _, _ := b.calculateTotalStats(cl.UID, ctx.today)
+		stats, _, _, _ := b.calculateTotalStats(cl.UID, ctx.today)
 		skills := b.getSkills(cl.UID)
 		ultimate := b.getUltimateSkill(cl.UID)
 
 		var lvl, curHP, regen int
-		_ = b.DB.QueryRow("SELECT level, current_hp, regen_stacks FROM users WHERE client_uid=$1", cl.UID).Scan(&lvl, &curHP, &regen)
+		var gold int64
+		_ = b.DB.QueryRow("SELECT level, prestige, current_hp, regen_stacks, gold FROM users WHERE client_uid=$1", cl.UID).Scan(&lvl, &curHP, &regen, &gold)
 		if curHP <= 0 {
 			curHP = stats.HP
 		} // Auto-fill if new/dead
 		pets := b.getPets(cl.UID)
+		equipped := b.getEquippedItems(cl.UID)
 
 		chanUsers[cl.CID] = append(chanUsers[cl.CID], UserInCombat{
 			UID: cl.UID, Nickname: cl.Nickname, CLID: cl.CLID, Stats: stats, Level: lvl, Skills: skills,
-			UltimateSkill: ultimate, CurrentHP: curHP, RegenStacks: regen, Pets: pets,
+			UltimateSkill: ultimate, CurrentHP: curHP, RegenStacks: regen, Gold: gold, Pets: pets,
+			Equipped: equipped,
 		})
 	}
 
@@ -212,6 +215,11 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			baseXP := b.xpForGame(game)
 			lr, notes, artifactPoke := b.processUserXP(user.UID, user.Nickname, cid, baseXP+rewardXP, hasGame, ctx)
 
+			// Auction House auto-purchase
+			if ahNote := b.autoPurchaseUpgrades(user.UID, user.Gold); ahNote != "" {
+				notes = append(notes, ahNote)
+			}
+
 			// Auto-prestige at the level cap: reset to level 1, +1 prestige (with a
 			// permanent stat bonus) and grant the prestige rank group. Future leveling
 			// then resumes from level 1 at the new prestige.
@@ -264,10 +272,12 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			}
 			_ = c.SetNickname(botNick)
 
-			if artifactPoke != "" {
-				_ = c.Poke(user.CLID, artifactPoke)
+			if hasGame && shortURL != "" {
+				if artifactPoke != "" {
+					_ = c.Poke(user.CLID, artifactPoke)
+				}
+				_ = c.Poke(user.CLID, pokeMsg)
 			}
-			_ = c.Poke(user.CLID, pokeMsg)
 
 			for _, chunk := range splitMessage(pmMsg, 1000) {
 				_ = c.SendPrivateMessage(user.CLID, chunk)
@@ -347,9 +357,13 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 	sb.WriteString("\n")
 
 	name := g.DisplayTitle()
-	fmt.Fprintf(&sb, "🎮 %s\n", name)
-	if g.WorthShown() {
-		fmt.Fprintf(&sb, "💰 Worth %s → FREE now\n", g.Worth)
+	if name != "" {
+		fmt.Fprintf(&sb, "🎮 %s\n", name)
+		if g.WorthShown() {
+			fmt.Fprintf(&sb, "💰 Worth %s → FREE now\n", g.Worth)
+		}
+	} else {
+		sb.WriteString("🎮 No new games discovered in this cycle.\n")
 	}
 
 	if lvl != nil {
@@ -400,9 +414,11 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 	}
 
 	// Add game claim and YouTube trailer at the end for better readability
-	fmt.Fprintf(&sb, "🔗 Claim: %s\n", shortURL)
-	if b.Cfg.EnableYouTubeTrailer {
-		fmt.Fprintf(&sb, "▶️ Trailer: %s\n", games.TrailerSearchURL(name))
+	if shortURL != "" {
+		fmt.Fprintf(&sb, "🔗 Claim: %s\n", shortURL)
+		if b.Cfg.EnableYouTubeTrailer {
+			fmt.Fprintf(&sb, "▶️ Trailer: %s\n", games.TrailerSearchURL(name))
+		}
 	}
 
 	if theme != nil && theme.Signoff != "" {
@@ -495,6 +511,39 @@ func (b *Bot) getAPIKey() string {
 	return ""
 }
 
+func FormatGold(v int64) string {
+	f := float64(v)
+	switch {
+	case v >= 1_000_000_000:
+		return fmt.Sprintf("%.1fB", f/1_000_000_000.0)
+	case v >= 1_000_000:
+		return fmt.Sprintf("%.1fM", f/1_000_000.0)
+	case v >= 1_000:
+		return fmt.Sprintf("%.1fk", f/1_000.0)
+	default:
+		return fmt.Sprintf("%d", v)
+	}
+}
+
+func (b *Bot) getEquippedItems(uid string) map[content.GearSlot]content.Gear {
+	out := make(map[content.GearSlot]content.Gear)
+	rows, err := b.DB.Query("SELECT slot, gear_id FROM user_gear WHERE client_uid = $1", uid)
+	if err != nil {
+		return out
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var slot string
+		var id string
+		if err := rows.Scan(&slot, &id); err == nil {
+			if gear, ok := content.GetGearByID(id); ok {
+				out[content.GearSlot(slot)] = gear
+			}
+		}
+	}
+	return out
+}
+
 func (b *Bot) CleanupDeadUsers() (int, error) {
 	if b.Cfg.DeadUserDays <= 0 {
 		return 0, nil
@@ -551,40 +600,44 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 		log.Printf("Updating channel %d with %d users", cid, len(users))
 
 		var sb strings.Builder
-		fmt.Fprintf(&sb, "🎮 RPG Players: %d\n", len(users))
+		fmt.Fprintf(&sb, "[center][b][size=14]🎮 RPG Players: %d[/size][/b][/center]\n[hr]\n", len(users))
 
-		for i, u := range users {
+		for _, u := range users {
 			var level, prestige int
+			var gold int64
 			var currentHP sql.NullInt64
-			err := b.DB.QueryRow("SELECT level, prestige, current_hp FROM users WHERE client_uid=$1", u.UID).Scan(&level, &prestige, &currentHP)
+			err := b.DB.QueryRow("SELECT level, prestige, gold, current_hp FROM users WHERE client_uid=$1", u.UID).Scan(&level, &prestige, &gold, &currentHP)
 			if err != nil {
 				log.Printf("Failed to get user info for %s: %v", u.UID, err)
 				continue
 			}
 
-			stats, gearScore, _ := b.calculateTotalStats(u.UID, time.Now())
+			stats, _, gearScore, _ := b.calculateTotalStats(u.UID, time.Now())
 
 			actualCurrentHP := stats.HP
 			if currentHP.Valid {
 				actualCurrentHP = int(currentHP.Int64)
 			}
 
-			// Format: Nick [Lvl:X GS:Y HP:Z/Z P:P STR:A DEF:B SPD:C LCK:D INT:E STA:F CRT:G DGE:H CHA:I STN:J SHN:K HGR:L]
-			if i < len(users)-1 {
-				fmt.Fprintf(&sb, "• %s [Lvl:%d GS:%.0f HP:%d/%d P:%d STR:%d DEF:%d SPD:%d LCK:%d INT:%d STA:%d CRT:%d DGE:%d CHA:%d STN:%d SHN:%d HGR:%d]\n",
-					u.Nick, level, gearScore, actualCurrentHP, stats.HP, prestige,
-					stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE, stats.CHA, stats.STN, stats.SHN, stats.HGR)
-			} else {
-				fmt.Fprintf(&sb, "• %s [Lvl:%d GS:%.0f HP:%d/%d P:%d STR:%d DEF:%d SPD:%d LCK:%d INT:%d STA:%d CRT:%d DGE:%d CHA:%d STN:%d SHN:%d HGR:%d]",
-					u.Nick, level, gearScore, actualCurrentHP, stats.HP, prestige,
-					stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE, stats.CHA, stats.STN, stats.SHN, stats.HGR)
+			hpColor := "#4caf50" // Green
+			if float64(actualCurrentHP) < float64(stats.HP)*0.3 {
+				hpColor = "#f44336" // Red
+			} else if float64(actualCurrentHP) < float64(stats.HP)*0.6 {
+				hpColor = "#ff9800" // Orange
 			}
+
+			// Format: Nick [Lvl:X GS:Y HP:Z/Z P:P Gold:G STR:A DEF:B SPD:C LCK:D INT:E STA:F CRT:G DGE:H]
+			fmt.Fprintf(&sb, "• [b]%s[/b] [color=#78909c][Lvl:%d][/color] [color=#00bcd4][GS:%d][/color] [color=%s][HP:%d/%d][/color] [color=#ffc107][P:%d][/color] [color=#fbc02d][Gold:%s][/color]\n",
+				u.Nick, level, gearScore, hpColor, actualCurrentHP, stats.HP, prestige, FormatGold(gold))
+
+			fmt.Fprintf(&sb, "  [size=9][color=#90a4ae]STR:%d DEF:%d SPD:%d LCK:%d INT:%d STA:%d CRT:%d DGE:%d[/color][/size]\n",
+				stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE)
 		}
 
 		// Truncate if too long (TeamSpeak channel description limit is ~8000 chars)
 		desc := sb.String()
-		if len(desc) > 4000 {
-			desc = desc[:4000] + "..."
+		if len(desc) > 5000 {
+			desc = desc[:5000] + "..."
 		}
 
 		if err := c.SetChannelDescription(cid, desc); err != nil {
