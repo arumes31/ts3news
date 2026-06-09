@@ -40,7 +40,8 @@ func (b *Bot) autoListUnwantedItems(uid string, item interface{}) {
 		// Check if player already has better gear in this slot
 		var currentID string
 		err := b.DB.QueryRow("SELECT gear_id FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(v.Slot)).Scan(&currentID)
-		if err == nil {
+		switch err {
+		case nil:
 			if cur, ok := content.GetGearByID(currentID); ok {
 				if cur.Rarity >= v.Rarity && cur.CombatRating() >= v.CombatRating() {
 					price = int64(v.CombatRating()*10+float64(v.Stats.Score())*5) * (int64(v.Rarity) + 1)
@@ -48,9 +49,9 @@ func (b *Bot) autoListUnwantedItems(uid string, item interface{}) {
 					return // It's an upgrade, shouldn't be here
 				}
 			}
-		} else if err == sql.ErrNoRows {
+		case sql.ErrNoRows:
 			price = int64(v.CombatRating()*10+float64(v.Stats.Score())*5) * (int64(v.Rarity) + 1)
-		} else {
+		default:
 			return
 		}
 
