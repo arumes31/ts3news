@@ -92,6 +92,14 @@ func (m Mob) DisplayName() string {
 	return fmt.Sprintf("Lvl %d %s [%s]%s (%d/%d HP)", m.Level, m.Name, m.Type, eff, m.CurrentHP, m.MaxHP)
 }
 
+func (m Mob) DisplayNameShort() string {
+	eff := ""
+	if len(m.Effects) > 0 {
+		eff = fmt.Sprintf(" (%s)", m.Effects[0])
+	}
+	return fmt.Sprintf("Lvl %d %s [%s]%s", m.Level, m.Name, m.Type, eff)
+}
+
 func (m Mob) Score() int {
 	return m.MaxHP/5 + m.Stats.STR + m.Stats.DEF + m.Stats.SPD + m.Level*10
 }

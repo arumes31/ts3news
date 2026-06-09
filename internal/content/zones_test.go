@@ -7,7 +7,7 @@ import (
 
 func TestGetRandomZone(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		z := GetRandomZone(10, 50)
+		z := GetRandomZone(10, 50.5)
 		if z.Name == "" {
 			t.Error("Zone name should not be empty")
 		}

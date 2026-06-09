@@ -66,7 +66,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 			var slot string
 			if err := grows.Scan(&id, &slot); err == nil {
 				if g, ok := content.GetGearByID(id); ok {
-					activeItemNames[formatGSName(g.Stats.Score(), g.Name, g.Special, "slot:"+slot)] = true
+					activeItemNames[formatGSName(g.Stats.Score(), g.Name, g.Special, "s:"+slot)] = true
 				}
 			}
 		}
@@ -89,7 +89,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 			var id string
 			if err := srows.Scan(&slot, &id); err == nil {
 				if s, ok := content.GetSkillByID(id); ok {
-					activeItemNames[formatGSName(s.Score(), s.Name, s.Special, fmt.Sprintf("skill:%d", slot))] = true
+					activeItemNames[formatGSName(s.Score(), s.Name, s.Special, fmt.Sprintf("s:%d", slot))] = true
 				}
 			}
 		}

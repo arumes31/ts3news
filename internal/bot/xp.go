@@ -48,6 +48,7 @@ type UserInCombat struct {
 	CLID          int
 	Level         int
 	Stats         content.Stats
+	GearScore     float64
 	Skills        []content.Skill
 	UltimateSkill *content.UltimateSkill
 	CurrentHP     int
@@ -405,18 +406,18 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			logs = append(logs, "⚠️ AMBUSH! Enemies attack first!")
 		}
 
-		for r := 1; r <= 10; r++ {
+		for r := 1; r <= 20; r++ {
 			intensify := 1.0 + float64(r-1)*0.15
 			fatigueMult := 1.0
-			if r > 5 {
-				fatigueMult = 1.0 - float64(r-5)*0.1
+			if r > 10 {
+				fatigueMult = 1.0 - float64(r-10)*0.1
 				if fatigueMult < 0.1 {
 					fatigueMult = 0.1
 				}
 			}
 			healPenalty := 1.0
-			if r > 5 {
-				healPenalty = 1.0 - float64(r-5)*0.2
+			if r > 10 {
+				healPenalty = 1.0 - float64(r-10)*0.2
 			}
 			if healPenalty < 0 {
 				healPenalty = 0
@@ -430,9 +431,9 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 					waveVictory = true
 					break
 				}
-				b.mobTurn(activeUsers, currentMobs, zone, intensify, &logs, &totalMobDamage, &totalUserDamage, r)
+				b.mobTurn(activeUsers, currentMobs, zone, intensify, fatigueMult, &logs, &totalMobDamage, &totalUserDamage, r)
 			} else {
-				b.mobTurn(activeUsers, currentMobs, zone, intensify, &logs, &totalMobDamage, &totalUserDamage, r)
+				b.mobTurn(activeUsers, currentMobs, zone, intensify, fatigueMult, &logs, &totalMobDamage, &totalUserDamage, r)
 				aliveUsers := 0
 				for _, u := range users {
 					if u.CurrentHP > 0 {
@@ -682,70 +683,83 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			}
 
+			dmg := 0
 			// #nosec G404
 			if len(u.Skills) > 0 && rand.Float64() < 0.3 { // #nosec G404
 				// #nosec G404
 				s := u.Skills[rand.IntN(len(u.Skills))] // #nosec G404
 				dmgMult *= s.Power
 				ignoreDef = s.IgnoreDef
-				*logs = append(*logs, fmt.Sprintf("✨ %s: %s!", u.Nickname, s.Name))
-
+				
 				// Combo System (Improvement 6)
+				comboBonus := 1.0
 				if au.lastSkillID != "" && au.lastSkillID == s.ID {
-					dmgMult *= 1.25
-					*logs = append(*logs, fmt.Sprintf("🔥 COMBO! %s deals 25%% more damage!", s.Name))
+					comboBonus = 1.25
+					dmgMult *= comboBonus
 				}
 				au.lastSkillID = s.ID
+
+				effDef := float64(target.Stats.DEF) * target.DEFMod * (1.0 - ignoreDef)
+				dmg = int((float64(uSTR)*dmgMult - effDef) * intensify)
+				minDmg := int(float64(uSTR) * 0.15 * intensify)
+				if dmg < minDmg { dmg = minDmg }
+				if dmg < 1 { dmg = 1 }
+
+				skillMsg := fmt.Sprintf("✨ %s: %s deals %d dmg", u.Nickname, s.Name, dmg)
+				if comboBonus > 1.0 {
+					skillMsg += " (COMBO!)"
+				}
+				*logs = append(*logs, skillMsg)
 
 				// #nosec G404
 				if s.StunChance > 0 && rand.Float64() < s.StunChance { // #nosec G404
 					*logs = append(*logs, fmt.Sprintf("💫 %s STUNNED!", target.Name))
 					target.Stats.SPD = 0
 				}
+				
+				target.Stats.HP -= dmg
+				*totalUserDamage += dmg
 			} else {
 				au.lastSkillID = "" // Reset combo if no skill used
-			}
+				
+				// Regular Attack
+				userElement := content.ElementPhysical
+				if mh, ok := u.Equipped[content.SlotMainHand]; ok {
+					userElement = mh.Element
+				}
+				elementMult := getElementMult(userElement, target.Element)
+				dmgMult *= elementMult
 
-			// Elemental System (Improvement 1)
-			// Determine user's active element from MainHand
-			userElement := content.ElementPhysical
-			if mh, ok := u.Equipped[content.SlotMainHand]; ok {
-				userElement = mh.Element
-			}
-			elementMult := getElementMult(userElement, target.Element)
-			if elementMult > 1.0 {
-				*logs = append(*logs, fmt.Sprintf("💥 %s is effective against %s!", userElement, target.Element))
-			} else if elementMult < 1.0 {
-				*logs = append(*logs, fmt.Sprintf("🛡️ %s is weak against %s...", userElement, target.Element))
-			}
-			dmgMult *= elementMult
+				if u.Position == content.PositionBackline {
+					dmgMult *= 1.10
+				}
 
-			// Position Bonus (Improvement 2)
-			if u.Position == content.PositionBackline {
-				dmgMult *= 1.10 // 10% damage bonus for backline
-			}
+				// Ultimate Skill activation
+				if u.UltimateSkill != nil && u.UltimateSkill.CurrentCooldown == 0 {
+					dmgMult *= u.UltimateSkill.Power
+					
+					effDef := float64(target.Stats.DEF) * target.DEFMod * (1.0 - ignoreDef)
+					dmg = int((float64(uSTR)*dmgMult - effDef) * intensify)
+					minDmg := int(float64(uSTR) * 0.15 * intensify)
+					if dmg < minDmg { dmg = minDmg }
+					if dmg < 1 { dmg = 1 }
+					
+					*logs = append(*logs, fmt.Sprintf("🌟 ULTIMATE: %s deals %d dmg!", u.UltimateSkill.Name, dmg))
+					u.UltimateSkill.CurrentCooldown = u.UltimateSkill.CooldownRounds
+					
+					target.Stats.HP -= dmg
+					*totalUserDamage += dmg
+				} else {
+					effDef := float64(target.Stats.DEF) * target.DEFMod * (1.0 - ignoreDef)
+					dmg = int((float64(uSTR)*dmgMult - effDef) * intensify)
+					minDmg := int(float64(uSTR) * 0.15 * intensify)
+					if dmg < minDmg { dmg = minDmg }
+					if dmg < 1 { dmg = 1 }
 
-			// Ultimate Skill activation
-			if u.UltimateSkill != nil && u.UltimateSkill.CurrentCooldown == 0 {
-				dmgMult *= u.UltimateSkill.Power
-				*logs = append(*logs, fmt.Sprintf("🌟 ULTIMATE: %s!", u.UltimateSkill.Name))
-				u.UltimateSkill.CurrentCooldown = u.UltimateSkill.CooldownRounds
+					target.Stats.HP -= dmg
+					*totalUserDamage += dmg
+				}
 			}
-
-			effDef := float64(target.Stats.DEF) * target.DEFMod * (1.0 - ignoreDef)
-			dmg := int((float64(uSTR)*dmgMult - effDef) * intensify)
-
-			// Percentage-Based Damage Floor (15% of STR) to prevent DEF stalemates
-			minDmg := int(float64(uSTR) * 0.15 * intensify)
-			if dmg < minDmg {
-				dmg = minDmg
-			}
-			if dmg < 1 {
-				dmg = 1
-			}
-
-			target.Stats.HP -= dmg
-			*totalUserDamage += dmg
 
 			// Chain Attack Logic for groups (3+ players)
 			// #nosec G404
@@ -760,7 +774,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 						}
 					}
 					if chainTarget != nil {
-						chainDmg := dmg / 2
+						chainDmg := int(float64(uSTR) * 0.2 * intensify)
 						if chainDmg < 1 {
 							chainDmg = 1
 						}
@@ -805,7 +819,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				winner := originalUsers[rand.IntN(len(originalUsers))] // #nosec G404
 				note, poke := b.rollLootForUser(winner.UID, *target, zone.Difficulty)
 				if note != "" {
-					*logs = append(*logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, target.DisplayName(), note))
+					*logs = append(*logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, target.DisplayNameShort(), note))
 					*loots = append(*loots, LootResult{UID: winner.UID, Note: note, Poke: poke})
 				}
 				b.handleDeathEffects(target, mobs, logs, avgLvl, diffFactor, activeUsers)
@@ -863,7 +877,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				winner := originalUsers[rand.IntN(len(originalUsers))] // #nosec G404
 				note, poke := b.rollLootForUser(winner.UID, *ptarget, zone.Difficulty)
 				if note != "" {
-					*logs = append(*logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, ptarget.DisplayName(), note))
+					*logs = append(*logs, fmt.Sprintf("🎁 %s looted %s: %s", winner.Nickname, ptarget.DisplayNameShort(), note))
 					*loots = append(*loots, LootResult{UID: winner.UID, Note: note, Poke: poke})
 				}
 				b.handleDeathEffects(ptarget, mobs, logs, avgLvl, diffFactor, activeUsers)
@@ -876,7 +890,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 	}
 }
 
-func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone content.Zone, intensify float64, logs *[]string, totalMobDamage, totalUserDamage *int, round int) {
+func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone content.Zone, intensify, fatigueMult float64, logs *[]string, totalMobDamage, totalUserDamage *int, round int) {
 	for _, m := range mobs {
 		if m.Stats.HP <= 0 || m.Stats.SPD == 0 {
 			if m.Stats.SPD == 0 {
@@ -978,7 +992,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 		elementMult := getElementMult(m.Element, targetElement)
 		dmgMult *= elementMult
 
-		mSTR := int(float64(m.Stats.STR) * m.STRMod)
+		mSTR := int(float64(m.Stats.STR) * m.STRMod * fatigueMult)
 		// Zone Debuff check
 		for _, eff := range zone.Effects {
 			if eff.Type == content.ZoneDebuff {
@@ -1370,10 +1384,9 @@ func (b *Bot) ensureUserHasGear(uid string) {
 	}
 }
 
-func (b *Bot) applyDurabilityLoss(uid string, defeat bool) {
-	var stats content.Stats
+func (b *Bot) applyDurabilityLoss(uid string, defeat bool) string {
 	var effects []content.ItemEffect
-	_, stats, _, _, effects = b.activeLootMult(uid, time.Now())
+	_, _, _, _, effects = b.activeLootMult(uid, time.Now())
 
 	// Check for repair consumables and apply before durability loss
 	consRows, err := b.DB.Query("SELECT cons_id FROM user_consumables WHERE client_uid = $1 AND cons_id IN ('P6','P7')", uid)
@@ -1418,66 +1431,73 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) {
 		}
 	}
 
+	// Durability loss logic: 20% chance to lose 3-8 durability (penalty: 35% chance to lose 5-15)
 	// #nosec G404
-	if rand.IntN(100) < stats.STA {
-		return
-	} // #nosec G404
-
-	baseLoss := duraLossPerFight * lossMult
+	lossChance := 0.20
+	minLoss, maxLoss := 3, 8
 	if defeat {
-		baseLoss = duraLossPenalty * lossMult
+		lossChance = 0.35
+		minLoss, maxLoss = 5, 15
 	}
+	lossChance *= float64(lossMult)
 
-	// XP items lose durability faster: the higher the XP multiplier, the faster they decay.
-	// This ensures powerful XP-boosting gear is a tradeoff (more XP but shorter lifespan).
-	grows, gerr := b.DB.Query("SELECT gear_id, enchantment_id FROM user_gear WHERE client_uid = $1", uid)
+	var brokenItems []string
+	var damagedCount int
+
+	grows, gerr := b.DB.Query("SELECT gear_id, durability FROM user_gear WHERE client_uid = $1", uid)
 	if gerr == nil {
-		type gearLoss struct {
-			gearID string
-			loss   int
-		}
-		var losses []gearLoss
+		defer func() { _ = grows.Close() }()
 		for grows.Next() {
 			var gearID string
-			var enchID sql.NullString
-			if grows.Scan(&gearID, &enchID) == nil {
-				itemLoss := baseLoss
-				if gear, ok := content.GetGearByID(gearID); ok {
-					// Gear with XP multiplier > 1.0 loses extra durability proportional to the bonus
-					if gear.XPMultiplier > 1.0 {
-						xpPenalty := int((gear.XPMultiplier - 1.0) * 10) // e.g. 1.30x = +3 extra loss
-						itemLoss += xpPenalty
-					}
-				}
-				if enchID.Valid && enchID.String != "" {
-					if ench, ok := content.GetEnchantmentByID(enchID.String); ok {
-						// Enchantments with XP multiplier also increase durability loss
-						if ench.XPMultiplier > 1.0 {
-							xpPenalty := int((ench.XPMultiplier - 1.0) * 10)
-							itemLoss += xpPenalty
+			var dura int
+			if grows.Scan(&gearID, &dura) == nil {
+				// #nosec G404
+				if rand.Float64() < lossChance {
+					// #nosec G404
+					itemLoss := minLoss + rand.IntN(maxLoss-minLoss+1)
+					if gear, ok := content.GetGearByID(gearID); ok {
+						if gear.XPMultiplier > 1.0 {
+							itemLoss += int((gear.XPMultiplier - 1.0) * 10)
+						}
+						newDura := dura - itemLoss
+						if newDura <= 0 {
+							brokenItems = append(brokenItems, gear.Name)
+							_, _ = b.DB.Exec("DELETE FROM user_gear WHERE client_uid = $1 AND gear_id = $2", uid, gearID)
+						} else {
+							_, _ = b.DB.Exec("UPDATE user_gear SET durability = $2 WHERE client_uid = $1 AND gear_id = $3", uid, newDura, gearID)
+							damagedCount++
 						}
 					}
 				}
-				losses = append(losses, gearLoss{gearID: gearID, loss: itemLoss})
 			}
 		}
-		_ = grows.Close()
-
-		// Apply individual durability losses
-		for _, gl := range losses {
-			_, _ = b.DB.Exec("UPDATE user_gear SET durability = durability - $2 WHERE client_uid = $1 AND gear_id = $3", uid, gl.loss, gl.gearID)
-		}
-	} else {
-		// Fallback: uniform loss if query fails
-		_, _ = b.DB.Exec("UPDATE user_gear SET durability = durability - $2 WHERE client_uid = $1", uid, baseLoss)
 	}
 
-	_, _ = b.DB.Exec("DELETE FROM user_gear WHERE client_uid = $1 AND durability <= 0", uid)
-	_, _ = b.DB.Exec("UPDATE users SET artifact_durability = artifact_durability - $2 WHERE client_uid = $1 AND artifact_durability > 0", uid, baseLoss)
-	_, _ = b.DB.Exec("UPDATE users SET artifact_mult=1, artifact_name=NULL, artifact_durability=0 WHERE client_uid=$1 AND artifact_durability <= 0 AND artifact_name IS NOT NULL", uid)
+	// Artifact loss
+	// #nosec G404
+	if rand.Float64() < lossChance {
+		// #nosec G404
+		artLoss := minLoss + rand.IntN(maxLoss-minLoss+1)
+		_, _ = b.DB.Exec("UPDATE users SET artifact_durability = GREATEST(artifact_durability - $2, 0) WHERE client_uid = $1 AND artifact_durability > 0", uid, artLoss)
+		var aName sql.NullString
+		var aDura int
+		_ = b.DB.QueryRow("SELECT artifact_name, artifact_durability FROM users WHERE client_uid=$1", uid).Scan(&aName, &aDura)
+		if aName.Valid && aDura <= 0 {
+			brokenItems = append(brokenItems, aName.String)
+			_, _ = b.DB.Exec("UPDATE users SET artifact_mult=1, artifact_name=NULL, artifact_durability=0 WHERE client_uid=$1", uid)
+		}
+	}
+
+	if len(brokenItems) > 0 {
+		return fmt.Sprintf("🛡️ BROKEN: %s", strings.Join(brokenItems, ", "))
+	}
+	if damagedCount > 0 {
+		return fmt.Sprintf("🛡️ Equipment sustained damage (%d items)", damagedCount)
+	}
+	return ""
 }
 
-func (b *Bot) calculateTotalStats(uid string, today time.Time) (content.Stats, float64, int, []string) {
+func (b *Bot) calculateTotalStats(uid string, today time.Time) (content.Stats, float64, float64, []string) {
 	var level, prestige int
 	_ = b.DB.QueryRow("SELECT level, prestige FROM users WHERE client_uid=$1", uid).Scan(&level, &prestige)
 	base := content.Stats{
@@ -1514,12 +1534,13 @@ func (b *Bot) calculateTotalStats(uid string, today time.Time) (content.Stats, f
 	return totalStats, mult, gearScore, notes
 }
 
-func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stats, int, []string, []content.ItemEffect) {
+func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stats, float64, []string, []content.ItemEffect) {
 	mult := 1.0
 	var stats content.Stats
 	var notes []string
 	var effects []content.ItemEffect
-	var gearScore int
+	var gearScore float64
+	var count int
 
 	var title sql.NullString
 	var tMult sql.NullFloat64
@@ -1544,7 +1565,7 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 			notes = append(notes, fmt.Sprintf("%s x%g (%d dur)", aName.String, aMult.Float64, aDura))
 			if art, ok := content.GetArtifactByName(aName.String); ok {
 				stats = stats.Add(art.Stats)
-				gearScore += art.Stats.Score()
+				gearScore += float64(art.Stats.Score())
 				if art.Special != content.EffectNone {
 					effects = append(effects, art.Special)
 				}
@@ -1607,7 +1628,8 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 					}
 
 					stats = stats.Add(gear.Stats)
-					gearScore += gear.Stats.Score()
+					gearScore += float64(gear.Stats.Score())
+					count++
 					if gear.Special != content.EffectNone {
 						effects = append(effects, gear.Special)
 					}
@@ -1619,7 +1641,7 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 							eStats.STR *= 2
 							eStats.SPD *= 2
 							stats = stats.Add(eStats)
-							gearScore += eStats.Score()
+							gearScore += float64(eStats.Score())
 							mult *= ench.XPMultiplier // Apply enchantment XP penalty
 							if ench.Special != content.EffectNone {
 								effects = append(effects, ench.Special)
@@ -1635,6 +1657,9 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 				}
 			}
 		}
+	}
+	if count > 0 {
+		gearScore /= float64(count)
 	}
 
 	// Skills also provide effects
@@ -1731,9 +1756,14 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				}
 			} else {
 				// Improvement 50: Salvaging (Duplicate Ultimates)
-				scrapAmt := 5 + int(us.Rarity)*5
-				_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
-				results = append(results, fmt.Sprintf("Duplicate %s [ultimate]: Salvaged for %d Scrap", us.Name, scrapAmt))
+				if us.Rarity >= content.RarityRare {
+					b.autoListUnwantedItems(uid, us)
+					results = append(results, fmt.Sprintf("Duplicate %s [ultimate]: Listed on AH", us.Name))
+				} else {
+					scrapAmt := 5 + int(us.Rarity)*5
+					_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
+					results = append(results, fmt.Sprintf("Duplicate %s [ultimate]: Salvaged for %d Scrap", us.Name, scrapAmt))
+				}
 			}
 			lootFound = true
 		} else if r < titleChance*qualityMult {
@@ -1755,9 +1785,14 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				}
 			} else {
 				// Improvement 50: Salvaging (Duplicate Uniques)
-				scrapAmt := 10 + int(ui.Rarity)*10
-				_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
-				results = append(results, fmt.Sprintf("Duplicate %s [unique]: Salvaged for %d Scrap", ui.Name, scrapAmt))
+				if ui.Rarity >= content.RarityRare {
+					b.autoListUnwantedItems(uid, ui)
+					results = append(results, fmt.Sprintf("Duplicate %s [unique]: Listed on AH", ui.Name))
+				} else {
+					scrapAmt := 10 + int(ui.Rarity)*10
+					_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
+					results = append(results, fmt.Sprintf("Duplicate %s [unique]: Salvaged for %d Scrap", ui.Name, scrapAmt))
+				}
 			}
 			lootFound = true
 		} else if r < artifactChance*qualityMult {
@@ -1777,9 +1812,14 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				results = append(results, fmt.Sprintf("Enchanted [s:%s] with %s [enchant:%s]", slot, ench.Name, ench.Name))
 			} else {
 				// Improvement 50: Salvaging (Enchantments)
-				scrapAmt := 2 + int(ench.Rarity)*2
-				_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
-				results = append(results, fmt.Sprintf("Salvaged %s [enchant]: +%d Scrap", ench.Name, scrapAmt))
+				if ench.Rarity >= content.RarityRare {
+					b.autoListUnwantedItems(uid, ench)
+					results = append(results, fmt.Sprintf("Unwanted %s [enchant]: Listed on AH", ench.Name))
+				} else {
+					scrapAmt := 2 + int(ench.Rarity)*2
+					_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
+					results = append(results, fmt.Sprintf("Salvaged %s [enchant]: +%d Scrap", ench.Name, scrapAmt))
+				}
 			}
 			lootFound = true
 		} else if r < skillChance*qualityMult {
@@ -1789,9 +1829,14 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				results = append(results, fmt.Sprintf("Learned %s [skill:%s] (Slot %d)", s.Name, s.Name, slot))
 			} else {
 				// Improvement 50: Salvaging (Skills)
-				scrapAmt := 1 + int(s.Rarity)
-				_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
-				results = append(results, fmt.Sprintf("Salvaged %s [skill]: +%d Scrap", s.Name, scrapAmt))
+				if s.Rarity >= content.RarityRare {
+					b.autoListUnwantedItems(uid, s)
+					results = append(results, fmt.Sprintf("Unwanted %s [skill]: Listed on AH", s.Name))
+				} else {
+					scrapAmt := 1 + int(s.Rarity)
+					_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
+					results = append(results, fmt.Sprintf("Salvaged %s [skill]: +%d Scrap", s.Name, scrapAmt))
+				}
 			}
 			lootFound = true
 		} else if r < consChance*qualityMult {
