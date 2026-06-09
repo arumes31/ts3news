@@ -377,7 +377,7 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 		}
 
 		// Compact Player Info
-		fmt.Fprintf(&sb, "[size=9][color=#90a4ae]HP:%d/%d STR:%d DEF:%d SPD:%d LCK:%d INT:%d STA:%d CRT:%d DGE:%d[/color][/size]\n",
+		fmt.Fprintf(&sb, "[color=#90a4ae]HP:%d/%d STR:%d DEF:%d SPD:%d LCK:%d INT:%d STA:%d CRT:%d DGE:%d[/color]\n",
 			currentHP, stats.HP, stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE)
 	}
 
@@ -395,6 +395,7 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 		switch {
 		case strings.Contains(note, "📍") || strings.Contains(note, "⚔️") || strings.Contains(note, "WAVE") ||
 			strings.Contains(note, "☠️") || strings.Contains(note, "🏁") || strings.Contains(note, "💥") ||
+			strings.Contains(note, "💢") || strings.Contains(note, "🐾") ||
 			strings.Contains(note, "📊") || strings.Contains(note, "AMBUSH") || strings.Contains(note, "slain") ||
 			strings.Contains(note, "cast") || strings.Contains(note, "used") || strings.Contains(note, "defeated") ||
 			(strings.Contains(note, "✨") && (strings.Contains(note, ":") || strings.Contains(note, "!"))): // Skill/Pet logs
@@ -404,7 +405,7 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 			strings.Contains(note, "XP") || strings.Contains(note, "Unique:") || strings.Contains(note, "Artifact:") ||
 			strings.Contains(note, "Duplicate"):
 			rewardNotes = append(rewardNotes, note)
-		case strings.Contains(note, "dura") || strings.Contains(note, "🛡️") || strings.Contains(note, "Salvaged") || strings.Contains(note, "Scrap"):
+		case strings.Contains(note, "dur") || strings.Contains(note, "🛡️") || strings.Contains(note, "Salvaged") || strings.Contains(note, "Scrap"):
 			equipNotes = append(equipNotes, note)
 		default:
 			miscNotes = append(miscNotes, note)
@@ -413,14 +414,28 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 
 	if len(miscNotes) > 0 {
 		sb.WriteString("\n[b]✨ BONUSES & MODIFIERS[/b]\n")
-		for _, n := range miscNotes {
-			fmt.Fprintf(&sb, " • %s\n", n)
+		const maxMiscLineLen = 950
+		var line string
+		for i, n := range miscNotes {
+			entry := n
+			if i > 0 {
+				entry = " | " + n
+			}
+			if len(line)+len(entry) > maxMiscLineLen && line != "" {
+				sb.WriteString(line + "\n")
+				line = n
+			} else {
+				line += entry
+			}
+		}
+		if line != "" {
+			sb.WriteString(line + "\n")
 		}
 	}
 
 	if len(combatNotes) > 0 {
 		sb.WriteString("\n[b]⚔️ COMBAT LOG[/b]\n")
-		const maxCombatLineLen = 900
+		const maxCombatLineLen = 950
 		var line string
 		for i, cn := range combatNotes {
 			entry := cn
@@ -428,14 +443,14 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 				entry = " | " + cn
 			}
 			if len(line)+len(entry) > maxCombatLineLen && line != "" {
-				fmt.Fprintf(&sb, " %s\n", line)
+				sb.WriteString(line + "\n")
 				line = cn
 			} else {
 				line += entry
 			}
 		}
 		if line != "" {
-			fmt.Fprintf(&sb, " %s\n", line)
+			sb.WriteString(line + "\n")
 		}
 	}
 
@@ -448,7 +463,7 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 
 	if len(equipNotes) > 0 {
 		sb.WriteString("\n[b]🛡️ EQUIPMENT & CRAFTING[/b]\n")
-		const maxNoteLineLen = 900
+		const maxNoteLineLen = 950
 		var line string
 		for i, gn := range equipNotes {
 			entry := gn
@@ -456,14 +471,14 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 				entry = " | " + gn
 			}
 			if len(line)+len(entry) > maxNoteLineLen && line != "" {
-				fmt.Fprintf(&sb, " %s\n", line)
+				sb.WriteString(line + "\n")
 				line = gn
 			} else {
 				line += entry
 			}
 		}
 		if line != "" {
-			fmt.Fprintf(&sb, " %s\n", line)
+			sb.WriteString(line + "\n")
 		}
 	}
 

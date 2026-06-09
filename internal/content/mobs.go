@@ -177,8 +177,8 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	m.Level = level
 
 	// --- BALANCED SCALING ---
-	// 1. Level Scaling (Base power) - Flatter growth
-	lvlScale := 1.0 + 0.005*float64(level-1)
+	// 1. Level Scaling (Base power) - Matches player linear growth better
+	lvlScale := 1.0 + 0.05*float64(level-1)
 
 	// 2. Difficulty Dampening
 	// Instead of full multiplication, difficulty only affects 30% of the scaling
