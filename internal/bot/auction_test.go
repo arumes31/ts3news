@@ -32,6 +32,7 @@ func TestAutoListUnwantedItems(t *testing.T) {
 	// Wait, if it's BETTER it shouldn't be listed. 
 	// My logic was: if cur.Rarity >= v.Rarity && cur.CombatRating() >= v.CombatRating() then list it.
 	// B_Head (Common, CR 0) vs NEW_GEAR (Rare, CR X). NEW_GEAR is better, so it's NOT listed.
+	// No ExpectExec here serves as an assertion that no INSERT happens (sqlmock fails on unexpected calls).
 	b.autoListUnwantedItems(uid, item)
 
 	// 3. Rare item, worse than current (mock current as Legendary)

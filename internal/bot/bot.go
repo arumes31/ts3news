@@ -248,7 +248,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 				allLogs = append(allLogs, fmt.Sprintf("%s: %+d → %s (Lvl %d)", outcome, lr.Awarded, leveling.LevelName(lr.NewLevel), lr.NewLevel))
 			}
 			pokeMsg := composePoke(game, shortURL, theme, lr)
-			pmMsg := b.composePM(user.UID, game, shortURL, theme, lr, allLogs, user.GearScore)
+			pmMsg := b.composePM(user.UID, game, shortURL, theme, lr, allLogs, user.GearScore, user.CurrentHP)
 
 			// Persona check
 			botNick := b.Cfg.TS3Nickname
@@ -338,7 +338,7 @@ func composePoke(g games.Game, shortURL string, theme *content.Theme, lvl *level
 	return fmt.Sprintf("%s%s %s", prefix, title, shortURL)
 }
 
-func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *content.Theme, lvl *levelResult, notes []string, gearScore float64) string {
+func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *content.Theme, lvl *levelResult, notes []string, gearScore float64, currentHP int) string {
 	var sb strings.Builder
 	if theme != nil {
 		sb.WriteString(theme.Emoji + " [b]" + theme.Banner + "[/b]")
@@ -378,7 +378,7 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 
 		// Compact Player Info
 		fmt.Fprintf(&sb, "[size=9][color=#90a4ae]HP:%d/%d STR:%d DEF:%d SPD:%d LCK:%d INT:%d STA:%d CRT:%d DGE:%d[/color][/size]\n",
-			stats.HP, stats.HP, stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE)
+			currentHP, stats.HP, stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE)
 	}
 
 	// Categorize notes

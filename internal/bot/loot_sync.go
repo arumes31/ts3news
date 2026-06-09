@@ -89,7 +89,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 			var id string
 			if err := srows.Scan(&slot, &id); err == nil {
 				if s, ok := content.GetSkillByID(id); ok {
-					activeItemNames[formatGSName(s.Score(), s.Name, s.Special, fmt.Sprintf("s:%d", slot))] = true
+					activeItemNames[formatGSName(s.Score(), s.Name, s.Special, fmt.Sprintf("skill:%d", slot))] = true
 				}
 			}
 		}
@@ -134,7 +134,8 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 
 	for _, g := range groups {
 		isRPGRelated := strings.Contains(g.Name, "(gs:")
-		if isRPGRelated && !activeItemNames[g.Name] {
+		isLegacy := strings.Contains(g.Name, "[slot:")
+		if (isRPGRelated || isLegacy) && !activeItemNames[g.Name] {
 			_ = c.ServerGroupDelClient(g.ID, cldbid)
 			b.maybeDeleteEmptyTitleGroup(c, g.ID, g.Name)
 		}
