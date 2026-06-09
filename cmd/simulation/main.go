@@ -146,7 +146,30 @@ type UltimateSkill struct {
 	Rarity          int     // Rarity tier (affects power)
 }
 
+type AuctionItem struct {
+	ID        int
+	SellerID  int
+	Type      string
+	Name      string
+	Gear      *Gear
+	Skill     bool
+	Ult       *UltimateSkill
+	Unique    bool
+	Ench      bool
+	Price     int64
+	ExpiresAt int // simulation day
+}
+
+type AuctionHouse struct {
+	Items []AuctionItem
+	NextID int
+}
+
+var globalAH = AuctionHouse{}
+var playerGold = make(map[int]int64)
+
 type Player struct {
+	ID                 int
 	Level              int
 	XP                 float64
 	XPNeeded           float64
@@ -240,7 +263,7 @@ type DaySnapshot struct {
 }
 
 type Simulation struct {
-	Player          *Player
+	Players         []*Player
 	Rng             *rand.Rand
 	Day             int
 	History         []DaySnapshot
@@ -418,6 +441,111 @@ func (p *Player) BaseStats(params SimParams) Stats {
 
 func (p *Player) PrestigeMult() float64 {
 	return 1.0 + float64(p.Prestige)*0.05
+}
+
+func (p *Player) AutoListUnwantedItems(item interface{}, day int) {
+	var itype, name string
+	var price int64
+	var gear *Gear
+	var ult *UltimateSkill
+
+	switch v := item.(type) {
+	case *Gear:
+		if v.Rarity < Rare {
+			return
+		}
+		itype = "gear"
+		name = v.Slot
+		gear = v
+		// Combat rating equivalent for simulation
+		cr := float64(v.Stats.Score()) / 10.0
+		price = int64(cr*10+float64(v.Stats.Score())*5) * int64(v.Rarity+1)
+	case string: // Skill or Unique
+		switch v {
+		case "skill":
+			itype = "skill"
+			price = 500
+		case "unique":
+			itype = "unique"
+			price = 2000
+		case "ench":
+			itype = "ench"
+			price = 300
+		}
+	case *UltimateSkill:
+		itype = "ultimate"
+		name = v.Name
+		ult = v
+		price = int64(v.Power*200) * int64(v.Rarity+1)
+	default:
+		return
+	}
+
+	if price < 10 {
+		price = 10
+	}
+
+	globalAH.Items = append(globalAH.Items, AuctionItem{
+		ID:        globalAH.NextID,
+		SellerID:  p.ID,
+		Type:      itype,
+		Name:      name,
+		Gear:      gear,
+		Ult:       ult,
+		Price:     price,
+		ExpiresAt: day + 1,
+	})
+	globalAH.NextID++
+}
+
+func (p *Player) AutoPurchaseUpgrades(day int) {
+	gold := playerGold[p.ID]
+	for i := 0; i < len(globalAH.Items); i++ {
+		item := globalAH.Items[i]
+		if item.SellerID == p.ID || item.ExpiresAt < day || item.Price > gold {
+			continue
+		}
+
+		isUpgrade := false
+		switch item.Type {
+		case "gear":
+			if p.EquipGear(item.Gear) {
+				isUpgrade = true
+			}
+		case "skill":
+			// Simplified: always an upgrade if we have < 5
+			isUpgrade = true
+			p.TotalSkillDrops++
+		case "ultimate":
+			if _, exists := p.UltimateSkillsCollected[item.Name]; !exists {
+				isUpgrade = true
+				p.UltimateSkillsCollected[item.Name] = true
+				p.TotalUltimatesCollected++
+				if p.UltimateSkill == nil {
+					p.UltimateSkill = item.Ult
+				}
+			}
+		case "unique":
+			if _, exists := p.UniqueItemsCollected[item.Name]; !exists {
+				isUpgrade = true
+				p.UniqueItemsCollected[item.Name] = true
+				p.TotalUniqueCollected++
+			}
+		case "ench":
+			isUpgrade = true
+			p.TotalEnchDrops++
+		}
+
+		if isUpgrade {
+			// Buy it
+			playerGold[p.ID] -= item.Price
+			playerGold[item.SellerID] += item.Price
+			// Remove from AH
+			globalAH.Items = append(globalAH.Items[:i], globalAH.Items[i+1:]...)
+			i--
+			gold = playerGold[p.ID]
+		}
+	}
 }
 
 func (p *Player) RecalculateStats(params SimParams) {
@@ -962,174 +1090,157 @@ func CalculateXPGain(rng *rand.Rand, player *Player, combatXP float64, hasNewGam
 
 func (sim *Simulation) SimulateDay() DaySnapshot {
 	sim.Day++
-	p := sim.Player
 	params := sim.Params
 
-	pokes := 1 + sim.Rng.Intn(5)
+	var totalGearDrops, totalSkillDrops, totalArtifactDrops, totalTitleDrops, totalConsDrops, totalEnchDrops int
+	var totalWins, totalLosses int
+	var totalXP float64
 
-	fightsToday := 0
-	winsToday := 0
-	lossesToday := 0
-	xpToday := 0.0
-	gearDrops := 0
-	skillDrops := 0
-	artifactDrops := 0
-	titleDrops := 0
-	consDrops := 0
-	enchDrops := 0
+	for _, p := range sim.Players {
+		pokes := 1 + sim.Rng.Intn(5)
 
-	if sim.Day == p.LastPokeDay+1 {
-		p.StreakDays++
-	} else if sim.Day > p.LastPokeDay+1 {
-		p.StreakDays = 1
-	}
-	p.LastPokeDay = sim.Day
-	p.DaysActive++
-
-	hasNewGame := sim.Rng.Float64() < 0.7
-	onlinePlayers := 3 + sim.Rng.Intn(8)
-
-	for poke := 0; poke < pokes; poke++ {
-		difficulty := params.ZoneDiffMin + sim.Rng.Float64()*(params.ZoneDiffMax-params.ZoneDiffMin)
-		difficulty += float64(p.Level) * 0.001
-		difficulty += p.TotalGearScore * 0.00005
-		if difficulty > 2.5 {
-			difficulty = 2.5
+		if sim.Day == p.LastPokeDay+1 {
+			p.StreakDays++
+		} else if sim.Day > p.LastPokeDay+1 {
+			p.StreakDays = 1
 		}
+		p.LastPokeDay = sim.Day
+		p.DaysActive++
 
-		mobs := GenerateMobs(sim.Rng, p.Level, p.GroupSize, difficulty, params)
-		result := SimulateCombat(sim.Rng, p, mobs, params)
+		hasNewGame := sim.Rng.Float64() < 0.7
+		onlinePlayers := 3 + sim.Rng.Intn(8)
 
-		fightsToday++
-		if result.Won {
-			winsToday++
-			p.TotalWins++
-		} else {
-			lossesToday++
-			p.TotalLosses++
-		}
-		p.TotalFights++
+		// AH Auto-Purchase
+		p.AutoPurchaseUpgrades(sim.Day)
 
-		combatXP := result.XPGained
-		modifiedXP := CalculateXPGain(sim.Rng, p, combatXP, hasNewGame, onlinePlayers, p.StreakDays, params)
-		xpToday += modifiedXP
+		for poke := 0; poke < pokes; poke++ {
+			difficulty := params.ZoneDiffMin + sim.Rng.Float64()*(params.ZoneDiffMax-params.ZoneDiffMin)
+			difficulty += float64(p.Level) * 0.001
+			difficulty += p.TotalGearScore * 0.00005
+			if difficulty > 2.5 {
+				difficulty = 2.5
+			}
 
-		p.XP += modifiedXP
-		p.TotalXPEarned += modifiedXP
+			mobs := GenerateMobs(sim.Rng, p.Level, p.GroupSize, difficulty, params)
+			result := SimulateCombat(sim.Rng, p, mobs, params)
 
-		// Level up
-		for p.XP >= p.XPNeeded && p.Level < maxLevel {
-			p.XP -= p.XPNeeded
-			p.Level++
-			p.XPNeeded = XPNeededForNextLevel(p.Level, params.ExponentCap)
-			p.RecalculateStats(params)
-			p.CurrentHP = p.MaxHP
+			if result.Won {
+				totalWins++
+				p.TotalWins++
+				playerGold[p.ID] += int64(difficulty * 50)
+			} else {
+				totalLosses++
+				p.TotalLosses++
+			}
+			p.TotalFights++
 
-			if p.Level >= params.PrestigeLevel {
-				p.Prestige++
-				p.Level = 1
-				p.XP = 0
-				p.XPNeeded = XPNeededForNextLevel(1, params.ExponentCap)
+			combatXP := result.XPGained
+			modifiedXP := CalculateXPGain(sim.Rng, p, combatXP, hasNewGame, onlinePlayers, p.StreakDays, params)
+			totalXP += modifiedXP
+
+			p.XP += modifiedXP
+			p.TotalXPEarned += modifiedXP
+
+			// Level up
+			for p.XP >= p.XPNeeded && p.Level < maxLevel {
+				p.XP -= p.XPNeeded
+				p.Level++
+				p.XPNeeded = XPNeededForNextLevel(p.Level, params.ExponentCap)
 				p.RecalculateStats(params)
 				p.CurrentHP = p.MaxHP
-			}
-		}
 
-		// Durability loss
-		for slot, g := range p.Gear {
-			if g.Durability > 0 {
-				loss := params.DuraLoss
-				if !result.Won {
-					loss = duraLossPenalty
+				if p.Level >= params.PrestigeLevel {
+					p.Prestige++
+					p.Level = 1
+					p.XP = 0
+					p.XPNeeded = XPNeededForNextLevel(1, params.ExponentCap)
+					p.RecalculateStats(params)
+					p.CurrentHP = p.MaxHP
 				}
-				if sim.Rng.Intn(100) >= p.Stats.STA {
-					g.Durability -= loss
-					if g.Durability <= 0 {
-						delete(p.Gear, slot)
+			}
+
+			// Durability loss
+			for slot, g := range p.Gear {
+				if g.Durability > 0 {
+					loss := params.DuraLoss
+					if !result.Won {
+						loss = duraLossPenalty
+					}
+					if sim.Rng.Intn(100) >= p.Stats.STA {
+						g.Durability -= loss
+						if g.Durability <= 0 {
+							delete(p.Gear, slot)
+						}
 					}
 				}
 			}
-		}
 
-		// Loot drops
-		lootMult := difficulty
-		treasureHunter := 0.0
-		if sim.Rng.Float64() < 0.05 {
-			treasureHunter = 0.05
-		}
-
-		// 1 roll per mob (Hordes = more rolls = more drops!)
-		rolls := len(mobs)
-		for _, m := range mobs {
-			if m.IsBoss {
-				rolls += 2 // Boss gives +2 extra rolls
-			}
-		}
-
-		for roll := 0; roll < rolls; roll++ {
-			if sim.Rng.Float64() < titleChance*lootMult+treasureHunter {
-				titleDrops++
-				p.TotalTitleDrops++
-			}
-			if sim.Rng.Float64() < params.ArtifactChance*lootMult+treasureHunter {
-				artifactDrops++
-				p.TotalArtifactDrops++
-			}
-			if sim.Rng.Float64() < params.GearChance*lootMult+treasureHunter {
-				g := GenerateGear(sim.Rng, p.Level, params)
-				if p.EquipGear(g) {
-					gearDrops++
-					p.TotalGearDrops++
-				}
-			}
-			if sim.Rng.Float64() < params.SkillChance*lootMult+treasureHunter {
-				skillDrops++
-				p.TotalSkillDrops++
-			}
-			if sim.Rng.Float64() < consChance*lootMult+treasureHunter {
-				consDrops++
-				p.TotalConsDrops++
-			}
-			if sim.Rng.Float64() < enchChance*lootMult+treasureHunter {
-				enchDrops++
-				p.TotalEnchDrops++
+			// Loot drops
+			lootMult := difficulty
+			treasureHunter := 0.0
+			if sim.Rng.Float64() < 0.05 {
+				treasureHunter = 0.05
 			}
 
-			// Unique Item Drop (1000 possible combinations)
-			if sim.Rng.Float64() < params.UniqueItemChance {
-				itemName := GenerateUniqueItemName(sim.Rng)
-				if !p.UniqueItemsCollected[itemName] {
-					p.UniqueItemsCollected[itemName] = true
-					p.TotalUniqueCollected++
+			rolls := len(mobs)
+			for _, m := range mobs {
+				if m.IsBoss {
+					rolls += 2
 				}
 			}
 
-			// Ultimate Skill Drop (1000 possible combinations, rare)
-			if sim.Rng.Float64() < params.UltimateSkillChance {
-				skill := GenerateUltimateSkill(sim.Rng, p.Level, params)
-				if !p.UltimateSkillsCollected[skill.Name] {
-					p.UltimateSkillsCollected[skill.Name] = true
-					p.TotalUltimatesCollected++
+			for roll := 0; roll < rolls; roll++ {
+				if sim.Rng.Float64() < titleChance*lootMult+treasureHunter {
+					totalTitleDrops++
+					p.TotalTitleDrops++
 				}
-				// Auto-equip if better than current or no current ultimate
-				p.EquipUltimateSkill(skill)
-			}
-		}
+				if sim.Rng.Float64() < params.ArtifactChance*lootMult+treasureHunter {
+					totalArtifactDrops++
+					p.TotalArtifactDrops++
+				}
+				if sim.Rng.Float64() < params.GearChance*lootMult+treasureHunter {
+					g := GenerateGear(sim.Rng, p.Level, params)
+					if p.EquipGear(g) {
+						totalGearDrops++
+						p.TotalGearDrops++
+					} else {
+						p.AutoListUnwantedItems(g, sim.Day)
+					}
+				}
+				if sim.Rng.Float64() < params.SkillChance*lootMult+treasureHunter {
+					totalSkillDrops++
+					p.TotalSkillDrops++
+					p.AutoListUnwantedItems("skill", sim.Day)
+				}
+				if sim.Rng.Float64() < consChance*lootMult+treasureHunter {
+					totalConsDrops++
+					p.TotalConsDrops++
+				}
+				if sim.Rng.Float64() < enchChance*lootMult+treasureHunter {
+					totalEnchDrops++
+					p.TotalEnchDrops++
+					p.AutoListUnwantedItems("ench", sim.Day)
+				}
 
-		// 100% drop guarantee — always Common rarity only
-		if gearDrops == 0 && skillDrops == 0 && artifactDrops == 0 && titleDrops == 0 {
-			if sim.Rng.Float64() < 0.7 {
-				g := GenerateGear(sim.Rng, p.Level, params)
-				g.Rarity = Common // force common
-				g.Stats = Stats{
-					HP: 10, STR: 5, DEF: 3, SPD: 2,
-					LCK: 1, INT: 1, STA: 1, CRT: 1, DGE: 1,
+				if sim.Rng.Float64() < params.UniqueItemChance {
+					name := GenerateUniqueItemName(sim.Rng)
+					if !p.UniqueItemsCollected[name] {
+						p.UniqueItemsCollected[name] = true
+						p.TotalUniqueCollected++
+					} else {
+						p.AutoListUnwantedItems("unique", sim.Day)
+					}
 				}
-				g.XPMult = 1.5
-				g.ItemLevel = 5 * g.ItemLevel / 10
-				if p.EquipGear(g) {
-					gearDrops++
-					p.TotalGearDrops++
+
+				if sim.Rng.Float64() < params.UltimateSkillChance {
+					skill := GenerateUltimateSkill(sim.Rng, p.Level, params)
+					if !p.UltimateSkillsCollected[skill.Name] {
+						p.UltimateSkillsCollected[skill.Name] = true
+						p.TotalUltimatesCollected++
+					} else {
+						p.AutoListUnwantedItems(skill, sim.Day)
+					}
+					p.EquipUltimateSkill(skill)
 				}
 			}
 		}
@@ -1137,16 +1248,7 @@ func (sim *Simulation) SimulateDay() DaySnapshot {
 		p.RecalculateStats(params)
 	}
 
-	// Passive durability decay
-	for slot, g := range p.Gear {
-		if g.Durability > 0 && sim.Rng.Float64() < 0.02 {
-			g.Durability--
-			if g.Durability <= 0 {
-				delete(p.Gear, slot)
-			}
-		}
-	}
-
+	p := sim.Players[0]
 	gearFilled := len(p.Gear)
 	winRate := 0.0
 	if p.TotalFights > 0 {
@@ -1154,38 +1256,33 @@ func (sim *Simulation) SimulateDay() DaySnapshot {
 	}
 
 	return DaySnapshot{
-		Day:               sim.Day,
-		Level:             p.Level,
-		XP:                p.XP,
-		Prestige:          p.Prestige,
-		CurrentHP:         p.CurrentHP,
-		MaxHP:             p.MaxHP,
-		STR:               p.Stats.STR,
-		DEF:               p.Stats.DEF,
-		SPD:               p.Stats.SPD,
-		LCK:               p.Stats.LCK,
-		INT:               p.Stats.INT,
-		STA:               p.Stats.STA,
-		CRT:               p.Stats.CRT,
-		DGE:               p.Stats.DGE,
-		AvgItemLevel:      p.AvgItemLevel,
-		TotalGearScore:    p.TotalGearScore,
-		GearSlotsFilled:   gearFilled,
-		GearSlotsTotal:    len(gearSlots),
-		FightsToday:       fightsToday,
-		WinsToday:         winsToday,
-		LossesToday:       lossesToday,
-		CumulativeWinRate: winRate,
-		XPEarnedToday:     xpToday,
-		XPPerFight: func() float64 {
-			if fightsToday > 0 {
-				return xpToday / float64(fightsToday)
-			}
-			return 0
-		}(),
-		GearDropsToday:     gearDrops,
-		SkillDropsToday:    skillDrops,
-		ArtifactDropsToday: artifactDrops,
+		Day:                sim.Day,
+		Level:              p.Level,
+		XP:                 p.XP,
+		Prestige:           p.Prestige,
+		CurrentHP:          p.CurrentHP,
+		MaxHP:              p.MaxHP,
+		STR:                p.Stats.STR,
+		DEF:                p.Stats.DEF,
+		SPD:                p.Stats.SPD,
+		LCK:                p.Stats.LCK,
+		INT:                p.Stats.INT,
+		STA:                p.Stats.STA,
+		CRT:                p.Stats.CRT,
+		DGE:                p.Stats.DGE,
+		AvgItemLevel:       p.AvgItemLevel,
+		TotalGearScore:     p.TotalGearScore,
+		GearSlotsFilled:    gearFilled,
+		GearSlotsTotal:     len(gearSlots),
+		FightsToday:        p.TotalFights,
+		WinsToday:          totalWins / len(sim.Players),
+		LossesToday:        totalLosses / len(sim.Players),
+		CumulativeWinRate:  winRate,
+		XPEarnedToday:      totalXP / float64(len(sim.Players)),
+		XPPerFight:         totalXP / float64(totalWins+totalLosses+1),
+		GearDropsToday:     totalGearDrops,
+		SkillDropsToday:    totalSkillDrops,
+		ArtifactDropsToday: totalArtifactDrops,
 		Prestiges:          p.Prestige,
 		PityStack:          p.PityStack,
 	}
@@ -1196,11 +1293,11 @@ func (sim *Simulation) SimulateDay() DaySnapshot {
 // ============================================================
 
 func (sim *Simulation) Analyze(label string) {
-	p := sim.Player
+	p := sim.Players[0]
 	h := sim.History
 
 	fmt.Println("\n" + strings.Repeat("=", 80))
-	fmt.Printf("SIMULATION: %s\n", label)
+	fmt.Printf("SIMULATION: %s (Party Size: %d)\n", label, len(sim.Players))
 	fmt.Println(strings.Repeat("=", 80))
 
 	fmt.Printf("\n--- OVERVIEW ---\n")
@@ -1208,6 +1305,7 @@ func (sim *Simulation) Analyze(label string) {
 	fmt.Printf("Final level: %d (Prestige %d)\n", p.Level, p.Prestige)
 	fmt.Printf("Total XP earned: %.0f\n", p.TotalXPEarned)
 	fmt.Printf("Total fights: %d\n", p.TotalFights)
+	fmt.Printf("Auction House: %d Items currently listed\n", len(globalAH.Items))
 
 	// Level milestones
 	milestones := []int{10, 50, 100, 250, 500, 1000, 2500, 5000, 10000}
@@ -1346,7 +1444,7 @@ func (sim *Simulation) Analyze(label string) {
 }
 
 func (sim *Simulation) generateRecommendations() {
-	p := sim.Player
+	p := sim.Players[0]
 	h := sim.History
 	recs := &sim.Recommendations
 	*recs = nil
@@ -1431,18 +1529,23 @@ func (sim *Simulation) generateRecommendations() {
 func runSimulation(days int, seed int64, params SimParams, label string) *Simulation {
 	// #nosec G404
 	rng := rand.New(rand.NewSource(seed))
-	player := NewPlayerWithParams(params)
-
+	
 	sim := &Simulation{
-		Player: player,
 		Rng:    rng,
 		Params: params,
+	}
+
+	for i := 0; i < 10; i++ {
+		p := NewPlayerWithParams(params)
+		p.ID = i
+		sim.Players = append(sim.Players, p)
+		playerGold[p.ID] = 1000 // starting gold
 	}
 
 	for i := 0; i < days; i++ {
 		snap := sim.SimulateDay()
 		sim.History = append(sim.History, snap)
-		if player.Prestige > 100 {
+		if sim.Players[0].Prestige > 100 {
 			break
 		}
 	}
@@ -1510,9 +1613,9 @@ func main() {
 	}
 
 	rowI("Days", len(baseSim.History), len(balSim.History), len(optSim.History))
-	rowI("Final Level", baseSim.Player.Level, balSim.Player.Level, optSim.Player.Level)
-	rowI("Prestiges", baseSim.Player.Prestige, balSim.Player.Prestige, optSim.Player.Prestige)
-	rowI("Total Fights", baseSim.Player.TotalFights, balSim.Player.TotalFights, optSim.Player.TotalFights)
+	rowI("Final Level", baseSim.Players[0].Level, balSim.Players[0].Level, optSim.Players[0].Level)
+	rowI("Prestiges", baseSim.Players[0].Prestige, balSim.Players[0].Prestige, optSim.Players[0].Prestige)
+	rowI("Total Fights", baseSim.Players[0].TotalFights, balSim.Players[0].TotalFights, optSim.Players[0].TotalFights)
 
 	wr := func(p *Player) float64 {
 		if p.TotalFights == 0 {
@@ -1520,14 +1623,14 @@ func main() {
 		}
 		return float64(p.TotalWins) / float64(p.TotalFights) * 100
 	}
-	rowF("Win Rate %", wr(baseSim.Player), wr(balSim.Player), wr(optSim.Player))
-	rowI("Gear Slots", len(baseSim.Player.Gear), len(balSim.Player.Gear), len(optSim.Player.Gear))
-	rowF("Avg Item Level", baseSim.Player.AvgItemLevel, balSim.Player.AvgItemLevel, optSim.Player.AvgItemLevel)
-	rowF("Total Gear Score", baseSim.Player.TotalGearScore, balSim.Player.TotalGearScore, optSim.Player.TotalGearScore)
-	rowF("Total XP", baseSim.Player.TotalXPEarned, balSim.Player.TotalXPEarned, optSim.Player.TotalXPEarned)
-	rowI("Gear Drops", baseSim.Player.TotalGearDrops, balSim.Player.TotalGearDrops, optSim.Player.TotalGearDrops)
-	rowI("Skill Drops", baseSim.Player.TotalSkillDrops, balSim.Player.TotalSkillDrops, optSim.Player.TotalSkillDrops)
-	rowI("Artifact Drops", baseSim.Player.TotalArtifactDrops, balSim.Player.TotalArtifactDrops, optSim.Player.TotalArtifactDrops)
+	rowF("Win Rate %", wr(baseSim.Players[0]), wr(balSim.Players[0]), wr(optSim.Players[0]))
+	rowI("Gear Slots", len(baseSim.Players[0].Gear), len(balSim.Players[0].Gear), len(optSim.Players[0].Gear))
+	rowF("Avg Item Level", baseSim.Players[0].AvgItemLevel, balSim.Players[0].AvgItemLevel, optSim.Players[0].AvgItemLevel)
+	rowF("Total Gear Score", baseSim.Players[0].TotalGearScore, balSim.Players[0].TotalGearScore, optSim.Players[0].TotalGearScore)
+	rowF("Total XP", baseSim.Players[0].TotalXPEarned, balSim.Players[0].TotalXPEarned, optSim.Players[0].TotalXPEarned)
+	rowI("Gear Drops", baseSim.Players[0].TotalGearDrops, balSim.Players[0].TotalGearDrops, optSim.Players[0].TotalGearDrops)
+	rowI("Skill Drops", baseSim.Players[0].TotalSkillDrops, balSim.Players[0].TotalSkillDrops, optSim.Players[0].TotalSkillDrops)
+	rowI("Artifact Drops", baseSim.Players[0].TotalArtifactDrops, balSim.Players[0].TotalArtifactDrops, optSim.Players[0].TotalArtifactDrops)
 
 	// Win rate by bracket comparison
 	fmt.Println("\n--- WIN RATE BY LEVEL BRACKET (all configs) ---")

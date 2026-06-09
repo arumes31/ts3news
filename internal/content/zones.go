@@ -94,8 +94,8 @@ func init() {
 	})
 }
 
-func GetRandomZone(partyAvgLvl int, partyGearScore int) Zone {
-	// Tiered Zone Selection: Common (70%), Rare (20%), Legendary (10%)
+func GetRandomZone(partyAvgLvl int, partyGearScore float64) Zone {
+	// ... (common/rare/legendary selection) ...
 	commonZones := []string{"Elwynn Forest", "Westfall", "Durotar", "Mulgore", "Teldrassil", "Loch Modan", "Silverpine", "Desolace"}
 	rareZones := []string{"Stranglethorn Vale", "Tanaris", "Un'Goro Crater", "Winterspring", "Searing Gorge", "Burning Steppes", "Deadwind Pass", "Eastern Plaguelands"}
 	legendaryZones := []string{"Molten Core", "Sunwell Plateau", "Icecrown Citadel", "Void Rift", "The Maelstrom", "Firelands", "Shadowlands"}
@@ -124,8 +124,9 @@ func GetRandomZone(partyAvgLvl int, partyGearScore int) Zone {
 		Name: name,
 	}
 
-	// Scaling Difficulty: harder zones for better players, dampened by tier
-	z.Difficulty = baseDiff + (float64(partyAvgLvl) * 0.001) + (float64(partyGearScore) * 0.00005)
+	// Scaling Difficulty: harder zones for better players.
+	// Since GearScore is now an average (e.g. 50-500), we use a larger multiplier.
+	z.Difficulty = baseDiff + (float64(partyAvgLvl) * 0.001) + (partyGearScore * 0.001)
 	
 	// Add 1-3 stacking effects (Legendary zones have more)
 // #nosec G404

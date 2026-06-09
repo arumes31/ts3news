@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"database/sql"
 	"testing"
 	"ts3news/internal/config"
 	"ts3news/internal/content"
@@ -22,14 +23,28 @@ func TestAutoListUnwantedItems(t *testing.T) {
 	item := content.Gear{Rarity: content.RarityCommon}
 	b.autoListUnwantedItems(uid, item)
 
-	// 2. Rare item, but better than current
+	// 2. Rare item, worse than current
 	item = content.Gear{ID: "NEW_GEAR", Rarity: content.RarityRare, Slot: content.SlotHead}
 	mock.ExpectQuery(`SELECT gear_id FROM user_gear`).
 		WithArgs(uid, string(content.SlotHead)).
-		WillReturnRows(sqlmock.NewRows([]string{"gear_id"}).AddRow("OLD_GEAR"))
-	// content.GetGearByID for OLD_GEAR (assume it's worse or we mock it)
-	// This is hard to test without fully mocking content, but let's see.
+		WillReturnRows(sqlmock.NewRows([]string{"gear_id"}).AddRow("B_Head")) // Novice gear, so NEW_GEAR is better
+	
+	// Wait, if it's BETTER it shouldn't be listed. 
+	// My logic was: if cur.Rarity >= v.Rarity && cur.CombatRating() >= v.CombatRating() then list it.
+	// B_Head (Common, CR 0) vs NEW_GEAR (Rare, CR X). NEW_GEAR is better, so it's NOT listed.
+	// No ExpectExec here serves as an assertion that no INSERT happens (sqlmock fails on unexpected calls).
 	b.autoListUnwantedItems(uid, item)
+
+	// 3. Rare item, worse than current (mock current as Legendary)
+	// We'll use a slot that has no gear to simplify
+	mock.ExpectQuery(`SELECT gear_id FROM user_gear`).
+		WithArgs(uid, "MainHand").
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectExec(`INSERT INTO auction_house`).
+		WithArgs(uid, "gear", "NEW_GEAR", sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	
+	b.autoListUnwantedItems(uid, content.Gear{ID: "NEW_GEAR", Rarity: content.RarityRare, Slot: "MainHand"})
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unmet expectations: %s", err)
