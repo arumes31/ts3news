@@ -461,13 +461,14 @@ func (p *Player) AutoListUnwantedItems(item interface{}, day int) {
 		cr := float64(v.Stats.Score()) / 10.0
 		price = int64(cr*10+float64(v.Stats.Score())*5) * int64(v.Rarity+1)
 	case string: // Skill or Unique
-		if v == "skill" {
+		switch v {
+		case "skill":
 			itype = "skill"
 			price = 500
-		} else if v == "unique" {
+		case "unique":
 			itype = "unique"
 			price = 2000
-		} else if v == "ench" {
+		case "ench":
 			itype = "ench"
 			price = 300
 		}

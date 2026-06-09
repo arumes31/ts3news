@@ -298,7 +298,6 @@ func (b *Bot) ResolveGlobalAH(c *clientquery.Client, onlineClients []clientquery
 			fee = it.price / 10 // 10% fee for contention
 		}
 
-		success := false
 		for _, buyer := range interested {
 			totalPrice := it.price + fee
 			if playerGold[buyer.UID] < totalPrice {
@@ -365,11 +364,7 @@ func (b *Bot) ResolveGlobalAH(c *clientquery.Client, onlineClients []clientquery
 				}
 			}
 
-			success = true
 			break
-		}
-		if success {
-			// Item handled
 		}
 	}
 }
