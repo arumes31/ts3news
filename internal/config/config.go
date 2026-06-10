@@ -30,6 +30,7 @@ type Config struct {
 	DeadUserDays    int    // purge users not seen for this many days (0 = never)
 
 	// Game sources
+	EnableGameNews   bool
 	EnableGamerPower bool
 	EnableEpic       bool
 	EnableReddit     bool
@@ -48,6 +49,12 @@ type Config struct {
 	CheaperMoreXP     bool   // true: cheaper games grant more XP; false (default): pricier games do
 	XPServerGroups    bool   // auto-create one server group per level tier, with a generated icon
 	EnableXPModifiers bool   // streaks, crits, loot boxes, login bonus, parties, server mult, decay, artifacts
+
+	// RPG settings
+	EnableRPG  bool // controls the entire RPG combat loop and mechanics
+	RPGBaseHP  int  // Base HP to tune win-rates (default 100)
+	RPGBaseSTR int  // Base STR to tune win-rates (default 10)
+	RPGBaseDEF int  // Base DEF to tune win-rates (default 5)
 
 	// Supervisor / client lifecycle
 	TS3ClientPath     string // path to ts3client_linux_amd64
@@ -84,6 +91,7 @@ func LoadConfig() *Config {
 		ResendAfterDays: envInt("RESEND_AFTER_DAYS", 60),
 		DeadUserDays:    envInt("DEAD_USER_DAYS", 180),
 
+		EnableGameNews:   envBool("ENABLE_GAME_NEWS", true),
 		EnableGamerPower: envBool("ENABLE_GAMERPOWER", true),
 		EnableEpic:       envBool("ENABLE_EPIC", true),
 		EnableReddit:     envBool("ENABLE_REDDIT", true),
@@ -95,10 +103,15 @@ func LoadConfig() *Config {
 		EnableHolidayThemes:  envBool("ENABLE_HOLIDAY_THEMES", true),
 		DynamicNickname:      envBool("DYNAMIC_NICKNAME", true),
 		EnableLeveling:       envBool("ENABLE_LEVELING", true),
-		LevelGroups:       os.Getenv("LEVEL_GROUPS"),
-		CheaperMoreXP:     envBool("CHEAPER_MORE_XP", false),
-		XPServerGroups:    envBool("XP_SERVER_GROUPS", false),
-		EnableXPModifiers: envBool("ENABLE_XP_MODIFIERS", true),
+		LevelGroups:          os.Getenv("LEVEL_GROUPS"),
+		CheaperMoreXP:        envBool("CHEAPER_MORE_XP", false),
+		XPServerGroups:       envBool("XP_SERVER_GROUPS", false),
+		EnableXPModifiers:    envBool("ENABLE_XP_MODIFIERS", true),
+
+		EnableRPG:  envBool("ENABLE_RPG", true),
+		RPGBaseHP:  envInt("RPG_BASE_HP", 100),
+		RPGBaseSTR: envInt("RPG_BASE_STR", 10),
+		RPGBaseDEF: envInt("RPG_BASE_DEF", 5),
 
 		TS3ClientPath:     envDefault("TS3_CLIENT_PATH", "/opt/ts3/ts3client_linux_amd64"),
 		MinIntervalHours:  envInt("MIN_INTERVAL_HOURS", 1),

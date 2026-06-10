@@ -298,48 +298,48 @@ type SimParams struct {
 	UltimateSkillChance  float64
 	UltimateCooldownBase int
 	UltimatePowerBase    float64
+	RPGBaseHP            int
+	RPGBaseSTR           int
+	RPGBaseDEF           int
 }
 
 func DefaultParams() SimParams {
 	return SimParams{
-		XPMin: 30, XPMax: 65, ExponentCap: 4.5,
-		GearChance: 0.08, SkillChance: 0.06, ArtifactChance: 0.015,
-		MaxDurability: 60, DuraLoss: 1, PrestigeLevel: 5000,
-		MobHPMult: 1.0, MobDamageMult: 1.0,
-		PlayerHPMult: 1.0, PlayerDMGMult: 1.0,
-		SkillChanceCombat: 0.35, SkillPowerBase: 2.5,
-		PityBoostPerLoss: 0.20, PityBoostCap: 2.0,
-		ZoneDiffMin: 0.8, ZoneDiffMax: 2.0,
-		MobScaling:    0.05, // 5% New scaling
-		GearILvlScale: 12.0, GearStatScale: 0.03,
+		XPMin: 40, XPMax: 80, ExponentCap: 3.5,
+		GearChance: 0.10, SkillChance: 0.08, ArtifactChance: 0.02,
+		MaxDurability: 100, DuraLoss: 1, PrestigeLevel: 5000,
+		MobHPMult: 1.2, MobDamageMult: 2.52, // The precise sweet spot
+		PlayerHPMult: 1.0, PlayerDMGMult: 1.0, 
+		RPGBaseHP: 100, RPGBaseSTR: 10, RPGBaseDEF: 5,
+		SkillChanceCombat: 0.35, SkillPowerBase: 3.0,
+		PityBoostPerLoss: 0.50, PityBoostCap: 3.0,
+		ZoneDiffMin: 0.8, ZoneDiffMax: 1.5,
+		MobScaling:    0.05,
+		GearILvlScale: 15.0, GearStatScale: 0.04,
 		BaseMobsMin: 2, BaseMobsMax: 5,
-		BossChance: 0.12, BossHPMult: 3.0, BossDMGMult: 2.0,
-		MaxRounds: 20, EscalationRate: 0.15,
+		BossChance: 0.10, BossHPMult: 3.0, BossDMGMult: 1.5,
+		MaxRounds: 20, EscalationRate: 0.10,
 		GroupSize:            1,
-		UniqueItemChance:     0.012,
-		UltimateSkillChance:  0.006,
-		UltimateCooldownBase: 6,
-		UltimatePowerBase:    4.5,
+		UniqueItemChance:     0.02,
+		UltimateSkillChance:  0.01,
+		UltimateCooldownBase: 5,
+		UltimatePowerBase:    5.0,
 	}
 }
 
 func BalancedParams() SimParams {
 	p := DefaultParams()
-	p.MobScaling = 0.05
-	p.ExponentCap = 3.5
-	p.GearStatScale = 0.04
-	p.PityBoostCap = 3.0
+	p.XPMin, p.XPMax = 50, 100
+	p.GearChance = 0.15
+	p.MobHPMult, p.MobDamageMult = 1.25, 2.55
 	return p
 }
 
 func OptimizedParams() SimParams {
 	p := BalancedParams()
-	p.XPMin = 45
-	p.XPMax = 90
-	p.GearChance = 0.12
-	p.MaxDurability = 100
 	p.PrestigeLevel = 3000
-	p.ExponentCap = 3.2
+	p.ExponentCap = 3.0
+	p.MobHPMult, p.MobDamageMult = 1.30, 2.58
 	return p
 }
 
@@ -371,9 +371,9 @@ func NewPlayerWithParams(params SimParams) *Player {
 func (p *Player) BaseStats(params SimParams) Stats {
 	lvl := float64(p.Level)
 	return Stats{
-		HP:  int((100.0 + lvl*5.0) * params.PlayerHPMult),
-		STR: int((10.0 + lvl*1.0) * params.PlayerDMGMult),
-		DEF: int(5.0 + lvl*0.5),
+		HP:  int((float64(params.RPGBaseHP) + lvl*5.0) * params.PlayerHPMult),
+		STR: int((float64(params.RPGBaseSTR) + lvl*1.0) * params.PlayerDMGMult),
+		DEF: int(float64(params.RPGBaseDEF) + lvl*0.5),
 		SPD: int(10.0 + lvl*1.0),
 		LCK: int(lvl / 5.0),
 		INT: int(lvl / 10.0),
@@ -600,7 +600,9 @@ func SimulateCombat(rng *rand.Rand, players []*Player, mobs []Mob, params SimPar
 
 			skillMult := 1.0
 			if rng.Float64() < params.SkillChanceCombat { skillMult = params.SkillPowerBase }
-			dmg := int((float64(cp[i].str)*skillMult - float64(mobs[targetIdx].Stats.DEF)*0.5) * intensify * fatigue)
+			
+			variance := 0.75 + rng.Float64()*0.5 // +/- 25% variance
+			dmg := int((float64(cp[i].str)*skillMult - float64(mobs[targetIdx].Stats.DEF)*0.5) * intensify * fatigue * variance)
 			minDmg := int(float64(cp[i].str) * 0.15 * intensify)
 			if dmg < minDmg { dmg = minDmg }
 			mobs[targetIdx].HP -= dmg
@@ -623,7 +625,8 @@ func SimulateCombat(rng *rand.Rand, players []*Player, mobs []Mob, params SimPar
 			}
 			if targetIdx == -1 { break }
 
-			mobDmg := int((float64(mobs[j].Stats.STR)*intensify - float64(cp[targetIdx].def)*0.5) * fatigue)
+			variance := 0.75 + rng.Float64()*0.5 // +/- 25% variance
+			mobDmg := int((float64(mobs[j].Stats.STR)*intensify - float64(cp[targetIdx].def)*0.5) * fatigue * variance)
 			minMobDmg := int(float64(mobs[j].Stats.STR) * 0.25 * intensify)
 			if mobDmg < minMobDmg { mobDmg = minMobDmg }
 			cp[targetIdx].hp -= mobDmg
@@ -638,8 +641,9 @@ func SimulateCombat(rng *rand.Rand, players []*Player, mobs []Mob, params SimPar
 		// Regen
 		for i := range cp {
 			if cp[i].hp > 0 {
-				cp[i].hp += cp[i].p.Stats.STA / 2
-				if cp[i].hp > cp[i].p.MaxHP { cp[i].hp = cp[i].p.MaxHP }
+				if cp[i].p.UltimateSkill != nil && cp[i].p.UltimateSkill.CurrentCooldown > 0 {
+					cp[i].p.UltimateSkill.CurrentCooldown--
+				}
 			}
 		}
 	}
@@ -703,20 +707,8 @@ func (sim *Simulation) SimulateDay() DaySnapshot {
 			avgLvl /= len(party)
 			for _, pp := range party { pp.CurrentHP = pp.MaxHP }
 
-			// Dynamic Mob Count: Spawn more if party is strong
-			extraMobs := 0
-			if len(party) > 0 && party[0].ConsecutiveWins > 5 {
-				extraMobs = party[0].ConsecutiveWins / 5
-				if extraMobs > 10 { extraMobs = 10 }
-			}
-
 			diff := params.ZoneDiffMin + sim.Rng.Float64()*(params.ZoneDiffMax-params.ZoneDiffMin)
 			mobs := GenerateMobs(sim.Rng, avgLvl, len(party), diff, params)
-			if extraMobs > 0 {
-				added := GenerateMobs(sim.Rng, avgLvl, 1, diff, params)
-				if len(added) > extraMobs { added = added[:extraMobs] }
-				mobs = append(mobs, added...)
-			}
 			res := SimulateCombat(sim.Rng, party, mobs, params)
 
 			if res.Won { 
@@ -788,13 +780,28 @@ func (sim *Simulation) SimulateDay() DaySnapshot {
 
 func (sim *Simulation) Analyze(label string) {
 	p := sim.Players[0]
+	totalAHListed := globalAH.NextID
+	totalAHSold := totalAHListed - len(globalAH.Items)
+
+	totalGold := int64(0)
+	for _, g := range playerGold {
+		totalGold += g
+	}
+	avgGold := totalGold / int64(len(sim.Players))
+
 	fmt.Printf("\nSIMULATION: %s\nLevel: %d (P%d) | Fights: %d | Wins: %d | WinRate: %.1f%% | Gear: %d/30\n",
 		label, p.Level, p.Prestige, p.TotalFights, p.TotalWins, float64(p.TotalWins)/float64(p.TotalFights)*100, len(p.Gear))
+	fmt.Printf("Config: MobHP: %.2f | MobDMG: %.2f | PlayerHP: %.2f\n", 
+		sim.Params.MobHPMult, sim.Params.MobDamageMult, sim.Params.PlayerHPMult)
+	fmt.Printf("Economy: Avg Gold: %d | AH Listed: %d | AH Sold: %d (%.1f%% sell rate)\n", 
+		avgGold, totalAHListed, totalAHSold, float64(totalAHSold)/float64(totalAHListed)*100.0)
 }
 
 func runSimulation(days int, seed int64, params SimParams, label string) *Simulation {
 	rng := rand.New(rand.NewSource(seed))
 	sim := &Simulation{Rng: rng, Params: params}
+	// Reset AH and Gold for each tier run
+	globalAH = AuctionHouse{}
 	for i := 0; i < 15; i++ {
 		player := NewPlayerWithParams(params); player.ID = i
 		// Starter Gear
@@ -806,21 +813,37 @@ func runSimulation(days int, seed int64, params SimParams, label string) *Simula
 		}
 		player.RecalculateStats(params)
 		sim.Players = append(sim.Players, player)
-		playerGold[i] = 1000
+		playerGold[i] = 2000 // Give more starter gold
 	}
-	for i := 0; i < days; i++ {
+	
+	// Run until avg player has ~1000 fights
+	targetFights := 1000
+	for sim.Players[0].TotalFights < targetFights {
 		sim.History = append(sim.History, sim.SimulateDay())
-		if sim.Players[0].Prestige > 10 { break }
 	}
 	sim.Analyze(label)
 	return sim
 }
 
 func main() {
-	fmt.Println("TS3NEWS RPG GROUP PROGRESSION SIMULATION")
+	fmt.Println("TS3NEWS RPG BALANCING SIMULATION (Target: 50% Win Rate)")
 	seed := time.Now().UnixNano()
-	days := 365 * 10
-	runSimulation(days, seed, DefaultParams(), "BASE - 5% Scaling & Party Combat")
-	runSimulation(days, seed, BalancedParams(), "BALANCED - 5% Scaling & Party Combat")
-	runSimulation(days, seed, OptimizedParams(), "OPTIMIZED - 5% Scaling & Party Combat")
+	
+	// BASE: 40.4% -> Need slightly less damage
+	p1 := DefaultParams()
+	p1.MobHPMult = 1.1
+	p1.MobDamageMult = 1.75
+	runSimulation(0, seed, p1, "BASE - Tuned for 50%")
+
+	// BALANCED: 87.0% -> Need more damage
+	p2 := BalancedParams()
+	p2.MobHPMult = 1.2
+	p2.MobDamageMult = 2.45
+	runSimulation(0, seed, p2, "BALANCED - Tuned for 50%")
+
+	// OPTIMIZED: 4.0% -> Need less damage
+	p3 := OptimizedParams()
+	p3.MobHPMult = 1.3
+	p3.MobDamageMult = 1.55
+	runSimulation(0, seed, p3, "OPTIMIZED - Tuned for 50%")
 }
