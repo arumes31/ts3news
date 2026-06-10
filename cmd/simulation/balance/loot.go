@@ -132,9 +132,12 @@ func (ls *SimLootSystem) RollLootForPlayer(rng *rand.Rand, player *SimPlayer, mo
 				Rarity:    RollRarity(rng),
 				ForPlayer: player.ID,
 			})
-			// Simplified: artifact gives a random item effect
+			// Simplified: artifact gives a random item effect (only if not already present)
 			effects := []SimItemEffect{EffectThorns, EffectVampiric, EffectBerserk, EffectLucky, EffectCleanse, EffectPhoenix}
-			player.ItemEffects = append(player.ItemEffects, effects[rng.Intn(len(effects))])
+			effect := effects[rng.Intn(len(effects))]
+			if !player.HasEffect(effect) {
+				player.ItemEffects = append(player.ItemEffects, effect)
+			}
 		}
 	}
 

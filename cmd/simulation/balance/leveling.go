@@ -14,10 +14,8 @@ func XPForLevel(level int, exponentCap float64) float64 {
 	// At level 100: 99^1.65 * 5 ≈ 9,812 XP needed
 	// At level 500: 499^1.65 * 5 ≈ 141,526 XP needed
 	// At level 1000: 999^1.65 * 5 ≈ 530,000 XP needed
-	exponent := 1.65
-	if exponent > exponentCap {
-		exponent = exponentCap
-	}
+	base := 1.65
+	exponent := math.Min(base, exponentCap)
 	return math.Round(math.Pow(float64(level-1), exponent) * 5.0)
 }
 

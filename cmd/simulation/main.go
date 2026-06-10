@@ -793,8 +793,12 @@ func (sim *Simulation) Analyze(label string) {
 		label, p.Level, p.Prestige, p.TotalFights, p.TotalWins, float64(p.TotalWins)/float64(p.TotalFights)*100, len(p.Gear))
 	fmt.Printf("Config: MobHP: %.2f | MobDMG: %.2f | PlayerHP: %.2f\n", 
 		sim.Params.MobHPMult, sim.Params.MobDamageMult, sim.Params.PlayerHPMult)
+	percentSold := 0.0
+	if totalAHListed > 0 {
+		percentSold = float64(totalAHSold) / float64(totalAHListed) * 100.0
+	}
 	fmt.Printf("Economy: Avg Gold: %d | AH Listed: %d | AH Sold: %d (%.1f%% sell rate)\n", 
-		avgGold, totalAHListed, totalAHSold, float64(totalAHSold)/float64(totalAHListed)*100.0)
+		avgGold, totalAHListed, totalAHSold, percentSold)
 }
 
 func runSimulation(days int, seed int64, params SimParams, label string) *Simulation {
@@ -802,6 +806,7 @@ func runSimulation(days int, seed int64, params SimParams, label string) *Simula
 	sim := &Simulation{Rng: rng, Params: params}
 	// Reset AH and Gold for each tier run
 	globalAH = AuctionHouse{}
+	playerGold = make(map[int]int64)
 	for i := 0; i < 15; i++ {
 		player := NewPlayerWithParams(params); player.ID = i
 		// Starter Gear

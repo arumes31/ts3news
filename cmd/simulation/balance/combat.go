@@ -247,6 +247,13 @@ func ResolveCombat(rng *rand.Rand, players []*SimPlayer, avgLvl int, difficulty 
 		p.TotalFights++
 	}
 
+	// Recalculate stats to undo any temporary combat mutations (e.g., DeathCurse)
+	for _, p := range players {
+		savedHP := p.CurrentHP
+		p.RecalculateStats(params)
+		p.CurrentHP = savedHP
+	}
+
 	return result
 }
 
@@ -438,7 +445,7 @@ func playerTurn(rng *rand.Rand, cp []combatPlayer, mobs []*SimMob, players []*Si
 			// Mind control: capture mob below 20% threshold
 			mindControlLvl := p.MindControlLevel()
 			if mindControlLvl > 0 && len(p.Pets) < mindControlLvl && target.HP > 0 &&
-				float64(target.HP) < float64(target.Level*20)*0.2 {
+				float64(target.HP) < 0.2*float64(target.MaxHP) {
 				if rng.Float64() < 0.5 {
 					*logs = append(*logs, fmt.Sprintf("🌀 Captive: %s!", target.Name))
 					p.Pets = append(p.Pets, &SimPet{

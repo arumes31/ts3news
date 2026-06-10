@@ -163,7 +163,7 @@ func (ab *AutoBalancer) runSimulation(params SimParams) (float64, []BracketResul
 	var bracketResults []BracketResult
 
 	for _, bracketLevel := range levelBrackets {
-		rng := rand.New(rand.NewSource(ab.Seed + int64(bracketLevel*1000) + int64(params.MobSTRMult*100)))
+		rng := rand.New(rand.NewSource(ab.Seed + int64(bracketLevel*1000)))
 
 		// Create players at this level bracket with appropriate gear
 		players := make([]*SimPlayer, ab.PlayerCount)
@@ -246,6 +246,14 @@ func (ab *AutoBalancer) runSimulation(params SimParams) (float64, []BracketResul
 			players[i].CurrentHP = players[i].MaxHP
 		}
 
+		// Save original consumable state for reset between fights
+		originalConsumables := make([][]SimConsumable, len(players))
+		for pi, p := range players {
+			snap := make([]SimConsumable, len(p.Consumables))
+			copy(snap, p.Consumables)
+			originalConsumables[pi] = snap
+		}
+
 		// Run fights at this bracket
 		bracketWins := 0
 		bracketFights := 0
@@ -266,13 +274,13 @@ func (ab *AutoBalancer) runSimulation(params SimParams) (float64, []BracketResul
 					continue
 				}
 
-				// Reset HP for fight
-				for _, p := range party {
+				// Reset HP, consumables, and cooldowns for fight
+				for pi, p := range party {
 					p.CurrentHP = p.MaxHP
-					// Reset consumables
-					for ci := range p.Consumables {
-						p.Consumables[ci].Remaining = 3
-					}
+					// Restore consumables to original state (preserves per-consumable limits)
+					absIdx := i + pi
+					p.Consumables = make([]SimConsumable, len(originalConsumables[absIdx]))
+					copy(p.Consumables, originalConsumables[absIdx])
 					// Reset ultimate cooldown
 					if p.UltimateSkill != nil {
 						p.UltimateSkill.CurrentCooldown = 0
