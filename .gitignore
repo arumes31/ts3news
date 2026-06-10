@@ -40,6 +40,8 @@ temp/
 /sim.exe
 /chaos_sim
 /chaos_sim.exe
+*.exe
+
 
 # Simulation binaries
 cmd/simulation/sim.exe

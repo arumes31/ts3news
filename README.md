@@ -107,8 +107,15 @@ The bot is configured via environment variables or a `config.env` file.
 | | `TS3_NICKNAME` | Default nickname for the bot. | `MrFree` |
 | **Cycle** | `MIN_INTERVAL_HOURS` | Minimum random sleep between cycles. | `1` |
 | | `MAX_INTERVAL_HOURS` | Maximum random sleep between cycles. | `12` |
+| **System** | `ENABLE_GAME_NEWS` | Master switch for the free game notification feature. | `true` |
 | | `POKE_DELAY_MS` | Delay between individual pokes (anti-flood). | `1200` |
-| **RPG** | `ENABLE_LEVELING` | Master switch for the XP and Rank systems. | `true` |
+| | `RESEND_AFTER_DAYS` | Allow re-sending a game after N days. | `60` |
+| | `DEAD_USER_DAYS` | Purge users inactive for N days. | `180` |
+| **RPG** | `ENABLE_RPG` | Master switch for all RPG mechanics (combat, gear, skills, pets, AH). | `true` |
+| | `RPG_BASE_HP` | Player starting HP, tweak to balance early-game win rates. | `100` |
+| | `RPG_BASE_STR` | Player starting STR, tweak to balance early-game win rates. | `10` |
+| | `RPG_BASE_DEF` | Player starting DEF, tweak to balance early-game win rates. | `5` |
+| **Leveling** | `ENABLE_LEVELING` | Master switch for the XP and Rank systems. Works standalone. | `true` |
 | | `ENABLE_XP_MODIFIERS` | Enable streaks, crits, and gear multipliers. | `true` |
 | | `XP_SERVER_GROUPS` | Auto-create TS3 server groups for rank tiers. | `false` |
 | | `CHEAPER_MORE_XP` | Invert XP scaling (cheaper games give more). | `false` |

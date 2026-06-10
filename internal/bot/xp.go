@@ -103,7 +103,9 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 	delta := 0
 
 	if b.Cfg.EnableXPModifiers {
-		b.ensureUserHasGear(uid)
+		if b.Cfg.EnableRPG {
+			b.ensureUserHasGear(uid)
+		}
 
 		if b.dailyLoginDue(uid, ctx.today) {
 			delta += dailyLoginXP
@@ -871,6 +873,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 			ptarget.Stats.HP -= pdmg
 			*totalUserDamage += pdmg
+			*logs = append(*logs, fmt.Sprintf("🐾 %s hit %s for %d!", p.Name, ptarget.Name, pdmg))
 			if ptarget.Stats.HP <= 0 {
 				*logs = append(*logs, fmt.Sprintf("☠️ %s killed by pet %s!", ptarget.Name, p.Name))
 				// #nosec G404
@@ -1016,8 +1019,8 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			dmg = int(float64(dmg) * 0.9) // 10% damage reduction for frontline
 		}
 
-		// Percentage-Based Damage Floor (15% of STR)
-		minDmg := int(float64(mSTR) * 0.15 * intensify)
+		// Percentage-Based Damage Floor (25% of STR)
+		minDmg := int(float64(mSTR) * 0.25 * intensify)
 		if dmg < minDmg {
 			dmg = minDmg
 		}
@@ -1025,15 +1028,19 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			dmg = 1
 		}
 
+		// Blinded check (50% miss chance)
 		for _, eff := range m.Effects {
 			// #nosec G404
 			if eff == content.EffectBlinded && rand.Float64() < 0.5 {
 				dmg = 0
-			} // #nosec G404
+			}
 		}
 
-		target.CurrentHP -= dmg
-		*totalMobDamage += dmg
+		if dmg > 0 {
+			target.CurrentHP -= dmg
+			*totalMobDamage += dmg
+			*logs = append(*logs, fmt.Sprintf("💢 %s hits %s for %d!", m.Name, target.Nickname, dmg))
+		}
 
 		// Check Revival
 		if target.CurrentHP <= 0 {
@@ -1443,6 +1450,7 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) string {
 
 	var brokenItems []string
 	var damagedCount int
+	var totalLoss int
 
 	grows, gerr := b.DB.Query("SELECT gear_id, durability FROM user_gear WHERE client_uid = $1", uid)
 	if gerr == nil {
@@ -1460,6 +1468,7 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) string {
 							itemLoss += int((gear.XPMultiplier - 1.0) * 10)
 						}
 						newDura := dura - itemLoss
+						totalLoss += itemLoss
 						if newDura <= 0 {
 							brokenItems = append(brokenItems, gear.Name)
 							_, _ = b.DB.Exec("DELETE FROM user_gear WHERE client_uid = $1 AND gear_id = $2", uid, gearID)
@@ -1478,6 +1487,7 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) string {
 	if rand.Float64() < lossChance {
 		// #nosec G404
 		artLoss := minLoss + rand.IntN(maxLoss-minLoss+1)
+		totalLoss += artLoss
 		_, _ = b.DB.Exec("UPDATE users SET artifact_durability = GREATEST(artifact_durability - $2, 0) WHERE client_uid = $1 AND artifact_durability > 0", uid, artLoss)
 		var aName sql.NullString
 		var aDura int
@@ -1489,10 +1499,12 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) string {
 	}
 
 	if len(brokenItems) > 0 {
-		return fmt.Sprintf("🛡️ BROKEN: %s", strings.Join(brokenItems, ", "))
+		return fmt.Sprintf("🛡️ BROKEN: %s (-%d dur)", strings.Join(brokenItems, ", "), totalLoss)
 	}
 	if damagedCount > 0 {
-		return fmt.Sprintf("🛡️ Equipment sustained damage (%d items)", damagedCount)
+		var avgDura float64
+		_ = b.DB.QueryRow("SELECT AVG(durability) FROM user_gear WHERE client_uid = $1", uid).Scan(&avgDura)
+		return fmt.Sprintf("🛡️ Sustained -%d dur (%d items, Avg: %.1f)", totalLoss, damagedCount, avgDura)
 	}
 	return ""
 }
@@ -1501,7 +1513,7 @@ func (b *Bot) calculateTotalStats(uid string, today time.Time) (content.Stats, f
 	var level, prestige int
 	_ = b.DB.QueryRow("SELECT level, prestige FROM users WHERE client_uid=$1", uid).Scan(&level, &prestige)
 	base := content.Stats{
-		HP: 100 + level*5, STR: 10 + level, DEF: 5 + level/2, SPD: 10 + level, LCK: level / 5,
+		HP: b.Cfg.RPGBaseHP + level*5, STR: b.Cfg.RPGBaseSTR + level, DEF: b.Cfg.RPGBaseDEF + level/2, SPD: 10 + level, LCK: level / 5,
 		INT: level / 10, STA: level / 10, CRT: 5 + level/50, DGE: 5 + level/50,
 	}
 
@@ -1512,6 +1524,10 @@ func (b *Bot) calculateTotalStats(uid string, today time.Time) (content.Stats, f
 		base.STR = int(float64(base.STR) * pMult)
 		base.DEF = int(float64(base.DEF) * pMult)
 		base.SPD = int(float64(base.SPD) * pMult)
+	}
+
+	if !b.Cfg.EnableRPG {
+		return base, 1.0, 0.0, nil
 	}
 
 	mult, lootStats, gearScore, notes, effects := b.activeLootMult(uid, today)

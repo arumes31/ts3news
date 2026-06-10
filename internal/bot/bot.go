@@ -81,9 +81,13 @@ func (b *Bot) fetchOptions() games.Options {
 
 // RunCycle now resolves group combat by channel
 func (b *Bot) RunCycle(c *clientquery.Client) error {
-	freeGames, err := games.FetchFreeGames(b.fetchOptions())
-	if err != nil {
-		return fmt.Errorf("failed to fetch games: %w", err)
+	var freeGames []games.Game
+	var err error
+	if b.Cfg.EnableGameNews {
+		freeGames, err = games.FetchFreeGames(b.fetchOptions())
+		if err != nil {
+			return fmt.Errorf("failed to fetch games: %w", err)
+		}
 	}
 
 	clients, err := c.ClientList()
@@ -93,10 +97,12 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 
 	targetNick := strings.TrimSpace(b.Cfg.TargetNick)
 	ctx := b.buildCycleContext(clients)
-	b.slothDecay(c, ctx.today)
-
-	if b.Cfg.XPServerGroups {
-		b.cleanupEmptyLevelGroups(c)
+	
+	if b.Cfg.EnableRPG {
+		b.slothDecay(c, ctx.today)
+		if b.Cfg.XPServerGroups {
+			b.cleanupEmptyLevelGroups(c)
+		}
 	}
 
 	// Group normal users by channel
@@ -105,6 +111,14 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		if cl.Type != 0 || (targetNick != "" && !strings.EqualFold(cl.Nickname, targetNick)) || cl.UID == "" {
 			continue
 		}
+		
+		if !b.Cfg.EnableRPG {
+			chanUsers[cl.CID] = append(chanUsers[cl.CID], UserInCombat{
+				UID: cl.UID, Nickname: cl.Nickname, CLID: cl.CLID,
+			})
+			continue
+		}
+
 		stats, _, gearScore, _ := b.calculateTotalStats(cl.UID, ctx.today)
 		skills := b.getSkills(cl.UID)
 		ultimate := b.getUltimateSkill(cl.UID)
@@ -136,32 +150,41 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			continue
 		}
 
-		// 1. Party Stats & Difficulty
-		totalLvl := 0
-		totalGS := 0.0
-		for _, u := range users {
-			totalLvl += u.Level
-			totalGS += u.GearScore
-		}
-		avgLvl := totalLvl / len(users)
-		if avgLvl < 1 {
-			avgLvl = 1
-		}
-		avgGS := totalGS / float64(len(users))
+		var resLogs []string
+		var rewardXP int
+		var victory bool
+		var combatLoots []LootResult
+		var zone *content.Zone
 
-		// 2. Select Zone
-		zone := content.GetRandomZone(avgLvl, avgGS)
-		battleLogs := []string{zone.Display()}
+		if b.Cfg.EnableRPG {
+			// 1. Party Stats & Difficulty
+			totalLvl := 0
+			totalGS := 0.0
+			for _, u := range users {
+				totalLvl += u.Level
+				totalGS += u.GearScore
+			}
+			avgLvl := totalLvl / len(users)
+			if avgLvl < 1 {
+				avgLvl = 1
+			}
+			avgGS := totalGS / float64(len(users))
 
-		mobs := content.SpawnMobGroup(avgLvl, zone, zone.Difficulty, len(users))
-		var mobPtrs []*content.Mob
-		for i := range mobs {
-			mobPtrs = append(mobPtrs, &mobs[i])
+			// 2. Select Zone
+			z := content.GetRandomZone(avgLvl, avgGS)
+			zone = &z
+			battleLogs := []string{zone.Display()}
+
+			mobs := content.SpawnMobGroup(avgLvl, *zone, zone.Difficulty, len(users))
+			var mobPtrs []*content.Mob
+			for i := range mobs {
+				mobPtrs = append(mobPtrs, &mobs[i])
+			}
+
+			// 3. Resolve Group Combat
+			resLogs, rewardXP, victory, combatLoots = b.resolveChannelCombat(users, mobPtrs, avgLvl, zone.Difficulty, *zone)
+			resLogs = append(battleLogs, resLogs...)
 		}
-
-		// 3. Resolve Group Combat
-		resLogs, rewardXP, victory, combatLoots := b.resolveChannelCombat(users, mobPtrs, avgLvl, zone.Difficulty, zone)
-		battleLogs = append(battleLogs, resLogs...)
 
 		// 4. Post-battle processing for each user
 		for _, user := range users {
@@ -189,76 +212,91 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 				shortURL, _ = games.ShortenURL(game.URL)
 			}
 
-			// XP, Leveling, Loot
-			baseXP := b.xpForGame(game)
-			lr, notes, artifactPoke := b.processUserXP(user.UID, user.Nickname, cid, baseXP+rewardXP, hasGame, ctx)
+			var lr *levelResult
+			var notes []string
+			var extraPoke string
+			var userLootFound bool
 
-			extraPoke := artifactPoke
+			if b.Cfg.EnableRPG {
+				baseXP := b.xpForGame(game)
+				var artifactPoke string
+				lr, notes, artifactPoke = b.processUserXP(user.UID, user.Nickname, cid, baseXP+rewardXP, hasGame, ctx)
+				extraPoke = artifactPoke
 
-			// Auto-prestige at the level cap
-			if lr != nil && lr.NewLevel >= PrestigeThreshold {
-				newP := b.doPrestige(user.UID)
-				notes = append(notes, fmt.Sprintf("🌟 PRESTIGE %d! Reset to Lvl 1 — permanent +%d%% stats!", newP, int(prestigeStatBonus*100)))
-				if extraPoke != "" {
-					extraPoke += " "
-				}
-				extraPoke += fmt.Sprintf("🌟 CONGRATULATIONS! You have reached Prestige %d!", newP)
-				lr.OldLevel, lr.NewLevel, lr.TotalXP = 1, 1, 0
-				if b.Cfg.XPServerGroups {
-					b.applyPrestigeGroup(c, user.CLID, user.UID, user.Nickname, newP)
-				}
-			}
-
-			// Durability & Loot Drops
-			if duraNote := b.applyDurabilityLoss(user.UID, !victory); duraNote != "" {
-				notes = append(notes, duraNote)
-			}
-
-			userLootFound := false
-			for _, cl := range combatLoots {
-				if cl.UID == user.UID {
-					// notes = append(notes, cl.Note) // Individual loot already in group log
-					if cl.Poke != "" {
-						if extraPoke != "" {
-							extraPoke += " "
-						}
-						extraPoke += cl.Poke
+				// Auto-prestige at the level cap
+				if lr != nil && lr.NewLevel >= PrestigeThreshold {
+					newP := b.doPrestige(user.UID)
+					notes = append(notes, fmt.Sprintf("🌟 PRESTIGE %d! Reset to Lvl 1 — permanent +%d%% stats!", newP, int(prestigeStatBonus*100)))
+					if extraPoke != "" {
+						extraPoke += " "
 					}
-					userLootFound = true
+					extraPoke += fmt.Sprintf("🌟 CONGRATULATIONS! You have reached Prestige %d!", newP)
+					lr.OldLevel, lr.NewLevel, lr.TotalXP = 1, 1, 0
+					if b.Cfg.XPServerGroups {
+						b.applyPrestigeGroup(c, user.CLID, user.UID, user.Nickname, newP)
+					}
 				}
-			}
 
-			// Apply Groups & Titles
-			if b.Cfg.EnableLeveling {
-				b.applyMilestones(c, user.CLID, user.Nickname, lr)
-				if b.Cfg.XPServerGroups {
-					b.applyLevelGroup(c, user.CLID, user.UID, user.Nickname, lr.NewLevel)
+				// Durability & Loot Drops
+				if duraNote := b.applyDurabilityLoss(user.UID, !victory); duraNote != "" {
+					notes = append(notes, duraNote)
 				}
-				b.applyTitleGroup(c, user.CLID, user.UID, user.Nickname)
-				b.syncLootGroups(c, user.CLID, user.UID)
+
+				for _, cl := range combatLoots {
+					if cl.UID == user.UID {
+						if cl.Poke != "" {
+							if extraPoke != "" {
+								extraPoke += " "
+							}
+							extraPoke += cl.Poke
+						}
+						userLootFound = true
+					}
+				}
+
+				// Apply Groups & Titles
+				if b.Cfg.EnableLeveling {
+					b.applyMilestones(c, user.CLID, user.Nickname, lr)
+					if b.Cfg.XPServerGroups {
+						b.applyLevelGroup(c, user.CLID, user.UID, user.Nickname, lr.NewLevel)
+					}
+					b.applyTitleGroup(c, user.CLID, user.UID, user.Nickname)
+					if b.Cfg.EnableRPG {
+						b.syncLootGroups(c, user.CLID, user.UID)
+					}
+				}
 			}
 
 			// Messaging
-			allLogs := append(notes, battleLogs...)
-			if lr != nil {
-				outcome := "🏆 Battle XP"
-				if lr.Awarded < 0 {
-					outcome = "💀 XP lost"
+			var allLogs []string
+			if b.Cfg.EnableRPG {
+				allLogs = append(notes, resLogs...)
+				if lr != nil {
+					outcome := "🏆 Battle XP"
+					if lr.Awarded < 0 {
+						outcome = "💀 XP lost"
+					}
+					allLogs = append(allLogs, fmt.Sprintf("%s: %+d → %s (Lvl %d)", outcome, lr.Awarded, leveling.LevelName(lr.NewLevel), lr.NewLevel))
 				}
-				allLogs = append(allLogs, fmt.Sprintf("%s: %+d → %s (Lvl %d)", outcome, lr.Awarded, leveling.LevelName(lr.NewLevel), lr.NewLevel))
 			}
+
 			pokeMsg := composePoke(game, shortURL, theme, lr)
-			pmMsg := b.composePM(user.UID, game, shortURL, theme, lr, allLogs, user.GearScore, user.CurrentHP)
+			var pmMsg string
+			if b.Cfg.EnableRPG {
+				pmMsg = b.composePM(user.UID, game, shortURL, theme, lr, allLogs, user.GearScore, user.CurrentHP)
+			} else {
+				pmMsg = b.composeSimplePM(game, shortURL, theme)
+			}
 
 			// Persona check
 			botNick := b.Cfg.TS3Nickname
-			if userLootFound || extraPoke != "" {
+			if b.Cfg.EnableRPG && (userLootFound || extraPoke != "") {
 				botNick = "godsfinger"
 			}
 			_ = c.SetNickname(botNick)
 
 			// Send Pokes
-			if extraPoke != "" {
+			if b.Cfg.EnableRPG && extraPoke != "" {
 				_ = c.Poke(user.CLID, strings.TrimSpace(extraPoke))
 			}
 
@@ -279,18 +317,20 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		}
 	}
 
-	// Resolve Auction House purchases for all online players (supports contention rolling & fees)
-	b.ResolveGlobalAH(c, clients)
+	if b.Cfg.EnableRPG {
+		// Resolve Auction House purchases for all online players
+		b.ResolveGlobalAH(c, clients)
 
-	// Update channel descriptions with all players' stats
-	if err := b.UpdateChannelDescriptions(c); err != nil {
-		log.Printf("Warning: Failed to update channel descriptions: %v", err)
-	} else {
-		log.Printf("Updated channel descriptions")
+		// Update channel descriptions with all players' stats
+		if err := b.UpdateChannelDescriptions(c); err != nil {
+			log.Printf("Warning: Failed to update channel descriptions: %v", err)
+		} else {
+			log.Printf("Updated channel descriptions")
+		}
+
+		// Process expired AH items (7+ days)
+		b.processExpiredAHItems(c)
 	}
-
-	// Process expired AH items (7+ days)
-	b.processExpiredAHItems(c)
 
 	log.Printf("Cycle finished. Poked %d users.", pokedCount)
 	return nil
@@ -377,7 +417,7 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 		}
 
 		// Compact Player Info
-		fmt.Fprintf(&sb, "[size=9][color=#90a4ae]HP:%d/%d STR:%d DEF:%d SPD:%d LCK:%d INT:%d STA:%d CRT:%d DGE:%d[/color][/size]\n",
+		fmt.Fprintf(&sb, "[color=#90a4ae]HP:%d/%d STR:%d DEF:%d SPD:%d LCK:%d INT:%d STA:%d CRT:%d DGE:%d[/color]\n",
 			currentHP, stats.HP, stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE)
 	}
 
@@ -395,6 +435,7 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 		switch {
 		case strings.Contains(note, "📍") || strings.Contains(note, "⚔️") || strings.Contains(note, "WAVE") ||
 			strings.Contains(note, "☠️") || strings.Contains(note, "🏁") || strings.Contains(note, "💥") ||
+			strings.Contains(note, "💢") || strings.Contains(note, "🐾") ||
 			strings.Contains(note, "📊") || strings.Contains(note, "AMBUSH") || strings.Contains(note, "slain") ||
 			strings.Contains(note, "cast") || strings.Contains(note, "used") || strings.Contains(note, "defeated") ||
 			(strings.Contains(note, "✨") && (strings.Contains(note, ":") || strings.Contains(note, "!"))): // Skill/Pet logs
@@ -404,7 +445,7 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 			strings.Contains(note, "XP") || strings.Contains(note, "Unique:") || strings.Contains(note, "Artifact:") ||
 			strings.Contains(note, "Duplicate"):
 			rewardNotes = append(rewardNotes, note)
-		case strings.Contains(note, "dura") || strings.Contains(note, "🛡️") || strings.Contains(note, "Salvaged") || strings.Contains(note, "Scrap"):
+		case strings.Contains(note, "dur") || strings.Contains(note, "🛡️") || strings.Contains(note, "Salvaged") || strings.Contains(note, "Scrap"):
 			equipNotes = append(equipNotes, note)
 		default:
 			miscNotes = append(miscNotes, note)
@@ -413,14 +454,28 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 
 	if len(miscNotes) > 0 {
 		sb.WriteString("\n[b]✨ BONUSES & MODIFIERS[/b]\n")
-		for _, n := range miscNotes {
-			fmt.Fprintf(&sb, " • %s\n", n)
+		const maxMiscLineLen = 950
+		var line string
+		for i, n := range miscNotes {
+			entry := n
+			if i > 0 {
+				entry = " | " + n
+			}
+			if len(line)+len(entry) > maxMiscLineLen && line != "" {
+				sb.WriteString(line + "\n")
+				line = n
+			} else {
+				line += entry
+			}
+		}
+		if line != "" {
+			sb.WriteString(line + "\n")
 		}
 	}
 
 	if len(combatNotes) > 0 {
 		sb.WriteString("\n[b]⚔️ COMBAT LOG[/b]\n")
-		const maxCombatLineLen = 900
+		const maxCombatLineLen = 950
 		var line string
 		for i, cn := range combatNotes {
 			entry := cn
@@ -428,14 +483,14 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 				entry = " | " + cn
 			}
 			if len(line)+len(entry) > maxCombatLineLen && line != "" {
-				fmt.Fprintf(&sb, " %s\n", line)
+				sb.WriteString(line + "\n")
 				line = cn
 			} else {
 				line += entry
 			}
 		}
 		if line != "" {
-			fmt.Fprintf(&sb, " %s\n", line)
+			sb.WriteString(line + "\n")
 		}
 	}
 
@@ -448,7 +503,7 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 
 	if len(equipNotes) > 0 {
 		sb.WriteString("\n[b]🛡️ EQUIPMENT & CRAFTING[/b]\n")
-		const maxNoteLineLen = 900
+		const maxNoteLineLen = 950
 		var line string
 		for i, gn := range equipNotes {
 			entry := gn
@@ -456,18 +511,53 @@ func (b *Bot) composePM(uid string, g games.Game, shortURL string, theme *conten
 				entry = " | " + gn
 			}
 			if len(line)+len(entry) > maxNoteLineLen && line != "" {
-				fmt.Fprintf(&sb, " %s\n", line)
+				sb.WriteString(line + "\n")
 				line = gn
 			} else {
 				line += entry
 			}
 		}
 		if line != "" {
-			fmt.Fprintf(&sb, " %s\n", line)
+			sb.WriteString(line + "\n")
 		}
 	}
 
 	// Add game claim and YouTube trailer at the end for better readability
+	if shortURL != "" {
+		sb.WriteString("\n")
+		fmt.Fprintf(&sb, "🔗 [b]Claim:[/b] %s\n", shortURL)
+		if b.Cfg.EnableYouTubeTrailer {
+			fmt.Fprintf(&sb, "▶️ [b]Trailer:[/b] %s\n", games.TrailerSearchURL(name))
+		}
+	}
+
+	if theme != nil && theme.Signoff != "" {
+		sb.WriteString("\n" + theme.Signoff)
+	}
+	return strings.TrimRight(sb.String(), "\n")
+}
+
+func (b *Bot) composeSimplePM(g games.Game, shortURL string, theme *content.Theme) string {
+	var sb strings.Builder
+	if theme != nil {
+		sb.WriteString(theme.Emoji + " [b]" + theme.Banner + "[/b]")
+	} else if b.Cfg.EnableGreetings {
+		sb.WriteString("[b]" + content.RandomGreeting() + "[/b]")
+	} else {
+		sb.WriteString("[b]Daily Free Game![/b]")
+	}
+	sb.WriteString("\n")
+
+	name := g.DisplayTitle()
+	if name != "" {
+		fmt.Fprintf(&sb, "🎮 %s\n", name)
+		if g.WorthShown() {
+			fmt.Fprintf(&sb, "💰 Worth %s → [b]FREE[/b] now\n", g.Worth)
+		}
+	} else {
+		sb.WriteString("🎮 No new games discovered in this cycle.\n")
+	}
+
 	if shortURL != "" {
 		sb.WriteString("\n")
 		fmt.Fprintf(&sb, "🔗 [b]Claim:[/b] %s\n", shortURL)
