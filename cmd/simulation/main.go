@@ -48,8 +48,6 @@ const (
 	Divine    = 6
 )
 
-var rarityNames = []string{"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Divine"}
-
 var uniqueAdjectives = []string{
 	"Ancient", "Cursed", "Blessed", "Radiant", "Shadow", "Eternal", "Void", "Celestial", "Infernal", "Frost",
 	"Storm", "Earth", "Blood", "Soul", "Spirit", "Divine", "Mythic", "Legendary", "Epic", "Rare",

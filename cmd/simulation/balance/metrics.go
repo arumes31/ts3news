@@ -269,7 +269,7 @@ func WriteCSV(records []FightRecord, filename string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Header
 	header := "fight_num,group_size,victory,waves,rounds,mobs_killed,xp_gained,xp_penalty,gold_gained,avg_player_hp,damage_dealt,damage_received,avg_level,avg_gear_score\n"

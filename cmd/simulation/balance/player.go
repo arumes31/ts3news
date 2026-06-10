@@ -487,7 +487,7 @@ func GenerateGear(rng *rand.Rand, level int, params SimParams) *SimGear {
 	}
 
 	// Random item effect for rare+ gear
-	var effect SimItemEffect = EffectNone
+	effect := EffectNone
 	if rarity >= RarityRare {
 		effects := []SimItemEffect{
 			EffectThorns, EffectVampiric, EffectBerserk, EffectLucky,
@@ -627,14 +627,6 @@ func (p *SimPlayer) PlayerDisplay() string {
 	return fmt.Sprintf("P%d Lvl%d(P%d) HP:%d/%d STR:%d DEF:%d Gear:%d/%d Gold:%d",
 		p.ID, p.Level, p.Prestige, p.CurrentHP, p.MaxHP,
 		p.Stats.STR, p.Stats.DEF, len(p.Gear), len(GearSlots), p.Gold)
-}
-
-// minInt returns the smaller of two ints.
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // maxInt returns the larger of two ints.
