@@ -1,12 +1,12 @@
 package bot
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 	"strings"
 
 	"ts3news/internal/clientquery"
+	"ts3news/internal/i18n"
 	"ts3news/internal/icons"
 	"ts3news/internal/leveling"
 )
@@ -24,7 +24,7 @@ func (b *Bot) doPrestige(uid string) int {
 	return p
 }
 
-func prestigeGroupName(p int) string { return fmt.Sprintf("Prestige %d", p) }
+func prestigeGroupName(p int) string { return i18n.T("prestige.group_name", p) }
 
 func prestigeFromGroupName(name string) (int, bool) {
 	if rest, ok := strings.CutPrefix(name, "Prestige "); ok {

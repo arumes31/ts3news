@@ -61,6 +61,9 @@ type Config struct {
 	MinIntervalHours  int
 	MaxIntervalHours  int
 	ConnectTimeoutSec int // how long to wait for the client to connect each cycle (watchdog)
+
+	// i18n
+	Lang string // BCP 47 locale ID, e.g. "en_US", "de_DE"
 }
 
 func LoadConfig() *Config {
@@ -117,6 +120,8 @@ func LoadConfig() *Config {
 		MinIntervalHours:  envInt("MIN_INTERVAL_HOURS", 1),
 		MaxIntervalHours:  envInt("MAX_INTERVAL_HOURS", 12),
 		ConnectTimeoutSec: envInt("CONNECT_TIMEOUT_SEC", 120),
+
+		Lang: envDefault("LANG", "en_US"),
 	}
 }
 

@@ -3,13 +3,13 @@ package bot
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"math/rand/v2"
 	"time"
 
 	"ts3news/internal/clientquery"
 	"ts3news/internal/content"
+	"ts3news/internal/i18n"
 )
 
 type AuctionItem struct {
@@ -89,7 +89,7 @@ func (b *Bot) autoListUnwantedItems(uid string, item interface{}) {
 		itype = "enchantment"
 		id = v.ID
 		name = v.Name
-		price = int64(v.XPMultiplier*1000 + float64(v.Stats.Score())*10) * (int64(v.Rarity) + 1)
+		price = int64(v.XPMultiplier*1000+float64(v.Stats.Score())*10) * (int64(v.Rarity) + 1)
 
 	default:
 		return
@@ -109,7 +109,7 @@ func (b *Bot) listAuctionItem(uid, itype, id, name string, data interface{}, pri
 	}
 	// Items stay listed for 7 days
 	expires := time.Now().Add(7 * 24 * time.Hour)
-	
+
 	_, err = b.DB.Exec(`INSERT INTO auction_house (seller_uid, item_type, item_id, item_name, item_data, price, expires_at) 
 	                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		uid, itype, id, name, dataJSON, price, expires)
@@ -164,8 +164,7 @@ func (b *Bot) processExpiredAHItems(c *clientquery.Client) {
 				// Notify seller if online
 				for _, cl := range clients {
 					if cl.UID == sellerUID {
-						_ = c.SendPrivateMessage(cl.CLID, fmt.Sprintf("🏪 [b]AH Vendor Sale:[/b] Your item [b]%s[/b] didn't sell and was bought by a vendor for %s (0.1%% value).", 
-							itemName, FormatGold(vendorPrice)))
+						_ = c.SendPrivateMessage(cl.CLID, i18n.T("ah.vendor_sale", itemName, FormatGold(vendorPrice)))
 					}
 				}
 			}
@@ -348,20 +347,19 @@ func (b *Bot) ResolveGlobalAH(c *clientquery.Client, onlineClients []clientquery
 
 			// d. Apply item (Side effect: equip/learn)
 			b.applyAHItem(buyer.UID, it.itype, it.dataJSON)
-			
+
 			// e. Notifications
 			playerGold[buyer.UID] -= totalPrice
-			_ = c.SendPrivateMessage(buyer.CLID, fmt.Sprintf("🎁 [b]AH Purchase![/b] You bought [b]%s[/b] for %s!%s", 
-				it.name, FormatGold(totalPrice), func() string {
-					if fee > 0 { return fmt.Sprintf(" (Includes %s contention fee)", FormatGold(fee)) }
-					return ""
-				}()))
-			
+			feeStr := ""
+			if fee > 0 {
+				feeStr = i18n.T("ah.purchase_fee", FormatGold(fee))
+			}
+			_ = c.SendPrivateMessage(buyer.CLID, i18n.T("ah.purchase", it.name, FormatGold(totalPrice), feeStr))
+
 			// Notify seller
 			for _, scl := range onlineClients {
 				if scl.UID == it.sellerUID {
-					_ = c.SendPrivateMessage(scl.CLID, fmt.Sprintf("💰 [b]AH Sale![/b] Your item [b]%s[/b] was bought by [b]%s[/b] for %s!", 
-						it.name, buyer.Nickname, FormatGold(it.price)))
+					_ = c.SendPrivateMessage(scl.CLID, i18n.T("ah.sale", it.name, buyer.Nickname, FormatGold(it.price)))
 				}
 			}
 
@@ -398,7 +396,7 @@ func (b *Bot) applyAHItem(uid, itype string, dataJSON []byte) {
 	case "enchantment":
 		var ench content.Enchantment
 		if err := json.Unmarshal(dataJSON, &ench); err == nil {
-			_, _ = b.applyEnchantment(uid, ench)
+			b.applyEnchantment(uid, ench)
 		}
 	}
 }

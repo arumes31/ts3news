@@ -3,6 +3,7 @@ package content
 import (
 	"math/rand/v2"
 	"strings"
+	"ts3news/internal/i18n"
 )
 
 // StealthType represents different stealth mechanics
@@ -45,8 +46,8 @@ type StealthDetection struct {
 var AllStealthEffects = []StealthEffect{
 	{
 		ID:          "STEALTH_BASIC",
-		Name:        "Natural Camouflage",
-		Description: "Basic ability to blend into surroundings",
+		Name:        i18n.T("content.stealth.natural_camouflage.name"),
+		Description: i18n.T("content.stealth.natural_camouflage.description"),
 		Type:        StealthPassive,
 		EffectValue: 0.15, // 15% stealth bonus
 		Duration:    0,
@@ -54,8 +55,8 @@ var AllStealthEffects = []StealthEffect{
 	},
 	{
 		ID:          "STEALTH_CLOAK",
-		Name:        "Cloak of Shadows",
-		Description: "Wearing a dark cloak improves stealth",
+		Name:        i18n.T("content.stealth.cloak_of_shadows.name"),
+		Description: i18n.T("content.stealth.cloak_of_shadows.description"),
 		Type:        StealthPassive,
 		EffectValue: 0.25, // 25% stealth bonus
 		Duration:    0,
@@ -64,8 +65,8 @@ var AllStealthEffects = []StealthEffect{
 	},
 	{
 		ID:          "STEALTH_NIGHT",
-		Name:        "Night Stalker",
-		Description: "Increased stealth during nighttime",
+		Name:        i18n.T("content.stealth.night_stalker.name"),
+		Description: i18n.T("content.stealth.night_stalker.description"),
 		Type:        StealthSituational,
 		EffectValue: 0.40, // 40% stealth bonus
 		Duration:    0,
@@ -73,8 +74,8 @@ var AllStealthEffects = []StealthEffect{
 	},
 	{
 		ID:          "STEALTH_AMBUSH",
-		Name:        "Ambush Predator",
-		Description: "First strike deals bonus damage when undetected",
+		Name:        i18n.T("content.stealth.ambush_predator.name"),
+		Description: i18n.T("content.stealth.ambush_predator.description"),
 		Type:        StealthActive,
 		EffectValue: 0.50, // 50% bonus damage
 		Duration:    1,
@@ -82,8 +83,8 @@ var AllStealthEffects = []StealthEffect{
 	},
 	{
 		ID:          "STEALTH_DISTRACT",
-		Name:        "Misdirection",
-		Description: "Distract enemies to reduce detection",
+		Name:        i18n.T("content.stealth.misdirection.name"),
+		Description: i18n.T("content.stealth.misdirection.description"),
 		Type:        StealthActive,
 		EffectValue: -0.30, // Reduces detection chance by 30%
 		Duration:    3,
@@ -91,8 +92,8 @@ var AllStealthEffects = []StealthEffect{
 	},
 	{
 		ID:          "STEALTH_SILENT",
-		Name:        "Silent Movement",
-		Description: "Move without making sound",
+		Name:        i18n.T("content.stealth.silent_movement.name"),
+		Description: i18n.T("content.stealth.silent_movement.description"),
 		Type:        StealthActive,
 		EffectValue: -0.40, // Reduces detection chance by 40%
 		Duration:    4,
@@ -239,12 +240,12 @@ func ApplyStealthAttack(attacker *UserInCombat, defender *Mob, stealthState Stea
 // GetStealthGear returns gear that enhances stealth (placeholder implementation)
 func GetStealthGear() []HazardGear {
 	var stealthGear []HazardGear
-	stealthGearNames := []string{"Shadow Cloak", "Night Cloak", "Stealth Tunic", "Assassin's Garb"}
+	stealthGearNames := []string{i18n.T("content.stealth.gear.shadow_cloak"), i18n.T("content.stealth.gear.night_cloak"), i18n.T("content.stealth.gear.stealth_tunic"), i18n.T("content.stealth.gear.assassins_garb")}
 
 	for _, gearName := range stealthGearNames {
 		stealthGear = append(stealthGear, HazardGear{
 			Name:        gearName,
-			Description: "Enhances stealth capabilities",
+			Description: i18n.T("content.stealth.gear.enhances_stealth"),
 			Protection:  "STEALTH",
 			Rarity:      "Rare",
 		})
@@ -256,16 +257,16 @@ func GetStealthGear() []HazardGear {
 func GetStealthConsumables() []HazardConsumable {
 	return []HazardConsumable{
 		{
-			Name:        "Shadow Potion",
-			Description: "Temporarily enhances stealth",
+			Name:        i18n.T("content.stealth.consumable.shadow_potion"),
+			Description: i18n.T("content.stealth.consumable.shadow_potion_desc"),
 			Type:        ConsumableBuff,
 			EffectStat:  "STEALTH",
 			EffectValue: 0.3,
 			Duration:    3,
 		},
 		{
-			Name:        "Cloak Elixir",
-			Description: "Improves stealth for a short time",
+			Name:        i18n.T("content.stealth.consumable.cloak_elixir"),
+			Description: i18n.T("content.stealth.consumable.cloak_elixir_desc"),
 			Type:        ConsumableBuff,
 			EffectStat:  "STEALTH",
 			EffectValue: 0.25,

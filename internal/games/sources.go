@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"ts3news/internal/i18n"
 )
 
 func httpGet(url, userAgent string) (*http.Response, error) {
@@ -121,7 +123,7 @@ func fetchEpic(_ Options) ([]Game, error) {
 			Title:     e.Title,
 			URL:       epicStoreURL(e),
 			Worth:     fmtCents(e.Price.TotalPrice.OriginalPrice, e.Price.TotalPrice.CurrencyCode),
-			Platforms: "PC, Epic Games Store",
+			Platforms: i18n.T("games.platform.epic"),
 			EndDate:   epicEndDate(e),
 		})
 	}
@@ -154,7 +156,7 @@ func epicEndDate(e epicElement) string {
 			}
 		}
 	}
-	return "N/A"
+	return i18n.T("games.platform.na")
 }
 
 func fmtCents(cents int, currency string) string {
@@ -235,8 +237,8 @@ func fetchReddit(_ Options) ([]Game, error) {
 			Title:      cleanRedditTitle(title),
 			URL:        strings.ReplaceAll(gameURL, "&amp;", "&"),
 			Worth:      "", // price unknown from Reddit
-			Platforms:  "PC, " + drm,
-			EndDate:    "N/A",
+			Platforms:  redditPlatform(drm),
+			EndDate:    i18n.T("games.platform.na"),
 			AssumePaid: true, // curated as a normally-paid game by the subreddit
 		})
 	}
@@ -244,24 +246,44 @@ func fetchReddit(_ Options) ([]Game, error) {
 }
 
 func redditDRM(lowerTitle, flair string) string {
-	for _, s := range []struct{ key, name string }{
-		{"steam", "Steam"},
-		{"epic", "Epic Games Store"},
-		{"gog", "GOG"},
+	for _, s := range []struct{ key, i18nKey string }{
+		{"steam", "games.platform.steam"},
+		{"epic", "games.platform.epic"},
+		{"gog", "games.platform.gog"},
 	} {
 		if strings.Contains(flair, s.key) || strings.Contains(lowerTitle, "["+s.key) {
-			return s.name
+			return s.i18nKey
 		}
 	}
 	return ""
 }
 
+func redditPlatform(drmI18nKey string) string {
+	if drmI18nKey == "" {
+		return ""
+	}
+	return i18n.T(drmI18nKey)
+}
+
+func itadPlatform(lowerShop, displayName string) string {
+	switch {
+	case strings.Contains(lowerShop, "steam"):
+		return i18n.T("games.platform.steam")
+	case strings.Contains(lowerShop, "epic"):
+		return i18n.T("games.platform.epic")
+	case strings.Contains(lowerShop, "gog"):
+		return i18n.T("games.platform.gog")
+	default:
+		return "PC, " + displayName
+	}
+}
+
 func cleanRedditTitle(title string) string {
 	t := bracketTag.ReplaceAllString(title, " ")
 	t = strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(t, " "))
-	
+
 	suffixes := []string{" is free", " free", " is now free", " giveaway", " giveaways", " (100% off)"}
-	
+
 	changed := true
 	for changed {
 		changed = false
@@ -291,8 +313,8 @@ type itadDeal struct {
 		Regular struct {
 			Amount float64 `json:"amount"`
 		} `json:"regular"`
-		Cut   int `json:"cut"`
-		Shop  struct {
+		Cut  int `json:"cut"`
+		Shop struct {
 			Name string `json:"name"`
 		} `json:"shop"`
 	} `json:"deal"`
@@ -320,14 +342,13 @@ func fetchITAD(opts Options) ([]Game, error) {
 			continue
 		}
 		shop := strings.ToLower(d.Deal.Shop.Name)
-		platform := "PC, " + d.Deal.Shop.Name
-		_ = shop
+		platform := itadPlatform(shop, d.Deal.Shop.Name)
 		out = append(out, Game{
 			Title:     d.Title,
 			URL:       d.Deal.URL,
 			Worth:     fmt.Sprintf("€%.2f", d.Deal.Regular.Amount),
 			Platforms: platform,
-			EndDate:   "N/A",
+			EndDate:   i18n.T("games.platform.na"),
 		})
 	}
 	return out, nil

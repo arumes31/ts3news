@@ -1,22 +1,22 @@
 package content
 
 import (
-	"fmt"
 	"math/rand/v2"
+	"ts3news/internal/i18n"
 )
 
 // Unique item name generation (50 adjectives × 20 nouns = 1000 combinations)
-var uniqueAdjectives = []string{
-	"Ancient", "Cursed", "Blessed", "Radiant", "Shadow", "Eternal", "Void", "Celestial", "Infernal", "Frost",
-	"Storm", "Earth", "Blood", "Soul", "Spirit", "Divine", "Mythic", "Legendary", "Epic", "Rare",
-	"Gleaming", "Dark", "Light", "Holy", "Unholy", "Swift", "Heavy", "Sharp", "Blunt", "Magic",
-	"Arcane", "Primal", "Savage", "Noble", "Royal", "Imperial", "Grand", "Mighty", "Fierce", "Wild",
-	"Tame", "Silent", "Loud", "Bright", "Dim", "Cold", "Hot", "Burning", "Freezing", "Shattered",
-}
+var uniqueAdjectives []string
+var uniqueNouns []string
+var uniqueItemsInitialized bool
 
-var uniqueNouns = []string{
-	"Blade", "Shield", "Helm", "Armor", "Boots", "Gloves", "Ring", "Amulet", "Staff", "Bow",
-	"Dagger", "Axe", "Mace", "Spear", "Orb", "Tome", "Scroll", "Potion", "Charm", "Relic",
+func initUniqueItems() {
+	if uniqueItemsInitialized {
+		return
+	}
+	uniqueItemsInitialized = true
+	uniqueAdjectives = i18n.Pool("pool.unique.adjective")
+	uniqueNouns = i18n.Pool("pool.unique.noun")
 }
 
 // UniqueItem represents a collectible item with a unique name
@@ -28,15 +28,28 @@ type UniqueItem struct {
 
 // GenerateUniqueItemName creates a random unique item name
 func GenerateUniqueItemName() string {
+	initUniqueItems()
+	adjectives := uniqueAdjectives
+	nouns := uniqueNouns
+
+	// Safety check for empty pools (can happen during init before i18n is fully loaded)
+	if len(adjectives) == 0 {
+		adjectives = []string{"Ancient", "Cursed", "Blessed", "Radiant", "Shadow"}
+	}
+	if len(nouns) == 0 {
+		nouns = []string{"Blade", "Shield", "Helm", "Armor", "Boots"}
+	}
+
 	// #nosec G404
-	adj := uniqueAdjectives[rand.IntN(len(uniqueAdjectives))] // #nosec G404
+	adj := adjectives[rand.IntN(len(adjectives))] // #nosec G404
 	// #nosec G404
-	noun := uniqueNouns[rand.IntN(len(uniqueNouns))] // #nosec G404
+	noun := nouns[rand.IntN(len(nouns))] // #nosec G404
 	return adj + " " + noun
 }
 
 // RandomUniqueItem generates a random unique collectible item
 func RandomUniqueItem() UniqueItem {
+	initUniqueItems()
 	name := GenerateUniqueItemName()
 
 	// Determine rarity (unique items are inherently rare)
@@ -69,5 +82,5 @@ func RandomUniqueItem() UniqueItem {
 
 // GetUniqueItemDescription returns a formatted description
 func GetUniqueItemDescription(item UniqueItem) string {
-	return fmt.Sprintf("%s %s (Power: %.1f)", item.Rarity, item.Name, item.Power)
+	return i18n.T("content.unique_item.description", i18n.R(int(item.Rarity)), item.Name, item.Power)
 }

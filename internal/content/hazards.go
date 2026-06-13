@@ -1,10 +1,10 @@
 package content
 
 import (
-	"fmt"
 	"math"
 	"math/rand/v2"
 	"strings"
+	"ts3news/internal/i18n"
 )
 
 // HazardType represents the category of environmental hazard
@@ -61,8 +61,8 @@ type HazardEffect struct {
 var AllHazards = []Hazard{
 	{
 		ID:          "HAZ_LAVA",
-		Name:        "Boiling Lava",
-		Description: "Molten rock bubbles up from the ground, burning everything in its path",
+		Name:        i18n.T("hazard.boiling_lava"),
+		Description: i18n.T("hazard.boiling_lava.desc"),
 		Type:        HazardDamageOverTime,
 		EffectValue: 0.05, // 5% of max HP per round
 		Duration:    3,
@@ -72,8 +72,8 @@ var AllHazards = []Hazard{
 	},
 	{
 		ID:          "HAZ_POISON_GAS",
-		Name:        "Toxic Fumes",
-		Description: "Noxious gases fill the air, causing nausea and weakness",
+		Name:        i18n.T("hazard.toxic_fumes"),
+		Description: i18n.T("hazard.toxic_fumes.desc"),
 		Type:        HazardStatReduction,
 		EffectValue: 0.30, // 30% stat reduction
 		Duration:    4,
@@ -83,8 +83,8 @@ var AllHazards = []Hazard{
 	},
 	{
 		ID:          "HAZ_SANDSTORM",
-		Name:        "Raging Sandstorm",
-		Description: "Blinding sand whips through the air, making it hard to see or move",
+		Name:        i18n.T("hazard.raging_sandstorm"),
+		Description: i18n.T("hazard.raging_sandstorm.desc"),
 		Type:        HazardVisionImpair,
 		EffectValue: 0.40, // 40% chance to miss attacks
 		Duration:    5,
@@ -94,8 +94,8 @@ var AllHazards = []Hazard{
 	},
 	{
 		ID:          "HAZ_BLIZZARD",
-		Name:        "Howling Blizzard",
-		Description: "Freezing winds and snow reduce visibility and movement",
+		Name:        i18n.T("hazard.howling_blizzard"),
+		Description: i18n.T("hazard.howling_blizzard.desc"),
 		Type:        HazardMovementImpair,
 		EffectValue: 0.20, // 20% speed reduction
 		Duration:    4,
@@ -105,8 +105,8 @@ var AllHazards = []Hazard{
 	},
 	{
 		ID:          "HAZ_RADIATION",
-		Name:        "Deadly Radiation",
-		Description: "Toxic radiation slowly eats away at health and vitality",
+		Name:        i18n.T("hazard.deadly_radiation"),
+		Description: i18n.T("hazard.deadly_radiation.desc"),
 		Type:        HazardDamageOverTime,
 		EffectValue: 0.08, // 8% of max HP per round
 		Duration:    5,
@@ -116,8 +116,8 @@ var AllHazards = []Hazard{
 	},
 	{
 		ID:          "HAZ_QUICKSAND",
-		Name:        "Treacherous Quicksand",
-		Description: "Sinking sand makes movement difficult and draining",
+		Name:        i18n.T("hazard.treacherous_quicksand"),
+		Description: i18n.T("hazard.treacherous_quicksand.desc"),
 		Type:        HazardMovementImpair,
 		EffectValue: 0.30, // 30% speed reduction
 		Duration:    3,
@@ -127,8 +127,8 @@ var AllHazards = []Hazard{
 	},
 	{
 		ID:          "HAZ_CURSED_AURA",
-		Name:        "Cursed Aura",
-		Description: "A dark energy saps the strength and will of all who enter",
+		Name:        i18n.T("hazard.cursed_aura"),
+		Description: i18n.T("hazard.cursed_aura.desc"),
 		Type:        HazardStatReduction,
 		EffectValue: 0.25, // 25% stat reduction
 		Duration:    6,
@@ -138,8 +138,8 @@ var AllHazards = []Hazard{
 	},
 	{
 		ID:          "HAZ_MAGIC_DRAIN",
-		Name:        "Arcane Vortex",
-		Description: "A swirling vortex of magic energy disrupts spellcasting and skills",
+		Name:        i18n.T("hazard.arcane_vortex"),
+		Description: i18n.T("hazard.arcane_vortex.desc"),
 		Type:        HazardStatReduction,
 		EffectValue: 0.40, // 40% skill effectiveness reduction
 		Duration:    4,
@@ -250,7 +250,7 @@ func ApplyHazardEffects(
 		// Decrement duration
 		effect.Remaining--
 		if effect.Remaining <= 0 {
-			*logs = append(*logs, fmt.Sprintf("⏳ %s has dissipated", effect.Hazard.Name))
+			*logs = append(*logs, i18n.T("content.hazard.dissipated", effect.Hazard.Name))
 			continue
 		}
 
@@ -269,7 +269,7 @@ func ApplyHazardEffects(
 				resistance := getResistanceValue(u.Stats, effect.Hazard.Resistance)
 				damage = int(float64(damage) * (1.0 - resistance))
 				u.CurrentHP -= damage
-				*logs = append(*logs, fmt.Sprintf("☠️ %s takes %d damage from %s", u.Nickname, damage, effect.Hazard.Name))
+				*logs = append(*logs, i18n.T("content.hazard.damage", u.Nickname, damage, effect.Hazard.Name))
 			}
 			for _, m := range mobs {
 				if m.CurrentHP <= 0 {
@@ -283,7 +283,7 @@ func ApplyHazardEffects(
 				resistance := getResistanceValue(m.Stats, effect.Hazard.Resistance)
 				damage = int(float64(damage) * (1.0 - resistance))
 				m.CurrentHP -= damage
-				*logs = append(*logs, fmt.Sprintf("☠️ %s takes %d damage from %s", m.Name, damage, effect.Hazard.Name))
+				*logs = append(*logs, i18n.T("content.hazard.damage", m.Name, damage, effect.Hazard.Name))
 			}
 		case HazardStatReduction:
 			// Apply stat reduction to all combatants via modifiers
@@ -297,7 +297,7 @@ func ApplyHazardEffects(
 				u.STRMod *= (1.0 - reduction)
 				u.DEFMod *= (1.0 - reduction)
 				u.SPDMod *= (1.0 - reduction)
-				*logs = append(*logs, fmt.Sprintf("🌪️ %s is weakened by %s (%.0f%%)", u.Nickname, effect.Hazard.Name, reduction*100))
+				*logs = append(*logs, i18n.T("content.hazard.weakened", u.Nickname, effect.Hazard.Name, reduction*100))
 			}
 			for _, m := range mobs {
 				if m.CurrentHP <= 0 {
@@ -309,7 +309,7 @@ func ApplyHazardEffects(
 				m.STRMod *= (1.0 - reduction)
 				m.DEFMod *= (1.0 - reduction)
 				m.SPDMod *= (1.0 - reduction)
-				*logs = append(*logs, fmt.Sprintf("🌪️ %s is weakened by %s (%.0f%%)", m.Name, effect.Hazard.Name, reduction*100))
+				*logs = append(*logs, i18n.T("content.hazard.weakened", m.Name, effect.Hazard.Name, reduction*100))
 			}
 		case HazardVisionImpair:
 			// Apply miss chance to users
@@ -320,7 +320,7 @@ func ApplyHazardEffects(
 				resistance := getResistanceValue(u.Stats, effect.Hazard.Resistance)
 				impairment := effect.Hazard.EffectValue * (1.0 - resistance)
 				// This will be checked during attack rolls
-				*logs = append(*logs, fmt.Sprintf("👁️ %s's vision is impaired by %s (%.0f%% miss chance)", u.Nickname, effect.Hazard.Name, impairment*100))
+				*logs = append(*logs, i18n.T("content.hazard.vision_impaired", u.Nickname, effect.Hazard.Name, impairment*100))
 			}
 		case HazardMovementImpair:
 			// Apply speed reduction to users via modifiers
@@ -331,7 +331,7 @@ func ApplyHazardEffects(
 				resistance := getResistanceValue(u.Stats, effect.Hazard.Resistance)
 				reduction := effect.Hazard.EffectValue * (1.0 - resistance)
 				u.SPDMod *= (1.0 - reduction)
-				*logs = append(*logs, fmt.Sprintf("🏃 %s's movement is impaired by %s (%.0f%% slower)", u.Nickname, effect.Hazard.Name, reduction*100))
+				*logs = append(*logs, i18n.T("content.hazard.movement_impaired", u.Nickname, effect.Hazard.Name, reduction*100))
 			}
 		}
 

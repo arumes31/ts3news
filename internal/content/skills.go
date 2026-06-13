@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"strings"
+	"ts3news/internal/i18n"
 )
 
 type SkillType string
@@ -42,21 +43,24 @@ type UltimateSkill struct {
 }
 
 var allSkills []Skill
+var skillsInitialized bool
 
-func init() {
-	// Inspired Prefix & Action pools for 1500+ variants
-	prefixes := []string{
-		"Mortal", "Heroic", "Flash", "Greater", "Lesser", "Chaos", "Fel", "Shadow", "Holy", "Frost",
-		"Fire", "Arcane", "Divine", "Primal", "Ancient", "Abyssal", "Spectral", "Vengeful", "Spiteful", "Cursed",
-		"Hallowed", "Glacial", "Volcanic", "Static", "Thunderous", "Corrupting", "Blighted", "Toxic", "Metallic", "Glass",
-		"Lunar", "Solar", "Celestial", "Infernal", "Mystic", "Raging", "Silent", "Eternal", "Void", "Astral",
-		"Iron", "Steel", "Mithril", "Adamant", "Crystalline", "Nebulous", "Star-Forged", "Storm-Born", "Shadow-Bound", "Light-Blessed",
+func initSkills() {
+	if skillsInitialized {
+		return
 	}
-	actions := []string{
-		"Strike", "Blast", "Roar", "Slash", "Burst", "Touch", "Winds", "Nova", "Pulse", "Drain",
-		"Bolt", "Ray", "Wave", "Aura", "Shield", "Plea", "Call", "Fury", "Vortex", "Sunder",
-		"Mend", "Heal", "Bash", "Cleave", "Execute", "Rend", "Charge", "Leap", "Smite", "Shock",
-		"Breath", "Bite", "Sting", "Claw", "Maul", "Swipe", "Growl", "Prowl", "Shred", "Blink",
+	skillsInitialized = true
+
+	// Inspired Prefix & Action pools for 1500+ variants
+	prefixes := i18n.Pool("pool.skill.prefix")
+	actions := i18n.Pool("pool.skill.action")
+
+	// Safety check for empty pools
+	if len(prefixes) == 0 {
+		prefixes = []string{"Fiery", "Icy", "Shadow", "Holy", "Arcane", "Toxic", "Storm", "Earth", "Wind", "Blood"}
+	}
+	if len(actions) == 0 {
+		actions = []string{"Strike", "Blast", "Bolt", "Heal", "Shield", "Curse", "Sunder", "Bash", "Mend", "Drain"}
 	}
 
 	// Add basic novice skills
@@ -131,7 +135,7 @@ func init() {
 					s.Special = EffectPhoenix
 				}
 
-				s.Description = fmt.Sprintf("%s %s rank %d.", s.Rarity, s.Name, int(rarity)+1)
+				s.Description = i18n.T("content.skill.description", i18n.R(int(s.Rarity)), s.Name, int(rarity)+1)
 				allSkills = append(allSkills, s)
 			}
 			idx++
@@ -151,6 +155,7 @@ func (s Skill) Score() int {
 }
 
 func RandomSkill() Skill {
+	initSkills()
 	// #nosec G404
 	s := allSkills[rand.IntN(len(allSkills))] // #nosec G404
 	// Roll for additional effect if it doesn't have one
@@ -161,6 +166,7 @@ func RandomSkill() Skill {
 }
 
 func GetSkillByID(id string) (Skill, bool) {
+	initSkills()
 	for _, s := range allSkills {
 		if s.ID == id {
 			return s, true
@@ -170,6 +176,7 @@ func GetSkillByID(id string) (Skill, bool) {
 }
 
 func IsSkill(name string) bool {
+	initSkills()
 	for _, s := range allSkills {
 		if s.Name == name {
 			return true
@@ -241,7 +248,7 @@ func init() {
 				Power:           power,
 				CooldownRounds:  cooldown,
 				CurrentCooldown: 0,
-				Description:     fmt.Sprintf("%s ultimate: %.1fx damage, %d round cooldown", rarity, power, cooldown),
+				Description:     i18n.T("content.ultimate_skill.description", i18n.R(int(rarity)), power, cooldown),
 			}
 			allUltimateSkills = append(allUltimateSkills, skill)
 			idx++
@@ -255,7 +262,7 @@ func init() {
 		Rarity:         RarityDivine,
 		Power:          0.0,
 		CooldownRounds: 15,
-		Description:    "Divine ultimate: Automatically revives you once per fight with 50% HP",
+		Description:    i18n.T("content.ultimate_skill.revival_description"),
 		Special:        EffectPhoenix,
 	})
 }

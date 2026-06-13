@@ -1,11 +1,20 @@
 package bot
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"ts3news/internal/config"
 	"ts3news/internal/games"
+	"ts3news/internal/i18n"
 )
+
+func TestMain(m *testing.M) {
+	if err := i18n.InitWithLocale(i18n.LocaleEnUS); err != nil {
+		panic("i18n init failed: " + err.Error())
+	}
+	os.Exit(m.Run())
+}
 
 func TestSplitMessage(t *testing.T) {
 	msg := "line1\nline2\nline3"
@@ -33,7 +42,7 @@ func TestComposePM(t *testing.T) {
 
 func TestXPForGame(t *testing.T) {
 	b := &Bot{Cfg: &config.Config{}}
-	
+
 	tests := []struct {
 		worth   string
 		cheaper bool

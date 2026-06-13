@@ -7,6 +7,7 @@ import (
 
 	"ts3news/internal/clientquery"
 	"ts3news/internal/content"
+	"ts3news/internal/i18n"
 )
 
 // syncLootGroups ensures the user is in the correct TS3 server groups for their
@@ -46,7 +47,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 		// Add type information
 		typeCode := "[" + itemType + "] "
 
-		prefix := fmt.Sprintf("(gs:%d) %s%s", score, effCode, typeCode)
+		prefix := i18n.T("loot_sync.group_name", score, effCode, typeCode)
 		avail := 30 - len(prefix)
 		if avail <= 0 {
 			return prefix[:30]
