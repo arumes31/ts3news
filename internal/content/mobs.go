@@ -3,6 +3,7 @@ package content
 import (
 	"math/rand/v2"
 	"strings"
+	"sync"
 	"ts3news/internal/i18n"
 )
 
@@ -107,36 +108,34 @@ func (m Mob) Score() int {
 }
 
 var baseMobs []Mob
-var mobsInitialized bool
+var mobsInitOnce sync.Once
 
 func initMobs() {
-	if mobsInitialized {
-		return
-	}
-	mobsInitialized = true
+	mobsInitOnce.Do(func() {
 
-	prefixes := i18n.Pool("pool.mob.prefix")
-	nouns := i18n.Pool("pool.mob.noun")
+		prefixes := i18n.Pool("pool.mob.prefix")
+		nouns := i18n.Pool("pool.mob.noun")
 
-	// Safety check for empty pools (can happen during init before i18n is fully loaded)
-	if len(prefixes) == 0 {
-		prefixes = []string{"Snotty", "Angry", "Undead", "Shadow", "Fiery", "Ice-Cold", "Toxic", "Ghostly", "Metallic", "Giant"}
-	}
-	if len(nouns) == 0 {
-		nouns = []string{"Rat", "Slime", "Goblin", "Spider", "Zombie", "Wolf", "Skeleton", "Bat", "Orc", "Troll"}
-	}
-
-	for _, p := range prefixes {
-		for _, n := range nouns {
-			name := p + " " + n
-			baseMobs = append(baseMobs, Mob{
-				Name:     name,
-				Type:     MobCommon,
-				Stats:    Stats{HP: 20, STR: 12, DEF: 2, SPD: 5, LCK: 0},
-				RewardXP: 5,
-			})
+		// Safety check for empty pools (can happen during init before i18n is fully loaded)
+		if len(prefixes) == 0 {
+			prefixes = []string{"Snotty", "Angry", "Undead", "Shadow", "Fiery", "Ice-Cold", "Toxic", "Ghostly", "Metallic", "Giant"}
 		}
-	}
+		if len(nouns) == 0 {
+			nouns = []string{"Rat", "Slime", "Goblin", "Spider", "Zombie", "Wolf", "Skeleton", "Bat", "Orc", "Troll"}
+		}
+
+		for _, p := range prefixes {
+			for _, n := range nouns {
+				name := p + " " + n
+				baseMobs = append(baseMobs, Mob{
+					Name:     name,
+					Type:     MobCommon,
+					Stats:    Stats{HP: 20, STR: 12, DEF: 2, SPD: 5, LCK: 0},
+					RewardXP: 5,
+				})
+			}
+		}
+	})
 
 	// EliteMinions (stronger common)
 	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.corrupted_guard"), Type: MobEliteMinion, Stats: Stats{HP: 60, STR: 25, DEF: 10, SPD: 7, LCK: 2}, RewardXP: 12})

@@ -10,6 +10,7 @@ import (
 	"math/rand/v2"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // LocaleID is a BCP 47 locale identifier, e.g. "en_US", "de_DE".
@@ -52,6 +53,7 @@ var AllLocales = []LocaleID{
 
 // global is the package-level singleton, set by Init.
 var global *Bundle
+var globalMutex sync.RWMutex
 
 // Init loads all embedded locale files and sets the active locale.
 // Must be called once at program startup before any T()/N()/P() calls.
@@ -60,6 +62,8 @@ func Init(fs embed.FS, locale LocaleID) error {
 	if err != nil {
 		return fmt.Errorf("i18n.Init: %w", err)
 	}
+	globalMutex.Lock()
+	defer globalMutex.Unlock()
 	global = b
 	return nil
 }
@@ -127,10 +131,15 @@ func P(pool string) string {
 // Pool returns the full slice of entries for a named content pool.
 // Falls back to en_US if the current locale has no entries.
 func Pool(pool string) []string {
+	globalMutex.RLock()
+	defer globalMutex.RUnlock()
 	if global == nil {
 		return nil
 	}
-	return global.getPool(pool)
+	p := global.getPool(pool)
+	copied := make([]string, len(p))
+	copy(copied, p)
+	return copied
 }
 
 // R returns the translated rarity name for a given rarity constant (0-6).

@@ -3,6 +3,7 @@ package content
 import (
 	"math/rand/v2"
 	"strings"
+	"sync"
 	"ts3news/internal/i18n"
 	"unicode"
 )
@@ -11,54 +12,54 @@ import (
 // bot adopts while announcing that game (feature: "VaultBoy" for Fallout, etc.).
 // Uses lazy initialization to ensure i18n is loaded before T() calls.
 var franchiseNicks map[string]string
+var nickInitOnce sync.Once
 
 func initFranchiseNicks() {
-	if franchiseNicks != nil {
-		return
-	}
-	franchiseNicks = map[string]string{
-		"fallout":        i18n.T("content.nickname.vaultboy"),
-		"elder":          i18n.T("content.nickname.dovahkiin"),
-		"skyrim":         i18n.T("content.nickname.dovahkiin"),
-		"witcher":        i18n.T("content.nickname.geralt_of_rivia"),
-		"doom":           i18n.T("content.nickname.doomguy"),
-		"halo":           i18n.T("content.nickname.master_chief"),
-		"zelda":          i18n.T("content.nickname.hero_of_time"),
-		"mario":          i18n.T("content.nickname.itsa_me"),
-		"sonic":          i18n.T("content.nickname.gotta_go_fast"),
-		"portal":         i18n.T("content.nickname.still_alive"),
-		"minecraft":      i18n.T("content.nickname.steve"),
-		"tomb":           i18n.T("content.nickname.lara_croft"),
-		"assassin":       i18n.T("content.nickname.ezio_auditore"),
-		"god of war":     i18n.T("content.nickname.kratos"),
-		"resident":       i18n.T("content.nickname.stars_member"),
-		"silent":         i18n.T("content.nickname.foggy_hill"),
-		"dark souls":     i18n.T("content.nickname.chosen_undead"),
-		"elden":          i18n.T("content.nickname.tarnished"),
-		"cyberpunk":      i18n.T("content.nickname.choom_v"),
-		"grand theft":    i18n.T("content.nickname.wanted_level_5"),
-		"counter":        i18n.T("content.nickname.rush_b"),
-		"half-life":      i18n.T("content.nickname.freeman_phd"),
-		"metroid":        i18n.T("content.nickname.samus_aran"),
-		"metal gear":     i18n.T("content.nickname.solid_snake"),
-		"final fantasy":  i18n.T("content.nickname.chocobo_rider"),
-		"star wars":      i18n.T("content.nickname.use_the_force"),
-		"borderlands":    i18n.T("content.nickname.vault_hunter"),
-		"diablo":         i18n.T("content.nickname.nephalem_hero"),
-		"warcraft":       i18n.T("content.nickname.for_the_horde"),
-		"overwatch":      i18n.T("content.nickname.payload_escort"),
-		"bioshock":       i18n.T("content.nickname.would_you_kindly"),
-		"far cry":        i18n.T("content.nickname.rookie_fc"),
-		"hitman":         i18n.T("content.nickname.agent_47"),
-		"mortal":         i18n.T("content.nickname.flawless_victory"),
-		"street fighter": i18n.T("content.nickname.hadouken"),
-		"pac-man":        i18n.T("content.nickname.waka_waka"),
-		"tetris":         i18n.T("content.nickname.tspin_triple"),
-		"among us":       i18n.T("content.nickname.not_the_impostor"),
-		"terraria":       i18n.T("content.nickname.moon_lord"),
-		"stardew":        i18n.T("content.nickname.junimo_farmer"),
-		"hollow":         i18n.T("content.nickname.the_knight"),
-	}
+	nickInitOnce.Do(func() {
+		franchiseNicks = map[string]string{
+			"fallout":        i18n.T("content.nickname.vaultboy"),
+			"elder":          i18n.T("content.nickname.dovahkiin"),
+			"skyrim":         i18n.T("content.nickname.dovahkiin"),
+			"witcher":        i18n.T("content.nickname.geralt_of_rivia"),
+			"doom":           i18n.T("content.nickname.doomguy"),
+			"halo":           i18n.T("content.nickname.master_chief"),
+			"zelda":          i18n.T("content.nickname.hero_of_time"),
+			"mario":          i18n.T("content.nickname.itsa_me"),
+			"sonic":          i18n.T("content.nickname.gotta_go_fast"),
+			"portal":         i18n.T("content.nickname.still_alive"),
+			"minecraft":      i18n.T("content.nickname.steve"),
+			"tomb":           i18n.T("content.nickname.lara_croft"),
+			"assassin":       i18n.T("content.nickname.ezio_auditore"),
+			"god of war":     i18n.T("content.nickname.kratos"),
+			"resident":       i18n.T("content.nickname.stars_member"),
+			"silent":         i18n.T("content.nickname.foggy_hill"),
+			"dark souls":     i18n.T("content.nickname.chosen_undead"),
+			"elden":          i18n.T("content.nickname.tarnished"),
+			"cyberpunk":      i18n.T("content.nickname.choom_v"),
+			"grand theft":    i18n.T("content.nickname.wanted_level_5"),
+			"counter":        i18n.T("content.nickname.rush_b"),
+			"half-life":      i18n.T("content.nickname.freeman_phd"),
+			"metroid":        i18n.T("content.nickname.samus_aran"),
+			"metal gear":     i18n.T("content.nickname.solid_snake"),
+			"final fantasy":  i18n.T("content.nickname.chocobo_rider"),
+			"star wars":      i18n.T("content.nickname.use_the_force"),
+			"borderlands":    i18n.T("content.nickname.vault_hunter"),
+			"diablo":         i18n.T("content.nickname.nephalem_hero"),
+			"warcraft":       i18n.T("content.nickname.for_the_horde"),
+			"overwatch":      i18n.T("content.nickname.payload_escort"),
+			"bioshock":       i18n.T("content.nickname.would_you_kindly"),
+			"far cry":        i18n.T("content.nickname.rookie_fc"),
+			"hitman":         i18n.T("content.nickname.agent_47"),
+			"mortal":         i18n.T("content.nickname.flawless_victory"),
+			"street fighter": i18n.T("content.nickname.hadouken"),
+			"pac-man":        i18n.T("content.nickname.waka_waka"),
+			"tetris":         i18n.T("content.nickname.tspin_triple"),
+			"among us":       i18n.T("content.nickname.not_the_impostor"),
+			"terraria":       i18n.T("content.nickname.moon_lord"),
+			"stardew":        i18n.T("content.nickname.junimo_farmer"),
+			"hollow":         i18n.T("content.nickname.the_knight"),
+		}
+	})
 }
 
 // gamerSuffixes are appended to a derived nick when no franchise keyword matches.

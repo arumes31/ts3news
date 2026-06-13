@@ -278,13 +278,13 @@ type Enchantment struct {
 var allGear []Gear
 var uniqueLegendaries []Gear
 var allConsumables = []Consumable{
-	{"P1", i18n.T("content.consumable.small_health_potion"), ConsumableHealing, 50, 0, i18n.T("content.consumable.small_health_potion_desc")},
-	{"P2", i18n.T("content.consumable.great_health_potion"), ConsumableHealing, 200, 0, i18n.T("content.consumable.great_health_potion_desc")},
-	{"P3", i18n.T("content.consumable.strength_elixir"), ConsumableBuff, 15, 3, i18n.T("content.consumable.strength_elixir_desc")},
-	{"P4", i18n.T("content.consumable.iron_skin_brew"), ConsumableBuff, 10, 3, i18n.T("content.consumable.iron_skin_brew_desc")},
-	{"P5", i18n.T("content.consumable.phoenix_feather"), ConsumableRevive, 50, 0, i18n.T("content.consumable.phoenix_feather_desc")},
-	{"P6", i18n.T("content.consumable.repair_kit"), ConsumableRepair, 30, 0, i18n.T("content.consumable.repair_kit_desc")},
-	{"P7", i18n.T("content.consumable.master_repair_kit"), ConsumableRepair, 75, 0, i18n.T("content.consumable.master_repair_kit_desc")},
+	{"small_health_potion", i18n.T("content.consumable.small_health_potion"), ConsumableHealing, 50, 0, i18n.T("content.consumable.small_health_potion_desc")},
+	{"great_health_potion", i18n.T("content.consumable.great_health_potion"), ConsumableHealing, 200, 0, i18n.T("content.consumable.great_health_potion_desc")},
+	{"strength_elixir", i18n.T("content.consumable.strength_elixir"), ConsumableBuff, 15, 3, i18n.T("content.consumable.strength_elixir_desc")},
+	{"iron_skin_brew", i18n.T("content.consumable.iron_skin_brew"), ConsumableBuff, 10, 3, i18n.T("content.consumable.iron_skin_brew_desc")},
+	{"phoenix_feather", i18n.T("content.consumable.phoenix_feather"), ConsumableRevive, 50, 0, i18n.T("content.consumable.phoenix_feather_desc")},
+	{"repair_kit", i18n.T("content.consumable.repair_kit"), ConsumableRepair, 30, 0, i18n.T("content.consumable.repair_kit_desc")},
+	{"master_repair_kit", i18n.T("content.consumable.master_repair_kit"), ConsumableRepair, 75, 0, i18n.T("content.consumable.master_repair_kit_desc")},
 }
 
 var allEnchantments []Enchantment
@@ -367,8 +367,8 @@ func init() {
 	}
 
 	// Pools for procedural generation
-	prefixes := i18n.Pool("pool.artifact.prefix")
-	suffixes := i18n.Pool("pool.artifact.suffix")
+	prefixes := i18n.Pool("pool.prefix")
+	suffixes := i18n.Pool("pool.suffix")
 
 	// Safety check for empty pools (can happen during init before i18n is fully loaded)
 	if len(prefixes) == 0 {

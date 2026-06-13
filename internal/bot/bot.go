@@ -146,18 +146,20 @@ func (b *Bot) calculateTotalStats(uid string, now time.Time) (content.Stats, int
 		var gearStats content.Stats
 		var rarity int
 		var combatRating float64
-		if err := rows.Scan(&gearID, &gearStats, &rarity, &combatRating); err == nil {
-			totalStats.HP += gearStats.HP
-			totalStats.STR += gearStats.STR
-			totalStats.DEF += gearStats.DEF
-			totalStats.SPD += gearStats.SPD
-			totalStats.LCK += gearStats.LCK
-			totalStats.INT += gearStats.INT
-			totalStats.STA += gearStats.STA
-			totalStats.CRT += gearStats.CRT
-			totalStats.DGE += gearStats.DGE
-			gearScore += combatRating * float64(rarity)
+		if err := rows.Scan(&gearID, &gearStats, &rarity, &combatRating); err != nil {
+			log.Printf("Warning: failed to scan gear row (gearID=%s, row index): %v", gearID, err)
+			continue
 		}
+		totalStats.HP += gearStats.HP
+		totalStats.STR += gearStats.STR
+		totalStats.DEF += gearStats.DEF
+		totalStats.SPD += gearStats.SPD
+		totalStats.LCK += gearStats.LCK
+		totalStats.INT += gearStats.INT
+		totalStats.STA += gearStats.STA
+		totalStats.CRT += gearStats.CRT
+		totalStats.DGE += gearStats.DGE
+		gearScore += combatRating * float64(rarity)
 	}
 
 	// Get enchantments
@@ -174,17 +176,19 @@ func (b *Bot) calculateTotalStats(uid string, now time.Time) (content.Stats, int
 	for enchantRows.Next() {
 		var enchantStats content.Stats
 		var rarity int
-		if err := enchantRows.Scan(&enchantStats, &rarity); err == nil {
-			totalStats.HP += enchantStats.HP
-			totalStats.STR += enchantStats.STR
-			totalStats.DEF += enchantStats.DEF
-			totalStats.SPD += enchantStats.SPD
-			totalStats.LCK += enchantStats.LCK
-			totalStats.INT += enchantStats.INT
-			totalStats.STA += enchantStats.STA
-			totalStats.CRT += enchantStats.CRT
-			totalStats.DGE += enchantStats.DGE
+		if err := enchantRows.Scan(&enchantStats, &rarity); err != nil {
+			log.Printf("Warning: failed to scan enchantment row: %v", err)
+			continue
 		}
+		totalStats.HP += enchantStats.HP
+		totalStats.STR += enchantStats.STR
+		totalStats.DEF += enchantStats.DEF
+		totalStats.SPD += enchantStats.SPD
+		totalStats.LCK += enchantStats.LCK
+		totalStats.INT += enchantStats.INT
+		totalStats.STA += enchantStats.STA
+		totalStats.CRT += enchantStats.CRT
+		totalStats.DGE += enchantStats.DGE
 	}
 
 	return totalStats, 0, gearScore, nil
@@ -205,9 +209,11 @@ func (b *Bot) getSkills(uid string) []content.Skill {
 
 	for rows.Next() {
 		var skill content.Skill
-		if err := rows.Scan(&skill.ID, &skill.Name, &skill.Type, &skill.Rarity, &skill.Power, &skill.IgnoreDef, &skill.StunChance, &skill.HealPercent, &skill.Description, &skill.Special); err == nil {
-			skills = append(skills, skill)
+		if err := rows.Scan(&skill.ID, &skill.Name, &skill.Type, &skill.Rarity, &skill.Power, &skill.IgnoreDef, &skill.StunChance, &skill.HealPercent, &skill.Description, &skill.Special); err != nil {
+			log.Printf("Warning: failed to scan skill row: %v", err)
+			continue
 		}
+		skills = append(skills, skill)
 	}
 	return skills
 }
@@ -227,9 +233,11 @@ func (b *Bot) getUltimateSkill(uid string) *content.UltimateSkill {
 
 	if rows.Next() {
 		ultimate = &content.UltimateSkill{}
-		if err := rows.Scan(&ultimate.ID, &ultimate.Name, &ultimate.Rarity, &ultimate.Power, &ultimate.CooldownRounds, &ultimate.CurrentCooldown, &ultimate.Description, &ultimate.Special); err == nil {
-			return ultimate
+		if err := rows.Scan(&ultimate.ID, &ultimate.Name, &ultimate.Rarity, &ultimate.Power, &ultimate.CooldownRounds, &ultimate.CurrentCooldown, &ultimate.Description, &ultimate.Special); err != nil {
+			log.Printf("Warning: failed to scan ultimate skill row: %v", err)
+			return nil
 		}
+		return ultimate
 	}
 	return nil
 }
@@ -278,6 +286,7 @@ func (b *Bot) applyEnchantment(uid string, enchantment content.Enchantment) erro
 
 // RunCycle now resolves group combat by channel
 func (b *Bot) RunCycle(c *clientquery.Client) error {
+	cycleTime := time.Now()
 	var freeGames []games.Game
 	var err error
 	if b.Cfg.EnableGameNews {
@@ -296,7 +305,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 	// ctx := b.buildCycleContext(clients)
 
 	if b.Cfg.EnableRPG {
-		// b.slothDecay(c, ctx.today)
+		// b.slothDecay(c, cycleTime)
 		if b.Cfg.XPServerGroups {
 			b.cleanupEmptyLevelGroups(c)
 		}
@@ -316,7 +325,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			continue
 		}
 
-		stats, _, gearScore, _ := b.calculateTotalStats(cl.UID, time.Now())
+		stats, _, gearScore, _ := b.calculateTotalStats(cl.UID, cycleTime)
 		skills := b.getSkills(cl.UID)
 		ultimate := b.getUltimateSkill(cl.UID)
 
@@ -416,7 +425,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			if b.Cfg.EnableRPG {
 				baseXP := b.xpForGame(game)
 				var artifactPoke string
-				lr, notes, artifactPoke = b.processUserXP(user.UID, user.Nickname, cid, baseXP+rewardXP, hasGame, time.Now())
+				lr, notes, artifactPoke = b.processUserXP(user.UID, user.Nickname, cid, baseXP+rewardXP, hasGame, cycleTime)
 				extraPoke = artifactPoke
 
 				// Auto-prestige at the level cap

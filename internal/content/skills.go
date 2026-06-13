@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"strings"
+	"sync"
 	"ts3news/internal/i18n"
 )
 
@@ -43,104 +44,101 @@ type UltimateSkill struct {
 }
 
 var allSkills []Skill
-var skillsInitialized bool
+var skillsInitOnce sync.Once
 
 func initSkills() {
-	if skillsInitialized {
-		return
-	}
-	skillsInitialized = true
+	skillsInitOnce.Do(func() {
+		// Inspired Prefix & Action pools for 1500+ variants
+		prefixes := i18n.Pool("pool.skill.prefix")
+		actions := i18n.Pool("pool.skill.action")
 
-	// Inspired Prefix & Action pools for 1500+ variants
-	prefixes := i18n.Pool("pool.skill.prefix")
-	actions := i18n.Pool("pool.skill.action")
-
-	// Safety check for empty pools
-	if len(prefixes) == 0 {
-		prefixes = []string{"Fiery", "Icy", "Shadow", "Holy", "Arcane", "Toxic", "Storm", "Earth", "Wind", "Blood"}
-	}
-	if len(actions) == 0 {
-		actions = []string{"Strike", "Blast", "Bolt", "Heal", "Shield", "Curse", "Sunder", "Bash", "Mend", "Drain"}
-	}
-
-	// Add basic novice skills
-	allSkills = append(allSkills, Skill{
-		ID:          "S0_1",
-		Name:        "Novice Spark",
-		Type:        SkillMagic,
-		Rarity:      RarityCommon,
-		Power:       1.1,
-		Description: "A weak magical spark.",
-	})
-	allSkills = append(allSkills, Skill{
-		ID:          "S0_2",
-		Name:        "Novice Punch",
-		Type:        SkillPhysical,
-		Rarity:      RarityCommon,
-		Power:       1.1,
-		Description: "A basic physical punch.",
-	})
-
-	idx := 1
-	for _, p := range prefixes {
-		for _, a := range actions {
-			// Generate 5 rarity tiers for every name combination (50 * 40 * 5 = 10,000 potential skills)
-			// But let's keep it manageable at ~1500 by using a selection logic
-			for rIdx := 0; rIdx < 5; rIdx++ {
-				rarity := Rarity(rIdx)
-				name := p + " " + a
-
-				// Only keep ~30% of combinations to reach ~1500-2000 total
-				if (idx+rIdx)%3 != 0 {
-					continue
-				}
-
-				sType := SkillPhysical
-				if strings.Contains(name, "Bolt") || strings.Contains(name, "Blast") || strings.Contains(name, "Nova") {
-					sType = SkillMagic
-				}
-				if strings.Contains(name, "Heal") || strings.Contains(name, "Mend") || strings.Contains(name, "Shield") {
-					sType = SkillBuff
-				}
-				if strings.Contains(name, "Curse") || strings.Contains(name, "Sunder") || strings.Contains(name, "Drain") {
-					sType = SkillDebuff
-				}
-
-				s := Skill{
-					ID:     fmt.Sprintf("S%d_%d", idx, rIdx),
-					Name:   name,
-					Type:   sType,
-					Rarity: rarity,
-					Power:  1.2 + (0.6 * float64(rarity)),
-				}
-
-				// Mechanics
-				if strings.Contains(name, "Sunder") || strings.Contains(name, "Execute") {
-					s.IgnoreDef = 0.3 + (0.1 * float64(rarity))
-				}
-				if strings.Contains(name, "Bash") || strings.Contains(name, "Shock") {
-					s.StunChance = 0.1 + (0.05 * float64(rarity))
-				}
-				if strings.Contains(name, "Heal") || strings.Contains(name, "Mend") {
-					s.HealPercent = 0.1 + (0.05 * float64(rarity))
-				}
-
-				// Rare special effects
-				// #nosec G404
-				if rarity >= RarityEpic && rand.Float64() < 0.1 { // #nosec G404
-					s.Special = EffectMindControl
-				}
-				// #nosec G404
-				if rarity == RarityLegendary && rand.Float64() < 0.05 { // #nosec G404
-					s.Special = EffectPhoenix
-				}
-
-				s.Description = i18n.T("content.skill.description", i18n.R(int(s.Rarity)), s.Name, int(rarity)+1)
-				allSkills = append(allSkills, s)
-			}
-			idx++
+		// Safety check for empty pools
+		if len(prefixes) == 0 {
+			prefixes = []string{"Fiery", "Icy", "Shadow", "Holy", "Arcane", "Toxic", "Storm", "Earth", "Wind", "Blood"}
 		}
-	}
+		if len(actions) == 0 {
+			actions = []string{"Strike", "Blast", "Bolt", "Heal", "Shield", "Curse", "Sunder", "Bash", "Mend", "Drain"}
+		}
+
+		// Add basic novice skills
+		allSkills = append(allSkills, Skill{
+			ID:          "S0_1",
+			Name:        "Novice Spark",
+			Type:        SkillMagic,
+			Rarity:      RarityCommon,
+			Power:       1.1,
+			Description: "A weak magical spark.",
+		})
+		allSkills = append(allSkills, Skill{
+			ID:          "S0_2",
+			Name:        "Novice Punch",
+			Type:        SkillPhysical,
+			Rarity:      RarityCommon,
+			Power:       1.1,
+			Description: "A basic physical punch.",
+		})
+
+		idx := 1
+		for _, p := range prefixes {
+			for _, a := range actions {
+				// Generate 5 rarity tiers for every name combination (50 * 40 * 5 = 10,000 potential skills)
+				// But let's keep it manageable at ~1500 by using a selection logic
+				for rIdx := 0; rIdx < 5; rIdx++ {
+					rarity := Rarity(rIdx)
+					name := p + " " + a
+
+					// Only keep ~30% of combinations to reach ~1500-2000 total
+					if (idx+rIdx)%3 != 0 {
+						continue
+					}
+
+					sType := SkillPhysical
+					if strings.Contains(name, "Bolt") || strings.Contains(name, "Blast") || strings.Contains(name, "Nova") {
+						sType = SkillMagic
+					}
+					if strings.Contains(name, "Heal") || strings.Contains(name, "Mend") || strings.Contains(name, "Shield") {
+						sType = SkillBuff
+					}
+					if strings.Contains(name, "Curse") || strings.Contains(name, "Sunder") || strings.Contains(name, "Drain") {
+						sType = SkillDebuff
+					}
+
+					s := Skill{
+						ID:     fmt.Sprintf("S%d_%d", idx, rIdx),
+						Name:   name,
+						Type:   sType,
+						Rarity: rarity,
+						Power:  1.2 + (0.6 * float64(rarity)),
+					}
+
+					// Mechanics
+					if strings.Contains(name, "Sunder") || strings.Contains(name, "Execute") {
+						s.IgnoreDef = 0.3 + (0.1 * float64(rarity))
+					}
+					if strings.Contains(name, "Bash") || strings.Contains(name, "Shock") {
+						s.StunChance = 0.1 + (0.05 * float64(rarity))
+					}
+					if strings.Contains(name, "Heal") || strings.Contains(name, "Mend") {
+						s.HealPercent = 0.1 + (0.05 * float64(rarity))
+					}
+
+					// Rare special effects
+					// #nosec G404
+					if rarity >= RarityEpic && rand.Float64() < 0.1 { // #nosec G404
+						s.Special = EffectMindControl
+					}
+					// #nosec G404
+					if rarity == RarityLegendary && rand.Float64() < 0.05 { // #nosec G404
+						s.Special = EffectPhoenix
+					}
+
+					s.Description = i18n.T("content.skill.description", i18n.R(int(s.Rarity)), s.Name, int(rarity)+1)
+					allSkills = append(allSkills, s)
+				}
+				idx++
+			}
+		}
+	})
 }
 
 func (s Skill) Score() int {
