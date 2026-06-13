@@ -396,7 +396,9 @@ func (b *Bot) applyAHItem(uid, itype string, dataJSON []byte) {
 	case "enchantment":
 		var ench content.Enchantment
 		if err := json.Unmarshal(dataJSON, &ench); err == nil {
-			b.applyEnchantment(uid, ench)
+			if err := b.applyEnchantment(uid, ench); err != nil {
+				log.Printf("Failed to apply enchantment for %s: %v", uid, err)
+			}
 		}
 	}
 }

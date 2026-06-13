@@ -63,12 +63,6 @@ func loadBundle(fs embed.FS, active LocaleID) (*Bundle, error) {
 	return b, nil
 }
 
-// yamlLocale is the intermediate struct for YAML deserialization.
-type yamlLocale struct {
-	LocaleMeta map[string]string `yaml:"_locale"`
-	// All other keys are captured via inline; we use a raw map approach.
-}
-
 // parseLocale deserializes a YAML file into a Locale.
 func parseLocale(data []byte, id LocaleID) (*Locale, error) {
 	// First pass: parse as generic map to handle nested structures (like _locale)

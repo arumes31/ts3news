@@ -242,12 +242,6 @@ func (b *Bot) getUltimateSkill(uid string) *content.UltimateSkill {
 	return nil
 }
 
-// getPets retrieves a user's pets
-func (b *Bot) getPets(uid string) []interface{} {
-	// Placeholder - returning empty slice as we don't have a Pet type defined
-	return []interface{}{}
-}
-
 // resolveChannelCombat resolves combat between users in a channel
 func (b *Bot) resolveChannelCombat(users []UserInCombat, mobs []*content.Mob, avgLvl int, difficulty float64, zone content.Zone) ([]string, int, bool, []LootResult) {
 	_ = avgLvl
