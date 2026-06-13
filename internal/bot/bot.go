@@ -549,9 +549,11 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 
 				// Apply Groups & Titles
 				if b.Cfg.EnableLeveling {
-					b.applyMilestones(c, user.CLID, user.Nickname, lr)
-					if b.Cfg.XPServerGroups {
-						b.applyLevelGroup(c, user.CLID, user.UID, user.Nickname, lr.NewLevel)
+					if lr != nil {
+						b.applyMilestones(c, user.CLID, user.Nickname, lr)
+						if b.Cfg.XPServerGroups {
+							b.applyLevelGroup(c, user.CLID, user.UID, user.Nickname, lr.NewLevel)
+						}
 					}
 					b.applyTitleGroup(c, user.CLID, user.UID, user.Nickname)
 					if b.Cfg.EnableRPG {
