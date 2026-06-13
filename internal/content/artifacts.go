@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"strings"
+	"ts3news/internal/i18n"
 )
 
 type Rarity int
@@ -20,9 +21,9 @@ const (
 )
 
 func (r Rarity) String() string {
-	list := []string{"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Divine"}
+	list := []string{i18n.T("rarity.common"), i18n.T("rarity.uncommon"), i18n.T("rarity.rare"), i18n.T("rarity.epic"), i18n.T("rarity.legendary"), i18n.T("rarity.mythic"), i18n.T("rarity.divine")}
 	if int(r) < 0 || int(r) >= len(list) {
-		return fmt.Sprintf("Rarity(%d)", r)
+		return i18n.T("rarity.unknown", r)
 	}
 	return list[r]
 }
@@ -277,13 +278,13 @@ type Enchantment struct {
 var allGear []Gear
 var uniqueLegendaries []Gear
 var allConsumables = []Consumable{
-	{"P1", "Small Health Potion", ConsumableHealing, 50, 0, "Restores 50 HP instantly"},
-	{"P2", "Great Health Potion", ConsumableHealing, 200, 0, "Restores 200 HP instantly"},
-	{"P3", "Strength Elixir", ConsumableBuff, 15, 3, "+15 STR for 3 fights"},
-	{"P4", "Iron Skin Brew", ConsumableBuff, 10, 3, "+10 DEF for 3 fights"},
-	{"P5", "Phoenix Feather", ConsumableRevive, 50, 0, "Automatically revives you with 50% HP once"},
-	{"P6", "Repair Kit", ConsumableRepair, 30, 0, "Restores 30 durability to a random equipped item"},
-	{"P7", "Master Repair Kit", ConsumableRepair, 75, 0, "Restores 75 durability to a random equipped item"},
+	{"small_health_potion", i18n.T("content.consumable.small_health_potion"), ConsumableHealing, 50, 0, i18n.T("content.consumable.small_health_potion_desc")},
+	{"great_health_potion", i18n.T("content.consumable.great_health_potion"), ConsumableHealing, 200, 0, i18n.T("content.consumable.great_health_potion_desc")},
+	{"strength_elixir", i18n.T("content.consumable.strength_elixir"), ConsumableBuff, 15, 3, i18n.T("content.consumable.strength_elixir_desc")},
+	{"iron_skin_brew", i18n.T("content.consumable.iron_skin_brew"), ConsumableBuff, 10, 3, i18n.T("content.consumable.iron_skin_brew_desc")},
+	{"phoenix_feather", i18n.T("content.consumable.phoenix_feather"), ConsumableRevive, 50, 0, i18n.T("content.consumable.phoenix_feather_desc")},
+	{"repair_kit", i18n.T("content.consumable.repair_kit"), ConsumableRepair, 30, 0, i18n.T("content.consumable.repair_kit_desc")},
+	{"master_repair_kit", i18n.T("content.consumable.master_repair_kit"), ConsumableRepair, 75, 0, i18n.T("content.consumable.master_repair_kit_desc")},
 }
 
 var allEnchantments []Enchantment
@@ -307,9 +308,9 @@ func (a Artifact) IsBoon() bool {
 
 func (a Artifact) XPBonusDesc() string {
 	if a.Mult > 1.0 {
-		return fmt.Sprintf("+%.0f%%", (a.Mult-1.0)*100)
+		return i18n.T("content.artifact.format.xp_bonus_desc_positive", (a.Mult-1.0)*100)
 	}
-	return fmt.Sprintf("-%.0f%%", (1.0-a.Mult)*100)
+	return i18n.T("content.artifact.format.xp_bonus_desc_negative", (1.0-a.Mult)*100)
 }
 
 func (a Artifact) Score() int {
@@ -366,18 +367,15 @@ func init() {
 	}
 
 	// Pools for procedural generation
-	prefixes := []string{
-		"Ancient", "Broken", "Cursed", "Divine", "Ethereal", "Forgotten", "Gilded", "Hallowed", "Iron", "Jade",
-		"Kings", "Lunar", "Mithril", "Night", "Obsidian", "Primal", "Quartz", "Radiant", "Shadow", "Titan",
-		"Unbound", "Void", "Whispering", "Xenon", "Young", "Zealous", "Blighted", "Celestial", "Demonic", "Eternal",
-		"Frost", "Glass", "Hellfire", "Ivory", "Keepers", "Lost", "Mystic", "Noble", "Oracle", "Phantom",
-		"Relic", "Spectral", "Thundering", "Underworld", "Vampiric", "Warlord", "Yawning", "Zodiac",
+	prefixes := i18n.Pool("pool.prefix")
+	suffixes := i18n.Pool("pool.suffix")
+
+	// Safety check for empty pools (can happen during init before i18n is fully loaded)
+	if len(prefixes) == 0 {
+		prefixes = []string{"Ancient", "Eternal", "Celestial"}
 	}
-	suffixes := []string{
-		"of Power", "of the Sun", "of Night", "of the Moon", "of the Stars", "of the Void", "of the Deep", "of the Peaks", "of the Forest", "of the Sands",
-		"of Fire", "of Ice", "of Storms", "of Shadows", "of Light", "of the Earth", "of the Sea", "of the Winds", "of the Ancients", "of the Moderns",
-		"of Courage", "of Wisdom", "of Strength", "of Speed", "of Luck", "of Health", "of Defense", "of Intellect", "of Stamina", "of the Spirit",
-		"of Corruption", "of Redemption", "of Silence", "of Echoes", "of the Grave", "of Eternity", "of the Moment", "of the Infinite", "of the Finite", "of the Soul",
+	if len(suffixes) == 0 {
+		suffixes = []string{"of Power", "of Wisdom", "of Valor"}
 	}
 
 	// 1. Generate ~1200 unique gear variants
@@ -386,7 +384,7 @@ func init() {
 		// Starter Novice gear
 		allGear = append(allGear, Gear{
 			ID:            fmt.Sprintf("B_%s", slot),
-			Name:          fmt.Sprintf("Novice %s", slot),
+			Name:          i18n.T("content.gear.novice", i18n.T("content.gear.slot."+strings.ToLower(string(slot)))),
 			Slot:          slot,
 			Rarity:        RarityCommon,
 			XPMultiplier:  getXPMult(RarityCommon),
@@ -399,7 +397,7 @@ func init() {
 			for i := 0; i < 10; i++ { // 24 slots * 4 rarities * 10 variants = 960 items
 				p := prefixes[r.IntN(len(prefixes))]
 				s := suffixes[r.IntN(len(suffixes))]
-				name := fmt.Sprintf("%s %s %s", p, slot, s)
+				name := i18n.T("content.gear.procedural", p, i18n.T("content.gear.slot."+strings.ToLower(string(slot))), s)
 
 				mul := float64(rar) + 1.0
 				allGear = append(allGear, Gear{
@@ -429,26 +427,35 @@ func init() {
 	// Two solid "Novice+" starter items every new player is equipped with, so the
 	// early game is not painfully weak (better than Novice, far below endgame gear).
 	allGear = append(allGear,
-		Gear{ID: "B_GOOD_1", Name: "Trusty Longsword", Slot: SlotMainHand, Rarity: RarityUncommon, XPMultiplier: getXPMult(RarityUncommon), MaxDurability: 120, Stats: Stats{HP: 25, STR: 14, DEF: 4, SPD: 7, CRT: 5, LCK: 3}},
-		Gear{ID: "B_GOOD_2", Name: "Reinforced Breastplate", Slot: SlotChest, Rarity: RarityUncommon, XPMultiplier: getXPMult(RarityUncommon), MaxDurability: 150, Stats: Stats{HP: 70, STR: 4, DEF: 20, SPD: 2, STA: 6}},
+		Gear{ID: "B_GOOD_1", Name: i18n.T("content.gear.trusty_longsword"), Slot: SlotMainHand, Rarity: RarityUncommon, XPMultiplier: getXPMult(RarityUncommon), MaxDurability: 120, Stats: Stats{HP: 25, STR: 14, DEF: 4, SPD: 7, CRT: 5, LCK: 3}},
+		Gear{ID: "B_GOOD_2", Name: i18n.T("content.gear.reinforced_breastplate"), Slot: SlotChest, Rarity: RarityUncommon, XPMultiplier: getXPMult(RarityUncommon), MaxDurability: 150, Stats: Stats{HP: 70, STR: 4, DEF: 20, SPD: 2, STA: 6}},
 	)
 
 	// Add some Unique Legendaries with massive stats but very low durability
 	uniqueLegendaries = append(uniqueLegendaries, []Gear{
-		{ID: "U_LEG_1", Name: "God-Slayer's Heart", Slot: SlotChest, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 5, Stats: Stats{HP: 1000, STR: 500, DEF: 200, SPD: 200, LCK: 100}},
-		{ID: "U_LEG_2", Name: "Infinity Edge", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 8, Stats: Stats{STR: 1000, SPD: 300, CRT: 50}},
-		{ID: "U_LEG_3", Name: "Chrono-Guard", Slot: SlotWrists, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 6, Stats: Stats{SPD: 500, DGE: 80, INT: 100}},
-		{ID: "U_LEG_4", Name: "Eye of the Storm", Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 7, Stats: Stats{HP: 800, INT: 200, STR: 100}},
-		{ID: "U_LEG_5", Name: "Titan's Pillar", Slot: SlotLegs, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 1500, DEF: 400, STA: 100}},
+		{ID: "U_LEG_1", Name: i18n.T("content.gear.god_slayers_heart"), Slot: SlotChest, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 5, Stats: Stats{HP: 1000, STR: 500, DEF: 200, SPD: 200, LCK: 100}},
+		{ID: "U_LEG_2", Name: i18n.T("content.gear.infinity_edge"), Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 8, Stats: Stats{STR: 1000, SPD: 300, CRT: 50}},
+		{ID: "U_LEG_3", Name: i18n.T("content.gear.chrono_guard"), Slot: SlotWrists, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 6, Stats: Stats{SPD: 500, DGE: 80, INT: 100}},
+		{ID: "U_LEG_4", Name: i18n.T("content.gear.eye_of_the_storm"), Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 7, Stats: Stats{HP: 800, INT: 200, STR: 100}},
+		{ID: "U_LEG_5", Name: i18n.T("content.gear.titans_pillar"), Slot: SlotLegs, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 1500, DEF: 400, STA: 100}},
 	}...)
 
 	// 2. Generate 100 Corrupted Artifacts
 	idx = 1
-	prefixesArt := []string{"Cursed", "Blighted", "Tainted", "Demonic", "Shadow", "Void", "Ruined", "Shattered", "Forbidden", "Malevolent"}
-	nounsArt := []string{"Chalice", "Orb", "Scepter", "Tome", "Crown", "Amulet", "Skull", "Idol", "Heart", "Eye"}
+	prefixesArt := i18n.Pool("pool.artifact.corrupted_prefix")
+	nounsArt := i18n.Pool("pool.artifact.corrupted_noun")
+
+	// Safety check for empty pools (can happen during init before i18n is fully loaded)
+	if len(prefixesArt) == 0 {
+		prefixesArt = []string{"Corrupted", "Tainted", "Cursed"}
+	}
+	if len(nounsArt) == 0 {
+		nounsArt = []string{"Soul", "Heart", "Essence"}
+	}
+
 	for _, p := range prefixesArt {
 		for _, n := range nounsArt {
-			name := p + " " + n
+			name := i18n.T("content.artifact.corrupted", p, n)
 			var mult float64
 			var s Stats
 			if idx%2 == 0 {
@@ -464,12 +471,21 @@ func init() {
 	}
 
 	// 3. Titles
-	posPrefixes := []string{"Divine", "Glorious", "Eternal", "Radiant", "Immortal", "Mythic", "Legendary", "Ancient", "Primal", "Celestial"}
-	posNouns := []string{"Sovereign", "Overlord", "Godslayer", "Archon", "Paragon", "Vanguard", "Sentinel", "Oracle", "Exarch", "Titan"}
+	posPrefixes := i18n.Pool("pool.title.positive_prefix")
+	posNouns := i18n.Pool("pool.title.positive_noun")
+
+	// Safety check for empty pools (can happen during init before i18n is fully loaded)
+	if len(posPrefixes) == 0 {
+		posPrefixes = []string{"Mighty", "Glorious", "Noble"}
+	}
+	if len(posNouns) == 0 {
+		posNouns = []string{"Champion", "Warrior", "Hero"}
+	}
+
 	for _, p := range posPrefixes {
 		for _, n := range posNouns {
 			positiveTitles = append(positiveTitles, Title{
-				Name:         p + " " + n,
+				Name:         i18n.T("content.title.positive", p, n),
 				XPMultiplier: 3.0 + r.Float64()*7.0,
 				Stats:        Stats{HP: 500, STR: 200, DEF: 100, SPD: 100, LCK: 80, INT: 50, STA: 50, CHA: 1000},
 			})
@@ -477,12 +493,21 @@ func init() {
 	}
 
 	// 100 Extreme Titles
-	extremePrefixes := []string{"God-Mode", "One-Punch", "Loot-Hoarder", "Time-Warp", "Vampiric", "Skill-Master", "Unbreakable", "Invincible", "Berserker", "Ghost"}
-	extremeNouns := []string{"King", "Wraith", "Demon", "Phantom", "Exile", "Prophet", "Avenger", "Harbinger", "Zenith", "Saint"}
+	extremePrefixes := i18n.Pool("pool.title.extreme_prefix")
+	extremeNouns := i18n.Pool("pool.title.extreme_noun")
+
+	// Safety check for empty pools (can happen during init before i18n is fully loaded)
+	if len(extremePrefixes) == 0 {
+		extremePrefixes = []string{"Apocalyptic", "Cosmic", "Galactic"}
+	}
+	if len(extremeNouns) == 0 {
+		extremeNouns = []string{"Destroyer", "Annihilator", "Obliterator"}
+	}
+
 	for _, p := range extremePrefixes {
 		for _, n := range extremeNouns {
 			t := Title{
-				Name:         p + " " + n,
+				Name:         i18n.T("content.title.extreme", p, n),
 				XPMultiplier: 5.0 + r.Float64()*10.0,
 				Stats:        Stats{HP: 1000, STR: 500, DEF: 250, SPD: 200, LCK: 150, INT: 100, STA: 100, CHA: 5000},
 			}
@@ -520,12 +545,21 @@ func init() {
 		}
 	}
 
-	negPrefixes := []string{"Wretched", "Damned", "Forlorn", "Forsaken"}
-	negNouns := []string{"Peon", "Outcast", "Traitor", "Coward", "Scum"}
+	negPrefixes := i18n.Pool("pool.title.negative_prefix")
+	negNouns := i18n.Pool("pool.title.negative_noun")
+
+	// Safety check for empty pools (can happen during init before i18n is fully loaded)
+	if len(negPrefixes) == 0 {
+		negPrefixes = []string{"Weak", "Feeble", "Pathetic"}
+	}
+	if len(negNouns) == 0 {
+		negNouns = []string{"Peasant", "Beggar", "Failure"}
+	}
+
 	for _, p := range negPrefixes {
 		for _, n := range negNouns {
 			negativeTitles = append(negativeTitles, Title{
-				Name:         p + " " + n,
+				Name:         i18n.T("content.title.negative", p, n),
 				XPMultiplier: 0.01 + r.Float64()*0.1,
 				Stats:        Stats{HP: -300, STR: -150, DEF: -80, SPD: -80, LCK: -100, STN: 500, HGR: 100},
 			})
@@ -533,7 +567,13 @@ func init() {
 	}
 
 	// 4. Generate Enchantments
-	enchPrefixes := []string{"Fiery", "Icy", "Shocking", "Venomous", "Holy", "Vampiric", "Arcane", "Stone", "Wind", "Shadow", "Reinforced", "Unbreakable", "Diamond-Coated"}
+	enchPrefixes := i18n.Pool("pool.enchantment.prefix")
+
+	// Safety check for empty pools (can happen during init before i18n is fully loaded)
+	if len(enchPrefixes) == 0 {
+		enchPrefixes = []string{"Fiery", "Icy", "Shocking"}
+	}
+
 	for i, p := range enchPrefixes {
 		rarity := RarityRare
 		if i > 6 {
@@ -553,12 +593,12 @@ func init() {
 
 		allEnchantments = append(allEnchantments, Enchantment{
 			ID:           fmt.Sprintf("E%d", i),
-			Name:         p,
+			Name:         i18n.T("content.enchantment.name", p),
 			Rarity:       rarity,
 			XPMultiplier: getXPMult(rarity) - 0.1,
 			Stats:        Stats{STR: 15 * (int(rarity) + 1), SPD: 10 * (int(rarity) + 1), CRT: 5 * (int(rarity) + 1)},
 			DuraBonus:    duraBonus,
-			Description:  fmt.Sprintf("Adds %s power", p),
+			Description:  i18n.T("content.enchantment.description", p),
 		})
 	}
 }

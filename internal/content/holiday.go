@@ -1,6 +1,9 @@
 package content
 
-import "time"
+import (
+	"time"
+	"ts3news/internal/i18n"
+)
 
 // Theme describes a seasonal/holiday flavour applied to messages.
 type Theme struct {
@@ -24,38 +27,38 @@ func CurrentTheme(now time.Time) *Theme {
 	switch {
 	case between(md(time.December, 1), md(time.December, 26)):
 		return &Theme{
-			Name:    "Christmas",
+			Name:    i18n.T("content.holiday.christmas.name"),
 			Emoji:   "🎄",
-			Banner:  "Frohe Weihnachten, gamer! A festive freebie for you:",
-			Signoff: "Ho ho ho — happy holidays and happy gaming! 🎅",
+			Banner:  i18n.T("content.holiday.christmas.banner"),
+			Signoff: i18n.T("content.holiday.christmas.signoff"),
 		}
 	case between(md(time.December, 27), md(time.December, 31)), between(md(time.January, 1), md(time.January, 2)):
 		return &Theme{
-			Name:    "New Year",
+			Name:    i18n.T("content.holiday.new_year.name"),
 			Emoji:   "🎆",
-			Banner:  "Happy New Year, gamer! Start it with a free game:",
-			Signoff: "Here's to a year full of loot — Frohes neues Jahr! 🥳",
+			Banner:  i18n.T("content.holiday.new_year.banner"),
+			Signoff: i18n.T("content.holiday.new_year.signoff"),
 		}
 	case between(md(time.October, 24), md(time.October, 31)):
 		return &Theme{
-			Name:    "Halloween",
+			Name:    i18n.T("content.holiday.halloween.name"),
 			Emoji:   "🎃",
-			Banner:  "Spooky free game incoming, mortal... 👻",
-			Signoff: "Happy Halloween — claim it before it haunts your wishlist! 🦇",
+			Banner:  i18n.T("content.holiday.halloween.banner"),
+			Signoff: i18n.T("content.holiday.halloween.signoff"),
 		}
 	case day.Equal(md(time.February, 14)):
 		return &Theme{
-			Name:    "Valentine's Day",
+			Name:    i18n.T("content.holiday.valentines_day.name"),
 			Emoji:   "❤️",
-			Banner:  "A little love for your library this Valentine's:",
-			Signoff: "Roses are red, this game is free — enjoy! 💝",
+			Banner:  i18n.T("content.holiday.valentines_day.banner"),
+			Signoff: i18n.T("content.holiday.valentines_day.signoff"),
 		}
 	case day.Equal(md(time.April, 1)):
 		return &Theme{
-			Name:    "April Fools",
+			Name:    i18n.T("content.holiday.april_fools.name"),
 			Emoji:   "🃏",
-			Banner:  "This is NOT a prank — a genuinely free game:",
-			Signoff: "No joke, it's really free. Happy April Fools! 🤡",
+			Banner:  i18n.T("content.holiday.april_fools.banner"),
+			Signoff: i18n.T("content.holiday.april_fools.signoff"),
 		}
 	}
 
@@ -63,10 +66,10 @@ func CurrentTheme(now time.Time) *Theme {
 	easter := easterSunday(y, now.Location())
 	if between(easter.AddDate(0, 0, -6), easter.AddDate(0, 0, 1)) {
 		return &Theme{
-			Name:    "Easter",
+			Name:    i18n.T("content.holiday.easter.name"),
 			Emoji:   "🐰",
-			Banner:  "An Easter egg for your library — a free game:",
-			Signoff: "Frohe Ostern — hop to it before the giveaway ends! 🥚",
+			Banner:  i18n.T("content.holiday.easter.banner"),
+			Signoff: i18n.T("content.holiday.easter.signoff"),
 		}
 	}
 

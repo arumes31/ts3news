@@ -63,6 +63,7 @@ graph TD
 *   🕒 **Persistence**: Full lifetime connection tracking and notification history stored in PostgreSQL.
 *   ⚖️ **Auto-Balancing**: A **Combat Pity** system that buffs party stats if they suffer consecutive defeats.
 *   🤖 **Contextual Personas**: The bot renames itself based on context, adopting the **godsfinger** persona for rare loot.
+*   🌍 **Multilingual**: Every user-facing message — pokes, PMs, combat logs, loot, and content — is fully localized. Ships with **20 built-in languages**, selectable via a single `LANG` setting, with locale-aware number/currency formatting and pluralization.
 *   🖥️ **Headless Reliability**: Runs the official TS3 desktop client in Xvfb with a robust Go watchdog for 24/7 uptime.
 
 ---
@@ -107,6 +108,7 @@ The bot is configured via environment variables or a `config.env` file.
 | | `TS3_NICKNAME` | Default nickname for the bot. | `MrFree` |
 | **Cycle** | `MIN_INTERVAL_HOURS` | Minimum random sleep between cycles. | `1` |
 | | `MAX_INTERVAL_HOURS` | Maximum random sleep between cycles. | `12` |
+| **Localization** | `LANG` | Language for all bot messages (BCP-47 locale ID, see list below). Falls back to `en_US` if unset or unsupported. | `en_US` |
 | **System** | `ENABLE_GAME_NEWS` | Master switch for the free game notification feature. | `true` |
 | | `POKE_DELAY_MS` | Delay between individual pokes (anti-flood). | `1200` |
 | | `RESEND_AFTER_DAYS` | Allow re-sending a game after N days. | `60` |
@@ -126,6 +128,29 @@ The bot is configured via environment variables or a `config.env` file.
 | | `REDRX_API_KEY` | API Key for [redrx.eu](https://redrx.eu/) link shortening. | *None* |
 | **Database** | `DATABASE_URL` | PostgreSQL connection string. | *None* |
 | | `DEAD_USER_DAYS` | Purge users inactive for N days. | `180` |
+
+---
+
+## 🌍 Localization
+
+All user-facing text is externalized into locale files (`internal/i18n/locales/*.yaml`) and embedded into the binary at build time — no extra files to deploy. Set the active language with the `LANG` variable; anything missing in a locale automatically falls back to `en_US`.
+
+```env
+# config.env
+LANG=de_DE
+```
+
+**20 supported locales:**
+
+| Code | Language | Code | Language | Code | Language | Code | Language |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `en_US` | English | `de_DE` | German | `es_ES` | Spanish | `fr_FR` | French |
+| `it_IT` | Italian | `pt_BR` | Portuguese (BR) | `nl_NL` | Dutch | `sv_SE` | Swedish |
+| `pl_PL` | Polish | `cs_CZ` | Czech | `tr_TR` | Turkish | `ru_RU` | Russian |
+| `ja_JP` | Japanese | `ko_KR` | Korean | `zh_CN` | Chinese (Simpl.) | `zh_TW` | Chinese (Trad.) |
+| `th_TH` | Thai | `vi_VN` | Vietnamese | `hi_IN` | Hindi | `ar_SA` | Arabic |
+
+> Numbers, currency, and pluralization are formatted per-locale (e.g. `1,234.50` vs `1.234,50`). To add or refine a translation, copy `en_US.yaml`, translate the values, and add the locale ID to `AllLocales` in `internal/i18n/i18n.go`.
 
 ---
 

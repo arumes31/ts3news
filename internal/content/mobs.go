@@ -1,9 +1,10 @@
 package content
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"strings"
+	"sync"
+	"ts3news/internal/i18n"
 )
 
 type MobType string
@@ -84,20 +85,22 @@ func (m Mob) Clone() *Mob {
 func (m Mob) DisplayName() string {
 	eff := ""
 	if len(m.Effects) > 0 {
-		eff = fmt.Sprintf(" (%s)", m.Effects[0])
+		eff = " (" + i18n.T(string(m.Effects[0])) + ")"
 	}
 	if m.DeathEffect != nil {
-		eff += fmt.Sprintf(" [death:%s]", m.DeathEffect.Name)
+		eff += " [death:" + m.DeathEffect.Name + "]"
 	}
-	return fmt.Sprintf("Lvl %d %s [%s]%s (%d/%d HP)", m.Level, m.Name, m.Type, eff, m.CurrentHP, m.MaxHP)
+	typeName := i18n.T("content.mob.type." + strings.ToLower(string(m.Type)))
+	return i18n.T("content.mob.display_format", m.Level, m.Name, typeName, eff, m.CurrentHP, m.MaxHP)
 }
 
 func (m Mob) DisplayNameShort() string {
 	eff := ""
 	if len(m.Effects) > 0 {
-		eff = fmt.Sprintf(" (%s)", m.Effects[0])
+		eff = " (" + i18n.T(string(m.Effects[0])) + ")"
 	}
-	return fmt.Sprintf("Lvl %d %s [%s]%s", m.Level, m.Name, m.Type, eff)
+	typeName := i18n.T("content.mob.type." + strings.ToLower(string(m.Type)))
+	return i18n.T("content.mob.display_format_short", m.Level, m.Name, typeName, eff)
 }
 
 func (m Mob) Score() int {
@@ -105,46 +108,59 @@ func (m Mob) Score() int {
 }
 
 var baseMobs []Mob
+var mobsInitOnce sync.Once
 
-func init() {
-	prefixes := []string{"Snotty", "Angry", "Undead", "Shadow", "Fiery", "Ice-Cold", "Toxic", "Ghostly", "Metallic", "Giant"}
-	nouns := []string{"Rat", "Slime", "Goblin", "Spider", "Zombie", "Wolf", "Skeleton", "Bat", "Orc", "Troll"}
+func initMobs() {
+	mobsInitOnce.Do(func() {
 
-	for _, p := range prefixes {
-		for _, n := range nouns {
-			name := p + " " + n
-			baseMobs = append(baseMobs, Mob{
-				Name:     name,
-				Type:     MobCommon,
-				Stats:    Stats{HP: 20, STR: 12, DEF: 2, SPD: 5, LCK: 0},
-				RewardXP: 5,
-			})
+		prefixes := i18n.Pool("pool.mob.prefix")
+		nouns := i18n.Pool("pool.mob.noun")
+
+		// Safety check for empty pools (can happen during init before i18n is fully loaded)
+		if len(prefixes) == 0 {
+			prefixes = []string{"Snotty", "Angry", "Undead", "Shadow", "Fiery", "Ice-Cold", "Toxic", "Ghostly", "Metallic", "Giant"}
 		}
-	}
+		if len(nouns) == 0 {
+			nouns = []string{"Rat", "Slime", "Goblin", "Spider", "Zombie", "Wolf", "Skeleton", "Bat", "Orc", "Troll"}
+		}
+
+		for _, p := range prefixes {
+			for _, n := range nouns {
+				name := p + " " + n
+				baseMobs = append(baseMobs, Mob{
+					Name:     name,
+					Type:     MobCommon,
+					Stats:    Stats{HP: 20, STR: 12, DEF: 2, SPD: 5, LCK: 0},
+					RewardXP: 5,
+				})
+			}
+		}
+	})
 
 	// EliteMinions (stronger common)
-	baseMobs = append(baseMobs, Mob{Name: "Corrupted Guard", Type: MobEliteMinion, Stats: Stats{HP: 60, STR: 25, DEF: 10, SPD: 7, LCK: 2}, RewardXP: 12})
-	baseMobs = append(baseMobs, Mob{Name: "Shadow Assassin", Type: MobEliteMinion, Stats: Stats{HP: 50, STR: 35, DEF: 5, SPD: 15, LCK: 5}, RewardXP: 15})
+	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.corrupted_guard"), Type: MobEliteMinion, Stats: Stats{HP: 60, STR: 25, DEF: 10, SPD: 7, LCK: 2}, RewardXP: 12})
+	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.shadow_assassin"), Type: MobEliteMinion, Stats: Stats{HP: 50, STR: 35, DEF: 5, SPD: 15, LCK: 5}, RewardXP: 15})
 
 	// Elites
-	baseMobs = append(baseMobs, Mob{Name: "Dread Knight", Type: MobElite, Stats: Stats{HP: 150, STR: 45, DEF: 20, SPD: 10, LCK: 5}, RewardXP: 25})
-	baseMobs = append(baseMobs, Mob{Name: "Frost Lich", Type: MobElite, Stats: Stats{HP: 120, STR: 60, DEF: 15, SPD: 12, LCK: 8}, RewardXP: 30})
+	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.dread_knight"), Type: MobElite, Stats: Stats{HP: 150, STR: 45, DEF: 20, SPD: 10, LCK: 5}, RewardXP: 25})
+	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.frost_lich"), Type: MobElite, Stats: Stats{HP: 120, STR: 60, DEF: 15, SPD: 12, LCK: 8}, RewardXP: 30})
 
 	// Minibosses (between Elite and Boss)
-	baseMobs = append(baseMobs, Mob{Name: "Gatekeeper", Type: MobMiniboss, Stats: Stats{HP: 400, STR: 80, DEF: 35, SPD: 15, LCK: 7}, RewardXP: 60})
-	baseMobs = append(baseMobs, Mob{Name: "Raging Behemoth", Type: MobMiniboss, Stats: Stats{HP: 600, STR: 100, DEF: 20, SPD: 5, LCK: 3}, RewardXP: 70})
+	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.gatekeeper"), Type: MobMiniboss, Stats: Stats{HP: 400, STR: 80, DEF: 35, SPD: 15, LCK: 7}, RewardXP: 60})
+	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.raging_behemoth"), Type: MobMiniboss, Stats: Stats{HP: 600, STR: 100, DEF: 20, SPD: 5, LCK: 3}, RewardXP: 70})
 
 	// Bosses
-	baseMobs = append(baseMobs, Mob{Name: "Ancient Dragon", Type: MobBoss, Stats: Stats{HP: 1000, STR: 150, DEF: 50, SPD: 20, LCK: 10}, RewardXP: 100})
-	baseMobs = append(baseMobs, Mob{Name: "Kraken of the Deep", Type: MobBoss, Stats: Stats{HP: 1200, STR: 130, DEF: 40, SPD: 15, LCK: 12}, RewardXP: 120})
+	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.ancient_dragon"), Type: MobBoss, Stats: Stats{HP: 1000, STR: 150, DEF: 50, SPD: 20, LCK: 10}, RewardXP: 100})
+	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.kraken"), Type: MobBoss, Stats: Stats{HP: 1200, STR: 130, DEF: 40, SPD: 15, LCK: 12}, RewardXP: 120})
 
 	// Legendaries
-	baseMobs = append(baseMobs, Mob{Name: "THE VOID LORD", Type: MobLegendary, Stats: Stats{HP: 5000, STR: 450, DEF: 100, SPD: 50, LCK: 25}, RewardXP: 500})
-	baseMobs = append(baseMobs, Mob{Name: "CHRONOS, TIME EATER", Type: MobLegendary, Stats: Stats{HP: 4500, STR: 500, DEF: 80, SPD: 100, LCK: 50}, RewardXP: 600})
+	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.void_lord"), Type: MobLegendary, Stats: Stats{HP: 5000, STR: 450, DEF: 100, SPD: 50, LCK: 25}, RewardXP: 500})
+	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.chronos"), Type: MobLegendary, Stats: Stats{HP: 4500, STR: 500, DEF: 80, SPD: 100, LCK: 50}, RewardXP: 600})
 }
 
 // SpawnMob scales a mob to the given level and difficulty factor (0.1 to 1.0+)
 func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
+	initMobs()
 	// #nosec G404
 	idx := rand.IntN(100)      // index for common mobs // #nosec G404
 	if isBoss && level >= 10 { // Bosses require level 10+
@@ -259,8 +275,16 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	}
 	// #nosec G404
 	if rand.Float64() < chance { // #nosec G404
-		prefixes := []string{"Last", "Final", "Dying", "Bitter", "Vengeful", "Spiteful", "Desperate", "Echoing", "Ghostly", "Cursed"}
-		actions := []string{"Roar", "Whimper", "Gasp", "Curse", "Blast", "Wail", "Howl", "Scream", "Sigh", "Command"}
+		prefixes := i18n.Pool("pool.death.prefix")
+		actions := i18n.Pool("pool.death.action")
+
+		// Safety check for empty pools (can happen during init before i18n is fully loaded)
+		if len(prefixes) == 0 {
+			prefixes = []string{"Last", "Final", "Dying", "Bitter", "Vengeful"}
+		}
+		if len(actions) == 0 {
+			actions = []string{"Roar", "Whimper", "Gasp", "Curse", "Blast"}
+		}
 
 		dType := DeathExplosion
 		// #nosec G404
@@ -299,6 +323,7 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 }
 
 func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64, groupSize int) []Mob {
+	initMobs()
 	// 15% chance to spawn a HORDE of weaker mobs (great for farming drops/XP)
 	// #nosec G404
 	isHorde := rand.Float64() < 0.15 // #nosec G404

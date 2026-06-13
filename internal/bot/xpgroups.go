@@ -7,17 +7,24 @@ import (
 	"strings"
 
 	"ts3news/internal/clientquery"
+	"ts3news/internal/i18n"
 	"ts3news/internal/icons"
 	"ts3news/internal/leveling"
 )
 
 func (b *Bot) applyMilestones(c *clientquery.Client, clid int, nickname string, lr *levelResult) {
-	if lr == nil { return }
+	if lr == nil {
+		return
+	}
 	crossed := leveling.MilestonesCrossed(lr.OldLevel, lr.NewLevel, b.levelGroups)
-	if len(crossed) == 0 { return }
+	if len(crossed) == 0 {
+		return
+	}
 
 	cldbid, err := c.ClientDBID(clid)
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 
 	for _, sgid := range crossed {
 		if err := c.AddServerGroup(sgid, cldbid); err != nil {
@@ -43,7 +50,7 @@ func xpGroupName(level int) string {
 	if len([]rune(n)) <= maxGroupNameLen {
 		return n
 	}
-	return fmt.Sprintf("Lvl %d", level)
+	return i18n.T("xpgroups.group_name", level)
 }
 
 // levelFromGroupName maps a server-group name back to its level (the inverse of

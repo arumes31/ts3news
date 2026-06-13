@@ -1,9 +1,18 @@
 package content
 
 import (
+	"os"
 	"testing"
 	"time"
+	"ts3news/internal/i18n"
 )
+
+func TestMain(m *testing.M) {
+	if err := i18n.InitWithLocale(i18n.LocaleEnUS); err != nil {
+		panic("i18n init failed: " + err.Error())
+	}
+	os.Exit(m.Run())
+}
 
 func TestGreetingsCount(t *testing.T) {
 	if got := GreetingCount(); got != 100 {

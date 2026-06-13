@@ -85,8 +85,8 @@ func TestGetters(t *testing.T) {
 	if _, ok := GetEnchantmentByID("E0"); !ok {
 		t.Error("GetEnchantmentByID(E0) failed")
 	}
-	if _, ok := GetConsumableByID("P1"); !ok {
-		t.Error("GetConsumableByID(P1) failed")
+	if _, ok := GetConsumableByID("small_health_potion"); !ok {
+		t.Error("GetConsumableByID(small_health_potion) failed")
 	}
 	// Titles are randomized, so we check if IsTitle works on one we know exists or just generic check
 	tName := RandomTitle().Name

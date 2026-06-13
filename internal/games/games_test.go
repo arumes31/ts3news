@@ -136,9 +136,9 @@ func TestRedditDRM(t *testing.T) {
 		title string
 		want  string
 	}{
-		{"[steam] game", "Steam"},
-		{"[epic] game", "Epic Games Store"},
-		{"[gog] game", "GOG"},
+		{"[steam] game", "games.platform.steam"},
+		{"[epic] game", "games.platform.epic"},
+		{"[gog] game", "games.platform.gog"},
 		{"unknown", ""},
 	}
 	for _, tt := range tests {
@@ -147,4 +147,3 @@ func TestRedditDRM(t *testing.T) {
 		}
 	}
 }
-
