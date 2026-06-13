@@ -250,8 +250,55 @@ func (b *Bot) getPets(uid string) []interface{} {
 
 // resolveChannelCombat resolves combat between users in a channel
 func (b *Bot) resolveChannelCombat(users []UserInCombat, mobs []*content.Mob, avgLvl int, difficulty float64, zone content.Zone) ([]string, int, bool, []LootResult) {
-	// Placeholder implementation
-	return []string{}, 0, false, []LootResult{}
+	_ = avgLvl
+	_ = difficulty
+	if len(users) == 0 || len(mobs) == 0 {
+		return nil, 0, false, nil
+	}
+
+	var logs []string
+
+	// Party offensive power (mob stats already bake in level & difficulty scaling).
+	partyPower := 0.0
+	for _, u := range users {
+		partyPower += float64(u.Stats.STR + u.Stats.SPD + u.Stats.HP/5 + u.Stats.CRT)
+	}
+
+	// Mob threat + wave header.
+	mobThreat := 0
+	names := make([]string, 0, len(mobs))
+	for _, m := range mobs {
+		mobThreat += m.Score()
+		names = append(names, m.DisplayName())
+	}
+	logs = append(logs, i18n.T("bot.combat.wave_header", 1, mobThreat, strings.Join(names, ", ")))
+
+	victory := partyPower >= float64(mobThreat)*0.6
+	partyDmg := int(partyPower)
+	mobDmg := mobThreat / 2
+
+	var loots []LootResult
+	rewardXP := 0
+
+	if victory {
+		for _, m := range mobs {
+			// #nosec G404
+			killer := users[rand.IntN(len(users))]
+			logs = append(logs, i18n.T("bot.combat.defeated", m.DisplayNameShort(), killer.Nickname))
+			rewardXP += m.RewardXP
+			for _, note := range b.rollLootForUser(killer.UID, killer.Nickname, m) {
+				logs = append(logs, note)
+				loots = append(loots, LootResult{UID: killer.UID})
+			}
+		}
+		logs = append(logs, i18n.T("bot.combat.battle_summary", partyDmg, mobDmg))
+		logs = append(logs, i18n.T("bot.combat.victory", len(mobs), zone.Name))
+	} else {
+		logs = append(logs, i18n.T("bot.combat.battle_summary", partyDmg, mobDmg))
+		logs = append(logs, i18n.T("bot.combat.defeat", zone.Name))
+	}
+
+	return logs, rewardXP, victory, loots
 }
 
 // processUserXP processes XP gain for a user
@@ -266,22 +313,69 @@ func (b *Bot) applyDurabilityLoss(uid string, isVictory bool) string {
 	return ""
 }
 
-// shouldEquip checks if a gear item should be equipped
+// shouldEquip reports whether a gear item is an upgrade over what the player has
+// equipped in that slot (and should therefore be equipped on pickup).
 func (b *Bot) shouldEquip(uid string, gear content.Gear) bool {
-	// Placeholder implementation
-	return false
+	return decideGearFate(gear, b.equippedInSlot(uid, gear.Slot)) == fateEquip
 }
 
-// equipSkill equips a skill for a user
+// equipSkill learns a skill, filling an empty skill slot (1..5) or replacing the
+// weakest currently-known skill if the new one is stronger. It reports whether
+// the skill was actually equipped.
 func (b *Bot) equipSkill(uid string, skill content.Skill) (bool, error) {
-	// Placeholder implementation
+	rows, err := b.DB.Query("SELECT slot, skill_id FROM user_skills WHERE client_uid = $1", uid)
+	if err != nil {
+		return false, err
+	}
+	used := map[int]string{}
+	for rows.Next() {
+		var slot int
+		var id string
+		if err := rows.Scan(&slot, &id); err == nil {
+			used[slot] = id
+		}
+	}
+	_ = rows.Close()
+
+	// Fill the first empty slot.
+	for slot := 1; slot <= 5; slot++ {
+		if _, taken := used[slot]; !taken {
+			_, err := b.DB.Exec(
+				`INSERT INTO user_skills (client_uid, slot, skill_id) VALUES ($1, $2, $3)
+				 ON CONFLICT (client_uid, slot) DO UPDATE SET skill_id = $3`,
+				uid, slot, skill.ID)
+			return err == nil, err
+		}
+	}
+
+	// All slots full: replace the weakest known skill if the new one beats it.
+	worstSlot, worstScore := 0, int(^uint(0)>>1)
+	for slot, id := range used {
+		if cur, ok := content.GetSkillByID(id); ok && cur.Score() < worstScore {
+			worstScore, worstSlot = cur.Score(), slot
+		}
+	}
+	if worstSlot != 0 && skill.Score() > worstScore {
+		_, err := b.DB.Exec("UPDATE user_skills SET skill_id = $1 WHERE client_uid = $2 AND slot = $3",
+			skill.ID, uid, worstSlot)
+		return err == nil, err
+	}
 	return false, nil
 }
 
-// applyEnchantment applies an enchantment to a user
+// applyEnchantment attaches an enchantment to one of the player's equipped gear
+// pieces that does not already carry one.
 func (b *Bot) applyEnchantment(uid string, enchantment content.Enchantment) error {
-	// Placeholder implementation
-	return nil
+	var slot string
+	if err := b.DB.QueryRow(
+		`SELECT slot FROM user_gear
+		 WHERE client_uid = $1 AND (enchantment_id IS NULL OR enchantment_id = '')
+		 ORDER BY slot LIMIT 1`, uid).Scan(&slot); err != nil {
+		return err
+	}
+	_, err := b.DB.Exec("UPDATE user_gear SET enchantment_id = $1 WHERE client_uid = $2 AND slot = $3",
+		enchantment.ID, uid, slot)
+	return err
 }
 
 // RunCycle now resolves group combat by channel
