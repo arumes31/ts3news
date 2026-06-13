@@ -164,8 +164,8 @@ func TestPool_FullSlice(t *testing.T) {
 	if len(pool) != 10 {
 		t.Errorf("Pool(mob.prefix) has %d entries, want 10", len(pool))
 	}
-	if pool[0] != "Ancient" {
-		t.Errorf("Pool(artifact.prefix)[0] = %q, want %q", pool[0], "Ancient")
+	if pool[0] != "Snotty" {
+		t.Errorf("Pool(mob.prefix)[0] = %q, want %q", pool[0], "Snotty")
 	}
 }
 
