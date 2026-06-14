@@ -1,1470 +1,1247 @@
-# nl_NL.yaml — Nederlandse vertaling voor ts3news i18n
-# Alle formaatverwijzingen gebruiken expliciete positionele indices: %[1]s, %[2]d, enz.
-# BBCode-tags ([b], [color=#hex], enz.) moeten behouden blijven in vertalingen.
-
 _locale:
-  name: "Nederlands (NL)"
-  plural_rule: "one_other"
-
-# ─── Bot Berichten ───
-
-bot.poke.free: "Gratis: "
-bot.poke.free_prefix: "%[1]sGratis: "
-bot.poke.daily_game: "[b]Dagelijks Gratis Spel![/b]"
-
-bot.prestige.announce: "🌟 PRESTIGE %[1]d! Terug naar niveau 1 — permanent +%[2]d%% stats!"
-bot.prestige.poke: "🌟 GEFELICITEERD! Je hebt Prestige %[1]d bereikt!"
-
-bot.pm.greeting: "[b]%[1]s[/b]"
-bot.pm.no_game: "🎮 Geen nieuwe spellen ontdekt in deze cyclus."
-bot.pm.game_line: "🎮 %[1]s"
-bot.pm.worth_line: "💰 Waard %[1]s → [b]GRATIS[/b] nu"
-bot.pm.claim_line: "🔗 [b]Claim:[/b] %[1]s"
-bot.pm.trailer_line: "▶️ [b]Trailer:[/b] %[1]s"
-
-# ─── Speler Statistieken Header ───
-
-bot.stats.header: "🏆 [b]%[1]s[/b] [color=#ffc107][P:%[2]d][/color] [color=#78909c][LvL: %[3]d][/color] [color=#00bcd4][gs: %[4].1f][/color] [color=#e91e63][CR: %[5].0f][/color]"
-bot.stats.xp_line: "📈 +%[1]d XP ([b]%[2]s[/b] totaal | [color=#90a4ae]Volgende: %[3]s[/color])"
-bot.stats.level_up: "🎉 [b]Level up! Je bent nu een %[1]s![/b]"
-bot.stats.hp_line: "[color=#90a4ae]HP:%[1]d/%[2]d STR:%[3]d DEF:%[4]d SPD:%[5]d LCK:%[6]d INT:%[7]d STA:%[8]d CRT:%[9]d DGE:%[10]d[/color]"
-
-# ─── Sectie Headers ───
-
-bot.section.bonuses: "[b]✨ BONUSES & MODIFIERS[/b]"
-bot.section.combat: "[b]⚔️ GEVECHTSLOG[/b]"
-bot.section.loot: "[b]🎁 BUIT & BELONINGEN[/b]"
-bot.section.equipment: "[b]🛡️ UITRUSTING & CRAFTING[/b]"
-
-# ─── Gevechtslog ───
-
-bot.combat.wave_approaches: "📢 GOLF %[1]d NADERT!"
-bot.combat.wave_header: "⚔️ GOLF %[1]d [CR:%[2]d]: %[3]s"
-bot.combat.ambush: "⚠️ AMBUSH! Vijanden vallen eerst aan!"
-bot.combat.double_attack: "⚔️ %[1]s dubbele aanval!"
-bot.combat.skill_damage: "✨ %[1]s: %[2]s doet %[3]d schade"
-bot.combat.combo: "(COMBO!)"
-bot.combat.stunned: "💫 %[1]s VERDOOFD!"
-bot.combat.ultimate_damage: "🌟 ULTIMATE: %[1]s doet %[2]d schade!"
-bot.combat.captive: "🌀 Gevangene: %[1]s!"
-bot.combat.defeated: "☠️ %[1]s verslagen door %[2]s!"
-bot.combat.looted: "🎁 %[1]s buit %[2]s: %[3]s"
-bot.combat.rogue_pet_bite: "⚠️ Wilde huisdier %[1]s bijt %[2]s voor %[3]d!"
-bot.combat.slain_by_pet: "💀 %[1]s werd gedood door huisdier %[2]s!"
-bot.combat.pet_hit: "🐾 %[1]s raakt %[2]s voor %[3]d!"
-bot.combat.killed_by_pet: "☠️ %[1]s gedood door huisdier %[2]s!"
-bot.combat.mob_hit: "💢 %[1]s raakt %[2]s voor %[3]d!"
-bot.combat.slain_by_mob: "💀 %[1]s werd gedood door %[2]s!"
-bot.combat.stealth_shadow: "💨 %[1]s glipt in de schaduwen! %[2]s mist."
-bot.combat.parried: "🛡️ %[1]s PARREERT %[2]s's aanval en contrateert!"
-bot.combat.cast_spell: "🔥 %[1]s spant %[2]s!"
-bot.combat.hazard_cleansed: "✨ %[1]s zuivert het %[2]s gevaar!"
-bot.combat.hazard_slain: "💀 %[1]s werd gedood door %[2]s gevaar!"
-bot.combat.hazard_active: "⛈️ %[1]s Gevaar is actief!"
-bot.combat.poison_damage: "🤢 %[1]s krijgt %[2]d gifschade (%[3]d stapels)!"
-bot.combat.consumable_used: "🧪 %[1]s gebruikt %[2]s: Hersteld %[3]d HP (%[4].0f%%)!"
-bot.combat.revived_item: "🔥 %[1]s HERLEVENDE [item:%[2]s]!"
-bot.combat.revived_phoenix: "✨ %[1]s HERLEVENDE [item:phoenix]!"
-bot.combat.death_trigger: "⚠️ %[1]s activeert %[2]s: %[3]s!"
-bot.combat.summoned_prefix: "Opgeroepen %[1]s"
-bot.combat.reinforcements.one: "📢 1 versterking is gearriveerd!"
-bot.combat.reinforcements.other: "📢 %[1]d versterkingen zijn gearriveerd!"
-bot.combat.explosion_damage: "💥 Explosie deed %[1]d schade aan iedereen!"
-bot.combat.slain_by_explosion: "💀 %[1]s werd gedood door explosie!"
-bot.combat.curse_weakens: "🥀 Een donkere vloek verzwakt het team!"
-bot.combat.bonus_xp_pulse: "✨ Een puls van pure energie geeft bonus XP!"
-bot.combat.shiny_items: "💰 Glanzende items verspreiden zich over de vloer!"
-bot.combat.battle_summary: "📊 Gevechtssamenvatting: Team %[1]d schade vs Monsters %[2]d schade."
-bot.combat.victory: "🏁 OVERWINNING! Team versloeg alle %[1]d monsters in %[2]s."
-bot.combat.defeat: "🏁 NEDERLAAG! Team werd overrompeld in %[1]s."
-bot.combat.enemy_count: "%[1]dx %[2]s"
-
-# ─── Smaakvolle Statistieken ───
-
-bot.flavour.daily_login: "dagelijkse login +%[1]d"
-bot.flavour.int_bonus: "INT bonus x%[1].3f"
-bot.flavour.smell_terrible: "Je ruikt vreselijk!"
-bot.flavour.charming: "Je bent opmerkelijk charmant vandaag."
-bot.flavour.glowing: "Je straalt letterlijk."
-bot.flavour.dread: "Je voelt een griezelig gevoel van angst."
-bot.flavour.no_game_penalty: "geen nieuw spel -50%%"
-bot.flavour.loot_box: "LOOT BOX +%[1]d XP"
-
-# ─── Buit & Beloningen ───
-
-bot.loot.ultimate_equipped: "Ultimate: %[1]s [ultimate:equipped]"
-bot.loot.ultimate_collected: "Ultimate: %[1]s [ultimate:collected]"
-bot.loot.major_ultimate: "🌟 MAJOR LOOT: Ultimate Skill %[1]s geleerd!"
-bot.loot.duplicate_ultimate_ah: "Dubbel %[1]s [ultimate]: Verkocht op AH"
-bot.loot.duplicate_ultimate_salvage: "Dubbel %[1]s [ultimate]: Gered voor %[2]d Scrap"
-bot.loot.title: "Titel: %[1]s [title:%[2]s]"
-bot.loot.unique: "Uniek: %[1]s [unique:%[2]s] (%[3]s)"
-bot.loot.unique_drop: "💎 UNIEKE DROP: %[1]s!"
-bot.loot.duplicate_unique_ah: "Dubbel %[1]s [unique]: Verkocht op AH"
-bot.loot.duplicate_unique_salvage: "Dubbel %[1]s [unique]: Gered voor %[2]d Scrap"
-bot.loot.artifact: "Artefact: %[1]s [artifact:%[2]s]"
-bot.loot.artifact_found: "🏺 ARTEFACT GEVONDEN: %[1]s!"
-bot.loot.enchanted: "Betoverd [s:%[1]s] met %[2]s [enchant:%[3]s]"
-bot.loot.unwanted_enchant_ah: "Ongebruikt %[1]s [enchant]: Verkocht op AH"
-bot.loot.salvaged_enchant: "Gered %[1]s [enchant]: +%[2]d Scrap"
-bot.loot.learned_skill: "Geleerd %[1]s [skill:%[2]s] (Slot %[3]d)"
-bot.loot.unwanted_skill_ah: "Ongebruikt %[1]s [skill]: Verkocht op AH"
-bot.loot.salvaged_skill: "Gered %[1]s [skill]: +%[2]d Scrap"
-bot.loot.item: "Item: %[1]s [item:%[2]s]"
-bot.loot.equipped: "Uitgerust: %[1]s [s:%[2]s] (gs:%[3]d CR:%[4].1f R:[color=%[5]s]%[6]s[/color])"
-bot.loot.legendary_equipped: "⚔️ LEGENDARISCHE UITRUSTING: Uitgerust %[1]s!"
-bot.loot.listed_ah: "Verkocht op AH: %[1]s [s:%[2]s] (R:[color=%[3]s]%[4]s[/color])"
-bot.loot.salvaged: "Gered %[1]s [s:%[2]s]: +%[3]d Scrap"
-bot.loot.found: "Gevonden: %[1]s [s:%[2]s] (gs:%[3]d CR:%[4].1f R:%[5]s)"
-bot.loot.scrap: "Gevonden Scrap [s:%[1]s] (+%[2]d XP) (R:%[3]s)"
-bot.loot.small_health_potion: "Item: Kleine Geneesmiddel [item:P1]"
-bot.loot.multiplier_simple: "%[1]s x%[2]g"
-bot.loot.multiplier_with_dur: "%[1]s x%[2]g (%[3]d dur)"
-bot.loot.pool_prefix: "[%[1]s] %[2]s"
-bot.loot.with_dur: "%[1]s (%[2]d dur)"
-bot.loot.pool_prefix_xp: "[%[1]s] %[2]s (x%[3]g XP)"
-
-# ─── Duurzaamheid ───
-
-bot.durability.broken: "🛡️ KAPOT: %[1]s (-%[2]d dur)"
-bot.durability.sustained: "🛡️ Onderhouden -%[1]d dur (%[2]d items, Gem: %[3].1f)"
-
-# ─── XP Resultaat ───
-
-xp.battle: "🏆 Gevechts XP"
-xp.lost: "💀 XP verloren"
-xp.outcome: "%[1]s: %+[2]d → %[3]s (Niv %[4]d)"
-
-# ─── Veilinghuis ───
-
-ah.vendor_sale: "🏪 [b]AH Vendor Verkoop:[/b] Je item [b]%[1]s[/b] werd niet verkocht en werd gekocht door een verkoper voor %[2]s (0,1%% waarde)."
-ah.purchase: "🎁 [b]AH Aankoop![/b] Je kocht [b]%[1]s[/b] voor %[2]s!%[3]s"
-ah.purchase_fee: " (Inclusief %[1]s concurrentiekosten)"
-ah.sale: "💰 [b]AH Verkoop![/b] Je item [b]%[1]s[/b] werd gekocht door [b]%[2]s[/b] voor %[3]s!"
-
-# ─── Kanaal Beschrijving ───
-
-channel.header: "[center][b][size=14]🎮 RPG Spelers: %[1]d[/size][/b][/center]"
-channel.player_line: "• [b]%[1]s[/b] [color=#ffc107][P:%[2]d][/color] [color=#78909c][Niv:%[3]d][/color] [color=#00bcd4][gs:%[4].1f][/color] [color=#e91e63][CR:%[5].0f][/color] [color=%[6]s][HP:%[7]d/%[8]d][/color] [color=#fbc02d][Goud:%[9]s][/color]"
-channel.stats_line: "[size=9][color=#90a4ae]STR:%[1]d DEF:%[2]d SPD:%[3]d LCK:%[4]d INT:%[5]d STA:%[6]d CRT:%[7]d DGE:%[8]d[/color][/size]"
-channel.group_power: "[center][b]🛡️ Groepskracht[/b]: [color=#e91e63]CR %[1].0f[/color] | [color=#00bcd4]Gem GS %[2].1f[/color][/center]"
-
-# ─── Feestdagen ───
-
-holiday.christmas.name: "Kerstmis"
-holiday.christmas.banner: "Frohe Weihnachten, gamer! Een feestelijke gratis cadeau voor jou:"
-holiday.christmas.signoff: "Ho ho ho — fijne feestdagen en veel plezier met gamen! 🎅"
-holiday.new_year.name: "Nieuwjaar"
-holiday.new_year.banner: "Gelukkig Nieuwjaar, gamer! Begin het met een gratis spel:"
-holiday.new_year.signoff: "Op een jaar vol loot — Frohes neues Jahr! 🥳"
-holiday.halloween.name: "Halloween"
-holiday.halloween.banner: "Spookachtig gratis spel onderweg, sterveling... 👻"
-holiday.halloween.signoff: "Happy Halloween — claim het voordat het je verlanglijstje achtervolgt! 🦇"
-holiday.valentine.name: "Valentijnsdag"
-holiday.valentine.banner: "Een beetje liefde voor je bibliotheek deze Valentijnsdag:"
-holiday.valentine.signoff: "Rozen zijn rood, dit spel is gratis — geniet! 💝"
-holiday.april_fools.name: "Aprilgrap"
-holiday.april_fools.banner: "Dit is GEEN grap — een echt gratis spel:"
-holiday.april_fools.signoff: "Geen grap, het is echt gratis. Happy April Fools! 🤡"
-holiday.easter.name: "Pasen"
-holiday.easter.banner: "Een paasei voor je bibliotheek — een gratis spel:"
-holiday.easter.signoff: "Frohe Ostern — haast je voordat de giveaway eindigt! 🥚"
-
-# ─── Begroetingen (100 entries) ───
-
-greeting.001: "Hé gamer!"
-greeting.002: "Loot drop onderweg!"
-greeting.003: "Binnenkomend!"
-greeting.004: "Gratis spel alert!"
-greeting.005: "Stop met scrollen, pak dit!"
-greeting.006: "Je backlist belde."
-greeting.007: "Portemonnee blijft vandaag vol!"
-greeting.008: "Gratis cadeau vrijgespeeld!"
-greeting.009: "Prestatie vrijgespeeld: gratis spel!"
-greeting.010: "Druk op F om te claimen!"
-greeting.011: "GG, hier is er een gratis."
-greeting.012: "Nieuwe loot net gedropt!"
-greeting.013: "Verrassing! Het is gratis."
-greeting.014: "Nul euro, alle plezier."
-greeting.015: "Claim het voordat het weg is!"
-greeting.016: "Nog eentje voor de bibliotheek!"
-greeting.017: "Gratis vondst van vandaag:"
-greeting.018: "Gamer, verzamel je!"
-greeting.019: "Opgelet, gratis spel!"
-greeting.020: "Beperkte tijd loot!"
-greeting.021: "Slaap hier niet op in!"
-greeting.022: "Vers van de pers:"
-greeting.023: "Gratis als in bier!"
-greeting.024: "Voeg toe aan winkelwagen: 0,00 €"
-greeting.025: "Trakteer jezelf, het is gratis."
-greeting.026: "Pew pew, gratis spel!"
-greeting.027: "Munt invoeren? Niet nodig."
-greeting.028: "Je dagelijkse dosis gratis:"
-greeting.029: "Grijp het zolang het duurt!"
-greeting.030: "Loot kabouter zegt hallo!"
-greeting.031: "Respawn je backlist!"
-greeting.032: "Gratis spel, geen valkuil!"
-greeting.033: "Tik om je loot te claimen!"
-greeting.034: "Dit is van het huis!"
-greeting.035: "Quest beloning: een gratis spel!"
-greeting.036: "Boem! Gratis spel."
-greeting.037: "Tijd om je bibliotheek op te levelen!"
-greeting.038: "Een wilde gratis cadeau verscheen!"
-greeting.039: "Vang ze allemaal... gratis!"
-greeting.040: "Kritieke hit: gratis spel!"
-greeting.041: "Geen microtransacties hier, gewoon gratis!"
-greeting.042: "Gratis pixels voor jou!"
-greeting.043: "Laat de loot hoorn klinken!"
-greeting.044: "Eén gratis spel aankomend!"
-greeting.045: "Berg dit op in je bibliotheek!"
-greeting.046: "Cha-ching... grapje, het is gratis!"
-greeting.047: "Power up met een gratis spel!"
-greeting.048: "Gratis DLC voor je dag:"
-greeting.049: "Loot krat geopend!"
-greeting.050: "Groeten, avonturier!"
-greeting.051: "Sta op en grind, hier is een gratis cadeau!"
-greeting.052: "Makkelijk claimen, grote winst!"
-greeting.053: "Drop van vandaag:"
-greeting.054: "Yoink dit gratis spel!"
-greeting.055: "Gratis spel, vers van de plank!"
-greeting.056: "Mana bijgevuld, hier is een gratis cadeau!"
-greeting.057: "Voor de schat!"
-greeting.058: "Stapel de backlist op!"
-greeting.059: "Wees geen noob, claim dit!"
-greeting.060: "Speedrun naar de claim knop!"
-greeting.061: "Gratis spel, met dank aan MrFree!"
-greeting.062: "Buffs onderweg: gratis spel!"
-greeting.063: "Loot drop van de dag!"
-greeting.064: "Je inventaris heeft ruimte, toch?"
-greeting.065: "Game on, gratis!"
-greeting.066: "Geen grind, gewoon claimen!"
-greeting.067: "Gratis spel, heet en klaar!"
-greeting.068: "Speciale levering, gamer!"
-greeting.069: "Ontgrendel dit gratis cadeau!"
-greeting.070: "Rol voor loot... je hebt gewonnen!"
-greeting.071: "Het is gevaarlijk om alleen te gaan, neem dit!"
-greeting.072: "Gratis spel gespot in het wild!"
-greeting.073: "Pak het op, het is gratis vastgoed!"
-greeting.074: "Dagelijkse loot is gearriveerd!"
-greeting.075: "Gratis spel, nul cooldown!"
-greeting.076: "Claim nu, bedank me later!"
-greeting.077: "Een cadeau van de gaming goden:"
-greeting.078: "Druk op start voor dit gratis cadeau!"
-greeting.079: "Je geluk stat is hoog vandaag!"
-greeting.080: "Gratis spel, geen strings attached!"
-greeting.081: "Laat alles vallen, gratis spel!"
-greeting.082: "Stonks! Gratis spel editie."
-greeting.083: "Loot onderweg, bereid je voor!"
-greeting.084: "Open je bibliotheek, hier is loot!"
-greeting.085: "Gratis spel, vers gespawned!"
-greeting.086: "Stap in, de loot is gratis!"
-greeting.087: "Big W voor je portemonnee!"
-greeting.088: "Dit gratis cadeau heeft jouw naam erop staan!"
-greeting.089: "Geneesmiddel voor je backlist:"
-greeting.090: "Gratis spel, gecertificeerd episch!"
-greeting.091: "Pak het, het is giveaway o'clock!"
-greeting.092: "Nieuwe toevoeging voor de collectie!"
-greeting.093: "Gratis spel, rechtstreeks naar inventaris!"
-greeting.094: "Schat gevonden!"
-greeting.095: "Gamer alert: gratis loot!"
-greeting.096: "Claim dit voordat de timer eindigt!"
-greeting.097: "Je gratis spel is gearriveerd!"
-greeting.098: "Loot veiliggesteld? Bijna, claim het!"
-greeting.099: "Gratis spel, no cap!"
-greeting.100: "Hier is een gratis cadeau, jij legende!"
-
-# ─── Zeldzaamheid Namen ───
-
-rarity.common: "Gemeen"
-rarity.uncommon: "Ongebruikelijk"
-rarity.rare: "Zeldzaam"
-rarity.epic: "Episch"
-rarity.legendary: "Legendarisch"
-rarity.mythic: "Mythisch"
-rarity.divine: "Goddelijk"
-rarity.unknown: "Zeldzaamheid(%[1]d)"
-
-# ─── Monster Type Namen ───
-
-mob_type.common: "Gemeen"
-mob_type.elite_minion: "EliteMinion"
-mob_type.elite: "Elite"
-mob_type.miniboss: "Miniboss"
-mob_type.boss: "Boss"
-mob_type.legendary: "Legendarisch"
-
-# ─── Stat Labels ───
-
-stat.hp: "HP"
-stat.str: "STR"
-stat.def: "DEF"
-stat.spd: "SPD"
-stat.lck: "LCK"
-stat.int: "INT"
-stat.sta: "STA"
-stat.crt: "CRT"
-stat.dge: "DGE"
-
-# ─── Nummer Achtervoegsels (override defaults) ───
-
-number.suffix.k: "k"
-number.suffix.m: "M"
-number.suffix.b: "Mrd"
-number.gold_suffix: "g"
-
-# ─── Game Platform Namen ───
-
-games.platform.epic: "PC, Epic Games Store"
-games.platform.steam: "PC, Steam"
-games.platform.gog: "PC, GOG"
-games.platform.na: "N/B"
-
-# ─── Genoemde Monsters ───
-
-mob.corrupted_guard: "Gecorrumpeerde Wachter"
-mob.shadow_assassin: "Schaduwassassijn"
-mob.dread_knight: "Angstridder"
-mob.frost_lich: "Vorst Lich"
-mob.gatekeeper: "Poortwachter"
-mob.raging_behemoth: "Woeste Behemoth"
-mob.ancient_dragon: "Oude Draak"
-mob.kraken: "Kraken van de Diepte"
-mob.void_lord: "DE LEEGTEHEER"
-mob.chronos: "CHRONOS, TIJDSVERTEERDER"
-
-# ─── Genoemde Zones ───
-
-zone.elwynn_forest: "Elwynn Bos"
-zone.westfall: "Westvale"
-zone.durotar: "Durotar"
-zone.mulgore: "Mul'gore"
-zone.teldrassil: "Teldrassil"
-zone.loch_modan: "Loch Modan"
-zone.silverpine: "Silverpine"
-zone.desolace: "Desolace"
-zone.stranglethorn: "Stranglethorn Vale"
-zone.tanaris: "Tanaris"
-zone.ungoro: "Un'Goro Krater"
-zone.winterspring: "Winterspring"
-zone.searing_gorge: "Searing Gorge"
-zone.burning_steppes: "Burning Steppes"
-zone.deadwind_pass: "Deadwind Pass"
-zone.eastern_plaguelands: "Eastern Plaguelands"
-zone.hellfire_peninsula: "Hellfire Peninsula"
-zone.zangarmarsh: "Zangarmarsh"
-zone.nagrand: "Nagrand"
-zone.shadowmoon_valley: "Shadowmoon Valley"
-zone.northrend: "Northrend"
-zone.icecrown: "Icecrown"
-
-# ─── Genoemde Gevaren ───
-
-hazard.boiling_lava: "Kokende Lava"
-hazard.toxic_fumes: "Toxische Dampen"
-hazard.raging_sandstorm: "Woeste Zandstorm"
-hazard.howling_blizzard: "Huilende Sneeuwstorm"
-
-# ─── Zone Effecten (specifiek) ───
-
-zone_effect.lava_pools: "Lavaplassen"
-zone_effect.gas_fumes: "Toxische Dampen"
-zone_effect.sand_gusts: "Zandstorm Windstoten"
-zone_effect.blizzard_winds: "Sneeuwstorm Winden"
-
-# ─── Stealth Effecten ───
-
-stealth.natural_camouflage: "Natuurlijke Camouflage"
-stealth.cloak_of_shadows: "Mantel van Schaduwen"
-stealth.night_stalker: "Nachttrekkertje"
-stealth.ambush_predator: "Achterligger Roofdier"
-
-# ─── Consumptie Types ───
-
-consumable.healing_potion: "Geneesmiddel"
-consumable.revive: "Herleven"
-
-# ─── Content Pools: Monster Voorvoegsels ───
-
-pool.mob.prefix.001: "Snotterig"
-pool.mob.prefix.002: "Boos"
-pool.mob.prefix.003: "Ondode"
-pool.mob.prefix.004: "Schaduw"
-pool.mob.prefix.005: "Vuur"
-pool.mob.prefix.006: "Ijskoud"
-pool.mob.prefix.007: "Toxisch"
-pool.mob.prefix.008: "Spookachtig"
-pool.mob.prefix.009: "Metalen"
-pool.mob.prefix.010: "Reus"
-
-# ─── Content Pools: Monster Zelfstandige Naamwoorden ───
-
-pool.mob.noun.001: "Rat"
-pool.mob.noun.002: "Slijm"
-pool.mob.noun.003: "Kabouter"
-pool.mob.noun.004: "Spin"
-pool.mob.noun.005: "Zombie"
-pool.mob.noun.006: "Wolf"
-pool.mob.noun.007: "Skelet"
-pool.mob.noun.008: "Vleermuis"
-pool.mob.noun.009: "Ork"
-pool.mob.noun.010: "Trol"
-
-# ─── Content Pools: Zone Effect Voorvoegsels ───
-
-pool.zone.prefix.001: "Vulkanisch"
-pool.zone.prefix.002: "Glaciaal"
-pool.zone.prefix.003: "Statisch"
-pool.zone.prefix.004: "Leegte"
-pool.zone.prefix.005: "Hemels"
-pool.zone.prefix.006: "Abyssaal"
-pool.zone.prefix.007: "Primaire"
-pool.zone.prefix.008: "Oud"
-pool.zone.prefix.009: "Heilig"
-pool.zone.prefix.010: "Vervloekt"
-pool.zone.prefix.011: "Toxisch"
-pool.zone.prefix.012: "Metalen"
-pool.zone.prefix.013: "Glas"
-pool.zone.prefix.014: "Lichtgevend"
-pool.zone.prefix.015: "Schaduwrijk"
-pool.zone.prefix.016: "Arcanisch"
-pool.zone.prefix.017: "Woest"
-pool.zone.prefix.018: "Stil"
-pool.zone.prefix.019: "Eeuwig"
-pool.zone.prefix.020: "Vermoed"
-
-# ─── Content Pools: Zone Effect Achtervoegsels ───
-
-pool.zone.suffix.001: "Uitbarsting"
-pool.zone.suffix.002: "Kou"
-pool.zone.suffix.003: "Schok"
-pool.zone.suffix.004: "Lek"
-pool.zone.suffix.005: "Golf"
-pool.zone.suffix.006: "Druk"
-pool.zone.suffix.007: "Bries"
-pool.zone.suffix.008: "Echo"
-pool.zone.suffix.009: "Genade"
-pool.zone.suffix.010: "Haat"
-pool.zone.suffix.011: "Dampen"
-pool.zone.suffix.012: "Plating"
-pool.zone.suffix.013: "Scherven"
-pool.zone.suffix.014: "Gloeien"
-pool.zone.suffix.015: "Mist"
-pool.zone.suffix.016: "Stroom"
-pool.zone.suffix.017: "Wind"
-pool.zone.suffix.018: "Stilte"
-pool.zone.suffix.019: "Bloei"
-pool.zone.suffix.020: "Rot"
-
-# ─── Content Pools: Vaardigheid Voorvoegsels ───
-
-pool.skill.prefix.001: "Stervelijk"
-pool.skill.prefix.002: "Heroïsch"
-pool.skill.prefix.003: "Flits"
-pool.skill.prefix.004: "Groter"
-pool.skill.prefix.005: "Minder"
-pool.skill.prefix.006: "Chaos"
-pool.skill.prefix.007: "Fel"
-pool.skill.prefix.008: "Schaduw"
-pool.skill.prefix.009: "Heilig"
-pool.skill.prefix.010: "Vorst"
-pool.skill.prefix.011: "Vuur"
-pool.skill.prefix.012: "Arcanisch"
-pool.skill.prefix.013: "Goddelijk"
-pool.skill.prefix.014: "Primaire"
-pool.skill.prefix.015: "Oud"
-pool.skill.prefix.016: "Abyssaal"
-pool.skill.prefix.017: "Spectraal"
-pool.skill.prefix.018: "Wreker"
-pool.skill.prefix.019: "Wrokvol"
-pool.skill.prefix.020: "Vervloekt"
-pool.skill.prefix.021: "Heilig"
-pool.skill.prefix.022: "Glaciaal"
-pool.skill.prefix.023: "Vulkanisch"
-pool.skill.prefix.024: "Statisch"
-pool.skill.prefix.025: "Donderend"
-pool.skill.prefix.026: "Corrumperend"
-pool.skill.prefix.027: "Vermoed"
-pool.skill.prefix.028: "Toxisch"
-pool.skill.prefix.029: "Metalen"
-pool.skill.prefix.030: "Glas"
-pool.skill.prefix.031: "Maan"
-pool.skill.prefix.032: "Zon"
-pool.skill.prefix.033: "Hemels"
-pool.skill.prefix.034: "Infernaal"
-pool.skill.prefix.035: "Mystiek"
-pool.skill.prefix.036: "Woest"
-pool.skill.prefix.037: "Stil"
-pool.skill.prefix.038: "Eeuwig"
-pool.skill.prefix.039: "Leegte"
-pool.skill.prefix.040: "Astraal"
-pool.skill.prefix.041: "Ijzer"
-pool.skill.prefix.042: "Staal"
-pool.skill.prefix.043: "Mithril"
-pool.skill.prefix.044: "Adamant"
-pool.skill.prefix.045: "Kristallijn"
-pool.skill.prefix.046: "Nevelachtig"
-pool.skill.prefix.047: "Ster-gevormd"
-pool.skill.prefix.048: "Storm-geboren"
-pool.skill.prefix.049: "Schaduw-gebonden"
-pool.skill.prefix.050: "Licht-gezegend"
-
-# ─── Content Pools: Vaardigheid Acties ───
-
-pool.skill.action.001: "Slag"
-pool.skill.action.002: "Explosie"
-pool.skill.action.003: "Brul"
-pool.skill.action.004: "Houw"
-pool.skill.action.005: "Barst"
-pool.skill.action.006: "Aanraking"
-pool.skill.action.007: "Wind"
-pool.skill.action.008: "Nova"
-pool.skill.action.009: "Puls"
-pool.skill.action.010: "Drain"
-pool.skill.action.011: "Bliksem"
-pool.skill.action.012: "Straal"
-pool.skill.action.013: "Golf"
-pool.skill.action.014: "Aura"
-pool.skill.action.015: "Schild"
-pool.skill.action.016: "Smeking"
-pool.skill.action.017: "Oproep"
-pool.skill.action.018: "Woede"
-pool.skill.action.019: "Vortex"
-pool.skill.action.020: "Splijten"
-pool.skill.action.021: "Herstellen"
-pool.skill.action.022: "Genezen"
-pool.skill.action.023: "Klap"
-pool.skill.action.024: "Spleten"
-pool.skill.action.025: "Uitvoeren"
-pool.skill.action.026: "Scheuren"
-pool.skill.action.027: "Aanval"
-pool.skill.action.028: "Sprong"
-pool.skill.action.029: "Vernietigen"
-pool.skill.action.030: "Schok"
-pool.skill.action.031: "Adem"
-pool.skill.action.032: "Beten"
-pool.skill.action.033: "Steken"
-pool.skill.action.034: "Klauw"
-pool.skill.action.035: "Maul"
-pool.skill.action.036: "Veeg"
-pool.skill.action.037: "Grom"
-pool.skill.action.038: "Sluipen"
-pool.skill.action.039: "Scheuren"
-pool.skill.action.040: "Knipperen"
-
-# ─── Content Pools: Unieke Item Bijvoeglijke Naamwoorden ───
-
-pool.unique.adjective.001: "Oud"
-pool.unique.adjective.002: "Vervloekt"
-pool.unique.adjective.003: "Gezegend"
-pool.unique.adjective.004: "Stralend"
-pool.unique.adjective.005: "Schaduw"
-pool.unique.adjective.006: "Eeuwig"
-pool.unique.adjective.007: "Leegte"
-pool.unique.adjective.008: "Hemels"
-pool.unique.adjective.009: "Infernaal"
-pool.unique.adjective.010: "Vorst"
-pool.unique.adjective.011: "Storm"
-pool.unique.adjective.012: "Aarde"
-pool.unique.adjective.013: "Bloed"
-pool.unique.adjective.014: "Ziel"
-pool.unique.adjective.015: "Geest"
-pool.unique.adjective.016: "Goddelijk"
-pool.unique.adjective.017: "Mythisch"
-pool.unique.adjective.018: "Legendarisch"
-pool.unique.adjective.019: "Episch"
-pool.unique.adjective.020: "Zeldzaam"
-pool.unique.adjective.021: "Glanzend"
-pool.unique.adjective.022: "Donker"
-pool.unique.adjective.023: "Licht"
-pool.unique.adjective.024: "Heilig"
-pool.unique.adjective.025: "Onheilig"
-pool.unique.adjective.026: "Snel"
-pool.unique.adjective.027: "Zwaar"
-pool.unique.adjective.028: "Scherp"
-pool.unique.adjective.029: "Bot"
-pool.unique.adjective.030: "Magisch"
-pool.unique.adjective.031: "Arcanisch"
-pool.unique.adjective.032: "Primaire"
-pool.unique.adjective.033: "Wild"
-pool.unique.adjective.034: "Edel"
-pool.unique.adjective.035: "Koninklijk"
-pool.unique.adjective.036: "Keizerlijk"
-pool.unique.adjective.037: "Groot"
-pool.unique.adjective.038: "Machtig"
-pool.unique.adjective.039: "Woest"
-pool.unique.adjective.040: "Wild"
-pool.unique.adjective.041: "Getemd"
-pool.unique.adjective.042: "Stil"
-pool.unique.adjective.043: "Luid"
-pool.unique.adjective.044: "Helder"
-pool.unique.adjective.045: "Dim"
-pool.unique.adjective.046: "Koud"
-pool.unique.adjective.047: "Heet"
-pool.unique.adjective.048: "Brandend"
-pool.unique.adjective.049: "Bevriezend"
-pool.unique.adjective.050: "Gesplitst"
-
-# ─── Content Pools: Unieke Item Zelfstandige Naamwoorden ───
-
-pool.unique.noun.001: "Zwaard"
-pool.unique.noun.002: "Schild"
-pool.unique.noun.003: "Helm"
-pool.unique.noun.004: "Harnas"
-pool.unique.noun.005: "Laarzen"
-pool.unique.noun.006: "Handschoenen"
-pool.unique.noun.007: "Ring"
-pool.unique.noun.008: "Amulet"
-pool.unique.noun.009: "Staf"
-pool.unique.noun.010: "Boog"
-pool.unique.noun.011: "Dolk"
-pool.unique.noun.012: "Bijl"
-pool.unique.noun.013: "Moker"
-pool.unique.noun.014: "Speer"
-pool.unique.noun.015: "Orb"
-pool.unique.noun.016: "Tome"
-pool.unique.noun.017: "Scroll"
-pool.unique.noun.018: "Potion"
-pool.unique.noun.019: "Charm"
-pool.unique.noun.020: "Relic"
-
-# ─── Content Pools: Dood Effect Voorvoegsels ───
-
-pool.death.prefix.001: "Laatste"
-pool.death.prefix.002: "Finale"
-pool.death.prefix.003: "Stervend"
-pool.death.prefix.004: "Bitter"
-pool.death.prefix.005: "Wreker"
-pool.death.prefix.006: "Wrokvol"
-pool.death.prefix.007: "Wanhopig"
-pool.death.prefix.008: "Echoënd"
-pool.death.prefix.009: "Spookachtig"
-pool.death.prefix.010: "Vervloekt"
-
-# ─── Content Pools: Dood Effect Acties ───
-
-pool.death.action.001: "Brul"
-pool.death.action.002: "Snik"
-pool.death.action.003: "Gasp"
-pool.death.action.004: "Vloek"
-pool.death.action.005: "Explosie"
-pool.death.action.006: "Klaag"
-pool.death.action.007: "Huil"
-pool.death.action.008: "Schreeuw"
-pool.death.action.009: "Zucht"
-pool.death.action.010: "Commando"
-
-# ─── Content Pools: Level Tier Namen (100 basis tiers) ───
-
-pool.level.tier.001: "Drijver"
-pool.level.tier.002: "Armoedzaaier"
-pool.level.tier.003: "Boer"
-pool.level.tier.004: "Thrall"
-pool.level.tier.005: "Bondman"
-pool.level.tier.006: "Plunderaar"
-pool.level.tier.007: "Achternaloop"
-pool.level.tier.008: "Banneling"
-pool.level.tier.009: "Vluchteling"
-pool.level.tier.010: "Ballinge"
-pool.level.tier.011: "Vagebond"
-pool.level.tier.012: "Zoeker"
-pool.level.tier.013: "Zwerver"
-pool.level.tier.014: "Nomade"
-pool.level.tier.015: "Initiaat"
-pool.level.tier.016: "Nieuweling"
-pool.level.tier.017: "Novice"
-pool.level.tier.018: "Leerling"
-pool.level.tier.019: "Page"
-pool.level.tier.020: "Schildknaap"
-pool.level.tier.021: "Voetsoldaat"
-pool.level.tier.022: "Rekrut"
-pool.level.tier.023: "Conscript"
-pool.level.tier.024: "Soldaat"
-pool.level.tier.025: "Krijger"
-pool.level.tier.026: "Wachter"
-pool.level.tier.027: "Sentry"
-pool.level.tier.028: "Wachter"
-pool.level.tier.029: "Bewaker"
-pool.level.tier.030: "Keeper"
-pool.level.tier.031: "Avonturier"
-pool.level.tier.032: "Huurling"
-pool.level.tier.033: "Contractant"
-pool.level.tier.034: "Skirmisher"
-pool.level.tier.035: "Scout"
-pool.level.tier.036: "Ranger"
-pool.level.tier.037: "Pathfinder"
-pool.level.tier.038: "Tracker"
-pool.level.tier.039: "Jager"
-pool.level.tier.040: "Stalker"
-pool.level.tier.041: "Ridder"
-pool.level.tier.042: "Paladijn"
-pool.level.tier.043: "Chevalier"
-pool.level.tier.044: "Cavalier"
-pool.level.tier.045: "Dragoon"
-pool.level.tier.046: "Templar"
-pool.level.tier.047: "Kruisvaarder"
-pool.level.tier.048: "Wreker"
-pool.level.tier.049: "Justicar"
-pool.level.tier.050: "Inquisiteur"
-pool.level.tier.051: "Warlock"
-pool.level.tier.052: "Tovenaar"
-pool.level.tier.053: "Mage"
-pool.level.tier.054: "Wizard"
-pool.level.tier.055: "Arcanist"
-pool.level.tier.056: "Elementalist"
-pool.level.tier.057: "Oproeper"
-pool.level.tier.058: "Necromancer"
-pool.level.tier.059: "Occultist"
-pool.level.tier.060: "Shaman"
-pool.level.tier.061: "Slayer"
-pool.level.tier.062: "Executioner"
-pool.level.tier.063: "Assassin"
-pool.level.tier.064: "Shinobi"
-pool.level.tier.065: "Ninja"
-pool.level.tier.066: "Raider"
-pool.level.tier.067: "Marauder"
-pool.level.tier.068: "Berserker"
-pool.level.tier.069: "Gladiator"
-pool.level.tier.070: "Strijder"
-pool.level.tier.071: "Battlemaster"
-pool.level.tier.072: "Commandant"
-pool.level.tier.073: "Kapitein"
-pool.level.tier.074: "Majoor"
-pool.level.tier.075: "Kolonel"
-pool.level.tier.076: "Generaal"
-pool.level.tier.077: "Maarschalk"
-pool.level.tier.078: "Legaat"
-pool.level.tier.079: "Centurio"
-pool.level.tier.080: "Tribuun"
-pool.level.tier.081: "Kampioen"
-pool.level.tier.082: "Held"
-pool.level.tier.083: "Legende"
-pool.level.tier.084: "Mythe"
-pool.level.tier.085: "Vanguard"
-pool.level.tier.086: "Frontliner"
-pool.level.tier.087: "Beschermer"
-pool.level.tier.088: "Verdediger"
-pool.level.tier.089: "Beschermer"
-pool.level.tier.090: "Sentinel"
-pool.level.tier.091: "Oorlogsheer"
-pool.level.tier.092: "Veroveraar"
-pool.level.tier.093: "Overheerser"
-pool.level.tier.094: "Soeverein"
-pool.level.tier.095: "Monarch"
-pool.level.tier.096: "Keizer"
-pool.level.tier.097: "Godslayer"
-pool.level.tier.098: "Titaan"
-pool.level.tier.099: "Ascendant"
-pool.level.tier.100: "Transcendent"
-
-# ─── Content Pools: Epische Bijvoeglijke Naamwoorden (procedurele tiers) ───
-
-pool.level.epic_adj.001: "Ascendant"
-pool.level.epic_adj.002: "Eeuwig"
-pool.level.epic_adj.003: "Astraal"
-pool.level.epic_adj.004: "Stralend"
-pool.level.epic_adj.005: "Infernaal"
-pool.level.epic_adj.006: "Hemels"
-pool.level.epic_adj.007: "Primordiaal"
-pool.level.epic_adj.008: "Transcendent"
-pool.level.epic_adj.009: "Mythisch"
-pool.level.epic_adj.010: "Abyssaal"
-pool.level.epic_adj.011: "Leegte-Aangeraakt"
-pool.level.epic_adj.012: "Ster-gevormd"
-pool.level.epic_adj.013: "Oud"
-pool.level.epic_adj.014: "Verguld"
-pool.level.epic_adj.015: "Spectraal"
-pool.level.epic_adj.016: "Goddelijk"
-pool.level.epic_adj.017: "Verboden"
-pool.level.epic_adj.018: "Ethereal"
-pool.level.epic_adj.019: "Storm-geboren"
-pool.level.epic_adj.020: "Schaduw-gebonden"
-pool.level.epic_adj.021: "Nevelachtig"
-pool.level.epic_adj.022: "Kristallijn"
-pool.level.epic_adj.023: "Vergeet"
-pool.level.epic_adj.024: "Heilig"
-pool.level.epic_adj.025: "Wreker"
-pool.level.epic_adj.026: "Stil"
-pool.level.epic_adj.027: "Gesplitst"
-pool.level.epic_adj.028: "Brandend"
-pool.level.epic_adj.029: "Bevroren"
-pool.level.epic_adj.030: "Twisted"
-
-# ─── Content Pools: Epische Titels (procedurele tiers) ───
-
-pool.level.epic_title.001: "Kampioen"
-pool.level.epic_title.002: "Oorlogsheer"
-pool.level.epic_title.003: "Soeverein"
-pool.level.epic_title.004: "Archon"
-pool.level.epic_title.005: "Overheerser"
-pool.level.epic_title.006: "Halfgod"
-pool.level.epic_title.007: "Titaan"
-pool.level.epic_title.008: "Vanguard"
-pool.level.epic_title.009: "Veroveraar"
-pool.level.epic_title.010: "Paragon"
-pool.level.epic_title.011: "Sentinel"
-pool.level.epic_title.012: "Exarch"
-pool.level.epic_title.013: "Oracle"
-pool.level.epic_title.014: "Godheid"
-pool.level.epic_title.015: "Avatar"
-pool.level.epic_title.016: "Godslayer"
-pool.level.epic_title.017: "Reaper"
-pool.level.epic_title.018: "Profeet"
-pool.level.epic_title.019: "Hoge-Koning"
-pool.level.epic_title.020: "Omni-Slayer"
-pool.level.epic_title.021: "Harbinger"
-pool.level.epic_title.022: "Executioner"
-pool.level.epic_title.023: "Watcher"
-pool.level.epic_title.024: "Keeper"
-pool.level.epic_title.025: "Heer"
-pool.level.epic_title.026: "Baron"
-pool.level.epic_title.027: "Shaman"
-pool.level.epic_title.028: "Wijze"
-pool.level.epic_title.029: "Priester"
-pool.level.epic_title.030: "Templar"
-
-# ─── Content Pools: Epische Rijken (procedurele tiers) ───
-
-pool.level.epic_realm.001: "Leegte"
-pool.level.epic_realm.002: "Abyss"
-pool.level.epic_realm.003: "Kosmos"
-pool.level.epic_realm.004: "Eeuwigheid"
-pool.level.epic_realm.005: "Storm"
-pool.level.epic_realm.006: "Dageraad"
-pool.level.epic_realm.007: "Vlam"
-pool.level.epic_realm.008: "Vorst"
-pool.level.epic_realm.009: "Schaduw"
-pool.level.epic_realm.010: "Licht"
-pool.level.epic_realm.011: "Nebula"
-pool.level.epic_realm.012: "Continuüm"
-pool.level.epic_realm.013: "Aether"
-pool.level.epic_realm.014: "Hellfire"
-pool.level.epic_realm.015: "Nulpunt"
-pool.level.epic_realm.016: "Singulariteit"
-pool.level.epic_realm.017: "Genesis"
-pool.level.epic_realm.018: "Openbaring"
-pool.level.epic_realm.019: "Vergeet"
-pool.level.epic_realm.020: "Nexus"
-pool.level.epic_realm.021: "Onderwereld"
-pool.level.epic_realm.022: "Sky-Reach"
-pool.level.epic_realm.023: "Droom-Wereld"
-pool.level.epic_realm.024: "Eind-Tijden"
-pool.level.epic_realm.025: "Sun-Forge"
-pool.level.epic_realm.026: "Moon-Rise"
-pool.level.epic_realm.027: "Deep-Sea"
-pool.level.epic_realm.028: "Ever-Green"
-pool.level.epic_realm.029: "Iron-Hold"
-pool.level.epic_realm.030: "Dragon-Spire"
-
-# ─── Content Pools: Gamer Achtervoegsels ───
-
-pool.gamer_suffix.001: "Gamer"
-pool.gamer_suffix.002: "Loot"
-pool.gamer_suffix.003: "Held"
-pool.gamer_suffix.004: "Legende"
-pool.gamer_suffix.005: "Pro"
-pool.gamer_suffix.006: "Meester"
-pool.gamer_suffix.007: "Raider"
-pool.gamer_suffix.008: "Jager"
-
-# ─── Server Groep Namen ───
-
-prestige.group_name: "Prestige %[1]d"
-xpgroups.group_name: "Niv %[1]d"
-loot_sync.group_name: "(gs:%[1]d) %[2]s%[3]s"
-
-# ─── Content Pools: Gevaar Namen (ontbrekend) ───
-
-hazard.deadly_radiation: "Dodelijke Straling"
-hazard.treacherous_quicksand: "Verraderlijk Drijfzand"
-hazard.cursed_aura: "Vervloekte Aura"
-hazard.arcane_vortex: "Arcane Vortex"
-
-# ─── Content Pools: Gevaar Beschrijvingen ───
-
-hazard.boiling_lava.desc: "Gesmolten rots borrelt op uit de grond, brandt alles op zijn pad"
-hazard.toxic_fumes.desc: "Giftige gassen vullen de lucht, veroorzaken misselijkheid en zwakte"
-hazard.raging_sandstorm.desc: "Verblinding zand geslingerd door de lucht, maakt het moeilijk om te zien of bewegen"
-hazard.howling_blizzard.desc: "Bevriezende winden en sneeuw verminderen zichtbaarheid en beweging"
-hazard.deadly_radiation.desc: "Toxische straling eet langzaam aan gezondheid en vitaliteit"
-hazard.treacherous_quicksand.desc: "Zinkend zand maakt beweging moeilijk en uitputtend"
-hazard.cursed_aura.desc: "Een donkere energie zuigt de kracht en wil van iedereen die binnenkomt"
-hazard.arcane_vortex.desc: "Een wervelende vortex van magische energie verstoort spreukwerpen en vaardigheden"
-
-# ─── Content Pools: Gevaar Gevechtslog Strings ───
-
-content.hazard.dissipated: "⏳ %[1]s is verdwenen"
-content.hazard.damage: "☠️ %[1]s krijgt %[2]d schade van %[3]s"
-content.hazard.weakened: "🌪️ %[1]s is verzwakt door %[2]s (%[3].0f%%)"
-content.hazard.vision_impaired: "👁️ %[1]s's zicht is belemmerd door %[2]s (%[3].0f%% mis kans)"
-content.hazard.movement_impaired: "🏃 %[1]s's beweging is belemmerd door %[2]s (%[3].0f%% langzamer)"
-
-# ─── Content Pools: Gevaar Uitrusting Namen ───
-
-content.hazard.heat_resistant_plate: "Hittebestendige Plaat"
-content.hazard.fireproof_cloak: "Vuurvaste Mantel"
-content.hazard.molten_core_gauntlets: "Gesmolten Kern Handschoenen"
-content.hazard.gas_mask: "Gas Masker"
-content.hazard.antitoxin_armor: "Antitoxine Harnas"
-content.hazard.desert_goggles: "Woestijnbril"
-content.hazard.sandstorm_cloak: "Zandstorm Mantel"
-content.hazard.protective_ward: "Beschermend Ward"
-content.hazard.resistant_tunic: "Resistente Tuniek"
-content.hazard.arcane_shield: "Arcane Schild"
-
-# ─── Content Pools: Gevaar Consumptie Namen ───
-
-content.hazard.health_potion: "Geneesmiddel"
-content.hazard.stamina_elixir: "Uithoudingsvermogen Elixir"
-content.hazard.speed_potion: "Snelheidsgeneesmiddel"
-content.hazard.intellect_draught: "Intellect Drank"
-content.hazard.antidote: "Antidote"
-content.hazard.clarity_potion: "Duidelijkheidsgeneesmiddel"
-
-# ─── Content Pools: Monster Weergave Formaten ───
-
-content.mob.display_format: "Niv %[1]d %[2]s [%[3]s]%[4]s (%[5]d/%[6]d HP)"
-content.mob.display_format_short: "Niv %[1]d %[2]s [%[3]s]%[4]s"
-
-# ─── Content Pools: Monster Type Namen ───
-
-content.mob.type.common: "Gemeen"
-content.mob.type.elite_minion: "EliteMinion"
-content.mob.type.elite: "Elite"
-content.mob.type.miniboss: "Miniboss"
-content.mob.type.boss: "Boss"
-content.mob.type.legendary: "Legendarisch"
-
-# ─── Content Pools: Vaardigheid Type Namen ───
-
-content.skill.type.physical: "Fysiek"
-content.skill.type.magic: "Magisch"
-content.skill.type.buff: "Buff"
-content.skill.type.debuff: "Debuff"
-content.skill.type.ultimate: "Ultimate"
-
-# ─── Content Pools: Vaste Vaardigheid Namen ───
-
-content.skill.novice_spark.name: "Beginner vonk"
-content.skill.novice_punch.name: "Beginner stomp"
-
-# ─── Content Pools: Vaardigheid Beschrijving Formaten ───
-
-content.skill.description.format: "%[1]s %[2]s rang %[3]d."
-content.skill.ultimate.description.format: "%[1]s ultimate: %[2].1fx schade, %[3]d ronde cooldown"
-
-# ─── Content Pools: Stealth Type Namen ───
-
-content.stealth.type.passive: "Passief"
-content.stealth.type.active: "Actief"
-content.stealth.type.situational: "Situatief"
-
-# ─── Content Pools: Stealth Effect Namen (ontbrekend) ───
-
-stealth.misdirection: "Misdirection"
-stealth.silent_movement: "Stille Beweging"
-
-# ─── Content Pools: Stealth Effect Beschrijvingen ───
-
-stealth.natural_camouflage.desc: "Basis vermogen om te mengen met omgeving"
-stealth.cloak_of_shadows.desc: "Het dragen van een donkere mantel verbetert stealth"
-stealth.night_stalker.desc: "Verhoogde stealth tijdens nacht"
-stealth.ambush_predator.desc: "Eerste slag doet bonus schade wanneer onopgemerkt"
-stealth.misdirection.desc: "Leid vijanden af om detectie te verminderen"
-stealth.silent_movement.desc: "Beweeg zonder geluid te maken"
-
-# ─── Content Pools: Stealth Uitrusting Namen ───
-
-content.stealth.shadow_cloak: "Schaduw Mantel"
-content.stealth.night_cloak: "Nacht Mantel"
-content.stealth.stealth_tunic: "Stealth Tuniek"
-content.stealth.assassins_garb: "Assassijn's Kleding"
-
-# ─── Content Pools: Stealth Consumptie Namen ───
-
-content.stealth.shadow_potion: "Schaduw Geneesmiddel"
-content.stealth.cloak_elixir: "Mantel Elixir"
-
-# ─── Content Pools: Unieke Item Beschrijving Formaat ───
-
-content.unique.description.format: "%[1]s %[2]s (Kracht: %[3].1f)"
-content.unique_item.description: "%[1]s %[2]s (Kracht: %[3].1f)"
-
-# ─── Content Pools: Zone Type Namen ───
-
-content.zone.type.buff: "Buff"
-content.zone.type.debuff: "Debuff"
-content.zone.type.hazard: "Gevaar"
-content.zone.type.special: "Speciaal"
-
-# ─── Content Pools: Zone Effect Beschrijving Formaten ───
-
-content.zone.effect.buff: "Geeft +%[1].0f%% aan willekeurige gevechtsstat."
-content.zone.effect.debuff: "Vermindert willekeurige vijandige gevechtsstat met %[1].0f%%."
-content.zone.effect.hazard: "Doet %[1].0f schade per ronde aan iedereen."
-content.zone.effect.special: "Verhoogt zeldzame loot drop rates of spawn extra monsters."
-content.zone.effect.buff_desc: "Geeft +%[1].0f%% aan willekeurige gevechtsstat."
-content.zone.effect.debuff_desc: "Vermindert willekeurige vijandige gevechtsstat met %[1].0f%%."
-content.zone.effect.hazard_desc: "Doet %[1].0f schade per ronde aan iedereen."
-content.zone.effect.special_desc: "Verhoogt zeldzame loot drop rates of spawn extra monsters."
-content.zone.effect_display: "%[1]s (%[2]s)"
-
-# ─── Content Pools: Zone Weergave Formaat ───
-
-content.zone.display.format: "📍 %[1]s [Moeilijkheid: %[2].2f] — Effecten: %[3]s"
-content.zone.display: "📍 %[1]s [Moeilijkheid: %[2].2f] — Effecten: %[3]s"
-
-# ─── Zone Namen ───
-
-content.zone.elwynn_forest: "Elwynn Bos"
-content.zone.westfall: "Westvale"
-content.zone.durotar: "Durotar"
-content.zone.mulgore: "Mul'gore"
-content.zone.teldrassil: "Teldrassil"
-content.zone.loch_modan: "Loch Modan"
-content.zone.silverpine: "Silverpine Bos"
-content.zone.desolace: "Desolace"
-content.zone.stranglethorn_vale: "Stranglethorn Vale"
-content.zone.tanaris: "Tanaris"
-content.zone.ungoro_crater: "Un'Goro Krater"
-content.zone.winterspring: "Winterspring"
-content.zone.searing_gorge: "Searing Gorge"
-content.zone.burning_steppes: "Burning Steppes"
-content.zone.deadwind_pass: "Deadwind Pass"
-content.zone.eastern_plaguelands: "Eastern Plaguelands"
-content.zone.molten_core: "Molten Core"
-content.zone.sunwell_plateau: "Sunwell Plateau"
-content.zone.icecrown_citadel: "Icecrown Citadel"
-content.zone.void_rift: "Void Rift"
-content.zone.maelstrom: "The Maelstrom"
-content.zone.firelands: "Firelands"
-content.zone.shadowlands: "Shadowlands"
-
-# ─── Zone Gevaar Namen ───
-
-content.zone.lava_pools.name: "Lavaplassen"
-content.zone.lava_pools.desc: "Lavaplassen doen vuurschade."
-content.zone.toxic_fumes.name: "Toxische Dampen"
-content.zone.toxic_fumes.desc: "Toxische dampen vergiftigen de lucht."
-content.zone.sandstorm_gusts.name: "Zandstorm Windstoten"
-content.zone.sandstorm_gusts.desc: "Zandstorm windstoten verminderen zichtbaarheid."
-content.zone.blizzard_winds.name: "Sneeuwstorm Winden"
-content.zone.blizzard_winds.desc: "Sneeuwstorm winden vertragen beweging."
-
-# ─── Feestdagen ───
-
-content.holiday.christmas.name: "Kerstmis"
-content.holiday.christmas.banner: "🎄 Vrolijk Kerstfeest! Moge je loot legendarisch zijn!"
-content.holiday.christmas.signoff: "Ho ho ho, gamer!"
-content.holiday.new_year.name: "Nieuwjaar"
-content.holiday.new_year.banner: "🎆 Gelukkig Nieuwjaar! Tijd voor een frisse start!"
-content.holiday.new_year.signoff: "Proost, gamer!"
-content.holiday.halloween.name: "Halloween"
-content.holiday.halloween.banner: "🎃 Truc of traktatie! Pas op voor spookachtige monsters!"
-content.holiday.halloween.signoff: "Blijf spookachtig, gamer!"
-content.holiday.valentines_day.name: "Valentijnsdag"
-content.holiday.valentines_day.banner: "❤️ Liefde hangt in de lucht! Groepeer met iemand speciaals!"
-content.holiday.valentines_day.signoff: "Ik hou van je, gamer!"
-content.holiday.april_fools.name: "Aprilgrap"
-content.holiday.april_fools.banner: "🃏 Aprilgrap! Let op verrassingsmechanismen!"
-content.holiday.april_fools.signoff: "Heb ik je, gamer!"
-content.holiday.easter.name: "Pasen"
-content.holiday.easter.banner: "🐰 Vrolijk Pasen! Jacht op eieren en loot!"
-content.holiday.easter.signoff: "Spring door, gamer!"
-
-# ─── Content Pools: Uitrusting Slot Namen ───
-
-content.artifact.slot.head: "Hoofd"
-content.artifact.slot.neck: "Nek"
-content.artifact.slot.shoulders: "Schouders"
-content.artifact.slot.back: "Rug"
-content.artifact.slot.chest: "Borst"
-content.artifact.slot.wrists: "Polsen"
-content.artifact.slot.hands: "Handen"
-content.artifact.slot.waist: "Taille"
-content.artifact.slot.legs: "Benen"
-content.artifact.slot.feet: "Voeten"
-content.artifact.slot.finger1: "Vinger1"
-content.artifact.slot.finger2: "Vinger2"
-content.artifact.slot.trinket1: "Trinket1"
-content.artifact.slot.trinket2: "Trinket2"
-content.artifact.slot.mainhand: "Hoofdhand"
-content.artifact.slot.offhand: "Andere hand"
-content.artifact.slot.ranged: "Afstand"
-content.artifact.slot.relic: "Relic"
-content.artifact.slot.artifact: "Artefact"
-content.artifact.slot.soul: "Ziel"
-content.artifact.slot.aura: "Aura"
-content.artifact.slot.charm: "Charm"
-content.artifact.slot.mount: "Rijdier"
-content.artifact.slot.companion: "Metgezel"
-content.artifact.slot.pet1: "Huisdier1"
-content.artifact.slot.pet2: "Huisdier2"
-content.artifact.slot.emblem1: "Embleem1"
-content.artifact.slot.emblem2: "Embleem2"
-content.artifact.slot.banner: "Banner"
-content.artifact.slot.totem: "Totem"
-
-# ─── Content Pools: Item Effect Namen ───
-
-content.artifact.effect.thorns: "Doornen"
-content.artifact.effect.vampiric: "Vampirisch"
-content.artifact.effect.berserk: "Berserk"
-content.artifact.effect.lucky: "Gelukkig"
-content.artifact.effect.treasure_hunter: "Schatzoeker"
-content.artifact.effect.quick: "Snel"
-content.artifact.effect.bulwark: "Bulwark"
-content.artifact.effect.radiant: "Stralend"
-content.artifact.effect.fragile: "Breekbaar"
-content.artifact.effect.steady: "Stabiel"
-content.artifact.effect.mind_control: "Geestcontrole"
-content.artifact.effect.regen_stack: "RegenStack"
-content.artifact.effect.phoenix: "Phoenix"
-content.artifact.effect.stealth: "Stealth"
-content.artifact.effect.parry: "Parry"
-content.artifact.effect.cleanse: "Zuiveren"
-
-# ─── Content Pools: Element/Positie Namen ───
-
-content.artifact.element.physical: "Fysiek"
-content.artifact.element.fire: "Vuur"
-content.artifact.element.water: "Water"
-content.artifact.element.earth: "Aarde"
-content.artifact.element.air: "Lucht"
-content.artifact.position.frontline: "Frontlinie"
-content.artifact.position.backline: "Achterlinie"
-
-# ─── Content Pools: Consumptie Namen ───
-
-content.artifact.consumable.small_health_potion.name: "Kleine Geneesmiddel"
-content.artifact.consumable.great_health_potion.name: "Grote Geneesmiddel"
-content.artifact.consumable.strength_elixir.name: "Sterkte Elixir"
-content.artifact.consumable.iron_skin_brew.name: "IJzeren Huid Brouwsel"
-content.artifact.consumable.phoenix_feather.name: "Phoenix Veer"
-content.artifact.consumable.repair_kit.name: "Reparatiekit"
-content.artifact.consumable.master_repair_kit.name: "Meester Reparatiekit"
-
-# ─── Content Pools: Consumptie Beschrijvingen ───
-
-content.artifact.consumable.small_health_potion.desc: "Herstelt direct 50 HP"
-content.artifact.consumable.great_health_potion.desc: "Herstelt direct 200 HP"
-content.artifact.consumable.strength_elixir.desc: "+15 STR voor 3 gevechten"
-content.artifact.consumable.iron_skin_brew.desc: "+10 DEF voor 3 gevechten"
-content.artifact.consumable.phoenix_feather.desc: "Herleeft je automatisch met 50% HP één keer"
-content.artifact.consumable.repair_kit.desc: "Herstelt 30 duurzaamheid aan een willekeurig uitgerust item"
-content.artifact.consumable.master_repair_kit.desc: "Herstelt 75 duurzaamheid aan een willekeurig uitgerust item"
-
-# ─── Content Pools: Consumptie Type Namen ───
-
-content.artifact.consumable_type.healing: "Genezing"
-content.artifact.consumable_type.revive: "Herleven"
-content.artifact.consumable_type.buff: "Buff"
-content.artifact.consumable_type.repair: "Reparatie"
-
-# ─── Content Pools: Formaat Strings ───
-
-content.artifact.format.plus_percent: "+%[1].0f%%"
-content.artifact.format.minus_percent: "-%[1].0f%%"
-content.artifact.format.xp_bonus_desc_positive: "+%[1].0f%%"
-content.artifact.format.xp_bonus_desc_negative: "-%[1].0f%%"
-
-# ─── Content Pools: Vaste Uitrusting Namen ───
-
-content.artifact.gear.trusty_longsword: "Betrouwbaar Langzwaard"
-content.artifact.gear.reinforced_breastplate: "Versterkte Borstplaat"
-
-# ─── Content Pools: Betovering Voorvoegsels ───
-
-content.artifact.enchant.fiery: "Vuur"
-content.artifact.enchant.icy: "IJs"
-content.artifact.enchant.shocking: "Schokkend"
-content.artifact.enchant.venomous: "Vergiftigd"
-content.artifact.enchant.holy: "Heilig"
-content.artifact.enchant.vampiric: "Vampirisch"
-content.artifact.enchant.arcane: "Arcanisch"
-content.artifact.enchant.stone: "Steen"
-content.artifact.enchant.wind: "Wind"
-content.artifact.enchant.shadow: "Schaduw"
-content.artifact.enchant.reinforced: "Versterkt"
-content.artifact.enchant.unbreakable: "Onbreekbaar"
-content.artifact.enchant.diamond_coated: "Diamant-bekleed"
-
-# ─── Content Pools: Beginner Uitrusting Namen ───
-
-content.artifact.novice_gear: "Beginner %[1]s"
-
-# ─── Content Pools: Ultimate Vaardigheid Namen ───
-
-content.skill.divine_revival.name: "Goddelijke Herleving"
-
-# ─── Content Pools: Bijnamen ───
-
-content.nickname.default: "MrFree"
-content.nickname.vaultboy: "VaultBoy"
-content.nickname.dovahkiin: "Dovahkiin"
-content.nickname.geralt_of_rivia: "GeraltOfRivia"
-content.nickname.doomguy: "DoomGuy"
-content.nickname.master_chief: "MasterChief"
-content.nickname.hero_of_time: "HeroOfTime"
-content.nickname.itsa_me: "ItsaMe"
-content.nickname.gotta_go_fast: "GottaGoFast"
-content.nickname.still_alive: "StillAlive"
-content.nickname.steve: "Steve"
-content.nickname.lara_croft: "LaraCroft"
-content.nickname.ezio_auditore: "EzioAuditore"
-content.nickname.kratos: "Kratos"
-content.nickname.stars_member: "STARSMember"
-content.nickname.foggy_hill: "FoggyHill"
-content.nickname.chosen_undead: "ChosenUndead"
-content.nickname.tarnished: "Tarnished"
-content.nickname.choom_v: "ChoomV"
-content.nickname.wanted_level_5: "WantedLevel5"
-content.nickname.rush_b: "RushB"
-content.nickname.freeman_phd: "FreemanPhD"
-content.nickname.samus_aran: "SamusAran"
-content.nickname.solid_snake: "SolidSnake"
-content.nickname.chocobo_rider: "ChocoboRider"
-content.nickname.use_the_force: "UseTheForce"
-content.nickname.vault_hunter: "VaultHunter"
-content.nickname.nephalem_hero: "NephalemHero"
-content.nickname.for_the_horde: "ForTheHorde"
-content.nickname.payload_escort: "PayloadEscort"
-content.nickname.would_you_kindly: "WouldYouKindly"
-content.nickname.rookie_fc: "RookieFC"
-content.nickname.agent_47: "Agent47"
-content.nickname.flawless_victory: "FlawlessVictory"
-content.nickname.hadouken: "Hadouken"
-content.nickname.waka_waka: "WakaWaka"
-content.nickname.tspin_triple: "TSpinTriple"
-content.nickname.not_the_impostor: "NotTheImpostor"
-content.nickname.moon_lord: "MoonLord"
-content.nickname.junimo_farmer: "JunimoFarmer"
-content.nickname.the_knight: "TheKnight"
-
-# ─── Content Pools: Artefact Voorvoegsels ───
-
-pool.artifact.prefix.001: "Oud"
-pool.artifact.prefix.002: "Eeuwig"
-pool.artifact.prefix.003: "Hemels"
-pool.artifact.prefix.004: "Infernaal"
-pool.artifact.prefix.005: "Primaire"
-pool.artifact.prefix.006: "Abyssaal"
-pool.artifact.prefix.007: "Goddelijk"
-pool.artifact.prefix.008: "Leegte"
-pool.artifact.prefix.009: "Schaduw"
-pool.artifact.prefix.010: "Vorst"
-pool.artifact.prefix.011: "Storm"
-pool.artifact.prefix.012: "Vlam"
-pool.artifact.prefix.013: "Aarde"
-pool.artifact.prefix.014: "Wind"
-pool.artifact.prefix.015: "Licht"
-pool.artifact.prefix.016: "Donker"
-pool.artifact.prefix.017: "Gouden"
-pool.artifact.prefix.018: "Kristal"
-pool.artifact.prefix.019: "Ijzer"
-pool.artifact.prefix.020: "Staal"
-
-# ─── Content Pools: Artefact Achtervoegsels ───
-
-pool.artifact.suffix.001: "van Kracht"
-pool.artifact.suffix.002: "van Wijsheid"
-pool.artifact.suffix.003: "van Moed"
-pool.artifact.suffix.004: "van Glorie"
-pool.artifact.suffix.005: "van Macht"
-pool.artifact.suffix.006: "van Woede"
-pool.artifact.suffix.007: "van Toorn"
-pool.artifact.suffix.008: "van Wraak"
-pool.artifact.suffix.009: "van Justitie"
-pool.artifact.suffix.010: "van Waarheid"
-pool.artifact.suffix.011: "van Licht"
-pool.artifact.suffix.012: "van Schaduw"
-pool.artifact.suffix.013: "van Vuur"
-pool.artifact.suffix.014: "van IJs"
-pool.artifact.suffix.015: "van Storm"
-pool.artifact.suffix.016: "van Aarde"
-pool.artifact.suffix.017: "van Wind"
-pool.artifact.suffix.018: "van de Ouden"
-pool.artifact.suffix.019: "van de Leegte"
-pool.artifact.suffix.020: "van Bestemming"
-
-# ─── Content Pools: Corrumpeerde Artefact Voorvoegsels ───
-
-pool.artifact.corrupted_prefix.001: "Gecorrumpeerd"
-pool.artifact.corrupted_prefix.002: "Besmet"
-pool.artifact.corrupted_prefix.003: "Vervloekt"
-pool.artifact.corrupted_prefix.004: "Ontwijfeld"
-pool.artifact.corrupted_prefix.005: "Twisted"
-pool.artifact.corrupted_prefix.006: "Ellendig"
-pool.artifact.corrupted_prefix.007: "Misvormd"
-pool.artifact.corrupted_prefix.008: "Vervallen"
-pool.artifact.corrupted_prefix.009: "Verwelkt"
-pool.artifact.corrupted_prefix.010: "Vermoed"
-
-# ─── Content Pools: Corrumpeerde Artefact Zelfstandige Naamwoorden ───
-
-pool.artifact.corrupted_noun.001: "Ziel"
-pool.artifact.corrupted_noun.002: "Hart"
-pool.artifact.corrupted_noun.003: "Essentie"
-pool.artifact.corrupted_noun.004: "Kern"
-pool.artifact.corrupted_noun.005: "Fragment"
-pool.artifact.corrupted_noun.006: "Scherf"
-pool.artifact.corrupted_noun.007: "Restant"
-pool.artifact.corrupted_noun.008: "Relic"
-pool.artifact.corrupted_noun.009: "Token"
-pool.artifact.corrupted_noun.010: "Echo"
-
-# ─── Content Pools: Positieve Titel Voorvoegsels ───
-
-pool.title.positive_prefix.001: "Machtig"
-pool.title.positive_prefix.002: "Glorieus"
-pool.title.positive_prefix.003: "Edel"
-pool.title.positive_prefix.004: "Moedig"
-pool.title.positive_prefix.005: "Heroïsch"
-pool.title.positive_prefix.006: "Legendarisch"
-pool.title.positive_prefix.007: "Supreme"
-pool.title.positive_prefix.008: "Ultieme"
-pool.title.positive_prefix.009: "Eeuwig"
-pool.title.positive_prefix.010: "Goddelijk"
-
-# ─── Content Pools: Positieve Titel Zelfstandige Naamwoorden ───
-
-pool.title.positive_noun.001: "Kampioen"
-pool.title.positive_noun.002: "Krijger"
-pool.title.positive_noun.003: "Held"
-pool.title.positive_noun.004: "Meester"
-pool.title.positive_noun.005: "Heer"
-pool.title.positive_noun.006: "Koning"
-pool.title.positive_noun.007: "Keizer"
-pool.title.positive_noun.008: "Veroveraar"
-pool.title.positive_noun.009: "Legende"
-pool.title.positive_noun.010: "Beschermer"
-
-# ─── Content Pools: Extreme Titel Voorvoegsels ───
-
-pool.title.extreme_prefix.001: "Apocalyptisch"
-pool.title.extreme_prefix.002: "Kosmisch"
-pool.title.extreme_prefix.003: "Galactisch"
-pool.title.extreme_prefix.004: "Universeel"
-pool.title.extreme_prefix.005: "Almachtig"
-pool.title.extreme_prefix.006: "Transcendent"
-pool.title.extreme_prefix.007: "Oneindig"
-pool.title.extreme_prefix.008: "Grenzeloos"
-pool.title.extreme_prefix.009: "Onbeperkt"
-pool.title.extreme_prefix.010: "Absoluut"
-
-# ─── Content Pools: Extreme Titel Zelfstandige Naamwoorden ───
-
-pool.title.extreme_noun.001: "Vernietiger"
-pool.title.extreme_noun.002: "Annihilator"
-pool.title.extreme_noun.003: "Obliterator"
-pool.title.extreme_noun.004: "Veroveraar"
-pool.title.extreme_noun.005: "Devastator"
-pool.title.extreme_noun.006: "Eliminator"
-pool.title.extreme_noun.007: "Eraser"
-pool.title.extreme_noun.008: "Exterminator"
-pool.title.extreme_noun.009: "Nullifier"
-pool.title.extreme_noun.010: "Terminator"
-
-# ─── Content Pools: Negatieve Titel Voorvoegsels ───
-
-pool.title.negative_prefix.001: "Zwak"
-pool.title.negative_prefix.002: "Krachteloos"
-pool.title.negative_prefix.003: "Pathetisch"
-pool.title.negative_prefix.004: "Bescheiden"
-pool.title.negative_prefix.005: "Breekbaar"
-pool.title.negative_prefix.006: "Klein"
-pool.title.negative_prefix.007: "Slappig"
-pool.title.negative_prefix.008: "Mager"
-pool.title.negative_prefix.009: "Ziek"
-pool.title.negative_prefix.010: "Laflĳk"
-
-# ─── Content Pools: Negatieve Titel Zelfstandige Naamwoorden ───
-
-pool.title.negative_noun.001: "Boer"
-pool.title.negative_noun.002: "Bedelaar"
-pool.title.negative_noun.003: "Falen"
-pool.title.negative_noun.004: "Verliezer"
-pool.title.negative_noun.005: "Banneling"
-pool.title.negative_noun.006: "Ellendeling"
-pool.title.negative_noun.007: "Niemand"
-pool.title.negative_noun.008: "Nul"
-pool.title.negative_noun.009: "Niets"
-pool.title.negative_noun.010: "Afval"
-
-# ─── Content Pools: Betovering Voorvoegsels ───
-
-pool.enchantment.prefix.001: "Vuur"
-pool.enchantment.prefix.002: "IJs"
-pool.enchantment.prefix.003: "Schokkend"
-pool.enchantment.prefix.004: "Vergiftigd"
-pool.enchantment.prefix.005: "Heilig"
-pool.enchantment.prefix.006: "Vampirisch"
-pool.enchantment.prefix.007: "Arcanisch"
-pool.enchantment.prefix.008: "Steen"
-pool.enchantment.prefix.009: "Wind"
-pool.enchantment.prefix.010: "Schaduw"
-pool.enchantment.prefix.011: "Versterkt"
-pool.enchantment.prefix.012: "Onbreekbaar"
-pool.enchantment.prefix.013: "Diamant-bekleed"
-
-# ─── Content Pools: Uitrusting Slot Namen ───
-
-content.gear.slot.head: "Hoofd"
-content.gear.slot.neck: "Nek"
-content.gear.slot.shoulders: "Schouders"
-content.gear.slot.back: "Rug"
-content.gear.slot.chest: "Borst"
-content.gear.slot.wrists: "Polsen"
-content.gear.slot.hands: "Handen"
-content.gear.slot.waist: "Taille"
-content.gear.slot.legs: "Benen"
-content.gear.slot.feet: "Voeten"
-content.gear.slot.finger1: "Vinger1"
-content.gear.slot.finger2: "Vinger2"
-content.gear.slot.trinket1: "Trinket1"
-content.gear.slot.trinket2: "Trinket2"
-content.gear.slot.mainhand: "Hoofdhand"
-content.gear.slot.offhand: "Andere hand"
-content.gear.slot.ranged: "Afstand"
-content.gear.slot.relic: "Relic"
-content.gear.slot.artifact: "Artefact"
-content.gear.slot.soul: "Ziel"
-content.gear.slot.aura: "Aura"
-content.gear.slot.charm: "Charm"
-content.gear.slot.mount: "Rijdier"
-content.gear.slot.companion: "Metgezel"
-content.gear.slot.pet1: "Huisdier1"
-content.gear.slot.pet2: "Huisdier2"
-content.gear.slot.emblem1: "Embleem1"
-content.gear.slot.emblem2: "Embleem2"
-content.gear.slot.banner: "Banner"
-content.gear.slot.totem: "Totem"
-
-# ─── Content Pools: Uitrusting Namen ───
-
-content.gear.procedural: "%[1]s %[2]s van %[3]s"
-content.gear.novice: "Beginner %[1]s"
-
-# ─── Content Pools: Unieke Uitrusting Namen ───
-
-content.gear.trusty_longsword: "Betrouwbaar Langzwaard"
-content.gear.reinforced_breastplate: "Versterkte Borstplaat"
-content.gear.god_slayers_heart: "God Slayer's Hart"
-content.gear.infinity_edge: "Infinity Edge"
-content.gear.chrono_guard: "Chrono Guard"
-content.gear.eye_of_the_storm: "Eye of the Storm"
-content.gear.titans_pillar: "Titan's Pijler"
-
-# ─── Content Pools: Artefact Namen ───
-
-content.artifact.corrupted: "%[1]s %[2]s"
-
-# ─── Content Pools: Titel Namen ───
-
-content.title.positive: "%[1]s %[2]s"
-content.title.extreme: "%[1]s %[2]s"
-content.title.negative: "%[1]s %[2]s"
-
-# ─── Content Pools: Betovering Namen ───
-
-content.enchantment.name: "%[1]s Betovering"
-content.enchantment.description: "Voegt speciale eigenschappen toe met het %[1]s voorvoegsel"
+  name: Nederlands (NL)
+  plural_rule: one_other
+bot.poke.free: 'Gratis: '
+bot.poke.free_prefix: '%[1]sGratis: '
+bot.poke.daily_game: '[b]Dagelijks Gratis Spel![/b]'
+bot.prestige.announce: 🌟 PRESTIGE %[1]d! Terug naar niveau 1 — permanent +%[2]d%%
+  stats!
+bot.prestige.poke: 🌟 GEFELICITEERD! Je hebt Prestige %[1]d bereikt!
+bot.pm.greeting: '[b]%[1]s[/b]'
+bot.pm.no_game: 🎮 Geen nieuwe spellen ontdekt in deze cyclus.
+bot.pm.game_line: 🎮 %[1]s
+bot.pm.worth_line: 💰 Waard %[1]s → [b]GRATIS[/b] nu
+bot.pm.claim_line: 🔗 [b]Claimen:[/b] %[1]s
+bot.pm.trailer_line: ▶️ [b]Trailer:[/b] %[1]s
+web.login_pm: '🌐 [b]Je personageportaal[/b] (persoonlijke link — houd deze privé):
+  [b][url=%[1]s]>>>>> LOGIN <<<<<<[/url][/b]'
+bot.stats.header: '🏆 [b]%[1]s[/b] [color=#ffc107][P:%[2]d][/color] [color=#78909c][LvL:
+  %[3]d][/color] [color=#00bcd4][gs: %[4].1f][/color] [color=#e91e63][CR: %[5].0f][/color]'
+bot.stats.xp_line: '📈 +%[1]d XP ([b]%[2]s[/b] totaal | [color=#90a4ae]Volgende: %[3]s[/color])'
+bot.stats.level_up: 🎉 [b]Level up! Je bent nu een %[1]s![/b]
+bot.stats.hp_line: '[color=#90a4ae]HP:%[1]d/%[2]d STR:%[3]d DEF:%[4]d SPD:%[5]d LCK:%[6]d
+  INT:%[7]d STA:%[8]d CRT:%[9]d DGE:%[10]d[/color]'
+bot.section.bonuses: '[b]✨ BONUSSEN & MODIFICATOREN[/b]'
+bot.section.combat: '[b]⚔️ GEVECHTSLOG[/b]'
+bot.section.loot: '[b]🎁 BUIT & BELONINGEN[/b]'
+bot.section.equipment: '[b]🛡️ UITRUSTING & CRAFTING[/b]'
+bot.combat.wave_approaches: 📢 GOLF %[1]d NADERT!
+bot.combat.wave_header: '⚔️ GOLF %[1]d [CR:%[2]d]: %[3]s'
+bot.combat.ambush: ⚠️ AMBUSH! Vijanden vallen eerst aan!
+bot.combat.double_attack: ⚔️ %[1]s dubbele aanval!
+bot.combat.skill_activation: '✨ %[1]s: %[2]s!'
+bot.combat.skill_damage: '✨ %[1]s: %[2]s doet %[3]d schade'
+bot.combat.combo: (COMBO!)
+bot.combat.stunned: 💫 %[1]s VERDOOFD!
+bot.combat.element_effective: 💥 %[1]s is effectief tegen %[2]s!
+bot.combat.element_weak: 🛡️ %[1]s is zwak tegen %[2]s...
+bot.combat.ultimate_activation: '🌟 ULTIMATE: %[1]s!'
+bot.combat.ultimate_damage: '🌟 ULTIMATE: %[1]s doet %[2]d schade!'
+bot.combat.captive: '🌀 Gevangene: %[1]s!'
+bot.combat.defeated: ☠️ %[1]s verslagen door %[2]s!
+bot.combat.looted: '🎁 %[1]s buit %[2]s: %[3]s'
+bot.combat.rogue_pet_bite: ⚠️ Wilde huisdier %[1]s bijt %[2]s voor %[3]d!
+bot.combat.slain_by_pet: 💀 %[1]s werd gedood door huisdier %[2]s!
+bot.combat.pet_hit: 🐾 %[1]s raakt %[2]s voor %[3]d!
+bot.combat.killed_by_pet: ☠️ %[1]s gedood door huisdier %[2]s!
+bot.combat.mob_hit: 💢 %[1]s raakt %[2]s voor %[3]d!
+bot.combat.slain_by_mob: 💀 %[1]s werd gedood door %[2]s!
+bot.combat.stealth_shadow: 💨 %[1]s glipt in de schaduwen! %[2]s mist.
+bot.combat.parried: 🛡️ %[1]s PARREERT %[2]s's aanval en contrateert!
+bot.combat.cast_spell: 🔥 %[1]s spant %[2]s!
+bot.combat.hazard_cleansed: ✨ %[1]s zuivert het %[2]s gevaar!
+bot.combat.hazard_slain: 💀 %[1]s werd gedood door %[2]s gevaar!
+bot.combat.hazard_active: ⛈️ %[1]s Gevaar is actief!
+bot.combat.poison_damage: 🤢 %[1]s krijgt %[2]d gifschade (%[3]d stapels)!
+bot.combat.consumable_used: '🧪 %[1]s gebruikt %[2]s: Hersteld %[3]d HP (%[4].0f%%)!'
+bot.combat.revived_item: 🔥 %[1]s HERLEVENDE [item:%[2]s]!
+bot.combat.revived_phoenix: ✨ %[1]s HERLEVENDE [item:phoenix]!
+bot.combat.death_trigger: '⚠️ %[1]s activeert %[2]s: %[3]s!'
+bot.combat.summoned_prefix: Opgeroepen %[1]s
+bot.combat.reinforcements.one: 📢 1 versterking is gearriveerd!
+bot.combat.reinforcements.other: 📢 %[1]d versterkingen zijn gearriveerd!
+bot.combat.explosion_damage: 💥 Explosie deed %[1]d schade aan iedereen!
+bot.combat.slain_by_explosion: 💀 %[1]s werd gedood door explosie!
+bot.combat.curse_weakens: 🥀 Een donkere vloek verzwakt het team!
+bot.combat.bonus_xp_pulse: ✨ Een puls van pure energie geeft bonus XP!
+bot.combat.shiny_items: 💰 Glanzende items verspreiden zich over de vloer!
+bot.combat.battle_summary: '📊 Gevechtssamenvatting: Team %[1]d schade vs Monsters
+  %[2]d schade.'
+bot.combat.summary_title: 📊 GEVECHTSSAMENVATTING
+bot.combat.summary_party: 🟢 Groep %[1]s %[2]s
+bot.combat.summary_mobs: 🔴 Vijand %[1]s %[2]s
+bot.combat.crit_banner: '!!! KRITIEK !!!'
+bot.combat.wave_countdown: Golf %[1]d van %[2]d
+bot.combat.death_penalty: 💀 %[1]s verloor %[2]d XP door nederlaag.
+bot.combat.victory: 🏁 OVERWINNING! Team versloeg alle %[1]d monsters in %[2]s.
+bot.combat.defeat: 🏁 NEDERLAAG! Team werd overrompeld in %[1]s.
+bot.combat.enemy_count: '%[1]dx %[2]s'
+bot.flavour.daily_login: dagelijkse login +%[1]d
+bot.flavour.int_bonus: INT bonus x%[1].3f
+bot.flavour.smell_terrible: Je ruikt vreselijk!
+bot.flavour.charming: Je bent opmerkelijk charmant vandaag.
+bot.flavour.glowing: Je straalt letterlijk.
+bot.flavour.dread: Je voelt een griezelig gevoel van angst.
+bot.flavour.no_game_penalty: geen nieuw spel -50%%
+bot.flavour.loot_box: BUITKIST +%[1]d XP
+bot.loot.ultimate_equipped: 'Ultimate: %[1]s [ultimate:equipped]'
+bot.loot.ultimate_collected: 'Ultimate: %[1]s [ultimate:collected]'
+bot.loot.major_ultimate: '🌟 MAJOR LOOT: Ultimate Skill %[1]s geleerd!'
+bot.loot.duplicate_ultimate_ah: 'Dubbel %[1]s [ultimate]: Verkocht op AH'
+bot.loot.duplicate_ultimate_salvage: 'Dubbel %[1]s [ultimate]: Gered voor %[2]d Scrap'
+bot.loot.title: 'Titel: %[1]s [title:%[2]s]'
+bot.loot.unique: 'Uniek: %[1]s [unique:%[2]s] (%[3]s)'
+bot.loot.unique_drop: '💎 UNIEKE DROP: %[1]s!'
+bot.loot.duplicate_unique_ah: 'Dubbel %[1]s [unique]: Verkocht op AH'
+bot.loot.duplicate_unique_salvage: 'Dubbel %[1]s [unique]: Gered voor %[2]d Scrap'
+bot.loot.artifact: 'Artefact: %[1]s [artifact:%[2]s]'
+bot.loot.artifact_found: '🏺 ARTEFACT GEVONDEN: %[1]s!'
+bot.loot.enchanted: Betoverd [s:%[1]s] met %[2]s [enchant:%[3]s]
+bot.loot.unwanted_enchant_ah: 'Ongebruikt %[1]s [enchant]: Verkocht op AH'
+bot.loot.salvaged_enchant: 'Gered %[1]s [enchant]: +%[2]d Scrap'
+bot.loot.learned_skill: Geleerd %[1]s [skill:%[2]s] (Slot %[3]d)
+bot.loot.unwanted_skill_ah: 'Ongebruikt %[1]s [skill]: Verkocht op AH'
+bot.loot.salvaged_skill: 'Gered %[1]s [skill]: +%[2]d Scrap'
+bot.loot.item: 'Item: %[1]s [item:%[2]s]'
+bot.loot.equipped: 'Uitgerust: %[1]s [s:%[2]s] (gs:%[3]d CR:%[4].1f R:[color=%[5]s]%[6]s[/color])'
+bot.loot.legendary_equipped: '⚔️ LEGENDARISCHE UITRUSTING: Uitgerust %[1]s!'
+bot.loot.listed_ah: 'Verkocht op AH: %[1]s [s:%[2]s] (R:[color=%[3]s]%[4]s[/color])'
+bot.loot.salvaged: 'Gered %[1]s [s:%[2]s]: +%[3]d Scrap'
+bot.loot.found: 'Gevonden: %[1]s [s:%[2]s] (gs:%[3]d CR:%[4].1f R:%[5]s)'
+bot.loot.scrap: Gevonden Scrap [s:%[1]s] (+%[2]d XP) (R:%[3]s)
+bot.loot.small_health_potion: 'Item: Kleine Geneesmiddel [item:P1]'
+bot.loot.multiplier_simple: '%[1]s x%[2]g'
+bot.loot.multiplier_with_dur: '%[1]s x%[2]g (%[3]d dur)'
+bot.loot.pool_prefix: '[%[1]s] %[2]s'
+bot.loot.with_dur: '%[1]s (%[2]d dur)'
+bot.loot.pool_prefix_xp: '[%[1]s] %[2]s (x%[3]g XP)'
+bot.durability.broken: '🛡️ KAPOT: %[1]s (-%[2]d dur)'
+bot.durability.sustained: '🛡️ Onderhouden -%[1]d dur (%[2]d items, Gem: %[3].1f)'
+xp.battle: 🏆 Gevechts XP
+xp.lost: 💀 XP verloren
+xp.outcome: '%[1]s: %+[2]d → %[3]s (Niv %[4]d)'
+ah.vendor_sale: 🏪 [b]AH Vendor Verkoop:[/b] Je item [b]%[1]s[/b] werd niet verkocht
+  en werd gekocht door een verkoper voor %[2]s (0,1%% waarde).
+ah.purchase: 🎁 [b]AH Aankoop![/b] Je kocht [b]%[1]s[/b] voor %[2]s!%[3]s
+ah.purchase_fee: ' (Inclusief %[1]s concurrentiekosten)'
+ah.sale: 💰 [b]AH Verkoop![/b] Je item [b]%[1]s[/b] werd gekocht door [b]%[2]s[/b]
+  voor %[3]s!
+channel.header: '[center][b][size=14]🎮 RPG Spelers: %[1]d[/size][/b][/center]'
+channel.player_line: • [b]%[1]s[/b] [color=#ffc107][P:%[2]d][/color] [color=#78909c][Niv:%[3]d][/color]
+  [color=#00bcd4][gs:%[4].1f][/color] [color=#e91e63][CR:%[5].0f][/color] [color=%[6]s][HP:%[7]d/%[8]d][/color]
+  [color=#fbc02d][Goud:%[9]s][/color]
+channel.stats_line: '[size=9][color=#90a4ae]STR:%[1]d DEF:%[2]d SPD:%[3]d LCK:%[4]d
+  INT:%[5]d STA:%[6]d CRT:%[7]d DGE:%[8]d[/color][/size]'
+channel.group_power: '[center][b]🛡️ Groepskracht[/b]: [color=#e91e63]CR %[1].0f[/color]
+  | [color=#00bcd4]Gem GS %[2].1f[/color][/center]'
+holiday.christmas.name: Kerstmis
+holiday.christmas.banner: 'Frohe Weihnachten, gamer! Een feestelijke gratis cadeau
+  voor jou:'
+holiday.christmas.signoff: Ho ho ho — fijne feestdagen en veel plezier met gamen!
+  🎅
+holiday.new_year.name: Nieuwjaar
+holiday.new_year.banner: 'Gelukkig Nieuwjaar, gamer! Begin het met een gratis spel:'
+holiday.new_year.signoff: Op een jaar vol loot — Frohes neues Jahr! 🥳
+holiday.halloween.name: Halloween
+holiday.halloween.banner: Spookachtig gratis spel onderweg, sterveling... 👻
+holiday.halloween.signoff: Happy Halloween — claim het voordat het je verlanglijstje
+  achtervolgt! 🦇
+holiday.valentine.name: Valentijnsdag
+holiday.valentine.banner: 'Een beetje liefde voor je bibliotheek deze Valentijnsdag:'
+holiday.valentine.signoff: Rozen zijn rood, dit spel is gratis — geniet! 💝
+holiday.april_fools.name: Aprilgrap
+holiday.april_fools.banner: 'Dit is GEEN grap — een echt gratis spel:'
+holiday.april_fools.signoff: Geen grap, het is echt gratis. Happy April Fools! 🤡
+holiday.easter.name: Pasen
+holiday.easter.banner: 'Een paasei voor je bibliotheek — een gratis spel:'
+holiday.easter.signoff: Frohe Ostern — haast je voordat de giveaway eindigt! 🥚
+greeting.001: Hé gamer!
+greeting.002: Loot drop onderweg!
+greeting.003: Binnenkomend!
+greeting.004: Gratis spel alert!
+greeting.005: Stop met scrollen, pak dit!
+greeting.006: Je backlist belde.
+greeting.007: Portemonnee blijft vandaag vol!
+greeting.008: Gratis cadeau vrijgespeeld!
+greeting.009: 'Prestatie vrijgespeeld: gratis spel!'
+greeting.010: Druk op F om te claimen!
+greeting.011: GG, hier is er een gratis.
+greeting.012: Nieuwe loot net gedropt!
+greeting.013: Verrassing! Het is gratis.
+greeting.014: Nul euro, alle plezier.
+greeting.015: Claim het voordat het weg is!
+greeting.016: Nog eentje voor de bibliotheek!
+greeting.017: 'Gratis vondst van vandaag:'
+greeting.018: Gamer, verzamel je!
+greeting.019: Opgelet, gratis spel!
+greeting.020: Beperkte tijd loot!
+greeting.021: Slaap hier niet op in!
+greeting.022: 'Vers van de pers:'
+greeting.023: Gratis als in bier!
+greeting.024: 'Voeg toe aan winkelwagen: 0,00 €'
+greeting.025: Trakteer jezelf, het is gratis.
+greeting.026: Pew pew, gratis spel!
+greeting.027: Munt invoeren? Niet nodig.
+greeting.028: 'Je dagelijkse dosis gratis:'
+greeting.029: Grijp het zolang het duurt!
+greeting.030: Loot kabouter zegt hallo!
+greeting.031: Respawn je backlist!
+greeting.032: Gratis spel, geen valkuil!
+greeting.033: Tik om je loot te claimen!
+greeting.034: Dit is van het huis!
+greeting.035: 'Quest beloning: een gratis spel!'
+greeting.036: Boem! Gratis spel.
+greeting.037: Tijd om je bibliotheek op te levelen!
+greeting.038: Een wilde gratis cadeau verscheen!
+greeting.039: Vang ze allemaal... gratis!
+greeting.040: 'Kritieke hit: gratis spel!'
+greeting.041: Geen microtransacties hier, gewoon gratis!
+greeting.042: Gratis pixels voor jou!
+greeting.043: Laat de loot hoorn klinken!
+greeting.044: Eén gratis spel aankomend!
+greeting.045: Berg dit op in je bibliotheek!
+greeting.046: Cha-ching... grapje, het is gratis!
+greeting.047: Power up met een gratis spel!
+greeting.048: 'Gratis DLC voor je dag:'
+greeting.049: Loot krat geopend!
+greeting.050: Groeten, avonturier!
+greeting.051: Sta op en grind, hier is een gratis cadeau!
+greeting.052: Makkelijk claimen, grote winst!
+greeting.053: 'Drop van vandaag:'
+greeting.054: Yoink dit gratis spel!
+greeting.055: Gratis spel, vers van de plank!
+greeting.056: Mana bijgevuld, hier is een gratis cadeau!
+greeting.057: Voor de schat!
+greeting.058: Stapel de backlist op!
+greeting.059: Wees geen noob, claim dit!
+greeting.060: Speedrun naar de claim knop!
+greeting.061: Gratis spel, met dank aan MrFree!
+greeting.062: 'Buffs onderweg: gratis spel!'
+greeting.063: Loot drop van de dag!
+greeting.064: Je inventaris heeft ruimte, toch?
+greeting.065: Game on, gratis!
+greeting.066: Geen grind, gewoon claimen!
+greeting.067: Gratis spel, heet en klaar!
+greeting.068: Speciale levering, gamer!
+greeting.069: Ontgrendel dit gratis cadeau!
+greeting.070: Rol voor loot... je hebt gewonnen!
+greeting.071: Het is gevaarlijk om alleen te gaan, neem dit!
+greeting.072: Gratis spel gespot in het wild!
+greeting.073: Pak het op, het is gratis vastgoed!
+greeting.074: Dagelijkse loot is gearriveerd!
+greeting.075: Gratis spel, nul cooldown!
+greeting.076: Claim nu, bedank me later!
+greeting.077: 'Een cadeau van de gaming goden:'
+greeting.078: Druk op start voor dit gratis cadeau!
+greeting.079: Je geluk stat is hoog vandaag!
+greeting.080: Gratis spel, geen strings attached!
+greeting.081: Laat alles vallen, gratis spel!
+greeting.082: Stonks! Gratis spel editie.
+greeting.083: Loot onderweg, bereid je voor!
+greeting.084: Open je bibliotheek, hier is loot!
+greeting.085: Gratis spel, vers gespawned!
+greeting.086: Stap in, de loot is gratis!
+greeting.087: Big W voor je portemonnee!
+greeting.088: Dit gratis cadeau heeft jouw naam erop staan!
+greeting.089: 'Geneesmiddel voor je backlist:'
+greeting.090: Gratis spel, gecertificeerd episch!
+greeting.091: Pak het, het is giveaway o'clock!
+greeting.092: Nieuwe toevoeging voor de collectie!
+greeting.093: Gratis spel, rechtstreeks naar inventaris!
+greeting.094: Schat gevonden!
+greeting.095: 'Gamer alert: gratis loot!'
+greeting.096: Claim dit voordat de timer eindigt!
+greeting.097: Je gratis spel is gearriveerd!
+greeting.098: Loot veiliggesteld? Bijna, claim het!
+greeting.099: Gratis spel, no cap!
+greeting.100: Hier is een gratis cadeau, jij legende!
+rarity.common: Gemeen
+rarity.uncommon: Ongebruikelijk
+rarity.rare: Zeldzaam
+rarity.epic: Episch
+rarity.legendary: Legendarisch
+rarity.mythic: Mythisch
+rarity.divine: Goddelijk
+rarity.unknown: Zeldzaamheid(%[1]d)
+mob_type.common: Gemeen
+mob_type.elite_minion: Elite Dienaar
+mob_type.elite: Elite
+mob_type.miniboss: Minibaas
+mob_type.boss: Baas
+mob_type.legendary: Legendarisch
+stat.hp: HP
+stat.str: STR
+stat.def: DEF
+stat.spd: SPD
+stat.lck: LCK
+stat.int: INT
+stat.sta: STA
+stat.crt: CRT
+stat.dge: DGE
+number.suffix.k: k
+number.suffix.m: M
+number.suffix.b: Mrd
+number.gold_suffix: g
+games.platform.epic: PC, Epic Games Store
+games.platform.steam: PC, Steam
+games.platform.gog: PC, GOG
+games.platform.na: N/B
+mob.corrupted_guard: Gecorrumpeerde Wachter
+mob.shadow_assassin: Schaduwassassijn
+mob.dread_knight: Angstridder
+mob.frost_lich: Vorst Lich
+mob.gatekeeper: Poortwachter
+mob.raging_behemoth: Woeste Behemoth
+mob.ancient_dragon: Oude Draak
+mob.kraken: Kraken van de Diepte
+mob.void_lord: DE LEEGTEHEER
+mob.chronos: CHRONOS, TIJDSVERTEERDER
+zone.elwynn_forest: Elwynn Bos
+zone.westfall: Westvale
+zone.durotar: Durotar
+zone.mulgore: Mul'gore
+zone.teldrassil: Teldrassil
+zone.loch_modan: Loch Modan
+zone.silverpine: Silverpine
+zone.desolace: Desolace
+zone.stranglethorn: Stranglethorn Vale
+zone.tanaris: Tanaris
+zone.ungoro: Un'Goro Krater
+zone.winterspring: Winterspring
+zone.searing_gorge: Searing Gorge
+zone.burning_steppes: Burning Steppes
+zone.deadwind_pass: Deadwind Pass
+zone.eastern_plaguelands: Eastern Plaguelands
+zone.hellfire_peninsula: Hellfire Peninsula
+zone.zangarmarsh: Zangarmarsh
+zone.nagrand: Nagrand
+zone.shadowmoon_valley: Shadowmoon Valley
+zone.northrend: Northrend
+zone.icecrown: Icecrown
+hazard.boiling_lava: Kokende Lava
+hazard.toxic_fumes: Toxische Dampen
+hazard.raging_sandstorm: Woeste Zandstorm
+hazard.howling_blizzard: Huilende Sneeuwstorm
+zone_effect.lava_pools: Lavaplassen
+zone_effect.gas_fumes: Toxische Dampen
+zone_effect.sand_gusts: Zandstorm Windstoten
+zone_effect.blizzard_winds: Sneeuwstorm Winden
+stealth.natural_camouflage: Natuurlijke Camouflage
+stealth.cloak_of_shadows: Mantel van Schaduwen
+stealth.night_stalker: Nachttrekkertje
+stealth.ambush_predator: Achterligger Roofdier
+consumable.healing_potion: Geneesmiddel
+consumable.revive: Herleven
+pool.mob.prefix.001: Snotterig
+pool.mob.prefix.002: Boos
+pool.mob.prefix.003: Ondode
+pool.mob.prefix.004: Schaduw
+pool.mob.prefix.005: Vuur
+pool.mob.prefix.006: Ijskoud
+pool.mob.prefix.007: Toxisch
+pool.mob.prefix.008: Spookachtig
+pool.mob.prefix.009: Metalen
+pool.mob.prefix.010: Reus
+pool.mob.noun.001: Rat
+pool.mob.noun.002: Slijm
+pool.mob.noun.003: Kabouter
+pool.mob.noun.004: Spin
+pool.mob.noun.005: Zombie
+pool.mob.noun.006: Wolf
+pool.mob.noun.007: Skelet
+pool.mob.noun.008: Vleermuis
+pool.mob.noun.009: Ork
+pool.mob.noun.010: Trol
+pool.zone.prefix.001: Vulkanisch
+pool.zone.prefix.002: Glaciaal
+pool.zone.prefix.003: Statisch
+pool.zone.prefix.004: Leegte
+pool.zone.prefix.005: Hemels
+pool.zone.prefix.006: Abyssaal
+pool.zone.prefix.007: Primaire
+pool.zone.prefix.008: Oud
+pool.zone.prefix.009: Heilig
+pool.zone.prefix.010: Vervloekt
+pool.zone.prefix.011: Toxisch
+pool.zone.prefix.012: Metalen
+pool.zone.prefix.013: Glas
+pool.zone.prefix.014: Lichtgevend
+pool.zone.prefix.015: Schaduwrijk
+pool.zone.prefix.016: Arcanisch
+pool.zone.prefix.017: Woest
+pool.zone.prefix.018: Stil
+pool.zone.prefix.019: Eeuwig
+pool.zone.prefix.020: Vermoed
+pool.zone.suffix.001: Uitbarsting
+pool.zone.suffix.002: Kou
+pool.zone.suffix.003: Schok
+pool.zone.suffix.004: Lek
+pool.zone.suffix.005: Golf
+pool.zone.suffix.006: Druk
+pool.zone.suffix.007: Bries
+pool.zone.suffix.008: Echo
+pool.zone.suffix.009: Genade
+pool.zone.suffix.010: Haat
+pool.zone.suffix.011: Dampen
+pool.zone.suffix.012: Bepantsering
+pool.zone.suffix.013: Scherven
+pool.zone.suffix.014: Gloeien
+pool.zone.suffix.015: Mist
+pool.zone.suffix.016: Stroom
+pool.zone.suffix.017: Wind
+pool.zone.suffix.018: Stilte
+pool.zone.suffix.019: Bloei
+pool.zone.suffix.020: Rot
+pool.combat.zone_lore.001: De lucht hier zindert van oude, hongerige magie.
+pool.combat.zone_lore.002: Botten kraken onder je laarzen. Je bent niet de eerste
+  die hier komt.
+pool.combat.zone_lore.003: Een koude wind draagt de geur van ijzer en as mee.
+pool.combat.zone_lore.004: Iets kijkt toe vanuit de schaduwen, geduldig en zonder
+  te knipperen.
+pool.combat.zone_lore.005: De grond trilt bij elke verre, zware stap.
+pool.combat.zone_lore.006: Zachte fluisteringen trekken aan de rand van je gehoor.
+pool.combat.zone_lore.007: Schaduwen verzamelen zich vreemd tussen de gebroken stenen.
+pool.combat.zone_lore.008: Het licht zelf lijkt aarzelend om hier binnen te komen.
+pool.combat.zone_lore.009: Echo's van een oude strijd klinken nog steeds in de stilte.
+pool.combat.zone_lore.010: Je adem beslaat; de kou hier bijt dieper dan staal.
+pool.skill.prefix.001: Stervelijk
+pool.skill.prefix.002: Heroïsch
+pool.skill.prefix.003: Flits
+pool.skill.prefix.004: Groter
+pool.skill.prefix.005: Minder
+pool.skill.prefix.006: Chaos
+pool.skill.prefix.007: Fel
+pool.skill.prefix.008: Schaduw
+pool.skill.prefix.009: Heilig
+pool.skill.prefix.010: Vorst
+pool.skill.prefix.011: Vuur
+pool.skill.prefix.012: Arcanisch
+pool.skill.prefix.013: Goddelijk
+pool.skill.prefix.014: Primaire
+pool.skill.prefix.015: Oud
+pool.skill.prefix.016: Abyssaal
+pool.skill.prefix.017: Spectraal
+pool.skill.prefix.018: Wreker
+pool.skill.prefix.019: Wrokvol
+pool.skill.prefix.020: Vervloekt
+pool.skill.prefix.021: Heilig
+pool.skill.prefix.022: Glaciaal
+pool.skill.prefix.023: Vulkanisch
+pool.skill.prefix.024: Statisch
+pool.skill.prefix.025: Donderend
+pool.skill.prefix.026: Corrumperend
+pool.skill.prefix.027: Vermoed
+pool.skill.prefix.028: Toxisch
+pool.skill.prefix.029: Metalen
+pool.skill.prefix.030: Glas
+pool.skill.prefix.031: Maan
+pool.skill.prefix.032: Zon
+pool.skill.prefix.033: Hemels
+pool.skill.prefix.034: Infernaal
+pool.skill.prefix.035: Mystiek
+pool.skill.prefix.036: Woest
+pool.skill.prefix.037: Stil
+pool.skill.prefix.038: Eeuwig
+pool.skill.prefix.039: Leegte
+pool.skill.prefix.040: Astraal
+pool.skill.prefix.041: Ijzer
+pool.skill.prefix.042: Staal
+pool.skill.prefix.043: Mithril
+pool.skill.prefix.044: Adamant
+pool.skill.prefix.045: Kristallijn
+pool.skill.prefix.046: Nevelachtig
+pool.skill.prefix.047: Ster-gevormd
+pool.skill.prefix.048: Storm-geboren
+pool.skill.prefix.049: Schaduw-gebonden
+pool.skill.prefix.050: Licht-gezegend
+pool.skill.action.001: Slag
+pool.skill.action.002: Explosie
+pool.skill.action.003: Brul
+pool.skill.action.004: Houw
+pool.skill.action.005: Barst
+pool.skill.action.006: Aanraking
+pool.skill.action.007: Wind
+pool.skill.action.008: Nova
+pool.skill.action.009: Puls
+pool.skill.action.010: Drain
+pool.skill.action.011: Bliksem
+pool.skill.action.012: Straal
+pool.skill.action.013: Golf
+pool.skill.action.014: Aura
+pool.skill.action.015: Schild
+pool.skill.action.016: Smeking
+pool.skill.action.017: Oproep
+pool.skill.action.018: Woede
+pool.skill.action.019: Vortex
+pool.skill.action.020: Splijten
+pool.skill.action.021: Herstellen
+pool.skill.action.022: Genezen
+pool.skill.action.023: Klap
+pool.skill.action.024: Spleten
+pool.skill.action.025: Uitvoeren
+pool.skill.action.026: Scheuren
+pool.skill.action.027: Aanval
+pool.skill.action.028: Sprong
+pool.skill.action.029: Vernietigen
+pool.skill.action.030: Schok
+pool.skill.action.031: Adem
+pool.skill.action.032: Beten
+pool.skill.action.033: Steken
+pool.skill.action.034: Klauw
+pool.skill.action.035: Maul
+pool.skill.action.036: Veeg
+pool.skill.action.037: Grom
+pool.skill.action.038: Sluipen
+pool.skill.action.039: Scheuren
+pool.skill.action.040: Knipperen
+pool.unique.adjective.001: Oud
+pool.unique.adjective.002: Vervloekt
+pool.unique.adjective.003: Gezegend
+pool.unique.adjective.004: Stralend
+pool.unique.adjective.005: Schaduw
+pool.unique.adjective.006: Eeuwig
+pool.unique.adjective.007: Leegte
+pool.unique.adjective.008: Hemels
+pool.unique.adjective.009: Infernaal
+pool.unique.adjective.010: Vorst
+pool.unique.adjective.011: Storm
+pool.unique.adjective.012: Aarde
+pool.unique.adjective.013: Bloed
+pool.unique.adjective.014: Ziel
+pool.unique.adjective.015: Geest
+pool.unique.adjective.016: Goddelijk
+pool.unique.adjective.017: Mythisch
+pool.unique.adjective.018: Legendarisch
+pool.unique.adjective.019: Episch
+pool.unique.adjective.020: Zeldzaam
+pool.unique.adjective.021: Glanzend
+pool.unique.adjective.022: Donker
+pool.unique.adjective.023: Licht
+pool.unique.adjective.024: Heilig
+pool.unique.adjective.025: Onheilig
+pool.unique.adjective.026: Snel
+pool.unique.adjective.027: Zwaar
+pool.unique.adjective.028: Scherp
+pool.unique.adjective.029: Bot
+pool.unique.adjective.030: Magisch
+pool.unique.adjective.031: Arcanisch
+pool.unique.adjective.032: Primaire
+pool.unique.adjective.033: Wild
+pool.unique.adjective.034: Edel
+pool.unique.adjective.035: Koninklijk
+pool.unique.adjective.036: Keizerlijk
+pool.unique.adjective.037: Groot
+pool.unique.adjective.038: Machtig
+pool.unique.adjective.039: Woest
+pool.unique.adjective.040: Wild
+pool.unique.adjective.041: Getemd
+pool.unique.adjective.042: Stil
+pool.unique.adjective.043: Luid
+pool.unique.adjective.044: Helder
+pool.unique.adjective.045: Dof
+pool.unique.adjective.046: Koud
+pool.unique.adjective.047: Heet
+pool.unique.adjective.048: Brandend
+pool.unique.adjective.049: Bevriezend
+pool.unique.adjective.050: Gesplitst
+pool.unique.noun.001: Zwaard
+pool.unique.noun.002: Schild
+pool.unique.noun.003: Helm
+pool.unique.noun.004: Harnas
+pool.unique.noun.005: Laarzen
+pool.unique.noun.006: Handschoenen
+pool.unique.noun.007: Ring
+pool.unique.noun.008: Amulet
+pool.unique.noun.009: Staf
+pool.unique.noun.010: Boog
+pool.unique.noun.011: Dolk
+pool.unique.noun.012: Bijl
+pool.unique.noun.013: Moker
+pool.unique.noun.014: Speer
+pool.unique.noun.015: Bol
+pool.unique.noun.016: Boek
+pool.unique.noun.017: Rol
+pool.unique.noun.018: Toverdrank
+pool.unique.noun.019: Talisman
+pool.unique.noun.020: Relikwie
+pool.death.prefix.001: Laatste
+pool.death.prefix.002: Finale
+pool.death.prefix.003: Stervend
+pool.death.prefix.004: Bitter
+pool.death.prefix.005: Wreker
+pool.death.prefix.006: Wrokvol
+pool.death.prefix.007: Wanhopig
+pool.death.prefix.008: Echoënd
+pool.death.prefix.009: Spookachtig
+pool.death.prefix.010: Vervloekt
+pool.death.action.001: Brul
+pool.death.action.002: Snik
+pool.death.action.003: Snak
+pool.death.action.004: Vloek
+pool.death.action.005: Explosie
+pool.death.action.006: Klaag
+pool.death.action.007: Huil
+pool.death.action.008: Schreeuw
+pool.death.action.009: Zucht
+pool.death.action.010: Commando
+pool.level.tier.001: Drijver
+pool.level.tier.002: Armoedzaaier
+pool.level.tier.003: Boer
+pool.level.tier.004: Slaaf
+pool.level.tier.005: Horige
+pool.level.tier.006: Plunderaar
+pool.level.tier.007: Achternaloop
+pool.level.tier.008: Banneling
+pool.level.tier.009: Vluchteling
+pool.level.tier.010: Ballinge
+pool.level.tier.011: Vagebond
+pool.level.tier.012: Zoeker
+pool.level.tier.013: Zwerver
+pool.level.tier.014: Nomade
+pool.level.tier.015: Initiaat
+pool.level.tier.016: Nieuweling
+pool.level.tier.017: Novice
+pool.level.tier.018: Leerling
+pool.level.tier.019: Page
+pool.level.tier.020: Schildknaap
+pool.level.tier.021: Voetsoldaat
+pool.level.tier.022: Rekrut
+pool.level.tier.023: Dienstplichtige
+pool.level.tier.024: Soldaat
+pool.level.tier.025: Krijger
+pool.level.tier.026: Wachter
+pool.level.tier.027: Schildwacht
+pool.level.tier.028: Wachter
+pool.level.tier.029: Bewaker
+pool.level.tier.030: Bewaarder
+pool.level.tier.031: Avonturier
+pool.level.tier.032: Huurling
+pool.level.tier.033: Contractant
+pool.level.tier.034: Schermutselaar
+pool.level.tier.035: Verkenner
+pool.level.tier.036: Woudloper
+pool.level.tier.037: Padzoeker
+pool.level.tier.038: Spoorzoeker
+pool.level.tier.039: Jager
+pool.level.tier.040: Sluiper
+pool.level.tier.041: Ridder
+pool.level.tier.042: Paladijn
+pool.level.tier.043: Chevalier
+pool.level.tier.044: Cavalier
+pool.level.tier.045: Dragoen
+pool.level.tier.046: Tempelier
+pool.level.tier.047: Kruisvaarder
+pool.level.tier.048: Wreker
+pool.level.tier.049: Justicar
+pool.level.tier.050: Inquisiteur
+pool.level.tier.051: Heksenmeester
+pool.level.tier.052: Tovenaar
+pool.level.tier.053: Magiër
+pool.level.tier.054: Tovenaar
+pool.level.tier.055: Arcanist
+pool.level.tier.056: Elementalist
+pool.level.tier.057: Oproeper
+pool.level.tier.058: Dodenbezweerder
+pool.level.tier.059: Occultist
+pool.level.tier.060: Sjamaan
+pool.level.tier.061: Doder
+pool.level.tier.062: Beul
+pool.level.tier.063: Assassijn
+pool.level.tier.064: Shinobi
+pool.level.tier.065: Ninja
+pool.level.tier.066: Plunderaar
+pool.level.tier.067: Vrijbuiter
+pool.level.tier.068: Berserker
+pool.level.tier.069: Gladiator
+pool.level.tier.070: Strijder
+pool.level.tier.071: Gevechtsmeester
+pool.level.tier.072: Commandant
+pool.level.tier.073: Kapitein
+pool.level.tier.074: Majoor
+pool.level.tier.075: Kolonel
+pool.level.tier.076: Generaal
+pool.level.tier.077: Maarschalk
+pool.level.tier.078: Legaat
+pool.level.tier.079: Centurio
+pool.level.tier.080: Tribuun
+pool.level.tier.081: Kampioen
+pool.level.tier.082: Held
+pool.level.tier.083: Legende
+pool.level.tier.084: Mythe
+pool.level.tier.085: Voorhoede
+pool.level.tier.086: Frontlijn
+pool.level.tier.087: Beschermer
+pool.level.tier.088: Verdediger
+pool.level.tier.089: Beschermer
+pool.level.tier.090: Schildwacht
+pool.level.tier.091: Oorlogsheer
+pool.level.tier.092: Veroveraar
+pool.level.tier.093: Overheerser
+pool.level.tier.094: Soeverein
+pool.level.tier.095: Monarch
+pool.level.tier.096: Keizer
+pool.level.tier.097: Godendoder
+pool.level.tier.098: Titaan
+pool.level.tier.099: Verhevene
+pool.level.tier.100: Transcendent
+pool.level.epic_adj.001: Ascendant
+pool.level.epic_adj.002: Eeuwig
+pool.level.epic_adj.003: Astraal
+pool.level.epic_adj.004: Stralend
+pool.level.epic_adj.005: Infernaal
+pool.level.epic_adj.006: Hemels
+pool.level.epic_adj.007: Primordiaal
+pool.level.epic_adj.008: Transcendent
+pool.level.epic_adj.009: Mythisch
+pool.level.epic_adj.010: Abyssaal
+pool.level.epic_adj.011: Leegte-Aangeraakt
+pool.level.epic_adj.012: Ster-gevormd
+pool.level.epic_adj.013: Oud
+pool.level.epic_adj.014: Verguld
+pool.level.epic_adj.015: Spectraal
+pool.level.epic_adj.016: Goddelijk
+pool.level.epic_adj.017: Verboden
+pool.level.epic_adj.018: Etherisch
+pool.level.epic_adj.019: Storm-geboren
+pool.level.epic_adj.020: Schaduw-gebonden
+pool.level.epic_adj.021: Nevelachtig
+pool.level.epic_adj.022: Kristallijn
+pool.level.epic_adj.023: Vergeet
+pool.level.epic_adj.024: Heilig
+pool.level.epic_adj.025: Wreker
+pool.level.epic_adj.026: Stil
+pool.level.epic_adj.027: Gesplitst
+pool.level.epic_adj.028: Brandend
+pool.level.epic_adj.029: Bevroren
+pool.level.epic_adj.030: Misvormd
+pool.level.epic_title.001: Kampioen
+pool.level.epic_title.002: Oorlogsheer
+pool.level.epic_title.003: Soeverein
+pool.level.epic_title.004: Archon
+pool.level.epic_title.005: Overheerser
+pool.level.epic_title.006: Halfgod
+pool.level.epic_title.007: Titaan
+pool.level.epic_title.008: Vanguard
+pool.level.epic_title.009: Veroveraar
+pool.level.epic_title.010: Paragon
+pool.level.epic_title.011: Sentinel
+pool.level.epic_title.012: Exarch
+pool.level.epic_title.013: Oracle
+pool.level.epic_title.014: Godheid
+pool.level.epic_title.015: Avatar
+pool.level.epic_title.016: Godendoder
+pool.level.epic_title.017: Maaiier
+pool.level.epic_title.018: Profeet
+pool.level.epic_title.019: Hoge-Koning
+pool.level.epic_title.020: Al-Doder
+pool.level.epic_title.021: Voorbode
+pool.level.epic_title.022: Beul
+pool.level.epic_title.023: Wachter
+pool.level.epic_title.024: Bewaarder
+pool.level.epic_title.025: Heer
+pool.level.epic_title.026: Baron
+pool.level.epic_title.027: Shaman
+pool.level.epic_title.028: Wijze
+pool.level.epic_title.029: Priester
+pool.level.epic_title.030: Templar
+pool.level.epic_realm.001: Leegte
+pool.level.epic_realm.002: Abys
+pool.level.epic_realm.003: Kosmos
+pool.level.epic_realm.004: Eeuwigheid
+pool.level.epic_realm.005: Storm
+pool.level.epic_realm.006: Dageraad
+pool.level.epic_realm.007: Vlam
+pool.level.epic_realm.008: Vorst
+pool.level.epic_realm.009: Schaduw
+pool.level.epic_realm.010: Licht
+pool.level.epic_realm.011: Nebula
+pool.level.epic_realm.012: Continuüm
+pool.level.epic_realm.013: Aether
+pool.level.epic_realm.014: Helse Vuur
+pool.level.epic_realm.015: Nulpunt
+pool.level.epic_realm.016: Singulariteit
+pool.level.epic_realm.017: Genesis
+pool.level.epic_realm.018: Openbaring
+pool.level.epic_realm.019: Vergetelheid
+pool.level.epic_realm.020: Nexus
+pool.level.epic_realm.021: Onderwereld
+pool.level.epic_realm.022: Hemelbereik
+pool.level.epic_realm.023: Droomwereld
+pool.level.epic_realm.024: Eindtijd
+pool.level.epic_realm.025: Zonnesmidse
+pool.level.epic_realm.026: Maansopkomst
+pool.level.epic_realm.027: Diepzee
+pool.level.epic_realm.028: Altijdgroen
+pool.level.epic_realm.029: IJzervesting
+pool.level.epic_realm.030: Draakspits
+pool.gamer_suffix.001: Gamer
+pool.gamer_suffix.002: Loot
+pool.gamer_suffix.003: Held
+pool.gamer_suffix.004: Legende
+pool.gamer_suffix.005: Pro
+pool.gamer_suffix.006: Meester
+pool.gamer_suffix.007: Raider
+pool.gamer_suffix.008: Jager
+prestige.group_name: Prestige %[1]d
+xpgroups.group_name: Niv %[1]d
+loot_sync.group_name: (gs:%[1]d) %[2]s%[3]s
+hazard.deadly_radiation: Dodelijke Straling
+hazard.treacherous_quicksand: Verraderlijk Drijfzand
+hazard.cursed_aura: Vervloekte Aura
+hazard.arcane_vortex: Arcaan Wervelwind
+hazard.boiling_lava.desc: Gesmolten rots borrelt op uit de grond, brandt alles op
+  zijn pad
+hazard.toxic_fumes.desc: Giftige gassen vullen de lucht, veroorzaken misselijkheid
+  en zwakte
+hazard.raging_sandstorm.desc: Verblinding zand geslingerd door de lucht, maakt het
+  moeilijk om te zien of bewegen
+hazard.howling_blizzard.desc: Bevriezende winden en sneeuw verminderen zichtbaarheid
+  en beweging
+hazard.deadly_radiation.desc: Toxische straling eet langzaam aan gezondheid en vitaliteit
+hazard.treacherous_quicksand.desc: Zinkend zand maakt beweging moeilijk en uitputtend
+hazard.cursed_aura.desc: Een donkere energie zuigt de kracht en wil van iedereen die
+  binnenkomt
+hazard.arcane_vortex.desc: Een wervelende vortex van magische energie verstoort spreukwerpen
+  en vaardigheden
+content.hazard.dissipated: ⏳ %[1]s is verdwenen
+content.hazard.damage: ☠️ %[1]s krijgt %[2]d schade van %[3]s
+content.hazard.weakened: 🌪️ %[1]s is verzwakt door %[2]s (%[3].0f%%)
+content.hazard.vision_impaired: 👁️ %[1]s's zicht is belemmerd door %[2]s (%[3].0f%%
+  mis kans)
+content.hazard.movement_impaired: 🏃 %[1]s's beweging is belemmerd door %[2]s (%[3].0f%%
+  langzamer)
+content.hazard.heat_resistant_plate: Hittebestendige Plaat
+content.hazard.fireproof_cloak: Vuurvaste Mantel
+content.hazard.molten_core_gauntlets: Gesmolten Kern Handschoenen
+content.hazard.gas_mask: Gas Masker
+content.hazard.antitoxin_armor: Antitoxine Harnas
+content.hazard.desert_goggles: Woestijnbril
+content.hazard.sandstorm_cloak: Zandstorm Mantel
+content.hazard.protective_ward: Beschermend Ward
+content.hazard.resistant_tunic: Resistente Tuniek
+content.hazard.arcane_shield: Arcane Schild
+content.hazard.health_potion: Geneesmiddel
+content.hazard.stamina_elixir: Uithoudingsvermogen Elixir
+content.hazard.speed_potion: Snelheidsgeneesmiddel
+content.hazard.intellect_draught: Intellect Drank
+content.hazard.antidote: Tegengif
+content.hazard.clarity_potion: Duidelijkheidsgeneesmiddel
+content.mob.display_format: Niv %[1]d %[2]s [%[3]s]%[4]s (%[5]d/%[6]d HP)
+content.mob.display_format_short: Niv %[1]d %[2]s [%[3]s]%[4]s
+content.mob.type.common: Gemeen
+content.mob.type.elite_minion: Elite Dienaar
+content.mob.type.elite: Elite
+content.mob.type.miniboss: Minibaas
+content.mob.type.boss: Baas
+content.mob.type.legendary: Legendarisch
+content.skill.type.physical: Fysiek
+content.skill.type.magic: Magisch
+content.skill.type.buff: Buff
+content.skill.type.debuff: Debuff
+content.skill.type.ultimate: Ultimate
+content.skill.novice_spark.name: Beginner vonk
+content.skill.novice_punch.name: Beginner stomp
+content.skill.description.format: '%[1]s %[2]s rang %[3]d.'
+content.skill.ultimate.description.format: '%[1]s ultimate: %[2].1fx schade, %[3]d
+  ronde cooldown'
+content.stealth.type.passive: Passief
+content.stealth.type.active: Actief
+content.stealth.type.situational: Situatief
+stealth.misdirection: Misleiding
+stealth.silent_movement: Stille Beweging
+stealth.natural_camouflage.desc: Basis vermogen om te mengen met omgeving
+stealth.cloak_of_shadows.desc: Het dragen van een donkere mantel verbetert stealth
+stealth.night_stalker.desc: Verhoogde stealth tijdens nacht
+stealth.ambush_predator.desc: Eerste slag doet bonus schade wanneer onopgemerkt
+stealth.misdirection.desc: Leid vijanden af om detectie te verminderen
+stealth.silent_movement.desc: Beweeg zonder geluid te maken
+content.stealth.shadow_cloak: Schaduw Mantel
+content.stealth.night_cloak: Nacht Mantel
+content.stealth.stealth_tunic: Stealth Tuniek
+content.stealth.assassins_garb: Assassijn's Kleding
+content.stealth.shadow_potion: Schaduw Geneesmiddel
+content.stealth.cloak_elixir: Mantel Elixir
+content.unique.description.format: '%[1]s %[2]s (Kracht: %[3].1f)'
+content.unique_item.description: '%[1]s %[2]s (Kracht: %[3].1f)'
+content.zone.type.buff: Buff
+content.zone.type.debuff: Debuff
+content.zone.type.hazard: Gevaar
+content.zone.type.special: Speciaal
+content.zone.effect.buff: Geeft +%[1].0f%% aan willekeurige gevechtsstat.
+content.zone.effect.debuff: Vermindert willekeurige vijandige gevechtsstat met %[1].0f%%.
+content.zone.effect.hazard: Doet %[1].0f schade per ronde aan iedereen.
+content.zone.effect.special: Verhoogt zeldzame loot drop rates of spawn extra monsters.
+content.zone.effect.buff_desc: Geeft +%[1].0f%% aan willekeurige gevechtsstat.
+content.zone.effect.debuff_desc: Vermindert willekeurige vijandige gevechtsstat met
+  %[1].0f%%.
+content.zone.effect.hazard_desc: Doet %[1].0f schade per ronde aan iedereen.
+content.zone.effect.special_desc: Verhoogt zeldzame loot drop rates of spawn extra
+  monsters.
+content.zone.effect_display: '%[1]s (%[2]s)'
+content.zone.display.format: '📍 %[1]s [Moeilijkheid: %[2].2f] — Effecten: %[3]s'
+content.zone.display: '📍 %[1]s [Moeilijkheid: %[2].2f] — Effecten: %[3]s'
+content.zone.elwynn_forest: Elwynn Bos
+content.zone.westfall: Westvale
+content.zone.durotar: Durotar
+content.zone.mulgore: Mul'gore
+content.zone.teldrassil: Teldrassil
+content.zone.loch_modan: Loch Modan
+content.zone.silverpine: Silverpine Bos
+content.zone.desolace: Desolace
+content.zone.stranglethorn_vale: Stranglethorn Vale
+content.zone.tanaris: Tanaris
+content.zone.ungoro_crater: Un'Goro Krater
+content.zone.winterspring: Winterspring
+content.zone.searing_gorge: Searing Gorge
+content.zone.burning_steppes: Burning Steppes
+content.zone.deadwind_pass: Deadwind Pass
+content.zone.eastern_plaguelands: Eastern Plaguelands
+content.zone.molten_core: Molten Core
+content.zone.sunwell_plateau: Sunwell Plateau
+content.zone.icecrown_citadel: Icecrown Citadel
+content.zone.void_rift: Void Rift
+content.zone.maelstrom: The Maelstrom
+content.zone.firelands: Firelands
+content.zone.shadowlands: Shadowlands
+content.zone.lava_pools.name: Lavaplassen
+content.zone.lava_pools.desc: Lavaplassen doen vuurschade.
+content.zone.toxic_fumes.name: Toxische Dampen
+content.zone.toxic_fumes.desc: Toxische dampen vergiftigen de lucht.
+content.zone.sandstorm_gusts.name: Zandstorm Windstoten
+content.zone.sandstorm_gusts.desc: Zandstorm windstoten verminderen zichtbaarheid.
+content.zone.blizzard_winds.name: Sneeuwstorm Winden
+content.zone.blizzard_winds.desc: Sneeuwstorm winden vertragen beweging.
+content.holiday.christmas.name: Kerstmis
+content.holiday.christmas.banner: 🎄 Vrolijk Kerstfeest! Moge je loot legendarisch
+  zijn!
+content.holiday.christmas.signoff: Ho ho ho, gamer!
+content.holiday.new_year.name: Nieuwjaar
+content.holiday.new_year.banner: 🎆 Gelukkig Nieuwjaar! Tijd voor een frisse start!
+content.holiday.new_year.signoff: Proost, gamer!
+content.holiday.halloween.name: Halloween
+content.holiday.halloween.banner: 🎃 Truc of traktatie! Pas op voor spookachtige monsters!
+content.holiday.halloween.signoff: Blijf spookachtig, gamer!
+content.holiday.valentines_day.name: Valentijnsdag
+content.holiday.valentines_day.banner: ❤️ Liefde hangt in de lucht! Groepeer met iemand
+  speciaals!
+content.holiday.valentines_day.signoff: Ik hou van je, gamer!
+content.holiday.april_fools.name: Aprilgrap
+content.holiday.april_fools.banner: 🃏 Aprilgrap! Let op verrassingsmechanismen!
+content.holiday.april_fools.signoff: Heb ik je, gamer!
+content.holiday.easter.name: Pasen
+content.holiday.easter.banner: 🐰 Vrolijk Pasen! Jacht op eieren en loot!
+content.holiday.easter.signoff: Spring door, gamer!
+content.artifact.slot.head: Hoofd
+content.artifact.slot.neck: Nek
+content.artifact.slot.shoulders: Schouders
+content.artifact.slot.back: Rug
+content.artifact.slot.chest: Borst
+content.artifact.slot.wrists: Polsen
+content.artifact.slot.hands: Handen
+content.artifact.slot.waist: Taille
+content.artifact.slot.legs: Benen
+content.artifact.slot.feet: Voeten
+content.artifact.slot.finger1: Vinger1
+content.artifact.slot.finger2: Vinger2
+content.artifact.slot.trinket1: Trinket1
+content.artifact.slot.trinket2: Trinket2
+content.artifact.slot.mainhand: Hoofdhand
+content.artifact.slot.offhand: Andere hand
+content.artifact.slot.ranged: Afstand
+content.artifact.slot.relic: Relic
+content.artifact.slot.artifact: Artefact
+content.artifact.slot.soul: Ziel
+content.artifact.slot.aura: Aura
+content.artifact.slot.charm: Talisman
+content.artifact.slot.mount: Rijdier
+content.artifact.slot.companion: Metgezel
+content.artifact.slot.pet1: Huisdier 1
+content.artifact.slot.pet2: Huisdier 2
+content.artifact.slot.emblem1: Embleem 1
+content.artifact.slot.emblem2: Embleem 2
+content.artifact.slot.banner: Banner
+content.artifact.slot.totem: Totem
+content.artifact.effect.thorns: Doornen
+content.artifact.effect.vampiric: Vampirisch
+content.artifact.effect.berserk: Berserk
+content.artifact.effect.lucky: Gelukkig
+content.artifact.effect.treasure_hunter: Schatzoeker
+content.artifact.effect.quick: Snel
+content.artifact.effect.bulwark: Bulwark
+content.artifact.effect.radiant: Stralend
+content.artifact.effect.fragile: Breekbaar
+content.artifact.effect.steady: Stabiel
+content.artifact.effect.mind_control: Geestcontrole
+content.artifact.effect.regen_stack: RegenStack
+content.artifact.effect.phoenix: Phoenix
+content.artifact.effect.stealth: Stealth
+content.artifact.effect.parry: Parry
+content.artifact.effect.cleanse: Zuiveren
+content.artifact.element.physical: Fysiek
+content.artifact.element.fire: Vuur
+content.artifact.element.water: Water
+content.artifact.element.earth: Aarde
+content.artifact.element.air: Lucht
+content.artifact.position.frontline: Frontlinie
+content.artifact.position.backline: Achterlinie
+content.artifact.consumable.small_health_potion.name: Kleine Geneesmiddel
+content.artifact.consumable.great_health_potion.name: Grote Geneesmiddel
+content.artifact.consumable.strength_elixir.name: Sterkte Elixir
+content.artifact.consumable.iron_skin_brew.name: IJzeren Huid Brouwsel
+content.artifact.consumable.phoenix_feather.name: Phoenix Veer
+content.artifact.consumable.repair_kit.name: Reparatiekit
+content.artifact.consumable.master_repair_kit.name: Meester Reparatiekit
+content.artifact.consumable.small_health_potion.desc: Herstelt direct 50 HP
+content.artifact.consumable.great_health_potion.desc: Herstelt direct 200 HP
+content.artifact.consumable.strength_elixir.desc: +15 STR voor 3 gevechten
+content.artifact.consumable.iron_skin_brew.desc: +10 DEF voor 3 gevechten
+content.artifact.consumable.phoenix_feather.desc: Herleeft je automatisch met 50%
+  HP één keer
+content.artifact.consumable.repair_kit.desc: Herstelt 30 duurzaamheid aan een willekeurig
+  uitgerust item
+content.artifact.consumable.master_repair_kit.desc: Herstelt 75 duurzaamheid aan een
+  willekeurig uitgerust item
+content.artifact.consumable_type.healing: Genezing
+content.artifact.consumable_type.revive: Herleven
+content.artifact.consumable_type.buff: Buff
+content.artifact.consumable_type.repair: Reparatie
+content.artifact.format.plus_percent: +%[1].0f%%
+content.artifact.format.minus_percent: -%[1].0f%%
+content.artifact.format.xp_bonus_desc_positive: +%[1].0f%%
+content.artifact.format.xp_bonus_desc_negative: -%[1].0f%%
+content.artifact.gear.trusty_longsword: Betrouwbaar Langzwaard
+content.artifact.gear.reinforced_breastplate: Versterkte Borstplaat
+content.artifact.enchant.fiery: Vuur
+content.artifact.enchant.icy: IJs
+content.artifact.enchant.shocking: Schokkend
+content.artifact.enchant.venomous: Vergiftigd
+content.artifact.enchant.holy: Heilig
+content.artifact.enchant.vampiric: Vampirisch
+content.artifact.enchant.arcane: Arcanisch
+content.artifact.enchant.stone: Steen
+content.artifact.enchant.wind: Wind
+content.artifact.enchant.shadow: Schaduw
+content.artifact.enchant.reinforced: Versterkt
+content.artifact.enchant.unbreakable: Onbreekbaar
+content.artifact.enchant.diamond_coated: Diamant-bekleed
+content.artifact.novice_gear: Beginner %[1]s
+content.skill.divine_revival.name: Goddelijke Herleving
+content.nickname.default: MrFree
+content.nickname.vaultboy: VaultBoy
+content.nickname.dovahkiin: Dovahkiin
+content.nickname.geralt_of_rivia: GeraltOfRivia
+content.nickname.doomguy: DoomGuy
+content.nickname.master_chief: MasterChief
+content.nickname.hero_of_time: HeroOfTime
+content.nickname.itsa_me: ItsaMe
+content.nickname.gotta_go_fast: GottaGoFast
+content.nickname.still_alive: StillAlive
+content.nickname.steve: Steve
+content.nickname.lara_croft: LaraCroft
+content.nickname.ezio_auditore: EzioAuditore
+content.nickname.kratos: Kratos
+content.nickname.stars_member: STARSMember
+content.nickname.foggy_hill: FoggyHill
+content.nickname.chosen_undead: ChosenUndead
+content.nickname.tarnished: Tarnished
+content.nickname.choom_v: ChoomV
+content.nickname.wanted_level_5: WantedLevel5
+content.nickname.rush_b: RushB
+content.nickname.freeman_phd: FreemanPhD
+content.nickname.samus_aran: SamusAran
+content.nickname.solid_snake: SolidSnake
+content.nickname.chocobo_rider: ChocoboRider
+content.nickname.use_the_force: UseTheForce
+content.nickname.vault_hunter: VaultHunter
+content.nickname.nephalem_hero: NephalemHero
+content.nickname.for_the_horde: ForTheHorde
+content.nickname.payload_escort: PayloadEscort
+content.nickname.would_you_kindly: WouldYouKindly
+content.nickname.rookie_fc: RookieFC
+content.nickname.agent_47: Agent47
+content.nickname.flawless_victory: FlawlessVictory
+content.nickname.hadouken: Hadouken
+content.nickname.waka_waka: WakaWaka
+content.nickname.tspin_triple: TSpinTriple
+content.nickname.not_the_impostor: NotTheImpostor
+content.nickname.moon_lord: MoonLord
+content.nickname.junimo_farmer: JunimoFarmer
+content.nickname.the_knight: TheKnight
+pool.artifact.prefix.001: Oud
+pool.artifact.prefix.002: Eeuwig
+pool.artifact.prefix.003: Hemels
+pool.artifact.prefix.004: Infernaal
+pool.artifact.prefix.005: Primaire
+pool.artifact.prefix.006: Abyssaal
+pool.artifact.prefix.007: Goddelijk
+pool.artifact.prefix.008: Leegte
+pool.artifact.prefix.009: Schaduw
+pool.artifact.prefix.010: Vorst
+pool.artifact.prefix.011: Storm
+pool.artifact.prefix.012: Vlam
+pool.artifact.prefix.013: Aarde
+pool.artifact.prefix.014: Wind
+pool.artifact.prefix.015: Licht
+pool.artifact.prefix.016: Donker
+pool.artifact.prefix.017: Gouden
+pool.artifact.prefix.018: Kristal
+pool.artifact.prefix.019: Ijzer
+pool.artifact.prefix.020: Staal
+pool.artifact.suffix.001: van Kracht
+pool.artifact.suffix.002: van Wijsheid
+pool.artifact.suffix.003: van Moed
+pool.artifact.suffix.004: van Glorie
+pool.artifact.suffix.005: van Macht
+pool.artifact.suffix.006: van Woede
+pool.artifact.suffix.007: van Toorn
+pool.artifact.suffix.008: van Wraak
+pool.artifact.suffix.009: van Justitie
+pool.artifact.suffix.010: van Waarheid
+pool.artifact.suffix.011: van Licht
+pool.artifact.suffix.012: van Schaduw
+pool.artifact.suffix.013: van Vuur
+pool.artifact.suffix.014: van IJs
+pool.artifact.suffix.015: van Storm
+pool.artifact.suffix.016: van Aarde
+pool.artifact.suffix.017: van Wind
+pool.artifact.suffix.018: van de Ouden
+pool.artifact.suffix.019: van de Leegte
+pool.artifact.suffix.020: van Bestemming
+pool.artifact.corrupted_prefix.001: Gecorrumpeerd
+pool.artifact.corrupted_prefix.002: Besmet
+pool.artifact.corrupted_prefix.003: Vervloekt
+pool.artifact.corrupted_prefix.004: Ontwijfeld
+pool.artifact.corrupted_prefix.005: Twisted
+pool.artifact.corrupted_prefix.006: Ellendig
+pool.artifact.corrupted_prefix.007: Misvormd
+pool.artifact.corrupted_prefix.008: Vervallen
+pool.artifact.corrupted_prefix.009: Verwelkt
+pool.artifact.corrupted_prefix.010: Vermoed
+pool.artifact.corrupted_noun.001: Ziel
+pool.artifact.corrupted_noun.002: Hart
+pool.artifact.corrupted_noun.003: Essentie
+pool.artifact.corrupted_noun.004: Kern
+pool.artifact.corrupted_noun.005: Fragment
+pool.artifact.corrupted_noun.006: Scherf
+pool.artifact.corrupted_noun.007: Restant
+pool.artifact.corrupted_noun.008: Relic
+pool.artifact.corrupted_noun.009: Token
+pool.artifact.corrupted_noun.010: Echo
+pool.title.positive_prefix.001: Machtig
+pool.title.positive_prefix.002: Glorieus
+pool.title.positive_prefix.003: Edel
+pool.title.positive_prefix.004: Moedig
+pool.title.positive_prefix.005: Heroïsch
+pool.title.positive_prefix.006: Legendarisch
+pool.title.positive_prefix.007: Supreme
+pool.title.positive_prefix.008: Ultieme
+pool.title.positive_prefix.009: Eeuwig
+pool.title.positive_prefix.010: Goddelijk
+pool.title.positive_noun.001: Kampioen
+pool.title.positive_noun.002: Krijger
+pool.title.positive_noun.003: Held
+pool.title.positive_noun.004: Meester
+pool.title.positive_noun.005: Heer
+pool.title.positive_noun.006: Koning
+pool.title.positive_noun.007: Keizer
+pool.title.positive_noun.008: Veroveraar
+pool.title.positive_noun.009: Legende
+pool.title.positive_noun.010: Beschermer
+pool.title.extreme_prefix.001: Apocalyptisch
+pool.title.extreme_prefix.002: Kosmisch
+pool.title.extreme_prefix.003: Galactisch
+pool.title.extreme_prefix.004: Universeel
+pool.title.extreme_prefix.005: Almachtig
+pool.title.extreme_prefix.006: Transcendent
+pool.title.extreme_prefix.007: Oneindig
+pool.title.extreme_prefix.008: Grenzeloos
+pool.title.extreme_prefix.009: Onbeperkt
+pool.title.extreme_prefix.010: Absoluut
+pool.title.extreme_noun.001: Vernietiger
+pool.title.extreme_noun.002: Annihilator
+pool.title.extreme_noun.003: Obliterator
+pool.title.extreme_noun.004: Veroveraar
+pool.title.extreme_noun.005: Devastator
+pool.title.extreme_noun.006: Eliminator
+pool.title.extreme_noun.007: Eraser
+pool.title.extreme_noun.008: Exterminator
+pool.title.extreme_noun.009: Nullifier
+pool.title.extreme_noun.010: Terminator
+pool.title.negative_prefix.001: Zwak
+pool.title.negative_prefix.002: Krachteloos
+pool.title.negative_prefix.003: Pathetisch
+pool.title.negative_prefix.004: Bescheiden
+pool.title.negative_prefix.005: Breekbaar
+pool.title.negative_prefix.006: Klein
+pool.title.negative_prefix.007: Slappig
+pool.title.negative_prefix.008: Mager
+pool.title.negative_prefix.009: Ziek
+pool.title.negative_prefix.010: Laflĳk
+pool.title.negative_noun.001: Boer
+pool.title.negative_noun.002: Bedelaar
+pool.title.negative_noun.003: Falen
+pool.title.negative_noun.004: Verliezer
+pool.title.negative_noun.005: Banneling
+pool.title.negative_noun.006: Ellendeling
+pool.title.negative_noun.007: Niemand
+pool.title.negative_noun.008: Nul
+pool.title.negative_noun.009: Niets
+pool.title.negative_noun.010: Afval
+pool.enchantment.prefix.001: Vuur
+pool.enchantment.prefix.002: IJs
+pool.enchantment.prefix.003: Schokkend
+pool.enchantment.prefix.004: Vergiftigd
+pool.enchantment.prefix.005: Heilig
+pool.enchantment.prefix.006: Vampirisch
+pool.enchantment.prefix.007: Arcanisch
+pool.enchantment.prefix.008: Steen
+pool.enchantment.prefix.009: Wind
+pool.enchantment.prefix.010: Schaduw
+pool.enchantment.prefix.011: Versterkt
+pool.enchantment.prefix.012: Onbreekbaar
+pool.enchantment.prefix.013: Diamant-bekleed
+content.gear.slot.head: Hoofd
+content.gear.slot.neck: Nek
+content.gear.slot.shoulders: Schouders
+content.gear.slot.back: Rug
+content.gear.slot.chest: Borst
+content.gear.slot.wrists: Polsen
+content.gear.slot.hands: Handen
+content.gear.slot.waist: Taille
+content.gear.slot.legs: Benen
+content.gear.slot.feet: Voeten
+content.gear.slot.finger1: Vinger1
+content.gear.slot.finger2: Vinger2
+content.gear.slot.trinket1: Trinket1
+content.gear.slot.trinket2: Trinket2
+content.gear.slot.mainhand: Hoofdhand
+content.gear.slot.offhand: Andere hand
+content.gear.slot.ranged: Afstand
+content.gear.slot.relic: Relic
+content.gear.slot.artifact: Artefact
+content.gear.slot.soul: Ziel
+content.gear.slot.aura: Aura
+content.gear.slot.charm: Talisman
+content.gear.slot.mount: Rijdier
+content.gear.slot.companion: Metgezel
+content.gear.slot.pet1: Huisdier 1
+content.gear.slot.pet2: Huisdier 2
+content.gear.slot.emblem1: Embleem 1
+content.gear.slot.emblem2: Embleem 2
+content.gear.slot.banner: Banner
+content.gear.slot.totem: Totem
+content.gear.procedural: '%[1]s %[2]s van %[3]s'
+content.gear.novice: Beginner %[1]s
+content.gear.trusty_longsword: Betrouwbaar Langzwaard
+content.gear.reinforced_breastplate: Versterkte Borstplaat
+content.gear.god_slayers_heart: God Slayer's Hart
+content.gear.infinity_edge: Infinity Edge
+content.gear.chrono_guard: Chrono Guard
+content.gear.eye_of_the_storm: Eye of the Storm
+content.gear.titans_pillar: Titan's Pijler
+content.artifact.corrupted: '%[1]s %[2]s'
+content.title.positive: '%[1]s %[2]s'
+content.title.extreme: '%[1]s %[2]s'
+content.title.negative: '%[1]s %[2]s'
+content.enchantment.name: '%[1]s Betovering'
+content.enchantment.description: Voegt speciale eigenschappen toe met het %[1]s voorvoegsel

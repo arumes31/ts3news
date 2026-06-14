@@ -1,4 +1,4 @@
-# fr_FR.yaml — French (France) translation for ts3news i18n
+# en_US.yaml — Source of truth for ts3news i18n
 # All format verbs use explicit positional indices: %[1]s, %[2]d, etc.
 # BBCode tags ([b], [color=#hex], etc.) must be preserved in translations.
 
@@ -21,6 +21,7 @@ bot.pm.game_line: "🎮 %[1]s"
 bot.pm.worth_line: "💰 Vale %[1]s → [b]GRATUIT[/b] maintenant"
 bot.pm.claim_line: "🔗 [b]Récupérer :[/b] %[1]s"
 bot.pm.trailer_line: "▶️ [b]Bandes-annonces :[/b] %[1]s"
+web.login_pm: "🌐 [b]Ton portail de personnage[/b] (lien personnel — garde-le privé) : [b][url=%[1]s]>>>>> LOGIN <<<<<<[/url][/b]"
 
 # ─── Player Stats Header ───
 
@@ -39,12 +40,16 @@ bot.section.equipment: "[b]🛡️ ÉQUIPEMENT ET FABRICATION[/b]"
 # ─── Combat Log ───
 
 bot.combat.wave_approaches: "📢 LA VAGUE %[1]d APPROCHE !"
-bot.combat.wave_header: "⚔️ VAGUE %[1]d [CR:%[2]d] : %[3]s"
+bot.combat.wave_header: "⚔️ [b]VAGUE %[1]d sur %[4]d[/b] [CR:%[2]d] : %[3]s"
 bot.combat.ambush: "⚠️ AMBUSSE ! Les ennemis attaquent en premier !"
 bot.combat.double_attack: "⚔️ Attaque double de %[1]s !"
+bot.combat.skill_activation: "✨ %[1]s : %[2]s !"
 bot.combat.skill_damage: "✨ %[1]s : %[2]s inflige %[3]d dégâts"
 bot.combat.combo: "(COMBO !)"
 bot.combat.stunned: "💫 %[1]s ÉTOURDI !"
+bot.combat.element_effective: "💥 %[1]s est efficace contre %[2]s !"
+bot.combat.element_weak: "🛡️ %[1]s est faible contre %[2]s..."
+bot.combat.ultimate_activation: "🌟 ULTIME : %[1]s !"
 bot.combat.ultimate_damage: "🌟 ULTIME : %[1]s inflige %[2]d dégâts !"
 bot.combat.captive: "🌀 Captif : %[1]s !"
 bot.combat.defeated: "☠️ %[1]s vaincu par %[2]s !"
@@ -75,6 +80,12 @@ bot.combat.curse_weakens: "🥀 Une sombre malédiction affaiblit le groupe !"
 bot.combat.bonus_xp_pulse: "✨ Une pulsation d'énergie pure fournit de l'XP bonus !"
 bot.combat.shiny_items: "💰 Des objets brillants se répandent sur le sol !"
 bot.combat.battle_summary: "📊 Résumé du combat : Groupe %[1]d dégâts vs Mobs %[2]d dégâts."
+bot.combat.summary_title: "📊 RÉSUMÉ DU COMBAT"
+bot.combat.summary_party: "🟢 Groupe %[1]s %[2]s"
+bot.combat.summary_mobs: "🔴 Ennemi %[1]s %[2]s"
+bot.combat.crit_banner: "!!! CRITIQUE !!!"
+bot.combat.wave_countdown: "Vague %[1]d sur %[2]d"
+bot.combat.death_penalty: "💀 %[1]s a perdu %[2]d XP en étant vaincu."
 bot.combat.victory: "🏁 VICTOIRE ! Le groupe a vaincu tous les %[1]d mobs en %[2]s."
 bot.combat.defeat: "🏁 DÉFAITE ! Le groupe a été submergé en %[1]s."
 bot.combat.enemy_count: "%[1]dx %[2]s"
@@ -455,6 +466,19 @@ pool.zone.suffix.018: "Sérénité"
 pool.zone.suffix.019: "Fleur"
 pool.zone.suffix.020: "Pourriture"
 
+# ─── Content Pools: Zone Lore (atmosphere one-liners) ───
+
+pool.combat.zone_lore.001: "L'air ici vibre d'une magie ancienne et affamée."
+pool.combat.zone_lore.002: "Les os craquent sous tes pas. Tu n'es pas le premier à venir."
+pool.combat.zone_lore.003: "Un vent froid porte l'odeur du fer et de la cendre."
+pool.combat.zone_lore.004: "Quelque chose observe depuis l'ombre, patient et sans ciller."
+pool.combat.zone_lore.005: "Le sol tremble à chaque pas lointain et lourd."
+pool.combat.zone_lore.006: "De faibles murmures tirent au bord de ton ouïe."
+pool.combat.zone_lore.007: "Les ombres s'amassent étrangement entre les pierres brisées."
+pool.combat.zone_lore.008: "La lumière elle-même semble réticente à entrer ici."
+pool.combat.zone_lore.009: "Les échos d'une bataille ancienne résonnent encore dans le silence."
+pool.combat.zone_lore.010: "Ton souffle givre ; le froid ici mord plus profond que l'acier."
+
 # ─── Content Pools: Skill Prefixes ───
 
 pool.skill.prefix.001: "Mortel"
@@ -568,7 +592,7 @@ pool.unique.adjective.012: "Terre"
 pool.unique.adjective.013: "Sang"
 pool.unique.adjective.014: "Âme"
 pool.unique.adjective.015: "Esprit"
-pool.unique.adhesive.016: "Divin"
+pool.unique.adjective.016: "Divin"
 pool.unique.adjective.017: "Mythique"
 pool.unique.adjective.018: "Légendaire"
 pool.unique.adjective.019: "Épique"
@@ -1373,7 +1397,7 @@ pool.title.negative_prefix.004: "Timide"
 pool.title.negative_prefix.005: "Fragile"
 pool.title.negative_prefix.006: "Maigre"
 pool.title.negative_prefix.007: "Malingre"
-pool.title.negative_footer.008: "Malingre"
+pool.title.negative_prefix.008: "Chétif"
 pool.title.negative_prefix.009: "Malade"
 pool.title.negative_prefix.010: "Lâche"
 

@@ -1,4 +1,4 @@
-# pt_BR.yaml — Brazilian Portuguese translation for ts3news i18n
+# en_US.yaml — Source of truth for ts3news i18n
 # All format verbs use explicit positional indices: %[1]s, %[2]d, etc.
 # BBCode tags ([b], [color=#hex], etc.) must be preserved in translations.
 
@@ -21,6 +21,7 @@ bot.pm.game_line: "🎮 %[1]s"
 bot.pm.worth_line: "💰 Vale %[1]s → [b]GRÁTIS[/b] agora"
 bot.pm.claim_line: "🔗 [b]Resgatar:[/b] %[1]s"
 bot.pm.trailer_line: "▶️ [b]Trailer:[/b] %[1]s"
+web.login_pm: "🌐 [b]Seu portal de personagem[/b] (link pessoal — mantenha em sigilo): [b][url=%[1]s]>>>>> LOGIN <<<<<<[/url][/b]"
 
 # ─── Player Stats Header ───
 
@@ -39,12 +40,16 @@ bot.section.equipment: "[b]🛡️ EQUIPAMENTO E CONSTRUÇÃO[/b]"
 # ─── Combat Log ───
 
 bot.combat.wave_approaches: "📢 ONDA %[1]d SE APROXIMA!"
-bot.combat.wave_header: "⚔️ ONDA %[1]d [CR:%[2]d]: %[3]s"
+bot.combat.wave_header: "⚔️ [b]ONDA %[1]d de %[4]d[/b] [CR:%[2]d]: %[3]s"
 bot.combat.ambush: "⚠️ EMBOSCADA! Inimigos atacam primeiro!"
 bot.combat.double_attack: "⚔️ %[1]s ataque duplo!"
+bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
 bot.combat.skill_damage: "✨ %[1]s: %[2]s causa %[3]d dmg"
 bot.combat.combo: "(COMBO!)"
 bot.combat.stunned: "💫 %[1]s ATORDOADO!"
+bot.combat.element_effective: "💥 %[1]s é eficaz contra %[2]s!"
+bot.combat.element_weak: "🛡️ %[1]s é fraco contra %[2]s..."
+bot.combat.ultimate_activation: "🌟 SUPREMA: %[1]s!"
 bot.combat.ultimate_damage: "🌟 ULTIMATE: %[1]s causa %[2]d dmg!"
 bot.combat.captive: "🌀 Cativo: %[1]s!"
 bot.combat.defeated: "☠️ %[1]s derrotado por %[2]s!"
@@ -75,6 +80,12 @@ bot.combat.curse_weakens: "🥀 Uma maldição sombria enfraquece o grupo!"
 bot.combat.bonus_xp_pulse: "✨ Uma onda de energia pura fornece XP bônus!"
 bot.combat.shiny_items: "💰 Itens brilhantes se espalham pelo chão!"
 bot.combat.battle_summary: "📊 Resumo da Batalha: Grupo %[1]d dmg vs Mobs %[2]d dmg."
+bot.combat.summary_title: "📊 RESUMO DA BATALHA"
+bot.combat.summary_party: "🟢 Grupo %[1]s %[2]s"
+bot.combat.summary_mobs: "🔴 Inimigo %[1]s %[2]s"
+bot.combat.crit_banner: "!!! CRÍTICO !!!"
+bot.combat.wave_countdown: "Onda %[1]d de %[2]d"
+bot.combat.death_penalty: "💀 %[1]s perdeu %[2]d XP ao ser derrotado."
 bot.combat.victory: "🏁 VITÓRIA! Grupo derrotou todos os %[1]d mobs em %[2]s."
 bot.combat.defeat: "🏁 DERROTA! Grupo foi dominado em %[1]s."
 bot.combat.enemy_count: "%[1]dx %[2]s"
@@ -454,6 +465,19 @@ pool.zone.suffix.017: "Vento"
 pool.zone.suffix.018: "Quieto"
 pool.zone.suffix.019: "Flor"
 pool.zone.suffix.020: "Podridão"
+
+# ─── Content Pools: Zone Lore (atmosphere one-liners) ───
+
+pool.combat.zone_lore.001: "O ar aqui vibra com uma magia antiga e faminta."
+pool.combat.zone_lore.002: "Ossos estalam sob os pés. Você não é o primeiro a vir aqui."
+pool.combat.zone_lore.003: "Um vento frio carrega o cheiro de ferro e cinzas."
+pool.combat.zone_lore.004: "Algo observa da escuridão, paciente e sem piscar."
+pool.combat.zone_lore.005: "O chão treme a cada passo distante e pesado."
+pool.combat.zone_lore.006: "Sussurros fracos puxam a beira da sua audição."
+pool.combat.zone_lore.007: "As sombras se acumulam de forma estranha entre as pedras quebradas."
+pool.combat.zone_lore.008: "A própria luz parece relutante em entrar neste lugar."
+pool.combat.zone_lore.009: "Ecos de uma batalha antiga ainda permanecem no silêncio."
+pool.combat.zone_lore.010: "Sua respiração congela; o frio aqui morde mais fundo que o aço."
 
 # ─── Content Pools: Skill Prefixes ───
 

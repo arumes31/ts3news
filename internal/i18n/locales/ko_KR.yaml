@@ -1,4 +1,4 @@
-# ko_KR.yaml — Korean translation for ts3news i18n
+# en_US.yaml — Source of truth for ts3news i18n
 # All format verbs use explicit positional indices: %[1]s, %[2]d, etc.
 # BBCode tags ([b], [color=#hex], etc.) must be preserved in translations.
 
@@ -21,6 +21,7 @@ bot.pm.game_line: "🎮 %[1]s"
 bot.pm.worth_line: "💰 가치 %[1]s → 지금 [b]무료[/b]"
 bot.pm.claim_line: "🔗 [b]받기:[/b] %[1]s"
 bot.pm.trailer_line: "▶️ [b]트레일러:[/b] %[1]s"
+web.login_pm: "🌐 [b]당신의 캐릭터 포털[/b] (개인 링크 — 비공개로 유지하세요): [b][url=%[1]s]>>>>> LOGIN <<<<<<[/url][/b]"
 
 # ─── Player Stats Header ───
 
@@ -39,12 +40,16 @@ bot.section.equipment: "[b]🛡️ 장비 및 제작[/b]"
 # ─── Combat Log ───
 
 bot.combat.wave_approaches: "📢 %[1]d 번째 웨이브 접근 중!"
-bot.combat.wave_header: "⚔️ %[1]d 번째 웨이브 [CR:%[2]d]: %[3]s"
+bot.combat.wave_header: "⚔️ [b]웨이브 %[1]d / %[4]d[/b] [CR:%[2]d]: %[3]s"
 bot.combat.ambush: "⚠️ 매복! 적이 먼저 공격!"
 bot.combat.double_attack: "⚔️ %[1]s 이중 공격!"
+bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
 bot.combat.skill_damage: "✨ %[1]s: %[2]s 가 %[3]d 피해"
 bot.combat.combo: "(콤보!)"
 bot.combat.stunned: "💫 %[1]s 기절!"
+bot.combat.element_effective: "💥 %[1]s 은(는) %[2]s 에게 효과적이다!"
+bot.combat.element_weak: "🛡️ %[1]s 은(는) %[2]s 에게 약하다..."
+bot.combat.ultimate_activation: "🌟 궁극기: %[1]s!"
 bot.combat.ultimate_damage: "🌟 궁극기: %[1]s 가 %[2]d 피해!"
 bot.combat.captive: "🌀 포로: %[1]s!"
 bot.combat.defeated: "☠️ %[1]s 가 %[2]s 에게 패배!"
@@ -75,6 +80,12 @@ bot.combat.curse_weakens: "🥀 어두운 저주가 파티를 약화!"
 bot.combat.bonus_xp_pulse: "✨ 순수한 에너지의 파동이 보너스 XP 제공!"
 bot.combat.shiny_items: "💰 반짝이는 아이템이 바닥에 흩어짐!"
 bot.combat.battle_summary: "📊 전투 요약: 파티 %[1]d 피해 vs 몹 %[2]d 피해."
+bot.combat.summary_title: "📊 전투 요약"
+bot.combat.summary_party: "🟢 파티 %[1]s %[2]s"
+bot.combat.summary_mobs: "🔴 적 %[1]s %[2]s"
+bot.combat.crit_banner: "!!! 치명타 !!!"
+bot.combat.wave_countdown: "웨이브 %[1]d / %[2]d"
+bot.combat.death_penalty: "💀 %[1]s 님이 패배하여 %[2]d XP를 잃었습니다."
 bot.combat.victory: "🏁 승리! 파티가 %[2]s 에 %[1]d 마리 몹을 모두 처치."
 bot.combat.defeat: "🏁 패배! 파티가 %[1]s 에 압도됨."
 bot.combat.enemy_count: "%[1]d x %[2]s"
@@ -454,6 +465,19 @@ pool.zone.suffix.017: "바람"
 pool.zone.suffix.018: "고요"
 pool.zone.suffix.019: "개화"
 pool.zone.suffix.020: "부패"
+
+# ─── Content Pools: Zone Lore (atmosphere one-liners) ───
+
+pool.combat.zone_lore.001: "이곳의 공기는 오래되고 굶주린 마법으로 윙윙거린다."
+pool.combat.zone_lore.002: "발밑에서 뼈가 으스러진다. 이곳에 온 것은 당신이 처음이 아니다."
+pool.combat.zone_lore.003: "차가운 바람이 쇠와 재의 냄새를 실어 온다."
+pool.combat.zone_lore.004: "무언가가 어둠 속에서 참을성 있게 깜빡임도 없이 지켜본다."
+pool.combat.zone_lore.005: "멀리서 묵직한 발걸음마다 땅이 흔들린다."
+pool.combat.zone_lore.006: "희미한 속삭임이 청각의 가장자리를 잡아당긴다."
+pool.combat.zone_lore.007: "부서진 돌 사이로 그림자가 부자연스럽게 고인다."
+pool.combat.zone_lore.008: "빛조차 이곳에 들어오기를 꺼리는 듯하다."
+pool.combat.zone_lore.009: "고대 전투의 메아리가 아직도 정적 속에 맴돈다."
+pool.combat.zone_lore.010: "숨결이 얼어붙는다. 이곳의 추위는 강철보다 깊게 파고든다."
 
 # ─── Content Pools: Skill Prefixes ───
 

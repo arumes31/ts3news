@@ -21,7 +21,7 @@ bot.pm.game_line: "🎮 %[1]s"
 bot.pm.worth_line: "💰 Worth %[1]s → [b]FREE[/b] now"
 bot.pm.claim_line: "🔗 [b]Claim:[/b] %[1]s"
 bot.pm.trailer_line: "▶️ [b]Trailer:[/b] %[1]s"
-web.login_pm: "🌐 [b]Your character portal:[/b] %[1]s (personal link — keep it private)"
+web.login_pm: "🌐 [b]Your character portal[/b] (personal link — keep it private): [b][url=%[1]s]>>>>> LOGIN <<<<<<[/url][/b]"
 
 # ─── Player Stats Header ───
 
@@ -40,7 +40,7 @@ bot.section.equipment: "[b]🛡️ EQUIPMENT & CRAFTING[/b]"
 # ─── Combat Log ───
 
 bot.combat.wave_approaches: "📢 WAVE %[1]d APPROACHES!"
-bot.combat.wave_header: "⚔️ WAVE %[1]d [CR:%[2]d]: %[3]s"
+bot.combat.wave_header: "⚔️ [b]WAVE %[1]d of %[4]d[/b] [CR:%[2]d]: %[3]s"
 bot.combat.ambush: "⚠️ AMBUSH! Enemies attack first!"
 bot.combat.double_attack: "⚔️ %[1]s double attack!"
 bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
@@ -80,6 +80,12 @@ bot.combat.curse_weakens: "🥀 A dark curse weakens the party!"
 bot.combat.bonus_xp_pulse: "✨ A pulse of pure energy provides bonus XP!"
 bot.combat.shiny_items: "💰 Shiny items scatter across the floor!"
 bot.combat.battle_summary: "📊 Battle Summary: Party %[1]d dmg vs Mobs %[2]d dmg."
+bot.combat.summary_title: "📊 BATTLE SUMMARY"
+bot.combat.summary_party: "🟢 Party %[1]s %[2]s"
+bot.combat.summary_mobs: "🔴 Enemy %[1]s %[2]s"
+bot.combat.crit_banner: "!!! CRITICAL !!!"
+bot.combat.wave_countdown: "Wave %[1]d of %[2]d"
+bot.combat.death_penalty: "💀 %[1]s lost %[2]d XP on defeat."
 bot.combat.victory: "🏁 VICTORY! Party defeated all %[1]d mobs in %[2]s."
 bot.combat.defeat: "🏁 DEFEAT! Party was overrun in %[1]s."
 bot.combat.enemy_count: "%[1]dx %[2]s"
@@ -459,6 +465,19 @@ pool.zone.suffix.017: "Wind"
 pool.zone.suffix.018: "Stillness"
 pool.zone.suffix.019: "Bloom"
 pool.zone.suffix.020: "Rot"
+
+# ─── Content Pools: Zone Lore (atmosphere one-liners) ───
+
+pool.combat.zone_lore.001: "The air here hums with old, hungry magic."
+pool.combat.zone_lore.002: "Bones crunch underfoot. You are not the first to come this way."
+pool.combat.zone_lore.003: "A cold wind carries the scent of iron and ash."
+pool.combat.zone_lore.004: "Something watches from the dark, patient and unblinking."
+pool.combat.zone_lore.005: "The ground trembles with each distant, heavy step."
+pool.combat.zone_lore.006: "Faint whispers tug at the edge of your hearing."
+pool.combat.zone_lore.007: "Shadows pool unnaturally between the broken stones."
+pool.combat.zone_lore.008: "The very light seems reluctant to enter this place."
+pool.combat.zone_lore.009: "Echoes of an ancient battle still linger in the silence."
+pool.combat.zone_lore.010: "Your breath fogs; the cold here bites deeper than steel."
 
 # ─── Content Pools: Skill Prefixes ───
 
