@@ -7,13 +7,13 @@
   <div class="exchange-grid">
     <div class="ex-card">
       <h3>🪙 Gold → ✨ XP</h3>
-      <p class="muted small">1 gold = {{.GoldToXPRate}} XP</p>
+      <p class="muted small">{{.GoldPerXP}} gold = 1 XP</p>
       <label>Gold <input type="number" id="g2xAmount" value="100" min="1"></label>
       <button onclick="exchange('gold_to_xp','g2xAmount')">Convert</button>
     </div>
     <div class="ex-card">
       <h3>✨ XP → 🪙 Gold</h3>
-      <p class="muted small">{{.XPToGoldRatio}} XP = 1 gold</p>
+      <p class="muted small">{{.XPPerGold}} XP = 1 gold</p>
       <label>XP <input type="number" id="x2gAmount" value="100" min="1"></label>
       <button onclick="exchange('xp_to_gold','x2gAmount')">Convert</button>
     </div>

@@ -10,11 +10,11 @@ import (
 	"ts3news/internal/leveling"
 )
 
-// Exchange rates (per the design): spend 1 gold to gain 3 XP; spend 2 XP to gain
-// 1 gold.
+// Exchange rates: spend 10 gold to gain 1 XP; spend 10 XP to gain 5 gold
+// (i.e. 2 XP per gold).
 const (
-	goldToXPRate  = 3 // XP gained per gold spent
-	xpToGoldRatio = 2 // XP spent per gold gained
+	goldPerXP     = 10 // gold spent to gain 1 XP
+	xpPerGold     = 2  // XP spent to gain 1 gold (10 XP → 5 gold)
 	shopStockSize = 12
 )
 
@@ -28,8 +28,8 @@ func gearPrice(g content.Gear) int64 {
 	return p
 }
 
-func itoa(n int) string      { return strconv.Itoa(n) }
-func ftoa(f float64) string  { return strconv.FormatFloat(f, 'g', -1, 64) }
+func itoa(n int) string     { return strconv.Itoa(n) }
+func ftoa(f float64) string { return strconv.FormatFloat(f, 'g', -1, 64) }
 
 // Shop stock rotates on windows whose length is a deterministic, pseudo-random
 // value between shopMinHours and shopMaxHours. All players share one rotation.
@@ -111,13 +111,13 @@ func (s *WebServer) handleShopPage(w http.ResponseWriter, r *http.Request, uid s
 		refreshIn = 0
 	}
 	s.render(w, "shop", map[string]any{
-		"Title":         "Shop",
-		"Nav":           "shop",
-		"U":             u,
-		"Stock":         stockForSeed(seed),
-		"RefreshIn":     refreshIn,
-		"GoldToXPRate":  goldToXPRate,
-		"XPToGoldRatio": xpToGoldRatio,
+		"Title":     "Shop",
+		"Nav":       "shop",
+		"U":         u,
+		"Stock":     stockForSeed(seed),
+		"RefreshIn": refreshIn,
+		"GoldPerXP": goldPerXP,
+		"XPPerGold": xpPerGold,
 	})
 }
 
@@ -153,21 +153,26 @@ func (s *WebServer) handleExchangeAPI(w http.ResponseWriter, r *http.Request, ui
 	var detail string
 	switch req.Direction {
 	case "gold_to_xp":
-		if gold < req.Amount {
+		spend := req.Amount - (req.Amount % goldPerXP) // only whole XP, no wasted gold
+		if spend <= 0 {
+			writeJSON(w, map[string]any{"ok": false, "error": "need at least " + itoa(goldPerXP) + " gold"})
+			return
+		}
+		if gold < spend {
 			writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 			return
 		}
-		gainXP := int(req.Amount) * goldToXPRate
-		gold -= req.Amount
+		gainXP := int(spend / goldPerXP)
+		gold -= spend
 		xp += gainXP
-		detail = "Spent " + FormatGold(req.Amount) + " gold for +" + itoa(gainXP) + " XP"
+		detail = "Spent " + FormatGold(spend) + " gold for +" + itoa(gainXP) + " XP"
 	case "xp_to_gold":
-		spend := req.Amount - (req.Amount % xpToGoldRatio) // round down to a multiple
+		spend := req.Amount - (req.Amount % xpPerGold) // round down to a multiple
 		if spend <= 0 || int64(xp) < spend {
 			writeJSON(w, map[string]any{"ok": false, "error": "not enough XP"})
 			return
 		}
-		gainGold := spend / xpToGoldRatio
+		gainGold := spend / xpPerGold
 		xp -= int(spend)
 		gold += gainGold
 		detail = "Spent " + itoa(int(spend)) + " XP for +" + FormatGold(gainGold) + " gold"
