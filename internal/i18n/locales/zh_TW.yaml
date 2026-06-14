@@ -1,4 +1,4 @@
-# en_US.yaml — Source of truth for ts3news i18n
+# zh_TW.yaml — Traditional Chinese locale for ts3news i18n
 # All format verbs use explicit positional indices: %[1]s, %[2]d, etc.
 # BBCode tags ([b], [color=#hex], etc.) must be preserved in translations.
 

@@ -2,6 +2,7 @@ package bot
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"ts3news/internal/content"
@@ -37,7 +38,9 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("web: json encode failed: %v", err)
+	}
 }
 
 func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid string) {
@@ -191,7 +194,10 @@ func (s *WebServer) handleEquipAPI(w http.ResponseWriter, r *http.Request, uid s
 	var oldDur int
 	switch err := tx.QueryRow("SELECT gear_id, durability FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(g.Slot)).Scan(&oldGID, &oldDur); err {
 	case nil:
-		_, _ = tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1, $2, $3)", uid, oldGID, oldDur)
+		if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1, $2, $3)", uid, oldGID, oldDur); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "displace"})
+			return
+		}
 	default:
 		// empty slot, nothing to displace
 	}
@@ -256,7 +262,8 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 		writeJSON(w, map[string]any{"ok": false, "error": "already sold"})
 		return
 	}
-	if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", value, uid); err != nil {
+	var gold int64
+	if err := tx.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", value, uid).Scan(&gold); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "gold"})
 		return
 	}
@@ -265,7 +272,5 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 		return
 	}
 
-	var gold int64
-	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	writeJSON(w, map[string]any{"ok": true, "value": value, "gold": gold})
 }

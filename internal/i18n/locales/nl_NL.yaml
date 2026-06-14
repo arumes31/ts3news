@@ -26,7 +26,7 @@ bot.section.combat: '[b]⚔️ GEVECHTSLOG[/b]'
 bot.section.loot: '[b]🎁 BUIT & BELONINGEN[/b]'
 bot.section.equipment: '[b]🛡️ UITRUSTING & CRAFTING[/b]'
 bot.combat.wave_approaches: 📢 GOLF %[1]d NADERT!
-bot.combat.wave_header: '⚔️ GOLF %[1]d [CR:%[2]d]: %[3]s'
+bot.combat.wave_header: '⚔️ [b]GOLF %[1]d van %[4]d[/b] [CR:%[2]d]: %[3]s'
 bot.combat.ambush: ⚠️ AMBUSH! Vijanden vallen eerst aan!
 bot.combat.double_attack: ⚔️ %[1]s dubbele aanval!
 bot.combat.skill_activation: '✨ %[1]s: %[2]s!'

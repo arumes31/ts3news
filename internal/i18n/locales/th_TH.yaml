@@ -103,8 +103,8 @@ bot.flavour.loot_box: "กล่องสมบัติ +%[1]d XP"
 
 # ─── Loot & Rewards ───
 
-bot.loot.ultimate_equipped: "ท่าไม้ตาย: %[1]s [ติดตั้งแล้ว]"
-bot.loot.ultimate_collected: "ท่าไม้ตาย: %[1]s [เก็บสะสมแล้ว]"
+bot.loot.ultimate_equipped: "ท่าไม้ตาย: %[1]s [ultimate:equipped]"
+bot.loot.ultimate_collected: "ท่าไม้ตาย: %[1]s [ultimate:collected]"
 bot.loot.major_ultimate: "🌟 ของหายาก: เรียนรู้ทักษะ Ultimate %[1]s!"
 bot.loot.duplicate_ultimate_ah: "ซ้ำ %[1]s [ultimate]: ลงขายใน AH"
 bot.loot.duplicate_ultimate_salvage: "ซ้ำ %[1]s [ultimate]: แยกชิ้นส่วนเพื่อได้เศษโลหะ %[2]d"
@@ -470,7 +470,7 @@ pool.zone.suffix.020: "การเน่าเปื่อย"
 
 pool.combat.zone_lore.001: "อากาศที่นี่สั่นสะเทือนด้วยมนตราเก่าแก่ที่หิวกระหาย"
 pool.combat.zone_lore.002: "กระดูกแตกละเอียดใต้รองเท้าบูทของคุณ คุณไม่ใช่คนแรกที่มาที่นี่"
-pool.combat.zone_lore.003: "ลมหนาวพัดพาเอาลิ่นเหล็กและเถ้าถ่านมา"
+pool.combat.zone_lore.003: "ลมหนาวพัดพาเอากลิ่นเหล็กและเถ้าถ่านมา"
 pool.combat.zone_lore.004: "บางอย่างเฝ้ามองจากเงามืด อย่างอดทนและไม่กะพริบตา"
 pool.combat.zone_lore.005: "พื้นดินสั่นสะเทือนตามจังหวะก้าวเดินอันหนักหน่วงที่อยู่ห่างออกไป"
 pool.combat.zone_lore.006: "เสียงกระซิบแผ่วเบาดึงรั้งโสตประสาทของคุณ"

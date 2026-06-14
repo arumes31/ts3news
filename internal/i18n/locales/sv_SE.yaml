@@ -1015,7 +1015,7 @@ content.artifact.enchant.stone: Sten
 content.artifact.enchant.wind: Vind
 content.artifact.enchant.shadow: Skugg
 content.artifact.enchant.reinforced: Förstärkt
-content.artifact.enchant.unbreakable: ' Obruten'
+content.artifact.enchant.unbreakable: 'Obruten'
 content.artifact.enchant.diamond_coated: Diamantbelagd
 content.artifact.novice_gear: Novis %[1]s
 content.skill.divine_revival.name: Gudomlig Återupplivning

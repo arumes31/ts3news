@@ -84,14 +84,19 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 
-	if out.Payout > 0 {
-		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", out.Payout, uid)
-	}
+	// Credit the payout and read the resulting balance atomically (via RETURNING)
+	// so no concurrent operation can change gold between the update and the read.
 	var gold int64
-	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+	if out.Payout > 0 {
+		_ = s.bot.DB.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", out.Payout, uid).Scan(&gold)
+	} else {
+		_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+	}
 	out.Gold = gold
 	out.Net = out.Payout - out.Bet
-	out.Win = out.Payout > 0
+	// A push (e.g. dice rolling 4) returns the bet so Payout > 0 but Net == 0; only
+	// a positive Net is an actual win.
+	out.Win = out.Net > 0
 	writeJSON(w, out)
 }
 

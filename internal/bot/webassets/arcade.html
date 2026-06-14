@@ -66,7 +66,7 @@
     </div>
     <div class="choices">
       <button class="ghost" id="btn-high" onclick="playHL('high')">High &gt;7</button>
-      <button class="ghost" onclick="playHL('low')">Low &lt;7</button>
+      <button class="ghost" id="btn-low" onclick="playHL('low')">Low &lt;7</button>
     </div>
     <p class="muted small">Guess the card · ×1.9</p>
   </div>
@@ -193,7 +193,7 @@ async function playWheel(){
 
 /* ---- HIGH/LOW ---- */
 async function playHL(choice){
-  disable('btn-high',true);
+  disable('btn-high',true);disable('btn-low',true);
   const pcard=document.getElementById('pcard');
   pcard.classList.remove('flip');
   await sleep(50);
@@ -204,7 +204,7 @@ async function playHL(choice){
     await sleep(700);
     showResult(d);
   }
-  disable('btn-high',false);
+  disable('btn-high',false);disable('btn-low',false);
 }
 
 // init slot strips at rest

@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -179,11 +180,12 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 	var itemType, itemID, name, sellerUID string
 	var dataJSON []byte
 	var price int64
+	var durability sql.NullInt64
 	err = tx.QueryRow(`
-		SELECT item_type, item_id, item_name, item_data, price, seller_uid
+		SELECT item_type, item_id, item_name, item_data, price, seller_uid, durability
 		FROM auction_house
 		WHERE id=$1 AND sold_at IS NULL AND expires_at > NOW() FOR UPDATE`, req.ID).
-		Scan(&itemType, &itemID, &name, &dataJSON, &price, &sellerUID)
+		Scan(&itemType, &itemID, &name, &dataJSON, &price, &sellerUID, &durability)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "listing unavailable"})
 		return
@@ -212,20 +214,32 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 		writeJSON(w, map[string]any{"ok": false, "error": "pay"})
 		return
 	}
-	// Deliver gear into the buyer's inventory.
+	// Deliver gear into the buyer's inventory, preserving the listing's durability.
 	if itemType == "gear" {
 		var g content.Gear
 		if err := json.Unmarshal(dataJSON, &g); err == nil {
-			_, _ = tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1, $2, $3)", uid, g.ID, g.MaxDurability)
+			dur := g.MaxDurability
+			if durability.Valid {
+				dur = int(durability.Int64)
+			}
+			if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1, $2, $3)", uid, g.ID, dur); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "deliver"})
+				return
+			}
 		}
+	}
+	// Read the post-purchase balance inside the transaction to avoid a race between
+	// commit and a separate query.
+	var gold int64
+	if err := tx.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "gold"})
+		return
 	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "commit"})
 		return
 	}
 
-	var gold int64
-	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	writeJSON(w, map[string]any{"ok": true, "bought": name, "gold": gold})
 }
 
@@ -245,7 +259,8 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 	}
 
 	var gid string
-	if err := s.bot.DB.QueryRow("SELECT gear_id FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gid); err != nil {
+	var dur int
+	if err := s.bot.DB.QueryRow("SELECT gear_id, durability FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gid, &dur); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
 		return
 	}
@@ -273,9 +288,9 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 	}
 	dataJSON, _ := json.Marshal(g)
 	if _, err := tx.Exec(`
-		INSERT INTO auction_house (seller_uid, item_type, item_id, item_name, item_data, price, expires_at)
-		VALUES ($1, 'gear', $2, $3, $4, $5, NOW() + INTERVAL '7 days')`,
-		uid, g.ID, g.Name, dataJSON, req.Price); err != nil {
+		INSERT INTO auction_house (seller_uid, item_type, item_id, item_name, item_data, price, durability, expires_at)
+		VALUES ($1, 'gear', $2, $3, $4, $5, $6, NOW() + INTERVAL '7 days')`,
+		uid, g.ID, g.Name, dataJSON, req.Price, dur); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "list"})
 		return
 	}

@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"crypto/rand"
 	"embed"
 	"encoding/hex"
@@ -8,6 +9,8 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"ts3news/internal/content"
@@ -27,6 +30,9 @@ const sessionCookie = "ts3session"
 type WebServer struct {
 	bot  *Bot
 	tmpl *template.Template
+
+	mu  sync.Mutex
+	srv *http.Server
 }
 
 // NewWebServer parses the embedded templates and returns a ready server.
@@ -55,7 +61,9 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 }
 
 // Start runs the HTTP server (blocking). Intended to be launched in a goroutine.
-func (s *WebServer) Start(addr string) error {
+// When ctx is cancelled the server is gracefully shut down. Start returns nil on
+// a clean shutdown so callers can distinguish it from a real listen error.
+func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux := http.NewServeMux()
 
 	// Static assets.
@@ -97,8 +105,34 @@ func (s *WebServer) Start(addr string) error {
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+	s.mu.Lock()
+	s.srv = srv
+	s.mu.Unlock()
+
+	// Trigger a graceful shutdown when the parent context is cancelled.
+	go func() {
+		<-ctx.Done()
+		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutCtx)
+	}()
+
 	log.Printf("Web portal listening on %s", addr)
-	return srv.ListenAndServe()
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return err
+	}
+	return nil
+}
+
+// Shutdown gracefully stops the HTTP server if it is running.
+func (s *WebServer) Shutdown(ctx context.Context) error {
+	s.mu.Lock()
+	srv := s.srv
+	s.mu.Unlock()
+	if srv == nil {
+		return nil
+	}
+	return srv.Shutdown(ctx)
 }
 
 // ---- Auth ----------------------------------------------------------------
@@ -179,11 +213,16 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/denied", http.StatusSeeOther)
 		return
 	}
+	// Only flag the cookie Secure when the portal is served over HTTPS, so the
+	// session token never leaks over plain HTTP in production deployments while
+	// still working for local http:// development.
+	secure := strings.HasPrefix(strings.ToLower(s.bot.Cfg.WebBaseURL), "https://")
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookie,
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 		Expires:  time.Now().Add(90 * 24 * time.Hour),
 	})

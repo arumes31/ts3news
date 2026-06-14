@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
+	"sync"
 
 	"ts3news/internal/bot"
 	"ts3news/internal/config"
@@ -41,10 +43,23 @@ func main() {
 		if err != nil {
 			log.Printf("Warning: web portal disabled (init failed): %v", err)
 		} else {
+			ctx, cancel := context.WithCancel(context.Background())
+			var wg sync.WaitGroup
+			wg.Add(1)
 			go func() {
-				if err := ws.Start(cfg.WebListenAddr); err != nil {
+				defer wg.Done()
+				if err := ws.Start(ctx, cfg.WebListenAddr); err != nil {
 					log.Printf("Web portal stopped: %v", err)
 				}
+			}()
+			// Stop the web server before b.Close() runs (defers are LIFO, so this
+			// registers after the b.Close() defer and therefore runs first).
+			defer func() {
+				cancel()
+				if err := ws.Shutdown(context.Background()); err != nil {
+					log.Printf("Web portal shutdown error: %v", err)
+				}
+				wg.Wait()
 			}()
 		}
 	}

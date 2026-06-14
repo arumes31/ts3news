@@ -205,12 +205,17 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 		writeJSON(w, map[string]any{"ok": false, "error": "inventory"})
 		return
 	}
+	// Read the post-purchase balance inside the transaction to avoid a race with
+	// other concurrent operations between commit and a separate query.
+	var gold int64
+	if err := tx.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "gold"})
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "commit"})
 		return
 	}
 
-	var gold int64
-	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	writeJSON(w, map[string]any{"ok": true, "bought": g.Name, "gold": gold})
 }
