@@ -101,7 +101,8 @@ func TestPlayWheelPayoutMatchesMult(t *testing.T) {
 func TestPlaySlotsPayoutTiers(t *testing.T) {
 	// Run many spins; verify payouts are only ever from the allowed set.
 	rng := rand.New(rand.NewPCG(42, 42))
-	allowed := map[int64]bool{0: true, 200: true, 500: true, 2500: true} // bet=100
+	// bet=100 → 3-kind ×3, 4-kind ×16, 5-kind ×88 (see playSlots), or no match.
+	allowed := map[int64]bool{0: true, 300: true, 1600: true, 8800: true}
 	for i := 0; i < 2000; i++ {
 		_, pay, _ := playSlots(rng, 100)
 		if !allowed[pay] {

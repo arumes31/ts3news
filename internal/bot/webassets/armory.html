@@ -43,6 +43,13 @@
     {{else}}
       <div class="gear-name" style="color:{{.RarityColor}}">{{.Name}}</div>
       <div class="gear-meta">{{.Rarity}} · CR {{printf "%.0f" .CR}} · GS {{.Score}}{{if .Durability}} · {{.Durability}} dur{{end}}</div>
+      {{if .Stats}}<div class="gear-stats">{{range .Stats}}<span class="gstat">{{.Label}} <b>{{if gt .Value 0}}+{{end}}{{.Value}}</b></span>{{end}}</div>{{end}}
+      <div class="gear-tags">
+        {{if .Element}}<span class="gtag elem">{{.Element}}</span>{{end}}
+        {{if gt .XPBonusPct 0}}<span class="gtag xp">+{{.XPBonusPct}}% XP</span>{{end}}
+        {{if .Effect}}<span class="gtag fx" title="{{.EffectDesc}}">✦ {{.Effect}}</span>{{end}}
+      </div>
+      {{if .EffectDesc}}<div class="gear-fxdesc">{{.EffectDesc}}</div>{{end}}
     {{end}}
   </div>
   {{end}}

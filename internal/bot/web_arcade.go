@@ -4,13 +4,17 @@ import (
 	"encoding/json"
 	"math/rand/v2"
 	"net/http"
+
+	"ts3news/internal/content"
 )
 
 const maxArcadeBet = 100000
 
-// wheelSegments are the multipliers of the 8-segment fortune wheel (×bet).
-// Shared with the client so the rendered wheel matches the server outcome.
-var wheelSegments = []float64{0, 0, 1.5, 0, 2, 0, 3, 10}
+// wheelSegments are the multipliers of the 12-segment fortune wheel (×bet).
+// Shared with the client (the canvas draws WHEEL.length slices) so the rendered
+// wheel matches the server outcome. Tuned to ~0.96 RTP — a single high segment
+// on a small wheel would otherwise make the game player-favoured.
+var wheelSegments = []float64{0, 0, 0, 0, 1.5, 0, 0, 2, 0, 0, 3, 5}
 
 // arcadeOutcome is the result of one arcade round. The typed animation fields let
 // the front-end play a graphic that lands on the server-decided result.
@@ -30,6 +34,7 @@ type arcadeOutcome struct {
 	Card    int      `json:"card,omitempty"`    // highlow
 	Segment int      `json:"segment"`           // wheel (index into wheelSegments)
 	Mult    float64  `json:"mult,omitempty"`    // wheel/payout multiplier
+	GearWon string   `json:"gear_won,omitempty"` // gear looted on a win
 }
 
 func (s *WebServer) handleArcadePage(w http.ResponseWriter, r *http.Request, uid string) {
@@ -38,10 +43,9 @@ func (s *WebServer) handleArcadePage(w http.ResponseWriter, r *http.Request, uid
 		http.Redirect(w, r, "/denied", http.StatusSeeOther)
 		return
 	}
-	segJSON, _ := json.Marshal(wheelSegments)
 	s.render(w, "arcade", map[string]any{
 		"Title": "Arcade", "Nav": "arcade", "U": u,
-		"WheelJSON": string(segJSON),
+		"WheelJSON": jsonJS(wheelSegments),
 	})
 }
 
@@ -92,11 +96,23 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 	} else {
 		_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	}
-	out.Gold = gold
 	out.Net = out.Payout - out.Bet
 	// A push (e.g. dice rolling 4) returns the bet so Payout > 0 but Net == 0; only
 	// a positive Net is an actual win.
 	out.Win = out.Net > 0
+
+	// Winning rounds have a chance to also drop a gear piece into the inventory.
+	if out.Win {
+		// #nosec G404 -- non-cryptographic drop roll
+		if rng.IntN(100) < 15 {
+			g := content.RandomGearDrop()
+			if _, err := s.bot.DB.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1,$2,$3)", uid, g.ID, g.MaxDurability); err == nil {
+				out.GearWon = g.Rarity.String() + " " + g.Name
+			}
+		}
+	}
+
+	out.Gold = gold
 	writeJSON(w, out)
 }
 
@@ -115,6 +131,10 @@ func playArcade(rng *rand.Rand, game string, bet int64, choice string) arcadeOut
 	case "highlow":
 		out.Card, out.Payout, out.Detail = playHighLow(rng, bet, choice)
 	default:
+		if g, ok := extraGames[game]; ok {
+			out.Payout, out.Detail = g(rng, bet, choice)
+			return out
+		}
 		return arcadeOutcome{OK: false, Error: "unknown game"}
 	}
 	return out
@@ -139,11 +159,11 @@ func playSlots(rng *rand.Rand, bet int64) ([]string, int64, string) {
 	}
 	switch {
 	case best >= 5:
-		return reels, bet * 25, "JACKPOT! 5 of a kind ×25"
+		return reels, bet * 88, "JACKPOT! 5 of a kind ×88"
 	case best == 4:
-		return reels, bet * 5, "4 of a kind ×5"
+		return reels, bet * 16, "4 of a kind ×16"
 	case best == 3:
-		return reels, bet * 2, "3 of a kind ×2"
+		return reels, bet * 3, "3 of a kind ×3"
 	default:
 		return reels, 0, "No match"
 	}
@@ -154,7 +174,7 @@ func playDice(rng *rand.Rand, bet int64) (int, int64, string) {
 	roll := rng.IntN(6) + 1
 	switch {
 	case roll >= 5:
-		return roll, bet * 5 / 2, "Rolled " + itoa(roll) + " — win ×2.5"
+		return roll, mulBet(bet, 2.4), "Rolled " + itoa(roll) + " — win ×2.4"
 	case roll == 4:
 		return roll, bet, "Rolled 4 — push"
 	default:
@@ -196,7 +216,7 @@ func playHighLow(rng *rand.Rand, bet int64, choice string) (int, int64, string) 
 	card := rng.IntN(13) + 1
 	win := (choice == "high" && card > 7) || (choice == "low" && card < 7)
 	if win {
-		return card, bet * 19 / 10, "Drew " + itoa(card) + " — win ×1.9"
+		return card, bet * 2, "Drew " + itoa(card) + " — win ×2"
 	}
 	return card, 0, "Drew " + itoa(card) + " — loss"
 }

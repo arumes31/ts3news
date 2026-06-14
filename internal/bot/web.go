@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -18,6 +19,18 @@ import (
 	"ts3news/internal/i18n"
 	"ts3news/internal/leveling"
 )
+
+// jsonJS marshals v and returns it as template.JS so html/template injects it as
+// a raw JS value inside <script> blocks. Passing a plain string instead makes
+// html/template emit a *quoted* JS string, so the client sees a string where it
+// expects an array/object.
+func jsonJS(v any) template.JS {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return template.JS("null")
+	}
+	return template.JS(b)
+}
 
 //go:embed webassets/*.html webassets/*.css
 var webAssets embed.FS

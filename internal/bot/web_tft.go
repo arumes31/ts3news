@@ -228,15 +228,11 @@ func (s *WebServer) handleBattlePage(w http.ResponseWriter, r *http.Request, uid
 			shop = append(shop, tftShopView{Index: i, Key: k, Name: d.Name, Icon: d.Icon, Cost: d.Cost})
 		}
 	}
-	benchJSON, _ := json.Marshal(bench)
-	boardJSON, _ := json.Marshal(board)
-	shopJSON, _ := json.Marshal(shop)
-
 	s.render(w, "battle", map[string]any{
 		"Title": "Auto-Battler", "Nav": "battle", "U": u,
-		"BenchJSON": string(benchJSON),
-		"BoardJSON": string(boardJSON),
-		"ShopJSON":  string(shopJSON),
+		"BenchJSON": jsonJS(bench),
+		"BoardJSON": jsonJS(board),
+		"ShopJSON":  jsonJS(shop),
 		"Cols":      tftCols, "Rows": tftRows, "Cells": tftCells,
 		"History": s.bot.battleHistory(uid, 12),
 	})

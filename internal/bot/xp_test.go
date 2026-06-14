@@ -132,8 +132,11 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 				UID:      "user1",
 				Nickname: "Hero",
 				Level:    10,
-				Stats:    content.Stats{HP: 200, STR: 1000, DEF: 50, SPD: 50},
-				CurrentHP: 200,
+				// Overwhelming bulk so the hero deterministically survives every
+				// randomly-spawned follow-up wave (combat uses unseeded RNG); the
+				// test's intent is "strong hero beats trivial content".
+				Stats:     content.Stats{HP: 1000000, STR: 1000000, DEF: 100000, SPD: 50},
+				CurrentHP: 1000000,
 			},
 		}
 		mobs := []*content.Mob{
