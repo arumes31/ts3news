@@ -60,7 +60,7 @@ h3{margin:.2em 0 .5em}
 .gear-meta{font-size:.72rem;color:var(--muted)}
 .gear-stats{display:flex;flex-wrap:wrap;gap:.25rem .5rem;margin:.3rem 0 .1rem;font-size:.72rem}
 .gear-stats .gstat{color:var(--muted)}
-.gear-stats .gstat b{color:var(--fg)}
+.gear-stats .gstat b{color:var(--text)}
 .gear-tags{display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.25rem}
 .gtag{font-size:.66rem;padding:.05rem .35rem;border-radius:6px;border:1px solid var(--line)}
 .gtag.elem{color:#5fcaff;border-color:#27506b}
@@ -173,7 +173,7 @@ button.xs{padding:.25rem .5rem;font-size:.75rem}
 .game-card.mini{display:flex;flex-direction:column;justify-content:space-between}
 .game-card.mini h3{margin:.1rem 0 .2rem}
 .choices.wrap{flex-wrap:wrap}
-.numpick{width:64px;padding:.25rem .4rem;border-radius:7px;border:1px solid var(--line);background:#0d1017;color:var(--fg)}
+.numpick{width:64px;padding:.25rem .4rem;border-radius:7px;border:1px solid var(--line);background:#0d1017;color:var(--text)}
 .game-card.flash{animation:cardflash .35s ease}
 @keyframes cardflash{0%{box-shadow:0 0 0 0 rgba(123,108,255,.0)}40%{box-shadow:0 0 0 3px rgba(123,108,255,.55)}100%{box-shadow:0 0 0 0 rgba(123,108,255,0)}}
 .game-card.busy{opacity:.7}
@@ -296,8 +296,8 @@ button.xs{padding:.25rem .5rem;font-size:.75rem}
 .tft-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin:.4rem 0}
 /* 3D perspective board */
 .tft-stage{position:relative;background:radial-gradient(120% 100% at 50% 0%,#2a2150,#10131d 75%);border:1px solid var(--line);border-radius:14px;padding:54px 14px 96px;overflow:hidden;perspective:1200px;perspective-origin:50% 26%}
-.tft-board{position:relative;margin:0 auto;transform-style:preserve-3d;transform:rotateX(54deg);transition:transform .5s ease;animation:boardIn .8s ease}
-@keyframes boardIn{from{transform:rotateX(80deg) scale(.85);opacity:.2}to{transform:rotateX(54deg) scale(1);opacity:1}}
+.tft-board{position:relative;margin:0 auto;transform-style:preserve-3d;transform:rotateX(54deg);transition:transform .5s ease;animation:board-in .8s ease}
+@keyframes board-in{from{transform:rotateX(80deg) scale(.85);opacity:.2}to{transform:rotateX(54deg) scale(1);opacity:1}}
 #tokens{position:absolute;inset:0;transform-style:preserve-3d}
 .hexcell{box-sizing:border-box;width:64px;height:56px;border-radius:9px;
   background:linear-gradient(180deg,rgba(80,120,220,.14),rgba(40,55,95,.22));

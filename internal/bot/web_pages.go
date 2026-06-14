@@ -86,7 +86,7 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		CR:          g.CombatRating(),
 		Score:       g.Stats.Score(),
 		Stats:       gearStatList(g.Stats),
-		XPBonusPct:  int((g.XPMultiplier - 1.0) * 100),
+		XPBonusPct:  int(math.Round((g.XPMultiplier - 1.0) * 100)),
 	}
 	if g.Element != "" && g.Element != content.ElementPhysical {
 		v.Element = string(g.Element)

@@ -27,6 +27,26 @@ func TestInitLocalizedResolvesNames(t *testing.T) {
 			t.Errorf("consumable %s has unlocalized name %q", c.ID, c.Name)
 		}
 	}
+	for _, a := range corruptedArtifacts {
+		if strings.HasPrefix(a.Name, "content.") {
+			t.Errorf("artifact %q has unlocalized name", a.Name)
+		}
+	}
+	for _, t_ := range positiveTitles {
+		if strings.HasPrefix(t_.Name, "content.") {
+			t.Errorf("positive title %q has unlocalized name", t_.Name)
+		}
+	}
+	for _, t_ := range negativeTitles {
+		if strings.HasPrefix(t_.Name, "content.") {
+			t.Errorf("negative title %q has unlocalized name", t_.Name)
+		}
+	}
+	for _, e := range allEnchantments {
+		if strings.HasPrefix(e.Name, "content.") {
+			t.Errorf("enchantment %s has unlocalized name %q", e.ID, e.Name)
+		}
+	}
 }
 
 // TestMobTypeNameEliteMinion guards the snake_case key mapping: a naive
