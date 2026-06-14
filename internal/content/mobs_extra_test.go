@@ -35,8 +35,12 @@ func TestSpawnMob(t *testing.T) {
 	if m.Type != MobBoss {
 		t.Errorf("SpawnMob with boss=true, lvl=10 should be a boss, got %v", m.Type)
 	}
-	m2 := SpawnMob(10, false, 1.0)
+	// Below level 10 a non-boss spawn can never roll into a boss-type rare mob
+	// (that branch is gated on level >= 10), so this invariant is deterministic.
+	// At level 10+ a regular spawn may legitimately roll a rare boss ~5% of the
+	// time, which would make this assertion flaky.
+	m2 := SpawnMob(9, false, 1.0)
 	if m2.Type == MobBoss {
-		t.Error("SpawnMob with boss=false should not be a boss")
+		t.Error("SpawnMob with boss=false below level 10 should not be a boss")
 	}
 }

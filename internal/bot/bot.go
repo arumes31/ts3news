@@ -284,6 +284,13 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 				_ = c.SendPrivateMessage(user.CLID, chunk)
 			}
 
+			// Personal web-portal login link (token-based, shortened).
+			if b.Cfg.WebEnable {
+				if msg := b.composeLoginPM(user.UID); msg != "" {
+					_ = c.SendPrivateMessage(user.CLID, msg)
+				}
+			}
+
 			_ = c.SetNickname(b.Cfg.TS3Nickname)
 			if hasGame {
 				_ = b.markAsSent(user.UID, user.Nickname, game.Key(), game.DisplayTitle())

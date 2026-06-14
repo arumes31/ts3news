@@ -195,6 +195,28 @@ var AllSlots = []GearSlot{
 	SlotPet1, SlotPet2, SlotEmblem1, SlotEmblem2, SlotBanner, SlotTotem,
 }
 
+// slotIcons maps each equipment slot to a distinct, slot-appropriate emoji used
+// across the web portal (armoury, inventory, shop, auction house).
+var slotIcons = map[GearSlot]string{
+	SlotHead: "🪖", SlotNeck: "📿", SlotShoulders: "🧥", SlotBack: "🧣",
+	SlotChest: "🛡️", SlotWrists: "⌚", SlotHands: "🧤", SlotWaist: "🎗️",
+	SlotLegs: "👖", SlotFeet: "🥾", SlotFinger1: "💍", SlotFinger2: "💍",
+	SlotTrinket1: "🔱", SlotTrinket2: "🔮", SlotMainHand: "⚔️", SlotOffHand: "🗡️",
+	SlotRanged: "🏹", SlotRelic: "🏺", SlotArtifact: "🗿", SlotSoul: "👻",
+	SlotAura: "✨", SlotCharm: "🍀", SlotMount: "🐎", SlotCompanion: "🐕",
+	SlotPet1: "🐉", SlotPet2: "🦅", SlotEmblem1: "🎖️", SlotEmblem2: "🏅",
+	SlotBanner: "🚩", SlotTotem: "🪶",
+}
+
+// SlotIcon returns the emoji icon for an equipment slot (a generic gem if the
+// slot is unknown).
+func SlotIcon(slot GearSlot) string {
+	if ic, ok := slotIcons[slot]; ok {
+		return ic
+	}
+	return "💎"
+}
+
 type ItemEffect string
 
 const (
@@ -654,6 +676,29 @@ func RandomTitle() Title {
 	} // #nosec G404
 	// #nosec G404
 	return negativeTitles[rand.IntN(len(negativeTitles))] // #nosec G404
+}
+
+// ShopStock returns a deterministic list of purchasable gear for the given seed
+// (e.g. a day number), excluding the basic Novice starter items so the shop
+// always offers a meaningful upgrade path. Used by the web shop.
+func ShopStock(seed int64, count int) []Gear {
+	// #nosec G404 -- deterministic, non-cryptographic shop rotation
+	r := rand.New(rand.NewPCG(uint64(seed), uint64(seed)+1))
+	var pool []Gear
+	for _, g := range allGear {
+		if strings.HasPrefix(g.ID, "B_") { // skip Novice/starter junk
+			continue
+		}
+		pool = append(pool, g)
+	}
+	out := make([]Gear, 0, count)
+	if len(pool) == 0 {
+		return out
+	}
+	for i := 0; i < count; i++ {
+		out = append(out, pool[r.IntN(len(pool))])
+	}
+	return out
 }
 
 func GetGearByID(id string) (Gear, bool) {

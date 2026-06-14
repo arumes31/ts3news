@@ -1,0 +1,33 @@
+{{define "head"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · TS3 RPG</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">⚔️ TS3 RPG</div>
+  {{if .U}}
+  <nav class="nav">
+    <a href="/" class="{{if eq .Nav "armory"}}active{{end}}">Armoury</a>
+    <a href="/inventory" class="{{if eq .Nav "inventory"}}active{{end}}">Inventory</a>
+    <a href="/battle" class="{{if eq .Nav "battle"}}active{{end}}">Battle</a>
+    <a href="/arcade" class="{{if eq .Nav "arcade"}}active{{end}}">Arcade</a>
+    <a href="/shop" class="{{if eq .Nav "shop"}}active{{end}}">Shop</a>
+    <a href="/ah" class="{{if eq .Nav "ah"}}active{{end}}">Auction</a>
+  </nav>
+  <div class="purse">
+    <span class="pill gold" id="goldPill">🪙 {{gold .U.Gold}}</span>
+    <span class="pill xp" id="xpPill">✨ Lvl {{.U.Level}}</span>
+    <a class="logout" href="/logout">Logout</a>
+  </div>
+  {{end}}
+</header>
+<main class="wrap">{{end}}
+
+{{define "foot"}}</main>
+<footer class="foot">TS3 Free-Game RPG · player portal</footer>
+</body>
+</html>{{end}}

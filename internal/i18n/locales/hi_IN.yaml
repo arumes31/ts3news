@@ -1,4 +1,4 @@
-# hi_IN.yaml — Hindi translation for ts3news i18n
+# en_US.yaml — Source of truth for ts3news i18n
 # All format verbs use explicit positional indices: %[1]s, %[2]d, etc.
 # BBCode tags ([b], [color=#hex], etc.) must be preserved in translations.
 
@@ -21,6 +21,7 @@ bot.pm.game_line: "🎮 %[1]s"
 bot.pm.worth_line: "💰 कीमत %[1]s → [b]मुफ़्त[/b] अभी"
 bot.pm.claim_line: "🔗 [b]प्राप्त करें:[/b] %[1]s"
 bot.pm.trailer_line: "▶️ [b]ट्रेलर:[/b] %[1]s"
+web.login_pm: "🌐 [b]आपका चरित्र पोर्टल[/b] (व्यक्तिगत लिंक — इसे निजी रखें): [b][url=%[1]s]>>>>> लॉगिन <<<<<<[/url][/b]"
 
 # ─── Player Stats Header ───
 
@@ -42,9 +43,13 @@ bot.combat.wave_approaches: "📢 वेव %[1]d आ रही है!"
 bot.combat.wave_header: "⚔️ वेव %[1]d [CR:%[2]d]: %[3]s"
 bot.combat.ambush: "⚠️ घात लगाकर हमला! दुश्मन पहले हमला करते हैं!"
 bot.combat.double_attack: "⚔️ %[1]s दोहरा हमला!"
+bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
 bot.combat.skill_damage: "✨ %[1]s: %[2]s ने %[3]d क्षति की"
 bot.combat.combo: "(COMBO!)"
 bot.combat.stunned: "💫 %[1]s स्तब्ध!"
+bot.combat.element_effective: "💥 %[1]s %[2]s के विरुद्ध प्रभावी है!"
+bot.combat.element_weak: "🛡️ %[1]s %[2]s के विरुद्ध कमजोर है..."
+bot.combat.ultimate_activation: "🌟 अल्टीमेट: %[1]s!"
 bot.combat.ultimate_damage: "🌟 ULTIMATE: %[1]s ने %[2]d क्षति की!"
 bot.combat.captive: "🌀 बंदी: %[1]s!"
 bot.combat.defeated: "☠️ %[1]s %[2]s द्वारा पराजित!"
@@ -75,6 +80,12 @@ bot.combat.curse_weakens: "🥀 एक काला श्राप पार्
 bot.combat.bonus_xp_pulse: "✨ शुद्ध ऊर्जा का स्पंदन बोनस XP प्रदान करता है!"
 bot.combat.shiny_items: "💰 चमकदार वस्तुएं फर्श पर बिखर गईं!"
 bot.combat.battle_summary: "📊 युद्ध सारांश: पार्टी %[1]d क्षति बनाम दुश्मन %[2]d क्षति।"
+bot.combat.summary_title: "📊 युद्ध सारांश"
+bot.combat.summary_party: "🟢 पार्टी %[1]s %[2]s"
+bot.combat.summary_mobs: "🔴 दुश्मन %[1]s %[2]s"
+bot.combat.crit_banner: "!!! क्रिटिकल हिट !!!"
+bot.combat.wave_countdown: "वेव %[1]d की %[2]d"
+bot.combat.death_penalty: "💀 %[1]s ने पराजय पर %[2]d XP खो दिया।"
 bot.combat.victory: "🏁 विजय! पार्टी ने सभी %[1]d दुश्मनों को %[2]s में हरा दिया।"
 bot.combat.defeat: "🏁 हार! पार्टी %[1]s में पराजित हो गई।"
 bot.combat.enemy_count: "%[1]dx %[2]s"
@@ -454,6 +465,19 @@ pool.zone.suffix.017: "पवन"
 pool.zone.suffix.018: "शांति"
 pool.zone.suffix.019: "खिलना"
 pool.zone.suffix.020: "सड़न"
+
+# ─── Content Pools: Zone Lore (atmosphere one-liners) ───
+
+pool.combat.zone_lore.001: "यहाँ की हवा एक प्राचीन, भूखे जादू से गूंजती है।"
+pool.combat.zone_lore.002: "हड्डियाँ तुम्हारे जूतों के नीचे चरमरा रही हैं। तुम यहाँ आने वाले पहले व्यक्ति नहीं हो।"
+pool.combat.zone_lore.003: "एक ठंडी हवा लोहे और राख की गंध लाती है।"
+pool.combat.zone_lore.004: "कुछ छायाओं से देख रहा है, धैर्यवान और बिना पलक झपकाए।"
+pool.combat.zone_lore.005: "ज़मीन हर दूर के, भारी कदम के साथ कांपती है।"
+pool.combat.zone_lore.006: "हल्की फुसफुसाहटें तुम्हारी सुनने की क्षमता को खींचती हैं।"
+pool.combat.zone_lore.007: "टूटे हुए पत्थरों के बीच छायाएं अजीब तरह से जमा होती हैं।"
+pool.combat.zone_lore.008: "प्रकाश स्वयं यहाँ प्रवेश करने में संकोच कर रहा है।"
+pool.combat.zone_lore.009: "एक प्राचीन युद्ध की गूँज अभी भी सन्नाटे में गूंज रही है।"
+pool.combat.zone_lore.010: "तुम्हारी सांसों में धुंध है; यहाँ की ठंड स्टील से भी अधिक गहरी चुभती है।"
 
 # ─── Content Pools: Skill Prefixes ───
 

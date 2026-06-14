@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"math/rand/v2"
+	"sort"
 	"strings"
 	"time"
 
@@ -374,22 +375,40 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			totalRewardXP += m.RewardXP
 		}
 
-		// Initialize wave header
+		// Initialize wave header (rarity-coloured enemy names + wave countdown)
 		mobCounts := make(map[string]int)
+		mobTypes := make(map[string]content.MobType)
 		totalEnemyCR := 0
 		for _, m := range currentMobs {
-			mobCounts[m.DisplayName()]++
+			dn := m.DisplayName()
+			mobCounts[dn]++
+			mobTypes[dn] = m.Type
 			totalEnemyCR += m.Score()
 		}
+		// Iterate in sorted key order so the wave header is stable across runs
+		// (Go map iteration order is randomized).
+		mobNames := make([]string, 0, len(mobCounts))
+		for name := range mobCounts {
+			mobNames = append(mobNames, name)
+		}
+		sort.Strings(mobNames)
 		var enemyNames []string
-		for name, count := range mobCounts {
+		for _, name := range mobNames {
+			count := mobCounts[name]
+			display := colorMobName(name, mobTypes[name])
 			if count > 1 {
-				enemyNames = append(enemyNames, i18n.T("bot.combat.enemy_count", count, name))
+				enemyNames = append(enemyNames, i18n.T("bot.combat.enemy_count", count, display))
 			} else {
-				enemyNames = append(enemyNames, name)
+				enemyNames = append(enemyNames, display)
 			}
 		}
-		logs = append(logs, i18n.T("bot.combat.wave_header", w, totalEnemyCR, strings.Join(enemyNames, ", ")))
+		// On the opening wave, set the scene with a deterministic zone lore line.
+		if w == 1 {
+			if lore := zoneLore(zone.Name); lore != "" {
+				logs = append(logs, lore)
+			}
+		}
+		logs = append(logs, i18n.T("bot.combat.wave_header", w, totalEnemyCR, strings.Join(enemyNames, ", "), waves))
 
 		// Reset SPD for any stunned mobs from previous round/waves
 		for _, m := range currentMobs {
@@ -1043,8 +1062,12 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 }
 
 func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, victory bool, totalUserDamage, totalMobDamage, totalRewardXP int, initialMobs []*content.Mob, mobs []*content.Mob, zone content.Zone, logs []string, avgLvl int) ([]string, int, bool) {
-	// Summarize Combat
-	logs = append(logs, i18n.T("bot.combat.battle_summary", totalUserDamage, totalMobDamage))
+	// Summarize Combat — centred header plus visual damage-share bars.
+	totalDamage := totalUserDamage + totalMobDamage
+	logs = append(logs, hr())
+	logs = append(logs, centerHeader(i18n.T("bot.combat.summary_title")))
+	logs = append(logs, i18n.T("bot.combat.summary_party", colorHeal(totalUserDamage), damageBar(totalUserDamage, totalDamage)))
+	logs = append(logs, i18n.T("bot.combat.summary_mobs", colorDmg(totalMobDamage), damageBar(totalMobDamage, totalDamage)))
 
 	// Update pity, quests, consumables AND persistent stats
 	for i := range users {
@@ -1081,6 +1104,7 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 				penalty = 10
 			}
 			finalXP -= penalty
+			logs = append(logs, deathPenaltyLine(u.Nickname, penalty))
 			u.CurrentHP = 0   // dead
 			u.RegenStacks = 0 // lose stacks on death
 		}

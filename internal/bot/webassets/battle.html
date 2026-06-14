@@ -1,0 +1,204 @@
+{{define "battle"}}{{template "head" .}}
+<h1>Tactician's Board</h1>
+<p class="muted">Buy champions, drag them onto your half of the board, then start combat. Win to farm gold and gear. Three identical champions auto-combine into a star-up.</p>
+
+<div class="tft-top">
+  <div id="phase" class="muted">Planning phase — place your units, then fight.</div>
+  <div id="tftMsg" class="toast"></div>
+</div>
+
+<div class="tft-stage">
+  <div class="tft-board" id="board">
+    <div id="tokens"></div>
+  </div>
+</div>
+
+<div class="tft-controls">
+  <button id="combatBtn" onclick="startCombat()">⚔️ Start Combat</button>
+  <button class="ghost" onclick="reroll()">🔄 Reroll (2🪙)</button>
+  <span class="muted small">Drag units between the bench and your (blue) half. Drag onto the bench to remove.</span>
+</div>
+
+<h2>Bench</h2>
+<div class="tft-bench" id="bench"></div>
+
+<h2>Champion Shop</h2>
+<div class="tft-shop" id="shop"></div>
+
+<div id="combatResult" class="result"></div>
+
+<h2>Recent Battles</h2>
+<table class="histtable">
+  <thead><tr><th>When</th><th>Opponent</th><th>Result</th><th>Gold</th><th>Loot</th></tr></thead>
+  <tbody>
+  {{range .History}}
+    <tr><td>{{.When}}</td><td>{{.MobName}}</td>
+      <td class="{{if .Victory}}win{{else}}loss{{end}}">{{if .Victory}}Victory{{else}}Defeat{{end}}</td>
+      <td>{{if .GoldWon}}+{{.GoldWon}}{{else}}—{{end}}</td>
+      <td>{{if .GearWon}}{{.GearWon}}{{else}}—{{end}}</td></tr>
+  {{else}}
+    <tr><td colspan="5" class="muted">No battles yet.</td></tr>
+  {{end}}
+  </tbody>
+</table>
+
+<script>
+const COLS={{.Cols}}, ROWS={{.Rows}}, CELLS={{.Cells}};
+let BENCH={{.BenchJSON}}, BOARD={{.BoardJSON}}, SHOP={{.ShopJSON}};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let inCombat=false;
+
+function toast(m,ok){var t=document.getElementById('tftMsg');t.textContent=m;t.className='toast show '+(ok?'good':'bad');setTimeout(()=>t.className='toast',2400);}
+async function post(url,body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});return r.json();}
+
+/* ---- Build the board cells ---- */
+const board=document.getElementById('board'), tokens=document.getElementById('tokens');
+let cellEls=[];
+function buildBoard(){
+  // remove old cells (keep #tokens)
+  [...board.querySelectorAll('.hexcell')].forEach(e=>e.remove());
+  cellEls=[];
+  for(let p=0;p<CELLS;p++){
+    const c=document.createElement('div');
+    c.className='hexcell'+(p<COLS*2?' enemy':'');
+    c.dataset.pos=p;
+    c.style.position='absolute';
+    const row=Math.floor(p/COLS), col=p%COLS;
+    c.style.left=(col*70 + (row%2)*35)+'px';
+    c.style.top=(row*60)+'px';
+    if(p>=COLS*2){ // player half is droppable
+      c.addEventListener('dragover',e=>{e.preventDefault();c.classList.add('drop');});
+      c.addEventListener('dragleave',()=>c.classList.remove('drop'));
+      c.addEventListener('drop',e=>{e.preventDefault();c.classList.remove('drop');onDrop(parseInt(c.dataset.pos,10));});
+    }
+    board.appendChild(c);
+    cellEls[p]=c;
+  }
+  board.style.height=(ROWS*60+10)+'px';
+  board.style.width=(COLS*70+35)+'px';
+}
+function cellXY(pos){const c=cellEls[pos];return {x:c.offsetLeft+c.offsetWidth/2-25, y:c.offsetTop+c.offsetHeight/2-25};}
+
+/* ---- Render placed units as tokens ---- */
+let dragId=null;
+function renderBoard(){
+  [...tokens.children].forEach(e=>e.remove());
+  for(const u of BOARD){ tokens.appendChild(makeToken(u)); }
+}
+function makeToken(u){
+  const t=document.createElement('div');
+  t.className='unit-tok'; t.id='tok-'+u.ID; t.dataset.id=u.ID;
+  t.draggable=!inCombat;
+  t.innerHTML='<div class="unit-hp"><span style="width:100%"></span></div>'+u.Icon+'<div class="unit-star">'+('★'.repeat(u.Star))+'</div>';
+  const xy=cellXY(u.Pos); t.style.left=xy.x+'px'; t.style.top=xy.y+'px';
+  t.addEventListener('dragstart',e=>{if(inCombat){e.preventDefault();return;}dragId=u.ID;});
+  return t;
+}
+
+/* ---- Bench ---- */
+function renderBench(){
+  const el=document.getElementById('bench'); el.innerHTML='';
+  for(const u of BENCH){
+    const s=document.createElement('div'); s.className='bench-slot'; s.draggable=true; s.dataset.id=u.ID;
+    s.innerHTML=u.Icon+'<div class="unit-star">'+('★'.repeat(u.Star))+'</div>';
+    s.title=u.Name+' (drag to board · double-click to sell)';
+    s.addEventListener('dragstart',()=>{if(!inCombat)dragId=u.ID;});
+    s.addEventListener('dblclick',()=>sell(u.ID));
+    el.appendChild(s);
+  }
+  for(let i=BENCH.length;i<8;i++){const s=document.createElement('div');s.className='bench-slot empty';el.appendChild(s);}
+  // bench is a drop target to unplace a unit
+  el.ondragover=e=>e.preventDefault();
+  el.ondrop=e=>{e.preventDefault();onDrop(-1);};
+}
+
+/* ---- Shop ---- */
+function renderShop(){
+  const el=document.getElementById('shop'); el.innerHTML='';
+  SHOP.forEach((u,i)=>{
+    const c=document.createElement('div');
+    c.className='shop-unit cost'+u.Cost+(u.Name?'':' bought');
+    if(!u.Name){c.innerHTML='<div class="muted small">sold</div>';el.appendChild(c);return;}
+    c.innerHTML='<div class="ico">'+u.Icon+'</div><div class="nm">'+u.Name+'</div><div class="cost">'+u.Cost+'🪙</div>';
+    c.onclick=()=>buy(i);
+    el.appendChild(c);
+  });
+}
+
+/* ---- Actions ---- */
+async function onDrop(pos){
+  if(inCombat||!dragId)return;
+  const d=await post('/api/tft/place',{id:dragId,pos:pos});
+  dragId=null;
+  if(d.ok){location.reload();}else toast(d.error,false);
+}
+async function buy(i){
+  if(inCombat)return;
+  const d=await post('/api/tft/buy',{index:i});
+  if(d.ok){location.reload();}else toast(d.error,false);
+}
+async function reroll(){
+  if(inCombat)return;
+  const d=await post('/api/tft/reroll',{});
+  if(d.ok){location.reload();}else toast(d.error,false);
+}
+async function sell(id){
+  if(inCombat)return;
+  const d=await post('/api/tft/sell',{id:id});
+  if(d.ok){toast('Sold for '+d.refund+'🪙',true);setTimeout(()=>location.reload(),500);}else toast(d.error,false);
+}
+
+/* ---- Combat animation ---- */
+async function startCombat(){
+  if(inCombat)return;
+  if(BOARD.length===0){toast('Place at least one unit',false);return;}
+  inCombat=true;
+  document.getElementById('combatBtn').disabled=true;
+  document.getElementById('phase').textContent='⚔️ Combat!';
+  document.getElementById('combatResult').textContent='';
+  const d=await post('/api/tft/combat',{});
+  if(!d.ok){toast(d.error,false);inCombat=false;document.getElementById('combatBtn').disabled=false;return;}
+
+  // Build all tokens (player + enemy) from first frame.
+  [...tokens.children].forEach(e=>e.remove());
+  const tokById={};
+  for(const u of d.frames[0].units){
+    const t=document.createElement('div');
+    t.className='unit-tok'+(u.side==='enemy'?' enemy':'');
+    t.innerHTML='<div class="unit-hp"><span style="width:100%"></span></div>'+u.icon+'<div class="unit-star">'+('★'.repeat(u.star))+'</div>';
+    const xy=cellXY(u.pos); t.style.left=xy.x+'px'; t.style.top=xy.y+'px';
+    tokens.appendChild(t); tokById[u.id]=t;
+  }
+  // Play frames.
+  for(let fi=0; fi<d.frames.length; fi++){
+    const f=d.frames[fi];
+    for(const u of f.units){
+      const t=tokById[u.id]; if(!t)continue;
+      const xy=cellXY(u.pos); t.style.left=xy.x+'px'; t.style.top=xy.y+'px';
+      const bar=t.querySelector('.unit-hp>span'); bar.style.width=Math.max(0,u.hp*100/u.max_hp)+'%';
+      if(u.hp<=0)t.classList.add('dead');
+    }
+    for(const ev of (f.events||[])){
+      const a=tokById[ev.from], b=tokById[ev.to];
+      if(a){a.classList.add('attacking');setTimeout(()=>a&&a.classList.remove('attacking'),200);}
+      if(b)floatDmg(b,ev.dmg);
+    }
+    await sleep(300);
+  }
+
+  const res=document.getElementById('combatResult');
+  if(d.victory){res.className='result win pop';res.textContent='🏆 Victory! +'+d.gold_won+' gold'+(d.gear_won?(' · looted '+d.gear_won+' → inventory'):'')+'.';document.getElementById('goldPill').textContent='🪙 '+d.gold;}
+  else{res.className='result loss';res.textContent='💀 Your team was defeated. Buy and upgrade more units, then try again.';}
+  document.getElementById('phase').textContent='Planning phase — reposition and fight again.';
+  await sleep(1400); location.reload();
+}
+function floatDmg(tok,dmg){
+  const f=document.createElement('div'); f.className='dmgfloat'; f.textContent='-'+dmg;
+  f.style.left=tok.style.left; f.style.top=(parseInt(tok.style.top,10)-6)+'px';
+  tokens.appendChild(f); setTimeout(()=>f.remove(),1000);
+}
+
+buildBoard(); renderBoard(); renderBench(); renderShop();
+window.addEventListener('resize',()=>{renderBoard();});
+</script>
+{{template "foot" .}}{{end}}

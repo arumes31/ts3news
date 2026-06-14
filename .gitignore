@@ -59,3 +59,13 @@ Desktop.ini
 *.tmp
 *.swp
 *~
+
+# i18n Utility/Temp files
+compare_i18n.py
+find_missing_keys.py
+sync_i18n.py
+*_keys.txt
+fix_*.py
+get_identical*.py
+final_fix.py
+fix_script.py

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
+	"sync"
 
 	"ts3news/internal/bot"
 	"ts3news/internal/config"
@@ -34,6 +36,33 @@ func main() {
 
 	b := bot.NewBot(cfg)
 	defer b.Close()
+
+	// Player web portal (armoury, inventory, auto-battler, arcade, shop, auction).
+	if cfg.WebEnable {
+		ws, err := bot.NewWebServer(b)
+		if err != nil {
+			log.Printf("Warning: web portal disabled (init failed): %v", err)
+		} else {
+			ctx, cancel := context.WithCancel(context.Background())
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := ws.Start(ctx, cfg.WebListenAddr); err != nil {
+					log.Printf("Web portal stopped: %v", err)
+				}
+			}()
+			// Stop the web server before b.Close() runs (defers are LIFO, so this
+			// registers after the b.Close() defer and therefore runs first).
+			defer func() {
+				cancel()
+				if err := ws.Shutdown(context.Background()); err != nil {
+					log.Printf("Web portal shutdown error: %v", err)
+				}
+				wg.Wait()
+			}()
+		}
+	}
 
 	log.Println("Starting TS3 free-games bot supervisor...")
 	sup := bot.NewSupervisor(b)

@@ -1,4 +1,4 @@
-# zh_CN.yaml — Simplified Chinese translation for ts3news i18n
+# zh_CN.yaml — Simplified Chinese locale for ts3news i18n
 # All format verbs use explicit positional indices: %[1]s, %[2]d, etc.
 # BBCode tags ([b], [color=#hex], etc.) must be preserved in translations.
 
@@ -21,6 +21,7 @@ bot.pm.game_line: "🎮 %[1]s"
 bot.pm.worth_line: "💰 价值 %[1]s → 现在[b]免费[/b]"
 bot.pm.claim_line: "🔗 [b]领取：[/b] %[1]s"
 bot.pm.trailer_line: "▶️ [b]预告片：[/b] %[1]s"
+web.login_pm: "🌐 [b]你的角色门户[/b] (个人链接 — 请保持私密): [b][url=%[1]s]>>>>> 登录 <<<<<<[/url][/b]"
 
 # ─── Player Stats Header ───
 
@@ -42,9 +43,13 @@ bot.combat.wave_approaches: "📢 第%[1]d波 接近！"
 bot.combat.wave_header: "⚔️ 第%[1]d波 [CR:%[2]d]: %[3]s"
 bot.combat.ambush: "⚠️ 伏击！敌人先攻击！"
 bot.combat.double_attack: "⚔️ %[1]s 双重攻击！"
+bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
 bot.combat.skill_damage: "✨ %[1]s: %[2]s 造成 %[3]d 伤害"
 bot.combat.combo: "(连击！)"
 bot.combat.stunned: "💫 %[1]s 眩晕！"
+bot.combat.element_effective: "💥 %[1]s 对 %[2]s 非常有效！"
+bot.combat.element_weak: "🛡️ %[1]s 对 %[2]s 很弱..."
+bot.combat.ultimate_activation: "🌟 终极技能: %[1]s!"
 bot.combat.ultimate_damage: "🌟 终极技能: %[1]s 造成 %[2]d 伤害！"
 bot.combat.captive: "🌀 俘虏: %[1]s！"
 bot.combat.defeated: "☠️ %[1]s 被 %[2]s 击败！"
@@ -75,6 +80,12 @@ bot.combat.curse_weakens: "🥀 黑暗诅咒削弱了队伍！"
 bot.combat.bonus_xp_pulse: "✨ 纯净能量脉冲提供额外XP！"
 bot.combat.shiny_items: "💰 闪亮物品散落在地上！"
 bot.combat.battle_summary: "📊 战斗总结: 队伍 %[1]d 伤害 vs 怪物 %[2]d 伤害。"
+bot.combat.summary_title: "📊 战斗总结"
+bot.combat.summary_party: "🟢 队伍 %[1]s %[2]s"
+bot.combat.summary_mobs: "🔴 敌人 %[1]s %[2]s"
+bot.combat.crit_banner: "!!! 暴击 !!!"
+bot.combat.wave_countdown: "第 %[1]d 波，共 %[2]d 波"
+bot.combat.death_penalty: "💀 %[1]s 在战败后损失了 %[2]d XP。"
 bot.combat.victory: "🏁 胜利！队伍在 %[2]s 内击败了所有 %[1]d 个怪物。"
 bot.combat.defeat: "🏁 失败！队伍在 %[1]s 内被淹没。"
 bot.combat.enemy_count: "%[1]dx %[2]s"
@@ -455,6 +466,19 @@ pool.zone.suffix.018: "宁静"
 pool.zone.suffix.019: "绽放"
 pool.zone.suffix.020: "腐烂"
 
+# ─── Content Pools: Zone Lore (atmosphere one-liners) ───
+
+pool.combat.zone_lore.001: "这里的空气中弥漫着古老而饥渴的魔法。"
+pool.combat.zone_lore.002: "靴子下白骨碎裂声不断。你不是第一个来到这里的人。"
+pool.combat.zone_lore.003: "冷风中带着铁和灰烬的味道。"
+pool.combat.zone_lore.004: "阴影中有东西在注视着，耐心且目不转睛。"
+pool.combat.zone_lore.005: "大地随着远处沉重的脚步声而震颤。"
+pool.combat.zone_lore.006: "微弱的耳语牵动着你的听觉边缘。"
+pool.combat.zone_lore.007: "阴影在破碎的石块间奇异地聚集。"
+pool.combat.zone_lore.008: "连光线似乎都不愿进入这个地方。"
+pool.combat.zone_lore.009: "古老战斗的回响仍在寂静中回荡。"
+pool.combat.zone_lore.010: "你的呼吸化作雾气；这里的寒冷比钢铁还要刺骨。"
+
 # ─── Content Pools: Skill Prefixes ───
 
 pool.skill.prefix.001: "凡间"
@@ -548,7 +572,7 @@ pool.skill.action.035: "重击"
 pool.skill.action.036: "横扫"
 pool.skill.action.037: "低吼"
 pool.skill.action.038: "潜行"
-pool.skill.action.039: " shredding"
+pool.skill.action.039: "撕裂"
 pool.skill.action.040: "闪现"
 
 # ─── Content Pools: Unique Item Adjectives ───

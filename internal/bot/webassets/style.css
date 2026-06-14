@@ -1,0 +1,204 @@
+:root{
+  --bg:#0f1116; --panel:#1a1f2b; --panel2:#222838; --line:#2e3650;
+  --text:#e8ecf5; --muted:#8a93a8; --gold:#f4c542; --xp:#5bc0ff;
+  --good:#41c97a; --bad:#e2575b; --accent:#7b6cff;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Segoe UI',Roboto,system-ui,sans-serif;background:linear-gradient(180deg,#0c0e13,#13161f);color:var(--text);min-height:100vh}
+a{color:var(--xp);text-decoration:none}
+a:hover{text-decoration:underline}
+h1{margin:.2em 0 .4em;font-size:1.7rem}
+h2{margin:1.3em 0 .5em;border-bottom:1px solid var(--line);padding-bottom:.3em;font-size:1.15rem}
+h3{margin:.2em 0 .5em}
+.muted{color:var(--muted)}
+.small{font-size:.82rem}
+
+.topbar{display:flex;align-items:center;gap:1.2rem;padding:.7rem 1.4rem;background:#0a0c11;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+.brand{font-weight:700;letter-spacing:.5px;color:var(--gold)}
+.nav{display:flex;gap:.3rem;flex-wrap:wrap}
+.nav a{padding:.4rem .8rem;border-radius:7px;color:var(--text);font-weight:500}
+.nav a:hover{background:var(--panel);text-decoration:none}
+.nav a.active{background:var(--accent);color:#fff}
+.purse{margin-left:auto;display:flex;align-items:center;gap:.6rem}
+.pill{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:.3rem .7rem;font-size:.85rem;font-weight:600}
+.pill.gold{color:var(--gold)} .pill.xp{color:var(--xp)}
+.logout{font-size:.82rem;color:var(--muted)}
+
+.wrap{max-width:1040px;margin:0 auto;padding:1.4rem}
+.foot{text-align:center;color:var(--muted);font-size:.78rem;padding:2rem}
+
+/* Hero / character header */
+.hero{display:flex;gap:1.2rem;align-items:center;background:linear-gradient(135deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:14px;padding:1.2rem}
+.hero-portrait{font-size:3.4rem;width:84px;height:84px;display:flex;align-items:center;justify-content:center;background:#0d1017;border-radius:12px;border:1px solid var(--line)}
+.hero-info{flex:1}
+.hero-info h1{margin:0}
+.hero-sub{display:flex;gap:.5rem;flex-wrap:wrap;margin:.3rem 0 .6rem;font-size:.85rem}
+.hero-sub span{background:#0d1017;border:1px solid var(--line);padding:.2rem .55rem;border-radius:6px}
+.hero-sub .rank{color:var(--gold)} .hero-sub .prestige{color:var(--accent)}
+.hero-purse{text-align:right}
+.big{font-weight:700;font-size:1.1rem;margin:.2rem 0}
+.big.gold{color:var(--gold)} .big.scrap{color:#b9c4d6}
+
+.bars{max-width:420px}
+.bar{position:relative;height:20px;background:#0c0f16;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:.35rem 0}
+.bar span{position:absolute;left:0;top:0;bottom:0;display:block;border-radius:10px}
+.bar.hp span{background:linear-gradient(90deg,#2a8a4a,#41c97a)}
+.bar.hp.enemy span{background:linear-gradient(90deg,#8a2a2a,#e2575b)}
+.bar.xp span{background:linear-gradient(90deg,#2575a8,#5bc0ff)}
+.bar label{position:absolute;width:100%;text-align:center;font-size:.72rem;line-height:20px;color:#fff;text-shadow:0 1px 2px #000}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.6rem}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.7rem;text-align:center}
+.stat b{display:block;font-size:1.3rem;color:var(--gold)}
+.stat span{font-size:.78rem;color:var(--muted)}
+
+.gear-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:.55rem}
+.gear-cell{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:.55rem .65rem;min-height:64px}
+.gear-cell.empty{opacity:.5}
+.gear-slot{font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.gear-name{font-weight:600;margin:.15rem 0;font-size:.9rem}
+.gear-meta{font-size:.72rem;color:var(--muted)}
+
+.skill-row{display:flex;flex-wrap:wrap;gap:.4rem}
+.skill-pill{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:.3rem .7rem;font-size:.82rem}
+
+/* Inventory & shop cards */
+.inv-grid,.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.7rem}
+.inv-card,.shop-card,.game-card,.ex-card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:.8rem}
+.inv-name{font-weight:600}
+.inv-meta{font-size:.76rem;color:var(--muted)}
+.inv-actions{display:flex;gap:.4rem;margin-top:.5rem}
+.price{color:var(--gold);font-weight:700;margin:.4rem 0}
+.empty-state{background:var(--panel);border:1px dashed var(--line);border-radius:10px;padding:1.4rem;text-align:center;color:var(--muted)}
+
+button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:.45rem .9rem;font-weight:600;cursor:pointer;font-size:.85rem}
+button:hover{filter:brightness(1.1)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+input[type=number]{background:#0c0f16;border:1px solid var(--line);color:var(--text);border-radius:7px;padding:.4rem .5rem;width:110px}
+label{font-size:.85rem;display:inline-flex;gap:.4rem;align-items:center}
+
+/* Battle arena */
+.arena{display:flex;align-items:center;justify-content:center;gap:1.5rem;background:linear-gradient(135deg,#161a26,#0e1118);border:1px solid var(--line);border-radius:14px;padding:1.5rem;margin:.6rem 0}
+.fighter{text-align:center;flex:1;max-width:300px}
+.face{font-size:3.4rem}
+.fname{font-weight:600;margin:.2rem 0 .4rem}
+.vs{font-weight:800;color:var(--muted)}
+.battle-controls{display:flex;align-items:center;gap:1rem;margin:.4rem 0 1rem}
+#fightBtn{font-size:1rem;padding:.6rem 1.4rem}
+.battle-log{background:#0a0c11;border:1px solid var(--line);border-radius:10px;height:200px;overflow-y:auto;padding:.6rem;font-size:.85rem}
+.logline{padding:.15rem 0;border-bottom:1px solid #161a26}
+.logline.you{color:#a8d8ff} .logline.mob{color:#ffb3b3} .logline.crit{font-weight:700}
+.result{margin:.8rem 0;font-weight:600;min-height:1.4em}
+.result.win{color:var(--good)} .result.loss{color:var(--bad)}
+
+.arcade-grid,.exchange-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.8rem}
+.game-card{text-align:center}
+.reels{font-size:1.8rem;letter-spacing:.3rem;margin:.4rem 0}
+.choices{display:flex;gap:.4rem;justify-content:center;margin:.4rem 0}
+.bet-row{display:flex;align-items:center;gap:1rem;margin:.6rem 0}
+
+/* Tables */
+.histtable{width:100%;border-collapse:collapse;font-size:.85rem;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.histtable th,.histtable td{padding:.5rem .7rem;text-align:left;border-bottom:1px solid var(--line)}
+.histtable th{background:#0d1017;color:var(--muted);font-weight:600}
+.histtable td.win{color:var(--good)} .histtable td.loss{color:var(--bad)}
+
+/* Toast */
+.toast{display:inline-block;opacity:0;transition:opacity .2s;font-size:.85rem;padding:.3rem .6rem;border-radius:7px}
+.toast.show{opacity:1}
+.toast.good{background:rgba(65,201,122,.15);color:var(--good)}
+.toast.bad{background:rgba(226,87,91,.15);color:var(--bad)}
+
+.denied{text-align:center;padding:3rem 1rem;max-width:520px;margin:0 auto}
+.exchange{margin-bottom:1rem}
+
+/* ===== Animated arcade ===== */
+.quickbets{display:flex;gap:.3rem}
+button.xs{padding:.25rem .5rem;font-size:.75rem}
+.result.pop{animation:popres .4s ease}
+@keyframes popres{0%{transform:scale(.8)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+.slots-card{grid-column:span 2}
+.reels{display:flex;gap:.4rem;justify-content:center;background:#06080d;border:2px solid #f4c542;border-radius:12px;padding:.5rem;margin:.4rem auto;width:fit-content;box-shadow:inset 0 0 24px rgba(0,0,0,.7)}
+.reel{width:64px;height:72px;overflow:hidden;background:#0c0f16;border-radius:8px;position:relative}
+.reel::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 14px 18px -10px #000,inset 0 -14px 18px -10px #000}
+.reelstrip{display:flex;flex-direction:column;will-change:transform}
+.sym{height:72px;display:flex;align-items:center;justify-content:center;font-size:2.3rem}
+.dice-stage{height:90px;display:flex;align-items:center;justify-content:center;perspective:400px}
+.die{width:62px;height:62px;background:linear-gradient(145deg,#fff,#cfd6e6);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:2.6rem;color:#1a1f2b;box-shadow:0 6px 14px rgba(0,0,0,.5)}
+.die.rolling{animation:roll .15s linear infinite}
+@keyframes roll{0%{transform:rotate3d(1,1,0,0deg)}100%{transform:rotate3d(1,1,0,360deg)}}
+.coin-stage{height:90px;display:flex;align-items:center;justify-content:center;perspective:600px}
+.coin{position:relative;width:70px;height:70px;transform-style:preserve-3d}
+.coin-face{position:absolute;inset:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.6rem;color:#3a2c00;backface-visibility:hidden}
+.coin-face.heads{background:radial-gradient(circle at 35% 30%,#ffe89a,#e0a92a)}
+.coin-face.tails{background:radial-gradient(circle at 35% 30%,#dfe6f0,#9aa6bd);transform:rotateY(180deg)}
+.wheel-stage{position:relative;width:220px;height:230px;margin:0 auto}
+.wheel-pointer{position:absolute;top:-2px;left:50%;transform:translateX(-50%);color:#f4c542;font-size:1.3rem;z-index:2;text-shadow:0 1px 2px #000}
+#wheel{display:block}
+.card-stage{height:120px;display:flex;align-items:center;justify-content:center;perspective:700px}
+.pcard{width:80px;height:112px;transform-style:preserve-3d;transition:transform .6s}
+.pcard.flip{transform:rotateY(180deg)}
+.pcard-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d}
+.pcard-front,.pcard-back{position:absolute;inset:0;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:2.4rem;font-weight:800;backface-visibility:hidden;border:2px solid #f4c542}
+.pcard-front{background:linear-gradient(145deg,#39406b,#222840);color:#f4c542}
+.pcard-back{background:linear-gradient(145deg,#fff,#d3dae8);color:#1a1f2b;transform:rotateY(180deg)}
+
+/* ===== TFT board autobattler ===== */
+.tft-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin:.4rem 0}
+.tft-stage{position:relative;background:linear-gradient(160deg,#241b3a,#10131d 70%);border:1px solid var(--line);border-radius:14px;padding:14px;overflow:hidden}
+.tft-board{position:relative;margin:0 auto;width:560px;max-width:100%}
+.hexrow{display:flex;justify-content:center;gap:6px;margin:3px 0}
+.hexrow.odd{transform:translateX(35px)}
+.hexcell{width:64px;height:56px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.hexcell.enemy{background:rgba(226,87,91,.07)}
+.hexcell.drop{outline:2px dashed var(--accent)}
+.unit-tok{position:absolute;width:50px;height:50px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.9rem;background:radial-gradient(circle at 40% 30%,#3a4566,#2a3046);border:2px solid #4a82d8;cursor:grab;transition:left .28s linear,top .28s linear,transform .1s;z-index:3}
+.unit-tok.enemy{border-color:#e2575b;background:radial-gradient(circle at 40% 30%,#5a2b3a,#3a2030)}
+.unit-tok.attacking{transform:scale(1.18)}
+.unit-tok.dead{opacity:0;transform:scale(.3)}
+.unit-hp{position:absolute;top:-9px;left:4px;right:4px;height:5px;background:#0009;border-radius:3px;overflow:hidden}
+.unit-hp>span{display:block;height:100%;background:linear-gradient(90deg,#2a8a4a,#41c97a)}
+.unit-tok.enemy .unit-hp>span{background:linear-gradient(90deg,#8a2a2a,#e2575b)}
+.unit-star{position:absolute;bottom:-7px;left:0;right:0;text-align:center;font-size:.6rem;color:var(--gold);text-shadow:0 1px 2px #000}
+.tft-bench{display:flex;gap:8px;flex-wrap:wrap;background:#0d1017;border:1px solid var(--line);border-radius:10px;padding:8px;min-height:64px;margin-top:10px}
+.bench-slot{width:52px;height:52px;border-radius:9px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;font-size:1.6rem;cursor:grab;position:relative;background:#161a26}
+.bench-slot.empty{cursor:default;opacity:.4}
+.tft-shop{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}
+.shop-unit{background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--line);border-radius:9px;padding:.5rem;text-align:center;cursor:pointer}
+.shop-unit:hover{filter:brightness(1.12)}
+.shop-unit.bought{opacity:.35;pointer-events:none}
+.shop-unit .ico{font-size:1.7rem}
+.shop-unit .nm{font-size:.78rem;font-weight:600;margin:.1rem 0}
+.shop-unit .cost{color:var(--gold);font-size:.8rem}
+.cost1{border-top-color:#9aa6bd}.cost2{border-top-color:#41c97a}.cost3{border-top-color:#3a7bd5}.cost4{border-top-color:#7b6cff}.cost5{border-top-color:#f4c542}
+.tft-controls{display:flex;gap:.6rem;align-items:center;margin-top:10px;flex-wrap:wrap}
+.dmgfloat{position:absolute;font-weight:800;font-size:1.1rem;color:#ffd24a;pointer-events:none;animation:floatup 1s ease forwards;text-shadow:0 1px 3px #000;z-index:5}
+.dmgfloat.crit{color:#ff5b5b;font-size:1.5rem}
+@keyframes floatup{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-40px)}}
+
+/* ===== Item icons ===== */
+.slot-ico{font-size:.95rem;margin-right:2px}
+.item-ico{font-size:1.05rem;margin-right:4px;display:inline-block}
+.inv-head{display:flex;align-items:center;gap:.4rem}
+.inv-head .item-ico{font-size:1.5rem}
+.shop-ico{font-size:2rem;text-align:center;margin:.1rem 0 .2rem;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+.gear-cell:not(.empty) .slot-ico{filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+
+/* ===== Animated auction house ===== */
+.ah-table tbody tr.ah-row{animation:ahIn .4s ease both}
+.ah-table tbody tr.ah-row:nth-child(1){animation-delay:.02s}
+.ah-table tbody tr.ah-row:nth-child(2){animation-delay:.06s}
+.ah-table tbody tr.ah-row:nth-child(3){animation-delay:.10s}
+.ah-table tbody tr.ah-row:nth-child(4){animation-delay:.14s}
+.ah-table tbody tr.ah-row:nth-child(5){animation-delay:.18s}
+.ah-table tbody tr.ah-row:nth-child(n+6){animation-delay:.22s}
+@keyframes ahIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.ah-table tbody tr:hover{background:rgba(123,108,255,.08)}
+.ah-table .goldcell{color:var(--gold);font-weight:600}
+.buybtn{transition:transform .1s}
+.buybtn:hover{transform:scale(1.06)}
+tr.bought-flash{animation:boughtflash .8s ease}
+@keyframes boughtflash{0%{background:rgba(65,201,122,.45)}100%{background:transparent}}
+.ah-table tbody tr:hover .item-ico{animation:wiggle .4s ease}
+@keyframes wiggle{25%{transform:rotate(-12deg)}75%{transform:rotate(12deg)}}

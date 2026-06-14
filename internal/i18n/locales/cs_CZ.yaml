@@ -1,12 +1,12 @@
-# cs_CZ.yaml — Český překlad pro ts3news i18n
-# Všechny formátovací proměnné používají explicitní poziční indexy: %[1]s, %[2]d, atd.
-# BBCode tagy ([b], [color=#hex], atd.) musí být zachovány v překladech.
+# en_US.yaml — Source of truth for ts3news i18n
+# All format verbs use explicit positional indices: %[1]s, %[2]d, etc.
+# BBCode tags ([b], [color=#hex], etc.) must be preserved in translations.
 
 _locale:
   name: "Čeština (CZ)"
   plural_rule: "one_few_other"
 
-# ─── Zprávy bota ───
+# ─── Bot Messages ───
 
 bot.poke.free: "Zdarma: "
 bot.poke.free_prefix: "%[1]sZdarma: "
@@ -21,30 +21,35 @@ bot.pm.game_line: "🎮 %[1]s"
 bot.pm.worth_line: "💰 Hodnota %[1]s → [b]ZDARMA[/b] nyní"
 bot.pm.claim_line: "🔗 [b]Získat:[/b] %[1]s"
 bot.pm.trailer_line: "▶️ [b]Upoutávka:[/b] %[1]s"
+web.login_pm: "🌐 [b]Tvůj portál postavy[/b] (osobní odkaz — udržuj v tajnosti): [b][url=%[1]s]>>>>> PŘIHLÁSIT SE <<<<<<[/url][/b]"
 
-# ─── Hlavička hráčových statistik ───
+# ─── Player Stats Header ───
 
 bot.stats.header: "🏆 [b]%[1]s[/b] [color=#ffc107][P:%[2]d][/color] [color=#78909c][Úr: %[3]d][/color] [color=#00bcd4][gs: %[4].1f][/color] [color=#e91e63][CR: %[5].0f][/color]"
 bot.stats.xp_line: "📈 +%[1]d XP ([b]%[2]s[/b] celkem | [color=#90a4ae]Další: %[3]s[/color])"
 bot.stats.level_up: "🎉 [b]Zvýšení úrovně! Nyní jsi %[1]s![/b]"
 bot.stats.hp_line: "[color=#90a4ae]HP:%[1]d/%[2]d STR:%[3]d DEF:%[4]d SPD:%[5]d LCK:%[6]d INT:%[7]d STA:%[8]d CRT:%[9]d DGE:%[10]d[/color]"
 
-# ─── Hlavičky sekcí ───
+# ─── Section Headers ───
 
 bot.section.bonuses: "[b]✨ BONUSY & MODIFIKÁTORY[/b]"
 bot.section.combat: "[b]⚔️ BOJOVÝ LOG[/b]"
 bot.section.loot: "[b]🎁 KOŘIST & ODMĚNY[/b]"
 bot.section.equipment: "[b]🛡️ VYBAVENÍ & KOUZELNICTVÍ[/b]"
 
-# ─── Bojový log ───
+# ─── Combat Log ───
 
 bot.combat.wave_approaches: "📢 VLNNA %[1]d SE BLÍŽÍ!"
-bot.combat.wave_header: "⚔️ VLNA %[1]d [CR:%[2]d]: %[3]s"
+bot.combat.wave_header: "⚔️ VLNA %[1]d z %[4]d [CR:%[2]d]: %[3]s"
 bot.combat.ambush: "⚠️ PAST! Nepřátelé útočí jako první!"
 bot.combat.double_attack: "⚔️ %[1]s dvojitý útok!"
+bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
 bot.combat.skill_damage: "✨ %[1]s: %[2]s způsobuje %[3]d poškození"
-bot.combat.combo: "(KOMBINACE!)"
+bot.combat.combo: "(KOMBO! %[1]s způsobuje o 25%% vyšší poškození!)"
 bot.combat.stunned: "💫 %[1]s OMÁMEN!"
+bot.combat.element_effective: "💥 %[1]s je účinný proti %[2]s!"
+bot.combat.element_weak: "🛡️ %[1]s je slabý proti %[2]s..."
+bot.combat.ultimate_activation: "🌟 ULTIMÁTNÍ SCHOPNOST: %[1]s!"
 bot.combat.ultimate_damage: "🌟 ULTIMÁTA: %[1]s způsobuje %[2]d poškození!"
 bot.combat.captive: "🌀 Vězeň: %[1]s!"
 bot.combat.defeated: "☠️ %[1]s poražen hráčem %[2]s!"
@@ -68,7 +73,6 @@ bot.combat.revived_phoenix: "✨ %[1]s OŽIVEN [item:phoenix]!"
 bot.combat.death_trigger: "⚠️ %[1]s spustil %[2]s: %[3]s!"
 bot.combat.summoned_prefix: "Vyvolán %[1]s"
 bot.combat.reinforcements.one: "📢 1 posila dorazila!"
-bot.combat.reinforcements.few: "📢 %[1]d posily dorazily!"
 bot.combat.reinforcements.other: "📢 %[1]d posil dorazilo!"
 bot.combat.explosion_damage: "💥 Výbuch způsobil %[1]d poškození všem!"
 bot.combat.slain_by_explosion: "💀 %[1]s byl zabit výbuchem!"
@@ -76,11 +80,17 @@ bot.combat.curse_weakens: "🥀 Temné kletba oslabuje skupinu!"
 bot.combat.bonus_xp_pulse: "✨ Pulz čisté energie poskytuje bonusové XP!"
 bot.combat.shiny_items: "💰 Lesklé předměty se rozsypaly po podlaze!"
 bot.combat.battle_summary: "📊 Souhrn bitvy: Skupina %[1]d poškození vs Mobové %[2]d poškození."
+bot.combat.summary_title: "📊 SHRNUTÍ BITVY"
+bot.combat.summary_party: "🟢 Skupina %[1]s %[2]s"
+bot.combat.summary_mobs: "🔴 Nepřátelé %[1]s %[2]s"
+bot.combat.crit_banner: "!!! KRITICKÝ ZÁSAH !!!"
+bot.combat.wave_countdown: "Vlna %[1]d z %[2]d"
+bot.combat.death_penalty: "💀 %[1]s ztratil %[2]d XP po porážce."
 bot.combat.victory: "🏁 VÝHRA! Skupina porazila všech %[1]d mobů za %[2]s."
 bot.combat.defeat: "🏁 PROHRA! Skupina byla přemohuta za %[1]s."
 bot.combat.enemy_count: "%[1]dx %[2]s"
 
-# ─── Chuťové statistiky ───
+# ─── Flavour Stats ───
 
 bot.flavour.daily_login: "denní přihlášení +%[1]d"
 bot.flavour.int_bonus: "INT bonus x%[1].3f"
@@ -91,7 +101,7 @@ bot.flavour.dread: "Cítíš strašlivý pocit úzkosti."
 bot.flavour.no_game_penalty: "žádná nová hra -50%%"
 bot.flavour.loot_box: "LOOT BOX +%[1]d XP"
 
-# ─── Kořist & odměny ───
+# ─── Loot & Rewards ───
 
 bot.loot.ultimate_equipped: "Ultimáta: %[1]s [ultimate:equipped]"
 bot.loot.ultimate_collected: "Ultimáta: %[1]s [ultimate:collected]"
@@ -125,32 +135,32 @@ bot.loot.pool_prefix: "[%[1]s] %[2]s"
 bot.loot.with_dur: "%[1]s (%[2]d dur)"
 bot.loot.pool_prefix_xp: "[%[1]s] %[2]s (x%[3]g XP)"
 
-# ─── Trvanlivost ───
+# ─── Durability ───
 
 bot.durability.broken: "🛡️ ROZBITO: %[1]s (-%[2]d dur)"
 bot.durability.sustained: "🛡️ Udrženo -%[1]d dur (%[2]d předmětů, Prům: %[3].1f)"
 
-# ─── Výsledek XP ───
+# ─── XP Outcome ───
 
 xp.battle: "🏆 Bojové XP"
 xp.lost: "💀 Ztracené XP"
 xp.outcome: "%[1]s: %+[2]d → %[3]s (Úr %[4]d)"
 
-# ─── Aukční dům ───
+# ─── Auction House ───
 
 ah.vendor_sale: "🏪 [b]Prodej AH obchodníkem:[/b] Tvá položka [b]%[1]s[/b] se neprodala a byla koupena obchodníkem za %[2]s (0,1%% hodnoty)."
 ah.purchase: "🎁 [b]Nákup v AH![/b] Koupil jsi [b]%[1]s[/b] za %[2]s!%[3]s"
 ah.purchase_fee: " (Zahrnuje poplatek %[1]s za soutěž)"
 ah.sale: "💰 [b]Prodej v AH![/b] Tvoje položka [b]%[1]s[/b] byla koupena hráčem [b]%[2]s[/b] za %[3]s!"
 
-# ─── Popis kanálu ───
+# ─── Channel Description ───
 
 channel.header: "[center][b][size=14]🎮 RPG Hráči: %[1]d[/size][/b][/center]"
 channel.player_line: "• [b]%[1]s[/b] [color=#ffc107][P:%[2]d][/color] [color=#78909c][Úr:%[3]d][/color] [color=#00bcd4][gs:%[4].1f][/color] [color=#e91e63][CR:%[5].0f][/color] [color=%[6]s][HP:%[7]d/%[8]d][/color] [color=#fbc02d][Zlato:%[9]s][/color]"
 channel.stats_line: "[size=9][color=#90a4ae]STR:%[1]d DEF:%[2]d SPD:%[3]d LCK:%[4]d INT:%[5]d STA:%[6]d CRT:%[7]d DGE:%[8]d[/color][/size]"
 channel.group_power: "[center][b]🛡️ Síla skupiny[/b]: [color=#e91e63]CR %[1].0f[/color] | [color=#00bcd4]Prům GS %[2].1f[/color][/center]"
 
-# ─── Vánoční témata ───
+# ─── Holiday Themes ───
 
 holiday.christmas.name: "Vánoce"
 holiday.christmas.banner: "Frohe Weihnachten, gamer! Vánoční dárek pro tebe:"
@@ -171,7 +181,7 @@ holiday.easter.name: "Velikonoce"
 holiday.easter.banner: "Velikonoční vajíčko pro tvoji knihovnu — zdarma hra:"
 holiday.easter.signoff: "Frohe Ostern — pospěš si, než akce skončí! 🥚"
 
-# ─── Pozdravy (100 položek) ───
+# ─── Greetings (100 entries) ───
 
 greeting.001: "Ahoj gamer!"
 greeting.002: "Kořist padá!"
@@ -274,7 +284,7 @@ greeting.098: "Kořist zabezpečena? Téměř, získej to!"
 greeting.099: "Zdarma hra, no cap!"
 greeting.100: "Tady je zdarma věc, legendo!"
 
-# ─── Názvy vzácností ───
+# ─── Rarity Names ───
 
 rarity.common: "Běžný"
 rarity.uncommon: "Neobvyklý"
@@ -285,7 +295,7 @@ rarity.mythic: "Mytický"
 rarity.divine: "Božský"
 rarity.unknown: "Vzácnost(%[1]d)"
 
-# ─── Názvy typů mobů ───
+# ─── Mob Type Names ───
 
 mob_type.common: "Běžný"
 mob_type.elite_minion: "EliteMinion"
@@ -294,7 +304,7 @@ mob_type.miniboss: "Miniboss"
 mob_type.boss: "Boss"
 mob_type.legendary: "Legendární"
 
-# ─── Štítky statistik ───
+# ─── Stat Labels ───
 
 stat.hp: "HP"
 stat.str: "STR"
@@ -306,21 +316,21 @@ stat.sta: "STA"
 stat.crt: "CRT"
 stat.dge: "DGE"
 
-# ─── Přípony čísel (přepis výchozích) ───
+# ─── Number Suffixes (override defaults) ───
 
 number.suffix.k: "k"
 number.suffix.m: "M"
 number.suffix.b: "B"
 number.gold_suffix: "g"
 
-# ─── Názvy herních platforem ───
+# ─── Game Platform Names ───
 
 games.platform.epic: "PC, Epic Games Store"
 games.platform.steam: "PC, Steam"
 games.platform.gog: "PC, GOG"
 games.platform.na: "N/A"
 
-# ─── Pojmenovaní mobové ───
+# ─── Named Mobs ───
 
 mob.corrupted_guard: "Zkorumpovaná Stráž"
 mob.shadow_assassin: "Stínový Vrah"
@@ -333,7 +343,7 @@ mob.kraken: "Kraken z Hlubin"
 mob.void_lord: "PÁN PRÁZDNÉHO PROSTORU"
 mob.chronos: "CHRONOS, POŽÍRAČ ČASU"
 
-# ─── Pojmenované zóny ───
+# ─── Named Zones ───
 
 zone.elwynn_forest: "Elwynnský les"
 zone.westfall: "Westfall"
@@ -358,33 +368,33 @@ zone.shadowmoon_valley: "Shadowmoon Valley"
 zone.northrend: "Northrend"
 zone.icecrown: "Icecrown"
 
-# ─── Pojmenovaná nebezpečí ───
+# ─── Named Hazards ───
 
 hazard.boiling_lava: "Vařící Láva"
 hazard.toxic_fumes: "Toxické Plyny"
 hazard.raging_sandstorm: "Zuřivá Písečná Bouře"
 hazard.howling_blizzard: "Vylévající Sněhová Bouře"
 
-# ─── Efekty zón (specifické) ───
+# ─── Zone Effects (specific) ───
 
 zone_effect.lava_pools: "Lávové Tůně"
 zone_effect.gas_fumes: "Toxické Plyny"
 zone_effect.sand_gusts: "Poryvy Písečné Bouře"
 zone_effect.blizzard_winds: "Větry Sněhové Bouře"
 
-# ─── Efekty skrytí ───
+# ─── Stealth Effects ───
 
 stealth.natural_camouflage: "Přirozené Krytí"
 stealth.cloak_of_shadows: "Plášť Stínů"
 stealth.night_stalker: "Noční Lovce"
 stealth.ambush_predator: "Lovce z Příčí"
 
-# ─── Typy spotřebních předmětů ───
+# ─── Consumable Types ───
 
 consumable.healing_potion: "Léčivý Lektvar"
 consumable.revive: "Oživení"
 
-# ─── Obsahové skupiny: Předpony mobů ───
+# ─── Content Pools: Mob Prefixes ───
 
 pool.mob.prefix.001: "Opotřebený"
 pool.mob.prefix.002: "Rozzlobený"
@@ -397,7 +407,7 @@ pool.mob.prefix.008: "Duchovní"
 pool.mob.prefix.009: "Kovový"
 pool.mob.prefix.010: "Obrovský"
 
-# ─── Obsahové skupiny: Podstatná jména mobů ───
+# ─── Content Pools: Mob Nouns ───
 
 pool.mob.noun.001: "Krysa"
 pool.mob.noun.002: "Sliz"
@@ -410,7 +420,7 @@ pool.mob.noun.008: "Netopýr"
 pool.mob.noun.009: "Ork"
 pool.mob.noun.010: "Troll"
 
-# ─── Obsahové skupiny: Předpony efektů zón ───
+# ─── Content Pools: Zone Effect Prefixes ───
 
 pool.zone.prefix.001: "Vulkanický"
 pool.zone.prefix.002: "Ledový"
@@ -433,7 +443,7 @@ pool.zone.prefix.018: "Tichý"
 pool.zone.prefix.019: "Věčný"
 pool.zone.prefix.020: "Zkažený"
 
-# ─── Obsahové skupiny: Přípony efektů zón ───
+# ─── Content Pools: Zone Effect Suffixes ───
 
 pool.zone.suffix.001: "Erupce"
 pool.zone.suffix.002: "Chlad"
@@ -456,7 +466,20 @@ pool.zone.suffix.018: "Nehnutí"
 pool.zone.suffix.019: "Květ"
 pool.zone.suffix.020: "Hniloba"
 
-# ─── Obsahové skupiny: Předpony schopností ───
+# ─── Content Pools: Zone Lore (atmosphere one-liners) ───
+
+pool.combat.zone_lore.001: "Vzduch zde hučí starou, hladovou magií."
+pool.combat.zone_lore.002: "Kosti křupou pod nohama. Nejsi první, kdo tudy kráčí."
+pool.combat.zone_lore.003: "Studený vítr přináší pach železa a popela."
+pool.combat.zone_lore.004: "Něco tě sleduje z temnoty, trpělivě a bez mrknutí."
+pool.combat.zone_lore.005: "Země se třese s každým vzdáleným, těžkým krokem."
+pool.combat.zone_lore.006: "Slabé šeptání tě tahá za hranici tvého sluchu."
+pool.combat.zone_lore.007: "Stíny se nepřirozeně hromadí mezi rozbitými kameny."
+pool.combat.zone_lore.008: "Samotné světlo se zdá zdráhat vstoupit na toto místo."
+pool.combat.zone_lore.009: "Ozvěny starodávné bitvy stále přetrvávají v tichu."
+pool.combat.zone_lore.010: "Tvůj dech se mlží; zdejší chlad kouše hlouběji než ocel."
+
+# ─── Content Pools: Skill Prefixes ───
 
 pool.skill.prefix.001: "Smrtelný"
 pool.skill.prefix.002: "Hrdinský"
@@ -509,7 +532,7 @@ pool.skill.prefix.048: "Bouří Zrozený"
 pool.skill.prefix.049: "Stínem Spoutaný"
 pool.skill.prefix.050: "Světlem Požehnaný"
 
-# ─── Obsahové skupiny: Akce schopností ───
+# ─── Content Pools: Skill Actions ───
 
 pool.skill.action.001: "Úder"
 pool.skill.action.002: "Výbuch"
@@ -552,7 +575,7 @@ pool.skill.action.038: "Plížení"
 pool.skill.action.039: "Roztrhání"
 pool.skill.action.040: "Bliknutí"
 
-# ─── Obsahové skupiny: Přídavná jména unikátních předmětů ───
+# ─── Content Pools: Unique Item Adjectives ───
 
 pool.unique.adjective.001: "Starobylý"
 pool.unique.adjective.002: "Prokletý"
@@ -605,7 +628,7 @@ pool.unique.adjective.048: "Hořící"
 pool.unique.adjective.049: "Mrznoucí"
 pool.unique.adjective.050: "Roztříštěný"
 
-# ─── Obsahové skupiny: Podstatná jména unikátních předmětů ───
+# ─── Content Pools: Unique Item Nouns ───
 
 pool.unique.noun.001: "Čepel"
 pool.unique.noun.002: "Štít"
@@ -628,7 +651,7 @@ pool.unique.noun.018: "Lektvar"
 pool.unique.noun.019: "Štěstíčko"
 pool.unique.noun.020: "Relikvie"
 
-# ─── Obsahové skupiny: Předpony efektů smrti ───
+# ─── Content Pools: Death Effect Prefixes ───
 
 pool.death.prefix.001: "Poslední"
 pool.death.prefix.002: "Finální"
@@ -641,7 +664,7 @@ pool.death.prefix.008: "Ozvěna"
 pool.death.prefix.009: "Duchovní"
 pool.death.prefix.010: "Prokletý"
 
-# ─── Obsahové skupiny: Akce efektů smrti ───
+# ─── Content Pools: Death Effect Actions ───
 
 pool.death.action.001: "Řev"
 pool.death.action.002: "Vzlyk"
@@ -654,7 +677,7 @@ pool.death.action.008: "Křik"
 pool.death.action.009: "Vzdech"
 pool.death.action.010: "Příkaz"
 
-# ─── Obsahové skupiny: Názvy úrovní (100 základních úrovní) ───
+# ─── Content Pools: Level Tier Names (100 base tiers) ───
 
 pool.level.tier.001: "Tulák"
 pool.level.tier.002: "Chudák"
@@ -757,7 +780,7 @@ pool.level.tier.098: "Titan"
 pool.level.tier.099: "Vzestupný"
 pool.level.tier.100: "Transcendentní"
 
-# ─── Obsahové skupiny: Epická přídavná jména (procedurální úrovně) ───
+# ─── Content Pools: Epic Adjectives (procedural tiers) ───
 
 pool.level.epic_adj.001: "Vzestupný"
 pool.level.epic_adj.002: "Věčný"
@@ -790,7 +813,7 @@ pool.level.epic_adj.028: "Hořící"
 pool.level.epic_adj.029: "Zmrzlý"
 pool.level.epic_adj.030: "Zkroucený"
 
-# ─── Obsahové skupiny: Epické tituly (procedurální úrovně) ───
+# ─── Content Pools: Epic Titles (procedural tiers) ───
 
 pool.level.epic_title.001: "Šampion"
 pool.level.epic_title.002: "Válečný pán"
@@ -823,7 +846,7 @@ pool.level.epic_title.028: "Moudrý"
 pool.level.epic_title.029: "Kněz"
 pool.level.epic_title.030: "Templář"
 
-# ─── Obsahové skupiny: Epické říše (procedurální úrovně) ───
+# ─── Content Pools: Epic Realms (procedural tiers) ───
 
 pool.level.epic_realm.001: "Prázdnota"
 pool.level.epic_realm.002: "Propast"
@@ -856,7 +879,7 @@ pool.level.epic_realm.028: "Ever-Green"
 pool.level.epic_realm.029: "Iron-Hold"
 pool.level.epic_realm.030: "Dragon-Spire"
 
-# ─── Obsahové skupiny: Přípony pro gamery ───
+# ─── Content Pools: Gamer Suffixes ───
 
 pool.gamer_suffix.001: "Gamer"
 pool.gamer_suffix.002: "Kořist"
@@ -867,20 +890,20 @@ pool.gamer_suffix.006: "Mistr"
 pool.gamer_suffix.007: "Nájezdník"
 pool.gamer_suffix.008: "Lovec"
 
-# ─── Názvy skupin serveru ───
+# ─── Server Group Names ───
 
 prestige.group_name: "Prestiž %[1]d"
 xpgroups.group_name: "Úr %[1]d"
 loot_sync.group_name: "(gs:%[1]d) %[2]s%[3]s"
 
-# ─── Obsahové skupiny: Názvy nebezpečí (chybějící) ───
+# ─── Content Pools: Hazard Names (missing) ───
 
 hazard.deadly_radiation: "Smrtelné záření"
 hazard.treacherous_quicksand: "Zrádný písek"
 hazard.cursed_aura: "Prokletá aura"
 hazard.arcane_vortex: "Arcanum vír"
 
-# ─── Obsahové skupiny: Popisy nebezpečí ───
+# ─── Content Pools: Hazard Descriptions ───
 
 hazard.boiling_lava.desc: "Roztavená skála bublá ze země a pálí vše na své cestě"
 hazard.toxic_fumes.desc: "Jedovaté plyny naplňují vzduch, způsobují nevolnost a slabost"
@@ -891,7 +914,7 @@ hazard.treacherous_quicksand.desc: "Klesající písek ztěžuje pohyb a vyčerp
 hazard.cursed_aura.desc: "Temná energie odebírá sílu a vůli všem, kdo vstoupí"
 hazard.arcane_vortex.desc: "Vířící vír magické energie narušuje sesílání kouzel a schopnosti"
 
-# ─── Obsahové skupiny: Řetězce bojového logu nebezpečí ───
+# ─── Content Pools: Hazard Combat Log Strings ───
 
 content.hazard.dissipated: "⏳ %[1]s se rozptýlil"
 content.hazard.damage: "☠️ %[1]s utrpěl %[2]d poškození od %[3]s"
@@ -899,7 +922,7 @@ content.hazard.weakened: "🌪️ %[1]s je oslaben %[2]s (%[3].0f%%)"
 content.hazard.vision_impaired: "👁️ %[1]s má poškozené vidění kvůli %[2]s (%[3].0f%% šance na zmeškání)"
 content.hazard.movement_impaired: "🏃 %[1]s má omezený pohyb kvůli %[2]s (%[3].0f%% pomalejší)"
 
-# ─── Obsahové skupiny: Názvy vybavení proti nebezpečí ───
+# ─── Content Pools: Hazard Gear Names ───
 
 content.hazard.heat_resistant_plate: "Tepelně odolná deska"
 content.hazard.fireproof_cloak: "Nehořlavý plášť"
@@ -912,7 +935,7 @@ content.hazard.protective_ward: "Ochranný štít"
 content.hazard.resistant_tunic: "Odolná tunika"
 content.hazard.arcane_shield: "Arcanum štít"
 
-# ─── Obsahové skupiny: Názvy spotřebních předmětů proti nebezpečí ───
+# ─── Content Pools: Hazard Consumable Names ───
 
 content.hazard.health_potion: "Léčivý lektvar"
 content.hazard.stamina_elixir: "Elixir výdrže"
@@ -921,12 +944,12 @@ content.hazard.intellect_draught: "Nápoj intelektu"
 content.hazard.antidote: "Protilátka"
 content.hazard.clarity_potion: "Lektvar jasnosti"
 
-# ─── Obsahové skupiny: Formáty zobrazení mobů ───
+# ─── Content Pools: Mob Display Formats ───
 
 content.mob.display_format: "Úr %[1]d %[2]s [%[3]s]%[4]s (%[5]d/%[6]d HP)"
 content.mob.display_format_short: "Úr %[1]d %[2]s [%[3]s]%[4]s"
 
-# ─── Obsahové skupiny: Názvy typů mobů ───
+# ─── Content Pools: Mob Type Names ───
 
 content.mob.type.common: "Běžný"
 content.mob.type.elite_minion: "EliteMinion"
@@ -935,7 +958,7 @@ content.mob.type.miniboss: "Miniboss"
 content.mob.type.boss: "Boss"
 content.mob.type.legendary: "Legendární"
 
-# ─── Obsahové skupiny: Názvy typů schopností ───
+# ─── Content Pools: Skill Type Names ───
 
 content.skill.type.physical: "Fyzický"
 content.skill.type.magic: "Magický"
@@ -943,28 +966,28 @@ content.skill.type.buff: "Buff"
 content.skill.type.debuff: "Debuff"
 content.skill.type.ultimate: "Ultimáta"
 
-# ─── Obsahové skupiny: Pevné názvy schopností ───
+# ─── Content Pools: Fixed Skill Names ───
 
 content.skill.novice_spark.name: "Začátečnická jiskra"
 content.skill.novice_punch.name: "Začátečnická rána"
 
-# ─── Obsahové skupiny: Formáty popisů schopností ───
+# ─── Content Pools: Skill Description Formats ───
 
 content.skill.description.format: "%[1]s %[2]s stupeň %[3]d."
 content.skill.ultimate.description.format: "%[1]s ultimáta: %[2].1fx poškození, %[3]d kol cooldown"
 
-# ─── Obsahové skupiny: Názvy typů skrytí ───
+# ─── Content Pools: Stealth Type Names ───
 
 content.stealth.type.passive: "Pasivní"
 content.stealth.type.active: "Aktivní"
 content.stealth.type.situational: "Situační"
 
-# ─── Obsahové skupiny: Názvy efektů skrytí (chybějící) ───
+# ─── Content Pools: Stealth Effect Names (missing) ───
 
 stealth.misdirection: "Zmatení"
 stealth.silent_movement: "Tichý pohyb"
 
-# ─── Obsahové skupiny: Popisy efektů skrytí ───
+# ─── Content Pools: Stealth Effect Descriptions ───
 
 stealth.natural_camouflage.desc: "Základní schopnost splynout s okolím"
 stealth.cloak_of_shadows.desc: "Nošení tmavého pláště zlepšuje skrytí"
@@ -973,31 +996,31 @@ stealth.ambush_predator.desc: "První útok způsobuje bonusové poškození, kd
 stealth.misdirection.desc: "Rozptýlit nepřátele pro snížení detekce"
 stealth.silent_movement.desc: "Pohyb bez vydávání zvuku"
 
-# ─── Obsahové skupiny: Názvy vybavení pro skrytí ───
+# ─── Content Pools: Stealth Gear Names ───
 
 content.stealth.shadow_cloak: "Stínový plášť"
 content.stealth.night_cloak: "Noční plášť"
 content.stealth.stealth_tunic: "Skryvací tunika"
 content.stealth.assassins_garb: "Vražednické roucho"
 
-# ─── Obsahové skupiny: Názvy spotřebních předmětů pro skrytí ───
+# ─── Content Pools: Stealth Consumable Names ───
 
 content.stealth.shadow_potion: "Stínový lektvar"
 content.stealth.cloak_elixir: "Elixir pláště"
 
-# ─── Obsahové skupiny: Formát popisu unikátních předmětů ───
+# ─── Content Pools: Unique Item Description Format ───
 
 content.unique.description.format: "%[1]s %[2]s (Síla: %[3].1f)"
 content.unique_item.description: "%[1]s %[2]s (Síla: %[3].1f)"
 
-# ─── Obsahové skupiny: Názvy typů zón ───
+# ─── Content Pools: Zone Type Names ───
 
 content.zone.type.buff: "Buff"
 content.zone.type.debuff: "Debuff"
 content.zone.type.hazard: "Nebezpečí"
 content.zone.type.special: "Speciální"
 
-# ─── Obsahové skupiny: Formáty popisů efektů zón ───
+# ─── Content Pools: Zone Effect Description Formats ───
 
 content.zone.effect.buff: "Poskytuje +%[1].0f%% k náhodné bojové statistice."
 content.zone.effect.debuff: "Sníží náhodnou nepřátelskou bojovou statistiku o %[1].0f%%."
@@ -1009,7 +1032,463 @@ content.zone.effect.hazard_desc: "Způsobuje %[1].0f poškození každému kolu.
 content.zone.effect.special_desc: "Zvyšuje šanci na vzácnou kořist nebo spawnuje další moby."
 content.zone.effect_display: "%[1]s (%[2]s)"
 
-# ─── Obsahové skupiny: Formát zobrazení zón ───
+# ─── Content Pools: Zone Display Format ───
 
 content.zone.display.format: "📍 %[1]s [Obt: %[2].2f] — Efekty: %[3]s"
 content.zone.display: "📍 %[1]s [Obt: %[2].2f] — Efekty: %[3]s"
+
+# ─── Zone Names ───
+
+content.zone.elwynn_forest: "Elwynnský les"
+content.zone.westfall: "Westfall"
+content.zone.durotar: "Durotar"
+content.zone.mulgore: "Mul'gore"
+content.zone.teldrassil: "Teldrassil"
+content.zone.loch_modan: "Loch Modan"
+content.zone.silverpine: "Stříbrný bor"
+content.zone.desolace: "Desolace"
+content.zone.stranglethorn_vale: "Údolí Stranglethorn"
+content.zone.tanaris: "Tanaris"
+content.zone.ungoro_crater: "Kráter Un'Goro"
+content.zone.winterspring: "Zimní pramen"
+content.zone.searing_gorge: "Spalující rokle"
+content.zone.burning_steppes: "Hořící stepi"
+content.zone.deadwind_pass: "Průsmyk Mrtvého větru"
+content.zone.eastern_plaguelands: "Východní morové země"
+content.zone.molten_core: "Roztavené jádro"
+content.zone.sunwell_plateau: "Sluneční planina"
+content.zone.icecrown_citadel: "Citadela Ledové koruny"
+content.zone.void_rift: "Trhlina prázdnoty"
+content.zone.maelstrom: "Maelstrom"
+content.zone.firelands: "Ohnivé země"
+content.zone.shadowlands: "Země stínů"
+
+# ─── Zone Hazard Names ───
+
+content.zone.lava_pools.name: "Lávová jezírka"
+content.zone.lava_pools.desc: "Lávová jezírka způsobují ohnivé poškození."
+content.zone.toxic_fumes.name: "Toxické výpary"
+content.zone.toxic_fumes.desc: "Toxické výpary otravují vzduch."
+content.zone.sandstorm_gusts.name: "Poryvy písečné bouře"
+content.zone.sandstorm_gusts.desc: "Poryvy písečné bouře snižují viditelnost."
+content.zone.blizzard_winds.name: "Větry sněhové bouře"
+content.zone.blizzard_winds.desc: "Větry sněhové bouře zpomalují pohyb."
+
+# ─── Holiday Themes ───
+
+content.holiday.christmas.name: "Vánoce"
+content.holiday.christmas.banner: "🎄 Veselé Vánoce! Ať je tvá kořist legendární!"
+content.holiday.christmas.signoff: "Ho ho ho, gamere!"
+content.holiday.new_year.name: "Nový rok"
+content.holiday.new_year.banner: "🎆 Šťastný nový rok! Čas na nový začátek!"
+content.holiday.new_year.signoff: "Na zdraví, gamere!"
+content.holiday.halloween.name: "Halloween"
+content.holiday.halloween.banner: "🎃 Koledu, nebo něco provedu! Dej si pozor na strašidelné moby!"
+content.holiday.halloween.signoff: "Zůstaň strašidelný, gamere!"
+content.holiday.valentines_day.name: "Valentýn"
+content.holiday.valentines_day.banner: "❤️ Láska je ve vzduchu! Spoj se s někým výjimečným!"
+content.holiday.valentines_day.signoff: "Máme tě rádi, gamere!"
+content.holiday.april_fools.name: "Apríl"
+content.holiday.april_fools.banner: "🃏 Apríl! Dej si pozor na překvapivé mechaniky!"
+content.holiday.april_fools.signoff: "Dostali jsme tě, gamere!"
+content.holiday.easter.name: "Velikonoce"
+content.holiday.easter.banner: "🐰 Veselé Velikonoce! Lov vajíčka a kořist!"
+content.holiday.easter.signoff: "Hop na to, gamere!"
+
+# ─── Content Pools: Gear Slot Names ───
+
+content.artifact.slot.head: "Hlava"
+content.artifact.slot.neck: "Krk"
+content.artifact.slot.shoulders: "Ramena"
+content.artifact.slot.back: "Záda"
+content.artifact.slot.chest: "Hruď"
+content.artifact.slot.wrists: "Zápěstí"
+content.artifact.slot.hands: "Ruce"
+content.artifact.slot.waist: "Pas"
+content.artifact.slot.legs: "Nohy"
+content.artifact.slot.feet: "Chodidla"
+content.artifact.slot.finger1: "Prsten 1"
+content.artifact.slot.finger2: "Prsten 2"
+content.artifact.slot.trinket1: "Trinket 1"
+content.artifact.slot.trinket2: "Trinket 2"
+content.artifact.slot.mainhand: "Hlavní ruka"
+content.artifact.slot.offhand: "Vedlejší ruka"
+content.artifact.slot.ranged: "Na dálku"
+content.artifact.slot.relic: "Relikvie"
+content.artifact.slot.artifact: "Artefakt"
+content.artifact.slot.soul: "Duše"
+content.artifact.slot.aura: "Aura"
+content.artifact.slot.charm: "Amulet"
+content.artifact.slot.mount: "Osedlané zvíře"
+content.artifact.slot.companion: "Společník"
+content.artifact.slot.pet1: "Mazlíček 1"
+content.artifact.slot.pet2: "Mazlíček 2"
+content.artifact.slot.emblem1: "Emblém 1"
+content.artifact.slot.emblem2: "Emblém 2"
+content.artifact.slot.banner: "Prapor"
+content.artifact.slot.totem: "Totem"
+
+# ─── Content Pools: Item Effect Names ───
+
+content.artifact.effect.thorns: "Trny"
+content.artifact.effect.vampiric: "Vampirismus"
+content.artifact.effect.berserk: "Berserk"
+content.artifact.effect.lucky: "Štístko"
+content.artifact.effect.treasure_hunter: "Lovec pokladů"
+content.artifact.effect.quick: "Rychlík"
+content.artifact.effect.bulwark: "Bašta"
+content.artifact.effect.radiant: "Zářivý"
+content.artifact.effect.fragile: "Křehký"
+content.artifact.effect.steady: "Stabilní"
+content.artifact.effect.mind_control: "Ovládání mysli"
+content.artifact.effect.regen_stack: "Regenerační vrstvy"
+content.artifact.effect.phoenix: "Fénix"
+content.artifact.effect.stealth: "Plížení"
+content.artifact.effect.parry: "Odražení"
+content.artifact.effect.cleanse: "Očištění"
+
+# ─── Content Pools: Element/Position Names ───
+
+content.artifact.element.physical: "Fyzický"
+content.artifact.element.fire: "Oheň"
+content.artifact.element.water: "Voda"
+content.artifact.element.earth: "Země"
+content.artifact.element.air: "Vzduch"
+content.artifact.position.frontline: "Přední linie"
+content.artifact.position.backline: "Zadní linie"
+
+# ─── Content Pools: Consumable Names ───
+
+content.artifact.consumable.small_health_potion.name: "Malý léčivý lektvar"
+content.artifact.consumable.great_health_potion.name: "Velký léčivý lektvar"
+content.artifact.consumable.strength_elixir.name: "Elixír síly"
+content.artifact.consumable.iron_skin_brew.name: "Odvar železné kůže"
+content.artifact.consumable.phoenix_feather.name: "Fénixovo pírko"
+content.artifact.consumable.repair_kit.name: "Sada na opravu"
+content.artifact.consumable.master_repair_kit.name: "Mistrovská sada na opravu"
+
+# ─── Content Pools: Consumable Descriptions ───
+
+content.artifact.consumable.small_health_potion.desc: "Okamžitě obnoví 50 HP"
+content.artifact.consumable.great_health_potion.desc: "Okamžitě obnoví 200 HP"
+content.artifact.consumable.strength_elixir.desc: "+15 STR na 3 souboje"
+content.artifact.consumable.iron_skin_brew.desc: "+10 DEF na 3 souboje"
+content.artifact.consumable.phoenix_feather.desc: "Jednou tě automaticky oživí s 50% HP"
+content.artifact.consumable.repair_kit.desc: "Obnoví 30 odolnosti náhodnému vybavenému předmětu"
+content.artifact.consumable.master_repair_kit.desc: "Obnoví 75 odolnosti náhodnému vybavenému předmětu"
+
+# ─── Content Pools: Consumable Type Names ───
+
+content.artifact.consumable_type.healing: "Léčení"
+content.artifact.consumable_type.revive: "Oživení"
+content.artifact.consumable_type.buff: "Posílení"
+content.artifact.consumable_type.repair: "Oprava"
+
+# ─── Content Pools: Format Strings ───
+
+content.artifact.format.plus_percent: "+%[1].0f%%"
+content.artifact.format.minus_percent: "-%[1].0f%%"
+content.artifact.format.xp_bonus_desc_positive: "+%[1].0f%%"
+content.artifact.format.xp_bonus_desc_negative: "-%[1].0f%%"
+
+# ─── Content Pools: Fixed Gear Names ───
+
+content.artifact.gear.trusty_longsword: "Spolehlivý dlouhý meč"
+content.artifact.gear.reinforced_breastplate: "Zesílený pancíř"
+
+# ─── Content Pools: Enchantment Prefixes ───
+
+content.artifact.enchant.fiery: "Ohnivý"
+content.artifact.enchant.icy: "Mrazivý"
+content.artifact.enchant.shocking: "Šokující"
+content.artifact.enchant.venomous: "Jedovatý"
+content.artifact.enchant.holy: "Svatý"
+content.artifact.enchant.vampiric: "Vampirický"
+content.artifact.enchant.arcane: "Arkánní"
+content.artifact.enchant.stone: "Kamenný"
+content.artifact.enchant.wind: "Větrný"
+content.artifact.enchant.shadow: "Stínový"
+content.artifact.enchant.reinforced: "Zesílený"
+content.artifact.enchant.unbreakable: "Nezničitelný"
+content.artifact.enchant.diamond_coated: "Diamantem potažený"
+
+# ─── Content Pools: Novice Gear Names ───
+
+content.artifact.novice_gear: "Nováčkovský %[1]s"
+
+# ─── Content Pools: Ultimate Skill Names ───
+
+content.skill.divine_revival.name: "Božské oživení"
+
+# ─── Content Pools: Nicknames ───
+
+content.nickname.default: "MrFree"
+content.nickname.vaultboy: "VaultBoy"
+content.nickname.dovahkiin: "Dovahkiin"
+content.nickname.geralt_of_rivia: "GeraltOfRivia"
+content.nickname.doomguy: "DoomGuy"
+content.nickname.master_chief: "MasterChief"
+content.nickname.hero_of_time: "HeroOfTime"
+content.nickname.itsa_me: "ItsaMe"
+content.nickname.gotta_go_fast: "GottaGoFast"
+content.nickname.still_alive: "StillAlive"
+content.nickname.steve: "Steve"
+content.nickname.lara_croft: "LaraCroft"
+content.nickname.ezio_auditore: "EzioAuditore"
+content.nickname.kratos: "Kratos"
+content.nickname.stars_member: "STARSMember"
+content.nickname.foggy_hill: "FoggyHill"
+content.nickname.chosen_undead: "ChosenUndead"
+content.nickname.tarnished: "Tarnished"
+content.nickname.choom_v: "ChoomV"
+content.nickname.wanted_level_5: "WantedLevel5"
+content.nickname.rush_b: "RushB"
+content.nickname.freeman_phd: "FreemanPhD"
+content.nickname.samus_aran: "SamusAran"
+content.nickname.solid_snake: "SolidSnake"
+content.nickname.chocobo_rider: "ChocoboRider"
+content.nickname.use_the_force: "UseTheForce"
+content.nickname.vault_hunter: "VaultHunter"
+content.nickname.nephalem_hero: "NephalemHero"
+content.nickname.for_the_horde: "ForTheHorde"
+content.nickname.payload_escort: "PayloadEscort"
+content.nickname.would_you_kindly: "WouldYouKindly"
+content.nickname.rookie_fc: "RookieFC"
+content.nickname.agent_47: "Agent47"
+content.nickname.flawless_victory: "FlawlessVictory"
+content.nickname.hadouken: "Hadouken"
+content.nickname.waka_waka: "WakaWaka"
+content.nickname.tspin_triple: "TSpinTriple"
+content.nickname.not_the_impostor: "NotTheImpostor"
+content.nickname.moon_lord: "MoonLord"
+content.nickname.junimo_farmer: "JunimoFarmer"
+content.nickname.the_knight: "TheKnight"
+
+# ─── Content Pools: Artifact Prefixes ───
+
+pool.artifact.prefix.001: "Prastarý"
+pool.artifact.prefix.002: "Věčný"
+pool.artifact.prefix.003: "Nebeský"
+pool.artifact.prefix.004: "Pekelný"
+pool.artifact.prefix.005: "Prvotní"
+pool.artifact.prefix.006: "Propastný"
+pool.artifact.prefix.007: "Božský"
+pool.artifact.prefix.008: "Prázdnoty"
+pool.artifact.prefix.009: "Stínový"
+pool.artifact.prefix.010: "Mrazivý"
+pool.artifact.prefix.011: "Bouřný"
+pool.artifact.prefix.012: "Plamenný"
+pool.artifact.prefix.013: "Zemský"
+pool.artifact.prefix.014: "Větrný"
+pool.artifact.prefix.015: "Světelný"
+pool.artifact.prefix.016: "Temný"
+pool.artifact.prefix.017: "Zlatý"
+pool.artifact.prefix.018: "Křišťálový"
+pool.artifact.prefix.019: "Železný"
+pool.artifact.prefix.020: "Ocelový"
+
+# ─── Content Pools: Artifact Suffixes ───
+
+pool.artifact.suffix.001: "moci"
+pool.artifact.suffix.002: "moudrosti"
+pool.artifact.suffix.003: "odvahy"
+pool.artifact.suffix.004: "slávy"
+pool.artifact.suffix.005: "síly"
+pool.artifact.suffix.006: "zuřivosti"
+pool.artifact.suffix.007: "hněvu"
+pool.artifact.suffix.008: "pomsty"
+pool.artifact.suffix.009: "spravedlnosti"
+pool.artifact.suffix.010: "pravdy"
+pool.artifact.suffix.011: "světla"
+pool.artifact.suffix.012: "stínu"
+pool.artifact.suffix.013: "ohně"
+pool.artifact.suffix.014: "ledu"
+pool.artifact.suffix.015: "bouře"
+pool.artifact.suffix.016: "země"
+pool.artifact.suffix.017: "větru"
+pool.artifact.suffix.018: "prastarých"
+pool.artifact.suffix.019: "prázdnoty"
+pool.artifact.suffix.020: "osudu"
+
+# ─── Content Pools: Corrupted Artifact Prefixes ───
+
+pool.artifact.corrupted_prefix.001: "Zkažený"
+pool.artifact.corrupted_prefix.002: "Poskvrněný"
+pool.artifact.corrupted_prefix.003: "Prokletý"
+pool.artifact.corrupted_prefix.004: "Znesvěcený"
+pool.artifact.corrupted_prefix.005: "Pokřivený"
+pool.artifact.corrupted_prefix.006: "Ubohý"
+pool.artifact.corrupted_prefix.007: "Zmutovaný"
+pool.artifact.corrupted_prefix.008: "Zchátralý"
+pool.artifact.corrupted_prefix.009: "Povadlý"
+pool.artifact.corrupted_prefix.010: "Zamořený"
+
+# ─── Content Pools: Corrupted Artifact Nouns ───
+
+pool.artifact.corrupted_noun.001: "Duše"
+pool.artifact.corrupted_noun.002: "Srdce"
+pool.artifact.corrupted_noun.003: "Esence"
+pool.artifact.corrupted_noun.004: "Jádro"
+pool.artifact.corrupted_noun.005: "Úlomek"
+pool.artifact.corrupted_noun.006: "Střep"
+pool.artifact.corrupted_noun.007: "Pozůstatek"
+pool.artifact.corrupted_noun.008: "Relikvie"
+pool.artifact.corrupted_noun.009: "Žeton"
+pool.artifact.corrupted_noun.010: "Ozvěna"
+
+# ─── Content Pools: Positive Title Prefixes ───
+
+pool.title.positive_prefix.001: "Mocný"
+pool.title.positive_prefix.002: "Slavný"
+pool.title.positive_prefix.003: "Vznešený"
+pool.title.positive_prefix.004: "Udatný"
+pool.title.positive_prefix.005: "Hrdinský"
+pool.title.positive_prefix.006: "Legendární"
+pool.title.positive_prefix.007: "Nejvyšší"
+pool.title.positive_prefix.008: "Ultimátní"
+pool.title.positive_prefix.009: "Věčný"
+pool.title.positive_prefix.010: "Božský"
+
+# ─── Content Pools: Positive Title Nouns ───
+
+pool.title.positive_noun.001: "Šampion"
+pool.title.positive_noun.002: "Válečník"
+pool.title.positive_noun.003: "Hrdina"
+pool.title.positive_noun.004: "Mistr"
+pool.title.positive_noun.005: "Pán"
+pool.title.positive_noun.006: "Král"
+pool.title.positive_noun.007: "Císař"
+pool.title.positive_noun.008: "Dobyvatel"
+pool.title.positive_noun.009: "Legenda"
+pool.title.positive_noun.010: "Strážce"
+
+# ─── Content Pools: Extreme Title Prefixes ───
+
+pool.title.extreme_prefix.001: "Apokalyptický"
+pool.title.extreme_prefix.002: "Kosmický"
+pool.title.extreme_prefix.003: "Galaktický"
+pool.title.extreme_prefix.004: "Univerzální"
+pool.title.extreme_prefix.005: "Všemohoucí"
+pool.title.extreme_prefix.006: "Transcendentní"
+pool.title.extreme_prefix.007: "Nekonečný"
+pool.title.extreme_prefix.008: "Bezmezný"
+pool.title.extreme_prefix.009: "Neomezený"
+pool.title.extreme_prefix.010: "Absolutní"
+
+# ─── Content Pools: Extreme Title Nouns ───
+
+pool.title.extreme_noun.001: "Ničitel"
+pool.title.extreme_noun.002: "Vyhlazovač"
+pool.title.extreme_noun.003: "Vymazávač"
+pool.title.extreme_noun.004: "Přemožitel"
+pool.title.extreme_noun.005: "Pustošitel"
+pool.title.extreme_noun.006: "Eliminátor"
+pool.title.extreme_noun.007: "Vymazávač"
+pool.title.extreme_noun.008: "Exterminátor"
+pool.title.extreme_noun.009: "Anulátor"
+pool.title.extreme_noun.010: "Terminátor"
+
+# ─── Content Pools: Negative Title Prefixes ───
+
+pool.title.negative_prefix.001: "Slabý"
+pool.title.negative_prefix.002: "Mizerný"
+pool.title.negative_prefix.003: "Ubohý"
+pool.title.negative_prefix.004: "Pokorný"
+pool.title.negative_prefix.005: "Křehký"
+pool.title.negative_prefix.006: "Mrňavý"
+pool.title.negative_prefix.007: "Ustrašený"
+pool.title.negative_prefix.008: "Vychrtlý"
+pool.title.negative_prefix.009: "Churavý"
+pool.title.negative_prefix.010: "Zbabělý"
+
+# ─── Content Pools: Negative Title Nouns ───
+
+pool.title.negative_noun.001: "Sedlák"
+pool.title.negative_noun.002: "Žebrák"
+pool.title.negative_noun.003: "Propadlík"
+pool.title.negative_noun.004: "Smolař"
+pool.title.negative_noun.005: "Vyvrhel"
+pool.title.negative_noun.006: "Chudák"
+pool.title.negative_noun.007: "Nikdo"
+pool.title.negative_noun.008: "Nula"
+pool.title.negative_noun.009: "Nic"
+pool.title.negative_noun.010: "Odpad"
+
+# ─── Content Pools: Enchantment Prefixes ───
+
+pool.enchantment.prefix.001: "Ohnivý"
+pool.enchantment.prefix.002: "Mrazivý"
+pool.enchantment.prefix.003: "Šokující"
+pool.enchantment.prefix.004: "Jedovatý"
+pool.enchantment.prefix.005: "Svatý"
+pool.enchantment.prefix.006: "Vampirický"
+pool.enchantment.prefix.007: "Arkánní"
+pool.enchantment.prefix.008: "Kamenný"
+pool.enchantment.prefix.009: "Větrný"
+pool.enchantment.prefix.010: "Stínový"
+pool.enchantment.prefix.011: "Zesílený"
+pool.enchantment.prefix.012: "Nezničitelný"
+pool.enchantment.prefix.013: "Diamantem potažený"
+
+# ─── Content Pools: Gear Slot Names ───
+
+content.gear.slot.head: "Hlava"
+content.gear.slot.neck: "Krk"
+content.gear.slot.shoulders: "Ramena"
+content.gear.slot.back: "Záda"
+content.gear.slot.chest: "Hruď"
+content.gear.slot.wrists: "Zápěstí"
+content.gear.slot.hands: "Ruce"
+content.gear.slot.waist: "Pas"
+content.gear.slot.legs: "Nohy"
+content.gear.slot.feet: "Chodidla"
+content.gear.slot.finger1: "Prsten 1"
+content.gear.slot.finger2: "Prsten 2"
+content.gear.slot.trinket1: "Trinket 1"
+content.gear.slot.trinket2: "Trinket 2"
+content.gear.slot.mainhand: "Hlavní ruka"
+content.gear.slot.offhand: "Vedlejší ruka"
+content.gear.slot.ranged: "Na dálku"
+content.gear.slot.relic: "Relikvie"
+content.gear.slot.artifact: "Artefakt"
+content.gear.slot.soul: "Duše"
+content.gear.slot.aura: "Aura"
+content.gear.slot.charm: "Amulet"
+content.gear.slot.mount: "Osedlané zvíře"
+content.gear.slot.companion: "Společník"
+content.gear.slot.pet1: "Mazlíček 1"
+content.gear.slot.pet2: "Mazlíček 2"
+content.gear.slot.emblem1: "Emblém 1"
+content.gear.slot.emblem2: "Emblém 2"
+content.gear.slot.banner: "Prapor"
+content.gear.slot.totem: "Totem"
+
+# ─── Content Pools: Gear Names ───
+
+content.gear.procedural: "%[1]s %[2]s %[3]s"
+content.gear.novice: "Nováčkovský %[1]s"
+
+# ─── Content Pools: Unique Gear Names ───
+
+content.gear.trusty_longsword: "Spolehlivý dlouhý meč"
+content.gear.reinforced_breastplate: "Zesílený pancíř"
+content.gear.god_slayers_heart: "Srdce zabijáka bohů"
+content.gear.infinity_edge: "Ostří nekonečna"
+content.gear.chrono_guard: "Strážce času"
+content.gear.eye_of_the_storm: "Oko bouře"
+content.gear.titans_pillar: "Titánův sloup"
+
+# ─── Content Pools: Artifact Names ───
+
+content.artifact.corrupted: "%[1]s %[2]s"
+
+# ─── Content Pools: Title Names ───
+
+content.title.positive: "%[1]s %[2]s"
+content.title.extreme: "%[1]s %[2]s"
+content.title.negative: "%[1]s %[2]s"
+
+# ─── Content Pools: Enchantment Names ───
+
+content.enchantment.name: "%[1]s Očarování"
+content.enchantment.description: "Přidává speciální vlastnosti s předponou %[1]s"
