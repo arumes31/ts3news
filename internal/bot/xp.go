@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"math/rand/v2"
+	"sort"
 	"strings"
 	"time"
 
@@ -384,8 +385,16 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			mobTypes[dn] = m.Type
 			totalEnemyCR += m.Score()
 		}
+		// Iterate in sorted key order so the wave header is stable across runs
+		// (Go map iteration order is randomized).
+		mobNames := make([]string, 0, len(mobCounts))
+		for name := range mobCounts {
+			mobNames = append(mobNames, name)
+		}
+		sort.Strings(mobNames)
 		var enemyNames []string
-		for name, count := range mobCounts {
+		for _, name := range mobNames {
+			count := mobCounts[name]
 			display := colorMobName(name, mobTypes[name])
 			if count > 1 {
 				enemyNames = append(enemyNames, i18n.T("bot.combat.enemy_count", count, display))

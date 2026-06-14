@@ -103,8 +103,8 @@ bot.flavour.loot_box: "HỘP ĐỒ +%[1]d XP"
 
 # ─── Loot & Rewards ───
 
-bot.loot.ultimate_equipped: "Chiêu cuối: %[1]s [đã trang bị]"
-bot.loot.ultimate_collected: "Chiêu cuối: %[1]s [đã thu thập]"
+bot.loot.ultimate_equipped: "Chiêu cuối: %[1]s [ultimate:equipped]"
+bot.loot.ultimate_collected: "Chiêu cuối: %[1]s [ultimate:collected]"
 bot.loot.major_ultimate: "🌟 PHẦN THƯỞNG LỚN: Học được Kỹ năng Ultimate %[1]s!"
 bot.loot.duplicate_ultimate_ah: "Trùng lặp %[1]s [ultimate]: Niêm yết trên AH"
 bot.loot.duplicate_ultimate_salvage: "Trùng lặp %[1]s [ultimate]: Phá hủy để lấy %[2]d Phế liệu"

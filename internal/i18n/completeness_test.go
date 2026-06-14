@@ -2,9 +2,25 @@ package i18n
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
+	"strings"
 	"testing"
 )
+
+// placeholderRe matches explicit-index format verbs like %[1]s or %[2]d.
+var placeholderRe = regexp.MustCompile(`%\[(\d+)\]([a-zA-Z])`)
+
+// placeholders maps each referenced argument index to its format verb, ignoring
+// escaped %% literals.
+func placeholders(s string) map[string]string {
+	clean := strings.ReplaceAll(s, "%%", "")
+	out := map[string]string{}
+	for _, m := range placeholderRe.FindAllStringSubmatch(clean, -1) {
+		out[m[1]] = m[2]
+	}
+	return out
+}
 
 // loadLocaleForTest parses a single embedded locale file into a *Locale.
 func loadLocaleForTest(t *testing.T, id LocaleID) *Locale {
@@ -63,14 +79,39 @@ func TestEveryLocaleHasEveryTranslation(t *testing.T) {
 				}
 			}
 
+			// 3. A translation must not reference a format argument the source
+			//    doesn't provide: an extra or wrong-verb index yields a runtime
+			//    %!verb(BADINDEX)/type error. Omitting an optional placeholder is
+			//    allowed, so only the translated side is checked against en_US.
+			var placeholderProblems []string
+			for key, enMsg := range en.messages {
+				locMsg, ok := loc.messages[key]
+				if !ok {
+					continue
+				}
+				enP := placeholders(enMsg)
+				for idx, verb := range placeholders(locMsg) {
+					switch enVerb, ok := enP[idx]; {
+					case !ok:
+						placeholderProblems = append(placeholderProblems, fmt.Sprintf("%s references %%[%s]%s absent from source", key, idx, verb))
+					case enVerb != verb:
+						placeholderProblems = append(placeholderProblems, fmt.Sprintf("%s uses %%[%s]%s but source has %%[%s]%s", key, idx, verb, idx, enVerb))
+					}
+				}
+			}
+
 			sort.Strings(missingMsgs)
 			sort.Strings(poolProblems)
+			sort.Strings(placeholderProblems)
 
 			if len(missingMsgs) > 0 {
 				t.Errorf("%s is missing %d translation key(s):\n  %v", id, len(missingMsgs), missingMsgs)
 			}
 			if len(poolProblems) > 0 {
 				t.Errorf("%s has %d content pool problem(s):\n  %v", id, len(poolProblems), poolProblems)
+			}
+			if len(placeholderProblems) > 0 {
+				t.Errorf("%s has %d placeholder contract problem(s):\n  %v", id, len(placeholderProblems), placeholderProblems)
 			}
 		})
 	}

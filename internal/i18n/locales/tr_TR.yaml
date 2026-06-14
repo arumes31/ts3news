@@ -12,7 +12,7 @@ bot.poke.free: "Ücretsiz: "
 bot.poke.free_prefix: "%[1]sÜcretsiz: "
 bot.poke.daily_game: "[b]Günlük Ücretsiz Oyun![/b]"
 
-bot.prestige.announce: "🌟 PRESTİJ %[1]d! 1. Seviyeye Sıfırlandı — kalıcı +%%[2]d istatistik!"
+bot.prestige.announce: "🌟 PRESTİJ %[1]d! 1. Seviyeye Sıfırlandı — kalıcı +%[2]d%% istatistik!"
 bot.prestige.poke: "🌟 TEBRİKLER! Prestij %[1]d seviyesine ulaştın!"
 
 bot.pm.greeting: "[b]%[1]s[/b]"
