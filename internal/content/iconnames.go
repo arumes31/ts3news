@@ -13,7 +13,7 @@ var slotIconNames = map[GearSlot]string{
 	SlotWaist: "belt-armor", SlotLegs: "leg-armor", SlotFeet: "leather-boot",
 	SlotFinger1: "ring", SlotFinger2: "ring", SlotTrinket1: "crystal-ball", SlotTrinket2: "orb-wand",
 	SlotMainHand: "broadsword", SlotOffHand: "checked-shield", SlotRanged: "pocket-bow",
-	SlotRelic: "relic-blade", SlotArtifact: "crystal-cluster", SlotSoul: "spectre", SlotAura: "aura",
+	SlotRelic: "relic-blade", SlotArtifact: "artifact-relic", SlotSoul: "spectre", SlotAura: "aura",
 	SlotCharm: "clover", SlotMount: "wolf-head", SlotCompanion: "eagle-emblem",
 	SlotPet1: "dragon-head", SlotPet2: "bird-mask", SlotEmblem1: "medal", SlotEmblem2: "medal",
 	SlotBanner: "flying-flag", SlotTotem: "totem",
@@ -48,4 +48,15 @@ var statIconNames = map[string]string{
 // StatIconName returns the icon basename for a stat code (e.g. "STR", "CRT%").
 func StatIconName(code string) string {
 	return statIconNames[strings.TrimSuffix(code, "%")]
+}
+
+var rarityIconNames = map[Rarity]string{
+	RarityLegendary: "legendary-star",
+	RarityMythic:    "legendary-star",
+	RarityDivine:    "legendary-star",
+}
+
+// RarityIconName returns the icon basename for a rarity ("" if none).
+func RarityIconName(r Rarity) string {
+	return rarityIconNames[r]
 }

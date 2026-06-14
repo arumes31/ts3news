@@ -8,7 +8,12 @@
 <div class="inv-grid">
   {{range .Items}}
   <div class="inv-card" data-id="{{.InvID}}">
-    <div class="inv-head"><span class="gi slot-gi" style="--gi:url(/static/icons/{{.IconName}}.svg);color:{{.RarityColor}}"></span> <span class="inv-name" style="color:{{.RarityColor}}">{{.Name}}</span></div>
+    <div class="inv-head">
+      <span class="gi slot-gi" style="--gi:url(/static/icons/{{.IconName}}.svg);color:{{.RarityColor}}"></span>
+      {{if .RarityIcon}}<span class="gi slot-gi"
+        style="--gi:url(/static/icons/{{.RarityIcon}}.svg);color:{{.RarityColor}}"></span>{{end}}
+      <span class="inv-name" style="color:{{.RarityColor}}">{{.Name}}</span>
+    </div>
     <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
     <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}} · {{.Durability}} dur</div>
     <div class="inv-actions">
@@ -19,7 +24,8 @@
   {{end}}
 </div>
 {{else}}
-<p class="empty-state">Your inventory is empty. Win gear in the <a href="/battle">Auto-Battler</a> or buy some in the <a href="/shop">Shop</a>.</p>
+<p class="empty-state">Your inventory is empty. Win gear in the <a href="/battle">Auto-Battler</a> or buy some in the <a
+    href="/shop">Shop</a>.</p>
 {{end}}
 
 {{if .Consumables}}
@@ -30,9 +36,9 @@
 {{end}}
 
 <script>
-function toast(m, ok){var t=document.getElementById('invMsg');t.textContent=m;t.className='toast show '+(ok?'good':'bad');setTimeout(function(){t.className='toast';},2500);}
-async function post(url, body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json();}
-async function equip(id){const d=await post('/api/inventory/equip',{inv_id:id});if(d.ok){toast('Equipped '+d.equipped,true);setTimeout(()=>location.reload(),700);}else toast(d.error,false);}
-async function sell(id){const d=await post('/api/inventory/sell',{inv_id:id});if(d.ok){toast('Vendored for '+d.value+' gold',true);setTimeout(()=>location.reload(),700);}else toast(d.error,false);}
+  function toast(m, ok) { var t = document.getElementById('invMsg'); t.textContent = m; t.className = 'toast show ' + (ok ? 'good' : 'bad'); setTimeout(function () { t.className = 'toast'; }, 2500); }
+  async function post(url, body) { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return r.json(); }
+  async function equip(id) { const d = await post('/api/inventory/equip', { inv_id: id }); if (d.ok) { toast('Equipped ' + d.equipped, true); setTimeout(() => location.reload(), 700); } else toast(d.error, false); }
+  async function sell(id) { const d = await post('/api/inventory/sell', { inv_id: id }); if (d.ok) { toast('Vendored for ' + d.value + ' gold', true); setTimeout(() => location.reload(), 700); } else toast(d.error, false); }
 </script>
 {{template "foot" .}}{{end}}

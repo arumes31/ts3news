@@ -24,6 +24,7 @@ type UniqueItem struct {
 	Name   string
 	Rarity Rarity
 	Power  float64
+	Icon   string // game-icons.net SVG basename, defaults to "unique-gem"
 }
 
 // GenerateUniqueItemName creates a random unique item name
@@ -77,6 +78,7 @@ func RandomUniqueItem() UniqueItem {
 		Name:   name,
 		Rarity: rarity,
 		Power:  power,
+		Icon:   "unique-gem",
 	}
 }
 

@@ -28,6 +28,7 @@ type gearView struct {
 	Name        string
 	Rarity      string
 	RarityColor string
+	RarityIcon  string // game-icons.net SVG basename for the rarity
 	CR          float64
 	Score       int
 	Durability  int
@@ -86,6 +87,7 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		Name:        g.Name,
 		Rarity:      g.Rarity.String(),
 		RarityColor: g.Rarity.Color(),
+		RarityIcon:  content.RarityIconName(g.Rarity),
 		CR:          g.CombatRating(),
 		Score:       g.Stats.Score(),
 		Stats:       gearStatList(g.Stats),
@@ -218,13 +220,13 @@ func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid str
 	title := s.bot.loadTitleView(uid)
 
 	s.render(w, "armory", map[string]any{
-		"Title":    "Armoury",
-		"Nav":      "armory",
-		"U":        u,
-		"Slots":    slots,
-		"Skills":   skills,
-		"Ultimate": ultimate,
-		"Artifact": artifact,
+		"Title":       "Armoury",
+		"Nav":         "armory",
+		"U":           u,
+		"Slots":       slots,
+		"Skills":      skills,
+		"Ultimate":    ultimate,
+		"Artifact":    artifact,
 		"PlayerTitle": title,
 	})
 }
@@ -240,10 +242,10 @@ func (s *WebServer) handleInventory(w http.ResponseWriter, r *http.Request, uid 
 	cons := s.bot.consumableCounts(uid)
 
 	s.render(w, "inventory", map[string]any{
-		"Title":      "Inventory",
-		"Nav":        "inventory",
-		"U":          u,
-		"Items":      items,
+		"Title":       "Inventory",
+		"Nav":         "inventory",
+		"U":           u,
+		"Items":       items,
 		"Consumables": cons,
 	})
 }
