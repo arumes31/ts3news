@@ -67,7 +67,7 @@ type Config struct {
 
 	// WebUI
 	WebEnable     bool   // run the player web portal (armoury, battler, arcade, shop)
-	WebListenAddr string // host:port the web server listens on (e.g. ":8080")
+	WebListenAddr string // host:port the web server listens on (e.g. ":18080")
 	WebBaseURL    string // public base URL used to build per-user login links
 }
 
@@ -129,8 +129,8 @@ func LoadConfig() *Config {
 		Lang: envDefault("LANG", "en_US"),
 
 		WebEnable:     envBool("WEB_ENABLE", true),
-		WebListenAddr: envDefault("WEB_LISTEN_ADDR", ":8080"),
-		WebBaseURL:    envDefault("WEB_BASE_URL", "http://localhost:8080"),
+		WebListenAddr: envDefault("WEB_LISTEN_ADDR", ":18080"),
+		WebBaseURL:    envDefault("WEB_BASE_URL", "http://localhost:18080"),
 	}
 }
 
