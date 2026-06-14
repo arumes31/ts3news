@@ -18,6 +18,27 @@ const (
 	MobLegendary   MobType = "Legendary"
 )
 
+// mobTypeKeys maps each mob type to its i18n suffix. EliteMinion needs the
+// explicit snake_case form ("elite_minion"); a naive strings.ToLower would
+// produce "eliteminion", which has no translation and leaks the raw key.
+var mobTypeKeys = map[MobType]string{
+	MobCommon:      "common",
+	MobEliteMinion: "elite_minion",
+	MobElite:       "elite",
+	MobMiniboss:    "miniboss",
+	MobBoss:        "boss",
+	MobLegendary:   "legendary",
+}
+
+// mobTypeName returns the localized display name for a mob type.
+func mobTypeName(t MobType) string {
+	key, ok := mobTypeKeys[t]
+	if !ok {
+		key = strings.ToLower(string(t))
+	}
+	return i18n.T("content.mob.type." + key)
+}
+
 type MobEffect string
 
 const (
@@ -90,7 +111,7 @@ func (m Mob) DisplayName() string {
 	if m.DeathEffect != nil {
 		eff += " [death:" + m.DeathEffect.Name + "]"
 	}
-	typeName := i18n.T("content.mob.type." + strings.ToLower(string(m.Type)))
+	typeName := mobTypeName(m.Type)
 	return i18n.T("content.mob.display_format", m.Level, m.Name, typeName, eff, m.CurrentHP, m.MaxHP)
 }
 
@@ -99,7 +120,7 @@ func (m Mob) DisplayNameShort() string {
 	if len(m.Effects) > 0 {
 		eff = " (" + i18n.T(string(m.Effects[0])) + ")"
 	}
-	typeName := i18n.T("content.mob.type." + strings.ToLower(string(m.Type)))
+	typeName := mobTypeName(m.Type)
 	return i18n.T("content.mob.display_format_short", m.Level, m.Name, typeName, eff)
 }
 

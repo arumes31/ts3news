@@ -1,6 +1,6 @@
 {{define "battle"}}{{template "head" .}}
 <h1>Tactician's Board</h1>
-<p class="muted">Buy champions, drag them onto your half of the board, then start combat. Win to farm gold and gear. Three identical champions auto-combine into a star-up.</p>
+<p class="muted">Buy champions, drag them onto your half of the 3D battlefield, then start combat. Win to farm gold and gear. Three identical champions auto-combine into a star-up.</p>
 
 <div class="tft-top">
   <div id="phase" class="muted">Planning phase — place your units, then fight.</div>
@@ -41,6 +41,9 @@
   {{end}}
   </tbody>
 </table>
+
+<h2 class="lb-h">🏆 Leaderboards — Most Wins</h2>
+{{template "leaderboards" .Leaders}}
 
 <script>
 const COLS={{.Cols}}, ROWS={{.Rows}}, CELLS={{.Cells}};

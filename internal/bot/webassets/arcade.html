@@ -73,7 +73,13 @@
 
 </div>
 
+<h2 class="more-games-h">🕹️ More Games</h2>
+<div class="arcade-grid" id="moreGames"></div>
+
 <div id="arcadeResult" class="result"></div>
+
+<h2 class="lb-h">🏆 Leaderboards — Most Wins</h2>
+{{template "leaderboards" .Leaders}}
 
 <script>
 const WHEEL = {{.WheelJSON}};
@@ -88,7 +94,9 @@ function toast(m, ok){var t=document.getElementById('arcadeMsg');t.textContent=m
 function showResult(d){
   const res=document.getElementById('arcadeResult');
   res.className='result '+(d.win?'win pop':'loss');
-  res.textContent=d.detail+' — '+(d.win?('won '+d.payout+' gold (net '+(d.net>=0?'+':'')+d.net+')'):('lost '+d.bet+' gold'));
+  let msg=d.detail+' — '+(d.win?('won '+d.payout+' gold (net '+(d.net>=0?'+':'')+d.net+')'):('lost '+d.bet+' gold'));
+  if(d.gear_won){msg+=' · 🎁 looted '+d.gear_won+' → inventory';}
+  res.textContent=msg;
   document.getElementById('goldPill').textContent='🪙 '+d.gold;
   document.getElementById('goldHere').textContent='Balance: 🪙 '+d.gold;
   setTimeout(()=>res.classList.remove('pop'),400);
@@ -206,6 +214,68 @@ async function playHL(choice){
   }
   disable('btn-high',false);disable('btn-low',false);
 }
+
+/* ---- Extra games (data-driven cards) ---- */
+const MOREGAMES=[
+  {k:'roulette',n:'Roulette',i:'🎡',d:'Even money ×2 · single number ×36',c:[{v:'red',l:'Red'},{v:'black',l:'Black'},{v:'odd',l:'Odd'},{v:'even',l:'Even'},{v:'low',l:'1-18'},{v:'high',l:'19-36'}],num:[0,36,'No.']},
+  {k:'rps',n:'Rock Paper Scissors',i:'✊',d:'Beat the house · ×1.9',c:[{v:'rock',l:'✊'},{v:'paper',l:'✋'},{v:'scissors',l:'✌️'}]},
+  {k:'crash',n:'Crash',i:'🚀',d:'Cash out before it busts',c:[{v:'1.5',l:'1.5x'},{v:'2',l:'2x'},{v:'3',l:'3x'},{v:'5',l:'5x'},{v:'10',l:'10x'}]},
+  {k:'sicbo',n:'Sic Bo',i:'🎲',d:'Two dice · under/over/lucky 7',c:[{v:'under',l:'Under 7'},{v:'over',l:'Over 7'},{v:'seven',l:'Seven ×5.7'}]},
+  {k:'horserace',n:'Horse Race',i:'🐎',d:'Back a winner · ×3.8',c:[{v:'0',l:'🐎1'},{v:'1',l:'🐎2'},{v:'2',l:'🐎3'},{v:'3',l:'🐎4'}]},
+  {k:'chests',n:'Three Chests',i:'🎁',d:'Pick the golden chest · ×2.85',c:[{v:'0',l:'Chest 1'},{v:'1',l:'Chest 2'},{v:'2',l:'Chest 3'}]},
+  {k:'colorpick',n:'Colour Pick',i:'🎨',d:'Guess the colour · ×2.85',c:[{v:'red',l:'🔴'},{v:'green',l:'🟢'},{v:'blue',l:'🔵'}]},
+  {k:'lucky',n:'Lucky Number',i:'🍀',d:'Pick 1-10 · ×9.5',num:[1,10,'Pick']},
+  {k:'war',n:'Card War',i:'🃏',d:'High card vs dealer · ×1.9'},
+  {k:'diceduel',n:'Dice Duel',i:'⚔️',d:'Your die vs the house · ×1.88'},
+  {k:'plinko',n:'Plinko',i:'🔵',d:'Drop the ball · up to ×15'},
+  {k:'scratch',n:'Scratch Card',i:'🎟️',d:'Match 3 · up to ×15'},
+  {k:'gems',n:'Gem Dig',i:'💎',d:'Strike a legendary · up to ×15'},
+  {k:'megawheel',n:'Mega Wheel',i:'🎡',d:'12 segments · up to ×8'},
+  {k:'fortune',n:'Fortune Dice',i:'🎲',d:'Roll a triple · ×14'},
+  {k:'lightning',n:'Lightning',i:'⚡',d:'Call the thunder · up to ×25'},
+  {k:'minefield',n:'Minefield',i:'💣',d:'Clear 3 tiles · ×2.28'},
+  {k:'darts',n:'Darts',i:'🎯',d:'Hit the bullseye · ×10'},
+  {k:'slotdeluxe',n:'Slots Deluxe',i:'🎰',d:'3 reels · up to ×88'},
+  {k:'keno',n:'Keno',i:'🔢',d:'Match the draw · up to ×400'},
+];
+function buildMoreGames(){
+  const wrap=document.getElementById('moreGames');
+  MOREGAMES.forEach(g=>{
+    const card=document.createElement('div');
+    card.className='game-card mini';
+    let html='<h3>'+g.i+' '+g.n+'</h3><p class="muted small">'+g.d+'</p><div class="choices wrap">';
+    if(g.c){
+      g.c.forEach(o=>{html+='<button class="ghost xs" data-k="'+g.k+'" data-v="'+o.v+'">'+o.l+'</button>';});
+    }
+    if(g.num){
+      html+='<input type="number" class="numpick" min="'+g.num[0]+'" max="'+g.num[1]+'" value="'+g.num[0]+'" title="'+g.num[2]+'">';
+      html+='<button class="ghost xs numplay" data-k="'+g.k+'">Play '+g.num[2]+'</button>';
+    }
+    if(!g.c && !g.num){
+      html+='<button data-k="'+g.k+'" data-v="">Play</button>';
+    }
+    html+='</div>';
+    card.innerHTML=html;
+    card.querySelectorAll('button[data-k]').forEach(btn=>{
+      btn.addEventListener('click',async()=>{
+        if(btn.classList.contains('numplay')){
+          const inp=card.querySelector('.numpick');
+          await playGen(btn.dataset.k, inp.value, card);
+        } else {
+          await playGen(btn.dataset.k, btn.dataset.v||'', card);
+        }
+      });
+    });
+    wrap.appendChild(card);
+  });
+}
+async function playGen(game, choice, card){
+  if(card){card.classList.add('busy'); card.querySelectorAll('button').forEach(b=>b.disabled=true);}
+  const d=await api(game, choice);
+  if(card){card.classList.remove('busy'); card.querySelectorAll('button').forEach(b=>b.disabled=false);}
+  if(d){card&&card.classList.add('flash');setTimeout(()=>card&&card.classList.remove('flash'),350);showResult(d);}
+}
+buildMoreGames();
 
 // init slot strips at rest
 for(let i=0;i<5;i++){buildStrip('strip'+i);const s=document.getElementById('strip'+i);s.style.transform='translateY(-'+((s.children.length-3)*72)+'px)';}

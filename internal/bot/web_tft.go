@@ -228,17 +228,14 @@ func (s *WebServer) handleBattlePage(w http.ResponseWriter, r *http.Request, uid
 			shop = append(shop, tftShopView{Index: i, Key: k, Name: d.Name, Icon: d.Icon, Cost: d.Cost})
 		}
 	}
-	benchJSON, _ := json.Marshal(bench)
-	boardJSON, _ := json.Marshal(board)
-	shopJSON, _ := json.Marshal(shop)
-
 	s.render(w, "battle", map[string]any{
 		"Title": "Auto-Battler", "Nav": "battle", "U": u,
-		"BenchJSON": string(benchJSON),
-		"BoardJSON": string(boardJSON),
-		"ShopJSON":  string(shopJSON),
+		"BenchJSON": jsonJS(bench),
+		"BoardJSON": jsonJS(board),
+		"ShopJSON":  jsonJS(shop),
 		"Cols":      tftCols, "Rows": tftRows, "Cells": tftCells,
 		"History": s.bot.battleHistory(uid, 12),
+		"Leaders": s.bot.gameLeaderboards("tft"),
 	})
 }
 
@@ -470,6 +467,7 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 	_, _ = s.bot.DB.Exec(
 		"INSERT INTO battle_history (client_uid, mob_name, victory, gold_won, gear_won) VALUES ($1,$2,$3,$4,$5)",
 		uid, fmt.Sprintf("TFT (%d enemies)", len(enemies)), victory, res.GoldWon, gearWon)
+	s.bot.recordGameResult(uid, "tft", victory, res.GoldWon)
 
 	res.Gold = s.bot.userGold(uid)
 	writeJSON(w, res)

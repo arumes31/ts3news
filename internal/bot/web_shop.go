@@ -31,8 +31,42 @@ func gearPrice(g content.Gear) int64 {
 func itoa(n int) string      { return strconv.Itoa(n) }
 func ftoa(f float64) string  { return strconv.FormatFloat(f, 'g', -1, 64) }
 
-// dayseed yields a stable seed that rotates once per day (shop refresh).
-func dayseed() int64 { return time.Now().UTC().Unix() / 86400 }
+// Shop stock rotates on windows whose length is a deterministic, pseudo-random
+// value between shopMinHours and shopMaxHours. All players share one rotation.
+const (
+	shopMinHours   = 1
+	shopMaxHours   = 6
+	shopAnchorUnix = 1735689600 // 2025-01-01T00:00:00Z — fixed rotation origin
+)
+
+// shopWindowDuration returns the length (in seconds) of shop window idx, in
+// [shopMinHours, shopMaxHours] hours, derived deterministically from idx.
+func shopWindowDuration(idx int64) int64 {
+	h := uint64(idx)*0x9E3779B97F4A7C15 + 0x123456789
+	h ^= h >> 29
+	span := uint64(shopMaxHours - shopMinHours + 1)
+	hours := int64(h%span) + shopMinHours
+	return hours * 3600
+}
+
+// shopWindow returns the current rotation window's stock seed and end time by
+// walking fixed-origin windows until the one containing now.
+func shopWindow(now time.Time) (seed int64, endsAt time.Time) {
+	start := int64(shopAnchorUnix)
+	nowU := now.Unix()
+	if nowU < start {
+		return 0, time.Unix(start+shopWindowDuration(0), 0).UTC()
+	}
+	var idx int64
+	for {
+		dur := shopWindowDuration(idx)
+		if start+dur > nowU {
+			return idx, time.Unix(start+dur, 0).UTC()
+		}
+		start += dur
+		idx++
+	}
+}
 
 type shopItemView struct {
 	ID          string
@@ -46,8 +80,8 @@ type shopItemView struct {
 	Price       int64
 }
 
-func todayStock() []shopItemView {
-	stock := content.ShopStock(dayseed(), shopStockSize)
+func stockForSeed(seed int64) []shopItemView {
+	stock := content.ShopStock(seed, shopStockSize)
 	out := make([]shopItemView, 0, len(stock))
 	for _, g := range stock {
 		out = append(out, shopItemView{
@@ -71,11 +105,17 @@ func (s *WebServer) handleShopPage(w http.ResponseWriter, r *http.Request, uid s
 		http.Redirect(w, r, "/denied", http.StatusSeeOther)
 		return
 	}
+	seed, endsAt := shopWindow(time.Now())
+	refreshIn := int(time.Until(endsAt).Seconds())
+	if refreshIn < 0 {
+		refreshIn = 0
+	}
 	s.render(w, "shop", map[string]any{
 		"Title":         "Shop",
 		"Nav":           "shop",
 		"U":             u,
-		"Stock":         todayStock(),
+		"Stock":         stockForSeed(seed),
+		"RefreshIn":     refreshIn,
 		"GoldToXPRate":  goldToXPRate,
 		"XPToGoldRatio": xpToGoldRatio,
 	})
@@ -166,9 +206,10 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 		return
 	}
 
-	// Only items in today's stock are purchasable (and at the server's price).
+	// Only items in the current rotation are purchasable (at the server's price).
+	seed, _ := shopWindow(time.Now())
 	var chosen *shopItemView
-	for _, it := range todayStock() {
+	for _, it := range stockForSeed(seed) {
 		if it.ID == req.ID {
 			c := it
 			chosen = &c

@@ -27,6 +27,32 @@
 </header>
 <main class="wrap">{{end}}
 
+{{define "leaderboards"}}
+<div class="lb-grid">
+  <div class="lb-col"><h3>🏆 Today</h3>{{template "lbtable" .Day}}</div>
+  <div class="lb-col"><h3>📅 Last 30 Days</h3>{{template "lbtable" .Month}}</div>
+  <div class="lb-col"><h3>👑 All-Time</h3>{{template "lbtable" .AllTime}}</div>
+</div>
+{{end}}
+
+{{define "lbtable"}}
+<table class="lbtable">
+  <thead><tr><th>#</th><th>Player</th><th>Wins</th><th>Net 🪙</th></tr></thead>
+  <tbody>
+  {{range .}}
+    <tr>
+      <td class="lb-rank lb-rank-{{.Rank}}">{{.Rank}}</td>
+      <td class="lb-name">{{.Nickname}}</td>
+      <td class="lb-wins">{{.Wins}}</td>
+      <td class="{{if ge .NetGold 0}}win{{else}}loss{{end}}">{{if ge .NetGold 0}}+{{end}}{{.NetGold}}</td>
+    </tr>
+  {{else}}
+    <tr><td colspan="4" class="muted">No wins yet.</td></tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}
+
 {{define "foot"}}</main>
 <footer class="foot">TS3 Free-Game RPG · player portal</footer>
 </body>
