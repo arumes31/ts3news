@@ -1,9 +1,13 @@
 package bot
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
+	"math"
 	"net/http"
+	"time"
 
 	"ts3news/internal/content"
 )
@@ -101,6 +105,88 @@ func writeJSON(w http.ResponseWriter, v any) {
 	}
 }
 
+// artifactView is the equipped corrupted/blessed artifact, for the armoury.
+type artifactView struct {
+	Name       string
+	XPPct      int // signed XP bonus percentage (+boon, -curse)
+	Boon       bool
+	Durability int
+}
+
+// titleView is the active, time-limited title and its XP bonus.
+type titleView struct {
+	Name      string
+	XPPct     int
+	ExpiresIn string // human-readable remaining time, "" if permanent
+}
+
+// humanDur renders a duration as a compact "Xd Yh" / "Xh Ym" / "Xm" string.
+func humanDur(d time.Duration) string {
+	if d <= 0 {
+		return "expired"
+	}
+	days := int(d.Hours()) / 24
+	hours := int(d.Hours()) % 24
+	mins := int(d.Minutes()) % 60
+	switch {
+	case days > 0:
+		return fmt.Sprintf("%dd %dh", days, hours)
+	case hours > 0:
+		return fmt.Sprintf("%dh %dm", hours, mins)
+	default:
+		return fmt.Sprintf("%dm", mins)
+	}
+}
+
+// artifactView returns the user's active artifact, or nil if none is equipped.
+func (b *Bot) loadArtifactView(uid string) *artifactView {
+	var mult sql.NullFloat64
+	var name sql.NullString
+	var dura sql.NullInt64
+	if err := b.DB.QueryRow(
+		"SELECT artifact_mult, artifact_name, artifact_durability FROM users WHERE client_uid=$1", uid,
+	).Scan(&mult, &name, &dura); err != nil {
+		return nil
+	}
+	if !name.Valid || name.String == "" {
+		return nil
+	}
+	m := 1.0
+	if mult.Valid {
+		m = mult.Float64
+	}
+	return &artifactView{
+		Name:       name.String,
+		XPPct:      int(math.Round((m - 1.0) * 100)),
+		Boon:       m >= 1.0,
+		Durability: int(dura.Int64),
+	}
+}
+
+// loadTitleView returns the user's active title, or nil if none is held.
+func (b *Bot) loadTitleView(uid string) *titleView {
+	var name sql.NullString
+	var mult sql.NullFloat64
+	var expires sql.NullTime
+	if err := b.DB.QueryRow(
+		"SELECT title, title_mult, title_expires FROM users WHERE client_uid=$1", uid,
+	).Scan(&name, &mult, &expires); err != nil {
+		return nil
+	}
+	if !name.Valid || name.String == "" {
+		return nil
+	}
+	m := 1.0
+	if mult.Valid {
+		m = mult.Float64
+	}
+	tv := &titleView{Name: name.String, XPPct: int(math.Round((m - 1.0) * 100))}
+	if expires.Valid {
+		tv.ExpiresIn = humanDur(time.Until(expires.Time))
+	}
+	return tv
+}
+
 func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
@@ -123,13 +209,19 @@ func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid str
 	}
 
 	skills := s.bot.getSkills(uid)
+	ultimate := s.bot.getUltimateSkill(uid)
+	artifact := s.bot.loadArtifactView(uid)
+	title := s.bot.loadTitleView(uid)
 
 	s.render(w, "armory", map[string]any{
-		"Title": "Armoury",
-		"Nav":   "armory",
-		"U":     u,
-		"Slots": slots,
-		"Skills": skills,
+		"Title":    "Armoury",
+		"Nav":      "armory",
+		"U":        u,
+		"Slots":    slots,
+		"Skills":   skills,
+		"Ultimate": ultimate,
+		"Artifact": artifact,
+		"PlayerTitle": title,
 	})
 }
 
