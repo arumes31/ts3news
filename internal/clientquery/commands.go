@@ -164,6 +164,12 @@ func (c *Client) SetChannelDescription(cid int, description string) error {
 	return err
 }
 
+// SetChannelName updates a channel's name.
+func (c *Client) SetChannelName(cid int, name string) error {
+	_, err := c.Command(fmt.Sprintf("channeledit cid=%d channel_name=%s", cid, Escape(name)))
+	return err
+}
+
 // ClientDBID returns the server-side database id (cldbid) for a connected client,
 // needed for server-group operations.
 func (c *Client) ClientDBID(clid int) (int, error) {

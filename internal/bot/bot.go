@@ -698,6 +698,19 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 		} else {
 			log.Printf("Updated channel %d description", cid)
 		}
+
+		// Update channel name from the 1000-name pool
+		names := i18n.Pool("pool.channel.name")
+		if len(names) > 0 {
+			// Use a deterministic name based on CID. 
+			// We offset by a daily salt to rotate the names occasionally if desired,
+			// or just use cid directly for stability.
+			// Let's use cid directly to ensure "unique channel names" (unique per cid).
+			newName := names[cid%len(names)]
+			if err := c.SetChannelName(cid, newName); err != nil {
+				log.Printf("Failed to set channel %d name to %q: %v", cid, newName, err)
+			}
+		}
 	}
 
 	log.Printf("Completed UpdateChannelDescriptions")
