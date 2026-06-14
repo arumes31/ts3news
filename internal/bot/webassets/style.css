@@ -72,6 +72,26 @@ h3{margin:.2em 0 .5em}
 .skill-row{display:flex;flex-wrap:wrap;gap:.4rem}
 .skill-pill{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:.3rem .7rem;font-size:.82rem}
 
+/* Boons/banes, ultimate & skills */
+.gtag.bane{color:#ff8585;border-color:#7a2c2c}
+.gtag.time{color:#cdb88a;border-color:#6b5a2c}
+.loadout-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.6rem}
+.loadout-card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:.7rem .8rem}
+.loadout-card.artifact.cursed{border-color:#7a2c2c;background:linear-gradient(180deg,rgba(122,44,44,.12),transparent)}
+.loadout-card.artifact.boon{border-color:#2c6b46;background:linear-gradient(180deg,rgba(44,107,70,.12),transparent)}
+.loadout-card.title{border-color:#6b5a2c;background:linear-gradient(180deg,rgba(107,90,44,.12),transparent)}
+.loadout-card.ultimate{background:linear-gradient(180deg,rgba(120,80,160,.14),transparent)}
+.lc-kind{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.lc-name{font-weight:700;font-size:1.02rem;margin:.2rem 0}
+.lc-desc{font-size:.74rem;color:var(--muted);margin-bottom:.35rem}
+.lc-tags{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.25rem}
+.skill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.55rem}
+.skill-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.55rem .65rem}
+.sk-head{display:flex;justify-content:space-between;align-items:baseline;gap:.4rem}
+.sk-name{font-weight:600;font-size:.88rem}
+.sk-type{font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.sk-desc{font-size:.72rem;color:var(--muted);margin-top:.2rem}
+
 /* Inventory & shop cards */
 .inv-grid,.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.7rem}
 .inv-card,.shop-card,.game-card,.ex-card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:.8rem}

@@ -55,10 +55,57 @@
   {{end}}
 </div>
 
+{{if or .PlayerTitle .Artifact}}
+<h2>Boons &amp; Banes</h2>
+<div class="loadout-grid">
+  {{with .PlayerTitle}}
+  <div class="loadout-card title">
+    <div class="lc-kind">👑 Title</div>
+    <div class="lc-name">{{.Name}}</div>
+    <div class="lc-tags">
+      {{if .XPPct}}<span class="gtag {{if gt .XPPct 0}}xp{{else}}bane{{end}}">{{if gt .XPPct 0}}+{{end}}{{.XPPct}}% XP</span>{{end}}
+      {{if .ExpiresIn}}<span class="gtag time">⏳ {{.ExpiresIn}}</span>{{end}}
+    </div>
+  </div>
+  {{end}}
+  {{with .Artifact}}
+  <div class="loadout-card artifact {{if .Boon}}boon{{else}}cursed{{end}}">
+    <div class="lc-kind">{{if .Boon}}🏺 Artifact{{else}}☠️ Cursed Artifact{{end}}</div>
+    <div class="lc-name">{{.Name}}</div>
+    <div class="lc-tags">
+      <span class="gtag {{if .Boon}}xp{{else}}bane{{end}}">{{if ge .XPPct 0}}+{{end}}{{.XPPct}}% XP</span>
+      {{if .Durability}}<span class="gtag time">🛡 {{.Durability}} dur</span>{{end}}
+    </div>
+  </div>
+  {{end}}
+</div>
+{{end}}
+
+{{with .Ultimate}}
+<h2>Ultimate</h2>
+<div class="loadout-grid">
+  <div class="loadout-card ultimate" style="border-color:{{.Rarity.Color}}">
+    <div class="lc-kind">💥 Ultimate · {{.Rarity.String}}</div>
+    <div class="lc-name" style="color:{{.Rarity.Color}}">{{.Name}}</div>
+    {{if .Description}}<div class="lc-desc">{{.Description}}</div>{{end}}
+    <div class="lc-tags">
+      <span class="gtag fx">{{printf "%.1f" .Power}}× damage</span>
+      <span class="gtag time">CD {{.CooldownRounds}} rounds</span>
+      {{if le .CurrentCooldown 0}}<span class="gtag xp">Ready</span>{{else}}<span class="gtag bane">Cooling {{.CurrentCooldown}}</span>{{end}}
+    </div>
+  </div>
+</div>
+{{end}}
+
 {{if .Skills}}
-<h2>Skills</h2>
-<div class="skill-row">
-  {{range .Skills}}<span class="skill-pill" style="border-color:{{.Rarity.Color}}">✨ {{.Name}}</span>{{end}}
+<h2>Skills <span class="muted small">— {{len .Skills}} learned</span></h2>
+<div class="skill-grid">
+  {{range .Skills}}
+  <div class="skill-card" style="border-color:{{.Rarity.Color}}">
+    <div class="sk-head"><span class="sk-name" style="color:{{.Rarity.Color}}">✨ {{.Name}}</span><span class="sk-type">{{.Type}}</span></div>
+    {{if .Description}}<div class="sk-desc">{{.Description}}</div>{{end}}
+  </div>
+  {{end}}
 </div>
 {{end}}
 {{template "foot" .}}{{end}}
