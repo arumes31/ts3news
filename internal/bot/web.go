@@ -38,7 +38,7 @@ type WebServer struct {
 // NewWebServer parses the embedded templates and returns a ready server.
 func NewWebServer(b *Bot) (*WebServer, error) {
 	tmpl, err := template.New("").Funcs(template.FuncMap{
-		"gold":  func(v int64) string { return FormatGold(v) },
+		"gold":  func(v int64) string { return FormatGoldPlain(v) },
 		"comma": func(v int) string { return i18n.FormatLarge(float64(v)) },
 		"mulpct": func(a, b int) int {
 			if b <= 0 {

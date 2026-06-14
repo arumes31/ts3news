@@ -299,14 +299,22 @@ type Enchantment struct {
 
 var allGear []Gear
 var uniqueLegendaries []Gear
-var allConsumables = []Consumable{
-	{"small_health_potion", i18n.T("content.consumable.small_health_potion"), ConsumableHealing, 50, 0, i18n.T("content.consumable.small_health_potion_desc")},
-	{"great_health_potion", i18n.T("content.consumable.great_health_potion"), ConsumableHealing, 200, 0, i18n.T("content.consumable.great_health_potion_desc")},
-	{"strength_elixir", i18n.T("content.consumable.strength_elixir"), ConsumableBuff, 15, 3, i18n.T("content.consumable.strength_elixir_desc")},
-	{"iron_skin_brew", i18n.T("content.consumable.iron_skin_brew"), ConsumableBuff, 10, 3, i18n.T("content.consumable.iron_skin_brew_desc")},
-	{"phoenix_feather", i18n.T("content.consumable.phoenix_feather"), ConsumableRevive, 50, 0, i18n.T("content.consumable.phoenix_feather_desc")},
-	{"repair_kit", i18n.T("content.consumable.repair_kit"), ConsumableRepair, 30, 0, i18n.T("content.consumable.repair_kit_desc")},
-	{"master_repair_kit", i18n.T("content.consumable.master_repair_kit"), ConsumableRepair, 75, 0, i18n.T("content.consumable.master_repair_kit_desc")},
+var allConsumables []Consumable
+
+// buildConsumables (re)builds the consumable table. Names are intentionally
+// literal English: the matching logic in hazards.go keys off English substrings
+// (e.g. "antidote", "warmth"), and the content.consumable.* translation keys do
+// not exist, so routing through i18n.T would only leak raw keys.
+func buildConsumables() []Consumable {
+	return []Consumable{
+		{"small_health_potion", "Small Health Potion", ConsumableHealing, 50, 0, "Restores a small amount of HP in battle."},
+		{"great_health_potion", "Great Health Potion", ConsumableHealing, 200, 0, "Restores a large amount of HP in battle."},
+		{"strength_elixir", "Strength Elixir", ConsumableBuff, 15, 3, "Boosts Strength for several fights."},
+		{"iron_skin_brew", "Iron Skin Brew", ConsumableBuff, 10, 3, "Boosts Defense for several fights."},
+		{"phoenix_feather", "Phoenix Feather", ConsumableRevive, 50, 0, "Revives you once when you fall in battle."},
+		{"repair_kit", "Repair Kit", ConsumableRepair, 30, 0, "Restores durability to your equipment."},
+		{"master_repair_kit", "Master Repair Kit", ConsumableRepair, 75, 0, "Fully restores durability to your equipment."},
+	}
 }
 
 var allEnchantments []Enchantment
@@ -361,6 +369,29 @@ func (t Title) Score() int {
 }
 
 func init() {
+	buildContent()
+}
+
+// InitLocalized rebuilds all i18n-dependent content (gear, consumables, titles,
+// artifacts, enchantments) so their names resolve to the active locale. It must
+// be called once after i18n.InitWithLocale; otherwise the names baked at package
+// init time (when i18n is not yet loaded) leak raw translation keys such as
+// "content.gear.novice". Gear IDs are seeded deterministically, so rebuilding
+// keeps IDs stable while refreshing the display names. Safe to call repeatedly.
+func InitLocalized() {
+	buildContent()
+}
+
+func buildContent() {
+	// Reset so repeated calls (init + InitLocalized) don't duplicate entries.
+	allGear = nil
+	uniqueLegendaries = nil
+	corruptedArtifacts = nil
+	positiveTitles = nil
+	negativeTitles = nil
+	allEnchantments = nil
+	allConsumables = buildConsumables()
+
 	// Use a fixed seed for procedural generation to ensure Gear IDs (G1, G2...)
 	// are stable across bot restarts/rebuilds.
 	r := rand.New(rand.NewPCG(42, 42)) // #nosec G404

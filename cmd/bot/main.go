@@ -8,6 +8,7 @@ import (
 
 	"ts3news/internal/bot"
 	"ts3news/internal/config"
+	"ts3news/internal/content"
 	"ts3news/internal/i18n"
 	"ts3news/internal/icon"
 )
@@ -25,6 +26,11 @@ func main() {
 		log.Fatalf("i18n initialization failed: %v", err)
 	}
 	log.Printf("i18n: active locale %s", i18n.CurrentLocale())
+
+	// Rebuild content names now that i18n is loaded; they were baked at package
+	// init time when i18n was not yet available and would otherwise show raw
+	// translation keys (e.g. "content.gear.novice").
+	content.InitLocalized()
 
 	// Generate TS3 Leveling Icons if they don't exist yet
 	if _, err := os.Stat("data/icons/tier_25.png"); os.IsNotExist(err) {
