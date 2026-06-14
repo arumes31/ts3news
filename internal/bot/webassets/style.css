@@ -224,6 +224,11 @@ button.xs{padding:.25rem .5rem;font-size:.75rem}
 .anim-scratch::after { content: "✨"; position: absolute; left: 0; top: 0; animation: scratchMove 1.5s linear forwards; font-size: 1.5rem; }
 .anim-bolt { animation: boltFlash 0.3s steps(2) infinite; filter: drop-shadow(0 0 10px #fff); }
 .anim-gem { animation: gemGlow 0.8s ease-in-out infinite alternate; }
+.anim-keno { display: flex; gap: 4px; justify-content: center; }
+.anim-keno span { width: 24px; height: 24px; background: #fff; color: #000; border-radius: 50%; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; font-weight: 800; animation: kenoDrop 1.5s cubic-bezier(.17,.67,.83,.67) infinite; position: relative; }
+.anim-keno span:nth-child(2) { animation-delay: 0.2s; }
+.anim-keno span:nth-child(3) { animation-delay: 0.4s; }
+.anim-color { width: 40px; height: 40px; border-radius: 50%; animation: colorCycle 1.5s linear infinite; border: 3px solid #fff; }
 
 @keyframes rpsShake { 0% { transform: translateY(0) rotate(0); } 100% { transform: translateY(-15px) rotate(20deg); } }
 @keyframes crashFly { 0% { transform: translate(0, 0) rotate(10deg) scale(1); } 70% { transform: translate(140px, -60px) rotate(45deg) scale(1.6); opacity: 1; } 85% { transform: translate(150px, -65px) rotate(45deg) scale(2.2); opacity: 0.8; filter: brightness(2); } 100% { opacity: 0; transform: translate(160px, -70px) scale(0); } }
@@ -240,6 +245,8 @@ button.xs{padding:.25rem .5rem;font-size:.75rem}
 @keyframes scratchMove { 0% { left: -20px; top: 0; } 25% { left: 40px; top: 10px; } 50% { left: 0px; top: 20px; } 75% { left: 40px; top: 30px; } 100% { left: 60px; top: 10px; } }
 @keyframes boltFlash { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0.3; transform: scale(1.1); } }
 @keyframes gemGlow { from { filter: drop-shadow(0 0 5px var(--xp)) brightness(1); } to { filter: drop-shadow(0 0 20px var(--xp)) brightness(1.5); transform: scale(1.1); } }
+@keyframes kenoDrop { 0% { top: -60px; opacity: 0; transform: scale(0.5); } 30% { opacity: 1; } 100% { top: 80px; opacity: 0; transform: scale(1.2); } }
+@keyframes colorCycle { 0% { background: #ff4d4d; } 33% { background: #4dff4d; } 66% { background: #4d4dff; } 100% { background: #ff4d4d; } }
 
 /* Game States */
 .game-card.win-glow { animation: winGlow 0.6s ease-out forwards; }
