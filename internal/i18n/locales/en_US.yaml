@@ -47,6 +47,7 @@ bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
 bot.combat.skill_damage: "✨ %[1]s: %[2]s deals %[3]d dmg"
 bot.combat.combo: "(COMBO! %[1]s deals 25%% more damage!)"
 bot.combat.stunned: "💫 %[1]s STUNNED!"
+bot.combat.goblin_flee: "💨 The Treasure Goblin escaped with its loot!"
 bot.combat.element_effective: "💥 %[1]s is effective against %[2]s!"
 bot.combat.element_weak: "🛡️ %[1]s is weak against %[2]s..."
 bot.combat.ultimate_activation: "🌟 ULTIMATE: %[1]s!"
@@ -957,6 +958,7 @@ content.mob.type.elite: "Elite"
 content.mob.type.miniboss: "Miniboss"
 content.mob.type.boss: "Boss"
 content.mob.type.legendary: "Legendary"
+content.mob.type.treasure_goblin: "Treasure Goblin"
 
 # ─── Content Pools: Skill Type Names ───
 

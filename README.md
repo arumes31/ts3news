@@ -110,8 +110,8 @@ The bot is configured via environment variables or a `config.env` file.
 | | `MAX_INTERVAL_HOURS` | Maximum random sleep between cycles. | `12` |
 | **Localization** | `LANG` | Language for all bot messages (BCP-47 locale ID, see list below). Falls back to `en_US` if unset or unsupported. | `en_US` |
 | **Web Portal** | `WEB_ENABLE` | Serve the player web portal and PM each user a login link per cycle. | `true` |
-| | `WEB_LISTEN_ADDR` | Address the web server listens on. | `:18080` |
-| | `WEB_BASE_URL` | Public base URL used to build per-user login links. | `http://localhost:18080` |
+| | `WEB_LISTEN_ADDR` | Address the web server listens on. | `:18081` |
+| | `WEB_BASE_URL` | Public base URL used to build per-user login links. | `http://localhost:18081` |
 | **System** | `ENABLE_GAME_NEWS` | Master switch for the free game notification feature. | `true` |
 | | `POKE_DELAY_MS` | Delay between individual pokes (anti-flood). | `1200` |
 | | `RESEND_AFTER_DAYS` | Allow re-sending a game after N days. | `60` |
@@ -202,7 +202,7 @@ All gold/XP is the same economy used by the TS3 RPG, so farming the arcade or ba
         container_name: ts3-news-bot
         restart: unless-stopped
         ports:
-          - "18080:18080"
+          - "18081:18081"
         stop_grace_period: 30s
         depends_on:
           db:

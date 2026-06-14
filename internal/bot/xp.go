@@ -998,6 +998,16 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 		elementMult := getElementMult(m.Element, targetElement)
 		dmgMult *= elementMult
 
+		// Treasure Goblin Flee Logic
+		if m.Type == content.MobTreasureGoblin && round >= 3 {
+			// #nosec G404
+			if rand.Float64() < 0.3 {
+				*logs = append(*logs, i18n.T("bot.combat.goblin_flee"))
+				m.Stats.HP = 0 // Remove from combat
+				continue
+			}
+		}
+
 		mSTR := int(float64(m.Stats.STR) * m.STRMod)
 		// Zone Debuff check
 		for _, eff := range zone.Effects {
@@ -1125,6 +1135,13 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 				// #nosec G404
 				goldDrop += int(float64(m.RewardXP) * (0.5 + rand.Float64()*0.5) * inflationMult)
 			}
+
+			// VIP Gold Bonus
+			vip, _ := b.getVIP(u.UID)
+			if vip.Bonus > 0 {
+				goldDrop = int(float64(goldDrop) * (1.0 + float64(vip.Bonus)/100.0))
+			}
+
 			u.Gold += int64(goldDrop)
 		}
 
@@ -1695,10 +1712,15 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 	if mob.Type == content.MobLegendary {
 		count = 4
 	}
+	if mob.Type == content.MobTreasureGoblin {
+		count = 2
+	}
 
 	// Double Loot Title check
 	var tName sql.NullString
 	_ = b.DB.QueryRow("SELECT title FROM users WHERE client_uid=$1", uid).Scan(&tName)
+
+	vip, _ := b.getVIP(uid)
 
 	// Effect check
 	_, _, _, _, effects := b.activeLootMult(uid, time.Now())
@@ -1724,7 +1746,19 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 	for i := 0; i < count; i++ {
 		// #nosec G404
 		r := rand.Float64() - lootFindBonus // #nosec G404
+
+		if mob.Type == content.MobTreasureGoblin {
+			gold := int64(1000 + rand.IntN(2000))
+			if vip.Bonus > 0 {
+				gold = int64(float64(gold) * (1.0 + float64(vip.Bonus)/100.0))
+			}
+			_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", gold, uid)
+			results = append(results, fmt.Sprintf("💰 %d gold", gold))
+			continue
+		}
+
 		lootFound := false
+		// ... rest of loop ...
 		// Checks ordered by ascending threshold so smaller chances are evaluated first
 		// Thresholds: title=0.005, ultimateSkill=0.005, uniqueItem=0.01, artifact=0.01, ench=0.02, skill=0.05, cons=0.1, gear=0.10
 		if r < ultimateSkillChance*qualityMult {

@@ -53,6 +53,14 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 	tmpl, err := template.New("").Funcs(template.FuncMap{
 		"gold":  func(v int64) string { return FormatGoldPlain(v) },
 		"comma": func(v int) string { return i18n.FormatLarge(float64(v)) },
+		"lower": strings.ToLower,
+		"seq": func(start, end int) []int {
+			var out []int
+			for i := start; i <= end; i++ {
+				out = append(out, i)
+			}
+			return out
+		},
 		"mulpct": func(a, b int) int {
 			if b <= 0 {
 				return 0
@@ -85,6 +93,11 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		b, _ := webAssets.ReadFile("webassets/style.css")
 		_, _ = w.Write(b)
 	})
+	mux.HandleFunc("/static/favicon.svg", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		b, _ := webAssets.ReadFile("webassets/favicon.svg")
+		_, _ = w.Write(b)
+	})
 
 	// Public.
 	mux.HandleFunc("/login", s.handleLogin)
@@ -101,11 +114,13 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 
 	// Authenticated JSON APIs.
 	mux.HandleFunc("/api/tft/buy", s.auth(s.handleTFTBuy))
-	mux.HandleFunc("/api/tft/reroll", s.auth(s.handleTFTReroll))
-	mux.HandleFunc("/api/tft/place", s.auth(s.handleTFTPlace))
-	mux.HandleFunc("/api/tft/sell", s.auth(s.handleTFTSell))
-	mux.HandleFunc("/api/tft/combat", s.auth(s.handleTFTCombat))
-	mux.HandleFunc("/api/arcade/play", s.auth(s.handleArcadeAPI))
+	mux.HandleFunc("/api/tft/reroll", s.authAPI(s.handleTFTReroll))
+	mux.HandleFunc("/api/tft/place", s.authAPI(s.handleTFTPlace))
+	mux.HandleFunc("/api/tft/sell", s.authAPI(s.handleTFTSell))
+	mux.HandleFunc("/api/tft/equip", s.authAPI(s.handleTFTEquip))
+	mux.HandleFunc("/api/tft/combat", s.authAPI(s.handleTFTCombat))
+	mux.HandleFunc("/api/arcade/play", s.authAPI(s.handleArcadeAPI))
+	mux.HandleFunc("/api/arcade/daily-spin", s.authAPI(s.handleDailySpinAPI))
 	mux.HandleFunc("/api/shop/exchange", s.auth(s.handleExchangeAPI))
 	mux.HandleFunc("/api/shop/buy", s.auth(s.handleBuyAPI))
 	mux.HandleFunc("/api/inventory/equip", s.auth(s.handleEquipAPI))
@@ -214,6 +229,24 @@ func (s *WebServer) auth(h func(http.ResponseWriter, *http.Request, string)) htt
 		uid, ok := s.uidForToken(c.Value)
 		if !ok {
 			http.Redirect(w, r, "/denied", http.StatusSeeOther)
+			return
+		}
+		h(w, r, uid)
+	}
+}
+
+// authAPI wraps a handler, resolving the session cookie to a user UID and passing
+// it through. Unauthenticated requests get a JSON error.
+func (s *WebServer) authAPI(h func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		c, err := r.Cookie(sessionCookie)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "unauthenticated"})
+			return
+		}
+		uid, ok := s.uidForToken(c.Value)
+		if !ok {
+			writeJSON(w, map[string]any{"ok": false, "error": "unauthenticated"})
 			return
 		}
 		h(w, r, uid)

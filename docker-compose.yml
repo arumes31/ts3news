@@ -20,7 +20,7 @@ services:
     container_name: ts3-news-bot
     restart: unless-stopped
     ports:
-      - "18080:18080"
+      - "18081:18081"
     # Give the Go supervisor time to finish an in-progress poke cycle on SIGTERM
     # (graceful shutdown) before Docker escalates to SIGKILL.
     stop_grace_period: 30s
