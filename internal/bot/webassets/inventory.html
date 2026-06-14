@@ -8,7 +8,7 @@
 <div class="inv-grid">
   {{range .Items}}
   <div class="inv-card" data-id="{{.InvID}}">
-    <div class="inv-head"><span class="item-ico">{{.Icon}}</span><span class="inv-name" style="color:{{.RarityColor}}">{{.Name}}</span></div>
+    <div class="inv-head"><span class="gi slot-gi" style="--gi:url(/static/icons/{{.IconName}}.svg);color:{{.RarityColor}}"></span> <span class="inv-name" style="color:{{.RarityColor}}">{{.Name}}</span></div>
     <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
     <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}} · {{.Durability}} dur</div>
     <div class="inv-actions">

@@ -23,6 +23,7 @@ type gearView struct {
 	InvID       int64
 	Slot        string
 	Icon        string
+	IconName    string // game-icons.net SVG basename for the slot
 	ID          string
 	Name        string
 	Rarity      string
@@ -35,6 +36,7 @@ type gearView struct {
 	// Detail surfaced in the armoury/inventory.
 	Element    string
 	Effect     string
+	EffectIcon string // game-icons.net SVG basename for the effect
 	EffectDesc string
 	XPBonusPct int
 	Stats      []statKV
@@ -79,6 +81,7 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	v := gearView{
 		Slot:        string(slot),
 		Icon:        content.SlotIcon(slot),
+		IconName:    content.SlotIconName(slot),
 		ID:          g.ID,
 		Name:        g.Name,
 		Rarity:      g.Rarity.String(),
@@ -93,6 +96,7 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	}
 	if g.Special != content.EffectNone {
 		v.Effect = string(g.Special)
+		v.EffectIcon = content.EffectIconName(g.Special)
 		v.EffectDesc = gearEffectDescriptions[g.Special]
 	}
 	return v
@@ -204,7 +208,7 @@ func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid str
 		if g, ok := equipped[slot]; ok {
 			slots = append(slots, toGearView(slot, g))
 		} else {
-			slots = append(slots, gearView{Slot: string(slot), Icon: content.SlotIcon(slot), Empty: true})
+			slots = append(slots, gearView{Slot: string(slot), Icon: content.SlotIcon(slot), IconName: content.SlotIconName(slot), Empty: true})
 		}
 	}
 

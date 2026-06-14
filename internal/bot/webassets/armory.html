@@ -22,22 +22,22 @@
 
 <h2>Attributes</h2>
 <div class="stats-grid">
-  <div class="stat"><b>{{comma .U.Stats.STR}}</b><span>Strength</span></div>
-  <div class="stat"><b>{{comma .U.Stats.DEF}}</b><span>Defense</span></div>
-  <div class="stat"><b>{{comma .U.Stats.SPD}}</b><span>Speed</span></div>
-  <div class="stat"><b>{{comma .U.Stats.HP}}</b><span>Max HP</span></div>
-  <div class="stat"><b>{{comma .U.Stats.CRT}}</b><span>Crit %</span></div>
-  <div class="stat"><b>{{comma .U.Stats.DGE}}</b><span>Dodge %</span></div>
-  <div class="stat"><b>{{comma .U.Stats.LCK}}</b><span>Luck</span></div>
-  <div class="stat"><b>{{comma .U.Stats.INT}}</b><span>Intellect</span></div>
-  <div class="stat"><b>{{comma .U.Stats.STA}}</b><span>Stamina</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/biceps.svg)"></span><b>{{comma .U.Stats.STR}}</b><span>Strength</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/checked-shield.svg)"></span><b>{{comma .U.Stats.DEF}}</b><span>Defense</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/run.svg)"></span><b>{{comma .U.Stats.SPD}}</b><span>Speed</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/health-normal.svg)"></span><b>{{comma .U.Stats.HP}}</b><span>Max HP</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/bullseye.svg)"></span><b>{{comma .U.Stats.CRT}}</b><span>Crit %</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/dodging.svg)"></span><b>{{comma .U.Stats.DGE}}</b><span>Dodge %</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/clover.svg)"></span><b>{{comma .U.Stats.LCK}}</b><span>Luck</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/brain.svg)"></span><b>{{comma .U.Stats.INT}}</b><span>Intellect</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/lungs.svg)"></span><b>{{comma .U.Stats.STA}}</b><span>Stamina</span></div>
 </div>
 
 <h2>Equipment</h2>
 <div class="gear-grid">
   {{range .Slots}}
   <div class="gear-cell {{if .Empty}}empty{{end}}">
-    <div class="gear-slot"><span class="slot-ico">{{.Icon}}</span> {{.Slot}}</div>
+    <div class="gear-slot"><span class="gi slot-gi" style="--gi:url(/static/icons/{{.IconName}}.svg){{if not .Empty}};color:{{.RarityColor}}{{end}}"></span> {{.Slot}}</div>
     {{if .Empty}}
       <div class="gear-name muted">— empty —</div>
     {{else}}
@@ -47,7 +47,7 @@
       <div class="gear-tags">
         {{if .Element}}<span class="gtag elem">{{.Element}}</span>{{end}}
         {{if gt .XPBonusPct 0}}<span class="gtag xp">+{{.XPBonusPct}}% XP</span>{{end}}
-        {{if .Effect}}<span class="gtag fx" title="{{.EffectDesc}}">✦ {{.Effect}}</span>{{end}}
+        {{if .Effect}}<span class="gtag fx" title="{{.EffectDesc}}"><span class="gi" style="--gi:url(/static/icons/{{.EffectIcon}}.svg)"></span> {{.Effect}}</span>{{end}}
       </div>
       {{if .EffectDesc}}<div class="gear-fxdesc">{{.EffectDesc}}</div>{{end}}
     {{end}}

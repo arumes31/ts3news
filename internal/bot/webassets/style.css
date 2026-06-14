@@ -119,6 +119,13 @@ h3{margin:.2em 0 .5em}
 .g3d-desc{font-size:.72rem;color:var(--muted);margin:.25rem 0 .5rem;min-height:2.2em}
 .g3d-play{font-size:.74rem;font-weight:700;color:#fff;background:var(--accent);border-radius:14px;padding:.22rem .8rem}
 
+/* game-icons.net SVG icons, recolourable via CSS mask (inherits text color) */
+.gi{display:inline-block;width:1em;height:1em;vertical-align:-0.14em;background-color:currentColor;
+ -webkit-mask:var(--gi) center/contain no-repeat;mask:var(--gi) center/contain no-repeat}
+.slot-gi{font-size:1.5em;vertical-align:-0.28em}
+.stat .gi{font-size:1.15rem;color:var(--gold);display:block;margin:0 auto .15rem}
+.gtag .gi{font-size:.9em;vertical-align:-0.1em}
+
 /* Inventory & shop cards */
 .inv-grid,.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.7rem}
 .inv-card,.shop-card,.game-card,.ex-card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:.8rem}
