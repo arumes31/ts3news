@@ -97,7 +97,3 @@ func (b *Bot) canSpinDaily(uid string) bool {
 	}
 	return time.Since(last.Time) > 24*time.Hour
 }
-
-func (b *Bot) recordDailySpin(uid string) {
-	_, _ = b.DB.Exec("UPDATE users SET last_daily_spin = NOW() WHERE client_uid=$1", uid)
-}
