@@ -33,6 +33,7 @@ bot.combat.skill_activation: '✨ %[1]s: %[2]s!'
 bot.combat.skill_damage: '✨ %[1]s: %[2]s doet %[3]d schade'
 bot.combat.combo: (COMBO!)
 bot.combat.stunned: 💫 %[1]s VERDOOFD!
+bot.combat.goblin_flee: "💨 De Schatgoblin is ontsnapt met zijn buit!"
 bot.combat.element_effective: 💥 %[1]s is effectief tegen %[2]s!
 bot.combat.element_weak: 🛡️ %[1]s is zwak tegen %[2]s...
 bot.combat.ultimate_activation: '🌟 ULTIMATE: %[1]s!'
@@ -834,6 +835,7 @@ content.mob.type.elite: Elite
 content.mob.type.miniboss: Minibaas
 content.mob.type.boss: Baas
 content.mob.type.legendary: Legendarisch
+content.mob.type.treasure_goblin: "Schatgoblin"
 content.skill.type.physical: Fysiek
 content.skill.type.magic: Magisch
 content.skill.type.buff: Buff

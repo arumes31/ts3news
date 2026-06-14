@@ -47,6 +47,7 @@ bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
 bot.combat.skill_damage: "✨ %[1]s: %[2]s gây %[3]d sát thương"
 bot.combat.combo: "(COMBO!)"
 bot.combat.stunned: "💫 %[1]s BỊ CHOÁNG!"
+bot.combat.goblin_flee: "💨 Yêu tinh kho báu đã trốn thoát cùng chiến lợi phẩm!"
 bot.combat.element_effective: "💥 %[1]s khắc chế %[2]s!"
 bot.combat.element_weak: "🛡️ %[1]s yếu thế trước %[2]s..."
 bot.combat.ultimate_activation: "🌟 TUYỆT KỸ: %[1]s!"
@@ -957,6 +958,7 @@ content.mob.type.elite: "Tinh nhuệ"
 content.mob.type.miniboss: "Tiểu trùm"
 content.mob.type.boss: "Trùm"
 content.mob.type.legendary: "Huyền thoại"
+content.mob.type.treasure_goblin: "Yêu tinh kho báu"
 
 # ─── Content Pools: Skill Type Names ───
 

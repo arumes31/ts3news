@@ -47,6 +47,7 @@ bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
 bot.combat.skill_damage: "✨ %[1]s: %[2]s يسبب %[3]d ضرر"
 bot.combat.combo: "(كومبو! %[1]s يسبب ضررًا أكبر بنسبة 25%%!)"
 bot.combat.stunned: "💫 %[1]s مُذهل!"
+bot.combat.goblin_flee: "💨 هرب عفريت الكنز بغنيمته!"
 bot.combat.element_effective: "💥 %[1]s فعال ضد %[2]s!"
 bot.combat.element_weak: "🛡️ %[1]s ضعيف ضد %[2]s..."
 bot.combat.ultimate_activation: "🌟 المهارة النهائية: %[1]s!"
@@ -957,6 +958,7 @@ content.mob.type.elite: "نخبة"
 content.mob.type.miniboss: "زعيم صغير"
 content.mob.type.boss: "زعيم"
 content.mob.type.legendary: "أسطوري"
+content.mob.type.treasure_goblin: "عفريت الكنز"
 
 # ─── Content Pools: Skill Type Names ───
 
