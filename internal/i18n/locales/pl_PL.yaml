@@ -47,6 +47,7 @@ bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
 bot.combat.skill_damage: "✨ %[1]s: %[2]s zadaje %[3]d obrażeń"
 bot.combat.combo: "(Kombo!)"
 bot.combat.stunned: "💫 %[1]s ogłuszony!"
+bot.combat.goblin_flee: "💨 Goblin Skarbnik uciekł ze swoimi łupami!"
 bot.combat.element_effective: "💥 %[1]s jest skuteczny przeciwko %[2]s!"
 bot.combat.element_weak: "🛡️ %[1]s jest słaby przeciwko %[2]s..."
 bot.combat.ultimate_activation: "🌟 UMIEJĘTNOŚĆ OSTATECZNA: %[1]s!"
@@ -957,6 +958,7 @@ content.mob.type.elite: "Elitarny"
 content.mob.type.miniboss: "Miniboss"
 content.mob.type.boss: "Boss"
 content.mob.type.legendary: "Legendarny"
+content.mob.type.treasure_goblin: "Goblin Skarbnik"
 
 # ─── Content Pools: Skill Type Names ───
 

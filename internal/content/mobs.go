@@ -192,17 +192,17 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	m := baseMobs[idx]
 	if !isBoss {
 		// #nosec G404
-		r := rand.Float64()          // #nosec G404
-		if r < 0.02 {                // 2% chance for Treasure Goblin
-			m = Mob{
-				Name: "Treasure Goblin",
-				Type: MobTreasureGoblin,
-				Stats: Stats{HP: 400, STR: 5, DEF: 20, SPD: 150},
-				RewardXP: 50,
-			}
-		} else if r < 0.01 && level >= 25 { // Legendaries require level 25+
+		r := rand.Float64() // #nosec G404
+		if r < 0.01 && level >= 25 { // Legendaries require level 25+
 			// #nosec G404
 			m = baseMobs[108+rand.IntN(2)]
+		} else if r < 0.03 { // 2% chance for Treasure Goblin (0.01 to 0.03)
+			m = Mob{
+				Name:     "Treasure Goblin",
+				Type:     MobTreasureGoblin,
+				Stats:    Stats{HP: 400, STR: 5, DEF: 20, SPD: 150},
+				RewardXP: 50,
+			}
 		} else if r < 0.05 && level >= 10 { // Bosses require level 10+
 			// #nosec G404
 			m = baseMobs[106+rand.IntN(2)]

@@ -33,6 +33,7 @@ bot.combat.skill_activation: '✨ %[1]s: %[2]s!'
 bot.combat.skill_damage: '✨ %[1]s: %[2]s causa %[3]d de daño'
 bot.combat.combo: (¡COMBO!)
 bot.combat.stunned: 💫 ¡%[1]s ATURDIDO!
+bot.combat.goblin_flee: "💨 ¡El Goblin del Tesoro escapó con su botín!"
 bot.combat.element_effective: 💥 ¡%[1]s es eficaz contra %[2]s!
 bot.combat.element_weak: 🛡️ %[1]s es débil contra %[2]s...
 bot.combat.ultimate_activation: '🌟 ¡DEFINITIVA: %[1]s!'
@@ -831,6 +832,7 @@ content.mob.type.elite: Élite
 content.mob.type.miniboss: Minijefe
 content.mob.type.boss: Jefe
 content.mob.type.legendary: Legendario
+content.mob.type.treasure_goblin: "Goblin del Tesoro"
 content.skill.type.physical: Físico
 content.skill.type.magic: Magia
 content.skill.type.buff: Buff

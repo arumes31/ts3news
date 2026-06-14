@@ -47,6 +47,7 @@ bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
 bot.combat.skill_damage: "✨ %[1]s: %[2]s 가 %[3]d 피해"
 bot.combat.combo: "(콤보!)"
 bot.combat.stunned: "💫 %[1]s 기절!"
+bot.combat.goblin_flee: "💨 보물 고블린이 전리품을 가지고 도망쳤습니다!"
 bot.combat.element_effective: "💥 %[1]s 은(는) %[2]s 에게 효과적이다!"
 bot.combat.element_weak: "🛡️ %[1]s 은(는) %[2]s 에게 약하다..."
 bot.combat.ultimate_activation: "🌟 궁극기: %[1]s!"
@@ -957,6 +958,7 @@ content.mob.type.elite: "정예"
 content.mob.type.miniboss: "미니보스"
 content.mob.type.boss: "보스"
 content.mob.type.legendary: "전설"
+content.mob.type.treasure_goblin: "보물 고블린"
 
 # ─── Content Pools: Skill Type Names ───
 

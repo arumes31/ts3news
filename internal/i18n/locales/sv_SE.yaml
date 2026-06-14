@@ -33,6 +33,7 @@ bot.combat.skill_activation: '✨ %[1]s: %[2]s!'
 bot.combat.skill_damage: '✨ %[1]s: %[2]s gör %[3]d skada'
 bot.combat.combo: (KOMBINATION!)
 bot.combat.stunned: 💫 %[1]s FÖRVIRRAD!
+bot.combat.goblin_flee: "💨 Skattgoblinen flydde med sitt byte!"
 bot.combat.element_effective: 💥 %[1]s är effektiv mot %[2]s!
 bot.combat.element_weak: 🛡️ %[1]s är svag mot %[2]s...
 bot.combat.ultimate_activation: '🌟 ULTIMATE: %[1]s!'
@@ -829,6 +830,7 @@ content.mob.type.elite: Elite
 content.mob.type.miniboss: Miniboss
 content.mob.type.boss: Boss
 content.mob.type.legendary: Legendarisk
+content.mob.type.treasure_goblin: "Skattgoblin"
 content.skill.type.physical: Fysisk
 content.skill.type.magic: Magisk
 content.skill.type.buff: Buff

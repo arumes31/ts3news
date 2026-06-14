@@ -47,6 +47,7 @@ bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
 bot.combat.skill_damage: "✨ %[1]s: %[2]s สร้างความเสียหาย %[3]d"
 bot.combat.combo: "(COMBO!)"
 bot.combat.stunned: "💫 %[1]s ถูกทำให้งง!"
+bot.combat.goblin_flee: "💨 ก๊อบลินขุมทรัพย์หนีไปพร้อมกับของรางวัลแล้ว!"
 bot.combat.element_effective: "💥 %[1]s ได้เปรียบ %[2]s!"
 bot.combat.element_weak: "🛡️ %[1]s เสียเปรียบ %[2]s..."
 bot.combat.ultimate_activation: "🌟 อัลติเมท: %[1]s!"
@@ -957,6 +958,7 @@ content.mob.type.elite: "ระดับสูง"
 content.mob.type.miniboss: "มินิบอส"
 content.mob.type.boss: "บอส"
 content.mob.type.legendary: "ตำนาน"
+content.mob.type.treasure_goblin: "ก๊อบลินขุมทรัพย์"
 
 # ─── Content Pools: Skill Type Names ───
 

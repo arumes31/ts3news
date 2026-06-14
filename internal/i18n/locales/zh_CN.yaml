@@ -47,6 +47,7 @@ bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
 bot.combat.skill_damage: "✨ %[1]s: %[2]s 造成 %[3]d 伤害"
 bot.combat.combo: "(连击！)"
 bot.combat.stunned: "💫 %[1]s 眩晕！"
+bot.combat.goblin_flee: "💨 藏宝哥布林带着战利品逃跑了！"
 bot.combat.element_effective: "💥 %[1]s 对 %[2]s 非常有效！"
 bot.combat.element_weak: "🛡️ %[1]s 对 %[2]s 很弱..."
 bot.combat.ultimate_activation: "🌟 终极技能: %[1]s!"
@@ -957,6 +958,7 @@ content.mob.type.elite: "精英"
 content.mob.type.miniboss: "小Boss"
 content.mob.type.boss: "Boss"
 content.mob.type.legendary: "传说"
+content.mob.type.treasure_goblin: "藏宝哥布林"
 
 # ─── Content Pools: Skill Type Names ───
 

@@ -47,6 +47,7 @@ bot.combat.skill_activation: "✨ %[1]s: %[2]s!"
 bot.combat.skill_damage: "✨ %[1]s: %[2]s %[3]d hasar veriyor"
 bot.combat.combo: "(KOMBO! %[1]s %%25 daha fazla hasar veriyor!)"
 bot.combat.stunned: "💫 %[1]s SERSEMLEDİ!"
+bot.combat.goblin_flee: "💨 Hazine Goblini ganimetiyle birlikte kaçtı!"
 bot.combat.element_effective: "💥 %[1]s, %[2]s'ye karşı etkili!"
 bot.combat.element_weak: "🛡️ %[1]s, %[2]s'ye karşı zayıf..."
 bot.combat.ultimate_activation: "🌟 NİHAİ YETENEK: %[1]s!"
@@ -957,6 +958,7 @@ content.mob.type.elite: "Seçkin"
 content.mob.type.miniboss: "Ara Boss"
 content.mob.type.boss: "Boss"
 content.mob.type.legendary: "Efsanevi"
+content.mob.type.treasure_goblin: "Hazine Goblini"
 
 # ─── İçerik Havuzları: Yetenek Türü İsimleri ───
 
