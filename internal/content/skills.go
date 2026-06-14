@@ -132,7 +132,7 @@ func initSkills() {
 						s.Special = EffectPhoenix
 					}
 
-					s.Description = i18n.T("content.skill.description", i18n.R(int(s.Rarity)), s.Name, int(rarity)+1)
+					s.Description = i18n.T("content.skill.description.format", i18n.R(int(s.Rarity)), s.Name, int(rarity)+1)
 					allSkills = append(allSkills, s)
 				}
 				idx++
@@ -204,75 +204,84 @@ var ultimateNouns = []string{
 }
 
 var allUltimateSkills []UltimateSkill
+var ultimateInitOnce sync.Once
 
-func init() {
-	// Generate 1000 unique ultimate skills using deterministic RNG like artifacts.go
-	// Use a fixed seed for procedural generation to ensure UltimateSkill IDs (ULT_1, ULT_2...)
-	// are stable across bot restarts/rebuilds.
-	r := rand.New(rand.NewPCG(42, 42)) // #nosec G404
+// initUltimateSkills lazily builds the ultimate-skill pool on first access. A
+// package init() would run before i18n is loaded, baking raw translation keys
+// (e.g. "content.skill.ultimate.description.format") into every description; a
+// once-guarded lazy build instead resolves the descriptions in the active locale.
+func initUltimateSkills() {
+	ultimateInitOnce.Do(func() {
+		// Generate 1000 unique ultimate skills using deterministic RNG like artifacts.go
+		// Use a fixed seed for procedural generation to ensure UltimateSkill IDs (ULT_1, ULT_2...)
+		// are stable across bot restarts/rebuilds.
+		r := rand.New(rand.NewPCG(42, 42)) // #nosec G404
 
-	idx := 1
-	for _, v := range ultimateVerbs {
-		for _, n := range ultimateNouns {
-			name := v + " " + n
+		idx := 1
+		for _, v := range ultimateVerbs {
+			for _, n := range ultimateNouns {
+				name := v + " " + n
 
-			// Determine rarity (ultimate skills are inherently rare)
-			rr := r.Float64()
-			var rarity Rarity
-			switch {
-			case rr < 0.50:
-				rarity = RarityRare
-			case rr < 0.80:
-				rarity = RarityEpic
-			case rr < 0.95:
-				rarity = RarityLegendary
-			case rr < 0.99:
-				rarity = RarityMythic
-			default:
-				rarity = RarityDivine
+				// Determine rarity (ultimate skills are inherently rare)
+				rr := r.Float64()
+				var rarity Rarity
+				switch {
+				case rr < 0.50:
+					rarity = RarityRare
+				case rr < 0.80:
+					rarity = RarityEpic
+				case rr < 0.95:
+					rarity = RarityLegendary
+				case rr < 0.99:
+					rarity = RarityMythic
+				default:
+					rarity = RarityDivine
+				}
+
+				// Power scales with rarity
+				rarityMult := float64(rarity+1) * 0.5 // Rare=1.5, Epic=2.0, Legendary=2.5, Mythic=3.0, Divine=3.5
+				power := 4.0 * rarityMult
+
+				// Cooldown scales with rarity (higher rarity = longer cooldown but more power)
+				cooldown := 5 + int(rarity)*2 // Rare=9, Epic=11, Legendary=13, Mythic=15, Divine=17
+
+				skill := UltimateSkill{
+					ID:              fmt.Sprintf("ULT_%d", idx),
+					Name:            name,
+					Rarity:          rarity,
+					Power:           power,
+					CooldownRounds:  cooldown,
+					CurrentCooldown: 0,
+					Description:     i18n.T("content.skill.ultimate.description.format", i18n.R(int(rarity)), power, cooldown),
+				}
+				allUltimateSkills = append(allUltimateSkills, skill)
+				idx++
 			}
-
-			// Power scales with rarity
-			rarityMult := float64(rarity+1) * 0.5 // Rare=1.5, Epic=2.0, Legendary=2.5, Mythic=3.0, Divine=3.5
-			power := 4.0 * rarityMult
-
-			// Cooldown scales with rarity (higher rarity = longer cooldown but more power)
-			cooldown := 5 + int(rarity)*2 // Rare=9, Epic=11, Legendary=13, Mythic=15, Divine=17
-
-			skill := UltimateSkill{
-				ID:              fmt.Sprintf("ULT_%d", idx),
-				Name:            name,
-				Rarity:          rarity,
-				Power:           power,
-				CooldownRounds:  cooldown,
-				CurrentCooldown: 0,
-				Description:     i18n.T("content.ultimate_skill.description", i18n.R(int(rarity)), power, cooldown),
-			}
-			allUltimateSkills = append(allUltimateSkills, skill)
-			idx++
 		}
-	}
 
-	// Task 66: Revival Ultimate Skill
-	allUltimateSkills = append(allUltimateSkills, UltimateSkill{
-		ID:             "ULT_REVIVAL",
-		Name:           "Divine Revival",
-		Rarity:         RarityDivine,
-		Power:          0.0,
-		CooldownRounds: 15,
-		Description:    i18n.T("content.ultimate_skill.revival_description"),
-		Special:        EffectPhoenix,
+		// Task 66: Revival Ultimate Skill
+		allUltimateSkills = append(allUltimateSkills, UltimateSkill{
+			ID:             "ULT_REVIVAL",
+			Name:           "Divine Revival",
+			Rarity:         RarityDivine,
+			Power:          0.0,
+			CooldownRounds: 15,
+			Description:    "Cheat death — revive once per battle at half health.",
+			Special:        EffectPhoenix,
+		})
 	})
 }
 
 // RandomUltimateSkill returns a random ultimate skill
 func RandomUltimateSkill() UltimateSkill {
+	initUltimateSkills()
 	// #nosec G404
 	return allUltimateSkills[rand.IntN(len(allUltimateSkills))] // #nosec G404
 }
 
 // GetUltimateSkillByID returns an ultimate skill by ID
 func GetUltimateSkillByID(id string) (UltimateSkill, bool) {
+	initUltimateSkills()
 	for _, s := range allUltimateSkills {
 		if s.ID == id {
 			return s, true
@@ -283,6 +292,7 @@ func GetUltimateSkillByID(id string) (UltimateSkill, bool) {
 
 // IsUltimateSkill checks if a name is an ultimate skill
 func IsUltimateSkill(name string) bool {
+	initUltimateSkills()
 	for _, s := range allUltimateSkills {
 		if s.Name == name {
 			return true
