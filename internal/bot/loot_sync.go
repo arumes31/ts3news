@@ -8,11 +8,11 @@ import (
 	"ts3news/internal/clientquery"
 	"ts3news/internal/content"
 	"ts3news/internal/i18n"
-)
+	)
 
-// syncLootGroups ensures the user is in the correct TS3 server groups for their
-// currently equipped gear, artifacts, skills, and pets.
-func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
+	// syncLootGroups ensures the user is in the correct TS3 server groups for their
+	// currently equipped gear, artifacts, skills, and pets.
+	func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 	cldbid, err := c.ClientDBID(clid)
 	if err != nil {
 		return
@@ -47,15 +47,15 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 		// Add type information
 		typeCode := "[" + itemType + "] "
 
-		prefix := i18n.T("loot_sync.group_name", score, effCode, typeCode)
-		avail := 30 - len(prefix)
+		groupName := i18n.T("loot_sync.group_name", score, effCode, typeCode)
+		avail := 30 - len(groupName)
 		if avail <= 0 {
-			return prefix[:30]
+			return groupName[:30]
 		}
 		if len(name) > avail {
 			name = name[:avail]
 		}
-		return prefix + name
+		return groupName + name
 	}
 
 	// Gear
@@ -67,7 +67,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 			var slot string
 			if err := grows.Scan(&id, &slot); err == nil {
 				if g, ok := content.GetGearByID(id); ok {
-					activeItemNames[formatGSName(g.Stats.Score(), g.Name, g.Special, "s:"+slot)] = true
+					activeItemNames[formatGSName(g.Stats.Score(), g.Name, g.Special, "slot:"+slot)] = true
 				}
 			}
 		}
@@ -135,8 +135,7 @@ func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 
 	for _, g := range groups {
 		isRPGRelated := strings.Contains(g.Name, "(gs:")
-		isLegacy := strings.Contains(g.Name, "[slot:")
-		if (isRPGRelated || isLegacy) && !activeItemNames[g.Name] {
+		if isRPGRelated && !activeItemNames[g.Name] {
 			_ = c.ServerGroupDelClient(g.ID, cldbid)
 			b.maybeDeleteEmptyTitleGroup(c, g.ID, g.Name)
 		}

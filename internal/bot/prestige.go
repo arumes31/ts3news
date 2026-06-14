@@ -9,22 +9,22 @@ import (
 	"ts3news/internal/i18n"
 	"ts3news/internal/icons"
 	"ts3news/internal/leveling"
-)
+	)
 
-const prestigeStatBonus = 0.15 // +15% permanent stat boost per prestige level
-const PrestigeThreshold = 9999 // Level required to prestige (was 10000)
+	const prestigeStatBonus = 0.15 // +15% permanent stat boost per prestige level
+	const PrestigeThreshold = 9999 // Level required to prestige (was 10000)
 
-// doPrestige increments a user's prestige and resets their level/xp to the start,
-// returning the new prestige number.
-func (b *Bot) doPrestige(uid string) int {
+	// doPrestige increments a user's prestige and resets their level/xp to the start,
+	// returning the new prestige number.
+	func (b *Bot) doPrestige(uid string) int {
 	var p int
 	_ = b.DB.QueryRow(
 		"UPDATE users SET prestige = prestige + 1, xp = 0, level = 1 WHERE client_uid = $1 RETURNING prestige",
 		uid).Scan(&p)
 	return p
-}
+	}
 
-func prestigeGroupName(p int) string { return i18n.T("prestige.group_name", p) }
+	func prestigeGroupName(p int) string { return i18n.T("prestige.group_name", p) }
 
 func prestigeFromGroupName(name string) (int, bool) {
 	if rest, ok := strings.CutPrefix(name, "Prestige "); ok {
