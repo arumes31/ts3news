@@ -129,8 +129,8 @@ func LoadConfig() *Config {
 		Lang: envDefault("LANG", "en_US"),
 
 		WebEnable:     envBool("WEB_ENABLE", true),
-		WebListenAddr: envDefault("WEB_LISTEN_ADDR", ":18080"),
-		WebBaseURL:    envDefault("WEB_BASE_URL", "http://localhost:18080"),
+		WebListenAddr: envDefault("WEB_LISTEN_ADDR", ":18081"),
+		WebBaseURL:    envDefault("WEB_BASE_URL", "http://localhost:18081"),
 	}
 }
 

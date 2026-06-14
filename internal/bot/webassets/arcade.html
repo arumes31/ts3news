@@ -114,6 +114,8 @@ function buildStrip(id){
 }
 async function playSlots(){
   disable('btn-slots',true);
+  const card = document.querySelector('.slots-card');
+  card.classList.remove('win-glow', 'loss-shake');
   const d=await api('slots'); if(!d){disable('btn-slots',false);return;}
   for(let i=0;i<5;i++){
     const strip=document.getElementById('strip'+i);
@@ -126,6 +128,7 @@ async function playSlots(){
     strip.style.transform='translateY(-'+dist+'px)';
   }
   await sleep(1500+5*350);
+  if(d) card.classList.add(d.win ? 'win-glow' : 'loss-shake');
   showResult(d); disable('btn-slots',false);
 }
 
@@ -133,25 +136,36 @@ async function playSlots(){
 async function playDice(){
   disable('btn-dice',true);
   const die=document.getElementById('die');
+  const card = die.closest('.game-card');
+  card.classList.remove('win-glow', 'loss-shake');
   die.classList.add('rolling');
   const d=await api('dice');
   await sleep(900);
   die.classList.remove('rolling');
-  if(d){document.getElementById('diePips').textContent=PIPS[d.roll-1];showResult(d);}
+  if(d){
+    document.getElementById('diePips').textContent=PIPS[d.roll-1];
+    card.classList.add(d.win ? 'win-glow' : 'loss-shake');
+    showResult(d);
+  }
   disable('btn-dice',false);
 }
 
 /* ---- COIN ---- */
 async function playCoin(side){
   disable('btn-coin',true);
-  const d=await api('coinflip',side);
   const coin=document.getElementById('coin');
+  const card = coin.closest('.game-card');
+  card.classList.remove('win-glow', 'loss-shake');
+  const d=await api('coinflip',side);
   const turns=5*360 + (d&&d.side==='tails'?180:0);
   coin.style.transition='transform 1.1s cubic-bezier(.2,.8,.2,1)';
   coin.style.transform='rotateY('+turns+'deg)';
   await sleep(1150);
   coin.style.transition='none';coin.style.transform='rotateY('+((d&&d.side==='tails')?180:0)+'deg)';
-  if(d)showResult(d);
+  if(d){
+    card.classList.add(d.win ? 'win-glow' : 'loss-shake');
+    showResult(d);
+  }
   disable('btn-coin',false);
 }
 
@@ -176,6 +190,8 @@ function drawWheel(angle){
 drawWheel(0);
 async function playWheel(){
   disable('btn-wheel',true);
+  const card = wc.closest('.game-card');
+  card.classList.remove('win-glow', 'loss-shake');
   const d=await api('wheel'); if(!d){disable('btn-wheel',false);return;}
   const n=WHEEL.length;
   const target = -Math.PI/2 - (d.segment+0.5)*2*Math.PI/n;
@@ -193,6 +209,7 @@ async function playWheel(){
     requestAnimationFrame(frame);
   });
   wheelAngle=target%(2*Math.PI);
+  if(d) card.classList.add(d.win ? 'win-glow' : 'loss-shake');
   showResult(d); disable('btn-wheel',false);
 }
 
@@ -200,6 +217,8 @@ async function playWheel(){
 async function playHL(choice){
   disable('btn-high',true);disable('btn-low',true);
   const pcard=document.getElementById('pcard');
+  const card = pcard.closest('.game-card');
+  card.classList.remove('win-glow', 'loss-shake');
   pcard.classList.remove('flip');
   await sleep(50);
   const d=await api('highlow',choice);
@@ -207,6 +226,7 @@ async function playHL(choice){
     document.getElementById('cardVal').textContent=d.card;
     pcard.classList.add('flip');
     await sleep(700);
+    card.classList.add(d.win ? 'win-glow' : 'loss-shake');
     showResult(d);
   }
   disable('btn-high',false);disable('btn-low',false);
@@ -267,7 +287,7 @@ function buildMoreGames(){
   });
 }
 async function playGen(game, choice, card){
-  if(card){card.classList.add('busy'); card.querySelectorAll('button, input').forEach(b=>b.disabled=true);}
+  if(card){card.classList.add('busy'); card.querySelectorAll('button, input').forEach(b=>b.disabled=true); card.classList.remove('win-glow', 'loss-shake');}
 
   let stage = card ? card.querySelector('.anim-stage') : null;
   if(card && !stage) {
@@ -286,19 +306,29 @@ async function playGen(game, choice, card){
      } else if (game === 'crash') {
          stage.innerHTML = `<div class="anim-crash">🚀</div>`;
      } else if (game === 'sicbo' || game === 'fortune' || game === 'diceduel') {
-         stage.innerHTML = `<div class="anim-dice">${icon}${icon}</div>`;
+         stage.innerHTML = `<div class="anim-dice"><span>${icon}</span><span>${icon}</span></div>`;
      } else if (game === 'plinko') {
          stage.innerHTML = `<div class="anim-plinko">🔵</div>`;
      } else if (game === 'horserace') {
          stage.innerHTML = `<div class="anim-horse">🐎</div>`;
-     } else if (game === 'war' || game === 'scratch') {
+     } else if (game === 'war' || game === 'lucky') {
          stage.innerHTML = `<div class="anim-cards"><div class="c1">🃏</div><div class="c2">🃏</div></div>`;
      } else if (game === 'slotdeluxe') {
-         stage.innerHTML = `<div class="anim-slot">🎰🎰🎰</div>`;
+         stage.innerHTML = `<div class="anim-slot"><span>🎰</span><span>🎰</span><span>🎰</span></div>`;
      } else if (game === 'darts') {
          stage.innerHTML = `<div class="anim-dart">🎯</div>`;
      } else if (game === 'minefield') {
          stage.innerHTML = `<div class="anim-mine">🚶</div>`;
+     } else if (game === 'chests') {
+         stage.innerHTML = `<div class="anim-chest">🎁</div>`;
+     } else if (game === 'lightning') {
+         stage.innerHTML = `<div class="anim-bolt">⚡</div>`;
+     } else if (game === 'gems') {
+         stage.innerHTML = `<div class="anim-gem">💎</div>`;
+     } else if (game === 'scratch') {
+         stage.innerHTML = `<div class="anim-scratch"></div>`;
+     } else if (game === 'keno' || game === 'colorpick') {
+         stage.innerHTML = `<div class="anim-pop">${icon}</div>`;
      } else {
          stage.innerHTML = `<div class="anim-pop">${icon}</div>`;
      }
@@ -309,7 +339,11 @@ async function playGen(game, choice, card){
      sleep(1500)
   ]);
 
-  if(card){card.classList.remove('busy'); card.querySelectorAll('button, input').forEach(b=>b.disabled=false);}
+  if(card){
+    card.classList.remove('busy');
+    card.querySelectorAll('button, input').forEach(b=>b.disabled=false);
+    if(d) card.classList.add(d.win ? 'win-glow' : 'loss-shake');
+  }
   if(stage) stage.style.display = 'none';
 
   if(d){card&&card.classList.add('flash');setTimeout(()=>card&&card.classList.remove('flash'),350);showResult(d);}
