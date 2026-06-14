@@ -109,6 +109,9 @@ The bot is configured via environment variables or a `config.env` file.
 | **Cycle** | `MIN_INTERVAL_HOURS` | Minimum random sleep between cycles. | `1` |
 | | `MAX_INTERVAL_HOURS` | Maximum random sleep between cycles. | `12` |
 | **Localization** | `LANG` | Language for all bot messages (BCP-47 locale ID, see list below). Falls back to `en_US` if unset or unsupported. | `en_US` |
+| **Web Portal** | `WEB_ENABLE` | Serve the player web portal and PM each user a login link per cycle. | `true` |
+| | `WEB_LISTEN_ADDR` | Address the web server listens on. | `:8080` |
+| | `WEB_BASE_URL` | Public base URL used to build per-user login links. | `http://localhost:8080` |
 | **System** | `ENABLE_GAME_NEWS` | Master switch for the free game notification feature. | `true` |
 | | `POKE_DELAY_MS` | Delay between individual pokes (anti-flood). | `1200` |
 | | `RESEND_AFTER_DAYS` | Allow re-sending a game after N days. | `60` |
@@ -151,6 +154,23 @@ LANG=de_DE
 | `th_TH` | Thai | `vi_VN` | Vietnamese | `hi_IN` | Hindi | `ar_SA` | Arabic |
 
 > Numbers, currency, and pluralization are formatted per-locale (e.g. `1,234.50` vs `1.234,50`). To add or refine a translation, copy `en_US.yaml`, translate the values, and add the locale ID to `AllLocales` in `internal/i18n/i18n.go`.
+
+---
+
+## 🌐 Web Portal
+
+Alongside the TeamSpeak bot, the binary serves a token-authenticated **player web portal**. Every cycle each user is PM'd a personal, [redrx.eu](https://redrx.eu/)-shortened **login link** (a persistent unique token per user — keep it private). No passwords; the link logs you in.
+
+| Page | What it does |
+| :--- | :--- |
+| **🛡️ Armoury** | WoW-armoury-style character sheet: rank, level, prestige, HP/XP bars, full attribute spread and all equipment slots. |
+| **🎒 Inventory** | Owned, unequipped gear — equip, vendor for gold, or list on the auction house; plus consumables. |
+| **⚔️ Auto-Battler** | A **Teamfight-Tactics-style board**: buy champions from a rolling shop, drag them onto your half of the grid, and start combat. Units auto-fight with animated sprites, HP bars and floating damage; 3 identical champions auto-combine into a star-up. Win to farm gold and gear. |
+| **🎮 Arcade** | Five fully animated gold games: 🎰 5-reel **Slots**, 🎲 **Dice**, 🪙 3D **Coin Flip**, 🎡 canvas **Fortune Wheel**, 🃏 **High/Low** cards. |
+| **🛒 Shop** | Currency exchange — **gold → XP at 1:3**, **XP → gold at 2:1** — plus a daily-rotating item shop with fair, combat-rating-based prices. |
+| **🏛️ Auction House** | Browse and buy live player listings, list your own inventory items, and review your full buy/sell history. |
+
+All gold/XP is the same economy used by the TS3 RPG, so farming the arcade or battler directly improves the player's character. The portal is self-contained (Go `html/template` + embedded CSS/JS, no build step) and configured via `WEB_ENABLE`, `WEB_LISTEN_ADDR` and `WEB_BASE_URL` (see Configuration).
 
 ---
 

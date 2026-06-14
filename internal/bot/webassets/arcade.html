@@ -1,0 +1,213 @@
+{{define "arcade"}}{{template "head" .}}
+<h1>Arcade</h1>
+<p class="muted">Wager gold across five animated games of chance. <span id="goldHere">Balance: 🪙 {{gold .U.Gold}}</span></p>
+
+<div class="bet-row">
+  <label>Bet <input type="number" id="bet" value="100" min="1" max="100000"></label>
+  <div class="quickbets">
+    <button class="ghost xs" onclick="setBet(100)">100</button>
+    <button class="ghost xs" onclick="setBet(1000)">1k</button>
+    <button class="ghost xs" onclick="mulBet(2)">×2</button>
+    <button class="ghost xs" onclick="mulBet(0.5)">½</button>
+  </div>
+  <div id="arcadeMsg" class="toast"></div>
+</div>
+
+<div class="arcade-grid">
+
+  <!-- SLOTS -->
+  <div class="game-card slots-card">
+    <h3>🎰 Slots</h3>
+    <div class="reels" id="reels">
+      <div class="reel"><div class="reelstrip" id="strip0"></div></div>
+      <div class="reel"><div class="reelstrip" id="strip1"></div></div>
+      <div class="reel"><div class="reelstrip" id="strip2"></div></div>
+      <div class="reel"><div class="reelstrip" id="strip3"></div></div>
+      <div class="reel"><div class="reelstrip" id="strip4"></div></div>
+    </div>
+    <p class="muted small">3 / 4 / 5 of a kind → ×2 / ×5 / ×25</p>
+    <button id="btn-slots" onclick="playSlots()">Spin</button>
+  </div>
+
+  <!-- DICE -->
+  <div class="game-card">
+    <h3>🎲 Dice</h3>
+    <div class="dice-stage"><div class="die" id="die"><span id="diePips">⚀</span></div></div>
+    <p class="muted small">Roll 5–6 to win ×2.5, 4 pushes</p>
+    <button id="btn-dice" onclick="playDice()">Roll</button>
+  </div>
+
+  <!-- COIN -->
+  <div class="game-card">
+    <h3>🪙 Coin Flip</h3>
+    <div class="coin-stage"><div class="coin" id="coin"><div class="coin-face heads">H</div><div class="coin-face tails">T</div></div></div>
+    <div class="choices">
+      <button class="ghost" id="btn-coin" onclick="playCoin('heads')">Heads</button>
+      <button class="ghost" onclick="playCoin('tails')">Tails</button>
+    </div>
+    <p class="muted small">Even-ish flip · ×1.95</p>
+  </div>
+
+  <!-- WHEEL -->
+  <div class="game-card">
+    <h3>🎡 Fortune Wheel</h3>
+    <div class="wheel-stage">
+      <div class="wheel-pointer">▼</div>
+      <canvas id="wheel" width="220" height="220"></canvas>
+    </div>
+    <button id="btn-wheel" onclick="playWheel()">Spin Wheel</button>
+  </div>
+
+  <!-- HIGH/LOW -->
+  <div class="game-card">
+    <h3>🃏 High / Low</h3>
+    <div class="card-stage">
+      <div class="pcard" id="pcard"><div class="pcard-inner"><div class="pcard-front">?</div><div class="pcard-back" id="cardVal">7</div></div></div>
+    </div>
+    <div class="choices">
+      <button class="ghost" id="btn-high" onclick="playHL('high')">High &gt;7</button>
+      <button class="ghost" onclick="playHL('low')">Low &lt;7</button>
+    </div>
+    <p class="muted small">Guess the card · ×1.9</p>
+  </div>
+
+</div>
+
+<div id="arcadeResult" class="result"></div>
+
+<script>
+const WHEEL = {{.WheelJSON}};
+const SLOT_SYMS = ["🍒","🍋","🔔","⭐","💎","7️⃣"];
+const PIPS = ["⚀","⚁","⚂","⚃","⚄","⚅"];
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+function setBet(v){document.getElementById('bet').value=v;}
+function mulBet(m){const b=document.getElementById('bet');b.value=Math.max(1,Math.floor(b.value*m));}
+function bet(){return parseInt(document.getElementById('bet').value,10);}
+function toast(m, ok){var t=document.getElementById('arcadeMsg');t.textContent=m;t.className='toast show '+(ok?'good':'bad');setTimeout(function(){t.className='toast';},2200);}
+function showResult(d){
+  const res=document.getElementById('arcadeResult');
+  res.className='result '+(d.win?'win pop':'loss');
+  res.textContent=d.detail+' — '+(d.win?('won '+d.payout+' gold (net '+(d.net>=0?'+':'')+d.net+')'):('lost '+d.bet+' gold'));
+  document.getElementById('goldPill').textContent='🪙 '+d.gold;
+  document.getElementById('goldHere').textContent='Balance: 🪙 '+d.gold;
+  setTimeout(()=>res.classList.remove('pop'),400);
+}
+async function api(game, choice){
+  const b=bet(); if(!b||b<1){toast('Enter a bet',false);return null;}
+  const r=await fetch('/api/arcade/play',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:game,bet:b,choice:choice||''})});
+  const d=await r.json();
+  if(!d.ok){toast(d.error,false);return null;}
+  return d;
+}
+function disable(id,on){const b=document.getElementById(id);if(b)b.disabled=on;}
+
+/* ---- SLOTS ---- */
+function buildStrip(id){
+  const el=document.getElementById(id);el.innerHTML='';
+  for(let i=0;i<30;i++){const d=document.createElement('div');d.className='sym';d.textContent=SLOT_SYMS[Math.floor(Math.random()*SLOT_SYMS.length)];el.appendChild(d);}
+}
+async function playSlots(){
+  disable('btn-slots',true);
+  const d=await api('slots'); if(!d){disable('btn-slots',false);return;}
+  for(let i=0;i<5;i++){
+    const strip=document.getElementById('strip'+i);
+    buildStrip('strip'+i);
+    const last=document.createElement('div');last.className='sym';last.textContent=d.symbols[i];strip.appendChild(last);
+    strip.style.transition='none';strip.style.transform='translateY(0)';
+    void strip.offsetHeight;
+    const dist=(strip.children.length-1)*72;
+    strip.style.transition='transform '+(1.3+i*0.35)+'s cubic-bezier(.18,.7,.2,1)';
+    strip.style.transform='translateY(-'+dist+'px)';
+  }
+  await sleep(1500+5*350);
+  showResult(d); disable('btn-slots',false);
+}
+
+/* ---- DICE ---- */
+async function playDice(){
+  disable('btn-dice',true);
+  const die=document.getElementById('die');
+  die.classList.add('rolling');
+  const d=await api('dice');
+  await sleep(900);
+  die.classList.remove('rolling');
+  if(d){document.getElementById('diePips').textContent=PIPS[d.roll-1];showResult(d);}
+  disable('btn-dice',false);
+}
+
+/* ---- COIN ---- */
+async function playCoin(side){
+  disable('btn-coin',true);
+  const d=await api('coinflip',side);
+  const coin=document.getElementById('coin');
+  const turns=5*360 + (d&&d.side==='tails'?180:0);
+  coin.style.transition='transform 1.1s cubic-bezier(.2,.8,.2,1)';
+  coin.style.transform='rotateY('+turns+'deg)';
+  await sleep(1150);
+  coin.style.transition='none';coin.style.transform='rotateY('+((d&&d.side==='tails')?180:0)+'deg)';
+  if(d)showResult(d);
+  disable('btn-coin',false);
+}
+
+/* ---- WHEEL ---- */
+const wc=document.getElementById('wheel'), wctx=wc.getContext('2d');
+let wheelAngle=0;
+function drawWheel(angle){
+  const n=WHEEL.length, R=104, cx=110, cy=110;
+  wctx.clearRect(0,0,220,220);
+  for(let i=0;i<n;i++){
+    const a0=angle+i*2*Math.PI/n, a1=angle+(i+1)*2*Math.PI/n;
+    wctx.beginPath();wctx.moveTo(cx,cy);wctx.arc(cx,cy,R,a0,a1);wctx.closePath();
+    const m=WHEEL[i];
+    wctx.fillStyle = m>=10?'#f4c542':m>=3?'#7b6cff':m>=2?'#41c97a':m>0?'#3a7bd5':'#262c3d';
+    wctx.fill();wctx.strokeStyle='#0a0c11';wctx.lineWidth=2;wctx.stroke();
+    wctx.save();wctx.translate(cx,cy);wctx.rotate((a0+a1)/2);wctx.textAlign='right';
+    wctx.fillStyle='#fff';wctx.font='bold 13px sans-serif';
+    wctx.fillText(m>0?('×'+m):'—', R-10, 5);wctx.restore();
+  }
+  wctx.beginPath();wctx.arc(cx,cy,16,0,2*Math.PI);wctx.fillStyle='#0a0c11';wctx.fill();wctx.strokeStyle='#f4c542';wctx.stroke();
+}
+drawWheel(0);
+async function playWheel(){
+  disable('btn-wheel',true);
+  const d=await api('wheel'); if(!d){disable('btn-wheel',false);return;}
+  const n=WHEEL.length;
+  const target = -Math.PI/2 - (d.segment+0.5)*2*Math.PI/n;
+  const start=wheelAngle, spins=5*2*Math.PI;
+  const end=target - spins;
+  const dur=2600, t0=performance.now();
+  await new Promise(res=>{
+    function frame(now){
+      const p=Math.min(1,(now-t0)/dur);
+      const e=1-Math.pow(1-p,3);
+      wheelAngle=start+(end-start)*e;
+      drawWheel(wheelAngle);
+      if(p<1)requestAnimationFrame(frame);else res();
+    }
+    requestAnimationFrame(frame);
+  });
+  wheelAngle=target%(2*Math.PI);
+  showResult(d); disable('btn-wheel',false);
+}
+
+/* ---- HIGH/LOW ---- */
+async function playHL(choice){
+  disable('btn-high',true);
+  const pcard=document.getElementById('pcard');
+  pcard.classList.remove('flip');
+  await sleep(50);
+  const d=await api('highlow',choice);
+  if(d){
+    document.getElementById('cardVal').textContent=d.card;
+    pcard.classList.add('flip');
+    await sleep(700);
+    showResult(d);
+  }
+  disable('btn-high',false);
+}
+
+// init slot strips at rest
+for(let i=0;i<5;i++){buildStrip('strip'+i);const s=document.getElementById('strip'+i);s.style.transform='translateY(-'+((s.children.length-3)*72)+'px)';}
+</script>
+{{template "foot" .}}{{end}}

@@ -21,6 +21,7 @@ bot.pm.game_line: "🎮 %[1]s"
 bot.pm.worth_line: "💰 Worth %[1]s → [b]FREE[/b] now"
 bot.pm.claim_line: "🔗 [b]Claim:[/b] %[1]s"
 bot.pm.trailer_line: "▶️ [b]Trailer:[/b] %[1]s"
+web.login_pm: "🌐 [b]Your character portal:[/b] %[1]s (personal link — keep it private)"
 
 # ─── Player Stats Header ───
 

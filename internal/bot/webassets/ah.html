@@ -1,0 +1,62 @@
+{{define "ah"}}{{template "head" .}}
+<h1>Auction House</h1>
+<div id="ahMsg" class="toast"></div>
+
+<section>
+  <h2>Listings</h2>
+  {{if .Active}}
+  <table class="histtable">
+    <thead><tr><th>Item</th><th>Type</th><th>Seller</th><th>Listed</th><th>Price</th><th></th></tr></thead>
+    <tbody>
+    {{range .Active}}
+      <tr>
+        <td>{{.Name}}</td><td>{{.ItemType}}</td><td>{{.Seller}}</td><td>{{.Listed}}</td><td>🪙 {{.Price}}</td>
+        <td>{{if .Mine}}<span class="muted">yours</span>{{else}}<button onclick="buyAH('{{.ID}}')">Buy</button>{{end}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="muted">No active listings right now.</p>{{end}}
+</section>
+
+<section>
+  <h2>Sell from Inventory</h2>
+  {{if .Sellable}}
+  <table class="histtable">
+    <thead><tr><th>Item</th><th>Slot</th><th>CR</th><th>Price</th><th></th></tr></thead>
+    <tbody>
+    {{range .Sellable}}
+      <tr>
+        <td style="color:{{.RarityColor}}">{{.Name}}</td><td>{{.Slot}}</td><td>{{printf "%.0f" .CR}}</td>
+        <td><input type="number" class="priceIn" id="price{{.InvID}}" value="100" min="1" style="width:90px"></td>
+        <td><button onclick="listAH({{.InvID}})">List</button></td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="muted">No inventory items to sell. <a href="/battle">Win some loot</a> first.</p>{{end}}
+</section>
+
+<section>
+  <h2>My History</h2>
+  {{if .History}}
+  <table class="histtable">
+    <thead><tr><th>When</th><th>Item</th><th>Action</th><th>Counterparty</th><th>Price</th></tr></thead>
+    <tbody>
+    {{range .History}}
+      <tr><td>{{.When}}</td><td>{{.Name}}</td>
+        <td class="{{if eq .Role "Sold"}}win{{else}}loss{{end}}">{{.Role}}</td>
+        <td>{{.Other}}</td><td>🪙 {{.Price}}</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="muted">No auction history yet.</p>{{end}}
+</section>
+
+<script>
+function toast(m, ok){var t=document.getElementById('ahMsg');t.textContent=m;t.className='toast show '+(ok?'good':'bad');setTimeout(function(){t.className='toast';},2600);}
+async function post(url, body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json();}
+async function buyAH(id){const d=await post('/api/ah/buy',{id:id});if(d.ok){toast('Bought '+d.bought,true);setTimeout(()=>location.reload(),700);}else toast(d.error,false);}
+async function listAH(invID){const p=parseInt(document.getElementById('price'+invID).value,10);if(!p||p<1){toast('Enter a price',false);return;}const d=await post('/api/ah/list',{inv_id:invID,price:p});if(d.ok){toast('Listed '+d.listed+' for '+d.price,true);setTimeout(()=>location.reload(),700);}else toast(d.error,false);}
+</script>
+{{template "foot" .}}{{end}}

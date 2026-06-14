@@ -656,6 +656,29 @@ func RandomTitle() Title {
 	return negativeTitles[rand.IntN(len(negativeTitles))] // #nosec G404
 }
 
+// ShopStock returns a deterministic list of purchasable gear for the given seed
+// (e.g. a day number), excluding the basic Novice starter items so the shop
+// always offers a meaningful upgrade path. Used by the web shop.
+func ShopStock(seed int64, count int) []Gear {
+	// #nosec G404 -- deterministic, non-cryptographic shop rotation
+	r := rand.New(rand.NewPCG(uint64(seed), uint64(seed)+1))
+	var pool []Gear
+	for _, g := range allGear {
+		if strings.HasPrefix(g.ID, "B_") { // skip Novice/starter junk
+			continue
+		}
+		pool = append(pool, g)
+	}
+	out := make([]Gear, 0, count)
+	if len(pool) == 0 {
+		return out
+	}
+	for i := 0; i < count; i++ {
+		out = append(out, pool[r.IntN(len(pool))])
+	}
+	return out
+}
+
 func GetGearByID(id string) (Gear, bool) {
 	for _, g := range allGear {
 		if g.ID == id {

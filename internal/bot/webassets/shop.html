@@ -1,0 +1,56 @@
+{{define "shop"}}{{template "head" .}}
+<h1>Shop</h1>
+<div id="shopMsg" class="toast"></div>
+
+<section class="exchange">
+  <h2>Currency Exchange</h2>
+  <div class="exchange-grid">
+    <div class="ex-card">
+      <h3>🪙 Gold → ✨ XP</h3>
+      <p class="muted small">1 gold = {{.GoldToXPRate}} XP</p>
+      <label>Gold <input type="number" id="g2xAmount" value="100" min="1"></label>
+      <button onclick="exchange('gold_to_xp','g2xAmount')">Convert</button>
+    </div>
+    <div class="ex-card">
+      <h3>✨ XP → 🪙 Gold</h3>
+      <p class="muted small">{{.XPToGoldRatio}} XP = 1 gold</p>
+      <label>XP <input type="number" id="x2gAmount" value="100" min="1"></label>
+      <button onclick="exchange('xp_to_gold','x2gAmount')">Convert</button>
+    </div>
+  </div>
+  <p class="muted small" id="exState">Balance: 🪙 {{gold .U.Gold}} · ✨ {{comma .U.XP}} XP · {{.U.LevelName}} (Lvl {{.U.Level}})</p>
+</section>
+
+<section>
+  <h2>Item Shop <span class="muted small">— rotates daily, fair prices</span></h2>
+  <div class="shop-grid">
+    {{range .Stock}}
+    <div class="shop-card" data-id="{{.ID}}">
+      <div class="inv-name" style="color:{{.RarityColor}}">{{.Name}}</div>
+      <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
+      <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}}</div>
+      <div class="price">🪙 {{.Price}}</div>
+      <button onclick="buy('{{.ID}}')">Buy</button>
+    </div>
+    {{end}}
+  </div>
+</section>
+
+<script>
+function toast(m, ok){var t=document.getElementById('shopMsg');t.textContent=m;t.className='toast show '+(ok?'good':'bad');setTimeout(function(){t.className='toast';},2600);}
+async function post(url, body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json();}
+async function exchange(dir, inputId){
+  const amount=parseInt(document.getElementById(inputId).value,10);
+  if(!amount||amount<1){toast('Enter an amount',false);return;}
+  const d=await post('/api/shop/exchange',{direction:dir,amount:amount});
+  if(d.ok){toast(d.detail,true);document.getElementById('goldPill').textContent='🪙 '+d.gold;document.getElementById('xpPill').textContent='✨ Lvl '+d.level;
+    document.getElementById('exState').textContent='Balance: 🪙 '+d.gold+' · ✨ '+d.xp+' XP · '+d.level_name+' (Lvl '+d.level+')';}
+  else toast(d.error,false);
+}
+async function buy(id){
+  const d=await post('/api/shop/buy',{id:id});
+  if(d.ok){toast('Bought '+d.bought+' → inventory',true);document.getElementById('goldPill').textContent='🪙 '+d.gold;}
+  else toast(d.error,false);
+}
+</script>
+{{template "foot" .}}{{end}}

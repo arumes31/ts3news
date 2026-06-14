@@ -1,0 +1,57 @@
+{{define "armory"}}{{template "head" .}}
+<section class="hero">
+  <div class="hero-portrait">🛡️</div>
+  <div class="hero-info">
+    <h1>{{.U.Nickname}}</h1>
+    <div class="hero-sub">
+      <span class="rank">{{.U.LevelName}}</span>
+      <span class="lvl">Level {{.U.Level}}</span>
+      {{if gt .U.Prestige 0}}<span class="prestige">★ Prestige {{.U.Prestige}}</span>{{end}}
+      <span class="gs">Gear Score {{.U.GearScore}}</span>
+    </div>
+    <div class="bars">
+      <div class="bar hp"><span style="width:{{if .U.MaxHP}}{{mulpct .U.CurrentHP .U.MaxHP}}{{else}}0{{end}}%"></span><label>HP {{comma .U.CurrentHP}} / {{comma .U.MaxHP}}</label></div>
+      <div class="bar xp"><span style="width:{{mulpct .U.XPIntoLevel .U.XPForNext}}%"></span><label>XP {{comma .U.XPIntoLevel}} / {{comma .U.XPForNext}}</label></div>
+    </div>
+  </div>
+  <div class="hero-purse">
+    <div class="big gold">🪙 {{gold .U.Gold}}</div>
+    <div class="big scrap">🔩 {{comma .U.Scrap}} scrap</div>
+  </div>
+</section>
+
+<h2>Attributes</h2>
+<div class="stats-grid">
+  <div class="stat"><b>{{comma .U.Stats.STR}}</b><span>Strength</span></div>
+  <div class="stat"><b>{{comma .U.Stats.DEF}}</b><span>Defense</span></div>
+  <div class="stat"><b>{{comma .U.Stats.SPD}}</b><span>Speed</span></div>
+  <div class="stat"><b>{{comma .U.Stats.HP}}</b><span>Max HP</span></div>
+  <div class="stat"><b>{{comma .U.Stats.CRT}}</b><span>Crit %</span></div>
+  <div class="stat"><b>{{comma .U.Stats.DGE}}</b><span>Dodge %</span></div>
+  <div class="stat"><b>{{comma .U.Stats.LCK}}</b><span>Luck</span></div>
+  <div class="stat"><b>{{comma .U.Stats.INT}}</b><span>Intellect</span></div>
+  <div class="stat"><b>{{comma .U.Stats.STA}}</b><span>Stamina</span></div>
+</div>
+
+<h2>Equipment</h2>
+<div class="gear-grid">
+  {{range .Slots}}
+  <div class="gear-cell {{if .Empty}}empty{{end}}">
+    <div class="gear-slot">{{.Slot}}</div>
+    {{if .Empty}}
+      <div class="gear-name muted">— empty —</div>
+    {{else}}
+      <div class="gear-name" style="color:{{.RarityColor}}">{{.Name}}</div>
+      <div class="gear-meta">{{.Rarity}} · CR {{printf "%.0f" .CR}} · GS {{.Score}}{{if .Durability}} · {{.Durability}} dur{{end}}</div>
+    {{end}}
+  </div>
+  {{end}}
+</div>
+
+{{if .Skills}}
+<h2>Skills</h2>
+<div class="skill-row">
+  {{range .Skills}}<span class="skill-pill" style="border-color:{{.Rarity.Color}}">✨ {{.Name}}</span>{{end}}
+</div>
+{{end}}
+{{template "foot" .}}{{end}}

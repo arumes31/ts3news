@@ -35,6 +35,20 @@ func main() {
 	b := bot.NewBot(cfg)
 	defer b.Close()
 
+	// Player web portal (armoury, inventory, auto-battler, arcade, shop, auction).
+	if cfg.WebEnable {
+		ws, err := bot.NewWebServer(b)
+		if err != nil {
+			log.Printf("Warning: web portal disabled (init failed): %v", err)
+		} else {
+			go func() {
+				if err := ws.Start(cfg.WebListenAddr); err != nil {
+					log.Printf("Web portal stopped: %v", err)
+				}
+			}()
+		}
+	}
+
 	log.Println("Starting TS3 free-games bot supervisor...")
 	sup := bot.NewSupervisor(b)
 	if err := sup.Run(); err != nil {

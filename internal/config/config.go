@@ -64,6 +64,11 @@ type Config struct {
 
 	// i18n
 	Lang string // BCP 47 locale ID, e.g. "en_US", "de_DE"
+
+	// WebUI
+	WebEnable     bool   // run the player web portal (armoury, battler, arcade, shop)
+	WebListenAddr string // host:port the web server listens on (e.g. ":8080")
+	WebBaseURL    string // public base URL used to build per-user login links
 }
 
 func LoadConfig() *Config {
@@ -122,6 +127,10 @@ func LoadConfig() *Config {
 		ConnectTimeoutSec: envInt("CONNECT_TIMEOUT_SEC", 120),
 
 		Lang: envDefault("LANG", "en_US"),
+
+		WebEnable:     envBool("WEB_ENABLE", true),
+		WebListenAddr: envDefault("WEB_LISTEN_ADDR", ":8080"),
+		WebBaseURL:    envDefault("WEB_BASE_URL", "http://localhost:8080"),
 	}
 }
 
