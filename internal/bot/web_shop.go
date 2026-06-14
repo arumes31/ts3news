@@ -38,6 +38,7 @@ type shopItemView struct {
 	ID          string
 	Name        string
 	Slot        string
+	Icon        string
 	Rarity      string
 	RarityColor string
 	CR          float64
@@ -53,6 +54,7 @@ func todayStock() []shopItemView {
 			ID:          g.ID,
 			Name:        g.Name,
 			Slot:        string(g.Slot),
+			Icon:        content.SlotIcon(g.Slot),
 			Rarity:      g.Rarity.String(),
 			RarityColor: g.Rarity.Color(),
 			CR:          g.CombatRating(),

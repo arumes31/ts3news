@@ -11,11 +11,37 @@ import (
 type ahListingView struct {
 	ID       string
 	ItemType string
+	ItemID   string
+	Icon     string
 	Name     string
 	Price    int64
 	Seller   string
 	Listed   string
 	Mine     bool
+}
+
+// ahIcon returns a slot-matched icon for a gear listing, or a type icon otherwise.
+func ahIcon(itemType, itemID string) string {
+	if itemType == "gear" {
+		if g, ok := content.GetGearByID(itemID); ok {
+			return content.SlotIcon(g.Slot)
+		}
+		return "💎"
+	}
+	switch itemType {
+	case "skill":
+		return "✨"
+	case "ultimate", "ultimate_skill":
+		return "🌟"
+	case "unique", "unique_item":
+		return "💠"
+	case "enchantment":
+		return "🔰"
+	case "artifact":
+		return "🏺"
+	default:
+		return "📦"
+	}
 }
 
 type ahHistoryView struct {
@@ -45,7 +71,7 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 
 func (b *Bot) ahActiveListings(uid string) []ahListingView {
 	rows, err := b.DB.Query(`
-		SELECT a.id, a.item_type, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
+		SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
 		FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
 		WHERE a.sold_at IS NULL AND a.expires_at > NOW()
 		ORDER BY a.price ASC LIMIT 100`)
@@ -58,9 +84,10 @@ func (b *Bot) ahActiveListings(uid string) []ahListingView {
 		var v ahListingView
 		var t time.Time
 		var seller string
-		if err := rows.Scan(&v.ID, &v.ItemType, &v.Name, &v.Price, &t, &v.Seller, &seller); err != nil {
+		if err := rows.Scan(&v.ID, &v.ItemType, &v.ItemID, &v.Name, &v.Price, &t, &v.Seller, &seller); err != nil {
 			continue
 		}
+		v.Icon = ahIcon(v.ItemType, v.ItemID)
 		v.Listed = t.Format("Jan 02")
 		v.Mine = seller == uid
 		out = append(out, v)
@@ -70,7 +97,7 @@ func (b *Bot) ahActiveListings(uid string) []ahListingView {
 
 func (b *Bot) ahMyListings(uid string) []ahListingView {
 	rows, err := b.DB.Query(`
-		SELECT id, item_type, item_name, price, listed_at
+		SELECT id, item_type, item_id, item_name, price, listed_at
 		FROM auction_house
 		WHERE seller_uid=$1 AND sold_at IS NULL AND expires_at > NOW()
 		ORDER BY listed_at DESC`, uid)
@@ -82,9 +109,10 @@ func (b *Bot) ahMyListings(uid string) []ahListingView {
 	for rows.Next() {
 		var v ahListingView
 		var t time.Time
-		if err := rows.Scan(&v.ID, &v.ItemType, &v.Name, &v.Price, &t); err != nil {
+		if err := rows.Scan(&v.ID, &v.ItemType, &v.ItemID, &v.Name, &v.Price, &t); err != nil {
 			continue
 		}
+		v.Icon = ahIcon(v.ItemType, v.ItemID)
 		v.Listed = t.Format("Jan 02")
 		v.Mine = true
 		out = append(out, v)

@@ -195,6 +195,28 @@ var AllSlots = []GearSlot{
 	SlotPet1, SlotPet2, SlotEmblem1, SlotEmblem2, SlotBanner, SlotTotem,
 }
 
+// slotIcons maps each equipment slot to a distinct, slot-appropriate emoji used
+// across the web portal (armoury, inventory, shop, auction house).
+var slotIcons = map[GearSlot]string{
+	SlotHead: "🪖", SlotNeck: "📿", SlotShoulders: "🧥", SlotBack: "🧣",
+	SlotChest: "🛡️", SlotWrists: "⌚", SlotHands: "🧤", SlotWaist: "🎗️",
+	SlotLegs: "👖", SlotFeet: "🥾", SlotFinger1: "💍", SlotFinger2: "💍",
+	SlotTrinket1: "🔱", SlotTrinket2: "🔮", SlotMainHand: "⚔️", SlotOffHand: "🗡️",
+	SlotRanged: "🏹", SlotRelic: "🏺", SlotArtifact: "🗿", SlotSoul: "👻",
+	SlotAura: "✨", SlotCharm: "🍀", SlotMount: "🐎", SlotCompanion: "🐕",
+	SlotPet1: "🐉", SlotPet2: "🦅", SlotEmblem1: "🎖️", SlotEmblem2: "🏅",
+	SlotBanner: "🚩", SlotTotem: "🪶",
+}
+
+// SlotIcon returns the emoji icon for an equipment slot (a generic gem if the
+// slot is unknown).
+func SlotIcon(slot GearSlot) string {
+	if ic, ok := slotIcons[slot]; ok {
+		return ic
+	}
+	return "💎"
+}
+
 type ItemEffect string
 
 const (

@@ -26,6 +26,7 @@
   <div class="shop-grid">
     {{range .Stock}}
     <div class="shop-card" data-id="{{.ID}}">
+      <div class="shop-ico">{{.Icon}}</div>
       <div class="inv-name" style="color:{{.RarityColor}}">{{.Name}}</div>
       <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
       <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}}</div>

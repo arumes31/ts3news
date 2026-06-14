@@ -176,3 +176,29 @@ button.xs{padding:.25rem .5rem;font-size:.75rem}
 .dmgfloat{position:absolute;font-weight:800;font-size:1.1rem;color:#ffd24a;pointer-events:none;animation:floatup 1s ease forwards;text-shadow:0 1px 3px #000;z-index:5}
 .dmgfloat.crit{color:#ff5b5b;font-size:1.5rem}
 @keyframes floatup{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-40px)}}
+
+/* ===== Item icons ===== */
+.slot-ico{font-size:.95rem;margin-right:2px}
+.item-ico{font-size:1.05rem;margin-right:4px;display:inline-block}
+.inv-head{display:flex;align-items:center;gap:.4rem}
+.inv-head .item-ico{font-size:1.5rem}
+.shop-ico{font-size:2rem;text-align:center;margin:.1rem 0 .2rem;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+.gear-cell:not(.empty) .slot-ico{filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+
+/* ===== Animated auction house ===== */
+.ah-table tbody tr.ah-row{animation:ahIn .4s ease both}
+.ah-table tbody tr.ah-row:nth-child(1){animation-delay:.02s}
+.ah-table tbody tr.ah-row:nth-child(2){animation-delay:.06s}
+.ah-table tbody tr.ah-row:nth-child(3){animation-delay:.10s}
+.ah-table tbody tr.ah-row:nth-child(4){animation-delay:.14s}
+.ah-table tbody tr.ah-row:nth-child(5){animation-delay:.18s}
+.ah-table tbody tr.ah-row:nth-child(n+6){animation-delay:.22s}
+@keyframes ahIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.ah-table tbody tr:hover{background:rgba(123,108,255,.08)}
+.ah-table .goldcell{color:var(--gold);font-weight:600}
+.buybtn{transition:transform .1s}
+.buybtn:hover{transform:scale(1.06)}
+tr.bought-flash{animation:boughtflash .8s ease}
+@keyframes boughtflash{0%{background:rgba(65,201,122,.45)}100%{background:transparent}}
+.ah-table tbody tr:hover .item-ico{animation:wiggle .4s ease}
+@keyframes wiggle{25%{transform:rotate(-12deg)}75%{transform:rotate(12deg)}}

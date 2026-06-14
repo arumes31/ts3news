@@ -11,6 +11,7 @@ import (
 type gearView struct {
 	InvID       int64
 	Slot        string
+	Icon        string
 	ID          string
 	Name        string
 	Rarity      string
@@ -24,6 +25,7 @@ type gearView struct {
 func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	return gearView{
 		Slot:        string(slot),
+		Icon:        content.SlotIcon(slot),
 		ID:          g.ID,
 		Name:        g.Name,
 		Rarity:      g.Rarity.String(),
@@ -55,7 +57,7 @@ func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid str
 		if g, ok := equipped[slot]; ok {
 			slots = append(slots, toGearView(slot, g))
 		} else {
-			slots = append(slots, gearView{Slot: string(slot), Empty: true})
+			slots = append(slots, gearView{Slot: string(slot), Icon: content.SlotIcon(slot), Empty: true})
 		}
 	}
 

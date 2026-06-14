@@ -37,7 +37,7 @@
 <div class="gear-grid">
   {{range .Slots}}
   <div class="gear-cell {{if .Empty}}empty{{end}}">
-    <div class="gear-slot">{{.Slot}}</div>
+    <div class="gear-slot"><span class="slot-ico">{{.Icon}}</span> {{.Slot}}</div>
     {{if .Empty}}
       <div class="gear-name muted">— empty —</div>
     {{else}}
