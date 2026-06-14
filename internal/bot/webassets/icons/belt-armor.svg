@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="beltGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8D6E63"/>
+      <stop offset="100%" stop-color="#5D4037"/>
+    </linearGradient>
+    <linearGradient id="buckleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD54F"/>
+      <stop offset="100%" stop-color="#FF8F00"/>
+    </linearGradient>
+  </defs>
+  <path d="M8 24 H56 V40 H8 Z" fill="url(#beltGrad)" stroke="#3E2723" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="24" y="20" width="16" height="24" rx="2" fill="url(#buckleGrad)" stroke="#E65100" stroke-width="1.5"/>
+  <rect x="28" y="26" width="8" height="12" rx="1" fill="none" stroke="#3E2723" stroke-width="1.5"/>
+  <path d="M8 28 H24 M40 28 H56 M8 36 H24 M40 36 H56" stroke="#3E2723" stroke-width="1" opacity="0.5"/>
+</svg>

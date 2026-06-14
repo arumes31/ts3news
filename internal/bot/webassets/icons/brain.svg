@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="brainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F48FB1"/>
+      <stop offset="100%" stop-color="#EC407A"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 12 C22 12 14 20 14 28 C14 32 16 35 19 37 L19 48 C19 52 23 56 27 56 L37 56 C41 56 45 52 45 48 L45 37 C48 35 50 32 50 28 C50 20 42 12 32 12 Z" fill="url(#brainGrad)" stroke="#C2185B" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M32 16 C32 16 32 24 32 24 M24 22 C24 22 28 26 28 26 M40 22 C40 22 36 26 36 26 M22 32 C22 32 28 32 28 32 M42 32 C42 32 36 32 36 32" stroke="#FCE4EC" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <path d="M24 44 L40 44" stroke="#C2185B" stroke-width="2" stroke-linecap="round"/>
+</svg>

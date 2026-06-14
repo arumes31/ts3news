@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <radialGradient id="bullseyeGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F44336"/>
+      <stop offset="30%" stop-color="#FFEBEE"/>
+      <stop offset="50%" stop-color="#F44336"/>
+      <stop offset="70%" stop-color="#FFEBEE"/>
+      <stop offset="100%" stop-color="#F44336"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="28" fill="#FFEBEE" stroke="#C62828" stroke-width="2"/>
+  <circle cx="32" cy="32" r="20" fill="#F44336"/>
+  <circle cx="32" cy="32" r="12" fill="#FFEBEE"/>
+  <circle cx="32" cy="32" r="5" fill="#C62828"/>
+</svg>

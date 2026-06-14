@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bracerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A1887F"/>
+      <stop offset="100%" stop-color="#5D4037"/>
+    </linearGradient>
+    <linearGradient id="metalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#B0BEC5"/>
+      <stop offset="100%" stop-color="#78909C"/>
+    </linearGradient>
+  </defs>
+  <path d="M16 16 L24 16 L24 48 L16 48 Z" fill="url(#bracerGrad)" stroke="#3E2723" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M40 16 L48 16 L48 48 L40 48 Z" fill="url(#bracerGrad)" stroke="#3E2723" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="14" y="20" width="12" height="4" rx="1" fill="url(#metalGrad)" stroke="#546E7A" stroke-width="1"/>
+  <rect x="14" y="28" width="12" height="4" rx="1" fill="url(#metalGrad)" stroke="#546E7A" stroke-width="1"/>
+  <rect x="14" y="36" width="12" height="4" rx="1" fill="url(#metalGrad)" stroke="#546E7A" stroke-width="1"/>
+  <rect x="38" y="20" width="12" height="4" rx="1" fill="url(#metalGrad)" stroke="#546E7A" stroke-width="1"/>
+  <rect x="38" y="28" width="12" height="4" rx="1" fill="url(#metalGrad)" stroke="#546E7A" stroke-width="1"/>
+  <rect x="38" y="36" width="12" height="4" rx="1" fill="url(#metalGrad)" stroke="#546E7A" stroke-width="1"/>
+</svg>

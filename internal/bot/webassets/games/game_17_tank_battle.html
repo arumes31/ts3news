@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tank Battle</title>
+<style>
+ html,body{margin:0;height:100%;overflow:hidden;background:#0b0e16;font-family:system-ui,sans-serif;color:#e8ecf5}
+ #hud{position:fixed;top:12px;left:12px;font-size:18px;z-index:2;text-shadow:0 1px 3px #000}
+ #msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(8,10,16,.82);z-index:3;text-align:center}
+ #msg h1{font-size:42px;margin:0 0 6px;color:#f4c542}#msg button{margin-top:18px;padding:10px 22px;font-size:18px;border:0;border-radius:8px;background:#7b6cff;color:#fff;cursor:pointer}
+ .rw{margin-top:10px;color:#f4c542;font-size:20px}.hub{margin-top:14px;color:#8a93a8;font-size:14px;text-decoration:none}
+ #hint{position:fixed;bottom:12px;left:12px;font-size:13px;color:#8a93a8;z-index:2}
+</style></head>
+<body>
+<div id="hud">Score: <span id="score">0</span> · HP <span id="hp">5</span></div>
+<div id="hint">W/S drive · A/D turn · Space fire</div>
+<div id="msg"><h1>Destroyed</h1><div id="sub"></div><div id="reward" class="rw"></div><button onclick="restart()">Play Again</button><a class="hub" href="/games">← All Games</a></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const GAMEKEY='tank';
+async function reward(sc){try{const r=await fetch('/api/arcade3d/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:GAMEKEY,score:Math.max(0,Math.round(sc))})});const d=await r.json();if(d.ok)document.getElementById('reward').innerHTML='🪙 +'+d.gold_won+' gold'+(d.gear?'<br>🎁 '+d.gear:'');}catch(e){}}
+const LIM=24;let scene,camera,renderer,tank,enemies,shells,eshells,score,hp,alive,keys={},cool,t;
+function init(){
+ scene=new THREE.Scene();scene.fog=new THREE.Fog(0x0b0e16,40,90);
+ camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,300);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);document.body.appendChild(renderer.domElement);
+ scene.add(new THREE.AmbientLight(0x99aacc,.8));const dl=new THREE.DirectionalLight(0xffffff,.7);dl.position.set(10,30,10);scene.add(dl);
+ const g=new THREE.Mesh(new THREE.BoxGeometry(LIM*2+4,.5,LIM*2+4),new THREE.MeshStandardMaterial({color:0x223524}));g.position.y=-.25;scene.add(g);
+ const grid=new THREE.GridHelper(LIM*2,24,0x2e3650,0x1c2a1e);scene.add(grid);
+ tank=mkTank(0x5bc0ff);scene.add(tank);
+ addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.key===' ')e.preventDefault();});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+ addEventListener('resize',onResize);restart();
+}
+function mkTank(c){const grp=new THREE.Group();const body=new THREE.Mesh(new THREE.BoxGeometry(2.2,1,3),new THREE.MeshStandardMaterial({color:c,emissive:c&0x111111}));body.position.y=.6;grp.add(body);const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,2.4,12),new THREE.MeshStandardMaterial({color:0x99a}));barrel.rotation.x=Math.PI/2;barrel.position.set(0,.9,1.6);grp.add(barrel);return grp;}
+function onResize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
+function restart(){enemies&&enemies.forEach(e=>scene.remove(e));shells&&shells.forEach(s=>scene.remove(s.m));eshells&&eshells.forEach(s=>scene.remove(s.m));
+ enemies=[];shells=[];eshells=[];score=0;hp=5;alive=true;cool=0;t=0;tank.position.set(0,0,12);tank.rotation.y=Math.PI;for(let i=0;i<3;i++)spawnEnemy();
+ document.getElementById('score').textContent=0;document.getElementById('hp').textContent=5;document.getElementById('msg').style.display='none';}
+function spawnEnemy(){const e=mkTank(0xe2575b);e.position.set((Math.random()-.5)*LIM*1.6,0,-LIM+Math.random()*8);e.userData={cool:60+Math.random()*60};scene.add(e);enemies.push(e);}
+function update(){
+ t++;if(keys['w'])tank.translateZ(.34);if(keys['s'])tank.translateZ(-.34);if(keys['a'])tank.rotation.y+=.045;if(keys['d'])tank.rotation.y-=.045;
+ tank.position.x=Math.max(-LIM,Math.min(LIM,tank.position.x));tank.position.z=Math.max(-LIM,Math.min(LIM,tank.position.z));
+ if(cool>0)cool--;if(keys[' ']&&cool<=0){const dir=new THREE.Vector3(0,0,1).applyEuler(tank.rotation);const s=new THREE.Mesh(new THREE.SphereGeometry(.3,8,8),new THREE.MeshBasicMaterial({color:0xf4c542}));s.position.copy(tank.position);s.position.y=.9;scene.add(s);shells.push({m:s,v:dir.multiplyScalar(.9)});cool=22;}
+ const camDir=new THREE.Vector3(0,0,-1).applyEuler(tank.rotation);camera.position.set(tank.position.x-camDir.x*12,9,tank.position.z-camDir.z*12);camera.lookAt(tank.position);
+ enemies.forEach(e=>{const to=new THREE.Vector3().subVectors(tank.position,e.position);e.rotation.y=Math.atan2(to.x,to.z);if(to.length()>10)e.translateZ(.08);e.userData.cool--;if(e.userData.cool<=0){e.userData.cool=80+Math.random()*70;const d=to.clone().normalize();const s=new THREE.Mesh(new THREE.SphereGeometry(.3,8,8),new THREE.MeshBasicMaterial({color:0xe2575b}));s.position.copy(e.position);s.position.y=.9;scene.add(s);eshells.push({m:s,v:d.multiplyScalar(.6)});}});
+ for(let i=shells.length-1;i>=0;i--){const s=shells[i];s.m.position.add(s.v);if(s.m.position.length()>LIM*2){scene.remove(s.m);shells.splice(i,1);continue;}for(let j=enemies.length-1;j>=0;j--){if(s.m.position.distanceTo(enemies[j].position)<2){scene.remove(enemies[j]);enemies.splice(j,1);scene.remove(s.m);shells.splice(i,1);score+=25;document.getElementById('score').textContent=score;spawnEnemy();if(Math.random()<.3)spawnEnemy();break;}}}
+ for(let i=eshells.length-1;i>=0;i--){const s=eshells[i];s.m.position.add(s.v);if(s.m.position.length()>LIM*2){scene.remove(s.m);eshells.splice(i,1);continue;}if(s.m.position.distanceTo(tank.position)<2){scene.remove(s.m);eshells.splice(i,1);hp--;document.getElementById('hp').textContent=hp;if(hp<=0)gameOver();}}
+}
+function gameOver(){alive=false;document.getElementById('sub').textContent='Score: '+score;reward(score);document.getElementById('msg').style.display='flex';}
+function loop(){requestAnimationFrame(loop);if(alive)update();renderer.render(scene,camera);}
+init();loop();
+</script></body></html>

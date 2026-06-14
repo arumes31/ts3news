@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="relicGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD54F"/>
+      <stop offset="50%" stop-color="#FF8F00"/>
+      <stop offset="100%" stop-color="#E65100"/>
+    </linearGradient>
+    <filter id="relicGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <path d="M32 10 C24 10 18 16 18 24 C18 30 22 34 26 36 L26 54 H38 L38 36 C42 34 46 30 46 24 C46 16 40 10 32 10 Z" fill="url(#relicGrad)" filter="url(#relicGlow)" stroke="#FFF3E0" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M26 42 H38 V46 H26 Z" fill="#FFF3E0" opacity="0.6"/>
+  <path d="M32 14 C28 14 24 18 24 24 C24 28 26 30 28 31 L28 52 H36 L36 31 C38 30 40 28 40 24 C40 18 36 14 32 14 Z" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.4"/>
+  <circle cx="32" cy="22" r="3" fill="#FFFFFF" opacity="0.8"/>
+</svg>

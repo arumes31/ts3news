@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Star Dodger</title>
+<style>
+ html,body{margin:0;height:100%;overflow:hidden;background:#05070f;font-family:system-ui,sans-serif;color:#e8ecf5}
+ #hud{position:fixed;top:12px;left:12px;font-size:18px;z-index:2;text-shadow:0 1px 3px #000}
+ #msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(8,10,16,.82);z-index:3;text-align:center}
+ #msg h1{font-size:42px;margin:0 0 6px;color:#f4c542}#msg button{margin-top:18px;padding:10px 22px;font-size:18px;border:0;border-radius:8px;background:#7b6cff;color:#fff;cursor:pointer}
+ .rw{margin-top:10px;color:#f4c542;font-size:20px}.hub{margin-top:14px;color:#8a93a8;font-size:14px;text-decoration:none}
+ #hint{position:fixed;bottom:12px;left:12px;font-size:13px;color:#8a93a8;z-index:2}
+</style></head>
+<body>
+<div id="hud">Score: <span id="score">0</span></div>
+<div id="hint">Arrow keys / WASD to drift · comets fly from every edge</div>
+<div id="msg"><h1>Vaporised!</h1><div id="sub"></div><div id="reward" class="rw"></div><button onclick="restart()">Play Again</button><a class="hub" href="/games">← All Games</a></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const GAMEKEY='stardodge';
+async function reward(sc){try{const r=await fetch('/api/arcade3d/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:GAMEKEY,score:Math.max(0,Math.round(sc))})});const d=await r.json();if(d.ok)document.getElementById('reward').innerHTML='🪙 +'+d.gold_won+' gold'+(d.gear?'<br>🎁 '+d.gear:'');}catch(e){}}
+const B=16;let scene,camera,renderer,player,comets,score,alive,t,keys={},vx,vz;
+function init(){
+ scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,200);camera.position.set(0,30,0.01);camera.lookAt(0,0,0);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);document.body.appendChild(renderer.domElement);
+ scene.add(new THREE.AmbientLight(0x99aacc,.85));const dl=new THREE.DirectionalLight(0xffffff,.5);dl.position.set(2,10,2);scene.add(dl);
+ for(let i=0;i<140;i++){const s=new THREE.Mesh(new THREE.SphereGeometry(.05,4,4),new THREE.MeshBasicMaterial({color:0x445}));s.position.set((Math.random()-.5)*46,-3,(Math.random()-.5)*46);scene.add(s);}
+ player=new THREE.Mesh(new THREE.SphereGeometry(.9,20,20),new THREE.MeshStandardMaterial({color:0x5bc0ff,emissive:0x1a3b66}));scene.add(player);
+ addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+ addEventListener('resize',onResize);restart();
+}
+function onResize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
+function restart(){comets&&comets.forEach(c=>scene.remove(c.m));comets=[];score=0;alive=true;t=0;vx=0;vz=0;player.position.set(0,.5,0);document.getElementById('score').textContent=0;document.getElementById('msg').style.display='none';}
+function spawn(){const edge=Math.floor(Math.random()*4);let p,v;const sp=.18+score*.0006+Math.random()*.1;const off=(Math.random()-.5)*B*2;
+ if(edge===0){p=[-B-2,off];v=[sp,(Math.random()-.5)*.08];}else if(edge===1){p=[B+2,off];v=[-sp,(Math.random()-.5)*.08];}else if(edge===2){p=[off,-B-2];v=[(Math.random()-.5)*.08,sp];}else{p=[off,B+2];v=[(Math.random()-.5)*.08,-sp];}
+ const m=new THREE.Mesh(new THREE.DodecahedronGeometry(.9),new THREE.MeshStandardMaterial({color:0xe2575b,emissive:0x300,flatShading:true}));m.position.set(p[0],.5,p[1]);scene.add(m);comets.push({m,vx:v[0],vz:v[1]});}
+function update(){
+ t++;if(t%Math.max(7,18-Math.floor(score/40))===0)spawn();
+ const a=.05;if(keys['arrowleft']||keys['a'])vx-=a;if(keys['arrowright']||keys['d'])vx+=a;if(keys['arrowup']||keys['w'])vz-=a;if(keys['arrowdown']||keys['s'])vz+=a;vx*=.9;vz*=.9;
+ player.position.x=Math.max(-B,Math.min(B,player.position.x+vx));player.position.z=Math.max(-B,Math.min(B,player.position.z+vz));
+ for(let i=comets.length-1;i>=0;i--){const c=comets[i];c.m.position.x+=c.vx;c.m.position.z+=c.vz;c.m.rotation.x+=.06;c.m.rotation.y+=.06;
+  if(Math.hypot(c.m.position.x-player.position.x,c.m.position.z-player.position.z)<1.7)return gameOver();
+  if(Math.abs(c.m.position.x)>B+4||Math.abs(c.m.position.z)>B+4){scene.remove(c.m);comets.splice(i,1);score+=2;document.getElementById('score').textContent=score;}}
+}
+function gameOver(){alive=false;document.getElementById('sub').textContent='Score: '+score;reward(score);document.getElementById('msg').style.display='flex';}
+function loop(){requestAnimationFrame(loop);if(alive)update();renderer.render(scene,camera);}
+init();loop();
+</script></body></html>

@@ -1,0 +1,15 @@
+{{define "arcade3d"}}{{template "head" .}}
+<h1>🕹️ Arcade 3D</h1>
+<p class="muted">31 fully animated 3D games built with Three.js. Every run pays out <b>gold</b> scaled to your score, with a chance to <b>drop gear</b> straight into your inventory — higher scores, better loot.</p>
+
+<div class="g3d-grid">
+  {{range .Games}}
+  <a class="g3d-card" href="/play/{{.File}}">
+    <div class="g3d-ico">{{.Icon}}</div>
+    <div class="g3d-title">{{.Title}}</div>
+    <div class="g3d-desc">{{.Desc}}</div>
+    <div class="g3d-play">▶ Play</div>
+  </a>
+  {{end}}
+</div>
+{{template "foot" .}}{{end}}

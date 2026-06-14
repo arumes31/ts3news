@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ring Flyer</title>
+<style>
+ html,body{margin:0;height:100%;overflow:hidden;background:#0a1424;font-family:system-ui,sans-serif;color:#e8ecf5}
+ #hud{position:fixed;top:12px;left:12px;font-size:18px;z-index:2;text-shadow:0 1px 3px #000}
+ #msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(8,10,16,.82);z-index:3;text-align:center}
+ #msg h1{font-size:42px;margin:0 0 6px;color:#f4c542}#msg button{margin-top:18px;padding:10px 22px;font-size:18px;border:0;border-radius:8px;background:#7b6cff;color:#fff;cursor:pointer}
+ .rw{margin-top:10px;color:#f4c542;font-size:20px}.hub{margin-top:14px;color:#8a93a8;font-size:14px;text-decoration:none}
+ #hint{position:fixed;bottom:12px;left:12px;font-size:13px;color:#8a93a8;z-index:2}
+</style></head>
+<body>
+<div id="hud">Rings: <span id="score">0</span> · Missed <span id="miss">0</span>/5</div>
+<div id="hint">Arrow keys / WASD to steer through the rings</div>
+<div id="msg"><h1>Lost the Course</h1><div id="sub"></div><div id="reward" class="rw"></div><button onclick="restart()">Play Again</button><a class="hub" href="/games">← All Games</a></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const GAMEKEY='ringflyer';
+async function reward(sc){try{const r=await fetch('/api/arcade3d/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:GAMEKEY,score:Math.max(0,Math.round(sc))})});const d=await r.json();if(d.ok)document.getElementById('reward').innerHTML='🪙 +'+d.gold_won+' gold'+(d.gear?'<br>🎁 '+d.gear:'');}catch(e){}}
+const LIM=9;let scene,camera,renderer,ship,rings,score,miss,speed,alive,t,keys={};
+function init(){
+ scene=new THREE.Scene();scene.fog=new THREE.Fog(0x0a1424,30,80);
+ camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,200);camera.position.set(0,0,8);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);document.body.appendChild(renderer.domElement);
+ scene.add(new THREE.AmbientLight(0xaaccee,.85));const dl=new THREE.DirectionalLight(0xffffff,.6);dl.position.set(2,6,10);scene.add(dl);
+ for(let i=0;i<120;i++){const s=new THREE.Mesh(new THREE.SphereGeometry(.06,4,4),new THREE.MeshBasicMaterial({color:0x346}));s.position.set((Math.random()-.5)*50,(Math.random()-.5)*30,-Math.random()*120);scene.add(s);}
+ ship=new THREE.Mesh(new THREE.ConeGeometry(.7,1.8,6),new THREE.MeshStandardMaterial({color:0x5bc0ff,emissive:0x123}));ship.rotation.x=-Math.PI/2;scene.add(ship);
+ addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+ addEventListener('resize',onResize);restart();
+}
+function onResize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
+function restart(){rings&&rings.forEach(r=>scene.remove(r.m));rings=[];score=0;miss=0;speed=.45;alive=true;t=0;ship.position.set(0,0,4);document.getElementById('score').textContent=0;document.getElementById('miss').textContent=0;document.getElementById('msg').style.display='none';}
+function spawn(){const torus=new THREE.Mesh(new THREE.TorusGeometry(2.2,.35,10,28),new THREE.MeshStandardMaterial({color:0xf4c542,emissive:0x442f00}));torus.position.set((Math.random()-.5)*LIM*1.6,(Math.random()-.5)*LIM,-90);scene.add(torus);rings.push({m:torus,scored:false});}
+function update(){
+ t++;if(t%34===0)spawn();
+ const s=.32;if(keys['arrowleft']||keys['a'])ship.position.x-=s;if(keys['arrowright']||keys['d'])ship.position.x+=s;if(keys['arrowup']||keys['w'])ship.position.y+=s;if(keys['arrowdown']||keys['s'])ship.position.y-=s;
+ ship.position.x=Math.max(-LIM-2,Math.min(LIM+2,ship.position.x));ship.position.y=Math.max(-LIM-1,Math.min(LIM+1,ship.position.y));ship.rotation.z+=.05;
+ for(let i=rings.length-1;i>=0;i--){const r=rings[i];r.m.position.z+=speed;r.m.rotation.z+=.02;
+  if(!r.scored&&r.m.position.z>ship.position.z-1&&r.m.position.z<ship.position.z+1){r.scored=true;const d=Math.hypot(r.m.position.x-ship.position.x,r.m.position.y-ship.position.y);
+   if(d<2.2){score+=10;document.getElementById('score').textContent=score;r.m.material.color.setHex(0x41c97a);speed=.45+score*.002;}else{miss++;document.getElementById('miss').textContent=miss;r.m.material.color.setHex(0xe2575b);if(miss>=5)return gameOver();}}
+  if(r.m.position.z>9){scene.remove(r.m);rings.splice(i,1);}}
+}
+function gameOver(){alive=false;document.getElementById('sub').textContent='Rings: '+score/10;reward(score);document.getElementById('msg').style.display='flex';}
+function loop(){requestAnimationFrame(loop);if(alive)update();renderer.render(scene,camera);}
+init();loop();
+</script></body></html>

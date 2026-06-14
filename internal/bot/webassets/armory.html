@@ -10,8 +10,11 @@
       <span class="gs">Gear Score {{.U.GearScore}}</span>
     </div>
     <div class="bars">
-      <div class="bar hp"><span style="width:{{if .U.MaxHP}}{{mulpct .U.CurrentHP .U.MaxHP}}{{else}}0{{end}}%"></span><label>HP {{comma .U.CurrentHP}} / {{comma .U.MaxHP}}</label></div>
-      <div class="bar xp"><span style="width:{{mulpct .U.XPIntoLevel .U.XPForNext}}%"></span><label>XP {{comma .U.XPIntoLevel}} / {{comma .U.XPForNext}}</label></div>
+      <div class="bar hp"><span
+          style="width:{{if .U.MaxHP}}{{mulpct .U.CurrentHP .U.MaxHP}}{{else}}0{{end}}%"></span><label>HP {{comma
+          .U.CurrentHP}} / {{comma .U.MaxHP}}</label></div>
+      <div class="bar xp"><span style="width:{{mulpct .U.XPIntoLevel .U.XPForNext}}%"></span><label>XP {{comma
+          .U.XPIntoLevel}} / {{comma .U.XPForNext}}</label></div>
     </div>
   </div>
   <div class="hero-purse">
@@ -22,34 +25,52 @@
 
 <h2>Attributes</h2>
 <div class="stats-grid">
-  <div class="stat"><b>{{comma .U.Stats.STR}}</b><span>Strength</span></div>
-  <div class="stat"><b>{{comma .U.Stats.DEF}}</b><span>Defense</span></div>
-  <div class="stat"><b>{{comma .U.Stats.SPD}}</b><span>Speed</span></div>
-  <div class="stat"><b>{{comma .U.Stats.HP}}</b><span>Max HP</span></div>
-  <div class="stat"><b>{{comma .U.Stats.CRT}}</b><span>Crit %</span></div>
-  <div class="stat"><b>{{comma .U.Stats.DGE}}</b><span>Dodge %</span></div>
-  <div class="stat"><b>{{comma .U.Stats.LCK}}</b><span>Luck</span></div>
-  <div class="stat"><b>{{comma .U.Stats.INT}}</b><span>Intellect</span></div>
-  <div class="stat"><b>{{comma .U.Stats.STA}}</b><span>Stamina</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/biceps.svg)"></span><b>{{comma
+      .U.Stats.STR}}</b><span>Strength</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/checked-shield.svg)"></span><b>{{comma
+      .U.Stats.DEF}}</b><span>Defense</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/run.svg)"></span><b>{{comma
+      .U.Stats.SPD}}</b><span>Speed</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/health-normal.svg)"></span><b>{{comma
+      .U.Stats.HP}}</b><span>Max HP</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/bullseye.svg)"></span><b>{{comma
+      .U.Stats.CRT}}</b><span>Crit %</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/dodging.svg)"></span><b>{{comma
+      .U.Stats.DGE}}</b><span>Dodge %</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/clover.svg)"></span><b>{{comma
+      .U.Stats.LCK}}</b><span>Luck</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/brain.svg)"></span><b>{{comma
+      .U.Stats.INT}}</b><span>Intellect</span></div>
+  <div class="stat"><span class="gi" style="--gi:url(/static/icons/lungs.svg)"></span><b>{{comma
+      .U.Stats.STA}}</b><span>Stamina</span></div>
 </div>
 
 <h2>Equipment</h2>
 <div class="gear-grid">
   {{range .Slots}}
   <div class="gear-cell {{if .Empty}}empty{{end}}">
-    <div class="gear-slot"><span class="slot-ico">{{.Icon}}</span> {{.Slot}}</div>
+    <div class="gear-slot">
+      <span class="gi slot-gi"
+        style="--gi:url(/static/icons/{{.IconName}}.svg){{if not .Empty}};color:{{.RarityColor}}{{end}}"></span>
+      {{if and (not .Empty) .RarityIcon}}<span class="gi slot-gi"
+        style="--gi:url(/static/icons/{{.RarityIcon}}.svg);color:{{.RarityColor}}"></span>{{end}}
+      {{.Slot}}
+    </div>
     {{if .Empty}}
-      <div class="gear-name muted">— empty —</div>
+    <div class="gear-name muted">— empty —</div>
     {{else}}
-      <div class="gear-name" style="color:{{.RarityColor}}">{{.Name}}</div>
-      <div class="gear-meta">{{.Rarity}} · CR {{printf "%.0f" .CR}} · GS {{.Score}}{{if .Durability}} · {{.Durability}} dur{{end}}</div>
-      {{if .Stats}}<div class="gear-stats">{{range .Stats}}<span class="gstat">{{.Label}} <b>{{if gt .Value 0}}+{{end}}{{.Value}}</b></span>{{end}}</div>{{end}}
-      <div class="gear-tags">
-        {{if .Element}}<span class="gtag elem">{{.Element}}</span>{{end}}
-        {{if gt .XPBonusPct 0}}<span class="gtag xp">+{{.XPBonusPct}}% XP</span>{{end}}
-        {{if .Effect}}<span class="gtag fx" title="{{.EffectDesc}}">✦ {{.Effect}}</span>{{end}}
-      </div>
-      {{if .EffectDesc}}<div class="gear-fxdesc">{{.EffectDesc}}</div>{{end}}
+    <div class="gear-name" style="color:{{.RarityColor}}">{{.Name}}</div>
+    <div class="gear-meta">{{.Rarity}} · CR {{printf "%.0f" .CR}} · GS {{.Score}}{{if .Durability}} · {{.Durability}}
+      dur{{end}}</div>
+    {{if .Stats}}<div class="gear-stats">{{range .Stats}}<span class="gstat">{{.Label}} <b>{{if gt .Value
+          0}}+{{end}}{{.Value}}</b></span>{{end}}</div>{{end}}
+    <div class="gear-tags">
+      {{if .Element}}<span class="gtag elem">{{.Element}}</span>{{end}}
+      {{if gt .XPBonusPct 0}}<span class="gtag xp">+{{.XPBonusPct}}% XP</span>{{end}}
+      {{if .Effect}}<span class="gtag fx" title="{{.EffectDesc}}"><span class="gi"
+          style="--gi:url(/static/icons/{{.EffectIcon}}.svg)"></span> {{.Effect}}</span>{{end}}
+    </div>
+    {{if .EffectDesc}}<div class="gear-fxdesc">{{.EffectDesc}}</div>{{end}}
     {{end}}
   </div>
   {{end}}
@@ -63,7 +84,8 @@
     <div class="lc-kind">👑 Title</div>
     <div class="lc-name">{{.Name}}</div>
     <div class="lc-tags">
-      {{if .XPPct}}<span class="gtag {{if gt .XPPct 0}}xp{{else}}bane{{end}}">{{if gt .XPPct 0}}+{{end}}{{.XPPct}}% XP</span>{{end}}
+      {{if .XPPct}}<span class="gtag {{if gt .XPPct 0}}xp{{else}}bane{{end}}">{{if gt .XPPct 0}}+{{end}}{{.XPPct}}%
+        XP</span>{{end}}
       {{if .ExpiresIn}}<span class="gtag time">⏳ {{.ExpiresIn}}</span>{{end}}
     </div>
   </div>
@@ -91,7 +113,8 @@
     <div class="lc-tags">
       <span class="gtag fx">{{printf "%.1f" .Power}}× damage</span>
       <span class="gtag time">CD {{.CooldownRounds}} rounds</span>
-      {{if le .CurrentCooldown 0}}<span class="gtag xp">Ready</span>{{else}}<span class="gtag bane">Cooling {{.CurrentCooldown}}</span>{{end}}
+      {{if le .CurrentCooldown 0}}<span class="gtag xp">Ready</span>{{else}}<span class="gtag bane">Cooling
+        {{.CurrentCooldown}}</span>{{end}}
     </div>
   </div>
 </div>
@@ -102,7 +125,8 @@
 <div class="skill-grid">
   {{range .Skills}}
   <div class="skill-card" style="border-color:{{.Rarity.Color}}">
-    <div class="sk-head"><span class="sk-name" style="color:{{.Rarity.Color}}">✨ {{.Name}}</span><span class="sk-type">{{.Type}}</span></div>
+    <div class="sk-head"><span class="sk-name" style="color:{{.Rarity.Color}}">✨ {{.Name}}</span><span
+        class="sk-type">{{.Type}}</span></div>
     {{if .Description}}<div class="sk-desc">{{.Description}}</div>{{end}}
   </div>
   {{end}}

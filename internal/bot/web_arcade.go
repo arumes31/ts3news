@@ -219,7 +219,7 @@ func playArcade(rng *rand.Rand, game string, bet int64, choice string) arcadeOut
 
 var slotSymbols = []string{"🍒", "🍋", "🔔", "⭐", "💎", "7️⃣"}
 
-// playSlots spins 5 reels. 3/4/5 of a kind pay 2x/5x/25x.
+// playSlots spins 5 reels. 3/4/5 of a kind pay 3x/16x/88x.
 func playSlots(rng *rand.Rand, bet int64) ([]string, int64, string) {
 	reels := make([]string, 5)
 	counts := map[string]int{}
@@ -246,7 +246,7 @@ func playSlots(rng *rand.Rand, bet int64) ([]string, int64, string) {
 	}
 }
 
-// playDice rolls 1-6: 5–6 pays 2.5x, 4 pushes, 1–3 loses.
+// playDice rolls 1-6: 5–6 pays 2.4x, 4 pushes, 1–3 loses.
 func playDice(rng *rand.Rand, bet int64) (int, int64, string) {
 	roll := rng.IntN(6) + 1
 	switch {
@@ -274,7 +274,7 @@ func playCoinflip(rng *rand.Rand, bet int64, choice string) (string, int64, stri
 	return flip, 0, flip + " — you lose"
 }
 
-// playWheel spins the 8-segment wheel (house edge ~5%).
+// playWheel spins the 12-segment wheel (house edge ~4%).
 func playWheel(rng *rand.Rand, bet int64) (int, float64, int64, string) {
 	seg := rng.IntN(len(wheelSegments))
 	mult := wheelSegments[seg]

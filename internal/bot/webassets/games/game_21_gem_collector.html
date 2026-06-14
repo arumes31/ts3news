@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gem Collector</title>
+<style>
+ html,body{margin:0;height:100%;overflow:hidden;background:#0b0e16;font-family:system-ui,sans-serif;color:#e8ecf5}
+ #hud{position:fixed;top:12px;left:12px;font-size:18px;z-index:2;text-shadow:0 1px 3px #000}
+ #msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(8,10,16,.82);z-index:3;text-align:center}
+ #msg h1{font-size:42px;margin:0 0 6px;color:#f4c542}#msg button{margin-top:18px;padding:10px 22px;font-size:18px;border:0;border-radius:8px;background:#7b6cff;color:#fff;cursor:pointer}
+ .rw{margin-top:10px;color:#f4c542;font-size:20px}.hub{margin-top:14px;color:#8a93a8;font-size:14px;text-decoration:none}
+ #hint{position:fixed;bottom:12px;left:12px;font-size:13px;color:#8a93a8;z-index:2}
+</style></head>
+<body>
+<div id="hud">Score: <span id="score">0</span> · Time <span id="time">30</span>s</div>
+<div id="hint">Arrow keys / WASD to gather gems · avoid red bombs</div>
+<div id="msg"><h1>Time!</h1><div id="sub"></div><div id="reward" class="rw"></div><button onclick="restart()">Play Again</button><a class="hub" href="/games">← All Games</a></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const GAMEKEY='gems';
+async function reward(sc){try{const r=await fetch('/api/arcade3d/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:GAMEKEY,score:Math.max(0,Math.round(sc))})});const d=await r.json();if(d.ok)document.getElementById('reward').innerHTML='🪙 +'+d.gold_won+' gold'+(d.gear?'<br>🎁 '+d.gear:'');}catch(e){}}
+const B=14;let scene,camera,renderer,player,items,score,alive,timeLeft,last,spawnT,keys={};
+function init(){
+ scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,200);camera.position.set(0,24,18);camera.lookAt(0,0,0);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);document.body.appendChild(renderer.domElement);
+ scene.add(new THREE.AmbientLight(0xaabbdd,.8));const dl=new THREE.DirectionalLight(0xffffff,.7);dl.position.set(6,20,8);scene.add(dl);
+ const g=new THREE.Mesh(new THREE.BoxGeometry(B*2+2,.5,B*2+2),new THREE.MeshStandardMaterial({color:0x17202f}));g.position.y=-.25;scene.add(g);
+ player=new THREE.Mesh(new THREE.BoxGeometry(1.4,1.4,1.4),new THREE.MeshStandardMaterial({color:0x5bc0ff,emissive:0x123}));player.position.y=.7;scene.add(player);
+ items=[];addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+ addEventListener('resize',onResize);restart();
+}
+function onResize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
+function restart(){items.forEach(i=>scene.remove(i.m));items=[];score=0;alive=true;timeLeft=30;spawnT=0;player.position.set(0,.7,0);last=performance.now();document.getElementById('score').textContent=0;document.getElementById('time').textContent=30;document.getElementById('msg').style.display='none';for(let i=0;i<6;i++)spawn(false);}
+function spawn(bomb){const m=bomb?new THREE.Mesh(new THREE.SphereGeometry(.8,16,16),new THREE.MeshStandardMaterial({color:0xe2575b,emissive:0x300})):new THREE.Mesh(new THREE.OctahedronGeometry(.8),new THREE.MeshStandardMaterial({color:0x41c97a,emissive:0x063,flatShading:true}));m.position.set((Math.random()-.5)*B*2,.8,(Math.random()-.5)*B*2);scene.add(m);items.push({m,bomb});}
+function update(dt){
+ timeLeft-=dt;if(timeLeft<=0){timeLeft=0;return gameOver();}document.getElementById('time').textContent=Math.ceil(timeLeft);
+ spawnT-=dt;if(spawnT<=0){spawnT=1.1;spawn(Math.random()<.3);}
+ const s=.4;if(keys['arrowleft']||keys['a'])player.position.x-=s;if(keys['arrowright']||keys['d'])player.position.x+=s;if(keys['arrowup']||keys['w'])player.position.z-=s;if(keys['arrowdown']||keys['s'])player.position.z+=s;
+ player.position.x=Math.max(-B,Math.min(B,player.position.x));player.position.z=Math.max(-B,Math.min(B,player.position.z));player.rotation.y+=.05;
+ for(let i=items.length-1;i>=0;i--){const it=items[i];it.m.rotation.y+=.04;if(Math.hypot(it.m.position.x-player.position.x,it.m.position.z-player.position.z)<1.6){scene.remove(it.m);items.splice(i,1);if(it.bomb){score=Math.max(0,score-30);}else{score+=10;}document.getElementById('score').textContent=score;}}
+}
+function gameOver(){alive=false;document.getElementById('sub').textContent='Score: '+score;reward(score);document.getElementById('msg').style.display='flex';}
+function loop(t){requestAnimationFrame(loop);const dt=(t-last)/1000;last=t;if(alive)update(dt);renderer.render(scene,camera);}
+init();requestAnimationFrame(loop);
+</script></body></html>

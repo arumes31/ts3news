@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="gemGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E040FB"/>
+      <stop offset="50%" stop-color="#7C4DFF"/>
+      <stop offset="100%" stop-color="#536DFE"/>
+    </linearGradient>
+    <filter id="gemGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <path d="M32 8 L52 24 L44 56 H20 L12 24 Z" fill="url(#gemGrad)" filter="url(#gemGlow)" stroke="#E1BEE7" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M12 24 L20 24 L32 16 L44 24 L52 24 L44 56 H20 Z" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.5"/>
+  <path d="M20 24 L32 48 L44 24" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.3"/>
+  <path d="M32 16 L32 48" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.3"/>
+</svg>

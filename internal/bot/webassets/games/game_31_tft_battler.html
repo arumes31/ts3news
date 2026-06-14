@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TFT Auto-Battler</title>
+<style>
+ html,body{margin:0;height:100%;overflow:hidden;background:#0a0d16;font-family:system-ui,sans-serif;color:#e8ecf5}
+ #hud{position:fixed;top:12px;left:12px;font-size:17px;z-index:2;text-shadow:0 1px 3px #000}
+ #ui{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:4}
+ #ui button{padding:11px 20px;font-size:16px;border:0;border-radius:9px;background:#7b6cff;color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+ #ui button.shop{background:#2a8a4a}#ui button:disabled{opacity:.45;cursor:default}
+ #msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(8,10,16,.82);z-index:5;text-align:center}
+ #msg h1{font-size:42px;margin:0 0 6px;color:#f4c542}#msg button{margin-top:18px;padding:10px 22px;font-size:18px;border:0;border-radius:8px;background:#7b6cff;color:#fff;cursor:pointer}
+ .rw{margin-top:10px;color:#f4c542;font-size:20px}.hub{margin-top:14px;color:#8a93a8;font-size:14px;text-decoration:none}
+ #hint{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);font-size:13px;color:#8a93a8;z-index:4}
+</style></head>
+<body>
+<div id="hud">Round: <span id="round">1</span> · Units: <span id="units">0</span> · Bench gold: <span id="gold">3</span></div>
+<div id="hint">Buy units, then drag the blue spheres onto blue hexes. Start combat when ready.</div>
+<div id="ui">
+ <button class="shop" id="buyBtn" onclick="buyUnit()">🛒 Buy Unit (1)</button>
+ <button id="fightBtn" onclick="startCombat()">⚔️ Start Combat</button>
+</div>
+<div id="msg"><h1 id="ttl">Defeat</h1><div id="sub"></div><div id="reward" class="rw"></div><button onclick="restart()">Play Again</button><a class="hub" href="/games">← All Games</a></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const GAMEKEY='tft';
+async function reward(sc){try{const r=await fetch('/api/arcade3d/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:GAMEKEY,score:Math.max(0,Math.round(sc))})});const d=await r.json();if(d.ok)document.getElementById('reward').innerHTML='🪙 +'+d.gold_won+' gold'+(d.gear?'<br>🎁 '+d.gear:'');}catch(e){}}
+const COLS=7,ROWS=6,SIZE=1.15;let scene,camera,renderer,ray,mouse,tiles,units,gold,round,bench,combat,result,score,enemyKills,dragging,plane;
+function init(){
+ scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.1,200);camera.position.set(0,16,15);camera.lookAt(0,0,0);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);document.body.appendChild(renderer.domElement);
+ scene.add(new THREE.AmbientLight(0xaabbdd,.8));const dl=new THREE.DirectionalLight(0xffffff,.7);dl.position.set(6,18,10);scene.add(dl);
+ ray=new THREE.Raycaster();mouse=new THREE.Vector2();plane=new THREE.Plane(new THREE.Vector3(0,1,0),-0.4);
+ tiles=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const player=r>=ROWS/2;const t=new THREE.Mesh(new THREE.CylinderGeometry(SIZE,SIZE,.3,6),new THREE.MeshStandardMaterial({color:player?0x214a78:0x6e2630,emissive:player?0x0a1e34:0x2a0c10,transparent:true,opacity:.92}));t.rotation.y=Math.PI/6;const p=hexPos(r,c);t.position.set(p.x,0,p.z);t.userData={r,c,player,occupied:null};scene.add(t);tiles.push(t);}
+ units=[];addEventListener('resize',onResize);
+ renderer.domElement.addEventListener('pointerdown',onDown);renderer.domElement.addEventListener('pointermove',onMove);renderer.domElement.addEventListener('pointerup',onUp);
+ restart();
+}
+function onResize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
+function hexPos(r,c){const x=(c-(COLS-1)/2)*SIZE*1.55;const z=(r-(ROWS-1)/2)*SIZE*1.35+(c%2)*SIZE*.67;return{x,z};}
+function setMouse(e){const b=renderer.domElement.getBoundingClientRect();mouse.x=((e.clientX-b.left)/b.width)*2-1;mouse.y=-((e.clientY-b.top)/b.height)*2+1;}
+function tileUnder(){ray.setFromCamera(mouse,camera);const hit=ray.intersectObjects(tiles);return hit.length?hit[0].object:null;}
+function mkUnit(side){const grp=new THREE.Group();const body=new THREE.Mesh(new THREE.SphereGeometry(.5,20,20),new THREE.MeshStandardMaterial({color:side==='you'?0x5bc0ff:0xe2575b,emissive:side==='you'?0x123:0x300}));body.position.y=.6;grp.add(body);
+ const bar=new THREE.Mesh(new THREE.BoxGeometry(1,.12,.05),new THREE.MeshBasicMaterial({color:0x41c97a}));bar.position.y=1.35;grp.add(bar);
+ grp.userData={side,hp:100,max:100,bar,tile:null,atk:14+Math.floor(Math.random()*8)};scene.add(grp);return grp;}
+function buyUnit(){if(combat||gold<1)return;const free=tiles.filter(t=>t.userData.player&&!t.userData.occupied);if(!free.length)return;gold--;const t=free[Math.floor(Math.random()*free.length)];const u=mkUnit('you');placeOn(u,t);units.push(u);refresh();}
+function placeOn(u,t){if(u.userData.tile)u.userData.tile.userData.occupied=null;u.userData.tile=t;t.userData.occupied=u;const p=t.position;u.position.set(p.x,0,p.z);}
+function refresh(){document.getElementById('gold').textContent=gold;document.getElementById('units').textContent=units.filter(u=>u.userData.side==='you').length;document.getElementById('buyBtn').disabled=gold<1;}
+function onDown(e){if(combat)return;setMouse(e);ray.setFromCamera(mouse,camera);const bodies=units.filter(u=>u.userData.side==='you').map(u=>u.children[0]);const hit=ray.intersectObjects(bodies);if(hit.length)dragging=hit[0].object.parent;}
+function onMove(e){if(!dragging)return;setMouse(e);ray.setFromCamera(mouse,camera);const pt=new THREE.Vector3();ray.ray.intersectPlane(plane,pt);if(pt){dragging.position.set(pt.x,.4,pt.z);}}
+function onUp(e){if(!dragging)return;setMouse(e);const t=tileUnder();if(t&&t.userData.player&&(!t.userData.occupied||t.userData.occupied===dragging)){placeOn(dragging,t);}else if(dragging.userData.tile){const p=dragging.userData.tile.position;dragging.position.set(p.x,0,p.z);}dragging=null;}
+function restart(){units.forEach(u=>scene.remove(u));units=[];tiles.forEach(t=>t.userData.occupied=null);gold=3;round=1;combat=false;result=null;score=0;enemyKills=0;document.getElementById('round').textContent=1;document.getElementById('msg').style.display='none';document.getElementById('fightBtn').disabled=false;document.getElementById('buyBtn').disabled=false;refresh();}
+function startCombat(){if(combat)return;const mine=units.filter(u=>u.userData.side==='you');if(!mine.length)return;combat=true;document.getElementById('fightBtn').disabled=true;document.getElementById('buyBtn').disabled=true;
+ const enemyTiles=tiles.filter(t=>!t.userData.player&&!t.userData.occupied);const n=Math.min(mine.length+round-1,enemyTiles.length);
+ for(let i=0;i<n;i++){const t=enemyTiles.splice(Math.floor(Math.random()*enemyTiles.length),1)[0];const u=mkUnit('enemy');u.userData.hp=u.userData.max=90+round*12;placeOn(u,t);units.push(u);}
+}
+function combatStep(){
+ const live=s=>units.filter(u=>u.userData.side===s&&u.userData.hp>0);
+ units.forEach(u=>{if(u.userData.hp<=0)return;const foes=units.filter(v=>v.userData.side!==u.userData.side&&v.userData.hp>0);if(!foes.length)return;
+  let tgt=foes[0],bd=1e9;foes.forEach(f=>{const d=u.position.distanceTo(f.position);if(d<bd){bd=d;tgt=f;}});
+  if(bd>1.25){const dir=new THREE.Vector3().subVectors(tgt.position,u.position).normalize();u.position.addScaledVector(dir,.06);}
+  else{tgt.userData.hp-=u.userData.atk*.06;const ratio=Math.max(0,tgt.userData.hp/tgt.userData.max);tgt.userData.bar.scale.x=ratio;tgt.userData.bar.material.color.setHex(ratio>.5?0x41c97a:ratio>.25?0xf4c542:0xe2575b);}});
+ for(let i=units.length-1;i>=0;i--){if(units[i].userData.hp<=0){if(units[i].userData.side==='enemy')enemyKills++;if(units[i].userData.tile)units[i].userData.tile.userData.occupied=null;scene.remove(units[i]);units.splice(i,1);}}
+ if(live('enemy').length===0)endCombat(true);else if(live('you').length===0)endCombat(false);
+}
+function endCombat(win){combat=false;score+=enemyKills*20+(win?120:0);
+ if(win){round++;document.getElementById('round').textContent=round;gold+=2+round;
+  // survivors snap back to their tiles for the next planning phase
+  units.forEach(u=>{if(u.userData.tile){const p=u.userData.tile.position;u.position.set(p.x,0,p.z);u.userData.hp=u.userData.max;u.userData.bar.scale.x=1;u.userData.bar.material.color.setHex(0x41c97a);}});
+  document.getElementById('fightBtn').disabled=false;document.getElementById('buyBtn').disabled=false;refresh();
+  flash('Round won! +gold — buy & reposition',true);
+ } else gameOver();
+}
+let toastT;function flash(t){const h=document.getElementById('hint');h.textContent=t;clearTimeout(toastT);toastT=setTimeout(()=>h.textContent='Buy units, then drag them onto blue hexes.',2600);}
+function gameOver(){document.getElementById('ttl').textContent='Defeat — Round '+round;document.getElementById('sub').textContent='Enemies defeated: '+enemyKills;reward(score);document.getElementById('msg').style.display='flex';}
+function loop(){requestAnimationFrame(loop);if(combat)combatStep();units.forEach(u=>{if(u.userData.bar)u.userData.bar.lookAt(camera.position);});renderer.render(scene,camera);}
+init();loop();
+</script></body></html>

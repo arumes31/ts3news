@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bicepsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF8A65"/>
+      <stop offset="100%" stop-color="#D84315"/>
+    </linearGradient>
+  </defs>
+  <path d="M20 48 L20 28 C20 20 26 14 34 14 C42 14 48 20 48 28 L48 48" fill="none" stroke="url(#bicepsGrad)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M20 48 L20 32 C20 26 24 22 30 22 C36 22 40 26 40 32 L40 48" fill="url(#bicepsGrad)" opacity="0.3"/>
+  <path d="M24 48 L24 34 C24 30 27 27 31 27 C35 27 38 30 38 34 L38 48" fill="none" stroke="#FFCCBC" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="31" cy="20" r="3" fill="#FFCCBC"/>
+</svg>

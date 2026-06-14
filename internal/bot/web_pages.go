@@ -23,10 +23,12 @@ type gearView struct {
 	InvID       int64
 	Slot        string
 	Icon        string
+	IconName    string // game-icons.net SVG basename for the slot
 	ID          string
 	Name        string
 	Rarity      string
 	RarityColor string
+	RarityIcon  string // game-icons.net SVG basename for the rarity
 	CR          float64
 	Score       int
 	Durability  int
@@ -35,6 +37,7 @@ type gearView struct {
 	// Detail surfaced in the armoury/inventory.
 	Element    string
 	Effect     string
+	EffectIcon string // game-icons.net SVG basename for the effect
 	EffectDesc string
 	XPBonusPct int
 	Stats      []statKV
@@ -79,20 +82,23 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	v := gearView{
 		Slot:        string(slot),
 		Icon:        content.SlotIcon(slot),
+		IconName:    content.SlotIconName(slot),
 		ID:          g.ID,
 		Name:        g.Name,
 		Rarity:      g.Rarity.String(),
 		RarityColor: g.Rarity.Color(),
+		RarityIcon:  content.RarityIconName(g.Rarity),
 		CR:          g.CombatRating(),
 		Score:       g.Stats.Score(),
 		Stats:       gearStatList(g.Stats),
-		XPBonusPct:  int((g.XPMultiplier - 1.0) * 100),
+		XPBonusPct:  int(math.Round((g.XPMultiplier - 1.0) * 100)),
 	}
 	if g.Element != "" && g.Element != content.ElementPhysical {
 		v.Element = string(g.Element)
 	}
 	if g.Special != content.EffectNone {
 		v.Effect = string(g.Special)
+		v.EffectIcon = content.EffectIconName(g.Special)
 		v.EffectDesc = gearEffectDescriptions[g.Special]
 	}
 	return v
@@ -204,7 +210,7 @@ func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid str
 		if g, ok := equipped[slot]; ok {
 			slots = append(slots, toGearView(slot, g))
 		} else {
-			slots = append(slots, gearView{Slot: string(slot), Icon: content.SlotIcon(slot), Empty: true})
+			slots = append(slots, gearView{Slot: string(slot), Icon: content.SlotIcon(slot), IconName: content.SlotIconName(slot), Empty: true})
 		}
 	}
 
@@ -214,13 +220,13 @@ func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid str
 	title := s.bot.loadTitleView(uid)
 
 	s.render(w, "armory", map[string]any{
-		"Title":    "Armoury",
-		"Nav":      "armory",
-		"U":        u,
-		"Slots":    slots,
-		"Skills":   skills,
-		"Ultimate": ultimate,
-		"Artifact": artifact,
+		"Title":       "Armoury",
+		"Nav":         "armory",
+		"U":           u,
+		"Slots":       slots,
+		"Skills":      skills,
+		"Ultimate":    ultimate,
+		"Artifact":    artifact,
 		"PlayerTitle": title,
 	})
 }
@@ -236,10 +242,10 @@ func (s *WebServer) handleInventory(w http.ResponseWriter, r *http.Request, uid 
 	cons := s.bot.consumableCounts(uid)
 
 	s.render(w, "inventory", map[string]any{
-		"Title":      "Inventory",
-		"Nav":        "inventory",
-		"U":          u,
-		"Items":      items,
+		"Title":       "Inventory",
+		"Nav":         "inventory",
+		"U":           u,
+		"Items":       items,
 		"Consumables": cons,
 	})
 }
