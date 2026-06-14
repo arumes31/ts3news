@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tunnel Flyer</title>
+<style>
+ html,body{margin:0;height:100%;overflow:hidden;background:#0b0e16;font-family:system-ui,sans-serif;color:#e8ecf5}
+ #hud{position:fixed;top:12px;left:12px;font-size:18px;z-index:2;text-shadow:0 1px 3px #000}
+ #msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(8,10,16,.82);z-index:3;text-align:center}
+ #msg h1{font-size:42px;margin:0 0 6px;color:#f4c542}#msg button{margin-top:18px;padding:10px 22px;font-size:18px;border:0;border-radius:8px;background:#7b6cff;color:#fff;cursor:pointer}
+ .rw{margin-top:10px;color:#f4c542;font-size:20px}.hub{margin-top:14px;color:#8a93a8;font-size:14px;text-decoration:none}
+ #hint{position:fixed;bottom:12px;left:12px;font-size:13px;color:#8a93a8;z-index:2}
+</style></head>
+<body>
+<div id="hud">Score: <span id="score">0</span></div>
+<div id="hint">Space / ↑ / click to flap through the gaps</div>
+<div id="msg"><h1>Crashed!</h1><div id="sub"></div><div id="reward" class="rw"></div><button onclick="restart()">Play Again</button><a class="hub" href="/games">← All Games</a></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const GAMEKEY='tunnel';
+async function reward(sc){try{const r=await fetch('/api/arcade3d/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:GAMEKEY,score:Math.max(0,Math.round(sc))})});const d=await r.json();if(d.ok)document.getElementById('reward').innerHTML='🪙 +'+d.gold_won+' gold'+(d.gear?'<br>🎁 '+d.gear:'');}catch(e){}}
+let scene,camera,renderer,bird,walls,vy,score,alive,t;
+function init(){
+ scene=new THREE.Scene();scene.fog=new THREE.Fog(0x0b0e16,30,60);
+ camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,200);camera.position.set(0,0,22);camera.lookAt(0,0,0);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);document.body.appendChild(renderer.domElement);
+ scene.add(new THREE.AmbientLight(0xaabbdd,.8));const dl=new THREE.DirectionalLight(0xffffff,.7);dl.position.set(2,8,12);scene.add(dl);
+ bird=new THREE.Mesh(new THREE.SphereGeometry(.8,20,20),new THREE.MeshStandardMaterial({color:0xf4c542,emissive:0x442f00}));bird.position.x=-8;scene.add(bird);
+ const flap=()=>{if(alive)vy=.42;};addEventListener('keydown',e=>{if(e.key===' '||e.key==='ArrowUp'||e.key==='w'){flap();e.preventDefault();}});addEventListener('mousedown',flap);
+ addEventListener('resize',onResize);restart();
+}
+function onResize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
+function restart(){walls&&walls.forEach(w=>{scene.remove(w.top);scene.remove(w.bot);});walls=[];vy=0;score=0;alive=true;t=0;bird.position.y=0;document.getElementById('score').textContent=0;document.getElementById('msg').style.display='none';}
+function spawn(){const gap=5.5,gy=(Math.random()-.5)*10,th=14;const mat=new THREE.MeshStandardMaterial({color:0x41c97a,emissive:0x062});
+ const top=new THREE.Mesh(new THREE.BoxGeometry(2,th,2),mat);top.position.set(20,gy+gap/2+th/2,0);
+ const bot=new THREE.Mesh(new THREE.BoxGeometry(2,th,2),mat);bot.position.set(20,gy-gap/2-th/2,0);
+ scene.add(top);scene.add(bot);walls.push({top,bot,gy,gap,scored:false});}
+function update(){
+ t++;if(t%80===0)spawn();
+ vy-=.03;bird.position.y+=vy;bird.rotation.z=Math.max(-.6,Math.min(.6,vy*1.2));
+ if(bird.position.y<-12||bird.position.y>13)return gameOver();
+ for(let i=walls.length-1;i>=0;i--){const w=walls[i];w.top.position.x-=.22;w.bot.position.x-=.22;
+  if(Math.abs(w.top.position.x-bird.position.x)<1.7&&Math.abs(bird.position.y-w.gy)>w.gap/2-.4)return gameOver();
+  if(!w.scored&&w.top.position.x<bird.position.x){w.scored=true;score+=10;document.getElementById('score').textContent=score;}
+  if(w.top.position.x<-24){scene.remove(w.top);scene.remove(w.bot);walls.splice(i,1);}}
+}
+function gameOver(){alive=false;document.getElementById('sub').textContent='Score: '+score;reward(score);document.getElementById('msg').style.display='flex';}
+function loop(){requestAnimationFrame(loop);if(alive)update();renderer.render(scene,camera);}
+init();loop();
+</script></body></html>

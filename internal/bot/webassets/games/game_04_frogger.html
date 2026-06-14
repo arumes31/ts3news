@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Low-Poly Frogger</title>
+<style>
+ html,body{margin:0;height:100%;overflow:hidden;background:#0b0e16;font-family:system-ui,sans-serif;color:#e8ecf5}
+ #hud{position:fixed;top:12px;left:12px;font-size:18px;z-index:2;text-shadow:0 1px 3px #000}
+ #msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(8,10,16,.8);z-index:3;text-align:center}
+ #msg h1{font-size:42px;margin:0 0 6px;color:#f4c542}#msg button{margin-top:18px;padding:10px 22px;font-size:18px;border:0;border-radius:8px;background:#7b6cff;color:#fff;cursor:pointer}
+ #hint{position:fixed;bottom:12px;left:12px;font-size:13px;color:#8a93a8;z-index:2}
+</style></head>
+<body>
+<div id="hud">Score: <span id="score">0</span> · Lives <span id="lives">3</span></div>
+<div id="hint">Arrow keys / WASD to hop</div>
+<div id="msg"><h1>Game Over</h1><div id="sub"></div><div id="reward" style="margin-top:10px;color:#f4c542;font-size:20px"></div><button onclick="restart()">Play Again</button><a href="/games" style="margin-top:14px;color:#8a93a8;font-size:14px">← All Games</a></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+async function reward(sc){try{const r=await fetch('/api/arcade3d/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:'frogger',score:Math.max(0,Math.round(sc))})});const d=await r.json();if(d.ok)document.getElementById('reward').innerHTML='🪙 +'+d.gold_won+' gold'+(d.gear?'<br>🎁 '+d.gear:'');}catch(e){}}
+const LANES=8,WIDTH=20;let scene,camera,renderer,frog,cars,lanes,score,lives,alive;
+function init(){
+ scene=new THREE.Scene();scene.fog=new THREE.Fog(0x0b0e16,30,70);
+ camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,200);camera.position.set(0,22,16);camera.lookAt(0,0,-2);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);document.body.appendChild(renderer.domElement);
+ scene.add(new THREE.AmbientLight(0x99aacc,.7));const dl=new THREE.DirectionalLight(0xffffff,.8);dl.position.set(6,20,10);scene.add(dl);
+ lanes=[];for(let i=0;i<=LANES;i++){const road=i>0&&i<LANES;const m=new THREE.Mesh(new THREE.BoxGeometry(WIDTH+8,.3,2.2),new THREE.MeshStandardMaterial({color:i===0?0x2a8a4a:i===LANES?0xf4c542:(i%2?0x20242f:0x262b38)}));m.position.set(0,0,-i*2.4);scene.add(m);if(road)lanes.push({z:-i*2.4,dir:i%2?1:-1,spd:.06+Math.random()*.08});}
+ frog=new THREE.Mesh(new THREE.BoxGeometry(1,.8,1),new THREE.MeshStandardMaterial({color:0x41c97a,emissive:0x031}));scene.add(frog);
+ addEventListener('keydown',key);addEventListener('resize',onResize);restart();
+}
+function onResize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
+function spawnCars(){cars&&cars.forEach(c=>scene.remove(c));cars=[];lanes.forEach(L=>{for(let k=0;k<3;k++){const c=new THREE.Mesh(new THREE.BoxGeometry(2.4,1,1.6),new THREE.MeshStandardMaterial({color:[0xe2575b,0x5bc0ff,0xf4c542,0xb060ff][Math.floor(Math.random()*4)]}));c.position.set(-WIDTH/2+k*(WIDTH/3)*1.4*L.dir*-1+ (Math.random()*4),.7,L.z);c.userData=L;scene.add(c);cars.push(c);}});}
+function reset(){frog.position.set(0,.5,0);}
+function restart(){score=0;lives=3;alive=true;document.getElementById('score').textContent=0;document.getElementById('lives').textContent=3;document.getElementById('msg').style.display='none';spawnCars();reset();}
+function key(e){if(!alive)return;const k=e.key.toLowerCase();if(k==='arrowup'||k==='w')frog.position.z-=2.4;else if(k==='arrowdown'||k==='s')frog.position.z=Math.min(0,frog.position.z+2.4);else if(k==='arrowleft'||k==='a')frog.position.x=Math.max(-WIDTH/2,frog.position.x-2);else if(k==='arrowright'||k==='d')frog.position.x=Math.min(WIDTH/2,frog.position.x+2);
+ if(frog.position.z<=-LANES*2.4+1){score+=50;document.getElementById('score').textContent=score;reset();}}
+function hit(){lives--;document.getElementById('lives').textContent=lives;if(lives<=0){alive=false;document.getElementById('sub').textContent='Score: '+score;reward(score);document.getElementById('msg').style.display='flex';}else reset();}
+function update(){cars.forEach(c=>{c.position.x+=c.userData.spd*c.userData.dir*6*.18;if(c.position.x>WIDTH/2+6)c.position.x=-WIDTH/2-6;if(c.position.x<-WIDTH/2-6)c.position.x=WIDTH/2+6;if(Math.abs(c.position.z-frog.position.z)<1.3&&Math.abs(c.position.x-frog.position.x)<1.7)hit();});}
+function loop(){requestAnimationFrame(loop);if(alive)update();renderer.render(scene,camera);}
+init();loop();
+</script></body></html>

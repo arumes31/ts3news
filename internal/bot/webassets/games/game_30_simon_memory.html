@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simon Memory</title>
+<style>
+ html,body{margin:0;height:100%;overflow:hidden;background:#0b0e16;font-family:system-ui,sans-serif;color:#e8ecf5}
+ #hud{position:fixed;top:12px;left:12px;font-size:18px;z-index:2;text-shadow:0 1px 3px #000}
+ #msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(8,10,16,.82);z-index:3;text-align:center}
+ #msg h1{font-size:42px;margin:0 0 6px;color:#f4c542}#msg button{margin-top:18px;padding:10px 22px;font-size:18px;border:0;border-radius:8px;background:#7b6cff;color:#fff;cursor:pointer}
+ .rw{margin-top:10px;color:#f4c542;font-size:20px}.hub{margin-top:14px;color:#8a93a8;font-size:14px;text-decoration:none}
+ #hint{position:fixed;bottom:12px;left:12px;font-size:13px;color:#8a93a8;z-index:2}
+ #state{position:fixed;top:12px;right:16px;font-size:18px;color:#f4c542;z-index:2}
+</style></head>
+<body>
+<div id="hud">Round: <span id="score">0</span></div>
+<div id="state">Watch…</div>
+<div id="hint">Repeat the sequence — keys 1/2/3/4 or ←/↑/→/↓</div>
+<div id="msg"><h1>Wrong Pad</h1><div id="sub"></div><div id="reward" class="rw"></div><button onclick="restart()">Play Again</button><a class="hub" href="/games">← All Games</a></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const GAMEKEY='simon';
+async function reward(sc){try{const r=await fetch('/api/arcade3d/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:GAMEKEY,score:Math.max(0,Math.round(sc))})});const d=await r.json();if(d.ok)document.getElementById('reward').innerHTML='🪙 +'+d.gold_won+' gold'+(d.gear?'<br>🎁 '+d.gear:'');}catch(e){}}
+const COL=[0xe2575b,0x41c97a,0x5bc0ff,0xf4c542];let scene,camera,renderer,pads,seq,input,score,alive,accepting;
+function init(){
+ scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,200);camera.position.set(0,14,12);camera.lookAt(0,0,0);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);document.body.appendChild(renderer.domElement);
+ scene.add(new THREE.AmbientLight(0xaabbdd,.7));const dl=new THREE.DirectionalLight(0xffffff,.7);dl.position.set(4,14,8);scene.add(dl);
+ pads=[];const pos=[[-3,-3],[3,-3],[-3,3],[3,3]];for(let i=0;i<4;i++){const m=new THREE.Mesh(new THREE.BoxGeometry(5,1,5),new THREE.MeshStandardMaterial({color:COL[i],emissive:0x000}));m.position.set(pos[i][0],0,pos[i][1]);scene.add(m);pads.push(m);}
+ addEventListener('keydown',key);addEventListener('resize',onResize);restart();
+}
+function onResize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
+function flash(i,t){pads[i].material.emissive.setHex(COL[i]);pads[i].position.y=.5;setTimeout(()=>{pads[i].material.emissive.setHex(0);pads[i].position.y=0;},t);}
+async function playSeq(){accepting=false;document.getElementById('state').textContent='Watch…';await new Promise(r=>setTimeout(r,600));for(const i of seq){flash(i,420);await new Promise(r=>setTimeout(r,640));}accepting=true;input=0;document.getElementById('state').textContent='Your turn';}
+function restart(){pads.forEach((p,i)=>{p.material.emissive.setHex(0);p.position.y=0;});seq=[];score=0;alive=true;document.getElementById('score').textContent=0;document.getElementById('msg').style.display='none';nextRound();}
+function nextRound(){seq.push(Math.floor(Math.random()*4));score=seq.length-1;document.getElementById('score').textContent=score;playSeq();}
+function key(e){if(!alive||!accepting)return;const map={'1':0,'2':1,'3':2,'4':3,'arrowleft':0,'arrowup':1,'arrowright':2,'arrowdown':3};const i=map[e.key.toLowerCase()];if(i===undefined)return;flash(i,200);
+ if(i===seq[input]){input++;if(input===seq.length){accepting=false;document.getElementById('state').textContent='Nice!';setTimeout(nextRound,700);}}else gameOver();}
+function gameOver(){alive=false;accepting=false;document.getElementById('state').textContent='';document.getElementById('sub').textContent='Reached round '+score;reward(score*30);document.getElementById('msg').style.display='flex';}
+function loop(){requestAnimationFrame(loop);renderer.render(scene,camera);}
+init();loop();
+</script></body></html>

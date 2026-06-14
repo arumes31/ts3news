@@ -32,7 +32,7 @@ func jsonJS(v any) template.JS {
 	return template.JS(b)
 }
 
-//go:embed webassets/*.html webassets/*.css
+//go:embed webassets/*.html webassets/*.css webassets/*.svg webassets/games/*.html
 var webAssets embed.FS
 
 const sessionCookie = "ts3session"
@@ -98,6 +98,16 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		b, _ := webAssets.ReadFile("webassets/favicon.svg")
 		_, _ = w.Write(b)
 	})
+	mux.HandleFunc("/static/logo.svg", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		b, _ := webAssets.ReadFile("webassets/logo.svg")
+		_, _ = w.Write(b)
+	})
+	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		b, _ := webAssets.ReadFile("webassets/favicon.svg")
+		_, _ = w.Write(b)
+	})
 
 	// Public.
 	mux.HandleFunc("/login", s.handleLogin)
@@ -111,6 +121,8 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/arcade", s.auth(s.handleArcadePage))
 	mux.HandleFunc("/shop", s.auth(s.handleShopPage))
 	mux.HandleFunc("/ah", s.auth(s.handleAHPage))
+	mux.HandleFunc("/games", s.auth(s.handleArcade3DHub))
+	mux.HandleFunc("/play/", s.auth(s.handleArcade3DPlay))
 
 	// Authenticated JSON APIs.
 	mux.HandleFunc("/api/tft/buy", s.auth(s.handleTFTBuy))
@@ -121,6 +133,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/api/tft/combat", s.authAPI(s.handleTFTCombat))
 	mux.HandleFunc("/api/arcade/play", s.authAPI(s.handleArcadeAPI))
 	mux.HandleFunc("/api/arcade/daily-spin", s.authAPI(s.handleDailySpinAPI))
+	mux.HandleFunc("/api/arcade3d/reward", s.authAPI(s.handleArcade3DReward))
 	mux.HandleFunc("/api/shop/exchange", s.auth(s.handleExchangeAPI))
 	mux.HandleFunc("/api/shop/buy", s.auth(s.handleBuyAPI))
 	mux.HandleFunc("/api/inventory/equip", s.auth(s.handleEquipAPI))
