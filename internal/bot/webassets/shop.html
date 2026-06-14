@@ -22,7 +22,7 @@
 </section>
 
 <section>
-  <h2>Item Shop <span class="muted small">— rotates daily, fair prices</span></h2>
+  <h2>Item Shop <span class="muted small">— fair prices · refreshes in <span id="shopTimer" class="shop-timer">…</span></span></h2>
   <div class="shop-grid">
     {{range .Stock}}
     <div class="shop-card" data-id="{{.ID}}">
@@ -53,5 +53,18 @@ async function buy(id){
   if(d.ok){toast('Bought '+d.bought+' → inventory',true);document.getElementById('goldPill').textContent='🪙 '+d.gold;}
   else toast(d.error,false);
 }
+
+/* Live countdown to the next stock refresh; reloads to pull fresh items. */
+let shopLeft={{.RefreshIn}};
+(function shopCountdown(){
+  const el=document.getElementById('shopTimer');
+  function fmt(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+    return (h>0?h+'h ':'')+(h>0||m>0?m+'m ':'')+sec+'s';}
+  function tick(){
+    if(shopLeft<=0){el.textContent='refreshing…';setTimeout(()=>location.reload(),1200);return;}
+    el.textContent=fmt(shopLeft);shopLeft--;setTimeout(tick,1000);
+  }
+  tick();
+})();
 </script>
 {{template "foot" .}}{{end}}

@@ -67,6 +67,7 @@ h3{margin:.2em 0 .5em}
 .gtag.xp{color:var(--good);border-color:#2c6b46}
 .gtag.fx{color:#d9b3ff;border-color:#5a4080}
 .gear-fxdesc{font-size:.68rem;color:var(--muted);margin-top:.2rem;font-style:italic}
+.shop-timer{color:var(--gold);font-variant-numeric:tabular-nums}
 
 .skill-row{display:flex;flex-wrap:wrap;gap:.4rem}
 .skill-pill{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:.3rem .7rem;font-size:.82rem}
