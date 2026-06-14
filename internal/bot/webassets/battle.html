@@ -25,8 +25,6 @@
 <h2>Champion Shop</h2>
 <div class="tft-shop" id="shop"></div>
 
-<div id="combatResult" class="result"></div>
-
 <h2>Recent Battles</h2>
 <table class="histtable">
   <thead><tr><th>When</th><th>Opponent</th><th>Result</th><th>Gold</th><th>Loot</th></tr></thead>
@@ -189,11 +187,14 @@ async function startCombat(){
     await sleep(300);
   }
 
-  const res=document.getElementById('combatResult');
-  if(d.victory){res.className='result win pop';res.textContent='🏆 Victory! +'+d.gold_won+' gold'+(d.gear_won?(' · looted '+d.gear_won+' → inventory'):'')+'.';document.getElementById('goldPill').textContent='🪙 '+d.gold;}
-  else{res.className='result loss';res.textContent='💀 Your team was defeated. Buy and upgrade more units, then try again.';}
+  if(d.victory){
+    toast('🏆 Victory! +'+d.gold_won+' gold'+(d.gear_won?(' · looted '+d.gear_won+' → inventory'):'')+'.', true);
+    document.getElementById('goldPill').textContent='🪙 '+d.gold;
+  } else {
+    toast('💀 Your team was defeated. Buy and upgrade more units, then try again.', false);
+  }
   document.getElementById('phase').textContent='Planning phase — reposition and fight again.';
-  await sleep(1400); location.reload();
+  await sleep(2500); location.reload();
 }
 function floatDmg(tok,dmg){
   const f=document.createElement('div'); f.className='dmgfloat'; f.textContent='-'+dmg;

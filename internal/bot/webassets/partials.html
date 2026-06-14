@@ -4,11 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}} · TS3 RPG</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">⚔️ TS3 RPG</div>
+  <div class="brand"><img src="/static/favicon.svg" alt="" style="width:24px;height:24px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">TS3 RPG</div>
   {{if .U}}
   <nav class="nav">
     <a href="/" class="{{if eq .Nav "armory"}}active{{end}}">Armoury</a>

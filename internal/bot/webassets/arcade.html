@@ -76,8 +76,6 @@
 <h2 class="more-games-h">🕹️ More Games</h2>
 <div class="arcade-grid" id="moreGames"></div>
 
-<div id="arcadeResult" class="result"></div>
-
 <h2 class="lb-h">🏆 Leaderboards — Most Wins</h2>
 {{template "leaderboards" .Leaders}}
 
@@ -92,14 +90,13 @@ function mulBet(m){const b=document.getElementById('bet');b.value=Math.max(1,Mat
 function bet(){return parseInt(document.getElementById('bet').value,10);}
 function toast(m, ok){var t=document.getElementById('arcadeMsg');t.textContent=m;t.className='toast show '+(ok?'good':'bad');setTimeout(function(){t.className='toast';},2200);}
 function showResult(d){
-  const res=document.getElementById('arcadeResult');
-  res.className='result '+(d.win?'win pop':'loss');
   let msg=d.detail+' — '+(d.win?('won '+d.payout+' gold (net '+(d.net>=0?'+':'')+d.net+')'):('lost '+d.bet+' gold'));
   if(d.gear_won){msg+=' · 🎁 looted '+d.gear_won+' → inventory';}
-  res.textContent=msg;
+  
+  toast(msg, d.win);
+
   document.getElementById('goldPill').textContent='🪙 '+d.gold;
   document.getElementById('goldHere').textContent='Balance: 🪙 '+d.gold;
-  setTimeout(()=>res.classList.remove('pop'),400);
 }
 async function api(game, choice){
   const b=bet(); if(!b||b<1){toast('Enter a bet',false);return null;}
@@ -270,9 +267,51 @@ function buildMoreGames(){
   });
 }
 async function playGen(game, choice, card){
-  if(card){card.classList.add('busy'); card.querySelectorAll('button').forEach(b=>b.disabled=true);}
-  const d=await api(game, choice);
-  if(card){card.classList.remove('busy'); card.querySelectorAll('button').forEach(b=>b.disabled=false);}
+  if(card){card.classList.add('busy'); card.querySelectorAll('button, input').forEach(b=>b.disabled=true);}
+
+  let stage = card ? card.querySelector('.anim-stage') : null;
+  if(card && !stage) {
+     stage = document.createElement('div');
+     stage.className = 'anim-stage';
+     card.insertBefore(stage, card.querySelector('.choices'));
+  }
+  if(stage) {
+     stage.style.display = 'flex';
+     const g = MOREGAMES.find(x=>x.k===game);
+     const icon = g ? g.i : '🎲';
+     if (game === 'roulette' || game === 'megawheel') {
+         stage.innerHTML = `<div class="anim-wheel">${icon}</div>`;
+     } else if (game === 'rps') {
+         stage.innerHTML = `<div class="anim-rps"><span class="l">✊</span><span class="r">✊</span></div>`;
+     } else if (game === 'crash') {
+         stage.innerHTML = `<div class="anim-crash">🚀</div>`;
+     } else if (game === 'sicbo' || game === 'fortune' || game === 'diceduel') {
+         stage.innerHTML = `<div class="anim-dice">${icon}${icon}</div>`;
+     } else if (game === 'plinko') {
+         stage.innerHTML = `<div class="anim-plinko">🔵</div>`;
+     } else if (game === 'horserace') {
+         stage.innerHTML = `<div class="anim-horse">🐎</div>`;
+     } else if (game === 'war' || game === 'scratch') {
+         stage.innerHTML = `<div class="anim-cards"><div class="c1">🃏</div><div class="c2">🃏</div></div>`;
+     } else if (game === 'slotdeluxe') {
+         stage.innerHTML = `<div class="anim-slot">🎰🎰🎰</div>`;
+     } else if (game === 'darts') {
+         stage.innerHTML = `<div class="anim-dart">🎯</div>`;
+     } else if (game === 'minefield') {
+         stage.innerHTML = `<div class="anim-mine">🚶</div>`;
+     } else {
+         stage.innerHTML = `<div class="anim-pop">${icon}</div>`;
+     }
+  }
+
+  const [d] = await Promise.all([
+     api(game, choice),
+     sleep(1500)
+  ]);
+
+  if(card){card.classList.remove('busy'); card.querySelectorAll('button, input').forEach(b=>b.disabled=false);}
+  if(stage) stage.style.display = 'none';
+
   if(d){card&&card.classList.add('flash');setTimeout(()=>card&&card.classList.remove('flash'),350);showResult(d);}
 }
 buildMoreGames();

@@ -153,10 +153,10 @@ label{font-size:.85rem;display:inline-flex;gap:.4rem;align-items:center}
 .histtable td.win{color:var(--good)} .histtable td.loss{color:var(--bad)}
 
 /* Toast */
-.toast{display:inline-block;opacity:0;transition:opacity .2s;font-size:.85rem;padding:.3rem .6rem;border-radius:7px}
-.toast.show{opacity:1}
-.toast.good{background:rgba(65,201,122,.15);color:var(--good)}
-.toast.bad{background:rgba(226,87,91,.15);color:var(--bad)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;transition:all .3s cubic-bezier(.18,.89,.32,1.28);font-size:.9rem;padding:.7rem 1.2rem;border-radius:10px;z-index:100;pointer-events:none;background:#1a1f2b;border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.5);max-width:90%;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.good{border-color:var(--good);color:var(--good);background:rgba(26,31,43,.95)}
+.toast.bad{border-color:var(--bad);color:var(--bad);background:rgba(26,31,43,.95)}
 
 .denied{text-align:center;padding:3rem 1rem;max-width:520px;margin:0 auto}
 .exchange{margin-bottom:1rem}
@@ -200,7 +200,37 @@ button.xs{padding:.25rem .5rem;font-size:.75rem}
 .pcard-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d}
 .pcard-front,.pcard-back{position:absolute;inset:0;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:2.4rem;font-weight:800;backface-visibility:hidden;border:2px solid #f4c542}
 .pcard-front{background:linear-gradient(145deg,#39406b,#222840);color:#f4c542}
-.pcard-back{background:linear-gradient(145deg,#fff,#d3dae8);color:#1a1f2b;transform:rotateY(180deg)}
+.pcard-back{background:linear-gradient(145deg,#cfd6e6,#ffffff);color:#1a1f2b;transform:rotateY(180deg)}
+
+/* Mini Game Animations */
+.anim-stage { height: 60px; align-items: center; justify-content: center; font-size: 2.2rem; overflow: hidden; position: relative; margin-bottom: 10px; background: #0c0f16; border-radius: 8px; border: 1px inset var(--line); display: none; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5); }
+.anim-wheel { animation: roll 0.4s linear infinite; }
+.anim-rps { display: flex; gap: 10px; }
+.anim-rps .l { animation: rpsShake 0.25s ease infinite alternate; }
+.anim-rps .r { animation: rpsShake 0.25s ease infinite alternate-reverse; transform: scaleX(-1); }
+.anim-crash { position: absolute; bottom: -20px; left: 10px; animation: crashFly 1.5s cubic-bezier(.4,0,1,1) forwards; }
+.anim-dice { display: flex; gap: 5px; animation: shake 0.2s linear infinite; }
+.anim-plinko { position: absolute; top: -30px; animation: plinkoDrop 1.5s cubic-bezier(.3,1.2,.7,-0.2) forwards; text-shadow: 0 0 10px #3a7bd5; }
+.anim-horse { position: absolute; left: -30px; animation: horseRun 1.5s linear forwards; }
+.anim-pop { animation: pulse 0.4s ease infinite; }
+.anim-cards { display: flex; gap: 0px; position: relative; }
+.anim-cards .c1 { animation: cardSlideL 1.5s ease forwards; position: absolute; }
+.anim-cards .c2 { animation: cardSlideR 1.5s ease forwards; position: absolute; }
+.anim-slot { display: flex; gap: 5px; animation: slotSpin 0.15s linear infinite; }
+.anim-dart { position: absolute; animation: dartThrow 1.5s cubic-bezier(.1,.7,.3,1) forwards; }
+.anim-mine { display: flex; align-items: center; animation: mineWalk 1.5s steps(4) forwards; }
+
+@keyframes rpsShake { 0% { transform: translateY(0) rotate(0); } 100% { transform: translateY(-12px) rotate(15deg); } }
+@keyframes crashFly { 0% { transform: translate(0, 0) rotate(10deg) scale(1); } 80% { transform: translate(120px, -50px) rotate(45deg) scale(1.5); opacity: 1; } 90% { transform: translate(130px, -55px) rotate(45deg) scale(2); opacity: 0; filter: brightness(2); } 100% { opacity: 0; } }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px) rotate(-10deg); } 75% { transform: translateX(4px) rotate(10deg); } }
+@keyframes plinkoDrop { 0% { top:-30px; left:50%; } 20% { top:0px; left:30%; } 40% { top:15px; left:60%; } 60% { top:30px; left:40%; } 80% { top:45px; left:70%; } 100% { top:70px; left:50%; } }
+@keyframes horseRun { 0% { left: -40px; transform: rotate(-5deg); } 50% { transform: rotate(5deg) translateY(-4px); } 100% { left: 100%; transform: rotate(-5deg); } }
+@keyframes pulse { 0%,100% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.3); filter: brightness(1.5); } }
+@keyframes cardSlideL { 0% { transform: translateX(0) rotate(0); } 100% { transform: translateX(-15px) rotate(-15deg); } }
+@keyframes cardSlideR { 0% { transform: translateX(0) rotate(0); } 100% { transform: translateX(15px) rotate(15deg); } }
+@keyframes slotSpin { 0% { transform: translateY(-10px); } 100% { transform: translateY(10px); } }
+@keyframes dartThrow { 0% { transform: translate(-80px, 40px) scale(1.5) rotate(-45deg); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(0, 0) scale(1) rotate(0); } }
+@keyframes mineWalk { 0% { transform: translateX(-40px) rotate(-10deg); } 50% { transform: translateX(0px) rotate(10deg); } 100% { transform: translateX(40px) rotate(-10deg); } }
 
 /* ===== TFT board autobattler ===== */
 .tft-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin:.4rem 0}

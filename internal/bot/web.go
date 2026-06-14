@@ -85,6 +85,11 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		b, _ := webAssets.ReadFile("webassets/style.css")
 		_, _ = w.Write(b)
 	})
+	mux.HandleFunc("/static/favicon.svg", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		b, _ := webAssets.ReadFile("webassets/favicon.svg")
+		_, _ = w.Write(b)
+	})
 
 	// Public.
 	mux.HandleFunc("/login", s.handleLogin)
