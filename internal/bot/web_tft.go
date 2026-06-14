@@ -214,7 +214,8 @@ func (s *WebServer) handleBattlePage(w http.ResponseWriter, r *http.Request, uid
 	}
 	st := s.bot.loadTFT(uid)
 
-	var bench, board []tftUnitView
+	bench := []tftUnitView{}
+	board := []tftUnitView{}
 	for _, un := range st.Units {
 		if un.Pos < 0 {
 			bench = append(bench, unitView(un))
@@ -222,7 +223,7 @@ func (s *WebServer) handleBattlePage(w http.ResponseWriter, r *http.Request, uid
 			board = append(board, unitView(un))
 		}
 	}
-	var shop []tftShopView
+	shop := []tftShopView{}
 	for i, k := range st.Shop {
 		if d, ok := tftDefByKey(k); ok {
 			shop = append(shop, tftShopView{Index: i, Key: k, Name: d.Name, Icon: d.Icon, Cost: d.Cost})
