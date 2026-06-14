@@ -92,6 +92,24 @@ h3{margin:.2em 0 .5em}
 .sk-type{font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 .sk-desc{font-size:.72rem;color:var(--muted);margin-top:.2rem}
 
+/* Leaderboards */
+.lb-h{margin-top:1.4rem}
+.lb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.8rem}
+.lb-col{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:.7rem .8rem}
+.lb-col h3{margin:0 0 .4rem;font-size:.95rem}
+.lbtable{width:100%;border-collapse:collapse;font-size:.8rem}
+.lbtable th{text-align:left;color:var(--muted);font-weight:600;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--line);padding:.2rem .3rem}
+.lbtable td{padding:.28rem .3rem;border-bottom:1px solid rgba(255,255,255,.04)}
+.lbtable tr:last-child td{border-bottom:none}
+.lb-rank{color:var(--muted);width:1.6rem;text-align:center;font-variant-numeric:tabular-nums}
+.lb-rank-1{color:#f4c542;font-weight:700}
+.lb-rank-2{color:#cfd6e4;font-weight:700}
+.lb-rank-3{color:#d9925a;font-weight:700}
+.lb-name{font-weight:600}
+.lb-wins{color:var(--gold);font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.lbtable td.win{color:var(--good);text-align:right;font-variant-numeric:tabular-nums}
+.lbtable td.loss{color:#ff8585;text-align:right;font-variant-numeric:tabular-nums}
+
 /* Inventory & shop cards */
 .inv-grid,.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.7rem}
 .inv-card,.shop-card,.game-card,.ex-card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:.8rem}

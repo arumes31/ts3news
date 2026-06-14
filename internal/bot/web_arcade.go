@@ -46,6 +46,7 @@ func (s *WebServer) handleArcadePage(w http.ResponseWriter, r *http.Request, uid
 	s.render(w, "arcade", map[string]any{
 		"Title": "Arcade", "Nav": "arcade", "U": u,
 		"WheelJSON": jsonJS(wheelSegments),
+		"Leaders":   s.bot.gameLeaderboards("arcade"),
 	})
 }
 
@@ -113,6 +114,7 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 	}
 
 	out.Gold = gold
+	s.bot.recordGameResult(uid, "arcade", out.Win, out.Net)
 	writeJSON(w, out)
 }
 

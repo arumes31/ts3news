@@ -235,6 +235,7 @@ func (s *WebServer) handleBattlePage(w http.ResponseWriter, r *http.Request, uid
 		"ShopJSON":  jsonJS(shop),
 		"Cols":      tftCols, "Rows": tftRows, "Cells": tftCells,
 		"History": s.bot.battleHistory(uid, 12),
+		"Leaders": s.bot.gameLeaderboards("tft"),
 	})
 }
 
@@ -466,6 +467,7 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 	_, _ = s.bot.DB.Exec(
 		"INSERT INTO battle_history (client_uid, mob_name, victory, gold_won, gear_won) VALUES ($1,$2,$3,$4,$5)",
 		uid, fmt.Sprintf("TFT (%d enemies)", len(enemies)), victory, res.GoldWon, gearWon)
+	s.bot.recordGameResult(uid, "tft", victory, res.GoldWon)
 
 	res.Gold = s.bot.userGold(uid)
 	writeJSON(w, res)
