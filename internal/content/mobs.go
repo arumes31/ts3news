@@ -10,24 +10,24 @@ import (
 type MobType string
 
 const (
-	MobCommon      MobType = "Common"
-	MobEliteMinion MobType = "EliteMinion"
-	MobElite       MobType = "Elite"
-	MobMiniboss    MobType = "Miniboss"
-	MobBoss        MobType = "Boss"
-	MobLegendary   MobType = "Legendary"
+	MobCommon         MobType = "Common"
+	MobEliteMinion    MobType = "EliteMinion"
+	MobElite          MobType = "Elite"
+	MobMiniboss       MobType = "Miniboss"
+	MobBoss           MobType = "Boss"
+	MobLegendary      MobType = "Legendary"
+	MobTreasureGoblin MobType = "TreasureGoblin"
 )
 
-// mobTypeKeys maps each mob type to its i18n suffix. EliteMinion needs the
-// explicit snake_case form ("elite_minion"); a naive strings.ToLower would
-// produce "eliteminion", which has no translation and leaks the raw key.
+// mobTypeKeys maps each mob type to its i18n suffix.
 var mobTypeKeys = map[MobType]string{
-	MobCommon:      "common",
-	MobEliteMinion: "elite_minion",
-	MobElite:       "elite",
-	MobMiniboss:    "miniboss",
-	MobBoss:        "boss",
-	MobLegendary:   "legendary",
+	MobCommon:         "common",
+	MobEliteMinion:    "elite_minion",
+	MobElite:          "elite",
+	MobMiniboss:       "miniboss",
+	MobBoss:           "boss",
+	MobLegendary:      "legendary",
+	MobTreasureGoblin: "treasure_goblin",
 }
 
 // mobTypeName returns the localized display name for a mob type.
@@ -193,7 +193,14 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	if !isBoss {
 		// #nosec G404
 		r := rand.Float64()          // #nosec G404
-		if r < 0.01 && level >= 25 { // Legendaries require level 25+
+		if r < 0.02 {                // 2% chance for Treasure Goblin
+			m = Mob{
+				Name: "Treasure Goblin",
+				Type: MobTreasureGoblin,
+				Stats: Stats{HP: 400, STR: 5, DEF: 20, SPD: 150},
+				RewardXP: 50,
+			}
+		} else if r < 0.01 && level >= 25 { // Legendaries require level 25+
 			// #nosec G404
 			m = baseMobs[108+rand.IntN(2)]
 		} else if r < 0.05 && level >= 10 { // Bosses require level 10+
@@ -251,6 +258,8 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 		m.RewardXP = int(float64(m.RewardXP) * 2.5)
 	case MobLegendary:
 		m.RewardXP = int(float64(m.RewardXP) * 5.0) // Significant payout but balanced
+	case MobTreasureGoblin:
+		m.RewardXP = int(float64(m.RewardXP) * 3.0)
 	}
 
 	// Random effect

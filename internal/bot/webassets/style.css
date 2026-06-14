@@ -202,7 +202,45 @@ button.xs{padding:.25rem .5rem;font-size:.75rem}
 .pcard-front{background:linear-gradient(145deg,#39406b,#222840);color:#f4c542}
 .pcard-back{background:linear-gradient(145deg,#cfd6e6,#ffffff);color:#1a1f2b;transform:rotateY(180deg)}
 
-/* Mini Game Animations */
+/* Arcade Expansion */
+.arcade-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.vip-badge { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--line); }
+.vip-badge .icon { font-size: 1.2rem; }
+.vip-badge .name { font-weight: 800; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+.vip-badge .pts { font-size: 0.75rem; color: var(--gold); }
+.vip-badge.tier-none { border-color: #444; filter: grayscale(1); opacity: 0.5; }
+.vip-badge.tier-bronze { border-color: #cd7f32; box-shadow: 0 0 10px rgba(205,127,50,0.3); color: #ffb366; }
+.vip-badge.tier-silver { border-color: #c0c0c0; box-shadow: 0 0 10px rgba(192,192,192,0.3); color: #fff; }
+.vip-badge.tier-gold { border-color: var(--gold); box-shadow: 0 0 15px rgba(244,197,66,0.4); color: var(--gold); }
+.vip-badge.tier-platinum { border-color: #e5e4e2; box-shadow: 0 0 20px rgba(229,228,226,0.5); color: #fff; text-shadow: 0 0 5px #fff; }
+.vip-badge.tier-diamond { border-color: #b9f2ff; box-shadow: 0 0 25px rgba(185,242,255,0.6); color: #b9f2ff; text-shadow: 0 0 8px #b9f2ff; }
+
+.jackpot-banner { background: linear-gradient(90deg, #ff0000, #ff8800, #ff0000); background-size: 200% auto; animation: shine 2s linear infinite; color: #fff; font-size: 0.7rem; font-weight: 900; text-align: center; padding: 2px 0; border-radius: 4px 4px 0 0; margin: -10px -10px 10px -10px; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+@keyframes shine { to { background-position: 200% center; } }
+
+.daily-spin-banner { background: linear-gradient(135deg, #1a1f2b, #2c3e50); border: 2px solid var(--accent); border-radius: 12px; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+.daily-spin-banner h3 { margin: 0 0 0.2rem 0; color: var(--accent); }
+.daily-spin-banner p { margin: 0; font-size: 0.9rem; opacity: 0.8; }
+
+.auto-bet-label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; user-select: none; margin-left: 10px; color: var(--xp); font-weight: bold; }
+.unit-item-slot.filled { background: var(--accent); border-color: #fff; }
+
+/* TFT Page Layout */
+.tft-layout { display: flex; gap: 2rem; }
+.tft-main { flex: 1; }
+.tft-side { width: 300px; }
+@media (max-width: 900px) { .tft-layout { flex-direction: column; } .tft-side { width: 100%; } }
+
+.synergy-list { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
+.synergy-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem; padding: 6px 12px; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid transparent; transition: all 0.3s; }
+.synergy-item.active { background: linear-gradient(135deg, rgba(244,197,66,0.15), rgba(244,197,66,0.05)); border-color: var(--gold); box-shadow: 0 0 10px rgba(244,197,66,0.2); }
+.synergy-item .name { font-weight: 700; color: var(--muted); }
+.synergy-item.active .name { color: var(--gold); }
+.synergy-item .count { font-weight: 800; font-family: monospace; }
+
+.unit-items { display: flex; gap: 3px; margin-top: 6px; justify-content: center; }
+.unit-item-slot { width: 10px; height: 10px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 2px; }
+.unit-item-slot.filled { background: var(--xp); border-color: #fff; box-shadow: 0 0 4px var(--xp); }
 .anim-stage { height: 80px; align-items: center; justify-content: center; font-size: 2.8rem; overflow: hidden; position: relative; margin-bottom: 12px; background: #0c0f16; border-radius: 12px; border: 2px inset var(--line); display: none; box-shadow: inset 0 4px 12px rgba(0,0,0,0.6); perspective: 500px; }
 .anim-wheel { animation: roll 0.4s linear infinite; }
 .anim-rps { display: flex; gap: 15px; }

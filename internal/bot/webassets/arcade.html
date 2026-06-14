@@ -1,6 +1,14 @@
 {{define "arcade"}}{{template "head" .}}
-<h1>Arcade</h1>
-<p class="muted">Wager gold across five animated games of chance. <span id="goldHere">Balance: 🪙 {{gold .U.Gold}}</span></p>
+<div class="arcade-header">
+  <h1>Arcade</h1>
+  <div class="vip-badge tier-{{.VIP.Name | lower}}">
+    <span class="icon">💎</span>
+    <span class="name">{{.VIP.Name}} VIP</span>
+    <span class="pts">{{comma .VIPPoints}} pts</span>
+  </div>
+</div>
+
+<p class="muted">Wager gold across balanced games of chance. <span id="goldHere">Balance: 🪙 {{gold .U.Gold}}</span></p>
 
 <div class="bet-row">
   <label>Bet <input type="number" id="bet" value="100" min="1" max="100000"></label>
@@ -10,22 +18,34 @@
     <button class="ghost xs" onclick="mulBet(2)">×2</button>
     <button class="ghost xs" onclick="mulBet(0.5)">½</button>
   </div>
+  <label class="auto-bet-label"><input type="checkbox" id="autoBet"> Auto-bet</label>
   <div id="arcadeMsg" class="toast"></div>
 </div>
+
+{{if .CanDaily}}
+<div class="daily-spin-banner">
+  <div class="info">
+    <h3>🎁 Daily Free Spin</h3>
+    <p>Your daily bonus is ready! Spin for gold or rare gear.</p>
+  </div>
+  <button class="primary" id="btn-daily" onclick="playDaily()">Claim Daily Spin</button>
+</div>
+{{end}}
 
 <div class="arcade-grid">
 
   <!-- SLOTS -->
   <div class="game-card slots-card">
+    <div class="jackpot-banner">JACKPOT: 🪙 <span id="jackpotSlots">{{gold .JackpotSlots}}</span></div>
     <h3>🎰 Slots</h3>
     <div class="reels" id="reels">
-      <div class="reel"><div class="reelstrip" id="strip0"></div></div>
-      <div class="reel"><div class="reelstrip" id="strip1"></div></div>
-      <div class="reel"><div class="reelstrip" id="strip2"></div></div>
-      <div class="reel"><div class="reelstrip" id="strip3"></div></div>
-      <div class="reel"><div class="reelstrip" id="strip4"></div></div>
+      <div class="reelstrip" id="strip0"></div>
+      <div class="reelstrip" id="strip1"></div>
+      <div class="reelstrip" id="strip2"></div>
+      <div class="reelstrip" id="strip3"></div>
+      <div class="reelstrip" id="strip4"></div>
     </div>
-    <p class="muted small">3 / 4 / 5 of a kind → ×2 / ×5 / ×25</p>
+    <p class="muted small">5 of a kind wins the Progressive Jackpot!</p>
     <button id="btn-slots" onclick="playSlots()">Spin</button>
   </div>
 
@@ -33,7 +53,7 @@
   <div class="game-card">
     <h3>🎲 Dice</h3>
     <div class="dice-stage"><div class="die" id="die"><span id="diePips">⚀</span></div></div>
-    <p class="muted small">Roll 5–6 to win ×2.5, 4 pushes</p>
+    <p class="muted small">Roll 5–6 to win ×2.4, 4 pushes</p>
     <button id="btn-dice" onclick="playDice()">Roll</button>
   </div>
 
@@ -68,7 +88,7 @@
       <button class="ghost" id="btn-high" onclick="playHL('high')">High &gt;7</button>
       <button class="ghost" id="btn-low" onclick="playHL('low')">Low &lt;7</button>
     </div>
-    <p class="muted small">Guess the card · ×1.9</p>
+    <p class="muted small">Guess the card · ×2.0</p>
   </div>
 
 </div>
@@ -85,26 +105,60 @@ const SLOT_SYMS = ["🍒","🍋","🔔","⭐","💎","7️⃣"];
 const PIPS = ["⚀","⚁","⚂","⚃","⚄","⚅"];
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
+let isAuto = false;
+document.getElementById('autoBet').addEventListener('change', (e) => {
+    isAuto = e.target.checked;
+});
+
 function setBet(v){document.getElementById('bet').value=v;}
 function mulBet(m){const b=document.getElementById('bet');b.value=Math.max(1,Math.floor(b.value*m));}
 function bet(){return parseInt(document.getElementById('bet').value,10);}
 function toast(m, ok){var t=document.getElementById('arcadeMsg');t.textContent=m;t.className='toast show '+(ok?'good':'bad');setTimeout(function(){t.className='toast';},2200);}
+
 function showResult(d){
   let msg=d.detail+' — '+(d.win?('won '+d.payout+' gold (net '+(d.net>=0?'+':'')+d.net+')'):('lost '+d.bet+' gold'));
+  if(d.jackpot_win) { msg = "🔥 MEGA WIN! " + msg; }
   if(d.gear_won){msg+=' · 🎁 looted '+d.gear_won+' → inventory';}
   
   toast(msg, d.win);
 
   document.getElementById('goldPill').textContent='🪙 '+d.gold;
   document.getElementById('goldHere').textContent='Balance: 🪙 '+d.gold;
+  if(d.new_jackpot) {
+      document.getElementById('jackpotSlots').textContent = d.new_jackpot.toLocaleString();
+  }
+
+  if (isAuto && d.ok && d.gold >= bet()) {
+      setTimeout(() => {
+          if (d.game === 'slots') playSlots();
+          else if (d.game === 'dice') playDice();
+          else if (d.game === 'wheel') playWheel();
+      }, 1000);
+  }
 }
+
 async function api(game, choice){
   const b=bet(); if(!b||b<1){toast('Enter a bet',false);return null;}
   const r=await fetch('/api/arcade/play',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:game,bet:b,choice:choice||''})});
   const d=await r.json();
-  if(!d.ok){toast(d.error,false);return null;}
+  if(!d.ok){toast(d.error,false); isAuto=false; document.getElementById('autoBet').checked=false; return null;}
   return d;
 }
+
+async function playDaily() {
+    disable('btn-daily', true);
+    const r = await fetch('/api/arcade/daily-spin', {method:'POST'});
+    const d = await r.json();
+    if(d.ok) {
+        toast(d.reward, true);
+        document.getElementById('goldPill').textContent='🪙 '+d.new_gold;
+        document.getElementById('goldHere').textContent='Balance: 🪙 '+d.new_gold;
+        document.querySelector('.daily-spin-banner').style.display = 'none';
+    } else {
+        toast(d.error, false);
+    }
+}
+
 function disable(id,on){const b=document.getElementById(id);if(b)b.disabled=on;}
 
 /* ---- SLOTS ---- */
@@ -232,58 +286,35 @@ async function playHL(choice){
   disable('btn-high',false);disable('btn-low',false);
 }
 
-/* ---- Extra games (data-driven cards) ---- */
-const MOREGAMES=[
-  {k:'roulette',n:'Roulette',i:'🎡',d:'Even money ×2 · single number ×36',c:[{v:'red',l:'Red'},{v:'black',l:'Black'},{v:'odd',l:'Odd'},{v:'even',l:'Even'},{v:'low',l:'1-18'},{v:'high',l:'19-36'}],num:[0,36,'No.']},
-  {k:'rps',n:'Rock Paper Scissors',i:'✊',d:'Beat the house · ×1.9',c:[{v:'rock',l:'✊'},{v:'paper',l:'✋'},{v:'scissors',l:'✌️'}]},
-  {k:'crash',n:'Crash',i:'🚀',d:'Cash out before it busts',c:[{v:'1.5',l:'1.5x'},{v:'2',l:'2x'},{v:'3',l:'3x'},{v:'5',l:'5x'},{v:'10',l:'10x'}]},
-  {k:'sicbo',n:'Sic Bo',i:'🎲',d:'Two dice · under/over/lucky 7',c:[{v:'under',l:'Under 7'},{v:'over',l:'Over 7'},{v:'seven',l:'Seven ×5.7'}]},
-  {k:'horserace',n:'Horse Race',i:'🐎',d:'Back a winner · ×3.8',c:[{v:'0',l:'🐎1'},{v:'1',l:'🐎2'},{v:'2',l:'🐎3'},{v:'3',l:'🐎4'}]},
-  {k:'chests',n:'Three Chests',i:'🎁',d:'Pick the golden chest · ×2.85',c:[{v:'0',l:'Chest 1'},{v:'1',l:'Chest 2'},{v:'2',l:'Chest 3'}]},
-  {k:'colorpick',n:'Colour Pick',i:'🎨',d:'Guess the colour · ×2.85',c:[{v:'red',l:'🔴'},{v:'green',l:'🟢'},{v:'blue',l:'🔵'}]},
-  {k:'lucky',n:'Lucky Number',i:'🍀',d:'Pick 1-10 · ×9.5',num:[1,10,'Pick']},
-  {k:'war',n:'Card War',i:'🃏',d:'High card vs dealer · ×1.9'},
-  {k:'diceduel',n:'Dice Duel',i:'⚔️',d:'Your die vs the house · ×1.88'},
-  {k:'plinko',n:'Plinko',i:'🔵',d:'Drop the ball · up to ×15'},
-  {k:'scratch',n:'Scratch Card',i:'🎟️',d:'Match 3 · up to ×15'},
-  {k:'gems',n:'Gem Dig',i:'💎',d:'Strike a legendary · up to ×15'},
-  {k:'megawheel',n:'Mega Wheel',i:'🎡',d:'12 segments · up to ×8'},
-  {k:'fortune',n:'Fortune Dice',i:'🎲',d:'Roll a triple · ×14'},
-  {k:'lightning',n:'Lightning',i:'⚡',d:'Call the thunder · up to ×25'},
-  {k:'minefield',n:'Minefield',i:'💣',d:'Clear 3 tiles · ×2.28'},
-  {k:'darts',n:'Darts',i:'🎯',d:'Hit the bullseye · ×10'},
-  {k:'slotdeluxe',n:'Slots Deluxe',i:'🎰',d:'3 reels · up to ×88'},
-  {k:'keno',n:'Keno',i:'🔢',d:'Match the draw · up to ×400'},
+/* ---- EXTRA GAMES ---- */
+const MOREGAMES = [
+  {k:'rps', n:'Rock Paper Scissors', i:'✊', d:'Beat the bot in 3 rounds. ×2'},
+  {k:'crash', n:'Rocket Crash', i:'🚀', d:'Cash out before it explodes! ×1.5-50'},
+  {k:'roulette', n:'Mini Roulette', i:'🎡', d:'Pick red, black or 0. ×2-14'},
+  {k:'scratch', n:'Lucky Scratch', i:'🎫', d:'Scratch 3 matching symbols. ×2-50'},
+  {k:'horserace', n:'Horse Race', i:'🐎', d:'Pick a horse to win. ×4'},
+  {k:'plinko', n:'Plinko Drop', i:'🔵', d:'Drop a ball for multipliers. ×0-10'},
+  {k:'sicbo', n:'Sic Bo', i:'🎲', d:'Bet on 3-dice totals. ×2-30'},
+  {k:'war', n:'Casino War', i:'⚔️', d:'Highest card wins. ×2'},
+  {k:'slotdeluxe', n:'Slot Deluxe', i:'🎰', d:'High volatility 3-reel slots. ×0-500'},
+  {k:'darts', n:'Bullseye Darts', i:'🎯', d:'Hit the center for gold. ×1-20'},
+  {k:'minefield', n:'Minefield', i:'🚶', d:'Cross without hitting mines. ×1.2-10'},
+  {k:'keno', n:'Mini Keno', i:'🎱', d:'Match 5 out of 20 numbers. ×2-100'},
+  {k:'fortune', n:'Fortune Dice', i:'🔮', d:'Predict the exact sum. ×6-30'},
+  {k:'lucky', n:'Lucky 7', i:'💎', d:'Land a 7 for a huge win. ×50'},
+  {k:'chests', n:'Treasure Chests', i:'🎁', d:'Pick the right chest. ×3'},
+  {k:'lightning', n:'Lightning Strike', i:'⚡', d:'Survive the bolt for gold. ×2'},
+  {k:'colorpick', n:'Color Pick', i:'🎨', d:'Guess the next color. ×3'},
+  {k:'diceduel', n:'Dice Duel', i:'⚔️', d:'Roll higher than opponent. ×2'},
+  {k:'gems', n:'Gem Match', i:'💎', d:'Find matching gems. ×5'},
+  {k:'megawheel', n:'Mega Wheel', i:'🎡', d:'24-segment high roller wheel. ×0-50'}
 ];
 function buildMoreGames(){
-  const wrap=document.getElementById('moreGames');
-  MOREGAMES.forEach(g=>{
-    const card=document.createElement('div');
-    card.className='game-card mini';
-    let html='<h3>'+g.i+' '+g.n+'</h3><p class="muted small">'+g.d+'</p><div class="choices wrap">';
-    if(g.c){
-      g.c.forEach(o=>{html+='<button class="ghost xs" data-k="'+g.k+'" data-v="'+o.v+'">'+o.l+'</button>';});
-    }
-    if(g.num){
-      html+='<input type="number" class="numpick" min="'+g.num[0]+'" max="'+g.num[1]+'" value="'+g.num[0]+'" title="'+g.num[2]+'">';
-      html+='<button class="ghost xs numplay" data-k="'+g.k+'">Play '+g.num[2]+'</button>';
-    }
-    if(!g.c && !g.num){
-      html+='<button data-k="'+g.k+'" data-v="">Play</button>';
-    }
-    html+='</div>';
-    card.innerHTML=html;
-    card.querySelectorAll('button[data-k]').forEach(btn=>{
-      btn.addEventListener('click',async()=>{
-        if(btn.classList.contains('numplay')){
-          const inp=card.querySelector('.numpick');
-          await playGen(btn.dataset.k, inp.value, card);
-        } else {
-          await playGen(btn.dataset.k, btn.dataset.v||'', card);
-        }
-      });
-    });
-    wrap.appendChild(card);
+  const g=document.getElementById('moreGames');
+  MOREGAMES.forEach(x=>{
+    const c=document.createElement('div'); c.className='game-card mini';
+    c.innerHTML=`<h3>${x.i} ${x.n}</h3><p class="muted small">${x.d}</p><div class="choices"><button onclick="playGen('${x.k}','',this.closest('.game-card'))">Play</button></div>`;
+    g.appendChild(c);
   });
 }
 async function playGen(game, choice, card){
@@ -328,7 +359,7 @@ async function playGen(game, choice, card){
      } else if (game === 'scratch') {
          stage.innerHTML = `<div class="anim-scratch"></div>`;
      } else if (game === 'keno' || game === 'colorpick') {
-         stage.innerHTML = `<div class="anim-pop">${icon}</div>`;
+         stage.innerHTML = `<div class="anim-keno"><span>1</span><span>7</span><span>22</span></div>`;
      } else {
          stage.innerHTML = `<div class="anim-pop">${icon}</div>`;
      }
@@ -348,6 +379,7 @@ async function playGen(game, choice, card){
 
   if(d){card&&card.classList.add('flash');setTimeout(()=>card&&card.classList.remove('flash'),350);showResult(d);}
 }
+
 buildMoreGames();
 
 // init slot strips at rest

@@ -29,26 +29,27 @@ func isPlayerCell(c int) bool { return c >= tftCols*2 && c < tftCells }
 
 // ===== Champion definitions =====
 type tftDef struct {
-	Key  string
-	Name string
-	Icon string
-	Cost int
-	HP   int
-	ATK  int
-	Rng  int // 1 = melee, 2+ = ranged
+	Key    string
+	Name   string
+	Icon   string
+	Cost   int
+	HP     int
+	ATK    int
+	Rng    int      // 1 = melee, 2+ = ranged
+	Traits []string // e.g. "warrior", "human"
 }
 
 var tftDefs = []tftDef{
-	{"brute", "Brute", "🪓", 1, 600, 55, 1},
-	{"wolf", "Dire Wolf", "🐺", 1, 500, 60, 1},
-	{"archer", "Archer", "🏹", 2, 450, 70, 3},
-	{"mage", "Frost Mage", "🧙", 2, 420, 80, 3},
-	{"knight", "Knight", "🛡️", 3, 900, 65, 1},
-	{"rogue", "Rogue", "🗡️", 3, 550, 110, 1},
-	{"golem", "Golem", "🗿", 4, 1300, 75, 1},
-	{"sorcerer", "Sorcerer", "🔮", 4, 600, 150, 3},
-	{"dragon", "Dragon", "🐉", 5, 1600, 170, 2},
-	{"titan", "Titan", "⚡", 5, 2200, 140, 1},
+	{"brute", "Brute", "🪓", 1, 600, 55, 1, []string{"warrior", "brute"}},
+	{"wolf", "Dire Wolf", "🐺", 1, 500, 60, 1, []string{"wild", "assassin"}},
+	{"archer", "Archer", "🏹", 2, 450, 70, 3, []string{"scout", "ranger"}},
+	{"mage", "Frost Mage", "🧙", 2, 420, 80, 3, []string{"mage", "elemental"}},
+	{"knight", "Knight", "🛡️", 3, 900, 65, 1, []string{"knight", "tank"}},
+	{"rogue", "Rogue", "🗡️", 3, 550, 110, 1, []string{"assassin", "rogue"}},
+	{"golem", "Golem", "🗿", 4, 1300, 75, 1, []string{"tank", "golem"}},
+	{"sorcerer", "Sorcerer", "🔮", 4, 600, 150, 3, []string{"mage", "mystic"}},
+	{"dragon", "Dragon", "🐉", 5, 1600, 170, 2, []string{"dragon", "titan"}},
+	{"titan", "Titan", "⚡", 5, 2200, 140, 1, []string{"titan", "tank"}},
 }
 
 func tftDefByKey(k string) (tftDef, bool) {
@@ -65,10 +66,11 @@ var costWeights = map[int]int{1: 40, 2: 28, 3: 18, 4: 10, 5: 4}
 
 // ===== Persistent state =====
 type tftUnit struct {
-	ID   string `json:"id"`
-	Key  string `json:"key"`
-	Star int    `json:"star"`
-	Pos  int    `json:"pos"` // -1 = bench, else board cell
+	ID    string   `json:"id"`
+	Key   string   `json:"key"`
+	Star  int      `json:"star"`
+	Pos   int      `json:"pos"`   // -1 = bench, else board cell
+	Items []string `json:"items"` // list of gear IDs (from global inventory)
 }
 
 type tftState struct {
@@ -142,8 +144,17 @@ func combineUnits(st *tftState) {
 		for _, idxs := range groups {
 			if len(idxs) >= 3 {
 				// Keep idxs[0] (upgrade it), remove idxs[1], idxs[2].
+				// Transfer items from removed units to the upgraded one if possible.
 				up := st.Units[idxs[0]]
 				up.Star++
+				for i := 1; i < 3; i++ {
+					for _, itm := range st.Units[idxs[i]].Items {
+						if len(up.Items) < 3 {
+							up.Items = append(up.Items, itm)
+						}
+					}
+				}
+
 				rm := map[int]bool{idxs[1]: true, idxs[2]: true}
 				var next []tftUnit
 				for i, u := range st.Units {
@@ -175,27 +186,32 @@ func benchCount(st *tftState) int {
 
 // ===== View models for the page =====
 type tftUnitView struct {
-	ID   string
-	Icon string
-	Name string
-	Star int
-	Pos  int
-	HP   int
-	ATK  int
+	ID     string   `json:"id"`
+	Icon   string   `json:"icon"`
+	Name   string   `json:"name"`
+	Star   int      `json:"star"`
+	Pos    int      `json:"pos"`
+	HP     int      `json:"hp"`
+	ATK    int      `json:"atk"`
+	Items  []string `json:"items"`
+	Traits []string `json:"traits"`
 }
 
 type tftShopView struct {
-	Index int
-	Key   string
-	Name  string
-	Icon  string
-	Cost  int
+	Index int    `json:"index"`
+	Key   string `json:"key"`
+	Name  string `json:"name"`
+	Icon  string `json:"icon"`
+	Cost  int    `json:"cost"`
 }
 
 func unitView(u tftUnit) tftUnitView {
 	d, _ := tftDefByKey(u.Key)
 	hp, atk := starStats(d, u.Star)
-	return tftUnitView{ID: u.ID, Icon: d.Icon, Name: d.Name, Star: u.Star, Pos: u.Pos, HP: hp, ATK: atk}
+	return tftUnitView{
+		ID: u.ID, Icon: d.Icon, Name: d.Name, Star: u.Star, Pos: u.Pos,
+		HP: hp, ATK: atk, Items: u.Items, Traits: d.Traits,
+	}
 }
 
 func starStats(d tftDef, star int) (int, int) {
@@ -235,8 +251,17 @@ func (s *WebServer) handleBattlePage(w http.ResponseWriter, r *http.Request, uid
 		"BoardJSON": jsonJS(board),
 		"ShopJSON":  jsonJS(shop),
 		"Cols":      tftCols, "Rows": tftRows, "Cells": tftCells,
-		"History": s.bot.battleHistory(uid, 12),
-		"Leaders": s.bot.gameLeaderboards("tft"),
+		"History":   s.bot.battleHistory(uid, 12),
+		"Leaders":   s.bot.gameLeaderboards("tft"),
+		"Inventory": s.bot.inventoryItems(uid),
+		"Traits": map[string]any{
+			"warrior":  []int{2, 4, 6},
+			"tank":     []int{2, 4, 6},
+			"assassin": []int{2, 4, 6},
+			"mage":     []int{2, 4, 6},
+			"dragon":   []int{1},
+			"titan":    []int{1},
+		},
 	})
 }
 
@@ -359,6 +384,45 @@ func (s *WebServer) handleTFTSell(w http.ResponseWriter, r *http.Request, uid st
 	writeJSON(w, map[string]any{"ok": true, "gold": s.bot.userGold(uid), "refund": refund})
 }
 
+// handleTFTEquip equips a gear piece from inventory onto a unit.
+func (s *WebServer) handleTFTEquip(w http.ResponseWriter, r *http.Request, uid string) {
+	var req struct {
+		UnitID string `json:"unit_id"`
+		InvID  string `json:"inv_id"` // gear_id
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+	st := s.bot.loadTFT(uid)
+	found := -1
+	for i, u := range st.Units {
+		if u.ID == req.UnitID {
+			found = i
+			break
+		}
+	}
+	if found < 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "no unit"})
+		return
+	}
+	if len(st.Units[found].Items) >= 3 {
+		writeJSON(w, map[string]any{"ok": false, "error": "unit items full"})
+		return
+	}
+	// Verify user owns the item in inventory
+	var count int
+	_ = s.bot.DB.QueryRow("SELECT COUNT(*) FROM user_inventory WHERE client_uid=$1 AND gear_id=$2", uid, req.InvID).Scan(&count)
+	if count == 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "item not in inventory"})
+		return
+	}
+
+	st.Units[found].Items = append(st.Units[found].Items, req.InvID)
+	s.bot.saveTFT(uid, st)
+	writeJSON(w, map[string]any{"ok": true})
+}
+
 func (b *Bot) userGold(uid string) int64 {
 	var g int64
 	_ = b.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&g)
@@ -388,22 +452,26 @@ type tftFrame struct {
 }
 
 type tftCombatResult struct {
-	OK       bool       `json:"ok"`
-	Error    string     `json:"error,omitempty"`
-	Victory  bool       `json:"victory"`
-	Frames   []tftFrame `json:"frames"`
-	GoldWon  int64      `json:"gold_won"`
-	GearWon  string     `json:"gear_won,omitempty"`
-	Gold     int64      `json:"gold"`
+	OK      bool       `json:"ok"`
+	Error   string     `json:"error,omitempty"`
+	Victory bool       `json:"victory"`
+	IsCreep bool       `json:"is_creep"`
+	Frames  []tftFrame `json:"frames"`
+	GoldWon int64      `json:"gold_won"`
+	GearWon string     `json:"gear_won,omitempty"`
+	Gold    int64      `json:"gold"`
 }
 
 type simUnit struct {
-	id, icon, side  string
-	star            int
-	pos             int
-	hp, maxhp       int
-	atk, rng        int
-	cd              int
+	id, icon, side string
+	star           int
+	pos            int
+	hp, maxhp      int
+	atk, rng       int
+	cd             int
+	traits         []string
+	critChance     int // 0-100
+	dmgRed         float64
 }
 
 var enemyIcons = []string{"👹", "👺", "💀", "👻", "🦂", "🕷️", "🐍", "🦅"}
@@ -432,7 +500,21 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 			continue
 		}
 		hp, atk := starStats(d, un.Star)
-		units = append(units, &simUnit{id: un.ID, icon: d.Icon, side: "you", star: un.Star, pos: un.Pos, hp: hp, maxhp: hp, atk: atk, rng: d.Rng, cd: 0})
+		
+		// Apply item bonuses
+		for _, itmID := range un.Items {
+			gear, ok := content.GetGearByID(itmID)
+			if ok {
+				hp += gear.Stats.HP
+				atk += gear.Stats.STR
+			}
+		}
+
+		units = append(units, &simUnit{
+			id: un.ID, icon: d.Icon, side: "you", star: un.Star, pos: un.Pos,
+			hp: hp, maxhp: hp, atk: atk, rng: d.Rng, cd: 0,
+			traits: d.Traits, critChance: 5, dmgRed: 0,
+		})
 		occupied[un.Pos] = true
 	}
 	if len(units) == 0 {
@@ -440,20 +522,40 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 
-	// Generate an enemy team scaled to the player level + board size.
-	enemies := generateEnemies(len(units), u.Level)
+	// Check if this is a creep round (based on history length)
+	var histCount int
+	_ = s.bot.DB.QueryRow("SELECT COUNT(*) FROM battle_history WHERE client_uid=$1", uid).Scan(&histCount)
+	isCreep := histCount > 0 && histCount%3 == 0
+
+	var enemies []*simUnit
+	if isCreep {
+		enemies = generateCreeps(u.Level)
+	} else {
+		enemies = generateEnemies(len(units), u.Level)
+	}
 	units = append(units, enemies...)
+
+	// Apply synergies
+	applySynergies(units)
 
 	frames, victory := simulateTFT(units)
 
 	// Rewards.
-	res := tftCombatResult{OK: true, Victory: victory, Frames: frames}
+	res := tftCombatResult{OK: true, Victory: victory, Frames: frames, IsCreep: isCreep}
 	if victory {
 		res.GoldWon = int64(3 + len(enemies)*2 + u.Level/3)
+		if isCreep {
+			res.GoldWon *= 2 // Double gold for creep rounds
+		}
 		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", res.GoldWon, uid)
-		// Improve gear: 45% chance to drop a gear piece into the inventory.
+		
+		// Improve gear: 45% chance to drop a gear piece. Guaranteed on Creep victory.
+		dropChance := 45
+		if isCreep {
+			dropChance = 100
+		}
 		// #nosec G404
-		if rand.IntN(100) < 45 {
+		if rand.IntN(100) < dropChance {
 			g := content.RandomGearDrop()
 			if _, err := s.bot.DB.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1,$2,$3)", uid, g.ID, g.MaxDurability); err == nil {
 				res.GearWon = g.Rarity.String() + " " + g.Name
@@ -465,13 +567,80 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 	if res.GearWon != "" {
 		gearWon = res.GearWon
 	}
+	mobName := fmt.Sprintf("TFT (%d enemies)", len(enemies))
+	if isCreep {
+		mobName = "CREEP ROUND: Golems & Wolves"
+	}
 	_, _ = s.bot.DB.Exec(
 		"INSERT INTO battle_history (client_uid, mob_name, victory, gold_won, gear_won) VALUES ($1,$2,$3,$4,$5)",
-		uid, fmt.Sprintf("TFT (%d enemies)", len(enemies)), victory, res.GoldWon, gearWon)
+		uid, mobName, victory, res.GoldWon, gearWon)
 	s.bot.recordGameResult(uid, "tft", victory, res.GoldWon)
 
 	res.Gold = s.bot.userGold(uid)
 	writeJSON(w, res)
+}
+
+func applySynergies(units []*simUnit) {
+	counts := map[string]int{}
+	for _, u := range units {
+		if u.side != "you" {
+			continue
+		}
+		for _, t := range u.traits {
+			counts[t]++
+		}
+	}
+
+	for _, u := range units {
+		if u.side != "you" {
+			continue
+		}
+		// Warrior: +20/40/80 ATK
+		if c := counts["warrior"]; c >= 6 {
+			u.atk += 80
+		} else if c >= 4 {
+			u.atk += 40
+		} else if c >= 2 {
+			u.atk += 20
+		}
+		// Tank: +150/300/600 HP
+		if c := counts["tank"]; c >= 6 {
+			u.maxhp += 600
+			u.hp += 600
+		} else if c >= 4 {
+			u.maxhp += 300
+			u.hp += 300
+		} else if c >= 2 {
+			u.maxhp += 150
+			u.hp += 150
+		}
+		// Assassin: +15/30/60% Crit Chance
+		if c := counts["assassin"]; c >= 6 {
+			u.critChance += 60
+		} else if c >= 4 {
+			u.critChance += 30
+		} else if c >= 2 {
+			u.critChance += 15
+		}
+		// Mage: +30/60/120 ATK
+		if c := counts["mage"]; c >= 6 {
+			u.atk += 120
+		} else if c >= 4 {
+			u.atk += 60
+		} else if c >= 2 {
+			u.atk += 30
+		}
+		// Dragon: 1 -> +1000 HP, +100 ATK
+		if counts["dragon"] >= 1 {
+			u.maxhp += 1000
+			u.hp += 1000
+			u.atk += 100
+		}
+		// Titan: 1 -> 50% DMG Red
+		if counts["titan"] >= 1 {
+			u.dmgRed = 0.5
+		}
+	}
 }
 
 func generateEnemies(playerCount, level int) []*simUnit {
@@ -500,8 +669,30 @@ func generateEnemies(playerCount, level int) []*simUnit {
 			id:   fmt.Sprintf("e%d", i),
 			icon: enemyIcons[r.IntN(len(enemyIcons))],
 			side: "enemy", star: 1, pos: cells[i], hp: hp, maxhp: hp, atk: atk, rng: rng, cd: 0,
+			critChance: 5,
 		})
 	}
+	return out
+}
+
+func generateCreeps(level int) []*simUnit {
+	scale := 1.2 + 0.1*float64(level)
+	var out []*simUnit
+	
+	// Buffed units
+	out = append(out, &simUnit{
+		id: "c1", icon: "🗿", side: "enemy", pos: 3, 
+		hp: int(2000*scale), maxhp: int(2000*scale), atk: int(100*scale), rng: 1,
+	})
+	out = append(out, &simUnit{
+		id: "c2", icon: "🐺", side: "enemy", pos: 10,
+		hp: int(800*scale), maxhp: int(800*scale), atk: int(150*scale), rng: 1,
+	})
+	out = append(out, &simUnit{
+		id: "c3", icon: "🐺", side: "enemy", pos: 11,
+		hp: int(800*scale), maxhp: int(800*scale), atk: int(150*scale), rng: 1,
+	})
+	
 	return out
 }
 
@@ -523,7 +714,7 @@ func chebyshev(a, b int) int {
 // simulateTFT runs the board fight tick by tick, returning animation frames and
 // whether the player's side won.
 func simulateTFT(units []*simUnit) ([]tftFrame, bool) {
-	const maxTicks = 80
+	const maxTicks = 120
 	const attackCooldown = 2
 
 	snapshot := func() tftFrame {
@@ -559,6 +750,9 @@ func simulateTFT(units []*simUnit) ([]tftFrame, bool) {
 		}
 		return false
 	}
+
+	// #nosec G404
+	r := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
 
 	for tick := 0; tick < maxTicks; tick++ {
 		if alive("you") == 0 || alive("enemy") == 0 {
@@ -596,11 +790,18 @@ func simulateTFT(units []*simUnit) ([]tftFrame, bool) {
 			tgt := units[target]
 			if best <= u.rng {
 				if u.cd <= 0 {
-					tgt.hp -= u.atk
+					dmg := u.atk
+					if r.IntN(100) < u.critChance {
+						dmg *= 2
+					}
+					if tgt.dmgRed > 0 {
+						dmg = int(float64(dmg) * (1.0 - tgt.dmgRed))
+					}
+					tgt.hp -= dmg
 					if tgt.hp < 0 {
 						tgt.hp = 0
 					}
-					events = append(events, tftEvent{From: u.id, To: tgt.id, Dmg: u.atk})
+					events = append(events, tftEvent{From: u.id, To: tgt.id, Dmg: dmg})
 					u.cd = attackCooldown
 				}
 			} else {

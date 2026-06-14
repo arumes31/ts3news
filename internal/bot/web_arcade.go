@@ -2,6 +2,7 @@ package bot
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand/v2"
 	"net/http"
 
@@ -35,6 +36,10 @@ type arcadeOutcome struct {
 	Segment int      `json:"segment"`           // wheel (index into wheelSegments)
 	Mult    float64  `json:"mult,omitempty"`    // wheel/payout multiplier
 	GearWon string   `json:"gear_won,omitempty"` // gear looted on a win
+
+	JackpotWin    bool  `json:"jackpot_win,omitempty"`
+	JackpotAmount int64 `json:"jackpot_amount,omitempty"`
+	NewJackpot    int64 `json:"new_jackpot,omitempty"`
 }
 
 func (s *WebServer) handleArcadePage(w http.ResponseWriter, r *http.Request, uid string) {
@@ -43,10 +48,15 @@ func (s *WebServer) handleArcadePage(w http.ResponseWriter, r *http.Request, uid
 		http.Redirect(w, r, "/denied", http.StatusSeeOther)
 		return
 	}
+	vip, pts := s.bot.getVIP(uid)
 	s.render(w, "arcade", map[string]any{
 		"Title": "Arcade", "Nav": "arcade", "U": u,
-		"WheelJSON": jsonJS(wheelSegments),
-		"Leaders":   s.bot.gameLeaderboards("arcade"),
+		"WheelJSON":   jsonJS(wheelSegments),
+		"Leaders":     s.bot.gameLeaderboards("arcade"),
+		"VIP":         vip,
+		"VIPPoints":   pts,
+		"JackpotSlots": s.bot.getJackpot("slots"),
+		"CanDaily":    s.bot.canSpinDaily(uid),
 	})
 }
 
@@ -80,6 +90,9 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 
+	// Award VIP points: 1 per 10 gold wagered
+	s.bot.addVIPPoints(uid, int(req.Bet/10))
+
 	// #nosec G404 -- non-cryptographic arcade RNG
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
 	out := playArcade(rng, req.Game, req.Bet, req.Choice)
@@ -89,13 +102,40 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 
+	// Progressive Jackpot logic (Slots only for now)
+	if req.Game == "slots" {
+		if out.Detail == "JACKPOT! 5 of a kind ×88" {
+			jackpot := s.bot.claimJackpot(uid, "slots")
+			if jackpot > 0 {
+				out.JackpotWin = true
+				out.JackpotAmount = jackpot
+				out.Payout += jackpot
+			}
+		} else {
+			s.bot.incrementJackpot("slots", req.Bet)
+		}
+		out.NewJackpot = s.bot.getJackpot("slots")
+	}
+
 	// Credit the payout and read the resulting balance atomically (via RETURNING)
 	// so no concurrent operation can change gold between the update and the read.
 	var gold int64
 	if out.Payout > 0 {
 		_ = s.bot.DB.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", out.Payout, uid).Scan(&gold)
 	} else {
-		_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+		// Apply VIP loss-back if applicable
+		vip, _ := s.bot.getVIP(uid)
+		if vip.Rebate > 0 {
+			rebate := req.Bet * int64(vip.Rebate) / 100
+			if rebate > 0 {
+				_ = s.bot.DB.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", rebate, uid).Scan(&gold)
+				out.Detail += fmt.Sprintf(" (VIP loss-back: +%d gold)", rebate)
+			} else {
+				_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+			}
+		} else {
+			_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+		}
 	}
 	out.Net = out.Payout - out.Bet
 	// A push (e.g. dice rolling 4) returns the bet so Payout > 0 but Net == 0; only
@@ -116,6 +156,42 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 	out.Gold = gold
 	s.bot.recordGameResult(uid, "arcade", out.Win, out.Net)
 	writeJSON(w, out)
+}
+
+func (s *WebServer) handleDailySpinAPI(w http.ResponseWriter, r *http.Request, uid string) {
+	if !s.bot.canSpinDaily(uid) {
+		writeJSON(w, map[string]any{"ok": false, "error": "already spun today"})
+		return
+	}
+	// #nosec G404
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	s.bot.recordDailySpin(uid)
+
+	var reward string
+	var gold int64
+	var gear string
+
+	roll := rng.IntN(100)
+	switch {
+	case roll < 70:
+		gold = int64(100 + rng.IntN(400))
+		reward = fmt.Sprintf("Looted %d gold!", gold)
+		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", gold, uid)
+	case roll < 95:
+		g := content.RandomGearDrop()
+		gear = g.Rarity.String() + " " + g.Name
+		reward = "Looted " + gear + "!"
+		_, _ = s.bot.DB.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1,$2,$3)", uid, g.ID, g.MaxDurability)
+	default:
+		gold = 2500
+		reward = "JACKPOT! Looted 2500 gold!"
+		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", gold, uid)
+	}
+
+	writeJSON(w, map[string]any{
+		"ok": true, "reward": reward, "gold": gold, "gear": gear,
+		"new_gold": s.bot.userGold(uid),
+	})
 }
 
 // playArcade dispatches to the individual games. Each carries a small house edge.
