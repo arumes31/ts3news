@@ -103,9 +103,7 @@ function createUnitToken(u){
 
 function updateSynergies(){
   const counts={};
-  const seen={};
   BOARD.forEach(u=>{
-    if(seen[u.name]) return; seen[u.name]=true;
     (u.traits||[]).forEach(t=>{
       counts[t]=(counts[t]||0)+1;
     });
@@ -160,7 +158,13 @@ async function startCombat(){
   document.getElementById('fightBtn').disabled=true;
   document.getElementById('phase').textContent='Combat in progress...';
   const d=await post('/api/tft/combat',{});
-  if(!d.ok){toast(d.error,false);inCombat=false;document.getElementById('fightBtn').disabled=false;return;}
+  if(!d.ok){
+    toast(d.error,false);
+    inCombat=false;
+    document.getElementById('fightBtn').disabled=false;
+    document.getElementById('phase').textContent='Planning phase';
+    return;
+  }
   await playCombat(d.frames);
   if(d.victory){
     toast('🏆 Victory! +'+d.gold_won+' gold'+(d.gear_won?(' · looted '+d.gear_won+' → inventory'):'')+'.', true);

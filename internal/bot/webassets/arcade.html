@@ -147,15 +147,19 @@ async function api(game, choice){
 
 async function playDaily() {
     disable('btn-daily', true);
-    const r = await fetch('/api/arcade/daily-spin', {method:'POST'});
-    const d = await r.json();
-    if(d.ok) {
-        toast(d.reward, true);
-        document.getElementById('goldPill').textContent='🪙 '+d.new_gold;
-        document.getElementById('goldHere').textContent='Balance: 🪙 '+d.new_gold;
-        document.querySelector('.daily-spin-banner').style.display = 'none';
-    } else {
-        toast(d.error, false);
+    try {
+        const r = await fetch('/api/arcade/daily-spin', {method:'POST'});
+        const d = await r.json();
+        if(d.ok) {
+            toast(d.reward, true);
+            document.getElementById('goldPill').textContent='🪙 '+d.new_gold;
+            document.getElementById('goldHere').textContent='Balance: 🪙 '+d.new_gold;
+            document.querySelector('.daily-spin-banner').style.display = 'none';
+        } else {
+            toast(d.error, false);
+        }
+    } finally {
+        disable('btn-daily', false);
     }
 }
 

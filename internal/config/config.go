@@ -67,7 +67,7 @@ type Config struct {
 
 	// WebUI
 	WebEnable     bool   // run the player web portal (armoury, battler, arcade, shop)
-	WebListenAddr string // host:port the web server listens on (e.g. ":18080")
+	WebListenAddr string // host:port the web server listens on (e.g. ":18081")
 	WebBaseURL    string // public base URL used to build per-user login links
 }
 

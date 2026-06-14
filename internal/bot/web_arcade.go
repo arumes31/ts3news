@@ -159,13 +159,12 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 }
 
 func (s *WebServer) handleDailySpinAPI(w http.ResponseWriter, r *http.Request, uid string) {
-	if !s.bot.canSpinDaily(uid) {
+	if !s.bot.attemptDailySpin(uid) {
 		writeJSON(w, map[string]any{"ok": false, "error": "already spun today"})
 		return
 	}
 	// #nosec G404
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
-	s.bot.recordDailySpin(uid)
 
 	var reward string
 	var gold int64

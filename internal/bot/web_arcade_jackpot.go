@@ -2,7 +2,6 @@ package bot
 
 import (
 	"database/sql"
-	"log"
 	"time"
 )
 
@@ -56,29 +55,38 @@ func (b *Bot) incrementJackpot(game string, bet int64) {
 	if inc < 1 {
 		inc = 1
 	}
-	_, _ = b.DB.Exec("UPDATE arcade_jackpots SET amount = amount + $1, updated_at = NOW() WHERE game_key=$1", inc, game)
+	_, _ = b.DB.Exec("UPDATE arcade_jackpots SET amount = amount + $1, updated_at = NOW() WHERE game_key=$2", inc, game)
 }
 
 func (b *Bot) claimJackpot(uid string, game string) int64 {
-	var amt int64
-	err := b.DB.QueryRow("UPDATE arcade_jackpots SET amount = 10000, updated_at = NOW() WHERE game_key=$1 RETURNING amount", game).Scan(&amt)
-	if err != nil {
-		log.Printf("jackpot: claim failed: %v", err)
-		return 0
-	}
-	// Note: the UPDATE .. RETURNING above actually returns the NEW amount (10000).
-	// We need the OLD amount.
-	
 	tx, err := b.DB.Begin()
 	if err != nil { return 0 }
 	defer func() { _ = tx.Rollback() }()
 
-	_ = tx.QueryRow("SELECT amount FROM arcade_jackpots WHERE game_key=$1", game).Scan(&amt)
+	var amt int64
+	if err := tx.QueryRow("SELECT amount FROM arcade_jackpots WHERE game_key=$1 FOR UPDATE", game).Scan(&amt); err != nil {
+		return 0
+	}
+	
 	_, _ = tx.Exec("UPDATE arcade_jackpots SET amount = 10000, updated_at = NOW() WHERE game_key=$1", game)
 	_, _ = tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", amt, uid)
 	
 	if err := tx.Commit(); err != nil { return 0 }
 	return amt
+}
+
+func (b *Bot) attemptDailySpin(uid string) bool {
+	res, err := b.DB.Exec(`
+		UPDATE users 
+		SET last_daily_spin = NOW() 
+		WHERE client_uid = $1 
+		  AND (last_daily_spin IS NULL OR last_daily_spin < NOW() - INTERVAL '24 hours')`,
+		uid)
+	if err != nil {
+		return false
+	}
+	n, _ := res.RowsAffected()
+	return n > 0
 }
 
 func (b *Bot) canSpinDaily(uid string) bool {
@@ -91,5 +99,5 @@ func (b *Bot) canSpinDaily(uid string) bool {
 }
 
 func (b *Bot) recordDailySpin(uid string) {
-	_, _ = b.DB.Exec("UPDATE users SET last_daily_spin = NOW() WHERE client_uid=$2", uid)
+	_, _ = b.DB.Exec("UPDATE users SET last_daily_spin = NOW() WHERE client_uid=$1", uid)
 }

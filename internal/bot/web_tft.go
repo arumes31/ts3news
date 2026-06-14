@@ -410,10 +410,14 @@ func (s *WebServer) handleTFTEquip(w http.ResponseWriter, r *http.Request, uid s
 		writeJSON(w, map[string]any{"ok": false, "error": "unit items full"})
 		return
 	}
-	// Verify user owns the item in inventory
-	var count int
-	_ = s.bot.DB.QueryRow("SELECT COUNT(*) FROM user_inventory WHERE client_uid=$1 AND gear_id=$2", uid, req.InvID).Scan(&count)
-	if count == 0 {
+	// Atomic check and remove from inventory to prevent duplication
+	res, err := s.bot.DB.Exec("DELETE FROM user_inventory WHERE id IN (SELECT id FROM user_inventory WHERE client_uid=$1 AND gear_id=$2 LIMIT 1)", uid, req.InvID)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
+		return
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
 		writeJSON(w, map[string]any{"ok": false, "error": "item not in inventory"})
 		return
 	}
@@ -681,15 +685,15 @@ func generateCreeps(level int) []*simUnit {
 	
 	// Buffed units
 	out = append(out, &simUnit{
-		id: "c1", icon: "🗿", side: "enemy", pos: 3, 
+		id: "c1", icon: "🗿", side: "enemy", pos: 3, star: 1,
 		hp: int(2000*scale), maxhp: int(2000*scale), atk: int(100*scale), rng: 1,
 	})
 	out = append(out, &simUnit{
-		id: "c2", icon: "🐺", side: "enemy", pos: 10,
+		id: "c2", icon: "🐺", side: "enemy", pos: 10, star: 1,
 		hp: int(800*scale), maxhp: int(800*scale), atk: int(150*scale), rng: 1,
 	})
 	out = append(out, &simUnit{
-		id: "c3", icon: "🐺", side: "enemy", pos: 11,
+		id: "c3", icon: "🐺", side: "enemy", pos: 11, star: 1,
 		hp: int(800*scale), maxhp: int(800*scale), atk: int(150*scale), rng: 1,
 	})
 	
