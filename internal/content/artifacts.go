@@ -714,8 +714,7 @@ func RandomTitle() Title {
 // always offers a meaningful upgrade path. Used by the web shop.
 func ShopStock(seed int64, count int) []Gear {
 	// #nosec G404 -- deterministic, non-cryptographic shop rotation
-	// #nosec G115 -- seed is always non-negative in practice
-	r := rand.New(rand.NewPCG(uint64(seed), uint64(seed)+1))
+	r := rand.New(rand.NewPCG(uint64(seed), uint64(seed)+1)) // #nosec G115
 	var pool []Gear
 	for _, g := range allGear {
 		if strings.HasPrefix(g.ID, "B_") { // skip Novice/starter junk

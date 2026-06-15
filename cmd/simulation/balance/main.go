@@ -190,7 +190,7 @@ func main() {
 
 // RunFullSimulation runs a complete fight simulation with the given parameters.
 func RunFullSimulation(seed int64, params SimParams, playerCount, groupSize, totalFights int, verbose bool) *MetricCollector {
-	rng := rand.New(rand.NewSource(seed))
+	rng := rand.New(rand.NewSource(seed)) // #nosec G404 - simulation only, non-cryptographic
 
 	// Create players
 	players := make([]*SimPlayer, playerCount)

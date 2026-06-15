@@ -265,7 +265,7 @@ func PrintSummary(am AggregateMetrics) {
 
 // WriteCSV writes fight records to a CSV file.
 func WriteCSV(records []FightRecord, filename string) error {
-	f, err := os.Create(filename)
+	f, err := os.Create(filename) // #nosec G304 - simulation output file, trusted filename from code
 	if err != nil {
 		return err
 	}
@@ -338,7 +338,7 @@ func WriteJSON(am AggregateMetrics, filename string) error {
 		return err
 	}
 
-	return os.WriteFile(filename, jsonData, 0644)
+	return os.WriteFile(filename, jsonData, 0644) // #nosec G306 - simulation output file, 0644 is acceptable for analysis data
 }
 
 // ParseGroupSizes parses a comma-separated list of group sizes.
