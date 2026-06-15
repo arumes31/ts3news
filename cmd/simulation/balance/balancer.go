@@ -163,7 +163,7 @@ func (ab *AutoBalancer) runSimulation(params SimParams) (float64, []BracketResul
 	var bracketResults []BracketResult
 
 	for _, bracketLevel := range levelBrackets {
-		rng := rand.New(rand.NewSource(ab.Seed + int64(bracketLevel*1000)))
+		rng := rand.New(rand.NewSource(ab.Seed + int64(bracketLevel*1000))) // #nosec G404 - simulation only, non-cryptographic
 
 		// Create players at this level bracket with appropriate gear
 		players := make([]*SimPlayer, ab.PlayerCount)

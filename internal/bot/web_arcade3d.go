@@ -129,7 +129,7 @@ func (s *WebServer) handleArcade3DPlay(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write(b)
+	_, _ = w.Write(b) // #nosec G705 - static HTML file served from assets, no user input
 }
 
 // sanitizeGameID validates and sanitizes a game identifier to prevent SQL injection.
@@ -286,7 +286,7 @@ func (s *WebServer) handleArcade3DReward(w http.ResponseWriter, r *http.Request,
 	// Roll for gear drop
 	// #nosec G404 -- non-cryptographic drop roll
 	gear := ""
-	if rand.IntN(100) < chance {
+	if rand.IntN(100) < chance { // #nosec G404 - non-cryptographic game drop roll
 		g := content.RandomGearDrop()
 		result := s.bot.awardGearDrop(uid, g)
 		gear = result.Prefix + result.ItemName

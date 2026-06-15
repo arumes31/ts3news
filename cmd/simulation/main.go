@@ -507,7 +507,7 @@ func (p *Player) EquipGear(g *Gear) bool {
 }
 
 func (p *Player) RollUnique() {
-	name := GenerateUniqueItemName(rand.New(rand.NewSource(time.Now().UnixNano())))
+	name := GenerateUniqueItemName(rand.New(rand.NewSource(time.Now().UnixNano()))) // #nosec G404 - simulation only, non-cryptographic
 	if !p.UniqueItemsCollected[name] {
 		p.UniqueItemsCollected[name] = true
 		p.TotalUniqueCollected++
@@ -800,7 +800,7 @@ func (sim *Simulation) Analyze(label string) {
 }
 
 func runSimulation(days int, seed int64, params SimParams, label string) *Simulation {
-	rng := rand.New(rand.NewSource(seed))
+	rng := rand.New(rand.NewSource(seed)) // #nosec G404 - simulation only, non-cryptographic
 	sim := &Simulation{Rng: rng, Params: params}
 	// Reset AH and Gold for each tier run
 	globalAH = AuctionHouse{}

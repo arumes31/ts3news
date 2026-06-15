@@ -258,7 +258,7 @@ func (b *Bundle) randomPoolEntry(pool string) string {
 	if len(entries) == 0 {
 		return ""
 	}
-	return entries[rand.IntN(len(entries))]
+	return entries[rand.IntN(len(entries))] // #nosec G404 - non-cryptographic random for i18n pool selection
 }
 
 // getPool returns the pool entries for the current locale, falling back to en_US.

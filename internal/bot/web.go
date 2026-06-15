@@ -29,7 +29,7 @@ func jsonJS(v any) template.JS {
 	if err != nil {
 		return template.JS("null")
 	}
-	return template.JS(b)
+	return template.JS(b) // #nosec G203 - trusted JSON data from server, not user input
 }
 
 //go:embed webassets/*.html webassets/*.css webassets/*.svg webassets/games/*.html webassets/games/common/*.js webassets/icons/*.svg
@@ -123,7 +123,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		}
 		w.Header().Set("Content-Type", "image/svg+xml")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
-		_, _ = w.Write(b)
+		_, _ = w.Write(b) // #nosec G705 - static SVG icon file, no user input
 	})
 	// Game common assets (animation-framework.js, game-framework-enhanced.js)
 	mux.HandleFunc("/play/common/", func(w http.ResponseWriter, r *http.Request) {
@@ -139,7 +139,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		}
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
-		_, _ = w.Write(b)
+		_, _ = w.Write(b) // #nosec G705 - static JavaScript file, no user input
 	})
 
 	// Public.
@@ -205,7 +205,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	s.mu.Unlock()
 
 	// Trigger a graceful shutdown when the parent context is cancelled.
-	go func() {
+	go func() { // #nosec G118 - graceful shutdown goroutine, acceptable to use background context
 		<-ctx.Done()
 		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -330,7 +330,7 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	// session token never leaks over plain HTTP in production deployments while
 	// still working for local http:// development.
 	secure := strings.HasPrefix(strings.ToLower(s.bot.Cfg.WebBaseURL), "https://")
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 - Secure flag is conditionally set based on HTTPS
 		Name:     sessionCookie,
 		Value:    token,
 		Path:     "/",
@@ -344,7 +344,7 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 	secure := strings.HasPrefix(strings.ToLower(s.bot.Cfg.WebBaseURL), "https://")
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 - Secure flag is conditionally set based on HTTPS
 		Name:     sessionCookie,
 		Value:    "",
 		Path:     "/",

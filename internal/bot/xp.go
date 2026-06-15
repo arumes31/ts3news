@@ -1748,7 +1748,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		r := rand.Float64() - lootFindBonus // #nosec G404
 
 		if mob.Type == content.MobTreasureGoblin {
-			gold := int64(1000 + rand.IntN(2000))
+			gold := int64(1000 + rand.IntN(2000)) // #nosec G404 - non-cryptographic gold calculation
 			if vip.Bonus > 0 {
 				gold = int64(float64(gold) * (1.0 + float64(vip.Bonus)/100.0))
 			}
