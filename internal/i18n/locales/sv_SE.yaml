@@ -1225,7 +1225,7 @@ content.gear.slot.emblem1: Emblem1
 content.gear.slot.emblem2: Emblem2
 content.gear.slot.banner: Banner
 content.gear.slot.totem: Totem
-content.gear.procedural: '%[1]s %[2]s av %[3]s'
+content.gear.procedural: '%[1]s %[2]s %[3]s'
 content.gear.novice: Novis %[1]s
 content.gear.trusty_longsword: Pålitligt Långsvärd
 content.gear.reinforced_breastplate: Förstärkt Bröstharnesk

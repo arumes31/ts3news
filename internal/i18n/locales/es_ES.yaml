@@ -1231,7 +1231,7 @@ content.gear.slot.emblem1: Emblema 1
 content.gear.slot.emblem2: Emblema 2
 content.gear.slot.banner: Banner
 content.gear.slot.totem: Totem
-content.gear.procedural: '%[1]s %[2]s de %[3]s'
+content.gear.procedural: '%[1]s %[2]s %[3]s'
 content.gear.novice: Novato %[1]s
 content.gear.trusty_longsword: Espada Larga de Confianza
 content.gear.reinforced_breastplate: Pecho Reforzado

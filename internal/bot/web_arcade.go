@@ -52,7 +52,6 @@ func (s *WebServer) handleArcadePage(w http.ResponseWriter, r *http.Request, uid
 	s.render(w, "arcade", map[string]any{
 		"Title": "Arcade", "Nav": "arcade", "U": u,
 		"WheelJSON":    jsonJS(wheelSegments),
-		"Leaders":      s.bot.gameLeaderboards("arcade"),
 		"VIP":          vip,
 		"VIPPoints":    pts,
 		"JackpotSlots": s.bot.getJackpot("slots"),

@@ -1467,7 +1467,7 @@ content.gear.slot.totem: "图腾"
 
 # ─── Content Pools: Gear Names ───
 
-content.gear.procedural: "%[1]s %[2]s 之 %[3]s"
+content.gear.procedural: "%[1]s %[2]s %[3]s"
 content.gear.novice: "新手 %[1]s"
 
 # ─── Content Pools: Unique Gear Names ───

@@ -1232,7 +1232,7 @@ content.gear.slot.emblem1: Embleem 1
 content.gear.slot.emblem2: Embleem 2
 content.gear.slot.banner: Banner
 content.gear.slot.totem: Totem
-content.gear.procedural: '%[1]s %[2]s van %[3]s'
+content.gear.procedural: '%[1]s %[2]s %[3]s'
 content.gear.novice: Beginner %[1]s
 content.gear.trusty_longsword: Betrouwbaar Langzwaard
 content.gear.reinforced_breastplate: Versterkte Borstplaat

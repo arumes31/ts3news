@@ -1,56 +1,88 @@
 {{define "leaderboards"}}{{template "head" .}}
-<div class="container">
-  <h1>🏆 Leaderboards</h1>
-  <p class="muted">Top performers across all game modes.</p>
+<div class="lb-page">
+  <header class="lb-page-header">
+    <div>
+      <h1 class="lb-page-title">🏆 Leaderboards</h1>
+      <p class="lb-page-sub">Top performers across all game modes.</p>
+    </div>
+    <a href="/arcade" class="lb-back-btn">← Back to Arcade</a>
+  </header>
+
+  <!-- Category Tabs -->
+  <div class="lb-category-tabs">
+    <button class="lb-cat-btn active" data-cat="arcade">🎰 Arcade</button>
+    <button class="lb-cat-btn" data-cat="tft">♟️ TFT Battle</button>
+    <button class="lb-cat-btn" data-cat="3d">🎮 3D Games</button>
+  </div>
 
   <!-- ARCADE LEADERBOARDS -->
-  <div class="lb-section">
-    <h2>🎰 Arcade Games</h2>
-    {{template "leaderboards" .ArcadeLeaders}}
+  <div class="lb-cat-panel active" data-cat="arcade">
+    <div class="lb-section">
+      <h2 class="lb-section-title">🎰 Arcade Games</h2>
+      <p class="lb-section-desc">Most wins across all arcade games (slots, dice, wheel, etc.)</p>
+      {{template "leaderboards" .ArcadeLeaders}}
+    </div>
   </div>
 
   <!-- TFT BATTLE LEADERBOARDS -->
-  <div class="lb-section">
-    <h2>♟️ TFT Battle</h2>
-    {{template "leaderboards" .TFTLeaders}}
+  <div class="lb-cat-panel" data-cat="tft">
+    <div class="lb-section">
+      <h2 class="lb-section-title">♟️ TFT Battle</h2>
+      <p class="lb-section-desc">Highest waves and most battle victories</p>
+      {{template "leaderboards" .TFTLeaders}}
+    </div>
   </div>
 
   <!-- 3D GAMES LEADERBOARDS -->
-  <div class="lb-section">
-    <h2>🎮 3D Games</h2>
-    <div class="game-tabs" id="gameTabs">
-      {{range $i, $g := .Game3DList}}
-      <button class="game-tab{{if eq $i 0}} active{{end}}" data-game="{{$g.ID}}">{{$g.Name}}</button>
-      {{end}}
-    </div>
-    <div id="3d-leaderboard-content">
-      {{range $gameID, $lbs := .Arcade3DLeaders}}
-      <div class="game-lb" data-game="{{$gameID}}" style="display:none;">
-        {{template "leaderboards3d" $lbs}}
+  <div class="lb-cat-panel" data-cat="3d">
+    <div class="lb-section">
+      <h2 class="lb-section-title">🎮 3D Games</h2>
+      <p class="lb-section-desc">High scores for each 3D arcade game</p>
+      <div class="lb-game-selector">
+        {{range $i, $g := .Game3DList}}
+        <button class="lb-game-btn{{if eq $i 0}} active{{end}}" data-game="{{$g.ID}}">{{$g.Name}}</button>
+        {{end}}
       </div>
-      {{end}}
+      <div class="lb-3d-panels">
+        {{range $gameID, $lbs := .Arcade3DLeaders}}
+        <div class="lb-3d-panel{{if eq $gameID " game_01_3d_snake"}} active{{end}}" data-game="{{$gameID}}">
+          {{template "leaderboards3d" $lbs}}
+        </div>
+        {{end}}
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-(function(){
-  const tabs = document.querySelectorAll('.game-tab');
-  const panels = document.querySelectorAll('.game-lb');
-  tabs.forEach(function(tab){
-    tab.addEventListener('click', function(){
-      const game = this.getAttribute('data-game');
-      tabs.forEach(function(t){ t.classList.remove('active'); });
-      panels.forEach(function(p){ p.style.display = 'none'; });
-      this.classList.add('active');
-      const target = document.querySelector('.game-lb[data-game="'+game+'"]');
-      if(target) target.style.display = 'block';
+  (function () {
+    // Category tabs
+    var catBtns = document.querySelectorAll('.lb-cat-btn');
+    var panels = document.querySelectorAll('.lb-cat-panel');
+    catBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var cat = this.getAttribute('data-cat');
+        catBtns.forEach(function (b) { b.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        this.classList.add('active');
+        var target = document.querySelector('.lb-cat-panel[data-cat="' + cat + '"]');
+        if (target) target.classList.add('active');
+      });
     });
-  });
-  // Show first game by default
-  if(tabs.length > 0){
-    tabs[0].click();
-  }
-})();
+
+    // 3D game buttons
+    var gameBtns = document.querySelectorAll('.lb-game-btn');
+    var gamePanels = document.querySelectorAll('.lb-3d-panel');
+    gameBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var game = this.getAttribute('data-game');
+        gameBtns.forEach(function (b) { b.classList.remove('active'); });
+        gamePanels.forEach(function (p) { p.classList.remove('active'); });
+        this.classList.add('active');
+        var target = document.querySelector('.lb-3d-panel[data-game="' + game + '"]');
+        if (target) target.classList.add('active');
+      });
+    });
+  })();
 </script>
 {{template "foot" .}}{{end}}
