@@ -1879,18 +1879,26 @@
 
   // Wave Progress Calculation
   function updateWaveInfo() {
+    // The new UI layout uses Phase/Round display instead of the old wave progress bar.
+    // If the old elements exist, update them, otherwise do nothing.
     const lastBattle = HISTORY.length > 0 ? HISTORY[0] : null;
     const currentWave = lastBattle ? lastBattle.WaveNumber + 1 : 1;
-    document.getElementById('currentWaveDisplay').textContent = currentWave;
+    
+    const waveDisplay = document.getElementById('currentWaveDisplay');
+    if (waveDisplay) waveDisplay.textContent = currentWave;
 
     const nextCreep = Math.ceil(currentWave / 3) * 3;
     const nextMilestone = Math.ceil(currentWave / 5) * 5;
     const nextEvent = Math.min(nextCreep, nextMilestone);
     const progress = ((currentWave % 3) / 3) * 100;
 
-    document.getElementById('waveProgressBar').style.width = progress + '%';
-    document.getElementById('nextWaveInfo').textContent =
-      nextEvent === nextCreep ? `Next: Creep Wave ${nextCreep}` : `Next: Milestone Wave ${nextMilestone}`;
+    const progressBar = document.getElementById('waveProgressBar');
+    if (progressBar) progressBar.style.width = progress + '%';
+    
+    const nextWaveInfo = document.getElementById('nextWaveInfo');
+    if (nextWaveInfo) {
+      nextWaveInfo.textContent = nextEvent === nextCreep ? `Next: Creep Wave ${nextCreep}` : `Next: Milestone Wave ${nextMilestone}`;
+    }
   }
 
   // Render Board
