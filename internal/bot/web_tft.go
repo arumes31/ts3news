@@ -74,8 +74,9 @@ type tftUnit struct {
 }
 
 type tftState struct {
-	Units []tftUnit `json:"units"`
-	Shop  []string  `json:"shop"`
+	Units      []tftUnit `json:"units"`
+	Shop       []string  `json:"shop"`
+	BattleGold int       `json:"battle_gold"`
 }
 
 func newUnitID() string {
@@ -102,7 +103,8 @@ func rollShop() []string {
 
 func (b *Bot) loadTFT(uid string) *tftState {
 	var raw []byte
-	err := b.DB.QueryRow("SELECT data FROM tft_state WHERE client_uid=$1", uid).Scan(&raw)
+	var battleGold int
+	err := b.DB.QueryRow("SELECT data, COALESCE(battle_gold, 0) FROM tft_state WHERE client_uid=$1", uid).Scan(&raw, &battleGold)
 	st := &tftState{}
 	if err == sql.ErrNoRows || len(raw) == 0 {
 		// Starter roster: two cheap units on the bench + a fresh shop.
@@ -111,6 +113,7 @@ func (b *Bot) loadTFT(uid string) *tftState {
 			{ID: newUnitID(), Key: "archer", Star: 1, Pos: -1},
 		}
 		st.Shop = rollShop()
+		st.BattleGold = 0 // Will be set when game starts
 		b.saveTFT(uid, st)
 		return st
 	}
@@ -118,6 +121,7 @@ func (b *Bot) loadTFT(uid string) *tftState {
 		return st
 	}
 	_ = json.Unmarshal(raw, st)
+	st.BattleGold = battleGold
 	if len(st.Shop) != tftShopSize {
 		st.Shop = rollShop()
 	}
@@ -127,8 +131,8 @@ func (b *Bot) loadTFT(uid string) *tftState {
 func (b *Bot) saveTFT(uid string, st *tftState) {
 	data, _ := json.Marshal(st)
 	_, _ = b.DB.Exec(
-		`INSERT INTO tft_state (client_uid, data, updated_at) VALUES ($1, $2, NOW())
-		 ON CONFLICT (client_uid) DO UPDATE SET data=$2, updated_at=NOW()`, uid, data)
+		`INSERT INTO tft_state (client_uid, data, battle_gold, updated_at) VALUES ($1, $2, $3, NOW())
+		 ON CONFLICT (client_uid) DO UPDATE SET data=$2, battle_gold=$3, updated_at=NOW()`, uid, data, st.BattleGold)
 }
 
 // combineUnits upgrades any 3-of-a-kind (same key + star) into one of star+1.
@@ -255,13 +259,23 @@ func (s *WebServer) handleBattlePage(w http.ResponseWriter, r *http.Request, uid
 		"Leaders":     s.bot.gameLeaderboards("tft"),
 		"Inventory":   s.bot.inventoryItems(uid),
 		"BattleStats": s.bot.getBattleStats(uid),
+		"BattleGold":  st.BattleGold,
 		"Traits": map[string]any{
-			"warrior":  []int{2, 4, 6},
-			"tank":     []int{2, 4, 6},
-			"assassin": []int{2, 4, 6},
-			"mage":     []int{2, 4, 6},
-			"dragon":   []int{1},
-			"titan":    []int{1},
+			"warrior":   []int{2, 4, 6},
+			"tank":      []int{2, 4, 6},
+			"assassin":  []int{2, 4, 6},
+			"mage":      []int{2, 4, 6},
+			"dragon":    []int{1},
+			"titan":     []int{1},
+			"brute":     []int{2, 4, 6},
+			"wild":      []int{2, 4, 6},
+			"scout":     []int{2, 4, 6},
+			"ranger":    []int{2, 4, 6},
+			"elemental": []int{2, 4, 6},
+			"knight":    []int{2, 4, 6},
+			"rogue":     []int{2, 4, 6},
+			"golem":     []int{2, 4, 6},
+			"mystic":    []int{2, 4, 6},
 		},
 	})
 }
@@ -285,36 +299,30 @@ func (s *WebServer) handleTFTBuy(w http.ResponseWriter, r *http.Request, uid str
 		return
 	}
 	d, _ := tftDefByKey(st.Shop[req.Index])
-	res, err := s.bot.DB.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", d.Cost, uid)
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+	// Use battle gold instead of real gold
+	if st.BattleGold < d.Cost {
+		writeJSON(w, map[string]any{"ok": false, "error": "not enough battle gold"})
 		return
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
-		return
-	}
+	st.BattleGold -= d.Cost
 	st.Units = append(st.Units, tftUnit{ID: newUnitID(), Key: d.Key, Star: 1, Pos: -1})
 	st.Shop[req.Index] = ""
 	combineUnits(st)
 	s.bot.saveTFT(uid, st)
-	writeJSON(w, map[string]any{"ok": true, "gold": s.bot.userGold(uid)})
+	writeJSON(w, map[string]any{"ok": true, "battleGold": st.BattleGold})
 }
 
 func (s *WebServer) handleTFTReroll(w http.ResponseWriter, r *http.Request, uid string) {
-	res, err := s.bot.DB.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", rerollCost, uid)
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
-		return
-	}
 	st := s.bot.loadTFT(uid)
+	// Use battle gold instead of real gold
+	if st.BattleGold < rerollCost {
+		writeJSON(w, map[string]any{"ok": false, "error": "not enough battle gold"})
+		return
+	}
+	st.BattleGold -= rerollCost
 	st.Shop = rollShop()
 	s.bot.saveTFT(uid, st)
-	writeJSON(w, map[string]any{"ok": true})
+	writeJSON(w, map[string]any{"ok": true, "battleGold": st.BattleGold})
 }
 
 func (s *WebServer) handleTFTPlace(w http.ResponseWriter, r *http.Request, uid string) {
@@ -371,22 +379,23 @@ func (s *WebServer) handleTFTSell(w http.ResponseWriter, r *http.Request, uid st
 		return
 	}
 	st := s.bot.loadTFT(uid)
-	var refund int64
+	var refund int
 	var next []tftUnit
 	for _, u := range st.Units {
 		if u.ID == req.ID {
 			d, _ := tftDefByKey(u.Key)
-			refund = int64(d.Cost * u.Star) // sell value
+			refund = d.Cost * u.Star // sell value
 			continue
 		}
 		next = append(next, u)
 	}
 	st.Units = next
-	s.bot.saveTFT(uid, st)
+	// Refund to battle gold instead of real gold
 	if refund > 0 {
-		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", refund, uid)
+		st.BattleGold += refund
 	}
-	writeJSON(w, map[string]any{"ok": true, "gold": s.bot.userGold(uid), "refund": refund})
+	s.bot.saveTFT(uid, st)
+	writeJSON(w, map[string]any{"ok": true, "battleGold": st.BattleGold, "refund": refund})
 }
 
 // handleTFTEquip equips a gear piece from inventory onto a unit.
@@ -469,6 +478,7 @@ type tftCombatResult struct {
 	GoldWon       int64      `json:"gold_won"`
 	GearWon       string     `json:"gear_won,omitempty"`
 	Gold          int64      `json:"gold"`
+	BattleGold    int        `json:"battle_gold"`
 	WaveNumber    int        `json:"wave_number"`
 	HighestWave   int        `json:"highest_wave"`
 	DamageDealt   int        `json:"damage_dealt"`
@@ -485,8 +495,10 @@ type simUnit struct {
 	atk, rng       int
 	cd             int
 	traits         []string
-	critChance     int // 0-100
+	critChance     int     // 0-100
+	critDmg        float64 // crit damage multiplier
 	dmgRed         float64
+	lifesteal      float64 // lifesteal percentage
 	damageDealt    int
 }
 
@@ -560,6 +572,13 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 	// Track wave milestone (every 5 waves)
 	isMilestone := waveNumber%5 == 0
 
+	// Award battle gold at the start of each wave (base + wave scaling)
+	battleGoldAward := 5 + waveNumber
+	if isCreep {
+		battleGoldAward *= 2 // Bonus for creep rounds
+	}
+	st.BattleGold += battleGoldAward
+
 	frames, victory, damageDealt, turnsSurvived := simulateTFT(units)
 
 	// Calculate rewards with wave-based scaling
@@ -572,10 +591,11 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 		DamageDealt:   damageDealt,
 		TurnsSurvived: turnsSurvived,
 		IsMilestone:   isMilestone,
+		BattleGold:    st.BattleGold,
 	}
 
 	if victory {
-		// Base gold reward
+		// Base gold reward (real gold - end game reward only)
 		baseGold := int64(3 + len(enemies)*2 + u.Level/3)
 
 		// Wave scaling: +1 gold per wave
@@ -594,6 +614,7 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 		}
 
 		res.GoldWon = (baseGold + waveBonus + milestoneBonus) * creepMultiplier
+		// Award real gold only as end-game reward
 		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", res.GoldWon, uid)
 
 		// Gear drop chance with wave scaling
@@ -635,6 +656,7 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 	res.Gold = s.bot.userGold(uid)
 	res.HighestWave = waveNumber
 	res.Streak = s.bot.getCurrentStreak(uid)
+	s.bot.saveTFT(uid, st) // Save battle gold state
 	writeJSON(w, res)
 }
 
@@ -698,7 +720,109 @@ func applySynergies(units []*simUnit) {
 		if counts["titan"] >= 1 {
 			u.dmgRed = 0.5
 		}
+		// Brute: +10/25/50% Attack Speed (reduced cooldown)
+		if c := counts["brute"]; c >= 6 {
+			u.cd = u.cd * 50 / 100 // 50% faster attacks
+		} else if c >= 4 {
+			u.cd = u.cd * 75 / 100
+		} else if c >= 2 {
+			u.cd = u.cd * 90 / 100
+		}
+		// Wild: +5/12/25% Lifesteal (heal on attack)
+		if c := counts["wild"]; c >= 6 {
+			u.lifesteal = 0.25
+		} else if c >= 4 {
+			u.lifesteal = 0.12
+		} else if c >= 2 {
+			u.lifesteal = 0.05
+		}
+		// Scout: +10/25/50% Move Speed (move 2 cells per turn)
+		// Implemented as bonus attack range
+		if c := counts["scout"]; c >= 6 {
+			u.rng += 2
+		} else if c >= 4 {
+			u.rng += 1
+		} else if c >= 2 {
+			u.rng = maxInt(u.rng, 2)
+		}
+		// Ranger: +15/35/60% Attack Speed
+		if c := counts["ranger"]; c >= 6 {
+			u.cd = u.cd * 40 / 100
+		} else if c >= 4 {
+			u.cd = u.cd * 65 / 100
+		} else if c >= 2 {
+			u.cd = u.cd * 85 / 100
+		}
+		// Elemental: +100/250/500 HP
+		if c := counts["elemental"]; c >= 6 {
+			u.maxhp += 500
+			u.hp += 500
+		} else if c >= 4 {
+			u.maxhp += 250
+			u.hp += 250
+		} else if c >= 2 {
+			u.maxhp += 100
+			u.hp += 100
+		}
+		// Knight: +10/25/50% Block Chance (damage reduction)
+		if c := counts["knight"]; c >= 6 {
+			u.dmgRed = maxFloat(u.dmgRed, 0.5)
+		} else if c >= 4 {
+			u.dmgRed = maxFloat(u.dmgRed, 0.25)
+		} else if c >= 2 {
+			u.dmgRed = maxFloat(u.dmgRed, 0.1)
+		}
+		// Rogue: +20/45/80% Crit Damage
+		if c := counts["rogue"]; c >= 6 {
+			u.critDmg = 1.8
+		} else if c >= 4 {
+			u.critDmg = 1.45
+		} else if c >= 2 {
+			u.critDmg = 1.2
+		}
+		// Golem: +15/35/60% Tenacity (reduced CC - represented as flat HP)
+		if c := counts["golem"]; c >= 6 {
+			u.maxhp += 400
+			u.hp += 400
+			u.dmgRed = maxFloat(u.dmgRed, 0.2)
+		} else if c >= 4 {
+			u.maxhp += 200
+			u.hp += 200
+			u.dmgRed = maxFloat(u.dmgRed, 0.1)
+		} else if c >= 2 {
+			u.maxhp += 100
+			u.hp += 100
+		}
+		// Mystic: +15/30/60% Magic Resist (damage reduction)
+		if c := counts["mystic"]; c >= 6 {
+			u.dmgRed = maxFloat(u.dmgRed, 0.6)
+		} else if c >= 4 {
+			u.dmgRed = maxFloat(u.dmgRed, 0.3)
+		} else if c >= 2 {
+			u.dmgRed = maxFloat(u.dmgRed, 0.15)
+		}
 	}
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxFloat(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func generateEnemies(playerCount, level int, wave int) []*simUnit {
@@ -872,7 +996,7 @@ func simulateTFT(units []*simUnit) ([]tftFrame, bool, int, int) {
 				if u.cd <= 0 {
 					dmg := u.atk
 					if r.IntN(100) < u.critChance {
-						dmg *= 2
+						dmg = int(float64(dmg) * u.critDmg)
 					}
 					if tgt.dmgRed > 0 {
 						dmg = int(float64(dmg) * (1.0 - tgt.dmgRed))
@@ -883,6 +1007,14 @@ func simulateTFT(units []*simUnit) ([]tftFrame, bool, int, int) {
 					}
 					events = append(events, tftEvent{From: u.id, To: tgt.id, Dmg: dmg})
 					u.cd = attackCooldown
+
+					// Lifesteal: heal on attack
+					if u.lifesteal > 0 {
+						heal := int(float64(dmg) * u.lifesteal)
+						if heal > 0 {
+							u.hp = minInt(u.hp+heal, u.maxhp)
+						}
+					}
 
 					// Track damage dealt by player units
 					if u.side == "you" {
