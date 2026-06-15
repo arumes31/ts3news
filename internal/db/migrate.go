@@ -36,6 +36,16 @@ func Migrate(db *sql.DB) error {
 		return fmt.Errorf("initialising migrator: %w", err)
 	}
 
+	// Workaround for dirty database state at version 39.
+	// If the database is dirty at version 39, force it to 38 so the corrected
+	// migration can be re-applied.
+	version, dirty, err := m.Version()
+	if err == nil && dirty && version == 39 {
+		if err := m.Force(38); err != nil {
+			return fmt.Errorf("forcing migration version 38: %w", err)
+		}
+	}
+
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("applying migrations: %w", err)
 	}
