@@ -1,650 +1,824 @@
 {{define "battle"}}{{template "head" .}}
 <style>
-:root {
-  --bg: #0f1116;
-  --panel: #1a1f2b;
-  --panel-border: #2a2f3b;
-  --gold: #f4c542;
-  --good: #41c97a;
-  --bad: #e2575b;
-  --accent: #7b6cff;
-  --xp: #5bc0ff;
-  --text: #e8e8e8;
-  --text-dim: #8a8f98;
-  --player-zone: rgba(80,120,220,0.14);
-  --enemy-zone: rgba(226,87,91,0.16);
-}
-
-.tft-layout-new {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 1rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1rem;
-}
-
-.tft-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 12px;
-  padding: 1rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.wave-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  min-width: 150px;
-}
-
-.wave-title {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--xp);
-}
-
-.wave-progress {
-  height: 8px;
-  background: #0c0f16;
-  border-radius: 4px;
-  overflow: hidden;
-  border: 1px solid var(--panel-border);
-}
-
-.progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--xp));
-  transition: width 0.5s ease;
-}
-
-.wave-next {
-  font-size: 0.8rem;
-  color: var(--text-dim);
-}
-
-.header-stats {
-  display: flex;
-  gap: 1rem;
-}
-
-.stat-pill {
-  background: #0c0f16;
-  border: 1px solid var(--panel-border);
-  border-radius: 20px;
-  padding: 0.4rem 0.8rem;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.stat-pill.gold { color: var(--gold); }
-.stat-pill.hp { color: var(--bad); }
-
-.header-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 0.6rem 1.2rem;
-  font-weight: 700;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: filter 0.2s;
-}
-
-.btn-primary:hover { filter: brightness(1.15); }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.btn-ghost {
-  background: transparent;
-  border: 1px solid var(--panel-border);
-  color: var(--text);
-  border-radius: 8px;
-  padding: 0.6rem 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-
-.tft-main-grid {
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 1.5rem;
-}
-
-@media (max-width: 900px) {
-  .tft-main-grid { grid-template-columns: 1fr; }
-}
-
-.tft-left {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.tft-stage-new {
-  background: radial-gradient(120% 100% at 50% 0%, #2a2150, #10131d 75%);
-  border: 1px solid var(--panel-border);
-  border-radius: 14px;
-  padding: 1rem;
-  position: relative;
-}
-
-.tft-board-new {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-template-rows: repeat(4, 1fr);
-  gap: 8px;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.hexcell-new {
-  aspect-ratio: 1;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.hexcell-new.enemy {
-  background: var(--enemy-zone);
-  border: 1px dashed rgba(226,87,91,0.3);
-}
-
-.hexcell-new.player {
-  background: var(--player-zone);
-  border: 1px dashed rgba(80,120,220,0.3);
-}
-
-.hexcell-new.drag-over {
-  background: rgba(123,108,255,0.3);
-  border: 2px solid var(--accent);
-  transform: scale(1.05);
-}
-
-.unit-card {
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at 40% 28%, #445078, #272d44);
-  border: 2px solid #4a82d8;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-  position: relative;
-  transition: transform 0.2s, box-shadow 0.2s;
-  user-select: none;
-}
-
-.unit-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0,0,0,0.4);
-}
-
-.unit-card.selected {
-  border-color: var(--gold);
-  box-shadow: 0 0 12px var(--gold);
-}
-
-.unit-card.enemy-unit {
-  background: radial-gradient(circle at 40% 28%, #5a2b3a, #3a2030);
-  border-color: #e2575b;
-  cursor: default;
-}
-
-.unit-card .unit-icon { font-size: 1.8rem; line-height: 1; }
-.unit-card .unit-stars { font-size: 0.7rem; color: var(--gold); margin-top: 2px; }
-
-.unit-hp-bar {
-  position: absolute;
-  top: -6px;
-  left: 4px;
-  right: 4px;
-  height: 4px;
-  background: #000;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.unit-hp-bar span {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, #2a8a4a, #41c97a);
-  transition: width 0.3s;
-}
-
-.unit-card.enemy-unit .unit-hp-bar span {
-  background: linear-gradient(90deg, #8a2a2a, #e2575b);
-}
-
-.unit-traits {
-  position: absolute;
-  bottom: -8px;
-  display: flex;
-  gap: 2px;
-}
-
-.trait-badge {
-  font-size: 0.5rem;
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 4px;
-  padding: 1px 3px;
-  color: var(--text-dim);
-}
-
-.unit-items {
-  position: absolute;
-  top: -6px;
-  right: 4px;
-  display: flex;
-  gap: 2px;
-}
-
-.item-slot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #000;
-  border: 1px solid var(--panel-border);
-}
-
-.item-slot.filled {
-  background: var(--gold);
-  border-color: var(--gold);
-}
-
-.tft-bench-new {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 8px;
-  background: #0d1017;
-  border: 1px solid var(--panel-border);
-  border-radius: 10px;
-  padding: 8px;
-}
-
-.bench-slot-new {
-  aspect-ratio: 1;
-  border-radius: 8px;
-  border: 1px dashed var(--panel-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #161a26;
-  transition: all 0.2s;
-}
-
-.bench-slot-new.drag-over {
-  background: rgba(123,108,255,0.3);
-  border: 2px solid var(--accent);
-}
-
-.tft-shop-new {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-}
-
-.shop-card-new {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-top: 3px solid var(--panel-border);
-  border-radius: 8px;
-  padding: 0.5rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.shop-card-new:hover { filter: brightness(1.15); transform: translateY(-2px); }
-.shop-card-new.bought { opacity: 0.4; pointer-events: none; }
-.shop-card-new.cost1 { border-top-color: #9aa6bd; }
-.shop-card-new.cost2 { border-top-color: #41c97a; }
-.shop-card-new.cost3 { border-top-color: #3a7bd5; }
-.shop-card-new.cost4 { border-top-color: #7b6cff; }
-.shop-card-new.cost5 { border-top-color: #f4c542; }
-
-.shop-card-new .shop-icon { font-size: 1.5rem; }
-.shop-card-new .shop-name { font-size: 0.75rem; font-weight: 600; margin: 0.2rem 0; }
-.shop-card-new .shop-cost { color: var(--gold); font-size: 0.8rem; font-weight: 700; }
-.shop-card-new .shop-buy {
-  margin-top: 0.3rem;
-  background: var(--good);
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 0.2rem 0.5rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  cursor: pointer;
-  width: 100%;
-}
-
-.tft-inventory-new {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 10px;
-  padding: 1rem;
-}
-
-.tft-inventory-new h3 { margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--text-dim); }
-
-.inventory-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 0.5rem;
-}
-
-.inv-item-new {
-  background: #0c0f16;
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  padding: 0.5rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.inv-item-new:hover { border-color: var(--accent); }
-.inv-item-new.selected { border-color: var(--gold); box-shadow: 0 0 8px var(--gold); }
-.inv-item-new .inv-icon { font-size: 1.2rem; }
-.inv-item-new .inv-name { font-size: 0.7rem; margin-top: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-.tft-right {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.synergy-panel-new, .unit-inspector-new, .battle-history-new {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 10px;
-  padding: 1rem;
-}
-
-.synergy-panel-new h3, .unit-inspector-new h3, .battle-history-new h3 {
-  margin: 0 0 0.8rem;
-  font-size: 0.9rem;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.synergy-item-new {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 0.85rem;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: rgba(0,0,0,0.2);
-  border: 1px solid transparent;
-  transition: all 0.3s;
-}
-
-.synergy-item-new.active {
-  background: linear-gradient(135deg, rgba(244,197,66,0.15), rgba(244,197,66,0.05));
-  border-color: var(--gold);
-  box-shadow: 0 0 10px rgba(244,197,66,0.2);
-}
-
-.synergy-item-new .syn-name { font-weight: 700; color: var(--text-dim); }
-.synergy-item-new.active .syn-name { color: var(--gold); }
-.synergy-item-new .syn-count { font-weight: 800; font-family: monospace; color: var(--text); }
-.synergy-item-new .syn-bonus { font-size: 0.7rem; color: var(--good); margin-left: 8px; }
-
-.unit-inspector-new .inspector-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.unit-inspector-new .inspector-header h3 { margin: 0; color: var(--text); text-transform: none; }
-
-.btn-close {
-  background: transparent;
-  border: none;
-  color: var(--text-dim);
-  font-size: 1.5rem;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.btn-close:hover { color: var(--bad); }
-
-.inspector-content { text-align: center; }
-.inspector-icon { font-size: 3rem; margin-bottom: 0.5rem; }
-.inspector-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  font-size: 0.85rem;
-  margin-bottom: 1rem;
-  text-align: left;
-}
-
-.inspector-traits {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  justify-content: center;
-  margin-bottom: 1rem;
-}
-
-.inspector-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.btn-danger {
-  background: var(--bad);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 0.5rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-danger:hover { filter: brightness(1.1); }
-
-.inspector-actions select {
-  background: #0c0f16;
-  border: 1px solid var(--panel-border);
-  color: var(--text);
-  border-radius: 6px;
-  padding: 0.5rem;
-  font-size: 0.85rem;
-}
-
-.history-content {
-  max-height: 300px;
-  overflow-y: auto;
-  transition: max-height 0.3s ease;
-}
-
-.history-content.collapsed {
-  max-height: 0;
-  overflow: hidden;
-}
-
-.histtable-new {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8rem;
-}
-
-.histtable-new th, .histtable-new td {
-  padding: 0.4rem;
-  text-align: left;
-  border-bottom: 1px solid var(--panel-border);
-}
-
-.histtable-new th { color: var(--text-dim); font-weight: 600; }
-.histtable-new tr.win td { color: var(--good); }
-.histtable-new tr.loss td { color: var(--bad); }
-.histtable-new tr.milestone { background: rgba(244, 197, 66, 0.08); }
-
-.combat-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.85);
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.combat-controls {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  display: flex;
-  gap: 0.5rem;
-}
-
-.combat-controls button {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  color: var(--text);
-  border-radius: 6px;
-  padding: 0.4rem 0.8rem;
-  cursor: pointer;
-}
-
-.combat-controls button:hover { border-color: var(--accent); }
-
-.combat-result {
-  background: var(--panel);
-  border: 2px solid var(--gold);
-  border-radius: 16px;
-  padding: 2rem;
-  text-align: center;
-  animation: popIn 0.3s ease;
-}
-
-@keyframes popIn {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-
-.combat-result h2 { margin: 0 0 1rem; }
-.combat-result p { color: var(--text-dim); margin-bottom: 1.5rem; }
-
-.toast-container {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  z-index: 2000;
-}
-
-.toast-new {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-left: 4px solid var(--good);
-  border-radius: 8px;
-  padding: 0.8rem 1.2rem;
-  color: var(--text);
-  font-size: 0.9rem;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  animation: slideIn 0.3s ease;
-  max-width: 300px;
-}
-
-.toast-new.error {
-  border-left-color: var(--bad);
-}
-
-@keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-
-.context-menu {
-  position: absolute;
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  padding: 0.3rem 0;
-  z-index: 500;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-}
-
-.context-menu-item {
-  padding: 0.5rem 1rem;
-  font-size: 0.85rem;
-  cursor: pointer;
-  color: var(--text);
-}
-
-.context-menu-item:hover {
-  background: var(--accent);
-  color: #fff;
-}
-
-.dmg-float {
-  position: absolute;
-  font-weight: 800;
-  font-size: 1.2rem;
-  color: #ffd24a;
-  pointer-events: none;
-  animation: floatUp 0.8s ease forwards;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-  z-index: 100;
-}
-
-.dmg-float.crit {
-  color: #ff5b5b;
-  font-size: 1.5rem;
-}
-
-@keyframes floatUp {
-  0% { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-40px) scale(1.2); }
-}
-
-.unit-card.dead {
-  animation: shrinkFade 0.5s ease forwards;
-}
-
-@keyframes shrinkFade {
-  to { transform: scale(0); opacity: 0; }
-}
-
-@media (max-width: 600px) {
-  .tft-board-new { grid-template-columns: repeat(7, 1fr); gap: 4px; }
-  .tft-bench-new { grid-template-columns: repeat(4, 1fr); }
-  .tft-shop-new { grid-template-columns: repeat(3, 1fr); }
-  .unit-card .unit-icon { font-size: 1.2rem; }
-  .unit-card .unit-stars { font-size: 0.5rem; }
-}
+  :root {
+    --bg: #0f1116;
+    --panel: #1a1f2b;
+    --panel-border: #2a2f3b;
+    --gold: #f4c542;
+    --good: #41c97a;
+    --bad: #e2575b;
+    --accent: #7b6cff;
+    --xp: #5bc0ff;
+    --text: #e8e8e8;
+    --text-dim: #8a8f98;
+    --player-zone: rgba(80, 120, 220, 0.14);
+    --enemy-zone: rgba(226, 87, 91, 0.16);
+  }
+
+  .tft-layout-new {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+
+  .tft-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .wave-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 150px;
+  }
+
+  .wave-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--xp);
+  }
+
+  .wave-progress {
+    height: 8px;
+    background: #0c0f16;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--panel-border);
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--xp));
+    transition: width 0.5s ease;
+  }
+
+  .wave-next {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .stat-pill {
+    background: #0c0f16;
+    border: 1px solid var(--panel-border);
+    border-radius: 20px;
+    padding: 0.4rem 0.8rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .stat-pill.gold {
+    color: var(--gold);
+  }
+
+  .stat-pill.hp {
+    color: var(--bad);
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: filter 0.2s;
+  }
+
+  .btn-primary:hover {
+    filter: brightness(1.15);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .tft-main-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 900px) {
+    .tft-main-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .tft-left {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .tft-stage-new {
+    background: radial-gradient(120% 100% at 50% 0%, #2a2150, #10131d 75%);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 1rem;
+    position: relative;
+  }
+
+  .tft-board-new {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 8px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .hexcell-new {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .hexcell-new.enemy {
+    background: var(--enemy-zone);
+    border: 1px dashed rgba(226, 87, 91, 0.3);
+  }
+
+  .hexcell-new.player {
+    background: var(--player-zone);
+    border: 1px dashed rgba(80, 120, 220, 0.3);
+  }
+
+  .hexcell-new.drag-over {
+    background: rgba(123, 108, 255, 0.3);
+    border: 2px solid var(--accent);
+    transform: scale(1.05);
+  }
+
+  .unit-card {
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 40% 28%, #445078, #272d44);
+    border: 2px solid #4a82d8;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+    user-select: none;
+  }
+
+  .unit-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  .unit-card.selected {
+    border-color: var(--gold);
+    box-shadow: 0 0 12px var(--gold);
+  }
+
+  .unit-card.enemy-unit {
+    background: radial-gradient(circle at 40% 28%, #5a2b3a, #3a2030);
+    border-color: #e2575b;
+    cursor: default;
+  }
+
+  .unit-card .unit-icon {
+    font-size: 1.8rem;
+    line-height: 1;
+  }
+
+  .unit-card .unit-stars {
+    font-size: 0.7rem;
+    color: var(--gold);
+    margin-top: 2px;
+  }
+
+  .unit-hp-bar {
+    position: absolute;
+    top: -6px;
+    left: 4px;
+    right: 4px;
+    height: 4px;
+    background: #000;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .unit-hp-bar span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #2a8a4a, #41c97a);
+    transition: width 0.3s;
+  }
+
+  .unit-card.enemy-unit .unit-hp-bar span {
+    background: linear-gradient(90deg, #8a2a2a, #e2575b);
+  }
+
+  .unit-traits {
+    position: absolute;
+    bottom: -8px;
+    display: flex;
+    gap: 2px;
+  }
+
+  .trait-badge {
+    font-size: 0.5rem;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 1px 3px;
+    color: var(--text-dim);
+  }
+
+  .unit-items {
+    position: absolute;
+    top: -6px;
+    right: 4px;
+    display: flex;
+    gap: 2px;
+  }
+
+  .item-slot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #000;
+    border: 1px solid var(--panel-border);
+  }
+
+  .item-slot.filled {
+    background: var(--gold);
+    border-color: var(--gold);
+  }
+
+  .tft-bench-new {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 8px;
+    background: #0d1017;
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 8px;
+  }
+
+  .bench-slot-new {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    border: 1px dashed var(--panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #161a26;
+    transition: all 0.2s;
+  }
+
+  .bench-slot-new.drag-over {
+    background: rgba(123, 108, 255, 0.3);
+    border: 2px solid var(--accent);
+  }
+
+  .tft-shop-new {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+
+  .shop-card-new {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-top: 3px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 0.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .shop-card-new:hover {
+    filter: brightness(1.15);
+    transform: translateY(-2px);
+  }
+
+  .shop-card-new.bought {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .shop-card-new.cost1 {
+    border-top-color: #9aa6bd;
+  }
+
+  .shop-card-new.cost2 {
+    border-top-color: #41c97a;
+  }
+
+  .shop-card-new.cost3 {
+    border-top-color: #3a7bd5;
+  }
+
+  .shop-card-new.cost4 {
+    border-top-color: #7b6cff;
+  }
+
+  .shop-card-new.cost5 {
+    border-top-color: #f4c542;
+  }
+
+  .shop-card-new .shop-icon {
+    font-size: 1.5rem;
+  }
+
+  .shop-card-new .shop-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin: 0.2rem 0;
+  }
+
+  .shop-card-new .shop-cost {
+    color: var(--gold);
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .shop-card-new .shop-buy {
+    margin-top: 0.3rem;
+    background: var(--good);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  .tft-inventory-new {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+
+  .tft-inventory-new h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-dim);
+  }
+
+  .inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.5rem;
+  }
+
+  .inv-item-new {
+    background: #0c0f16;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 0.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .inv-item-new:hover {
+    border-color: var(--accent);
+  }
+
+  .inv-item-new.selected {
+    border-color: var(--gold);
+    box-shadow: 0 0 8px var(--gold);
+  }
+
+  .inv-item-new .inv-icon {
+    font-size: 1.2rem;
+  }
+
+  .inv-item-new .inv-name {
+    font-size: 0.7rem;
+    margin-top: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tft-right {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .synergy-panel-new,
+  .unit-inspector-new,
+  .battle-history-new {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+
+  .synergy-panel-new h3,
+  .unit-inspector-new h3,
+  .battle-history-new h3 {
+    margin: 0 0 0.8rem;
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .synergy-item-new {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid transparent;
+    transition: all 0.3s;
+  }
+
+  .synergy-item-new.active {
+    background: linear-gradient(135deg, rgba(244, 197, 66, 0.15), rgba(244, 197, 66, 0.05));
+    border-color: var(--gold);
+    box-shadow: 0 0 10px rgba(244, 197, 66, 0.2);
+  }
+
+  .synergy-item-new .syn-name {
+    font-weight: 700;
+    color: var(--text-dim);
+  }
+
+  .synergy-item-new.active .syn-name {
+    color: var(--gold);
+  }
+
+  .synergy-item-new .syn-count {
+    font-weight: 800;
+    font-family: monospace;
+    color: var(--text);
+  }
+
+  .synergy-item-new .syn-bonus {
+    font-size: 0.7rem;
+    color: var(--good);
+    margin-left: 8px;
+  }
+
+  .unit-inspector-new .inspector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .unit-inspector-new .inspector-header h3 {
+    margin: 0;
+    color: var(--text);
+    text-transform: none;
+  }
+
+  .btn-close {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  .btn-close:hover {
+    color: var(--bad);
+  }
+
+  .inspector-content {
+    text-align: center;
+  }
+
+  .inspector-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .inspector-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+    text-align: left;
+  }
+
+  .inspector-traits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .inspector-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .btn-danger {
+    background: var(--bad);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-danger:hover {
+    filter: brightness(1.1);
+  }
+
+  .inspector-actions select {
+    background: #0c0f16;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .history-content {
+    max-height: 300px;
+    overflow-y: auto;
+    transition: max-height 0.3s ease;
+  }
+
+  .history-content.collapsed {
+    max-height: 0;
+    overflow: hidden;
+  }
+
+  .histtable-new {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+
+  .histtable-new th,
+  .histtable-new td {
+    padding: 0.4rem;
+    text-align: left;
+    border-bottom: 1px solid var(--panel-border);
+  }
+
+  .histtable-new th {
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+
+  .histtable-new tr.win td {
+    color: var(--good);
+  }
+
+  .histtable-new tr.loss td {
+    color: var(--bad);
+  }
+
+  .histtable-new tr.milestone {
+    background: rgba(244, 197, 66, 0.08);
+  }
+
+  .combat-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .combat-controls {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .combat-controls button {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 0.4rem 0.8rem;
+    cursor: pointer;
+  }
+
+  .combat-controls button:hover {
+    border-color: var(--accent);
+  }
+
+  .combat-result {
+    background: var(--panel);
+    border: 2px solid var(--gold);
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    animation: popIn 0.3s ease;
+  }
+
+  @keyframes popIn {
+    from {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .combat-result h2 {
+    margin: 0 0 1rem;
+  }
+
+  .combat-result p {
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+
+  .toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 2000;
+  }
+
+  .toast-new {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-left: 4px solid var(--good);
+    border-radius: 8px;
+    padding: 0.8rem 1.2rem;
+    color: var(--text);
+    font-size: 0.9rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    animation: slideIn 0.3s ease;
+    max-width: 300px;
+  }
+
+  .toast-new.error {
+    border-left-color: var(--bad);
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .context-menu {
+    position: absolute;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 0.3rem 0;
+    z-index: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+
+  .context-menu-item {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: var(--text);
+  }
+
+  .context-menu-item:hover {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .dmg-float {
+    position: absolute;
+    font-weight: 800;
+    font-size: 1.2rem;
+    color: #ffd24a;
+    pointer-events: none;
+    animation: floatUp 0.8s ease forwards;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    z-index: 100;
+  }
+
+  .dmg-float.crit {
+    color: #ff5b5b;
+    font-size: 1.5rem;
+  }
+
+  @keyframes floatUp {
+    0% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    100% {
+      opacity: 0;
+      transform: translateY(-40px) scale(1.2);
+    }
+  }
+
+  .unit-card.dead {
+    animation: shrinkFade 0.5s ease forwards;
+  }
+
+  @keyframes shrinkFade {
+    to {
+      transform: scale(0);
+      opacity: 0;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .tft-board-new {
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .tft-bench-new {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .tft-shop-new {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .unit-card .unit-icon {
+      font-size: 1.2rem;
+    }
+
+    .unit-card .unit-stars {
+      font-size: 0.5rem;
+    }
+  }
 </style>
 
 <div class="tft-layout-new">
@@ -701,7 +875,11 @@
         <div class="history-content" id="historyContent">
           <table class="histtable-new">
             <thead>
-              <tr><th>Wave</th><th>Result</th><th>Loot</th></tr>
+              <tr>
+                <th>Wave</th>
+                <th>Result</th>
+                <th>Loot</th>
+              </tr>
             </thead>
             <tbody id="historyBody"></tbody>
           </table>
@@ -714,11 +892,22 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
+  // Utility: Escape HTML to prevent XSS
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&')
+      .replace(/</g, '<')
+      .replace(/>/g, '>')
+      .replace(/"/g, '"')
+      .replace(/'/g, '&#039;');
+  }
+
   // Data Initialization
-  const BENCH = {{.BenchJSON}};
-  const BOARD = {{.BoardJSON}};
-  const SHOP = {{.ShopJSON}};
-  const TRAITS = {{.Traits}};
+  const BENCH = {{.BenchJSON }};
+  const BOARD = {{.BoardJSON }};
+  const SHOP = {{.ShopJSON }};
+  const TRAITS = {{.Traits }};
   const HISTORY = {{.History | jsonJS}};
   const INVENTORY = {{.Inventory | jsonJS}};
   const BATTLE_STATS = {{.BattleStats | jsonJS}};
@@ -735,7 +924,7 @@
     t.className = 'toast-new' + (isError ? ' error' : '');
     t.textContent = message;
     container.appendChild(t);
-    
+
     // Keep max 3 toasts
     while (container.children.length > 3) {
       container.removeChild(container.firstChild);
@@ -753,14 +942,14 @@
     const lastBattle = HISTORY.length > 0 ? HISTORY[0] : null;
     const currentWave = lastBattle ? lastBattle.WaveNumber + 1 : 1;
     document.getElementById('currentWaveDisplay').textContent = currentWave;
-    
+
     const nextCreep = Math.ceil(currentWave / 3) * 3;
     const nextMilestone = Math.ceil(currentWave / 5) * 5;
     const nextEvent = Math.min(nextCreep, nextMilestone);
     const progress = ((currentWave % 3) / 3) * 100;
-    
+
     document.getElementById('waveProgressBar').style.width = progress + '%';
-    document.getElementById('nextWaveInfo').textContent = 
+    document.getElementById('nextWaveInfo').textContent =
       nextEvent === nextCreep ? `Next: Creep Wave ${nextCreep}` : `Next: Milestone Wave ${nextMilestone}`;
   }
 
@@ -768,24 +957,24 @@
   function renderBoard() {
     const boardEl = document.getElementById('board');
     boardEl.innerHTML = '';
-    
+
     for (let i = 0; i < 28; i++) {
       const cell = document.createElement('div');
       cell.className = 'hexcell-new ' + (i < 14 ? 'enemy' : 'player');
       cell.dataset.pos = i;
-      
+
       // Drag and drop handlers
       cell.addEventListener('dragover', allowDrop);
       cell.addEventListener('dragenter', dragEnter);
       cell.addEventListener('dragleave', dragLeave);
       cell.addEventListener('drop', (e) => dropUnit(e, i));
-      
+
       // Find unit at this position
       const unit = BOARD.find(u => u.pos === i);
       if (unit) {
         cell.appendChild(createUnitCard(unit));
       }
-      
+
       boardEl.appendChild(cell);
     }
     updateSynergies();
@@ -795,24 +984,24 @@
   function renderBench() {
     const benchEl = document.getElementById('bench');
     benchEl.innerHTML = '';
-    
+
     for (let i = 0; i < 8; i++) {
       const slot = document.createElement('div');
       slot.className = 'bench-slot-new';
       slot.dataset.idx = i;
-      
+
       slot.addEventListener('dragover', allowDrop);
       slot.addEventListener('dragenter', dragEnter);
       slot.addEventListener('dragleave', dragLeave);
       slot.addEventListener('drop', (e) => dropUnit(e, -1));
-      
+
       const unit = BENCH.find(u => u.pos === -1 && u.benchIdx === i);
       // Simplified: just render all bench units in order
       const benchUnits = BENCH.filter(u => u.pos === -1);
       if (i < benchUnits.length) {
         slot.appendChild(createUnitCard(benchUnits[i]));
       }
-      
+
       benchEl.appendChild(slot);
     }
   }
@@ -824,47 +1013,47 @@
     card.id = u.id;
     card.draggable = !inCombat && u.side !== 'enemy';
     card.dataset.unitId = u.id;
-    
+
     const stars = '★'.repeat(u.star || 1);
     const hpPercent = u.hp !== undefined ? (u.hp / u.max_hp * 100) : 100;
-    
+
     let itemsHtml = '';
     for (let i = 0; i < 3; i++) {
       itemsHtml += `<div class="item-slot ${(u.items && i < u.items.length) ? 'filled' : ''}"></div>`;
     }
-    
+
     let traitsHtml = '';
     if (u.traits) {
       u.traits.slice(0, 2).forEach(t => {
-        traitsHtml += `<span class="trait-badge">${t}</span>`;
+        traitsHtml += `<span class="trait-badge">${escapeHtml(t)}</span>`;
       });
     }
-    
+
     card.innerHTML = `
       <div class="unit-hp-bar"><span style="width: ${hpPercent}%"></span></div>
       <div class="unit-items">${itemsHtml}</div>
-      <div class="unit-icon">${u.icon || '❓'}</div>
+      <div class="unit-icon">${escapeHtml(u.icon) || '❓'}</div>
       <div class="unit-stars">${stars}</div>
       <div class="unit-traits">${traitsHtml}</div>
     `;
-    
+
     if (!inCombat && u.side !== 'enemy') {
       card.addEventListener('dragstart', (e) => {
         e.dataTransfer.setData('unitId', u.id);
         e.dataTransfer.effectAllowed = 'move';
       });
-      
+
       card.addEventListener('click', (e) => {
         e.stopPropagation();
         selectUnit(u.id);
       });
-      
+
       card.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         showContextMenu(e, u);
       });
     }
-    
+
     return card;
   }
 
@@ -891,7 +1080,7 @@
     e.currentTarget.classList.remove('drag-over');
     const unitId = e.dataTransfer.getData('unitId');
     if (!unitId) return;
-    
+
     const result = await apiPost('/api/tft/place', { id: unitId, pos: pos });
     if (result.ok) {
       refreshState();
@@ -906,53 +1095,63 @@
     // Deselect previous
     document.querySelectorAll('.unit-card.selected').forEach(el => el.classList.remove('selected'));
     document.querySelectorAll('.inv-item-new.selected').forEach(el => el.classList.remove('selected'));
-    
+
     selectedUnitId = unitId;
     const card = document.getElementById(unitId);
     if (card) card.classList.add('selected');
-    
+
     openInspector(unitId);
   }
 
   function openInspector(unitId) {
     const unit = [...BOARD, ...BENCH].find(u => u.id === unitId);
     if (!unit) return;
-    
+
     const inspector = document.getElementById('unitInspector');
     const content = document.getElementById('inspectorContent');
-    
+
     const sellValue = (unit.cost || 1) * (unit.star || 1);
-    
+
     let itemsList = 'None';
     if (unit.items && unit.items.length > 0) {
       itemsList = unit.items.map(id => {
         const invItem = INVENTORY.find(i => i.InvID == id);
-        return invItem ? invItem.Name : id;
+        return invItem ? escapeHtml(invItem.Name) : escapeHtml(id);
       }).join(', ');
     }
-    
+
     content.innerHTML = `
-      <div class="inspector-icon">${unit.icon}</div>
-      <h4>${unit.name} ${'★'.repeat(unit.star || 1)}</h4>
+      <div class="inspector-icon">${escapeHtml(unit.icon)}</div>
+      <h4>${escapeHtml(unit.name)} ${'★'.repeat(unit.star || 1)}</h4>
       <div class="inspector-stats">
         <div>❤️ HP: <strong>${unit.hp || unit.max_hp || '?'}</strong></div>
         <div>⚔️ ATK: <strong>${unit.atk || '?'}</strong></div>
       </div>
       <div class="inspector-traits">
-        ${(unit.traits || []).map(t => `<span class="trait-badge">${t}</span>`).join('')}
+        ${(unit.traits || []).map(t => `<span class="trait-badge">${escapeHtml(t)}</span>`).join('')}
       </div>
       <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 1rem;">
         Items: ${itemsList}
       </div>
       <div class="inspector-actions">
-        <button class="btn-danger" onclick="sellUnit('${unit.id}')">Sell for ${sellValue}g</button>
-        <select onchange="equipGear('${unit.id}', this.value); this.value='';">
+        <button class="btn-danger" id="sell-btn-${unit.id}">Sell for ${sellValue}g</button>
+        <select id="equip-select-${unit.id}">
           <option value="">Equip Gear...</option>
-          ${INVENTORY.map(i => `<option value="${i.InvID}">${i.Name}</option>`).join('')}
+          ${INVENTORY.map(i => `<option value="${i.InvID}">${escapeHtml(i.Name)}</option>`).join('')}
         </select>
       </div>
     `;
-    
+
+    // Attach event listeners programmatically to prevent XSS
+    const sellBtn = document.getElementById(`sell-btn-${unit.id}`);
+    sellBtn.addEventListener('click', () => sellUnit(unit.id));
+
+    const equipSelect = document.getElementById(`equip-select-${unit.id}`);
+    equipSelect.addEventListener('change', function () {
+      equipGear(unit.id, this.value);
+      this.value = '';
+    });
+
     inspector.style.display = 'block';
   }
 
@@ -966,17 +1165,17 @@
   function showContextMenu(e, unit) {
     // Remove existing
     document.querySelectorAll('.context-menu').forEach(el => el.remove());
-    
+
     const menu = document.createElement('div');
     menu.className = 'context-menu';
     menu.style.left = e.pageX + 'px';
     menu.style.top = e.pageY + 'px';
-    
+
     const sellValue = (unit.cost || 1) * (unit.star || 1);
     menu.innerHTML = `<div class="context-menu-item" onclick="sellUnit('${unit.id}')">Sell for ${sellValue}g</div>`;
-    
+
     document.body.appendChild(menu);
-    
+
     const closeMenu = () => {
       menu.remove();
       document.removeEventListener('click', closeMenu);
@@ -988,11 +1187,11 @@
   function renderShop() {
     const shopEl = document.getElementById('shop');
     shopEl.innerHTML = '';
-    
+
     SHOP.forEach(u => {
       const card = document.createElement('div');
       card.className = `shop-card-new cost${u.cost} ${u.key === '' ? 'bought' : ''}`;
-      
+
       if (u.key !== '') {
         card.innerHTML = `
           <div class="shop-icon">${u.icon}</div>
@@ -1003,7 +1202,7 @@
       } else {
         card.innerHTML = `<div style="color: var(--text-dim); font-size: 0.8rem;">Empty</div>`;
       }
-      
+
       shopEl.appendChild(card);
     });
   }
@@ -1012,7 +1211,7 @@
   function renderInventory() {
     const invEl = document.getElementById('inventoryGrid');
     invEl.innerHTML = '';
-    
+
     INVENTORY.forEach(item => {
       const div = document.createElement('div');
       div.className = 'inv-item-new' + (selectedInvId === item.InvID ? ' selected' : '');
@@ -1020,7 +1219,7 @@
         <div class="inv-icon">🛡️</div>
         <div class="inv-name">${item.Name}</div>
       `;
-      
+
       div.addEventListener('click', () => {
         if (selectedUnitId) {
           equipGear(selectedUnitId, item.InvID);
@@ -1031,7 +1230,7 @@
           toast('Now click a unit on the board or bench to equip');
         }
       });
-      
+
       invEl.appendChild(div);
     });
   }
@@ -1044,21 +1243,21 @@
         counts[t] = (counts[t] || 0) + 1;
       });
     });
-    
+
     const container = document.getElementById('synergiesList');
     container.innerHTML = '';
-    
+
     Object.keys(TRAITS).sort().forEach(t => {
       const c = counts[t] || 0;
       const thresholds = TRAITS[t];
-      
+
       // Only show if active or near-active (threshold - 1)
       const minThreshold = thresholds[0];
       if (c < minThreshold - 1) return;
-      
+
       let activeThreshold = 0;
       let nextThreshold = thresholds[thresholds.length - 1];
-      
+
       for (const th of thresholds) {
         if (c >= th) {
           activeThreshold = th;
@@ -1067,7 +1266,7 @@
           break;
         }
       }
-      
+
       const isActive = activeThreshold > 0;
       let bonusText = '';
       if (t === 'warrior') bonusText = isActive ? `+${activeThreshold * 20} ATK` : `+${nextThreshold * 20} ATK`;
@@ -1076,7 +1275,7 @@
       else if (t === 'mage') bonusText = isActive ? `+${activeThreshold * 30} ATK` : `+${nextThreshold * 30} ATK`;
       else if (t === 'dragon') bonusText = '+1000 HP, +100 ATK';
       else if (t === 'titan') bonusText = '50% DMG Red';
-      
+
       const item = document.createElement('div');
       item.className = 'synergy-item-new' + (isActive ? ' active' : '');
       item.innerHTML = `
@@ -1094,13 +1293,13 @@
   function renderHistory() {
     const tbody = document.getElementById('historyBody');
     tbody.innerHTML = '';
-    
+
     HISTORY.slice(0, 12).forEach(h => {
       const tr = document.createElement('tr');
       tr.className = (h.Victory ? 'win' : 'loss') + (h.IsMilestone ? ' milestone' : '');
-      
+
       const loot = h.GearWon ? `🎁 ${h.GearWon}` : `+${h.GoldWon}g`;
-      
+
       tr.innerHTML = `
         <td>#${h.WaveNumber} ${h.IsMilestone ? '★' : ''}</td>
         <td>${h.Victory ? '✓' : '✗'}</td>
@@ -1187,7 +1386,7 @@
     if (inCombat) return;
     inCombat = true;
     document.getElementById('fightBtn').disabled = true;
-    
+
     const result = await apiPost('/api/tft/combat', {});
     if (!result.ok) {
       toast(result.error || 'Combat failed', true);
@@ -1195,7 +1394,7 @@
       document.getElementById('fightBtn').disabled = false;
       return;
     }
-    
+
     await playCombatAnimation(result.frames);
     showCombatResult(result);
   }
@@ -1211,31 +1410,31 @@
       <div style="color: var(--text); font-size: 1.5rem; font-weight: 700;">Combat in Progress...</div>
     `;
     document.body.appendChild(overlay);
-    
+
     // Simulate frame-by-frame with delay based on speed
     const delay = 500 / combatSpeed;
     for (let i = 0; i < frames.length; i++) {
       await new Promise(r => setTimeout(r, delay));
       // Could update unit positions/HP here for full animation
     }
-    
+
     overlay.remove();
   }
 
   function showCombatResult(result) {
     const overlay = document.createElement('div');
     overlay.className = 'combat-overlay';
-    
+
     const title = result.victory ? '🏆 Victory!' : '💀 Defeat';
     const color = result.victory ? 'var(--good)' : 'var(--bad)';
-    
+
     let rewards = '';
     if (result.victory) {
       rewards = `+${result.gold_won} Gold`;
       if (result.gear_won) rewards += `<br>🎁 ${result.gear_won}`;
       if (result.streak > 1) rewards += `<br>🔥 Streak: ${result.streak}`;
     }
-    
+
     overlay.innerHTML = `
       <div class="combat-result">
         <h2 style="color: ${color}">${title}</h2>
@@ -1254,7 +1453,7 @@
     renderInventory();
     renderHistory();
     updateWaveInfo();
-    
+
     // Close context menu on click elsewhere
     document.addEventListener('click', () => {
       document.querySelectorAll('.context-menu').forEach(el => el.remove());
