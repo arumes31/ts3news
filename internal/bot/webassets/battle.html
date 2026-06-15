@@ -797,6 +797,74 @@
     }
   }
 
+  /* Combat animation styles */
+  .combat-board {
+    margin: 1rem 0;
+  }
+
+  .combat-log {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    margin-top: 1rem;
+    min-height: 40px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+
+  .combat-event {
+    animation: fadeIn 0.3s ease;
+    color: var(--gold);
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  .unit-card.attack-anim {
+    animation: attackLunge 0.2s ease;
+  }
+
+  @keyframes attackLunge {
+    0% {
+      transform: scale(1);
+    }
+
+    50% {
+      transform: scale(1.2);
+    }
+
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  .unit-card.hit-anim {
+    animation: hitFlash 0.2s ease;
+  }
+
+  @keyframes hitFlash {
+    0% {
+      filter: brightness(1);
+    }
+
+    50% {
+      filter: brightness(2) sepia(1) hue-rotate(-50deg);
+    }
+
+    100% {
+      filter: brightness(1);
+    }
+  }
+
   @media (max-width: 600px) {
     .tft-board-new {
       grid-template-columns: repeat(7, 1fr);
@@ -832,10 +900,12 @@
     </div>
     <div class="header-stats">
       <span class="stat-pill gold">🪙 <span id="goldDisplay">{{.U.Gold}}</span></span>
+      <span class="stat-pill" style="color: var(--xp);">⚔️ <span id="battleGoldDisplay">{{.BattleGold}}</span></span>
       <span class="stat-pill hp">❤️ <span id="hpDisplay">{{.U.CurrentHP}}/{{.U.MaxHP}}</span></span>
     </div>
     <div class="header-actions">
       <button class="btn-ghost" onclick="rerollShop()">Reroll (2g)</button>
+      <button class="btn-ghost" id="autoRunBtn" onclick="toggleAutoRun()">Auto-Run</button>
       <button class="btn-primary" id="fightBtn" onclick="startCombat()">FIGHT!</button>
     </div>
   </div>
@@ -911,11 +981,14 @@
   const HISTORY = {{.History | jsonJS}};
   const INVENTORY = {{.Inventory | jsonJS}};
   const BATTLE_STATS = {{.BattleStats | jsonJS}};
+  let BATTLE_GOLD = {{.BattleGold }};
 
   let selectedUnitId = null;
   let selectedInvId = null;
   let inCombat = false;
   let combatSpeed = 1;
+  let autoRunActive = false;
+  let autoRunInterval = null;
 
   // Toast Notification System
   function toast(message, isError = false) {
@@ -1275,6 +1348,15 @@
       else if (t === 'mage') bonusText = isActive ? `+${activeThreshold * 30} ATK` : `+${nextThreshold * 30} ATK`;
       else if (t === 'dragon') bonusText = '+1000 HP, +100 ATK';
       else if (t === 'titan') bonusText = '50% DMG Red';
+      else if (t === 'brute') bonusText = isActive ? `+${activeThreshold * 10}% Atk Spd` : `+${nextThreshold * 10}% Atk Spd`;
+      else if (t === 'wild') bonusText = isActive ? `+${activeThreshold * 5}% Lifesteal` : `+${nextThreshold * 5}% Lifesteal`;
+      else if (t === 'scout') bonusText = isActive ? `+${activeThreshold * 1} Range` : `+${nextThreshold * 1} Range`;
+      else if (t === 'ranger') bonusText = isActive ? `+${activeThreshold * 15}% Atk Spd` : `+${nextThreshold * 15}% Atk Spd`;
+      else if (t === 'elemental') bonusText = isActive ? `+${activeThreshold * 100} HP` : `+${nextThreshold * 100} HP`;
+      else if (t === 'knight') bonusText = isActive ? `+${activeThreshold * 10}% Block` : `+${nextThreshold * 10}% Block`;
+      else if (t === 'rogue') bonusText = isActive ? `+${activeThreshold * 20}% Crit Dmg` : `+${nextThreshold * 20}% Crit Dmg`;
+      else if (t === 'golem') bonusText = isActive ? `+${activeThreshold * 100} HP, +10% Tenacity` : `+${nextThreshold * 100} HP`;
+      else if (t === 'mystic') bonusText = isActive ? `+${activeThreshold * 15}% Magic Resist` : `+${nextThreshold * 15}% Magic Resist`;
 
       const item = document.createElement('div');
       item.className = 'synergy-item-new' + (isActive ? ' active' : '');
@@ -1339,7 +1421,10 @@
     const result = await apiPost('/api/tft/buy', { index: index });
     if (result.ok) {
       toast('Unit purchased!');
-      document.getElementById('goldDisplay').textContent = result.gold;
+      if (result.battleGold !== undefined) {
+        BATTLE_GOLD = result.battleGold;
+        document.getElementById('battleGoldDisplay').textContent = BATTLE_GOLD;
+      }
       refreshState();
     } else {
       toast(result.error || 'Failed to buy', true);
@@ -1351,6 +1436,10 @@
     const result = await apiPost('/api/tft/reroll', {});
     if (result.ok) {
       toast('Shop rerolled!');
+      if (result.battleGold !== undefined) {
+        BATTLE_GOLD = result.battleGold;
+        document.getElementById('battleGoldDisplay').textContent = BATTLE_GOLD;
+      }
       refreshState();
     } else {
       toast(result.error || 'Failed to reroll', true);
@@ -1362,7 +1451,10 @@
     const result = await apiPost('/api/tft/sell', { id: unitId });
     if (result.ok) {
       toast('Unit sold!');
-      document.getElementById('goldDisplay').textContent = result.gold;
+      if (result.battleGold !== undefined) {
+        BATTLE_GOLD = result.battleGold;
+        document.getElementById('battleGoldDisplay').textContent = BATTLE_GOLD;
+      }
       closeInspector();
       refreshState();
     } else {
@@ -1395,27 +1487,95 @@
       return;
     }
 
+    // Update battle gold display
+    if (result.battle_gold !== undefined) {
+      BATTLE_GOLD = result.battle_gold;
+      document.getElementById('battleGoldDisplay').textContent = BATTLE_GOLD;
+    }
+
     await playCombatAnimation(result.frames);
     showCombatResult(result);
   }
 
   async function playCombatAnimation(frames) {
-    // Simplified animation: just show overlay and wait
+    if (!frames || frames.length === 0) return;
+
     const overlay = document.createElement('div');
     overlay.className = 'combat-overlay';
     overlay.innerHTML = `
       <div class="combat-controls">
         <button onclick="this.parentElement.parentElement.remove(); inCombat=false; location.reload();">Skip</button>
       </div>
-      <div style="color: var(--text); font-size: 1.5rem; font-weight: 700;">Combat in Progress...</div>
+      <div id="combatBoard" class="combat-board"></div>
+      <div id="combatLog" class="combat-log"></div>
     `;
     document.body.appendChild(overlay);
 
-    // Simulate frame-by-frame with delay based on speed
-    const delay = 500 / combatSpeed;
+    const combatBoard = overlay.querySelector('#combatBoard');
+    const combatLog = overlay.querySelector('#combatLog');
+
+    // Create a mini board for combat visualization
+    const boardEl = document.createElement('div');
+    boardEl.className = 'tft-board-new';
+    boardEl.style.maxWidth = '600px';
+    boardEl.style.margin = '0 auto';
+    combatBoard.appendChild(boardEl);
+
+    // Initialize board cells
+    const cells = [];
+    for (let i = 0; i < 28; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'hexcell-new ' + (i < 14 ? 'enemy' : 'player');
+      cell.dataset.pos = i;
+      boardEl.appendChild(cell);
+      cells.push(cell);
+    }
+
+    const delay = 400 / combatSpeed;
+
     for (let i = 0; i < frames.length; i++) {
+      const frame = frames[i];
+
+      // Clear all cells
+      cells.forEach(c => c.innerHTML = '');
+
+      // Render units from frame
+      frame.units.forEach(unit => {
+        const cell = cells[unit.pos];
+        if (!cell) return;
+
+        const unitCard = document.createElement('div');
+        unitCard.className = 'unit-card' + (unit.side === 'enemy' ? ' enemy-unit' : '');
+        unitCard.id = 'unit-' + unit.id;
+
+        const hpPercent = unit.max_hp > 0 ? (unit.hp / unit.max_hp) * 100 : 0;
+
+        unitCard.innerHTML = `
+          <div class="unit-icon">${unit.icon}</div>
+          <div class="unit-stars">${'★'.repeat(unit.star)}</div>
+          <div class="unit-hp-bar"><span style="width: ${hpPercent}%"></span></div>
+        `;
+
+        cell.appendChild(unitCard);
+      });
+
+      // Show attack events
+      if (frame.events && frame.events.length > 0) {
+        const logEntry = document.createElement('div');
+        logEntry.className = 'combat-event';
+        const eventTexts = frame.events.map(e => {
+          const fromUnit = frame.units.find(u => u.id === e.from);
+          const toUnit = frame.units.find(u => u.id === e.to);
+          const fromIcon = fromUnit ? fromUnit.icon : '?';
+          const toIcon = toUnit ? toUnit.icon : '?';
+          return `${fromIcon} → ${toIcon} (${e.dmg} dmg)`;
+        });
+        logEntry.textContent = eventTexts.join(' | ');
+        combatLog.innerHTML = '';
+        combatLog.appendChild(logEntry);
+      }
+
       await new Promise(r => setTimeout(r, delay));
-      // Could update unit positions/HP here for full animation
     }
 
     overlay.remove();
@@ -1439,10 +1599,78 @@
       <div class="combat-result">
         <h2 style="color: ${color}">${title}</h2>
         <p>${rewards || 'Better luck next time!'}</p>
+        <p>Wave ${result.wave_number} | Damage: ${result.damage_dealt} | Turns: ${result.turns_survived}</p>
         <button class="btn-primary" onclick="location.reload()">Continue</button>
       </div>
     `;
     document.body.appendChild(overlay);
+  }
+
+  // Auto-Run: Simulate multiple waves automatically
+  async function toggleAutoRun() {
+    const btn = document.getElementById('autoRunBtn');
+    if (autoRunActive) {
+      autoRunActive = false;
+      btn.textContent = 'Auto-Run';
+      btn.classList.remove('btn-primary');
+      btn.classList.add('btn-ghost');
+      return;
+    }
+
+    autoRunActive = true;
+    btn.textContent = 'Stop';
+    btn.classList.remove('btn-ghost');
+    btn.classList.add('btn-primary');
+
+    while (autoRunActive) {
+      inCombat = true;
+      document.getElementById('fightBtn').disabled = true;
+
+      const result = await apiPost('/api/tft/combat', {});
+      if (!result.ok) {
+        toast(result.error || 'Combat failed', true);
+        break;
+      }
+
+      // Update battle gold display
+      if (result.battle_gold !== undefined) {
+        BATTLE_GOLD = result.battle_gold;
+        document.getElementById('battleGoldDisplay').textContent = BATTLE_GOLD;
+      }
+
+      // Play animation (faster for auto-run)
+      const savedSpeed = combatSpeed;
+      combatSpeed = 3; // Faster animation
+      await playCombatAnimation(result.frames);
+      combatSpeed = savedSpeed;
+
+      if (!result.victory) {
+        // Player was defeated
+        showCombatResult(result);
+        autoRunActive = false;
+        btn.textContent = 'Auto-Run';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-ghost');
+        break;
+      }
+
+      // Show brief result before next wave
+      const waveResult = document.createElement('div');
+      waveResult.className = 'combat-overlay';
+      waveResult.innerHTML = `
+        <div class="combat-result">
+          <h2 style="color: var(--good)">🏆 Wave ${result.wave_number} Complete!</h2>
+          <p>+${result.gold_won} Gold | Battle Gold: ${result.battle_gold}</p>
+        </div>
+      `;
+      document.body.appendChild(waveResult);
+
+      await new Promise(r => setTimeout(r, 1500));
+      waveResult.remove();
+
+      inCombat = false;
+      document.getElementById('fightBtn').disabled = false;
+    }
   }
 
   // Initialize
