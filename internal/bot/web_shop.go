@@ -79,12 +79,20 @@ type shopItemView struct {
 	CR          float64
 	Score       int
 	Price       int64
+	IsUpgrade   bool
 }
 
-func stockForSeed(seed int64) []shopItemView {
+func stockForSeed(seed int64, equippedGear map[string]content.Gear) []shopItemView {
 	stock := content.ShopStock(seed, shopStockSize)
 	out := make([]shopItemView, 0, len(stock))
 	for _, g := range stock {
+		isUpgrade := false
+		if curr, ok := equippedGear[string(g.Slot)]; !ok {
+			isUpgrade = true
+		} else if g.CombatRating() > curr.CombatRating() && g.Stats.Score() > curr.Stats.Score() {
+			isUpgrade = true
+		}
+
 		out = append(out, shopItemView{
 			ID:          g.ID,
 			Name:        g.Name,
@@ -95,6 +103,7 @@ func stockForSeed(seed int64) []shopItemView {
 			CR:          g.CombatRating(),
 			Score:       g.Stats.Score(),
 			Price:       gearPrice(g),
+			IsUpgrade:   isUpgrade,
 		})
 	}
 	return out
@@ -106,6 +115,22 @@ func (s *WebServer) handleShopPage(w http.ResponseWriter, r *http.Request, uid s
 		http.Redirect(w, r, "/denied", http.StatusSeeOther)
 		return
 	}
+	
+	// Load player's equipped gear to determine upgrades
+	equippedGear := make(map[string]content.Gear)
+	rows, err := s.bot.DB.Query("SELECT slot, gear_id FROM user_gear WHERE client_uid=$1", uid)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var slot, gearID string
+			if err := rows.Scan(&slot, &gearID); err == nil {
+				if cg, ok := content.GetGearByID(gearID); ok {
+					equippedGear[slot] = cg
+				}
+			}
+		}
+	}
+
 	seed, endsAt := shopWindow(time.Now())
 	refreshIn := int(time.Until(endsAt).Seconds())
 	if refreshIn < 0 {
@@ -115,12 +140,12 @@ func (s *WebServer) handleShopPage(w http.ResponseWriter, r *http.Request, uid s
 		"Title":     "Shop",
 		"Nav":       "shop",
 		"U":         u,
-		"Stock":     stockForSeed(seed),
+		"Stock":     stockForSeed(seed, equippedGear),
 		"RefreshIn": refreshIn,
 		"GoldPerXP": goldPerXP,
 		"XPPerGold": xpPerGold,
 	})
-}
+	}
 
 // handleExchangeAPI converts between gold and XP at the fixed rates.
 func (s *WebServer) handleExchangeAPI(w http.ResponseWriter, r *http.Request, uid string) {
@@ -215,7 +240,7 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 	// Only items in the current rotation are purchasable (at the server's price).
 	seed, _ := shopWindow(time.Now())
 	var chosen *shopItemView
-	for _, it := range stockForSeed(seed) {
+	for _, it := range stockForSeed(seed, nil) {
 		if it.ID == req.ID {
 			c := it
 			chosen = &c

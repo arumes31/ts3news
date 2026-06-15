@@ -10,15 +10,16 @@ import (
 )
 
 type ahListingView struct {
-	ID       string
-	ItemType string
-	ItemID   string
-	Icon     string
-	Name     string
-	Price    int64
-	Seller   string
-	Listed   string
-	Mine     bool
+	ID        string
+	ItemType  string
+	ItemID    string
+	Icon      string
+	Name      string
+	Price     int64
+	Seller    string
+	Listed    string
+	Mine      bool
+	IsUpgrade bool
 }
 
 // ahIcon returns a slot-matched icon for a gear listing, or a type icon otherwise.
@@ -59,18 +60,34 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 		http.Redirect(w, r, "/denied", http.StatusSeeOther)
 		return
 	}
+
+	// Load player's equipped gear to determine upgrades
+	equippedGear := make(map[string]content.Gear)
+	rows, err := s.bot.DB.Query("SELECT slot, gear_id FROM user_gear WHERE client_uid=$1", uid)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var slot, gearID string
+			if err := rows.Scan(&slot, &gearID); err == nil {
+				if cg, ok := content.GetGearByID(gearID); ok {
+					equippedGear[slot] = cg
+				}
+			}
+		}
+	}
+
 	s.render(w, "ah", map[string]any{
 		"Title":    "Auction House",
 		"Nav":      "ah",
 		"U":        u,
-		"Active":   s.bot.ahActiveListings(uid),
+		"Active":   s.bot.ahActiveListings(uid, equippedGear),
 		"Mine":     s.bot.ahMyListings(uid),
 		"History":  s.bot.ahHistory(uid, 20),
 		"Sellable": s.bot.inventoryItems(uid),
 	})
 }
 
-func (b *Bot) ahActiveListings(uid string) []ahListingView {
+func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear) []ahListingView {
 	rows, err := b.DB.Query(`
 		SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
 		FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
@@ -91,6 +108,18 @@ func (b *Bot) ahActiveListings(uid string) []ahListingView {
 		v.Icon = ahIcon(v.ItemType, v.ItemID)
 		v.Listed = t.Format("Jan 02")
 		v.Mine = seller == uid
+
+		// Determine if upgrade
+		if v.ItemType == "gear" {
+			if cg, ok := content.GetGearByID(v.ItemID); ok {
+				if curr, ok := equippedGear[string(cg.Slot)]; !ok {
+					v.IsUpgrade = true
+				} else if cg.CombatRating() > curr.CombatRating() && cg.Stats.Score() > curr.Stats.Score() {
+					v.IsUpgrade = true
+				}
+			}
+		}
+
 		out = append(out, v)
 	}
 	return out

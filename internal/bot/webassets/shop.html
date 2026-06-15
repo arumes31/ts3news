@@ -25,9 +25,9 @@
   <h2>Item Shop <span class="muted small">— fair prices · refreshes in <span id="shopTimer" class="shop-timer">…</span></span></h2>
   <div class="shop-grid">
     {{range .Stock}}
-    <div class="shop-card" data-id="{{.ID}}">
+    <div class="shop-card {{if .IsUpgrade}}upgrade-item{{end}}" data-id="{{.ID}}">
       <div class="shop-ico">{{.Icon}}</div>
-      <div class="inv-name" style="color:{{.RarityColor}}">{{.Name}}</div>
+      <div class="inv-name" style="color:{{.RarityColor}}">{{.Name}} {{if .IsUpgrade}}<span class="upgrade-badge" title="Upgrade for equipped gear">⬆</span>{{end}}</div>
       <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
       <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}}</div>
       <div class="price">🪙 {{.Price}}</div>
