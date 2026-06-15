@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"database/sql"
 	"encoding/json"
 	"log"
 	"time"
@@ -22,44 +21,55 @@ type AuctionItem struct {
 	ExpiresAt time.Time       `json:"expires_at"`
 }
 
-// ListUnwantedItems automatically lists rare+ items that are worse than current gear
+// autoListUnwantedItems automatically lists items that are worse than current loadout
 func (b *Bot) autoListUnwantedItems(uid string, item interface{}) {
-	var g content.Gear
-	var itype string
+	var id, name, itype string
+	var price int64
+	var data interface{}
 
 	switch v := item.(type) {
 	case content.Gear:
-		if v.Rarity < content.RarityRare {
-			return
-		}
-		g = v
 		itype = "gear"
+		id, name, data = v.ID, v.Name, v
+		// Price based on stats (GS, CR) and Rarity
+		price = int64(v.CombatRating()*10+float64(v.Stats.Score())*5) * (int64(v.Rarity) + 1)
+
+		// Check if player already has better gear in this slot
+		var currentID string
+		err := b.DB.QueryRow("SELECT gear_id FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(v.Slot)).Scan(&currentID)
+		if err == nil {
+			if cur, ok := content.GetGearByID(currentID); ok {
+				if cur.Rarity > v.Rarity || (cur.Rarity == v.Rarity && cur.CombatRating() >= v.CombatRating()) {
+					// Price unneeded gear fairly.
+				} else {
+					return // This is actually an upgrade or should have been equipped
+				}
+			}
+		}
+	case content.Skill:
+		itype = "skill"
+		id, name, data = v.ID, v.Name, v
+		price = int64(20 + int(v.Rarity)*20)
+	case content.UltimateSkill:
+		itype = "ultimate"
+		id, name, data = v.ID, v.Name, v
+		price = int64(100 + int(v.Rarity)*100)
+	case content.UniqueItem:
+		itype = "unique"
+		id, name, data = v.Name, v.Name, v
+		price = int64(250 + int(v.Rarity)*250)
+	case content.Enchantment:
+		itype = "enchantment"
+		id, name, data = v.ID, v.Name, v
+		price = int64(50 + int(v.Rarity)*50)
 	default:
 		return
 	}
 
-	// Check if player already has better gear in this slot
-	var currentID string
-	err := b.DB.QueryRow("SELECT gear_id FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(g.Slot)).Scan(&currentID)
-	switch err {
-	case nil:
-		if cur, ok := content.GetGearByID(currentID); ok {
-			if cur.Rarity >= g.Rarity && cur.CombatRating() >= g.CombatRating() {
-				// Item is unwanted, list it!
-				// Price based on stats (GS, CR) and Rarity
-				price := int64(g.CombatRating()*10+float64(g.Stats.Score())*5) * (int64(g.Rarity) + 1)
-				if price < 10 {
-					price = 10
-				}
-				b.listAuctionItem(uid, itype, g.ID, g.Name, g, price)
-			}
-		}
-	case sql.ErrNoRows:
-		// Even if slot is empty, we might want to list it if we don't want to equip it
-		// (though usually shouldEquip handles this before autoList)
-	default:
-		// Other error
+	if price < 10 {
+		price = 10
 	}
+	b.listAuctionItem(uid, itype, id, name, data, price)
 }
 
 func (b *Bot) listAuctionItem(uid, itype, id, name string, data interface{}, price int64) {
@@ -86,7 +96,7 @@ type GearDropResult struct {
 }
 
 // awardGearDrop handles a gear drop from game loot sources.
-// It auto-equips upgrades, auto-lists non-upgrade Rare+ items on AH,
+// It auto-equips upgrades, auto-lists non-upgrade items on AH,
 // and puts everything else into inventory.
 func (b *Bot) awardGearDrop(uid string, g content.Gear) GearDropResult {
 	itemName := g.Rarity.String() + " " + g.Name
@@ -105,7 +115,7 @@ func (b *Bot) awardGearDrop(uid string, g content.Gear) GearDropResult {
 			}
 		}
 		// Fall through to inventory on error
-	} else if g.Rarity >= content.RarityRare {
+	} else {
 		// List on auction house
 		b.autoListUnwantedItems(uid, g)
 		return GearDropResult{
