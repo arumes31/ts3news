@@ -165,6 +165,8 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/api/tft/sell", s.authAPI(s.handleTFTSell))
 	mux.HandleFunc("/api/tft/equip", s.authAPI(s.handleTFTEquip))
 	mux.HandleFunc("/api/tft/combat", s.authAPI(s.handleTFTCombat))
+	mux.HandleFunc("/api/tft/phase-ready", s.authAPI(s.handleTFTPhaseReady))
+	mux.HandleFunc("/api/tft/phase-timer", s.authAPI(s.handleTFTPhaseTimer))
 	mux.HandleFunc("/api/arcade/play", s.authAPI(s.handleArcadeAPI))
 	mux.HandleFunc("/api/arcade/daily-spin", s.authAPI(s.handleDailySpinAPI))
 	mux.HandleFunc("/api/arcade3d/reward", s.authAPI(s.handleArcade3DReward))

@@ -49,6 +49,21 @@
     color: var(--xp);
   }
 
+  .phase-timer {
+    font-size: 0.9rem;
+    color: var(--good);
+    font-weight: 600;
+  }
+
+  .phase-indicator {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
   .wave-progress {
     height: 8px;
     background: #0c0f16;
@@ -892,11 +907,11 @@
 <div class="tft-layout-new">
   <div class="tft-header">
     <div class="wave-info">
-      <span class="wave-title">Wave <span id="currentWaveDisplay">1</span></span>
-      <div class="wave-progress">
-        <div class="progress-bar" id="waveProgressBar" style="width: 0%"></div>
+      <span class="wave-title">Round <span id="currentRoundDisplay">{{.StageNumber}}-{{.RoundNumber}}</span></span>
+      <div class="phase-timer" id="phaseTimerDisplay">
+        <span id="phaseTimerValue">{{.PhaseTimer}}</span>s
       </div>
-      <span class="wave-next" id="nextWaveInfo">Next: Creep Wave 3</span>
+      <span class="phase-indicator" id="phaseIndicator">{{.Phase}}</span>
     </div>
     <div class="header-stats">
       <span class="stat-pill gold">🪙 <span id="goldDisplay">{{.U.Gold}}</span></span>
@@ -982,6 +997,10 @@
   const INVENTORY = {{.Inventory | jsonJS}};
   const BATTLE_STATS = {{.BattleStats | jsonJS}};
   let BATTLE_GOLD = {{.BattleGold }};
+  let CURRENT_PHASE = "{{.Phase}}";
+  let PHASE_TIMER = {{.PhaseTimer }};
+  let CURRENT_ROUND = {{.RoundNumber }};
+  let CURRENT_STAGE = {{.StageNumber }};
 
   let selectedUnitId = null;
   let selectedInvId = null;
@@ -989,6 +1008,89 @@
   let combatSpeed = 1;
   let autoRunActive = false;
   let autoRunInterval = null;
+  let phaseTimerInterval = null;
+
+  // Initialize phase display
+  function initPhaseDisplay() {
+    document.getElementById('currentRoundDisplay').textContent = CURRENT_STAGE + '-' + CURRENT_ROUND;
+    document.getElementById('phaseIndicator').textContent = CURRENT_PHASE;
+    document.getElementById('phaseTimerValue').textContent = PHASE_TIMER;
+
+    // Update phase indicator styling
+    const phaseIndicator = document.getElementById('phaseIndicator');
+    phaseIndicator.className = 'phase-indicator';
+    if (CURRENT_PHASE === 'planning') {
+      phaseIndicator.style.color = 'var(--good)';
+    } else if (CURRENT_PHASE === 'combat') {
+      phaseIndicator.style.color = 'var(--bad)';
+    } else if (CURRENT_PHASE === 'overtime') {
+      phaseIndicator.style.color = 'orange';
+    }
+
+    // Start phase timer if in planning phase
+    if (CURRENT_PHASE === 'planning' && PHASE_TIMER > 0) {
+      startPhaseTimer();
+    }
+  }
+
+  // Phase timer countdown
+  function startPhaseTimer() {
+    if (phaseTimerInterval) {
+      clearInterval(phaseTimerInterval);
+    }
+
+    phaseTimerInterval = setInterval(async () => {
+      PHASE_TIMER--;
+      document.getElementById('phaseTimerValue').textContent = PHASE_TIMER;
+
+      if (PHASE_TIMER <= 0) {
+        clearInterval(phaseTimerInterval);
+
+        if (CURRENT_PHASE === 'planning') {
+          // Transition to overtime phase
+          try {
+            const result = await apiPost('/api/tft/phase-timer', { timer: 10 });
+            if (result.ok) {
+              CURRENT_PHASE = 'overtime';
+              PHASE_TIMER = 10;
+              initPhaseDisplay();
+              startPhaseTimer(); // Start overtime timer
+            }
+          } catch (e) {
+            console.error('Failed to transition to overtime:', e);
+            // Fallback: go directly to combat
+            try {
+              const combatResult = await apiPost('/api/tft/phase-ready', {});
+              if (combatResult.ok) {
+                CURRENT_PHASE = 'combat';
+                initPhaseDisplay();
+              }
+            } catch (e2) {
+              console.error('Failed to transition to combat:', e2);
+            }
+          }
+        } else if (CURRENT_PHASE === 'overtime') {
+          // Auto-transition to combat phase
+          try {
+            const result = await apiPost('/api/tft/phase-ready', {});
+            if (result.ok) {
+              CURRENT_PHASE = 'combat';
+              initPhaseDisplay();
+            }
+          } catch (e) {
+            console.error('Failed to transition to combat:', e);
+          }
+        }
+      } else {
+        // Update server with remaining time
+        try {
+          await apiPost('/api/tft/phase-timer', { timer: PHASE_TIMER });
+        } catch (e) {
+          console.error('Failed to update phase timer:', e);
+        }
+      }
+    }, 1000);
+  }
 
   // Toast Notification System
   function toast(message, isError = false) {
@@ -1476,6 +1578,23 @@
 
   async function startCombat() {
     if (inCombat) return;
+
+    // If in planning phase, transition to combat first
+    if (CURRENT_PHASE === 'planning') {
+      try {
+        const phaseResult = await apiPost('/api/tft/phase-ready', {});
+        if (!phaseResult.ok) {
+          toast(phaseResult.error || 'Failed to start combat', true);
+          return;
+        }
+        CURRENT_PHASE = 'combat';
+        initPhaseDisplay();
+      } catch (e) {
+        toast('Failed to start combat', true);
+        return;
+      }
+    }
+
     inCombat = true;
     document.getElementById('fightBtn').disabled = true;
 
@@ -1623,6 +1742,22 @@
     btn.classList.add('btn-primary');
 
     while (autoRunActive) {
+      // Handle phase transition if in planning phase
+      if (CURRENT_PHASE === 'planning') {
+        try {
+          const phaseResult = await apiPost('/api/tft/phase-ready', {});
+          if (!phaseResult.ok) {
+            toast(phaseResult.error || 'Failed to start combat', true);
+            break;
+          }
+          CURRENT_PHASE = 'combat';
+          initPhaseDisplay();
+        } catch (e) {
+          toast('Failed to start combat', true);
+          break;
+        }
+      }
+
       inCombat = true;
       document.getElementById('fightBtn').disabled = true;
 
@@ -1654,12 +1789,12 @@
         break;
       }
 
-      // Show brief result before next wave
+      // Show brief result before next round
       const waveResult = document.createElement('div');
       waveResult.className = 'combat-overlay';
       waveResult.innerHTML = `
         <div class="combat-result">
-          <h2 style="color: var(--good)">🏆 Wave ${result.wave_number} Complete!</h2>
+          <h2 style="color: var(--good)">🏆 Round ${result.wave_number} Complete!</h2>
           <p>+${result.gold_won} Gold | Battle Gold: ${result.battle_gold}</p>
         </div>
       `;
@@ -1670,6 +1805,11 @@
 
       inCombat = false;
       document.getElementById('fightBtn').disabled = false;
+
+      // Update current round/stage for next iteration
+      CURRENT_ROUND = result.wave_number + 1;
+      // Simple stage calculation: stage = ceil(round/6)
+      CURRENT_STAGE = Math.ceil(CURRENT_ROUND / 6);
     }
   }
 
@@ -1681,6 +1821,7 @@
     renderInventory();
     renderHistory();
     updateWaveInfo();
+    initPhaseDisplay();
 
     // Close context menu on click elsewhere
     document.addEventListener('click', () => {
