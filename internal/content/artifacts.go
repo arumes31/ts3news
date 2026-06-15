@@ -713,8 +713,7 @@ func RandomTitle() Title {
 // (e.g. a day number), excluding the basic Novice starter items so the shop
 // always offers a meaningful upgrade path. Used by the web shop.
 func ShopStock(seed int64, count int) []Gear {
-	// #nosec G404 -- deterministic, non-cryptographic shop rotation
-	r := rand.New(rand.NewPCG(uint64(seed), uint64(seed)+1)) // #nosec G115
+	r := rand.New(rand.NewPCG(uint64(seed), uint64(seed)+1)) // #nosec G404 G115 -- deterministic shop rotation, seed always non-negative
 	var pool []Gear
 	for _, g := range allGear {
 		if strings.HasPrefix(g.ID, "B_") { // skip Novice/starter junk
