@@ -42,6 +42,7 @@ const (
 // shopWindowDuration returns the length (in seconds) of shop window idx, in
 // [shopMinHours, shopMaxHours] hours, derived deterministically from idx.
 func shopWindowDuration(idx int64) int64 {
+	// #nosec G115 -- idx is always non-negative (window index)
 	h := uint64(idx)*0x9E3779B97F4A7C15 + 0x123456789
 	h ^= h >> 29
 	span := uint64(shopMaxHours - shopMinHours + 1)

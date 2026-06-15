@@ -343,7 +343,16 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1})
+	secure := strings.HasPrefix(strings.ToLower(s.bot.Cfg.WebBaseURL), "https://")
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookie,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
 	http.Redirect(w, r, "/denied", http.StatusSeeOther)
 }
 
