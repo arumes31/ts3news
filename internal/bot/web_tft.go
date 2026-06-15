@@ -532,7 +532,7 @@ func (b *Bot) craftItem(uid string, recipeID string) error {
 	}
 
 	// Add crafted item to inventory
-	itemID := fmt.Sprintf("item_%08x", rand.Uint32())
+	itemID := fmt.Sprintf("item_%08x", rand.Uint32()) // #nosec G404
 	_, err = b.DB.Exec(`
 		INSERT INTO player_items (id, client_uid, item_id, item_type, equipped_to)
 		VALUES ($1, $2, $3, 'crafted', '')
@@ -1761,9 +1761,6 @@ type simUnit struct {
 	// Enhanced combat stats
 	def     int // Physical defense
 	mdef    int // Magic defense
-	spd     int // Speed (affects movement and attack speed)
-	mana    int // Current mana
-	maxMana int // Max mana for abilities
 
 	// Status effects (ticks remaining)
 	stunned int // Cannot move or attack
@@ -1772,7 +1769,6 @@ type simUnit struct {
 	frozen  int // Cannot move, takes extra damage
 
 	// Item effects
-	items       []string     // Item IDs equipped
 	itemEffects []ItemEffect // Active item effects
 
 	// Combat tracking
@@ -3072,30 +3068,6 @@ func (b *Bot) applyAugmentEffect(uid string, augment Augment, st *tftState) {
 	case "passive":
 		// Passive effects are tracked in the database and applied during relevant game actions
 	}
-}
-
-// getPlayerAugments returns all augments selected by a player
-func (b *Bot) getPlayerAugments(uid string) []Augment {
-	var augments []Augment
-	rows, err := b.DB.Query(`
-		SELECT a.id, a.key, a.name, a.description, a.tier, a.type, a.effect_data, a.icon
-		FROM tft_player_augments pa
-		JOIN tft_augments a ON pa.augment_id = a.id
-		WHERE pa.user_id = $1
-		ORDER BY pa.selected_at
-	`, uid)
-	if err != nil {
-		return augments
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var a Augment
-		if err := rows.Scan(&a.ID, &a.Key, &a.Name, &a.Description, &a.Tier, &a.Type, &a.EffectData, &a.Icon); err == nil {
-			augments = append(augments, a)
-		}
-	}
-	return augments
 }
 
 // getBattleStats returns the full battle statistics for a player.
