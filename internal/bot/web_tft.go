@@ -2905,11 +2905,13 @@ func (s *WebServer) handleTFTAugments(w http.ResponseWriter, r *http.Request, ui
 	// Check if we need to generate new offers
 	if state.LastOfferStage != st.StageNumber || state.LastOfferRound != st.RoundNumber {
 		offers := s.bot.generateAugmentOffers(uid, st.StageNumber, st.RoundNumber)
-		json.NewEncoder(w).Encode(map[string]any{
+		if err := json.NewEncoder(w).Encode(map[string]any{
 			"offers":     offers,
 			"rerollCost": getRerollCost(state.RerollCount),
 			"canReroll":  true,
-		})
+		}); err != nil {
+			http.Error(w, "Failed to encode response", 500)
+		}
 		return
 	}
 
@@ -2939,11 +2941,13 @@ func (s *WebServer) handleTFTAugments(w http.ResponseWriter, r *http.Request, ui
 		offers = s.bot.generateAugmentOffers(uid, st.StageNumber, st.RoundNumber)
 	}
 
-	json.NewEncoder(w).Encode(map[string]any{
+	if err := json.NewEncoder(w).Encode(map[string]any{
 		"offers":     offers,
 		"rerollCost": getRerollCost(state.RerollCount),
 		"canReroll":  true,
-	})
+	}); err != nil {
+		http.Error(w, "Failed to encode response", 500)
+	}
 }
 
 // handleTFTSelectAugment processes augment selection
@@ -2994,10 +2998,12 @@ func (s *WebServer) handleTFTSelectAugment(w http.ResponseWriter, r *http.Reques
 		DELETE FROM tft_augment_offers WHERE user_id = $1
 	`, uid)
 
-	json.NewEncoder(w).Encode(map[string]any{
+	if err := json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"augment": augment,
-	})
+	}); err != nil {
+		http.Error(w, "Failed to encode response", 500)
+	}
 }
 
 // handleTFTRerollAugments rerolls the current augment offers
@@ -3030,12 +3036,14 @@ func (s *WebServer) handleTFTRerollAugments(w http.ResponseWriter, r *http.Reque
 	newState := s.bot.getAugmentState(uid)
 	offers := s.bot.generateAugmentOffers(uid, st.StageNumber, st.RoundNumber)
 
-	json.NewEncoder(w).Encode(map[string]any{
+	if err := json.NewEncoder(w).Encode(map[string]any{
 		"offers":     offers,
 		"rerollCost": getRerollCost(newState.RerollCount),
 		"canReroll":  true,
 		"gold":       st.BattleGold,
-	})
+	}); err != nil {
+		http.Error(w, "Failed to encode response", 500)
+	}
 }
 
 // applyAugmentEffect applies the effect of an augment

@@ -43,9 +43,8 @@ temp/
 *.exe
 
 
-# Simulation binaries
-cmd/simulation/sim.exe
-cmd/simulation/ts3news_sim.exe
+# Generated icons
+data/icons/
 
 # Coverage files
 *.out
