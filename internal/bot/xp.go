@@ -1782,9 +1782,9 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				}
 			} else {
 				// Improvement 50: Salvaging (Duplicate Ultimates)
-				scrapAmt := 5 + int(us.Rarity)*5
-				_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
-				results = append(results, i18n.T("bot.loot.duplicate_ultimate_salvage", us.Name, scrapAmt))
+				salvageValue := 50 + int(us.Rarity)*50
+				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid=$1", uid, salvageValue)
+				results = append(results, i18n.T("bot.loot.duplicate_ultimate_salvage", us.Name, salvageValue))
 			}
 			lootFound = true
 		} else if r < titleChance*qualityMult {
@@ -1806,9 +1806,9 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				}
 			} else {
 				// Improvement 50: Salvaging (Duplicate Uniques)
-				scrapAmt := 10 + int(ui.Rarity)*10
-				_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
-				results = append(results, i18n.T("bot.loot.duplicate_unique_salvage", ui.Name, scrapAmt))
+				salvageValue := 100 + int(ui.Rarity)*100
+				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid=$1", uid, salvageValue)
+				results = append(results, i18n.T("bot.loot.duplicate_unique_salvage", ui.Name, salvageValue))
 			}
 			lootFound = true
 		} else if r < artifactChance*qualityMult {
@@ -1828,9 +1828,9 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				results = append(results, i18n.T("bot.loot.enchanted", slot, ench.Name, ench.Name))
 			} else {
 				// Improvement 50: Salvaging (Enchantments)
-				scrapAmt := 2 + int(ench.Rarity)*2
-				_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
-				results = append(results, i18n.T("bot.loot.salvaged_enchant", ench.Name, scrapAmt))
+				salvageValue := 20 + int(ench.Rarity)*20
+				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid=$1", uid, salvageValue)
+				results = append(results, i18n.T("bot.loot.salvaged_enchant", ench.Name, salvageValue))
 			}
 			lootFound = true
 		} else if r < skillChance*qualityMult {
@@ -1840,9 +1840,9 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				results = append(results, i18n.T("bot.loot.learned_skill", s.Name, s.Name, slot))
 			} else {
 				// Improvement 50: Salvaging (Skills)
-				scrapAmt := 1 + int(s.Rarity)
-				_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
-				results = append(results, i18n.T("bot.loot.salvaged_skill", s.Name, scrapAmt))
+				salvageValue := 10 + int(s.Rarity)*10
+				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid=$1", uid, salvageValue)
+				results = append(results, i18n.T("bot.loot.salvaged_skill", s.Name, salvageValue))
 			}
 			lootFound = true
 		} else if r < consChance*qualityMult {
@@ -1867,41 +1867,19 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			lootFound = true
 		}
 
-		if lootFound {
-			// Reset scrap stack on any successful non-scrap drop
-			_, _ = b.DB.Exec("UPDATE users SET scrap_stack = 0 WHERE client_uid=$1", uid)
-		}
-
-		// 100% Drop Guarantee: If nothing else found, drop a Common item or Scrap
+		// 100% Drop Guarantee: If nothing else found, drop a Common item
 		if !lootFound {
 			// #nosec G404
 			if rand.Float64() < 0.7 { // #nosec G404
-				// Drop a basic common gear (Trash/Scrap fallback)
+				// Drop a basic common gear
 				g := content.RandomStarterGear()
 				if b.shouldEquip(uid, g) {
 					_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
 					results = append(results, i18n.T("bot.loot.found", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.String()))
-					// Also reset stack if we actually equipped something useful
-					_, _ = b.DB.Exec("UPDATE users SET scrap_stack = 0 WHERE client_uid=$1", uid)
 				} else {
-					// Stack multiple scraps for increased XP (up to 5 consecutive scraps = 5 XP)
-					// Check if the user already has a "scrap stack" going
-					var scrapCount int
-					_ = b.DB.QueryRow("SELECT COALESCE(scrap_stack, 0) FROM users WHERE client_uid=$1", uid).Scan(&scrapCount)
-
-					// Increment the stack (cap at 5)
-					stackSize := scrapCount + 1
-					if stackSize > 5 {
-						stackSize = 5
-					}
-
-					// Update the user's scrap stack
-					_, _ = b.DB.Exec("UPDATE users SET scrap_stack = $2 WHERE client_uid=$1", uid, stackSize)
-
-					// Award XP based on stack size
-					totalXP := stackSize
-					results = append(results, i18n.T("bot.loot.scrap", string(g.Slot), totalXP, g.Rarity.String()))
-					_, _ = b.awardXP(uid, "", totalXP)
+					salvageValue := 2
+					_, _ = b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid=$1", uid, salvageValue)
+					results = append(results, i18n.T("bot.loot.salvaged", g.Name, string(g.Slot), salvageValue))
 				}
 			} else {
 				results = append(results, i18n.T("bot.loot.small_health_potion"))
