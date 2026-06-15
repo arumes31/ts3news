@@ -192,7 +192,7 @@ func (s *WebServer) handleLeaderboardsPage(w http.ResponseWriter, r *http.Reques
 		http.Redirect(w, r, "/denied", http.StatusSeeOther)
 		return
 	}
-	s.render(w, "leaderboards", map[string]any{
+	s.render(w, "leaderboards-page", map[string]any{
 		"Title":           "Leaderboards",
 		"Nav":             "leaderboards",
 		"U":               u,
