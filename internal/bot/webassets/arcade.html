@@ -39,11 +39,21 @@
     <div class="jackpot-banner">JACKPOT: 🪙 <span id="jackpotSlots">{{gold .JackpotSlots}}</span></div>
     <h3>🎰 Slots</h3>
     <div class="reels" id="reels">
-      <div class="reel"><div class="reelstrip" id="strip0"></div></div>
-      <div class="reel"><div class="reelstrip" id="strip1"></div></div>
-      <div class="reel"><div class="reelstrip" id="strip2"></div></div>
-      <div class="reel"><div class="reelstrip" id="strip3"></div></div>
-      <div class="reel"><div class="reelstrip" id="strip4"></div></div>
+      <div class="reel">
+        <div class="reelstrip" id="strip0"></div>
+      </div>
+      <div class="reel">
+        <div class="reelstrip" id="strip1"></div>
+      </div>
+      <div class="reel">
+        <div class="reelstrip" id="strip2"></div>
+      </div>
+      <div class="reel">
+        <div class="reelstrip" id="strip3"></div>
+      </div>
+      <div class="reel">
+        <div class="reelstrip" id="strip4"></div>
+      </div>
     </div>
     <p class="muted small">3/4/5 of a kind pay ×3 / ×16 / ×88</p>
     <button id="btn-slots" onclick="playSlots()">Spin</button>
@@ -52,7 +62,9 @@
   <!-- DICE -->
   <div class="game-card">
     <h3>🎲 Dice</h3>
-    <div class="dice-stage"><div class="die" id="die"><span id="diePips">⚀</span></div></div>
+    <div class="dice-stage">
+      <div class="die" id="die"><span id="diePips">⚀</span></div>
+    </div>
     <p class="muted small">Roll 5–6 to win ×2.4, 4 pushes</p>
     <button id="btn-dice" onclick="playDice()">Roll</button>
   </div>
@@ -60,7 +72,12 @@
   <!-- COIN -->
   <div class="game-card">
     <h3>🪙 Coin Flip</h3>
-    <div class="coin-stage"><div class="coin" id="coin"><div class="coin-face heads">H</div><div class="coin-face tails">T</div></div></div>
+    <div class="coin-stage">
+      <div class="coin" id="coin">
+        <div class="coin-face heads">H</div>
+        <div class="coin-face tails">T</div>
+      </div>
+    </div>
     <div class="choices">
       <button class="ghost" id="btn-coin" onclick="playCoin('heads')">Heads</button>
       <button class="ghost" onclick="playCoin('tails')">Tails</button>
@@ -82,349 +99,353 @@
   <div class="game-card">
     <h3>🃏 High / Low</h3>
     <div class="card-stage">
-      <div class="pcard" id="pcard"><div class="pcard-inner"><div class="pcard-front">?</div><div class="pcard-back" id="cardVal">7</div></div></div>
+      <div class="pcard" id="pcard">
+        <div class="pcard-inner">
+          <div class="pcard-front">?</div>
+          <div class="pcard-back" id="cardVal">7</div>
+        </div>
+      </div>
     </div>
     <div class="choices">
       <button class="ghost" id="btn-high" onclick="playHL('high')">High >7</button>
-      <button class="ghost" id="btn-low" onclick="playHL('low')">Low <7</button>
+      <button class="ghost" id="btn-low" onclick="playHL('low')">Low <7< /button>
     </div>
     <p class="muted small">Guess the card · ×2.0</p>
   </div>
 
 </div>
 
-<h2 class="more-games-h">🕹️ More Games</h2>
+<h2 class="more-games-h">🕹️ All Games</h2>
 <div class="arcade-grid" id="moreGames"></div>
 
 <h2 class="lb-h">🏆 Leaderboards — Most Wins</h2>
 {{template "leaderboards" .Leaders}}
 
 <script>
-const WHEEL = {{.WheelJSON}};
-const SLOT_SYMS = ["🍒","🍋","🔔","⭐","💎","7️⃣"];
-const PIPS = ["⚀","⚁","⚂","⚃","⚄","⚅"];
-const sleep = ms => new Promise(r=>setTimeout(r,ms));
+  const WHEEL = {{.WheelJSON }};
+  const SLOT_SYMS = ["🍒", "🍋", "🔔", "⭐", "💎", "7️⃣"];
+  const PIPS = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-let isAuto = false;
-document.getElementById('autoBet').addEventListener('change', (e) => {
+  let isAuto = false;
+  document.getElementById('autoBet').addEventListener('change', (e) => {
     isAuto = e.target.checked;
-});
+  });
 
-function setBet(v){document.getElementById('bet').value=v;}
-function mulBet(m){const b=document.getElementById('bet');b.value=Math.max(1,Math.floor(b.value*m));}
-function bet(){return parseInt(document.getElementById('bet').value,10);}
-function toast(m, ok){var t=document.getElementById('arcadeMsg');t.textContent=m;t.className='toast show '+(ok?'good':'bad');setTimeout(function(){t.className='toast';},2200);}
+  function setBet(v) { document.getElementById('bet').value = v; }
+  function mulBet(m) { const b = document.getElementById('bet'); b.value = Math.max(1, Math.floor(b.value * m)); }
+  function bet() { return parseInt(document.getElementById('bet').value, 10); }
+  function toast(m, ok) { var t = document.getElementById('arcadeMsg'); t.textContent = m; t.className = 'toast show ' + (ok ? 'good' : 'bad'); setTimeout(function () { t.className = 'toast'; }, 2200); }
 
-function showResult(d){
-  let msg=d.detail+' — '+(d.win?('won '+d.payout+' gold (net '+(d.net>=0?'+':'')+d.net+')'):('lost '+d.bet+' gold'));
-  if(d.jackpot_win) { msg = "🔥 MEGA WIN! " + msg; }
-  if(d.gear_won){msg+=' · 🎁 looted '+d.gear_won+' → inventory';}
-  
-  toast(msg, d.win);
+  function showResult(d) {
+    let msg = d.detail + ' — ' + (d.win ? ('won ' + d.payout + ' gold (net ' + (d.net >= 0 ? '+' : '') + d.net + ')') : ('lost ' + d.bet + ' gold'));
+    if (d.jackpot_win) { msg = "🔥 MEGA WIN! " + msg; }
+    if (d.gear_won) { msg += ' · 🎁 looted ' + d.gear_won + ' → inventory'; }
 
-  document.getElementById('goldPill').textContent='🪙 '+d.gold;
-  document.getElementById('goldHere').textContent='Balance: 🪙 '+d.gold;
-  if(d.new_jackpot) {
+    toast(msg, d.win);
+
+    document.getElementById('goldPill').textContent = '🪙 ' + d.gold;
+    document.getElementById('goldHere').textContent = 'Balance: 🪙 ' + d.gold;
+    if (d.new_jackpot) {
       document.getElementById('jackpotSlots').textContent = d.new_jackpot.toLocaleString();
-  }
+    }
 
-  if (isAuto && d.ok && d.gold >= bet()) {
+    if (isAuto && d.ok && d.gold >= bet()) {
       setTimeout(() => {
-          if (d.game === 'slots') playSlots();
-          else if (d.game === 'dice') playDice();
-          else if (d.game === 'wheel') playWheel();
+        if (d.game === 'slots') playSlots();
+        else if (d.game === 'dice') playDice();
+        else if (d.game === 'wheel') playWheel();
       }, 1000);
+    }
   }
-}
 
-async function api(game, choice){
-  const b=bet(); if(!b||b<1){toast('Enter a bet',false);return null;}
-  const r=await fetch('/api/arcade/play',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:game,bet:b,choice:choice||''})});
-  const d=await r.json();
-  if(!d.ok){toast(d.error,false); isAuto=false; document.getElementById('autoBet').checked=false; return null;}
-  return d;
-}
+  async function api(game, choice) {
+    const b = bet(); if (!b || b < 1) { toast('Enter a bet', false); return null; }
+    const r = await fetch('/api/arcade/play', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ game: game, bet: b, choice: choice || '' }) });
+    const d = await r.json();
+    if (!d.ok) { toast(d.error, false); isAuto = false; document.getElementById('autoBet').checked = false; return null; }
+    return d;
+  }
 
-async function playDaily() {
+  async function playDaily() {
     disable('btn-daily', true);
     try {
-        const r = await fetch('/api/arcade/daily-spin', {method:'POST'});
-        const d = await r.json();
-        if(d.ok) {
-            toast(d.reward, true);
-            document.getElementById('goldPill').textContent='🪙 '+d.new_gold;
-            document.getElementById('goldHere').textContent='Balance: 🪙 '+d.new_gold;
-            document.querySelector('.daily-spin-banner').style.display = 'none';
-        } else {
-            toast(d.error, false);
-        }
+      const r = await fetch('/api/arcade/daily-spin', { method: 'POST' });
+      const d = await r.json();
+      if (d.ok) {
+        toast(d.reward, true);
+        document.getElementById('goldPill').textContent = '🪙 ' + d.new_gold;
+        document.getElementById('goldHere').textContent = 'Balance: 🪙 ' + d.new_gold;
+        document.querySelector('.daily-spin-banner').style.display = 'none';
+      } else {
+        toast(d.error, false);
+      }
     } finally {
-        disable('btn-daily', false);
+      disable('btn-daily', false);
     }
-}
-
-function disable(id,on){const b=document.getElementById(id);if(b)b.disabled=on;}
-
-/* ---- SLOTS ---- */
-function buildStrip(id){
-  const el=document.getElementById(id);el.innerHTML='';
-  for(let i=0;i<30;i++){const d=document.createElement('div');d.className='sym';d.textContent=SLOT_SYMS[Math.floor(Math.random()*SLOT_SYMS.length)];el.appendChild(d);}
-}
-async function playSlots(){
-  disable('btn-slots',true);
-  const card = document.querySelector('.slots-card');
-  card.classList.remove('win-glow', 'loss-shake');
-  const d=await api('slots'); if(!d){disable('btn-slots',false);return;}
-  for(let i=0;i<5;i++){
-    const strip=document.getElementById('strip'+i);
-    buildStrip('strip'+i);
-    const last=document.createElement('div');last.className='sym';last.textContent=d.symbols[i];strip.appendChild(last);
-    strip.style.transition='none';strip.style.transform='translateY(0)';
-    void strip.offsetHeight;
-    const dist=(strip.children.length-1)*72;
-    strip.style.transition='transform '+(1.3+i*0.35)+'s cubic-bezier(.18,.7,.2,1)';
-    strip.style.transform='translateY(-'+dist+'px)';
   }
-  await sleep(1500+5*350);
-  if(d) card.classList.add(d.win ? 'win-glow' : 'loss-shake');
-  showResult(d); disable('btn-slots',false);
-}
 
-/* ---- DICE ---- */
-async function playDice(){
-  disable('btn-dice',true);
-  const die=document.getElementById('die');
-  const card = die.closest('.game-card');
-  card.classList.remove('win-glow', 'loss-shake');
-  die.classList.add('rolling');
-  const d=await api('dice');
-  await sleep(900);
-  die.classList.remove('rolling');
-  if(d){
-    document.getElementById('diePips').textContent=PIPS[d.roll-1];
-    card.classList.add(d.win ? 'win-glow' : 'loss-shake');
-    showResult(d);
-  }
-  disable('btn-dice',false);
-}
+  function disable(id, on) { const b = document.getElementById(id); if (b) b.disabled = on; }
 
-/* ---- COIN ---- */
-async function playCoin(side){
-  disable('btn-coin',true);
-  const coin=document.getElementById('coin');
-  const card = coin.closest('.game-card');
-  card.classList.remove('win-glow', 'loss-shake');
-  const d=await api('coinflip',side);
-  const turns=5*360 + (d&&d.side==='tails'?180:0);
-  coin.style.transition='transform 1.1s cubic-bezier(.2,.8,.2,1)';
-  coin.style.transform='rotateY('+turns+'deg)';
-  await sleep(1150);
-  coin.style.transition='none';coin.style.transform='rotateY('+((d&&d.side==='tails')?180:0)+'deg)';
-  if(d){
-    card.classList.add(d.win ? 'win-glow' : 'loss-shake');
-    showResult(d);
+  /* ---- SLOTS ---- */
+  function buildStrip(id) {
+    const el = document.getElementById(id); el.innerHTML = '';
+    for (let i = 0; i < 30; i++) { const d = document.createElement('div'); d.className = 'sym'; d.textContent = SLOT_SYMS[Math.floor(Math.random() * SLOT_SYMS.length)]; el.appendChild(d); }
   }
-  disable('btn-coin',false);
-}
-
-/* ---- WHEEL ---- */
-const wc=document.getElementById('wheel'), wctx=wc.getContext('2d');
-let wheelAngle=0;
-function drawWheel(angle){
-  const n=WHEEL.length, R=104, cx=110, cy=110;
-  wctx.clearRect(0,0,220,220);
-  for(let i=0;i<n;i++){
-    const a0=angle+i*2*Math.PI/n, a1=angle+(i+1)*2*Math.PI/n;
-    wctx.beginPath();wctx.moveTo(cx,cy);wctx.arc(cx,cy,R,a0,a1);wctx.closePath();
-    const m=WHEEL[i];
-    wctx.fillStyle = m>=10?'#f4c542':m>=3?'#7b6cff':m>=2?'#41c97a':m>0?'#3a7bd5':'#262c3d';
-    wctx.fill();wctx.strokeStyle='#0a0c11';wctx.lineWidth=2;wctx.stroke();
-    wctx.save();wctx.translate(cx,cy);wctx.rotate((a0+a1)/2);wctx.textAlign='right';
-    wctx.fillStyle='#fff';wctx.font='bold 13px sans-serif';
-    wctx.fillText(m>0?('×'+m):'—', R-10, 5);wctx.restore();
-  }
-  wctx.beginPath();wctx.arc(cx,cy,16,0,2*Math.PI);wctx.fillStyle='#0a0c11';wctx.fill();wctx.strokeStyle='#f4c542';wctx.stroke();
-}
-drawWheel(0);
-async function playWheel(){
-  disable('btn-wheel',true);
-  const card = wc.closest('.game-card');
-  card.classList.remove('win-glow', 'loss-shake');
-  const d=await api('wheel'); if(!d){disable('btn-wheel',false);return;}
-  const n=WHEEL.length;
-  const target = -Math.PI/2 - (d.segment+0.5)*2*Math.PI/n;
-  const start=wheelAngle, spins=5*2*Math.PI;
-  const end=target - spins;
-  const dur=2600, t0=performance.now();
-  await new Promise(res=>{
-    function frame(now){
-      const p=Math.min(1,(now-t0)/dur);
-      const e=1-Math.pow(1-p,3);
-      wheelAngle=start+(end-start)*e;
-      drawWheel(wheelAngle);
-      if(p<1)requestAnimationFrame(frame);else res();
+  async function playSlots() {
+    disable('btn-slots', true);
+    const card = document.querySelector('.slots-card');
+    card.classList.remove('win-glow', 'loss-shake');
+    const d = await api('slots'); if (!d) { disable('btn-slots', false); return; }
+    for (let i = 0; i < 5; i++) {
+      const strip = document.getElementById('strip' + i);
+      buildStrip('strip' + i);
+      const last = document.createElement('div'); last.className = 'sym'; last.textContent = d.symbols[i]; strip.appendChild(last);
+      strip.style.transition = 'none'; strip.style.transform = 'translateY(0)';
+      void strip.offsetHeight;
+      const dist = (strip.children.length - 1) * 72;
+      strip.style.transition = 'transform ' + (1.3 + i * 0.35) + 's cubic-bezier(.18,.7,.2,1)';
+      strip.style.transform = 'translateY(-' + dist + 'px)';
     }
-    requestAnimationFrame(frame);
-  });
-  wheelAngle=target%(2*Math.PI);
-  if(d) card.classList.add(d.win ? 'win-glow' : 'loss-shake');
-  showResult(d); disable('btn-wheel',false);
-}
-
-/* ---- HIGH/LOW ---- */
-async function playHL(choice){
-  disable('btn-high',true);disable('btn-low',true);
-  const pcard=document.getElementById('pcard');
-  const card = pcard.closest('.game-card');
-  card.classList.remove('win-glow', 'loss-shake');
-  pcard.classList.remove('flip');
-  await sleep(50);
-  const d=await api('highlow',choice);
-  if(d){
-    document.getElementById('cardVal').textContent=d.card;
-    pcard.classList.add('flip');
-    await sleep(700);
-    card.classList.add(d.win ? 'win-glow' : 'loss-shake');
-    showResult(d);
+    await sleep(1500 + 5 * 350);
+    if (d) card.classList.add(d.win ? 'win-glow' : 'loss-shake');
+    showResult(d); disable('btn-slots', false);
   }
-  disable('btn-high',false);disable('btn-low',false);
-}
 
-/* ---- EXTRA GAMES ---- */
-const MOREGAMES = [
-  {k:'rps', n:'Rock Paper Scissors', i:'✊', d:'Beat the bot in 3 rounds. ×2'},
-  {k:'crash', n:'Rocket Crash', i:'🚀', d:'Cash out before it explodes! ×1.5-50'},
-  {k:'roulette', n:'Mini Roulette', i:'🎡', d:'Pick red, black or 0. ×2-14'},
-  {k:'scratch', n:'Lucky Scratch', i:'🎫', d:'Scratch 3 matching symbols. ×2-50'},
-  {k:'horserace', n:'Horse Race', i:'🐎', d:'Pick a horse to win. ×4'},
-  {k:'plinko', n:'Plinko Drop', i:'🔵', d:'Drop a ball for multipliers. ×0-10'},
-  {k:'sicbo', n:'Sic Bo', i:'🎲', d:'Bet on 3-dice totals. ×2-30'},
-  {k:'war', n:'Casino War', i:'⚔️', d:'Highest card wins. ×2'},
-  {k:'slotdeluxe', n:'Slot Deluxe', i:'🎰', d:'High volatility 3-reel slots. ×0-500'},
-  {k:'darts', n:'Bullseye Darts', i:'🎯', d:'Hit the center for gold. ×1-20'},
-  {k:'minefield', n:'Minefield', i:'🚶', d:'Cross without hitting mines. ×1.2-10'},
-  {k:'keno', n:'Mini Keno', i:'🎱', d:'Match 5 out of 20 numbers. ×2-100'},
-  {k:'fortune', n:'Fortune Dice', i:'🔮', d:'Predict the exact sum. ×6-30'},
-  {k:'lucky', n:'Lucky 7', i:'💎', d:'Land a 7 for a huge win. ×50'},
-  {k:'chests', n:'Treasure Chests', i:'🎁', d:'Pick the right chest. ×3'},
-  {k:'lightning', n:'Lightning Strike', i:'⚡', d:'Survive the bolt for gold. ×2'},
-  {k:'colorpick', n:'Color Pick', i:'🎨', d:'Guess the next color. ×3'},
-  {k:'diceduel', n:'Dice Duel', i:'⚔️', d:'Roll higher than opponent. ×2'},
-  {k:'gems', n:'Gem Match', i:'💎', d:'Find matching gems. ×5'},
-  {k:'megawheel', n:'Mega Wheel', i:'🎡', d:'24-segment high roller wheel. ×0-50'},
-  {k:'3d_snake', n:'3D Snake', i:'🐍', d:'Grow without biting your tail', f:'game_01_3d_snake.html'},
-  {k:'3d_pong', n:'3D Pong', i:'🏓', d:'Rally past the CPU paddle', f:'game_02_pong.html'},
-  {k:'3d_space_invaders', n:'Voxel Invaders', i:'👾', d:'Blast the descending swarm', f:'game_03_space_invaders.html'},
-  {k:'3d_frogger', n:'Frogger', i:'🐸', d:'Hop across the busy lanes', f:'game_04_frogger.html'},
-  {k:'3d_endless_runner', n:'Endless Runner', i:'🏃', d:'Switch lanes and jump', f:'game_05_endless_runner.html'},
-  {k:'3d_meteor_dodger', n:'Meteor Dodger', i:'☄️', d:'Survive the meteor storm', f:'game_06_meteor_dodger.html'},
-  {k:'3d_tetris', n:'3D Tetris', i:'🧱', d:'Clear lines, don\'t top out', f:'game_07_3d_tetris.html'},
-  {k:'3d_maze_chaser', n:'Maze Chaser', i:'👻', d:'Grab pellets, dodge the ghost', f:'game_08_maze_chaser.html'},
-  {k:'3d_asteroids', n:'Asteroids', i:'🪨', d:'Thrust, rotate, shoot, split', f:'game_09_asteroids.html'},
-  {k:'3d_breakout', n:'Breakout', i:'🧨', d:'Bounce the ball, smash bricks', f:'game_10_breakout.html'},
-  {k:'3d_missile_command', n:'Missile Command', i:'🚀', d:'Intercept incoming missiles', f:'game_11_missile_command.html'},
-  {k:'3d_tunnel_flyer', n:'Tunnel Flyer', i:'🐦', d:'Flap through the gaps', f:'game_12_tunnel_flyer.html'},
-  {k:'3d_tower_stack', n:'Tower Stack', i:'🏗️', d:'Drop and align the blocks', f:'game_13_tower_stack.html'},
-  {k:'3d_block_dodger', n:'Block Dodger', i:'🟦', d:'Weave past falling blocks', f:'game_14_block_dodger.html'},
-  {k:'3d_whack_a_mole', n:'Whack-a-Mole', i:'🔨', d:'Bonk every mole in time', f:'game_15_whack_a_mole.html'},
-  {k:'3d_air_hockey', n:'Air Hockey', i:'🥅', d:'Out-score the CPU mallet', f:'game_16_air_hockey.html'},
-  {k:'3d_tank_battle', n:'Tank Battle', i:'🛡️', d:'Hunt enemy tanks, dodge shells', f:'game_17_tank_battle.html'},
-  {k:'3d_helix_drop', n:'Helix Drop', i:'🌀', d:'Spin the tower, drop through gaps', f:'game_18_helix_drop.html'},
-  {k:'3d_galaxy_shooter', n:'Galaxy Shooter', i:'🌌', d:'Auto-fire through the waves', f:'game_19_galaxy_shooter.html'},
-  {k:'3d_cube_runner', n:'Cube Runner', i:'🔺', d:'Weave the neon field', f:'game_20_cube_runner.html'},
-  {k:'3d_gem_collector', n:'Gem Collector', i:'💎', d:'Grab gems, skip the bombs', f:'game_21_gem_collector.html'},
-  {k:'3d_laser_defense', n:'Laser Defense', i:'🟢', d:'Aim the turret, defend the core', f:'game_22_laser_defense.html'},
-  {k:'3d_star_dodger', n:'Star Dodger', i:'✨', d:'Drift clear of the comets', f:'game_23_star_dodger.html'},
-  {k:'3d_color_catch', n:'Colour Catch', i:'🎨', d:'Catch only your colour', f:'game_24_color_catch.html'},
-  {k:'3d_platform_jumper', n:'Platform Jumper', i:'⬆️', d:'Bounce ever higher', f:'game_25_platform_jumper.html'},
-  {k:'3d_lunar_lander', n:'Lunar Lander', i:'🌙', d:'Touch down softly on the pad', f:'game_26_lunar_lander.html'},
-  {k:'3d_crossy_road', n:'Crossy Road', i:'🚗', d:'Hop forward as far as you can', f:'game_27_crossy_road.html'},
-  {k:'3d_light_cycles', n:'Light Cycles', i:'🏍️', d:'Out-manoeuvre the rival trail', f:'game_28_light_cycles.html'},
-  {k:'3d_ring_flyer', n:'Ring Flyer', i:'💍', d:'Thread the floating rings', f:'game_29_ring_flyer.html'},
-  {k:'3d_simon_memory', n:'Simon Memory', i:'🧠', d:'Repeat the growing sequence', f:'game_30_simon_memory.html'},
-  {k:'3d_tft_battler', n:'TFT Auto-Battler', i:'♟️', d:'Draft, position, auto-fight', f:'game_31_tft_battler.html'}
-];
-function buildMoreGames(){
-  const g=document.getElementById('moreGames');
-  MOREGAMES.forEach(x=>{
-    const c=document.createElement('div'); c.className='game-card mini';
-    // Check if this is a 3D game (has 'f' property for filename)
-    if (x.f) {
-      // For 3D games, open in new window/tab at /play/ endpoint
-      c.innerHTML=`<h3>${x.i} ${x.n}</h3><p class="muted small">${x.d}</p><div class="choices"><button onclick="window.open('/play/${x.f}', '_blank')">Play</button></div>`;
-    } else {
-      // For 2D games, use the existing playGen() function
-      c.innerHTML=`<h3>${x.i} ${x.n}</h3><p class="muted small">${x.d}</p><div class="choices"><button onclick="playGen('${x.k}','',this.closest('.game-card'))">Play</button></div>`;
+  /* ---- DICE ---- */
+  async function playDice() {
+    disable('btn-dice', true);
+    const die = document.getElementById('die');
+    const card = die.closest('.game-card');
+    card.classList.remove('win-glow', 'loss-shake');
+    die.classList.add('rolling');
+    const d = await api('dice');
+    await sleep(900);
+    die.classList.remove('rolling');
+    if (d) {
+      document.getElementById('diePips').textContent = PIPS[d.roll - 1];
+      card.classList.add(d.win ? 'win-glow' : 'loss-shake');
+      showResult(d);
     }
-    g.appendChild(c);
-  });
-}
-async function playGen(game, choice, card){
-  if(card){card.classList.add('busy'); card.querySelectorAll('button, input').forEach(b=>b.disabled=true); card.classList.remove('win-glow', 'loss-shake');}
-
-  let stage = card ? card.querySelector('.anim-stage') : null;
-  if(card && !stage) {
-     stage = document.createElement('div');
-     stage.className = 'anim-stage';
-     card.insertBefore(stage, card.querySelector('.choices'));
-  }
-  if(stage) {
-     stage.style.display = 'flex';
-     const g = MOREGAMES.find(x=>x.k===game);
-     const icon = g ? g.i : '🎲';
-     if (game === 'roulette' || game === 'megawheel') {
-         stage.innerHTML = `<div class="anim-wheel">${icon}</div>`;
-     } else if (game === 'rps') {
-         stage.innerHTML = `<div class="anim-rps"><span class="l">✊</span><span class="r">✊</span></div>`;
-     } else if (game === 'crash') {
-         stage.innerHTML = `<div class="anim-crash">🚀</div>`;
-     } else if (game === 'sicbo' || game === 'fortune' || game === 'diceduel') {
-         stage.innerHTML = `<div class="anim-dice"><span>${icon}</span><span>${icon}</span></div>`;
-     } else if (game === 'plinko') {
-         stage.innerHTML = `<div class="anim-plinko">🔵</div>`;
-     } else if (game === 'horserace') {
-         stage.innerHTML = `<div class="anim-horse">🐎</div>`;
-     } else if (game === 'war' || game === 'lucky') {
-         stage.innerHTML = `<div class="anim-cards"><div class="c1">🃏</div><div class="c2">🃏</div></div>`;
-     } else if (game === 'slotdeluxe') {
-         stage.innerHTML = `<div class="anim-slot"><span>🎰</span><span>🎰</span><span>🎰</span></div>`;
-     } else if (game === 'darts') {
-         stage.innerHTML = `<div class="anim-dart">🎯</div>`;
-     } else if (game === 'minefield') {
-         stage.innerHTML = `<div class="anim-mine">🚶</div>`;
-     } else if (game === 'chests') {
-         stage.innerHTML = `<div class="anim-chest">🎁</div>`;
-     } else if (game === 'lightning') {
-         stage.innerHTML = `<div class="anim-bolt">⚡</div>`;
-     } else if (game === 'gems') {
-         stage.innerHTML = `<div class="anim-gem">💎</div>`;
-     } else if (game === 'scratch') {
-         stage.innerHTML = `<div class="anim-scratch"></div>`;
-     } else if (game === 'keno' || game === 'colorpick') {
-         stage.innerHTML = `<div class="anim-keno"><span>1</span><span>7</span><span>22</span></div>`;
-     } else {
-         stage.innerHTML = `<div class="anim-pop">${icon}</div>`;
-     }
+    disable('btn-dice', false);
   }
 
-  const [d] = await Promise.all([
-     api(game, choice),
-     sleep(1500)
-  ]);
-
-  if(card){
-    card.classList.remove('busy');
-    card.querySelectorAll('button, input').forEach(b=>b.disabled=false);
-    if(d) card.classList.add(d.win ? 'win-glow' : 'loss-shake');
+  /* ---- COIN ---- */
+  async function playCoin(side) {
+    disable('btn-coin', true);
+    const coin = document.getElementById('coin');
+    const card = coin.closest('.game-card');
+    card.classList.remove('win-glow', 'loss-shake');
+    const d = await api('coinflip', side);
+    const turns = 5 * 360 + (d && d.side === 'tails' ? 180 : 0);
+    coin.style.transition = 'transform 1.1s cubic-bezier(.2,.8,.2,1)';
+    coin.style.transform = 'rotateY(' + turns + 'deg)';
+    await sleep(1150);
+    coin.style.transition = 'none'; coin.style.transform = 'rotateY(' + ((d && d.side === 'tails') ? 180 : 0) + 'deg)';
+    if (d) {
+      card.classList.add(d.win ? 'win-glow' : 'loss-shake');
+      showResult(d);
+    }
+    disable('btn-coin', false);
   }
-  if(stage) stage.style.display = 'none';
 
-  if(d){card&&card.classList.add('flash');setTimeout(()=>card&&card.classList.remove('flash'),350);showResult(d);}
-}
+  /* ---- WHEEL ---- */
+  const wc = document.getElementById('wheel'), wctx = wc.getContext('2d');
+  let wheelAngle = 0;
+  function drawWheel(angle) {
+    const n = WHEEL.length, R = 104, cx = 110, cy = 110;
+    wctx.clearRect(0, 0, 220, 220);
+    for (let i = 0; i < n; i++) {
+      const a0 = angle + i * 2 * Math.PI / n, a1 = angle + (i + 1) * 2 * Math.PI / n;
+      wctx.beginPath(); wctx.moveTo(cx, cy); wctx.arc(cx, cy, R, a0, a1); wctx.closePath();
+      const m = WHEEL[i];
+      wctx.fillStyle = m >= 10 ? '#f4c542' : m >= 3 ? '#7b6cff' : m >= 2 ? '#41c97a' : m > 0 ? '#3a7bd5' : '#262c3d';
+      wctx.fill(); wctx.strokeStyle = '#0a0c11'; wctx.lineWidth = 2; wctx.stroke();
+      wctx.save(); wctx.translate(cx, cy); wctx.rotate((a0 + a1) / 2); wctx.textAlign = 'right';
+      wctx.fillStyle = '#fff'; wctx.font = 'bold 13px sans-serif';
+      wctx.fillText(m > 0 ? ('×' + m) : '—', R - 10, 5); wctx.restore();
+    }
+    wctx.beginPath(); wctx.arc(cx, cy, 16, 0, 2 * Math.PI); wctx.fillStyle = '#0a0c11'; wctx.fill(); wctx.strokeStyle = '#f4c542'; wctx.stroke();
+  }
+  drawWheel(0);
+  async function playWheel() {
+    disable('btn-wheel', true);
+    const card = wc.closest('.game-card');
+    card.classList.remove('win-glow', 'loss-shake');
+    const d = await api('wheel'); if (!d) { disable('btn-wheel', false); return; }
+    const n = WHEEL.length;
+    const target = -Math.PI / 2 - (d.segment + 0.5) * 2 * Math.PI / n;
+    const start = wheelAngle, spins = 5 * 2 * Math.PI;
+    const end = target - spins;
+    const dur = 2600, t0 = performance.now();
+    await new Promise(res => {
+      function frame(now) {
+        const p = Math.min(1, (now - t0) / dur);
+        const e = 1 - Math.pow(1 - p, 3);
+        wheelAngle = start + (end - start) * e;
+        drawWheel(wheelAngle);
+        if (p < 1) requestAnimationFrame(frame); else res();
+      }
+      requestAnimationFrame(frame);
+    });
+    wheelAngle = target % (2 * Math.PI);
+    if (d) card.classList.add(d.win ? 'win-glow' : 'loss-shake');
+    showResult(d); disable('btn-wheel', false);
+  }
 
-buildMoreGames();
+  /* ---- HIGH/LOW ---- */
+  async function playHL(choice) {
+    disable('btn-high', true); disable('btn-low', true);
+    const pcard = document.getElementById('pcard');
+    const card = pcard.closest('.game-card');
+    card.classList.remove('win-glow', 'loss-shake');
+    pcard.classList.remove('flip');
+    await sleep(50);
+    const d = await api('highlow', choice);
+    if (d) {
+      document.getElementById('cardVal').textContent = d.card;
+      pcard.classList.add('flip');
+      await sleep(700);
+      card.classList.add(d.win ? 'win-glow' : 'loss-shake');
+      showResult(d);
+    }
+    disable('btn-high', false); disable('btn-low', false);
+  }
 
-// init slot strips at rest
-for(let i=0;i<5;i++){buildStrip('strip'+i);const s=document.getElementById('strip'+i);s.style.transform='translateY(-'+((s.children.length-3)*72)+'px)';}
+  /* ---- EXTRA GAMES ---- */
+  const MOREGAMES = [
+    { k: 'rps', n: 'Rock Paper Scissors', i: '✊', d: 'Beat the bot in 3 rounds. ×2' },
+    { k: 'crash', n: 'Rocket Crash', i: '🚀', d: 'Cash out before it explodes! ×1.5-50' },
+    { k: 'roulette', n: 'Mini Roulette', i: '🎡', d: 'Pick red, black or 0. ×2-14' },
+    { k: 'scratch', n: 'Lucky Scratch', i: '🎫', d: 'Scratch 3 matching symbols. ×2-50' },
+    { k: 'horserace', n: 'Horse Race', i: '🐎', d: 'Pick a horse to win. ×4' },
+    { k: 'plinko', n: 'Plinko Drop', i: '🔵', d: 'Drop a ball for multipliers. ×0-10' },
+    { k: 'sicbo', n: 'Sic Bo', i: '🎲', d: 'Bet on 3-dice totals. ×2-30' },
+    { k: 'war', n: 'Casino War', i: '⚔️', d: 'Highest card wins. ×2' },
+    { k: 'slotdeluxe', n: 'Slot Deluxe', i: '🎰', d: 'High volatility 3-reel slots. ×0-500' },
+    { k: 'darts', n: 'Bullseye Darts', i: '🎯', d: 'Hit the center for gold. ×1-20' },
+    { k: 'minefield', n: 'Minefield', i: '🚶', d: 'Cross without hitting mines. ×1.2-10' },
+    { k: 'keno', n: 'Mini Keno', i: '🎱', d: 'Match 5 out of 20 numbers. ×2-100' },
+    { k: 'fortune', n: 'Fortune Dice', i: '🔮', d: 'Predict the exact sum. ×6-30' },
+    { k: 'lucky', n: 'Lucky 7', i: '💎', d: 'Land a 7 for a huge win. ×50' },
+    { k: 'chests', n: 'Treasure Chests', i: '🎁', d: 'Pick the right chest. ×3' },
+    { k: 'lightning', n: 'Lightning Strike', i: '⚡', d: 'Survive the bolt for gold. ×2' },
+    { k: 'colorpick', n: 'Color Pick', i: '🎨', d: 'Guess the next color. ×3' },
+    { k: 'diceduel', n: 'Dice Duel', i: '⚔️', d: 'Roll higher than opponent. ×2' },
+    { k: 'gems', n: 'Gem Match', i: '💎', d: 'Find matching gems. ×5' },
+    { k: 'megawheel', n: 'Mega Wheel', i: '🎡', d: '24-segment high roller wheel. ×0-50' },
+    { k: '3d_snake', n: '3D Snake', i: '🐍', d: 'Grow without biting your tail', f: 'game_01_3d_snake.html' },
+    { k: '3d_pong', n: '3D Pong', i: '🏓', d: 'Rally past the CPU paddle', f: 'game_02_pong.html' },
+    { k: '3d_space_invaders', n: 'Voxel Invaders', i: '👾', d: 'Blast the descending swarm', f: 'game_03_space_invaders.html' },
+    { k: '3d_frogger', n: 'Frogger', i: '🐸', d: 'Hop across the busy lanes', f: 'game_04_frogger.html' },
+    { k: '3d_endless_runner', n: 'Endless Runner', i: '🏃', d: 'Switch lanes and jump', f: 'game_05_endless_runner.html' },
+    { k: '3d_meteor_dodger', n: 'Meteor Dodger', i: '☄️', d: 'Survive the meteor storm', f: 'game_06_meteor_dodger.html' },
+    { k: '3d_tetris', n: '3D Tetris', i: '🧱', d: 'Clear lines, don\'t top out', f: 'game_07_3d_tetris.html' },
+    { k: '3d_maze_chaser', n: 'Maze Chaser', i: '👻', d: 'Grab pellets, dodge the ghost', f: 'game_08_maze_chaser.html' },
+    { k: '3d_asteroids', n: 'Asteroids', i: '🪨', d: 'Thrust, rotate, shoot, split', f: 'game_09_asteroids.html' },
+    { k: '3d_breakout', n: 'Breakout', i: '🧨', d: 'Bounce the ball, smash bricks', f: 'game_10_breakout.html' },
+    { k: '3d_missile_command', n: 'Missile Command', i: '🚀', d: 'Intercept incoming missiles', f: 'game_11_missile_command.html' },
+    { k: '3d_tunnel_flyer', n: 'Tunnel Flyer', i: '🐦', d: 'Flap through the gaps', f: 'game_12_tunnel_flyer.html' },
+    { k: '3d_tower_stack', n: 'Tower Stack', i: '🏗️', d: 'Drop and align the blocks', f: 'game_13_tower_stack.html' },
+    { k: '3d_block_dodger', n: 'Block Dodger', i: '🟦', d: 'Weave past falling blocks', f: 'game_14_block_dodger.html' },
+    { k: '3d_whack_a_mole', n: 'Whack-a-Mole', i: '🔨', d: 'Bonk every mole in time', f: 'game_15_whack_a_mole.html' },
+    { k: '3d_air_hockey', n: 'Air Hockey', i: '🥅', d: 'Out-score the CPU mallet', f: 'game_16_air_hockey.html' },
+    { k: '3d_tank_battle', n: 'Tank Battle', i: '🛡️', d: 'Hunt enemy tanks, dodge shells', f: 'game_17_tank_battle.html' },
+    { k: '3d_helix_drop', n: 'Helix Drop', i: '🌀', d: 'Spin the tower, drop through gaps', f: 'game_18_helix_drop.html' },
+    { k: '3d_galaxy_shooter', n: 'Galaxy Shooter', i: '🌌', d: 'Auto-fire through the waves', f: 'game_19_galaxy_shooter.html' },
+    { k: '3d_cube_runner', n: 'Cube Runner', i: '🔺', d: 'Weave the neon field', f: 'game_20_cube_runner.html' },
+    { k: '3d_gem_collector', n: 'Gem Collector', i: '💎', d: 'Grab gems, skip the bombs', f: 'game_21_gem_collector.html' },
+    { k: '3d_laser_defense', n: 'Laser Defense', i: '🟢', d: 'Aim the turret, defend the core', f: 'game_22_laser_defense.html' },
+    { k: '3d_star_dodger', n: 'Star Dodger', i: '✨', d: 'Drift clear of the comets', f: 'game_23_star_dodger.html' },
+    { k: '3d_color_catch', n: 'Colour Catch', i: '🎨', d: 'Catch only your colour', f: 'game_24_color_catch.html' },
+    { k: '3d_platform_jumper', n: 'Platform Jumper', i: '⬆️', d: 'Bounce ever higher', f: 'game_25_platform_jumper.html' },
+    { k: '3d_lunar_lander', n: 'Lunar Lander', i: '🌙', d: 'Touch down softly on the pad', f: 'game_26_lunar_lander.html' },
+    { k: '3d_crossy_road', n: 'Crossy Road', i: '🚗', d: 'Hop forward as far as you can', f: 'game_27_crossy_road.html' },
+    { k: '3d_light_cycles', n: 'Light Cycles', i: '🏍️', d: 'Out-manoeuvre the rival trail', f: 'game_28_light_cycles.html' },
+    { k: '3d_ring_flyer', n: 'Ring Flyer', i: '💍', d: 'Thread the floating rings', f: 'game_29_ring_flyer.html' },
+    { k: '3d_simon_memory', n: 'Simon Memory', i: '🧠', d: 'Repeat the growing sequence', f: 'game_30_simon_memory.html' }
+  ];
+  function buildMoreGames() {
+    const g = document.getElementById('moreGames');
+    MOREGAMES.forEach(x => {
+      const c = document.createElement('div'); c.className = 'game-card mini';
+      // Check if this is a 3D game (has 'f' property for filename)
+      if (x.f) {
+        // For 3D games, open in new window/tab at /play/ endpoint
+        c.innerHTML = `<h3>${x.i} ${x.n}</h3><p class="muted small">${x.d}</p><div class="choices"><button onclick="window.open('/play/${x.f}', '_blank')">Play</button></div>`;
+      } else {
+        // For 2D games, use the existing playGen() function
+        c.innerHTML = `<h3>${x.i} ${x.n}</h3><p class="muted small">${x.d}</p><div class="choices"><button onclick="playGen('${x.k}','',this.closest('.game-card'))">Play</button></div>`;
+      }
+      g.appendChild(c);
+    });
+  }
+  async function playGen(game, choice, card) {
+    if (card) { card.classList.add('busy'); card.querySelectorAll('button, input').forEach(b => b.disabled = true); card.classList.remove('win-glow', 'loss-shake'); }
+
+    let stage = card ? card.querySelector('.anim-stage') : null;
+    if (card && !stage) {
+      stage = document.createElement('div');
+      stage.className = 'anim-stage';
+      card.insertBefore(stage, card.querySelector('.choices'));
+    }
+    if (stage) {
+      stage.style.display = 'flex';
+      const g = MOREGAMES.find(x => x.k === game);
+      const icon = g ? g.i : '🎲';
+      if (game === 'roulette' || game === 'megawheel') {
+        stage.innerHTML = `<div class="anim-wheel">${icon}</div>`;
+      } else if (game === 'rps') {
+        stage.innerHTML = `<div class="anim-rps"><span class="l">✊</span><span class="r">✊</span></div>`;
+      } else if (game === 'crash') {
+        stage.innerHTML = `<div class="anim-crash">🚀</div>`;
+      } else if (game === 'sicbo' || game === 'fortune' || game === 'diceduel') {
+        stage.innerHTML = `<div class="anim-dice"><span>${icon}</span><span>${icon}</span></div>`;
+      } else if (game === 'plinko') {
+        stage.innerHTML = `<div class="anim-plinko">🔵</div>`;
+      } else if (game === 'horserace') {
+        stage.innerHTML = `<div class="anim-horse">🐎</div>`;
+      } else if (game === 'war' || game === 'lucky') {
+        stage.innerHTML = `<div class="anim-cards"><div class="c1">🃏</div><div class="c2">🃏</div></div>`;
+      } else if (game === 'slotdeluxe') {
+        stage.innerHTML = `<div class="anim-slot"><span>🎰</span><span>🎰</span><span>🎰</span></div>`;
+      } else if (game === 'darts') {
+        stage.innerHTML = `<div class="anim-dart">🎯</div>`;
+      } else if (game === 'minefield') {
+        stage.innerHTML = `<div class="anim-mine">🚶</div>`;
+      } else if (game === 'chests') {
+        stage.innerHTML = `<div class="anim-chest">🎁</div>`;
+      } else if (game === 'lightning') {
+        stage.innerHTML = `<div class="anim-bolt">⚡</div>`;
+      } else if (game === 'gems') {
+        stage.innerHTML = `<div class="anim-gem">💎</div>`;
+      } else if (game === 'scratch') {
+        stage.innerHTML = `<div class="anim-scratch"></div>`;
+      } else if (game === 'keno' || game === 'colorpick') {
+        stage.innerHTML = `<div class="anim-keno"><span>1</span><span>7</span><span>22</span></div>`;
+      } else {
+        stage.innerHTML = `<div class="anim-pop">${icon}</div>`;
+      }
+    }
+
+    const [d] = await Promise.all([
+      api(game, choice),
+      sleep(1500)
+    ]);
+
+    if (card) {
+      card.classList.remove('busy');
+      card.querySelectorAll('button, input').forEach(b => b.disabled = false);
+      if (d) card.classList.add(d.win ? 'win-glow' : 'loss-shake');
+    }
+    if (stage) stage.style.display = 'none';
+
+    if (d) { card && card.classList.add('flash'); setTimeout(() => card && card.classList.remove('flash'), 350); showResult(d); }
+  }
+
+  buildMoreGames();
+
+  // init slot strips at rest
+  for (let i = 0; i < 5; i++) { buildStrip('strip' + i); const s = document.getElementById('strip' + i); s.style.transform = 'translateY(-' + ((s.children.length - 3) * 72) + 'px)'; }
 </script>
 {{template "foot" .}}{{end}}

@@ -89,7 +89,6 @@ var arcade3dGames = []mini3DGame{
 	{"game_28_light_cycles.html", "Light Cycles", "🏍️", "Out-manoeuvre the rival trail"},
 	{"game_29_ring_flyer.html", "Ring Flyer", "💍", "Thread the floating rings"},
 	{"game_30_simon_memory.html", "Simon Memory", "🧠", "Repeat the growing sequence"},
-	{"game_31_tft_battler.html", "TFT Auto-Battler", "♟️", "Draft, position, auto-fight"},
 }
 
 func isKnownGame(file string) bool {

@@ -32,7 +32,7 @@ func jsonJS(v any) template.JS {
 	return template.JS(b)
 }
 
-//go:embed webassets/*.html webassets/*.css webassets/*.svg webassets/games/*.html webassets/icons/*.svg
+//go:embed webassets/*.html webassets/*.css webassets/*.svg webassets/games/*.html webassets/games/common/*.js webassets/icons/*.svg
 var webAssets embed.FS
 
 const sessionCookie = "ts3session"
@@ -122,6 +122,22 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 			return
 		}
 		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		_, _ = w.Write(b)
+	})
+	// Game common assets (animation-framework.js, game-framework-enhanced.js)
+	mux.HandleFunc("/play/common/", func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/play/common/")
+		if strings.Contains(name, "/") || !strings.HasSuffix(name, ".js") {
+			http.NotFound(w, r)
+			return
+		}
+		b, err := webAssets.ReadFile("webassets/games/common/" + name)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
 		_, _ = w.Write(b)
 	})
