@@ -101,8 +101,27 @@
     color: var(--gold);
   }
 
-  .stat-pill.hp {
+  .stat-pill.battle-gold {
+    color: var(--xp);
+    background: rgba(91, 192, 255, 0.1);
+    border: 1px solid var(--xp);
+  }
+
+  .stat-pill.streak {
     color: var(--bad);
+    background: rgba(226, 87, 91, 0.1);
+  }
+
+  .stat-pill.interest {
+    color: var(--good);
+    font-size: 0.85rem;
+    background: rgba(65, 201, 122, 0.1);
+  }
+
+  .stat-pill.xp {
+    color: var(--xp);
+    background: rgba(91, 192, 255, 0.1);
+    border: 1px solid var(--xp);
   }
 
   .header-actions {
@@ -177,19 +196,116 @@
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     grid-template-rows: repeat(4, 1fr);
-    gap: 8px;
+    gap: 6px;
     max-width: 600px;
     margin: 0 auto;
+    padding: 10px;
+    background: linear-gradient(135deg, #1a1f2b 0%, #151924 100%);
+    border-radius: 12px;
+    border: 1px solid var(--panel-border);
+  }
+
+  /* Board container grid types */
+  #board.hex-grid {
+    /* Hex grid layout - staggered rows */
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: calc(min(8vw, 60px) * 0.866);
+    /* Height adjusted for hexagons */
+    gap: 2px;
+    /* Add staggered effect for hex grid */
+  }
+
+  #board.square-grid {
+    /* Square grid layout - uniform grid */
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: 1fr;
+    gap: 2px;
+  }
+
+  /* Additional grid type selectors for board element */
+  #board.hex-grid,
+  .tft-board-new.hex-grid {
+    /* Hex grid layout - staggered rows */
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: calc(min(8vw, 60px) * 0.866);
+    /* Height adjusted for hexagons */
+    gap: 2px;
+  }
+
+  #board.square-grid,
+  .tft-board-new.square-grid {
+    /* Square grid layout - uniform grid */
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: 1fr;
+    gap: 2px;
   }
 
   .hexcell-new {
     aspect-ratio: 1;
-    border-radius: 8px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
     position: relative;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+
+  /* Hexagonal shape using CSS clip-path */
+  .hexcell-new.hex-shape {
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  }
+
+  /* Square grid option */
+  .hexcell-new.square-shape {
+    border-radius: 4px;
+  }
+
+  .hexcell-new.enemy {
+    background: radial-gradient(circle at center, #2a1f2b 0%, #1f1524 70%);
+    border: 1px solid rgba(226, 87, 91, 0.3);
+  }
+
+  .hexcell-new.player {
+    background: radial-gradient(circle at center, #1f2937 0%, #1a2430 70%);
+    border: 1px solid rgba(80, 120, 220, 0.3);
+  }
+
+  .hexcell-new.obstacle {
+    background: repeating-linear-gradient(45deg,
+        #332a1f,
+        #332a1f 10px,
+        #443a2f 10px,
+        #443a2f 20px);
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .hexcell-new.valid-drop {
+    background: rgba(65, 201, 122, 0.2);
+    border-color: rgba(65, 201, 122, 0.6) !important;
+    box-shadow: 0 0 10px rgba(65, 201, 122, 0.3);
+  }
+
+  .hexcell-new.invalid-drop {
+    background: rgba(226, 87, 91, 0.2);
+    border-color: rgba(226, 87, 91, 0.6) !important;
+    box-shadow: 0 0 10px rgba(226, 87, 91, 0.3);
+  }
+
+  .hexcell-new.selected {
+    box-shadow: 0 0 0 3px var(--accent) !important;
+    z-index: 10;
+  }
+
+  .hexcell-new:hover:not(.obstacle) {
+    transform: scale(1.05);
+    z-index: 5;
   }
 
   .hexcell-new.enemy {
@@ -902,6 +1018,462 @@
       font-size: 0.5rem;
     }
   }
+
+  /* ===== UI/UX System Styles ===== */
+
+  /* Menu Overlay */
+  .battle-menu {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #1a1a2e;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    min-width: 300px;
+    border: 1px solid #2a2a4a;
+  }
+
+  .menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #2a2a4a;
+  }
+
+  .menu-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #fff;
+  }
+
+  .menu-close,
+  .panel-close {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+
+  .menu-close:hover,
+  .panel-close:hover {
+    color: #fff;
+  }
+
+  .menu-content {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .menu-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 16px;
+    background: #2a2a4a;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 1rem;
+  }
+
+  .menu-btn:hover {
+    background: #3a3a5a;
+  }
+
+  .menu-icon {
+    font-size: 20px;
+  }
+
+  /* Scoreboard Panel */
+  .scoreboard-panel,
+  .settings-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #1a1a2e;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    min-width: 500px;
+    max-height: 80vh;
+    overflow: hidden;
+    border: 1px solid #2a2a4a;
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #2a2a4a;
+  }
+
+  .panel-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #fff;
+  }
+
+  .scoreboard-content,
+  .settings-content {
+    padding: 16px;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
+  .scoreboard-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .scoreboard-table th,
+  .scoreboard-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #2a2a4a;
+    color: #fff;
+  }
+
+  .scoreboard-table th {
+    background: #2a2a4a;
+    font-weight: 600;
+  }
+
+  .scoreboard-table tr:hover {
+    background: #2a2a4a;
+  }
+
+  /* Settings Panel */
+  .settings-section {
+    margin-bottom: 20px;
+  }
+
+  .settings-section h4 {
+    margin: 0 0 12px 0;
+    color: #fff;
+    font-size: 1rem;
+  }
+
+  .settings-section label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: #ccc;
+    cursor: pointer;
+  }
+
+  .settings-section input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+  }
+
+  .settings-section input[type="range"] {
+    flex: 1;
+    max-width: 150px;
+  }
+
+  .settings-section select {
+    background: #2a2a4a;
+    color: #fff;
+    border: 1px solid #3a3a5a;
+    border-radius: 4px;
+    padding: 4px 8px;
+  }
+
+  .settings-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px;
+    border-top: 1px solid #2a2a4a;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+
+  .btn-primary {
+    background: #4caf50;
+    color: #fff;
+  }
+
+  .btn-primary:hover {
+    background: #45a049;
+  }
+
+  .btn-secondary {
+    background: #666;
+    color: #fff;
+  }
+
+  .btn-secondary:hover {
+    background: #555;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    position: fixed;
+    background: #1a1a2e;
+    border: 1px solid #2a2a4a;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    z-index: 2000;
+    pointer-events: none;
+    max-width: 300px;
+  }
+
+  .tooltip-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .tooltip-icon {
+    font-size: 24px;
+  }
+
+  .tooltip-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: #fff;
+  }
+
+  .tooltip-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #ccc;
+  }
+
+  .tooltip-description {
+    font-size: 12px;
+    color: #888;
+  }
+
+  /* Notification Container */
+  .notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .notification {
+    background: #1a1a2e;
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideIn 0.3s ease-out;
+    border: 1px solid #2a2a4a;
+    color: #fff;
+  }
+
+  .notification.success {
+    border-left: 4px solid #4caf50;
+  }
+
+  .notification.error {
+    border-left: 4px solid #f44336;
+  }
+
+  .notification.info {
+    border-left: 4px solid #2196f3;
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideOut {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    to {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+
+  /* Augment Panel */
+  .augment-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #1a1a2e;
+    border: 2px solid #2a2a4a;
+    border-radius: 12px;
+    padding: 24px;
+    z-index: 4000;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    min-width: 800px;
+  }
+
+  .augment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    border-bottom: 1px solid #2a2a4a;
+    padding-bottom: 16px;
+  }
+
+  .augment-header h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 24px;
+  }
+
+  .reroll-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #2a2a4a;
+    border: 1px solid #3a3a5a;
+    border-radius: 6px;
+    padding: 8px 16px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+  }
+
+  .reroll-btn:hover {
+    background: #3a3a5a;
+  }
+
+  .reroll-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .reroll-icon {
+    font-size: 16px;
+  }
+
+  .reroll-cost {
+    color: #ffd700;
+    font-weight: 600;
+  }
+
+  .augment-offers {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+  }
+
+  .augment-card {
+    background: #252545;
+    border: 2px solid #3a3a5a;
+    border-radius: 8px;
+    padding: 16px;
+    width: 240px;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .augment-card:hover {
+    transform: translateY(-4px);
+    border-color: #4a4a6a;
+  }
+
+  .augment-card.tier-1 {
+    border-color: #c0c0c0;
+  }
+
+  .augment-card.tier-1:hover {
+    border-color: #e0e0e0;
+    box-shadow: 0 4px 12px rgba(192, 192, 192, 0.3);
+  }
+
+  .augment-card.tier-2 {
+    border-color: #ffd700;
+  }
+
+  .augment-card.tier-2:hover {
+    border-color: #ffed4a;
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+  }
+
+  .augment-card.tier-3 {
+    border-color: #e040fb;
+  }
+
+  .augment-card.tier-3:hover {
+    border-color: #ea80fc;
+    box-shadow: 0 4px 12px rgba(224, 64, 251, 0.3);
+  }
+
+  .augment-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .augment-card-icon {
+    font-size: 32px;
+  }
+
+  .augment-card-name {
+    font-weight: 600;
+    font-size: 16px;
+    color: #fff;
+  }
+
+  .augment-card-desc {
+    font-size: 13px;
+    color: #ccc;
+    line-height: 1.4;
+  }
+
+  .augment-card-type {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #888;
+    letter-spacing: 1px;
+  }
 </style>
 
 <div class="tft-layout-new">
@@ -915,10 +1487,22 @@
     </div>
     <div class="header-stats">
       <span class="stat-pill gold">🪙 <span id="goldDisplay">{{.U.Gold}}</span></span>
-      <span class="stat-pill" style="color: var(--xp);">⚔️ <span id="battleGoldDisplay">{{.BattleGold}}</span></span>
+      <span class="stat-pill battle-gold" id="battleGoldPill">
+        ⚔️ <span id="battleGoldDisplay">{{.BattleGold}}</span>
+      </span>
+      <span class="stat-pill xp" id="xpDisplay">
+        🧪 <span id="xpValue">{{.U.XP}}</span>
+      </span>
+      <span class="stat-pill streak" id="streakDisplay">
+        🔥 <span id="streakValue">0</span>
+      </span>
+      <span class="stat-pill interest" id="interestDisplay">
+        💰 <span id="interestValue">0</span>
+      </span>
       <span class="stat-pill hp">❤️ <span id="hpDisplay">{{.U.CurrentHP}}/{{.U.MaxHP}}</span></span>
     </div>
     <div class="header-actions">
+      <button class="btn-ghost" onclick="refreshShop()">Refresh (2 XP)</button>
       <button class="btn-ghost" onclick="rerollShop()">Reroll (2g)</button>
       <button class="btn-ghost" id="autoRunBtn" onclick="toggleAutoRun()">Auto-Run</button>
       <button class="btn-primary" id="fightBtn" onclick="startCombat()">FIGHT!</button>
@@ -974,6 +1558,138 @@
   </div>
 </div>
 
+<!-- Main Menu Overlay -->
+<div class="battle-menu" id="battleMenu" style="display: none;">
+  <div class="menu-header">
+    <h2>⚔️ Auto-Battler Menu</h2>
+    <button class="menu-close" onclick="closeMenu()">&times;</button>
+  </div>
+  <div class="menu-content">
+    <button class="menu-btn" onclick="showScoreboard()">
+      <span class="menu-icon">📊</span>
+      <span>Scoreboard</span>
+    </button>
+    <button class="menu-btn" onclick="showSettings()">
+      <span class="menu-icon">⚙️</span>
+      <span>Settings</span>
+    </button>
+    <button class="menu-btn" onclick="showInventory()">
+      <span class="menu-icon">🎒</span>
+      <span>Inventory</span>
+    </button>
+    <button class="menu-btn" onclick="showCrafting()">
+      <span class="menu-icon">🔨</span>
+      <span>Crafting</span>
+    </button>
+  </div>
+</div>
+
+<!-- Scoreboard Panel -->
+<div class="scoreboard-panel" id="scoreboardPanel" style="display: none;">
+  <div class="panel-header">
+    <h3>📊 Scoreboard</h3>
+    <button class="panel-close" onclick="closeScoreboard()">&times;</button>
+  </div>
+  <div class="scoreboard-content">
+    <table class="scoreboard-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Player</th>
+          <th>Wave</th>
+          <th>Wins</th>
+          <th>Damage</th>
+        </tr>
+      </thead>
+      <tbody id="scoreboardBody">
+        <tr>
+          <td colspan="5">Loading...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Settings Panel -->
+<div class="settings-panel" id="settingsPanel" style="display: none;">
+  <div class="panel-header">
+    <h3>⚙️ Settings</h3>
+    <button class="panel-close" onclick="closeSettings()">&times;</button>
+  </div>
+  <div class="settings-content">
+    <div class="settings-section">
+      <h4>🔊 Audio</h4>
+      <label>
+        <input type="checkbox" id="soundEnabled" checked>
+        Enable Sound Effects
+      </label>
+      <label>
+        Music Volume: <input type="range" id="musicVolume" min="0" max="100" value="50">
+        <span id="musicVolumeValue">50</span>%
+      </label>
+    </div>
+    <div class="settings-section">
+      <h4>🎨 Visual</h4>
+      <label>
+        <input type="checkbox" id="animationsEnabled" checked>
+        Enable Animations
+      </label>
+      <label>
+        <input type="checkbox" id="particlesEnabled" checked>
+        Enable Particle Effects
+      </label>
+    </div>
+    <div class="settings-section">
+      <h4>🎮 Gameplay</h4>
+      <label>
+        <input type="checkbox" id="autoCombat" checked>
+        Auto-Start Combat
+      </label>
+      <label>
+        Combat Speed:
+        <select id="combatSpeed">
+          <option value="1">Normal</option>
+          <option value="2">Fast</option>
+          <option value="4">Very Fast</option>
+        </select>
+      </label>
+    </div>
+  </div>
+  <div class="settings-footer">
+    <button class="btn-primary" onclick="saveSettings()">Save</button>
+    <button class="btn-secondary" onclick="closeSettings()">Cancel</button>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip" style="display: none;">
+  <div class="tooltip-header">
+    <span class="tooltip-icon"></span>
+    <span class="tooltip-title"></span>
+  </div>
+  <div class="tooltip-body">
+    <div class="tooltip-stats"></div>
+    <div class="tooltip-description"></div>
+  </div>
+</div>
+
+<!-- Augment Selection Panel -->
+<div class="augment-panel" id="augmentPanel" style="display: none;">
+  <div class="augment-header">
+    <h2>Choose an Augment</h2>
+    <button class="reroll-btn" id="rerollBtn" onclick="rerollAugments()">
+      <span class="reroll-icon">🔄</span>
+      <span class="reroll-cost" id="rerollCost">Free</span>
+    </button>
+  </div>
+  <div class="augment-offers" id="augmentOffers">
+    <!-- Augment cards will be inserted here -->
+  </div>
+</div>
+
+<!-- Notification Container -->
+<div class="notification-container" id="notificationContainer"></div>
+
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
@@ -997,10 +1713,20 @@
   const INVENTORY = {{.Inventory | jsonJS}};
   const BATTLE_STATS = {{.BattleStats | jsonJS}};
   let BATTLE_GOLD = {{.BattleGold }};
+  XP = {{.U.XP }};
   let CURRENT_PHASE = "{{.Phase}}";
   let PHASE_TIMER = {{.PhaseTimer }};
   let CURRENT_ROUND = {{.RoundNumber }};
   let CURRENT_STAGE = {{.StageNumber }};
+
+  // Initialize gold economy values
+  let STREAK_VALUE = BATTLE_STATS && BATTLE_STATS.CurrentStreak ? BATTLE_STATS.CurrentStreak : 0;
+  let INTEREST_VALUE = 0; // Will be calculated server-side
+
+  // Ensure INVENTORY is never null
+  if (!INVENTORY) {
+    INVENTORY = [];
+  }
 
   let selectedUnitId = null;
   let selectedInvId = null;
@@ -1027,10 +1753,49 @@
       phaseIndicator.style.color = 'orange';
     }
 
+    // Update gold economy displays
+    updateGoldEconomyDisplay();
+
     // Start phase timer if in planning phase
     if (CURRENT_PHASE === 'planning' && PHASE_TIMER > 0) {
       startPhaseTimer();
     }
+  }
+
+  // Update gold economy display values
+  function updateGoldEconomyDisplay() {
+    // Update battle gold display
+    document.getElementById('battleGoldDisplay').textContent = BATTLE_GOLD;
+
+    // Update XP display
+    document.getElementById('xpValue').textContent = XP;
+
+    // Update streak display (if available in BATTLE_STATS)
+    if (BATTLE_STATS && BATTLE_STATS.CurrentStreak !== undefined) {
+      document.getElementById('streakValue').textContent = BATTLE_STATS.CurrentStreak;
+    }
+
+    // Update interest display (this would be calculated server-side)
+    // For now, we'll just show a placeholder or default value
+    document.getElementById('interestValue').textContent = '0';
+  }
+
+  // Update gold economy display values
+  function updateGoldEconomyDisplay() {
+    // Update battle gold display
+    document.getElementById('battleGoldDisplay').textContent = BATTLE_GOLD;
+
+    // Update XP display
+    document.getElementById('xpValue').textContent = XP;
+
+    // Update streak display (if available in BATTLE_STATS)
+    if (BATTLE_STATS && BATTLE_STATS.CurrentStreak !== undefined) {
+      document.getElementById('streakValue').textContent = BATTLE_STATS.CurrentStreak;
+    }
+
+    // Update interest display (this would be calculated server-side)
+    // For now, we'll just show a placeholder or default value
+    document.getElementById('interestValue').textContent = '0';
   }
 
   // Phase timer countdown
@@ -1133,16 +1898,59 @@
     const boardEl = document.getElementById('board');
     boardEl.innerHTML = '';
 
+    // Get board configuration from server data
+    const obstacles = getObstaclePositions(); // Function to get obstacles from server data
+    const gridType = '{{.GridType}}'; // Grid type from server ('hex' or 'square')
+
+    // Set grid type class on board container
+    boardEl.className = 'tft-board-new';
+    if (gridType === 'square') {
+      boardEl.classList.add('square-grid');
+    } else {
+      boardEl.classList.add('hex-grid');
+    }
+
     for (let i = 0; i < 28; i++) {
       const cell = document.createElement('div');
       cell.className = 'hexcell-new ' + (i < 14 ? 'enemy' : 'player');
-      cell.dataset.pos = i;
 
-      // Drag and drop handlers
-      cell.addEventListener('dragover', allowDrop);
-      cell.addEventListener('dragenter', dragEnter);
-      cell.addEventListener('dragleave', dragLeave);
-      cell.addEventListener('drop', (e) => dropUnit(e, i));
+      // Apply grid shape based on server configuration
+      if (gridType === 'square') {
+        cell.classList.add('square-shape');
+      } else {
+        cell.classList.add('hex-shape'); // Default to hex
+      }
+
+      // For hex grids, add staggered effect
+      if (gridType !== 'square') {
+        const row = Math.floor(i / 7); // 7 columns per row
+        // Every other row is offset
+        if (row % 2 === 1) {
+          cell.style.marginLeft = 'calc(min(8vw, 60px) * 0.25)';
+        }
+      }
+
+      // Check if this position is an obstacle
+      if (obstacles.includes(i)) {
+        cell.classList.add('obstacle');
+        cell.dataset.obstacle = 'true';
+        cell.title = 'Obstacle - Cannot place units here';
+      } else {
+        cell.dataset.pos = i;
+
+        // Drag and drop handlers
+        cell.addEventListener('dragover', allowDrop);
+        cell.addEventListener('dragenter', dragEnter);
+        cell.addEventListener('dragleave', dragLeave);
+        cell.addEventListener('drop', (e) => dropUnit(e, i));
+
+        // Click handler for placement (alternative to drag and drop)
+        cell.addEventListener('click', (e) => {
+          // Prevent click handling if dragging
+          if (e.target !== cell) return;
+          selectPlacementCell(i);
+        });
+      }
 
       // Find unit at this position
       const unit = BOARD.find(u => u.pos === i);
@@ -1387,27 +2195,29 @@
     const invEl = document.getElementById('inventoryGrid');
     invEl.innerHTML = '';
 
-    INVENTORY.forEach(item => {
-      const div = document.createElement('div');
-      div.className = 'inv-item-new' + (selectedInvId === item.InvID ? ' selected' : '');
-      div.innerHTML = `
-        <div class="inv-icon">🛡️</div>
-        <div class="inv-name">${item.Name}</div>
-      `;
+    if (INVENTORY && Array.isArray(INVENTORY)) {
+      INVENTORY.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'inv-item-new' + (selectedInvId === item.InvID ? ' selected' : '');
+        div.innerHTML = `
+          <div class="inv-icon">🛡️</div>
+          <div class="inv-name">${item.Name}</div>
+        `;
 
-      div.addEventListener('click', () => {
-        if (selectedUnitId) {
-          equipGear(selectedUnitId, item.InvID);
-        } else {
-          selectedInvId = item.InvID;
-          document.querySelectorAll('.inv-item-new').forEach(el => el.classList.remove('selected'));
-          div.classList.add('selected');
-          toast('Now click a unit on the board or bench to equip');
-        }
+        div.addEventListener('click', () => {
+          if (selectedUnitId) {
+            equipGear(selectedUnitId, item.InvID);
+          } else {
+            selectedInvId = item.InvID;
+            document.querySelectorAll('.inv-item-new').forEach(el => el.classList.remove('selected'));
+            div.classList.add('selected');
+            toast('Now click a unit on the board or bench to equip');
+          }
+        });
+
+        invEl.appendChild(div);
       });
-
-      invEl.appendChild(div);
-    });
+    }
   }
 
   // Render Synergies
@@ -1548,6 +2358,31 @@
     }
   }
 
+  async function refreshShop() {
+    if (inCombat) return;
+    // Check if player has enough XP to refresh (2 XP required)
+    if (XP < 2) {
+      toast('Not enough XP to refresh shop! (Need 2 XP)', true);
+      return;
+    }
+
+    const result = await apiPost('/api/tft/refresh-shop', {});
+    if (result.ok) {
+      toast('Shop refreshed!');
+      if (result.battleGold !== undefined) {
+        BATTLE_GOLD = result.battleGold;
+        document.getElementById('battleGoldDisplay').textContent = BATTLE_GOLD;
+      }
+      if (result.xp !== undefined) {
+        XP = result.xp;
+        document.getElementById('xpValue').textContent = XP;
+      }
+      refreshState();
+    } else {
+      toast(result.error || 'Failed to refresh shop', true);
+    }
+  }
+
   async function sellUnit(unitId) {
     if (inCombat) return;
     const result = await apiPost('/api/tft/sell', { id: unitId });
@@ -1610,6 +2445,12 @@
     if (result.battle_gold !== undefined) {
       BATTLE_GOLD = result.battle_gold;
       document.getElementById('battleGoldDisplay').textContent = BATTLE_GOLD;
+    }
+
+    // Update streak display if available
+    if (result.streak !== undefined) {
+      STREAK_VALUE = result.streak;
+      document.getElementById('streakValue').textContent = STREAK_VALUE;
     }
 
     await playCombatAnimation(result.frames);
@@ -1813,8 +2654,56 @@
     }
   }
 
+  // Helper function to get obstacle positions from server data
+  function getObstaclePositions() {
+    // Return obstacle positions from server data
+    // OBSTACLE_POSITIONS is passed from the server
+    return {{.ObstaclePositions }
+  };
+  }
+
+  // Select placement cell for click-to-place functionality
+  function selectPlacementCell(pos) {
+    if (inCombat || CURRENT_PHASE !== 'planning') {
+      return; // Can only place during planning phase
+    }
+
+    if (selectedUnitId) {
+      // Try to place the selected unit at this position
+      placeUnit(selectedUnitId, pos);
+    }
+  }
+
+  // Place unit at specific position via API
+  async function placeUnit(unitId, pos) {
+    if (inCombat) return;
+
+    const result = await apiPost('/api/tft/place', { id: unitId, pos: pos });
+    if (result.ok) {
+      toast('Unit placed!');
+      refreshState();
+    } else {
+      toast(result.error || 'Failed to place unit', true);
+    }
+  }
+
+  // Initialize board with hexagonal grid styling
+  function initBoardGrid() {
+    const boardEl = document.getElementById('board');
+    const gridType = '{{.GridType}}'; // Grid type from server ('hex' or 'square')
+
+    // Apply grid shape class to board container
+    boardEl.className = 'tft-board-new';
+    if (gridType === 'square') {
+      boardEl.classList.add('square-grid');
+    } else {
+      boardEl.classList.add('hex-grid'); // Default to hex
+    }
+  }
+
   // Initialize
   function init() {
+    initBoardGrid();
     renderBoard();
     renderBench();
     renderShop();
@@ -1828,6 +2717,301 @@
       document.querySelectorAll('.context-menu').forEach(el => el.remove());
     });
   }
+
+  // ===== UI/UX System Functions =====
+
+  // Menu Functions
+  function openMenu() {
+    document.getElementById('battleMenu').style.display = 'block';
+  }
+
+  function closeMenu() {
+    document.getElementById('battleMenu').style.display = 'none';
+  }
+
+  // Scoreboard Functions
+  function showScoreboard() {
+    closeMenu();
+    loadScoreboard();
+    document.getElementById('scoreboardPanel').style.display = 'block';
+  }
+
+  function closeScoreboard() {
+    document.getElementById('scoreboardPanel').style.display = 'none';
+  }
+
+  async function loadScoreboard() {
+    try {
+      const res = await fetch('/api/tft/scoreboard');
+      const data = await res.json();
+      if (data.ok) {
+        const tbody = document.getElementById('scoreboardBody');
+        if (data.players && data.players.length > 0) {
+          tbody.innerHTML = data.players.map(p => `
+            <tr>
+              <td>${p.rank}</td>
+              <td>${escapeHtml(p.name)}</td>
+              <td>${p.highest_wave}</td>
+              <td>${p.wins}</td>
+              <td>${p.total_damage.toLocaleString()}</td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="5">No data available</td></tr>';
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load scoreboard:', e);
+    }
+  }
+
+  // Settings Functions
+  function showSettings() {
+    closeMenu();
+    loadSettings();
+    document.getElementById('settingsPanel').style.display = 'block';
+  }
+
+  function closeSettings() {
+    document.getElementById('settingsPanel').style.display = 'none';
+  }
+
+  function loadSettings() {
+    const settings = JSON.parse(localStorage.getItem('battleSettings') || '{}');
+    document.getElementById('soundEnabled').checked = settings.soundEnabled !== false;
+    document.getElementById('musicVolume').value = settings.musicVolume || 50;
+    document.getElementById('musicVolumeValue').textContent = settings.musicVolume || 50;
+    document.getElementById('animationsEnabled').checked = settings.animationsEnabled !== false;
+    document.getElementById('particlesEnabled').checked = settings.particlesEnabled !== false;
+    document.getElementById('autoCombat').checked = settings.autoCombat !== false;
+    document.getElementById('combatSpeed').value = settings.combatSpeed || 1;
+  }
+
+  async function saveSettings() {
+    const settings = {
+      soundEnabled: document.getElementById('soundEnabled').checked,
+      musicVolume: parseInt(document.getElementById('musicVolume').value),
+      animationsEnabled: document.getElementById('animationsEnabled').checked,
+      particlesEnabled: document.getElementById('particlesEnabled').checked,
+      autoCombat: document.getElementById('autoCombat').checked,
+      combatSpeed: parseInt(document.getElementById('combatSpeed').value)
+    };
+
+    // Save to localStorage
+    localStorage.setItem('battleSettings', JSON.stringify(settings));
+
+    // Save to server
+    try {
+      await fetch('/api/tft/save-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      });
+      showNotification('Settings saved successfully', 'success');
+    } catch (e) {
+      console.error('Failed to save settings:', e);
+      showNotification('Failed to save settings', 'error');
+    }
+
+    applySettings(settings);
+    closeSettings();
+  }
+
+  function applySettings(settings) {
+    if (!settings.animationsEnabled) {
+      document.body.classList.add('no-animations');
+    } else {
+      document.body.classList.remove('no-animations');
+    }
+  }
+
+  // Music volume slider update
+  document.addEventListener('DOMContentLoaded', () => {
+    const volumeSlider = document.getElementById('musicVolume');
+    const volumeValue = document.getElementById('musicVolumeValue');
+    if (volumeSlider && volumeValue) {
+      volumeSlider.addEventListener('input', (e) => {
+        volumeValue.textContent = e.target.value;
+      });
+    }
+  });
+
+  // Tooltip Functions
+  function showTooltip(element, data) {
+    const tooltip = document.getElementById('tooltip');
+    tooltip.querySelector('.tooltip-icon').textContent = data.icon || '';
+    tooltip.querySelector('.tooltip-title').textContent = data.name || '';
+    tooltip.querySelector('.tooltip-stats').innerHTML = formatStats(data.stats || {});
+    tooltip.querySelector('.tooltip-description').textContent = data.description || '';
+
+    const rect = element.getBoundingClientRect();
+    tooltip.style.left = (rect.right + 10) + 'px';
+    tooltip.style.top = rect.top + 'px';
+    tooltip.style.display = 'block';
+  }
+
+  function hideTooltip() {
+    document.getElementById('tooltip').style.display = 'none';
+  }
+
+  function formatStats(stats) {
+    let html = '';
+    for (const [key, value] of Object.entries(stats)) {
+      if (value > 0) {
+        html += `<div>${key}: ${value}</div>`;
+      }
+    }
+    return html || '<div>No stats</div>';
+  }
+
+  // Notification Functions
+  function showNotification(message, type = 'info') {
+    const container = document.getElementById('notificationContainer');
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+      <span class="notification-icon">${getNotificationIcon(type)}</span>
+      <span class="notification-message">${escapeHtml(message)}</span>
+    `;
+
+    container.appendChild(notification);
+
+    setTimeout(() => {
+      notification.style.animation = 'slideOut 0.3s ease-in';
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }
+
+  function getNotificationIcon(type) {
+    switch (type) {
+      case 'success': return '✓';
+      case 'error': return '✗';
+      case 'info': return 'ℹ';
+      default: return 'ℹ';
+    }
+  }
+
+  // Inventory and Crafting placeholders
+  function showInventory() {
+    closeMenu();
+    showNotification('Inventory panel coming soon', 'info');
+  }
+
+  function showCrafting() {
+    closeMenu();
+    showNotification('Crafting panel coming soon', 'info');
+  }
+
+  // Augment Functions
+  async function loadAugments() {
+    try {
+      const response = await fetch('/api/tft/augments');
+      const data = await response.json();
+
+      const offersContainer = document.getElementById('augmentOffers');
+      offersContainer.innerHTML = '';
+
+      data.offers.forEach(offer => {
+        const card = document.createElement('div');
+        card.className = `augment-card tier-${offer.tier}`;
+        card.onclick = () => selectAugment(offer.id);
+        card.innerHTML = `
+          <div class="augment-card-header">
+            <span class="augment-card-icon">${offer.icon || '✨'}</span>
+            <span class="augment-card-name">${escapeHtml(offer.name)}</span>
+          </div>
+          <div class="augment-card-type">${offer.type}</div>
+          <div class="augment-card-desc">${escapeHtml(offer.desc)}</div>
+        `;
+        offersContainer.appendChild(card);
+      });
+
+      const rerollCostEl = document.getElementById('rerollCost');
+      rerollCostEl.textContent = data.rerollCost === 0 ? 'Free' : `${data.rerollCost} 🪙`;
+
+      const rerollBtn = document.getElementById('rerollBtn');
+      rerollBtn.disabled = !data.canReroll || (data.rerollCost > 0 && data.rerollCost > BATTLE_GOLD);
+
+      document.getElementById('augmentPanel').style.display = 'block';
+    } catch (e) {
+      console.error('Failed to load augments:', e);
+      showNotification('Failed to load augments', 'error');
+    }
+  }
+
+  async function rerollAugments() {
+    try {
+      const response = await fetch('/api/tft/reroll-augments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        showNotification(error || 'Failed to reroll', 'error');
+        return;
+      }
+
+      const data = await response.json();
+      BATTLE_GOLD = data.gold;
+      document.getElementById('battleGoldDisplay').textContent = BATTLE_GOLD;
+
+      // Reload offers
+      await loadAugments();
+      showNotification('Augments rerolled', 'success');
+    } catch (e) {
+      console.error('Failed to reroll augments:', e);
+      showNotification('Failed to reroll augments', 'error');
+    }
+  }
+
+  async function selectAugment(augmentId) {
+    try {
+      const response = await fetch('/api/tft/select-augment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ augmentId })
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        showNotification(error || 'Failed to select augment', 'error');
+        return;
+      }
+
+      const data = await response.json();
+      showNotification(`Selected: ${data.augment.name}`, 'success');
+      closeAugmentPanel();
+    } catch (e) {
+      console.error('Failed to select augment:', e);
+      showNotification('Failed to select augment', 'error');
+    }
+  }
+
+  function closeAugmentPanel() {
+    document.getElementById('augmentPanel').style.display = 'none';
+  }
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    // ESC to close panels
+    if (e.key === 'Escape') {
+      closeMenu();
+      closeScoreboard();
+      closeSettings();
+      closeAugmentPanel();
+      hideTooltip();
+    }
+    // M for menu
+    if (e.key === 'm' && !e.ctrlKey && !e.altKey) {
+      const menu = document.getElementById('battleMenu');
+      if (menu.style.display === 'none') {
+        openMenu();
+      } else {
+        closeMenu();
+      }
+    }
+  });
 
   init();
 </script>
