@@ -1856,23 +1856,13 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			g.Stats.STR = int(float64(g.Stats.STR) * zoneDifficulty)
 			g.Stats.DEF = int(float64(g.Stats.DEF) * zoneDifficulty)
 			g.Stats.SPD = int(float64(g.Stats.SPD) * zoneDifficulty)
-			if b.shouldEquip(uid, g) {
-				_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
-				results = append(results, i18n.T("bot.loot.equipped", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String()))
-				if g.Rarity >= content.RarityLegendary {
-					pokes = append(pokes, i18n.T("bot.loot.legendary_equipped", g.Name))
-				}
-			} else {
-				// Auto-list rare+ items on AH if not an upgrade
-				if g.Rarity >= content.RarityRare {
-					b.autoListUnwantedItems(uid, g)
-					results = append(results, i18n.T("bot.loot.listed_ah", g.Name, string(g.Slot), g.Rarity.Color(), g.Rarity.String()))
-				} else {
-					// Improvement 50: Salvaging (Gear)
-					scrapAmt := 1 + int(g.Rarity)
-					_, _ = b.DB.Exec("UPDATE users SET scrap_stack = scrap_stack + $2 WHERE client_uid=$1", uid, scrapAmt)
-					results = append(results, i18n.T("bot.loot.salvaged", g.Name, string(g.Slot), scrapAmt))
-				}
+
+			result := b.awardGearDrop(uid, g)
+			results = append(results, fmt.Sprintf("%s%s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])",
+				result.Prefix, g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String()))
+
+			if result.Action == "equipped" && g.Rarity >= content.RarityLegendary {
+				pokes = append(pokes, i18n.T("bot.loot.legendary_equipped", g.Name))
 			}
 			lootFound = true
 		}

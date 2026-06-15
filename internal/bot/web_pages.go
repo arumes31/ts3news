@@ -33,6 +33,7 @@ type gearView struct {
 	Score       int
 	Durability  int
 	Empty       bool
+	AHPrice     int64 // auto-calculated auction house listing price
 
 	// Detail surfaced in the armoury/inventory.
 	Element    string
@@ -272,6 +273,12 @@ func (b *Bot) inventoryItems(uid string) []gearView {
 		v := toGearView(g.Slot, g)
 		v.InvID = id
 		v.Durability = dur
+		// Auto-calculate AH listing price: (CR×10 + GS×5) × (Rarity+1)
+		price := int64(g.CombatRating()*10+float64(g.Stats.Score())*5) * (int64(g.Rarity) + 1)
+		if price < 10 {
+			price = 10
+		}
+		v.AHPrice = price
 		out = append(out, v)
 	}
 	return out

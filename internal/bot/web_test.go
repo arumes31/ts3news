@@ -59,7 +59,7 @@ func TestSimulateTFT_PlayerWins(t *testing.T) {
 		{id: "p1", icon: "🪓", side: "you", star: 3, pos: 21, hp: 5000, maxhp: 5000, atk: 800, rng: 1},
 		{id: "e1", icon: "👹", side: "enemy", star: 1, pos: 3, hp: 100, maxhp: 100, atk: 5, rng: 1},
 	}
-	frames, victory := simulateTFT(units)
+	frames, victory, _, _ := simulateTFT(units)
 	if !victory {
 		t.Errorf("expected player victory")
 	}
@@ -73,7 +73,7 @@ func TestSimulateTFT_PlayerLoses(t *testing.T) {
 		{id: "p1", icon: "🪓", side: "you", star: 1, pos: 21, hp: 50, maxhp: 50, atk: 5, rng: 1},
 		{id: "e1", icon: "👹", side: "enemy", star: 1, pos: 3, hp: 5000, maxhp: 5000, atk: 800, rng: 1},
 	}
-	_, victory := simulateTFT(units)
+	_, victory, _, _ := simulateTFT(units)
 	if victory {
 		t.Errorf("expected player defeat")
 	}

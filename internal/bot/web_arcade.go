@@ -29,12 +29,12 @@ type arcadeOutcome struct {
 	Win     bool     `json:"win"`
 	Detail  string   `json:"detail"`
 	Gold    int64    `json:"gold"`
-	Symbols []string `json:"symbols,omitempty"` // slots
-	Roll    int      `json:"roll,omitempty"`    // dice
-	Side    string   `json:"side,omitempty"`    // coinflip
-	Card    int      `json:"card,omitempty"`    // highlow
-	Segment int      `json:"segment"`           // wheel (index into wheelSegments)
-	Mult    float64  `json:"mult,omitempty"`    // wheel/payout multiplier
+	Symbols []string `json:"symbols,omitempty"`  // slots
+	Roll    int      `json:"roll,omitempty"`     // dice
+	Side    string   `json:"side,omitempty"`     // coinflip
+	Card    int      `json:"card,omitempty"`     // highlow
+	Segment int      `json:"segment"`            // wheel (index into wheelSegments)
+	Mult    float64  `json:"mult,omitempty"`     // wheel/payout multiplier
 	GearWon string   `json:"gear_won,omitempty"` // gear looted on a win
 
 	JackpotWin    bool  `json:"jackpot_win,omitempty"`
@@ -51,12 +51,12 @@ func (s *WebServer) handleArcadePage(w http.ResponseWriter, r *http.Request, uid
 	vip, pts := s.bot.getVIP(uid)
 	s.render(w, "arcade", map[string]any{
 		"Title": "Arcade", "Nav": "arcade", "U": u,
-		"WheelJSON":   jsonJS(wheelSegments),
-		"Leaders":     s.bot.gameLeaderboards("arcade"),
-		"VIP":         vip,
-		"VIPPoints":   pts,
+		"WheelJSON":    jsonJS(wheelSegments),
+		"Leaders":      s.bot.gameLeaderboards("arcade"),
+		"VIP":          vip,
+		"VIPPoints":    pts,
 		"JackpotSlots": s.bot.getJackpot("slots"),
-		"CanDaily":    s.bot.canSpinDaily(uid),
+		"CanDaily":     s.bot.canSpinDaily(uid),
 	})
 }
 
@@ -142,14 +142,13 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 	// a positive Net is an actual win.
 	out.Win = out.Net > 0
 
-	// Winning rounds have a chance to also drop a gear piece into the inventory.
+	// Winning rounds have a chance to also drop a gear piece.
 	if out.Win {
 		// #nosec G404 -- non-cryptographic drop roll
 		if rng.IntN(100) < 15 {
 			g := content.RandomGearDrop()
-			if _, err := s.bot.DB.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1,$2,$3)", uid, g.ID, g.MaxDurability); err == nil {
-				out.GearWon = g.Rarity.String() + " " + g.Name
-			}
+			result := s.bot.awardGearDrop(uid, g)
+			out.GearWon = result.Prefix + result.ItemName
 		}
 	}
 
@@ -178,9 +177,9 @@ func (s *WebServer) handleDailySpinAPI(w http.ResponseWriter, r *http.Request, u
 		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", gold, uid)
 	case roll < 95:
 		g := content.RandomGearDrop()
-		gear = g.Rarity.String() + " " + g.Name
-		reward = "Looted " + gear + "!"
-		_, _ = s.bot.DB.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1,$2,$3)", uid, g.ID, g.MaxDurability)
+		result := s.bot.awardGearDrop(uid, g)
+		gear = result.ItemName
+		reward = result.Prefix + result.ItemName
 	default:
 		gold = 2500
 		reward = "JACKPOT! Looted 2500 gold!"

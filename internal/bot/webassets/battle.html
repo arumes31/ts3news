@@ -2,12 +2,30 @@
 <div class="tft-layout">
   <div class="tft-main">
     <h1>Tactician's Board</h1>
-    <p class="muted">Position your champions and equip gear to defeat waves of enemies. PvE Creep rounds every 3 battles.</p>
+    <p class="muted">Position your champions and equip gear to defeat waves of enemies. PvE Creep rounds every 3 waves.
+    </p>
+
+    <!-- Battle Stats Summary -->
+    <div class="battle-stats-summary" id="battleStats">
+      <div class="stat-pill">
+        <span class="stat-label">Wave</span>
+        <span class="stat-value" id="currentWave">1</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-label">Best Streak</span>
+        <span class="stat-value" id="bestStreak">0</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-label">Highest Wave</span>
+        <span class="stat-value" id="highestWave">1</span>
+      </div>
+    </div>
 
     <div class="tft-stage">
       <div class="tft-board" id="board">
         {{range $i := (seq 0 27)}}
-        <div class="hexcell {{if lt $i 14}}enemy{{end}}" data-pos="{{$i}}" ondragover="allowDrop(event)" ondrop="dropUnit(event, {{$i}})"></div>
+        <div class="hexcell {{if lt $i 14}}enemy{{end}}" data-pos="{{$i}}" ondragover="allowDrop(event)"
+          ondrop="dropUnit(event, {{$i}})"></div>
         {{end}}
         <div id="tokens"></div>
       </div>
@@ -34,16 +52,27 @@
       <h3>✨ Active Synergies</h3>
       <div id="synergies"></div>
     </div>
-    
+
     <h2>Recent Battles</h2>
     <table class="histtable">
-      <thead><tr><th>Wave</th><th>Result</th><th>Loot</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Wave</th>
+          <th>Result</th>
+          <th>Damage</th>
+          <th>Loot</th>
+        </tr>
+      </thead>
       <tbody>
         {{range .History}}
-        <tr>
-          <td>{{.MobName}}</td>
-          <td class="{{if .Victory}}win{{else}}loss{{end}}">{{if .Victory}}Victory{{else}}Defeat{{end}}</td>
-          <td>{{if .GearWon}}🎁 {{.GearWon}}{{else}}🪙 {{.GoldWon}}{{end}}</td>
+        <tr class="{{if .Victory}}win{{else}}loss{{end}} {{if .IsMilestone}}milestone{{end}}">
+          <td class="wave-col">
+            <span class="wave-num">#{{.WaveNumber}}</span>
+            {{if .IsMilestone}}<span class="milestone-badge">★</span>{{end}}
+          </td>
+          <td class="result-col">{{if .Victory}}✓ Victory{{else}}✗ Defeat{{end}}</td>
+          <td class="damage-col">{{.DamageDealt}}</td>
+          <td class="loot-col">{{if .GearWon}}🎁 {{.GearWon}}{{else}}+{{.GoldWon}}g{{end}}</td>
         </tr>
         {{end}}
       </tbody>
@@ -52,174 +81,202 @@
 </div>
 
 <script>
-let BENCH={{.BenchJSON}}, BOARD={{.BoardJSON}}, SHOP={{.ShopJSON}}, TRAITS={{.Traits}};
-const sleep = ms => new Promise(r=>setTimeout(r,ms));
-let inCombat = false;
+  let BENCH = {{.BenchJSON }}, BOARD = {{.BoardJSON }}, SHOP = {{.ShopJSON }}, TRAITS = {{.Traits }};
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  let inCombat = false;
 
-function buildBoard(){
-  const b=document.getElementById('board');
-  const cells=b.querySelectorAll('.hexcell');
-  cells.forEach((c,i)=>{
-    const row=Math.floor(i/7), col=i%7;
-    c.style.left=(col*72 + (row%2?36:0))+'px';
-    c.style.top=(row*62)+'px';
-  });
-}
+  function buildBoard() {
+    const b = document.getElementById('board');
+    const cells = b.querySelectorAll('.hexcell');
+    cells.forEach((c, i) => {
+      const row = Math.floor(i / 7), col = i % 7;
+      c.style.left = (col * 72 + (row % 2 ? 36 : 0)) + 'px';
+      c.style.top = (row * 62) + 'px';
+    });
+  }
 
-function renderBoard(){
-  const tokens=document.getElementById('tokens'); tokens.innerHTML='';
-  BOARD.forEach(u=>{
-    const t=createUnitToken(u);
-    const cell=document.querySelector(`.hexcell[data-pos="${u.pos}"]`);
-    t.style.left=cell.style.left; t.style.top=cell.style.top;
-    tokens.appendChild(t);
-  });
-  updateSynergies();
-}
+  function renderBoard() {
+    const tokens = document.getElementById('tokens'); tokens.innerHTML = '';
+    BOARD.forEach(u => {
+      const t = createUnitToken(u);
+      const cell = document.querySelector(`.hexcell[data-pos="${u.pos}"]`);
+      t.style.left = cell.style.left; t.style.top = cell.style.top;
+      tokens.appendChild(t);
+    });
+    updateSynergies();
+  }
 
-function renderBench(){
-  const slots=document.querySelectorAll('.bench-slot');
-  slots.forEach(s=>s.innerHTML='');
-  BENCH.forEach((u,i)=>{
-    const t=createUnitToken(u);
-    slots[i].appendChild(t);
-  });
-}
+  function renderBench() {
+    const slots = document.querySelectorAll('.bench-slot');
+    slots.forEach(s => s.innerHTML = '');
+    BENCH.forEach((u, i) => {
+      const t = createUnitToken(u);
+      slots[i].appendChild(t);
+    });
+  }
 
-function createUnitToken(u){
-  const div=document.createElement('div');
-  div.className='unit-tok '+(u.side==='enemy'?'enemy':'');
-  div.id=u.id; div.draggable=!inCombat;
-  div.innerHTML=`<div class="face">${u.icon}</div>
+  function createUnitToken(u) {
+    const div = document.createElement('div');
+    div.className = 'unit-tok ' + (u.side === 'enemy' ? 'enemy' : '');
+    div.id = u.id; div.draggable = !inCombat;
+    div.innerHTML = `<div class="face">${u.icon}</div>
     <div class="unit-hp"><span style="width:100%"></span></div>
     <div class="unit-star">${'★'.repeat(u.star)}</div>
     <div class="unit-items">
-      ${(u.items||[]).map(()=>'<div class="unit-item-slot filled"></div>').join('')}
-      ${Array(Math.max(0,3-(u.items?u.items.length:0))).fill('<div class="unit-item-slot"></div>').join('')}
+      ${(u.items || []).map(() => '<div class="unit-item-slot filled"></div>').join('')}
+      ${Array(Math.max(0, 3 - (u.items ? u.items.length : 0))).fill('<div class="unit-item-slot"></div>').join('')}
     </div>`;
-  div.ondragstart=e=>{e.dataTransfer.setData('unitId',u.id);};
-  return div;
-}
+    div.ondragstart = e => { e.dataTransfer.setData('unitId', u.id); };
+    return div;
+  }
 
-function updateSynergies(){
-  const counts={};
-  BOARD.forEach(u=>{
-    (u.traits||[]).forEach(t=>{
-      counts[t]=(counts[t]||0)+1;
+  function updateSynergies() {
+    const counts = {};
+    BOARD.forEach(u => {
+      (u.traits || []).forEach(t => {
+        counts[t] = (counts[t] || 0) + 1;
+      });
     });
-  });
-  
-  const container = document.getElementById('synergies');
-  container.innerHTML = '';
-  
-  Object.keys(TRAITS).sort().forEach(t=>{
-    const c = counts[t]||0;
-    const thresholds = TRAITS[t];
-    let next = thresholds[0];
-    let active = false;
-    thresholds.forEach(th=>{ if(c>=th) { active=true; next=th; } });
 
-    const item = document.createElement('div');
-    item.className = 'synergy-item' + (active?' active':'');
-    item.innerHTML = `<span class="name">${t.toUpperCase()}</span><span class="count">${c}/${next}</span>`;
-    container.appendChild(item);
-  });
-}
+    const container = document.getElementById('synergies');
+    container.innerHTML = '';
 
-function renderShop(){
-  const s=document.getElementById('shop'); s.innerHTML='';
-  SHOP.forEach(u=>{
-    const d=document.createElement('div');
-    d.className=`shop-unit cost${u.cost} ${u.key===''?'bought':''}`;
-    if(u.key!==''){
-      d.innerHTML=`<div class="ico">${u.icon}</div><div class="nm">${u.name}</div><div class="cost">🪙 ${u.cost}</div>`;
-      d.onclick=()=>buy(u.index);
+    Object.keys(TRAITS).sort().forEach(t => {
+      const c = counts[t] || 0;
+      const thresholds = TRAITS[t];
+      let next = thresholds[0];
+      let active = false;
+      thresholds.forEach(th => { if (c >= th) { active = true; next = th; } });
+
+      const item = document.createElement('div');
+      item.className = 'synergy-item' + (active ? ' active' : '');
+      item.innerHTML = `<span class="name">${t.toUpperCase()}</span><span class="count">${c}/${next}</span>`;
+      container.appendChild(item);
+    });
+  }
+
+  function renderShop() {
+    const s = document.getElementById('shop'); s.innerHTML = '';
+    SHOP.forEach(u => {
+      const d = document.createElement('div');
+      d.className = `shop-unit cost${u.cost} ${u.key === '' ? 'bought' : ''}`;
+      if (u.key !== '') {
+        d.innerHTML = `<div class="ico">${u.icon}</div><div class="nm">${u.name}</div><div class="cost">🪙 ${u.cost}</div>`;
+        d.onclick = () => buy(u.index);
+      }
+      s.appendChild(d);
+    });
+  }
+
+  async function buy(idx) {
+    if (inCombat) return;
+    const r = await fetch('/api/tft/buy', { method: 'POST', body: JSON.stringify({ index: idx }) });
+    const d = await r.json();
+    if (d.ok) { location.reload(); } else toast(d.error, false);
+  }
+
+  async function reroll() {
+    if (inCombat) return;
+    const d = await post('/api/tft/reroll', {});
+    if (d.ok) { location.reload(); } else toast(d.error, false);
+  }
+
+  async function startCombat() {
+    if (inCombat) return;
+    inCombat = true;
+    document.getElementById('fightBtn').disabled = true;
+    document.getElementById('phase').textContent = 'Combat in progress...';
+    const d = await post('/api/tft/combat', {});
+    if (!d.ok) {
+      toast(d.error, false);
+      inCombat = false;
+      document.getElementById('fightBtn').disabled = false;
+      document.getElementById('phase').textContent = 'Planning phase';
+      return;
     }
-    s.appendChild(d);
-  });
-}
-
-async function buy(idx){
-  if(inCombat)return;
-  const r=await fetch('/api/tft/buy',{method:'POST',body:JSON.stringify({index:idx})});
-  const d=await r.json();
-  if(d.ok){location.reload();}else toast(d.error,false);
-}
-
-async function reroll(){
-  if(inCombat)return;
-  const d=await post('/api/tft/reroll',{});
-  if(d.ok){location.reload();}else toast(d.error,false);
-}
-
-async function startCombat(){
-  if(inCombat)return;
-  inCombat=true;
-  document.getElementById('fightBtn').disabled=true;
-  document.getElementById('phase').textContent='Combat in progress...';
-  const d=await post('/api/tft/combat',{});
-  if(!d.ok){
-    toast(d.error,false);
-    inCombat=false;
-    document.getElementById('fightBtn').disabled=false;
-    document.getElementById('phase').textContent='Planning phase';
-    return;
-  }
-  await playCombat(d.frames);
-  if(d.victory){
-    toast('🏆 Victory! +'+d.gold_won+' gold'+(d.gear_won?(' · looted '+d.gear_won+' → inventory'):'')+'.', true);
-    document.getElementById('goldPill').textContent='🪙 '+d.gold;
-  } else {
-    toast('💀 Your team was defeated.', false);
-  }
-  await sleep(2500); location.reload();
-}
-
-async function playCombat(frames){
-  const tokens=document.getElementById('tokens');
-  for(const f of frames){
-    f.units.forEach(u=>{
-      let t=document.getElementById(u.id);
-      if(!t){
-        t=createUnitToken(u); tokens.appendChild(t);
+    await playCombat(d.frames);
+    if (d.victory) {
+      let message = '🏆 Victory! ';
+      if (d.is_milestone) {
+        message += '⭐ MILESTONE WAVE! ';
       }
-      const cell=document.querySelector(`.hexcell[data-pos="${u.pos}"]`);
-      t.style.left=cell.style.left; t.style.top=cell.style.top;
-      t.querySelector('.unit-hp span').style.width=(u.hp*100/u.max_hp)+'%';
-      if(u.hp<=0)t.classList.add('dead');
-    });
-    f.events.forEach(e=>{
-      const from=document.getElementById(e.from);
-      if(from){
-        from.classList.add('attacking'); setTimeout(()=>from.classList.remove('attacking'),200);
-        showDmg(e.to, e.dmg);
+      message += '+' + d.gold_won + ' gold' + (d.gear_won ? (' · looted ' + d.gear_won + ' → inventory') : '') + '.';
+      if (d.streak > 1) {
+        message += ' 🔥 Streak: ' + d.streak;
       }
-    });
-    await sleep(250);
+      toast(message, true);
+      document.getElementById('goldPill').textContent = '🪙 ' + d.gold;
+    } else {
+      toast('💀 Your team was defeated.', false);
+    }
+    await sleep(2500); location.reload();
   }
-}
 
-function showDmg(id, dmg){
-  const t=document.getElementById(id); if(!t)return;
-  const f=document.createElement('div'); f.className='dmgfloat'; f.textContent='-'+dmg;
-  f.style.left=t.style.left; f.style.top=(parseInt(t.style.top,10)-6)+'px';
-  document.getElementById('tokens').appendChild(f); setTimeout(()=>f.remove(),1000);
-}
+  async function playCombat(frames) {
+    const tokens = document.getElementById('tokens');
+    for (const f of frames) {
+      f.units.forEach(u => {
+        let t = document.getElementById(u.id);
+        if (!t) {
+          t = createUnitToken(u); tokens.appendChild(t);
+        }
+        const cell = document.querySelector(`.hexcell[data-pos="${u.pos}"]`);
+        t.style.left = cell.style.left; t.style.top = cell.style.top;
+        t.querySelector('.unit-hp span').style.width = (u.hp * 100 / u.max_hp) + '%';
+        if (u.hp <= 0) t.classList.add('dead');
+      });
+      f.events.forEach(e => {
+        const from = document.getElementById(e.from);
+        if (from) {
+          from.classList.add('attacking'); setTimeout(() => from.classList.remove('attacking'), 200);
+          showDmg(e.to, e.dmg);
+        }
+      });
+      await sleep(250);
+    }
+  }
 
-function allowDrop(e){e.preventDefault();}
-async function dropUnit(e, pos){
-  e.preventDefault();
-  const id=e.dataTransfer.getData('unitId');
-  const d=await post('/api/tft/place',{id:id,pos:pos});
-  if(d.ok){location.reload();}
-}
+  function showDmg(id, dmg) {
+    const t = document.getElementById(id); if (!t) return;
+    const f = document.createElement('div'); f.className = 'dmgfloat'; f.textContent = '-' + dmg;
+    f.style.left = t.style.left; f.style.top = (parseInt(t.style.top, 10) - 6) + 'px';
+    document.getElementById('tokens').appendChild(f); setTimeout(() => f.remove(), 1000);
+  }
 
-async function post(url, body){
-  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  return r.json();
-}
+  function allowDrop(e) { e.preventDefault(); }
+  async function dropUnit(e, pos) {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('unitId');
+    const d = await post('/api/tft/place', { id: id, pos: pos });
+    if (d.ok) { location.reload(); }
+  }
 
-buildBoard(); renderBoard(); renderBench(); renderShop();
-window.addEventListener('resize',()=>{renderBoard();});
+  async function post(url, body) {
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return r.json();
+  }
+
+  // Initialize battle stats from server data
+  const BATTLE_STATS = {{ jsonJS .BattleStats }};
+  const HISTORY = {{.History }};
+
+  // Update battle stats summary
+  function updateBattleStats() {
+    // Get current wave (from last battle or default to 1)
+    const lastBattle = HISTORY.length > 0 ? HISTORY[0] : null;
+    const currentWave = lastBattle ? lastBattle.WaveNumber + 1 : 1;
+
+    // Get best streak and highest wave from battle stats
+    const bestStreak = BATTLE_STATS.BestStreak || 0;
+    const highestWave = BATTLE_STATS.HighestWave || 1;
+
+    document.getElementById('currentWave').textContent = currentWave;
+    document.getElementById('bestStreak').textContent = bestStreak;
+    document.getElementById('highestWave').textContent = highestWave;
+  }
+
+  buildBoard(); renderBoard(); renderBench(); renderShop();
+  updateBattleStats();
+  window.addEventListener('resize', () => { renderBoard(); });
 </script>
 {{template "foot" .}}{{end}}

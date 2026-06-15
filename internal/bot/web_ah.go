@@ -46,11 +46,11 @@ func ahIcon(itemType, itemID string) string {
 }
 
 type ahHistoryView struct {
-	Name   string
-	Price  int64
-	Role   string // "Bought" or "Sold"
-	Other  string // counterparty nickname
-	When   string
+	Name  string
+	Price int64
+	Role  string // "Bought" or "Sold"
+	Other string // counterparty nickname
+	When  string
 }
 
 func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid string) {
@@ -60,12 +60,12 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 		return
 	}
 	s.render(w, "ah", map[string]any{
-		"Title":   "Auction House",
-		"Nav":     "ah",
-		"U":       u,
-		"Active":  s.bot.ahActiveListings(uid),
-		"Mine":    s.bot.ahMyListings(uid),
-		"History": s.bot.ahHistory(uid, 20),
+		"Title":    "Auction House",
+		"Nav":      "ah",
+		"U":        u,
+		"Active":   s.bot.ahActiveListings(uid),
+		"Mine":     s.bot.ahMyListings(uid),
+		"History":  s.bot.ahHistory(uid, 20),
 		"Sellable": s.bot.inventoryItems(uid),
 	})
 }
@@ -251,10 +251,9 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 	}
 	var req struct {
 		InvID int64 `json:"inv_id"`
-		Price int64 `json:"price"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Price <= 0 {
-		writeJSON(w, map[string]any{"ok": false, "error": "invalid price"})
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.InvID <= 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "invalid request"})
 		return
 	}
 
@@ -268,6 +267,12 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 	if !ok {
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown gear"})
 		return
+	}
+
+	// Auto-calculate price: (CR×10 + GS×5) × (Rarity+1)
+	price := int64(g.CombatRating()*10+float64(g.Stats.Score())*5) * (int64(g.Rarity) + 1)
+	if price < 10 {
+		price = 10
 	}
 
 	tx, err := s.bot.DB.Begin()
@@ -290,7 +295,7 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 	if _, err := tx.Exec(`
 		INSERT INTO auction_house (seller_uid, item_type, item_id, item_name, item_data, price, durability, expires_at)
 		VALUES ($1, 'gear', $2, $3, $4, $5, $6, NOW() + INTERVAL '7 days')`,
-		uid, g.ID, g.Name, dataJSON, req.Price, dur); err != nil {
+		uid, g.ID, g.Name, dataJSON, price, dur); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "list"})
 		return
 	}
@@ -298,5 +303,5 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 		writeJSON(w, map[string]any{"ok": false, "error": "commit"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "listed": g.Name, "price": req.Price})
+	writeJSON(w, map[string]any{"ok": true, "listed": g.Name, "price": price})
 }

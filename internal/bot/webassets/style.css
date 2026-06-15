@@ -110,6 +110,16 @@ h3{margin:.2em 0 .5em}
 .lbtable td.win{color:var(--good);text-align:right;font-variant-numeric:tabular-nums}
 .lbtable td.loss{color:#ff8585;text-align:right;font-variant-numeric:tabular-nums}
 
+/* Leaderboards page sections */
+.lb-section{margin:1.4rem 0}
+.lb-section h2{margin:0 0 .6rem;font-size:1.1rem}
+
+/* 3D game tabs */
+.game-tabs{display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem 0}
+.game-tab{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:18px;padding:.3rem .75rem;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .12s}
+.game-tab:hover{border-color:var(--accent);color:var(--accent)}
+.game-tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
 /* 3D games hub */
 .g3d-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.7rem}
 .g3d-card{display:flex;flex-direction:column;align-items:center;text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.9rem .7rem;color:var(--text);text-decoration:none;transition:transform .12s,border-color .12s,box-shadow .12s}
@@ -377,3 +387,50 @@ tr.bought-flash{animation:boughtflash .8s ease}
 @keyframes boughtflash{0%{background:rgba(65,201,122,.45)}100%{background:transparent}}
 .ah-table tbody tr:hover .item-ico{animation:wiggle .4s ease}
 @keyframes wiggle{25%{transform:rotate(-12deg)}75%{transform:rotate(12deg)}}
+
+/* ===== Battle Stats Summary ===== */
+.battle-stats-summary {
+  display: flex;
+  gap: 0.8rem;
+  margin: 0.8rem 0;
+  flex-wrap: wrap;
+}
+.stat-pill {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.4rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 90px;
+}
+.stat-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.stat-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+/* Battle History Table Enhancements */
+.histtable td.wave-col { font-weight: 600; color: var(--xp); }
+.histtable td.result-col { font-weight: 600; }
+.histtable td.damage-col { color: var(--muted); font-variant-numeric: tabular-nums; }
+.histtable td.loot-col { color: var(--gold); }
+.histtable tr.milestone { background: rgba(244, 197, 66, 0.08); }
+.milestone-badge {
+  display: inline-block;
+  color: var(--gold);
+  font-size: 0.9rem;
+  margin-left: 4px;
+  animation: pulse 2s ease infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+}

@@ -5,16 +5,25 @@ import "time"
 // battleHistoryRow is one row of the per-user auto-battler history shown on the
 // battle page. Fights are recorded by the TFT combat handler (see web_tft.go).
 type battleHistoryRow struct {
-	MobName string
-	Victory bool
-	GoldWon int64
-	GearWon string
-	When    string
+	MobName       string
+	Victory       bool
+	GoldWon       int64
+	GearWon       string
+	WaveNumber    int
+	HighestWave   int
+	DamageDealt   int
+	TurnsSurvived int
+	IsMilestone   bool
+	When          string
 }
 
 func (b *Bot) battleHistory(uid string, limit int) []battleHistoryRow {
 	rows, err := b.DB.Query(
-		"SELECT mob_name, victory, gold_won, COALESCE(gear_won,''), fought_at FROM battle_history WHERE client_uid=$1 ORDER BY fought_at DESC LIMIT $2",
+		`SELECT mob_name, victory, gold_won, COALESCE(gear_won,''),
+			COALESCE(wave_number, 1), COALESCE(highest_wave, 1),
+			COALESCE(damage_dealt, 0), COALESCE(turns_survived, 0),
+			fought_at
+		 FROM battle_history WHERE client_uid=$1 ORDER BY fought_at DESC LIMIT $2`,
 		uid, limit)
 	if err != nil {
 		return nil
@@ -24,9 +33,11 @@ func (b *Bot) battleHistory(uid string, limit int) []battleHistoryRow {
 	for rows.Next() {
 		var row battleHistoryRow
 		var t time.Time
-		if err := rows.Scan(&row.MobName, &row.Victory, &row.GoldWon, &row.GearWon, &t); err != nil {
+		if err := rows.Scan(&row.MobName, &row.Victory, &row.GoldWon, &row.GearWon,
+			&row.WaveNumber, &row.HighestWave, &row.DamageDealt, &row.TurnsSurvived, &t); err != nil {
 			continue
 		}
+		row.IsMilestone = row.WaveNumber%5 == 0
 		row.When = t.Format("Jan 02 15:04")
 		out = append(out, row)
 	}
