@@ -1467,7 +1467,7 @@ content.gear.slot.totem: "totem"
 
 # ─── Content Pools: Gear Names ───
 
-content.gear.procedural: "%[1]s %[2]s من %[3]s"
+content.gear.procedural: "%[1]s %[2]s %[3]s"
 content.gear.novice: "مبتدئ %[1]s"
 
 # ─── Content Pools: Unique Gear Names ───

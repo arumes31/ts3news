@@ -118,8 +118,9 @@
 <h2 class="more-games-h">🕹️ All Games</h2>
 <div class="arcade-grid" id="moreGames"></div>
 
-<h2 class="lb-h">🏆 Leaderboards — Most Wins</h2>
-{{template "leaderboards" .Leaders}}
+<div class="lb-nav-banner">
+  <a href="/leaderboards" class="lb-nav-btn">🏆 View Leaderboards</a>
+</div>
 
 <script>
   const WHEEL = {{.WheelJSON }};

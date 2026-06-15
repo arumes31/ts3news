@@ -1467,7 +1467,7 @@ content.gear.slot.totem: "टोटेम"
 
 # ─── Content Pools: Gear Names ───
 
-content.gear.procedural: "%[1]s %[2]s %[3]s का"
+content.gear.procedural: "%[1]s %[2]s %[3]s"
 content.gear.novice: "नौसिखिया %[1]s"
 
 # ─── Content Pools: Unique Gear Names ───
