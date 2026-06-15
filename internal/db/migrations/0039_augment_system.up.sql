@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS tft_augments (
 -- Player augment selections table
 CREATE TABLE IF NOT EXISTS tft_player_augments (
     id SERIAL PRIMARY KEY,
-    user_id VARCHAR(64) NOT NULL REFERENCES users(client_uid) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(client_uid) ON DELETE CASCADE,
     augment_id VARCHAR(64) NOT NULL REFERENCES tft_augments(id) ON DELETE CASCADE,
     selected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     game_id VARCHAR(64) DEFAULT '',
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS tft_player_augments (
 -- Augment offers table (current offers for selection)
 CREATE TABLE IF NOT EXISTS tft_augment_offers (
     id SERIAL PRIMARY KEY,
-    user_id VARCHAR(64) NOT NULL REFERENCES users(client_uid) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(client_uid) ON DELETE CASCADE,
     offer_index INTEGER NOT NULL CHECK (offer_index IN (0, 1, 2)),
     augment_id VARCHAR(64) NOT NULL REFERENCES tft_augments(id) ON DELETE CASCADE,
     stage INTEGER NOT NULL DEFAULT 1,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS tft_augment_offers (
 
 -- Player augment state (reroll count, etc.)
 CREATE TABLE IF NOT EXISTS tft_augment_state (
-    user_id VARCHAR(64) PRIMARY KEY REFERENCES users(client_uid) ON DELETE CASCADE,
+    user_id TEXT PRIMARY KEY REFERENCES users(client_uid) ON DELETE CASCADE,
     reroll_count INTEGER DEFAULT 0,
     last_offer_stage INTEGER DEFAULT 0,
     last_offer_round INTEGER DEFAULT 0,
