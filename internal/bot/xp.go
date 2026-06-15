@@ -1114,6 +1114,10 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 				penalty = 10
 			}
 			finalXP -= penalty
+
+			// Increase jackpot by 1% of lost XP value
+			b.incrementJackpot("global", int64(penalty))
+
 			logs = append(logs, deathPenaltyLine(u.Nickname, penalty))
 			u.CurrentHP = 0   // dead
 			u.RegenStacks = 0 // lose stacks on death
@@ -1182,6 +1186,19 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 
 	if victory {
 		logs = append(logs, i18n.T("bot.combat.victory", len(initialMobs), zone.Name))
+
+		// 1% chance for global jackpot on victory
+		// #nosec G404
+		if rand.Float64() < 0.01 {
+			// Find a winner among participants
+			// #nosec G404
+			winner := users[rand.IntN(len(users))]
+			jackpot := b.claimJackpot(winner.UID, "global")
+			if jackpot > 0 {
+				logs = append(logs, "🔥 GLOBAL JACKPOT WIN! "+winner.Nickname+" won "+FormatGold(jackpot)+"!")
+			}
+		}
+
 		return logs, totalRewardXP / len(users), true
 	}
 	logs = append(logs, i18n.T("bot.combat.defeat", zone.Name))

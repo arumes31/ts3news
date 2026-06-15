@@ -88,6 +88,44 @@ func (b *Bot) listAuctionItem(uid, itype, id, name string, data interface{}, pri
 	}
 }
 
+// CleanupAuctionHouse performs maintenance on the Auction House.
+// Items older than 7 days are bought by 'The House' for 0.00001% of their price (min 1g).
+func (b *Bot) CleanupAuctionHouse() {
+	rows, err := b.DB.Query(`
+		SELECT id, seller_uid, price 
+		FROM auction_house 
+		WHERE sold_at IS NULL AND listed_at < NOW() - INTERVAL '7 days'`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id int
+		var sellerUID string
+		var price int64
+		if err := rows.Scan(&id, &sellerUID, &price); err == nil {
+			// Price * 0.00001% = Price * 0.0000001
+			housePrice := int64(float64(price) * 0.0000001)
+			if housePrice < 1 {
+				housePrice = 1
+			}
+
+			tx, err := b.DB.Begin()
+			if err != nil {
+				continue
+			}
+
+			// Mark as sold to "HOUSE"
+			_, _ = tx.Exec("UPDATE auction_house SET buyer_uid = 'HOUSE', sold_at = NOW() WHERE id = $1", id)
+			// Pay the seller
+			_, _ = tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", housePrice, sellerUID)
+
+			_ = tx.Commit()
+		}
+	}
+}
+
 // GearDropResult describes what happened when a gear item was awarded.
 type GearDropResult struct {
 	Action   string // "equipped", "listed", "inventoried"

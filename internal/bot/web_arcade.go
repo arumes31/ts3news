@@ -101,19 +101,41 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 
-	// Progressive Jackpot logic (Slots only for now)
-	if req.Game == "slots" {
-		if out.Detail == "JACKPOT! 5 of a kind ×88" {
-			jackpot := s.bot.claimJackpot(uid, "slots")
-			if jackpot > 0 {
-				out.JackpotWin = true
-				out.JackpotAmount = jackpot
-				out.Payout += jackpot
-			}
-		} else {
-			s.bot.incrementJackpot("slots", req.Bet)
+	// Progressive Jackpot logic (Triggerable in every game)
+	isJackpot := false
+	switch req.Game {
+	case "slots":
+		isJackpot = out.Detail == "JACKPOT! 5 of a kind ×88"
+	case "dice":
+		isJackpot = out.Payout >= req.Bet*5 // High multiplier win
+	case "coin":
+		// Coin flip has small multipliers, maybe consecutive wins?
+		// For now, let's just make it a random chance on win
+		if out.Win && rng.IntN(100) < 2 { isJackpot = true }
+	default:
+		// Generic random chance for other games
+		if out.Win && rng.IntN(100) < 1 { isJackpot = true }
+	}
+
+	if isJackpot {
+		jackpot := s.bot.claimJackpot(uid, "global")
+		if jackpot > 0 {
+			out.JackpotWin = true
+			out.JackpotAmount = jackpot
+			out.Payout += jackpot
+			out.Detail = "🔥 GLOBAL JACKPOT WIN! " + out.Detail
 		}
-		out.NewJackpot = s.bot.getJackpot("slots")
+	} else if out.Payout < req.Bet {
+		// Increment jackpot by 1% of lost value (net loss)
+		lost := req.Bet - out.Payout
+		s.bot.incrementJackpot("global", lost)
+	}
+
+	out.NewJackpot = s.bot.getJackpot("global")
+
+	// Progressive Jackpot logic (Slots only for legacy compatibility, but uses global now)
+	if req.Game == "slots" {
+		out.NewJackpot = s.bot.getJackpot("global")
 	}
 
 	// Credit the payout and read the resulting balance atomically (via RETURNING)
