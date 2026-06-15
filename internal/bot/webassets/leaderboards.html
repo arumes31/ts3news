@@ -1,0 +1,56 @@
+{{define "leaderboards"}}{{template "head" .}}
+<div class="container">
+  <h1>🏆 Leaderboards</h1>
+  <p class="muted">Top performers across all game modes.</p>
+
+  <!-- ARCADE LEADERBOARDS -->
+  <div class="lb-section">
+    <h2>🎰 Arcade Games</h2>
+    {{template "leaderboards" .ArcadeLeaders}}
+  </div>
+
+  <!-- TFT BATTLE LEADERBOARDS -->
+  <div class="lb-section">
+    <h2>♟️ TFT Battle</h2>
+    {{template "leaderboards" .TFTLeaders}}
+  </div>
+
+  <!-- 3D GAMES LEADERBOARDS -->
+  <div class="lb-section">
+    <h2>🎮 3D Games</h2>
+    <div class="game-tabs" id="gameTabs">
+      {{range $i, $g := .Game3DList}}
+      <button class="game-tab{{if eq $i 0}} active{{end}}" data-game="{{$g.ID}}">{{$g.Name}}</button>
+      {{end}}
+    </div>
+    <div id="3d-leaderboard-content">
+      {{range $gameID, $lbs := .Arcade3DLeaders}}
+      <div class="game-lb" data-game="{{$gameID}}" style="display:none;">
+        {{template "leaderboards3d" $lbs}}
+      </div>
+      {{end}}
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const tabs = document.querySelectorAll('.game-tab');
+  const panels = document.querySelectorAll('.game-lb');
+  tabs.forEach(function(tab){
+    tab.addEventListener('click', function(){
+      const game = this.getAttribute('data-game');
+      tabs.forEach(function(t){ t.classList.remove('active'); });
+      panels.forEach(function(p){ p.style.display = 'none'; });
+      this.classList.add('active');
+      const target = document.querySelector('.game-lb[data-game="'+game+'"]');
+      if(target) target.style.display = 'block';
+    });
+  });
+  // Show first game by default
+  if(tabs.length > 0){
+    tabs[0].click();
+  }
+})();
+</script>
+{{template "foot" .}}{{end}}

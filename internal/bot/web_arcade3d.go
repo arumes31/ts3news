@@ -2,9 +2,12 @@ package bot
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand/v2"
 	"net/http"
+	"regexp"
 	"strings"
+	"time"
 
 	"ts3news/internal/content"
 )
@@ -12,6 +15,38 @@ import (
 // arcade3dGoldCap bounds the gold a single skill-game run can award, since the
 // score is reported by the (untrusted) client.
 const arcade3dGoldCap = 1500
+
+// arcade3dScoreRewardTier defines a score threshold and its bonus gold reward.
+// Tiers provide incremental bonuses for achieving higher scores, encouraging replayability.
+var arcade3dScoreRewardTiers = []struct {
+	Threshold int64
+	BonusGold int
+}{
+	{100, 10},
+	{500, 25},
+	{1000, 50},
+	{2000, 100},
+	{5000, 250},
+}
+
+// arcade3dGearTier defines score thresholds for improved gear drop chances.
+var arcade3dGearTiers = []struct {
+	Threshold  int64
+	BaseChance int
+	CapChance  int
+}{
+	{0, 10, 40},    // Base tier: 10% base, 40% cap
+	{500, 15, 50},  // Intermediate: 15% base, 50% cap
+	{1500, 20, 60}, // Advanced: 20% base, 60% cap
+	{3000, 25, 70}, // Expert: 25% base, 70% cap
+}
+
+// validGameIDPattern ensures game identifiers match expected format (alphanumeric with underscores/hyphens).
+var validGameIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
+// arcade3dRecentRewards tracks recent reward claims to prevent double-spending.
+// Key: "uid:game:score", Value: timestamp
+var arcade3dRecentRewards = make(map[string]time.Time)
 
 // mini3DGame is one entry in the 3D games hub.
 type mini3DGame struct {
@@ -98,13 +133,112 @@ func (s *WebServer) handleArcade3DPlay(w http.ResponseWriter, r *http.Request, u
 	_, _ = w.Write(b)
 }
 
-// handleArcade3DReward converts a reported game score into gold (capped) and a
-// score-scaled gear drop, then records the play for the leaderboards.
+// sanitizeGameID validates and sanitizes a game identifier to prevent SQL injection.
+// Returns the sanitized game ID or empty string if invalid.
+func sanitizeGameID(game string) string {
+	game = strings.TrimSpace(game)
+	if len(game) == 0 || len(game) > 50 {
+		return ""
+	}
+	if !validGameIDPattern.MatchString(game) {
+		return ""
+	}
+	return game
+}
+
+// calculateArcade3DGold computes gold reward from score with tier bonuses.
+// Formula: base = min(score/2 + 20, 1500) + tier bonuses
+// Returns the total gold awarded.
+func calculateArcade3DGold(score int64) int {
+	// Base gold calculation: score/2 + 20, capped at arcade3dGoldCap
+	baseGold := int(score/2) + 20
+	if baseGold > arcade3dGoldCap {
+		baseGold = arcade3dGoldCap
+	}
+
+	// Add tier bonuses for achieving higher score thresholds
+	bonusGold := 0
+	for _, tier := range arcade3dScoreRewardTiers {
+		if score >= tier.Threshold {
+			bonusGold += tier.BonusGold
+		}
+	}
+
+	return baseGold + bonusGold
+}
+
+// calculateArcade3DGearChance computes gear drop chance based on score tiers.
+// Formula: chance = min(score/scale + base, cap)% where scale/base/cap vary by tier
+// Returns the drop chance as a percentage (0-100).
+func calculateArcade3DGearChance(score int64) int {
+	// Find the appropriate tier for this score
+	tier := arcade3dGearTiers[0] // default to base tier
+	for _, t := range arcade3dGearTiers {
+		if score >= t.Threshold {
+			tier = t
+		}
+	}
+
+	// Calculate chance: base + score scaling, capped at tier maximum
+	// Scale factor of 50 provides gradual increase within each tier
+	chance := tier.BaseChance + int(score/50)
+	if chance > tier.CapChance {
+		chance = tier.CapChance
+	}
+	return chance
+}
+
+// recordArcade3DResult inserts a game result into the arcade3d_scores table.
+// Returns the gear won (if any) as a string.
+func (s *WebServer) recordArcade3DResult(uid, game string, score int64, goldAwarded int, gearWon string) error {
+	_, err := s.bot.DB.Exec(
+		`INSERT INTO arcade3d_scores (client_uid, game, score, gold_awarded, gear_won)
+		 VALUES ($1, $2, $3, $4, $5)`,
+		uid, game, score, goldAwarded, gearWon,
+	)
+	return err
+}
+
+// isDuplicateReward checks if this exact score was recently claimed by this user for this game.
+// Prevents double-spending of the same score submission.
+func isDuplicateReward(uid, game string, score int64) bool {
+	key := fmt.Sprintf("%s:%s:%d", uid, game, score)
+	if ts, exists := arcade3dRecentRewards[key]; exists {
+		// Allow re-submission after 5 minutes
+		if time.Since(ts) < 5*time.Minute {
+			return true
+		}
+		// Clean up old entry
+		delete(arcade3dRecentRewards, key)
+	}
+	return false
+}
+
+// markRewardClaimed records that this score has been claimed for reward purposes.
+func markRewardClaimed(uid, game string, score int64) {
+	key := fmt.Sprintf("%s:%s:%d", uid, game, score)
+	arcade3dRecentRewards[key] = time.Now()
+
+	// Periodically clean up old entries (simple approach: limit map size)
+	if len(arcade3dRecentRewards) > 10000 {
+		cutoff := time.Now().Add(-10 * time.Minute)
+		for k, ts := range arcade3dRecentRewards {
+			if ts.Before(cutoff) {
+				delete(arcade3dRecentRewards, k)
+			}
+		}
+	}
+}
+
+// handleArcade3DReward converts a reported game score into gold (with tier bonuses)
+// and a score-scaled gear drop chance, then records the result to arcade3d_scores table.
+// Expects POST with JSON body: {"game": "snake", "score": 1500}
 func (s *WebServer) handleArcade3DReward(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+
 	var req struct {
 		Game  string `json:"game"`
 		Score int64  `json:"score"`
@@ -113,15 +247,31 @@ func (s *WebServer) handleArcade3DReward(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
-	if req.Score < 0 {
-		req.Score = 0
+
+	// Validate game identifier - sanitize to prevent SQL injection
+	game := sanitizeGameID(req.Game)
+	if game == "" {
+		writeJSON(w, map[string]any{"ok": false, "error": "invalid game identifier"})
+		return
 	}
 
-	// Score → gold, with a per-run cap to bound the client-reported value.
-	gold := req.Score/2 + 20
-	if gold > arcade3dGoldCap {
-		gold = arcade3dGoldCap
+	// Validate score is non-negative
+	if req.Score < 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "score must be non-negative"})
+		return
 	}
+
+	// Rate limiting: prevent double-spending the same score
+	if isDuplicateReward(uid, game, req.Score) {
+		writeJSON(w, map[string]any{"ok": false, "error": "reward already claimed for this score"})
+		return
+	}
+
+	// Calculate gold reward with tier bonuses
+	// Formula: base = min(score/2 + 20, 1500) + sum of tier bonuses
+	gold := calculateArcade3DGold(req.Score)
+
+	// Award gold to user
 	var bal int64
 	if err := s.bot.DB.QueryRow(
 		"UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", gold, uid,
@@ -130,22 +280,34 @@ func (s *WebServer) handleArcade3DReward(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	// Gear drop chance rises with score, capped at 60%.
-	chance := int(req.Score/40) + 10
-	if chance > 60 {
-		chance = 60
-	}
-	gear := ""
+	// Calculate gear drop chance based on score tier
+	// Higher scores unlock better tiers with higher base chances and caps
+	chance := calculateArcade3DGearChance(req.Score)
+
+	// Roll for gear drop
 	// #nosec G404 -- non-cryptographic drop roll
+	gear := ""
 	if rand.IntN(100) < chance {
 		g := content.RandomGearDrop()
-		if _, err := s.bot.DB.Exec(
-			"INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1,$2,$3)", uid, g.ID, g.MaxDurability,
-		); err == nil {
-			gear = g.Rarity.String() + " " + g.Name
-		}
+		result := s.bot.awardGearDrop(uid, g)
+		gear = result.Prefix + result.ItemName
 	}
 
-	s.bot.recordGameResult(uid, "arcade3d", req.Score > 0, gold)
-	writeJSON(w, map[string]any{"ok": true, "gold_won": gold, "gear": gear, "gold": bal})
+	// Record result in arcade3d_scores table for per-game leaderboards
+	if err := s.recordArcade3DResult(uid, game, req.Score, gold, gear); err != nil {
+		// Log error but don't fail the request - gold was already awarded
+		// The gear_won field will be empty in the record
+		_ = s.recordArcade3DResult(uid, game, req.Score, gold, "")
+	}
+
+	// Mark this reward as claimed to prevent double-spending
+	markRewardClaimed(uid, game, req.Score)
+
+	writeJSON(w, map[string]any{
+		"ok":       true,
+		"gold_won": gold,
+		"gear":     gear,
+		"gold":     bal,
+		"chance":   chance, // Include chance for transparency
+	})
 }

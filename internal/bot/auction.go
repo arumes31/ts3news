@@ -26,7 +26,7 @@ type AuctionItem struct {
 func (b *Bot) autoListUnwantedItems(uid string, item interface{}) {
 	var g content.Gear
 	var itype string
-	
+
 	switch v := item.(type) {
 	case content.Gear:
 		if v.Rarity < content.RarityRare {
@@ -69,12 +69,59 @@ func (b *Bot) listAuctionItem(uid, itype, id, name string, data interface{}, pri
 		return
 	}
 	expires := time.Now().Add(24 * time.Hour)
-	
+
 	_, err = b.DB.Exec(`INSERT INTO auction_house (seller_uid, item_type, item_id, item_name, item_data, price, expires_at) 
 	                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		uid, itype, id, name, dataJSON, price, expires)
 	if err != nil {
 		log.Printf("Failed to list item on AH: %v", err)
+	}
+}
+
+// GearDropResult describes what happened when a gear item was awarded.
+type GearDropResult struct {
+	Action   string // "equipped", "listed", "inventoried"
+	ItemName string
+	Prefix   string // emoji prefix for display
+}
+
+// awardGearDrop handles a gear drop from game loot sources.
+// It auto-equips upgrades, auto-lists non-upgrade Rare+ items on AH,
+// and puts everything else into inventory.
+func (b *Bot) awardGearDrop(uid string, g content.Gear) GearDropResult {
+	itemName := g.Rarity.String() + " " + g.Name
+
+	if b.shouldEquip(uid, g) {
+		// Equip the item directly
+		_, err := b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability)
+		                     VALUES ($1, $2, $3, $4)
+		                     ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = EXCLUDED.gear_id, durability = EXCLUDED.durability`,
+			uid, string(g.Slot), g.ID, g.MaxDurability)
+		if err == nil {
+			return GearDropResult{
+				Action:   "equipped",
+				ItemName: itemName,
+				Prefix:   "⬆️ Equipped: ",
+			}
+		}
+		// Fall through to inventory on error
+	} else if g.Rarity >= content.RarityRare {
+		// List on auction house
+		b.autoListUnwantedItems(uid, g)
+		return GearDropResult{
+			Action:   "listed",
+			ItemName: itemName,
+			Prefix:   "🏷️ Listed on AH: ",
+		}
+	}
+
+	// Fallback: insert into inventory
+	_, _ = b.DB.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1,$2,$3)",
+		uid, g.ID, g.MaxDurability)
+	return GearDropResult{
+		Action:   "inventoried",
+		ItemName: itemName,
+		Prefix:   "🎒 ",
 	}
 }
 
@@ -108,7 +155,7 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 					if err != nil {
 						continue
 					}
-					
+
 					// 1. Deduct gold
 					res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", price, uid)
 					if err != nil {
@@ -120,7 +167,7 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 						_ = tx.Rollback()
 						continue
 					}
-					
+
 					// 2. Mark sold (ensure it wasn't bought concurrently)
 					res, err = tx.Exec("UPDATE auction_house SET buyer_uid = $1, sold_at = NOW() WHERE id = $2 AND buyer_uid IS NULL", uid, ahID)
 					if err != nil {
@@ -132,14 +179,14 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 						_ = tx.Rollback()
 						continue
 					}
-					
+
 					// 3. Give gold to seller
 					_, err = tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", price, sellerUID)
 					if err != nil {
 						_ = tx.Rollback()
 						continue
 					}
-					
+
 					// 4. Equip item
 					_, err = tx.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) 
 					                  VALUES ($1, $2, $3, $4) 
@@ -149,16 +196,16 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 						_ = tx.Rollback()
 						continue
 					}
-					
+
 					if err := tx.Commit(); err != nil {
-					        log.Printf("Failed to commit AH purchase: %v", err)
-					        _ = tx.Rollback()
-					        continue
+						log.Printf("Failed to commit AH purchase: %v", err)
+						_ = tx.Rollback()
+						continue
 					}
 					return i18n.T("ah.purchase", name, FormatGold(price), "")
-					}
-					}
-					}
-					}
-					return ""
-					}
+				}
+			}
+		}
+	}
+	return ""
+}

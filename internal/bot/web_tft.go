@@ -23,8 +23,8 @@ const (
 	rerollCost   = 2
 )
 
-func cellRow(c int) int { return c / tftCols }
-func cellCol(c int) int { return c % tftCols }
+func cellRow(c int) int       { return c / tftCols }
+func cellCol(c int) int       { return c % tftCols }
 func isPlayerCell(c int) bool { return c >= tftCols*2 && c < tftCells }
 
 // ===== Champion definitions =====
@@ -251,9 +251,10 @@ func (s *WebServer) handleBattlePage(w http.ResponseWriter, r *http.Request, uid
 		"BoardJSON": jsonJS(board),
 		"ShopJSON":  jsonJS(shop),
 		"Cols":      tftCols, "Rows": tftRows, "Cells": tftCells,
-		"History":   s.bot.battleHistory(uid, 12),
-		"Leaders":   s.bot.gameLeaderboards("tft"),
-		"Inventory": s.bot.inventoryItems(uid),
+		"History":     s.bot.battleHistory(uid, 12),
+		"Leaders":     s.bot.gameLeaderboards("tft"),
+		"Inventory":   s.bot.inventoryItems(uid),
+		"BattleStats": s.bot.getBattleStats(uid),
 		"Traits": map[string]any{
 			"warrior":  []int{2, 4, 6},
 			"tank":     []int{2, 4, 6},
@@ -267,7 +268,9 @@ func (s *WebServer) handleBattlePage(w http.ResponseWriter, r *http.Request, uid
 
 // ===== Shop / board management APIs =====
 func (s *WebServer) handleTFTBuy(w http.ResponseWriter, r *http.Request, uid string) {
-	var req struct{ Index int `json:"index"` }
+	var req struct {
+		Index int `json:"index"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
@@ -360,7 +363,9 @@ func (s *WebServer) handleTFTPlace(w http.ResponseWriter, r *http.Request, uid s
 }
 
 func (s *WebServer) handleTFTSell(w http.ResponseWriter, r *http.Request, uid string) {
-	var req struct{ ID string `json:"id"` }
+	var req struct {
+		ID string `json:"id"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
@@ -456,14 +461,20 @@ type tftFrame struct {
 }
 
 type tftCombatResult struct {
-	OK      bool       `json:"ok"`
-	Error   string     `json:"error,omitempty"`
-	Victory bool       `json:"victory"`
-	IsCreep bool       `json:"is_creep"`
-	Frames  []tftFrame `json:"frames"`
-	GoldWon int64      `json:"gold_won"`
-	GearWon string     `json:"gear_won,omitempty"`
-	Gold    int64      `json:"gold"`
+	OK            bool       `json:"ok"`
+	Error         string     `json:"error,omitempty"`
+	Victory       bool       `json:"victory"`
+	IsCreep       bool       `json:"is_creep"`
+	Frames        []tftFrame `json:"frames"`
+	GoldWon       int64      `json:"gold_won"`
+	GearWon       string     `json:"gear_won,omitempty"`
+	Gold          int64      `json:"gold"`
+	WaveNumber    int        `json:"wave_number"`
+	HighestWave   int        `json:"highest_wave"`
+	DamageDealt   int        `json:"damage_dealt"`
+	TurnsSurvived int        `json:"turns_survived"`
+	IsMilestone   bool       `json:"is_milestone"`
+	Streak        int        `json:"streak"`
 }
 
 type simUnit struct {
@@ -476,6 +487,7 @@ type simUnit struct {
 	traits         []string
 	critChance     int // 0-100
 	dmgRed         float64
+	damageDealt    int
 }
 
 var enemyIcons = []string{"👹", "👺", "💀", "👻", "🦂", "🕷️", "🐍", "🦅"}
@@ -504,7 +516,7 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 			continue
 		}
 		hp, atk := starStats(d, un.Star)
-		
+
 		// Apply item bonuses
 		for _, itmID := range un.Items {
 			gear, ok := content.GetGearByID(itmID)
@@ -526,61 +538,103 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 
-	// Check if this is a creep round (based on history length)
-	var histCount int
-	_ = s.bot.DB.QueryRow("SELECT COUNT(*) FROM battle_history WHERE client_uid=$1", uid).Scan(&histCount)
-	isCreep := histCount > 0 && histCount%3 == 0
+	// Calculate wave number based on battle history
+	var waveNumber int
+	_ = s.bot.DB.QueryRow("SELECT COALESCE(MAX(wave_number), 0) FROM battle_history WHERE client_uid=$1", uid).Scan(&waveNumber)
+	waveNumber++
+
+	// Check if this is a creep round (every 3rd wave)
+	isCreep := waveNumber%3 == 0
 
 	var enemies []*simUnit
 	if isCreep {
-		enemies = generateCreeps(u.Level)
+		enemies = generateCreeps(u.Level, waveNumber)
 	} else {
-		enemies = generateEnemies(len(units), u.Level)
+		enemies = generateEnemies(len(units), u.Level, waveNumber)
 	}
 	units = append(units, enemies...)
 
 	// Apply synergies
 	applySynergies(units)
 
-	frames, victory := simulateTFT(units)
+	// Track wave milestone (every 5 waves)
+	isMilestone := waveNumber%5 == 0
 
-	// Rewards.
-	res := tftCombatResult{OK: true, Victory: victory, Frames: frames, IsCreep: isCreep}
+	frames, victory, damageDealt, turnsSurvived := simulateTFT(units)
+
+	// Calculate rewards with wave-based scaling
+	res := tftCombatResult{
+		OK:            true,
+		Victory:       victory,
+		Frames:        frames,
+		IsCreep:       isCreep,
+		WaveNumber:    waveNumber,
+		DamageDealt:   damageDealt,
+		TurnsSurvived: turnsSurvived,
+		IsMilestone:   isMilestone,
+	}
+
 	if victory {
-		res.GoldWon = int64(3 + len(enemies)*2 + u.Level/3)
+		// Base gold reward
+		baseGold := int64(3 + len(enemies)*2 + u.Level/3)
+
+		// Wave scaling: +1 gold per wave
+		waveBonus := int64(waveNumber)
+
+		// Creep round bonus (2x)
+		creepMultiplier := int64(1)
 		if isCreep {
-			res.GoldWon *= 2 // Double gold for creep rounds
+			creepMultiplier = 2
 		}
+
+		// Milestone bonus (every 5 waves)
+		milestoneBonus := int64(0)
+		if isMilestone {
+			milestoneBonus = int64(5 * (waveNumber / 5))
+		}
+
+		res.GoldWon = (baseGold + waveBonus + milestoneBonus) * creepMultiplier
 		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", res.GoldWon, uid)
-		
-		// Improve gear: 45% chance to drop a gear piece. Guaranteed on Creep victory.
-		dropChance := 45
+
+		// Gear drop chance with wave scaling
+		// Base 45%, +1% per wave, guaranteed on creep rounds
+		dropChance := 45 + waveNumber
+		if dropChance > 90 {
+			dropChance = 90 // Cap at 90% for non-creep
+		}
 		if isCreep {
 			dropChance = 100
 		}
+
 		// #nosec G404
 		if rand.IntN(100) < dropChance {
 			g := content.RandomGearDrop()
-			if _, err := s.bot.DB.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1,$2,$3)", uid, g.ID, g.MaxDurability); err == nil {
-				res.GearWon = g.Rarity.String() + " " + g.Name
-			}
+			result := s.bot.awardGearDrop(uid, g)
+			res.GearWon = result.Prefix + result.ItemName
 		}
 	}
-	// Record history.
+	// Record history with wave tracking
 	var gearWon any
 	if res.GearWon != "" {
 		gearWon = res.GearWon
 	}
-	mobName := fmt.Sprintf("TFT (%d enemies)", len(enemies))
+	mobName := fmt.Sprintf("Wave %d (%d enemies)", waveNumber, len(enemies))
 	if isCreep {
-		mobName = "CREEP ROUND: Golems & Wolves"
+		mobName = fmt.Sprintf("CREEP WAVE %d: Golems & Wolves", waveNumber)
 	}
 	_, _ = s.bot.DB.Exec(
-		"INSERT INTO battle_history (client_uid, mob_name, victory, gold_won, gear_won) VALUES ($1,$2,$3,$4,$5)",
-		uid, mobName, victory, res.GoldWon, gearWon)
+		`INSERT INTO battle_history (client_uid, mob_name, victory, gold_won, gear_won, wave_number, highest_wave, damage_dealt, turns_survived)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		uid, mobName, victory, res.GoldWon, gearWon, waveNumber, waveNumber, damageDealt, turnsSurvived)
+
+	// Update battle statistics
+	s.bot.updateBattleStats(uid, victory, waveNumber, damageDealt, turnsSurvived)
+
 	s.bot.recordGameResult(uid, "tft", victory, res.GoldWon)
 
 	res.Gold = s.bot.userGold(uid)
+	res.HighestWave = waveNumber
+	res.Streak = s.bot.getCurrentStreak(uid)
 	writeJSON(w, res)
 }
 
@@ -647,14 +701,17 @@ func applySynergies(units []*simUnit) {
 	}
 }
 
-func generateEnemies(playerCount, level int) []*simUnit {
+func generateEnemies(playerCount, level int, wave int) []*simUnit {
 	count := playerCount + 1
 	if count > 8 {
 		count = 8
 	}
 	// #nosec G404
 	r := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
-	scale := 1.0 + 0.06*float64(level)
+
+	// Scale with both level and wave
+	scale := 1.0 + 0.06*float64(level) + 0.03*float64(wave)
+
 	var out []*simUnit
 	// Place enemies across the top two rows.
 	cells := []int{}
@@ -679,24 +736,40 @@ func generateEnemies(playerCount, level int) []*simUnit {
 	return out
 }
 
-func generateCreeps(level int) []*simUnit {
-	scale := 1.2 + 0.1*float64(level)
+func generateCreeps(level int, wave int) []*simUnit {
+	// Creeps scale harder with wave progression
+	scale := 1.2 + 0.1*float64(level) + 0.05*float64(wave)
 	var out []*simUnit
-	
-	// Buffed units
+
+	// Golem tank
 	out = append(out, &simUnit{
 		id: "c1", icon: "🗿", side: "enemy", pos: 3, star: 1,
-		hp: int(2000*scale), maxhp: int(2000*scale), atk: int(100*scale), rng: 1,
+		hp: int(2000 * scale), maxhp: int(2000 * scale), atk: int(100 * scale), rng: 1,
 	})
+	// Wolf pack
 	out = append(out, &simUnit{
 		id: "c2", icon: "🐺", side: "enemy", pos: 10, star: 1,
-		hp: int(800*scale), maxhp: int(800*scale), atk: int(150*scale), rng: 1,
+		hp: int(800 * scale), maxhp: int(800 * scale), atk: int(150 * scale), rng: 1,
 	})
 	out = append(out, &simUnit{
 		id: "c3", icon: "🐺", side: "enemy", pos: 11, star: 1,
-		hp: int(800*scale), maxhp: int(800*scale), atk: int(150*scale), rng: 1,
+		hp: int(800 * scale), maxhp: int(800 * scale), atk: int(150 * scale), rng: 1,
 	})
-	
+
+	// Add more wolves on higher waves
+	if wave >= 6 {
+		out = append(out, &simUnit{
+			id: "c4", icon: "🐺", side: "enemy", pos: 12, star: 1,
+			hp: int(800 * scale), maxhp: int(800 * scale), atk: int(150 * scale), rng: 1,
+		})
+	}
+	if wave >= 12 {
+		out = append(out, &simUnit{
+			id: "c5", icon: "🐺", side: "enemy", pos: 13, star: 1,
+			hp: int(800 * scale), maxhp: int(800 * scale), atk: int(150 * scale), rng: 1,
+		})
+	}
+
 	return out
 }
 
@@ -715,9 +788,9 @@ func chebyshev(a, b int) int {
 	return dc
 }
 
-// simulateTFT runs the board fight tick by tick, returning animation frames and
-// whether the player's side won.
-func simulateTFT(units []*simUnit) ([]tftFrame, bool) {
+// simulateTFT runs the board fight tick by tick, returning animation frames,
+// whether the player's side won, total damage dealt, and turns survived.
+func simulateTFT(units []*simUnit) ([]tftFrame, bool, int, int) {
 	const maxTicks = 120
 	const attackCooldown = 2
 
@@ -733,6 +806,9 @@ func simulateTFT(units []*simUnit) ([]tftFrame, bool) {
 	}
 
 	frames := []tftFrame{snapshot()}
+
+	totalDamage := 0
+	ticksSurvived := 0
 
 	alive := func(side string) int {
 		n := 0
@@ -807,6 +883,12 @@ func simulateTFT(units []*simUnit) ([]tftFrame, bool) {
 					}
 					events = append(events, tftEvent{From: u.id, To: tgt.id, Dmg: dmg})
 					u.cd = attackCooldown
+
+					// Track damage dealt by player units
+					if u.side == "you" {
+						u.damageDealt += dmg
+						totalDamage += dmg
+					}
 				}
 			} else {
 				// Step one cell toward the target.
@@ -828,9 +910,18 @@ func simulateTFT(units []*simUnit) ([]tftFrame, bool) {
 			}
 		}
 		frames = append(frames, snapshotWithEvents(units, events))
+		ticksSurvived++
 	}
 
-	return frames, alive("you") > 0 && alive("enemy") == 0
+	// Count only player-side damage
+	playerDamage := 0
+	for _, u := range units {
+		if u.side == "you" {
+			playerDamage += u.damageDealt
+		}
+	}
+
+	return frames, alive("you") > 0 && alive("enemy") == 0, playerDamage, ticksSurvived
 }
 
 func snapshotWithEvents(units []*simUnit, events []tftEvent) tftFrame {
@@ -862,4 +953,72 @@ func cellOf(row, col int) int {
 		return -1
 	}
 	return row*tftCols + col
+}
+
+// updateBattleStats updates the player's cumulative battle statistics after a fight.
+func (b *Bot) updateBattleStats(uid string, victory bool, wave int, damage int, turns int) {
+	// Upsert battle_stats record
+	_, _ = b.DB.Exec(`
+		INSERT INTO battle_stats (client_uid, total_battles, total_wins, total_losses,
+			current_streak, best_streak, highest_wave, total_damage, total_turns, updated_at)
+		SELECT
+			$1,
+			COALESCE(total_battles, 0) + 1,
+			COALESCE(total_wins, 0) + CASE WHEN $2 THEN 1 ELSE 0 END,
+			COALESCE(total_losses, 0) + CASE WHEN $2 THEN 0 ELSE 1 END,
+			CASE
+				WHEN $2 THEN COALESCE(current_streak, 0) + 1
+				ELSE 0
+			END,
+			GREATEST(COALESCE(best_streak, 0),
+				CASE WHEN $2 THEN COALESCE(current_streak, 0) + 1 ELSE 0 END),
+			GREATEST(COALESCE(highest_wave, 1), $3),
+			COALESCE(total_damage, 0) + $4,
+			COALESCE(total_turns, 0) + $5,
+			NOW()
+		FROM battle_stats WHERE client_uid = $1
+		ON CONFLICT (client_uid) DO UPDATE SET
+			total_battles = EXCLUDED.total_battles,
+			total_wins = EXCLUDED.total_wins,
+			total_losses = EXCLUDED.total_losses,
+			current_streak = EXCLUDED.current_streak,
+			best_streak = EXCLUDED.best_streak,
+			highest_wave = EXCLUDED.highest_wave,
+			total_damage = EXCLUDED.total_damage,
+			total_turns = EXCLUDED.total_turns,
+			updated_at = NOW()
+	`, uid, victory, wave, damage, turns)
+}
+
+// getCurrentStreak returns the player's current win/loss streak.
+// Positive values indicate win streak, negative values indicate loss streak.
+func (b *Bot) getCurrentStreak(uid string) int {
+	var streak int
+	err := b.DB.QueryRow("SELECT current_streak FROM battle_stats WHERE client_uid = $1", uid).Scan(&streak)
+	if err != nil {
+		return 0
+	}
+	return streak
+}
+
+// getBattleStats returns the full battle statistics for a player.
+func (b *Bot) getBattleStats(uid string) (stats struct {
+	TotalBattles  int
+	TotalWins     int
+	TotalLosses   int
+	CurrentStreak int
+	BestStreak    int
+	HighestWave   int
+	TotalDamage   int
+	TotalTurns    int
+}) {
+	row := b.DB.QueryRow(`
+		SELECT COALESCE(total_battles,0), COALESCE(total_wins,0), COALESCE(total_losses,0),
+			COALESCE(current_streak,0), COALESCE(best_streak,0), COALESCE(highest_wave,1),
+			COALESCE(total_damage,0), COALESCE(total_turns,0)
+		FROM battle_stats WHERE client_uid = $1`, uid)
+	_ = row.Scan(&stats.TotalBattles, &stats.TotalWins, &stats.TotalLosses,
+		&stats.CurrentStreak, &stats.BestStreak, &stats.HighestWave,
+		&stats.TotalDamage, &stats.TotalTurns)
+	return
 }

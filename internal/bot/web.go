@@ -74,6 +74,7 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 			}
 			return p
 		},
+		"jsonJS": jsonJS,
 	}).ParseFS(webAssets, "webassets/*.html")
 	if err != nil {
 		return nil, fmt.Errorf("parsing web templates: %w", err)
@@ -139,6 +140,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/ah", s.auth(s.handleAHPage))
 	mux.HandleFunc("/games", s.auth(s.handleArcade3DHub))
 	mux.HandleFunc("/play/", s.auth(s.handleArcade3DPlay))
+	mux.HandleFunc("/leaderboards", s.auth(s.handleLeaderboardsPage))
 
 	// Authenticated JSON APIs.
 	mux.HandleFunc("/api/tft/buy", s.auth(s.handleTFTBuy))

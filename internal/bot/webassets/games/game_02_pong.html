@@ -1,52 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>3D Pong</title>
-<style>
- html,body{margin:0;height:100%;overflow:hidden;background:#0b0e16;font-family:system-ui,sans-serif;color:#e8ecf5}
- #hud{position:fixed;top:12px;left:12px;font-size:18px;z-index:2;text-shadow:0 1px 3px #000}
- #msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(8,10,16,.8);z-index:3;text-align:center}
- #msg h1{font-size:42px;margin:0 0 6px;color:#f4c542}#msg button{margin-top:18px;padding:10px 22px;font-size:18px;border:0;border-radius:8px;background:#7b6cff;color:#fff;cursor:pointer}
- #hint{position:fixed;bottom:12px;left:12px;font-size:13px;color:#8a93a8;z-index:2}
-</style></head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>3D Pong</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            height: 100%;
+            overflow: hidden;
+            background: #0b0e16;
+            font-family: system-ui, sans-serif;
+            color: #e8ecf5
+        }
+
+        #hud {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            font-size: 18px;
+            z-index: 2;
+            text-shadow: 0 1px 3px #000
+        }
+
+        #msg {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            background: rgba(8, 10, 16, .8);
+            z-index: 3;
+            text-align: center
+        }
+
+        #msg h1 {
+            font-size: 42px;
+            margin: 0 0 6px;
+            color: #f4c542
+        }
+
+        #msg button {
+            margin-top: 18px;
+            padding: 10px 22px;
+            font-size: 18px;
+            border: 0;
+            border-radius: 8px;
+            background: #7b6cff;
+            color: #fff;
+            cursor: pointer
+        }
+
+        #hint {
+            position: fixed;
+            bottom: 12px;
+            left: 12px;
+            font-size: 13px;
+            color: #8a93a8;
+            z-index: 2
+        }
+    </style>
+</head>
+
 <body>
-<div id="hud">You <span id="ps">0</span> — <span id="as">0</span> CPU</div>
-<div id="hint">←/→ or A/D to move your paddle · first to 5</div>
-<div id="msg"><h1>Game Over</h1><div id="sub"></div><div id="reward" style="margin-top:10px;color:#f4c542;font-size:20px"></div><button onclick="restart()">Play Again</button><a href="/games" style="margin-top:14px;color:#8a93a8;font-size:14px">← All Games</a></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-async function reward(sc){try{const r=await fetch('/api/arcade3d/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:'pong',score:Math.max(0,Math.round(sc))})});const d=await r.json();if(d.ok)document.getElementById('reward').innerHTML='🪙 +'+d.gold_won+' gold'+(d.gear?'<br>🎁 '+d.gear:'');}catch(e){}}
-const W=7,L=11;let scene,camera,renderer,ball,you,cpu,bv,ps,as,alive,keys={};
-function init(){
- scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,200);
- camera.position.set(0,18,16);camera.lookAt(0,0,0);
- renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);document.body.appendChild(renderer.domElement);
- scene.add(new THREE.AmbientLight(0x8899bb,.7));const dl=new THREE.DirectionalLight(0xffffff,.8);dl.position.set(6,18,8);scene.add(dl);
- const court=new THREE.Mesh(new THREE.BoxGeometry(W*2,.4,L*2),new THREE.MeshStandardMaterial({color:0x141a28}));court.position.y=-.2;scene.add(court);
- for(const sx of [-W,W]){const wall=new THREE.Mesh(new THREE.BoxGeometry(.4,1,L*2),new THREE.MeshStandardMaterial({color:0x2e3650}));wall.position.set(sx,.4,0);scene.add(wall);}
- you=pad(0x5bc0ff);you.position.set(0,.5,L-1);cpu=pad(0xe2575b);cpu.position.set(0,.5,-(L-1));
- ball=new THREE.Mesh(new THREE.SphereGeometry(.4,18,18),new THREE.MeshStandardMaterial({color:0xf4c542,emissive:0x442f00}));scene.add(ball);
- addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
- addEventListener('resize',onResize);restart();
-}
-function pad(c){const m=new THREE.Mesh(new THREE.BoxGeometry(3,.8,.6),new THREE.MeshStandardMaterial({color:c,emissive:c&0x222222}));scene.add(m);return m;}
-function onResize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
-function serve(d){ball.position.set(0,.5,0);bv={x:(Math.random()-.5)*.18,z:.22*d};}
-function restart(){ps=0;as=0;alive=true;you.position.x=0;cpu.position.x=0;document.getElementById('ps').textContent=0;document.getElementById('as').textContent=0;document.getElementById('msg').style.display='none';serve(1);}
-function update(){
- if(keys['arrowleft']||keys['a'])you.position.x=Math.max(-W+1.5,you.position.x-.35);
- if(keys['arrowright']||keys['d'])you.position.x=Math.min(W-1.5,you.position.x+.35);
- cpu.position.x+=Math.sign(ball.position.x-cpu.position.x)*Math.min(.22,Math.abs(ball.position.x-cpu.position.x));
- cpu.position.x=Math.max(-W+1.5,Math.min(W-1.5,cpu.position.x));
- ball.position.x+=bv.x;ball.position.z+=bv.z;
- if(ball.position.x<-W+.4||ball.position.x>W-.4)bv.x*=-1;
- if(ball.position.z>L-1.5&&Math.abs(ball.position.x-you.position.x)<1.8&&bv.z>0){bv.z*=-1.05;bv.x+=(ball.position.x-you.position.x)*.06;}
- if(ball.position.z<-(L-1.5)&&Math.abs(ball.position.x-cpu.position.x)<1.8&&bv.z<0){bv.z*=-1.05;bv.x+=(ball.position.x-cpu.position.x)*.06;}
- if(ball.position.z>L){as++;document.getElementById('as').textContent=as;score(-1);}
- else if(ball.position.z<-L){ps++;document.getElementById('ps').textContent=ps;score(1);}
-}
-function score(d){if(ps>=5||as>=5){alive=false;document.getElementById('sub').textContent=ps>=5?'You win!':'CPU wins.';reward(ps*60+as*10);document.getElementById('msg').style.display='flex';}else serve(d);}
-function loop(){requestAnimationFrame(loop);if(alive)update();renderer.render(scene,camera);}
-init();loop();
-</script></body></html>
+    <div id="hud">You <span id="ps">0</span> — <span id="as">0</span> CPU</div>
+    <div id="hint">←/→ or A/D to move your paddle · first to 5</div>
+    <div id="msg">
+        <h1>Game Over</h1>
+        <div id="sub"></div>
+        <div id="reward" style="margin-top:10px;color:#f4c542;font-size:20px"></div><button onclick="restart()">Play
+            Again</button><a href="/games" style="margin-top:14px;color:#8a93a8;font-size:14px">← All Games</a>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="common/animation-framework.js"></script>
+    <script>
+        async function reward(sc) { try { const r = await fetch('/api/arcade3d/reward', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ game: 'pong', score: Math.max(0, Math.round(sc)) }) }); const d = await r.json(); if (d.ok) document.getElementById('reward').innerHTML = '🪙 +' + d.gold_won + ' gold' + (d.gear ? '<br>🎁 ' + d.gear : ''); } catch (e) { } }
+        const W = 7, L = 11; let scene, camera, renderer, ball, you, cpu, bv, ps, as, alive, keys = {}, animationFramework;
+        function init() {
+            scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, .1, 200);
+            camera.position.set(0, 18, 16); camera.lookAt(0, 0, 0);
+            renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);
+            scene.add(new THREE.AmbientLight(0x8899bb, .7)); const dl = new THREE.DirectionalLight(0xffffff, .8); dl.position.set(6, 18, 8); scene.add(dl);
+
+            // Add starfield background
+            addStarfield();
+
+            const court = new THREE.Mesh(new THREE.BoxGeometry(W * 2, .4, L * 2), new THREE.MeshStandardMaterial({ color: 0x141a28 })); court.position.y = -.2; scene.add(court);
+            for (const sx of [-W, W]) { const wall = new THREE.Mesh(new THREE.BoxGeometry(.4, 1, L * 2), new THREE.MeshStandardMaterial({ color: 0x2e3650 })); wall.position.set(sx, .4, 0); scene.add(wall); }
+            you = pad(0x5bc0ff); you.position.set(0, .5, L - 1); cpu = pad(0xe2575b); cpu.position.set(0, .5, -(L - 1));
+            ball = new THREE.Mesh(new THREE.SphereGeometry(.4, 18, 18), new THREE.MeshStandardMaterial({ color: 0xf4c542, emissive: 0x442f00 })); scene.add(ball);
+
+            // Initialize animation framework
+            animationFramework = new AnimationFramework(scene, renderer);
+            animationFramework.setCamera(camera);
+
+            addEventListener('keydown', e => keys[e.key.toLowerCase()] = true); addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+            addEventListener('resize', onResize); restart();
+        }
+
+        function addStarfield() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starCount = 1000;
+            const starPositions = new Float32Array(starCount * 3);
+
+            for (let i = 0; i < starCount * 3; i += 3) {
+                starPositions[i] = (Math.random() - 0.5) * 100;
+                starPositions[i + 1] = (Math.random() - 0.5) * 100;
+                starPositions[i + 2] = (Math.random() - 0.5) * 100;
+            }
+
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+
+            const starMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.1,
+                transparent: true
+            });
+
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+        }
+        function pad(c) { const m = new THREE.Mesh(new THREE.BoxGeometry(3, .8, .6), new THREE.MeshStandardMaterial({ color: c, emissive: c & 0x222222 })); scene.add(m); return m; }
+        function onResize() { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); }
+        function serve(d) { ball.position.set(0, .5, 0); bv = { x: (Math.random() - .5) * .18, z: .22 * d }; }
+        function restart() { ps = 0; as = 0; alive = true; you.position.x = 0; cpu.position.x = 0; document.getElementById('ps').textContent = 0; document.getElementById('as').textContent = 0; document.getElementById('msg').style.display = 'none'; serve(1); }
+        function update() {
+            if (keys['arrowleft'] || keys['a']) you.position.x = Math.max(-W + 1.5, you.position.x - .35);
+            if (keys['arrowright'] || keys['d']) you.position.x = Math.min(W - 1.5, you.position.x + .35);
+            cpu.position.x += Math.sign(ball.position.x - cpu.position.x) * Math.min(.22, Math.abs(ball.position.x - cpu.position.x));
+            cpu.position.x = Math.max(-W + 1.5, Math.min(W - 1.5, cpu.position.x));
+            ball.position.x += bv.x; ball.position.z += bv.z;
+
+            // Add ball trail particles
+            if (animationFramework) {
+                animationFramework.createSparkle(new THREE.Vector3(ball.position.x, ball.position.y, ball.position.z), 3);
+            }
+
+            if (ball.position.x < -W + .4 || ball.position.x > W - .4) {
+                bv.x *= -1;
+                // Create explosion on wall hit
+                if (animationFramework) {
+                    const hitPos = new THREE.Vector3(ball.position.x > 0 ? W - .4 : -W + .4, ball.position.y, ball.position.z);
+                    animationFramework.createExplosion(hitPos, 10, 0x5bc0ff);
+                }
+            }
+
+            if (ball.position.z > L - 1.5 && Math.abs(ball.position.x - you.position.x) < 1.8 && bv.z > 0) {
+                bv.z *= -1.05; bv.x += (ball.position.x - you.position.x) * .06;
+                // Create explosion on paddle hit
+                if (animationFramework) {
+                    const hitPos = new THREE.Vector3(ball.position.x, ball.position.y, L - 1.5);
+                    animationFramework.createExplosion(hitPos, 15, 0x5bc0ff);
+                }
+            }
+
+            if (ball.position.z < -(L - 1.5) && Math.abs(ball.position.x - cpu.position.x) < 1.8 && bv.z < 0) {
+                bv.z *= -1.05; bv.x += (ball.position.x - cpu.position.x) * .06;
+                // Create explosion on paddle hit
+                if (animationFramework) {
+                    const hitPos = new THREE.Vector3(ball.position.x, ball.position.y, -(L - 1.5));
+                    animationFramework.createExplosion(hitPos, 15, 0xe2575b);
+                }
+            }
+
+            if (ball.position.z > L) { as++; document.getElementById('as').textContent = as; score(-1); }
+            else if (ball.position.z < -L) { ps++; document.getElementById('ps').textContent = ps; score(1); }
+        }
+        function score(d) { if (ps >= 5 || as >= 5) { alive = false; document.getElementById('sub').textContent = ps >= 5 ? 'You win!' : 'CPU wins.'; reward(ps * 60 + as * 10); document.getElementById('msg').style.display = 'flex'; } else serve(d); }
+        function loop() { requestAnimationFrame(loop); if (alive) update(); renderer.render(scene, camera); }
+        init(); loop();
+    </script>
+</body>
+
+</html>
