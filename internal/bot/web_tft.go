@@ -74,9 +74,13 @@ type tftUnit struct {
 }
 
 type tftState struct {
-	Units      []tftUnit `json:"units"`
-	Shop       []string  `json:"shop"`
-	BattleGold int       `json:"battle_gold"`
+	Units       []tftUnit `json:"units"`
+	Shop        []string  `json:"shop"`
+	BattleGold  int       `json:"battle_gold"`
+	Phase       string    `json:"phase"`        // "planning", "combat", "overtime"
+	PhaseTimer  int       `json:"phase_timer"`  // seconds remaining in current phase
+	RoundNumber int       `json:"round_number"` // current round (1, 2, 3, ...)
+	StageNumber int       `json:"stage_number"` // current stage (1, 2, 3, ...)
 }
 
 func newUnitID() string {
@@ -103,8 +107,9 @@ func rollShop() []string {
 
 func (b *Bot) loadTFT(uid string) *tftState {
 	var raw []byte
-	var battleGold int
-	err := b.DB.QueryRow("SELECT data, COALESCE(battle_gold, 0) FROM tft_state WHERE client_uid=$1", uid).Scan(&raw, &battleGold)
+	var battleGold, phaseTimer, roundNumber, stageNumber int
+	var phase string
+	err := b.DB.QueryRow("SELECT data, COALESCE(battle_gold, 0), COALESCE(phase, 'planning'), COALESCE(phase_timer, 30), COALESCE(round_number, 1), COALESCE(stage_number, 1) FROM tft_state WHERE client_uid=$1", uid).Scan(&raw, &battleGold, &phase, &phaseTimer, &roundNumber, &stageNumber)
 	st := &tftState{}
 	if err == sql.ErrNoRows || len(raw) == 0 {
 		// Starter roster: two cheap units on the bench + a fresh shop.
@@ -114,6 +119,10 @@ func (b *Bot) loadTFT(uid string) *tftState {
 		}
 		st.Shop = rollShop()
 		st.BattleGold = 0 // Will be set when game starts
+		st.Phase = "planning"
+		st.PhaseTimer = 30
+		st.RoundNumber = 1
+		st.StageNumber = 1
 		b.saveTFT(uid, st)
 		return st
 	}
@@ -122,8 +131,16 @@ func (b *Bot) loadTFT(uid string) *tftState {
 	}
 	_ = json.Unmarshal(raw, st)
 	st.BattleGold = battleGold
+	st.Phase = phase
+	st.PhaseTimer = phaseTimer
+	st.RoundNumber = roundNumber
+	st.StageNumber = stageNumber
 	if len(st.Shop) != tftShopSize {
 		st.Shop = rollShop()
+	}
+	// Ensure phase is valid
+	if st.Phase != "planning" && st.Phase != "combat" && st.Phase != "overtime" {
+		st.Phase = "planning"
 	}
 	return st
 }
@@ -131,8 +148,11 @@ func (b *Bot) loadTFT(uid string) *tftState {
 func (b *Bot) saveTFT(uid string, st *tftState) {
 	data, _ := json.Marshal(st)
 	_, _ = b.DB.Exec(
-		`INSERT INTO tft_state (client_uid, data, battle_gold, updated_at) VALUES ($1, $2, $3, NOW())
-		 ON CONFLICT (client_uid) DO UPDATE SET data=$2, battle_gold=$3, updated_at=NOW()`, uid, data, st.BattleGold)
+		`INSERT INTO tft_state (client_uid, data, battle_gold, phase, phase_timer, round_number, stage_number, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+		 ON CONFLICT (client_uid) DO UPDATE SET
+		 data=$2, battle_gold=$3, phase=$4, phase_timer=$5, round_number=$6, stage_number=$7, updated_at=NOW()`,
+		uid, data, st.BattleGold, st.Phase, st.PhaseTimer, st.RoundNumber, st.StageNumber)
 }
 
 // combineUnits upgrades any 3-of-a-kind (same key + star) into one of star+1.
@@ -260,6 +280,10 @@ func (s *WebServer) handleBattlePage(w http.ResponseWriter, r *http.Request, uid
 		"Inventory":   s.bot.inventoryItems(uid),
 		"BattleStats": s.bot.getBattleStats(uid),
 		"BattleGold":  st.BattleGold,
+		"Phase":       st.Phase,
+		"PhaseTimer":  st.PhaseTimer,
+		"RoundNumber": st.RoundNumber,
+		"StageNumber": st.StageNumber,
 		"Traits": map[string]any{
 			"warrior":   []int{2, 4, 6},
 			"tank":      []int{2, 4, 6},
@@ -441,6 +465,97 @@ func (s *WebServer) handleTFTEquip(w http.ResponseWriter, r *http.Request, uid s
 	writeJSON(w, map[string]any{"ok": true})
 }
 
+// ===== Phase Management APIs =====
+
+// handleTFTPhaseReady marks the player as ready for combat, transitioning from planning to combat phase
+func (s *WebServer) handleTFTPhaseReady(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+
+	st := s.bot.loadTFT(uid)
+
+	// Can only transition from planning or overtime to combat
+	if st.Phase != "planning" && st.Phase != "overtime" {
+		writeJSON(w, map[string]any{"ok": false, "error": "not in planning or overtime phase"})
+		return
+	}
+
+	// Must have at least one unit on board
+	hasUnits := false
+	for _, u := range st.Units {
+		if u.Pos >= 0 {
+			hasUnits = true
+			break
+		}
+	}
+	if !hasUnits {
+		writeJSON(w, map[string]any{"ok": false, "error": "place at least one unit on the board"})
+		return
+	}
+
+	// Transition to combat phase
+	st.Phase = "combat"
+	st.PhaseTimer = 0 // Combat phase doesn't use timer, it's resolved immediately
+
+	s.bot.saveTFT(uid, st)
+	writeJSON(w, map[string]any{"ok": true, "phase": st.Phase})
+}
+
+// handleTFTPhaseTimer updates the phase timer (used for planning phase countdown)
+func (s *WebServer) handleTFTPhaseTimer(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Timer int `json:"timer"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+
+	st := s.bot.loadTFT(uid)
+
+	// Only update timer if in planning or overtime phase
+	if st.Phase == "planning" || st.Phase == "overtime" {
+		maxTimer := 30
+		if st.Phase == "overtime" {
+			maxTimer = 10 // Overtime has max 10 seconds
+		}
+		if req.Timer >= 0 && req.Timer <= maxTimer {
+			st.PhaseTimer = req.Timer
+			s.bot.saveTFT(uid, st)
+		}
+	}
+
+	writeJSON(w, map[string]any{"ok": true, "timer": st.PhaseTimer})
+}
+
+// advanceRound advances the round/stage numbers and resets phase to planning
+func (s *WebServer) advanceRound(st *tftState) {
+	st.RoundNumber++
+
+	// Stage advances every 7 rounds (1-1, 1-2, ..., 1-7, 2-1, 2-2, ...)
+	if st.RoundNumber%7 == 1 {
+		st.StageNumber++
+	}
+
+	// Reset to planning phase with fresh timer
+	st.Phase = "planning"
+	st.PhaseTimer = 30
+
+	// Award battle gold at start of each round
+	battleGoldAward := 5 + st.RoundNumber
+	if st.RoundNumber%3 == 0 { // Creep round bonus
+		battleGoldAward *= 2
+	}
+	st.BattleGold += battleGoldAward
+}
+
 func (b *Bot) userGold(uid string) int64 {
 	var g int64
 	_ = b.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&g)
@@ -516,6 +631,12 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 	}
 	st := s.bot.loadTFT(uid)
 
+	// Validate phase - combat can only happen during planning or overtime phases
+	if st.Phase != "planning" && st.Phase != "overtime" {
+		writeJSON(w, tftCombatResult{OK: false, Error: "combat not allowed in current phase"})
+		return
+	}
+
 	// Gather the player's placed units.
 	var units []*simUnit
 	occupied := map[int]bool{}
@@ -550,30 +671,29 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 
-	// Calculate wave number based on battle history
-	var waveNumber int
-	_ = s.bot.DB.QueryRow("SELECT COALESCE(MAX(wave_number), 0) FROM battle_history WHERE client_uid=$1", uid).Scan(&waveNumber)
-	waveNumber++
+	// Use RoundNumber from state instead of calculating from history
+	roundNumber := st.RoundNumber
+	stageNumber := st.StageNumber
 
-	// Check if this is a creep round (every 3rd wave)
-	isCreep := waveNumber%3 == 0
+	// Check if this is a creep round (every 3rd round)
+	isCreep := roundNumber%3 == 0
 
 	var enemies []*simUnit
 	if isCreep {
-		enemies = generateCreeps(u.Level, waveNumber)
+		enemies = generateCreeps(u.Level, roundNumber)
 	} else {
-		enemies = generateEnemies(len(units), u.Level, waveNumber)
+		enemies = generateEnemies(len(units), u.Level, roundNumber)
 	}
 	units = append(units, enemies...)
 
 	// Apply synergies
 	applySynergies(units)
 
-	// Track wave milestone (every 5 waves)
-	isMilestone := waveNumber%5 == 0
+	// Track round milestone (every 5 rounds)
+	isMilestone := roundNumber%5 == 0
 
-	// Award battle gold at the start of each wave (base + wave scaling)
-	battleGoldAward := 5 + waveNumber
+	// Award battle gold at the start of each round (base + round scaling)
+	battleGoldAward := 5 + roundNumber
 	if isCreep {
 		battleGoldAward *= 2 // Bonus for creep rounds
 	}
@@ -581,13 +701,13 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 
 	frames, victory, damageDealt, turnsSurvived := simulateTFT(units)
 
-	// Calculate rewards with wave-based scaling
+	// Calculate rewards with round-based scaling
 	res := tftCombatResult{
 		OK:            true,
 		Victory:       victory,
 		Frames:        frames,
 		IsCreep:       isCreep,
-		WaveNumber:    waveNumber,
+		WaveNumber:    roundNumber,
 		DamageDealt:   damageDealt,
 		TurnsSurvived: turnsSurvived,
 		IsMilestone:   isMilestone,
@@ -598,8 +718,8 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 		// Base gold reward (real gold - end game reward only)
 		baseGold := int64(3 + len(enemies)*2 + u.Level/3)
 
-		// Wave scaling: +1 gold per wave
-		waveBonus := int64(waveNumber)
+		// Round scaling: +1 gold per round
+		roundBonus := int64(roundNumber)
 
 		// Creep round bonus (2x)
 		creepMultiplier := int64(1)
@@ -607,19 +727,19 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 			creepMultiplier = 2
 		}
 
-		// Milestone bonus (every 5 waves)
+		// Milestone bonus (every 5 rounds)
 		milestoneBonus := int64(0)
 		if isMilestone {
-			milestoneBonus = int64(5 * (waveNumber / 5))
+			milestoneBonus = int64(5 * (roundNumber / 5))
 		}
 
-		res.GoldWon = (baseGold + waveBonus + milestoneBonus) * creepMultiplier
+		res.GoldWon = (baseGold + roundBonus + milestoneBonus) * creepMultiplier
 		// Award real gold only as end-game reward
 		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", res.GoldWon, uid)
 
-		// Gear drop chance with wave scaling
-		// Base 45%, +1% per wave, guaranteed on creep rounds
-		dropChance := 45 + waveNumber
+		// Gear drop chance with round scaling
+		// Base 45%, +1% per round, guaranteed on creep rounds
+		dropChance := 45 + roundNumber
 		if dropChance > 90 {
 			dropChance = 90 // Cap at 90% for non-creep
 		}
@@ -634,29 +754,34 @@ func (s *WebServer) handleTFTCombat(w http.ResponseWriter, r *http.Request, uid 
 			res.GearWon = result.Prefix + result.ItemName
 		}
 	}
-	// Record history with wave tracking
+	// Record history with round tracking
 	var gearWon any
 	if res.GearWon != "" {
 		gearWon = res.GearWon
 	}
-	mobName := fmt.Sprintf("Wave %d (%d enemies)", waveNumber, len(enemies))
+	// Format mob name as "Round X-Y" where X is stage, Y is round within stage
+	mobName := fmt.Sprintf("Round %d-%d (%d enemies)", stageNumber, roundNumber, len(enemies))
 	if isCreep {
-		mobName = fmt.Sprintf("CREEP WAVE %d: Golems & Wolves", waveNumber)
+		mobName = fmt.Sprintf("CREEP ROUND %d-%d: Golems & Wolves", stageNumber, roundNumber)
 	}
 	_, _ = s.bot.DB.Exec(
 		`INSERT INTO battle_history (client_uid, mob_name, victory, gold_won, gear_won, wave_number, highest_wave, damage_dealt, turns_survived)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-		uid, mobName, victory, res.GoldWon, gearWon, waveNumber, waveNumber, damageDealt, turnsSurvived)
+		uid, mobName, victory, res.GoldWon, gearWon, roundNumber, roundNumber, damageDealt, turnsSurvived)
 
 	// Update battle statistics
-	s.bot.updateBattleStats(uid, victory, waveNumber, damageDealt, turnsSurvived)
+	s.bot.updateBattleStats(uid, victory, roundNumber, damageDealt, turnsSurvived)
 
 	s.bot.recordGameResult(uid, "tft", victory, res.GoldWon)
 
 	res.Gold = s.bot.userGold(uid)
-	res.HighestWave = waveNumber
+	res.HighestWave = roundNumber
 	res.Streak = s.bot.getCurrentStreak(uid)
-	s.bot.saveTFT(uid, st) // Save battle gold state
+
+	// Advance to next round/stage and reset phase
+	s.advanceRound(st)
+
+	s.bot.saveTFT(uid, st) // Save battle gold state and phase
 	writeJSON(w, res)
 }
 
