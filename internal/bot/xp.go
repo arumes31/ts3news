@@ -1114,6 +1114,10 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 				penalty = 10
 			}
 			finalXP -= penalty
+
+			// Increase jackpot by 1% of lost XP value
+			b.incrementJackpot("global", int64(penalty))
+
 			logs = append(logs, deathPenaltyLine(u.Nickname, penalty))
 			u.CurrentHP = 0   // dead
 			u.RegenStacks = 0 // lose stacks on death
@@ -1182,6 +1186,19 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 
 	if victory {
 		logs = append(logs, i18n.T("bot.combat.victory", len(initialMobs), zone.Name))
+
+		// 1% chance for global jackpot on victory
+		// #nosec G404
+		if rand.Float64() < 0.01 {
+			// Find a winner among participants
+			// #nosec G404
+			winner := users[rand.IntN(len(users))]
+			jackpot := b.claimJackpot(winner.UID, "global")
+			if jackpot > 0 {
+				logs = append(logs, "🔥 GLOBAL JACKPOT WIN! "+winner.Nickname+" won "+FormatGold(jackpot)+"!")
+			}
+		}
+
 		return logs, totalRewardXP / len(users), true
 	}
 	logs = append(logs, i18n.T("bot.combat.defeat", zone.Name))
@@ -1781,10 +1798,9 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 					pokes = append(pokes, i18n.T("bot.loot.major_ultimate", us.Name))
 				}
 			} else {
-				// Improvement 50: Salvaging (Duplicate Ultimates)
-				salvageValue := 50 + int(us.Rarity)*50
-				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid=$1", uid, salvageValue)
-				results = append(results, i18n.T("bot.loot.duplicate_ultimate_salvage", us.Name, salvageValue))
+				// Duplicate Ultimates -> List on AH
+				b.autoListUnwantedItems(uid, us)
+				results = append(results, i18n.T("bot.loot.duplicate_ultimate_ah", us.Name))
 			}
 			lootFound = true
 		} else if r < titleChance*qualityMult {
@@ -1805,10 +1821,9 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 					pokes = append(pokes, i18n.T("bot.loot.unique_drop", ui.Name))
 				}
 			} else {
-				// Improvement 50: Salvaging (Duplicate Uniques)
-				salvageValue := 100 + int(ui.Rarity)*100
-				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid=$1", uid, salvageValue)
-				results = append(results, i18n.T("bot.loot.duplicate_unique_salvage", ui.Name, salvageValue))
+				// Duplicate Uniques -> List on AH
+				b.autoListUnwantedItems(uid, ui)
+				results = append(results, i18n.T("bot.loot.duplicate_unique_ah", ui.Name))
 			}
 			lootFound = true
 		} else if r < artifactChance*qualityMult {
@@ -1827,10 +1842,9 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			if slot, ok := b.applyEnchantment(uid, ench); ok {
 				results = append(results, i18n.T("bot.loot.enchanted", slot, ench.Name, ench.Name))
 			} else {
-				// Improvement 50: Salvaging (Enchantments)
-				salvageValue := 20 + int(ench.Rarity)*20
-				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid=$1", uid, salvageValue)
-				results = append(results, i18n.T("bot.loot.salvaged_enchant", ench.Name, salvageValue))
+				// Unwanted Enchantments -> List on AH
+				b.autoListUnwantedItems(uid, ench)
+				results = append(results, i18n.T("bot.loot.unwanted_enchant_ah", ench.Name))
 			}
 			lootFound = true
 		} else if r < skillChance*qualityMult {
@@ -1839,10 +1853,9 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			if slot, ok := b.equipSkill(uid, s); ok {
 				results = append(results, i18n.T("bot.loot.learned_skill", s.Name, s.Name, slot))
 			} else {
-				// Improvement 50: Salvaging (Skills)
-				salvageValue := 10 + int(s.Rarity)*10
-				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid=$1", uid, salvageValue)
-				results = append(results, i18n.T("bot.loot.salvaged_skill", s.Name, salvageValue))
+				// Unwanted Skills -> List on AH
+				b.autoListUnwantedItems(uid, s)
+				results = append(results, i18n.T("bot.loot.unwanted_skill_ah", s.Name))
 			}
 			lootFound = true
 		} else if r < consChance*qualityMult {
@@ -1877,9 +1890,8 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 					_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
 					results = append(results, i18n.T("bot.loot.found", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.String()))
 				} else {
-					salvageValue := 2
-					_, _ = b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid=$1", uid, salvageValue)
-					results = append(results, i18n.T("bot.loot.salvaged", g.Name, string(g.Slot), salvageValue))
+					b.autoListUnwantedItems(uid, g)
+					results = append(results, i18n.T("bot.loot.listed_ah", g.Name, string(g.Slot), g.Rarity.Color(), g.Rarity.String()))
 				}
 			} else {
 				results = append(results, i18n.T("bot.loot.small_health_potion"))

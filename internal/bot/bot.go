@@ -95,6 +95,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 	targetNick := strings.TrimSpace(b.Cfg.TargetNick)
 	ctx := b.buildCycleContext(clients)
 	b.slothDecay(c, ctx.today)
+	b.CleanupAuctionHouse()
 
 	if b.Cfg.XPServerGroups {
 		b.cleanupEmptyLevelGroups(c)

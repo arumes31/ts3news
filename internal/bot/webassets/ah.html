@@ -18,8 +18,8 @@
     </thead>
     <tbody>
       {{range .Active}}
-      <tr class="ah-row">
-        <td><span class="item-ico">{{.Icon}}</span> {{.Name}}</td>
+      <tr class="ah-row {{if .IsUpgrade}}upgrade-item{{end}}">
+        <td><span class="item-ico">{{.Icon}}</span> {{.Name}} {{if .IsUpgrade}}<span class="upgrade-badge" title="Upgrade for equipped gear">⬆</span>{{end}}</td>
         <td>{{.ItemType}}</td>
         <td>{{.Seller}}</td>
         <td>{{.Listed}}</td>

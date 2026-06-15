@@ -306,9 +306,9 @@ func DefaultParams() SimParams {
 		XPMin: 40, XPMax: 80, ExponentCap: 3.5,
 		GearChance: 0.10, SkillChance: 0.08, ArtifactChance: 0.02,
 		MaxDurability: 100, DuraLoss: 1, PrestigeLevel: 5000,
-		MobHPMult: 1.2, MobDamageMult: 2.52, // The precise sweet spot
+		MobHPMult: 1.1, MobDamageMult: 1.85, // Lowered damage slightly
 		PlayerHPMult: 1.0, PlayerDMGMult: 1.0, 
-		RPGBaseHP: 100, RPGBaseSTR: 10, RPGBaseDEF: 5,
+		RPGBaseHP: 150, RPGBaseSTR: 12, RPGBaseDEF: 5, // Buffed base HP
 		SkillChanceCombat: 0.35, SkillPowerBase: 3.0,
 		PityBoostPerLoss: 0.50, PityBoostCap: 3.0,
 		ZoneDiffMin: 0.8, ZoneDiffMax: 1.5,
@@ -536,7 +536,7 @@ func GenerateMobs(rng *rand.Rand, partyLevel int, groupSize int, difficulty floa
 	isBoss := rng.Float64() < params.BossChance && !isHorde
 	mobs := make([]Mob, 0, numMobs)
 	for i := 0; i < numMobs; i++ {
-		mobLvl := int(float64(partyLevel) * (0.8 + rng.Float64()*0.4))
+		mobLvl := int(float64(partyLevel) * (0.7 + rng.Float64()*0.3)) // Slightly lower level mobs
 		if mobLvl < 1 { mobLvl = 1 }
 		
 		// Scaled lvlScale for simulation to be more forgiving at low levels
