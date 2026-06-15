@@ -128,7 +128,7 @@ bot.loot.legendary_equipped: "⚔️ TRANG BỊ HUYỀN THOẠI: Trang bị %[1]
 bot.loot.listed_ah: "Niêm yết trên AH: %[1]s [s:%[2]s] (R:[color=%[3]s]%[4]s[/color])"
 bot.loot.salvaged: "Phá hủy %[1]s [s:%[2]s]: +%[3]d Phế liệu"
 bot.loot.found: "Tìm thấy: %[1]s [s:%[2]s] (gs:%[3]d CR:%[4].1f R:%[5]s)"
-bot.loot.scrap: "Cướp bóc Phế liệu [s:%[1]s] (+%[2]d XP) (R:%[3]s)"
+bot.loot.scrap: "Cướp bóc Phế liệu [s:%[1]s] (+%[2]d Gold) (R:%[3]s)"
 bot.loot.small_health_potion: "Vật phẩm: Lọ thuốc hồi máu nhỏ [item:P1]"
 bot.loot.multiplier_simple: "%[1]s x%[2]g"
 bot.loot.multiplier_with_dur: "%[1]s x%[2]g (%[3]d độ bền)"
