@@ -98,7 +98,7 @@ func (b *Bot) CleanupAuctionHouse() {
 	if err != nil {
 		return
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var id int
