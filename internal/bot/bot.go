@@ -875,7 +875,7 @@ func clientSafeChannelName(s string) bool {
 		switch {
 		case r == ' ' || r == '\'' || r == '-' || r == '.' || r == '&':
 		case unicode.IsDigit(r):
-		case unicode.IsLetter(r) && (r < unicode.MaxASCII || unicode.Is(unicode.Latin, r)):
+		case unicode.IsLetter(r) && (r < 128 || unicode.Is(unicode.Latin, r)):
 		default:
 			return false
 		}

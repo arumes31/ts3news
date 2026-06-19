@@ -156,6 +156,9 @@ func PoolForLocale(id LocaleID, pool string) []string {
 		return nil
 	}
 	p := loc.pools[pool]
+	if p == nil {
+		return nil
+	}
 	copied := make([]string, len(p))
 	copy(copied, p)
 	return copied
