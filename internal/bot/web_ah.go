@@ -65,7 +65,7 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 	equippedGear := make(map[string]content.Gear)
 	rows, err := s.bot.DB.Query("SELECT slot, gear_id FROM user_gear WHERE client_uid=$1", uid)
 	if err == nil {
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 		for rows.Next() {
 			var slot, gearID string
 			if err := rows.Scan(&slot, &gearID); err == nil {

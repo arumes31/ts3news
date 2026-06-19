@@ -138,7 +138,7 @@ func (b *Bot) loadUnitAbilities(unitKey string) []unitAbility {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var abilities []unitAbility
 	for rows.Next() {
@@ -164,7 +164,7 @@ func (b *Bot) loadUnitUpgrades(unitKey string) []unitUpgrade {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var upgrades []unitUpgrade
 	for rows.Next() {
@@ -212,7 +212,7 @@ func (b *Bot) loadTraitDefinitions() []traitDefinition {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var traits []traitDefinition
 	for rows.Next() {
@@ -365,7 +365,7 @@ func (b *Bot) loadItemComponents() []ItemComponent {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var components []ItemComponent
 	for rows.Next() {
@@ -391,7 +391,7 @@ func (b *Bot) loadCraftedItems() []CraftedItem {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var items []CraftedItem
 	for rows.Next() {
@@ -420,7 +420,7 @@ func (b *Bot) loadCraftingRecipes() []CraftingRecipe {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var recipes []CraftingRecipe
 	for rows.Next() {
@@ -447,7 +447,7 @@ func (b *Bot) loadPlayerItems(uid string) []PlayerItem {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var items []PlayerItem
 	for rows.Next() {
@@ -1429,7 +1429,7 @@ func (s *WebServer) handleTFTScoreboard(w http.ResponseWriter, r *http.Request, 
 		writeJSON(w, map[string]any{"ok": false, "error": "failed to load scoreboard"})
 		return
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	type playerScore struct {
 		Rank        int    `json:"rank"`
@@ -2779,7 +2779,7 @@ func (b *Bot) loadAugments() []Augment {
 	if err != nil {
 		return augments
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var a Augment
@@ -2800,7 +2800,7 @@ func (b *Bot) loadAugmentsByTier(tier int) []Augment {
 	if err != nil {
 		return augments
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var a Augment
@@ -2923,7 +2923,7 @@ func (s *WebServer) handleTFTAugments(w http.ResponseWriter, r *http.Request, ui
 		http.Error(w, "Failed to load offers", 500)
 		return
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var offers []AugmentOffer
 	for rows.Next() {
