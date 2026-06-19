@@ -101,3 +101,51 @@ func TestCommands(t *testing.T) {
 	// Disconnect
 	_ = client.Disconnect()
 }
+
+// TestSetChannelNameWire verifies the exact command line sent to TeamSpeak when
+// renaming a channel, including ServerQuery escaping of spaces in the new name.
+func TestSetChannelNameWire(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to listen: %v", err)
+	}
+	defer func() { _ = l.Close() }()
+
+	got := make(chan string, 1)
+	go func() {
+		conn, err := l.Accept()
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		_, _ = fmt.Fprint(conn, "error id=0 msg=ok\n") // greeting drain
+		scanner := bufio.NewScanner(conn)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "channeledit") {
+				got <- line
+			}
+			_, _ = fmt.Fprint(conn, "error id=0 msg=ok\n")
+		}
+	}()
+
+	client, err := Dial(l.Addr().String(), 1*time.Second)
+	if err != nil {
+		t.Fatalf("failed to dial: %v", err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if err := client.SetChannelName(42, "Screaming Guerilla"); err != nil {
+		t.Fatalf("SetChannelName failed: %v", err)
+	}
+
+	select {
+	case line := <-got:
+		want := `channeledit cid=42 channel_name=Screaming\sGuerilla`
+		if line != want {
+			t.Errorf("wire command mismatch:\n got: %q\nwant: %q", line, want)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no channeledit command received")
+	}
+}

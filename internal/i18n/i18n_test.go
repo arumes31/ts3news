@@ -383,6 +383,22 @@ func TestLevelTierPool(t *testing.T) {
 	}
 }
 
+// TestChannelNamePool guards the 4-digit-indexed pool case: the channel-name
+// pool uses ".0001"–".1000" keys, which were previously dropped because the
+// pool-index regex only matched 2-3 digit suffixes (empty pool → no rename).
+func TestChannelNamePool(t *testing.T) {
+	if err := InitWithLocale(LocaleEnUS); err != nil {
+		t.Fatal(err)
+	}
+	pool := Pool("channel.name")
+	if len(pool) != 1000 {
+		t.Errorf("Pool(channel.name) has %d entries, want 1000", len(pool))
+	}
+	if len(pool) > 0 && pool[0] != "Screaming Guerilla" {
+		t.Errorf("Pool(channel.name)[0] = %q, want %q", pool[0], "Screaming Guerilla")
+	}
+}
+
 func TestUninitializedGlobal(t *testing.T) {
 	// Save and reset global
 	saved := global

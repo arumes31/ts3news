@@ -1,0 +1,7 @@
+# Keep shell scripts and other Linux runtime files LF-only, even when checked out
+# on Windows with core.autocrlf=true. A CRLF in a script's shebang makes the
+# Docker image fail with "exec /entrypoint.sh: no such file or directory".
+*.sh    text eol=lf
+*.py    text eol=lf
+Dockerfile text eol=lf
+*.env   text eol=lf

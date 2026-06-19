@@ -142,6 +142,25 @@ func Pool(pool string) []string {
 	return copied
 }
 
+// PoolForLocale returns the pool entries for a specific locale, with no fallback
+// to en_US. Returns nil if the locale or pool is unknown. Used to occasionally
+// borrow content (e.g. channel names) from another language.
+func PoolForLocale(id LocaleID, pool string) []string {
+	globalMutex.RLock()
+	defer globalMutex.RUnlock()
+	if global == nil {
+		return nil
+	}
+	loc, ok := global.locales[id]
+	if !ok {
+		return nil
+	}
+	p := loc.pools[pool]
+	copied := make([]string, len(p))
+	copy(copied, p)
+	return copied
+}
+
 // R returns the translated rarity name for a given rarity constant (0-6).
 func R(rarity int) string {
 	keys := []string{

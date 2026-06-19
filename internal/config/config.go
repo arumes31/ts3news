@@ -42,6 +42,7 @@ type Config struct {
 	EnableGreetings      bool
 	EnableHolidayThemes  bool
 	DynamicNickname      bool // change the bot's TS3 nickname based on the announced game
+	EnableChannelRename  bool // rename occupied channels from the name pool each cycle
 
 	// Leveling
 	EnableLeveling    bool
@@ -110,6 +111,7 @@ func LoadConfig() *Config {
 		EnableGreetings:      envBool("ENABLE_GREETINGS", true),
 		EnableHolidayThemes:  envBool("ENABLE_HOLIDAY_THEMES", true),
 		DynamicNickname:      envBool("DYNAMIC_NICKNAME", true),
+		EnableChannelRename:  envBool("ENABLE_CHANNEL_RENAME", true),
 		EnableLeveling:       envBool("ENABLE_LEVELING", true),
 		LevelGroups:          os.Getenv("LEVEL_GROUPS"),
 		CheaperMoreXP:        envBool("CHEAPER_MORE_XP", false),
