@@ -123,21 +123,48 @@ func (c *Client) WhoAmI() ([]string, error) {
 	return c.Command("whoami")
 }
 
-// IsConnected reports whether the client is currently connected to a server
-// (whoami returns a non-zero own client id).
-func (c *Client) IsConnected() bool {
+// WhoAmIInfo is the parsed result of a "whoami" query.
+type WhoAmIInfo struct {
+	CLID   int    // own client id on the current server (0 = not connected)
+	CID    int    // current channel id
+	Status string // virtualserver_status, e.g. "connected" / "connecting" (if reported)
+}
+
+// WhoAmIInfo runs "whoami" and parses the connection identity. A non-nil error
+// means the command itself failed (e.g. "not connected to a server" → id!=0).
+func (c *Client) WhoAmIInfo() (WhoAmIInfo, error) {
 	data, err := c.WhoAmI()
 	if err != nil {
-		return false // "currently not possible" => not connected
+		return WhoAmIInfo{}, err
 	}
+	var info WhoAmIInfo
 	for _, line := range data {
 		for _, f := range strings.Fields(line) {
-			if v, ok := strings.CutPrefix(f, "clid="); ok {
-				return v != "0" && v != ""
+			k, v, ok := strings.Cut(f, "=")
+			if !ok {
+				continue
+			}
+			switch k {
+			case "clid":
+				info.CLID, _ = strconv.Atoi(v)
+			case "cid":
+				info.CID, _ = strconv.Atoi(v)
+			case "virtualserver_status":
+				info.Status = v
 			}
 		}
 	}
-	return false
+	return info, nil
+}
+
+// IsConnected reports whether the client is currently connected to a server
+// (whoami returns a non-zero own client id).
+func (c *Client) IsConnected() bool {
+	info, err := c.WhoAmIInfo()
+	if err != nil {
+		return false // "currently not possible" => not connected
+	}
+	return info.CLID > 0
 }
 
 // Disconnect disconnects the client from the current server (it stays running).
@@ -168,6 +195,46 @@ func (c *Client) SetChannelDescription(cid int, description string) error {
 func (c *Client) SetChannelName(cid int, name string) error {
 	_, err := c.Command(fmt.Sprintf("channeledit cid=%d channel_name=%s", cid, Escape(name)))
 	return err
+}
+
+// ChannelDetail describes one channel on the server.
+type ChannelDetail struct {
+	CID       int
+	Name      string
+	IsDefault bool // channel_flag_default=1 (the "home" channel new clients join)
+}
+
+// ChannelList returns every channel on the current server with its name and
+// default-channel flag (via "channellist -flags").
+func (c *Client) ChannelList() ([]ChannelDetail, error) {
+	data, err := c.Command("channellist -flags")
+	if err != nil {
+		return nil, err
+	}
+	var out []ChannelDetail
+	for _, line := range data {
+		for _, rec := range strings.Split(line, "|") {
+			cd := ChannelDetail{CID: -1}
+			for _, field := range strings.Fields(rec) {
+				k, v, ok := strings.Cut(field, "=")
+				if !ok {
+					continue
+				}
+				switch k {
+				case "cid":
+					cd.CID, _ = strconv.Atoi(v)
+				case "channel_name":
+					cd.Name = Unescape(v)
+				case "channel_flag_default":
+					cd.IsDefault = v == "1"
+				}
+			}
+			if cd.CID >= 0 {
+				out = append(out, cd)
+			}
+		}
+	}
+	return out, nil
 }
 
 // ClientDBID returns the server-side database id (cldbid) for a connected client,

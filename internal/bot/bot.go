@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"ts3news/internal/clientquery"
 	"ts3news/internal/config"
@@ -405,13 +406,19 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 			strings.Contains(note, "listed on AH") || strings.Contains(note, "Learned") || strings.Contains(note, "Equipped") ||
 			strings.Contains(note, "XP") || strings.Contains(note, "🏆"):
 			rewardNotes = append(rewardNotes, note)
-		case strings.Contains(note, "dura"):
+		case strings.Contains(note, "dur)"):
+			// Durability lines, e.g. "Novice Neck (47 dur)" — the bulk of the gear
+			// loadout. (The old check matched "dura", which never appears, so these
+			// fell through to misc and printed one slot per line.)
 			equipNotes = append(equipNotes, note)
 		default:
 			miscNotes = append(miscNotes, note)
 		}
 	}
 
+	// Bullets are packed several-per-line to use the available width and keep the
+	// PM short. Misc keeps one item per line because it holds full-width elements
+	// (the [hr] divider and the Party/Enemy health bars) that must not share a line.
 	if len(miscNotes) > 0 {
 		sb.WriteString("\n" + i18n.T("bot.section.bonuses") + "\n")
 		for _, n := range miscNotes {
@@ -421,37 +428,17 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 
 	if len(combatNotes) > 0 {
 		sb.WriteString("\n" + i18n.T("bot.section.combat") + "\n")
-		for _, n := range combatNotes {
-			sb.WriteString(" • " + n + "\n")
-		}
+		writeCombatLog(&sb, combatNotes, pmLineWidth)
 	}
 
 	if len(rewardNotes) > 0 {
 		sb.WriteString("\n" + i18n.T("bot.section.loot") + "\n")
-		for _, n := range rewardNotes {
-			sb.WriteString(" • " + n + "\n")
-		}
+		writePackedBullets(&sb, rewardNotes, pmLineWidth)
 	}
 
 	if len(equipNotes) > 0 {
 		sb.WriteString("\n" + i18n.T("bot.section.equipment") + "\n")
-		const maxNoteLineLen = 900
-		var line string
-		for i, gn := range equipNotes {
-			entry := gn
-			if i > 0 {
-				entry = " | " + gn
-			}
-			if len(line)+len(entry) > maxNoteLineLen && line != "" {
-				sb.WriteString(" " + line + "\n")
-				line = gn
-			} else {
-				line += entry
-			}
-		}
-		if line != "" {
-			sb.WriteString(" " + line + "\n")
-		}
+		writePackedBullets(&sb, equipNotes, pmLineWidth)
 	}
 
 	// Add game claim and YouTube trailer at the end for better readability
@@ -467,6 +454,66 @@ func (b *Bot) composePM(g games.Game, shortURL string, theme *content.Theme, lvl
 		sb.WriteString("\n" + theme.Signoff)
 	}
 	return strings.TrimRight(sb.String(), "\n")
+}
+
+// pmLineWidth is the soft target width (in bytes) for packed PM bullet lines.
+// Wider than a typical chat line so we fit several items per line, but short
+// enough to avoid an unreadable wall of text.
+const pmLineWidth = 300
+
+// writePackedBullets writes items onto as few " • "-prefixed lines as possible,
+// separating items with " | " and wrapping once a line would exceed maxLen. A
+// single item longer than maxLen still occupies its own line.
+func writePackedBullets(sb *strings.Builder, items []string, maxLen int) {
+	var line string
+	for _, it := range items {
+		seg := it
+		if line != "" {
+			seg = " | " + it
+		}
+		if line != "" && len(line)+len(seg) > maxLen {
+			sb.WriteString(" • " + line + "\n")
+			line = it
+		} else {
+			line += seg
+		}
+	}
+	if line != "" {
+		sb.WriteString(" • " + line + "\n")
+	}
+}
+
+// writeCombatLog renders the combat notes in order, packing consecutive short
+// blow-by-blow lines (kills, casts, ambush) together while keeping structural
+// lines — the zone/wave headers and the battle summary — on their own line so
+// the narrative stays readable.
+func writeCombatLog(sb *strings.Builder, notes []string, maxLen int) {
+	var run []string
+	flush := func() {
+		if len(run) > 0 {
+			writePackedBullets(sb, run, maxLen)
+			run = run[:0]
+		}
+	}
+	for _, n := range notes {
+		if isStandaloneCombatLine(n) {
+			flush()
+			sb.WriteString(" • " + n + "\n")
+		} else {
+			run = append(run, n)
+		}
+	}
+	flush()
+}
+
+// isStandaloneCombatLine reports whether a combat note should occupy its own
+// line: zone/wave headers and the BBCode-formatted battle summary, which read
+// poorly when packed next to short kill lines.
+func isStandaloneCombatLine(n string) bool {
+	return strings.Contains(n, "WAVE") || strings.Contains(n, "📍") ||
+		strings.Contains(n, "📊") || strings.Contains(n, "🏁") ||
+		strings.Contains(n, "[center]") || strings.Contains(n, "[size") ||
+		strings.Contains(n, "[hr]")
 }
 
 func filterNewGames(all []games.Game, alreadySent []string) []games.Game {
@@ -649,9 +696,36 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 	}
 	log.Printf("Found %d channels with players", len(chanUsers))
 
+	// Fetch channel metadata once: the default ("home") channel is excluded from
+	// renaming so the server's landing channel keeps its name. We also seed a
+	// "taken" set with every current channel name so randomly picked names stay
+	// server-wide unique (TeamSpeak rejects a duplicate with id=771).
+	defaultCID := -1
+	channelName := make(map[int]string)
+	taken := make(map[string]bool)
+	if chans, derr := c.ChannelList(); derr != nil {
+		log.Printf("Channel rename: could not list channels (will not exclude default or guarantee unique names): %v", derr)
+	} else {
+		for _, ch := range chans {
+			channelName[ch.CID] = ch.Name
+			taken[ch.Name] = true
+			if ch.IsDefault {
+				defaultCID = ch.CID
+			}
+		}
+		log.Printf("Channel rename: default (home) channel is %d; it will be excluded", defaultCID)
+	}
+
 	// Update each channel's description
 	for cid, users := range chanUsers {
 		if len(users) == 0 {
+			continue
+		}
+
+		// The default ("home") channel is left completely untouched — neither its
+		// description nor its name is changed.
+		if cid == defaultCID {
+			log.Printf("Channel update: skipping default/home channel %d (no description or name changes)", cid)
 			continue
 		}
 
@@ -700,20 +774,111 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 			log.Printf("Updated channel %d description", cid)
 		}
 
-		// Update channel name from the 1000-name pool
-		names := i18n.Pool("pool.channel.name")
-		if len(names) > 0 {
-			// Use a deterministic name based on CID. 
-			// We offset by a daily salt to rotate the names occasionally if desired,
-			// or just use cid directly for stability.
-			// Let's use cid directly to ensure "unique channel names" (unique per cid).
-			newName := names[cid%len(names)]
-			if err := c.SetChannelName(cid, newName); err != nil {
-				log.Printf("Failed to set channel %d name to %q: %v", cid, newName, err)
-			}
+		// Update channel name from the 1000-name pool.
+		if !b.Cfg.EnableChannelRename {
+			log.Printf("Channel rename: skipping channel %d (ENABLE_CHANNEL_RENAME is off)", cid)
+			continue
+		}
+		// A channel's own current name shouldn't block its rename; everything else
+		// stays reserved so picks remain server-wide unique.
+		delete(taken, channelName[cid])
+		newName, foreign := pickChannelName(taken)
+		if newName == "" {
+			log.Printf("Channel rename: skipping channel %d (no client-safe name available for lang %q)", cid, b.Cfg.Lang)
+			taken[channelName[cid]] = true
+			continue
+		}
+		origin := "local"
+		if foreign {
+			origin = "foreign"
+		}
+		log.Printf("Channel rename: setting channel %d -> %q (%s)", cid, newName, origin)
+		if err := c.SetChannelName(cid, newName); err != nil {
+			log.Printf("Channel rename: FAILED for channel %d name=%q: %v", cid, newName, err)
+			taken[channelName[cid]] = true // keep the old name reserved on failure
+		} else {
+			log.Printf("Channel rename: OK channel %d is now %q", cid, newName)
+			taken[newName] = true
 		}
 	}
 
 	log.Printf("Completed UpdateChannelDescriptions")
 	return nil
+}
+
+// foreignChannelNameChance is the probability that a channel rename draws its
+// name from another language's pool instead of the active locale's.
+const foreignChannelNameChance = 0.08
+
+// pickChannelName returns a random channel name from the active locale's pool,
+// occasionally (foreignChannelNameChance) borrowing from a random other
+// language — but only names whose characters the TS3 client renders reliably
+// (see clientSafeChannelName). It avoids any name already in taken so renames
+// stay server-wide unique. The second return value reports whether the chosen
+// name came from a foreign pool.
+func pickChannelName(taken map[string]bool) (string, bool) {
+	// Occasionally try another language first, but fall back to the active locale
+	// if that foreign pool has no free client-safe name left.
+	if rand.Float64() < foreignChannelNameChance {
+		var others []i18n.LocaleID
+		for _, id := range i18n.AllLocales {
+			if id != i18n.CurrentLocale() {
+				others = append(others, id)
+			}
+		}
+		if len(others) > 0 {
+			id := others[rand.IntN(len(others))]
+			var safe []string
+			for _, n := range i18n.PoolForLocale(id, "channel.name") {
+				if clientSafeChannelName(n) {
+					safe = append(safe, n)
+				}
+			}
+			if n := pickUnused(safe, taken); n != "" {
+				return n, true
+			}
+		}
+	}
+	// Pool keys are stored without the "pool." prefix (see poolKeyFromYAMLKey).
+	return pickUnused(i18n.Pool("channel.name"), taken), false
+}
+
+// pickUnused returns a random entry of pool not present in taken, or "" if every
+// entry is taken (or the pool is empty). It tries a few random draws before
+// falling back to a linear scan.
+func pickUnused(pool []string, taken map[string]bool) string {
+	if len(pool) == 0 {
+		return ""
+	}
+	for i := 0; i < 8; i++ {
+		if n := pool[rand.IntN(len(pool))]; !taken[n] {
+			return n
+		}
+	}
+	for _, n := range pool {
+		if !taken[n] {
+			return n
+		}
+	}
+	return ""
+}
+
+// clientSafeChannelName reports whether every rune in s is something the TS3
+// client renders reliably: ASCII or Latin-script letters, digits, spaces and a
+// few common name punctuation marks. This filters out borrowed names written in
+// non-Latin scripts (Cyrillic, CJK, Arabic, …).
+func clientSafeChannelName(s string) bool {
+	if strings.TrimSpace(s) == "" {
+		return false
+	}
+	for _, r := range s {
+		switch {
+		case r == ' ' || r == '\'' || r == '-' || r == '.' || r == '&':
+		case unicode.IsDigit(r):
+		case unicode.IsLetter(r) && (r < 128 || unicode.Is(unicode.Latin, r)):
+		default:
+			return false
+		}
+	}
+	return true
 }

@@ -383,6 +383,22 @@ func TestLevelTierPool(t *testing.T) {
 	}
 }
 
+// TestChannelNamePool guards the 4-digit-indexed pool case: the channel-name
+// pool uses ".0001"–".1000" keys, which were previously dropped because the
+// pool-index regex only matched 2-3 digit suffixes (empty pool → no rename).
+func TestChannelNamePool(t *testing.T) {
+	if err := InitWithLocale(LocaleEnUS); err != nil {
+		t.Fatal(err)
+	}
+	pool := Pool("channel.name")
+	if len(pool) != 1000 {
+		t.Errorf("Pool(channel.name) has %d entries, want 1000", len(pool))
+	}
+	if len(pool) > 0 && pool[0] != "Screaming Guerilla" {
+		t.Errorf("Pool(channel.name)[0] = %q, want %q", pool[0], "Screaming Guerilla")
+	}
+}
+
 func TestUninitializedGlobal(t *testing.T) {
 	// Save and reset global
 	saved := global
@@ -404,5 +420,28 @@ func TestUninitializedGlobal(t *testing.T) {
 	// CurrentLocale should return default when not initialized
 	if got := CurrentLocale(); got != defaultLocale {
 		t.Errorf("CurrentLocale() uninitialized = %q, want %q", got, defaultLocale)
+	}
+}
+
+func TestPoolForLocale(t *testing.T) {
+	if err := InitWithLocale(LocaleEnUS); err != nil {
+		t.Fatal(err)
+	}
+	// Existing locale and valid pool
+	p := PoolForLocale(LocaleEnUS, "mob.prefix")
+	if len(p) != 10 {
+		t.Errorf("PoolForLocale(en_US, mob.prefix) got length %d, want 10", len(p))
+	}
+
+	// Unknown locale
+	pUnknownLocale := PoolForLocale("xx_XX", "mob.prefix")
+	if pUnknownLocale != nil {
+		t.Errorf("PoolForLocale with unknown locale should return nil, got %v", pUnknownLocale)
+	}
+
+	// Unknown pool
+	pUnknownPool := PoolForLocale(LocaleEnUS, "nonexistent.pool")
+	if pUnknownPool != nil {
+		t.Errorf("PoolForLocale with unknown pool should return nil, got %v", pUnknownPool)
 	}
 }

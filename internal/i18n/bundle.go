@@ -148,8 +148,11 @@ func parseLocale(data []byte, id LocaleID) (*Locale, error) {
 	}, nil
 }
 
-// poolIndexRe matches a numeric index suffix like ".001", ".100", etc.
-var poolIndexRe = regexp.MustCompile(`\.\d{2,3}$`)
+// poolIndexRe matches a numeric index suffix like ".001", ".100", ".0001", etc.
+// Pools use 2-4 digit, zero-padded indices (e.g. the 1000-entry channel-name
+// pool uses ".0001"–".1000"); without the 4-digit case those keys would be
+// parsed as ordinary messages and the pool would come back empty.
+var poolIndexRe = regexp.MustCompile(`\.\d{2,4}$`)
 
 // poolKeyFromYAMLKey determines whether a YAML key represents a pool entry.
 // If it does, it returns the pool key (without "pool." prefix and without the

@@ -184,13 +184,39 @@ func (s *Supervisor) connect(shutdownCtx, cycleCtx context.Context) (*clientquer
 	}
 
 	log.Println("Waiting for TS3 client to be connected to the server...")
+	start := time.Now()
+	lastLog := time.Time{}
 	for time.Now().Before(deadline) {
 		if err := ctxErr(shutdownCtx, cycleCtx); err != nil {
 			_ = c.Close()
 			return nil, err
 		}
-		if c.IsConnected() {
-			return c, nil
+		// Select the server connection handler (schandler 1) before querying
+		// identity. Until the client has actually created the handler, both "use"
+		// and "whoami" fail with id=1799 ("invalid server connection handler ID").
+		// Polling whoami without this selected the wrong/no handler, so a fully
+		// connected client looked "not connected" until the watchdog timed out.
+		uerr := c.Use(1)
+		var info clientquery.WhoAmIInfo
+		var werr error
+		if uerr == nil {
+			info, werr = c.WhoAmIInfo()
+			if werr == nil && info.CLID > 0 {
+				log.Printf("TS3 client is connected (clid=%d cid=%d, took %s).", info.CLID, info.CID, time.Since(start).Round(time.Second))
+				return c, nil
+			}
+		}
+		// Surface why we're still waiting: log the first poll and then every 15s.
+		if time.Since(lastLog) >= 15*time.Second || lastLog.IsZero() {
+			switch {
+			case uerr != nil:
+				log.Printf("  ...still waiting (%s): connection handler not ready: %v", time.Since(start).Round(time.Second), uerr)
+			case werr != nil:
+				log.Printf("  ...still waiting (%s): whoami failed: %v", time.Since(start).Round(time.Second), werr)
+			default:
+				log.Printf("  ...still waiting (%s): client up but not on a server yet (clid=%d status=%q)", time.Since(start).Round(time.Second), info.CLID, info.Status)
+			}
+			lastLog = time.Now()
 		}
 		if sleepCtx(shutdownCtx, time.Second) {
 			_ = c.Close()
