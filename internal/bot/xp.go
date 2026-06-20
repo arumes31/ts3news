@@ -61,6 +61,8 @@ type UserInCombat struct {
 	STRMod        float64
 	DEFMod        float64
 	SPDMod        float64
+	LootMult      float64
+	LootNotes     []string
 }
 
 type activeUser struct {
@@ -99,7 +101,9 @@ func (b *Bot) buildCycleContext(clients []clientquery.ClientInfo) cycleContext {
 }
 
 // processUserXP applies all XP gains for one user this cycle.
-func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, ctx cycleContext) (*levelResult, []string, string) {
+func (b *Bot) processUserXP(user *UserInCombat, cid, base int, hasGame bool, ctx cycleContext) (*levelResult, []string, string) {
+	uid := user.UID
+	nickname := user.Nickname
 	var notes []string
 	delta := 0
 
@@ -113,8 +117,9 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 		}
 	}
 
-	stats, mult, _, mnotes := b.calculateTotalStats(uid, ctx.today)
-	notes = append(notes, mnotes...)
+	stats := user.Stats
+	mult := user.LootMult
+	notes = append(notes, user.LootNotes...)
 
 	// Intelligence bonus
 	if stats.INT > 0 {

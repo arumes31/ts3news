@@ -108,7 +108,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		if cl.Type != 0 || (targetNick != "" && !strings.EqualFold(cl.Nickname, targetNick)) || cl.UID == "" {
 			continue
 		}
-		stats, _, _, _ := b.calculateTotalStats(cl.UID, ctx.today)
+		stats, lootMult, _, lootNotes := b.calculateTotalStats(cl.UID, ctx.today)
 		skills := b.getSkills(cl.UID)
 		ultimate := b.getUltimateSkill(cl.UID)
 
@@ -127,7 +127,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		chanUsers[cl.CID] = append(chanUsers[cl.CID], UserInCombat{
 			UID: cl.UID, Nickname: cl.Nickname, CLID: cl.CLID, Stats: stats, Level: lvl, Skills: skills,
 			UltimateSkill: ultimate, CurrentHP: curHP, RegenStacks: regen, Gold: gold, Pets: pets,
-			Equipped: equipped,
+			Equipped: equipped, LootMult: lootMult, LootNotes: lootNotes,
 		})
 	}
 
@@ -202,7 +202,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 
 			// XP, Leveling, Loot
 			baseXP := b.xpForGame(game)
-			lr, notes, artifactPoke := b.processUserXP(user.UID, user.Nickname, cid, baseXP+rewardXP, hasGame, ctx)
+			lr, notes, artifactPoke := b.processUserXP(&user, cid, baseXP+rewardXP, hasGame, ctx)
 
 			// Auction House auto-purchase
 			if ahNote := b.autoPurchaseUpgrades(user.UID, user.Gold); ahNote != "" {
@@ -215,16 +215,16 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			// permanent stat bonus) and grant the prestige rank group. Future leveling
 			// then resumes from level 1 at the new prestige.
 			if lr != nil && lr.NewLevel >= PrestigeThreshold {
-					newP := b.doPrestige(user.UID)
-					notes = append(notes, i18n.T("bot.prestige.announce", newP, int(prestigeStatBonus*100)))
-					if extraPoke != "" {
-							extraPoke += " "
-					}
-					extraPoke += i18n.T("bot.prestige.poke", newP)
-					lr.OldLevel, lr.NewLevel, lr.TotalXP = 1, 1, 0
-					if b.Cfg.XPServerGroups {
-							b.applyPrestigeGroup(c, user.CLID, user.UID, user.Nickname, newP)
-					}
+				newP := b.doPrestige(user.UID)
+				notes = append(notes, i18n.T("bot.prestige.announce", newP, int(prestigeStatBonus*100)))
+				if extraPoke != "" {
+					extraPoke += " "
+				}
+				extraPoke += i18n.T("bot.prestige.poke", newP)
+				lr.OldLevel, lr.NewLevel, lr.TotalXP = 1, 1, 0
+				if b.Cfg.XPServerGroups {
+					b.applyPrestigeGroup(c, user.CLID, user.UID, user.Nickname, newP)
+				}
 			}
 
 			// Durability & Loot Drops
@@ -257,11 +257,11 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			// Messaging
 			notes = append(notes, battleLogs...)
 			if lr != nil {
-					outcome := i18n.T("xp.battle")
-					if lr.Awarded < 0 {
-							outcome = i18n.T("xp.lost")
-					}
-					notes = append(notes, i18n.T("xp.outcome", outcome, lr.Awarded, leveling.LevelName(lr.NewLevel), lr.NewLevel))
+				outcome := i18n.T("xp.battle")
+				if lr.Awarded < 0 {
+					outcome = i18n.T("xp.lost")
+				}
+				notes = append(notes, i18n.T("xp.outcome", outcome, lr.Awarded, leveling.LevelName(lr.NewLevel), lr.NewLevel))
 			}
 			pokeMsg := composePoke(game, shortURL, theme, lr)
 			pmMsg := b.composePM(game, shortURL, theme, lr, notes, user.Stats.Score())
