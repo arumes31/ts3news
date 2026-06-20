@@ -197,7 +197,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           securityHeadersMiddleware(mux),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	s.mu.Lock()
@@ -217,6 +217,23 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		return err
 	}
 	return nil
+}
+
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Prevent clickjacking
+		w.Header().Set("X-Frame-Options", "DENY")
+		// Prevent MIME type sniffing
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		// Enable XSS filtering in browsers
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		// Enforce HTTPS
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		// Basic CSP restricting framing
+		w.Header().Set("Content-Security-Policy", "frame-ancestors 'none'")
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Shutdown gracefully stops the HTTP server if it is running.
