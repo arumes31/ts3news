@@ -2967,7 +2967,7 @@ func (s *WebServer) handleTFTSelectAugment(w http.ResponseWriter, r *http.Reques
 		)
 	`, uid, req.AugmentID, st.StageNumber, st.RoundNumber).Scan(&offerExists)
 	if err != nil || !offerExists {
-		http.Error(w, "Augment not offered", 403)
+		http.Error(w, "Augment not offered", http.StatusForbidden)
 		return
 	}
 
