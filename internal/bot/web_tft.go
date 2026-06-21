@@ -2956,9 +2956,24 @@ func (s *WebServer) handleTFTSelectAugment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	st := s.bot.loadTFT(uid)
+
+	// Verify the augment is currently offered to the user
+	var offerExists bool
+	err := s.bot.DB.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1 FROM tft_augment_offers
+			WHERE user_id = $1 AND augment_id = $2 AND stage = $3 AND round = $4
+		)
+	`, uid, req.AugmentID, st.StageNumber, st.RoundNumber).Scan(&offerExists)
+	if err != nil || !offerExists {
+		http.Error(w, "Augment not offered", 403)
+		return
+	}
+
 	// Get augment details
 	var augment Augment
-	err := s.bot.DB.QueryRow(`
+	err = s.bot.DB.QueryRow(`
 		SELECT id, key, name, description, tier, type, effect_data, icon
 		FROM tft_augments WHERE id = $1
 	`, req.AugmentID).Scan(&augment.ID, &augment.Key, &augment.Name, &augment.Description, &augment.Tier, &augment.Type, &augment.EffectData, &augment.Icon)
@@ -2966,8 +2981,6 @@ func (s *WebServer) handleTFTSelectAugment(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Augment not found", 404)
 		return
 	}
-
-	st := s.bot.loadTFT(uid)
 
 	// Save player augment selection
 	_, err = s.bot.DB.Exec(`

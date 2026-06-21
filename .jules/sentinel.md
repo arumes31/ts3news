@@ -1,0 +1,4 @@
+## 2024-05-24 - TFT Augment Selection Authorization Bypass
+**Vulnerability:** Business logic bypass / Insecure Direct Object Reference (IDOR) in `handleTFTSelectAugment`. The endpoint allowed users to provide any `augmentId` and acquire the augment, without verifying if it was actually presented to them as an offer in `tft_augment_offers`. This allowed users to select the most powerful augments arbitrarily.
+**Learning:** Always verify that an action requested by a user is authorized within the current state/context of the game, not just that the object exists in the database. When dealing with random offers or choices, validate that the requested choice is in the set of valid options currently presented to the user.
+**Prevention:** Implement state checks. Query the database to verify the `augment_id` exists in the `tft_augment_offers` table for the specific `user_id`, `stage`, and `round` before processing the selection.
