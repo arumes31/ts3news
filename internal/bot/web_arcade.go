@@ -207,9 +207,12 @@ func (s *WebServer) handleDailySpinAPI(w http.ResponseWriter, r *http.Request, u
 		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", gold, uid)
 	}
 
+	var newGold int64
+	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&newGold)
+
 	writeJSON(w, map[string]any{
 		"ok": true, "reward": reward, "gold": gold, "gear": gear,
-		"new_gold": s.bot.userGold(uid),
+		"new_gold": newGold,
 	})
 }
 
@@ -228,10 +231,6 @@ func playArcade(rng *rand.Rand, game string, bet int64, choice string) arcadeOut
 	case "highlow":
 		out.Card, out.Payout, out.Detail = playHighLow(rng, bet, choice)
 	default:
-		if g, ok := extraGames[game]; ok {
-			out.Payout, out.Detail = g(rng, bet, choice)
-			return out
-		}
 		return arcadeOutcome{OK: false, Error: "unknown game"}
 	}
 	return out
@@ -317,3 +316,5 @@ func playHighLow(rng *rand.Rand, bet int64, choice string) (int, int64, string) 
 	}
 	return card, 0, "Drew " + itoa(card) + " — loss"
 }
+
+func mulBet(bet int64, m float64) int64 { return int64(float64(bet) * m) }

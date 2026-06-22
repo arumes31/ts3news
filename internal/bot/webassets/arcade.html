@@ -115,8 +115,7 @@
 
 </div>
 
-<h2 class="more-games-h">🕹️ All Games</h2>
-<div class="arcade-grid" id="moreGames"></div>
+
 
 <div class="lb-nav-banner">
   <a href="/leaderboards" class="lb-nav-btn">🏆 View Leaderboards</a>
@@ -313,138 +312,7 @@
     disable('btn-high', false); disable('btn-low', false);
   }
 
-  /* ---- EXTRA GAMES ---- */
-  const MOREGAMES = [
-    { k: 'rps', n: 'Rock Paper Scissors', i: '✊', d: 'Beat the bot in 3 rounds. ×2' },
-    { k: 'crash', n: 'Rocket Crash', i: '🚀', d: 'Cash out before it explodes! ×1.5-50' },
-    { k: 'roulette', n: 'Mini Roulette', i: '🎡', d: 'Pick red, black or 0. ×2-14' },
-    { k: 'scratch', n: 'Lucky Scratch', i: '🎫', d: 'Scratch 3 matching symbols. ×2-50' },
-    { k: 'horserace', n: 'Horse Race', i: '🐎', d: 'Pick a horse to win. ×4' },
-    { k: 'plinko', n: 'Plinko Drop', i: '🔵', d: 'Drop a ball for multipliers. ×0-10' },
-    { k: 'sicbo', n: 'Sic Bo', i: '🎲', d: 'Bet on 3-dice totals. ×2-30' },
-    { k: 'war', n: 'Casino War', i: '⚔️', d: 'Highest card wins. ×2' },
-    { k: 'slotdeluxe', n: 'Slot Deluxe', i: '🎰', d: 'High volatility 3-reel slots. ×0-500' },
-    { k: 'darts', n: 'Bullseye Darts', i: '🎯', d: 'Hit the center for gold. ×1-20' },
-    { k: 'minefield', n: 'Minefield', i: '🚶', d: 'Cross without hitting mines. ×1.2-10' },
-    { k: 'keno', n: 'Mini Keno', i: '🎱', d: 'Match 5 out of 20 numbers. ×2-100' },
-    { k: 'fortune', n: 'Fortune Dice', i: '🔮', d: 'Predict the exact sum. ×6-30' },
-    { k: 'lucky', n: 'Lucky 7', i: '💎', d: 'Land a 7 for a huge win. ×50' },
-    { k: 'chests', n: 'Treasure Chests', i: '🎁', d: 'Pick the right chest. ×3' },
-    { k: 'lightning', n: 'Lightning Strike', i: '⚡', d: 'Survive the bolt for gold. ×2' },
-    { k: 'colorpick', n: 'Color Pick', i: '🎨', d: 'Guess the next color. ×3' },
-    { k: 'diceduel', n: 'Dice Duel', i: '⚔️', d: 'Roll higher than opponent. ×2' },
-    { k: 'gems', n: 'Gem Match', i: '💎', d: 'Find matching gems. ×5' },
-    { k: 'megawheel', n: 'Mega Wheel', i: '🎡', d: '24-segment high roller wheel. ×0-50' },
-    { k: '3d_snake', n: '3D Snake', i: '🐍', d: 'Grow without biting your tail', f: 'game_01_3d_snake.html' },
-    { k: '3d_pong', n: '3D Pong', i: '🏓', d: 'Rally past the CPU paddle', f: 'game_02_pong.html' },
-    { k: '3d_space_invaders', n: 'Voxel Invaders', i: '👾', d: 'Blast the descending swarm', f: 'game_03_space_invaders.html' },
-    { k: '3d_frogger', n: 'Frogger', i: '🐸', d: 'Hop across the busy lanes', f: 'game_04_frogger.html' },
-    { k: '3d_endless_runner', n: 'Endless Runner', i: '🏃', d: 'Switch lanes and jump', f: 'game_05_endless_runner.html' },
-    { k: '3d_meteor_dodger', n: 'Meteor Dodger', i: '☄️', d: 'Survive the meteor storm', f: 'game_06_meteor_dodger.html' },
-    { k: '3d_tetris', n: '3D Tetris', i: '🧱', d: 'Clear lines, don\'t top out', f: 'game_07_3d_tetris.html' },
-    { k: '3d_maze_chaser', n: 'Maze Chaser', i: '👻', d: 'Grab pellets, dodge the ghost', f: 'game_08_maze_chaser.html' },
-    { k: '3d_asteroids', n: 'Asteroids', i: '🪨', d: 'Thrust, rotate, shoot, split', f: 'game_09_asteroids.html' },
-    { k: '3d_breakout', n: 'Breakout', i: '🧨', d: 'Bounce the ball, smash bricks', f: 'game_10_breakout.html' },
-    { k: '3d_missile_command', n: 'Missile Command', i: '🚀', d: 'Intercept incoming missiles', f: 'game_11_missile_command.html' },
-    { k: '3d_tunnel_flyer', n: 'Tunnel Flyer', i: '🐦', d: 'Flap through the gaps', f: 'game_12_tunnel_flyer.html' },
-    { k: '3d_tower_stack', n: 'Tower Stack', i: '🏗️', d: 'Drop and align the blocks', f: 'game_13_tower_stack.html' },
-    { k: '3d_block_dodger', n: 'Block Dodger', i: '🟦', d: 'Weave past falling blocks', f: 'game_14_block_dodger.html' },
-    { k: '3d_whack_a_mole', n: 'Whack-a-Mole', i: '🔨', d: 'Bonk every mole in time', f: 'game_15_whack_a_mole.html' },
-    { k: '3d_air_hockey', n: 'Air Hockey', i: '🥅', d: 'Out-score the CPU mallet', f: 'game_16_air_hockey.html' },
-    { k: '3d_tank_battle', n: 'Tank Battle', i: '🛡️', d: 'Hunt enemy tanks, dodge shells', f: 'game_17_tank_battle.html' },
-    { k: '3d_helix_drop', n: 'Helix Drop', i: '🌀', d: 'Spin the tower, drop through gaps', f: 'game_18_helix_drop.html' },
-    { k: '3d_galaxy_shooter', n: 'Galaxy Shooter', i: '🌌', d: 'Auto-fire through the waves', f: 'game_19_galaxy_shooter.html' },
-    { k: '3d_cube_runner', n: 'Cube Runner', i: '🔺', d: 'Weave the neon field', f: 'game_20_cube_runner.html' },
-    { k: '3d_gem_collector', n: 'Gem Collector', i: '💎', d: 'Grab gems, skip the bombs', f: 'game_21_gem_collector.html' },
-    { k: '3d_laser_defense', n: 'Laser Defense', i: '🟢', d: 'Aim the turret, defend the core', f: 'game_22_laser_defense.html' },
-    { k: '3d_star_dodger', n: 'Star Dodger', i: '✨', d: 'Drift clear of the comets', f: 'game_23_star_dodger.html' },
-    { k: '3d_color_catch', n: 'Colour Catch', i: '🎨', d: 'Catch only your colour', f: 'game_24_color_catch.html' },
-    { k: '3d_platform_jumper', n: 'Platform Jumper', i: '⬆️', d: 'Bounce ever higher', f: 'game_25_platform_jumper.html' },
-    { k: '3d_lunar_lander', n: 'Lunar Lander', i: '🌙', d: 'Touch down softly on the pad', f: 'game_26_lunar_lander.html' },
-    { k: '3d_crossy_road', n: 'Crossy Road', i: '🚗', d: 'Hop forward as far as you can', f: 'game_27_crossy_road.html' },
-    { k: '3d_light_cycles', n: 'Light Cycles', i: '🏍️', d: 'Out-manoeuvre the rival trail', f: 'game_28_light_cycles.html' },
-    { k: '3d_ring_flyer', n: 'Ring Flyer', i: '💍', d: 'Thread the floating rings', f: 'game_29_ring_flyer.html' },
-    { k: '3d_simon_memory', n: 'Simon Memory', i: '🧠', d: 'Repeat the growing sequence', f: 'game_30_simon_memory.html' }
-  ];
-  function buildMoreGames() {
-    const g = document.getElementById('moreGames');
-    MOREGAMES.forEach(x => {
-      const c = document.createElement('div'); c.className = 'game-card mini';
-      // Check if this is a 3D game (has 'f' property for filename)
-      if (x.f) {
-        // For 3D games, open in new window/tab at /play/ endpoint
-        c.innerHTML = `<h3>${x.i} ${x.n}</h3><p class="muted small">${x.d}</p><div class="choices"><button onclick="window.open('/play/${x.f}', '_blank')">Play</button></div>`;
-      } else {
-        // For 2D games, use the existing playGen() function
-        c.innerHTML = `<h3>${x.i} ${x.n}</h3><p class="muted small">${x.d}</p><div class="choices"><button onclick="playGen('${x.k}','',this.closest('.game-card'))">Play</button></div>`;
-      }
-      g.appendChild(c);
-    });
-  }
-  async function playGen(game, choice, card) {
-    if (card) { card.classList.add('busy'); card.querySelectorAll('button, input').forEach(b => b.disabled = true); card.classList.remove('win-glow', 'loss-shake'); }
 
-    let stage = card ? card.querySelector('.anim-stage') : null;
-    if (card && !stage) {
-      stage = document.createElement('div');
-      stage.className = 'anim-stage';
-      card.insertBefore(stage, card.querySelector('.choices'));
-    }
-    if (stage) {
-      stage.style.display = 'flex';
-      const g = MOREGAMES.find(x => x.k === game);
-      const icon = g ? g.i : '🎲';
-      if (game === 'roulette' || game === 'megawheel') {
-        stage.innerHTML = `<div class="anim-wheel">${icon}</div>`;
-      } else if (game === 'rps') {
-        stage.innerHTML = `<div class="anim-rps"><span class="l">✊</span><span class="r">✊</span></div>`;
-      } else if (game === 'crash') {
-        stage.innerHTML = `<div class="anim-crash">🚀</div>`;
-      } else if (game === 'sicbo' || game === 'fortune' || game === 'diceduel') {
-        stage.innerHTML = `<div class="anim-dice"><span>${icon}</span><span>${icon}</span></div>`;
-      } else if (game === 'plinko') {
-        stage.innerHTML = `<div class="anim-plinko">🔵</div>`;
-      } else if (game === 'horserace') {
-        stage.innerHTML = `<div class="anim-horse">🐎</div>`;
-      } else if (game === 'war' || game === 'lucky') {
-        stage.innerHTML = `<div class="anim-cards"><div class="c1">🃏</div><div class="c2">🃏</div></div>`;
-      } else if (game === 'slotdeluxe') {
-        stage.innerHTML = `<div class="anim-slot"><span>🎰</span><span>🎰</span><span>🎰</span></div>`;
-      } else if (game === 'darts') {
-        stage.innerHTML = `<div class="anim-dart">🎯</div>`;
-      } else if (game === 'minefield') {
-        stage.innerHTML = `<div class="anim-mine">🚶</div>`;
-      } else if (game === 'chests') {
-        stage.innerHTML = `<div class="anim-chest">🎁</div>`;
-      } else if (game === 'lightning') {
-        stage.innerHTML = `<div class="anim-bolt">⚡</div>`;
-      } else if (game === 'gems') {
-        stage.innerHTML = `<div class="anim-gem">💎</div>`;
-      } else if (game === 'scratch') {
-        stage.innerHTML = `<div class="anim-scratch"></div>`;
-      } else if (game === 'keno' || game === 'colorpick') {
-        stage.innerHTML = `<div class="anim-keno"><span>1</span><span>7</span><span>22</span></div>`;
-      } else {
-        stage.innerHTML = `<div class="anim-pop">${icon}</div>`;
-      }
-    }
-
-    const [d] = await Promise.all([
-      api(game, choice),
-      sleep(1500)
-    ]);
-
-    if (card) {
-      card.classList.remove('busy');
-      card.querySelectorAll('button, input').forEach(b => b.disabled = false);
-      if (d) card.classList.add(d.win ? 'win-glow' : 'loss-shake');
-    }
-    if (stage) stage.style.display = 'none';
-
-    if (d) { card && card.classList.add('flash'); setTimeout(() => card && card.classList.remove('flash'), 350); showResult(d); }
-  }
-
-  buildMoreGames();
 
   // init slot strips at rest
   for (let i = 0; i < 5; i++) { buildStrip('strip' + i); const s = document.getElementById('strip' + i); s.style.transform = 'translateY(-' + ((s.children.length - 3) * 72) + 'px)'; }

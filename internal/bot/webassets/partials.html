@@ -14,9 +14,7 @@
   <nav class="nav">
     <a href="/" class="{{if eq .Nav "armory"}}active{{end}}">Armoury</a>
     <a href="/inventory" class="{{if eq .Nav "inventory"}}active{{end}}">Inventory</a>
-    <a href="/battle" class="{{if eq .Nav "battle"}}active{{end}}">Battle</a>
     <a href="/arcade" class="{{if eq .Nav "arcade"}}active{{end}}">Arcade</a>
-    <a href="/games" class="{{if eq .Nav "games"}}active{{end}}">Games 3D</a>
     <a href="/leaderboards" class="{{if eq .Nav "leaderboards"}}active{{end}}">Leaderboards</a>
     <a href="/shop" class="{{if eq .Nav "shop"}}active{{end}}">Shop</a>
     <a href="/ah" class="{{if eq .Nav "ah"}}active{{end}}">Auction</a>
@@ -51,33 +49,6 @@
     </tr>
   {{else}}
     <tr><td colspan="4" class="muted">No wins yet.</td></tr>
-  {{end}}
-  </tbody>
-</table>
-{{end}}
-
-{{define "leaderboards3d"}}
-<div class="lb-grid">
-  <div class="lb-col"><h3>🏆 Today</h3>{{template "lbtable3d" .Day}}</div>
-  <div class="lb-col"><h3>📅 Last 30 Days</h3>{{template "lbtable3d" .Month}}</div>
-  <div class="lb-col"><h3>👑 All-Time</h3>{{template "lbtable3d" .AllTime}}</div>
-</div>
-{{end}}
-
-{{define "lbtable3d"}}
-<table class="lbtable">
-  <thead><tr><th>#</th><th>Player</th><th>Score</th><th>Gold</th><th>Plays</th></tr></thead>
-  <tbody>
-  {{range .}}
-    <tr>
-      <td class="lb-rank lb-rank-{{.Rank}}">{{.Rank}}</td>
-      <td class="lb-name">{{.Nickname}}</td>
-      <td class="lb-wins">{{.HighScore}}</td>
-      <td class="win">{{.GoldEarned}}</td>
-      <td>{{.TimesPlayed}}</td>
-    </tr>
-  {{else}}
-    <tr><td colspan="5" class="muted">No scores yet.</td></tr>
   {{end}}
   </tbody>
 </table>
