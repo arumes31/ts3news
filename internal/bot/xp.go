@@ -148,10 +148,17 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 	} else {
 		// Penalty should NOT be subject to positive multipliers (streak, etc.)
 		award = base // base is already negative here
-		// Cap loss at 10% of total XP or a reasonable flat amount for low levels
-		var curXP int
-		_ = b.DB.QueryRow("SELECT xp FROM users WHERE client_uid=$1", uid).Scan(&curXP)
-		maxLoss := -(10 + int(float64(curXP)*0.1))
+		var curXP, curLevel int
+		_ = b.DB.QueryRow("SELECT xp, level FROM users WHERE client_uid=$1", uid).Scan(&curXP, &curLevel)
+		
+		baseXP := leveling.XPForLevel(curLevel)
+		levelProgress := curXP - baseXP
+		
+		maxLoss := -levelProgress
+		if maxLoss > -10 {
+			maxLoss = -10 // minimum 10 xp loss
+		}
+		
 		if award < maxLoss {
 			award = maxLoss
 		}
@@ -165,11 +172,18 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 	}
 
 	if b.Cfg.EnableXPModifiers {
-		if box := lootBoxForCross(lr.OldLevel, lr.NewLevel); box > 0 {
-			if lr2, err := b.awardXP(uid, nickname, box); err == nil {
-				notes = append(notes, i18n.T("bot.flavour.loot_box", box))
-				lr = &levelResult{OldLevel: lr.OldLevel, NewLevel: lr2.NewLevel, TotalXP: lr2.TotalXP, Awarded: delta + box}
+		if lr.NewLevel/lootBoxEveryLevels > lr.OldLevel/lootBoxEveryLevels {
+			// Milestone Reward!
+			g := content.RandomGearDrop()
+			if g.Rarity < content.RarityEpic {
+				g.Rarity = content.RarityEpic
 			}
+			_ = b.awardGearDrop(uid, g)
+			
+			c := content.RandomConsumable()
+			_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
+			
+			notes = append(notes, fmt.Sprintf("🎁 Level %d Milestone Reached! You found a %s and a %s!", (lr.NewLevel/lootBoxEveryLevels)*lootBoxEveryLevels, g.Name, c.Name))
 		}
 	}
 
@@ -360,7 +374,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 		} else {
 			// Spawn new wave
 			logs = append(logs, i18n.T("bot.combat.wave_approaches", w))
-			newMobs := content.SpawnMobGroup(avgLvl, zone, diffFactor*zone.Difficulty, len(users))
+			newMobs := content.SpawnMobGroup(avgLvl, zone, diffFactor*zone.Difficulty, len(users), w == 3)
 			currentMobs = make([]*content.Mob, len(newMobs))
 			for i := range newMobs {
 				currentMobs[i] = (&newMobs[i]).Clone()
@@ -1106,13 +1120,19 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 
 		} else {
 			_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = consecutive_losses + 1 WHERE client_uid = $1", u.UID)
-			// Death Penalty
-			var curXP int
-			_ = b.DB.QueryRow("SELECT xp FROM users WHERE client_uid=$1", u.UID).Scan(&curXP)
-			penalty := int(float64(curXP) * deathXPPenalty)
+			// Death Penalty: 25% of the XP required for the current level
+			var curXP, curLevel int
+			_ = b.DB.QueryRow("SELECT xp, level FROM users WHERE client_uid=$1", u.UID).Scan(&curXP, &curLevel)
+			
+			baseXP := leveling.XPForLevel(curLevel)
+			nextXP := leveling.XPForLevel(curLevel + 1)
+			levelSize := nextXP - baseXP
+			
+			penalty := int(float64(levelSize) * 0.25)
 			if penalty < 10 {
 				penalty = 10
 			}
+			
 			finalXP -= penalty
 
 			// Increase jackpot by 1% of lost XP value
@@ -1135,9 +1155,27 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 			}
 
 			for _, m := range initialMobs {
-				// Gold drop proportional to XP but with some variance
+				baseGold := m.Level * 2
+				switch m.Type {
+				case content.MobBoss, content.MobLegendary:
+					baseGold = m.Level * 10
+				case content.MobTreasureGoblin:
+					baseGold = m.Level * 25
+				}
 				// #nosec G404
-				goldDrop += int(float64(m.RewardXP) * (0.5 + rand.Float64()*0.5) * inflationMult)
+				goldDrop += int(float64(baseGold) * (0.8 + rand.Float64()*0.4) * inflationMult)
+			}
+			
+			// First Win of the Day Bonus
+			var lastWin sql.NullTime
+			_ = b.DB.QueryRow("SELECT last_win FROM users WHERE client_uid=$1", u.UID).Scan(&lastWin)
+			
+			if !lastWin.Valid || lastWin.Time.Before(time.Now().Add(-24*time.Hour)) {
+				// 5x Gold and XP multiplier for First Win
+				goldDrop *= 5
+				finalXP *= 5
+				logs = append(logs, "🌟 FIRST WIN OF THE DAY! (5x Gold & XP)")
+				_, _ = b.DB.Exec("UPDATE users SET last_win=NOW() WHERE client_uid=$1", u.UID)
 			}
 
 			// VIP Gold Bonus
@@ -1326,18 +1364,6 @@ func serverMultiplier(onlineNormal int) float64 {
 	return m
 }
 
-func lootBoxForCross(oldLevel, newLevel int) int {
-	if newLevel <= oldLevel {
-		return 0
-	}
-	first := (oldLevel/lootBoxEveryLevels + 1) * lootBoxEveryLevels
-	// #nosec G404
-	if first <= newLevel {
-		return lootBoxMin + rand.IntN(lootBoxMax-lootBoxMin+1)
-	} // #nosec G404
-	return 0
-}
-
 func (b *Bot) updateStreak(uid string, today time.Time) int {
 	var last sql.NullTime
 	var streak int
@@ -1429,7 +1455,8 @@ func (b *Bot) ensureUserHasGear(uid string) {
 	}
 }
 
-func (b *Bot) applyDurabilityLoss(uid string, defeat bool) {
+func (b *Bot) applyDurabilityLoss(uid string, defeat bool) []string {
+	var warnings []string
 	var stats content.Stats
 	var effects []content.ItemEffect
 	_, stats, _, _, effects = b.activeLootMult(uid, time.Now())
@@ -1524,7 +1551,26 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) {
 
 		// Apply individual durability losses
 		for _, gl := range losses {
+			var oldDura int
+			_ = b.DB.QueryRow("SELECT durability FROM user_gear WHERE client_uid = $1 AND gear_id = $2", uid, gl.gearID).Scan(&oldDura)
+			
 			_, _ = b.DB.Exec("UPDATE user_gear SET durability = durability - $2 WHERE client_uid = $1 AND gear_id = $3", uid, gl.loss, gl.gearID)
+			
+			if gl.loss > baseLoss*2 && gl.loss >= 10 {
+				if gear, ok := content.GetGearByID(gl.gearID); ok {
+					warnings = append(warnings, fmt.Sprintf("⚠️ Your %s took heavy damage (-%d durability)!", gear.Name, gl.loss))
+				}
+			}
+			
+			if oldDura > 0 && oldDura-gl.loss <= 0 {
+				if gear, ok := content.GetGearByID(gl.gearID); ok {
+					warnings = append(warnings, fmt.Sprintf("💥 Your %s shattered into pieces!", gear.Name))
+				}
+			} else if oldDura > 10 && oldDura-gl.loss <= 10 {
+				if gear, ok := content.GetGearByID(gl.gearID); ok {
+					warnings = append(warnings, fmt.Sprintf("⚠️ Your %s is badly damaged and will break soon!", gear.Name))
+				}
+			}
 		}
 	} else {
 		// Fallback: uniform loss if query fails
@@ -1532,8 +1578,23 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) {
 	}
 
 	_, _ = b.DB.Exec("DELETE FROM user_gear WHERE client_uid = $1 AND durability <= 0", uid)
+	
+	// Artifact break check
+	var oldArtDura int
+	var artName sql.NullString
+	_ = b.DB.QueryRow("SELECT artifact_durability, artifact_name FROM users WHERE client_uid = $1", uid).Scan(&oldArtDura, &artName)
+	
 	_, _ = b.DB.Exec("UPDATE users SET artifact_durability = artifact_durability - $2 WHERE client_uid = $1 AND artifact_durability > 0", uid, baseLoss)
+	
+	if oldArtDura > 0 && oldArtDura-baseLoss <= 0 && artName.Valid && artName.String != "" {
+		warnings = append(warnings, fmt.Sprintf("💥 Your %s shattered into pieces!", artName.String))
+	} else if oldArtDura > 10 && oldArtDura-baseLoss <= 10 && artName.Valid && artName.String != "" {
+		warnings = append(warnings, fmt.Sprintf("⚠️ Your %s is badly damaged and will break soon!", artName.String))
+	}
+	
 	_, _ = b.DB.Exec("UPDATE users SET artifact_mult=1, artifact_name=NULL, artifact_durability=0 WHERE client_uid=$1 AND artifact_durability <= 0 AND artifact_name IS NOT NULL", uid)
+	
+	return warnings
 }
 
 func (b *Bot) calculateTotalStats(uid string, today time.Time) (content.Stats, float64, int, []string) {
@@ -1649,12 +1710,9 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 						mult *= xpMultiplier
 					}
 
-					// Show gear in notes with appropriate XP multiplier
+					// Only show gear with XP multiplier in notes, but without durability
 					if xpMultiplier > 1.0 {
-						notes = append(notes, i18n.T("bot.loot.multiplier_with_dur", gear.Name, xpMultiplier, dura))
-					} else {
-						// For gear without XP bonus, just show the gear
-						notes = append(notes, i18n.T("bot.loot.with_dur", gear.Name, dura))
+						notes = append(notes, i18n.T("bot.loot.multiplier_simple", gear.Name, xpMultiplier))
 					}
 
 					stats = stats.Add(gear.Stats)
@@ -1724,10 +1782,17 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 	var pokes []string
 	count := 1
 	if mob.Type == content.MobBoss {
-		count = 2
+		count = 3
+		// Guaranteed consumable
+		c := content.RandomConsumable()
+		_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
+		results = append(results, i18n.T("bot.loot.item", c.Name, c.ID))
 	}
 	if mob.Type == content.MobLegendary {
-		count = 4
+		count = 5
+		c := content.RandomConsumable()
+		_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
+		results = append(results, i18n.T("bot.loot.item", c.Name, c.ID))
 	}
 	if mob.Type == content.MobTreasureGoblin {
 		count = 2
@@ -1760,6 +1825,10 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		}
 	}
 
+	var ultPity, artPity int
+	_ = b.DB.QueryRow("SELECT ultimate_pity, artifact_pity FROM users WHERE client_uid=$1", uid).Scan(&ultPity, &artPity)
+	ultDropped, artDropped := false, false
+
 	for i := 0; i < count; i++ {
 		// #nosec G404
 		r := rand.Float64() - lootFindBonus // #nosec G404
@@ -1778,7 +1847,11 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		// ... rest of loop ...
 		// Checks ordered by ascending threshold so smaller chances are evaluated first
 		// Thresholds: title=0.005, ultimateSkill=0.005, uniqueItem=0.01, artifact=0.01, ench=0.02, skill=0.05, cons=0.1, gear=0.10
-		if r < ultimateSkillChance*qualityMult {
+		
+		effUltChance := ultimateSkillChance*qualityMult + float64(ultPity)*0.001 // 0.1% extra per pity point
+		effArtChance := artifactChance*qualityMult + float64(artPity)*0.002 // 0.2% extra per pity point
+
+		if r < effUltChance {
 			// Ultimate skill drop (0.5%)
 			us := content.RandomUltimateSkill()
 			var exists bool
@@ -1803,6 +1876,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				results = append(results, i18n.T("bot.loot.duplicate_ultimate_ah", us.Name))
 			}
 			lootFound = true
+			ultDropped = true
 		} else if r < titleChance*qualityMult {
 			t := content.RandomTitle()
 			_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days' WHERE client_uid=$1", uid, t.Name, t.XPMultiplier)
@@ -1826,7 +1900,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				results = append(results, i18n.T("bot.loot.duplicate_unique_ah", ui.Name))
 			}
 			lootFound = true
-		} else if r < artifactChance*qualityMult {
+		} else if r < effArtChance {
 			a := content.RandomArtifact()
 			a.Stats.HP = int(float64(a.Stats.HP) * zoneDifficulty)
 			a.Stats.STR = int(float64(a.Stats.STR) * zoneDifficulty)
@@ -1835,6 +1909,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			results = append(results, i18n.T("bot.loot.artifact", a.Name, a.Name))
 			pokes = append(pokes, i18n.T("bot.loot.artifact_found", a.Name))
 			lootFound = true
+			artDropped = true
 		} else if r < enchChance*qualityMult {
 			ench := content.RandomEnchantment()
 			ench.Stats.STR = int(float64(ench.Stats.STR) * zoneDifficulty)
@@ -1899,6 +1974,19 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			}
 		}
 	}
+	
+	if ultDropped {
+		ultPity = 0
+	} else {
+		ultPity += count
+	}
+	if artDropped {
+		artPity = 0
+	} else {
+		artPity += count
+	}
+	_, _ = b.DB.Exec("UPDATE users SET ultimate_pity=$2, artifact_pity=$3 WHERE client_uid=$1", uid, ultPity, artPity)
+	
 	resStr := ""
 	if len(results) > 0 {
 		resStr = strings.Join(results, ", ")

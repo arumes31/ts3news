@@ -164,7 +164,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		zone := content.GetRandomZone(avgLvl, float64(totalStatScore)/float64(len(users)))
 		battleLogs := []string{zone.Display()}
 
-		mobs := content.SpawnMobGroup(avgLvl, zone, diffFactor*zone.Difficulty, len(users))
+		mobs := content.SpawnMobGroup(avgLvl, zone, diffFactor*zone.Difficulty, len(users), false)
 		var mobPtrs []*content.Mob
 		for i := range mobs {
 			mobPtrs = append(mobPtrs, &mobs[i])
@@ -228,7 +228,8 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			}
 
 			// Durability & Loot Drops
-			b.applyDurabilityLoss(user.UID, !victory)
+			duraNotes := b.applyDurabilityLoss(user.UID, !victory)
+			notes = append(notes, duraNotes...)
 
 			userLootFound := false
 			for _, cl := range combatLoots {

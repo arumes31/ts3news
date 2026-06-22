@@ -1,0 +1,1 @@
+-- No-op since this demigrates dropped tables.

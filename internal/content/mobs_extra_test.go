@@ -23,7 +23,7 @@ func TestMobLogic(t *testing.T) {
 		t.Errorf("Clone failed: %+v", clone)
 	}
 	
-	mobs := SpawnMobGroup(10, Zone{Name: "Test", Difficulty: 1.0}, 1.0, 1)
+	mobs := SpawnMobGroup(10, Zone{Name: "Test", Difficulty: 1.0}, 1.0, 1, false)
 	if len(mobs) == 0 {
 		t.Error("SpawnMobGroup returned empty")
 	}
