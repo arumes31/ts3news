@@ -186,6 +186,7 @@ type link struct {
 
 var bracketTag = regexp.MustCompile(`\[[^\]]*\]|\([^)]*\)`)
 var hrefRe = regexp.MustCompile(`(?i)href="(https?://[^"]+)"`)
+var spaceRe = regexp.MustCompile(`\s+`)
 
 func fetchReddit(_ Options) ([]Game, error) {
 	var feed atomFeed
@@ -280,7 +281,7 @@ func itadPlatform(lowerShop, displayName string) string {
 
 func cleanRedditTitle(title string) string {
 	t := bracketTag.ReplaceAllString(title, " ")
-	t = strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(t, " "))
+	t = strings.TrimSpace(spaceRe.ReplaceAllString(t, " "))
 
 	suffixes := []string{" is free", " free", " is now free", " giveaway", " giveaways", " (100% off)"}
 
