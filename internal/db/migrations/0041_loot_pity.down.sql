@@ -1,0 +1,2 @@
+ALTER TABLE users DROP COLUMN IF EXISTS artifact_pity;
+ALTER TABLE users DROP COLUMN IF EXISTS ultimate_pity;

@@ -16,28 +16,6 @@ var gameChoices = map[string][]string{
 	"coinflip": {"heads", "tails"},
 	"wheel":    {""},
 	"highlow":  {"high", "low"},
-	// New games with choices.
-	"roulette":  {"red", "black", "even", "odd", "low", "high", "0", "7", "23", "36"},
-	"rps":       {"rock", "paper", "scissors"},
-	"sicbo":     {"under", "over", "seven"},
-	"lucky":     {"1", "5", "10"},
-	"crash":     {"1.5", "2", "3", "5", "10"},
-	"chests":    {"0", "1", "2"},
-	"horserace": {"0", "1", "2", "3"},
-	"colorpick": {"red", "green", "blue"},
-	// New games without choices.
-	"war":        {""},
-	"plinko":     {""},
-	"scratch":    {""},
-	"gems":       {""},
-	"megawheel":  {""},
-	"diceduel":   {""},
-	"fortune":    {""},
-	"lightning":  {""},
-	"minefield":  {""},
-	"darts":      {""},
-	"slotdeluxe": {""},
-	"keno":       {""},
 }
 
 func rtp(t *testing.T, game, choice string, rounds int, bet int64) float64 {

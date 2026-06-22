@@ -32,7 +32,7 @@ func jsonJS(v any) template.JS {
 	return template.JS(b) // #nosec G203 - trusted JSON data from server, not user input
 }
 
-//go:embed webassets/*.html webassets/*.css webassets/*.svg webassets/games/*.html webassets/games/common/*.js webassets/icons/*.svg
+//go:embed webassets/*.html webassets/*.css webassets/*.svg webassets/icons/*.svg
 var webAssets embed.FS
 
 const sessionCookie = "ts3session"
@@ -150,44 +150,14 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	// Authenticated pages.
 	mux.HandleFunc("/", s.auth(s.handleArmory))
 	mux.HandleFunc("/inventory", s.auth(s.handleInventory))
-	mux.HandleFunc("/battle", s.auth(s.handleBattlePage))
 	mux.HandleFunc("/arcade", s.auth(s.handleArcadePage))
 	mux.HandleFunc("/shop", s.auth(s.handleShopPage))
 	mux.HandleFunc("/ah", s.auth(s.handleAHPage))
-	mux.HandleFunc("/games", s.auth(s.handleArcade3DHub))
-	mux.HandleFunc("/play/", s.auth(s.handleArcade3DPlay))
 	mux.HandleFunc("/leaderboards", s.auth(s.handleLeaderboardsPage))
 
 	// Authenticated JSON APIs.
-	mux.HandleFunc("/api/tft/buy", s.auth(s.handleTFTBuy))
-	mux.HandleFunc("/api/tft/reroll", s.authAPI(s.handleTFTReroll))
-	mux.HandleFunc("/api/tft/place", s.authAPI(s.handleTFTPlace))
-	mux.HandleFunc("/api/tft/sell", s.authAPI(s.handleTFTSell))
-	mux.HandleFunc("/api/tft/equip", s.authAPI(s.handleTFTEquip))
-	mux.HandleFunc("/api/tft/combat", s.authAPI(s.handleTFTCombat))
-	mux.HandleFunc("/api/tft/phase-ready", s.authAPI(s.handleTFTPhaseReady))
-	mux.HandleFunc("/api/tft/phase-timer", s.authAPI(s.handleTFTPhaseTimer))
-	mux.HandleFunc("/api/tft/refresh-shop", s.authAPI(s.handleTFTRefreshShop))
-	mux.HandleFunc("/api/tft/get-xp", s.authAPI(s.handleTFTGetXP))
-	mux.HandleFunc("/api/tft/unit-info", s.authAPI(s.handleTFTUnitInfo))
-	mux.HandleFunc("/api/tft/upgrade-unit", s.authAPI(s.handleTFTUpgradeUnit))
-	mux.HandleFunc("/api/tft/synergies", s.authAPI(s.handleTFTSynergies))
-	mux.HandleFunc("/api/tft/items", s.authAPI(s.handleTFTItems))
-	mux.HandleFunc("/api/tft/craft-item", s.authAPI(s.handleTFTCraftItem))
-	mux.HandleFunc("/api/tft/equip-item", s.authAPI(s.handleTFTEquipItem))
-	mux.HandleFunc("/api/tft/unequip-item", s.authAPI(s.handleTFTUnequipItem))
-	mux.HandleFunc("/api/tft/sell-item", s.authAPI(s.handleTFTSellItem))
-	mux.HandleFunc("/api/tft/recipes", s.authAPI(s.handleTFTRecipes))
-	mux.HandleFunc("/api/tft/settings", s.authAPI(s.handleTFTSettings))
-	mux.HandleFunc("/api/tft/save-settings", s.authAPI(s.handleTFTSaveSettings))
-	mux.HandleFunc("/api/tft/scoreboard", s.authAPI(s.handleTFTScoreboard))
-	// Augment System
-	mux.HandleFunc("/api/tft/augments", s.authAPI(s.handleTFTAugments))
-	mux.HandleFunc("/api/tft/select-augment", s.authAPI(s.handleTFTSelectAugment))
-	mux.HandleFunc("/api/tft/reroll-augments", s.authAPI(s.handleTFTRerollAugments))
 	mux.HandleFunc("/api/arcade/play", s.authAPI(s.handleArcadeAPI))
 	mux.HandleFunc("/api/arcade/daily-spin", s.authAPI(s.handleDailySpinAPI))
-	mux.HandleFunc("/api/arcade3d/reward", s.authAPI(s.handleArcade3DReward))
 	mux.HandleFunc("/api/shop/exchange", s.auth(s.handleExchangeAPI))
 	mux.HandleFunc("/api/shop/buy", s.auth(s.handleBuyAPI))
 	mux.HandleFunc("/api/inventory/equip", s.auth(s.handleEquipAPI))

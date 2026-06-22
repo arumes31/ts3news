@@ -1,0 +1,16 @@
+-- Cleanup unused arcade/battle tables
+DROP TABLE IF EXISTS tft_state CASCADE;
+DROP TABLE IF EXISTS arcade3d_scores CASCADE;
+DROP TABLE IF EXISTS battle_stats CASCADE;
+DROP TABLE IF EXISTS unit_abilities CASCADE;
+DROP TABLE IF EXISTS unit_upgrades CASCADE;
+DROP TABLE IF EXISTS trait_definitions CASCADE;
+DROP TABLE IF EXISTS item_components CASCADE;
+DROP TABLE IF EXISTS crafted_items CASCADE;
+DROP TABLE IF EXISTS crafting_recipes CASCADE;
+DROP TABLE IF EXISTS player_items CASCADE;
+DROP TABLE IF EXISTS combat_logs CASCADE;
+DROP TABLE IF EXISTS tft_augments CASCADE;
+DROP TABLE IF EXISTS tft_player_augments CASCADE;
+DROP TABLE IF EXISTS tft_augment_offers CASCADE;
+DROP TABLE IF EXISTS tft_augment_state CASCADE;

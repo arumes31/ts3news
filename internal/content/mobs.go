@@ -1,6 +1,7 @@
 package content
 
 import (
+	"math"
 	"math/rand/v2"
 	"strings"
 	"sync"
@@ -243,8 +244,9 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 	m.Stats.SPD = int(float64(m.Stats.SPD) * totalScale)
 
-	// XP rewards still scale fully to reward the risk
-	m.RewardXP = int(float64(m.RewardXP) * lvlScale * difficulty)
+	// XP rewards scale sub-linearly to prevent snowballing at high levels
+	xpScale := math.Pow(lvlScale, 0.5)
+	m.RewardXP = int(float64(m.RewardXP) * xpScale * difficulty)
 
 	// XP Scaling: Higher types provide even more rewards.
 	switch m.Type {
@@ -352,7 +354,7 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	return m
 }
 
-func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64, groupSize int) []Mob {
+func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64, groupSize int, forceBoss bool) []Mob {
 	initMobs()
 	// 15% chance to spawn a HORDE of weaker mobs (great for farming drops/XP)
 	// #nosec G404
@@ -391,8 +393,7 @@ func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64, groupSize int) [
 	}
 
 	var out []Mob
-	// #nosec G404
-	hasBoss := rand.Float64() < 0.1*difficulty && !isHorde // Bosses don't spawn in hordes // #nosec G404
+	hasBoss := (rand.Float64() < 0.1*difficulty && !isHorde) || forceBoss // Bosses don't spawn in hordes unless forced
 	for i := 0; i < count; i++ {
 		mob := SpawnMob(avgLevel, hasBoss && i == 0, difficulty)
 		// Apply group scaling
