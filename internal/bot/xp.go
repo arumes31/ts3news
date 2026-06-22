@@ -1506,7 +1506,7 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) []string {
 
 	// #nosec G404
 	if rand.IntN(100) < stats.STA {
-		return
+		return warnings
 	} // #nosec G404
 
 	baseLoss := duraLossPerFight * lossMult
