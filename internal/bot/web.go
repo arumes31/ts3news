@@ -158,16 +158,24 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	// Authenticated JSON APIs.
 	mux.HandleFunc("/api/arcade/play", s.authAPI(s.handleArcadeAPI))
 	mux.HandleFunc("/api/arcade/daily-spin", s.authAPI(s.handleDailySpinAPI))
-	mux.HandleFunc("/api/shop/exchange", s.auth(s.handleExchangeAPI))
-	mux.HandleFunc("/api/shop/buy", s.auth(s.handleBuyAPI))
-	mux.HandleFunc("/api/inventory/equip", s.auth(s.handleEquipAPI))
-	mux.HandleFunc("/api/inventory/sell", s.auth(s.handleSellAPI))
-	mux.HandleFunc("/api/ah/buy", s.auth(s.handleAHBuyAPI))
-	mux.HandleFunc("/api/ah/list", s.auth(s.handleAHListAPI))
+	mux.HandleFunc("/api/shop/exchange", s.authAPI(s.handleExchangeAPI))
+	mux.HandleFunc("/api/shop/buy", s.authAPI(s.handleBuyAPI))
+	mux.HandleFunc("/api/inventory/equip", s.authAPI(s.handleEquipAPI))
+	mux.HandleFunc("/api/inventory/sell", s.authAPI(s.handleSellAPI))
+	mux.HandleFunc("/api/ah/buy", s.authAPI(s.handleAHBuyAPI))
+	mux.HandleFunc("/api/ah/list", s.authAPI(s.handleAHListAPI))
+
+	// Global security headers middleware.
+	secureMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		mux.ServeHTTP(w, r)
+	})
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           secureMux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	s.mu.Lock()
