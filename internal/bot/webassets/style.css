@@ -2651,3 +2651,11 @@ tr.bought-flash {
     transform: scale(1.1);
   }
 }
+/* ===== Accessibility: Focus Styles ===== */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+input:focus-visible {
+  outline-offset: 0px;
+}
