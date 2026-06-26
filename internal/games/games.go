@@ -24,7 +24,7 @@ type Game struct {
 	Platforms  string `json:"platforms"`         // e.g. "PC, Steam"
 	EndDate    string `json:"end_date"`          // "2006-01-02 15:04:05" or "N/A"
 	Source     string `json:"-"`                 // which source produced this entry
-	AssumePaid bool   `json:"-"`                  // source vouches it is a normally-paid game even without a price
+	AssumePaid bool   `json:"-"`                 // source vouches it is a normally-paid game even without a price
 }
 
 // keyTagRe strips parenthetical/bracket tags such as "(Epic Games)" or "[Steam]".

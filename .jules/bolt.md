@@ -1,0 +1,3 @@
+## 2024-06-26 - Avoid Inline Regex for Whitespace Normalization
+**Learning:** Go's `regexp.MustCompile` is expensive when called inline on hot paths, especially for simple whitespace normalization, causing unnecessary memory allocations and CPU overhead.
+**Action:** Use `strings.Fields` combined with `strings.Join` instead of regular expressions for simple whitespace normalization to prevent unnecessary re-compilations and allocations.
