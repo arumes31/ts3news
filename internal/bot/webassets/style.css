@@ -16,6 +16,12 @@
   box-sizing: border-box
 }
 
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 body {
   margin: 0;
   font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
