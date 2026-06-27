@@ -1,0 +1,3 @@
+## 2024-06-27 - Inline Regex Compilation in Hot Paths
+**Learning:** The codebase previously contained inline `regexp.MustCompile` calls in string processing functions (like `cleanRedditTitle`). This is a performance anti-pattern in Go, as it forces recompilation on every call instead of compiling once at package initialization. Furthermore, for simple whitespace normalization, `strings.Join(strings.Fields(t), " ")` is significantly faster than using regex.
+**Action:** Always extract `regexp.MustCompile` to package-level variables. Prefer `strings.Fields`/`strings.Join` for simple whitespace normalization over regular expressions.
