@@ -250,7 +250,8 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 
 	var mobs []content.Mob
 	var echoNick string
-	if modifier == "watcher" {
+	switch modifier {
+	case "watcher":
 		mobs = []content.Mob{
 			{
 				Name:     "The Watcher",
@@ -263,7 +264,7 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 			},
 		}
 		logs = append(logs, "[color=#f44336]👁️ The Watcher has found you! You lingered too long in the dark, and the Stalker of the Abyss strikes from the shadows![/color]")
-	} else if modifier == "echo_encounter" {
+	case "echo_encounter":
 		mobs, echoNick = b.spawnEchoMob(uid, u.Level)
 		if len(mobs) > 0 {
 			logs = append(logs, fmt.Sprintf("[color=#9c27b0]👻 An eerie silence falls. Out of the shadows rises the Ghostly Echo of %s (Depth %d delver)![/color]", echoNick, depth))
@@ -654,9 +655,9 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	newDepth := run.Depth + 1
 
 	// Roll floor type: 10% rest, 10% event, 80% combat
-	var floorType string = "combat"
-	var modifier string = ""
-	var eventState string = ""
+	floorType := "combat"
+	modifier := ""
+	eventState := ""
 
 	// Check Watcher Stalker trigger (Item #67)
 	if !run.LastActionAt.IsZero() && time.Since(run.LastActionAt) > 15*time.Minute && run.Depth > 0 {
@@ -751,9 +752,10 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 		bonus := abyssFloorBonus(depth, run.depthLevelHint())
 		bonus = int64(float64(bonus) * tier.RewardMult * (1.0 + float64(st.UpGreed)*0.05) * (1.0 + float64(st.AbyssPrestige)*0.05))
 		
-		if focus == "gold" {
+		switch focus {
+		case "gold":
 			bonus = bonus * 2
-		} else if focus == "loot" {
+		case "loot":
 			bonus = bonus / 2
 		}
 		
@@ -1175,7 +1177,8 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 
-	if run.FloorType == "rest" {
+	switch run.FloorType {
+	case "rest":
 		switch req.Action {
 		case "heal":
 			cost := int64(100)
@@ -1227,7 +1230,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			writeJSON(w, map[string]any{"ok": true, "msg": "Skills re-rolled!", "gold": gold - cost})
 			return
 		}
-	} else if run.FloorType == "event" {
+	case "event":
 		var state struct {
 			Type  string `json:"type"`
 			Items []struct {
@@ -1300,7 +1303,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			// #nosec G404
 			rRoll := rand.Float64()
 			var msg string
-			var newGold int64 = gold - cost
+			newGold := gold - cost
 			if rRoll < 0.40 {
 				msg = "The Imp giggles and steals your gold! Got nothing."
 			} else if rRoll < 0.75 {
@@ -1365,9 +1368,10 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	_ = readJSON(r, &req)
 	focus := req.Focus
 	
-	if focus == "gold" {
+	switch focus {
+	case "gold":
 		bonus = bonus * 2
-	} else if focus == "loot" {
+	case "loot":
 		bonus = bonus / 2
 	}
 	// Apply tier reward multiplier to match combat floor scaling
