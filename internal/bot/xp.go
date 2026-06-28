@@ -516,7 +516,14 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 								}
 							}
 							if !hasArmored {
-								m.Effects = []content.MobEffect{content.EffectArmored}
+								// Purge debuffs only; preserve beneficial effects (Regen, etc.)
+								var kept []content.MobEffect
+								for _, eff := range m.Effects {
+									if eff == content.EffectRegen || eff == content.EffectArmored {
+										kept = append(kept, eff)
+									}
+								}
+								m.Effects = append(kept, content.EffectArmored)
 								logs = append(logs, "[color=#9c27b0]🔮 Malakor wraps himself in a shimmering Void Barrier! (Active debuffs purged, gains Armored)[/color]")
 							}
 						}
@@ -2011,7 +2018,8 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		}
 
 		if focus == "gold" {
-			// If gold focus, skip all item rolls, but keep treasure goblin gold drops
+			// If gold focus, skip item rolls but always award a gold bonus.
+			// Treasure goblins get an even richer payout.
 			if mob.Type == content.MobTreasureGoblin {
 				gold := int64(1000 + rand.IntN(2000))
 				if vip.Bonus > 0 {
@@ -2019,6 +2027,14 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				}
 				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", gold, uid)
 				results = append(results, fmt.Sprintf("💰 %d gold", gold))
+			} else {
+				// Standard gold reward for non-goblin mobs in gold-focus mode
+				baseGold := int64(10 + rand.IntN(mob.RewardXP/2+10))
+				if vip.Bonus > 0 {
+					baseGold = int64(float64(baseGold) * (1.0 + float64(vip.Bonus)/100.0))
+				}
+				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", baseGold, uid)
+				results = append(results, fmt.Sprintf("💰 %d gold", baseGold))
 			}
 			continue
 		}

@@ -40,7 +40,9 @@ func (s *Supervisor) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	go s.startCommandListener(ctx)
+	if s.bot.Cfg.EnableAbyss {
+		go s.startCommandListener(ctx)
+	}
 
 	for {
 		err := s.runCycleWithClient(ctx)
@@ -361,13 +363,33 @@ func (s *Supervisor) startCommandListener(ctx context.Context) {
 		}
 
 		if apiKey != "" {
-			_ = c.Auth(apiKey)
+			if err := c.Auth(apiKey); err != nil {
+				log.Printf("startCommandListener: Auth failed: %v", err)
+				_ = c.Close()
+				time.Sleep(10 * time.Second)
+				continue
+			}
 		}
-		_ = c.Use(1)
+		if err := c.Use(1); err != nil {
+			log.Printf("startCommandListener: Use failed: %v", err)
+			_ = c.Close()
+			time.Sleep(10 * time.Second)
+			continue
+		}
 
 		// Register for text messages and pokes
-		_, _ = c.Command("clientnotifyregister schandlerid=1 event=notifytextmessage")
-		_, _ = c.Command("clientnotifyregister schandlerid=1 event=notifypoke")
+		if _, err := c.Command("clientnotifyregister schandlerid=1 event=notifytextmessage"); err != nil {
+			log.Printf("startCommandListener: notifytextmessage register failed: %v", err)
+			_ = c.Close()
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		if _, err := c.Command("clientnotifyregister schandlerid=1 event=notifypoke"); err != nil {
+			log.Printf("startCommandListener: notifypoke register failed: %v", err)
+			_ = c.Close()
+			time.Sleep(10 * time.Second)
+			continue
+		}
 
 		reader := c.Reader()
 		for {
@@ -416,9 +438,12 @@ func (s *Supervisor) handleNotificationLine(c *clientquery.Client, line string) 
 	var escrow int64
 
 	// Query best depth, deaths, floors
-	_ = s.bot.DB.QueryRow(
+	if err := s.bot.DB.QueryRow(
 		"SELECT abyss_best_depth, abyss_deaths, abyss_lifetime_floors FROM users WHERE client_uid=$1", uid,
-	).Scan(&bestDepth, &deaths, &lifetimeFloors)
+	).Scan(&bestDepth, &deaths, &lifetimeFloors); err != nil && err.Error() != "sql: no rows in result set" {
+		log.Printf("handleNotificationLine: stats query error for %s: %v", uid, err)
+		return
+	}
 
 	// Check if run is active
 	err := s.bot.DB.QueryRow(
@@ -426,6 +451,9 @@ func (s *Supervisor) handleNotificationLine(c *clientquery.Client, line string) 
 	).Scan(&depth, &escrow)
 	if err == nil {
 		active = true
+	} else if err.Error() != "sql: no rows in result set" {
+		log.Printf("handleNotificationLine: active run query error for %s: %v", uid, err)
+		return
 	}
 
 	summary := fmt.Sprintf(

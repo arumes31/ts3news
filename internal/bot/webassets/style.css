@@ -2635,10 +2635,10 @@ tr.bought-flash {
   color: var(--gold);
   font-size: 0.9rem;
   margin-left: 4px;
-  animation: pulse 2s ease infinite;
+  animation: pulseFade 2s ease infinite;
 }
 
-@keyframes pulse {
+@keyframes pulseFade {
 
   0%,
   100% {
@@ -2831,7 +2831,7 @@ tr.bought-flash {
 
 .abyss-banner.show {
   display: block;
-  animation: pulse 1.2s ease 1;
+  animation: pulseFade 1.2s ease 1;
 }
 
 .abyss-banner.good {

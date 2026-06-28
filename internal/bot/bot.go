@@ -118,16 +118,20 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		if err != nil && err != sql.ErrNoRows {
 			log.Printf("Failed to scan user combat state for %s: %v", cl.UID, err)
 		}
-		b.applyAbyssMilestones(c, cl.CLID, cl.UID, cl.Nickname, bestDepth)
+		if b.Cfg.EnableAbyss {
+			b.applyAbyssMilestones(c, cl.CLID, cl.UID, cl.Nickname, bestDepth)
+		}
 		// Abyss "cursed bank": the player took a +20% payout in exchange for a hex
 		// on their next few cycle fights. Sap their combat stats and tick it down.
-		if curseFights > 0 {
+		if b.Cfg.EnableAbyss && curseFights > 0 {
 			stats = stats.Scaled(0.85)
 			_, _ = b.DB.Exec("UPDATE users SET abyss_curse_fights = abyss_curse_fights - 1 WHERE client_uid=$1", cl.UID)
 		}
 		if curHP <= 0 {
-			curHP = stats.HP
-		} // Auto-fill if new/dead
+			curHP = stats.HP // Auto-fill if new/dead
+		} else if curHP > stats.HP {
+			curHP = stats.HP // Clamp to post-curse max
+		}
 		pets := b.getPets(cl.UID)
 		equipped := b.getEquippedItems(cl.UID)
 

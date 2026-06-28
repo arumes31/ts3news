@@ -6,7 +6,7 @@
 -- One row per active descent. Server-authoritative depth + escrowed bonus gold so
 -- the client can never lie about how deep it is or how much is at stake.
 CREATE TABLE IF NOT EXISTS abyss_active (
-    client_uid TEXT        PRIMARY KEY,
+    client_uid TEXT        PRIMARY KEY REFERENCES users(client_uid) ON DELETE CASCADE,
     depth      INTEGER     NOT NULL DEFAULT 0,
     escrow     BIGINT      NOT NULL DEFAULT 0,
     started_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

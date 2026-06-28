@@ -315,6 +315,8 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 		}
 	}
 
+	isBossFloor := forceBoss || worldBoss
+
 	escalateMobs(mobs, depth, worldBoss) // [15] deeper floors → denser elites/effects
 	mobPtrs := make([]*content.Mob, len(mobs))
 	for i := range mobs {
@@ -352,18 +354,19 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 	// Clear co-op partner for next floor
 	_, _ = b.DB.Exec("UPDATE abyss_active SET coop_uid = NULL WHERE client_uid = $1", uid)
 
-	// Record boss kills
-	if victory && len(mobs) > 0 && mobs[0].Type == content.MobBoss {
+	// Record boss kills — use isBossFloor so the check is unaffected by escalateMobs
+	// having promoted mobs[0].Type to MobLegendary.
+	if victory && isBossFloor && len(mobs) > 0 {
 		_, _ = b.DB.Exec(
 			"INSERT INTO abyss_boss_kills (client_uid, boss_name, depth, kill_time_ms) VALUES ($1, $2, $3, $4)",
 			uid, mobs[0].Name, depth, duration.Milliseconds(),
 		)
 	}
 
-	// Record kills in Bestiary
+	// Record kills in Bestiary — use CurrentHP (live value) not Stats.HP (base max)
 	var killedMobs []string
 	for _, m := range mobPtrs {
-		if m.Stats.HP <= 0 && m.Type != content.MobTreasureGoblin {
+		if m.CurrentHP <= 0 && m.Type != content.MobTreasureGoblin {
 			killedMobs = append(killedMobs, m.Name)
 		}
 	}
@@ -567,9 +570,17 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		return
 	}
 
-	// Charge the tier entry cost (gold sink) atomically.
+	// Wrap gold debit, HP reset, and abyss_active creation in a single transaction
+	// so a failure after charging can't leave the player paid without an active run.
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	if tier.EntryGold > 0 {
-		res, err := s.bot.DB.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", tier.EntryGold, uid)
+		res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", tier.EntryGold, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
@@ -583,13 +594,17 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	// Vigor upgrade lets a run start above the normal max (banked as current HP).
 	stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
 	startHP := stats.HP + stats.HP*st.UpVigor*5/100
-	if _, err := s.bot.DB.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", startHP, uid); err != nil {
+	if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", startHP, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if _, err := s.bot.DB.Exec(
+	if _, err := tx.Exec(
 		`INSERT INTO abyss_active (client_uid, depth, escrow, tier, insured, revived, started_at, last_action_at)
 		 VALUES ($1, 0, 0, $2, 0, FALSE, NOW(), NOW())`, uid, tier.Key); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -823,19 +838,21 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 	}
 
 	stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+
+	tier, _ := abyssTierByKey(run.Tier)
+	res, err := s.bot.fightAbyssFloor(uid, run.Depth, tier, run.Modifier, "balanced")
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "combat"})
+		return
+	}
+
+	// Only persist the revive state if combat succeeded.
 	if _, err := s.bot.DB.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", stats.HP, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	if _, err := s.bot.DB.Exec("UPDATE abyss_active SET revived=TRUE, last_action_at=NOW() WHERE client_uid=$1", uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-
-	tier, _ := abyssTierByKey(run.Tier)
-	res, err := s.bot.fightAbyssFloor(uid, run.Depth, tier, run.Modifier, "balanced")
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "combat"})
 		return
 	}
 
@@ -970,9 +987,11 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			gold += jackpotWin
 		}
 
-		// Record breaker check (Item #82)
+		// Record breaker check (Item #82) — compare against the true global max
+		// (including the current user's previous best) so we only fire when the
+		// run sets a genuinely new server-wide record.
 		var maxDepth int
-		_ = s.bot.DB.QueryRow("SELECT COALESCE(MAX(depth), 0) FROM abyss_runs WHERE client_uid != $1", uid).Scan(&maxDepth)
+		_ = s.bot.DB.QueryRow("SELECT COALESCE(MAX(depth), 0) FROM abyss_runs").Scan(&maxDepth)
 		if run.Depth > maxDepth {
 			uInfo, _ := s.loadWebUser(uid)
 			go s.bot.BroadcastAbyssRecord(uInfo.Nickname, run.Depth)
@@ -1093,8 +1112,20 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 		_, _ = s.bot.DB.Exec("UPDATE user_gear SET durability = LEAST(durability + $1, max_durability) WHERE client_uid = $2", repairAmt, uid)
 		_, _ = s.bot.DB.Exec("UPDATE users SET artifact_durability = LEAST(artifact_durability + 15, 30) WHERE client_uid = $1 AND artifact_durability > 0", uid)
 	case content.ConsumableBuff:
-		// Buffs elixirs: manual use sets them to active (3 remaining fights)
+		// Buffs elixirs: manual use sets them to active (3 remaining fights).
+		// Do NOT fall through to the shared delete — buffs stay owned while active.
 		_, _ = s.bot.DB.Exec("UPDATE user_consumables SET remaining_fights = 3 WHERE client_uid = $1 AND cons_id = $2", uid, req.ConsID)
+		var curHP int
+		_ = s.bot.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&curHP)
+		var gold int64
+		_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+		writeJSON(w, map[string]any{
+			"ok":     true,
+			"hp":     curHP,
+			"max_hp": stats.HP,
+			"gold":   gold,
+		})
+		return
 	default:
 		writeJSON(w, map[string]any{"ok": false, "error": "consumable type cannot be used manually"})
 		return
@@ -1210,6 +1241,10 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 
 		switch req.Action {
 		case "merchant_buy":
+			if state.Type != "merchant" {
+				writeJSON(w, map[string]any{"ok": false, "error": "wrong floor type for merchant_buy"})
+				return
+			}
 			var idx int
 			_, _ = fmt.Sscan(req.Payload, &idx)
 			if idx < 0 || idx >= len(state.Items) {
@@ -1221,9 +1256,13 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
 			}
-			_, err := s.bot.DB.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", item.Price, uid)
+			res, err := s.bot.DB.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", item.Price, uid)
 			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if n, _ := res.RowsAffected(); n == 0 {
+				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
 			}
 			if item.Type == "gear" {
@@ -1243,6 +1282,10 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			return
 
 		case "imp_gamble":
+			if state.Type != "imp" {
+				writeJSON(w, map[string]any{"ok": false, "error": "wrong floor type for imp_gamble"})
+				return
+			}
 			cost := int64(300)
 			if gold < cost {
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
@@ -1278,6 +1321,10 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			return
 
 		case "shrine_accept":
+			if state.Type != "shrine" {
+				writeJSON(w, map[string]any{"ok": false, "error": "wrong floor type for shrine_accept"})
+				return
+			}
 			newEscrow := run.Escrow + 1000
 			_, err := s.bot.DB.Exec("UPDATE abyss_active SET escrow = $1, event_state = NULL, floor_type = 'combat', last_action_at = NOW() WHERE client_uid = $2", newEscrow, uid)
 			if err != nil {
@@ -1309,6 +1356,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	}
 
 	st := s.bot.loadAbyssStats(uid)
+	tier, _ := abyssTierByKey(run.Tier)
 	bonus := abyssFloorBonus(run.Depth, run.depthLevelHint())
 	
 	var req struct {
@@ -1322,7 +1370,8 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	} else if focus == "loot" {
 		bonus = bonus / 2
 	}
-	
+	// Apply tier reward multiplier to match combat floor scaling
+	bonus = int64(float64(bonus) * tier.RewardMult)
 	bonus = int64(float64(bonus) * (1.0 + float64(st.UpGreed)*0.05) * (1.0 + float64(st.AbyssPrestige)*0.05))
 	
 	newEscrow := int64(float64(run.Escrow)*(1.0+abyssEscrowInterest)) + bonus
@@ -1422,6 +1471,18 @@ func (s *WebServer) handleAbyssCoopInvite(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "co-op summons only available for boss floors"})
 		return
 	}
+	// Reject self-targeting.
+	if req.CoopUID == uid {
+		writeJSON(w, map[string]any{"ok": false, "error": "cannot invite yourself as a co-op helper"})
+		return
+	}
+	// Verify the helper is a known, eligible user (has a row in users table).
+	var helperExists bool
+	_ = s.bot.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE client_uid=$1)", req.CoopUID).Scan(&helperExists)
+	if !helperExists {
+		writeJSON(w, map[string]any{"ok": false, "error": "helper not found"})
+		return
+	}
 
 	_, err := s.bot.DB.Exec("UPDATE abyss_active SET coop_uid = $1, last_action_at = NOW() WHERE client_uid = $2", req.CoopUID, uid)
 	if err != nil {
@@ -1454,10 +1515,12 @@ func (s *WebServer) handleAbyssPrestige(w http.ResponseWriter, r *http.Request, 
 
 	_, err = tx.Exec("UPDATE users SET abyss_best_depth = 0, abyss_prestige = abyss_prestige + 1 WHERE client_uid = $1", uid)
 	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	_, err = tx.Exec("DELETE FROM abyss_active WHERE client_uid = $1", uid)
 	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 

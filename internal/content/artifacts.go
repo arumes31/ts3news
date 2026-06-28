@@ -497,14 +497,14 @@ func buildContent() {
 	}...)
 
 	abyssExclusiveGear = []Gear{
-		{ID: "ABYSS_WEAPON", Name: "Abyssal Reaver", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 100, Stats: Stats{HP: 150, STR: 80, DEF: 20, SPD: 40, CRT: 12, LCK: 10}},
-		{ID: "ABYSS_CHEST", Name: "Void-Touched Chestplate", Slot: SlotChest, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 120, Stats: Stats{HP: 300, STR: 30, DEF: 80, SPD: 10, STA: 20}},
-		{ID: "ABYSS_HEAD", Name: "Gaze of the Abyss", Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 90, Stats: Stats{HP: 120, STR: 25, DEF: 35, SPD: 15, INT: 30}},
-		{ID: "ABYSS_LEGS", Name: "Nadir Greaves", Slot: SlotLegs, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 110, Stats: Stats{HP: 200, STR: 20, DEF: 50, SPD: 20, STA: 15}},
-		{ID: "ABYSS_HANDS", Name: "Eldritch Grips", Slot: SlotHands, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, STR: 40, DEF: 15, SPD: 25, CRT: 8}},
-		{ID: "ABYSS_FEET", Name: "Shadow-Step Boots", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 90, STR: 15, DEF: 20, SPD: 50, DGE: 10}},
-		{ID: "ABYSS_RING", Name: "Ring of the Deep", Slot: SlotFinger1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 80, STR: 20, DEF: 10, SPD: 20, LCK: 25}},
-		{ID: "ABYSS_NECK", Name: "Marrowdeep Amulet", Slot: SlotNeck, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 110, STR: 10, DEF: 15, SPD: 15, INT: 25}},
+		{ID: "ABYSS_WEAPON", Name: i18n.T("content.gear.abyss_weapon"), Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 100, Stats: Stats{HP: 150, STR: 80, DEF: 20, SPD: 40, CRT: 12, LCK: 10}},
+		{ID: "ABYSS_CHEST", Name: i18n.T("content.gear.abyss_chest"), Slot: SlotChest, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 120, Stats: Stats{HP: 300, STR: 30, DEF: 80, SPD: 10, STA: 20}},
+		{ID: "ABYSS_HEAD", Name: i18n.T("content.gear.abyss_head"), Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 90, Stats: Stats{HP: 120, STR: 25, DEF: 35, SPD: 15, INT: 30}},
+		{ID: "ABYSS_LEGS", Name: i18n.T("content.gear.abyss_legs"), Slot: SlotLegs, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 110, Stats: Stats{HP: 200, STR: 20, DEF: 50, SPD: 20, STA: 15}},
+		{ID: "ABYSS_HANDS", Name: i18n.T("content.gear.abyss_hands"), Slot: SlotHands, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, STR: 40, DEF: 15, SPD: 25, CRT: 8}},
+		{ID: "ABYSS_FEET", Name: i18n.T("content.gear.abyss_feet"), Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 90, STR: 15, DEF: 20, SPD: 50, DGE: 10}},
+		{ID: "ABYSS_RING", Name: i18n.T("content.gear.abyss_ring"), Slot: SlotFinger1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 80, STR: 20, DEF: 10, SPD: 20, LCK: 25}},
+		{ID: "ABYSS_NECK", Name: i18n.T("content.gear.abyss_neck"), Slot: SlotNeck, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 110, STR: 10, DEF: 15, SPD: 15, INT: 25}},
 	}
 	allGear = append(allGear, abyssExclusiveGear...)
 
@@ -705,6 +705,18 @@ func RandomGearDrop() Gear {
 	}
 	g.Special = RandomItemEffect()
 	return g
+}
+
+// GearByMinRarity returns all gear items (excluding Abyss-exclusive) at or above
+// the given rarity floor. Used as a guaranteed fallback in deep-bank rewards.
+func GearByMinRarity(floor Rarity) []Gear {
+	var out []Gear
+	for _, g := range allGear {
+		if !strings.HasPrefix(g.ID, "ABYSS_") && g.Rarity >= floor {
+			out = append(out, g)
+		}
+	}
+	return out
 }
 
 func RandomAbyssGearDrop() Gear {

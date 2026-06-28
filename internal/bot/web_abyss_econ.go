@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"database/sql"
 	"encoding/json"
 	"math/rand/v2"
 	"net/http"
@@ -149,9 +150,9 @@ func (b *Bot) capAbyssDayGold(uid string, payout int64) int64 {
 	return payout
 }
 
-// forfeitAbyss ends a downed run: pays insurance back to gold, feeds the rest of
-// the cache to the shared deep-cache jackpot, records the death and resets the
-// streak. Returns the insured refund. [1][62]
+// forfeitAbyss ends a downed run atomically: pays insurance back to gold, feeds
+// the rest of the cache to the shared deep-cache jackpot, records the death and
+// resets the streak. Returns the insured refund. [1][62]
 func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int64) {
 	if run.Insured > 0 {
 		refund = run.Escrow * int64(run.Insured) / 100
@@ -160,21 +161,39 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int6
 	if remainder > 0 {
 		b.incrementJackpot("abyss", remainder)
 	}
+
+	tx, err := b.DB.Begin()
+	if err != nil {
+		return refund, 0
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	if refund > 0 {
-		_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", refund, uid)
+		if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", refund, uid); err != nil {
+			return 0, 0
+		}
 	}
 	if run.Depth > 0 {
-		_, _ = b.DB.Exec(
+		if _, err := tx.Exec(
 			"INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier) VALUES ($1,$2,$3,FALSE,$4)",
-			uid, run.Depth, refund, run.Tier)
-		_, _ = b.DB.Exec(
+			uid, run.Depth, refund, run.Tier); err != nil {
+			return 0, 0
+		}
+		if _, err := tx.Exec(
 			`UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1),
 			        abyss_deaths = abyss_deaths + 1, abyss_bank_streak = 0 WHERE client_uid=$2`,
-			run.Depth, uid)
+			run.Depth, uid); err != nil {
+			return 0, 0
+		}
 		b.grantAbyssTokens(uid, run.Depth/10) // small consolation
 		b.recordGameResult(uid, "abyss", false, refund)
 	}
-	_, _ = b.DB.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid)
+	if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
+		return 0, 0
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, 0
+	}
 	return refund, 0
 }
 
@@ -191,8 +210,14 @@ func (b *Bot) awardAbyssBonusGear(uid string, depth int) string {
 		floor = content.RarityUncommon
 	}
 	g := content.RandomGearDrop()
-	for i := 0; i < 6 && g.Rarity < floor; i++ {
+	for i := 0; i < 20 && g.Rarity < floor; i++ {
 		g = content.RandomGearDrop()
+	}
+	// Fallback: pick directly from the eligible pool so the floor is always met.
+	if g.Rarity < floor {
+		if candidates := content.GearByMinRarity(floor); len(candidates) > 0 {
+			g = candidates[rand.IntN(len(candidates))]
+		}
 	}
 	res := b.awardGearDrop(uid, g)
 	return res.Prefix + res.ItemName
@@ -355,14 +380,27 @@ func (b *Bot) topDescents(tier string, since time.Time, limit int) []abyssRow {
 	return out
 }
 
-func (b *Bot) topBossKills(limit int) []bossKillRow {
-	rows, err := b.DB.Query(
-		`SELECT COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
-		        k.boss_name, k.depth, k.kill_time_ms, k.killed_at
-		   FROM abyss_boss_kills k
-		   LEFT JOIN users u ON u.client_uid = k.client_uid
-		  ORDER BY k.depth DESC, k.kill_time_ms ASC
-		  LIMIT $1`, limit)
+func (b *Bot) topBossKills(limit int, tier string) []bossKillRow {
+	var rows *sql.Rows
+	var err error
+	if tier != "" {
+		rows, err = b.DB.Query(
+			`SELECT COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
+			        k.boss_name, k.depth, k.kill_time_ms, k.killed_at
+			   FROM abyss_boss_kills k
+			   LEFT JOIN users u ON u.client_uid = k.client_uid
+			   JOIN abyss_runs r ON r.client_uid = k.client_uid AND r.depth = k.depth AND r.tier = $2
+			  ORDER BY k.depth DESC, k.kill_time_ms ASC
+			  LIMIT $1`, limit, tier)
+	} else {
+		rows, err = b.DB.Query(
+			`SELECT COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
+			        k.boss_name, k.depth, k.kill_time_ms, k.killed_at
+			   FROM abyss_boss_kills k
+			   LEFT JOIN users u ON u.client_uid = k.client_uid
+			  ORDER BY k.depth DESC, k.kill_time_ms ASC
+			  LIMIT $1`, limit)
+	}
 	if err != nil {
 		return nil
 	}
@@ -390,7 +428,7 @@ func (b *Bot) abyssLeaderboards(tier string) abyssBoards {
 		Day:       b.topDescents(tier, now.AddDate(0, 0, -1), top),
 		Season:    b.topDescents(tier, abyssSeasonStart(), top),
 		AllTime:   b.topDescents(tier, time.Unix(0, 0), top),
-		BossKills: b.topBossKills(top),
+		BossKills: b.topBossKills(top, tier),
 	}
 }
 
@@ -489,10 +527,23 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	}
 	_ = rows.Close()
 
+	if len(toSell) == 0 {
+		var gold int64
+		_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+		writeJSON(w, map[string]any{"ok": true, "sold": 0, "value": 0, "gold": gold})
+		return
+	}
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	var total int64
 	var count int
 	for _, j := range toSell {
-		res, err := s.bot.DB.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", j.id, uid)
+		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", j.id, uid)
 		if err != nil {
 			continue
 		}
@@ -503,9 +554,16 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	}
 	var gold int64
 	if total > 0 {
-		_ = s.bot.DB.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", total, uid).Scan(&gold)
+		if err := tx.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", total, uid).Scan(&gold); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 	} else {
-		_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+		_ = tx.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "sold": count, "value": total, "gold": gold})
 }
@@ -547,7 +605,14 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 	if cost < 1 {
 		cost = 1
 	}
-	res, err := s.bot.DB.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -556,7 +621,11 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 		return
 	}
-	if _, err := s.bot.DB.Exec("UPDATE abyss_active SET insured=$1 WHERE client_uid=$2", req.Pct, uid); err != nil {
+	if _, err := tx.Exec("UPDATE abyss_active SET insured=$1 WHERE client_uid=$2", req.Pct, uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

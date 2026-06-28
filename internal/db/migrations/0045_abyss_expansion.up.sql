@@ -5,7 +5,7 @@
 
 -- Per-run state on the active descent.
 ALTER TABLE abyss_active ADD COLUMN IF NOT EXISTS tier    TEXT    NOT NULL DEFAULT 'normal';
-ALTER TABLE abyss_active ADD COLUMN IF NOT EXISTS insured INTEGER NOT NULL DEFAULT 0;     -- % of cache protected on death
+ALTER TABLE abyss_active ADD COLUMN IF NOT EXISTS insured INTEGER NOT NULL DEFAULT 0 CHECK (insured BETWEEN 0 AND 100); -- % of cache protected on death
 ALTER TABLE abyss_active ADD COLUMN IF NOT EXISTS revived BOOLEAN NOT NULL DEFAULT FALSE; -- double-or-nothing revival already used
 
 -- Per-finished-run tier, so leaderboards can be split by difficulty.
@@ -30,7 +30,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS abyss_up_ward    INTEGER NOT NULL DEF
 
 -- Earned achievements (depth milestones, boss kills, etc.).
 CREATE TABLE IF NOT EXISTS abyss_achievements (
-    client_uid TEXT        NOT NULL,
+    client_uid TEXT        NOT NULL REFERENCES users(client_uid) ON DELETE CASCADE,
     code       TEXT        NOT NULL,
     earned_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (client_uid, code)
