@@ -61,8 +61,9 @@ type UserInCombat struct {
 	STRMod        float64
 	DEFMod        float64
 	SPDMod        float64
-	LootFocus     string
+	LootFocus     string // Default "balanced", can be "gold" or "loot"
 	FloorModifier string
+	IsClone       bool // If true, DB updates are skipped (for co-op)
 }
 
 type activeUser struct {
@@ -361,6 +362,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 		waves = 3
 	}
 
+	phaseOnce := make(map[string]bool)
 	activeUsers := make([]activeUser, len(users))
 	for i := range users {
 		_, _, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
@@ -529,16 +531,10 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 						}
 					} else if m.Name == "Azazoth the Slumbering Eye" {
 						if hpPct < 0.50 {
-							hasStunned := false
-							for _, au := range activeUsers {
-								if au.u.Stats.SPD == 0 {
-									hasStunned = true
-									break
-								}
-							}
-							if !hasStunned {
-								for _, au := range activeUsers {
-									au.u.Stats.SPD = 0
+							if !phaseOnce["azazoth_stun"] {
+								phaseOnce["azazoth_stun"] = true
+								for i := range activeUsers {
+									activeUsers[i].Stunned = true
 								}
 								logs = append(logs, "[color=#ffeb3b]👁️ Azazoth opens his slumbering eye, releasing a hypnotic pulse that dazes all delvers! (Skip next turn)[/color]")
 							}
@@ -572,16 +568,10 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 							}
 						}
 						if hpPct < 0.25 {
-							hasStunned := false
-							for _, au := range activeUsers {
-								if au.u.Stats.SPD == 0 {
-									hasStunned = true
-									break
-								}
-							}
-							if !hasStunned {
-								for _, au := range activeUsers {
-									au.u.Stats.SPD = 0
+							if !phaseOnce["abyssus_stun"] {
+								phaseOnce["abyssus_stun"] = true
+								for i := range activeUsers {
+									activeUsers[i].Stunned = true
 								}
 								logs = append(logs, "[color=#ffeb3b]👁️ Abyssus releases a cataclysmic sleep shockwave! (All delvers stunned)[/color]")
 							}
@@ -1246,50 +1236,56 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 	for i := range users {
 		u := &users[i]
 		// Save pets state
-		for _, p := range u.Pets {
-			b.updatePetHP(u.UID, p.Name, p.Stats.HP)
+		if !u.u.IsClone {
+			for _, p := range u.u.Pets {
+				b.updatePetHP(u.u.UID, p.Name, p.Stats.HP)
+			}
 		}
 
 		finalXP := 0
 		if victory {
-			_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = 0 WHERE client_uid = $1", u.UID)
-			b.updateQuest(u.UID, "mobs_killed", len(initialMobs))
+			if !u.u.IsClone {
+				_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = 0 WHERE client_uid = $1", u.u.UID)
+				b.updateQuest(u.u.UID, "mobs_killed", len(initialMobs))
+			}
 
 			// Regen Stacks logic
 			hasRegEffect := false
-			_, _, _, _, effects := b.activeLootMult(u.UID, time.Now())
+			_, _, _, _, effects := b.activeLootMult(u.u.UID, time.Now())
 			for _, eff := range effects {
 				if eff == content.EffectRegenStack {
 					hasRegEffect = true
 				}
 			}
 			if hasRegEffect {
-				u.RegenStacks++
+				u.u.RegenStacks++
 			}
 
 		} else {
-			_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = consecutive_losses + 1 WHERE client_uid = $1", u.UID)
-			// Death Penalty: 25% of the XP required for the current level
-			var curXP, curLevel int
-			_ = b.DB.QueryRow("SELECT xp, level FROM users WHERE client_uid=$1", u.UID).Scan(&curXP, &curLevel)
-			
-			baseXP := leveling.XPForLevel(curLevel)
-			nextXP := leveling.XPForLevel(curLevel + 1)
-			levelSize := nextXP - baseXP
-			
-			penalty := int(float64(levelSize) * 0.25)
-			if penalty < 10 {
-				penalty = 10
+			if !u.u.IsClone {
+				_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = consecutive_losses + 1 WHERE client_uid = $1", u.u.UID)
+				// Death Penalty: 25% of the XP required for the current level
+				var curXP, curLevel int
+				_ = b.DB.QueryRow("SELECT xp, level FROM users WHERE client_uid=$1", u.u.UID).Scan(&curXP, &curLevel)
+				
+				baseXP := leveling.XPForLevel(curLevel)
+				nextXP := leveling.XPForLevel(curLevel + 1)
+				levelSize := nextXP - baseXP
+				
+				penalty := int(float64(levelSize) * 0.25)
+				if penalty < 10 {
+					penalty = 10
+				}
+				
+				finalXP -= penalty
+
+				// Increase jackpot by 1% of lost XP value
+				b.incrementJackpot("global", int64(penalty))
+
+				logs = append(logs, deathPenaltyLine(u.u.Nickname, penalty))
 			}
-			
-			finalXP -= penalty
-
-			// Increase jackpot by 1% of lost XP value
-			b.incrementJackpot("global", int64(penalty))
-
-			logs = append(logs, deathPenaltyLine(u.Nickname, penalty))
-			u.CurrentHP = 0   // dead
-			u.RegenStacks = 0 // lose stacks on death
+			u.u.CurrentHP = 0   // dead
+			u.u.RegenStacks = 0 // lose stacks on death
 		}
 
 		// Gold Drop logic
@@ -1316,35 +1312,39 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 			}
 			
 			// First Win of the Day Bonus
-			var lastWin sql.NullTime
-			_ = b.DB.QueryRow("SELECT last_win FROM users WHERE client_uid=$1", u.UID).Scan(&lastWin)
-			
-			if !lastWin.Valid || lastWin.Time.Before(time.Now().Add(-24*time.Hour)) {
-				// 5x Gold and XP multiplier for First Win
-				goldDrop *= 5
-				finalXP *= 5
-				logs = append(logs, "🌟 FIRST WIN OF THE DAY! (5x Gold & XP)")
-				_, _ = b.DB.Exec("UPDATE users SET last_win=NOW() WHERE client_uid=$1", u.UID)
+			if !u.u.IsClone {
+				var lastWin sql.NullTime
+				_ = b.DB.QueryRow("SELECT last_win FROM users WHERE client_uid=$1", u.u.UID).Scan(&lastWin)
+				
+				if !lastWin.Valid || lastWin.Time.Before(time.Now().Add(-24*time.Hour)) {
+					// 5x Gold and XP multiplier for First Win
+					goldDrop *= 5
+					finalXP *= 5
+					logs = append(logs, "🌟 FIRST WIN OF THE DAY! (5x Gold & XP)")
+					_, _ = b.DB.Exec("UPDATE users SET last_win=NOW() WHERE client_uid=$1", u.u.UID)
+				}
 			}
 
 			// VIP Gold Bonus
-			vip, _ := b.getVIP(u.UID)
+			vip, _ := b.getVIP(u.u.UID)
 			if vip.Bonus > 0 {
 				goldDrop = int(float64(goldDrop) * (1.0 + float64(vip.Bonus)/100.0))
 			}
 
-			u.Gold += int64(goldDrop)
+			u.u.Gold += int64(goldDrop)
 		}
 
-		// Save ultimate skill cooldown state
-		if u.UltimateSkill != nil {
-			_, _ = b.DB.Exec("UPDATE users SET ultimate_cooldown = $2 WHERE client_uid = $1", u.UID, u.UltimateSkill.CurrentCooldown)
+		if !u.u.IsClone {
+			// Save ultimate skill cooldown state
+			if u.u.UltimateSkill != nil {
+				_, _ = b.DB.Exec("UPDATE users SET ultimate_cooldown = $2 WHERE client_uid = $1", u.u.UID, u.u.UltimateSkill.CurrentCooldown)
+			}
+
+			_, _ = b.DB.Exec("UPDATE users SET current_hp = $2, regen_stacks = $3, gold = users.gold + $4 WHERE client_uid = $1", u.u.UID, u.u.CurrentHP, u.u.RegenStacks, int64(goldDrop))
+
+			_, _ = b.DB.Exec("UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1", u.u.UID)
+			_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND remaining_fights < 0", u.u.UID)
 		}
-
-		_, _ = b.DB.Exec("UPDATE users SET current_hp = $2, regen_stacks = $3, gold = users.gold + $4 WHERE client_uid = $1", u.UID, u.CurrentHP, u.RegenStacks, int64(goldDrop))
-
-		_, _ = b.DB.Exec("UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1", u.UID)
-		_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND remaining_fights < 0", u.UID)
 
 		if finalXP > 0 {
 			// Improvement 24: Dynamic Level Scaling
@@ -1366,8 +1366,8 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 				finalXP = int(float64(finalXP) * mult)
 			}
 		}
-		if finalXP != 0 {
-			_, _ = b.awardXP(u.UID, "", finalXP)
+		if finalXP != 0 && !u.u.IsClone {
+			_, _ = b.awardXP(u.u.UID, "", finalXP)
 		}
 	}
 

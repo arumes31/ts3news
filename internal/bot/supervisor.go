@@ -392,6 +392,13 @@ func (s *Supervisor) startCommandListener(ctx context.Context) {
 		}
 
 		reader := c.Reader()
+		
+		loopCtx, cancelLoop := context.WithCancel(ctx)
+		go func() {
+			<-loopCtx.Done()
+			_ = c.Close()
+		}()
+
 		for {
 			line, err := reader.ReadString('\n')
 			if err != nil {
@@ -400,7 +407,15 @@ func (s *Supervisor) startCommandListener(ctx context.Context) {
 			line = strings.Trim(line, "\r\n")
 			s.handleNotificationLine(c, line)
 		}
+		
+		cancelLoop()
 		_ = c.Close()
+		
+		// If context is canceled, exit the outer loop as well
+		if ctx.Err() != nil {
+			return
+		}
+		
 		time.Sleep(5 * time.Second)
 	}
 }

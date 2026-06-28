@@ -185,14 +185,16 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int6
 			run.Depth, uid); err != nil {
 			return 0, 0
 		}
-		b.grantAbyssTokens(uid, run.Depth/10) // small consolation
-		b.recordGameResult(uid, "abyss", false, refund)
 	}
 	if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
 		return 0, 0
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, 0
+	}
+	if run.Depth > 0 {
+		b.grantAbyssTokens(uid, run.Depth/10) // small consolation
+		b.recordGameResult(uid, "abyss", false, refund)
 	}
 	return refund, 0
 }
@@ -389,7 +391,7 @@ func (b *Bot) topBossKills(limit int, tier string) []bossKillRow {
 			        k.boss_name, k.depth, k.kill_time_ms, k.killed_at
 			   FROM abyss_boss_kills k
 			   LEFT JOIN users u ON u.client_uid = k.client_uid
-			   JOIN abyss_runs r ON r.client_uid = k.client_uid AND r.depth = k.depth AND r.tier = $2
+			   WHERE k.tier = $2
 			  ORDER BY k.depth DESC, k.kill_time_ms ASC
 			  LIMIT $1`, limit, tier)
 	} else {

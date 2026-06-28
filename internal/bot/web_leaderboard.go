@@ -86,6 +86,7 @@ func (s *WebServer) handleLeaderboardsPage(w http.ResponseWriter, r *http.Reques
 		"Nav":           "leaderboards",
 		"U":             u,
 		"ArcadeLeaders": s.bot.gameLeaderboards("arcade"),
+		"EnableAbyss":   s.bot.Cfg.EnableAbyss,
 	}
 	if s.bot.Cfg.EnableAbyss {
 		data["AbyssLeaders"] = s.bot.abyssLeaderboards("normal")

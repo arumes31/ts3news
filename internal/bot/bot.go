@@ -124,8 +124,11 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		// Abyss "cursed bank": the player took a +20% payout in exchange for a hex
 		// on their next few cycle fights. Sap their combat stats and tick it down.
 		if b.Cfg.EnableAbyss && curseFights > 0 {
-			stats = stats.Scaled(0.85)
-			_, _ = b.DB.Exec("UPDATE users SET abyss_curse_fights = abyss_curse_fights - 1 WHERE client_uid=$1", cl.UID)
+			if _, err := b.DB.Exec("UPDATE users SET abyss_curse_fights = abyss_curse_fights - 1 WHERE client_uid=$1", cl.UID); err == nil {
+				stats = stats.Scaled(0.85)
+			} else {
+				log.Printf("Failed to decrement abyss curse for %s: %v", cl.UID, err)
+			}
 		}
 		if curHP <= 0 {
 			curHP = stats.HP // Auto-fill if new/dead
@@ -898,7 +901,11 @@ func clientSafeChannelName(s string) bool {
 // BroadcastAbyssRecord temporarily renames the TS3 bot to celebrate a new depth record
 // and pokes all online normal clients with the news.
 func (b *Bot) BroadcastAbyssRecord(nick string, depth int) {
-	c, err := clientquery.Dial(b.Cfg.ClientQueryAddr, 2*time.Second)
+	addr := b.Cfg.ClientQueryAddr
+	if addr == "" {
+		addr = "127.0.0.1:25639"
+	}
+	c, err := clientquery.Dial(addr, 2*time.Second)
 	if err != nil {
 		return
 	}

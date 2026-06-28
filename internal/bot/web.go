@@ -287,10 +287,14 @@ func (b *Bot) composeLoginPM(uid string) string {
 	if short, err := games.ShortenURL(url); err == nil && short != "" {
 		url = short
 	}
-	var bestDepth int
-	_ = b.DB.QueryRow("SELECT abyss_best_depth FROM users WHERE client_uid=$1", uid).Scan(&bestDepth)
-	abyssUrl := fmt.Sprintf("%s/abyss", b.Cfg.WebBaseURL)
-	return i18n.T("web.login_pm", url) + fmt.Sprintf("\n⚔️ [b]The Abyss awaits![/b] Your best: floor %d.\nEnter the depths: %s", bestDepth, abyssUrl)
+	msg := i18n.T("web.login_pm", url)
+	if b.Cfg.EnableAbyss {
+		var bestDepth int
+		_ = b.DB.QueryRow("SELECT abyss_best_depth FROM users WHERE client_uid=$1", uid).Scan(&bestDepth)
+		abyssUrl := fmt.Sprintf("%s/abyss", b.Cfg.WebBaseURL)
+		msg += fmt.Sprintf("\n⚔️ [b]The Abyss awaits![/b] Your best: floor %d.\nEnter the depths: %s", bestDepth, abyssUrl)
+	}
+	return msg
 }
 
 // uidForToken resolves a login token to a user UID.
