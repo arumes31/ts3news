@@ -1,0 +1,3 @@
+## 2024-06-28 - Avoid inline regexp.MustCompile for whitespace normalization
+**Learning:** Inline `regexp.MustCompile` inside functions causes unnecessary re-compilations and allocations on every function call, significantly degrading performance in hot paths. Furthermore, for simple whitespace normalization, regular expressions are much slower than string manipulation functions.
+**Action:** Never use inline `regexp.MustCompile` inside functions (declare them globally). For simple whitespace normalization, use `strings.Join(strings.Fields(t), " ")` instead of regular expressions to avoid re-compilations and improve execution speed.
