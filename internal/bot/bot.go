@@ -112,11 +112,18 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		skills := b.getSkills(cl.UID)
 		ultimate := b.getUltimateSkill(cl.UID)
 
-		var lvl, prestige, curHP, regen int
+		var lvl, prestige, curHP, regen, curseFights, bestDepth int
 		var gold int64
-		err := b.DB.QueryRow("SELECT level, prestige, current_hp, regen_stacks, gold FROM users WHERE client_uid=$1", cl.UID).Scan(&lvl, &prestige, &curHP, &regen, &gold)
+		err := b.DB.QueryRow("SELECT level, prestige, current_hp, regen_stacks, gold, abyss_curse_fights, abyss_best_depth FROM users WHERE client_uid=$1", cl.UID).Scan(&lvl, &prestige, &curHP, &regen, &gold, &curseFights, &bestDepth)
 		if err != nil && err != sql.ErrNoRows {
 			log.Printf("Failed to scan user combat state for %s: %v", cl.UID, err)
+		}
+		b.applyAbyssMilestones(c, cl.CLID, cl.UID, cl.Nickname, bestDepth)
+		// Abyss "cursed bank": the player took a +20% payout in exchange for a hex
+		// on their next few cycle fights. Sap their combat stats and tick it down.
+		if curseFights > 0 {
+			stats = stats.Scaled(0.85)
+			_, _ = b.DB.Exec("UPDATE users SET abyss_curse_fights = abyss_curse_fights - 1 WHERE client_uid=$1", cl.UID)
 		}
 		if curHP <= 0 {
 			curHP = stats.HP
@@ -883,3 +890,34 @@ func clientSafeChannelName(s string) bool {
 	}
 	return true
 }
+
+// BroadcastAbyssRecord temporarily renames the TS3 bot to celebrate a new depth record
+// and pokes all online normal clients with the news.
+func (b *Bot) BroadcastAbyssRecord(nick string, depth int) {
+	c, err := clientquery.Dial(b.Cfg.ClientQueryAddr, 2*time.Second)
+	if err != nil {
+		return
+	}
+	defer func() { _ = c.Close() }()
+	if apiKey := b.getAPIKey(); apiKey != "" {
+		_ = c.Auth(apiKey)
+	}
+	_ = c.Use(1)
+
+	oldNick := b.Cfg.TS3Nickname
+	_ = c.SetNickname(fmt.Sprintf("Abyss Record - %s", nick))
+
+	clients, err := c.ClientList()
+	if err == nil {
+		msg := fmt.Sprintf("🏆 NEW RECORD! %s has banked a record-breaking run at floor %d in the Abyss!", nick, depth)
+		for _, cl := range clients {
+			if cl.Type == 0 { // normal user
+				_ = c.Poke(cl.CLID, msg)
+			}
+		}
+	}
+
+	time.Sleep(3 * time.Second)
+	_ = c.SetNickname(oldNick)
+}
+

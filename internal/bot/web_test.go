@@ -10,7 +10,7 @@ func TestNewWebServerTemplatesParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewWebServer: %v", err)
 	}
-	for _, name := range []string{"armory", "inventory", "arcade", "shop", "ah", "denied", "head", "foot"} {
+	for _, name := range []string{"armory", "inventory", "arcade", "shop", "ah", "denied", "head", "foot", "abyss", "abUpgrade", "abyssboards", "abysstable", "leaderboards-page"} {
 		if ws.tmpl.Lookup(name) == nil {
 			t.Errorf("template %q not defined", name)
 		}

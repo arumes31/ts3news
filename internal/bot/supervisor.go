@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -37,6 +39,8 @@ var (
 func (s *Supervisor) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	go s.startCommandListener(ctx)
 
 	for {
 		err := s.runCycleWithClient(ctx)
@@ -319,3 +323,126 @@ func sleepCtx(ctx context.Context, d time.Duration) bool {
 		return false
 	}
 }
+
+func parseNotification(line string) (string, map[string]string) {
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return "", nil
+	}
+	name := fields[0]
+	m := map[string]string{}
+	for _, f := range fields[1:] {
+		k, v, ok := strings.Cut(f, "=")
+		if ok {
+			m[k] = clientquery.Unescape(v)
+		}
+	}
+	return name, m
+}
+
+func (s *Supervisor) startCommandListener(ctx context.Context) {
+	addr := s.bot.Cfg.ClientQueryAddr
+	if addr == "" {
+		addr = "127.0.0.1:25639"
+	}
+	apiKey := s.bot.getAPIKey()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		c, err := clientquery.Dial(addr, 5*time.Second)
+		if err != nil {
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		if apiKey != "" {
+			_ = c.Auth(apiKey)
+		}
+		_ = c.Use(1)
+
+		// Register for text messages and pokes
+		_, _ = c.Command("clientnotifyregister schandlerid=1 event=notifytextmessage")
+		_, _ = c.Command("clientnotifyregister schandlerid=1 event=notifypoke")
+
+		reader := c.Reader()
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				break
+			}
+			line = strings.Trim(line, "\r\n")
+			s.handleNotificationLine(c, line)
+		}
+		_ = c.Close()
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func (s *Supervisor) handleNotificationLine(c *clientquery.Client, line string) {
+	evName, params := parseNotification(line)
+	if evName != "notifytextmessage" && evName != "notifypoke" {
+		return
+	}
+
+	msg := params["msg"]
+	if !strings.HasPrefix(strings.TrimSpace(msg), "!abyss") {
+		return
+	}
+
+	clidStr := params["clid"]
+	if clidStr == "" {
+		clidStr = params["invokerid"]
+	}
+	clid, _ := strconv.Atoi(clidStr)
+	if clid == 0 {
+		return
+	}
+
+	uid := params["invokeruid"]
+	nick := params["invokername"]
+	if uid == "" {
+		return
+	}
+
+	// Fetch Abyss Summary from database
+	var bestDepth, deaths, lifetimeFloors int
+	var active bool
+	var depth int
+	var escrow int64
+
+	// Query best depth, deaths, floors
+	_ = s.bot.DB.QueryRow(
+		"SELECT abyss_best_depth, abyss_deaths, abyss_lifetime_floors FROM users WHERE client_uid=$1", uid,
+	).Scan(&bestDepth, &deaths, &lifetimeFloors)
+
+	// Check if run is active
+	err := s.bot.DB.QueryRow(
+		"SELECT depth, escrow FROM abyss_active WHERE client_uid=$1", uid,
+	).Scan(&depth, &escrow)
+	if err == nil {
+		active = true
+	}
+
+	summary := fmt.Sprintf(
+		"⚔️ [b]Abyss Summary for %s[/b] ⚔️\n• Best Depth: Floor %d\n• Lifetime Floors: %d\n• Total Deaths: %d\n• Active Run: %s",
+		nick, bestDepth, lifetimeFloors, deaths, "No active run",
+	)
+	if active {
+		summary = fmt.Sprintf(
+			"⚔️ [b]Abyss Summary for %s[/b] ⚔️\n• Best Depth: Floor %d\n• Lifetime Floors: %d\n• Total Deaths: %d\n• Active Run: Floor %d (Escrow: %d gold)",
+			nick, bestDepth, lifetimeFloors, deaths, depth, escrow,
+		)
+	}
+
+	if evName == "notifypoke" {
+		_ = c.Poke(clid, summary)
+	} else {
+		_ = c.SendPrivateMessage(clid, summary)
+	}
+}
+

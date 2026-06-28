@@ -1,0 +1,677 @@
+{{define "abyss"}}{{template "head" .}}
+<div class="abyss-hero">
+  <h1>{{T "web.abyss.title"}}</h1>
+  <p class="muted">{{T "web.abyss.hero_desc"}}</p>
+  {{if .WeeklyMod}}
+    <div class="ab-weekly-alert" style="background: rgba(255,193,7,0.1); border: 1px solid #ffc107; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
+      📅 <strong>{{T "web.abyss.weekly_title"}}</strong> 
+      {{if eq .WeeklyMod "double_hazards"}}{{T "web.abyss.weekly.double_hazards"}}{{end}}
+      {{if eq .WeeklyMod "zero_durability_loss"}}{{T "web.abyss.weekly.zero_durability_loss"}}{{end}}
+      {{if eq .WeeklyMod "enraged_mobs"}}{{T "web.abyss.weekly.enraged_mobs"}}{{end}}
+    </div>
+  {{end}}
+</div>
+
+<div class="abyss-stats">
+  <div class="ab-chip">
+    <span class="ab-chip-label">{{T "web.abyss.health"}}</span>
+    <div class="ab-hpbar" role="progressbar" aria-label="Health" aria-valuemin="0" aria-valuemax="{{.U.MaxHP}}" aria-valuenow="{{.U.CurrentHP}}" id="hpBar">
+      <div class="ab-hpfill" id="hpFill" style="width:{{mulpct .U.CurrentHP .U.MaxHP}}%"></div>
+      <span class="ab-hptext" id="hpText" data-hp="{{.U.CurrentHP}}" data-max="{{.U.MaxHP}}"></span>
+    </div>
+  </div>
+  <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.gear_score"}}</span><span class="ab-chip-val">{{comma .U.GearScore}}</span></div>
+  <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.level"}}</span><span class="ab-chip-val">{{.U.Level}}{{if gt .U.Prestige 0}} · P{{.U.Prestige}}{{end}}</span></div>
+  <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.best_depth"}}</span><span class="ab-chip-val" id="bestDepth">🕳️ {{.Stats.BestDepth}}</span></div>
+  <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.abyss_tokens"}}</span><span class="ab-chip-val" id="tokenVal">{{comma .Stats.Tokens}}</span></div>
+</div>
+
+<div class="abyss-stage">
+  <!-- Elevator shaft visual [85] -->
+  <div class="ab-elevator" aria-hidden="true">
+    <div class="ab-shaft"><div class="ab-cage" id="elevCage" style="top:0%"></div></div>
+  </div>
+
+  <div class="abyss-dial">
+    <div class="ab-depth-ring">
+      <span class="ab-depth-label">Depth</span>
+      <span class="ab-depth-num" id="depthNum">{{if .Run.Active}}{{.Run.Depth}}{{else}}—{{end}}</span>
+    </div>
+    <div class="ab-escrow">
+      <span class="ab-escrow-label">💰 Cache at stake</span>
+      <span class="ab-escrow-val" id="escrowVal" data-raw="{{.Run.Escrow}}"></span>
+      <span class="ab-insured-tag" id="insuredTag" {{if le .Run.Insured 0}}style="display:none"{{end}}>🛡️ {{.Run.Insured}}% insured</span>
+    </div>
+    <!-- Threat / danger meter [91] -->
+    <div class="ab-threat">
+      <span class="ab-threat-label">Threat</span>
+      <div class="ab-threat-bar"><div class="ab-threat-fill" id="threatFill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="abyss-controls" id="abyssControls">
+    <div id="abyssMsg" class="toast" role="status" aria-live="polite"></div>
+    <p class="ab-status" id="abStatus" aria-live="polite">
+      {{if .Run.Downed}}You fell. Gamble a revival or concede the cache.{{else if .Run.Active}}You are {{.Run.Depth}} floor(s) deep. Descend deeper, insure, or bank.{{else}}Rest at the threshold. Choose a tier and descend.{{end}}
+    </p>
+
+    <!-- Tier picker (idle only) [16] -->
+    <div class="ab-tiers" id="tierPicker">
+      {{range .Tiers}}
+      <label class="ab-tier {{if not .Unlocked}}locked{{end}}">
+        <input type="radio" name="abtier" value="{{.Key}}" {{if eq .Key "normal"}}checked{{end}} {{if not .Unlocked}}disabled{{end}}>
+        <span class="ab-tier-name">{{.Name}}</span>
+        <span class="ab-tier-meta">×{{printf "%.1f" .RewardMult}} reward · ×{{printf "%.1f" .DiffMult}} danger</span>
+        <span class="ab-tier-meta">{{if gt .EntryGold 0}}entry {{gold .EntryGold}}{{else}}free{{end}}{{if not .Unlocked}} · 🔒 depth {{.MinBest}}{{end}}</span>
+      </label>
+      {{end}}
+    </div>
+
+    <!-- Focus picker (active run only) -->
+    <div class="ab-focus-row" id="focusPicker" style="display:none">
+      <span class="ab-sub-label">Next floor focus:</span>
+      <label><input type="radio" name="abfocus" value="balanced" checked> Balanced</label>
+      <label><input type="radio" name="abfocus" value="gold"> 💰 Gold Focus (2x gold, no items)</label>
+      <label><input type="radio" name="abfocus" value="loot"> 🎁 Loot Focus (+50% find, +20% quality, halved gold)</label>
+    </div>
+
+    <div class="ab-btn-row">
+      <button class="primary ab-enter" id="btnEnter" onclick="abyssEnter()">Enter the Abyss</button>
+      <button class="primary ab-descend" id="btnDescend" onclick="abyssDescend()" style="display:none">⬇️ Descend</button>
+      <button class="ghost ab-bank" id="btnBank" onclick="abyssBank()" style="display:none">🏦 Bank &amp; Leave</button>
+      <button class="primary ab-revive" id="btnRevive" onclick="abyssRevive()" style="display:none">🎲 Revive (double-or-nothing)</button>
+      <button class="ghost ab-concede" id="btnConcede" onclick="abyssConcede()" style="display:none">🏳️ Concede</button>
+    </div>
+
+    <div class="ab-subrow" id="liveRow" style="display:none">
+      <span class="ab-sub-label">{{T "web.abyss.insure_cache"}}</span>
+      <button class="ghost xs" onclick="abyssInsure(25)">25%</button>
+      <button class="ghost xs" onclick="abyssInsure(50)">50%</button>
+      <button class="ghost xs" onclick="abyssInsure(75)">75%</button>
+      <label class="ab-cursed"><input type="checkbox" id="cursedBank"> {{T "web.abyss.cursed_bank"}}</label>
+    </div>
+
+    {{if .NextIsBoss}}
+    <div class="ab-subrow" id="coopRow" style="display:none">
+      <span class="ab-sub-label">{{T "web.abyss.invite_ally"}}</span>
+      <select id="coopSelect" onchange="abyssInviteCoop()">
+        <option value="">{{T "web.abyss.select_helper"}}</option>
+        {{range .Helpers}}
+          <option value="{{.UID}}">{{.Nick}} (Floor {{.Depth}})</option>
+        {{end}}
+      </select>
+      <span id="coopStatus" class="small muted" style="margin-left: 8px;">{{if .Run.CoopUID}}{{T "web.abyss.ally_invited"}}{{end}}</span>
+    </div>
+    {{end}}
+
+    <!-- Consumable prep panel (active run only) -->
+    <div class="ab-prep-panel" id="prepPanel" style="display:none">
+      <h3>{{T "web.abyss.consumables_prep"}}</h3>
+      <div class="ab-consumables-list" id="consList">
+        {{range .Consumables}}
+          {{if or (eq .Type "Healing") (eq .Type "Repair") (eq .Type "Buff")}}
+            <div class="ab-cons-item" id="cons-{{.ID}}">
+              <b>{{.Name}}</b>
+              <span class="muted small">{{.Description}}</span>
+              <button class="ghost xs" onclick="abyssUseConsumable('{{.ID}}')">Use</button>
+            </div>
+          {{end}}
+        {{else}}
+          <div class="muted small">No usable consumables in inventory.</div>
+        {{end}}
+      </div>
+    </div>
+  </div>
+
+  <!-- Non-combat / Event interaction panel -->
+  <div class="ab-noncombat-panel" id="nonCombatPanel" style="display:none">
+    <h2 id="ncTitle">🕊️ Sanctuary</h2>
+    <p id="ncDesc" class="muted"></p>
+    <div class="ab-nc-options" id="ncOptions"></div>
+    <button class="primary ab-proceed" id="btnProceed" onclick="abyssProceed()" style="margin-top:15px">Leave Floor &amp; Proceed</button>
+  </div>
+</div>
+
+<div class="abyss-banner" id="abyssBanner" role="status" aria-live="assertive"></div>
+
+<div class="abyss-log-wrap" id="logWrap" {{if not .Run.Active}}style="display:none"{{end}}>
+  <h3>{{T "web.abyss.combat_log"}}</h3>
+  <div class="abyss-log" id="abyssLog" aria-live="polite"></div>
+  <div class="abyss-loot" id="abyssLoot"></div>
+  <div class="abyss-dura" id="abyssDura"></div>
+</div>
+
+<div class="abyss-cols">
+  <!-- Deep Delver upgrades [44][45] -->
+  <section class="abyss-panel">
+    <h2>{{T "web.abyss.deep_delver"}}</h2>
+    <p class="muted small">{{T "web.abyss.deep_delver_desc"}}</p>
+    <div class="ab-upgrades">
+      {{template "abUpgrade" dict "Node" "vigor"   "Name" "Vigor"   "Desc" "Start runs with +HP"        "Lv" .Stats.UpVigor}}
+      {{template "abUpgrade" dict "Node" "greed"   "Name" "Greed"   "Desc" "+5% cache bonus / level"    "Lv" .Stats.UpGreed}}
+      {{template "abUpgrade" dict "Node" "fortune" "Name" "Fortune" "Desc" "Better loot in the deep"    "Lv" .Stats.UpFortune}}
+      {{template "abUpgrade" dict "Node" "ward"    "Name" "Ward"    "Desc" "Cheaper insurance premiums" "Lv" .Stats.UpWard}}
+    </div>
+  </section>
+
+  <!-- Lifetime stats [46] + salvage [60] -->
+  <section class="abyss-panel">
+    <h2>{{T "web.abyss.record"}}</h2>
+    <ul class="ab-record">
+      <li><span>{{T "web.abyss.abyss_prestige"}}</span><b>⭐ {{.Stats.AbyssPrestige}}</b></li>
+      <li><span>Deepest</span><b>🕳️ {{.Stats.BestDepth}}</b></li>
+      <li><span>Floors cleared</span><b>{{comma .Stats.LifetimeFloors}}</b></li>
+      <li><span>Total banked</span><b>{{gold .Stats.LifetimeBanked}}</b></li>
+      <li><span>Deaths</span><b>{{.Stats.Deaths}}</b></li>
+      <li><span>Bank streak</span><b>🔥 {{.Stats.Streak}}</b></li>
+    </ul>
+    {{if ge .Stats.BestDepth 50}}
+      <button class="primary xs" style="width:100%; margin-bottom:10px;" onclick="abyssPrestige()">{{T "web.abyss.prestige_btn"}}</button>
+    {{end}}
+    <button class="ghost xs" onclick="abyssSalvage()">🧹 Salvage junk for gold</button>
+    {{if .Achieved}}<div class="ab-achievements"><h3>🏅 Achievements</h3>{{range .Achieved}}<span class="ab-ach">{{.}}</span>{{end}}</div>{{end}}
+  </section>
+
+  <!-- Run history [48] -->
+  <section class="abyss-panel">
+    <h2>{{T "web.abyss.recent_runs"}}</h2>
+    <table class="ab-history">
+      <tbody>
+      {{range .History}}
+        <tr class="{{if .Victory}}win{{else}}loss{{end}}">
+          <td>{{if .Victory}}🏦{{else}}💀{{end}} 🕳️ {{.Depth}}</td>
+          <td>{{gold .Gold}}</td>
+          <td class="muted small">{{.When}}</td>
+        </tr>
+      {{else}}
+        <tr><td colspan="3" class="muted">No runs yet.</td></tr>
+      {{end}}
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<div class="abyss-lore-bestiary">
+  <section class="abyss-panel">
+    <h2>{{T "web.abyss.lore_codex"}}</h2>
+    <p class="muted small">{{T "web.abyss.lore_codex_desc"}}</p>
+    <div class="ab-codex">
+      <div class="ab-codex-grid">
+        {{range .LoreList}}
+          <div class="ab-codex-item {{if .Unlocked}}unlocked{{else}}locked{{end}}">
+            <span class="ab-codex-id">Fragment #{{.ID}}</span>
+            <p class="ab-codex-text">{{.Text}}</p>
+          </div>
+        {{else}}
+          <div class="muted small">No lore fragments unlocked yet.</div>
+        {{end}}
+      </div>
+    </div>
+  </section>
+
+  <section class="abyss-panel">
+    <h2>{{T "web.abyss.bestiary"}}</h2>
+    <p class="muted small">{{T "web.abyss.bestiary_desc"}}</p>
+    <div class="ab-bestiary">
+      <table class="ab-bestiary-table">
+        <thead>
+          <tr><th>Monster Name</th><th>Vanquished Kills</th></tr>
+        </thead>
+        <tbody>
+          {{range .Bestiary}}
+          <tr><td>{{.MobName}}</td><td>⚔️ {{.Kills}}</td></tr>
+          {{else}}
+          <tr><td colspan="2" class="muted text-center">No monsters vanquished yet.</td></tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<section class="abyss-lb">
+  <h2>🏆 Deepest Descents — Normal · {{.Season}}</h2>
+  {{template "abyssboards" .Leaders}}
+</section>
+
+<section class="abyss-lb" style="margin-top: 30px;">
+  <h2>{{T "web.abyss.boss_kills_title"}}</h2>
+  <table class="lbtable">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Player</th>
+        <th>Boss Name</th>
+        <th>Floor</th>
+        <th>Kill Duration</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Leaders.BossKills}}
+      <tr>
+        <td class="lb-rank lb-rank-{{.Rank}}">{{.Rank}}</td>
+        <td class="lb-name">{{.Nickname}}</td>
+        <td>{{.BossName}}</td>
+        <td>🕳️ {{.Depth}}</td>
+        <td class="win">{{.DurationMs}} ms</td>
+        <td class="muted small">{{.KilledAt}}</td>
+      </tr>
+      {{else}}
+      <tr><td colspan="6" class="muted text-center">No boss kills recorded yet.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+
+<script>
+var inRun   = {{if .Run.Active}}true{{else}}false{{end}};
+var downed  = {{if .Run.Downed}}true{{else}}false{{end}};
+var canRev  = {{if .Run.Revived}}false{{else}}true{{end}};
+var wardLv  = {{.Stats.UpWard}};
+var curDepth = {{if .Run.Active}}{{.Run.Depth}}{{else}}0{{end}};
+var curEscrow = {{.Run.Escrow}};
+var floorType = {{if .Run.Active}}{{.Run.FloorType}}{{else}}"combat"{{end}};
+var eventState = {{if .Run.Active}}{{.Run.EventState}}{{else}}""{{end}};
+var busy = false;
+var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Mirror Go's FormatGoldPlain so server-rendered and JS-updated values match. [#6/#7/#12]
+function fmtGold(v){
+  v = Number(v)||0;
+  if(v>=1e9) return (v/1e9).toFixed(1)+'B';
+  if(v>=1e6) return (v/1e6).toFixed(1)+'M';
+  if(v>=1e3) return (v/1e3).toFixed(1)+'k';
+  return v+'g';
+}
+function fmtNum(v){return (Number(v)||0).toLocaleString();}
+
+function abToast(m, ok){var t=document.getElementById('abyssMsg');t.textContent=m;t.className='toast show '+(ok?'good':'bad');setTimeout(function(){t.className='toast';},2600);}
+async function abPost(url, body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});return r.json();}
+
+function setBusy(b){busy=b;['btnEnter','btnDescend','btnBank','btnRevive','btnConcede','btnProceed'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});}
+function show(id, on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none';}
+
+function renderState(){
+  if(inRun && floorType && floorType !== 'combat'){
+    show('abyssControls', false);
+    show('focusPicker', false);
+    show('prepPanel', false);
+    renderNonCombat(floorType, eventState);
+    return;
+  }
+
+  show('abyssControls', true);
+  show('nonCombatPanel', false);
+
+  // idle / alive / downed
+  show('btnEnter', !inRun);
+  show('tierPicker', !inRun);
+  show('btnDescend', inRun && !downed);
+  show('btnBank', inRun && !downed);
+  show('liveRow', inRun && !downed);
+  show('coopRow', inRun && !downed);
+  show('btnRevive', inRun && downed && canRev);
+  show('btnConcede', inRun && downed);
+  show('focusPicker', inRun && !downed);
+  show('prepPanel', inRun && !downed);
+}
+
+function renderConsumables(list){
+  var container = document.getElementById('consList');
+  if(!container) return;
+  container.innerHTML = '';
+  var validList = (list || []).filter(function(c){
+    return c.Type === "Healing" || c.Type === "Repair" || c.Type === "Buff";
+  });
+  if(validList.length === 0){
+    container.innerHTML = '<div class="muted small">No usable consumables in inventory.</div>';
+    return;
+  }
+  validList.forEach(function(c){
+    var div = document.createElement('div');
+    div.className = 'ab-cons-item';
+    div.id = 'cons-'+c.ID;
+    div.innerHTML = '<b>' + c.Name + '</b> <span class="muted small">' + c.Description + '</span> <button class="ghost xs" onclick="abyssUseConsumable(\''+c.ID+'\')">Use</button>';
+    container.appendChild(div);
+  });
+}
+
+function renderNonCombat(floorType, stateStr){
+  var panel = document.getElementById('nonCombatPanel');
+  var title = document.getElementById('ncTitle');
+  var desc = document.getElementById('ncDesc');
+  var options = document.getElementById('ncOptions');
+  options.innerHTML = '';
+  
+  if(!floorType || floorType === 'combat'){
+    panel.style.display = 'none';
+    return;
+  }
+  
+  panel.style.display = '';
+  
+  if(floorType === 'rest'){
+    title.innerHTML = '🕊️ Sanctuary (Rest Floor)';
+    desc.innerHTML = 'A peaceful pocket of the Abyss. You may spend gold to mend your wounds, repair your gear, or re-roll your active skills.';
+    
+    options.innerHTML = `
+      <button class="ghost" onclick="abyssNCAction('heal')">❤️ Heal to Full (100g)</button>
+      <button class="ghost" onclick="abyssNCAction('repair')">🛠️ Repair All Gear (100g)</button>
+      <button class="ghost" onclick="abyssNCAction('reroll_skills')">🌀 Re-roll Active Skills (150g)</button>
+    `;
+  } else if(floorType === 'event'){
+    title.innerHTML = '❓ Mysterious Encounter';
+    var state = {};
+    try { state = JSON.parse(stateStr || '{}'); } catch(e){}
+    
+    if(state.type === 'merchant'){
+      desc.innerHTML = 'You encounter a shady skeletal merchant willing to trade gear and consumables for immediate gold.';
+      (state.items || []).forEach(function(item, idx){
+        var btn = document.createElement('button');
+        btn.className = 'ghost';
+        btn.innerHTML = '🛒 Buy ' + item.name + ' (' + item.price + 'g)';
+        btn.onclick = function(){ abyssNCAction('merchant_buy', idx.toString()); };
+        options.appendChild(btn);
+      });
+    } else if(state.type === 'imp'){
+      desc.innerHTML = 'A cackling Gambling Imp blocks your path. "Wager 300 gold on a dice roll! You might get rich, or you might get nothing! Hee hee!"';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('imp_gamble')">🎲 Wager 300g &amp; Roll</button>
+      `;
+    } else if(state.type === 'shrine'){
+      desc.innerHTML = 'A Cursed Shrine thrums with dark energy. It offers to swell your escrow cache immediately, but at the cost of a lingering cycle curse.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('shrine_accept')">☠️ Accept Shrine (+1,000g Escrow &amp; Cursed)</button>
+      `;
+    } else {
+      desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
+    }
+  }
+}
+
+function setHP(hp,max){
+  hp=Number(hp)||0; max=Number(max)||0;
+  var pct=max>0?Math.max(0,Math.min(100,Math.round(hp*100/max))):0;
+  document.getElementById('hpFill').style.width=pct+'%';
+  document.getElementById('hpText').textContent=fmtNum(hp)+' / '+fmtNum(max);
+  var bar=document.getElementById('hpBar');
+  bar.setAttribute('aria-valuenow',hp); bar.setAttribute('aria-valuemax',max);
+}
+function setGold(g){var el=document.getElementById('goldPill');if(el)el.textContent='🪙 '+fmtGold(g);}
+function setTokens(t){if(t!==undefined)document.getElementById('tokenVal').textContent=fmtNum(t);}
+function setEscrow(v){curEscrow=Number(v)||0;document.getElementById('escrowVal').textContent=fmtGold(curEscrow);}
+function setDepth(d){curDepth=Number(d)||0;document.getElementById('depthNum').textContent=d;updateThreat();updateElevator();}
+function updateThreat(){var pct=Math.min(100,curDepth*4);document.getElementById('threatFill').style.width=pct+'%';}
+function updateElevator(){document.getElementById('elevCage').style.top=((curDepth%20)/20*100)+'%';}
+function setInsured(p){var el=document.getElementById('insuredTag');if(p>0){el.textContent='🛡️ '+p+'% insured';el.style.display='';}else{el.style.display='none';}}
+function setBanner(html,cls){
+  var b=document.getElementById('abyssBanner');
+  b.innerHTML=html;
+  b.className='abyss-banner show '+(cls||'');
+  sessionStorage.setItem('ab_banner', html);
+  sessionStorage.setItem('ab_banner_cls', cls||'');
+}
+function clearBanner(){
+  var b=document.getElementById('abyssBanner');
+  b.className='abyss-banner';
+  b.innerHTML='';
+  sessionStorage.removeItem('ab_banner');
+  sessionStorage.removeItem('ab_banner_cls');
+}
+
+// Reveal the combat log line-by-line for drama (instant if reduced-motion). [94]
+function playLog(lines, loot, dura){
+  return new Promise(function(resolve){
+    var log=document.getElementById('abyssLog'), lootEl=document.getElementById('abyssLoot'), duraEl=document.getElementById('abyssDura');
+    document.getElementById('logWrap').style.display='';
+    log.innerHTML=''; lootEl.innerHTML=''; duraEl.innerHTML='';
+    function finish(){
+      (loot||[]).forEach(function(l){var d=document.createElement('div');d.className='ab-loot-line';d.innerHTML='🎁 '+l;lootEl.appendChild(d);});
+      (dura||[]).forEach(function(l){var d=document.createElement('div');d.className='ab-dura-line';d.innerHTML='🛠️ '+l;duraEl.appendChild(d);});
+      resolve();
+    }
+    if(reduceMotion){(lines||[]).forEach(function(l){var d=document.createElement('div');d.className='ab-log-line';d.innerHTML=l;log.appendChild(d);});finish();return;}
+    var i=0;
+    (function step(){
+      if(i>=lines.length){finish();return;}
+      var d=document.createElement('div');d.className='ab-log-line';d.innerHTML=lines[i];log.appendChild(d);log.scrollTop=log.scrollHeight;i++;
+      setTimeout(step,90);
+    })();
+  });
+}
+
+function selectedTier(){var el=document.querySelector('input[name=abtier]:checked');return el?el.value:'normal';}
+
+async function abyssEnter(){
+  if(busy)return; setBusy(true); clearBanner();
+  var d=await abPost('/api/abyss/enter',{tier:selectedTier()});
+  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  window.location.reload();
+}
+
+async function abyssDescend(){
+  if(busy)return;
+  // Low-HP confirm [87]
+  var bar=document.getElementById('hpBar');
+  var hp=Number(bar.getAttribute('aria-valuenow')), max=Number(bar.getAttribute('aria-valuemax'));
+  if(max>0 && hp>0 && hp/max<0.25 && !confirm('You are at '+Math.round(hp*100/max)+'% HP. Descend anyway?'))return;
+  setBusy(true); clearBanner();
+  document.getElementById('abStatus').textContent='Descending…';
+  
+  function selectedFocus(){
+    var el=document.querySelector('input[name=abfocus]:checked');
+    return el?el.value:'balanced';
+  }
+
+  var d=await abPost('/api/abyss/descend',{focus:selectedFocus()});
+  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  
+  if(d.noncombat){
+    // Rest or Event floor rolled
+    floorType = d.floor_type;
+    eventState = d.event_state;
+    setDepth(d.depth);
+    setEscrow(d.escrow);
+    setHP(hp, max);
+    document.getElementById('abStatus').textContent='Approaching non-combat floor: ' + floorType;
+    renderState();
+    setBusy(false);
+    return;
+  }
+
+  setDepth(d.depth);
+  await playLog(d.logs, d.loot, d.dura);
+  setHP(d.hp,d.max_hp); setGold(d.gold); setTokens(d.tokens);
+  if(d.victory){
+    setEscrow(d.escrow);
+    var best=parseInt((document.getElementById('bestDepth').textContent||'').replace(/\D/g,''))||0;
+    document.getElementById('bestDepth').textContent='🕳️ '+Math.max(best,d.depth);
+    var msg='✅ Floor '+d.depth+' cleared! +'+fmtGold(d.bonus)+' to your cache (now '+fmtGold(d.escrow)+').';
+    if(d.daily)msg+=' 🎁 Daily first-descent bonus!';
+    if(d.achievement)msg+=' 🏅 '+d.achievement;
+    if(d.affix_reward)msg+=' 🎁 Affix reward: '+d.affix_reward+'!';
+    if(d.lore_unlocked)msg+=' 📖 Found Lore Codex fragment!';
+    setBanner(msg,'good');
+    document.getElementById('abStatus').textContent='Floor '+d.depth+' survived. The next floor is deadlier.';
+    renderConsumables(d.consumables);
+  } else {
+    downed=true; canRev=d.can_revive;
+    setBanner('💀 You fell on floor '+d.depth+'! Cache of '+fmtGold(d.escrow)+' is in peril.'+(d.insured>0?' ('+d.insured+'% insured)':''),'bad');
+    document.getElementById('abStatus').textContent=canRev?'Gamble a revival (double-or-nothing) or concede.':'Concede — no revival left.';
+  }
+  renderState(); setBusy(false);
+}
+
+async function abyssRevive(){
+  if(busy)return; setBusy(true); clearBanner();
+  document.getElementById('abStatus').textContent='Clawing back from the dark…';
+  var d=await abPost('/api/abyss/revive');
+  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  await playLog(d.logs, d.loot, d.dura);
+  setGold(d.gold); setTokens(d.tokens);
+  if(d.victory){
+    downed=false; canRev=false; setHP(d.hp,d.max_hp); setEscrow(d.escrow);
+    setBanner('🎲✨ REVIVED — and the cache DOUBLED to '+fmtGold(d.escrow)+'! Press on or bank.','good');
+    document.getElementById('abStatus').textContent='Back from the brink. Descend or bank.';
+    renderConsumables(d.consumables);
+  } else {
+    inRun=false; downed=false; setEscrow(0); setDepth('—');
+    setBanner('💀 The gamble failed. Cache lost'+(d.insured_refund>0?' ('+fmtGold(d.insured_refund)+' insured back)':'')+'.','bad');
+    document.getElementById('abStatus').textContent='Defeated. Enter again when ready.';
+  }
+  renderState(); setBusy(false);
+}
+
+async function abyssConcede(){
+  if(busy)return; setBusy(true); clearBanner();
+  var d=await abPost('/api/abyss/concede');
+  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  window.location.reload();
+}
+
+async function abyssBank(){
+  if(busy)return; setBusy(true); clearBanner();
+  var cursed=document.getElementById('cursedBank').checked;
+  var d=await abPost('/api/abyss/bank',{cursed:cursed});
+  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  // Save bank details in session storage before reload so they survive the page refresh
+  var msg='🏦 Banked '+fmtGold(d.banked)+' from a depth-'+d.depth+' run (×'+Number(d.mult).toFixed(2)+').';
+  if(d.bonus_gear)msg+=' 🎁 Depth reward: '+d.bonus_gear+'.';
+  if(d.cursed)msg+=' ☠️ Cursed — your next cycle fights are hexed.';
+  if(d.jackpot_win)msg+=' 🔥 DEEP-CACHE JACKPOT +'+fmtGold(d.jackpot_win)+'!';
+  setBanner(msg,'good');
+  window.location.reload();
+}
+
+async function abyssInsure(pct){
+  if(busy)return;
+  var rate=Math.max(0.25,0.5-wardLv*0.05);
+  var cost=Math.floor(curEscrow*pct/100*rate);
+  if(curEscrow<=0){abToast('No cache to insure yet',false);return;}
+  if(!confirm('Insure '+pct+'% of your '+fmtGold(curEscrow)+' cache for ~'+fmtGold(cost)+' gold?'))return;
+  setBusy(true);
+  var d=await abPost('/api/abyss/insure',{pct:pct});
+  setBusy(false);
+  if(!d.ok){abToast(d.error||'failed',false);return;}
+  setInsured(d.insured); setGold(d.gold);
+  abToast('Insured '+d.insured+'% for '+fmtGold(d.cost),true);
+}
+
+async function abyssSalvage(){
+  if(busy)return; setBusy(true);
+  var d=await abPost('/api/abyss/salvage');
+  setBusy(false);
+  if(!d.ok){abToast(d.error||'failed',false);return;}
+  setGold(d.gold);
+  abToast(d.sold>0?('Salvaged '+d.sold+' items for '+fmtGold(d.value)):'No junk to salvage', d.sold>0);
+}
+
+async function abyssUpgrade(node, btn){
+  var d=await abPost('/api/abyss/upgrade',{node:node});
+  if(!d.ok){abToast(d.error||'failed',false);return;}
+  setTokens(d.tokens);
+  var lv=document.getElementById('ablv-'+node); if(lv)lv.textContent='Lv '+d.level;
+  abToast(node+' upgraded to Lv '+d.level,true);
+  if(node==='ward')wardLv=d.level;
+}
+
+async function abyssUseConsumable(cid){
+  if(busy)return; setBusy(true);
+  var d = await abPost('/api/abyss/use_consumable', {cons_id: cid});
+  setBusy(false);
+  if(!d.ok){ abToast(d.error||'failed',false); return; }
+  setHP(d.hp, d.max_hp); setGold(d.gold);
+  renderConsumables(d.consumables);
+  abToast('Consumable used successfully!', true);
+}
+
+async function abyssNCAction(action, payload){
+  if(busy)return; setBusy(true);
+  var d = await abPost('/api/abyss/noncombat/action', {action: action, payload: payload});
+  setBusy(false);
+  if(!d.ok){ abToast(d.error||'failed',false); return; }
+  if(d.gold !== undefined) setGold(d.gold);
+  if(d.hp !== undefined) {
+    var bar=document.getElementById('hpBar');
+    var max=Number(bar.getAttribute('aria-valuemax'));
+    setHP(d.hp, max);
+  }
+  if(d.escrow !== undefined) setEscrow(d.escrow);
+  abToast(d.msg || 'Action resolved!', true);
+  
+  if(d.resolved){
+    document.getElementById('ncOptions').innerHTML = '';
+    document.getElementById('ncDesc').textContent = d.msg;
+  }
+}
+
+async function abyssProceed(){
+  if(busy)return; setBusy(true); clearBanner();
+  
+  function selectedFocus(){
+    var el=document.querySelector('input[name=abfocus]:checked');
+    return el?el.value:'balanced';
+  }
+
+  var d = await abPost('/api/abyss/noncombat/proceed', {focus: selectedFocus()});
+  if(!d.ok){ abToast(d.error||'failed',false); setBusy(false); return; }
+  
+  var bannerMsg = '🕊️ Survived floor ' + d.depth + '! +' + fmtGold(d.bonus) + ' to your cache (now ' + fmtGold(d.escrow) + ').';
+  if(d.affix_reward) bannerMsg += ' 🎁 Affix reward: ' + d.affix_reward + '!';
+  
+  setBanner(bannerMsg, 'good');
+  window.location.reload();
+}
+
+async function abyssInviteCoop(){
+  var coopUID = document.getElementById('coopSelect').value;
+  if(!coopUID) return;
+  var d = await abPost('/api/abyss/coop/invite', {coop_uid: coopUID});
+  if(!d.ok){
+    abToast(d.error || 'Failed to invite ally', false);
+    return;
+  }
+  document.getElementById('coopStatus').textContent = 'Ally invited!';
+  abToast('Ally invited for the upcoming boss fight!', true);
+}
+
+async function abyssPrestige(){
+  if(!confirm('Are you sure you want to prestige the Abyss? Your best depth will be reset to 0, but you will permanently earn +5% gold and XP rewards per prestige level.')) return;
+  var d = await abPost('/api/abyss/prestige');
+  if(!d.ok){
+    abToast(d.error || 'Prestige failed', false);
+    return;
+  }
+  setBanner('⭐ CONGRATULATIONS! You have prestiged the Abyss! Prestige level: ' + d.prestige, 'good');
+  window.location.reload();
+}
+
+// Initial paint (consistent formatting on load).
+(function init(){
+  var hpt=document.getElementById('hpText');
+  setHP(hpt.getAttribute('data-hp'), hpt.getAttribute('data-max'));
+  setEscrow(document.getElementById('escrowVal').getAttribute('data-raw'));
+  updateThreat(); updateElevator();
+  
+  // Restore persisted banner
+  var cachedBanner = sessionStorage.getItem('ab_banner');
+  var cachedCls = sessionStorage.getItem('ab_banner_cls');
+  if(cachedBanner){
+    setBanner(cachedBanner, cachedCls);
+    sessionStorage.removeItem('ab_banner');
+    sessionStorage.removeItem('ab_banner_cls');
+  }
+  
+  renderState();
+})();
+</script>
+{{template "foot" .}}{{end}}
+
+{{define "abUpgrade"}}
+<div class="ab-up">
+  <div class="ab-up-head"><b>{{.Name}}</b><span class="ab-up-lv" id="ablv-{{.Node}}">Lv {{.Lv}}</span></div>
+  <div class="ab-up-desc muted small">{{.Desc}}</div>
+  <button class="ghost xs" onclick="abyssUpgrade('{{.Node}}', this)">Upgrade</button>
+</div>
+{{end}}

@@ -112,6 +112,7 @@ The bot is configured via environment variables or a `config.env` file.
 | **Web Portal** | `WEB_ENABLE` | Serve the player web portal and PM each user a login link per cycle. | `true` |
 | | `WEB_LISTEN_ADDR` | Address the web server listens on. | `:18081` |
 | | `WEB_BASE_URL` | Public base URL used to build per-user login links. | `http://localhost:18081` |
+| | `ENABLE_ABYSS` | Serve **The Abyss** push-your-luck dungeon (tiers, escrow, insurance, revival, Deep-Delver upgrades, depth leaderboards). | `true` |
 | **System** | `ENABLE_GAME_NEWS` | Master switch for the free game notification feature. | `true` |
 | | `POKE_DELAY_MS` | Delay between individual pokes (anti-flood). | `1200` |
 | | `RESEND_AFTER_DAYS` | Allow re-sending a game after N days. | `60` |
@@ -165,12 +166,13 @@ Alongside the TeamSpeak bot, the binary serves a token-authenticated **player we
 | :--- | :--- |
 | **🛡️ Armoury** | WoW-armoury-style character sheet: rank, level, prestige, HP/XP bars, full attribute spread and all equipment slots. |
 | **🎒 Inventory** | Owned, unequipped gear — equip, vendor for gold, or list on the auction house; plus consumables. |
+| **🕳️ The Abyss** | An **endless push-your-luck dungeon** that fights *your real character* — gear, skills, ultimate, pets, potions, artifact and title — through ever-deeper floors via the same combat engine as the TS3 cycle. Pick a **difficulty tier** (Normal / Nightmare / Hell), clear floors to grow an escrowed cache (with interest), then **descend** for more or **bank** before you die. Hedge with **insurance**, gamble a one-shot **double-or-nothing revival**, or take a **cursed bank** for extra gold at the cost of a hex on your next fights. Loot drops to your real inventory, HP carries between floors, and a depth-scaled gear reward + a shared **deep-cache jackpot** await deep banks. Earn **Abyss Tokens** for the permanent **Deep Delver** upgrade tree, chase **achievements**, and climb the deepest-descent leaderboards. Features weekly challenge affixes, multi-phase scripted boss fights, co-op ally summons, real-time idle stalkers (The Watcher), prestige loops, TS3 achievement roles, and a `!abyss` TeamSpeak request command. |
 | **⚔️ Auto-Battler** | A **Teamfight-Tactics-style board**: buy champions from a rolling shop, drag them onto your half of the grid, and start combat. Units auto-fight with animated sprites, HP bars and floating damage; 3 identical champions auto-combine into a star-up. Win to farm gold and gear. |
 | **🎮 Arcade** | Five fully animated gold games: 🎰 5-reel **Slots**, 🎲 **Dice**, 🪙 3D **Coin Flip**, 🎡 canvas **Fortune Wheel**, 🃏 **High/Low** cards. |
 | **🛒 Shop** | Currency exchange — **gold → XP at 1:3**, **XP → gold at 2:1** — plus a daily-rotating item shop with fair, combat-rating-based prices. |
 | **🏛️ Auction House** | Browse and buy live player listings, list your own inventory items, and review your full buy/sell history. |
 
-All gold/XP is the same economy used by the TS3 RPG, so farming the arcade or battler directly improves the player's character. The portal is self-contained (Go `html/template` + embedded CSS/JS, no build step) and configured via `WEB_ENABLE`, `WEB_LISTEN_ADDR` and `WEB_BASE_URL` (see Configuration).
+All gold/XP is the same economy used by the TS3 RPG, so farming the arcade or battler directly improves the player's character — and **The Abyss** goes further, running your actual equipped character through the real combat engine so every drop, level and durability tick is shared with the TeamSpeak cycle. The portal is self-contained (Go `html/template` + embedded CSS/JS, no build step) and configured via `WEB_ENABLE`, `WEB_LISTEN_ADDR` and `WEB_BASE_URL` (see Configuration).
 
 ---
 

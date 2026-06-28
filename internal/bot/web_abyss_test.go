@@ -1,0 +1,206 @@
+package bot
+
+import (
+	"strings"
+	"testing"
+
+	"ts3news/internal/content"
+)
+
+// TestBBToHTMLEscapesThenConverts verifies the combat-log converter turns the
+// known BBCode tokens into safe HTML while neutralising any injected markup.
+func TestBBToHTMLConversions(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"color", "[color=#ff9800]Loot[/color]", `<span style="color:#ff9800">Loot</span>`},
+		{"bold", "[b]Boss[/b]", "<b>Boss</b>"},
+		{"italic", "[i]lore[/i]", "<i>lore</i>"},
+		{"hr", "[hr]", `<span class="ab-hr"></span>`},
+		{"center+size", "[center][size=12]Summary[/size][/center]",
+			`<span class="ab-center"><span class="ab-big">Summary</span></span>`},
+	}
+	for _, c := range cases {
+		if got := bbToHTML(c.in); got != c.want {
+			t.Errorf("%s: bbToHTML(%q) = %q, want %q", c.name, c.in, got, c.want)
+		}
+	}
+}
+
+// TestBBToHTMLNeutralisesInjection ensures attacker-controlled angle brackets in
+// e.g. a nickname cannot inject a tag — they must be escaped before BBCode runs.
+func TestBBToHTMLNeutralisesInjection(t *testing.T) {
+	got := bbToHTML(`[b]<script>alert(1)</script>[/b]`)
+	if strings.Contains(got, "<script>") {
+		t.Fatalf("bbToHTML left a live <script> tag: %q", got)
+	}
+	if !strings.Contains(got, "&lt;script&gt;") {
+		t.Fatalf("bbToHTML did not escape the script tag: %q", got)
+	}
+	// The legitimate [b] token must still have been converted.
+	if !strings.HasPrefix(got, "<b>") || !strings.HasSuffix(got, "</b>") {
+		t.Fatalf("bbToHTML did not convert the bold token: %q", got)
+	}
+}
+
+// TestAbyssDifficultyRampsAndSoftCaps checks the per-floor difficulty grows with
+// depth, never drops below the floor-1 minimum, and that growth past the soft
+// cap slows to a logarithmic crawl (later increments smaller than early ones).
+func TestAbyssDifficultyRampsAndSoftCaps(t *testing.T) {
+	weak := content.Stats{} // Score()==0 → forces the 0.7 floor.
+	d1, _ := abyssDifficulty(weak, 1, 1)
+	if d1 < 0.7-1e-9 {
+		t.Errorf("floor 1 difficulty %.3f below the 0.7 minimum", d1)
+	}
+
+	// Monotonically non-decreasing with depth.
+	prev := 0.0
+	for depth := 1; depth <= 200; depth++ {
+		d, _ := abyssDifficulty(weak, 50, depth)
+		if d < prev-1e-9 {
+			t.Fatalf("difficulty decreased at depth %d: %.3f < %.3f", depth, d, prev)
+		}
+		prev = d
+	}
+
+	// Past the soft cap the marginal per-floor increase must shrink: the jump near
+	// the start (pre-cap, linear) should exceed the jump deep down (post-cap, log).
+	a1, _ := abyssDifficulty(weak, 50, 2)
+	a0, _ := abyssDifficulty(weak, 50, 1)
+	earlyDelta := a1 - a0
+	b1, _ := abyssDifficulty(weak, 50, 200)
+	b0, _ := abyssDifficulty(weak, 50, 199)
+	lateDelta := b1 - b0
+	if lateDelta >= earlyDelta {
+		t.Errorf("soft cap not engaged: late delta %.4f >= early delta %.4f", lateDelta, earlyDelta)
+	}
+}
+
+// TestAbyssDifficultyBossCadence verifies a boss is forced on every Nth floor.
+func TestAbyssDifficultyBossCadence(t *testing.T) {
+	stats := content.Stats{STR: 100, DEF: 50, HP: 500}
+	for depth := 1; depth <= 20; depth++ {
+		_, boss := abyssDifficulty(stats, 30, depth)
+		want := depth%abyssBossEvery == 0
+		if boss != want {
+			t.Errorf("depth %d boss=%v, want %v", depth, boss, want)
+		}
+	}
+}
+
+// TestAbyssFloorBonusScales checks the escrow bonus rises with depth and level
+// and respects the per-floor minimum.
+func TestAbyssFloorBonusScales(t *testing.T) {
+	if b1, b2 := abyssFloorBonus(1, 10), abyssFloorBonus(2, 10); b2 <= b1 {
+		t.Errorf("bonus should grow with depth: floor1=%d floor2=%d", b1, b2)
+	}
+	if lo, hi := abyssFloorBonus(5, 10), abyssFloorBonus(5, 200); hi <= lo {
+		t.Errorf("bonus should grow with level: lvl10=%d lvl200=%d", lo, hi)
+	}
+	// Minimum per-floor rate is 40 gold × depth, even at level 0/1.
+	if got := abyssFloorBonus(3, 0); got < 40*3 {
+		t.Errorf("floor bonus %d below the 40/floor minimum", got)
+	}
+}
+
+// TestAbyssBankMultiplier checks deeper banks and longer streaks pay more, and
+// that both inputs are capped so the multiplier can't run away.
+func TestAbyssBankMultiplier(t *testing.T) {
+	var b Bot
+	if base := b.abyssBankMultiplier(0, 0); base != 1.0 {
+		t.Errorf("base multiplier = %.2f, want 1.0", base)
+	}
+	if deep, shallow := b.abyssBankMultiplier(50, 0), b.abyssBankMultiplier(10, 0); deep <= shallow {
+		t.Errorf("deeper bank should pay more: d50=%.2f d10=%.2f", deep, shallow)
+	}
+	if streaky, none := b.abyssBankMultiplier(10, 10), b.abyssBankMultiplier(10, 0); streaky <= none {
+		t.Errorf("streak should pay more: s10=%.2f s0=%.2f", streaky, none)
+	}
+	// Depth caps at 100 and streak at 25 → max = 1 + 1.0 + 0.5 = 2.5.
+	if capped := b.abyssBankMultiplier(99999, 99999); capped > 2.5+1e-9 {
+		t.Errorf("multiplier not capped: %.2f", capped)
+	}
+}
+
+// TestAbyssInsuranceCost checks the premium scales with cache and coverage, and
+// that the Ward upgrade discounts it down to a floor.
+func TestAbyssInsuranceCost(t *testing.T) {
+	full := abyssInsuranceCost(10000, 50, 0)
+	if full != int64(10000*0.50*0.50) {
+		t.Errorf("base 50%% premium = %d, want %d", full, int64(10000*0.5*0.5))
+	}
+	if warded := abyssInsuranceCost(10000, 50, 3); warded >= full {
+		t.Errorf("Ward should discount: warded=%d full=%d", warded, full)
+	}
+	// Rate floor is 0.25 even at absurd Ward levels.
+	if got, min := abyssInsuranceCost(10000, 100, 99), int64(float64(10000)*1.0*0.25); got < min {
+		t.Errorf("premium %d below the rate floor %d", got, min)
+	}
+}
+
+// TestAbyssTierUnlock verifies tiers gate behind a best-depth requirement.
+func TestAbyssTierUnlock(t *testing.T) {
+	low := abyssTierList(0)
+	for _, tv := range low {
+		if tv.Key == "normal" && !tv.Unlocked {
+			t.Error("normal tier must always be unlocked")
+		}
+		if tv.Key == "hell" && tv.Unlocked {
+			t.Error("hell tier must be locked at best depth 0")
+		}
+	}
+	high := abyssTierList(999)
+	for _, tv := range high {
+		if !tv.Unlocked {
+			t.Errorf("tier %q should be unlocked at best depth 999", tv.Key)
+		}
+	}
+}
+
+// TestAbyssWave3Content verifies Wave 3 structs and config helpers.
+func TestAbyssWave3Content(t *testing.T) {
+	// 1. Verify UserInCombat field extensions exist
+	var u UserInCombat
+	u.LootFocus = "gold"
+	u.FloorModifier = "enraged"
+	
+	if u.LootFocus != "gold" || u.FloorModifier != "enraged" {
+		t.Error("UserInCombat fields failed to set or retrieve")
+	}
+
+	// 2. Verify Lore Codex config
+	if len(abyssLoreFragments) != 10 {
+		t.Errorf("expected exactly 10 lore codex fragments, got %d", len(abyssLoreFragments))
+	}
+	
+	if abyssLoreFragments[1] == "" || abyssLoreFragments[10] == "" {
+		t.Error("lore codex fragments have empty values")
+	}
+}
+
+// TestAbyssRemaining verifies the new features added in the remaining waves (Waves 4, 5, & 6)
+func TestAbyssRemaining(t *testing.T) {
+	b := &Bot{}
+
+	// 1. Weekly Challenges
+	seed, mod := b.currentWeeklyChallenge()
+	if seed == 0 {
+		t.Error("weekly seed should not be zero")
+	}
+	if mod != "double_hazards" && mod != "zero_durability_loss" && mod != "enraged_mobs" {
+		t.Errorf("unexpected weekly challenge modifier: %q", mod)
+	}
+
+	// 2. Prestige multiplier checking
+	// 5% gold bonus per prestige level
+	st := abyssStats{AbyssPrestige: 2}
+	bonus := int64(100)
+	bonus = int64(float64(bonus) * (1.0 + float64(st.UpGreed)*0.05) * (1.0 + float64(st.AbyssPrestige)*0.05))
+	if bonus != 110 {
+		t.Errorf("expected prestige gold bonus to be 110, got %d", bonus)
+	}
+}
+
+

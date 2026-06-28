@@ -159,3 +159,8 @@ func parseError(line string) (int, string) {
 	}
 	return id, msg
 }
+
+func (c *Client) Reader() *bufio.Reader {
+	return c.reader
+}
+

@@ -61,6 +61,8 @@ type UserInCombat struct {
 	STRMod        float64
 	DEFMod        float64
 	SPDMod        float64
+	LootFocus     string
+	FloorModifier string
 }
 
 type activeUser struct {
@@ -339,6 +341,14 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	victory := false
 	var totalUserDamage, totalMobDamage, totalRewardXP int
 
+	floorMod := ""
+	for _, uc := range users {
+		if uc.FloorModifier != "" {
+			floorMod = uc.FloorModifier
+			break
+		}
+	}
+
 	// Determine number of waves (1-3)
 	// #nosec G404
 	waves := 1
@@ -370,6 +380,9 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				currentMobs[i].STRMod = 1.0
 				currentMobs[i].DEFMod = 1.0
 				currentMobs[i].SPDMod = 1.0
+				if floorMod == "enraged" {
+					currentMobs[i].Effects = append(currentMobs[i].Effects, content.EffectEnraged)
+				}
 			}
 		} else {
 			// Spawn new wave
@@ -381,6 +394,9 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				currentMobs[i].STRMod = 1.0
 				currentMobs[i].DEFMod = 1.0
 				currentMobs[i].SPDMod = 1.0
+				if floorMod == "enraged" {
+					currentMobs[i].Effects = append(currentMobs[i].Effects, content.EffectEnraged)
+				}
 				initialMobs = append(initialMobs, currentMobs[i]) // track for rewards
 			}
 		}
@@ -449,11 +465,122 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				}
 			}
 			healPenalty := 1.0
-			if r > 5 {
+			if r >= 6 {
 				healPenalty = 1.0 - float64(r-5)*0.2
 			}
 			if healPenalty < 0 {
 				healPenalty = 0
+			}
+			// Scripted Boss Phases and Soft-Enrage (Item #63, #69, #70)
+			for _, m := range currentMobs {
+				if m.Stats.HP > 0 {
+					// Check soft-enrage past round 8
+					if r > 8 && m.Type == content.MobBoss {
+						hasEnraged := false
+						for _, eff := range m.Effects {
+							if eff == content.EffectEnraged {
+								hasEnraged = true
+								break
+							}
+						}
+						if !hasEnraged {
+							m.Effects = append(m.Effects, content.EffectEnraged)
+							logs = append(logs, fmt.Sprintf("[color=#f44336]⏳ The Abyss closes in! %s becomes ENRAGED! (Double damage)[/color]", m.Name))
+						}
+					}
+
+					// Custom Boss Scripted Phases
+					hpPct := float64(m.CurrentHP) / float64(m.MaxHP)
+					if m.Name == "Gorgoroth the Firelord" {
+						if hpPct < 0.50 {
+							hasEnraged := false
+							for _, eff := range m.Effects {
+								if eff == content.EffectEnraged {
+									hasEnraged = true
+									break
+								}
+							}
+							if !hasEnraged {
+								m.Effects = append(m.Effects, content.EffectEnraged)
+								m.Element = content.ElementFire
+								logs = append(logs, "[color=#ff3333]🔥 Gorgoroth bellows in fury as his blood boils, wrapping himself in roaring flames! (Gains Enraged & Element shifted to Fire)[/color]")
+							}
+						}
+					} else if m.Name == "Malakor the Voidweaver" {
+						if hpPct < 0.50 {
+							hasArmored := false
+							for _, eff := range m.Effects {
+								if eff == content.EffectArmored {
+									hasArmored = true
+									break
+								}
+							}
+							if !hasArmored {
+								m.Effects = []content.MobEffect{content.EffectArmored}
+								logs = append(logs, "[color=#9c27b0]🔮 Malakor wraps himself in a shimmering Void Barrier! (Active debuffs purged, gains Armored)[/color]")
+							}
+						}
+					} else if m.Name == "Azazoth the Slumbering Eye" {
+						if hpPct < 0.50 {
+							hasStunned := false
+							for _, au := range activeUsers {
+								if au.u.Stats.SPD == 0 {
+									hasStunned = true
+									break
+								}
+							}
+							if !hasStunned {
+								for _, au := range activeUsers {
+									au.u.Stats.SPD = 0
+								}
+								logs = append(logs, "[color=#ffeb3b]👁️ Azazoth opens his slumbering eye, releasing a hypnotic pulse that dazes all delvers! (Skip next turn)[/color]")
+							}
+						}
+					} else if m.Name == "Abyssus, Heart of the Void" {
+						if hpPct < 0.75 {
+							hasEnraged := false
+							for _, eff := range m.Effects {
+								if eff == content.EffectEnraged {
+									hasEnraged = true
+									break
+								}
+							}
+							if !hasEnraged {
+								m.Effects = append(m.Effects, content.EffectEnraged)
+								m.Element = content.ElementFire
+								logs = append(logs, "[color=#ff3333]🔥 Abyssus bellows in fury, wrapping himself in roaring flames! (Gains Enraged & Element shifted to Fire)[/color]")
+							}
+						}
+						if hpPct < 0.50 {
+							hasArmored := false
+							for _, eff := range m.Effects {
+								if eff == content.EffectArmored {
+									hasArmored = true
+									break
+								}
+							}
+							if !hasArmored {
+								m.Effects = append(m.Effects, content.EffectArmored)
+								logs = append(logs, "[color=#9c27b0]🔮 Abyssus channels Void shield! (Gains Armored)[/color]")
+							}
+						}
+						if hpPct < 0.25 {
+							hasStunned := false
+							for _, au := range activeUsers {
+								if au.u.Stats.SPD == 0 {
+									hasStunned = true
+									break
+								}
+							}
+							if !hasStunned {
+								for _, au := range activeUsers {
+									au.u.Stats.SPD = 0
+								}
+								logs = append(logs, "[color=#ffeb3b]👁️ Abyssus releases a cataclysmic sleep shockwave! (All delvers stunned)[/color]")
+							}
+						}
+					}
+				}
 			}
 
 			b.applyEffects(activeUsers, currentMobs, zone, r, intensify, healPenalty, &logs)
@@ -515,9 +642,19 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 }
 
 func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone content.Zone, round int, intensify, healPenalty float64, logs *[]string) {
+	doubleHazards := false
+	for _, au := range activeUsers {
+		if strings.Contains(au.u.FloorModifier, "double_hazards") {
+			doubleHazards = true
+			break
+		}
+	}
 	for _, eff := range zone.Effects {
 		if eff.Type == content.ZoneHazard {
 			dmg := int(eff.Power * 25 * intensify)
+			if doubleHazards {
+				dmg *= 2
+			}
 			if dmg < 1 {
 				dmg = 1
 			}
@@ -596,7 +733,7 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 		}
 
 		// Improvement 40: Scaling Consumables (Auto-use healing if < 50% HP)
-		if u.CurrentHP < u.Stats.HP/2 {
+		if u.CurrentHP < u.Stats.HP/2 && healPenalty > 0 {
 			cons := b.getConsumables(u.UID)
 			for _, c := range cons {
 				if c.Type == content.ConsumableHealing {
@@ -635,6 +772,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 		au := &activeUsers[i]
 		u := au.u
 		if u.CurrentHP <= 0 {
+			continue
+		}
+		if u.Stats.SPD == 0 {
+			u.Stats.SPD = 10
+			*logs = append(*logs, i18n.T("bot.combat.stunned", u.Nickname))
 			continue
 		}
 
@@ -837,7 +979,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				// Award loot for every mob defeated, regardless of final outcome
 				// #nosec G404
 				winner := originalUsers[rand.IntN(len(originalUsers))] // #nosec G404
-				note, poke := b.rollLootForUser(winner.UID, *target, zone.Difficulty)
+				note, poke := b.rollLootForUser(winner.UID, *target, zone.Difficulty, winner.LootFocus)
 				if note != "" {
 					*logs = append(*logs, i18n.T("bot.combat.looted", winner.Nickname, target.DisplayName(), note))
 					*loots = append(*loots, LootResult{UID: winner.UID, Note: note, Poke: poke})
@@ -895,7 +1037,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				*logs = append(*logs, i18n.T("bot.combat.killed_by_pet", ptarget.Name, p.Name))
 				// #nosec G404
 				winner := originalUsers[rand.IntN(len(originalUsers))] // #nosec G404
-				note, poke := b.rollLootForUser(winner.UID, *ptarget, zone.Difficulty)
+				note, poke := b.rollLootForUser(winner.UID, *ptarget, zone.Difficulty, winner.LootFocus)
 				if note != "" {
 					*logs = append(*logs, i18n.T("bot.combat.looted", winner.Nickname, ptarget.DisplayName(), note))
 					*loots = append(*loots, LootResult{UID: winner.UID, Note: note, Poke: poke})
@@ -1506,7 +1648,7 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) []string {
 
 	// #nosec G404
 	if rand.IntN(100) < stats.STA {
-		return
+		return warnings
 	} // #nosec G404
 
 	baseLoss := duraLossPerFight * lossMult
@@ -1774,10 +1916,30 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 		}
 	}
 
+	// Apply active elixir buffs
+	crows, err := b.DB.Query("SELECT cons_id, remaining_fights FROM user_consumables WHERE client_uid = $1 AND remaining_fights > 0", uid)
+	if err == nil {
+		defer func() { _ = crows.Close() }()
+		for crows.Next() {
+			var cid string
+			var rem int
+			if err := crows.Scan(&cid, &rem); err == nil {
+				switch cid {
+				case "strength_elixir":
+					stats.STR += 15
+					notes = append(notes, i18n.T("bot.loot.multiplier_simple", "Strength Elixir", 1.0))
+				case "iron_skin_brew":
+					stats.DEF += 10
+					notes = append(notes, i18n.T("bot.loot.multiplier_simple", "Iron Skin Brew", 1.0))
+				}
+			}
+		}
+	}
+
 	return mult, stats, gearScore, notes, effects
 }
 
-func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float64) (string, string) {
+func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float64, focus string) (string, string) {
 	var results []string
 	var pokes []string
 	count := 1
@@ -1819,6 +1981,11 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		qualityMult = 1.0
 	}
 
+	if focus == "loot" {
+		qualityMult *= 1.2
+		lootFindBonus += 0.50
+	}
+
 	if tName.Valid {
 		if t, ok := content.GetTitleByName(tName.String); ok && t.DoubleLoot {
 			count *= 2
@@ -1840,6 +2007,19 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			}
 			_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", gold, uid)
 			results = append(results, fmt.Sprintf("💰 %d gold", gold))
+			continue
+		}
+
+		if focus == "gold" {
+			// If gold focus, skip all item rolls, but keep treasure goblin gold drops
+			if mob.Type == content.MobTreasureGoblin {
+				gold := int64(1000 + rand.IntN(2000))
+				if vip.Bonus > 0 {
+					gold = int64(float64(gold) * (1.0 + float64(vip.Bonus)/100.0))
+				}
+				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", gold, uid)
+				results = append(results, fmt.Sprintf("💰 %d gold", gold))
+			}
 			continue
 		}
 
@@ -1940,6 +2120,9 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			lootFound = true
 		} else if r < gearChance*qualityMult {
 			g := content.RandomGearDrop()
+			if b.loadAbyssRun(uid).Active && rand.Float64() < 0.20 {
+				g = content.RandomAbyssGearDrop()
+			}
 			g.Stats.HP = int(float64(g.Stats.HP) * zoneDifficulty)
 			g.Stats.STR = int(float64(g.Stats.STR) * zoneDifficulty)
 			g.Stats.DEF = int(float64(g.Stats.DEF) * zoneDifficulty)
@@ -1956,7 +2139,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		}
 
 		// 100% Drop Guarantee: If nothing else found, drop a Common item
-		if !lootFound {
+		if !lootFound && focus != "gold" {
 			// #nosec G404
 			if rand.Float64() < 0.7 { // #nosec G404
 				// Drop a basic common gear

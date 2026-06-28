@@ -46,6 +46,20 @@ type WebServer struct {
 
 	mu  sync.Mutex
 	srv *http.Server
+
+	// abyssLocks serialises each player's Abyss actions (enter/descend/revive/
+	// concede/bank). The combat engine writes through b.DB directly and can't be
+	// wrapped in one SQL transaction with the surrounding bookkeeping, so a
+	// per-uid lock is what prevents the double-bank and post-death-descend races.
+	abyssLocks sync.Map // uid -> *sync.Mutex
+}
+
+// lockAbyss acquires the per-uid Abyss mutex and returns its unlock func.
+func (s *WebServer) lockAbyss(uid string) func() {
+	v, _ := s.abyssLocks.LoadOrStore(uid, &sync.Mutex{})
+	m := v.(*sync.Mutex)
+	m.Lock()
+	return m.Unlock
 }
 
 // NewWebServer parses the embedded templates and returns a ready server.
@@ -53,6 +67,7 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 	tmpl, err := template.New("").Funcs(template.FuncMap{
 		"gold":  func(v int64) string { return FormatGoldPlain(v) },
 		"comma": func(v int) string { return i18n.FormatLarge(float64(v)) },
+		"T":     func(key string, args ...any) string { return i18n.T(key, args...) },
 		"lower": strings.ToLower,
 		"seq": func(start, end int) []int {
 			var out []int
@@ -75,6 +90,22 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 			return p
 		},
 		"jsonJS": jsonJS,
+		// dict builds a map from alternating key/value pairs, for passing several
+		// named values into a sub-template (used by the Abyss upgrade widget).
+		"dict": func(values ...any) (map[string]any, error) {
+			if len(values)%2 != 0 {
+				return nil, fmt.Errorf("dict: odd number of arguments")
+			}
+			m := make(map[string]any, len(values)/2)
+			for i := 0; i < len(values); i += 2 {
+				k, ok := values[i].(string)
+				if !ok {
+					return nil, fmt.Errorf("dict: key %d is not a string", i)
+				}
+				m[k] = values[i+1]
+			}
+			return m, nil
+		},
 	}).ParseFS(webAssets, "webassets/*.html")
 	if err != nil {
 		return nil, fmt.Errorf("parsing web templates: %w", err)
@@ -150,12 +181,27 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	// Authenticated pages.
 	mux.HandleFunc("/", s.auth(s.handleArmory))
 	mux.HandleFunc("/inventory", s.auth(s.handleInventory))
+	mux.HandleFunc("/abyss", s.auth(s.handleAbyssPage))
 	mux.HandleFunc("/arcade", s.auth(s.handleArcadePage))
 	mux.HandleFunc("/shop", s.auth(s.handleShopPage))
 	mux.HandleFunc("/ah", s.auth(s.handleAHPage))
 	mux.HandleFunc("/leaderboards", s.auth(s.handleLeaderboardsPage))
 
 	// Authenticated JSON APIs.
+	mux.HandleFunc("/api/abyss/enter", s.authAPI(s.handleAbyssEnter))
+	mux.HandleFunc("/api/abyss/descend", s.authAPI(s.handleAbyssDescend))
+	mux.HandleFunc("/api/abyss/revive", s.authAPI(s.handleAbyssRevive))
+	mux.HandleFunc("/api/abyss/concede", s.authAPI(s.handleAbyssConcede))
+	mux.HandleFunc("/api/abyss/bank", s.authAPI(s.handleAbyssBank))
+	mux.HandleFunc("/api/abyss/insure", s.authAPI(s.handleAbyssInsure))
+	mux.HandleFunc("/api/abyss/salvage", s.authAPI(s.handleAbyssSalvage))
+	mux.HandleFunc("/api/abyss/upgrade", s.authAPI(s.handleAbyssUpgrade))
+	mux.HandleFunc("/api/abyss/use_consumable", s.authAPI(s.handleAbyssUseConsumable))
+	mux.HandleFunc("/api/abyss/noncombat/action", s.authAPI(s.handleAbyssNonCombatAction))
+	mux.HandleFunc("/api/abyss/noncombat/proceed", s.authAPI(s.handleAbyssNonCombatProceed))
+	mux.HandleFunc("/api/abyss/coop/list", s.authAPI(s.handleAbyssCoopList))
+	mux.HandleFunc("/api/abyss/coop/invite", s.authAPI(s.handleAbyssCoopInvite))
+	mux.HandleFunc("/api/abyss/prestige", s.authAPI(s.handleAbyssPrestige))
 	mux.HandleFunc("/api/arcade/play", s.authAPI(s.handleArcadeAPI))
 	mux.HandleFunc("/api/arcade/daily-spin", s.authAPI(s.handleDailySpinAPI))
 	mux.HandleFunc("/api/shop/exchange", s.auth(s.handleExchangeAPI))
@@ -238,7 +284,10 @@ func (b *Bot) composeLoginPM(uid string) string {
 	if short, err := games.ShortenURL(url); err == nil && short != "" {
 		url = short
 	}
-	return i18n.T("web.login_pm", url)
+	var bestDepth int
+	_ = b.DB.QueryRow("SELECT abyss_best_depth FROM users WHERE client_uid=$1", uid).Scan(&bestDepth)
+	abyssUrl := fmt.Sprintf("%s/abyss", b.Cfg.WebBaseURL)
+	return i18n.T("web.login_pm", url) + fmt.Sprintf("\n⚔️ [b]The Abyss awaits![/b] Your best: floor %d.\nEnter the depths: %s", bestDepth, abyssUrl)
 }
 
 // uidForToken resolves a login token to a user UID.

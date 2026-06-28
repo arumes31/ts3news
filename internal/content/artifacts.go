@@ -150,6 +150,8 @@ type UserInCombat struct {
 	STRMod        float64
 	DEFMod        float64
 	SPDMod        float64
+	LootFocus     string
+	FloorModifier string
 }
 
 type GearSlot string
@@ -299,6 +301,7 @@ type Enchantment struct {
 
 var allGear []Gear
 var uniqueLegendaries []Gear
+var abyssExclusiveGear []Gear
 var allConsumables []Consumable
 
 // buildConsumables (re)builds the consumable table. Names are intentionally
@@ -493,6 +496,18 @@ func buildContent() {
 		{ID: "U_LEG_5", Name: i18n.T("content.gear.titans_pillar"), Slot: SlotLegs, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 1500, DEF: 400, STA: 100}},
 	}...)
 
+	abyssExclusiveGear = []Gear{
+		{ID: "ABYSS_WEAPON", Name: "Abyssal Reaver", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 100, Stats: Stats{HP: 150, STR: 80, DEF: 20, SPD: 40, CRT: 12, LCK: 10}},
+		{ID: "ABYSS_CHEST", Name: "Void-Touched Chestplate", Slot: SlotChest, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 120, Stats: Stats{HP: 300, STR: 30, DEF: 80, SPD: 10, STA: 20}},
+		{ID: "ABYSS_HEAD", Name: "Gaze of the Abyss", Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 90, Stats: Stats{HP: 120, STR: 25, DEF: 35, SPD: 15, INT: 30}},
+		{ID: "ABYSS_LEGS", Name: "Nadir Greaves", Slot: SlotLegs, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 110, Stats: Stats{HP: 200, STR: 20, DEF: 50, SPD: 20, STA: 15}},
+		{ID: "ABYSS_HANDS", Name: "Eldritch Grips", Slot: SlotHands, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, STR: 40, DEF: 15, SPD: 25, CRT: 8}},
+		{ID: "ABYSS_FEET", Name: "Shadow-Step Boots", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 90, STR: 15, DEF: 20, SPD: 50, DGE: 10}},
+		{ID: "ABYSS_RING", Name: "Ring of the Deep", Slot: SlotFinger1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 80, STR: 20, DEF: 10, SPD: 20, LCK: 25}},
+		{ID: "ABYSS_NECK", Name: "Marrowdeep Amulet", Slot: SlotNeck, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 110, STR: 10, DEF: 15, SPD: 15, INT: 25}},
+	}
+	allGear = append(allGear, abyssExclusiveGear...)
+
 	// 2. Generate 100 Corrupted Artifacts
 	idx = 1
 	prefixesArt := i18n.Pool("pool.artifact.corrupted_prefix")
@@ -674,14 +689,30 @@ func RandomItemEffect() ItemEffect {
 func RandomConsumable() Consumable { return allConsumables[rand.IntN(len(allConsumables))] } // #nosec G404
 func RandomGearDrop() Gear {
 	var g Gear
-	// #nosec G404
-	if rand.Float64() < 0.05 { // #nosec G404
+	// Loop until we get a non-Abyss-exclusive item for standard drops
+	for {
 		// #nosec G404
-		g = uniqueLegendaries[rand.IntN(len(uniqueLegendaries))] // #nosec G404
-	} else {
-		// #nosec G404
-		g = allGear[rand.IntN(len(allGear))] // #nosec G404
+		if rand.Float64() < 0.05 { // #nosec G404
+			// #nosec G404
+			g = uniqueLegendaries[rand.IntN(len(uniqueLegendaries))] // #nosec G404
+		} else {
+			// #nosec G404
+			g = allGear[rand.IntN(len(allGear))] // #nosec G404
+		}
+		if !strings.HasPrefix(g.ID, "ABYSS_") {
+			break
+		}
 	}
+	g.Special = RandomItemEffect()
+	return g
+}
+
+func RandomAbyssGearDrop() Gear {
+	if len(abyssExclusiveGear) == 0 {
+		return RandomGearDrop()
+	}
+	// #nosec G404
+	g := abyssExclusiveGear[rand.IntN(len(abyssExclusiveGear))]
 	g.Special = RandomItemEffect()
 	return g
 }

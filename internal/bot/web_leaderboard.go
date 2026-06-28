@@ -86,5 +86,6 @@ func (s *WebServer) handleLeaderboardsPage(w http.ResponseWriter, r *http.Reques
 		"Nav":           "leaderboards",
 		"U":             u,
 		"ArcadeLeaders": s.bot.gameLeaderboards("arcade"),
+		"AbyssLeaders":  s.bot.abyssLeaderboards("normal"),
 	})
 }
