@@ -1,0 +1,3 @@
+## 2026-06-28 - Button State Tracking in Async List Actions
+**Learning:** In dynamically generated lists (like inventory) where each item has an action button, it's critical to isolate loading states. Passing `this` inline from the template to the javascript function allows localized UI state updates (like disabling just the clicked button) without needing a complex state management framework.
+**Action:** When adding async interaction patterns to traditional server-rendered templates, always pass the button element context explicitly (`onclick="func(id, this)"`) to ensure you can provide immediate and isolated feedback to the user on their specific action.
