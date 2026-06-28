@@ -55,7 +55,7 @@ func (c *Client) Command(cmd string) ([]string, error) {
 	for {
 		line, err := c.reader.ReadString('\n')
 		if err != nil {
-			return data, fmt.Errorf("reading reply to %q: %w", cmd, err)
+			return data, fmt.Errorf("reading reply to %q: %w", firstWord(cmd), err)
 		}
 		// TeamSpeak's query protocol separates lines with "\n\r", which leaves a
 		// leading carriage return on every line after the first; trim both ends.
@@ -76,7 +76,10 @@ func (c *Client) Command(cmd string) ([]string, error) {
 // Auth authenticates with the ClientQuery API key.
 func (c *Client) Auth(apiKey string) error {
 	_, err := c.Command("auth apikey=" + Escape(apiKey))
-	return err
+	if err != nil {
+		return fmt.Errorf("auth command failed: %w", err)
+	}
+	return nil
 }
 
 // DrainRaw reads and returns any lines that arrive within timeout (used to
