@@ -254,3 +254,40 @@ func (b *Bot) cleanupEmptyLevelGroups(c *clientquery.Client) {
 		b.maybeDeleteEmptyLevel(c, level, g.ID)
 	}
 }
+
+// applyAbyssMilestones checks depth milestones (10, 25, 50, 100) and automatically
+// grants the corresponding TS3 server groups configured for achievements.
+func (b *Bot) applyAbyssMilestones(c *clientquery.Client, clid int, uid, nickname string, depth int) {
+	if !b.Cfg.XPServerGroups {
+		return
+	}
+	cldbid, err := c.ClientDBID(clid)
+	if err != nil {
+		return
+	}
+	milestones := []struct {
+		Floor int
+		Name  string
+	}{
+		{10, "Threshold Breaker"},
+		{25, "Deep Diver"},
+		{50, "Abyssal Veteran"},
+		{100, "Voidwalker"},
+	}
+	for _, m := range milestones {
+		if depth < m.Floor {
+			continue
+		}
+		sgid, err := b.getOrCreateTitleGroup(c, m.Name)
+		if err != nil {
+			log.Printf("abyss milestone: failed to create title group %q for %s: %v", m.Name, nickname, err)
+			continue
+		}
+		if err := c.AddServerGroup(sgid, cldbid); err != nil {
+			log.Printf("abyss milestone: granting %q (sgid %d) to %s failed (needs permission): %v", m.Name, sgid, nickname, err)
+		} else {
+			log.Printf("abyss milestone: %s reached floor %d, granted %q", nickname, m.Floor, m.Name)
+		}
+	}
+}
+

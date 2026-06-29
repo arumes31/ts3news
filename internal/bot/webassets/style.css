@@ -2635,10 +2635,10 @@ tr.bought-flash {
   color: var(--gold);
   font-size: 0.9rem;
   margin-left: 4px;
-  animation: pulse 2s ease infinite;
+  animation: pulseFade 2s ease infinite;
 }
 
-@keyframes pulse {
+@keyframes pulseFade {
 
   0%,
   100% {
@@ -2651,3 +2651,676 @@ tr.bought-flash {
     transform: scale(1.1);
   }
 }
+
+/* ===== The Abyss ===== */
+.abyss-hero {
+  text-align: center;
+  padding: .6rem 0 1rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1rem;
+}
+
+.abyss-hero h1 {
+  font-size: 2rem;
+  text-shadow: 0 0 18px rgba(123, 108, 255, .5);
+}
+
+.abyss-hero p {
+  max-width: 720px;
+  margin: .2rem auto 0;
+}
+
+.abyss-stats {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: .7rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width:680px) {
+  .abyss-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.ab-chip {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: .6rem .8rem;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+
+.ab-chip-label {
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.ab-chip-val {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.ab-hpbar {
+  position: relative;
+  height: 20px;
+  background: #2a1216;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.ab-hpfill {
+  height: 100%;
+  background: linear-gradient(90deg, #e2575b, #41c97a);
+  transition: width .5s ease;
+}
+
+.ab-hptext {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .78rem;
+  font-weight: 700;
+  text-shadow: 0 1px 2px #000;
+}
+
+.abyss-stage {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1rem;
+  background: radial-gradient(120% 140% at 50% -20%, #1c2233, #0c0e13);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.2rem;
+}
+
+@media (max-width:680px) {
+  .abyss-stage {
+    grid-template-columns: 1fr;
+  }
+}
+
+.abyss-dial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.ab-depth-ring {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, #11141d 55%, transparent 56%), conic-gradient(var(--accent), #2b1a5a);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 28px rgba(123, 108, 255, .35) inset, 0 0 18px rgba(123, 108, 255, .25);
+}
+
+.ab-depth-label {
+  color: var(--muted);
+  font-size: .8rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.ab-depth-num {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.ab-escrow {
+  text-align: center;
+}
+
+.ab-escrow-label {
+  display: block;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.ab-escrow-val {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.abyss-controls {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: .8rem;
+}
+
+.ab-status {
+  min-height: 2.4em;
+  margin: 0;
+}
+
+.ab-btn-row {
+  display: flex;
+  gap: .7rem;
+  flex-wrap: wrap;
+}
+
+.ab-btn-row button {
+  flex: 1;
+  min-width: 140px;
+  font-size: 1.05rem;
+  padding: .7rem 1rem;
+}
+
+.abyss-banner {
+  display: none;
+  margin: 1rem 0 0;
+  padding: .9rem 1.1rem;
+  border-radius: 10px;
+  font-weight: 600;
+  border: 1px solid var(--line);
+}
+
+.abyss-banner.show {
+  display: block;
+  animation: pulseFade 1.2s ease 1;
+}
+
+.abyss-banner.good {
+  background: rgba(65, 201, 122, .12);
+  border-color: var(--good);
+}
+
+.abyss-banner.bad {
+  background: rgba(226, 87, 91, .12);
+  border-color: var(--bad);
+}
+
+.abyss-log-wrap {
+  margin-top: 1.2rem;
+}
+
+.abyss-log {
+  background: #0a0c11;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: .8rem 1rem;
+  max-height: 380px;
+  overflow-y: auto;
+  font-family: 'Consolas', 'Cascadia Code', monospace;
+  font-size: .9rem;
+  line-height: 1.55;
+}
+
+.ab-log-line {
+  animation: ablinein .25s ease;
+}
+
+@keyframes ablinein {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ab-center {
+  display: block;
+  text-align: center;
+}
+
+.ab-big {
+  font-size: 1.1em;
+}
+
+.ab-hr {
+  display: block;
+  border-top: 1px solid var(--line);
+  margin: .35rem 0;
+}
+
+.abyss-loot {
+  margin-top: .6rem;
+}
+
+.ab-loot-line {
+  background: rgba(244, 197, 66, .08);
+  border-left: 3px solid var(--gold);
+  padding: .35rem .6rem;
+  margin: .3rem 0;
+  border-radius: 4px;
+  font-size: .9rem;
+}
+
+.abyss-lb {
+  margin-top: 1.6rem;
+}
+
+/* Abyss expansion: tiers, elevator, threat, upgrades, record, history */
+.abyss-stage {
+  grid-template-columns: 60px 280px 1fr;
+}
+
+@media (max-width:680px) {
+  .abyss-stage {
+    grid-template-columns: 1fr;
+  }
+  .ab-elevator {
+    display: none;
+  }
+}
+
+.ab-elevator {
+  display: flex;
+  justify-content: center;
+}
+
+.ab-shaft {
+  position: relative;
+  width: 14px;
+  height: 100%;
+  min-height: 160px;
+  background: repeating-linear-gradient(180deg, #0a0c11, #0a0c11 10px, #14171f 10px, #14171f 20px);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.ab-cage {
+  position: absolute;
+  left: -3px;
+  width: 20px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 3px;
+  box-shadow: 0 0 8px var(--accent);
+  transition: top .6s ease;
+}
+
+.ab-threat {
+  width: 100%;
+  text-align: center;
+}
+
+.ab-threat-label {
+  color: var(--muted);
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+.ab-threat-bar {
+  height: 8px;
+  background: #14171f;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: .25rem;
+}
+
+.ab-threat-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #41c97a, #f4c542, #e2575b);
+  transition: width .5s ease;
+}
+
+.ab-insured-tag {
+  display: block;
+  color: var(--good);
+  font-size: .78rem;
+  margin-top: .2rem;
+}
+
+.ab-tiers {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.ab-tier {
+  flex: 1;
+  min-width: 130px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .5rem .6rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  background: var(--panel);
+}
+
+.ab-tier:has(input:checked) {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(123, 108, 255, .3);
+}
+
+.ab-tier.locked {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.ab-tier input {
+  margin-right: .3rem;
+}
+
+.ab-tier-name {
+  font-weight: 700;
+}
+
+.ab-tier-meta {
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.ab-subrow {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  font-size: .85rem;
+}
+
+.ab-sub-label {
+  color: var(--muted);
+}
+
+.ab-cursed {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.ab-dura-line {
+  color: #ffb74d;
+  font-size: .85rem;
+  margin: .2rem 0;
+}
+
+.abyss-cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 1.4rem;
+}
+
+@media (max-width:880px) {
+  .abyss-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+.abyss-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.abyss-panel h2 {
+  margin-top: 0;
+}
+
+.ab-upgrades {
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+
+.ab-up {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .5rem .6rem;
+}
+
+.ab-up-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ab-up-lv {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.ab-record {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 .8rem;
+}
+
+.ab-record li {
+  display: flex;
+  justify-content: space-between;
+  padding: .25rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ab-record li span {
+  color: var(--muted);
+}
+
+.ab-achievements {
+  margin-top: .8rem;
+}
+
+.ab-ach {
+  display: inline-block;
+  background: rgba(244, 197, 66, .12);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  border-radius: 999px;
+  padding: .15rem .6rem;
+  margin: .15rem;
+  font-size: .78rem;
+}
+
+.ab-history {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ab-history td {
+  padding: .3rem .4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .ab-log-line,
+  .abyss-banner.show,
+  .ab-cage,
+  .ab-threat-fill,
+  .ab-hpfill {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ===== Abyss Wave 3 Additions ===== */
+
+.ab-focus-row {
+  margin: 15px 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+.ab-focus-row label {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.ab-prep-panel {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+}
+.ab-prep-panel h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 15px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ab-consumables-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+.ab-cons-item {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.ab-cons-item b {
+  font-size: 13px;
+  color: #9cdcfe;
+  margin-bottom: 4px;
+}
+.ab-cons-item button {
+  margin-top: 8px;
+  align-self: flex-start;
+}
+
+.ab-noncombat-panel {
+  background: linear-gradient(135deg, rgba(23, 28, 41, 0.95), rgba(15, 18, 28, 0.95));
+  border: 1px solid #4a6fa5;
+  box-shadow: 0 0 15px rgba(74, 111, 165, 0.3);
+  border-radius: 12px;
+  padding: 25px;
+  margin: 20px auto;
+  max-width: 600px;
+}
+.ab-noncombat-panel h2 {
+  margin-top: 0;
+  color: #5b92e5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ab-nc-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 20px 0;
+}
+.ab-nc-options button {
+  text-align: left;
+  padding: 14px 18px;
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ccc;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+.ab-nc-options button:hover {
+  background: rgba(91, 146, 229, 0.1);
+  border-color: #5b92e5;
+  color: #fff;
+}
+
+.abyss-lore-bestiary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 25px;
+}
+@media(max-width: 768px) {
+  .abyss-lore-bestiary {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ab-codex-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+.ab-codex-item {
+  border-radius: 8px;
+  padding: 12px 15px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.2s ease;
+}
+.ab-codex-item.locked {
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  opacity: 0.6;
+}
+.ab-codex-item.unlocked {
+  border: 1px solid rgba(74, 111, 165, 0.3);
+  background: rgba(74, 111, 165, 0.05);
+}
+.ab-codex-id {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 4px;
+}
+.ab-codex-item.locked .ab-codex-id {
+  color: #888;
+}
+.ab-codex-item.unlocked .ab-codex-id {
+  color: #5b92e5;
+}
+.ab-codex-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.ab-bestiary {
+  max-height: 400px;
+  overflow-y: auto;
+}
+.ab-bestiary-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ab-bestiary-table th, .ab-bestiary-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.ab-bestiary-table th {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #888;
+  letter-spacing: 0.5px;
+}
+.ab-bestiary-table td {
+  font-size: 14px;
+}

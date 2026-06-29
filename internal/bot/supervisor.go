@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -37,6 +39,10 @@ var (
 func (s *Supervisor) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	if s.bot.Cfg.EnableAbyss {
+		go s.startCommandListener(ctx)
+	}
 
 	for {
 		err := s.runCycleWithClient(ctx)
@@ -319,3 +325,175 @@ func sleepCtx(ctx context.Context, d time.Duration) bool {
 		return false
 	}
 }
+
+func parseNotification(line string) (string, map[string]string) {
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return "", nil
+	}
+	name := fields[0]
+	m := map[string]string{}
+	for _, f := range fields[1:] {
+		k, v, ok := strings.Cut(f, "=")
+		if ok {
+			m[k] = clientquery.Unescape(v)
+		}
+	}
+	return name, m
+}
+
+func (s *Supervisor) startCommandListener(ctx context.Context) {
+	addr := s.bot.Cfg.ClientQueryAddr
+	if addr == "" {
+		addr = "127.0.0.1:25639"
+	}
+	apiKey := s.bot.getAPIKey()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		c, err := clientquery.Dial(addr, 5*time.Second)
+		if err != nil {
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		if apiKey != "" {
+			if err := c.Auth(apiKey); err != nil {
+				log.Printf("startCommandListener: Auth failed: %v", err)
+				_ = c.Close()
+				time.Sleep(10 * time.Second)
+				continue
+			}
+		}
+		if err := c.Use(1); err != nil {
+			log.Printf("startCommandListener: Use failed: %v", err)
+			_ = c.Close()
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		// Register for text messages and pokes
+		if _, err := c.Command("clientnotifyregister schandlerid=1 event=notifytextmessage"); err != nil {
+			log.Printf("startCommandListener: notifytextmessage register failed: %v", err)
+			_ = c.Close()
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		if _, err := c.Command("clientnotifyregister schandlerid=1 event=notifypoke"); err != nil {
+			log.Printf("startCommandListener: notifypoke register failed: %v", err)
+			_ = c.Close()
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		reader := c.Reader()
+		
+		loopCtx, cancelLoop := context.WithCancel(ctx)
+		go func() {
+			<-loopCtx.Done()
+			_ = c.Close()
+		}()
+
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				break
+			}
+			line = strings.Trim(line, "\r\n")
+			s.handleNotificationLine(c, line)
+		}
+		
+		cancelLoop()
+		_ = c.Close()
+		
+		// If context is canceled, exit the outer loop as well
+		if ctx.Err() != nil {
+			return
+		}
+		
+		time.Sleep(5 * time.Second)
+	}
+}
+
+// sanitizeBBCode neutralizes untrusted text (e.g. a client nickname) before it
+// is interpolated into a TS3 BBCode message, so it cannot inject formatting tags
+// or clickable [url] links. Square brackets are the only BBCode delimiters, so
+// stripping them is sufficient.
+func sanitizeBBCode(s string) string {
+	return strings.NewReplacer("[", "(", "]", ")").Replace(s)
+}
+
+func (s *Supervisor) handleNotificationLine(c *clientquery.Client, line string) {
+	evName, params := parseNotification(line)
+	if evName != "notifytextmessage" && evName != "notifypoke" {
+		return
+	}
+
+	msg := params["msg"]
+	if !strings.HasPrefix(strings.TrimSpace(msg), "!abyss") {
+		return
+	}
+
+	clidStr := params["clid"]
+	if clidStr == "" {
+		clidStr = params["invokerid"]
+	}
+	clid, _ := strconv.Atoi(clidStr)
+	if clid == 0 {
+		return
+	}
+
+	uid := params["invokeruid"]
+	nick := sanitizeBBCode(params["invokername"])
+	if uid == "" {
+		return
+	}
+
+	// Fetch Abyss Summary from database
+	var bestDepth, deaths, lifetimeFloors int
+	var active bool
+	var depth int
+	var escrow int64
+
+	// Query best depth, deaths, floors
+	if err := s.bot.DB.QueryRow(
+		"SELECT abyss_best_depth, abyss_deaths, abyss_lifetime_floors FROM users WHERE client_uid=$1", uid,
+	).Scan(&bestDepth, &deaths, &lifetimeFloors); err != nil && err.Error() != "sql: no rows in result set" {
+		log.Printf("handleNotificationLine: stats query error for %s: %v", uid, err)
+		return
+	}
+
+	// Check if run is active
+	err := s.bot.DB.QueryRow(
+		"SELECT depth, escrow FROM abyss_active WHERE client_uid=$1", uid,
+	).Scan(&depth, &escrow)
+	if err == nil {
+		active = true
+	} else if err.Error() != "sql: no rows in result set" {
+		log.Printf("handleNotificationLine: active run query error for %s: %v", uid, err)
+		return
+	}
+
+	summary := fmt.Sprintf(
+		"⚔️ [b]Abyss Summary for %s[/b] ⚔️\n• Best Depth: Floor %d\n• Lifetime Floors: %d\n• Total Deaths: %d\n• Active Run: %s",
+		nick, bestDepth, lifetimeFloors, deaths, "No active run",
+	)
+	if active {
+		summary = fmt.Sprintf(
+			"⚔️ [b]Abyss Summary for %s[/b] ⚔️\n• Best Depth: Floor %d\n• Lifetime Floors: %d\n• Total Deaths: %d\n• Active Run: Floor %d (Escrow: %d gold)",
+			nick, bestDepth, lifetimeFloors, deaths, depth, escrow,
+		)
+	}
+
+	if evName == "notifypoke" {
+		_ = c.Poke(clid, summary)
+	} else {
+		_ = c.SendPrivateMessage(clid, summary)
+	}
+}
+

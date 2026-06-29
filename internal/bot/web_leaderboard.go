@@ -81,10 +81,15 @@ func (s *WebServer) handleLeaderboardsPage(w http.ResponseWriter, r *http.Reques
 		http.Redirect(w, r, "/denied", http.StatusSeeOther)
 		return
 	}
-	s.render(w, "leaderboards-page", map[string]any{
+	data := map[string]any{
 		"Title":         "Leaderboards",
 		"Nav":           "leaderboards",
 		"U":             u,
 		"ArcadeLeaders": s.bot.gameLeaderboards("arcade"),
-	})
+		"EnableAbyss":   s.bot.Cfg.EnableAbyss,
+	}
+	if s.bot.Cfg.EnableAbyss {
+		data["AbyssLeaders"] = s.bot.abyssLeaderboards("normal")
+	}
+	s.render(w, "leaderboards-page", data)
 }

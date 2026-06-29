@@ -70,6 +70,9 @@ type Config struct {
 	WebEnable     bool   // run the player web portal (armoury, battler, arcade, shop)
 	WebListenAddr string // host:port the web server listens on (e.g. ":18081")
 	WebBaseURL    string // public base URL used to build per-user login links
+
+	// The Abyss (endless push-your-luck PvE dungeon web game)
+	EnableAbyss bool // serve the Abyss page/APIs and PM its deep-link each cycle
 }
 
 func LoadConfig() *Config {
@@ -133,6 +136,8 @@ func LoadConfig() *Config {
 		WebEnable:     envBool("WEB_ENABLE", true),
 		WebListenAddr: envDefault("WEB_LISTEN_ADDR", ":18081"),
 		WebBaseURL:    envDefault("WEB_BASE_URL", "http://localhost:18081"),
+
+		EnableAbyss: envBool("ENABLE_ABYSS", true),
 	}
 }
 
