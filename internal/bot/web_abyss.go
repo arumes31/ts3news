@@ -1550,7 +1550,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				_, _ = s.bot.DB.Exec("INSERT INTO user_unique_items (client_uid, item_name, rarity, power) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING", uid, ui.Name, ui.Rarity, ui.Power)
 			}
 			
-			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET event_state = NULL, floor_type = 'combat', last_action_at = NOW() WHERE client_uid = $1", uid)
+			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET event_state = NULL, last_action_at = NOW() WHERE client_uid = $1", uid)
 			writeJSON(w, map[string]any{"ok": true, "msg": msg, "gold": newGold, "resolved": true})
 			return
 
@@ -1568,7 +1568,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			defer func() { _ = tx.Rollback() }()
-			if _, err := tx.Exec("UPDATE abyss_active SET escrow = $1, event_state = NULL, floor_type = 'combat', last_action_at = NOW() WHERE client_uid = $2", newEscrow, uid); err != nil {
+			if _, err := tx.Exec("UPDATE abyss_active SET escrow = $1, event_state = NULL, last_action_at = NOW() WHERE client_uid = $2", newEscrow, uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
