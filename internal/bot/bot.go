@@ -918,6 +918,10 @@ func (b *Bot) BroadcastAbyssRecord(nick string, depth int) {
 	}
 	_ = c.Use(1)
 
+	// The record holder's nickname is user-controlled; neutralize BBCode so the
+	// broadcast (nickname + poke) can't inject formatting or links. [supervisor.go]
+	nick = sanitizeBBCode(nick)
+
 	oldNick := b.Cfg.TS3Nickname
 	_ = c.SetNickname(fmt.Sprintf("Abyss Record - %s", nick))
 

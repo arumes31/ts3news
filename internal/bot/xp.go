@@ -1420,10 +1420,25 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 			}
 		}
 
-		return logs, totalRewardXP / len(users), true
+		return logs, totalRewardXP / realUserCount(users), true
 	}
 	logs = append(logs, i18n.T("bot.combat.defeat", zone.Name))
-	return logs, -totalRewardXP / (2 * len(users)), false
+	return logs, -totalRewardXP / (2 * realUserCount(users)), false
+}
+
+// realUserCount counts non-clone participants. Co-op clones must not dilute the
+// combat XP share, since only real delvers actually receive it. Always >= 1.
+func realUserCount(users []UserInCombat) int {
+	n := 0
+	for i := range users {
+		if !users[i].IsClone {
+			n++
+		}
+	}
+	if n < 1 {
+		n = 1
+	}
+	return n
 }
 
 func (b *Bot) getAliveMobs(mobs []*content.Mob) []*content.Mob {
@@ -2211,17 +2226,21 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		}
 	}
 	
-	if ultDropped {
-		ultPity = 0
-	} else {
-		ultPity += count
+	// Gold-focus rolls skip every item roll, so they must not advance pity (which
+	// would otherwise inflate ultimate/artifact odds for free).
+	if focus != "gold" {
+		if ultDropped {
+			ultPity = 0
+		} else {
+			ultPity += count
+		}
+		if artDropped {
+			artPity = 0
+		} else {
+			artPity += count
+		}
+		_, _ = b.DB.Exec("UPDATE users SET ultimate_pity=$2, artifact_pity=$3 WHERE client_uid=$1", uid, ultPity, artPity)
 	}
-	if artDropped {
-		artPity = 0
-	} else {
-		artPity += count
-	}
-	_, _ = b.DB.Exec("UPDATE users SET ultimate_pity=$2, artifact_pity=$3 WHERE client_uid=$1", uid, ultPity, artPity)
 	
 	resStr := ""
 	if len(results) > 0 {

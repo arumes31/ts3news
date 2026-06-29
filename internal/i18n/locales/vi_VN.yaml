@@ -2498,7 +2498,7 @@ pool.channel.name.1000: "Đốt cháy"
 # ─── Abyss Web UI ───
 web.abyss.title: "🕳️ Vực Thẳm"
 web.abyss.hero_desc: "Một hầm ngục vô đáy nơi nhân vật thực của bạn — trang bị, kỹ năng, tối thượng, thú cưng, thuốc — đối đầu những nỗi kinh hoàng ngày càng sâu hơn. Xóa một tầng để tăng kho tiền ký quỹ, rồi chọn: xuống sâu hơn hay rút ra trước khi bóng tối nuốt chửng. Nếu chết, kho tiền sẽ mất — trừ khi bạn đã mua bảo hiểm hoặc đánh cược một lần hồi sinh."
-web.abyss.weekly_title: "📅 Từ Điều Chỉnh Thử Thách Hàng Tuần:"
+web.abyss.weekly_title: "📅 Biến Đổi Thử Thách Hàng Tuần:"
 web.abyss.weekly.double_hazards: "⚠️ Nguy Hiểm Kép (thiệt hại nguy hiểm khu vực tăng gấp đôi!)"
 web.abyss.weekly.zero_durability_loss: "🛡️ Không Mất Độ Bền (trang bị không hao mòn!)"
 web.abyss.weekly.enraged_mobs: "🔥 Quái Vật Cuồng Nộ (mọi tầng chiến đấu đều có kẻ thù điên cuồng!)"

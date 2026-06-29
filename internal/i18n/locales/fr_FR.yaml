@@ -2497,7 +2497,7 @@ pool.channel.name.1000: "Piège Brûlant"
 
 # ─── Abyss Web UI ───
 web.abyss.title: "🕳️ L'Abîme"
-web.abyss.hero_desc: "Un donjon sans fond qui confronte votre vrai personnage — équipement, compétences, ultime, animaux, potions — à des horreurs toujours plus profondes. Effacez un étage pour agrandir votre cache séquestré, puis choisissez : descendre plus bas ou encaisser avant que les ténèbres s'en emparent."
+web.abyss.hero_desc: "Un donjon sans fond qui confronte votre vrai personnage — équipement, compétences, ultime, animaux, potions — à des horreurs toujours plus profondes. Effacez un étage pour agrandir votre cache séquestré, puis choisissez : descendre plus bas ou encaisser avant que les ténèbres s'en emparent. Si vous mourez, la cache est perdue — sauf si vous l'avez assurée ou misez sur une résurrection."
 web.abyss.weekly_title: "📅 Affix du défi hebdomadaire :"
 web.abyss.weekly.double_hazards: "⚠️ Double Danger (dégâts de zone doublés !)"
 web.abyss.weekly.zero_durability_loss: "🛡️ Zéro perte de durabilité (votre équipement ne s'use pas !)"

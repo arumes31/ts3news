@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS abyss_lore_unlocked (
 CREATE TABLE IF NOT EXISTS abyss_bestiary (
     client_uid TEXT NOT NULL REFERENCES users(client_uid) ON DELETE CASCADE,
     mob_name TEXT NOT NULL,
-    kills INTEGER NOT NULL DEFAULT 1,
+    kills INTEGER NOT NULL DEFAULT 1 CHECK (kills > 0),
     first_kill_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (client_uid, mob_name)
 );

@@ -172,7 +172,7 @@ Alongside the TeamSpeak bot, the binary serves a token-authenticated **player we
 | **🛒 Shop** | Currency exchange — **gold → XP at 1:3**, **XP → gold at 2:1** — plus a daily-rotating item shop with fair, combat-rating-based prices. |
 | **🏛️ Auction House** | Browse and buy live player listings, list your own inventory items, and review your full buy/sell history. |
 
-All gold/XP is the same economy used by the TS3 RPG, so farming the arcade or battler directly improves the player's character — and **The Abyss** goes further, running your actual equipped character through the real combat engine so every drop, level and durability tick is shared with the TeamSpeak cycle. The portal is self-contained (Go `html/template` + embedded CSS/JS, no build step) and configured via `WEB_ENABLE`, `WEB_LISTEN_ADDR` and `WEB_BASE_URL` (see Configuration).
+All gold/XP is the same economy used by the TS3 RPG, so farming the arcade or battler directly improves the player's character — and **The Abyss** goes further, running your actual equipped character through the real combat engine so every drop, level and durability tick is shared with the TeamSpeak cycle. The portal is self-contained (Go `html/template` + embedded CSS/JS, no build step) and configured via `WEB_ENABLE`, `WEB_LISTEN_ADDR` and `WEB_BASE_URL`; **The Abyss** page is additionally gated by `ENABLE_ABYSS`, which must be set for the Abyss routes to be served (see Configuration).
 
 ---
 

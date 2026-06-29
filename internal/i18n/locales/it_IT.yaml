@@ -2497,7 +2497,7 @@ pool.channel.name.1000: "Intrappolamento Ardente"
 
 # ─── Abyss Web UI ───
 web.abyss.title: "🕳️ L'Abisso"
-web.abyss.hero_desc: "Un dungeon senza fondo che mette alla prova il tuo personaggio reale — equipaggiamento, abilità, ultimate, animali, pozioni — contro orrori sempre più profondi. Svuota un piano per far crescere la tua cache in deposito, poi scegli: scendere ancora o incassare prima che le tenebre la divorino."
+web.abyss.hero_desc: "Un dungeon senza fondo che mette alla prova il tuo personaggio reale — equipaggiamento, abilità, ultimate, animali, pozioni — contro orrori sempre più profondi. Svuota un piano per far crescere la tua cache in deposito, poi scegli: scendere ancora o incassare prima che le tenebre la divorino. Se muori, la cache è perduta — a meno che tu non l'abbia assicurata o scommetta su una resurrezione."
 web.abyss.weekly_title: "📅 Affix sfida settimanale:"
 web.abyss.weekly.double_hazards: "⚠️ Pericoli doppi (danni dei pericoli di zona raddoppiati!)"
 web.abyss.weekly.zero_durability_loss: "🛡️ Nessuna perdita di durabilità (l'equipaggiamento non si consuma!)"

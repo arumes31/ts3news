@@ -2249,7 +2249,7 @@ pool.channel.name.1000: "Atrapamiento Ardiente"
 
 # ─── Abyss Web UI ───
 web.abyss.title: "🕳️ El Abismo"
-web.abyss.hero_desc: "Una mazmorra sin fondo que enfrenta a tu personaje real — equipo, habilidades, definitiva, mascotas, pociones — contra horrores cada vez más profundos. Limpia un piso para hacer crecer tu caché en custodia, luego elige: descender más o cobrar antes de que la oscuridad lo tome."
+web.abyss.hero_desc: "Una mazmorra sin fondo que enfrenta a tu personaje real — equipo, habilidades, definitiva, mascotas, pociones — contra horrores cada vez más profundos. Limpia un piso para hacer crecer tu caché en custodia, luego elige: descender más o cobrar antes de que la oscuridad lo tome. Si mueres, pierdes el caché — a menos que lo hayas asegurado o apuestes por una resurrección."
 web.abyss.weekly_title: "📅 Modificador de desafío semanal:"
 web.abyss.weekly.double_hazards: "⚠️ Peligros dobles (¡daño de peligros de zona duplicado!)"
 web.abyss.weekly.zero_durability_loss: "🛡️ Sin pérdida de durabilidad (¡tu equipo no se desgasta!)"

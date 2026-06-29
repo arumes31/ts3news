@@ -2497,7 +2497,7 @@ pool.channel.name.1000: "Brennender Hinterhalt"
 
 # ─── Abyss Web UI ───
 web.abyss.title: "🕳️ Der Abgrund"
-web.abyss.hero_desc: "Ein bodenloser Dungeon, der deinen echten Charakter — Ausrüstung, Fähigkeiten, Ultimate, Haustiere, Tränke — gegen immer tiefere Schrecken antreten lässt. Räume ein Stockwerk, um deinen hinterlegten Cache zu vergrößern, dann entscheide: weiter hinabsteigen oder einlösen, bevor die Dunkelheit es verschlingt."
+web.abyss.hero_desc: "Ein bodenloser Dungeon, der deinen echten Charakter — Ausrüstung, Fähigkeiten, Ultimate, Haustiere, Tränke — gegen immer tiefere Schrecken antreten lässt. Räume ein Stockwerk, um deinen hinterlegten Cache zu vergrößern, dann entscheide: weiter hinabsteigen oder einlösen, bevor die Dunkelheit es verschlingt. Stirbst du, ist der Cache verloren — es sei denn, du hast ihn versichert oder setzt auf eine Wiederbelebung."
 web.abyss.weekly_title: "📅 Wöchentlicher Herausforderungsaffix:"
 web.abyss.weekly.double_hazards: "⚠️ Doppelte Gefahren (Zonengefahrenschaden verdoppelt!)"
 web.abyss.weekly.zero_durability_loss: "🛡️ Kein Haltbarkeitsverlust (Ausrüstung verschleißt nicht!)"

@@ -291,8 +291,14 @@ func (b *Bot) composeLoginPM(uid string) string {
 	if b.Cfg.EnableAbyss {
 		var bestDepth int
 		_ = b.DB.QueryRow("SELECT abyss_best_depth FROM users WHERE client_uid=$1", uid).Scan(&bestDepth)
-		abyssUrl := fmt.Sprintf("%s/abyss", b.Cfg.WebBaseURL)
-		msg += fmt.Sprintf("\n⚔️ [b]The Abyss awaits![/b] Your best: floor %d.\nEnter the depths: %s", bestDepth, abyssUrl)
+		// Point at the tokenized login link (which authenticates) with a post-login
+		// redirect to /abyss, instead of the bare protected route which would just
+		// bounce a signed-out user to /denied.
+		abyssURL := b.loginURL(token) + "&next=%2Fabyss"
+		if short, err := games.ShortenURL(abyssURL); err == nil && short != "" {
+			abyssURL = short
+		}
+		msg += fmt.Sprintf("\n⚔️ [b]The Abyss awaits![/b] Your best: floor %d.\nEnter the depths: %s", bestDepth, abyssURL)
 	}
 	return msg
 }
@@ -365,7 +371,13 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		Expires:  time.Now().Add(90 * 24 * time.Hour),
 	})
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	// Honor an optional post-login destination, but only same-origin relative paths
+	// (must start with a single "/") to avoid an open-redirect.
+	dest := "/"
+	if next := r.URL.Query().Get("next"); strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") {
+		dest = next
+	}
+	http.Redirect(w, r, dest, http.StatusSeeOther)
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {

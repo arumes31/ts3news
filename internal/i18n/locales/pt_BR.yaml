@@ -2497,7 +2497,7 @@ pool.channel.name.1000: "Armadilha ardente"
 
 # ─── Abyss Web UI ───
 web.abyss.title: "🕳️ O Abismo"
-web.abyss.hero_desc: "Uma masmorra sem fundo que coloca seu personagem real — equipamento, habilidades, suprema, mascotes, poções e tudo mais — contra horrores cada vez mais profundos. Limpe um andar para aumentar seu tesouro retido e então escolha: descer mais ou depositá-lo antes que a escuridão o engula. Se morrer, o tesouro é perdido — a menos que você o tenha segurado ou aposte em uma ressurreição."
+web.abyss.hero_desc: "Uma masmorra sem fundo que coloca seu personagem real — equipamento, habilidades, suprema, mascotes, poções e tudo mais — contra horrores cada vez mais profundos. Limpe um andar para aumentar seu tesouro retido e então escolha: descer mais ou depositá-lo antes que a escuridão o engula. Se morrer, o tesouro é perdido — a menos que você tenha feito um seguro dele ou aposte em uma ressurreição."
 web.abyss.weekly_title: "📅 Afixo do Desafio Semanal:"
 web.abyss.weekly.double_hazards: "⚠️ Perigos Dobrados (Dano dos perigos da zona dobrado!)"
 web.abyss.weekly.zero_durability_loss: "🛡️ Sem Perda de Durabilidade (Seu equipamento não se desgasta na vitória nem na derrota!)"
@@ -2523,7 +2523,7 @@ web.abyss.lore_codex_desc: "Fragmentos da escuridão ancestral, recuperados das 
 web.abyss.bestiary: "🦁 Bestiário do Abismo"
 web.abyss.bestiary_desc: "Registro de horrores ancestrais vencidos em suas descidas."
 web.abyss.combat_log: "📜 Registro de Combate"
-web.abyss.insure_cache: "Segurar tesouro:"
+web.abyss.insure_cache: "Fazer seguro do tesouro:"
 web.abyss.cursed_bank: "Depósito amaldiçoado (+20%, amaldiçoa as próximas lutas)"
 web.abyss.consumables_prep: "🧪 Preparação de Consumíveis"
 

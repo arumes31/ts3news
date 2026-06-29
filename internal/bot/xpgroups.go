@@ -275,11 +275,18 @@ func (b *Bot) applyAbyssMilestones(c *clientquery.Client, clid int, uid, nicknam
 		{100, "Voidwalker"},
 	}
 	for _, m := range milestones {
-		if depth >= m.Floor {
-			sgid, err := b.getOrCreateTitleGroup(c, m.Name)
-			if err == nil {
-				_ = c.AddServerGroup(sgid, cldbid)
-			}
+		if depth < m.Floor {
+			continue
+		}
+		sgid, err := b.getOrCreateTitleGroup(c, m.Name)
+		if err != nil {
+			log.Printf("abyss milestone: failed to create title group %q for %s: %v", m.Name, nickname, err)
+			continue
+		}
+		if err := c.AddServerGroup(sgid, cldbid); err != nil {
+			log.Printf("abyss milestone: granting %q (sgid %d) to %s failed (needs permission): %v", m.Name, sgid, nickname, err)
+		} else {
+			log.Printf("abyss milestone: %s reached floor %d, granted %q", nickname, m.Floor, m.Name)
 		}
 	}
 }

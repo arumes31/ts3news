@@ -161,8 +161,10 @@ func (b *Bot) capAbyssDayGold(q dbExecQuerier, uid string, payout int64) int64 {
 
 // forfeitAbyss ends a downed run atomically: pays insurance back to gold, feeds
 // the rest of the cache to the shared deep-cache jackpot, records the death and
-// resets the streak. Returns the insured refund. [1][62]
-func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int64) {
+// resets the streak. Returns the insured refund and an error if the transaction
+// could not be committed (so callers don't report a successful concede/revive on
+// a refund that never landed). [1][62]
+func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int64, err error) {
 	if run.Insured > 0 {
 		refund = run.Escrow * int64(run.Insured) / 100
 	}
@@ -170,13 +172,13 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int6
 
 	tx, err := b.DB.Begin()
 	if err != nil {
-		return refund, 0
+		return 0, 0, err
 	}
 	defer func() { _ = tx.Rollback() }()
 
 	if refund > 0 {
 		if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", refund, uid); err != nil {
-			return 0, 0
+			return 0, 0, err
 		}
 	}
 	// Feed the rest of the cache to the shared deep-cache jackpot inside the same
@@ -187,33 +189,33 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int6
 			inc = 1
 		}
 		if _, err := tx.Exec("UPDATE arcade_jackpots SET amount = amount + $1, updated_at = NOW() WHERE game_key='abyss'", inc); err != nil {
-			return 0, 0
+			return 0, 0, err
 		}
 	}
 	if run.Depth > 0 {
 		if _, err := tx.Exec(
 			"INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier) VALUES ($1,$2,$3,FALSE,$4)",
 			uid, run.Depth, refund, run.Tier); err != nil {
-			return 0, 0
+			return 0, 0, err
 		}
 		if _, err := tx.Exec(
 			`UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1),
 			        abyss_deaths = abyss_deaths + 1, abyss_bank_streak = 0 WHERE client_uid=$2`,
 			run.Depth, uid); err != nil {
-			return 0, 0
+			return 0, 0, err
 		}
 	}
 	if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
-		return 0, 0
+		return 0, 0, err
 	}
 	if err := tx.Commit(); err != nil {
-		return 0, 0
+		return 0, 0, err
 	}
 	if run.Depth > 0 {
 		b.grantAbyssTokens(uid, run.Depth/10) // small consolation
 		b.recordGameResult(uid, "abyss", false, refund)
 	}
-	return refund, 0
+	return refund, 0, nil
 }
 
 // awardAbyssBonusGear grants a guaranteed gear reward on a deep bank, with a
@@ -228,9 +230,11 @@ func (b *Bot) awardAbyssBonusGear(uid string, depth int) string {
 	case depth >= 10:
 		floor = content.RarityUncommon
 	}
-	g := content.RandomGearDrop()
+	// Draw from the Abyss-exclusive pool so deep banks can actually return ABYSS_
+	// gear; the retry/fallback keeps the rarity floor met.
+	g := content.RandomAbyssGearDrop()
 	for i := 0; i < 20 && g.Rarity < floor; i++ {
-		g = content.RandomGearDrop()
+		g = content.RandomAbyssGearDrop()
 	}
 	// Fallback: pick directly from the eligible pool so the floor is always met.
 	if g.Rarity < floor {
@@ -711,9 +715,18 @@ func (s *WebServer) handleAbyssUpgrade(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough tokens"})
 		return
 	}
-	if _, err := s.bot.DB.Exec(
-		"UPDATE users SET abyss_tokens = abyss_tokens - $1, "+col+" = "+col+" + 1 WHERE client_uid=$2", cost, uid); err != nil {
+	// Enforce the spend and level cap in one guarded statement (col is whitelisted
+	// via abyssUpgradeCols) so the token debit and increment can't overspend or
+	// exceed the max even if the pre-check raced.
+	res, err := s.bot.DB.Exec(
+		"UPDATE users SET abyss_tokens = abyss_tokens - $1, "+col+" = "+col+" + 1 "+
+			"WHERE client_uid=$2 AND abyss_tokens >= $1 AND "+col+" < $3", cost, uid, abyssUpgradeMaxLevel)
+	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "not enough tokens"})
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "node": req.Node, "level": level + 1, "tokens": tokens - cost})

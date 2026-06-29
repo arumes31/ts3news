@@ -2497,7 +2497,7 @@ pool.channel.name.1000: "Hořící zachycení"
 
 # ─── Abyss Web UI ───
 web.abyss.title: "🕳️ Propast"
-web.abyss.hero_desc: "Bezedné podzemí, kde váš skutečný charakter — výbava, dovednosti, ultimátní schopnost, mazlíčci, lektvary — čelí stále hlubším hrůzám. Vyčistěte patro, abyste zvýšili váš zadržený poklad, pak se rozhodněte: sestoupit dál nebo vybrat před tím, než temnota pohltí vše."
+web.abyss.hero_desc: "Bezedné podzemí, kde váš skutečný charakter — výbava, dovednosti, ultimátní schopnost, mazlíčci, lektvary — čelí stále hlubším hrůzám. Vyčistěte patro, abyste zvýšili váš zadržený poklad, pak se rozhodněte: sestoupit dál nebo vybrat před tím, než temnota pohltí vše. Když zemřete, poklad je ztracen — pokud jste ho nepojistili nebo nevsadíte na vzkříšení."
 web.abyss.weekly_title: "📅 Týdenní výzva — affix:"
 web.abyss.weekly.double_hazards: "⚠️ Dvojité nebezpečí (poškození nebezpečí zóny zdvojeno!)"
 web.abyss.weekly.zero_durability_loss: "🛡️ Žádná ztráta odolnosti (výbava se neopotřebovává!)"
