@@ -551,6 +551,7 @@ async function abyssBank(){
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
   // Save bank details in session storage before reload so they survive the page refresh
   var msg='🏦 Banked '+fmtGold(d.banked)+' from a depth-'+d.depth+' run (×'+Number(d.mult).toFixed(2)+').';
+  if(d.escrow_loot&&d.escrow_loot.length)msg+=' 🎒 '+d.escrow_loot.length+' cached item(s) recovered.';
   if(d.bonus_gear)msg+=' 🎁 Depth reward: '+d.bonus_gear+'.';
   if(d.cursed)msg+=' ☠️ Cursed — your next cycle fights are hexed.';
   if(d.jackpot_win)msg+=' 🔥 DEEP-CACHE JACKPOT +'+fmtGold(d.jackpot_win)+'!';

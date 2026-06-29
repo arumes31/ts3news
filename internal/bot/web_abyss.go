@@ -161,6 +161,8 @@ func (b *Bot) buildAbyssUser(uid string) (UserInCombat, int, error) {
 		Gold:          gold,
 		Pets:          b.getPets(uid),
 		Equipped:      b.getEquippedItems(uid),
+		// Abyss drops are escrowed for the run, not granted inline by the engine.
+		EscrowLoot: true,
 	}, prestige, nil
 }
 
@@ -668,6 +670,11 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	// Clear any loot escrow orphaned by an improperly-ended prior run.
+	if _, err := tx.Exec("DELETE FROM abyss_escrow_loot WHERE client_uid=$1", uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1124,6 +1131,13 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		}
 	}
 
+	// Escrowed loot is now safely the player's — apply it and surface what they kept.
+	// Done post-commit so a rolled-back bank can't hand out items for free.
+	var escrowLoot []string
+	for _, label := range s.bot.applyAbyssEscrowLoot(uid) {
+		escrowLoot = append(escrowLoot, bbToHTML(label))
+	}
+
 	out := map[string]any{
 		"ok": true, "banked": payout, "mult": mult, "depth": run.Depth,
 		"gold": gold, "tokens": s.bot.abyssTokens(uid), "cursed": req.Cursed,
@@ -1133,6 +1147,9 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	}
 	if bonusGear != "" {
 		out["bonus_gear"] = bonusGear
+	}
+	if len(escrowLoot) > 0 {
+		out["escrow_loot"] = escrowLoot
 	}
 	writeJSON(w, out)
 }

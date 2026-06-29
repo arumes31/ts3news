@@ -87,6 +87,48 @@ func TestAbyssDifficultyBossCadence(t *testing.T) {
 	}
 }
 
+// TestBossResistScalesAndCaps verifies boss resistance grows with level and gear
+// score, is ~0 for a fresh character, and never exceeds the hard cap.
+func TestBossResistScalesAndCaps(t *testing.T) {
+	if low := bossResist(1, 0); low > 0.05 {
+		t.Errorf("fresh character boss resist %.3f should be ~0", low)
+	}
+	// Monotonic in both inputs.
+	if bossResist(500, 0) <= bossResist(100, 0) {
+		t.Error("boss resist should grow with level")
+	}
+	if bossResist(100, 5000) <= bossResist(100, 0) {
+		t.Error("boss resist should grow with gear score")
+	}
+	// Hard cap holds even at absurd inputs.
+	if capped := bossResist(100000, 100000000); capped > bossResistCap+1e-9 {
+		t.Errorf("boss resist %.3f exceeded cap %.3f", capped, bossResistCap)
+	}
+}
+
+// TestLootRarityScale verifies the low-level rarity dampener ramps from a floor at
+// level 1 up to full at level 50 and stays clamped beyond.
+func TestLootRarityScale(t *testing.T) {
+	if s1 := lootRarityScale(1); s1 < 0.29 || s1 > 0.31 {
+		t.Errorf("level-1 rarity scale %.3f, want ~0.30", s1)
+	}
+	if s := lootRarityScale(50); s != 1.0 {
+		t.Errorf("level-50 rarity scale %.3f, want 1.0", s)
+	}
+	if s := lootRarityScale(9999); s != 1.0 {
+		t.Errorf("high-level rarity scale %.3f, want clamp at 1.0", s)
+	}
+	// Monotonically non-decreasing.
+	prev := 0.0
+	for lvl := 1; lvl <= 60; lvl++ {
+		if s := lootRarityScale(lvl); s < prev-1e-9 {
+			t.Fatalf("rarity scale decreased at level %d", lvl)
+		} else {
+			prev = s
+		}
+	}
+}
+
 // TestAbyssMobLevelDecoupled verifies mob level is a depth-scaled fraction of the
 // player's level: below them on floor 1, ramping past parity with depth, capped.
 func TestAbyssMobLevelDecoupled(t *testing.T) {

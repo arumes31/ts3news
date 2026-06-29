@@ -64,6 +64,10 @@ type UserInCombat struct {
 	LootFocus     string // Default "balanced", can be "gold" or "loot"
 	FloorModifier string
 	IsClone       bool // If true, DB updates are skipped (for co-op)
+	// EscrowLoot suppresses inline loot application in the combat engine. The Abyss
+	// sets this so drops are not granted mid-run; instead they are rolled into the
+	// run's loot escrow (locked until banked, lost on death). See web_abyss_loot.go.
+	EscrowLoot bool
 }
 
 type activeUser struct {
@@ -344,6 +348,27 @@ type LootResult struct {
 // applies to all combat modes (the channel cycle and the Abyss alike).
 const ambushDamageCapPct = 0.5
 
+// bossResistCap is the most boss damage a character can ever shrug off via the
+// auto-scaling boss resistance below.
+const bossResistCap = 0.80
+
+// bossResist is an automatic, derived "boss resistance" that mitigates damage from
+// boss-tier enemies, scaling with the character's level and gear score. Bosses
+// should be a war of attrition every player gets to fight, not a coin-flip
+// one-shot. It is purely derived (no gear slot / no DB column) so it grows with
+// progression on its own, and is hard-capped so bosses still hurt. Applies in all
+// combat modes.
+func bossResist(level, gearScore int) float64 {
+	r := float64(level)*0.0006 + float64(gearScore)*0.00002
+	if r < 0 {
+		r = 0
+	}
+	if r > bossResistCap {
+		r = bossResistCap
+	}
+	return r
+}
+
 func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool, []LootResult) {
 	var logs []string
 	var loots []LootResult
@@ -368,6 +393,23 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	// #nosec G404
 	if rand.Float64() < 0.05 {
 		waves = 3
+	}
+
+	// Later waves spawn at the *encounter's* level, not the party's. In normal
+	// combat the initial mobs are already spawned at avgLvl so this is a no-op, but
+	// the Abyss spawns a decoupled, depth-scaled mob level — without this, waves 2/3
+	// would ignore that and spawn at the (much higher) player level, undoing the
+	// Abyss mob-level decoupling and producing instant-kill follow-up waves.
+	spawnLvl := avgLvl
+	if len(initialMobs) > 0 {
+		sum := 0
+		for _, m := range initialMobs {
+			sum += m.Level
+		}
+		spawnLvl = sum / len(initialMobs)
+		if spawnLvl < 1 {
+			spawnLvl = 1
+		}
 	}
 
 	phaseOnce := make(map[string]bool)
@@ -403,7 +445,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 		} else {
 			// Spawn new wave
 			logs = append(logs, i18n.T("bot.combat.wave_approaches", w))
-			newMobs := content.SpawnMobGroup(avgLvl, zone, diffFactor*zone.Difficulty, len(users), w == 3)
+			newMobs := content.SpawnMobGroup(spawnLvl, zone, diffFactor*zone.Difficulty, len(users), w == 3)
 			currentMobs = make([]*content.Mob, len(newMobs))
 			for i := range newMobs {
 				currentMobs[i] = (&newMobs[i]).Clone()
@@ -1017,11 +1059,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				// Award loot for every mob defeated, regardless of final outcome.
 				// Clones (co-op helpers) are excluded so loot never persists for them.
 				if winner := randomLootEligibleUser(originalUsers); winner != nil {
-					note, poke := b.rollLootForUser(winner.UID, *target, zone.Difficulty, winner.LootFocus)
-					if note != "" {
-						*logs = append(*logs, i18n.T("bot.combat.looted", winner.Nickname, target.DisplayName(), note))
-						*loots = append(*loots, LootResult{UID: winner.UID, Note: note, Poke: poke})
-					}
+					b.awardCombatLoot(winner, *target, zone, logs, loots)
 				}
 				b.handleDeathEffects(target, mobs, logs, avgLvl, diffFactor, activeUsers)
 			}
@@ -1076,11 +1114,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				*logs = append(*logs, i18n.T("bot.combat.killed_by_pet", ptarget.Name, p.Name))
 				// Clones (co-op helpers) are excluded so loot never persists for them.
 				if winner := randomLootEligibleUser(originalUsers); winner != nil {
-					note, poke := b.rollLootForUser(winner.UID, *ptarget, zone.Difficulty, winner.LootFocus)
-					if note != "" {
-						*logs = append(*logs, i18n.T("bot.combat.looted", winner.Nickname, ptarget.DisplayName(), note))
-						*loots = append(*loots, LootResult{UID: winner.UID, Note: note, Poke: poke})
-					}
+					b.awardCombatLoot(winner, *ptarget, zone, logs, loots)
 				}
 				b.handleDeathEffects(ptarget, mobs, logs, avgLvl, diffFactor, activeUsers)
 			}
@@ -1258,6 +1292,18 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			if eff == content.EffectBlinded && rand.Float64() < 0.5 {
 				dmg = 0
 			} // #nosec G404
+		}
+
+		// Boss resistance: shrink hits from boss-tier enemies by the target's
+		// auto-scaling resistance so a boss can't erase a full-HP, well-geared
+		// character in a single blow. Trash mobs are unaffected.
+		if m.Type == content.MobBoss || m.Type == content.MobLegendary {
+			if resist := bossResist(target.Level, target.Stats.Score()); resist > 0 {
+				dmg = int(float64(dmg) * (1.0 - resist))
+				if dmg < 0 {
+					dmg = 0
+				}
+			}
 		}
 
 		// Ambush cap: limit total surprise-round damage to this target and never let
@@ -2085,6 +2131,11 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		lootFindBonus += 0.50
 	}
 
+	// Low-level / low-difficulty content drops fewer high-rarity items: the rare
+	// tiers (ultimate, title, unique, artifact, enchant) are scaled down until the
+	// fought level catches up. Common gear/consumable odds are left untouched.
+	rareScale := lootRarityScale(mob.Level)
+
 	if tName.Valid {
 		if t, ok := content.GetTitleByName(tName.String); ok && t.DoubleLoot {
 			count *= 2
@@ -2139,8 +2190,8 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		// Checks ordered by ascending threshold so smaller chances are evaluated first
 		// Thresholds: title=0.005, ultimateSkill=0.005, uniqueItem=0.01, artifact=0.01, ench=0.02, skill=0.05, cons=0.1, gear=0.10
 		
-		effUltChance := ultimateSkillChance*qualityMult + float64(ultPity)*0.001 // 0.1% extra per pity point
-		effArtChance := artifactChance*qualityMult + float64(artPity)*0.002 // 0.2% extra per pity point
+		effUltChance := ultimateSkillChance*qualityMult*rareScale + float64(ultPity)*0.001 // 0.1% extra per pity point
+		effArtChance := artifactChance*qualityMult*rareScale + float64(artPity)*0.002 // 0.2% extra per pity point
 
 		if r < effUltChance {
 			// Ultimate skill drop (0.5%)
@@ -2168,12 +2219,12 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			}
 			lootFound = true
 			ultDropped = true
-		} else if r < titleChance*qualityMult {
+		} else if r < titleChance*qualityMult*rareScale {
 			t := content.RandomTitle()
 			_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days' WHERE client_uid=$1", uid, t.Name, t.XPMultiplier)
 			results = append(results, i18n.T("bot.loot.title", t.Name, t.Name))
 			lootFound = true
-		} else if r < uniqueItemChance*qualityMult {
+		} else if r < uniqueItemChance*qualityMult*rareScale {
 			// Unique item drop (1%)
 			ui := content.RandomUniqueItem()
 			var exists bool
@@ -2201,7 +2252,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			pokes = append(pokes, i18n.T("bot.loot.artifact_found", a.Name))
 			lootFound = true
 			artDropped = true
-		} else if r < enchChance*qualityMult {
+		} else if r < enchChance*qualityMult*rareScale {
 			ench := content.RandomEnchantment()
 			ench.Stats.STR = int(float64(ench.Stats.STR) * zoneDifficulty)
 			ench.Stats.SPD = int(float64(ench.Stats.SPD) * zoneDifficulty)

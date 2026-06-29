@@ -208,6 +208,10 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int6
 	if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
 		return 0, 0, err
 	}
+	// Death forfeits the locked loot cache along with the gold.
+	if _, err := tx.Exec("DELETE FROM abyss_escrow_loot WHERE client_uid=$1", uid); err != nil {
+		return 0, 0, err
+	}
 	if err := tx.Commit(); err != nil {
 		return 0, 0, err
 	}
