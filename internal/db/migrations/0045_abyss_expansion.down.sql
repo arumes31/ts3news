@@ -19,4 +19,8 @@ ALTER TABLE abyss_active DROP COLUMN IF EXISTS insured;
 ALTER TABLE abyss_active DROP COLUMN IF EXISTS revived;
 ALTER TABLE abyss_runs DROP COLUMN IF EXISTS tier;
 
-DELETE FROM arcade_jackpots WHERE game_key='abyss';
+-- Only remove the abyss jackpot row if it is still the pristine seed inserted by
+-- the up migration (amount = 25000). A jackpot that has been played/grown — or a
+-- row that pre-existed this migration — is left untouched so production balances
+-- aren't destroyed on rollback.
+DELETE FROM arcade_jackpots WHERE game_key='abyss' AND amount = 25000;

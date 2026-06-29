@@ -2530,6 +2530,14 @@ web.abyss.consumables_prep: "🧪 Préparation des consommables"
 
 
 
+web.abyss.lb_today: "🏆 Aujourd'hui"
+web.abyss.lb_season: "📅 Cette saison"
+web.abyss.lb_alltime: "👑 Tous les temps"
+web.abyss.lb_player: "Joueur"
+web.abyss.lb_depth: "Profondeur"
+web.abyss.lb_banked: "Déposé 🪙"
+web.abyss.lb_no_descents: "Aucune descente pour l'instant."
+
 # --- Abyss exclusive gear ---
 content.gear.abyss_weapon: "Faucheur Abyssal"
 content.gear.abyss_chest: "Plastron Touché par le Vide"

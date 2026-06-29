@@ -420,6 +420,14 @@ func (s *Supervisor) startCommandListener(ctx context.Context) {
 	}
 }
 
+// sanitizeBBCode neutralizes untrusted text (e.g. a client nickname) before it
+// is interpolated into a TS3 BBCode message, so it cannot inject formatting tags
+// or clickable [url] links. Square brackets are the only BBCode delimiters, so
+// stripping them is sufficient.
+func sanitizeBBCode(s string) string {
+	return strings.NewReplacer("[", "(", "]", ")").Replace(s)
+}
+
 func (s *Supervisor) handleNotificationLine(c *clientquery.Client, line string) {
 	evName, params := parseNotification(line)
 	if evName != "notifytextmessage" && evName != "notifypoke" {
@@ -441,7 +449,7 @@ func (s *Supervisor) handleNotificationLine(c *clientquery.Client, line string) 
 	}
 
 	uid := params["invokeruid"]
-	nick := params["invokername"]
+	nick := sanitizeBBCode(params["invokername"])
 	if uid == "" {
 		return
 	}

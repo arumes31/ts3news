@@ -2530,6 +2530,14 @@ web.abyss.consumables_prep: "🧪 Preparazione consumabili"
 
 
 
+web.abyss.lb_today: "🏆 Oggi"
+web.abyss.lb_season: "📅 Questa stagione"
+web.abyss.lb_alltime: "👑 Di sempre"
+web.abyss.lb_player: "Giocatore"
+web.abyss.lb_depth: "Profondità"
+web.abyss.lb_banked: "Depositato 🪙"
+web.abyss.lb_no_descents: "Ancora nessuna discesa."
+
 # --- Abyss exclusive gear ---
 content.gear.abyss_weapon: "Mietitore Abissale"
 content.gear.abyss_chest: "Piastra Toccata dal Vuoto"

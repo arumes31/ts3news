@@ -2530,6 +2530,14 @@ web.abyss.consumables_prep: "🧪 消耗品の準備"
 
 
 
+web.abyss.lb_today: "🏆 本日"
+web.abyss.lb_season: "📅 今シーズン"
+web.abyss.lb_alltime: "👑 歴代"
+web.abyss.lb_player: "プレイヤー"
+web.abyss.lb_depth: "深度"
+web.abyss.lb_banked: "預入 🪙"
+web.abyss.lb_no_descents: "まだ潜行記録がありません。"
+
 # --- Abyss exclusive gear ---
 content.gear.abyss_weapon: "アビサルリーバー"
 content.gear.abyss_chest: "虚無に触れられし胸当て"

@@ -128,17 +128,26 @@ func (b *Bot) abyssBankMultiplier(depth, streak int) float64 {
 	return 1.0 + float64(d)*0.01 + float64(s)*0.02
 }
 
+// dbExecQuerier is satisfied by both *sql.DB and *sql.Tx, letting a helper run
+// either standalone or inside an existing transaction.
+type dbExecQuerier interface {
+	Exec(query string, args ...any) (sql.Result, error)
+	QueryRow(query string, args ...any) *sql.Row
+}
+
 // capAbyssDayGold clamps payout so a player's Abyss-banked gold can't exceed the
-// daily cap, protecting the shared economy. [59]
-func (b *Bot) capAbyssDayGold(uid string, payout int64) int64 {
+// daily cap, protecting the shared economy. It runs through the supplied querier
+// so the cap consumption can participate in the caller's payout transaction and
+// roll back together with it. [59]
+func (b *Bot) capAbyssDayGold(q dbExecQuerier, uid string, payout int64) int64 {
 	if payout <= 0 {
 		return 0
 	}
-	_, _ = b.DB.Exec(
+	_, _ = q.Exec(
 		`UPDATE users SET abyss_day = CURRENT_DATE, abyss_day_gold = 0
 		  WHERE client_uid=$1 AND (abyss_day IS NULL OR abyss_day < CURRENT_DATE)`, uid)
 	var dayGold int64
-	_ = b.DB.QueryRow("SELECT abyss_day_gold FROM users WHERE client_uid=$1", uid).Scan(&dayGold)
+	_ = q.QueryRow("SELECT abyss_day_gold FROM users WHERE client_uid=$1", uid).Scan(&dayGold)
 	remaining := int64(abyssDayGoldCap) - dayGold
 	if remaining <= 0 {
 		return 0
@@ -146,7 +155,7 @@ func (b *Bot) capAbyssDayGold(uid string, payout int64) int64 {
 	if payout > remaining {
 		payout = remaining
 	}
-	_, _ = b.DB.Exec("UPDATE users SET abyss_day_gold = abyss_day_gold + $1 WHERE client_uid=$2", payout, uid)
+	_, _ = q.Exec("UPDATE users SET abyss_day_gold = abyss_day_gold + $1 WHERE client_uid=$2", payout, uid)
 	return payout
 }
 
@@ -158,9 +167,6 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int6
 		refund = run.Escrow * int64(run.Insured) / 100
 	}
 	remainder := run.Escrow - refund
-	if remainder > 0 {
-		b.incrementJackpot("abyss", remainder)
-	}
 
 	tx, err := b.DB.Begin()
 	if err != nil {
@@ -170,6 +176,17 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int6
 
 	if refund > 0 {
 		if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", refund, uid); err != nil {
+			return 0, 0
+		}
+	}
+	// Feed the rest of the cache to the shared deep-cache jackpot inside the same
+	// transaction, so it only persists if the refund + run-delete also commit.
+	if remainder > 0 {
+		inc := int64(float64(remainder) * jackpotRate)
+		if inc < 1 {
+			inc = 1
+		}
+		if _, err := tx.Exec("UPDATE arcade_jackpots SET amount = amount + $1, updated_at = NOW() WHERE game_key='abyss'", inc); err != nil {
 			return 0, 0
 		}
 	}

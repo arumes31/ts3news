@@ -2530,6 +2530,14 @@ web.abyss.consumables_prep: "🧪 تحضير المستهلكات"
 
 
 
+web.abyss.lb_today: "🏆 اليوم"
+web.abyss.lb_season: "📅 هذا الموسم"
+web.abyss.lb_alltime: "👑 كل الأوقات"
+web.abyss.lb_player: "اللاعب"
+web.abyss.lb_depth: "العمق"
+web.abyss.lb_banked: "المودَع 🪙"
+web.abyss.lb_no_descents: "لا توجد نزولات بعد."
+
 # --- Abyss exclusive gear ---
 content.gear.abyss_weapon: "حاصد الهاوية"
 content.gear.abyss_chest: "درع الفراغ"

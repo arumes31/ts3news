@@ -70,6 +70,7 @@ type activeUser struct {
 	u           *UserInCombat
 	effects     []content.ItemEffect
 	lastSkillID string
+	Stunned     bool // scripted boss-phase stun: skips this user's next turn
 }
 
 // cycleContext holds per-cycle shared facts used by the XP modifiers.
@@ -382,6 +383,12 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				currentMobs[i].STRMod = 1.0
 				currentMobs[i].DEFMod = 1.0
 				currentMobs[i].SPDMod = 1.0
+				// Some manually-built mobs (e.g. Abyss scripted bosses) ship without
+				// MaxHP set; seed it from base HP so phase-percentage checks are valid.
+				if currentMobs[i].MaxHP <= 0 {
+					currentMobs[i].MaxHP = currentMobs[i].Stats.HP
+					currentMobs[i].CurrentHP = currentMobs[i].MaxHP
+				}
 				if floorMod == "enraged" {
 					currentMobs[i].Effects = append(currentMobs[i].Effects, content.EffectEnraged)
 				}
@@ -491,8 +498,10 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 						}
 					}
 
-					// Custom Boss Scripted Phases
-					hpPct := float64(m.CurrentHP) / float64(m.MaxHP)
+					// Custom Boss Scripted Phases — use the live combat HP field
+					// (m.Stats.HP, which damage decrements) against MaxHP, not the
+					// spawn-time CurrentHP snapshot which never updates here.
+					hpPct := float64(m.Stats.HP) / float64(m.MaxHP)
 					if m.Name == "Gorgoroth the Firelord" {
 						if hpPct < 0.50 {
 							hasEnraged := false
@@ -764,11 +773,34 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 	}
 }
 
+// randomLootEligibleUser picks a random non-clone user to receive kill loot so
+// co-op clones never trigger DB-persisting loot rolls (gear, gold, consumables,
+// pity). Returns nil if no eligible recipient exists.
+func randomLootEligibleUser(users []UserInCombat) *UserInCombat {
+	var eligible []*UserInCombat
+	for i := range users {
+		if !users[i].IsClone {
+			eligible = append(eligible, &users[i])
+		}
+	}
+	if len(eligible) == 0 {
+		return nil
+	}
+	// #nosec G404 -- non-cryptographic loot recipient selection
+	return eligible[rand.IntN(len(eligible))]
+}
+
 func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone content.Zone, intensify, healPenalty float64, logs *[]string, totalUserDamage, totalMobDamage *int, avgLvl int, diffFactor float64, originalUsers []UserInCombat, loots *[]LootResult) {
 	for i := range activeUsers {
 		au := &activeUsers[i]
 		u := au.u
 		if u.CurrentHP <= 0 {
+			continue
+		}
+		// Scripted boss-phase stun: consume the flag and skip this turn.
+		if au.Stunned {
+			au.Stunned = false
+			*logs = append(*logs, i18n.T("bot.combat.stunned", u.Nickname))
 			continue
 		}
 		if u.Stats.SPD == 0 {
@@ -973,13 +1005,14 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 
 			if target.Stats.HP <= 0 {
 				*logs = append(*logs, i18n.T("bot.combat.defeated", target.Name, u.Nickname))
-				// Award loot for every mob defeated, regardless of final outcome
-				// #nosec G404
-				winner := originalUsers[rand.IntN(len(originalUsers))] // #nosec G404
-				note, poke := b.rollLootForUser(winner.UID, *target, zone.Difficulty, winner.LootFocus)
-				if note != "" {
-					*logs = append(*logs, i18n.T("bot.combat.looted", winner.Nickname, target.DisplayName(), note))
-					*loots = append(*loots, LootResult{UID: winner.UID, Note: note, Poke: poke})
+				// Award loot for every mob defeated, regardless of final outcome.
+				// Clones (co-op helpers) are excluded so loot never persists for them.
+				if winner := randomLootEligibleUser(originalUsers); winner != nil {
+					note, poke := b.rollLootForUser(winner.UID, *target, zone.Difficulty, winner.LootFocus)
+					if note != "" {
+						*logs = append(*logs, i18n.T("bot.combat.looted", winner.Nickname, target.DisplayName(), note))
+						*loots = append(*loots, LootResult{UID: winner.UID, Note: note, Poke: poke})
+					}
 				}
 				b.handleDeathEffects(target, mobs, logs, avgLvl, diffFactor, activeUsers)
 			}
@@ -1032,12 +1065,13 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			*totalUserDamage += pdmg
 			if ptarget.Stats.HP <= 0 {
 				*logs = append(*logs, i18n.T("bot.combat.killed_by_pet", ptarget.Name, p.Name))
-				// #nosec G404
-				winner := originalUsers[rand.IntN(len(originalUsers))] // #nosec G404
-				note, poke := b.rollLootForUser(winner.UID, *ptarget, zone.Difficulty, winner.LootFocus)
-				if note != "" {
-					*logs = append(*logs, i18n.T("bot.combat.looted", winner.Nickname, ptarget.DisplayName(), note))
-					*loots = append(*loots, LootResult{UID: winner.UID, Note: note, Poke: poke})
+				// Clones (co-op helpers) are excluded so loot never persists for them.
+				if winner := randomLootEligibleUser(originalUsers); winner != nil {
+					note, poke := b.rollLootForUser(winner.UID, *ptarget, zone.Difficulty, winner.LootFocus)
+					if note != "" {
+						*logs = append(*logs, i18n.T("bot.combat.looted", winner.Nickname, ptarget.DisplayName(), note))
+						*loots = append(*loots, LootResult{UID: winner.UID, Note: note, Poke: poke})
+					}
 				}
 				b.handleDeathEffects(ptarget, mobs, logs, avgLvl, diffFactor, activeUsers)
 			}
@@ -1236,56 +1270,56 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 	for i := range users {
 		u := &users[i]
 		// Save pets state
-		if !u.u.IsClone {
-			for _, p := range u.u.Pets {
-				b.updatePetHP(u.u.UID, p.Name, p.Stats.HP)
+		if !u.IsClone {
+			for _, p := range u.Pets {
+				b.updatePetHP(u.UID, p.Name, p.Stats.HP)
 			}
 		}
 
 		finalXP := 0
 		if victory {
-			if !u.u.IsClone {
-				_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = 0 WHERE client_uid = $1", u.u.UID)
-				b.updateQuest(u.u.UID, "mobs_killed", len(initialMobs))
+			if !u.IsClone {
+				_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = 0 WHERE client_uid = $1", u.UID)
+				b.updateQuest(u.UID, "mobs_killed", len(initialMobs))
 			}
 
 			// Regen Stacks logic
 			hasRegEffect := false
-			_, _, _, _, effects := b.activeLootMult(u.u.UID, time.Now())
+			_, _, _, _, effects := b.activeLootMult(u.UID, time.Now())
 			for _, eff := range effects {
 				if eff == content.EffectRegenStack {
 					hasRegEffect = true
 				}
 			}
 			if hasRegEffect {
-				u.u.RegenStacks++
+				u.RegenStacks++
 			}
 
 		} else {
-			if !u.u.IsClone {
-				_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = consecutive_losses + 1 WHERE client_uid = $1", u.u.UID)
+			if !u.IsClone {
+				_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = consecutive_losses + 1 WHERE client_uid = $1", u.UID)
 				// Death Penalty: 25% of the XP required for the current level
 				var curXP, curLevel int
-				_ = b.DB.QueryRow("SELECT xp, level FROM users WHERE client_uid=$1", u.u.UID).Scan(&curXP, &curLevel)
-				
+				_ = b.DB.QueryRow("SELECT xp, level FROM users WHERE client_uid=$1", u.UID).Scan(&curXP, &curLevel)
+
 				baseXP := leveling.XPForLevel(curLevel)
 				nextXP := leveling.XPForLevel(curLevel + 1)
 				levelSize := nextXP - baseXP
-				
+
 				penalty := int(float64(levelSize) * 0.25)
 				if penalty < 10 {
 					penalty = 10
 				}
-				
+
 				finalXP -= penalty
 
 				// Increase jackpot by 1% of lost XP value
 				b.incrementJackpot("global", int64(penalty))
 
-				logs = append(logs, deathPenaltyLine(u.u.Nickname, penalty))
+				logs = append(logs, deathPenaltyLine(u.Nickname, penalty))
 			}
-			u.u.CurrentHP = 0   // dead
-			u.u.RegenStacks = 0 // lose stacks on death
+			u.CurrentHP = 0   // dead
+			u.RegenStacks = 0 // lose stacks on death
 		}
 
 		// Gold Drop logic
@@ -1312,38 +1346,38 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 			}
 			
 			// First Win of the Day Bonus
-			if !u.u.IsClone {
+			if !u.IsClone {
 				var lastWin sql.NullTime
-				_ = b.DB.QueryRow("SELECT last_win FROM users WHERE client_uid=$1", u.u.UID).Scan(&lastWin)
-				
+				_ = b.DB.QueryRow("SELECT last_win FROM users WHERE client_uid=$1", u.UID).Scan(&lastWin)
+
 				if !lastWin.Valid || lastWin.Time.Before(time.Now().Add(-24*time.Hour)) {
 					// 5x Gold and XP multiplier for First Win
 					goldDrop *= 5
 					finalXP *= 5
 					logs = append(logs, "🌟 FIRST WIN OF THE DAY! (5x Gold & XP)")
-					_, _ = b.DB.Exec("UPDATE users SET last_win=NOW() WHERE client_uid=$1", u.u.UID)
+					_, _ = b.DB.Exec("UPDATE users SET last_win=NOW() WHERE client_uid=$1", u.UID)
 				}
 			}
 
 			// VIP Gold Bonus
-			vip, _ := b.getVIP(u.u.UID)
+			vip, _ := b.getVIP(u.UID)
 			if vip.Bonus > 0 {
 				goldDrop = int(float64(goldDrop) * (1.0 + float64(vip.Bonus)/100.0))
 			}
 
-			u.u.Gold += int64(goldDrop)
+			u.Gold += int64(goldDrop)
 		}
 
-		if !u.u.IsClone {
+		if !u.IsClone {
 			// Save ultimate skill cooldown state
-			if u.u.UltimateSkill != nil {
-				_, _ = b.DB.Exec("UPDATE users SET ultimate_cooldown = $2 WHERE client_uid = $1", u.u.UID, u.u.UltimateSkill.CurrentCooldown)
+			if u.UltimateSkill != nil {
+				_, _ = b.DB.Exec("UPDATE users SET ultimate_cooldown = $2 WHERE client_uid = $1", u.UID, u.UltimateSkill.CurrentCooldown)
 			}
 
-			_, _ = b.DB.Exec("UPDATE users SET current_hp = $2, regen_stacks = $3, gold = users.gold + $4 WHERE client_uid = $1", u.u.UID, u.u.CurrentHP, u.u.RegenStacks, int64(goldDrop))
+			_, _ = b.DB.Exec("UPDATE users SET current_hp = $2, regen_stacks = $3, gold = users.gold + $4 WHERE client_uid = $1", u.UID, u.CurrentHP, u.RegenStacks, int64(goldDrop))
 
-			_, _ = b.DB.Exec("UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1", u.u.UID)
-			_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND remaining_fights < 0", u.u.UID)
+			_, _ = b.DB.Exec("UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1", u.UID)
+			_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND remaining_fights < 0", u.UID)
 		}
 
 		if finalXP > 0 {
@@ -1366,8 +1400,8 @@ func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, 
 				finalXP = int(float64(finalXP) * mult)
 			}
 		}
-		if finalXP != 0 && !u.u.IsClone {
-			_, _ = b.awardXP(u.u.UID, "", finalXP)
+		if finalXP != 0 && !u.IsClone {
+			_, _ = b.awardXP(u.UID, "", finalXP)
 		}
 	}
 
@@ -2007,16 +2041,9 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		// #nosec G404
 		r := rand.Float64() - lootFindBonus // #nosec G404
 
-		if mob.Type == content.MobTreasureGoblin {
-			gold := int64(1000 + rand.IntN(2000)) // #nosec G404 - non-cryptographic gold calculation
-			if vip.Bonus > 0 {
-				gold = int64(float64(gold) * (1.0 + float64(vip.Bonus)/100.0))
-			}
-			_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", gold, uid)
-			results = append(results, fmt.Sprintf("💰 %d gold", gold))
-			continue
-		}
-
+		// Gold focus is handled before the generic treasure-goblin branch so the
+		// richer goblin payout below is actually reachable (the goblin branch's
+		// own `continue` would otherwise skip it).
 		if focus == "gold" {
 			// If gold focus, skip item rolls but always award a gold bonus.
 			// Treasure goblins get an even richer payout.
@@ -2036,6 +2063,16 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", baseGold, uid)
 				results = append(results, fmt.Sprintf("💰 %d gold", baseGold))
 			}
+			continue
+		}
+
+		if mob.Type == content.MobTreasureGoblin {
+			gold := int64(1000 + rand.IntN(2000)) // #nosec G404 - non-cryptographic gold calculation
+			if vip.Bonus > 0 {
+				gold = int64(float64(gold) * (1.0 + float64(vip.Bonus)/100.0))
+			}
+			_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", gold, uid)
+			results = append(results, fmt.Sprintf("💰 %d gold", gold))
 			continue
 		}
 

@@ -2530,6 +2530,14 @@ web.abyss.consumables_prep: "🧪 उपभोग्य तैयारी"
 
 
 
+web.abyss.lb_today: "🏆 आज"
+web.abyss.lb_season: "📅 इस सीज़न"
+web.abyss.lb_alltime: "👑 सर्वकालिक"
+web.abyss.lb_player: "खिलाड़ी"
+web.abyss.lb_depth: "गहराई"
+web.abyss.lb_banked: "जमा 🪙"
+web.abyss.lb_no_descents: "अभी तक कोई अवतरण नहीं।"
+
 # --- Abyss exclusive gear ---
 content.gear.abyss_weapon: "रसातल लुटेरा"
 content.gear.abyss_chest: "शून्य-स्पर्शित छाती कवच"

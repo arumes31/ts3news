@@ -2530,6 +2530,14 @@ web.abyss.consumables_prep: "🧪 소모품 준비"
 
 
 
+web.abyss.lb_today: "🏆 오늘"
+web.abyss.lb_season: "📅 이번 시즌"
+web.abyss.lb_alltime: "👑 역대"
+web.abyss.lb_player: "플레이어"
+web.abyss.lb_depth: "깊이"
+web.abyss.lb_banked: "예치 🪙"
+web.abyss.lb_no_descents: "아직 하강 기록이 없습니다."
+
 # --- Abyss exclusive gear ---
 content.gear.abyss_weapon: "심연의 약탈자"
 content.gear.abyss_chest: "공허에 닿은 흉갑"

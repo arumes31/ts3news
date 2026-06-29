@@ -2282,6 +2282,14 @@ web.abyss.consumables_prep: "🧪 Preparación de consumibles"
 
 
 
+web.abyss.lb_today: "🏆 Hoy"
+web.abyss.lb_season: "📅 Esta temporada"
+web.abyss.lb_alltime: "👑 Histórico"
+web.abyss.lb_player: "Jugador"
+web.abyss.lb_depth: "Profundidad"
+web.abyss.lb_banked: "Depositado 🪙"
+web.abyss.lb_no_descents: "Aún no hay descensos."
+
 # --- Abyss exclusive gear ---
 content.gear.abyss_weapon: "Segador Abismal"
 content.gear.abyss_chest: "Coraza Tocada por el Vacío"

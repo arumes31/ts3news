@@ -139,6 +139,19 @@ func nullStr(s sql.NullString) string {
 	return ""
 }
 
+// grantConsumable adds a consumable to a player's stash. If they already hold the
+// same consumable its remaining_fights is increased, rather than the grant being
+// silently dropped — the old `ON CONFLICT DO NOTHING` lost paid purchases (gold
+// spent, nothing granted).
+func (b *Bot) grantConsumable(uid, consID string, fights int) {
+	_, _ = b.DB.Exec(
+		`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (client_uid, cons_id)
+		 DO UPDATE SET remaining_fights = user_consumables.remaining_fights + EXCLUDED.remaining_fights`,
+		uid, consID, fights)
+}
+
 // abyssFloorResult is the outcome of fighting a single floor.
 type abyssFloorResult struct {
 	Victory   bool
@@ -163,19 +176,19 @@ var abyssLoreFragments = map[int]string{
 	10: "The Last Descent: at this final boundary, you realize the Abyss is not a place, but a living mind...",
 }
 
-func (b *Bot) spawnEchoMob(uid string, avgLvl int) ([]content.Mob, string) {
+func (b *Bot) spawnEchoMob(uid string, avgLvl int) ([]content.Mob, string, int) {
 	var echoUID, echoNick string
 	var echoDepth int
 	err := b.DB.QueryRow(
-		`SELECT r.client_uid, COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick, r.depth 
+		`SELECT r.client_uid, COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick, r.depth
 		   FROM abyss_runs r
 		   JOIN users u ON u.client_uid = r.client_uid
-		  WHERE r.client_uid != $1 
-		  ORDER BY r.depth DESC, r.gold_banked DESC 
+		  WHERE r.client_uid != $1
+		  ORDER BY r.depth DESC, r.gold_banked DESC
 		  LIMIT 1`, uid,
 	).Scan(&echoUID, &echoNick, &echoDepth)
 	if err != nil {
-		return nil, ""
+		return nil, "", 0
 	}
 	stats, _, _, _ := b.calculateTotalStats(echoUID, time.Now())
 	echoLvl := avgLvl
@@ -194,7 +207,7 @@ func (b *Bot) spawnEchoMob(uid string, avgLvl int) ([]content.Mob, string) {
 	mob.CurrentHP = mob.MaxHP
 	mob.Spells = b.getSkills(echoUID)
 
-	return []content.Mob{mob}, echoNick
+	return []content.Mob{mob}, echoNick, echoDepth
 }
 
 // fightAbyssFloor resolves one floor through the shared engine and applies the
@@ -265,9 +278,10 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 		}
 		logs = append(logs, "[color=#f44336]👁️ The Watcher has found you! You lingered too long in the dark, and the Stalker of the Abyss strikes from the shadows![/color]")
 	case "echo_encounter":
-		mobs, echoNick = b.spawnEchoMob(uid, u.Level)
+		var echoDepth int
+		mobs, echoNick, echoDepth = b.spawnEchoMob(uid, u.Level)
 		if len(mobs) > 0 {
-			logs = append(logs, fmt.Sprintf("[color=#9c27b0]👻 An eerie silence falls. Out of the shadows rises the Ghostly Echo of %s (Depth %d delver)![/color]", echoNick, depth))
+			logs = append(logs, fmt.Sprintf("[color=#9c27b0]👻 An eerie silence falls. Out of the shadows rises the Ghostly Echo of %s (Depth %d delver)![/color]", echoNick, echoDepth))
 		}
 	}
 
@@ -360,8 +374,8 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 	// having promoted mobs[0].Type to MobLegendary.
 	if victory && isBossFloor && len(mobs) > 0 {
 		_, _ = b.DB.Exec(
-			"INSERT INTO abyss_boss_kills (client_uid, boss_name, depth, kill_time_ms) VALUES ($1, $2, $3, $4)",
-			uid, mobs[0].Name, depth, duration.Milliseconds(),
+			"INSERT INTO abyss_boss_kills (client_uid, boss_name, depth, kill_time_ms, tier) VALUES ($1, $2, $3, $4, $5)",
+			uid, mobs[0].Name, depth, duration.Milliseconds(), tier.Key,
 		)
 	}
 
@@ -700,12 +714,18 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	tier, _ := abyssTierByKey(run.Tier)
 
 	if floorType != "combat" {
+		// Store NULL rather than an empty string for floors with no event payload
+		// (e.g. rest floors) so the JSONB event_state column accepts the write.
+		var evStateArg any
+		if eventState != "" {
+			evStateArg = eventState
+		}
 		// Update active run to rest/event floor
 		_, err := s.bot.DB.Exec(
-			`UPDATE abyss_active 
-			    SET depth=$1, floor_type=$2, modifier=$3, event_state=$4, last_action_at=NOW() 
+			`UPDATE abyss_active
+			    SET depth=$1, floor_type=$2, modifier=$3, event_state=$4, last_action_at=NOW()
 			  WHERE client_uid=$5`,
-			newDepth, floorType, modifier, eventState, uid,
+			newDepth, floorType, modifier, evStateArg, uid,
 		)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -801,7 +821,7 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 		// Affix consumable reward
 		if modifier != "" {
 			c := content.RandomConsumable()
-			_, _ = s.bot.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
+			s.bot.grantConsumable(uid, c.ID, c.Duration)
 			out["affix_reward"] = c.Name
 		}
 	} else {
@@ -854,6 +874,10 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 	tier, _ := abyssTierByKey(run.Tier)
 	res, err := s.bot.fightAbyssFloor(uid, run.Depth, tier, run.Modifier, "balanced")
 	if err != nil {
+		// Roll back the heal and the revived flag so a failed combat call doesn't
+		// leave the player healed-but-unresolved or burn their one-shot revival.
+		_, _ = s.bot.DB.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", run.CurHP, uid)
+		_, _ = s.bot.DB.Exec("UPDATE abyss_active SET revived=FALSE WHERE client_uid=$1", uid)
 		writeJSON(w, map[string]any{"ok": false, "error": "combat"})
 		return
 	}
@@ -953,7 +977,6 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	if req.Cursed && payout > 0 {
 		payout = payout * 12 / 10 // [9] +20%
 	}
-	payout = s.bot.capAbyssDayGold(uid, payout) // [59] per-day guard
 
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
@@ -961,6 +984,10 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	// Apply the per-day gold guard inside the transaction so the cap is only
+	// consumed if the gold credit and the rest of the bank commit succeed. [59]
+	payout = s.bot.capAbyssDayGold(tx, uid, payout)
 
 	var gold int64
 	if payout > 0 {
@@ -976,9 +1003,6 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	var bonusGear string
 	isRecord := false
 
-	if run.Depth >= 10 {
-		bonusGear = s.bot.awardAbyssBonusGear(uid, run.Depth) // [55][57]
-	}
 	if run.Depth > 0 {
 		// Record breaker check (Item #82) — compare against the true global max
 		var maxDepth int
@@ -1012,6 +1036,11 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	}
 
 	// Post-commit side effects
+	if run.Depth >= 10 {
+		// Awarded only after the bank transaction commits so a rolled-back commit
+		// can't hand out duplicate gear on retry. [55][57]
+		bonusGear = s.bot.awardAbyssBonusGear(uid, run.Depth)
+	}
 	if run.Depth > 0 {
 		s.bot.grantAbyssTokens(uid, run.Depth/5+1) // [44]
 		s.bot.recordGameResult(uid, "abyss", true, payout)
@@ -1304,7 +1333,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				}
 			} else {
 				if c, ok := content.GetConsumableByID(item.ID); ok {
-					_, _ = s.bot.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
+					s.bot.grantConsumable(uid, c.ID, c.Duration)
 				}
 			}
 			state.Items = append(state.Items[:idx], state.Items[idx+1:]...)
@@ -1324,12 +1353,18 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
 			}
-			_, err := s.bot.DB.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", cost, uid)
+			res, err := s.bot.DB.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", cost, uid)
 			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			
+			// The guarded UPDATE can match zero rows (concurrent spend); only roll
+			// rewards if the wager was actually debited.
+			if n, _ := res.RowsAffected(); n == 0 {
+				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
+				return
+			}
+
 			// #nosec G404
 			rRoll := rand.Float64()
 			var msg string
@@ -1342,7 +1377,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			} else if rRoll < 0.95 {
 				c := content.RandomConsumable()
 				msg = "The Imp drops a consumable: " + c.Name + "!"
-				_, _ = s.bot.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
+				s.bot.grantConsumable(uid, c.ID, c.Duration)
 			} else {
 				ui := content.RandomUniqueItem()
 				msg = "JACKPOT! The Imp drops a Unique Item: " + ui.Name + "!"
@@ -1422,7 +1457,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	affixReward := ""
 	if run.Modifier != "" {
 		c := content.RandomConsumable()
-		_, _ = s.bot.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
+		s.bot.grantConsumable(uid, c.ID, c.Duration)
 		affixReward = c.Name
 	}
 

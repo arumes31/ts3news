@@ -2530,6 +2530,14 @@ web.abyss.consumables_prep: "🧪 Příprava spotřebního zboží"
 
 
 
+web.abyss.lb_today: "🏆 Dnes"
+web.abyss.lb_season: "📅 Tato sezóna"
+web.abyss.lb_alltime: "👑 Celkově"
+web.abyss.lb_player: "Hráč"
+web.abyss.lb_depth: "Hloubka"
+web.abyss.lb_banked: "Uloženo 🪙"
+web.abyss.lb_no_descents: "Zatím žádné sestupy."
+
 # --- Abyss exclusive gear ---
 content.gear.abyss_weapon: "Propastný smrťák"
 content.gear.abyss_chest: "Náprsník dotčený prázdnotou"

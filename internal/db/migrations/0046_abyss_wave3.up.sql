@@ -1,7 +1,7 @@
 -- Add columns to abyss_active for tracking rest/event floors and modifiers
 ALTER TABLE abyss_active ADD COLUMN IF NOT EXISTS floor_type TEXT NOT NULL DEFAULT 'combat';
 ALTER TABLE abyss_active ADD COLUMN IF NOT EXISTS modifier TEXT NOT NULL DEFAULT '';
-ALTER TABLE abyss_active ADD COLUMN IF NOT EXISTS event_state TEXT;
+ALTER TABLE abyss_active ADD COLUMN IF NOT EXISTS event_state JSONB;
 
 -- Create table to track unlocked lore fragments
 CREATE TABLE IF NOT EXISTS abyss_lore_unlocked (

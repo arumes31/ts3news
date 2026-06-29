@@ -2526,6 +2526,13 @@ web.abyss.combat_log: "📜 Combat Log"
 web.abyss.insure_cache: "Insure cache:"
 web.abyss.cursed_bank: "Cursed bank (+20%, hexes next fights)"
 web.abyss.consumables_prep: "🧪 Consumable Preparation"
+web.abyss.lb_today: "🏆 Today"
+web.abyss.lb_season: "📅 This Season"
+web.abyss.lb_alltime: "👑 All-Time"
+web.abyss.lb_player: "Player"
+web.abyss.lb_depth: "Depth"
+web.abyss.lb_banked: "Banked 🪙"
+web.abyss.lb_no_descents: "No descents yet."
 
 # ─── Abyss exclusive gear ───
 content.gear.abyss_weapon: "Abyssal Reaver"

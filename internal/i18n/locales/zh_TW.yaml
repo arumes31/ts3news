@@ -2498,7 +2498,7 @@ pool.channel.name.1000: "燃燒的陷阱"
 
 # ─── Abyss Web UI ───
 web.abyss.title: "🕳️ 深淵"
-web.abyss.hero_desc: "一個無底的地下城，讓你的真實角色——裝備、技能、終極、寵物、藥水——迎戰越來越深的恐懼。清理樓層以增加託管金庫，然後選擇：繼續下潛還是在黑暗吞噬之前提取。"
+web.abyss.hero_desc: "一個無底的地下城，讓你的真實角色——裝備、技能、終極、寵物、藥水——迎戰越來越深的恐懼。清理樓層以增加託管金庫，然後選擇：繼續下潛還是在黑暗吞噬之前提取。若死亡，金庫將遺失——除非你為其投保，或孤注一擲地賭一次復活。"
 web.abyss.weekly_title: "📅 每週挑戰詞綴："
 web.abyss.weekly.double_hazards: "⚠️ 雙重危險（區域危險傷害翻倍！）"
 web.abyss.weekly.zero_durability_loss: "🛡️ 零耐久損耗（裝備不會磨損！）"
@@ -2530,6 +2530,14 @@ web.abyss.consumables_prep: "🧪 消耗品準備"
 
 
 
+
+web.abyss.lb_today: "🏆 今日"
+web.abyss.lb_season: "📅 本賽季"
+web.abyss.lb_alltime: "👑 歷代"
+web.abyss.lb_player: "玩家"
+web.abyss.lb_depth: "深度"
+web.abyss.lb_banked: "已存入 🪙"
+web.abyss.lb_no_descents: "尚無下潛紀錄。"
 
 # --- Abyss exclusive gear ---
 content.gear.abyss_weapon: "深淵掠奪者"

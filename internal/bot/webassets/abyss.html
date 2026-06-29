@@ -91,7 +91,9 @@
       <label class="ab-cursed"><input type="checkbox" id="cursedBank"> {{T "web.abyss.cursed_bank"}}</label>
     </div>
 
-    {{if .NextIsBoss}}
+    <!-- Co-op invite row. Always rendered so renderState() can show/hide it as the
+         floor preview changes; visibility is driven client-side, not by the initial
+         NextIsBoss server flag. -->
     <div class="ab-subrow" id="coopRow" style="display:none">
       <span class="ab-sub-label">{{T "web.abyss.invite_ally"}}</span>
       <select id="coopSelect" onchange="abyssInviteCoop()">
@@ -102,7 +104,6 @@
       </select>
       <span id="coopStatus" class="small muted" style="margin-left: 8px;">{{if .Run.CoopUID}}{{T "web.abyss.ally_invited"}}{{end}}</span>
     </div>
-    {{end}}
 
     <!-- Consumable prep panel (active run only) -->
     <div class="ab-prep-panel" id="prepPanel" style="display:none">
@@ -310,7 +311,10 @@ function renderState(){
   show('btnDescend', inRun && !downed);
   show('btnBank', inRun && !downed);
   show('liveRow', inRun && !downed);
-  show('coopRow', inRun && !downed);
+  // Co-op summons are only for boss floors, so the row follows the *next* floor
+  // preview (every 5th floor) rather than the initial server render.
+  var nextIsBoss = inRun && !downed && ((curDepth + 1) % 5 === 0);
+  show('coopRow', nextIsBoss);
   show('btnRevive', inRun && downed && canRev);
   show('btnConcede', inRun && downed);
   show('focusPicker', inRun && !downed);

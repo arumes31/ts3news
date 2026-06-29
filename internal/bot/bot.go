@@ -124,10 +124,13 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		// Abyss "cursed bank": the player took a +20% payout in exchange for a hex
 		// on their next few cycle fights. Sap their combat stats and tick it down.
 		if b.Cfg.EnableAbyss && curseFights > 0 {
-			if _, err := b.DB.Exec("UPDATE users SET abyss_curse_fights = abyss_curse_fights - 1 WHERE client_uid=$1", cl.UID); err == nil {
-				stats = stats.Scaled(0.85)
-			} else {
+			// Guard against underflow and concurrent changes: only scale stats if the
+			// decrement actually consumed a curse fight (row still had > 0).
+			res, err := b.DB.Exec("UPDATE users SET abyss_curse_fights = abyss_curse_fights - 1 WHERE client_uid=$1 AND abyss_curse_fights > 0", cl.UID)
+			if err != nil {
 				log.Printf("Failed to decrement abyss curse for %s: %v", cl.UID, err)
+			} else if n, _ := res.RowsAffected(); n > 0 {
+				stats = stats.Scaled(0.85)
 			}
 		}
 		if curHP <= 0 {
@@ -924,6 +927,8 @@ func (b *Bot) BroadcastAbyssRecord(nick string, depth int) {
 		for _, cl := range clients {
 			if cl.Type == 0 { // normal user
 				_ = c.Poke(cl.CLID, msg)
+				// Respect the configured anti-flood poke delay, like the main cycle.
+				time.Sleep(time.Duration(b.Cfg.PokeDelayMS) * time.Millisecond)
 			}
 		}
 	}

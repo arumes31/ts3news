@@ -443,6 +443,13 @@ func (s *WebServer) loadWebUser(uid string) (*webUser, error) {
 
 // nav describes the active page for the shared navigation bar.
 func (s *WebServer) render(w http.ResponseWriter, name string, data any) {
+	// Surface the Abyss feature flag to every page so the shared top-nav can hide
+	// the Abyss link wherever its routes aren't registered.
+	if m, ok := data.(map[string]any); ok {
+		if _, exists := m["EnableAbyss"]; !exists {
+			m["EnableAbyss"] = s.bot.Cfg.EnableAbyss
+		}
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.tmpl.ExecuteTemplate(w, name, data); err != nil {
 		log.Printf("web: render %s failed: %v", name, err)

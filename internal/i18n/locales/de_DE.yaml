@@ -2530,6 +2530,14 @@ web.abyss.consumables_prep: "🧪 Verbrauchsmittel-Vorbereitung"
 
 
 
+web.abyss.lb_today: "🏆 Heute"
+web.abyss.lb_season: "📅 Diese Saison"
+web.abyss.lb_alltime: "👑 Allzeit"
+web.abyss.lb_player: "Spieler"
+web.abyss.lb_depth: "Tiefe"
+web.abyss.lb_banked: "Eingezahlt 🪙"
+web.abyss.lb_no_descents: "Noch keine Abstiege."
+
 # --- Abyss exclusive gear ---
 content.gear.abyss_weapon: "Abgrund-Häscher"
 content.gear.abyss_chest: "Leerenberührter Brustpanzer"

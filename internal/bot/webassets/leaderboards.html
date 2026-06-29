@@ -10,10 +10,11 @@
 
   <!-- Category Tabs -->
   <div class="lb-category-tabs">
-    <button class="lb-cat-btn active" data-cat="abyss">🕳️ The Abyss</button>
-    <button class="lb-cat-btn" data-cat="arcade">🎰 Arcade</button>
+    {{if .AbyssLeaders}}<button class="lb-cat-btn active" data-cat="abyss">🕳️ The Abyss</button>{{end}}
+    <button class="lb-cat-btn{{if not .AbyssLeaders}} active{{end}}" data-cat="arcade">🎰 Arcade</button>
   </div>
 
+  {{if .AbyssLeaders}}
   <!-- ABYSS LEADERBOARDS -->
   <div class="lb-cat-panel active" data-cat="abyss">
     <div class="lb-section">
@@ -22,9 +23,10 @@
       {{template "abyssboards" .AbyssLeaders}}
     </div>
   </div>
+  {{end}}
 
   <!-- ARCADE LEADERBOARDS -->
-  <div class="lb-cat-panel" data-cat="arcade">
+  <div class="lb-cat-panel{{if not .AbyssLeaders}} active{{end}}" data-cat="arcade">
     <div class="lb-section">
       <h2 class="lb-section-title">🎰 Arcade Games</h2>
       <p class="lb-section-desc">Most wins across all arcade games (slots, dice, wheel, etc.)</p>

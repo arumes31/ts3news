@@ -14,7 +14,7 @@
   <nav class="nav">
     <a href="/" class="{{if eq .Nav "armory"}}active{{end}}">Armoury</a>
     <a href="/inventory" class="{{if eq .Nav "inventory"}}active{{end}}">Inventory</a>
-    <a href="/abyss" class="{{if eq .Nav "abyss"}}active{{end}}">The Abyss</a>
+    {{if .EnableAbyss}}<a href="/abyss" class="{{if eq .Nav "abyss"}}active{{end}}">The Abyss</a>{{end}}
     <a href="/arcade" class="{{if eq .Nav "arcade"}}active{{end}}">Arcade</a>
     <a href="/leaderboards" class="{{if eq .Nav "leaderboards"}}active{{end}}">Leaderboards</a>
     <a href="/shop" class="{{if eq .Nav "shop"}}active{{end}}">Shop</a>
@@ -57,15 +57,15 @@
 
 {{define "abyssboards"}}
 <div class="lb-grid">
-  <div class="lb-col"><h3>🏆 Today</h3>{{template "abysstable" .Day}}</div>
-  <div class="lb-col"><h3>📅 This Season</h3>{{template "abysstable" .Season}}</div>
-  <div class="lb-col"><h3>👑 All-Time</h3>{{template "abysstable" .AllTime}}</div>
+  <div class="lb-col"><h3>{{T "web.abyss.lb_today"}}</h3>{{template "abysstable" .Day}}</div>
+  <div class="lb-col"><h3>{{T "web.abyss.lb_season"}}</h3>{{template "abysstable" .Season}}</div>
+  <div class="lb-col"><h3>{{T "web.abyss.lb_alltime"}}</h3>{{template "abysstable" .AllTime}}</div>
 </div>
 {{end}}
 
 {{define "abysstable"}}
 <table class="lbtable">
-  <thead><tr><th>#</th><th>Player</th><th>Depth</th><th>Banked 🪙</th></tr></thead>
+  <thead><tr><th>#</th><th>{{T "web.abyss.lb_player"}}</th><th>{{T "web.abyss.lb_depth"}}</th><th>{{T "web.abyss.lb_banked"}}</th></tr></thead>
   <tbody>
   {{range .}}
     <tr>
@@ -75,7 +75,7 @@
       <td class="win">{{gold .Gold}}</td>
     </tr>
   {{else}}
-    <tr><td colspan="4" class="muted">No descents yet.</td></tr>
+    <tr><td colspan="4" class="muted">{{T "web.abyss.lb_no_descents"}}</td></tr>
   {{end}}
   </tbody>
 </table>
