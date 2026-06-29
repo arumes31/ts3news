@@ -40,9 +40,9 @@ const (
 	// is gentle for everyone and danger comes from how deep you push, NOT from how
 	// much gear you carry. (Gear instead lets you survive deeper — that is the
 	// progression.)
-	abyssBaseDiff = 0.8
+	abyssBaseDiff = 0.6
 	// abyssDepthRamp adds this much difficulty per floor beyond the first.
-	abyssDepthRamp = 0.10
+	abyssDepthRamp = 0.1
 	// abyssDiffSoftCap is where difficulty growth switches from linear to a gentle
 	// logarithmic crawl, so very deep floors stay computationally bounded while
 	// never quite flattening.
@@ -51,8 +51,8 @@ const (
 	// player's exact level. Floor 1 spawns mobs at abyssMobLevelBase × the player's
 	// level (well below them, so a fairly-geared delver can win), ramping toward and
 	// past parity as depth grows. This is what makes DEPTH the source of danger.
-	abyssMobLevelBase = 0.40
-	abyssMobLevelRamp = 0.045
+	abyssMobLevelBase = 0.3
+	abyssMobLevelRamp = 0.025
 	// abyssMobDamageMult dampens how hard Abyss mobs hit so fights last more rounds
 	// and play out tactically rather than ending in a single opening volley.
 	abyssMobDamageMult = 0.6
@@ -114,8 +114,12 @@ func abyssMobLevel(depth, playerLevel int) int {
 	if playerLevel < 1 {
 		playerLevel = 1
 	}
+	effLevel := float64(playerLevel)
+	if effLevel > 300.0 {
+		effLevel = 300.0
+	}
 	frac := abyssMobLevelBase + abyssMobLevelRamp*float64(depth-1)
-	lvl := int(float64(playerLevel) * frac)
+	lvl := int(effLevel * frac)
 	if lvl < 1 {
 		lvl = 1
 	}
@@ -305,12 +309,23 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 	var echoNick string
 	switch modifier {
 	case "watcher":
+		lvlScale := 1.0 + 0.05*float64(mobLevel-1)
+		effectiveDiff := 1.0 + (diff-1.0)*0.3
+		bossDef := 10 + mobLevel/2
+		if bossDef > 80 {
+			bossDef = 80
+		}
 		mobs = []content.Mob{
 			{
 				Name:     "The Watcher",
 				Type:     content.MobBoss,
 				Level:    mobLevel + 2,
-				Stats:    content.Stats{HP: 1500 * mobLevel / 2, STR: 40, DEF: 80, SPD: 110},
+				Stats:    content.Stats{
+					HP:  int(1500 * lvlScale * effectiveDiff),
+					STR: int(40 * lvlScale * abyssMobDamageMult * effectiveDiff),
+					DEF: bossDef,
+					SPD: 110,
+				},
 				RewardXP: 250,
 				Element:  content.ElementPhysical,
 				Effects:  []content.MobEffect{content.EffectEnraged},
@@ -342,24 +357,46 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 				bossName = bosses[(depth/5)%len(bosses)]
 			}
 
+			lvlScale := 1.0 + 0.05*float64(mobLevel-1)
+			effectiveDiff := 1.0 + (diff-1.0)*0.3
+			bossDef := 10 + mobLevel/2
+			if bossDef > 90 {
+				bossDef = 90
+			}
 			mobs = []content.Mob{
 				{
 					Name:     bossName,
 					Type:     content.MobBoss,
 					Level:    mobLevel + 1,
-					Stats:    content.Stats{HP: 2000 * mobLevel / 2, STR: 50, DEF: 90, SPD: 105},
+					Stats:    content.Stats{
+						HP:  int(1000 * lvlScale * effectiveDiff),
+						STR: int(50 * lvlScale * abyssMobDamageMult * effectiveDiff),
+						DEF: bossDef,
+						SPD: 105,
+					},
 					RewardXP: 500,
 					Element:  content.ElementPhysical,
 				},
 			}
 			logs = append(logs, fmt.Sprintf("[color=#e91e63]💀 BOSS FLOOR! Out of the abyss rises %s![/color]", bossName))
 		} else if modifier == "treasure_goblin" {
+			lvlScale := 1.0 + 0.05*float64(mobLevel-1)
+			effectiveDiff := 1.0 + (diff-1.0)*0.3
+			gobDef := 5 + mobLevel/10
+			if gobDef > 20 {
+				gobDef = 20
+			}
 			mobs = []content.Mob{
 				{
 					Name:     "Hoarder Treasure Goblin",
 					Type:     content.MobTreasureGoblin,
 					Level:    mobLevel,
-					Stats:    content.Stats{HP: 400 * mobLevel / 2, STR: 5, DEF: 20, SPD: 150},
+					Stats:    content.Stats{
+						HP:  int(400 * lvlScale * effectiveDiff),
+						STR: int(5 * lvlScale * abyssMobDamageMult * effectiveDiff),
+						DEF: gobDef,
+						SPD: 150,
+					},
 					RewardXP: 100,
 					Element:  content.ElementPhysical,
 				},

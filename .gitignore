@@ -69,3 +69,4 @@ get_identical*.py
 final_fix.py
 fix_script.py
 plans/
+*.md

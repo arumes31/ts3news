@@ -375,6 +375,14 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	victory := false
 	var totalUserDamage, totalMobDamage, totalRewardXP int
 
+	isAbyss := false
+	for _, uc := range users {
+		if uc.EscrowLoot {
+			isAbyss = true
+			break
+		}
+	}
+
 	floorMod := ""
 	for _, uc := range users {
 		if uc.FloorModifier != "" {
@@ -513,7 +521,14 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			logs = append(logs, i18n.T("bot.combat.ambush"))
 		}
 
-		for r := 1; r <= 10; r++ {
+		maxRounds := 10
+		enrageRound := 8
+		if isAbyss {
+			maxRounds = 40
+			enrageRound = 30
+		}
+
+		for r := 1; r <= maxRounds; r++ {
 			intensify := 1.0 + float64(r-1)*0.15
 			fatigueMult := 1.0
 			if r > 5 {
@@ -533,7 +548,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			for _, m := range currentMobs {
 				if m.Stats.HP > 0 {
 					// Check soft-enrage past round 8
-					if r > 8 && m.Type == content.MobBoss {
+					if r > enrageRound && m.Type == content.MobBoss {
 						hasEnraged := false
 						for _, eff := range m.Effects {
 							if eff == content.EffectEnraged {

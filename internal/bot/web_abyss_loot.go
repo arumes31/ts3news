@@ -192,19 +192,6 @@ func (b *Bot) escrowAbyssLoot(uid, label string, g abyssLootGrant) bool {
 	return err == nil
 }
 
-// abyssEscrowLootCount returns how many items are currently locked in the run cache.
-func (b *Bot) abyssEscrowLootCount(uid string) int {
-	var n int
-	_ = b.DB.QueryRow("SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1", uid).Scan(&n)
-	return n
-}
-
-// discardAbyssEscrowLoot drops the run's escrowed loot — used on death/concede and
-// defensively when a fresh run starts.
-func (b *Bot) discardAbyssEscrowLoot(uid string) {
-	_, _ = b.DB.Exec("DELETE FROM abyss_escrow_loot WHERE client_uid=$1", uid)
-}
-
 // applyAbyssEscrowLoot grants every escrowed item to the character and clears the
 // escrow, returning the display labels of what was awarded. Called on bank.
 func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
