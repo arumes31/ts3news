@@ -66,7 +66,30 @@ func (s *WebServer) lockAbyss(uid string) func() {
 func NewWebServer(b *Bot) (*WebServer, error) {
 	tmpl, err := template.New("").Funcs(template.FuncMap{
 		"gold":  func(v int64) string { return FormatGoldPlain(v) },
-		"comma": func(v int) string { return i18n.FormatLarge(float64(v)) },
+		"comma": func(v any) string {
+			var f float64
+			switch n := v.(type) {
+			case int:
+				f = float64(n)
+			case int32:
+				f = float64(n)
+			case int64:
+				f = float64(n)
+			case uint:
+				f = float64(n)
+			case uint32:
+				f = float64(n)
+			case uint64:
+				f = float64(n)
+			case float64:
+				f = n
+			case float32:
+				f = float64(n)
+			default:
+				return fmt.Sprintf("%v", v)
+			}
+			return i18n.FormatLarge(f)
+		},
 		"T":     func(key string, args ...any) string { return i18n.T(key, args...) },
 		"lower": strings.ToLower,
 		"seq": func(start, end int) []int {
