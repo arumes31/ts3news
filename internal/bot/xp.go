@@ -2107,13 +2107,13 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		count = 3
 		// Guaranteed consumable
 		c := content.RandomConsumable()
-		_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
+		b.grantConsumable(uid, c.ID, c.Duration)
 		results = append(results, i18n.T("bot.loot.item", c.Name, c.ID))
 	}
 	if mob.Type == content.MobLegendary {
 		count = 5
 		c := content.RandomConsumable()
-		_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
+		b.grantConsumable(uid, c.ID, c.Duration)
 		results = append(results, i18n.T("bot.loot.item", c.Name, c.ID))
 	}
 	if mob.Type == content.MobTreasureGoblin {
@@ -2292,7 +2292,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			lootFound = true
 		} else if r < consChance*qualityMult {
 			c := content.RandomConsumable()
-			_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
+			b.grantConsumable(uid, c.ID, c.Duration)
 			results = append(results, i18n.T("bot.loot.item", c.Name, c.ID))
 			lootFound = true
 		} else if r < gearChance*qualityMult {

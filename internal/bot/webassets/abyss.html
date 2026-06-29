@@ -615,6 +615,11 @@ async function abyssNCAction(action, payload){
   if(d.escrow !== undefined) setEscrow(d.escrow);
   abToast(d.msg || 'Action resolved!', true);
   
+  if(d.event_state !== undefined) {
+    eventState = d.event_state;
+    renderNonCombat(floorType, eventState);
+  }
+  
   if(d.resolved){
     document.getElementById('ncOptions').innerHTML = '';
     document.getElementById('ncDesc').textContent = d.msg;

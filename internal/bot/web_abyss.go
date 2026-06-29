@@ -182,6 +182,9 @@ func nullStr(s sql.NullString) string {
 // silently dropped — the old `ON CONFLICT DO NOTHING` lost paid purchases (gold
 // spent, nothing granted).
 func (b *Bot) grantConsumable(uid, consID string, fights int) {
+	if fights <= 0 {
+		fights = 1
+	}
 	_, _ = b.DB.Exec(
 		`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
 		 VALUES ($1, $2, $3)
@@ -786,7 +789,46 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 				g := content.RandomGearDrop()
 				c1 := content.RandomConsumable()
 				c2 := content.RandomConsumable()
-				eventState = fmt.Sprintf(`{"type":"merchant","items":[{"type":"gear","id":"%s","name":"%s","price":400},{"type":"cons","id":"%s","name":"%s","price":100},{"type":"cons","id":"%s","name":"%s","price":150}]}`, g.ID, g.Name, c1.ID, c1.Name, c2.ID, c2.Name)
+				
+				var count1 int
+				if c1.Type == content.ConsumableHealing || c1.Type == content.ConsumableRepair || c1.Type == content.ConsumableRevive {
+					count1 = 1 + rand.IntN(5)
+				} else {
+					count1 = 1 + rand.IntN(3)
+				}
+				
+				var count2 int
+				if c2.Type == content.ConsumableHealing || c2.Type == content.ConsumableRepair || c2.Type == content.ConsumableRevive {
+					count2 = 1 + rand.IntN(5)
+				} else {
+					count2 = 1 + rand.IntN(3)
+				}
+				
+				var price1 int64
+				if c1.Type == content.ConsumableBuff {
+					price1 = int64(75 * count1)
+				} else {
+					price1 = int64(50 * count1)
+				}
+				
+				var price2 int64
+				if c2.Type == content.ConsumableBuff {
+					price2 = int64(75 * count2)
+				} else {
+					price2 = int64(50 * count2)
+				}
+				
+				name1 := c1.Name
+				if count1 > 1 {
+					name1 = fmt.Sprintf("%s x%d", c1.Name, count1)
+				}
+				
+				name2 := c2.Name
+				if count2 > 1 {
+					name2 = fmt.Sprintf("%s x%d", c2.Name, count2)
+				}
+				
+				eventState = fmt.Sprintf(`{"type":"merchant","items":[{"type":"gear","id":"%s","name":"%s","price":400},{"type":"cons","id":"%s","name":"%s","price":%d,"count":%d},{"type":"cons","id":"%s","name":"%s","price":%d,"count":%d}]}`, g.ID, g.Name, c1.ID, name1, price1, count1, c2.ID, name2, price2, count2)
 			} else if rEv < 0.75 {
 				eventState = `{"type":"imp"}`
 			} else {
@@ -1463,6 +1505,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				ID    string `json:"id"`
 				Name  string `json:"name"`
 				Price int64  `json:"price"`
+				Count int64  `json:"count"`
 			} `json:"items"`
 		}
 		_ = json.Unmarshal([]byte(run.EventState), &state)
@@ -1499,14 +1542,22 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				}
 			} else {
 				if c, ok := content.GetConsumableByID(item.ID); ok {
-					s.bot.grantConsumable(uid, c.ID, c.Duration)
+					count := int(item.Count)
+					if count <= 0 {
+						count = 1
+					}
+					fights := c.Duration
+					if fights <= 0 {
+						fights = 1
+					}
+					s.bot.grantConsumable(uid, c.ID, fights*count)
 				}
 			}
 			state.Items = append(state.Items[:idx], state.Items[idx+1:]...)
 			newStateBytes, _ := json.Marshal(state)
 			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET event_state = $1, last_action_at = NOW() WHERE client_uid = $2", string(newStateBytes), uid)
 
-			writeJSON(w, map[string]any{"ok": true, "msg": "Bought " + item.Name + "!", "gold": gold - item.Price})
+			writeJSON(w, map[string]any{"ok": true, "msg": "Bought " + item.Name + "!", "gold": gold - item.Price, "event_state": string(newStateBytes)})
 			return
 
 		case "imp_gamble":
