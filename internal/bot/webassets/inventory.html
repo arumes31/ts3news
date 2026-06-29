@@ -17,8 +17,8 @@
     <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
     <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}} · {{.Durability}} dur</div>
     <div class="inv-actions">
-      <button onclick="equip({{.InvID}})">Equip</button>
-      <button class="ghost" onclick="sell({{.InvID}})">Vendor</button>
+      <button onclick="equip({{.InvID}})" aria-label="Equip {{.Name}}">Equip</button>
+      <button class="ghost" onclick="sell({{.InvID}})" aria-label="Vendor {{.Name}}">Vendor</button>
     </div>
   </div>
   {{end}}

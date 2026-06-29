@@ -31,7 +31,7 @@
       <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
       <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}}</div>
       <div class="price">🪙 {{.Price}}</div>
-      <button onclick="buy('{{.ID}}')">Buy</button>
+      <button onclick="buy('{{.ID}}')" aria-label="Buy {{.Name}}">Buy</button>
     </div>
     {{end}}
   </div>

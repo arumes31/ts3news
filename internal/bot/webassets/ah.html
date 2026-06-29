@@ -25,7 +25,7 @@
         <td>{{.Listed}}</td>
         <td class="goldcell">🪙 {{.Price}}</td>
         <td>{{if .Mine}}<span class="muted">yours</span>{{else}}<button class="buybtn"
-            onclick="buyAH('{{.ID}}',this)">Buy</button>{{end}}</td>
+            onclick="buyAH('{{.ID}}',this)" aria-label="Buy {{.Name}}">Buy</button>{{end}}</td>
       </tr>
       {{end}}
     </tbody>
@@ -54,7 +54,7 @@
         <td>{{printf "%.0f" .CR}}</td>
         <td class="goldcell" title="Auto-priced: (CR×10 + GS×5) × (Rarity+1)">🪙 {{.AHPrice}} <span class="muted"
             style="font-size:0.8em">fixed</span></td>
-        <td><button onclick="listAH({{.InvID}},this)">List</button></td>
+        <td><button onclick="listAH({{.InvID}},this)" aria-label="List {{.Name}}">List</button></td>
       </tr>
       {{end}}
     </tbody>
