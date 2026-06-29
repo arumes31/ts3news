@@ -671,7 +671,7 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	newDepth := run.Depth + 1
 
 	// Roll floor type: 10% rest, 10% event, 80% combat
-	floorType := "combat"
+	var floorType string
 	modifier := ""
 	eventState := ""
 
