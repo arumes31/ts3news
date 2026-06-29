@@ -3,8 +3,6 @@ package bot
 import (
 	"strings"
 	"testing"
-
-	"ts3news/internal/content"
 )
 
 // TestBBToHTMLEscapesThenConverts verifies the combat-log converter turns the
@@ -49,16 +47,16 @@ func TestBBToHTMLNeutralisesInjection(t *testing.T) {
 // depth, never drops below the floor-1 minimum, and that growth past the soft
 // cap slows to a logarithmic crawl (later increments smaller than early ones).
 func TestAbyssDifficultyRampsAndSoftCaps(t *testing.T) {
-	weak := content.Stats{} // Score()==0 → forces the 0.7 floor.
-	d1, _ := abyssDifficulty(weak, 1, 1)
-	if d1 < 0.7-1e-9 {
-		t.Errorf("floor 1 difficulty %.3f below the 0.7 minimum", d1)
+	// Difficulty is depth-driven only — floor 1 is the gentle baseline.
+	d1, _ := abyssDifficulty(1)
+	if d1 < abyssBaseDiff-1e-9 {
+		t.Errorf("floor 1 difficulty %.3f below the %.2f baseline", d1, abyssBaseDiff)
 	}
 
 	// Monotonically non-decreasing with depth.
 	prev := 0.0
 	for depth := 1; depth <= 200; depth++ {
-		d, _ := abyssDifficulty(weak, 50, depth)
+		d, _ := abyssDifficulty(depth)
 		if d < prev-1e-9 {
 			t.Fatalf("difficulty decreased at depth %d: %.3f < %.3f", depth, d, prev)
 		}
@@ -67,11 +65,11 @@ func TestAbyssDifficultyRampsAndSoftCaps(t *testing.T) {
 
 	// Past the soft cap the marginal per-floor increase must shrink: the jump near
 	// the start (pre-cap, linear) should exceed the jump deep down (post-cap, log).
-	a1, _ := abyssDifficulty(weak, 50, 2)
-	a0, _ := abyssDifficulty(weak, 50, 1)
+	a1, _ := abyssDifficulty(2)
+	a0, _ := abyssDifficulty(1)
 	earlyDelta := a1 - a0
-	b1, _ := abyssDifficulty(weak, 50, 200)
-	b0, _ := abyssDifficulty(weak, 50, 199)
+	b1, _ := abyssDifficulty(200)
+	b0, _ := abyssDifficulty(199)
 	lateDelta := b1 - b0
 	if lateDelta >= earlyDelta {
 		t.Errorf("soft cap not engaged: late delta %.4f >= early delta %.4f", lateDelta, earlyDelta)
@@ -80,13 +78,34 @@ func TestAbyssDifficultyRampsAndSoftCaps(t *testing.T) {
 
 // TestAbyssDifficultyBossCadence verifies a boss is forced on every Nth floor.
 func TestAbyssDifficultyBossCadence(t *testing.T) {
-	stats := content.Stats{STR: 100, DEF: 50, HP: 500}
 	for depth := 1; depth <= 20; depth++ {
-		_, boss := abyssDifficulty(stats, 30, depth)
+		_, boss := abyssDifficulty(depth)
 		want := depth%abyssBossEvery == 0
 		if boss != want {
 			t.Errorf("depth %d boss=%v, want %v", depth, boss, want)
 		}
+	}
+}
+
+// TestAbyssMobLevelDecoupled verifies mob level is a depth-scaled fraction of the
+// player's level: below them on floor 1, ramping past parity with depth, capped.
+func TestAbyssMobLevelDecoupled(t *testing.T) {
+	const lvl = 947
+	if floor1 := abyssMobLevel(1, lvl); floor1 >= lvl {
+		t.Errorf("floor 1 mob level %d should be below player level %d", floor1, lvl)
+	}
+	// Non-decreasing with depth.
+	prev := 0
+	for depth := 1; depth <= 100; depth++ {
+		got := abyssMobLevel(depth, lvl)
+		if got < prev {
+			t.Fatalf("mob level decreased at depth %d: %d < %d", depth, got, prev)
+		}
+		prev = got
+	}
+	// Hard ceiling at 2× the player's level.
+	if deep := abyssMobLevel(1000, lvl); deep > lvl*2 {
+		t.Errorf("mob level %d exceeded the 2x ceiling %d", deep, lvl*2)
 	}
 }
 

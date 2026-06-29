@@ -36,12 +36,26 @@ import (
 // what prevents the double-bank and post-death-descend races.
 
 const (
-	// abyssDepthRamp adds this fraction of difficulty per floor beyond the first.
+	// abyssBaseDiff is the floor-1 difficulty. The Abyss is depth-driven: floor 1
+	// is gentle for everyone and danger comes from how deep you push, NOT from how
+	// much gear you carry. (Gear instead lets you survive deeper — that is the
+	// progression.)
+	abyssBaseDiff = 0.8
+	// abyssDepthRamp adds this much difficulty per floor beyond the first.
 	abyssDepthRamp = 0.10
 	// abyssDiffSoftCap is where difficulty growth switches from linear to a gentle
 	// logarithmic crawl, so very deep floors stay computationally bounded while
 	// never quite flattening.
 	abyssDiffSoftCap = 6.0
+	// abyssMobLevelBase / abyssMobLevelRamp decouple Abyss mob level from the
+	// player's exact level. Floor 1 spawns mobs at abyssMobLevelBase × the player's
+	// level (well below them, so a fairly-geared delver can win), ramping toward and
+	// past parity as depth grows. This is what makes DEPTH the source of danger.
+	abyssMobLevelBase = 0.40
+	abyssMobLevelRamp = 0.045
+	// abyssMobDamageMult dampens how hard Abyss mobs hit so fights last more rounds
+	// and play out tactically rather than ending in a single opening volley.
+	abyssMobDamageMult = 0.6
 	// abyssBossEvery forces a boss on every Nth floor; every 2nd of those (every
 	// 10th floor) is a world-boss tier.
 	abyssBossEvery = 5
@@ -75,22 +89,40 @@ func abyssFloorBonus(depth, level int) int64 {
 }
 
 // abyssDifficulty derives the base floor difficulty (pre-tier, pre-prestige) and
-// whether a boss is forced, from the player's gear-derived stat score, level and
-// depth. The caller layers tier and prestige multipliers on top.
-func abyssDifficulty(stats content.Stats, level, depth int) (float64, bool) {
+// whether a boss is forced, purely from depth. The caller layers tier and prestige
+// multipliers on top.
+//
+// Difficulty is deliberately NOT scaled by the player's gear score: doing so made
+// floor 1 instantly lethal for well-geared characters (more gear → harder floor,
+// neutralising the gear). Instead the floor ramps with depth alone, so a stronger
+// character simply banks deeper before the danger overtakes them.
+func abyssDifficulty(depth int) (float64, bool) {
 	if depth < 1 {
 		depth = 1
 	}
-	expected := 45 + level/5
-	if expected < 1 {
-		expected = 1
+	base := abyssBaseDiff + float64(depth-1)*abyssDepthRamp
+	return softCap(base, abyssDiffSoftCap), depth%abyssBossEvery == 0
+}
+
+// abyssMobLevel returns the level Abyss mobs spawn at for a given depth, decoupled
+// from the player's exact level. Floor 1 is well below the delver; depth ramps it
+// toward and past parity, capped so deep floors stay computationally bounded.
+func abyssMobLevel(depth, playerLevel int) int {
+	if depth < 1 {
+		depth = 1
 	}
-	base := float64(stats.Score()) / float64(expected)
-	if base < 0.7 {
-		base = 0.7 // floor 1 should never be trivial
+	if playerLevel < 1 {
+		playerLevel = 1
 	}
-	diff := base * (1.0 + float64(depth-1)*abyssDepthRamp)
-	return softCap(diff, abyssDiffSoftCap), depth%abyssBossEvery == 0
+	frac := abyssMobLevelBase + abyssMobLevelRamp*float64(depth-1)
+	lvl := int(float64(playerLevel) * frac)
+	if lvl < 1 {
+		lvl = 1
+	}
+	if ceil := playerLevel * 2; lvl > ceil {
+		lvl = ceil
+	}
+	return lvl
 }
 
 // buildAbyssUser assembles a UserInCombat for the solo descent, mirroring the
@@ -222,9 +254,12 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 	u.FloorModifier = modifier
 
 	st := b.loadAbyssStats(uid)
-	diff, forceBoss := abyssDifficulty(u.Stats, u.Level, depth)
+	diff, forceBoss := abyssDifficulty(depth)
 	diff *= tier.DiffMult * (1.0 + float64(prestige)*0.05) // [17] prestige & tier scaling
 	worldBoss := forceBoss && depth%(abyssBossEvery*2) == 0
+	// Mob level is decoupled from the player's exact level (see abyssMobLevel): the
+	// custom encounters and the spawned group all key off this depth-scaled value.
+	mobLevel := abyssMobLevel(depth, u.Level)
 
 	logs := []string{}
 	// Check if the floor has the Artifact Corruption modifier
@@ -258,7 +293,10 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 		}
 	}
 
-	zone := content.GetRandomZone(u.Level, float64(u.Stats.Score()))
+	// Pass 0 gear score: the zone's rarity baseline and level still set its flavour
+	// difficulty, but gear no longer inflates it (that double-counted with the old
+	// abyssDifficulty and made every floor brutal for geared characters).
+	zone := content.GetRandomZone(u.Level, 0)
 	zone.Name = zoneName
 
 	var mobs []content.Mob
@@ -269,8 +307,8 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 			{
 				Name:     "The Watcher",
 				Type:     content.MobBoss,
-				Level:    u.Level + 2,
-				Stats:    content.Stats{HP: 1500 * u.Level / 2, STR: 40, DEF: 80, SPD: 110},
+				Level:    mobLevel + 2,
+				Stats:    content.Stats{HP: 1500 * mobLevel / 2, STR: 40, DEF: 80, SPD: 110},
 				RewardXP: 250,
 				Element:  content.ElementPhysical,
 				Effects:  []content.MobEffect{content.EffectEnraged},
@@ -306,8 +344,8 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 				{
 					Name:     bossName,
 					Type:     content.MobBoss,
-					Level:    u.Level + 1,
-					Stats:    content.Stats{HP: 2000 * u.Level / 2, STR: 50, DEF: 90, SPD: 105},
+					Level:    mobLevel + 1,
+					Stats:    content.Stats{HP: 2000 * mobLevel / 2, STR: 50, DEF: 90, SPD: 105},
 					RewardXP: 500,
 					Element:  content.ElementPhysical,
 				},
@@ -318,15 +356,15 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 				{
 					Name:     "Hoarder Treasure Goblin",
 					Type:     content.MobTreasureGoblin,
-					Level:    u.Level,
-					Stats:    content.Stats{HP: 400 * u.Level / 2, STR: 5, DEF: 20, SPD: 150},
+					Level:    mobLevel,
+					Stats:    content.Stats{HP: 400 * mobLevel / 2, STR: 5, DEF: 20, SPD: 150},
 					RewardXP: 100,
 					Element:  content.ElementPhysical,
 				},
 			}
 			logs = append(logs, "[color=#ffeb3b]💰 A Treasure Goblin hoard! You corner a wealthy Treasure Goblin, but it starts sprinting towards a portal![/color]")
 		} else {
-			mobs = content.SpawnMobGroup(u.Level, zone, diff*zone.Difficulty, 1, forceBoss)
+			mobs = content.SpawnMobGroup(mobLevel, zone, diff*zone.Difficulty, 1, forceBoss)
 		}
 	}
 
@@ -335,6 +373,15 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 	escalateMobs(mobs, depth, worldBoss) // [15] deeper floors → denser elites/effects
 	mobPtrs := make([]*content.Mob, len(mobs))
 	for i := range mobs {
+		// Dampen Abyss mob damage so floors play out over several rounds instead of
+		// ending in the opening volley. HP is left intact so the fight still has
+		// to be won — it just takes longer and rewards survivability.
+		if mobs[i].Stats.STR > 0 {
+			mobs[i].Stats.STR = int(float64(mobs[i].Stats.STR) * abyssMobDamageMult)
+			if mobs[i].Stats.STR < 1 {
+				mobs[i].Stats.STR = 1
+			}
+		}
 		mobPtrs[i] = &mobs[i]
 	}
 

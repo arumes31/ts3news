@@ -337,6 +337,13 @@ type LootResult struct {
 	Poke string
 }
 
+// ambushDamageCapPct bounds how much of a player's max HP a surprise round (mobs
+// acting before any player has moved) may strip. An ambush can wound but must
+// never be a guaranteed kill — combined with the "never below 1 HP during the
+// ambush" clamp in mobTurn, every player is guaranteed to act at least once. This
+// applies to all combat modes (the channel cycle and the Abyss alike).
+const ambushDamageCapPct = 0.5
+
 func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool, []LootResult) {
 	var logs []string
 	var loots []LootResult
@@ -597,9 +604,11 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 					waveVictory = true
 					break
 				}
-				b.mobTurn(activeUsers, currentMobs, zone, intensify, &logs, &totalMobDamage, &totalUserDamage, r)
+				b.mobTurn(activeUsers, currentMobs, zone, intensify, &logs, &totalMobDamage, &totalUserDamage, r, false)
 			} else {
-				b.mobTurn(activeUsers, currentMobs, zone, intensify, &logs, &totalMobDamage, &totalUserDamage, r)
+				// The opening round of an enemy-first wave is the ambush: soften it so
+				// it can't one-shot a player before they ever act.
+				b.mobTurn(activeUsers, currentMobs, zone, intensify, &logs, &totalMobDamage, &totalUserDamage, r, r == 1)
 				aliveUsers := 0
 				for _, u := range users {
 					if u.CurrentHP > 0 {
@@ -1083,7 +1092,23 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 	}
 }
 
-func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone content.Zone, intensify float64, logs *[]string, totalMobDamage, totalUserDamage *int, round int) {
+func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone content.Zone, intensify float64, logs *[]string, totalMobDamage, totalUserDamage *int, round int, ambush bool) {
+	// Ambush softening (all modes): track a per-target damage budget so a surprise
+	// round can strip at most ambushDamageCapPct of each player's max HP, and clamp
+	// it below so the ambush can never land the killing blow. Guarantees every
+	// player gets to act at least once. Keyed by *UserInCombat so co-op partners
+	// each get their own budget.
+	var ambushBudget map[*UserInCombat]int
+	if ambush {
+		ambushBudget = make(map[*UserInCombat]int, len(activeUsers))
+		for _, au := range activeUsers {
+			budget := int(float64(au.u.Stats.HP) * ambushDamageCapPct)
+			if budget < 1 {
+				budget = 1
+			}
+			ambushBudget[au.u] = budget
+		}
+	}
 	for _, m := range mobs {
 		if m.Stats.HP <= 0 || m.Stats.SPD == 0 {
 			if m.Stats.SPD == 0 {
@@ -1233,6 +1258,24 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			if eff == content.EffectBlinded && rand.Float64() < 0.5 {
 				dmg = 0
 			} // #nosec G404
+		}
+
+		// Ambush cap: limit total surprise-round damage to this target and never let
+		// it reduce them below 1 HP, so a dense enemy group can't erase a full-HP
+		// character before their first action.
+		if ambush {
+			if budget, ok := ambushBudget[target]; ok {
+				if dmg > budget {
+					dmg = budget
+				}
+				ambushBudget[target] = budget - dmg
+			}
+			if dmg >= target.CurrentHP {
+				dmg = target.CurrentHP - 1
+			}
+			if dmg < 0 {
+				dmg = 0
+			}
 		}
 
 		target.CurrentHP -= dmg
