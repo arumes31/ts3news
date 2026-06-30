@@ -505,6 +505,24 @@ func buildContent() {
 		{ID: "ABYSS_FEET", Name: i18n.T("content.gear.abyss_feet"), Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 90, STR: 15, DEF: 20, SPD: 50, DGE: 10}},
 		{ID: "ABYSS_RING", Name: i18n.T("content.gear.abyss_ring"), Slot: SlotFinger1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 80, STR: 20, DEF: 10, SPD: 20, LCK: 25}},
 		{ID: "ABYSS_NECK", Name: i18n.T("content.gear.abyss_neck"), Slot: SlotNeck, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 110, STR: 10, DEF: 15, SPD: 15, INT: 25}},
+		// Wave-4 Abyss exclusives: fill the slots the original eight left bare, plus a
+		// Legendary Relic the deepest banks can chase. Literal names (no i18n key) so
+		// new content ships without touching all 20 locale files.
+		{ID: "ABYSS_SHOULDERS", Name: "Mantle of the Abyss", Slot: SlotShoulders, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 95, Stats: Stats{HP: 160, STR: 28, DEF: 45, SPD: 12, STA: 18}},
+		{ID: "ABYSS_BACK", Name: "Shroud of the Deep", Slot: SlotBack, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 110, STR: 15, DEF: 25, SPD: 35, DGE: 12}},
+		{ID: "ABYSS_WAIST", Name: "Girdle of Echoes", Slot: SlotWaist, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 140, STR: 22, DEF: 30, SPD: 18, STA: 14}},
+		{ID: "ABYSS_WRISTS", Name: "Voidsteel Bracers", Slot: SlotWrists, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 95, STR: 30, DEF: 18, SPD: 22, CRT: 9}},
+		{ID: "ABYSS_RANGED", Name: "Whisper of the Dark", Slot: SlotRanged, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 90, Stats: Stats{HP: 90, STR: 55, DEF: 12, SPD: 45, CRT: 18, LCK: 8}},
+		// Signature relics with a fixed combat Special — these effects are applied by
+		// the live combat engine (xp.go) when the piece is equipped, so the Abyss
+		// finally drops gear that *does* something beyond stats. RandomAbyssGearDrop
+		// preserves a defined Special instead of overwriting it with a random one.
+		{ID: "ABYSS_OFFHAND", Name: "Aegis of the Nadir", Slot: SlotOffHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 100, Stats: Stats{HP: 220, STR: 18, DEF: 65, SPD: 8, STA: 20}, Special: EffectThorns},
+		{ID: "ABYSS_AURA", Name: "Aura of the Drowned", Slot: SlotAura, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 130, STR: 14, DEF: 20, SPD: 16, INT: 35, CHA: 40}, Special: EffectVampiric},
+		{ID: "ABYSS_BAND", Name: "Bloodrage Band", Slot: SlotFinger2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 120, STR: 45, DEF: 10, SPD: 20, CRT: 12}, Special: EffectBerserk},
+		{ID: "ABYSS_TRINKET", Name: "Stillshadow Charm", Slot: SlotTrinket1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 100, STR: 20, DEF: 15, SPD: 40, DGE: 14}, Special: EffectStealth},
+		{ID: "ABYSS_TALISMAN", Name: "Warding Talisman", Slot: SlotTrinket2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 140, STR: 16, DEF: 35, SPD: 18, STA: 12}, Special: EffectParry},
+		{ID: "ABYSS_RELIC", Name: "Heart of the Abyss", Slot: SlotRelic, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 60, Stats: Stats{HP: 400, STR: 90, DEF: 90, SPD: 50, INT: 50, LCK: 40, CRT: 15}, Special: EffectPhoenix},
 	}
 	allGear = append(allGear, abyssExclusiveGear...)
 
@@ -719,13 +737,47 @@ func GearByMinRarity(floor Rarity) []Gear {
 	return out
 }
 
+// abyssSetTiers define the cumulative set bonuses granted for equipping N pieces
+// of Abyss-exclusive gear (IDs prefixed "ABYSS_"). Bonuses stack: 6 equipped
+// pieces grant the 2-, 4-, and 6-piece tiers together.
+var abyssSetTiers = []struct {
+	Pieces int
+	Bonus  Stats
+}{
+	{2, Stats{HP: 200, STR: 30, DEF: 30}},
+	{4, Stats{HP: 400, STR: 60, DEF: 60, SPD: 20}},
+	{6, Stats{HP: 800, STR: 120, DEF: 120, SPD: 40, CRT: 30}},
+}
+
+// AbyssSetBonus returns the cumulative Abyss-set bonus stats for the given number
+// of equipped Abyss pieces, plus the highest piece-threshold actually reached (0
+// if none), so callers can surface "N-piece Abyss set" in the loot notes.
+func AbyssSetBonus(equipped int) (Stats, int) {
+	var total Stats
+	reached := 0
+	for _, t := range abyssSetTiers {
+		if equipped >= t.Pieces {
+			total = total.Add(t.Bonus)
+			reached = t.Pieces
+		}
+	}
+	return total, reached
+}
+
+// IsAbyssGearID reports whether a gear ID belongs to the Abyss-exclusive set.
+func IsAbyssGearID(id string) bool { return strings.HasPrefix(id, "ABYSS_") }
+
 func RandomAbyssGearDrop() Gear {
 	if len(abyssExclusiveGear) == 0 {
 		return RandomGearDrop()
 	}
 	// #nosec G404
 	g := abyssExclusiveGear[rand.IntN(len(abyssExclusiveGear))]
-	g.Special = RandomItemEffect()
+	// Signature relics carry a fixed Special (Phoenix, Thorns, …); only items that
+	// define none get a random roll, so their authored combat effect is preserved.
+	if g.Special == EffectNone {
+		g.Special = RandomItemEffect()
+	}
 	return g
 }
 

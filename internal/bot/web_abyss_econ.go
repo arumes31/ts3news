@@ -74,6 +74,9 @@ type abyssStats struct {
 	UpGreed        int
 	UpFortune      int
 	UpWard         int
+	UpInterest     int
+	UpTribute      int
+	UpInsight      int
 	AbyssPrestige  int
 }
 
@@ -82,10 +85,12 @@ func (b *Bot) loadAbyssStats(uid string) abyssStats {
 	_ = b.DB.QueryRow(
 		`SELECT abyss_best_depth, abyss_tokens, abyss_lifetime_floors, abyss_lifetime_banked,
 		        abyss_deaths, abyss_bank_streak, abyss_up_vigor, abyss_up_greed, abyss_up_fortune, abyss_up_ward,
+		        abyss_up_interest, abyss_up_tribute, abyss_up_insight,
 		        abyss_prestige
 		   FROM users WHERE client_uid=$1`, uid,
 	).Scan(&st.BestDepth, &st.Tokens, &st.LifetimeFloors, &st.LifetimeBanked,
-		&st.Deaths, &st.Streak, &st.UpVigor, &st.UpGreed, &st.UpFortune, &st.UpWard, &st.AbyssPrestige)
+		&st.Deaths, &st.Streak, &st.UpVigor, &st.UpGreed, &st.UpFortune, &st.UpWard,
+		&st.UpInterest, &st.UpTribute, &st.UpInsight, &st.AbyssPrestige)
 	return st
 }
 
@@ -273,11 +278,33 @@ var abyssDepthAchievements = map[int]string{
 
 // abyssAchievementNames maps an achievement code to its player-facing name.
 var abyssAchievementNames = map[string]string{
-	"depth_10":  "Threshold Breaker (Depth 10)",
-	"depth_25":  "Deep Diver (Depth 25)",
-	"depth_50":  "Abyssal Veteran (Depth 50)",
-	"depth_100": "Voidwalker (Depth 100)",
+	"depth_10":    "Threshold Breaker (Depth 10)",
+	"depth_25":    "Deep Diver (Depth 25)",
+	"depth_50":    "Abyssal Veteran (Depth 50)",
+	"depth_100":   "Voidwalker (Depth 100)",
+	"boss_1":      "Giant Slayer (First Boss)",
+	"boss_25":     "Boss Hunter (25 Bosses)",
+	"boss_100":    "Worldbreaker (100 Bosses)",
+	"bank_1m":     "Treasurer (1M Banked)",
+	"bank_10m":    "Tycoon (10M Banked)",
+	"bestiary_25": "Naturalist (25 Species)",
+	"bestiary_50": "Zoologist (50 Species)",
+	"prestige_1":  "Reborn (First Abyss Prestige)",
 }
+
+// achTier is a count threshold that, once reached, awards an achievement code.
+type achTier struct {
+	N    int64
+	Code string
+}
+
+// Cumulative milestone ladders for the count-based achievement categories. Tiers
+// are listed ascending; checkThresholdAchievements awards every newly-crossed tier.
+var (
+	abyssBossTiers     = []achTier{{1, "boss_1"}, {25, "boss_25"}, {100, "boss_100"}}
+	abyssBankTiers     = []achTier{{1_000_000, "bank_1m"}, {10_000_000, "bank_10m"}}
+	abyssBestiaryTiers = []achTier{{25, "bestiary_25"}, {50, "bestiary_50"}}
+)
 
 func abyssAchievementName(code string) string {
 	if n, ok := abyssAchievementNames[code]; ok {
@@ -304,6 +331,40 @@ func (b *Bot) checkDepthAchievements(uid string, depth int) string {
 		return abyssAchievementName(code)
 	}
 	return ""
+}
+
+// checkThresholdAchievements awards every milestone tier the player has newly
+// crossed for a count-based category, returning the highest newly-earned name (or
+// "" if none). awardAchievement is idempotent, so already-earned tiers are skipped.
+func (b *Bot) checkThresholdAchievements(uid string, have int64, tiers []achTier) string {
+	newest := ""
+	for _, t := range tiers {
+		if have >= t.N && b.awardAchievement(uid, t.Code) {
+			newest = abyssAchievementName(t.Code)
+		}
+	}
+	return newest
+}
+
+// checkBossKillAchievements awards boss-kill milestones from the player's total
+// recorded Abyss boss kills.
+func (b *Bot) checkBossKillAchievements(uid string) string {
+	var n int64
+	_ = b.DB.QueryRow("SELECT COUNT(*) FROM abyss_boss_kills WHERE client_uid=$1", uid).Scan(&n)
+	return b.checkThresholdAchievements(uid, n, abyssBossTiers)
+}
+
+// checkBestiaryAchievements awards milestones for the number of distinct monster
+// species the player has vanquished.
+func (b *Bot) checkBestiaryAchievements(uid string) string {
+	var n int64
+	_ = b.DB.QueryRow("SELECT COUNT(*) FROM abyss_bestiary WHERE client_uid=$1", uid).Scan(&n)
+	return b.checkThresholdAchievements(uid, n, abyssBestiaryTiers)
+}
+
+// checkBankAchievements awards lifetime-banked-gold milestones.
+func (b *Bot) checkBankAchievements(uid string, lifetimeBanked int64) string {
+	return b.checkThresholdAchievements(uid, lifetimeBanked, abyssBankTiers)
 }
 
 func (b *Bot) abyssAchievements(uid string) []string {
@@ -674,10 +735,13 @@ func abyssInsuranceCost(escrow int64, pct, ward int) int64 {
 // abyssUpgradeCols maps a Deep-Delver node to its column; the whitelist prevents
 // any SQL-identifier injection from the request.
 var abyssUpgradeCols = map[string]string{
-	"vigor":   "abyss_up_vigor",
-	"greed":   "abyss_up_greed",
-	"fortune": "abyss_up_fortune",
-	"ward":    "abyss_up_ward",
+	"vigor":    "abyss_up_vigor",
+	"greed":    "abyss_up_greed",
+	"fortune":  "abyss_up_fortune",
+	"ward":     "abyss_up_ward",
+	"interest": "abyss_up_interest",
+	"tribute":  "abyss_up_tribute",
+	"insight":  "abyss_up_insight",
 }
 
 const abyssUpgradeMaxLevel = 5

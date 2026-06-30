@@ -1015,6 +1015,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				dmg = 1
 			}
 
+			// Daily affix: Execute — strikes land 50% harder on targets below 30% HP.
+			if strings.Contains(u.FloorModifier, "execute") && target.MaxHP > 0 && target.Stats.HP*10 < target.MaxHP*3 {
+				dmg = dmg * 3 / 2
+			}
+
 			target.Stats.HP -= dmg
 			*totalUserDamage += dmg
 
@@ -1071,6 +1076,13 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 
 			if target.Stats.HP <= 0 {
 				*logs = append(*logs, i18n.T("bot.combat.defeated", target.Name, u.Nickname))
+				// Weekly affix: Bloodlust heals the slayer for 20% of max HP on a kill.
+				if strings.Contains(u.FloorModifier, "bloodlust") {
+					u.CurrentHP += u.Stats.HP / 5
+					if u.CurrentHP > u.Stats.HP {
+						u.CurrentHP = u.Stats.HP
+					}
+				}
 				// Award loot for every mob defeated, regardless of final outcome.
 				// Clones (co-op helpers) are excluded so loot never persists for them.
 				if winner := randomLootEligibleUser(originalUsers); winner != nil {
@@ -1339,8 +1351,21 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			}
 		}
 
+		// Daily affix: Iron Skin shaves 30% off every hit a delver takes.
+		if strings.Contains(target.FloorModifier, "iron_skin") {
+			dmg = dmg * 7 / 10
+		}
+
 		target.CurrentHP -= dmg
 		*totalMobDamage += dmg
+
+		// Daily affix: Vampiric mobs heal for 15% of the damage they deal.
+		if dmg > 0 && strings.Contains(target.FloorModifier, "vampiric_mobs") {
+			m.Stats.HP += dmg * 15 / 100
+			if m.MaxHP > 0 && m.Stats.HP > m.MaxHP {
+				m.Stats.HP = m.MaxHP
+			}
+		}
 
 		// Check Revival
 		if target.CurrentHP <= 0 {
@@ -1976,6 +2001,7 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 	// Calculate gear XP multiplier
 	// Only Rare+ items provide XP bonuses (Common/Uncommon have 1.0-1.05x)
 	// Max possible from gear: 30 slots × 1.30x = ~2600x (capped by rarity distribution)
+	abyssSetPieces := 0
 	rows, err := b.DB.Query("SELECT gear_id, durability, enchantment_id FROM user_gear WHERE client_uid = $1", uid)
 	if err == nil {
 		defer func() { _ = rows.Close() }()
@@ -1984,6 +2010,9 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 			var dura int
 			var enchID sql.NullString
 			if err := rows.Scan(&gearID, &dura, &enchID); err == nil {
+				if content.IsAbyssGearID(gearID) {
+					abyssSetPieces++
+				}
 				if gear, ok := content.GetGearByID(gearID); ok {
 					// Define which slots can have high XP multipliers (more than 20%)
 					highXPSlots := map[content.GearSlot]bool{
@@ -2046,6 +2075,14 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 				}
 			}
 		}
+	}
+
+	// Abyss set bonus: equipping multiple ABYSS_ pieces grants cumulative 2/4/6-piece
+	// stat tiers, applied here so the set works everywhere the character fights.
+	if bonus, reached := content.AbyssSetBonus(abyssSetPieces); reached > 0 {
+		stats = stats.Add(bonus)
+		gearScore += bonus.Score()
+		notes = append(notes, fmt.Sprintf("🕳️ Abyss Set (%d pieces)", reached))
 	}
 
 	// Skills also provide effects

@@ -97,6 +97,13 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		qualityMult *= 1.2
 		lootFindBonus += 0.50
 	}
+	// Fortune (Deep-Delver node) finally pays off here: each level lifts the rarity
+	// ceiling and the find chance, so deep delvers who invested tokens see better
+	// drops. Previously the node was loaded but never applied anywhere. [Item: loot quality]
+	if fortune := b.loadAbyssStats(uid).UpFortune; fortune > 0 {
+		qualityMult *= 1.0 + float64(fortune)*0.06
+		lootFindBonus += float64(fortune) * 0.04
+	}
 	// Low-level / low-difficulty content yields fewer high-rarity drops.
 	rareScale := lootRarityScale(mob.Level)
 

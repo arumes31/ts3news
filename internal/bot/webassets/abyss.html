@@ -2,12 +2,18 @@
 <div class="abyss-hero">
   <h1>{{T "web.abyss.title"}}</h1>
   <p class="muted">{{T "web.abyss.hero_desc"}}</p>
-  {{if .WeeklyMod}}
+  {{if .DailyMod}}
     <div class="ab-weekly-alert" style="background: rgba(255,193,7,0.1); border: 1px solid #ffc107; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
       📅 <strong>{{T "web.abyss.weekly_title"}}</strong> 
-      {{if eq .WeeklyMod "double_hazards"}}{{T "web.abyss.weekly.double_hazards"}}{{end}}
-      {{if eq .WeeklyMod "zero_durability_loss"}}{{T "web.abyss.weekly.zero_durability_loss"}}{{end}}
-      {{if eq .WeeklyMod "enraged_mobs"}}{{T "web.abyss.weekly.enraged_mobs"}}{{end}}
+      {{if eq .DailyMod "double_hazards"}}{{T "web.abyss.weekly.double_hazards"}}{{end}}
+      {{if eq .DailyMod "zero_durability_loss"}}{{T "web.abyss.weekly.zero_durability_loss"}}{{end}}
+      {{if eq .DailyMod "enraged_mobs"}}{{T "web.abyss.weekly.enraged_mobs"}}{{end}}
+      {{if eq .DailyMod "glass_cannon"}}{{T "web.abyss.weekly.glass_cannon"}}{{end}}
+      {{if eq .DailyMod "gold_rush"}}{{T "web.abyss.weekly.gold_rush"}}{{end}}
+      {{if eq .DailyMod "iron_skin"}}{{T "web.abyss.weekly.iron_skin"}}{{end}}
+      {{if eq .DailyMod "bloodlust"}}{{T "web.abyss.weekly.bloodlust"}}{{end}}
+      {{if eq .DailyMod "execute"}}{{T "web.abyss.weekly.execute"}}{{end}}
+      {{if eq .DailyMod "vampiric_mobs"}}{{T "web.abyss.weekly.vampiric_mobs"}}{{end}}
     </div>
   {{end}}
 </div>
@@ -148,10 +154,25 @@
     <h2>{{T "web.abyss.deep_delver"}}</h2>
     <p class="muted small">{{T "web.abyss.deep_delver_desc"}}</p>
     <div class="ab-upgrades">
-      {{template "abUpgrade" dict "Node" "vigor"   "Name" "Vigor"   "Desc" "Start runs with +HP"        "Lv" .Stats.UpVigor}}
-      {{template "abUpgrade" dict "Node" "greed"   "Name" "Greed"   "Desc" "+5% cache bonus / level"    "Lv" .Stats.UpGreed}}
-      {{template "abUpgrade" dict "Node" "fortune" "Name" "Fortune" "Desc" "Better loot in the deep"    "Lv" .Stats.UpFortune}}
-      {{template "abUpgrade" dict "Node" "ward"    "Name" "Ward"    "Desc" "Cheaper insurance premiums" "Lv" .Stats.UpWard}}
+      {{template "abUpgrade" dict "Node" "vigor"    "Name" "Vigor"    "Desc" "Start runs with +HP"          "Lv" .Stats.UpVigor}}
+      {{template "abUpgrade" dict "Node" "greed"    "Name" "Greed"    "Desc" "+5% cache bonus / level"      "Lv" .Stats.UpGreed}}
+      {{template "abUpgrade" dict "Node" "fortune"  "Name" "Fortune"  "Desc" "Better loot in the deep"      "Lv" .Stats.UpFortune}}
+      {{template "abUpgrade" dict "Node" "ward"     "Name" "Ward"     "Desc" "Cheaper insurance premiums"   "Lv" .Stats.UpWard}}
+      {{template "abUpgrade" dict "Node" "interest" "Name" "Compounding" "Desc" "+0.5% cache interest / level" "Lv" .Stats.UpInterest}}
+      {{template "abUpgrade" dict "Node" "tribute"  "Name" "Tribute"  "Desc" "+10% bank tokens / level"     "Lv" .Stats.UpTribute}}
+      {{template "abUpgrade" dict "Node" "insight"  "Name" "Insight"  "Desc" "+5% floor reward XP / level"   "Lv" .Stats.UpInsight}}
+    </div>
+
+    <!-- Abyss Set bonuses: cumulative tiers for equipping ABYSS_ gear -->
+    <div class="ab-setbonus" style="margin-top:14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+      <h3 style="margin:0 0 6px;">🕳️ Abyss Set
+        <span class="ab-up-lv">{{.AbyssSetPieces}} equipped{{if gt .AbyssSetTier 0}} · {{.AbyssSetTier}}-pc active{{end}}</span>
+      </h3>
+      <ul class="muted small" style="margin:0; padding-left:18px;">
+        <li{{if ge .AbyssSetTier 2}} style="color:#7ee787"{{end}}>2 pieces: +200 HP · +30 STR · +30 DEF</li>
+        <li{{if ge .AbyssSetTier 4}} style="color:#7ee787"{{end}}>4 pieces: +400 HP · +60 STR · +60 DEF · +20 SPD</li>
+        <li{{if ge .AbyssSetTier 6}} style="color:#7ee787"{{end}}>6 pieces: +800 HP · +120 STR · +120 DEF · +40 SPD · +30 CRT</li>
+      </ul>
     </div>
   </section>
 
@@ -398,6 +419,36 @@ function renderNonCombat(floorType, stateStr){
       options.innerHTML = `
         <button class="ghost" onclick="abyssNCAction('shrine_accept')">☠️ Accept Shrine (+1,000g Escrow &amp; Cursed)</button>
       `;
+    } else if(state.type === 'wishing_well'){
+      desc.innerHTML = 'A still, black Wishing Well waits in the dark. Toss in a coin and let fortune decide — the well may swell your cache, or swallow your gold whole.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('well_toss')">🪙 Toss a Coin (250g) — chance at a cache blessing</button>
+      `;
+    } else if(state.type === 'gambler'){
+      desc.innerHTML = 'A hooded Card Dealer shuffles a worn deck. "One draw, friend — high card you win, low card you lose. 250 gold to play."';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('gambler_bet')">🃏 Draw a Card (bet 250g, 50/50 double)</button>
+      `;
+    } else if(state.type === 'statue'){
+      desc.innerHTML = 'A towering statue of a forgotten hero stands vigil. Touching its worn hand fills you with renewed vigor.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('statue_touch')">🗿 Touch the Statue (free heal &amp; +400g cache)</button>
+      `;
+    } else if(state.type === 'fountain'){
+      desc.innerHTML = 'Crystal-clear water bubbles from the Fountain of Youth, impossibly pure this deep in the dark. Drinking mends both flesh and gear.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('fountain_drink')">⛲ Drink Deep (free full heal &amp; repair all gear)</button>
+      `;
+    } else if(state.type === 'mimic'){
+      desc.innerHTML = 'A fat, iron-bound treasure chest sits alone in the dark — too convenient. Pry it open for the riches inside, and pray it doesn\'t pry back.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('mimic_open')">🎁 Open the Chest (treasure… or a bite)</button>
+      `;
+    } else if(state.type === 'buried_cache'){
+      desc.innerHTML = 'Loose stone and a half-buried strap betray a cache someone hid here long ago. A little digging should turn up whatever they left behind.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('cache_dig')">⛏️ Dig It Up (free sealed Abyss item)</button>
+      `;
     } else {
       desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
     }
@@ -555,6 +606,7 @@ async function abyssBank(){
   if(d.bonus_gear)msg+=' 🎁 Depth reward: '+d.bonus_gear+'.';
   if(d.cursed)msg+=' ☠️ Cursed — your next cycle fights are hexed.';
   if(d.jackpot_win)msg+=' 🔥 DEEP-CACHE JACKPOT +'+fmtGold(d.jackpot_win)+'!';
+  if(d.achievement)msg+=' 🏅 '+d.achievement;
   setBanner(msg,'good');
   window.location.reload();
 }
@@ -663,7 +715,9 @@ async function abyssPrestige(){
     abToast(d.error || 'Prestige failed', false);
     return;
   }
-  setBanner('⭐ CONGRATULATIONS! You have prestiged the Abyss! Prestige level: ' + d.prestige, 'good');
+  var pmsg='⭐ CONGRATULATIONS! You have prestiged the Abyss! Prestige level: ' + d.prestige;
+  if(d.achievement)pmsg+=' 🏅 '+d.achievement;
+  setBanner(pmsg, 'good');
   window.location.reload();
 }
 
