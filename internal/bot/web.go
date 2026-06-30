@@ -113,6 +113,7 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 			return p
 		},
 		"jsonJS": jsonJS,
+		"mulf":   func(a, b float64) float64 { return a * b },
 		// dict builds a map from alternating key/value pairs, for passing several
 		// named values into a sub-template (used by the Abyss upgrade widget).
 		"dict": func(values ...any) (map[string]any, error) {

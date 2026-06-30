@@ -362,6 +362,37 @@ func TestAbyssSignatureRelics(t *testing.T) {
 	}
 }
 
+// TestAbyssPacts verifies pact validation (unknown keys dropped, canonical order,
+// de-duplicated) and that the reward/danger multipliers aggregate correctly.
+func TestAbyssPacts(t *testing.T) {
+	// Unknown keys are dropped; duplicates collapse; output is in catalog order.
+	got := abyssValidatePacts([]string{"glass_cannon", "bogus", "double_hazards", "double_hazards"})
+	if got != "double_hazards glass_cannon" {
+		t.Errorf("validate = %q, want %q", got, "double_hazards glass_cannon")
+	}
+	if abyssValidatePacts([]string{"nope"}) != "" {
+		t.Error("all-unknown pact list should validate to empty")
+	}
+
+	// Reward multiplier is 1.0 + the sum of each pact's additive bonus.
+	if m := abyssPactRewardMult(nil); m != 1.0 {
+		t.Errorf("no-pact reward mult = %v, want 1.0", m)
+	}
+	if m := abyssPactRewardMult([]string{"double_hazards", "glass_cannon"}); m < 1.449 || m > 1.451 {
+		t.Errorf("reward mult = %v, want ~1.45", m)
+	}
+	// Danger multiplier comes only from pacts that raise difficulty (glass_cannon).
+	if m := abyssPactDangerMult([]string{"double_hazards"}); m != 1.0 {
+		t.Errorf("double_hazards danger mult = %v, want 1.0", m)
+	}
+	if m := abyssPactDangerMult([]string{"glass_cannon"}); m != 1.3 {
+		t.Errorf("glass_cannon danger mult = %v, want 1.3", m)
+	}
+	if !abyssPactsEnrage([]string{"enraged"}) || abyssPactsEnrage([]string{"glass_cannon"}) {
+		t.Error("enrage detection incorrect")
+	}
+}
+
 // TestAbyssShopCatalog verifies the token-shop catalog is well-formed: unique keys,
 // positive costs, and a lookup that resolves every advertised key (so no buy button
 // can hit an unknown-item path).

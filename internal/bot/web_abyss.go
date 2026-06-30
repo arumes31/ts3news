@@ -282,9 +282,18 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 		}
 	}
 
+	// Self-imposed pacts stack on top of the daily affix: fold their combat tokens
+	// into the modifier (read by the engine) the same way the daily affix is folded.
+	pacts := b.abyssRunPacts(uid)
+	for _, tok := range abyssPactCombatTokens(pacts) {
+		if !strings.Contains(u.FloorModifier, tok) {
+			u.FloorModifier = strings.TrimSpace(u.FloorModifier + " " + tok)
+		}
+	}
+
 	st := b.loadAbyssStats(uid)
 	diff, forceBoss := abyssDifficulty(depth)
-	diff *= tier.DiffMult * (1.0 + float64(prestige)*0.05) * abyssDailyDangerMult(dailyMod) // [17] prestige & tier scaling + daily affix
+	diff *= tier.DiffMult * (1.0 + float64(prestige)*0.05) * abyssDailyDangerMult(dailyMod) * abyssPactDangerMult(pacts) // [17] prestige & tier scaling + daily affix + pacts
 	worldBoss := forceBoss && depth%(abyssBossEvery*2) == 0
 	// Mob level is decoupled from the player's exact level (see abyssMobLevel): the
 	// custom encounters and the spawned group all key off this depth-scaled value.
@@ -433,7 +442,7 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 	isBossFloor := forceBoss || worldBoss
 
 	escalateMobs(mobs, depth, worldBoss) // [15] deeper floors → denser elites/effects
-	if dailyMod == "enraged_mobs" {
+	if dailyMod == "enraged_mobs" || abyssPactsEnrage(pacts) {
 		for i := range mobs {
 			mobs[i].Effects = append(mobs[i].Effects, content.EffectEnraged)
 		}
@@ -671,6 +680,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"AbyssSetTier":   abyssSetTier,
 		"Bounty":         s.bot.abyssBountyStatus(uid),
 		"Shop":           abyssShopCatalog,
+		"Pacts":          abyssPactCatalog,
 	})
 }
 
@@ -688,13 +698,15 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	defer unlock()
 
 	var req struct {
-		Tier string `json:"tier"`
+		Tier  string   `json:"tier"`
+		Pacts []string `json:"pacts"`
 	}
 	_ = readJSON(r, &req)
 	tier, ok := abyssTierByKey(req.Tier)
 	if !ok {
 		tier = abyssTiers["normal"]
 	}
+	pacts := abyssValidatePacts(req.Pacts)
 
 	st := s.bot.loadAbyssStats(uid)
 	if st.BestDepth < tier.MinBest {
@@ -737,8 +749,8 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		return
 	}
 	if _, err := tx.Exec(
-		`INSERT INTO abyss_active (client_uid, depth, escrow, tier, insured, revived, started_at, last_action_at)
-		 VALUES ($1, 0, 0, $2, 0, FALSE, NOW(), NOW())`, uid, tier.Key); err != nil {
+		`INSERT INTO abyss_active (client_uid, depth, escrow, tier, insured, revived, pacts, started_at, last_action_at)
+		 VALUES ($1, 0, 0, $2, 0, FALSE, $3, NOW(), NOW())`, uid, tier.Key, pacts); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -953,6 +965,7 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 		bonus = int64(float64(bonus) * tier.RewardMult * (1.0 + float64(st.UpGreed)*0.05) * (1.0 + float64(st.AbyssPrestige)*0.05))
 		_, dailyMod := s.bot.currentDailyChallenge()
 		bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
+		bonus = int64(float64(bonus) * abyssPactRewardMult(s.bot.abyssRunPacts(uid)))
 
 		switch focus {
 		case "gold":
@@ -1932,6 +1945,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	bonus = int64(float64(bonus) * (1.0 + float64(st.UpGreed)*0.05) * (1.0 + float64(st.AbyssPrestige)*0.05))
 	_, dailyMod := s.bot.currentDailyChallenge()
 	bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
+	bonus = int64(float64(bonus) * abyssPactRewardMult(s.bot.abyssRunPacts(uid)))
 	
 	newEscrow := int64(float64(run.Escrow)*(1.0+abyssEffectiveInterest(st.UpInterest))) + bonus
 

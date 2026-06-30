@@ -85,6 +85,17 @@
       {{end}}
     </div>
 
+    <!-- Pact picker (idle only): opt-in challenge modifiers for bonus rewards -->
+    <div class="ab-pacts" id="pactPicker">
+      <div class="ab-sub-label">⚔️ Pacts <span class="muted small">— optional challenges for bigger rewards <b id="pactBonus">(+0%)</b></span></div>
+      {{range .Pacts}}
+        <label class="ab-pact" title="{{.Desc}}">
+          <input type="checkbox" name="abpact" value="{{.Key}}" data-reward="{{printf "%.0f" (mulf .Reward 100)}}" onchange="updatePactBonus()">
+          {{.Label}} <span class="muted small">(+{{printf "%.0f" (mulf .Reward 100)}}% · {{.Desc}})</span>
+        </label>
+      {{end}}
+    </div>
+
     <!-- Focus picker (active run only) -->
     <div class="ab-focus-row" id="focusPicker" style="display:none">
       <span class="ab-sub-label">Next floor focus:</span>
@@ -368,6 +379,7 @@ function renderState(){
   // idle / alive / downed
   show('btnEnter', !inRun);
   show('tierPicker', !inRun);
+  show('pactPicker', !inRun);
   show('btnDescend', inRun && !downed);
   show('btnBank', inRun && !downed);
   show('liveRow', inRun && !downed);
@@ -536,10 +548,18 @@ function playLog(lines, loot, dura){
 }
 
 function selectedTier(){var el=document.querySelector('input[name=abtier]:checked');return el?el.value:'normal';}
+function selectedPacts(){
+  return Array.prototype.slice.call(document.querySelectorAll('input[name=abpact]:checked')).map(function(el){return el.value;});
+}
+function updatePactBonus(){
+  var sum=0;
+  document.querySelectorAll('input[name=abpact]:checked').forEach(function(el){sum+=Number(el.getAttribute('data-reward'))||0;});
+  var el=document.getElementById('pactBonus'); if(el)el.textContent='(+'+sum+'%)';
+}
 
 async function abyssEnter(){
   if(busy)return; setBusy(true); clearBanner();
-  var d=await abPost('/api/abyss/enter',{tier:selectedTier()});
+  var d=await abPost('/api/abyss/enter',{tier:selectedTier(), pacts:selectedPacts()});
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
   window.location.reload();
 }
