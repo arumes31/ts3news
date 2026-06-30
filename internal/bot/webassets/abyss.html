@@ -232,6 +232,7 @@
       <button class="primary xs" style="width:100%; margin-bottom:10px;" onclick="abyssPrestige()">{{T "web.abyss.prestige_btn"}}</button>
     {{end}}
     <button class="ghost xs" onclick="abyssSalvage()">🧹 Salvage junk for gold</button>
+    <button class="ghost xs" onclick="abyssDismantle()">⚒️ Dismantle rare+ spares for 🜲</button>
     {{if .Achieved}}<div class="ab-achievements"><h3>🏅 Achievements</h3>{{range .Achieved}}<span class="ab-ach">{{.}}</span>{{end}}</div>{{end}}
   </section>
 
@@ -682,6 +683,17 @@ async function abyssSalvage(){
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setGold(d.gold);
   abToast(d.sold>0?('Salvaged '+d.sold+' items for '+fmtGold(d.value)):'No junk to salvage', d.sold>0);
+}
+
+async function abyssDismantle(){
+  if(busy)return;
+  if(!confirm('Dismantle all Rare-or-better spare gear in your backpack into Abyss Tokens? Equipped gear is never touched.'))return;
+  setBusy(true);
+  var d=await abPost('/api/abyss/dismantle');
+  setBusy(false);
+  if(!d.ok){abToast(d.error||'failed',false);return;}
+  setTokens(d.tokens);
+  abToast(d.dismantled>0?('Dismantled '+d.dismantled+' spares for 🜲 '+d.tokens_gained):'No rare+ spares to dismantle', d.dismantled>0);
 }
 
 async function abyssUpgrade(node, btn){

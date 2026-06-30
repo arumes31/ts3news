@@ -393,6 +393,23 @@ func TestAbyssPacts(t *testing.T) {
 	}
 }
 
+// TestAbyssDismantleTokens verifies the dismantle yield: nothing below Rare, and a
+// strictly increasing token value up the rarity ladder.
+func TestAbyssDismantleTokens(t *testing.T) {
+	if abyssDismantleTokens(content.RarityCommon) != 0 || abyssDismantleTokens(content.RarityUncommon) != 0 {
+		t.Error("common/uncommon should dismantle for 0 tokens (use salvage)")
+	}
+	ladder := []content.Rarity{content.RarityRare, content.RarityEpic, content.RarityLegendary, content.RarityMythic}
+	var prev int64
+	for _, rar := range ladder {
+		got := abyssDismantleTokens(rar)
+		if got <= prev {
+			t.Errorf("dismantle tokens not increasing at rarity %v: %d <= %d", rar, got, prev)
+		}
+		prev = got
+	}
+}
+
 // TestAbyssShopCatalog verifies the token-shop catalog is well-formed: unique keys,
 // positive costs, and a lookup that resolves every advertised key (so no buy button
 // can hit an unknown-item path).

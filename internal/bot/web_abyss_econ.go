@@ -656,6 +656,95 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	writeJSON(w, map[string]any{"ok": true, "sold": count, "value": total, "gold": gold})
 }
 
+// abyssDismantleTokens is the Abyss-token yield for dismantling a spare gear piece
+// of the given rarity. Below Rare yields nothing (use Salvage for those).
+func abyssDismantleTokens(rarity content.Rarity) int64 {
+	switch {
+	case rarity >= content.RarityMythic:
+		return 10
+	case rarity >= content.RarityLegendary:
+		return 6
+	case rarity >= content.RarityEpic:
+		return 3
+	case rarity >= content.RarityRare:
+		return 1
+	}
+	return 0
+}
+
+// handleAbyssDismantle breaks down all Rare-or-better spares sitting in the backpack
+// (user_inventory — never equipped gear) into Abyss Tokens, giving the token economy
+// a faucet to match the Token Shop sink. Common/uncommon junk still goes to Salvage.
+func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
+
+	rows, err := s.bot.DB.Query("SELECT id, gear_id FROM user_inventory WHERE client_uid=$1", uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	type spare struct {
+		id     int64
+		tokens int64
+	}
+	var toBreak []spare
+	for rows.Next() {
+		var id int64
+		var gid string
+		if err := rows.Scan(&id, &gid); err != nil {
+			continue
+		}
+		g, ok := content.GetGearByID(gid)
+		if !ok {
+			continue
+		}
+		if tk := abyssDismantleTokens(g.Rarity); tk > 0 {
+			toBreak = append(toBreak, spare{id, tk})
+		}
+	}
+	_ = rows.Close()
+
+	if len(toBreak) == 0 {
+		writeJSON(w, map[string]any{"ok": true, "dismantled": 0, "tokens_gained": 0, "tokens": s.bot.abyssTokens(uid)})
+		return
+	}
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var total int64
+	var count int
+	for _, sp := range toBreak {
+		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", sp.id, uid)
+		if err != nil {
+			continue
+		}
+		if n, _ := res.RowsAffected(); n > 0 {
+			total += sp.tokens
+			count++
+		}
+	}
+	if total > 0 {
+		if _, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", total, uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "dismantled": count, "tokens_gained": total, "tokens": s.bot.abyssTokens(uid)})
+}
+
 // handleAbyssInsure buys death-insurance on the active run: pay gold now to
 // protect a % of the escrow if you die. The Ward upgrade discounts the premium. [1]
 func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, uid string) {

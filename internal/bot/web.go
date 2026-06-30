@@ -228,6 +228,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/prestige", s.authAPI(s.handleAbyssPrestige))
 		mux.HandleFunc("/api/abyss/bounty/claim", s.authAPI(s.handleAbyssBountyClaim))
 		mux.HandleFunc("/api/abyss/shop/buy", s.authAPI(s.handleAbyssShopBuy))
+		mux.HandleFunc("/api/abyss/dismantle", s.authAPI(s.handleAbyssDismantle))
 	}
 
 	// Authenticated JSON APIs.
