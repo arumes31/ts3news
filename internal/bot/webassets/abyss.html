@@ -21,6 +21,7 @@
       🎯 <strong>Daily Bounty:</strong> {{.Desc}}
       <span class="muted small" style="margin-left:8px;">Progress: <b id="bountyProg">{{comma .Progress}}</b> / {{comma .Target}}</span>
       <span class="muted small" style="margin-left:8px;">Reward: 🜲 {{.RewardTk}} + {{gold .RewardGd}}</span>
+      {{if gt .Streak 0}}<span class="small" style="margin-left:8px; color:#ff9800;">🔥 {{.Streak}}-day streak</span>{{end}}
       <span id="bountyAction" style="margin-left:10px;">
         {{if .Claimed}}<b style="color:#7ee787">✅ Claimed today</b>
         {{else if .Met}}<button class="primary xs" onclick="abyssBountyClaim()">Claim Reward</button>
@@ -778,7 +779,9 @@ async function abyssBountyClaim(){
   setGold(d.gold); setTokens(d.tokens);
   var act=document.getElementById('bountyAction');
   if(act)act.innerHTML='<b style="color:#7ee787">✅ Claimed today</b>';
-  setBanner('🎯 Daily Bounty complete! +🜲 '+d.reward_tokens+' tokens and +'+fmtGold(d.reward_gold)+'.','good');
+  var bmsg='🎯 Daily Bounty complete! +🜲 '+d.reward_tokens+' tokens and +'+fmtGold(d.reward_gold)+'.';
+  if(d.streak>1)bmsg+=' 🔥 '+d.streak+'-day streak (+🜲 '+d.streak_bonus+' bonus)!';
+  setBanner(bmsg,'good');
 }
 
 async function abyssShopBuy(item, btn){

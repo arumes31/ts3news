@@ -80,6 +80,29 @@ func (b *Bot) abyssBountyClaimed(uid string) bool {
 	return exists
 }
 
+// abyssStreakBonusTokens is the extra tokens granted for a claim at the given
+// streak length: +5 per consecutive day beyond the first, capped at +30 (day 7+).
+func abyssStreakBonusTokens(streak int) int {
+	n := streak - 1
+	if n < 0 {
+		n = 0
+	}
+	if n > 6 {
+		n = 6
+	}
+	return n * 5
+}
+
+// abyssBountyClaimedOn reports whether the player claimed the bounty the given
+// number of days ago (0 = today, 1 = yesterday), in UTC.
+func (b *Bot) abyssBountyClaimedOn(uid string, daysAgo int) bool {
+	var exists bool
+	_ = b.DB.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM abyss_bounty_claims WHERE client_uid=$1 AND bounty_day = ((NOW() AT TIME ZONE 'UTC')::date - $2::int))",
+		uid, daysAgo).Scan(&exists)
+	return exists
+}
+
 // abyssBountyView is the template-facing snapshot of the player's daily bounty.
 type abyssBountyView struct {
 	Desc     string
@@ -89,11 +112,21 @@ type abyssBountyView struct {
 	RewardGd int64
 	Met      bool
 	Claimed  bool
+	Streak   int // live streak length (0 if broken)
 }
 
 func (b *Bot) abyssBountyStatus(uid string) abyssBountyView {
 	bounty := abyssDailyBounty(time.Now())
 	prog := b.abyssBountyProgress(uid, bounty)
+	claimedToday := b.abyssBountyClaimed(uid)
+
+	// The stored streak is "live" only if today or yesterday was claimed; otherwise a
+	// day was missed and the streak is effectively broken until the next claim.
+	live := 0
+	if claimedToday || b.abyssBountyClaimedOn(uid, 1) {
+		_ = b.DB.QueryRow("SELECT abyss_bounty_streak FROM users WHERE client_uid=$1", uid).Scan(&live)
+	}
+
 	return abyssBountyView{
 		Desc:     bounty.Desc,
 		Progress: prog,
@@ -101,7 +134,8 @@ func (b *Bot) abyssBountyStatus(uid string) abyssBountyView {
 		RewardTk: bounty.RewardTk,
 		RewardGd: bounty.RewardGd,
 		Met:      prog >= bounty.Target,
-		Claimed:  b.abyssBountyClaimed(uid),
+		Claimed:  claimedToday,
+		Streak:   live,
 	}
 }
 
@@ -122,6 +156,16 @@ func (s *WebServer) handleAbyssBountyClaim(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "bounty not complete yet"})
 		return
 	}
+
+	// Streak continues only if yesterday was also claimed; otherwise it resets to 1.
+	newStreak := 1
+	if s.bot.abyssBountyClaimedOn(uid, 1) {
+		var prev int
+		_ = s.bot.DB.QueryRow("SELECT abyss_bounty_streak FROM users WHERE client_uid=$1", uid).Scan(&prev)
+		newStreak = prev + 1
+	}
+	streakBonus := abyssStreakBonusTokens(newStreak)
+	totalTokens := bounty.RewardTk + streakBonus
 
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
@@ -149,11 +193,15 @@ func (s *WebServer) handleAbyssBountyClaim(w http.ResponseWriter, r *http.Reques
 			return
 		}
 	}
-	if bounty.RewardTk > 0 {
-		if _, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", bounty.RewardTk, uid); err != nil {
+	if totalTokens > 0 {
+		if _, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", totalTokens, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
+	}
+	if _, err := tx.Exec("UPDATE users SET abyss_bounty_streak = $1 WHERE client_uid=$2", newStreak, uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
 	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -163,7 +211,8 @@ func (s *WebServer) handleAbyssBountyClaim(w http.ResponseWriter, r *http.Reques
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	writeJSON(w, map[string]any{
-		"ok": true, "reward_tokens": bounty.RewardTk, "reward_gold": bounty.RewardGd,
+		"ok": true, "reward_tokens": totalTokens, "reward_gold": bounty.RewardGd,
+		"streak": newStreak, "streak_bonus": streakBonus,
 		"gold": gold, "tokens": s.bot.abyssTokens(uid),
 	})
 }

@@ -442,6 +442,17 @@ func TestAbyssDailyBounty(t *testing.T) {
 	}
 }
 
+// TestAbyssStreakBonus verifies the bounty streak bonus: none on day 1, +5 per
+// extra consecutive day, capped at +30 from day 7 onward.
+func TestAbyssStreakBonus(t *testing.T) {
+	cases := map[int]int{0: 0, 1: 0, 2: 5, 3: 10, 7: 30, 8: 30, 100: 30}
+	for streak, want := range cases {
+		if got := abyssStreakBonusTokens(streak); got != want {
+			t.Errorf("streak %d bonus = %d, want %d", streak, got, want)
+		}
+	}
+}
+
 // TestAbyssAchievementTiers verifies every count-based achievement ladder is
 // ascending and that each tier code has a player-facing name (so newly earned
 // milestones never surface as a raw code).
