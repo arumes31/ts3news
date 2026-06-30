@@ -72,8 +72,12 @@ const (
 // abyssEffectiveInterest returns the per-floor escrow interest rate including the
 // Compounding (interest) Deep-Delver node, which adds 0.5% per level on top of the
 // base let-it-ride rate.
-func abyssEffectiveInterest(interestLevel int) float64 {
-	return abyssEscrowInterest + float64(interestLevel)*0.005
+func abyssEffectiveInterest(interestLevel int, hasLuckyCoin bool) float64 {
+	rate := abyssEscrowInterest + float64(interestLevel)*0.005
+	if hasLuckyCoin {
+		rate *= 1.20
+	}
+	return rate
 }
 
 // softCap returns x unchanged up to cap, then grows logarithmically past it.
@@ -659,6 +663,15 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	abyssSetPieces := s.bot.countEquippedAbyssGear(uid)
 	_, abyssSetTier := content.AbyssSetBonus(abyssSetPieces)
 
+	equipped := s.bot.getEquippedItems(uid)
+	var slots []gearView
+	for _, slot := range content.AllSlots {
+		if g, ok := equipped[slot]; ok {
+			slots = append(slots, toGearView(slot, g))
+		}
+	}
+	inventory := s.bot.inventoryItems(uid)
+
 	s.render(w, "abyss", map[string]any{
 		"Title":          "The Abyss",
 		"Nav":            "abyss",
@@ -681,6 +694,13 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Bounty":         s.bot.abyssBountyStatus(uid),
 		"Shop":           abyssShopCatalog,
 		"Pacts":          abyssPactCatalog,
+		"Equipped":       slots,
+		"Inventory":      inventory,
+		"LegendaryPity":  func() int {
+			var pity int
+			_ = s.bot.DB.QueryRow("SELECT legendary_pity FROM users WHERE client_uid=$1", uid).Scan(&pity)
+			return pity
+		}(),
 	})
 }
 
@@ -702,6 +722,23 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		Pacts []string `json:"pacts"`
 	}
 	_ = readJSON(r, &req)
+
+	// Consumable Pouches limit check
+	var totalConsumables int
+	_ = s.bot.DB.QueryRow("SELECT COALESCE(SUM(remaining_fights), 0) FROM user_consumables WHERE client_uid=$1", uid).Scan(&totalConsumables)
+	maxAllowedConsumables := 3
+	equipped := s.bot.getEquippedItems(uid)
+	for _, g := range equipped {
+		if g.ID == "ABYSS_CONSUMABLE_POUCH" || strings.Contains(strings.ToLower(g.Name), "pouch") {
+			maxAllowedConsumables = 8
+			break
+		}
+	}
+	if totalConsumables > maxAllowedConsumables {
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("Too many consumables! Max allowed is %d, but you have %d. Equip a Consumable Pouch or use/discard some first.", maxAllowedConsumables, totalConsumables)})
+		return
+	}
+
 	tier, ok := abyssTierByKey(req.Tier)
 	if !ok {
 		tier = abyssTiers["normal"]
@@ -979,12 +1016,35 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 			s.bot.grantAbyssTokens(uid, 5)
 			out["daily"] = true
 		}
-		newEscrow := int64(float64(escrowBefore)*(1.0+abyssEffectiveInterest(st.UpInterest))) + bonus // [56] interest + Compounding node
+
+		hasLuckyCoin := false
+		equipped := s.bot.getEquippedItems(uid)
+		if _, hasCoin := equipped[content.SlotTrinket1]; hasCoin && equipped[content.SlotTrinket1].ID == "ABYSS_LUCKY_COIN" {
+			hasLuckyCoin = true
+		}
+		newEscrow := int64(float64(escrowBefore)*(1.0+abyssEffectiveInterest(st.UpInterest, hasLuckyCoin))) + bonus // [56] interest + Compounding node
 		if _, err := s.bot.DB.Exec("UPDATE abyss_active SET escrow=$1, floor_type='combat', modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2", newEscrow, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
 		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1) WHERE client_uid=$2", depth, uid)
+		
+		// Evolving Artifacts: gains level/XP on clearing floor
+		if art, ok := equipped[content.SlotArtifact]; ok {
+			art.GearLevel++
+			if art.GearLevel == 3 {
+				art.Stats.HP += 100
+				art.Stats.STR += 15
+				art.Stats.DEF += 15
+			} else if art.GearLevel == 5 {
+				art.Stats.HP += 250
+				art.Stats.STR += 30
+				art.Stats.DEF += 30
+			}
+			dataBytes, _ := json.Marshal(art)
+			_, _ = s.bot.DB.Exec("UPDATE user_gear SET item_data=$1 WHERE slot='Artifact' AND client_uid=$2", string(dataBytes), uid)
+		}
+
 		out["bonus"] = bonus
 		out["escrow"] = newEscrow
 		// Surface any milestone newly earned this floor: depth, plus boss-kill and
@@ -1947,7 +2007,12 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
 	bonus = int64(float64(bonus) * abyssPactRewardMult(s.bot.abyssRunPacts(uid)))
 	
-	newEscrow := int64(float64(run.Escrow)*(1.0+abyssEffectiveInterest(st.UpInterest))) + bonus
+	hasLuckyCoin := false
+	equipped := s.bot.getEquippedItems(uid)
+	if _, hasCoin := equipped[content.SlotTrinket1]; hasCoin && equipped[content.SlotTrinket1].ID == "ABYSS_LUCKY_COIN" {
+		hasLuckyCoin = true
+	}
+	newEscrow := int64(float64(run.Escrow)*(1.0+abyssEffectiveInterest(st.UpInterest, hasLuckyCoin))) + bonus
 
 	_, err := s.bot.DB.Exec(
 		`UPDATE abyss_active 

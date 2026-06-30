@@ -56,6 +56,7 @@ type Stats struct {
 	STA int // Stamina (reduces durability loss chance)
 	CRT int // Critical Chance %
 	DGE int // Dodge Chance %
+	MNA int // Mana
 
 	// Useless / Flavour Stats
 	CHA int // Charisma
@@ -75,6 +76,7 @@ func (s Stats) Add(o Stats) Stats {
 		STA: s.STA + o.STA,
 		CRT: s.CRT + o.CRT,
 		DGE: s.DGE + o.DGE,
+		MNA: s.MNA + o.MNA,
 		CHA: s.CHA + o.CHA,
 		STN: s.STN + o.STN,
 		SHN: s.SHN + o.SHN,
@@ -83,7 +85,7 @@ func (s Stats) Add(o Stats) Stats {
 }
 
 func (s Stats) Score() int {
-	return s.HP/5 + s.STR + s.DEF + s.SPD + s.LCK + s.INT + s.STA + s.CRT + s.DGE
+	return s.HP/5 + s.STR + s.DEF + s.SPD + s.LCK + s.INT + s.STA + s.CRT + s.DGE + s.MNA/10
 }
 
 // CombatRating calculates a comprehensive Combat Rating (CR) for gear.
@@ -129,6 +131,7 @@ func (s Stats) Scaled(f float64) Stats {
 		STA: int(float64(s.STA) * f),
 		CRT: int(float64(s.CRT) * f),
 		DGE: int(float64(s.DGE) * f),
+		MNA: int(float64(s.MNA) * f),
 		CHA: s.CHA, STN: s.STN, SHN: s.SHN, HGR: s.HGR,
 	}
 }
@@ -268,6 +271,16 @@ type Gear struct {
 	Stats         Stats
 	Special       ItemEffect
 	Element       Element
+
+	// Custom progression fields
+	Sockets      int      `json:"sockets,omitempty"`
+	Gemstones    []string `json:"gemstones,omitempty"`
+	Rune         string   `json:"rune,omitempty"`
+	Cursed       bool     `json:"cursed,omitempty"`
+	Eldritch     bool     `json:"eldritch,omitempty"`
+	Unidentified bool     `json:"unidentified,omitempty"`
+	GearLevel    int      `json:"gear_level,omitempty"`
+	Insured      bool     `json:"insured,omitempty"`
 }
 
 type ConsumableType string
@@ -513,16 +526,93 @@ func buildContent() {
 		{ID: "ABYSS_WAIST", Name: "Girdle of Echoes", Slot: SlotWaist, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 140, STR: 22, DEF: 30, SPD: 18, STA: 14}},
 		{ID: "ABYSS_WRISTS", Name: "Voidsteel Bracers", Slot: SlotWrists, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 95, STR: 30, DEF: 18, SPD: 22, CRT: 9}},
 		{ID: "ABYSS_RANGED", Name: "Whisper of the Dark", Slot: SlotRanged, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 90, Stats: Stats{HP: 90, STR: 55, DEF: 12, SPD: 45, CRT: 18, LCK: 8}},
-		// Signature relics with a fixed combat Special — these effects are applied by
-		// the live combat engine (xp.go) when the piece is equipped, so the Abyss
-		// finally drops gear that *does* something beyond stats. RandomAbyssGearDrop
-		// preserves a defined Special instead of overwriting it with a random one.
+		// Signature relics with a fixed combat Special
 		{ID: "ABYSS_OFFHAND", Name: "Aegis of the Nadir", Slot: SlotOffHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 100, Stats: Stats{HP: 220, STR: 18, DEF: 65, SPD: 8, STA: 20}, Special: EffectThorns},
 		{ID: "ABYSS_AURA", Name: "Aura of the Drowned", Slot: SlotAura, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 130, STR: 14, DEF: 20, SPD: 16, INT: 35, CHA: 40}, Special: EffectVampiric},
 		{ID: "ABYSS_BAND", Name: "Bloodrage Band", Slot: SlotFinger2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 120, STR: 45, DEF: 10, SPD: 20, CRT: 12}, Special: EffectBerserk},
 		{ID: "ABYSS_TRINKET", Name: "Stillshadow Charm", Slot: SlotTrinket1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 100, STR: 20, DEF: 15, SPD: 40, DGE: 14}, Special: EffectStealth},
 		{ID: "ABYSS_TALISMAN", Name: "Warding Talisman", Slot: SlotTrinket2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 140, STR: 16, DEF: 35, SPD: 18, STA: 12}, Special: EffectParry},
 		{ID: "ABYSS_RELIC", Name: "Heart of the Abyss", Slot: SlotRelic, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 60, Stats: Stats{HP: 400, STR: 90, DEF: 90, SPD: 50, INT: 50, LCK: 40, CRT: 15}, Special: EffectPhoenix},
+
+		// New Abyss exclusive items
+		{ID: "ABYSS_LUCKY_COIN", Name: "Lucky Coin", Slot: SlotTrinket1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 50, LCK: 30, CHA: 50}},
+		{ID: "ABYSS_POUCH", Name: "Consumable Pouch", Slot: SlotWaist, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 80, DEF: 15, STA: 10}},
+		{ID: "ABYSS_PHOENIX_PIN", Name: "Phoenix Pin", Slot: SlotCharm, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 50, Stats: Stats{HP: 150, LCK: 20}},
+		{ID: "ABYSS_CHAMELEON_CLOAK", Name: "Chameleon Cloak", Slot: SlotBack, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 100, SPD: 25, DGE: 10}},
+		{ID: "ABYSS_VAMP_NECKLACE", Name: "Vampire Tooth Necklace", Slot: SlotNeck, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 120, STR: 30}},
+		{ID: "ABYSS_MANA_BATTERY", Name: "Mana Battery", Slot: SlotTrinket2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 100, INT: 20, MNA: 100}},
+		{ID: "ABYSS_BERSERKER_RING", Name: "Berserker Ring", Slot: SlotFinger1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 150, STR: 35, CRT: 10}},
+		{ID: "ABYSS_TITAN_BELT", Name: "Titan Belt", Slot: SlotWaist, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 90, Stats: Stats{HP: 250, STR: 60, DEF: 40}},
+		{ID: "ABYSS_LEECH_SPORES", Name: "Leech Spores", Slot: SlotRelic, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 60, Stats: Stats{HP: 130, INT: 15}},
+		{ID: "ABYSS_STATIC_SPARK", Name: "Static Spark Ring", Slot: SlotFinger2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 80, SPD: 20, DGE: 5}},
+		{ID: "ABYSS_FROSTBITE_GLOVES", Name: "Frostbite Gauntlets", Slot: SlotHands, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 140, STR: 25, DEF: 20}},
+		{ID: "ABYSS_FIREBRAND_SWORD", Name: "Firebrand Greatsword", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 100, Stats: Stats{HP: 200, STR: 100, DEF: 20, SPD: -10}},
+		{ID: "ABYSS_TIDAL_SCEPTER", Name: "Tidal Wave Scepter", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 120, INT: 40, MNA: 80}},
+		{ID: "ABYSS_EARTHSHAKER_HAMMER", Name: "Earthshaker Warhammer", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 95, Stats: Stats{HP: 250, STR: 90, DEF: 30, CRT: 15}},
+		{ID: "ABYSS_ZEPHYR_DAGGER", Name: "Zephyr Dagger", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, STR: 40, SPD: 35}},
+		{ID: "ABYSS_LIFEBLOOM_STAFF", Name: "Lifebloom Staff", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 90, Stats: Stats{HP: 180, INT: 35, MNA: 50}},
+		{ID: "ABYSS_NECROTIC_DAGGER", Name: "Necrotic Dagger", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, STR: 45, SPD: 15}},
+		{ID: "ABYSS_DIVINE_AEGIS", Name: "Divine Aegis Shield", Slot: SlotOffHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 110, Stats: Stats{HP: 300, DEF: 80, MNA: 40}},
+		{ID: "ABYSS_ASSASSIN_HOOD", Name: "Shadow Assassin Hood", Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 100, STR: 20, SPD: 25, CRT: 10}},
+		{ID: "ABYSS_ARCHMAGE_ROBES", Name: "Archmage Robes", Slot: SlotChest, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 90, Stats: Stats{HP: 150, DEF: 30, INT: 50, MNA: 150}},
+		{ID: "ABYSS_GLADIATOR_CHEST", Name: "Gladiator Chestplate", Slot: SlotChest, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 105, Stats: Stats{HP: 250, STR: 20, DEF: 60}},
+		{ID: "ABYSS_RANGER_BOOTS", Name: "Ranger Swift-Boots", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, SPD: 30, DGE: 10}},
+		{ID: "ABYSS_BEASTMASTER_HARNESS", Name: "Beastmaster Harness", Slot: SlotChest, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 95, Stats: Stats{HP: 200, STR: 15, DEF: 30, LCK: 20}},
+		{ID: "ABYSS_DEMONIC_PACT", Name: "Demonic Pact Ring", Slot: SlotFinger1, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 60, Stats: Stats{HP: -100, INT: 60, MNA: 100}},
+		{ID: "ABYSS_GUARDIAN_WARD", Name: "Guardian Angels Ward", Slot: SlotTrinket1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 140, DEF: 25, STA: 15}},
+		{ID: "ABYSS_ALCHEMIST_BELT", Name: "Alchemist Belt", Slot: SlotWaist, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 120, LCK: 20, STA: 15}},
+		{ID: "ABYSS_STORMBRINGER_CLOAK", Name: "Stormbringer Cloak", Slot: SlotBack, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 110, DEF: 15, SPD: 20}},
+		{ID: "ABYSS_SUNFIRE_PENDANT", Name: "Sunfire Pendant", Slot: SlotNeck, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 130, INT: 25}},
+		{ID: "ABYSS_VOID_ESSENCE", Name: "Void Essence Relic", Slot: SlotRelic, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 60, Stats: Stats{HP: 200, STR: 50, INT: 30}},
+		{ID: "ABYSS_TOMB_RAIDER", Name: "Tomb Raider Boots", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, LCK: 25, SPD: 15}},
+		{ID: "ABYSS_DRAGON_SCALE", Name: "Dragon Scale Mail", Slot: SlotChest, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 120, Stats: Stats{HP: 400, DEF: 90, STA: 30}},
+		{ID: "ABYSS_KRAKEN_HIDE", Name: "Kraken Hide Leather", Slot: SlotChest, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 110, Stats: Stats{HP: 350, DEF: 60, SPD: 25, STA: 25}},
+		{ID: "ABYSS_WYRM_TOOTH", Name: "Wyrm Tooth Spear", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 110, STR: 50, SPD: 10}},
+		{ID: "ABYSS_VALKYRIE_HELM", Name: "Valkyrie Helm", Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 130, STR: 30, DEF: 25}},
+		{ID: "ABYSS_SOUL_REAPER", Name: "Soul Reaper Scythe", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 95, Stats: Stats{HP: 220, STR: 80, INT: 40, MNA: 60}},
+		{ID: "ABYSS_GORGON_SHIELD", Name: "Gorgon Shield", Slot: SlotOffHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 100, Stats: Stats{HP: 200, DEF: 70, STA: 15}},
+		{ID: "ABYSS_PEGASUS_BOOTS", Name: "Pegasus Boots", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 110, SPD: 40, DGE: 8}},
+		{ID: "ABYSS_MIDAS_GLOVES", Name: "Midas Touch Gloves", Slot: SlotHands, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 90, LCK: 40, CHA: 100}},
+		{ID: "ABYSS_HELLFIRE_RING", Name: "Hellfire Ring", Slot: SlotFinger2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 100, INT: 30}},
+		{ID: "ABYSS_BLIZZARD_AMULET", Name: "Blizzard Amulet", Slot: SlotNeck, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 120, INT: 30}},
+		{ID: "ABYSS_THUNDERSTRIKE", Name: "Thunderstrike Bracers", Slot: SlotWrists, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 90, INT: 25, SPD: 10}},
+		{ID: "ABYSS_VINE_WHIP", Name: "Vine-Whip Belt", Slot: SlotWaist, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 130, DEF: 20, STA: 10}},
+		{ID: "ABYSS_PLAGUE_DOCTOR", Name: "Plague Doctor Mask", Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 140, DEF: 20, INT: 20}},
+		{ID: "ABYSS_HOLY_GRAIL", Name: "Holy Grail Relic", Slot: SlotRelic, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 65, Stats: Stats{HP: 250, INT: 30, STA: 20}},
+		{ID: "ABYSS_SHADOW_ORB", Name: "Shadow Orb Accessory", Slot: SlotTrinket2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 100, INT: 35, MNA: 40}},
+		{ID: "ABYSS_IRON_WILL", Name: "Iron Will Ring", Slot: SlotFinger1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 150, DEF: 30, STA: 25}},
+		{ID: "ABYSS_LUCKY_CLOVER", Name: "Lucky Clover Charm", Slot: SlotCharm, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 60, Stats: Stats{HP: 80, LCK: 35}},
+		{ID: "ABYSS_CURSED_COMPASS", Name: "Cursed Compass", Slot: SlotTrinket1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 90, LCK: 20}},
+		{ID: "ABYSS_STARLIGHT_TIARA", Name: "Starlight Tiara", Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 80, Stats: Stats{HP: 150, INT: 45, MNA: 60}},
+		{ID: "ABYSS_GRAVEDIGGER_SPADE", Name: "Grave-Digger Spade", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 110, STR: 40, LCK: 15}},
+		{ID: "ABYSS_SIREN_SHELL", Name: "Siren Shell Horn", Slot: SlotTrinket2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 100, INT: 20, SPD: 15}},
+		{ID: "ABYSS_CHRONO_WATCH", Name: "Chrono Pocketwatch", Slot: SlotTrinket1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 110, SPD: 25}},
+		{ID: "ABYSS_SPIRIT_LINK", Name: "Spirit Link Totem", Slot: SlotTotem, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 160, DEF: 25}},
+		{ID: "ABYSS_GOLIATH_GLOVES", Name: "Goliath Gauntlets", Slot: SlotHands, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 150, STR: 45, DEF: 20}},
+		{ID: "ABYSS_FEATHERWEIGHT", Name: "Featherweight Cloak", Slot: SlotBack, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 90, SPD: 25, DGE: 5}},
+		{ID: "ABYSS_ASHEN_URN", Name: "Ashen Urn Relic", Slot: SlotRelic, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 60, Stats: Stats{HP: 120, DEF: 20, STA: 30}},
+		{ID: "ABYSS_MERCURIAL_GREAVES", Name: "Mercurial Greaves", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 130, SPD: 20, DEF: 20}},
+		{ID: "ABYSS_RAGEBORN", Name: "Rageborn Pauldrons", Slot: SlotShoulders, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 170, STR: 30, DEF: 25}},
+		{ID: "ABYSS_FOCUSING_MONOCLE", Name: "Focusing Monocle", Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 80, INT: 20, CRT: 5}},
+		{ID: "ABYSS_SKELETAL_KEY", Name: "Skeletal Key Accessory", Slot: SlotTrinket2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 90, LCK: 25}},
+		{ID: "ABYSS_BLIGHTED_RING", Name: "Blighted Ring", Slot: SlotFinger2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: -50, STR: 40, INT: 40}},
+		{ID: "ABYSS_VESTA_HEART", Name: "Vesta Heart Jewel", Slot: SlotFinger1, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 80, Stats: Stats{HP: 200, DEF: 30}},
+		{ID: "ABYSS_CRYSTALLINE_DAGGER", Name: "Crystalline Dagger", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, STR: 50, DGE: 10}},
+		{ID: "ABYSS_ABYSSAL_PEARL", Name: "Abyssal Pearl Pendant", Slot: SlotNeck, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 120, LCK: 15}},
+		{ID: "ABYSS_DREADNOUGHT", Name: "Dreadnought Plate", Slot: SlotChest, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 130, Stats: Stats{HP: 500, DEF: 120, SPD: -20}},
+		{ID: "ABYSS_NINJA_TABI", Name: "Ninja Tabi", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, SPD: 25, DGE: 10}},
+		{ID: "ABYSS_SQUIRE_SHIELD", Name: "Squire Shield", Slot: SlotOffHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 95, Stats: Stats{HP: 180, DEF: 50, STA: 15}},
+		{ID: "ABYSS_WARLORD_BANNER", Name: "Warlord Flag Banner", Slot: SlotBanner, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 150, STR: 25}},
+		{ID: "ABYSS_SAGE_RING", Name: "Sage Ring", Slot: SlotFinger1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 100, INT: 30}},
+		{ID: "ABYSS_THIEF_BANDANA", Name: "Thief Bandana", Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 110, LCK: 30, SPD: 15}},
+		{ID: "ABYSS_MIRROR_SHIELD", Name: "Mirror Shield", Slot: SlotOffHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 100, Stats: Stats{HP: 250, DEF: 75}},
+		{ID: "ABYSS_SLAYER_BOOTS", Name: "Slayer Boots", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 120, STR: 20, SPD: 15}},
+		{ID: "ABYSS_RUNE_CLAYMORE", Name: "Rune-Carved Claymore", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 105, Stats: Stats{HP: 180, STR: 80, DEF: 15}},
+		{ID: "ABYSS_VOODOO_DOLL", Name: "Voodoo Doll Relic", Slot: SlotRelic, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 60, Stats: Stats{HP: 150, LCK: 15}},
+		{ID: "ABYSS_STAR_METAL", Name: "Star-Metal Helm", Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 140, DEF: 30, INT: 20}},
+		{ID: "ABYSS_WANDERING_BOOTS", Name: "Wandering Boots", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, LCK: 20, SPD: 20}},
+		{ID: "ABYSS_SUN_KING", Name: "Sun-King Crown", Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 90, Stats: Stats{HP: 200, INT: 40}},
+		{ID: "ABYSS_LICH_CROWN", Name: "Lich Crown", Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 85, Stats: Stats{HP: -150, INT: 80, MNA: 150}},
 	}
 	allGear = append(allGear, abyssExclusiveGear...)
 

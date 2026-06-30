@@ -314,10 +314,10 @@ func TestAbyssFeatureExpansion(t *testing.T) {
 	}
 
 	// Compounding node raises the base escrow interest by 0.5% per level.
-	if got := abyssEffectiveInterest(0); got != abyssEscrowInterest {
+	if got := abyssEffectiveInterest(0, false); got != abyssEscrowInterest {
 		t.Errorf("interest L0 = %v, want %v", got, abyssEscrowInterest)
 	}
-	if got := abyssEffectiveInterest(4); got != abyssEscrowInterest+0.02 {
+	if got := abyssEffectiveInterest(4, false); got != abyssEscrowInterest+0.02 {
 		t.Errorf("interest L4 = %v, want %v", got, abyssEscrowInterest+0.02)
 	}
 

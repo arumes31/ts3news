@@ -29,6 +29,17 @@
       </span>
     </div>
   {{end}}
+  
+  <!-- Loot Pity Counter HUD -->
+  <div class="abyss-pity-hud" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; margin: 15px 0;">
+    <div style="display:flex; justify-content:space-between; margin-bottom: 6px; font-size:13px;">
+      <span>🔮 <b>Loot Pity Meter</b></span>
+      <span class="muted small"><span id="pityCount">{{.LegendaryPity}}</span> / 40 to Guaranteed Legendary</span>
+    </div>
+    <div style="background: rgba(0,0,0,0.3); height: 10px; border-radius: 5px; overflow:hidden;">
+      <div id="pityFill" style="background: linear-gradient(90deg, #ff7b72, #d857ff); height: 100%; width: {{mulpct .LegendaryPity 40}}%;"></div>
+    </div>
+  </div>
 </div>
 
 <div class="abyss-stats">
@@ -175,7 +186,7 @@
 <div class="abyss-cols">
   <!-- Deep Delver upgrades [44][45] -->
   <section class="abyss-panel">
-    <h2>{{T "web.abyss.deep_delver"}}</h2>
+    <h2>{{T "web.abyss.deep_delver"}} <button class="ghost xs" onclick="resetTalents()" style="float:right; margin-top:-4px;">Refund All (🜲 10)</button></h2>
     <p class="muted small">{{T "web.abyss.deep_delver_desc"}}</p>
     <div class="ab-upgrades">
       {{template "abUpgrade" dict "Node" "vigor"    "Name" "Vigor"    "Desc" "Start runs with +HP"          "Lv" .Stats.UpVigor}}
@@ -214,6 +225,103 @@
         <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', this)">🜲 {{.Cost}}</button>
       </div>
       {{end}}
+    </div>
+  </section>
+
+  <!-- Forge & Customization Panel -->
+  <section class="abyss-panel">
+    <h2>⚒️ Abyss Forge</h2>
+    <p class="muted small">Upgrade, socket, identify, transmute, or recalibrate your gear.</p>
+    
+    <div class="ab-forge" style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+      <div>
+        <label class="muted small" style="display:block; margin-bottom:4px;">Select Gear Piece:</label>
+        <select id="forgeItemSelect" onchange="updateForgeOptions()" style="width:100%; padding:8px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+          <option value="">-- Choose Item --</option>
+          <optgroup label="Equipped Items">
+            {{range .Equipped}}
+              <option value="equipped:{{.Slot}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}">
+                [Equipped] {{.Name}} ({{.Rarity}})
+              </option>
+            {{end}}
+          </optgroup>
+          <optgroup label="Backpack Inventory">
+            {{range .Inventory}}
+              <option value="inv:{{.InvID}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}">
+                [Inv] {{.Name}} ({{.Rarity}})
+              </option>
+            {{end}}
+          </optgroup>
+        </select>
+      </div>
+
+      <div id="forgeActions" style="display:none; flex-direction:column; gap:8px;">
+        <!-- Identify Button -->
+        <button id="btnForgeIdentify" class="primary xs" onclick="forgeIdentify()" style="display:none; width:100%;">🔍 Identify Item (Cost: 100g)</button>
+        
+        <!-- Recalibrate Substat Dropdown -->
+        <div id="forgeRecalibrateRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
+          <label class="muted small" style="display:block; margin-bottom:4px;">Recalibrate Sub-stat (Legendary+ only):</label>
+          <div style="display:flex; gap:6px;">
+            <select id="recalibrateStatSelect" style="flex:1; padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+              <option value="HP">Max HP</option>
+              <option value="STR">Strength</option>
+              <option value="DEF">Defense</option>
+              <option value="SPD">Speed</option>
+              <option value="LCK">Luck</option>
+              <option value="INT">Intellect</option>
+              <option value="STA">Stamina</option>
+              <option value="CRT">Crit Rate</option>
+              <option value="DGE">Dodge Rate</option>
+            </select>
+            <button class="ghost xs" onclick="forgeRecalibrate()">Recalibrate (🜲 5)</button>
+          </div>
+        </div>
+
+        <!-- Socket Gemstone Dropdown -->
+        <div id="forgeSocketRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
+          <label class="muted small" style="display:block; margin-bottom:4px;">Socket Gemstone:</label>
+          <div style="display:flex; gap:6px;">
+            <select id="gemstoneSelect" style="flex:1; padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+              <option value="Ruby">Ruby (💎 +100 HP)</option>
+              <option value="Sapphire">Sapphire (💎 +50 Mana)</option>
+              <option value="Emerald">Emerald (💎 +15 STR)</option>
+              <option value="Diamond">Diamond (💎 +15 DEF)</option>
+              <option value="Topaz">Topaz (💎 +5 CRT%)</option>
+            </select>
+            <button class="ghost xs" onclick="forgeSocketGem()">Socket Gem (Cost: 50g)</button>
+          </div>
+        </div>
+
+        <!-- Etch Rune Dropdown -->
+        <div id="forgeEtchRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
+          <label class="muted small" style="display:block; margin-bottom:4px;">Etch Elemental Rune (Weapons only):</label>
+          <div style="display:flex; gap:6px;">
+            <select id="runeSelect" style="flex:1; padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+              <option value="Fire">Fire Rune</option>
+              <option value="Water">Water Rune</option>
+              <option value="Earth">Earth Rune</option>
+              <option value="Air">Air Rune</option>
+              <option value="Physical">Physical Rune</option>
+            </select>
+            <button class="ghost xs" onclick="forgeEtchRune()">Etch (Cost: 150g)</button>
+          </div>
+        </div>
+
+        <!-- Upgrade Weapon Tier -->
+        <button id="btnForgeUpgradeGear" class="ghost xs" onclick="forgeUpgradeGear()" style="display:none; width:100%;">Ascend Tier Level (🜲 10)</button>
+
+        <!-- Transmute Weapon -->
+        <button id="btnForgeTransmute" class="ghost xs" onclick="forgeTransmute()" style="display:none; width:100%;">⚒️ Transmute Weapon Type (Cost: 100g)</button>
+
+        <!-- Insure Item -->
+        <button id="btnForgeInsureItem" class="ghost xs" onclick="forgeInsureItem()" style="display:none; width:100%;">🛡️ Insure Item (Cost: 200g)</button>
+      </div>
+
+      <div id="forgeStatConversionRow" style="border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01); margin-top:8px;">
+        <label class="muted small" style="display:block; margin-bottom:4px;">Stat Conversion (Convert 100 Mana to +50 Max HP):</label>
+        <button class="ghost xs" onclick="forgeConvertMana()" style="width:100%;">❤️ Convert Mana (Cost: 50g)</button>
+      </div>
     </div>
   </section>
 
@@ -804,6 +912,169 @@ async function abyssShopBuy(item, btn){
   setTokens(d.tokens); setGold(d.gold);
   if(d.consumables)renderConsumables(d.consumables);
   abToast(d.msg||'Purchased!', true);
+}
+
+function updateForgeOptions() {
+  var sel = document.getElementById('forgeItemSelect');
+  var opt = sel.options[sel.selectedIndex];
+  var actions = document.getElementById('forgeActions');
+  
+  if (!opt || !opt.value) {
+    actions.style.display = 'none';
+    return;
+  }
+  
+  actions.style.display = 'flex';
+  
+  var unid = opt.getAttribute('data-unidentified') === 'true';
+  var rarity = parseInt(opt.getAttribute('data-rarity')) || 0;
+  var sockets = parseInt(opt.getAttribute('data-sockets')) || 0;
+  var gems = parseInt(opt.getAttribute('data-gems')) || 0;
+  var slot = opt.getAttribute('data-slot') || '';
+  
+  // Show Identify button if unidentified
+  document.getElementById('btnForgeIdentify').style.display = unid ? 'block' : 'none';
+  
+  // Customization rows only for identified gear
+  document.getElementById('forgeRecalibrateRow').style.display = (!unid && rarity >= 4) ? 'block' : 'none'; // rarity >= 4 is Legendary+
+  document.getElementById('forgeSocketRow').style.display = (!unid && sockets > 0 && gems < sockets) ? 'block' : 'none';
+  
+  var isWeapon = slot === 'MainHand' || slot === 'OffHand' || slot === 'Ranged';
+  document.getElementById('forgeEtchRow').style.display = (!unid && isWeapon) ? 'block' : 'none';
+  document.getElementById('btnForgeUpgradeGear').style.display = (!unid && rarity < 6) ? 'block' : 'none'; // max rarity is Divine (6)
+  document.getElementById('btnForgeTransmute').style.display = (!unid && isWeapon) ? 'block' : 'none';
+
+  var insured = opt.getAttribute('data-insured') === 'true';
+  document.getElementById('btnForgeInsureItem').style.display = (!unid && !insured) ? 'block' : 'none';
+}
+
+function getSelectedForgeParams() {
+  var sel = document.getElementById('forgeItemSelect');
+  var val = sel.value;
+  if (!val) return null;
+  var parts = val.split(':');
+  var type = parts[0];
+  var idOrSlot = parts[1];
+  
+  var body = {};
+  if (type === 'equipped') {
+    body.slot = idOrSlot;
+  } else {
+    body.inv_id = parseInt(idOrSlot);
+  }
+  return body;
+}
+
+async function forgeIdentify() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/identify', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setGold(d.gold);
+  abToast(d.msg || 'Identified!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeRecalibrate() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  params.stat = document.getElementById('recalibrateStatSelect').value;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/recalibrate', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setTokens(d.tokens);
+  abToast(d.msg || 'Recalibrated!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeSocketGem() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  params.gem = document.getElementById('gemstoneSelect').value;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/socket_gem', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setGold(d.gold);
+  abToast(d.msg || 'Gem socketed!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeEtchRune() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  params.rune = document.getElementById('runeSelect').value;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/etch_rune', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setGold(d.gold);
+  abToast(d.msg || 'Rune etched!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeUpgradeGear() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (!confirm('Ascend this gear tier level for 🜲 10 tokens? This increases all combat stats by +30%.')) return;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/upgrade_gear', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setTokens(d.tokens);
+  abToast(d.msg || 'Upgraded!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeTransmute() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (!confirm('Transmute this weapon for 100g? It will convert into a random weapon suited to your highest stat.')) return;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/transmute', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setGold(d.gold);
+  abToast(d.msg || 'Transmuted!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeConvertMana() {
+  if (busy) return;
+  if (!confirm('Convert 100 Mana stats into +50 Max HP for 50g?')) return;
+  setBusy(true);
+  var d = await abPost('/api/abyss/convert_mana', {amount: 100});
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  abToast(d.msg || 'Converted!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function resetTalents() {
+  if (!confirm('Reset all Deep-Delver talent upgrades and refund all spent tokens for 🜲 10 tokens?')) return;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/reset_talents');
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setTokens(d.tokens);
+  abToast(d.msg || 'Talents reset!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeInsureItem() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (!confirm('Mark this item as Insured for 200g? It will never lose durability on death.')) return;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/insure_item', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setGold(d.gold);
+  abToast(d.msg || 'Insured!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
 }
 
 // Initial paint (consistent formatting on load).

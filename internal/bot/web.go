@@ -229,6 +229,15 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/bounty/claim", s.authAPI(s.handleAbyssBountyClaim))
 		mux.HandleFunc("/api/abyss/shop/buy", s.authAPI(s.handleAbyssShopBuy))
 		mux.HandleFunc("/api/abyss/dismantle", s.authAPI(s.handleAbyssDismantle))
+		mux.HandleFunc("/api/abyss/identify", s.authAPI(s.handleAbyssIdentify))
+		mux.HandleFunc("/api/abyss/socket_gem", s.authAPI(s.handleAbyssSocketGem))
+		mux.HandleFunc("/api/abyss/etch_rune", s.authAPI(s.handleAbyssEtchRune))
+		mux.HandleFunc("/api/abyss/recalibrate", s.authAPI(s.handleAbyssRecalibrate))
+		mux.HandleFunc("/api/abyss/upgrade_gear", s.authAPI(s.handleAbyssUpgradeGear))
+		mux.HandleFunc("/api/abyss/transmute", s.authAPI(s.handleAbyssTransmute))
+		mux.HandleFunc("/api/abyss/convert_mana", s.authAPI(s.handleAbyssConvertMana))
+		mux.HandleFunc("/api/abyss/reset_talents", s.authAPI(s.handleAbyssResetTalents))
+		mux.HandleFunc("/api/abyss/insure_item", s.authAPI(s.handleAbyssInsureItem))
 	}
 
 	// Authenticated JSON APIs.

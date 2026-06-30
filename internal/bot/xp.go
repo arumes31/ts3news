@@ -75,6 +75,8 @@ type activeUser struct {
 	effects     []content.ItemEffect
 	lastSkillID string
 	Stunned     bool // scripted boss-phase stun: skips this user's next turn
+	CurrentMana int
+	MaxMana     int
 }
 
 // cycleContext holds per-cycle shared facts used by the XP modifiers.
@@ -428,6 +430,8 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 		activeUsers[i].u.STRMod = 1.0
 		activeUsers[i].u.DEFMod = 1.0
 		activeUsers[i].u.SPDMod = 1.0
+		activeUsers[i].MaxMana = 100 + users[i].Stats.MNA
+		activeUsers[i].CurrentMana = activeUsers[i].MaxMana
 	}
 
 	for w := 1; w <= waves; w++ {
@@ -875,6 +879,51 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			continue
 		}
 
+		// Mana regeneration: base 10 + 5% of flat MNA stat per round
+		regen := 10 + u.Stats.MNA/20
+		au.CurrentMana += regen
+		if au.CurrentMana > au.MaxMana {
+			au.CurrentMana = au.MaxMana
+		}
+
+		// Check for cursed gear
+		isCursed := false
+		for _, g := range u.Equipped {
+			if g.Cursed {
+				isCursed = true
+				break
+			}
+		}
+		if isCursed {
+			loss := int(float64(u.Stats.HP) * 0.02)
+			if loss < 1 {
+				loss = 1
+			}
+			u.CurrentHP -= loss
+			*logs = append(*logs, fmt.Sprintf("💀 Cursed weapon drains %d HP from %s!", loss, u.Nickname))
+			if u.CurrentHP <= 0 {
+				u.CurrentHP = 0
+				*logs = append(*logs, fmt.Sprintf("💀 %s has succumbed to their cursed weapon's corruption!", u.Nickname))
+				continue
+			}
+		}
+
+		// Check for sentient weapon
+		hasSentient := false
+		sentientName := ""
+		if mh, ok := u.Equipped[content.SlotMainHand]; ok && (mh.Eldritch || mh.Rarity >= content.RarityLegendary) {
+			hasSentient = true
+			sentientName = mh.Name
+		}
+
+		if u.CurrentHP < u.Stats.HP/3 && hasSentient && rand.Float64() < 0.3 {
+			dialogues := []string{
+				"The weapon whispers: 'Do not fail me now... there are still souls to consume...'",
+				"The sentient weapon thrums with urgent energy: 'Stand strong, mortal!'",
+			}
+			*logs = append(*logs, fmt.Sprintf("💬 [%s]: %s", sentientName, dialogues[rand.IntN(len(dialogues))]))
+		}
+
 		// Zone Buff check
 		uSTR := int(float64(u.Stats.STR) * u.STRMod)
 		for _, eff := range zone.Effects {
@@ -953,13 +1002,37 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			}
 
+			// Spell cost and cast check
+			spellCost := 20
+			if chest, ok := u.Equipped[content.SlotChest]; ok && chest.ID == "ABYSS_ARCHMAGE_ROBES" {
+				spellCost -= 5
+			}
+			st := b.loadAbyssStats(u.UID)
+			spellCost -= st.UpInsight * 2
+			if spellCost < 5 {
+				spellCost = 5
+			}
+
 			// #nosec G404
-			if len(u.Skills) > 0 && rand.Float64() < 0.3 { // #nosec G404
+			if len(u.Skills) > 0 && au.CurrentMana >= spellCost && rand.Float64() < 0.3 { // #nosec G404
 				// #nosec G404
 				s := u.Skills[rand.IntN(len(u.Skills))] // #nosec G404
-				dmgMult *= s.Power
+				au.CurrentMana -= spellCost
+
+				// Spell Power scaling: +1% damage multiplier per 1 INT
+				spellPowerMult := 1.0 + float64(u.Stats.INT)*0.01
+
+				// Mage offhand / battery / shadow orb boosts spell power by +15%
+				if oh, ok := u.Equipped[content.SlotOffHand]; ok && (strings.Contains(strings.ToLower(oh.Name), "orb") || strings.Contains(strings.ToLower(oh.Name), "battery")) {
+					spellPowerMult *= 1.15
+				}
+				if t2, ok := u.Equipped[content.SlotTrinket2]; ok && (strings.Contains(strings.ToLower(t2.Name), "orb") || strings.Contains(strings.ToLower(t2.Name), "battery")) {
+					spellPowerMult *= 1.15
+				}
+
+				dmgMult *= s.Power * spellPowerMult
 				ignoreDef = s.IgnoreDef
-				*logs = append(*logs, i18n.T("bot.combat.skill_activation", u.Nickname, s.Name))
+				*logs = append(*logs, fmt.Sprintf("✨ %s cast %s (cost: %d Mana, Remaining: %d/%d). Spell Power: +%d%%!", u.Nickname, s.Name, spellCost, au.CurrentMana, au.MaxMana, int(float64(u.Stats.INT)*spellPowerMult)))
 
 				// Combo System (Improvement 6)
 				if au.lastSkillID != "" && au.lastSkillID == s.ID {
@@ -1003,6 +1076,18 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				u.UltimateSkill.CurrentCooldown = u.UltimateSkill.CooldownRounds
 			}
 
+			// Weapon Scopes for Rangers: check if ranger/scope equipped
+			hasScope := false
+			for _, g := range u.Equipped {
+				if strings.Contains(strings.ToLower(g.Name), "scope") {
+					hasScope = true
+					break
+				}
+			}
+			if hasScope {
+				dmgMult *= 1.15
+			}
+
 			effDef := float64(target.Stats.DEF) * target.DEFMod * (1.0 - ignoreDef)
 			dmg := int((float64(uSTR)*dmgMult - effDef) * intensify)
 
@@ -1022,6 +1107,16 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 
 			target.Stats.HP -= dmg
 			*totalUserDamage += dmg
+
+			if hasSentient && rand.Float64() < 0.25 {
+				var sentientLog string
+				if dmg > int(float64(uSTR)*0.8) {
+					sentientLog = "The sentient weapon laughs: 'A fine strike! Feast on their pain!'"
+				} else {
+					sentientLog = "The sentient weapon whispers: 'Make it bleed more...'"
+				}
+				*logs = append(*logs, fmt.Sprintf("💬 [%s]: %s", sentientName, sentientLog))
+			}
 
 			// Chain Attack Logic for groups (3+ players)
 			// #nosec G404
@@ -1076,6 +1171,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 
 			if target.Stats.HP <= 0 {
 				*logs = append(*logs, i18n.T("bot.combat.defeated", target.Name, u.Nickname))
+				if hasSentient && rand.Float64() < 0.4 {
+					*logs = append(*logs, fmt.Sprintf("💬 [%s]: 'Their soul is ours now!'", sentientName))
+				}
 				// Weekly affix: Bloodlust heals the slayer for 20% of max HP on a kill.
 				if strings.Contains(u.FloorModifier, "bloodlust") {
 					u.CurrentHP += u.Stats.HP / 5
@@ -1300,6 +1398,11 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 
 		dmg := int((float64(mSTR)*dmgMult - float64(target.Stats.DEF)*target.DEFMod) * intensify)
 
+		// Armor Plating chest attachments: flat damage reduction
+		if chest, ok := target.Equipped[content.SlotChest]; ok && (strings.Contains(strings.ToLower(chest.Name), "plated") || strings.Contains(strings.ToLower(chest.Name), "plate") || strings.Contains(strings.ToLower(chest.Name), "aegis")) {
+			dmg -= 30
+		}
+
 		// Frontline Defense Bonus (Improvement 2)
 		if target.Position == content.PositionFrontline {
 			dmg = int(float64(dmg) * 0.9) // 10% damage reduction for frontline
@@ -1374,9 +1477,17 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			}
 		}
 
+		// Check for Spike Enamels on shield
+		hasSpikes := false
+		if oh, ok := target.Equipped[content.SlotOffHand]; ok && (strings.Contains(strings.ToLower(oh.Name), "spike") || strings.Contains(strings.ToLower(oh.Name), "gorgon") || strings.Contains(strings.ToLower(oh.Name), "aegis")) {
+			hasSpikes = true
+		}
 		for _, eff := range targetAU.effects {
 			if eff == content.EffectThorns && dmg > 0 {
 				reflect := dmg / 10
+				if hasSpikes {
+					reflect = dmg * 3 / 10 // Thorns boosted to 30% with Spikes/shield!
+				}
 				if reflect < 1 {
 					reflect = 1
 				}
@@ -1843,7 +1954,7 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) []string {
 
 	// XP items lose durability faster: the higher the XP multiplier, the faster they decay.
 	// This ensures powerful XP-boosting gear is a tradeoff (more XP but shorter lifespan).
-	grows, gerr := b.DB.Query("SELECT gear_id, enchantment_id FROM user_gear WHERE client_uid = $1", uid)
+	grows, gerr := b.DB.Query("SELECT gear_id, enchantment_id, item_data FROM user_gear WHERE client_uid = $1", uid)
 	if gerr == nil {
 		type gearLoss struct {
 			gearID string
@@ -1853,11 +1964,13 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) []string {
 		for grows.Next() {
 			var gearID string
 			var enchID sql.NullString
-			if grows.Scan(&gearID, &enchID) == nil {
+			var itemData sql.NullString
+			if grows.Scan(&gearID, &enchID, &itemData) == nil {
 				itemLoss := baseLoss
-				if gear, ok := content.GetGearByID(gearID); ok {
-					// Gear with XP multiplier > 1.0 loses extra durability proportional to the bonus
-					if gear.XPMultiplier > 1.0 {
+				if gear, ok := b.makeGear(gearID, itemData); ok {
+					if gear.Insured {
+						itemLoss = 0
+					} else if gear.XPMultiplier > 1.0 {
 						xpPenalty := int((gear.XPMultiplier - 1.0) * 10) // e.g. 1.30x = +3 extra loss
 						itemLoss += xpPenalty
 					}
@@ -2002,18 +2115,19 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 	// Only Rare+ items provide XP bonuses (Common/Uncommon have 1.0-1.05x)
 	// Max possible from gear: 30 slots × 1.30x = ~2600x (capped by rarity distribution)
 	abyssSetPieces := 0
-	rows, err := b.DB.Query("SELECT gear_id, durability, enchantment_id FROM user_gear WHERE client_uid = $1", uid)
+	rows, err := b.DB.Query("SELECT gear_id, durability, enchantment_id, item_data FROM user_gear WHERE client_uid = $1", uid)
 	if err == nil {
 		defer func() { _ = rows.Close() }()
 		for rows.Next() {
 			var gearID string
 			var dura int
 			var enchID sql.NullString
-			if err := rows.Scan(&gearID, &dura, &enchID); err == nil {
+			var itemData sql.NullString
+			if err := rows.Scan(&gearID, &dura, &enchID, &itemData); err == nil {
 				if content.IsAbyssGearID(gearID) {
 					abyssSetPieces++
 				}
-				if gear, ok := content.GetGearByID(gearID); ok {
+				if gear, ok := b.makeGear(gearID, itemData); ok {
 					// Define which slots can have high XP multipliers (more than 20%)
 					highXPSlots := map[content.GearSlot]bool{
 						content.SlotMainHand: true,
