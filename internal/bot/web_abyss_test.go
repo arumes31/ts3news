@@ -3,6 +3,7 @@ package bot
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"ts3news/internal/content"
 )
@@ -357,6 +358,30 @@ func TestAbyssSignatureRelics(t *testing.T) {
 		g := content.RandomAbyssGearDrop()
 		if eff, isSig := want[g.ID]; isSig && g.Special != eff {
 			t.Fatalf("RandomAbyssGearDrop overwrote %q Special: got %q want %q", g.ID, g.Special, eff)
+		}
+	}
+}
+
+// TestAbyssDailyBounty verifies the bounty is deterministic per UTC day, rotates
+// across days, and that every template entry is well-formed (positive target/reward).
+func TestAbyssDailyBounty(t *testing.T) {
+	day := time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)
+	a := abyssDailyBounty(day)
+	b := abyssDailyBounty(day.Add(6 * time.Hour))
+	if a != b {
+		t.Error("bounty should be stable within the same UTC day")
+	}
+	// Over a full rotation of distinct days we must see more than one bounty.
+	seen := map[abyssBountyKind]bool{}
+	for i := 0; i < len(abyssBountyTable); i++ {
+		seen[abyssDailyBounty(day.AddDate(0, 0, i)).Kind] = true
+	}
+	if len(seen) < 2 {
+		t.Error("bounty rotation should yield more than one kind over its period")
+	}
+	for i, bt := range abyssBountyTable {
+		if bt.Target <= 0 || bt.Desc == "" || (bt.RewardTk <= 0 && bt.RewardGd <= 0) {
+			t.Errorf("bounty %d is malformed: %+v", i, bt)
 		}
 	}
 }

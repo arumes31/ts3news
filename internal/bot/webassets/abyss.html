@@ -16,6 +16,18 @@
       {{if eq .DailyMod "vampiric_mobs"}}{{T "web.abyss.weekly.vampiric_mobs"}}{{end}}
     </div>
   {{end}}
+  {{with .Bounty}}
+    <div class="ab-bounty-alert" id="bountyCard" style="background: rgba(76,175,80,0.1); border: 1px solid #4caf50; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
+      🎯 <strong>Daily Bounty:</strong> {{.Desc}}
+      <span class="muted small" style="margin-left:8px;">Progress: <b id="bountyProg">{{comma .Progress}}</b> / {{comma .Target}}</span>
+      <span class="muted small" style="margin-left:8px;">Reward: 🜲 {{.RewardTk}} + {{gold .RewardGd}}</span>
+      <span id="bountyAction" style="margin-left:10px;">
+        {{if .Claimed}}<b style="color:#7ee787">✅ Claimed today</b>
+        {{else if .Met}}<button class="primary xs" onclick="abyssBountyClaim()">Claim Reward</button>
+        {{else}}<span class="muted small">In progress…</span>{{end}}
+      </span>
+    </div>
+  {{end}}
 </div>
 
 <div class="abyss-stats">
@@ -719,6 +731,17 @@ async function abyssPrestige(){
   if(d.achievement)pmsg+=' 🏅 '+d.achievement;
   setBanner(pmsg, 'good');
   window.location.reload();
+}
+
+async function abyssBountyClaim(){
+  if(busy)return; setBusy(true);
+  var d = await abPost('/api/abyss/bounty/claim');
+  setBusy(false);
+  if(!d.ok){ abToast(d.error||'failed',false); return; }
+  setGold(d.gold); setTokens(d.tokens);
+  var act=document.getElementById('bountyAction');
+  if(act)act.innerHTML='<b style="color:#7ee787">✅ Claimed today</b>';
+  setBanner('🎯 Daily Bounty complete! +🜲 '+d.reward_tokens+' tokens and +'+fmtGold(d.reward_gold)+'.','good');
 }
 
 // Initial paint (consistent formatting on load).

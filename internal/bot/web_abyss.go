@@ -669,6 +669,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"NextIsBoss":     run.Active && (run.Depth+1)%5 == 0,
 		"AbyssSetPieces": abyssSetPieces,
 		"AbyssSetTier":   abyssSetTier,
+		"Bounty":         s.bot.abyssBountyStatus(uid),
 	})
 }
 
