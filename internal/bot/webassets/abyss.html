@@ -188,6 +188,23 @@
     </div>
   </section>
 
+  <!-- Token Shop: open-ended sink for Abyss Tokens -->
+  <section class="abyss-panel">
+    <h2>🜲 Token Shop</h2>
+    <p class="muted small">Spend Abyss Tokens on consumables, gear and relics.</p>
+    <div class="ab-shop">
+      {{range .Shop}}
+      <div class="ab-shop-item" style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div>
+          <b>{{.Name}}</b>
+          <div class="muted small">{{.Desc}}</div>
+        </div>
+        <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', this)">🜲 {{.Cost}}</button>
+      </div>
+      {{end}}
+    </div>
+  </section>
+
   <!-- Lifetime stats [46] + salvage [60] -->
   <section class="abyss-panel">
     <h2>{{T "web.abyss.record"}}</h2>
@@ -742,6 +759,16 @@ async function abyssBountyClaim(){
   var act=document.getElementById('bountyAction');
   if(act)act.innerHTML='<b style="color:#7ee787">✅ Claimed today</b>';
   setBanner('🎯 Daily Bounty complete! +🜲 '+d.reward_tokens+' tokens and +'+fmtGold(d.reward_gold)+'.','good');
+}
+
+async function abyssShopBuy(item, btn){
+  if(busy)return; setBusy(true);
+  var d = await abPost('/api/abyss/shop/buy', {item: item});
+  setBusy(false);
+  if(!d.ok){ abToast(d.error||'failed',false); return; }
+  setTokens(d.tokens); setGold(d.gold);
+  if(d.consumables)renderConsumables(d.consumables);
+  abToast(d.msg||'Purchased!', true);
 }
 
 // Initial paint (consistent formatting on load).

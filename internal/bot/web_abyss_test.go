@@ -362,6 +362,31 @@ func TestAbyssSignatureRelics(t *testing.T) {
 	}
 }
 
+// TestAbyssShopCatalog verifies the token-shop catalog is well-formed: unique keys,
+// positive costs, and a lookup that resolves every advertised key (so no buy button
+// can hit an unknown-item path).
+func TestAbyssShopCatalog(t *testing.T) {
+	seen := map[string]bool{}
+	for _, it := range abyssShopCatalog {
+		if it.Key == "" || it.Name == "" {
+			t.Errorf("shop item has empty key/name: %+v", it)
+		}
+		if it.Cost <= 0 {
+			t.Errorf("shop item %q has non-positive cost %d", it.Key, it.Cost)
+		}
+		if seen[it.Key] {
+			t.Errorf("duplicate shop key %q", it.Key)
+		}
+		seen[it.Key] = true
+		if _, ok := abyssShopByKey(it.Key); !ok {
+			t.Errorf("abyssShopByKey cannot resolve advertised key %q", it.Key)
+		}
+	}
+	if _, ok := abyssShopByKey("definitely_not_a_key"); ok {
+		t.Error("abyssShopByKey resolved a bogus key")
+	}
+}
+
 // TestAbyssDailyBounty verifies the bounty is deterministic per UTC day, rotates
 // across days, and that every template entry is well-formed (positive target/reward).
 func TestAbyssDailyBounty(t *testing.T) {
