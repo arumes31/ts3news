@@ -198,6 +198,21 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		// #nosec G404 - loot rolls are not security-sensitive
 		r := rand.Float64() - lootFindBonus
 
+		// Legendary pity: once the counter reaches the cap the very next drop is a
+		// guaranteed Legendary, resolved *before* every other branch — including the
+		// gold-focus / treasure-goblin payout and the ordinary reward switch — so
+		// nothing can skip the pity payout. Pity is only reset once the drop is
+		// actually escrowed.
+		if legendaryPity >= 40 {
+			pg := content.RandomAbyssGearDrop()
+			pg.Rarity = content.RarityLegendary
+			label, g := processGear(pg)
+			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
+				legendaryPity = 0
+			}
+			continue
+		}
+
 		// Gold-focus rolls and treasure goblins pay gold, escrowed like everything else.
 		if focus == "gold" || mob.Type == content.MobTreasureGoblin {
 			var gold int64
@@ -210,20 +225,6 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				gold = int64(float64(gold) * 1.5) // Lucky Coin: +50% gold drop rate
 			}
 			add(fmt.Sprintf("💰 %d gold", gold), abyssLootGrant{Type: "gold", Gold: gold})
-			continue
-		}
-
-		// Legendary pity: once the counter reaches the cap the very next drop is a
-		// guaranteed Legendary, resolved *before* the ordinary reward switch so the
-		// non-gear branches (ultimate/title/…) can no longer skip the pity payout.
-		// Pity is only reset once the drop is actually escrowed.
-		if legendaryPity >= 40 {
-			pg := content.RandomAbyssGearDrop()
-			pg.Rarity = content.RarityLegendary
-			label, g := processGear(pg)
-			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
-				legendaryPity = 0
-			}
 			continue
 		}
 
