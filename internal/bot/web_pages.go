@@ -72,7 +72,7 @@ var gearEffectDescriptions = map[content.ItemEffect]string{
 // gearStatList returns the gear's non-zero combat stats, largest first.
 func gearStatList(s content.Stats) []statKV {
 	pairs := []statKV{
-		{"HP", s.HP}, {"STR", s.STR}, {"DEF", s.DEF}, {"SPD", s.SPD},
+		{"HP", s.HP}, {"MNA", s.MNA}, {"STR", s.STR}, {"DEF", s.DEF}, {"SPD", s.SPD},
 		{"CRT%", s.CRT}, {"DGE%", s.DGE}, {"LCK", s.LCK}, {"INT", s.INT}, {"STA", s.STA},
 	}
 	var out []statKV
@@ -159,6 +159,10 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		v.EffectIcon = content.EffectIconName(g.Special)
 		v.EffectDesc = effDesc
 	} else if g.Unidentified {
+		v.EffectDesc = effDesc
+	} else if effDesc != "" {
+		// Identified gear with no base Special but with cursed/eldritch/socket affixes
+		// still has an assembled description; surface it so those affixes render.
 		v.EffectDesc = effDesc
 	}
 	return v

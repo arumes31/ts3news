@@ -42,6 +42,23 @@ func Dial(addr string, timeout time.Duration) (*Client, error) {
 
 func (c *Client) Close() error { return c.conn.Close() }
 
+// ErrDuplicateEntry is TeamSpeak's error id for an insert that already exists —
+// e.g. adding a client to a server group it is already a member of. Callers can
+// treat it as a benign no-op rather than a failure.
+const ErrDuplicateEntry = 2561
+
+// CommandError is returned when a ClientQuery command completes with a non-zero
+// error id. Callers can inspect ID to handle specific conditions (via errors.As).
+type CommandError struct {
+	Cmd string
+	ID  int
+	Msg string
+}
+
+func (e *CommandError) Error() string {
+	return fmt.Sprintf("command %q failed: id=%d msg=%s", e.Cmd, e.ID, e.Msg)
+}
+
 // Command sends a single command and returns the data lines (everything before
 // the terminating "error id=... msg=..." line). It returns an error if the
 // command's error id is non-zero.
@@ -63,7 +80,7 @@ func (c *Client) Command(cmd string) ([]string, error) {
 		if strings.HasPrefix(line, "error ") {
 			id, msg := parseError(line)
 			if id != 0 {
-				return data, fmt.Errorf("command %q failed: id=%d msg=%s", firstWord(cmd), id, msg)
+				return data, &CommandError{Cmd: firstWord(cmd), ID: id, Msg: msg}
 			}
 			return data, nil
 		}

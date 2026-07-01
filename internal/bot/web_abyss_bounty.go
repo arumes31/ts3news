@@ -49,10 +49,16 @@ func abyssDailyBounty(now time.Time) abyssBounty {
 	return abyssBountyTable[seed%len(abyssBountyTable)]
 }
 
-// abyssBountyProgress computes the player's progress toward today's bounty from the
-// run-history tables, scoped to the current UTC day.
-func (b *Bot) abyssBountyProgress(uid string, bounty abyssBounty) int64 {
-	start := time.Now().UTC().Truncate(24 * time.Hour)
+// abyssBountyDay returns the UTC bounty day (midnight-aligned) for now. Capturing
+// it once and threading it through progress/claim checks keeps validation and the
+// claim write on the same calendar day even if the flow straddles midnight.
+func abyssBountyDay(now time.Time) time.Time {
+	return now.UTC().Truncate(24 * time.Hour)
+}
+
+// abyssBountyProgress computes the player's progress toward the day's bounty from the
+// run-history tables, scoped to the supplied UTC bounty day.
+func (b *Bot) abyssBountyProgress(uid string, bounty abyssBounty, start time.Time) int64 {
 	var p int64
 	switch bounty.Kind {
 	case bountyDepth:
@@ -71,12 +77,13 @@ func (b *Bot) abyssBountyProgress(uid string, bounty abyssBounty) int64 {
 	return p
 }
 
-// abyssBountyClaimed reports whether the player has already claimed today's bounty.
-func (b *Bot) abyssBountyClaimed(uid string) bool {
+// abyssBountyClaimedDay reports whether the player has already claimed the bounty
+// for the given UTC day.
+func (b *Bot) abyssBountyClaimedDay(uid string, day time.Time) bool {
 	var exists bool
 	_ = b.DB.QueryRow(
-		"SELECT EXISTS(SELECT 1 FROM abyss_bounty_claims WHERE client_uid=$1 AND bounty_day = (NOW() AT TIME ZONE 'UTC')::date)",
-		uid).Scan(&exists)
+		"SELECT EXISTS(SELECT 1 FROM abyss_bounty_claims WHERE client_uid=$1 AND bounty_day = $2::date)",
+		uid, day).Scan(&exists)
 	return exists
 }
 
@@ -93,15 +100,6 @@ func abyssStreakBonusTokens(streak int) int {
 	return n * 5
 }
 
-// abyssBountyClaimedOn reports whether the player claimed the bounty the given
-// number of days ago (0 = today, 1 = yesterday), in UTC.
-func (b *Bot) abyssBountyClaimedOn(uid string, daysAgo int) bool {
-	var exists bool
-	_ = b.DB.QueryRow(
-		"SELECT EXISTS(SELECT 1 FROM abyss_bounty_claims WHERE client_uid=$1 AND bounty_day = ((NOW() AT TIME ZONE 'UTC')::date - $2::int))",
-		uid, daysAgo).Scan(&exists)
-	return exists
-}
 
 // abyssBountyView is the template-facing snapshot of the player's daily bounty.
 type abyssBountyView struct {
@@ -116,14 +114,16 @@ type abyssBountyView struct {
 }
 
 func (b *Bot) abyssBountyStatus(uid string) abyssBountyView {
-	bounty := abyssDailyBounty(time.Now())
-	prog := b.abyssBountyProgress(uid, bounty)
-	claimedToday := b.abyssBountyClaimed(uid)
+	now := time.Now()
+	day := abyssBountyDay(now)
+	bounty := abyssDailyBounty(now)
+	prog := b.abyssBountyProgress(uid, bounty, day)
+	claimedToday := b.abyssBountyClaimedDay(uid, day)
 
 	// The stored streak is "live" only if today or yesterday was claimed; otherwise a
 	// day was missed and the streak is effectively broken until the next claim.
 	live := 0
-	if claimedToday || b.abyssBountyClaimedOn(uid, 1) {
+	if claimedToday || b.abyssBountyClaimedDay(uid, day.AddDate(0, 0, -1)) {
 		_ = b.DB.QueryRow("SELECT abyss_bounty_streak FROM users WHERE client_uid=$1", uid).Scan(&live)
 	}
 
@@ -151,15 +151,19 @@ func (s *WebServer) handleAbyssBountyClaim(w http.ResponseWriter, r *http.Reques
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	bounty := abyssDailyBounty(time.Now())
-	if s.bot.abyssBountyProgress(uid, bounty) < bounty.Target {
+	// Capture the UTC bounty day once so the progress check, streak check and the
+	// claim insert all reference the same calendar day even across a midnight tick.
+	now := time.Now()
+	day := abyssBountyDay(now)
+	bounty := abyssDailyBounty(now)
+	if s.bot.abyssBountyProgress(uid, bounty, day) < bounty.Target {
 		writeJSON(w, map[string]any{"ok": false, "error": "bounty not complete yet"})
 		return
 	}
 
 	// Streak continues only if yesterday was also claimed; otherwise it resets to 1.
 	newStreak := 1
-	if s.bot.abyssBountyClaimedOn(uid, 1) {
+	if s.bot.abyssBountyClaimedDay(uid, day.AddDate(0, 0, -1)) {
 		var prev int
 		_ = s.bot.DB.QueryRow("SELECT abyss_bounty_streak FROM users WHERE client_uid=$1", uid).Scan(&prev)
 		newStreak = prev + 1
@@ -177,8 +181,8 @@ func (s *WebServer) handleAbyssBountyClaim(w http.ResponseWriter, r *http.Reques
 	// The PK on (client_uid, bounty_day) makes this the one-shot guard: a second
 	// claim for the same day affects zero rows and is rejected.
 	res, err := tx.Exec(
-		"INSERT INTO abyss_bounty_claims (client_uid, bounty_day) VALUES ($1, (NOW() AT TIME ZONE 'UTC')::date) ON CONFLICT DO NOTHING",
-		uid)
+		"INSERT INTO abyss_bounty_claims (client_uid, bounty_day) VALUES ($1, $2::date) ON CONFLICT DO NOTHING",
+		uid, day)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return

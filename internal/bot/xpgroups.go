@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -284,7 +285,14 @@ func (b *Bot) applyAbyssMilestones(c *clientquery.Client, clid int, uid, nicknam
 			continue
 		}
 		if err := c.AddServerGroup(sgid, cldbid); err != nil {
-			log.Printf("abyss milestone: granting %q (sgid %d) to %s failed (needs permission): %v", m.Name, sgid, nickname, err)
+			// A permanent milestone group is re-granted every cycle; once the client
+			// already holds it, TeamSpeak returns "duplicate entry" (id 2561). That's
+			// the expected steady state, not a failure — skip it quietly.
+			var cerr *clientquery.CommandError
+			if errors.As(err, &cerr) && cerr.ID == clientquery.ErrDuplicateEntry {
+				continue
+			}
+			log.Printf("abyss milestone: granting %q (sgid %d) to %s failed: %v", m.Name, sgid, nickname, err)
 		} else {
 			log.Printf("abyss milestone: %s reached floor %d, granted %q", nickname, m.Floor, m.Name)
 		}

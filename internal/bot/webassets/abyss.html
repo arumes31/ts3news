@@ -265,6 +265,7 @@
           <div style="display:flex; gap:6px;">
             <select id="recalibrateStatSelect" style="flex:1; padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
               <option value="HP">Max HP</option>
+              <option value="MNA">Mana</option>
               <option value="STR">Strength</option>
               <option value="DEF">Defense</option>
               <option value="SPD">Speed</option>
@@ -801,7 +802,14 @@ async function abyssDismantle(){
   setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setTokens(d.tokens);
-  abToast(d.dismantled>0?('Dismantled '+d.dismantled+' spares for 🜲 '+d.tokens_gained):'No rare+ spares to dismantle', d.dismantled>0);
+  if(d.dismantled>0){
+    abToast('Dismantled '+d.dismantled+' spares for 🜲 '+d.tokens_gained, true);
+    // Dismantled gear is gone from the backpack; reload so the forge item picker and
+    // inventory rebuild from current state instead of showing stale entries.
+    setTimeout(function(){ window.location.reload(); }, 1000);
+  } else {
+    abToast('No rare+ spares to dismantle', false);
+  }
 }
 
 async function abyssUpgrade(node, btn){

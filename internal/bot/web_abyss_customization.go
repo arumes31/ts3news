@@ -12,6 +12,54 @@ import (
 	"ts3news/internal/content"
 )
 
+// writeGearItemData persists updated item JSON to the correct table (inventory by
+// id, or equipped gear by slot), always scoped to the owning client_uid. On a DB
+// error it writes a JSON error response and returns false so the caller aborts the
+// transaction before charging the player.
+func writeGearItemData(w http.ResponseWriter, tx *sql.Tx, uid string, invID int64, slot, data string) bool {
+	var err error
+	if invID > 0 {
+		_, err = tx.Exec("UPDATE user_inventory SET item_data=$1 WHERE id=$2 AND client_uid=$3", data, invID, uid)
+	} else {
+		_, err = tx.Exec("UPDATE user_gear SET item_data=$1 WHERE slot=$2 AND client_uid=$3", data, slot, uid)
+	}
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return false
+	}
+	return true
+}
+
+// deductGold debits the player's gold with a balance-guarded UPDATE so the charge
+// commits atomically with the item change and can never overdraw. It writes an
+// error response and returns false if the debit errored or the player can't afford it.
+func deductGold(w http.ResponseWriter, tx *sql.Tx, uid string, cost int64) bool {
+	res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return false
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
+		return false
+	}
+	return true
+}
+
+// deductTokens debits Abyss tokens with the same balance guard as deductGold.
+func deductTokens(w http.ResponseWriter, tx *sql.Tx, uid string, cost int64) bool {
+	res, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1", cost, uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return false
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "not enough tokens"})
+		return false
+	}
+	return true
+}
+
 // handleAbyssIdentify spends 100 gold to identify an item in inventory or equipped.
 func (s *WebServer) handleAbyssIdentify(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
@@ -77,13 +125,12 @@ func (s *WebServer) handleAbyssIdentify(w http.ResponseWriter, r *http.Request, 
 	g.Unidentified = false
 	dataBytes, _ := json.Marshal(g)
 
-	if req.InvID > 0 {
-		_, _ = tx.Exec("UPDATE user_inventory SET item_data=$1 WHERE id=$2", string(dataBytes), req.InvID)
-	} else {
-		_, _ = tx.Exec("UPDATE user_gear SET item_data=$1 WHERE slot=$2 AND client_uid=$3", string(dataBytes), req.Slot, uid)
+	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
+		return
 	}
-
-	_, _ = tx.Exec("UPDATE users SET gold = gold - 100 WHERE client_uid=$1", uid)
+	if !deductGold(w, tx, uid, 100) {
+		return
+	}
 
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db commit"})
@@ -196,13 +243,12 @@ func (s *WebServer) handleAbyssSocketGem(w http.ResponseWriter, r *http.Request,
 
 	dataBytes, _ := json.Marshal(g)
 
-	if req.InvID > 0 {
-		_, _ = tx.Exec("UPDATE user_inventory SET item_data=$1 WHERE id=$2", string(dataBytes), req.InvID)
-	} else {
-		_, _ = tx.Exec("UPDATE user_gear SET item_data=$1 WHERE slot=$2 AND client_uid=$3", string(dataBytes), req.Slot, uid)
+	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
+		return
 	}
-
-	_, _ = tx.Exec("UPDATE users SET gold = gold - 50 WHERE client_uid=$1", uid)
+	if !deductGold(w, tx, uid, 50) {
+		return
+	}
 
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db commit"})
@@ -292,13 +338,12 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 
 	dataBytes, _ := json.Marshal(g)
 
-	if req.InvID > 0 {
-		_, _ = tx.Exec("UPDATE user_inventory SET item_data=$1 WHERE id=$2", string(dataBytes), req.InvID)
-	} else {
-		_, _ = tx.Exec("UPDATE user_gear SET item_data=$1 WHERE slot=$2 AND client_uid=$3", string(dataBytes), req.Slot, uid)
+	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
+		return
 	}
-
-	_, _ = tx.Exec("UPDATE users SET gold = gold - 150 WHERE client_uid=$1", uid)
+	if !deductGold(w, tx, uid, 150) {
+		return
+	}
 
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db commit"})
@@ -320,7 +365,7 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 	var req struct {
 		InvID int64  `json:"inv_id"`
 		Slot  string `json:"slot"`
-		Stat  string `json:"stat"` // HP, STR, DEF, SPD, LCK, INT, STA, CRT, DGE
+		Stat  string `json:"stat"` // HP, MNA, STR, DEF, SPD, LCK, INT, STA, CRT, DGE
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
@@ -328,7 +373,7 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 	}
 
 	stat := req.Stat
-	if stat != "HP" && stat != "STR" && stat != "DEF" && stat != "SPD" && stat != "LCK" && stat != "INT" && stat != "STA" && stat != "CRT" && stat != "DGE" {
+	if stat != "HP" && stat != "MNA" && stat != "STR" && stat != "DEF" && stat != "SPD" && stat != "LCK" && stat != "INT" && stat != "STA" && stat != "CRT" && stat != "DGE" {
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid stat"})
 		return
 	}
@@ -385,6 +430,8 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 	switch stat {
 	case "HP":
 		g.Stats.HP = 200 + rand.IntN(400)
+	case "MNA":
+		g.Stats.MNA = 40 + rand.IntN(110)
 	case "STR":
 		g.Stats.STR = 40 + rand.IntN(80)
 	case "DEF":
@@ -405,13 +452,12 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 
 	dataBytes, _ := json.Marshal(g)
 
-	if req.InvID > 0 {
-		_, _ = tx.Exec("UPDATE user_inventory SET item_data=$1 WHERE id=$2", string(dataBytes), req.InvID)
-	} else {
-		_, _ = tx.Exec("UPDATE user_gear SET item_data=$1 WHERE slot=$2 AND client_uid=$3", string(dataBytes), req.Slot, uid)
+	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
+		return
 	}
-
-	_, _ = tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens - 5 WHERE client_uid=$1", uid)
+	if !deductTokens(w, tx, uid, 5) {
+		return
+	}
 
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db commit"})
@@ -493,13 +539,12 @@ func (s *WebServer) handleAbyssUpgradeGear(w http.ResponseWriter, r *http.Reques
 
 	dataBytes, _ := json.Marshal(g)
 
-	if req.InvID > 0 {
-		_, _ = tx.Exec("UPDATE user_inventory SET item_data=$1 WHERE id=$2", string(dataBytes), req.InvID)
-	} else {
-		_, _ = tx.Exec("UPDATE user_gear SET item_data=$1 WHERE slot=$2 AND client_uid=$3", string(dataBytes), req.Slot, uid)
+	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
+		return
 	}
-
-	_, _ = tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens - 10 WHERE client_uid=$1", uid)
+	if !deductTokens(w, tx, uid, 10) {
+		return
+	}
 
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db commit"})
@@ -559,6 +604,14 @@ func (s *WebServer) handleAbyssTransmute(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
+	// Transmutation rebuilds the weapon from a fresh catalog base, which cannot carry
+	// over per-item customization. Refuse when the source carries any such state rather
+	// than silently destroying gemstones, runes, insurance, affixes or its identity.
+	if len(g.Gemstones) > 0 || g.Rune != "" || g.Insured || g.Cursed || g.Eldritch || g.Unidentified {
+		writeJSON(w, map[string]any{"ok": false, "error": "cannot transmute customized gear (gems, runes, insurance, or affixes)"})
+		return
+	}
+
 	// Load user stats to select suitable class weapon
 	userStats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
 	
@@ -588,8 +641,13 @@ func (s *WebServer) handleAbyssTransmute(w http.ResponseWriter, r *http.Request,
 	selected.Sockets = g.Sockets
 
 	dataBytes, _ := json.Marshal(selected)
-	_, _ = tx.Exec("UPDATE user_inventory SET gear_id=$1, item_data=$2 WHERE id=$3", selected.ID, string(dataBytes), req.InvID)
-	_, _ = tx.Exec("UPDATE users SET gold = gold - 100 WHERE client_uid=$1", uid)
+	if _, err := tx.Exec("UPDATE user_inventory SET gear_id=$1, item_data=$2 WHERE id=$3 AND client_uid=$4", selected.ID, string(dataBytes), req.InvID, uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if !deductGold(w, tx, uid, 100) {
+		return
+	}
 
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db commit"})
@@ -697,12 +755,29 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Mana-conversion state (converted_hp / converted_mana_reduction) lives in
+	// abyss_upgrades but is not a Deep-Delver talent, so a talent reset must not wipe
+	// it. Rebuild the JSON from just those keys instead of blanking the whole column.
+	var upgradesJSON sql.NullString
+	_ = tx.QueryRow("SELECT abyss_upgrades FROM users WHERE client_uid=$1", uid).Scan(&upgradesJSON)
+	upgrades := map[string]int{}
+	if upgradesJSON.Valid && upgradesJSON.String != "" {
+		_ = json.Unmarshal([]byte(upgradesJSON.String), &upgrades)
+	}
+	preserved := map[string]int{}
+	for _, k := range []string{"converted_hp", "converted_mana_reduction"} {
+		if v, ok := upgrades[k]; ok {
+			preserved[k] = v
+		}
+	}
+	preservedBytes, _ := json.Marshal(preserved)
+
 	// Reset columns
-	_, err = tx.Exec(`UPDATE users 
+	_, err = tx.Exec(`UPDATE users
 	                     SET abyss_up_vigor=0, abyss_up_greed=0, abyss_up_fortune=0, abyss_up_ward=0,
 	                         abyss_up_interest=0, abyss_up_tribute=0, abyss_up_insight=0,
-	                         abyss_tokens = abyss_tokens + $1, abyss_upgrades = '{}'::jsonb
-	                   WHERE client_uid=$2`, refund, uid)
+	                         abyss_tokens = abyss_tokens + $1, abyss_upgrades = $3::jsonb
+	                   WHERE client_uid=$2`, refund, uid, string(preservedBytes))
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db update"})
 		return
@@ -785,13 +860,12 @@ func (s *WebServer) handleAbyssInsureItem(w http.ResponseWriter, r *http.Request
 	g.Insured = true
 	dataBytes, _ := json.Marshal(g)
 
-	if req.InvID > 0 {
-		_, _ = tx.Exec("UPDATE user_inventory SET item_data=$1 WHERE id=$2", string(dataBytes), req.InvID)
-	} else {
-		_, _ = tx.Exec("UPDATE user_gear SET item_data=$1 WHERE slot=$2 AND client_uid=$3", string(dataBytes), req.Slot, uid)
+	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
+		return
 	}
-
-	_, _ = tx.Exec("UPDATE users SET gold = gold - 200 WHERE client_uid=$1", uid)
+	if !deductGold(w, tx, uid, 200) {
+		return
+	}
 
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db commit"})

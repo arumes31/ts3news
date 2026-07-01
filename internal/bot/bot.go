@@ -651,7 +651,13 @@ func FormatGoldPlain(v int64) string {
 
 func (b *Bot) makeGear(gearID string, itemData sql.NullString) (content.Gear, bool) {
 	if itemData.Valid && itemData.String != "" && itemData.String != "{}" {
-		var g content.Gear
+		// Start from the catalog entry so any field the persisted JSON omits (null or
+		// partial payloads) keeps its catalog default; the unmarshal then overlays only
+		// the fields actually stored on the item.
+		g, ok := content.GetGearByID(gearID)
+		if !ok {
+			g = content.Gear{}
+		}
 		if err := json.Unmarshal([]byte(itemData.String), &g); err == nil {
 			return g, true
 		}

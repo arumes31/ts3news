@@ -683,7 +683,7 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	rows, err := s.bot.DB.Query("SELECT id, gear_id FROM user_inventory WHERE client_uid=$1", uid)
+	rows, err := s.bot.DB.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1", uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -696,10 +696,13 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 	for rows.Next() {
 		var id int64
 		var gid string
-		if err := rows.Scan(&id, &gid); err != nil {
+		var itemData sql.NullString
+		if err := rows.Scan(&id, &gid, &itemData); err != nil {
 			continue
 		}
-		g, ok := content.GetGearByID(gid)
+		// Reconstruct the item from its persisted data so upgraded/generated gear is
+		// valued at its actual rarity, not the static catalog entry.
+		g, ok := s.bot.makeGear(gid, itemData)
 		if !ok {
 			continue
 		}

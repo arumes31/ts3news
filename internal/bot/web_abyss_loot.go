@@ -122,10 +122,50 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	_ = b.DB.QueryRow("SELECT legendary_pity FROM users WHERE client_uid=$1", uid).Scan(&legendaryPity)
 
 	var labels []string
-	add := func(label string, g abyssLootGrant) {
+	add := func(label string, g abyssLootGrant) bool {
 		if b.escrowAbyssLoot(uid, label, g) {
 			labels = append(labels, label)
+			return true
 		}
+		return false
+	}
+
+	// processGear applies the shared post-roll treatment to a gear drop — dynamic
+	// stat scaling (all stats, MNA included), unidentified chance, sockets and the
+	// eldritch/cursed affix rolls — and returns its display label. Shared by the
+	// forced-legendary pity path and the ordinary gear roll so they stay in sync.
+	processGear := func(g content.Gear) (string, content.Gear) {
+		g.Stats = g.Stats.Scaled(zoneDifficulty * scale)
+
+		// 20% chance to drop Unidentified
+		if rand.Float64() < 0.20 {
+			g.Unidentified = true
+		}
+
+		// Sockets & Gemstones: Epic+ items roll with 1-3 sockets
+		if g.Rarity >= content.RarityEpic {
+			g.Sockets = 1 + rand.IntN(3)
+		}
+
+		// Eldritch Gear Tier: 5% chance Legendary gear drops as Eldritch (Mythic rarity, +50% stats)
+		if g.Rarity == content.RarityLegendary && rand.Float64() < 0.05 {
+			g.Rarity = content.RarityMythic
+			g.Eldritch = true
+			g.Stats = g.Stats.Scaled(1.5)
+		}
+
+		// Cursed Weapons: 10% chance Epic+ weapon (MainHand, OffHand, Ranged) drops as Cursed (+50% stats, but -2% HP/turn)
+		isWeapon := g.Slot == content.SlotMainHand || g.Slot == content.SlotOffHand || g.Slot == content.SlotRanged
+		if isWeapon && g.Rarity >= content.RarityEpic && rand.Float64() < 0.10 {
+			g.Cursed = true
+			g.Stats = g.Stats.Scaled(1.5)
+		}
+
+		label := fmt.Sprintf("%s [s:%s] (gs:%d R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.Rarity.Color(), g.Rarity.String())
+		if g.Unidentified {
+			label = fmt.Sprintf("Unidentified %s [s:%s] (R:[color=%s]%s[/color])", string(g.Slot), string(g.Slot), g.Rarity.Color(), g.Rarity.String())
+		}
+		return label, g
 	}
 
 	// Bosses and legendaries always seal a guaranteed consumable.
@@ -173,6 +213,20 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			continue
 		}
 
+		// Legendary pity: once the counter reaches the cap the very next drop is a
+		// guaranteed Legendary, resolved *before* the ordinary reward switch so the
+		// non-gear branches (ultimate/title/…) can no longer skip the pity payout.
+		// Pity is only reset once the drop is actually escrowed.
+		if legendaryPity >= 40 {
+			pg := content.RandomAbyssGearDrop()
+			pg.Rarity = content.RarityLegendary
+			label, g := processGear(pg)
+			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
+				legendaryPity = 0
+			}
+			continue
+		}
+
 		switch {
 		case r < ultimateSkillChance*qualityMult*rareScale:
 			us := content.RandomUltimateSkill()
@@ -198,62 +252,21 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		case r < consChance*qualityMult:
 			c := content.RandomConsumable()
 			add(i18n.T("bot.loot.item", c.Name, c.ID), abyssLootGrant{Type: "cons", ConsID: c.ID, ConsDur: c.Duration})
-		case r < gearChance*qualityMult || legendaryPity >= 40:
-			var g content.Gear
-			if legendaryPity >= 40 {
+		case r < gearChance*qualityMult:
+			g := content.RandomGearDrop()
+			if rand.Float64() < 0.20 {
 				g = content.RandomAbyssGearDrop()
-				g.Rarity = content.RarityLegendary
-				legendaryPity = 0
-			} else {
-				g = content.RandomGearDrop()
-				if rand.Float64() < 0.20 {
-					g = content.RandomAbyssGearDrop()
+			}
+			label, g := processGear(g)
+			// Only touch pity once the drop is actually escrowed, so a failed save
+			// can't reset (or skip incrementing) the counter.
+			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
+				if g.Rarity >= content.RarityLegendary {
+					legendaryPity = 0
+				} else {
+					legendaryPity++
 				}
 			}
-
-			// Apply Dynamic Item Scaling
-			g.Stats.HP = int(float64(g.Stats.HP) * zoneDifficulty * scale)
-			g.Stats.STR = int(float64(g.Stats.STR) * zoneDifficulty * scale)
-			g.Stats.DEF = int(float64(g.Stats.DEF) * zoneDifficulty * scale)
-			g.Stats.SPD = int(float64(g.Stats.SPD) * zoneDifficulty * scale)
-
-			// 20% chance to drop Unidentified
-			if rand.Float64() < 0.20 {
-				g.Unidentified = true
-			}
-
-			// Sockets & Gemstones: Epic+ items roll with 1-3 sockets
-			if g.Rarity >= content.RarityEpic {
-				g.Sockets = 1 + rand.IntN(3)
-			}
-
-			// Eldritch Gear Tier: 5% chance Legendary gear drops as Eldritch (Mythic rarity, +50% stats)
-			if g.Rarity == content.RarityLegendary && rand.Float64() < 0.05 {
-				g.Rarity = content.RarityMythic
-				g.Eldritch = true
-				g.Stats = g.Stats.Scaled(1.5)
-			}
-
-			// Cursed Weapons: 10% chance Epic+ weapon (MainHand, OffHand, Ranged) drops as Cursed (+50% stats, but -2% HP/turn)
-			isWeapon := g.Slot == content.SlotMainHand || g.Slot == content.SlotOffHand || g.Slot == content.SlotRanged
-			if isWeapon && g.Rarity >= content.RarityEpic && rand.Float64() < 0.10 {
-				g.Cursed = true
-				g.Stats = g.Stats.Scaled(1.5)
-			}
-
-			// Update legendary pity
-			if g.Rarity >= content.RarityLegendary {
-				legendaryPity = 0
-			} else {
-				legendaryPity++
-			}
-
-			label := fmt.Sprintf("%s [s:%s] (gs:%d R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.Rarity.Color(), g.Rarity.String())
-			if g.Unidentified {
-				label = fmt.Sprintf("Unidentified %s [s:%s] (R:[color=%s]%s[/color])", string(g.Slot), string(g.Slot), g.Rarity.Color(), g.Rarity.String())
-			}
-
-			add(label, abyssLootGrant{Type: "gear", Gear: &g})
 		default:
 			// 100% drop guarantee → a common gear or a small potion.
 			if rand.Float64() < 0.7 {
@@ -262,12 +275,13 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				if rand.Float64() < 0.20 {
 					g.Unidentified = true
 				}
-				legendaryPity++
 				label := fmt.Sprintf("%s [s:%s] (%s)", g.Name, string(g.Slot), g.Rarity.String())
 				if g.Unidentified {
 					label = fmt.Sprintf("Unidentified %s [s:%s] (%s)", string(g.Slot), string(g.Slot), g.Rarity.String())
 				}
-				add(label, abyssLootGrant{Type: "gear", Gear: &g})
+				if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
+					legendaryPity++
+				}
 			} else {
 				add(i18n.T("bot.loot.small_health_potion"), abyssLootGrant{Type: "cons", ConsID: "P1", ConsDur: 0})
 			}

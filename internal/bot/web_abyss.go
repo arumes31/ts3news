@@ -1783,7 +1783,16 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			const cost = int64(250)
-			res, err := s.bot.DB.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", cost, uid)
+			// The gold cost, escrow gain and event-state clear are all one bargain: run
+			// them in a single transaction so a failed clear can't leave the well
+			// replayable after the player already paid.
+			tx, err := s.bot.DB.Begin()
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			defer func() { _ = tx.Rollback() }()
+			res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", cost, uid)
 			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
@@ -1811,7 +1820,11 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			if gain > 0 {
 				newEscrow += gain
 			}
-			if _, err := s.bot.DB.Exec("UPDATE abyss_active SET escrow = $1, event_state = NULL, last_action_at = NOW() WHERE client_uid = $2", newEscrow, uid); err != nil {
+			if _, err := tx.Exec("UPDATE abyss_active SET escrow = $1, event_state = NULL, last_action_at = NOW() WHERE client_uid = $2", newEscrow, uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if err := tx.Commit(); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -1824,7 +1837,15 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			const cost = int64(250)
-			res, err := s.bot.DB.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", cost, uid)
+			// Bet, payout and event-state clear run in one transaction so a failed clear
+			// can't leave the draw replayable after gold already changed hands.
+			tx, err := s.bot.DB.Begin()
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			defer func() { _ = tx.Rollback() }()
+			res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", cost, uid)
 			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
@@ -1837,12 +1858,22 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			var msg string
 			// #nosec G404 -- non-cryptographic 50/50 card draw
 			if rand.Float64() < 0.50 {
-				_ = s.bot.DB.QueryRow("UPDATE users SET gold = gold + 500 WHERE client_uid = $1 RETURNING gold", uid).Scan(&newGold)
+				if err := tx.QueryRow("UPDATE users SET gold = gold + 500 WHERE client_uid = $1 RETURNING gold", uid).Scan(&newGold); err != nil {
+					writeJSON(w, map[string]any{"ok": false, "error": "db"})
+					return
+				}
 				msg = "🃏 High card! The dealer pays out — you win 500 gold (net +250)!"
 			} else {
 				msg = "🃏 Low card. The dealer sweeps your 250 gold off the table."
 			}
-			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET event_state = NULL, last_action_at = NOW() WHERE client_uid = $1", uid)
+			if _, err := tx.Exec("UPDATE abyss_active SET event_state = NULL, last_action_at = NOW() WHERE client_uid = $1", uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if err := tx.Commit(); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
 			writeJSON(w, map[string]any{"ok": true, "msg": msg, "gold": newGold, "resolved": true})
 			return
 
@@ -1938,11 +1969,26 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			if newHP < 1 {
 				newHP = 1
 			}
-			if _, err := s.bot.DB.Exec("UPDATE users SET current_hp = $1 WHERE client_uid = $2", newHP, uid); err != nil {
+			// Apply the bite and clear the event together so a failed clear can't leave
+			// the chest replayable for repeated bites.
+			tx, err := s.bot.DB.Begin()
+			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET event_state = NULL, last_action_at = NOW() WHERE client_uid = $1", uid)
+			defer func() { _ = tx.Rollback() }()
+			if _, err := tx.Exec("UPDATE users SET current_hp = $1 WHERE client_uid = $2", newHP, uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if _, err := tx.Exec("UPDATE abyss_active SET event_state = NULL, last_action_at = NOW() WHERE client_uid = $1", uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if err := tx.Commit(); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
 			writeJSON(w, map[string]any{"ok": true, "msg": "🦷 IT'S A MIMIC! The chest sprouts teeth and bites you before fleeing.", "hp": newHP, "resolved": true})
 			return
 
@@ -1956,11 +2002,31 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			g := content.RandomAbyssGearDrop()
 			label := fmt.Sprintf("%s [s:%s] (gs:%d R:%s)", g.Name, string(g.Slot), g.Stats.Score(), g.Rarity.String())
 			gg := g
-			if !s.bot.escrowAbyssLoot(uid, label, abyssLootGrant{Type: "gear", Gear: &gg}) {
+			// Seal the loot and clear the event in one transaction so a failed clear
+			// can't leave the dig replayable for infinite free items.
+			data, err := json.Marshal(abyssLootGrant{Type: "gear", Gear: &gg})
+			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET event_state = NULL, last_action_at = NOW() WHERE client_uid = $1", uid)
+			tx, err := s.bot.DB.Begin()
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			defer func() { _ = tx.Rollback() }()
+			if _, err := tx.Exec("INSERT INTO abyss_escrow_loot (client_uid, item_type, label, item_data) VALUES ($1,$2,$3,$4)", uid, "gear", label, data); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if _, err := tx.Exec("UPDATE abyss_active SET event_state = NULL, last_action_at = NOW() WHERE client_uid = $1", uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if err := tx.Commit(); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
 			writeJSON(w, map[string]any{"ok": true, "msg": "⛏️ You unearth a buried cache! " + label + " is sealed into your loot cache.", "resolved": true})
 			return
 		}
