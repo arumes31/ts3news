@@ -34,7 +34,7 @@
 </div>
 {{end}}
 
-<script>
+<script data-cfasync="false">
   function toast(m, ok) { var t = document.getElementById('invMsg'); t.textContent = m; t.className = 'toast show ' + (ok ? 'good' : 'bad'); setTimeout(function () { t.className = 'toast'; }, 2500); }
   async function post(url, body) { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return r.json(); }
   async function equip(id) { const d = await post('/api/inventory/equip', { inv_id: id }); if (d.ok) { toast('Equipped ' + d.equipped, true); setTimeout(() => location.reload(), 700); } else toast(d.error, false); }
