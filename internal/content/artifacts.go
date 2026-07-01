@@ -821,6 +821,16 @@ func RandomGearDrop() Gear {
 	return g
 }
 
+// RandomArcadeGearDrop returns a random gear drop capped at RarityRare for arcade/daily spin rewards.
+func RandomArcadeGearDrop() Gear {
+	for {
+		g := RandomGearDrop()
+		if g.Rarity <= RarityRare {
+			return g
+		}
+	}
+}
+
 // GearByMinRarity returns all gear items (excluding Abyss-exclusive) at or above
 // the given rarity floor. Used as a guaranteed fallback in deep-bank rewards.
 func GearByMinRarity(floor Rarity) []Gear {
