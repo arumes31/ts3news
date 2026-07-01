@@ -3,6 +3,7 @@ package bot
 import (
 	"bufio"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -648,9 +649,25 @@ func FormatGoldPlain(v int64) string {
 	}
 }
 
+func (b *Bot) makeGear(gearID string, itemData sql.NullString) (content.Gear, bool) {
+	if itemData.Valid && itemData.String != "" && itemData.String != "{}" {
+		// Start from the catalog entry so any field the persisted JSON omits (null or
+		// partial payloads) keeps its catalog default; the unmarshal then overlays only
+		// the fields actually stored on the item.
+		g, ok := content.GetGearByID(gearID)
+		if !ok {
+			g = content.Gear{}
+		}
+		if err := json.Unmarshal([]byte(itemData.String), &g); err == nil {
+			return g, true
+		}
+	}
+	return content.GetGearByID(gearID)
+}
+
 func (b *Bot) getEquippedItems(uid string) map[content.GearSlot]content.Gear {
 	out := make(map[content.GearSlot]content.Gear)
-	rows, err := b.DB.Query("SELECT slot, gear_id FROM user_gear WHERE client_uid = $1", uid)
+	rows, err := b.DB.Query("SELECT slot, gear_id, item_data FROM user_gear WHERE client_uid = $1", uid)
 	if err != nil {
 		return out
 	}
@@ -658,8 +675,9 @@ func (b *Bot) getEquippedItems(uid string) map[content.GearSlot]content.Gear {
 	for rows.Next() {
 		var slot string
 		var id string
-		if err := rows.Scan(&slot, &id); err == nil {
-			if gear, ok := content.GetGearByID(id); ok {
+		var itemData sql.NullString
+		if err := rows.Scan(&slot, &id, &itemData); err == nil {
+			if gear, ok := b.makeGear(id, itemData); ok {
 				out[content.GearSlot(slot)] = gear
 			}
 		}

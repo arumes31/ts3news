@@ -2,14 +2,44 @@
 <div class="abyss-hero">
   <h1>{{T "web.abyss.title"}}</h1>
   <p class="muted">{{T "web.abyss.hero_desc"}}</p>
-  {{if .WeeklyMod}}
+  {{if .DailyMod}}
     <div class="ab-weekly-alert" style="background: rgba(255,193,7,0.1); border: 1px solid #ffc107; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
       📅 <strong>{{T "web.abyss.weekly_title"}}</strong> 
-      {{if eq .WeeklyMod "double_hazards"}}{{T "web.abyss.weekly.double_hazards"}}{{end}}
-      {{if eq .WeeklyMod "zero_durability_loss"}}{{T "web.abyss.weekly.zero_durability_loss"}}{{end}}
-      {{if eq .WeeklyMod "enraged_mobs"}}{{T "web.abyss.weekly.enraged_mobs"}}{{end}}
+      {{if eq .DailyMod "double_hazards"}}{{T "web.abyss.weekly.double_hazards"}}{{end}}
+      {{if eq .DailyMod "zero_durability_loss"}}{{T "web.abyss.weekly.zero_durability_loss"}}{{end}}
+      {{if eq .DailyMod "enraged_mobs"}}{{T "web.abyss.weekly.enraged_mobs"}}{{end}}
+      {{if eq .DailyMod "glass_cannon"}}{{T "web.abyss.weekly.glass_cannon"}}{{end}}
+      {{if eq .DailyMod "gold_rush"}}{{T "web.abyss.weekly.gold_rush"}}{{end}}
+      {{if eq .DailyMod "iron_skin"}}{{T "web.abyss.weekly.iron_skin"}}{{end}}
+      {{if eq .DailyMod "bloodlust"}}{{T "web.abyss.weekly.bloodlust"}}{{end}}
+      {{if eq .DailyMod "execute"}}{{T "web.abyss.weekly.execute"}}{{end}}
+      {{if eq .DailyMod "vampiric_mobs"}}{{T "web.abyss.weekly.vampiric_mobs"}}{{end}}
     </div>
   {{end}}
+  {{with .Bounty}}
+    <div class="ab-bounty-alert" id="bountyCard" style="background: rgba(76,175,80,0.1); border: 1px solid #4caf50; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
+      🎯 <strong>Daily Bounty:</strong> {{.Desc}}
+      <span class="muted small" style="margin-left:8px;">Progress: <b id="bountyProg">{{comma .Progress}}</b> / {{comma .Target}}</span>
+      <span class="muted small" style="margin-left:8px;">Reward: 🜲 {{.RewardTk}} + {{gold .RewardGd}}</span>
+      {{if gt .Streak 0}}<span class="small" style="margin-left:8px; color:#ff9800;">🔥 {{.Streak}}-day streak</span>{{end}}
+      <span id="bountyAction" style="margin-left:10px;">
+        {{if .Claimed}}<b style="color:#7ee787">✅ Claimed today</b>
+        {{else if .Met}}<button class="primary xs" onclick="abyssBountyClaim()">Claim Reward</button>
+        {{else}}<span class="muted small">In progress…</span>{{end}}
+      </span>
+    </div>
+  {{end}}
+  
+  <!-- Loot Pity Counter HUD -->
+  <div class="abyss-pity-hud" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; margin: 15px 0;">
+    <div style="display:flex; justify-content:space-between; margin-bottom: 6px; font-size:13px;">
+      <span>🔮 <b>Loot Pity Meter</b></span>
+      <span class="muted small"><span id="pityCount">{{.LegendaryPity}}</span> / 40 to Guaranteed Legendary</span>
+    </div>
+    <div style="background: rgba(0,0,0,0.3); height: 10px; border-radius: 5px; overflow:hidden;">
+      <div id="pityFill" style="background: linear-gradient(90deg, #ff7b72, #d857ff); height: 100%; width: {{mulpct .LegendaryPity 40}}%;"></div>
+    </div>
+  </div>
 </div>
 
 <div class="abyss-stats">
@@ -64,6 +94,17 @@
         <span class="ab-tier-meta">×{{printf "%.1f" .RewardMult}} reward · ×{{printf "%.1f" .DiffMult}} danger</span>
         <span class="ab-tier-meta">{{if gt .EntryGold 0}}entry {{gold .EntryGold}}{{else}}free{{end}}{{if not .Unlocked}} · 🔒 depth {{.MinBest}}{{end}}</span>
       </label>
+      {{end}}
+    </div>
+
+    <!-- Pact picker (idle only): opt-in challenge modifiers for bonus rewards -->
+    <div class="ab-pacts" id="pactPicker">
+      <div class="ab-sub-label">⚔️ Pacts <span class="muted small">— optional challenges for bigger rewards <b id="pactBonus">(+0%)</b></span></div>
+      {{range .Pacts}}
+        <label class="ab-pact" title="{{.Desc}}">
+          <input type="checkbox" name="abpact" value="{{.Key}}" data-reward="{{printf "%.0f" (mulf .Reward 100)}}" onchange="updatePactBonus()">
+          {{.Label}} <span class="muted small">(+{{printf "%.0f" (mulf .Reward 100)}}% · {{.Desc}})</span>
+        </label>
       {{end}}
     </div>
 
@@ -145,13 +186,143 @@
 <div class="abyss-cols">
   <!-- Deep Delver upgrades [44][45] -->
   <section class="abyss-panel">
-    <h2>{{T "web.abyss.deep_delver"}}</h2>
+    <h2>{{T "web.abyss.deep_delver"}} <button class="ghost xs" onclick="resetTalents()" style="float:right; margin-top:-4px;">Refund All (🜲 10)</button></h2>
     <p class="muted small">{{T "web.abyss.deep_delver_desc"}}</p>
     <div class="ab-upgrades">
-      {{template "abUpgrade" dict "Node" "vigor"   "Name" "Vigor"   "Desc" "Start runs with +HP"        "Lv" .Stats.UpVigor}}
-      {{template "abUpgrade" dict "Node" "greed"   "Name" "Greed"   "Desc" "+5% cache bonus / level"    "Lv" .Stats.UpGreed}}
-      {{template "abUpgrade" dict "Node" "fortune" "Name" "Fortune" "Desc" "Better loot in the deep"    "Lv" .Stats.UpFortune}}
-      {{template "abUpgrade" dict "Node" "ward"    "Name" "Ward"    "Desc" "Cheaper insurance premiums" "Lv" .Stats.UpWard}}
+      {{template "abUpgrade" dict "Node" "vigor"    "Name" "Vigor"    "Desc" "Start runs with +HP"          "Lv" .Stats.UpVigor}}
+      {{template "abUpgrade" dict "Node" "greed"    "Name" "Greed"    "Desc" "+5% cache bonus / level"      "Lv" .Stats.UpGreed}}
+      {{template "abUpgrade" dict "Node" "fortune"  "Name" "Fortune"  "Desc" "Better loot in the deep"      "Lv" .Stats.UpFortune}}
+      {{template "abUpgrade" dict "Node" "ward"     "Name" "Ward"     "Desc" "Cheaper insurance premiums"   "Lv" .Stats.UpWard}}
+      {{template "abUpgrade" dict "Node" "interest" "Name" "Compounding" "Desc" "+0.5% cache interest / level" "Lv" .Stats.UpInterest}}
+      {{template "abUpgrade" dict "Node" "tribute"  "Name" "Tribute"  "Desc" "+10% bank tokens / level"     "Lv" .Stats.UpTribute}}
+      {{template "abUpgrade" dict "Node" "insight"  "Name" "Insight"  "Desc" "+5% floor reward XP / level"   "Lv" .Stats.UpInsight}}
+    </div>
+
+    <!-- Abyss Set bonuses: cumulative tiers for equipping ABYSS_ gear -->
+    <div class="ab-setbonus" style="margin-top:14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+      <h3 style="margin:0 0 6px;">🕳️ Abyss Set
+        <span class="ab-up-lv">{{.AbyssSetPieces}} equipped{{if gt .AbyssSetTier 0}} · {{.AbyssSetTier}}-pc active{{end}}</span>
+      </h3>
+      <ul class="muted small" style="margin:0; padding-left:18px;">
+        <li{{if ge .AbyssSetTier 2}} style="color:#7ee787"{{end}}>2 pieces: +200 HP · +30 STR · +30 DEF</li>
+        <li{{if ge .AbyssSetTier 4}} style="color:#7ee787"{{end}}>4 pieces: +400 HP · +60 STR · +60 DEF · +20 SPD</li>
+        <li{{if ge .AbyssSetTier 6}} style="color:#7ee787"{{end}}>6 pieces: +800 HP · +120 STR · +120 DEF · +40 SPD · +30 CRT</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Token Shop: open-ended sink for Abyss Tokens -->
+  <section class="abyss-panel">
+    <h2>🜲 Token Shop</h2>
+    <p class="muted small">Spend Abyss Tokens on consumables, gear and relics.</p>
+    <div class="ab-shop">
+      {{range .Shop}}
+      <div class="ab-shop-item" style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div>
+          <b>{{.Name}}</b>
+          <div class="muted small">{{.Desc}}</div>
+        </div>
+        <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', this)">🜲 {{.Cost}}</button>
+      </div>
+      {{end}}
+    </div>
+  </section>
+
+  <!-- Forge & Customization Panel -->
+  <section class="abyss-panel">
+    <h2>⚒️ Abyss Forge</h2>
+    <p class="muted small">Upgrade, socket, identify, transmute, or recalibrate your gear.</p>
+    
+    <div class="ab-forge" style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+      <div>
+        <label class="muted small" style="display:block; margin-bottom:4px;">Select Gear Piece:</label>
+        <select id="forgeItemSelect" onchange="updateForgeOptions()" style="width:100%; padding:8px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+          <option value="">-- Choose Item --</option>
+          <optgroup label="Equipped Items">
+            {{range .Equipped}}
+              <option value="equipped:{{.Slot}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}">
+                [Equipped] {{.Name}} ({{.Rarity}})
+              </option>
+            {{end}}
+          </optgroup>
+          <optgroup label="Backpack Inventory">
+            {{range .Inventory}}
+              <option value="inv:{{.InvID}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}">
+                [Inv] {{.Name}} ({{.Rarity}})
+              </option>
+            {{end}}
+          </optgroup>
+        </select>
+      </div>
+
+      <div id="forgeActions" style="display:none; flex-direction:column; gap:8px;">
+        <!-- Identify Button -->
+        <button id="btnForgeIdentify" class="primary xs" onclick="forgeIdentify()" style="display:none; width:100%;">🔍 Identify Item (Cost: 100g)</button>
+        
+        <!-- Recalibrate Substat Dropdown -->
+        <div id="forgeRecalibrateRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
+          <label class="muted small" style="display:block; margin-bottom:4px;">Recalibrate Sub-stat (Legendary+ only):</label>
+          <div style="display:flex; gap:6px;">
+            <select id="recalibrateStatSelect" style="flex:1; padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+              <option value="HP">Max HP</option>
+              <option value="MNA">Mana</option>
+              <option value="STR">Strength</option>
+              <option value="DEF">Defense</option>
+              <option value="SPD">Speed</option>
+              <option value="LCK">Luck</option>
+              <option value="INT">Intellect</option>
+              <option value="STA">Stamina</option>
+              <option value="CRT">Crit Rate</option>
+              <option value="DGE">Dodge Rate</option>
+            </select>
+            <button class="ghost xs" onclick="forgeRecalibrate()">Recalibrate (🜲 5)</button>
+          </div>
+        </div>
+
+        <!-- Socket Gemstone Dropdown -->
+        <div id="forgeSocketRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
+          <label class="muted small" style="display:block; margin-bottom:4px;">Socket Gemstone:</label>
+          <div style="display:flex; gap:6px;">
+            <select id="gemstoneSelect" style="flex:1; padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+              <option value="Ruby">Ruby (💎 +100 HP)</option>
+              <option value="Sapphire">Sapphire (💎 +50 Mana)</option>
+              <option value="Emerald">Emerald (💎 +15 STR)</option>
+              <option value="Diamond">Diamond (💎 +15 DEF)</option>
+              <option value="Topaz">Topaz (💎 +5 CRT%)</option>
+            </select>
+            <button class="ghost xs" onclick="forgeSocketGem()">Socket Gem (Cost: 50g)</button>
+          </div>
+        </div>
+
+        <!-- Etch Rune Dropdown -->
+        <div id="forgeEtchRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
+          <label class="muted small" style="display:block; margin-bottom:4px;">Etch Elemental Rune (Weapons only):</label>
+          <div style="display:flex; gap:6px;">
+            <select id="runeSelect" style="flex:1; padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+              <option value="Fire">Fire Rune</option>
+              <option value="Water">Water Rune</option>
+              <option value="Earth">Earth Rune</option>
+              <option value="Air">Air Rune</option>
+              <option value="Physical">Physical Rune</option>
+            </select>
+            <button class="ghost xs" onclick="forgeEtchRune()">Etch (Cost: 150g)</button>
+          </div>
+        </div>
+
+        <!-- Upgrade Weapon Tier -->
+        <button id="btnForgeUpgradeGear" class="ghost xs" onclick="forgeUpgradeGear()" style="display:none; width:100%;">Ascend Tier Level (🜲 10)</button>
+
+        <!-- Transmute Weapon -->
+        <button id="btnForgeTransmute" class="ghost xs" onclick="forgeTransmute()" style="display:none; width:100%;">⚒️ Transmute Weapon Type (Cost: 100g)</button>
+
+        <!-- Insure Item -->
+        <button id="btnForgeInsureItem" class="ghost xs" onclick="forgeInsureItem()" style="display:none; width:100%;">🛡️ Insure Item (Cost: 200g)</button>
+      </div>
+
+      <div id="forgeStatConversionRow" style="border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01); margin-top:8px;">
+        <label class="muted small" style="display:block; margin-bottom:4px;">Stat Conversion (Convert 100 Mana to +50 Max HP):</label>
+        <button class="ghost xs" onclick="forgeConvertMana()" style="width:100%;">❤️ Convert Mana (Cost: 50g)</button>
+      </div>
     </div>
   </section>
 
@@ -170,6 +341,7 @@
       <button class="primary xs" style="width:100%; margin-bottom:10px;" onclick="abyssPrestige()">{{T "web.abyss.prestige_btn"}}</button>
     {{end}}
     <button class="ghost xs" onclick="abyssSalvage()">🧹 Salvage junk for gold</button>
+    <button class="ghost xs" onclick="abyssDismantle()">⚒️ Dismantle rare+ spares for 🜲</button>
     {{if .Achieved}}<div class="ab-achievements"><h3>🏅 Achievements</h3>{{range .Achieved}}<span class="ab-ach">{{.}}</span>{{end}}</div>{{end}}
   </section>
 
@@ -318,6 +490,7 @@ function renderState(){
   // idle / alive / downed
   show('btnEnter', !inRun);
   show('tierPicker', !inRun);
+  show('pactPicker', !inRun);
   show('btnDescend', inRun && !downed);
   show('btnBank', inRun && !downed);
   show('liveRow', inRun && !downed);
@@ -398,6 +571,36 @@ function renderNonCombat(floorType, stateStr){
       options.innerHTML = `
         <button class="ghost" onclick="abyssNCAction('shrine_accept')">☠️ Accept Shrine (+1,000g Escrow &amp; Cursed)</button>
       `;
+    } else if(state.type === 'wishing_well'){
+      desc.innerHTML = 'A still, black Wishing Well waits in the dark. Toss in a coin and let fortune decide — the well may swell your cache, or swallow your gold whole.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('well_toss')">🪙 Toss a Coin (250g) — chance at a cache blessing</button>
+      `;
+    } else if(state.type === 'gambler'){
+      desc.innerHTML = 'A hooded Card Dealer shuffles a worn deck. "One draw, friend — high card you win, low card you lose. 250 gold to play."';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('gambler_bet')">🃏 Draw a Card (bet 250g, 50/50 double)</button>
+      `;
+    } else if(state.type === 'statue'){
+      desc.innerHTML = 'A towering statue of a forgotten hero stands vigil. Touching its worn hand fills you with renewed vigor.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('statue_touch')">🗿 Touch the Statue (free heal &amp; +400g cache)</button>
+      `;
+    } else if(state.type === 'fountain'){
+      desc.innerHTML = 'Crystal-clear water bubbles from the Fountain of Youth, impossibly pure this deep in the dark. Drinking mends both flesh and gear.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('fountain_drink')">⛲ Drink Deep (free full heal &amp; repair all gear)</button>
+      `;
+    } else if(state.type === 'mimic'){
+      desc.innerHTML = 'A fat, iron-bound treasure chest sits alone in the dark — too convenient. Pry it open for the riches inside, and pray it doesn\'t pry back.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('mimic_open')">🎁 Open the Chest (treasure… or a bite)</button>
+      `;
+    } else if(state.type === 'buried_cache'){
+      desc.innerHTML = 'Loose stone and a half-buried strap betray a cache someone hid here long ago. A little digging should turn up whatever they left behind.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('cache_dig')">⛏️ Dig It Up (free sealed Abyss item)</button>
+      `;
     } else {
       desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
     }
@@ -456,10 +659,18 @@ function playLog(lines, loot, dura){
 }
 
 function selectedTier(){var el=document.querySelector('input[name=abtier]:checked');return el?el.value:'normal';}
+function selectedPacts(){
+  return Array.prototype.slice.call(document.querySelectorAll('input[name=abpact]:checked')).map(function(el){return el.value;});
+}
+function updatePactBonus(){
+  var sum=0;
+  document.querySelectorAll('input[name=abpact]:checked').forEach(function(el){sum+=Number(el.getAttribute('data-reward'))||0;});
+  var el=document.getElementById('pactBonus'); if(el)el.textContent='(+'+sum+'%)';
+}
 
 async function abyssEnter(){
   if(busy)return; setBusy(true); clearBanner();
-  var d=await abPost('/api/abyss/enter',{tier:selectedTier()});
+  var d=await abPost('/api/abyss/enter',{tier:selectedTier(), pacts:selectedPacts()});
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
   window.location.reload();
 }
@@ -555,6 +766,7 @@ async function abyssBank(){
   if(d.bonus_gear)msg+=' 🎁 Depth reward: '+d.bonus_gear+'.';
   if(d.cursed)msg+=' ☠️ Cursed — your next cycle fights are hexed.';
   if(d.jackpot_win)msg+=' 🔥 DEEP-CACHE JACKPOT +'+fmtGold(d.jackpot_win)+'!';
+  if(d.achievement)msg+=' 🏅 '+d.achievement;
   setBanner(msg,'good');
   window.location.reload();
 }
@@ -580,6 +792,24 @@ async function abyssSalvage(){
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setGold(d.gold);
   abToast(d.sold>0?('Salvaged '+d.sold+' items for '+fmtGold(d.value)):'No junk to salvage', d.sold>0);
+}
+
+async function abyssDismantle(){
+  if(busy)return;
+  if(!confirm('Dismantle all Rare-or-better spare gear in your backpack into Abyss Tokens? Equipped gear is never touched.'))return;
+  setBusy(true);
+  var d=await abPost('/api/abyss/dismantle');
+  setBusy(false);
+  if(!d.ok){abToast(d.error||'failed',false);return;}
+  setTokens(d.tokens);
+  if(d.dismantled>0){
+    abToast('Dismantled '+d.dismantled+' spares for 🜲 '+d.tokens_gained, true);
+    // Dismantled gear is gone from the backpack; reload so the forge item picker and
+    // inventory rebuild from current state instead of showing stale entries.
+    setTimeout(function(){ window.location.reload(); }, 1000);
+  } else {
+    abToast('No rare+ spares to dismantle', false);
+  }
 }
 
 async function abyssUpgrade(node, btn){
@@ -663,8 +893,196 @@ async function abyssPrestige(){
     abToast(d.error || 'Prestige failed', false);
     return;
   }
-  setBanner('⭐ CONGRATULATIONS! You have prestiged the Abyss! Prestige level: ' + d.prestige, 'good');
+  var pmsg='⭐ CONGRATULATIONS! You have prestiged the Abyss! Prestige level: ' + d.prestige;
+  if(d.achievement)pmsg+=' 🏅 '+d.achievement;
+  setBanner(pmsg, 'good');
   window.location.reload();
+}
+
+async function abyssBountyClaim(){
+  if(busy)return; setBusy(true);
+  var d = await abPost('/api/abyss/bounty/claim');
+  setBusy(false);
+  if(!d.ok){ abToast(d.error||'failed',false); return; }
+  setGold(d.gold); setTokens(d.tokens);
+  var act=document.getElementById('bountyAction');
+  if(act)act.innerHTML='<b style="color:#7ee787">✅ Claimed today</b>';
+  var bmsg='🎯 Daily Bounty complete! +🜲 '+d.reward_tokens+' tokens and +'+fmtGold(d.reward_gold)+'.';
+  if(d.streak>1)bmsg+=' 🔥 '+d.streak+'-day streak (+🜲 '+d.streak_bonus+' bonus)!';
+  setBanner(bmsg,'good');
+}
+
+async function abyssShopBuy(item, btn){
+  if(busy)return; setBusy(true);
+  var d = await abPost('/api/abyss/shop/buy', {item: item});
+  setBusy(false);
+  if(!d.ok){ abToast(d.error||'failed',false); return; }
+  setTokens(d.tokens); setGold(d.gold);
+  if(d.consumables)renderConsumables(d.consumables);
+  abToast(d.msg||'Purchased!', true);
+}
+
+function updateForgeOptions() {
+  var sel = document.getElementById('forgeItemSelect');
+  var opt = sel.options[sel.selectedIndex];
+  var actions = document.getElementById('forgeActions');
+  
+  if (!opt || !opt.value) {
+    actions.style.display = 'none';
+    return;
+  }
+  
+  actions.style.display = 'flex';
+  
+  var unid = opt.getAttribute('data-unidentified') === 'true';
+  var rarity = parseInt(opt.getAttribute('data-rarity')) || 0;
+  var sockets = parseInt(opt.getAttribute('data-sockets')) || 0;
+  var gems = parseInt(opt.getAttribute('data-gems')) || 0;
+  var slot = opt.getAttribute('data-slot') || '';
+  
+  // Show Identify button if unidentified
+  document.getElementById('btnForgeIdentify').style.display = unid ? 'block' : 'none';
+  
+  // Customization rows only for identified gear
+  document.getElementById('forgeRecalibrateRow').style.display = (!unid && rarity >= 4) ? 'block' : 'none'; // rarity >= 4 is Legendary+
+  document.getElementById('forgeSocketRow').style.display = (!unid && sockets > 0 && gems < sockets) ? 'block' : 'none';
+  
+  var isWeapon = slot === 'MainHand' || slot === 'OffHand' || slot === 'Ranged';
+  document.getElementById('forgeEtchRow').style.display = (!unid && isWeapon) ? 'block' : 'none';
+  document.getElementById('btnForgeUpgradeGear').style.display = (!unid && rarity < 6) ? 'block' : 'none'; // max rarity is Divine (6)
+  document.getElementById('btnForgeTransmute').style.display = (!unid && isWeapon) ? 'block' : 'none';
+
+  var insured = opt.getAttribute('data-insured') === 'true';
+  document.getElementById('btnForgeInsureItem').style.display = (!unid && !insured) ? 'block' : 'none';
+}
+
+function getSelectedForgeParams() {
+  var sel = document.getElementById('forgeItemSelect');
+  var val = sel.value;
+  if (!val) return null;
+  var parts = val.split(':');
+  var type = parts[0];
+  var idOrSlot = parts[1];
+  
+  var body = {};
+  if (type === 'equipped') {
+    body.slot = idOrSlot;
+  } else {
+    body.inv_id = parseInt(idOrSlot);
+  }
+  return body;
+}
+
+async function forgeIdentify() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/identify', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setGold(d.gold);
+  abToast(d.msg || 'Identified!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeRecalibrate() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  params.stat = document.getElementById('recalibrateStatSelect').value;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/recalibrate', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setTokens(d.tokens);
+  abToast(d.msg || 'Recalibrated!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeSocketGem() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  params.gem = document.getElementById('gemstoneSelect').value;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/socket_gem', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setGold(d.gold);
+  abToast(d.msg || 'Gem socketed!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeEtchRune() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  params.rune = document.getElementById('runeSelect').value;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/etch_rune', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setGold(d.gold);
+  abToast(d.msg || 'Rune etched!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeUpgradeGear() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (!confirm('Ascend this gear tier level for 🜲 10 tokens? This increases all combat stats by +30%.')) return;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/upgrade_gear', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setTokens(d.tokens);
+  abToast(d.msg || 'Upgraded!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeTransmute() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (!confirm('Transmute this weapon for 100g? It will convert into a random weapon suited to your highest stat.')) return;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/transmute', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setGold(d.gold);
+  abToast(d.msg || 'Transmuted!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeConvertMana() {
+  if (busy) return;
+  if (!confirm('Convert 100 Mana stats into +50 Max HP for 50g?')) return;
+  setBusy(true);
+  var d = await abPost('/api/abyss/convert_mana', {amount: 100});
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  abToast(d.msg || 'Converted!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function resetTalents() {
+  if (!confirm('Reset all Deep-Delver talent upgrades and refund all spent tokens for 🜲 10 tokens?')) return;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/reset_talents');
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setTokens(d.tokens);
+  abToast(d.msg || 'Talents reset!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+async function forgeInsureItem() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (!confirm('Mark this item as Insured for 200g? It will never lose durability on death.')) return;
+  if (busy) return; setBusy(true);
+  var d = await abPost('/api/abyss/insure_item', params);
+  setBusy(false);
+  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
+  setGold(d.gold);
+  abToast(d.msg || 'Insured!', true);
+  setTimeout(function(){ window.location.reload(); }, 1000);
 }
 
 // Initial paint (consistent formatting on load).

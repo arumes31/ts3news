@@ -138,13 +138,14 @@ type GearDropResult struct {
 // and puts everything else into inventory.
 func (b *Bot) awardGearDrop(uid string, g content.Gear) GearDropResult {
 	itemName := g.Rarity.String() + " " + g.Name
+	itemDataBytes, _ := json.Marshal(g)
 
 	if b.shouldEquip(uid, g) {
 		// Equip the item directly
-		_, err := b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability)
-		                     VALUES ($1, $2, $3, $4)
-		                     ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = EXCLUDED.gear_id, durability = EXCLUDED.durability`,
-			uid, string(g.Slot), g.ID, g.MaxDurability)
+		_, err := b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability, item_data)
+		                     VALUES ($1, $2, $3, $4, $5)
+		                     ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = EXCLUDED.gear_id, durability = EXCLUDED.durability, item_data = EXCLUDED.item_data`,
+			uid, string(g.Slot), g.ID, g.MaxDurability, string(itemDataBytes))
 		if err == nil {
 			return GearDropResult{
 				Action:   "equipped",
@@ -164,8 +165,8 @@ func (b *Bot) awardGearDrop(uid string, g content.Gear) GearDropResult {
 	}
 
 	// Fallback: insert into inventory
-	_, _ = b.DB.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1,$2,$3)",
-		uid, g.ID, g.MaxDurability)
+	_, _ = b.DB.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1,$2,$3,$4)",
+		uid, g.ID, g.MaxDurability, string(itemDataBytes))
 	return GearDropResult{
 		Action:   "inventoried",
 		ItemName: itemName,

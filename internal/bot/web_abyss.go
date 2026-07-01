@@ -69,6 +69,17 @@ const (
 	abyssJackpotDepth = 25
 )
 
+// abyssEffectiveInterest returns the per-floor escrow interest rate including the
+// Compounding (interest) Deep-Delver node, which adds 0.5% per level on top of the
+// base let-it-ride rate.
+func abyssEffectiveInterest(interestLevel int, hasLuckyCoin bool) float64 {
+	rate := abyssEscrowInterest + float64(interestLevel)*0.005
+	if hasLuckyCoin {
+		rate *= 1.20
+	}
+	return rate
+}
+
 // softCap returns x unchanged up to cap, then grows logarithmically past it.
 func softCap(x, cap float64) float64 {
 	if x <= cap {
@@ -262,9 +273,31 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 	u.LootFocus = focus
 	u.FloorModifier = modifier
 
+	// Fold the active daily affix into the combat modifier so it actually bites in
+	// the engine (previously the daily mod only touched durability + the UI banner).
+	// The token-carried affixes are read inside the combat engine via FloorModifier:
+	// double_hazards (applyEffects), iron_skin (mobTurn), bloodlust (userTurn).
+	// enraged_mobs is wired onto the spawned mobs below; glass_cannon ramps difficulty.
+	_, dailyMod := b.currentDailyChallenge()
+	switch dailyMod {
+	case "double_hazards", "iron_skin", "bloodlust", "execute", "vampiric_mobs":
+		if !strings.Contains(u.FloorModifier, dailyMod) {
+			u.FloorModifier = strings.TrimSpace(u.FloorModifier + " " + dailyMod)
+		}
+	}
+
+	// Self-imposed pacts stack on top of the daily affix: fold their combat tokens
+	// into the modifier (read by the engine) the same way the daily affix is folded.
+	pacts := b.abyssRunPacts(uid)
+	for _, tok := range abyssPactCombatTokens(pacts) {
+		if !strings.Contains(u.FloorModifier, tok) {
+			u.FloorModifier = strings.TrimSpace(u.FloorModifier + " " + tok)
+		}
+	}
+
 	st := b.loadAbyssStats(uid)
 	diff, forceBoss := abyssDifficulty(depth)
-	diff *= tier.DiffMult * (1.0 + float64(prestige)*0.05) // [17] prestige & tier scaling
+	diff *= tier.DiffMult * (1.0 + float64(prestige)*0.05) * abyssDailyDangerMult(dailyMod) * abyssPactDangerMult(pacts) // [17] prestige & tier scaling + daily affix + pacts
 	worldBoss := forceBoss && depth%(abyssBossEvery*2) == 0
 	// Mob level is decoupled from the player's exact level (see abyssMobLevel): the
 	// custom encounters and the spawned group all key off this depth-scaled value.
@@ -413,6 +446,11 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 	isBossFloor := forceBoss || worldBoss
 
 	escalateMobs(mobs, depth, worldBoss) // [15] deeper floors → denser elites/effects
+	if dailyMod == "enraged_mobs" || abyssPactsEnrage(pacts) {
+		for i := range mobs {
+			mobs[i].Effects = append(mobs[i].Effects, content.EffectEnraged)
+		}
+	}
 	mobPtrs := make([]*content.Mob, len(mobs))
 	for i := range mobs {
 		// Dampen Abyss mob damage so floors play out over several rounds instead of
@@ -440,7 +478,9 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 		partner, _, err := b.buildAbyssUser(coopUID.String)
 		if err == nil {
 			partner.LootFocus = focus
-			partner.FloorModifier = modifier
+			// Inherit the weekly-folded modifier so co-op allies share iron_skin /
+			// bloodlust / double_hazards effects with the lead delver.
+			partner.FloorModifier = u.FloorModifier
 			partner.IsClone = true
 			combatUsers = append(combatUsers, partner)
 			logs = append(logs, fmt.Sprintf("[color=#4a6fa5]🔔 Co-op Ally %s has entered the fray to assist you![/color]", partner.Nickname))
@@ -482,7 +522,7 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 	// Grant the combat reward XP on a win (the engine applies its own death
 	// penalty on a loss), and prestige immediately at the cap like the cycle does.
 	if victory && rewardXP > 0 {
-		rewardXP = int(float64(rewardXP) * (1.0 + float64(st.AbyssPrestige)*0.05))
+		rewardXP = int(float64(rewardXP) * (1.0 + float64(st.AbyssPrestige)*0.05) * (1.0 + float64(st.UpInsight)*0.05)) // prestige + Insight node
 		if lr, _ := b.awardXP(uid, "", rewardXP); lr != nil && lr.NewLevel >= PrestigeThreshold {
 			b.doPrestige(uid) // [52] keep Abyss prestige consistent with the cycle
 		}
@@ -490,8 +530,7 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 
 	// Gear wears down each floor (more on defeat), exactly like a cycle fight.
 	var duraWarnings []string
-	_, weeklyMod := b.currentWeeklyChallenge()
-	if weeklyMod != "zero_durability_loss" {
+	if dailyMod != "zero_durability_loss" {
 		duraWarnings = b.applyDurabilityLoss(uid, !victory)
 	}
 
@@ -619,26 +658,49 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		})
 	}
 
-	_, weeklyMod := s.bot.currentWeeklyChallenge()
+	_, dailyMod := s.bot.currentDailyChallenge()
 	helpers := s.bot.loadCoopHelpers(uid)
+	abyssSetPieces := s.bot.countEquippedAbyssGear(uid)
+	_, abyssSetTier := content.AbyssSetBonus(abyssSetPieces)
+
+	equipped := s.bot.getEquippedItems(uid)
+	var slots []gearView
+	for _, slot := range content.AllSlots {
+		if g, ok := equipped[slot]; ok {
+			slots = append(slots, toGearView(slot, g))
+		}
+	}
+	inventory := s.bot.inventoryItems(uid)
 
 	s.render(w, "abyss", map[string]any{
-		"Title":        "The Abyss",
-		"Nav":          "abyss",
-		"U":            u,
-		"Stats":        st,
-		"Run":          run,
-		"Tiers":        abyssTierList(st.BestDepth),
-		"Leaders":      s.bot.abyssLeaderboards("normal"),
-		"Season":       abyssSeasonLabel(),
-		"History":      s.bot.abyssHistory(uid, 8),
-		"Achieved":     s.bot.abyssAchievements(uid),
-		"LoreList":     loreList,
-		"Bestiary":     s.bot.loadAbyssBestiary(uid),
-		"Consumables":  s.bot.getConsumables(uid),
-		"WeeklyMod":    weeklyMod,
-		"Helpers":      helpers,
-		"NextIsBoss":   run.Active && (run.Depth+1)%5 == 0,
+		"Title":          "The Abyss",
+		"Nav":            "abyss",
+		"U":              u,
+		"Stats":          st,
+		"Run":            run,
+		"Tiers":          abyssTierList(st.BestDepth),
+		"Leaders":        s.bot.abyssLeaderboards("normal"),
+		"Season":         abyssSeasonLabel(),
+		"History":        s.bot.abyssHistory(uid, 8),
+		"Achieved":       s.bot.abyssAchievements(uid),
+		"LoreList":       loreList,
+		"Bestiary":       s.bot.loadAbyssBestiary(uid),
+		"Consumables":    s.bot.getConsumables(uid),
+		"DailyMod":      dailyMod,
+		"Helpers":        helpers,
+		"NextIsBoss":     run.Active && (run.Depth+1)%5 == 0,
+		"AbyssSetPieces": abyssSetPieces,
+		"AbyssSetTier":   abyssSetTier,
+		"Bounty":         s.bot.abyssBountyStatus(uid),
+		"Shop":           abyssShopCatalog,
+		"Pacts":          abyssPactCatalog,
+		"Equipped":       slots,
+		"Inventory":      inventory,
+		"LegendaryPity":  func() int {
+			var pity int
+			_ = s.bot.DB.QueryRow("SELECT legendary_pity FROM users WHERE client_uid=$1", uid).Scan(&pity)
+			return pity
+		}(),
 	})
 }
 
@@ -656,13 +718,32 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	defer unlock()
 
 	var req struct {
-		Tier string `json:"tier"`
+		Tier  string   `json:"tier"`
+		Pacts []string `json:"pacts"`
 	}
 	_ = readJSON(r, &req)
+
+	// Consumable Pouches limit check
+	var totalConsumables int
+	_ = s.bot.DB.QueryRow("SELECT COALESCE(SUM(remaining_fights), 0) FROM user_consumables WHERE client_uid=$1", uid).Scan(&totalConsumables)
+	maxAllowedConsumables := 3
+	equipped := s.bot.getEquippedItems(uid)
+	for _, g := range equipped {
+		if g.ID == "ABYSS_CONSUMABLE_POUCH" || strings.Contains(strings.ToLower(g.Name), "pouch") {
+			maxAllowedConsumables = 8
+			break
+		}
+	}
+	if totalConsumables > maxAllowedConsumables {
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("Too many consumables! Max allowed is %d, but you have %d. Equip a Consumable Pouch or use/discard some first.", maxAllowedConsumables, totalConsumables)})
+		return
+	}
+
 	tier, ok := abyssTierByKey(req.Tier)
 	if !ok {
 		tier = abyssTiers["normal"]
 	}
+	pacts := abyssValidatePacts(req.Pacts)
 
 	st := s.bot.loadAbyssStats(uid)
 	if st.BestDepth < tier.MinBest {
@@ -705,8 +786,8 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		return
 	}
 	if _, err := tx.Exec(
-		`INSERT INTO abyss_active (client_uid, depth, escrow, tier, insured, revived, started_at, last_action_at)
-		 VALUES ($1, 0, 0, $2, 0, FALSE, NOW(), NOW())`, uid, tier.Key); err != nil {
+		`INSERT INTO abyss_active (client_uid, depth, escrow, tier, insured, revived, pacts, started_at, last_action_at)
+		 VALUES ($1, 0, 0, $2, 0, FALSE, $3, NOW(), NOW())`, uid, tier.Key, pacts); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -782,10 +863,11 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 			floorType = "rest"
 		} else if rType < 0.20 {
 			floorType = "event"
-			// Roll event: merchant (40%), imp (35%), shrine (25%)
+			// Roll one of the mysterious-encounter types. Weighted toward the
+			// merchant; the rest split the long tail of shrines, gambles and caches.
 			// #nosec G404
 			rEv := rand.Float64()
-			if rEv < 0.40 {
+			if rEv < 0.34 {
 				g := content.RandomGearDrop()
 				c1 := content.RandomConsumable()
 				c2 := content.RandomConsumable()
@@ -829,10 +911,22 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 				}
 				
 				eventState = fmt.Sprintf(`{"type":"merchant","items":[{"type":"gear","id":"%s","name":"%s","price":400},{"type":"cons","id":"%s","name":"%s","price":%d,"count":%d},{"type":"cons","id":"%s","name":"%s","price":%d,"count":%d}]}`, g.ID, g.Name, c1.ID, name1, price1, count1, c2.ID, name2, price2, count2)
-			} else if rEv < 0.75 {
+			} else if rEv < 0.50 {
 				eventState = `{"type":"imp"}`
-			} else {
+			} else if rEv < 0.60 {
 				eventState = `{"type":"shrine"}`
+			} else if rEv < 0.70 {
+				eventState = `{"type":"wishing_well"}`
+			} else if rEv < 0.79 {
+				eventState = `{"type":"gambler"}`
+			} else if rEv < 0.86 {
+				eventState = `{"type":"statue"}`
+			} else if rEv < 0.92 {
+				eventState = `{"type":"fountain"}`
+			} else if rEv < 0.97 {
+				eventState = `{"type":"mimic"}`
+			} else {
+				eventState = `{"type":"buried_cache"}`
 			}
 		} else {
 			floorType = "combat"
@@ -906,7 +1000,10 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 	if res.Victory {
 		bonus := abyssFloorBonus(depth, run.depthLevelHint())
 		bonus = int64(float64(bonus) * tier.RewardMult * (1.0 + float64(st.UpGreed)*0.05) * (1.0 + float64(st.AbyssPrestige)*0.05))
-		
+		_, dailyMod := s.bot.currentDailyChallenge()
+		bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
+		bonus = int64(float64(bonus) * abyssPactRewardMult(s.bot.abyssRunPacts(uid)))
+
 		switch focus {
 		case "gold":
 			bonus = bonus * 2
@@ -919,18 +1016,53 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 			s.bot.grantAbyssTokens(uid, 5)
 			out["daily"] = true
 		}
-		newEscrow := int64(float64(escrowBefore)*(1.0+abyssEscrowInterest)) + bonus // [56] interest
+
+		hasLuckyCoin := false
+		equipped := s.bot.getEquippedItems(uid)
+		if _, hasCoin := equipped[content.SlotTrinket1]; hasCoin && equipped[content.SlotTrinket1].ID == "ABYSS_LUCKY_COIN" {
+			hasLuckyCoin = true
+		}
+		newEscrow := int64(float64(escrowBefore)*(1.0+abyssEffectiveInterest(st.UpInterest, hasLuckyCoin))) + bonus // [56] interest + Compounding node
 		if _, err := s.bot.DB.Exec("UPDATE abyss_active SET escrow=$1, floor_type='combat', modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2", newEscrow, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
 		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1) WHERE client_uid=$2", depth, uid)
+		
+		// Evolving Artifacts: gains level/XP on clearing floor
+		if art, ok := equipped[content.SlotArtifact]; ok {
+			art.GearLevel++
+			if art.GearLevel == 3 {
+				art.Stats.HP += 100
+				art.Stats.STR += 15
+				art.Stats.DEF += 15
+			} else if art.GearLevel == 5 {
+				art.Stats.HP += 250
+				art.Stats.STR += 30
+				art.Stats.DEF += 30
+			}
+			dataBytes, _ := json.Marshal(art)
+			_, _ = s.bot.DB.Exec("UPDATE user_gear SET item_data=$1 WHERE slot='Artifact' AND client_uid=$2", string(dataBytes), uid)
+		}
+
 		out["bonus"] = bonus
 		out["escrow"] = newEscrow
+		// Surface any milestone newly earned this floor: depth, plus boss-kill and
+		// bestiary counts (both updated during the fight that just resolved).
+		var achs []string
 		if ach := s.bot.checkDepthAchievements(uid, depth); ach != "" {
-			out["achievement"] = ach
+			achs = append(achs, ach)
 		}
-		
+		if ach := s.bot.checkBossKillAchievements(uid); ach != "" {
+			achs = append(achs, ach)
+		}
+		if ach := s.bot.checkBestiaryAchievements(uid); ach != "" {
+			achs = append(achs, ach)
+		}
+		if len(achs) > 0 {
+			out["achievement"] = strings.Join(achs, " · ")
+		}
+
 		// Lore fragment drop chance (15%)
 		// #nosec G404
 		if rand.Float64() < 0.15 {
@@ -1198,7 +1330,10 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		bonusGear = s.bot.awardAbyssBonusGear(uid, run.Depth)
 	}
 	if run.Depth > 0 {
-		s.bot.grantAbyssTokens(uid, run.Depth/5+1) // [44]
+		baseTokens := run.Depth/5 + 1
+		// Tribute node: +10% bank tokens per level, rounded down.
+		tokenGrant := baseTokens + baseTokens*st.UpTribute/10
+		s.bot.grantAbyssTokens(uid, tokenGrant) // [44] + Tribute node
 		s.bot.recordGameResult(uid, "abyss", true, payout)
 		jackpotWin = s.bot.tryAbyssJackpot(uid, run.Depth) // [62]
 		if jackpotWin > 0 {
@@ -1229,6 +1364,14 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	}
 	if len(escrowLoot) > 0 {
 		out["escrow_loot"] = escrowLoot
+	}
+	// Lifetime-banked milestone check (post-commit, so the running total is current).
+	if run.Depth > 0 {
+		var lifetime int64
+		_ = s.bot.DB.QueryRow("SELECT abyss_lifetime_banked FROM users WHERE client_uid=$1", uid).Scan(&lifetime)
+		if ach := s.bot.checkBankAchievements(uid, lifetime); ach != "" {
+			out["achievement"] = ach
+		}
 	}
 	writeJSON(w, out)
 }
@@ -1633,6 +1776,259 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			}
 			writeJSON(w, map[string]any{"ok": true, "msg": "Shrine accepted! +1,000 gold added to cache, but you are cursed!", "escrow": newEscrow, "resolved": true})
 			return
+
+		case "well_toss":
+			if state.Type != "wishing_well" {
+				writeJSON(w, map[string]any{"ok": false, "error": "wrong floor type for well_toss"})
+				return
+			}
+			const cost = int64(250)
+			// The gold cost, escrow gain and event-state clear are all one bargain: run
+			// them in a single transaction so a failed clear can't leave the well
+			// replayable after the player already paid.
+			tx, err := s.bot.DB.Begin()
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			defer func() { _ = tx.Rollback() }()
+			res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", cost, uid)
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if n, _ := res.RowsAffected(); n == 0 {
+				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
+				return
+			}
+			// #nosec G404 -- non-cryptographic reward roll
+			roll := rand.Float64()
+			var gain int64
+			var msg string
+			switch {
+			case roll < 0.20:
+				gain = 0
+				msg = "The coin sinks without a ripple. The well keeps your gold and gives nothing."
+			case roll < 0.80:
+				gain = 600
+				msg = "The water glows — the well blesses your cache with +600 gold!"
+			default:
+				gain = 1500
+				msg = "✨ The well erupts with light! A jackpot blessing of +1,500 gold to your cache!"
+			}
+			newEscrow := run.Escrow
+			if gain > 0 {
+				newEscrow += gain
+			}
+			if _, err := tx.Exec("UPDATE abyss_active SET escrow = $1, event_state = NULL, last_action_at = NOW() WHERE client_uid = $2", newEscrow, uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if err := tx.Commit(); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			writeJSON(w, map[string]any{"ok": true, "msg": msg, "gold": gold - cost, "escrow": newEscrow, "resolved": true})
+			return
+
+		case "gambler_bet":
+			if state.Type != "gambler" {
+				writeJSON(w, map[string]any{"ok": false, "error": "wrong floor type for gambler_bet"})
+				return
+			}
+			const cost = int64(250)
+			// Bet, payout and event-state clear run in one transaction so a failed clear
+			// can't leave the draw replayable after gold already changed hands.
+			tx, err := s.bot.DB.Begin()
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			defer func() { _ = tx.Rollback() }()
+			res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", cost, uid)
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if n, _ := res.RowsAffected(); n == 0 {
+				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
+				return
+			}
+			newGold := gold - cost
+			var msg string
+			// #nosec G404 -- non-cryptographic 50/50 card draw
+			if rand.Float64() < 0.50 {
+				if err := tx.QueryRow("UPDATE users SET gold = gold + 500 WHERE client_uid = $1 RETURNING gold", uid).Scan(&newGold); err != nil {
+					writeJSON(w, map[string]any{"ok": false, "error": "db"})
+					return
+				}
+				msg = "🃏 High card! The dealer pays out — you win 500 gold (net +250)!"
+			} else {
+				msg = "🃏 Low card. The dealer sweeps your 250 gold off the table."
+			}
+			if _, err := tx.Exec("UPDATE abyss_active SET event_state = NULL, last_action_at = NOW() WHERE client_uid = $1", uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if err := tx.Commit(); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			writeJSON(w, map[string]any{"ok": true, "msg": msg, "gold": newGold, "resolved": true})
+			return
+
+		case "statue_touch":
+			if state.Type != "statue" {
+				writeJSON(w, map[string]any{"ok": false, "error": "wrong floor type for statue_touch"})
+				return
+			}
+			// A free blessing: heal to full and bless the cache. Resolves the floor so
+			// it can't be farmed for repeated free heals.
+			stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+			newEscrow := run.Escrow + 400
+			tx, err := s.bot.DB.Begin()
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			defer func() { _ = tx.Rollback() }()
+			if _, err := tx.Exec("UPDATE users SET current_hp = $1 WHERE client_uid = $2", stats.HP, uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if _, err := tx.Exec("UPDATE abyss_active SET escrow = $1, event_state = NULL, last_action_at = NOW() WHERE client_uid = $2", newEscrow, uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if err := tx.Commit(); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			writeJSON(w, map[string]any{"ok": true, "msg": "🗿 The ancient statue radiates warmth — healed to full and +400 gold blessed into your cache.", "hp": stats.HP, "escrow": newEscrow, "resolved": true})
+			return
+
+		case "fountain_drink":
+			if state.Type != "fountain" {
+				writeJSON(w, map[string]any{"ok": false, "error": "wrong floor type for fountain_drink"})
+				return
+			}
+			// Fountain of Youth: free full heal + full gear repair. Resolves the floor.
+			stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+			tx, err := s.bot.DB.Begin()
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			defer func() { _ = tx.Rollback() }()
+			if _, err := tx.Exec("UPDATE users SET current_hp = $1 WHERE client_uid = $2", stats.HP, uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if _, err := tx.Exec("UPDATE user_gear SET durability = max_durability WHERE client_uid = $1", uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if _, err := tx.Exec("UPDATE users SET artifact_durability = 30 WHERE client_uid = $1 AND artifact_name IS NOT NULL", uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if _, err := tx.Exec("UPDATE abyss_active SET event_state = NULL, last_action_at = NOW() WHERE client_uid = $1", uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if err := tx.Commit(); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			writeJSON(w, map[string]any{"ok": true, "msg": "⛲ The Fountain of Youth restores you — healed to full and all gear repaired.", "hp": stats.HP, "resolved": true})
+			return
+
+		case "mimic_open":
+			if state.Type != "mimic" {
+				writeJSON(w, map[string]any{"ok": false, "error": "wrong floor type for mimic_open"})
+				return
+			}
+			// Risk/reward: the chest is often real treasure, but sometimes a mimic that
+			// bites. The bite can't kill (clamped to 1 HP) — events never end a run.
+			// #nosec G404 -- non-cryptographic risk roll
+			if rand.Float64() < 0.60 {
+				gain := int64(800 + rand.IntN(1400)) // #nosec G404
+				newEscrow := run.Escrow + gain
+				if _, err := s.bot.DB.Exec("UPDATE abyss_active SET escrow = $1, event_state = NULL, last_action_at = NOW() WHERE client_uid = $2", newEscrow, uid); err != nil {
+					writeJSON(w, map[string]any{"ok": false, "error": "db"})
+					return
+				}
+				writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("🎁 Real treasure! The chest spills +%d gold into your cache.", gain), "escrow": newEscrow, "resolved": true})
+				return
+			}
+			stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+			var curHP int
+			_ = s.bot.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&curHP)
+			bite := stats.HP / 4
+			newHP := curHP - bite
+			if newHP < 1 {
+				newHP = 1
+			}
+			// Apply the bite and clear the event together so a failed clear can't leave
+			// the chest replayable for repeated bites.
+			tx, err := s.bot.DB.Begin()
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			defer func() { _ = tx.Rollback() }()
+			if _, err := tx.Exec("UPDATE users SET current_hp = $1 WHERE client_uid = $2", newHP, uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if _, err := tx.Exec("UPDATE abyss_active SET event_state = NULL, last_action_at = NOW() WHERE client_uid = $1", uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if err := tx.Commit(); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			writeJSON(w, map[string]any{"ok": true, "msg": "🦷 IT'S A MIMIC! The chest sprouts teeth and bites you before fleeing.", "hp": newHP, "resolved": true})
+			return
+
+		case "cache_dig":
+			if state.Type != "buried_cache" {
+				writeJSON(w, map[string]any{"ok": false, "error": "wrong floor type for cache_dig"})
+				return
+			}
+			// A guaranteed sealed item, rolled from the Abyss pool and dropped straight
+			// into the loot escrow (recovered on bank, lost on death like all cache loot).
+			g := content.RandomAbyssGearDrop()
+			label := fmt.Sprintf("%s [s:%s] (gs:%d R:%s)", g.Name, string(g.Slot), g.Stats.Score(), g.Rarity.String())
+			gg := g
+			// Seal the loot and clear the event in one transaction so a failed clear
+			// can't leave the dig replayable for infinite free items.
+			data, err := json.Marshal(abyssLootGrant{Type: "gear", Gear: &gg})
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			tx, err := s.bot.DB.Begin()
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			defer func() { _ = tx.Rollback() }()
+			if _, err := tx.Exec("INSERT INTO abyss_escrow_loot (client_uid, item_type, label, item_data) VALUES ($1,$2,$3,$4)", uid, "gear", label, data); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if _, err := tx.Exec("UPDATE abyss_active SET event_state = NULL, last_action_at = NOW() WHERE client_uid = $1", uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if err := tx.Commit(); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			writeJSON(w, map[string]any{"ok": true, "msg": "⛏️ You unearth a buried cache! " + label + " is sealed into your loot cache.", "resolved": true})
+			return
 		}
 	}
 
@@ -1673,9 +2069,17 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	// Apply tier reward multiplier to match combat floor scaling
 	bonus = int64(float64(bonus) * tier.RewardMult)
 	bonus = int64(float64(bonus) * (1.0 + float64(st.UpGreed)*0.05) * (1.0 + float64(st.AbyssPrestige)*0.05))
+	_, dailyMod := s.bot.currentDailyChallenge()
+	bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
+	bonus = int64(float64(bonus) * abyssPactRewardMult(s.bot.abyssRunPacts(uid)))
 	
-	newEscrow := int64(float64(run.Escrow)*(1.0+abyssEscrowInterest)) + bonus
-	
+	hasLuckyCoin := false
+	equipped := s.bot.getEquippedItems(uid)
+	if _, hasCoin := equipped[content.SlotTrinket1]; hasCoin && equipped[content.SlotTrinket1].ID == "ABYSS_LUCKY_COIN" {
+		hasLuckyCoin = true
+	}
+	newEscrow := int64(float64(run.Escrow)*(1.0+abyssEffectiveInterest(st.UpInterest, hasLuckyCoin))) + bonus
+
 	_, err := s.bot.DB.Exec(
 		`UPDATE abyss_active 
 		    SET escrow = $1, floor_type = 'combat', modifier = '', event_state = NULL, last_action_at = NOW() 
@@ -1711,11 +2115,63 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 
 // ---- Co-op, Prestige & Weekly challenge Helpers/Handlers ------------------
 
-func (b *Bot) currentWeeklyChallenge() (int64, string) {
-	year, week := time.Now().ISOWeek()
-	seed := int64(year*100 + week)
-	mods := []string{"double_hazards", "zero_durability_loss", "enraged_mobs"}
-	return seed, mods[seed%int64(len(mods))]
+func (b *Bot) currentDailyChallenge() (int64, string) {
+	now := time.Now().UTC()
+	// Seed by calendar day (year + day-of-year) so the challenge affix rotates once
+	// per day rather than once per week.
+	seed := int64(now.Year()*1000 + now.YearDay())
+	return seed, abyssDailyMods[seed%int64(len(abyssDailyMods))]
+}
+
+// abyssDailyMods is the rotating pool of daily challenge affixes. Each is wired
+// into a concrete effect: double_hazards/enraged_mobs/glass_cannon touch combat,
+// zero_durability_loss touches gear wear, and gold_rush/glass_cannon touch the
+// escrow reward (see abyssDailyRewardMult / abyssDailyDangerMult).
+var abyssDailyMods = []string{
+	"double_hazards",
+	"zero_durability_loss",
+	"enraged_mobs",
+	"glass_cannon",
+	"gold_rush",
+	"iron_skin",
+	"bloodlust",
+	"execute",
+	"vampiric_mobs",
+}
+
+// abyssDailyRewardMult is the escrow-bonus multiplier the active daily affix
+// applies to every cleared floor this week.
+func abyssDailyRewardMult(dailyMod string) float64 {
+	switch dailyMod {
+	case "gold_rush":
+		return 2.0
+	case "glass_cannon":
+		return 1.3
+	case "iron_skin", "execute":
+		// Safer floors pay a little less, keeping the risk/reward honest.
+		return 0.9
+	case "vampiric_mobs":
+		// Tougher, drawn-out fights pay a little more.
+		return 1.15
+	}
+	return 1.0
+}
+
+// abyssDailyDangerMult is the floor-difficulty multiplier the active daily affix
+// applies to every combat floor this week.
+func abyssDailyDangerMult(dailyMod string) float64 {
+	if dailyMod == "glass_cannon" {
+		return 1.3
+	}
+	return 1.0
+}
+
+// countEquippedAbyssGear returns how many Abyss-exclusive (ABYSS_) pieces the
+// player currently has equipped, for the set-bonus readout on the Abyss page.
+func (b *Bot) countEquippedAbyssGear(uid string) int {
+	var n int
+	_ = b.DB.QueryRow(`SELECT COUNT(*) FROM user_gear WHERE client_uid=$1 AND gear_id LIKE 'ABYSS\_%'`, uid).Scan(&n)
+	return n
 }
 
 func (b *Bot) loadCoopHelpers(uid string) []map[string]any {
@@ -1830,5 +2286,9 @@ func (s *WebServer) handleAbyssPrestige(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "prestige": st.AbyssPrestige + 1})
+	out := map[string]any{"ok": true, "prestige": st.AbyssPrestige + 1}
+	if ach := s.bot.checkThresholdAchievements(uid, 1, []achTier{{1, "prestige_1"}}); ach != "" {
+		out["achievement"] = ach
+	}
+	writeJSON(w, out)
 }

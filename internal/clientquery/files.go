@@ -140,10 +140,36 @@ func IconID(data []byte) uint32 {
 	return crc32.ChecksumIEEE(data)
 }
 
+// IconExists reports whether the icon file for id is actually present in the
+// server's icon filebase (channel 0). Used to confirm an icon really landed
+// before a group is pointed at it, so a lost upload can't leave a dangling
+// i_icon_id (which the client renders as "icon … not found"). ftgetfileinfo
+// returns the file's size when present; any error or missing size means absent.
+func (c *Client) IconExists(id uint32) bool {
+	name := fmt.Sprintf("/icon_%d", id)
+	data, err := c.Command(fmt.Sprintf("ftgetfileinfo cid=0 cpw= name=%s", Escape(name)))
+	if err != nil {
+		return false
+	}
+	if sz, ok := firstKV(data)["size"]; ok {
+		if n, _ := strconv.Atoi(sz); n > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // UploadIcon uploads a group icon (PNG bytes) to the server's icon storage and
 // returns its icon id. hostFallback is used when the server does not report a
-// transfer IP (typical for ClientQuery on the same host as the server). If the
-// icon already exists on the server this is a no-op success.
+// transfer IP (typical for ClientQuery on the same host as the server).
+//
+// The upload handshake (notifystartupload) is delivered asynchronously and can be
+// lost on a busy same-host ClientQuery link. Rather than assume the icon is
+// already present when the handshake or status looks off — which previously left
+// groups pointing at an icon file that was never actually transferred — those
+// ambiguous cases are confirmed against the server's filebase via IconExists, and
+// an error is returned when the file genuinely isn't there so the caller declines
+// to set a dangling i_icon_id.
 func (c *Client) UploadIcon(data []byte, hostFallback string) (uint32, error) {
 	id := IconID(data)
 	name := fmt.Sprintf("/icon_%d", id)
@@ -154,18 +180,27 @@ func (c *Client) UploadIcon(data []byte, hostFallback string) (uint32, error) {
 		"ftinitupload clientftfid=1 name=%s cid=0 cpw= size=%d overwrite=1 resume=0",
 		Escape(name), len(data))); err != nil {
 		if strings.Contains(err.Error(), "2050") || strings.Contains(strings.ToLower(err.Error()), "exist") {
-			return id, nil // already on the server
+			return id, nil // server itself reports the file already exists
 		}
 		return 0, err
 	}
 
 	kv, ok := c.ReadNotify("notifystartupload", 5*time.Second)
 	if !ok {
-		// No upload notification: the server most likely already has this icon.
-		return id, nil
+		// The transfer handshake never arrived. Don't guess — confirm the file is
+		// actually on the server; report failure if it isn't so no group is pointed
+		// at a missing icon.
+		if c.IconExists(id) {
+			return id, nil
+		}
+		return 0, fmt.Errorf("icon %d: upload handshake missing and file not present on server", id)
 	}
 	if st := kv["status"]; st != "" && st != "0" {
-		return id, nil // already exists
+		// Non-zero status usually means "already exists", but verify before trusting it.
+		if c.IconExists(id) {
+			return id, nil
+		}
+		return 0, fmt.Errorf("icon %d: upload status=%s and file not present on server", id, st)
 	}
 	key := kv["ftkey"]
 	port := kv["port"]

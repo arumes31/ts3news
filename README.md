@@ -234,6 +234,26 @@ All gold/XP is the same economy used by the TS3 RPG, so farming the arcade or ba
     docker compose up -d --build
     ```
 
+## 🕳️ Abyss Expansion & Gear Forge
+
+The Abyss features an advanced, procedural loot and gear customization system:
+
+*   🔮 **Loot Pity Counter**: Guaranteed Legendary or Mythic items after 40 runs without a top-tier drop.
+*   ⚒️ **Abyss Forge Customization**:
+    *   **Sockets & Gemstones**: Roll gear with 1-3 empty sockets. Infuse gemstones (Ruby for HP, Sapphire for Mana, Emerald for STR, Diamond for DEF, Topaz for Crit) to add flat stats.
+    *   **Weapon Runes Etching**: Etch weapons with Fire, Water, Earth, or Air runes for elemental visual effects and visual damage conversion.
+    *   **Gear Recalibration**: Spend Abyss Tokens to re-roll individual sub-stats on Legendary+ gear.
+    *   **Ascended Upgrading**: Upgrade gear tier levels using tokens to scale base combat stats (+30% per tier level).
+    *   **Class Transmutation**: Re-forge weapon types suited to your character's highest attributes.
+*   💀 **Cursed & Sentient Gear**: High-risk, high-stat weapons giving +50% damage bonus but draining 2% HP per round, equipped with custom sentient voice log lines in battle.
+*   🌌 **Eldritch Gear Tier**: Procedural cosmic-horror affixes exceeding legendary gear tiers.
+*   🗿 **Evolving Artifacts**: Equippable artifacts gain XP/levels on floor clears, unlocking additional flat stat slots at level milestones (Level 3 & 5).
+*   🪙 **Lucky Coins**: Rare accessories boosting gold drop rates by +50% and cache escrow multipliers by +20%.
+*   👑 **Unique Boss Relics**: 5% drop rate from boss clears, granting powerful lore-tied stat buffs.
+*   🎒 **Consumable Pouches**: Expand maximum carried consumable items brought into runs from 3 to 8.
+*   🛡️ **Insured Loot Chests**: Spend gold to mark items as Insured to completely block durability loss on defeat.
+*   📿 **Stat Conversion & Talent Resets**: Convert Mana to HP, or reset all Deep-Delver talent levels for full refunds.
+
 ---
 
 ## 💻 Local Development & Testing

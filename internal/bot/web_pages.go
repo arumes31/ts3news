@@ -42,6 +42,11 @@ type gearView struct {
 	EffectDesc string
 	XPBonusPct int
 	Stats      []statKV
+
+	Unidentified bool
+	Sockets      int
+	Gemstones    []string
+	RarityVal    int
 }
 
 // gearEffectDescriptions maps each special effect to a short player-facing blurb.
@@ -67,7 +72,7 @@ var gearEffectDescriptions = map[content.ItemEffect]string{
 // gearStatList returns the gear's non-zero combat stats, largest first.
 func gearStatList(s content.Stats) []statKV {
 	pairs := []statKV{
-		{"HP", s.HP}, {"STR", s.STR}, {"DEF", s.DEF}, {"SPD", s.SPD},
+		{"HP", s.HP}, {"MNA", s.MNA}, {"STR", s.STR}, {"DEF", s.DEF}, {"SPD", s.SPD},
 		{"CRT%", s.CRT}, {"DGE%", s.DGE}, {"LCK", s.LCK}, {"INT", s.INT}, {"STA", s.STA},
 	}
 	var out []statKV
@@ -80,27 +85,85 @@ func gearStatList(s content.Stats) []statKV {
 }
 
 func toGearView(slot content.GearSlot, g content.Gear) gearView {
+	name := g.Name
+	stats := gearStatList(g.Stats)
+	effDesc := gearEffectDescriptions[g.Special]
+
+	if g.Unidentified {
+		name = "Unidentified " + string(slot)
+		stats = []statKV{{"???", 0}}
+		effDesc = "Identify this item to reveal its stats and effects."
+	} else {
+		if g.GearLevel > 0 {
+			name = fmt.Sprintf("%s +%d", name, g.GearLevel)
+		}
+		if g.Cursed {
+			name = "💀 Cursed " + name
+			if effDesc != "" {
+				effDesc += " | "
+			}
+			effDesc += "Cursed: -2% HP per round"
+		}
+		if g.Eldritch {
+			name = "🌌 Eldritch " + name
+			if effDesc != "" {
+				effDesc += " | "
+			}
+			effDesc += "Eldritch: Cosmic horror affix applied"
+		}
+		if g.Rune != "" {
+			name = fmt.Sprintf("%s (%s Rune)", name, g.Rune)
+		}
+		if g.Sockets > 0 {
+			gemsText := ""
+			for i := 0; i < g.Sockets; i++ {
+				if i < len(g.Gemstones) {
+					gemsText += " 💎" + g.Gemstones[i]
+				} else {
+					gemsText += " 🔘Empty"
+				}
+			}
+			if effDesc != "" {
+				effDesc += " | "
+			}
+			effDesc += "Sockets:" + gemsText
+		}
+		if g.Insured {
+			name = "🛡️ " + name
+		}
+	}
+
 	v := gearView{
 		Slot:        string(slot),
 		Icon:        content.SlotIcon(slot),
 		IconName:    content.SlotIconName(slot),
 		ID:          g.ID,
-		Name:        g.Name,
+		Name:        name,
 		Rarity:      g.Rarity.String(),
 		RarityColor: g.Rarity.Color(),
 		RarityIcon:  content.RarityIconName(g.Rarity),
 		CR:          g.CombatRating(),
 		Score:       g.Stats.Score(),
-		Stats:       gearStatList(g.Stats),
+		Stats:       stats,
 		XPBonusPct:  int(math.Round((g.XPMultiplier - 1.0) * 100)),
+		Unidentified: g.Unidentified,
+		Sockets:      g.Sockets,
+		Gemstones:    g.Gemstones,
+		RarityVal:    int(g.Rarity),
 	}
 	if g.Element != "" && g.Element != content.ElementPhysical {
 		v.Element = string(g.Element)
 	}
-	if g.Special != content.EffectNone {
+	if g.Special != content.EffectNone && !g.Unidentified {
 		v.Effect = string(g.Special)
 		v.EffectIcon = content.EffectIconName(g.Special)
-		v.EffectDesc = gearEffectDescriptions[g.Special]
+		v.EffectDesc = effDesc
+	} else if g.Unidentified {
+		v.EffectDesc = effDesc
+	} else if effDesc != "" {
+		// Identified gear with no base Special but with cursed/eldritch/socket affixes
+		// still has an assembled description; surface it so those affixes render.
+		v.EffectDesc = effDesc
 	}
 	return v
 }
@@ -253,7 +316,7 @@ func (s *WebServer) handleInventory(w http.ResponseWriter, r *http.Request, uid 
 
 // inventoryItems returns the user's owned, unequipped gear.
 func (b *Bot) inventoryItems(uid string) []gearView {
-	rows, err := b.DB.Query("SELECT id, gear_id, durability FROM user_inventory WHERE client_uid=$1 ORDER BY id DESC", uid)
+	rows, err := b.DB.Query("SELECT id, gear_id, durability, item_data FROM user_inventory WHERE client_uid=$1 ORDER BY id DESC", uid)
 	if err != nil {
 		return nil
 	}
@@ -263,10 +326,11 @@ func (b *Bot) inventoryItems(uid string) []gearView {
 		var id int64
 		var gid string
 		var dur int
-		if err := rows.Scan(&id, &gid, &dur); err != nil {
+		var itemData sql.NullString
+		if err := rows.Scan(&id, &gid, &dur, &itemData); err != nil {
 			continue
 		}
-		g, ok := content.GetGearByID(gid)
+		g, ok := b.makeGear(gid, itemData)
 		if !ok {
 			continue
 		}
@@ -329,11 +393,12 @@ func (s *WebServer) handleEquipAPI(w http.ResponseWriter, r *http.Request, uid s
 	// Look up the inventory item.
 	var gid string
 	var dur int
-	if err := s.bot.DB.QueryRow("SELECT gear_id, durability FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gid, &dur); err != nil {
+	var itemData sql.NullString
+	if err := s.bot.DB.QueryRow("SELECT gear_id, durability, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gid, &dur, &itemData); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
 		return
 	}
-	g, ok := content.GetGearByID(gid)
+	g, ok := s.bot.makeGear(gid, itemData)
 	if !ok {
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown gear"})
 		return
@@ -355,9 +420,10 @@ func (s *WebServer) handleEquipAPI(w http.ResponseWriter, r *http.Request, uid s
 	// Displace whatever is in the slot back into the inventory.
 	var oldGID string
 	var oldDur int
-	switch err := tx.QueryRow("SELECT gear_id, durability FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(g.Slot)).Scan(&oldGID, &oldDur); err {
+	var oldItemData sql.NullString
+	switch err := tx.QueryRow("SELECT gear_id, durability, item_data FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(g.Slot)).Scan(&oldGID, &oldDur, &oldItemData); err {
 	case nil:
-		if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1, $2, $3)", uid, oldGID, oldDur); err != nil {
+		if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1, $2, $3, $4)", uid, oldGID, oldDur, oldItemData); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "displace"})
 			return
 		}
@@ -367,9 +433,9 @@ func (s *WebServer) handleEquipAPI(w http.ResponseWriter, r *http.Request, uid s
 
 	// Equip the new piece.
 	if _, err := tx.Exec(
-		`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4)
-		 ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id=$3, durability=$4`,
-		uid, string(g.Slot), g.ID, dur,
+		`INSERT INTO user_gear (client_uid, slot, gear_id, durability, item_data) VALUES ($1, $2, $3, $4, $5)
+		 ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id=$3, durability=$4, item_data=$5`,
+		uid, string(g.Slot), g.ID, dur, itemData,
 	); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "equip"})
 		return

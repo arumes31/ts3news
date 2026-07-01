@@ -3,6 +3,9 @@ package bot
 import (
 	"strings"
 	"testing"
+	"time"
+
+	"ts3news/internal/content"
 )
 
 // TestBBToHTMLEscapesThenConverts verifies the combat-log converter turns the
@@ -245,13 +248,20 @@ func TestAbyssWave3Content(t *testing.T) {
 func TestAbyssRemaining(t *testing.T) {
 	b := &Bot{}
 
-	// 1. Weekly Challenges
-	seed, mod := b.currentWeeklyChallenge()
+	// 1. Daily Challenges
+	seed, mod := b.currentDailyChallenge()
 	if seed == 0 {
-		t.Error("weekly seed should not be zero")
+		t.Error("daily seed should not be zero")
 	}
-	if mod != "double_hazards" && mod != "zero_durability_loss" && mod != "enraged_mobs" {
-		t.Errorf("unexpected weekly challenge modifier: %q", mod)
+	validMod := false
+	for _, m := range abyssDailyMods {
+		if mod == m {
+			validMod = true
+			break
+		}
+	}
+	if !validMod {
+		t.Errorf("unexpected daily challenge modifier: %q", mod)
 	}
 
 	// 2. Prestige multiplier checking
@@ -261,6 +271,263 @@ func TestAbyssRemaining(t *testing.T) {
 	bonus = int64(float64(bonus) * (1.0 + float64(st.UpGreed)*0.05) * (1.0 + float64(st.AbyssPrestige)*0.05))
 	if bonus != 110 {
 		t.Errorf("expected prestige gold bonus to be 110, got %d", bonus)
+	}
+}
+
+// TestAbyssFeatureExpansion covers the wave-4 feature additions: the new weekly
+// affix multipliers, the Compounding interest node, and the new upgrade nodes.
+func TestAbyssFeatureExpansion(t *testing.T) {
+	// Daily reward/danger multipliers.
+	if got := abyssDailyRewardMult("gold_rush"); got != 2.0 {
+		t.Errorf("gold_rush reward mult = %v, want 2.0", got)
+	}
+	if got := abyssDailyRewardMult("iron_skin"); got != 0.9 {
+		t.Errorf("iron_skin reward mult = %v, want 0.9", got)
+	}
+	if got := abyssDailyRewardMult("vampiric_mobs"); got != 1.15 {
+		t.Errorf("vampiric_mobs reward mult = %v, want 1.15", got)
+	}
+	// The combat-hooked affixes must be in the rotation pool to ever fire.
+	for _, want := range []string{"iron_skin", "bloodlust", "execute", "vampiric_mobs"} {
+		found := false
+		for _, m := range abyssDailyMods {
+			if m == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("affix %q missing from abyssDailyMods pool", want)
+		}
+	}
+	if got := abyssDailyRewardMult("glass_cannon"); got != 1.3 {
+		t.Errorf("glass_cannon reward mult = %v, want 1.3", got)
+	}
+	if got := abyssDailyRewardMult("double_hazards"); got != 1.0 {
+		t.Errorf("double_hazards reward mult = %v, want 1.0", got)
+	}
+	if got := abyssDailyDangerMult("glass_cannon"); got != 1.3 {
+		t.Errorf("glass_cannon danger mult = %v, want 1.3", got)
+	}
+	if got := abyssDailyDangerMult("gold_rush"); got != 1.0 {
+		t.Errorf("gold_rush danger mult = %v, want 1.0", got)
+	}
+
+	// Compounding node raises the base escrow interest by 0.5% per level.
+	if got := abyssEffectiveInterest(0, false); got != abyssEscrowInterest {
+		t.Errorf("interest L0 = %v, want %v", got, abyssEscrowInterest)
+	}
+	if got := abyssEffectiveInterest(4, false); got != abyssEscrowInterest+0.02 {
+		t.Errorf("interest L4 = %v, want %v", got, abyssEscrowInterest+0.02)
+	}
+
+	// Every new upgrade node must be in the whitelist so /api/abyss/upgrade accepts it.
+	for _, node := range []string{"interest", "tribute", "insight"} {
+		if _, ok := abyssUpgradeCols[node]; !ok {
+			t.Errorf("upgrade node %q missing from abyssUpgradeCols whitelist", node)
+		}
+	}
+}
+
+// TestAbyssSignatureRelics verifies the combat-active Abyss relics expose their
+// fixed Special through the static gear definition (which is what the live combat
+// engine reads when the piece is equipped) and that the drop roller preserves it.
+func TestAbyssSignatureRelics(t *testing.T) {
+	want := map[string]content.ItemEffect{
+		"ABYSS_OFFHAND":  content.EffectThorns,
+		"ABYSS_AURA":     content.EffectVampiric,
+		"ABYSS_BAND":     content.EffectBerserk,
+		"ABYSS_TRINKET":  content.EffectStealth,
+		"ABYSS_TALISMAN": content.EffectParry,
+		"ABYSS_RELIC":    content.EffectPhoenix,
+	}
+	for id, eff := range want {
+		g, ok := content.GetGearByID(id)
+		if !ok {
+			t.Errorf("signature gear %q not found", id)
+			continue
+		}
+		if g.Special != eff {
+			t.Errorf("%q Special = %q, want %q", id, g.Special, eff)
+		}
+	}
+
+	// Whenever the roller returns a signature ID, its authored effect must survive
+	// (RandomAbyssGearDrop only random-rolls Special for items that define none).
+	for i := 0; i < 400; i++ {
+		g := content.RandomAbyssGearDrop()
+		if eff, isSig := want[g.ID]; isSig && g.Special != eff {
+			t.Fatalf("RandomAbyssGearDrop overwrote %q Special: got %q want %q", g.ID, g.Special, eff)
+		}
+	}
+}
+
+// TestAbyssPacts verifies pact validation (unknown keys dropped, canonical order,
+// de-duplicated) and that the reward/danger multipliers aggregate correctly.
+func TestAbyssPacts(t *testing.T) {
+	// Unknown keys are dropped; duplicates collapse; output is in catalog order.
+	got := abyssValidatePacts([]string{"glass_cannon", "bogus", "double_hazards", "double_hazards"})
+	if got != "double_hazards glass_cannon" {
+		t.Errorf("validate = %q, want %q", got, "double_hazards glass_cannon")
+	}
+	if abyssValidatePacts([]string{"nope"}) != "" {
+		t.Error("all-unknown pact list should validate to empty")
+	}
+
+	// Reward multiplier is 1.0 + the sum of each pact's additive bonus.
+	if m := abyssPactRewardMult(nil); m != 1.0 {
+		t.Errorf("no-pact reward mult = %v, want 1.0", m)
+	}
+	if m := abyssPactRewardMult([]string{"double_hazards", "glass_cannon"}); m < 1.449 || m > 1.451 {
+		t.Errorf("reward mult = %v, want ~1.45", m)
+	}
+	// Danger multiplier comes only from pacts that raise difficulty (glass_cannon).
+	if m := abyssPactDangerMult([]string{"double_hazards"}); m != 1.0 {
+		t.Errorf("double_hazards danger mult = %v, want 1.0", m)
+	}
+	if m := abyssPactDangerMult([]string{"glass_cannon"}); m != 1.3 {
+		t.Errorf("glass_cannon danger mult = %v, want 1.3", m)
+	}
+	if !abyssPactsEnrage([]string{"enraged"}) || abyssPactsEnrage([]string{"glass_cannon"}) {
+		t.Error("enrage detection incorrect")
+	}
+}
+
+// TestAbyssDismantleTokens verifies the dismantle yield: nothing below Rare, and a
+// strictly increasing token value up the rarity ladder.
+func TestAbyssDismantleTokens(t *testing.T) {
+	if abyssDismantleTokens(content.RarityCommon) != 0 || abyssDismantleTokens(content.RarityUncommon) != 0 {
+		t.Error("common/uncommon should dismantle for 0 tokens (use salvage)")
+	}
+	ladder := []content.Rarity{content.RarityRare, content.RarityEpic, content.RarityLegendary, content.RarityMythic}
+	var prev int64
+	for _, rar := range ladder {
+		got := abyssDismantleTokens(rar)
+		if got <= prev {
+			t.Errorf("dismantle tokens not increasing at rarity %v: %d <= %d", rar, got, prev)
+		}
+		prev = got
+	}
+}
+
+// TestAbyssShopCatalog verifies the token-shop catalog is well-formed: unique keys,
+// positive costs, and a lookup that resolves every advertised key (so no buy button
+// can hit an unknown-item path).
+func TestAbyssShopCatalog(t *testing.T) {
+	seen := map[string]bool{}
+	for _, it := range abyssShopCatalog {
+		if it.Key == "" || it.Name == "" {
+			t.Errorf("shop item has empty key/name: %+v", it)
+		}
+		if it.Cost <= 0 {
+			t.Errorf("shop item %q has non-positive cost %d", it.Key, it.Cost)
+		}
+		if seen[it.Key] {
+			t.Errorf("duplicate shop key %q", it.Key)
+		}
+		seen[it.Key] = true
+		if _, ok := abyssShopByKey(it.Key); !ok {
+			t.Errorf("abyssShopByKey cannot resolve advertised key %q", it.Key)
+		}
+	}
+	if _, ok := abyssShopByKey("definitely_not_a_key"); ok {
+		t.Error("abyssShopByKey resolved a bogus key")
+	}
+}
+
+// TestAbyssDailyBounty verifies the bounty is deterministic per UTC day, rotates
+// across days, and that every template entry is well-formed (positive target/reward).
+func TestAbyssDailyBounty(t *testing.T) {
+	day := time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)
+	a := abyssDailyBounty(day)
+	b := abyssDailyBounty(day.Add(6 * time.Hour))
+	if a != b {
+		t.Error("bounty should be stable within the same UTC day")
+	}
+	// Over a full rotation of distinct days we must see more than one bounty.
+	seen := map[abyssBountyKind]bool{}
+	for i := 0; i < len(abyssBountyTable); i++ {
+		seen[abyssDailyBounty(day.AddDate(0, 0, i)).Kind] = true
+	}
+	if len(seen) < 2 {
+		t.Error("bounty rotation should yield more than one kind over its period")
+	}
+	for i, bt := range abyssBountyTable {
+		if bt.Target <= 0 || bt.Desc == "" || (bt.RewardTk <= 0 && bt.RewardGd <= 0) {
+			t.Errorf("bounty %d is malformed: %+v", i, bt)
+		}
+	}
+}
+
+// TestAbyssStreakBonus verifies the bounty streak bonus: none on day 1, +5 per
+// extra consecutive day, capped at +30 from day 7 onward.
+func TestAbyssStreakBonus(t *testing.T) {
+	cases := map[int]int{0: 0, 1: 0, 2: 5, 3: 10, 7: 30, 8: 30, 100: 30}
+	for streak, want := range cases {
+		if got := abyssStreakBonusTokens(streak); got != want {
+			t.Errorf("streak %d bonus = %d, want %d", streak, got, want)
+		}
+	}
+}
+
+// TestAbyssAchievementTiers verifies every count-based achievement ladder is
+// ascending and that each tier code has a player-facing name (so newly earned
+// milestones never surface as a raw code).
+func TestAbyssAchievementTiers(t *testing.T) {
+	ladders := map[string][]achTier{
+		"boss":     abyssBossTiers,
+		"bank":     abyssBankTiers,
+		"bestiary": abyssBestiaryTiers,
+	}
+	for name, tiers := range ladders {
+		if len(tiers) == 0 {
+			t.Errorf("%s ladder is empty", name)
+		}
+		var prev int64 = -1
+		for _, tr := range tiers {
+			if tr.N <= prev {
+				t.Errorf("%s ladder not strictly ascending at %q (N=%d)", name, tr.Code, tr.N)
+			}
+			prev = tr.N
+			if abyssAchievementName(tr.Code) == tr.Code {
+				t.Errorf("%s tier %q has no display name", name, tr.Code)
+			}
+		}
+	}
+	// The prestige achievement must also resolve to a name.
+	if abyssAchievementName("prestige_1") == "prestige_1" {
+		t.Error("prestige_1 has no display name")
+	}
+}
+
+// TestAbyssSetBonus verifies the cumulative 2/4/6-piece set-bonus tiers: nothing
+// below 2 pieces, the right threshold reported, and bonuses that stack and grow.
+func TestAbyssSetBonus(t *testing.T) {
+	for _, pieces := range []int{0, 1} {
+		if b, reached := content.AbyssSetBonus(pieces); reached != 0 || b.Score() != 0 {
+			t.Errorf("%d pieces should grant no set bonus, got tier %d", pieces, reached)
+		}
+	}
+	_, r2 := content.AbyssSetBonus(2)
+	_, r3 := content.AbyssSetBonus(3)
+	if r2 != 2 || r3 != 2 {
+		t.Errorf("2–3 pieces should report the 2-piece tier, got %d/%d", r2, r3)
+	}
+	if _, r := content.AbyssSetBonus(5); r != 4 {
+		t.Errorf("5 pieces should report the 4-piece tier, got %d", r)
+	}
+	if _, r := content.AbyssSetBonus(6); r != 6 {
+		t.Errorf("6 pieces should report the 6-piece tier, got %d", r)
+	}
+	// Bonuses are cumulative: more equipped pieces never reduce the total.
+	b2, _ := content.AbyssSetBonus(2)
+	b4, _ := content.AbyssSetBonus(4)
+	b6, _ := content.AbyssSetBonus(6)
+	if !(b2.HP < b4.HP && b4.HP < b6.HP) {
+		t.Errorf("set HP bonus should grow with tier: %d/%d/%d", b2.HP, b4.HP, b6.HP)
+	}
+	if b6.CRT == 0 {
+		t.Error("6-piece tier should include the CRT bonus")
 	}
 }
 
