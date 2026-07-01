@@ -90,7 +90,7 @@
   {{else}}<p class="muted">No auction history yet.</p>{{end}}
 </section>
 
-<script>
+<script data-cfasync="false">
   function toast(m, ok) { var t = document.getElementById('ahMsg'); t.textContent = m; t.className = 'toast show ' + (ok ? 'good' : 'bad'); setTimeout(function () { t.className = 'toast'; }, 2600); }
   async function post(url, body) { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return r.json(); }
   async function buyAH(id, btn) {

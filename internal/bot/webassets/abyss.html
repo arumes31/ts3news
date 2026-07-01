@@ -437,7 +437,10 @@
   </table>
 </section>
 
-<script>
+<!-- data-cfasync="false" keeps Cloudflare Rocket Loader from deferring/rewriting
+     this inline script; without it the functions below aren't defined when the
+     inline onclick handlers fire ("abyssEnter is not defined"). -->
+<script data-cfasync="false">
 var inRun   = {{if .Run.Active}}true{{else}}false{{end}};
 var downed  = {{if .Run.Downed}}true{{else}}false{{end}};
 var canRev  = {{if .Run.Revived}}false{{else}}true{{end}};
