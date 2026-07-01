@@ -147,7 +147,7 @@ func IconID(data []byte) uint32 {
 // i_icon_id (which the client renders as "icon … not found"). ftgetfileinfo
 // returns the file's size when present; any error or missing size means absent.
 func (c *Client) IconExists(id uint32) bool {
-	name := fmt.Sprintf("/icon_%d", id)
+	name := fmt.Sprintf("/icon_%d", int32(id))
 	data, err := c.Command(fmt.Sprintf("ftgetfileinfo cid=0 cpw= name=%s", Escape(name)))
 	if err != nil {
 		return false
@@ -186,7 +186,16 @@ func (c *Client) UploadIcon(data []byte, hostFallback string) (uint32, error) {
 		// The filebase is the source of truth. A transfer can report success yet fail
 		// to persist (truncated), so confirm the file is actually there before we let
 		// a group reference it — otherwise the group gets a dangling id (broken icon).
-		if c.IconExists(id) {
+		// Wait a tiny bit and check multiple times to allow async file writing on remote hosts.
+		var exists bool
+		for checkAttempt := 0; checkAttempt < 5; checkAttempt++ {
+			if c.IconExists(id) {
+				exists = true
+				break
+			}
+			time.Sleep(150 * time.Millisecond)
+		}
+		if exists {
 			return id, nil
 		}
 		if lastErr == nil {
@@ -201,7 +210,7 @@ func (c *Client) UploadIcon(data []byte, hostFallback string) (uint32, error) {
 // what the transfer replies said (the handshake is asynchronous and can be lost).
 func (c *Client) uploadIconOnce(data []byte, hostFallback string) (uint32, error) {
 	id := IconID(data)
-	name := fmt.Sprintf("/icon_%d", id)
+	name := fmt.Sprintf("/icon_%d", int32(id))
 
 	// The ftinitupload command reply is empty (error id=0). The transfer key/port
 	// are delivered asynchronously via a notifystartupload event, so read that.

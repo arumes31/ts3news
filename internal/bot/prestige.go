@@ -65,7 +65,7 @@ func (b *Bot) applyPrestigeGroup(c *clientquery.Client, clid int, uid, nickname 
 				// Re-upload icon if missing
 				if png, ierr := icons.Icon(prestige, leveling.NumTiers, leveling.NumTiers, iconSizePx); ierr == nil {
 					if id, uerr := c.UploadIcon(png, b.Cfg.TS3Host); uerr == nil {
-						_ = c.ServerGroupAddPerm(sgid, "i_icon_id", int(id))
+						_ = c.ServerGroupAddPerm(sgid, "i_icon_id", int(int32(id)))
 					}
 				}
 			}
@@ -85,7 +85,7 @@ func (b *Bot) applyPrestigeGroup(c *clientquery.Client, clid int, uid, nickname 
 		// Prestige icon: the prestige number on the top-tier (prestige) colour.
 		if png, ierr := icons.Icon(prestige, leveling.NumTiers, leveling.NumTiers, iconSizePx); ierr == nil {
 			if id, uerr := c.UploadIcon(png, b.Cfg.TS3Host); uerr == nil {
-				if perr := c.ServerGroupAddPerm(sgid, "i_icon_id", int(id)); perr == nil {
+				if perr := c.ServerGroupAddPerm(sgid, "i_icon_id", int(int32(id))); perr == nil {
 					log.Printf("prestige: icon %d set for %q (sgid %d)", id, name, sgid)
 				}
 			}
