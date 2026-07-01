@@ -617,7 +617,7 @@ func (s *WebServer) handleAbyssTransmute(w http.ResponseWriter, r *http.Request,
 	
 	// Determine weapon pool based on highest stat
 	var selected content.Gear
-	weaponPool := []string{}
+	var weaponPool []string
 
 	if userStats.INT > userStats.STR && userStats.INT > userStats.SPD {
 		// Mage offhands/weapons

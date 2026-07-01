@@ -1032,11 +1032,12 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 		// Evolving Artifacts: gains level/XP on clearing floor
 		if art, ok := equipped[content.SlotArtifact]; ok {
 			art.GearLevel++
-			if art.GearLevel == 3 {
+			switch art.GearLevel {
+			case 3:
 				art.Stats.HP += 100
 				art.Stats.STR += 15
 				art.Stats.DEF += 15
-			} else if art.GearLevel == 5 {
+			case 5:
 				art.Stats.HP += 250
 				art.Stats.STR += 30
 				art.Stats.DEF += 30

@@ -523,7 +523,7 @@ func TestAbyssSetBonus(t *testing.T) {
 	b2, _ := content.AbyssSetBonus(2)
 	b4, _ := content.AbyssSetBonus(4)
 	b6, _ := content.AbyssSetBonus(6)
-	if !(b2.HP < b4.HP && b4.HP < b6.HP) {
+	if b2.HP >= b4.HP || b4.HP >= b6.HP {
 		t.Errorf("set HP bonus should grow with tier: %d/%d/%d", b2.HP, b4.HP, b6.HP)
 	}
 	if b6.CRT == 0 {
