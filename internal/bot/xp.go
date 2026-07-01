@@ -2242,6 +2242,18 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 				case "iron_skin_brew":
 					stats.DEF += 10
 					notes = append(notes, i18n.T("bot.loot.multiplier_simple", "Iron Skin Brew", 1.0))
+				case "speed_elixir":
+					stats.SPD += 25
+					notes = append(notes, i18n.T("bot.loot.multiplier_simple", "Speed Elixir", 1.0))
+				case "intellect_elixir":
+					stats.INT += 20
+					notes = append(notes, i18n.T("bot.loot.multiplier_simple", "Intellect Elixir", 1.0))
+				case "lucky_draught":
+					stats.LCK += 20
+					notes = append(notes, i18n.T("bot.loot.multiplier_simple", "Lucky Draught", 1.0))
+				case "giant_strength_elixir":
+					stats.STR += 40
+					notes = append(notes, i18n.T("bot.loot.multiplier_simple", "Giant Strength Elixir", 1.0))
 				}
 			}
 		}

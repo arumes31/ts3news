@@ -61,7 +61,7 @@ const (
 	abyssBossEvery = 5
 	// abyssEscrowInterest is added to the standing cache each floor before the new
 	// floor bonus, rewarding players who let it ride.
-	abyssEscrowInterest = 0.02
+	abyssEscrowInterest = 0.005
 	// abyssDayGoldCap bounds Abyss-sourced bank payouts per player per day to
 	// protect the shared economy from runaway farming.
 	abyssDayGoldCap = 5_000_000
@@ -70,10 +70,10 @@ const (
 )
 
 // abyssEffectiveInterest returns the per-floor escrow interest rate including the
-// Compounding (interest) Deep-Delver node, which adds 0.5% per level on top of the
+// Compounding (interest) Deep-Delver node, which adds 0.1% per level on top of the
 // base let-it-ride rate.
 func abyssEffectiveInterest(interestLevel int, hasLuckyCoin bool) float64 {
-	rate := abyssEscrowInterest + float64(interestLevel)*0.005
+	rate := abyssEscrowInterest + float64(interestLevel)*0.001
 	if hasLuckyCoin {
 		rate *= 1.20
 	}
@@ -92,7 +92,7 @@ func softCap(x, cap float64) float64 {
 // tier and Deep-Delver multipliers). It scales with depth and level so the
 // accumulated cache grows roughly quadratically with how deep you push.
 func abyssFloorBonus(depth, level int) int64 {
-	per := int64(40 + level/2)
+	per := int64(40 + level/10)
 	if per < 40 {
 		per = 40
 	}
@@ -623,7 +623,9 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 
 	// Grant the combat reward XP on a win (the engine applies its own death
 	// penalty on a loss), and prestige immediately at the cap like the cycle does.
-	if victory && rewardXP > 0 {
+	if victory {
+		// Override XP scaling for Abyss: just 1-20 XP per floor cleared
+		rewardXP = 1 + rand.IntN(20)
 		rewardXP = int(float64(rewardXP) * (1.0 + float64(st.AbyssPrestige)*0.05) * (1.0 + float64(st.UpInsight)*0.05)) // prestige + Insight node
 		if lr, _ := b.awardXP(uid, "", rewardXP); lr != nil && lr.NewLevel >= PrestigeThreshold {
 			b.doPrestige(uid) // [52] keep Abyss prestige consistent with the cycle
