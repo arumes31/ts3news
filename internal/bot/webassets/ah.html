@@ -2,6 +2,15 @@
 <h1>Auction House</h1>
 <div id="ahMsg" class="toast"></div>
 
+<!-- Search Form -->
+<form method="GET" action="/ah" class="search-form" style="margin: 15px 0 20px 0; display: flex; gap: 10px; align-items: center;">
+  <input type="text" name="q" value="{{.SearchQuery}}" placeholder="Search items by name..." style="flex: 1; padding: 10px 14px; background: #161b22; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; font-size: 14px;" aria-label="Search items">
+  <button type="submit" class="btn primary" style="padding: 10px 20px; font-size: 14px; cursor: pointer;">Search</button>
+  {{if .SearchQuery}}
+    <a href="/ah" style="color: #58a6ff; font-size: 14px; text-decoration: none; margin-left: 5px;">Clear</a>
+  {{end}}
+</form>
+
 <section>
   <h2>Listings</h2>
   {{if .Active}}
@@ -30,6 +39,26 @@
       {{end}}
     </tbody>
   </table>
+
+  <!-- Pagination Controls -->
+  {{if gt .TotalPages 1}}
+  <div class="pagination" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; margin-bottom: 20px;">
+    {{if gt .CurrentPage 1}}
+      <a href="/ah?page={{.PrevPage}}{{if .SearchQuery}}&q={{.SearchQuery}}{{end}}" class="btn ghost" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; text-decoration: none; font-size: 14px;">&larr; Prev</a>
+    {{else}}
+      <span class="btn ghost disabled" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; color: #8b949e; border-radius: 6px; opacity: 0.5; font-size: 14px; cursor: not-allowed;">&larr; Prev</span>
+    {{end}}
+    
+    <span class="page-info" style="font-size: 14px; color: #c9d1d9;">Page <b>{{.CurrentPage}}</b> of <b>{{.TotalPages}}</b> ({{.TotalCount}} listings)</span>
+    
+    {{if lt .CurrentPage .TotalPages}}
+      <a href="/ah?page={{.NextPage}}{{if .SearchQuery}}&q={{.SearchQuery}}{{end}}" class="btn ghost" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; text-decoration: none; font-size: 14px;">Next &rarr;</a>
+    {{else}}
+      <span class="btn ghost disabled" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; color: #8b949e; border-radius: 6px; opacity: 0.5; font-size: 14px; cursor: not-allowed;">Next &rarr;</span>
+    {{end}}
+  </div>
+  {{end}}
+
   {{else}}<p class="muted">No active listings right now.</p>{{end}}
 </section>
 

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"ts3news/internal/content"
@@ -61,6 +62,17 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 		return
 	}
 
+	searchQuery := r.URL.Query().Get("q")
+	pageStr := r.URL.Query().Get("page")
+	page := 1
+	if pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	limit := 20
+	offset := (page - 1) * limit
+
 	// Load player's equipped gear to determine upgrades
 	equippedGear := make(map[string]content.Gear)
 	rows, err := s.bot.DB.Query("SELECT slot, gear_id FROM user_gear WHERE client_uid=$1", uid)
@@ -76,23 +88,46 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 		}
 	}
 
+	activeListings := s.bot.ahActiveListings(uid, equippedGear, searchQuery, limit, offset)
+	totalCount := s.bot.ahActiveListingsCount(searchQuery)
+	totalPages := (totalCount + limit - 1) / limit
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
 	s.render(w, "ah", map[string]any{
-		"Title":    "Auction House",
-		"Nav":      "ah",
-		"U":        u,
-		"Active":   s.bot.ahActiveListings(uid, equippedGear),
-		"Mine":     s.bot.ahMyListings(uid),
-		"History":  s.bot.ahHistory(uid, 20),
-		"Sellable": s.bot.inventoryItems(uid),
+		"Title":       "Auction House",
+		"Nav":         "ah",
+		"U":           u,
+		"Active":      activeListings,
+		"Mine":        s.bot.ahMyListings(uid),
+		"History":     s.bot.ahHistory(uid, 20),
+		"Sellable":    s.bot.inventoryItems(uid),
+		"SearchQuery": searchQuery,
+		"CurrentPage": page,
+		"TotalPages":  totalPages,
+		"TotalCount":  totalCount,
+		"PrevPage":    page - 1,
+		"NextPage":    page + 1,
 	})
 }
 
-func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear) []ahListingView {
-	rows, err := b.DB.Query(`
-		SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
-		FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
-		WHERE a.sold_at IS NULL AND a.expires_at > NOW()
-		ORDER BY a.price ASC LIMIT 100`)
+func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear, search string, limit, offset int) []ahListingView {
+	var rows *sql.Rows
+	var err error
+	if search != "" {
+		rows, err = b.DB.Query(`
+			SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
+			FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
+			WHERE a.sold_at IS NULL AND a.expires_at > NOW() AND a.item_name ILIKE $1
+			ORDER BY a.price ASC LIMIT $2 OFFSET $3`, "%"+search+"%", limit, offset)
+	} else {
+		rows, err = b.DB.Query(`
+			SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
+			FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
+			WHERE a.sold_at IS NULL AND a.expires_at > NOW()
+			ORDER BY a.price ASC LIMIT $1 OFFSET $2`, limit, offset)
+	}
 	if err != nil {
 		return nil
 	}
@@ -123,6 +158,26 @@ func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear)
 		out = append(out, v)
 	}
 	return out
+}
+
+func (b *Bot) ahActiveListingsCount(search string) int {
+	var count int
+	var err error
+	if search != "" {
+		err = b.DB.QueryRow(`
+			SELECT COUNT(*)
+			FROM auction_house
+			WHERE sold_at IS NULL AND expires_at > NOW() AND item_name ILIKE $1`, "%"+search+"%").Scan(&count)
+	} else {
+		err = b.DB.QueryRow(`
+			SELECT COUNT(*)
+			FROM auction_house
+			WHERE sold_at IS NULL AND expires_at > NOW()`).Scan(&count)
+	}
+	if err != nil {
+		return 0
+	}
+	return count
 }
 
 func (b *Bot) ahMyListings(uid string) []ahListingView {

@@ -47,9 +47,8 @@ func (b *Bot) autoListUnwantedItems(uid string, item interface{}) {
 			}
 		}
 	case content.Skill:
-		itype = "skill"
-		id, name, data = v.ID, v.Name, v
-		price = int64(20 + int(v.Rarity)*20)
+		// Do not list normal skills on the Auction House
+		return
 	case content.UltimateSkill:
 		itype = "ultimate"
 		id, name, data = v.ID, v.Name, v
