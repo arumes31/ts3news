@@ -204,6 +204,108 @@ func (b *Bot) grantConsumable(uid, consID string, fights int) {
 		uid, consID, fights)
 }
 
+// consumableOwned is one owned consumable stack, for the Abyss carry-cap picker.
+type consumableOwned struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+// abyssOwnedConsumables lists the player's consumable stacks (id, display name,
+// charge count) and the total charge count, used by the carry-cap loadout picker.
+func (b *Bot) abyssOwnedConsumables(uid string) ([]consumableOwned, int) {
+	rows, err := b.DB.Query("SELECT cons_id, remaining_fights FROM user_consumables WHERE client_uid=$1 AND remaining_fights > 0 ORDER BY cons_id", uid)
+	if err != nil {
+		return nil, 0
+	}
+	defer func() { _ = rows.Close() }()
+	var out []consumableOwned
+	total := 0
+	for rows.Next() {
+		var id string
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
+			continue
+		}
+		name := id
+		if c, ok := content.GetConsumableByID(id); ok {
+			name = c.Name
+		}
+		out = append(out, consumableOwned{ID: id, Name: name, Count: n})
+		total += n
+	}
+	return out, total
+}
+
+// abyssBuildConsumableLoadout validates a player-picked loadout against what they
+// own and the carry cap, returning the sanitized {cons_id: count} map (dropping
+// zero entries) or a non-empty error message the picker should surface.
+func abyssBuildConsumableLoadout(picked map[string]int, owned []consumableOwned, max int) (map[string]int, string) {
+	ownedMap := make(map[string]int, len(owned))
+	for _, o := range owned {
+		ownedMap[o.ID] = o.Count
+	}
+	out := make(map[string]int)
+	sum := 0
+	for id, cnt := range picked {
+		if cnt <= 0 {
+			continue
+		}
+		have, ok := ownedMap[id]
+		if !ok {
+			return nil, "You don't own one of the selected consumables."
+		}
+		if cnt > have {
+			return nil, "You selected more than you own."
+		}
+		out[id] = cnt
+		sum += cnt
+	}
+	if sum < 1 {
+		return nil, "Pick at least one consumable to bring."
+	}
+	if sum > max {
+		return nil, fmt.Sprintf("You can bring at most %d (you picked %d).", max, sum)
+	}
+	return out, ""
+}
+
+// abyssRunLoadout returns the active run's consumable loadout and whether one is in
+// force. No row or a NULL column means the run is unrestricted (entered under the
+// cap), so every owned consumable is usable.
+func (b *Bot) abyssRunLoadout(uid string) (map[string]int, bool) {
+	var js sql.NullString
+	if err := b.DB.QueryRow("SELECT consumables FROM abyss_active WHERE client_uid=$1", uid).Scan(&js); err != nil {
+		return nil, false
+	}
+	if !js.Valid || js.String == "" {
+		return nil, false
+	}
+	m := map[string]int{}
+	if err := json.Unmarshal([]byte(js.String), &m); err != nil {
+		return nil, false
+	}
+	return m, true
+}
+
+// abyssSpendLoadout decrements one charge of consID from the active run's loadout
+// (a no-op for an unrestricted run). Serialized by the per-uid Abyss lock.
+func (b *Bot) abyssSpendLoadout(uid, consID string) {
+	m, restricted := b.abyssRunLoadout(uid)
+	if !restricted {
+		return
+	}
+	if _, ok := m[consID]; !ok {
+		return
+	}
+	m[consID]--
+	if m[consID] <= 0 {
+		delete(m, consID)
+	}
+	js, _ := json.Marshal(m)
+	_, _ = b.DB.Exec("UPDATE abyss_active SET consumables=$1 WHERE client_uid=$2", string(js), uid)
+}
+
 // abyssFloorResult is the outcome of fighting a single floor.
 type abyssFloorResult struct {
 	Victory   bool
@@ -718,14 +820,17 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	defer unlock()
 
 	var req struct {
-		Tier  string   `json:"tier"`
-		Pacts []string `json:"pacts"`
+		Tier        string         `json:"tier"`
+		Pacts       []string       `json:"pacts"`
+		Consumables map[string]int `json:"consumables"` // optional picked loadout: cons_id -> count to bring
 	}
 	_ = readJSON(r, &req)
 
-	// Consumable Pouches limit check
-	var totalConsumables int
-	_ = s.bot.DB.QueryRow("SELECT COALESCE(SUM(remaining_fights), 0) FROM user_consumables WHERE client_uid=$1", uid).Scan(&totalConsumables)
+	// Consumable carry cap. A player may hold more consumables than they can bring
+	// into a single descent (raised by an equipped Consumable Pouch). When they're
+	// over the cap they pick a loadout instead of being blocked; the unbrought ones
+	// stay in their stash, just unusable this run. loadout stays nil (SQL NULL,
+	// meaning "no restriction") when they're already under the cap.
 	maxAllowedConsumables := 3
 	equipped := s.bot.getEquippedItems(uid)
 	for _, g := range equipped {
@@ -734,9 +839,20 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 			break
 		}
 	}
+	owned, totalConsumables := s.bot.abyssOwnedConsumables(uid)
+	var loadoutJSON any // nil => stored as SQL NULL (unrestricted)
 	if totalConsumables > maxAllowedConsumables {
-		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("Too many consumables! Max allowed is %d, but you have %d. Equip a Consumable Pouch or use/discard some first.", maxAllowedConsumables, totalConsumables)})
-		return
+		picked, perr := abyssBuildConsumableLoadout(req.Consumables, owned, maxAllowedConsumables)
+		if perr != "" {
+			// Ask the client to prompt a picker; no state has changed yet.
+			writeJSON(w, map[string]any{
+				"ok": false, "pick_consumables": true, "error": perr,
+				"consumables": owned, "max": maxAllowedConsumables, "total": totalConsumables,
+			})
+			return
+		}
+		b, _ := json.Marshal(picked)
+		loadoutJSON = string(b)
 	}
 
 	tier, ok := abyssTierByKey(req.Tier)
@@ -786,8 +902,8 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		return
 	}
 	if _, err := tx.Exec(
-		`INSERT INTO abyss_active (client_uid, depth, escrow, tier, insured, revived, pacts, started_at, last_action_at)
-		 VALUES ($1, 0, 0, $2, 0, FALSE, $3, NOW(), NOW())`, uid, tier.Key, pacts); err != nil {
+		`INSERT INTO abyss_active (client_uid, depth, escrow, tier, insured, revived, pacts, consumables, started_at, last_action_at)
+		 VALUES ($1, 0, 0, $2, 0, FALSE, $3, $4, NOW(), NOW())`, uid, tier.Key, pacts, loadoutJSON); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -1447,6 +1563,13 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// If this run was started with a picked loadout (player carried more than the
+	// carry cap), only the brought consumables are usable this descent.
+	if loadout, restricted := s.bot.abyssRunLoadout(uid); restricted && loadout[req.ConsID] <= 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "you didn't bring this consumable on this descent"})
+		return
+	}
+
 	stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
 
 	switch c.Type {
@@ -1475,6 +1598,7 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 		// Buffs elixirs: manual use sets them to active (3 remaining fights).
 		// Do NOT fall through to the shared delete — buffs stay owned while active.
 		_, _ = s.bot.DB.Exec("UPDATE user_consumables SET remaining_fights = 3 WHERE client_uid = $1 AND cons_id = $2", uid, req.ConsID)
+		s.bot.abyssSpendLoadout(uid, req.ConsID)
 		var curHP int
 		_ = s.bot.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&curHP)
 		var gold int64
@@ -1498,6 +1622,7 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 	if n, _ := res.RowsAffected(); n == 0 {
 		_, _ = s.bot.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2", uid, req.ConsID)
 	}
+	s.bot.abyssSpendLoadout(uid, req.ConsID)
 
 	var curHP int
 	_ = s.bot.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&curHP)

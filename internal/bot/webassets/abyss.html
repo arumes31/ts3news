@@ -176,6 +176,23 @@
 
 <div class="abyss-banner" id="abyssBanner" role="status" aria-live="assertive"></div>
 
+<!-- Consumable carry-cap picker: shown when the player holds more consumables than
+     they may bring into one descent. Unbrought consumables stay in their stash. -->
+<div id="consPickOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:#0d1117; border:1px solid #30363d; border-radius:10px; padding:18px; width:min(460px,92vw); max-height:86vh; overflow:auto;">
+    <h3 style="margin:0 0 6px;">🎒 Pack your consumables</h3>
+    <p class="muted small" style="margin:0 0 10px;">You can bring <b id="consPickMax">3</b> into this descent but hold <b id="consPickTotal">6</b>. Pick which to take — the rest stay safe in your stash for later.</p>
+    <div id="consPickList" style="display:flex; flex-direction:column; gap:8px;"></div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px;">
+      <span class="small">Selected: <b id="consPickSel">0</b> / <span id="consPickCap">3</span></span>
+      <div style="display:flex; gap:8px;">
+        <button class="ghost xs" onclick="closeConsumablePick()">Cancel</button>
+        <button class="primary xs" id="consPickConfirm" onclick="confirmConsumablePick()">Descend</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="abyss-log-wrap" id="logWrap" {{if not .Run.Active}}style="display:none"{{end}}>
   <h3>{{T "web.abyss.combat_log"}}</h3>
   <div class="abyss-log" id="abyssLog" aria-live="polite"></div>
@@ -671,11 +688,65 @@ function updatePactBonus(){
   var el=document.getElementById('pactBonus'); if(el)el.textContent='(+'+sum+'%)';
 }
 
-async function abyssEnter(){
+async function abyssEnter(consumables){
   if(busy)return; setBusy(true); clearBanner();
-  var d=await abPost('/api/abyss/enter',{tier:selectedTier(), pacts:selectedPacts()});
-  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  var body={tier:selectedTier(), pacts:selectedPacts()};
+  if(consumables) body.consumables=consumables;
+  var d=await abPost('/api/abyss/enter',body);
+  if(!d.ok){
+    // Over the consumable carry cap → let the player pick a loadout instead of blocking.
+    if(d.pick_consumables){ setBusy(false); openConsumablePick(d.consumables, d.max, d.total); return; }
+    abToast(d.error||'failed',false); setBusy(false); return;
+  }
   window.location.reload();
+}
+
+// ---- Consumable carry-cap picker -----------------------------------------
+var consPickState = {max:3, items:[]};
+function consEsc(s){ return (s||'').replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];}); }
+function consPickSelected(){ return consPickState.items.reduce(function(a,c){return a+c.take;},0); }
+function consPickUpdate(){
+  var sel=consPickSelected();
+  document.getElementById('consPickSel').textContent=sel;
+  document.getElementById('consPickConfirm').disabled=(sel<1||sel>consPickState.max);
+}
+function openConsumablePick(list, max, total){
+  consPickState={max:max||3, items:(list||[]).map(function(c){return {id:c.id, name:c.name, count:c.count, take:0};})};
+  document.getElementById('consPickMax').textContent=consPickState.max;
+  document.getElementById('consPickCap').textContent=consPickState.max;
+  document.getElementById('consPickTotal').textContent=total;
+  var listEl=document.getElementById('consPickList'); listEl.innerHTML='';
+  consPickState.items.forEach(function(it, idx){
+    var row=document.createElement('div');
+    row.style.cssText='display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px; border:1px solid rgba(255,255,255,0.08); border-radius:6px;';
+    row.innerHTML='<span>'+consEsc(it.name)+' <span class="muted small">(have '+it.count+')</span></span>'+
+      '<span style="display:flex; align-items:center; gap:10px;">'+
+        '<button class="ghost xs" onclick="consPickAdj('+idx+',-1)">−</button>'+
+        '<b id="consTake-'+idx+'" style="min-width:14px; text-align:center;">0</b>'+
+        '<button class="ghost xs" onclick="consPickAdj('+idx+',1)">+</button>'+
+      '</span>';
+    listEl.appendChild(row);
+  });
+  consPickUpdate();
+  document.getElementById('consPickOverlay').style.display='flex';
+}
+function consPickAdj(idx, delta){
+  var it=consPickState.items[idx];
+  var next=it.take+delta;
+  if(next<0) next=0;
+  if(next>it.count) next=it.count;
+  if(delta>0 && consPickSelected()+(next-it.take)>consPickState.max) return; // respect cap
+  it.take=next;
+  document.getElementById('consTake-'+idx).textContent=next;
+  consPickUpdate();
+}
+function closeConsumablePick(){ document.getElementById('consPickOverlay').style.display='none'; }
+function confirmConsumablePick(){
+  var sel={};
+  consPickState.items.forEach(function(it){ if(it.take>0) sel[it.id]=it.take; });
+  if(Object.keys(sel).length===0){ abToast('Pick at least one consumable',false); return; }
+  closeConsumablePick();
+  abyssEnter(sel);
 }
 
 async function abyssDescend(){
