@@ -165,7 +165,7 @@ func (b *Bot) finishGroup(c *clientquery.Client, level, sgid int) (int, error) {
 		log.Printf("xpgroups: icon upload for level %d failed (group has no icon): %v", level, uerr)
 	} else {
 		iconID = int64(id)
-		if perr := c.ServerGroupAddPerm(sgid, "i_icon_id", int(id)); perr != nil {
+		if perr := c.ServerGroupAddPerm(sgid, "i_icon_id", int(int32(id))); perr != nil {
 			log.Printf("xpgroups: setting icon perm for level %d failed: %v", level, perr)
 		} else {
 			log.Printf("xpgroups: icon %d set for group %q (sgid %d)", id, xpGroupName(level), sgid)
