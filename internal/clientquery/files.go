@@ -180,6 +180,8 @@ func (c *Client) UploadIcon(data []byte, hostFallback string) (uint32, error) {
 	for attempt := 0; attempt < 3; attempt++ {
 		if _, err := c.uploadIconOnce(data, hostFallback); err != nil {
 			lastErr = err
+		} else {
+			lastErr = nil
 		}
 		// The filebase is the source of truth. A transfer can report success yet fail
 		// to persist (truncated), so confirm the file is actually there before we let
@@ -263,8 +265,12 @@ func rawUpload(addr, key string, data []byte) error {
 	// Half-close our write side so the server sees end-of-data, then drain until it
 	// closes its side (it does that once the file is stored).
 	if tcp, ok := conn.(*net.TCPConn); ok {
-		_ = tcp.CloseWrite()
+		if err := tcp.CloseWrite(); err != nil {
+			return err
+		}
 	}
-	_, _ = io.Copy(io.Discard, conn)
+	if _, err := io.Copy(io.Discard, conn); err != nil {
+		return err
+	}
 	return nil
 }
