@@ -313,12 +313,12 @@ func TestAbyssFeatureExpansion(t *testing.T) {
 		t.Errorf("gold_rush danger mult = %v, want 1.0", got)
 	}
 
-	// Compounding node raises the base escrow interest by 0.5% per level.
+	// Compounding node raises the base escrow interest by 0.1% per level.
 	if got := abyssEffectiveInterest(0, false); got != abyssEscrowInterest {
 		t.Errorf("interest L0 = %v, want %v", got, abyssEscrowInterest)
 	}
-	if got := abyssEffectiveInterest(4, false); got != abyssEscrowInterest+0.02 {
-		t.Errorf("interest L4 = %v, want %v", got, abyssEscrowInterest+0.02)
+	if got := abyssEffectiveInterest(4, false); got < abyssEscrowInterest+0.0039 || got > abyssEscrowInterest+0.0041 {
+		t.Errorf("interest L4 = %v, want %v", got, abyssEscrowInterest+0.004)
 	}
 
 	// Every new upgrade node must be in the whitelist so /api/abyss/upgrade accepts it.

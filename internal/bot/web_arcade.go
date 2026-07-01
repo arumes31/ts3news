@@ -167,7 +167,7 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 	if out.Win {
 		// #nosec G404 -- non-cryptographic drop roll
 		if rng.IntN(100) < 15 {
-			g := content.RandomGearDrop()
+			g := content.RandomArcadeGearDrop()
 			result := s.bot.awardGearDrop(uid, g)
 			out.GearWon = result.Prefix + result.ItemName
 		}
@@ -197,7 +197,7 @@ func (s *WebServer) handleDailySpinAPI(w http.ResponseWriter, r *http.Request, u
 		reward = fmt.Sprintf("Looted %d gold!", gold)
 		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", gold, uid)
 	case roll < 95:
-		g := content.RandomGearDrop()
+		g := content.RandomArcadeGearDrop()
 		result := s.bot.awardGearDrop(uid, g)
 		gear = result.ItemName
 		reward = result.Prefix + result.ItemName

@@ -330,6 +330,12 @@ func buildConsumables() []Consumable {
 		{"phoenix_feather", "Phoenix Feather", ConsumableRevive, 50, 0, "Revives you once when you fall in battle."},
 		{"repair_kit", "Repair Kit", ConsumableRepair, 30, 0, "Restores durability to your equipment."},
 		{"master_repair_kit", "Master Repair Kit", ConsumableRepair, 75, 0, "Fully restores durability to your equipment."},
+		{"speed_elixir", "Speed Elixir", ConsumableBuff, 25, 3, "Boosts Speed by +25 for several fights."},
+		{"intellect_elixir", "Intellect Elixir", ConsumableBuff, 20, 3, "Boosts Intellect by +20 for several fights."},
+		{"lucky_draught", "Lucky Draught", ConsumableBuff, 20, 3, "Boosts Luck by +20 for several fights."},
+		{"giant_strength_elixir", "Giant Strength Elixir", ConsumableBuff, 40, 3, "Massively boosts Strength for several fights."},
+		{"rejuvenation_potion", "Rejuvenation Potion", ConsumableHealing, 0.6, 0, "Restores 60% of Max HP."},
+		{"elixir_of_life", "Elixir of Life", ConsumableHealing, 1.0, 0, "Fully restores your health (100%)."},
 	}
 }
 
@@ -813,6 +819,16 @@ func RandomGearDrop() Gear {
 	}
 	g.Special = RandomItemEffect()
 	return g
+}
+
+// RandomArcadeGearDrop returns a random gear drop capped at RarityRare for arcade/daily spin rewards.
+func RandomArcadeGearDrop() Gear {
+	for {
+		g := RandomGearDrop()
+		if g.Rarity <= RarityRare {
+			return g
+		}
+	}
 }
 
 // GearByMinRarity returns all gear items (excluding Abyss-exclusive) at or above

@@ -27,6 +27,10 @@ var abyssShopCatalog = []abyssShopItem{
 	{"great_potions", "Great Health Potions ×3", "Three large in-combat heals.", 6},
 	{"repair_kits", "Master Repair Kits ×2", "Fully restore gear durability, twice.", 5},
 	{"phoenix", "Phoenix Feather", "Revives you once when you fall in battle.", 9},
+	{"elixir_of_life", "Elixir of Life", "Fully restores your health (100%).", 8},
+	{"giant_strength", "Giant Strength Elixirs ×2", "Massively boost Strength for 3 fights.", 7},
+	{"speed_elixir_pack", "Speed Elixirs ×2", "Boost Speed by +25 for 3 fights.", 5},
+	{"lucky_draught_pack", "Lucky Draughts ×2", "Boost Luck by +20 for 3 fights.", 5},
 	{"abyss_gear", "Abyss Gear Cache", "A random Abyss-exclusive gear piece.", 15},
 	{"epic_gear", "Epic Abyss Cache", "A guaranteed Epic-or-better Abyss piece.", 30},
 	{"relic", "Unstable Relic", "A random Unique item.", 40},
@@ -87,6 +91,14 @@ func (s *WebServer) handleAbyssShopBuy(w http.ResponseWriter, r *http.Request, u
 		s.bot.grantConsumable(uid, "master_repair_kit", 2)
 	case "phoenix":
 		s.bot.grantConsumable(uid, "phoenix_feather", 1)
+	case "elixir_of_life":
+		s.bot.grantConsumable(uid, "elixir_of_life", 1)
+	case "giant_strength":
+		s.bot.grantConsumable(uid, "giant_strength_elixir", 2)
+	case "speed_elixir_pack":
+		s.bot.grantConsumable(uid, "speed_elixir", 2)
+	case "lucky_draught_pack":
+		s.bot.grantConsumable(uid, "lucky_draught", 2)
 	case "abyss_gear":
 		g := content.RandomAbyssGearDrop()
 		got := s.bot.awardGearDrop(uid, g)

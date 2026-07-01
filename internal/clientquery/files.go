@@ -3,6 +3,7 @@ package clientquery
 import (
 	"fmt"
 	"hash/crc32"
+	"io"
 	"log"
 	"net"
 	"strconv"
@@ -159,18 +160,46 @@ func (c *Client) IconExists(id uint32) bool {
 	return false
 }
 
-// UploadIcon uploads a group icon (PNG bytes) to the server's icon storage and
-// returns its icon id. hostFallback is used when the server does not report a
-// transfer IP (typical for ClientQuery on the same host as the server).
+// UploadIcon ensures a group icon (PNG bytes) is present in the server's icon
+// storage and returns its icon id. hostFallback is used when the server does not
+// report a transfer IP (typical for ClientQuery on the same host as the server).
 //
-// The upload handshake (notifystartupload) is delivered asynchronously and can be
-// lost on a busy same-host ClientQuery link. Rather than assume the icon is
-// already present when the handshake or status looks off — which previously left
-// groups pointing at an icon file that was never actually transferred — those
-// ambiguous cases are confirmed against the server's filebase via IconExists, and
-// an error is returned when the file genuinely isn't there so the caller declines
-// to set a dangling i_icon_id.
+// Rank icons are deterministic — the id is the CRC32 of the PNG — so the same icon
+// is requested for every group at that rank and again on every level-up. Once a
+// given icon is on the server we skip the (failure-prone) upload handshake entirely
+// and reuse it; that is what keeps rank icons stable rather than re-uploading (and
+// intermittently failing) each time a group is recreated. New icons are uploaded
+// with a few retries, since the notifystartupload handshake is occasionally dropped
+// on a busy same-host ClientQuery link and a lost handshake is transient.
 func (c *Client) UploadIcon(data []byte, hostFallback string) (uint32, error) {
+	id := IconID(data)
+	if c.IconExists(id) {
+		return id, nil // already on the server — reuse, no upload needed
+	}
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		if _, err := c.uploadIconOnce(data, hostFallback); err != nil {
+			lastErr = err
+		} else {
+			lastErr = nil
+		}
+		// The filebase is the source of truth. A transfer can report success yet fail
+		// to persist (truncated), so confirm the file is actually there before we let
+		// a group reference it — otherwise the group gets a dangling id (broken icon).
+		if c.IconExists(id) {
+			return id, nil
+		}
+		if lastErr == nil {
+			lastErr = fmt.Errorf("icon %d: transfer reported success but file not on server", id)
+		}
+	}
+	return 0, lastErr
+}
+
+// uploadIconOnce performs a single ftinitupload + file transfer. UploadIcon wraps it
+// with retries and confirms the result against the filebase, so this reports only
+// what the transfer replies said (the handshake is asynchronous and can be lost).
+func (c *Client) uploadIconOnce(data []byte, hostFallback string) (uint32, error) {
 	id := IconID(data)
 	name := fmt.Sprintf("/icon_%d", id)
 
@@ -185,22 +214,16 @@ func (c *Client) UploadIcon(data []byte, hostFallback string) (uint32, error) {
 		return 0, err
 	}
 
-	kv, ok := c.ReadNotify("notifystartupload", 5*time.Second)
+	// Short timeout: a present notify arrives near-instantly on the local link, and a
+	// lost one never comes — UploadIcon retries rather than blocking the cycle here.
+	kv, ok := c.ReadNotify("notifystartupload", 2*time.Second)
 	if !ok {
-		// The transfer handshake never arrived. Don't guess — confirm the file is
-		// actually on the server; report failure if it isn't so no group is pointed
-		// at a missing icon.
-		if c.IconExists(id) {
-			return id, nil
-		}
-		return 0, fmt.Errorf("icon %d: upload handshake missing and file not present on server", id)
+		return 0, fmt.Errorf("icon %d: upload handshake missing", id)
 	}
 	if st := kv["status"]; st != "" && st != "0" {
-		// Non-zero status usually means "already exists", but verify before trusting it.
-		if c.IconExists(id) {
-			return id, nil
-		}
-		return 0, fmt.Errorf("icon %d: upload status=%s and file not present on server", id, st)
+		// Non-zero status usually means the server already has the file; the caller's
+		// IconExists check confirms it either way.
+		return id, nil
 	}
 	key := kv["ftkey"]
 	port := kv["port"]
@@ -233,6 +256,20 @@ func rawUpload(addr, key string, data []byte) error {
 		return err
 	}
 	if _, err := conn.Write(data); err != nil {
+		return err
+	}
+	// Wait for the server to actually consume the payload before tearing the socket
+	// down. conn.Write only means "buffered locally", not "received": closing right
+	// after it can truncate the transfer, leaving the icon file unstored while the
+	// group still carries the i_icon_id — which clients render as a broken icon.
+	// Half-close our write side so the server sees end-of-data, then drain until it
+	// closes its side (it does that once the file is stored).
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		if err := tcp.CloseWrite(); err != nil {
+			return err
+		}
+	}
+	if _, err := io.Copy(io.Discard, conn); err != nil {
 		return err
 	}
 	return nil
