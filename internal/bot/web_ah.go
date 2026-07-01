@@ -63,6 +63,7 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 	}
 
 	searchQuery := r.URL.Query().Get("q")
+	upgradesOnly := r.URL.Query().Get("upgrades") == "1"
 	pageStr := r.URL.Query().Get("page")
 	page := 1
 	if pageStr != "" {
@@ -88,51 +89,61 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 		}
 	}
 
-	activeListings := s.bot.ahActiveListings(uid, equippedGear, searchQuery, limit, offset)
-	totalCount := s.bot.ahActiveListingsCount(searchQuery)
+	activeListings := s.bot.ahActiveListings(uid, equippedGear, searchQuery, upgradesOnly, limit, offset)
+	totalCount := s.bot.ahActiveListingsCount(searchQuery, equippedGear, upgradesOnly)
 	totalPages := (totalCount + limit - 1) / limit
 	if totalPages < 1 {
 		totalPages = 1
 	}
 
 	s.render(w, "ah", map[string]any{
-		"Title":       "Auction House",
-		"Nav":         "ah",
-		"U":           u,
-		"Active":      activeListings,
-		"Mine":        s.bot.ahMyListings(uid),
-		"History":     s.bot.ahHistory(uid, 20),
-		"Sellable":    s.bot.inventoryItems(uid),
-		"SearchQuery": searchQuery,
-		"CurrentPage": page,
-		"TotalPages":  totalPages,
-		"TotalCount":  totalCount,
-		"PrevPage":    page - 1,
-		"NextPage":    page + 1,
+		"Title":        "Auction House",
+		"Nav":          "ah",
+		"U":            u,
+		"Active":       activeListings,
+		"Mine":         s.bot.ahMyListings(uid),
+		"History":      s.bot.ahHistory(uid, 20),
+		"Sellable":     s.bot.inventoryItems(uid),
+		"SearchQuery":  searchQuery,
+		"UpgradesOnly": upgradesOnly,
+		"CurrentPage":  page,
+		"TotalPages":   totalPages,
+		"TotalCount":   totalCount,
+		"PrevPage":     page - 1,
+		"NextPage":     page + 1,
 	})
 }
 
-func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear, search string, limit, offset int) []ahListingView {
+func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear, search string, upgradesOnly bool, limit, offset int) []ahListingView {
 	var rows *sql.Rows
 	var err error
+	// When upgradesOnly is set we need to fetch more rows to account for post-filter
+	// reduction; fetch a larger window and slice after filtering.
+	fetchLimit := limit
+	fetchOffset := offset
+	if upgradesOnly {
+		// fetch enough rows to fill a page after filtering (worst case: scan whole table)
+		fetchLimit = 500
+		fetchOffset = 0
+	}
 	if search != "" {
 		rows, err = b.DB.Query(`
 			SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
 			FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
 			WHERE a.sold_at IS NULL AND a.expires_at > NOW() AND a.item_name ILIKE $1
-			ORDER BY a.price ASC LIMIT $2 OFFSET $3`, "%"+search+"%", limit, offset)
+			ORDER BY a.price ASC LIMIT $2 OFFSET $3`, "%"+search+"%", fetchLimit, fetchOffset)
 	} else {
 		rows, err = b.DB.Query(`
 			SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
 			FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
 			WHERE a.sold_at IS NULL AND a.expires_at > NOW()
-			ORDER BY a.price ASC LIMIT $1 OFFSET $2`, limit, offset)
+			ORDER BY a.price ASC LIMIT $1 OFFSET $2`, fetchLimit, fetchOffset)
 	}
 	if err != nil {
 		return nil
 	}
 	defer func() { _ = rows.Close() }()
-	var out []ahListingView
+	var all []ahListingView
 	for rows.Next() {
 		var v ahListingView
 		var t time.Time
@@ -155,12 +166,65 @@ func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear,
 			}
 		}
 
-		out = append(out, v)
+		if upgradesOnly && !v.IsUpgrade {
+			continue
+		}
+		all = append(all, v)
 	}
-	return out
+	if upgradesOnly {
+		// Apply manual pagination over the filtered results
+		start := offset
+		if start > len(all) {
+			return nil
+		}
+		end := start + limit
+		if end > len(all) {
+			end = len(all)
+		}
+		return all[start:end]
+	}
+	return all
 }
 
-func (b *Bot) ahActiveListingsCount(search string) int {
+func (b *Bot) ahActiveListingsCount(search string, equippedGear map[string]content.Gear, upgradesOnly bool) int {
+	if upgradesOnly {
+		// For upgrades-only count we must enumerate and filter
+		var rows *sql.Rows
+		var err error
+		if search != "" {
+			rows, err = b.DB.Query(`
+				SELECT a.item_type, a.item_id
+				FROM auction_house a
+				WHERE a.sold_at IS NULL AND a.expires_at > NOW() AND a.item_name ILIKE $1`, "%"+search+"%")
+		} else {
+			rows, err = b.DB.Query(`
+				SELECT item_type, item_id
+				FROM auction_house
+				WHERE sold_at IS NULL AND expires_at > NOW()`)
+		}
+		if err != nil {
+			return 0
+		}
+		defer func() { _ = rows.Close() }()
+		count := 0
+		for rows.Next() {
+			var itemType, itemID string
+			if err := rows.Scan(&itemType, &itemID); err != nil {
+				continue
+			}
+			if itemType == "gear" {
+				if cg, ok := content.GetGearByID(itemID); ok {
+					if curr, ok := equippedGear[string(cg.Slot)]; !ok {
+						count++
+					} else if cg.CombatRating() > curr.CombatRating() && cg.Stats.Score() > curr.Stats.Score() {
+						count++
+					}
+				}
+			}
+		}
+		return count
+	}
+	// Normal count
 	var count int
 	var err error
 	if search != "" {

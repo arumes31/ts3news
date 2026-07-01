@@ -172,6 +172,20 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		// Regen stacks check
 		mockUserState(mock, "user1")
+		// Gold drop - inflation check
+		mock.ExpectQuery(`SELECT SUM\(gold\) FROM users`).
+			WillReturnRows(sqlmock.NewRows([]string{"sum"}).AddRow(0))
+		// First Win of the Day
+		mock.ExpectQuery(`SELECT last_win FROM users WHERE client_uid=\$1`).
+			WithArgs("user1").
+			WillReturnRows(sqlmock.NewRows([]string{"last_win"}).AddRow(nil))
+		mock.ExpectExec(`UPDATE users SET last_win=NOW\(\) WHERE client_uid=\$1`).
+			WithArgs("user1").
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		// VIP Gold Bonus
+		mock.ExpectQuery(`SELECT vip_points FROM users WHERE client_uid=\$1`).
+			WithArgs("user1").
+			WillReturnRows(sqlmock.NewRows([]string{"vip_points"}).AddRow(0))
 		// Update persistent state
 		mock.ExpectExec(`UPDATE users SET current_hp = \$2, regen_stacks = \$3, gold = users.gold \+ \$4 WHERE client_uid = \$1`).
 			WillReturnResult(sqlmock.NewResult(1, 1))
@@ -180,6 +194,7 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectExec(`DELETE FROM user_consumables WHERE client_uid = \$1 AND remaining_fights < 0`).
 			WillReturnResult(sqlmock.NewResult(1, 1))
+
 
 		logs, xp, victory, loots := b.resolveChannelCombat(users, mobs, 10, 1.0, zone)
 		_ = loots
