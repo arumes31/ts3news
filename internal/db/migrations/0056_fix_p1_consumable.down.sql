@@ -1,0 +1,2 @@
+-- Irreversible data merge (legacy 'P1' rows were folded into 'small_health_potion');
+-- there is no faithful way to split the merged charges back out. No-op.
