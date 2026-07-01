@@ -47,6 +47,7 @@ type gearView struct {
 	Sockets      int
 	Gemstones    []string
 	RarityVal    int
+	Insured      bool // whether the piece is death-insured (drives the forge picker)
 }
 
 // gearEffectDescriptions maps each special effect to a short player-facing blurb.
@@ -150,6 +151,7 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		Sockets:      g.Sockets,
 		Gemstones:    g.Gemstones,
 		RarityVal:    int(g.Rarity),
+		Insured:      g.Insured,
 	}
 	if g.Element != "" && g.Element != content.ElementPhysical {
 		v.Element = string(g.Element)

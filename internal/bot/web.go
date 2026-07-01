@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"embed"
@@ -498,9 +499,16 @@ func (s *WebServer) render(w http.ResponseWriter, name string, data any) {
 			m["EnableAbyss"] = s.bot.Cfg.EnableAbyss
 		}
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := s.tmpl.ExecuteTemplate(w, name, data); err != nil {
+	// Render into a buffer first. Executing straight into the ResponseWriter means a
+	// mid-template error (e.g. a struct missing a field the template references) flushes
+	// a half-written page — truncating the trailing <script> so every inline handler is
+	// "not defined". Buffering lets us send a clean 500 instead of a broken page.
+	var buf bytes.Buffer
+	if err := s.tmpl.ExecuteTemplate(&buf, name, data); err != nil {
 		log.Printf("web: render %s failed: %v", name, err)
 		http.Error(w, "render error", http.StatusInternalServerError)
+		return
 	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = buf.WriteTo(w)
 }
