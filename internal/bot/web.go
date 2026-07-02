@@ -408,13 +408,15 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		Expires:  time.Now().Add(90 * 24 * time.Hour),
 	})
+	// 🛡️ Sentinel: Fix open redirect vulnerability (G710)
 	// Honor an optional post-login destination, but only same-origin relative paths
-	// (must start with a single "/") to avoid an open-redirect.
+	// (must start with a single "/"). We also explicitly block "//" and "/\" to
+	// prevent protocol-relative URL bypasses that redirect to external domains.
 	dest := "/"
-	if next := r.URL.Query().Get("next"); strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") {
+	if next := r.URL.Query().Get("next"); strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") && !strings.HasPrefix(next, "/\\") {
 		dest = next
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
