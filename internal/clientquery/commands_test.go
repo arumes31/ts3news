@@ -103,9 +103,11 @@ func TestCommands(t *testing.T) {
 }
 
 // TestIconWireNameUnsigned verifies that icon file names on the wire use the
-// UNSIGNED CRC32 (/icon_<uint32>), not the signed int32 form. A high-CRC icon
-// (id >= 2^31) previously got a negative name, so the server stored it under a
-// different name than IconExists queried — the icon then rendered as broken.
+// UNSIGNED CRC32, not the signed int32 form. A high-CRC icon (id >= 2^31)
+// previously got a negative name.
+// Two distinct paths are expected:
+//   - IconExists (ftgetfileinfo) uses /icons/icon_<id>  (where server stores files)
+//   - uploadIconOnce (ftinitupload) uses /icon_<id>     (upload initiation path)
 func TestIconWireNameUnsigned(t *testing.T) {
 	// Payload whose CRC32 lands in the high half (>= 2^31), so signed != unsigned.
 	var data []byte
@@ -120,7 +122,10 @@ func TestIconWireNameUnsigned(t *testing.T) {
 	if id == 0 {
 		t.Fatal("could not find a payload with a high-half CRC32")
 	}
-	wantName := fmt.Sprintf("/icon_%d", id) // unsigned decimal, no minus sign
+	// ftgetfileinfo must use /icons/icon_<id> (actual storage path).
+	wantExistsName := fmt.Sprintf("/icons/icon_%d", id)
+	// ftinitupload must use /icon_<id> (upload initiation path).
+	wantUploadName := fmt.Sprintf("/icon_%d", id)
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -161,16 +166,24 @@ func TestIconWireNameUnsigned(t *testing.T) {
 	for !(sawExists && sawUpload) {
 		select {
 		case line := <-lines:
-			if !strings.Contains(line, Escape(wantName)) {
-				t.Errorf("wire name not unsigned:\n got: %q\nwant substring: %q", line, Escape(wantName))
-			}
-			if strings.Contains(line, "/icon_-") {
-				t.Errorf("wire name is signed (negative): %q", line)
-			}
 			if strings.HasPrefix(line, "ftgetfileinfo") {
+				// Must use the /icons/ subfolder path, unsigned.
+				if !strings.Contains(line, Escape(wantExistsName)) {
+					t.Errorf("ftgetfileinfo path wrong:\n got: %q\nwant substring: %q", line, Escape(wantExistsName))
+				}
+				if strings.Contains(line, "/icon_-") {
+					t.Errorf("ftgetfileinfo name is signed (negative): %q", line)
+				}
 				sawExists = true
 			}
 			if strings.HasPrefix(line, "ftinitupload") {
+				// Must use the root upload path, unsigned.
+				if !strings.Contains(line, Escape(wantUploadName)) {
+					t.Errorf("ftinitupload path wrong:\n got: %q\nwant substring: %q", line, Escape(wantUploadName))
+				}
+				if strings.Contains(line, "/icon_-") {
+					t.Errorf("ftinitupload name is signed (negative): %q", line)
+				}
 				sawUpload = true
 			}
 		case <-deadline:

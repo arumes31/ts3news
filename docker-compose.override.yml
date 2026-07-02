@@ -1,0 +1,4 @@
+services:
+  ts3-bot:
+    environment:
+      - CLEANUP_ICONS=1
