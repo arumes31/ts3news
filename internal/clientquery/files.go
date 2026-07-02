@@ -146,8 +146,13 @@ func IconID(data []byte) uint32 {
 // before a group is pointed at it, so a lost upload can't leave a dangling
 // i_icon_id (which the client renders as "icon … not found"). ftgetfileinfo
 // returns the file's size when present; any error or missing size means absent.
+//
+// The filebase names icons by the UNSIGNED CRC32 (/icon_<uint32>), even though the
+// i_icon_id permission stores the same 32 bits as a SIGNED int32. Only the permission
+// value is signed — the file name must stay unsigned or high-CRC icons (id >= 2^31)
+// are looked up under a negative name the server never stored them under.
 func (c *Client) IconExists(id uint32) bool {
-	name := fmt.Sprintf("/icon_%d", int32(id))
+	name := fmt.Sprintf("/icon_%d", id)
 	data, err := c.Command(fmt.Sprintf("ftgetfileinfo cid=0 cpw= name=%s", Escape(name)))
 	if err != nil {
 		return false
@@ -210,7 +215,7 @@ func (c *Client) UploadIcon(data []byte, hostFallback string) (uint32, error) {
 // what the transfer replies said (the handshake is asynchronous and can be lost).
 func (c *Client) uploadIconOnce(data []byte, hostFallback string) (uint32, error) {
 	id := IconID(data)
-	name := fmt.Sprintf("/icon_%d", int32(id))
+	name := fmt.Sprintf("/icon_%d", id)
 
 	// The ftinitupload command reply is empty (error id=0). The transfer key/port
 	// are delivered asynchronously via a notifystartupload event, so read that.
