@@ -241,8 +241,8 @@ func (b *Bot) ensureGearMaxDurability(uid string) {
 			continue
 		}
 		_, _ = b.DB.Exec(
-			"UPDATE user_gear SET item_data = $1 WHERE client_uid = $2 AND slot = $3 AND item_data IS NULL",
-			string(data), uid, r.slot)
+			"UPDATE user_gear SET item_data = $1 WHERE client_uid = $2 AND slot = $3 AND gear_id = $4 AND item_data IS NULL",
+			string(data), uid, r.slot, r.gearID)
 	}
 }
 

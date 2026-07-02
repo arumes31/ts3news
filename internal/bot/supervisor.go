@@ -274,9 +274,19 @@ func (s *Supervisor) randomInterval() time.Duration {
 	return time.Duration(hours) * time.Hour
 }
 
-// probeClientQuery issues a battery of raw ClientQuery commands and logs the full
-// replies, to diagnose how the server-group admin commands respond. Enabled with
-// CQ_PROBE=1.
+// probeClientQuery exercises the file-transfer path end-to-end and logs the
+// results for diagnostics. It is enabled with CQ_PROBE=1 and performs three
+// operations in sequence:
+//
+//  1. Lists the icon filebase (ftgetfilelist cid=0 path=/icons/) and logs the
+//     raw reply lines so the caller can see which icons are currently stored.
+//  2. Drains any pending async notifications left over from the listing.
+//  3. Calls UploadIcon with a deterministic 256-byte test payload. This is a
+//     real write: if the upload succeeds the file persists in the server's icon
+//     filebase until the next cleanup cycle removes it as unreferenced.
+//
+// host is passed as the hostFallback for UploadIcon (used when the server
+// reports an empty transfer IP, i.e. Cfg.TS3Host).
 func probeClientQuery(c *clientquery.Client, host string) {
 	lines, err := c.Raw("ftgetfilelist cid=0 cpw= path=\\/icons\\/", 6*time.Second)
 	log.Printf("PROBE filelist -> err=%v lines=%d %q", err, len(lines), lines)
