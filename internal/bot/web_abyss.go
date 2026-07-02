@@ -88,13 +88,23 @@ func softCap(x, cap float64) float64 {
 	return cap + math.Log(1+(x-cap))
 }
 
+// abyssFloorBonusMaxPer caps the per-floor base so extremely high-level characters
+// don't get runaway payouts. At the cap a full Normal descent to floor 40 accrues
+// roughly 100k of cache (before tier, node, affix and pact multipliers); the cap is
+// reached around level 700 and everything below scales gently with level.
+const abyssFloorBonusMaxPer = 110
+
 // abyssFloorBonus is the base escrowed gold for clearing the given floor (before
 // tier and Deep-Delver multipliers). It scales with depth and level so the
-// accumulated cache grows roughly quadratically with how deep you push.
+// accumulated cache grows roughly quadratically with how deep you push, then flattens
+// once the per-floor base hits abyssFloorBonusMaxPer.
 func abyssFloorBonus(depth, level int) int64 {
 	per := int64(40 + level/10)
 	if per < 40 {
 		per = 40
+	}
+	if per > abyssFloorBonusMaxPer {
+		per = abyssFloorBonusMaxPer
 	}
 	return per * int64(depth)
 }
@@ -187,6 +197,15 @@ func nullStr(s sql.NullString) string {
 	}
 	return ""
 }
+
+// gearMaxDurExpr is a SQL expression for a user_gear row's maximum durability.
+// user_gear has no max_durability column, so it is read from the persisted
+// item_data (Gear.MaxDurability, which has no JSON tag → key "MaxDurability"),
+// falling back to the row's current durability when item_data is absent. The
+// GREATEST guard guarantees a repair can never *reduce* durability: legacy gear
+// without item_data is simply left unchanged instead of erroring on the missing
+// column (which previously broke the Fountain event and every repair path).
+const gearMaxDurExpr = `GREATEST(durability, COALESCE(NULLIF(item_data->>'MaxDurability','')::int, durability))`
 
 // grantConsumable adds a consumable to a player's stash. If they already hold the
 // same consumable its remaining_fights is increased, rather than the grant being
@@ -1594,7 +1613,7 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 			repairAmt = 150
 		}
 		// Repair gear
-		_, _ = s.bot.DB.Exec("UPDATE user_gear SET durability = LEAST(durability + $1, max_durability) WHERE client_uid = $2", repairAmt, uid)
+		_, _ = s.bot.DB.Exec("UPDATE user_gear SET durability = LEAST(durability + $1, "+gearMaxDurExpr+") WHERE client_uid = $2", repairAmt, uid)
 		_, _ = s.bot.DB.Exec("UPDATE users SET artifact_durability = LEAST(artifact_durability + 15, 30) WHERE client_uid = $1 AND artifact_durability > 0", uid)
 	case content.ConsumableBuff:
 		// Buffs elixirs: manual use sets them to active (3 remaining fights).
@@ -1712,7 +1731,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
 			}
-			if _, err := tx.Exec("UPDATE user_gear SET durability = max_durability WHERE client_uid = $1", uid); err != nil {
+			if _, err := tx.Exec("UPDATE user_gear SET durability = "+gearMaxDurExpr+" WHERE client_uid = $1", uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -2052,7 +2071,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			if _, err := tx.Exec("UPDATE user_gear SET durability = max_durability WHERE client_uid = $1", uid); err != nil {
+			if _, err := tx.Exec("UPDATE user_gear SET durability = "+gearMaxDurExpr+" WHERE client_uid = $1", uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
