@@ -125,10 +125,10 @@ func TestReferencedIconIDsFailsClosed(t *testing.T) {
 		scanner := bufio.NewScanner(conn)
 		for scanner.Scan() {
 			line := scanner.Text()
-			switch {
-			case line == "servergrouplist":
+			switch line {
+			case "servergrouplist":
 				_, _ = fmt.Fprint(conn, "sgid=1 name=A type=1 iconid=10\nerror id=0 msg=ok\n")
-			case line == "channelgrouplist":
+			case "channelgrouplist":
 				// Hard error (not an empty-result set) — must be fatal.
 				_, _ = fmt.Fprint(conn, "error id=512 msg=command\\snot\\sfound\n")
 			default:

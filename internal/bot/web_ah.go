@@ -3,12 +3,29 @@ package bot
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"ts3news/internal/content"
 )
+
+// isAuctionUpgrade reports whether the gear item itemID is an upgrade over what the
+// viewer currently has equipped in that gear's slot. An empty slot always counts as
+// an upgrade; a non-gear or unknown item never does. Shared by the listing and count
+// paths so the upgrades-only filter and its total stay in sync.
+func isAuctionUpgrade(itemID string, equippedGear map[string]content.Gear) bool {
+	cg, ok := content.GetGearByID(itemID)
+	if !ok {
+		return false
+	}
+	curr, ok := equippedGear[string(cg.Slot)]
+	if !ok {
+		return true
+	}
+	return cg.CombatRating() > curr.CombatRating() && cg.Stats.Score() > curr.Stats.Score()
+}
 
 type ahListingView struct {
 	ID        string
@@ -115,30 +132,24 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 }
 
 func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear, search string, upgradesOnly bool, limit, offset int) []ahListingView {
-	var rows *sql.Rows
-	var err error
-	// When upgradesOnly is set we need to fetch more rows to account for post-filter
-	// reduction; fetch a larger window and slice after filtering.
-	fetchLimit := limit
-	fetchOffset := offset
-	if upgradesOnly {
-		// fetch enough rows to fill a page after filtering (worst case: scan whole table)
-		fetchLimit = 500
-		fetchOffset = 0
-	}
+	query := `
+		SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
+		FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
+		WHERE a.sold_at IS NULL AND a.expires_at > NOW()`
+	var args []any
 	if search != "" {
-		rows, err = b.DB.Query(`
-			SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
-			FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
-			WHERE a.sold_at IS NULL AND a.expires_at > NOW() AND a.item_name ILIKE $1
-			ORDER BY a.price ASC LIMIT $2 OFFSET $3`, "%"+search+"%", fetchLimit, fetchOffset)
-	} else {
-		rows, err = b.DB.Query(`
-			SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
-			FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
-			WHERE a.sold_at IS NULL AND a.expires_at > NOW()
-			ORDER BY a.price ASC LIMIT $1 OFFSET $2`, fetchLimit, fetchOffset)
+		query += ` AND a.item_name ILIKE $1`
+		args = append(args, "%"+search+"%")
 	}
+	query += ` ORDER BY a.price ASC`
+	// upgradesOnly filters in Go after fetching, so it must scan the full result set
+	// (like ahActiveListingsCount) and paginate the filtered slice — a SQL LIMIT here
+	// would make deep pages come up empty even though the count reports more results.
+	if !upgradesOnly {
+		query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)+1, len(args)+2)
+		args = append(args, limit, offset)
+	}
+	rows, err := b.DB.Query(query, args...)
 	if err != nil {
 		return nil
 	}
@@ -155,15 +166,8 @@ func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear,
 		v.Listed = t.Format("Jan 02")
 		v.Mine = seller == uid
 
-		// Determine if upgrade
 		if v.ItemType == "gear" {
-			if cg, ok := content.GetGearByID(v.ItemID); ok {
-				if curr, ok := equippedGear[string(cg.Slot)]; !ok {
-					v.IsUpgrade = true
-				} else if cg.CombatRating() > curr.CombatRating() && cg.Stats.Score() > curr.Stats.Score() {
-					v.IsUpgrade = true
-				}
-			}
+			v.IsUpgrade = isAuctionUpgrade(v.ItemID, equippedGear)
 		}
 
 		if upgradesOnly && !v.IsUpgrade {
@@ -212,14 +216,8 @@ func (b *Bot) ahActiveListingsCount(search string, equippedGear map[string]conte
 			if err := rows.Scan(&itemType, &itemID); err != nil {
 				continue
 			}
-			if itemType == "gear" {
-				if cg, ok := content.GetGearByID(itemID); ok {
-					if curr, ok := equippedGear[string(cg.Slot)]; !ok {
-						count++
-					} else if cg.CombatRating() > curr.CombatRating() && cg.Stats.Score() > curr.Stats.Score() {
-						count++
-					}
-				}
+			if itemType == "gear" && isAuctionUpgrade(itemID, equippedGear) {
+				count++
 			}
 		}
 		return count

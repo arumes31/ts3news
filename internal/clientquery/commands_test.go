@@ -163,7 +163,7 @@ func TestIconWireNameUnsigned(t *testing.T) {
 
 	deadline := time.After(3 * time.Second)
 	sawExists, sawUpload := false, false
-	for !(sawExists && sawUpload) {
+	for !sawExists || !sawUpload {
 		select {
 		case line := <-lines:
 			if strings.HasPrefix(line, "ftgetfileinfo") {

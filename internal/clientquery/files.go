@@ -359,6 +359,16 @@ type IconFile struct {
 	ID   uint32 // the unsigned icon id parsed from the name
 }
 
+// iconIDFromSigned normalises a signed icon value to the UNSIGNED form used by the
+// filebase icon file names. The i_icon_id permission and the negative-named files
+// left by the old signed-name bug carry the id as a signed int32, while the file
+// names use the unsigned CRC32. The int32->uint32 round-trip here is an intentional
+// bit-reinterpretation of the low 32 bits (not a lossy narrowing): it maps both the
+// signed and unsigned spellings of the same 32 bits onto the one unsigned id.
+func iconIDFromSigned(v int64) uint32 {
+	return uint32(int32(v))
+}
+
 // IconFileList returns every icon file in the server's icon filebase. TeamSpeak
 // stores icons in the "/icons/" subfolder of channel 0 (the root only holds avatars
 // and the icons folder itself), so that is the path listed here. Names are parsed
@@ -383,7 +393,7 @@ func (c *Client) IconFileList() ([]IconFile, error) {
 		if perr != nil {
 			return
 		}
-		out = append(out, IconFile{Name: name, ID: uint32(int32(n))})
+		out = append(out, IconFile{Name: name, ID: iconIDFromSigned(n)})
 	})
 	return out, nil
 }
@@ -410,7 +420,7 @@ func (c *Client) ReferencedIconIDs() (map[uint32]struct{}, error) {
 	add := func(v int) {
 		// The i_icon_id permission stores the id as a signed int32; the filebase names
 		// it unsigned. Normalise to the unsigned form used by the file names.
-		if u := uint32(int32(v)); u != 0 {
+		if u := iconIDFromSigned(int64(v)); u != 0 {
 			refs[u] = struct{}{}
 		}
 	}
