@@ -256,6 +256,55 @@ func (b *Bot) cleanupEmptyLevelGroups(c *clientquery.Client) {
 	}
 }
 
+// cleanupUnusedIcons removes icon files from the server's filebase that are no
+// longer referenced by any server group, channel group, channel, or the virtual
+// server. Rank icons accumulate as groups are recreated and as the icon artwork
+// changes between versions (a new CRC leaves the old file orphaned), and the old
+// signed-name upload bug left broken negative-named files behind — this reclaims
+// all of them. Fail-safe: if the full reference set can't be determined, nothing is
+// deleted this cycle (deleting on a partial set could remove a live icon).
+func (b *Bot) cleanupUnusedIcons(c *clientquery.Client) {
+	if !b.Cfg.CleanupIcons {
+		return
+	}
+	dry := b.Cfg.CleanupIconsDryRun
+	files, err := c.IconFileList()
+	if err != nil {
+		log.Printf("icons: cleanup skipped (listing filebase failed: %v)", err)
+		return
+	}
+	refs, err := c.ReferencedIconIDs()
+	if err != nil {
+		log.Printf("icons: cleanup skipped (incomplete reference set: %v)", err)
+		return
+	}
+	var removed, kept int
+	for _, f := range files {
+		if _, used := refs[f.ID]; used {
+			kept++
+			continue
+		}
+		if dry {
+			log.Printf("icons: [dry-run] would delete %s (id %d)", f.Name, f.ID)
+			removed++
+			continue
+		}
+		if err := c.DeleteFile(f.Name); err != nil {
+			log.Printf("icons: deleting %s failed: %v", f.Name, err)
+			continue
+		}
+		removed++
+	}
+	// Dry-run always reports (so the live test is informative even with nothing to
+	// delete); a real run only logs when it actually reclaimed something.
+	if dry {
+		log.Printf("icons: [dry-run] %d filebase icon(s), %d referenced, %d would be deleted",
+			len(files), len(refs), removed)
+	} else if removed > 0 {
+		log.Printf("icons: cleanup deleted %d unused icon(s), kept %d referenced", removed, kept)
+	}
+}
+
 // applyAbyssMilestones checks depth milestones (10, 25, 50, 100) and automatically
 // grants the corresponding TS3 server groups configured for achievements.
 func (b *Bot) applyAbyssMilestones(c *clientquery.Client, clid int, uid, nickname string, depth int) {

@@ -51,6 +51,10 @@ type Config struct {
 	XPServerGroups    bool   // auto-create one server group per level tier, with a generated icon
 	EnableXPModifiers bool   // streaks, crits, loot boxes, login bonus, parties, server mult, decay, artifacts
 
+	// Icon housekeeping
+	CleanupIcons       bool // each cycle, delete filebase icons no longer referenced by any group/channel/server
+	CleanupIconsDryRun bool // log what CleanupIcons would delete without deleting (live-test aid)
+
 	// RPG settings
 	EnableRPG  bool // controls the entire RPG combat loop and mechanics
 	RPGBaseHP  int  // Base HP to tune win-rates (default 100)
@@ -120,6 +124,9 @@ func LoadConfig() *Config {
 		CheaperMoreXP:        envBool("CHEAPER_MORE_XP", false),
 		XPServerGroups:       envBool("XP_SERVER_GROUPS", false),
 		EnableXPModifiers:    envBool("ENABLE_XP_MODIFIERS", true),
+
+		CleanupIcons:       envBool("CLEANUP_ICONS", true),
+		CleanupIconsDryRun: envBool("CLEANUP_ICONS_DRYRUN", false),
 
 		EnableRPG:  envBool("ENABLE_RPG", true),
 		RPGBaseHP:  envInt("RPG_BASE_HP", 100),

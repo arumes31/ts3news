@@ -1921,6 +1921,7 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) []string {
 			}
 
 			// Only repair if there's actually broken gear
+			b.ensureGearMaxDurability(uid)
 			var brokenCount int
 			_ = b.DB.QueryRow("SELECT COUNT(*) FROM user_gear WHERE client_uid = $1 AND durability < "+gearMaxDurExpr, uid).Scan(&brokenCount)
 			if brokenCount > 0 {
