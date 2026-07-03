@@ -622,7 +622,7 @@ func buildContent() {
 		{ID: "ABYSS_FIREBRAND_SWORD", Name: "Firebrand Greatsword", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 100, Stats: Stats{HP: 200, STR: 100, DEF: 20, SPD: -10}, SetID: "predator"},
 		{ID: "ABYSS_TIDAL_SCEPTER", Name: "Tidal Wave Scepter", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 120, INT: 40, MNA: 80}},
 		{ID: "ABYSS_EARTHSHAKER_HAMMER", Name: "Earthshaker Warhammer", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 95, Stats: Stats{HP: 250, STR: 90, DEF: 30, CRT: 15}},
-		{ID: "ABYSS_ZEPHYR_DAGGER", Name: "Zephyr Dagger", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, STR: 40, SPD: 35}, SetID: "predator"},
+		{ID: "ABYSS_ZEPHYR_DAGGER", Name: "Zephyr Dagger", Slot: SlotOffHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, STR: 40, SPD: 35}, SetID: "predator"},
 		{ID: "ABYSS_LIFEBLOOM_STAFF", Name: "Lifebloom Staff", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 90, Stats: Stats{HP: 180, INT: 35, MNA: 50}},
 		{ID: "ABYSS_NECROTIC_DAGGER", Name: "Necrotic Dagger", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, STR: 45, SPD: 15}},
 		{ID: "ABYSS_DIVINE_AEGIS", Name: "Divine Aegis Shield", Slot: SlotOffHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 110, Stats: Stats{HP: 300, DEF: 80, MNA: 40}, SetID: "warden"},
@@ -640,10 +640,10 @@ func buildContent() {
 		{ID: "ABYSS_TOMB_RAIDER", Name: "Tomb Raider Boots", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, LCK: 25, SPD: 15}},
 		{ID: "ABYSS_DRAGON_SCALE", Name: "Dragon Scale Mail", Slot: SlotChest, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 120, Stats: Stats{HP: 400, DEF: 90, STA: 30}},
 		{ID: "ABYSS_KRAKEN_HIDE", Name: "Kraken Hide Leather", Slot: SlotChest, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 110, Stats: Stats{HP: 350, DEF: 60, SPD: 25, STA: 25}},
-		{ID: "ABYSS_WYRM_TOOTH", Name: "Wyrm Tooth Spear", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 110, STR: 50, SPD: 10}, SetID: "predator"},
+		{ID: "ABYSS_WYRM_TOOTH", Name: "Wyrm Tooth Spear", Slot: SlotRanged, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 110, STR: 50, SPD: 10}, SetID: "predator"},
 		{ID: "ABYSS_VALKYRIE_HELM", Name: "Valkyrie Helm", Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 130, STR: 30, DEF: 25}},
 		{ID: "ABYSS_SOUL_REAPER", Name: "Soul Reaper Scythe", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 95, Stats: Stats{HP: 220, STR: 80, INT: 40, MNA: 60}},
-		{ID: "ABYSS_GORGON_SHIELD", Name: "Gorgon Shield", Slot: SlotOffHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 100, Stats: Stats{HP: 200, DEF: 70, STA: 15}, SetID: "warden"},
+		{ID: "ABYSS_GORGON_SHIELD", Name: "Gorgon Shield", Slot: SlotBack, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 100, Stats: Stats{HP: 200, DEF: 70, STA: 15}, SetID: "warden"},
 		{ID: "ABYSS_PEGASUS_BOOTS", Name: "Pegasus Boots", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 110, SPD: 40, DGE: 8}},
 		{ID: "ABYSS_MIDAS_GLOVES", Name: "Midas Touch Gloves", Slot: SlotHands, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 90, LCK: 40, CHA: 100}},
 		{ID: "ABYSS_HELLFIRE_RING", Name: "Hellfire Ring", Slot: SlotFinger2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 100, INT: 30}, SetID: "predator"},
@@ -1129,13 +1129,11 @@ func FeaturedShopItem(seed int64) Gear {
 	// #nosec G404 G115 -- deterministic shop rotation, seed always non-negative
 	r := rand.New(rand.NewPCG(uint64(seed)*2654435761+1, uint64(seed)^0xABCDEF12345))
 
-	pool := make([]Gear, 0, len(uniqueLegendaries)+len(abyssExclusiveGear))
+	pool := make([]Gear, 0, len(uniqueLegendaries)+len(allGear))
 	pool = append(pool, uniqueLegendaries...)
-	for _, g := range abyssExclusiveGear {
-		if g.Rarity >= RarityLegendary {
-			pool = append(pool, g)
-		}
-	}
+	// allGear already includes abyssExclusiveGear (see buildContent), so the Abyss
+	// legendaries are covered by the loop below — appending them separately would
+	// double their odds in the showcase pool.
 	for _, g := range allGear {
 		if g.Rarity >= RarityLegendary && !strings.HasPrefix(g.ID, "B_") {
 			pool = append(pool, g)

@@ -90,6 +90,11 @@
   <div class="modal-card" id="sharedModalCard"></div>
 </div>
 <script>
+// pendingModalResolve settles the promise of the currently-open confirm/prompt
+// modal. Any dismissal path (OK/Cancel buttons, Escape, backdrop click) routes
+// through closeModal so a forced close can never leave a caller hanging.
+var pendingModalResolve = null;
+var pendingModalDismissValue = null;
 function openModal(html){
   var card = document.getElementById('sharedModalCard');
   card.innerHTML = html;
@@ -97,6 +102,14 @@ function openModal(html){
 }
 function closeModal(){
   document.getElementById('sharedModal').classList.remove('open');
+  // Settle any pending confirm/prompt promise on a forced dismissal.
+  if (pendingModalResolve) {
+    var resolve = pendingModalResolve;
+    var dismissValue = pendingModalDismissValue;
+    pendingModalResolve = null;
+    pendingModalDismissValue = null;
+    resolve(dismissValue);
+  }
 }
 document.addEventListener('keydown', function(e){
   if (e.key === 'Escape') closeModal();
@@ -104,6 +117,8 @@ document.addEventListener('keydown', function(e){
 function confirmModal(message, opts){
   opts = opts || {};
   return new Promise(function(resolve){
+    pendingModalResolve = resolve;
+    pendingModalDismissValue = false; // Escape / backdrop = "not confirmed"
     openModal(
       '<h3>' + (opts.title || 'Confirm') + '</h3>' +
       '<p>' + message + '</p>' +
@@ -112,12 +127,14 @@ function confirmModal(message, opts){
         '<button id="modalOkBtn">' + (opts.okLabel || 'Confirm') + '</button>' +
       '</div>'
     );
-    document.getElementById('modalOkBtn').onclick = function(){ closeModal(); resolve(true); };
-    document.getElementById('modalCancelBtn').onclick = function(){ closeModal(); resolve(false); };
+    document.getElementById('modalOkBtn').onclick = function(){ pendingModalResolve = null; closeModal(); resolve(true); };
+    document.getElementById('modalCancelBtn').onclick = function(){ pendingModalResolve = null; closeModal(); resolve(false); };
   });
 }
 function promptModal(message, defaultValue){
   return new Promise(function(resolve){
+    pendingModalResolve = resolve;
+    pendingModalDismissValue = null; // Escape / backdrop = "cancelled"
     openModal(
       '<h3>Input needed</h3>' +
       '<p>' + message + '</p>' +
@@ -130,8 +147,8 @@ function promptModal(message, defaultValue){
     var input = document.getElementById('modalPromptInput');
     input.focus();
     input.select();
-    document.getElementById('modalOkBtn').onclick = function(){ var v = input.value; closeModal(); resolve(v); };
-    document.getElementById('modalCancelBtn').onclick = function(){ closeModal(); resolve(null); };
+    document.getElementById('modalOkBtn').onclick = function(){ var v = input.value; pendingModalResolve = null; closeModal(); resolve(v); };
+    document.getElementById('modalCancelBtn').onclick = function(){ pendingModalResolve = null; closeModal(); resolve(null); };
     input.onkeydown = function(e){ if (e.key === 'Enter') document.getElementById('modalOkBtn').click(); };
   });
 }

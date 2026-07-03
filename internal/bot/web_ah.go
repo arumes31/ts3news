@@ -148,12 +148,10 @@ func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear,
 	if !upgradesOnly {
 		// The Sprintf only interpolates placeholder *positions* ($N), never user
 		// data — search/limit/offset all flow through args as bound parameters.
-		// #nosec G202 -- placeholder numbers only, values are parameterized below
-		query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)+1, len(args)+2)
+		query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)+1, len(args)+2) // #nosec G202 -- placeholder numbers only, values are parameterized below
 		args = append(args, limit, offset)
 	}
-	// #nosec G701 -- query is fully parameterized; args are never concatenated into it
-	rows, err := b.DB.Query(query, args...)
+	rows, err := b.DB.Query(query, args...) // #nosec G701 -- query is fully parameterized; args are never concatenated into it
 	if err != nil {
 		return nil
 	}

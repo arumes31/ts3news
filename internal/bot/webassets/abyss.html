@@ -1254,7 +1254,13 @@ async function forgeEtchRune() {
 async function forgeUpgradeGear() {
   var params = getSelectedForgeParams();
   if (!params) return;
-  if (!(await confirmModal('Ascend this gear tier level for 🜲 10 tokens? This increases all combat stats by +30%.', {title:'Ascend Gear', okLabel:'Ascend'}))) return;
+  // Compute the same target-tier cost the button shows (must match abyssUpgradeGearCost server-side).
+  var sel = document.getElementById('forgeItemSelect');
+  var opt = sel.options[sel.selectedIndex];
+  var rarity = opt ? (parseInt(opt.getAttribute('data-rarity')) || 0) : 0;
+  var tgt = rarity + 1;
+  var upCost = tgt >= 6 ? 200 : (tgt >= 5 ? 80 : (tgt >= 4 ? 30 : (tgt >= 3 ? 15 : 10)));
+  if (!(await confirmModal('Ascend this gear tier level for 🜲 ' + upCost + ' tokens? This increases all combat stats by +30%.', {title:'Ascend Gear', okLabel:'Ascend'}))) return;
   if (busy) return; setBusy(true);
   var d = await abPost('/api/abyss/upgrade_gear', params);
   setBusy(false);

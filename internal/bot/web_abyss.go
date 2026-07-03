@@ -1110,6 +1110,12 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	// A fresh run always starts with no win streak, so a value left over from a prior
+	// run can't seed abyssStreakBuff into this run (or regular cycle combat).
+	if _, err := tx.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1392,9 +1398,12 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 		if eventState != "" {
 			evStateArg = eventState
 		}
+		// pending_floor_choice=NULL clears any choice orphaned by a prior descend that
+		// offered a pick the player never took (forced watcher/boss floors bypass the
+		// picker), so it can't be replayed by handleAbyssChooseFloor after this commit.
 		_, err := s.bot.DB.Exec(
 			`UPDATE abyss_active
-			    SET depth=$1, floor_type=$2, modifier=$3, event_state=$4, last_action_at=NOW()
+			    SET depth=$1, floor_type=$2, modifier=$3, event_state=$4, pending_floor_choice=NULL, last_action_at=NOW()
 			  WHERE client_uid=$5`,
 			newDepth, floorType, modifier, evStateArg, uid,
 		)
@@ -1417,8 +1426,10 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 		return
 	}
 
-	// Normal Combat floor
-	if _, err := s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier=$2, event_state=NULL, last_action_at=NOW() WHERE client_uid=$3", newDepth, modifier, uid); err != nil {
+	// Normal Combat floor. pending_floor_choice=NULL discards any uncommitted pick
+	// (forced watcher/boss descends reach here without going through the picker) so a
+	// stale choice can't be reused by handleAbyssChooseFloor afterwards.
+	if _, err := s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier=$2, event_state=NULL, pending_floor_choice=NULL, last_action_at=NOW() WHERE client_uid=$3", newDepth, modifier, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -1765,6 +1776,9 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	if req.Cursed {
 		_, _ = tx.Exec("UPDATE users SET abyss_curse_fights = 3 WHERE client_uid=$1", uid)
 	}
+	// End of run: clear the per-run win streak so its combat buff (abyssStreakBuff)
+	// can't leak into regular TeamSpeak-cycle fights, which read abyss_win_streak too.
+	_, _ = tx.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
 	if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return

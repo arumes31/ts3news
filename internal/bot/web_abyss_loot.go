@@ -243,12 +243,14 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 					labels = append(labels, "⬆️ Equipped: "+label)
 					legendaryPity = 0
 					gotGearThisCall = true
+					ownedGear[g.ID] = true // don't re-award this exact item on a later roll
 					continue
 				}
 			}
 			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
 				legendaryPity = 0
 				gotGearThisCall = true
+				ownedGear[g.ID] = true // don't re-award this exact item on a later roll
 			}
 			continue
 		}
@@ -312,6 +314,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 						legendaryPity++
 					}
 					gotGearThisCall = true
+					ownedGear[g.ID] = true // don't re-award this exact item on a later roll
 					continue
 				}
 			}
@@ -324,6 +327,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 					legendaryPity++
 				}
 				gotGearThisCall = true
+				ownedGear[g.ID] = true // don't re-award this exact item on a later roll
 			}
 		default:
 			// 100% drop guarantee → a common gear or a small potion.
@@ -347,12 +351,14 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 						labels = append(labels, "⬆️ Equipped: "+label)
 						legendaryPity++
 						gotGearThisCall = true
+						ownedGear[g.ID] = true // don't re-award this exact item on a later roll
 						continue
 					}
 				}
 				if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
 					legendaryPity++
 					gotGearThisCall = true
+					ownedGear[g.ID] = true // don't re-award this exact item on a later roll
 				}
 			} else {
 				add(i18n.T("bot.loot.small_health_potion"), abyssLootGrant{Type: "cons", ConsID: "small_health_potion", ConsDur: 0})

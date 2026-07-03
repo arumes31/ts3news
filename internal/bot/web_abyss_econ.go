@@ -210,6 +210,11 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int6
 			return 0, 0, err
 		}
 	}
+	// End of run: clear the per-run win streak so its combat buff can't leak into
+	// regular cycle combat (which reads abyss_win_streak too).
+	if _, err := tx.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid); err != nil {
+		return 0, 0, err
+	}
 	if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
 		return 0, 0, err
 	}

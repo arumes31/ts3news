@@ -694,8 +694,9 @@ func (b *Bot) getEquippedItems(uid string) map[content.GearSlot]content.Gear {
 	return out
 }
 
-// CleanupDeadUsers purges notification history for accounts inactive longer
-// than Cfg.DeadUserDays, returning how many rows were removed.
+// CleanupDeadUsers deletes accounts inactive longer than Cfg.DeadUserDays and
+// purges their notification history. The returned count is the number of deleted
+// user rows only; the separate notification-history purge is not counted in it.
 func (b *Bot) CleanupDeadUsers() (int, error) {
 	if b.Cfg.DeadUserDays <= 0 {
 		return 0, nil

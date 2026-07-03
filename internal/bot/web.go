@@ -416,8 +416,7 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if next := r.URL.Query().Get("next"); strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") {
 		dest = next
 	}
-	// #nosec G710 -- dest is validated above to be a same-origin relative path only
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 -- dest is validated above to be a same-origin relative path only
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
