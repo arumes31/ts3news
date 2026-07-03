@@ -142,32 +142,28 @@ func IconID(data []byte) uint32 {
 	return crc32.ChecksumIEEE(data)
 }
 
-// IconExists reports whether the icon file for id is actually present in the
-// server's icon filebase (channel 0). Used to confirm an icon really landed
-// before a group is pointed at it, so a lost upload can't leave a dangling
-// i_icon_id (which the client renders as "icon … not found"). ftgetfileinfo
-// returns the file's size when present; any error or missing size means absent.
+// IconExists reports whether a non-empty icon file for id is present in the server's
+// icon filebase (the /icons/ subfolder of channel 0). It confirms an icon really
+// landed before a group is pointed at it, so a lost or truncated upload can't leave a
+// dangling i_icon_id (which the client renders as "icon … not found").
 //
-// IMPORTANT: ftinitupload accepts name=/icon_<id> (root) but the server actually
-// stores icons under /icons/icon_<id> (the icons subfolder of channel 0). The
-// existence check must use the subfolder path, otherwise it queries a file that
-// was never stored there and always returns false even after a successful upload.
+// The check is made against the directory listing (ftgetfilelist, via IconFileList),
+// NOT ftgetfileinfo. On the live server ftgetfileinfo returns a false "not found" for
+// icons that are demonstrably present — they are listed by ftgetfilelist and reported
+// as already-existing (error 2050) by ftinitupload — which made every upload look like
+// it had failed and left groups without their icon. Listing the folder is the query
+// that actually works here.
 //
-// The filebase names icons by the UNSIGNED CRC32 (/icons/icon_<uint32>), even
-// though the i_icon_id permission stores the same 32 bits as a SIGNED int32. Only
-// the permission value is signed — the file name must stay unsigned or high-CRC
-// icons (id >= 2^31) are looked up under a negative name the server never stored.
+// A size of 0 counts as absent, so a truncated 0-byte upload is treated as
+// not-yet-present and retried rather than referenced as a broken icon.
 func (c *Client) IconExists(id uint32) bool {
-	// Icons land under /icons/ after upload; querying the root /icon_<id> path
-	// always returns "not found" even for icons that are present.
-	name := fmt.Sprintf("/icons/icon_%d", id)
-	data, err := c.Command(fmt.Sprintf("ftgetfileinfo cid=0 cpw= name=%s", Escape(name)))
+	files, err := c.IconFileList()
 	if err != nil {
 		return false
 	}
-	if sz, ok := firstKV(data)["size"]; ok {
-		if n, _ := strconv.Atoi(sz); n > 0 {
-			return true
+	for _, f := range files {
+		if f.ID == id {
+			return f.Size > 0
 		}
 	}
 	return false
@@ -219,16 +215,18 @@ func (c *Client) UploadIcon(data []byte, hostFallback string) (uint32, error) {
 	// landed" (transfer rejected) from "landed under an unexpected name".
 	if files, ferr := c.IconFileList(); ferr == nil {
 		present := false
+		var thisSize int64
 		names := make([]string, 0, 8)
 		for _, f := range files {
 			if f.ID == id {
 				present = true
+				thisSize = f.Size
 			}
 			if len(names) < 8 {
 				names = append(names, f.Name)
 			}
 		}
-		log.Printf("icon %d: filebase has %d icon(s), thisPresent=%v, sample=%v", id, len(files), present, names)
+		log.Printf("icon %d: filebase has %d icon(s), thisPresent=%v thisSize=%d, sample=%v", id, len(files), present, thisSize, names)
 	} else {
 		log.Printf("icon %d: filebase list after failed upload errored: %v", id, ferr)
 	}
@@ -357,6 +355,7 @@ func eachRecord(data []string, fn func(map[string]string)) {
 type IconFile struct {
 	Name string // filebase name, e.g. "icon_2168812048"
 	ID   uint32 // the unsigned icon id parsed from the name
+	Size int64  // file size in bytes (0 = truncated/empty upload)
 }
 
 // iconIDFromSigned normalises a signed icon value to the UNSIGNED form used by the
@@ -394,7 +393,11 @@ func (c *Client) IconFileList() ([]IconFile, error) {
 		if perr != nil {
 			return
 		}
-		out = append(out, IconFile{Name: name, ID: iconIDFromSigned(n)})
+		var size int64
+		if s, ok := m["size"]; ok {
+			size, _ = strconv.ParseInt(s, 10, 64)
+		}
+		out = append(out, IconFile{Name: name, ID: iconIDFromSigned(n), Size: size})
 	})
 	return out, nil
 }
