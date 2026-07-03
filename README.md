@@ -60,6 +60,7 @@ graph TD
 *   🪄 **Skill System**: Over **300 unique skills and spells**. Users have 5 slots and automatically learn better skills found from loot.
 *   ✨ **Enchantment System**: Rare mob drops that can be applied to gear for additional power or increased **Durability**.
 *   🧪 **Consumables**: Potions and elixirs that are automatically consumed to restore HP or provide buffs.
+*   🛍️ **Item Shop & Auction House**: Spend gold on rotating gear items from the local Shop, or trade unwanted/duplicate loot with other players on the server-wide Auction House.
 *   🕒 **Persistence**: Full lifetime connection tracking and notification history stored in PostgreSQL.
 *   ⚖️ **Auto-Balancing**: A **Combat Pity** system that buffs party stats if they suffer consecutive defeats.
 *   🤖 **Contextual Personas**: The bot renames itself based on context, adopting the **godsfinger** persona for rare loot.

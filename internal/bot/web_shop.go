@@ -15,7 +15,7 @@ import (
 const (
 	goldPerXP     = 10 // gold spent to gain 1 XP
 	xpPerGold     = 2  // XP spent to gain 1 gold (10 XP → 5 gold)
-	shopStockSize = 12
+	shopStockSize = 24
 )
 
 // gearPrice is the fair buy price of a gear piece, scaled by combat power and

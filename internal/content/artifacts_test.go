@@ -112,7 +112,10 @@ func TestRandomGenerators(t *testing.T) {
 	RandomItemEffect()
 	RandomConsumable()
 	RandomGearDrop()
-	RandomStarterGear()
+	g := RandomStarterGear()
+	if g.ID == "" {
+		t.Error("RandomStarterGear returned gear with empty ID")
+	}
 	RandomArtifact()
 	RandomEnchantment()
 	RandomTitle()

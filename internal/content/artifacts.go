@@ -313,6 +313,7 @@ type Enchantment struct {
 }
 
 var allGear []Gear
+var starterGear []Gear
 var uniqueLegendaries []Gear
 var abyssExclusiveGear []Gear
 var allConsumables []Consumable
@@ -407,6 +408,7 @@ func InitLocalized() {
 func buildContent() {
 	// Reset so repeated calls (init + InitLocalized) don't duplicate entries.
 	allGear = nil
+	starterGear = nil
 	uniqueLegendaries = nil
 	corruptedArtifacts = nil
 	positiveTitles = nil
@@ -457,7 +459,7 @@ func buildContent() {
 	idx := 1
 	for _, slot := range AllSlots {
 		// Starter Novice gear
-		allGear = append(allGear, Gear{
+		noviceGear := Gear{
 			ID:            fmt.Sprintf("B_%s", slot),
 			Name:          i18n.T("content.gear.novice", i18n.T("content.gear.slot."+strings.ToLower(string(slot)))),
 			Slot:          slot,
@@ -465,7 +467,9 @@ func buildContent() {
 			XPMultiplier:  getXPMult(RarityCommon),
 			MaxDurability: 50,
 			Stats:         Stats{HP: 10, STR: 2, DEF: 2, SPD: 2, CHA: 1, STN: r.IntN(5)},
-		})
+		}
+		allGear = append(allGear, noviceGear)
+		starterGear = append(starterGear, noviceGear)
 
 		// Procedural variants
 		for _, rar := range []Rarity{RarityUncommon, RarityRare, RarityEpic, RarityLegendary} {
@@ -909,7 +913,12 @@ func RandomAbyssGearDrop() Gear {
 }
 
 // #nosec G404
-func RandomStarterGear() Gear { return allGear[rand.IntN(len(AllSlots))] } // #nosec G404
+func RandomStarterGear() Gear {
+	if len(starterGear) == 0 {
+		return Gear{}
+	}
+	return starterGear[rand.IntN(len(starterGear))] // #nosec G404
+}
 func RandomArtifact() Artifact {
 	// #nosec G404
 	a := corruptedArtifacts[rand.IntN(len(corruptedArtifacts))] // #nosec G404
