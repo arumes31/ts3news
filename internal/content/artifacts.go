@@ -110,6 +110,7 @@ func (g Gear) CombatRating() float64 {
 		RarityEpic:      1.9,
 		RarityLegendary: 2.3,
 		RarityMythic:    2.8,
+		RarityDivine:    3.4,
 	}
 	if mult, ok := rarityMult[g.Rarity]; ok {
 		cr *= mult
@@ -271,6 +272,10 @@ type Gear struct {
 	Stats         Stats
 	Special       ItemEffect
 	Element       Element
+
+	// BonusEffects are extra combat affixes layered on top of Special, granted to
+	// high-tier gear (e.g. Mythic/Divine forge upgrades and featured shop relics).
+	BonusEffects []ItemEffect `json:"bonus_effects,omitempty"`
 
 	// Custom progression fields
 	Sockets      int      `json:"sockets,omitempty"`
@@ -938,6 +943,91 @@ func RandomTitle() Title {
 	} // #nosec G404
 	// #nosec G404
 	return negativeTitles[rand.IntN(len(negativeTitles))] // #nosec G404
+}
+
+// combatEffectPool are the effects eligible as random bonus affixes on high-tier
+// gear. Kept to effects with a real combat/reward impact (no pure-flavour picks).
+var combatEffectPool = []ItemEffect{
+	EffectThorns, EffectVampiric, EffectBerserk, EffectLucky, EffectQuick,
+	EffectBulwark, EffectRadiant, EffectSteady, EffectParry, EffectCleanse,
+	EffectTreasureHunter, EffectRegenStack,
+}
+
+// AddBonusEffects appends up to n distinct combat effects to g.BonusEffects, skipping
+// any the item already carries (as its Special or an existing bonus). intn supplies the
+// randomness so callers can pass a deterministic source (rand.IntN, or a *rand.Rand's).
+func AddBonusEffects(g *Gear, n int, intn func(int) int) {
+	have := map[ItemEffect]bool{g.Special: true}
+	for _, e := range g.BonusEffects {
+		have[e] = true
+	}
+	pool := make([]ItemEffect, 0, len(combatEffectPool))
+	for _, e := range combatEffectPool {
+		if !have[e] {
+			pool = append(pool, e)
+		}
+	}
+	for i := 0; i < n && len(pool) > 0; i++ {
+		idx := intn(len(pool))
+		g.BonusEffects = append(g.BonusEffects, pool[idx])
+		pool = append(pool[:idx], pool[idx+1:]...)
+	}
+}
+
+// FeaturedShopItemID is the stable prefix of the shop's showcase relic, so the buy
+// handler can recognise and re-roll it (it has no catalog entry of its own).
+const FeaturedShopItemID = "FEATURED_"
+
+// FeaturedShopItem returns the deterministic Mythic-or-Divine showcase relic for a
+// shop rotation seed. It upgrades one of the game's strongest catalog bases past the
+// Legendary ceiling, scales its stats, and layers on bonus affixes (Mythic gets 2,
+// Divine 3). Because it has no catalog entry, buyers persist its rolled item_data.
+func FeaturedShopItem(seed int64) Gear {
+	// #nosec G404 G115 -- deterministic shop rotation, seed always non-negative
+	r := rand.New(rand.NewPCG(uint64(seed)*2654435761+1, uint64(seed)^0xABCDEF12345))
+
+	pool := make([]Gear, 0, len(uniqueLegendaries)+len(abyssExclusiveGear))
+	pool = append(pool, uniqueLegendaries...)
+	for _, g := range abyssExclusiveGear {
+		if g.Rarity >= RarityLegendary {
+			pool = append(pool, g)
+		}
+	}
+	for _, g := range allGear {
+		if g.Rarity >= RarityLegendary && !strings.HasPrefix(g.ID, "B_") {
+			pool = append(pool, g)
+		}
+	}
+	if len(pool) == 0 {
+		return Gear{}
+	}
+
+	base := pool[r.IntN(len(pool))]
+	g := base
+	g.Gemstones = nil
+	g.BonusEffects = nil
+
+	nEffects := 2
+	if r.IntN(3) == 0 {
+		g.Rarity = RarityDivine
+		g.Stats = g.Stats.Scaled(2.0)
+		nEffects = 3
+	} else {
+		g.Rarity = RarityMythic
+		g.Stats = g.Stats.Scaled(1.6)
+	}
+	// A showcase piece worth millions should not be paper-thin.
+	if g.MaxDurability < 150 {
+		g.MaxDurability = 150
+	}
+	g.GearLevel += 2
+	if g.XPMultiplier < 1.30 {
+		g.XPMultiplier = 1.30 // showcase relics always carry the top XP tier
+	}
+	g.ID = FeaturedShopItemID + base.ID
+	g.Name = "✦ " + base.Name
+	AddBonusEffects(&g, nEffects, r.IntN)
+	return g
 }
 
 // ShopStock returns a deterministic list of purchasable gear for the given seed

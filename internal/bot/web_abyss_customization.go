@@ -467,7 +467,27 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Successfully recalibrated %s stat!", stat), "tokens": tokens - 5})
 }
 
-// handleAbyssUpgradeGear spends 10 tokens to upgrade weapon tier.
+// abyssUpgradeGearCost is the Abyss-token cost to ascend a piece of gear to the
+// given target rarity. Ascending into the top tiers costs dramatically more, so a
+// Mythic/Divine piece is a real long-term goal rather than a cheap token dump.
+func abyssUpgradeGearCost(target content.Rarity) int64 {
+	switch target {
+	case content.RarityDivine:
+		return 200
+	case content.RarityMythic:
+		return 80
+	case content.RarityLegendary:
+		return 30
+	case content.RarityEpic:
+		return 15
+	default:
+		return 10
+	}
+}
+
+// handleAbyssUpgradeGear spends Abyss tokens to ascend a piece of gear one rarity
+// tier. Cost scales with the target tier, and Mythic/Divine ascensions also roll
+// extra bonus combat affixes onto the item.
 func (s *WebServer) handleAbyssUpgradeGear(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -487,10 +507,6 @@ func (s *WebServer) handleAbyssUpgradeGear(w http.ResponseWriter, r *http.Reques
 
 	var tokens int64
 	_ = s.bot.DB.QueryRow("SELECT abyss_tokens FROM users WHERE client_uid=$1", uid).Scan(&tokens)
-	if tokens < 10 {
-		writeJSON(w, map[string]any{"ok": false, "error": "Not enough tokens (requires 10 tokens)"})
-		return
-	}
 
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
@@ -533,16 +549,38 @@ func (s *WebServer) handleAbyssUpgradeGear(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	g.Rarity = g.Rarity + 1
+	target := g.Rarity + 1
+	cost := abyssUpgradeGearCost(target)
+	if tokens < cost {
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("Not enough tokens (requires %d tokens)", cost)})
+		return
+	}
+
+	g.Rarity = target
 	g.Stats = g.Stats.Scaled(1.3) // +30% stats
 	g.GearLevel++
+
+	// Ascending into the top tiers imbues extra bonus combat affixes: Mythic gains
+	// one, Divine two, so the very best gear is meaningfully more powerful.
+	added := 0
+	switch target {
+	case content.RarityMythic:
+		added = 1
+	case content.RarityDivine:
+		added = 2
+	}
+	if added > 0 {
+		before := len(g.BonusEffects)
+		content.AddBonusEffects(&g, added, rand.IntN)
+		added = len(g.BonusEffects) - before
+	}
 
 	dataBytes, _ := json.Marshal(g)
 
 	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
 		return
 	}
-	if !deductTokens(w, tx, uid, 10) {
+	if !deductTokens(w, tx, uid, cost) {
 		return
 	}
 
@@ -551,7 +589,15 @@ func (s *WebServer) handleAbyssUpgradeGear(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Upgraded weapon to %s tier (+30%% stats)!", g.Rarity.String()), "tokens": tokens - 10})
+	msg := fmt.Sprintf("Upgraded gear to %s tier (+30%% stats)!", g.Rarity.String())
+	if added > 0 {
+		effNames := make([]string, 0, added)
+		for _, e := range g.BonusEffects[len(g.BonusEffects)-added:] {
+			effNames = append(effNames, string(e))
+		}
+		msg += " New bonus effect(s): " + strings.Join(effNames, ", ")
+	}
+	writeJSON(w, map[string]any{"ok": true, "msg": msg, "tokens": tokens - cost})
 }
 
 // handleAbyssTransmute converts a weapon into a class-suitable random weapon.

@@ -70,6 +70,7 @@
           style="--gi:url(/static/icons/{{.EffectIcon}}.svg)"></span> {{.Effect}}</span>{{end}}
     </div>
     {{if .EffectDesc}}<div class="gear-fxdesc">{{.EffectDesc}}</div>{{end}}
+    {{if .Unidentified}}<button class="primary xs identify-btn" onclick="identifyGear('{{.Slot}}', this)">🔍 Identify (100g)</button>{{end}}
     {{end}}
   </div>
   {{end}}
@@ -131,4 +132,15 @@
   {{end}}
 </div>
 {{end}}
+<script data-cfasync="false">
+async function identifyGear(slot, btn){
+  if(btn){btn.disabled=true;btn.textContent='Identifying…';}
+  try{
+    const r=await fetch('/api/abyss/identify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot:slot})});
+    const d=await r.json();
+    if(d.ok){location.reload();}
+    else{alert(d.error||'Could not identify item');if(btn){btn.disabled=false;btn.textContent='🔍 Identify (100g)';}}
+  }catch(e){if(btn){btn.disabled=false;btn.textContent='🔍 Identify (100g)';}}
+}
+</script>
 {{template "foot" .}}{{end}}

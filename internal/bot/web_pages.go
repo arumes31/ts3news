@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	"ts3news/internal/content"
@@ -132,6 +133,16 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		if g.Insured {
 			name = "🛡️ " + name
 		}
+		if len(g.BonusEffects) > 0 {
+			names := make([]string, 0, len(g.BonusEffects))
+			for _, e := range g.BonusEffects {
+				names = append(names, string(e))
+			}
+			if effDesc != "" {
+				effDesc += " | "
+			}
+			effDesc += "Bonus Effects: " + strings.Join(names, ", ")
+		}
 	}
 
 	v := gearView{
@@ -159,6 +170,11 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	if g.Special != content.EffectNone && !g.Unidentified {
 		v.Effect = string(g.Special)
 		v.EffectIcon = content.EffectIconName(g.Special)
+		v.EffectDesc = effDesc
+	} else if !g.Unidentified && len(g.BonusEffects) > 0 {
+		// No base Special, but Mythic/Divine bonus affixes: show the first as the tag.
+		v.Effect = string(g.BonusEffects[0])
+		v.EffectIcon = content.EffectIconName(g.BonusEffects[0])
 		v.EffectDesc = effDesc
 	} else if g.Unidentified {
 		v.EffectDesc = effDesc

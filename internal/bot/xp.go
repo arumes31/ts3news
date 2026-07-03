@@ -2178,6 +2178,12 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 					if gear.Special != content.EffectNone {
 						effects = append(effects, gear.Special)
 					}
+					// High-tier gear (Mythic/Divine) can carry extra bonus affixes.
+					for _, be := range gear.BonusEffects {
+						if be != content.EffectNone {
+							effects = append(effects, be)
+						}
+					}
 
 					if enchID.Valid && enchID.String != "" {
 						if ench, ok := content.GetEnchantmentByID(enchID.String); ok {

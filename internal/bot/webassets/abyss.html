@@ -1024,7 +1024,14 @@ function updateForgeOptions() {
   
   var isWeapon = slot === 'MainHand' || slot === 'OffHand' || slot === 'Ranged';
   document.getElementById('forgeEtchRow').style.display = (!unid && isWeapon) ? 'block' : 'none';
-  document.getElementById('btnForgeUpgradeGear').style.display = (!unid && rarity < 6) ? 'block' : 'none'; // max rarity is Divine (6)
+  var upBtn = document.getElementById('btnForgeUpgradeGear');
+  upBtn.style.display = (!unid && rarity < 6) ? 'block' : 'none'; // max rarity is Divine (6)
+  if (!unid && rarity < 6) {
+    // Cost scales with the target tier (must match abyssUpgradeGearCost server-side).
+    var tgt = rarity + 1;
+    var upCost = tgt >= 6 ? 200 : (tgt >= 5 ? 80 : (tgt >= 4 ? 30 : (tgt >= 3 ? 15 : 10)));
+    upBtn.textContent = 'Ascend Tier Level (🜲 ' + upCost + ')' + (tgt >= 5 ? ' +Bonus Effects' : '');
+  }
   document.getElementById('btnForgeTransmute').style.display = (!unid && isWeapon) ? 'block' : 'none';
 
   var insured = opt.getAttribute('data-insured') === 'true';
