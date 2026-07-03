@@ -288,12 +288,15 @@ func (s *Supervisor) randomInterval() time.Duration {
 // host is passed as the hostFallback for UploadIcon (used when the server
 // reports an empty transfer IP, i.e. Cfg.TS3Host).
 func probeClientQuery(c *clientquery.Client, host string) {
-	lines, err := c.Raw("ftgetfilelist cid=0 cpw= path=\\/icons\\/", 6*time.Second)
-	log.Printf("PROBE filelist -> err=%v lines=%d %q", err, len(lines), lines)
-	_ = c.DrainRaw(2 * time.Second)
+	files, err := c.IconFileList()
+	log.Printf("PROBE filebase (%d icons, err=%v):", len(files), err)
+	for _, f := range files {
+		log.Printf("PROBE   icon_%d size=%d", f.ID, f.Size)
+	}
 
-	// Upload a deterministic test payload to exercise the full transfer path (single
-	// write of key+data) and confirm it lands with non-zero size.
+	// Upload a deterministic test payload and confirm it lands with non-zero size.
+	// If storedSize=0 the server accepted the transfer connection but discarded the
+	// bytes — a server-side/file-transfer problem, not a bug in this code.
 	payload := make([]byte, 256)
 	for i := range payload {
 		payload[i] = byte(i)

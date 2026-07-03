@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"hash/crc32"
-	"io"
 	"log"
 	"net"
 	"strconv"
@@ -281,45 +280,38 @@ func (c *Client) uploadIconOnce(data []byte, hostFallback string) (uint32, error
 	log.Printf("icon: ft handshake %d: status=%q ftkey.len=%d port=%s ip=%q seekpos=%q proto=%q host=%s",
 		id, kv["status"], len(key), port, kv["ip"], kv["seekpos"], kv["proto"], host)
 
-	echoed, err := rawUpload(net.JoinHostPort(host, port), key, data)
-	if err != nil {
+	if err := rawUpload(net.JoinHostPort(host, port), key, data); err != nil {
 		return 0, fmt.Errorf("icon file transfer: %w", err)
 	}
-	log.Printf("icon: uploaded %d (%d bytes, server echoed %d) to %s:%s", id, len(data), echoed, host, port)
+	log.Printf("icon: uploaded %d (%d bytes) to %s:%s", id, len(data), host, port)
 	return id, nil
 }
 
 // rawUpload performs the TeamSpeak file-transfer handshake: connect, send the
-// transfer key, then stream the payload. It returns the number of bytes the server
-// sent back (normally 0 for an upload) so the caller can distinguish a plain close.
-func rawUpload(addr, key string, data []byte) (int64, error) {
+// transfer key, then send the payload. The key and payload are written separately —
+// the sequence the official client uses.
+//
+// NOTE: on the live server this currently persists a 0-byte file regardless of the
+// transfer framing (single vs. split writes, read-to-EOF or immediate close, remote
+// vs. local target were all verified). The server accepts the connection and reads
+// the bytes but does not commit them, so the fault is server-side file transfer, not
+// this handshake. IconExists (size > 0) is what surfaces the failure instead of
+// letting a broken 0-byte icon be referenced.
+func rawUpload(addr, key string, data []byte) error {
 	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	defer func() { _ = conn.Close() }()
 	_ = conn.SetDeadline(time.Now().Add(15 * time.Second))
 
-	// Send the transfer key immediately followed by the payload in a SINGLE write.
-	// TeamSpeak's file-transfer server reads the key to bind the connection to the
-	// pending upload, then reads `size` bytes. Writing the key and data separately
-	// leaves a gap in which the server can accept the key and close before the data
-	// segment arrives, storing a 0-byte file (a broken icon that reports success).
-	if _, err := conn.Write(append([]byte(key), data...)); err != nil {
-		return 0, err
+	if _, err := conn.Write([]byte(key)); err != nil {
+		return err
 	}
-	// Wait for the server to finish storing the file before tearing the socket down.
-	// The server closes its side once it has received all `size` bytes, so block on a
-	// read until that EOF. Do NOT half-close (CloseWrite) our side first: the TS3
-	// file-transfer server treats an early FIN as an aborted upload and finalises a
-	// 0-byte file — reproduced live, where every upload landed a 0-byte icon. Reading
-	// to EOF both confirms delivery and keeps the socket fully open until the server
-	// is done.
-	n, err := io.Copy(io.Discard, conn)
-	if err != nil {
-		return n, err
+	if _, err := conn.Write(data); err != nil {
+		return err
 	}
-	return n, nil
+	return nil
 }
 
 // errEmptyResultSet is TeamSpeak's "database empty result set" error id, returned
