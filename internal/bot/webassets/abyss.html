@@ -565,7 +565,9 @@ function renderNonCombat(floorType, stateStr){
     options.innerHTML = `
       <button class="ghost" onclick="abyssNCAction('heal')">❤️ Heal to Full (100g)</button>
       <button class="ghost" onclick="abyssNCAction('repair')">🛠️ Repair All Gear (100g)</button>
-      <button class="ghost" onclick="abyssNCAction('reroll_skills')">🌀 Re-roll Active Skills (150g)</button>
+      <button class="ghost" onclick="abyssNCAction('reroll_lowest_skill')">🌀 Re-roll Lowest Skill (100g)</button>
+      <button class="ghost" onclick="abyssNCAction('reroll_highest_skill')">🌀 Re-roll Highest Skill (150g)</button>
+      <button class="ghost" onclick="abyssNCAction('reroll_highest_skill_same_tier')">🌀 Re-roll Highest Skill on Same Tier (200g)</button>
     `;
   } else if(floorType === 'event'){
     title.innerHTML = '❓ Mysterious Encounter';

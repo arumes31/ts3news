@@ -1754,13 +1754,24 @@ func (b *Bot) getConsumables(uid string) []content.Consumable {
 		return nil
 	}
 	defer func() { _ = rows.Close() }()
+
+	loadout, restricted := b.abyssRunLoadout(uid)
+
 	var out []content.Consumable
 	for rows.Next() {
 		var id string
 		var rem int
 		if err := rows.Scan(&id, &rem); err == nil {
 			if c, ok := content.GetConsumableByID(id); ok {
-				c.Duration = rem
+				if restricted {
+					count, ok := loadout[id]
+					if !ok || count <= 0 {
+						continue
+					}
+					c.Duration = count
+				} else {
+					c.Duration = rem
+				}
 				out = append(out, c)
 			}
 		}
