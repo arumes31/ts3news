@@ -207,6 +207,16 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			pg := content.RandomAbyssGearDrop()
 			pg.Rarity = content.RarityLegendary
 			label, g := processGear(pg)
+			var exists bool
+			_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE client_uid=$1 AND slot=$2)", uid, string(g.Slot)).Scan(&exists)
+			if !exists {
+				itemDataBytes, _ := json.Marshal(g)
+				if err := b.equipGear(b.DB, uid, g, g.MaxDurability, string(itemDataBytes)); err == nil {
+					labels = append(labels, "⬆️ Equipped: "+label)
+					legendaryPity = 0
+					continue
+				}
+			}
 			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
 				legendaryPity = 0
 			}
@@ -259,6 +269,20 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				g = content.RandomAbyssGearDrop()
 			}
 			label, g := processGear(g)
+			var exists bool
+			_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE client_uid=$1 AND slot=$2)", uid, string(g.Slot)).Scan(&exists)
+			if !exists {
+				itemDataBytes, _ := json.Marshal(g)
+				if err := b.equipGear(b.DB, uid, g, g.MaxDurability, string(itemDataBytes)); err == nil {
+					labels = append(labels, "⬆️ Equipped: "+label)
+					if g.Rarity >= content.RarityLegendary {
+						legendaryPity = 0
+					} else {
+						legendaryPity++
+					}
+					continue
+				}
+			}
 			// Only touch pity once the drop is actually escrowed, so a failed save
 			// can't reset (or skip incrementing) the counter.
 			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
@@ -279,6 +303,16 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				label := fmt.Sprintf("%s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
 				if g.Unidentified {
 					label = fmt.Sprintf("Unidentified %s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", string(g.Slot), string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
+				}
+				var exists bool
+				_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE client_uid=$1 AND slot=$2)", uid, string(g.Slot)).Scan(&exists)
+				if !exists {
+					itemDataBytes, _ := json.Marshal(g)
+					if err := b.equipGear(b.DB, uid, g, g.MaxDurability, string(itemDataBytes)); err == nil {
+						labels = append(labels, "⬆️ Equipped: "+label)
+						legendaryPity++
+						continue
+					}
 				}
 				if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
 					legendaryPity++
