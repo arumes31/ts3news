@@ -377,7 +377,6 @@ type Title struct {
 	Lifesteal    int  // % of damage dealt healed
 	MultiStrike  int  // % chance to hit twice
 	DoubleLoot   bool // Chance to double all mob drops
-	Temporary    bool // Title expires after a fixed duration; its TS3 group should NOT show in the name tree
 }
 
 func (t Title) Score() int {
@@ -671,7 +670,6 @@ func buildContent() {
 				Name:         i18n.T("content.title.positive", p, n),
 				XPMultiplier: 3.0 + r.Float64()*7.0,
 				Stats:        Stats{HP: 500, STR: 200, DEF: 100, SPD: 100, LCK: 80, INT: 50, STA: 50, CHA: 1000},
-				Temporary:    true,
 			})
 		}
 	}
@@ -725,7 +723,6 @@ func buildContent() {
 				t.DoubleLoot = true
 				t.MultiStrike = 100
 			}
-			t.Temporary = true
 			positiveTitles = append(positiveTitles, t)
 		}
 	}
@@ -747,7 +744,6 @@ func buildContent() {
 				Name:         i18n.T("content.title.negative", p, n),
 				XPMultiplier: 0.01 + r.Float64()*0.1,
 				Stats:        Stats{HP: -300, STR: -150, DEF: -80, SPD: -80, LCK: -100, STN: 500, HGR: 100},
-				Temporary:    true,
 			})
 		}
 	}

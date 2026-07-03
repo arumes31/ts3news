@@ -373,7 +373,7 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) {
 		_, _ = b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1",
 			uid, g.ArtMult, g.ArtName, g.ArtDura)
 	case "title":
-		_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())",
+		_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='abyss' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())",
 			uid, g.TitleName, g.TitleMult)
 	case "ultimate":
 		b.grantAbyssUltimate(uid, g.UltID)
