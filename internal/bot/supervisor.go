@@ -296,13 +296,21 @@ func probeClientQuery(c *clientquery.Client, host string) {
 
 	// Upload a deterministic test payload and confirm it lands with non-zero size.
 	// If storedSize=0 the server accepted the transfer connection but discarded the
-	// bytes — a server-side/file-transfer problem, not a bug in this code.
+	// bytes — a server-side/file-transfer problem (e.g. full FT disk), not this code.
 	payload := make([]byte, 256)
 	for i := range payload {
 		payload[i] = byte(i)
 	}
 	id, uerr := c.UploadIcon(payload, host)
 	log.Printf("PROBE upload test payload (%d bytes) -> id=%d err=%v", len(payload), id, uerr)
+	after, _ := c.IconFileList()
+	stored := int64(-1)
+	for _, f := range after {
+		if f.ID == id {
+			stored = f.Size
+		}
+	}
+	log.Printf("PROBE upload result: id=%d storedSize=%d want=%d success=%v", id, stored, len(payload), stored == int64(len(payload)))
 }
 
 // clearPopups periodically sends Escape via xdotool to dismiss first-run dialogs.
