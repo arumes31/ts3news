@@ -362,11 +362,12 @@ type IconFile struct {
 // iconIDFromSigned normalises a signed icon value to the UNSIGNED form used by the
 // filebase icon file names. The i_icon_id permission and the negative-named files
 // left by the old signed-name bug carry the id as a signed int32, while the file
-// names use the unsigned CRC32. The int32->uint32 round-trip here is an intentional
-// bit-reinterpretation of the low 32 bits (not a lossy narrowing): it maps both the
-// signed and unsigned spellings of the same 32 bits onto the one unsigned id.
+// names use the unsigned CRC32. Masking off the low 32 bits maps both the signed and
+// unsigned spellings of the same 32 bits onto the one unsigned id — it is an explicit
+// bit-reinterpretation, not a lossy narrowing, and the mask bounds the value to the
+// uint32 range so the final conversion is provably in range (no unchecked truncation).
 func iconIDFromSigned(v int64) uint32 {
-	return uint32(int32(v))
+	return uint32(v & 0xFFFFFFFF)
 }
 
 // IconFileList returns every icon file in the server's icon filebase. TeamSpeak
