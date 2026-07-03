@@ -419,26 +419,8 @@ func (s *WebServer) handleEquipAPI(w http.ResponseWriter, r *http.Request, uid s
 		return
 	}
 
-	// Displace whatever is in the slot back into the inventory.
-	var oldGID string
-	var oldDur int
-	var oldItemData sql.NullString
-	switch err := tx.QueryRow("SELECT gear_id, durability, item_data FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(g.Slot)).Scan(&oldGID, &oldDur, &oldItemData); err {
-	case nil:
-		if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1, $2, $3, $4)", uid, oldGID, oldDur, oldItemData); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "displace"})
-			return
-		}
-	default:
-		// empty slot, nothing to displace
-	}
-
-	// Equip the new piece.
-	if _, err := tx.Exec(
-		`INSERT INTO user_gear (client_uid, slot, gear_id, durability, item_data) VALUES ($1, $2, $3, $4, $5)
-		 ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id=$3, durability=$4, item_data=$5`,
-		uid, string(g.Slot), g.ID, dur, itemData,
-	); err != nil {
+	// Equip the new piece (automatically displacing the old one if any)
+	if err := s.bot.equipGear(tx, uid, g, dur, itemData); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "equip"})
 		return
 	}

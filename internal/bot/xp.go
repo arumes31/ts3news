@@ -2497,7 +2497,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				// Drop a basic common gear
 				g := content.RandomStarterGear()
 				if b.shouldEquip(uid, g) {
-					_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
+					_ = b.equipGear(b.DB, uid, g, g.MaxDurability, nil)
 					results = append(results, i18n.T("bot.loot.found", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.String()))
 				} else {
 					b.autoListUnwantedItems(uid, g)
