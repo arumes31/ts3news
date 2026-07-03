@@ -106,7 +106,7 @@ func TestCommands(t *testing.T) {
 // UNSIGNED CRC32, not the signed int32 form. A high-CRC icon (id >= 2^31)
 // previously got a negative name.
 // Two distinct paths are expected:
-//   - IconExists (ftgetfileinfo) uses /icons/icon_<id>  (where server stores files)
+//   - IconExists lists the folder via ftgetfilelist path=/icons/ (no per-id name)
 //   - uploadIconOnce (ftinitupload) uses /icon_<id>     (upload initiation path)
 func TestIconWireNameUnsigned(t *testing.T) {
 	// Payload whose CRC32 lands in the high half (>= 2^31), so signed != unsigned.
@@ -122,9 +122,7 @@ func TestIconWireNameUnsigned(t *testing.T) {
 	if id == 0 {
 		t.Fatal("could not find a payload with a high-half CRC32")
 	}
-	// ftgetfileinfo must use /icons/icon_<id> (actual storage path).
-	wantExistsName := fmt.Sprintf("/icons/icon_%d", id)
-	// ftinitupload must use /icon_<id> (upload initiation path).
+	// ftinitupload must use /icon_<id> (upload initiation path), unsigned.
 	wantUploadName := fmt.Sprintf("/icon_%d", id)
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
@@ -144,7 +142,7 @@ func TestIconWireNameUnsigned(t *testing.T) {
 		scanner := bufio.NewScanner(conn)
 		for scanner.Scan() {
 			line := scanner.Text()
-			if strings.HasPrefix(line, "ftgetfileinfo") || strings.HasPrefix(line, "ftinitupload") {
+			if strings.HasPrefix(line, "ftgetfilelist") || strings.HasPrefix(line, "ftinitupload") {
 				lines <- line
 			}
 			// Report the icon as absent so UploadIcon proceeds to ftinitupload,
@@ -166,13 +164,11 @@ func TestIconWireNameUnsigned(t *testing.T) {
 	for !sawExists || !sawUpload {
 		select {
 		case line := <-lines:
-			if strings.HasPrefix(line, "ftgetfileinfo") {
-				// Must use the /icons/ subfolder path, unsigned.
-				if !strings.Contains(line, Escape(wantExistsName)) {
-					t.Errorf("ftgetfileinfo path wrong:\n got: %q\nwant substring: %q", line, Escape(wantExistsName))
-				}
-				if strings.Contains(line, "/icon_-") {
-					t.Errorf("ftgetfileinfo name is signed (negative): %q", line)
+			if strings.HasPrefix(line, "ftgetfilelist") {
+				// Existence is checked by listing the /icons/ folder, not per-id, so
+				// there is no signed/unsigned name concern on this path.
+				if !strings.Contains(line, "path=/icons/") {
+					t.Errorf("ftgetfilelist should list /icons/: %q", line)
 				}
 				sawExists = true
 			}
@@ -187,7 +183,7 @@ func TestIconWireNameUnsigned(t *testing.T) {
 				sawUpload = true
 			}
 		case <-deadline:
-			t.Fatalf("did not observe both ftgetfileinfo and ftinitupload (exists=%v upload=%v)", sawExists, sawUpload)
+			t.Fatalf("did not observe both ftgetfilelist and ftinitupload (exists=%v upload=%v)", sawExists, sawUpload)
 		}
 	}
 }
