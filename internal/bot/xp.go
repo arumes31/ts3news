@@ -2,6 +2,7 @@ package bot
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -2497,7 +2498,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				// Drop a basic common gear
 				g := content.RandomStarterGear()
 				if b.shouldEquip(uid, g) {
-					_, _ = b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) VALUES ($1, $2, $3, $4) ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`, uid, string(g.Slot), g.ID, g.MaxDurability)
+					_ = b.equipGear(b.DB, uid, g, g.MaxDurability, nil)
 					results = append(results, i18n.T("bot.loot.found", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.String()))
 				} else {
 					b.autoListUnwantedItems(uid, g)
@@ -2669,11 +2670,25 @@ func (b *Bot) applyEnchantment(uid string, ench content.Enchantment) (string, bo
 
 func (b *Bot) shouldEquip(uid string, newGear content.Gear) bool {
 	var currentID string
-	err := b.DB.QueryRow("SELECT gear_id FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(newGear.Slot)).Scan(&currentID)
+	var itemData sql.NullString
+	err := b.DB.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(newGear.Slot)).Scan(&currentID, &itemData)
 	if err == sql.ErrNoRows {
 		return true
 	}
-	if cur, ok := content.GetGearByID(currentID); ok {
+	var cur content.Gear
+	hasGear := false
+	if itemData.Valid && itemData.String != "" {
+		if err := json.Unmarshal([]byte(itemData.String), &cur); err == nil {
+			hasGear = true
+		}
+	}
+	if !hasGear {
+		if c, ok := content.GetGearByID(currentID); ok {
+			cur = c
+			hasGear = true
+		}
+	}
+	if hasGear {
 		// Prioritize XP Multiplier first for faster progression
 		if newGear.XPMultiplier > cur.XPMultiplier {
 			return true

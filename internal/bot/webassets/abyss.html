@@ -710,7 +710,7 @@ function consPickSelected(){ return consPickState.items.reduce(function(a,c){ret
 function consPickUpdate(){
   var sel=consPickSelected();
   document.getElementById('consPickSel').textContent=sel;
-  document.getElementById('consPickConfirm').disabled=(sel<1||sel>consPickState.max);
+  document.getElementById('consPickConfirm').disabled=(sel>consPickState.max);
 }
 function openConsumablePick(list, max, total){
   consPickState={max:max||3, items:(list||[]).map(function(c){return {id:c.id, name:c.name, count:c.count, take:0};})};
@@ -746,7 +746,6 @@ function closeConsumablePick(){ document.getElementById('consPickOverlay').style
 function confirmConsumablePick(){
   var sel={};
   consPickState.items.forEach(function(it){ if(it.take>0) sel[it.id]=it.take; });
-  if(Object.keys(sel).length===0){ abToast('Pick at least one consumable',false); return; }
   closeConsumablePick();
   abyssEnter(sel);
 }

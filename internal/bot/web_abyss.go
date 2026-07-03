@@ -319,9 +319,6 @@ func abyssBuildConsumableLoadout(picked map[string]int, owned []consumableOwned,
 		out[id] = cnt
 		sum += cnt
 	}
-	if sum < 1 {
-		return nil, "Pick at least one consumable to bring."
-	}
 	if sum > max {
 		return nil, fmt.Sprintf("You can bring at most %d (you picked %d).", max, sum)
 	}

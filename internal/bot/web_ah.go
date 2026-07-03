@@ -360,7 +360,9 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 		writeJSON(w, map[string]any{"ok": false, "error": "pay"})
 		return
 	}
+	var equippedMsg = ""
 	// Deliver gear into the buyer's inventory, preserving the listing's durability.
+	// Auto-equips if the gear is an upgrade, displacing the old item back into inventory.
 	if itemType == "gear" {
 		var g content.Gear
 		if err := json.Unmarshal(dataJSON, &g); err == nil {
@@ -368,9 +370,17 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 			if durability.Valid {
 				dur = int(durability.Int64)
 			}
-			if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1, $2, $3)", uid, g.ID, dur); err != nil {
-				writeJSON(w, map[string]any{"ok": false, "error": "deliver"})
-				return
+			if s.bot.shouldEquip(uid, g) {
+				if err := s.bot.equipGear(tx, uid, g, dur, dataJSON); err != nil {
+					writeJSON(w, map[string]any{"ok": false, "error": "equip"})
+					return
+				}
+				equippedMsg = " and equipped!"
+			} else {
+				if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1, $2, $3, $4)", uid, g.ID, dur, dataJSON); err != nil {
+					writeJSON(w, map[string]any{"ok": false, "error": "deliver"})
+					return
+				}
 			}
 		}
 	}
@@ -386,7 +396,7 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "bought": name, "gold": gold})
+	writeJSON(w, map[string]any{"ok": true, "bought": name + equippedMsg, "gold": gold})
 }
 
 // handleAHListAPI lists an inventory gear piece on the auction house.

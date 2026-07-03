@@ -15,7 +15,7 @@ import (
 const (
 	goldPerXP     = 10 // gold spent to gain 1 XP
 	xpPerGold     = 2  // XP spent to gain 1 gold (10 XP → 5 gold)
-	shopStockSize = 12
+	shopStockSize = 24
 )
 
 // gearPrice is the fair buy price of a gear piece, scaled by combat power and
@@ -273,13 +273,27 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 		return
 	}
-	if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability) VALUES ($1, $2, $3)", uid, g.ID, g.MaxDurability); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "inventory"})
-		return
+	var gold int64
+	var equippedMsg = ""
+	itemDataBytes, _ := json.Marshal(g)
+
+	if s.bot.shouldEquip(uid, g) {
+		// Displace and equip
+		if err := s.bot.equipGear(tx, uid, g, g.MaxDurability, string(itemDataBytes)); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "equip"})
+			return
+		}
+		equippedMsg = " and equipped!"
+	} else {
+		// Deliver to inventory
+		if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1, $2, $3, $4)", uid, g.ID, g.MaxDurability, string(itemDataBytes)); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "inventory"})
+			return
+		}
 	}
+
 	// Read the post-purchase balance inside the transaction to avoid a race with
 	// other concurrent operations between commit and a separate query.
-	var gold int64
 	if err := tx.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "gold"})
 		return
@@ -289,5 +303,5 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "bought": g.Name, "gold": gold})
+	writeJSON(w, map[string]any{"ok": true, "bought": g.Name + equippedMsg, "gold": gold})
 }

@@ -141,10 +141,7 @@ func (b *Bot) awardGearDrop(uid string, g content.Gear) GearDropResult {
 
 	if b.shouldEquip(uid, g) {
 		// Equip the item directly
-		_, err := b.DB.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability, item_data)
-		                     VALUES ($1, $2, $3, $4, $5)
-		                     ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = EXCLUDED.gear_id, durability = EXCLUDED.durability, item_data = EXCLUDED.item_data`,
-			uid, string(g.Slot), g.ID, g.MaxDurability, string(itemDataBytes))
+		err := b.equipGear(b.DB, uid, g, g.MaxDurability, string(itemDataBytes))
 		if err == nil {
 			return GearDropResult{
 				Action:   "equipped",
@@ -236,10 +233,7 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 					}
 
 					// 4. Equip item
-					_, err = tx.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability) 
-					                  VALUES ($1, $2, $3, $4) 
-					                  ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = $3, durability = $4`,
-						uid, string(g.Slot), g.ID, g.MaxDurability)
+					err = b.equipGear(tx, uid, g, g.MaxDurability, dataJSON)
 					if err != nil {
 						_ = tx.Rollback()
 						continue

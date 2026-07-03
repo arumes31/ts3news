@@ -960,3 +960,28 @@ func (b *Bot) BroadcastAbyssRecord(nick string, depth int) {
 	_ = c.SetNickname(oldNick)
 }
 
+type dbOrTx interface {
+	Exec(query string, args ...any) (sql.Result, error)
+	QueryRow(query string, args ...any) *sql.Row
+}
+
+// equipGear equips a gear piece, displacing any previously equipped item in that slot to inventory.
+func (b *Bot) equipGear(db dbOrTx, uid string, g content.Gear, dur int, itemData any) error {
+	// 1. Displace old gear to inventory
+	var oldGID string
+	var oldDur int
+	var oldItemData sql.NullString
+	err := db.QueryRow("SELECT gear_id, durability, item_data FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(g.Slot)).Scan(&oldGID, &oldDur, &oldItemData)
+	if err == nil {
+		// Move it to inventory
+		_, _ = db.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1, $2, $3, $4)", uid, oldGID, oldDur, oldItemData)
+	}
+
+	// 2. Equip the new item directly
+	_, err = db.Exec(`INSERT INTO user_gear (client_uid, slot, gear_id, durability, item_data)
+	                     VALUES ($1, $2, $3, $4, $5)
+	                     ON CONFLICT (client_uid, slot) DO UPDATE SET gear_id = EXCLUDED.gear_id, durability = EXCLUDED.durability, item_data = EXCLUDED.item_data`,
+		uid, string(g.Slot), g.ID, dur, itemData)
+	return err
+}
+

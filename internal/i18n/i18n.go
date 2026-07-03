@@ -318,6 +318,10 @@ func formatMsg(pattern string, args ...any) string {
 		}
 	}()
 
+	if len(args) == 0 {
+		return strings.ReplaceAll(pattern, "%%", "%")
+	}
+
 	// Check if the pattern has any positional float verbs that need pre-formatting
 	if !positionalFloatRe.MatchString(pattern) {
 		return fmt.Sprintf(pattern, args...)
