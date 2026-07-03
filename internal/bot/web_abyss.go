@@ -1788,11 +1788,14 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			return
 
 		case "reroll_lowest_skill", "reroll_highest_skill", "reroll_highest_skill_same_tier":
-			cost := int64(150)
-			if req.Action == "reroll_lowest_skill" {
+			var cost int64
+			switch req.Action {
+			case "reroll_lowest_skill":
 				cost = 100
-			} else if req.Action == "reroll_highest_skill_same_tier" {
+			case "reroll_highest_skill_same_tier":
 				cost = 200
+			default:
+				cost = 150
 			}
 			if gold < cost {
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
