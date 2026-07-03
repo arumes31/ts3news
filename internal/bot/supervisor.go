@@ -311,6 +311,19 @@ func probeClientQuery(c *clientquery.Client, host string) {
 		}
 	}
 	log.Printf("PROBE upload result: id=%d storedSize=%d want=%d success=%v", id, stored, len(payload), stored == int64(len(payload)))
+
+	// Verify the server accepts i_group_show_name_in_tree on a ranked group and read
+	// it back via servergrouppermlist (permsid form).
+	if groups, gerr := c.ServerGroupList(); gerr == nil {
+		for _, g := range groups {
+			if _, ok := levelFromGroupName(g.Name); ok {
+				perr := c.ServerGroupAddPerm(g.ID, "i_group_show_name_in_tree", 2)
+				lines, _ := c.Raw(fmt.Sprintf("servergrouppermlist sgid=%d -permsid", g.ID), 6*time.Second)
+				log.Printf("PROBE tree-perm on XP group %q (sgid %d) set err=%v; permlist=%q", g.Name, g.ID, perr, lines)
+				break
+			}
+		}
+	}
 }
 
 // clearPopups periodically sends Escape via xdotool to dismiss first-run dialogs.

@@ -62,6 +62,7 @@ func (b *Bot) getOrCreateTitleGroup(c *clientquery.Client, name string) (int, er
 	if err == nil {
 		for _, g := range groups {
 			if g.Name == name {
+				b.applyGroupTreePerm(c, g.ID, b.Cfg.TitleGroupShowNameInTree)
 				return g.ID, nil
 			}
 		}
@@ -72,12 +73,11 @@ func (b *Bot) getOrCreateTitleGroup(c *clientquery.Client, name string) (int, er
 		return 0, err
 	}
 
-	// Re-list to find ID and set prefix permission
+	// Re-list to find ID and show the title next to the member's name in the tree.
 	groups, _ = c.ServerGroupList()
 	for _, g := range groups {
 		if g.Name == name {
-			// Set i_group_show_name_mode = 1 (Prefix)
-			_ = c.ServerGroupAddPerm(g.ID, "i_group_show_name_mode", 1)
+			b.applyGroupTreePerm(c, g.ID, b.Cfg.TitleGroupShowNameInTree)
 			return g.ID, nil
 		}
 	}

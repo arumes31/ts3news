@@ -117,6 +117,7 @@ func (b *Bot) getOrCreateLevelGroup(c *clientquery.Client, level int) (int, erro
 				return b.finishGroup(c, level, sg.ID)
 			}
 			b.xpGroups[level] = sg.ID
+			b.applyGroupTreePerm(c, sg.ID, b.Cfg.XPGroupShowNameInTree)
 			return sg.ID, nil
 		}
 	}
@@ -171,10 +172,24 @@ func (b *Bot) finishGroup(c *clientquery.Client, level, sgid int) (int, error) {
 			log.Printf("xpgroups: icon %d set for group %q (sgid %d)", id, xpGroupName(level), sgid)
 		}
 	}
+	b.applyGroupTreePerm(c, sgid, b.Cfg.XPGroupShowNameInTree)
 	if err := b.dbSaveLevelGroup(level, sgid, iconID); err != nil {
 		log.Printf("xpgroups: caching level %d failed: %v", level, err)
 	}
 	return sgid, nil
+}
+
+// applyGroupTreePerm sets i_group_show_name_in_tree on a server group so the group
+// name is shown next to members' nicknames in the client tree (0=hidden, 1=before
+// nickname, 2=after nickname). A negative value leaves the permission untouched.
+// Setting the permission is idempotent, so this is safe to call on every pass.
+func (b *Bot) applyGroupTreePerm(c *clientquery.Client, sgid, value int) {
+	if value < 0 {
+		return
+	}
+	if err := c.ServerGroupAddPerm(sgid, "i_group_show_name_in_tree", value); err != nil {
+		log.Printf("groups: setting i_group_show_name_in_tree=%d for sgid %d failed: %v", value, sgid, err)
+	}
 }
 
 // applyLevelGroup moves a user into the server group for their current level,
