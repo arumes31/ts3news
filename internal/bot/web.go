@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -410,13 +411,19 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		Expires:  time.Now().Add(90 * 24 * time.Hour),
 	})
-	// Honor an optional post-login destination, but only same-origin relative paths
-	// (must start with a single "/") to avoid an open-redirect.
+	// Honor an optional post-login destination, but only same-origin relative paths.
 	dest := "/"
-	if next := r.URL.Query().Get("next"); strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") {
-		dest = next
+	if next := r.URL.Query().Get("next"); next != "" {
+		normalizedNext := strings.ReplaceAll(next, "\\", "/")
+		if u, err := url.Parse(normalizedNext); err == nil &&
+			u.Scheme == "" &&
+			u.Host == "" &&
+			strings.HasPrefix(u.Path, "/") &&
+			!strings.HasPrefix(u.Path, "//") {
+			dest = u.RequestURI()
+		}
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 -- dest is validated above to be a same-origin relative path only
+	http.Redirect(w, r, dest, http.StatusSeeOther)
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
