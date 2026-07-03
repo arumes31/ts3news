@@ -15,7 +15,8 @@ import (
 func (b *Bot) applyTitleGroup(c *clientquery.Client, clid int, uid, nickname string) {
 	var title sql.NullString
 	var expires sql.NullTime
-	err := b.DB.QueryRow("SELECT title, title_expires FROM users WHERE client_uid = $1", uid).Scan(&title, &expires)
+	var source string
+	err := b.DB.QueryRow("SELECT title, title_expires, title_source FROM users WHERE client_uid = $1", uid).Scan(&title, &expires, &source)
 	
 	activeTitle := ""
 	if err == nil && title.Valid && expires.Valid && !time.Now().After(expires.Time) {
@@ -30,7 +31,7 @@ func (b *Bot) applyTitleGroup(c *clientquery.Client, clid int, uid, nickname str
 	// 1. If user has an active title, ensure they are in its group.
 	var activeSgid int
 	if activeTitle != "" {
-		sgid, err := b.getOrCreateTitleGroup(c, activeTitle)
+		sgid, err := b.getOrCreateTitleGroup(c, activeTitle, source, expires)
 		if err == nil {
 			activeSgid = sgid
 			_ = c.AddServerGroup(sgid, cldbid) // ignore if already in
@@ -57,12 +58,19 @@ func (b *Bot) applyTitleGroup(c *clientquery.Client, clid int, uid, nickname str
 	}
 }
 
-func (b *Bot) getOrCreateTitleGroup(c *clientquery.Client, name string) (int, error) {
+func (b *Bot) getOrCreateTitleGroup(c *clientquery.Client, name string, source string, expires sql.NullTime) (int, error) {
+	// Only temporary titles (source == "xp" and expires is valid) should show in the tree
+	// beside the member's name. Abyss or permanent titles are ignored (treePerm = 0).
+	treePerm := b.Cfg.TitleGroupShowNameInTree
+	if source != "xp" || !expires.Valid {
+		treePerm = 0
+	}
+
 	groups, err := c.ServerGroupList()
 	if err == nil {
 		for _, g := range groups {
 			if g.Name == name {
-				b.applyGroupTreePerm(c, g.ID, b.Cfg.TitleGroupShowNameInTree)
+				b.applyGroupTreePerm(c, g.ID, treePerm)
 				return g.ID, nil
 			}
 		}
@@ -73,11 +81,11 @@ func (b *Bot) getOrCreateTitleGroup(c *clientquery.Client, name string) (int, er
 		return 0, err
 	}
 
-	// Re-list to find ID and show the title next to the member's name in the tree.
+	// Re-list to find ID and apply the tree-perm.
 	groups, _ = c.ServerGroupList()
 	for _, g := range groups {
 		if g.Name == name {
-			b.applyGroupTreePerm(c, g.ID, b.Cfg.TitleGroupShowNameInTree)
+			b.applyGroupTreePerm(c, g.ID, treePerm)
 			return g.ID, nil
 		}
 	}

@@ -2400,7 +2400,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			ultDropped = true
 		} else if r < titleChance*qualityMult*rareScale {
 			t := content.RandomTitle()
-			_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days' WHERE client_uid=$1", uid, t.Name, t.XPMultiplier)
+			_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='xp' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())", uid, t.Name, t.XPMultiplier)
 			results = append(results, i18n.T("bot.loot.title", t.Name, t.Name))
 			lootFound = true
 		} else if r < uniqueItemChance*qualityMult*rareScale {

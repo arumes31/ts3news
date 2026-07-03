@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -343,7 +344,7 @@ func (b *Bot) applyAbyssMilestones(c *clientquery.Client, clid int, uid, nicknam
 		if depth < m.Floor {
 			continue
 		}
-		sgid, err := b.getOrCreateTitleGroup(c, m.Name)
+		sgid, err := b.getOrCreateTitleGroup(c, m.Name, "abyss", sql.NullTime{})
 		if err != nil {
 			log.Printf("abyss milestone: failed to create title group %q for %s: %v", m.Name, nickname, err)
 			continue
