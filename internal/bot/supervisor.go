@@ -130,14 +130,14 @@ func (s *Supervisor) runCycleWithClient(shutdownCtx context.Context) error {
 
 	// Server-group "list" commands deliver their replies via notification events;
 	// subscribe before any server-group operations this cycle.
-	if s.bot.Cfg.XPServerGroups {
+	if s.bot.Cfg.XPServerGroups || s.bot.Cfg.CleanupIcons {
 		if err := c.RegisterServerGroupEvents(); err != nil {
 			log.Printf("Warning: registering server-group events failed: %v", err)
 		}
 	}
 
 	if os.Getenv("CQ_PROBE") == "1" {
-		probeClientQuery(c)
+		probeClientQuery(c, s.bot.Cfg.TS3Host)
 	}
 
 	// The poke cycle itself is intentionally NOT cancelled by shutdownCtx so an
@@ -274,20 +274,32 @@ func (s *Supervisor) randomInterval() time.Duration {
 	return time.Duration(hours) * time.Hour
 }
 
-// probeClientQuery issues a battery of raw ClientQuery commands and logs the full
-// replies, to diagnose how the server-group admin commands respond. Enabled with
-// CQ_PROBE=1.
-func probeClientQuery(c *clientquery.Client) {
-	cmds := []string{
-		"clientnotifyregister schandlerid=1 event=any",
-		"ftinitupload clientftfid=1 name=\\/icon_77777777 cid=0 cpw= size=120 overwrite=1 resume=0",
+// probeClientQuery exercises the file-transfer path end-to-end and logs the
+// results for diagnostics. It is enabled with CQ_PROBE=1 and performs three
+// operations in sequence:
+//
+//  1. Lists the icon filebase (ftgetfilelist cid=0 path=/icons/) and logs the
+//     raw reply lines so the caller can see which icons are currently stored.
+//  2. Drains any pending async notifications left over from the listing.
+//  3. Calls UploadIcon with a deterministic 256-byte test payload. This is a
+//     real write: if the upload succeeds the file persists in the server's icon
+//     filebase until the next cleanup cycle removes it as unreferenced.
+//
+// host is passed as the hostFallback for UploadIcon (used when the server
+// reports an empty transfer IP, i.e. Cfg.TS3Host).
+func probeClientQuery(c *clientquery.Client, host string) {
+	lines, err := c.Raw("ftgetfilelist cid=0 cpw= path=\\/icons\\/", 6*time.Second)
+	log.Printf("PROBE filelist -> err=%v lines=%d %q", err, len(lines), lines)
+	_ = c.DrainRaw(2 * time.Second)
+
+	// Upload a deterministic test payload to exercise the full transfer path (single
+	// write of key+data) and confirm it lands with non-zero size.
+	payload := make([]byte, 256)
+	for i := range payload {
+		payload[i] = byte(i)
 	}
-	for _, cmd := range cmds {
-		lines, err := c.Raw(cmd, 6*time.Second)
-		log.Printf("PROBE %q -> err=%v lines=%d %q", cmd, err, len(lines), lines)
-	}
-	// Drain any asynchronous notifications (e.g. the file-transfer key/port).
-	log.Printf("PROBE drain -> %q", c.DrainRaw(5*time.Second))
+	id, uerr := c.UploadIcon(payload, host)
+	log.Printf("PROBE upload test payload (%d bytes) -> id=%d err=%v", len(payload), id, uerr)
 }
 
 // clearPopups periodically sends Escape via xdotool to dismiss first-run dialogs.

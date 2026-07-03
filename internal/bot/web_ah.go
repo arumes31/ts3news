@@ -3,12 +3,29 @@ package bot
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"ts3news/internal/content"
 )
+
+// isAuctionUpgrade reports whether the gear item itemID is an upgrade over what the
+// viewer currently has equipped in that gear's slot. An empty slot always counts as
+// an upgrade; a non-gear or unknown item never does. Shared by the listing and count
+// paths so the upgrades-only filter and its total stay in sync.
+func isAuctionUpgrade(itemID string, equippedGear map[string]content.Gear) bool {
+	cg, ok := content.GetGearByID(itemID)
+	if !ok {
+		return false
+	}
+	curr, ok := equippedGear[string(cg.Slot)]
+	if !ok {
+		return true
+	}
+	return cg.CombatRating() > curr.CombatRating() && cg.Stats.Score() > curr.Stats.Score()
+}
 
 type ahListingView struct {
 	ID        string
@@ -63,6 +80,7 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 	}
 
 	searchQuery := r.URL.Query().Get("q")
+	upgradesOnly := r.URL.Query().Get("upgrades") == "1"
 	pageStr := r.URL.Query().Get("page")
 	page := 1
 	if pageStr != "" {
@@ -88,51 +106,55 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 		}
 	}
 
-	activeListings := s.bot.ahActiveListings(uid, equippedGear, searchQuery, limit, offset)
-	totalCount := s.bot.ahActiveListingsCount(searchQuery)
+	activeListings := s.bot.ahActiveListings(uid, equippedGear, searchQuery, upgradesOnly, limit, offset)
+	totalCount := s.bot.ahActiveListingsCount(searchQuery, equippedGear, upgradesOnly)
 	totalPages := (totalCount + limit - 1) / limit
 	if totalPages < 1 {
 		totalPages = 1
 	}
 
 	s.render(w, "ah", map[string]any{
-		"Title":       "Auction House",
-		"Nav":         "ah",
-		"U":           u,
-		"Active":      activeListings,
-		"Mine":        s.bot.ahMyListings(uid),
-		"History":     s.bot.ahHistory(uid, 20),
-		"Sellable":    s.bot.inventoryItems(uid),
-		"SearchQuery": searchQuery,
-		"CurrentPage": page,
-		"TotalPages":  totalPages,
-		"TotalCount":  totalCount,
-		"PrevPage":    page - 1,
-		"NextPage":    page + 1,
+		"Title":        "Auction House",
+		"Nav":          "ah",
+		"U":            u,
+		"Active":       activeListings,
+		"Mine":         s.bot.ahMyListings(uid),
+		"History":      s.bot.ahHistory(uid, 20),
+		"Sellable":     s.bot.inventoryItems(uid),
+		"SearchQuery":  searchQuery,
+		"UpgradesOnly": upgradesOnly,
+		"CurrentPage":  page,
+		"TotalPages":   totalPages,
+		"TotalCount":   totalCount,
+		"PrevPage":     page - 1,
+		"NextPage":     page + 1,
 	})
 }
 
-func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear, search string, limit, offset int) []ahListingView {
-	var rows *sql.Rows
-	var err error
+func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear, search string, upgradesOnly bool, limit, offset int) []ahListingView {
+	query := `
+		SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
+		FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
+		WHERE a.sold_at IS NULL AND a.expires_at > NOW()`
+	var args []any
 	if search != "" {
-		rows, err = b.DB.Query(`
-			SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
-			FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
-			WHERE a.sold_at IS NULL AND a.expires_at > NOW() AND a.item_name ILIKE $1
-			ORDER BY a.price ASC LIMIT $2 OFFSET $3`, "%"+search+"%", limit, offset)
-	} else {
-		rows, err = b.DB.Query(`
-			SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
-			FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
-			WHERE a.sold_at IS NULL AND a.expires_at > NOW()
-			ORDER BY a.price ASC LIMIT $1 OFFSET $2`, limit, offset)
+		query += ` AND a.item_name ILIKE $1`
+		args = append(args, "%"+search+"%")
 	}
+	query += ` ORDER BY a.price ASC`
+	// upgradesOnly filters in Go after fetching, so it must scan the full result set
+	// (like ahActiveListingsCount) and paginate the filtered slice — a SQL LIMIT here
+	// would make deep pages come up empty even though the count reports more results.
+	if !upgradesOnly {
+		query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)+1, len(args)+2)
+		args = append(args, limit, offset)
+	}
+	rows, err := b.DB.Query(query, args...)
 	if err != nil {
 		return nil
 	}
 	defer func() { _ = rows.Close() }()
-	var out []ahListingView
+	var all []ahListingView
 	for rows.Next() {
 		var v ahListingView
 		var t time.Time
@@ -144,23 +166,63 @@ func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear,
 		v.Listed = t.Format("Jan 02")
 		v.Mine = seller == uid
 
-		// Determine if upgrade
 		if v.ItemType == "gear" {
-			if cg, ok := content.GetGearByID(v.ItemID); ok {
-				if curr, ok := equippedGear[string(cg.Slot)]; !ok {
-					v.IsUpgrade = true
-				} else if cg.CombatRating() > curr.CombatRating() && cg.Stats.Score() > curr.Stats.Score() {
-					v.IsUpgrade = true
-				}
-			}
+			v.IsUpgrade = isAuctionUpgrade(v.ItemID, equippedGear)
 		}
 
-		out = append(out, v)
+		if upgradesOnly && !v.IsUpgrade {
+			continue
+		}
+		all = append(all, v)
 	}
-	return out
+	if upgradesOnly {
+		// Apply manual pagination over the filtered results
+		start := offset
+		if start > len(all) {
+			return nil
+		}
+		end := start + limit
+		if end > len(all) {
+			end = len(all)
+		}
+		return all[start:end]
+	}
+	return all
 }
 
-func (b *Bot) ahActiveListingsCount(search string) int {
+func (b *Bot) ahActiveListingsCount(search string, equippedGear map[string]content.Gear, upgradesOnly bool) int {
+	if upgradesOnly {
+		// For upgrades-only count we must enumerate and filter
+		var rows *sql.Rows
+		var err error
+		if search != "" {
+			rows, err = b.DB.Query(`
+				SELECT a.item_type, a.item_id
+				FROM auction_house a
+				WHERE a.sold_at IS NULL AND a.expires_at > NOW() AND a.item_name ILIKE $1`, "%"+search+"%")
+		} else {
+			rows, err = b.DB.Query(`
+				SELECT item_type, item_id
+				FROM auction_house
+				WHERE sold_at IS NULL AND expires_at > NOW()`)
+		}
+		if err != nil {
+			return 0
+		}
+		defer func() { _ = rows.Close() }()
+		count := 0
+		for rows.Next() {
+			var itemType, itemID string
+			if err := rows.Scan(&itemType, &itemID); err != nil {
+				continue
+			}
+			if itemType == "gear" && isAuctionUpgrade(itemID, equippedGear) {
+				count++
+			}
+		}
+		return count
+	}
+	// Normal count
 	var count int
 	var err error
 	if search != "" {

@@ -102,6 +102,96 @@ func TestCommands(t *testing.T) {
 	_ = client.Disconnect()
 }
 
+// TestIconWireNameUnsigned verifies that icon file names on the wire use the
+// UNSIGNED CRC32, not the signed int32 form. A high-CRC icon (id >= 2^31)
+// previously got a negative name.
+// Two distinct paths are expected:
+//   - IconExists (ftgetfileinfo) uses /icons/icon_<id>  (where server stores files)
+//   - uploadIconOnce (ftinitupload) uses /icon_<id>     (upload initiation path)
+func TestIconWireNameUnsigned(t *testing.T) {
+	// Payload whose CRC32 lands in the high half (>= 2^31), so signed != unsigned.
+	var data []byte
+	var id uint32
+	for i := 0; i < 4096; i++ {
+		data = []byte(fmt.Sprintf("iconpayload-%d", i))
+		if IconID(data) >= 1<<31 {
+			id = IconID(data)
+			break
+		}
+	}
+	if id == 0 {
+		t.Fatal("could not find a payload with a high-half CRC32")
+	}
+	// ftgetfileinfo must use /icons/icon_<id> (actual storage path).
+	wantExistsName := fmt.Sprintf("/icons/icon_%d", id)
+	// ftinitupload must use /icon_<id> (upload initiation path).
+	wantUploadName := fmt.Sprintf("/icon_%d", id)
+
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to listen: %v", err)
+	}
+	defer func() { _ = l.Close() }()
+
+	lines := make(chan string, 8)
+	go func() {
+		conn, err := l.Accept()
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		_, _ = fmt.Fprint(conn, "error id=0 msg=ok\n") // greeting drain
+		scanner := bufio.NewScanner(conn)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "ftgetfileinfo") || strings.HasPrefix(line, "ftinitupload") {
+				lines <- line
+			}
+			// Report the icon as absent so UploadIcon proceeds to ftinitupload,
+			// then let it fail fast (no notifystartupload) — we only assert names.
+			_, _ = fmt.Fprint(conn, "error id=1 msg=fail\n")
+		}
+	}()
+
+	client, err := Dial(l.Addr().String(), 1*time.Second)
+	if err != nil {
+		t.Fatalf("failed to dial: %v", err)
+	}
+	defer func() { _ = client.Close() }()
+
+	go func() { _, _ = client.UploadIcon(data, "localhost") }()
+
+	deadline := time.After(3 * time.Second)
+	sawExists, sawUpload := false, false
+	for !sawExists || !sawUpload {
+		select {
+		case line := <-lines:
+			if strings.HasPrefix(line, "ftgetfileinfo") {
+				// Must use the /icons/ subfolder path, unsigned.
+				if !strings.Contains(line, Escape(wantExistsName)) {
+					t.Errorf("ftgetfileinfo path wrong:\n got: %q\nwant substring: %q", line, Escape(wantExistsName))
+				}
+				if strings.Contains(line, "/icon_-") {
+					t.Errorf("ftgetfileinfo name is signed (negative): %q", line)
+				}
+				sawExists = true
+			}
+			if strings.HasPrefix(line, "ftinitupload") {
+				// Must use the root upload path, unsigned.
+				if !strings.Contains(line, Escape(wantUploadName)) {
+					t.Errorf("ftinitupload path wrong:\n got: %q\nwant substring: %q", line, Escape(wantUploadName))
+				}
+				if strings.Contains(line, "/icon_-") {
+					t.Errorf("ftinitupload name is signed (negative): %q", line)
+				}
+				sawUpload = true
+			}
+		case <-deadline:
+			t.Fatalf("did not observe both ftgetfileinfo and ftinitupload (exists=%v upload=%v)", sawExists, sawUpload)
+		}
+	}
+}
+
 // TestSetChannelNameWire verifies the exact command line sent to TeamSpeak when
 // renaming a channel, including ServerQuery escaping of spaces in the new name.
 func TestSetChannelNameWire(t *testing.T) {

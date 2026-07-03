@@ -1921,11 +1921,12 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) []string {
 			}
 
 			// Only repair if there's actually broken gear
+			b.ensureGearMaxDurability(uid)
 			var brokenCount int
-			_ = b.DB.QueryRow("SELECT COUNT(*) FROM user_gear WHERE client_uid = $1 AND durability < max_durability", uid).Scan(&brokenCount)
+			_ = b.DB.QueryRow("SELECT COUNT(*) FROM user_gear WHERE client_uid = $1 AND durability < "+gearMaxDurExpr, uid).Scan(&brokenCount)
 			if brokenCount > 0 {
 				// Apply repair to all damaged gear (spread evenly)
-				_, _ = b.DB.Exec("UPDATE user_gear SET durability = LEAST(durability + $2, max_durability) WHERE client_uid = $1 AND durability < max_durability", uid, repairAmt/brokenCount)
+				_, _ = b.DB.Exec("UPDATE user_gear SET durability = LEAST(durability + $2, "+gearMaxDurExpr+") WHERE client_uid = $1 AND durability < "+gearMaxDurExpr, uid, repairAmt/brokenCount)
 				// Also repair artifact
 				_, _ = b.DB.Exec("UPDATE users SET artifact_durability = LEAST(artifact_durability + 15, 30) WHERE client_uid = $1 AND artifact_durability > 0 AND artifact_durability < 30", uid)
 				// Consume one repair kit

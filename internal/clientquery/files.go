@@ -1,6 +1,7 @@
 package clientquery
 
 import (
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -39,7 +40,7 @@ func firstKV(data []string) map[string]string {
 // servergroupclientlist results via these notifications, so without registering
 // first those commands never return (i/o timeout).
 func (c *Client) RegisterServerGroupEvents() error {
-	for _, ev := range []string{"notifyservergrouplist", "notifyservergroupclientlist", "notifystartupload"} {
+	for _, ev := range []string{"notifyservergrouplist", "notifyservergroupclientlist", "notifychannelgrouplist", "notifystartupload", "notifyfilelist"} {
 		if _, err := c.Command("clientnotifyregister schandlerid=1 event=" + ev); err != nil {
 			return err
 		}
@@ -146,8 +147,20 @@ func IconID(data []byte) uint32 {
 // before a group is pointed at it, so a lost upload can't leave a dangling
 // i_icon_id (which the client renders as "icon … not found"). ftgetfileinfo
 // returns the file's size when present; any error or missing size means absent.
+//
+// IMPORTANT: ftinitupload accepts name=/icon_<id> (root) but the server actually
+// stores icons under /icons/icon_<id> (the icons subfolder of channel 0). The
+// existence check must use the subfolder path, otherwise it queries a file that
+// was never stored there and always returns false even after a successful upload.
+//
+// The filebase names icons by the UNSIGNED CRC32 (/icons/icon_<uint32>), even
+// though the i_icon_id permission stores the same 32 bits as a SIGNED int32. Only
+// the permission value is signed — the file name must stay unsigned or high-CRC
+// icons (id >= 2^31) are looked up under a negative name the server never stored.
 func (c *Client) IconExists(id uint32) bool {
-	name := fmt.Sprintf("/icon_%d", int32(id))
+	// Icons land under /icons/ after upload; querying the root /icon_<id> path
+	// always returns "not found" even for icons that are present.
+	name := fmt.Sprintf("/icons/icon_%d", id)
 	data, err := c.Command(fmt.Sprintf("ftgetfileinfo cid=0 cpw= name=%s", Escape(name)))
 	if err != nil {
 		return false
@@ -202,6 +215,23 @@ func (c *Client) UploadIcon(data []byte, hostFallback string) (uint32, error) {
 			lastErr = fmt.Errorf("icon %d: transfer reported success but file not on server", id)
 		}
 	}
+	// Diagnostic: show what the filebase actually holds so we can tell "nothing
+	// landed" (transfer rejected) from "landed under an unexpected name".
+	if files, ferr := c.IconFileList(); ferr == nil {
+		present := false
+		names := make([]string, 0, 8)
+		for _, f := range files {
+			if f.ID == id {
+				present = true
+			}
+			if len(names) < 8 {
+				names = append(names, f.Name)
+			}
+		}
+		log.Printf("icon %d: filebase has %d icon(s), thisPresent=%v, sample=%v", id, len(files), present, names)
+	} else {
+		log.Printf("icon %d: filebase list after failed upload errored: %v", id, ferr)
+	}
 	return 0, lastErr
 }
 
@@ -210,7 +240,7 @@ func (c *Client) UploadIcon(data []byte, hostFallback string) (uint32, error) {
 // what the transfer replies said (the handshake is asynchronous and can be lost).
 func (c *Client) uploadIconOnce(data []byte, hostFallback string) (uint32, error) {
 	id := IconID(data)
-	name := fmt.Sprintf("/icon_%d", int32(id))
+	name := fmt.Sprintf("/icon_%d", id)
 
 	// The ftinitupload command reply is empty (error id=0). The transfer key/port
 	// are delivered asynchronously via a notifystartupload event, so read that.
@@ -223,9 +253,13 @@ func (c *Client) uploadIconOnce(data []byte, hostFallback string) (uint32, error
 		return 0, err
 	}
 
-	// Short timeout: a present notify arrives near-instantly on the local link, and a
-	// lost one never comes — UploadIcon retries rather than blocking the cycle here.
-	kv, ok := c.ReadNotify("notifystartupload", 2*time.Second)
+	// The notify arrives near-instantly on a direct local link, but can take
+	// several seconds when the ClientQuery is running inside a Docker container
+	// relaying through the TS3 client to a remote server. 5 s is long enough for
+	// the relay round-trip while still bounding each attempt tightly enough that
+	// a lost handshake (which never arrives) doesn't stall the cycle for long.
+	// UploadIcon retries on timeout rather than blocking indefinitely here.
+	kv, ok := c.ReadNotify("notifystartupload", 5*time.Second)
 	if !ok {
 		return 0, fmt.Errorf("icon %d: upload handshake missing", id)
 	}
@@ -241,45 +275,219 @@ func (c *Client) uploadIconOnce(data []byte, hostFallback string) (uint32, error
 	}
 	host := strings.Trim(kv["ip"], ", ")
 	if host == "" || host == "0.0.0.0" {
+		// An empty transfer IP means "use the server you're connected to". The client
+		// relays the upload to the voice server's file-transfer port, so fall back to
+		// the configured TS3 host (config.env TS3_HOST); nothing listens locally.
 		host = hostFallback
 	}
+	log.Printf("icon: ft handshake %d: status=%q ftkey.len=%d port=%s ip=%q seekpos=%q proto=%q host=%s",
+		id, kv["status"], len(key), port, kv["ip"], kv["seekpos"], kv["proto"], host)
 
-	if err := rawUpload(net.JoinHostPort(host, port), key, data); err != nil {
+	echoed, err := rawUpload(net.JoinHostPort(host, port), key, data)
+	if err != nil {
 		return 0, fmt.Errorf("icon file transfer: %w", err)
 	}
-	log.Printf("icon: uploaded %d (%d bytes) to %s:%s", id, len(data), host, port)
+	log.Printf("icon: uploaded %d (%d bytes, server echoed %d) to %s:%s", id, len(data), echoed, host, port)
 	return id, nil
 }
 
 // rawUpload performs the TeamSpeak file-transfer handshake: connect, send the
-// transfer key, then stream the payload.
-func rawUpload(addr, key string, data []byte) error {
+// transfer key, then stream the payload. It returns the number of bytes the server
+// sent back (normally 0 for an upload) so the caller can distinguish a plain close.
+func rawUpload(addr, key string, data []byte) (int64, error) {
 	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer func() { _ = conn.Close() }()
 	_ = conn.SetDeadline(time.Now().Add(15 * time.Second))
 
-	if _, err := conn.Write([]byte(key)); err != nil {
-		return err
+	// Send the transfer key immediately followed by the payload in a SINGLE write.
+	// TeamSpeak's file-transfer server reads the key to bind the connection to the
+	// pending upload, then reads `size` bytes. Writing the key and data separately
+	// leaves a gap in which the server can accept the key and close before the data
+	// segment arrives, storing a 0-byte file (a broken icon that reports success).
+	if _, err := conn.Write(append([]byte(key), data...)); err != nil {
+		return 0, err
 	}
-	if _, err := conn.Write(data); err != nil {
-		return err
+	// Wait for the server to finish storing the file before tearing the socket down.
+	// The server closes its side once it has received all `size` bytes, so block on a
+	// read until that EOF. Do NOT half-close (CloseWrite) our side first: the TS3
+	// file-transfer server treats an early FIN as an aborted upload and finalises a
+	// 0-byte file — reproduced live, where every upload landed a 0-byte icon. Reading
+	// to EOF both confirms delivery and keeps the socket fully open until the server
+	// is done.
+	n, err := io.Copy(io.Discard, conn)
+	if err != nil {
+		return n, err
 	}
-	// Wait for the server to actually consume the payload before tearing the socket
-	// down. conn.Write only means "buffered locally", not "received": closing right
-	// after it can truncate the transfer, leaving the icon file unstored while the
-	// group still carries the i_icon_id — which clients render as a broken icon.
-	// Half-close our write side so the server sees end-of-data, then drain until it
-	// closes its side (it does that once the file is stored).
-	if tcp, ok := conn.(*net.TCPConn); ok {
-		if err := tcp.CloseWrite(); err != nil {
-			return err
+	return n, nil
+}
+
+// errEmptyResultSet is TeamSpeak's "database empty result set" error id, returned
+// by list commands (ftgetfilelist, channelgrouplist, …) when there is simply
+// nothing to list. For icon cleanup that is a normal, non-fatal outcome.
+const errEmptyResultSet = 1281
+
+// isEmptyResult reports whether err is the benign "empty result set" reply.
+func isEmptyResult(err error) bool {
+	var ce *CommandError
+	return errors.As(err, &ce) && ce.ID == errEmptyResultSet
+}
+
+// eachRecord splits a set of reply lines into individual "|"-separated records and
+// calls fn with each record's parsed (unescaped) key=value fields.
+func eachRecord(data []string, fn func(map[string]string)) {
+	for _, line := range data {
+		for _, rec := range strings.Split(line, "|") {
+			m := map[string]string{}
+			for _, f := range strings.Fields(rec) {
+				if k, v, ok := strings.Cut(f, "="); ok {
+					m[k] = Unescape(v)
+				}
+			}
+			if len(m) > 0 {
+				fn(m)
+			}
 		}
 	}
-	if _, err := io.Copy(io.Discard, conn); err != nil {
-		return err
+}
+
+// IconFile is one icon file present in the server's icon filebase.
+type IconFile struct {
+	Name string // filebase name, e.g. "icon_2168812048"
+	ID   uint32 // the unsigned icon id parsed from the name
+}
+
+// iconIDFromSigned normalises a signed icon value to the UNSIGNED form used by the
+// filebase icon file names. The i_icon_id permission and the negative-named files
+// left by the old signed-name bug carry the id as a signed int32, while the file
+// names use the unsigned CRC32. Masking off the low 32 bits maps both the signed and
+// unsigned spellings of the same 32 bits onto the one unsigned id — it is an explicit
+// bit-reinterpretation, not a lossy narrowing, and the mask bounds the value to the
+// uint32 range so the final conversion is provably in range (no unchecked truncation).
+func iconIDFromSigned(v int64) uint32 {
+	return uint32(v & 0xFFFFFFFF)
+}
+
+// IconFileList returns every icon file in the server's icon filebase. TeamSpeak
+// stores icons in the "/icons/" subfolder of channel 0 (the root only holds avatars
+// and the icons folder itself), so that is the path listed here. Names are parsed
+// leniently: both the correct unsigned form ("icon_2168812048") and the negative
+// form left by the old signed-name bug ("icon_-2126155248") map to the same unsigned
+// id, so historical broken uploads are still matched and cleaned.
+func (c *Client) IconFileList() ([]IconFile, error) {
+	data, err := c.Command("ftgetfilelist cid=0 cpw= path=/icons/")
+	if err != nil {
+		if isEmptyResult(err) {
+			return nil, nil // no files stored yet
+		}
+		return nil, err
 	}
-	return nil
+	var out []IconFile
+	eachRecord(data, func(m map[string]string) {
+		name, ok := m["name"]
+		if !ok || !strings.HasPrefix(name, "icon_") {
+			return
+		}
+		n, perr := strconv.ParseInt(strings.TrimPrefix(name, "icon_"), 10, 64)
+		if perr != nil {
+			return
+		}
+		out = append(out, IconFile{Name: name, ID: iconIDFromSigned(n)})
+	})
+	return out, nil
+}
+
+// DeleteFile removes a file from the icon filebase (channel 0) by its name
+// (e.g. "icon_2168812048"). A missing file is treated as success.
+func (c *Client) DeleteFile(name string) error {
+	_, err := c.Command("ftdeletefile cid=0 cpw= name=" + Escape("/"+name))
+	if err != nil && isEmptyResult(err) {
+		return nil
+	}
+	return err
+}
+
+// ReferencedIconIDs collects every icon id currently in use anywhere on the server,
+// as the UNSIGNED filebase id: server groups, channel groups, channels and the
+// virtual server itself. It is the "keep" set for icon garbage collection.
+//
+// Any query failure (other than an empty result set) is returned as an error so the
+// caller can skip deletion entirely — deleting with an incomplete reference set
+// risks removing an icon that is actually still in use.
+func (c *Client) ReferencedIconIDs() (map[uint32]struct{}, error) {
+	refs := map[uint32]struct{}{}
+	add := func(v int) {
+		// The i_icon_id permission stores the id as a signed int32; the filebase names
+		// it unsigned. Normalise to the unsigned form used by the file names.
+		if u := iconIDFromSigned(int64(v)); u != 0 {
+			refs[u] = struct{}{}
+		}
+	}
+
+	sgs, err := c.ServerGroupList()
+	if err != nil {
+		return nil, fmt.Errorf("servergrouplist: %w", err)
+	}
+	for _, g := range sgs {
+		add(g.IconID)
+	}
+
+	for _, spec := range []struct{ cmd, key string }{
+		{"channelgrouplist", "iconid"},
+		{"channellist -icon", "channel_icon_id"},
+	} {
+		ids, err := c.recordIconIDs(spec.cmd, spec.key)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", firstWord(spec.cmd), err)
+		}
+		for _, v := range ids {
+			add(v)
+		}
+	}
+
+	sv, err := c.serverIconID()
+	if err != nil {
+		return nil, fmt.Errorf("serverinfo: %w", err)
+	}
+	add(sv)
+
+	return refs, nil
+}
+
+// recordIconIDs runs a list command and extracts the integer icon id under key from
+// every record. An empty result set yields no ids (not an error).
+func (c *Client) recordIconIDs(cmd, key string) ([]int, error) {
+	data, err := c.Command(cmd)
+	if err != nil {
+		if isEmptyResult(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var out []int
+	eachRecord(data, func(m map[string]string) {
+		if v, ok := m[key]; ok {
+			if n, perr := strconv.Atoi(v); perr == nil {
+				out = append(out, n)
+			}
+		}
+	})
+	return out, nil
+}
+
+// serverIconID returns the virtual server's own icon id (0 if none). A missing key
+// is treated as "no icon"; only a command error is propagated. ClientQuery has no
+// "serverinfo" command, so the value is read from the cached server variable.
+func (c *Client) serverIconID() (int, error) {
+	data, err := c.Command("servervariable virtualserver_icon_id")
+	if err != nil {
+		return 0, err
+	}
+	if v, ok := firstKV(data)["virtualserver_icon_id"]; ok {
+		n, _ := strconv.Atoi(v)
+		return n, nil
+	}
+	return 0, nil
 }

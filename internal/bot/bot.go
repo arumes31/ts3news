@@ -102,6 +102,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 	if b.Cfg.XPServerGroups {
 		b.cleanupEmptyLevelGroups(c)
 	}
+	b.cleanupUnusedIcons(c)
 
 	// Group normal users by channel
 	chanUsers := map[int][]UserInCombat{}
