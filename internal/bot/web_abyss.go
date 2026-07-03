@@ -1787,20 +1787,81 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			writeJSON(w, map[string]any{"ok": true, "msg": "All gear fully repaired!", "gold": gold - cost})
 			return
 
-		case "reroll_skills":
+		case "reroll_lowest_skill", "reroll_highest_skill", "reroll_highest_skill_same_tier":
 			cost := int64(150)
+			if req.Action == "reroll_lowest_skill" {
+				cost = 100
+			} else if req.Action == "reroll_highest_skill_same_tier" {
+				cost = 200
+			}
 			if gold < cost {
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
 			}
-			// Debit + delete + re-roll in one transaction so a failure can't leave the
-			// player charged with their skills deleted but not replaced.
+
 			tx, err := s.bot.DB.Begin()
 			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
 			defer func() { _ = tx.Rollback() }()
+
+			// Load player's active skills to select target
+			rows, err := tx.Query("SELECT slot, skill_id FROM user_skills WHERE client_uid = $1", uid)
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			type activeSkill struct {
+				slot   int
+				id     string
+				score  int
+				rarity content.Rarity
+			}
+			var active []activeSkill
+			for rows.Next() {
+				var slot int
+				var skID string
+				if err := rows.Scan(&slot, &skID); err == nil {
+					if sk, ok := content.GetSkillByID(skID); ok {
+						score := int(sk.Rarity)*10000 + sk.Score()
+						active = append(active, activeSkill{slot: slot, id: skID, score: score, rarity: sk.Rarity})
+					}
+				}
+			}
+			_ = rows.Close()
+
+			if len(active) == 0 {
+				writeJSON(w, map[string]any{"ok": false, "error": "you have no active skills to re-roll"})
+				return
+			}
+
+			// Find target skill
+			target := active[0]
+			if req.Action == "reroll_lowest_skill" {
+				for _, sk := range active {
+					if sk.score < target.score {
+						target = sk
+					}
+				}
+			} else {
+				// reroll_highest_skill or reroll_highest_skill_same_tier
+				for _, sk := range active {
+					if sk.score > target.score {
+						target = sk
+					}
+				}
+			}
+
+			// Roll new skill
+			var newSk content.Skill
+			if req.Action == "reroll_highest_skill_same_tier" {
+				newSk = content.RandomSkillOfRarity(target.rarity)
+			} else {
+				newSk = content.RandomSkill()
+			}
+
+			// Charge gold
 			res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", cost, uid)
 			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -1810,22 +1871,18 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
 			}
-			if _, err := tx.Exec("DELETE FROM user_skills WHERE client_uid = $1", uid); err != nil {
+
+			// Replace the single target skill
+			if _, err := tx.Exec("UPDATE user_skills SET skill_id = $1 WHERE client_uid = $2 AND slot = $3", newSk.ID, uid, target.slot); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			for i := 1; i <= 5; i++ {
-				sk := content.RandomSkill()
-				if _, err := tx.Exec("INSERT INTO user_skills (client_uid, slot, skill_id) VALUES ($1, $2, $3)", uid, i, sk.ID); err != nil {
-					writeJSON(w, map[string]any{"ok": false, "error": "db"})
-					return
-				}
-			}
+
 			if err := tx.Commit(); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			writeJSON(w, map[string]any{"ok": true, "msg": "Skills re-rolled!", "gold": gold - cost})
+			writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Skill in slot %d re-rolled to %s!", target.slot, newSk.Name), "gold": gold - cost})
 			return
 		}
 	case "event":

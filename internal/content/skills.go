@@ -163,6 +163,25 @@ func RandomSkill() Skill {
 	return s
 }
 
+func RandomSkillOfRarity(rarity Rarity) Skill {
+	initSkills()
+	var pool []Skill
+	for _, s := range allSkills {
+		if s.Rarity == rarity {
+			pool = append(pool, s)
+		}
+	}
+	if len(pool) == 0 {
+		return RandomSkill()
+	}
+	// #nosec G404
+	s := pool[rand.IntN(len(pool))] // #nosec G404
+	if s.Special == EffectNone {
+		s.Special = RandomItemEffect()
+	}
+	return s
+}
+
 func GetSkillByID(id string) (Skill, bool) {
 	initSkills()
 	for _, s := range allSkills {
