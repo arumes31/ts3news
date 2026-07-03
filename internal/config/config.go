@@ -51,6 +51,12 @@ type Config struct {
 	XPServerGroups    bool   // auto-create one server group per level tier, with a generated icon
 	EnableXPModifiers bool   // streaks, crits, loot boxes, login bonus, parties, server mult, decay, artifacts
 
+	// i_group_show_name_in_tree for the auto-created XP groups: 0=hidden, 1=before
+	// nickname, 2=after nickname. A negative value leaves the permission untouched.
+	XPGroupShowNameInTree int
+	// i_group_show_name_in_tree for the auto-created title groups (same encoding).
+	TitleGroupShowNameInTree int
+
 	// Icon housekeeping
 	CleanupIcons       bool // each cycle, delete filebase icons no longer referenced by any group/channel/server
 	CleanupIconsDryRun bool // log what CleanupIcons would delete without deleting (live-test aid)
@@ -124,6 +130,9 @@ func LoadConfig() *Config {
 		CheaperMoreXP:        envBool("CHEAPER_MORE_XP", false),
 		XPServerGroups:       envBool("XP_SERVER_GROUPS", false),
 		EnableXPModifiers:    envBool("ENABLE_XP_MODIFIERS", true),
+
+		XPGroupShowNameInTree:    envInt("XP_GROUP_SHOW_NAME_IN_TREE", 2),
+		TitleGroupShowNameInTree: envInt("TITLE_GROUP_SHOW_NAME_IN_TREE", 1),
 
 		CleanupIcons:       envBool("CLEANUP_ICONS", true),
 		CleanupIconsDryRun: envBool("CLEANUP_ICONS_DRYRUN", false),
