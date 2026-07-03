@@ -748,6 +748,27 @@ func buildContent() {
 		}
 	}
 
+	// 3.5. 100 New Temporary Titles (programmatic, single-word)
+	tempTitles := []string{
+		"Sentinel", "Specter", "Wraith", "Crusader", "Sage", "Stalker", "Archon", "Vanguard", "Harbinger", "Outcast",
+		"Gladiator", "Paladin", "Ranger", "Sorcerer", "Warlock", "Necromancer", "Assassin", "Rogue", "Cleric", "Druid",
+		"Bard", "Monk", "Barbarian", "Fighter", "Wizard", "Alchemist", "Beastmaster", "Berserker", "Champion", "Defender",
+		"Guardian", "Protector", "Warden", "Templar", "Zealot", "Inquisitor", "Executioner", "Slayer", "Hunter", "Tracker",
+		"Scout", "Pathfinder", "Pioneer", "Explorer", "Nomad", "Wanderer", "Pilgrim", "Traveler", "Voyager", "Adventurer",
+		"Hero", "Legend", "Myth", "Fable", "Shadow", "Ghost", "Phantom", "Spirit", "Soul", "Mind",
+		"Heart", "Blade", "Shield", "Staff", "Wand", "Scroll", "Tome", "Grimoire", "Relic", "Artifact",
+		"Catalyst", "Conduit", "Medium", "Oracle", "Prophet", "Seer", "Mystic", "Occultist", "Ritualist", "Summoner",
+		"Conjurer", "Elementalist", "Pyromancer", "Cryomancer", "Electromancer", "Geomancer", "Aeromancer", "Hydromancer", "Chronomancer", "Illusionist",
+		"Enchanter", "Spellbinder", "Runesmith", "Blacksmith", "Artificer", "Engineer", "Scholar", "Philosopher", "Tactician", "Strategist",
+	}
+	for _, name := range tempTitles {
+		positiveTitles = append(positiveTitles, Title{
+			Name:         name,
+			XPMultiplier: 1.5 + r.Float64()*3.5,
+			Stats:        Stats{HP: 300, STR: 100, DEF: 50, SPD: 50, LCK: 40, INT: 30, STA: 30, CHA: 500},
+		})
+	}
+
 	// 4. Generate Enchantments
 	enchPrefixes := i18n.Pool("pool.enchantment.prefix")
 
