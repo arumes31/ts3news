@@ -32,14 +32,14 @@ func TestInitLocalizedResolvesNames(t *testing.T) {
 			t.Errorf("artifact %q has unlocalized name", a.Name)
 		}
 	}
-	for _, t_ := range positiveTitles {
-		if strings.HasPrefix(t_.Name, "content.") {
-			t.Errorf("positive title %q has unlocalized name", t_.Name)
+	for _, title := range positiveTitles {
+		if strings.HasPrefix(title.Name, "content.") {
+			t.Errorf("positive title %q has unlocalized name", title.Name)
 		}
 	}
-	for _, t_ := range negativeTitles {
-		if strings.HasPrefix(t_.Name, "content.") {
-			t.Errorf("negative title %q has unlocalized name", t_.Name)
+	for _, title := range negativeTitles {
+		if strings.HasPrefix(title.Name, "content.") {
+			t.Errorf("negative title %q has unlocalized name", title.Name)
 		}
 	}
 	for _, e := range allEnchantments {

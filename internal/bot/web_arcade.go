@@ -178,7 +178,7 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 	writeJSON(w, out)
 }
 
-func (s *WebServer) handleDailySpinAPI(w http.ResponseWriter, r *http.Request, uid string) {
+func (s *WebServer) handleDailySpinAPI(w http.ResponseWriter, _ *http.Request, uid string) {
 	if !s.bot.attemptDailySpin(uid) {
 		writeJSON(w, map[string]any{"ok": false, "error": "already spun today"})
 		return

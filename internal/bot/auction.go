@@ -9,6 +9,8 @@ import (
 	"ts3news/internal/i18n"
 )
 
+// AuctionItem is one listing row from the auction_house table, as returned to
+// the web portal.
 type AuctionItem struct {
 	ID        string          `json:"id"`
 	SellerUID string          `json:"seller_uid"`
@@ -39,11 +41,11 @@ func (b *Bot) autoListUnwantedItems(uid string, item interface{}) {
 		err := b.DB.QueryRow("SELECT gear_id FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(v.Slot)).Scan(&currentID)
 		if err == nil {
 			if cur, ok := content.GetGearByID(currentID); ok {
-				if cur.Rarity > v.Rarity || (cur.Rarity == v.Rarity && cur.CombatRating() >= v.CombatRating()) {
-					// Price unneeded gear fairly.
-				} else {
+				if !(cur.Rarity > v.Rarity || (cur.Rarity == v.Rarity && cur.CombatRating() >= v.CombatRating())) {
 					return // This is actually an upgrade or should have been equipped
 				}
+				// Otherwise the currently-equipped item is unneeded gear — fall
+				// through and price it fairly for listing below.
 			}
 		}
 	case content.Skill:

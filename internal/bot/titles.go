@@ -12,7 +12,7 @@ import (
 
 // applyTitleGroup ensures the user is in the correct TS3 server group for their
 // rare title (e.g. "Overlord"), and removes them from any expired or previous ones.
-func (b *Bot) applyTitleGroup(c *clientquery.Client, clid int, uid, nickname string) {
+func (b *Bot) applyTitleGroup(c *clientquery.Client, clid int, uid, _ string) {
 	var title sql.NullString
 	var expires sql.NullTime
 	var source string

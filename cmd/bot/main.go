@@ -1,3 +1,4 @@
+// Command bot runs the headless TS3 free-game-notification and RPG bot.
 package main
 
 import (

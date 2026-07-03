@@ -26,6 +26,7 @@ type Supervisor struct {
 	bot *Bot
 }
 
+// NewSupervisor creates a Supervisor for the given bot instance.
 func NewSupervisor(b *Bot) *Supervisor { return &Supervisor{bot: b} }
 
 var (
@@ -261,16 +262,16 @@ func (s *Supervisor) stopClient(cmd *exec.Cmd, exited <-chan struct{}) {
 
 func (s *Supervisor) randomInterval() time.Duration {
 	cfg := s.bot.Cfg
-	min, max := cfg.MinIntervalHours, cfg.MaxIntervalHours
-	if min < 0 {
-		min = 0
+	minH, maxH := cfg.MinIntervalHours, cfg.MaxIntervalHours
+	if minH < 0 {
+		minH = 0
 	}
-	if max < min {
-		max = min
+	if maxH < minH {
+		maxH = minH
 	}
-	span := max - min + 1
-// #nosec G404
-	hours := min + rand.IntN(span) // #nosec G404
+	span := maxH - minH + 1
+	// #nosec G404
+	hours := minH + rand.IntN(span) // #nosec G404
 	return time.Duration(hours) * time.Hour
 }
 

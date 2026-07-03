@@ -27,7 +27,7 @@
   </div>
   {{end}}
 </header>
-<main class="wrap">{{end}}
+<main class="wrap{{if eq .Nav "abyss"}} wrap-abyss{{end}}">{{end}}
 
 {{define "leaderboards"}}
 <div class="lb-grid">
@@ -83,5 +83,75 @@
 
 {{define "foot"}}</main>
 <footer class="foot">TS3 Free-Game RPG · player portal</footer>
+
+<!-- Shared modal shell: openModal/closeModal/confirmModal/promptModal are available
+     on every page and replace ad-hoc overlays + native confirm()/prompt(). -->
+<div id="sharedModal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-card" id="sharedModalCard"></div>
+</div>
+<script>
+// pendingModalResolve settles the promise of the currently-open confirm/prompt
+// modal. Any dismissal path (OK/Cancel buttons, Escape, backdrop click) routes
+// through closeModal so a forced close can never leave a caller hanging.
+var pendingModalResolve = null;
+var pendingModalDismissValue = null;
+function openModal(html){
+  var card = document.getElementById('sharedModalCard');
+  card.innerHTML = html;
+  document.getElementById('sharedModal').classList.add('open');
+}
+function closeModal(){
+  document.getElementById('sharedModal').classList.remove('open');
+  // Settle any pending confirm/prompt promise on a forced dismissal.
+  if (pendingModalResolve) {
+    var resolve = pendingModalResolve;
+    var dismissValue = pendingModalDismissValue;
+    pendingModalResolve = null;
+    pendingModalDismissValue = null;
+    resolve(dismissValue);
+  }
+}
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') closeModal();
+});
+function confirmModal(message, opts){
+  opts = opts || {};
+  return new Promise(function(resolve){
+    pendingModalResolve = resolve;
+    pendingModalDismissValue = false; // Escape / backdrop = "not confirmed"
+    openModal(
+      '<h3>' + (opts.title || 'Confirm') + '</h3>' +
+      '<p>' + message + '</p>' +
+      '<div class="modal-actions">' +
+        '<button class="ghost" id="modalCancelBtn">' + (opts.cancelLabel || 'Cancel') + '</button>' +
+        '<button id="modalOkBtn">' + (opts.okLabel || 'Confirm') + '</button>' +
+      '</div>'
+    );
+    document.getElementById('modalOkBtn').onclick = function(){ pendingModalResolve = null; closeModal(); resolve(true); };
+    document.getElementById('modalCancelBtn').onclick = function(){ pendingModalResolve = null; closeModal(); resolve(false); };
+  });
+}
+function promptModal(message, defaultValue){
+  return new Promise(function(resolve){
+    pendingModalResolve = resolve;
+    pendingModalDismissValue = null; // Escape / backdrop = "cancelled"
+    openModal(
+      '<h3>Input needed</h3>' +
+      '<p>' + message + '</p>' +
+      '<div class="modal-body"><input type="text" id="modalPromptInput" value="' + (defaultValue || '') + '" style="width:100%; background:#0c0f16; border:1px solid var(--line); color:var(--text); border-radius:7px; padding:.5rem .6rem;"></div>' +
+      '<div class="modal-actions">' +
+        '<button class="ghost" id="modalCancelBtn">Cancel</button>' +
+        '<button id="modalOkBtn">OK</button>' +
+      '</div>'
+    );
+    var input = document.getElementById('modalPromptInput');
+    input.focus();
+    input.select();
+    document.getElementById('modalOkBtn').onclick = function(){ var v = input.value; pendingModalResolve = null; closeModal(); resolve(v); };
+    document.getElementById('modalCancelBtn').onclick = function(){ pendingModalResolve = null; closeModal(); resolve(null); };
+    input.onkeydown = function(e){ if (e.key === 'Enter') document.getElementById('modalOkBtn').click(); };
+  });
+}
+</script>
 </body>
 </html>{{end}}

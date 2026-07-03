@@ -1,3 +1,5 @@
+// Package config loads bot configuration from environment variables (and an
+// optional .env file) into a typed Config struct.
 package config
 
 import (
@@ -8,6 +10,8 @@ import (
 	"strings"
 )
 
+// Config holds every environment-configurable setting the bot reads at
+// startup: TS3 connection details, feature flags, and integration secrets.
 type Config struct {
 	TS3Host     string
 	TS3Port     int
@@ -85,6 +89,8 @@ type Config struct {
 	EnableAbyss bool // serve the Abyss page/APIs and PM its deep-link each cycle
 }
 
+// LoadConfig reads bot configuration from the environment (and config.env, if
+// present), applying defaults for any unset values.
 func LoadConfig() *Config {
 	// Load variables from config.env (if present) so the bot works both inside
 	// Docker (where compose injects the file as real env) and when run directly.

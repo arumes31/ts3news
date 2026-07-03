@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// Client is an open connection to a TS3 ClientQuery telnet interface.
 type Client struct {
 	conn   net.Conn
 	reader *bufio.Reader
@@ -40,6 +41,7 @@ func Dial(addr string, timeout time.Duration) (*Client, error) {
 	return c, nil
 }
 
+// Close closes the underlying ClientQuery connection.
 func (c *Client) Close() error { return c.conn.Close() }
 
 // ErrDuplicateEntry is TeamSpeak's error id for an insert that already exists —
@@ -180,6 +182,8 @@ func parseError(line string) (int, string) {
 	return id, msg
 }
 
+// Reader exposes the connection's buffered reader for callers that need to
+// stream unsolicited notify events directly.
 func (c *Client) Reader() *bufio.Reader {
 	return c.reader
 }

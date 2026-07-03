@@ -199,8 +199,8 @@ func TestAbyssInsuranceCost(t *testing.T) {
 		t.Errorf("Ward should discount: warded=%d full=%d", warded, full)
 	}
 	// Rate floor is 0.25 even at absurd Ward levels.
-	if got, min := abyssInsuranceCost(10000, 100, 99), int64(float64(10000)*1.0*0.25); got < min {
-		t.Errorf("premium %d below the rate floor %d", got, min)
+	if got, floor := abyssInsuranceCost(10000, 100, 99), int64(float64(10000)*1.0*0.25); got < floor {
+		t.Errorf("premium %d below the rate floor %d", got, floor)
 	}
 }
 
@@ -419,8 +419,8 @@ func TestAbyssShopCatalog(t *testing.T) {
 		if it.Key == "" || it.Name == "" {
 			t.Errorf("shop item has empty key/name: %+v", it)
 		}
-		if it.Cost <= 0 {
-			t.Errorf("shop item %q has non-positive cost %d", it.Key, it.Cost)
+		if it.Cost <= 0 && it.CostGold <= 0 {
+			t.Errorf("shop item %q has non-positive cost (tokens=%d gold=%d)", it.Key, it.Cost, it.CostGold)
 		}
 		if seen[it.Key] {
 			t.Errorf("duplicate shop key %q", it.Key)

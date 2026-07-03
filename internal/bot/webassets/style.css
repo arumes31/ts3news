@@ -1157,6 +1157,87 @@ label {
   background: rgba(26, 31, 43, .95)
 }
 
+/* Modal (shared across every page) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 8, 13, .72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  opacity: 0;
+  transition: opacity .18s ease
+}
+
+.modal-overlay.open {
+  display: flex;
+  opacity: 1
+}
+
+.modal-card {
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.4rem;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .55);
+  width: min(460px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+  transform: translateY(8px) scale(.98);
+  transition: transform .18s ease
+}
+
+.modal-overlay.open .modal-card {
+  transform: translateY(0) scale(1)
+}
+
+.modal-card h3 {
+  margin: 0 0 .5rem;
+  font-size: 1.1rem
+}
+
+.modal-card p {
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 .8rem
+}
+
+.modal-card .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem
+}
+
+.modal-actions {
+  display: flex;
+  gap: .6rem;
+  justify-content: flex-end;
+  margin-top: 1.1rem
+}
+
+.modal-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: .7rem .9rem;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: .88rem
+}
+
+.modal-option:hover {
+  border-color: var(--accent);
+  background: #262c40
+}
+
 .denied {
   text-align: center;
   padding: 3rem 1rem;
@@ -2731,18 +2812,12 @@ tr.bought-flash {
 
 .abyss-stage {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 220px 60px 280px 1fr 260px;
   gap: 1rem;
   background: radial-gradient(120% 140% at 50% -20%, #1c2233, #0c0e13);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 1.2rem;
-}
-
-@media (max-width:680px) {
-  .abyss-stage {
-    grid-template-columns: 1fr;
-  }
 }
 
 .abyss-dial {
@@ -2909,17 +2984,75 @@ tr.bought-flash {
 }
 
 /* Abyss expansion: tiers, elevator, threat, upgrades, record, history */
-.abyss-stage {
-  grid-template-columns: 60px 280px 1fr;
-}
 
 @media (max-width:680px) {
   .abyss-stage {
     grid-template-columns: 1fr;
   }
-  .ab-elevator {
+  .ab-elevator,
+  .abyss-side-left,
+  .abyss-side-right {
     display: none;
   }
+}
+
+.wrap-abyss {
+  max-width: 1400px;
+}
+
+.abyss-side-left,
+.abyss-side-right {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  min-width: 0;
+}
+
+.abyss-side-left h3,
+.abyss-side-right h3 {
+  margin: 0 0 .3rem;
+  font-size: .85rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.abyss-side-gear {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .4rem .5rem;
+  font-size: .78rem;
+}
+
+.abyss-side-gear .icn {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.abyss-side-gear .cr {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: .72rem;
+  white-space: nowrap;
+}
+
+.abyss-side-loot {
+  background: var(--panel2);
+  border-left: 3px solid var(--gold);
+  border-radius: 6px;
+  padding: .35rem .5rem;
+  font-size: .78rem;
+  line-height: 1.35;
+}
+
+.abyss-side-empty {
+  color: var(--muted);
+  font-size: .8rem;
+  font-style: italic;
 }
 
 .ab-elevator {
@@ -3124,6 +3257,14 @@ tr.bought-flash {
   padding: .15rem .6rem;
   margin: .15rem;
   font-size: .78rem;
+}
+
+.ab-badge-picker {
+  margin-top: .6rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .3rem
 }
 
 .ab-history {

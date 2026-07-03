@@ -1,3 +1,5 @@
+// Command simulation runs standalone balance simulations for the RPG economy
+// and combat systems, independent of the live bot.
 package main
 
 import (
@@ -341,15 +343,15 @@ func OptimizedParams() SimParams {
 	return p
 }
 
-func XPForLevel(level int, cap float64) float64 {
+func XPForLevel(level int, expCap float64) float64 {
 	if level <= 1 { return 0 }
 	exponent := 1.2 + float64(level)/1500.0
-	if exponent > cap { exponent = cap }
+	if exponent > expCap { exponent = expCap }
 	return math.Round(math.Pow(float64(level-1), exponent) * 1.5)
 }
 
-func XPNeededForNextLevel(level int, cap float64) float64 {
-	return XPForLevel(level+1, cap) - XPForLevel(level, cap)
+func XPNeededForNextLevel(level int, expCap float64) float64 {
+	return XPForLevel(level+1, expCap) - XPForLevel(level, expCap)
 }
 
 func NewPlayerWithParams(params SimParams) *Player {
@@ -663,7 +665,7 @@ end:
 	return result
 }
 
-func CalculateXPGain(rng *rand.Rand, p *Player, combatXP float64, params SimParams) float64 {
+func CalculateXPGain(rng *rand.Rand, p *Player, combatXP float64, _ SimParams) float64 {
 	xp := combatXP
 	if xp < 0 { return xp } // penalty is raw
 	
@@ -750,11 +752,11 @@ func (sim *Simulation) SimulateDay() DaySnapshot {
 				// Durability & Repair
 				for slot, g := range pp.Gear {
 					if g.Durability > 0 {
-						g.Durability -= 1
+						g.Durability--
 						if !res.Won { g.Durability -= 2 }
 						if g.Durability <= 0 { 
 							if playerGold[pp.ID] >= 1 {
-								playerGold[pp.ID] -= 1
+								playerGold[pp.ID]--
 
 								g.Durability = g.MaxDur
 							} else {
@@ -799,7 +801,7 @@ func (sim *Simulation) Analyze(label string) {
 		avgGold, totalAHListed, totalAHSold, percentSold)
 }
 
-func runSimulation(days int, seed int64, params SimParams, label string) *Simulation {
+func runSimulation(_ int, seed int64, params SimParams, label string) *Simulation {
 	rng := rand.New(rand.NewSource(seed)) // #nosec G404 - simulation only, non-cryptographic
 	sim := &Simulation{Rng: rng, Params: params}
 	// Reset AH and Gold for each tier run

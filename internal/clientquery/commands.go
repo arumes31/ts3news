@@ -35,10 +35,13 @@ var unescaper = strings.NewReplacer(
 	"\\v", "\v",
 )
 
-func Escape(s string) string   { return escaper.Replace(s) }
+// Escape encodes a string for safe inclusion in a ClientQuery command argument.
+func Escape(s string) string { return escaper.Replace(s) }
+
+// Unescape decodes a ClientQuery-escaped string back to its raw form.
 func Unescape(s string) string { return unescaper.Replace(s) }
 
-// Client describes one client visible on the server.
+// ClientInfo describes one client visible on the server.
 type ClientInfo struct {
 	CLID            int
 	Nickname        string

@@ -12,6 +12,7 @@ import (
 	)
 
 	const prestigeStatBonus = 0.15 // +15% permanent stat boost per prestige level
+	// PrestigeThreshold is the level a character must reach to prestige.
 	const PrestigeThreshold = 9999 // Level required to prestige (was 10000)
 
 	// doPrestige increments a user's prestige and resets their level/xp to the start,
@@ -38,7 +39,7 @@ func prestigeFromGroupName(name string) (int, bool) {
 // applyPrestigeGroup grants the user the server group for their current prestige
 // (creating it with a generated prestige icon if needed) and removes any lower
 // prestige groups, deleting them when empty.
-func (b *Bot) applyPrestigeGroup(c *clientquery.Client, clid int, uid, nickname string, prestige int) {
+func (b *Bot) applyPrestigeGroup(c *clientquery.Client, clid int, _, nickname string, prestige int) {
 	if prestige < 1 {
 		return
 	}
@@ -65,6 +66,10 @@ func (b *Bot) applyPrestigeGroup(c *clientquery.Client, clid int, uid, nickname 
 				// Re-upload icon if missing
 				if png, ierr := icons.Icon(prestige, leveling.NumTiers, leveling.NumTiers, iconSizePx); ierr == nil {
 					if id, uerr := c.UploadIcon(png, b.Cfg.TS3Host); uerr == nil {
+						// int32(id) is a deliberate reinterpret cast, not a truncation: the TS3
+						// protocol represents icon IDs above 2^31 as negative int32 values in
+						// permission strings.
+						// #nosec G115
 						_ = c.ServerGroupAddPerm(sgid, "i_icon_id", int(int32(id)))
 					}
 				}
@@ -85,6 +90,10 @@ func (b *Bot) applyPrestigeGroup(c *clientquery.Client, clid int, uid, nickname 
 		// Prestige icon: the prestige number on the top-tier (prestige) colour.
 		if png, ierr := icons.Icon(prestige, leveling.NumTiers, leveling.NumTiers, iconSizePx); ierr == nil {
 			if id, uerr := c.UploadIcon(png, b.Cfg.TS3Host); uerr == nil {
+				// int32(id) is a deliberate reinterpret cast, not a truncation: the TS3
+				// protocol represents icon IDs above 2^31 as negative int32 values in
+				// permission strings.
+				// #nosec G115
 				if perr := c.ServerGroupAddPerm(sgid, "i_icon_id", int(int32(id))); perr == nil {
 					log.Printf("prestige: icon %d set for %q (sgid %d)", id, name, sgid)
 				}

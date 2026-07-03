@@ -40,6 +40,17 @@
       <div id="pityFill" style="background: linear-gradient(90deg, #ff7b72, #d857ff); height: 100%; width: {{mulpct .LegendaryPity 40}}%;"></div>
     </div>
   </div>
+
+  <!-- Loot drop streak HUD: floors in a row with no gear item, boosts loot find -->
+  <div class="abyss-pity-hud" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; margin: 15px 0;">
+    <div style="display:flex; justify-content:space-between; margin-bottom: 6px; font-size:13px;">
+      <span>🍀 <b>Drop Streak</b></span>
+      <span class="muted small"><span id="dropStreakCount">{{.DropStreak}}</span> floors since last gear (+{{.DropStreakBonusPct}}% loot find, capped)</span>
+    </div>
+    <div style="background: rgba(0,0,0,0.3); height: 10px; border-radius: 5px; overflow:hidden;">
+      <div id="dropStreakFill" style="background: linear-gradient(90deg, #41c97a, #5bc0ff); height: 100%; width: {{mulpct .DropStreak 15}}%;"></div>
+    </div>
+  </div>
 </div>
 
 <div class="abyss-stats">
@@ -57,6 +68,20 @@
 </div>
 
 <div class="abyss-stage">
+  <!-- Left sidebar: compact read-only Armoury quick-view of currently equipped gear -->
+  <div class="abyss-side-left">
+    <h3>⚔️ Armoury</h3>
+    {{range .Equipped}}
+    <div class="abyss-side-gear">
+      <span class="gi icn" style="--gi:url(/static/icons/{{.IconName}}.svg);color:{{.RarityColor}}"></span>
+      <span style="color:{{.RarityColor}}">{{.Name}}</span>
+      <span class="cr">CR {{printf "%.0f" .CR}}</span>
+    </div>
+    {{else}}
+    <div class="abyss-side-empty">No gear equipped.</div>
+    {{end}}
+  </div>
+
   <!-- Elevator shaft visual [85] -->
   <div class="ab-elevator" aria-hidden="true">
     <div class="ab-shaft"><div class="ab-cage" id="elevCage" style="top:0%"></div></div>
@@ -172,14 +197,24 @@
     <div class="ab-nc-options" id="ncOptions"></div>
     <button class="primary ab-proceed" id="btnProceed" onclick="abyssProceed()" style="margin-top:15px">Leave Floor &amp; Proceed</button>
   </div>
+
+  <!-- Right sidebar: full loot manifest escrowed so far this run -->
+  <div class="abyss-side-right" id="lootManifest">
+    <h3>🎒 Run Loot</h3>
+    {{range .RunLoot}}
+    <div class="abyss-side-loot">{{.Label}}</div>
+    {{else}}
+    <div class="abyss-side-empty">No loot escrowed yet this run.</div>
+    {{end}}
+  </div>
 </div>
 
 <div class="abyss-banner" id="abyssBanner" role="status" aria-live="assertive"></div>
 
 <!-- Consumable carry-cap picker: shown when the player holds more consumables than
      they may bring into one descent. Unbrought consumables stay in their stash. -->
-<div id="consPickOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
-  <div style="background:#0d1117; border:1px solid #30363d; border-radius:10px; padding:18px; width:min(460px,92vw); max-height:86vh; overflow:auto;">
+<div id="consPickOverlay" class="modal-overlay" onclick="if(event.target===this)closeConsumablePick()">
+  <div class="modal-card">
     <h3 style="margin:0 0 6px;">🎒 Pack your consumables</h3>
     <p class="muted small" style="margin:0 0 10px;">You can bring <b id="consPickMax">3</b> into this descent but hold <b id="consPickTotal">6</b>. Pick which to take — the rest stay safe in your stash for later.</p>
     <div id="consPickList" style="display:flex; flex-direction:column; gap:8px;"></div>
@@ -226,6 +261,32 @@
         <li{{if ge .AbyssSetTier 6}} style="color:#7ee787"{{end}}>6 pieces: +800 HP · +120 STR · +120 DEF · +40 SPD · +30 CRT</li>
       </ul>
     </div>
+
+    {{if .PredatorPieces}}
+    <div class="ab-setbonus" style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+      <h3 style="margin:0 0 6px;">🐺 Predator Set
+        <span class="ab-up-lv">{{.PredatorPieces}} equipped{{if gt .PredatorTier 0}} · {{.PredatorTier}}-pc active{{end}}</span>
+      </h3>
+      <ul class="muted small" style="margin:0; padding-left:18px;">
+        <li{{if ge .PredatorTier 2}} style="color:#7ee787"{{end}}>2 pieces: +40 STR · +15 CRT</li>
+        <li{{if ge .PredatorTier 4}} style="color:#7ee787"{{end}}>4 pieces: +80 STR · +30 CRT · +20 SPD</li>
+        <li{{if ge .PredatorTier 6}} style="color:#7ee787"{{end}}>6 pieces: +150 STR · +50 CRT · +40 SPD · +200 HP</li>
+      </ul>
+    </div>
+    {{end}}
+
+    {{if .WardenPieces}}
+    <div class="ab-setbonus" style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+      <h3 style="margin:0 0 6px;">🛡️ Warden Set
+        <span class="ab-up-lv">{{.WardenPieces}} equipped{{if gt .WardenTier 0}} · {{.WardenTier}}-pc active{{end}}</span>
+      </h3>
+      <ul class="muted small" style="margin:0; padding-left:18px;">
+        <li{{if ge .WardenTier 2}} style="color:#7ee787"{{end}}>2 pieces: +40 DEF · +15 STA</li>
+        <li{{if ge .WardenTier 4}} style="color:#7ee787"{{end}}>4 pieces: +80 DEF · +30 STA · +200 HP</li>
+        <li{{if ge .WardenTier 6}} style="color:#7ee787"{{end}}>6 pieces: +150 DEF · +50 STA · +500 HP</li>
+      </ul>
+    </div>
+    {{end}}
   </section>
 
   <!-- Token Shop: open-ended sink for Abyss Tokens -->
@@ -239,7 +300,7 @@
           <b>{{.Name}}</b>
           <div class="muted small">{{.Desc}}</div>
         </div>
-        <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', this)">🜲 {{.Cost}}</button>
+        <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', this)">{{if .CostGold}}🪙 {{gold .CostGold}}{{else}}🜲 {{.Cost}}{{end}}</button>
       </div>
       {{end}}
     </div>
@@ -360,6 +421,15 @@
     <button class="ghost xs" onclick="abyssSalvage()">🧹 Salvage junk for gold</button>
     <button class="ghost xs" onclick="abyssDismantle()">⚒️ Dismantle rare+ spares for 🜲</button>
     {{if .Achieved}}<div class="ab-achievements"><h3>🏅 Achievements</h3>{{range .Achieved}}<span class="ab-ach">{{.}}</span>{{end}}</div>{{end}}
+    {{if .BadgeOptions}}
+    <div class="ab-badge-picker">
+      <span class="small muted">Badge: <b>{{if .ActiveBadgeName}}{{.ActiveBadgeName}}{{else}}none{{end}}</b></span>
+      <button class="ghost xs" onclick="openBadgePicker()" style="margin-left:8px;">Choose badge</button>
+    </div>
+    <div id="badgeOptionsData" style="display:none">
+      {{range .BadgeOptions}}<span data-code="{{.Code}}" data-name="{{.Name}}"></span>{{end}}
+    </div>
+    {{end}}
   </section>
 
   <!-- Run history [48] -->
@@ -464,6 +534,7 @@ var canRev  = {{if .Run.Revived}}false{{else}}true{{end}};
 var wardLv  = {{.Stats.UpWard}};
 var curDepth = {{if .Run.Active}}{{.Run.Depth}}{{else}}0{{end}};
 var curEscrow = {{.Run.Escrow}};
+var curRisk = {{.Risk}};
 var floorType = {{if .Run.Active}}{{.Run.FloorType}}{{else}}"combat"{{end}};
 var eventState = {{if .Run.Active}}{{.Run.EventState}}{{else}}""{{end}};
 var busy = false;
@@ -641,7 +712,10 @@ function setGold(g){var el=document.getElementById('goldPill');if(el)el.textCont
 function setTokens(t){if(t!==undefined)document.getElementById('tokenVal').textContent=fmtNum(t);}
 function setEscrow(v){curEscrow=Number(v)||0;document.getElementById('escrowVal').textContent=fmtGold(curEscrow);}
 function setDepth(d){curDepth=Number(d)||0;document.getElementById('depthNum').textContent=d;updateThreat();updateElevator();}
-function updateThreat(){var pct=Math.min(100,curDepth*4);document.getElementById('threatFill').style.width=pct+'%';}
+// Greed Meter: server-computed risk (next floor's difficulty vs. current gear
+// combat rating) when available, falling back to a depth-only heuristic.
+function setRisk(v){ if(v!==undefined && v!==null){ curRisk=Number(v)||0; } updateThreat(); }
+function updateThreat(){var pct=Math.min(100,curRisk||curDepth*4);document.getElementById('threatFill').style.width=pct+'%';}
 function updateElevator(){document.getElementById('elevCage').style.top=((curDepth%20)/20*100)+'%';}
 function setInsured(p){var el=document.getElementById('insuredTag');if(p>0){el.textContent='🛡️ '+p+'% insured';el.style.display='';}else{el.style.display='none';}}
 function setBanner(html,cls){
@@ -668,6 +742,7 @@ function playLog(lines, loot, dura){
     function finish(){
       (loot||[]).forEach(function(l){var d=document.createElement('div');d.className='ab-loot-line';d.innerHTML='🎁 '+l;lootEl.appendChild(d);});
       (dura||[]).forEach(function(l){var d=document.createElement('div');d.className='ab-dura-line';d.innerHTML='🛠️ '+l;duraEl.appendChild(d);});
+      appendRunLoot(loot);
       resolve();
     }
     if(reduceMotion){(lines||[]).forEach(function(l){var d=document.createElement('div');d.className='ab-log-line';d.innerHTML=l;log.appendChild(d);});finish();return;}
@@ -677,6 +752,22 @@ function playLog(lines, loot, dura){
       var d=document.createElement('div');d.className='ab-log-line';d.innerHTML=lines[i];log.appendChild(d);log.scrollTop=log.scrollHeight;i++;
       setTimeout(step,90);
     })();
+  });
+}
+
+// Right sidebar: append newly escrowed loot to the persistent run manifest
+// instead of re-querying the server on every floor.
+function appendRunLoot(loot){
+  if(!loot || !loot.length) return;
+  var manifest = document.getElementById('lootManifest');
+  if(!manifest) return;
+  var empty = manifest.querySelector('.abyss-side-empty');
+  if(empty) empty.remove();
+  loot.forEach(function(l){
+    var d = document.createElement('div');
+    d.className = 'abyss-side-loot';
+    d.innerHTML = l;
+    manifest.appendChild(d);
   });
 }
 
@@ -730,7 +821,7 @@ function openConsumablePick(list, max, total){
     listEl.appendChild(row);
   });
   consPickUpdate();
-  document.getElementById('consPickOverlay').style.display='flex';
+  document.getElementById('consPickOverlay').classList.add('open');
 }
 function consPickAdj(idx, delta){
   var it=consPickState.items[idx];
@@ -742,7 +833,7 @@ function consPickAdj(idx, delta){
   document.getElementById('consTake-'+idx).textContent=next;
   consPickUpdate();
 }
-function closeConsumablePick(){ document.getElementById('consPickOverlay').style.display='none'; }
+function closeConsumablePick(){ document.getElementById('consPickOverlay').classList.remove('open'); }
 function confirmConsumablePick(){
   var sel={};
   consPickState.items.forEach(function(it){ if(it.take>0) sel[it.id]=it.take; });
@@ -755,7 +846,7 @@ async function abyssDescend(){
   // Low-HP confirm [87]
   var bar=document.getElementById('hpBar');
   var hp=Number(bar.getAttribute('aria-valuenow')), max=Number(bar.getAttribute('aria-valuemax'));
-  if(max>0 && hp>0 && hp/max<0.25 && !confirm('You are at '+Math.round(hp*100/max)+'% HP. Descend anyway?'))return;
+  if(max>0 && hp>0 && hp/max<0.25 && !(await confirmModal('You are at '+Math.round(hp*100/max)+'% HP. Descend anyway?', {title:'Low HP', okLabel:'Descend'})))return;
   setBusy(true); clearBanner();
   document.getElementById('abStatus').textContent='Descending…';
   
@@ -766,12 +857,46 @@ async function abyssDescend(){
 
   var d=await abPost('/api/abyss/descend',{focus:selectedFocus()});
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
-  
+
+  if(d.choose_floor){
+    setBusy(false);
+    openFloorChoiceModal(d.options, d.depth, hp, max);
+    return;
+  }
+
+  await processDescendResult(d, hp, max);
+}
+
+// Floor-choice modal: shown when abyssDescend rolls 2 candidate paths instead
+// of committing to one immediately.
+function openFloorChoiceModal(options, depth, hp, max){
+  var html = '<h3>🕳️ Floor '+depth+'</h3><p>Choose your path.</p><div class="modal-body">';
+  (options||[]).forEach(function(o){
+    html += '<button class="modal-option" onclick="abyssChooseFloor('+o.index+','+hp+','+max+')">'+(o.icon||'')+' '+o.label+'</button>';
+  });
+  html += '</div>';
+  openModal(html);
+}
+
+async function abyssChooseFloor(i, hp, max){
+  if(busy)return;
+  closeModal();
+  setBusy(true); clearBanner();
+  document.getElementById('abStatus').textContent='Descending…';
+  var d=await abPost('/api/abyss/choose_floor',{index:i});
+  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  await processDescendResult(d, hp, max);
+}
+
+// Shared by the direct-descend and choose-floor paths once a floor has been
+// resolved (rest/event vs. combat win/loss).
+async function processDescendResult(d, hp, max){
   if(d.noncombat){
     // Rest or Event floor rolled
     floorType = d.floor_type;
     eventState = d.event_state;
     setDepth(d.depth);
+    setRisk(d.risk);
     setEscrow(d.escrow);
     setHP(hp, max);
     document.getElementById('abStatus').textContent='Approaching non-combat floor: ' + floorType;
@@ -781,6 +906,7 @@ async function abyssDescend(){
   }
 
   setDepth(d.depth);
+  setRisk(d.risk);
   await playLog(d.logs, d.loot, d.dura);
   setHP(d.hp,d.max_hp); setGold(d.gold); setTokens(d.tokens);
   if(d.victory){
@@ -801,6 +927,25 @@ async function abyssDescend(){
     document.getElementById('abStatus').textContent=canRev?'Gamble a revival (double-or-nothing) or concede.':'Concede — no revival left.';
   }
   renderState(); setBusy(false);
+}
+
+// Badge picker: choose one earned achievement to display next to your name.
+function openBadgePicker(){
+  var opts = document.querySelectorAll('#badgeOptionsData span');
+  var html = '<h3>🏅 Choose a badge</h3><p>Pick one earned achievement to display next to your name.</p><div class="modal-body">';
+  html += '<button class="modal-option" onclick="abyssSetBadge(\'\')">None</button>';
+  opts.forEach(function(o){
+    html += '<button class="modal-option" onclick="abyssSetBadge(\''+o.getAttribute('data-code')+'\')">'+o.getAttribute('data-name')+'</button>';
+  });
+  html += '</div>';
+  openModal(html);
+}
+async function abyssSetBadge(code){
+  closeModal();
+  var d = await abPost('/api/abyss/set_badge', {code: code});
+  if(!d.ok){abToast(d.error||'failed', false); return;}
+  abToast(code ? ('Badge set: '+d.badge_name) : 'Badge cleared', true);
+  setTimeout(function(){ window.location.reload(); }, 700);
 }
 
 async function abyssRevive(){
@@ -851,7 +996,7 @@ async function abyssInsure(pct){
   var rate=Math.max(0.25,0.5-wardLv*0.05);
   var cost=Math.floor(curEscrow*pct/100*rate);
   if(curEscrow<=0){abToast('No cache to insure yet',false);return;}
-  if(!confirm('Insure '+pct+'% of your '+fmtGold(curEscrow)+' cache for ~'+fmtGold(cost)+' gold?'))return;
+  if(!(await confirmModal('Insure '+pct+'% of your '+fmtGold(curEscrow)+' cache for ~'+fmtGold(cost)+' gold?', {title:'Insure Cache', okLabel:'Insure'})))return;
   setBusy(true);
   var d=await abPost('/api/abyss/insure',{pct:pct});
   setBusy(false);
@@ -871,7 +1016,7 @@ async function abyssSalvage(){
 
 async function abyssDismantle(){
   if(busy)return;
-  if(!confirm('Dismantle all Rare-or-better spare gear in your backpack into Abyss Tokens? Equipped gear is never touched.'))return;
+  if(!(await confirmModal('Dismantle all Rare-or-better spare gear in your backpack into Abyss Tokens? Equipped gear is never touched.', {title:'Dismantle Gear', okLabel:'Dismantle'})))return;
   setBusy(true);
   var d=await abPost('/api/abyss/dismantle');
   setBusy(false);
@@ -962,7 +1107,7 @@ async function abyssInviteCoop(){
 }
 
 async function abyssPrestige(){
-  if(!confirm('Are you sure you want to prestige the Abyss? Your best depth will be reset to 0, but you will permanently earn +5% gold and XP rewards per prestige level.')) return;
+  if(!(await confirmModal('Are you sure you want to prestige the Abyss? Your best depth will be reset to 0, but you will permanently earn +5% gold and XP rewards per prestige level.', {title:'Prestige', okLabel:'Prestige'}))) return;
   var d = await abPost('/api/abyss/prestige');
   if(!d.ok){
     abToast(d.error || 'Prestige failed', false);
@@ -1024,7 +1169,14 @@ function updateForgeOptions() {
   
   var isWeapon = slot === 'MainHand' || slot === 'OffHand' || slot === 'Ranged';
   document.getElementById('forgeEtchRow').style.display = (!unid && isWeapon) ? 'block' : 'none';
-  document.getElementById('btnForgeUpgradeGear').style.display = (!unid && rarity < 6) ? 'block' : 'none'; // max rarity is Divine (6)
+  var upBtn = document.getElementById('btnForgeUpgradeGear');
+  upBtn.style.display = (!unid && rarity < 6) ? 'block' : 'none'; // max rarity is Divine (6)
+  if (!unid && rarity < 6) {
+    // Cost scales with the target tier (must match abyssUpgradeGearCost server-side).
+    var tgt = rarity + 1;
+    var upCost = tgt >= 6 ? 200 : (tgt >= 5 ? 80 : (tgt >= 4 ? 30 : (tgt >= 3 ? 15 : 10)));
+    upBtn.textContent = 'Ascend Tier Level (🜲 ' + upCost + ')' + (tgt >= 5 ? ' +Bonus Effects' : '');
+  }
   document.getElementById('btnForgeTransmute').style.display = (!unid && isWeapon) ? 'block' : 'none';
 
   var insured = opt.getAttribute('data-insured') === 'true';
@@ -1102,7 +1254,13 @@ async function forgeEtchRune() {
 async function forgeUpgradeGear() {
   var params = getSelectedForgeParams();
   if (!params) return;
-  if (!confirm('Ascend this gear tier level for 🜲 10 tokens? This increases all combat stats by +30%.')) return;
+  // Compute the same target-tier cost the button shows (must match abyssUpgradeGearCost server-side).
+  var sel = document.getElementById('forgeItemSelect');
+  var opt = sel.options[sel.selectedIndex];
+  var rarity = opt ? (parseInt(opt.getAttribute('data-rarity')) || 0) : 0;
+  var tgt = rarity + 1;
+  var upCost = tgt >= 6 ? 200 : (tgt >= 5 ? 80 : (tgt >= 4 ? 30 : (tgt >= 3 ? 15 : 10)));
+  if (!(await confirmModal('Ascend this gear tier level for 🜲 ' + upCost + ' tokens? This increases all combat stats by +30%.', {title:'Ascend Gear', okLabel:'Ascend'}))) return;
   if (busy) return; setBusy(true);
   var d = await abPost('/api/abyss/upgrade_gear', params);
   setBusy(false);
@@ -1115,7 +1273,7 @@ async function forgeUpgradeGear() {
 async function forgeTransmute() {
   var params = getSelectedForgeParams();
   if (!params) return;
-  if (!confirm('Transmute this weapon for 100g? It will convert into a random weapon suited to your highest stat.')) return;
+  if (!(await confirmModal('Transmute this weapon for 100g? It will convert into a random weapon suited to your highest stat.', {title:'Transmute Weapon', okLabel:'Transmute'}))) return;
   if (busy) return; setBusy(true);
   var d = await abPost('/api/abyss/transmute', params);
   setBusy(false);
@@ -1127,7 +1285,7 @@ async function forgeTransmute() {
 
 async function forgeConvertMana() {
   if (busy) return;
-  if (!confirm('Convert 100 Mana stats into +50 Max HP for 50g?')) return;
+  if (!(await confirmModal('Convert 100 Mana stats into +50 Max HP for 50g?', {title:'Convert Mana', okLabel:'Convert'}))) return;
   setBusy(true);
   var d = await abPost('/api/abyss/convert_mana', {amount: 100});
   setBusy(false);
@@ -1137,7 +1295,7 @@ async function forgeConvertMana() {
 }
 
 async function resetTalents() {
-  if (!confirm('Reset all Deep-Delver talent upgrades and refund all spent tokens for 🜲 10 tokens?')) return;
+  if (!(await confirmModal('Reset all Deep-Delver talent upgrades and refund all spent tokens for 🜲 10 tokens?', {title:'Reset Talents', okLabel:'Reset'}))) return;
   if (busy) return; setBusy(true);
   var d = await abPost('/api/abyss/reset_talents');
   setBusy(false);
@@ -1150,7 +1308,7 @@ async function resetTalents() {
 async function forgeInsureItem() {
   var params = getSelectedForgeParams();
   if (!params) return;
-  if (!confirm('Mark this item as Insured for 200g? It will never lose durability on death.')) return;
+  if (!(await confirmModal('Mark this item as Insured for 200g? It will never lose durability on death.', {title:'Insure Item', okLabel:'Insure'}))) return;
   if (busy) return; setBusy(true);
   var d = await abPost('/api/abyss/insure_item', params);
   setBusy(false);

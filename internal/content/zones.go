@@ -7,8 +7,10 @@ import (
 	"ts3news/internal/i18n"
 )
 
+// ZoneEffectType classifies a zone effect's kind.
 type ZoneEffectType string
 
+// Zone effect kinds.
 const (
 	ZoneBuff    ZoneEffectType = "Buff"
 	ZoneDebuff  ZoneEffectType = "Debuff"
@@ -27,6 +29,8 @@ type ZoneEffect struct {
 	Description string
 }
 
+// Zone is a combat location's flavour and difficulty scaling: a display name,
+// a danger multiplier, and any active environmental effects.
 type Zone struct {
 	Name       string
 	Difficulty float64 // Multiplier on top of base scaling
@@ -111,6 +115,8 @@ func initZoneEffects() {
 	})
 }
 
+// GetRandomZone rolls a random zone (Common/Rare/Legendary rarity band) scaled
+// to the party's average level and gear score.
 func GetRandomZone(partyAvgLvl int, partyGearScore float64) Zone {
 	initZoneEffects()
 
@@ -169,6 +175,7 @@ func GetRandomZone(partyAvgLvl int, partyGearScore float64) Zone {
 	return z
 }
 
+// Display returns the zone's name with any active effects listed alongside it.
 func (z Zone) Display() string {
 	var effs []string
 	for _, e := range z.Effects {

@@ -1,3 +1,5 @@
+// Package games fetches and formats free-game listings from GamerPower, Epic
+// Games, and Reddit for the bot's notification cycle.
 package games
 
 import (

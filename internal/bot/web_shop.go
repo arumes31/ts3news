@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"ts3news/internal/content"
@@ -80,11 +81,51 @@ type shopItemView struct {
 	Score       int
 	Price       int64
 	IsUpgrade   bool
+	Featured    bool // the Mythic/Divine showcase relic (priced in the millions)
+	Effects     []string
+}
+
+// featuredShopPrice is the (millions-scale) price of the shop's Mythic/Divine
+// showcase relic, rising with its rarity and rolled combat power.
+func featuredShopPrice(g content.Gear) int64 {
+	base := int64(2_000_000)
+	if g.Rarity >= content.RarityDivine {
+		base = 5_000_000
+	}
+	return base + int64(g.CombatRating()*1000) + int64(g.Stats.Score())*500
+}
+
+// featuredShopView builds the shop card for the seed's showcase relic.
+func featuredShopView(seed int64) shopItemView {
+	g := content.FeaturedShopItem(seed)
+	effs := make([]string, 0, len(g.BonusEffects)+1)
+	if g.Special != content.EffectNone {
+		effs = append(effs, string(g.Special))
+	}
+	for _, e := range g.BonusEffects {
+		effs = append(effs, string(e))
+	}
+	return shopItemView{
+		ID:          g.ID,
+		Name:        g.Name,
+		Slot:        string(g.Slot),
+		Icon:        content.SlotIcon(g.Slot),
+		Rarity:      g.Rarity.String(),
+		RarityColor: g.Rarity.Color(),
+		CR:          g.CombatRating(),
+		Score:       g.Stats.Score(),
+		Price:       featuredShopPrice(g),
+		Featured:    true,
+		Effects:     effs,
+	}
 }
 
 func stockForSeed(seed int64, equippedGear map[string]content.Gear) []shopItemView {
 	stock := content.ShopStock(seed, shopStockSize)
-	out := make([]shopItemView, 0, len(stock))
+	out := make([]shopItemView, 0, len(stock)+1)
+	// Every rotation showcases at least one Mythic-or-higher relic, priced in the
+	// millions, pinned to the top of the list.
+	out = append(out, featuredShopView(seed))
 	for _, g := range stock {
 		isUpgrade := false
 		if curr, ok := equippedGear[string(g.Slot)]; !ok {
@@ -251,7 +292,16 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 		writeJSON(w, map[string]any{"ok": false, "error": "item not in stock"})
 		return
 	}
-	g, ok := content.GetGearByID(chosen.ID)
+	var g content.Gear
+	var ok bool
+	if strings.HasPrefix(chosen.ID, content.FeaturedShopItemID) {
+		// The showcase relic has no catalog entry; re-roll it from the same seed so
+		// its Mythic/Divine stats and affixes are persisted onto the bought item.
+		g = content.FeaturedShopItem(seed)
+		ok = g.ID == chosen.ID
+	} else {
+		g, ok = content.GetGearByID(chosen.ID)
+	}
 	if !ok {
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown gear"})
 		return

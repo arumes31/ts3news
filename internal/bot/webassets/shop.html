@@ -25,12 +25,13 @@
   <h2>Item Shop <span class="muted small">— fair prices · refreshes in <span id="shopTimer" class="shop-timer">…</span></span></h2>
   <div class="shop-grid">
     {{range .Stock}}
-    <div class="shop-card {{if .IsUpgrade}}upgrade-item{{end}}" data-id="{{.ID}}">
+    <div class="shop-card {{if .Featured}}featured-item{{else if .IsUpgrade}}upgrade-item{{end}}" data-id="{{.ID}}"{{if .Featured}} style="border-color:{{.RarityColor}}"{{end}}>
       <div class="shop-ico">{{.Icon}}</div>
-      <div class="inv-name" style="color:{{.RarityColor}}">{{.Name}} {{if .IsUpgrade}}<span class="upgrade-badge" title="Upgrade for equipped gear">⬆</span>{{end}}</div>
+      <div class="inv-name" style="color:{{.RarityColor}}">{{.Name}} {{if .Featured}}<span class="upgrade-badge" title="Featured {{.Rarity}} relic">✦</span>{{else if .IsUpgrade}}<span class="upgrade-badge" title="Upgrade for equipped gear">⬆</span>{{end}}</div>
       <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
       <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}}</div>
-      <div class="price">🪙 {{.Price}}</div>
+      {{if .Effects}}<div class="inv-meta" style="color:{{.RarityColor}}">✨ {{range $i, $e := .Effects}}{{if $i}}, {{end}}{{$e}}{{end}}</div>{{end}}
+      <div class="price">🪙 {{gold .Price}}</div>
       <button onclick="buy('{{.ID}}')">Buy</button>
     </div>
     {{end}}

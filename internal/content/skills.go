@@ -8,8 +8,10 @@ import (
 	"ts3news/internal/i18n"
 )
 
+// SkillType classifies a skill's effect category.
 type SkillType string
 
+// Skill type categories.
 const (
 	SkillPhysical SkillType = "Physical"
 	SkillMagic    SkillType = "Magic"
@@ -18,6 +20,8 @@ const (
 	SkillUltimate SkillType = "Ultimate"
 )
 
+// Skill is a learnable combat ability a character can equip into one of their
+// skill slots.
 type Skill struct {
 	ID          string
 	Name        string
@@ -141,6 +145,7 @@ func initSkills() {
 	})
 }
 
+// Score returns a rough power rating for the skill, used to compare drops.
 func (s Skill) Score() int {
 	score := int(s.Power*100) + int(s.IgnoreDef*100) + int(s.StunChance*100) + int(s.HealPercent*100)
 	if s.Special == EffectMindControl {
@@ -152,6 +157,7 @@ func (s Skill) Score() int {
 	return score
 }
 
+// RandomSkill returns a uniformly random skill from the full catalog.
 func RandomSkill() Skill {
 	initSkills()
 	// #nosec G404
@@ -163,6 +169,8 @@ func RandomSkill() Skill {
 	return s
 }
 
+// RandomSkillOfRarity returns a random skill of the given rarity, falling
+// back to RandomSkill if no skill of that rarity exists.
 func RandomSkillOfRarity(rarity Rarity) Skill {
 	initSkills()
 	var pool []Skill
@@ -182,6 +190,7 @@ func RandomSkillOfRarity(rarity Rarity) Skill {
 	return s
 }
 
+// GetSkillByID looks up a skill by its catalog ID.
 func GetSkillByID(id string) (Skill, bool) {
 	initSkills()
 	for _, s := range allSkills {
@@ -192,6 +201,7 @@ func GetSkillByID(id string) (Skill, bool) {
 	return Skill{}, false
 }
 
+// IsSkill reports whether name matches a known skill in the catalog.
 func IsSkill(name string) bool {
 	initSkills()
 	for _, s := range allSkills {

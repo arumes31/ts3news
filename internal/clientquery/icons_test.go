@@ -148,8 +148,8 @@ func TestReferencedIconIDsFailsClosed(t *testing.T) {
 }
 
 func TestDeleteFileWire(t *testing.T) {
-	cap := make(chan string, 8)
-	c := startMockTS3(t, map[string]string{}, cap)
+	captured := make(chan string, 8)
+	c := startMockTS3(t, map[string]string{}, captured)
 
 	if err := c.DeleteFile("icon_2168812048"); err != nil {
 		t.Fatalf("DeleteFile: %v", err)
@@ -158,7 +158,7 @@ func TestDeleteFileWire(t *testing.T) {
 	deadline := time.After(2 * time.Second)
 	for {
 		select {
-		case line := <-cap:
+		case line := <-captured:
 			if strings.HasPrefix(line, "ftdeletefile") {
 				if line != want {
 					t.Fatalf("delete wire:\n got: %q\nwant: %q", line, want)
