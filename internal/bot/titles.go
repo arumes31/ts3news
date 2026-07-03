@@ -58,11 +58,19 @@ func (b *Bot) applyTitleGroup(c *clientquery.Client, clid int, uid, nickname str
 }
 
 func (b *Bot) getOrCreateTitleGroup(c *clientquery.Client, name string) (int, error) {
+	// Temporary titles should never show beside the member's name in the server
+	// tree — they rotate frequently and would create visual noise. Look up the
+	// title's Temporary flag to decide the i_group_show_name_in_tree value.
+	treePerm := b.Cfg.TitleGroupShowNameInTree
+	if t, ok := content.GetTitleByName(name); ok && t.Temporary {
+		treePerm = 0
+	}
+
 	groups, err := c.ServerGroupList()
 	if err == nil {
 		for _, g := range groups {
 			if g.Name == name {
-				b.applyGroupTreePerm(c, g.ID, b.Cfg.TitleGroupShowNameInTree)
+				b.applyGroupTreePerm(c, g.ID, treePerm)
 				return g.ID, nil
 			}
 		}
@@ -73,11 +81,11 @@ func (b *Bot) getOrCreateTitleGroup(c *clientquery.Client, name string) (int, er
 		return 0, err
 	}
 
-	// Re-list to find ID and show the title next to the member's name in the tree.
+	// Re-list to find ID and apply the tree-perm.
 	groups, _ = c.ServerGroupList()
 	for _, g := range groups {
 		if g.Name == name {
-			b.applyGroupTreePerm(c, g.ID, b.Cfg.TitleGroupShowNameInTree)
+			b.applyGroupTreePerm(c, g.ID, treePerm)
 			return g.ID, nil
 		}
 	}
