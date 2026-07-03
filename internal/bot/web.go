@@ -145,22 +145,22 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux := http.NewServeMux()
 
 	// Static assets.
-	mux.HandleFunc("/static/style.css", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/static/style.css", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
 		b, _ := webAssets.ReadFile("webassets/style.css")
 		_, _ = w.Write(b)
 	})
-	mux.HandleFunc("/static/favicon.svg", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/static/favicon.svg", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/svg+xml")
 		b, _ := webAssets.ReadFile("webassets/favicon.svg")
 		_, _ = w.Write(b)
 	})
-	mux.HandleFunc("/static/logo.svg", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/static/logo.svg", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/svg+xml")
 		b, _ := webAssets.ReadFile("webassets/logo.svg")
 		_, _ = w.Write(b)
 	})
-	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/svg+xml")
 		b, _ := webAssets.ReadFile("webassets/favicon.svg")
 		_, _ = w.Write(b)
@@ -215,6 +215,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/abyss", s.auth(s.handleAbyssPage))
 		mux.HandleFunc("/api/abyss/enter", s.authAPI(s.handleAbyssEnter))
 		mux.HandleFunc("/api/abyss/descend", s.authAPI(s.handleAbyssDescend))
+		mux.HandleFunc("/api/abyss/choose_floor", s.authAPI(s.handleAbyssChooseFloor))
 		mux.HandleFunc("/api/abyss/revive", s.authAPI(s.handleAbyssRevive))
 		mux.HandleFunc("/api/abyss/concede", s.authAPI(s.handleAbyssConcede))
 		mux.HandleFunc("/api/abyss/bank", s.authAPI(s.handleAbyssBank))
@@ -228,6 +229,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/coop/invite", s.authAPI(s.handleAbyssCoopInvite))
 		mux.HandleFunc("/api/abyss/prestige", s.authAPI(s.handleAbyssPrestige))
 		mux.HandleFunc("/api/abyss/bounty/claim", s.authAPI(s.handleAbyssBountyClaim))
+		mux.HandleFunc("/api/abyss/set_badge", s.authAPI(s.handleAbyssSetBadge))
 		mux.HandleFunc("/api/abyss/shop/buy", s.authAPI(s.handleAbyssShopBuy))
 		mux.HandleFunc("/api/abyss/dismantle", s.authAPI(s.handleAbyssDismantle))
 		mux.HandleFunc("/api/abyss/identify", s.authAPI(s.handleAbyssIdentify))
@@ -414,6 +416,7 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if next := r.URL.Query().Get("next"); strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") {
 		dest = next
 	}
+	// #nosec G710 -- dest is validated above to be a same-origin relative path only
 	http.Redirect(w, r, dest, http.StatusSeeOther)
 }
 
@@ -431,7 +434,7 @@ func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/denied", http.StatusSeeOther)
 }
 
-func (s *WebServer) handleDenied(w http.ResponseWriter, r *http.Request) {
+func (s *WebServer) handleDenied(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	s.render(w, "denied", map[string]any{"Title": "Access"})
 }

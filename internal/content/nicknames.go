@@ -126,9 +126,9 @@ func keepAlnum(s string) string {
 }
 
 func clampNick(s string) string {
-	const max = 28
-	if len(s) > max {
-		return s[:max]
+	const maxLen = 28
+	if len(s) > maxLen {
+		return s[:maxLen]
 	}
 	return s
 }

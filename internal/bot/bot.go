@@ -1,3 +1,6 @@
+// Package bot implements the headless TS3 free-game bot and its RPG
+// progression system: XP/combat, gear/loot, the web portal, and the Abyss
+// dungeon, all backed by PostgreSQL.
 package bot
 
 import (
@@ -20,9 +23,11 @@ import (
 	"ts3news/internal/i18n"
 	"ts3news/internal/leveling"
 
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // registers the "postgres" database/sql driver
 )
 
+// Bot is the top-level RPG bot instance: its config and database handle, plus
+// caches of TS3 server-group IDs already created for level/XP progression.
 type Bot struct {
 	Cfg         *config.Config
 	DB          *sql.DB
@@ -37,6 +42,7 @@ type levelResult struct {
 	Awarded  int
 }
 
+// NewBot opens the database, runs pending migrations, and returns a ready-to-use Bot.
 func NewBot(cfg *config.Config) *Bot {
 	database, err := sql.Open("postgres", cfg.DatabaseURL)
 	if err != nil {
@@ -64,6 +70,7 @@ func NewBot(cfg *config.Config) *Bot {
 	return b
 }
 
+// Close releases the bot's database connection.
 func (b *Bot) Close() {
 	if b.DB != nil {
 		_ = b.DB.Close()
@@ -620,6 +627,7 @@ func (b *Bot) getAPIKey() string {
 	return ""
 }
 
+// FormatGold formats a gold amount with a k/M/B suffix and TS3 BBCode styling.
 func FormatGold(v int64) string {
 	f := float64(v)
 	switch {
@@ -686,6 +694,8 @@ func (b *Bot) getEquippedItems(uid string) map[content.GearSlot]content.Gear {
 	return out
 }
 
+// CleanupDeadUsers purges notification history for accounts inactive longer
+// than Cfg.DeadUserDays, returning how many rows were removed.
 func (b *Bot) CleanupDeadUsers() (int, error) {
 	if b.Cfg.DeadUserDays <= 0 {
 		return 0, nil
@@ -856,6 +866,7 @@ const foreignChannelNameChance = 0.08
 func pickChannelName(taken map[string]bool) (string, bool) {
 	// Occasionally try another language first, but fall back to the active locale
 	// if that foreign pool has no free client-safe name left.
+	// #nosec G404 -- non-cryptographic cosmetic channel-name pick
 	if rand.Float64() < foreignChannelNameChance {
 		var others []i18n.LocaleID
 		for _, id := range i18n.AllLocales {
@@ -864,6 +875,7 @@ func pickChannelName(taken map[string]bool) (string, bool) {
 			}
 		}
 		if len(others) > 0 {
+			// #nosec G404 -- non-cryptographic cosmetic channel-name pick
 			id := others[rand.IntN(len(others))]
 			var safe []string
 			for _, n := range i18n.PoolForLocale(id, "channel.name") {
@@ -888,6 +900,7 @@ func pickUnused(pool []string, taken map[string]bool) string {
 		return ""
 	}
 	for i := 0; i < 8; i++ {
+		// #nosec G404 -- non-cryptographic cosmetic channel-name pick
 		if n := pool[rand.IntN(len(pool))]; !taken[n] {
 			return n
 		}

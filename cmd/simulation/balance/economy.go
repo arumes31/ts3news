@@ -127,7 +127,7 @@ func (ge *SimGoldEconomy) AddGold(amount int64) {
 }
 
 // DistributeGold awards gold to players after a victorious fight.
-func DistributeGold(rng *rand.Rand, players []*SimPlayer, mobsKilled int, totalRewardGold int64, economy *SimGoldEconomy, params SimParams) {
+func DistributeGold(rng *rand.Rand, players []*SimPlayer, _ int, totalRewardGold int64, economy *SimGoldEconomy, params SimParams) {
 	if len(players) == 0 {
 		return
 	}

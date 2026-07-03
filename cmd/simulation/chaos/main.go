@@ -1,3 +1,5 @@
+// Command chaos runs a concurrent load-test simulation of many users hammering
+// the bot's XP/combat paths at once, to shake out race conditions.
 package main
 
 import (
@@ -33,7 +35,7 @@ func runChaosSim(userCount int, cycles int) {
 
 	for i := 0; i < userCount; i++ {
 		wg.Add(1)
-		go func(uid int) {
+		go func(_ int) {
 			defer wg.Done()
 			
 			// Local user state

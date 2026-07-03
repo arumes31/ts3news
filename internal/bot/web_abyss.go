@@ -80,12 +80,12 @@ func abyssEffectiveInterest(interestLevel int, hasLuckyCoin bool) float64 {
 	return rate
 }
 
-// softCap returns x unchanged up to cap, then grows logarithmically past it.
-func softCap(x, cap float64) float64 {
-	if x <= cap {
+// softCap returns x unchanged up to capAt, then grows logarithmically past it.
+func softCap(x, capAt float64) float64 {
+	if x <= capAt {
 		return x
 	}
-	return cap + math.Log(1+(x-cap))
+	return capAt + math.Log(1+(x-capAt))
 }
 
 // abyssFloorBonusMaxPer caps the per-floor base so extremely high-level characters
@@ -123,6 +123,38 @@ func abyssDifficulty(depth int) (float64, bool) {
 	}
 	base := abyssBaseDiff + float64(depth-1)*abyssDepthRamp
 	return softCap(base, abyssDiffSoftCap), depth%abyssBossEvery == 0
+}
+
+// abyssRiskCRScale calibrates the "Greed Meter" risk indicator: how much
+// combat rating counts as one full unit of floor difficulty. Purely
+// informational — abyssDifficulty itself stays deliberately un-gear-scaled
+// (see its comment above), this meter never feeds back into real combat.
+const abyssRiskCRScale = 1000.0
+
+// abyssRiskPct returns a rough 0-100 risk indicator for the given floor,
+// comparing its tier-scaled difficulty against the player's current equipped
+// gear combat rating.
+func abyssRiskPct(depth int, tier abyssTier, playerCR float64) int {
+	effDiff, _ := abyssDifficulty(depth)
+	effDiff *= tier.DiffMult
+	pct := int(100 * effDiff / (effDiff + playerCR/abyssRiskCRScale))
+	if pct < 0 {
+		pct = 0
+	}
+	if pct > 100 {
+		pct = 100
+	}
+	return pct
+}
+
+// abyssPlayerCR sums CombatRating() across every currently-equipped item, the
+// same per-item metric already shown on the Armoury page.
+func (b *Bot) abyssPlayerCR(uid string) float64 {
+	var total float64
+	for _, g := range b.getEquippedItems(uid) {
+		total += g.CombatRating()
+	}
+	return total
 }
 
 // abyssMobLevel returns the level Abyss mobs spawn at for a given depth, decoupled
@@ -250,6 +282,17 @@ func (b *Bot) ensureGearMaxDurability(uid string) {
 // same consumable its remaining_fights is increased, rather than the grant being
 // silently dropped — the old `ON CONFLICT DO NOTHING` lost paid purchases (gold
 // spent, nothing granted).
+// consumableCombineRecipes defines passive lesser→greater consumable combines:
+// once a stack reaches Need after a grant, 3 lesser are auto-consumed for 1
+// greater — no manual crafting UI, it just happens.
+var consumableCombineRecipes = map[string]struct {
+	Into string
+	Need int
+}{
+	"small_health_potion": {"great_health_potion", 3},
+	"repair_kit":          {"master_repair_kit", 3},
+}
+
 func (b *Bot) grantConsumable(uid, consID string, fights int) {
 	if fights <= 0 {
 		fights = 1
@@ -260,6 +303,33 @@ func (b *Bot) grantConsumable(uid, consID string, fights int) {
 		 ON CONFLICT (client_uid, cons_id)
 		 DO UPDATE SET remaining_fights = user_consumables.remaining_fights + EXCLUDED.remaining_fights`,
 		uid, consID, fights)
+	b.autoCombineConsumable(uid, consID)
+}
+
+// autoCombineConsumable checks whether consID has a passive combine recipe and,
+// if the player's stack now meets the threshold, consumes it (single pass, no
+// recursive re-combining) for one of the greater item.
+func (b *Bot) autoCombineConsumable(uid, consID string) {
+	recipe, ok := consumableCombineRecipes[consID]
+	if !ok {
+		return
+	}
+	res, err := b.DB.Exec(
+		"UPDATE user_consumables SET remaining_fights = remaining_fights - $1 WHERE client_uid=$2 AND cons_id=$3 AND remaining_fights >= $1",
+		recipe.Need, uid, consID)
+	if err != nil {
+		return
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return
+	}
+	_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights<=0", uid, consID)
+	_, _ = b.DB.Exec(
+		`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
+		 VALUES ($1, $2, 1)
+		 ON CONFLICT (client_uid, cons_id)
+		 DO UPDATE SET remaining_fights = user_consumables.remaining_fights + 1`,
+		uid, recipe.Into)
 }
 
 // consumableOwned is one owned consumable stack, for the Abyss carry-cap picker.
@@ -298,7 +368,7 @@ func (b *Bot) abyssOwnedConsumables(uid string) ([]consumableOwned, int) {
 // abyssBuildConsumableLoadout validates a player-picked loadout against what they
 // own and the carry cap, returning the sanitized {cons_id: count} map (dropping
 // zero entries) or a non-empty error message the picker should surface.
-func abyssBuildConsumableLoadout(picked map[string]int, owned []consumableOwned, max int) (map[string]int, string) {
+func abyssBuildConsumableLoadout(picked map[string]int, owned []consumableOwned, maxCarry int) (map[string]int, string) {
 	ownedMap := make(map[string]int, len(owned))
 	for _, o := range owned {
 		ownedMap[o.ID] = o.Count
@@ -319,8 +389,8 @@ func abyssBuildConsumableLoadout(picked map[string]int, owned []consumableOwned,
 		out[id] = cnt
 		sum += cnt
 	}
-	if sum > max {
-		return nil, fmt.Sprintf("You can bring at most %d (you picked %d).", max, sum)
+	if sum > maxCarry {
+		return nil, fmt.Sprintf("You can bring at most %d (you picked %d).", maxCarry, sum)
 	}
 	return out, ""
 }
@@ -477,7 +547,9 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 	}
 
 	theme := content.CurrentTheme(time.Now())
-	zoneName := abyssZoneName(depth)
+	biome := content.AbyssBiomeFor(depth)
+	zoneName := biome.Name + " " + abyssZoneName(depth)
+	diff *= biome.DiffMod
 	if theme != nil {
 		logs = append(logs, fmt.Sprintf("%s The Abyss is gripped by the %s theme!", theme.Emoji, theme.Name))
 		switch theme.Emoji {
@@ -680,6 +752,7 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 	// penalty on a loss), and prestige immediately at the cap like the cycle does.
 	if victory {
 		// Override XP scaling for Abyss: just 1-20 XP per floor cleared
+		// #nosec G404 -- non-cryptographic reward roll
 		rewardXP = 1 + rand.IntN(20)
 		rewardXP = int(float64(rewardXP) * (1.0 + float64(st.AbyssPrestige)*0.05) * (1.0 + float64(st.UpInsight)*0.05)) // prestige + Insight node
 		if lr, _ := b.awardXP(uid, "", rewardXP); lr != nil && lr.NewLevel >= PrestigeThreshold {
@@ -735,6 +808,32 @@ func bbToHTML(s string) string {
 		"[hr]", `<span class="ab-hr"></span>`,
 	)
 	return repl.Replace(s)
+}
+
+// runLootRow is one escrowed drop, formatted for the right-hand loot manifest
+// sidebar on the Abyss page.
+type runLootRow struct {
+	Label string
+	Depth int
+}
+
+// currentRunLootManifest returns every item escrowed so far in the player's
+// active run, oldest first, for the loot manifest sidebar.
+func (b *Bot) currentRunLootManifest(uid string) []runLootRow {
+	rows, err := b.DB.Query("SELECT label, depth FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id", uid)
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = rows.Close() }()
+	var out []runLootRow
+	for rows.Next() {
+		var r runLootRow
+		if err := rows.Scan(&r.Label, &r.Depth); err == nil {
+			r.Label = bbToHTML(r.Label)
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 // ---- Run state -----------------------------------------------------------
@@ -819,8 +918,12 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 
 	_, dailyMod := s.bot.currentDailyChallenge()
 	helpers := s.bot.loadCoopHelpers(uid)
-	abyssSetPieces := s.bot.countEquippedAbyssGear(uid)
-	_, abyssSetTier := content.AbyssSetBonus(abyssSetPieces)
+	abyssGearBySet := s.bot.countEquippedAbyssGearBySet(uid)
+	_, abyssTierBySet := content.AbyssSetBonusBySet(abyssGearBySet)
+	abyssSetPieces := abyssGearBySet["abyss_legacy"]
+	abyssSetTier := abyssTierBySet["abyss_legacy"]
+	predatorPieces, wardenPieces := abyssGearBySet["predator"], abyssGearBySet["warden"]
+	predatorTier, wardenTier := abyssTierBySet["predator"], abyssTierBySet["warden"]
 
 	equipped := s.bot.getEquippedItems(uid)
 	var slots []gearView
@@ -830,6 +933,33 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		}
 	}
 	inventory := s.bot.inventoryItems(uid)
+
+	var badgeCode sql.NullString
+	_ = s.bot.DB.QueryRow("SELECT abyss_active_badge FROM users WHERE client_uid=$1", uid).Scan(&badgeCode)
+	activeBadge := ""
+	activeBadgeName := ""
+	if badgeCode.Valid && badgeCode.String != "" {
+		activeBadge = badgeCode.String
+		activeBadgeName = abyssAchievementName(activeBadge)
+	}
+	badgeOptions := []map[string]string{}
+	for _, code := range s.bot.abyssAchievementCodes(uid) {
+		badgeOptions = append(badgeOptions, map[string]string{"Code": code, "Name": abyssAchievementName(code)})
+	}
+
+	var dropStreak int
+	_ = s.bot.DB.QueryRow("SELECT abyss_drop_streak FROM users WHERE client_uid=$1", uid).Scan(&dropStreak)
+	dropStreakBonusPct := dropStreak * 2
+	if dropStreakBonusPct > 30 {
+		dropStreakBonusPct = 30
+	}
+
+	risk := 0
+	if run.Active {
+		if runTier, ok := abyssTierByKey(run.Tier); ok {
+			risk = abyssRiskPct(run.Depth+1, runTier, s.bot.abyssPlayerCR(uid))
+		}
+	}
 
 	s.render(w, "abyss", map[string]any{
 		"Title":          "The Abyss",
@@ -842,14 +972,21 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Season":         abyssSeasonLabel(),
 		"History":        s.bot.abyssHistory(uid, 8),
 		"Achieved":       s.bot.abyssAchievements(uid),
+		"BadgeOptions":    badgeOptions,
+		"ActiveBadge":     activeBadge,
+		"ActiveBadgeName": activeBadgeName,
 		"LoreList":       loreList,
 		"Bestiary":       s.bot.loadAbyssBestiary(uid),
 		"Consumables":    s.bot.getConsumables(uid),
 		"DailyMod":      dailyMod,
 		"Helpers":        helpers,
 		"NextIsBoss":     run.Active && (run.Depth+1)%5 == 0,
-		"AbyssSetPieces": abyssSetPieces,
-		"AbyssSetTier":   abyssSetTier,
+		"AbyssSetPieces":   abyssSetPieces,
+		"AbyssSetTier":     abyssSetTier,
+		"PredatorPieces":   predatorPieces,
+		"PredatorTier":     predatorTier,
+		"WardenPieces":     wardenPieces,
+		"WardenTier":       wardenTier,
 		"Bounty":         s.bot.abyssBountyStatus(uid),
 		"Shop":           abyssShopCatalog,
 		"Pacts":          abyssPactCatalog,
@@ -860,6 +997,10 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 			_ = s.bot.DB.QueryRow("SELECT legendary_pity FROM users WHERE client_uid=$1", uid).Scan(&pity)
 			return pity
 		}(),
+		"DropStreak":         dropStreak,
+		"DropStreakBonusPct": dropStreakBonusPct,
+		"Risk":               risk,
+		"RunLoot":            s.bot.currentRunLootManifest(uid),
 	})
 }
 
@@ -1017,103 +1158,233 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	}
 
 	newDepth := run.Depth + 1
-
-	// Roll floor type: 10% rest, 10% event, 80% combat
-	var floorType string
-	modifier := ""
-	eventState := ""
-
-	// Check Watcher Stalker trigger (Item #67)
-	if !run.LastActionAt.IsZero() && time.Since(run.LastActionAt) > 15*time.Minute && run.Depth > 0 {
-		modifier = "watcher"
-		floorType = "combat"
-	} else if newDepth%abyssBossEvery == 0 {
-		floorType = "combat"
-	} else {
-		// #nosec G404
-		rType := rand.Float64()
-		if rType < 0.10 {
-			floorType = "rest"
-		} else if rType < 0.20 {
-			floorType = "event"
-			// Roll one of the mysterious-encounter types. Weighted toward the
-			// merchant; the rest split the long tail of shrines, gambles and caches.
-			// #nosec G404
-			rEv := rand.Float64()
-			if rEv < 0.34 {
-				g := content.RandomGearDrop()
-				c1 := content.RandomConsumable()
-				c2 := content.RandomConsumable()
-				
-				var count1 int
-				if c1.Type == content.ConsumableHealing || c1.Type == content.ConsumableRepair || c1.Type == content.ConsumableRevive {
-					count1 = 1 + rand.IntN(5)
-				} else {
-					count1 = 1 + rand.IntN(3)
-				}
-				
-				var count2 int
-				if c2.Type == content.ConsumableHealing || c2.Type == content.ConsumableRepair || c2.Type == content.ConsumableRevive {
-					count2 = 1 + rand.IntN(5)
-				} else {
-					count2 = 1 + rand.IntN(3)
-				}
-				
-				var price1 int64
-				if c1.Type == content.ConsumableBuff {
-					price1 = int64(75 * count1)
-				} else {
-					price1 = int64(50 * count1)
-				}
-				
-				var price2 int64
-				if c2.Type == content.ConsumableBuff {
-					price2 = int64(75 * count2)
-				} else {
-					price2 = int64(50 * count2)
-				}
-				
-				name1 := c1.Name
-				if count1 > 1 {
-					name1 = fmt.Sprintf("%s x%d", c1.Name, count1)
-				}
-				
-				name2 := c2.Name
-				if count2 > 1 {
-					name2 = fmt.Sprintf("%s x%d", c2.Name, count2)
-				}
-				
-				eventState = fmt.Sprintf(`{"type":"merchant","items":[{"type":"gear","id":"%s","name":"%s","price":400},{"type":"cons","id":"%s","name":"%s","price":%d,"count":%d},{"type":"cons","id":"%s","name":"%s","price":%d,"count":%d}]}`, g.ID, g.Name, c1.ID, name1, price1, count1, c2.ID, name2, price2, count2)
-			} else if rEv < 0.50 {
-				eventState = `{"type":"imp"}`
-			} else if rEv < 0.60 {
-				eventState = `{"type":"shrine"}`
-			} else if rEv < 0.70 {
-				eventState = `{"type":"wishing_well"}`
-			} else if rEv < 0.79 {
-				eventState = `{"type":"gambler"}`
-			} else if rEv < 0.86 {
-				eventState = `{"type":"statue"}`
-			} else if rEv < 0.92 {
-				eventState = `{"type":"fountain"}`
-			} else if rEv < 0.97 {
-				eventState = `{"type":"mimic"}`
-			} else {
-				eventState = `{"type":"buried_cache"}`
-			}
-		} else {
-			floorType = "combat"
-			// #nosec G404
-			if rand.Float64() < 0.15 {
-				mods := []string{"enraged", "no_healing", "artifact_corrupted", "treasure_goblin", "echo_encounter"}
-				// #nosec G404
-				modifier = mods[rand.IntN(len(mods))]
-			}
-		}
-	}
-
 	tier, _ := abyssTierByKey(run.Tier)
 
+	// Forced floors bypass the choice picker entirely: the Watcher Stalker
+	// ambush trigger (Item #67) and boss floors are never optional.
+	if !run.LastActionAt.IsZero() && time.Since(run.LastActionAt) > 15*time.Minute && run.Depth > 0 {
+		s.commitFloor(w, uid, run, newDepth, "combat", "watcher", "", tier, focus)
+		return
+	}
+	if newDepth%abyssBossEvery == 0 {
+		s.commitFloor(w, uid, run, newDepth, "combat", "", "", tier, focus)
+		return
+	}
+
+	// Otherwise offer the player a choice between 2 candidate floor paths
+	// (weighted-sampled from the same 10% rest / 10% event / 80% combat odds
+	// as before) instead of rolling one outcome immediately.
+	candidates := rollFloorCandidates(2)
+	pending := pendingFloorChoice{Candidates: candidates, Focus: focus}
+	buf, err := json.Marshal(pending)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "internal"})
+		return
+	}
+	if _, err := s.bot.DB.Exec("UPDATE abyss_active SET pending_floor_choice=$1, last_action_at=NOW() WHERE client_uid=$2", string(buf), uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	writeJSON(w, map[string]any{
+		"ok": true, "choose_floor": true, "depth": newDepth,
+		"options": candidates, "escrow": run.Escrow,
+	})
+}
+
+// floorCandidate is one offered path in the branching-floor-choice picker.
+type floorCandidate struct {
+	Index int    `json:"index"`
+	Type  string `json:"type"`
+	Label string `json:"label"`
+	Icon  string `json:"icon"`
+}
+
+// pendingFloorChoice is stored uncommitted in abyss_active.pending_floor_choice
+// between the descend roll and the player's pick.
+type pendingFloorChoice struct {
+	Candidates []floorCandidate `json:"candidates"`
+	Focus      string           `json:"focus"`
+}
+
+var floorCandidateInfo = map[string]struct{ Label, Icon string }{
+	"combat": {"Press onward", "⚔️"},
+	"rest":   {"Rest at a sanctuary", "🕊️"},
+	"event":  {"Investigate a strange presence", "❔"},
+}
+
+// rollFloorCandidates weighted-samples n distinct floor types (without
+// replacement) from the same 10% rest / 10% event / 80% combat odds the
+// descend roll always used, so the offered choices stay meaningfully random.
+func rollFloorCandidates(n int) []floorCandidate {
+	weights := map[string]float64{"rest": 0.10, "event": 0.10, "combat": 0.80}
+	remaining := []string{"rest", "event", "combat"}
+	if n > len(remaining) {
+		n = len(remaining)
+	}
+	chosen := make([]string, 0, n)
+	for len(chosen) < n && len(remaining) > 0 {
+		total := 0.0
+		for _, t := range remaining {
+			total += weights[t]
+		}
+		// #nosec G404
+		r := rand.Float64() * total
+		acc, pickIdx := 0.0, len(remaining)-1
+		for i, t := range remaining {
+			acc += weights[t]
+			if r < acc {
+				pickIdx = i
+				break
+			}
+		}
+		chosen = append(chosen, remaining[pickIdx])
+		remaining = append(remaining[:pickIdx], remaining[pickIdx+1:]...)
+	}
+	out := make([]floorCandidate, len(chosen))
+	for i, t := range chosen {
+		info := floorCandidateInfo[t]
+		out[i] = floorCandidate{Index: i, Type: t, Label: info.Label, Icon: info.Icon}
+	}
+	return out
+}
+
+// rollFloorDetail rolls the sub-details for an already-chosen floor type: the
+// event subtype for "event" floors, or the 15% chance of a combat modifier for
+// "combat" floors. Extracted unchanged from the pre-branching-choice descend roll.
+func rollFloorDetail(floorType string) (modifier, eventState string) {
+	switch floorType {
+	case "event":
+		// Roll one of the mysterious-encounter types. Weighted toward the
+		// merchant; the rest split the long tail of shrines, gambles and caches.
+		// #nosec G404
+		rEv := rand.Float64()
+		if rEv < 0.34 {
+			g := content.RandomGearDrop()
+			c1 := content.RandomConsumable()
+			c2 := content.RandomConsumable()
+
+			var count1 int
+			// #nosec G404 -- non-cryptographic merchant stock roll
+			if c1.Type == content.ConsumableHealing || c1.Type == content.ConsumableRepair || c1.Type == content.ConsumableRevive {
+				count1 = 1 + rand.IntN(5)
+			} else {
+				count1 = 1 + rand.IntN(3)
+			}
+
+			var count2 int
+			// #nosec G404 -- non-cryptographic merchant stock roll
+			if c2.Type == content.ConsumableHealing || c2.Type == content.ConsumableRepair || c2.Type == content.ConsumableRevive {
+				count2 = 1 + rand.IntN(5)
+			} else {
+				count2 = 1 + rand.IntN(3)
+			}
+
+			var price1 int64
+			if c1.Type == content.ConsumableBuff {
+				price1 = int64(75 * count1)
+			} else {
+				price1 = int64(50 * count1)
+			}
+
+			var price2 int64
+			if c2.Type == content.ConsumableBuff {
+				price2 = int64(75 * count2)
+			} else {
+				price2 = int64(50 * count2)
+			}
+
+			name1 := c1.Name
+			if count1 > 1 {
+				name1 = fmt.Sprintf("%s x%d", c1.Name, count1)
+			}
+
+			name2 := c2.Name
+			if count2 > 1 {
+				name2 = fmt.Sprintf("%s x%d", c2.Name, count2)
+			}
+
+			eventState = fmt.Sprintf(`{"type":"merchant","items":[{"type":"gear","id":"%s","name":"%s","price":400},{"type":"cons","id":"%s","name":"%s","price":%d,"count":%d},{"type":"cons","id":"%s","name":"%s","price":%d,"count":%d}]}`, g.ID, g.Name, c1.ID, name1, price1, count1, c2.ID, name2, price2, count2)
+		} else if rEv < 0.50 {
+			eventState = `{"type":"imp"}`
+		} else if rEv < 0.60 {
+			eventState = `{"type":"shrine"}`
+		} else if rEv < 0.70 {
+			eventState = `{"type":"wishing_well"}`
+		} else if rEv < 0.79 {
+			eventState = `{"type":"gambler"}`
+		} else if rEv < 0.86 {
+			eventState = `{"type":"statue"}`
+		} else if rEv < 0.92 {
+			eventState = `{"type":"fountain"}`
+		} else if rEv < 0.97 {
+			eventState = `{"type":"mimic"}`
+		} else {
+			eventState = `{"type":"buried_cache"}`
+		}
+	case "combat":
+		// #nosec G404
+		if rand.Float64() < 0.15 {
+			mods := []string{"enraged", "no_healing", "artifact_corrupted", "treasure_goblin", "echo_encounter"}
+			// #nosec G404
+			modifier = mods[rand.IntN(len(mods))]
+		}
+	}
+	return
+}
+
+// handleAbyssChooseFloor commits the player's pick from the choice offered by
+// handleAbyssDescend, rolls that floor's sub-details, and proceeds exactly as
+// a direct descend would have.
+func (s *WebServer) handleAbyssChooseFloor(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
+
+	run := s.bot.loadAbyssRun(uid)
+	if !run.Active {
+		writeJSON(w, map[string]any{"ok": false, "error": "not in a run"})
+		return
+	}
+	if run.Downed {
+		writeJSON(w, map[string]any{"ok": false, "error": "you are downed — revive or concede"})
+		return
+	}
+
+	var req struct {
+		Index int `json:"index"`
+	}
+	_ = readJSON(r, &req)
+
+	var pendingRaw sql.NullString
+	if err := s.bot.DB.QueryRow("SELECT pending_floor_choice FROM abyss_active WHERE client_uid=$1", uid).Scan(&pendingRaw); err != nil || !pendingRaw.Valid || pendingRaw.String == "" {
+		writeJSON(w, map[string]any{"ok": false, "error": "no floor choice pending"})
+		return
+	}
+	var pending pendingFloorChoice
+	if err := json.Unmarshal([]byte(pendingRaw.String), &pending); err != nil || req.Index < 0 || req.Index >= len(pending.Candidates) {
+		writeJSON(w, map[string]any{"ok": false, "error": "invalid choice"})
+		return
+	}
+	chosen := pending.Candidates[req.Index]
+
+	if _, err := s.bot.DB.Exec("UPDATE abyss_active SET pending_floor_choice=NULL WHERE client_uid=$1", uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+
+	newDepth := run.Depth + 1
+	tier, _ := abyssTierByKey(run.Tier)
+	modifier, eventState := rollFloorDetail(chosen.Type)
+	s.commitFloor(w, uid, run, newDepth, chosen.Type, modifier, eventState, tier, pending.Focus)
+}
+
+// commitFloor writes the resolved floor (type + rolled details) to abyss_active
+// and either returns the rest/event payload or resolves combat immediately.
+// Shared by the direct-descend (forced) path and the choose-floor path.
+func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun, newDepth int, floorType, modifier, eventState string, tier abyssTier, focus string) {
 	if floorType != "combat" {
 		// Store NULL rather than an empty string for floors with no event payload
 		// (e.g. rest floors) so the JSONB event_state column accepts the write.
@@ -1121,7 +1392,6 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 		if eventState != "" {
 			evStateArg = eventState
 		}
-		// Update active run to rest/event floor
 		_, err := s.bot.DB.Exec(
 			`UPDATE abyss_active
 			    SET depth=$1, floor_type=$2, modifier=$3, event_state=$4, last_action_at=NOW()
@@ -1132,6 +1402,9 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
+		if floorType == "rest" {
+			_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
+		}
 		writeJSON(w, map[string]any{
 			"ok":          true,
 			"noncombat":   true,
@@ -1139,6 +1412,7 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 			"depth":       newDepth,
 			"event_state": eventState,
 			"escrow":      run.Escrow,
+			"risk":        abyssRiskPct(newDepth+1, tier, s.bot.abyssPlayerCR(uid)),
 		})
 		return
 	}
@@ -1168,6 +1442,7 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 		"ok": true, "victory": res.Victory, "depth": depth,
 		"hp": res.CurrentHP, "max_hp": res.MaxHP,
 		"logs": res.LogsHTML, "loot": res.LootHTML, "dura": res.DuraHTML, "reward_xp": res.RewardXP,
+		"risk": abyssRiskPct(depth+1, tier, s.bot.abyssPlayerCR(uid)),
 	}
 
 	if res.Victory {
@@ -1201,7 +1476,8 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 			return
 		}
 		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1) WHERE client_uid=$2", depth, uid)
-		
+		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = abyss_win_streak + 1 WHERE client_uid=$1", uid)
+
 		// Evolving Artifacts: gains level/XP on clearing floor
 		if art, ok := equipped[content.SlotArtifact]; ok {
 			art.GearLevel++
@@ -1270,6 +1546,7 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 		out["can_revive"] = !run.Revived
 		out["escrow"] = escrowBefore
 		out["insured"] = run.Insured
+		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
 	}
 
 	var gold int64
@@ -1668,6 +1945,17 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 			"gold":   gold,
 		})
 		return
+	case content.ConsumableRevive:
+		// Unlike handleAbyssRevive's double-or-nothing gamble, this is a plain
+		// heal-and-continue — an *extra* revive beyond the normal one-per-run,
+		// so it deliberately does not touch abyss_active.revived. Downed is
+		// derived from CurHP<=0, so healing above 0 clears it on its own.
+		run := s.bot.loadAbyssRun(uid)
+		if !run.Active || !run.Downed {
+			writeJSON(w, map[string]any{"ok": false, "error": "you are not downed"})
+			return
+		}
+		_, _ = s.bot.DB.Exec("UPDATE users SET current_hp = $1 WHERE client_uid = $2", stats.HP, uid)
 	default:
 		writeJSON(w, map[string]any{"ok": false, "error": "consumable type cannot be used manually"})
 		return
@@ -2412,12 +2700,27 @@ func abyssDailyDangerMult(dailyMod string) float64 {
 	return 1.0
 }
 
-// countEquippedAbyssGear returns how many Abyss-exclusive (ABYSS_) pieces the
-// player currently has equipped, for the set-bonus readout on the Abyss page.
-func (b *Bot) countEquippedAbyssGear(uid string) int {
-	var n int
-	_ = b.DB.QueryRow(`SELECT COUNT(*) FROM user_gear WHERE client_uid=$1 AND gear_id LIKE 'ABYSS\_%'`, uid).Scan(&n)
-	return n
+// countEquippedAbyssGearBySet buckets equipped Abyss-exclusive gear by its
+// EffectiveSetID (named set, or "abyss_legacy" for untagged items) so true
+// per-collection set bonuses can be computed alongside the original flat set.
+func (b *Bot) countEquippedAbyssGearBySet(uid string) map[string]int {
+	counts := make(map[string]int)
+	rows, err := b.DB.Query("SELECT gear_id, item_data FROM user_gear WHERE client_uid=$1 AND gear_id LIKE 'ABYSS\\_%'", uid)
+	if err != nil {
+		return counts
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var gearID string
+		var itemData sql.NullString
+		if err := rows.Scan(&gearID, &itemData); err != nil {
+			continue
+		}
+		if g, ok := b.makeGear(gearID, itemData); ok {
+			counts[g.EffectiveSetID()]++
+		}
+	}
+	return counts
 }
 
 func (b *Bot) loadCoopHelpers(uid string) []map[string]any {
@@ -2446,7 +2749,7 @@ func (b *Bot) loadCoopHelpers(uid string) []map[string]any {
 	return out
 }
 
-func (s *WebServer) handleAbyssCoopList(w http.ResponseWriter, r *http.Request, uid string) {
+func (s *WebServer) handleAbyssCoopList(w http.ResponseWriter, _ *http.Request, uid string) {
 	helpers := s.bot.loadCoopHelpers(uid)
 	writeJSON(w, map[string]any{"ok": true, "helpers": helpers})
 }

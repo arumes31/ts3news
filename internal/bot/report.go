@@ -30,20 +30,20 @@ const (
 
 // barFill builds a fixed-width progress bar like [|||||-----].
 // cur is clamped to [0,max]; width is the number of cells.
-func barFill(cur, max, width int) string {
+func barFill(cur, maxV, width int) string {
 	if width < 1 {
 		width = 1
 	}
-	if max <= 0 {
-		max = 1
+	if maxV <= 0 {
+		maxV = 1
 	}
 	if cur < 0 {
 		cur = 0
 	}
-	if cur > max {
-		cur = max
+	if cur > maxV {
+		cur = maxV
 	}
-	filled := int(float64(cur) / float64(max) * float64(width))
+	filled := int(float64(cur) / float64(maxV) * float64(width))
 	if filled > width {
 		filled = width
 	}
@@ -68,13 +68,13 @@ func hpRatioColor(ratio float64) string {
 
 // hpBar renders a colour-graded HP bar with a cur/max readout, e.g.
 // [color=#55ff55][||||||----][/color] 120/200.
-func hpBar(cur, max int) string {
-	if max <= 0 {
-		max = 1
+func hpBar(cur, maxV int) string {
+	if maxV <= 0 {
+		maxV = 1
 	}
-	ratio := float64(cur) / float64(max)
-	bar := colorWrap(hpRatioColor(ratio), barFill(cur, max, 10))
-	return fmt.Sprintf("%s %d/%d", bar, clampNonNeg(cur), max)
+	ratio := float64(cur) / float64(maxV)
+	bar := colorWrap(hpRatioColor(ratio), barFill(cur, maxV, 10))
+	return fmt.Sprintf("%s %d/%d", bar, clampNonNeg(cur), maxV)
 }
 
 // xpBar renders a 0..1 progress fraction as a coloured bar plus percentage.

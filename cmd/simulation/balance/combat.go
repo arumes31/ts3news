@@ -522,7 +522,7 @@ func playerTurn(rng *rand.Rand, cp []combatPlayer, mobs []*SimMob, players []*Si
 
 // mobTurn resolves all mob actions for one round.
 // Mirrors bot.mobTurn in xp.go.
-func mobTurn(rng *rand.Rand, cp []combatPlayer, mobs []*SimMob, players []*SimPlayer, intensify, fatigueMult float64, params SimParams, logs *[]string, result *SimCombatResult, round int) {
+func mobTurn(rng *rand.Rand, cp []combatPlayer, mobs []*SimMob, _ []*SimPlayer, intensify, fatigueMult float64, params SimParams, logs *[]string, result *SimCombatResult, round int) {
 	for _, m := range mobs {
 		if m.HP <= 0 {
 			continue

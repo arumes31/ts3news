@@ -45,6 +45,8 @@ const (
 	deathXPPenalty      = 0.05 // 5% XP loss on death
 )
 
+// UserInCombat is a character's resolved combat-ready state for one fight:
+// stats, equipped gear, skills, pets, and per-fight modifiers.
 type UserInCombat struct {
 	UID           string
 	Nickname      string
@@ -201,7 +203,7 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 	return lr, notes, ""
 }
 
-func (b *Bot) computeMiscMult(uid, nickname string, cid int, ctx cycleContext) float64 {
+func (b *Bot) computeMiscMult(uid, _ string, cid int, ctx cycleContext) float64 {
 	if !b.Cfg.EnableXPModifiers {
 		return 1.0
 	}
@@ -338,6 +340,8 @@ func getElementMult(attacker, defender content.Element) float64 {
 	return 1.0
 }
 
+// LootResult is one item/gold grant from a resolved fight, ready to log and
+// (optionally) poke the recipient about.
 type LootResult struct {
 	UID  string
 	Note string
@@ -917,11 +921,13 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			sentientName = mh.Name
 		}
 
+		// #nosec G404 -- non-cryptographic flavour-text roll
 		if u.CurrentHP < u.Stats.HP/3 && hasSentient && rand.Float64() < 0.3 {
 			dialogues := []string{
 				"The weapon whispers: 'Do not fail me now... there are still souls to consume...'",
 				"The sentient weapon thrums with urgent energy: 'Stand strong, mortal!'",
 			}
+			// #nosec G404 -- non-cryptographic flavour-text roll
 			*logs = append(*logs, fmt.Sprintf("💬 [%s]: %s", sentientName, dialogues[rand.IntN(len(dialogues))]))
 		}
 
@@ -1109,6 +1115,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			target.Stats.HP -= dmg
 			*totalUserDamage += dmg
 
+			// #nosec G404 -- non-cryptographic flavour-text roll
 			if hasSentient && rand.Float64() < 0.25 {
 				var sentientLog string
 				if dmg > int(float64(uSTR)*0.8) {
@@ -1172,6 +1179,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 
 			if target.Stats.HP <= 0 {
 				*logs = append(*logs, i18n.T("bot.combat.defeated", target.Name, u.Nickname))
+				// #nosec G404 -- non-cryptographic flavour-text roll
 				if hasSentient && rand.Float64() < 0.4 {
 					*logs = append(*logs, fmt.Sprintf("💬 [%s]: 'Their soul is ours now!'", sentientName))
 				}
@@ -1499,7 +1507,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 	}
 }
 
-func (b *Bot) distributeRewards(users []UserInCombat, activeUsers []activeUser, victory bool, totalUserDamage, totalMobDamage, totalRewardXP int, initialMobs []*content.Mob, mobs []*content.Mob, zone content.Zone, logs []string, avgLvl int) ([]string, int, bool) {
+func (b *Bot) distributeRewards(users []UserInCombat, _ []activeUser, victory bool, totalUserDamage, totalMobDamage, totalRewardXP int, initialMobs []*content.Mob, _ []*content.Mob, zone content.Zone, logs []string, avgLvl int) ([]string, int, bool) {
 	// Summarize Combat — centred header plus visual damage-share bars.
 	totalDamage := totalUserDamage + totalMobDamage
 	logs = append(logs, hr())
@@ -2127,7 +2135,7 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 	// Calculate gear XP multiplier
 	// Only Rare+ items provide XP bonuses (Common/Uncommon have 1.0-1.05x)
 	// Max possible from gear: 30 slots × 1.30x = ~2600x (capped by rarity distribution)
-	abyssSetPieces := 0
+	abyssSetCounts := make(map[string]int)
 	rows, err := b.DB.Query("SELECT gear_id, durability, enchantment_id, item_data FROM user_gear WHERE client_uid = $1", uid)
 	if err == nil {
 		defer func() { _ = rows.Close() }()
@@ -2137,10 +2145,10 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 			var enchID sql.NullString
 			var itemData sql.NullString
 			if err := rows.Scan(&gearID, &dura, &enchID, &itemData); err == nil {
-				if content.IsAbyssGearID(gearID) {
-					abyssSetPieces++
-				}
 				if gear, ok := b.makeGear(gearID, itemData); ok {
+					if content.IsAbyssGearID(gearID) {
+						abyssSetCounts[gear.EffectiveSetID()]++
+					}
 					// Define which slots can have high XP multipliers (more than 20%)
 					highXPSlots := map[content.GearSlot]bool{
 						content.SlotMainHand: true,
@@ -2210,12 +2218,27 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 		}
 	}
 
-	// Abyss set bonus: equipping multiple ABYSS_ pieces grants cumulative 2/4/6-piece
-	// stat tiers, applied here so the set works everywhere the character fights.
-	if bonus, reached := content.AbyssSetBonus(abyssSetPieces); reached > 0 {
+	// Abyss set bonus: equipping multiple ABYSS_ pieces grants cumulative stat
+	// tiers, applied here so the set(s) work everywhere the character fights.
+	// Named sets (predator/warden) and the flat legacy set for untagged items
+	// are all folded together — see content.AbyssSetBonusBySet.
+	if bonus, reachedBySet := content.AbyssSetBonusBySet(abyssSetCounts); len(reachedBySet) > 0 {
 		stats = stats.Add(bonus)
 		gearScore += bonus.Score()
-		notes = append(notes, fmt.Sprintf("🕳️ Abyss Set (%d pieces)", reached))
+		for setID, tier := range reachedBySet {
+			notes = append(notes, fmt.Sprintf("🕳️ Abyss Set: %s (%d pieces)", setID, tier))
+		}
+	}
+
+	// Abyss win-streak buff: consecutive floor wins within the current run grant a
+	// small stacking combat bonus (see abyssStreakBuff), applied wherever the
+	// character fights so it's live during real Abyss combat.
+	var winStreak int
+	_ = b.DB.QueryRow("SELECT abyss_win_streak FROM users WHERE client_uid=$1", uid).Scan(&winStreak)
+	if streakBonus := abyssStreakBuff(winStreak); streakBonus != (content.Stats{}) {
+		stats = stats.Add(streakBonus)
+		gearScore += streakBonus.Score()
+		notes = append(notes, fmt.Sprintf("🔥 Abyss Streak (%d wins)", winStreak))
 	}
 
 	// Skills also provide effects
@@ -2354,6 +2377,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			// If gold focus, skip item rolls but always award a gold bonus.
 			// Treasure goblins get an even richer payout.
 			if mob.Type == content.MobTreasureGoblin {
+				// #nosec G404 -- non-cryptographic reward roll
 				gold := int64(1000 + rand.IntN(2000))
 				if vip.Bonus > 0 {
 					gold = int64(float64(gold) * (1.0 + float64(vip.Bonus)/100.0))
@@ -2362,6 +2386,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				results = append(results, fmt.Sprintf("💰 %d gold", gold))
 			} else {
 				// Standard gold reward for non-goblin mobs in gold-focus mode
+				// #nosec G404 -- non-cryptographic reward roll
 				baseGold := int64(10 + rand.IntN(mob.RewardXP/2+10))
 				if vip.Bonus > 0 {
 					baseGold = int64(float64(baseGold) * (1.0 + float64(vip.Bonus)/100.0))
@@ -2479,6 +2504,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			lootFound = true
 		} else if r < gearChance*qualityMult {
 			g := content.RandomGearDrop()
+			// #nosec G404 -- non-cryptographic loot roll
 			if b.loadAbyssRun(uid).Active && rand.Float64() < 0.20 {
 				g = content.RandomAbyssGearDrop()
 			}
@@ -2727,7 +2753,7 @@ func (b *Bot) awardXP(uid, nickname string, awarded int) (*levelResult, error) {
 	return &levelResult{OldLevel: curLevel, NewLevel: newLevel, TotalXP: total, Awarded: awarded}, err
 }
 
-func (b *Bot) slothDecay(c *clientquery.Client, today time.Time) {
+func (b *Bot) slothDecay(_ *clientquery.Client, today time.Time) {
 	cutoff := today.AddDate(0, 0, -slothGraceDays)
 	rows, err := b.DB.Query(`SELECT client_uid, nickname, xp, level, last_seen FROM users WHERE last_seen < $1`, cutoff)
 	if err != nil {

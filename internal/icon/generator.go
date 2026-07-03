@@ -1,3 +1,6 @@
+// Package icon batch-generates 16x16 PNG tier icons to disk ahead of time,
+// for tools that need pre-rendered files rather than the on-demand generation
+// in internal/icons.
 package icon
 
 import (
@@ -25,6 +28,8 @@ var tierColors = []color.RGBA{
 	{255, 255, 255, 255}, // White/Diamond
 }
 
+// MaxTiers is the upper bound on how many tier icons GenerateTierIcons will
+// generate in one call.
 const MaxTiers = 1000
 
 // GenerateTierIcons creates 16x16 PNG icons for the given number of tiers.

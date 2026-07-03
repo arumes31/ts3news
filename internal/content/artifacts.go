@@ -8,8 +8,10 @@ import (
 	"ts3news/internal/i18n"
 )
 
+// Rarity is an item's quality tier, driving its stat scaling and drop odds.
 type Rarity int
 
+// Rarity tiers, ascending.
 const (
 	RarityCommon Rarity = iota
 	RarityUncommon
@@ -45,6 +47,8 @@ func (r Rarity) Color() string {
 	return colors[r]
 }
 
+// Stats is the additive set of combat and flavour attributes carried by
+// gear, artifacts, titles, enchantments, and the character's own base stats.
 type Stats struct {
 	// Combat Stats
 	HP  int
@@ -65,6 +69,7 @@ type Stats struct {
 	HGR int // Hunger
 }
 
+// Add returns the field-wise sum of s and o.
 func (s Stats) Add(o Stats) Stats {
 	return Stats{
 		HP:  s.HP + o.HP,
@@ -84,6 +89,8 @@ func (s Stats) Add(o Stats) Stats {
 	}
 }
 
+// Score returns a rough weighted power rating for the stat block, used to
+// compare items and characters.
 func (s Stats) Score() int {
 	return s.HP/5 + s.STR + s.DEF + s.SPD + s.LCK + s.INT + s.STA + s.CRT + s.DGE + s.MNA/10
 }
@@ -158,8 +165,10 @@ type UserInCombat struct {
 	FloorModifier string
 }
 
+// GearSlot identifies one of the character's equipment slots.
 type GearSlot string
 
+// Equipment slots.
 const (
 	SlotHead      GearSlot = "Head"
 	SlotNeck      GearSlot = "Neck"
@@ -193,6 +202,8 @@ const (
 	SlotTotem     GearSlot = "Totem"
 )
 
+// AllSlots lists every equipment slot, in the order used for full-loadout
+// iteration (armoury display, equip-check loops, etc.).
 var AllSlots = []GearSlot{
 	SlotHead, SlotNeck, SlotShoulders, SlotBack, SlotChest, SlotWrists,
 	SlotHands, SlotWaist, SlotLegs, SlotFeet, SlotFinger1, SlotFinger2,
@@ -223,8 +234,10 @@ func SlotIcon(slot GearSlot) string {
 	return "💎"
 }
 
+// ItemEffect is a special combat affix carried by gear, artifacts, or skills.
 type ItemEffect string
 
+// Item combat affixes.
 const (
 	EffectNone           ItemEffect = ""
 	EffectThorns         ItemEffect = "Thorns"         // Reflect 10% damage
@@ -245,8 +258,10 @@ const (
 	EffectCleanse        ItemEffect = "Cleanse"        // Remove one negative effect/hazard at start of turn
 )
 
+// Element is a damage/resistance type used for elemental combat matchups.
 type Element string
 
+// Elemental damage types.
 const (
 	ElementPhysical Element = "Physical"
 	ElementFire     Element = "Fire"
@@ -255,13 +270,18 @@ const (
 	ElementAir      Element = "Air"
 )
 
+// Position is a combatant's row placement (front line takes the brunt of
+// physical attacks; back line is favoured by ranged/magic).
 type Position string
 
+// Combat row positions.
 const (
 	PositionFrontline Position = "Frontline"
 	PositionBackline  Position = "Backline"
 )
 
+// Gear is one equippable item: its slot, rarity, stats, and any rolled
+// affixes (sockets, enchant rune, cursed/eldritch/insured flags, etc.).
 type Gear struct {
 	ID            string
 	Name          string
@@ -286,10 +306,30 @@ type Gear struct {
 	Unidentified bool     `json:"unidentified,omitempty"`
 	GearLevel    int      `json:"gear_level,omitempty"`
 	Insured      bool     `json:"insured,omitempty"`
+
+	// SetID identifies which named Abyss-exclusive set (if any) this item
+	// belongs to. Empty for gear predating the multi-set system.
+	SetID string `json:"set_id,omitempty"`
 }
 
+// EffectiveSetID returns the item's set for set-bonus purposes: its explicit
+// SetID if tagged, or "abyss_legacy" for any older ABYSS_ item that predates
+// the multi-set system, so already-equipped gear keeps counting toward the
+// original flat Abyss-set bonus instead of silently losing it.
+func (g Gear) EffectiveSetID() string {
+	if g.SetID != "" {
+		return g.SetID
+	}
+	if IsAbyssGearID(g.ID) {
+		return "abyss_legacy"
+	}
+	return ""
+}
+
+// ConsumableType classifies what a consumable item does when used.
 type ConsumableType string
 
+// Consumable effect kinds.
 const (
 	ConsumableHealing ConsumableType = "Healing"
 	ConsumableRevive  ConsumableType = "Revive"
@@ -297,6 +337,7 @@ const (
 	ConsumableRepair  ConsumableType = "Repair"
 )
 
+// Consumable is a single-use or stacking item: a potion, elixir, or repair kit.
 type Consumable struct {
 	ID          string
 	Name        string
@@ -306,6 +347,8 @@ type Consumable struct {
 	Description string
 }
 
+// Enchantment is a rollable affix that can be applied to gear for bonus stats
+// at the cost of reduced XP gain.
 type Enchantment struct {
 	ID           string
 	Name         string
@@ -345,6 +388,13 @@ func buildConsumables() []Consumable {
 	}
 }
 
+// abyssExclusiveConsumables holds consumables that are never rolled by
+// RandomConsumable (they're only obtainable via a specific purchase/grant path)
+// but must still resolve through GetConsumableByID.
+var abyssExclusiveConsumables = []Consumable{
+	{"abyss_emergency_revive", "Emergency Revive Potion", ConsumableRevive, 1.0, 0, "Single-use: instantly heals you to full HP if you fall in the Abyss, beyond your normal one-per-run revival."},
+}
+
 var allEnchantments []Enchantment
 
 // Global pools
@@ -352,6 +402,8 @@ var corruptedArtifacts []Artifact
 var positiveTitles []Title
 var negativeTitles []Title
 
+// Artifact is an equippable relic that multiplies XP gain (a "boon" above
+// 1.0x, a curse below it) alongside its stat bonus.
 type Artifact struct {
 	Name          string
 	Mult          float64
@@ -360,10 +412,12 @@ type Artifact struct {
 	Special       ItemEffect
 }
 
+// IsBoon reports whether the artifact's XP multiplier is beneficial (>1.0x).
 func (a Artifact) IsBoon() bool {
 	return a.Mult > 1.0
 }
 
+// XPBonusDesc returns a player-facing description of the artifact's XP effect.
 func (a Artifact) XPBonusDesc() string {
 	if a.Mult > 1.0 {
 		return i18n.T("content.artifact.format.xp_bonus_desc_positive", (a.Mult-1.0)*100)
@@ -371,10 +425,13 @@ func (a Artifact) XPBonusDesc() string {
 	return i18n.T("content.artifact.format.xp_bonus_desc_negative", (1.0-a.Mult)*100)
 }
 
+// Score returns a rough power rating for the artifact.
 func (a Artifact) Score() int {
 	return a.Stats.Score() + int(a.Mult*100)
 }
 
+// Title is an earned honorific that grants an XP multiplier and stat/combat
+// bonuses (extra skill slots, lifesteal, multi-strike, double loot).
 type Title struct {
 	Name         string
 	XPMultiplier float64
@@ -385,6 +442,7 @@ type Title struct {
 	DoubleLoot   bool // Chance to double all mob drops
 }
 
+// Score returns a rough power rating for the title.
 func (t Title) Score() int {
 	score := t.Stats.Score() + int(t.XPMultiplier*100)
 	score += t.ExtraSkills * 500
@@ -556,25 +614,25 @@ func buildContent() {
 		{ID: "ABYSS_CHAMELEON_CLOAK", Name: "Chameleon Cloak", Slot: SlotBack, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 100, SPD: 25, DGE: 10}},
 		{ID: "ABYSS_VAMP_NECKLACE", Name: "Vampire Tooth Necklace", Slot: SlotNeck, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 120, STR: 30}},
 		{ID: "ABYSS_MANA_BATTERY", Name: "Mana Battery", Slot: SlotTrinket2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 100, INT: 20, MNA: 100}},
-		{ID: "ABYSS_BERSERKER_RING", Name: "Berserker Ring", Slot: SlotFinger1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 150, STR: 35, CRT: 10}},
-		{ID: "ABYSS_TITAN_BELT", Name: "Titan Belt", Slot: SlotWaist, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 90, Stats: Stats{HP: 250, STR: 60, DEF: 40}},
+		{ID: "ABYSS_BERSERKER_RING", Name: "Berserker Ring", Slot: SlotFinger1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 150, STR: 35, CRT: 10}, SetID: "predator"},
+		{ID: "ABYSS_TITAN_BELT", Name: "Titan Belt", Slot: SlotWaist, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 90, Stats: Stats{HP: 250, STR: 60, DEF: 40}, SetID: "warden"},
 		{ID: "ABYSS_LEECH_SPORES", Name: "Leech Spores", Slot: SlotRelic, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 60, Stats: Stats{HP: 130, INT: 15}},
 		{ID: "ABYSS_STATIC_SPARK", Name: "Static Spark Ring", Slot: SlotFinger2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 80, SPD: 20, DGE: 5}},
 		{ID: "ABYSS_FROSTBITE_GLOVES", Name: "Frostbite Gauntlets", Slot: SlotHands, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 140, STR: 25, DEF: 20}},
-		{ID: "ABYSS_FIREBRAND_SWORD", Name: "Firebrand Greatsword", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 100, Stats: Stats{HP: 200, STR: 100, DEF: 20, SPD: -10}},
+		{ID: "ABYSS_FIREBRAND_SWORD", Name: "Firebrand Greatsword", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 100, Stats: Stats{HP: 200, STR: 100, DEF: 20, SPD: -10}, SetID: "predator"},
 		{ID: "ABYSS_TIDAL_SCEPTER", Name: "Tidal Wave Scepter", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 120, INT: 40, MNA: 80}},
 		{ID: "ABYSS_EARTHSHAKER_HAMMER", Name: "Earthshaker Warhammer", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 95, Stats: Stats{HP: 250, STR: 90, DEF: 30, CRT: 15}},
-		{ID: "ABYSS_ZEPHYR_DAGGER", Name: "Zephyr Dagger", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, STR: 40, SPD: 35}},
+		{ID: "ABYSS_ZEPHYR_DAGGER", Name: "Zephyr Dagger", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, STR: 40, SPD: 35}, SetID: "predator"},
 		{ID: "ABYSS_LIFEBLOOM_STAFF", Name: "Lifebloom Staff", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 90, Stats: Stats{HP: 180, INT: 35, MNA: 50}},
 		{ID: "ABYSS_NECROTIC_DAGGER", Name: "Necrotic Dagger", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, STR: 45, SPD: 15}},
-		{ID: "ABYSS_DIVINE_AEGIS", Name: "Divine Aegis Shield", Slot: SlotOffHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 110, Stats: Stats{HP: 300, DEF: 80, MNA: 40}},
-		{ID: "ABYSS_ASSASSIN_HOOD", Name: "Shadow Assassin Hood", Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 100, STR: 20, SPD: 25, CRT: 10}},
+		{ID: "ABYSS_DIVINE_AEGIS", Name: "Divine Aegis Shield", Slot: SlotOffHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 110, Stats: Stats{HP: 300, DEF: 80, MNA: 40}, SetID: "warden"},
+		{ID: "ABYSS_ASSASSIN_HOOD", Name: "Shadow Assassin Hood", Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 100, STR: 20, SPD: 25, CRT: 10}, SetID: "predator"},
 		{ID: "ABYSS_ARCHMAGE_ROBES", Name: "Archmage Robes", Slot: SlotChest, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 90, Stats: Stats{HP: 150, DEF: 30, INT: 50, MNA: 150}},
-		{ID: "ABYSS_GLADIATOR_CHEST", Name: "Gladiator Chestplate", Slot: SlotChest, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 105, Stats: Stats{HP: 250, STR: 20, DEF: 60}},
+		{ID: "ABYSS_GLADIATOR_CHEST", Name: "Gladiator Chestplate", Slot: SlotChest, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 105, Stats: Stats{HP: 250, STR: 20, DEF: 60}, SetID: "warden"},
 		{ID: "ABYSS_RANGER_BOOTS", Name: "Ranger Swift-Boots", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, SPD: 30, DGE: 10}},
 		{ID: "ABYSS_BEASTMASTER_HARNESS", Name: "Beastmaster Harness", Slot: SlotChest, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 95, Stats: Stats{HP: 200, STR: 15, DEF: 30, LCK: 20}},
 		{ID: "ABYSS_DEMONIC_PACT", Name: "Demonic Pact Ring", Slot: SlotFinger1, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 60, Stats: Stats{HP: -100, INT: 60, MNA: 100}},
-		{ID: "ABYSS_GUARDIAN_WARD", Name: "Guardian Angels Ward", Slot: SlotTrinket1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 140, DEF: 25, STA: 15}},
+		{ID: "ABYSS_GUARDIAN_WARD", Name: "Guardian Angels Ward", Slot: SlotTrinket1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 140, DEF: 25, STA: 15}, SetID: "warden"},
 		{ID: "ABYSS_ALCHEMIST_BELT", Name: "Alchemist Belt", Slot: SlotWaist, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 120, LCK: 20, STA: 15}},
 		{ID: "ABYSS_STORMBRINGER_CLOAK", Name: "Stormbringer Cloak", Slot: SlotBack, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 110, DEF: 15, SPD: 20}},
 		{ID: "ABYSS_SUNFIRE_PENDANT", Name: "Sunfire Pendant", Slot: SlotNeck, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 130, INT: 25}},
@@ -582,20 +640,20 @@ func buildContent() {
 		{ID: "ABYSS_TOMB_RAIDER", Name: "Tomb Raider Boots", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, LCK: 25, SPD: 15}},
 		{ID: "ABYSS_DRAGON_SCALE", Name: "Dragon Scale Mail", Slot: SlotChest, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 120, Stats: Stats{HP: 400, DEF: 90, STA: 30}},
 		{ID: "ABYSS_KRAKEN_HIDE", Name: "Kraken Hide Leather", Slot: SlotChest, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 110, Stats: Stats{HP: 350, DEF: 60, SPD: 25, STA: 25}},
-		{ID: "ABYSS_WYRM_TOOTH", Name: "Wyrm Tooth Spear", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 110, STR: 50, SPD: 10}},
+		{ID: "ABYSS_WYRM_TOOTH", Name: "Wyrm Tooth Spear", Slot: SlotMainHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 110, STR: 50, SPD: 10}, SetID: "predator"},
 		{ID: "ABYSS_VALKYRIE_HELM", Name: "Valkyrie Helm", Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 130, STR: 30, DEF: 25}},
 		{ID: "ABYSS_SOUL_REAPER", Name: "Soul Reaper Scythe", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 95, Stats: Stats{HP: 220, STR: 80, INT: 40, MNA: 60}},
-		{ID: "ABYSS_GORGON_SHIELD", Name: "Gorgon Shield", Slot: SlotOffHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 100, Stats: Stats{HP: 200, DEF: 70, STA: 15}},
+		{ID: "ABYSS_GORGON_SHIELD", Name: "Gorgon Shield", Slot: SlotOffHand, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 100, Stats: Stats{HP: 200, DEF: 70, STA: 15}, SetID: "warden"},
 		{ID: "ABYSS_PEGASUS_BOOTS", Name: "Pegasus Boots", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 85, Stats: Stats{HP: 110, SPD: 40, DGE: 8}},
 		{ID: "ABYSS_MIDAS_GLOVES", Name: "Midas Touch Gloves", Slot: SlotHands, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 90, LCK: 40, CHA: 100}},
-		{ID: "ABYSS_HELLFIRE_RING", Name: "Hellfire Ring", Slot: SlotFinger2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 100, INT: 30}},
+		{ID: "ABYSS_HELLFIRE_RING", Name: "Hellfire Ring", Slot: SlotFinger2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 100, INT: 30}, SetID: "predator"},
 		{ID: "ABYSS_BLIZZARD_AMULET", Name: "Blizzard Amulet", Slot: SlotNeck, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 120, INT: 30}},
 		{ID: "ABYSS_THUNDERSTRIKE", Name: "Thunderstrike Bracers", Slot: SlotWrists, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 90, INT: 25, SPD: 10}},
 		{ID: "ABYSS_VINE_WHIP", Name: "Vine-Whip Belt", Slot: SlotWaist, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 130, DEF: 20, STA: 10}},
 		{ID: "ABYSS_PLAGUE_DOCTOR", Name: "Plague Doctor Mask", Slot: SlotHead, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 140, DEF: 20, INT: 20}},
 		{ID: "ABYSS_HOLY_GRAIL", Name: "Holy Grail Relic", Slot: SlotRelic, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 65, Stats: Stats{HP: 250, INT: 30, STA: 20}},
 		{ID: "ABYSS_SHADOW_ORB", Name: "Shadow Orb Accessory", Slot: SlotTrinket2, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 70, Stats: Stats{HP: 100, INT: 35, MNA: 40}},
-		{ID: "ABYSS_IRON_WILL", Name: "Iron Will Ring", Slot: SlotFinger1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 150, DEF: 30, STA: 25}},
+		{ID: "ABYSS_IRON_WILL", Name: "Iron Will Ring", Slot: SlotFinger1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 75, Stats: Stats{HP: 150, DEF: 30, STA: 25}, SetID: "warden"},
 		{ID: "ABYSS_LUCKY_CLOVER", Name: "Lucky Clover Charm", Slot: SlotCharm, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 60, Stats: Stats{HP: 80, LCK: 35}},
 		{ID: "ABYSS_CURSED_COMPASS", Name: "Cursed Compass", Slot: SlotTrinket1, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 65, Stats: Stats{HP: 90, LCK: 20}},
 		{ID: "ABYSS_STARLIGHT_TIARA", Name: "Starlight Tiara", Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 80, Stats: Stats{HP: 150, INT: 45, MNA: 60}},
@@ -815,6 +873,7 @@ func buildContent() {
 	}
 }
 
+// RandomItemEffect rolls a 20% chance of a random combat affix, or EffectNone.
 func RandomItemEffect() ItemEffect {
 	effects := []ItemEffect{
 		EffectThorns, EffectVampiric, EffectBerserk, EffectLucky, EffectTreasureHunter,
@@ -829,8 +888,11 @@ func RandomItemEffect() ItemEffect {
 	return EffectNone
 }
 
+// RandomConsumable returns a uniformly random consumable from the full catalog.
 // #nosec G404
 func RandomConsumable() Consumable { return allConsumables[rand.IntN(len(allConsumables))] } // #nosec G404
+
+// RandomGearDrop returns a uniformly random non-Abyss-exclusive gear item.
 func RandomGearDrop() Gear {
 	var g Gear
 	// Loop until we get a non-Abyss-exclusive item for standard drops
@@ -900,9 +962,58 @@ func AbyssSetBonus(equipped int) (Stats, int) {
 	return total, reached
 }
 
+// abyssNamedSetTiers define the cumulative bonuses for the true per-collection
+// Abyss sets: a curated handful of items each carry a SetID (see EffectiveSetID);
+// every other ABYSS_ item falls back to "abyss_legacy" and uses abyssSetTiers
+// above, so pre-existing equipped gear never silently loses its bonus.
+var abyssNamedSetTiers = map[string][]struct {
+	Pieces int
+	Bonus  Stats
+}{
+	"predator": {
+		{2, Stats{STR: 40, CRT: 15}},
+		{4, Stats{STR: 80, CRT: 30, SPD: 20}},
+		{6, Stats{STR: 150, CRT: 50, SPD: 40, HP: 200}},
+	},
+	"warden": {
+		{2, Stats{DEF: 40, STA: 15}},
+		{4, Stats{DEF: 80, STA: 30, HP: 200}},
+		{6, Stats{DEF: 150, STA: 50, HP: 500}},
+	},
+}
+
+// AbyssSetBonusBySet returns the cumulative bonus across every named/legacy
+// Abyss set the player has pieces of, plus the highest piece-tier reached per
+// set (keyed by set ID) for display. counts is keyed by Gear.EffectiveSetID().
+func AbyssSetBonusBySet(counts map[string]int) (Stats, map[string]int) {
+	var total Stats
+	reached := make(map[string]int)
+	if n := counts["abyss_legacy"]; n > 0 {
+		bonus, r := AbyssSetBonus(n)
+		total = total.Add(bonus)
+		if r > 0 {
+			reached["abyss_legacy"] = r
+		}
+	}
+	for setID, tiers := range abyssNamedSetTiers {
+		n := counts[setID]
+		if n == 0 {
+			continue
+		}
+		for _, t := range tiers {
+			if n >= t.Pieces {
+				total = total.Add(t.Bonus)
+				reached[setID] = t.Pieces
+			}
+		}
+	}
+	return total, reached
+}
+
 // IsAbyssGearID reports whether a gear ID belongs to the Abyss-exclusive set.
 func IsAbyssGearID(id string) bool { return strings.HasPrefix(id, "ABYSS_") }
 
+// RandomAbyssGearDrop returns a uniformly random Abyss-exclusive gear item.
 func RandomAbyssGearDrop() Gear {
 	if len(abyssExclusiveGear) == 0 {
 		return RandomGearDrop()
@@ -917,6 +1028,32 @@ func RandomAbyssGearDrop() Gear {
 	return g
 }
 
+// abyssDupRerollAttempts caps how many times the *Excluding rollers retry to
+// avoid a duplicate before giving up and returning whatever they last rolled.
+const abyssDupRerollAttempts = 8
+
+// RandomGearDropExcluding rolls like RandomGearDrop but retries (up to a small
+// cap) to avoid an exact catalog ID the player already owns, falling back to a
+// plain roll if no alternative turns up within the cap.
+func RandomGearDropExcluding(owned map[string]bool) Gear {
+	g := RandomGearDrop()
+	for i := 0; i < abyssDupRerollAttempts && owned[g.ID]; i++ {
+		g = RandomGearDrop()
+	}
+	return g
+}
+
+// RandomAbyssGearDropExcluding is the Abyss-exclusive-pool equivalent of
+// RandomGearDropExcluding.
+func RandomAbyssGearDropExcluding(owned map[string]bool) Gear {
+	g := RandomAbyssGearDrop()
+	for i := 0; i < abyssDupRerollAttempts && owned[g.ID]; i++ {
+		g = RandomAbyssGearDrop()
+	}
+	return g
+}
+
+// RandomStarterGear returns a uniformly random low-tier starter gear item.
 // #nosec G404
 func RandomStarterGear() Gear {
 	if len(starterGear) == 0 {
@@ -924,18 +1061,24 @@ func RandomStarterGear() Gear {
 	}
 	return starterGear[rand.IntN(len(starterGear))] // #nosec G404
 }
+
+// RandomArtifact returns a uniformly random artifact with a fresh combat affix roll.
 func RandomArtifact() Artifact {
 	// #nosec G404
 	a := corruptedArtifacts[rand.IntN(len(corruptedArtifacts))] // #nosec G404
 	a.Special = RandomItemEffect()
 	return a
 }
+
+// RandomEnchantment returns a uniformly random enchantment with a fresh combat affix roll.
 func RandomEnchantment() Enchantment {
 	// #nosec G404
 	e := allEnchantments[rand.IntN(len(allEnchantments))] // #nosec G404
 	e.Special = RandomItemEffect()
 	return e
 }
+
+// RandomTitle returns a random title, weighted 80% positive / 20% negative.
 func RandomTitle() Title {
 	// #nosec G404
 	if rand.Float64() < 0.8 {
@@ -1052,6 +1195,7 @@ func ShopStock(seed int64, count int) []Gear {
 	return out
 }
 
+// GetGearByID looks up a gear item by its catalog ID.
 func GetGearByID(id string) (Gear, bool) {
 	for _, g := range allGear {
 		if g.ID == id {
@@ -1066,6 +1210,7 @@ func GetGearByID(id string) (Gear, bool) {
 	return Gear{}, false
 }
 
+// GetEnchantmentByID looks up an enchantment by its catalog ID.
 func GetEnchantmentByID(id string) (Enchantment, bool) {
 	for _, e := range allEnchantments {
 		if e.ID == id {
@@ -1075,8 +1220,15 @@ func GetEnchantmentByID(id string) (Enchantment, bool) {
 	return Enchantment{}, false
 }
 
+// GetConsumableByID looks up a consumable by its catalog ID, checking both
+// the general catalog and the Abyss-exclusive registry.
 func GetConsumableByID(id string) (Consumable, bool) {
 	for _, c := range allConsumables {
+		if c.ID == id {
+			return c, true
+		}
+	}
+	for _, c := range abyssExclusiveConsumables {
 		if c.ID == id {
 			return c, true
 		}
@@ -1084,6 +1236,7 @@ func GetConsumableByID(id string) (Consumable, bool) {
 	return Consumable{}, false
 }
 
+// GetTitleByName looks up a title (positive or negative) by its display name.
 func GetTitleByName(name string) (Title, bool) {
 	for _, t := range positiveTitles {
 		if t.Name == name {
@@ -1098,6 +1251,7 @@ func GetTitleByName(name string) (Title, bool) {
 	return Title{}, false
 }
 
+// GetArtifactByName looks up an artifact by its display name.
 func GetArtifactByName(name string) (Artifact, bool) {
 	for _, a := range corruptedArtifacts {
 		if a.Name == name {
@@ -1107,11 +1261,13 @@ func GetArtifactByName(name string) (Artifact, bool) {
 	return Artifact{}, false
 }
 
+// IsTitle reports whether name matches a known title.
 func IsTitle(name string) bool {
 	_, ok := GetTitleByName(name)
 	return ok
 }
 
+// IsGearOrArtifact reports whether name matches a known gear item or artifact.
 func IsGearOrArtifact(name string) bool {
 	for _, g := range allGear {
 		if g.Name == name {

@@ -9,6 +9,7 @@ import (
 // StealthType represents different stealth mechanics
 type StealthType string
 
+// Stealth mechanic kinds.
 const (
 	StealthPassive     StealthType = "Passive"     // Always-on stealth bonus
 	StealthActive      StealthType = "Active"      // Requires activation
@@ -218,7 +219,7 @@ func CheckStealthDetection(userStealth StealthState, mobDetection StealthDetecti
 }
 
 // ApplyStealthAttack applies stealth-based combat advantages
-func ApplyStealthAttack(attacker *UserInCombat, defender *Mob, stealthState StealthState, detected bool) float64 {
+func ApplyStealthAttack(_ *UserInCombat, _ *Mob, stealthState StealthState, detected bool) float64 {
 	bonusDamage := 0.0
 	undetected := !detected
 

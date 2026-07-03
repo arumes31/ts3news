@@ -1,3 +1,5 @@
+// Command balance auto-tunes mob stat multipliers to hit a target player win
+// rate, and provides the shared simulation types used by other sim tools.
 package main
 
 import (

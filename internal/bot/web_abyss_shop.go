@@ -14,26 +14,29 @@ import (
 // debits tokens with a guarded UPDATE (so a concurrent spend can't overdraw) and
 // then grants through the same live granters the loot path uses.
 
-// abyssShopItem is one catalog entry: a token cost and the reward key the handler
-// switches on to grant it.
+// abyssShopItem is one catalog entry: a token and/or gold cost and the reward
+// key the handler switches on to grant it. CostGold is 0 for the (default)
+// tokens-only items; the Emergency Revive Potion is the first gold-priced entry.
 type abyssShopItem struct {
-	Key  string
-	Name string
-	Desc string
-	Cost int64 // Abyss tokens
+	Key      string
+	Name     string
+	Desc     string
+	Cost     int64 // Abyss tokens
+	CostGold int64 // gold, 0 = tokens-only item
 }
 
 var abyssShopCatalog = []abyssShopItem{
-	{"great_potions", "Great Health Potions ×3", "Three large in-combat heals.", 6},
-	{"repair_kits", "Master Repair Kits ×2", "Fully restore gear durability, twice.", 5},
-	{"phoenix", "Phoenix Feather", "Revives you once when you fall in battle.", 9},
-	{"elixir_of_life", "Elixir of Life", "Fully restores your health (100%).", 8},
-	{"giant_strength", "Giant Strength Elixirs ×2", "Massively boost Strength for 3 fights.", 7},
-	{"speed_elixir_pack", "Speed Elixirs ×2", "Boost Speed by +25 for 3 fights.", 5},
-	{"lucky_draught_pack", "Lucky Draughts ×2", "Boost Luck by +20 for 3 fights.", 5},
-	{"abyss_gear", "Abyss Gear Cache", "A random Abyss-exclusive gear piece.", 15},
-	{"epic_gear", "Epic Abyss Cache", "A guaranteed Epic-or-better Abyss piece.", 30},
-	{"relic", "Unstable Relic", "A random Unique item.", 40},
+	{"great_potions", "Great Health Potions ×3", "Three large in-combat heals.", 6, 0},
+	{"repair_kits", "Master Repair Kits ×2", "Fully restore gear durability, twice.", 5, 0},
+	{"phoenix", "Phoenix Feather", "Revives you once when you fall in battle.", 9, 0},
+	{"elixir_of_life", "Elixir of Life", "Fully restores your health (100%).", 8, 0},
+	{"giant_strength", "Giant Strength Elixirs ×2", "Massively boost Strength for 3 fights.", 7, 0},
+	{"speed_elixir_pack", "Speed Elixirs ×2", "Boost Speed by +25 for 3 fights.", 5, 0},
+	{"lucky_draught_pack", "Lucky Draughts ×2", "Boost Luck by +20 for 3 fights.", 5, 0},
+	{"abyss_gear", "Abyss Gear Cache", "A random Abyss-exclusive gear piece.", 15, 0},
+	{"epic_gear", "Epic Abyss Cache", "A guaranteed Epic-or-better Abyss piece.", 30, 0},
+	{"relic", "Unstable Relic", "A random Unique item.", 40, 0},
+	{"emergency_revive", "Emergency Revive Potion", "Single-use: instantly revive to full HP if you fall, beyond your normal one-per-run revival.", 0, 100000},
 }
 
 func abyssShopByKey(key string) (abyssShopItem, bool) {
@@ -69,16 +72,30 @@ func (s *WebServer) handleAbyssShopBuy(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
-	res, err := s.bot.DB.Exec(
-		"UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1",
-		item.Cost, uid)
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		writeJSON(w, map[string]any{"ok": false, "error": "not enough tokens"})
-		return
+	if item.CostGold > 0 {
+		res, err := s.bot.DB.Exec(
+			"UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1",
+			item.CostGold, uid)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
+			return
+		}
+	} else {
+		res, err := s.bot.DB.Exec(
+			"UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1",
+			item.Cost, uid)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			writeJSON(w, map[string]any{"ok": false, "error": "not enough tokens"})
+			return
+		}
 	}
 
 	// Grant the reward. Tokens are already debited; the grant helpers mirror the
@@ -111,6 +128,8 @@ func (s *WebServer) handleAbyssShopBuy(w http.ResponseWriter, r *http.Request, u
 		ui := content.RandomUniqueItem()
 		s.bot.grantAbyssUnique(uid, ui.Name, ui.Rarity, ui.Power)
 		msg = "Relic acquired: " + ui.Name + " [" + ui.Rarity.String() + "]!"
+	case "emergency_revive":
+		s.bot.grantConsumable(uid, "abyss_emergency_revive", 1)
 	}
 
 	var gold int64

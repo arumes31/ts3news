@@ -10,6 +10,7 @@ import (
 // HazardType represents the category of environmental hazard
 type HazardType string
 
+// Hazard type categories.
 const (
 	HazardDamageOverTime HazardType = "DamageOverTime"
 	HazardStatReduction  HazardType = "StatReduction"
@@ -20,6 +21,7 @@ const (
 // ZoneType represents the category of zone for hazard compatibility
 type ZoneType string
 
+// Zone type categories for hazard compatibility.
 const (
 	ZoneVolcanic    ZoneType = "Volcanic"
 	ZoneUnderground ZoneType = "Underground"
@@ -184,6 +186,7 @@ func getZoneTypeFromName(zoneName string) ZoneType {
 	}
 }
 
+// GetZoneHazards returns every hazard applicable to zone's type, scaled by difficulty.
 func GetZoneHazards(zone Zone, difficulty float64) []Hazard {
 	var applicable []Hazard
 	zoneType := getZoneTypeFromName(zone.Name)
@@ -229,7 +232,7 @@ func ApplyHazardEffects(
 	users []*UserInCombat,
 	mobs []*Mob,
 	hazards []HazardEffect,
-	zone Zone,
+	_ Zone,
 	logs *[]string,
 ) []HazardEffect {
 	var remainingEffects []HazardEffect
@@ -369,8 +372,7 @@ func getResistanceValue(stats Stats, resistanceStat string) float64 {
 	return resistance
 }
 
-// GetHazardProtectionGear returns gear that provides protection against hazards
-// HazardGear represents protective gear against environmental hazards
+// HazardGear represents protective gear against environmental hazards.
 type HazardGear struct {
 	Name        string
 	Description string

@@ -26,7 +26,7 @@ var tierColors = []color.RGBA{
 }
 
 // Icon renders a 16x16 PNG icon with a shape and color that evolves with tier.
-func Icon(number, tier, maxTier, sizePx int) ([]byte, error) {
+func Icon(number, tier, _, sizePx int) ([]byte, error) {
 	S := float64(sizePx)
 	dc := gg.NewContext(sizePx, sizePx)
 

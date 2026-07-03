@@ -8,8 +8,11 @@ import (
 	"ts3news/internal/i18n"
 )
 
+// MobType classifies a monster's power tier, which drives its stat scaling,
+// loot table, and combat log flavour text.
 type MobType string
 
+// Mob tiers, ordered roughly from weakest to strongest.
 const (
 	MobCommon         MobType = "Common"
 	MobEliteMinion    MobType = "EliteMinion"
@@ -40,8 +43,10 @@ func mobTypeName(t MobType) string {
 	return i18n.T("content.mob.type." + key)
 }
 
+// MobEffect is a temporary combat modifier applied to a spawned mob.
 type MobEffect string
 
+// Mob combat effects.
 const (
 	EffectEnraged  MobEffect = "Enraged"      // +50% STR
 	EffectArmored  MobEffect = "Armored"      // +50% DEF
@@ -52,8 +57,10 @@ const (
 	EffectRegen    MobEffect = "Regenerative" // Heals 5% HP per round
 )
 
+// DeathEffectType is the kind of special effect a mob triggers when defeated.
 type DeathEffectType string
 
+// Mob death-effect kinds.
 const (
 	DeathSummon    DeathEffectType = "Summon"
 	DeathExplosion DeathEffectType = "Explosion"
@@ -62,11 +69,14 @@ const (
 	DeathLoot      DeathEffectType = "Loot Rain"
 )
 
+// MobDeathEffect describes the special effect a mob triggers on defeat.
 type MobDeathEffect struct {
 	Name string
 	Type DeathEffectType
 }
 
+// Mob is a spawned combat opponent: a monster instance with resolved stats,
+// effects, and (for elites/bosses) equipped gear and spells.
 type Mob struct {
 	Name        string
 	Type        MobType
@@ -85,6 +95,8 @@ type Mob struct {
 	SPDMod      float64
 }
 
+// Clone returns a deep copy of m, so mutating the copy's slices never affects
+// the original (e.g. the shared base mob template).
 func (m Mob) Clone() *Mob {
 	newMob := m
 	// Deep copy slices
@@ -104,6 +116,8 @@ func (m Mob) Clone() *Mob {
 	return &newMob
 }
 
+// DisplayName returns the full combat-log name: level, name, type, active
+// effect, and current/max HP.
 func (m Mob) DisplayName() string {
 	eff := ""
 	if len(m.Effects) > 0 {
@@ -116,6 +130,8 @@ func (m Mob) DisplayName() string {
 	return i18n.T("content.mob.display_format", m.Level, m.Name, typeName, eff, m.CurrentHP, m.MaxHP)
 }
 
+// DisplayNameShort returns a compact name (level, name, type, active effect)
+// without the HP readout, for tighter log lines.
 func (m Mob) DisplayNameShort() string {
 	eff := ""
 	if len(m.Effects) > 0 {
@@ -125,6 +141,7 @@ func (m Mob) DisplayNameShort() string {
 	return i18n.T("content.mob.display_format_short", m.Level, m.Name, typeName, eff)
 }
 
+// Score returns a rough power rating for the mob, used to compare encounters.
 func (m Mob) Score() int {
 	return m.MaxHP/5 + m.Stats.STR + m.Stats.DEF + m.Stats.SPD + m.Level*10
 }
@@ -354,6 +371,8 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	return m
 }
 
+// SpawnMobGroup spawns groupSize mobs scaled to avgLevel and difficulty, with
+// a chance of a boss encounter (guaranteed if forceBoss is set).
 func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64, groupSize int, forceBoss bool) []Mob {
 	initMobs()
 	// 15% chance to spawn a HORDE of weaker mobs (great for farming drops/XP)
@@ -393,6 +412,7 @@ func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64, groupSize int, f
 	}
 
 	var out []Mob
+	// #nosec G404 -- non-cryptographic encounter roll
 	hasBoss := (rand.Float64() < 0.1*difficulty && !isHorde) || forceBoss // Bosses don't spawn in hordes unless forced
 	for i := 0; i < count; i++ {
 		mob := SpawnMob(avgLevel, hasBoss && i == 0, difficulty)

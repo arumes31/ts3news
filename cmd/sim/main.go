@@ -1,3 +1,4 @@
+// Command sim prints leveling-curve and economy figures for quick sanity checks.
 package main
 
 import (

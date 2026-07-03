@@ -117,9 +117,32 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		scale = 1.0 + float64(run.Depth)*0.02 // +2% stats per floor depth
 	}
 
-	// Load legendary pity
+	// Load legendary pity and the drop streak (floors in a row with no gear item,
+	// distinct from legendary pity — see abyss_drop_streak).
 	var legendaryPity int
-	_ = b.DB.QueryRow("SELECT legendary_pity FROM users WHERE client_uid=$1", uid).Scan(&legendaryPity)
+	var dropStreak int
+	_ = b.DB.QueryRow("SELECT legendary_pity, abyss_drop_streak FROM users WHERE client_uid=$1", uid).Scan(&legendaryPity, &dropStreak)
+	if dropStreak > 0 {
+		bonus := float64(dropStreak) * 0.02
+		if bonus > 0.30 {
+			bonus = 0.30
+		}
+		lootFindBonus += bonus
+	}
+	gotGearThisCall := false
+
+	// Duplicate protection: gear rolls in this call retry (capped) to avoid an
+	// exact catalog ID the player already owns, equipped or in the backpack.
+	ownedGear := make(map[string]bool)
+	if gearRows, err := b.DB.Query("SELECT gear_id FROM user_gear WHERE client_uid=$1 UNION SELECT gear_id FROM user_inventory WHERE client_uid=$1", uid); err == nil {
+		for gearRows.Next() {
+			var id string
+			if gearRows.Scan(&id) == nil {
+				ownedGear[id] = true
+			}
+		}
+		_ = gearRows.Close()
+	}
 
 	var labels []string
 	add := func(label string, g abyssLootGrant) bool {
@@ -138,16 +161,19 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		g.Stats = g.Stats.Scaled(zoneDifficulty * scale)
 
 		// 20% chance to drop Unidentified
+		// #nosec G404 -- non-cryptographic loot roll
 		if rand.Float64() < 0.20 {
 			g.Unidentified = true
 		}
 
 		// Sockets & Gemstones: Epic+ items roll with 1-3 sockets
 		if g.Rarity >= content.RarityEpic {
+			// #nosec G404 -- non-cryptographic loot roll
 			g.Sockets = 1 + rand.IntN(3)
 		}
 
 		// Eldritch Gear Tier: 5% chance Legendary gear drops as Eldritch (Mythic rarity, +50% stats)
+		// #nosec G404 -- non-cryptographic loot roll
 		if g.Rarity == content.RarityLegendary && rand.Float64() < 0.05 {
 			g.Rarity = content.RarityMythic
 			g.Eldritch = true
@@ -156,6 +182,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 
 		// Cursed Weapons: 10% chance Epic+ weapon (MainHand, OffHand, Ranged) drops as Cursed (+50% stats, but -2% HP/turn)
 		isWeapon := g.Slot == content.SlotMainHand || g.Slot == content.SlotOffHand || g.Slot == content.SlotRanged
+		// #nosec G404 -- non-cryptographic loot roll
 		if isWeapon && g.Rarity >= content.RarityEpic && rand.Float64() < 0.10 {
 			g.Cursed = true
 			g.Stats = g.Stats.Scaled(1.5)
@@ -175,6 +202,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	}
 
 	// Unique Boss Relics (5% chance)
+	// #nosec G404 -- non-cryptographic loot roll
 	if mob.Type == content.MobBoss && rand.Float64() < 0.05 {
 		var relicName string
 		switch mob.Name {
@@ -204,7 +232,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		// nothing can skip the pity payout. Pity is only reset once the drop is
 		// actually escrowed.
 		if legendaryPity >= 40 {
-			pg := content.RandomAbyssGearDrop()
+			pg := content.RandomAbyssGearDropExcluding(ownedGear)
 			pg.Rarity = content.RarityLegendary
 			label, g := processGear(pg)
 			var exists bool
@@ -214,11 +242,13 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				if err := b.equipGear(b.DB, uid, g, g.MaxDurability, string(itemDataBytes)); err == nil {
 					labels = append(labels, "⬆️ Equipped: "+label)
 					legendaryPity = 0
+					gotGearThisCall = true
 					continue
 				}
 			}
 			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
 				legendaryPity = 0
+				gotGearThisCall = true
 			}
 			continue
 		}
@@ -264,9 +294,10 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			c := content.RandomConsumable()
 			add(i18n.T("bot.loot.item", c.Name, c.ID), abyssLootGrant{Type: "cons", ConsID: c.ID, ConsDur: c.Duration})
 		case r < gearChance*qualityMult:
-			g := content.RandomGearDrop()
+			g := content.RandomGearDropExcluding(ownedGear)
+			// #nosec G404 -- non-cryptographic loot roll
 			if rand.Float64() < 0.20 {
-				g = content.RandomAbyssGearDrop()
+				g = content.RandomAbyssGearDropExcluding(ownedGear)
 			}
 			label, g := processGear(g)
 			var exists bool
@@ -280,6 +311,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 					} else {
 						legendaryPity++
 					}
+					gotGearThisCall = true
 					continue
 				}
 			}
@@ -291,12 +323,15 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				} else {
 					legendaryPity++
 				}
+				gotGearThisCall = true
 			}
 		default:
 			// 100% drop guarantee → a common gear or a small potion.
+			// #nosec G404 -- non-cryptographic loot roll
 			if rand.Float64() < 0.7 {
 				g := content.RandomStarterGear()
 				// Sockets / unidentified checks on common starter gear too
+				// #nosec G404 -- non-cryptographic loot roll
 				if rand.Float64() < 0.20 {
 					g.Unidentified = true
 				}
@@ -311,11 +346,13 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 					if err := b.equipGear(b.DB, uid, g, g.MaxDurability, string(itemDataBytes)); err == nil {
 						labels = append(labels, "⬆️ Equipped: "+label)
 						legendaryPity++
+						gotGearThisCall = true
 						continue
 					}
 				}
 				if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
 					legendaryPity++
+					gotGearThisCall = true
 				}
 			} else {
 				add(i18n.T("bot.loot.small_health_potion"), abyssLootGrant{Type: "cons", ConsID: "small_health_potion", ConsDur: 0})
@@ -323,7 +360,12 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		}
 	}
 
-	_, _ = b.DB.Exec("UPDATE users SET legendary_pity=$1 WHERE client_uid=$2", legendaryPity, uid)
+	if gotGearThisCall {
+		dropStreak = 0
+	} else {
+		dropStreak++
+	}
+	_, _ = b.DB.Exec("UPDATE users SET legendary_pity=$1, abyss_drop_streak=$2 WHERE client_uid=$3", legendaryPity, dropStreak, uid)
 	return labels
 }
 

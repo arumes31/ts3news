@@ -446,7 +446,7 @@ var GearSlots = []string{
 }
 
 // GenerateGear creates a random gear item for the given level.
-func GenerateGear(rng *rand.Rand, level int, params SimParams) *SimGear {
+func GenerateGear(rng *rand.Rand, level int, _ SimParams) *SimGear {
 	rarity := RollRarity(rng)
 	slot := GearSlots[rng.Intn(len(GearSlots))]
 	// Mirrors real bot gear stats from internal/content/artifacts.go:
@@ -591,7 +591,7 @@ func GenerateUltimate(rng *rand.Rand, level int) *SimUltimate {
 }
 
 // GenerateConsumable creates a random consumable.
-func GenerateConsumable(rng *rand.Rand, level int) SimConsumable {
+func GenerateConsumable(rng *rand.Rand, _ int) SimConsumable {
 	types := []SimConsumableType{ConsumableHealing, ConsumableHealing, ConsumableHealing, ConsumableRevive, ConsumableRepair}
 	cType := types[rng.Intn(len(types))]
 

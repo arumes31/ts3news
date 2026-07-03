@@ -3,6 +3,7 @@ package i18n
 // PluralCategory represents a CLDR plural category.
 type PluralCategory string
 
+// CLDR plural categories.
 const (
 	PluralZero  PluralCategory = "zero"
 	PluralOne   PluralCategory = "one"
@@ -149,6 +150,6 @@ func ruleArabic(n int) PluralCategory {
 }
 
 // ruleOther: always "other" (Asian languages with no plural distinction).
-func ruleOther(n int) PluralCategory {
+func ruleOther(_ int) PluralCategory {
 	return PluralOther
 }

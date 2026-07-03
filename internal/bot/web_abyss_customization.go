@@ -429,25 +429,25 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 	// Recalibrate stat randomly
 	switch stat {
 	case "HP":
-		g.Stats.HP = 200 + rand.IntN(400)
+		g.Stats.HP = 200 + rand.IntN(400) // #nosec G404 -- non-cryptographic stat reroll
 	case "MNA":
-		g.Stats.MNA = 40 + rand.IntN(110)
+		g.Stats.MNA = 40 + rand.IntN(110) // #nosec G404 -- non-cryptographic stat reroll
 	case "STR":
-		g.Stats.STR = 40 + rand.IntN(80)
+		g.Stats.STR = 40 + rand.IntN(80) // #nosec G404 -- non-cryptographic stat reroll
 	case "DEF":
-		g.Stats.DEF = 20 + rand.IntN(60)
+		g.Stats.DEF = 20 + rand.IntN(60) // #nosec G404 -- non-cryptographic stat reroll
 	case "SPD":
-		g.Stats.SPD = 20 + rand.IntN(60)
+		g.Stats.SPD = 20 + rand.IntN(60) // #nosec G404 -- non-cryptographic stat reroll
 	case "LCK":
-		g.Stats.LCK = 15 + rand.IntN(40)
+		g.Stats.LCK = 15 + rand.IntN(40) // #nosec G404 -- non-cryptographic stat reroll
 	case "INT":
-		g.Stats.INT = 15 + rand.IntN(45)
+		g.Stats.INT = 15 + rand.IntN(45) // #nosec G404 -- non-cryptographic stat reroll
 	case "STA":
-		g.Stats.STA = 10 + rand.IntN(30)
+		g.Stats.STA = 10 + rand.IntN(30) // #nosec G404 -- non-cryptographic stat reroll
 	case "CRT":
-		g.Stats.CRT = 5 + rand.IntN(15)
+		g.Stats.CRT = 5 + rand.IntN(15) // #nosec G404 -- non-cryptographic stat reroll
 	case "DGE":
-		g.Stats.DGE = 5 + rand.IntN(15)
+		g.Stats.DGE = 5 + rand.IntN(15) // #nosec G404 -- non-cryptographic stat reroll
 	}
 
 	dataBytes, _ := json.Marshal(g)
@@ -676,6 +676,7 @@ func (s *WebServer) handleAbyssTransmute(w http.ResponseWriter, r *http.Request,
 		weaponPool = []string{"ABYSS_FIREBRAND_SWORD", "ABYSS_EARTHSHAKER_HAMMER", "ABYSS_RUNE_CLAYMORE", "ABYSS_WYRM_TOOTH"}
 	}
 
+	// #nosec G404 -- non-cryptographic weapon pool pick
 	selectedID := weaponPool[rand.IntN(len(weaponPool))]
 	selected, ok = content.GetGearByID(selectedID)
 	if !ok {

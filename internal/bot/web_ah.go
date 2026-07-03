@@ -146,9 +146,13 @@ func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear,
 	// (like ahActiveListingsCount) and paginate the filtered slice — a SQL LIMIT here
 	// would make deep pages come up empty even though the count reports more results.
 	if !upgradesOnly {
+		// The Sprintf only interpolates placeholder *positions* ($N), never user
+		// data — search/limit/offset all flow through args as bound parameters.
+		// #nosec G202 -- placeholder numbers only, values are parameterized below
 		query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)+1, len(args)+2)
 		args = append(args, limit, offset)
 	}
+	// #nosec G701 -- query is fully parameterized; args are never concatenated into it
 	rows, err := b.DB.Query(query, args...)
 	if err != nil {
 		return nil

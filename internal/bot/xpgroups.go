@@ -167,6 +167,10 @@ func (b *Bot) finishGroup(c *clientquery.Client, level, sgid int) (int, error) {
 		log.Printf("xpgroups: icon upload for level %d failed (group has no icon): %v", level, uerr)
 	} else {
 		iconID = int64(id)
+		// int32(id) is a deliberate reinterpret cast, not a truncation: the TS3
+		// protocol represents icon IDs above 2^31 as negative int32 values in
+		// permission strings.
+		// #nosec G115
 		if perr := c.ServerGroupAddPerm(sgid, "i_icon_id", int(int32(id))); perr != nil {
 			log.Printf("xpgroups: setting icon perm for level %d failed: %v", level, perr)
 		} else {
@@ -323,7 +327,7 @@ func (b *Bot) cleanupUnusedIcons(c *clientquery.Client) {
 
 // applyAbyssMilestones checks depth milestones (10, 25, 50, 100) and automatically
 // grants the corresponding TS3 server groups configured for achievements.
-func (b *Bot) applyAbyssMilestones(c *clientquery.Client, clid int, uid, nickname string, depth int) {
+func (b *Bot) applyAbyssMilestones(c *clientquery.Client, clid int, _, nickname string, depth int) {
 	if !b.Cfg.XPServerGroups {
 		return
 	}

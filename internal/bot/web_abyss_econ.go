@@ -248,6 +248,7 @@ func (b *Bot) awardAbyssBonusGear(uid string, depth int) string {
 	// Fallback: pick directly from the eligible pool so the floor is always met.
 	if g.Rarity < floor {
 		if candidates := content.GearByMinRarity(floor); len(candidates) > 0 {
+			// #nosec G404 -- non-cryptographic loot pick
 			g = candidates[rand.IntN(len(candidates))]
 		}
 	}
@@ -265,6 +266,23 @@ func (b *Bot) tryAbyssJackpot(uid string, depth int) int64 {
 		return b.claimJackpot(uid, "abyss")
 	}
 	return 0
+}
+
+// abyssWinStreakMaxStacks caps how many consecutive-floor-win stacks count
+// toward the streak combat buff.
+const abyssWinStreakMaxStacks = 10
+
+// abyssStreakBuff returns the small stacking combat buff granted for
+// consecutive Abyss floor wins within a single run (resets on Downed or on
+// resting). Capped well below a full Abyss gear-set bonus.
+func abyssStreakBuff(streak int) content.Stats {
+	if streak > abyssWinStreakMaxStacks {
+		streak = abyssWinStreakMaxStacks
+	}
+	if streak <= 0 {
+		return content.Stats{}
+	}
+	return content.Stats{HP: 10 * streak, STR: 5 * streak, DEF: 5 * streak, SPD: 2 * streak, CRT: 1 * streak}
 }
 
 // ---- Achievements --------------------------------------------------------
@@ -382,6 +400,53 @@ func (b *Bot) abyssAchievements(uid string) []string {
 		out = append(out, abyssAchievementName(code))
 	}
 	return out
+}
+
+// abyssAchievementCodes returns the raw earned achievement codes (as opposed to
+// abyssAchievements' display names), used to drive the badge picker.
+func (b *Bot) abyssAchievementCodes(uid string) []string {
+	rows, err := b.DB.Query("SELECT code FROM abyss_achievements WHERE client_uid=$1 ORDER BY earned_at", uid)
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			continue
+		}
+		out = append(out, code)
+	}
+	return out
+}
+
+// handleAbyssSetBadge lets a player display one earned achievement as a
+// persistent cosmetic badge next to their name. An empty code clears it.
+func (s *WebServer) handleAbyssSetBadge(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		Code string `json:"code"`
+	}
+	_ = readJSON(r, &req)
+
+	if req.Code != "" {
+		var has bool
+		if err := s.bot.DB.QueryRow(
+			"SELECT EXISTS(SELECT 1 FROM abyss_achievements WHERE client_uid=$1 AND code=$2)", uid, req.Code,
+		).Scan(&has); err != nil || !has {
+			writeJSON(w, map[string]any{"ok": false, "error": "achievement not earned"})
+			return
+		}
+	}
+	if _, err := s.bot.DB.Exec("UPDATE users SET abyss_active_badge=$1 WHERE client_uid=$2", req.Code, uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "badge": req.Code, "badge_name": abyssAchievementName(req.Code)})
 }
 
 // ---- Run history ---------------------------------------------------------
