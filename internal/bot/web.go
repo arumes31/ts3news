@@ -411,10 +411,10 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	// Honor an optional post-login destination, but only same-origin relative paths
 	// (must start with a single "/") to avoid an open-redirect.
 	dest := "/"
-	if next := r.URL.Query().Get("next"); strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") {
+	if next := r.URL.Query().Get("next"); strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") && !strings.HasPrefix(next, "/\\") {
 		dest = next
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 - path is validated to be relative
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
