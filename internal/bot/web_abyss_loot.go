@@ -161,9 +161,9 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			g.Stats = g.Stats.Scaled(1.5)
 		}
 
-		label := fmt.Sprintf("%s [s:%s] (gs:%d R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.Rarity.Color(), g.Rarity.String())
+		label := fmt.Sprintf("%s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
 		if g.Unidentified {
-			label = fmt.Sprintf("Unidentified %s [s:%s] (R:[color=%s]%s[/color])", string(g.Slot), string(g.Slot), g.Rarity.Color(), g.Rarity.String())
+			label = fmt.Sprintf("Unidentified %s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", string(g.Slot), string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
 		}
 		return label, g
 	}
@@ -276,9 +276,9 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				if rand.Float64() < 0.20 {
 					g.Unidentified = true
 				}
-				label := fmt.Sprintf("%s [s:%s] (%s)", g.Name, string(g.Slot), g.Rarity.String())
+				label := fmt.Sprintf("%s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
 				if g.Unidentified {
-					label = fmt.Sprintf("Unidentified %s [s:%s] (%s)", string(g.Slot), string(g.Slot), g.Rarity.String())
+					label = fmt.Sprintf("Unidentified %s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", string(g.Slot), string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
 				}
 				if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
 					legendaryPity++
