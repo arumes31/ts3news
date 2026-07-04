@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"embed"
 	"encoding/hex"
 	"encoding/json"
@@ -35,6 +36,16 @@ func jsonJS(v any) template.JS {
 
 //go:embed webassets/*.html webassets/*.css webassets/*.svg webassets/icons/*.svg
 var webAssets embed.FS
+
+// styleCSSVer is a content hash of the embedded stylesheet, appended as a
+// ?v= query to its <link> URL. Cloudflare and browsers cache /static/style.css
+// aggressively, so without this a deploy can serve new HTML against a stale
+// stylesheet and break page layouts.
+var styleCSSVer = func() string {
+	b, _ := webAssets.ReadFile("webassets/style.css")
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:6])
+}()
 
 const sessionCookie = "ts3session"
 
@@ -115,6 +126,7 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 		},
 		"jsonJS": jsonJS,
 		"mulf":   func(a, b float64) float64 { return a * b },
+		"cssver": func() string { return styleCSSVer },
 		// dict builds a map from alternating key/value pairs, for passing several
 		// named values into a sub-template (used by the Abyss upgrade widget).
 		"dict": func(values ...any) (map[string]any, error) {
@@ -147,6 +159,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	// Static assets.
 	mux.HandleFunc("/static/style.css", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		// Long cache is safe: the <link> URL carries a content-hash ?v= that
+		// changes on every stylesheet edit, so deploys bust the cache themselves.
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		b, _ := webAssets.ReadFile("webassets/style.css")
 		_, _ = w.Write(b)
 	})
