@@ -201,6 +201,39 @@ type artifactView struct {
 	Durability int
 }
 
+// petView is a combat companion captured via the Mind Control effect, for the
+// armoury. These are living mobs from user_pets, not the Pet1/Pet2 gear slots.
+type petView struct {
+	Name  string
+	Type  string
+	Level int
+	HP    int
+	MaxHP int
+	STR   int
+	DEF   int
+	SPD   int
+	Score int
+}
+
+// loadPetViews returns the user's captured combat pets.
+func (b *Bot) loadPetViews(uid string) []petView {
+	var out []petView
+	for _, m := range b.getPets(uid) {
+		out = append(out, petView{
+			Name:  m.Name,
+			Type:  string(m.Type),
+			Level: m.Level,
+			HP:    m.Stats.HP,
+			MaxHP: m.MaxHP,
+			STR:   m.Stats.STR,
+			DEF:   m.Stats.DEF,
+			SPD:   m.Stats.SPD,
+			Score: m.Score(),
+		})
+	}
+	return out
+}
+
 // titleView is the active, time-limited title and its XP bonus.
 type titleView struct {
 	Name      string
@@ -300,6 +333,7 @@ func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid str
 	ultimate := s.bot.getUltimateSkill(uid)
 	artifact := s.bot.loadArtifactView(uid)
 	title := s.bot.loadTitleView(uid)
+	pets := s.bot.loadPetViews(uid)
 
 	s.render(w, "armory", map[string]any{
 		"Title":       "Armoury",
@@ -310,6 +344,7 @@ func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid str
 		"Ultimate":    ultimate,
 		"Artifact":    artifact,
 		"PlayerTitle": title,
+		"Pets":        pets,
 	})
 }
 

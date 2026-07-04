@@ -27,7 +27,7 @@
   </div>
   {{end}}
 </header>
-<main class="wrap{{if eq .Nav "abyss"}} wrap-abyss{{end}}">{{end}}
+<main class="wrap{{if or (eq .Nav "abyss") (eq .Nav "armory")}} wrap-wide{{end}}">{{end}}
 
 {{define "leaderboards"}}
 <div class="lb-grid">

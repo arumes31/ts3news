@@ -2810,9 +2810,17 @@ tr.bought-flash {
   text-shadow: 0 1px 2px #000;
 }
 
+/* Row wrapper: detached Armoury / Run Loot sidebars flanking the stage */
+.abyss-stage-row {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 280px;
+  gap: 1rem;
+  align-items: start;
+}
+
 .abyss-stage {
   display: grid;
-  grid-template-columns: 220px 60px 280px 1fr 260px;
+  grid-template-columns: 60px 280px 1fr;
   gap: 1rem;
   background: radial-gradient(120% 140% at 50% -20%, #1c2233, #0c0e13);
   border: 1px solid var(--line);
@@ -2986,30 +2994,44 @@ tr.bought-flash {
 /* Abyss expansion: tiers, elevator, threat, upgrades, record, history */
 
 @media (max-width:680px) {
+  .abyss-stage-row,
   .abyss-stage {
     grid-template-columns: 1fr;
   }
   .ab-elevator,
-  .abyss-side-left,
-  .abyss-side-right {
+  .abyss-side-panel {
     display: none;
   }
 }
 
-.wrap-abyss {
-  max-width: 1400px;
+/* Wide pages (Abyss, Armoury): let the grids use the full screen width */
+.wrap-wide {
+  max-width: 1500px;
 }
 
-.abyss-side-left,
-.abyss-side-right {
+.abyss-side-panel {
   display: flex;
   flex-direction: column;
   gap: .5rem;
   min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: .9rem;
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
 }
 
-.abyss-side-left h3,
-.abyss-side-right h3 {
+.abyss-side-list {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.abyss-side-panel h3 {
   margin: 0 0 .3rem;
   font-size: .85rem;
   color: var(--muted);

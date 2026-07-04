@@ -58,16 +58,23 @@ import (
 		return groupName + name
 	}
 
-	// Gear
-	grows, err := b.DB.Query("SELECT gear_id, slot FROM user_gear WHERE client_uid = $1", uid)
+	// Gear. makeGear overlays the per-item item_data JSON (Abyss upgrades, gems,
+	// runes, tier ascensions) so groups reflect the piece as worn, not the base
+	// catalog entry.
+	grows, err := b.DB.Query("SELECT gear_id, slot, item_data FROM user_gear WHERE client_uid = $1", uid)
 	if err == nil {
 		defer func() { _ = grows.Close() }()
 		for grows.Next() {
 			var id string
 			var slot string
-			if err := grows.Scan(&id, &slot); err == nil {
-				if g, ok := content.GetGearByID(id); ok {
-					activeItemNames[formatGSName(g.Stats.Score(), g.Name, g.Special, "slot:"+slot)] = true
+			var itemData sql.NullString
+			if err := grows.Scan(&id, &slot, &itemData); err == nil {
+				if g, ok := b.makeGear(id, itemData); ok {
+					name := g.Name
+					if g.GearLevel > 0 {
+						name = fmt.Sprintf("%s +%d", name, g.GearLevel)
+					}
+					activeItemNames[formatGSName(g.Stats.Score(), name, g.Special, "slot:"+slot)] = true
 				}
 			}
 		}
@@ -105,14 +112,15 @@ import (
 		}
 	}
 
-	// Pets
-	prows, err := b.DB.Query("SELECT name, mob_type, level, hp, str, def, spd FROM user_pets WHERE client_uid = $1", uid)
+	// Pets (captured via the Mind Control effect); max_hp feeds Mob.Score so the
+	// group gs matches what the armoury shows.
+	prows, err := b.DB.Query("SELECT name, mob_type, level, hp, max_hp, str, def, spd FROM user_pets WHERE client_uid = $1", uid)
 	if err == nil {
 		defer func() { _ = prows.Close() }()
 		for prows.Next() {
 			var m content.Mob
 			var mType string
-			if err := prows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD); err == nil {
+			if err := prows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &m.MaxHP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD); err == nil {
 				m.Type = content.MobType(mType)
 				activeItemNames[formatGSName(m.Score(), "Pet "+m.Name, content.EffectNone, "pet")] = true
 			}
