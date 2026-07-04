@@ -254,6 +254,7 @@ func (b *Bot) getPets(uid string) []*content.Mob {
 		var maxHP int
 		if err := rows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &maxHP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD); err == nil {
 			m.Type = content.MobType(mType)
+			m.MaxHP = maxHP
 			out = append(out, &m)
 		}
 	}

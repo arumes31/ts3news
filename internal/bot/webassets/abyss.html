@@ -67,21 +67,24 @@
   <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.abyss_tokens"}}</span><span class="ab-chip-val" id="tokenVal">{{comma .Stats.Tokens}}</span></div>
 </div>
 
-<div class="abyss-stage">
-  <!-- Left sidebar: compact read-only Armoury quick-view of currently equipped gear -->
-  <div class="abyss-side-left">
+<div class="abyss-stage-row">
+  <!-- Detached left sidebar: compact read-only Armoury quick-view of currently equipped gear -->
+  <aside class="abyss-side-panel abyss-side-left">
     <h3>⚔️ Armoury</h3>
-    {{range .Equipped}}
-    <div class="abyss-side-gear">
-      <span class="gi icn" style="--gi:url(/static/icons/{{.IconName}}.svg);color:{{.RarityColor}}"></span>
-      <span style="color:{{.RarityColor}}">{{.Name}}</span>
-      <span class="cr">CR {{printf "%.0f" .CR}}</span>
+    <div class="abyss-side-list">
+      {{range .Equipped}}
+      <div class="abyss-side-gear">
+        <span class="gi icn" style="--gi:url(/static/icons/{{.IconName}}.svg);color:{{.RarityColor}}"></span>
+        <span style="color:{{.RarityColor}}">{{.Name}}</span>
+        <span class="cr">CR {{printf "%.0f" .CR}}</span>
+      </div>
+      {{else}}
+      <div class="abyss-side-empty">No gear equipped.</div>
+      {{end}}
     </div>
-    {{else}}
-    <div class="abyss-side-empty">No gear equipped.</div>
-    {{end}}
-  </div>
+  </aside>
 
+<div class="abyss-stage">
   <!-- Elevator shaft visual [85] -->
   <div class="ab-elevator" aria-hidden="true">
     <div class="ab-shaft"><div class="ab-cage" id="elevCage" style="top:0%"></div></div>
@@ -198,15 +201,19 @@
     <button class="primary ab-proceed" id="btnProceed" onclick="abyssProceed()" style="margin-top:15px">Leave Floor &amp; Proceed</button>
   </div>
 
-  <!-- Right sidebar: full loot manifest escrowed so far this run -->
-  <div class="abyss-side-right" id="lootManifest">
+</div>
+
+  <!-- Detached right sidebar: full loot manifest escrowed so far this run -->
+  <aside class="abyss-side-panel abyss-side-right">
     <h3>🎒 Run Loot</h3>
-    {{range .RunLoot}}
-    <div class="abyss-side-loot">{{.Label}}</div>
-    {{else}}
-    <div class="abyss-side-empty">No loot escrowed yet this run.</div>
-    {{end}}
-  </div>
+    <div class="abyss-side-list" id="lootManifest">
+      {{range .RunLoot}}
+      <div class="abyss-side-loot">{{.Label}}</div>
+      {{else}}
+      <div class="abyss-side-empty">No loot escrowed yet this run.</div>
+      {{end}}
+    </div>
+  </aside>
 </div>
 
 <div class="abyss-banner" id="abyssBanner" role="status" aria-live="assertive"></div>
@@ -734,9 +741,13 @@ function clearBanner(){
 }
 
 // Reveal the combat log line-by-line for drama (instant if reduced-motion). [94]
+// Hides the descend controls while the log plays so the log has focus; every
+// caller runs renderState() after awaiting this, which restores them.
 function playLog(lines, loot, dura){
   return new Promise(function(resolve){
     var log=document.getElementById('abyssLog'), lootEl=document.getElementById('abyssLoot'), duraEl=document.getElementById('abyssDura');
+    show('abyssControls', false);
+    show('nonCombatPanel', false);
     document.getElementById('logWrap').style.display='';
     log.innerHTML=''; lootEl.innerHTML=''; duraEl.innerHTML='';
     function finish(){

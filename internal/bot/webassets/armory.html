@@ -76,6 +76,25 @@
   {{end}}
 </div>
 
+{{if .Pets}}
+<h2>Combat Pets <span class="muted small">— {{len .Pets}} captured via Mind Control, fighting at your side</span></h2>
+<div class="loadout-grid">
+  {{range .Pets}}
+  <div class="loadout-card pet">
+    <div class="lc-kind">🐾 {{.Type}} · Lv {{comma .Level}}</div>
+    <div class="lc-name">{{.Name}}</div>
+    <div class="lc-tags">
+      <span class="gtag time">❤️ {{comma .HP}}{{if .MaxHP}} / {{comma .MaxHP}}{{end}}</span>
+      <span class="gtag fx">STR {{comma .STR}}</span>
+      <span class="gtag fx">DEF {{comma .DEF}}</span>
+      <span class="gtag fx">SPD {{comma .SPD}}</span>
+      <span class="gtag xp">GS {{comma .Score}}</span>
+    </div>
+  </div>
+  {{end}}
+</div>
+{{end}}
+
 {{if or .PlayerTitle .Artifact}}
 <h2>Boons &amp; Banes</h2>
 <div class="loadout-grid">
