@@ -127,6 +127,7 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 		"jsonJS": jsonJS,
 		"mulf":   func(a, b float64) float64 { return a * b },
 		"cssver": func() string { return styleCSSVer },
+		"halve":  func(n int) int { return n / 2 },
 		// dict builds a map from alternating key/value pairs, for passing several
 		// named values into a sub-template (used by the Abyss upgrade widget).
 		"dict": func(values ...any) (map[string]any, error) {
@@ -256,6 +257,26 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/convert_mana", s.authAPI(s.handleAbyssConvertMana))
 		mux.HandleFunc("/api/abyss/reset_talents", s.authAPI(s.handleAbyssResetTalents))
 		mux.HandleFunc("/api/abyss/insure_item", s.authAPI(s.handleAbyssInsureItem))
+		// Expansion 2 (docs/ABYSS_IDEAS.md)
+		mux.HandleFunc("/api/abyss/craft", s.authAPI(s.handleAbyssCraft))
+		mux.HandleFunc("/api/abyss/craft_legendary", s.authAPI(s.handleAbyssCraftLegendary))
+		mux.HandleFunc("/api/abyss/exchange", s.authAPI(s.handleAbyssExchange))
+		mux.HandleFunc("/api/abyss/temper", s.authAPI(s.handleAbyssTemper))
+		mux.HandleFunc("/api/abyss/upgrade_gem", s.authAPI(s.handleAbyssUpgradeGem))
+		mux.HandleFunc("/api/abyss/extract_gem", s.authAPI(s.handleAbyssExtractGem))
+		mux.HandleFunc("/api/abyss/transfer_enchant", s.authAPI(s.handleAbyssTransferEnchant))
+		mux.HandleFunc("/api/abyss/fuse", s.authAPI(s.handleAbyssFuse))
+		mux.HandleFunc("/api/abyss/mythic_fuse", s.authAPI(s.handleAbyssMythicFuse))
+		mux.HandleFunc("/api/abyss/cleanse", s.authAPI(s.handleAbyssCleanse))
+		mux.HandleFunc("/api/abyss/repair_all", s.authAPI(s.handleAbyssRepairAll))
+		mux.HandleFunc("/api/abyss/auto_repair", s.authAPI(s.handleAbyssAutoRepair))
+		mux.HandleFunc("/api/abyss/identify_all", s.authAPI(s.handleAbyssIdentifyAll))
+		mux.HandleFunc("/api/abyss/last_stand", s.authAPI(s.handleAbyssLastStand))
+		mux.HandleFunc("/api/abyss/set_spec", s.authAPI(s.handleAbyssSetSpec))
+		mux.HandleFunc("/api/abyss/sanctuary_buy", s.authAPI(s.handleAbyssSanctuaryBuy))
+		mux.HandleFunc("/api/abyss/forge_history", s.authAPI(s.handleAbyssForgeHistory))
+		mux.HandleFunc("/api/abyss/forge_undo", s.authAPI(s.handleAbyssForgeUndo))
+		mux.HandleFunc("/api/abyss/rift_peek", s.authAPI(s.handleAbyssRiftPeek))
 	}
 
 	// Authenticated JSON APIs.

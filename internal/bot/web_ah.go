@@ -38,6 +38,51 @@ type ahListingView struct {
 	Listed    string
 	Mine      bool
 	IsUpgrade bool
+
+	// Display metadata resolved from the listed instance's item_data (falling
+	// back to the catalog): gear score and rarity.
+	GS          int
+	Rarity      string
+	RarityColor string
+}
+
+// ahEnrichListing fills GS / rarity from the listing's item_data JSON — the
+// exact instance listed, including Abyss modifications — falling back to the
+// catalog entry for older rows without stored data. All listable types (gear,
+// ultimates, uniques, enchantments) marshal Rarity, and gear/enchantments
+// marshal Stats, so one probe covers them all.
+func ahEnrichListing(v *ahListingView, dataJSON []byte) {
+	var probe struct {
+		Rarity *content.Rarity
+		Stats  *content.Stats
+	}
+	if len(dataJSON) > 0 {
+		_ = json.Unmarshal(dataJSON, &probe)
+	}
+	if probe.Rarity == nil || probe.Stats == nil {
+		switch v.ItemType {
+		case "gear":
+			if g, ok := content.GetGearByID(v.ItemID); ok {
+				if probe.Rarity == nil {
+					probe.Rarity = &g.Rarity
+				}
+				if probe.Stats == nil {
+					probe.Stats = &g.Stats
+				}
+			}
+		case "ultimate", "ultimate_skill":
+			if us, ok := content.GetUltimateSkillByID(v.ItemID); ok && probe.Rarity == nil {
+				probe.Rarity = &us.Rarity
+			}
+		}
+	}
+	if probe.Rarity != nil {
+		v.Rarity = probe.Rarity.String()
+		v.RarityColor = probe.Rarity.Color()
+	}
+	if probe.Stats != nil {
+		v.GS = probe.Stats.Score()
+	}
 }
 
 // ahIcon returns a slot-matched icon for a gear listing, or a type icon otherwise.
@@ -133,7 +178,7 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 
 func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear, search string, upgradesOnly bool, limit, offset int) []ahListingView {
 	query := `
-		SELECT a.id, a.item_type, a.item_id, a.item_name, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
+		SELECT a.id, a.item_type, a.item_id, a.item_name, a.item_data, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
 		FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
 		WHERE a.sold_at IS NULL AND a.expires_at > NOW()`
 	var args []any
@@ -161,12 +206,14 @@ func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear,
 		var v ahListingView
 		var t time.Time
 		var seller string
-		if err := rows.Scan(&v.ID, &v.ItemType, &v.ItemID, &v.Name, &v.Price, &t, &v.Seller, &seller); err != nil {
+		var dataJSON []byte
+		if err := rows.Scan(&v.ID, &v.ItemType, &v.ItemID, &v.Name, &dataJSON, &v.Price, &t, &v.Seller, &seller); err != nil {
 			continue
 		}
 		v.Icon = ahIcon(v.ItemType, v.ItemID)
 		v.Listed = t.Format("Jan 02")
 		v.Mine = seller == uid
+		ahEnrichListing(&v, dataJSON)
 
 		if v.ItemType == "gear" {
 			v.IsUpgrade = isAuctionUpgrade(v.ItemID, equippedGear)
@@ -246,7 +293,7 @@ func (b *Bot) ahActiveListingsCount(search string, equippedGear map[string]conte
 
 func (b *Bot) ahMyListings(uid string) []ahListingView {
 	rows, err := b.DB.Query(`
-		SELECT id, item_type, item_id, item_name, price, listed_at
+		SELECT id, item_type, item_id, item_name, item_data, price, listed_at
 		FROM auction_house
 		WHERE seller_uid=$1 AND sold_at IS NULL AND expires_at > NOW()
 		ORDER BY listed_at DESC`, uid)
@@ -258,12 +305,14 @@ func (b *Bot) ahMyListings(uid string) []ahListingView {
 	for rows.Next() {
 		var v ahListingView
 		var t time.Time
-		if err := rows.Scan(&v.ID, &v.ItemType, &v.ItemID, &v.Name, &v.Price, &t); err != nil {
+		var dataJSON []byte
+		if err := rows.Scan(&v.ID, &v.ItemType, &v.ItemID, &v.Name, &dataJSON, &v.Price, &t); err != nil {
 			continue
 		}
 		v.Icon = ahIcon(v.ItemType, v.ItemID)
 		v.Listed = t.Format("Jan 02")
 		v.Mine = true
+		ahEnrichListing(&v, dataJSON)
 		out = append(out, v)
 	}
 	return out

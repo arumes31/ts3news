@@ -284,10 +284,19 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
+	// Rune library (#118): once a rune type has been etched, re-etching it
+	// anywhere costs a third of the price.
+	var known bool
+	_ = s.bot.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_runes WHERE client_uid=$1 AND rune=$2)", uid, runeType).Scan(&known)
+	cost := int64(150)
+	if known {
+		cost = 50
+	}
+
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
-	if gold < 150 {
-		writeJSON(w, map[string]any{"ok": false, "error": "Not enough gold (requires 150 gold)"})
+	if gold < cost {
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("Not enough gold (requires %d gold)", cost)})
 		return
 	}
 
@@ -341,7 +350,11 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
 		return
 	}
-	if !deductGold(w, tx, uid, 150) {
+	if !deductGold(w, tx, uid, cost) {
+		return
+	}
+	if _, err := tx.Exec("INSERT INTO user_runes (client_uid, rune) VALUES ($1,$2) ON CONFLICT DO NOTHING", uid, runeType); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 
@@ -350,7 +363,12 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Etched %s Rune into your weapon!", runeType), "gold": gold - 150})
+	s.bot.recordForge(uid, "etch", runeType+" rune", fmt.Sprintf("%dg", cost))
+	msg := fmt.Sprintf("Etched %s Rune into your weapon!", runeType)
+	if !known {
+		msg += " 📖 Rune learned — re-etching it now costs only 50g."
+	}
+	writeJSON(w, map[string]any{"ok": true, "msg": msg, "gold": gold - cost})
 }
 
 // handleAbyssRecalibrate spends 5 tokens to reroll a single stat on Legendary+ gear.
@@ -774,11 +792,15 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 	defer func() { _ = tx.Rollback() }()
 
 	var upVigor, upGreed, upFortune, upWard, upInterest, upTribute, upInsight int
+	var upSwift, upScav, upMercy, upCarto, upQuarter int
 	var tokens int64
 	err = tx.QueryRow(`SELECT abyss_up_vigor, abyss_up_greed, abyss_up_fortune, abyss_up_ward,
-	                          abyss_up_interest, abyss_up_tribute, abyss_up_insight, abyss_tokens 
+	                          abyss_up_interest, abyss_up_tribute, abyss_up_insight,
+	                          abyss_up_swiftness, abyss_up_scavenger, abyss_up_mercy,
+	                          abyss_up_cartographer, abyss_up_quartermaster, abyss_tokens
 	                     FROM users WHERE client_uid=$1`, uid).Scan(
-		&upVigor, &upGreed, &upFortune, &upWard, &upInterest, &upTribute, &upInsight, &tokens,
+		&upVigor, &upGreed, &upFortune, &upWard, &upInterest, &upTribute, &upInsight,
+		&upSwift, &upScav, &upMercy, &upCarto, &upQuarter, &tokens,
 	)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "user not found"})
@@ -795,7 +817,9 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 	}
 
 	refund := calcRefund(upVigor) + calcRefund(upGreed) + calcRefund(upFortune) + calcRefund(upWard) +
-		calcRefund(upInterest) + calcRefund(upTribute) + calcRefund(upInsight)
+		calcRefund(upInterest) + calcRefund(upTribute) + calcRefund(upInsight) +
+		calcRefund(upSwift) + calcRefund(upScav) + calcRefund(upMercy) +
+		calcRefund(upCarto) + calcRefund(upQuarter)
 
 	if refund <= 0 {
 		writeJSON(w, map[string]any{"ok": false, "error": "no talent points to reset"})
@@ -823,6 +847,8 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 	_, err = tx.Exec(`UPDATE users
 	                     SET abyss_up_vigor=0, abyss_up_greed=0, abyss_up_fortune=0, abyss_up_ward=0,
 	                         abyss_up_interest=0, abyss_up_tribute=0, abyss_up_insight=0,
+	                         abyss_up_swiftness=0, abyss_up_scavenger=0, abyss_up_mercy=0,
+	                         abyss_up_cartographer=0, abyss_up_quartermaster=0,
 	                         abyss_tokens = abyss_tokens + $1, abyss_upgrades = $3::jsonb
 	                   WHERE client_uid=$2`, refund, uid, string(preservedBytes))
 	if err != nil {

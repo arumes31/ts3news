@@ -2890,6 +2890,259 @@ tr.bought-flash {
   text-shadow: 0 1px 2px #000;
 }
 
+/* ---- Abyss expansion 2 (docs/ABYSS_IDEAS.md) ------------------------------ */
+
+/* Sticky mini-HUD (#301) */
+.ab-minihud {
+  position: fixed;
+  top: 52px;
+  left: 50%;
+  transform: translate(-50%, -140%);
+  display: flex;
+  gap: 1.2rem;
+  padding: .45rem 1rem;
+  background: rgba(10, 12, 17, .92);
+  border: 1px solid var(--line);
+  border-radius: 0 0 12px 12px;
+  z-index: 9;
+  font-size: .85rem;
+  transition: transform .25s ease;
+}
+
+.ab-minihud.show {
+  transform: translate(-50%, 0);
+}
+
+/* Section tabs (#303) */
+.ab-tabs {
+  display: flex;
+  gap: .5rem;
+  margin-top: 1.4rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: .5rem;
+}
+
+.ab-tab {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: 8px 8px 0 0;
+  padding: .45rem .9rem;
+  cursor: pointer;
+}
+
+.ab-tab.active {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Leaderboard tier tabs (#276) */
+.ab-lb-tabs {
+  display: flex;
+  gap: .4rem;
+  margin: .4rem 0 .8rem;
+  flex-wrap: wrap;
+}
+
+.ab-lb-tab {
+  padding: .25rem .7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: .82rem;
+}
+
+.ab-lb-tab.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: rgba(123, 108, 255, .12);
+}
+
+/* Start-mode picker (#2/#3) */
+.ab-startmode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem 1rem;
+  align-items: center;
+  font-size: .85rem;
+}
+
+.ab-startmode select {
+  background: #0c0f16;
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 7px;
+  padding: .25rem .4rem;
+}
+
+.ab-comeback-note {
+  background: rgba(65, 201, 122, .1);
+  border: 1px solid var(--good);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 10px 0;
+  font-size: .9rem;
+}
+
+/* Risk tag on the Descend button (#21) */
+.ab-risk-tag {
+  font-size: .72rem;
+  opacity: .85;
+  font-weight: 400;
+}
+
+/* Momentum / prestige chips */
+.ab-prestige-chip .ab-chip-val {
+  color: var(--accent);
+}
+
+/* Materials row (#101) */
+.ab-materials {
+  display: flex;
+  gap: .9rem;
+  flex-wrap: wrap;
+  margin-bottom: .5rem;
+}
+
+.ab-mat {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .2rem .7rem;
+  font-size: .85rem;
+}
+
+/* Talent tree branches (#159) */
+.ab-tree-branch-label {
+  margin: .7rem 0 .3rem;
+  letter-spacing: .04em;
+}
+
+.ab-tree-branch {
+  border-left: 2px solid var(--accent);
+  padding-left: .6rem;
+}
+
+/* Run-loot floor grouping (#313) */
+.abyss-side-floorhdr {
+  color: var(--muted);
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  text-align: center;
+  margin-top: .35rem;
+}
+
+/* Rarity beams on loot lines (#88/#329) */
+.ab-loot-line.rar-rare, .abyss-side-loot.rar-rare { border-left-color: #5bc0ff; }
+.ab-loot-line.rar-epic, .abyss-side-loot.rar-epic { border-left-color: #b36bff; }
+.ab-loot-line.rar-legendary, .abyss-side-loot.rar-legendary {
+  border-left-color: #ff9800;
+  box-shadow: -6px 0 14px -6px rgba(255, 152, 0, .55);
+}
+.ab-loot-line.rar-mythic, .abyss-side-loot.rar-mythic {
+  border-left-color: #ff5470;
+  box-shadow: -6px 0 16px -6px rgba(255, 84, 112, .6);
+}
+.ab-loot-line.rar-divine, .abyss-side-loot.rar-divine {
+  border-left-color: #7ee787;
+  box-shadow: -6px 0 18px -6px rgba(126, 231, 135, .65);
+}
+
+/* Pity pulse (#333) */
+@keyframes pityPulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.6); }
+}
+
+#pityFill.pulse {
+  animation: pityPulse 1.2s ease-in-out infinite;
+}
+
+/* Insurance shield glow (#347) */
+.ab-insured-tag.glow {
+  text-shadow: 0 0 8px rgba(123, 108, 255, .9);
+  animation: pityPulse 2.4s ease-in-out infinite;
+}
+
+/* Elevator descent flash (#326) */
+.ab-cage {
+  transition: top .7s cubic-bezier(.4, 0, .2, 1);
+}
+
+@keyframes shaftFlash {
+  from { box-shadow: 0 0 18px rgba(123, 108, 255, .8) inset; }
+  to { box-shadow: none; }
+}
+
+.ab-shaft.descending {
+  animation: shaftFlash .7s ease-out 1;
+}
+
+/* Depth-dial idle shimmer (#349) */
+@keyframes dialIdle {
+  0%, 100% { box-shadow: 0 0 28px rgba(123, 108, 255, .35) inset, 0 0 18px rgba(123, 108, 255, .25); }
+  50% { box-shadow: 0 0 34px rgba(123, 108, 255, .5) inset, 0 0 26px rgba(123, 108, 255, .4); }
+}
+
+.ab-depth-ring {
+  animation: dialIdle 4s ease-in-out infinite;
+}
+
+/* Coin pile (#350) */
+.ab-coinpile {
+  text-align: center;
+  letter-spacing: -6px;
+  font-size: 1.05rem;
+  min-height: 1.2em;
+}
+
+/* Bank vault overlay (#339) */
+.ab-vault-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 6, 10, .75);
+  z-index: 40;
+}
+
+.ab-vault-overlay.open {
+  display: flex;
+}
+
+@keyframes vaultDoor {
+  0% { transform: scale(.2) rotate(-20deg); opacity: 0; }
+  60% { transform: scale(1.4) rotate(6deg); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.ab-vault-door {
+  font-size: 6rem;
+  animation: vaultDoor .8s ease-out 1;
+}
+
+/* Run summary card (#341) */
+.ab-runsummary .ab-rs-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: .3rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-depth-ring, #pityFill.pulse, .ab-insured-tag.glow, .ab-shaft.descending, .ab-vault-door {
+    animation: none;
+  }
+  .ab-cage {
+    transition: none;
+  }
+}
+
 /* Intro title + flavour text: JS adds .gone a minute after load; collapse
    smoothly instead of popping so the HUD bars below slide up gently. */
 .abyss-intro {
