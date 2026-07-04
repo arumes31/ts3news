@@ -2742,7 +2742,7 @@ func (b *Bot) loadCoopHelpers(uid string) []map[string]any {
 		`SELECT client_uid, COALESCE(NULLIF(nickname, ''), 'Adventurer') AS nick, abyss_best_depth
 		   FROM users
 		  WHERE client_uid != $1 AND abyss_best_depth > 0
-		  ORDER BY last_active_at DESC
+		  ORDER BY last_seen DESC
 		  LIMIT 6`, uid)
 	if err != nil {
 		return nil
