@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"ts3news/internal/content"
+	"ts3news/internal/leveling"
 )
 
 // The Abyss is an endless push-your-luck PvE dungeon. Unlike the arcade (pure
@@ -799,6 +800,9 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 		if b.abyssSpec(uid) == "delver" {
 			rewardXP = rewardXP * 11 / 10 // Delver specialization (#161): +10% floor XP
 		}
+		if focus == "xp" {
+			rewardXP *= 2 // XP focus: double floor XP (loot rolls are skipped instead)
+		}
 		if lr, _ := b.awardXP(uid, "", rewardXP); lr != nil && lr.NewLevel >= PrestigeThreshold {
 			b.doPrestige(uid) // [52] keep Abyss prestige consistent with the cycle
 		}
@@ -1059,6 +1063,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"U":              u,
 		"Stats":          st,
 		"Run":            run,
+		"AutoFocus":      s.autoSelectFocus(uid, run),
 		"Tiers":          abyssTierList(st.BestDepth),
 		"Leaders":        s.bot.abyssLeaderboards(lbTier),
 		"Season":         abyssSeasonLabel(),
@@ -1405,14 +1410,7 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
-	var req struct {
-		Focus string `json:"focus"`
-	}
-	_ = readJSON(r, &req)
-	focus := req.Focus
-	if focus != "gold" && focus != "loot" {
-		focus = "balanced"
-	}
+	focus := s.autoSelectFocus(uid, run)
 
 	newDepth := run.Depth + 1
 	tier, _ := abyssTierByKey(run.Tier)
@@ -1466,7 +1464,6 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 	defer unlock()
 
 	var req struct {
-		Focus string   `json:"focus"`
 		Paths []string `json:"paths"`
 	}
 	if err := readJSON(r, &req); err != nil {
@@ -1479,10 +1476,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	focus := req.Focus
-	if focus != "gold" && focus != "loot" {
-		focus = "balanced"
-	}
+
 
 	var combinedLogs []string
 	var combinedLoot []string
@@ -1504,6 +1498,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 
 	for _, pt := range req.Paths {
 		run := s.bot.loadAbyssRun(uid)
+		focus := s.autoSelectFocus(uid, run)
 		if !run.Active {
 			writeJSON(w, map[string]any{"ok": false, "error": "not in a run"})
 			return
@@ -1555,6 +1550,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			var gold int64
 			_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 
+			runFinal := s.bot.loadAbyssRun(uid)
 			writeJSON(w, map[string]any{
 				"ok":          true,
 				"noncombat":   true,
@@ -1569,6 +1565,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"logs":        combinedLogs,
 				"loot":        combinedLoot,
 				"dura":        combinedDura,
+				"auto_focus":  s.autoSelectFocus(uid, runFinal),
 			})
 			return
 		}
@@ -1710,6 +1707,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			var gold int64
 			_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 
+			runFinal := s.bot.loadAbyssRun(uid)
 			writeJSON(w, map[string]any{
 				"ok":               true,
 				"victory":          false,
@@ -1729,6 +1727,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"gold":             gold,
 				"tokens":           s.bot.abyssTokens(uid),
 				"consumables":      s.bot.getConsumables(uid),
+				"auto_focus":       s.autoSelectFocus(uid, runFinal),
 			})
 			return
 		}
@@ -1759,6 +1758,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		"recipe_unlocked":    recipeUnlocked,
 		"affix_reward":       affixReward,
 		"daily":              dailyFirst,
+		"auto_focus":         s.autoSelectFocus(uid, finalRun),
 	}
 	if len(achs) > 0 {
 		out["achievement"] = strings.Join(achs, " · ")
@@ -2195,6 +2195,10 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 	out["gold"] = gold
 	out["tokens"] = s.bot.abyssTokens(uid)
 	out["consumables"] = s.bot.getConsumables(uid)
+	
+	runFinal := s.bot.loadAbyssRun(uid)
+	out["auto_focus"] = s.autoSelectFocus(uid, runFinal)
+	
 	writeJSON(w, out)
 }
 
@@ -3573,17 +3577,15 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	tier, _ := abyssTierByKey(run.Tier)
 	bonus := abyssFloorBonus(run.Depth, run.depthLevelHint())
 	
-	var req struct {
-		Focus string `json:"focus"`
-	}
-	_ = readJSON(r, &req)
-	focus := req.Focus
+	focus := s.autoSelectFocus(uid, run)
 	
 	switch focus {
 	case "gold":
 		bonus = bonus * 2
 	case "loot":
 		bonus = bonus / 2
+	case "xp", "materials", "tokens":
+		bonus = 0
 	}
 	// Apply tier reward multiplier to match combat floor scaling
 	bonus = int64(float64(bonus) * tier.RewardMult)
@@ -3826,3 +3828,68 @@ func (s *WebServer) handleAbyssPrestige(w http.ResponseWriter, r *http.Request, 
 	}
 	writeJSON(w, out)
 }
+
+// autoSelectFocus dynamically determines the best next-floor focus for a player based on their stats, pity, and gear status.
+func (s *WebServer) autoSelectFocus(uid string, run abyssRun) string {
+	nextDepth := run.Depth + 1
+	if nextDepth%abyssBossEvery == 0 {
+		return "loot"
+	}
+
+	var gold, tokens int64
+	_ = s.bot.DB.QueryRow("SELECT gold, abyss_tokens FROM users WHERE client_uid=$1", uid).Scan(&gold, &tokens)
+
+	// Crafting materials live in the user_materials table.
+	mats := s.bot.loadMaterials(uid)
+	shard, core := mats["shard"], mats["core"]
+
+	equipped := s.bot.getEquippedItems(uid)
+	lowDura := false
+	equippedRows, err := s.bot.DB.Query("SELECT slot, durability FROM user_gear WHERE client_uid = $1", uid)
+	if err == nil {
+		defer equippedRows.Close()
+		for equippedRows.Next() {
+			var slot string
+			var dur int
+			if equippedRows.Scan(&slot, &dur) == nil {
+				slotEnum := content.GearSlot(slot)
+				if item, ok := equipped[slotEnum]; ok {
+					if item.MaxDurability > 0 && float64(dur)/float64(item.MaxDurability) < 0.25 {
+						lowDura = true
+					}
+				}
+			}
+		}
+	}
+
+	if lowDura || gold < 5000 {
+		return "gold"
+	}
+
+	var legendaryPity int
+	_ = s.bot.DB.QueryRow("SELECT legendary_pity FROM users WHERE client_uid=$1", uid).Scan(&legendaryPity)
+	if legendaryPity >= 30 {
+		return "loot"
+	}
+
+	if tokens < 15 {
+		return "tokens"
+	}
+
+	if shard < 15 || core < 5 {
+		return "materials"
+	}
+
+	var userXP, userLevel int
+	_ = s.bot.DB.QueryRow("SELECT xp, level FROM users WHERE client_uid=$1", uid).Scan(&userXP, &userLevel)
+	if userLevel < PrestigeThreshold {
+		reqXP := leveling.XPForLevel(userLevel + 1)
+		baseXP := leveling.XPForLevel(userLevel)
+		if reqXP > baseXP && float64(reqXP-userXP)/float64(reqXP-baseXP) <= 0.15 {
+			return "xp"
+		}
+	}
+
+	return "balanced"
+}
+

@@ -60,6 +60,7 @@ type abyssLootGrant struct {
 	Gold      int64                `json:"gold,omitempty"`
 	MatID     string               `json:"mat_id,omitempty"` // crafting material (#101/#119)
 	MatN      int                  `json:"mat_n,omitempty"`
+	Tokens    int64                `json:"tokens,omitempty"`
 }
 
 // lootRarityScale dampens high-rarity drop chances for low-level / low-difficulty
@@ -300,6 +301,31 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			continue
 		}
 
+		// XP focus skips all loot drops in this loot iteration loop
+		if focus == "xp" {
+			continue
+		}
+
+		// Materials focus drops material drops instead of other loot
+		if focus == "materials" {
+			mat, n := "shard", 3+rand.IntN(4)
+			if run.Depth >= 50 {
+				mat, n = "core", 2+rand.IntN(2)
+			}
+			add(fmt.Sprintf("⛏️ Material Drop: %s ×%d", abyssMaterialName(mat), n), abyssLootGrant{Type: "mat", MatID: mat, MatN: n})
+			continue
+		}
+
+		// Tokens focus drops tokens instead of other loot
+		if focus == "tokens" {
+			tks := int64(1 + rand.IntN(2))
+			if mob.Type == content.MobBoss || mob.Type == content.MobLegendary {
+				tks = int64(3 + rand.IntN(4))
+			}
+			add(fmt.Sprintf("🜲 %d Abyss Tokens", tks), abyssLootGrant{Type: "tokens", Tokens: tks})
+			continue
+		}
+
 		// Gold-focus rolls and treasure goblins pay gold, escrowed like everything else.
 		if focus == "gold" || mob.Type == content.MobTreasureGoblin {
 			var gold int64
@@ -518,6 +544,10 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 	case "mat":
 		if err := b.grantMaterial(uid, g.MatID, g.MatN); err != nil {
 			return err
+		}
+	case "tokens":
+		if g.Tokens > 0 {
+			b.grantAbyssTokens(uid, int(g.Tokens))
 		}
 	}
 	return nil
