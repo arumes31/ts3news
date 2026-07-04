@@ -1456,6 +1456,317 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	})
 }
 
+// handleAbyssDescendMulti processes a queue of 3 to 10 planned floor descents sequentially.
+func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
+
+	var req struct {
+		Focus string   `json:"focus"`
+		Paths []string `json:"paths"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+
+	if len(req.Paths) < 3 || len(req.Paths) > 10 {
+		writeJSON(w, map[string]any{"ok": false, "error": "Invalid queue length (must be 3 to 10 floors)"})
+		return
+	}
+
+	focus := req.Focus
+	if focus != "gold" && focus != "loot" {
+		focus = "balanced"
+	}
+
+	var combinedLogs []string
+	var combinedLoot []string
+	var combinedDura []string
+	var gearMilestone string
+	var achs []string
+	var loreUnlocked bool
+	var loreFragment string
+	var recipeUnlocked string
+	var affixReward string
+	var dailyFirst bool
+
+	runInit := s.bot.loadAbyssRun(uid)
+	if !runInit.Active {
+		writeJSON(w, map[string]any{"ok": false, "error": "not in a run"})
+		return
+	}
+	tier, _ := abyssTierByKey(runInit.Tier)
+
+	for _, pt := range req.Paths {
+		run := s.bot.loadAbyssRun(uid)
+		if !run.Active {
+			writeJSON(w, map[string]any{"ok": false, "error": "not in a run"})
+			return
+		}
+		if run.Downed {
+			writeJSON(w, map[string]any{"ok": false, "error": "you are downed — revive or concede"})
+			return
+		}
+		if run.FloorType != "combat" {
+			writeJSON(w, map[string]any{"ok": false, "error": "you must resolve the current floor action first"})
+			return
+		}
+
+		newDepth := run.Depth + 1
+
+		actualType := pt
+		modifier := ""
+		eventState := ""
+
+		if !run.LastActionAt.IsZero() && time.Since(run.LastActionAt) > 15*time.Minute && run.Depth > 0 {
+			actualType = "combat"
+			modifier = "watcher"
+		} else if newDepth%abyssBossEvery == 0 {
+			actualType = "combat"
+		} else {
+			modifier, eventState = rollFloorDetail(actualType)
+		}
+
+		if actualType != "combat" {
+			// Stop batch at rest or event floor and let the user interact.
+			var evStateArg any
+			if eventState != "" {
+				evStateArg = eventState
+			}
+			_, err := s.bot.DB.Exec(
+				`UPDATE abyss_active
+				    SET depth=$1, floor_type=$2, modifier=$3, event_state=$4, pending_floor_choice=NULL, last_action_at=NOW()
+				  WHERE client_uid=$5`,
+				newDepth, actualType, modifier, evStateArg, uid,
+			)
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if actualType == "rest" {
+				_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
+			}
+
+			var gold int64
+			_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+
+			writeJSON(w, map[string]any{
+				"ok":          true,
+				"noncombat":   true,
+				"floor_type":  actualType,
+				"depth":       newDepth,
+				"event_state": eventState,
+				"escrow":      run.Escrow,
+				"risk":        abyssRiskPct(newDepth+1, tier, s.bot.abyssPlayerCR(uid)),
+				"gold":        gold,
+				"tokens":      s.bot.abyssTokens(uid),
+				"consumables": s.bot.getConsumables(uid),
+				"logs":        combinedLogs,
+				"loot":        combinedLoot,
+				"dura":        combinedDura,
+			})
+			return
+		}
+
+		// Normal Combat floor
+		if _, err := s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier=$2, event_state=NULL, pending_floor_choice=NULL, last_action_at=NOW() WHERE client_uid=$3", newDepth, modifier, uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+
+		res, err := s.bot.fightAbyssFloor(uid, newDepth, tier, modifier, focus)
+		if err != nil {
+			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2", run.Depth, uid)
+			writeJSON(w, map[string]any{"ok": false, "error": "combat"})
+			return
+		}
+
+		if len(res.LogsHTML) > 0 {
+			combinedLogs = append(combinedLogs, fmt.Sprintf("<div class='ab-batch-header'>Floor %d Combat Logs</div>", newDepth))
+			combinedLogs = append(combinedLogs, res.LogsHTML...)
+		}
+		combinedLoot = append(combinedLoot, res.LootHTML...)
+		combinedDura = append(combinedDura, res.DuraHTML...)
+
+		st := s.bot.loadAbyssStats(uid)
+		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_lifetime_floors = abyss_lifetime_floors + 1 WHERE client_uid=$1", uid)
+
+		if res.Victory {
+			bonus := abyssFloorBonus(newDepth, run.depthLevelHint())
+			bonus = int64(float64(bonus) * tier.RewardMult * (1.0 + float64(st.UpGreed)*0.05) * (1.0 + float64(st.AbyssPrestige)*0.05))
+			_, dailyMod := s.bot.currentDailyChallenge()
+			bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
+			bonus = int64(float64(bonus) * abyssPactRewardMult(s.bot.abyssRunPacts(uid)))
+
+			switch focus {
+			case "gold":
+				bonus = bonus * 2
+			case "loot":
+				bonus = bonus / 2
+			}
+
+			if s.bot.abyssSpec(uid) == "plunderer" {
+				bonus = bonus * 11 / 10
+			}
+			if run.CheckpointStart > 0 {
+				bonus = bonus * 3 / 4
+			}
+			if run.ExpressUntil > 0 && newDepth <= run.ExpressUntil {
+				bonus = 0
+			}
+
+			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET momentum = momentum + 1, bank_locked_floors = GREATEST(bank_locked_floors - 1, 0) WHERE client_uid=$1", uid)
+			if msg := s.bot.tickGearXP(uid); msg != "" {
+				gearMilestone = msg
+			}
+
+			if s.bot.abyssDailyFirstDescent(uid) {
+				bonus = bonus * 3 / 2
+				s.bot.grantAbyssTokens(uid, 5)
+				dailyFirst = true
+			}
+
+			equipped := s.bot.getEquippedItems(uid)
+			hasLuckyCoin := false
+			if _, hasCoin := equipped[content.SlotTrinket1]; hasCoin && equipped[content.SlotTrinket1].ID == "ABYSS_LUCKY_COIN" {
+				hasLuckyCoin = true
+			}
+			newEscrow := int64(float64(run.Escrow)*(1.0+abyssEffectiveInterest(st.UpInterest, hasLuckyCoin))) + bonus
+			if _, err := s.bot.DB.Exec("UPDATE abyss_active SET escrow=$1, floor_type='combat', modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2", newEscrow, uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			_, _ = s.bot.DB.Exec("UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1) WHERE client_uid=$2", newDepth, uid)
+			_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = abyss_win_streak + 1 WHERE client_uid=$1", uid)
+
+			if art, ok := equipped[content.SlotArtifact]; ok {
+				art.GearLevel++
+				switch art.GearLevel {
+				case 3:
+					art.Stats.HP += 100
+					art.Stats.STR += 15
+					art.Stats.DEF += 15
+				case 5:
+					art.Stats.HP += 250
+					art.Stats.STR += 30
+					art.Stats.DEF += 30
+				}
+				dataBytes, _ := json.Marshal(art)
+				_, _ = s.bot.DB.Exec("UPDATE user_gear SET item_data=$1 WHERE slot='Artifact' AND client_uid=$2", string(dataBytes), uid)
+			}
+
+			if ach := s.bot.checkDepthAchievements(uid, newDepth); ach != "" {
+				achs = append(achs, ach)
+			}
+			if ach := s.bot.checkBossKillAchievements(uid); ach != "" {
+				achs = append(achs, ach)
+			}
+			if ach := s.bot.checkBestiaryAchievements(uid); ach != "" {
+				achs = append(achs, ach)
+			}
+
+			if rand.Float64() < 0.15 {
+				fragID := newDepth/10 + 1
+				if fragID > 10 { fragID = 10 }
+				if fragID < 1 { fragID = 1 }
+				resInsert, err := s.bot.DB.Exec("INSERT INTO abyss_lore_unlocked (client_uid, lore_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", uid, fragID)
+				if err == nil {
+					if n, _ := resInsert.RowsAffected(); n > 0 {
+						loreUnlocked = true
+						loreFragment = abyssLoreFragments[fragID]
+						if recipe := s.bot.discoverRandomRecipe(uid); recipe != "" {
+							recipeUnlocked = recipe
+						}
+					}
+				}
+			}
+
+			if modifier != "" {
+				c := content.RandomConsumable()
+				s.bot.grantConsumable(uid, c.ID, c.Duration)
+				affixReward = c.Name
+			}
+
+			run.Escrow = newEscrow
+		} else {
+			// Defeat: stop batch run
+			canRevive := !run.Revived
+			if canRevive && !run.ReviveLocked {
+				offerChance := 0.45 + 0.08*float64(st.UpMercy)
+				if rand.Float64() >= offerChance {
+					canRevive = false
+					_, _ = s.bot.DB.Exec("UPDATE abyss_active SET revive_locked=TRUE WHERE client_uid=$1", uid)
+				}
+			} else if run.ReviveLocked {
+				canRevive = false
+			}
+			_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
+
+			var gold int64
+			_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+
+			writeJSON(w, map[string]any{
+				"ok":               true,
+				"victory":          false,
+				"depth":            newDepth,
+				"hp":               res.CurrentHP,
+				"max_hp":           res.MaxHP,
+				"logs":             combinedLogs,
+				"loot":             combinedLoot,
+				"dura":             combinedDura,
+				"risk":             abyssRiskPct(newDepth+1, tier, s.bot.abyssPlayerCR(uid)),
+				"downed":           true,
+				"can_revive":       canRevive,
+				"can_last_stand":   !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(newDepth),
+				"last_stand_cost":  abyssLastStandCost(newDepth),
+				"escrow":           run.Escrow,
+				"insured":          run.Insured,
+				"gold":             gold,
+				"tokens":           s.bot.abyssTokens(uid),
+				"consumables":      s.bot.getConsumables(uid),
+			})
+			return
+		}
+	}
+
+	var finalGold int64
+	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&finalGold)
+
+	finalRun := s.bot.loadAbyssRun(uid)
+
+	out := map[string]any{
+		"ok":                 true,
+		"victory":            true,
+		"depth":              finalRun.Depth,
+		"hp":                 finalRun.CurHP,
+		"max_hp":             finalRun.MaxHP,
+		"logs":               combinedLogs,
+		"loot":               combinedLoot,
+		"dura":               combinedDura,
+		"risk":               abyssRiskPct(finalRun.Depth+1, tier, s.bot.abyssPlayerCR(uid)),
+		"escrow":             finalRun.Escrow,
+		"gold":               finalGold,
+		"tokens":             s.bot.abyssTokens(uid),
+		"consumables":        s.bot.getConsumables(uid),
+		"gear_milestone":     gearMilestone,
+		"lore_unlocked":      loreUnlocked,
+		"lore_fragment":      loreFragment,
+		"recipe_unlocked":    recipeUnlocked,
+		"affix_reward":       affixReward,
+		"daily":              dailyFirst,
+	}
+	if len(achs) > 0 {
+		out["achievement"] = strings.Join(achs, " · ")
+	}
+	writeJSON(w, out)
+}
+
+
 // floorCandidate is one offered path in the branching-floor-choice picker.
 type floorCandidate struct {
 	Index int    `json:"index"`

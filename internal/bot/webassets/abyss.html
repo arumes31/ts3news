@@ -168,6 +168,17 @@
       <label><input type="radio" name="abfocus" value="loot"> 🎁 Loot Focus (+50% find, +20% quality, halved gold)</label>
     </div>
 
+    <!-- Multi-floor queue planner (active run only) -->
+    <div class="ab-focus-row" id="multiQueuePlanner" style="display:none; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+      <span class="ab-sub-label">Plan next floors (3-10 paths):</span>
+      <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+        <button class="ghost xs" id="btnQueueLess" onclick="removePathFromQueue()">−</button>
+        <div id="pathQueueContainer" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;"></div>
+        <button class="ghost xs" id="btnQueueMore" onclick="addPathToQueue()">+</button>
+      </div>
+      <button class="primary xs" id="btnDescendMulti" onclick="abyssDescendMulti()" style="margin-top:10px;">⚡ Plan &amp; Descend Queue</button>
+    </div>
+
     <div class="ab-btn-row">
       <button class="primary ab-enter" id="btnEnter" onclick="abyssEnter()">Enter the Abyss</button>
       <button class="primary ab-descend" id="btnDescend" onclick="abyssDescend()" style="display:none">⬇️ Descend</button>
@@ -746,7 +757,7 @@ async function abPost(url, body){
   }
 }
 
-function setBusy(b){busy=b;['btnEnter','btnDescend','btnBank','btnRevive','btnLastStand','btnConcede','btnProceed'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});}
+function setBusy(b){busy=b;['btnEnter','btnDescend','btnBank','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});}
 function show(id, on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none';}
 
 function renderState(){
@@ -778,6 +789,15 @@ function renderState(){
   show('btnConcede', inRun && downed);
   show('focusPicker', inRun && !downed);
   show('prepPanel', inRun && !downed);
+  show('multiQueuePlanner', inRun && !downed);
+  if (inRun && !downed) {
+    var container = document.getElementById('pathQueueContainer');
+    if (container && container.innerHTML === '') {
+      buildPathQueuePlanner();
+    } else {
+      updateQueueUI();
+    }
+  }
 
   // Death-risk estimate on the Descend button (#21).
   var bd = document.getElementById('btnDescend');
@@ -1086,7 +1106,8 @@ function groupInitialRunLoot(){
       manifest.insertBefore(lootFloorHeader(d), el);
       prev = d;
     }
-    el.classList.add(rarityClass(el.innerHTML));
+    var rCls = rarityClass(el.innerHTML);
+    if(rCls) el.classList.add(rCls);
   });
   updateLootSummary();
 }
@@ -1230,6 +1251,120 @@ async function abyssDescend(){
     openFloorChoiceModal(d.options, d.depth, hp, max);
     return;
   }
+
+  await processDescendResult(d, hp, max);
+}
+
+function buildPathQueuePlanner() {
+  var container = document.getElementById('pathQueueContainer');
+  if (!container) return;
+  container.innerHTML = '';
+  var defaultCount = 5;
+  for (var i = 0; i < defaultCount; i++) {
+    addPathToQueue();
+  }
+}
+
+function addPathToQueue() {
+  var container = document.getElementById('pathQueueContainer');
+  if (!container) return;
+  var count = container.querySelectorAll('.ab-path-select').length;
+  if (count >= 10) return;
+  
+  var wrap = document.createElement('div');
+  wrap.style.display = 'flex';
+  wrap.style.alignItems = 'center';
+  wrap.style.gap = '4px';
+  wrap.className = 'ab-path-wrap';
+  
+  var label = document.createElement('span');
+  label.className = 'muted small';
+  label.style.fontSize = '12px';
+  label.textContent = 'F' + (curDepth + count + 1) + ':';
+  
+  var select = document.createElement('select');
+  select.className = 'ab-path-select';
+  select.style.padding = '4px 8px';
+  select.style.borderRadius = '4px';
+  select.style.background = 'rgba(255,255,255,0.05)';
+  select.style.color = '#fff';
+  select.style.border = '1px solid rgba(255,255,255,0.15)';
+  select.style.fontSize = '12px';
+  select.style.cursor = 'pointer';
+  
+  var opt1 = document.createElement('option');
+  opt1.value = 'combat';
+  opt1.textContent = '⚔️ Combat';
+  opt1.style.background = '#0a0d16';
+  select.appendChild(opt1);
+  
+  var opt2 = document.createElement('option');
+  opt2.value = 'rest';
+  opt2.textContent = '🕊️ Rest';
+  opt2.style.background = '#0a0d16';
+  select.appendChild(opt2);
+  
+  var opt3 = document.createElement('option');
+  opt3.value = 'event';
+  opt3.textContent = '❔ Event';
+  opt3.style.background = '#0a0d16';
+  select.appendChild(opt3);
+  
+  wrap.appendChild(label);
+  wrap.appendChild(select);
+  container.appendChild(wrap);
+  
+  updateQueueUI();
+}
+
+function removePathFromQueue() {
+  var container = document.getElementById('pathQueueContainer');
+  if (!container) return;
+  var wraps = container.querySelectorAll('.ab-path-wrap');
+  if (wraps.length <= 3) return;
+  wraps[wraps.length - 1].remove();
+  updateQueueUI();
+}
+
+function updateQueueUI() {
+  var container = document.getElementById('pathQueueContainer');
+  if (!container) return;
+  var wraps = container.querySelectorAll('.ab-path-wrap');
+  wraps.forEach(function(wrap, idx) {
+    wrap.querySelector('span').textContent = 'F' + (curDepth + idx + 1) + ':';
+  });
+  
+  var btnLess = document.getElementById('btnQueueLess');
+  var btnMore = document.getElementById('btnQueueMore');
+  if (btnLess) btnLess.disabled = busy || wraps.length <= 3;
+  if (btnMore) btnMore.disabled = busy || wraps.length >= 10;
+}
+
+async function abyssDescendMulti() {
+  if (busy) return;
+  var paths = [];
+  document.querySelectorAll('.ab-path-select').forEach(function(el) {
+    paths.push(el.value);
+  });
+  if (paths.length < 3 || paths.length > 10) {
+    abToast('Queue must have 3 to 10 floors.', false);
+    return;
+  }
+
+  var bar = document.getElementById('hpBar');
+  var hp = Number(bar.getAttribute('aria-valuenow')), max = Number(bar.getAttribute('aria-valuemax'));
+  if (max > 0 && hp > 0 && hp / max < 0.25 && !(await confirmModal('You are at ' + Math.round(hp * 100 / max) + '% HP. Descend anyway?', {title: 'Low HP', okLabel: 'Descend'}))) return;
+
+  setBusy(true); clearBanner();
+  document.getElementById('abStatus').textContent = 'Descending queue (' + paths.length + ' floors)…';
+
+  function selectedFocus() {
+    var el = document.querySelector('input[name=abfocus]:checked');
+    return el ? el.value : 'balanced';
+  }
+
+  var d = await abPost('/api/abyss/descend_multi', {focus: selectedFocus(), paths: paths});
+  if (!d.ok) { abToast(d.error || 'failed', false); setBusy(false); return; }
 
   await processDescendResult(d, hp, max);
 }

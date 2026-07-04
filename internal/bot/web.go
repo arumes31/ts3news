@@ -231,6 +231,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/abyss", s.auth(s.handleAbyssPage))
 		mux.HandleFunc("/api/abyss/enter", s.authAPI(s.handleAbyssEnter))
 		mux.HandleFunc("/api/abyss/descend", s.authAPI(s.handleAbyssDescend))
+		mux.HandleFunc("/api/abyss/descend_multi", s.authAPI(s.handleAbyssDescendMulti))
 		mux.HandleFunc("/api/abyss/choose_floor", s.authAPI(s.handleAbyssChooseFloor))
 		mux.HandleFunc("/api/abyss/revive", s.authAPI(s.handleAbyssRevive))
 		mux.HandleFunc("/api/abyss/concede", s.authAPI(s.handleAbyssConcede))
