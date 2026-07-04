@@ -747,7 +747,7 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	// Crafting materials (#101), boosted by the Scavenger node (#155).
 	scav := s.bot.loadAbyssStats(uid).UpScavenger
 	for mat, n := range matGained {
-		s.bot.grantMaterial(uid, mat, scavengerYield(n, scav))
+		_ = s.bot.grantMaterial(uid, mat, scavengerYield(n, scav))
 	}
 	writeJSON(w, map[string]any{"ok": true, "sold": count, "value": total, "gold": gold,
 		"materials": s.bot.loadMaterials(uid)})
@@ -882,7 +882,7 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 	// Crafting materials (#101), boosted by the Scavenger node (#155).
 	scav := s.bot.loadAbyssStats(uid).UpScavenger
 	for mat, n := range matGained {
-		s.bot.grantMaterial(uid, mat, scavengerYield(n, scav))
+		_ = s.bot.grantMaterial(uid, mat, scavengerYield(n, scav))
 	}
 	writeJSON(w, map[string]any{"ok": true, "dismantled": count, "tokens_gained": total, "tokens": s.bot.abyssTokens(uid),
 		"materials": s.bot.loadMaterials(uid)})
