@@ -1449,6 +1449,56 @@ func (s *WebServer) handleAbyssForgeHistory(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, map[string]any{"ok": true, "history": out})
 }
 
+// ---- Unequip / auto-equip undo (UX-53) ----------------------------------------------
+
+// handleAbyssUnequip moves an equipped item back to the backpack. Used by the
+// 10-second "undo" link on auto-equip loot notices: auto-equip only fires on a
+// previously-empty slot, so moving the piece to the backpack is a true undo.
+func (s *WebServer) handleAbyssUnequip(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
+
+	var req struct {
+		Slot string `json:"slot"`
+	}
+	if err := readJSON(r, &req); err != nil || req.Slot == "" {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var gearID string
+	var dura int
+	var itemData sql.NullString
+	if err := tx.QueryRow("SELECT gear_id, durability, item_data FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, req.Slot).Scan(&gearID, &dura, &itemData); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "nothing equipped in that slot"})
+		return
+	}
+	if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1,$2,$3,$4)", uid, gearID, dura, itemData); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if _, err := tx.Exec("DELETE FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, req.Slot); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "msg": "↩️ Moved the " + req.Slot + " piece to your backpack."})
+}
+
 // ---- Bestiary mastery (#168) --------------------------------------------------------
 
 // bestiaryMasteryFamilies counts mob families with 100+ recorded kills; each

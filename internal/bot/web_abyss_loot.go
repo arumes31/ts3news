@@ -111,6 +111,11 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		}
 		lootFindBonus += float64(ms) * 0.01
 	}
+	// Skill web: Fortune-sector loot_find notables and the Midas keystone;
+	// gold_find scales the gold drop rolls below.
+	treePct := b.treeBonusFor(uid).Pct
+	lootFindBonus += treePct["loot_find"]
+	goldFindMult := 1 + treePct["gold_find"]
 	rareScale := lootRarityScale(mob.Level)
 
 	// Check if user has Lucky Coin equipped
@@ -337,6 +342,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			if hasLuckyCoin {
 				gold = int64(float64(gold) * 1.5) // Lucky Coin: +50% gold drop rate
 			}
+			gold = int64(float64(gold) * goldFindMult) // skill web gold_find
 			add(fmt.Sprintf("💰 %d gold", gold), abyssLootGrant{Type: "gold", Gold: gold})
 			continue
 		}

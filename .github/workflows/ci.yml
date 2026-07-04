@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ main, v2_test ]
 
+# Least-privilege default for all jobs; build-docker overrides with its own
+# block to add packages: write (CodeQL: actions/missing-workflow-permissions).
+permissions:
+  contents: read
+
 jobs:
   build-go:
     name: Build and Lint Go

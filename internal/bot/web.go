@@ -12,6 +12,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -278,6 +279,10 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/forge_history", s.authAPI(s.handleAbyssForgeHistory))
 		mux.HandleFunc("/api/abyss/forge_undo", s.authAPI(s.handleAbyssForgeUndo))
 		mux.HandleFunc("/api/abyss/rift_peek", s.authAPI(s.handleAbyssRiftPeek))
+		mux.HandleFunc("/api/abyss/unequip", s.authAPI(s.handleAbyssUnequip))
+		mux.HandleFunc("/abyss/tree", s.auth(s.handleAbyssTreePage))
+		mux.HandleFunc("/api/abyss/tree/allocate", s.authAPI(s.handleAbyssTreeAllocate))
+		mux.HandleFunc("/api/abyss/tree/respec", s.authAPI(s.handleAbyssTreeRespec))
 	}
 
 	// Authenticated JSON APIs.
@@ -447,11 +452,16 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		Expires:  time.Now().Add(90 * 24 * time.Hour),
 	})
-	// Honor an optional post-login destination, but only same-origin relative paths
-	// (must start with a single "/") to avoid an open-redirect.
+	// Honor an optional post-login destination, but only same-origin relative
+	// paths to avoid an open redirect: must start with a single "/", must not be
+	// scheme-relative ("//host") and must not start with "/\" (browsers
+	// normalize backslashes to slashes, which would re-open the "//" bypass).
 	dest := "/"
-	if next := r.URL.Query().Get("next"); strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") {
-		dest = next
+	if next := r.URL.Query().Get("next"); strings.HasPrefix(next, "/") &&
+		!strings.HasPrefix(next, "//") && !strings.HasPrefix(next, "/\\") {
+		if u, err := url.Parse(next); err == nil && u.Scheme == "" && u.Host == "" {
+			dest = next
+		}
 	}
 	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 -- dest is validated above to be a same-origin relative path only
 }
