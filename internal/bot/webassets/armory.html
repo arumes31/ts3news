@@ -122,9 +122,10 @@
 </div>
 {{end}}
 
-{{with .Ultimate}}
-<h2>Ultimate</h2>
+{{if .Ultimates}}
+<h2>Ultimates <span class="muted small">— {{len .Ultimates}} / 3 active, strongest ready one fires each turn</span></h2>
 <div class="loadout-grid">
+  {{range .Ultimates}}
   <div class="loadout-card ultimate" style="border-color:{{.Rarity.Color}}">
     <div class="lc-kind">💥 Ultimate · {{.Rarity.String}}</div>
     <div class="lc-name" style="color:{{.Rarity.Color}}">{{.Name}}</div>
@@ -136,6 +137,7 @@
         {{.CurrentCooldown}}</span>{{end}}
     </div>
   </div>
+  {{end}}
 </div>
 {{end}}
 

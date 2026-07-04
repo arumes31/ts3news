@@ -1,7 +1,10 @@
 {{define "abyss"}}{{template "head" .}}
 <div class="abyss-hero">
-  <h1>{{T "web.abyss.title"}}</h1>
-  <p class="muted">{{T "web.abyss.hero_desc"}}</p>
+  <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
+  <div class="abyss-intro" id="abyssIntro">
+    <h1>{{T "web.abyss.title"}}</h1>
+    <p class="muted">{{T "web.abyss.hero_desc"}}</p>
+  </div>
   {{if .DailyMod}}
     <div class="ab-weekly-alert" style="background: rgba(255,193,7,0.1); border: 1px solid #ffc107; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
       📅 <strong>{{T "web.abyss.weekly_title"}}</strong> 
@@ -64,7 +67,6 @@
   <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.gear_score"}}</span><span class="ab-chip-val">{{comma .U.GearScore}}</span></div>
   <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.level"}}</span><span class="ab-chip-val">{{.U.Level}}{{if gt .U.Prestige 0}} · P{{.U.Prestige}}{{end}}</span></div>
   <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.best_depth"}}</span><span class="ab-chip-val" id="bestDepth">🕳️ {{.Stats.BestDepth}}</span></div>
-  <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.abyss_tokens"}}</span><span class="ab-chip-val" id="tokenVal">{{comma .Stats.Tokens}}</span></div>
 </div>
 
 <div class="abyss-stage-row">
@@ -716,7 +718,8 @@ function setHP(hp,max){
   bar.setAttribute('aria-valuenow',hp); bar.setAttribute('aria-valuemax',max);
 }
 function setGold(g){var el=document.getElementById('goldPill');if(el)el.textContent='🪙 '+fmtGold(g);}
-function setTokens(t){if(t!==undefined)document.getElementById('tokenVal').textContent=fmtNum(t);}
+// Tokens live in the shared header pill (next to gold), not on the page body.
+function setTokens(t){if(t!==undefined){var el=document.getElementById('tokenPill');if(el)el.textContent='🜲 '+fmtNum(t);}}
 function setEscrow(v){curEscrow=Number(v)||0;document.getElementById('escrowVal').textContent=fmtGold(curEscrow);}
 function setDepth(d){curDepth=Number(d)||0;document.getElementById('depthNum').textContent=d;updateThreat();updateElevator();}
 // Greed Meter: server-computed risk (next floor's difficulty vs. current gear
@@ -1344,7 +1347,13 @@ async function forgeInsureItem() {
     sessionStorage.removeItem('ab_banner');
     sessionStorage.removeItem('ab_banner_cls');
   }
-  
+
+  // Fade out the intro title/flavour text after a minute to free space.
+  setTimeout(function(){
+    var intro=document.getElementById('abyssIntro');
+    if(intro)intro.classList.add('gone');
+  }, 60000);
+
   renderState();
 })();
 </script>

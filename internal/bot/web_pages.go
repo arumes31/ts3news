@@ -330,7 +330,7 @@ func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid str
 	}
 
 	skills := s.bot.getSkills(uid)
-	ultimate := s.bot.getUltimateSkill(uid)
+	ultimates := s.bot.getActiveUltimates(uid)
 	artifact := s.bot.loadArtifactView(uid)
 	title := s.bot.loadTitleView(uid)
 	pets := s.bot.loadPetViews(uid)
@@ -341,7 +341,7 @@ func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid str
 		"U":           u,
 		"Slots":       slots,
 		"Skills":      skills,
-		"Ultimate":    ultimate,
+		"Ultimates":   ultimates,
 		"Artifact":    artifact,
 		"PlayerTitle": title,
 		"Pets":        pets,

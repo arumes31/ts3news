@@ -6,7 +6,7 @@
 <form method="GET" action="/ah" class="search-form" style="margin: 15px 0 20px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
   <input type="text" name="q" value="{{.SearchQuery}}" placeholder="Search items by name..." style="flex: 1; min-width: 180px; padding: 10px 14px; background: #161b22; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; font-size: 14px;" aria-label="Search items">
   <label style="display: flex; align-items: center; gap: 7px; color: #c9d1d9; font-size: 14px; cursor: pointer; white-space: nowrap; padding: 8px 14px; background: {{if .UpgradesOnly}}#1a3a1a{{else}}#161b22{{end}}; border: 1px solid {{if .UpgradesOnly}}#3fb950{{else}}#30363d{{end}}; border-radius: 6px; transition: all 0.2s;">
-    <input type="checkbox" name="upgrades" value="1" {{if .UpgradesOnly}}checked{{end}} onchange="this.form.submit()" style="accent-color: #3fb950; width: 16px; height: 16px; cursor: pointer;">
+    <input type="checkbox" name="upgrades" value="1" {{if .UpgradesOnly}}checked{{end}} onchange="this.form.submit()">
     ⬆ Upgrades only
   </label>
   <button type="submit" class="btn primary" style="padding: 10px 20px; font-size: 14px; cursor: pointer;">Search</button>

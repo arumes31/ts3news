@@ -119,7 +119,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		}
 		stats, _, _, _ := b.calculateTotalStats(cl.UID, ctx.today)
 		skills := b.getSkills(cl.UID)
-		ultimate := b.getUltimateSkill(cl.UID)
+		ultimates := b.getActiveUltimates(cl.UID)
 
 		var lvl, prestige, curHP, regen, curseFights, bestDepth int
 		var gold int64
@@ -152,7 +152,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 
 		chanUsers[cl.CID] = append(chanUsers[cl.CID], UserInCombat{
 			UID: cl.UID, Nickname: cl.Nickname, CLID: cl.CLID, Stats: stats, Level: lvl, Skills: skills,
-			UltimateSkill: ultimate, CurrentHP: curHP, RegenStacks: regen, Gold: gold, Pets: pets,
+			Ultimates: ultimates, CurrentHP: curHP, RegenStacks: regen, Gold: gold, Pets: pets,
 			Equipped: equipped,
 		})
 	}

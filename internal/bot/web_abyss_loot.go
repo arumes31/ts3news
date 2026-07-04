@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
@@ -287,11 +286,11 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			ench := content.RandomEnchantment()
 			ench.Stats.STR = int(float64(ench.Stats.STR) * zoneDifficulty)
 			ench.Stats.SPD = int(float64(ench.Stats.SPD) * zoneDifficulty)
-			add(fmt.Sprintf("💠 Enchant: %s", ench.Name), abyssLootGrant{Type: "ench", Ench: &ench})
+			add(fmt.Sprintf("💠 Enchant: %s (gs:%d)", ench.Name, ench.Stats.Score()), abyssLootGrant{Type: "ench", Ench: &ench})
 		case r < skillChance*qualityMult:
 			s := content.RandomSkill()
 			s.Power *= zoneDifficulty
-			add(fmt.Sprintf("📘 Skill: %s", s.Name), abyssLootGrant{Type: "skill", Skill: &s})
+			add(fmt.Sprintf("📘 Skill: %s (gs:%d)", s.Name, s.Score()), abyssLootGrant{Type: "skill", Skill: &s})
 		case r < consChance*qualityMult:
 			c := content.RandomConsumable()
 			add(i18n.T("bot.loot.item", c.Name, c.ID), abyssLootGrant{Type: "cons", ConsID: c.ID, ConsDur: c.Duration})
@@ -468,8 +467,9 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) {
 	}
 }
 
-// grantAbyssUltimate awards an ultimate skill, equipping it if the player has none
-// and silently dropping exact duplicates (the escrow label already credited it).
+// grantAbyssUltimate awards an ultimate skill, activating it if the player runs
+// fewer than maxActiveUltimates, and silently dropping exact duplicates (the
+// escrow label already credited it).
 func (b *Bot) grantAbyssUltimate(uid, ultID string) {
 	if ultID == "" {
 		return
@@ -481,11 +481,7 @@ func (b *Bot) grantAbyssUltimate(uid, ultID string) {
 	}
 	_, _ = b.DB.Exec("INSERT INTO user_ultimate_skills (client_uid, ultimate_id) VALUES ($1, $2)", uid, ultID)
 	_, _ = b.DB.Exec("UPDATE users SET ultimate_skills_count = ultimate_skills_count + 1 WHERE client_uid=$1", uid)
-	var cur sql.NullString
-	_ = b.DB.QueryRow("SELECT ultimate_skill_id FROM users WHERE client_uid=$1", uid).Scan(&cur)
-	if !cur.Valid {
-		_, _ = b.DB.Exec("UPDATE users SET ultimate_skill_id=$2, ultimate_cooldown=0 WHERE client_uid=$1", uid, ultID)
-	}
+	_ = b.activateUltimateIfSlotFree(uid, ultID)
 }
 
 // grantAbyssUnique awards a unique item, ignoring exact duplicates.

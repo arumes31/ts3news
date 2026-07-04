@@ -135,6 +135,10 @@ h3 {
   color: var(--gold)
 }
 
+.pill.tokens {
+  color: var(--accent)
+}
+
 .pill.xp {
   color: var(--xp)
 }
@@ -962,6 +966,82 @@ input[type=number] {
   border-radius: 7px;
   padding: .4rem .5rem;
   width: 110px
+}
+
+/* Modern themed checkboxes & radios: replace the native widgets everywhere
+   with custom-drawn controls that match the panel/accent palette. */
+input[type=checkbox],
+input[type=radio] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex-shrink: 0;
+  position: relative;
+  display: inline-block;
+  vertical-align: text-bottom;
+  background: #0c0f16;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+
+input[type=checkbox] {
+  border-radius: 5px;
+}
+
+input[type=radio] {
+  border-radius: 50%;
+}
+
+input[type=checkbox]:hover:not(:disabled),
+input[type=radio]:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+input[type=checkbox]:focus-visible,
+input[type=radio]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(123, 108, 255, .35);
+}
+
+input[type=checkbox]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Drawn check mark */
+input[type=checkbox]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+input[type=radio]:checked {
+  border-color: var(--accent);
+}
+
+/* Inner dot */
+input[type=radio]:checked::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(123, 108, 255, .55);
+}
+
+input[type=checkbox]:disabled,
+input[type=radio]:disabled {
+  opacity: .45;
+  cursor: not-allowed;
 }
 
 label {
@@ -2810,6 +2890,19 @@ tr.bought-flash {
   text-shadow: 0 1px 2px #000;
 }
 
+/* Intro title + flavour text: JS adds .gone a minute after load; collapse
+   smoothly instead of popping so the HUD bars below slide up gently. */
+.abyss-intro {
+  max-height: 260px;
+  overflow: hidden;
+  transition: opacity .9s ease, max-height .9s ease;
+}
+
+.abyss-intro.gone {
+  opacity: 0;
+  max-height: 0;
+}
+
 /* Row wrapper: detached Armoury / Run Loot sidebars flanking the stage */
 .abyss-stage-row {
   display: grid;
@@ -3037,6 +3130,29 @@ tr.bought-flash {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: .06em;
+}
+
+/* On very wide screens the centered wrap leaves large empty page margins:
+   float the sidebars out into them (fixed to the viewport edges, below the
+   sticky topbar) and give the stage the full wrap width. Breakpoint =
+   wrap 1500px + 2 × (20px edge + 290px panel + breathing room). */
+@media (min-width: 2140px) {
+  .abyss-stage-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .abyss-side-panel {
+    position: fixed;
+    top: 80px;
+    width: 290px;
+    max-height: calc(100vh - 100px);
+    z-index: 5;
+  }
+  .abyss-side-left {
+    left: 20px;
+  }
+  .abyss-side-right {
+    right: 20px;
+  }
 }
 
 .abyss-side-gear {
