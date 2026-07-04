@@ -280,7 +280,7 @@ func itadPlatform(lowerShop, displayName string) string {
 
 func cleanRedditTitle(title string) string {
 	t := bracketTag.ReplaceAllString(title, " ")
-	t = strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(t, " "))
+	t = strings.Join(strings.Fields(t), " ") // Use strings.Fields instead of inline regex for better performance
 
 	suffixes := []string{" is free", " free", " is now free", " giveaway", " giveaways", " (100% off)"}
 
