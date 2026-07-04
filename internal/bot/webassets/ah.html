@@ -23,6 +23,8 @@
       <tr>
         <th>Item</th>
         <th>Type</th>
+        <th>Rarity</th>
+        <th>GS</th>
         <th>Seller</th>
         <th>Listed</th>
         <th>Price</th>
@@ -32,8 +34,10 @@
     <tbody>
       {{range .Active}}
       <tr class="ah-row {{if .IsUpgrade}}upgrade-item{{end}}">
-        <td><span class="item-ico">{{.Icon}}</span> {{.Name}} {{if .IsUpgrade}}<span class="upgrade-badge" title="Upgrade for equipped gear">⬆</span>{{end}}</td>
+        <td><span class="item-ico">{{.Icon}}</span> <span {{if .RarityColor}}style="color:{{.RarityColor}}"{{end}}>{{.Name}}</span> {{if .IsUpgrade}}<span class="upgrade-badge" title="Upgrade for equipped gear">⬆</span>{{end}}</td>
         <td>{{.ItemType}}</td>
+        <td>{{if .Rarity}}<span style="color:{{.RarityColor}}">{{.Rarity}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+        <td>{{if .GS}}{{.GS}}{{else}}<span class="muted">—</span>{{end}}</td>
         <td>{{.Seller}}</td>
         <td>{{.Listed}}</td>
         <td class="goldcell">🪙 {{.Price}}</td>
@@ -74,7 +78,9 @@
       <tr>
         <th>Item</th>
         <th>Slot</th>
+        <th>Rarity</th>
         <th>CR</th>
+        <th>GS</th>
         <th>Fixed Price</th>
         <th></th>
       </tr>
@@ -84,7 +90,9 @@
       <tr class="ah-row">
         <td><span class="item-ico">{{.Icon}}</span> <span style="color:{{.RarityColor}}">{{.Name}}</span></td>
         <td>{{.Slot}}</td>
+        <td><span style="color:{{.RarityColor}}">{{.Rarity}}</span></td>
         <td>{{printf "%.0f" .CR}}</td>
+        <td>{{.Score}}</td>
         <td class="goldcell" title="Auto-priced: (CR×10 + GS×5) × (Rarity+1)">🪙 {{.AHPrice}} <span class="muted"
             style="font-size:0.8em">fixed</span></td>
         <td><button onclick="listAH({{.InvID}},this)">List</button></td>

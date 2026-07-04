@@ -1,0 +1,31 @@
+DROP TABLE IF EXISTS forge_history;
+DROP TABLE IF EXISTS user_recipes;
+DROP TABLE IF EXISTS user_runes;
+DROP TABLE IF EXISTS user_materials;
+
+ALTER TABLE abyss_active DROP COLUMN IF EXISTS floor_queue;
+ALTER TABLE abyss_active DROP COLUMN IF EXISTS comeback;
+ALTER TABLE abyss_active DROP COLUMN IF EXISTS express_until;
+ALTER TABLE abyss_active DROP COLUMN IF EXISTS checkpoint_start;
+ALTER TABLE abyss_active DROP COLUMN IF EXISTS revive_locked;
+ALTER TABLE abyss_active DROP COLUMN IF EXISTS last_stand_used;
+ALTER TABLE abyss_active DROP COLUMN IF EXISTS bank_locked_floors;
+ALTER TABLE abyss_active DROP COLUMN IF EXISTS momentum;
+
+ALTER TABLE users DROP COLUMN IF EXISTS abyss_sanctuary;
+ALTER TABLE users DROP COLUMN IF EXISTS craft_quest_done;
+ALTER TABLE users DROP COLUMN IF EXISTS craft_quest_week;
+ALTER TABLE users DROP COLUMN IF EXISTS abyss_auto_repair;
+ALTER TABLE users DROP COLUMN IF EXISTS temper_fail_stacks;
+ALTER TABLE users DROP COLUMN IF EXISTS forge_undo_date;
+ALTER TABLE users DROP COLUMN IF EXISTS forge_undo;
+ALTER TABLE users DROP COLUMN IF EXISTS forge_rep;
+ALTER TABLE users DROP COLUMN IF EXISTS abyss_spec;
+ALTER TABLE users DROP COLUMN IF EXISTS abyss_up_quartermaster;
+ALTER TABLE users DROP COLUMN IF EXISTS abyss_up_cartographer;
+ALTER TABLE users DROP COLUMN IF EXISTS abyss_up_mercy;
+ALTER TABLE users DROP COLUMN IF EXISTS abyss_up_scavenger;
+ALTER TABLE users DROP COLUMN IF EXISTS abyss_up_swiftness;
+ALTER TABLE users DROP COLUMN IF EXISTS abyss_deaths_date;
+ALTER TABLE users DROP COLUMN IF EXISTS abyss_deaths_today;
+ALTER TABLE users DROP COLUMN IF EXISTS abyss_free_entry_date;

@@ -58,6 +58,8 @@ type abyssLootGrant struct {
 	UniqRar   content.Rarity       `json:"uniq_rar,omitempty"`
 	UniqPow   float64              `json:"uniq_pow,omitempty"`
 	Gold      int64                `json:"gold,omitempty"`
+	MatID     string               `json:"mat_id,omitempty"` // crafting material (#101/#119)
+	MatN      int                  `json:"mat_n,omitempty"`
 }
 
 // lootRarityScale dampens high-rarity drop chances for low-level / low-difficulty
@@ -96,9 +98,17 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		qualityMult *= 1.2
 		lootFindBonus += 0.50
 	}
-	if fortune := b.loadAbyssStats(uid).UpFortune; fortune > 0 {
-		qualityMult *= 1.0 + float64(fortune)*0.06
-		lootFindBonus += float64(fortune) * 0.04
+	st := b.loadAbyssStats(uid)
+	if st.UpFortune > 0 {
+		qualityMult *= 1.0 + float64(st.UpFortune)*0.06
+		lootFindBonus += float64(st.UpFortune) * 0.04
+	}
+	// Depth milestones (#16): +1% permanent loot find per 25 best depth, cap +4%.
+	if ms := st.BestDepth / 25; ms > 0 {
+		if ms > 4 {
+			ms = 4
+		}
+		lootFindBonus += float64(ms) * 0.01
 	}
 	rareScale := lootRarityScale(mob.Level)
 
@@ -187,9 +197,34 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			g.Stats = g.Stats.Scaled(1.5)
 		}
 
+		// Corrupted drops (#83): 8% of Epic+ gear lands oversized (+50% offensive
+		// stats) but carries an HP malus equal to its score, cleansable at the forge.
+		// #nosec G404 -- non-cryptographic loot roll
+		if !g.Corrupted && g.Rarity >= content.RarityEpic && rand.Float64() < 0.08 {
+			g.Corrupted = true
+			g.Stats.STR = g.Stats.STR * 3 / 2
+			g.Stats.DEF = g.Stats.DEF * 3 / 2
+			g.Stats.SPD = g.Stats.SPD * 3 / 2
+			g.CorruptHP = g.Stats.Score()
+			g.Stats.HP -= g.CorruptHP
+			g.Name = "🩸 Corrupted " + g.Name
+		}
+
 		label := fmt.Sprintf("%s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
 		if g.Unidentified {
 			label = fmt.Sprintf("Unidentified %s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", string(g.Slot), string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
+		}
+		// Upgrade delta vs the equipped piece in this slot (#76).
+		if !g.Unidentified {
+			if cur, has := equipped[g.Slot]; has {
+				if d := g.CombatRating() - cur.CombatRating(); d > 0 {
+					label += fmt.Sprintf(" [color=#41c97a]▲+%.0f CR[/color]", d)
+				} else if d < 0 {
+					label += fmt.Sprintf(" [color=#8a93a8]▼%.0f CR[/color]", d)
+				}
+			} else {
+				label += " [color=#41c97a]▲ empty slot[/color]"
+			}
 		}
 		return label, g
 	}
@@ -198,6 +233,17 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	if mob.Type == content.MobBoss || mob.Type == content.MobLegendary {
 		c := content.RandomConsumable()
 		add(i18n.T("bot.loot.item", c.Name, c.ID), abyssLootGrant{Type: "cons", ConsID: c.ID, ConsDur: c.Duration})
+	}
+
+	// Deep material seams (#119): from depth 30 the dark bleeds crafting
+	// materials — 15% per kill, richer the deeper you are.
+	// #nosec G404 -- non-cryptographic loot roll
+	if run.Active && run.Depth >= 30 && rand.Float64() < 0.15 {
+		mat, n := "shard", 2+rand.IntN(3) // #nosec G404
+		if run.Depth >= 50 {
+			mat, n = "core", 1+rand.IntN(2) // #nosec G404
+		}
+		add(fmt.Sprintf("⛏️ Material seam: %s ×%d", abyssMaterialName(mat), n), abyssLootGrant{Type: "mat", MatID: mat, MatN: n})
 	}
 
 	// Unique Boss Relics (5% chance)
@@ -417,7 +463,11 @@ func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
 			_, _ = b.DB.Exec("DELETE FROM abyss_escrow_loot WHERE id=$1", p.id)
 			continue
 		}
-		b.applyAbyssLootGrant(uid, g)
+		if err := b.applyAbyssLootGrant(uid, g); err != nil {
+			// Transient write failure — keep the escrow row so a later bank can
+			// retry the grant instead of silently losing it.
+			continue
+		}
 		// Delete each row as it is applied so a mid-loop failure can't double-grant.
 		_, _ = b.DB.Exec("DELETE FROM abyss_escrow_loot WHERE id=$1", p.id)
 		applied = append(applied, p.label)
@@ -427,8 +477,9 @@ func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
 
 // applyAbyssLootGrant replays a single escrowed grant through the live granters,
 // reusing the same helpers (and their equip/auction/dedupe behaviour) as normal
-// loot so escrowed items behave identically once awarded.
-func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) {
+// loot so escrowed items behave identically once awarded. A non-nil error means
+// the grant did not land and the caller must keep its escrow row.
+func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 	switch g.Type {
 	case "gear":
 		if g.Gear != nil {
@@ -464,7 +515,12 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) {
 		if g.Gold > 0 {
 			_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", g.Gold, uid)
 		}
+	case "mat":
+		if err := b.grantMaterial(uid, g.MatID, g.MatN); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // grantAbyssUltimate awards an ultimate skill, activating it if the player runs

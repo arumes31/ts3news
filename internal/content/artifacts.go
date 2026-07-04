@@ -307,6 +307,17 @@ type Gear struct {
 	GearLevel    int      `json:"gear_level,omitempty"`
 	Insured      bool     `json:"insured,omitempty"`
 
+	// Temper is the forge temper level (+1..+15); each success bakes +2% stats.
+	Temper int `json:"temper,omitempty"`
+	// KillCount is gear XP: floors survived while equipped (weapon only for now).
+	// Milestones bake permanent stat bonuses via MilestoneTier.
+	KillCount     int `json:"kill_count,omitempty"`
+	MilestoneTier int `json:"milestone_tier,omitempty"`
+	// Corrupted marks an oversized drop carrying an HP malus (CorruptHP, already
+	// applied into Stats.HP). Cleansing at the forge adds CorruptHP back.
+	Corrupted bool `json:"corrupted,omitempty"`
+	CorruptHP int  `json:"corrupt_hp,omitempty"`
+
 	// SetID identifies which named Abyss-exclusive set (if any) this item
 	// belongs to. Empty for gear predating the multi-set system.
 	SetID string `json:"set_id,omitempty"`
@@ -364,6 +375,7 @@ var allGear []Gear
 var starterGear []Gear
 var uniqueLegendaries []Gear
 var abyssExclusiveGear []Gear
+var legendaryCatalog []Gear
 var allConsumables []Consumable
 
 // buildConsumables (re)builds the consumable table. Names are intentionally
@@ -473,6 +485,7 @@ func buildContent() {
 	allGear = nil
 	starterGear = nil
 	uniqueLegendaries = nil
+	legendaryCatalog = nil
 	corruptedArtifacts = nil
 	positiveTitles = nil
 	negativeTitles = nil
@@ -580,6 +593,12 @@ func buildContent() {
 		{ID: "U_LEG_3", Name: i18n.T("content.gear.chrono_guard"), Slot: SlotWrists, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 6, Stats: Stats{SPD: 500, DGE: 80, INT: 100}},
 		{ID: "U_LEG_4", Name: i18n.T("content.gear.eye_of_the_storm"), Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 7, Stats: Stats{HP: 800, INT: 200, STR: 100}},
 		{ID: "U_LEG_5", Name: i18n.T("content.gear.titans_pillar"), Slot: SlotLegs, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 1500, DEF: 400, STA: 100}},
+		// Build-changing uniques (idea #86): each carries a strong Special plus a
+		// bonus affix so it defines a playstyle rather than just adding stats.
+		{ID: "U_LEG_6", Name: "Heartpiercer, the Hungering Blade", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{STR: 700, SPD: 150, CRT: 35}, Special: EffectVampiric, BonusEffects: []ItemEffect{EffectBerserk}},
+		{ID: "U_LEG_7", Name: "Aegis of the Thorned King", Slot: SlotOffHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{HP: 900, DEF: 500, STA: 80}, Special: EffectThorns, BonusEffects: []ItemEffect{EffectBulwark}},
+		{ID: "U_LEG_8", Name: "Shroud of the Second Dawn", Slot: SlotBack, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 700, SPD: 250, DGE: 40}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectStealth}},
+		{ID: "U_LEG_9", Name: "Whisperveil Diadem", Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 500, INT: 300, LCK: 120}, Special: EffectMindControl, BonusEffects: []ItemEffect{EffectTreasureHunter}},
 	}...)
 
 	abyssExclusiveGear = []Gear{
@@ -870,6 +889,17 @@ func buildContent() {
 			DuraBonus:    duraBonus,
 			Description:  i18n.T("content.enchantment.description", p),
 		})
+	}
+
+	// Cache the legendary gear items catalog to avoid repeated scanning
+	seen := make(map[string]bool)
+	for _, pool := range [][]Gear{uniqueLegendaries, abyssExclusiveGear, allGear} {
+		for _, g := range pool {
+			if g.Rarity == RarityLegendary && !seen[g.ID] {
+				seen[g.ID] = true
+				legendaryCatalog = append(legendaryCatalog, g)
+			}
+		}
 	}
 }
 
@@ -1206,6 +1236,13 @@ func GetGearByID(id string) (Gear, bool) {
 		}
 	}
 	return Gear{}, false
+}
+
+// LegendaryCatalog returns every Legendary-rarity catalog item (unique
+// legendaries, Abyss exclusives and base gear), for the deterministic
+// crafting picker.
+func LegendaryCatalog() []Gear {
+	return legendaryCatalog
 }
 
 // GetEnchantmentByID looks up an enchantment by its catalog ID.

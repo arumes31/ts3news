@@ -49,6 +49,8 @@ type gearView struct {
 	Gemstones    []string
 	RarityVal    int
 	Insured      bool // whether the piece is death-insured (drives the forge picker)
+	Corrupted    bool // carries an HP malus, cleansable at the forge (#83)
+	Temper       int  // forge temper level (#106)
 }
 
 // gearEffectDescriptions maps each special effect to a short player-facing blurb.
@@ -133,6 +135,9 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		if g.Insured {
 			name = "🛡️ " + name
 		}
+		if g.Temper > 0 {
+			name = fmt.Sprintf("%s ⚒+%d", name, g.Temper)
+		}
 		if len(g.BonusEffects) > 0 {
 			names := make([]string, 0, len(g.BonusEffects))
 			for _, e := range g.BonusEffects {
@@ -163,6 +168,8 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		Gemstones:    g.Gemstones,
 		RarityVal:    int(g.Rarity),
 		Insured:      g.Insured,
+		Corrupted:    g.Corrupted,
+		Temper:       g.Temper,
 	}
 	if g.Element != "" && g.Element != content.ElementPhysical {
 		v.Element = string(g.Element)

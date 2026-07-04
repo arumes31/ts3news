@@ -3,6 +3,7 @@ package bot
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"math/rand/v2"
 	"net/http"
 	"time"
@@ -77,6 +78,11 @@ type abyssStats struct {
 	UpInterest     int
 	UpTribute      int
 	UpInsight      int
+	UpSwiftness     int
+	UpScavenger     int
+	UpMercy         int
+	UpCartographer  int
+	UpQuartermaster int
 	AbyssPrestige  int
 }
 
@@ -86,11 +92,14 @@ func (b *Bot) loadAbyssStats(uid string) abyssStats {
 		`SELECT abyss_best_depth, abyss_tokens, abyss_lifetime_floors, abyss_lifetime_banked,
 		        abyss_deaths, abyss_bank_streak, abyss_up_vigor, abyss_up_greed, abyss_up_fortune, abyss_up_ward,
 		        abyss_up_interest, abyss_up_tribute, abyss_up_insight,
+		        abyss_up_swiftness, abyss_up_scavenger, abyss_up_mercy, abyss_up_cartographer, abyss_up_quartermaster,
 		        abyss_prestige
 		   FROM users WHERE client_uid=$1`, uid,
 	).Scan(&st.BestDepth, &st.Tokens, &st.LifetimeFloors, &st.LifetimeBanked,
 		&st.Deaths, &st.Streak, &st.UpVigor, &st.UpGreed, &st.UpFortune, &st.UpWard,
-		&st.UpInterest, &st.UpTribute, &st.UpInsight, &st.AbyssPrestige)
+		&st.UpInterest, &st.UpTribute, &st.UpInsight,
+		&st.UpSwiftness, &st.UpScavenger, &st.UpMercy, &st.UpCartographer, &st.UpQuartermaster,
+		&st.AbyssPrestige)
 	return st
 }
 
@@ -207,6 +216,13 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int6
 			`UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1),
 			        abyss_deaths = abyss_deaths + 1, abyss_bank_streak = 0 WHERE client_uid=$2`,
 			run.Depth, uid); err != nil {
+			return 0, 0, err
+		}
+		// Daily death counter feeds the comeback buff (#24): 3 deaths in one day
+		// grant +10% stats on the next run.
+		if _, err := tx.Exec(
+			`UPDATE users SET abyss_deaths_today = CASE WHEN abyss_deaths_date = CURRENT_DATE THEN abyss_deaths_today + 1 ELSE 1 END,
+			        abyss_deaths_date = CURRENT_DATE WHERE client_uid=$1`, uid); err != nil {
 			return 0, 0, err
 		}
 	}
@@ -665,6 +681,8 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	type junk struct {
 		id    int64
 		value int64
+		mat   string
+		matN  int
 	}
 	var toSell []junk
 	for rows.Next() {
@@ -681,7 +699,8 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 		if v < 1 {
 			v = 1
 		}
-		toSell = append(toSell, junk{id, v})
+		mat, matN := materialYieldForRarity(g.Rarity)
+		toSell = append(toSell, junk{id, v, mat, matN})
 	}
 	_ = rows.Close()
 
@@ -700,6 +719,7 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 
 	var total int64
 	var count int
+	matGained := map[string]int{}
 	for _, j := range toSell {
 		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", j.id, uid)
 		if err != nil {
@@ -708,6 +728,7 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 		if n, _ := res.RowsAffected(); n > 0 {
 			total += j.value
 			count++
+			matGained[j.mat] += j.matN
 		}
 	}
 	var gold int64
@@ -723,7 +744,13 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "sold": count, "value": total, "gold": gold})
+	// Crafting materials (#101), boosted by the Scavenger node (#155).
+	scav := s.bot.loadAbyssStats(uid).UpScavenger
+	for mat, n := range matGained {
+		_ = s.bot.grantMaterial(uid, mat, scavengerYield(n, scav))
+	}
+	writeJSON(w, map[string]any{"ok": true, "sold": count, "value": total, "gold": gold,
+		"materials": s.bot.loadMaterials(uid)})
 }
 
 // abyssDismantleTokens is the Abyss-token yield for dismantling a spare gear piece
@@ -753,6 +780,18 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
+	// Batch filters + preview (#110): limit which rarities break and dry-run the
+	// yield before committing. Malformed JSON must not fall through to the
+	// defaults (no cap, no preview) — that would dismantle everything.
+	var req struct {
+		Preview   bool `json:"preview"`
+		MaxRarity int  `json:"max_rarity"` // 0 = no cap; e.g. 4 = keep Legendary+ safe
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+
 	rows, err := s.bot.DB.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1", uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -761,6 +800,8 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 	type spare struct {
 		id     int64
 		tokens int64
+		mat    string
+		matN   int
 	}
 	var toBreak []spare
 	for rows.Next() {
@@ -776,11 +817,32 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		if !ok {
 			continue
 		}
+		if req.MaxRarity > 0 && int(g.Rarity) > req.MaxRarity {
+			continue
+		}
 		if tk := abyssDismantleTokens(g.Rarity); tk > 0 {
-			toBreak = append(toBreak, spare{id, tk})
+			mat, matN := materialYieldForRarity(g.Rarity)
+			toBreak = append(toBreak, spare{id, tk, mat, matN})
 		}
 	}
 	_ = rows.Close()
+
+	if req.Preview {
+		var tk int64
+		mats := map[string]int{}
+		for _, sp := range toBreak {
+			tk += sp.tokens
+			mats[sp.mat] += sp.matN
+		}
+		// Mirror the commit path's Scavenger boost (#155) so the preview shows the
+		// same totals the real dismantle would grant.
+		scav := s.bot.loadAbyssStats(uid).UpScavenger
+		for mat, n := range mats {
+			mats[mat] = scavengerYield(n, scav)
+		}
+		writeJSON(w, map[string]any{"ok": true, "preview": true, "count": len(toBreak), "tokens_gained": tk, "materials_gained": mats})
+		return
+	}
 
 	if len(toBreak) == 0 {
 		writeJSON(w, map[string]any{"ok": true, "dismantled": 0, "tokens_gained": 0, "tokens": s.bot.abyssTokens(uid)})
@@ -795,6 +857,7 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 
 	var total int64
 	var count int
+	matGained := map[string]int{}
 	for _, sp := range toBreak {
 		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", sp.id, uid)
 		if err != nil {
@@ -803,6 +866,7 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		if n, _ := res.RowsAffected(); n > 0 {
 			total += sp.tokens
 			count++
+			matGained[sp.mat] += sp.matN
 		}
 	}
 	if total > 0 {
@@ -815,7 +879,13 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "dismantled": count, "tokens_gained": total, "tokens": s.bot.abyssTokens(uid)})
+	// Crafting materials (#101), boosted by the Scavenger node (#155).
+	scav := s.bot.loadAbyssStats(uid).UpScavenger
+	for mat, n := range matGained {
+		_ = s.bot.grantMaterial(uid, mat, scavengerYield(n, scav))
+	}
+	writeJSON(w, map[string]any{"ok": true, "dismantled": count, "tokens_gained": total, "tokens": s.bot.abyssTokens(uid),
+		"materials": s.bot.loadMaterials(uid)})
 }
 
 // handleAbyssInsure buys death-insurance on the active run: pay gold now to
@@ -904,6 +974,21 @@ var abyssUpgradeCols = map[string]string{
 	"interest": "abyss_up_interest",
 	"tribute":  "abyss_up_tribute",
 	"insight":  "abyss_up_insight",
+	"swiftness":     "abyss_up_swiftness",
+	"scavenger":     "abyss_up_scavenger",
+	"mercy":         "abyss_up_mercy",
+	"cartographer":  "abyss_up_cartographer",
+	"quartermaster": "abyss_up_quartermaster",
+}
+
+// abyssUpgradeMinDepth gates the expansion nodes behind depth records (#160):
+// they unlock by descending, not just by hoarding tokens.
+var abyssUpgradeMinDepth = map[string]int{
+	"swiftness":     10,
+	"scavenger":     15,
+	"mercy":         20,
+	"cartographer":  25,
+	"quartermaster": 30,
 }
 
 const abyssUpgradeMaxLevel = 5
@@ -928,6 +1013,12 @@ func (s *WebServer) handleAbyssUpgrade(w http.ResponseWriter, r *http.Request, u
 	if !ok {
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown upgrade"})
 		return
+	}
+	if minDepth := abyssUpgradeMinDepth[req.Node]; minDepth > 0 {
+		if s.bot.loadAbyssStats(uid).BestDepth < minDepth {
+			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("locked — reach depth %d first", minDepth)})
+			return
+		}
 	}
 
 	var level int
