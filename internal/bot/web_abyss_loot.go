@@ -291,7 +291,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			if !exists {
 				itemDataBytes, _ := json.Marshal(g)
 				if err := b.equipGear(b.DB, uid, g, g.MaxDurability, string(itemDataBytes)); err == nil {
-					labels = append(labels, "⬆️ Equipped: "+label)
+					labels = append(labels, "⬆️ Equipped: "+label+" [u:"+g.ID+"]")
 					legendaryPity = 0
 					gotGearThisCall = true
 					ownedGear[g.ID] = true // don't re-award this exact item on a later roll
@@ -384,7 +384,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			if !exists {
 				itemDataBytes, _ := json.Marshal(g)
 				if err := b.equipGear(b.DB, uid, g, g.MaxDurability, string(itemDataBytes)); err == nil {
-					labels = append(labels, "⬆️ Equipped: "+label)
+					labels = append(labels, "⬆️ Equipped: "+label+" [u:"+g.ID+"]")
 					if g.Rarity >= content.RarityLegendary {
 						legendaryPity = 0
 					} else {
@@ -425,7 +425,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				if !exists {
 					itemDataBytes, _ := json.Marshal(g)
 					if err := b.equipGear(b.DB, uid, g, g.MaxDurability, string(itemDataBytes)); err == nil {
-						labels = append(labels, "⬆️ Equipped: "+label)
+						labels = append(labels, "⬆️ Equipped: "+label+" [u:"+g.ID+"]")
 						legendaryPity++
 						gotGearThisCall = true
 						ownedGear[g.ID] = true // don't re-award this exact item on a later roll

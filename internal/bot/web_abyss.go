@@ -7,8 +7,10 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
+	"io"
 	"html/template"
 	"math"
 	"math/rand/v2"
@@ -1463,6 +1465,24 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	})
 }
 
+// descendMultiAbort builds the partial-failure payload for a batch descend.
+// Floors resolved before the failure are already persisted server-side, so
+// their logs/loot plus a fresh run snapshot ride along with the error and the
+// client can reconcile depth, escrow, HP and wallet instead of drifting.
+func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, loot, dura []string, rewardXP int) map[string]any {
+	runFinal := s.bot.loadAbyssRun(uid)
+	var gold int64
+	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+	return map[string]any{
+		"ok": false, "error": errKey,
+		"logs": logs, "loot": loot, "dura": dura, "reward_xp": rewardXP,
+		"depth": runFinal.Depth, "escrow": runFinal.Escrow,
+		"hp": runFinal.CurHP, "max_hp": runFinal.MaxHP,
+		"gold": gold, "tokens": s.bot.abyssTokens(uid),
+		"risk": abyssRiskPct(runFinal.Depth+1, tier, s.bot.abyssPlayerCR(uid)),
+	}
+}
+
 // handleAbyssDescendMulti processes a queue of 3 to 10 planned floor descents sequentially.
 func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
@@ -1572,7 +1592,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				newDepth, actualType, modifier, evStateArg, uid,
 			)
 			if err != nil {
-				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, totalRewardXP))
 				return
 			}
 			if actualType == "rest" {
@@ -1605,7 +1625,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 
 		// Normal Combat floor
 		if _, err := s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier=$2, event_state=NULL, pending_floor_choice=NULL, last_action_at=NOW() WHERE client_uid=$3", newDepth, modifier, uid); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, totalRewardXP))
 			return
 		}
 
@@ -1614,10 +1634,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2", run.Depth, uid)
 			// Earlier floors in this batch already resolved and persisted — return
 			// their logs/loot alongside the error so they aren't lost client-side.
-			writeJSON(w, map[string]any{
-				"ok": false, "error": "combat",
-				"logs": combinedLogs, "loot": combinedLoot, "dura": combinedDura, "reward_xp": totalRewardXP,
-			})
+			writeJSON(w, s.descendMultiAbort(uid, "combat", tier, combinedLogs, combinedLoot, combinedDura, totalRewardXP))
 			return
 		}
 
@@ -1634,10 +1651,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		if res.Victory {
 			o := s.applyFloorVictory(uid, run, newDepth, run.Escrow, tier, modifier, focus)
 			if o.DBErr {
-				writeJSON(w, map[string]any{
-					"ok": false, "error": "db",
-					"logs": combinedLogs, "loot": combinedLoot, "dura": combinedDura, "reward_xp": totalRewardXP,
-				})
+				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, totalRewardXP))
 				return
 			}
 			if o.GearMilestone != "" {
@@ -2368,7 +2382,13 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		Cursed  bool `json:"cursed"`
 		Preview bool `json:"preview"`
 	}
-	_ = readJSON(r, &req)
+	// Reject malformed JSON outright: a garbled body decoding to zero values
+	// would silently turn a preview request into a real, irreversible bank
+	// commit. An absent/empty body (io.EOF) stays valid and means "plain bank".
+	if err := readJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
 
 	run := s.bot.loadAbyssRun(uid)
 	if !run.Active {
@@ -2412,6 +2432,11 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		if run.Depth > 0 {
 			baseTokens = run.Depth/5 + 1
 			baseTokens += baseTokens * st.UpTribute / 10
+			// Mirror the commit path's skill-web token_gain bonus so the
+			// preview never underreports the grant.
+			if v := s.bot.treeBonusFor(uid).Pct["token_gain"]; v > 0 {
+				baseTokens = int(float64(baseTokens) * (1 + v))
+			}
 		}
 		var lootCount int
 		_ = s.bot.DB.QueryRow("SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1", uid).Scan(&lootCount)
@@ -2522,10 +2547,12 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	out := map[string]any{
 		"ok": true, "banked": payout, "mult": mult, "depth": run.Depth,
 		"gold": gold, "tokens": s.bot.abyssTokens(uid), "cursed": req.Cursed,
-		// Payout breakdown for the vault subtotal animation (UX-54): the raw
-		// cache and the multiplier extra on top of it (post-cap, may be 0).
-		"base":       run.Escrow,
-		"mult_bonus": payout - run.Escrow,
+		// Payout breakdown for the vault subtotal animation (UX-54). When the
+		// daily cap clamps the payout below the raw cache, shrink the base to
+		// the paid amount so the parts always sum to the payout and the bonus
+		// never goes negative.
+		"base":       min(run.Escrow, payout),
+		"mult_bonus": max(payout-run.Escrow, 0),
 	}
 	if jackpotWin > 0 {
 		out["jackpot_win"] = jackpotWin
@@ -3653,6 +3680,10 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	case "xp":
 		bonus = 0
 		xpGain := 5 + rand.IntN(10) // #nosec G404 -- non-cryptographic reward roll
+		// Skill web: apply the same xp_gain bonus combat floor XP gets.
+		if v := s.bot.treeBonusFor(uid).Pct["xp_gain"]; v > 0 {
+			xpGain = int(float64(xpGain) * (1 + v))
+		}
 		if lr, _ := s.bot.awardXP(uid, "", xpGain); lr != nil && lr.NewLevel >= PrestigeThreshold {
 			s.bot.doPrestige(uid)
 		}

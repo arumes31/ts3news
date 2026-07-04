@@ -4333,6 +4333,14 @@ tr.bought-flash {
 .tn.hit { stroke: #fff; stroke-width: 3.5; }
 .tn.dim { opacity: .25; }
 
+/* Visible keyboard focus for tree nodes (they are tabbable buttons). */
+.tn:focus { outline: none; }
+.tn:focus-visible {
+  stroke: #8ab4ff;
+  stroke-width: 3.5;
+  filter: drop-shadow(0 0 6px rgba(138, 180, 255, .9));
+}
+
 .tree-tip {
   position: absolute;
   z-index: 5;

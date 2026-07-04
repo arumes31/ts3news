@@ -673,7 +673,7 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	rows, err := s.bot.DB.Query("SELECT id, gear_id FROM user_inventory WHERE client_uid=$1", uid)
+	rows, err := s.bot.DB.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1", uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -688,10 +688,15 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	for rows.Next() {
 		var id int64
 		var gid string
-		if err := rows.Scan(&id, &gid); err != nil {
+		var itemData sql.NullString
+		if err := rows.Scan(&id, &gid, &itemData); err != nil {
 			continue
 		}
-		g, ok := content.GetGearByID(gid)
+		// Reconstruct the item like the dismantle path does, so upgraded or
+		// procedurally generated gear is judged by its actual rarity instead of
+		// the static catalog entry (makeGear falls back to the catalog for
+		// plain items).
+		g, ok := s.bot.makeGear(gid, itemData)
 		if !ok || g.Rarity > content.RarityUncommon {
 			continue
 		}

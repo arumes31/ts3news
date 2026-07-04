@@ -1282,7 +1282,10 @@ function updateLootSummary(){
 }
 
 // Loot filter chips (UX-46): rarity floor or upgrades-only, persisted.
-var lootFilter = localStorage.getItem('ab_lootf') || 'all';
+// Guarded read: blocked storage (private mode, embedded webview) must fall
+// back to 'all' instead of throwing and killing the whole page script.
+var lootFilter = 'all';
+try{ lootFilter = localStorage.getItem('ab_lootf') || 'all'; }catch(e){}
 function applyLootFilter(){
   var manifest = document.getElementById('lootManifest');
   if(!manifest) return;
@@ -1317,15 +1320,16 @@ function setLootFilter(f){
   applyLootFilter();
 }
 
-// 10-second undo on auto-equip notices (UX-53).
-function addUndoLink(row, slot){
+// 10-second undo on auto-equip notices (UX-53). gearId pins the undo to the
+// exact auto-equipped item so it can never strip a piece equipped afterwards.
+function addUndoLink(row, slot, gearId){
   var a = document.createElement('a');
   a.className = 'ab-undo-link';
   a.textContent = 'undo';
   a.title = 'Move this piece back to your backpack';
   a.onclick = async function(){
     a.remove();
-    var r = await abPost('/api/abyss/unequip', {slot: slot});
+    var r = await abPost('/api/abyss/unequip', {slot: slot, gear_id: gearId || ''});
     abToast(r.ok ? r.msg : (r.error || 'failed'), !!r.ok);
   };
   row.appendChild(document.createTextNode(' '));
@@ -1359,6 +1363,10 @@ function appendRunLoot(loot){
     lastLootDepth = String(curDepth);
   }
   loot.forEach(function(l){
+    // Auto-equip notices carry a machine token [u:gearId] binding the undo to
+    // the exact item; strip it from the visible label before rendering.
+    var gm = /\[u:([^\]]+)\]/.exec(l);
+    if(gm) l = l.replace(/\s*\[u:[^\]]+\]/, '');
     var d = document.createElement('div');
     var rc = rarityClass(l);
     d.className = 'abyss-side-loot ' + rc;
@@ -1372,7 +1380,7 @@ function appendRunLoot(loot){
     // Auto-equip undo window (UX-53).
     if(l.indexOf('⬆️ Equipped:') >= 0){
       var m = /\[s:([A-Za-z0-9]+)\]/.exec(d.textContent || '');
-      if(m) addUndoLink(d, m[1]);
+      if(m) addUndoLink(d, m[1], gm ? gm[1] : '');
     }
   });
   updateLootSummary();
@@ -1429,6 +1437,9 @@ function updatePactBonus(){
 
 async function abyssEnter(consumables){
   if(busy)return;
+  // Lock the UI before the cost-confirm modal so rapid re-clicks can't stack
+  // multiple confirmations (and duplicate enter requests).
+  setBusy(true); markBusyBtn('btnEnter');
   var body={tier:selectedTier(), pacts:selectedPacts()};
   // Start mode (#2/#3): surface, checkpoint or express elevator.
   var sm=document.querySelector('input[name=abstart]:checked');
@@ -1446,9 +1457,9 @@ async function abyssEnter(consumables){
   if(sm&&sm.value==='checkpoint'){var ck=Math.floor((parseInt(document.getElementById('checkpointSel')&&document.getElementById('checkpointSel').value)||0)/2);tokenCost+=ck;lines.push('Checkpoint drop: 🜲 '+ck);}
   if(goldCost>1000||tokenCost>0){
     var total=(goldCost>0?fmtGold(goldCost):'')+(goldCost>0&&tokenCost>0?' + ':'')+(tokenCost>0?'🜲 '+tokenCost:'');
-    if(!(await confirmModal(lines.join('<br>')+'<br><b>Total: '+total+'</b>',{title:'Confirm descent costs',okLabel:'Pay & Enter'})))return;
+    if(!(await confirmModal(lines.join('<br>')+'<br><b>Total: '+total+'</b>',{title:'Confirm descent costs',okLabel:'Pay & Enter'}))){ setBusy(false); return; }
   }
-  setBusy(true); markBusyBtn('btnEnter'); clearBanner();
+  clearBanner();
   if(consumables) body.consumables=consumables;
   var d=await abPost('/api/abyss/enter',body);
   if(!d.ok){
@@ -1661,8 +1672,16 @@ async function abyssDescendMulti() {
   var d = await abPost('/api/abyss/descend_multi', {paths: paths});
   if (!d.ok) {
     // Floors cleared before the failure are already persisted — show their
-    // logs/loot instead of dropping them with the error.
-    if(d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura); renderState(); }
+    // logs/loot and apply the returned run snapshot so depth, escrow, HP and
+    // the queue planner stay in sync with the server instead of drifting.
+    if(d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura); }
+    if(typeof d.depth === 'number') setDepth(d.depth);
+    if(typeof d.escrow === 'number') setEscrow(d.escrow);
+    if(typeof d.hp === 'number') setHP(d.hp, d.max_hp);
+    if(typeof d.gold === 'number') setGold(d.gold);
+    if(typeof d.tokens === 'number') setTokens(d.tokens);
+    if(typeof d.risk === 'number') setRisk(d.risk);
+    renderState();
     abToast(d.error || 'failed', false); setBusy(false); return;
   }
 
@@ -1819,9 +1838,12 @@ async function abyssConcede(){
 async function abyssBank(){
   if(busy)return;
   var cursed=document.getElementById('cursedBank').checked;
-  markBusyBtn('btnBank');
+  // Lock every action while the preview request is in flight so a descend or
+  // second bank click can't race it; unlocked again before the confirm modal
+  // (its own buttons drive the commit, which re-locks).
+  setBusy(true); markBusyBtn('btnBank');
   var p=await abPost('/api/abyss/bank',{cursed:cursed,preview:true});
-  if(lastActionBtn){lastActionBtn.classList.remove('btn-busy');lastActionBtn=null;}
+  setBusy(false);
   if(!p.ok){abToast(p.error||'failed',false);return;}
   function row(k,v){return '<div class="ab-rs-row"><span>'+k+'</span><b>'+v+'</b></div>';}
   var html='<h3>🏦 Bank this run?</h3><div class="modal-body ab-runsummary">'+

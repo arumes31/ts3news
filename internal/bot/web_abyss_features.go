@@ -1463,7 +1463,8 @@ func (s *WebServer) handleAbyssUnequip(w http.ResponseWriter, r *http.Request, u
 	defer unlock()
 
 	var req struct {
-		Slot string `json:"slot"`
+		Slot   string `json:"slot"`
+		GearID string `json:"gear_id"` // optional: bind the undo to the exact auto-equipped item
 	}
 	if err := readJSON(r, &req); err != nil || req.Slot == "" {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
@@ -1482,6 +1483,13 @@ func (s *WebServer) handleAbyssUnequip(w http.ResponseWriter, r *http.Request, u
 	var itemData sql.NullString
 	if err := tx.QueryRow("SELECT gear_id, durability, item_data FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, req.Slot).Scan(&gearID, &dura, &itemData); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing equipped in that slot"})
+		return
+	}
+	// When the caller pinned a specific item (the auto-equip undo link), refuse
+	// if the slot's occupant changed since — the undo must never strip a
+	// different piece the player equipped in the meantime.
+	if req.GearID != "" && req.GearID != gearID {
+		writeJSON(w, map[string]any{"ok": false, "error": "that slot holds a different item now — nothing was moved"})
 		return
 	}
 	if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1,$2,$3,$4)", uid, gearID, dura, itemData); err != nil {

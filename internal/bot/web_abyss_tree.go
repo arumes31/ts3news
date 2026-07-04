@@ -15,21 +15,24 @@ import (
 
 const abyssTreeRespecTokens = 50
 
-// loadTreeAllocated returns the player's allocated node IDs.
-func (b *Bot) loadTreeAllocated(uid string) []int {
+// loadTreeAllocated returns the player's allocated node IDs. It fails closed:
+// callers that gate spending (allocate, respec) must treat an error as "state
+// unknown" and refuse, rather than proceeding as if the tree were empty.
+func (b *Bot) loadTreeAllocated(uid string) ([]int, error) {
 	rows, err := b.DB.Query("SELECT node_id FROM user_abyss_tree WHERE client_uid=$1", uid)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	defer func() { _ = rows.Close() }()
 	var out []int
 	for rows.Next() {
 		var id int
-		if err := rows.Scan(&id); err == nil {
-			out = append(out, id)
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
 		}
+		out = append(out, id)
 	}
-	return out
+	return out, rows.Err()
 }
 
 // treePointsTotal is how many skill points the player has earned so far.
@@ -47,8 +50,14 @@ func (b *Bot) treePointsTotal(uid string) int {
 }
 
 // treeBonusFor sums the player's allocated web nodes into one bonus block.
+// Combat/loot paths call this best-effort: a read failure yields no bonus
+// (never a crash), which only ever under-rewards.
 func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
-	return content.AbyssTree().BonusFor(b.loadTreeAllocated(uid))
+	alloc, err := b.loadTreeAllocated(uid)
+	if err != nil {
+		return content.TreeBonus{}
+	}
+	return content.AbyssTree().BonusFor(alloc)
 }
 
 // handleAbyssTreePage renders the skill web.
@@ -59,7 +68,11 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	tree := content.AbyssTree()
-	alloc := s.bot.loadTreeAllocated(uid)
+	alloc, err := s.bot.loadTreeAllocated(uid)
+	if err != nil {
+		http.Error(w, "failed to load skill web state", http.StatusInternalServerError)
+		return
+	}
 	total := s.bot.treePointsTotal(uid)
 	tb := tree.BonusFor(alloc)
 
@@ -138,7 +151,13 @@ func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	alloc := s.bot.loadTreeAllocated(uid)
+	// Fail closed: with the allocation state unknown we cannot validate spent
+	// points or path connectivity, so refuse instead of treating it as empty.
+	alloc, err := s.bot.loadTreeAllocated(uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	have := map[int]bool{0: true} // the root is always allocated
 	for _, id := range alloc {
 		have[id] = true
@@ -187,7 +206,12 @@ func (s *WebServer) handleAbyssTreeRespec(w http.ResponseWriter, r *http.Request
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	if len(s.bot.loadTreeAllocated(uid)) == 0 {
+	alloc, err := s.bot.loadTreeAllocated(uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if len(alloc) == 0 {
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing to respec"})
 		return
 	}

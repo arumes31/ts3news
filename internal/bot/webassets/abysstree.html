@@ -111,7 +111,15 @@ function build(){
     c.setAttribute('cx',n.x); c.setAttribute('cy',n.y);
     c.setAttribute('r', n.type==='keystone'?14 : n.type==='notable'||n.type==='bridge'?10 : 6);
     c.setAttribute('data-id', n.id);
+    // Keyboard operability: every node is a focusable button; Enter/Space
+    // allocates exactly like a click (.tn:focus-visible carries the outline).
+    c.setAttribute('tabindex','0');
+    c.setAttribute('role','button');
+    c.setAttribute('aria-label', n.name + (n.desc ? ' — ' + n.desc : ''));
     c.addEventListener('click', function(ev){ ev.stopPropagation(); tryAllocate(n.id); });
+    c.addEventListener('keydown', function(ev){
+      if(ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar'){ ev.preventDefault(); tryAllocate(n.id); }
+    });
     c.addEventListener('mouseenter', function(ev){ showTip(n, ev); });
     c.addEventListener('mouseleave', hideTip);
     gN.appendChild(c);
@@ -247,5 +255,9 @@ function treeSearchApply(){
 })();
 
 build();
+// Seed the summary with the server-computed flat stats so they show on first
+// load, not only after the next allocation refresh (the pct pills are already
+// server-rendered in the template).
+renderSummary(null, {{jsonJS .Bonus}});
 </script>
 {{template "foot" .}}{{end}}
