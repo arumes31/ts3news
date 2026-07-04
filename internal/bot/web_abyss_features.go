@@ -62,12 +62,19 @@ func materialYieldForRarity(r content.Rarity) (string, int) {
 	}
 }
 
-func (b *Bot) grantMaterial(uid, mat string, n int) {
+func (b *Bot) grantMaterial(uid, mat string, n int) error {
+	return grantMaterialQ(b.DB, uid, mat, n)
+}
+
+// grantMaterialQ is grantMaterial running through any querier, so callers with
+// an open transaction can make the grant atomic with their other writes.
+func grantMaterialQ(q dbExecQuerier, uid, mat string, n int) error {
 	if n <= 0 {
-		return
+		return nil
 	}
-	_, _ = b.DB.Exec(`INSERT INTO user_materials (client_uid, mat_id, count) VALUES ($1,$2,$3)
+	_, err := q.Exec(`INSERT INTO user_materials (client_uid, mat_id, count) VALUES ($1,$2,$3)
 	                  ON CONFLICT (client_uid, mat_id) DO UPDATE SET count = user_materials.count + $3`, uid, mat, n)
+	return err
 }
 
 // scavengerYield applies the Scavenger talent (+20% materials per level, floored).
@@ -230,17 +237,46 @@ func (s *WebServer) handleAbyssCraft(w http.ResponseWriter, r *http.Request, uid
 	}
 	var done int
 	_ = tx.QueryRow("SELECT craft_quest_done FROM users WHERE client_uid=$1", uid).Scan(&done)
+
+	// Grant the crafted item (and any weekly-quest reward) inside the same
+	// transaction as the material spend, so a failure can't leave materials
+	// debited without the rewards landing.
+	grantCons := func(consID string) bool {
+		if _, err := tx.Exec(
+			`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
+			 VALUES ($1, $2, 1)
+			 ON CONFLICT (client_uid, cons_id)
+			 DO UPDATE SET remaining_fights = user_consumables.remaining_fights + EXCLUDED.remaining_fights`,
+			uid, consID); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return false
+		}
+		return true
+	}
+	if !grantCons(rec.ConsID) {
+		return
+	}
+	msg := "Crafted " + rec.Name + "!"
+	questDone := done == craftQuestTarget
+	if questDone {
+		if _, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens + 15 WHERE client_uid=$1", uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if !grantCons("master_repair_kit") {
+			return
+		}
+		msg += " 🏆 Weekly crafting quest complete: +🜲15 and a Master Repair Kit!"
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 
-	s.bot.grantConsumable(uid, rec.ConsID, 0)
-	msg := "Crafted " + rec.Name + "!"
-	if done == craftQuestTarget {
-		s.bot.grantAbyssTokens(uid, 15)
-		s.bot.grantConsumable(uid, "master_repair_kit", 0)
-		msg += " 🏆 Weekly crafting quest complete: +🜲15 and a Master Repair Kit!"
+	// Best-effort passive stack combining, same as grantConsumable would do.
+	s.bot.autoCombineConsumable(uid, rec.ConsID)
+	if questDone {
+		s.bot.autoCombineConsumable(uid, "master_repair_kit")
 	}
 	writeJSON(w, map[string]any{
 		"ok": true, "msg": msg, "quest_done": done, "quest_target": craftQuestTarget,
@@ -351,7 +387,8 @@ func (b *Bot) recordForge(uid, action, detail, cost string) {
 	_, _ = b.DB.Exec("UPDATE users SET forge_rep = forge_rep + 1 WHERE client_uid=$1", uid)
 }
 
-// forgeUndoSnapshot stores the pre-action item state once per day (#116).
+// forgeUndoSnapshot stores the pre-action item state of the most recent forge
+// action (#116); performing the undo is what's limited to once per day.
 type forgeUndoSnapshot struct {
 	InvID    int64  `json:"inv_id,omitempty"`
 	Slot     string `json:"slot,omitempty"`
@@ -359,13 +396,17 @@ type forgeUndoSnapshot struct {
 	Action   string `json:"action"`
 }
 
-func (b *Bot) snapshotForgeUndo(uid string, invID int64, slot, itemData, action string) {
+// snapshotForgeUndo runs inside the caller's forge transaction so the snapshot
+// only persists if the action it belongs to actually commits, and always
+// overwrites so the stored undo reflects the latest action.
+func (b *Bot) snapshotForgeUndo(tx *sql.Tx, uid string, invID int64, slot, itemData, action string) {
 	snap, _ := json.Marshal(forgeUndoSnapshot{InvID: invID, Slot: slot, ItemData: itemData, Action: action})
-	_, _ = b.DB.Exec(`UPDATE users SET forge_undo=$2, forge_undo_date=CURRENT_DATE WHERE client_uid=$1
-	                  AND (forge_undo_date IS NULL OR forge_undo_date < CURRENT_DATE)`, uid, string(snap))
+	_, _ = tx.Exec(`UPDATE users SET forge_undo=$2 WHERE client_uid=$1`, uid, string(snap))
 }
 
-// handleAbyssForgeUndo restores the day's snapshotted item (#116), once per day.
+// handleAbyssForgeUndo restores the last snapshotted forge action (#116). The
+// undo itself is limited to once per day (forge_undo_date records the day it
+// was last used).
 func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -375,9 +416,14 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 	defer unlock()
 
 	var raw sql.NullString
-	_ = s.bot.DB.QueryRow("SELECT forge_undo FROM users WHERE client_uid=$1 AND forge_undo_date = CURRENT_DATE", uid).Scan(&raw)
+	var usedToday bool
+	_ = s.bot.DB.QueryRow("SELECT forge_undo, COALESCE(forge_undo_date = CURRENT_DATE, FALSE) FROM users WHERE client_uid=$1", uid).Scan(&raw, &usedToday)
+	if usedToday {
+		writeJSON(w, map[string]any{"ok": false, "error": "undo already used today"})
+		return
+	}
 	if !raw.Valid || raw.String == "" {
-		writeJSON(w, map[string]any{"ok": false, "error": "nothing to undo today"})
+		writeJSON(w, map[string]any{"ok": false, "error": "nothing to undo"})
 		return
 	}
 	var snap forgeUndoSnapshot
@@ -394,7 +440,7 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 	if !writeGearItemData(w, tx, uid, snap.InvID, snap.Slot, snap.ItemData) {
 		return
 	}
-	if _, err := tx.Exec("UPDATE users SET forge_undo=NULL WHERE client_uid=$1", uid); err != nil {
+	if _, err := tx.Exec("UPDATE users SET forge_undo=NULL, forge_undo_date=CURRENT_DATE WHERE client_uid=$1", uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -517,7 +563,7 @@ func (s *WebServer) handleAbyssTemper(w http.ResponseWriter, r *http.Request, ui
 	success := rand.Float64() < chance
 
 	if success {
-		s.bot.snapshotForgeUndo(uid, req.InvID, req.Slot, rawData, "temper")
+		s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "temper")
 		g.Temper++
 		g.Stats = g.Stats.Scaled(1.02)
 		dataBytes, _ := json.Marshal(g)
@@ -656,7 +702,7 @@ func (s *WebServer) handleAbyssUpgradeGem(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	s.bot.snapshotForgeUndo(uid, req.InvID, req.Slot, rawData, "gem upgrade")
+	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "gem upgrade")
 	// Delta added on upgrade equals the current total (I→II adds 1×base, II→III adds 2×base).
 	delta := baseStats.Scaled(float64(tier))
 	g.Stats = g.Stats.Add(delta)
@@ -721,7 +767,7 @@ func (s *WebServer) handleAbyssExtractGem(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown gem type"})
 		return
 	}
-	s.bot.snapshotForgeUndo(uid, req.InvID, req.Slot, rawData, "gem extraction")
+	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "gem extraction")
 	// Remove the gem's full contribution: tier I=1×, II=2×, III=4× base.
 	totalMult := []float64{0, 1, 2, 4}[tier]
 	g.Stats = g.Stats.Add(baseStats.Scaled(-totalMult))
@@ -730,12 +776,16 @@ func (s *WebServer) handleAbyssExtractGem(w http.ResponseWriter, r *http.Request
 	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
 		return
 	}
+	// The pried-out gem crumbles into shards (2 per tier) — credited in the same
+	// transaction as the removal so the payout can't be lost after the commit.
+	if err := grantMaterialQ(tx, uid, "shard", 2*tier); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	// The pried-out gem crumbles into shards (2 per tier).
-	s.bot.grantMaterial(uid, "shard", 2*tier)
 	s.bot.recordForge(uid, "extract", fmt.Sprintf("%s from %s", gemName(base, tier), g.Name), fmt.Sprintf("%dg", cost))
 	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("🔧 Extracted %s — it crumbled into %d Void Shards. Socket freed.", gemName(base, tier), 2*tier),
 		"materials": s.bot.loadMaterials(uid)})
@@ -772,10 +822,14 @@ func (s *WebServer) handleAbyssTransferEnchant(w http.ResponseWriter, r *http.Re
 		writeJSON(w, map[string]any{"ok": false, "error": "source item has no enchantment"})
 		return
 	}
-	var toExists bool
-	_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE client_uid=$1 AND slot=$2)", uid, req.ToSlot).Scan(&toExists)
-	if !toExists {
+	var toEnch sql.NullString
+	if err := tx.QueryRow("SELECT enchantment_id FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, req.ToSlot).Scan(&toEnch); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "no gear equipped in the target slot"})
+		return
+	}
+	// Never silently destroy an enchantment already sitting on the target.
+	if toEnch.Valid && toEnch.String != "" {
+		writeJSON(w, map[string]any{"ok": false, "error": "target item already has an enchantment — move that one away first"})
 		return
 	}
 	if !deductTokens(w, tx, uid, 5) {
@@ -1009,7 +1063,7 @@ func (s *WebServer) handleAbyssCleanse(w http.ResponseWriter, r *http.Request, u
 	if !deductGold(w, tx, uid, cost) {
 		return
 	}
-	s.bot.snapshotForgeUndo(uid, req.InvID, req.Slot, rawData, "cleanse")
+	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "cleanse")
 	g.Stats.HP += g.CorruptHP
 	g.Corrupted = false
 	g.CorruptHP = 0
@@ -1282,8 +1336,9 @@ func (s *WebServer) handleAbyssSetSpec(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	// First pick is free; swapping costs tokens.
-	if cur != "" && req.Spec != cur {
+	// First pick is free and clearing is free; only swapping one spec for
+	// another costs tokens.
+	if cur != "" && req.Spec != "" && req.Spec != cur {
 		if !deductTokens(w, tx, uid, 25) {
 			return
 		}

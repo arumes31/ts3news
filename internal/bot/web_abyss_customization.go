@@ -285,9 +285,13 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 	}
 
 	// Rune library (#118): once a rune type has been etched, re-etching it
-	// anywhere costs a third of the price.
+	// anywhere costs a third of the price. A failed lookup must abort rather than
+	// default to first-time pricing and overcharge an already-known rune.
 	var known bool
-	_ = s.bot.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_runes WHERE client_uid=$1 AND rune=$2)", uid, runeType).Scan(&known)
+	if err := s.bot.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_runes WHERE client_uid=$1 AND rune=$2)", uid, runeType).Scan(&known); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	cost := int64(150)
 	if known {
 		cost = 50

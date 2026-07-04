@@ -463,7 +463,11 @@ func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
 			_, _ = b.DB.Exec("DELETE FROM abyss_escrow_loot WHERE id=$1", p.id)
 			continue
 		}
-		b.applyAbyssLootGrant(uid, g)
+		if err := b.applyAbyssLootGrant(uid, g); err != nil {
+			// Transient write failure — keep the escrow row so a later bank can
+			// retry the grant instead of silently losing it.
+			continue
+		}
 		// Delete each row as it is applied so a mid-loop failure can't double-grant.
 		_, _ = b.DB.Exec("DELETE FROM abyss_escrow_loot WHERE id=$1", p.id)
 		applied = append(applied, p.label)
@@ -473,8 +477,9 @@ func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
 
 // applyAbyssLootGrant replays a single escrowed grant through the live granters,
 // reusing the same helpers (and their equip/auction/dedupe behaviour) as normal
-// loot so escrowed items behave identically once awarded.
-func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) {
+// loot so escrowed items behave identically once awarded. A non-nil error means
+// the grant did not land and the caller must keep its escrow row.
+func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 	switch g.Type {
 	case "gear":
 		if g.Gear != nil {
@@ -511,8 +516,11 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) {
 			_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", g.Gold, uid)
 		}
 	case "mat":
-		b.grantMaterial(uid, g.MatID, g.MatN)
+		if err := b.grantMaterial(uid, g.MatID, g.MatN); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // grantAbyssUltimate awards an ultimate skill, activating it if the player runs

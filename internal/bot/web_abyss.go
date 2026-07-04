@@ -901,6 +901,7 @@ type abyssRun struct {
 	FloorType    string
 	Modifier     string
 	EventState   string
+	StartedAt    time.Time
 	LastActionAt time.Time
 	CoopUID      string
 
@@ -919,12 +920,12 @@ type abyssRun struct {
 func (b *Bot) loadAbyssRun(uid string) abyssRun {
 	var r abyssRun
 	var evState, coop sql.NullString
-	var lastAct time.Time
+	var startedAt, lastAct time.Time
 	err := b.DB.QueryRow(
-		`SELECT depth, escrow, tier, insured, revived, floor_type, modifier, event_state, last_action_at, coop_uid,
+		`SELECT depth, escrow, tier, insured, revived, floor_type, modifier, event_state, started_at, last_action_at, coop_uid,
 		        momentum, bank_locked_floors, last_stand_used, revive_locked, checkpoint_start, express_until, comeback
 		   FROM abyss_active WHERE client_uid=$1`, uid,
-	).Scan(&r.Depth, &r.Escrow, &r.Tier, &r.Insured, &r.Revived, &r.FloorType, &r.Modifier, &evState, &lastAct, &coop,
+	).Scan(&r.Depth, &r.Escrow, &r.Tier, &r.Insured, &r.Revived, &r.FloorType, &r.Modifier, &evState, &startedAt, &lastAct, &coop,
 		&r.Momentum, &r.BankLockedFloors, &r.LastStandUsed, &r.ReviveLocked, &r.CheckpointStart, &r.ExpressUntil, &r.Comeback)
 	if err != nil {
 		return r
@@ -933,6 +934,7 @@ func (b *Bot) loadAbyssRun(uid string) abyssRun {
 	if evState.Valid {
 		r.EventState = evState.String
 	}
+	r.StartedAt = startedAt
 	r.LastActionAt = lastAct
 	if coop.Valid {
 		r.CoopUID = coop.String
@@ -1077,6 +1079,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"DropStreakBonusPct": dropStreakBonusPct,
 		"Risk":               risk,
 		"RunLoot":            s.bot.currentRunLootManifest(uid),
+		"CanLastStand":       run.Active && !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(run.Depth),
 
 		// Expansion 2 (docs/ABYSS_IDEAS.md)
 		"Materials":       s.bot.loadMaterials(uid),
@@ -1304,7 +1307,9 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		}
 	}
 
-	// Auto-repair before the descent (#125), silently skipped if unaffordable.
+	// Auto-repair before the descent (#125), silently skipped if unaffordable. A
+	// DB error after the gold debit aborts the whole entry transaction, so the
+	// charge can never commit without the repair actually happening.
 	var autoRepaired int64
 	{
 		var on bool
@@ -1312,12 +1317,20 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		if on {
 			if cost := s.bot.abyssRepairAllCost(uid); cost > 0 {
 				res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
-				if err == nil {
-					if n, _ := res.RowsAffected(); n > 0 {
-						if _, err := tx.Exec("UPDATE user_gear SET durability = "+gearMaxDurExpr+" WHERE client_uid=$1", uid); err == nil {
-							autoRepaired = cost
-						}
+				if err != nil {
+					writeJSON(w, map[string]any{"ok": false, "error": "db"})
+					return
+				}
+				if n, _ := res.RowsAffected(); n > 0 {
+					if _, err := tx.Exec("UPDATE user_gear SET durability = "+gearMaxDurExpr+" WHERE client_uid=$1", uid); err != nil {
+						writeJSON(w, map[string]any{"ok": false, "error": "db"})
+						return
 					}
+					if _, err := tx.Exec("UPDATE users SET artifact_durability = 30 WHERE client_uid = $1 AND artifact_name IS NOT NULL", uid); err != nil {
+						writeJSON(w, map[string]any{"ok": false, "error": "db"})
+						return
+					}
+					autoRepaired = cost
 				}
 			}
 		}
@@ -1856,7 +1869,7 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 		}
 		out["downed"] = true
 		out["can_revive"] = canRevive
-		out["can_last_stand"] = !run.LastStandUsed
+		out["can_last_stand"] = !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(depth)
 		out["last_stand_cost"] = abyssLastStandCost(depth)
 		out["escrow"] = escrowBefore
 		out["insured"] = run.Insured
@@ -2928,7 +2941,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			}
 			// The answer is derived, not stored, so the client-visible event state
 			// can't leak it.
-			correct := abyssPuzzleAnswer(uid, run.Depth)
+			correct := abyssPuzzleAnswer(uid, run.Depth, run.StartedAt)
 			if idx == correct {
 				gain := int64(150 * (run.Depth + 1))
 				newEscrow := run.Escrow + gain
@@ -3191,13 +3204,15 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 }
 
 // abyssPuzzleAnswer derives the puzzle floor's correct chest (0-2) from stable
-// run facts so it never has to be stored in the client-visible event state.
-func abyssPuzzleAnswer(uid string, depth int) int {
+// run facts so it never has to be stored in the client-visible event state. The
+// run's start timestamp is the entropy source (not the current day), so the
+// answer can't flip at midnight while the floor is still unsolved.
+func abyssPuzzleAnswer(uid string, depth int, startedAt time.Time) int {
 	h := 0
 	for _, c := range uid {
 		h = h*31 + int(c)
 	}
-	h = h*31 + depth*7 + time.Now().UTC().Day()
+	h = h*31 + depth*7 + int(startedAt.UTC().Unix()%1_000_003)
 	if h < 0 {
 		h = -h
 	}

@@ -3138,7 +3138,8 @@ tr.bought-flash {
   .ab-depth-ring, #pityFill.pulse, .ab-insured-tag.glow, .ab-shaft.descending, .ab-vault-door {
     animation: none;
   }
-  .ab-cage {
+  .ab-cage,
+  .ab-minihud {
     transition: none;
   }
 }
@@ -3673,6 +3674,7 @@ tr.bought-flash {
   .ab-log-line,
   .abyss-banner.show,
   .ab-cage,
+  .ab-minihud,
   .ab-threat-fill,
   .ab-hpfill {
     animation: none !important;

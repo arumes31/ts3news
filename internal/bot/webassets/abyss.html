@@ -713,7 +713,7 @@ var eventState = {{if .Run.Active}}{{.Run.EventState}}{{else}}""{{end}};
 var busy = false;
 var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 // Expansion 2 state
-var canLastStand = {{if .Run.LastStandUsed}}false{{else}}true{{end}};
+var canLastStand = {{if .CanLastStand}}true{{else}}false{{end}};
 var bankLocked = {{.Run.BankLockedFloors}};
 var curMomentum = {{.Run.Momentum}};
 var logDelay = Math.max(30, 90 - 12 * {{.Stats.UpSwiftness}}); // Swiftness node (#154)
@@ -938,9 +938,8 @@ function renderNonCombat(floorType, stateStr){
       desc.innerHTML = 'Bubbling stills and a cracked cauldron. Combine two of your consumables into something stronger: two heals → Rejuvenation, two repair kits → Master Kit, anything else → a random elixir.';
       if((pageConsumables||[]).length<2 && !((pageConsumables||[])[0] && pageConsumables[0].Count>1)){
         options.innerHTML = '<div class="muted small">You need at least two consumables to mix.</div>';
-      }
-      var mk = function(id){var s='<select id="'+id+'" style="padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">';(pageConsumables||[]).forEach(function(c){s+='<option value="'+c.ID+'">'+c.Name+'</option>';});return s+'</select>';};
-      if((pageConsumables||[]).length>0){
+      } else {
+        var mk = function(id){var s='<select id="'+id+'" style="padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">';(pageConsumables||[]).forEach(function(c){s+='<option value="'+c.ID+'">'+c.Name+'</option>';});return s+'</select>';};
         options.innerHTML = mk('labSel1')+' + '+mk('labSel2')+' <button class="ghost" onclick="abyssNCAction(\'lab_combine\', document.getElementById(\'labSel1\').value+\',\'+document.getElementById(\'labSel2\').value)">⚗️ Combine</button>';
       }
     } else if(state.type === 'mirrors'){
@@ -1839,8 +1838,14 @@ async function abyssRepairAll(btn){
 }
 
 async function abyssAutoRepairToggle(on){
+  var cb = document.getElementById('autoRepairToggle');
+  var prior = !on;
   var d=await abPost('/api/abyss/auto_repair',{on:on});
-  if(!d.ok){abToast(d.error||'failed',false);return;}
+  if(!d.ok){
+    abToast(d.error||'failed',false);
+    if(cb) cb.checked = prior;
+    return;
+  }
   abToast(d.msg,true);
 }
 
@@ -1951,7 +1956,19 @@ async function abyssRiftPeek(){
     bar.className = 'ab-tabs';
     var first = groups[0].els[0];
     // Leaderboard deep-links (#lb / ?lbtier=) land on the Leaderboards tab.
-    var initial = (location.hash === '#lb' || location.search.indexOf('lbtier=') >= 0) ? 2 : 0;
+    var initial = 0;
+    if (location.hash === '#lb' || location.search.indexOf('lbtier=') >= 0) {
+      var lbIdx = -1;
+      for (var i = 0; i < groups.length; i++) {
+        if (groups[i].label.indexOf('Leaderboards') >= 0) {
+          lbIdx = i;
+          break;
+        }
+      }
+      if (lbIdx >= 0) {
+        initial = lbIdx;
+      }
+    }
     if(initial >= groups.length) initial = 0;
     groups.forEach(function(g, i){
       var b = document.createElement('button');

@@ -781,12 +781,16 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 	defer unlock()
 
 	// Batch filters + preview (#110): limit which rarities break and dry-run the
-	// yield before committing.
+	// yield before committing. Malformed JSON must not fall through to the
+	// defaults (no cap, no preview) — that would dismantle everything.
 	var req struct {
 		Preview   bool `json:"preview"`
 		MaxRarity int  `json:"max_rarity"` // 0 = no cap; e.g. 4 = keep Legendary+ safe
 	}
-	_ = readJSON(r, &req)
+	if err := readJSON(r, &req); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
 
 	rows, err := s.bot.DB.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1", uid)
 	if err != nil {
@@ -829,6 +833,12 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		for _, sp := range toBreak {
 			tk += sp.tokens
 			mats[sp.mat] += sp.matN
+		}
+		// Mirror the commit path's Scavenger boost (#155) so the preview shows the
+		// same totals the real dismantle would grant.
+		scav := s.bot.loadAbyssStats(uid).UpScavenger
+		for mat, n := range mats {
+			mats[mat] = scavengerYield(n, scav)
 		}
 		writeJSON(w, map[string]any{"ok": true, "preview": true, "count": len(toBreak), "tokens_gained": tk, "materials_gained": mats})
 		return

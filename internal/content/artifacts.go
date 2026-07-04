@@ -1230,9 +1230,11 @@ func GetGearByID(id string) (Gear, bool) {
 // crafting picker.
 func LegendaryCatalog() []Gear {
 	var out []Gear
+	seen := make(map[string]bool)
 	for _, pool := range [][]Gear{uniqueLegendaries, abyssExclusiveGear, allGear} {
 		for _, g := range pool {
-			if g.Rarity == RarityLegendary {
+			if g.Rarity == RarityLegendary && !seen[g.ID] {
+				seen[g.ID] = true
 				out = append(out, g)
 			}
 		}
