@@ -27,10 +27,10 @@ func mockUserState(mock sqlmock.Sqlmock, uid string) {
 	mock.ExpectQuery(`SELECT skill_id FROM user_skills WHERE client_uid = \$1`).
 		WithArgs(uid).
 		WillReturnRows(sqlmock.NewRows([]string{"skill_id"}))
-	// 5. Ultimate Skill
-	mock.ExpectQuery(`SELECT ultimate_skill_id FROM users WHERE client_uid = \$1`).
-		WithArgs(uid).
-		WillReturnRows(sqlmock.NewRows([]string{"ultimate_skill_id"}).AddRow(nil))
+	// 5. Active ultimates
+	mock.ExpectQuery(`SELECT ultimate_id, current_cooldown FROM user_ultimate_skills WHERE client_uid=\$1 AND active`).
+		WithArgs(uid, maxActiveUltimates).
+		WillReturnRows(sqlmock.NewRows([]string{"ultimate_id", "current_cooldown"}))
 }
 
 func TestComputeMiscMult(t *testing.T) {

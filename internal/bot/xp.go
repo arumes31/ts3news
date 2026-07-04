@@ -54,7 +54,7 @@ type UserInCombat struct {
 	Level         int
 	Stats         content.Stats
 	Skills        []content.Skill
-	UltimateSkill *content.UltimateSkill
+	Ultimates     []*content.UltimateSkill // up to maxActiveUltimates, no duplicates
 	CurrentHP     int
 	RegenStacks   int
 	Gold          int64
@@ -693,8 +693,10 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			}
 
 			for _, au := range activeUsers {
-				if au.u.UltimateSkill != nil && au.u.UltimateSkill.CurrentCooldown > 0 {
-					au.u.UltimateSkill.CurrentCooldown--
+				for _, us := range au.u.Ultimates {
+					if us.CurrentCooldown > 0 {
+						us.CurrentCooldown--
+					}
 				}
 			}
 
@@ -1077,11 +1079,18 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				dmgMult *= 1.10 // 10% damage bonus for backline
 			}
 
-			// Ultimate Skill activation
-			if u.UltimateSkill != nil && u.UltimateSkill.CurrentCooldown == 0 {
-				dmgMult *= u.UltimateSkill.Power
-				*logs = append(*logs, i18n.T("bot.combat.ultimate_activation", u.UltimateSkill.Name))
-				u.UltimateSkill.CurrentCooldown = u.UltimateSkill.CooldownRounds
+			// Ultimate Skill activation: at most one fires per turn — the strongest
+			// ready one — so stacking 3 ultimates widens uptime, not burst.
+			var readyUlt *content.UltimateSkill
+			for _, us := range u.Ultimates {
+				if us.CurrentCooldown == 0 && (readyUlt == nil || us.Power > readyUlt.Power) {
+					readyUlt = us
+				}
+			}
+			if readyUlt != nil {
+				dmgMult *= readyUlt.Power
+				*logs = append(*logs, i18n.T("bot.combat.ultimate_activation", readyUlt.Name))
+				readyUlt.CurrentCooldown = readyUlt.CooldownRounds
 			}
 
 			// Weapon Scopes for Rangers: check if ranger/scope equipped
@@ -1619,9 +1628,9 @@ func (b *Bot) distributeRewards(users []UserInCombat, _ []activeUser, victory bo
 		}
 
 		if !u.IsClone {
-			// Save ultimate skill cooldown state
-			if u.UltimateSkill != nil {
-				_, _ = b.DB.Exec("UPDATE users SET ultimate_cooldown = $2 WHERE client_uid = $1", u.UID, u.UltimateSkill.CurrentCooldown)
+			// Save per-ultimate cooldown state
+			for _, us := range u.Ultimates {
+				_, _ = b.DB.Exec("UPDATE user_ultimate_skills SET current_cooldown = $3 WHERE client_uid = $1 AND ultimate_id = $2", u.UID, us.ID, us.CurrentCooldown)
 			}
 
 			_, _ = b.DB.Exec("UPDATE users SET current_hp = $2, regen_stacks = $3, gold = users.gold + $4 WHERE client_uid = $1", u.UID, u.CurrentHP, u.RegenStacks, int64(goldDrop))
@@ -2258,15 +2267,10 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 		}
 	}
 
-	// Ultimate Skill also provides effect
-	var ultimateID sql.NullString
-	if err := b.DB.QueryRow("SELECT ultimate_skill_id FROM users WHERE client_uid = $1", uid).Scan(&ultimateID); err == nil {
-		if ultimateID.Valid && ultimateID.String != "" {
-			if us, ok := content.GetUltimateSkillByID(ultimateID.String); ok {
-				if us.Special != content.EffectNone {
-					effects = append(effects, us.Special)
-				}
-			}
+	// Active ultimates also provide their effects
+	for _, us := range b.getActiveUltimates(uid) {
+		if us.Special != content.EffectNone {
+			effects = append(effects, us.Special)
 		}
 	}
 
@@ -2424,10 +2428,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			if !exists {
 				_, _ = b.DB.Exec("INSERT INTO user_ultimate_skills (client_uid, ultimate_id) VALUES ($1, $2)", uid, us.ID)
 				_, _ = b.DB.Exec("UPDATE users SET ultimate_skills_count = ultimate_skills_count + 1 WHERE client_uid=$1", uid)
-				var currentUltimate sql.NullString
-				_ = b.DB.QueryRow("SELECT ultimate_skill_id FROM users WHERE client_uid=$1", uid).Scan(&currentUltimate)
-				if !currentUltimate.Valid {
-					_, _ = b.DB.Exec("UPDATE users SET ultimate_skill_id=$2, ultimate_cooldown=0 WHERE client_uid=$1", uid, us.ID)
+				if b.activateUltimateIfSlotFree(uid, us.ID) {
 					results = append(results, i18n.T("bot.loot.ultimate_equipped", us.Name))
 				} else {
 					results = append(results, i18n.T("bot.loot.ultimate_collected", us.Name))
@@ -2640,18 +2641,46 @@ func (b *Bot) getSkills(uid string) []content.Skill {
 	return out
 }
 
-func (b *Bot) getUltimateSkill(uid string) *content.UltimateSkill {
-	var ultimateID sql.NullString
-	var cooldown int
-	err := b.DB.QueryRow("SELECT ultimate_skill_id, ultimate_cooldown FROM users WHERE client_uid=$1", uid).Scan(&ultimateID, &cooldown)
-	if err != nil || !ultimateID.Valid {
+// maxActiveUltimates caps how many distinct ultimates a player can run at once.
+const maxActiveUltimates = 3
+
+// getActiveUltimates returns the player's active ultimates (up to
+// maxActiveUltimates, legacy/oldest first) with their live cooldowns.
+func (b *Bot) getActiveUltimates(uid string) []*content.UltimateSkill {
+	rows, err := b.DB.Query(
+		"SELECT ultimate_id, current_cooldown FROM user_ultimate_skills WHERE client_uid=$1 AND active ORDER BY obtained, ultimate_id LIMIT $2",
+		uid, maxActiveUltimates)
+	if err != nil {
 		return nil
 	}
-	if us, ok := content.GetUltimateSkillByID(ultimateID.String); ok {
-		us.CurrentCooldown = cooldown
-		return &us
+	defer func() { _ = rows.Close() }()
+	var out []*content.UltimateSkill
+	for rows.Next() {
+		var id string
+		var cooldown int
+		if err := rows.Scan(&id, &cooldown); err == nil {
+			if us, ok := content.GetUltimateSkillByID(id); ok {
+				us.CurrentCooldown = cooldown
+				out = append(out, &us)
+			}
+		}
 	}
-	return nil
+	return out
+}
+
+// activateUltimateIfSlotFree flips a freshly-obtained ultimate to active when
+// the player runs fewer than maxActiveUltimates. Returns true if activated.
+func (b *Bot) activateUltimateIfSlotFree(uid, ultID string) bool {
+	res, err := b.DB.Exec(
+		`UPDATE user_ultimate_skills SET active = TRUE, current_cooldown = 0
+		 WHERE client_uid=$1 AND ultimate_id=$2 AND NOT active
+		 AND (SELECT COUNT(*) FROM user_ultimate_skills WHERE client_uid=$1 AND active) < $3`,
+		uid, ultID, maxActiveUltimates)
+	if err != nil {
+		return false
+	}
+	n, _ := res.RowsAffected()
+	return n > 0
 }
 
 func (b *Bot) applyEnchantment(uid string, ench content.Enchantment) (string, bool) {

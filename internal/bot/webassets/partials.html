@@ -22,6 +22,7 @@
   </nav>
   <div class="purse">
     <span class="pill gold" id="goldPill">🪙 {{gold .U.Gold}}</span>
+    {{if .EnableAbyss}}<span class="pill tokens" id="tokenPill" title="Abyss Tokens">🜲 {{comma .U.AbyssTokens}}</span>{{end}}
     <span class="pill xp" id="xpPill">✨ Lvl {{.U.Level}}</span>
     <a class="logout" href="/logout">Logout</a>
   </div>

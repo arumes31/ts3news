@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"html/template"
 	"math"
 	"math/rand/v2"
 	"net/http"
@@ -212,7 +213,7 @@ func (b *Bot) buildAbyssUser(uid string) (UserInCombat, int, error) {
 		Stats:         stats,
 		Level:         lvl,
 		Skills:        b.getSkills(uid),
-		UltimateSkill: b.getUltimateSkill(uid),
+		Ultimates:     b.getActiveUltimates(uid),
 		CurrentHP:     curHP,
 		RegenStacks:   regen,
 		Gold:          gold,
@@ -811,9 +812,11 @@ func bbToHTML(s string) string {
 }
 
 // runLootRow is one escrowed drop, formatted for the right-hand loot manifest
-// sidebar on the Abyss page.
+// sidebar on the Abyss page. Label is pre-sanitised HTML from bbToHTML (which
+// escapes its input first), typed template.HTML so the template doesn't
+// escape it a second time and show literal <span> markup.
 type runLootRow struct {
-	Label string
+	Label template.HTML
 	Depth int
 }
 
@@ -827,10 +830,10 @@ func (b *Bot) currentRunLootManifest(uid string) []runLootRow {
 	defer func() { _ = rows.Close() }()
 	var out []runLootRow
 	for rows.Next() {
-		var r runLootRow
-		if err := rows.Scan(&r.Label, &r.Depth); err == nil {
-			r.Label = bbToHTML(r.Label)
-			out = append(out, r)
+		var label string
+		var depth int
+		if err := rows.Scan(&label, &depth); err == nil {
+			out = append(out, runLootRow{Label: template.HTML(bbToHTML(label)), Depth: depth}) // #nosec G203 -- bbToHTML escapes first
 		}
 	}
 	return out

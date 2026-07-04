@@ -103,13 +103,10 @@ import (
 		}
 	}
 
-	// Ultimate Skills
-	var ultimateID sql.NullString
-	if err := b.DB.QueryRow("SELECT ultimate_skill_id FROM users WHERE client_uid = $1", uid).Scan(&ultimateID); err == nil && ultimateID.Valid {
-		if us, ok := content.GetUltimateSkillByID(ultimateID.String); ok {
-			// Ultimate skills don't have a Score() method like gear, so we use 0 for the score
-			activeItemNames[formatGSName(0, us.Name, content.EffectNone, "ultimate")] = true
-		}
+	// Ultimate Skills (up to maxActiveUltimates active at once)
+	for _, us := range b.getActiveUltimates(uid) {
+		// Ultimate skills don't have a Score() method like gear, so we use 0 for the score
+		activeItemNames[formatGSName(0, us.Name, content.EffectNone, "ultimate")] = true
 	}
 
 	// Pets (captured via the Mind Control effect); max_hp feeds Mob.Score so the

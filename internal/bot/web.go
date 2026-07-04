@@ -465,6 +465,7 @@ type webUser struct {
 	XPIntoLevel int
 	XPForNext   int
 	Gold        int64
+	AbyssTokens int
 	CurrentHP   int
 	MaxHP       int
 	Stats       content.Stats
@@ -476,8 +477,8 @@ func (s *WebServer) loadWebUser(uid string) (*webUser, error) {
 	u := &webUser{UID: uid}
 	var nick *string
 	err := s.bot.DB.QueryRow(
-		"SELECT nickname, level, prestige, xp, gold, current_hp FROM users WHERE client_uid=$1", uid,
-	).Scan(&nick, &u.Level, &u.Prestige, &u.XP, &u.Gold, &u.CurrentHP)
+		"SELECT nickname, level, prestige, xp, gold, abyss_tokens, current_hp FROM users WHERE client_uid=$1", uid,
+	).Scan(&nick, &u.Level, &u.Prestige, &u.XP, &u.Gold, &u.AbyssTokens, &u.CurrentHP)
 	if err != nil {
 		return nil, err
 	}
