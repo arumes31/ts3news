@@ -3052,19 +3052,19 @@ tr.bought-flash {
 }
 
 /* Pity pulse (#333) */
-@keyframes pityPulse {
+@keyframes pity-pulse {
   0%, 100% { filter: brightness(1); }
   50% { filter: brightness(1.6); }
 }
 
 #pityFill.pulse {
-  animation: pityPulse 1.2s ease-in-out infinite;
+  animation: pity-pulse 1.2s ease-in-out infinite;
 }
 
 /* Insurance shield glow (#347) */
 .ab-insured-tag.glow {
   text-shadow: 0 0 8px rgba(123, 108, 255, .9);
-  animation: pityPulse 2.4s ease-in-out infinite;
+  animation: pity-pulse 2.4s ease-in-out infinite;
 }
 
 /* Elevator descent flash (#326) */
@@ -3072,23 +3072,23 @@ tr.bought-flash {
   transition: top .7s cubic-bezier(.4, 0, .2, 1);
 }
 
-@keyframes shaftFlash {
+@keyframes shaft-flash {
   from { box-shadow: 0 0 18px rgba(123, 108, 255, .8) inset; }
   to { box-shadow: none; }
 }
 
 .ab-shaft.descending {
-  animation: shaftFlash .7s ease-out 1;
+  animation: shaft-flash .7s ease-out 1;
 }
 
 /* Depth-dial idle shimmer (#349) */
-@keyframes dialIdle {
+@keyframes dial-idle {
   0%, 100% { box-shadow: 0 0 28px rgba(123, 108, 255, .35) inset, 0 0 18px rgba(123, 108, 255, .25); }
   50% { box-shadow: 0 0 34px rgba(123, 108, 255, .5) inset, 0 0 26px rgba(123, 108, 255, .4); }
 }
 
 .ab-depth-ring {
-  animation: dialIdle 4s ease-in-out infinite;
+  animation: dial-idle 4s ease-in-out infinite;
 }
 
 /* Coin pile (#350) */
@@ -3114,7 +3114,7 @@ tr.bought-flash {
   display: flex;
 }
 
-@keyframes vaultDoor {
+@keyframes vault-door {
   0% { transform: scale(.2) rotate(-20deg); opacity: 0; }
   60% { transform: scale(1.4) rotate(6deg); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
@@ -3122,7 +3122,7 @@ tr.bought-flash {
 
 .ab-vault-door {
   font-size: 6rem;
-  animation: vaultDoor .8s ease-out 1;
+  animation: vault-door .8s ease-out 1;
 }
 
 /* Run summary card (#341) */

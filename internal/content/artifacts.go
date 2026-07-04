@@ -375,6 +375,7 @@ var allGear []Gear
 var starterGear []Gear
 var uniqueLegendaries []Gear
 var abyssExclusiveGear []Gear
+var legendaryCatalog []Gear
 var allConsumables []Consumable
 
 // buildConsumables (re)builds the consumable table. Names are intentionally
@@ -484,6 +485,7 @@ func buildContent() {
 	allGear = nil
 	starterGear = nil
 	uniqueLegendaries = nil
+	legendaryCatalog = nil
 	corruptedArtifacts = nil
 	positiveTitles = nil
 	negativeTitles = nil
@@ -888,6 +890,17 @@ func buildContent() {
 			Description:  i18n.T("content.enchantment.description", p),
 		})
 	}
+
+	// Cache the legendary gear items catalog to avoid repeated scanning
+	seen := make(map[string]bool)
+	for _, pool := range [][]Gear{uniqueLegendaries, abyssExclusiveGear, allGear} {
+		for _, g := range pool {
+			if g.Rarity == RarityLegendary && !seen[g.ID] {
+				seen[g.ID] = true
+				legendaryCatalog = append(legendaryCatalog, g)
+			}
+		}
+	}
 }
 
 // RandomItemEffect rolls a 20% chance of a random combat affix, or EffectNone.
@@ -1229,17 +1242,7 @@ func GetGearByID(id string) (Gear, bool) {
 // legendaries, Abyss exclusives and base gear), for the deterministic
 // crafting picker.
 func LegendaryCatalog() []Gear {
-	var out []Gear
-	seen := make(map[string]bool)
-	for _, pool := range [][]Gear{uniqueLegendaries, abyssExclusiveGear, allGear} {
-		for _, g := range pool {
-			if g.Rarity == RarityLegendary && !seen[g.ID] {
-				seen[g.ID] = true
-				out = append(out, g)
-			}
-		}
-	}
-	return out
+	return legendaryCatalog
 }
 
 // GetEnchantmentByID looks up an enchantment by its catalog ID.

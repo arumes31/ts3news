@@ -1,7 +1,11 @@
 package bot
 
 import (
+	"crypto/hmac"
+	crand "crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -9,8 +13,10 @@ import (
 	"math"
 	"math/rand/v2"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"ts3news/internal/content"
@@ -997,7 +1003,17 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	inventory := s.bot.inventoryItems(uid)
 
 	var badgeCode sql.NullString
-	_ = s.bot.DB.QueryRow("SELECT abyss_active_badge FROM users WHERE client_uid=$1", uid).Scan(&badgeCode)
+	var dropStreak int
+	var pity int
+	var craftWeek sql.NullString
+	var craftDone int
+	var forgeRep int
+	var autoRepair bool
+	_ = s.bot.DB.QueryRow(
+		`SELECT abyss_active_badge, abyss_drop_streak, legendary_pity, craft_quest_week, craft_quest_done, forge_rep, abyss_auto_repair
+		   FROM users WHERE client_uid=$1`, uid,
+	).Scan(&badgeCode, &dropStreak, &pity, &craftWeek, &craftDone, &forgeRep, &autoRepair)
+
 	activeBadge := ""
 	activeBadgeName := ""
 	if badgeCode.Valid && badgeCode.String != "" {
@@ -1009,8 +1025,6 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		badgeOptions = append(badgeOptions, map[string]string{"Code": code, "Name": abyssAchievementName(code)})
 	}
 
-	var dropStreak int
-	_ = s.bot.DB.QueryRow("SELECT abyss_drop_streak FROM users WHERE client_uid=$1", uid).Scan(&dropStreak)
 	dropStreakBonusPct := dropStreak * 2
 	if dropStreakBonusPct > 30 {
 		dropStreakBonusPct = 30
@@ -1070,11 +1084,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Pacts":          abyssPactCatalog,
 		"Equipped":       slots,
 		"Inventory":      inventory,
-		"LegendaryPity":  func() int {
-			var pity int
-			_ = s.bot.DB.QueryRow("SELECT legendary_pity FROM users WHERE client_uid=$1", uid).Scan(&pity)
-			return pity
-		}(),
+		"LegendaryPity":  pity,
 		"DropStreak":         dropStreak,
 		"DropStreakBonusPct": dropStreakBonusPct,
 		"Risk":               risk,
@@ -1085,15 +1095,24 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Materials":       s.bot.loadMaterials(uid),
 		"MaterialDefs":    abyssMaterials,
 		"Recipes":         abyssRecipeViews(s.bot, uid),
-		"CraftQuest":      abyssCraftQuestView(s.bot, uid),
+		"CraftQuest": func() map[string]any {
+			done := craftDone
+			if !craftWeek.Valid || craftWeek.String != craftQuestWeek() {
+				done = 0
+			}
+			if done > craftQuestTarget {
+				done = craftQuestTarget
+			}
+			return map[string]any{"Done": done, "Target": craftQuestTarget}
+		}(),
 		"Sanctuary":       s.bot.loadSanctuary(uid),
 		"SanctuaryDefs":   sanctuaryUpgrades,
 		"Spec":            s.bot.abyssSpec(uid),
 		"SpecDefs":        abyssSpecs,
 		"ForgeHistory":    s.bot.loadForgeHistory(uid, 12),
-		"ForgeRep":        abyssForgeRepView(s.bot, uid),
+		"ForgeRep":        map[string]int{"Rep": forgeRep, "DiscountPct": forgeDiscountPct(forgeRep)},
 		"ForgeHappyHour":  forgeHappyHour(),
-		"AutoRepair":      abyssAutoRepairFlag(s.bot, uid),
+		"AutoRepair":      autoRepair,
 		"TokenBuyGold":    abyssTokenBuyGold,
 		"TokenSellGold":   abyssTokenSellGold,
 		"PrestigeTier":    func() map[string]string { n, a := abyssPrestigeTier(st.AbyssPrestige); return map[string]string{"Name": n, "Aura": a} }(),
@@ -1128,30 +1147,6 @@ func abyssRecipeViews(b *Bot, uid string) []map[string]any {
 	return out
 }
 
-func abyssCraftQuestView(b *Bot, uid string) map[string]any {
-	var week sql.NullString
-	var done int
-	_ = b.DB.QueryRow("SELECT craft_quest_week, craft_quest_done FROM users WHERE client_uid=$1", uid).Scan(&week, &done)
-	if !week.Valid || week.String != craftQuestWeek() {
-		done = 0
-	}
-	if done > craftQuestTarget {
-		done = craftQuestTarget
-	}
-	return map[string]any{"Done": done, "Target": craftQuestTarget}
-}
-
-func abyssForgeRepView(b *Bot, uid string) map[string]int {
-	var rep int
-	_ = b.DB.QueryRow("SELECT forge_rep FROM users WHERE client_uid=$1", uid).Scan(&rep)
-	return map[string]int{"Rep": rep, "DiscountPct": forgeDiscountPct(rep)}
-}
-
-func abyssAutoRepairFlag(b *Bot, uid string) bool {
-	var on bool
-	_ = b.DB.QueryRow("SELECT abyss_auto_repair FROM users WHERE client_uid=$1", uid).Scan(&on)
-	return on
-}
 
 // ---- APIs ----------------------------------------------------------------
 
@@ -1270,6 +1265,14 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	// Consume the comeback buff on entry so it is single-use
+	if comeback {
+		if _, err := tx.Exec("UPDATE users SET abyss_deaths_today = abyss_deaths_today - 3 WHERE client_uid = $1", uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
 
 	// Daily free descent (#1): the first paid entry of the calendar day is waived.
 	entryGold := tier.EntryGold
@@ -3203,20 +3206,41 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 	writeJSON(w, map[string]any{"ok": false, "error": "invalid action"})
 }
 
+var puzzleSecret []byte
+var puzzleSecretOnce sync.Once
+
+func getPuzzleSecret() []byte {
+	puzzleSecretOnce.Do(func() {
+		const filename = "puzzle_secret.key"
+		data, err := os.ReadFile(filename)
+		if err == nil && len(data) >= 16 {
+			puzzleSecret = data
+			return
+		}
+		// Generate new secret
+		secret := make([]byte, 32)
+		_, _ = crand.Read(secret)
+		_ = os.WriteFile(filename, secret, 0600)
+		puzzleSecret = secret
+	})
+	return puzzleSecret
+}
+
 // abyssPuzzleAnswer derives the puzzle floor's correct chest (0-2) from stable
-// run facts so it never has to be stored in the client-visible event state. The
-// run's start timestamp is the entropy source (not the current day), so the
-// answer can't flip at midnight while the floor is still unsolved.
+// run facts using a server-side secret key so it cannot be predicted by the client.
 func abyssPuzzleAnswer(uid string, depth int, startedAt time.Time) int {
-	h := 0
-	for _, c := range uid {
-		h = h*31 + int(c)
-	}
-	h = h*31 + depth*7 + int(startedAt.UTC().Unix()%1_000_003)
-	if h < 0 {
-		h = -h
-	}
-	return h % 3
+	secret := getPuzzleSecret()
+	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write([]byte(uid))
+	var depthBuf [8]byte
+	binary.BigEndian.PutUint64(depthBuf[:], uint64(depth))
+	_, _ = mac.Write(depthBuf[:])
+	var timeBuf [8]byte
+	binary.BigEndian.PutUint64(timeBuf[:], uint64(startedAt.Unix()))
+	_, _ = mac.Write(timeBuf[:])
+	sum := mac.Sum(nil)
+	h := binary.BigEndian.Uint64(sum[:8])
+	return int(h % 3)
 }
 
 // handleAbyssNonCombatProceed leaves the Rest/Event floor and returns to the lobby.
