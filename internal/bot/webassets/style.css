@@ -955,6 +955,26 @@ button.ghost {
   color: var(--text)
 }
 
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input[type=number]:focus,
+input[type=text]:focus,
+input[type=email]:focus,
+input[type=password]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(123, 108, 255, 0.2);
+}
+
 input[type=number] {
   background: #0c0f16;
   border: 1px solid var(--line);
