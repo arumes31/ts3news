@@ -132,7 +132,6 @@ func buildDeepDelver() []Talent {
 		rowGap, baseY = 66, 620
 	)
 	out := make([]Talent, 0, 50)
-	var prevRow0 string
 	for c := 0; c < len(deepDelverBranches); c++ {
 		br := deepDelverBranches[c]
 		for r := 0; r < len(br.nodes); r++ {
@@ -140,13 +139,11 @@ func buildDeepDelver() []Talent {
 			var parent string
 			switch {
 			case r > 0:
-				parent = fmt.Sprintf("dd_%d_%d", c, r-1)
-			case c == 0:
-				parent = "scavenger" // legacy left leaf
-			case c == len(deepDelverBranches)-1:
-				parent = "quartermaster" // legacy right leaf
+				parent = fmt.Sprintf("dd_%d_%d", c, r-1) // vertical chain within the arm
+			case c <= 2:
+				parent = "scavenger" // left arms hang off the Scavenger leaf
 			default:
-				parent = prevRow0 // chain the arm roots across the top
+				parent = "quartermaster" // right arms hang off the Quartermaster leaf
 			}
 			sp := br.nodes[r]
 			out = append(out, Talent{
@@ -155,9 +152,6 @@ func buildDeepDelver() []Talent {
 				Parent: parent, Edge: parent, Icon: sp.icon, GateDepth: 30 + r*2,
 				Stats: sp.stats, Pct: sp.pct,
 			})
-			if r == 0 {
-				prevRow0 = key
-			}
 		}
 	}
 	return out
@@ -377,22 +371,17 @@ func buildSpecTree(spec string) []Talent {
 	)
 	branches := specTalentBranches[spec]
 	out := make([]Talent, 0, 50)
-	var prevRow0 string
 	for c := 0; c < len(branches); c++ {
 		br := branches[c]
 		for r := 0; r < len(br.nodes); r++ {
 			key := fmt.Sprintf("sp_%s_%d_%d", spec, c, r)
 			var parent, edge string
-			switch {
-			case r > 0:
-				parent = fmt.Sprintf("sp_%s_%d_%d", spec, c, r-1)
+			if r > 0 {
+				parent = fmt.Sprintf("sp_%s_%d_%d", spec, c, r-1) // vertical chain within the arm
 				edge = parent
-			case c == 0:
-				parent = ""   // root: gated by the spec itself, not a talent level
-				edge = spec   // draw the connector from the spec picker node
-			default:
-				parent = prevRow0
-				edge = prevRow0
+			} else {
+				parent = "" // every column root gates on the spec being active
+				edge = spec // and draws its connector from the spec picker node
 			}
 			sp := br.nodes[r]
 			out = append(out, Talent{
@@ -401,9 +390,6 @@ func buildSpecTree(spec string) []Talent {
 				Parent: parent, Edge: edge, Icon: sp.icon, GateDepth: r * 2,
 				Spec: spec, Stats: sp.stats, Pct: sp.pct,
 			})
-			if r == 0 {
-				prevRow0 = key
-			}
 		}
 	}
 	return out

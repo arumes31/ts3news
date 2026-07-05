@@ -94,9 +94,10 @@ func (tb TreeBonus) ApplyCombatPct(s Stats) Stats {
 // AbyssTreeData is the whole generated web: nodes plus adjacency. Node 0 is
 // the virtual root: never allocatable, always counted as allocated.
 type AbyssTreeData struct {
-	Nodes []TreeNode    // 1000 nodes, IDs 1..1000
-	Adj   map[int][]int // undirected adjacency, includes root (0) edges
-	byID  map[int]*TreeNode
+	Nodes   []TreeNode    // 1000 nodes, IDs 1..1000
+	Adj     map[int][]int // undirected adjacency, includes root (0) edges
+	Portals [][2]int      // just the chaotic cross-sector shortcut edges (for distinct rendering)
+	byID    map[int]*TreeNode
 }
 
 // Node returns a node by ID (nil for the root or unknown IDs).
@@ -603,6 +604,7 @@ func buildAbyssTree() *AbyssTreeData {
 			}
 			if !alreadyConnected {
 				addEdge(nodeA, nodeB)
+				t.Portals = append(t.Portals, [2]int{nodeA, nodeB})
 				i++
 			}
 		}
