@@ -84,6 +84,24 @@
   color: #9af0be;
   font-weight: bold;
 }
+
+/* Chaotic portal edge styles */
+.te.te-chaotic {
+  stroke: #b26bff !important;
+  stroke-dasharray: 2 4;
+  stroke-width: 2.2 !important;
+}
+.te.te-chaotic.half {
+  stroke: rgba(178, 107, 255, 0.4) !important;
+  stroke-dasharray: 2 4;
+  stroke-width: 2.2 !important;
+}
+.te.te-chaotic.on {
+  stroke: #dcbfff !important;
+  stroke-dasharray: 2 4;
+  animation: flowPulse 2s linear infinite;
+  stroke-width: 3.5 !important;
+}
 </style>
 <div class="tree-head">
   <div>
@@ -331,7 +349,13 @@ function build(){
     var l = document.createElementNS(NS,'line');
     l.setAttribute('x1',a.x); l.setAttribute('y1',a.y);
     l.setAttribute('x2',b.x); l.setAttribute('y2',b.y);
-    l.setAttribute('class','te');
+    
+    // Check if the edge is a long-distance chaotic portal
+    var dx = a.x - b.x, dy = a.y - b.y;
+    var isPortal = (dx*dx + dy*dy) > 180*180;
+    l.setAttribute('class', isPortal ? 'te te-chaotic' : 'te');
+    l._isPortal = isPortal;
+    
     l._e = e;
     gE.appendChild(l);
     edgeEls.push(l);
@@ -395,7 +419,9 @@ function paint(){
     var a = l._e[0], b = l._e[1];
     var on = (a===0||alloc[a]) && (b===0||alloc[b]);
     var half = !on && ((a===0||alloc[a]) || (b===0||alloc[b]));
-    l.setAttribute('class', 'te' + (on?' on':half?' half':''));
+    var cls = 'te' + (on?' on':half?' half':'');
+    if (l._isPortal) cls += ' te-chaotic';
+    l.setAttribute('class', cls);
   });
   document.getElementById('treeUsed').textContent = used;
   document.getElementById('treePoints').textContent = points;

@@ -368,11 +368,32 @@ func buildAbyssTree() *AbyssTreeData {
 			if ring < treeRings {
 				addEdge(gridID(ring, slot), gridID(ring+1, slot))
 			}
-			// Sparse lateral links inside the sector: roughly two of every
-			// three neighbors connect, so rings are broken arcs with gaps —
-			// forcing route choices while always leaving multiple paths.
-			if slot%treeLanes != treeLanes-1 && (ring+slot)%3 != 0 {
+			// Organic maze-like broken lateral connections:
+			// Seed a PCG random generator deterministically for this link
+			rEdge := rand.New(rand.NewPCG(uint64(ring*1000+slot), 555))
+			if slot%treeLanes != treeLanes-1 && rEdge.Float64() < 0.65 {
 				addEdge(gridID(ring, slot), gridID(ring, slot+1))
+			}
+		}
+	}
+
+	// Add 12 chaotic cross-sector portals
+	rChaos := rand.New(rand.NewPCG(888, 999))
+	for i := 0; i < 12; {
+		nodeA := t.Nodes[rChaos.IntN(len(t.Nodes))].ID
+		nodeB := t.Nodes[rChaos.IntN(len(t.Nodes))].ID
+		// Ensure they are not root (0), not identical, and not already connected
+		if nodeA > 0 && nodeB > 0 && nodeA != nodeB {
+			alreadyConnected := false
+			for _, neighbor := range t.Adj[nodeA] {
+				if neighbor == nodeB {
+					alreadyConnected = true
+					break
+				}
+			}
+			if !alreadyConnected {
+				addEdge(nodeA, nodeB)
+				i++
 			}
 		}
 	}
@@ -389,7 +410,17 @@ func polar(n *TreeNode) { n.X, n.Y = polarXY(float64(n.Ring), float64(n.Slot)) }
 func polarXY(ring, slot float64) (float64, float64) {
 	radius := 60 + ring*34
 	angle := (slot/float64(treeSlots))*2*math.Pi - math.Pi/2
-	return math.Round(radius * math.Cos(angle)), math.Round(radius * math.Sin(angle))
+
+	// Seed PCG generator deterministically per position to add organic jitter
+	seedVal := uint64(math.Round(ring)*1000 + math.Round(slot))
+	r := rand.New(rand.NewPCG(seedVal, 777))
+
+	// Jitter radius by [-6..6] pixels
+	jitterRadius := radius + float64(r.IntN(13)-6)
+	// Jitter angle by [-0.025..0.025] radians
+	jitterAngle := angle + (r.Float64()*0.05 - 0.025)
+
+	return math.Round(jitterRadius * math.Cos(jitterAngle)), math.Round(jitterRadius * math.Sin(jitterAngle))
 }
 
 // treeSmallStats is the flat stat block of a small node, scaling with depth
