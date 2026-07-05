@@ -284,6 +284,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/tree/allocate", s.authAPI(s.handleAbyssTreeAllocate))
 		mux.HandleFunc("/api/abyss/tree/respec", s.authAPI(s.handleAbyssTreeRespec))
 		mux.HandleFunc("/api/abyss/tree/refund", s.authAPI(s.handleAbyssTreeRefund))
+		mux.HandleFunc("/api/abyss/tree/socket", s.authAPI(s.handleAbyssTreeSocket))
+		mux.HandleFunc("/api/abyss/tree/roll_timeless", s.authAPI(s.handleAbyssTreeRollTimeless))
+		mux.HandleFunc("/api/abyss/tree/activate_keystone", s.authAPI(s.handleAbyssTreeActivateKeystone))
 	}
 
 	// Authenticated JSON APIs.
@@ -501,6 +504,7 @@ type webUser struct {
 	AbyssTokens int
 	CurrentHP   int
 	MaxHP       int
+	MaxMana     int
 	Stats       content.Stats
 	GearScore   int
 }
@@ -526,6 +530,9 @@ func (s *WebServer) loadWebUser(uid string) (*webUser, error) {
 	u.Stats = stats
 	u.GearScore = gearScore
 	u.MaxHP = stats.HP
+	// Mana is a combat-only pool (base 100 + MNA), mirroring resolveChannelCombat.
+	// Out of combat it's shown full as a capacity gauge under the health bar.
+	u.MaxMana = 100 + stats.MNA
 	if u.CurrentHP <= 0 || u.CurrentHP > u.MaxHP {
 		u.CurrentHP = u.MaxHP
 	}

@@ -1001,6 +1001,20 @@ var abyssUpgradeMinDepth = map[string]int{
 	"quartermaster": 30,
 }
 
+var abyssUpgradeParents = map[string]string{
+	"greed":         "vigor",
+	"interest":      "greed",
+	"tribute":       "interest",
+	"swiftness":     "tribute",
+	"scavenger":     "swiftness",
+	"fortune":       "vigor",
+	"insight":       "fortune",
+	"ward":          "insight",
+	"mercy":         "ward",
+	"cartographer":  "mercy",
+	"quartermaster": "cartographer",
+}
+
 const abyssUpgradeMaxLevel = 5
 
 // handleAbyssUpgrade spends tokens on a permanent Deep-Delver upgrade. [44][45]
@@ -1033,10 +1047,32 @@ func (s *WebServer) handleAbyssUpgrade(w http.ResponseWriter, r *http.Request, u
 
 	var level int
 	var tokens int64
-	if err := s.bot.DB.QueryRow("SELECT "+col+", abyss_tokens FROM users WHERE client_uid=$1", uid).Scan(&level, &tokens); err != nil {
+	var parentLvl = 1
+
+	query := "SELECT " + col + ", abyss_tokens"
+	parent, hasParent := abyssUpgradeParents[req.Node]
+	if hasParent {
+		query += ", " + abyssUpgradeCols[parent]
+	}
+	query += " FROM users WHERE client_uid=$1"
+
+	var err error
+	if hasParent {
+		err = s.bot.DB.QueryRow(query, uid).Scan(&level, &tokens, &parentLvl)
+	} else {
+		err = s.bot.DB.QueryRow(query, uid).Scan(&level, &tokens)
+	}
+
+	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+
+	if hasParent && parentLvl < 1 {
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("locked — upgrade %s first", parent)})
+		return
+	}
+
 	if level >= abyssUpgradeMaxLevel {
 		writeJSON(w, map[string]any{"ok": false, "error": "maxed"})
 		return

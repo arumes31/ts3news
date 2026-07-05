@@ -385,7 +385,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	var logs []string
 	var loots []LootResult
 	victory := false
-	var totalUserDamage, totalMobDamage, totalRewardXP int
+	var totalUserDamage, totalMobDamage, killedXP int
 
 	isAbyss := false
 	for _, uc := range users {
@@ -479,10 +479,6 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				}
 				initialMobs = append(initialMobs, currentMobs[i]) // track for rewards
 			}
-		}
-
-		for _, m := range currentMobs {
-			totalRewardXP += m.RewardXP
 		}
 
 		// Initialize wave header (rarity-coloured enemy names + wave countdown)
@@ -718,6 +714,14 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			}
 		}
 
+		// Per-kill XP: bank the RewardXP of every mob that died this wave, so a
+		// wipe still credits the kills that landed (a lost fight keeps 25% below).
+		for _, m := range currentMobs {
+			if m.Stats.HP <= 0 {
+				killedXP += m.RewardXP
+			}
+		}
+
 		if !waveVictory {
 			victory = false
 			break
@@ -728,7 +732,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	}
 
 	var finalAwardedXP int
-	logs, finalAwardedXP, victory = b.distributeRewards(users, activeUsers, victory, totalUserDamage, totalMobDamage, totalRewardXP, initialMobs, nil, zone, logs, avgLvl)
+	logs, finalAwardedXP, victory = b.distributeRewards(users, activeUsers, victory, totalUserDamage, totalMobDamage, killedXP, initialMobs, nil, zone, logs, avgLvl)
 	return logs, finalAwardedXP, victory, loots
 }
 
@@ -1032,6 +1036,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 
 			dmgMult := 1.0
 			ignoreDef := 0.0
+			skipDamage := false
 			for _, eff := range au.effects {
 				if eff == content.EffectBerserk && u.CurrentHP < u.Stats.HP/2 {
 					dmgMult += 0.2
@@ -1048,6 +1053,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 			st := b.loadAbyssStats(u.UID)
 			spellCost -= st.UpInsight * 2
+			// Skill web: Spellweaver reduces skill mana cost.
+			if v := au.treeBonus.Pct["skill_mana_cost"]; v > 0 {
+				spellCost = int(float64(spellCost) * (1 - v))
+			}
 			if spellCost < 5 {
 				spellCost = 5
 			}
@@ -1070,8 +1079,29 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 
 				dmgMult *= s.Power * spellPowerMult
+				// Pure support skills (Power 0, e.g. Arcane Shield) only heal —
+				// flag the hit so it deals no mob damage below.
+				if s.Power == 0 {
+					skipDamage = true
+				}
+				// Skill web: Spellweaver boosts skill cast damage.
+				if v := au.treeBonus.Pct["skill_damage"]; v > 0 {
+					dmgMult *= 1 + v
+				}
 				ignoreDef = s.IgnoreDef
 				*logs = append(*logs, fmt.Sprintf("✨ %s cast %s (cost: %d Mana, Remaining: %d/%d). Spell Power: +%d%%!", u.Nickname, s.Name, spellCost, au.CurrentMana, au.MaxMana, int(float64(u.Stats.INT)*spellPowerMult)))
+
+				if s.HealPercent > 0 {
+					healAmount := int(float64(u.Stats.HP) * s.HealPercent * healPenalty)
+					if healAmount < 0 {
+						healAmount = 0
+					}
+					u.CurrentHP += healAmount
+					if u.CurrentHP > u.Stats.HP {
+						u.CurrentHP = u.Stats.HP
+					}
+					*logs = append(*logs, fmt.Sprintf("💚 %s restored %d HP (+%d%% of max HP) from %s!", u.Nickname, healAmount, int(s.HealPercent*100), s.Name))
+				}
 
 				// Combo System (Improvement 6)
 				if au.lastSkillID != "" && au.lastSkillID == s.ID {
@@ -1087,6 +1117,12 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			} else {
 				au.lastSkillID = "" // Reset combo if no skill used
+			}
+
+			// Pure support cast (e.g. Arcane Shield): the heal already applied
+			// above, so skip the rest of the attack resolution — no mob damage.
+			if skipDamage {
+				continue
 			}
 
 			// Elemental System (Improvement 1)
@@ -1598,7 +1634,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 	}
 }
 
-func (b *Bot) distributeRewards(users []UserInCombat, _ []activeUser, victory bool, totalUserDamage, totalMobDamage, totalRewardXP int, initialMobs []*content.Mob, _ []*content.Mob, zone content.Zone, logs []string, avgLvl int) ([]string, int, bool) {
+func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory bool, totalUserDamage, totalMobDamage, killedXP int, initialMobs []*content.Mob, _ []*content.Mob, zone content.Zone, logs []string, avgLvl int) ([]string, int, bool) {
 	// Summarize Combat — centred header plus visual damage-share bars.
 	totalDamage := totalUserDamage + totalMobDamage
 	logs = append(logs, hr())
@@ -1716,8 +1752,20 @@ func (b *Bot) distributeRewards(users []UserInCombat, _ []activeUser, victory bo
 
 			_, _ = b.DB.Exec("UPDATE users SET current_hp = $2, regen_stacks = $3, gold = users.gold + $4 WHERE client_uid = $1", u.UID, u.CurrentHP, u.RegenStacks, int64(goldDrop))
 
-			_, _ = b.DB.Exec("UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1", u.UID)
-			_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND remaining_fights < 0", u.UID)
+			// Skill web: Alchemist's Ritual — a lucky fight burns no
+			// consumable charges.
+			savePct := 0.0
+			for k := range aus {
+				if aus[k].u != nil && aus[k].u.UID == u.UID {
+					savePct = aus[k].treeBonus.Pct["consumable_save"]
+					break
+				}
+			}
+			// #nosec G404 -- non-cryptographic charge-save roll
+			if savePct <= 0 || rand.Float64() >= savePct {
+				_, _ = b.DB.Exec("UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1", u.UID)
+				_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND remaining_fights < 0", u.UID)
+			}
 		}
 
 		if finalXP > 0 {
@@ -1760,10 +1808,17 @@ func (b *Bot) distributeRewards(users []UserInCombat, _ []activeUser, victory bo
 			}
 		}
 
-		return logs, totalRewardXP / realUserCount(users), true
+		// Round-half-up so a small kill total still credits landed kills instead
+		// of truncating the per-user share to zero.
+		rc := realUserCount(users)
+		return logs, (killedXP + rc/2) / rc, true
 	}
 	logs = append(logs, i18n.T("bot.combat.defeat", zone.Name))
-	return logs, -totalRewardXP / (2 * realUserCount(users)), false
+	// Per-kill XP with a death tax: a lost fight still banks 25% of the XP from
+	// the mobs that were actually killed (the other 75% is forfeit). Round-half-up
+	// so the quartered share doesn't truncate small totals away to nothing.
+	d := 4 * realUserCount(users)
+	return logs, (killedXP + d/2) / d, false
 }
 
 // realUserCount counts non-clone participants. Co-op clones must not dilute the
@@ -2719,6 +2774,31 @@ func (b *Bot) getSkills(uid string) []content.Skill {
 			}
 		}
 	}
+
+	// Append active skills from the Abyss Skill Tree (passive web)
+	if alloc, err := b.loadTreeAllocated(uid); err == nil {
+		hasEQ := false
+		hasAS := false
+		for _, nid := range alloc {
+			switch nid {
+			case content.NodeSkillEarthquake:
+				hasEQ = true
+			case content.NodeSkillArcaneShield:
+				hasAS = true
+			}
+		}
+		if hasEQ {
+			if s, ok := content.GetSkillByID("S_EQ"); ok {
+				out = append(out, s)
+			}
+		}
+		if hasAS {
+			if s, ok := content.GetSkillByID("S_AS"); ok {
+				out = append(out, s)
+			}
+		}
+	}
+
 	return out
 }
 

@@ -7,8 +7,11 @@ import "testing"
 func TestAbyssTreeShape(t *testing.T) {
 	tree := AbyssTree()
 
-	if len(tree.Nodes) != 1000 {
-		t.Fatalf("expected exactly 1000 nodes, got %d", len(tree.Nodes))
+	// The deterministic grid+keystones+bridges still form the 1000-node base; the
+	// outer Ascendant Rim adds more on top. No exact-count hardlock (the web is
+	// allowed to grow), just a floor so the base can never silently shrink.
+	if len(tree.Nodes) < 1000 {
+		t.Fatalf("expected at least the 1000 base nodes, got %d", len(tree.Nodes))
 	}
 
 	seen := map[int]bool{}

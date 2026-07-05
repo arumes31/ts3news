@@ -81,6 +81,24 @@ func initSkills() {
 			Power:       1.1,
 			Description: "A basic physical punch.",
 		})
+		allSkills = append(allSkills, Skill{
+			ID:          "S_EQ",
+			Name:        "Earthquake",
+			Type:        SkillPhysical,
+			Rarity:      RarityRare,
+			Power:       1.8,
+			StunChance:  0.20,
+			Description: "A ground-shaking tremor that deals 1.8x physical damage and has a 20% chance to stun.",
+		})
+		allSkills = append(allSkills, Skill{
+			ID:          "S_AS",
+			Name:        "Arcane Shield",
+			Type:        SkillMagic,
+			Rarity:      RarityRare,
+			Power:       0.0,
+			HealPercent: 0.30,
+			Description: "Surrounds the caster in magical energy, shielding them and restoring 30% of max HP.",
+		})
 
 		idx := 1
 		for _, p := range prefixes {

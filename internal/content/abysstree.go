@@ -11,6 +11,7 @@ package content
 
 import (
 	"fmt"
+	"hash/fnv"
 	"math"
 	"math/rand/v2"
 	"sort"
@@ -156,6 +157,14 @@ const (
 	treeGridNodes  = treeRings * treeSlots // 936, IDs 1..936
 	treeKeystoneN  = 40                    // IDs 937..976
 	treeFirstKeyID = treeGridNodes + 1
+)
+
+// Skill-granting tree nodes: allocating one of these adds an active skill to
+// the player's combat kit. The IDs live here, next to the tree definition, so
+// the combat loop doesn't hardcode raw grid IDs (see getSkills in the bot).
+const (
+	NodeSkillEarthquake   = 588 // grants S_EQ; grid ring 17, slot 11 → "🔮 Spellweaver (Earthquake)"
+	NodeSkillArcaneShield = 466 // grants S_AS; grid ring 13, slot 33 → "🧪 Alchemist's Ritual (Arcane Shield)"
 )
 
 var treeSectorNames = [treeSectors]string{"War", "Vitality", "Shadow", "Arcane", "Fortune", "Void"}
@@ -331,6 +340,51 @@ func buildAbyssTree() *AbyssTreeData {
 				n.Stats = n.Stats.Scaled(3)
 				n.Pct = map[string]float64{"stun_immunity": 1.0}
 				isCustom = true
+			} else if ring == 17 && slot == 11 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{"skill_damage": 0.20, "skill_mana_cost": 0.25}
+				isCustom = true
+			} else if ring == 13 && slot == 33 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{"consumable_save": 0.25}
+				isCustom = true
+			} else if ring == 21 && slot == 2 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{"skill_damage": 0.30, "hp_pct": -0.15}
+				isCustom = true
+			} else if ring == 22 && slot == 14 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{} // Specialist's Harmony
+				isCustom = true
+			} else if ring == 23 && slot == 25 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{} // Abyssal Attunement
+				isCustom = true
+			} else if ring == 24 && slot == 5 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{} // Prestige Focus
+				isCustom = true
+			} else if ring == 25 && slot == 18 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{} // Set Resonance
+				isCustom = true
+			} else if ring == 26 && slot == 31 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{} // Elemental Transmutation
+				isCustom = true
+			} else if ring == 20 && slot == 12 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{"xp_gain": 0.15} // Victor's Trophy
+				isCustom = true
 			}
 
 			if !isCustom && notable {
@@ -418,6 +472,11 @@ func buildAbyssTree() *AbyssTreeData {
 				treeSectorPctKey((boundary+1)%treeSectors, rightSlot): math.Round(treeNotablePct((boundary+1)%treeSectors, ring)*0.5*1000) / 1000,
 			},
 		}
+		if bridgeID == 999 {
+			n.Name = "🌌 Secret Sanctuary"
+			n.Desc = "Secret Sanctuary: Grants +20% loot find and +10% token gain."
+			n.Pct = map[string]float64{"loot_find": 0.20, "token_gain": 0.10}
+		}
 		// Sits visually between the two sectors, half a slot outward.
 		n.X, n.Y = polarXY(float64(ring)+0.5, float64(leftSlot)+0.5)
 		t.Nodes = append(t.Nodes, n)
@@ -438,15 +497,85 @@ func buildAbyssTree() *AbyssTreeData {
 	}
 	for ring := 1; ring <= treeRings; ring++ {
 		for slot := 0; slot < treeSlots; slot++ {
-			// Radial spokes.
+			rel := slot % treeLanes
+			sec := slot / treeLanes
+
+			// Radial spokes based on branch active states (with Ring 10 Choke Bottlenecks)
 			if ring < treeRings {
-				addEdge(gridID(ring, slot), gridID(ring+1, slot))
+				chokeSlot := sec*treeLanes + 2
+				chokeID := gridID(10, chokeSlot)
+
+				if ring == 9 {
+					// All slots in Ring 9 connect only to the Ring 10 choke node
+					addEdge(gridID(9, slot), chokeID)
+				} else if ring == 10 {
+					// Connect Ring 10 choke node to all other slots in Ring 10
+					if slot == chokeSlot {
+						for s := sec * treeLanes; s < (sec+1)*treeLanes; s++ {
+							if s != chokeSlot {
+								addEdge(chokeID, gridID(10, s))
+							}
+						}
+					}
+					// Normal radial propagation from Ring 10 to Ring 11: every
+					// lane (rel 0..5) propagates, so this is unconditional.
+					addEdge(gridID(10, slot), gridID(11, slot))
+				} else {
+					// Normal radial spoke propagation
+					if rel == 2 || rel == 3 {
+						addEdge(gridID(ring, slot), gridID(ring+1, slot))
+					} else if rel == 1 || rel == 4 {
+						if ring >= 4 {
+							addEdge(gridID(ring, slot), gridID(ring+1, slot))
+						}
+					} else if rel == 0 || rel == 5 {
+						if ring >= 9 {
+							addEdge(gridID(ring, slot), gridID(ring+1, slot))
+						}
+					}
+				}
 			}
-			// Organic maze-like broken lateral connections:
-			// Seed a PCG random generator deterministically for this link
+
+			// Lateral links to connect sub-branches below split points
+			if rel == 1 {
+				if ring < 4 {
+					addEdge(gridID(ring, slot), gridID(ring, slot+1))
+				} else if ring == 4 {
+					addEdge(gridID(ring, slot), gridID(ring, slot+1))
+				}
+			} else if rel == 0 {
+				if ring < 9 {
+					addEdge(gridID(ring, slot), gridID(ring, slot+1))
+				} else if ring == 9 {
+					addEdge(gridID(ring, slot), gridID(ring, slot+1))
+				}
+			} else if rel == 4 {
+				if ring < 4 {
+					addEdge(gridID(ring, slot), gridID(ring, slot-1))
+				} else if ring == 4 {
+					addEdge(gridID(ring, slot), gridID(ring, slot-1))
+				}
+			} else if rel == 5 {
+				if ring < 9 {
+					addEdge(gridID(ring, slot), gridID(ring, slot-1))
+				} else if ring == 9 {
+					addEdge(gridID(ring, slot), gridID(ring, slot-1))
+				}
+			}
+
+			// Organic maze-like broken lateral connections (probability reduced to 0.05)
 			rEdge := rand.New(rand.NewPCG(uint64(ring*1000+slot), 555))
-			if slot%treeLanes != treeLanes-1 && rEdge.Float64() < 0.65 {
-				addEdge(gridID(ring, slot), gridID(ring, slot+1))
+			if slot%treeLanes != treeLanes-1 && rEdge.Float64() < 0.05 {
+				alreadyConnected := false
+				for _, neighbor := range t.Adj[gridID(ring, slot)] {
+					if neighbor == gridID(ring, slot+1) {
+						alreadyConnected = true
+						break
+					}
+				}
+				if !alreadyConnected {
+					addEdge(gridID(ring, slot), gridID(ring, slot+1))
+				}
 			}
 		}
 	}
@@ -477,18 +606,207 @@ func buildAbyssTree() *AbyssTreeData {
 		}
 	}
 
+	// --- 100 signature nodes: the outer "Ascendant Rim" (IDs 1001..1100) -------
+	// Build-defining notables past the keystone rim. Each hangs off a keystone so
+	// it is reachable only after deep investment, and is Type "notable" (cost 2)
+	// so the keystone count stays 40. These grow the web beyond its original 1000
+	// nodes, so LayoutHash changes → a one-time free respec for every player.
+	sigNodes := []struct {
+		name string
+		key  string
+		val  float64
+	}{
+		// str_pct — Wrath
+		{"Wrath of the First Blade", "str_pct", 0.05}, {"Fury Unchained", "str_pct", 0.06}, {"Berserker's Ascendance", "str_pct", 0.07}, {"Titanbreaker", "str_pct", 0.08}, {"Warlord's Dominion", "str_pct", 0.09}, {"Hand of Ruin", "str_pct", 0.10}, {"Godsbane Ascendant", "str_pct", 0.11}, {"The Crimson Apex", "str_pct", 0.12}, {"Wrathforged Crown", "str_pct", 0.13}, {"Avatar of Slaughter", "str_pct", 0.14},
+		// hp_pct — Vitality
+		{"Heart of the Mountain", "hp_pct", 0.05}, {"Enduring Colossus", "hp_pct", 0.06}, {"Unbreaking Vigor", "hp_pct", 0.07}, {"Bulwark Eternal", "hp_pct", 0.08}, {"Lifewell Ascendant", "hp_pct", 0.09}, {"Bastion of Flesh", "hp_pct", 0.10}, {"Immortal Coil", "hp_pct", 0.11}, {"The Living Fortress", "hp_pct", 0.12}, {"Worldheart Vitality", "hp_pct", 0.13}, {"Avatar of Endurance", "hp_pct", 0.14},
+		// spd_pct — Alacrity
+		{"Whisper of the Gale", "spd_pct", 0.05}, {"Fleetfoot Ascendance", "spd_pct", 0.06}, {"Tempest Cadence", "spd_pct", 0.07}, {"Blur of the Duelist", "spd_pct", 0.08}, {"Stormstride", "spd_pct", 0.09}, {"Quicksilver Apex", "spd_pct", 0.10}, {"The Unseen Step", "spd_pct", 0.11}, {"Windsworn Ascendant", "spd_pct", 0.12}, {"Lightning Reflex", "spd_pct", 0.13}, {"Avatar of Alacrity", "spd_pct", 0.14},
+		// int_pct — Arcana
+		{"Spark of Genius", "int_pct", 0.05}, {"Arcane Ascendance", "int_pct", 0.06}, {"Mind of the Deep", "int_pct", 0.07}, {"Eldritch Insight", "int_pct", 0.08}, {"Weaver of Secrets", "int_pct", 0.09}, {"Oracle's Apex", "int_pct", 0.10}, {"The Boundless Mind", "int_pct", 0.11}, {"Astral Ascendant", "int_pct", 0.12}, {"Cosmic Intellect", "int_pct", 0.13}, {"Avatar of Arcana", "int_pct", 0.14},
+		// skill_damage — Spellfury
+		{"Kindled Focus", "skill_damage", 0.06}, {"Spellfury Rising", "skill_damage", 0.07}, {"Runic Overload", "skill_damage", 0.08}, {"Cinderweave Mastery", "skill_damage", 0.09}, {"Voidcaller's Edge", "skill_damage", 0.10}, {"Arclight Apex", "skill_damage", 0.11}, {"The Searing Verdict", "skill_damage", 0.12}, {"Stormcaller Ascendant", "skill_damage", 0.13}, {"Ruinous Incantation", "skill_damage", 0.14}, {"Avatar of Spellfury", "skill_damage", 0.15},
+		// xp_gain — Enlightenment
+		{"Seeker's Diligence", "xp_gain", 0.03}, {"Scholar's Ascendance", "xp_gain", 0.04}, {"Path of Wisdom", "xp_gain", 0.05}, {"Enlightened Delver", "xp_gain", 0.06}, {"Runescribe's Insight", "xp_gain", 0.07}, {"Ascendant Erudition", "xp_gain", 0.08}, {"The Long Study", "xp_gain", 0.09}, {"Mind of Ages", "xp_gain", 0.10}, {"Sage of the Abyss", "xp_gain", 0.11}, {"Avatar of Enlightenment", "xp_gain", 0.12},
+		// gold_find — Avarice
+		{"Prospector's Eye", "gold_find", 0.05}, {"Gilded Ascendance", "gold_find", 0.06}, {"Coinseeker's Boon", "gold_find", 0.08}, {"Hoarder's Instinct", "gold_find", 0.09}, {"Midas Reach", "gold_find", 0.10}, {"Vault-Warden's Apex", "gold_find", 0.11}, {"The Golden Verdict", "gold_find", 0.12}, {"Dragonhoard Ascendant", "gold_find", 0.14}, {"Avaricious Crown", "gold_find", 0.15}, {"Avatar of Avarice", "gold_find", 0.16},
+		// ult_damage — Cataclysm
+		{"Rising Cataclysm", "ult_damage", 0.05}, {"Doombringer's Ascendance", "ult_damage", 0.06}, {"Apocalypse Engine", "ult_damage", 0.07}, {"Worldender's Edge", "ult_damage", 0.08}, {"Ruin Unleashed", "ult_damage", 0.09}, {"Annihilation Apex", "ult_damage", 0.10}, {"The Final Word", "ult_damage", 0.12}, {"Cataclysm Ascendant", "ult_damage", 0.13}, {"Starfall Verdict", "ult_damage", 0.14}, {"Avatar of Cataclysm", "ult_damage", 0.15},
+		// def_to_lifesteal — Sanguine
+		{"Sanguine Trickle", "def_to_lifesteal", 0.005}, {"Bloodward Ascendance", "def_to_lifesteal", 0.006}, {"Ironblood Pact", "def_to_lifesteal", 0.007}, {"Crimson Aegis", "def_to_lifesteal", 0.008}, {"Leeching Bulwark", "def_to_lifesteal", 0.009}, {"Vampiric Apex", "def_to_lifesteal", 0.010}, {"The Drinking Wall", "def_to_lifesteal", 0.011}, {"Sanguine Ascendant", "def_to_lifesteal", 0.012}, {"Hemocryst Bastion", "def_to_lifesteal", 0.013}, {"Avatar of Sanguinity", "def_to_lifesteal", 0.014},
+		// ult_cooldown — Tempo
+		{"Quickened Resolve", "ult_cooldown", 0.04}, {"Momentum Ascendance", "ult_cooldown", 0.05}, {"Relentless Cadence", "ult_cooldown", 0.06}, {"Everready Instinct", "ult_cooldown", 0.07}, {"Chrono-Attunement", "ult_cooldown", 0.08}, {"Tempo Apex", "ult_cooldown", 0.09}, {"The Endless Encore", "ult_cooldown", 0.10}, {"Timebender Ascendant", "ult_cooldown", 0.11}, {"Perpetual Onslaught", "ult_cooldown", 0.12}, {"Avatar of Tempo", "ult_cooldown", 0.13},
+	}
+	for k, sg := range sigNodes {
+		id := 1000 + 1 + k // 1001..1100
+		slot := k % treeSlots
+		n := TreeNode{
+			ID: id, Ring: treeRings + 2 + k/treeSlots, Slot: slot, Sector: slot / treeLanes,
+			Type: "notable",
+			Name: "✦ " + sg.name,
+			Desc: fmt.Sprintf("A signature Ascendant power (%+.1f%% %s).", sg.val*100, sg.key),
+			Pct:  map[string]float64{sg.key: sg.val},
+		}
+		polar(&n)
+		t.Nodes = append(t.Nodes, n)
+		addEdge(id, treeFirstKeyID+(k%treeKeystoneN)) // hang off a keystone → reachable
+	}
+
 	for i := range t.Nodes {
 		t.byID[t.Nodes[i].ID] = &t.Nodes[i]
 	}
 	return t
 }
 
+// Cost is the node's skill-point price: bigger nodes cost more. Small grid
+// nodes and sockets cost 1, notables and bridges 2, keystones 3.
+func (n *TreeNode) Cost() int {
+	switch n.Type {
+	case "keystone":
+		return 3
+	case "notable", "bridge":
+		return 2
+	}
+	return 1
+}
+
+// LayoutHash fingerprints the generated web: node identities, types, point
+// costs, effect values and every edge. Any code change that alters the layout
+// or balance changes the hash; the bot compares it against the stored value at
+// startup and grants a free full respec to every player on mismatch. Names and
+// descriptions are deliberately excluded — cosmetic edits must not wipe trees.
+func (t *AbyssTreeData) LayoutHash() string {
+	h := fnv.New64a()
+	for i := range t.Nodes {
+		n := &t.Nodes[i]
+		_, _ = fmt.Fprintf(h, "n:%d:%s:%d:%d:%d:%s;", n.ID, n.Type, n.Ring, n.Slot, n.Cost(), statsBrief(n.Stats))
+		pctKeys := make([]string, 0, len(n.Pct))
+		for k := range n.Pct {
+			pctKeys = append(pctKeys, k)
+		}
+		sort.Strings(pctKeys)
+		for _, k := range pctKeys {
+			_, _ = fmt.Fprintf(h, "p:%s=%g;", k, n.Pct[k])
+		}
+	}
+	ids := make([]int, 0, len(t.Adj))
+	for id := range t.Adj {
+		ids = append(ids, id)
+	}
+	sort.Ints(ids)
+	for _, id := range ids {
+		nbs := append([]int(nil), t.Adj[id]...)
+		sort.Ints(nbs)
+		for _, nb := range nbs {
+			if id < nb {
+				_, _ = fmt.Fprintf(h, "e:%d-%d;", id, nb)
+			}
+		}
+	}
+	return fmt.Sprintf("%016x", h.Sum64())
+}
+
+// SpentPoints sums the skill-point cost of the allocated node IDs. Unknown
+// IDs (rows saved under an older layout) count as 1 so they never panic.
+func (t *AbyssTreeData) SpentPoints(alloc []int) int {
+	spent := 0
+	for _, id := range alloc {
+		if n := t.Node(id); n != nil {
+			spent += n.Cost()
+		} else {
+			spent++
+		}
+	}
+	return spent
+}
+
 // polar fills a node's layout position from its ring/slot.
 func polar(n *TreeNode) { n.X, n.Y = polarXY(float64(n.Ring), float64(n.Slot)) }
 
 func polarXY(ring, slot float64) (float64, float64) {
+	if ring <= 5 {
+		// Fermat spiral: N = (ring - 1) * 36 + slot
+		n := (ring-1)*36 + slot
+		goldenAngle := 137.507764 * math.Pi / 180.0
+		theta := n * goldenAngle
+		
+		// Scaled radius for rings 1 to 5
+		radius := 14.0 * math.Sqrt(n) + 20.0
+		
+		// Add tiny organic jitter
+		seedVal := uint64(math.Round(ring)*1000 + math.Round(slot))
+		r := rand.New(rand.NewPCG(seedVal, 777))
+		radius += float64(r.IntN(5)-2)
+		theta += (r.Float64()*0.02 - 0.01)
+
+		return math.Round(radius * math.Cos(theta)), math.Round(radius * math.Sin(theta))
+	}
+
 	radius := 60 + ring*34
-	angle := (slot/float64(treeSlots))*2*math.Pi - math.Pi/2
+	
+	// Determine sector and slot index within sector
+	slotInt := int(math.Round(slot)) % treeSlots
+	if slotInt < 0 {
+		slotInt += treeSlots
+	}
+	sector := slotInt / treeLanes
+	rel := slotInt % treeLanes
+
+	// Base center angle for the sector
+	centerAngle := (float64(sector)*6.0 + 2.5) / 36.0 * 2.0 * math.Pi - math.Pi/2.0
+	spanHalf := math.Pi / 6.0 // 30 degrees (half of sector span)
+
+	// Calculate fraction from sector center (-1.0 to 1.0)
+	var fraction float64
+	switch rel {
+	case 2:
+		fraction = -0.15
+	case 3:
+		fraction = 0.15
+	case 1:
+		if ring < 4.0 {
+			fraction = -0.22
+		} else {
+			fraction = -0.22 - 0.38*(ring-4.0)/22.0 // branches out to -0.6
+		}
+	case 0:
+		var f1 float64
+		if ring < 4.0 {
+			f1 = -0.22
+		} else {
+			f1 = -0.22 - 0.38*(ring-4.0)/22.0
+		}
+		if ring < 9.0 {
+			fraction = f1 - 0.07
+		} else {
+			f1At9 := -0.22 - 0.38*(5.0)/22.0
+			fraction = (f1At9 - 0.07) - 0.57*(ring-9.0)/17.0 // branches out to -0.95
+		}
+	case 4:
+		if ring < 4.0 {
+			fraction = 0.22
+		} else {
+			fraction = 0.22 + 0.38*(ring-4.0)/22.0 // branches out to 0.6
+		}
+	case 5:
+		var f4 float64
+		if ring < 4.0 {
+			f4 = 0.22
+		} else {
+			f4 = 0.22 + 0.38*(ring-4.0)/22.0
+		}
+		if ring < 9.0 {
+			fraction = f4 + 0.07
+		} else {
+			f4At9 := 0.22 + 0.38*(5.0)/22.0
+			fraction = (f4At9 + 0.07) + 0.57*(ring-9.0)/17.0 // branches out to 0.95
+		}
+	default:
+		// Fallback to straight line
+		fraction = (float64(rel) - 2.5) / 3.0
+	}
+
+	angle := centerAngle + fraction*spanHalf
 
 	// Seed PCG generator deterministically per position to add organic jitter
 	seedVal := uint64(math.Round(ring)*1000 + math.Round(slot))
@@ -635,14 +953,6 @@ func treeNotablePct(sector, ring int) float64 {
 // picks the noun, and no two grid nodes share both. Notables carry a ★ marker.
 func treeNodeText(n *TreeNode) (string, string) {
 	// Jewel Sockets and custom notables names and descriptions (Item 34, 36, 37, 39, 40, 45)
-	if n.Type == "socket" {
-		sectors := []string{"War", "Vitality", "Shadow", "Arcane", "Fortune", "Void"}
-		secName := "Unknown"
-		if n.Sector >= 0 && n.Sector < len(sectors) {
-			secName = sectors[n.Sector]
-		}
-		return fmt.Sprintf("💎 Jewel Socket (%s)", secName), "Can slot a Jewel to modify adjacent nodes. Currently slots a Primal Jade: +15 HP, +5 STR, +5 INT to all adjacent allocated nodes."
-	}
 	if n.Ring == 18 && n.Slot == 20 {
 		return "⚡ Overcharged Core", "Reduces Ultimate skill cooldown by 10%, and increases Ultimate skill damage by 15%."
 	}
@@ -653,10 +963,45 @@ func treeNodeText(n *TreeNode) (string, string) {
 		return "⏳ Temporal Shift", "Grants +15% gold find on weekends, and +10% floor XP on weekdays."
 	}
 	if n.Ring == 14 && n.Slot == 9 {
-		return "🐾 Beastmaster's Command", "Reduces pet betrayal chance by 2% and increases pet attack damage by 20%."
+		return "🐾 Beastmaster's Command (Synergy)", "Reduces pet betrayal chance by 2% and increases pet attack damage by 20%. Also adds +8 max HP per allocated Void-sector node."
 	}
 	if n.Ring == 18 && n.Slot == 4 {
-		return "🛡️ Unbreakable", "Grants immunity to stun effects in combat."
+		return "🛡️ Unbreakable (Synergy)", "Grants immunity to stun effects in combat. Also adds +2 STR per allocated Arcane-sector node."
+	}
+	if n.Ring == 17 && n.Slot == 11 {
+		return "🔮 Spellweaver (Earthquake)", "Skill casts deal +20% damage and cost 25% less mana. Unlocks the Earthquake physical combat skill."
+	}
+	if n.Ring == 13 && n.Slot == 33 {
+		return "🧪 Alchemist's Ritual (Arcane Shield)", "25% chance after each fight that your consumables lose no charge. Unlocks the Arcane Shield magical combat skill."
+	}
+	if n.Ring == 21 && n.Slot == 2 {
+		return "💀 Reckless Abandon", "Grants +30% Skill damage, but reduces maximum HP by 15%."
+	}
+	if n.Ring == 22 && n.Slot == 14 {
+		return "🎭 Specialist's Harmony", "Grants passive bonuses based on active Specialization (+15% max HP for Warden, +15% STR for Delver, +25% Gold Find for Plunderer)."
+	}
+	if n.Ring == 23 && n.Slot == 25 {
+		return "🌀 Abyssal Attunement", "Grants +0.5% STR and +0.5% max HP per Abyss depth level reached (based on your best record)."
+	}
+	if n.Ring == 24 && n.Slot == 5 {
+		return "🎖️ Prestige Focus", "Multiplies all passive node bonuses in the War discipline sector by +10% per prestige level."
+	}
+	if n.Ring == 25 && n.Slot == 18 {
+		return "💎 Set Resonance", "Grants +5% to all base attributes (STR, INT, SPD, max HP) per active equipped gear set bonus tier."
+	}
+	if n.Ring == 26 && n.Slot == 31 {
+		return "🧪 Elemental Transmutation", "Converts 50% of your total physical damage modifier (STR %) into magical damage modifier (INT %)."
+	}
+	if n.Ring == 20 && n.Slot == 12 {
+		return "🏆 Victor's Trophy", "🔒 Requires depth record of 25+ to allocate. Grants +15% to character experience gain."
+	}
+	if n.Type == "socket" {
+		sectors := []string{"War", "Vitality", "Shadow", "Arcane", "Fortune", "Void"}
+		secName := "Unknown"
+		if n.Sector >= 0 && n.Sector < len(sectors) {
+			secName = sectors[n.Sector]
+		}
+		return fmt.Sprintf("💎 Jewel Socket (%s)", secName), "Can slot a Jewel to modify adjacent nodes. Slot a Ruby (+15 STR), Sapphire (+15 INT), or Topaz (+15 SPD) to allocated neighbors."
 	}
 
 	star := ""
@@ -718,6 +1063,12 @@ func treePctLabel(k string) string {
 		return "Stun Immunity"
 	case "limit_break":
 		return "Limit Break"
+	case "skill_damage":
+		return "Skill damage"
+	case "skill_mana_cost":
+		return "Skill mana cost reduction"
+	case "consumable_save":
+		return "chance consumables keep their charge"
 	}
 	return k
 }

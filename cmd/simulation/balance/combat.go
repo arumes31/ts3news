@@ -207,26 +207,31 @@ func ResolveCombat(rng *rand.Rand, players []*SimPlayer, avgLvl int, difficulty 
 		}
 	}
 
-	// Count mobs killed
+	// Count mobs killed and bank their per-kill XP (mirrors distributeRewards in
+	// xp.go: XP comes from mobs actually killed, not every mob spawned).
+	killedXP := 0
 	for _, m := range allMobs {
 		if m.HP <= 0 {
 			result.MobsKilled++
+			killedXP += m.RewardXP
 		}
 	}
 
 	// Calculate rewards
-	totalRewardXP := 0
 	totalRewardGold := int64(0)
 	for _, m := range allMobs {
-		totalRewardXP += m.RewardXP
 		totalRewardGold += m.RewardGold
 	}
 
+	// A win pays the full kill XP share; a loss still banks 25% of it (the other
+	// 75% is the death tax). ApplyDeathPenalty (below, in the run loop) is the
+	// separate level-XP penalty, matching the engine.
+	perUserXP := float64(killedXP) / float64(len(players))
 	if result.Victory {
-		result.XPGained = float64(totalRewardXP) / float64(len(players))
+		result.XPGained = perUserXP
 		result.GoldGained = totalRewardGold / int64(len(players))
 	} else {
-		result.XPPenalty = (float64(totalRewardXP) / float64(len(players))) * params.DeathXPPenalty
+		result.XPGained = perUserXP * 0.25
 	}
 
 	// Update player HP and stats

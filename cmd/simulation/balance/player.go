@@ -299,13 +299,25 @@ func getSimulatedTreeBonus(level int) content.TreeBonus {
 	visited := map[int]bool{0: true}
 	queue := []int{0}
 
-	for len(queue) > 0 && len(allocated) < level-1 {
+	// Budget in points, spending each node's cost (1/2/3 by size) like the
+	// live allocate handler.
+	budget := level - 1
+	spent := 0
+	for len(queue) > 0 && spent < budget {
 		curr := queue[0]
 		queue = queue[1:]
 
 		for _, nb := range tree.Adj[curr] {
-			if nb > 0 && !visited[nb] && len(allocated) < level-1 {
+			if nb > 0 && !visited[nb] {
+				cost := 1
+				if n := tree.Node(nb); n != nil {
+					cost = n.Cost()
+				}
+				if spent+cost > budget {
+					continue
+				}
 				visited[nb] = true
+				spent += cost
 				allocated = append(allocated, nb)
 				queue = append(queue, nb)
 			}

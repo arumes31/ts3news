@@ -245,6 +245,83 @@ func nullStr(s sql.NullString) string {
 	return ""
 }
 
+// applyAbyssRegen applies the real-time life-regen affix from equipped gear. It
+// heals HP for the wall-clock time elapsed since the last application (tracked
+// in app_meta, so no schema change), capped at max HP, and returns the new HP
+// plus the combined regen rate in HP/sec that the dashboard uses for its live
+// ticker. Regen accrues between page loads / out of combat.
+func (b *Bot) applyAbyssRegen(uid string, equipped map[content.GearSlot]content.Gear, curHP, maxHP int) (int, float64) {
+	perSec := 0.0
+	for _, g := range equipped {
+		if g.RegenAmount > 0 && g.RegenIntervalSec > 0 {
+			perSec += float64(g.RegenAmount) / float64(g.RegenIntervalSec)
+		}
+	}
+	key := "abyss_hp_regen_" + uid
+	now := time.Now()
+	setTS := func(t time.Time) {
+		_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+			ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, key, t.Format(time.RFC3339))
+	}
+	// Ineligible states still anchor the clock to now. Otherwise the idle/dead
+	// span accumulates and a later re-equip or revive would back-credit healing
+	// for time regen was never active.
+	if perSec <= 0 {
+		setTS(now) // no regen gear: keep the clock current so re-equipping starts fresh
+		return curHP, 0
+	}
+	if curHP <= 0 {
+		setTS(now) // dead: gear regen must never revive; wait for a real revive
+		return curHP, 0
+	}
+	if curHP >= maxHP {
+		setTS(now) // already full: anchor the clock so regen starts fresh later
+		return curHP, perSec
+	}
+	var tsStr string
+	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", key).Scan(&tsStr)
+	last, err := time.Parse(time.RFC3339, tsStr)
+	if tsStr == "" || err != nil {
+		setTS(now) // first-ever view: start the clock, heal nothing yet
+		return curHP, perSec
+	}
+	elapsed := now.Sub(last).Seconds()
+	if elapsed <= 0 {
+		return curHP, perSec
+	}
+	heal := int(perSec * elapsed)
+	if heal <= 0 {
+		return curHP, perSec // too little time passed; let it accumulate
+	}
+	// Apply the heal relative to the stored row so a concurrent HP change (e.g. a
+	// parallel fight) isn't clobbered by our stale absolute value. The WHERE guards
+	// keep it from reviving the dead or overshooting max HP; RETURNING hands back
+	// the real post-heal value for the display and clock math.
+	var newHP int
+	err = b.DB.QueryRow(
+		`UPDATE users SET current_hp = LEAST($1, current_hp + $2)
+			WHERE client_uid = $3 AND current_hp > 0 AND current_hp < $1
+			RETURNING current_hp`, maxHP, heal, uid).Scan(&newHP)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Nothing healed (already full, or died/vanished concurrently): anchor the
+		// clock so this span isn't re-credited on the next eligible view.
+		setTS(now)
+		return curHP, perSec
+	}
+	if err != nil {
+		return curHP, perSec // transient DB error: leave the clock, retry next view
+	}
+	if newHP >= maxHP {
+		setTS(now)
+	} else {
+		// Advance the clock only by the time actually consumed so the fractional
+		// remainder survives frequent refreshes.
+		consumed := float64(heal) / perSec
+		setTS(last.Add(time.Duration(consumed * float64(time.Second))))
+	}
+	return newHP, perSec
+}
+
 // gearMaxDurExpr is a SQL expression for a user_gear row's maximum durability.
 // user_gear has no max_durability column, so it is read from the persisted
 // item_data (Gear.MaxDurability, which has no JSON tag → key "MaxDurability"),
@@ -766,7 +843,9 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 
 	hpBefore := u.CurrentHP
 	startTime := time.Now()
-	resLogs, rewardXP, victory, loots := b.resolveChannelCombat(combatUsers, mobPtrs, u.Level, diff, zone)
+	// The engine's per-kill reward is ignored here: Abyss uses its own small
+	// per-floor XP payout below. We only need the win/loss outcome from combat.
+	resLogs, _, victory, loots := b.resolveChannelCombat(combatUsers, mobPtrs, u.Level, diff, zone)
 	duration := time.Since(startTime)
 	logs = append(logs, resLogs...)
 
@@ -797,12 +876,17 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 		b.recordAbyssKills(uid, killedMobs)
 	}
 
-	// Grant the combat reward XP on a win (the engine applies its own death
-	// penalty on a loss), and prestige immediately at the cap like the cycle does.
-	if victory {
-		// Override XP scaling for Abyss: just 1-20 XP per floor cleared
+	// Abyss floor XP stays in its deliberate small band (per-kill "kept small"):
+	// a cleared floor pays the full 1-20 roll, a death still banks ~25% of it. The
+	// engine also applies its own level-XP death penalty on a loss. Prestige fires
+	// immediately at the cap like the cycle does.
+	var rewardXP int
+	{
 		// #nosec G404 -- non-cryptographic reward roll
 		rewardXP = 1 + rand.IntN(20)
+		if !victory {
+			rewardXP = (rewardXP + 3) / 4 // ~25% on death, rounds up so a death still pays >=1
+		}
 		rewardXP = int(float64(rewardXP) * (1.0 + float64(st.AbyssPrestige)*0.05) * (1.0 + float64(st.UpInsight)*0.05)) // prestige + Insight node
 		if b.abyssSpec(uid) == "delver" {
 			rewardXP = rewardXP * 11 / 10 // Delver specialization (#161): +10% floor XP
@@ -1027,6 +1111,10 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	predatorTier, wardenTier := abyssTierBySet["predator"], abyssTierBySet["warden"]
 
 	equipped := s.bot.getEquippedItems(uid)
+	// Real-time life-regen: heal for the wall-clock time elapsed from regen-affix
+	// gear before rendering, and hand the live rate to the dashboard ticker.
+	newHP, regenPerSec := s.bot.applyAbyssRegen(uid, equipped, u.CurrentHP, u.MaxHP)
+	u.CurrentHP = newHP
 	var slots []gearView
 	for _, slot := range content.AllSlots {
 		if g, ok := equipped[slot]; ok {
@@ -1090,6 +1178,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Title":          "The Abyss",
 		"Nav":            "abyss",
 		"U":              u,
+		"RegenPerSec":    regenPerSec,
 		"Stats":          st,
 		"Run":            run,
 		"AutoFocus":      s.autoSelectFocus(uid, run),
