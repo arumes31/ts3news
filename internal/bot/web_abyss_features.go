@@ -1574,12 +1574,13 @@ func (s *WebServer) handleAbyssRiftPeek(w http.ResponseWriter, r *http.Request, 
 	}
 	queue := make([]string, 0, n)
 	for i := 0; i < n; i++ {
-		// Boss floors are fixed; everything else uses the standard odds.
+		// Boss floors are fixed; everything else is combat/rest (events keep their own
+		// 2-6 floor cadence and are never pre-sealed into the rift queue).
 		if (run.Depth+1+i)%abyssBossEvery == 0 {
 			queue = append(queue, "combat")
 			continue
 		}
-		c := rollFloorCandidates(1)
+		c := rollFloorCandidates(1, false)
 		queue = append(queue, c[0].Type)
 	}
 	buf, _ := json.Marshal(queue)

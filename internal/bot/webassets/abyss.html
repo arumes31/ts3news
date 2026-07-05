@@ -83,7 +83,7 @@
     <h3>⚔️ Armoury</h3>
     <div class="abyss-side-list">
       {{range .Equipped}}
-      <div class="abyss-side-gear" title="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .Durability 0}} · Dur {{.Durability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+      <div class="abyss-side-gear" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .Durability 0}} · Dur {{.Durability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
         <span class="gi icn" style="--gi:url(/static/icons/{{.IconName}}.svg);color:{{.RarityColor}}"></span>
         <span style="color:{{.RarityColor}}">{{.Name}}</span>
         <span class="cr">CR {{printf "%.0f" .CR}}</span>
@@ -258,7 +258,7 @@
     </div>
     <div class="abyss-side-list" id="lootManifest">
       {{range .RunLoot}}
-      <div class="abyss-side-loot" data-depth="{{.Depth}}" title="{{.Title}}&#10;(floor {{.Depth}})">{{.Label}}</div>
+      <div class="abyss-side-loot" data-depth="{{.Depth}}" data-tip="{{.Title}}&#10;(floor {{.Depth}})">{{.Label}}</div>
       {{else}}
       <div class="abyss-side-empty">No loot escrowed yet this run.</div>
       {{end}}
@@ -743,6 +743,43 @@ var curMomentum = {{.Run.Momentum}};
 var logDelay = Math.max(30, 90 - 12 * {{.Stats.UpSwiftness}}); // Swiftness node (#154)
 var pageConsumables = {{jsonJS .Consumables}} || [];
 var runFloorsCleared = 0, runLootGained = 0; // run summary card (#341)
+
+// Modern hover tooltip for the Armoury + run-loot panels. A single viewport-fixed
+// card follows the cursor (so the scrolling sidebar never clips it), replacing the
+// plain native title= popups. Delegated on document so dynamically-added loot rows
+// (which get their own data-tip) are covered too. See .ab-hovertip in style.css.
+(function(){
+  var tip = null;
+  function ensure(){
+    if(!tip){ tip = document.createElement('div'); tip.className = 'ab-hovertip'; document.body.appendChild(tip); }
+    return tip;
+  }
+  function place(e){
+    if(!tip) return;
+    var pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    var x = e.clientX + pad, y = e.clientY + pad;
+    if(x + w > window.innerWidth - 8) x = e.clientX - w - pad;
+    if(y + h > window.innerHeight - 8) y = e.clientY - h - pad;
+    tip.style.left = Math.max(8, x) + 'px';
+    tip.style.top = Math.max(8, y) + 'px';
+  }
+  document.addEventListener('mouseover', function(e){
+    var host = e.target.closest ? e.target.closest('[data-tip]') : null;
+    if(!host) return;
+    var txt = host.getAttribute('data-tip');
+    if(!txt) return;
+    ensure().textContent = txt;
+    tip.classList.add('show');
+    place(e);
+  });
+  document.addEventListener('mousemove', function(e){
+    if(tip && tip.classList.contains('show')) place(e);
+  });
+  document.addEventListener('mouseout', function(e){
+    var host = e.target.closest ? e.target.closest('[data-tip]') : null;
+    if(host && tip) tip.classList.remove('show');
+  });
+})();
 var buffNames = {giant_strength_elixir:'💪 Giant Strength (+40 STR, 3 fights)', iron_skin_brew:'🛡️ Iron Skin (+10 DEF, 3 fights)',
   speed_elixir:'💨 Speed (+25 SPD, 3 fights)', lucky_draught:'🍀 Luck (+20 LCK, 3 fights)',
   intellect_elixir:'🧠 Intellect (+20 INT, 3 fights)', strength_elixir:'⚔️ Strength (+15 STR, 3 fights)'};
@@ -1363,6 +1400,8 @@ function appendRunLoot(loot){
     d.className = 'abyss-side-loot ' + rc;
     d.setAttribute('data-depth', curDepth);
     d.innerHTML = l;
+    // Same modern hover tooltip as the server-rendered rows: item text + floor.
+    d.setAttribute('data-tip', ((d.textContent || '').trim()) + '\n(floor ' + curDepth + ')');
     manifest.appendChild(d);
     runLootGained++;
     // Rarity toast for epic+ (UX-45) and edge glow for legendary+ (UX-52).

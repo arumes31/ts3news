@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1624,10 +1625,18 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
-	// Otherwise offer the player a choice between 2 candidate floor paths
-	// (weighted-sampled from the same 10% rest / 10% event / 80% combat odds
-	// as before) instead of rolling one outcome immediately.
-	candidates := rollFloorCandidates(2)
+	// Event cadence: when an event is due (every 2-6 floors) force it directly rather
+	// than leaving events to a random per-floor roll, so they never land back-to-back
+	// nor on every floor. commitFloor re-anchors the next event.
+	if s.bot.abyssEventDue(uid, newDepth) {
+		modifier, eventState := rollFloorDetail("event")
+		s.commitFloor(w, uid, run, newDepth, "event", modifier, eventState, tier, focus)
+		return
+	}
+
+	// Otherwise offer the player a choice between 2 candidate floor paths (combat/rest
+	// only — events are on their own cadence above).
+	candidates := rollFloorCandidates(2, false)
 	pending := pendingFloorChoice{Candidates: candidates, Focus: focus}
 	buf, err := json.Marshal(pending)
 	if err != nil {
@@ -1745,8 +1754,10 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		} else {
 			if ft, ok := s.bot.popFloorQueue(uid); ok {
 				actualType = ft
+			} else if s.bot.abyssEventDue(uid, newDepth) {
+				actualType = "event" // cadence: force the due event (every 2-6 floors)
 			} else {
-				candidates := rollFloorCandidates(2)
+				candidates := rollFloorCandidates(2, false)
 				actualType = candidates[0].Type
 				for _, c := range candidates {
 					if c.Type == pt {
@@ -1773,6 +1784,9 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			if err != nil {
 				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, totalRewardXP))
 				return
+			}
+			if actualType == "event" {
+				s.bot.abyssScheduleNextEvent(uid, newDepth) // re-anchor the 2-6 floor cadence
 			}
 			if actualType == "rest" {
 				_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
@@ -1941,12 +1955,44 @@ var floorCandidateInfo = map[string]struct{ Label, Icon string }{
 	"event":  {"Investigate a strange presence", "❔"},
 }
 
-// rollFloorCandidates weighted-samples n distinct floor types (without
-// replacement) from the same 10% rest / 10% event / 80% combat odds the
-// descend roll always used, so the offered choices stay meaningfully random.
-func rollFloorCandidates(n int) []floorCandidate {
+// abyssEventGapMin/Max bound the gap (in floors) between event floors: events fire on
+// a controlled cadence of every 2-6 floors rather than randomly on any/every floor.
+const (
+	abyssEventGapMin = 2
+	abyssEventGapMax = 6
+)
+
+// abyssEventDue reports whether this floor depth is at or past the scheduled next event
+// floor. On a fresh run (no anchor yet) it schedules the first event 2-6 floors out and
+// returns false, so the opening floors aren't events.
+func (b *Bot) abyssEventDue(uid string, depth int) bool {
+	var s string
+	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_next_event_depth_"+uid).Scan(&s)
+	next, err := strconv.Atoi(s)
+	if s == "" || err != nil {
+		b.abyssScheduleNextEvent(uid, depth)
+		return false
+	}
+	return depth >= next
+}
+
+// abyssScheduleNextEvent anchors the next event floor to depth + a random 2-6 gap.
+func (b *Bot) abyssScheduleNextEvent(uid string, depth int) {
+	// #nosec G404 -- non-cryptographic cadence roll
+	next := depth + abyssEventGapMin + rand.IntN(abyssEventGapMax-abyssEventGapMin+1)
+	_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, "abyss_next_event_depth_"+uid, strconv.Itoa(next))
+}
+
+// rollFloorCandidates weighted-samples n distinct floor types (without replacement).
+// Events are excluded unless allowEvent is set — they ride their own 2-6 floor cadence
+// (see abyssEventDue) instead of appearing as a random choice on any floor.
+func rollFloorCandidates(n int, allowEvent bool) []floorCandidate {
 	weights := map[string]float64{"rest": 0.10, "event": 0.10, "combat": 0.80}
-	remaining := []string{"rest", "event", "combat"}
+	remaining := []string{"rest", "combat"}
+	if allowEvent {
+		remaining = []string{"rest", "event", "combat"}
+	}
 	if n > len(remaining) {
 		n = len(remaining)
 	}
@@ -2133,6 +2179,9 @@ func (s *WebServer) handleAbyssChooseFloor(w http.ResponseWriter, r *http.Reques
 // and either returns the rest/event payload or resolves combat immediately.
 // Shared by the direct-descend (forced) path and the choose-floor path.
 func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun, newDepth int, floorType, modifier, eventState string, tier abyssTier, focus string) {
+	if floorType == "event" {
+		s.bot.abyssScheduleNextEvent(uid, newDepth) // re-anchor the 2-6 floor cadence
+	}
 	if floorType != "combat" {
 		// Store NULL rather than an empty string for floors with no event payload
 		// (e.g. rest floors) so the JSONB event_state column accepts the write.
@@ -3613,8 +3662,9 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "wrong floor type for the gambling den"})
 				return
 			}
-			// Each game has its own stake and odds; the den stays open until the
-			// player proceeds, so every game is replayable — a proper gold sink.
+			// One game per den: pick a single wager and the den closes (was an infinite
+			// gold sink). Stake, payout and the event-state clear commit together so a
+			// failed clear can't leave the den replayable after gold changed hands.
 			var stake, prize int64
 			var winP float64
 			var label string
@@ -3630,23 +3680,44 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			default:
 				stake, prize, winP, label = 400, 600, 0.75, "🪙 Coin Cascade"
 			}
-			res, err := s.bot.DB.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", stake, uid)
+			tx, err := s.bot.DB.Begin()
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			defer func() { _ = tx.Rollback() }()
+			res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", stake, uid)
 			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
 			if n, _ := res.RowsAffected(); n == 0 {
+				// Can't afford this game: leave the den open so they can pick a cheaper
+				// one or proceed. (No gold moved, nothing to resolve.)
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
 			}
 			newGold := gold - stake
+			var msg string
 			// #nosec G404 -- non-cryptographic gambling roll
 			if rand.Float64() < winP {
-				_ = s.bot.DB.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", prize, uid).Scan(&newGold)
-				writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("%s: WINNER! +%d gold.", label, prize), "gold": newGold})
+				if err := tx.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", prize, uid).Scan(&newGold); err != nil {
+					writeJSON(w, map[string]any{"ok": false, "error": "db"})
+					return
+				}
+				msg = fmt.Sprintf("%s: WINNER! +%d gold.", label, prize)
+			} else {
+				msg = fmt.Sprintf("%s: the house takes your %d gold.", label, stake)
+			}
+			if _, err := tx.Exec("UPDATE abyss_active SET event_state = NULL, last_action_at = NOW() WHERE client_uid = $1", uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("%s: the house takes your %d gold.", label, stake), "gold": newGold})
+			if err := tx.Commit(); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			writeJSON(w, map[string]any{"ok": true, "msg": msg, "gold": newGold, "resolved": true})
 			return
 
 		case "altar_sacrifice": // #41 — feed the altar a consumable for a 3-fight surge.

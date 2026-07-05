@@ -350,32 +350,45 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			continue
 		}
 
+		// Cumulative loot bands (ascending). These MUST accumulate: the per-type chances
+		// are individual probabilities, so used as bare thresholds in a first-match chain
+		// the duplicated ones (title==ultimate=0.005, artifact==unique=0.01, gear==cons=0.10)
+		// collapse to zero-width bands and gear/title/artifact never drop. Summing them
+		// gives each type its own slice: ~0.5/0.5/1/1/2/5/10/10% before the common default.
+		cUlt := ultimateSkillChance * qualityMult * rareScale
+		cTitle := cUlt + titleChance*qualityMult*rareScale
+		cUniq := cTitle + uniqueItemChance*qualityMult*rareScale
+		cArt := cUniq + artifactChance*qualityMult*rareScale
+		cEnch := cArt + enchChance*qualityMult*rareScale
+		cSkill := cEnch + skillChance*qualityMult
+		cCons := cSkill + consChance*qualityMult
+		cGear := cCons + gearChance*qualityMult
 		switch {
-		case r < ultimateSkillChance*qualityMult*rareScale:
+		case r < cUlt:
 			us := content.RandomUltimateSkill()
 			add(fmt.Sprintf("🌟 Ultimate: %s", us.Name), abyssLootGrant{Type: "ultimate", UltID: us.ID})
-		case r < titleChance*qualityMult*rareScale:
+		case r < cTitle:
 			t := content.RandomTitle()
 			add(fmt.Sprintf("🏷️ Title: %s", t.Name), abyssLootGrant{Type: "title", TitleName: t.Name, TitleMult: t.XPMultiplier})
-		case r < uniqueItemChance*qualityMult*rareScale:
+		case r < cUniq:
 			ui := content.RandomUniqueItem()
 			add(fmt.Sprintf("✨ %s [%s]", ui.Name, ui.Rarity.String()), abyssLootGrant{Type: "unique", UniqName: ui.Name, UniqRar: ui.Rarity, UniqPow: ui.Power})
-		case r < artifactChance*qualityMult*rareScale:
+		case r < cArt:
 			a := content.RandomArtifact()
 			add(fmt.Sprintf("🔮 Artifact: %s", a.Name), abyssLootGrant{Type: "artifact", ArtName: a.Name, ArtMult: a.Mult, ArtDura: a.MaxDurability})
-		case r < enchChance*qualityMult*rareScale:
+		case r < cEnch:
 			ench := content.RandomEnchantment()
 			ench.Stats.STR = int(float64(ench.Stats.STR) * zoneDifficulty)
 			ench.Stats.SPD = int(float64(ench.Stats.SPD) * zoneDifficulty)
 			add(fmt.Sprintf("💠 Enchant: %s (gs:%d)", ench.Name, ench.Stats.Score()), abyssLootGrant{Type: "ench", Ench: &ench})
-		case r < skillChance*qualityMult:
+		case r < cSkill:
 			s := content.RandomSkill()
 			s.Power *= zoneDifficulty
 			add(fmt.Sprintf("📘 Skill: %s (gs:%d)", s.Name, s.Score()), abyssLootGrant{Type: "skill", Skill: &s})
-		case r < consChance*qualityMult:
+		case r < cCons:
 			c := content.RandomConsumable()
 			add(i18n.T("bot.loot.item", c.Name, c.ID), abyssLootGrant{Type: "cons", ConsID: c.ID, ConsDur: c.Duration})
-		case r < gearChance*qualityMult:
+		case r < cGear:
 			g := content.RandomGearDropExcluding(ownedGear)
 			// #nosec G404 -- non-cryptographic loot roll
 			if rand.Float64() < 0.20 {
