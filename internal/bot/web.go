@@ -297,7 +297,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           secureHeaders(mux),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	s.mu.Lock()
@@ -397,6 +397,16 @@ func (s *WebServer) uidForToken(token string) (string, bool) {
 	return uid, true
 }
 
+// secureHeaders applies defense-in-depth security headers to all responses.
+func secureHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		next.ServeHTTP(w, r)
+	})
+}
+
 // auth wraps a handler, resolving the session cookie to a user UID and passing
 // it through. Unauthenticated requests are redirected to /denied.
 func (s *WebServer) auth(h func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
@@ -463,7 +473,7 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 			dest = next
 		}
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
