@@ -1081,6 +1081,21 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				ignoreDef = s.IgnoreDef
 				*logs = append(*logs, fmt.Sprintf("✨ %s cast %s (cost: %d Mana, Remaining: %d/%d). Spell Power: +%d%%!", u.Nickname, s.Name, spellCost, au.CurrentMana, au.MaxMana, int(float64(u.Stats.INT)*spellPowerMult)))
 
+				if s.HealPercent > 0 {
+					healAmount := int(float64(u.Stats.HP) * s.HealPercent)
+					if healPenalty > 0 {
+						healAmount = int(float64(healAmount) * (1.0 - healPenalty))
+					}
+					if healAmount < 0 {
+						healAmount = 0
+					}
+					u.CurrentHP += healAmount
+					if u.CurrentHP > u.Stats.HP {
+						u.CurrentHP = u.Stats.HP
+					}
+					*logs = append(*logs, fmt.Sprintf("💚 %s restored %d HP (+%d%% of max HP) from %s!", u.Nickname, healAmount, int(s.HealPercent*100), s.Name))
+				}
+
 				// Combo System (Improvement 6)
 				if au.lastSkillID != "" && au.lastSkillID == s.ID {
 					dmgMult *= 1.25

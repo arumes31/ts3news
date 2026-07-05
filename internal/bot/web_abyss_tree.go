@@ -737,6 +737,8 @@ func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
 	var req socketRequest
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid request"})
@@ -833,6 +835,9 @@ func (s *WebServer) handleAbyssTreeActivateKeystone(w http.ResponseWriter, r *ht
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
+
 	var req keystoneRequest
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid request"})
@@ -872,9 +877,16 @@ func (s *WebServer) handleAbyssTreeActivateKeystone(w http.ResponseWriter, r *ht
 		}
 	}
 
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	// Activate buff: expires in 1 hour
 	expiry := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
-	if _, err := s.bot.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, fmt.Sprintf("abyss_keystone_active_%s_%d", uid, req.NodeID), expiry); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
 		return
@@ -882,8 +894,13 @@ func (s *WebServer) handleAbyssTreeActivateKeystone(w http.ResponseWriter, r *ht
 
 	// Set Cooldown: expires in 24 hours
 	cooldown := time.Now().Add(24 * time.Hour).Format(time.RFC3339)
-	if _, err := s.bot.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, fmt.Sprintf("abyss_keystone_cooldown_%s_%d", uid, req.NodeID), cooldown); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
 		return
 	}
@@ -908,6 +925,8 @@ func (s *WebServer) handleAbyssTreeRollTimeless(w http.ResponseWriter, r *http.R
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
 	var req rollTimelessRequest
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid request"})
