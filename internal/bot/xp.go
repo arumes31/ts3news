@@ -1048,6 +1048,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 			st := b.loadAbyssStats(u.UID)
 			spellCost -= st.UpInsight * 2
+			// Skill web: Spellweaver reduces skill mana cost.
+			if v := au.treeBonus.Pct["skill_mana_cost"]; v > 0 {
+				spellCost = int(float64(spellCost) * (1 - v))
+			}
 			if spellCost < 5 {
 				spellCost = 5
 			}
@@ -1070,6 +1074,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 
 				dmgMult *= s.Power * spellPowerMult
+				// Skill web: Spellweaver boosts skill cast damage.
+				if v := au.treeBonus.Pct["skill_damage"]; v > 0 {
+					dmgMult *= 1 + v
+				}
 				ignoreDef = s.IgnoreDef
 				*logs = append(*logs, fmt.Sprintf("✨ %s cast %s (cost: %d Mana, Remaining: %d/%d). Spell Power: +%d%%!", u.Nickname, s.Name, spellCost, au.CurrentMana, au.MaxMana, int(float64(u.Stats.INT)*spellPowerMult)))
 
@@ -1598,7 +1606,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 	}
 }
 
-func (b *Bot) distributeRewards(users []UserInCombat, _ []activeUser, victory bool, totalUserDamage, totalMobDamage, totalRewardXP int, initialMobs []*content.Mob, _ []*content.Mob, zone content.Zone, logs []string, avgLvl int) ([]string, int, bool) {
+func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory bool, totalUserDamage, totalMobDamage, totalRewardXP int, initialMobs []*content.Mob, _ []*content.Mob, zone content.Zone, logs []string, avgLvl int) ([]string, int, bool) {
 	// Summarize Combat — centred header plus visual damage-share bars.
 	totalDamage := totalUserDamage + totalMobDamage
 	logs = append(logs, hr())
@@ -1716,8 +1724,20 @@ func (b *Bot) distributeRewards(users []UserInCombat, _ []activeUser, victory bo
 
 			_, _ = b.DB.Exec("UPDATE users SET current_hp = $2, regen_stacks = $3, gold = users.gold + $4 WHERE client_uid = $1", u.UID, u.CurrentHP, u.RegenStacks, int64(goldDrop))
 
-			_, _ = b.DB.Exec("UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1", u.UID)
-			_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND remaining_fights < 0", u.UID)
+			// Skill web: Alchemist's Ritual — a lucky fight burns no
+			// consumable charges.
+			savePct := 0.0
+			for k := range aus {
+				if aus[k].u != nil && aus[k].u.UID == u.UID {
+					savePct = aus[k].treeBonus.Pct["consumable_save"]
+					break
+				}
+			}
+			// #nosec G404 -- non-cryptographic charge-save roll
+			if savePct <= 0 || rand.Float64() >= savePct {
+				_, _ = b.DB.Exec("UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1", u.UID)
+				_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND remaining_fights < 0", u.UID)
+			}
 		}
 
 		if finalXP > 0 {

@@ -67,6 +67,9 @@ func NewBot(cfg *config.Config) *Bot {
 	if cfg.XPServerGroups {
 		b.loadLevelGroups()
 	}
+	// A layout change in the Abyss skill web (nodes, edges, costs or balance)
+	// invalidates stored allocations: grant everyone a free respec once.
+	b.resetAbyssTreeOnLayoutChange()
 	return b
 }
 

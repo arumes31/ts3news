@@ -160,23 +160,60 @@
 .btn-refund:hover {
   background: #f14c4c;
 }
+
+/* Tabs styling */
+.tree-tabs {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  margin-bottom: 6px;
+}
+.tree-tab {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+.tree-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.tree-tab.active {
+  background: rgba(244, 197, 66, 0.12);
+  color: #f4c542;
+  border: 1px solid rgba(244, 197, 66, 0.4);
+  box-shadow: 0 0 10px rgba(244, 197, 66, 0.15);
+}
 </style>
 <div class="tree-head">
   <div>
-    <h1>🌳 Abyss Skill Web</h1>
-    <p class="muted small">1000 nodes · six disciplines · every path connects. Points come from levels, depth records, lifetime floors and prestige.</p>
+    <h1 id="treeTitle">🌳 Abyss Skill Web</h1>
+    <p class="muted small" id="treeSubtitle">1000 nodes · six disciplines · every path connects. Points come from levels, depth records, lifetime floors and prestige. Small nodes cost 1 point, ★ notables &amp; 🌉 bridges 2, 👑 keystones 3.</p>
   </div>
   <div class="tree-head-right">
-    <span class="pill">🔵 <b id="treeUsed">{{.Used}}</b> / <b id="treePoints">{{.Points}}</b> points</span>
-    <button class="ghost xs" onclick="treeRespec()">♻️ Respec (🜲 {{.RespecTk}})</button>
+    <span class="pill" id="treeAvailPill">✨ <b id="treeAvail">{{.Avail}}</b> available</span>
+    <span class="pill" id="treePointsPill">🔵 <b id="treeUsed">{{.Used}}</b> / <b id="treePoints">{{.Points}}</b> points</span>
+    <span class="pill" id="treeTokensPill" style="display:none; color:#f4c542;">🜲 <b id="treeTokens">{{.Tokens}}</b> tokens</span>
+    <button class="ghost xs" id="treeRespecBtn" onclick="treeRespec()">♻️ Respec (🜲 {{.RespecTk}})</button>
     <a class="ghost xs" href="/abyss" style="text-decoration:none; padding:.35rem .7rem; border:1px solid var(--line); border-radius:8px;">← Back to the Abyss</a>
   </div>
 </div>
 
+<div class="tree-tabs">
+  <button class="tree-tab active" id="tab-passive" onclick="switchTab('passive')">🌳 Passive Skill Web</button>
+  <button class="tree-tab" id="tab-talents" onclick="switchTab('talents')">🜲 Deep Delver Upgrades</button>
+  <button class="tree-tab" id="tab-specs" onclick="switchTab('specializations')">🎓 Specializations</button>
+</div>
+
 <div class="tree-toolbar">
   <input type="search" id="treeSearch" placeholder="🔍 Search nodes (e.g. 'loot find', 'Keystone', 'STR')" oninput="treeSearchApply()">
-  <span class="muted small">Drag to pan · wheel to zoom · click a highlighted node to allocate</span>
-  <div class="tree-legend">
+  <span class="muted small" id="treeLegendText">Drag to pan · wheel to zoom · click a highlighted node to allocate</span>
+  <div class="tree-legend" id="treeLegendPills">
     <span><i class="tl-dot tl-alloc"></i> allocated</span>
     <span><i class="tl-dot tl-avail"></i> allocatable</span>
     <span><i class="tl-dot tl-lock"></i> locked</span>
@@ -213,6 +250,57 @@ EDGES.forEach(function(e){
   (adj[e[0]] = adj[e[0]] || []).push(e[1]);
   (adj[e[1]] = adj[e[1]] || []).push(e[0]);
 });
+
+// Custom trees data
+var talentLevels = {
+  vigor: {{.Stats.UpVigor}},
+  greed: {{.Stats.UpGreed}},
+  interest: {{.Stats.UpInterest}},
+  tribute: {{.Stats.UpTribute}},
+  swiftness: {{.Stats.UpSwiftness}},
+  scavenger: {{.Stats.UpScavenger}},
+  fortune: {{.Stats.UpFortune}},
+  insight: {{.Stats.UpInsight}},
+  ward: {{.Stats.UpWard}},
+  mercy: {{.Stats.UpMercy}},
+  cartographer: {{.Stats.UpCartographer}},
+  quartermaster: {{.Stats.UpQuartermaster}}
+};
+var tokenBalance = {{.Tokens}};
+var minDepths = {{jsonJS .NodeGates}};
+var activeSpec = '{{.Spec}}';
+var activeTab = 'passive';
+var busy = false;
+function setBusy(b) { busy = b; }
+
+var TALENTS = [
+  { key: 'vigor', label: 'Vigor', desc: 'Start runs with +HP', x: 0, y: -100, parent: null, icon: 'health-normal', gateDepth: 0 },
+  { key: 'greed', label: 'Greed', desc: '+5% cache bonus / level', x: -140, y: 0, parent: 'vigor', icon: 'clover', gateDepth: 0 },
+  { key: 'interest', label: 'Compounding', desc: '+0.1% cache interest / level', x: -260, y: 100, parent: 'greed', icon: 'sunbeams', gateDepth: 0 },
+  { key: 'tribute', label: 'Tribute', desc: '+10% bank tokens / level', x: -380, y: 200, parent: 'interest', icon: 'laurel-crown', gateDepth: 0 },
+  { key: 'swiftness', label: 'Swiftness', desc: 'Faster combat log / level', x: -500, y: 300, parent: 'tribute', icon: 'progression', gateDepth: 10 },
+  { key: 'scavenger', label: 'Scavenger', desc: '+20% crafting materials / level', x: -620, y: 400, parent: 'swiftness', icon: 'unique-gem', gateDepth: 15 },
+  
+  { key: 'fortune', label: 'Fortune', desc: 'Better loot in the deep', x: 140, y: 0, parent: 'vigor', icon: 'open-treasure-chest', gateDepth: 0 },
+  { key: 'insight', label: 'Insight', desc: '+5% floor reward XP / level', x: 260, y: 100, parent: 'fortune', icon: 'spell-book', gateDepth: 0 },
+  { key: 'ward', label: 'Ward', desc: 'Cheaper insurance premiums', x: 380, y: 200, parent: 'insight', icon: 'checked-shield', gateDepth: 0 },
+  { key: 'mercy', label: 'Mercy', desc: '+8% revive-offer odds, stronger Last Stand', x: 500, y: 300, parent: 'ward', icon: 'totem', gateDepth: 20 },
+  { key: 'cartographer', label: 'Cartographer', desc: 'Rift peeks see further and cost less', x: 620, y: 400, parent: 'mercy', icon: 'eagle-emblem', gateDepth: 25 },
+  { key: 'quartermaster', label: 'Quartermaster', desc: '+1 consumable carry slot / level', x: 740, y: 500, parent: 'cartographer', icon: 'visored-helm', gateDepth: 30 }
+];
+
+var SPECIALIZATIONS = [
+  { key: 'initiate', label: 'Initiate', desc: 'Starting rank. Swapping specializations costs 🜲 25 tokens.', x: 0, y: -100, parent: null, icon: 'laurel-crown', targetSpec: '' },
+  
+  { key: 'novice_delver', label: 'Novice Delver', desc: 'The path of experience and progression.', x: -160, y: 20, parent: 'initiate', icon: 'progression', targetSpec: 'delver' },
+  { key: 'delver', label: 'Delver Spec', desc: 'Active Perk: +10% floor reward XP inside the Abyss.', x: -280, y: 140, parent: 'novice_delver', icon: 'spell-book', targetSpec: 'delver' },
+  
+  { key: 'novice_plunderer', label: 'Novice Plunderer', desc: 'The path of accumulation and wealth.', x: 0, y: 40, parent: 'initiate', icon: 'clover', targetSpec: 'plunderer' },
+  { key: 'plunderer', label: 'Plunderer Spec', desc: 'Active Perk: +10% escrow floor bonus inside the Abyss.', x: 0, y: 180, parent: 'novice_plunderer', icon: 'open-treasure-chest', targetSpec: 'plunderer' },
+  
+  { key: 'novice_warden', label: 'Novice Warden', desc: 'The path of fortitude and resilience.', x: 160, y: 20, parent: 'initiate', icon: 'checked-shield', targetSpec: 'warden' },
+  { key: 'warden', label: 'Warden Spec', desc: 'Active Perk: +5% all stats inside the Abyss.', x: 280, y: 140, parent: 'novice_warden', icon: 'visored-helm', targetSpec: 'warden' }
+];
 
 function getNodeIcon(n) {
   if (n.type === 'keystone') {
@@ -346,8 +434,13 @@ function gateFloor(n){
   if(n.ring > 10) return 10;
   return 0;
 }
+// Node point cost, mirroring TreeNode.Cost() server-side: bigger nodes cost more.
+function nodeCost(n){
+  if(!n) return 1;
+  return n.type==='keystone' ? 3 : (n.type==='notable'||n.type==='bridge') ? 2 : 1;
+}
 function isAllocatable(id){
-  if(alloc[id] || used >= points) return false;
+  if(alloc[id] || used + nodeCost(byId[id]) > points) return false;
   if(gateFloor(byId[id]) > bestDepth) return false;
   var ns = adj[id] || [];
   for(var i=0;i<ns.length;i++){ if(ns[i]===0 || alloc[ns[i]]) return true; }
@@ -376,168 +469,540 @@ function randSeed(s) {
 var edgeEls = [], nodeEls = {};
 function build(){
   svg.innerHTML = '';
+  edgeEls = [];
+  nodeEls = {};
+  iconEls = {};
+  swirlEls = {};
 
-  // Background star field for parallax (Item 1)
-  var gStars = document.createElementNS(NS, 'g');
-  gStars.setAttribute('class', 'tree-bg-stars');
-  var starRand = randSeed(12345);
-  for (var i = 0; i < 80; i++) {
-    var circle = document.createElementNS(NS, 'circle');
-    var sx = (starRand() * 2000 - 1000);
-    var sy = (starRand() * 2000 - 1000);
-    circle.setAttribute('cx', sx);
-    circle.setAttribute('cy', sy);
-    circle.setAttribute('r', starRand() * 2 + 0.5);
-    circle.setAttribute('fill', 'rgba(255, 255, 255, ' + (starRand() * 0.4 + 0.1) + ')');
-    gStars.appendChild(circle);
-  }
-  svg.appendChild(gStars);
-
-  // Background Decorations (Dividers & Sector Labels)
-  var gB = document.createElementNS(NS, 'g');
-  gB.setAttribute('class', 'tree-bg-decor');
-  
-  var maxRadius = 60 + 28 * 34; // 1012
-  var boundaries = [5.5, 11.5, 17.5, 23.5, 29.5, 35.5];
-  boundaries.forEach(function(slot) {
-    var angle = (slot / 36) * 2 * Math.PI - Math.PI / 2;
-    var bx = Math.round(maxRadius * Math.cos(angle));
-    var by = Math.round(maxRadius * Math.sin(angle));
-    
-    var line = document.createElementNS(NS, 'line');
-    line.setAttribute('x1', 0);
-    line.setAttribute('y1', 0);
-    line.setAttribute('x2', bx);
-    line.setAttribute('y2', by);
-    line.setAttribute('stroke', 'rgba(255, 255, 255, 0.05)');
-    line.setAttribute('stroke-width', '1.5');
-    line.setAttribute('stroke-dasharray', '8 8');
-    gB.appendChild(line);
-  });
-  
-  var sectorNames = ["WAR DISCIPLINE", "VITALITY DISCIPLINE", "SHADOW DISCIPLINE", "ARCANE DISCIPLINE", "FORTUNE DISCIPLINE", "VOID DISCIPLINE"];
-  var sectorIcons = ["⚔️", "❤️", "🌫️", "🔮", "🍀", "🕳️"];
-  
-  for (var s = 0; s < 6; s++) {
-    var angle = ((s * 6 + 2.5) / 36) * 2 * Math.PI - Math.PI / 2;
-    var labelRadius = 450;
-    var lx = Math.round(labelRadius * Math.cos(angle));
-    var ly = Math.round(labelRadius * Math.sin(angle));
-    
-    var txt = document.createElementNS(NS, 'text');
-    txt.setAttribute('x', lx);
-    txt.setAttribute('y', ly);
-    txt.setAttribute('fill', 'rgba(255, 255, 255, 0.04)');
-    txt.setAttribute('font-size', '36');
-    txt.setAttribute('font-weight', 'bold');
-    txt.setAttribute('text-anchor', 'middle');
-    txt.setAttribute('dominant-baseline', 'middle');
-    txt.setAttribute('style', 'pointer-events: none; font-family: system-ui, sans-serif; letter-spacing: 2px;');
-    
-    var deg = (angle * 180 / Math.PI) + 90;
-    if (deg > 90 && deg < 270) {
-      deg -= 180;
+  if (activeTab === 'passive') {
+    // Background star field for parallax (Item 1)
+    var gStars = document.createElementNS(NS, 'g');
+    gStars.setAttribute('class', 'tree-bg-stars');
+    var starRand = randSeed(12345);
+    for (var i = 0; i < 80; i++) {
+      var circle = document.createElementNS(NS, 'circle');
+      var sx = (starRand() * 2000 - 1000);
+      var sy = (starRand() * 2000 - 1000);
+      circle.setAttribute('cx', sx);
+      circle.setAttribute('cy', sy);
+      circle.setAttribute('r', starRand() * 2 + 0.5);
+      circle.setAttribute('fill', 'rgba(255, 255, 255, ' + (starRand() * 0.4 + 0.1) + ')');
+      gStars.appendChild(circle);
     }
-    txt.setAttribute('transform', 'rotate(' + deg + ',' + lx + ',' + ly + ')');
-    txt.textContent = sectorIcons[s] + " " + sectorNames[s];
-    gB.appendChild(txt);
-  }
-  svg.appendChild(gB);
+    svg.appendChild(gStars);
 
-  var gE = document.createElementNS(NS,'g');
-  var portalNodes = {};
-  EDGES.forEach(function(e){
-    var a = e[0]===0 ? {x:0,y:0} : byId[e[0]];
-    var b = e[1]===0 ? {x:0,y:0} : byId[e[1]];
-    if(!a || !b) return;
-    var l = document.createElementNS(NS,'line');
-    l.setAttribute('x1',a.x); l.setAttribute('y1',a.y);
-    l.setAttribute('x2',b.x); l.setAttribute('y2',b.y);
+    // Background Decorations (Dividers & Sector Labels)
+    var gB = document.createElementNS(NS, 'g');
+    gB.setAttribute('class', 'tree-bg-decor');
     
-    // Check if the edge is a long-distance chaotic portal
-    var dx = a.x - b.x, dy = a.y - b.y;
-    var isPortal = (dx*dx + dy*dy) > 180*180;
-    l.setAttribute('class', isPortal ? 'te te-chaotic' : 'te');
-    l._isPortal = isPortal;
-    if (isPortal) {
-      if (e[0] > 0) portalNodes[e[0]] = true;
-      if (e[1] > 0) portalNodes[e[1]] = true;
-    }
-    
-    l._e = e;
-    gE.appendChild(l);
-    edgeEls.push(l);
-  });
-  svg.appendChild(gE);
-
-  // Root marker.
-  var root = document.createElementNS(NS,'circle');
-  root.setAttribute('cx',0); root.setAttribute('cy',0); root.setAttribute('r',16);
-  root.setAttribute('class','tn tn-root');
-  svg.appendChild(root);
-
-  var gN = document.createElementNS(NS,'g');
-  NODES.forEach(function(n){
-    // Portal gate visual vortices (Item 15)
-    if (portalNodes[n.id]) {
-      var swirl = document.createElementNS(NS, 'circle');
-      swirl.setAttribute('cx', n.x);
-      swirl.setAttribute('cy', n.y);
-      swirl.setAttribute('r', (n.type==='keystone'?14 : n.type==='notable'||n.type==='bridge'?10 : 6) + 6);
-      swirl.setAttribute('class', 'portal-swirl');
-      gN.appendChild(swirl);
-      swirlEls[n.id] = swirl;
-    }
-
-    var c = document.createElementNS(NS,'circle');
-    c.setAttribute('cx',n.x); c.setAttribute('cy',n.y);
-    var r = n.type==='keystone'?14 : n.type==='notable'||n.type==='bridge'||n.type==='socket'?10 : 6;
-    c.setAttribute('r', r);
-    c.setAttribute('data-id', n.id);
-    c.setAttribute('tabindex','0');
-    c.setAttribute('role','button');
-    c.setAttribute('aria-label', n.name + (n.desc ? ' — ' + n.desc : ''));
-    c.addEventListener('click', function(ev){ ev.stopPropagation(); tryAllocate(n.id); });
-    c.addEventListener('keydown', function(ev){
-      if(ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar'){ ev.preventDefault(); tryAllocate(n.id); }
-      // Keyboard refund (the tooltip's button is mouse-oriented).
-      if((ev.key === 'Delete' || ev.key === 'r') && alloc[n.id]){ ev.preventDefault(); tryRefund(ev, n.id); }
+    var maxRadius = 60 + 28 * 34; // 1012
+    var boundaries = [5.5, 11.5, 17.5, 23.5, 29.5, 35.5];
+    boundaries.forEach(function(slot) {
+      var angle = (slot / 36) * 2 * Math.PI - Math.PI / 2;
+      var bx = Math.round(maxRadius * Math.cos(angle));
+      var by = Math.round(maxRadius * Math.sin(angle));
+      
+      var line = document.createElementNS(NS, 'line');
+      line.setAttribute('x1', 0);
+      line.setAttribute('y1', 0);
+      line.setAttribute('x2', bx);
+      line.setAttribute('y2', by);
+      line.setAttribute('stroke', 'rgba(255, 255, 255, 0.05)');
+      line.setAttribute('stroke-width', '1.5');
+      line.setAttribute('stroke-dasharray', '8 8');
+      gB.appendChild(line);
     });
-    c.addEventListener('mouseenter', function(ev){
-      showTip(n, ev);
-      highlightPath(n); // Hover highlight path (Item 3)
-      if (isAllocatable(n.id)) {
-        renderSummary(activePct, activeStats, n);
+    
+    var sectorNames = ["WAR DISCIPLINE", "VITALITY DISCIPLINE", "SHADOW DISCIPLINE", "ARCANE DISCIPLINE", "FORTUNE DISCIPLINE", "VOID DISCIPLINE"];
+    var sectorIcons = ["⚔️", "❤️", "🌫️", "🔮", "🍀", "🕳️"];
+    
+    for (var s = 0; s < 6; s++) {
+      var angle = ((s * 6 + 2.5) / 36) * 2 * Math.PI - Math.PI / 2;
+      var labelRadius = 450;
+      var lx = Math.round(labelRadius * Math.cos(angle));
+      var ly = Math.round(labelRadius * Math.sin(angle));
+      
+      var txt = document.createElementNS(NS, 'text');
+      txt.setAttribute('x', lx);
+      txt.setAttribute('y', ly);
+      txt.setAttribute('fill', 'rgba(255, 255, 255, 0.04)');
+      txt.setAttribute('font-size', '36');
+      txt.setAttribute('font-weight', 'bold');
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('dominant-baseline', 'middle');
+      txt.setAttribute('style', 'pointer-events: none; font-family: system-ui, sans-serif; letter-spacing: 2px;');
+      
+      var deg = (angle * 180 / Math.PI) + 90;
+      if (deg > 90 && deg < 270) {
+        deg -= 180;
+      }
+      txt.setAttribute('transform', 'rotate(' + deg + ',' + lx + ',' + ly + ')');
+      txt.textContent = sectorIcons[s] + " " + sectorNames[s];
+      gB.appendChild(txt);
+    }
+    svg.appendChild(gB);
+
+    var gE = document.createElementNS(NS,'g');
+    var portalNodes = {};
+    EDGES.forEach(function(e){
+      var a = e[0]===0 ? {x:0,y:0} : byId[e[0]];
+      var b = e[1]===0 ? {x:0,y:0} : byId[e[1]];
+      if(!a || !b) return;
+      var l = document.createElementNS(NS,'line');
+      l.setAttribute('x1',a.x); l.setAttribute('y1',a.y);
+      l.setAttribute('x2',b.x); l.setAttribute('y2',b.y);
+      
+      // Check if the edge is a long-distance chaotic portal
+      var dx = a.x - b.x, dy = a.y - b.y;
+      var isPortal = (dx*dx + dy*dy) > 180*180;
+      l.setAttribute('class', isPortal ? 'te te-chaotic' : 'te');
+      l._isPortal = isPortal;
+      if (isPortal) {
+        if (e[0] > 0) portalNodes[e[0]] = true;
+        if (e[1] > 0) portalNodes[e[1]] = true;
+      }
+      
+      l._e = e;
+      gE.appendChild(l);
+      edgeEls.push(l);
+    });
+    svg.appendChild(gE);
+
+    // Root marker.
+    var root = document.createElementNS(NS,'circle');
+    root.setAttribute('cx',0); root.setAttribute('cy',0); root.setAttribute('r',16);
+    root.setAttribute('class','tn tn-root');
+    svg.appendChild(root);
+
+    var gN = document.createElementNS(NS,'g');
+    NODES.forEach(function(n){
+      // Portal gate visual vortices (Item 15)
+      if (portalNodes[n.id]) {
+        var swirl = document.createElementNS(NS, 'circle');
+        swirl.setAttribute('cx', n.x);
+        swirl.setAttribute('cy', n.y);
+        swirl.setAttribute('r', (n.type==='keystone'?14 : n.type==='notable'||n.type==='bridge'?10 : 6) + 6);
+        swirl.setAttribute('class', 'portal-swirl');
+        gN.appendChild(swirl);
+        swirlEls[n.id] = swirl;
+      }
+
+      var c = document.createElementNS(NS,'circle');
+      c.setAttribute('cx',n.x); c.setAttribute('cy',n.y);
+      var r = n.type==='keystone'?14 : n.type==='notable'||n.type==='bridge'||n.type==='socket'?10 : 6;
+      c.setAttribute('r', r);
+      c.setAttribute('data-id', n.id);
+      c.setAttribute('tabindex','0');
+      c.setAttribute('role','button');
+      c.setAttribute('aria-label', n.name + (n.desc ? ' — ' + n.desc : ''));
+      c.addEventListener('click', function(ev){ ev.stopPropagation(); tryAllocate(n.id); });
+      c.addEventListener('keydown', function(ev){
+        if(ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar'){ ev.preventDefault(); tryAllocate(n.id); }
+        // Keyboard refund (the tooltip's button is mouse-oriented).
+        if((ev.key === 'Delete' || ev.key === 'r') && alloc[n.id]){ ev.preventDefault(); tryRefund(ev, n.id); }
+      });
+      c.addEventListener('mouseenter', function(ev){
+        showTip(n, ev);
+        highlightPath(n); // Hover highlight path (Item 3)
+        if (isAllocatable(n.id)) {
+          renderSummary(activePct, activeStats, n);
+        }
+      });
+      c.addEventListener('mouseleave', function(){
+        // Delayed hide so the pointer can travel into the tooltip (its Refund
+        // button is otherwise unreachable); entering the tooltip cancels it.
+        scheduleHideTip();
+        clearPathHighlight(); // Clear hover path (Item 3)
+        renderSummary(activePct, activeStats);
+      });
+      // Keyboard users get the same tooltip, anchored to the node itself.
+      c.addEventListener('focus', function(){
+        var r = c.getBoundingClientRect();
+        showTip(n, {clientX: r.right + 4, clientY: r.top});
+      });
+      c.addEventListener('blur', function(){ scheduleHideTip(); });
+      gN.appendChild(c);
+      nodeEls[n.id] = c;
+
+      var iconName = getNodeIcon(n);
+      if (iconName) {
+        var iconSize = n.type==='keystone' ? 16 : n.type==='notable'||n.type==='bridge'||n.type==='socket' ? 12 : 8;
+        loadNodeIcon(gN, iconName, iconSize, n.x, n.y, n.id);
       }
     });
-    c.addEventListener('mouseleave', function(){
-      // Delayed hide so the pointer can travel into the tooltip (its Refund
-      // button is otherwise unreachable); entering the tooltip cancels it.
-      scheduleHideTip();
-      clearPathHighlight(); // Clear hover path (Item 3)
-      renderSummary(activePct, activeStats);
-    });
-    // Keyboard users get the same tooltip, anchored to the node itself.
-    c.addEventListener('focus', function(){
-      var r = c.getBoundingClientRect();
-      showTip(n, {clientX: r.right + 4, clientY: r.top});
-    });
-    c.addEventListener('blur', function(){ scheduleHideTip(); });
-    gN.appendChild(c);
-    nodeEls[n.id] = c;
-
-    var iconName = getNodeIcon(n);
-    if (iconName) {
-      var iconSize = n.type==='keystone' ? 16 : n.type==='notable'||n.type==='bridge'||n.type==='socket' ? 12 : 8;
-      loadNodeIcon(gN, iconName, iconSize, n.x, n.y, n.id);
+    svg.appendChild(gN);
+    paint();
+    applyView();
+  } else if (activeTab === 'talents') {
+    // Background star field
+    var gStars = document.createElementNS(NS, 'g');
+    gStars.setAttribute('class', 'tree-bg-stars');
+    var starRand = randSeed(12345);
+    for (var i = 0; i < 40; i++) {
+      var circle = document.createElementNS(NS, 'circle');
+      circle.setAttribute('cx', starRand() * 1000 - 500);
+      circle.setAttribute('cy', starRand() * 1000 - 500);
+      circle.setAttribute('r', starRand() * 2 + 0.5);
+      circle.setAttribute('fill', 'rgba(255, 255, 255, ' + (starRand() * 0.4 + 0.1) + ')');
+      gStars.appendChild(circle);
     }
-  });
-  svg.appendChild(gN);
+    svg.appendChild(gStars);
+
+    // Draw Edges
+    var gE = document.createElementNS(NS, 'g');
+    TALENTS.forEach(function(t) {
+      if (!t.parent) return;
+      var parentNode = TALENTS.find(p => p.key === t.parent);
+      if (!parentNode) return;
+      
+      var l = document.createElementNS(NS, 'line');
+      l.setAttribute('x1', parentNode.x);
+      l.setAttribute('y1', parentNode.y);
+      l.setAttribute('x2', t.x);
+      l.setAttribute('y2', t.y);
+      
+      var pLvl = talentLevels[parentNode.key] || 0;
+      var cLvl = talentLevels[t.key] || 0;
+      var active = pLvl > 0 && cLvl > 0;
+      var half = pLvl > 0 && cLvl === 0;
+      
+      l.setAttribute('class', 'te' + (active ? ' on' : half ? ' half' : ''));
+      gE.appendChild(l);
+    });
+    svg.appendChild(gE);
+
+    // Draw Nodes
+    var gN = document.createElementNS(NS, 'g');
+    TALENTS.forEach(function(t) {
+      var level = talentLevels[t.key] || 0;
+      var maxLevel = 5;
+      
+      var parentNode = t.parent ? TALENTS.find(p => p.key === t.parent) : null;
+      var parentLvl = parentNode ? (talentLevels[parentNode.key] || 0) : 1;
+      var isUnlocked = parentLvl > 0 && bestDepth >= (t.gateDepth || 0);
+      
+      var c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', t.x);
+      c.setAttribute('cy', t.y);
+      c.setAttribute('r', 16);
+      
+      var cls = 'tn t-notable';
+      if (level > 0) cls += ' on';
+      else if (isUnlocked && level < maxLevel && tokenBalance >= (level + 1) * 10) cls += ' can';
+      c.setAttribute('class', cls);
+      c.setAttribute('tabindex', '0');
+      
+      c.addEventListener('click', function(ev) { ev.stopPropagation(); tryUpgradeTalent(t.key); });
+      c.addEventListener('mouseenter', function(ev) { showTalentTip(t, ev); });
+      c.addEventListener('mouseleave', function() { scheduleHideTip(); });
+      gN.appendChild(c);
+      nodeEls[t.key] = c;
+      
+      if (t.icon) {
+        loadNodeIcon(gN, t.icon, 20, t.x, t.y, t.key);
+      }
+      
+      var txt = document.createElementNS(NS, 'text');
+      txt.setAttribute('x', t.x);
+      txt.setAttribute('y', t.y + 30);
+      txt.setAttribute('fill', '#ffffff');
+      txt.setAttribute('font-size', '10');
+      txt.setAttribute('font-weight', 'bold');
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('style', 'pointer-events: none; font-family: system-ui, sans-serif;');
+      txt.textContent = t.label + ' (' + level + '/' + maxLevel + ')';
+      gN.appendChild(txt);
+    });
+    svg.appendChild(gN);
+    applyView();
+  } else if (activeTab === 'specializations') {
+    // Background star field
+    var gStars = document.createElementNS(NS, 'g');
+    gStars.setAttribute('class', 'tree-bg-stars');
+    var starRand = randSeed(12345);
+    for (var i = 0; i < 40; i++) {
+      var circle = document.createElementNS(NS, 'circle');
+      circle.setAttribute('cx', starRand() * 1000 - 500);
+      circle.setAttribute('cy', starRand() * 1000 - 500);
+      circle.setAttribute('r', starRand() * 2 + 0.5);
+      circle.setAttribute('fill', 'rgba(255, 255, 255, ' + (starRand() * 0.4 + 0.1) + ')');
+      gStars.appendChild(circle);
+    }
+    svg.appendChild(gStars);
+
+    // Draw Edges
+    var gE = document.createElementNS(NS, 'g');
+    SPECIALIZATIONS.forEach(function(s) {
+      if (!s.parent) return;
+      var parentNode = SPECIALIZATIONS.find(p => p.key === s.parent);
+      if (!parentNode) return;
+      
+      var l = document.createElementNS(NS, 'line');
+      l.setAttribute('x1', parentNode.x);
+      l.setAttribute('y1', parentNode.y);
+      l.setAttribute('x2', s.x);
+      l.setAttribute('y2', s.y);
+      
+      var active = (s.targetSpec === activeSpec && activeSpec !== '') || 
+                   (parentNode.targetSpec === activeSpec && activeSpec !== '') ||
+                   (s.parent === 'initiate' && (s.targetSpec === activeSpec || activeSpec === ''));
+      
+      l.setAttribute('class', 'te' + (active ? ' on' : ''));
+      gE.appendChild(l);
+    });
+    svg.appendChild(gE);
+
+    // Draw Nodes
+    var gN = document.createElementNS(NS, 'g');
+    SPECIALIZATIONS.forEach(function(s) {
+      var isActive = (s.key === 'initiate' && activeSpec === '') || (s.targetSpec === activeSpec && s.key !== 'initiate');
+      
+      var c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', s.x);
+      c.setAttribute('cy', s.y);
+      c.setAttribute('r', 18);
+      
+      var cls = 'tn t-keystone';
+      if (isActive) cls += ' on';
+      else cls += ' can';
+      c.setAttribute('class', cls);
+      c.setAttribute('tabindex', '0');
+      
+      c.addEventListener('click', function(ev) { ev.stopPropagation(); trySelectSpec(s.targetSpec, s.label); });
+      c.addEventListener('mouseenter', function(ev) { showSpecTip(s, ev); });
+      c.addEventListener('mouseleave', function() { scheduleHideTip(); });
+      gN.appendChild(c);
+      nodeEls[s.key] = c;
+      
+      if (s.icon) {
+        loadNodeIcon(gN, s.icon, 24, s.x, s.y, s.key);
+      }
+      
+      var txt = document.createElementNS(NS, 'text');
+      txt.setAttribute('x', s.x);
+      txt.setAttribute('y', s.y + 35);
+      txt.setAttribute('fill', '#ffffff');
+      txt.setAttribute('font-size', '10');
+      txt.setAttribute('font-weight', 'bold');
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('style', 'pointer-events: none; font-family: system-ui, sans-serif;');
+      txt.textContent = s.label + (isActive ? ' (Active)' : '');
+      gN.appendChild(txt);
+    });
+    svg.appendChild(gN);
+    applyView();
+  }
+}
+
+function updateTokenDisplay() {
+  var el = document.getElementById('treeTokens');
+  if (el) el.textContent = tokenBalance;
+}
+
+function switchTab(tab) {
+  if (busy) return;
+  activeTab = tab;
+  
+  document.getElementById('tab-passive').classList.toggle('active', tab === 'passive');
+  document.getElementById('tab-talents').classList.toggle('active', tab === 'talents');
+  document.getElementById('tab-specs').classList.toggle('active', tab === 'specializations');
+  
+  var title = document.getElementById('treeTitle');
+  var sub = document.getElementById('treeSubtitle');
+  var respecBtn = document.getElementById('treeRespecBtn');
+  var searchBar = document.getElementById('treeSearch');
+  var legendPills = document.getElementById('treeLegendPills');
+  var legendText = document.getElementById('treeLegendText');
+  var tokensPill = document.getElementById('treeTokensPill');
+  
+  if (tab === 'passive') {
+    title.textContent = '🌳 Abyss Skill Web';
+    sub.textContent = '1000 nodes · six disciplines · every path connects. Points come from levels, depth records, lifetime floors and prestige. Small nodes cost 1 point, ★ notables & bridges 2, keystones 3.';
+    respecBtn.style.display = '';
+    respecBtn.setAttribute('onclick', 'treeRespec()');
+    respecBtn.innerHTML = '♻️ Respec (🜲 {{.RespecTk}})';
+    document.getElementById('treePointsPill').style.display = '';
+    document.getElementById('treeAvailPill').style.display = '';
+    if (tokensPill) tokensPill.style.display = 'none';
+    if (searchBar) searchBar.style.display = '';
+    if (legendPills) legendPills.style.display = '';
+    if (legendText) legendText.textContent = 'Drag to pan · wheel to zoom · click a highlighted node to allocate';
+  } else if (tab === 'talents') {
+    title.textContent = '🜲 Deep Delver Upgrades';
+    sub.textContent = 'Upgrade your permanent Deep Delver attributes using Abyss Tokens. Upgrades require prerequisite levels in the tree branch and are gated by your depth record.';
+    respecBtn.style.display = '';
+    respecBtn.setAttribute('onclick', 'resetTalents()');
+    respecBtn.innerHTML = '♻️ Refund All (🜲 10)';
+    document.getElementById('treePointsPill').style.display = 'none';
+    document.getElementById('treeAvailPill').style.display = 'none';
+    if (tokensPill) tokensPill.style.display = '';
+    if (searchBar) searchBar.style.display = 'none';
+    if (legendPills) legendPills.style.display = 'none';
+    if (legendText) legendText.textContent = 'Drag to pan · wheel to zoom · click a talent node to upgrade';
+  } else if (tab === 'specializations') {
+    title.textContent = '🎓 Specializations';
+    sub.textContent = 'Choose one active specialization to gain its powerful combat/economic perk inside the Abyss. Swapping specializations costs 🜲 25 tokens.';
+    respecBtn.style.display = 'none';
+    document.getElementById('treePointsPill').style.display = 'none';
+    document.getElementById('treeAvailPill').style.display = 'none';
+    if (tokensPill) tokensPill.style.display = '';
+    if (searchBar) searchBar.style.display = 'none';
+    if (legendPills) legendPills.style.display = 'none';
+    if (legendText) legendText.textContent = 'Drag to pan · wheel to zoom · click a specialization node to activate';
+  }
+  
+  view = (tab === 'passive') ? {x:-700, y:-700, w:1400, h:1400} : {x:-450, y:-250, w:900, h:850};
+  
+  updateTokenDisplay();
+  build();
   paint();
-  applyView();
+}
+
+async function tryUpgradeTalent(key) {
+  var level = talentLevels[key] || 0;
+  if (level >= 5) {
+    abToast('Already at maximum level.', false);
+    return;
+  }
+  var t = TALENTS.find(function(x) { return x.key === key; });
+  if (!t) return;
+  var parentNode = t.parent ? TALENTS.find(function(p) { return p.key === t.parent; }) : null;
+  var parentLvl = parentNode ? (talentLevels[parentNode.key] || 0) : 1;
+  if (parentLvl < 1) {
+    abToast('Locked — upgrade ' + parentNode.label + ' first.', false);
+    return;
+  }
+  if (bestDepth < (t.gateDepth || 0)) {
+    abToast('Locked — reach Abyss depth ' + t.gateDepth + ' first.', false);
+    return;
+  }
+  var cost = (level + 1) * 10;
+  if (tokenBalance < cost) {
+    abToast('Not enough tokens (costs 🜲 ' + cost + ').', false);
+    return;
+  }
+  
+  if (!confirm('Upgrade ' + t.label + ' to Level ' + (level + 1) + ' for 🜲 ' + cost + ' tokens?')) return;
+  
+  if (busy) return;
+  setBusy(true);
+  var d = await abPost('/api/abyss/upgrade', {node: key});
+  setBusy(false);
+  if (!d.ok) {
+    abToast(d.error || 'Failed to upgrade', false);
+    return;
+  }
+  
+  talentLevels[key] = d.level;
+  tokenBalance = d.tokens;
+  
+  abToast('🜲 Upgraded ' + t.label + ' to level ' + d.level + '!', true);
+  updateTokenDisplay();
+  build();
+  paint();
+}
+
+async function trySelectSpec(spec, label) {
+  if (spec === activeSpec) {
+    abToast('This specialization is already active.', false);
+    return;
+  }
+  
+  var costMsg = 'First pick is free!';
+  if (activeSpec !== '') {
+    costMsg = 'Swapping specializations costs 🜲 25 tokens.';
+    if (tokenBalance < 25) {
+      abToast('Not enough tokens to swap specializations (costs 🜲 25).', false);
+      return;
+    }
+  }
+  
+  var confirmText = spec === ''
+    ? 'Clear your specialization (Free)?'
+    : 'Choose ' + label + ' as your specialization? ' + costMsg;
+    
+  if (!confirm(confirmText)) return;
+  
+  if (busy) return;
+  setBusy(true);
+  var d = await abPost('/api/abyss/set_spec', {spec: spec});
+  setBusy(false);
+  if (!d.ok) {
+    abToast(d.error || 'Failed to set specialization', false);
+    return;
+  }
+  
+  activeSpec = d.spec;
+  tokenBalance = d.tokens;
+  
+  abToast(d.msg || 'Specialization set!', true);
+  updateTokenDisplay();
+  build();
+  paint();
+}
+
+function showTalentTip(t, ev) {
+  cancelHideTip();
+  tip.className = 'tree-tip tip-notable';
+  tip.style.pointerEvents = 'none';
+  
+  var level = talentLevels[t.key] || 0;
+  var maxLevel = 5;
+  var cost = (level < maxLevel) ? (level + 1) * 10 : 0;
+  
+  var parentNode = t.parent ? TALENTS.find(function(p) { return p.key === t.parent; }) : null;
+  var parentLvl = parentNode ? (talentLevels[parentNode.key] || 0) : 1;
+  var isUnlocked = parentLvl > 0 && bestDepth >= (t.gateDepth || 0);
+  
+  var nameHtml = '★ <span class="tree-tip-header-notable">' + escHtml(t.label) + '</span> <span class="muted small">(Deep Delver Upgrade)</span>';
+  var statusHtml = '';
+  
+  if (level >= maxLevel) {
+    statusHtml = '<br><span class="tt-on" style="color: #41c97a; margin-top:4px; display:inline-block;">● Max Level reached (5/5)</span>';
+  } else if (!isUnlocked) {
+    if (parentNode && parentLvl < 1) {
+      statusHtml = '<br><span class="muted small" style="color: #da3737; margin-top:4px; display:inline-block;">🔒 Locked — Requires ' + parentNode.label + ' level 1+</span>';
+    } else if (bestDepth < (t.gateDepth || 0)) {
+      statusHtml = '<br><span class="muted small" style="color: #da3737; margin-top:4px; display:inline-block;">🔒 Locked — Requires depth ' + t.gateDepth + ' (record: ' + bestDepth + ')</span>';
+    }
+  } else {
+    statusHtml = '<br><span class="tt-can" style="color: #f4c542; margin-top:4px; display:inline-block;">○ Level ' + level + '/5 — Click node to upgrade (Cost: 🜲 ' + cost + ')</span>';
+  }
+  
+  tip.innerHTML = nameHtml + '<br><span class="muted small" style="margin-top:4px; display:inline-block;">' + escHtml(t.desc) + '</span>' + statusHtml;
+  tip.style.display = '';
+  moveTip(ev);
+}
+
+function showSpecTip(s, ev) {
+  cancelHideTip();
+  tip.className = 'tree-tip tip-keystone';
+  tip.style.pointerEvents = 'none';
+  
+  var isActive = (s.key === 'initiate' && activeSpec === '') || (s.targetSpec === activeSpec && s.key !== 'initiate');
+  
+  var nameHtml = '👑 <span class="tree-tip-header-keystone">' + escHtml(s.label) + '</span> <span class="muted small">(Specialization)</span>';
+  var statusHtml = '';
+  
+  if (isActive) {
+    statusHtml = '<br><span class="tt-on" style="color: #41c97a; margin-top:4px; display:inline-block;">● Currently Active</span>';
+  } else if (s.key === 'initiate') {
+    statusHtml = '<br><span class="tt-can" style="color: #5bc0ff; margin-top:4px; display:inline-block;">○ Click node to clear your specialization (Free)</span>';
+  } else {
+    var costStr = (activeSpec === '') ? 'Free' : '🜲 25 tokens';
+    statusHtml = '<br><span class="tt-can" style="color: #f4c542; margin-top:4px; display:inline-block;">○ Click node to activate (' + costStr + ')</span>';
+  }
+  
+  tip.innerHTML = nameHtml + '<br><span class="muted small" style="margin-top:4px; display:inline-block;">' + escHtml(s.desc) + '</span>' + statusHtml;
+  tip.style.display = '';
+  moveTip(ev);
 }
 
 function paint(){
+  if (activeTab !== 'passive') {
+    updateTokenDisplay();
+    return;
+  }
   NODES.forEach(function(n){
     var cls = 'tn s'+n.sector+' t-'+n.type;
     if(alloc[n.id]) cls += ' on';
@@ -555,6 +1020,9 @@ function paint(){
   });
   document.getElementById('treeUsed').textContent = used;
   document.getElementById('treePoints').textContent = points;
+  var avail = Math.max(0, points - used);
+  document.getElementById('treeAvail').textContent = avail;
+  document.getElementById('treeAvailPill').style.opacity = avail > 0 ? '' : '0.55';
   
   // Edge Glow Intensification (Item 2)
   var glowIntensity = Math.min(12, 4 + used * 0.15);
@@ -638,13 +1106,73 @@ function clearPathHighlight() {
   });
 }
 
+// BFS from the target through unallocated nodes to the nearest allocated node
+// (or root). Returns the node IDs to allocate in order, or null if unreachable.
+function pathToAllocated(targetId){
+  if(alloc[targetId]) return null;
+  var prev = {}; prev[targetId] = -1;
+  var q = [targetId];
+  while(q.length){
+    var u = q.shift();
+    var ns = adj[u] || [];
+    for(var i=0;i<ns.length;i++){
+      var v = ns[i];
+      if(v === 0 || alloc[v]){
+        var chain = [];
+        for(var c = u; c !== -1; c = prev[c]) chain.push(c);
+        return chain; // nearest-allocated first … target last
+      }
+      if(!(v in prev)){ prev[v] = u; q.push(v); }
+    }
+  }
+  return null;
+}
+function pathCost(chain){
+  var pc = 0;
+  (chain || []).forEach(function(id){ pc += nodeCost(byId[id]); });
+  return pc;
+}
+function pathGateBlock(chain){
+  for(var i=0;i<(chain||[]).length;i++){
+    var gf = gateFloor(byId[chain[i]]);
+    if(gf > bestDepth) return gf;
+  }
+  return 0;
+}
+
+// Auto-allocate every node along the shortest route to id (Item: auto-skill
+// path). Each step goes through the normal allocate API so the server stays
+// authoritative about connectivity, gates and cost.
+async function tryAutoPath(id){
+  var chain = pathToAllocated(id);
+  if(!chain){ abToast('No route to that node.', false); return; }
+  var gf = pathGateBlock(chain);
+  if(gf){ abToast('Path blocked — a node on it requires clearing Abyss floor ' + gf + ' (your record: ' + bestDepth + ').', false); return; }
+  var pc = pathCost(chain);
+  if(used + pc > points){ abToast('Path costs ' + pc + ' points — you have ' + Math.max(0, points - used) + ' available.', false); return; }
+  if(!confirm('Auto-allocate ' + chain.length + ' node' + (chain.length>1?'s':'') + ' along the path for ' + pc + ' points?')) return;
+  var completed = true;
+  for(var i=0;i<chain.length;i++){
+    var d = await abPost('/api/abyss/tree/allocate', {node_id: chain[i]});
+    if(!d.ok){ abToast(d.error||'failed', false); completed = false; break; }
+    alloc[chain[i]] = true; used = d.used; points = d.points;
+    applyServerTotals(d);
+  }
+  paint();
+  renderSummary(activePct, activeStats);
+  if(completed) abToast('🌳 Path allocated — ' + chain.length + ' node' + (chain.length>1?'s':'') + ' for ' + pc + ' points.', true);
+}
+
 async function tryAllocate(id){
   if(alloc[id]){ abToast('Already allocated.', false); return; }
   if(!isAllocatable(id)){
     var gf = gateFloor(byId[id]);
-    abToast(gf > bestDepth ? 'Locked — clear Abyss floor ' + gf + ' first (your record: ' + bestDepth + ').'
-      : used >= points ? 'No points available — descend deeper, level up or prestige.'
-      : 'Not connected to your path yet.', false);
+    if(gf > bestDepth){
+      abToast('Locked — clear Abyss floor ' + gf + ' first (your record: ' + bestDepth + ').', false);
+      return;
+    }
+    // Not connected (or too expensive as a single step): try the whole path.
+    tryAutoPath(id);
     return;
   }
   var d = await abPost('/api/abyss/tree/allocate', {node_id: id});
@@ -656,14 +1184,45 @@ async function tryAllocate(id){
   renderSummary(activePct, activeStats);
 }
 
-// Single-node refund handler (Item 48)
+// How many allocated nodes a refund of id would remove: the node itself plus
+// any allocated dependents left disconnected once it goes. Mirrors the server's
+// treeRefundSet so the confirm prompt shows the true cost.
+function refundSet(id){
+  if(!alloc[id]) return [];
+  var keep = {};
+  Object.keys(alloc).forEach(function(k){ if(alloc[k] && (+k)!==id) keep[+k]=true; });
+  var reached = {0:true}, q=[0];
+  while(q.length){
+    var u=q.shift(), ns=adj[u]||[];
+    for(var i=0;i<ns.length;i++){ var v=ns[i]; if((keep[v]||v===0)&&!reached[v]){ reached[v]=true; q.push(v); } }
+  }
+  var set=[id];
+  Object.keys(alloc).forEach(function(k){ var v=+k; if(alloc[v]&&v!==id&&!reached[v]) set.push(v); });
+  return set;
+}
+function refundGold(id){
+  var set = refundSet(id), pts = 0;
+  set.forEach(function(nid){ pts += nodeCost(byId[nid]); });
+  return pts * 100; // must match abyssTreeRefundGoldPerPoint server-side
+}
+
+// Node refund handler (Item 48). Refunds cost gold and cascade to dependents
+// ("refund until this node").
 async function tryRefund(ev, id){
   ev.stopPropagation();
-  if(!confirm('Refund this node for 🜲 1?')) return;
+  var set = refundSet(id), gold = refundGold(id);
+  var prompt = set.length > 1
+    ? 'Refund this node and ' + (set.length-1) + ' dependent node' + (set.length-1>1?'s':'') + ' for 🜲 ' + gold + ' gold?'
+    : 'Refund this node for 🜲 ' + gold + ' gold?';
+  if(!confirm(prompt)) return;
   var d = await abPost('/api/abyss/tree/refund', {node_id: id});
   if(!d.ok){ abToast(d.error||'failed', false); return; }
-  alloc[id] = false; delete alloc[id];
+  (d.refunded || [id]).forEach(function(nid){ delete alloc[nid]; });
   used = d.used; points = d.points;
+  if(typeof d.gold === 'number'){
+    var gp = document.getElementById('goldPill');
+    if(gp) gp.textContent = '🪙 ' + d.gold.toLocaleString();
+  }
   abToast(d.msg, true);
   applyServerTotals(d);
   paint();
@@ -686,7 +1245,9 @@ var PCT_LABELS = {
   str_to_spd:'STR converted to SPD', hp_to_def:'HP converted to DEF', spd_to_dge:'SPD converted to DGE', int_to_mna:'INT converted to MNA',
   xp_to_gold:'floor XP converted to Gold', ult_cooldown:'Ultimate Cooldown reduction', ult_damage:'Ultimate Skill damage',
   def_to_lifesteal:'DEF converted to Lifesteal', pet_betrayal_reduce:'pet betrayal reduction', pet_damage_pct:'pet attack damage',
-  stun_immunity:'Stun Immunity', limit_break:'Limit Break'
+  stun_immunity:'Stun Immunity', limit_break:'Limit Break',
+  skill_damage:'Skill damage', skill_mana_cost:'Skill mana cost reduction',
+  consumable_save:'chance consumables keep their charge'
 };
 
 function renderSummary(pct, stats, diffNode){
@@ -789,15 +1350,31 @@ function showTip(n, ev){
   
   var actionHtml = '';
   if (alloc[n.id]) {
+    var rset = refundSet(n.id), rgold = refundGold(n.id);
+    var refundLabel = rset.length > 1
+      ? 'Refund ' + rset.length + ' nodes (🜲 ' + rgold + ')'
+      : 'Refund (🜲 ' + rgold + ')';
     actionHtml = '<br><span class="tt-on" style="margin-top:4px; display:inline-block;">● allocated</span>' +
-                 '<br><button class="btn-refund" onclick="tryRefund(event, ' + n.id + ')">Refund (🜲 1)</button>';
+                 '<br><button class="btn-refund" onclick="tryRefund(event, ' + n.id + ')">' + refundLabel + '</button>';
   } else if (isAllocatable(n.id)) {
-    actionHtml = '<br><span class="tt-can" style="margin-top:4px; display:inline-block;">○ click to allocate</span>';
+    actionHtml = '<br><span class="tt-can" style="margin-top:4px; display:inline-block;">○ click to allocate — costs ' + nodeCost(n) + ' pt' + (nodeCost(n)>1?'s':'') + '</span>';
   } else {
     var gf = gateFloor(n);
-    actionHtml = '<br><span class="muted small" style="margin-top:4px; display:inline-block;">' +
-      (gf > bestDepth ? '🔒 Requires clearing Abyss floor ' + gf + ' (your record: ' + bestDepth + ')' : '🔒 not connected / no points') +
-      '</span>';
+    if (gf > bestDepth) {
+      actionHtml = '<br><span class="muted small" style="margin-top:4px; display:inline-block;">🔒 Requires clearing Abyss floor ' + gf + ' (your record: ' + bestDepth + ')</span>';
+    } else {
+      var chain = pathToAllocated(n.id);
+      var pc = pathCost(chain);
+      if (chain && !pathGateBlock(chain) && used + pc <= points) {
+        actionHtml = '<br><span class="tt-can" style="margin-top:4px; display:inline-block;">○ click to auto-allocate the path — ' + chain.length + ' node' + (chain.length>1?'s':'') + ', ' + pc + ' pts</span>';
+      } else if (chain && pathGateBlock(chain)) {
+        actionHtml = '<br><span class="muted small" style="margin-top:4px; display:inline-block;">🔒 path passes a node gated behind Abyss floor ' + pathGateBlock(chain) + '</span>';
+      } else if (chain) {
+        actionHtml = '<br><span class="muted small" style="margin-top:4px; display:inline-block;">🔒 path costs ' + pc + ' pts — you have ' + Math.max(0, points - used) + ' available</span>';
+      } else {
+        actionHtml = '<br><span class="muted small" style="margin-top:4px; display:inline-block;">🔒 no route / no points</span>';
+      }
+    }
   }
   
   tip.innerHTML = nameHtml + '<br><span class="muted small" style="margin-top:4px; display:inline-block;">'+escHtml(n.desc||'')+'</span>'+ actionHtml;

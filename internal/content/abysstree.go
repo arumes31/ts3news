@@ -11,6 +11,7 @@ package content
 
 import (
 	"fmt"
+	"hash/fnv"
 	"math"
 	"math/rand/v2"
 	"sort"
@@ -331,6 +332,16 @@ func buildAbyssTree() *AbyssTreeData {
 				n.Stats = n.Stats.Scaled(3)
 				n.Pct = map[string]float64{"stun_immunity": 1.0}
 				isCustom = true
+			} else if ring == 17 && slot == 11 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{"skill_damage": 0.20, "skill_mana_cost": 0.25}
+				isCustom = true
+			} else if ring == 13 && slot == 33 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{"consumable_save": 0.25}
+				isCustom = true
 			}
 
 			if !isCustom && notable {
@@ -438,15 +449,64 @@ func buildAbyssTree() *AbyssTreeData {
 	}
 	for ring := 1; ring <= treeRings; ring++ {
 		for slot := 0; slot < treeSlots; slot++ {
-			// Radial spokes.
+			rel := slot % treeLanes
+
+			// Radial spokes based on branch active states
 			if ring < treeRings {
-				addEdge(gridID(ring, slot), gridID(ring+1, slot))
+				if rel == 2 || rel == 3 {
+					// Main trunks go straight out radially
+					addEdge(gridID(ring, slot), gridID(ring+1, slot))
+				} else if rel == 1 || rel == 4 {
+					if ring >= 4 {
+						addEdge(gridID(ring, slot), gridID(ring+1, slot))
+					}
+				} else if rel == 0 || rel == 5 {
+					if ring >= 9 {
+						addEdge(gridID(ring, slot), gridID(ring+1, slot))
+					}
+				}
 			}
-			// Organic maze-like broken lateral connections:
-			// Seed a PCG random generator deterministically for this link
+
+			// Lateral links to connect sub-branches below split points
+			if rel == 1 {
+				if ring < 4 {
+					addEdge(gridID(ring, slot), gridID(ring, slot+1))
+				} else if ring == 4 {
+					addEdge(gridID(ring, slot), gridID(ring, slot+1))
+				}
+			} else if rel == 0 {
+				if ring < 9 {
+					addEdge(gridID(ring, slot), gridID(ring, slot+1))
+				} else if ring == 9 {
+					addEdge(gridID(ring, slot), gridID(ring, slot+1))
+				}
+			} else if rel == 4 {
+				if ring < 4 {
+					addEdge(gridID(ring, slot), gridID(ring, slot-1))
+				} else if ring == 4 {
+					addEdge(gridID(ring, slot), gridID(ring, slot-1))
+				}
+			} else if rel == 5 {
+				if ring < 9 {
+					addEdge(gridID(ring, slot), gridID(ring, slot-1))
+				} else if ring == 9 {
+					addEdge(gridID(ring, slot), gridID(ring, slot-1))
+				}
+			}
+
+			// Organic maze-like broken lateral connections (probability reduced to 0.05)
 			rEdge := rand.New(rand.NewPCG(uint64(ring*1000+slot), 555))
-			if slot%treeLanes != treeLanes-1 && rEdge.Float64() < 0.65 {
-				addEdge(gridID(ring, slot), gridID(ring, slot+1))
+			if slot%treeLanes != treeLanes-1 && rEdge.Float64() < 0.05 {
+				alreadyConnected := false
+				for _, neighbor := range t.Adj[gridID(ring, slot)] {
+					if neighbor == gridID(ring, slot+1) {
+						alreadyConnected = true
+						break
+					}
+				}
+				if !alreadyConnected {
+					addEdge(gridID(ring, slot), gridID(ring, slot+1))
+				}
 			}
 		}
 	}
@@ -483,12 +543,137 @@ func buildAbyssTree() *AbyssTreeData {
 	return t
 }
 
+// Cost is the node's skill-point price: bigger nodes cost more. Small grid
+// nodes and sockets cost 1, notables and bridges 2, keystones 3.
+func (n *TreeNode) Cost() int {
+	switch n.Type {
+	case "keystone":
+		return 3
+	case "notable", "bridge":
+		return 2
+	}
+	return 1
+}
+
+// LayoutHash fingerprints the generated web: node identities, types, point
+// costs, effect values and every edge. Any code change that alters the layout
+// or balance changes the hash; the bot compares it against the stored value at
+// startup and grants a free full respec to every player on mismatch. Names and
+// descriptions are deliberately excluded — cosmetic edits must not wipe trees.
+func (t *AbyssTreeData) LayoutHash() string {
+	h := fnv.New64a()
+	for i := range t.Nodes {
+		n := &t.Nodes[i]
+		fmt.Fprintf(h, "n:%d:%s:%d:%d:%d:%s;", n.ID, n.Type, n.Ring, n.Slot, n.Cost(), statsBrief(n.Stats))
+		pctKeys := make([]string, 0, len(n.Pct))
+		for k := range n.Pct {
+			pctKeys = append(pctKeys, k)
+		}
+		sort.Strings(pctKeys)
+		for _, k := range pctKeys {
+			fmt.Fprintf(h, "p:%s=%g;", k, n.Pct[k])
+		}
+	}
+	ids := make([]int, 0, len(t.Adj))
+	for id := range t.Adj {
+		ids = append(ids, id)
+	}
+	sort.Ints(ids)
+	for _, id := range ids {
+		nbs := append([]int(nil), t.Adj[id]...)
+		sort.Ints(nbs)
+		for _, nb := range nbs {
+			if id < nb {
+				fmt.Fprintf(h, "e:%d-%d;", id, nb)
+			}
+		}
+	}
+	return fmt.Sprintf("%016x", h.Sum64())
+}
+
+// SpentPoints sums the skill-point cost of the allocated node IDs. Unknown
+// IDs (rows saved under an older layout) count as 1 so they never panic.
+func (t *AbyssTreeData) SpentPoints(alloc []int) int {
+	spent := 0
+	for _, id := range alloc {
+		if n := t.Node(id); n != nil {
+			spent += n.Cost()
+		} else {
+			spent++
+		}
+	}
+	return spent
+}
+
 // polar fills a node's layout position from its ring/slot.
 func polar(n *TreeNode) { n.X, n.Y = polarXY(float64(n.Ring), float64(n.Slot)) }
 
 func polarXY(ring, slot float64) (float64, float64) {
 	radius := 60 + ring*34
-	angle := (slot/float64(treeSlots))*2*math.Pi - math.Pi/2
+	
+	// Determine sector and slot index within sector
+	slotInt := int(math.Round(slot)) % treeSlots
+	if slotInt < 0 {
+		slotInt += treeSlots
+	}
+	sector := slotInt / treeLanes
+	rel := slotInt % treeLanes
+
+	// Base center angle for the sector
+	centerAngle := (float64(sector)*6.0 + 2.5) / 36.0 * 2.0 * math.Pi - math.Pi/2.0
+	spanHalf := math.Pi / 6.0 // 30 degrees (half of sector span)
+
+	// Calculate fraction from sector center (-1.0 to 1.0)
+	var fraction float64
+	switch rel {
+	case 2:
+		fraction = -0.15
+	case 3:
+		fraction = 0.15
+	case 1:
+		if ring < 4.0 {
+			fraction = -0.22
+		} else {
+			fraction = -0.22 - 0.38*(ring-4.0)/22.0 // branches out to -0.6
+		}
+	case 0:
+		var f1 float64
+		if ring < 4.0 {
+			f1 = -0.22
+		} else {
+			f1 = -0.22 - 0.38*(ring-4.0)/22.0
+		}
+		if ring < 9.0 {
+			fraction = f1 - 0.07
+		} else {
+			f1At9 := -0.22 - 0.38*(5.0)/22.0
+			fraction = (f1At9 - 0.07) - 0.57*(ring-9.0)/17.0 // branches out to -0.95
+		}
+	case 4:
+		if ring < 4.0 {
+			fraction = 0.22
+		} else {
+			fraction = 0.22 + 0.38*(ring-4.0)/22.0 // branches out to 0.6
+		}
+	case 5:
+		var f4 float64
+		if ring < 4.0 {
+			f4 = 0.22
+		} else {
+			f4 = 0.22 + 0.38*(ring-4.0)/22.0
+		}
+		if ring < 9.0 {
+			fraction = f4 + 0.07
+		} else {
+			f4At9 := 0.22 + 0.38*(5.0)/22.0
+			fraction = (f4At9 + 0.07) + 0.57*(ring-9.0)/17.0 // branches out to 0.95
+		}
+	default:
+		// Fallback to straight line
+		fraction = (float64(rel) - 2.5) / 3.0
+	}
+
+	angle := centerAngle + fraction*spanHalf
 
 	// Seed PCG generator deterministically per position to add organic jitter
 	seedVal := uint64(math.Round(ring)*1000 + math.Round(slot))
@@ -658,6 +843,12 @@ func treeNodeText(n *TreeNode) (string, string) {
 	if n.Ring == 18 && n.Slot == 4 {
 		return "🛡️ Unbreakable", "Grants immunity to stun effects in combat."
 	}
+	if n.Ring == 17 && n.Slot == 11 {
+		return "🔮 Spellweaver", "Skill casts deal +20% damage and cost 25% less mana."
+	}
+	if n.Ring == 13 && n.Slot == 33 {
+		return "🧪 Alchemist's Ritual", "25% chance after each fight that your consumables lose no charge."
+	}
 
 	star := ""
 	if n.Type == "notable" {
@@ -718,6 +909,12 @@ func treePctLabel(k string) string {
 		return "Stun Immunity"
 	case "limit_break":
 		return "Limit Break"
+	case "skill_damage":
+		return "Skill damage"
+	case "skill_mana_cost":
+		return "Skill mana cost reduction"
+	case "consumable_save":
+		return "chance consumables keep their charge"
 	}
 	return k
 }

@@ -317,38 +317,9 @@
 </div>
 
 <div class="abyss-cols">
-  <!-- Deep Delver upgrades [44][45] -->
   <section class="abyss-panel">
-    <h2>{{T "web.abyss.deep_delver"}} <button class="ghost xs" onclick="resetTalents()" style="float:right; margin-top:-4px;">Refund All (🜲 10)</button></h2>
-    <p class="muted small">{{T "web.abyss.deep_delver_desc"}}</p>
-    <div class="ab-upgrades ab-tree-core">
-      {{template "abUpgrade" dict "Node" "vigor"    "Name" "Vigor"    "Desc" "Start runs with +HP"          "Lv" .Stats.UpVigor}}
-      {{template "abUpgrade" dict "Node" "greed"    "Name" "Greed"    "Desc" "+5% cache bonus / level"      "Lv" .Stats.UpGreed}}
-      {{template "abUpgrade" dict "Node" "fortune"  "Name" "Fortune"  "Desc" "Better loot in the deep"      "Lv" .Stats.UpFortune}}
-      {{template "abUpgrade" dict "Node" "ward"     "Name" "Ward"     "Desc" "Cheaper insurance premiums"   "Lv" .Stats.UpWard}}
-      {{template "abUpgrade" dict "Node" "interest" "Name" "Compounding" "Desc" "+0.1% cache interest / level" "Lv" .Stats.UpInterest}}
-      {{template "abUpgrade" dict "Node" "tribute"  "Name" "Tribute"  "Desc" "+10% bank tokens / level"     "Lv" .Stats.UpTribute}}
-      {{template "abUpgrade" dict "Node" "insight"  "Name" "Insight"  "Desc" "+5% floor reward XP / level"   "Lv" .Stats.UpInsight}}
-    </div>
-    <div class="ab-tree-branch-label muted small">⬐ Expansion branch — unlocked by depth records</div>
-    <div class="ab-upgrades ab-tree-branch">
-      {{template "abUpgrade" dict "Node" "swiftness"     "Name" "Swiftness ⛓️10"     "Desc" "Faster combat log / level"            "Lv" .Stats.UpSwiftness}}
-      {{template "abUpgrade" dict "Node" "scavenger"     "Name" "Scavenger ⛓️15"     "Desc" "+20% crafting materials / level"      "Lv" .Stats.UpScavenger}}
-      {{template "abUpgrade" dict "Node" "mercy"         "Name" "Mercy ⛓️20"         "Desc" "+8% revive-offer odds, stronger Last Stand" "Lv" .Stats.UpMercy}}
-      {{template "abUpgrade" dict "Node" "cartographer"  "Name" "Cartographer ⛓️25"  "Desc" "Rift peeks see further and cost less" "Lv" .Stats.UpCartographer}}
-      {{template "abUpgrade" dict "Node" "quartermaster" "Name" "Quartermaster ⛓️30" "Desc" "+1 consumable carry slot / level"     "Lv" .Stats.UpQuartermaster}}
-    </div>
-
-    <!-- Specialization (#161): one active class perk, swap costs tokens -->
-    <div class="ab-setbonus" style="margin-top:14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
-      <h3 style="margin:0 0 6px;">🎓 Specialization <span class="ab-up-lv">{{if .Spec}}{{.Spec}}{{else}}none{{end}}</span></h3>
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        {{range $key, $desc := .SpecDefs}}
-        <button class="ghost xs" onclick="abyssSetSpec('{{$key}}')" {{if eq $key $.Spec}}disabled{{end}}>{{$desc}}{{if eq $key $.Spec}} ✓{{end}}</button>
-        {{end}}
-        <span class="muted small">First pick free · swapping costs 🜲 25</span>
-      </div>
-    </div>
+    <h2>🛡️ Set Bonuses</h2>
+    <p class="muted small" style="margin-bottom:12px;">Equip pieces from the same set to activate cumulative stat increases.</p>
 
     <!-- Abyss Set bonuses: cumulative tiers for equipping ABYSS_ gear -->
     <div class="ab-setbonus" style="margin-top:14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">

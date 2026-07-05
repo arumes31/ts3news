@@ -8,12 +8,78 @@ package bot
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"ts3news/internal/content"
 )
 
 const abyssTreeRespecTokens = 50
+
+// abyssTreeRefundGoldPerPoint is the gold charged per skill point when refunding
+// nodes individually (single or bulk "refund until this node"). Unlike the full
+// respec (tokens), single refunds are a gold sink so players can retune freely.
+const abyssTreeRefundGoldPerPoint = 100
+
+// treeRefundSet returns the set of allocated node IDs that must be refunded when
+// the player refunds target: target itself plus every other allocated node that
+// would be left disconnected from the root once target is removed (its
+// dependents further out the branch). The returned slice always contains target.
+func treeRefundSet(tree *content.AbyssTreeData, alloc []int, target int) []int {
+	keep := make(map[int]bool)
+	for _, id := range alloc {
+		if id != target {
+			keep[id] = true
+		}
+	}
+	// BFS from root through the still-allocated nodes; anything unreached is a
+	// dependent of target.
+	reached := map[int]bool{0: true}
+	queue := []int{0}
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+		for _, nb := range tree.Adj[curr] {
+			if (keep[nb] || nb == 0) && !reached[nb] {
+				reached[nb] = true
+				queue = append(queue, nb)
+			}
+		}
+	}
+	set := []int{target}
+	for _, id := range alloc {
+		if id != target && !reached[id] {
+			set = append(set, id)
+		}
+	}
+	return set
+}
+
+// resetAbyssTreeOnLayoutChange wipes every player's allocated web nodes — a
+// free full respec — when the generated layout no longer matches the layout
+// hash the allocations were made under, then records the current hash. Points
+// are derived (level/depth/floors/prestige), so nothing is lost but the
+// allocation choices, which may be invalid on the new layout anyway.
+func (b *Bot) resetAbyssTreeOnLayoutChange() {
+	hash := content.AbyssTree().LayoutHash()
+	var stored string
+	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key='abyss_tree_layout'").Scan(&stored)
+	if stored == hash {
+		return
+	}
+	res, err := b.DB.Exec("DELETE FROM user_abyss_tree")
+	if err != nil {
+		log.Printf("Abyss skill web reset failed (layout %q -> %q): %v", stored, hash, err)
+		return
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		log.Printf("Abyss skill web layout changed (%q -> %q): wiped %d allocated nodes — free respec for all players", stored, hash, n)
+	}
+	if _, err := b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ('abyss_tree_layout', $1)
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, hash); err != nil {
+		log.Printf("Abyss skill web layout hash save failed: %v", err)
+	}
+}
 
 // loadTreeAllocated returns the player's allocated node IDs. It fails closed:
 // callers that gate spending (allocate, respec) must treat an error as "state
@@ -123,6 +189,12 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		pctView[treePctLabelPublic(k)] = fmt.Sprintf("%+.1f%%", v*100)
 	}
 
+	used := tree.SpentPoints(alloc)
+	avail := total - used
+	if avail < 0 {
+		avail = 0
+	}
+
 	s.render(w, "abysstree", map[string]any{
 		"Title":     "Abyss Skill Web",
 		"Nav":       "abyss",
@@ -131,7 +203,8 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		"Edges":     edges,
 		"Allocated": alloc,
 		"Points":    total,
-		"Used":      len(alloc),
+		"Used":      used,
+		"Avail":     avail,
 		"BonusPct":  pctView,
 		// Raw maps seed the client summary so it always mirrors the
 		// server-computed totals (socket adjacency, Temporal Shift, prestige).
@@ -142,6 +215,12 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		// advertising an allocate the server would refuse.
 		"BestDepth": s.bot.loadAbyssStats(uid).BestDepth,
 		"RespecTk":  abyssTreeRespecTokens,
+		// Talent/Spec updates
+		"Stats":     s.bot.loadAbyssStats(uid),
+		"Spec":      s.bot.abyssSpec(uid),
+		"SpecDefs":  abyssSpecs,
+		"Tokens":    s.bot.abyssTokens(uid),
+		"NodeGates": abyssUpgradeMinDepth,
 	})
 }
 
@@ -152,6 +231,8 @@ func treePctLabelPublic(k string) string {
 		"int_pct": "INT (Abyss)", "gold_find": "gold from drops", "loot_find": "loot find",
 		"escrow_bonus": "escrow floor bonus", "xp_gain": "floor XP",
 		"token_gain": "tokens on bank", "material_yield": "crafting materials",
+		"skill_damage": "skill damage", "skill_mana_cost": "skill mana cost reduction",
+		"consumable_save": "chance consumables keep their charge",
 	}
 	if l, ok := labels[k]; ok {
 		return l
@@ -159,8 +240,9 @@ func treePctLabelPublic(k string) string {
 	return k
 }
 
-// handleAbyssTreeAllocate spends one point on a node. The node must extend a
-// connected path: adjacent to an already-allocated node or to the root.
+// handleAbyssTreeAllocate spends the node's point cost (1/2/3 by size) on a
+// node. The node must extend a connected path: adjacent to an already-allocated
+// node or to the root.
 func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -198,8 +280,10 @@ func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Reque
 		writeJSON(w, map[string]any{"ok": false, "error": "already allocated"})
 		return
 	}
-	if len(alloc) >= s.bot.treePointsTotal(uid) {
-		writeJSON(w, map[string]any{"ok": false, "error": "no skill points available — descend deeper, level up or prestige"})
+	spent := tree.SpentPoints(alloc)
+	cost := node.Cost()
+	if spent+cost > s.bot.treePointsTotal(uid) {
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("not enough skill points — this node costs %d (spent %d of %d)", cost, spent, s.bot.treePointsTotal(uid))})
 		return
 	}
 	connected := false
@@ -238,7 +322,7 @@ func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Reque
 
 	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{
-		"ok": true, "node_id": req.NodeID, "used": len(alloc) + 1,
+		"ok": true, "node_id": req.NodeID, "used": spent + cost,
 		"points": s.bot.treePointsTotal(uid),
 		"msg":    "🌳 Allocated: " + node.Name,
 		"stats":  tb.Stats, "pct": tb.Pct,
@@ -284,7 +368,10 @@ func (s *WebServer) handleAbyssTreeRespec(w http.ResponseWriter, r *http.Request
 		"tokens": s.bot.abyssTokens(uid)})
 }
 
-// handleAbyssTreeRefund refunds a single node for 1 token (Item 48).
+// handleAbyssTreeRefund refunds a node for gold (Item 48). Refunding a node that
+// other allocated nodes branch off of would disconnect them, so the refund
+// always cascades "until this node": the target plus every dependent further out
+// the branch is refunded together. Cost is gold per skill point refunded.
 func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -325,38 +412,17 @@ func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Build a map of allocated nodes excluding the target node
-	allocatedMap := make(map[int]bool)
-	for _, id := range alloc {
-		if id != req.NodeID {
-			allocatedMap[id] = true
+	// The target plus every dependent that would be orphaned once it is removed.
+	refundIDs := treeRefundSet(tree, alloc, req.NodeID)
+	refundCost := 0
+	for _, id := range refundIDs {
+		if n := tree.Node(id); n != nil {
+			refundCost += n.Cost()
+		} else {
+			refundCost++
 		}
 	}
-
-	// Verify connectivity of all remaining allocated nodes to the root (0) using BFS
-	visited := make(map[int]bool)
-	queue := []int{0}
-	visited[0] = true
-
-	for len(queue) > 0 {
-		curr := queue[0]
-		queue = queue[1:]
-
-		for _, nb := range tree.Adj[curr] {
-			if (allocatedMap[nb] || nb == 0) && !visited[nb] {
-				visited[nb] = true
-				queue = append(queue, nb)
-			}
-		}
-	}
-
-	// If any other allocated node is not reachable from the root, we cannot refund
-	for _, id := range alloc {
-		if id != req.NodeID && !visited[id] {
-			writeJSON(w, map[string]any{"ok": false, "error": "cannot refund: other allocated nodes would be disconnected"})
-			return
-		}
-	}
+	goldCost := int64(refundCost) * abyssTreeRefundGoldPerPoint
 
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
@@ -365,40 +431,49 @@ func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	res, err := tx.Exec("DELETE FROM user_abyss_tree WHERE client_uid=$1 AND node_id=$2", uid, req.NodeID)
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+	for _, id := range refundIDs {
+		if _, err := tx.Exec("DELETE FROM user_abyss_tree WHERE client_uid=$1 AND node_id=$2", uid, id); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
+	if !deductGold(w, tx, uid, goldCost) {
 		return
 	}
-	if affected, _ := res.RowsAffected(); affected == 0 {
-		writeJSON(w, map[string]any{"ok": false, "error": "node not found or already refunded"})
-		return
-	}
-
-	// Deduct 1 Respec Token for individual node refund
-	if !deductTokens(w, tx, uid, 1) {
-		return
-	}
-
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 
 	// Recalculate stats for response
+	refunded := make(map[int]bool, len(refundIDs))
+	for _, id := range refundIDs {
+		refunded[id] = true
+	}
 	var remainingAlloc []int
 	for _, id := range alloc {
-		if id != req.NodeID {
+		if !refunded[id] {
 			remainingAlloc = append(remainingAlloc, id)
 		}
 	}
 
+	msg := "🌳 Refunded: " + node.Name
+	if len(refundIDs) > 1 {
+		msg = fmt.Sprintf("🌳 Refunded %d nodes (down to %s) for 🜲 %d gold.", len(refundIDs), node.Name, goldCost)
+	} else {
+		msg = fmt.Sprintf("🌳 Refunded: %s for 🜲 %d gold.", node.Name, goldCost)
+	}
+
+	var gold int64
+	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+
 	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{
-		"ok": true, "node_id": req.NodeID, "used": len(remainingAlloc),
-		"points": s.bot.treePointsTotal(uid),
-		"msg":    "🌳 Refunded: " + node.Name,
-		"stats":  tb.Stats, "pct": tb.Pct,
-		"tokens": s.bot.abyssTokens(uid),
+		"ok": true, "node_id": req.NodeID, "used": tree.SpentPoints(remainingAlloc),
+		"points":   s.bot.treePointsTotal(uid),
+		"refunded": refundIDs,
+		"msg":      msg,
+		"stats":    tb.Stats, "pct": tb.Pct,
+		"gold": gold,
 	})
 }
