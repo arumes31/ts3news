@@ -706,7 +706,7 @@ func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	msg := "🌳 Refunded: " + node.Name
+	var msg string
 	if len(refundIDs) > 1 {
 		msg = fmt.Sprintf("🌳 Refunded %d nodes (down to %s) for 🜲 %d gold.", len(refundIDs), node.Name, goldCost)
 	} else {

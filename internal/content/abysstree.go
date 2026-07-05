@@ -630,14 +630,14 @@ func (t *AbyssTreeData) LayoutHash() string {
 	h := fnv.New64a()
 	for i := range t.Nodes {
 		n := &t.Nodes[i]
-		fmt.Fprintf(h, "n:%d:%s:%d:%d:%d:%s;", n.ID, n.Type, n.Ring, n.Slot, n.Cost(), statsBrief(n.Stats))
+		_, _ = fmt.Fprintf(h, "n:%d:%s:%d:%d:%d:%s;", n.ID, n.Type, n.Ring, n.Slot, n.Cost(), statsBrief(n.Stats))
 		pctKeys := make([]string, 0, len(n.Pct))
 		for k := range n.Pct {
 			pctKeys = append(pctKeys, k)
 		}
 		sort.Strings(pctKeys)
 		for _, k := range pctKeys {
-			fmt.Fprintf(h, "p:%s=%g;", k, n.Pct[k])
+			_, _ = fmt.Fprintf(h, "p:%s=%g;", k, n.Pct[k])
 		}
 	}
 	ids := make([]int, 0, len(t.Adj))
@@ -650,7 +650,7 @@ func (t *AbyssTreeData) LayoutHash() string {
 		sort.Ints(nbs)
 		for _, nb := range nbs {
 			if id < nb {
-				fmt.Fprintf(h, "e:%d-%d;", id, nb)
+				_, _ = fmt.Fprintf(h, "e:%d-%d;", id, nb)
 			}
 		}
 	}
