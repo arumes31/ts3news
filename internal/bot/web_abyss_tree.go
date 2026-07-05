@@ -450,6 +450,9 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		"U":         u,
 		"Nodes":     tree.Nodes,
 		"Edges":     edges,
+		// Only the handful of real cross-sector portals render with the distinct
+		// animated style; every other long edge stays a plain skill path.
+		"Portals": tree.Portals,
 		"Allocated": alloc,
 		"Points":    total,
 		"Used":      used,

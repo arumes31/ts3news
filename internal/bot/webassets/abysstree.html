@@ -36,7 +36,7 @@
 }
 .te.half {
   stroke-dasharray: 4 4;
-  animation: flowPulse 3s linear infinite;
+  /* No animation: only fully-allocated (.on) edges flow. */
   stroke: rgba(244, 197, 66, 0.4) !important;
   stroke-width: 2 !important;
 }
@@ -98,15 +98,14 @@
   stroke: #4fd6e0 !important;
   stroke-dasharray: 5 7;
   stroke-width: 1.8 !important;
-  opacity: 0.5;
-  animation: portalFlow 2.4s linear infinite;
+  opacity: 0.45;
+  /* Static until allocated — only the .on state animates. */
 }
 .te.te-chaotic.half {
   stroke: rgba(79, 214, 224, 0.55) !important;
   stroke-dasharray: 5 7;
   stroke-width: 2 !important;
-  opacity: 0.75;
-  animation: portalFlow 2.4s linear infinite;
+  opacity: 0.7;
 }
 .te.te-chaotic.on {
   stroke: #b7f5fb !important;
@@ -322,6 +321,10 @@
 <script data-cfasync="false">
 var NODES = {{jsonJS .Nodes}};
 var EDGES = {{jsonJS .Edges}};
+// Only the real cross-sector portal edges get the distinct animated style; every
+// other long edge is a plain skill path. Keyed "min-max" for O(1) lookup.
+var PORTAL_SET = {};
+(function(){ var ps = {{jsonJS .Portals}} || []; ps.forEach(function(p){ var lo = Math.min(p[0], p[1]), hi = Math.max(p[0], p[1]); PORTAL_SET[lo + '-' + hi] = true; }); })();
 var alloc = {};
 {{range .Allocated}}alloc[{{.}}] = true;
 {{end}}
@@ -727,8 +730,9 @@ function build(){
         l.setAttribute('d', 'M ' + a.x + ' ' + a.y + ' L ' + b.x + ' ' + b.y);
       }
       
-      // Check if the edge is a long-distance chaotic portal
-      var isPortal = (dx*dx + dy*dy) > 180*180;
+      // Only the actual cross-sector portals render as chaotic — not every long
+      // edge — so the dense inner web stays plain instead of a cyan tangle.
+      var isPortal = !!PORTAL_SET[(e[0] < e[1] ? e[0] + '-' + e[1] : e[1] + '-' + e[0])];
       l.setAttribute('class', isPortal ? 'te te-chaotic' : 'te');
       l._isPortal = isPortal;
       if (isPortal) {
@@ -839,8 +843,11 @@ function build(){
       var cLvl = talentLevels[t.key] || 0;
       var active = pLvl > 0 && cLvl > 0;
       var half = pLvl > 0 && cLvl === 0;
-      
+
       l.setAttribute('class', 'te' + (active ? ' on' : half ? ' half' : ''));
+      // Locked edges get an explicit stroke so the tree structure is always
+      // visible, even before anything on this branch is allocated.
+      if (!active && !half) l.setAttribute('stroke', 'rgba(190, 200, 220, 0.28)');
       gE.appendChild(l);
     });
     svg.appendChild(gE);
@@ -984,7 +991,9 @@ function build(){
         l.setAttribute('x2', t.x);  l.setAttribute('y2', t.y);
         var pLvl = (t.parent.indexOf('sp_') === 0) ? (talentLevels[t.parent] || 0) : 1;
         var cLvl = talentLevels[t.key] || 0;
-        l.setAttribute('class', 'te' + (pLvl > 0 && cLvl > 0 ? ' on' : (pLvl > 0 && cLvl === 0 ? ' half' : '')));
+        var sActive = pLvl > 0 && cLvl > 0, sHalf = pLvl > 0 && cLvl === 0;
+        l.setAttribute('class', 'te' + (sActive ? ' on' : sHalf ? ' half' : ''));
+        if (!sActive && !sHalf) l.setAttribute('stroke', 'rgba(190, 200, 220, 0.28)');
         gSE.appendChild(l);
       });
       svg.appendChild(gSE);
