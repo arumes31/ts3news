@@ -825,7 +825,13 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 		calcRefund(upSwift) + calcRefund(upScav) + calcRefund(upMercy) +
 		calcRefund(upCarto) + calcRefund(upQuarter)
 
-	if refund <= 0 {
+	// Generic talents (Deep-Delver extension + spec sub-trees) are stored in
+	// app_meta and refund alongside the legacy columns.
+	genLevels := s.bot.loadAbyssTalentLevels(uid)
+	genRefund := abyssTalentRefund(genLevels)
+	totalRefund := refund + genRefund
+
+	if totalRefund <= 0 {
 		writeJSON(w, map[string]any{"ok": false, "error": "no talent points to reset"})
 		return
 	}
@@ -854,10 +860,19 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 	                         abyss_up_swiftness=0, abyss_up_scavenger=0, abyss_up_mercy=0,
 	                         abyss_up_cartographer=0, abyss_up_quartermaster=0,
 	                         abyss_tokens = abyss_tokens + $1, abyss_upgrades = $3::jsonb
-	                   WHERE client_uid=$2`, refund, uid, string(preservedBytes))
+	                   WHERE client_uid=$2`, totalRefund, uid, string(preservedBytes))
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db update"})
 		return
+	}
+
+	// Clear the generic talent allocation in the same transaction so the refund and
+	// the wipe commit together (never one without the other).
+	if genRefund > 0 {
+		if _, err = tx.Exec("DELETE FROM app_meta WHERE key=$1", abyssTalentKey(uid)); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db update"})
+			return
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -865,7 +880,7 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Talents reset successfully! Refunded %d tokens.", refund), "tokens": tokens + refund})
+	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Talents reset successfully! Refunded %d tokens.", totalRefund), "tokens": tokens + totalRefund})
 }
 
 // handleAbyssInsureItem spends 200 gold to permanently mark a gear piece as insured.

@@ -88,22 +88,32 @@
   font-weight: bold;
 }
 
-/* Chaotic portal edge styles */
+/* Chaotic portal edge styles. Portals get their OWN flowing animation and a
+   distinct portal-cyan colour so the long cross-map shortcuts read differently
+   from the static golden skill paths. */
+@keyframes portalFlow {
+  to { stroke-dashoffset: -28; }
+}
 .te.te-chaotic {
-  stroke: #b26bff !important;
-  stroke-dasharray: 2 4;
-  stroke-width: 2.2 !important;
+  stroke: #4fd6e0 !important;
+  stroke-dasharray: 5 7;
+  stroke-width: 1.8 !important;
+  opacity: 0.5;
+  animation: portalFlow 2.4s linear infinite;
 }
 .te.te-chaotic.half {
-  stroke: rgba(178, 107, 255, 0.4) !important;
-  stroke-dasharray: 2 4;
-  stroke-width: 2.2 !important;
+  stroke: rgba(79, 214, 224, 0.55) !important;
+  stroke-dasharray: 5 7;
+  stroke-width: 2 !important;
+  opacity: 0.75;
+  animation: portalFlow 2.4s linear infinite;
 }
 .te.te-chaotic.on {
-  stroke: #dcbfff !important;
-  stroke-dasharray: 2 4;
-  animation: flowPulse 2s linear infinite;
-  stroke-width: 3.5 !important;
+  stroke: #b7f5fb !important;
+  stroke-dasharray: 5 7;
+  animation: portalFlow 1s linear infinite;
+  stroke-width: 3.4 !important;
+  opacity: 1;
 }
 
 /* Starfield Parallax (Item 1) */
@@ -121,6 +131,10 @@
   stroke: rgba(178, 107, 255, 0.25);
   stroke-width: 1.2;
   stroke-dasharray: 4 2;
+  /* Rotate around the circle's OWN centre. Without transform-box:fill-box, SVG
+     resolves transform-origin:center to the viewBox centre, so every swirl
+     orbits the whole canvas — the "rotating shadow of all skills". */
+  transform-box: fill-box;
   transform-origin: center;
   animation: swirlRotate 10s linear infinite;
   pointer-events: none;
@@ -389,6 +403,12 @@ var TALENTS = [
   { key: 'quartermaster', label: 'Quartermaster', desc: '+1 consumable carry slot / level', x: 740, y: 500, parent: 'cartographer', icon: 'visored-helm', gateDepth: 30 }
 ];
 
+// Deep-Delver extension: 50 generic talent nodes authored in Go
+// (internal/content/abyss_talents.go), concatenated here so the existing talents
+// renderer/allocation flow handles them with no per-node UI code.
+TALENTS = TALENTS.concat({{jsonJS .DelverTalentDefs}});
+Object.assign(talentLevels, {{jsonJS .DelverTalentLevels}});
+
 var SPECIALIZATIONS = [
   { key: 'initiate', label: 'Initiate', desc: 'Starting rank. Swapping specializations costs 🜲 25 tokens.', x: 0, y: -100, parent: null, icon: 'laurel-crown', targetSpec: '' },
   
@@ -401,6 +421,22 @@ var SPECIALIZATIONS = [
   { key: 'novice_warden', label: 'Novice Warden', desc: 'The path of fortitude and resilience.', x: 160, y: 20, parent: 'initiate', icon: 'checked-shield', targetSpec: 'warden' },
   { key: 'warden', label: 'Warden Spec', desc: 'Active Perk: +5% all stats inside the Abyss.', x: 280, y: 140, parent: 'novice_warden', icon: 'visored-helm', targetSpec: 'warden' }
 ];
+
+// Per-spec allocatable sub-trees (50 nodes each), authored in Go. Only the active
+// spec's tree is rendered/allocatable in the Specializations tab.
+var SPEC_TALENTS = {{jsonJS .SpecTalentDefs}};
+
+// findTalent resolves a talent key across the Deep-Delver tree and every spec
+// sub-tree, so the shared upgrade/tooltip helpers work for both.
+function findTalent(key) {
+  var t = TALENTS.find(function(x){ return x.key === key; });
+  if (t) return t;
+  for (var sp in SPEC_TALENTS) {
+    t = SPEC_TALENTS[sp].find(function(x){ return x.key === key; });
+    if (t) return t;
+  }
+  return null;
+}
 
 function getNodeIcon(n) {
   if (n.type === 'keystone') {
@@ -928,6 +964,59 @@ function build(){
       gN.appendChild(txt);
     });
     svg.appendChild(gN);
+
+    // Active spec's allocatable sub-tree (50 nodes). Only the chosen spec's tree
+    // is drawn; each node gates on the spec being active + its prerequisite + depth
+    // record. Uses the shared talent upgrade/tooltip helpers.
+    if (activeSpec && SPEC_TALENTS[activeSpec]) {
+      var specList = SPEC_TALENTS[activeSpec];
+      var specPos = {};
+      SPECIALIZATIONS.forEach(function(s){ specPos[s.key] = s; });
+      specList.forEach(function(t){ specPos[t.key] = t; });
+
+      var gSE = document.createElementNS(NS, 'g');
+      specList.forEach(function(t){
+        if (!t.parent) return;
+        var pn = specPos[t.parent];
+        if (!pn) return;
+        var l = document.createElementNS(NS, 'line');
+        l.setAttribute('x1', pn.x); l.setAttribute('y1', pn.y);
+        l.setAttribute('x2', t.x);  l.setAttribute('y2', t.y);
+        var pLvl = (t.parent.indexOf('sp_') === 0) ? (talentLevels[t.parent] || 0) : 1;
+        var cLvl = talentLevels[t.key] || 0;
+        l.setAttribute('class', 'te' + (pLvl > 0 && cLvl > 0 ? ' on' : (pLvl > 0 && cLvl === 0 ? ' half' : '')));
+        gSE.appendChild(l);
+      });
+      svg.appendChild(gSE);
+
+      var gSN = document.createElementNS(NS, 'g');
+      specList.forEach(function(t){
+        var level = talentLevels[t.key] || 0;
+        var pLvl = (t.parent && t.parent.indexOf('sp_') === 0) ? (talentLevels[t.parent] || 0) : 1;
+        var isUnlocked = pLvl > 0 && bestDepth >= (t.gateDepth || 0);
+        var c = document.createElementNS(NS, 'circle');
+        c.setAttribute('cx', t.x); c.setAttribute('cy', t.y); c.setAttribute('r', 14);
+        var cls = 'tn t-notable';
+        if (level > 0) cls += ' on';
+        else if (isUnlocked && level < 5 && tokenBalance >= (level + 1) * 10) cls += ' can';
+        c.setAttribute('class', cls);
+        c.setAttribute('tabindex', '0');
+        c.addEventListener('click', function(ev){ ev.stopPropagation(); tryUpgradeTalent(t.key); });
+        c.addEventListener('mouseenter', function(ev){ showTalentTip(t, ev); });
+        c.addEventListener('mouseleave', function(){ scheduleHideTip(); });
+        gSN.appendChild(c);
+        nodeEls[t.key] = c;
+        if (t.icon) loadNodeIcon(gSN, t.icon, 16, t.x, t.y, t.key);
+        var txt2 = document.createElementNS(NS, 'text');
+        txt2.setAttribute('x', t.x); txt2.setAttribute('y', t.y + 26);
+        txt2.setAttribute('fill', '#ffffff'); txt2.setAttribute('font-size', '9');
+        txt2.setAttribute('font-weight', 'bold'); txt2.setAttribute('text-anchor', 'middle');
+        txt2.setAttribute('style', 'pointer-events: none; font-family: system-ui, sans-serif;');
+        txt2.textContent = t.label + ' (' + level + '/5)';
+        gSN.appendChild(txt2);
+      });
+      svg.appendChild(gSN);
+    }
     applyView();
   }
 }
@@ -986,7 +1075,7 @@ function switchTab(tab) {
     if (legendText) legendText.textContent = 'Drag to pan · wheel to zoom · click a talent node to upgrade';
   } else if (tab === 'specializations') {
     title.textContent = '🎓 Specializations';
-    sub.textContent = 'Choose one active specialization to gain its powerful combat/economic perk inside the Abyss. Swapping specializations costs 🜲 25 tokens.';
+    sub.textContent = 'Choose one active specialization for its perk, then spend 🜲 tokens on its 50-node sub-tree below. Swapping specializations costs 🜲 25 tokens; the other trees\' points stay allocated and re-activate if you switch back.';
     respecBtn.style.display = 'none';
     document.getElementById('treePointsPill').style.display = 'none';
     document.getElementById('treeAvailPill').style.display = 'none';
@@ -996,7 +1085,9 @@ function switchTab(tab) {
     if (legendText) legendText.textContent = 'Drag to pan · wheel to zoom · click a specialization node to activate';
   }
   
-  view = (tab === 'passive') ? {x:-700, y:-700, w:1400, h:1400} : {x:-450, y:-250, w:900, h:850};
+  view = (tab === 'passive')  ? {x:-700, y:-700, w:1400, h:1400}
+       : (tab === 'talents')  ? {x:-780, y:-220, w:1560, h:1560}
+       : {x:-560, y:-170, w:1120, h:1120};
   
   updateTokenDisplay();
   build();
@@ -1009,9 +1100,9 @@ async function tryUpgradeTalent(key) {
     abToast('Already at maximum level.', false);
     return;
   }
-  var t = TALENTS.find(function(x) { return x.key === key; });
+  var t = findTalent(key);
   if (!t) return;
-  var parentNode = t.parent ? TALENTS.find(function(p) { return p.key === t.parent; }) : null;
+  var parentNode = t.parent ? findTalent(t.parent) : null;
   var parentLvl = parentNode ? (talentLevels[parentNode.key] || 0) : 1;
   if (parentLvl < 1) {
     abToast('Locked — upgrade ' + parentNode.label + ' first.', false);
@@ -1095,11 +1186,12 @@ function showTalentTip(t, ev) {
   var maxLevel = 5;
   var cost = (level < maxLevel) ? (level + 1) * 10 : 0;
   
-  var parentNode = t.parent ? TALENTS.find(function(p) { return p.key === t.parent; }) : null;
+  var parentNode = t.parent ? findTalent(t.parent) : null;
   var parentLvl = parentNode ? (talentLevels[parentNode.key] || 0) : 1;
   var isUnlocked = parentLvl > 0 && bestDepth >= (t.gateDepth || 0);
-  
-  var nameHtml = '★ <span class="tree-tip-header-notable">' + escHtml(t.label) + '</span> <span class="muted small">(Deep Delver Upgrade)</span>';
+
+  var kindLabel = t.key && t.key.indexOf('sp_') === 0 ? '(Specialization Skill)' : '(Deep Delver Upgrade)';
+  var nameHtml = '★ <span class="tree-tip-header-notable">' + escHtml(t.label) + '</span> <span class="muted small">' + kindLabel + '</span>';
   var statusHtml = '';
   
   if (level >= maxLevel) {

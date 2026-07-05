@@ -563,9 +563,10 @@ func buildAbyssTree() *AbyssTreeData {
 				}
 			}
 
-			// Organic maze-like broken lateral connections (probability reduced to 0.05)
+			// Organic maze-like broken lateral connections. Kept sparse (0.02) so a
+			// few extra sideways links add texture without webbing the whole ring.
 			rEdge := rand.New(rand.NewPCG(uint64(ring*1000+slot), 555))
-			if slot%treeLanes != treeLanes-1 && rEdge.Float64() < 0.05 {
+			if slot%treeLanes != treeLanes-1 && rEdge.Float64() < 0.02 {
 				alreadyConnected := false
 				for _, neighbor := range t.Adj[gridID(ring, slot)] {
 					if neighbor == gridID(ring, slot+1) {
@@ -580,11 +581,12 @@ func buildAbyssTree() *AbyssTreeData {
 		}
 	}
 
-	// Add 12 chaotic cross-sector portals. Endpoints are grid nodes only:
-	// keystones and bridges are gated progression rewards and must not gain
-	// cross-sector shortcuts.
+	// Add 5 chaotic cross-sector portals. These are long edges that cross the
+	// whole web, so a handful reads as "occasional shortcut"; a dozen turned the
+	// centre into a tangle. Endpoints are grid nodes only: keystones and bridges
+	// are gated progression rewards and must not gain cross-sector shortcuts.
 	rChaos := rand.New(rand.NewPCG(888, 999))
-	for i := 0; i < 12; {
+	for i := 0; i < 5; {
 		nA := t.Nodes[rChaos.IntN(len(t.Nodes))]
 		nB := t.Nodes[rChaos.IntN(len(t.Nodes))]
 		nodeA := nA.ID

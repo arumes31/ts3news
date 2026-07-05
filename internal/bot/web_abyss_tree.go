@@ -351,6 +351,16 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 		}
 	}
 
+	// 9. Generic Abyss talents (Deep-Delver extension + the active spec's sub-tree).
+	// Stored key→level in app_meta; each level's Stats/Pct rides this same bonus so
+	// every generic talent shares the live combat/economy pipeline. Added before the
+	// prestige multiplier so talent stats scale with prestige like the rest.
+	talentBonus := b.abyssTalentBonus(uid)
+	tb.Stats = tb.Stats.Add(talentBonus.Stats)
+	for k, v := range talentBonus.Pct {
+		tb.Pct[k] += v
+	}
+
 	// Apply Prestige Reset Bonus Multipliers (Item 61): +1% flat stats per prestige
 	var prestige int
 	_ = b.DB.QueryRow("SELECT prestige FROM users WHERE client_uid=$1", uid).Scan(&prestige)
@@ -458,6 +468,14 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		"Stats":     s.bot.loadAbyssStats(uid),
 		"Spec":      s.bot.abyssSpec(uid),
 		"SpecDefs":  abyssSpecs,
+		// Deep-Delver extension: 50 generic talent nodes + their allocated levels,
+		// concatenated into the client TALENTS array (single source of truth in Go).
+		"DelverTalentDefs":   content.DeepDelverTalents,
+		"DelverTalentLevels": s.bot.loadAbyssTalentLevels(uid),
+		// Per-spec allocatable sub-trees (50 nodes each); the active spec's tree is
+		// drawn in the Specializations tab. Levels reuse DelverTalentLevels above
+		// (loadAbyssTalentLevels returns every generic key, spec nodes included).
+		"SpecTalentDefs": content.SpecTalents,
 		"Tokens":    s.bot.abyssTokens(uid),
 		"NodeGates": abyssUpgradeMinDepth,
 		"Sockets":   socketsJson,
