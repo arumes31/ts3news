@@ -673,7 +673,7 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	rows, err := s.bot.DB.Query("SELECT id, gear_id FROM user_inventory WHERE client_uid=$1", uid)
+	rows, err := s.bot.DB.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1", uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -688,10 +688,15 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	for rows.Next() {
 		var id int64
 		var gid string
-		if err := rows.Scan(&id, &gid); err != nil {
+		var itemData sql.NullString
+		if err := rows.Scan(&id, &gid, &itemData); err != nil {
 			continue
 		}
-		g, ok := content.GetGearByID(gid)
+		// Reconstruct the item like the dismantle path does, so upgraded or
+		// procedurally generated gear is judged by its actual rarity instead of
+		// the static catalog entry (makeGear falls back to the catalog for
+		// plain items).
+		g, ok := s.bot.makeGear(gid, itemData)
 		if !ok || g.Rarity > content.RarityUncommon {
 			continue
 		}
@@ -744,10 +749,12 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	// Crafting materials (#101), boosted by the Scavenger node (#155).
+	// Crafting materials (#101), boosted by the Scavenger node (#155) and the
+	// skill web's material_yield notables.
 	scav := s.bot.loadAbyssStats(uid).UpScavenger
+	matMult := 1 + s.bot.treeBonusFor(uid).Pct["material_yield"]
 	for mat, n := range matGained {
-		_ = s.bot.grantMaterial(uid, mat, scavengerYield(n, scav))
+		_ = s.bot.grantMaterial(uid, mat, int(float64(scavengerYield(n, scav))*matMult))
 	}
 	writeJSON(w, map[string]any{"ok": true, "sold": count, "value": total, "gold": gold,
 		"materials": s.bot.loadMaterials(uid)})
@@ -834,11 +841,12 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 			tk += sp.tokens
 			mats[sp.mat] += sp.matN
 		}
-		// Mirror the commit path's Scavenger boost (#155) so the preview shows the
-		// same totals the real dismantle would grant.
+		// Mirror the commit path's Scavenger (#155) and skill-web material_yield
+		// boosts so the preview shows the same totals the real dismantle grants.
 		scav := s.bot.loadAbyssStats(uid).UpScavenger
+		matMult := 1 + s.bot.treeBonusFor(uid).Pct["material_yield"]
 		for mat, n := range mats {
-			mats[mat] = scavengerYield(n, scav)
+			mats[mat] = int(float64(scavengerYield(n, scav)) * matMult)
 		}
 		writeJSON(w, map[string]any{"ok": true, "preview": true, "count": len(toBreak), "tokens_gained": tk, "materials_gained": mats})
 		return
@@ -879,10 +887,12 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	// Crafting materials (#101), boosted by the Scavenger node (#155).
+	// Crafting materials (#101), boosted by the Scavenger node (#155) and the
+	// skill web's material_yield notables.
 	scav := s.bot.loadAbyssStats(uid).UpScavenger
+	matMult := 1 + s.bot.treeBonusFor(uid).Pct["material_yield"]
 	for mat, n := range matGained {
-		_ = s.bot.grantMaterial(uid, mat, scavengerYield(n, scav))
+		_ = s.bot.grantMaterial(uid, mat, int(float64(scavengerYield(n, scav))*matMult))
 	}
 	writeJSON(w, map[string]any{"ok": true, "dismantled": count, "tokens_gained": total, "tokens": s.bot.abyssTokens(uid),
 		"materials": s.bot.loadMaterials(uid)})

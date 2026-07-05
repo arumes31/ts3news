@@ -1,0 +1,263 @@
+{{define "abysstree"}}{{template "head" .}}
+<div class="tree-head">
+  <div>
+    <h1>🌳 Abyss Skill Web</h1>
+    <p class="muted small">1000 nodes · six disciplines · every path connects. Points come from levels, depth records, lifetime floors and prestige.</p>
+  </div>
+  <div class="tree-head-right">
+    <span class="pill">🔵 <b id="treeUsed">{{.Used}}</b> / <b id="treePoints">{{.Points}}</b> points</span>
+    <button class="ghost xs" onclick="treeRespec()">♻️ Respec (🜲 {{.RespecTk}})</button>
+    <a class="ghost xs" href="/abyss" style="text-decoration:none; padding:.35rem .7rem; border:1px solid var(--line); border-radius:8px;">← Back to the Abyss</a>
+  </div>
+</div>
+
+<div class="tree-toolbar">
+  <input type="search" id="treeSearch" placeholder="🔍 Search nodes (e.g. 'loot find', 'Keystone', 'STR')" oninput="treeSearchApply()">
+  <span class="muted small">Drag to pan · wheel to zoom · click a highlighted node to allocate</span>
+  <div class="tree-legend">
+    <span><i class="tl-dot tl-alloc"></i> allocated</span>
+    <span><i class="tl-dot tl-avail"></i> allocatable</span>
+    <span><i class="tl-dot tl-lock"></i> locked</span>
+    <span><i class="tl-dot tl-key"></i> keystone</span>
+  </div>
+</div>
+
+<div class="tree-stage" id="treeStage">
+  <svg id="treeSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div class="tree-tip" id="treeTip" style="display:none"></div>
+</div>
+
+<div class="tree-summary abyss-panel">
+  <h2>Allocated bonuses</h2>
+  <div class="tree-summary-grid" id="treeSummary">
+    {{range $k, $v := .BonusPct}}<span class="skill-pill">{{$v}} {{$k}}</span>{{end}}
+  </div>
+  <p class="muted small" id="treeStatLine"></p>
+</div>
+
+<div id="abToastHost" class="ab-toasthost" aria-live="polite"></div>
+
+<script data-cfasync="false">
+var NODES = {{jsonJS .Nodes}};
+var EDGES = {{jsonJS .Edges}};
+var alloc = {};
+{{range .Allocated}}alloc[{{.}}] = true;
+{{end}}
+var used = {{.Used}}, points = {{.Points}};
+var byId = {};
+NODES.forEach(function(n){ byId[n.id] = n; });
+var adj = {0: []};
+EDGES.forEach(function(e){
+  (adj[e[0]] = adj[e[0]] || []).push(e[1]);
+  (adj[e[1]] = adj[e[1]] || []).push(e[0]);
+});
+
+function abToast(m, ok){
+  var host = document.getElementById('abToastHost');
+  var t = document.createElement('div');
+  t.className = 'toast2 ' + (ok ? 'good' : 'bad');
+  t.textContent = m;
+  host.appendChild(t);
+  requestAnimationFrame(function(){ t.classList.add('show'); });
+  setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 300); }, ok ? 2400 : 4000);
+}
+async function abPost(url, body){
+  try{
+    const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body||{})});
+    try{ return await r.json(); }catch(e){ return {ok:false, error:'server error ('+r.status+')'}; }
+  }catch(e){ return {ok:false, error:'network error'}; }
+}
+
+// ---- SVG build -------------------------------------------------------------
+var svg = document.getElementById('treeSvg');
+var NS = 'http://www.w3.org/2000/svg';
+var view = {x:-700, y:-700, w:1400, h:1400};
+function applyView(){ svg.setAttribute('viewBox', view.x+' '+view.y+' '+view.w+' '+view.h); }
+
+function isAllocatable(id){
+  if(alloc[id] || used >= points) return false;
+  var ns = adj[id] || [];
+  for(var i=0;i<ns.length;i++){ if(ns[i]===0 || alloc[ns[i]]) return true; }
+  return false;
+}
+
+var edgeEls = [], nodeEls = {};
+function build(){
+  svg.innerHTML = '';
+  var gE = document.createElementNS(NS,'g');
+  EDGES.forEach(function(e){
+    var a = e[0]===0 ? {x:0,y:0} : byId[e[0]];
+    var b = e[1]===0 ? {x:0,y:0} : byId[e[1]];
+    if(!a || !b) return;
+    var l = document.createElementNS(NS,'line');
+    l.setAttribute('x1',a.x); l.setAttribute('y1',a.y);
+    l.setAttribute('x2',b.x); l.setAttribute('y2',b.y);
+    l.setAttribute('class','te');
+    l._e = e;
+    gE.appendChild(l);
+    edgeEls.push(l);
+  });
+  svg.appendChild(gE);
+
+  // Root marker.
+  var root = document.createElementNS(NS,'circle');
+  root.setAttribute('cx',0); root.setAttribute('cy',0); root.setAttribute('r',16);
+  root.setAttribute('class','tn tn-root');
+  svg.appendChild(root);
+
+  var gN = document.createElementNS(NS,'g');
+  NODES.forEach(function(n){
+    var c = document.createElementNS(NS,'circle');
+    c.setAttribute('cx',n.x); c.setAttribute('cy',n.y);
+    c.setAttribute('r', n.type==='keystone'?14 : n.type==='notable'||n.type==='bridge'?10 : 6);
+    c.setAttribute('data-id', n.id);
+    // Keyboard operability: every node is a focusable button; Enter/Space
+    // allocates exactly like a click (.tn:focus-visible carries the outline).
+    c.setAttribute('tabindex','0');
+    c.setAttribute('role','button');
+    c.setAttribute('aria-label', n.name + (n.desc ? ' — ' + n.desc : ''));
+    c.addEventListener('click', function(ev){ ev.stopPropagation(); tryAllocate(n.id); });
+    c.addEventListener('keydown', function(ev){
+      if(ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar'){ ev.preventDefault(); tryAllocate(n.id); }
+    });
+    c.addEventListener('mouseenter', function(ev){ showTip(n, ev); });
+    c.addEventListener('mouseleave', hideTip);
+    gN.appendChild(c);
+    nodeEls[n.id] = c;
+  });
+  svg.appendChild(gN);
+  paint();
+  applyView();
+}
+
+function paint(){
+  NODES.forEach(function(n){
+    var cls = 'tn s'+n.sector+' t-'+n.type;
+    if(alloc[n.id]) cls += ' on';
+    else if(isAllocatable(n.id)) cls += ' can';
+    nodeEls[n.id].setAttribute('class', cls);
+  });
+  edgeEls.forEach(function(l){
+    var a = l._e[0], b = l._e[1];
+    var on = (a===0||alloc[a]) && (b===0||alloc[b]);
+    var half = !on && ((a===0||alloc[a]) || (b===0||alloc[b]));
+    l.setAttribute('class', 'te' + (on?' on':half?' half':''));
+  });
+  document.getElementById('treeUsed').textContent = used;
+  document.getElementById('treePoints').textContent = points;
+}
+
+// ---- Interaction -----------------------------------------------------------
+async function tryAllocate(id){
+  if(alloc[id]){ abToast('Already allocated.', false); return; }
+  if(!isAllocatable(id)){
+    abToast(used >= points ? 'No points available — descend deeper, level up or prestige.' : 'Not connected to your path yet.', false);
+    return;
+  }
+  var d = await abPost('/api/abyss/tree/allocate', {node_id: id});
+  if(!d.ok){ abToast(d.error||'failed', false); return; }
+  alloc[id] = true; used = d.used; points = d.points;
+  abToast(d.msg, true);
+  paint(); renderSummary(d.pct, d.stats);
+}
+
+async function treeRespec(){
+  if(!confirm('Reset every allocated node for 🜲 {{.RespecTk}}?')) return;
+  var d = await abPost('/api/abyss/tree/respec', {});
+  if(!d.ok){ abToast(d.error||'failed', false); return; }
+  abToast(d.msg, true);
+  setTimeout(function(){ location.reload(); }, 800);
+}
+
+var PCT_LABELS = {str_pct:'STR (Abyss)', hp_pct:'max HP (Abyss)', spd_pct:'SPD (Abyss)', int_pct:'INT (Abyss)',
+  gold_find:'gold from drops', loot_find:'loot find', escrow_bonus:'escrow floor bonus',
+  xp_gain:'floor XP', token_gain:'tokens on bank', material_yield:'crafting materials'};
+function renderSummary(pct, stats){
+  var el = document.getElementById('treeSummary');
+  if(pct){
+    var html = '';
+    Object.keys(pct).forEach(function(k){
+      if(pct[k]) html += '<span class="skill-pill">'+(pct[k]>0?'+':'')+(pct[k]*100).toFixed(1)+'% '+(PCT_LABELS[k]||k)+'</span>';
+    });
+    el.innerHTML = html || '<span class="muted small">No percent bonuses yet.</span>';
+  }
+  if(stats){
+    var parts = [];
+    ['HP','MNA','STR','DEF','SPD','LCK','INT','STA','CRT','DGE'].forEach(function(k){
+      if(stats[k]) parts.push('+'+stats[k]+' '+k);
+    });
+    document.getElementById('treeStatLine').textContent = parts.length ? ('Flat stats: '+parts.join(' · ')) : '';
+  }
+}
+
+// Tooltip.
+var tip = document.getElementById('treeTip');
+function showTip(n, ev){
+  tip.innerHTML = '<b>'+n.name+'</b><br><span class="muted small">'+(n.desc||'')+'</span>'+
+    (alloc[n.id] ? '<br><span class="tt-on">● allocated</span>' :
+      isAllocatable(n.id) ? '<br><span class="tt-can">○ click to allocate</span>' :
+      '<br><span class="muted small">🔒 not connected / no points</span>');
+  tip.style.display = '';
+  moveTip(ev);
+}
+function moveTip(ev){
+  var r = document.getElementById('treeStage').getBoundingClientRect();
+  tip.style.left = Math.min(ev.clientX - r.left + 14, r.width - 240) + 'px';
+  tip.style.top = (ev.clientY - r.top + 14) + 'px';
+}
+function hideTip(){ tip.style.display = 'none'; }
+document.getElementById('treeStage').addEventListener('mousemove', function(ev){ if(tip.style.display!=='none') moveTip(ev); });
+
+// Search highlight.
+function treeSearchApply(){
+  var q = (document.getElementById('treeSearch').value||'').toLowerCase().trim();
+  NODES.forEach(function(n){
+    var hit = q && ((n.name||'').toLowerCase().indexOf(q) >= 0 || (n.desc||'').toLowerCase().indexOf(q) >= 0 || (n.type||'').indexOf(q) >= 0);
+    nodeEls[n.id].classList.toggle('hit', !!hit);
+    nodeEls[n.id].classList.toggle('dim', !!q && !hit);
+  });
+}
+
+// Pan & zoom.
+(function(){
+  var drag = null;
+  svg.addEventListener('mousedown', function(e){ drag = {x:e.clientX, y:e.clientY, vx:view.x, vy:view.y}; });
+  window.addEventListener('mousemove', function(e){
+    if(!drag) return;
+    var scale = view.w / svg.clientWidth;
+    view.x = drag.vx - (e.clientX - drag.x) * scale;
+    view.y = drag.vy - (e.clientY - drag.y) * scale;
+    applyView();
+  });
+  window.addEventListener('mouseup', function(){ drag = null; });
+  svg.addEventListener('wheel', function(e){
+    e.preventDefault();
+    var f = e.deltaY > 0 ? 1.15 : 0.87;
+    var nw = Math.max(300, Math.min(4200, view.w * f));
+    var mx = view.x + (e.offsetX / svg.clientWidth) * view.w;
+    var my = view.y + (e.offsetY / svg.clientHeight) * view.h;
+    view.x = mx - (mx - view.x) * (nw / view.w);
+    view.y = my - (my - view.y) * (nw / view.h);
+    view.w = nw; view.h = nw;
+    applyView();
+  }, {passive:false});
+  // Touch pan.
+  var t0 = null;
+  svg.addEventListener('touchstart', function(e){ if(e.touches.length===1){ t0={x:e.touches[0].clientX, y:e.touches[0].clientY, vx:view.x, vy:view.y}; } }, {passive:true});
+  svg.addEventListener('touchmove', function(e){
+    if(!t0 || e.touches.length!==1) return;
+    var scale = view.w / svg.clientWidth;
+    view.x = t0.vx - (e.touches[0].clientX - t0.x) * scale;
+    view.y = t0.vy - (e.touches[0].clientY - t0.y) * scale;
+    applyView();
+  }, {passive:true});
+  svg.addEventListener('touchend', function(){ t0 = null; }, {passive:true});
+})();
+
+build();
+// Seed the summary with the server-computed flat stats so they show on first
+// load, not only after the next allocation refresh (the pct pills are already
+// server-rendered in the template).
+renderSummary(null, {{jsonJS .Bonus}});
+</script>
+{{template "foot" .}}{{end}}

@@ -64,7 +64,7 @@ type UserInCombat struct {
 	STRMod        float64
 	DEFMod        float64
 	SPDMod        float64
-	LootFocus     string // Default "balanced", can be "gold" or "loot"
+	LootFocus     string // Auto-selected per floor: "balanced", "gold", "loot", "xp", "materials" or "tokens"
 	FloorModifier string
 	IsClone       bool // If true, DB updates are skipped (for co-op)
 	// EscrowLoot suppresses inline loot application in the combat engine. The Abyss

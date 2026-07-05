@@ -232,6 +232,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/abyss", s.auth(s.handleAbyssPage))
 		mux.HandleFunc("/api/abyss/enter", s.authAPI(s.handleAbyssEnter))
 		mux.HandleFunc("/api/abyss/descend", s.authAPI(s.handleAbyssDescend))
+		mux.HandleFunc("/api/abyss/descend_multi", s.authAPI(s.handleAbyssDescendMulti))
 		mux.HandleFunc("/api/abyss/choose_floor", s.authAPI(s.handleAbyssChooseFloor))
 		mux.HandleFunc("/api/abyss/revive", s.authAPI(s.handleAbyssRevive))
 		mux.HandleFunc("/api/abyss/concede", s.authAPI(s.handleAbyssConcede))
@@ -278,6 +279,10 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/forge_history", s.authAPI(s.handleAbyssForgeHistory))
 		mux.HandleFunc("/api/abyss/forge_undo", s.authAPI(s.handleAbyssForgeUndo))
 		mux.HandleFunc("/api/abyss/rift_peek", s.authAPI(s.handleAbyssRiftPeek))
+		mux.HandleFunc("/api/abyss/unequip", s.authAPI(s.handleAbyssUnequip))
+		mux.HandleFunc("/abyss/tree", s.auth(s.handleAbyssTreePage))
+		mux.HandleFunc("/api/abyss/tree/allocate", s.authAPI(s.handleAbyssTreeAllocate))
+		mux.HandleFunc("/api/abyss/tree/respec", s.authAPI(s.handleAbyssTreeRespec))
 	}
 
 	// Authenticated JSON APIs.
@@ -447,16 +452,15 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		Expires:  time.Now().Add(90 * 24 * time.Hour),
 	})
-	// Honor an optional post-login destination, but only same-origin relative paths.
+	// Honor an optional post-login destination, but only same-origin relative
+	// paths to avoid an open redirect: must start with a single "/", must not be
+	// scheme-relative ("//host") and must not start with "/\" (browsers
+	// normalize backslashes to slashes, which would re-open the "//" bypass).
 	dest := "/"
-	if next := r.URL.Query().Get("next"); next != "" {
-		normalizedNext := strings.ReplaceAll(next, "\\", "/")
-		if u, err := url.Parse(normalizedNext); err == nil &&
-			u.Scheme == "" &&
-			u.Host == "" &&
-			strings.HasPrefix(u.Path, "/") &&
-			!strings.HasPrefix(u.Path, "//") {
-			dest = u.RequestURI()
+	if next := r.URL.Query().Get("next"); strings.HasPrefix(next, "/") &&
+		!strings.HasPrefix(next, "//") && !strings.HasPrefix(next, "/\\") {
+		if u, err := url.Parse(next); err == nil && u.Scheme == "" && u.Host == "" {
+			dest = next
 		}
 	}
 	http.Redirect(w, r, dest, http.StatusSeeOther)
