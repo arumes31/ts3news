@@ -1035,6 +1035,15 @@ func polarXY(ring, slot float64) (float64, float64) {
 	centerAngle := (float64(sector)*6.0 + 2.5) / 36.0 * 2.0 * math.Pi - math.Pi/2.0
 	spanHalf := math.Pi / 6.0 // 30 degrees (half of sector span)
 
+	// Angular spread saturates at ring 26: past it these linear branch formulas would
+	// extrapolate |fraction| beyond 1.0 (a full half-sector) and rotate outer lanes
+	// into neighbouring sectors. Radius still uses the real ring (line above), so deep
+	// rings extend straight out at the ring-26 branch angle instead of curling away.
+	spreadRing := ring
+	if spreadRing > 26.0 {
+		spreadRing = 26.0
+	}
+
 	// Calculate fraction from sector center (-1.0 to 1.0)
 	var fraction float64
 	switch rel {
@@ -1043,42 +1052,42 @@ func polarXY(ring, slot float64) (float64, float64) {
 	case 3:
 		fraction = 0.15
 	case 1:
-		if ring < 4.0 {
+		if spreadRing < 4.0 {
 			fraction = -0.22
 		} else {
-			fraction = -0.22 - 0.38*(ring-4.0)/22.0 // branches out to -0.6
+			fraction = -0.22 - 0.38*(spreadRing-4.0)/22.0 // branches out to -0.6
 		}
 	case 0:
 		var f1 float64
-		if ring < 4.0 {
+		if spreadRing < 4.0 {
 			f1 = -0.22
 		} else {
-			f1 = -0.22 - 0.38*(ring-4.0)/22.0
+			f1 = -0.22 - 0.38*(spreadRing-4.0)/22.0
 		}
-		if ring < 9.0 {
+		if spreadRing < 9.0 {
 			fraction = f1 - 0.07
 		} else {
 			f1At9 := -0.22 - 0.38*(5.0)/22.0
-			fraction = (f1At9 - 0.07) - 0.57*(ring-9.0)/17.0 // branches out to -0.95
+			fraction = (f1At9 - 0.07) - 0.57*(spreadRing-9.0)/17.0 // branches out to -0.95
 		}
 	case 4:
-		if ring < 4.0 {
+		if spreadRing < 4.0 {
 			fraction = 0.22
 		} else {
-			fraction = 0.22 + 0.38*(ring-4.0)/22.0 // branches out to 0.6
+			fraction = 0.22 + 0.38*(spreadRing-4.0)/22.0 // branches out to 0.6
 		}
 	case 5:
 		var f4 float64
-		if ring < 4.0 {
+		if spreadRing < 4.0 {
 			f4 = 0.22
 		} else {
-			f4 = 0.22 + 0.38*(ring-4.0)/22.0
+			f4 = 0.22 + 0.38*(spreadRing-4.0)/22.0
 		}
-		if ring < 9.0 {
+		if spreadRing < 9.0 {
 			fraction = f4 + 0.07
 		} else {
 			f4At9 := 0.22 + 0.38*(5.0)/22.0
-			fraction = (f4At9 + 0.07) + 0.57*(ring-9.0)/17.0 // branches out to 0.95
+			fraction = (f4At9 + 0.07) + 0.57*(spreadRing-9.0)/17.0 // branches out to 0.95
 		}
 	default:
 		// Fallback to straight line

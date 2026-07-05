@@ -2588,10 +2588,12 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			// Only credit the drop if it actually landed: the WHERE guard rejects the
 			// grant when an unexpired title is already equipped, so crediting it
 			// unconditionally would tell the player they got a title they never received.
-			res, _ := b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='xp' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())", uid, t.Name, t.XPMultiplier)
-			if n, _ := res.RowsAffected(); n > 0 {
-				results = append(results, i18n.T("bot.loot.title", t.Name, t.Name))
-				lootFound = true
+			if res, execErr := b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='xp' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())", uid, t.Name, t.XPMultiplier); execErr == nil {
+				// res is nil when Exec errors, so only read RowsAffected on success.
+				if n, _ := res.RowsAffected(); n > 0 {
+					results = append(results, i18n.T("bot.loot.title", t.Name, t.Name))
+					lootFound = true
+				}
 			}
 		} else if r < uniqueItemChance*qualityMult*rareScale {
 			// Unique item drop (1%)

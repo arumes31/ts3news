@@ -282,9 +282,13 @@ func (b *Bot) applyAbyssRegen(uid string, equipped map[content.GearSlot]content.
 	}
 	key := "abyss_hp_regen_" + uid
 	now := time.Now()
+	// RFC3339Nano (not RFC3339): the CAS below advances the anchor by a sub-second
+	// span for fast-regen builds; second-precision would truncate newAnchor back to
+	// the stored value, so the CAS would "succeed" without advancing and re-credit the
+	// same span every view. Parsing (time.Parse RFC3339) already accepts fractions.
 	setTS := func(t time.Time) {
 		_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-			ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, key, t.Format(time.RFC3339))
+			ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, key, t.Format(time.RFC3339Nano))
 	}
 	// Ineligible states still anchor the clock to now. Otherwise the idle/dead
 	// span accumulates and a later re-equip or revive would back-credit healing
@@ -316,25 +320,22 @@ func (b *Bot) applyAbyssRegen(uid string, equipped map[content.GearSlot]content.
 	if heal <= 0 {
 		return curHP, perSec // too little time passed; let it accumulate
 	}
-	// Claim this elapsed span before healing: advance the anchor from the exact value
-	// we read (tsStr) to last+consumed in a single compare-and-swap. Concurrent views
-	// all read the same tsStr, but only one CAS can match it — the losers get 0 rows
-	// and must not also credit the span, which is what let N open tabs heal N-fold.
-	// Advancing by only the consumed time keeps the sub-second remainder accumulating.
+	// Claim this elapsed span before healing: advance the anchor from the exact value we
+	// read (tsStr) to last+consumed in a single compare-and-swap, wrapped with the heal in
+	// one tx. Concurrent views all read the same tsStr, but only one CAS can match it (the
+	// row lock serializes them) — the losers get 0 rows and must not also credit the span
+	// (what let N open tabs heal N-fold). Advancing by only the consumed time keeps the
+	// sub-second remainder accumulating; a transient heal failure rolls the anchor back
+	// with it, so the span retries next view instead of being silently forfeited.
 	consumed := float64(heal) / perSec
 	newAnchor := last.Add(time.Duration(consumed * float64(time.Second)))
-	// Claim and credit the span atomically. Concurrent views all read the same tsStr,
-	// but only one CAS on the anchor can match it (the row lock serializes them), so the
-	// span is credited exactly once — no N-tab N-fold heal. Wrapping the anchor advance
-	// and the heal in one tx means a transient heal failure rolls back the anchor too,
-	// so the span retries on the next view instead of being silently forfeited.
 	tx, txErr := b.DB.Begin()
 	if txErr != nil {
 		return curHP, perSec
 	}
 	defer func() { _ = tx.Rollback() }()
 	casRes, casErr := tx.Exec(
-		"UPDATE app_meta SET value=$1 WHERE key=$2 AND value=$3", newAnchor.Format(time.RFC3339), key, tsStr)
+		"UPDATE app_meta SET value=$1 WHERE key=$2 AND value=$3", newAnchor.Format(time.RFC3339Nano), key, tsStr)
 	if casErr != nil {
 		return curHP, perSec
 	}
@@ -1133,19 +1134,26 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	u.Stats = s.bot.abyssCombatStats(uid)
 	u.MaxHP = u.Stats.HP
 	u.MaxMana = 100 + u.Stats.MNA
+	st := s.bot.loadAbyssStats(uid)
+	run := s.bot.loadAbyssRun(uid)
 	// loadWebUser clamped CurrentHP to the base (gear-only) max; re-derive it from the
 	// persisted HP (captured raw) against the true combat max so a full-health delver
 	// isn't shown wounded once the tree bonus raises the ceiling (nor overflowing past it).
 	switch {
 	case u.RawCurrentHP <= 0:
-		u.CurrentHP = u.MaxHP
+		// A downed active run must read as downed, not fake-full; only outside a run
+		// does blank/zero HP fall back to full (the lobby display convention, matching
+		// loadWebUser). applyAbyssRegen below also treats curHP<=0 as dead → no regen.
+		if run.Active {
+			u.CurrentHP = 0
+		} else {
+			u.CurrentHP = u.MaxHP
+		}
 	case u.RawCurrentHP > u.MaxHP:
 		u.CurrentHP = u.MaxHP
 	default:
 		u.CurrentHP = u.RawCurrentHP
 	}
-	st := s.bot.loadAbyssStats(uid)
-	run := s.bot.loadAbyssRun(uid)
 
 	loreList := []map[string]any{}
 	unlockedMap := make(map[int]bool)
