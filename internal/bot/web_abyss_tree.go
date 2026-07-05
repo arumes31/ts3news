@@ -128,21 +128,48 @@ func (b *Bot) loadTreeAllocated(uid string) ([]int, error) {
 	return out, rows.Err()
 }
 
-// treePointsTotal is how many skill points the player has earned so far.
+// treePointsTotal is how many skill points the player has earned so far: base
+// progression points hard-capped at 1000, plus up to 500 more from fully skilling the
+// Deep-Delver upgrades — so the absolute ceiling is 1500. The web has ~5100 nodes on
+// purpose; you only ever allocate a fraction of it.
 func (b *Bot) treePointsTotal(uid string) int {
 	var level, bestDepth, prestige int
 	var lifetimeFloors int64
 	_ = b.DB.QueryRow(
 		"SELECT level, abyss_best_depth, abyss_prestige, abyss_lifetime_floors FROM users WHERE client_uid=$1", uid,
 	).Scan(&level, &bestDepth, &prestige, &lifetimeFloors)
-	// The web grew from ~1000 to ~5100 nodes, so points scale up to match: the old
-	// formula is roughly tripled and the cap raised to 5000 (aura mega-nodes cost
-	// 50 each, so the outermost rim is still a serious long-term investment).
 	pts := level*2 + bestDepth*3 + int(lifetimeFloors/4) + prestige*60
-	if pts > 5000 {
-		pts = 5000
+	if pts > 1000 {
+		pts = 1000 // base skill-web cap
 	}
-	return pts
+	return pts + b.deepDelverPointBonus(uid)
+}
+
+// deepDelverPointBonus scales linearly from 0 to 500 with how much of the Deep-Delver
+// tree is leveled (levels spent / max levels), reaching the full +500 only when every
+// Deep-Delver talent is maxed. Deep-Delver is bought with tokens (a separate currency),
+// so this rewards that long-term investment with extra skill-web points.
+func (b *Bot) deepDelverPointBonus(uid string) int {
+	maxLevels := len(content.DeepDelverTalents) * content.TalentMaxLevel
+	if maxLevels <= 0 {
+		return 0
+	}
+	levels := b.loadAbyssTalentLevels(uid)
+	spent := 0
+	for _, t := range content.DeepDelverTalents {
+		lv := levels[t.Key]
+		if lv > content.TalentMaxLevel {
+			lv = content.TalentMaxLevel
+		}
+		if lv > 0 {
+			spent += lv
+		}
+	}
+	bonus := 500 * spent / maxLevels
+	if bonus > 500 {
+		bonus = 500
+	}
+	return bonus
 }
 
 // treeBonusFor sums the player's allocated web nodes into one bonus block.
