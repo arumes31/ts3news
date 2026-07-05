@@ -490,19 +490,45 @@ func buildAbyssTree() *AbyssTreeData {
 	for ring := 1; ring <= treeRings; ring++ {
 		for slot := 0; slot < treeSlots; slot++ {
 			rel := slot % treeLanes
+			sec := slot / treeLanes
 
-			// Radial spokes based on branch active states
+			// Radial spokes based on branch active states (with Ring 10 Choke Bottlenecks)
 			if ring < treeRings {
-				if rel == 2 || rel == 3 {
-					// Main trunks go straight out radially
-					addEdge(gridID(ring, slot), gridID(ring+1, slot))
-				} else if rel == 1 || rel == 4 {
-					if ring >= 4 {
-						addEdge(gridID(ring, slot), gridID(ring+1, slot))
+				chokeSlot := sec*treeLanes + 2
+				chokeID := gridID(10, chokeSlot)
+
+				if ring == 9 {
+					// All slots in Ring 9 connect only to the Ring 10 choke node
+					addEdge(gridID(9, slot), chokeID)
+				} else if ring == 10 {
+					// Connect Ring 10 choke node to all other slots in Ring 10
+					if slot == chokeSlot {
+						for s := sec * treeLanes; s < (sec+1)*treeLanes; s++ {
+							if s != chokeSlot {
+								addEdge(chokeID, gridID(10, s))
+							}
+						}
 					}
-				} else if rel == 0 || rel == 5 {
-					if ring >= 9 {
+					// Normal radial propagation from Ring 10 to Ring 11
+					if rel == 2 || rel == 3 {
+						addEdge(gridID(10, slot), gridID(11, slot))
+					} else if rel == 1 || rel == 4 {
+						addEdge(gridID(10, slot), gridID(11, slot))
+					} else if rel == 0 || rel == 5 {
+						addEdge(gridID(10, slot), gridID(11, slot))
+					}
+				} else {
+					// Normal radial spoke propagation
+					if rel == 2 || rel == 3 {
 						addEdge(gridID(ring, slot), gridID(ring+1, slot))
+					} else if rel == 1 || rel == 4 {
+						if ring >= 4 {
+							addEdge(gridID(ring, slot), gridID(ring+1, slot))
+						}
+					} else if rel == 0 || rel == 5 {
+						if ring >= 9 {
+							addEdge(gridID(ring, slot), gridID(ring+1, slot))
+						}
 					}
 				}
 			}
@@ -649,6 +675,24 @@ func (t *AbyssTreeData) SpentPoints(alloc []int) int {
 func polar(n *TreeNode) { n.X, n.Y = polarXY(float64(n.Ring), float64(n.Slot)) }
 
 func polarXY(ring, slot float64) (float64, float64) {
+	if ring <= 5 {
+		// Fermat spiral: N = (ring - 1) * 36 + slot
+		n := (ring-1)*36 + slot
+		goldenAngle := 137.507764 * math.Pi / 180.0
+		theta := n * goldenAngle
+		
+		// Scaled radius for rings 1 to 5
+		radius := 14.0 * math.Sqrt(n) + 20.0
+		
+		// Add tiny organic jitter
+		seedVal := uint64(math.Round(ring)*1000 + math.Round(slot))
+		r := rand.New(rand.NewPCG(seedVal, 777))
+		radius += float64(r.IntN(5)-2)
+		theta += (r.Float64()*0.02 - 0.01)
+
+		return math.Round(radius * math.Cos(theta)), math.Round(radius * math.Sin(theta))
+	}
+
 	radius := 60 + ring*34
 	
 	// Determine sector and slot index within sector

@@ -246,6 +246,18 @@
   stroke: #dcbfff !important;
   filter: drop-shadow(0 0 8px #b26bff);
 }
+.constell-line {
+  stroke: rgba(255, 255, 255, 0.025);
+  stroke-width: 2.5px;
+  stroke-dasharray: 4 4;
+  transition: stroke 0.35s, stroke-width 0.35s, filter 0.35s;
+  pointer-events: none;
+}
+.constell-line.on {
+  stroke: rgba(244, 197, 66, 0.18);
+  stroke-width: 3.5px;
+  filter: drop-shadow(0 0 4px rgba(244, 197, 66, 0.3));
+}
 </style>
 <div class="tree-head">
   <div>
@@ -332,6 +344,34 @@ function setBusy(b) { busy = b; }
 var sockets = {{.Sockets}};
 var activeKeystoneExpiry = {{if .ActiveKeystoneExpiry}}"{{.ActiveKeystoneExpiry}}"{{else}}""{{end}};
 var activeKeystoneCooldown = {{if .ActiveKeystoneCooldown}}"{{.ActiveKeystoneCooldown}}"{{else}}""{{end}};
+
+var CONSTELLATIONS = [
+  // Sword (War - Sector 0)
+  { from: 0, to: 219, sec: 0 },
+  { from: 219, to: 471, sec: 0 },
+  { from: 471, to: 723, sec: 0 },
+  { from: 0, to: 220, sec: 0 },
+  { from: 220, to: 472, sec: 0 },
+  { from: 472, to: 724, sec: 0 },
+  { from: 219, to: 220, sec: 0 },
+  { from: 471, to: 472, sec: 0 },
+
+  // Shield (Vitality - Sector 1)
+  { from: 225, to: 477, sec: 1 },
+  { from: 477, to: 729, sec: 1 },
+  { from: 729, to: 730, sec: 1 },
+  { from: 730, to: 478, sec: 1 },
+  { from: 478, to: 226, sec: 1 },
+  { from: 226, to: 225, sec: 1 },
+
+  // Crystal (Arcane - Sector 3)
+  { from: 237, to: 489, sec: 3 },
+  { from: 489, to: 741, sec: 3 },
+  { from: 741, to: 742, sec: 3 },
+  { from: 742, to: 490, sec: 3 },
+  { from: 490, to: 238, sec: 3 },
+  { from: 238, to: 237, sec: 3 }
+];
 
 var TALENTS = [
   { key: 'vigor', label: 'Vigor', desc: 'Start runs with +HP', x: 0, y: -100, parent: null, icon: 'health-normal', gateDepth: 0 },
@@ -551,6 +591,26 @@ function build(){
     }
     svg.appendChild(gStars);
 
+    // Background Constellations
+    var gC = document.createElementNS(NS, 'g');
+    gC.setAttribute('class', 'tree-constellations');
+    CONSTELLATIONS.forEach(function(cLine) {
+      var a = cLine.from === 0 ? {x:0, y:0} : byId[cLine.from];
+      var b = cLine.to === 0 ? {x:0, y:0} : byId[cLine.to];
+      if (!a || !b) return;
+      
+      var line = document.createElementNS(NS, 'line');
+      line.setAttribute('x1', a.x);
+      line.setAttribute('y1', a.y);
+      line.setAttribute('x2', b.x);
+      line.setAttribute('y2', b.y);
+      line.setAttribute('class', 'constell-line s' + cLine.sec);
+      
+      gC.appendChild(line);
+      cLine._el = line;
+    });
+    svg.appendChild(gC);
+
     // Background Decorations (Dividers & Sector Labels)
     var gB = document.createElementNS(NS, 'g');
     gB.setAttribute('class', 'tree-bg-decor');
@@ -608,12 +668,30 @@ function build(){
       var a = e[0]===0 ? {x:0,y:0} : byId[e[0]];
       var b = e[1]===0 ? {x:0,y:0} : byId[e[1]];
       if(!a || !b) return;
-      var l = document.createElementNS(NS,'line');
-      l.setAttribute('x1',a.x); l.setAttribute('y1',a.y);
-      l.setAttribute('x2',b.x); l.setAttribute('y2',b.y);
+      
+      var l = document.createElementNS(NS,'path');
+      l.setAttribute('fill', 'none');
+
+      var dx = b.x - a.x;
+      var dy = b.y - a.y;
+      var dist = Math.sqrt(dx*dx + dy*dy);
+      
+      if (dist > 0) {
+        var mx = (a.x + b.x) / 2;
+        var my = (a.y + b.y) / 2;
+        // Shift control point slightly perpendicular to bend the edge
+        var px = -dy / dist;
+        var py = dx / dist;
+        // 10% bend factor based on distance
+        var bend = dist * 0.10;
+        var cx = mx + px * bend;
+        var cy = my + py * bend;
+        l.setAttribute('d', 'M ' + a.x + ' ' + a.y + ' Q ' + cx + ' ' + cy + ' ' + b.x + ' ' + b.y);
+      } else {
+        l.setAttribute('d', 'M ' + a.x + ' ' + a.y + ' L ' + b.x + ' ' + b.y);
+      }
       
       // Check if the edge is a long-distance chaotic portal
-      var dx = a.x - b.x, dy = a.y - b.y;
       var isPortal = (dx*dx + dy*dy) > 180*180;
       l.setAttribute('class', isPortal ? 'te te-chaotic' : 'te');
       l._isPortal = isPortal;
@@ -1109,6 +1187,13 @@ function paint(){
     if (l._isPortal) cls += ' te-chaotic';
     l.setAttribute('class', cls);
   });
+  // Update constellations glow
+  CONSTELLATIONS.forEach(function(cLine) {
+    if (cLine._el) {
+      var active = (cLine.from === 0 || alloc[cLine.from]) && alloc[cLine.to];
+      cLine._el.setAttribute('class', 'constell-line s' + cLine.sec + (active ? ' on' : ''));
+    }
+  });
   document.getElementById('treeUsed').textContent = used;
   document.getElementById('treePoints').textContent = points;
   var avail = Math.max(0, points - used);
@@ -1186,6 +1271,9 @@ function highlightPath(n) {
       nodeEls[node.id].classList.add('path-glow');
     }
   });
+
+  // Flow stardust along the highlighted path segment
+  spawnStardustParticles(path);
 }
 
 function clearPathHighlight() {
@@ -1195,6 +1283,76 @@ function clearPathHighlight() {
   NODES.forEach(function(node) {
     nodeEls[node.id].classList.remove('path-glow');
   });
+  clearStardustParticles();
+}
+
+var particleInterval = null;
+function spawnStardustParticles(path) {
+  if (particleInterval) clearInterval(particleInterval);
+  
+  var gP = svg.querySelector('.tree-particles');
+  if (!gP) {
+    gP = document.createElementNS(NS, 'g');
+    gP.setAttribute('class', 'tree-particles');
+    // Insert before nodes layer so particles flow behind node circles
+    var gN = svg.querySelector('g:last-of-type');
+    if (gN) svg.insertBefore(gP, gN);
+    else svg.appendChild(gP);
+  }
+
+  function spawnWave() {
+    var orderedPath = path.slice().reverse();
+    var delay = 0;
+    
+    orderedPath.forEach(function(edge) {
+      setTimeout(function() {
+        var startNode = edge[1] === 0 ? {x:0, y:0} : byId[edge[1]];
+        var endNode = edge[0] === 0 ? {x:0, y:0} : byId[edge[0]];
+        if (!startNode || !endNode) return;
+        
+        for (var i = 0; i < 3; i++) {
+          (function(pIdx) {
+            setTimeout(function() {
+              var p = document.createElementNS(NS, 'circle');
+              p.setAttribute('r', 1.2 + Math.random() * 1.5);
+              p.setAttribute('fill', '#ffd85b');
+              p.setAttribute('opacity', '0.95');
+              p.setAttribute('style', 'filter: drop-shadow(0 0 2px #ffd85b); pointer-events: none; transition: all 0.5s ease-out;');
+              
+              p.setAttribute('cx', startNode.x);
+              p.setAttribute('cy', startNode.y);
+              gP.appendChild(p);
+              
+              requestAnimationFrame(function() {
+                var ox = endNode.x + (Math.random() * 6 - 3);
+                var oy = endNode.y + (Math.random() * 6 - 3);
+                p.setAttribute('cx', ox);
+                p.setAttribute('cy', oy);
+                p.setAttribute('opacity', '0');
+                
+                setTimeout(function() {
+                  p.remove();
+                }, 500);
+              });
+            }, pIdx * 90);
+          })(i);
+        }
+      }, delay);
+      delay += 200;
+    });
+  }
+
+  spawnWave();
+  particleInterval = setInterval(spawnWave, 1400);
+}
+
+function clearStardustParticles() {
+  if (particleInterval) {
+    clearInterval(particleInterval);
+    particleInterval = null;
+  }
+  var gP = svg.querySelector('.tree-particles');
+  if (gP) gP.innerHTML = '';
 }
 
 // BFS from the target through unallocated nodes to the nearest allocated node
