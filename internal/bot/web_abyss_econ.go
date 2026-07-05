@@ -1035,6 +1035,12 @@ func (s *WebServer) handleAbyssUpgrade(w http.ResponseWriter, r *http.Request, u
 	}
 	col, ok := abyssUpgradeCols[req.Node]
 	if !ok {
+		// Not a legacy per-column node — route generic talents (Deep-Delver
+		// extension + spec sub-trees) to their key→level store.
+		if t, isTalent := content.TalentByKey(req.Node); isTalent {
+			s.handleAbyssTalentUpgrade(w, uid, t)
+			return
+		}
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown upgrade"})
 		return
 	}
