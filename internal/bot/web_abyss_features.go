@@ -1261,7 +1261,9 @@ func (s *WebServer) handleAbyssLastStand(w http.ResponseWriter, r *http.Request,
 
 	st := s.bot.loadAbyssStats(uid)
 	cost := abyssLastStandCost(run.Depth)
-	stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+	// Revive against the true combat max (base+gear+skill-web), matching handleAbyssRevive
+	// and every other Abyss HP surface — calculateTotalStats alone omits the tree bonus.
+	stats := s.bot.abyssCombatStats(uid)
 	revivePct := 25 + 5*st.UpMercy
 	reviveHP := stats.HP * revivePct / 100
 	if reviveHP < 1 {

@@ -71,6 +71,10 @@ type UserInCombat struct {
 	// sets this so drops are not granted mid-run; instead they are rolled into the
 	// run's loot escrow (locked until banked, lost on death). See web_abyss_loot.go.
 	EscrowLoot bool
+	// treeBonus carries the Abyss skill-web bonus into combat. Only buildAbyssUser
+	// populates it; regular channel fights leave it zero so the Abyss tree never
+	// leaks into non-Abyss combat (and treeBonusFor's DB cost stays off that path).
+	treeBonus content.TreeBonus
 }
 
 type activeUser struct {
@@ -436,7 +440,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	activeUsers := make([]activeUser, len(users))
 	for i := range users {
 		_, _, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
-		activeUsers[i] = activeUser{u: &users[i], effects: effects, treeBonus: b.treeBonusFor(users[i].UID)}
+		activeUsers[i] = activeUser{u: &users[i], effects: effects, treeBonus: users[i].treeBonus}
 		activeUsers[i].u.STRMod = 1.0
 		activeUsers[i].u.DEFMod = 1.0
 		activeUsers[i].u.SPDMod = 1.0
@@ -2581,9 +2585,16 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			ultDropped = true
 		} else if r < titleChance*qualityMult*rareScale {
 			t := content.RandomTitle()
-			_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='xp' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())", uid, t.Name, t.XPMultiplier)
-			results = append(results, i18n.T("bot.loot.title", t.Name, t.Name))
-			lootFound = true
+			// Only credit the drop if it actually landed: the WHERE guard rejects the
+			// grant when an unexpired title is already equipped, so crediting it
+			// unconditionally would tell the player they got a title they never received.
+			if res, execErr := b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='xp' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())", uid, t.Name, t.XPMultiplier); execErr == nil {
+				// res is nil when Exec errors, so only read RowsAffected on success.
+				if n, _ := res.RowsAffected(); n > 0 {
+					results = append(results, i18n.T("bot.loot.title", t.Name, t.Name))
+					lootFound = true
+				}
+			}
 		} else if r < uniqueItemChance*qualityMult*rareScale {
 			// Unique item drop (1%)
 			ui := content.RandomUniqueItem()

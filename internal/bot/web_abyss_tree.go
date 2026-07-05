@@ -135,9 +135,12 @@ func (b *Bot) treePointsTotal(uid string) int {
 	_ = b.DB.QueryRow(
 		"SELECT level, abyss_best_depth, abyss_prestige, abyss_lifetime_floors FROM users WHERE client_uid=$1", uid,
 	).Scan(&level, &bestDepth, &prestige, &lifetimeFloors)
-	pts := level + bestDepth + int(lifetimeFloors/10) + prestige*25
-	if pts > 1000 {
-		pts = 1000
+	// The web grew from ~1000 to ~5100 nodes, so points scale up to match: the old
+	// formula is roughly tripled and the cap raised to 5000 (aura mega-nodes cost
+	// 50 each, so the outermost rim is still a serious long-term investment).
+	pts := level*2 + bestDepth*3 + int(lifetimeFloors/4) + prestige*60
+	if pts > 5000 {
+		pts = 5000
 	}
 	return pts
 }
@@ -239,7 +242,7 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 
 	// 2. Timed Keystone Perks (Chronobreaker/Limit Break active buff)
 	var expStr string
-	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_keystone_active_"+uid+"_974").Scan(&expStr)
+	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", fmt.Sprintf("abyss_keystone_active_%s_%d", uid, content.NodeLimitBreak)).Scan(&expStr)
 	if expStr != "" {
 		if expTime, err := time.Parse(time.RFC3339, expStr); err == nil && time.Now().Before(expTime) {
 			tb.Pct["xp_gain"] += 0.50
@@ -315,23 +318,21 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 		}
 	}
 
-	// 7. Set Resonance (Set Resonance node 883)
+	// 7. Set Resonance (Set Resonance node 883): +5% str/hp/int/spd per full set tier
+	// (every 2 equipped pieces sharing a set). Counts equipped gear by EffectiveSetID,
+	// mirroring activeLootMult's set counting — the old query hit a non-existent
+	// `user_gears` table (with no such columns) and silently granted nothing.
 	if allocatedMap[883] {
-		var setBonusTiers int
-		rows, err := b.DB.Query("SELECT prefix FROM user_gears WHERE client_uid = $1 AND equipped = TRUE", uid)
-		if err == nil {
-			prefixCount := map[string]int{}
-			for rows.Next() {
-				var prefix string
-				if rows.Scan(&prefix) == nil && prefix != "" {
-					prefixCount[prefix]++
-				}
+		setCount := map[string]int{}
+		for _, g := range b.getEquippedItems(uid) {
+			if sid := g.EffectiveSetID(); sid != "" {
+				setCount[sid]++
 			}
-			_ = rows.Close()
-			for _, cnt := range prefixCount {
-				if cnt >= 2 {
-					setBonusTiers += cnt / 2
-				}
+		}
+		var setBonusTiers int
+		for _, cnt := range setCount {
+			if cnt >= 2 {
+				setBonusTiers += cnt / 2
 			}
 		}
 		if setBonusTiers > 0 {
@@ -361,25 +362,14 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 		tb.Pct[k] += v
 	}
 
-	// Apply Prestige Reset Bonus Multipliers (Item 61): +1% flat stats per prestige
+	// Apply Prestige Reset Bonus Multipliers (Item 61): +1% flat tree stats per Abyss
+	// prestige. Keyed off abyss_prestige (like treePointsTotal and applyAbyssRegen),
+	// not the main-game prestige column, and folded through the canonical Stats.Scaled
+	// helper so it can't drift from every other stat scaler.
 	var prestige int
-	_ = b.DB.QueryRow("SELECT prestige FROM users WHERE client_uid=$1", uid).Scan(&prestige)
+	_ = b.DB.QueryRow("SELECT abyss_prestige FROM users WHERE client_uid=$1", uid).Scan(&prestige)
 	if prestige > 0 {
-		multiplier := 1.0 + 0.01*float64(prestige)
-		tb.Stats.HP = int(float64(tb.Stats.HP) * multiplier)
-		tb.Stats.MNA = int(float64(tb.Stats.MNA) * multiplier)
-		tb.Stats.STR = int(float64(tb.Stats.STR) * multiplier)
-		tb.Stats.DEF = int(float64(tb.Stats.DEF) * multiplier)
-		tb.Stats.SPD = int(float64(tb.Stats.SPD) * multiplier)
-		tb.Stats.LCK = int(float64(tb.Stats.LCK) * multiplier)
-		tb.Stats.INT = int(float64(tb.Stats.INT) * multiplier)
-		tb.Stats.STA = int(float64(tb.Stats.STA) * multiplier)
-		tb.Stats.CRT = int(float64(tb.Stats.CRT) * multiplier)
-		tb.Stats.DGE = int(float64(tb.Stats.DGE) * multiplier)
-		tb.Stats.CHA = int(float64(tb.Stats.CHA) * multiplier)
-		tb.Stats.STN = int(float64(tb.Stats.STN) * multiplier)
-		tb.Stats.SHN = int(float64(tb.Stats.SHN) * multiplier)
-		tb.Stats.HGR = int(float64(tb.Stats.HGR) * multiplier)
+		tb.Stats = tb.Stats.Scaled(1.0 + 0.01*float64(prestige))
 	}
 
 	return tb
@@ -440,10 +430,11 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 
 	// Load keystone status
 	var activeUntil string
-	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_keystone_active_"+uid+"_974").Scan(&activeUntil)
+	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", fmt.Sprintf("abyss_keystone_active_%s_%d", uid, content.NodeLimitBreak)).Scan(&activeUntil)
 	var cooldownUntil string
-	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_keystone_cooldown_"+uid+"_974").Scan(&cooldownUntil)
+	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", fmt.Sprintf("abyss_keystone_cooldown_%s_%d", uid, content.NodeLimitBreak)).Scan(&cooldownUntil)
 
+	st := s.bot.loadAbyssStats(uid) // one ~19-column read, reused for BestDepth + Stats below
 	s.render(w, "abysstree", map[string]any{
 		"Title":     "Abyss Skill Web",
 		"Nav":       "abyss",
@@ -465,10 +456,10 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		// Best depth drives the client-side mirror of the allocation floor
 		// gates (Item 62), so gated nodes are shown locked instead of
 		// advertising an allocate the server would refuse.
-		"BestDepth": s.bot.loadAbyssStats(uid).BestDepth,
+		"BestDepth": st.BestDepth,
 		"RespecTk":  abyssTreeRespecTokens,
 		// Talent/Spec updates
-		"Stats":     s.bot.loadAbyssStats(uid),
+		"Stats":     st,
 		"Spec":      s.bot.abyssSpec(uid),
 		"SpecDefs":  abyssSpecs,
 		// Deep-Delver extension: 50 generic talent nodes + their allocated levels,
@@ -481,6 +472,11 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		"SpecTalentDefs": content.SpecTalents,
 		"Tokens":    s.bot.abyssTokens(uid),
 		"NodeGates": abyssUpgradeMinDepth,
+		// Layout-derived special node IDs, injected so the client special-cases the
+		// right nodes instead of the old 1000-node literals (974/999) that drift when
+		// the ring count changes.
+		"LimitBreakID": content.NodeLimitBreak,
+		"SanctuaryID":  content.NodeSecretSanctuary,
 		"Sockets":   socketsJson,
 		"ActiveKeystoneExpiry": activeUntil,
 		"ActiveKeystoneCooldown": cooldownUntil,
@@ -496,6 +492,7 @@ func treePctLabelPublic(k string) string {
 		"token_gain": "tokens on bank", "material_yield": "crafting materials",
 		"skill_damage": "skill damage", "skill_mana_cost": "skill mana cost reduction",
 		"consumable_save": "chance consumables keep their charge",
+		"hp_regen":        "HP regen / sec",
 	}
 	if l, ok := labels[k]; ok {
 		return l
@@ -868,7 +865,7 @@ func (s *WebServer) handleAbyssTreeActivateKeystone(w http.ResponseWriter, r *ht
 		return
 	}
 
-	if req.NodeID != 974 {
+	if req.NodeID != content.NodeLimitBreak {
 		writeJSON(w, map[string]any{"ok": false, "error": "node is not a timed buff keystone"})
 		return
 	}

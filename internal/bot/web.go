@@ -503,10 +503,14 @@ type webUser struct {
 	Gold        int64
 	AbyssTokens int
 	CurrentHP   int
-	MaxHP       int
-	MaxMana     int
-	Stats       content.Stats
-	GearScore   int
+	// RawCurrentHP is the persisted current_hp before the base-max display clamp, so
+	// the Abyss dashboard can re-clamp against the higher tree-boosted max without a
+	// second query (and without the base-clamp hiding HP a delver actually has).
+	RawCurrentHP int
+	MaxHP        int
+	MaxMana      int
+	Stats        content.Stats
+	GearScore    int
 }
 
 // loadWebUser assembles the full character snapshot for a user.
@@ -533,6 +537,7 @@ func (s *WebServer) loadWebUser(uid string) (*webUser, error) {
 	// Mana is a combat-only pool (base 100 + MNA), mirroring resolveChannelCombat.
 	// Out of combat it's shown full as a capacity gauge under the health bar.
 	u.MaxMana = 100 + stats.MNA
+	u.RawCurrentHP = u.CurrentHP // persisted value, before the display clamp below
 	if u.CurrentHP <= 0 || u.CurrentHP > u.MaxHP {
 		u.CurrentHP = u.MaxHP
 	}

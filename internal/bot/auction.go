@@ -142,16 +142,25 @@ func (b *Bot) awardGearDrop(uid string, g content.Gear) GearDropResult {
 	itemDataBytes, _ := json.Marshal(g)
 
 	if b.shouldEquip(uid, g) {
-		// Equip the item directly
-		err := b.equipGear(b.DB, uid, g, g.MaxDurability, string(itemDataBytes))
-		if err == nil {
-			return GearDropResult{
-				Action:   "equipped",
-				ItemName: itemName,
-				Prefix:   "⬆️ Equipped: ",
+		// Equip atomically: equipGear displaces the current piece to inventory then
+		// upserts the new one — two writes. On a bare b.DB call a failure between them
+		// would persist the displace but not the upsert, and the inventory fall-through
+		// below would then also inventory the new drop, duplicating the old piece. A tx
+		// makes it all-or-nothing.
+		if tx, err := b.DB.Begin(); err == nil {
+			if equipErr := b.equipGear(tx, uid, g, g.MaxDurability, string(itemDataBytes)); equipErr == nil {
+				if err := tx.Commit(); err == nil {
+					return GearDropResult{
+						Action:   "equipped",
+						ItemName: itemName,
+						Prefix:   "⬆️ Equipped: ",
+					}
+				}
+			} else {
+				_ = tx.Rollback()
 			}
 		}
-		// Fall through to inventory on error
+		// Fall through to inventory on any tx/equip error (nothing partial persisted).
 	} else {
 		// List on auction house
 		b.autoListUnwantedItems(uid, g)

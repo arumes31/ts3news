@@ -55,6 +55,19 @@ func (tb TreeBonus) ApplyCombatPct(s Stats) Stats {
 	if v := tb.Pct["int_pct"]; v != 0 {
 		s.INT = int(float64(s.INT) * (1 + v))
 	}
+	// Gear-slot scalers: def_pct scales armor (DEF), the rest scale their stat.
+	if v := tb.Pct["def_pct"]; v != 0 {
+		s.DEF = int(float64(s.DEF) * (1 + v))
+	}
+	if v := tb.Pct["crt_pct"]; v != 0 {
+		s.CRT = int(float64(s.CRT) * (1 + v))
+	}
+	if v := tb.Pct["dge_pct"]; v != 0 {
+		s.DGE = int(float64(s.DGE) * (1 + v))
+	}
+	if v := tb.Pct["lck_pct"]; v != 0 {
+		s.LCK = int(float64(s.LCK) * (1 + v))
+	}
 
 	// Unique Keystones Conversion modifiers
 	if v := tb.Pct["str_to_spd"]; v != 0 {
@@ -151,13 +164,21 @@ func (t *AbyssTreeData) BonusFor(ids []int) TreeBonus {
 const (
 	treeSectors = 6
 	treeLanes   = 6 // angular lanes per sector
-	treeRings   = 26
+	treeRings   = 137
 	treeSlots   = treeSectors * treeLanes // 36 angular slots per ring
 
-	// 936 grid + 40 keystones + 24 bridges = exactly 1000 nodes.
-	treeGridNodes  = treeRings * treeSlots // 936, IDs 1..936
-	treeKeystoneN  = 40                    // IDs 937..976
+	// The web grew far past its original 26 rings: 137 rings × 36 slots = 4932
+	// grid nodes, then 40 keystones + 24 bridges + 100 signature + 12 auras on
+	// top (~5108 nodes total). IDs are assigned in that order.
+	treeGridNodes  = treeRings * treeSlots // 4932, IDs 1..4932
+	treeKeystoneN  = 40                    // IDs treeFirstKeyID..+39
 	treeFirstKeyID = treeGridNodes + 1
+	treeBridgeN    = treeSectors * 4 // 24 bridge notables
+	// First IDs of the signature rim and the aura rim, placed after grid,
+	// keystones and bridges so nothing collides as the grid grew.
+	treeFirstSigID  = treeFirstKeyID + treeKeystoneN + treeBridgeN // signature notables
+	treeSigN        = 100
+	treeFirstAuraID = treeFirstSigID + treeSigN // permanent-aura mega-nodes
 )
 
 // Skill-granting tree nodes: allocating one of these adds an active skill to
@@ -166,19 +187,45 @@ const (
 const (
 	NodeSkillEarthquake   = 588 // grants S_EQ; grid ring 17, slot 11 → "🔮 Spellweaver (Earthquake)"
 	NodeSkillArcaneShield = 466 // grants S_AS; grid ring 13, slot 33 → "🧪 Alchemist's Ritual (Arcane Shield)"
+
+	// NodeLimitBreak is the crown keystone (second sector boundary) that unlocks the
+	// activatable +50% XP timed buff. Derived from the layout so it tracks ring growth
+	// instead of a bare literal that silently drifts when treeRings changes.
+	NodeLimitBreak = treeFirstKeyID + treeSlots + 1
+	// NodeSecretSanctuary is the hidden bridge (last sector boundary, Third-tier ring)
+	// granting +20% loot find and +10% token gain. Same layout-derived rationale.
+	NodeSecretSanctuary = treeFirstKeyID + treeKeystoneN + (treeSectors-1)*4 + 2
 )
 
 var treeSectorNames = [treeSectors]string{"War", "Vitality", "Shadow", "Arcane", "Fortune", "Void"}
 var treeSectorIcons = [treeSectors]string{"⚔️", "❤️", "🌫️", "🔮", "🍀", "🕳️"}
 
-// treeRingAdjectives is a 26-step power ladder, one word per ring. Combined
-// with a per-lane noun it makes every grid node's name provably unique:
-// (ring adjective) × (lane noun) collide for no two nodes.
-var treeRingAdjectives = [treeRings]string{
+// treeRingBaseAdjectives is a 26-step power ladder. treeRingWord cycles it and
+// appends a tier numeral past the 26th ring, so every ring still yields a unique
+// word for any ring count: (ring word) × (lane noun) collide for no two nodes.
+var treeRingBaseAdjectives = []string{
 	"Faint", "Dim", "Pale", "Soft", "Quiet", "Keen", "Steady", "Bold",
 	"Fierce", "Grim", "Wild", "Deep", "Dire", "Savage", "Ancient", "Umbral",
 	"Raging", "Hallowed", "Sovereign", "Mythic", "Eternal", "Primal", "Zenith",
 	"Transcendent", "Apex", "Absolute",
+}
+
+// treeRingTierNumerals suffix a ring word once the base ladder is exhausted, so
+// "Faint", "Faint II", "Faint III" … stay unique across the (many) rings.
+var treeRingTierNumerals = []string{"", " II", " III", " IV", " V", " VI", " VII", " VIII", " IX", " X"}
+
+// treeRingWord returns a unique adjective for a 1-based ring: the base ladder for
+// the first 26 rings, then the ladder with a rising tier numeral for deeper ones.
+func treeRingWord(ring int) string {
+	i := (ring - 1) % len(treeRingBaseAdjectives)
+	tier := (ring - 1) / len(treeRingBaseAdjectives)
+	if tier < 0 {
+		tier = 0
+	}
+	if tier >= len(treeRingTierNumerals) {
+		tier = len(treeRingTierNumerals) - 1
+	}
+	return treeRingBaseAdjectives[i] + treeRingTierNumerals[tier]
 }
 
 // treeLaneNouns holds six thematic nouns per sector — 36 in total, all
@@ -421,7 +468,7 @@ func buildAbyssTree() *AbyssTreeData {
 
 	// --- 40 keystones ---------------------------------------------------------
 	// 36 rim keystones: every lane of every sector ends in one, connected to
-	// its lane's outermost grid node. IDs 937..972.
+	// its lane's outermost grid node. IDs treeFirstKeyID..+treeSlots-1.
 	for slot := 0; slot < treeSlots; slot++ {
 		sec := slot / treeLanes
 		ks := treeRimKeystones[slot]
@@ -436,7 +483,8 @@ func buildAbyssTree() *AbyssTreeData {
 		addEdge(id, gridID(treeRings, slot))
 	}
 	// 4 crown keystones beyond the rim at the first four sector boundaries,
-	// each reachable only through its two adjacent rim keystones. IDs 973..976.
+	// each reachable only through its two adjacent rim keystones. IDs
+	// treeFirstKeyID+treeSlots..+3 (NodeLimitBreak is boundary 1).
 	for b := 0; b < 4; b++ {
 		ks := treeCrownKeystones[b]
 		leftSlot := b*treeLanes + (treeLanes - 1)
@@ -454,9 +502,10 @@ func buildAbyssTree() *AbyssTreeData {
 	}
 
 	// --- 24 bridge notables between sectors ---------------------------------
-	// Four per boundary at rings 7/14/21/26 — 24 total, bringing the web to
-	// exactly 1000 nodes (936 grid + 40 keystones + 24 bridges).
-	bridgeID := treeFirstKeyID + treeKeystoneN - 1 // 976; bridges take 977..1000
+	// Four per boundary at rings 7/14/21/final — treeBridgeN total, appended after
+	// the keystones. IDs are layout-derived (see NodeSecretSanctuary) so they don't
+	// drift when treeRings/treeGridNodes change.
+	bridgeID := treeFirstKeyID + treeKeystoneN - 1 // bridges take the treeBridgeN IDs right after the keystones
 	addBridge := func(boundary, ring int) {
 		bridgeID++
 		leftSlot := boundary*treeLanes + (treeLanes - 1)
@@ -473,7 +522,7 @@ func buildAbyssTree() *AbyssTreeData {
 				treeSectorPctKey((boundary+1)%treeSectors, rightSlot): math.Round(treeNotablePct((boundary+1)%treeSectors, ring)*0.5*1000) / 1000,
 			},
 		}
-		if bridgeID == 999 {
+		if bridgeID == NodeSecretSanctuary {
 			n.Name = "🌌 Secret Sanctuary"
 			n.Desc = "Secret Sanctuary: Grants +20% loot find and +10% token gain."
 			n.Pct = map[string]float64{"loot_find": 0.20, "token_gain": 0.10}
@@ -642,7 +691,7 @@ func buildAbyssTree() *AbyssTreeData {
 		{"Quickened Resolve", "ult_cooldown", 0.04}, {"Momentum Ascendance", "ult_cooldown", 0.05}, {"Relentless Cadence", "ult_cooldown", 0.06}, {"Everready Instinct", "ult_cooldown", 0.07}, {"Chrono-Attunement", "ult_cooldown", 0.08}, {"Tempo Apex", "ult_cooldown", 0.09}, {"The Endless Encore", "ult_cooldown", 0.10}, {"Timebender Ascendant", "ult_cooldown", 0.11}, {"Perpetual Onslaught", "ult_cooldown", 0.12}, {"Avatar of Tempo", "ult_cooldown", 0.13},
 	}
 	for k, sg := range sigNodes {
-		id := 1000 + 1 + k // 1001..1100
+		id := treeFirstSigID + k
 		slot := k % treeSlots
 		n := TreeNode{
 			ID: id, Ring: treeRings + 2 + k/treeSlots, Slot: slot, Sector: slot / treeLanes,
@@ -656,6 +705,241 @@ func buildAbyssTree() *AbyssTreeData {
 		addEdge(id, treeFirstKeyID+(k%treeKeystoneN)) // hang off a keystone → reachable
 	}
 
+	// --- 12 aura mega-nodes on the outermost rim (IDs treeFirstAuraID..) --------
+	// Each costs 50 points (Cost() "aura") and grants a powerful *permanent aura*.
+	// They sit past everything and hang off the rim keystones, so only the very
+	// deepest investment can reach one.
+	auraNodes := []struct {
+		name string
+		desc string
+		pct  map[string]float64
+	}{
+		{"⚔️ Aura of Wrath", "Permanent aura: +30% STR in the Abyss.", map[string]float64{"str_pct": 0.30}},
+		{"❤️ Aura of the Colossus", "Permanent aura: +30% max HP in the Abyss.", map[string]float64{"hp_pct": 0.30}},
+		{"🌫️ Aura of the Tempest", "Permanent aura: +30% SPD in the Abyss.", map[string]float64{"spd_pct": 0.30}},
+		{"🔮 Aura of the Archmagus", "Permanent aura: +30% INT in the Abyss.", map[string]float64{"int_pct": 0.30}},
+		{"🍀 Aura of Avarice", "Permanent aura: +40% gold from drops.", map[string]float64{"gold_find": 0.40}},
+		{"🕳️ Aura of the Void", "Permanent aura: +25% escrow bonus and +25% tokens on bank.", map[string]float64{"escrow_bonus": 0.25, "token_gain": 0.25}},
+		{"💥 Aura of Ruin", "Permanent aura: +30% Ultimate and +20% skill damage.", map[string]float64{"ult_damage": 0.30, "skill_damage": 0.20}},
+		{"⏳ Aura of Eternity", "Permanent aura: +30% floor XP.", map[string]float64{"xp_gain": 0.30}},
+		{"🩸 Aura of the Vampire", "Permanent aura: +2% of DEF as Lifesteal.", map[string]float64{"def_to_lifesteal": 0.02}},
+		{"🌀 Aura of Momentum", "Permanent aura: +25% Ultimate cooldown recovery.", map[string]float64{"ult_cooldown": 0.25}},
+		{"💎 Aura of Plenty", "Permanent aura: +30% loot find and +20% crafting materials.", map[string]float64{"loot_find": 0.30, "material_yield": 0.20}},
+		{"🌟 Aura of Ascension", "Permanent aura: +10% STR, HP, SPD and INT in the Abyss.", map[string]float64{"str_pct": 0.10, "hp_pct": 0.10, "spd_pct": 0.10, "int_pct": 0.10}},
+	}
+	// Each aura is locked behind a chain of small tradeoff "trial" nodes (a real
+	// cost + real downside) rather than hanging straight off a keystone.
+	const gatesPerAura = 3
+	gateBase := treeFirstAuraID + len(auraNodes)
+	gateTradeoffs := []map[string]float64{
+		{"str_pct": 0.03, "hp_pct": -0.02},
+		{"hp_pct": 0.04, "spd_pct": -0.02},
+		{"spd_pct": 0.03, "def_pct": -0.02},
+		{"int_pct": 0.03, "str_pct": -0.02},
+		{"skill_damage": 0.04, "hp_pct": -0.02},
+		{"def_pct": 0.04, "spd_pct": -0.02},
+	}
+	for k, a := range auraNodes {
+		slot := (k * treeSlots / len(auraNodes)) % treeSlots
+		// Walk a chain of trial nodes out from a rim keystone up to the aura.
+		prevID := treeFirstKeyID + (k * treeKeystoneN / len(auraNodes))
+		for g := 0; g < gatesPerAura; g++ {
+			gid := gateBase + k*gatesPerAura + g
+			gpct := gateTradeoffs[(k*gatesPerAura+g)%len(gateTradeoffs)]
+			gslot := (slot + g + 1) % treeSlots
+			gn := TreeNode{
+				ID: gid, Ring: treeRings + 4 + g, Slot: gslot, Sector: gslot / treeLanes,
+				Type: "notable", Name: fmt.Sprintf("⛧ %s · Trial %d", a.name, g+1),
+				Desc: pctBrief(gpct), Pct: gpct,
+			}
+			polar(&gn)
+			t.Nodes = append(t.Nodes, gn)
+			addEdge(prevID, gid)
+			prevID = gid
+		}
+		// The aura itself, reachable only through the final trial.
+		id := treeFirstAuraID + k
+		n := TreeNode{
+			ID: id, Ring: treeRings + 5, Slot: slot, Sector: slot / treeLanes,
+			Type: "aura", Name: a.name, Desc: a.desc, Pct: a.pct,
+		}
+		n.X, n.Y = polarXY(float64(treeRings)+5, float64(slot))
+		t.Nodes = append(t.Nodes, n)
+		addEdge(id, prevID)
+	}
+
+	// --- Vampire cluster + HP-regen cluster + 100 enchantment nodes --------------
+	// More build variety. Every node reuses a live effect key (folded into
+	// Bot.treeBonusFor) so it has a real in-game effect, and hangs off a keystone
+	// so it stays reachable. hp_regen is applied out of combat by applyAbyssRegen.
+	type mechSpec struct {
+		name string
+		pct  map[string]float64
+	}
+	var mechNodes []mechSpec
+	// Vampire (lifesteal) cluster.
+	for i, nm := range []string{"Vampire's Kiss", "Bloodthirst", "Sanguine Craving", "Crimson Feast", "Nightfeeder", "Exsanguinate", "Bloodmoon Pact", "Leechlord", "Hemophage", "Dracula's Heir"} {
+		mechNodes = append(mechNodes, mechSpec{"🩸 " + nm, map[string]float64{"def_to_lifesteal": 0.004 + float64(i)*0.001}})
+	}
+	// HP-regen cluster (1-2 HP over ~5-60s → a small HP/sec trickle).
+	for i, nm := range []string{"Mending", "Renewal", "Regrowth", "Lifebloom", "Trollblood", "Second Breath", "Convalescence", "Wellspring", "Quickening", "Everheal", "Phoenix Ember", "Undying Vigil"} {
+		mechNodes = append(mechNodes, mechSpec{"💚 " + nm, map[string]float64{"hp_regen": 0.03 + float64(i%4)*0.02}})
+	}
+	// 100 generated enchantment nodes spanning every live effect.
+	enchEffects := []struct {
+		key, label string
+		base       float64
+	}{
+		{"str_pct", "of Wrath", 0.02}, {"hp_pct", "of the Bulwark", 0.02}, {"spd_pct", "of Haste", 0.02}, {"int_pct", "of the Mind", 0.02},
+		{"skill_damage", "of Spellfire", 0.03}, {"ult_damage", "of Cataclysm", 0.03}, {"ult_cooldown", "of Momentum", 0.02}, {"def_to_lifesteal", "of the Leech", 0.004},
+		{"gold_find", "of Avarice", 0.03}, {"loot_find", "of Fortune", 0.02}, {"xp_gain", "of Wisdom", 0.02}, {"token_gain", "of Tribute", 0.03},
+		{"escrow_bonus", "of the Vault", 0.02}, {"material_yield", "of Salvage", 0.03}, {"hp_regen", "of Rejuvenation", 0.04},
+	}
+	enchPrefixes := []string{"Lesser", "Minor", "Fine", "Greater", "Grand", "Superior", "Arcane", "Ancient", "Runic", "Mythic"}
+	enchCount := 0
+	for pi := 0; pi < len(enchPrefixes) && enchCount < 100; pi++ {
+		for _, e := range enchEffects {
+			if enchCount >= 100 {
+				break
+			}
+			val := math.Round(e.base*(1+float64(pi)*0.4)*1000) / 1000
+			mechNodes = append(mechNodes, mechSpec{"✧ " + enchPrefixes[pi] + " Enchantment " + e.label, map[string]float64{e.key: val}})
+			enchCount++
+		}
+	}
+	mechFirstID := gateBase + len(auraNodes)*gatesPerAura // after auras + their trial gates
+	for k, m := range mechNodes {
+		id := mechFirstID + k
+		slot := (k * 7) % treeSlots
+		desc := ""
+		for key, v := range m.pct { // single key each → deterministic
+			desc = fmt.Sprintf("%+.1f%% %s", v*100, treePctLabel(key))
+		}
+		n := TreeNode{
+			ID: id, Ring: treeRings + 3 + k/treeSlots, Slot: slot, Sector: slot / treeLanes,
+			Type: "notable", Name: m.name, Desc: desc, Pct: m.pct,
+		}
+		polar(&n)
+		t.Nodes = append(t.Nodes, n)
+		addEdge(id, treeFirstKeyID+(k%treeKeystoneN))
+	}
+
+	// --- Gear-slot scalers + new disciplines + tradeoff keystones ---------------
+	// addSpecial appends one outer-rim node reachable through a rim keystone. descOf
+	// renders effects with sorted keys so multi-stat nodes stay deterministic.
+	nextID := mechFirstID + len(mechNodes)
+	descOf := func(pct map[string]float64) string {
+		keys := make([]string, 0, len(pct))
+		for k := range pct {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		out := ""
+		for _, k := range keys {
+			if out != "" {
+				out += " · "
+			}
+			out += fmt.Sprintf("%+.1f%% %s", pct[k]*100, treePctLabel(k))
+		}
+		return out
+	}
+	addSpecial := func(name, typ string, pct map[string]float64) {
+		id := nextID
+		nextID++
+		slot := (id * 5) % treeSlots
+		n := TreeNode{
+			ID: id, Ring: treeRings + 4 + id%6, Slot: slot, Sector: slot / treeLanes,
+			Type: typ, Name: name, Desc: descOf(pct), Pct: pct,
+		}
+		polar(&n)
+		t.Nodes = append(t.Nodes, n)
+		addEdge(id, treeFirstKeyID+id%treeKeystoneN)
+	}
+
+	// Gear-slot scaling nodes (pet, armour, weapon, ...).
+	for _, s := range []mechSpec{
+		{"🐾 Beastbond", map[string]float64{"pet_damage_pct": 0.15}},
+		{"🐾 Loyal Companion", map[string]float64{"pet_betrayal_reduce": 0.03, "pet_damage_pct": 0.10}},
+		{"🐺 Alpha's Command", map[string]float64{"pet_damage_pct": 0.20}},
+		{"🛡️ Reinforced Plating", map[string]float64{"def_pct": 0.15}},
+		{"🛡️ Fortified Armour", map[string]float64{"def_pct": 0.20}},
+		{"🛡️ Aegis Mastery", map[string]float64{"def_pct": 0.25, "hp_pct": 0.05}},
+		{"🗡️ Weaponmaster", map[string]float64{"str_pct": 0.12, "crt_pct": 0.15}},
+		{"🎯 Deadeye", map[string]float64{"crt_pct": 0.25}},
+		{"💨 Evasion Training", map[string]float64{"dge_pct": 0.25}},
+		{"🍀 Lucky Charm", map[string]float64{"lck_pct": 0.25}},
+		{"🔮 Focus Crystal", map[string]float64{"int_pct": 0.12, "skill_damage": 0.10}},
+		{"❤️ Vitality Rig", map[string]float64{"hp_pct": 0.15, "def_pct": 0.10}},
+	} {
+		addSpecial(s.name, "notable", s.pct)
+	}
+
+	// New outer-ring disciplines beyond the six base sectors.
+	for _, d := range []struct {
+		tag   string
+		nodes []mechSpec
+	}{
+		{"⏳ Chronomancy", []mechSpec{
+			{"Time Dilation", map[string]float64{"ult_cooldown": 0.08}}, {"Haste Field", map[string]float64{"spd_pct": 0.06}}, {"Temporal Study", map[string]float64{"xp_gain": 0.05}}, {"Rewind", map[string]float64{"ult_cooldown": 0.10}}, {"Quicken", map[string]float64{"spd_pct": 0.08}}, {"Foresight", map[string]float64{"loot_find": 0.05}}, {"Stasis Ward", map[string]float64{"hp_pct": 0.06}}, {"Eternity's Edge", map[string]float64{"ult_cooldown": 0.12}},
+		}},
+		{"💀 Necromancy", []mechSpec{
+			{"Raise Thrall", map[string]float64{"pet_damage_pct": 0.12}}, {"Life Siphon", map[string]float64{"def_to_lifesteal": 0.006}}, {"Bone Armor", map[string]float64{"def_pct": 0.10}}, {"Soul Harvest", map[string]float64{"hp_pct": 0.06}}, {"Undying Servant", map[string]float64{"pet_betrayal_reduce": 0.03}}, {"Grave Bond", map[string]float64{"pet_damage_pct": 0.15}}, {"Death's Embrace", map[string]float64{"def_to_lifesteal": 0.008}}, {"Lich's Ascension", map[string]float64{"hp_pct": 0.08}},
+		}},
+		{"🧪 Alchemy", []mechSpec{
+			{"Transmute", map[string]float64{"gold_find": 0.06}}, {"Distillation", map[string]float64{"material_yield": 0.06}}, {"Philosopher's Stone", map[string]float64{"gold_find": 0.08}}, {"Elixir Craft", map[string]float64{"hp_regen": 0.05}}, {"Reagent Cache", map[string]float64{"material_yield": 0.08}}, {"Alchemical Insight", map[string]float64{"xp_gain": 0.05}}, {"Golden Formula", map[string]float64{"gold_find": 0.10}}, {"Panacea", map[string]float64{"hp_regen": 0.08}},
+		}},
+		{"🐾 Beastmastery", []mechSpec{
+			{"Wild Empathy", map[string]float64{"pet_damage_pct": 0.12}}, {"Tame Beast", map[string]float64{"pet_betrayal_reduce": 0.04}}, {"Pack Tactics", map[string]float64{"pet_damage_pct": 0.15}}, {"Feral Strength", map[string]float64{"str_pct": 0.06}}, {"Primal Bond", map[string]float64{"pet_damage_pct": 0.18}}, {"Beast Within", map[string]float64{"str_pct": 0.08}}, {"Alpha Instinct", map[string]float64{"pet_betrayal_reduce": 0.05}}, {"Kingdom of Beasts", map[string]float64{"pet_damage_pct": 0.20}},
+		}},
+		{"📜 Runecraft", []mechSpec{
+			{"Rune of Power", map[string]float64{"skill_damage": 0.06}}, {"Glyph of Focus", map[string]float64{"int_pct": 0.06}}, {"Sigil of Ruin", map[string]float64{"ult_damage": 0.06}}, {"Runic Overflow", map[string]float64{"skill_damage": 0.08}}, {"Arcane Etching", map[string]float64{"int_pct": 0.08}}, {"Warding Rune", map[string]float64{"def_pct": 0.10}}, {"Cataclysm Glyph", map[string]float64{"ult_damage": 0.08}}, {"Master Runesmith", map[string]float64{"skill_damage": 0.10}},
+		}},
+		{"🌌 Astromancy", []mechSpec{
+			{"Starsight", map[string]float64{"loot_find": 0.06}}, {"Cosmic Fortune", map[string]float64{"gold_find": 0.06}}, {"Celestial Study", map[string]float64{"xp_gain": 0.06}}, {"Lucky Star", map[string]float64{"lck_pct": 0.15}}, {"Constellation", map[string]float64{"loot_find": 0.08}}, {"Zodiac Blessing", map[string]float64{"xp_gain": 0.08}}, {"Nebula's Gift", map[string]float64{"gold_find": 0.08}}, {"Avatar of the Cosmos", map[string]float64{"lck_pct": 0.20}},
+		}},
+	} {
+		for _, sp := range d.nodes {
+			addSpecial(d.tag+": "+sp.name, "notable", sp.pct)
+		}
+	}
+
+	// Tradeoff keystones: several strong stats bought with a real downside.
+	for _, k := range []mechSpec{
+		{"⚔️ Glass Cannon", map[string]float64{"str_pct": 0.40, "skill_damage": 0.25, "hp_pct": -0.25}},
+		{"🛡️ Immovable Object", map[string]float64{"hp_pct": 0.40, "def_pct": 0.30, "spd_pct": -0.25}},
+		{"🌪️ Reckless Assault", map[string]float64{"spd_pct": 0.35, "str_pct": 0.20, "def_pct": -0.30}},
+		{"🔮 Manaburn", map[string]float64{"int_pct": 0.40, "skill_damage": 0.30, "hp_pct": -0.20}},
+		{"🩸 Blood Pact", map[string]float64{"def_to_lifesteal": 0.02, "str_pct": 0.25, "hp_pct": -0.15}},
+		{"💰 Greed Incarnate", map[string]float64{"gold_find": 0.50, "loot_find": 0.30, "hp_pct": -0.20}},
+		{"⏳ Overclock", map[string]float64{"ult_cooldown": 0.30, "ult_damage": 0.30, "spd_pct": -0.20}},
+		{"🐾 Feral Fury", map[string]float64{"pet_damage_pct": 0.40, "str_pct": 0.20, "def_pct": -0.25}},
+		{"🎯 All-In", map[string]float64{"crt_pct": 0.50, "str_pct": 0.20, "dge_pct": -0.30}},
+		{"💨 Untouchable Glass", map[string]float64{"dge_pct": 0.50, "spd_pct": 0.20, "hp_pct": -0.30}},
+		{"🌟 Zealot", map[string]float64{"str_pct": 0.20, "hp_pct": 0.20, "int_pct": 0.20, "spd_pct": 0.20, "gold_find": -0.30}},
+		{"🕳️ Void Pact", map[string]float64{"skill_damage": 0.30, "ult_damage": 0.30, "xp_gain": -0.25}},
+	} {
+		addSpecial(k.name, "keystone", k.pct)
+	}
+
+	// Small dead-end "offshoot" branches: grab-and-stop nodes hanging off random
+	// grid nodes with no onward connection, for cheap build variety.
+	rLeaf := rand.New(rand.NewPCG(4242, 99))
+	leafStats := []Stats{{STR: 5}, {HP: 40}, {DEF: 4}, {SPD: 5}, {INT: 5}, {CRT: 3}, {DGE: 3}, {LCK: 4}, {MNA: 20}, {STA: 4}}
+	for i := 0; i < 90; i++ {
+		parentID := 1 + rLeaf.IntN(treeGridNodes) // IDs 1..treeGridNodes are the grid, appended in order
+		p := t.Nodes[parentID-1]
+		st := leafStats[i%len(leafStats)]
+		id := nextID
+		nextID++
+		n := TreeNode{
+			ID: id, Ring: p.Ring, Slot: p.Slot, Sector: p.Sector,
+			Type: "small", Name: fmt.Sprintf("• Offshoot %d", id), Desc: statsBrief(st), Stats: st,
+			X: p.X + float64(rLeaf.IntN(46)-23), Y: p.Y + float64(rLeaf.IntN(46)-23),
+		}
+		t.Nodes = append(t.Nodes, n)
+		addEdge(parentID, id) // single link, no onward edge = a dead-end branch
+	}
+
 	for i := range t.Nodes {
 		t.byID[t.Nodes[i].ID] = &t.Nodes[i]
 	}
@@ -663,9 +947,11 @@ func buildAbyssTree() *AbyssTreeData {
 }
 
 // Cost is the node's skill-point price: bigger nodes cost more. Small grid
-// nodes and sockets cost 1, notables and bridges 2, keystones 3.
+// nodes and sockets cost 1, notables and bridges 2, keystones 3, auras 50.
 func (n *TreeNode) Cost() int {
 	switch n.Type {
+	case "aura":
+		return 50
 	case "keystone":
 		return 3
 	case "notable", "bridge":
@@ -728,25 +1014,14 @@ func (t *AbyssTreeData) SpentPoints(alloc []int) int {
 func polar(n *TreeNode) { n.X, n.Y = polarXY(float64(n.Ring), float64(n.Slot)) }
 
 func polarXY(ring, slot float64) (float64, float64) {
-	if ring <= 5 {
-		// Fermat spiral: N = (ring - 1) * 36 + slot
-		n := (ring-1)*36 + slot
-		goldenAngle := 137.507764 * math.Pi / 180.0
-		theta := n * goldenAngle
-		
-		// Scaled radius for rings 1 to 5
-		radius := 14.0 * math.Sqrt(n) + 20.0
-		
-		// Add tiny organic jitter
-		seedVal := uint64(math.Round(ring)*1000 + math.Round(slot))
-		r := rand.New(rand.NewPCG(seedVal, 777))
-		radius += float64(r.IntN(5)-2)
-		theta += (r.Float64()*0.02 - 0.01)
-
-		return math.Round(radius * math.Cos(theta)), math.Round(radius * math.Sin(theta))
-	}
-
-	radius := 60 + ring*34
+	// All rings use the same clean radial layout. The inner Fermat spiral was
+	// removed: spiral-adjacent nodes sit far apart, so their edges crossed
+	// everything. A pure radial grid keeps radial spokes + short lateral links from
+	// crossing (only the long cross-sector portals are meant to cross).
+	//
+	// Bigger base + wider per-ring spacing than the original (60 + ring*34): the
+	// web now runs to 137+ rings, so spread it well out from the centre.
+	radius := 150 + ring*40
 	
 	// Determine sector and slot index within sector
 	slotInt := int(math.Round(slot)) % treeSlots
@@ -760,6 +1035,15 @@ func polarXY(ring, slot float64) (float64, float64) {
 	centerAngle := (float64(sector)*6.0 + 2.5) / 36.0 * 2.0 * math.Pi - math.Pi/2.0
 	spanHalf := math.Pi / 6.0 // 30 degrees (half of sector span)
 
+	// Angular spread saturates at ring 26: past it these linear branch formulas would
+	// extrapolate |fraction| beyond 1.0 (a full half-sector) and rotate outer lanes
+	// into neighbouring sectors. Radius still uses the real ring (line above), so deep
+	// rings extend straight out at the ring-26 branch angle instead of curling away.
+	spreadRing := ring
+	if spreadRing > 26.0 {
+		spreadRing = 26.0
+	}
+
 	// Calculate fraction from sector center (-1.0 to 1.0)
 	var fraction float64
 	switch rel {
@@ -768,42 +1052,42 @@ func polarXY(ring, slot float64) (float64, float64) {
 	case 3:
 		fraction = 0.15
 	case 1:
-		if ring < 4.0 {
+		if spreadRing < 4.0 {
 			fraction = -0.22
 		} else {
-			fraction = -0.22 - 0.38*(ring-4.0)/22.0 // branches out to -0.6
+			fraction = -0.22 - 0.38*(spreadRing-4.0)/22.0 // branches out to -0.6
 		}
 	case 0:
 		var f1 float64
-		if ring < 4.0 {
+		if spreadRing < 4.0 {
 			f1 = -0.22
 		} else {
-			f1 = -0.22 - 0.38*(ring-4.0)/22.0
+			f1 = -0.22 - 0.38*(spreadRing-4.0)/22.0
 		}
-		if ring < 9.0 {
+		if spreadRing < 9.0 {
 			fraction = f1 - 0.07
 		} else {
 			f1At9 := -0.22 - 0.38*(5.0)/22.0
-			fraction = (f1At9 - 0.07) - 0.57*(ring-9.0)/17.0 // branches out to -0.95
+			fraction = (f1At9 - 0.07) - 0.57*(spreadRing-9.0)/17.0 // branches out to -0.95
 		}
 	case 4:
-		if ring < 4.0 {
+		if spreadRing < 4.0 {
 			fraction = 0.22
 		} else {
-			fraction = 0.22 + 0.38*(ring-4.0)/22.0 // branches out to 0.6
+			fraction = 0.22 + 0.38*(spreadRing-4.0)/22.0 // branches out to 0.6
 		}
 	case 5:
 		var f4 float64
-		if ring < 4.0 {
+		if spreadRing < 4.0 {
 			f4 = 0.22
 		} else {
-			f4 = 0.22 + 0.38*(ring-4.0)/22.0
+			f4 = 0.22 + 0.38*(spreadRing-4.0)/22.0
 		}
-		if ring < 9.0 {
+		if spreadRing < 9.0 {
 			fraction = f4 + 0.07
 		} else {
 			f4At9 := 0.22 + 0.38*(5.0)/22.0
-			fraction = (f4At9 + 0.07) + 0.57*(ring-9.0)/17.0 // branches out to 0.95
+			fraction = (f4At9 + 0.07) + 0.57*(spreadRing-9.0)/17.0 // branches out to 0.95
 		}
 	default:
 		// Fallback to straight line
@@ -829,6 +1113,13 @@ func polarXY(ring, slot float64) (float64, float64) {
 func treeSmallStats(sector, ring, slot, nodeID int) Stats {
 	// Seed the random generator uniquely for this node ID to ensure stable, unique stats
 	r := rand.New(rand.NewPCG(uint64(nodeID), 42))
+
+	// Cap the depth used for stat scaling: past the original 26 rings the web is
+	// a long grind of many small nodes, not ever-larger single hits — otherwise a
+	// ring-137 node alone would grant hundreds of points.
+	if ring > 26 {
+		ring = 26
+	}
 
 	grow := 1 + ring/3
 	
@@ -945,6 +1236,9 @@ func treeSectorPctKey(sector, slot int) string {
 
 // treeNotablePct sizes a notable's percent effect by how deep it sits.
 func treeNotablePct(sector, ring int) float64 {
+	if ring > 26 { // cap depth scaling (see treeSmallStats) so deep notables stay sane
+		ring = 26
+	}
 	base := 0.01 + float64(ring)*0.001
 	if sector <= 3 { // combat multipliers run a little hotter
 		base = 0.02 + float64(ring)*0.002
@@ -1012,7 +1306,7 @@ func treeNodeText(n *TreeNode) (string, string) {
 	if n.Type == "notable" {
 		star = "★ "
 	}
-	name := fmt.Sprintf("%s %s%s %s", treeSectorIcons[n.Sector], star, treeRingAdjectives[n.Ring-1], treeLaneNouns[n.Sector][n.Slot%treeLanes])
+	name := fmt.Sprintf("%s %s%s %s", treeSectorIcons[n.Sector], star, treeRingWord(n.Ring), treeLaneNouns[n.Sector][n.Slot%treeLanes])
 	desc := statsBrief(n.Stats)
 	for k, v := range n.Pct {
 		desc += fmt.Sprintf(" · +%.1f%% %s", v*100, treePctLabel(k))
@@ -1073,6 +1367,16 @@ func treePctLabel(k string) string {
 		return "Skill mana cost reduction"
 	case "consumable_save":
 		return "chance consumables keep their charge"
+	case "hp_regen":
+		return "HP regen / sec (out of combat)"
+	case "def_pct":
+		return "DEF / armor (Abyss)"
+	case "crt_pct":
+		return "CRT (Abyss)"
+	case "dge_pct":
+		return "DGE (Abyss)"
+	case "lck_pct":
+		return "LCK (Abyss)"
 	}
 	return k
 }

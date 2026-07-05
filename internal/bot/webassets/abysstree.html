@@ -115,6 +115,22 @@
   opacity: 1;
 }
 
+/* Aura mega-nodes: distinct golden glow so the outermost 50-point rewards pop. */
+.tn.t-aura {
+  fill: rgba(244, 197, 66, 0.18);
+  stroke: #f4c542;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 6px rgba(244, 197, 66, 0.5));
+}
+.tn.t-aura.on {
+  fill: rgba(244, 197, 66, 0.55);
+  filter: drop-shadow(0 0 12px rgba(244, 197, 66, 0.85));
+}
+.tn.t-aura.can {
+  fill: rgba(244, 197, 66, 0.3);
+  filter: drop-shadow(0 0 10px rgba(244, 197, 66, 0.7));
+}
+
 /* Starfield Parallax (Item 1) */
 .tree-bg-stars circle {
   pointer-events: none;
@@ -275,7 +291,7 @@
 <div class="tree-head">
   <div>
     <h1 id="treeTitle">🌳 Abyss Skill Web</h1>
-    <p class="muted small" id="treeSubtitle">1000 nodes · six disciplines · every path connects. Points come from levels, depth records, lifetime floors and prestige. Small nodes cost 1 point, ★ notables &amp; 🌉 bridges 2, 👑 keystones 3.</p>
+    <p class="muted small" id="treeSubtitle">Thousands of nodes across six disciplines out to the far rim — every path connects. Points scale with levels, depth records, lifetime floors and prestige. Small nodes cost 1, ★ notables &amp; 🌉 bridges 2, 👑 keystones 3, 🌟 auras 50.</p>
   </div>
   <div class="tree-head-right">
     <span class="pill" id="treeAvailPill">✨ <b id="treeAvail">{{.Avail}}</b> available</span>
@@ -361,6 +377,9 @@ function setBusy(b) { busy = b; }
 var sockets = {{.Sockets}};
 var activeKeystoneExpiry = {{if .ActiveKeystoneExpiry}}"{{.ActiveKeystoneExpiry}}"{{else}}""{{end}};
 var activeKeystoneCooldown = {{if .ActiveKeystoneCooldown}}"{{.ActiveKeystoneCooldown}}"{{else}}""{{end}};
+// Layout-derived special nodes (server-injected so they never drift from the tree).
+var LIMIT_BREAK_ID = {{.LimitBreakID}};
+var SANCTUARY_ID = {{.SanctuaryID}};
 
 var CONSTELLATIONS = [
   // Sword (War - Sector 0)
@@ -476,7 +495,17 @@ function getNodeIcon(n) {
       default: return 'psychic-waves';
     }
   }
-  return '';
+  if (n.type === 'aura') return 'legendary-star';
+  // Every remaining (small grid) node gets a sector-themed icon too, so no node
+  // is ever iconless.
+  switch (n.sector) {
+    case 0: return 'broadsword';
+    case 1: return 'health-normal';
+    case 2: return 'hood';
+    case 3: return 'crystal-ball';
+    case 4: return 'clover';
+    default: return 'psychic-waves';
+  }
 }
 
 var iconCache = {};
@@ -554,7 +583,7 @@ async function abPost(url, body){
 // ---- SVG build -------------------------------------------------------------
 var svg = document.getElementById('treeSvg');
 var NS = 'http://www.w3.org/2000/svg';
-var view = {x:-700, y:-700, w:1400, h:1400};
+var view = {x:-1800, y:-1800, w:3600, h:3600};
 function applyView(){ 
   svg.setAttribute('viewBox', view.x+' '+view.y+' '+view.w+' '+view.h); 
   // Parallax shift for background stars (Item 1)
@@ -568,6 +597,9 @@ function applyView(){
 // UI never advertises an allocate the server would refuse.
 function gateFloor(n){
   if(!n) return 0;
+  // Mirror the server's special achievement gate on Victor's Trophy (node 697,
+  // web_abyss_tree.go), which requires clearing Floor 25 on top of the ring gate.
+  if(n.id === 697) return 25;
   if(n.type === 'keystone') return 30;
   if(n.ring > 20) return 20;
   if(n.ring > 10) return 10;
@@ -576,7 +608,7 @@ function gateFloor(n){
 // Node point cost, mirroring TreeNode.Cost() server-side: bigger nodes cost more.
 function nodeCost(n){
   if(!n) return 1;
-  return n.type==='keystone' ? 3 : (n.type==='notable'||n.type==='bridge') ? 2 : 1;
+  return n.type==='aura' ? 50 : n.type==='keystone' ? 3 : (n.type==='notable'||n.type==='bridge') ? 2 : 1;
 }
 function isAllocatable(id){
   if(alloc[id] || used + nodeCost(byId[id]) > points) return false;
@@ -603,6 +635,32 @@ function randSeed(s) {
     s = Math.sin(s) * 10000;
     return s - Math.floor(s);
   };
+}
+
+// polyPoints returns an SVG points string for a regular polygon.
+function polyPoints(cx, cy, radius, sides, rot){
+  var pts = [];
+  for(var i=0;i<sides;i++){
+    var a = rot + i*2*Math.PI/sides;
+    pts.push((cx+radius*Math.cos(a)).toFixed(1)+','+(cy+radius*Math.sin(a)).toFixed(1));
+  }
+  return pts.join(' ');
+}
+// makeNodeShape gives each node type its own geometry so sockets, keystones,
+// bridges and auras read differently at a glance; small + notable stay circles.
+function makeNodeShape(n){
+  var TOP = -Math.PI/2, el;
+  switch(n.type){
+    case 'socket':   el = document.createElementNS(NS,'polygon'); el.setAttribute('points', polyPoints(n.x,n.y,11,4,TOP)); break; // diamond
+    case 'keystone': el = document.createElementNS(NS,'polygon'); el.setAttribute('points', polyPoints(n.x,n.y,16,6,TOP)); break; // hexagon
+    case 'aura':     el = document.createElementNS(NS,'polygon'); el.setAttribute('points', polyPoints(n.x,n.y,22,8,TOP)); break; // octagon
+    case 'bridge':   el = document.createElementNS(NS,'polygon'); el.setAttribute('points', polyPoints(n.x,n.y,13,3,TOP)); break; // triangle
+    default:
+      el = document.createElementNS(NS,'circle');
+      el.setAttribute('cx', n.x); el.setAttribute('cy', n.y);
+      el.setAttribute('r', n.type==='notable' ? 10 : 6);
+  }
+  return el;
 }
 
 var edgeEls = [], nodeEls = {};
@@ -654,7 +712,11 @@ function build(){
     var gB = document.createElementNS(NS, 'g');
     gB.setAttribute('class', 'tree-bg-decor');
     
-    var maxRadius = 60 + 28 * 34; // 1012
+    // Derive the divider length from the actual outermost node so it tracks ring
+    // growth (137 rings now, ~5.6k units) instead of the old hardcoded 28-ring 1012.
+    var maxRadius = 0;
+    for (var _k in byId) { var _n = byId[_k]; if (_n) { var _d = Math.hypot(_n.x, _n.y); if (_d > maxRadius) maxRadius = _d; } }
+    maxRadius = (maxRadius || 1012) + 80;
     var boundaries = [5.5, 11.5, 17.5, 23.5, 29.5, 35.5];
     boundaries.forEach(function(slot) {
       var angle = (slot / 36) * 2 * Math.PI - Math.PI / 2;
@@ -765,10 +827,7 @@ function build(){
         swirlEls[n.id] = swirl;
       }
 
-      var c = document.createElementNS(NS,'circle');
-      c.setAttribute('cx',n.x); c.setAttribute('cy',n.y);
-      var r = n.type==='keystone'?14 : n.type==='notable'||n.type==='bridge'||n.type==='socket'?10 : 6;
-      c.setAttribute('r', r);
+      var c = makeNodeShape(n);
       c.setAttribute('data-id', n.id);
       c.setAttribute('tabindex','0');
       c.setAttribute('role','button');
@@ -804,7 +863,7 @@ function build(){
 
       var iconName = getNodeIcon(n);
       if (iconName) {
-        var iconSize = n.type==='keystone' ? 16 : n.type==='notable'||n.type==='bridge'||n.type==='socket' ? 12 : 8;
+        var iconSize = n.type==='aura' ? 20 : n.type==='keystone' ? 16 : n.type==='notable'||n.type==='bridge'||n.type==='socket' ? 12 : 8;
         loadNodeIcon(gN, iconName, iconSize, n.x, n.y, n.id);
       }
     });
@@ -847,7 +906,7 @@ function build(){
       l.setAttribute('class', 'te' + (active ? ' on' : half ? ' half' : ''));
       // Locked edges get an explicit stroke so the tree structure is always
       // visible, even before anything on this branch is allocated.
-      if (!active && !half) l.setAttribute('stroke', 'rgba(190, 200, 220, 0.28)');
+      if (!active && !half) l.setAttribute('stroke', 'rgba(150, 170, 210, 0.6)');
       gE.appendChild(l);
     });
     svg.appendChild(gE);
@@ -993,7 +1052,7 @@ function build(){
         var cLvl = talentLevels[t.key] || 0;
         var sActive = pLvl > 0 && cLvl > 0, sHalf = pLvl > 0 && cLvl === 0;
         l.setAttribute('class', 'te' + (sActive ? ' on' : sHalf ? ' half' : ''));
-        if (!sActive && !sHalf) l.setAttribute('stroke', 'rgba(190, 200, 220, 0.28)');
+        if (!sActive && !sHalf) l.setAttribute('stroke', 'rgba(150, 170, 210, 0.6)');
         gSE.appendChild(l);
       });
       svg.appendChild(gSE);
@@ -1060,7 +1119,7 @@ function switchTab(tab) {
   
   if (tab === 'passive') {
     title.textContent = '🌳 Abyss Skill Web';
-    sub.textContent = '1000 nodes · six disciplines · every path connects. Points come from levels, depth records, lifetime floors and prestige. Small nodes cost 1 point, ★ notables & bridges 2, keystones 3.';
+    sub.textContent = 'Thousands of nodes across six disciplines out to the far rim — every path connects. Points scale with levels, depth records, lifetime floors and prestige. Small nodes cost 1, ★ notables & bridges 2, keystones 3, 🌟 auras 50.';
     respecBtn.style.display = '';
     respecBtn.setAttribute('onclick', 'treeRespec()');
     respecBtn.innerHTML = '♻️ Respec (🜲 {{.RespecTk}})';
@@ -1094,7 +1153,7 @@ function switchTab(tab) {
     if (legendText) legendText.textContent = 'Drag to pan · wheel to zoom · click a specialization node to activate';
   }
   
-  view = (tab === 'passive')  ? {x:-700, y:-700, w:1400, h:1400}
+  view = (tab === 'passive')  ? {x:-1800, y:-1800, w:3600, h:3600}
        : (tab === 'talents')  ? {x:-780, y:-220, w:1560, h:1560}
        : {x:-560, y:-170, w:1120, h:1120};
   
@@ -1263,18 +1322,18 @@ function paint(){
     nodeEls[n.id].setAttribute('class', cls);
     paintDecor(n.id);
 
-    // Hidden node (ID 999 - Secret Sanctuary) handling
-    if (n.id === 999) {
+    // Hidden node (Secret Sanctuary) handling
+    if (n.id === SANCTUARY_ID) {
       var showHidden = true;
-      (adj[999] || []).forEach(function(nid) {
+      (adj[SANCTUARY_ID] || []).forEach(function(nid) {
         if (!alloc[nid]) showHidden = false;
       });
       nodeEls[n.id].style.display = showHidden ? '' : 'none';
       if (iconEls[n.id]) iconEls[n.id].style.display = showHidden ? '' : 'none';
-      
-      // Update edges connected to 999
+
+      // Update edges connected to the sanctuary
       edgeEls.forEach(function(l) {
-        if (l._e[0] === 999 || l._e[1] === 999) {
+        if (l._e[0] === SANCTUARY_ID || l._e[1] === SANCTUARY_ID) {
           l.style.display = showHidden ? '' : 'none';
         }
       });
@@ -1672,7 +1731,8 @@ var PCT_LABELS = {
   def_to_lifesteal:'DEF converted to Lifesteal', pet_betrayal_reduce:'pet betrayal reduction', pet_damage_pct:'pet attack damage',
   stun_immunity:'Stun Immunity', limit_break:'Limit Break',
   skill_damage:'Skill damage', skill_mana_cost:'Skill mana cost reduction',
-  consumable_save:'chance consumables keep their charge'
+  consumable_save:'chance consumables keep their charge',
+  hp_regen:'HP regen / sec', def_pct:'DEF / armor (Abyss)', crt_pct:'CRT (Abyss)', dge_pct:'DGE (Abyss)', lck_pct:'LCK (Abyss)'
 };
 
 function renderSummary(pct, stats, diffNode){
@@ -1811,7 +1871,7 @@ function showTip(n, ev){
     }
 
     // Chronobreak Timed Keystone interface
-    if (n.id === 974) {
+    if (n.id === LIMIT_BREAK_ID) {
       tip.style.pointerEvents = 'auto';
       var activeTimer = '';
       var cooldownTimer = '';
@@ -1895,7 +1955,7 @@ function treeSearchApply(){
   svg.addEventListener('wheel', function(e){
     e.preventDefault();
     var f = e.deltaY > 0 ? 1.15 : 0.87;
-    var nw = Math.max(300, Math.min(4200, view.w * f));
+    var nw = Math.max(300, Math.min(13000, view.w * f)); // 13k wide fits the full 137-ring radius (~5.6k) with margin
     var mx = view.x + (e.offsetX / svg.clientWidth) * view.w;
     var my = view.y + (e.offsetY / svg.clientHeight) * view.h;
     view.x = mx - (mx - view.x) * (nw / view.w);
