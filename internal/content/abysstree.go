@@ -342,6 +342,41 @@ func buildAbyssTree() *AbyssTreeData {
 				n.Stats = n.Stats.Scaled(3)
 				n.Pct = map[string]float64{"consumable_save": 0.25}
 				isCustom = true
+			} else if ring == 21 && slot == 2 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{"skill_damage": 0.30, "hp_pct": -0.15}
+				isCustom = true
+			} else if ring == 22 && slot == 14 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{} // Specialist's Harmony
+				isCustom = true
+			} else if ring == 23 && slot == 25 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{} // Abyssal Attunement
+				isCustom = true
+			} else if ring == 24 && slot == 5 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{} // Prestige Focus
+				isCustom = true
+			} else if ring == 25 && slot == 18 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{} // Set Resonance
+				isCustom = true
+			} else if ring == 26 && slot == 31 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{} // Elemental Transmutation
+				isCustom = true
+			} else if ring == 20 && slot == 12 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{"xp_gain": 0.15} // Victor's Trophy
+				isCustom = true
 			}
 
 			if !isCustom && notable {
@@ -428,6 +463,11 @@ func buildAbyssTree() *AbyssTreeData {
 				treeSectorPctKey(boundary, leftSlot):       math.Round(treeNotablePct(boundary, ring)*0.5*1000) / 1000,
 				treeSectorPctKey((boundary+1)%treeSectors, rightSlot): math.Round(treeNotablePct((boundary+1)%treeSectors, ring)*0.5*1000) / 1000,
 			},
+		}
+		if bridgeID == 999 {
+			n.Name = "🌌 Secret Sanctuary"
+			n.Desc = "Secret Sanctuary: Grants +20% loot find and +10% token gain."
+			n.Pct = map[string]float64{"loot_find": 0.20, "token_gain": 0.10}
 		}
 		// Sits visually between the two sectors, half a slot outward.
 		n.X, n.Y = polarXY(float64(ring)+0.5, float64(leftSlot)+0.5)
@@ -820,14 +860,6 @@ func treeNotablePct(sector, ring int) float64 {
 // picks the noun, and no two grid nodes share both. Notables carry a ★ marker.
 func treeNodeText(n *TreeNode) (string, string) {
 	// Jewel Sockets and custom notables names and descriptions (Item 34, 36, 37, 39, 40, 45)
-	if n.Type == "socket" {
-		sectors := []string{"War", "Vitality", "Shadow", "Arcane", "Fortune", "Void"}
-		secName := "Unknown"
-		if n.Sector >= 0 && n.Sector < len(sectors) {
-			secName = sectors[n.Sector]
-		}
-		return fmt.Sprintf("💎 Jewel Socket (%s)", secName), "Can slot a Jewel to modify adjacent nodes. Currently slots a Primal Jade: +15 HP, +5 STR, +5 INT to all adjacent allocated nodes."
-	}
 	if n.Ring == 18 && n.Slot == 20 {
 		return "⚡ Overcharged Core", "Reduces Ultimate skill cooldown by 10%, and increases Ultimate skill damage by 15%."
 	}
@@ -838,16 +870,45 @@ func treeNodeText(n *TreeNode) (string, string) {
 		return "⏳ Temporal Shift", "Grants +15% gold find on weekends, and +10% floor XP on weekdays."
 	}
 	if n.Ring == 14 && n.Slot == 9 {
-		return "🐾 Beastmaster's Command", "Reduces pet betrayal chance by 2% and increases pet attack damage by 20%."
+		return "🐾 Beastmaster's Command (Synergy)", "Reduces pet betrayal chance by 2% and increases pet attack damage by 20%. Also adds +8 max HP per allocated Void-sector node."
 	}
 	if n.Ring == 18 && n.Slot == 4 {
-		return "🛡️ Unbreakable", "Grants immunity to stun effects in combat."
+		return "🛡️ Unbreakable (Synergy)", "Grants immunity to stun effects in combat. Also adds +2 STR per allocated Arcane-sector node."
 	}
 	if n.Ring == 17 && n.Slot == 11 {
-		return "🔮 Spellweaver", "Skill casts deal +20% damage and cost 25% less mana."
+		return "🔮 Spellweaver (Earthquake)", "Skill casts deal +20% damage and cost 25% less mana. Unlocks the Earthquake physical combat skill."
 	}
 	if n.Ring == 13 && n.Slot == 33 {
-		return "🧪 Alchemist's Ritual", "25% chance after each fight that your consumables lose no charge."
+		return "🧪 Alchemist's Ritual (Arcane Shield)", "25% chance after each fight that your consumables lose no charge. Unlocks the Arcane Shield magical combat skill."
+	}
+	if n.Ring == 21 && n.Slot == 2 {
+		return "💀 Reckless Abandon", "Grants +30% Skill damage, but reduces maximum HP by 15%."
+	}
+	if n.Ring == 22 && n.Slot == 14 {
+		return "🎭 Specialist's Harmony", "Grants passive bonuses based on active Specialization (+15% max HP for Warden, +15% STR for Delver, +25% Gold Find for Plunderer)."
+	}
+	if n.Ring == 23 && n.Slot == 25 {
+		return "🌀 Abyssal Attunement", "Grants +0.5% STR and +0.5% max HP per Abyss depth level reached (based on your best record)."
+	}
+	if n.Ring == 24 && n.Slot == 5 {
+		return "🎖️ Prestige Focus", "Multiplies all passive node bonuses in the War discipline sector by +10% per prestige level."
+	}
+	if n.Ring == 25 && n.Slot == 18 {
+		return "💎 Set Resonance", "Grants +5% to all base attributes (STR, INT, SPD, max HP) per active equipped gear set bonus tier."
+	}
+	if n.Ring == 26 && n.Slot == 31 {
+		return "🧪 Elemental Transmutation", "Converts 50% of your total physical damage modifier (STR %) into magical damage modifier (INT %)."
+	}
+	if n.Ring == 20 && n.Slot == 12 {
+		return "🏆 Victor's Trophy", "🔒 Requires depth record of 25+ to allocate. Grants +15% to character experience gain."
+	}
+	if n.Type == "socket" {
+		sectors := []string{"War", "Vitality", "Shadow", "Arcane", "Fortune", "Void"}
+		secName := "Unknown"
+		if n.Sector >= 0 && n.Sector < len(sectors) {
+			secName = sectors[n.Sector]
+		}
+		return fmt.Sprintf("💎 Jewel Socket (%s)", secName), "Can slot a Jewel to modify adjacent nodes. Slot a Ruby (+15 STR), Sapphire (+15 INT), or Topaz (+15 SPD) to allocated neighbors."
 	}
 
 	star := ""

@@ -284,6 +284,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/tree/allocate", s.authAPI(s.handleAbyssTreeAllocate))
 		mux.HandleFunc("/api/abyss/tree/respec", s.authAPI(s.handleAbyssTreeRespec))
 		mux.HandleFunc("/api/abyss/tree/refund", s.authAPI(s.handleAbyssTreeRefund))
+		mux.HandleFunc("/api/abyss/tree/socket", s.authAPI(s.handleAbyssTreeSocket))
+		mux.HandleFunc("/api/abyss/tree/roll_timeless", s.authAPI(s.handleAbyssTreeRollTimeless))
+		mux.HandleFunc("/api/abyss/tree/activate_keystone", s.authAPI(s.handleAbyssTreeActivateKeystone))
 	}
 
 	// Authenticated JSON APIs.

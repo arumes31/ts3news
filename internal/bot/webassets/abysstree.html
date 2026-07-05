@@ -189,6 +189,63 @@
   border: 1px solid rgba(244, 197, 66, 0.4);
   box-shadow: 0 0 10px rgba(244, 197, 66, 0.15);
 }
+
+/* Custom Scrollbars (Suggestion 12) */
+.tree-summary::-webkit-scrollbar,
+.tree-summary-grid::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.tree-summary::-webkit-scrollbar-track,
+.tree-summary-grid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 3px;
+}
+.tree-summary::-webkit-scrollbar-thumb,
+.tree-summary-grid::-webkit-scrollbar-thumb {
+  background: rgba(244, 197, 66, 0.3);
+  border-radius: 3px;
+  border: 1px solid rgba(244, 197, 66, 0.1);
+}
+.tree-summary::-webkit-scrollbar-thumb:hover,
+.tree-summary-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 197, 66, 0.5);
+}
+
+/* Base edge thin style (Suggestion 11) */
+.te {
+  stroke-width: 1.5 !important;
+}
+
+/* Tab change animations (Suggestion 13) */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.tree-svg-fade {
+  animation: fadeIn 0.35s ease-out forwards;
+}
+/* Socketed Jewel themes */
+.tn.t-socket.socket-ruby {
+  fill: #ff5b5b !important;
+  stroke: #ff9f9f !important;
+  filter: drop-shadow(0 0 6px #ff5b5b);
+}
+.tn.t-socket.socket-sapphire {
+  fill: #5b8bff !important;
+  stroke: #9fbaff !important;
+  filter: drop-shadow(0 0 6px #5b8bff);
+}
+.tn.t-socket.socket-topaz {
+  fill: #ffd85b !important;
+  stroke: #ffec9f !important;
+  filter: drop-shadow(0 0 6px #ffd85b);
+}
+.tn.t-socket.socket-timeless {
+  fill: #b26bff !important;
+  stroke: #dcbfff !important;
+  filter: drop-shadow(0 0 8px #b26bff);
+}
 </style>
 <div class="tree-head">
   <div>
@@ -272,6 +329,9 @@ var activeSpec = '{{.Spec}}';
 var activeTab = 'passive';
 var busy = false;
 function setBusy(b) { busy = b; }
+var sockets = {{.Sockets}};
+var activeKeystoneExpiry = {{if .ActiveKeystoneExpiry}}"{{.ActiveKeystoneExpiry}}"{{else}}""{{end}};
+var activeKeystoneCooldown = {{if .ActiveKeystoneCooldown}}"{{.ActiveKeystoneCooldown}}"{{else}}""{{end}};
 
 var TALENTS = [
   { key: 'vigor', label: 'Vigor', desc: 'Start runs with +HP', x: 0, y: -100, parent: null, icon: 'health-normal', gateDepth: 0 },
@@ -803,6 +863,13 @@ function switchTab(tab) {
   if (busy) return;
   activeTab = tab;
   
+  var svgEl = document.getElementById('treeSvg');
+  if (svgEl) {
+    svgEl.classList.remove('tree-svg-fade');
+    void svgEl.offsetWidth; // trigger reflow
+    svgEl.classList.add('tree-svg-fade');
+  }
+
   document.getElementById('tab-passive').classList.toggle('active', tab === 'passive');
   document.getElementById('tab-talents').classList.toggle('active', tab === 'talents');
   document.getElementById('tab-specs').classList.toggle('active', tab === 'specializations');
@@ -1007,8 +1074,32 @@ function paint(){
     var cls = 'tn s'+n.sector+' t-'+n.type;
     if(alloc[n.id]) cls += ' on';
     else if(isAllocatable(n.id)) cls += ' can';
+    
+    // Add socketed jewel visual themes
+    if (n.type === 'socket' && sockets[n.id]) {
+      var j = sockets[n.id];
+      cls += ' socket-' + (j.indexOf('timeless_') === 0 ? 'timeless' : j);
+    }
+    
     nodeEls[n.id].setAttribute('class', cls);
     paintDecor(n.id);
+
+    // Hidden node (ID 999 - Secret Sanctuary) handling
+    if (n.id === 999) {
+      var showHidden = true;
+      (adj[999] || []).forEach(function(nid) {
+        if (!alloc[nid]) showHidden = false;
+      });
+      nodeEls[n.id].style.display = showHidden ? '' : 'none';
+      if (iconEls[n.id]) iconEls[n.id].style.display = showHidden ? '' : 'none';
+      
+      // Update edges connected to 999
+      edgeEls.forEach(function(l) {
+        if (l._e[0] === 999 || l._e[1] === 999) {
+          l.style.display = showHidden ? '' : 'none';
+        }
+      });
+    }
   });
   edgeEls.forEach(function(l){
     var a = l._e[0], b = l._e[1];
@@ -1151,16 +1242,22 @@ async function tryAutoPath(id){
   var pc = pathCost(chain);
   if(used + pc > points){ abToast('Path costs ' + pc + ' points — you have ' + Math.max(0, points - used) + ' available.', false); return; }
   if(!confirm('Auto-allocate ' + chain.length + ' node' + (chain.length>1?'s':'') + ' along the path for ' + pc + ' points?')) return;
+  if(busy) return;
+  setBusy(true);
   var completed = true;
-  for(var i=0;i<chain.length;i++){
-    var d = await abPost('/api/abyss/tree/allocate', {node_id: chain[i]});
-    if(!d.ok){ abToast(d.error||'failed', false); completed = false; break; }
-    alloc[chain[i]] = true; used = d.used; points = d.points;
-    applyServerTotals(d);
+  try {
+    for(var i=0;i<chain.length;i++){
+      var d = await abPost('/api/abyss/tree/allocate', {node_id: chain[i]});
+      if(!d.ok){ abToast(d.error||'failed', false); completed = false; break; }
+      alloc[chain[i]] = true; used = d.used; points = d.points;
+      applyServerTotals(d);
+    }
+    paint();
+    renderSummary(activePct, activeStats);
+    if(completed) abToast('🌳 Path allocated — ' + chain.length + ' node' + (chain.length>1?'s':'') + ' for ' + pc + ' points.', true);
+  } finally {
+    setBusy(false);
   }
-  paint();
-  renderSummary(activePct, activeStats);
-  if(completed) abToast('🌳 Path allocated — ' + chain.length + ' node' + (chain.length>1?'s':'') + ' for ' + pc + ' points.', true);
 }
 
 async function tryAllocate(id){
@@ -1175,13 +1272,19 @@ async function tryAllocate(id){
     tryAutoPath(id);
     return;
   }
-  var d = await abPost('/api/abyss/tree/allocate', {node_id: id});
-  if(!d.ok){ abToast(d.error||'failed', false); return; }
-  alloc[id] = true; used = d.used; points = d.points;
-  abToast(d.msg, true);
-  applyServerTotals(d);
-  paint();
-  renderSummary(activePct, activeStats);
+  if(busy) return;
+  setBusy(true);
+  try {
+    var d = await abPost('/api/abyss/tree/allocate', {node_id: id});
+    if(!d.ok){ abToast(d.error||'failed', false); return; }
+    alloc[id] = true; used = d.used; points = d.points;
+    abToast(d.msg, true);
+    applyServerTotals(d);
+    paint();
+    renderSummary(activePct, activeStats);
+  } finally {
+    setBusy(false);
+  }
 }
 
 // How many allocated nodes a refund of id would remove: the node itself plus
@@ -1212,22 +1315,28 @@ async function tryRefund(ev, id){
   ev.stopPropagation();
   var set = refundSet(id), gold = refundGold(id);
   var prompt = set.length > 1
-    ? 'Refund this node and ' + (set.length-1) + ' dependent node' + (set.length-1>1?'s':'') + ' for 🜲 ' + gold + ' gold?'
-    : 'Refund this node for 🜲 ' + gold + ' gold?';
+    ? 'Refund this node and ' + (set.length-1) + ' dependent node' + (set.length-1>1?'s':'') + ' for 🪙 ' + gold + ' gold?'
+    : 'Refund this node for 🪙 ' + gold + ' gold?';
   if(!confirm(prompt)) return;
-  var d = await abPost('/api/abyss/tree/refund', {node_id: id});
-  if(!d.ok){ abToast(d.error||'failed', false); return; }
-  (d.refunded || [id]).forEach(function(nid){ delete alloc[nid]; });
-  used = d.used; points = d.points;
-  if(typeof d.gold === 'number'){
-    var gp = document.getElementById('goldPill');
-    if(gp) gp.textContent = '🪙 ' + d.gold.toLocaleString();
+  if(busy) return;
+  setBusy(true);
+  try {
+    var d = await abPost('/api/abyss/tree/refund', {node_id: id});
+    if(!d.ok){ abToast(d.error||'failed', false); return; }
+    (d.refunded || [id]).forEach(function(nid){ delete alloc[nid]; });
+    used = d.used; points = d.points;
+    if(typeof d.gold === 'number'){
+      var gp = document.getElementById('goldPill');
+      if(gp) gp.textContent = '🪙 ' + d.gold.toLocaleString();
+    }
+    abToast(d.msg, true);
+    applyServerTotals(d);
+    paint();
+    renderSummary(activePct, activeStats);
+    hideTip();
+  } finally {
+    setBusy(false);
   }
-  abToast(d.msg, true);
-  applyServerTotals(d);
-  paint();
-  renderSummary(activePct, activeStats);
-  hideTip();
 }
 
 async function treeRespec(){
@@ -1236,6 +1345,63 @@ async function treeRespec(){
   if(!d.ok){ abToast(d.error||'failed', false); return; }
   abToast(d.msg, true);
   setTimeout(function(){ location.reload(); }, 800);
+}
+
+async function trySocketJewel(nodeId, jewelType) {
+  if (busy) return;
+  setBusy(true);
+  try {
+    var d = await abPost('/api/abyss/tree/socket', {node_id: nodeId, jewel: jewelType});
+    if (!d.ok) { abToast(d.error || 'failed', false); return; }
+    abToast(d.msg, true);
+    sockets[nodeId] = jewelType;
+    if (typeof d.gold === 'number') {
+      var gp = document.getElementById('goldPill');
+      if (gp) gp.textContent = '🪙 ' + d.gold.toLocaleString();
+    }
+    applyServerTotals(d);
+    paint();
+    hideTip();
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function tryRollTimeless(nodeId) {
+  if (busy) return;
+  setBusy(true);
+  try {
+    var d = await abPost('/api/abyss/tree/roll_timeless', {node_id: nodeId});
+    if (!d.ok) { abToast(d.error || 'failed', false); return; }
+    abToast(d.msg, true);
+    if (d.sockets) sockets = d.sockets;
+    if (typeof d.gold === 'number') {
+      var gp = document.getElementById('goldPill');
+      if (gp) gp.textContent = '🪙 ' + d.gold.toLocaleString();
+    }
+    applyServerTotals(d);
+    paint();
+    hideTip();
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function tryActivateKeystone(nodeId) {
+  if (busy) return;
+  setBusy(true);
+  try {
+    var d = await abPost('/api/abyss/tree/activate_keystone', {node_id: nodeId});
+    if (!d.ok) { abToast(d.error || 'failed', false); return; }
+    abToast(d.msg, true);
+    activeKeystoneExpiry = d.active_until;
+    activeKeystoneCooldown = d.cooldown_until;
+    applyServerTotals(d);
+    paint();
+    hideTip();
+  } finally {
+    setBusy(false);
+  }
 }
 
 var PCT_LABELS = {
@@ -1352,10 +1518,62 @@ function showTip(n, ev){
   if (alloc[n.id]) {
     var rset = refundSet(n.id), rgold = refundGold(n.id);
     var refundLabel = rset.length > 1
-      ? 'Refund ' + rset.length + ' nodes (🜲 ' + rgold + ')'
-      : 'Refund (🜲 ' + rgold + ')';
+      ? 'Refund ' + rset.length + ' nodes (🪙 ' + rgold + ')'
+      : 'Refund (🪙 ' + rgold + ')';
     actionHtml = '<br><span class="tt-on" style="margin-top:4px; display:inline-block;">● allocated</span>' +
                  '<br><button class="btn-refund" onclick="tryRefund(event, ' + n.id + ')">' + refundLabel + '</button>';
+
+    // Jewel Socket interface
+    if (n.type === 'socket') {
+      tip.style.pointerEvents = 'auto';
+      var j = sockets[n.id];
+      var jDesc = '';
+      if (j) {
+        if (j.indexOf('timeless_') === 0) {
+          var p = j.split('_');
+          jDesc = '<br><span style="color:#b26bff; font-weight:bold;">💎 Socketed: Timeless Jewel</span>' +
+                  '<br><span class="muted small">Seed: ' + p[1] + ', Radius: ' + p[2] + ' (' + p[3].toUpperCase() + ' Area Buff)</span>';
+        } else {
+          jDesc = '<br><span style="color:#5bc0ff; font-weight:bold;">💎 Socketed: ' + j.charAt(0).toUpperCase() + j.slice(1) + ' Jewel</span>';
+        }
+      } else {
+        jDesc = '<br><span class="muted small">💎 Empty Jewel Socket</span>';
+      }
+      actionHtml += '<div style="margin-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px;">' +
+                    jDesc +
+                    '<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;">' +
+                      '<button class="btn-refund" style="background:#ff5b5b; margin-top:0;" onclick="trySocketJewel(' + n.id + ', \'ruby\')">Ruby (100g)</button>' +
+                      '<button class="btn-refund" style="background:#5b8bff; margin-top:0;" onclick="trySocketJewel(' + n.id + ', \'sapphire\')">Sapphire (100g)</button>' +
+                      '<button class="btn-refund" style="background:#ffd85b; color:#000; margin-top:0;" onclick="trySocketJewel(' + n.id + ', \'topaz\')">Topaz (100g)</button>' +
+                      '<button class="btn-refund" style="background:#b26bff; margin-top:0;" onclick="tryRollTimeless(' + n.id + ')">🎲 Roll Timeless (500g)</button>' +
+                      (j ? '<button class="btn-refund" style="background:#888; margin-top:0;" onclick="trySocketJewel(' + n.id + ', \'\')">Clear</button>' : '') +
+                    '</div>' +
+                  '</div>';
+    }
+
+    // Chronobreak Timed Keystone interface
+    if (n.id === 974) {
+      tip.style.pointerEvents = 'auto';
+      var activeTimer = '';
+      var cooldownTimer = '';
+      if (activeKeystoneExpiry) {
+        var exp = new Date(activeKeystoneExpiry);
+        if (exp > new Date()) {
+          activeTimer = '<br><span style="color:#5bff8b; font-weight:bold;">⏳ Active: Chronobreak (+50% XP)</span>' +
+                        '<br><span class="muted small">Expires in ' + Math.ceil((exp - new Date()) / 60000) + ' min</span>';
+        }
+      }
+      if (activeKeystoneCooldown) {
+        var cd = new Date(activeKeystoneCooldown);
+        if (cd > new Date()) {
+          cooldownTimer = '<br><span style="color:#ff5b5b;">⏳ Cooldown: Chronobreak</span>' +
+                          '<br><span class="muted small">Ready in ' + Math.ceil((cd - new Date()) / 3600000) + ' hours</span>';
+        }
+      }
+      actionHtml += '<div style="margin-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px;">' +
+                    (activeTimer || cooldownTimer || '<button class="btn-refund" style="background:#ff9f43; color:#fff; margin-top:0;" onclick="tryActivateKeystone(' + n.id + ')">⏳ Activate Chronobreak (24h Cooldown)</button>') +
+                    '</div>';
+    }
   } else if (isAllocatable(n.id)) {
     actionHtml = '<br><span class="tt-can" style="margin-top:4px; display:inline-block;">○ click to allocate — costs ' + nodeCost(n) + ' pt' + (nodeCost(n)>1?'s':'') + '</span>';
   } else {

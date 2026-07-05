@@ -2739,6 +2739,30 @@ func (b *Bot) getSkills(uid string) []content.Skill {
 			}
 		}
 	}
+
+	// Append active skills from the Abyss Skill Tree (passive web)
+	if alloc, err := b.loadTreeAllocated(uid); err == nil {
+		hasEQ := false
+		hasAS := false
+		for _, nid := range alloc {
+			if nid == 624 {
+				hasEQ = true
+			} else if nid == 466 {
+				hasAS = true
+			}
+		}
+		if hasEQ {
+			if s, ok := content.GetSkillByID("S_EQ"); ok {
+				out = append(out, s)
+			}
+		}
+		if hasAS {
+			if s, ok := content.GetSkillByID("S_AS"); ok {
+				out = append(out, s)
+			}
+		}
+	}
+
 	return out
 }
 
