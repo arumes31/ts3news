@@ -53,6 +53,29 @@ func (tb TreeBonus) ApplyCombatPct(s Stats) Stats {
 	if v := tb.Pct["int_pct"]; v != 0 {
 		s.INT = int(float64(s.INT) * (1 + v))
 	}
+
+	// Unique Keystones Conversion modifiers
+	if v := tb.Pct["str_to_spd"]; v != 0 {
+		converted := int(float64(s.STR) * v)
+		s.SPD += converted
+		s.STR -= converted
+	}
+	if v := tb.Pct["hp_to_def"]; v != 0 {
+		converted := int(float64(s.HP) * v)
+		s.DEF += converted / 10
+		s.HP -= converted
+	}
+	if v := tb.Pct["spd_to_dge"]; v != 0 {
+		converted := int(float64(s.SPD) * v)
+		s.DGE += converted
+		s.SPD -= converted
+	}
+	if v := tb.Pct["int_to_mna"]; v != 0 {
+		converted := int(float64(s.INT) * v)
+		s.MNA += converted * 5
+		s.INT -= converted
+	}
+
 	return s
 }
 
@@ -150,7 +173,7 @@ type treeKeystoneDef struct {
 var treeRimKeystones = [treeSlots]treeKeystoneDef{
 	// ⚔️ War
 	{"Juggernaut", map[string]float64{"str_pct": 0.25, "spd_pct": -0.10}},
-	{"Berserker's Oath", map[string]float64{"str_pct": 0.15, "hp_pct": -0.10}},
+	{"Berserker's Oath", map[string]float64{"str_pct": 0.15, "str_to_spd": 0.15}},
 	{"Warbringer", map[string]float64{"str_pct": 0.10, "xp_gain": 0.05}},
 	{"Executioner", map[string]float64{"str_pct": 0.12, "gold_find": 0.06}},
 	{"Bloodforged", map[string]float64{"str_pct": 0.10, "material_yield": 0.10}},
@@ -160,11 +183,11 @@ var treeRimKeystones = [treeSlots]treeKeystoneDef{
 	{"Undying", map[string]float64{"hp_pct": 0.20, "xp_gain": 0.05}},
 	{"Ironroot", map[string]float64{"hp_pct": 0.15, "material_yield": 0.10}},
 	{"Heartspring", map[string]float64{"hp_pct": 0.12, "escrow_bonus": 0.08}},
-	{"Titan's Blood", map[string]float64{"hp_pct": 0.18, "spd_pct": -0.05}},
+	{"Titan's Blood", map[string]float64{"hp_pct": 0.18, "hp_to_def": 0.10}},
 	{"Warden's Resolve", map[string]float64{"hp_pct": 0.10, "token_gain": 0.10}},
 	// 🌫️ Shadow
 	{"Phantom", map[string]float64{"spd_pct": 0.20}},
-	{"Ghostwalk", map[string]float64{"spd_pct": 0.12, "loot_find": 0.08}},
+	{"Ghostwalk", map[string]float64{"spd_pct": 0.12, "spd_to_dge": 0.15}},
 	{"Night's Edge", map[string]float64{"spd_pct": 0.10, "gold_find": 0.10}},
 	{"Umbral Dance", map[string]float64{"spd_pct": 0.15, "hp_pct": -0.05}},
 	{"Silent Fortune", map[string]float64{"spd_pct": 0.08, "escrow_bonus": 0.10}},
@@ -175,7 +198,7 @@ var treeRimKeystones = [treeSlots]treeKeystoneDef{
 	{"Runebinder", map[string]float64{"int_pct": 0.12, "material_yield": 0.12}},
 	{"Aetherflow", map[string]float64{"int_pct": 0.15, "str_pct": -0.05}},
 	{"Scryer's Insight", map[string]float64{"int_pct": 0.10, "loot_find": 0.10}},
-	{"Manaforged", map[string]float64{"int_pct": 0.12, "escrow_bonus": 0.08}},
+	{"Manaforged", map[string]float64{"int_pct": 0.12, "int_to_mna": 0.20}},
 	// 🍀 Fortune
 	{"Midas", map[string]float64{"gold_find": 0.15, "loot_find": 0.05}},
 	{"Gambler's Creed", map[string]float64{"gold_find": 0.20, "escrow_bonus": -0.05}},
@@ -536,6 +559,14 @@ func treePctLabel(k string) string {
 		return "tokens on bank"
 	case "material_yield":
 		return "crafting materials"
+	case "str_to_spd":
+		return "STR converted to SPD"
+	case "hp_to_def":
+		return "HP converted to DEF"
+	case "spd_to_dge":
+		return "SPD converted to DGE"
+	case "int_to_mna":
+		return "INT converted to MNA"
 	}
 	return k
 }
