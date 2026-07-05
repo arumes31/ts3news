@@ -203,7 +203,7 @@ func (b *Bot) buildAbyssUser(uid string) (UserInCombat, int, error) {
 	// Skill web: allocated nodes add flat stats plus the combat %-multipliers
 	// (economy keys are consumed by their own hooks in loot/bank/XP paths).
 	tb := b.treeBonusFor(uid)
-	stats = tb.ApplyCombatPct(stats.Add(tb.Stats))
+	stats = abyssFoldStats(stats, tb)
 
 	var nick sql.NullString
 	var lvl, prestige, curHP, regen int
@@ -239,15 +239,21 @@ func (b *Bot) buildAbyssUser(uid string) (UserInCombat, int, error) {
 	}, prestige, nil
 }
 
-// abyssCombatStats returns the player's Abyss combat stats: base+gear folded with
-// the skill-web bonus exactly as buildAbyssUser composes them (flat adds, then the
-// combat %-multipliers). Every out-of-combat HP write and max-HP readout goes
-// through this so the dashboard, revives, rests and event heals agree with the max
-// HP the descent actually fights at (calculateTotalStats alone omits the tree).
+// abyssFoldStats folds the skill-web bonus into base+gear stats the way Abyss combat
+// does — flat adds first, then the combat %-multipliers. Single source of truth for
+// buildAbyssUser (the live combatant) and abyssCombatStats (out-of-combat readouts),
+// so the two can never drift on how the tree bonus composes.
+func abyssFoldStats(base content.Stats, tb content.TreeBonus) content.Stats {
+	return tb.ApplyCombatPct(base.Add(tb.Stats))
+}
+
+// abyssCombatStats returns the player's Abyss combat stats: base+gear folded with the
+// skill-web bonus. Every out-of-combat HP write and max-HP readout goes through this
+// so the dashboard, revives, rests and event heals agree with the max HP the descent
+// actually fights at (calculateTotalStats alone omits the tree).
 func (b *Bot) abyssCombatStats(uid string) content.Stats {
 	stats, _, _, _ := b.calculateTotalStats(uid, time.Now())
-	tb := b.treeBonusFor(uid)
-	return tb.ApplyCombatPct(stats.Add(tb.Stats))
+	return abyssFoldStats(stats, b.treeBonusFor(uid))
 }
 
 func nullStr(s sql.NullString) string {
@@ -317,26 +323,42 @@ func (b *Bot) applyAbyssRegen(uid string, equipped map[content.GearSlot]content.
 	// Advancing by only the consumed time keeps the sub-second remainder accumulating.
 	consumed := float64(heal) / perSec
 	newAnchor := last.Add(time.Duration(consumed * float64(time.Second)))
-	casRes, casErr := b.DB.Exec(
+	// Claim and credit the span atomically. Concurrent views all read the same tsStr,
+	// but only one CAS on the anchor can match it (the row lock serializes them), so the
+	// span is credited exactly once — no N-tab N-fold heal. Wrapping the anchor advance
+	// and the heal in one tx means a transient heal failure rolls back the anchor too,
+	// so the span retries on the next view instead of being silently forfeited.
+	tx, txErr := b.DB.Begin()
+	if txErr != nil {
+		return curHP, perSec
+	}
+	defer func() { _ = tx.Rollback() }()
+	casRes, casErr := tx.Exec(
 		"UPDATE app_meta SET value=$1 WHERE key=$2 AND value=$3", newAnchor.Format(time.RFC3339), key, tsStr)
 	if casErr != nil {
-		return curHP, perSec // transient DB error: leave the clock, retry next view
+		return curHP, perSec
 	}
 	if n, _ := casRes.RowsAffected(); n == 0 {
 		return curHP, perSec // another concurrent view already claimed this span
 	}
-	// We own the span. Apply the heal relative to the stored row so a concurrent HP
-	// change (e.g. a parallel fight) isn't clobbered by a stale absolute value; the
-	// WHERE guards keep it from reviving the dead or overshooting max HP.
+	// Heal relative to the stored row so a concurrent HP change (e.g. a parallel fight)
+	// isn't clobbered by a stale absolute value; the WHERE guards keep it from reviving
+	// the dead or overshooting max HP.
 	var newHP int
-	err = b.DB.QueryRow(
+	err = tx.QueryRow(
 		`UPDATE users SET current_hp = LEAST($1, current_hp + $2)
 			WHERE client_uid = $3 AND current_hp > 0 AND current_hp < $1
 			RETURNING current_hp`, maxHP, heal, uid).Scan(&newHP)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Already full/dead: no HP to credit, but keep the advanced anchor (commit) so
+		// the idle span isn't re-credited later.
+		_ = tx.Commit()
+		return curHP, perSec
+	}
 	if err != nil {
-		// Nothing healed (full/dead/vanished) or a transient error. The anchor already
-		// advanced by the consumed span so it won't be re-credited; if they're now full
-		// the next view's curHP>=maxHP guard re-anchors to now.
+		return curHP, perSec // transient error: defer rolls back, span retries next view
+	}
+	if err := tx.Commit(); err != nil {
 		return curHP, perSec
 	}
 	return newHP, perSec
@@ -1112,18 +1134,15 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	u.MaxHP = u.Stats.HP
 	u.MaxMana = 100 + u.Stats.MNA
 	// loadWebUser clamped CurrentHP to the base (gear-only) max; re-derive it from the
-	// persisted HP against the true combat max so a full-health delver isn't shown
-	// wounded once the tree bonus raises the ceiling (nor overflowing past it).
-	var rawHP int
-	if err := s.bot.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&rawHP); err == nil {
-		switch {
-		case rawHP <= 0:
-			u.CurrentHP = u.MaxHP
-		case rawHP > u.MaxHP:
-			u.CurrentHP = u.MaxHP
-		default:
-			u.CurrentHP = rawHP
-		}
+	// persisted HP (captured raw) against the true combat max so a full-health delver
+	// isn't shown wounded once the tree bonus raises the ceiling (nor overflowing past it).
+	switch {
+	case u.RawCurrentHP <= 0:
+		u.CurrentHP = u.MaxHP
+	case u.RawCurrentHP > u.MaxHP:
+		u.CurrentHP = u.MaxHP
+	default:
+		u.CurrentHP = u.RawCurrentHP
 	}
 	st := s.bot.loadAbyssStats(uid)
 	run := s.bot.loadAbyssRun(uid)
