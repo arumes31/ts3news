@@ -561,7 +561,8 @@ func playerTurn(rng *rand.Rand, cp []combatPlayer, mobs []*SimMob, players []*Si
 			if bonus := p.TreeBonus.Pct["pet_damage_pct"]; bonus > 0 {
 				petDmgMult += bonus
 			}
-			pdmg := maxInt(1, int(float64(pet.Stats.STR)*petDmgMult)-ComputeEffectiveMobDEF(targetMob))
+			baseDmg := maxInt(1, pet.Stats.STR-ComputeEffectiveMobDEF(targetMob))
+			pdmg := maxInt(1, int(float64(baseDmg)*petDmgMult*intensify))
 			targetMob.HP -= pdmg
 			result.DamageDealt += int64(pdmg)
 			if targetMob.HP <= 0 {

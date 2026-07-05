@@ -352,13 +352,18 @@ func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Deduct 1 Respec Token for individual node refund
-	if !deductTokens(w, tx, uid, 1) {
+	res, err := tx.Exec("DELETE FROM user_abyss_tree WHERE client_uid=$1 AND node_id=$2", uid, req.NodeID)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if affected, _ := res.RowsAffected(); affected == 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "node not found or already refunded"})
 		return
 	}
 
-	if _, err := tx.Exec("DELETE FROM user_abyss_tree WHERE client_uid=$1 AND node_id=$2", uid, req.NodeID); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+	// Deduct 1 Respec Token for individual node refund
+	if !deductTokens(w, tx, uid, 1) {
 		return
 	}
 

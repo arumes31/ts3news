@@ -79,11 +79,12 @@ func (tb TreeBonus) ApplyCombatPct(s Stats) Stats {
 
 	// Crown Keystone: Limit Break (Item 73)
 	if v := tb.Pct["limit_break"]; v != 0 {
-		s.STR = int(float64(s.STR) * 1.15)
-		s.HP = int(float64(s.HP) * 1.15)
-		s.DEF = int(float64(s.DEF) * 1.15)
-		s.SPD = int(float64(s.SPD) * 1.15)
-		s.INT = int(float64(s.INT) * 1.15)
+		mult := 1.0 + v
+		s.STR = int(float64(s.STR) * mult)
+		s.HP = int(float64(s.HP) * mult)
+		s.DEF = int(float64(s.DEF) * mult)
+		s.SPD = int(float64(s.SPD) * mult)
+		s.INT = int(float64(s.INT) * mult)
 	}
 
 	return s
@@ -104,10 +105,14 @@ func (t *AbyssTreeData) Node(id int) *TreeNode { return t.byID[id] }
 func (t *AbyssTreeData) BonusFor(ids []int) TreeBonus {
 	tb := TreeBonus{Pct: map[string]float64{}}
 	allocated := map[int]bool{}
+	var uniqueIDs []int
 	for _, id := range ids {
-		allocated[id] = true
+		if !allocated[id] {
+			allocated[id] = true
+			uniqueIDs = append(uniqueIDs, id)
+		}
 	}
-	for _, id := range ids {
+	for _, id := range uniqueIDs {
 		n := t.byID[id]
 		if n == nil {
 			continue
@@ -253,7 +258,7 @@ var treeRimKeystones = [treeSlots]treeKeystoneDef{
 // treeCrownKeystones sit beyond the rim at the first four sector boundaries,
 // reachable only through an adjacent rim keystone — the web's summit picks.
 var treeCrownKeystones = [4]treeKeystoneDef{
-	{"👑 Limit Break", map[string]float64{"str_pct": 0.20, "hp_pct": 0.20, "limit_break": 1.0}},
+	{"👑 Limit Break", map[string]float64{"str_pct": 0.20, "hp_pct": 0.20, "limit_break": 0.15}},
 	{"👑 The Thousandth Star", map[string]float64{"str_pct": 0.05, "hp_pct": 0.05, "spd_pct": 0.05, "int_pct": 0.05}},
 	{"👑 Duskbringer", map[string]float64{"spd_pct": 0.10, "int_pct": 0.10}},
 	{"👑 Deepmiser", map[string]float64{"gold_find": 0.10, "escrow_bonus": 0.10}},
@@ -449,10 +454,12 @@ func buildAbyssTree() *AbyssTreeData {
 	// Add 12 chaotic cross-sector portals
 	rChaos := rand.New(rand.NewPCG(888, 999))
 	for i := 0; i < 12; {
-		nodeA := t.Nodes[rChaos.IntN(len(t.Nodes))].ID
-		nodeB := t.Nodes[rChaos.IntN(len(t.Nodes))].ID
-		// Ensure they are not root (0), not identical, and not already connected
-		if nodeA > 0 && nodeB > 0 && nodeA != nodeB {
+		nA := t.Nodes[rChaos.IntN(len(t.Nodes))]
+		nB := t.Nodes[rChaos.IntN(len(t.Nodes))]
+		nodeA := nA.ID
+		nodeB := nB.ID
+		// Ensure they are not root (0), not identical, in different sectors, and not already connected
+		if nodeA > 0 && nodeB > 0 && nodeA != nodeB && nA.Sector != nB.Sector {
 			alreadyConnected := false
 			for _, neighbor := range t.Adj[nodeA] {
 				if neighbor == nodeB {
@@ -634,7 +641,7 @@ func treeNodeText(n *TreeNode) (string, string) {
 		return fmt.Sprintf("💎 Jewel Socket (%s)", secName), "Can slot a Jewel to modify adjacent nodes. Currently slots a Primal Jade: +15 HP, +5 STR, +5 INT to all adjacent allocated nodes."
 	}
 	if n.Ring == 18 && n.Slot == 20 {
-		return "⚡ Overcharged Core", "Reduces Ultimate skill cooldown by 1 round, and increases Ultimate skill damage by 15%."
+		return "⚡ Overcharged Core", "Reduces Ultimate skill cooldown by 10%, and increases Ultimate skill damage by 15%."
 	}
 	if n.Ring == 16 && n.Slot == 16 {
 		return "🩸 Souldrinker", "Converts defensive stats into Lifesteal: +1% of DEF added as Lifesteal."
