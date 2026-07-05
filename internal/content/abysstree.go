@@ -451,15 +451,18 @@ func buildAbyssTree() *AbyssTreeData {
 		}
 	}
 
-	// Add 12 chaotic cross-sector portals
+	// Add 12 chaotic cross-sector portals. Endpoints are grid nodes only:
+	// keystones and bridges are gated progression rewards and must not gain
+	// cross-sector shortcuts.
 	rChaos := rand.New(rand.NewPCG(888, 999))
 	for i := 0; i < 12; {
 		nA := t.Nodes[rChaos.IntN(len(t.Nodes))]
 		nB := t.Nodes[rChaos.IntN(len(t.Nodes))]
 		nodeA := nA.ID
 		nodeB := nB.ID
-		// Ensure they are not root (0), not identical, in different sectors, and not already connected
-		if nodeA > 0 && nodeB > 0 && nodeA != nodeB && nA.Sector != nB.Sector {
+		// Ensure they are grid nodes (not root, keystone or bridge), not
+		// identical, in different sectors, and not already connected
+		if nodeA > 0 && nodeB > 0 && nodeA < treeFirstKeyID && nodeB < treeFirstKeyID && nodeA != nodeB && nA.Sector != nB.Sector {
 			alreadyConnected := false
 			for _, neighbor := range t.Adj[nodeA] {
 				if neighbor == nodeB {

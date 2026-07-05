@@ -762,6 +762,9 @@ function scheduleHideTip(){ clearTimeout(tipHideT); tipHideT = setTimeout(hideTi
 function cancelHideTip(){ clearTimeout(tipHideT); tipHideT = null; }
 tip.addEventListener('mouseenter', cancelHideTip);
 tip.addEventListener('mouseleave', function(){ hideTip(); });
+function escHtml(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 function showTip(n, ev){
   cancelHideTip();
   tip.className = 'tree-tip tip-' + n.type;
@@ -771,7 +774,7 @@ function showTip(n, ev){
   tip.style.pointerEvents = alloc[n.id] ? 'auto' : 'none';
   var headerClass = 'tree-tip-header-' + n.type;
   
-  var nameHtml = '<span class="' + headerClass + '">' + n.name + '</span>';
+  var nameHtml = '<span class="' + headerClass + '">' + escHtml(n.name) + '</span>';
   if (n.type === 'keystone') {
     nameHtml = '👑 ' + nameHtml + ' <span class="muted small">(Keystone)</span>';
   } else if (n.type === 'notable') {
@@ -781,7 +784,7 @@ function showTip(n, ev){
   } else if (n.type === 'socket') {
     nameHtml = '💎 ' + nameHtml + ' <span class="muted small">(Jewel Socket)</span>';
   } else {
-    nameHtml = '<b>' + n.name + '</b>';
+    nameHtml = '<b>' + escHtml(n.name) + '</b>';
   }
   
   var actionHtml = '';
@@ -797,7 +800,7 @@ function showTip(n, ev){
       '</span>';
   }
   
-  tip.innerHTML = nameHtml + '<br><span class="muted small" style="margin-top:4px; display:inline-block;">'+(n.desc||'')+'</span>'+ actionHtml;
+  tip.innerHTML = nameHtml + '<br><span class="muted small" style="margin-top:4px; display:inline-block;">'+escHtml(n.desc||'')+'</span>'+ actionHtml;
   tip.style.display = '';
   moveTip(ev);
 }

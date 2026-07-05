@@ -816,18 +816,23 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 		if v := treePct["xp_gain"]; v > 0 {
 			rewardXP = int(float64(rewardXP) * (1 + v))
 		}
-		// Alchemy of the Soul: converts 50% of descent XP gain into gold (Item 42)
+		// Alchemy of the Soul: converts 50% of descent XP gain into gold (Item 42).
+		// The gold lands only after awardXP persists the reduced XP, so a failed
+		// XP write can never mint gold on top of unspent XP (worst case is an
+		// under-reward, matching the tree bonus best-effort philosophy).
+		var convertedXP int
 		if conv := treePct["xp_to_gold"]; conv > 0 {
-			convertedXP := int(float64(rewardXP) * conv)
+			convertedXP = int(float64(rewardXP) * conv)
+			rewardXP -= convertedXP
+		}
+		lr, xpErr := b.awardXP(uid, "", rewardXP)
+		if xpErr == nil && convertedXP > 0 {
 			convertedGold := int64(convertedXP)
-			if convertedGold > 0 {
-				if _, err := b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid = $1", uid, convertedGold); err == nil {
-					rewardXP -= convertedXP
-					logs = append(logs, fmt.Sprintf("✨ Alchemy of the Soul: converted %d XP into 🜲 %d Gold!", convertedXP, convertedGold))
-				}
+			if _, err := b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid = $1", uid, convertedGold); err == nil {
+				logs = append(logs, fmt.Sprintf("✨ Alchemy of the Soul: converted %d XP into 🜲 %d Gold!", convertedXP, convertedGold))
 			}
 		}
-		if lr, _ := b.awardXP(uid, "", rewardXP); lr != nil && lr.NewLevel >= PrestigeThreshold {
+		if lr != nil && lr.NewLevel >= PrestigeThreshold {
 			b.doPrestige(uid) // [52] keep Abyss prestige consistent with the cycle
 		}
 	}

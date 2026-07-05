@@ -316,10 +316,21 @@ func getSimulatedTreeBonus(level int) content.TreeBonus {
 
 func (p *SimPlayer) RecalculateStats(params SimParams) {
 	base := p.BaseStats(params)
-	
+
 	// Apply Skill Tree Simulator Integration (Item 91)
 	p.TreeBonus = getSimulatedTreeBonus(p.Level)
-	
+
+	// Mirror live combat (buildAbyssUser): ApplyCombatPct runs on the full
+	// base+gear+tree-flat total, so gear must be folded in before the
+	// percent modifiers, not after.
+	gearStats := SimStats{}
+	for _, g := range p.Gear {
+		if g.Durability > 0 {
+			gearStats = gearStats.Add(g.Stats)
+		}
+	}
+	base = base.Add(gearStats)
+
 	base.HP += p.TreeBonus.Stats.HP
 	base.STR += p.TreeBonus.Stats.STR
 	base.DEF += p.TreeBonus.Stats.DEF
@@ -362,23 +373,19 @@ func (p *SimPlayer) RecalculateStats(params SimParams) {
 	}
 
 
-	// Apply Limit Break (Item 73)
+	// Apply Limit Break (Item 73) — driven by the node's configured value,
+	// matching TreeBonus.ApplyCombatPct's 1+v.
 	if v := p.TreeBonus.Pct["limit_break"]; v != 0 {
-		base.STR = int(float64(base.STR) * 1.15)
-		base.HP = int(float64(base.HP) * 1.15)
-		base.DEF = int(float64(base.DEF) * 1.15)
-		base.SPD = int(float64(base.SPD) * 1.15)
-		base.INT = int(float64(base.INT) * 1.15)
+		mult := 1 + v
+		base.STR = int(float64(base.STR) * mult)
+		base.HP = int(float64(base.HP) * mult)
+		base.DEF = int(float64(base.DEF) * mult)
+		base.SPD = int(float64(base.SPD) * mult)
+		base.INT = int(float64(base.INT) * mult)
 	}
 
-	gearStats := SimStats{}
-	for _, g := range p.Gear {
-		if g.Durability > 0 {
-			gearStats = gearStats.Add(g.Stats)
-		}
-	}
 	prestigeMult := 1.0 + float64(p.Prestige)*params.PrestigeStatBonus
-	p.Stats = base.Add(gearStats).MulF(prestigeMult)
+	p.Stats = base.MulF(prestigeMult)
 	p.MaxHP = p.Stats.HP
 	if p.CurrentHP > p.MaxHP || p.CurrentHP <= 0 {
 		p.CurrentHP = p.MaxHP

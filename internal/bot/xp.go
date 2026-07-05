@@ -893,10 +893,16 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				continue
 			}
 		}
+		// Skill stuns zero SPD; stun immunity covers this path too so the
+		// user still acts (SPD recovery happens either way).
 		if u.Stats.SPD == 0 {
 			u.Stats.SPD = 10
-			*logs = append(*logs, i18n.T("bot.combat.stunned", u.Nickname))
-			continue
+			if au.treeBonus.Pct["stun_immunity"] > 0 {
+				*logs = append(*logs, fmt.Sprintf("🛡️ %s resists the stun due to Stun Immunity!", u.Nickname))
+			} else {
+				*logs = append(*logs, i18n.T("bot.combat.stunned", u.Nickname))
+				continue
+			}
 		}
 
 		// Mana regeneration: base 10 + 5% of flat MNA stat per round

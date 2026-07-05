@@ -561,7 +561,9 @@ func playerTurn(rng *rand.Rand, cp []combatPlayer, mobs []*SimMob, players []*Si
 			if bonus := p.TreeBonus.Pct["pet_damage_pct"]; bonus > 0 {
 				petDmgMult += bonus
 			}
-			baseDmg := maxInt(1, pet.Stats.STR-ComputeEffectiveMobDEF(targetMob))
+			// Mirror live pet damage (xp.go): modifiers scale the raw base and
+			// only the final result is floored, so a fully mitigated hit stays 1.
+			baseDmg := pet.Stats.STR - ComputeEffectiveMobDEF(targetMob)
 			pdmg := maxInt(1, int(float64(baseDmg)*petDmgMult*intensify))
 			targetMob.HP -= pdmg
 			result.DamageDealt += int64(pdmg)

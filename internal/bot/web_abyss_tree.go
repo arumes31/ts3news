@@ -74,6 +74,10 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 		tb.Stats.STA = int(float64(tb.Stats.STA) * multiplier)
 		tb.Stats.CRT = int(float64(tb.Stats.CRT) * multiplier)
 		tb.Stats.DGE = int(float64(tb.Stats.DGE) * multiplier)
+		tb.Stats.CHA = int(float64(tb.Stats.CHA) * multiplier)
+		tb.Stats.STN = int(float64(tb.Stats.STN) * multiplier)
+		tb.Stats.SHN = int(float64(tb.Stats.SHN) * multiplier)
+		tb.Stats.HGR = int(float64(tb.Stats.HGR) * multiplier)
 	}
 
 	return tb
