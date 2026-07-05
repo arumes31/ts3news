@@ -606,6 +606,52 @@ func buildAbyssTree() *AbyssTreeData {
 		}
 	}
 
+	// --- 100 signature nodes: the outer "Ascendant Rim" (IDs 1001..1100) -------
+	// Build-defining notables past the keystone rim. Each hangs off a keystone so
+	// it is reachable only after deep investment, and is Type "notable" (cost 2)
+	// so the keystone count stays 40. These grow the web beyond its original 1000
+	// nodes, so LayoutHash changes → a one-time free respec for every player.
+	sigNodes := []struct {
+		name string
+		key  string
+		val  float64
+	}{
+		// str_pct — Wrath
+		{"Wrath of the First Blade", "str_pct", 0.05}, {"Fury Unchained", "str_pct", 0.06}, {"Berserker's Ascendance", "str_pct", 0.07}, {"Titanbreaker", "str_pct", 0.08}, {"Warlord's Dominion", "str_pct", 0.09}, {"Hand of Ruin", "str_pct", 0.10}, {"Godsbane Ascendant", "str_pct", 0.11}, {"The Crimson Apex", "str_pct", 0.12}, {"Wrathforged Crown", "str_pct", 0.13}, {"Avatar of Slaughter", "str_pct", 0.14},
+		// hp_pct — Vitality
+		{"Heart of the Mountain", "hp_pct", 0.05}, {"Enduring Colossus", "hp_pct", 0.06}, {"Unbreaking Vigor", "hp_pct", 0.07}, {"Bulwark Eternal", "hp_pct", 0.08}, {"Lifewell Ascendant", "hp_pct", 0.09}, {"Bastion of Flesh", "hp_pct", 0.10}, {"Immortal Coil", "hp_pct", 0.11}, {"The Living Fortress", "hp_pct", 0.12}, {"Worldheart Vitality", "hp_pct", 0.13}, {"Avatar of Endurance", "hp_pct", 0.14},
+		// spd_pct — Alacrity
+		{"Whisper of the Gale", "spd_pct", 0.05}, {"Fleetfoot Ascendance", "spd_pct", 0.06}, {"Tempest Cadence", "spd_pct", 0.07}, {"Blur of the Duelist", "spd_pct", 0.08}, {"Stormstride", "spd_pct", 0.09}, {"Quicksilver Apex", "spd_pct", 0.10}, {"The Unseen Step", "spd_pct", 0.11}, {"Windsworn Ascendant", "spd_pct", 0.12}, {"Lightning Reflex", "spd_pct", 0.13}, {"Avatar of Alacrity", "spd_pct", 0.14},
+		// int_pct — Arcana
+		{"Spark of Genius", "int_pct", 0.05}, {"Arcane Ascendance", "int_pct", 0.06}, {"Mind of the Deep", "int_pct", 0.07}, {"Eldritch Insight", "int_pct", 0.08}, {"Weaver of Secrets", "int_pct", 0.09}, {"Oracle's Apex", "int_pct", 0.10}, {"The Boundless Mind", "int_pct", 0.11}, {"Astral Ascendant", "int_pct", 0.12}, {"Cosmic Intellect", "int_pct", 0.13}, {"Avatar of Arcana", "int_pct", 0.14},
+		// skill_damage — Spellfury
+		{"Kindled Focus", "skill_damage", 0.06}, {"Spellfury Rising", "skill_damage", 0.07}, {"Runic Overload", "skill_damage", 0.08}, {"Cinderweave Mastery", "skill_damage", 0.09}, {"Voidcaller's Edge", "skill_damage", 0.10}, {"Arclight Apex", "skill_damage", 0.11}, {"The Searing Verdict", "skill_damage", 0.12}, {"Stormcaller Ascendant", "skill_damage", 0.13}, {"Ruinous Incantation", "skill_damage", 0.14}, {"Avatar of Spellfury", "skill_damage", 0.15},
+		// xp_gain — Enlightenment
+		{"Seeker's Diligence", "xp_gain", 0.03}, {"Scholar's Ascendance", "xp_gain", 0.04}, {"Path of Wisdom", "xp_gain", 0.05}, {"Enlightened Delver", "xp_gain", 0.06}, {"Runescribe's Insight", "xp_gain", 0.07}, {"Ascendant Erudition", "xp_gain", 0.08}, {"The Long Study", "xp_gain", 0.09}, {"Mind of Ages", "xp_gain", 0.10}, {"Sage of the Abyss", "xp_gain", 0.11}, {"Avatar of Enlightenment", "xp_gain", 0.12},
+		// gold_find — Avarice
+		{"Prospector's Eye", "gold_find", 0.05}, {"Gilded Ascendance", "gold_find", 0.06}, {"Coinseeker's Boon", "gold_find", 0.08}, {"Hoarder's Instinct", "gold_find", 0.09}, {"Midas Reach", "gold_find", 0.10}, {"Vault-Warden's Apex", "gold_find", 0.11}, {"The Golden Verdict", "gold_find", 0.12}, {"Dragonhoard Ascendant", "gold_find", 0.14}, {"Avaricious Crown", "gold_find", 0.15}, {"Avatar of Avarice", "gold_find", 0.16},
+		// ult_damage — Cataclysm
+		{"Rising Cataclysm", "ult_damage", 0.05}, {"Doombringer's Ascendance", "ult_damage", 0.06}, {"Apocalypse Engine", "ult_damage", 0.07}, {"Worldender's Edge", "ult_damage", 0.08}, {"Ruin Unleashed", "ult_damage", 0.09}, {"Annihilation Apex", "ult_damage", 0.10}, {"The Final Word", "ult_damage", 0.12}, {"Cataclysm Ascendant", "ult_damage", 0.13}, {"Starfall Verdict", "ult_damage", 0.14}, {"Avatar of Cataclysm", "ult_damage", 0.15},
+		// def_to_lifesteal — Sanguine
+		{"Sanguine Trickle", "def_to_lifesteal", 0.005}, {"Bloodward Ascendance", "def_to_lifesteal", 0.006}, {"Ironblood Pact", "def_to_lifesteal", 0.007}, {"Crimson Aegis", "def_to_lifesteal", 0.008}, {"Leeching Bulwark", "def_to_lifesteal", 0.009}, {"Vampiric Apex", "def_to_lifesteal", 0.010}, {"The Drinking Wall", "def_to_lifesteal", 0.011}, {"Sanguine Ascendant", "def_to_lifesteal", 0.012}, {"Hemocryst Bastion", "def_to_lifesteal", 0.013}, {"Avatar of Sanguinity", "def_to_lifesteal", 0.014},
+		// ult_cooldown — Tempo
+		{"Quickened Resolve", "ult_cooldown", 0.04}, {"Momentum Ascendance", "ult_cooldown", 0.05}, {"Relentless Cadence", "ult_cooldown", 0.06}, {"Everready Instinct", "ult_cooldown", 0.07}, {"Chrono-Attunement", "ult_cooldown", 0.08}, {"Tempo Apex", "ult_cooldown", 0.09}, {"The Endless Encore", "ult_cooldown", 0.10}, {"Timebender Ascendant", "ult_cooldown", 0.11}, {"Perpetual Onslaught", "ult_cooldown", 0.12}, {"Avatar of Tempo", "ult_cooldown", 0.13},
+	}
+	for k, sg := range sigNodes {
+		id := 1000 + 1 + k // 1001..1100
+		slot := k % treeSlots
+		n := TreeNode{
+			ID: id, Ring: treeRings + 2 + k/treeSlots, Slot: slot, Sector: slot / treeLanes,
+			Type: "notable",
+			Name: "✦ " + sg.name,
+			Desc: fmt.Sprintf("A signature Ascendant power (%+.1f%% %s).", sg.val*100, sg.key),
+			Pct:  map[string]float64{sg.key: sg.val},
+		}
+		polar(&n)
+		t.Nodes = append(t.Nodes, n)
+		addEdge(id, treeFirstKeyID+(k%treeKeystoneN)) // hang off a keystone → reachable
+	}
+
 	for i := range t.Nodes {
 		t.byID[t.Nodes[i].ID] = &t.Nodes[i]
 	}

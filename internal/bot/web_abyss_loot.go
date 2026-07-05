@@ -216,9 +216,21 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			g.Name = "🩸 Corrupted " + g.Name
 		}
 
+		// Life-regen affix (real-time Abyss web regen): Rare+ gear can roll a slow
+		// out-of-combat heal of 1-5 HP every 5-60s (both rolled). Ticks live on the
+		// Abyss dashboard; see (*Bot).applyAbyssRegen.
+		// #nosec G404 -- non-cryptographic loot roll
+		if g.Rarity >= content.RarityRare && rand.Float64() < 0.20 {
+			g.RegenAmount = 1 + rand.IntN(5)       // 1-5 HP
+			g.RegenIntervalSec = 5 + rand.IntN(56) // 5-60 seconds
+		}
+
 		label := fmt.Sprintf("%s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
 		if g.Unidentified {
 			label = fmt.Sprintf("Unidentified %s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", string(g.Slot), string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
+		}
+		if !g.Unidentified && g.RegenAmount > 0 {
+			label += fmt.Sprintf(" [color=#63b3ff]♻ +%d HP/%ds[/color]", g.RegenAmount, g.RegenIntervalSec)
 		}
 		// Upgrade delta vs the equipped piece in this slot (#76).
 		if !g.Unidentified {

@@ -504,6 +504,7 @@ type webUser struct {
 	AbyssTokens int
 	CurrentHP   int
 	MaxHP       int
+	MaxMana     int
 	Stats       content.Stats
 	GearScore   int
 }
@@ -529,6 +530,9 @@ func (s *WebServer) loadWebUser(uid string) (*webUser, error) {
 	u.Stats = stats
 	u.GearScore = gearScore
 	u.MaxHP = stats.HP
+	// Mana is a combat-only pool (base 100 + MNA), mirroring resolveChannelCombat.
+	// Out of combat it's shown full as a capacity gauge under the health bar.
+	u.MaxMana = 100 + stats.MNA
 	if u.CurrentHP <= 0 || u.CurrentHP > u.MaxHP {
 		u.CurrentHP = u.MaxHP
 	}

@@ -63,6 +63,10 @@
       <div class="ab-hpfill" id="hpFill" style="width:{{mulpct .U.CurrentHP .U.MaxHP}}%"></div>
       <span class="ab-hptext" id="hpText" data-hp="{{.U.CurrentHP}}" data-max="{{.U.MaxHP}}"></span>
     </div>
+    <div class="ab-mpbar" role="progressbar" aria-label="Mana" aria-valuemin="0" aria-valuemax="{{.U.MaxMana}}" aria-valuenow="{{.U.MaxMana}}" id="mpBar">
+      <div class="ab-mpfill" id="mpFill" style="width:100%"></div>
+      <span class="ab-mptext" id="mpText">🔵 {{comma .U.MaxMana}} Mana</span>
+    </div>
   </div>
   <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.gear_score"}}</span><span class="ab-chip-val">{{comma .U.GearScore}}</span></div>
   <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.level"}}</span><span class="ab-chip-val">{{.U.Level}}{{if gt .U.Prestige 0}} · P{{.U.Prestige}}{{end}}</span></div>
@@ -1083,6 +1087,22 @@ function setHP(hp,max){
   bar.setAttribute('aria-valuenow',hp); bar.setAttribute('aria-valuemax',max);
   var mh=document.getElementById('mhHP'); if(mh)mh.textContent=fmtNum(hp)+' ('+pct+'%)';
 }
+
+// Real-time life-regen ticker: equipped gear regen affixes heal the displayed HP
+// live (server persists the same rate on each page load; see applyAbyssRegen).
+(function(){
+  var perSec = {{.RegenPerSec}};
+  if(!(perSec>0)) return;
+  var acc=0;
+  setInterval(function(){
+    var bar=document.getElementById('hpBar'); if(!bar) return;
+    var hp=Number(bar.getAttribute('aria-valuenow'))||0;
+    var max=Number(bar.getAttribute('aria-valuemax'))||0;
+    if(max<=0||hp>=max) return;
+    acc+=perSec;
+    if(acc>=1){ var add=Math.floor(acc); acc-=add; setHP(Math.min(hp+add,max),max); }
+  },1000);
+})();
 function setGold(g){var el=document.getElementById('goldPill');if(el){g=Number(g)||0;animateNumber(el, lastGold===null?g:lastGold, g, function(v){return '🪙 '+fmtGold(v);}); lastGold=g;}}
 // Tokens live in the shared header pill (next to gold), not on the page body.
 function setTokens(t){if(t!==undefined){var el=document.getElementById('tokenPill');if(el){t=Number(t)||0;animateNumber(el, lastTokens===null?t:lastTokens, t, function(v){return '🜲 '+fmtNum(v);}); lastTokens=t;}}}

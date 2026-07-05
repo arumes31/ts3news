@@ -2890,6 +2890,34 @@ tr.bought-flash {
   text-shadow: 0 1px 2px #000;
 }
 
+/* Mana bar: sits directly under the health bar as a capacity gauge. */
+.ab-mpbar {
+  position: relative;
+  height: 14px;
+  margin-top: 5px;
+  background: #10182e;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.ab-mpfill {
+  height: 100%;
+  background: linear-gradient(90deg, #3a6fd8, #63b3ff);
+  transition: width .5s ease;
+}
+
+.ab-mptext {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .7rem;
+  font-weight: 700;
+  text-shadow: 0 1px 2px #000;
+}
+
 /* ---- Abyss expansion 2 (docs/ABYSS_IDEAS.md) ------------------------------ */
 
 /* Sticky mini-HUD (#301) */

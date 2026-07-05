@@ -271,8 +271,11 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 		if victory {
 			t.Errorf("expected defeat")
 		}
-		if xp >= 0 {
-			t.Errorf("expected negative XP reward (penalty), got %d", xp)
+		// Per-kill model: a lost fight banks 25% of the killed mobs' XP. This mob
+		// is never killed, so killedXP is 0 and the combat reward is 0 (the level
+		// death penalty is applied separately inside distributeRewards).
+		if xp != 0 {
+			t.Errorf("expected 0 combat XP on a defeat with no kills, got %d", xp)
 		}
 	})
 }

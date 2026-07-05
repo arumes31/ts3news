@@ -327,6 +327,12 @@ type Gear struct {
 	// SetID identifies which named Abyss-exclusive set (if any) this item
 	// belongs to. Empty for gear predating the multi-set system.
 	SetID string `json:"set_id,omitempty"`
+
+	// RegenAmount / RegenIntervalSec are a Rare+ life-regen affix: the item heals
+	// RegenAmount HP every RegenIntervalSec seconds in real time on the Abyss web
+	// dashboard (both values rolled at drop time). Zero means no regen affix.
+	RegenAmount      int `json:"regen_amount,omitempty"`
+	RegenIntervalSec int `json:"regen_interval_sec,omitempty"`
 }
 
 // EffectiveSetID returns the item's set for set-bonus purposes: its explicit
@@ -605,6 +611,132 @@ func buildContent() {
 		{ID: "U_LEG_7", Name: "Aegis of the Thorned King", Slot: SlotOffHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{HP: 900, DEF: 500, STA: 80}, Special: EffectThorns, BonusEffects: []ItemEffect{EffectBulwark}},
 		{ID: "U_LEG_8", Name: "Shroud of the Second Dawn", Slot: SlotBack, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 700, SPD: 250, DGE: 40}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectStealth}},
 		{ID: "U_LEG_9", Name: "Whisperveil Diadem", Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 500, INT: 300, LCK: 120}, Special: EffectMindControl, BonusEffects: []ItemEffect{EffectTreasureHunter}},
+	}...)
+
+	// 100 signature uniques (build-defining legendaries): each pairs a themed stat
+	// line with a Special affix (+ usually a bonus affix) from the combat-effect
+	// pool, spread across every slot and Legendary→Divine rarity. Literal names so
+	// new content ships without touching every locale file.
+	uniqueLegendaries = append(uniqueLegendaries, []Gear{
+		// --- Blades & main-hand weapons ---
+		{ID: "U_LEG_10", Name: "Sanguine Reaver", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{STR: 760, SPD: 160, CRT: 40}, Special: EffectVampiric, BonusEffects: []ItemEffect{EffectBerserk}},
+		{ID: "U_LEG_11", Name: "Gravewind Cleaver", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{STR: 880, SPD: 220, CRT: 30}, Special: EffectBerserk, BonusEffects: []ItemEffect{EffectFragile}},
+		{ID: "U_LEG_12", Name: "Duelist's Last Word", Slot: SlotMainHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 13, Stats: Stats{STR: 640, SPD: 300, DGE: 40, CRT: 45}, Special: EffectParry, BonusEffects: []ItemEffect{EffectQuick}},
+		{ID: "U_LEG_13", Name: "Sunder, Oathbreaker's Edge", Slot: SlotMainHand, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 11, Stats: Stats{STR: 1050, CRT: 55, SPD: 180}, Special: EffectFragile, BonusEffects: []ItemEffect{EffectBerserk}},
+		{ID: "U_LEG_14", Name: "Kingsmourne, the Radiant Ruin", Slot: SlotMainHand, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 16, Stats: Stats{STR: 1300, HP: 400, CRT: 60, SPD: 200}, Special: EffectRadiant, BonusEffects: []ItemEffect{EffectVampiric}},
+		// --- Off-hand & shields ---
+		{ID: "U_LEG_15", Name: "Bramblewall Bastion", Slot: SlotOffHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 13, Stats: Stats{HP: 950, DEF: 520, STA: 90}, Special: EffectThorns, BonusEffects: []ItemEffect{EffectBulwark}},
+		{ID: "U_LEG_16", Name: "Mirrorface Ward", Slot: SlotOffHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{HP: 720, DEF: 400, DGE: 45}, Special: EffectParry, BonusEffects: []ItemEffect{EffectSteady}},
+		{ID: "U_LEG_17", Name: "Aegis of Kindled Ash", Slot: SlotOffHand, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 14, Stats: Stats{HP: 1200, DEF: 600, STA: 110}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectBulwark}},
+		{ID: "U_LEG_18", Name: "Tidewarden's Bulwark", Slot: SlotOffHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 13, Stats: Stats{HP: 880, DEF: 470, STA: 80}, Special: EffectCleanse, BonusEffects: []ItemEffect{EffectBulwark}},
+		{ID: "U_LEG_19", Name: "The Immovable Verdict", Slot: SlotOffHand, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 18, Stats: Stats{HP: 1600, DEF: 800, STA: 150}, Special: EffectBulwark, BonusEffects: []ItemEffect{EffectThorns}},
+		// --- Ranged ---
+		{ID: "U_LEG_20", Name: "Stormcaller Longbow", Slot: SlotRanged, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 11, Stats: Stats{STR: 620, SPD: 340, CRT: 40, DGE: 20}, Special: EffectQuick, BonusEffects: []ItemEffect{EffectFragile}},
+		{ID: "U_LEG_21", Name: "Widowmaker's Whisper", Slot: SlotRanged, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{STR: 700, SPD: 260, CRT: 55}, Special: EffectStealth, BonusEffects: []ItemEffect{EffectQuick}},
+		{ID: "U_LEG_22", Name: "Feastarrow of the Leech", Slot: SlotRanged, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{STR: 660, SPD: 300, CRT: 35}, Special: EffectVampiric, BonusEffects: []ItemEffect{EffectLucky}},
+		{ID: "U_LEG_23", Name: "Sunflare Repeater", Slot: SlotRanged, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 13, Stats: Stats{STR: 900, SPD: 400, CRT: 50}, Special: EffectRadiant, BonusEffects: []ItemEffect{EffectQuick}},
+		{ID: "U_LEG_24", Name: "Voidpiercer, the Endless Quiver", Slot: SlotRanged, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 15, Stats: Stats{STR: 1150, SPD: 520, CRT: 60}, Special: EffectFragile, BonusEffects: []ItemEffect{EffectStealth}},
+		// --- Head ---
+		{ID: "U_LEG_25", Name: "Crown of the Hollow King", Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 11, Stats: Stats{HP: 600, INT: 280, LCK: 100}, Special: EffectMindControl, BonusEffects: []ItemEffect{EffectRadiant}},
+		{ID: "U_LEG_26", Name: "Helm of the Unbroken", Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 14, Stats: Stats{HP: 820, DEF: 300, STA: 60}, Special: EffectSteady, BonusEffects: []ItemEffect{EffectBulwark}},
+		{ID: "U_LEG_27", Name: "Seer's Third Eye", Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 480, INT: 360, LCK: 90}, Special: EffectRadiant, BonusEffects: []ItemEffect{EffectTreasureHunter}},
+		{ID: "U_LEG_28", Name: "Diadem of Rekindled Souls", Slot: SlotHead, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 12, Stats: Stats{HP: 900, INT: 300, DEF: 120}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectCleanse}},
+		{ID: "U_LEG_29", Name: "Mind of the Abyssal Choir", Slot: SlotHead, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 15, Stats: Stats{HP: 700, INT: 520, LCK: 150}, Special: EffectMindControl, BonusEffects: []ItemEffect{EffectRadiant}},
+		// --- Chest ---
+		{ID: "U_LEG_30", Name: "Heart of the Undying Ember", Slot: SlotChest, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{HP: 1100, DEF: 360, STA: 80}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectRegenStack}},
+		{ID: "U_LEG_31", Name: "Carapace of the Deep Warden", Slot: SlotChest, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 15, Stats: Stats{HP: 1300, DEF: 500, STA: 120}, Special: EffectBulwark, BonusEffects: []ItemEffect{EffectThorns}},
+		{ID: "U_LEG_32", Name: "Bloodplate of the Ravener", Slot: SlotChest, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 11, Stats: Stats{HP: 900, STR: 200, DEF: 260}, Special: EffectVampiric, BonusEffects: []ItemEffect{EffectBerserk}},
+		{ID: "U_LEG_33", Name: "Vestment of Ceaseless Renewal", Slot: SlotChest, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 14, Stats: Stats{HP: 1500, DEF: 420, STA: 140}, Special: EffectRegenStack, BonusEffects: []ItemEffect{EffectCleanse}},
+		{ID: "U_LEG_34", Name: "Worldscale Aegisplate", Slot: SlotChest, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 18, Stats: Stats{HP: 2000, DEF: 700, STA: 180}, Special: EffectBulwark, BonusEffects: []ItemEffect{EffectSteady}},
+		// --- Legs ---
+		{ID: "U_LEG_35", Name: "Greaves of the Pillar Titan", Slot: SlotLegs, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 14, Stats: Stats{HP: 1200, DEF: 380, STA: 90}, Special: EffectSteady, BonusEffects: []ItemEffect{EffectBulwark}},
+		{ID: "U_LEG_36", Name: "Striders of the Tempest", Slot: SlotLegs, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 11, Stats: Stats{HP: 600, SPD: 400, DGE: 45}, Special: EffectQuick, BonusEffects: []ItemEffect{EffectStealth}},
+		{ID: "U_LEG_37", Name: "Legwraps of the Leech-King", Slot: SlotLegs, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{HP: 800, STR: 180, DEF: 220}, Special: EffectVampiric, BonusEffects: []ItemEffect{EffectRegenStack}},
+		{ID: "U_LEG_38", Name: "Cuisses of Rekindling", Slot: SlotLegs, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 13, Stats: Stats{HP: 1400, DEF: 460, STA: 110}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectSteady}},
+		{ID: "U_LEG_39", Name: "Colossus Legplates", Slot: SlotLegs, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 18, Stats: Stats{HP: 1900, DEF: 720, STA: 170}, Special: EffectBulwark, BonusEffects: []ItemEffect{EffectThorns}},
+		// --- Hands ---
+		{ID: "U_LEG_40", Name: "Gauntlets of the Bloodfist", Slot: SlotHands, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 11, Stats: Stats{STR: 520, CRT: 40, SPD: 120}, Special: EffectBerserk, BonusEffects: []ItemEffect{EffectVampiric}},
+		{ID: "U_LEG_41", Name: "Grips of the Featherwind", Slot: SlotHands, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{SPD: 360, DGE: 50, CRT: 30}, Special: EffectQuick, BonusEffects: []ItemEffect{EffectParry}},
+		{ID: "U_LEG_42", Name: "Thornweave Handguards", Slot: SlotHands, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 13, Stats: Stats{HP: 620, DEF: 280, STR: 120}, Special: EffectThorns, BonusEffects: []ItemEffect{EffectSteady}},
+		{ID: "U_LEG_43", Name: "Cleansing Palms of Dawn", Slot: SlotHands, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 12, Stats: Stats{HP: 700, INT: 200, DEF: 180}, Special: EffectCleanse, BonusEffects: []ItemEffect{EffectRadiant}},
+		{ID: "U_LEG_44", Name: "Fists of the Shattered Star", Slot: SlotHands, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 15, Stats: Stats{STR: 900, CRT: 65, SPD: 220}, Special: EffectFragile, BonusEffects: []ItemEffect{EffectBerserk}},
+		// --- Feet ---
+		{ID: "U_LEG_45", Name: "Boots of the Ghostwalker", Slot: SlotFeet, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 11, Stats: Stats{SPD: 420, DGE: 55, HP: 300}, Special: EffectStealth, BonusEffects: []ItemEffect{EffectQuick}},
+		{ID: "U_LEG_46", Name: "Sabatons of the Sure Step", Slot: SlotFeet, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 14, Stats: Stats{HP: 720, DEF: 260, STA: 60}, Special: EffectSteady, BonusEffects: []ItemEffect{EffectBulwark}},
+		{ID: "U_LEG_47", Name: "Treads of Fortune's Road", Slot: SlotFeet, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{SPD: 300, LCK: 120, DGE: 30}, Special: EffectLucky, BonusEffects: []ItemEffect{EffectTreasureHunter}},
+		{ID: "U_LEG_48", Name: "Windrunners of the Gale", Slot: SlotFeet, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 13, Stats: Stats{SPD: 560, DGE: 70, HP: 400}, Special: EffectQuick, BonusEffects: []ItemEffect{EffectParry}},
+		{ID: "U_LEG_49", Name: "Steps of the Reborn Flame", Slot: SlotFeet, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 15, Stats: Stats{HP: 900, SPD: 480, DGE: 60}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectStealth}},
+		// --- Shoulders ---
+		{ID: "U_LEG_50", Name: "Pauldrons of the Warbringer", Slot: SlotShoulders, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 13, Stats: Stats{STR: 360, HP: 700, DEF: 220}, Special: EffectBerserk, BonusEffects: []ItemEffect{EffectBulwark}},
+		{ID: "U_LEG_51", Name: "Mantleguards of Thorns", Slot: SlotShoulders, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{HP: 820, DEF: 340, STA: 70}, Special: EffectThorns, BonusEffects: []ItemEffect{EffectSteady}},
+		{ID: "U_LEG_52", Name: "Spaulders of the Bloodmoon", Slot: SlotShoulders, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 11, Stats: Stats{STR: 300, HP: 600, CRT: 25}, Special: EffectVampiric, BonusEffects: []ItemEffect{EffectBerserk}},
+		{ID: "U_LEG_53", Name: "Epaulets of Radiant Insight", Slot: SlotShoulders, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 13, Stats: Stats{HP: 800, INT: 260, LCK: 100}, Special: EffectRadiant, BonusEffects: []ItemEffect{EffectLucky}},
+		{ID: "U_LEG_54", Name: "Burden of the Eternal Watch", Slot: SlotShoulders, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 16, Stats: Stats{HP: 1400, DEF: 560, STA: 130}, Special: EffectBulwark, BonusEffects: []ItemEffect{EffectRegenStack}},
+		// --- Back ---
+		{ID: "U_LEG_55", Name: "Cloak of the Waning Shadow", Slot: SlotBack, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 11, Stats: Stats{HP: 600, SPD: 280, DGE: 50}, Special: EffectStealth, BonusEffects: []ItemEffect{EffectQuick}},
+		{ID: "U_LEG_56", Name: "Wings of the Phoenix Reborn", Slot: SlotBack, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 13, Stats: Stats{HP: 1000, SPD: 320, DGE: 55}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectRegenStack}},
+		{ID: "U_LEG_57", Name: "Drape of the Fortunate", Slot: SlotBack, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{HP: 500, LCK: 140, DGE: 30}, Special: EffectLucky, BonusEffects: []ItemEffect{EffectTreasureHunter}},
+		{ID: "U_LEG_58", Name: "Shawl of the Cleansing Tide", Slot: SlotBack, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{HP: 700, INT: 180, DEF: 160}, Special: EffectCleanse, BonusEffects: []ItemEffect{EffectSteady}},
+		{ID: "U_LEG_59", Name: "Mantle of the Starless Void", Slot: SlotBack, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 15, Stats: Stats{HP: 1200, SPD: 420, DGE: 70}, Special: EffectStealth, BonusEffects: []ItemEffect{EffectParry}},
+		// --- Waist ---
+		{ID: "U_LEG_60", Name: "Girdle of the Ravenous Maw", Slot: SlotWaist, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{HP: 700, STR: 220, DEF: 160}, Special: EffectVampiric, BonusEffects: []ItemEffect{EffectBerserk}},
+		{ID: "U_LEG_61", Name: "Belt of Unshaken Resolve", Slot: SlotWaist, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 14, Stats: Stats{HP: 900, DEF: 300, STA: 80}, Special: EffectSteady, BonusEffects: []ItemEffect{EffectBulwark}},
+		{ID: "U_LEG_62", Name: "Sash of the Gilded Vault", Slot: SlotWaist, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 11, Stats: Stats{HP: 500, LCK: 150, INT: 120}, Special: EffectTreasureHunter, BonusEffects: []ItemEffect{EffectLucky}},
+		{ID: "U_LEG_63", Name: "Cincture of Living Bark", Slot: SlotWaist, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 13, Stats: Stats{HP: 1100, DEF: 340, STA: 100}, Special: EffectRegenStack, BonusEffects: []ItemEffect{EffectThorns}},
+		{ID: "U_LEG_64", Name: "Waistguard of the World-Ash", Slot: SlotWaist, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 16, Stats: Stats{HP: 1500, DEF: 600, STA: 150}, Special: EffectBulwark, BonusEffects: []ItemEffect{EffectRegenStack}},
+		// --- Wrists ---
+		{ID: "U_LEG_65", Name: "Bracers of the Blurred Hand", Slot: SlotWrists, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 11, Stats: Stats{SPD: 360, DGE: 50, CRT: 30}, Special: EffectQuick, BonusEffects: []ItemEffect{EffectParry}},
+		{ID: "U_LEG_66", Name: "Vambraces of the Iron Oath", Slot: SlotWrists, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 14, Stats: Stats{HP: 700, DEF: 280, STA: 60}, Special: EffectBulwark, BonusEffects: []ItemEffect{EffectSteady}},
+		{ID: "U_LEG_67", Name: "Wristguards of the Duelist", Slot: SlotWrists, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{SPD: 280, DGE: 60, CRT: 40}, Special: EffectParry, BonusEffects: []ItemEffect{EffectQuick}},
+		{ID: "U_LEG_68", Name: "Cuffs of the Thorncoil", Slot: SlotWrists, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 13, Stats: Stats{HP: 820, DEF: 320, STR: 140}, Special: EffectThorns, BonusEffects: []ItemEffect{EffectBerserk}},
+		{ID: "U_LEG_69", Name: "Bindings of the Eternal Flame", Slot: SlotWrists, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 15, Stats: Stats{HP: 1100, DEF: 380, INT: 200}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectCleanse}},
+		// --- Neck ---
+		{ID: "U_LEG_70", Name: "Amulet of the Sanguine Pact", Slot: SlotNeck, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 600, STR: 160, CRT: 30}, Special: EffectVampiric, BonusEffects: []ItemEffect{EffectLucky}},
+		{ID: "U_LEG_71", Name: "Pendant of the Wandering Star", Slot: SlotNeck, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 500, INT: 240, LCK: 110}, Special: EffectRadiant, BonusEffects: []ItemEffect{EffectTreasureHunter}},
+		{ID: "U_LEG_72", Name: "Torc of the Ironheart", Slot: SlotNeck, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{HP: 800, DEF: 260, STA: 60}, Special: EffectSteady, BonusEffects: []ItemEffect{EffectBulwark}},
+		{ID: "U_LEG_73", Name: "Choker of the Whispering Deep", Slot: SlotNeck, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 11, Stats: Stats{HP: 620, INT: 320, LCK: 130}, Special: EffectMindControl, BonusEffects: []ItemEffect{EffectRadiant}},
+		{ID: "U_LEG_74", Name: "Heartstone of the Undying", Slot: SlotNeck, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 14, Stats: Stats{HP: 1300, DEF: 300, STA: 120}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectRegenStack}},
+		// --- Rings ---
+		{ID: "U_LEG_75", Name: "Signet of the Blood Baron", Slot: SlotFinger1, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{STR: 200, HP: 400, CRT: 30}, Special: EffectVampiric, BonusEffects: []ItemEffect{EffectBerserk}},
+		{ID: "U_LEG_76", Name: "Band of Boundless Fortune", Slot: SlotFinger1, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 300, LCK: 180, CHA: 60}, Special: EffectLucky, BonusEffects: []ItemEffect{EffectTreasureHunter}},
+		{ID: "U_LEG_77", Name: "Loop of the Quick Fang", Slot: SlotFinger2, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{SPD: 260, CRT: 45, DGE: 25}, Special: EffectQuick, BonusEffects: []ItemEffect{EffectParry}},
+		{ID: "U_LEG_78", Name: "Ring of the Warded Circle", Slot: SlotFinger2, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 12, Stats: Stats{HP: 700, DEF: 300, STA: 70}, Special: EffectBulwark, BonusEffects: []ItemEffect{EffectCleanse}},
+		{ID: "U_LEG_79", Name: "Solitaire of the First Light", Slot: SlotFinger1, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 13, Stats: Stats{HP: 600, INT: 360, LCK: 160}, Special: EffectRadiant, BonusEffects: []ItemEffect{EffectLucky}},
+		// --- Trinkets ---
+		{ID: "U_LEG_80", Name: "Idol of the Silent Hunt", Slot: SlotTrinket1, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{SPD: 300, DGE: 50, CRT: 30}, Special: EffectStealth, BonusEffects: []ItemEffect{EffectQuick}},
+		{ID: "U_LEG_81", Name: "Charm of the Gilded Rat", Slot: SlotTrinket1, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 300, LCK: 160, CHA: 70}, Special: EffectTreasureHunter, BonusEffects: []ItemEffect{EffectLucky}},
+		{ID: "U_LEG_82", Name: "Totem of the Thornheart", Slot: SlotTrinket2, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 11, Stats: Stats{HP: 620, DEF: 240, STR: 120}, Special: EffectThorns, BonusEffects: []ItemEffect{EffectSteady}},
+		{ID: "U_LEG_83", Name: "Fetish of Renewing Sap", Slot: SlotTrinket2, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 12, Stats: Stats{HP: 900, DEF: 200, STA: 90}, Special: EffectRegenStack, BonusEffects: []ItemEffect{EffectCleanse}},
+		{ID: "U_LEG_84", Name: "Effigy of the Caged Mind", Slot: SlotTrinket1, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 13, Stats: Stats{HP: 700, INT: 420, LCK: 140}, Special: EffectMindControl, BonusEffects: []ItemEffect{EffectRadiant}},
+		// --- Charm ---
+		{ID: "U_LEG_85", Name: "Wishbone of the Drowned Fleet", Slot: SlotCharm, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 9, Stats: Stats{HP: 250, LCK: 200, CHA: 80}, Special: EffectLucky, BonusEffects: []ItemEffect{EffectTreasureHunter}},
+		{ID: "U_LEG_86", Name: "Emberseed Charm", Slot: SlotCharm, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 9, Stats: Stats{HP: 400, INT: 160, DEF: 100}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectRegenStack}},
+		{ID: "U_LEG_87", Name: "Bloodbead Talisman", Slot: SlotCharm, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 9, Stats: Stats{STR: 180, HP: 350, CRT: 25}, Special: EffectVampiric, BonusEffects: []ItemEffect{EffectBerserk}},
+		{ID: "U_LEG_88", Name: "Charm of the Steadfast Vow", Slot: SlotCharm, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 11, Stats: Stats{HP: 800, DEF: 260, STA: 80}, Special: EffectSteady, BonusEffects: []ItemEffect{EffectBulwark}},
+		{ID: "U_LEG_89", Name: "Starcaller's Wish", Slot: SlotCharm, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 12, Stats: Stats{HP: 500, INT: 300, LCK: 220}, Special: EffectRadiant, BonusEffects: []ItemEffect{EffectLucky}},
+		// --- Aura ---
+		{ID: "U_LEG_90", Name: "Aura of the Blood Choir", Slot: SlotAura, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 500, STR: 120, INT: 120, CHA: 60}, Special: EffectVampiric, BonusEffects: []ItemEffect{EffectRadiant}},
+		{ID: "U_LEG_91", Name: "Halo of the Cleansing Choir", Slot: SlotAura, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{HP: 600, INT: 200, DEF: 140}, Special: EffectCleanse, BonusEffects: []ItemEffect{EffectRegenStack}},
+		{ID: "U_LEG_92", Name: "Nimbus of the Gale Spirit", Slot: SlotAura, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 10, Stats: Stats{SPD: 300, DGE: 55, HP: 350}, Special: EffectQuick, BonusEffects: []ItemEffect{EffectStealth}},
+		{ID: "U_LEG_93", Name: "Corona of Rekindled Faith", Slot: SlotAura, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 12, Stats: Stats{HP: 900, INT: 240, DEF: 180}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectCleanse}},
+		{ID: "U_LEG_94", Name: "Radiance of the Abyssal Sun", Slot: SlotAura, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 14, Stats: Stats{HP: 800, INT: 420, LCK: 180, CHA: 80}, Special: EffectRadiant, BonusEffects: []ItemEffect{EffectMindControl}},
+		// --- Relic ---
+		{ID: "U_LEG_95", Name: "Relic of the First Ravener", Slot: SlotRelic, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{HP: 500, STR: 260, DEF: 200, CRT: 20}, Special: EffectVampiric, BonusEffects: []ItemEffect{EffectBerserk}},
+		{ID: "U_LEG_96", Name: "Reliquary of Endless Dawn", Slot: SlotRelic, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 12, Stats: Stats{HP: 700, INT: 240, DEF: 180}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectRegenStack}},
+		{ID: "U_LEG_97", Name: "Idolstone of the Warded Gate", Slot: SlotRelic, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 14, Stats: Stats{HP: 1200, DEF: 520, STA: 120}, Special: EffectBulwark, BonusEffects: []ItemEffect{EffectThorns}},
+		{ID: "U_LEG_98", Name: "Coreheart of the Deep Titan", Slot: SlotRelic, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 16, Stats: Stats{HP: 1600, STR: 400, DEF: 500, CRT: 30}, Special: EffectBerserk, BonusEffects: []ItemEffect{EffectVampiric}},
+		{ID: "U_LEG_99", Name: "The Last Ember of Creation", Slot: SlotRelic, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 18, Stats: Stats{HP: 1800, INT: 400, DEF: 400, LCK: 120}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectCleanse, EffectRadiant}},
+		// --- A second pass of blades/armour to round out 100 ---
+		{ID: "U_LEG_100", Name: "Fangreaper, the Thirsting Scythe", Slot: SlotMainHand, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 12, Stats: Stats{STR: 980, SPD: 240, CRT: 48}, Special: EffectVampiric, BonusEffects: []ItemEffect{EffectFragile}},
+		{ID: "U_LEG_101", Name: "Ashen Verdict, Judge of Cinders", Slot: SlotMainHand, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 15, Stats: Stats{STR: 1200, HP: 500, CRT: 55, SPD: 220}, Special: EffectRadiant, BonusEffects: []ItemEffect{EffectPhoenix}},
+		{ID: "U_LEG_102", Name: "Warden's Endless Wall", Slot: SlotOffHand, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 15, Stats: Stats{HP: 1400, DEF: 640, STA: 130}, Special: EffectBulwark, BonusEffects: []ItemEffect{EffectSteady}},
+		{ID: "U_LEG_103", Name: "Voidglass Sentinel", Slot: SlotOffHand, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 11, Stats: Stats{HP: 640, DEF: 380, DGE: 50}, Special: EffectParry, BonusEffects: []ItemEffect{EffectStealth}},
+		{ID: "U_LEG_104", Name: "Plague of the Hollow Crown", Slot: SlotHead, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 12, Stats: Stats{HP: 800, INT: 340, LCK: 120}, Special: EffectMindControl, BonusEffects: []ItemEffect{EffectVampiric}},
+		{ID: "U_LEG_105", Name: "Everwarden Battleplate", Slot: SlotChest, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 15, Stats: Stats{HP: 1600, DEF: 560, STA: 140}, Special: EffectRegenStack, BonusEffects: []ItemEffect{EffectBulwark}},
+		{ID: "U_LEG_106", Name: "Stormstep Greaves", Slot: SlotLegs, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 12, Stats: Stats{HP: 700, SPD: 520, DGE: 60}, Special: EffectQuick, BonusEffects: []ItemEffect{EffectParry}},
+		{ID: "U_LEG_107", Name: "Gauntlet of the Gorewrit", Slot: SlotHands, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 11, Stats: Stats{STR: 720, CRT: 50, SPD: 160}, Special: EffectBerserk, BonusEffects: []ItemEffect{EffectVampiric}},
+		{ID: "U_LEG_108", Name: "Choker of the Ninth Life", Slot: SlotNeck, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 14, Stats: Stats{HP: 1200, DEF: 260, LCK: 180}, Special: EffectPhoenix, BonusEffects: []ItemEffect{EffectLucky}},
+		{ID: "U_LEG_109", Name: "Aurora, Heart of the Deep Star", Slot: SlotRelic, Rarity: RarityDivine, XPMultiplier: getXPMult(RarityDivine), MaxDurability: 18, Stats: Stats{HP: 1500, INT: 500, DEF: 300, LCK: 160, CRT: 25}, Special: EffectRadiant, BonusEffects: []ItemEffect{EffectRegenStack, EffectLucky}},
 	}...)
 
 	abyssExclusiveGear = []Gear{

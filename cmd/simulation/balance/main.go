@@ -269,24 +269,25 @@ func RunFullSimulation(seed int64, params SimParams, playerCount, groupSize, tot
 				ApplyDurabilityLoss(rng, p, !result.Victory, params)
 			}
 
-			// XP — combat XP only (no base activity XP; that's a separate event in the real bot)
+			// XP — combat XP only (no base activity XP; that's a separate event in the
+			// real bot). XPGained is the per-kill amount (full on a win, 25% on a loss);
+			// a loss additionally pays the separate level-XP death penalty.
 			for _, p := range party {
-				if result.Victory {
-					xp := result.XPGained
-					// Apply gear XP multiplier: average of all gear XPMult values
-					gearCount := 0
-					gearMultSum := 0.0
-					for _, g := range p.Gear {
-						if g.Durability > 0 {
-							gearMultSum += g.XPMult
-							gearCount++
-						}
+				xp := result.XPGained
+				// Apply gear XP multiplier: average of all gear XPMult values
+				gearCount := 0
+				gearMultSum := 0.0
+				for _, g := range p.Gear {
+					if g.Durability > 0 {
+						gearMultSum += g.XPMult
+						gearCount++
 					}
-					if gearCount > 0 {
-						xp *= gearMultSum / float64(gearCount)
-					}
-					AwardXP(p, xp, params)
-				} else {
+				}
+				if gearCount > 0 {
+					xp *= gearMultSum / float64(gearCount)
+				}
+				AwardXP(p, xp, params)
+				if !result.Victory {
 					ApplyDeathPenalty(p, params)
 				}
 			}

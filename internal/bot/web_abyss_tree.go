@@ -1,6 +1,7 @@
 package bot
 
-// The Abyss Skill Web (PoE-style passive tree, 1000 nodes — see
+// The Abyss Skill Web (PoE-style passive tree, 1000 base nodes + the 100-node
+// outer Ascendant Rim = 1100 — see
 // internal/content/abysstree.go for the generator). Points are earned by
 // playing: 1 per character level, 1 per best depth reached, 1 per 10 lifetime
 // floors and 25 per Abyss prestige. Allocation must extend a connected path

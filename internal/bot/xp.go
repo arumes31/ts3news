@@ -385,7 +385,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	var logs []string
 	var loots []LootResult
 	victory := false
-	var totalUserDamage, totalMobDamage, totalRewardXP int
+	var totalUserDamage, totalMobDamage, killedXP int
 
 	isAbyss := false
 	for _, uc := range users {
@@ -479,10 +479,6 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				}
 				initialMobs = append(initialMobs, currentMobs[i]) // track for rewards
 			}
-		}
-
-		for _, m := range currentMobs {
-			totalRewardXP += m.RewardXP
 		}
 
 		// Initialize wave header (rarity-coloured enemy names + wave countdown)
@@ -718,6 +714,14 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			}
 		}
 
+		// Per-kill XP: bank the RewardXP of every mob that died this wave, so a
+		// wipe still credits the kills that landed (a lost fight keeps 25% below).
+		for _, m := range currentMobs {
+			if m.Stats.HP <= 0 {
+				killedXP += m.RewardXP
+			}
+		}
+
 		if !waveVictory {
 			victory = false
 			break
@@ -728,7 +732,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	}
 
 	var finalAwardedXP int
-	logs, finalAwardedXP, victory = b.distributeRewards(users, activeUsers, victory, totalUserDamage, totalMobDamage, totalRewardXP, initialMobs, nil, zone, logs, avgLvl)
+	logs, finalAwardedXP, victory = b.distributeRewards(users, activeUsers, victory, totalUserDamage, totalMobDamage, killedXP, initialMobs, nil, zone, logs, avgLvl)
 	return logs, finalAwardedXP, victory, loots
 }
 
@@ -1630,7 +1634,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 	}
 }
 
-func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory bool, totalUserDamage, totalMobDamage, totalRewardXP int, initialMobs []*content.Mob, _ []*content.Mob, zone content.Zone, logs []string, avgLvl int) ([]string, int, bool) {
+func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory bool, totalUserDamage, totalMobDamage, killedXP int, initialMobs []*content.Mob, _ []*content.Mob, zone content.Zone, logs []string, avgLvl int) ([]string, int, bool) {
 	// Summarize Combat — centred header plus visual damage-share bars.
 	totalDamage := totalUserDamage + totalMobDamage
 	logs = append(logs, hr())
@@ -1804,10 +1808,12 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 			}
 		}
 
-		return logs, totalRewardXP / realUserCount(users), true
+		return logs, killedXP / realUserCount(users), true
 	}
 	logs = append(logs, i18n.T("bot.combat.defeat", zone.Name))
-	return logs, -totalRewardXP / (2 * realUserCount(users)), false
+	// Per-kill XP with a death tax: a lost fight still banks 25% of the XP from
+	// the mobs that were actually killed (the other 75% is forfeit).
+	return logs, killedXP / (4 * realUserCount(users)), false
 }
 
 // realUserCount counts non-clone participants. Co-op clones must not dilute the
