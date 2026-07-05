@@ -3965,7 +3965,7 @@ func (s *WebServer) autoSelectFocus(uid string, run abyssRun) string {
 	lowDura := false
 	equippedRows, err := s.bot.DB.Query("SELECT slot, durability FROM user_gear WHERE client_uid = $1", uid)
 	if err == nil {
-		defer equippedRows.Close()
+		defer func() { _ = equippedRows.Close() }()
 		for equippedRows.Next() {
 			var slot string
 			var dur int
