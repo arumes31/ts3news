@@ -396,7 +396,11 @@ func playerTurn(rng *rand.Rand, cp []combatPlayer, mobs []*SimMob, players []*Si
 
 				// Ultimate skill
 				if p.UltimateSkill != nil && p.UltimateSkill.CurrentCooldown == 0 {
-					dmgMult *= p.UltimateSkill.Power
+					ultMult := p.UltimateSkill.Power
+					if bonus := p.TreeBonus.Pct["ult_damage"]; bonus > 0 {
+						ultMult *= (1.0 + bonus)
+					}
+					dmgMult *= ultMult
 					effDef := float64(ComputeEffectiveMobDEF(target)) * (1.0 - ignoreDef)
 					dmg = int((float64(uSTR)*dmgMult - effDef) * intensify)
 					minDmg := int(float64(uSTR) * 0.15 * intensify)
@@ -407,7 +411,15 @@ func playerTurn(rng *rand.Rand, cp []combatPlayer, mobs []*SimMob, players []*Si
 						dmg = 1
 					}
 					*logs = append(*logs, fmt.Sprintf("🌟 ULTIMATE: %s deals %d dmg!", p.UltimateSkill.Name, dmg))
-					p.UltimateSkill.CurrentCooldown = p.UltimateSkill.CooldownRounds
+					
+					cooldownVal := p.UltimateSkill.CooldownRounds
+					if red := p.TreeBonus.Pct["ult_cooldown"]; red > 0 {
+						cooldownVal = int(float64(cooldownVal) * (1.0 - red))
+						if cooldownVal < 2 {
+							cooldownVal = 2
+						}
+					}
+					p.UltimateSkill.CurrentCooldown = cooldownVal
 				} else {
 					effDef := float64(ComputeEffectiveMobDEF(target)) * (1.0 - ignoreDef)
 					dmg = int((float64(uSTR)*dmgMult - effDef) * intensify)
@@ -493,8 +505,15 @@ func playerTurn(rng *rand.Rand, cp []combatPlayer, mobs []*SimMob, players []*Si
 				break
 			}
 
-			// 3% betrayal chance
-			if rng.Float64() < 0.03 {
+			// Betrayal chance
+			betrayalChance := 0.03
+			if red := p.TreeBonus.Pct["pet_betrayal_reduce"]; red > 0 {
+				betrayalChance -= red
+				if betrayalChance < 0 {
+					betrayalChance = 0
+				}
+			}
+			if rng.Float64() < betrayalChance {
 				targetIdx := rng.Intn(len(cp))
 				if cp[targetIdx].hp > 0 {
 					pdmg := maxInt(1, pet.Stats.STR-cp[targetIdx].def)
@@ -537,13 +556,20 @@ func playerTurn(rng *rand.Rand, cp []combatPlayer, mobs []*SimMob, players []*Si
 				}
 			}
 
-			ptarget := aliveMobs[rng.Intn(len(aliveMobs))]
-			pdmg := maxInt(1, pet.Stats.STR-ComputeEffectiveMobDEF(ptarget))
-			ptarget.HP -= pdmg
+			targetMob := aliveMobs[rng.Intn(len(aliveMobs))]
+			petDmgMult := 1.0
+			if bonus := p.TreeBonus.Pct["pet_damage_pct"]; bonus > 0 {
+				petDmgMult += bonus
+			}
+			// Mirror live pet damage (xp.go): modifiers scale the raw base and
+			// only the final result is floored, so a fully mitigated hit stays 1.
+			baseDmg := pet.Stats.STR - ComputeEffectiveMobDEF(targetMob)
+			pdmg := maxInt(1, int(float64(baseDmg)*petDmgMult*intensify))
+			targetMob.HP -= pdmg
 			result.DamageDealt += int64(pdmg)
-			if ptarget.HP <= 0 {
-				*logs = append(*logs, fmt.Sprintf("🐾 %s killed %s!", pet.Name, ptarget.Name))
-				ApplyDeathEffects(ptarget, &mobs, players, avgLevel(players), 1.0, rng, params, logs)
+			if targetMob.HP <= 0 {
+				*logs = append(*logs, fmt.Sprintf("🐾 %s killed %s!", pet.Name, targetMob.Name))
+				ApplyDeathEffects(targetMob, &mobs, players, avgLevel(players), 1.0, rng, params, logs)
 			}
 		}
 

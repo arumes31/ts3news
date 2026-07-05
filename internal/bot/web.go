@@ -283,6 +283,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/abyss/tree", s.auth(s.handleAbyssTreePage))
 		mux.HandleFunc("/api/abyss/tree/allocate", s.authAPI(s.handleAbyssTreeAllocate))
 		mux.HandleFunc("/api/abyss/tree/respec", s.authAPI(s.handleAbyssTreeRespec))
+		mux.HandleFunc("/api/abyss/tree/refund", s.authAPI(s.handleAbyssTreeRefund))
 	}
 
 	// Authenticated JSON APIs.

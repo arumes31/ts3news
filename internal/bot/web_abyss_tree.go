@@ -57,7 +57,30 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 	if err != nil {
 		return content.TreeBonus{}
 	}
-	return content.AbyssTree().BonusFor(alloc)
+	tb := content.AbyssTree().BonusFor(alloc)
+
+	// Apply Prestige Reset Bonus Multipliers (Item 61): +1% flat stats per prestige
+	var prestige int
+	_ = b.DB.QueryRow("SELECT prestige FROM users WHERE client_uid=$1", uid).Scan(&prestige)
+	if prestige > 0 {
+		multiplier := 1.0 + 0.01*float64(prestige)
+		tb.Stats.HP = int(float64(tb.Stats.HP) * multiplier)
+		tb.Stats.MNA = int(float64(tb.Stats.MNA) * multiplier)
+		tb.Stats.STR = int(float64(tb.Stats.STR) * multiplier)
+		tb.Stats.DEF = int(float64(tb.Stats.DEF) * multiplier)
+		tb.Stats.SPD = int(float64(tb.Stats.SPD) * multiplier)
+		tb.Stats.LCK = int(float64(tb.Stats.LCK) * multiplier)
+		tb.Stats.INT = int(float64(tb.Stats.INT) * multiplier)
+		tb.Stats.STA = int(float64(tb.Stats.STA) * multiplier)
+		tb.Stats.CRT = int(float64(tb.Stats.CRT) * multiplier)
+		tb.Stats.DGE = int(float64(tb.Stats.DGE) * multiplier)
+		tb.Stats.CHA = int(float64(tb.Stats.CHA) * multiplier)
+		tb.Stats.STN = int(float64(tb.Stats.STN) * multiplier)
+		tb.Stats.SHN = int(float64(tb.Stats.SHN) * multiplier)
+		tb.Stats.HGR = int(float64(tb.Stats.HGR) * multiplier)
+	}
+
+	return tb
 }
 
 // handleAbyssTreePage renders the skill web.
@@ -74,7 +97,9 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	total := s.bot.treePointsTotal(uid)
-	tb := tree.BonusFor(alloc)
+	// Use the Bot-level bonus (not tree.BonusFor) so the page shows the same
+	// totals combat applies — including the prestige multiplier.
+	tb := s.bot.treeBonusFor(uid)
 
 	// Flatten adjacency into edge pairs once for the client renderer.
 	type edge [2]int
@@ -108,7 +133,14 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		"Points":    total,
 		"Used":      len(alloc),
 		"BonusPct":  pctView,
-		"Bonus":     tb.Stats,
+		// Raw maps seed the client summary so it always mirrors the
+		// server-computed totals (socket adjacency, Temporal Shift, prestige).
+		"BonusPctRaw": tb.Pct,
+		"Bonus":       tb.Stats,
+		// Best depth drives the client-side mirror of the allocation floor
+		// gates (Item 62), so gated nodes are shown locked instead of
+		// advertising an allocate the server would refuse.
+		"BestDepth": s.bot.loadAbyssStats(uid).BestDepth,
 		"RespecTk":  abyssTreeRespecTokens,
 	})
 }
@@ -182,13 +214,29 @@ func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Abyss Floor Unlocks check (Item 62)
+	if node.Type == "keystone" || node.Ring > 10 {
+		var maxFloor int
+		_ = s.bot.DB.QueryRow("SELECT COALESCE(abyss_best_depth, 0) FROM users WHERE client_uid=$1", uid).Scan(&maxFloor)
+		requiredFloor := 10
+		if node.Type == "keystone" {
+			requiredFloor = 30
+		} else if node.Ring > 20 {
+			requiredFloor = 20
+		}
+		if maxFloor < requiredFloor {
+			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("Requires clearing Abyss Floor %d (your record is %d)", requiredFloor, maxFloor)})
+			return
+		}
+	}
+
 	if _, err := s.bot.DB.Exec(
 		"INSERT INTO user_abyss_tree (client_uid, node_id) VALUES ($1,$2) ON CONFLICT DO NOTHING", uid, req.NodeID); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 
-	tb := tree.BonusFor(append(alloc, req.NodeID))
+	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{
 		"ok": true, "node_id": req.NodeID, "used": len(alloc) + 1,
 		"points": s.bot.treePointsTotal(uid),
@@ -234,4 +282,123 @@ func (s *WebServer) handleAbyssTreeRespec(w http.ResponseWriter, r *http.Request
 	}
 	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("🌳 Skill web reset for 🜲%d — every point refunded.", abyssTreeRespecTokens),
 		"tokens": s.bot.abyssTokens(uid)})
+}
+
+// handleAbyssTreeRefund refunds a single node for 1 token (Item 48).
+func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
+
+	var req struct {
+		NodeID int `json:"node_id"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+	tree := content.AbyssTree()
+	node := tree.Node(req.NodeID)
+	if node == nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "unknown node"})
+		return
+	}
+
+	alloc, err := s.bot.loadTreeAllocated(uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+
+	found := false
+	for _, id := range alloc {
+		if id == req.NodeID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		writeJSON(w, map[string]any{"ok": false, "error": "node is not allocated"})
+		return
+	}
+
+	// Build a map of allocated nodes excluding the target node
+	allocatedMap := make(map[int]bool)
+	for _, id := range alloc {
+		if id != req.NodeID {
+			allocatedMap[id] = true
+		}
+	}
+
+	// Verify connectivity of all remaining allocated nodes to the root (0) using BFS
+	visited := make(map[int]bool)
+	queue := []int{0}
+	visited[0] = true
+
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+
+		for _, nb := range tree.Adj[curr] {
+			if (allocatedMap[nb] || nb == 0) && !visited[nb] {
+				visited[nb] = true
+				queue = append(queue, nb)
+			}
+		}
+	}
+
+	// If any other allocated node is not reachable from the root, we cannot refund
+	for _, id := range alloc {
+		if id != req.NodeID && !visited[id] {
+			writeJSON(w, map[string]any{"ok": false, "error": "cannot refund: other allocated nodes would be disconnected"})
+			return
+		}
+	}
+
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.Exec("DELETE FROM user_abyss_tree WHERE client_uid=$1 AND node_id=$2", uid, req.NodeID)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if affected, _ := res.RowsAffected(); affected == 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "node not found or already refunded"})
+		return
+	}
+
+	// Deduct 1 Respec Token for individual node refund
+	if !deductTokens(w, tx, uid, 1) {
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+
+	// Recalculate stats for response
+	var remainingAlloc []int
+	for _, id := range alloc {
+		if id != req.NodeID {
+			remainingAlloc = append(remainingAlloc, id)
+		}
+	}
+
+	tb := s.bot.treeBonusFor(uid)
+	writeJSON(w, map[string]any{
+		"ok": true, "node_id": req.NodeID, "used": len(remainingAlloc),
+		"points": s.bot.treePointsTotal(uid),
+		"msg":    "🌳 Refunded: " + node.Name,
+		"stats":  tb.Stats, "pct": tb.Pct,
+		"tokens": s.bot.abyssTokens(uid),
+	})
 }

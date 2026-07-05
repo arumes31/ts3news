@@ -69,6 +69,12 @@ type Stats struct {
 	HGR int // Hunger
 }
 
+// NOTE: Stats deliberately uses the default encoding/json field handling.
+// Gear items are persisted as JSON (user_gear.item_data, escrow, forge undo)
+// and reconstructed by overlaying that JSON onto the catalog entry — a custom
+// UnmarshalJSON that assigns every field would zero out stats whose keys are
+// absent from older payloads, silently stripping them from legacy items.
+
 // Add returns the field-wise sum of s and o.
 func (s Stats) Add(o Stats) Stats {
 	return Stats{

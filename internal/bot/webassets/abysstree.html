@@ -5,16 +5,19 @@
   pointer-events: none;
   transition: color 0.2s, opacity 0.2s;
 }
-.tn.on + .tn-icon {
+/* Icon/swirl state classes are applied directly by paint()/treeSearchApply()
+   (icons load asynchronously, so DOM-order sibling selectors cannot pair
+   them with their circles reliably). */
+.tn-icon.on {
   color: #ffffff;
 }
-.tn.can + .tn-icon {
+.tn-icon.can {
   color: rgba(255, 255, 255, 0.75);
 }
-.tn.dim + .tn-icon {
+.tn-icon.dim {
   opacity: 0.15;
 }
-.tn.hit + .tn-icon {
+.tn-icon.hit {
   color: #ffffff;
   opacity: 1;
 }
@@ -84,6 +87,79 @@
   color: #9af0be;
   font-weight: bold;
 }
+
+/* Chaotic portal edge styles */
+.te.te-chaotic {
+  stroke: #b26bff !important;
+  stroke-dasharray: 2 4;
+  stroke-width: 2.2 !important;
+}
+.te.te-chaotic.half {
+  stroke: rgba(178, 107, 255, 0.4) !important;
+  stroke-dasharray: 2 4;
+  stroke-width: 2.2 !important;
+}
+.te.te-chaotic.on {
+  stroke: #dcbfff !important;
+  stroke-dasharray: 2 4;
+  animation: flowPulse 2s linear infinite;
+  stroke-width: 3.5 !important;
+}
+
+/* Starfield Parallax (Item 1) */
+.tree-bg-stars circle {
+  pointer-events: none;
+  transition: transform 0.05s ease-out;
+}
+
+/* Portal gate visual vortices (Item 15) */
+@keyframes swirlRotate {
+  to { transform: rotate(360deg); }
+}
+.portal-swirl {
+  fill: none;
+  stroke: rgba(178, 107, 255, 0.25);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 2;
+  transform-origin: center;
+  animation: swirlRotate 10s linear infinite;
+  pointer-events: none;
+}
+.portal-swirl.on {
+  stroke: rgba(220, 191, 255, 0.8);
+  stroke-width: 2.2;
+  animation-duration: 4s;
+}
+
+/* Interactive Hover Path Highlight (Item 3) */
+.te.path-pulse {
+  stroke: #5bc0ff !important;
+  stroke-width: 4.5 !important;
+  filter: drop-shadow(0 0 8px #5bc0ff) !important;
+}
+.tn.path-glow {
+  filter: drop-shadow(0 0 12px #5bc0ff) !important;
+  stroke: #5bc0ff !important;
+}
+
+/* Single-node refund button (Item 48) */
+.btn-refund {
+  background: #da3737;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 6px;
+  display: inline-block;
+  transition: background 0.2s;
+  pointer-events: auto;
+}
+.btn-refund:hover {
+  background: #f14c4c;
+}
 </style>
 <div class="tree-head">
   <div>
@@ -109,8 +185,8 @@
 </div>
 
 <div class="tree-stage" id="treeStage">
-  <svg id="treeSvg" xmlns="http://www.w3.org/2000/svg"></svg>
-  <div class="tree-tip" id="treeTip" style="display:none"></div>
+  <svg id="treeSvg" class="tree-svg"></svg>
+  <div id="treeTip" class="tree-tip" style="display:none;"></div>
 </div>
 
 <div class="tree-summary abyss-panel">
@@ -129,7 +205,7 @@ var EDGES = {{jsonJS .Edges}};
 var alloc = {};
 {{range .Allocated}}alloc[{{.}}] = true;
 {{end}}
-var used = {{.Used}}, points = {{.Points}};
+var used = {{.Used}}, points = {{.Points}}, bestDepth = {{.BestDepth}};
 var byId = {};
 NODES.forEach(function(n){ byId[n.id] = n; });
 var adj = {0: []};
@@ -140,7 +216,7 @@ EDGES.forEach(function(e){
 
 function getNodeIcon(n) {
   if (n.type === 'keystone') {
-    if (n.name.indexOf('Worldsplitter') >= 0) return 'broadsword';
+    if (n.name.indexOf('Worldsplitter') >= 0 || n.name.indexOf('Limit Break') >= 0) return 'broadsword';
     if (n.name.indexOf('Thousandth Star') >= 0) return 'legendary-star';
     if (n.name.indexOf('Duskbringer') >= 0) return 'spectre';
     if (n.name.indexOf('Deepmiser') >= 0) return 'open-treasure-chest';
@@ -154,88 +230,81 @@ function getNodeIcon(n) {
     }
   }
   if (n.type === 'bridge') return 'totem';
-  var stats = n.stats || {};
-  var pct = n.pct || {};
-  if (pct.material_yield) return 'metal-bar';
-  if (pct.gold_find) return 'two-coins';
-  if (pct.loot_find) return 'knapsack';
-  if (pct.escrow_bonus || pct.token_gain) return 'gem-pendant';
-  if (pct.xp_gain) return 'progression';
-  if (stats.HP > 0 || pct.hp_pct) {
-    if (n.type === 'notable') return 'regeneration';
-    return 'health-normal';
+  if (n.type === 'socket') return 'unique-gem';
+  if (n.type === 'notable') {
+    // Names must match files in webassets/icons/ — a missing file means no
+    // icon at all, so map to the closest icon that actually ships.
+    if (n.name.indexOf('Overcharged') >= 0) return 'sunbeams';
+    if (n.name.indexOf('Souldrinker') >= 0) return 'fangs';
+    if (n.name.indexOf('Temporal') >= 0) return 'progression';
+    if (n.name.indexOf('Beastmaster') >= 0) return 'wolf-head';
+    if (n.name.indexOf('Unbreakable') >= 0) return 'checked-shield';
+
+    switch (n.sector) {
+      case 0: return 'visored-helm';
+      case 1: return 'health-normal';
+      case 2: return 'hood';
+      case 3: return 'crystal-ball';
+      case 4: return 'clover';
+      default: return 'psychic-waves';
+    }
   }
-  if (stats.STR > 0 || pct.str_pct) {
-    if (n.type === 'notable') return 'sword-clash';
-    return 'biceps';
-  }
-  if (stats.SPD > 0 || pct.spd_pct || stats.DGE > 0) {
-    if (n.type === 'notable') return 'sprint';
-    return 'run';
-  }
-  if (stats.INT > 0 || pct.int_pct || stats.MNA > 0) {
-    if (n.type === 'notable') return 'crystal-ball';
-    return 'orb-wand';
-  }
-  if (stats.LCK > 0 || stats.CRT > 0) {
-    if (n.type === 'notable') return 'clover';
-    return 'bullseye';
-  }
-  if (stats.DEF > 0) return 'checked-shield';
-  if (stats.STA > 0) return 'lungs';
-  switch (n.sector) {
-    case 0: return 'broadsword';
-    case 1: return 'aura';
-    case 2: return 'bird-mask';
-    case 3: return 'crystal-cluster';
-    case 4: return 'clover';
-    default: return 'wolf-head';
-  }
+  return '';
 }
 
 var iconCache = {};
-function loadNodeIcon(container, iconName, size, cx, cy) {
-  if (!iconName) return;
-  var g = document.createElementNS(NS, 'g');
-  g.setAttribute('class', 'tn-icon');
-  g.setAttribute('style', 'pointer-events: none;');
-  container.appendChild(g);
-  function applyPaths(svgText) {
-    var parser = new DOMParser();
-    var doc = parser.parseFromString(svgText, 'image/svg+xml');
-    var svgEl = doc.documentElement;
-    var viewBox = svgEl.getAttribute('viewBox') || '0 0 512 512';
-    var vb = viewBox.split(' ').map(Number);
-    var vW = vb[2], vH = vb[3];
-    var scale = size / Math.max(vW, vH);
-    var tx = cx - (vW * scale) / 2;
-    var ty = cy - (vH * scale) / 2;
-    g.setAttribute('transform', 'translate(' + tx + ',' + ty + ') scale(' + scale + ')');
-    while (svgEl.firstChild) {
-      var child = svgEl.firstChild;
-      if (child.nodeType === 1) {
-        var fill = child.getAttribute('fill');
-        var stroke = child.getAttribute('stroke');
-        if (fill && fill !== 'none' && !fill.startsWith('url(')) {
-          child.setAttribute('fill', 'currentColor');
-        }
-        if (stroke && stroke !== 'none' && !stroke.startsWith('url(')) {
-          child.setAttribute('stroke', 'currentColor');
-        }
-      }
-      g.appendChild(child);
-    }
+function loadNodeIcon(g, name, size, cx, cy, nodeId) {
+  var x = cx - size/2;
+  var y = cy - size/2;
+
+  if (iconCache[name]) {
+    appendIconPaths(g, iconCache[name], size, x, y, nodeId);
+    return;
   }
-  if (iconCache[iconName]) {
-    applyPaths(iconCache[iconName]);
-  } else {
-    fetch('/static/icons/' + iconName + '.svg')
-      .then(function(r) { return r.text(); })
-      .then(function(text) {
-        iconCache[iconName] = text;
-        applyPaths(text);
-      })
-      .catch(function(err) { console.error('failed to load icon', iconName, err); });
+
+  fetch('/static/icons/' + name + '.svg')
+    .then(function(r) {
+      // Never cache/parse an error body as SVG.
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + name);
+      return r.text();
+    })
+    .then(function(svgText) {
+      iconCache[name] = svgText;
+      appendIconPaths(g, svgText, size, x, y, nodeId);
+    })
+    .catch(function(e) { console.error('Icon fetch failed', e); });
+}
+
+function appendIconPaths(g, svgText, size, x, y, nodeId) {
+  var parser = new DOMParser();
+  var doc = parser.parseFromString(svgText, 'image/svg+xml');
+  var svgEl = doc.documentElement;
+  var viewbox = svgEl.getAttribute('viewBox') || '0 0 512 512';
+  var vbParts = viewbox.split(' ');
+  var vbWidth = parseFloat(vbParts[2] || 512);
+  var vbHeight = parseFloat(vbParts[3] || 512);
+  
+  var scale = size / Math.max(vbWidth, vbHeight);
+  
+  var gIcon = document.createElementNS(NS, 'g');
+  gIcon.setAttribute('class', 'tn-icon');
+  gIcon.setAttribute('transform', 'translate(' + x + ',' + y + ') scale(' + scale + ')');
+  
+  var paths = svgEl.querySelectorAll('path');
+  paths.forEach(function(path) {
+    var p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', path.getAttribute('d'));
+    p.setAttribute('fill', 'currentColor');
+    gIcon.appendChild(p);
+  });
+
+  g.appendChild(gIcon);
+  // Register the icon so paint()/treeSearchApply() can drive its state class
+  // directly — icons arrive asynchronously, so DOM-order sibling selectors
+  // can't pair them with their circles.
+  if (nodeId !== undefined) {
+    iconEls[nodeId] = gIcon;
+    paintDecor(nodeId);
   }
 }
 
@@ -259,18 +328,70 @@ async function abPost(url, body){
 var svg = document.getElementById('treeSvg');
 var NS = 'http://www.w3.org/2000/svg';
 var view = {x:-700, y:-700, w:1400, h:1400};
-function applyView(){ svg.setAttribute('viewBox', view.x+' '+view.y+' '+view.w+' '+view.h); }
+function applyView(){ 
+  svg.setAttribute('viewBox', view.x+' '+view.y+' '+view.w+' '+view.h); 
+  // Parallax shift for background stars (Item 1)
+  var gStars = svg.querySelector('.tree-bg-stars');
+  if (gStars) {
+    gStars.setAttribute('transform', 'translate(' + (view.x * 0.4) + ',' + (view.y * 0.4) + ')');
+  }
+}
 
+// Server-side allocation floor gates (Item 62), mirrored client-side so the
+// UI never advertises an allocate the server would refuse.
+function gateFloor(n){
+  if(!n) return 0;
+  if(n.type === 'keystone') return 30;
+  if(n.ring > 20) return 20;
+  if(n.ring > 10) return 10;
+  return 0;
+}
 function isAllocatable(id){
   if(alloc[id] || used >= points) return false;
+  if(gateFloor(byId[id]) > bestDepth) return false;
   var ns = adj[id] || [];
   for(var i=0;i<ns.length;i++){ if(ns[i]===0 || alloc[ns[i]]) return true; }
   return false;
 }
 
+// Icon/portal-swirl registries: state classes are applied directly (see
+// paintDecor) because these decorations are not DOM-adjacent to their circles.
+var iconEls = {}, swirlEls = {};
+function paintDecor(id){
+  var st = alloc[id] ? ' on' : (isAllocatable(id) ? ' can' : '');
+  if(iconEls[id]){
+    var keep = iconEls[id].classList.contains('dim') ? ' dim' : iconEls[id].classList.contains('hit') ? ' hit' : '';
+    iconEls[id].setAttribute('class', 'tn-icon' + st + keep);
+  }
+  if(swirlEls[id]) swirlEls[id].setAttribute('class', 'portal-swirl' + st);
+}
+
+function randSeed(s) {
+  return function() {
+    s = Math.sin(s) * 10000;
+    return s - Math.floor(s);
+  };
+}
+
 var edgeEls = [], nodeEls = {};
 function build(){
   svg.innerHTML = '';
+
+  // Background star field for parallax (Item 1)
+  var gStars = document.createElementNS(NS, 'g');
+  gStars.setAttribute('class', 'tree-bg-stars');
+  var starRand = randSeed(12345);
+  for (var i = 0; i < 80; i++) {
+    var circle = document.createElementNS(NS, 'circle');
+    var sx = (starRand() * 2000 - 1000);
+    var sy = (starRand() * 2000 - 1000);
+    circle.setAttribute('cx', sx);
+    circle.setAttribute('cy', sy);
+    circle.setAttribute('r', starRand() * 2 + 0.5);
+    circle.setAttribute('fill', 'rgba(255, 255, 255, ' + (starRand() * 0.4 + 0.1) + ')');
+    gStars.appendChild(circle);
+  }
+  svg.appendChild(gStars);
 
   // Background Decorations (Dividers & Sector Labels)
   var gB = document.createElementNS(NS, 'g');
@@ -324,6 +445,7 @@ function build(){
   svg.appendChild(gB);
 
   var gE = document.createElementNS(NS,'g');
+  var portalNodes = {};
   EDGES.forEach(function(e){
     var a = e[0]===0 ? {x:0,y:0} : byId[e[0]];
     var b = e[1]===0 ? {x:0,y:0} : byId[e[1]];
@@ -331,7 +453,17 @@ function build(){
     var l = document.createElementNS(NS,'line');
     l.setAttribute('x1',a.x); l.setAttribute('y1',a.y);
     l.setAttribute('x2',b.x); l.setAttribute('y2',b.y);
-    l.setAttribute('class','te');
+    
+    // Check if the edge is a long-distance chaotic portal
+    var dx = a.x - b.x, dy = a.y - b.y;
+    var isPortal = (dx*dx + dy*dy) > 180*180;
+    l.setAttribute('class', isPortal ? 'te te-chaotic' : 'te');
+    l._isPortal = isPortal;
+    if (isPortal) {
+      if (e[0] > 0) portalNodes[e[0]] = true;
+      if (e[1] > 0) portalNodes[e[1]] = true;
+    }
+    
     l._e = e;
     gE.appendChild(l);
     edgeEls.push(l);
@@ -346,37 +478,58 @@ function build(){
 
   var gN = document.createElementNS(NS,'g');
   NODES.forEach(function(n){
+    // Portal gate visual vortices (Item 15)
+    if (portalNodes[n.id]) {
+      var swirl = document.createElementNS(NS, 'circle');
+      swirl.setAttribute('cx', n.x);
+      swirl.setAttribute('cy', n.y);
+      swirl.setAttribute('r', (n.type==='keystone'?14 : n.type==='notable'||n.type==='bridge'?10 : 6) + 6);
+      swirl.setAttribute('class', 'portal-swirl');
+      gN.appendChild(swirl);
+      swirlEls[n.id] = swirl;
+    }
+
     var c = document.createElementNS(NS,'circle');
     c.setAttribute('cx',n.x); c.setAttribute('cy',n.y);
-    var r = n.type==='keystone'?14 : n.type==='notable'||n.type==='bridge'?10 : 6;
+    var r = n.type==='keystone'?14 : n.type==='notable'||n.type==='bridge'||n.type==='socket'?10 : 6;
     c.setAttribute('r', r);
     c.setAttribute('data-id', n.id);
-    // Keyboard operability: every node is a focusable button; Enter/Space
-    // allocates exactly like a click (.tn:focus-visible carries the outline).
     c.setAttribute('tabindex','0');
     c.setAttribute('role','button');
     c.setAttribute('aria-label', n.name + (n.desc ? ' — ' + n.desc : ''));
     c.addEventListener('click', function(ev){ ev.stopPropagation(); tryAllocate(n.id); });
     c.addEventListener('keydown', function(ev){
       if(ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar'){ ev.preventDefault(); tryAllocate(n.id); }
+      // Keyboard refund (the tooltip's button is mouse-oriented).
+      if((ev.key === 'Delete' || ev.key === 'r') && alloc[n.id]){ ev.preventDefault(); tryRefund(ev, n.id); }
     });
     c.addEventListener('mouseenter', function(ev){
       showTip(n, ev);
+      highlightPath(n); // Hover highlight path (Item 3)
       if (isAllocatable(n.id)) {
         renderSummary(activePct, activeStats, n);
       }
     });
     c.addEventListener('mouseleave', function(){
-      hideTip();
+      // Delayed hide so the pointer can travel into the tooltip (its Refund
+      // button is otherwise unreachable); entering the tooltip cancels it.
+      scheduleHideTip();
+      clearPathHighlight(); // Clear hover path (Item 3)
       renderSummary(activePct, activeStats);
     });
+    // Keyboard users get the same tooltip, anchored to the node itself.
+    c.addEventListener('focus', function(){
+      var r = c.getBoundingClientRect();
+      showTip(n, {clientX: r.right + 4, clientY: r.top});
+    });
+    c.addEventListener('blur', function(){ scheduleHideTip(); });
     gN.appendChild(c);
     nodeEls[n.id] = c;
 
     var iconName = getNodeIcon(n);
     if (iconName) {
-      var iconSize = n.type==='keystone' ? 16 : n.type==='notable'||n.type==='bridge' ? 12 : 8;
-      loadNodeIcon(gN, iconName, iconSize, n.x, n.y);
+      var iconSize = n.type==='keystone' ? 16 : n.type==='notable'||n.type==='bridge'||n.type==='socket' ? 12 : 8;
+      loadNodeIcon(gN, iconName, iconSize, n.x, n.y, n.id);
     }
   });
   svg.appendChild(gN);
@@ -390,53 +543,132 @@ function paint(){
     if(alloc[n.id]) cls += ' on';
     else if(isAllocatable(n.id)) cls += ' can';
     nodeEls[n.id].setAttribute('class', cls);
+    paintDecor(n.id);
   });
   edgeEls.forEach(function(l){
     var a = l._e[0], b = l._e[1];
     var on = (a===0||alloc[a]) && (b===0||alloc[b]);
     var half = !on && ((a===0||alloc[a]) || (b===0||alloc[b]));
-    l.setAttribute('class', 'te' + (on?' on':half?' half':''));
+    var cls = 'te' + (on?' on':half?' half':'');
+    if (l._isPortal) cls += ' te-chaotic';
+    l.setAttribute('class', cls);
   });
   document.getElementById('treeUsed').textContent = used;
   document.getElementById('treePoints').textContent = points;
+  
+  // Edge Glow Intensification (Item 2)
+  var glowIntensity = Math.min(12, 4 + used * 0.15);
+  svg.style.setProperty('--edge-glow-radius', glowIntensity + 'px');
 }
 
 // ---- Interaction -----------------------------------------------------------
-var activeStats = {};
-var activePct = {};
+// Totals always come from the server (page render, then allocate/refund
+// responses): BonusFor applies socket adjacency, the Temporal Shift day
+// bonus and the prestige multiplier, which a naive client-side sum of node
+// stats would silently miss.
+var activeStats = {{jsonJS .Bonus}} || {};
+var activePct = {{jsonJS .BonusPctRaw}} || {};
 
-function calculateActiveTotals() {
-  activeStats = {HP:0, MNA:0, STR:0, DEF:0, SPD:0, LCK:0, INT:0, STA:0, CRT:0, DGE:0};
-  activePct = {};
-  NODES.forEach(function(n) {
-    if (alloc[n.id]) {
-      if (n.stats) {
-        Object.keys(n.stats).forEach(function(k) {
-          activeStats[k] = (activeStats[k] || 0) + n.stats[k];
-        });
-      }
-      if (n.pct) {
-        Object.keys(n.pct).forEach(function(k) {
-          activePct[k] = (activePct[k] || 0) + n.pct[k];
-        });
+function applyServerTotals(d) {
+  if (d.stats) activeStats = d.stats;
+  if (d.pct) activePct = d.pct;
+}
+
+// Interactive Pathfinding (Item 3)
+function findPathToRoot(startId) {
+  if (!alloc[startId] && !isAllocatable(startId)) return [];
+  var queue = [[startId, []]];
+  var visited = {};
+  visited[startId] = true;
+  
+  while (queue.length > 0) {
+    var curr = queue.shift();
+    var u = curr[0];
+    var path = curr[1];
+    
+    if (u === 0) {
+      return path;
+    }
+    
+    var neighbors = adj[u] || [];
+    for (var i = 0; i < neighbors.length; i++) {
+      var v = neighbors[i];
+      if ((alloc[v] || v === 0) && !visited[v]) {
+        visited[v] = true;
+        queue.push([v, path.concat([[u, v]])]);
       }
     }
+  }
+  return [];
+}
+
+function highlightPath(n) {
+  var path = findPathToRoot(n.id);
+  if (!path || path.length === 0) return;
+  
+  var pathNodes = {};
+  pathNodes[0] = true;
+  pathNodes[n.id] = true;
+  
+  path.forEach(function(edge) {
+    pathNodes[edge[0]] = true;
+    pathNodes[edge[1]] = true;
+    
+    edgeEls.forEach(function(l) {
+      var u = l._e[0], v = l._e[1];
+      if ((u === edge[0] && v === edge[1]) || (u === edge[1] && v === edge[0])) {
+        l.classList.add('path-pulse');
+      }
+    });
+  });
+  
+  NODES.forEach(function(node) {
+    if (pathNodes[node.id]) {
+      nodeEls[node.id].classList.add('path-glow');
+    }
+  });
+}
+
+function clearPathHighlight() {
+  edgeEls.forEach(function(l) {
+    l.classList.remove('path-pulse');
+  });
+  NODES.forEach(function(node) {
+    nodeEls[node.id].classList.remove('path-glow');
   });
 }
 
 async function tryAllocate(id){
   if(alloc[id]){ abToast('Already allocated.', false); return; }
   if(!isAllocatable(id)){
-    abToast(used >= points ? 'No points available — descend deeper, level up or prestige.' : 'Not connected to your path yet.', false);
+    var gf = gateFloor(byId[id]);
+    abToast(gf > bestDepth ? 'Locked — clear Abyss floor ' + gf + ' first (your record: ' + bestDepth + ').'
+      : used >= points ? 'No points available — descend deeper, level up or prestige.'
+      : 'Not connected to your path yet.', false);
     return;
   }
   var d = await abPost('/api/abyss/tree/allocate', {node_id: id});
   if(!d.ok){ abToast(d.error||'failed', false); return; }
   alloc[id] = true; used = d.used; points = d.points;
   abToast(d.msg, true);
-  calculateActiveTotals();
+  applyServerTotals(d);
   paint();
   renderSummary(activePct, activeStats);
+}
+
+// Single-node refund handler (Item 48)
+async function tryRefund(ev, id){
+  ev.stopPropagation();
+  if(!confirm('Refund this node for 🜲 1?')) return;
+  var d = await abPost('/api/abyss/tree/refund', {node_id: id});
+  if(!d.ok){ abToast(d.error||'failed', false); return; }
+  alloc[id] = false; delete alloc[id];
+  used = d.used; points = d.points;
+  abToast(d.msg, true);
+  applyServerTotals(d);
+  paint();
+  renderSummary(activePct, activeStats);
+  hideTip();
 }
 
 async function treeRespec(){
@@ -451,7 +683,10 @@ var PCT_LABELS = {
   str_pct:'STR (Abyss)', hp_pct:'max HP (Abyss)', spd_pct:'SPD (Abyss)', int_pct:'INT (Abyss)',
   gold_find:'gold from drops', loot_find:'loot find', escrow_bonus:'escrow floor bonus',
   xp_gain:'floor XP', token_gain:'tokens on bank', material_yield:'crafting materials',
-  str_to_spd:'STR converted to SPD', hp_to_def:'HP converted to DEF', spd_to_dge:'SPD converted to DGE', int_to_mna:'INT converted to MNA'
+  str_to_spd:'STR converted to SPD', hp_to_def:'HP converted to DEF', spd_to_dge:'SPD converted to DGE', int_to_mna:'INT converted to MNA',
+  xp_to_gold:'floor XP converted to Gold', ult_cooldown:'Ultimate Cooldown reduction', ult_damage:'Ultimate Skill damage',
+  def_to_lifesteal:'DEF converted to Lifesteal', pet_betrayal_reduce:'pet betrayal reduction', pet_damage_pct:'pet attack damage',
+  stun_immunity:'Stun Immunity', limit_break:'Limit Break'
 };
 
 function renderSummary(pct, stats, diffNode){
@@ -489,42 +724,83 @@ function renderSummary(pct, stats, diffNode){
     });
   }
   
-  var parts = [];
+  // Stat overlay graph (Item 53)
+  var maxVal = 1;
   ['HP','MNA','STR','DEF','SPD','LCK','INT','STA','CRT','DGE'].forEach(function(k){
-    if(displayStats[k]) {
-      var str = '+' + displayStats[k] + ' ' + k;
-      if (diffStats[k]) {
-        str += ' (+' + diffStats[k] + ')';
-        parts.push('<span class="preview-text-highlight">' + str + '</span>');
-      } else {
-        parts.push(str);
-      }
-    }
+    if (displayStats[k] > maxVal) maxVal = displayStats[k];
   });
-  document.getElementById('treeStatLine').innerHTML = parts.length ? ('Flat stats: '+parts.join(' · ')) : '';
+  
+  var graphHtml = '<div style="margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 0.8rem; width: 100%;">';
+  graphHtml += '<div style="font-size: 0.75rem; font-weight: bold; margin-bottom: 0.4rem; color: var(--text-muted);">STAT DISTRIBUTION</div>';
+  graphHtml += '<div style="display: flex; flex-direction: column; gap: 6px;">';
+  
+  ['STR','INT','SPD','DEF','HP','MNA'].forEach(function(k){
+    var val = displayStats[k] || 0;
+    var pctWidth = maxVal > 0 ? (val / maxVal * 100) : 0;
+    var barColor = k==='STR' ? '#ff5b5b' : k==='INT' ? '#5b8bff' : k==='SPD' ? '#ffd85b' : k==='DEF' ? '#5bff8b' : k==='HP' ? '#ff5be7' : '#b26bff';
+    var isDiff = diffStats[k] ? 'animation: flowPulse 2s infinite;' : '';
+    
+    graphHtml += '<div style="display: flex; align-items: center; gap: 8px; font-size: 0.7rem;">' +
+                   '<span style="width: 28px; font-weight: bold; color: #fff;">' + k + '</span>' +
+                   '<div style="flex-grow: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">' +
+                     '<div style="width: ' + pctWidth + '%; height: 100%; background: ' + barColor + '; border-radius: 3px; ' + isDiff + '"></div>' +
+                   '</div>' +
+                   '<span style="width: 32px; text-align: right; font-weight: bold; color: ' + (diffStats[k] ? '#9af0be' : '#fff') + '">' + val + '</span>' +
+                 '</div>';
+  });
+  graphHtml += '</div></div>';
+  
+  document.getElementById('treeStatLine').innerHTML = graphHtml;
 }
 
-// Tooltip.
+// Tooltip. Hiding is delayed so the pointer can travel from the node into
+// the tooltip (needed to click the Refund button); hovering the tooltip
+// cancels the pending hide.
 var tip = document.getElementById('treeTip');
+var tipHideT = null;
+function scheduleHideTip(){ clearTimeout(tipHideT); tipHideT = setTimeout(hideTip, 300); }
+function cancelHideTip(){ clearTimeout(tipHideT); tipHideT = null; }
+tip.addEventListener('mouseenter', cancelHideTip);
+tip.addEventListener('mouseleave', function(){ hideTip(); });
+function escHtml(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 function showTip(n, ev){
+  cancelHideTip();
   tip.className = 'tree-tip tip-' + n.type;
+  // The stylesheet sets pointer-events:none so the tooltip never blocks
+  // hovering nearby nodes; allocated nodes carry a Refund button, which
+  // needs the tooltip itself to be hoverable/clickable.
+  tip.style.pointerEvents = alloc[n.id] ? 'auto' : 'none';
   var headerClass = 'tree-tip-header-' + n.type;
   
-  var nameHtml = '<span class="' + headerClass + '">' + n.name + '</span>';
+  var nameHtml = '<span class="' + headerClass + '">' + escHtml(n.name) + '</span>';
   if (n.type === 'keystone') {
     nameHtml = '👑 ' + nameHtml + ' <span class="muted small">(Keystone)</span>';
   } else if (n.type === 'notable') {
     nameHtml = '★ ' + nameHtml + ' <span class="muted small">(Notable)</span>';
   } else if (n.type === 'bridge') {
     nameHtml = '🌉 ' + nameHtml + ' <span class="muted small">(Pact Bridge)</span>';
+  } else if (n.type === 'socket') {
+    nameHtml = '💎 ' + nameHtml + ' <span class="muted small">(Jewel Socket)</span>';
   } else {
-    nameHtml = '<b>' + n.name + '</b>';
+    nameHtml = '<b>' + escHtml(n.name) + '</b>';
   }
   
-  tip.innerHTML = nameHtml + '<br><span class="muted small" style="margin-top:4px; display:inline-block;">'+(n.desc||'')+'</span>'+
-    (alloc[n.id] ? '<br><span class="tt-on" style="margin-top:4px; display:inline-block;">● allocated</span>' :
-      isAllocatable(n.id) ? '<br><span class="tt-can" style="margin-top:4px; display:inline-block;">○ click to allocate</span>' :
-      '<br><span class="muted small" style="margin-top:4px; display:inline-block;">🔒 not connected / no points</span>');
+  var actionHtml = '';
+  if (alloc[n.id]) {
+    actionHtml = '<br><span class="tt-on" style="margin-top:4px; display:inline-block;">● allocated</span>' +
+                 '<br><button class="btn-refund" onclick="tryRefund(event, ' + n.id + ')">Refund (🜲 1)</button>';
+  } else if (isAllocatable(n.id)) {
+    actionHtml = '<br><span class="tt-can" style="margin-top:4px; display:inline-block;">○ click to allocate</span>';
+  } else {
+    var gf = gateFloor(n);
+    actionHtml = '<br><span class="muted small" style="margin-top:4px; display:inline-block;">' +
+      (gf > bestDepth ? '🔒 Requires clearing Abyss floor ' + gf + ' (your record: ' + bestDepth + ')' : '🔒 not connected / no points') +
+      '</span>';
+  }
+  
+  tip.innerHTML = nameHtml + '<br><span class="muted small" style="margin-top:4px; display:inline-block;">'+escHtml(n.desc||'')+'</span>'+ actionHtml;
   tip.style.display = '';
   moveTip(ev);
 }
@@ -533,7 +809,7 @@ function moveTip(ev){
   tip.style.left = Math.min(ev.clientX - r.left + 14, r.width - 240) + 'px';
   tip.style.top = (ev.clientY - r.top + 14) + 'px';
 }
-function hideTip(){ tip.style.display = 'none'; }
+function hideTip(){ cancelHideTip(); tip.style.display = 'none'; }
 document.getElementById('treeStage').addEventListener('mousemove', function(ev){ if(tip.style.display!=='none') moveTip(ev); });
 
 // Search highlight.
@@ -543,6 +819,10 @@ function treeSearchApply(){
     var hit = q && ((n.name||'').toLowerCase().indexOf(q) >= 0 || (n.desc||'').toLowerCase().indexOf(q) >= 0 || (n.type||'').indexOf(q) >= 0);
     nodeEls[n.id].classList.toggle('hit', !!hit);
     nodeEls[n.id].classList.toggle('dim', !!q && !hit);
+    if(iconEls[n.id]){
+      iconEls[n.id].classList.toggle('hit', !!hit);
+      iconEls[n.id].classList.toggle('dim', !!q && !hit);
+    }
   });
 }
 
@@ -583,7 +863,6 @@ function treeSearchApply(){
 })();
 
 build();
-calculateActiveTotals();
 paint();
 renderSummary(activePct, activeStats);
 </script>

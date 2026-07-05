@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"ts3news/internal/content"
 )
 
 // === Enum Types ===
@@ -223,6 +224,7 @@ type SimPlayer struct {
 	Gear          map[string]*SimGear // slot -> gear
 	Skills        []SimSkill
 	UltimateSkill *SimUltimate
+	TreeBonus     content.TreeBonus // Simulated passive tree bonus (Item 91)
 
 	Gold              int64
 	PityStack         float64
@@ -291,16 +293,99 @@ func (p *SimPlayer) PrestigeMult(prestigeStatBonus float64) float64 {
 }
 
 // RecalculateStats rebuilds the player's effective stats from base + gear + prestige.
+func getSimulatedTreeBonus(level int) content.TreeBonus {
+	tree := content.AbyssTree()
+	allocated := []int{}
+	visited := map[int]bool{0: true}
+	queue := []int{0}
+
+	for len(queue) > 0 && len(allocated) < level-1 {
+		curr := queue[0]
+		queue = queue[1:]
+
+		for _, nb := range tree.Adj[curr] {
+			if nb > 0 && !visited[nb] && len(allocated) < level-1 {
+				visited[nb] = true
+				allocated = append(allocated, nb)
+				queue = append(queue, nb)
+			}
+		}
+	}
+	return tree.BonusFor(allocated)
+}
+
 func (p *SimPlayer) RecalculateStats(params SimParams) {
 	base := p.BaseStats(params)
+
+	// Apply Skill Tree Simulator Integration (Item 91)
+	p.TreeBonus = getSimulatedTreeBonus(p.Level)
+
+	// Mirror live combat (buildAbyssUser): ApplyCombatPct runs on the full
+	// base+gear+tree-flat total, so gear must be folded in before the
+	// percent modifiers, not after.
 	gearStats := SimStats{}
 	for _, g := range p.Gear {
 		if g.Durability > 0 {
 			gearStats = gearStats.Add(g.Stats)
 		}
 	}
+	base = base.Add(gearStats)
+
+	base.HP += p.TreeBonus.Stats.HP
+	base.STR += p.TreeBonus.Stats.STR
+	base.DEF += p.TreeBonus.Stats.DEF
+	base.SPD += p.TreeBonus.Stats.SPD
+	base.LCK += p.TreeBonus.Stats.LCK
+	base.INT += p.TreeBonus.Stats.INT
+	base.STA += p.TreeBonus.Stats.STA
+	base.CRT += p.TreeBonus.Stats.CRT
+	base.DGE += p.TreeBonus.Stats.DGE
+
+	// Apply percent multipliers
+	if v := p.TreeBonus.Pct["str_pct"]; v != 0 {
+		base.STR = int(float64(base.STR) * (1 + v))
+	}
+	if v := p.TreeBonus.Pct["hp_pct"]; v != 0 {
+		base.HP = int(float64(base.HP) * (1 + v))
+	}
+	if v := p.TreeBonus.Pct["spd_pct"]; v != 0 {
+		base.SPD = int(float64(base.SPD) * (1 + v))
+	}
+	if v := p.TreeBonus.Pct["int_pct"]; v != 0 {
+		base.INT = int(float64(base.INT) * (1 + v))
+	}
+
+	// Apply Conversions
+	if v := p.TreeBonus.Pct["str_to_spd"]; v != 0 {
+		converted := int(float64(base.STR) * v)
+		base.SPD += converted
+		base.STR -= converted
+	}
+	if v := p.TreeBonus.Pct["hp_to_def"]; v != 0 {
+		converted := int(float64(base.HP) * v)
+		base.DEF += converted / 10
+		base.HP -= converted
+	}
+	if v := p.TreeBonus.Pct["spd_to_dge"]; v != 0 {
+		converted := int(float64(base.SPD) * v)
+		base.DGE += converted
+		base.SPD -= converted
+	}
+
+
+	// Apply Limit Break (Item 73) — driven by the node's configured value,
+	// matching TreeBonus.ApplyCombatPct's 1+v.
+	if v := p.TreeBonus.Pct["limit_break"]; v != 0 {
+		mult := 1 + v
+		base.STR = int(float64(base.STR) * mult)
+		base.HP = int(float64(base.HP) * mult)
+		base.DEF = int(float64(base.DEF) * mult)
+		base.SPD = int(float64(base.SPD) * mult)
+		base.INT = int(float64(base.INT) * mult)
+	}
+
 	prestigeMult := 1.0 + float64(p.Prestige)*params.PrestigeStatBonus
-	p.Stats = base.Add(gearStats).MulF(prestigeMult)
+	p.Stats = base.MulF(prestigeMult)
 	p.MaxHP = p.Stats.HP
 	if p.CurrentHP > p.MaxHP || p.CurrentHP <= 0 {
 		p.CurrentHP = p.MaxHP
@@ -334,6 +419,10 @@ func (p *SimPlayer) Lifesteal() int {
 		if e == EffectVampiric {
 			ls += 5
 		}
+	}
+	// Lifesteal from Defensive Conversion (Item 37)
+	if v := p.TreeBonus.Pct["def_to_lifesteal"]; v > 0 {
+		ls += int(float64(p.Stats.DEF) * v)
 	}
 	return ls
 }
