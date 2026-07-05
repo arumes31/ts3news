@@ -187,6 +187,14 @@ const (
 const (
 	NodeSkillEarthquake   = 588 // grants S_EQ; grid ring 17, slot 11 → "🔮 Spellweaver (Earthquake)"
 	NodeSkillArcaneShield = 466 // grants S_AS; grid ring 13, slot 33 → "🧪 Alchemist's Ritual (Arcane Shield)"
+
+	// NodeLimitBreak is the crown keystone (second sector boundary) that unlocks the
+	// activatable +50% XP timed buff. Derived from the layout so it tracks ring growth
+	// instead of a bare literal that silently drifts when treeRings changes.
+	NodeLimitBreak = treeFirstKeyID + treeSlots + 1
+	// NodeSecretSanctuary is the hidden bridge (last sector boundary, Third-tier ring)
+	// granting +20% loot find and +10% token gain. Same layout-derived rationale.
+	NodeSecretSanctuary = treeFirstKeyID + treeKeystoneN + (treeSectors-1)*4 + 2
 )
 
 var treeSectorNames = [treeSectors]string{"War", "Vitality", "Shadow", "Arcane", "Fortune", "Void"}
@@ -460,7 +468,7 @@ func buildAbyssTree() *AbyssTreeData {
 
 	// --- 40 keystones ---------------------------------------------------------
 	// 36 rim keystones: every lane of every sector ends in one, connected to
-	// its lane's outermost grid node. IDs 937..972.
+	// its lane's outermost grid node. IDs treeFirstKeyID..+treeSlots-1.
 	for slot := 0; slot < treeSlots; slot++ {
 		sec := slot / treeLanes
 		ks := treeRimKeystones[slot]
@@ -475,7 +483,8 @@ func buildAbyssTree() *AbyssTreeData {
 		addEdge(id, gridID(treeRings, slot))
 	}
 	// 4 crown keystones beyond the rim at the first four sector boundaries,
-	// each reachable only through its two adjacent rim keystones. IDs 973..976.
+	// each reachable only through its two adjacent rim keystones. IDs
+	// treeFirstKeyID+treeSlots..+3 (NodeLimitBreak is boundary 1).
 	for b := 0; b < 4; b++ {
 		ks := treeCrownKeystones[b]
 		leftSlot := b*treeLanes + (treeLanes - 1)
@@ -493,9 +502,10 @@ func buildAbyssTree() *AbyssTreeData {
 	}
 
 	// --- 24 bridge notables between sectors ---------------------------------
-	// Four per boundary at rings 7/14/21/26 — 24 total, bringing the web to
-	// exactly 1000 nodes (936 grid + 40 keystones + 24 bridges).
-	bridgeID := treeFirstKeyID + treeKeystoneN - 1 // 976; bridges take 977..1000
+	// Four per boundary at rings 7/14/21/final — treeBridgeN total, appended after
+	// the keystones. IDs are layout-derived (see NodeSecretSanctuary) so they don't
+	// drift when treeRings/treeGridNodes change.
+	bridgeID := treeFirstKeyID + treeKeystoneN - 1 // bridges take the treeBridgeN IDs right after the keystones
 	addBridge := func(boundary, ring int) {
 		bridgeID++
 		leftSlot := boundary*treeLanes + (treeLanes - 1)
@@ -512,7 +522,7 @@ func buildAbyssTree() *AbyssTreeData {
 				treeSectorPctKey((boundary+1)%treeSectors, rightSlot): math.Round(treeNotablePct((boundary+1)%treeSectors, ring)*0.5*1000) / 1000,
 			},
 		}
-		if bridgeID == 999 {
+		if bridgeID == NodeSecretSanctuary {
 			n.Name = "🌌 Secret Sanctuary"
 			n.Desc = "Secret Sanctuary: Grants +20% loot find and +10% token gain."
 			n.Pct = map[string]float64{"loot_find": 0.20, "token_gain": 0.10}

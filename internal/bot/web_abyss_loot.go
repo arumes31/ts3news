@@ -298,18 +298,9 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			pg := content.RandomAbyssGearDropExcluding(ownedGear)
 			pg.Rarity = content.RarityLegendary
 			label, g := processGear(pg)
-			var exists bool
-			_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE client_uid=$1 AND slot=$2)", uid, string(g.Slot)).Scan(&exists)
-			if !exists {
-				itemDataBytes, _ := json.Marshal(g)
-				if err := b.equipGear(b.DB, uid, g, g.MaxDurability, string(itemDataBytes)); err == nil {
-					labels = append(labels, "⬆️ Equipped: "+label+" [u:"+g.ID+"]")
-					legendaryPity = 0
-					gotGearThisCall = true
-					ownedGear[g.ID] = true // don't re-award this exact item on a later roll
-					continue
-				}
-			}
+			// Escrow it like any other run drop — even an empty slot — so it stays
+			// forfeitable on death. Equipping straight to user_gear here would let the
+			// player keep a guaranteed Legendary for free by dying (escrow bypass).
 			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
 				legendaryPity = 0
 				gotGearThisCall = true
@@ -391,22 +382,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				g = content.RandomAbyssGearDropExcluding(ownedGear)
 			}
 			label, g := processGear(g)
-			var exists bool
-			_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE client_uid=$1 AND slot=$2)", uid, string(g.Slot)).Scan(&exists)
-			if !exists {
-				itemDataBytes, _ := json.Marshal(g)
-				if err := b.equipGear(b.DB, uid, g, g.MaxDurability, string(itemDataBytes)); err == nil {
-					labels = append(labels, "⬆️ Equipped: "+label+" [u:"+g.ID+"]")
-					if g.Rarity >= content.RarityLegendary {
-						legendaryPity = 0
-					} else {
-						legendaryPity++
-					}
-					gotGearThisCall = true
-					ownedGear[g.ID] = true // don't re-award this exact item on a later roll
-					continue
-				}
-			}
+			// Escrow every drop (empty slots included) so it stays forfeitable on death.
 			// Only touch pity once the drop is actually escrowed, so a failed save
 			// can't reset (or skip incrementing) the counter.
 			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
@@ -432,18 +408,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				if g.Unidentified {
 					label = fmt.Sprintf("Unidentified %s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", string(g.Slot), string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
 				}
-				var exists bool
-				_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE client_uid=$1 AND slot=$2)", uid, string(g.Slot)).Scan(&exists)
-				if !exists {
-					itemDataBytes, _ := json.Marshal(g)
-					if err := b.equipGear(b.DB, uid, g, g.MaxDurability, string(itemDataBytes)); err == nil {
-						labels = append(labels, "⬆️ Equipped: "+label+" [u:"+g.ID+"]")
-						legendaryPity++
-						gotGearThisCall = true
-						ownedGear[g.ID] = true // don't re-award this exact item on a later roll
-						continue
-					}
-				}
+				// Escrow it (empty slots included) so it stays forfeitable on death.
 				if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
 					legendaryPity++
 					gotGearThisCall = true
@@ -549,8 +514,17 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 		_, _ = b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1",
 			uid, g.ArtMult, g.ArtName, g.ArtDura)
 	case "title":
-		_, _ = b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='abyss' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())",
+		res, err := b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='abyss' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())",
 			uid, g.TitleName, g.TitleMult)
+		if err != nil {
+			return err
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			// An unexpired title is already equipped; don't clobber it, and don't lose
+			// this drop — return an error so applyAbyssEscrowLoot keeps the escrow row
+			// for a later bank (once the current title expires it will finally land).
+			return fmt.Errorf("title slot occupied by an active title")
+		}
 	case "ultimate":
 		b.grantAbyssUltimate(uid, g.UltID)
 	case "unique":

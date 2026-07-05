@@ -377,6 +377,9 @@ function setBusy(b) { busy = b; }
 var sockets = {{.Sockets}};
 var activeKeystoneExpiry = {{if .ActiveKeystoneExpiry}}"{{.ActiveKeystoneExpiry}}"{{else}}""{{end}};
 var activeKeystoneCooldown = {{if .ActiveKeystoneCooldown}}"{{.ActiveKeystoneCooldown}}"{{else}}""{{end}};
+// Layout-derived special nodes (server-injected so they never drift from the tree).
+var LIMIT_BREAK_ID = {{.LimitBreakID}};
+var SANCTUARY_ID = {{.SanctuaryID}};
 
 var CONSTELLATIONS = [
   // Sword (War - Sector 0)
@@ -580,7 +583,7 @@ async function abPost(url, body){
 // ---- SVG build -------------------------------------------------------------
 var svg = document.getElementById('treeSvg');
 var NS = 'http://www.w3.org/2000/svg';
-var view = {x:-700, y:-700, w:1400, h:1400};
+var view = {x:-1800, y:-1800, w:3600, h:3600};
 function applyView(){ 
   svg.setAttribute('viewBox', view.x+' '+view.y+' '+view.w+' '+view.h); 
   // Parallax shift for background stars (Item 1)
@@ -594,6 +597,9 @@ function applyView(){
 // UI never advertises an allocate the server would refuse.
 function gateFloor(n){
   if(!n) return 0;
+  // Mirror the server's special achievement gate on Victor's Trophy (node 697,
+  // web_abyss_tree.go), which requires clearing Floor 25 on top of the ring gate.
+  if(n.id === 697) return 25;
   if(n.type === 'keystone') return 30;
   if(n.ring > 20) return 20;
   if(n.ring > 10) return 10;
@@ -706,7 +712,11 @@ function build(){
     var gB = document.createElementNS(NS, 'g');
     gB.setAttribute('class', 'tree-bg-decor');
     
-    var maxRadius = 60 + 28 * 34; // 1012
+    // Derive the divider length from the actual outermost node so it tracks ring
+    // growth (137 rings now, ~5.6k units) instead of the old hardcoded 28-ring 1012.
+    var maxRadius = 0;
+    for (var _k in byId) { var _n = byId[_k]; if (_n) { var _d = Math.hypot(_n.x, _n.y); if (_d > maxRadius) maxRadius = _d; } }
+    maxRadius = (maxRadius || 1012) + 80;
     var boundaries = [5.5, 11.5, 17.5, 23.5, 29.5, 35.5];
     boundaries.forEach(function(slot) {
       var angle = (slot / 36) * 2 * Math.PI - Math.PI / 2;
@@ -1143,7 +1153,7 @@ function switchTab(tab) {
     if (legendText) legendText.textContent = 'Drag to pan · wheel to zoom · click a specialization node to activate';
   }
   
-  view = (tab === 'passive')  ? {x:-700, y:-700, w:1400, h:1400}
+  view = (tab === 'passive')  ? {x:-1800, y:-1800, w:3600, h:3600}
        : (tab === 'talents')  ? {x:-780, y:-220, w:1560, h:1560}
        : {x:-560, y:-170, w:1120, h:1120};
   
@@ -1312,18 +1322,18 @@ function paint(){
     nodeEls[n.id].setAttribute('class', cls);
     paintDecor(n.id);
 
-    // Hidden node (ID 999 - Secret Sanctuary) handling
-    if (n.id === 999) {
+    // Hidden node (Secret Sanctuary) handling
+    if (n.id === SANCTUARY_ID) {
       var showHidden = true;
-      (adj[999] || []).forEach(function(nid) {
+      (adj[SANCTUARY_ID] || []).forEach(function(nid) {
         if (!alloc[nid]) showHidden = false;
       });
       nodeEls[n.id].style.display = showHidden ? '' : 'none';
       if (iconEls[n.id]) iconEls[n.id].style.display = showHidden ? '' : 'none';
-      
-      // Update edges connected to 999
+
+      // Update edges connected to the sanctuary
       edgeEls.forEach(function(l) {
-        if (l._e[0] === 999 || l._e[1] === 999) {
+        if (l._e[0] === SANCTUARY_ID || l._e[1] === SANCTUARY_ID) {
           l.style.display = showHidden ? '' : 'none';
         }
       });
@@ -1861,7 +1871,7 @@ function showTip(n, ev){
     }
 
     // Chronobreak Timed Keystone interface
-    if (n.id === 974) {
+    if (n.id === LIMIT_BREAK_ID) {
       tip.style.pointerEvents = 'auto';
       var activeTimer = '';
       var cooldownTimer = '';
@@ -1945,7 +1955,7 @@ function treeSearchApply(){
   svg.addEventListener('wheel', function(e){
     e.preventDefault();
     var f = e.deltaY > 0 ? 1.15 : 0.87;
-    var nw = Math.max(300, Math.min(4200, view.w * f));
+    var nw = Math.max(300, Math.min(13000, view.w * f)); // 13k wide fits the full 137-ring radius (~5.6k) with margin
     var mx = view.x + (e.offsetX / svg.clientWidth) * view.w;
     var my = view.y + (e.offsetY / svg.clientHeight) * view.h;
     view.x = mx - (mx - view.x) * (nw / view.w);

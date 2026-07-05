@@ -235,7 +235,19 @@ func (b *Bot) buildAbyssUser(uid string) (UserInCombat, int, error) {
 		Equipped:      b.getEquippedItems(uid),
 		// Abyss drops are escrowed for the run, not granted inline by the engine.
 		EscrowLoot: true,
+		treeBonus:  tb,
 	}, prestige, nil
+}
+
+// abyssCombatStats returns the player's Abyss combat stats: base+gear folded with
+// the skill-web bonus exactly as buildAbyssUser composes them (flat adds, then the
+// combat %-multipliers). Every out-of-combat HP write and max-HP readout goes
+// through this so the dashboard, revives, rests and event heals agree with the max
+// HP the descent actually fights at (calculateTotalStats alone omits the tree).
+func (b *Bot) abyssCombatStats(uid string) content.Stats {
+	stats, _, _, _ := b.calculateTotalStats(uid, time.Now())
+	tb := b.treeBonusFor(uid)
+	return tb.ApplyCombatPct(stats.Add(tb.Stats))
 }
 
 func nullStr(s sql.NullString) string {
@@ -298,31 +310,34 @@ func (b *Bot) applyAbyssRegen(uid string, equipped map[content.GearSlot]content.
 	if heal <= 0 {
 		return curHP, perSec // too little time passed; let it accumulate
 	}
-	// Apply the heal relative to the stored row so a concurrent HP change (e.g. a
-	// parallel fight) isn't clobbered by our stale absolute value. The WHERE guards
-	// keep it from reviving the dead or overshooting max HP; RETURNING hands back
-	// the real post-heal value for the display and clock math.
+	// Claim this elapsed span before healing: advance the anchor from the exact value
+	// we read (tsStr) to last+consumed in a single compare-and-swap. Concurrent views
+	// all read the same tsStr, but only one CAS can match it — the losers get 0 rows
+	// and must not also credit the span, which is what let N open tabs heal N-fold.
+	// Advancing by only the consumed time keeps the sub-second remainder accumulating.
+	consumed := float64(heal) / perSec
+	newAnchor := last.Add(time.Duration(consumed * float64(time.Second)))
+	casRes, casErr := b.DB.Exec(
+		"UPDATE app_meta SET value=$1 WHERE key=$2 AND value=$3", newAnchor.Format(time.RFC3339), key, tsStr)
+	if casErr != nil {
+		return curHP, perSec // transient DB error: leave the clock, retry next view
+	}
+	if n, _ := casRes.RowsAffected(); n == 0 {
+		return curHP, perSec // another concurrent view already claimed this span
+	}
+	// We own the span. Apply the heal relative to the stored row so a concurrent HP
+	// change (e.g. a parallel fight) isn't clobbered by a stale absolute value; the
+	// WHERE guards keep it from reviving the dead or overshooting max HP.
 	var newHP int
 	err = b.DB.QueryRow(
 		`UPDATE users SET current_hp = LEAST($1, current_hp + $2)
 			WHERE client_uid = $3 AND current_hp > 0 AND current_hp < $1
 			RETURNING current_hp`, maxHP, heal, uid).Scan(&newHP)
-	if errors.Is(err, sql.ErrNoRows) {
-		// Nothing healed (already full, or died/vanished concurrently): anchor the
-		// clock so this span isn't re-credited on the next eligible view.
-		setTS(now)
-		return curHP, perSec
-	}
 	if err != nil {
-		return curHP, perSec // transient DB error: leave the clock, retry next view
-	}
-	if newHP >= maxHP {
-		setTS(now)
-	} else {
-		// Advance the clock only by the time actually consumed so the fractional
-		// remainder survives frequent refreshes.
-		consumed := float64(heal) / perSec
-		setTS(last.Add(time.Duration(consumed * float64(time.Second))))
+		// Nothing healed (full/dead/vanished) or a transient error. The anchor already
+		// advanced by the consumed span so it won't be re-credited; if they're now full
+		// the next view's curHP>=maxHP guard re-anchors to now.
+		return curHP, perSec
 	}
 	return newHP, perSec
 }
@@ -932,7 +947,7 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 		duraWarnings = b.applyDurabilityLoss(uid, !victory)
 	}
 
-	stats, _, _, _ := b.calculateTotalStats(uid, time.Now())
+	stats := b.abyssCombatStats(uid)
 	var curHP int
 	_ = b.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&curHP)
 	if curHP < 0 {
@@ -1071,7 +1086,7 @@ func (b *Bot) loadAbyssRun(uid string) abyssRun {
 	if coop.Valid {
 		r.CoopUID = coop.String
 	}
-	stats, _, _, _ := b.calculateTotalStats(uid, time.Now())
+	stats := b.abyssCombatStats(uid)
 	r.MaxHP = stats.HP
 	_ = b.DB.QueryRow("SELECT current_hp, level FROM users WHERE client_uid=$1", uid).Scan(&r.CurHP, &r.Level)
 	if r.CurHP < 0 {
@@ -1093,12 +1108,22 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	// fold in the Abyss skill-web bonus (loadWebUser only knows base + gear).
 	// Mirrors buildAbyssUser, so max HP and every stat update the moment you
 	// allocate or respec the web.
-	atb := s.bot.treeBonusFor(uid)
-	u.Stats = atb.ApplyCombatPct(u.Stats.Add(atb.Stats))
+	u.Stats = s.bot.abyssCombatStats(uid)
 	u.MaxHP = u.Stats.HP
 	u.MaxMana = 100 + u.Stats.MNA
-	if u.CurrentHP > u.MaxHP {
-		u.CurrentHP = u.MaxHP
+	// loadWebUser clamped CurrentHP to the base (gear-only) max; re-derive it from the
+	// persisted HP against the true combat max so a full-health delver isn't shown
+	// wounded once the tree bonus raises the ceiling (nor overflowing past it).
+	var rawHP int
+	if err := s.bot.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&rawHP); err == nil {
+		switch {
+		case rawHP <= 0:
+			u.CurrentHP = u.MaxHP
+		case rawHP > u.MaxHP:
+			u.CurrentHP = u.MaxHP
+		default:
+			u.CurrentHP = rawHP
+		}
 	}
 	st := s.bot.loadAbyssStats(uid)
 	run := s.bot.loadAbyssRun(uid)
@@ -1483,7 +1508,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 
 	// Vigor upgrade lets a run start above the normal max (banked as current HP).
-	stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+	stats := s.bot.abyssCombatStats(uid)
 	startHP := stats.HP + stats.HP*st.UpVigor*5/100
 	if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", startHP, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -2387,7 +2412,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 		return
 	}
 
-	stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+	stats := s.bot.abyssCombatStats(uid)
 
 	// Heal-to-full and the one-shot revived flag must commit together: otherwise a
 	// failure after the heal would leave the player healed without consuming the
@@ -2778,7 +2803,7 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+	stats := s.bot.abyssCombatStats(uid)
 
 	switch c.Type {
 	case content.ConsumableHealing:
@@ -2918,7 +2943,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
 			}
-			stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+			stats := s.bot.abyssCombatStats(uid)
 			res, err := s.bot.DB.Exec("UPDATE users SET gold = gold - $1, current_hp = $2 WHERE client_uid = $3 AND gold >= $1", cost, stats.HP, uid)
 			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -3316,7 +3341,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			}
 			// A free blessing: heal to full and bless the cache. Resolves the floor so
 			// it can't be farmed for repeated free heals.
-			stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+			stats := s.bot.abyssCombatStats(uid)
 			newEscrow := run.Escrow + 400
 			tx, err := s.bot.DB.Begin()
 			if err != nil {
@@ -3345,7 +3370,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			// Fountain of Youth: free full heal + full gear repair. Resolves the floor.
-			stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+			stats := s.bot.abyssCombatStats(uid)
 			s.bot.ensureGearMaxDurability(uid)
 			tx, err := s.bot.DB.Begin()
 			if err != nil {
@@ -3394,7 +3419,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("🎁 Real treasure! The chest spills +%d gold into your cache.", gain), "escrow": newEscrow, "resolved": true})
 				return
 			}
-			stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+			stats := s.bot.abyssCombatStats(uid)
 			var curHP int
 			_ = s.bot.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&curHP)
 			bite := stats.HP / 4
@@ -3487,7 +3512,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("🧩 The chest clicks open — +%d gold sealed into your cache!", gain), "escrow": newEscrow, "resolved": true})
 				return
 			}
-			stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+			stats := s.bot.abyssCombatStats(uid)
 			var curHP int
 			_ = s.bot.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&curHP)
 			newHP := curHP - stats.HP/10
@@ -3520,7 +3545,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "wrong floor type for library_trade"})
 				return
 			}
-			stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+			stats := s.bot.abyssCombatStats(uid)
 			var curHP int
 			_ = s.bot.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&curHP)
 			newHP := curHP - stats.HP*15/100
