@@ -814,6 +814,15 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 		if v := b.treeBonusFor(uid).Pct["xp_gain"]; v > 0 {
 			rewardXP = int(float64(rewardXP) * (1 + v))
 		}
+		// Alchemy of the Soul: converts 50% of descent XP gain into gold (Item 42)
+		if conv := b.treeBonusFor(uid).Pct["xp_to_gold"]; conv > 0 {
+			convertedGold := int64(float64(rewardXP) * conv)
+			rewardXP = int(float64(rewardXP) * (1.0 - conv))
+			if convertedGold > 0 {
+				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid = $1", uid, convertedGold)
+				logs = append(logs, fmt.Sprintf("✨ Alchemy of the Soul: converted %d XP into 🜲 %d Gold!", int(float64(rewardXP)/(1.0-conv)*conv), convertedGold))
+			}
+		}
 		if lr, _ := b.awardXP(uid, "", rewardXP); lr != nil && lr.NewLevel >= PrestigeThreshold {
 			b.doPrestige(uid) // [52] keep Abyss prestige consistent with the cycle
 		}

@@ -15,6 +15,7 @@ import (
 	"math/rand/v2"
 	"sort"
 	"sync"
+	"time"
 )
 
 // TreeNode is one allocatable node of the Abyss skill web.
@@ -76,6 +77,15 @@ func (tb TreeBonus) ApplyCombatPct(s Stats) Stats {
 		s.INT -= converted
 	}
 
+	// Crown Keystone: Limit Break (Item 73)
+	if v := tb.Pct["limit_break"]; v != 0 {
+		s.STR = int(float64(s.STR) * 1.15)
+		s.HP = int(float64(s.HP) * 1.15)
+		s.DEF = int(float64(s.DEF) * 1.15)
+		s.SPD = int(float64(s.SPD) * 1.15)
+		s.INT = int(float64(s.INT) * 1.15)
+	}
+
 	return s
 }
 
@@ -93,6 +103,10 @@ func (t *AbyssTreeData) Node(id int) *TreeNode { return t.byID[id] }
 // BonusFor sums the stats and percent effects of the given allocated node IDs.
 func (t *AbyssTreeData) BonusFor(ids []int) TreeBonus {
 	tb := TreeBonus{Pct: map[string]float64{}}
+	allocated := map[int]bool{}
+	for _, id := range ids {
+		allocated[id] = true
+	}
 	for _, id := range ids {
 		n := t.byID[id]
 		if n == nil {
@@ -101,6 +115,27 @@ func (t *AbyssTreeData) BonusFor(ids []int) TreeBonus {
 		tb.Stats = tb.Stats.Add(n.Stats)
 		for k, v := range n.Pct {
 			tb.Pct[k] += v
+		}
+
+		// Jewel Sockets adjacent modifiers (Item 34)
+		if n.Type == "socket" {
+			for _, neighborID := range t.Adj[n.ID] {
+				if allocated[neighborID] {
+					tb.Stats.HP += 15
+					tb.Stats.STR += 5
+					tb.Stats.INT += 5
+				}
+			}
+		}
+
+		// Dynamic temporal day-of-week node (Item 39)
+		if n.Name == "⏳ Temporal Shift" {
+			weekday := time.Now().Weekday()
+			if weekday == time.Saturday || weekday == time.Sunday {
+				tb.Pct["gold_find"] += 0.15
+			} else {
+				tb.Pct["xp_gain"] += 0.10
+			}
 		}
 	}
 	return tb
@@ -201,7 +236,7 @@ var treeRimKeystones = [treeSlots]treeKeystoneDef{
 	{"Manaforged", map[string]float64{"int_pct": 0.12, "int_to_mna": 0.20}},
 	// 🍀 Fortune
 	{"Midas", map[string]float64{"gold_find": 0.15, "loot_find": 0.05}},
-	{"Gambler's Creed", map[string]float64{"gold_find": 0.20, "escrow_bonus": -0.05}},
+	{"Alchemy of the Soul", map[string]float64{"xp_to_gold": 0.50, "gold_find": 0.10}},
 	{"Treasure Sense", map[string]float64{"loot_find": 0.15}},
 	{"Golden Tongue", map[string]float64{"gold_find": 0.10, "token_gain": 0.10}},
 	{"Prospector", map[string]float64{"material_yield": 0.12, "gold_find": 0.08}},
@@ -218,7 +253,7 @@ var treeRimKeystones = [treeSlots]treeKeystoneDef{
 // treeCrownKeystones sit beyond the rim at the first four sector boundaries,
 // reachable only through an adjacent rim keystone — the web's summit picks.
 var treeCrownKeystones = [4]treeKeystoneDef{
-	{"👑 Worldsplitter", map[string]float64{"str_pct": 0.10, "hp_pct": 0.10}},
+	{"👑 Limit Break", map[string]float64{"str_pct": 0.20, "hp_pct": 0.20, "limit_break": 1.0}},
 	{"👑 The Thousandth Star", map[string]float64{"str_pct": 0.05, "hp_pct": 0.05, "spd_pct": 0.05, "int_pct": 0.05}},
 	{"👑 Duskbringer", map[string]float64{"spd_pct": 0.10, "int_pct": 0.10}},
 	{"👑 Deepmiser", map[string]float64{"gold_find": 0.10, "escrow_bonus": 0.10}},
@@ -259,7 +294,41 @@ func buildAbyssTree() *AbyssTreeData {
 				Type:  "small",
 				Stats: treeSmallStats(sector, ring, slot, id),
 			}
-			if notable {
+
+			// Intercept custom Jewel Sockets and Special Notables (Item 34, 36, 37, 39, 40, 45)
+			isCustom := false
+			if ring == 12 && slot%6 == 3 {
+				n.Type = "socket"
+				n.Stats = Stats{}
+				isCustom = true
+			} else if ring == 18 && slot == 20 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{"ult_cooldown": 0.10, "ult_damage": 0.15}
+				isCustom = true
+			} else if ring == 16 && slot == 16 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{"def_to_lifesteal": 0.01}
+				isCustom = true
+			} else if ring == 15 && slot == 27 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{} // Dynamic temporal shift
+				isCustom = true
+			} else if ring == 14 && slot == 9 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{"pet_betrayal_reduce": 0.02, "pet_damage_pct": 0.20}
+				isCustom = true
+			} else if ring == 18 && slot == 4 {
+				n.Type = "notable"
+				n.Stats = n.Stats.Scaled(3)
+				n.Pct = map[string]float64{"stun_immunity": 1.0}
+				isCustom = true
+			}
+
+			if !isCustom && notable {
 				n.Type = "notable"
 				n.Stats = n.Stats.Scaled(3)
 				
@@ -555,6 +624,31 @@ func treeNotablePct(sector, ring int) float64 {
 // Names are unique by construction: the ring picks the adjective, the lane
 // picks the noun, and no two grid nodes share both. Notables carry a ★ marker.
 func treeNodeText(n *TreeNode) (string, string) {
+	// Jewel Sockets and custom notables names and descriptions (Item 34, 36, 37, 39, 40, 45)
+	if n.Type == "socket" {
+		sectors := []string{"War", "Vitality", "Shadow", "Arcane", "Fortune", "Void"}
+		secName := "Unknown"
+		if n.Sector >= 0 && n.Sector < len(sectors) {
+			secName = sectors[n.Sector]
+		}
+		return fmt.Sprintf("💎 Jewel Socket (%s)", secName), "Can slot a Jewel to modify adjacent nodes. Currently slots a Primal Jade: +15 HP, +5 STR, +5 INT to all adjacent allocated nodes."
+	}
+	if n.Ring == 18 && n.Slot == 20 {
+		return "⚡ Overcharged Core", "Reduces Ultimate skill cooldown by 1 round, and increases Ultimate skill damage by 15%."
+	}
+	if n.Ring == 16 && n.Slot == 16 {
+		return "🩸 Souldrinker", "Converts defensive stats into Lifesteal: +1% of DEF added as Lifesteal."
+	}
+	if n.Ring == 15 && n.Slot == 27 {
+		return "⏳ Temporal Shift", "Grants +15% gold find on weekends, and +10% floor XP on weekdays."
+	}
+	if n.Ring == 14 && n.Slot == 9 {
+		return "🐾 Beastmaster's Command", "Reduces pet betrayal chance by 2% and increases pet attack damage by 20%."
+	}
+	if n.Ring == 18 && n.Slot == 4 {
+		return "🛡️ Unbreakable", "Grants immunity to stun effects in combat."
+	}
+
 	star := ""
 	if n.Type == "notable" {
 		star = "★ "
@@ -598,6 +692,22 @@ func treePctLabel(k string) string {
 		return "SPD converted to DGE"
 	case "int_to_mna":
 		return "INT converted to MNA"
+	case "xp_to_gold":
+		return "floor XP converted to Gold"
+	case "ult_cooldown":
+		return "Ultimate Cooldown reduction"
+	case "ult_damage":
+		return "Ultimate Skill damage"
+	case "def_to_lifesteal":
+		return "DEF converted to Lifesteal"
+	case "pet_betrayal_reduce":
+		return "pet betrayal reduction"
+	case "pet_damage_pct":
+		return "pet attack damage"
+	case "stun_immunity":
+		return "Stun Immunity"
+	case "limit_break":
+		return "Limit Break"
 	}
 	return k
 }

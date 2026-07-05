@@ -881,9 +881,14 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 		}
 		// Scripted boss-phase stun: consume the flag and skip this turn.
 		if au.Stunned {
-			au.Stunned = false
-			*logs = append(*logs, i18n.T("bot.combat.stunned", u.Nickname))
-			continue
+			if b.treeBonusFor(u.UID).Pct["stun_immunity"] > 0 {
+				au.Stunned = false
+				*logs = append(*logs, fmt.Sprintf("🛡️ %s resists the stun due to Stun Immunity!", u.Nickname))
+			} else {
+				au.Stunned = false
+				*logs = append(*logs, i18n.T("bot.combat.stunned", u.Nickname))
+				continue
+			}
 		}
 		if u.Stats.SPD == 0 {
 			u.Stats.SPD = 10
@@ -1092,9 +1097,21 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			}
 			if readyUlt != nil {
-				dmgMult *= readyUlt.Power
+				ultMult := readyUlt.Power
+				if bonus := b.treeBonusFor(u.UID).Pct["ult_damage"]; bonus > 0 {
+					ultMult *= (1.0 + bonus)
+				}
+				dmgMult *= ultMult
 				*logs = append(*logs, i18n.T("bot.combat.ultimate_activation", readyUlt.Name))
-				readyUlt.CurrentCooldown = readyUlt.CooldownRounds
+				
+				cooldownVal := readyUlt.CooldownRounds
+				if red := b.treeBonusFor(u.UID).Pct["ult_cooldown"]; red > 0 {
+					cooldownVal = int(float64(cooldownVal) * (1.0 - red))
+					if cooldownVal < 2 {
+						cooldownVal = 2
+					}
+				}
+				readyUlt.CurrentCooldown = cooldownVal
 			}
 
 			// Weapon Scopes for Rangers: check if ranger/scope equipped
@@ -1223,8 +1240,14 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 
 			// Betrayal check (3% chance)
-			// #nosec G404
-			if rand.Float64() < 0.03 { // #nosec G404
+			betrayalChance := 0.03
+			if red := b.treeBonusFor(u.UID).Pct["pet_betrayal_reduce"]; red > 0 {
+				betrayalChance -= red
+				if betrayalChance < 0 {
+					betrayalChance = 0
+				}
+			}
+			if rand.Float64() < betrayalChance { // #nosec G404
 				// #nosec G404
 				targetAU := activeUsers[rand.IntN(len(activeUsers))] // #nosec G404
 				target := targetAU.u
@@ -1282,7 +1305,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 			// #nosec G404
 			ptarget := aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
-			pdmg := int(float64(p.Stats.STR-ptarget.Stats.DEF) * intensify)
+			petDmgMult := 1.0
+			if bonus := b.treeBonusFor(u.UID).Pct["pet_damage_pct"]; bonus > 0 {
+				petDmgMult += bonus
+			}
+			pdmg := int(float64(p.Stats.STR-ptarget.Stats.DEF) * petDmgMult * intensify)
 			if pdmg < 1 {
 				pdmg = 1
 			}
