@@ -1,7 +1,6 @@
 package content
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand/v2"
@@ -70,46 +69,11 @@ type Stats struct {
 	HGR int // Hunger
 }
 
-func (s Stats) MarshalJSON() ([]byte, error) {
-	m := make(map[string]int)
-	if s.HP != 0 { m["HP"] = s.HP }
-	if s.STR != 0 { m["STR"] = s.STR }
-	if s.DEF != 0 { m["DEF"] = s.DEF }
-	if s.SPD != 0 { m["SPD"] = s.SPD }
-	if s.LCK != 0 { m["LCK"] = s.LCK }
-	if s.INT != 0 { m["INT"] = s.INT }
-	if s.STA != 0 { m["STA"] = s.STA }
-	if s.CRT != 0 { m["CRT"] = s.CRT }
-	if s.DGE != 0 { m["DGE"] = s.DGE }
-	if s.MNA != 0 { m["MNA"] = s.MNA }
-	if s.CHA != 0 { m["CHA"] = s.CHA }
-	if s.STN != 0 { m["STN"] = s.STN }
-	if s.SHN != 0 { m["SHN"] = s.SHN }
-	if s.HGR != 0 { m["HGR"] = s.HGR }
-	return json.Marshal(m)
-}
-
-func (s *Stats) UnmarshalJSON(data []byte) error {
-	var m map[string]int
-	if err := json.Unmarshal(data, &m); err != nil {
-		return err
-	}
-	s.HP = m["HP"]
-	s.STR = m["STR"]
-	s.DEF = m["DEF"]
-	s.SPD = m["SPD"]
-	s.LCK = m["LCK"]
-	s.INT = m["INT"]
-	s.STA = m["STA"]
-	s.CRT = m["CRT"]
-	s.DGE = m["DGE"]
-	s.MNA = m["MNA"]
-	s.CHA = m["CHA"]
-	s.STN = m["STN"]
-	s.SHN = m["SHN"]
-	s.HGR = m["HGR"]
-	return nil
-}
+// NOTE: Stats deliberately uses the default encoding/json field handling.
+// Gear items are persisted as JSON (user_gear.item_data, escrow, forge undo)
+// and reconstructed by overlaying that JSON onto the catalog entry — a custom
+// UnmarshalJSON that assigns every field would zero out stats whose keys are
+// absent from older payloads, silently stripping them from legacy items.
 
 // Add returns the field-wise sum of s and o.
 func (s Stats) Add(o Stats) Stats {

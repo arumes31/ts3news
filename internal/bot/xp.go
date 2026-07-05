@@ -81,6 +81,9 @@ type activeUser struct {
 	CurrentMana int
 	MaxMana     int
 	PetHealCD   int // Cooldown of pet2 heal spell in rounds
+	// Skill-web bonus, loaded once per fight: treeBonusFor hits the DB and
+	// scans the full 1000-node tree, so per-turn lookups must use this cache.
+	treeBonus content.TreeBonus
 }
 
 // cycleContext holds per-cycle shared facts used by the XP modifiers.
@@ -433,7 +436,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	activeUsers := make([]activeUser, len(users))
 	for i := range users {
 		_, _, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
-		activeUsers[i] = activeUser{u: &users[i], effects: effects}
+		activeUsers[i] = activeUser{u: &users[i], effects: effects, treeBonus: b.treeBonusFor(users[i].UID)}
 		activeUsers[i].u.STRMod = 1.0
 		activeUsers[i].u.DEFMod = 1.0
 		activeUsers[i].u.SPDMod = 1.0
@@ -881,7 +884,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 		}
 		// Scripted boss-phase stun: consume the flag and skip this turn.
 		if au.Stunned {
-			if b.treeBonusFor(u.UID).Pct["stun_immunity"] > 0 {
+			if au.treeBonus.Pct["stun_immunity"] > 0 {
 				au.Stunned = false
 				*logs = append(*logs, fmt.Sprintf("🛡️ %s resists the stun due to Stun Immunity!", u.Nickname))
 			} else {
@@ -996,6 +999,17 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 		}
 
+		// Skill web: Souldrinker converts defensive stats into lifesteal —
+		// +v of DEF as lifesteal % (v=0.01 → DEF 400 grants +4%), capped so
+		// stacked-DEF builds can't become unkillable.
+		if v := au.treeBonus.Pct["def_to_lifesteal"]; v > 0 {
+			ls := int(float64(u.Stats.DEF) * v)
+			if ls > 15 {
+				ls = 15
+			}
+			lifesteal += ls
+		}
+
 		// #nosec G404
 		if multiStrike > 0 && rand.IntN(100) < multiStrike { // #nosec G404
 			extraHits = 2
@@ -1098,14 +1112,14 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 			if readyUlt != nil {
 				ultMult := readyUlt.Power
-				if bonus := b.treeBonusFor(u.UID).Pct["ult_damage"]; bonus > 0 {
+				if bonus := au.treeBonus.Pct["ult_damage"]; bonus > 0 {
 					ultMult *= (1.0 + bonus)
 				}
 				dmgMult *= ultMult
 				*logs = append(*logs, i18n.T("bot.combat.ultimate_activation", readyUlt.Name))
 				
 				cooldownVal := readyUlt.CooldownRounds
-				if red := b.treeBonusFor(u.UID).Pct["ult_cooldown"]; red > 0 {
+				if red := au.treeBonus.Pct["ult_cooldown"]; red > 0 {
 					cooldownVal = int(float64(cooldownVal) * (1.0 - red))
 					if cooldownVal < 2 {
 						cooldownVal = 2
@@ -1241,7 +1255,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 
 			// Betrayal check (3% chance)
 			betrayalChance := 0.03
-			if red := b.treeBonusFor(u.UID).Pct["pet_betrayal_reduce"]; red > 0 {
+			if red := au.treeBonus.Pct["pet_betrayal_reduce"]; red > 0 {
 				betrayalChance -= red
 				if betrayalChance < 0 {
 					betrayalChance = 0
@@ -1306,7 +1320,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			// #nosec G404
 			ptarget := aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
 			petDmgMult := 1.0
-			if bonus := b.treeBonusFor(u.UID).Pct["pet_damage_pct"]; bonus > 0 {
+			if bonus := au.treeBonus.Pct["pet_damage_pct"]; bonus > 0 {
 				petDmgMult += bonus
 			}
 			pdmg := int(float64(p.Stats.STR-ptarget.Stats.DEF) * petDmgMult * intensify)

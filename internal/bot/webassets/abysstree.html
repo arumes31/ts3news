@@ -5,16 +5,19 @@
   pointer-events: none;
   transition: color 0.2s, opacity 0.2s;
 }
-.tn.on + .tn-icon {
+/* Icon/swirl state classes are applied directly by paint()/treeSearchApply()
+   (icons load asynchronously, so DOM-order sibling selectors cannot pair
+   them with their circles reliably). */
+.tn-icon.on {
   color: #ffffff;
 }
-.tn.can + .tn-icon {
+.tn-icon.can {
   color: rgba(255, 255, 255, 0.75);
 }
-.tn.dim + .tn-icon {
+.tn-icon.dim {
   opacity: 0.15;
 }
-.tn.hit + .tn-icon {
+.tn-icon.hit {
   color: #ffffff;
   opacity: 1;
 }
@@ -122,7 +125,7 @@
   animation: swirlRotate 10s linear infinite;
   pointer-events: none;
 }
-.tn.on ~ .portal-swirl {
+.portal-swirl.on {
   stroke: rgba(220, 191, 255, 0.8);
   stroke-width: 2.2;
   animation-duration: 4s;
@@ -181,7 +184,7 @@
   </div>
 </div>
 
-<div class="tree-container" id="treeStage">
+<div class="tree-stage" id="treeStage">
   <svg id="treeSvg" class="tree-svg"></svg>
   <div id="treeTip" class="tree-tip" style="display:none;"></div>
 </div>
@@ -202,7 +205,7 @@ var EDGES = {{jsonJS .Edges}};
 var alloc = {};
 {{range .Allocated}}alloc[{{.}}] = true;
 {{end}}
-var used = {{.Used}}, points = {{.Points}};
+var used = {{.Used}}, points = {{.Points}}, bestDepth = {{.BestDepth}};
 var byId = {};
 NODES.forEach(function(n){ byId[n.id] = n; });
 var adj = {0: []};
@@ -227,46 +230,52 @@ function getNodeIcon(n) {
     }
   }
   if (n.type === 'bridge') return 'totem';
-  if (n.type === 'socket') return 'gems';
+  if (n.type === 'socket') return 'unique-gem';
   if (n.type === 'notable') {
-    if (n.name.indexOf('Overcharged') >= 0) return 'energy-shield';
-    if (n.name.indexOf('Souldrinker') >= 0) return 'vampire-dracula';
-    if (n.name.indexOf('Temporal') >= 0) return 'hourglass';
-    if (n.name.indexOf('Beastmaster') >= 0) return 'pawprint';
-    if (n.name.indexOf('Unbreakable') >= 0) return 'heavy-shield';
-    
+    // Names must match files in webassets/icons/ — a missing file means no
+    // icon at all, so map to the closest icon that actually ships.
+    if (n.name.indexOf('Overcharged') >= 0) return 'sunbeams';
+    if (n.name.indexOf('Souldrinker') >= 0) return 'fangs';
+    if (n.name.indexOf('Temporal') >= 0) return 'progression';
+    if (n.name.indexOf('Beastmaster') >= 0) return 'wolf-head';
+    if (n.name.indexOf('Unbreakable') >= 0) return 'checked-shield';
+
     switch (n.sector) {
-      case 0: return 'barbute';
-      case 1: return 'heart-bottle';
-      case 2: return 'ninja-head';
-      case 3: return 'lightning-bolt';
+      case 0: return 'visored-helm';
+      case 1: return 'health-normal';
+      case 2: return 'hood';
+      case 3: return 'crystal-ball';
       case 4: return 'clover';
-      default: return 'portal';
+      default: return 'psychic-waves';
     }
   }
   return '';
 }
 
 var iconCache = {};
-function loadNodeIcon(g, name, size, cx, cy) {
+function loadNodeIcon(g, name, size, cx, cy, nodeId) {
   var x = cx - size/2;
   var y = cy - size/2;
-  
+
   if (iconCache[name]) {
-    appendIconPaths(g, iconCache[name], size, x, y);
+    appendIconPaths(g, iconCache[name], size, x, y, nodeId);
     return;
   }
-  
+
   fetch('/static/icons/' + name + '.svg')
-    .then(function(r) { return r.text(); })
+    .then(function(r) {
+      // Never cache/parse an error body as SVG.
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + name);
+      return r.text();
+    })
     .then(function(svgText) {
       iconCache[name] = svgText;
-      appendIconPaths(g, svgText, size, x, y);
+      appendIconPaths(g, svgText, size, x, y, nodeId);
     })
     .catch(function(e) { console.error('Icon fetch failed', e); });
 }
 
-function appendIconPaths(g, svgText, size, x, y) {
+function appendIconPaths(g, svgText, size, x, y, nodeId) {
   var parser = new DOMParser();
   var doc = parser.parseFromString(svgText, 'image/svg+xml');
   var svgEl = doc.documentElement;
@@ -288,8 +297,15 @@ function appendIconPaths(g, svgText, size, x, y) {
     p.setAttribute('fill', 'currentColor');
     gIcon.appendChild(p);
   });
-  
+
   g.appendChild(gIcon);
+  // Register the icon so paint()/treeSearchApply() can drive its state class
+  // directly — icons arrive asynchronously, so DOM-order sibling selectors
+  // can't pair them with their circles.
+  if (nodeId !== undefined) {
+    iconEls[nodeId] = gIcon;
+    paintDecor(nodeId);
+  }
 }
 
 function abToast(m, ok){
@@ -321,11 +337,33 @@ function applyView(){
   }
 }
 
+// Server-side allocation floor gates (Item 62), mirrored client-side so the
+// UI never advertises an allocate the server would refuse.
+function gateFloor(n){
+  if(!n) return 0;
+  if(n.type === 'keystone') return 30;
+  if(n.ring > 20) return 20;
+  if(n.ring > 10) return 10;
+  return 0;
+}
 function isAllocatable(id){
   if(alloc[id] || used >= points) return false;
+  if(gateFloor(byId[id]) > bestDepth) return false;
   var ns = adj[id] || [];
   for(var i=0;i<ns.length;i++){ if(ns[i]===0 || alloc[ns[i]]) return true; }
   return false;
+}
+
+// Icon/portal-swirl registries: state classes are applied directly (see
+// paintDecor) because these decorations are not DOM-adjacent to their circles.
+var iconEls = {}, swirlEls = {};
+function paintDecor(id){
+  var st = alloc[id] ? ' on' : (isAllocatable(id) ? ' can' : '');
+  if(iconEls[id]){
+    var keep = iconEls[id].classList.contains('dim') ? ' dim' : iconEls[id].classList.contains('hit') ? ' hit' : '';
+    iconEls[id].setAttribute('class', 'tn-icon' + st + keep);
+  }
+  if(swirlEls[id]) swirlEls[id].setAttribute('class', 'portal-swirl' + st);
 }
 
 function randSeed(s) {
@@ -448,6 +486,7 @@ function build(){
       swirl.setAttribute('r', (n.type==='keystone'?14 : n.type==='notable'||n.type==='bridge'?10 : 6) + 6);
       swirl.setAttribute('class', 'portal-swirl');
       gN.appendChild(swirl);
+      swirlEls[n.id] = swirl;
     }
 
     var c = document.createElementNS(NS,'circle');
@@ -461,6 +500,8 @@ function build(){
     c.addEventListener('click', function(ev){ ev.stopPropagation(); tryAllocate(n.id); });
     c.addEventListener('keydown', function(ev){
       if(ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar'){ ev.preventDefault(); tryAllocate(n.id); }
+      // Keyboard refund (the tooltip's button is mouse-oriented).
+      if((ev.key === 'Delete' || ev.key === 'r') && alloc[n.id]){ ev.preventDefault(); tryRefund(ev, n.id); }
     });
     c.addEventListener('mouseenter', function(ev){
       showTip(n, ev);
@@ -470,17 +511,25 @@ function build(){
       }
     });
     c.addEventListener('mouseleave', function(){
-      hideTip();
+      // Delayed hide so the pointer can travel into the tooltip (its Refund
+      // button is otherwise unreachable); entering the tooltip cancels it.
+      scheduleHideTip();
       clearPathHighlight(); // Clear hover path (Item 3)
       renderSummary(activePct, activeStats);
     });
+    // Keyboard users get the same tooltip, anchored to the node itself.
+    c.addEventListener('focus', function(){
+      var r = c.getBoundingClientRect();
+      showTip(n, {clientX: r.right + 4, clientY: r.top});
+    });
+    c.addEventListener('blur', function(){ scheduleHideTip(); });
     gN.appendChild(c);
     nodeEls[n.id] = c;
 
     var iconName = getNodeIcon(n);
     if (iconName) {
       var iconSize = n.type==='keystone' ? 16 : n.type==='notable'||n.type==='bridge'||n.type==='socket' ? 12 : 8;
-      loadNodeIcon(gN, iconName, iconSize, n.x, n.y);
+      loadNodeIcon(gN, iconName, iconSize, n.x, n.y, n.id);
     }
   });
   svg.appendChild(gN);
@@ -494,6 +543,7 @@ function paint(){
     if(alloc[n.id]) cls += ' on';
     else if(isAllocatable(n.id)) cls += ' can';
     nodeEls[n.id].setAttribute('class', cls);
+    paintDecor(n.id);
   });
   edgeEls.forEach(function(l){
     var a = l._e[0], b = l._e[1];
@@ -512,26 +562,16 @@ function paint(){
 }
 
 // ---- Interaction -----------------------------------------------------------
-var activeStats = {};
-var activePct = {};
+// Totals always come from the server (page render, then allocate/refund
+// responses): BonusFor applies socket adjacency, the Temporal Shift day
+// bonus and the prestige multiplier, which a naive client-side sum of node
+// stats would silently miss.
+var activeStats = {{jsonJS .Bonus}} || {};
+var activePct = {{jsonJS .BonusPctRaw}} || {};
 
-function calculateActiveTotals() {
-  activeStats = {HP:0, MNA:0, STR:0, DEF:0, SPD:0, LCK:0, INT:0, STA:0, CRT:0, DGE:0};
-  activePct = {};
-  NODES.forEach(function(n) {
-    if (alloc[n.id]) {
-      if (n.stats) {
-        Object.keys(n.stats).forEach(function(k) {
-          activeStats[k] = (activeStats[k] || 0) + n.stats[k];
-        });
-      }
-      if (n.pct) {
-        Object.keys(n.pct).forEach(function(k) {
-          activePct[k] = (activePct[k] || 0) + n.pct[k];
-        });
-      }
-    }
-  });
+function applyServerTotals(d) {
+  if (d.stats) activeStats = d.stats;
+  if (d.pct) activePct = d.pct;
 }
 
 // Interactive Pathfinding (Item 3)
@@ -601,14 +641,17 @@ function clearPathHighlight() {
 async function tryAllocate(id){
   if(alloc[id]){ abToast('Already allocated.', false); return; }
   if(!isAllocatable(id)){
-    abToast(used >= points ? 'No points available — descend deeper, level up or prestige.' : 'Not connected to your path yet.', false);
+    var gf = gateFloor(byId[id]);
+    abToast(gf > bestDepth ? 'Locked — clear Abyss floor ' + gf + ' first (your record: ' + bestDepth + ').'
+      : used >= points ? 'No points available — descend deeper, level up or prestige.'
+      : 'Not connected to your path yet.', false);
     return;
   }
   var d = await abPost('/api/abyss/tree/allocate', {node_id: id});
   if(!d.ok){ abToast(d.error||'failed', false); return; }
   alloc[id] = true; used = d.used; points = d.points;
   abToast(d.msg, true);
-  calculateActiveTotals();
+  applyServerTotals(d);
   paint();
   renderSummary(activePct, activeStats);
 }
@@ -622,7 +665,7 @@ async function tryRefund(ev, id){
   alloc[id] = false; delete alloc[id];
   used = d.used; points = d.points;
   abToast(d.msg, true);
-  calculateActiveTotals();
+  applyServerTotals(d);
   paint();
   renderSummary(activePct, activeStats);
   hideTip();
@@ -710,10 +753,22 @@ function renderSummary(pct, stats, diffNode){
   document.getElementById('treeStatLine').innerHTML = graphHtml;
 }
 
-// Tooltip.
+// Tooltip. Hiding is delayed so the pointer can travel from the node into
+// the tooltip (needed to click the Refund button); hovering the tooltip
+// cancels the pending hide.
 var tip = document.getElementById('treeTip');
+var tipHideT = null;
+function scheduleHideTip(){ clearTimeout(tipHideT); tipHideT = setTimeout(hideTip, 300); }
+function cancelHideTip(){ clearTimeout(tipHideT); tipHideT = null; }
+tip.addEventListener('mouseenter', cancelHideTip);
+tip.addEventListener('mouseleave', function(){ hideTip(); });
 function showTip(n, ev){
+  cancelHideTip();
   tip.className = 'tree-tip tip-' + n.type;
+  // The stylesheet sets pointer-events:none so the tooltip never blocks
+  // hovering nearby nodes; allocated nodes carry a Refund button, which
+  // needs the tooltip itself to be hoverable/clickable.
+  tip.style.pointerEvents = alloc[n.id] ? 'auto' : 'none';
   var headerClass = 'tree-tip-header-' + n.type;
   
   var nameHtml = '<span class="' + headerClass + '">' + n.name + '</span>';
@@ -736,7 +791,10 @@ function showTip(n, ev){
   } else if (isAllocatable(n.id)) {
     actionHtml = '<br><span class="tt-can" style="margin-top:4px; display:inline-block;">○ click to allocate</span>';
   } else {
-    actionHtml = '<br><span class="muted small" style="margin-top:4px; display:inline-block;">🔒 not connected / no points</span>';
+    var gf = gateFloor(n);
+    actionHtml = '<br><span class="muted small" style="margin-top:4px; display:inline-block;">' +
+      (gf > bestDepth ? '🔒 Requires clearing Abyss floor ' + gf + ' (your record: ' + bestDepth + ')' : '🔒 not connected / no points') +
+      '</span>';
   }
   
   tip.innerHTML = nameHtml + '<br><span class="muted small" style="margin-top:4px; display:inline-block;">'+(n.desc||'')+'</span>'+ actionHtml;
@@ -748,7 +806,7 @@ function moveTip(ev){
   tip.style.left = Math.min(ev.clientX - r.left + 14, r.width - 240) + 'px';
   tip.style.top = (ev.clientY - r.top + 14) + 'px';
 }
-function hideTip(){ tip.style.display = 'none'; }
+function hideTip(){ cancelHideTip(); tip.style.display = 'none'; }
 document.getElementById('treeStage').addEventListener('mousemove', function(ev){ if(tip.style.display!=='none') moveTip(ev); });
 
 // Search highlight.
@@ -758,6 +816,10 @@ function treeSearchApply(){
     var hit = q && ((n.name||'').toLowerCase().indexOf(q) >= 0 || (n.desc||'').toLowerCase().indexOf(q) >= 0 || (n.type||'').indexOf(q) >= 0);
     nodeEls[n.id].classList.toggle('hit', !!hit);
     nodeEls[n.id].classList.toggle('dim', !!q && !hit);
+    if(iconEls[n.id]){
+      iconEls[n.id].classList.toggle('hit', !!hit);
+      iconEls[n.id].classList.toggle('dim', !!q && !hit);
+    }
   });
 }
 
@@ -798,7 +860,6 @@ function treeSearchApply(){
 })();
 
 build();
-calculateActiveTotals();
 paint();
 renderSummary(activePct, activeStats);
 </script>

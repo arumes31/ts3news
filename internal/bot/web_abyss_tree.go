@@ -93,7 +93,9 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	total := s.bot.treePointsTotal(uid)
-	tb := tree.BonusFor(alloc)
+	// Use the Bot-level bonus (not tree.BonusFor) so the page shows the same
+	// totals combat applies — including the prestige multiplier.
+	tb := s.bot.treeBonusFor(uid)
 
 	// Flatten adjacency into edge pairs once for the client renderer.
 	type edge [2]int
@@ -127,7 +129,14 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		"Points":    total,
 		"Used":      len(alloc),
 		"BonusPct":  pctView,
-		"Bonus":     tb.Stats,
+		// Raw maps seed the client summary so it always mirrors the
+		// server-computed totals (socket adjacency, Temporal Shift, prestige).
+		"BonusPctRaw": tb.Pct,
+		"Bonus":       tb.Stats,
+		// Best depth drives the client-side mirror of the allocation floor
+		// gates (Item 62), so gated nodes are shown locked instead of
+		// advertising an allocate the server would refuse.
+		"BestDepth": s.bot.loadAbyssStats(uid).BestDepth,
 		"RespecTk":  abyssTreeRespecTokens,
 	})
 }

@@ -28,6 +28,7 @@ temp/
 .qwen/
 .idea/
 .vscode/
+graphify-out/
 
 # Go binaries
 /bot

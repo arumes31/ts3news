@@ -810,12 +810,14 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 		if focus == "xp" {
 			rewardXP *= 2 // XP focus: double floor XP (loot rolls are skipped instead)
 		}
-		// Skill web: Void-sector xp_gain notables.
-		if v := b.treeBonusFor(uid).Pct["xp_gain"]; v > 0 {
+		// Skill web: Void-sector xp_gain notables (single lookup — treeBonusFor
+		// costs a DB read plus a full tree scan).
+		treePct := b.treeBonusFor(uid).Pct
+		if v := treePct["xp_gain"]; v > 0 {
 			rewardXP = int(float64(rewardXP) * (1 + v))
 		}
 		// Alchemy of the Soul: converts 50% of descent XP gain into gold (Item 42)
-		if conv := b.treeBonusFor(uid).Pct["xp_to_gold"]; conv > 0 {
+		if conv := treePct["xp_to_gold"]; conv > 0 {
 			convertedXP := int(float64(rewardXP) * conv)
 			convertedGold := int64(convertedXP)
 			if convertedGold > 0 {
