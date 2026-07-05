@@ -1082,10 +1082,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				*logs = append(*logs, fmt.Sprintf("✨ %s cast %s (cost: %d Mana, Remaining: %d/%d). Spell Power: +%d%%!", u.Nickname, s.Name, spellCost, au.CurrentMana, au.MaxMana, int(float64(u.Stats.INT)*spellPowerMult)))
 
 				if s.HealPercent > 0 {
-					healAmount := int(float64(u.Stats.HP) * s.HealPercent)
-					if healPenalty > 0 {
-						healAmount = int(float64(healAmount) * (1.0 - healPenalty))
-					}
+					healAmount := int(float64(u.Stats.HP) * s.HealPercent * healPenalty)
 					if healAmount < 0 {
 						healAmount = 0
 					}
