@@ -943,6 +943,12 @@ button {
   cursor: pointer;
   font-size: .85rem
 }
+button:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(123, 108, 255, .35);
+}
+
 
 button:hover {
   filter: brightness(1.1)
