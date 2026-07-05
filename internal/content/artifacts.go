@@ -513,7 +513,9 @@ func buildContent() {
 	// - Uncommon: +5% XP (1.05x)
 	// - Rare: +10% XP (1.10x)
 	// - Epic: +20% XP (1.20x)
-	// - Legendary: +30% XP (1.30x) - maximum
+	// - Legendary: +30% XP (1.30x)
+	// - Mythic: +40% XP (1.40x)
+	// - Divine: +50% XP (1.50x) - maximum
 	getXPMult := func(rar Rarity) float64 {
 		switch rar {
 		case RarityCommon:
@@ -525,7 +527,11 @@ func buildContent() {
 		case RarityEpic:
 			return 1.20 // +20% XP
 		case RarityLegendary:
-			return 1.30 // +30% XP (max)
+			return 1.30 // +30% XP
+		case RarityMythic:
+			return 1.40 // +40% XP
+		case RarityDivine:
+			return 1.50 // +50% XP (max)
 		default:
 			return 1.0
 		}

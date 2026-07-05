@@ -1808,12 +1808,17 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 			}
 		}
 
-		return logs, killedXP / realUserCount(users), true
+		// Round-half-up so a small kill total still credits landed kills instead
+		// of truncating the per-user share to zero.
+		rc := realUserCount(users)
+		return logs, (killedXP + rc/2) / rc, true
 	}
 	logs = append(logs, i18n.T("bot.combat.defeat", zone.Name))
 	// Per-kill XP with a death tax: a lost fight still banks 25% of the XP from
-	// the mobs that were actually killed (the other 75% is forfeit).
-	return logs, killedXP / (4 * realUserCount(users)), false
+	// the mobs that were actually killed (the other 75% is forfeit). Round-half-up
+	// so the quartered share doesn't truncate small totals away to nothing.
+	d := 4 * realUserCount(users)
+	return logs, (killedXP + d/2) / d, false
 }
 
 // realUserCount counts non-clone participants. Co-op clones must not dilute the

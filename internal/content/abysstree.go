@@ -163,8 +163,8 @@ const (
 // the player's combat kit. The IDs live here, next to the tree definition, so
 // the combat loop doesn't hardcode raw grid IDs (see getSkills in the bot).
 const (
-	NodeSkillEarthquake   = 624 // grants S_EQ (Earthquake)
-	NodeSkillArcaneShield = 466 // grants S_AS (Arcane Shield)
+	NodeSkillEarthquake   = 588 // grants S_EQ; grid ring 17, slot 11 → "🔮 Spellweaver (Earthquake)"
+	NodeSkillArcaneShield = 466 // grants S_AS; grid ring 13, slot 33 → "🧪 Alchemist's Ritual (Arcane Shield)"
 )
 
 var treeSectorNames = [treeSectors]string{"War", "Vitality", "Shadow", "Arcane", "Fortune", "Void"}

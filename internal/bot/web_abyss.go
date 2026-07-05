@@ -257,17 +257,22 @@ func (b *Bot) applyAbyssRegen(uid string, equipped map[content.GearSlot]content.
 			perSec += float64(g.RegenAmount) / float64(g.RegenIntervalSec)
 		}
 	}
-	if perSec <= 0 {
-		return curHP, 0
-	}
-	if curHP <= 0 {
-		return curHP, 0 // dead: gear regen must never revive; wait for a real revive
-	}
 	key := "abyss_hp_regen_" + uid
 	now := time.Now()
 	setTS := func(t time.Time) {
 		_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 			ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, key, t.Format(time.RFC3339))
+	}
+	// Ineligible states still anchor the clock to now. Otherwise the idle/dead
+	// span accumulates and a later re-equip or revive would back-credit healing
+	// for time regen was never active.
+	if perSec <= 0 {
+		setTS(now) // no regen gear: keep the clock current so re-equipping starts fresh
+		return curHP, 0
+	}
+	if curHP <= 0 {
+		setTS(now) // dead: gear regen must never revive; wait for a real revive
+		return curHP, 0
 	}
 	if curHP >= maxHP {
 		setTS(now) // already full: anchor the clock so regen starts fresh later
@@ -288,9 +293,25 @@ func (b *Bot) applyAbyssRegen(uid string, equipped map[content.GearSlot]content.
 	if heal <= 0 {
 		return curHP, perSec // too little time passed; let it accumulate
 	}
-	newHP := curHP + heal
+	// Apply the heal relative to the stored row so a concurrent HP change (e.g. a
+	// parallel fight) isn't clobbered by our stale absolute value. The WHERE guards
+	// keep it from reviving the dead or overshooting max HP; RETURNING hands back
+	// the real post-heal value for the display and clock math.
+	var newHP int
+	err = b.DB.QueryRow(
+		`UPDATE users SET current_hp = LEAST($1, current_hp + $2)
+			WHERE client_uid = $3 AND current_hp > 0 AND current_hp < $1
+			RETURNING current_hp`, maxHP, heal, uid).Scan(&newHP)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Nothing healed (already full, or died/vanished concurrently): anchor the
+		// clock so this span isn't re-credited on the next eligible view.
+		setTS(now)
+		return curHP, perSec
+	}
+	if err != nil {
+		return curHP, perSec // transient DB error: leave the clock, retry next view
+	}
 	if newHP >= maxHP {
-		newHP = maxHP
 		setTS(now)
 	} else {
 		// Advance the clock only by the time actually consumed so the fractional
@@ -298,7 +319,6 @@ func (b *Bot) applyAbyssRegen(uid string, equipped map[content.GearSlot]content.
 		consumed := float64(heal) / perSec
 		setTS(last.Add(time.Duration(consumed * float64(time.Second))))
 	}
-	_, _ = b.DB.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid)
 	return newHP, perSec
 }
 
