@@ -80,6 +80,7 @@ type activeUser struct {
 	Stunned     bool // scripted boss-phase stun: skips this user's next turn
 	CurrentMana int
 	MaxMana     int
+	PetHealCD   int // Cooldown of pet2 heal spell in rounds
 }
 
 // cycleContext holds per-cycle shared facts used by the XP modifiers.
@@ -692,11 +693,14 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				}
 			}
 
-			for _, au := range activeUsers {
-				for _, us := range au.u.Ultimates {
+			for i := range activeUsers {
+				for _, us := range activeUsers[i].u.Ultimates {
 					if us.CurrentCooldown > 0 {
 						us.CurrentCooldown--
 					}
+				}
+				if activeUsers[i].PetHealCD > 0 {
+					activeUsers[i].PetHealCD--
 				}
 			}
 
@@ -1213,7 +1217,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 		}
 
 		// Pet Attack (Silent damage)
-		for _, p := range u.Pets {
+		for petIdx, p := range u.Pets {
 			if p.Stats.HP <= 0 {
 				continue
 			}
@@ -1238,6 +1242,36 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 							*logs = append(*logs, i18n.T("bot.combat.slain_by_pet", target.Nickname, p.Name))
 						}
 					}
+					continue
+				}
+			}
+
+			// pet2 healspell logic: index 1 in u.Pets (the second pet)
+			if petIdx == 1 && au.PetHealCD == 0 {
+				var bestTarget *UserInCombat
+				lowestHPPct := 1.0
+				for k := range activeUsers {
+					targetU := activeUsers[k].u
+					if targetU.CurrentHP > 0 && targetU.CurrentHP < targetU.Stats.HP {
+						pct := float64(targetU.CurrentHP) / float64(targetU.Stats.HP)
+						if pct < lowestHPPct {
+							lowestHPPct = pct
+							bestTarget = targetU
+						}
+					}
+				}
+				if bestTarget != nil {
+					healAmt := int(float64(bestTarget.Stats.HP)*0.15) + p.Level*3
+					if healAmt < 10 {
+						healAmt = 10
+					}
+					bestTarget.CurrentHP += healAmt
+					if bestTarget.CurrentHP > bestTarget.Stats.HP {
+						healAmt -= (bestTarget.CurrentHP - bestTarget.Stats.HP)
+						bestTarget.CurrentHP = bestTarget.Stats.HP
+					}
+					au.PetHealCD = 2
+					*logs = append(*logs, fmt.Sprintf("✨ [color=#4caf50]%s's Pet %s casts a Healing Spell on %s, restoring %d HP! (2-round cooldown)[/color]", u.Nickname, p.Name, bestTarget.Nickname, healAmt))
 					continue
 				}
 			}

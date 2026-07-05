@@ -53,6 +53,29 @@ func (tb TreeBonus) ApplyCombatPct(s Stats) Stats {
 	if v := tb.Pct["int_pct"]; v != 0 {
 		s.INT = int(float64(s.INT) * (1 + v))
 	}
+
+	// Unique Keystones Conversion modifiers
+	if v := tb.Pct["str_to_spd"]; v != 0 {
+		converted := int(float64(s.STR) * v)
+		s.SPD += converted
+		s.STR -= converted
+	}
+	if v := tb.Pct["hp_to_def"]; v != 0 {
+		converted := int(float64(s.HP) * v)
+		s.DEF += converted / 10
+		s.HP -= converted
+	}
+	if v := tb.Pct["spd_to_dge"]; v != 0 {
+		converted := int(float64(s.SPD) * v)
+		s.DGE += converted
+		s.SPD -= converted
+	}
+	if v := tb.Pct["int_to_mna"]; v != 0 {
+		converted := int(float64(s.INT) * v)
+		s.MNA += converted * 5
+		s.INT -= converted
+	}
+
 	return s
 }
 
@@ -150,7 +173,7 @@ type treeKeystoneDef struct {
 var treeRimKeystones = [treeSlots]treeKeystoneDef{
 	// ⚔️ War
 	{"Juggernaut", map[string]float64{"str_pct": 0.25, "spd_pct": -0.10}},
-	{"Berserker's Oath", map[string]float64{"str_pct": 0.15, "hp_pct": -0.10}},
+	{"Berserker's Oath", map[string]float64{"str_pct": 0.15, "str_to_spd": 0.15}},
 	{"Warbringer", map[string]float64{"str_pct": 0.10, "xp_gain": 0.05}},
 	{"Executioner", map[string]float64{"str_pct": 0.12, "gold_find": 0.06}},
 	{"Bloodforged", map[string]float64{"str_pct": 0.10, "material_yield": 0.10}},
@@ -160,11 +183,11 @@ var treeRimKeystones = [treeSlots]treeKeystoneDef{
 	{"Undying", map[string]float64{"hp_pct": 0.20, "xp_gain": 0.05}},
 	{"Ironroot", map[string]float64{"hp_pct": 0.15, "material_yield": 0.10}},
 	{"Heartspring", map[string]float64{"hp_pct": 0.12, "escrow_bonus": 0.08}},
-	{"Titan's Blood", map[string]float64{"hp_pct": 0.18, "spd_pct": -0.05}},
+	{"Titan's Blood", map[string]float64{"hp_pct": 0.18, "hp_to_def": 0.10}},
 	{"Warden's Resolve", map[string]float64{"hp_pct": 0.10, "token_gain": 0.10}},
 	// 🌫️ Shadow
 	{"Phantom", map[string]float64{"spd_pct": 0.20}},
-	{"Ghostwalk", map[string]float64{"spd_pct": 0.12, "loot_find": 0.08}},
+	{"Ghostwalk", map[string]float64{"spd_pct": 0.12, "spd_to_dge": 0.15}},
 	{"Night's Edge", map[string]float64{"spd_pct": 0.10, "gold_find": 0.10}},
 	{"Umbral Dance", map[string]float64{"spd_pct": 0.15, "hp_pct": -0.05}},
 	{"Silent Fortune", map[string]float64{"spd_pct": 0.08, "escrow_bonus": 0.10}},
@@ -175,7 +198,7 @@ var treeRimKeystones = [treeSlots]treeKeystoneDef{
 	{"Runebinder", map[string]float64{"int_pct": 0.12, "material_yield": 0.12}},
 	{"Aetherflow", map[string]float64{"int_pct": 0.15, "str_pct": -0.05}},
 	{"Scryer's Insight", map[string]float64{"int_pct": 0.10, "loot_find": 0.10}},
-	{"Manaforged", map[string]float64{"int_pct": 0.12, "escrow_bonus": 0.08}},
+	{"Manaforged", map[string]float64{"int_pct": 0.12, "int_to_mna": 0.20}},
 	// 🍀 Fortune
 	{"Midas", map[string]float64{"gold_find": 0.15, "loot_find": 0.05}},
 	{"Gambler's Creed", map[string]float64{"gold_find": 0.20, "escrow_bonus": -0.05}},
@@ -219,9 +242,6 @@ func pctBrief(pct map[string]float64) string {
 }
 
 func buildAbyssTree() *AbyssTreeData {
-	// Fixed seed: the web must be identical across restarts and players.
-	r := rand.New(rand.NewPCG(1000, 27)) // #nosec G404 -- deterministic content generation
-
 	t := &AbyssTreeData{Adj: map[int][]int{}, byID: map[int]*TreeNode{}}
 	addEdge := func(a, b int) {
 		t.Adj[a] = append(t.Adj[a], b)
@@ -237,12 +257,32 @@ func buildAbyssTree() *AbyssTreeData {
 			n := TreeNode{
 				ID: id, Ring: ring, Slot: slot, Sector: sector,
 				Type:  "small",
-				Stats: treeSmallStats(sector, ring, slot, r),
+				Stats: treeSmallStats(sector, ring, slot, id),
 			}
 			if notable {
 				n.Type = "notable"
 				n.Stats = n.Stats.Scaled(3)
-				n.Pct = map[string]float64{treeSectorPctKey(sector, slot): treeNotablePct(sector, ring)}
+				
+				primaryPctKey := treeSectorPctKey(sector, slot)
+				primaryPctVal := treeNotablePct(sector, ring)
+				n.Pct = map[string]float64{primaryPctKey: primaryPctVal}
+				
+				rSec := rand.New(rand.NewPCG(uint64(id), 999))
+				allKeys := []string{"str_pct", "hp_pct", "spd_pct", "int_pct", "gold_find", "loot_find", "escrow_bonus", "xp_gain", "token_gain", "material_yield"}
+				rSec.Shuffle(len(allKeys), func(i, j int) { allKeys[i], allKeys[j] = allKeys[j], allKeys[i] })
+				
+				var secKey string
+				for _, k := range allKeys {
+					if k != primaryPctKey {
+						secKey = k
+						break
+					}
+				}
+				secVal := primaryPctVal * (0.2 + 0.3*rSec.Float64())
+				secVal = math.Round(secVal*1000) / 1000
+				if secVal > 0.001 {
+					n.Pct[secKey] = secVal
+				}
 			}
 			n.Name, n.Desc = treeNodeText(&n)
 			polar(&n)
@@ -297,8 +337,12 @@ func buildAbyssTree() *AbyssTreeData {
 			Type: "bridge",
 			Name: fmt.Sprintf("🌉 %s Pact of %s and %s", treeBridgeTiers[ring], treeSectorNames[boundary], treeSectorNames[(boundary+1)%treeSectors]),
 			Desc: "A bridge between disciplines: bonuses of both neighboring paths.",
-			Stats: treeSmallStats(boundary, ring, leftSlot, r).
-				Add(treeSmallStats((boundary+1)%treeSectors, ring, rightSlot, r)).Scaled(2),
+			Stats: treeSmallStats(boundary, ring, leftSlot, bridgeID).
+				Add(treeSmallStats((boundary+1)%treeSectors, ring, rightSlot, bridgeID+10000)).Scaled(2),
+			Pct: map[string]float64{
+				treeSectorPctKey(boundary, leftSlot):       math.Round(treeNotablePct(boundary, ring)*0.5*1000) / 1000,
+				treeSectorPctKey((boundary+1)%treeSectors, rightSlot): math.Round(treeNotablePct((boundary+1)%treeSectors, ring)*0.5*1000) / 1000,
+			},
 		}
 		// Sits visually between the two sectors, half a slot outward.
 		n.X, n.Y = polarXY(float64(ring)+0.5, float64(leftSlot)+0.5)
@@ -350,35 +394,91 @@ func polarXY(ring, slot float64) (float64, float64) {
 
 // treeSmallStats is the flat stat block of a small node, scaling with depth
 // into the web and flavored by its sector.
-func treeSmallStats(sector, ring, slot int, r *rand.Rand) Stats {
-	grow := 1 + ring/4
-	jitter := r.IntN(2) // tiny deterministic variety
+func treeSmallStats(sector, ring, slot, nodeID int) Stats {
+	// Seed the random generator uniquely for this node ID to ensure stable, unique stats
+	r := rand.New(rand.NewPCG(uint64(nodeID), 42))
+
+	grow := 1 + ring/3
+	
+	var s Stats
+	
+	// 1. Primary stats based on sector
 	switch sector {
-	case 0: // War
-		s := Stats{STR: 2 + ring/2 + jitter}
-		if slot%3 == 0 {
-			s.CRT = 1
+	case 0: // War: Strength-focused
+		s.STR = 2 + ring/2 + r.IntN(3)
+		if r.IntN(2) == 0 {
+			s.CRT = 1 + ring/8
 		}
-		return s
-	case 1: // Vitality
-		return Stats{HP: 10 + 4*ring + 2*jitter, STA: grow}
-	case 2: // Shadow
-		s := Stats{SPD: 2 + ring/2 + jitter}
-		if slot%3 == 0 {
-			s.DGE = 1
+	case 1: // Vitality: HP/Stamina-focused
+		s.HP = 10 + 5*ring + r.IntN(10)
+		s.STA = grow + r.IntN(2)
+	case 2: // Shadow: Speed/Dodge-focused
+		s.SPD = 2 + ring/2 + r.IntN(3)
+		if r.IntN(2) == 0 {
+			s.DGE = 1 + ring/8
 		}
-		return s
-	case 3: // Arcane
-		return Stats{INT: 2 + ring/2 + jitter, MNA: 6 + 2*ring}
-	case 4: // Fortune
-		s := Stats{LCK: 2 + ring/2 + jitter}
-		if slot%3 == 0 {
-			s.CRT = 1
+	case 3: // Arcane: Intellect/Mana-focused
+		s.INT = 2 + ring/2 + r.IntN(3)
+		s.MNA = 5 + 3*ring + r.IntN(5)
+	case 4: // Fortune: Luck-focused
+		s.LCK = 2 + ring/2 + r.IntN(3)
+		if r.IntN(2) == 0 {
+			s.CRT = 1 + ring/8
 		}
-		return s
-	default: // Void: a taste of everything
-		return Stats{HP: 4 + 2*ring, STR: 1 + ring/3, DEF: 1 + ring/3, SPD: grow - 1 + jitter}
+	default: // Void: Balanced stats
+		s.HP = 5 + 3*ring + r.IntN(5)
+		s.STR = 1 + ring/4
+		s.DEF = 1 + ring/4 + r.IntN(2)
+		s.SPD = 1 + ring/4
 	}
+
+	// 2. Add a unique secondary stat to ensure no two nodes are identical
+	statPool := []string{"HP", "MNA", "STR", "DEF", "SPD", "LCK", "INT", "STA", "CRT", "DGE"}
+	secIndex := r.IntN(len(statPool))
+	secVal := 1 + r.IntN(grow+1)
+	
+	switch statPool[secIndex] {
+	case "HP":
+		if s.HP == 0 { s.HP = secVal * 4 }
+	case "MNA":
+		if s.MNA == 0 { s.MNA = secVal * 2 }
+	case "STR":
+		if s.STR == 0 { s.STR = secVal }
+	case "DEF":
+		if s.DEF == 0 { s.DEF = secVal }
+	case "SPD":
+		if s.SPD == 0 { s.SPD = secVal }
+	case "LCK":
+		if s.LCK == 0 { s.LCK = secVal }
+	case "INT":
+		if s.INT == 0 { s.INT = secVal }
+	case "STA":
+		if s.STA == 0 { s.STA = secVal }
+	case "CRT":
+		if s.CRT == 0 { s.CRT = secVal }
+	case "DGE":
+		if s.DGE == 0 { s.DGE = secVal }
+	}
+
+	// 3. Add a small tertiary raw stat if deep enough (ring > 5)
+	if ring > 5 {
+		tertIndex := (secIndex + 1 + r.IntN(len(statPool)-1)) % len(statPool)
+		tertVal := 1 + r.IntN(2)
+		switch statPool[tertIndex] {
+		case "HP": s.HP += tertVal * 3
+		case "MNA": s.MNA += tertVal * 2
+		case "STR": s.STR += tertVal
+		case "DEF": s.DEF += tertVal
+		case "SPD": s.SPD += tertVal
+		case "LCK": s.LCK += tertVal
+		case "INT": s.INT += tertVal
+		case "STA": s.STA += tertVal
+		case "CRT": s.CRT += tertVal
+		case "DGE": s.DGE += tertVal
+		}
+	}
+
+	return s
 }
 
 // treeSectorPctKey picks which percent effect a sector's notables carry.
@@ -459,6 +559,14 @@ func treePctLabel(k string) string {
 		return "tokens on bank"
 	case "material_yield":
 		return "crafting materials"
+	case "str_to_spd":
+		return "STR converted to SPD"
+	case "hp_to_def":
+		return "HP converted to DEF"
+	case "spd_to_dge":
+		return "SPD converted to DGE"
+	case "int_to_mna":
+		return "INT converted to MNA"
 	}
 	return k
 }

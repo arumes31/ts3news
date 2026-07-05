@@ -1,4 +1,90 @@
 {{define "abysstree"}}{{template "head" .}}
+<style>
+.tn-icon {
+  color: rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  transition: color 0.2s, opacity 0.2s;
+}
+.tn.on + .tn-icon {
+  color: #ffffff;
+}
+.tn.can + .tn-icon {
+  color: rgba(255, 255, 255, 0.75);
+}
+.tn.dim + .tn-icon {
+  opacity: 0.15;
+}
+.tn.hit + .tn-icon {
+  color: #ffffff;
+  opacity: 1;
+}
+
+/* Animated edge flows */
+@keyframes flowPulse {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+.te.on {
+  stroke-dasharray: 6 4;
+  animation: flowPulse 1.5s linear infinite;
+  stroke: #f4c542 !important; /* bright glowing golden line */
+  stroke-width: 3.5 !important;
+}
+.te.half {
+  stroke-dasharray: 4 4;
+  animation: flowPulse 3s linear infinite;
+  stroke: rgba(244, 197, 66, 0.4) !important;
+  stroke-width: 2 !important;
+}
+
+/* Unique tooltips styling */
+.tree-tip.tip-keystone {
+  border: 1px solid #f4c542;
+  box-shadow: 0 0 15px rgba(244, 197, 66, 0.35), 0 10px 28px rgba(0, 0, 0, .55);
+}
+.tree-tip.tip-notable {
+  border: 1px solid #b26bff;
+  box-shadow: 0 0 10px rgba(178, 107, 255, 0.25), 0 10px 28px rgba(0, 0, 0, .55);
+}
+.tree-tip.tip-bridge {
+  border: 1px solid #41c97a;
+  box-shadow: 0 0 10px rgba(65, 201, 122, 0.25), 0 10px 28px rgba(0, 0, 0, .55);
+}
+.tree-tip-header-keystone {
+  color: #f4c542;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+.tree-tip-header-notable {
+  color: #dcbfff;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+.tree-tip-header-bridge {
+  color: #9af0be;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+/* Stat diff preview styling */
+.preview-highlight {
+  border: 1px dashed #41c97a !important;
+  background: rgba(65, 201, 122, 0.15) !important;
+  color: #9af0be !important;
+}
+.diff-add {
+  color: #41c97a;
+  font-weight: bold;
+  margin-left: 4px;
+}
+.preview-text-highlight {
+  color: #9af0be;
+  font-weight: bold;
+}
+</style>
 <div class="tree-head">
   <div>
     <h1>🌳 Abyss Skill Web</h1>
@@ -52,6 +138,107 @@ EDGES.forEach(function(e){
   (adj[e[1]] = adj[e[1]] || []).push(e[0]);
 });
 
+function getNodeIcon(n) {
+  if (n.type === 'keystone') {
+    if (n.name.indexOf('Worldsplitter') >= 0) return 'broadsword';
+    if (n.name.indexOf('Thousandth Star') >= 0) return 'legendary-star';
+    if (n.name.indexOf('Duskbringer') >= 0) return 'spectre';
+    if (n.name.indexOf('Deepmiser') >= 0) return 'open-treasure-chest';
+    switch (n.sector) {
+      case 0: return 'crossed-swords';
+      case 1: return 'laurel-crown';
+      case 2: return 'eagle-emblem';
+      case 3: return 'spell-book';
+      case 4: return 'rolling-dices';
+      default: return 'dragon-head';
+    }
+  }
+  if (n.type === 'bridge') return 'totem';
+  var stats = n.stats || {};
+  var pct = n.pct || {};
+  if (pct.material_yield) return 'metal-bar';
+  if (pct.gold_find) return 'two-coins';
+  if (pct.loot_find) return 'knapsack';
+  if (pct.escrow_bonus || pct.token_gain) return 'gem-pendant';
+  if (pct.xp_gain) return 'progression';
+  if (stats.HP > 0 || pct.hp_pct) {
+    if (n.type === 'notable') return 'regeneration';
+    return 'health-normal';
+  }
+  if (stats.STR > 0 || pct.str_pct) {
+    if (n.type === 'notable') return 'sword-clash';
+    return 'biceps';
+  }
+  if (stats.SPD > 0 || pct.spd_pct || stats.DGE > 0) {
+    if (n.type === 'notable') return 'sprint';
+    return 'run';
+  }
+  if (stats.INT > 0 || pct.int_pct || stats.MNA > 0) {
+    if (n.type === 'notable') return 'crystal-ball';
+    return 'orb-wand';
+  }
+  if (stats.LCK > 0 || stats.CRT > 0) {
+    if (n.type === 'notable') return 'clover';
+    return 'bullseye';
+  }
+  if (stats.DEF > 0) return 'checked-shield';
+  if (stats.STA > 0) return 'lungs';
+  switch (n.sector) {
+    case 0: return 'broadsword';
+    case 1: return 'aura';
+    case 2: return 'bird-mask';
+    case 3: return 'crystal-cluster';
+    case 4: return 'clover';
+    default: return 'wolf-head';
+  }
+}
+
+var iconCache = {};
+function loadNodeIcon(container, iconName, size, cx, cy) {
+  if (!iconName) return;
+  var g = document.createElementNS(NS, 'g');
+  g.setAttribute('class', 'tn-icon');
+  g.setAttribute('style', 'pointer-events: none;');
+  container.appendChild(g);
+  function applyPaths(svgText) {
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(svgText, 'image/svg+xml');
+    var svgEl = doc.documentElement;
+    var viewBox = svgEl.getAttribute('viewBox') || '0 0 512 512';
+    var vb = viewBox.split(' ').map(Number);
+    var vW = vb[2], vH = vb[3];
+    var scale = size / Math.max(vW, vH);
+    var tx = cx - (vW * scale) / 2;
+    var ty = cy - (vH * scale) / 2;
+    g.setAttribute('transform', 'translate(' + tx + ',' + ty + ') scale(' + scale + ')');
+    while (svgEl.firstChild) {
+      var child = svgEl.firstChild;
+      if (child.nodeType === 1) {
+        var fill = child.getAttribute('fill');
+        var stroke = child.getAttribute('stroke');
+        if (fill && fill !== 'none' && !fill.startsWith('url(')) {
+          child.setAttribute('fill', 'currentColor');
+        }
+        if (stroke && stroke !== 'none' && !stroke.startsWith('url(')) {
+          child.setAttribute('stroke', 'currentColor');
+        }
+      }
+      g.appendChild(child);
+    }
+  }
+  if (iconCache[iconName]) {
+    applyPaths(iconCache[iconName]);
+  } else {
+    fetch('/static/icons/' + iconName + '.svg')
+      .then(function(r) { return r.text(); })
+      .then(function(text) {
+        iconCache[iconName] = text;
+        applyPaths(text);
+      })
+      .catch(function(err) { console.error('failed to load icon', iconName, err); });
+  }
+}
+
 function abToast(m, ok){
   var host = document.getElementById('abToastHost');
   var t = document.createElement('div');
@@ -84,6 +271,58 @@ function isAllocatable(id){
 var edgeEls = [], nodeEls = {};
 function build(){
   svg.innerHTML = '';
+
+  // Background Decorations (Dividers & Sector Labels)
+  var gB = document.createElementNS(NS, 'g');
+  gB.setAttribute('class', 'tree-bg-decor');
+  
+  var maxRadius = 60 + 28 * 34; // 1012
+  var boundaries = [5.5, 11.5, 17.5, 23.5, 29.5, 35.5];
+  boundaries.forEach(function(slot) {
+    var angle = (slot / 36) * 2 * Math.PI - Math.PI / 2;
+    var bx = Math.round(maxRadius * Math.cos(angle));
+    var by = Math.round(maxRadius * Math.sin(angle));
+    
+    var line = document.createElementNS(NS, 'line');
+    line.setAttribute('x1', 0);
+    line.setAttribute('y1', 0);
+    line.setAttribute('x2', bx);
+    line.setAttribute('y2', by);
+    line.setAttribute('stroke', 'rgba(255, 255, 255, 0.05)');
+    line.setAttribute('stroke-width', '1.5');
+    line.setAttribute('stroke-dasharray', '8 8');
+    gB.appendChild(line);
+  });
+  
+  var sectorNames = ["WAR DISCIPLINE", "VITALITY DISCIPLINE", "SHADOW DISCIPLINE", "ARCANE DISCIPLINE", "FORTUNE DISCIPLINE", "VOID DISCIPLINE"];
+  var sectorIcons = ["⚔️", "❤️", "🌫️", "🔮", "🍀", "🕳️"];
+  
+  for (var s = 0; s < 6; s++) {
+    var angle = ((s * 6 + 2.5) / 36) * 2 * Math.PI - Math.PI / 2;
+    var labelRadius = 450;
+    var lx = Math.round(labelRadius * Math.cos(angle));
+    var ly = Math.round(labelRadius * Math.sin(angle));
+    
+    var txt = document.createElementNS(NS, 'text');
+    txt.setAttribute('x', lx);
+    txt.setAttribute('y', ly);
+    txt.setAttribute('fill', 'rgba(255, 255, 255, 0.04)');
+    txt.setAttribute('font-size', '36');
+    txt.setAttribute('font-weight', 'bold');
+    txt.setAttribute('text-anchor', 'middle');
+    txt.setAttribute('dominant-baseline', 'middle');
+    txt.setAttribute('style', 'pointer-events: none; font-family: system-ui, sans-serif; letter-spacing: 2px;');
+    
+    var deg = (angle * 180 / Math.PI) + 90;
+    if (deg > 90 && deg < 270) {
+      deg -= 180;
+    }
+    txt.setAttribute('transform', 'rotate(' + deg + ',' + lx + ',' + ly + ')');
+    txt.textContent = sectorIcons[s] + " " + sectorNames[s];
+    gB.appendChild(txt);
+  }
+  svg.appendChild(gB);
+
   var gE = document.createElementNS(NS,'g');
   EDGES.forEach(function(e){
     var a = e[0]===0 ? {x:0,y:0} : byId[e[0]];
@@ -109,7 +348,8 @@ function build(){
   NODES.forEach(function(n){
     var c = document.createElementNS(NS,'circle');
     c.setAttribute('cx',n.x); c.setAttribute('cy',n.y);
-    c.setAttribute('r', n.type==='keystone'?14 : n.type==='notable'||n.type==='bridge'?10 : 6);
+    var r = n.type==='keystone'?14 : n.type==='notable'||n.type==='bridge'?10 : 6;
+    c.setAttribute('r', r);
     c.setAttribute('data-id', n.id);
     // Keyboard operability: every node is a focusable button; Enter/Space
     // allocates exactly like a click (.tn:focus-visible carries the outline).
@@ -120,10 +360,24 @@ function build(){
     c.addEventListener('keydown', function(ev){
       if(ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar'){ ev.preventDefault(); tryAllocate(n.id); }
     });
-    c.addEventListener('mouseenter', function(ev){ showTip(n, ev); });
-    c.addEventListener('mouseleave', hideTip);
+    c.addEventListener('mouseenter', function(ev){
+      showTip(n, ev);
+      if (isAllocatable(n.id)) {
+        renderSummary(activePct, activeStats, n);
+      }
+    });
+    c.addEventListener('mouseleave', function(){
+      hideTip();
+      renderSummary(activePct, activeStats);
+    });
     gN.appendChild(c);
     nodeEls[n.id] = c;
+
+    var iconName = getNodeIcon(n);
+    if (iconName) {
+      var iconSize = n.type==='keystone' ? 16 : n.type==='notable'||n.type==='bridge' ? 12 : 8;
+      loadNodeIcon(gN, iconName, iconSize, n.x, n.y);
+    }
   });
   svg.appendChild(gN);
   paint();
@@ -148,6 +402,28 @@ function paint(){
 }
 
 // ---- Interaction -----------------------------------------------------------
+var activeStats = {};
+var activePct = {};
+
+function calculateActiveTotals() {
+  activeStats = {HP:0, MNA:0, STR:0, DEF:0, SPD:0, LCK:0, INT:0, STA:0, CRT:0, DGE:0};
+  activePct = {};
+  NODES.forEach(function(n) {
+    if (alloc[n.id]) {
+      if (n.stats) {
+        Object.keys(n.stats).forEach(function(k) {
+          activeStats[k] = (activeStats[k] || 0) + n.stats[k];
+        });
+      }
+      if (n.pct) {
+        Object.keys(n.pct).forEach(function(k) {
+          activePct[k] = (activePct[k] || 0) + n.pct[k];
+        });
+      }
+    }
+  });
+}
+
 async function tryAllocate(id){
   if(alloc[id]){ abToast('Already allocated.', false); return; }
   if(!isAllocatable(id)){
@@ -158,7 +434,9 @@ async function tryAllocate(id){
   if(!d.ok){ abToast(d.error||'failed', false); return; }
   alloc[id] = true; used = d.used; points = d.points;
   abToast(d.msg, true);
-  paint(); renderSummary(d.pct, d.stats);
+  calculateActiveTotals();
+  paint();
+  renderSummary(activePct, activeStats);
 }
 
 async function treeRespec(){
@@ -169,34 +447,84 @@ async function treeRespec(){
   setTimeout(function(){ location.reload(); }, 800);
 }
 
-var PCT_LABELS = {str_pct:'STR (Abyss)', hp_pct:'max HP (Abyss)', spd_pct:'SPD (Abyss)', int_pct:'INT (Abyss)',
+var PCT_LABELS = {
+  str_pct:'STR (Abyss)', hp_pct:'max HP (Abyss)', spd_pct:'SPD (Abyss)', int_pct:'INT (Abyss)',
   gold_find:'gold from drops', loot_find:'loot find', escrow_bonus:'escrow floor bonus',
-  xp_gain:'floor XP', token_gain:'tokens on bank', material_yield:'crafting materials'};
-function renderSummary(pct, stats){
+  xp_gain:'floor XP', token_gain:'tokens on bank', material_yield:'crafting materials',
+  str_to_spd:'STR converted to SPD', hp_to_def:'HP converted to DEF', spd_to_dge:'SPD converted to DGE', int_to_mna:'INT converted to MNA'
+};
+
+function renderSummary(pct, stats, diffNode){
   var el = document.getElementById('treeSummary');
-  if(pct){
-    var html = '';
-    Object.keys(pct).forEach(function(k){
-      if(pct[k]) html += '<span class="skill-pill">'+(pct[k]>0?'+':'')+(pct[k]*100).toFixed(1)+'% '+(PCT_LABELS[k]||k)+'</span>';
+  var html = '';
+  
+  var displayPct = Object.assign({}, pct || activePct);
+  var diffPct = {};
+  if (diffNode && diffNode.pct) {
+    Object.keys(diffNode.pct).forEach(function(k) {
+      displayPct[k] = (displayPct[k] || 0) + diffNode.pct[k];
+      diffPct[k] = diffNode.pct[k];
     });
-    el.innerHTML = html || '<span class="muted small">No percent bonuses yet.</span>';
   }
-  if(stats){
-    var parts = [];
-    ['HP','MNA','STR','DEF','SPD','LCK','INT','STA','CRT','DGE'].forEach(function(k){
-      if(stats[k]) parts.push('+'+stats[k]+' '+k);
+  
+  Object.keys(displayPct).forEach(function(k){
+    if(displayPct[k]) {
+      var diffStr = '';
+      if (diffPct[k]) {
+        diffStr = ' <span class="diff-add">(+' + (diffPct[k]*100).toFixed(1) + '%)</span>';
+      }
+      html += '<span class="skill-pill ' + (diffPct[k] ? 'preview-highlight' : '') + '">' +
+              (displayPct[k]>0?'+':'')+(displayPct[k]*100).toFixed(1)+'% '+(PCT_LABELS[k]||k) +
+              diffStr + '</span>';
+    }
+  });
+  el.innerHTML = html || '<span class="muted small">No percent bonuses yet.</span>';
+  
+  var displayStats = Object.assign({}, stats || activeStats);
+  var diffStats = {};
+  if (diffNode && diffNode.stats) {
+    Object.keys(diffNode.stats).forEach(function(k) {
+      displayStats[k] = (displayStats[k] || 0) + diffNode.stats[k];
+      diffStats[k] = diffNode.stats[k];
     });
-    document.getElementById('treeStatLine').textContent = parts.length ? ('Flat stats: '+parts.join(' · ')) : '';
   }
+  
+  var parts = [];
+  ['HP','MNA','STR','DEF','SPD','LCK','INT','STA','CRT','DGE'].forEach(function(k){
+    if(displayStats[k]) {
+      var str = '+' + displayStats[k] + ' ' + k;
+      if (diffStats[k]) {
+        str += ' (+' + diffStats[k] + ')';
+        parts.push('<span class="preview-text-highlight">' + str + '</span>');
+      } else {
+        parts.push(str);
+      }
+    }
+  });
+  document.getElementById('treeStatLine').innerHTML = parts.length ? ('Flat stats: '+parts.join(' · ')) : '';
 }
 
 // Tooltip.
 var tip = document.getElementById('treeTip');
 function showTip(n, ev){
-  tip.innerHTML = '<b>'+n.name+'</b><br><span class="muted small">'+(n.desc||'')+'</span>'+
-    (alloc[n.id] ? '<br><span class="tt-on">● allocated</span>' :
-      isAllocatable(n.id) ? '<br><span class="tt-can">○ click to allocate</span>' :
-      '<br><span class="muted small">🔒 not connected / no points</span>');
+  tip.className = 'tree-tip tip-' + n.type;
+  var headerClass = 'tree-tip-header-' + n.type;
+  
+  var nameHtml = '<span class="' + headerClass + '">' + n.name + '</span>';
+  if (n.type === 'keystone') {
+    nameHtml = '👑 ' + nameHtml + ' <span class="muted small">(Keystone)</span>';
+  } else if (n.type === 'notable') {
+    nameHtml = '★ ' + nameHtml + ' <span class="muted small">(Notable)</span>';
+  } else if (n.type === 'bridge') {
+    nameHtml = '🌉 ' + nameHtml + ' <span class="muted small">(Pact Bridge)</span>';
+  } else {
+    nameHtml = '<b>' + n.name + '</b>';
+  }
+  
+  tip.innerHTML = nameHtml + '<br><span class="muted small" style="margin-top:4px; display:inline-block;">'+(n.desc||'')+'</span>'+
+    (alloc[n.id] ? '<br><span class="tt-on" style="margin-top:4px; display:inline-block;">● allocated</span>' :
+      isAllocatable(n.id) ? '<br><span class="tt-can" style="margin-top:4px; display:inline-block;">○ click to allocate</span>' :
+      '<br><span class="muted small" style="margin-top:4px; display:inline-block;">🔒 not connected / no points</span>');
   tip.style.display = '';
   moveTip(ev);
 }
@@ -255,9 +583,8 @@ function treeSearchApply(){
 })();
 
 build();
-// Seed the summary with the server-computed flat stats so they show on first
-// load, not only after the next allocation refresh (the pct pills are already
-// server-rendered in the template).
-renderSummary(null, {{jsonJS .Bonus}});
+calculateActiveTotals();
+paint();
+renderSummary(activePct, activeStats);
 </script>
 {{template "foot" .}}{{end}}

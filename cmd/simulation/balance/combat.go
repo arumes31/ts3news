@@ -27,6 +27,7 @@ type combatPlayer struct {
 	str         int
 	def         int
 	lastSkillID string
+	petHealCD   int
 }
 
 // ResolveCombat runs a full multi-wave combat encounter.
@@ -176,6 +177,9 @@ func ResolveCombat(rng *rand.Rand, players []*SimPlayer, avgLvl int, difficulty 
 			for i := range cp {
 				if cp[i].hp > 0 && cp[i].p.UltimateSkill != nil && cp[i].p.UltimateSkill.CurrentCooldown > 0 {
 					cp[i].p.UltimateSkill.CurrentCooldown--
+				}
+				if cp[i].petHealCD > 0 {
+					cp[i].petHealCD--
 				}
 			}
 
@@ -480,7 +484,7 @@ func playerTurn(rng *rand.Rand, cp []combatPlayer, mobs []*SimMob, players []*Si
 		}
 
 		// Pet attacks
-		for _, pet := range p.Pets {
+		for petIdx, pet := range p.Pets {
 			if pet.Stats.HP <= 0 {
 				continue
 			}
@@ -502,6 +506,35 @@ func playerTurn(rng *rand.Rand, cp []combatPlayer, mobs []*SimMob, players []*Si
 					result.DamageReceived += int64(pdmg)
 				}
 				continue
+			}
+
+			// pet2 healspell logic
+			if petIdx == 1 && cp[i].petHealCD == 0 {
+				var bestTarget *combatPlayer
+				lowestHPPct := 1.0
+				for k := range cp {
+					if cp[k].hp > 0 && cp[k].hp < cp[k].p.MaxHP {
+						pct := float64(cp[k].hp) / float64(cp[k].p.MaxHP)
+						if pct < lowestHPPct {
+							lowestHPPct = pct
+							bestTarget = &cp[k]
+						}
+					}
+				}
+				if bestTarget != nil {
+					healAmt := int(float64(bestTarget.p.MaxHP) * 0.15) + pet.Level * 3
+					if healAmt < 10 {
+						healAmt = 10
+					}
+					bestTarget.hp += healAmt
+					if bestTarget.hp > bestTarget.p.MaxHP {
+						healAmt -= (bestTarget.hp - bestTarget.p.MaxHP)
+						bestTarget.hp = bestTarget.p.MaxHP
+					}
+					cp[i].petHealCD = 2
+					*logs = append(*logs, fmt.Sprintf("✨ %s's Pet %s casts a Healing Spell on %s, restoring %d HP! (2-round cooldown)", p.PlayerDisplay(), pet.Name, bestTarget.p.PlayerDisplay(), healAmt))
+					continue
+				}
 			}
 
 			ptarget := aliveMobs[rng.Intn(len(aliveMobs))]
