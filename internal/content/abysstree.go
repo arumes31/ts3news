@@ -159,6 +159,14 @@ const (
 	treeFirstKeyID = treeGridNodes + 1
 )
 
+// Skill-granting tree nodes: allocating one of these adds an active skill to
+// the player's combat kit. The IDs live here, next to the tree definition, so
+// the combat loop doesn't hardcode raw grid IDs (see getSkills in the bot).
+const (
+	NodeSkillEarthquake   = 624 // grants S_EQ (Earthquake)
+	NodeSkillArcaneShield = 466 // grants S_AS (Arcane Shield)
+)
+
 var treeSectorNames = [treeSectors]string{"War", "Vitality", "Shadow", "Arcane", "Fortune", "Void"}
 var treeSectorIcons = [treeSectors]string{"⚔️", "❤️", "🌫️", "🔮", "🍀", "🕳️"}
 
@@ -509,14 +517,9 @@ func buildAbyssTree() *AbyssTreeData {
 							}
 						}
 					}
-					// Normal radial propagation from Ring 10 to Ring 11
-					if rel == 2 || rel == 3 {
-						addEdge(gridID(10, slot), gridID(11, slot))
-					} else if rel == 1 || rel == 4 {
-						addEdge(gridID(10, slot), gridID(11, slot))
-					} else if rel == 0 || rel == 5 {
-						addEdge(gridID(10, slot), gridID(11, slot))
-					}
+					// Normal radial propagation from Ring 10 to Ring 11: every
+					// lane (rel 0..5) propagates, so this is unconditional.
+					addEdge(gridID(10, slot), gridID(11, slot))
 				} else {
 					// Normal radial spoke propagation
 					if rel == 2 || rel == 3 {

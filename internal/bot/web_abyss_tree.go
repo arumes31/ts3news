@@ -178,9 +178,10 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 						statType := parts[3]
 
 						radius := 120.0
-						if size == "medium" {
+						switch size {
+						case "medium":
 							radius = 220.0
-						} else if size == "large" {
+						case "large":
 							radius = 350.0
 						}
 
@@ -270,11 +271,12 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 	if allocatedMap[771] {
 		var spec string
 		_ = b.DB.QueryRow("SELECT active_specialization FROM users WHERE client_uid=$1", uid).Scan(&spec)
-		if spec == "warden" {
+		switch spec {
+		case "warden":
 			tb.Pct["hp_pct"] += 0.15
-		} else if spec == "delver" {
+		case "delver":
 			tb.Pct["str_pct"] += 0.15
-		} else if spec == "plunderer" {
+		case "plunderer":
 			tb.Pct["gold_find"] += 0.25
 		}
 	}

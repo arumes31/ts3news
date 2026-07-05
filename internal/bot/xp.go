@@ -1032,6 +1032,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 
 			dmgMult := 1.0
 			ignoreDef := 0.0
+			skipDamage := false
 			for _, eff := range au.effects {
 				if eff == content.EffectBerserk && u.CurrentHP < u.Stats.HP/2 {
 					dmgMult += 0.2
@@ -1074,6 +1075,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 
 				dmgMult *= s.Power * spellPowerMult
+				// Pure support skills (Power 0, e.g. Arcane Shield) only heal —
+				// flag the hit so it deals no mob damage below.
+				if s.Power == 0 {
+					skipDamage = true
+				}
 				// Skill web: Spellweaver boosts skill cast damage.
 				if v := au.treeBonus.Pct["skill_damage"]; v > 0 {
 					dmgMult *= 1 + v
@@ -1107,6 +1113,12 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			} else {
 				au.lastSkillID = "" // Reset combo if no skill used
+			}
+
+			// Pure support cast (e.g. Arcane Shield): the heal already applied
+			// above, so skip the rest of the attack resolution — no mob damage.
+			if skipDamage {
+				continue
 			}
 
 			// Elemental System (Improvement 1)
@@ -2757,9 +2769,10 @@ func (b *Bot) getSkills(uid string) []content.Skill {
 		hasEQ := false
 		hasAS := false
 		for _, nid := range alloc {
-			if nid == 624 {
+			switch nid {
+			case content.NodeSkillEarthquake:
 				hasEQ = true
-			} else if nid == 466 {
+			case content.NodeSkillArcaneShield:
 				hasAS = true
 			}
 		}

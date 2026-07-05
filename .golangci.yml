@@ -1,19 +1,15 @@
 version: "2"
 
-# CI runs golangci-lint with `version: latest` and no prior config, so new
-# staticcheck defaults could fail pre-existing code. We keep the full default
-# linter set and only filter out two purely stylistic "quickfix" suggestions:
-#   QF1003 — rewrite if/else-if chains as tagged switches. Several of these live
-#            in abysstree.go's edge-building logic, which feeds LayoutHash(); a
-#            hash change grants every player a free respec, so we don't churn it
-#            for a cosmetic rewrite.
-#   QF1011 — omit an inferrable type in a var declaration.
+# CI runs golangci-lint with `version: latest` and no prior config. We keep the
+# full default linter set and only exempt abysstree.go from one stylistic check:
+#   QF1003 — "rewrite if/else-if chain as a tagged switch". The remaining chains
+#            live in abysstree.go's edge-building logic, which feeds LayoutHash();
+#            a hash change force-respecs every player, so we don't churn that code
+#            for a cosmetic rewrite. QF1003 stays enforced everywhere else.
 linters:
   exclusions:
     rules:
       - linters:
           - staticcheck
         text: "QF1003"
-      - linters:
-          - staticcheck
-        text: "QF1011"
+        path: internal/content/abysstree\.go

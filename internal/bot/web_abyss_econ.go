@@ -1047,7 +1047,7 @@ func (s *WebServer) handleAbyssUpgrade(w http.ResponseWriter, r *http.Request, u
 
 	var level int
 	var tokens int64
-	var parentLvl int = 1
+	var parentLvl = 1
 
 	query := "SELECT " + col + ", abyss_tokens"
 	parent, hasParent := abyssUpgradeParents[req.Node]
