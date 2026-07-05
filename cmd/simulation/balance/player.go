@@ -366,6 +366,19 @@ func (p *SimPlayer) RecalculateStats(params SimParams) {
 	if v := p.TreeBonus.Pct["int_pct"]; v != 0 {
 		base.INT = int(float64(base.INT) * (1 + v))
 	}
+	// Mirror the remaining ApplyCombatPct multipliers so the sim credits these nodes.
+	if v := p.TreeBonus.Pct["def_pct"]; v != 0 {
+		base.DEF = int(float64(base.DEF) * (1 + v))
+	}
+	if v := p.TreeBonus.Pct["crt_pct"]; v != 0 {
+		base.CRT = int(float64(base.CRT) * (1 + v))
+	}
+	if v := p.TreeBonus.Pct["dge_pct"]; v != 0 {
+		base.DGE = int(float64(base.DGE) * (1 + v))
+	}
+	if v := p.TreeBonus.Pct["lck_pct"]; v != 0 {
+		base.LCK = int(float64(base.LCK) * (1 + v))
+	}
 
 	// Apply Conversions
 	if v := p.TreeBonus.Pct["str_to_spd"]; v != 0 {

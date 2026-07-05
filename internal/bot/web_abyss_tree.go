@@ -318,23 +318,21 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 		}
 	}
 
-	// 7. Set Resonance (Set Resonance node 883)
+	// 7. Set Resonance (Set Resonance node 883): +5% str/hp/int/spd per full set tier
+	// (every 2 equipped pieces sharing a set). Counts equipped gear by EffectiveSetID,
+	// mirroring activeLootMult's set counting — the old query hit a non-existent
+	// `user_gears` table (with no such columns) and silently granted nothing.
 	if allocatedMap[883] {
-		var setBonusTiers int
-		rows, err := b.DB.Query("SELECT prefix FROM user_gears WHERE client_uid = $1 AND equipped = TRUE", uid)
-		if err == nil {
-			prefixCount := map[string]int{}
-			for rows.Next() {
-				var prefix string
-				if rows.Scan(&prefix) == nil && prefix != "" {
-					prefixCount[prefix]++
-				}
+		setCount := map[string]int{}
+		for _, g := range b.getEquippedItems(uid) {
+			if sid := g.EffectiveSetID(); sid != "" {
+				setCount[sid]++
 			}
-			_ = rows.Close()
-			for _, cnt := range prefixCount {
-				if cnt >= 2 {
-					setBonusTiers += cnt / 2
-				}
+		}
+		var setBonusTiers int
+		for _, cnt := range setCount {
+			if cnt >= 2 {
+				setBonusTiers += cnt / 2
 			}
 		}
 		if setBonusTiers > 0 {
@@ -436,6 +434,7 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 	var cooldownUntil string
 	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", fmt.Sprintf("abyss_keystone_cooldown_%s_%d", uid, content.NodeLimitBreak)).Scan(&cooldownUntil)
 
+	st := s.bot.loadAbyssStats(uid) // one ~19-column read, reused for BestDepth + Stats below
 	s.render(w, "abysstree", map[string]any{
 		"Title":     "Abyss Skill Web",
 		"Nav":       "abyss",
@@ -457,10 +456,10 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		// Best depth drives the client-side mirror of the allocation floor
 		// gates (Item 62), so gated nodes are shown locked instead of
 		// advertising an allocate the server would refuse.
-		"BestDepth": s.bot.loadAbyssStats(uid).BestDepth,
+		"BestDepth": st.BestDepth,
 		"RespecTk":  abyssTreeRespecTokens,
 		// Talent/Spec updates
-		"Stats":     s.bot.loadAbyssStats(uid),
+		"Stats":     st,
 		"Spec":      s.bot.abyssSpec(uid),
 		"SpecDefs":  abyssSpecs,
 		// Deep-Delver extension: 50 generic talent nodes + their allocated levels,

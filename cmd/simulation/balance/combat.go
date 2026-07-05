@@ -232,6 +232,7 @@ func ResolveCombat(rng *rand.Rand, players []*SimPlayer, avgLvl int, difficulty 
 		result.GoldGained = totalRewardGold / int64(len(players))
 	} else {
 		result.XPGained = perUserXP * 0.25
+		result.XPPenalty = perUserXP * 0.75 // the 75% death tax not banked (surfaced by metrics.go)
 	}
 
 	// Update player HP and stats
