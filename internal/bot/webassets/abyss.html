@@ -83,7 +83,7 @@
     <h3>⚔️ Armoury</h3>
     <div class="abyss-side-list">
       {{range .Equipped}}
-      <div class="abyss-side-gear">
+      <div class="abyss-side-gear" title="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .Durability 0}} · Dur {{.Durability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
         <span class="gi icn" style="--gi:url(/static/icons/{{.IconName}}.svg);color:{{.RarityColor}}"></span>
         <span style="color:{{.RarityColor}}">{{.Name}}</span>
         <span class="cr">CR {{printf "%.0f" .CR}}</span>
@@ -258,7 +258,7 @@
     </div>
     <div class="abyss-side-list" id="lootManifest">
       {{range .RunLoot}}
-      <div class="abyss-side-loot" data-depth="{{.Depth}}">{{.Label}}</div>
+      <div class="abyss-side-loot" data-depth="{{.Depth}}" title="{{.Title}}&#10;(floor {{.Depth}})">{{.Label}}</div>
       {{else}}
       <div class="abyss-side-empty">No loot escrowed yet this run.</div>
       {{end}}
@@ -451,14 +451,14 @@
           <optgroup label="Equipped Items">
             {{range .Equipped}}
               <option value="equipped:{{.Slot}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}">
-                [Equipped] {{.Name}} ({{.Rarity}})
+                {{.Icon}} [Equipped] {{.Name}} ({{.Rarity}})
               </option>
             {{end}}
           </optgroup>
           <optgroup label="Backpack Inventory">
             {{range .Inventory}}
               <option value="inv:{{.InvID}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}">
-                [Inv] {{.Name}} ({{.Rarity}})
+                {{.Icon}} [Inv] {{.Name}} ({{.Rarity}})
               </option>
             {{end}}
           </optgroup>

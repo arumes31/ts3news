@@ -257,6 +257,11 @@ func (b *Bot) applyAbyssRegen(uid string, equipped map[content.GearSlot]content.
 			perSec += float64(g.RegenAmount) / float64(g.RegenIntervalSec)
 		}
 	}
+	// Skill-web HP-regen nodes (the 💚 regen cluster + "of Rejuvenation" enchants)
+	// contribute HP/sec through the same out-of-combat regen the gear affix uses.
+	if v := b.treeBonusFor(uid).Pct["hp_regen"]; v > 0 {
+		perSec += v
+	}
 	key := "abyss_hp_regen_" + uid
 	now := time.Now()
 	setTS := func(t time.Time) {
@@ -986,7 +991,11 @@ func bbToHTML(s string) string {
 type runLootRow struct {
 	Label template.HTML
 	Depth int
+	Title string // plain-text label for the hover tooltip (full, un-truncated detail)
 }
+
+// bbTagRe strips every BBCode tag, leaving plain text for title tooltips.
+var bbTagRe = regexp.MustCompile(`\[[^\]]*\]`)
 
 // currentRunLootManifest returns every item escrowed so far in the player's
 // active run, oldest first, for the loot manifest sidebar.
@@ -1001,7 +1010,7 @@ func (b *Bot) currentRunLootManifest(uid string) []runLootRow {
 		var label string
 		var depth int
 		if err := rows.Scan(&label, &depth); err == nil {
-			out = append(out, runLootRow{Label: template.HTML(bbToHTML(label)), Depth: depth}) // #nosec G203 -- bbToHTML escapes first
+			out = append(out, runLootRow{Label: template.HTML(bbToHTML(label)), Depth: depth, Title: bbTagRe.ReplaceAllString(label, "")}) // #nosec G203 -- bbToHTML escapes first
 		}
 	}
 	return out
@@ -1079,6 +1088,17 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	if err != nil {
 		http.Redirect(w, r, "/denied", http.StatusSeeOther)
 		return
+	}
+	// The dashboard must show the same stats the descent actually fights with, so
+	// fold in the Abyss skill-web bonus (loadWebUser only knows base + gear).
+	// Mirrors buildAbyssUser, so max HP and every stat update the moment you
+	// allocate or respec the web.
+	atb := s.bot.treeBonusFor(uid)
+	u.Stats = atb.ApplyCombatPct(u.Stats.Add(atb.Stats))
+	u.MaxHP = u.Stats.HP
+	u.MaxMana = 100 + u.Stats.MNA
+	if u.CurrentHP > u.MaxHP {
+		u.CurrentHP = u.MaxHP
 	}
 	st := s.bot.loadAbyssStats(uid)
 	run := s.bot.loadAbyssRun(uid)

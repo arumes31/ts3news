@@ -135,9 +135,12 @@ func (b *Bot) treePointsTotal(uid string) int {
 	_ = b.DB.QueryRow(
 		"SELECT level, abyss_best_depth, abyss_prestige, abyss_lifetime_floors FROM users WHERE client_uid=$1", uid,
 	).Scan(&level, &bestDepth, &prestige, &lifetimeFloors)
-	pts := level + bestDepth + int(lifetimeFloors/10) + prestige*25
-	if pts > 1000 {
-		pts = 1000
+	// The web grew from ~1000 to ~5100 nodes, so points scale up to match: the old
+	// formula is roughly tripled and the cap raised to 5000 (aura mega-nodes cost
+	// 50 each, so the outermost rim is still a serious long-term investment).
+	pts := level*2 + bestDepth*3 + int(lifetimeFloors/4) + prestige*60
+	if pts > 5000 {
+		pts = 5000
 	}
 	return pts
 }
@@ -496,6 +499,7 @@ func treePctLabelPublic(k string) string {
 		"token_gain": "tokens on bank", "material_yield": "crafting materials",
 		"skill_damage": "skill damage", "skill_mana_cost": "skill mana cost reduction",
 		"consumable_save": "chance consumables keep their charge",
+		"hp_regen":        "HP regen / sec",
 	}
 	if l, ok := labels[k]; ok {
 		return l
