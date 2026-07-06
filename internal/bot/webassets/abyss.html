@@ -417,7 +417,7 @@
     <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
       <h3 style="margin:0 0 6px;">💱 Token Exchange <span class="ab-up-lv">1 🜲 = {{gold .TokenBuyGold}}</span></h3>
       <div style="display:flex; align-items:center; gap:6px;">
-        <input type="number" id="exchAmount" value="1" min="1" max="1000" style="width:70px;">
+        <input type="number" id="exchAmount" value="1" min="1" max="1000" style="width:70px;" aria-label="Exchange amount">
         <button class="ghost xs" onclick="abyssExchange('buy')">Buy 🜲 ({{gold .TokenBuyGold}} each)</button>
         <button class="ghost xs" onclick="abyssExchange('sell')">Sell 🜲 ({{gold .TokenSellGold}} each)</button>
       </div>
