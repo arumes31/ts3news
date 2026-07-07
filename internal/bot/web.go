@@ -155,6 +155,14 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 // Start runs the HTTP server (blocking). Intended to be launched in a goroutine.
 // When ctx is cancelled the server is gracefully shut down. Start returns nil on
 // a clean shutdown so callers can distinguish it from a real listen error.
+func withSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux := http.NewServeMux()
 
@@ -301,7 +309,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           withSecurityHeaders(mux),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	s.mu.Lock()
