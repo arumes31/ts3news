@@ -1548,9 +1548,9 @@ function openConsumablePick(list, max, total){
     row.style.cssText='display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px; border:1px solid rgba(255,255,255,0.08); border-radius:6px;';
     row.innerHTML='<span>'+consEsc(it.name)+' <span class="muted small">(have '+it.count+')</span></span>'+
       '<span style="display:flex; align-items:center; gap:10px;">'+
-        '<button class="ghost xs" onclick="consPickAdj('+idx+',-1)">−</button>'+
+        '<button class="ghost xs" aria-label="Decrease quantity" onclick="consPickAdj('+idx+',-1)">−</button>'+
         '<b id="consTake-'+idx+'" style="min-width:14px; text-align:center;">0</b>'+
-        '<button class="ghost xs" onclick="consPickAdj('+idx+',1)">+</button>'+
+        '<button class="ghost xs" aria-label="Increase quantity" onclick="consPickAdj('+idx+',1)">+</button>'+
       '</span>';
     listEl.appendChild(row);
   });
