@@ -467,7 +467,7 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 			dest = next
 		}
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
