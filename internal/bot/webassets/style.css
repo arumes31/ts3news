@@ -28,6 +28,15 @@ a {
   color: var(--xp);
   text-decoration: none
 }
+a:focus-visible,
+button:focus-visible,
+input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(123, 108, 255, .35);
+}
+
 
 a:hover {
   text-decoration: underline
