@@ -17,8 +17,8 @@
     <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
     <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}} · {{.Durability}} dur</div>
     <div class="inv-actions">
-      <button onclick="equip({{.InvID}})">Equip</button>
-      <button class="ghost" onclick="sell({{.InvID}})">Vendor</button>
+      <button onclick="equip({{.InvID}}, this)">Equip</button>
+      <button class="ghost" onclick="sell({{.InvID}}, this)">Vendor</button>
     </div>
   </div>
   {{end}}
@@ -37,7 +37,7 @@
 <script data-cfasync="false">
   function toast(m, ok) { var t = document.getElementById('invMsg'); t.textContent = m; t.className = 'toast show ' + (ok ? 'good' : 'bad'); setTimeout(function () { t.className = 'toast'; }, 2500); }
   async function post(url, body) { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return r.json(); }
-  async function equip(id) { const d = await post('/api/inventory/equip', { inv_id: id }); if (d.ok) { toast('Equipped ' + d.equipped, true); setTimeout(() => location.reload(), 700); } else toast(d.error, false); }
-  async function sell(id) { const d = await post('/api/inventory/sell', { inv_id: id }); if (d.ok) { toast('Vendored for ' + d.value + ' gold', true); setTimeout(() => location.reload(), 700); } else toast(d.error, false); }
+  async function equip(id, btn) { if(btn){btn.disabled=true;btn.classList.add('btn-busy');} const d = await post('/api/inventory/equip', { inv_id: id }); if (d.ok) { toast('Equipped ' + d.equipped, true); setTimeout(() => location.reload(), 700); } else { if(btn){btn.disabled=false;btn.classList.remove('btn-busy');} toast(d.error, false); } }
+  async function sell(id, btn) { if(btn){btn.disabled=true;btn.classList.add('btn-busy');} const d = await post('/api/inventory/sell', { inv_id: id }); if (d.ok) { toast('Vendored for ' + d.value + ' gold', true); setTimeout(() => location.reload(), 700); } else { if(btn){btn.disabled=false;btn.classList.remove('btn-busy');} toast(d.error, false); } }
 </script>
 {{template "foot" .}}{{end}}
