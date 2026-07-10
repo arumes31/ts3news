@@ -301,7 +301,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           securityHeaders(mux),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	s.mu.Lock()
@@ -335,6 +335,16 @@ func (s *WebServer) Shutdown(ctx context.Context) error {
 }
 
 // ---- Auth ----------------------------------------------------------------
+
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;")
+		next.ServeHTTP(w, r)
+	})
+}
 
 // ensureWebToken returns the user's persistent login token, generating and
 // storing one on first use.
