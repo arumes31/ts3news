@@ -299,9 +299,17 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/api/ah/buy", s.auth(s.handleAHBuyAPI))
 	mux.HandleFunc("/api/ah/list", s.auth(s.handleAHListAPI))
 
+	securityMiddleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("X-Frame-Options", "DENY")
+			next.ServeHTTP(w, r)
+		})
+	}
+
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           securityMiddleware(mux),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	s.mu.Lock()
@@ -467,7 +475,7 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 			dest = next
 		}
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 - path is manually validated to prevent open redirects
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
