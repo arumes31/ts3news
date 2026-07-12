@@ -9,13 +9,13 @@
       <h3>🪙 Gold → ✨ XP</h3>
       <p class="muted small">{{.GoldPerXP}} gold = 1 XP</p>
       <label>Gold <input type="number" id="g2xAmount" value="100" min="1"></label>
-      <button onclick="exchange('gold_to_xp','g2xAmount')">Convert</button>
+      <button onclick="exchange('gold_to_xp','g2xAmount', this)">Convert</button>
     </div>
     <div class="ex-card">
       <h3>✨ XP → 🪙 Gold</h3>
       <p class="muted small">{{.XPPerGold}} XP = 1 gold</p>
       <label>XP <input type="number" id="x2gAmount" value="100" min="1"></label>
-      <button onclick="exchange('xp_to_gold','x2gAmount')">Convert</button>
+      <button onclick="exchange('xp_to_gold','x2gAmount', this)">Convert</button>
     </div>
   </div>
   <p class="muted small" id="exState">Balance: 🪙 {{gold .U.Gold}} · ✨ {{comma .U.XP}} XP · {{.U.LevelName}} (Lvl {{.U.Level}})</p>
@@ -32,7 +32,7 @@
       <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}}</div>
       {{if .Effects}}<div class="inv-meta" style="color:{{.RarityColor}}">✨ {{range $i, $e := .Effects}}{{if $i}}, {{end}}{{$e}}{{end}}</div>{{end}}
       <div class="price">🪙 {{gold .Price}}</div>
-      <button onclick="buy('{{.ID}}')">Buy</button>
+      <button onclick="buy('{{.ID}}', this)">Buy</button>
     </div>
     {{end}}
   </div>
@@ -41,18 +41,33 @@
 <script data-cfasync="false">
 function toast(m, ok){var t=document.getElementById('shopMsg');t.textContent=m;t.className='toast show '+(ok?'good':'bad');setTimeout(function(){t.className='toast';},2600);}
 async function post(url, body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json();}
-async function exchange(dir, inputId){
+async function exchange(dir, inputId, btn){
   const amount=parseInt(document.getElementById(inputId).value,10);
   if(!amount||amount<1){toast('Enter an amount',false);return;}
+  if(btn){btn.disabled=true;btn.classList.add('btn-busy');}
   const d=await post('/api/shop/exchange',{direction:dir,amount:amount});
-  if(d.ok){toast(d.detail,true);document.getElementById('goldPill').textContent='🪙 '+d.gold;document.getElementById('xpPill').textContent='✨ Lvl '+d.level;
-    document.getElementById('exState').textContent='Balance: 🪙 '+d.gold+' · ✨ '+d.xp+' XP · '+d.level_name+' (Lvl '+d.level+')';}
-  else toast(d.error,false);
+  if(d.ok){
+    toast(d.detail,true);
+    document.getElementById('goldPill').textContent='🪙 '+d.gold;
+    document.getElementById('xpPill').textContent='✨ Lvl '+d.level;
+    document.getElementById('exState').textContent='Balance: 🪙 '+d.gold+' · ✨ '+d.xp+' XP · '+d.level_name+' (Lvl '+d.level+')';
+    if(btn){btn.disabled=false;btn.classList.remove('btn-busy');}
+  } else {
+    toast(d.error,false);
+    if(btn){btn.disabled=false;btn.classList.remove('btn-busy');}
+  }
 }
-async function buy(id){
+async function buy(id, btn){
+  if(btn){btn.disabled=true;btn.classList.add('btn-busy');}
   const d=await post('/api/shop/buy',{id:id});
-  if(d.ok){toast('Bought '+d.bought+' → inventory',true);document.getElementById('goldPill').textContent='🪙 '+d.gold;}
-  else toast(d.error,false);
+  if(d.ok){
+    toast('Bought '+d.bought+' → inventory',true);
+    document.getElementById('goldPill').textContent='🪙 '+d.gold;
+    if(btn){btn.disabled=false;btn.classList.remove('btn-busy');}
+  } else {
+    toast(d.error,false);
+    if(btn){btn.disabled=false;btn.classList.remove('btn-busy');}
+  }
 }
 
 /* Live countdown to the next stock refresh; reloads to pull fresh items. */
