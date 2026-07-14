@@ -467,7 +467,7 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 			dest = next
 		}
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 - path is validated to prevent open redirect
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
@@ -485,7 +485,7 @@ func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) handleDenied(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusForbidden)
 	s.render(w, "denied", map[string]any{"Title": "Access"})
 }
 
