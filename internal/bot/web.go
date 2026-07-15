@@ -78,7 +78,7 @@ func (s *WebServer) lockAbyss(uid string) func() {
 // NewWebServer parses the embedded templates and returns a ready server.
 func NewWebServer(b *Bot) (*WebServer, error) {
 	tmpl, err := template.New("").Funcs(template.FuncMap{
-		"gold":  func(v int64) string { return FormatGoldPlain(v) },
+		"gold": func(v int64) string { return FormatGoldPlain(v) },
 		"comma": func(v any) string {
 			var f float64
 			switch n := v.(type) {
@@ -467,7 +467,7 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 			dest = next
 		}
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 - dest is manually validated above
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
@@ -485,7 +485,7 @@ func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) handleDenied(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusForbidden)
 	s.render(w, "denied", map[string]any{"Title": "Access"})
 }
 
