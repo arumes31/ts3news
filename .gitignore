@@ -71,3 +71,5 @@ final_fix.py
 fix_script.py
 plans/
 *.md
+
+.claudeignore
