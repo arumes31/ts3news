@@ -32,7 +32,7 @@ const (
 	slothGraceDays      = 7
 	slothDailyDecay     = 0.02
 	artifactChance      = 0.01
-	titleChance         = 0.005
+	titleChance         = 0.01
 	gearChance          = 0.10
 	consChance          = 0.1
 	enchChance          = 0.02

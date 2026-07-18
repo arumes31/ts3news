@@ -258,6 +258,33 @@ The Abyss features an advanced, procedural loot and gear customization system:
 
 ---
 
+## 🎧 Idely — Idle-Music
+
+**Idely** is an optional subsystem that plays gentle lo-fi music into channels that have gone quiet, and stops the moment someone talks.
+
+**How it works**
+
+*   🕵️ **Idely client (the eyes):** a *dedicated, always-on* TeamSpeak client with its own identity/name, driven over ClientQuery. It enumerates every occupied channel each poll.
+*   😴 **"Idle" = no voice activity.** TeamSpeak does **not** expose other clients' server-side `client_idle_time` over ClientQuery (it always reads 0 for remote clients), so Idely measures quiet time itself: a small tracker ages every client and resets them on voice/channel activity. When *every* user in a channel has been silent past `IDELY_IDLE_MINUTES` (default 15), Idely acts. (This also matches the intent: play music when nobody's talking.)
+*   🎵 **TS3AudioBot (the voice):** a sidecar that Idely dispatches **one bot per idle channel, on demand** (never idle-connected, capped at `IDELY_MAX_BOTS`). Each bot connects with its own identity, takes a random name, and loops the lo-fi library. The official client can't transmit audio via ClientQuery, so a real audio bot does the playing.
+*   🔇 **Stop when someone talks:** voice is *channel-local* and a headless client can't hear it, so Idely can't detect talking directly. Instead, a small **TS3AudioBot plugin** (`runtime/ts3audiobot/plugins/IdelyTalkSensor.cs`, compiled at runtime) taps the bot's incoming audio — any voice packet means a real user is talking in the channel — and exposes the time-since-last-voice via an `idely voiceage` command. Idely polls it and tears the bot down when someone speaks, then holds a `IDELY_TALK_COOLDOWN_SEC` cooldown so it doesn't immediately restart.
+*   🎼 **The tracks** are a Creative-Commons lo-fi library downloaded from the Internet Archive by `scripts/fetch_lofi.py` (per-track attribution in `runtime/lofi/ATTRIBUTION.txt`). Idely scans the track dir, so the whole library is picked up automatically. The audio is git-ignored (too large); populate it once with `python3 scripts/fetch_lofi.py runtime/lofi 25`.
+*   🙈 **Excluded from detection:** the Idely client (auto, by its own UID), the audio bots (by name), and the main poke bot — put its UID in `IDELY_EXCLUDE_UIDS` (UID-based, so it survives the poke bot's dynamic nickname).
+
+**Why it's a separate container:** the TeamSpeak ClientQuery plugin binds a *hard-coded, localhost-only* port (25639), so the Idely client can't share a network namespace with the poke bot's client. The `ts3-idely` service runs the same image in `IDELY_ONLY=1` mode.
+
+**Setup**
+
+1.  Export a **second** TeamSpeak identity (distinct from the poke bot — Idely must not reuse the poke bot's) and set `IDELY_IDENTITY` in `config.env`; set `ENABLE_IDELY=true`. Put the poke bot's UID in `IDELY_EXCLUDE_UIDS`.
+2.  Download the track library: `python3 scripts/fetch_lofi.py runtime/lofi 25`. The `ts3-idely` and `ts3audiobot` services bind-mount `runtime/lofi` at `/audio`.
+3.  Configure the **TS3AudioBot** sidecar (`ts3audiobot.toml` in the `ts3audiobot_data` volume): `[bot.connect] address` = your server, `[factories] media = { path = "/audio" }`, WebAPI enabled, and — so it doesn't push album art to its own icon — `generate_status_avatar = false` and `set_status_description = false`. The talk-sensor plugin is bind-mounted at `/app/data/plugins`; Idely loads it per bot (`IDELY_PLUGIN=0`, the plugin index).
+4.  Let Idely drive the WebAPI, either with a token (PM the bot `!api token`, set `IDELY_API_USER` / `IDELY_API_TOKEN`) or a permissive `rights.toml` for in-network anonymous calls. Set `IDELY_BOT_UID` to the audio bot's identity uid.
+5.  `docker compose up -d`.
+
+All tuning (`IDELY_IDLE_MINUTES`, `IDELY_MAX_BOTS`, `IDELY_VOLUME`, `IDELY_TALK_STOP_MS`, `IDELY_TALK_COOLDOWN_SEC`, `IDELY_ONLY_CIDS`, …) is in `example.env`. Tracks are Creative Commons (mostly non-commercial) — fine for a community server; see `ATTRIBUTION.txt`.
+
+---
+
 ## 💻 Local Development & Testing
 
 If you have Go installed, you can run the automated tests to verify the RPG logic:

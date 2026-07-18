@@ -6,6 +6,7 @@ package clientquery
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -92,13 +93,22 @@ func (c *Client) Command(cmd string) ([]string, error) {
 	}
 }
 
-// Auth authenticates with the ClientQuery API key.
+// Auth authenticates with the ClientQuery API key. On failure it returns an
+// error built only from the server's response (its numeric id and message),
+// never wrapping the key-bearing command that produced it, so callers may log
+// the returned error without leaking the API key.
 func (c *Client) Auth(apiKey string) error {
 	_, err := c.Command("auth apikey=" + Escape(apiKey))
-	if err != nil {
-		return fmt.Errorf("auth command failed: %w", err)
+	if err == nil {
+		return nil
 	}
-	return nil
+	// Command returns *CommandError directly (unwrapped) for a non-zero server
+	// error id. Rebuild the message from its server-provided fields only, so the
+	// key-bearing command string can never reach a caller's log.
+	if ce, ok := err.(*CommandError); ok {
+		return fmt.Errorf("auth rejected by ClientQuery (id=%d): %s", ce.ID, ce.Msg)
+	}
+	return errors.New("could not communicate with ClientQuery to authenticate")
 }
 
 // DrainRaw reads and returns any lines that arrive within timeout (used to

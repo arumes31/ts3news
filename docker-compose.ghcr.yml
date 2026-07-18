@@ -16,7 +16,7 @@ services:
       retries: 5
 
   ts3-bot:
-    build: .
+    image: ghcr.io/arumes31/ts3news:latest
     container_name: ts3-news-bot
     restart: unless-stopped
     ports:
@@ -52,7 +52,7 @@ services:
   # client cannot coexist with the poke bot's client in one network namespace.
   # Enable by setting ENABLE_IDELY=true in config.env (and providing IDELY_IDENTITY).
   ts3-idely:
-    build: .
+    image: ghcr.io/arumes31/ts3news:latest
     container_name: ts3-news-idely
     restart: unless-stopped
     stop_grace_period: 15s

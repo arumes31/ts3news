@@ -1,0 +1,7 @@
+# Idely's lo-fi track library lives here (git-ignored).
+# Populate it with Creative-Commons tracks from the Internet Archive:
+#
+#     python3 scripts/fetch_lofi.py runtime/lofi 25
+#
+# The docker-compose ts3-idely and ts3audiobot services bind-mount this
+# directory at /audio. Per-track attribution is written to ATTRIBUTION.txt.

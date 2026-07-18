@@ -61,8 +61,12 @@ func TestXPForLevelRoundTrip(t *testing.T) {
 
 func TestLevelNameCoversAllLevels(t *testing.T) {
 	for lvl := 1; lvl <= MaxLevel; lvl++ {
-		if name := LevelName(lvl); name == "" {
+		name := LevelName(lvl)
+		if name == "" {
 			t.Fatalf("empty level name at level %d", lvl)
+		}
+		if len([]rune(name)) > 30 {
+			t.Errorf("level %d name %q exceeds 30 character limit (length: %d)", lvl, name, len([]rune(name)))
 		}
 	}
 	if LevelName(1) != "Drifter I" {
