@@ -1,0 +1,10 @@
+# --- Seeded automatically by the ts3audiobot-init container on first run. ---
+# Copied into the ts3audiobot_data volume ONLY when no rights.toml exists yet, so
+# an existing ruleset is never overwritten.
+#
+# This grants every caller all rights. It is safe ONLY because the TS3AudioBot
+# WebAPI is not published outside the Docker network (the ts3audiobot service
+# declares no ports), which lets Idely drive it anonymously — no `!api token`
+# needed. If you ever expose the WebAPI, replace this with a restrictive ruleset.
+[[rule]]
+    "+" = "*"

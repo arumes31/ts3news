@@ -1,0 +1,28 @@
+# --- Seeded automatically by the ts3audiobot-init container on first run. ---
+# It is copied into the ts3audiobot_data volume ONLY when no ts3audiobot.toml
+# exists yet, so an existing or customised config is never overwritten. To change
+# it, edit the copy inside the volume (or this template) and restart.
+#
+# This holds the minimum TS3AudioBot needs for the Idely idle-music subsystem:
+# the WebAPI (how Idely spawns and controls bots) and the media path (where the
+# bots read the shared /audio track library). Idely passes the TeamSpeak server
+# address when it spawns each bot, so no [bot.connect] address is required here.
+#
+# Optional cosmetic tweak (add under [bot.connect] if the bots pushing album art
+# to their own icon bothers you):
+#   generate_status_avatar = false
+#   set_status_description = false
+
+[web]
+# The WebAPI is only reachable inside the Docker network (the ts3audiobot service
+# publishes no ports), so leaving hosts unrestricted is fine here.
+hosts = ["*"]
+port = 58913
+
+[web.api]
+enabled = true
+
+[factories]
+# Idely plays tracks by base filename; TS3AudioBot resolves those against this
+# path — the shared /audio volume both containers mount.
+media = { path = "/audio" }

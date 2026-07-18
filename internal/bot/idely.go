@@ -151,12 +151,17 @@ func (s *Supervisor) runIdelyOnce(ctx context.Context) error {
 		}
 		log.Printf("Idely: cleaned up %d orphaned audio bot(s) from a previous run.", len(ids))
 	}
+	// excl and botNames are shared with the snapshot loop below so it can learn
+	// each spawned audio bot's UID at runtime (see idely.LearnBotUIDs). Both are
+	// only read/written on the Service's single goroutine, so no locking is needed.
+	excl := s.idelyExclusions(poll)
+	botNames := idelyNameSet(cfg.IdelyNames)
 	engine := idely.NewEngine(idely.EngineConfig{
 		Detect: idely.Config{
 			IdleThreshold: time.Duration(cfg.IdelyIdleMinutes) * time.Minute,
 			ActiveGrace:   time.Duration(cfg.IdelyActiveGraceSeconds) * time.Second,
-			ExcludeUIDs:   s.idelyExclusions(poll),
-			ExcludeNicks:  idelyNameSet(cfg.IdelyNames),
+			ExcludeUIDs:   excl,
+			ExcludeNicks:  botNames,
 			AllowCIDs:     idelyAllowCIDs(cfg),
 		},
 		Player: idely.NewAudioPlayer(idely.AudioPlayerConfig{
@@ -190,7 +195,11 @@ func (s *Supervisor) runIdelyOnce(ctx context.Context) error {
 			if err != nil {
 				return nil, err
 			}
-			return tracker.Observe(raw), nil
+			clients := tracker.Observe(raw)
+			// Discover the audio bot's UID from the live snapshot so it stays
+			// excluded from idle detection without IDELY_BOT_UID being set.
+			idely.LearnBotUIDs(excl, botNames, clients)
+			return clients, nil
 		},
 		TalkStarts:   talk,
 		PollInterval: time.Duration(cfg.IdelyPollSeconds) * time.Second,
@@ -209,9 +218,37 @@ func (s *Supervisor) runIdelyOnce(ctx context.Context) error {
 	return nil
 }
 
+// pokeBotUIDKey is the app_meta key under which the poke bot records its own TS3
+// identity UID (see (*Bot).rememberPokeBotUID). Because the poke bot and Idely
+// run in separate containers, the shared database is how Idely learns which UID
+// to exclude, so its transient presence never counts as a real user — no manual
+// IDELY_EXCLUDE_UIDS entry required.
+const pokeBotUIDKey = "poke_bot_uid"
+
+// rememberPokeBotUID records the connected poke client's own UID in app_meta for
+// the Idely subsystem to read. Best-effort: a missing DB or a failed lookup is
+// logged at most and never disturbs the poke cycle.
+func (b *Bot) rememberPokeBotUID(c *clientquery.Client, clid int) {
+	if b.DB == nil {
+		return
+	}
+	uid, err := c.ClientUID(clid)
+	if err != nil || uid == "" {
+		return
+	}
+	if _, err := b.DB.Exec(
+		`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+		 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+		pokeBotUIDKey, uid); err != nil {
+		log.Printf("Idely: could not record poke-bot UID for exclusion: %v", err)
+	}
+}
+
 // idelyExclusions builds the set of identities that must never count as real
-// users: the configured audio-bot UID, any extra exclusions, and the Idely
-// client's own UID (resolved live via whoami + clientvariable).
+// users: the poke bot (auto, via app_meta), any configured audio-bot UID and
+// extra exclusions, and the Idely client's own UID (resolved live via whoami +
+// clientvariable). Spawned audio bots are learned later from live snapshots
+// (idely.LearnBotUIDs).
 func (s *Supervisor) idelyExclusions(c *clientquery.Client) map[string]bool {
 	cfg := s.bot.Cfg
 	excl := map[string]bool{}
@@ -223,6 +260,9 @@ func (s *Supervisor) idelyExclusions(c *clientquery.Client) map[string]bool {
 	if cfg.IdelyBotUID != "" {
 		excl[cfg.IdelyBotUID] = true
 	}
+	if uid := s.bot.pokeBotUID(); uid != "" {
+		excl[uid] = true
+	}
 	if info, err := c.WhoAmIInfo(); err == nil && info.CLID > 0 {
 		if uid, uerr := c.ClientUID(info.CLID); uerr == nil && uid != "" {
 			excl[uid] = true
@@ -231,6 +271,19 @@ func (s *Supervisor) idelyExclusions(c *clientquery.Client) map[string]bool {
 		}
 	}
 	return excl
+}
+
+// pokeBotUID returns the poke bot's UID as recorded in app_meta, or "" if the DB
+// is unavailable or the poke bot has not connected yet.
+func (b *Bot) pokeBotUID() string {
+	if b.DB == nil {
+		return ""
+	}
+	var uid string
+	if err := b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", pokeBotUIDKey).Scan(&uid); err != nil {
+		return ""
+	}
+	return uid
 }
 
 // idelyConnect dials the Idely client's ClientQuery, authenticates, selects

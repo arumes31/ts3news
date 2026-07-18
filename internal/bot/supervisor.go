@@ -224,6 +224,9 @@ func (s *Supervisor) connect(shutdownCtx, cycleCtx context.Context) (*clientquer
 			info, werr = c.WhoAmIInfo()
 			if werr == nil && info.CLID > 0 {
 				log.Printf("TS3 client is connected (clid=%d cid=%d, took %s).", info.CLID, info.CID, time.Since(start).Round(time.Second))
+				// Publish our own UID so the Idely container can exclude the poke
+				// bot from idle detection automatically (best-effort).
+				s.bot.rememberPokeBotUID(c, info.CLID)
 				return c, nil
 			}
 		}
