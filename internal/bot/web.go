@@ -467,7 +467,7 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 			dest = next
 		}
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 - manually validated against absolute URLs
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
@@ -485,7 +485,8 @@ func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) handleDenied(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
+	// Return 403 instead of 200 to prevent improper caching of sensitive states by CDNs/browsers.
+	w.WriteHeader(http.StatusForbidden)
 	s.render(w, "denied", map[string]any{"Title": "Access"})
 }
 
