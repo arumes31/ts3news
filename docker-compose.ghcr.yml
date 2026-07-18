@@ -8,7 +8,9 @@ services:
       POSTGRES_PASSWORD: ${DB_PASS:-ts3botpass}
       POSTGRES_DB: ${DB_NAME:-ts3news}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Host bind mount. The postgres entrypoint (which starts as root) initialises
+      # and chowns this directory to the postgres user, so a plain host path works.
+      - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ts3bot} -d ${DB_NAME:-ts3news}"]
       interval: 5s
@@ -51,7 +53,7 @@ services:
   # ClientQuery plugin port (25639) is hard-coded and localhost-only, so the Idely
   # client cannot coexist with the poke bot's client in one network namespace.
   # Enable by setting ENABLE_IDELY=true in config.env. IDELY_IDENTITY is optional:
-  # when unset, Idely uses its own persistent client profile (see idely_profile).
+  # when unset, Idely uses its own persistent client profile (see ./data/idely-profile).
   ts3-idely:
     image: ghcr.io/arumes31/ts3news:latest
     container_name: ts3-news-idely
@@ -82,28 +84,31 @@ services:
       # Your own music library: drop audio files into runtime/music (mounted at
       # /audio). Idely scans this directory to build the audio bot's playlist.
       - ./runtime/music:/audio:ro
-      # Persist the Idely client's profile so its identity is stable across
-      # restarts. Seeded from the baked golden profile on first run (entrypoint),
-      # so a fresh volume still starts a working, license-accepted client.
-      - idely_profile:/root/.ts3client
+      # Persist the Idely client's profile (host bind mount) so its identity is
+      # stable across restarts. This image runs as root, and the entrypoint seeds
+      # the baked golden profile into the empty directory on first run, so a fresh
+      # host path still starts a working, license-accepted client.
+      - ./data/idely-profile:/root/.ts3client
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-  # ---- One-shot: seed TS3AudioBot's config so Idely works out of the box ----
-  # Copies a working ts3audiobot.toml (WebAPI + /audio media path) and a permissive
-  # rights.toml into the ts3audiobot_data volume, but ONLY when they are absent, so
-  # any customisation you make is preserved. Runs to completion before ts3audiobot.
+  # ---- One-shot: prepare TS3AudioBot's data dir so Idely works out of the box ----
+  # Runs as root before ts3audiobot starts. It (1) seeds a working ts3audiobot.toml
+  # (WebAPI + /audio media path) and a permissive rights.toml — but only when they
+  # are absent, so any customisation is preserved — and (2) chowns the host-mounted
+  # /app/data to uid 9999 (the image's non-root "ts3bot" user), without which
+  # TS3AudioBot cannot write NLog.config / its databases and crashes on startup.
   ts3audiobot-init:
     image: busybox:stable
     container_name: ts3-news-audiobot-init
     restart: "no"
     volumes:
-      - ts3audiobot_data:/app/data
-      - ./runtime/ts3audiobot/ts3audiobot.toml:/seed/ts3audiobot.toml:ro
-      - ./runtime/ts3audiobot/rights.toml:/seed/rights.toml:ro
+      - ./data/ts3audiobot:/app/data
+      # Committed seed templates (this dir also holds plugins/, which is ignored here).
+      - ./runtime/ts3audiobot:/seed:ro
     command:
       - sh
       - -c
@@ -111,11 +116,15 @@ services:
         for f in ts3audiobot.toml rights.toml; do
           if [ -f "/app/data/$$f" ]; then
             echo "[audiobot-init] /app/data/$$f exists; leaving it untouched"
-          else
+          elif [ -f "/seed/$$f" ]; then
             cp "/seed/$$f" "/app/data/$$f"
             echo "[audiobot-init] seeded /app/data/$$f"
+          else
+            echo "[audiobot-init] WARNING: /seed/$$f missing; not seeded"
           fi
         done
+        chown -R 9999:9999 /app/data
+        echo "[audiobot-init] chowned /app/data to 9999:9999 (ts3bot)"
 
   # ---- TS3AudioBot sidecar: the "voice" Idely dispatches to play music ----
   # A separate, community-maintained service that connects to the TS3 server as its
@@ -133,8 +142,9 @@ services:
       ts3audiobot-init:
         condition: service_completed_successfully
     volumes:
-      # The image's working dir (config + db) is /app/data.
-      - ts3audiobot_data:/app/data
+      # Host bind mount for the image's working dir (config + db). Prepared and
+      # chowned by ts3audiobot-init above.
+      - ./data/ts3audiobot:/app/data
       # The game music library and the talk-sensor plugin (compiled at runtime).
       - ./runtime/music:/audio:ro
       - ./runtime/ts3audiobot/plugins:/app/data/plugins:ro
@@ -143,8 +153,3 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-volumes:
-  postgres_data:
-  ts3audiobot_data:
-  idely_profile:
