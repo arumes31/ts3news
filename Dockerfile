@@ -58,8 +58,10 @@ COPY --from=tsclient /opt/ts3 /opt/ts3
 COPY --from=gobuilder /bot /usr/local/bin/bot
 
 # Baked "golden" client profile: license accepted + ClientQuery plugin installed.
-COPY runtime/ts3profile.tgz /tmp/ts3profile.tgz
-RUN tar xzf /tmp/ts3profile.tgz -C /root && rm /tmp/ts3profile.tgz
+# Keep the tarball at /opt so the entrypoint can re-seed it into a fresh named
+# volume mounted over ~/.ts3client (e.g. the Idely container's idely_profile).
+COPY runtime/ts3profile.tgz /opt/ts3profile.tgz
+RUN tar xzf /opt/ts3profile.tgz -C /root
 
 COPY runtime/inject_identity.py /opt/inject_identity.py
 COPY runtime/entrypoint.sh /entrypoint.sh

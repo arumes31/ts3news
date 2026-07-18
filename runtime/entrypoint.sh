@@ -35,12 +35,25 @@ fi
 : "${TS3_HOST:?TS3_HOST is required}"
 : "${TS3_PORT:=9987}"
 
-# Inject the configured (level-29) identity into the baked client profile.
+# Seed the golden client profile into HOME if it is missing. This happens when a
+# fresh named volume is mounted over ~/.ts3client (e.g. the Idely container's
+# idely_profile): without seeding, the client would start with no accepted
+# license or ClientQuery plugin. Copying the baked profile in keeps a working,
+# license-accepted profile and lets the volume persist the identity across
+# restarts. When the baked profile is already present (no volume), this is a no-op.
+if [ ! -f "$HOME/.ts3client/settings.db" ] && [ -f /opt/ts3profile.tgz ]; then
+  echo "[entrypoint] Seeding golden TS3 client profile into $HOME/.ts3client..."
+  tar xzf /opt/ts3profile.tgz -C "$HOME"
+fi
+
+# Inject the configured identity into the client profile. When unset, the profile
+# keeps its own identity — fine for the Idely client (IDELY_IDENTITY is optional),
+# but the poke bot should set TS3_IDENTITY to its own (ideally leveled) identity.
 if [ -n "${TS3_IDENTITY:-}" ]; then
   echo "[entrypoint] Injecting identity into settings.db..."
   python3 /opt/inject_identity.py "$TS3_IDENTITY" /root/.ts3client/settings.db || echo "[entrypoint] WARNING: identity injection failed"
 else
-  echo "[entrypoint] WARNING: TS3_IDENTITY not set; using the profile's default identity"
+  echo "[entrypoint] TS3_IDENTITY not set; using the profile's own identity."
 fi
 
 # Virtual display + dbus session (shared across all cycles).

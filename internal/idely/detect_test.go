@@ -18,6 +18,38 @@ func voice(clid, cid int, uid string, idle time.Duration) Client {
 	return Client{CLID: clid, CID: cid, UID: uid, Type: 0, Idle: idle}
 }
 
+func TestLearnBotUIDs(t *testing.T) {
+	excl := map[string]bool{"idely-uid": true}
+	botNames := map[string]bool{"lofi.radio": true, "night owl": true}
+	clients := []Client{
+		{CLID: 1, UID: "human", Nickname: "Alice"},
+		{CLID: 2, UID: "bot-uid-a", Nickname: "lofi.radio"}, // an audio bot
+		{CLID: 3, UID: "bot-uid-b", Nickname: "night owl"},  // another audio bot
+		{CLID: 4, UID: "", Nickname: "lofi.radio"},          // no UID: must be skipped
+	}
+	LearnBotUIDs(excl, botNames, clients)
+
+	for _, uid := range []string{"idely-uid", "bot-uid-a", "bot-uid-b"} {
+		if !excl[uid] {
+			t.Errorf("expected %q to be excluded", uid)
+		}
+	}
+	if excl["human"] {
+		t.Error("a human user must not be excluded")
+	}
+	if excl[""] {
+		t.Error("empty UID must never be added to the exclusion set")
+	}
+}
+
+func TestLearnBotUIDs_NoBotNamesIsNoOp(t *testing.T) {
+	excl := map[string]bool{"idely-uid": true}
+	LearnBotUIDs(excl, nil, []Client{{UID: "x", Nickname: "lofi.radio"}})
+	if len(excl) != 1 {
+		t.Fatalf("exclusion set changed with no bot names: %v", excl)
+	}
+}
+
 func TestIdleChannels_AllIdle(t *testing.T) {
 	clients := []Client{
 		voice(1, 10, "a", 20*time.Minute),

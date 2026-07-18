@@ -67,6 +67,24 @@ func (cfg Config) isRealUser(c Client) bool {
 	return true
 }
 
+// LearnBotUIDs records into excl the UID of every client currently wearing one
+// of our audio-bot names (botNames). Idely names every spawned music bot from a
+// fixed pool, so a client with such a name is one of our bots; remembering its
+// stable UID keeps it excluded from idle detection even if it is later renamed,
+// and means the audio bot's identity is discovered automatically at runtime
+// instead of having to be hand-configured (IDELY_BOT_UID). It is a no-op when no
+// bot names are configured or excl is nil.
+func LearnBotUIDs(excl, botNames map[string]bool, clients []Client) {
+	if excl == nil || len(botNames) == 0 {
+		return
+	}
+	for _, c := range clients {
+		if c.UID != "" && botNames[c.Nickname] {
+			excl[c.UID] = true
+		}
+	}
+}
+
 // IdleChannels returns the channel ids in which at least one real user is present
 // and every real user has been idle for at least IdleThreshold. Channels with no
 // real users are omitted. The result is deterministic (ascending channel id).

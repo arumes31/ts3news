@@ -50,7 +50,8 @@ services:
   # Runs the SAME image in Idely-only mode. It needs its own container because the
   # ClientQuery plugin port (25639) is hard-coded and localhost-only, so the Idely
   # client cannot coexist with the poke bot's client in one network namespace.
-  # Enable by setting ENABLE_IDELY=true in config.env (and providing IDELY_IDENTITY).
+  # Enable by setting ENABLE_IDELY=true in config.env. IDELY_IDENTITY is optional:
+  # when unset, Idely uses its own persistent client profile (see idely_profile).
   ts3-idely:
     image: ghcr.io/arumes31/ts3news:latest
     container_name: ts3-news-idely
@@ -78,29 +79,59 @@ services:
     env_file:
       - config.env
     volumes:
-      # Downloaded Creative-Commons game music library (populate it once with
-      # `python3 scripts/fetch_lofi.py runtime/music 35`). Idely scans this
-      # directory to build the audio bot's playlist.
+      # Your own music library: drop audio files into runtime/music (mounted at
+      # /audio). Idely scans this directory to build the audio bot's playlist.
       - ./runtime/music:/audio:ro
+      # Persist the Idely client's profile so its identity is stable across
+      # restarts. Seeded from the baked golden profile on first run (entrypoint),
+      # so a fresh volume still starts a working, license-accepted client.
+      - idely_profile:/root/.ts3client
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
+  # ---- One-shot: seed TS3AudioBot's config so Idely works out of the box ----
+  # Copies a working ts3audiobot.toml (WebAPI + /audio media path) and a permissive
+  # rights.toml into the ts3audiobot_data volume, but ONLY when they are absent, so
+  # any customisation you make is preserved. Runs to completion before ts3audiobot.
+  ts3audiobot-init:
+    image: busybox:stable
+    container_name: ts3-news-audiobot-init
+    restart: "no"
+    volumes:
+      - ts3audiobot_data:/app/data
+      - ./runtime/ts3audiobot/ts3audiobot.toml:/seed/ts3audiobot.toml:ro
+      - ./runtime/ts3audiobot/rights.toml:/seed/rights.toml:ro
+    command:
+      - sh
+      - -c
+      - |
+        for f in ts3audiobot.toml rights.toml; do
+          if [ -f "/app/data/$$f" ]; then
+            echo "[audiobot-init] /app/data/$$f exists; leaving it untouched"
+          else
+            cp "/seed/$$f" "/app/data/$$f"
+            echo "[audiobot-init] seeded /app/data/$$f"
+          fi
+        done
+
   # ---- TS3AudioBot sidecar: the "voice" Idely dispatches to play music ----
   # A separate, community-maintained service that connects to the TS3 server as its
   # own voice client, transmits audio, AND (via the IdelyTalkSensor plugin) tells
-  # Idely when a real user is talking. One-time setup is required — see README
-  # "Idely": configure ts3audiobot.toml (connect address, media path=/audio,
-  # generate_status_avatar=false), enable the WebAPI, and either mint an API token
-  # or use a permissive rights.toml.
+  # Idely when a real user is talking. Its config (WebAPI + /audio media path) and
+  # a permissive rights.toml are seeded automatically by ts3audiobot-init, so no
+  # manual ts3audiobot.toml editing or `!api token` is needed for a standard setup.
   ts3audiobot:
     image: ancieque/ts3audiobot:latest
     container_name: ts3-news-audiobot
     restart: unless-stopped
     depends_on:
-      - ts3-idely
+      ts3-idely:
+        condition: service_started
+      ts3audiobot-init:
+        condition: service_completed_successfully
     volumes:
       # The image's working dir (config + db) is /app/data.
       - ts3audiobot_data:/app/data
@@ -116,3 +147,4 @@ services:
 volumes:
   postgres_data:
   ts3audiobot_data:
+  idely_profile:

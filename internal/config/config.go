@@ -102,7 +102,7 @@ type Config struct {
 	// The dedicated Idely TeamSpeak client (detector/eyes).
 	IdelyClientPath      string // ts3client binary (defaults to TS3ClientPath)
 	IdelyHome            string // HOME for its isolated profile (own settings.db/identity)
-	IdelyIdentity        string // its TS3 identity blob (empty => profile default)
+	IdelyIdentity        string // its TS3 identity blob (optional; empty => the persistent profile's own identity)
 	IdelyNickname        string // its own display name on the server
 	IdelyClientQueryAddr string // host:port of its ClientQuery interface (must differ from the main bot's)
 	IdelyAPIKey          string // its ClientQuery API key
@@ -112,15 +112,15 @@ type Config struct {
 	IdelyPollSeconds        int      // how often to scan idle state
 	IdelyIdleMinutes        int      // per-user idle threshold before a channel is "dormant"
 	IdelyActiveGraceSeconds int      // idle at/below this => user is "active again" (stop)
-	IdelyExcludeUIDs        []string // extra identities never counted as real users
+	IdelyExcludeUIDs        []string // extra identities never counted as real users (optional; the poke bot is auto-excluded via app_meta)
 	IdelyOnlyCIDs           []int    // if non-empty, only serenade these channel ids
 
 	// TS3AudioBot sidecar (voice).
 	IdelyAPIURL          string   // TS3AudioBot WebAPI base URL
-	IdelyAPIUser         string   // Basic-auth username (the uid that ran !api token)
-	IdelyAPIToken        string   // Basic-auth token from !api token
+	IdelyAPIUser         string   // Basic-auth username (optional; unset => anonymous, allowed by the seeded permissive rights.toml)
+	IdelyAPIToken        string   // Basic-auth token from !api token (optional; unset => anonymous)
 	IdelyBotID           int      // TS3AudioBot bot instance id
-	IdelyBotUID          string   // the audio bot's TS3 identity uid (excluded from idle checks)
+	IdelyBotUID          string   // audio bot's TS3 identity uid (optional override; auto-learned from live snapshots)
 	IdelyVolume          int      // playback volume 0..100
 	IdelyMaxBots         int      // cap on concurrent audio bots (one per idle channel); 0 = unlimited
 	IdelyTalkStopMS      int      // stop a channel when its audio bot heard voice within this many ms (needs the IdelyTalkSensor plugin)
