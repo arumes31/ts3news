@@ -87,6 +87,48 @@ type Config struct {
 
 	// The Abyss (endless push-your-luck PvE dungeon web game)
 	EnableAbyss bool // serve the Abyss page/APIs and PM its deep-link each cycle
+
+	// Idely — idle-music subsystem. A second, always-on TeamSpeak client
+	// (separate identity/profile/ClientQuery port) watches every occupied channel;
+	// when all users in a channel have idled past IdelyIdleMinutes it dispatches a
+	// TS3AudioBot sidecar to join and play lo-fi, stopping when anyone talks/moves.
+	EnableIdely bool // master switch for the whole subsystem
+	// IdelyOnly makes this process run ONLY the Idely subsystem (no poke cycle).
+	// The ClientQuery plugin port (25639) is hard-coded and localhost-only, so the
+	// Idely client cannot share a host with the main bot's client — it runs in its
+	// own container with IDELY_ONLY=1.
+	IdelyOnly bool
+
+	// The dedicated Idely TeamSpeak client (detector/eyes).
+	IdelyClientPath      string // ts3client binary (defaults to TS3ClientPath)
+	IdelyHome            string // HOME for its isolated profile (own settings.db/identity)
+	IdelyIdentity        string // its TS3 identity blob (empty => profile default)
+	IdelyNickname        string // its own display name on the server
+	IdelyClientQueryAddr string // host:port of its ClientQuery interface (must differ from the main bot's)
+	IdelyAPIKey          string // its ClientQuery API key
+	IdelyLobbyCID        int    // channel the Idely client parks in
+
+	// Detection tuning.
+	IdelyPollSeconds        int      // how often to scan idle state
+	IdelyIdleMinutes        int      // per-user idle threshold before a channel is "dormant"
+	IdelyActiveGraceSeconds int      // idle at/below this => user is "active again" (stop)
+	IdelyExcludeUIDs        []string // extra identities never counted as real users
+	IdelyOnlyCIDs           []int    // if non-empty, only serenade these channel ids
+
+	// TS3AudioBot sidecar (voice).
+	IdelyAPIURL          string   // TS3AudioBot WebAPI base URL
+	IdelyAPIUser         string   // Basic-auth username (the uid that ran !api token)
+	IdelyAPIToken        string   // Basic-auth token from !api token
+	IdelyBotID           int      // TS3AudioBot bot instance id
+	IdelyBotUID          string   // the audio bot's TS3 identity uid (excluded from idle checks)
+	IdelyVolume          int      // playback volume 0..100
+	IdelyMaxBots         int      // cap on concurrent audio bots (one per idle channel); 0 = unlimited
+	IdelyTalkStopMS      int      // stop a channel when its audio bot heard voice within this many ms (needs the IdelyTalkSensor plugin)
+	IdelyTalkCooldownSec int      // after stopping for talk, don't re-serenade the channel for this long (avoids flapping)
+	IdelyPluginRef       string   // TS3AudioBot plugin id/name to load on each spawned bot (the talk sensor); "" disables
+	IdelyNames           []string // pool of random names for the audio bot
+	IdelyTracks          []string // explicit lo-fi resources; empty => scan IdelyTracksDir
+	IdelyTracksDir       string   // directory of track files to scan (as both Idely and the audio bot see it)
 }
 
 // LoadConfig reads bot configuration from the environment (and config.env, if
@@ -160,6 +202,47 @@ func LoadConfig() *Config {
 		WebBaseURL:    envDefault("WEB_BASE_URL", "http://localhost:18081"),
 
 		EnableAbyss: envBool("ENABLE_ABYSS", true),
+
+		EnableIdely: envBool("ENABLE_IDELY", false),
+		IdelyOnly:   envBool("IDELY_ONLY", false),
+
+		IdelyClientPath: envDefault("IDELY_CLIENT_PATH", envDefault("TS3_CLIENT_PATH", "/opt/ts3/ts3client_linux_amd64")),
+		IdelyHome:       envDefault("IDELY_HOME", "/root"),
+		IdelyIdentity:   os.Getenv("IDELY_IDENTITY"),
+		IdelyNickname:   envDefault("IDELY_NICKNAME", "Idely"),
+		// Own-container topology: the Idely client uses the standard hard-coded
+		// ClientQuery plugin port in its own network namespace.
+		IdelyClientQueryAddr: envDefault("IDELY_CLIENTQUERY_ADDR", "127.0.0.1:25639"),
+		IdelyAPIKey:          os.Getenv("IDELY_APIKEY"),
+		IdelyLobbyCID:        envInt("IDELY_LOBBY_CID", 0),
+
+		IdelyPollSeconds:        envInt("IDELY_POLL_SECONDS", 5),
+		IdelyIdleMinutes:        envInt("IDELY_IDLE_MINUTES", 15),
+		IdelyActiveGraceSeconds: envInt("IDELY_ACTIVE_GRACE_SECONDS", 6),
+		IdelyExcludeUIDs:        envList("IDELY_EXCLUDE_UIDS", nil),
+		IdelyOnlyCIDs:           envIntList("IDELY_ONLY_CIDS"),
+
+		IdelyAPIURL:          envDefault("IDELY_API_URL", "http://ts3audiobot:58913"),
+		IdelyAPIUser:         os.Getenv("IDELY_API_USER"),
+		IdelyAPIToken:        os.Getenv("IDELY_API_TOKEN"),
+		IdelyBotID:           envInt("IDELY_BOT_ID", 0),
+		IdelyBotUID:          os.Getenv("IDELY_BOT_UID"),
+		IdelyVolume:          envInt("IDELY_VOLUME", 100),
+		IdelyMaxBots:         envInt("IDELY_MAX_BOTS", 4),
+		IdelyTalkStopMS:      envInt("IDELY_TALK_STOP_MS", 2500),
+		IdelyTalkCooldownSec: envInt("IDELY_TALK_COOLDOWN_SEC", 60),
+		// TS3AudioBot's `plugin load` resolves by index, not name, so default to
+		// the first plugin (0). Override with IDELY_PLUGIN if you load others.
+		IdelyPluginRef: envDefault("IDELY_PLUGIN", "0"),
+		IdelyNames: envList("IDELY_NAMES", []string{
+			"lofi.radio", "Idle Vibes", "Afk Lounge", "sleepy.fm",
+			"Chillhop", "night owl", "vinyl dreams", "Static & Rain",
+		}),
+		// By default Idely scans IdelyTracksDir for track files (so a whole
+		// downloaded library is picked up automatically). Set IDELY_TRACKS to an
+		// explicit comma-separated list to override the scan.
+		IdelyTracks:    envList("IDELY_TRACKS", nil),
+		IdelyTracksDir: envDefault("IDELY_TRACKS_DIR", "/audio"),
 	}
 }
 
@@ -189,6 +272,22 @@ func envBool(key string, def bool) bool {
 	default:
 		return false
 	}
+}
+
+// envIntList parses a comma-separated list of integers, skipping blanks and
+// non-numeric entries. An unset/empty variable yields nil.
+func envIntList(key string) []int {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return nil
+	}
+	var out []int
+	for _, p := range strings.Split(v, ",") {
+		if n, err := strconv.Atoi(strings.TrimSpace(p)); err == nil {
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 // envList parses a comma-separated, lowercased list; empty falls back to def.

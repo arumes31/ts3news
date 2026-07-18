@@ -49,6 +49,8 @@ type ClientInfo struct {
 	Type            int    // 0 = normal voice client, 1 = ServerQuery/ClientQuery client
 	CID             int    // channel id
 	ConnectedTimeMS int64  // client_connected_time (ms since session start)
+	IdleTimeMS      int64  // client_idle_time (ms since last input or >1s of voice)
+	Talking         bool   // client_flag_talking, when reported by clientinfo
 }
 
 // ClientList returns all clients on the currently selected virtual server,
@@ -82,19 +84,66 @@ func (c *Client) ClientList() ([]ClientInfo, error) {
 				}
 			}
 
-			// For voice clients, fetch additional session stats (connected time)
+			// For voice clients, fetch additional session stats (connected time,
+			// idle time, and talk flag — the latter two power the Idely subsystem).
 			if ci.CLID >= 0 && ci.Type == 0 {
 				if info, ierr := c.Command(fmt.Sprintf("clientinfo clid=%d", ci.CLID)); ierr == nil {
 					for _, iline := range info {
 						for _, f := range strings.Fields(iline) {
-							if val, ok := strings.CutPrefix(f, "client_connected_time="); ok {
-								ci.ConnectedTimeMS, _ = strconv.ParseInt(val, 10, 64)
+							switch {
+							case strings.HasPrefix(f, "client_connected_time="):
+								ci.ConnectedTimeMS, _ = strconv.ParseInt(f[len("client_connected_time="):], 10, 64)
+							case strings.HasPrefix(f, "client_idle_time="):
+								ci.IdleTimeMS, _ = strconv.ParseInt(f[len("client_idle_time="):], 10, 64)
+							case strings.HasPrefix(f, "client_flag_talking="):
+								ci.Talking = f[len("client_flag_talking="):] == "1"
 							}
 						}
 					}
 				}
 			}
 
+			if ci.CLID >= 0 {
+				out = append(out, ci)
+			}
+		}
+	}
+	return out, nil
+}
+
+// ClientListBasic returns the clients on the current server using only the
+// fields available directly from "clientlist" (clid, cid, uid, nickname, type).
+// Unlike ClientList it issues no per-client "clientinfo" — that command does not
+// exist over ClientQuery, and the fields it would fill (idle/connected time) are
+// not synced to ClientQuery for remote clients anyway. Idely uses this and
+// measures idleness itself from voice-activity events.
+func (c *Client) ClientListBasic() ([]ClientInfo, error) {
+	data, err := c.Command("clientlist -uid")
+	if err != nil {
+		return nil, err
+	}
+	var out []ClientInfo
+	for _, line := range data {
+		for _, rec := range strings.Split(line, "|") {
+			ci := ClientInfo{CLID: -1, CID: -1}
+			for _, field := range strings.Fields(rec) {
+				k, v, ok := strings.Cut(field, "=")
+				if !ok {
+					continue
+				}
+				switch k {
+				case "clid":
+					ci.CLID, _ = strconv.Atoi(v)
+				case "cid":
+					ci.CID, _ = strconv.Atoi(v)
+				case "client_nickname":
+					ci.Nickname = Unescape(v)
+				case "client_unique_identifier":
+					ci.UID = Unescape(v)
+				case "client_type":
+					ci.Type, _ = strconv.Atoi(v)
+				}
+			}
 			if ci.CLID >= 0 {
 				out = append(out, ci)
 			}
@@ -257,9 +306,46 @@ func (c *Client) ClientDBID(clid int) (int, error) {
 	return 0, fmt.Errorf("client_database_id not found for clid=%d", clid)
 }
 
+// ClientUID returns the stable unique identifier (client_unique_identifier) for a
+// connected client. Idely uses it to resolve its own identity so it doesn't count
+// itself as a user when scanning for idle channels.
+func (c *Client) ClientUID(clid int) (string, error) {
+	data, err := c.Command("clientvariable clid=" + strconv.Itoa(clid) + " client_unique_identifier")
+	if err != nil {
+		return "", err
+	}
+	for _, line := range data {
+		for _, f := range strings.Fields(line) {
+			if v, ok := strings.CutPrefix(f, "client_unique_identifier="); ok {
+				return Unescape(v), nil
+			}
+		}
+	}
+	return "", fmt.Errorf("client_unique_identifier not found for clid=%d", clid)
+}
+
 // AddServerGroup adds a client (by database id) to a server group. Requires the
 // bot's identity to hold the necessary group-management permission.
 func (c *Client) AddServerGroup(sgid, cldbid int) error {
 	_, err := c.Command(fmt.Sprintf("servergroupaddclient sgid=%d cldbid=%d", sgid, cldbid))
+	return err
+}
+
+// RegisterTalkStatusEvents subscribes to notifytalkstatuschange events on server
+// connection handler 1. After this, the client emits an unsolicited
+// "notifytalkstatuschange status=<0|1> ... clid=<n>" line whenever a client
+// starts (status=1) or stops (status=0) talking; read them via the Reader.
+// This event is available only over ClientQuery (a connected voice client), not
+// ServerQuery, which is why Idely runs its own TeamSpeak client.
+func (c *Client) RegisterTalkStatusEvents() error {
+	_, err := c.Command("clientnotifyregister schandlerid=1 event=notifytalkstatuschange")
+	return err
+}
+
+// MoveClient moves the client with the given clid into channel cid. The Idely
+// client uses this (with its own clid from whoami) to follow the audio bot into
+// the channel it is serenading, so it can keep watching for talk activity there.
+func (c *Client) MoveClient(clid, cid int) error {
+	_, err := c.Command(fmt.Sprintf("clientmove clid=%d cid=%d", clid, cid))
 	return err
 }

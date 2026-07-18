@@ -41,8 +41,22 @@ func (s *Supervisor) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// Dedicated Idely container: run only the idle-music subsystem and nothing
+	// else (no poke cycle, which would launch a second ClientQuery client and
+	// collide on the hard-coded port 25639).
+	if s.bot.Cfg.EnableIdely && s.bot.Cfg.IdelyOnly {
+		log.Println("Running in Idely-only mode (idle-music subsystem).")
+		s.runIdely(ctx)
+		return nil
+	}
+
 	if s.bot.Cfg.EnableAbyss {
 		go s.startCommandListener(ctx)
+	}
+
+	if s.bot.Cfg.EnableIdely {
+		log.Println("Warning: ENABLE_IDELY without IDELY_ONLY runs the Idely client alongside the poke client; ClientQuery port 25639 is hard-coded, so this only works if their ClientQuery addresses differ.")
+		go s.runIdely(ctx)
 	}
 
 	for {
@@ -416,7 +430,7 @@ func (s *Supervisor) startCommandListener(ctx context.Context) {
 		}
 
 		reader := c.Reader()
-		
+
 		loopCtx, cancelLoop := context.WithCancel(ctx)
 		go func() {
 			<-loopCtx.Done()
@@ -431,15 +445,15 @@ func (s *Supervisor) startCommandListener(ctx context.Context) {
 			line = strings.Trim(line, "\r\n")
 			s.handleNotificationLine(c, line)
 		}
-		
+
 		cancelLoop()
 		_ = c.Close()
-		
+
 		// If context is canceled, exit the outer loop as well
 		if ctx.Err() != nil {
 			return
 		}
-		
+
 		time.Sleep(5 * time.Second)
 	}
 }
@@ -520,4 +534,3 @@ func (s *Supervisor) handleNotificationLine(c *clientquery.Client, line string) 
 		_ = c.SendPrivateMessage(clid, summary)
 	}
 }
-

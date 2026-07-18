@@ -47,6 +47,11 @@ graphify-out/
 # Generated icons
 data/icons/
 
+# Idely game music track library — downloaded via scripts/fetch_lofi.py; not committed
+# (too large + per-track CC attribution lives in the generated ATTRIBUTION.txt).
+runtime/music/*
+!runtime/music/.gitkeep
+
 # Coverage files
 *.out
 coverage.html
@@ -73,3 +78,4 @@ plans/
 *.md
 
 .claudeignore
+scripts/

@@ -26,19 +26,19 @@ const NumTiers = 334
 // Procedural name pools used for late tiers and beyond.
 var (
 	epicAdjectives = []string{
-		"Ascendant", "Eternal", "Astral", "Radiant", "Infernal", "Celestial", "Primordial", "Transcendent", "Mythic", "Abyssal",
-		"Void-Touched", "Star-Forged", "Ancient", "Gilded", "Spectral", "Divine", "Forbidden", "Ethereal", "Storm-Born", "Shadow-Bound",
-		"Nebulous", "Crystalline", "Forgotten", "Hallowed", "Vengeful", "Silent", "Shattered", "Burning", "Frozen", "Twisted",
+		"Ascendant", "Eternal", "Astral", "Radiant", "Infernal", "Celestial", "Primordial", "Exalted", "Mythic", "Abyssal",
+		"Void", "Star", "Ancient", "Gilded", "Spectral", "Divine", "Forbidden", "Ethereal", "Storm", "Shadow",
+		"Nebulous", "Crystal", "Forgotten", "Hallowed", "Vengeful", "Silent", "Shattered", "Burning", "Frozen", "Twisted",
 	}
 	epicTitles = []string{
 		"Champion", "Warlord", "Sovereign", "Archon", "Overlord", "Demigod", "Titan", "Vanguard", "Conqueror", "Paragon",
-		"Sentinel", "Exarch", "Oracle", "Deity", "Avatar", "Godslayer", "Reaper", "Prophet", "High-King", "Omni-Slayer",
-		"Harbinger", "Executioner", "Watcher", "Keeper", "Lord", "Baron", "Shaman", "Sage", "Priest", "Templar",
+		"Sentinel", "Exarch", "Oracle", "Deity", "Avatar", "Godslayer", "Reaper", "Prophet", "King", "Slayer",
+		"Harbinger", "Reaver", "Watcher", "Keeper", "Lord", "Baron", "Shaman", "Sage", "Priest", "Templar",
 	}
 	epicRealms = []string{
 		"Void", "Abyss", "Cosmos", "Eternity", "Storm", "Dawn", "Flame", "Frost", "Shadow", "Light",
-		"Nebula", "Continuum", "Aether", "Hellfire", "Zero-Point", "Singularity", "Genesis", "Revelation", "Oblivion", "Nexus",
-		"Underworld", "Sky-Reach", "Dream-World", "End-Times", "Sun-Forge", "Moon-Rise", "Deep-Sea", "Ever-Green", "Iron-Hold", "Dragon-Spire",
+		"Nebula", "Space", "Aether", "Hellfire", "Zero", "Core", "Genesis", "Rift", "Chaos", "Nexus",
+		"Nether", "Sky", "Dream", "End", "Sun", "Moon", "Sea", "Grove", "Iron", "Spire",
 	}
 )
 
@@ -138,14 +138,14 @@ func LevelName(level int) string {
 	tier := TierForLevel(level)
 	sub := SubRank(level)
 
-	name := TierName(tier)
-
-	// Add Realm flair for very high levels
 	if level > 6000 {
-		realm := epicRealms[(level/300)%len(epicRealms)]
-		return fmt.Sprintf("%s of the %s %s", name, realm, roman(sub))
+		idx := tier - 1
+		tit := epicTitles[idx%len(epicTitles)]
+		realm := epicRealms[(idx/len(epicTitles))%len(epicRealms)]
+		return fmt.Sprintf("%s of %s %s", tit, realm, roman(sub))
 	}
 
+	name := TierName(tier)
 	return name + " " + roman(sub)
 }
 
@@ -236,25 +236,14 @@ func LevelByName(name string) (int, bool) {
 
 	rom := parts[len(parts)-1]
 	sub := deroman(rom)
-	if sub == 0 {
+	if sub == 0 || sub > levelsPerTier {
 		return 0, false
 	}
 
-	// 1. Strip roman numeral and realm flair if present
-	fullTName := strings.Join(parts[:len(parts)-1], " ")
-	tName := fullTName
-	if strings.Contains(fullTName, " of the ") {
-		tName = strings.Split(fullTName, " of the ")[0]
-	}
-
-	// 2. Check all tiers (base + procedural)
 	for t := 1; t <= NumTiers; t++ {
-		if TierName(t) == tName {
-			level := (t-1)*levelsPerTier + sub
-			// Re-verify with full LevelName to handle realm flair and exact match
-			if LevelName(level) == name {
-				return level, true
-			}
+		level := (t-1)*levelsPerTier + sub
+		if LevelName(level) == name {
+			return level, true
 		}
 	}
 
