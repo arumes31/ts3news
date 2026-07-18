@@ -47,6 +47,12 @@ graphify-out/
 # Generated icons
 data/icons/
 
+# Container host bind-mount data (docker-compose host volumes: postgres data,
+# TS3AudioBot config/db, and the Idely client profile). Runtime state, not source.
+/data/postgres/
+/data/ts3audiobot/
+/data/idely-profile/
+
 # Idely game music track library — downloaded via scripts/fetch_lofi.py; not committed
 # (too large + per-track CC attribution lives in the generated ATTRIBUTION.txt).
 runtime/music/*
