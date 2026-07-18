@@ -1,7 +1,9 @@
 package idely
 
 import (
+	"fmt"
 	"math/rand/v2"
+	"strings"
 	"time"
 )
 
@@ -140,6 +142,31 @@ func (e *Engine) StopForTalk(cid int) {
 // new session (spawning a bot) for each newly-idle channel, up to MaxBots.
 func (e *Engine) OnSnapshot(clients []Client) {
 	e.last = clients
+
+	// Log status of each occupied channel and user idle times.
+	channelsInfo := make(map[int][]string)
+	for _, c := range clients {
+		if !e.cfg.isRealUser(c) || !e.cfg.channelAllowed(c.CID) {
+			continue
+		}
+		status := fmt.Sprintf("%s(idle:%v)", c.Nickname, c.Idle.Round(time.Second))
+		if c.Talking {
+			status = fmt.Sprintf("%s(talking)", c.Nickname)
+		}
+		channelsInfo[c.CID] = append(channelsInfo[c.CID], status)
+	}
+
+	if len(channelsInfo) > 0 {
+		var cids []int
+		for cid := range channelsInfo {
+			cids = append(cids, cid)
+		}
+		sortInts(cids)
+		for _, cid := range cids {
+			users := channelsInfo[cid]
+			e.logf("idely: channel %d status: %d real user(s) -> [%s]", cid, len(users), strings.Join(users, ", "))
+		}
+	}
 
 	idle := e.cfg.IdleChannels(clients)
 	idleSet := make(map[int]bool, len(idle))
