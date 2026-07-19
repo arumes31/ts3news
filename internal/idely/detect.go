@@ -20,6 +20,7 @@ type Client struct {
 	Nickname string        // display name
 	Type     int           // 0 = voice client, 1 = query/ClientQuery client
 	Idle     time.Duration // client_idle_time (since last input or >1s of voice)
+	HasIdle  bool          // true if Idle was populated by a server query
 	Talking  bool          // client_flag_talking, when available
 }
 

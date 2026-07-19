@@ -324,6 +324,22 @@ func (c *Client) ClientUID(clid int) (string, error) {
 	return "", fmt.Errorf("client_unique_identifier not found for clid=%d", clid)
 }
 
+// ClientIdleTime returns the remote client's idle time in milliseconds.
+func (c *Client) ClientIdleTime(clid int) (int64, error) {
+	data, err := c.Command(fmt.Sprintf("clientvariable clid=%d client_idle_time", clid))
+	if err != nil {
+		return 0, err
+	}
+	for _, line := range data {
+		for _, f := range strings.Fields(line) {
+			if v, ok := strings.CutPrefix(f, "client_idle_time="); ok {
+				return strconv.ParseInt(v, 10, 64)
+			}
+		}
+	}
+	return 0, fmt.Errorf("client_idle_time not found for clid=%d", clid)
+}
+
 // AddServerGroup adds a client (by database id) to a server group. Requires the
 // bot's identity to hold the necessary group-management permission.
 func (c *Client) AddServerGroup(sgid, cldbid int) error {

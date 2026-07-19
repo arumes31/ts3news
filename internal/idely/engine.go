@@ -43,6 +43,7 @@ type Engine struct {
 	sessions      map[int]*session  // channel id -> active session
 	cooldownUntil map[int]time.Time // channel id -> earliest time it may be serenaded again
 	last          []Client          // most recent snapshot, for clid -> channel resolution
+	lastHeartbeat time.Time
 }
 
 // EngineConfig configures an Engine.
@@ -165,6 +166,12 @@ func (e *Engine) OnSnapshot(clients []Client) {
 		for _, cid := range cids {
 			users := channelsInfo[cid]
 			e.logf("idely: channel %d status: %d real user(s) -> [%s]", cid, len(users), strings.Join(users, ", "))
+		}
+	} else {
+		now := e.now()
+		if e.lastHeartbeat.IsZero() || now.Sub(e.lastHeartbeat) >= 30*time.Second {
+			e.lastHeartbeat = now
+			e.logf("idely: monitoring channels... 0 real users detected (total clients online: %d)", len(clients))
 		}
 	}
 
