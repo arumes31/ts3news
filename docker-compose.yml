@@ -107,7 +107,7 @@ services:
     container_name: ts3-news-audiobot-init
     restart: "no"
     volumes:
-      - ./data/ts3audiobot:/app/data
+      - ts3audiobot_data:/app/data
       # Committed seed templates (this dir also holds plugins/, which is ignored here).
       - ./runtime/ts3audiobot:/seed:ro
     command:
@@ -143,9 +143,8 @@ services:
       ts3audiobot-init:
         condition: service_completed_successfully
     volumes:
-      # Host bind mount for the image's working dir (config + db). Prepared and
-      # chowned by ts3audiobot-init above.
-      - ./data/ts3audiobot:/app/data
+      # Named volume for the image's working dir (config + db) to avoid Nextcloud locks.
+      - ts3audiobot_data:/app/data
       # The game music library and the talk-sensor plugin (compiled at runtime).
       - ./runtime/music:/audio:ro
       - ./runtime/ts3audiobot/plugins:/app/data/plugins:ro
@@ -157,3 +156,4 @@ services:
 
 volumes:
   postgres_data:
+  ts3audiobot_data:
