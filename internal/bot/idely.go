@@ -191,9 +191,20 @@ func (s *Supervisor) runIdelyOnce(ctx context.Context) error {
 	svc := &idely.Service{
 		Engine: engine,
 		Snapshot: func() ([]idely.Client, error) {
-			raw, err := idely.SnapshotClientQuery(poll)
-			if err != nil {
-				return nil, err
+			var raw []idely.Client
+			var err error
+			if cfg.IdelyQueryUser != "" && cfg.IdelyQueryPass != "" {
+				raw, err = s.snapshotServerQuery(cfg)
+				if err != nil {
+					log.Printf("Idely: ServerQuery snapshot failed (falling back to ClientQuery): %v", err)
+					raw = nil // reset just in case
+				}
+			}
+			if len(raw) == 0 {
+				raw, err = idely.SnapshotClientQuery(poll)
+				if err != nil {
+					return nil, err
+				}
 			}
 			clients := tracker.Observe(raw)
 			// Discover the audio bot's UID from the live snapshot so it stays
@@ -370,6 +381,8 @@ func (s *Supervisor) idelyTalkListener(ctx context.Context, tracker *idely.Activ
 		// Subscribe to all channels so talk events for the target channel are
 		// delivered even when the Idely client is parked elsewhere (best-effort).
 		_, _ = c.Command("channelsubscribeall")
+		_, _ = c.Command("clientnotifyregister schandlerid=1 event=notifyclientupdated")
+		_, _ = c.Command("clientnotifyregister schandlerid=1 event=notifyclientmoved")
 		if err := c.RegisterTalkStatusEvents(); err != nil {
 			log.Printf("Idely: talk-status registration failed: %v", err)
 			_ = c.Close()
@@ -386,11 +399,13 @@ func (s *Supervisor) idelyTalkListener(ctx context.Context, tracker *idely.Activ
 		for {
 			line, rerr := reader.ReadString('\n')
 			if t := strings.Trim(line, "\r\n"); t != "" {
-				if clid, ok := parseTalkStart(t); ok {
+				if clid, isTalkStart, ok := parseClientActivity(t); ok {
 					tracker.Touch(clid) // reset this client's idle timer
-					select {
-					case talk <- clid:
-					default: // channel full; polling will still catch activity
+					if isTalkStart {
+						select {
+						case talk <- clid:
+						default: // channel full; polling will still catch activity
+						}
 					}
 				}
 			}
@@ -405,16 +420,66 @@ func (s *Supervisor) idelyTalkListener(ctx context.Context, tracker *idely.Activ
 	}
 }
 
-// parseTalkStart returns the clid from a notifytalkstatuschange line, and ok=true
-// only when it signals talking started (status=1).
-func parseTalkStart(line string) (int, bool) {
+// parseClientActivity parses any ClientQuery notification and returns the clid,
+// whether it represents a talk start event (isTalkStart), and ok=true if it represents client activity.
+func parseClientActivity(line string) (clid int, isTalkStart bool, ok bool) {
 	name, params := parseNotification(line)
-	if name != "notifytalkstatuschange" || params["status"] != "1" {
-		return 0, false
+	switch name {
+	case "notifytalkstatuschange":
+		if params["status"] == "1" {
+			clid, _ = strconv.Atoi(params["clid"])
+			if clid > 0 {
+				return clid, true, true
+			}
+		}
+	case "notifyclientupdated":
+		clid, _ = strconv.Atoi(params["clid"])
+		return clid, false, clid > 0
+	case "notifyclientmoved":
+		clid, _ = strconv.Atoi(params["clid"])
+		return clid, false, clid > 0
 	}
-	clid, err := strconv.Atoi(params["clid"])
-	if err != nil || clid == 0 {
-		return 0, false
+	return 0, false, false
+}
+
+// snapshotServerQuery queries client states directly from ServerQuery.
+func (s *Supervisor) snapshotServerQuery(cfg *config.Config) ([]idely.Client, error) {
+	addr := fmt.Sprintf("%s:%d", cfg.TS3Host, cfg.IdelyQueryPort)
+	conn, err := clientquery.Dial(addr, 5*time.Second)
+	if err != nil {
+		return nil, err
 	}
-	return clid, true
+	defer func() { _ = conn.Close() }()
+
+	if _, err := conn.Command(fmt.Sprintf("login %s %s", cfg.IdelyQueryUser, cfg.IdelyQueryPass)); err != nil {
+		return nil, fmt.Errorf("serverquery login: %w", err)
+	}
+
+	targetPort := cfg.TS3Port
+	if targetPort == 0 {
+		targetPort = 9987
+	}
+	if _, err := conn.Command(fmt.Sprintf("use port=%d", targetPort)); err != nil {
+		return nil, fmt.Errorf("serverquery use: %w", err)
+	}
+
+	infos, err := conn.ClientList()
+	if err != nil {
+		return nil, fmt.Errorf("serverquery clientlist: %w", err)
+	}
+
+	out := make([]idely.Client, 0, len(infos))
+	for _, ci := range infos {
+		out = append(out, idely.Client{
+			CLID:     ci.CLID,
+			CID:      ci.CID,
+			UID:      ci.UID,
+			Nickname: ci.Nickname,
+			Type:     ci.Type,
+			Idle:     time.Duration(ci.IdleTimeMS) * time.Millisecond,
+			HasIdle:  true,
+			Talking:  ci.Talking,
+		})
+	}
+	return out, nil
 }

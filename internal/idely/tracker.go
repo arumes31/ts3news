@@ -61,11 +61,16 @@ func (t *ActivityTracker) Observe(clients []Client) []Client {
 		c := &clients[i]
 		present[c.CLID] = true
 
-		prevCID, known := t.lastCID[c.CLID]
-		if !known || prevCID != c.CID {
-			t.lastActive[c.CLID] = now // just appeared or moved => active
-		} else if _, ok := t.lastActive[c.CLID]; !ok {
-			t.lastActive[c.CLID] = now
+		if c.HasIdle {
+			// Server reported the real idle time — sync our tracking to it directly.
+			t.lastActive[c.CLID] = now.Add(-c.Idle)
+		} else {
+			prevCID, known := t.lastCID[c.CLID]
+			if !known || prevCID != c.CID {
+				t.lastActive[c.CLID] = now // just appeared or moved => active
+			} else if _, ok := t.lastActive[c.CLID]; !ok {
+				t.lastActive[c.CLID] = now
+			}
 		}
 		t.lastCID[c.CLID] = c.CID
 		c.Idle = now.Sub(t.lastActive[c.CLID])

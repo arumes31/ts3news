@@ -75,6 +75,9 @@ services:
       - IDELY_API_USER=${IDELY_API_USER}
       - IDELY_API_TOKEN=${IDELY_API_TOKEN}
       - IDELY_BOT_UID=${IDELY_BOT_UID}
+      - IDELY_QUERY_USER=${IDELY_QUERY_USER}
+      - IDELY_QUERY_PASS=${IDELY_QUERY_PASS}
+      - IDELY_QUERY_PORT=${IDELY_QUERY_PORT:-10011}
       - DATABASE_URL=${DATABASE_URL:-postgres://${DB_USER:-ts3bot}:${DB_PASS:-ts3botpass}@db:5432/${DB_NAME:-ts3news}?sslmode=disable}
     env_file:
       - config.env
