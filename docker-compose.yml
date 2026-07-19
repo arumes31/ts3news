@@ -8,9 +8,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASS:-ts3botpass}
       POSTGRES_DB: ${DB_NAME:-ts3news}
     volumes:
-      # Host bind mount. The postgres entrypoint (which starts as root) initialises
-      # and chowns this directory to the postgres user, so a plain host path works.
-      - ./data/postgres:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ts3bot} -d ${DB_NAME:-ts3news}"]
       interval: 5s
@@ -153,3 +151,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  postgres_data:
