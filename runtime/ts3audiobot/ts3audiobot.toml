@@ -22,6 +22,10 @@ port = 58913
 [web.api]
 enabled = true
 
+[bot.connect]
+generate_status_avatar = false
+set_status_description = false
+
 [factories]
 # Idely plays tracks by base filename; TS3AudioBot resolves those against this
 # path — the shared /audio volume both containers mount.

@@ -112,12 +112,19 @@ services:
       - sh
       - -c
       - |
-        for f in ts3audiobot.toml rights.toml; do
-          if [ ! -f "/app/data/$$f" ] && [ -f "/seed/$$f" ]; then
-            cp "/seed/$$f" "/app/data/$$f"
-            echo "[audiobot] seeded /app/data/$$f"
-          fi
-        done
+        if [ ! -f "/app/data/ts3audiobot.toml" ] && [ -f "/seed/ts3audiobot.toml" ]; then
+          cp "/seed/ts3audiobot.toml" "/app/data/ts3audiobot.toml"
+          echo "[audiobot] seeded ts3audiobot.toml"
+        fi
+        if [ -f "/app/data/ts3audiobot.toml" ]; then
+          sed -i 's/generate_status_avatar = true/generate_status_avatar = false/g' "/app/data/ts3audiobot.toml"
+          sed -i 's/set_status_description = true/set_status_description = false/g' "/app/data/ts3audiobot.toml"
+          echo "[audiobot] disabled status avatar and description updates"
+        fi
+        if [ -f "/seed/rights.toml" ]; then
+          cp "/seed/rights.toml" "/app/data/rights.toml"
+          echo "[audiobot] applied rights.toml"
+        fi
         exec dotnet /app/TS3AudioBot.dll --non-interactive
     volumes:
       # Named volume for the image's working dir (config + db) to avoid Nextcloud locks.
