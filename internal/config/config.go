@@ -129,6 +129,11 @@ type Config struct {
 	IdelyNames           []string // pool of random names for the audio bot
 	IdelyTracks          []string // explicit lo-fi resources; empty => scan IdelyTracksDir
 	IdelyTracksDir       string   // directory of track files to scan (as both Idely and the audio bot see it)
+
+	// ServerQuery fallback configuration for Idely to fetch true server-wide idle/talking states.
+	IdelyQueryUser string
+	IdelyQueryPass string
+	IdelyQueryPort int
 }
 
 // LoadConfig reads bot configuration from the environment (and config.env, if
@@ -243,6 +248,10 @@ func LoadConfig() *Config {
 		// explicit comma-separated list to override the scan.
 		IdelyTracks:    envList("IDELY_TRACKS", nil),
 		IdelyTracksDir: envDefault("IDELY_TRACKS_DIR", "/audio"),
+
+		IdelyQueryUser: os.Getenv("IDELY_QUERY_USER"),
+		IdelyQueryPass: os.Getenv("IDELY_QUERY_PASS"),
+		IdelyQueryPort: envInt("IDELY_QUERY_PORT", 10011),
 	}
 }
 
