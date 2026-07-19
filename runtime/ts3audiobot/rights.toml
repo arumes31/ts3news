@@ -1,10 +1,14 @@
 # --- Seeded automatically by the ts3audiobot-init container on first run. ---
-# Copied into the ts3audiobot_data volume ONLY when no rights.toml exists yet, so
-# an existing ruleset is never overwritten.
+# Copied into the ts3audiobot_data volume ONLY when no rights.toml exists yet.
 #
-# This grants every caller all rights. It is safe ONLY because the TS3AudioBot
-# WebAPI is not published outside the Docker network (the ts3audiobot service
-# declares no ports), which lets Idely drive it anonymously — no `!api token`
-# needed. If you ever expose the WebAPI, replace this with a restrictive ruleset.
+# This grants full admin rights to internal connections from localhost or the
+# private Docker subnets. Remote users are limited to basic playback.
+
 [[rule]]
+    # Grant full permissions to local and internal Docker network connections
+    ip = [ "127.0.0.1", "172.16.0.0/12", "192.168.0.0/16", "10.0.0.0/8" ]
     "+" = "*"
+
+[[rule]]
+    # Default permissions for remote TeamSpeak users
+    "+" = [ "cmd.play", "cmd.stop", "cmd.volume", "cmd.list", "cmd.search" ]
