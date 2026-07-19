@@ -96,43 +96,11 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # ---- One-shot: prepare TS3AudioBot's data dir so Idely works out of the box ----
-  # Runs as root before ts3audiobot starts. It (1) seeds a working ts3audiobot.toml
-  # (WebAPI + /audio media path) and a permissive rights.toml — but only when they
-  # are absent, so any customisation is preserved — and (2) chowns the host-mounted
-  # /app/data to uid 9999 (the image's non-root "ts3bot" user), without which
-  # TS3AudioBot cannot write NLog.config / its databases and crashes on startup.
-  ts3audiobot-init:
-    image: busybox:stable
-    container_name: ts3-news-audiobot-init
-    restart: "no"
-    volumes:
-      - ts3audiobot_data:/app/data
-      # Committed seed templates (this dir also holds plugins/, which is ignored here).
-      - ./runtime/ts3audiobot:/seed:ro
-    command:
-      - sh
-      - -c
-      - |
-        for f in ts3audiobot.toml rights.toml; do
-          if [ -f "/app/data/$$f" ]; then
-            echo "[audiobot-init] /app/data/$$f exists; leaving it untouched"
-          elif [ -f "/seed/$$f" ]; then
-            cp "/seed/$$f" "/app/data/$$f"
-            echo "[audiobot-init] seeded /app/data/$$f"
-          else
-            echo "[audiobot-init] WARNING: /seed/$$f missing; not seeded"
-          fi
-        done
-        chown -R 9999:9999 /app/data
-        echo "[audiobot-init] chowned /app/data to 9999:9999 (ts3bot)"
-
   # ---- TS3AudioBot sidecar: the "voice" Idely dispatches to play music ----
   # A separate, community-maintained service that connects to the TS3 server as its
   # own voice client, transmits audio, AND (via the IdelyTalkSensor plugin) tells
-  # Idely when a real user is talking. Its config (WebAPI + /audio media path) and
-  # a permissive rights.toml are seeded automatically by ts3audiobot-init, so no
-  # manual ts3audiobot.toml editing or `!api token` is needed for a standard setup.
+  # Idely when a real user is talking. It automatically seeds a working
+  # ts3audiobot.toml and rights.toml on first run.
   ts3audiobot:
     image: ancieque/ts3audiobot:latest
     container_name: ts3-news-audiobot
@@ -140,14 +108,25 @@ services:
     depends_on:
       ts3-idely:
         condition: service_started
-      ts3audiobot-init:
-        condition: service_completed_successfully
+    entrypoint:
+      - sh
+      - -c
+      - |
+        for f in ts3audiobot.toml rights.toml; do
+          if [ ! -f "/app/data/$$f" ] && [ -f "/seed/$$f" ]; then
+            cp "/seed/$$f" "/app/data/$$f"
+            echo "[audiobot] seeded /app/data/$$f"
+          fi
+        done
+        exec dotnet /app/TS3AudioBot.dll --non-interactive
     volumes:
       # Named volume for the image's working dir (config + db) to avoid Nextcloud locks.
       - ts3audiobot_data:/app/data
       # The game music library and the talk-sensor plugin (compiled at runtime).
       - ./runtime/music:/audio:ro
       - ./runtime/ts3audiobot/plugins:/app/data/plugins:ro
+      # Seed templates directory
+      - ./runtime/ts3audiobot:/seed:ro
     logging:
       driver: "json-file"
       options:
