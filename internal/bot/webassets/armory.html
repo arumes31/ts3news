@@ -155,13 +155,13 @@
 {{end}}
 <script data-cfasync="false">
 async function identifyGear(slot, btn){
-  if(btn){btn.disabled=true;btn.textContent='Identifying…';}
+  if(btn){btn.disabled=true;btn.classList.add('btn-busy');btn.textContent='Identifying…';}
   try{
     const r=await fetch('/api/abyss/identify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot:slot})});
     const d=await r.json();
     if(d.ok){location.reload();}
-    else{alert(d.error||'Could not identify item');if(btn){btn.disabled=false;btn.textContent='🔍 Identify (100g)';}}
-  }catch(e){if(btn){btn.disabled=false;btn.textContent='🔍 Identify (100g)';}}
+    else{alert(d.error||'Could not identify item');if(btn){btn.disabled=false;btn.classList.remove('btn-busy');btn.textContent='🔍 Identify (100g)';}}
+  }catch(e){if(btn){btn.disabled=false;btn.classList.remove('btn-busy');btn.textContent='🔍 Identify (100g)';}}
 }
 </script>
 {{template "foot" .}}{{end}}
