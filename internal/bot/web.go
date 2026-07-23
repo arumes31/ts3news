@@ -485,7 +485,8 @@ func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) handleDenied(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
+	// 🛡️ Sentinel: Return 403 Forbidden to prevent improper caching of access-denied state by CDNs/browsers.
+	w.WriteHeader(http.StatusForbidden)
 	s.render(w, "denied", map[string]any{"Title": "Access"})
 }
 
