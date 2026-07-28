@@ -1,0 +1,3 @@
+## 2024-05-14 - Inline Regexp Compilation for Whitespace Normalization
+**Learning:** Using inline `regexp.MustCompile` for simple whitespace normalization inside functions causes unnecessary re-compilations and allocations in hot paths.
+**Action:** Use `strings.Join(strings.Fields(s), " ")` instead, which is significantly faster and natively handles leading/trailing spaces without `strings.TrimSpace`.
