@@ -1,0 +1,3 @@
+## 2024-05-24 - Async Feedback on Standard HTML Templates
+**Learning:** In projects heavily utilizing standard Go HTML templates with inline event handlers instead of heavy frontend frameworks, applying `.btn-busy` and disabling buttons by passing `this` directly into the JavaScript function call is an extremely effective pattern for solving double-submission UX issues cleanly and without refactoring into components.
+**Action:** When adding async operations to interactive elements in standard HTML template structures, always add visual loading/busy indicators manually by passing `this` from the inline handler rather than relying on state variables.
