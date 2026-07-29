@@ -1,0 +1,3 @@
+## 2024-07-29 - strings.Fields vs regexp
+**Learning:** In Go, calling `regexp.MustCompile` inside a frequently executed loop or function recompiles the regex on every single invocation instead of compiling it once, severely degrading performance. Additionally, using `strings.Join(strings.Fields(s), " ")` is an order of magnitude faster than regex for whitespace normalization and naturally strips leading/trailing space.
+**Action:** Always extract `regexp.MustCompile` to package-level variables or swap basic whitespace regex patterns to `strings.Fields()` for a massive micro-optimization in string processing.
