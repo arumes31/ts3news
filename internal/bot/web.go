@@ -485,7 +485,8 @@ func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) handleDenied(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
+	// Security: Return 403 instead of 200 to prevent caching of denied states
+	w.WriteHeader(http.StatusForbidden)
 	s.render(w, "denied", map[string]any{"Title": "Access"})
 }
 

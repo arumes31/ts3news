@@ -1,0 +1,4 @@
+## 2024-07-31 - Incorrect HTTP Status for Access Denied Pages
+**Vulnerability:** The `/denied` handler (`handleDenied`) was returning an HTTP 200 OK status instead of a proper 403 Forbidden status.
+**Learning:** Returning 200 OK for access-denied errors is an insecure default that can lead to sensitive states or error messages being improperly cached by browsers, proxies, or CDNs. It also breaks HTTP semantics for tools analyzing web traffic.
+**Prevention:** Always use appropriate HTTP status codes (e.g., `http.StatusForbidden` or `http.StatusUnauthorized`) for access control failures rather than defaulting to `http.StatusOK`.
