@@ -56,9 +56,9 @@
     {{else}}
       <span class="btn ghost disabled" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; color: #8b949e; border-radius: 6px; opacity: 0.5; font-size: 14px; cursor: not-allowed;">&larr; Prev</span>
     {{end}}
-    
+
     <span class="page-info" style="font-size: 14px; color: #c9d1d9;">Page <b>{{.CurrentPage}}</b> of <b>{{.TotalPages}}</b> ({{.TotalCount}} listings)</span>
-    
+
     {{if lt .CurrentPage .TotalPages}}
       <a href="/ah?page={{.NextPage}}{{if .SearchQuery}}&q={{.SearchQuery}}{{end}}{{if .UpgradesOnly}}&upgrades=1{{end}}" class="btn ghost" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; text-decoration: none; font-size: 14px;">Next &rarr;</a>
     {{else}}
@@ -135,7 +135,7 @@
   function toast(m, ok) { var t = document.getElementById('ahMsg'); t.textContent = m; t.className = 'toast show ' + (ok ? 'good' : 'bad'); setTimeout(function () { t.className = 'toast'; }, 2600); }
   async function post(url, body) { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return r.json(); }
   async function buyAH(id, btn) {
-    if (btn) btn.disabled = true;
+    if (btn) { btn.disabled = true; btn.classList.add('btn-busy'); }
     const d = await post('/api/ah/buy', { id: id });
     if (d.ok) {
       toast('Bought ' + d.bought, true);
@@ -144,18 +144,18 @@
       setTimeout(() => location.reload(), 800);
     } else {
       toast(d.error, false);
-      if (btn) btn.disabled = false;
+      if (btn) { btn.disabled = false; btn.classList.remove('btn-busy'); }
     }
   }
   async function listAH(invID, btn) {
-    if (btn) btn.disabled = true;
+    if (btn) { btn.disabled = true; btn.classList.add('btn-busy'); }
     const d = await post('/api/ah/list', { inv_id: invID });
     if (d.ok) {
       toast('Listed ' + d.listed + ' for ' + d.price, true);
       setTimeout(() => location.reload(), 700);
     } else {
       toast(d.error, false);
-      if (btn) btn.disabled = false;
+      if (btn) { btn.disabled = false; btn.classList.remove('btn-busy'); }
     }
   }
 </script>
