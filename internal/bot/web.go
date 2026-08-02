@@ -299,9 +299,17 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/api/ah/buy", s.auth(s.handleAHBuyAPI))
 	mux.HandleFunc("/api/ah/list", s.auth(s.handleAHListAPI))
 
+	securityMiddleware := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		mux.ServeHTTP(w, r)
+	})
+
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           securityMiddleware,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	s.mu.Lock()
