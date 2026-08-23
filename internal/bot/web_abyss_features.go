@@ -1401,6 +1401,9 @@ func (s *WebServer) handleAbyssLastStand(w http.ResponseWriter, r *http.Request,
 	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
+	if s.rejectDuringLiveCombat(w, uid) {
+		return
+	}
 
 	run := s.bot.loadAbyssRun(uid)
 	if !run.Active || !run.Downed {

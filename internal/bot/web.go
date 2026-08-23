@@ -54,6 +54,11 @@ type WebServer struct {
 	// wrapped in one SQL transaction with the surrounding bookkeeping, so a
 	// per-uid lock is what prevents the double-bank and post-death-descend races.
 	abyssLocks sync.Map // uid -> *sync.Mutex
+
+	// liveCombats stores active interactive fights by session ID; liveCombatByUID
+	// lets every authenticated party member resume the same group fight.
+	liveCombats     sync.Map // session ID -> *abyssLiveCombat
+	liveCombatByUID sync.Map // uid -> session ID
 }
 
 // lockAbyss acquires the per-uid Abyss mutex and returns its unlock func.
@@ -215,6 +220,10 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/salvage", s.authAPI(s.handleAbyssSalvage))
 		mux.HandleFunc("/api/abyss/upgrade", s.authAPI(s.handleAbyssUpgrade))
 		mux.HandleFunc("/api/abyss/use_consumable", s.authAPI(s.handleAbyssUseConsumable))
+		mux.HandleFunc("/api/abyss/combat/state", s.authAPI(s.handleAbyssCombatState))
+		mux.HandleFunc("/api/abyss/combat/action", s.authAPI(s.handleAbyssCombatAction))
+		mux.HandleFunc("/api/abyss/combat/tactics", s.authAPI(s.handleAbyssCombatTactics))
+		mux.HandleFunc("/api/abyss/combat/events", s.authAPI(s.handleAbyssCombatEvents))
 		mux.HandleFunc("/api/abyss/noncombat/action", s.authAPI(s.handleAbyssNonCombatAction))
 		mux.HandleFunc("/api/abyss/noncombat/proceed", s.authAPI(s.handleAbyssNonCombatProceed))
 		mux.HandleFunc("/api/abyss/coop/list", s.authAPI(s.handleAbyssCoopList))

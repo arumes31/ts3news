@@ -307,6 +307,36 @@
 
 <div class="abyss-banner" id="abyssBanner" role="status" aria-live="assertive"></div>
 
+<!-- Interactive combat command deck. Hidden outside a live server-authoritative
+     combat session; targets and action slots are populated from SSE snapshots. -->
+<section class="ab-livecombat" id="liveCombat" aria-label="Live combat controls" style="display:none">
+  <div class="ab-live-head">
+    <div>
+      <span class="ab-live-kicker">SYNCHRONIZED COMBAT</span>
+      <strong id="liveRound">ROUND —</strong>
+      <span class="ab-live-pause" id="livePause"></span>
+    </div>
+    <div class="ab-live-clock" id="liveClock" role="timer" aria-live="off">—</div>
+    <label class="ab-live-tactic">Tactic
+      <select id="liveTactic" onchange="setLiveTactic(this.value)">
+        <option value="aggressive">Aggressive</option>
+        <option value="balanced">Balanced</option>
+        <option value="defensive">Defensive</option>
+        <option value="conserve_items">Conserve Items</option>
+      </select>
+    </label>
+  </div>
+  <div class="ab-live-field">
+    <div><span class="ab-live-label">ALLIES</span><div class="ab-live-targets" id="liveAllies"></div></div>
+    <div><span class="ab-live-label hostile">ENEMIES</span><div class="ab-live-targets" id="liveEnemies"></div></div>
+  </div>
+  <div class="ab-live-command">
+    <div class="ab-live-queue" id="liveQueue">Choose an action, then select a target.</div>
+    <div class="ab-actionbar" id="liveActionBar"></div>
+  </div>
+  <div class="ab-live-feed" id="liveFeed" aria-live="polite"></div>
+</section>
+
 <!-- Sticky mini-HUD (#301): mirrors HP / depth / escrow / threat once the stage scrolls away -->
 <div class="ab-minihud" id="miniHud" aria-hidden="true">
   <span>❤️ <b id="mhHP"></b></span>
@@ -999,6 +1029,9 @@ var curInsured = {{.Run.Insured}}; // UI-43
 var logDelay = Math.max(30, 90 - 12 * {{.Stats.UpSwiftness}}); // Swiftness node (#154)
 var pageConsumables = {{jsonJS .Consumables}} || [];
 var runFloorsCleared = 0, runLootGained = 0; // run summary card (#341)
+var liveCombatSource=null, liveCombatPoll=null, liveCombatState=null;
+var liveSelectedTarget='', livePendingOption=null, liveFinishHandled=false;
+var liveStartHP=0, liveStartMaxHP=0, liveClockTimer=null;
 
 // Modern hover tooltip for the Armoury + run-loot panels. A single viewport-fixed
 // card follows the cursor (so the scrolling sidebar never clips it), replacing the
@@ -2441,12 +2474,17 @@ async function abyssDescend(){
   setBusy(true); markBusyBtn('btnDescend'); clearBanner();
   document.getElementById('abStatus').textContent='Descending…';
 
-  var d=await abPost('/api/abyss/descend',{});
+  var d=await abPost('/api/abyss/descend',{interactive:true});
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
 
   if(d.choose_floor){
     setBusy(false);
     openFloorChoiceModal(d.options, d.depth, hp, max);
+    return;
+  }
+
+  if(d.live_combat){
+    startLiveCombat(d, hp, max);
     return;
   }
 
@@ -2583,6 +2621,7 @@ async function abyssChooseFloor(i, hp, max){
   document.getElementById('abStatus').textContent='Descending…';
   var d=await abPost('/api/abyss/choose_floor',{index:i});
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  if(d.live_combat){ startLiveCombat(d, hp, max); return; }
   await processDescendResult(d, hp, max);
 }
 
@@ -2672,6 +2711,217 @@ async function processDescendResult(d, hp, max){
   }
   renderState(); setBusy(false);
 }
+
+// ---- Live action bar -------------------------------------------------------
+
+function startLiveCombat(payload, hp, max){
+  liveStartHP=hp||Number(document.getElementById('hpBar').getAttribute('aria-valuenow'))||0;
+  liveStartMaxHP=max||Number(document.getElementById('hpBar').getAttribute('aria-valuemax'))||1;
+  liveFinishHandled=false;
+  liveSelectedTarget=''; livePendingOption=null;
+  document.getElementById('liveCombat').style.display='block';
+  document.getElementById('abStatus').textContent='Combat synchronized — choose an action before the round expires.';
+  setBusy(true);
+  if(payload && payload.state) renderLiveCombat(payload.state);
+  if(liveFinishHandled)return;
+  connectLiveCombat();
+  setTimeout(function(){document.getElementById('liveCombat').scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'center'});},50);
+}
+
+function connectLiveCombat(){
+  if(liveCombatSource){liveCombatSource.close();liveCombatSource=null;}
+  if(liveCombatPoll){clearTimeout(liveCombatPoll);liveCombatPoll=null;}
+  if(!window.EventSource){pollLiveCombat();return;}
+  var source=new EventSource('/api/abyss/combat/events');
+  liveCombatSource=source;
+  source.addEventListener('combat',function(ev){
+    try{renderLiveCombat(JSON.parse(ev.data));}catch(e){}
+  });
+  source.onerror=function(){
+    source.close();
+    if(liveCombatSource===source)liveCombatSource=null;
+    if(!liveFinishHandled)liveCombatPoll=setTimeout(pollLiveCombat,900);
+  };
+}
+
+async function pollLiveCombat(){
+  if(liveFinishHandled)return;
+  try{
+    var response=await fetch('/api/abyss/combat/state',{cache:'no-store'});
+    var state=await response.json();
+    if(state.ok)renderLiveCombat(state);
+  }catch(e){}
+  if(!liveFinishHandled)liveCombatPoll=setTimeout(pollLiveCombat,900);
+}
+
+function livePct(value,maxValue){return maxValue>0?Math.max(0,Math.min(100,Math.round(value*100/maxValue))):0;}
+function liveTargetValid(option,target){
+  if(!option)return false;
+  if(option.target==='self')return true;
+  if(option.target==='ally')return (target||'').indexOf('ally:')===0;
+  if(option.target==='enemy')return (target||'').indexOf('enemy:')===0;
+  return false;
+}
+
+function renderLiveTargets(hostID, combatants, hostile){
+  var host=document.getElementById(hostID); host.innerHTML='';
+  (combatants||[]).forEach(function(unit){
+    var button=document.createElement('button');
+    button.type='button'; button.className='ab-combatant'+(hostile?' hostile':'')+(liveSelectedTarget===unit.id?' selected':'');
+    button.disabled=unit.hp<=0;
+    button.setAttribute('data-target',unit.id);
+    button.setAttribute('aria-pressed',liveSelectedTarget===unit.id?'true':'false');
+    button.innerHTML='<span class="ab-combatant-name">'+consEsc(unit.name)+(unit.ready?' <i>READY</i>':'')+'</span>'+
+      '<span class="ab-combatant-hp"><b style="width:'+livePct(unit.hp,unit.max_hp)+'%"></b></span>'+
+      '<span class="ab-combatant-stat">'+fmtNum(unit.hp)+' / '+fmtNum(unit.max_hp)+(unit.max_mana?' · 🔵 '+fmtNum(unit.mana):'')+'</span>';
+    button.onclick=function(){selectLiveTarget(unit.id);};
+    host.appendChild(button);
+  });
+}
+
+function selectLiveTarget(targetID){
+  liveSelectedTarget=targetID;
+  if(liveCombatState)renderLiveCombat(liveCombatState,true);
+  if(livePendingOption && liveTargetValid(livePendingOption,targetID))submitLiveOption(livePendingOption);
+}
+
+function liveActionIcon(option){
+  if(option.kind==='attack')return '⚔️';
+  if(option.kind==='defend')return '🛡️';
+  if(option.kind==='item')return '🧪';
+  if(option.kind==='ultimate')return '🌟';
+  return option.target==='ally'?'💚':'✨';
+}
+
+function renderLiveActionBar(state){
+  var host=document.getElementById('liveActionBar'); host.innerHTML='';
+  var options=state.options||[];
+  var own=(state.allies||[]).find(function(a){return a.is_self;})||(state.allies||[])[0]||{};
+  var basics=options.filter(function(o){return o.kind==='attack'||o.kind==='defend';});
+  var skills=options.filter(function(o){return o.kind==='skill';}).slice(0,5);
+  var ultimates=options.filter(function(o){return o.kind==='ultimate';}).slice(0,3);
+  var items=options.filter(function(o){return o.kind==='item';}).slice(0,3);
+  var shown=basics.concat(skills,ultimates,items);
+  shown.forEach(function(option,index){
+    var button=document.createElement('button'); button.type='button';
+    var unavailable=(option.cooldown||0)>0 || ((option.mana||0)>(own.mana||0)) || (option.kind==='item'&&(option.count||0)<=0) || state.phase!=='planning';
+    button.className='ab-actionslot kind-'+option.kind+(livePendingOption===option?' armed':'');
+    button.disabled=unavailable;
+    button.title=option.description||option.name;
+    button.innerHTML='<span class="ab-action-key">'+liveShortcut(option,skills,items,ultimates)+'</span><span class="ab-action-icon">'+liveActionIcon(option)+'</span>'+
+      '<span class="ab-action-name">'+consEsc(option.name)+'</span>'+
+      '<span class="ab-action-cost">'+(option.mana?'🔵 '+option.mana:option.cooldown?'⏳ '+option.cooldown:option.kind==='item'?'×'+option.count:'')+'</span>';
+    button.onclick=function(){armLiveOption(option);};
+    host.appendChild(button);
+  });
+}
+
+function liveShortcut(option,skills,items,ultimates){
+  if(option.kind==='attack')return 'A'; if(option.kind==='defend')return 'D';
+  if(option.kind==='skill')return String(skills.indexOf(option)+1);
+  if(option.kind==='item')return ['Q','E','R'][items.indexOf(option)]||'';
+  return 'U'+(ultimates.indexOf(option)+1);
+}
+
+function armLiveOption(option){
+  if(!liveCombatState||liveCombatState.phase!=='planning')return;
+  livePendingOption=option;
+  if(option.target==='self'||option.kind==='defend'){submitLiveOption(option);return;}
+  if(liveTargetValid(option,liveSelectedTarget)){submitLiveOption(option);return;}
+  document.getElementById('liveQueue').textContent='Targeting '+option.name+' — select a '+(option.target==='ally'?'party member':'hostile')+'.';
+  renderLiveCombat(liveCombatState,true);
+}
+
+async function submitLiveOption(option){
+  if(!liveCombatState||liveCombatState.phase!=='planning')return;
+  var target=(option.target==='self'||option.kind==='defend')?'':liveSelectedTarget;
+  var payload={session_id:liveCombatState.session_id,kind:option.kind,ability_id:option.id||'',target_id:target,round:liveCombatState.round,
+    idempotency_key:String(liveCombatState.round)+':'+option.kind+':'+(option.id||'')+':'+target+':'+Date.now()};
+  var response=await abPost('/api/abyss/combat/action',payload);
+  if(!response.ok){
+    if(response.state)renderLiveCombat(response.state);
+    abToast(response.error||'Action rejected',false); return;
+  }
+  livePendingOption=null;
+  renderLiveCombat(response);
+}
+
+async function setLiveTactic(tactic){
+  var response=await abPost('/api/abyss/combat/tactics',{tactic:tactic});
+  if(response.ok)renderLiveCombat(response,true);else abToast(response.error||'Could not change tactic',false);
+}
+
+function updateLiveClock(){
+  if(!liveCombatState||liveCombatState.phase!=='planning')return;
+  var left=Math.max(0,new Date(liveCombatState.deadline).getTime()-Date.now());
+  var clock=document.getElementById('liveClock');
+  clock.textContent=(left/1000).toFixed(1)+'s';
+  clock.classList.toggle('urgent',left<1500);
+}
+
+function renderLiveCombat(state,preserveFeed){
+  if(!state||!state.ok)return;
+  liveCombatState=state;
+  document.getElementById('liveCombat').style.display='block';
+  document.getElementById('liveRound').textContent='ROUND '+(state.round||'—')+' · '+String(state.phase||'').toUpperCase();
+  document.getElementById('livePause').textContent=state.pause_reason||'';
+  document.getElementById('liveTactic').value=state.tactic||'balanced';
+  renderLiveTargets('liveAllies',state.allies,false);
+  renderLiveTargets('liveEnemies',state.enemies,true);
+  renderLiveActionBar(state);
+  var queue=document.getElementById('liveQueue');
+  if(state.queued)queue.textContent=(state.queued.automatic?'AUTO · ':'QUEUED · ')+state.queued.kind.toUpperCase()+(state.queued.ability_id?' · '+state.queued.ability_id:'');
+  else if(state.phase==='planning')queue.textContent=livePendingOption?'Select a valid target for '+livePendingOption.name+'.':'Choose an action, then select a target. Timeout uses '+String(state.tactic||'balanced').replace('_',' ')+'.';
+  else queue.textContent='Resolving synchronized actions…';
+  if(!preserveFeed){
+    var feed=document.getElementById('liveFeed');
+    feed.innerHTML=(state.recent_logs||[]).map(function(line){return '<div>'+line+'</div>';}).join('');
+    feed.scrollTop=feed.scrollHeight;
+  }
+  clearInterval(liveClockTimer); liveClockTimer=setInterval(updateLiveClock,100); updateLiveClock();
+  if(state.phase==='complete'||state.phase==='failed')finishLiveCombat(state);
+}
+
+async function finishLiveCombat(state){
+  if(liveFinishHandled)return; liveFinishHandled=true;
+  clearInterval(liveClockTimer);
+  if(liveCombatSource){liveCombatSource.close();liveCombatSource=null;}
+  if(liveCombatPoll){clearTimeout(liveCombatPoll);liveCombatPoll=null;}
+  var result=state.result||{ok:false,error:'combat ended without a result'};
+  if(!result.ok){
+    document.getElementById('liveCombat').style.display='none';
+    abToast(result.error||'Combat failed',false); setBusy(false); return;
+  }
+  document.getElementById('liveRound').textContent='COMBAT COMPLETE';
+  document.getElementById('liveQueue').textContent=result.victory?'Victory confirmed.':'Defeat confirmed.';
+  var priorReduce=reduceMotion; reduceMotion=true;
+  await processDescendResult(result,liveStartHP,liveStartMaxHP);
+  reduceMotion=priorReduce;
+  setTimeout(function(){document.getElementById('liveCombat').style.display='none';},900);
+}
+
+async function resumeLiveCombat(){
+  try{
+    var response=await fetch('/api/abyss/combat/state',{cache:'no-store'});
+    var state=await response.json();
+    if(!state.ok)return;
+    var bar=document.getElementById('hpBar');
+    startLiveCombat({state:state},Number(bar.getAttribute('aria-valuenow')),Number(bar.getAttribute('aria-valuemax')));
+  }catch(e){}
+}
+
+document.addEventListener('keydown',function(e){
+  if(!liveCombatState||liveCombatState.phase!=='planning'||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(/INPUT|SELECT|TEXTAREA/.test((e.target&&e.target.tagName)||''))return;
+  var options=liveCombatState.options||[], option=null;
+  if(e.key>='1'&&e.key<='5')option=options.filter(function(o){return o.kind==='skill';})[Number(e.key)-1];
+  else if(e.key.toLowerCase()==='a')option=options.find(function(o){return o.kind==='attack';});
+  else if(e.key.toLowerCase()==='d')option=options.find(function(o){return o.kind==='defend';});
+  else if(['q','e','r'].indexOf(e.key.toLowerCase())>=0)option=options.filter(function(o){return o.kind==='item';})[['q','e','r'].indexOf(e.key.toLowerCase())];
+  if(option){e.preventDefault();armLiveOption(option);}
+});
+
+window.addEventListener('load',resumeLiveCombat);
 
 // Run summary card (#341): shown on bank or final death before the reload.
 function showRunSummary(title, rows, cls){
