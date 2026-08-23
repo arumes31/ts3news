@@ -1803,11 +1803,11 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
 	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
-	unlock := s.lockAbyss(uid)
-	defer unlock()
 
 	var req struct {
 		Paths []string `json:"paths"`
@@ -2264,11 +2264,11 @@ func (s *WebServer) handleAbyssChooseFloor(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
 	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
-	unlock := s.lockAbyss(uid)
-	defer unlock()
 
 	run := s.bot.loadAbyssRun(uid)
 	if !run.Active {
@@ -2624,11 +2624,11 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
 	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
-	unlock := s.lockAbyss(uid)
-	defer unlock()
 
 	run := s.bot.loadAbyssRun(uid)
 	if !run.Active || !run.Downed {
@@ -2728,11 +2728,11 @@ func (s *WebServer) handleAbyssConcede(w http.ResponseWriter, r *http.Request, u
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
 	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
-	unlock := s.lockAbyss(uid)
-	defer unlock()
 
 	run := s.bot.loadAbyssRun(uid)
 	if !run.Active || !run.Downed {
@@ -2777,11 +2777,11 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
 	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
-	unlock := s.lockAbyss(uid)
-	defer unlock()
 
 	var req struct {
 		Cursed  bool `json:"cursed"`
@@ -3009,11 +3009,11 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
 	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
-	unlock := s.lockAbyss(uid)
-	defer unlock()
 
 	var req struct {
 		ConsID string `json:"cons_id"`
@@ -3135,11 +3135,11 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
 	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
-	unlock := s.lockAbyss(uid)
-	defer unlock()
 
 	var req struct {
 		Action  string `json:"action"`
@@ -4147,11 +4147,11 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
 	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
-	unlock := s.lockAbyss(uid)
-	defer unlock()
 
 	run := s.bot.loadAbyssRun(uid)
 	if !run.Active || run.FloorType == "combat" {
@@ -4360,11 +4360,11 @@ func (s *WebServer) handleAbyssCoopInvite(w http.ResponseWriter, r *http.Request
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
 	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
-	unlock := s.lockAbyss(uid)
-	defer unlock()
 
 	var req struct {
 		CoopUID string `json:"coop_uid"`

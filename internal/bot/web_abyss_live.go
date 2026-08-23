@@ -175,13 +175,6 @@ func (s *WebServer) startAbyssLiveCombat(
 	}
 	defer func() { _ = tx.Rollback() }()
 	for memberUID := range participants {
-		if old, ok := s.liveCombatByUID.Load(memberUID); ok {
-			oldID, isString := old.(string)
-			if isString {
-				s.liveCombats.Delete(oldID)
-			}
-			s.liveCombatByUID.Delete(memberUID)
-		}
 		if _, err := tx.Exec(
 			"DELETE FROM abyss_combat_sessions WHERE session_id IN (SELECT session_id FROM abyss_combat_members WHERE client_uid=$1)",
 			memberUID,
@@ -190,10 +183,11 @@ func (s *WebServer) startAbyssLiveCombat(
 		}
 	}
 	if _, err := tx.Exec(
-		`INSERT INTO abyss_combat_sessions (session_id, owner_uid, phase, state)
-		 VALUES ($1, $2, 'starting', '{}'::jsonb)`,
+		`INSERT INTO abyss_combat_sessions (session_id, owner_uid, depth, phase, state)
+		 VALUES ($1, $2, $3, 'starting', '{}'::jsonb)`,
 		id,
 		uid,
+		run.Depth,
 	); err != nil {
 		return nil, fmt.Errorf("inserting live combat: %w", err)
 	}
@@ -212,6 +206,15 @@ func (s *WebServer) startAbyssLiveCombat(
 		return nil, fmt.Errorf("committing live combat: %w", err)
 	}
 
+	for memberUID := range participants {
+		if old, ok := s.liveCombatByUID.Load(memberUID); ok {
+			oldID, isString := old.(string)
+			if isString {
+				s.liveCombats.Delete(oldID)
+			}
+			s.liveCombatByUID.Delete(memberUID)
+		}
+	}
 	s.liveCombats.Store(id, c)
 	for memberUID := range participants {
 		s.liveCombatByUID.Store(memberUID, id)
@@ -308,16 +311,17 @@ func (c *abyssLiveCombat) snapshotFor(uid string) abyssLiveSnapshot {
 }
 
 func (s *WebServer) persistedAbyssLiveSnapshot(uid string) (abyssLiveSnapshot, bool) {
-	var stateJSON, ownerUID, phase string
+	var stateJSON, ownerUID, phase, sessionID string
+	var depth int
 	err := s.bot.DB.QueryRow(
-		`SELECT m.state::text, s.owner_uid, s.phase
+		`SELECT m.state::text, s.owner_uid, s.phase, s.session_id, s.depth
 		   FROM abyss_combat_sessions s
 		   JOIN abyss_combat_members m ON m.session_id=s.session_id
 		  WHERE m.client_uid=$1
 		  ORDER BY s.updated_at DESC
 		  LIMIT 1`,
 		uid,
-	).Scan(&stateJSON, &ownerUID, &phase)
+	).Scan(&stateJSON, &ownerUID, &phase, &sessionID, &depth)
 	if err != nil {
 		return abyssLiveSnapshot{}, false
 	}
@@ -326,10 +330,10 @@ func (s *WebServer) persistedAbyssLiveSnapshot(uid string) (abyssLiveSnapshot, b
 		return abyssLiveSnapshot{}, false
 	}
 	if phase == "starting" || phase == "planning" || phase == "resolving" {
-		if snapshot.PreviousDepth >= 0 {
+		if depth > 0 {
 			_, _ = s.bot.DB.Exec(
 				"UPDATE abyss_active SET depth=$1, modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2",
-				snapshot.PreviousDepth,
+				depth,
 				ownerUID,
 			)
 		}
@@ -344,12 +348,12 @@ func (s *WebServer) persistedAbyssLiveSnapshot(uid string) (abyssLiveSnapshot, b
 				"UPDATE abyss_combat_sessions SET phase='failed', state=$1, version=$2, deadline=NULL, updated_at=NOW() WHERE session_id=$3",
 				string(updatedState),
 				snapshot.Version,
-				snapshot.SessionID,
+				sessionID,
 			)
 			_, _ = s.bot.DB.Exec(
 				"UPDATE abyss_combat_members SET state=$1, queued_action=NULL WHERE session_id=$2 AND client_uid=$3",
 				string(updatedState),
-				snapshot.SessionID,
+				sessionID,
 				uid,
 			)
 		}

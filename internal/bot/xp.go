@@ -1057,6 +1057,10 @@ func randomLootEligibleUser(users []UserInCombat) *UserInCombat {
 	return eligible[rand.IntN(len(eligible))]
 }
 
+func canUseHeldManaAbility(holdMana, bossPresent, manuallySelected bool) bool {
+	return !holdMana || bossPresent || manuallySelected
+}
+
 func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone content.Zone, intensify, healPenalty float64, logs *[]string, totalUserDamage, totalMobDamage *int, avgLvl int, diffFactor float64, originalUsers []UserInCombat, loots *[]LootResult, round int, track *abyssFightTrack) {
 	liveActions := map[string]abyssLiveAction{}
 	for i := range activeUsers {
@@ -1328,13 +1332,15 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 
 			var selectedSkill *content.Skill
+			manuallySelectedSkill := false
 			if isLiveAction && liveHitKind == "skill" {
 				selectedSkill = findLiveSkill(u, liveAction.AbilityID)
+				manuallySelectedSkill = selectedSkill != nil
 			} else if !isLiveAction && !holdCast && len(u.Skills) > 0 && au.CurrentMana >= spellCost && rand.Float64() < 0.3 { // #nosec G404
 				// #nosec G404 -- legacy automatic skill selection
 				selectedSkill = &u.Skills[rand.IntN(len(u.Skills))] // #nosec G404
 			}
-			if selectedSkill != nil && !holdCast && au.CurrentMana >= spellCost {
+			if selectedSkill != nil && canUseHeldManaAbility(au.holdMana, bossPresent, manuallySelectedSkill) && au.CurrentMana >= spellCost {
 				s := *selectedSkill
 				// AB-52 Mana overflow: casting at full mana overcharges the spell +15%.
 				overcharged := abyssCombatant(u) && au.CurrentMana >= au.MaxMana
@@ -1469,10 +1475,12 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			// Ultimate Skill activation: at most one fires per turn — the strongest
 			// ready one — so stacking 3 ultimates widens uptime, not burst.
 			var readyUlt *content.UltimateSkill
+			manuallySelectedUltimate := false
 			if isLiveAction && liveAction.Kind == "ultimate" {
 				candidate := findLiveUltimate(u, liveAction.AbilityID)
 				if candidate != nil && candidate.CurrentCooldown == 0 {
 					readyUlt = candidate
+					manuallySelectedUltimate = true
 				}
 			} else if !isLiveAction {
 				for _, us := range u.Ultimates {
@@ -1481,7 +1489,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					}
 				}
 			}
-			if readyUlt != nil && (!au.holdMana || bossPresent) {
+			if readyUlt != nil && canUseHeldManaAbility(au.holdMana, bossPresent, manuallySelectedUltimate) {
 				ultMult := readyUlt.Power
 				if bonus := au.treeBonus.Pct["ult_damage"]; bonus > 0 {
 					ultMult *= (1.0 + bonus)

@@ -1,6 +1,7 @@
 CREATE TABLE abyss_combat_sessions (
     session_id TEXT PRIMARY KEY,
     owner_uid TEXT NOT NULL REFERENCES users(client_uid) ON DELETE CASCADE,
+    depth INTEGER NOT NULL,
     phase TEXT NOT NULL,
     round INTEGER NOT NULL DEFAULT 0,
     version BIGINT NOT NULL DEFAULT 0,

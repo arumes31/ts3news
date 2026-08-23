@@ -33,6 +33,29 @@ func mockUserState(mock sqlmock.Sqlmock, uid string) {
 		WillReturnRows(sqlmock.NewRows([]string{"ultimate_id", "current_cooldown"}))
 }
 
+func TestCanUseHeldManaAbility(t *testing.T) {
+	tests := []struct {
+		name             string
+		holdMana         bool
+		bossPresent      bool
+		manuallySelected bool
+		want             bool
+	}{
+		{name: "hold disabled allows automatic ability", want: true},
+		{name: "boss allows automatic ability", holdMana: true, bossPresent: true, want: true},
+		{name: "manual ability bypasses hold", holdMana: true, manuallySelected: true, want: true},
+		{name: "hold suppresses automatic ability", holdMana: true, want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := canUseHeldManaAbility(test.holdMana, test.bossPresent, test.manuallySelected)
+			if got != test.want {
+				t.Fatalf("canUseHeldManaAbility() = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
+
 func TestComputeMiscMult(t *testing.T) {
 	db, mock, _ := sqlmock.New()
 	defer func() { _ = db.Close() }()
