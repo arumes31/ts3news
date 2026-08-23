@@ -129,6 +129,7 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 		"mulf":   func(a, b float64) float64 { return a * b },
 		"cssver": func() string { return styleCSSVer },
 		"halve":  func(n int) int { return n / 2 },
+		"dur":    func(ms int64) string { return fmt.Sprintf("%.1fs", float64(ms)/1000) },
 		// dict builds a map from alternating key/value pairs, for passing several
 		// named values into a sub-template (used by the Abyss upgrade widget).
 		"dict": func(values ...any) (map[string]any, error) {
@@ -269,6 +270,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/transfer_enchant", s.authAPI(s.handleAbyssTransferEnchant))
 		mux.HandleFunc("/api/abyss/fuse", s.authAPI(s.handleAbyssFuse))
 		mux.HandleFunc("/api/abyss/mythic_fuse", s.authAPI(s.handleAbyssMythicFuse))
+		mux.HandleFunc("/api/abyss/celestial_fuse", s.authAPI(s.handleAbyssCelestialFuse))
 		mux.HandleFunc("/api/abyss/cleanse", s.authAPI(s.handleAbyssCleanse))
 		mux.HandleFunc("/api/abyss/repair_all", s.authAPI(s.handleAbyssRepairAll))
 		mux.HandleFunc("/api/abyss/auto_repair", s.authAPI(s.handleAbyssAutoRepair))
@@ -280,6 +282,28 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/forge_undo", s.authAPI(s.handleAbyssForgeUndo))
 		mux.HandleFunc("/api/abyss/rift_peek", s.authAPI(s.handleAbyssRiftPeek))
 		mux.HandleFunc("/api/abyss/unequip", s.authAPI(s.handleAbyssUnequip))
+		// Forge round 3: gear-improvement mechanics (web_abyss_forge2.go)
+		mux.HandleFunc("/api/abyss/polish", s.authAPI(s.handleAbyssPolish))
+		mux.HandleFunc("/api/abyss/reinforce", s.authAPI(s.handleAbyssReinforce))
+		mux.HandleFunc("/api/abyss/sharpen", s.authAPI(s.handleAbyssSharpen))
+		mux.HandleFunc("/api/abyss/awaken", s.authAPI(s.handleAbyssAwaken))
+		mux.HandleFunc("/api/abyss/imbue", s.authAPI(s.handleAbyssImbue))
+		mux.HandleFunc("/api/abyss/punch_socket", s.authAPI(s.handleAbyssPunchSocket))
+		mux.HandleFunc("/api/abyss/attune", s.authAPI(s.handleAbyssAttune))
+		mux.HandleFunc("/api/abyss/reforge", s.authAPI(s.handleAbyssReforge))
+		mux.HandleFunc("/api/abyss/embrace", s.authAPI(s.handleAbyssEmbrace))
+		mux.HandleFunc("/api/abyss/masterwork", s.authAPI(s.handleAbyssMasterwork))
+		// Forge round 4: more gear-improvement mechanics (web_abyss_forge3.go)
+		mux.HandleFunc("/api/abyss/corrupt", s.authAPI(s.handleAbyssCorrupt))
+		mux.HandleFunc("/api/abyss/infuse_curse", s.authAPI(s.handleAbyssInfuseCurse))
+		mux.HandleFunc("/api/abyss/infuse_eldritch", s.authAPI(s.handleAbyssInfuseEldritch))
+		mux.HandleFunc("/api/abyss/rebalance", s.authAPI(s.handleAbyssRebalance))
+		mux.HandleFunc("/api/abyss/transmute_gem", s.authAPI(s.handleAbyssGemTransmute))
+		mux.HandleFunc("/api/abyss/brand", s.authAPI(s.handleAbyssBrand))
+		mux.HandleFunc("/api/abyss/temper_surge", s.authAPI(s.handleAbyssTemperSurge))
+		mux.HandleFunc("/api/abyss/swap_special", s.authAPI(s.handleAbyssSwapSpecial))
+		mux.HandleFunc("/api/abyss/infuse_xp", s.authAPI(s.handleAbyssInfuseXP))
+		mux.HandleFunc("/api/abyss/prismatic_rune", s.authAPI(s.handleAbyssPrismaticRune))
 		mux.HandleFunc("/abyss/tree", s.auth(s.handleAbyssTreePage))
 		mux.HandleFunc("/api/abyss/tree/allocate", s.authAPI(s.handleAbyssTreeAllocate))
 		mux.HandleFunc("/api/abyss/tree/respec", s.authAPI(s.handleAbyssTreeRespec))

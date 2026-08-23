@@ -294,6 +294,8 @@ rarity.epic: "Epickie"
 rarity.legendary: "Legendarne"
 rarity.mythic: "Mityczne"
 rarity.divine: "Boskie"
+rarity.celestial: "Niebiańskie"
+rarity.eternal: "Wieczne"
 rarity.unknown: "Rzadkość (%[1]d)"
 
 # ─── Mob Type Names ───

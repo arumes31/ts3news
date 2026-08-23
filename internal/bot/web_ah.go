@@ -464,15 +464,32 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "tx"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Read the row through the transaction with a row lock so the item can't be
+	// sold, fused or transmuted between our validation and the delete below.
 	var gid string
 	var dur int
-	if err := s.bot.DB.QueryRow("SELECT gear_id, durability FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gid, &dur); err != nil {
+	var itemData sql.NullString
+	if err := tx.QueryRow("SELECT gear_id, durability, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 FOR UPDATE", req.InvID, uid).Scan(&gid, &dur, &itemData); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
 		return
 	}
-	g, ok := content.GetGearByID(gid)
+	// Price and payload are built from the reconstructed instance (makeGear), so
+	// gems, runes, temper and other forge data survive the listing — and an
+	// attuned item stays bound.
+	g, ok := s.bot.makeGear(gid, itemData)
 	if !ok {
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown gear"})
+		return
+	}
+	if g.Attuned {
+		writeJSON(w, map[string]any{"ok": false, "error": g.Name + " is attuned to you and cannot be auctioned"})
 		return
 	}
 
@@ -481,13 +498,6 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 	if price < 10 {
 		price = 10
 	}
-
-	tx, err := s.bot.DB.Begin()
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "tx"})
-		return
-	}
-	defer func() { _ = tx.Rollback() }()
 
 	res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid)
 	if err != nil {

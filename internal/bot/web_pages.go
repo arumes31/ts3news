@@ -51,6 +51,13 @@ type gearView struct {
 	Insured      bool // whether the piece is death-insured (drives the forge picker)
 	Corrupted    bool // carries an HP malus, cleansable at the forge (#83)
 	Temper       int  // forge temper level (#106)
+	HasSpecial   bool // carries a Special effect (drives the forge awaken action)
+	Imbued       bool // already imbued via the forge
+	Attuned      bool // bound to its owner via the forge
+	Cursed       bool // cursed: drains HP in combat (drives forge curse infusion)
+	Eldritch     bool // eldritch affix applied (drives forge eldritch infusion)
+	HasRune      bool // an elemental rune is etched (drives prismatic rune)
+	Prismatic    bool // rune already elevated to prismatic
 }
 
 // gearEffectDescriptions maps each special effect to a short player-facing blurb.
@@ -71,6 +78,8 @@ var gearEffectDescriptions = map[content.ItemEffect]string{
 	content.EffectStealth:        "Skip first-round mob damage",
 	content.EffectParry:          "10% chance to negate a hit and counter",
 	content.EffectCleanse:        "Removes a negative effect each turn",
+	content.EffectExecutioner:    "+25% damage to targets below 30% HP",
+	content.EffectFocused:        "+10% Crit Rate",
 }
 
 // gearStatList returns the gear's non-zero combat stats, largest first.
@@ -138,6 +147,12 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		if g.Temper > 0 {
 			name = fmt.Sprintf("%s ⚒+%d", name, g.Temper)
 		}
+		if g.Quality > 0 && g.Quality < len(qualityNames) {
+			name = fmt.Sprintf("%s [%s]", name, qualityNames[g.Quality])
+		}
+		if g.Attuned {
+			name = "🔗 " + name
+		}
 		if len(g.BonusEffects) > 0 {
 			names := make([]string, 0, len(g.BonusEffects))
 			for _, e := range g.BonusEffects {
@@ -170,6 +185,13 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		Insured:      g.Insured,
 		Corrupted:    g.Corrupted,
 		Temper:       g.Temper,
+		HasSpecial:   g.Special != content.EffectNone,
+		Imbued:       g.Imbued != "",
+		Attuned:      g.Attuned,
+		Cursed:       g.Cursed,
+		Eldritch:     g.Eldritch,
+		HasRune:      g.Rune != "",
+		Prismatic:    g.Prismatic,
 	}
 	if g.Element != "" && g.Element != content.ElementPhysical {
 		v.Element = string(g.Element)

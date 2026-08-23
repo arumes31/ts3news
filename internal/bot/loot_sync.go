@@ -38,6 +38,8 @@ import (
 				content.EffectSteady:         "S",
 				content.EffectMindControl:    "M",
 				content.EffectRegenStack:     "G",
+				content.EffectExecutioner:    "X",
+				content.EffectFocused:        "C",
 			}
 			if code, ok := mapping[effect]; ok {
 				effCode = "[" + code + "] "

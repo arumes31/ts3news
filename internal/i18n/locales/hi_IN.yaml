@@ -294,6 +294,8 @@ rarity.epic: "महाकाव्य"
 rarity.legendary: "महान"
 rarity.mythic: "पौराणिक"
 rarity.divine: "दिव्य"
+rarity.celestial: "स्वर्गीय"
+rarity.eternal: "अनंत"
 rarity.unknown: "Rarity(%[1]d)"
 
 # ─── Mob Type Names ───

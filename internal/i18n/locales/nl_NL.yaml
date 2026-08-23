@@ -263,6 +263,8 @@ rarity.epic: Episch
 rarity.legendary: Legendarisch
 rarity.mythic: Mythisch
 rarity.divine: Goddelijk
+rarity.celestial: "Hemels"
+rarity.eternal: "Eeuwig"
 rarity.unknown: Zeldzaamheid(%[1]d)
 mob_type.common: Gemeen
 mob_type.elite_minion: Elite Dienaar

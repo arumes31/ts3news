@@ -531,4 +531,32 @@ func TestAbyssSetBonus(t *testing.T) {
 	}
 }
 
+// TestAbyssCapTax verifies the daily-cap payout tax: in-cap amounts pay in full,
+// only the excess is taxed at 80%, and the rest always reaches the player.
+func TestAbyssCapTax(t *testing.T) {
+	cases := []struct {
+		name              string
+		payout, remaining int64
+		wantAfter         int64
+		wantTax           int64
+	}{
+		{"under cap pays full", 1_000_000, 5_000_000, 1_000_000, 0},
+		{"exactly at cap", 5_000_000, 5_000_000, 5_000_000, 0},
+		{"excess taxed 80%", 6_000_000, 5_000_000, 5_200_000, 800_000},
+		{"cap exhausted", 1_000_000, 0, 200_000, 800_000},
+		{"negative remaining clamped", 1_000_000, -500, 200_000, 800_000},
+		{"zero payout", 0, 5_000_000, 0, 0},
+	}
+	for _, c := range cases {
+		after, tax := abyssCapTax(c.payout, c.remaining)
+		if after != c.wantAfter || tax != c.wantTax {
+			t.Errorf("%s: abyssCapTax(%d, %d) = (%d, %d), want (%d, %d)",
+				c.name, c.payout, c.remaining, after, tax, c.wantAfter, c.wantTax)
+		}
+		if after+tax != c.payout {
+			t.Errorf("%s: after+tax %d + %d != payout %d", c.name, after, tax, c.payout)
+		}
+	}
+}
+
 

@@ -1203,6 +1203,17 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				dmg = dmg * 3 / 2
 			}
 
+			// Executioner affix: +25% damage to targets below 30% HP (stacks with
+			// the Execute daily affix).
+			if target.MaxHP > 0 && target.Stats.HP*10 < target.MaxHP*3 {
+				for _, eff := range au.effects {
+					if eff == content.EffectExecutioner {
+						dmg = dmg * 5 / 4
+						break
+					}
+				}
+			}
+
 			target.Stats.HP -= dmg
 			*totalUserDamage += dmg
 
@@ -2237,6 +2248,8 @@ func (b *Bot) calculateTotalStats(uid string, today time.Time) (content.Stats, f
 			totalStats.SPD = int(float64(totalStats.SPD) * 1.1)
 		case content.EffectBulwark:
 			totalStats.DEF = int(float64(totalStats.DEF) * 1.1)
+		case content.EffectFocused:
+			totalStats.CRT = int(float64(totalStats.CRT) * 1.1)
 		case content.EffectRadiant:
 			mult *= 1.1
 		}

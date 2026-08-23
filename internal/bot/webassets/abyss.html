@@ -48,7 +48,7 @@
   <div class="abyss-pity-hud" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; margin: 15px 0;">
     <div style="display:flex; justify-content:space-between; margin-bottom: 6px; font-size:13px;">
       <span>🍀 <b>Drop Streak</b></span>
-      <span class="muted small"><span id="dropStreakCount">{{.DropStreak}}</span> floors since last gear (+{{.DropStreakBonusPct}}% loot find, capped)</span>
+      <span class="muted small"><span id="dropStreakCount">{{.DropStreak}}</span> {{if eq .DropStreak 1}}floor{{else}}floors{{end}} since last gear (+{{.DropStreakBonusPct}}% loot find, capped)</span>
     </div>
     <div style="background: rgba(0,0,0,0.3); height: 10px; border-radius: 5px; overflow:hidden;">
       <div id="dropStreakFill" style="background: linear-gradient(90deg, #41c97a, #5bc0ff); height: 100%; width: {{mulpct .DropStreak 15}}%;"></div>
@@ -123,14 +123,14 @@
   <div class="abyss-controls" id="abyssControls">
     <div id="abyssMsg" class="toast" role="status" aria-live="polite"></div>
     <p class="ab-status" id="abStatus" aria-live="polite">
-      {{if .Run.Downed}}You fell. Gamble a revival or concede the cache.{{else if .Run.Active}}You are {{.Run.Depth}} floor(s) deep. Descend deeper, insure, or bank.{{else}}Rest at the threshold. Choose a tier and descend.{{end}}
+      {{if .Run.Downed}}You fell. Gamble a revival or concede the cache.{{else if .Run.Active}}You are {{.Run.Depth}} {{if eq .Run.Depth 1}}floor{{else}}floors{{end}} deep. Descend deeper, insure, or bank.{{else}}Rest at the threshold. Choose a tier and descend.{{end}}
     </p>
 
     <!-- Tier picker (idle only) [16] -->
     <div class="ab-tiers" id="tierPicker">
       {{range .Tiers}}
       <label class="ab-tier {{if not .Unlocked}}locked{{end}}">
-        <input type="radio" name="abtier" value="{{.Key}}" data-entry="{{.EntryGold}}" {{if eq .Key "normal"}}checked{{end}} {{if not .Unlocked}}disabled{{end}}>
+        <input type="radio" name="abtier" value="{{.Key}}" data-entry="{{.EntryGold}}" {{if and (eq .Key "normal") .Unlocked}}checked{{end}} {{if not .Unlocked}}disabled{{end}}>
         <span class="ab-tier-name">{{.Name}}</span>
         <span class="ab-tier-meta">×{{printf "%.1f" .RewardMult}} reward · ×{{printf "%.1f" .DiffMult}} danger</span>
         <span class="ab-tier-meta">{{if gt .EntryGold 0}}entry {{gold .EntryGold}}{{else}}free{{end}}{{if not .Unlocked}} · 🔒 depth {{.MinBest}}{{end}}</span>
@@ -159,7 +159,7 @@
     <div class="ab-pacts" id="pactPicker">
       <div class="ab-sub-label">⚔️ Pacts <span class="muted small">— optional challenges for bigger rewards <b id="pactBonus">(+0%)</b></span></div>
       {{range .Pacts}}
-        <label class="ab-pact" title="{{.Desc}}">
+        <label class="ab-pact">
           <input type="checkbox" name="abpact" value="{{.Key}}" data-reward="{{printf "%.0f" (mulf .Reward 100)}}" onchange="updatePactBonus()">
           {{.Label}} <span class="muted small">(+{{printf "%.0f" (mulf .Reward 100)}}% · {{.Desc}})</span>
         </label>
@@ -250,11 +250,11 @@
     <div class="ab-rar-dots" id="lootRarityDots" title="Escrowed items by rarity"></div>
     <!-- Loot filters (UX-46): rarity chips + upgrades-only, persisted -->
     <div class="ab-loot-filters" id="lootFilters">
-      <button class="ab-chip active" data-f="all">All</button>
-      <button class="ab-chip" data-f="up" title="Only drops that beat your equipped gear">⬆ Upgrades</button>
-      <button class="ab-chip" data-f="rare">Rare+</button>
-      <button class="ab-chip" data-f="epic">Epic+</button>
-      <button class="ab-chip" data-f="legendary">Leg+</button>
+      <button class="ab-chip active" data-f="all" aria-pressed="true">All</button>
+      <button class="ab-chip" data-f="up" title="Only drops that beat your equipped gear" aria-pressed="false">⬆ Upgrades</button>
+      <button class="ab-chip" data-f="rare" aria-pressed="false">Rare+</button>
+      <button class="ab-chip" data-f="epic" aria-pressed="false">Epic+</button>
+      <button class="ab-chip" data-f="legendary" aria-pressed="false">Leg+</button>
     </div>
     <div class="abyss-side-list" id="lootManifest">
       {{range .RunLoot}}
@@ -301,10 +301,10 @@
 <div id="consPickOverlay" class="modal-overlay" onclick="if(event.target===this)closeConsumablePick()">
   <div class="modal-card">
     <h3 style="margin:0 0 6px;">🎒 Pack your consumables</h3>
-    <p class="muted small" style="margin:0 0 10px;">You can bring <b id="consPickMax">3</b> into this descent but hold <b id="consPickTotal">6</b>. Pick which to take — the rest stay safe in your stash for later.</p>
+    <p class="muted small" style="margin:0 0 10px;">You can bring <b id="consPickMax">–</b> into this descent but hold <b id="consPickTotal">–</b>. Pick which to take — the rest stay safe in your stash for later.</p>
     <div id="consPickList" style="display:flex; flex-direction:column; gap:8px;"></div>
     <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px;">
-      <span class="small">Selected: <b id="consPickSel">0</b> / <span id="consPickCap">3</span></span>
+      <span class="small">Selected: <b id="consPickSel">0</b> / <span id="consPickCap">–</span></span>
       <div style="display:flex; gap:8px;">
         <button class="ghost xs" onclick="closeConsumablePick()">Cancel</button>
         <button class="primary xs" id="consPickConfirm" onclick="confirmConsumablePick()">Descend</button>
@@ -334,8 +334,21 @@
         <li{{if ge .AbyssSetTier 2}} style="color:#7ee787"{{end}}>2 pieces: +200 HP · +30 STR · +30 DEF</li>
         <li{{if ge .AbyssSetTier 4}} style="color:#7ee787"{{end}}>4 pieces: +400 HP · +60 STR · +60 DEF · +20 SPD</li>
         <li{{if ge .AbyssSetTier 6}} style="color:#7ee787"{{end}}>6 pieces: +800 HP · +120 STR · +120 DEF · +40 SPD · +30 CRT</li>
+        <li{{if ge .AbyssSetTier 8}} style="color:#7ee787"{{end}}>8 pieces: +1500 HP · +200 STR · +200 DEF · +60 SPD · +50 CRT · +50 LCK</li>
       </ul>
     </div>
+
+    {{if .HarvesterPieces}}
+    <div class="ab-setbonus" style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+      <h3 style="margin:0 0 6px;">🌾 Harvester Set
+        <span class="ab-up-lv">{{.HarvesterPieces}} equipped{{if gt .HarvesterTier 0}} · {{.HarvesterTier}}-pc active{{end}}</span>
+      </h3>
+      <ul class="muted small" style="margin:0; padding-left:18px;">
+        <li{{if ge .HarvesterTier 2}} style="color:#7ee787"{{end}}>2 pieces: +60 LCK · +20 CRT</li>
+        <li{{if ge .HarvesterTier 3}} style="color:#7ee787"{{end}}>3 pieces: +150 LCK · +40 CRT · +100 INT</li>
+      </ul>
+    </div>
+    {{end}}
 
     {{if .PredatorPieces}}
     <div class="ab-setbonus" style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
@@ -370,7 +383,7 @@
     <p class="muted small">Spend Abyss Tokens on consumables, gear and relics.</p>
     <div class="ab-shop">
       {{range .Shop}}
-      <div class="ab-shop-item" style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+      <div class="ab-shop-item">
         <div>
           <b>{{.Name}}</b>
           <div class="muted small">{{.Desc}}</div>
@@ -386,13 +399,13 @@
     <h2>🧪 Workshop</h2>
     <div class="ab-materials">
       {{range .MaterialDefs}}
-      <span class="ab-mat" title="{{.Name}}">{{.Icon}} <b id="mat-{{.ID}}">{{index $.Materials .ID}}</b></span>
+      <span class="ab-mat" title="{{.Name}}">{{.Icon}} <b id="mat-{{.ID}}">{{comma (index $.Materials .ID)}}</b></span>
       {{end}}
     </div>
     <p class="muted small">Materials come from salvaging, dismantling and deep floors (30+). Weekly quest: craft {{.CraftQuest.Target}} items → 🜲15 + Master Repair Kit ({{.CraftQuest.Done}}/{{.CraftQuest.Target}}).</p>
     <div class="ab-shop">
       {{range .Recipes}}
-      <div class="ab-shop-item" style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+      <div class="ab-shop-item">
         <div>
           <b>{{if .Locked}}🔒 ???{{else}}{{.Name}}{{end}}</b>
           <div class="muted small">{{if .Locked}}Discovered through lore fragments{{else}}{{.Desc}}{{end}}</div>
@@ -406,7 +419,7 @@
     <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
       <h3 style="margin:0 0 6px;">⭐ Forge a Legendary <span class="ab-up-lv">500🌫️ 50🔷 10🟣</span></h3>
       <div style="display:flex; gap:6px;">
-        <select id="craftLegSel" style="flex:1; padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+        <select id="craftLegSel" class="ab-select" style="flex:1;">
           {{range .CraftLegendaries}}<option value="{{.ID}}">{{.Name}} ({{.Slot}})</option>{{end}}
         </select>
         <button class="ghost xs" onclick="abyssCraftLegendary()">Forge</button>
@@ -427,7 +440,7 @@
     <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
       <h3 style="margin:0 0 6px;">🕊️ Sanctuary Upgrades</h3>
       {{range .SanctuaryDefs}}
-      <div class="ab-shop-item" style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0;">
+      <div class="ab-shop-item">
         <div><b>{{.Name}}</b> <span class="ab-up-lv">Lv {{index $.Sanctuary .Key}}/{{.Max}}</span><div class="muted small">{{.Desc}}</div></div>
         <button class="ghost xs" onclick="abyssSanctuaryBuy('{{.Key}}', this)">🜲 {{.CostTk}}</button>
       </div>
@@ -446,18 +459,18 @@
     <div class="ab-forge" style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
       <div>
         <label class="muted small" style="display:block; margin-bottom:4px;">Select Gear Piece:</label>
-        <select id="forgeItemSelect" onchange="updateForgeOptions()" style="width:100%; padding:8px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+        <select id="forgeItemSelect" onchange="updateForgeOptions()" class="ab-select" style="width:100%;">
           <option value="">-- Choose Item --</option>
           <optgroup label="Equipped Items">
             {{range .Equipped}}
-              <option value="equipped:{{.Slot}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}">
+              <option value="equipped:{{.Slot}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}" data-special="{{.HasSpecial}}" data-imbued="{{.Imbued}}" data-attuned="{{.Attuned}}" data-temper="{{.Temper}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}" data-rune="{{.HasRune}}" data-prismatic="{{.Prismatic}}">
                 {{.Icon}} [Equipped] {{.Name}} ({{.Rarity}})
               </option>
             {{end}}
           </optgroup>
           <optgroup label="Backpack Inventory">
             {{range .Inventory}}
-              <option value="inv:{{.InvID}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}">
+              <option value="inv:{{.InvID}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}" data-special="{{.HasSpecial}}" data-imbued="{{.Imbued}}" data-attuned="{{.Attuned}}" data-temper="{{.Temper}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}" data-rune="{{.HasRune}}" data-prismatic="{{.Prismatic}}">
                 {{.Icon}} [Inv] {{.Name}} ({{.Rarity}})
               </option>
             {{end}}
@@ -474,6 +487,33 @@
         <!-- Temper (#106/#107): +2% stats per success, rising fail chance, pity on fails -->
         <button id="btnForgeTemper" class="ghost xs" onclick="forgeTemper()" style="width:100%;" title="≈+2% CR/GS per level; fail chance rises with level, each fail adds +5% pity">⚒️ Temper (+2% stats, risky)</button>
 
+        <!-- Forge round 3: hone axes -->
+        <button id="btnForgeSharpen" class="ghost xs" onclick="forgeSharpen()" style="display:none; width:100%;" title="Weapons only: +2% STR per level (max 10)">⚔️ Sharpen (100g + 2🌫️)</button>
+        <button id="btnForgeReinforce" class="ghost xs" onclick="forgeReinforce()" style="display:none; width:100%;" title="Armor/jewelry only: +2% DEF per level (max 10)">🛡️ Reinforce (100g + 2🌫️)</button>
+        <button id="btnForgeReforge" class="ghost xs" onclick="forgeReforge()" style="display:none; width:100%;" title="Rare+ only: reroll every combat stat ±10%">🎲 Reforge Stats (300g)</button>
+        <button id="btnForgeMasterwork" class="ghost xs" onclick="forgeMasterwork()" style="display:none; width:100%;" title="+3% stats per quality level (max 5): Fine → Superior → Exquisite → Flawless → Masterwork">🏅 Raise Quality (materials)</button>
+        <button id="btnForgePolish" class="ghost xs" onclick="forgePolish()" style="display:none; width:100%;" title="+10 max durability (max +100 over base)">🔧 Polish (150g)</button>
+        <button id="btnForgeAttune" class="ghost xs" onclick="forgeAttune()" style="display:none; width:100%;" title="+5% stats, once; binds the item: no fuse/salvage/dismantle/auction">🔗 Attune (🜲 15)</button>
+
+        <!-- Forge round 4 -->
+        <button id="btnForgeCorrupt" class="ghost xs" onclick="forgeCorrupt()" style="display:none; width:100%;" title="+50% offensive stats, but an HP malus equal to the item's score; cleansable or embraceable later">😈 Corrupt (5🟣)</button>
+        <button id="btnForgeInfuseCurse" class="ghost xs" onclick="forgeInfuseCurse()" style="display:none; width:100%;" title="Weapons only: +25% stats, but drains your HP in combat">💀 Infuse Curse (500g + 3🟣)</button>
+        <button id="btnForgeInfuseEldritch" class="ghost xs" onclick="forgeInfuseEldritch()" style="display:none; width:100%;" title="+25% stats and the eldritch affix">🌌 Eldritch Infusion (3💠)</button>
+        <button id="btnForgeTemperSurge" class="ghost xs" onclick="forgeTemperSurge()" style="display:none; width:100%;" title="Requires +15 temper: 50% chance per attempt toward +20; a failed surge never breaks the item">🔥 Temper Surge (2000g, 50%)</button>
+        <div id="forgeRebalanceRow" style="display:none; border:1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
+          <label class="muted small" style="display:block; margin-bottom:4px;">Rebalance: move 25% of one stat into another:</label>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <select id="rebalanceFrom" class="ab-select" style="flex:1;">
+              <option value="STR">STR</option><option value="DEF">DEF</option><option value="HP">HP</option><option value="SPD">SPD</option><option value="LCK">LCK</option><option value="INT">INT</option><option value="STA">STA</option><option value="CRT">CRT</option><option value="DGE">DGE</option><option value="MNA">MNA</option>
+            </select>
+            <span class="muted small">→</span>
+            <select id="rebalanceTo" class="ab-select" style="flex:1;">
+              <option value="DEF">DEF</option><option value="STR">STR</option><option value="HP">HP</option><option value="SPD">SPD</option><option value="LCK">LCK</option><option value="INT">INT</option><option value="STA">STA</option><option value="CRT">CRT</option><option value="DGE">DGE</option><option value="MNA">MNA</option>
+            </select>
+            <button class="ghost xs" id="btnForgeRebalanceGo" onclick="forgeRebalance()">⚖️ (200g)</button>
+          </div>
+        </div>
+
         <!-- Upgrade Weapon Tier -->
         <button id="btnForgeUpgradeGear" class="ghost xs" onclick="forgeUpgradeGear()" style="display:none; width:100%;">Ascend Tier Level (🜲 10)</button>
 
@@ -484,7 +524,7 @@
         <div id="forgeRecalibrateRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
           <label class="muted small" style="display:block; margin-bottom:4px;">Recalibrate Sub-stat (Legendary+ only):</label>
           <div style="display:flex; gap:6px;">
-            <select id="recalibrateStatSelect" style="flex:1; padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+            <select id="recalibrateStatSelect" class="ab-select" style="flex:1;">
               <option value="HP">Max HP</option>
               <option value="MNA">Mana</option>
               <option value="STR">Strength</option>
@@ -501,19 +541,87 @@
         </div>
         </div></details>
 
+        <details class="ab-acc" open><summary>✨ Powers</summary><div class="ab-acc-body">
+        <!-- Awaken: items without a Special gain a random one (once) -->
+        <button id="btnForgeAwaken" class="ghost xs" onclick="forgeAwaken()" style="display:none; width:100%;" title="Only items with no Special; grants a random dormant power, once per item">🌟 Awaken Dormant Power (3🟣)</button>
+
+        <!-- Imbue: layer one extra effect onto the item (once) -->
+        <div id="forgeImbueRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
+          <label class="muted small" style="display:block; margin-bottom:4px;">Imbue Effect (once per item):</label>
+          <div style="display:flex; gap:6px;">
+            <select id="imbueSelect" class="ab-select" style="flex:1;">
+              <option value="vampiric">Vampiric (heal 5% of damage dealt)</option>
+              <option value="thorns">Thorns (reflect 10% of damage taken)</option>
+              <option value="lucky">Lucky (+10% Luck)</option>
+              <option value="quick">Quick (+10% Speed)</option>
+              <option value="bulwark">Bulwark (+10% Defense)</option>
+              <option value="radiant">Radiant (+10% XP)</option>
+              <option value="executioner">Executioner (+25% dmg vs low HP)</option>
+              <option value="focused">Focused (+10% Crit Rate)</option>
+            </select>
+            <button class="ghost xs" onclick="forgeImbue()">Imbue (2💠)</button>
+          </div>
+        </div>
+
+        <!-- Prismatic rune: elevate an etched rune (once per item) -->
+        <button id="btnForgePrismatic" class="ghost xs" onclick="forgePrismaticRune()" style="display:none; width:100%;" title="Requires an etched rune: bakes +5% into the item's highest stat, once">🌈 Prismatic Rune (2💠)</button>
+
+        <!-- Brand: stamp the item into a named Abyss set -->
+        <div id="forgeBrandRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
+          <label class="muted small" style="display:block; margin-bottom:4px;">Brand into a set (counts toward its bonus):</label>
+          <div style="display:flex; gap:6px;">
+            <select id="brandSelect" class="ab-select" style="flex:1;">
+              <option value="predator">🐺 Predator</option>
+              <option value="warden">🛡️ Warden</option>
+              <option value="harvester">🌾 Harvester</option>
+            </select>
+            <button class="ghost xs" onclick="forgeBrand()">Brand (10🟣)</button>
+          </div>
+        </div>
+
+        <!-- Second backpack item: shared by Special Swap and Gear-XP Infusion -->
+        <div id="forgeSecondRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
+          <label class="muted small" style="display:block; margin-bottom:4px;">Second item (backpack):</label>
+          <select id="forgeSecondSelect" class="ab-select" style="width:100%; margin-bottom:6px;">
+            <option value="">-- Choose Item --</option>
+          </select>
+          <div style="display:flex; gap:6px;">
+            <button id="btnForgeSwap" class="ghost xs" onclick="forgeSwapSpecial()" style="flex:1;" title="Exchange the Specials of the selected item and the second item (both must have one)">🔀 Swap Specials (8🟣)</button>
+            <button id="btnForgeInfuseXP" class="ghost xs" onclick="forgeInfuseXP()" style="flex:1; display:none;" title="Sacrifice the second item: its CR÷10 becomes gear XP on the selected weapon">🩸 Infuse Gear XP (free)</button>
+          </div>
+        </div>
+        </div></details>
+
         <details class="ab-acc" open><summary>💎 Gems &amp; Runes</summary><div class="ab-acc-body">
+        <!-- Punch Socket: add an empty gemstone socket (max 4) -->
+        <button id="btnForgePunchSocket" class="ghost xs" onclick="forgePunchSocket()" style="display:none; width:100%;" title="Adds one empty gemstone socket (max 4)">🔨 Punch Socket (10🔷)</button>
+
+        <!-- Gem Transmute: change the first socketed gem's type, keeping its tier -->
+        <div id="forgeGemTransmuteRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
+          <label class="muted small" style="display:block; margin-bottom:4px;">Transmute first socketed gem into:</label>
+          <div style="display:flex; gap:6px;">
+            <select id="gemTransmuteSelect" class="ab-select" style="flex:1;">
+              <option value="Ruby">Ruby (+HP)</option>
+              <option value="Sapphire">Sapphire (+Mana)</option>
+              <option value="Emerald">Emerald (+STR)</option>
+              <option value="Diamond">Diamond (+DEF)</option>
+              <option value="Topaz">Topaz (+CRT%)</option>
+            </select>
+            <button class="ghost xs" id="btnForgeGemTransmuteGo" onclick="forgeGemTransmute()">Transmute (150g)</button>
+          </div>
+        </div>
         <!-- Socket Gemstone Dropdown -->
         <div id="forgeSocketRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
           <label class="muted small" style="display:block; margin-bottom:4px;">Socket Gemstone:</label>
           <div style="display:flex; gap:6px;">
-            <select id="gemstoneSelect" style="flex:1; padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+            <select id="gemstoneSelect" class="ab-select" style="flex:1;">
               <option value="Ruby">Ruby (💎 +100 HP)</option>
               <option value="Sapphire">Sapphire (💎 +50 Mana)</option>
               <option value="Emerald">Emerald (💎 +15 STR)</option>
               <option value="Diamond">Diamond (💎 +15 DEF)</option>
               <option value="Topaz">Topaz (💎 +5 CRT%)</option>
             </select>
-            <button class="ghost xs" onclick="forgeSocketGem()">Socket Gem (Cost: 50g)</button>
+            <button class="ghost xs" id="btnForgeSocketGemGo" onclick="forgeSocketGem()">Socket Gem (Cost: 50g)</button>
           </div>
         </div>
 
@@ -522,7 +630,7 @@
           <label class="muted small" style="display:block; margin-bottom:4px;">Gem tools (first socketed gem):</label>
           <div style="display:flex; gap:6px;">
             <button class="ghost xs" onclick="forgeUpgradeGem()" title="I→II doubles the gem, II→III doubles it again">💎 Upgrade Gem</button>
-            <button class="ghost xs" onclick="forgeExtractGem()" title="Frees the socket; the gem crumbles into shards">🔧 Extract Gem (100g)</button>
+            <button class="ghost xs" id="btnForgeExtractGem" onclick="forgeExtractGem()" title="Frees the socket; the gem crumbles into shards">🔧 Extract Gem (100g)</button>
           </div>
         </div>
 
@@ -530,14 +638,14 @@
         <div id="forgeEtchRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
           <label class="muted small" style="display:block; margin-bottom:4px;">Etch Elemental Rune (Weapons only):</label>
           <div style="display:flex; gap:6px;">
-            <select id="runeSelect" style="flex:1; padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+            <select id="runeSelect" class="ab-select" style="flex:1;">
               <option value="Fire">Fire Rune</option>
               <option value="Water">Water Rune</option>
               <option value="Earth">Earth Rune</option>
               <option value="Air">Air Rune</option>
               <option value="Physical">Physical Rune</option>
             </select>
-            <button class="ghost xs" onclick="forgeEtchRune()">Etch (Cost: 150g)</button>
+            <button class="ghost xs" id="btnForgeEtchGo" onclick="forgeEtchRune()">Etch (Cost: 150g)</button>
           </div>
         </div>
         </div></details>
@@ -546,6 +654,9 @@
         <!-- Corruption cleansing (#83) -->
         <button id="btnForgeCleanse" class="ghost xs" onclick="forgeCleanse()" style="display:none; width:100%;">✨ Cleanse Corruption (Cost: 800g)</button>
 
+        <!-- Embrace corruption: halve the HP malus, lock out cleansing -->
+        <button id="btnForgeEmbrace" class="ghost xs" onclick="forgeEmbrace()" style="display:none; width:100%;" title="Corrupted only: halves the HP malus forever; the item can never be cleansed afterwards">🩸 Embrace Corruption (1💠)</button>
+
         <!-- Insure Item -->
         <button id="btnForgeInsureItem" class="ghost xs" onclick="forgeInsureItem()" style="display:none; width:100%;">🛡️ Insure Item (Cost: 200g)</button>
         </div></details>
@@ -553,22 +664,22 @@
 
       <!-- Panel-wide forge tools, grouped (UX-55) -->
       <details class="ab-acc" style="margin-top:8px;"><summary>🧰 Maintenance</summary><div class="ab-acc-body">
-        <button class="ghost xs" onclick="abyssIdentifyAll(this)">🔍 Identify All (100g each)</button>
-        <button class="ghost xs" onclick="abyssRepairAll(this)">🛠️ Repair All Gear (2g / missing point)</button>
+        <button class="ghost xs" onclick="abyssIdentifyAll(this)">🔍 Identify All (1,000g each)</button>
+        <button class="ghost xs" onclick="abyssRepairAll(this)">🛠️ Repair All Gear (200g / missing point)</button>
         <label class="small"><input type="checkbox" id="autoRepairToggle" {{if .AutoRepair}}checked{{end}} onchange="abyssAutoRepairToggle(this.checked)"> Auto-repair before every descent</label>
         <div id="forgeStatConversionRow" style="border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
           <label class="muted small" style="display:block; margin-bottom:4px;">Stat Conversion (Convert 100 Mana to +50 Max HP):</label>
-          <button class="ghost xs" onclick="forgeConvertMana()" style="width:100%;">❤️ Convert Mana (Cost: 50g)</button>
+          <button class="ghost xs" onclick="forgeConvertMana()" style="width:100%;">❤️ Convert Mana (Free)</button>
         </div>
       </div></details>
 
       <details class="ab-acc"><summary>⚗️ Fusion &amp; Transfer</summary><div class="ab-acc-body">
         <div style="display:flex; gap:6px; align-items:center;">
-          <select id="enchFromSel" style="flex:1; padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+          <select id="enchFromSel" class="ab-select" style="flex:1;">
             <option value="">Enchant from…</option>
             {{range .Equipped}}<option value="{{.Slot}}">{{.Slot}}: {{.Name}}</option>{{end}}
           </select>
-          <select id="enchToSel" style="flex:1; padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">
+          <select id="enchToSel" class="ab-select" style="flex:1;">
             <option value="">…to slot</option>
             {{range .Equipped}}<option value="{{.Slot}}">{{.Slot}}: {{.Name}}</option>{{end}}
           </select>
@@ -577,6 +688,7 @@
         <div style="display:flex; gap:6px;">
           <button class="ghost xs" onclick="abyssFuse('ancient')" title="Consume 3 same-slot Legendaries from the backpack → one Ancient piece, +30% stats">🏺 Ancient Fusion (3× Legendary)</button>
           <button class="ghost xs" onclick="abyssFuse('mythic')" title="Consume 2 same-slot Mythics: 25% Divine ascension">🌟 Mythic Fusion (2× Mythic)</button>
+          <button class="ghost xs" onclick="abyssFuse('celestial')" title="Consume 2 same-slot Celestials: 25% Eternal ascension">☄️ Celestial Fusion (2× Celestial)</button>
         </div>
       </div></details>
 
@@ -601,12 +713,12 @@
   <section class="abyss-panel">
     <h2>{{T "web.abyss.record"}}</h2>
     <ul class="ab-record">
-      <li><span>{{T "web.abyss.abyss_prestige"}}</span><b>⭐ {{.Stats.AbyssPrestige}}</b></li>
-      <li><span>Deepest</span><b>🕳️ {{.Stats.BestDepth}}</b></li>
+      <li><span>{{T "web.abyss.abyss_prestige"}}</span><b>⭐ {{comma .Stats.AbyssPrestige}}</b></li>
+      <li><span>Deepest</span><b>🕳️ {{comma .Stats.BestDepth}}</b></li>
       <li><span>Floors cleared</span><b>{{comma .Stats.LifetimeFloors}}</b></li>
       <li><span>Total banked</span><b>{{gold .Stats.LifetimeBanked}}</b></li>
-      <li><span>Deaths</span><b>{{.Stats.Deaths}}</b></li>
-      <li><span>Bank streak</span><b>🔥 {{.Stats.Streak}}</b></li>
+      <li><span>Deaths</span><b>{{comma .Stats.Deaths}}</b></li>
+      <li><span>Bank streak</span><b>🔥 {{comma .Stats.Streak}}</b></li>
     </ul>
     {{if ge .Stats.BestDepth 50}}
       <button class="primary xs" style="width:100%; margin-bottom:10px;" onclick="abyssPrestige()">{{T "web.abyss.prestige_btn"}}</button>
@@ -629,6 +741,9 @@
   <section class="abyss-panel">
     <h2>{{T "web.abyss.recent_runs"}}</h2>
     <table class="ab-history">
+      <thead>
+        <tr><th>Result</th><th>Gold</th><th>When</th></tr>
+      </thead>
       <tbody>
       {{range .History}}
         <tr class="{{if .Victory}}win{{else}}loss{{end}}">
@@ -668,11 +783,11 @@
     <div class="ab-bestiary">
       <table class="ab-bestiary-table">
         <thead>
-          <tr><th>Monster Name</th><th>Vanquished Kills</th></tr>
+          <tr><th>Monster Name</th><th>Kills</th></tr>
         </thead>
         <tbody>
           {{range .Bestiary}}
-          <tr><td>{{.MobName}}</td><td>⚔️ {{.Kills}}</td></tr>
+          <tr><td>{{.MobName}}</td><td>⚔️ {{comma .Kills}}</td></tr>
           {{else}}
           <tr><td colspan="2" class="muted text-center">No monsters vanquished yet.</td></tr>
           {{end}}
@@ -711,7 +826,7 @@
         <td class="lb-name">{{.Nickname}}</td>
         <td>{{.BossName}}</td>
         <td>🕳️ {{.Depth}}</td>
-        <td class="win">{{.KillTimeMs}} ms</td>
+        <td class="win">{{dur .KillTimeMs}}</td>
         <td class="muted small">{{.KilledAt}}</td>
       </tr>
       {{else}}
@@ -787,12 +902,13 @@ var buffNames = {giant_strength_elixir:'💪 Giant Strength (+40 STR, 3 fights)'
 // Mirror Go's FormatGoldPlain so server-rendered and JS-updated values match. [#6/#7/#12]
 function fmtGold(v){
   v = Number(v)||0;
-  if(v>=1e9) return (v/1e9).toFixed(1)+'B';
-  if(v>=1e6) return (v/1e6).toFixed(1)+'M';
-  if(v>=1e3) return (v/1e3).toFixed(1)+'k';
-  return v+'g';
+  var s=v<0?'-':''; v=Math.abs(v);
+  if(v>=1e9) return s+(v/1e9).toFixed(1)+'B';
+  if(v>=1e6) return s+(v/1e6).toFixed(1)+'M';
+  if(v>=1e3) return s+(v/1e3).toFixed(1)+'k';
+  return s+v+'g';
 }
-function fmtNum(v){return (Number(v)||0).toLocaleString();}
+function fmtNum(v){return (Number(v)||0).toLocaleString('en-US');}
 
 // Stacked toasts (UX-91): up to 3 visible; a success never evicts an unread
 // error, and errors linger longer than confirmations.
@@ -921,7 +1037,7 @@ function renderState(){
 
   // Death-risk estimate on the Descend button (#21).
   var bd = document.getElementById('btnDescend');
-  if (bd) bd.innerHTML = '⬇️ Descend <span class="ab-risk-tag">~' + (curRisk||0) + '% risk</span>';
+  if (bd) bd.innerHTML = '⬇️ Descend' + (curRisk > 0 ? ' <span class="ab-risk-tag">~' + curRisk + '% risk</span>' : '');
   // Last Stand bank seal (#15): banking is locked for N floors.
   var bb = document.getElementById('btnBank');
   if (bb) {
@@ -993,7 +1109,7 @@ function renderNonCombat(floorType, stateStr){
       (state.items || []).forEach(function(item, idx){
         var btn = document.createElement('button');
         btn.className = 'ghost';
-        btn.innerHTML = '🛒 Buy ' + item.name + ' (' + item.price + 'g)';
+        btn.textContent = '🛒 Buy ' + item.name + ' (' + fmtNum(item.price) + 'g)';
         btn.onclick = function(){ abyssNCAction('merchant_buy', idx.toString()); };
         options.appendChild(btn);
       });
@@ -1070,8 +1186,8 @@ function renderNonCombat(floorType, stateStr){
     } else if(state.type === 'blood_altar'){
       title.innerHTML = '🩸 Blood Altar';
       desc.innerHTML = 'The altar hungers for a possession, not blood. Sacrifice one consumable and it answers with a mighty elixir, already coursing through you for 3 fights. <i>(Sacrificing does not break momentum.)</i>';
-      var altarSel = '<select id="altarSel" style="padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">';
-      (pageConsumables||[]).forEach(function(c){altarSel+='<option value="'+c.ID+'">'+c.Name+'</option>';});
+      var altarSel = '<select id="altarSel" class="ab-select">';
+      (pageConsumables||[]).forEach(function(c){altarSel+='<option value="'+c.ID+'">'+consEsc(c.Name)+'</option>';});
       altarSel += '</select>';
       if((pageConsumables||[]).length===0){
         options.innerHTML = '<div class="muted small">You carry nothing the altar wants.</div>';
@@ -1084,7 +1200,7 @@ function renderNonCombat(floorType, stateStr){
       if((pageConsumables||[]).length<2 && !((pageConsumables||[])[0] && pageConsumables[0].Count>1)){
         options.innerHTML = '<div class="muted small">You need at least two consumables to mix.</div>';
       } else {
-        var mk = function(id){var s='<select id="'+id+'" style="padding:6px; background:#161b22; border:1px solid #30363d; color:#c9d1d9; border-radius:6px;">';(pageConsumables||[]).forEach(function(c){s+='<option value="'+c.ID+'">'+c.Name+'</option>';});return s+'</select>';};
+        var mk = function(id){var s='<select id="'+id+'" class="ab-select">';(pageConsumables||[]).forEach(function(c){s+='<option value="'+c.ID+'">'+consEsc(c.Name)+'</option>';});return s+'</select>';};
         options.innerHTML = mk('labSel1')+' + '+mk('labSel2')+' <button class="ghost" onclick="abyssNCAction(\'lab_combine\', document.getElementById(\'labSel1\').value+\',\'+document.getElementById(\'labSel2\').value)">⚗️ Combine</button>';
       }
     } else if(state.type === 'mirrors'){
@@ -1206,7 +1322,7 @@ function updateElevator(){
   // Elevator descent flash (#326)
   if(!reduceMotion){var shaft=cage.parentElement;shaft.classList.remove('descending');void shaft.offsetWidth;shaft.classList.add('descending');}
 }
-function setInsured(p){var el=document.getElementById('insuredTag');if(p>0){el.textContent='🛡️ '+p+'% insured';el.style.display='';el.classList.add('glow');}else{el.style.display='';el.style.display='none';el.classList.remove('glow');}}
+function setInsured(p){var el=document.getElementById('insuredTag');if(p>0){el.textContent='🛡️ '+p+'% insured';el.style.display='';el.classList.add('glow');}else{el.style.display='none';el.classList.remove('glow');}}
 function setBanner(html,cls){
   var b=document.getElementById('abyssBanner');
   b.innerHTML=html;
@@ -1270,6 +1386,8 @@ function maybeBossCard(html){
 // rarityClass (#88/#329): tag loot lines with a rarity class for colored beams.
 function rarityClass(html){
   var t=(html||'').toLowerCase();
+  if(t.indexOf('eternal')>=0)return 'rar-eternal';
+  if(t.indexOf('celestial')>=0)return 'rar-celestial';
   if(t.indexOf('divine')>=0)return 'rar-divine';
   if(t.indexOf('mythic')>=0||t.indexOf('eldritch')>=0)return 'rar-mythic';
   if(t.indexOf('legendary')>=0)return 'rar-legendary';
@@ -1291,12 +1409,16 @@ function updateLootSummary(){
   var manifest = document.getElementById('lootManifest');
   var el = document.getElementById('lootSummary');
   if(!manifest || !el) return;
-  var n = manifest.querySelectorAll('.abyss-side-loot').length;
+  // Apply the active rarity filter first so the count below only includes
+  // rows the player can actually see.
+  applyLootFilter();
+  var n = 0;
+  manifest.querySelectorAll('.abyss-side-loot').forEach(function(row){ if(row.style.display!=='none') n++; });
   el.textContent = n > 0 ? ('· ' + n + ' item' + (n===1?'':'s') + ' · cache ' + fmtGold(curEscrow)) : '';
   // Rarity dot counters in the header (UX-48).
   var dots = document.getElementById('lootRarityDots');
   if(dots){
-    var colors = {'rar-rare':'#5bc0ff','rar-epic':'#b26bff','rar-legendary':'#ff9d3c','rar-mythic':'#e2575b','rar-divine':'#f4c542'};
+    var colors = {'rar-rare':'#5bc0ff','rar-epic':'#b26bff','rar-legendary':'#ff9d3c','rar-mythic':'#e2575b','rar-divine':'#f4c542','rar-celestial':'#40c4ff','rar-eternal':'#e040fb'};
     var counts = {};
     manifest.querySelectorAll('.abyss-side-loot').forEach(function(row){
       Object.keys(colors).forEach(function(c){ if(row.classList.contains(c)) counts[c]=(counts[c]||0)+1; });
@@ -1319,8 +1441,9 @@ function applyLootFilter(){
   if(!manifest) return;
   document.querySelectorAll('#lootFilters .ab-chip').forEach(function(c){
     c.classList.toggle('active', c.getAttribute('data-f') === lootFilter);
+    c.setAttribute('aria-pressed', c.getAttribute('data-f')===lootFilter ? 'true' : 'false');
   });
-  var rank = {'rar-rare':3,'rar-epic':4,'rar-legendary':5,'rar-mythic':6,'rar-divine':7};
+  var rank = {'rar-rare':3,'rar-epic':4,'rar-legendary':5,'rar-mythic':6,'rar-divine':7,'rar-celestial':8,'rar-eternal':9};
   var min = {rare:3, epic:4, legendary:5}[lootFilter] || 0;
   manifest.querySelectorAll('.abyss-side-loot').forEach(function(row){
     var ok = true;
@@ -1351,7 +1474,8 @@ function setLootFilter(f){
 // 10-second undo on auto-equip notices (UX-53). gearId pins the undo to the
 // exact auto-equipped item so it can never strip a piece equipped afterwards.
 function addUndoLink(row, slot, gearId){
-  var a = document.createElement('a');
+  var a = document.createElement('button');
+  a.type = 'button';
   a.className = 'ab-undo-link';
   a.textContent = 'undo';
   a.title = 'Move this piece back to your backpack';
@@ -1405,8 +1529,8 @@ function appendRunLoot(loot){
     manifest.appendChild(d);
     runLootGained++;
     // Rarity toast for epic+ (UX-45) and edge glow for legendary+ (UX-52).
-    if(rc === 'rar-epic' || rc === 'rar-legendary' || rc === 'rar-mythic' || rc === 'rar-divine') lootToast(l, rc);
-    if(rc === 'rar-legendary' || rc === 'rar-mythic' || rc === 'rar-divine') flashEdgeGlow(rc);
+    if(rc === 'rar-epic' || rc === 'rar-legendary' || rc === 'rar-mythic' || rc === 'rar-divine' || rc === 'rar-celestial' || rc === 'rar-eternal') lootToast(l, rc);
+    if(rc === 'rar-legendary' || rc === 'rar-mythic' || rc === 'rar-divine' || rc === 'rar-celestial' || rc === 'rar-eternal') flashEdgeGlow(rc);
     // Auto-equip undo window (UX-53).
     if(l.indexOf('⬆️ Equipped:') >= 0){
       var m = /\[s:([A-Za-z0-9]+)\]/.exec(d.textContent || '');
@@ -1455,7 +1579,7 @@ function appendRunLoot(loot){
   document.addEventListener('scroll', hideTip, {passive: true});
 })();
 
-function selectedTier(){var el=document.querySelector('input[name=abtier]:checked');return el?el.value:'normal';}
+function selectedTier(){var el=document.querySelector('input[name=abtier]:checked');if(el&&!el.disabled)return el.value;var en=document.querySelector('input[name=abtier]:not([disabled])');return en?en.value:'normal';}
 function selectedPacts(){
   return Array.prototype.slice.call(document.querySelectorAll('input[name=abpact]:checked')).map(function(el){return el.value;});
 }
@@ -1484,7 +1608,7 @@ async function abyssEnter(consumables){
   var te=Number(tierEl&&tierEl.getAttribute('data-entry'))||0;
   if(te>0){goldCost+=te;lines.push('Tier entry: '+fmtGold(te)+' <span class="muted small">(waived if your daily free entry is unused)</span>');}
   if(sm&&sm.value==='express'){var xc=Number(sm.getAttribute('data-cost'))||0;goldCost+=xc;lines.push('Express elevator: '+fmtGold(xc));}
-  if(sm&&sm.value==='checkpoint'){var ck=Math.floor((parseInt(document.getElementById('checkpointSel')&&document.getElementById('checkpointSel').value)||0)/2);tokenCost+=ck;lines.push('Checkpoint drop: 🜲 '+ck);}
+  if(sm&&sm.value==='checkpoint'){var ck=Math.floor((cs?(parseInt(cs.value,10)||0):0)/2);tokenCost+=ck;lines.push('Checkpoint drop: 🜲 '+ck);}
   if(goldCost>1000||tokenCost>0){
     var total=(goldCost>0?fmtGold(goldCost):'')+(goldCost>0&&tokenCost>0?' + ':'')+(tokenCost>0?'🜲 '+tokenCost:'');
     if(!(await confirmModal(lines.join('<br>')+'<br><b>Total: '+total+'</b>',{title:'Confirm descent costs',okLabel:'Pay & Enter'}))){ setBusy(false); return; }
@@ -1541,7 +1665,7 @@ function openConsumablePick(list, max, total){
   consPickState={max:max||3, items:(list||[]).map(function(c){return {id:c.id, name:c.name, count:c.count, take:0};})};
   document.getElementById('consPickMax').textContent=consPickState.max;
   document.getElementById('consPickCap').textContent=consPickState.max;
-  document.getElementById('consPickTotal').textContent=total;
+  document.getElementById('consPickTotal').textContent=total || consPickState.items.reduce(function(a,c){return a+c.count;},0);
   var listEl=document.getElementById('consPickList'); listEl.innerHTML='';
   consPickState.items.forEach(function(it, idx){
     var row=document.createElement('div');
@@ -1568,6 +1692,14 @@ function consPickAdj(idx, delta){
   consPickUpdate();
 }
 function closeConsumablePick(){ document.getElementById('consPickOverlay').classList.remove('open'); }
+// Escape closes the consumable-pick overlay too (the generic modal Esc handler
+// in partials.html only covers #modalOverlay).
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape'){
+    var o=document.getElementById('consPickOverlay');
+    if(o && o.classList.contains('open')) closeConsumablePick();
+  }
+});
 function confirmConsumablePick(){
   var sel={};
   consPickState.items.forEach(function(it){ if(it.take>0) sel[it.id]=it.take; });
@@ -1575,12 +1707,18 @@ function confirmConsumablePick(){
   abyssEnter(sel);
 }
 
+// Low-HP confirm [87]: shared by the single- and multi-floor descend paths.
+async function confirmLowHP(){
+  var b=document.getElementById('hpBar'),hp=+b.getAttribute('aria-valuenow'),mx=+b.getAttribute('aria-valuemax');
+  return !(mx>0&&hp>0&&hp/mx<0.25)||confirmModal('You are at '+Math.round(hp*100/mx)+'% HP. Descend anyway?',{title:'Low HP',okLabel:'Descend'});
+}
+
 async function abyssDescend(){
   if(busy)return;
   // Low-HP confirm [87]
   var bar=document.getElementById('hpBar');
   var hp=Number(bar.getAttribute('aria-valuenow')), max=Number(bar.getAttribute('aria-valuemax'));
-  if(max>0 && hp>0 && hp/max<0.25 && !(await confirmModal('You are at '+Math.round(hp*100/max)+'% HP. Descend anyway?', {title:'Low HP', okLabel:'Descend'})))return;
+  if(!(await confirmLowHP()))return;
   setBusy(true); markBusyBtn('btnDescend'); clearBanner();
   document.getElementById('abStatus').textContent='Descending…';
 
@@ -1633,23 +1771,13 @@ function addPathToQueue() {
   select.style.fontSize = '12px';
   select.style.cursor = 'pointer';
   
-  var opt1 = document.createElement('option');
-  opt1.value = 'combat';
-  opt1.textContent = '⚔️ Combat';
-  opt1.style.background = '#0a0d16';
-  select.appendChild(opt1);
-  
-  var opt2 = document.createElement('option');
-  opt2.value = 'rest';
-  opt2.textContent = '🕊️ Rest';
-  opt2.style.background = '#0a0d16';
-  select.appendChild(opt2);
-  
-  var opt3 = document.createElement('option');
-  opt3.value = 'event';
-  opt3.textContent = '❔ Event';
-  opt3.style.background = '#0a0d16';
-  select.appendChild(opt3);
+  [['combat','⚔️ Combat'],['rest','🕊️ Rest'],['event','❔ Event']].forEach(function(p){
+    var o = document.createElement('option');
+    o.value = p[0];
+    o.textContent = p[1];
+    o.style.background = '#0a0d16';
+    select.appendChild(o);
+  });
   
   wrap.appendChild(label);
   wrap.appendChild(select);
@@ -1694,7 +1822,7 @@ async function abyssDescendMulti() {
 
   var bar = document.getElementById('hpBar');
   var hp = Number(bar.getAttribute('aria-valuenow')), max = Number(bar.getAttribute('aria-valuemax'));
-  if (max > 0 && hp > 0 && hp / max < 0.25 && !(await confirmModal('You are at ' + Math.round(hp * 100 / max) + '% HP. Descend anyway?', {title: 'Low HP', okLabel: 'Descend'}))) return;
+  if (!(await confirmLowHP())) return;
 
   setBusy(true); markBusyBtn('btnDescendMulti'); clearBanner();
   document.getElementById('abStatus').textContent = 'Descending queue (' + paths.length + ' floors)…';
@@ -1723,7 +1851,7 @@ async function abyssDescendMulti() {
 function openFloorChoiceModal(options, depth, hp, max){
   var html = '<h3>🕳️ Floor '+depth+'</h3><p>Choose your path.</p><div class="modal-body">';
   (options||[]).forEach(function(o){
-    html += '<button class="modal-option" onclick="abyssChooseFloor('+o.index+','+hp+','+max+')">'+(o.icon||'')+' '+o.label+'</button>';
+    html += '<button class="modal-option" onclick="abyssChooseFloor('+o.index+','+hp+','+max+')">'+(o.icon||'')+' '+consEsc(o.label)+'</button>';
   });
   html += '</div>';
   openModal(html);
@@ -1856,7 +1984,9 @@ async function abyssRevive(){
 }
 
 async function abyssConcede(){
-  if(busy)return; setBusy(true); markBusyBtn('btnConcede'); clearBanner();
+  if(busy)return;
+  if(!(await confirmModal('Concede and lose your '+fmtGold(curEscrow)+' cache?',{title:'Concede',okLabel:'Concede'})))return;
+  setBusy(true); markBusyBtn('btnConcede'); clearBanner();
   var d=await abPost('/api/abyss/concede');
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
   try{ sessionStorage.removeItem('ab_trail'); }catch(e){}
@@ -1884,7 +2014,7 @@ async function abyssBank(){
     row('Tokens on bank', '🜲 '+p.tokens_grant)+
     row('Sealed loot to recover', p.loot_count)+
     (p.bonus_gear_eligible?row('Depth gear reward','🎁 guaranteed'):'')+
-    (p.capped?'<div class="ab-hc-cmp">⚠️ Daily gold cap: only '+fmtGold(p.cap_remaining)+' can still be paid out today.</div>':'')+
+    (p.capped?'<div class="ab-hc-cmp">⚠️ Daily gold cap: the Abyss levies an 80% tax on the excess (−'+fmtGold(p.cap_tax)+', fed to the deep-cache jackpot).</div>':'')+
   '</div><div class="modal-actions"><button class="ghost" id="modalCancelBtn">Keep descending</button><button id="modalOkBtn">🏦 Bank it</button></div>';
   openModal(html);
   document.getElementById('modalCancelBtn').onclick=closeModal;
@@ -1896,10 +2026,11 @@ async function abyssBankCommit(cursed){
   var d=await abPost('/api/abyss/bank',{cursed:cursed});
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
   var msg='🏦 Banked '+fmtGold(d.banked)+' from a depth-'+d.depth+' run (×'+Number(d.mult).toFixed(2)+').';
-  if(d.escrow_loot&&d.escrow_loot.length)msg+=' 🎒 '+d.escrow_loot.length+' cached item(s) recovered.';
+  if(d.escrow_loot&&d.escrow_loot.length)msg+=' 🎒 '+d.escrow_loot.length+' cached item'+(d.escrow_loot.length===1?'':'s')+' recovered.';
   if(d.bonus_gear)msg+=' 🎁 Depth reward: '+d.bonus_gear+'.';
   if(d.cursed)msg+=' ☠️ Cursed — your next cycle fights are hexed.';
   if(d.jackpot_win)msg+=' 🔥 DEEP-CACHE JACKPOT +'+fmtGold(d.jackpot_win)+'!';
+  if(d.cap_tax)msg+=' 💸 Abyss tax −'+fmtGold(d.cap_tax)+' (fed the deep-cache jackpot).';
   if(d.achievement)msg+=' 🏅 '+d.achievement;
   setBanner(msg,'good');
   try{ sessionStorage.removeItem('ab_trail'); }catch(e){}
@@ -1913,12 +2044,13 @@ async function abyssBankCommit(cursed){
 // Run-banked summary with sequential subtotal ticks (UX-54): the total counts
 // up in stages — cache, then the multiplier bonus, then any jackpot.
 function showBankSummary(d){
-  var base=Number(d.base)||0, mb=Number(d.mult_bonus)||0, jp=Number(d.jackpot_win)||0;
+  var base=Number(d.base)||0, mb=Number(d.mult_bonus)||0, jp=Number(d.jackpot_win)||0, tax=Number(d.cap_tax)||0;
   var html='<h3>🏦 Run banked!</h3><div class="modal-body ab-runsummary good">'+
     '<div class="ab-rs-row"><span>Depth reached</span><b>'+d.depth+'</b></div>'+
     '<div class="ab-rs-row"><span>Cache</span><b>'+fmtGold(base)+'</b></div>'+
     '<div class="ab-rs-row"><span>Multiplier ×'+Number(d.mult).toFixed(2)+'</span><b>'+(mb>=0?'+':'')+fmtGold(mb)+'</b></div>'+
     (jp?'<div class="ab-rs-row"><span>🔥 Deep-cache jackpot</span><b>+'+fmtGold(jp)+'</b></div>':'')+
+    (tax?'<div class="ab-rs-row"><span>💸 Abyss tax (80% over daily cap)</span><b>−'+fmtGold(tax)+'</b></div>':'')+
     '<div class="ab-rs-row"><span>Items recovered</span><b>'+((d.escrow_loot||[]).length)+'</b></div>'+
     '<div class="ab-rs-row"><span>Floors cleared this session</span><b>'+runFloorsCleared+'</b></div>'+
     '<div class="ab-rs-row ab-rs-total"><span>Total payout</span><b id="bankTotalTick">0g</b></div>'+
@@ -1938,12 +2070,11 @@ function showBankSummary(d){
 }
 
 async function abyssInsure(pct){
-  if(busy)return;
+  if(busy)return; setBusy(true);
   var rate=Math.max(0.25,0.5-wardLv*0.05);
   var cost=Math.floor(curEscrow*pct/100*rate);
-  if(curEscrow<=0){abToast('No cache to insure yet',false);return;}
-  if(!(await confirmModal('Insure '+pct+'% of your '+fmtGold(curEscrow)+' cache for ~'+fmtGold(cost)+' gold?', {title:'Insure Cache', okLabel:'Insure'})))return;
-  setBusy(true);
+  if(curEscrow<=0){abToast('No cache to insure yet',false);setBusy(false);return;}
+  if(!(await confirmModal('Insure '+pct+'% of your '+fmtGold(curEscrow)+' cache for ~'+fmtGold(cost)+' gold?', {title:'Insure Cache', okLabel:'Insure'}))){setBusy(false);return;}
   var d=await abPost('/api/abyss/insure',{pct:pct});
   setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
@@ -1957,13 +2088,12 @@ async function abyssSalvage(){
   setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setGold(d.gold);
-  abToast(d.sold>0?('Salvaged '+d.sold+' items for '+fmtGold(d.value)):'No junk to salvage', d.sold>0);
+  abToast(d.sold>0?('Salvaged '+d.sold+' item'+(d.sold===1?'':'s')+' for '+fmtGold(d.value)):'No junk to salvage', d.sold>0);
 }
 
 async function abyssDismantle(){
-  if(busy)return;
-  if(!(await confirmModal('Dismantle all Rare-or-better spare gear in your backpack into Abyss Tokens? Equipped gear is never touched.', {title:'Dismantle Gear', okLabel:'Dismantle'})))return;
-  setBusy(true);
+  if(busy)return; setBusy(true);
+  if(!(await confirmModal('Dismantle all Rare-or-better spare gear in your backpack into Abyss Tokens? Equipped gear is never touched.', {title:'Dismantle Gear', okLabel:'Dismantle'}))){setBusy(false);return;}
   var d=await abPost('/api/abyss/dismantle');
   setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
@@ -1994,7 +2124,7 @@ async function abyssUseConsumable(cid){
   if(!d.ok){ abToast(d.error||'failed',false); return; }
   setHP(d.hp, d.max_hp); setGold(d.gold);
   renderConsumables(d.consumables);
-  abToast('Consumable used successfully!', true);
+  abToast(d.msg || 'Consumable used!', true);
 }
 
 async function abyssNCAction(action, payload){
@@ -2039,7 +2169,9 @@ async function abyssProceed(){
 async function abyssInviteCoop(){
   var coopUID = document.getElementById('coopSelect').value;
   if(!coopUID) return;
+  if(busy)return; setBusy(true);
   var d = await abPost('/api/abyss/coop/invite', {coop_uid: coopUID});
+  setBusy(false);
   if(!d.ok){
     abToast(d.error || 'Failed to invite ally', false);
     return;
@@ -2049,8 +2181,10 @@ async function abyssInviteCoop(){
 }
 
 async function abyssPrestige(){
-  if(!(await confirmModal('Are you sure you want to prestige the Abyss? Your best depth will be reset to 0, but you will permanently earn +5% gold and XP rewards per prestige level.', {title:'Prestige', okLabel:'Prestige'}))) return;
+  if(busy)return; setBusy(true);
+  if(!(await confirmModal('Are you sure you want to prestige the Abyss? Your best depth will be reset to 0, but you will permanently earn +5% gold and XP rewards per prestige level.', {title:'Prestige', okLabel:'Prestige'}))){setBusy(false);return;}
   var d = await abPost('/api/abyss/prestige');
+  setBusy(false);
   if(!d.ok){
     abToast(d.error || 'Prestige failed', false);
     return;
@@ -2069,7 +2203,7 @@ async function abyssBountyClaim(){
   setGold(d.gold); setTokens(d.tokens);
   var act=document.getElementById('bountyAction');
   if(act)act.innerHTML='<b style="color:#7ee787">✅ Claimed today</b>';
-  var bmsg='🎯 Daily Bounty complete! +🜲 '+d.reward_tokens+' tokens and +'+fmtGold(d.reward_gold)+'.';
+  var bmsg='🎯 Daily Bounty complete! +🜲'+d.reward_tokens+' tokens and +'+fmtGold(d.reward_gold)+'.';
   if(d.streak>1)bmsg+=' 🔥 '+d.streak+'-day streak (+🜲 '+d.streak_bonus+' bonus)!';
   setBanner(bmsg,'good');
 }
@@ -2114,11 +2248,11 @@ function updateForgeOptions() {
   var isWeapon = slot === 'MainHand' || slot === 'OffHand' || slot === 'Ranged';
   document.getElementById('forgeEtchRow').style.display = (!unid && isWeapon) ? 'block' : 'none';
   var upBtn = document.getElementById('btnForgeUpgradeGear');
-  upBtn.style.display = (!unid && rarity < 6) ? 'block' : 'none'; // max rarity is Divine (6)
-  if (!unid && rarity < 6) {
+  upBtn.style.display = (!unid && rarity < 8) ? 'block' : 'none'; // max rarity is Eternal (8)
+  if (!unid && rarity < 8) {
     // Cost scales with the target tier (must match abyssUpgradeGearCost server-side).
     var tgt = rarity + 1;
-    var upCost = tgt >= 6 ? 200 : (tgt >= 5 ? 80 : (tgt >= 4 ? 30 : (tgt >= 3 ? 15 : 10)));
+    var upCost = tgt >= 8 ? 800 : (tgt >= 7 ? 400 : (tgt >= 6 ? 200 : (tgt >= 5 ? 80 : (tgt >= 4 ? 30 : (tgt >= 3 ? 15 : 10)))));
     upBtn.textContent = 'Ascend Tier Level (🜲 ' + upCost + ')' + (tgt >= 5 ? ' +Bonus Effects' : '');
   }
   document.getElementById('btnForgeTransmute').style.display = (!unid && isWeapon) ? 'block' : 'none';
@@ -2132,7 +2266,67 @@ function updateForgeOptions() {
   var corrupted = opt.getAttribute('data-corrupted') === 'true';
   document.getElementById('btnForgeCleanse').style.display = (!unid && corrupted) ? 'block' : 'none';
   document.getElementById('forgeGemToolsRow').style.display = (!unid && gems > 0) ? 'block' : 'none';
+
+  // Forge round 3 gating: hone axes, powers, sockets, embrace.
+  var special = opt.getAttribute('data-special') === 'true';
+  var imbued = opt.getAttribute('data-imbued') === 'true';
+  var attuned = opt.getAttribute('data-attuned') === 'true';
+  document.getElementById('btnForgeSharpen').style.display = (!unid && isWeapon) ? 'block' : 'none';
+  document.getElementById('btnForgeReinforce').style.display = (!unid && !isWeapon) ? 'block' : 'none';
+  document.getElementById('btnForgeReforge').style.display = (!unid && rarity >= 3) ? 'block' : 'none'; // Rare+
+  document.getElementById('btnForgeMasterwork').style.display = !unid ? 'block' : 'none';
+  document.getElementById('btnForgePolish').style.display = !unid ? 'block' : 'none';
+  document.getElementById('btnForgeAttune').style.display = (!unid && !attuned) ? 'block' : 'none';
+  document.getElementById('btnForgeAwaken').style.display = (!unid && !special) ? 'block' : 'none';
+  document.getElementById('forgeImbueRow').style.display = (!unid && !imbued) ? 'block' : 'none';
+  document.getElementById('btnForgePunchSocket').style.display = (!unid && sockets < 4) ? 'block' : 'none';
+  document.getElementById('btnForgeEmbrace').style.display = (!unid && corrupted) ? 'block' : 'none';
+
+  // Forge round 4 gating: infusions, surge, rebalance, brand, swap, gem transmute.
+  var temper = parseInt(opt.getAttribute('data-temper')) || 0;
+  var cursed = opt.getAttribute('data-cursed') === 'true';
+  var eldritch = opt.getAttribute('data-eldritch') === 'true';
+  var hasRune = opt.getAttribute('data-rune') === 'true';
+  var prismatic = opt.getAttribute('data-prismatic') === 'true';
+  document.getElementById('btnForgeCorrupt').style.display = (!unid && !corrupted) ? 'block' : 'none';
+  document.getElementById('btnForgeInfuseCurse').style.display = (!unid && isWeapon && !cursed) ? 'block' : 'none';
+  document.getElementById('btnForgeInfuseEldritch').style.display = (!unid && !eldritch) ? 'block' : 'none';
+  document.getElementById('btnForgeTemperSurge').style.display = (!unid && temper >= 15 && temper < 20) ? 'block' : 'none';
+  document.getElementById('forgeRebalanceRow').style.display = !unid ? 'block' : 'none';
+  document.getElementById('btnForgePrismatic').style.display = (!unid && hasRune && !prismatic) ? 'block' : 'none';
+  document.getElementById('forgeBrandRow').style.display = !unid ? 'block' : 'none';
+  var secondRow = document.getElementById('forgeSecondRow');
+  secondRow.style.display = (!unid && (special || isWeapon)) ? 'block' : 'none';
+  document.getElementById('btnForgeSwap').style.display = special ? '' : 'none';
+  document.getElementById('btnForgeInfuseXP').style.display = isWeapon ? '' : 'none';
+  document.getElementById('forgeGemTransmuteRow').style.display = (!unid && gems > 0) ? 'block' : 'none';
+
+  // Gold price labels scale with the item's rarity (mirrors forgeGoldCost).
+  var fg=function(b){return '≈'+abForgeGold(b,rarity);};
+  var setTxt=function(id,txt){var el=document.getElementById(id);if(el)el.textContent=txt;};
+  setTxt('btnForgeIdentify','🔍 Identify Item ('+fg(100)+')');
+  setTxt('btnForgeSocketGemGo','Socket Gem ('+fg(50)+')');
+  setTxt('btnForgeEtchGo','Etch ('+fg(150)+')');
+  setTxt('btnForgeTransmute','⚒️ Transmute Weapon ('+fg(100)+')');
+  setTxt('btnForgeInsureItem','🛡️ Insure Item ('+fg(200)+')');
+  setTxt('btnForgePolish','🔧 Polish ('+fg(150)+')');
+  setTxt('btnForgeSharpen','⚔️ Sharpen ('+fg(100)+' + 2🌫️)');
+  setTxt('btnForgeReinforce','🛡️ Reinforce ('+fg(100)+' + 2🌫️)');
+  setTxt('btnForgeReforge','🎲 Reforge Stats ('+fg(300)+')');
+  setTxt('btnForgeInfuseCurse','💀 Infuse Curse ('+fg(500)+' + 3🟣)');
+  setTxt('btnForgeTemperSurge','🔥 Temper Surge ('+fg(2000)+', 50%)');
+  setTxt('btnForgeRebalanceGo','⚖️ ('+fg(200)+')');
+  setTxt('btnForgeGemTransmuteGo','Transmute ('+fg(150)+')');
+  setTxt('btnForgeExtractGem','🔧 Extract Gem ('+fg(100)+')');
+  setTxt('btnForgeCleanse','✨ Cleanse Corruption ('+fg(800)+')');
 }
+
+// Forge gold pricing mirrors server-side forgeRarityGoldMult/forgeGoldCost:
+// base × rarity multiplier with a 10k floor (rep/happy-hour discounts apply
+// server-side, hence the ≈ in labels).
+function abForgeGoldMult(r){return r>=8?25000:r>=7?10000:r>=6?5000:r>=5?2000:r>=4?1000:r>=3?500:r>=2?250:100;}
+function abForgeGold(base,r){var raw=base*abForgeGoldMult(r||0);return fmtGold(raw<10000?10000:raw);}
+function selForgeRarity(){var sel=document.getElementById('forgeItemSelect');var opt=sel&&sel.options[sel.selectedIndex];return opt?(parseInt(opt.getAttribute('data-rarity'),10)||0):0;}
 
 function getSelectedForgeParams() {
   var sel = document.getElementById('forgeItemSelect');
@@ -2151,16 +2345,21 @@ function getSelectedForgeParams() {
   return body;
 }
 
+// forgePost: shared tail of the forge actions — post, toast, reload. Callers
+// own the busy flag (set before any confirm modal so nothing can race it).
+async function forgePost(url,params){
+  var d=await abPost(url,params);
+  setBusy(false);
+  if(!d.ok){abToast(d.error||'Failed',false);return;}
+  abToast(d.msg||'Done!',true);
+  setTimeout(function(){window.location.reload();},1000);
+}
+
 async function forgeIdentify() {
   var params = getSelectedForgeParams();
   if (!params) return;
   if (busy) return; setBusy(true);
-  var d = await abPost('/api/abyss/identify', params);
-  setBusy(false);
-  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
-  setGold(d.gold);
-  abToast(d.msg || 'Identified!', true);
-  setTimeout(function(){ window.location.reload(); }, 1000);
+  forgePost('/api/abyss/identify', params);
 }
 
 async function forgeRecalibrate() {
@@ -2168,12 +2367,7 @@ async function forgeRecalibrate() {
   if (!params) return;
   params.stat = document.getElementById('recalibrateStatSelect').value;
   if (busy) return; setBusy(true);
-  var d = await abPost('/api/abyss/recalibrate', params);
-  setBusy(false);
-  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
-  setTokens(d.tokens);
-  abToast(d.msg || 'Recalibrated!', true);
-  setTimeout(function(){ window.location.reload(); }, 1000);
+  forgePost('/api/abyss/recalibrate', params);
 }
 
 async function forgeSocketGem() {
@@ -2181,12 +2375,7 @@ async function forgeSocketGem() {
   if (!params) return;
   params.gem = document.getElementById('gemstoneSelect').value;
   if (busy) return; setBusy(true);
-  var d = await abPost('/api/abyss/socket_gem', params);
-  setBusy(false);
-  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
-  setGold(d.gold);
-  abToast(d.msg || 'Gem socketed!', true);
-  setTimeout(function(){ window.location.reload(); }, 1000);
+  forgePost('/api/abyss/socket_gem', params);
 }
 
 async function forgeEtchRune() {
@@ -2194,12 +2383,7 @@ async function forgeEtchRune() {
   if (!params) return;
   params.rune = document.getElementById('runeSelect').value;
   if (busy) return; setBusy(true);
-  var d = await abPost('/api/abyss/etch_rune', params);
-  setBusy(false);
-  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
-  setGold(d.gold);
-  abToast(d.msg || 'Rune etched!', true);
-  setTimeout(function(){ window.location.reload(); }, 1000);
+  forgePost('/api/abyss/etch_rune', params);
 }
 
 async function forgeUpgradeGear() {
@@ -2210,63 +2394,212 @@ async function forgeUpgradeGear() {
   var opt = sel.options[sel.selectedIndex];
   var rarity = opt ? (parseInt(opt.getAttribute('data-rarity')) || 0) : 0;
   var tgt = rarity + 1;
-  var upCost = tgt >= 6 ? 200 : (tgt >= 5 ? 80 : (tgt >= 4 ? 30 : (tgt >= 3 ? 15 : 10)));
-  if (!(await confirmModal('Ascend this gear tier level for 🜲 ' + upCost + ' tokens? This increases all combat stats by +30%.', {title:'Ascend Gear', okLabel:'Ascend'}))) return;
+  var upCost = tgt >= 8 ? 800 : (tgt >= 7 ? 400 : (tgt >= 6 ? 200 : (tgt >= 5 ? 80 : (tgt >= 4 ? 30 : (tgt >= 3 ? 15 : 10)))));
   if (busy) return; setBusy(true);
-  var d = await abPost('/api/abyss/upgrade_gear', params);
-  setBusy(false);
-  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
-  setTokens(d.tokens);
-  abToast(d.msg || 'Upgraded!', true);
-  setTimeout(function(){ window.location.reload(); }, 1000);
+  if (!(await confirmModal('Ascend this gear tier level for 🜲 ' + upCost + ' tokens? This increases all combat stats by +30%.', {title:'Ascend Gear', okLabel:'Ascend'}))) { setBusy(false); return; }
+  forgePost('/api/abyss/upgrade_gear', params);
 }
 
 async function forgeTransmute() {
   var params = getSelectedForgeParams();
   if (!params) return;
-  if (!(await confirmModal('Transmute this weapon for 100g? It will convert into a random weapon suited to your highest stat.', {title:'Transmute Weapon', okLabel:'Transmute'}))) return;
   if (busy) return; setBusy(true);
-  var d = await abPost('/api/abyss/transmute', params);
-  setBusy(false);
-  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
-  setGold(d.gold);
-  abToast(d.msg || 'Transmuted!', true);
-  setTimeout(function(){ window.location.reload(); }, 1000);
+  if (!(await confirmModal('Transmute this weapon for '+abForgeGold(100,selForgeRarity())+'? It will convert into a random weapon suited to your highest stat.', {title:'Transmute Weapon', okLabel:'Transmute'}))) { setBusy(false); return; }
+  forgePost('/api/abyss/transmute', params);
 }
 
 async function forgeConvertMana() {
-  if (busy) return;
-  if (!(await confirmModal('Convert 100 Mana stats into +50 Max HP for 50g?', {title:'Convert Mana', okLabel:'Convert'}))) return;
-  setBusy(true);
-  var d = await abPost('/api/abyss/convert_mana', {amount: 100});
-  setBusy(false);
-  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
-  abToast(d.msg || 'Converted!', true);
-  setTimeout(function(){ window.location.reload(); }, 1000);
-}
-
-async function resetTalents() {
-  if (!(await confirmModal('Reset all Deep-Delver talent upgrades and refund all spent tokens for 🜲 10 tokens?', {title:'Reset Talents', okLabel:'Reset'}))) return;
   if (busy) return; setBusy(true);
-  var d = await abPost('/api/abyss/reset_talents');
-  setBusy(false);
-  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
-  setTokens(d.tokens);
-  abToast(d.msg || 'Talents reset!', true);
-  setTimeout(function(){ window.location.reload(); }, 1000);
+  if (!(await confirmModal('Convert 100 Mana stats into +50 Max HP? Free.', {title:'Convert Mana', okLabel:'Convert'}))) { setBusy(false); return; }
+  forgePost('/api/abyss/convert_mana', {amount: 100});
 }
 
 async function forgeInsureItem() {
   var params = getSelectedForgeParams();
   if (!params) return;
-  if (!(await confirmModal('Mark this item as Insured for 200g? It will never lose durability on death.', {title:'Insure Item', okLabel:'Insure'}))) return;
   if (busy) return; setBusy(true);
-  var d = await abPost('/api/abyss/insure_item', params);
-  setBusy(false);
-  if (!d.ok) { abToast(d.error || 'Failed', false); return; }
-  setGold(d.gold);
-  abToast(d.msg || 'Insured!', true);
-  setTimeout(function(){ window.location.reload(); }, 1000);
+  if (!(await confirmModal('Mark this item as Insured for '+abForgeGold(200,selForgeRarity())+'? It will never lose durability on death.', {title:'Insure Item', okLabel:'Insure'}))) { setBusy(false); return; }
+  forgePost('/api/abyss/insure_item', params);
+}
+
+// ---- Forge round 3 client actions -------------------------------------------
+
+async function forgeSharpen() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  forgePost('/api/abyss/sharpen', params);
+}
+
+async function forgeReinforce() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  forgePost('/api/abyss/reinforce', params);
+}
+
+async function forgeReforge() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  if (!(await confirmModal('Reforge this item for '+abForgeGold(300,selForgeRarity())+'? Every combat stat is rerolled within ±10% — it can get worse.', {title:'Reforge Stats', okLabel:'Reforge'}))) { setBusy(false); return; }
+  forgePost('/api/abyss/reforge', params);
+}
+
+async function forgeMasterwork() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  forgePost('/api/abyss/masterwork', params);
+}
+
+async function forgePolish() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  forgePost('/api/abyss/polish', params);
+}
+
+async function forgeAttune() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  if (!(await confirmModal('Attune this item for 🜲 15? It gains +5% stats but can never be fused, salvaged, dismantled or auctioned again.', {title:'Attune Item', okLabel:'Attune'}))) { setBusy(false); return; }
+  forgePost('/api/abyss/attune', params);
+}
+
+async function forgeAwaken() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  if (!(await confirmModal('Awaken this item\'s dormant power for 3 🟣? It gains a random Special effect (once per item).', {title:'Awaken', okLabel:'Awaken'}))) { setBusy(false); return; }
+  forgePost('/api/abyss/awaken', params);
+}
+
+async function forgeImbue() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  params.effect = document.getElementById('imbueSelect').value;
+  if (busy) return; setBusy(true);
+  forgePost('/api/abyss/imbue', params);
+}
+
+async function forgePunchSocket() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  forgePost('/api/abyss/punch_socket', params);
+}
+
+async function forgeEmbrace() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  if (!(await confirmModal('Embrace the corruption for 1 💠? The HP malus is halved permanently, but the item can never be cleansed.', {title:'Embrace Corruption', okLabel:'Embrace'}))) { setBusy(false); return; }
+  forgePost('/api/abyss/embrace', params);
+}
+
+// ---- Forge round 4 client actions -------------------------------------------
+
+// Populate the shared second-item picker from the forge picker's backpack options.
+(function(){
+  var src=document.getElementById('forgeItemSelect'), dst=document.getElementById('forgeSecondSelect');
+  if(!src||!dst)return;
+  src.querySelectorAll('option').forEach(function(o){
+    if(o.value && o.value.indexOf('inv:')===0){
+      var c=document.createElement('option');
+      c.value=o.value.slice(4);
+      c.textContent=o.textContent;
+      dst.appendChild(c);
+    }
+  });
+})();
+
+async function forgeCorrupt() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  if (!(await confirmModal('Corrupt this item for 5 🟣? It gains +50% offensive stats but an HP malus equal to its score.', {title:'Corrupt Item', okLabel:'Corrupt'}))) { setBusy(false); return; }
+  forgePost('/api/abyss/corrupt', params);
+}
+
+async function forgeInfuseCurse() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  if (!(await confirmModal('Curse this weapon for '+abForgeGold(500,selForgeRarity())+' + 3 🟣? +25% stats, but it drains your HP in combat.', {title:'Infuse Curse', okLabel:'Curse'}))) { setBusy(false); return; }
+  forgePost('/api/abyss/infuse_curse', params);
+}
+
+async function forgeInfuseEldritch() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  forgePost('/api/abyss/infuse_eldritch', params);
+}
+
+async function forgeTemperSurge() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  if (!(await confirmModal('Attempt a temper surge for '+abForgeGold(2000,selForgeRarity())+'? 50% chance to push past +15 toward +20. A failed surge costs the gold but never breaks the item.', {title:'Temper Surge', okLabel:'Surge'}))) { setBusy(false); return; }
+  forgePost('/api/abyss/temper_surge', params);
+}
+
+async function forgeRebalance() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  params.from = document.getElementById('rebalanceFrom').value;
+  params.to = document.getElementById('rebalanceTo').value;
+  if (params.from === params.to) { abToast('Pick two different stats', false); return; }
+  if (busy) return; setBusy(true);
+  forgePost('/api/abyss/rebalance', params);
+}
+
+async function forgePrismaticRune() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  if (busy) return; setBusy(true);
+  forgePost('/api/abyss/prismatic_rune', params);
+}
+
+async function forgeBrand() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  params.set = document.getElementById('brandSelect').value;
+  if (busy) return; setBusy(true);
+  if (!(await confirmModal('Brand this item into the ' + params.set + ' set for 10 🟣? It will count toward that set\'s bonus.', {title:'Brand Item', okLabel:'Brand'}))) { setBusy(false); return; }
+  forgePost('/api/abyss/brand', params);
+}
+
+async function forgeSwapSpecial() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  var second = document.getElementById('forgeSecondSelect').value;
+  if (!second) { abToast('Pick a second item from the backpack', false); return; }
+  params.inv_id2 = parseInt(second, 10);
+  if (params.inv_id && params.inv_id === params.inv_id2) { abToast('Pick two different items', false); return; }
+  if (busy) return; setBusy(true);
+  forgePost('/api/abyss/swap_special', params);
+}
+
+async function forgeInfuseXP() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  var second = document.getElementById('forgeSecondSelect').value;
+  if (!second) { abToast('Pick a backpack item to sacrifice', false); return; }
+  params.sacrifice_inv_id = parseInt(second, 10);
+  if (busy) return; setBusy(true);
+  if (!(await confirmModal('Sacrifice the second item? Its combat rating ÷10 becomes gear XP on the selected weapon. This cannot be undone.', {title:'Infuse Gear XP', okLabel:'Sacrifice'}))) { setBusy(false); return; }
+  forgePost('/api/abyss/infuse_xp', params);
+}
+
+async function forgeGemTransmute() {
+  var params = getSelectedForgeParams();
+  if (!params) return;
+  params.gem = document.getElementById('gemTransmuteSelect').value;
+  if (busy) return; setBusy(true);
+  forgePost('/api/abyss/transmute_gem', params);
 }
 
 // ---- Expansion 2 client actions -------------------------------------------
@@ -2288,16 +2621,20 @@ async function abyssCraft(id, btn){
 async function abyssCraftLegendary(){
   var sel=document.getElementById('craftLegSel');
   if(!sel||!sel.value)return;
-  if(!(await confirmModal('Forge '+sel.options[sel.selectedIndex].text+' for 500 Dust, 50 Shards and 10 Cores?', {title:'Forge a Legendary', okLabel:'Forge'})))return;
+  if(busy)return; setBusy(true);
+  if(!(await confirmModal('Forge '+sel.options[sel.selectedIndex].text+' for 500 Dust, 50 Shards and 10 Cores?', {title:'Forge a Legendary', okLabel:'Forge'}))){setBusy(false);return;}
   var d=await abPost('/api/abyss/craft_legendary',{gear_id:sel.value});
+  setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setMaterials(d.materials);
   abToast(d.msg,true);
 }
 
 async function abyssExchange(dir){
-  var n=parseInt(document.getElementById('exchAmount').value)||1;
+  if(busy)return; setBusy(true);
+  var n=Math.max(1,Math.min(1000,parseInt(document.getElementById('exchAmount').value,10)||1));
   var d=await abPost('/api/abyss/exchange',{dir:dir,amount:n});
+  setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setGold(d.gold); setTokens(d.tokens);
   abToast(dir==='buy'?('Bought 🜲 '+n):('Sold 🜲 '+n),true);
@@ -2312,16 +2649,11 @@ async function abyssSanctuaryBuy(key, btn){
   setTimeout(function(){window.location.reload();},800);
 }
 
-async function abyssSetSpec(spec){
-  var d=await abPost('/api/abyss/set_spec',{spec:spec});
-  if(!d.ok){abToast(d.error||'failed',false);return;}
-  setTokens(d.tokens); abToast(d.msg,true);
-  setTimeout(function(){window.location.reload();},800);
-}
-
 async function forgeTemper(){
   var params=getSelectedForgeParams(); if(!params)return;
+  if(busy)return; setBusy(true);
   var d=await abPost('/api/abyss/temper',params);
+  setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setGold(d.gold); abToast(d.msg, d.success);
   if(d.success)setTimeout(function(){window.location.reload();},900);
@@ -2329,29 +2661,23 @@ async function forgeTemper(){
 
 async function forgeCleanse(){
   var params=getSelectedForgeParams(); if(!params)return;
-  if(!(await confirmModal('Purge the corruption for 800g? The HP malus is lifted, the boosted stats remain.', {title:'Cleanse', okLabel:'Cleanse'})))return;
-  var d=await abPost('/api/abyss/cleanse',params);
-  if(!d.ok){abToast(d.error||'failed',false);return;}
-  abToast(d.msg,true);
-  setTimeout(function(){window.location.reload();},900);
+  if(busy)return; setBusy(true);
+  if(!(await confirmModal('Purge the corruption for '+abForgeGold(800,selForgeRarity())+'? The HP malus is lifted, the boosted stats remain.', {title:'Cleanse', okLabel:'Cleanse'}))){setBusy(false);return;}
+  forgePost('/api/abyss/cleanse',params);
 }
 
 async function forgeUpgradeGem(){
   var params=getSelectedForgeParams(); if(!params)return;
   params.gem_index=0;
-  var d=await abPost('/api/abyss/upgrade_gem',params);
-  if(!d.ok){abToast(d.error||'failed',false);return;}
-  setMaterials(d.materials); abToast(d.msg,true);
-  setTimeout(function(){window.location.reload();},900);
+  if(busy)return; setBusy(true);
+  forgePost('/api/abyss/upgrade_gem',params);
 }
 
 async function forgeExtractGem(){
   var params=getSelectedForgeParams(); if(!params)return;
   params.gem_index=0;
-  var d=await abPost('/api/abyss/extract_gem',params);
-  if(!d.ok){abToast(d.error||'failed',false);return;}
-  setMaterials(d.materials); abToast(d.msg,true);
-  setTimeout(function(){window.location.reload();},900);
+  if(busy)return; setBusy(true);
+  forgePost('/api/abyss/extract_gem',params);
 }
 
 async function abyssIdentifyAll(btn){
@@ -2364,13 +2690,13 @@ async function abyssIdentifyAll(btn){
 }
 
 async function abyssRepairAll(btn){
+  if(busy)return; setBusy(true);
   var p=await abPost('/api/abyss/repair_all',{preview:true});
-  if(!p.ok){abToast(p.error||'failed',false);return;}
-  if(p.cost<=0){abToast('Nothing to repair.',true);return;}
-  if(!(await confirmModal('Repair all gear for '+fmtGold(p.cost)+'?', {title:'Repair All', okLabel:'Repair'})))return;
-  if(btn)btn.disabled=true;
+  if(!p.ok){abToast(p.error||'failed',false);setBusy(false);return;}
+  if(p.cost<=0){abToast('Nothing to repair.',true);setBusy(false);return;}
+  if(!(await confirmModal('Repair all gear for '+fmtGold(p.cost)+'?', {title:'Repair All', okLabel:'Repair'}))){setBusy(false);return;}
   var d=await abPost('/api/abyss/repair_all',{});
-  if(btn)btn.disabled=false;
+  setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setGold(d.gold); abToast(d.msg,true);
 }
@@ -2391,7 +2717,9 @@ async function abyssTransferEnchant(){
   var from=document.getElementById('enchFromSel').value;
   var to=document.getElementById('enchToSel').value;
   if(!from||!to){abToast('Pick both slots',false);return;}
+  if(busy)return; setBusy(true);
   var d=await abPost('/api/abyss/transfer_enchant',{from_slot:from,to_slot:to});
+  setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setTokens(d.tokens); abToast(d.msg,true);
 }
@@ -2399,7 +2727,10 @@ async function abyssTransferEnchant(){
 // Fusion (#92/#112): scan the forge picker's backpack options for a same-slot
 // group of the required rarity and confirm before consuming them.
 async function abyssFuse(mode){
-  var need=(mode==='mythic')?2:3, rarity=(mode==='mythic')?5:4;
+  var need=(mode==='ancient')?3:2, rarity=(mode==='celestial')?7:((mode==='mythic')?5:4);
+  var label=(mode==='celestial')?'Celestial':((mode==='mythic')?'Mythic':'Legendary');
+  var title=(mode==='celestial')?'Celestial':((mode==='mythic')?'Mythic':'Ancient');
+  var url=(mode==='celestial')?'/api/abyss/celestial_fuse':((mode==='mythic')?'/api/abyss/mythic_fuse':'/api/abyss/fuse');
   var groups={};
   document.querySelectorAll('#forgeItemSelect option').forEach(function(o){
     if(!o.value||o.value.indexOf('inv:')!==0)return;
@@ -2409,10 +2740,12 @@ async function abyssFuse(mode){
   });
   var pickSlot=null;
   Object.keys(groups).forEach(function(s){if(!pickSlot&&groups[s].length>=need)pickSlot=s;});
-  if(!pickSlot){abToast('Need '+need+' same-slot '+(mode==='mythic'?'Mythic':'Legendary')+' spares in the backpack.',false);return;}
+  if(!pickSlot){abToast('Need '+need+' same-slot '+label+' spares in the backpack.',false);return;}
   var chosen=groups[pickSlot].slice(0,need);
-  if(!(await confirmModal('Consume: '+chosen.map(function(c){return c.name;}).join(' + ')+'?', {title:(mode==='mythic'?'Mythic':'Ancient')+' Fusion', okLabel:'Fuse'})))return;
-  var d=await abPost(mode==='mythic'?'/api/abyss/mythic_fuse':'/api/abyss/fuse',{inv_ids:chosen.map(function(c){return c.id;})});
+  if(busy)return; setBusy(true);
+  if(!(await confirmModal('Consume: '+chosen.map(function(c){return c.name;}).join(' + ')+'?', {title:title+' Fusion', okLabel:'Fuse'}))){setBusy(false);return;}
+  var d=await abPost(url,{inv_ids:chosen.map(function(c){return c.id;})});
+  setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   abToast(d.msg,true);
   setTimeout(function(){window.location.reload();},1200);
@@ -2433,7 +2766,9 @@ function toggleForgeHistory(){
 }
 
 async function abyssRiftPeek(){
+  if(busy)return; setBusy(true);
   var d=await abPost('/api/abyss/rift_peek');
+  setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setGold(d.gold);
   var desc=document.getElementById('ncDesc');
@@ -2566,9 +2901,10 @@ function displayAutoFocus(focus) {
     if(groups.length < 2) return;
     var bar = document.createElement('div');
     bar.className = 'ab-tabs';
+    bar.setAttribute('role', 'tablist');
     var first = groups[0].els[0];
     // Leaderboard deep-links (#lb / ?lbtier=) land on the Leaderboards tab.
-    var initial = 0;
+    var initial = -1;
     if (location.hash === '#lb' || location.search.indexOf('lbtier=') >= 0) {
       var lbIdx = -1;
       for (var i = 0; i < groups.length; i++) {
@@ -2581,14 +2917,24 @@ function displayAutoFocus(focus) {
         initial = lbIdx;
       }
     }
+    // Otherwise restore the tab the player last had open (same pattern as
+    // forge_selected_item persistence above).
+    if (initial < 0) {
+      try{ initial = parseInt(sessionStorage.getItem('abyss_section_tab'), 10); }catch(e){ initial = 0; }
+      if (isNaN(initial) || initial < 0) initial = 0;
+    }
     if(initial >= groups.length) initial = 0;
     groups.forEach(function(g, i){
       var b = document.createElement('button');
       b.className = 'ab-tab' + (i===initial ? ' active' : '');
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', i===initial ? 'true' : 'false');
       b.textContent = g.label;
       b.onclick = function(){
-        bar.querySelectorAll('.ab-tab').forEach(function(x){x.classList.remove('active');});
+        bar.querySelectorAll('.ab-tab').forEach(function(x){x.classList.remove('active');x.setAttribute('aria-selected','false');});
         b.classList.add('active');
+        b.setAttribute('aria-selected', 'true');
+        try{ sessionStorage.setItem('abyss_section_tab', String(i)); }catch(e){}
         groups.forEach(function(g2, j){ g2.els.forEach(function(el){ if(el) el.style.display = (i===j) ? '' : 'none'; }); });
       };
       bar.appendChild(b);
@@ -2598,6 +2944,8 @@ function displayAutoFocus(focus) {
     // but it gets its own tab here so every Abyss section shares one tab bar.
     var tw = document.createElement('button');
     tw.className = 'ab-tab';
+    tw.setAttribute('role', 'tab');
+    tw.setAttribute('aria-selected', 'false');
     tw.textContent = '🌳 Skill Web';
     tw.title = '1000 nodes · six disciplines · opens the skill web';
     tw.onclick = function(){ window.location.href = '/abyss/tree'; };

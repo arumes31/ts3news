@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"log"
 	"net/http"
 
 	"ts3news/internal/content"
@@ -39,13 +40,19 @@ var abyssShopCatalog = []abyssShopItem{
 	{"emergency_revive", "Emergency Revive Potion", "Single-use: instantly revive to full HP if you fall, beyond your normal one-per-run revival.", 0, 100000},
 }
 
-func abyssShopByKey(key string) (abyssShopItem, bool) {
+// abyssShopIndex maps item key → catalog entry, built once from the catalog so
+// lookups stay O(1) instead of a linear scan per purchase.
+var abyssShopIndex = func() map[string]abyssShopItem {
+	m := make(map[string]abyssShopItem, len(abyssShopCatalog))
 	for _, it := range abyssShopCatalog {
-		if it.Key == key {
-			return it, true
-		}
+		m[it.Key] = it
 	}
-	return abyssShopItem{}, false
+	return m
+}()
+
+func abyssShopByKey(key string) (abyssShopItem, bool) {
+	it, ok := abyssShopIndex[key]
+	return it, ok
 }
 
 // handleAbyssShopBuy spends tokens on a catalog item. The token debit is a guarded
@@ -126,6 +133,25 @@ func (s *WebServer) handleAbyssShopBuy(w http.ResponseWriter, r *http.Request, u
 		msg = "Epic cache opened: " + name + "!"
 	case "relic":
 		ui := content.RandomUniqueItem()
+		// grantAbyssUnique silently ignores owned duplicates; don't burn the
+		// player's tokens on a no-op — check first and refund instead.
+		var owned bool
+		if err := s.bot.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_unique_items WHERE client_uid=$1 AND item_name=$2)", uid, ui.Name).Scan(&owned); err != nil {
+			if _, rerr := s.bot.DB.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", item.Cost, uid); rerr != nil {
+				log.Printf("abyss shop relic refund failed for %s (%d tokens): %v", uid, item.Cost, rerr)
+			}
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if owned {
+			if _, err := s.bot.DB.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", item.Cost, uid); err != nil {
+				log.Printf("abyss shop relic refund failed for %s (%d tokens): %v", uid, item.Cost, err)
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			writeJSON(w, map[string]any{"ok": false, "error": ui.Name + " already owned — tokens refunded", "tokens": s.bot.abyssTokens(uid)})
+			return
+		}
 		s.bot.grantAbyssUnique(uid, ui.Name, ui.Rarity, ui.Power)
 		msg = "Relic acquired: " + ui.Name + " [" + ui.Rarity.String() + "]!"
 	case "emergency_revive":

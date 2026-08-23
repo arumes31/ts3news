@@ -264,6 +264,8 @@ rarity.epic: Episk
 rarity.legendary: Legendarisk
 rarity.mythic: Mytisk
 rarity.divine: Gudomlig
+rarity.celestial: "Himmelsk"
+rarity.eternal: "Evig"
 rarity.unknown: Sällsynthet(%[1]d)
 mob_type.common: Vanlig
 mob_type.elite_minion: Elite-undersåte

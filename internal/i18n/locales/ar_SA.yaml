@@ -294,6 +294,8 @@ rarity.epic: "ملحمي"
 rarity.legendary: "أسطوري"
 rarity.mythic: "أسطوري جداً"
 rarity.divine: "إلهي"
+rarity.celestial: "سماوي"
+rarity.eternal: "أبدي"
 rarity.unknown: "ندرة(%[1]d)"
 
 # ─── Mob Type Names ───

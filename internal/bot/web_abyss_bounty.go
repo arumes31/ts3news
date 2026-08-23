@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"log"
 	"net/http"
 	"time"
 )
@@ -60,19 +61,23 @@ func abyssBountyDay(now time.Time) time.Time {
 // run-history tables, scoped to the supplied UTC bounty day.
 func (b *Bot) abyssBountyProgress(uid string, bounty abyssBounty, start time.Time) int64 {
 	var p int64
+	var err error
 	switch bounty.Kind {
 	case bountyDepth:
-		_ = b.DB.QueryRow(
+		err = b.DB.QueryRow(
 			"SELECT COALESCE(MAX(depth), 0) FROM abyss_runs WHERE client_uid=$1 AND created_at >= $2",
 			uid, start).Scan(&p)
 	case bountyBosses:
-		_ = b.DB.QueryRow(
+		err = b.DB.QueryRow(
 			"SELECT COUNT(*) FROM abyss_boss_kills WHERE client_uid=$1 AND killed_at >= $2",
 			uid, start).Scan(&p)
 	case bountyBank:
-		_ = b.DB.QueryRow(
+		err = b.DB.QueryRow(
 			"SELECT COALESCE(SUM(gold_banked), 0) FROM abyss_runs WHERE client_uid=$1 AND victory = TRUE AND created_at >= $2",
 			uid, start).Scan(&p)
+	}
+	if err != nil {
+		log.Printf("abyss bounty progress read failed for %s (%s): %v", uid, bounty.Kind, err)
 	}
 	return p
 }
@@ -81,9 +86,11 @@ func (b *Bot) abyssBountyProgress(uid string, bounty abyssBounty, start time.Tim
 // for the given UTC day.
 func (b *Bot) abyssBountyClaimedDay(uid string, day time.Time) bool {
 	var exists bool
-	_ = b.DB.QueryRow(
+	if err := b.DB.QueryRow(
 		"SELECT EXISTS(SELECT 1 FROM abyss_bounty_claims WHERE client_uid=$1 AND bounty_day = $2::date)",
-		uid, day).Scan(&exists)
+		uid, day).Scan(&exists); err != nil {
+		log.Printf("abyss bounty claimed read failed for %s: %v", uid, err)
+	}
 	return exists
 }
 
@@ -124,7 +131,9 @@ func (b *Bot) abyssBountyStatus(uid string) abyssBountyView {
 	// day was missed and the streak is effectively broken until the next claim.
 	live := 0
 	if claimedToday || b.abyssBountyClaimedDay(uid, day.AddDate(0, 0, -1)) {
-		_ = b.DB.QueryRow("SELECT abyss_bounty_streak FROM users WHERE client_uid=$1", uid).Scan(&live)
+		if err := b.DB.QueryRow("SELECT abyss_bounty_streak FROM users WHERE client_uid=$1", uid).Scan(&live); err != nil {
+			log.Printf("abyss bounty streak read failed for %s: %v", uid, err)
+		}
 	}
 
 	return abyssBountyView{
@@ -165,7 +174,9 @@ func (s *WebServer) handleAbyssBountyClaim(w http.ResponseWriter, r *http.Reques
 	newStreak := 1
 	if s.bot.abyssBountyClaimedDay(uid, day.AddDate(0, 0, -1)) {
 		var prev int
-		_ = s.bot.DB.QueryRow("SELECT abyss_bounty_streak FROM users WHERE client_uid=$1", uid).Scan(&prev)
+		if err := s.bot.DB.QueryRow("SELECT abyss_bounty_streak FROM users WHERE client_uid=$1", uid).Scan(&prev); err != nil {
+			log.Printf("abyss bounty streak read failed for %s: %v", uid, err)
+		}
 		newStreak = prev + 1
 	}
 	streakBonus := abyssStreakBonusTokens(newStreak)

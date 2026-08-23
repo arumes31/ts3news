@@ -3,8 +3,8 @@ package bot
 // The Abyss Skill Web (PoE-style passive tree, 1000 base nodes + the 100-node
 // outer Ascendant Rim = 1100 — see
 // internal/content/abysstree.go for the generator). Points are earned by
-// playing: 1 per character level, 1 per best depth reached, 1 per 10 lifetime
-// floors and 25 per Abyss prestige. Allocation must extend a connected path
+// playing: 2 per character level, 3 per best depth reached, 1 per 4 lifetime
+// floors and 60 per Abyss prestige. Allocation must extend a connected path
 // from the web's root; a full respec costs tokens.
 
 import (
@@ -15,6 +15,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,6 +23,34 @@ import (
 )
 
 const abyssTreeRespecTokens = 50
+
+// Special layout node IDs used by the bonus/effect switches below. These are
+// grid IDs fixed by the generator's ring/slot placement in
+// internal/content/abysstree.go (see the custom notables there); unlike
+// content.NodeLimitBreak they are not layout-derived constants, so if the
+// generator's ring count changes these must be re-checked against the new layout.
+const (
+	treeNodeArcaneWarrior          = 617 // synergy: +2 STR per allocated Arcane-sector node
+	treeNodeBeastmastersCommand    = 478 // synergy: +8 HP per allocated Void-sector node
+	treeNodeVictorsTrophy          = 697 // achievement gate: requires best depth 25 to allocate
+	treeNodeSpecialistsHarmony     = 771 // passive bonus keyed off the active specialization
+	treeNodeAbyssalAttunement      = 818 // +0.5% STR/HP per best-depth floor
+	treeNodePrestigeFocus          = 834 // multiplies War-sector nodes by +10% per prestige
+	treeNodeSetResonance           = 883 // +5% base attributes per equipped set tier
+	treeNodeElementalTransmutation = 932 // converts 50% of STR% into INT%
+)
+
+// abyssSocketKey is the app_meta key storing the player's jewel socket map.
+func abyssSocketKey(uid string) string { return "abyss_sockets_" + uid }
+
+// abyssKeystoneActiveKey / abyssKeystoneCooldownKey are the app_meta keys for a
+// timed keystone's active-until and cooldown-until timestamps.
+func abyssKeystoneActiveKey(uid string, nodeID int) string {
+	return fmt.Sprintf("abyss_keystone_active_%s_%d", uid, nodeID)
+}
+func abyssKeystoneCooldownKey(uid string, nodeID int) string {
+	return fmt.Sprintf("abyss_keystone_cooldown_%s_%d", uid, nodeID)
+}
 
 // abyssTreeRefundGoldPerPoint is the gold charged per skill point when refunding
 // nodes individually (single or bulk "refund until this node"). Unlike the full
@@ -130,7 +159,7 @@ func (b *Bot) loadTreeAllocated(uid string) ([]int, error) {
 
 // treePointsTotal is how many skill points the player has earned so far: base
 // progression points hard-capped at 1000, plus up to 500 more from fully skilling the
-// Deep-Delver upgrades — so the absolute ceiling is 1500. The web has ~5100 nodes on
+// Deep-Delver upgrades — so the absolute ceiling is 1500. The web has 1100 nodes on
 // purpose; you only ever allocate a fraction of it.
 func (b *Bot) treePointsTotal(uid string) int {
 	var level, bestDepth, prestige int
@@ -191,9 +220,11 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 	// 1. Jewel Sockets adjacent modifiers & Timeless Jewels area buffs
 	var socketMap map[int]string
 	var storedJson string
-	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_sockets_"+uid).Scan(&storedJson)
+	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssSocketKey(uid)).Scan(&storedJson)
 	if storedJson != "" {
-		_ = json.Unmarshal([]byte(storedJson), &socketMap)
+		if err := json.Unmarshal([]byte(storedJson), &socketMap); err != nil {
+			log.Printf("abyss socket map corrupt for %s: %v", uid, err)
+		}
 	}
 	for nid := range allocatedMap {
 		n := content.AbyssTree().Node(nid)
@@ -203,8 +234,10 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 					// Timeless Jewel: timeless_<seed>_<size>_<stat>
 					parts := strings.Split(jewel, "_")
 					if len(parts) == 4 {
-						var seed int
-						_, _ = fmt.Sscanf(parts[1], "%d", &seed)
+						seed, err := strconv.Atoi(parts[1])
+						if err != nil {
+							continue // malformed stored jewel code — skip its buff
+						}
 						size := parts[2]
 						statType := parts[3]
 
@@ -267,9 +300,9 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 		}
 	}
 
-	// 2. Timed Keystone Perks (Chronobreaker/Limit Break active buff)
+	// 2. Timed Keystone Perks (Chronobreak/Limit Break active buff)
 	var expStr string
-	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", fmt.Sprintf("abyss_keystone_active_%s_%d", uid, content.NodeLimitBreak)).Scan(&expStr)
+	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssKeystoneActiveKey(uid, content.NodeLimitBreak)).Scan(&expStr)
 	if expStr != "" {
 		if expTime, err := time.Parse(time.RFC3339, expStr); err == nil && time.Now().Before(expTime) {
 			tb.Pct["xp_gain"] += 0.50
@@ -277,7 +310,7 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 	}
 
 	// 3. Synergy Nodes
-	if allocatedMap[617] { // Arcane Warrior notable
+	if allocatedMap[treeNodeArcaneWarrior] { // Arcane Warrior notable
 		arcaneCount := 0
 		for nid := range allocatedMap {
 			n := content.AbyssTree().Node(nid)
@@ -287,7 +320,7 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 		}
 		tb.Stats.STR += 2 * arcaneCount
 	}
-	if allocatedMap[478] { // Beastmaster's Command / Void Vitality
+	if allocatedMap[treeNodeBeastmastersCommand] { // Beastmaster's Command / Void Vitality
 		voidCount := 0
 		for nid := range allocatedMap {
 			n := content.AbyssTree().Node(nid)
@@ -298,8 +331,8 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 		tb.Stats.HP += 8 * voidCount
 	}
 
-	// 4. Specialization Bonuses (Specialist's Harmony node 771)
-	if allocatedMap[771] {
+	// 4. Specialization Bonuses (Specialist's Harmony node)
+	if allocatedMap[treeNodeSpecialistsHarmony] {
 		var spec string
 		_ = b.DB.QueryRow("SELECT active_specialization FROM users WHERE client_uid=$1", uid).Scan(&spec)
 		switch spec {
@@ -312,22 +345,22 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 		}
 	}
 
-	// 5. Abyss Depth-Scaling (Abyssal Attunement node 818)
-	if allocatedMap[818] {
+	// 5. Abyss Depth-Scaling (Abyssal Attunement node)
+	if allocatedMap[treeNodeAbyssalAttunement] {
 		var bestDepth int
 		_ = b.DB.QueryRow("SELECT abyss_best_depth FROM users WHERE client_uid=$1", uid).Scan(&bestDepth)
 		tb.Pct["str_pct"] += 0.005 * float64(bestDepth)
 		tb.Pct["hp_pct"] += 0.005 * float64(bestDepth)
 	}
 
-	// 6. Prestige Multipliers (Prestige Focus node 834)
-	if allocatedMap[834] {
+	// 6. Prestige Multipliers (Prestige Focus node)
+	if allocatedMap[treeNodePrestigeFocus] {
 		var prestige int
 		_ = b.DB.QueryRow("SELECT abyss_prestige FROM users WHERE client_uid=$1", uid).Scan(&prestige)
 		if prestige > 0 {
 			mult := 0.10 * float64(prestige)
 			for nid := range allocatedMap {
-				if nid != 834 {
+				if nid != treeNodePrestigeFocus {
 					n := content.AbyssTree().Node(nid)
 					if n != nil && n.Sector == 0 { // War Sector
 						tb.Stats.HP += int(float64(n.Stats.HP) * mult)
@@ -345,11 +378,11 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 		}
 	}
 
-	// 7. Set Resonance (Set Resonance node 883): +5% str/hp/int/spd per full set tier
+	// 7. Set Resonance (Set Resonance node): +5% str/hp/int/spd per full set tier
 	// (every 2 equipped pieces sharing a set). Counts equipped gear by EffectiveSetID,
 	// mirroring activeLootMult's set counting — the old query hit a non-existent
 	// `user_gears` table (with no such columns) and silently granted nothing.
-	if allocatedMap[883] {
+	if allocatedMap[treeNodeSetResonance] {
 		setCount := map[string]int{}
 		for _, g := range b.getEquippedItems(uid) {
 			if sid := g.EffectiveSetID(); sid != "" {
@@ -371,8 +404,8 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 		}
 	}
 
-	// 8. Skill Transformations (Elemental Transmutation node 932)
-	if allocatedMap[932] {
+	// 8. Skill Transformations (Elemental Transmutation node)
+	if allocatedMap[treeNodeElementalTransmutation] {
 		if strPct := tb.Pct["str_pct"]; strPct != 0 {
 			tb.Pct["int_pct"] += strPct * 0.5
 			tb.Pct["str_pct"] -= strPct * 0.5
@@ -450,16 +483,16 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 
 	// Load sockets
 	var socketsJson string
-	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_sockets_"+uid).Scan(&socketsJson)
+	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssSocketKey(uid)).Scan(&socketsJson)
 	if socketsJson == "" {
 		socketsJson = "{}"
 	}
 
 	// Load keystone status
 	var activeUntil string
-	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", fmt.Sprintf("abyss_keystone_active_%s_%d", uid, content.NodeLimitBreak)).Scan(&activeUntil)
+	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssKeystoneActiveKey(uid, content.NodeLimitBreak)).Scan(&activeUntil)
 	var cooldownUntil string
-	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", fmt.Sprintf("abyss_keystone_cooldown_%s_%d", uid, content.NodeLimitBreak)).Scan(&cooldownUntil)
+	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssKeystoneCooldownKey(uid, content.NodeLimitBreak)).Scan(&cooldownUntil)
 
 	st := s.bot.loadAbyssStats(uid) // one ~19-column read, reused for BestDepth + Stats below
 	s.render(w, "abysstree", map[string]any{
@@ -569,8 +602,9 @@ func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Reque
 	}
 	spent := tree.SpentPoints(alloc)
 	cost := node.Cost()
-	if spent+cost > s.bot.treePointsTotal(uid) {
-		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("not enough skill points — this node costs %d (spent %d of %d)", cost, spent, s.bot.treePointsTotal(uid))})
+	total := s.bot.treePointsTotal(uid)
+	if spent+cost > total {
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("not enough skill points — this node costs %d (spent %d of %d)", cost, spent, total)})
 		return
 	}
 	connected := false
@@ -602,7 +636,7 @@ func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Achievement Gate Nodes check (Item 60)
-	if req.NodeID == 697 {
+	if req.NodeID == treeNodeVictorsTrophy {
 		var maxFloor int
 		_ = s.bot.DB.QueryRow("SELECT COALESCE(abyss_best_depth, 0) FROM users WHERE client_uid=$1", uid).Scan(&maxFloor)
 		if maxFloor < 25 {
@@ -620,7 +654,7 @@ func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Reque
 	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{
 		"ok": true, "node_id": req.NodeID, "used": spent + cost,
-		"points": s.bot.treePointsTotal(uid),
+		"points": total,
 		"msg":    "🌳 Allocated: " + node.Name,
 		"stats":  tb.Stats, "pct": tb.Pct,
 	})
@@ -716,6 +750,7 @@ func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request
 		if n := tree.Node(id); n != nil {
 			refundCost += n.Cost()
 		} else {
+			log.Printf("abyss tree refund: node %d not in layout, pricing as 1 point (uid %s)", id, uid)
 			refundCost++
 		}
 	}
@@ -828,18 +863,29 @@ func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if req.Jewel != "" {
-		if !deductGold(w, tx, uid, 100) {
+	// Load existing socket mapping before charging: re-socketing the jewel that
+	// is already in the node is a no-op and must not cost the socketing fee.
+	var storedJson string
+	_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssSocketKey(uid)).Scan(&storedJson)
+	socketMap := map[int]string{}
+	if storedJson != "" {
+		// Fail closed: continuing with an empty map would drop every other
+		// socketed jewel when the replacement map is persisted below.
+		if err := json.Unmarshal([]byte(storedJson), &socketMap); err != nil {
+			log.Printf("abyss socket map corrupt for %s: %v", uid, err)
+			writeJSON(w, map[string]any{"ok": false, "error": "db error"})
 			return
 		}
 	}
 
-	// Load existing socket mapping
-	var storedJson string
-	_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_sockets_"+uid).Scan(&storedJson)
-	socketMap := map[int]string{}
-	if storedJson != "" {
-		_ = json.Unmarshal([]byte(storedJson), &socketMap)
+	if req.Jewel != "" {
+		if socketMap[req.NodeID] == req.Jewel {
+			writeJSON(w, map[string]any{"ok": false, "error": "that jewel is already socketed here"})
+			return
+		}
+		if !deductGold(w, tx, uid, 100) {
+			return
+		}
 	}
 
 	if req.Jewel == "" {
@@ -850,7 +896,7 @@ func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request
 
 	newJson, _ := json.Marshal(socketMap)
 	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, "abyss_sockets_"+uid, string(newJson)); err != nil {
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssSocketKey(uid), string(newJson)); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
 		return
 	}
@@ -916,7 +962,7 @@ func (s *WebServer) handleAbyssTreeActivateKeystone(w http.ResponseWriter, r *ht
 
 	// Check Cooldown: key `abyss_keystone_cooldown_<uid>_<nodeID>`
 	var cdStr string
-	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", fmt.Sprintf("abyss_keystone_cooldown_%s_%d", uid, req.NodeID)).Scan(&cdStr)
+	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssKeystoneCooldownKey(uid, req.NodeID)).Scan(&cdStr)
 	if cdStr != "" {
 		if cdTime, err := time.Parse(time.RFC3339, cdStr); err == nil && time.Now().Before(cdTime) {
 			diff := time.Until(cdTime)
@@ -935,7 +981,7 @@ func (s *WebServer) handleAbyssTreeActivateKeystone(w http.ResponseWriter, r *ht
 	// Activate buff: expires in 1 hour
 	expiry := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, fmt.Sprintf("abyss_keystone_active_%s_%d", uid, req.NodeID), expiry); err != nil {
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssKeystoneActiveKey(uid, req.NodeID), expiry); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
 		return
 	}
@@ -943,7 +989,7 @@ func (s *WebServer) handleAbyssTreeActivateKeystone(w http.ResponseWriter, r *ht
 	// Set Cooldown: expires in 24 hours
 	cooldown := time.Now().Add(24 * time.Hour).Format(time.RFC3339)
 	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, fmt.Sprintf("abyss_keystone_cooldown_%s_%d", uid, req.NodeID), cooldown); err != nil {
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssKeystoneCooldownKey(uid, req.NodeID), cooldown); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
 		return
 	}
@@ -1017,7 +1063,9 @@ func (s *WebServer) handleAbyssTreeRollTimeless(w http.ResponseWriter, r *http.R
 	}
 
 	// Roll timeless attributes: seed (1..8000), size (small/medium/large), stat (str/int/spd/hp)
+	// #nosec G404 -- non-cryptographic loot roll
 	seed := rand.IntN(8000) + 1
+	// #nosec G404 -- non-cryptographic loot roll
 	roll := rand.Float64()
 	size := "small"
 	if roll >= 0.98 {
@@ -1026,6 +1074,7 @@ func (s *WebServer) handleAbyssTreeRollTimeless(w http.ResponseWriter, r *http.R
 		size = "medium"
 	}
 
+	// #nosec G404 -- non-cryptographic loot roll
 	statRoll := rand.IntN(4)
 	statType := "str"
 	switch statRoll {
@@ -1041,17 +1090,23 @@ func (s *WebServer) handleAbyssTreeRollTimeless(w http.ResponseWriter, r *http.R
 
 	// Load existing socket mapping
 	var storedJson string
-	_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_sockets_"+uid).Scan(&storedJson)
+	_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssSocketKey(uid)).Scan(&storedJson)
 	socketMap := map[int]string{}
 	if storedJson != "" {
-		_ = json.Unmarshal([]byte(storedJson), &socketMap)
+		// Fail closed: continuing with an empty map would drop every other
+		// socketed jewel when the replacement map is persisted below.
+		if err := json.Unmarshal([]byte(storedJson), &socketMap); err != nil {
+			log.Printf("abyss socket map corrupt for %s: %v", uid, err)
+			writeJSON(w, map[string]any{"ok": false, "error": "db error"})
+			return
+		}
 	}
 
 	socketMap[req.NodeID] = jewelCode
 
 	newJson, _ := json.Marshal(socketMap)
 	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, "abyss_sockets_"+uid, string(newJson)); err != nil {
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssSocketKey(uid), string(newJson)); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
 		return
 	}

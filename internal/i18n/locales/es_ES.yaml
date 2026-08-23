@@ -263,6 +263,8 @@ rarity.epic: Épico
 rarity.legendary: Legendario
 rarity.mythic: Mítico
 rarity.divine: Divino
+rarity.celestial: "Celestial"
+rarity.eternal: "Eterno"
 rarity.unknown: Rareza(%[1]d)
 mob_type.common: Común
 mob_type.elite_minion: Eliteminion

@@ -33,6 +33,7 @@ var effectIconNames = map[ItemEffect]string{
 	EffectBulwark: "checked-shield", EffectRadiant: "sunbeams", EffectFragile: "cracked-shield",
 	EffectSteady: "stone-block", EffectMindControl: "psychic-waves", EffectRegenStack: "regeneration",
 	EffectPhoenix: "fire-silhouette", EffectStealth: "hood", EffectParry: "sword-clash", EffectCleanse: "holy-water",
+	EffectExecutioner: "guillotine", EffectFocused: "bullseye",
 }
 
 // EffectIconName returns the icon basename for a special item effect ("" if none).
@@ -54,6 +55,8 @@ var rarityIconNames = map[Rarity]string{
 	RarityLegendary: "legendary-star",
 	RarityMythic:    "legendary-star",
 	RarityDivine:    "legendary-star",
+	RarityCelestial: "legendary-star",
+	RarityEternal:   "legendary-star",
 }
 
 // RarityIconName returns the icon basename for a rarity ("" if none).
