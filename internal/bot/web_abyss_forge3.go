@@ -56,6 +56,12 @@ func (s *WebServer) handleAbyssCorrupt(w http.ResponseWriter, r *http.Request, u
 	g.Stats.SPD = g.Stats.SPD * 3 / 2
 	g.CorruptHP = g.Stats.Score()
 	g.Stats.HP -= g.CorruptHP
+	// Perfect corruption (AB-108): a hidden 5% roll escapes the HP malus entirely.
+	perfect := rand.Float64() < 0.05 // #nosec G404 -- non-cryptographic forge roll
+	if perfect {
+		g.Stats.HP += g.CorruptHP
+		g.CorruptHP = 0
+	}
 	g.Corrupted = true
 	if !strings.HasPrefix(g.Name, "🩸 Corrupted ") {
 		g.Name = "🩸 Corrupted " + g.Name
@@ -64,6 +70,11 @@ func (s *WebServer) handleAbyssCorrupt(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 	if !s.finishForge(w, tx, uid, "corrupt", g.Name, "5🟣") {
+		return
+	}
+	if perfect {
+		writeJSON(w, map[string]any{"ok": true, "materials": s.bot.loadMaterials(uid), "perfect": true,
+			"msg": fmt.Sprintf("😈✨ PERFECT CORRUPTION! %s swells with power (+50%% offensive stats) — and no HP malus at all!", g.Name)})
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "materials": s.bot.loadMaterials(uid),

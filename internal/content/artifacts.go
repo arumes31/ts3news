@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"strings"
+	"time"
 	"ts3news/internal/i18n"
 )
 
@@ -365,6 +366,24 @@ type Gear struct {
 	// dashboard (both values rolled at drop time). Zero means no regen affix.
 	RegenAmount      int `json:"regen_amount,omitempty"`
 	RegenIntervalSec int `json:"regen_interval_sec,omitempty"`
+
+	// Foil marks a cosmetic "foil" drop (1% of gear drops): no stat change, pure
+	// brag — the UI renders an animated shine on the card.
+	Foil bool `json:"foil,omitempty"`
+	// Doomed marks the cursed+eldritch co-occurrence: both drawbacks (HP drain
+	// and the eldritch price) ride one oversized piece; its loot beam renders
+	// red-black (abyssBeamClass "beam-doomed").
+	Doomed bool `json:"doomed,omitempty"`
+	// Lucid marks a lucid Insanity variant: the negative trade-off stat was
+	// stripped at drop time and the remaining stats scaled down 20%.
+	Lucid bool `json:"lucid,omitempty"`
+	// Lore is an optional flavour blurb shown in tooltips/labels. Named Abyss
+	// set pieces are stamped from setLore at content build time.
+	Lore string `json:"lore,omitempty"`
+	// FoundAt records when the item dropped (RFC3339), powering the
+	// sentimental-value "broken in" bonus (30+ days old → +1% stats, applied by
+	// the stat aggregation in xp.go).
+	FoundAt string `json:"found_at,omitempty"`
 }
 
 // EffectiveSetID returns the item's set for set-bonus purposes: its explicit
@@ -453,7 +472,33 @@ func buildConsumables() []Consumable {
 // but must still resolve through GetConsumableByID.
 var abyssExclusiveConsumables = []Consumable{
 	{"abyss_emergency_revive", "Emergency Revive Potion", ConsumableRevive, 1.0, 0, "Single-use: instantly heals you to full HP if you fall in the Abyss, beyond your normal one-per-run revival."},
+	{"repair_kit_ii", "Repair Kit II", ConsumableRepair, 25, 0, "Restores 25 durability to every equipped item."},
+	// Corrupted consumables (AB-85): stronger effect plus self-damage on use.
+	// They only enter the pool via CorruptedConsumableVariant at drop time; the
+	// self-damage backlash is applied by the consumable-use handler, which keys
+	// off the "corrupted_" prefix (see IsCorruptedConsumable).
+	{"corrupted_great_health_potion", "Corrupted Great Health Potion", ConsumableHealing, 400, 0, "Restores 400 HP in battle — then the corruption exacts 10% of your max HP."},
+	{"corrupted_strength_elixir", "Corrupted Strength Elixir", ConsumableBuff, 25, 3, "Boosts Strength by +25 for several fights; each quaff sears you for 5% of your max HP."},
+	{"corrupted_rejuvenation_potion", "Corrupted Rejuvenation Potion", ConsumableHealing, 0.9, 0, "Restores 90% of max HP, but 10% of it is immediately bled back out by the corruption."},
 }
+
+// corruptedConsumableVariants maps a standard consumable to its corrupted
+// variant (stronger effect plus self-damage). Consumables absent from the map
+// have no corrupted form.
+var corruptedConsumableVariants = map[string]string{
+	"great_health_potion":  "corrupted_great_health_potion",
+	"strength_elixir":      "corrupted_strength_elixir",
+	"rejuvenation_potion":  "corrupted_rejuvenation_potion",
+}
+
+// CorruptedConsumableVariant returns the corrupted variant ID for a standard
+// consumable, or "" if none exists.
+func CorruptedConsumableVariant(id string) string { return corruptedConsumableVariants[id] }
+
+// IsCorruptedConsumable reports whether a consumable ID is a corrupted
+// variant; the belt UI red-flags these and the use handler applies the
+// self-damage backlash described on the item.
+func IsCorruptedConsumable(id string) bool { return strings.HasPrefix(id, "corrupted_") }
 
 var allEnchantments []Enchantment
 
@@ -912,6 +957,13 @@ func buildContent() {
 		{ID: "INSANITY_PENDANT", Name: "Pendant of Beautiful Terror", Slot: SlotNeck, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 60, Stats: Stats{INT: 520, MNA: 220, STA: -120}},
 		{ID: "INSANITY_HEART", Name: "Heart of Insanity", Slot: SlotRelic, Rarity: RarityCelestial, XPMultiplier: getXPMult(RarityCelestial), MaxDurability: 90, Stats: Stats{HP: 1200, STR: 500, INT: 500, LCK: -80}, Special: EffectBerserk, BonusEffects: []ItemEffect{EffectFragile}},
 	}
+	// Stamp set lore onto named-set pieces so labels/tooltips can show it
+	// straight off the catalog entry (AB-80).
+	for i := range abyssExclusiveGear {
+		if lore := setLore[abyssExclusiveGear[i].SetID]; lore != "" {
+			abyssExclusiveGear[i].Lore = lore
+		}
+	}
 	allGear = append(allGear, abyssExclusiveGear...)
 	allGear = append(allGear, insanityExclusiveGear...)
 
@@ -1061,6 +1113,14 @@ func buildContent() {
 			Stats:        Stats{HP: 300, STR: 100, DEF: 50, SPD: 50, LCK: 40, INT: 30, STA: 30, CHA: 500},
 		})
 	}
+
+	// Treasure-goblin collectible title (AB-96): unlocked by banking 5 goblin
+	// tokens. Kept modest — it is a cosmetic brag, not a power title.
+	positiveTitles = append(positiveTitles, Title{
+		Name:         "Goblin King",
+		XPMultiplier: 1.10,
+		Stats:        Stats{LCK: 50, CHA: 100},
+	})
 
 	// 4. Generate Enchantments
 	enchPrefixes := i18n.Pool("pool.enchantment.prefix")
@@ -1251,6 +1311,20 @@ func AbyssSetBonusBySet(counts map[string]int) (Stats, map[string]int) {
 	}
 	return total, reached
 }
+
+// setLore holds the flavour line shown on named Abyss set pieces (lore
+// tooltips). Keyed by Gear.SetID; stamped onto the catalog items in
+// buildContent and exposed via SetLore for branded/legacy lookups.
+var setLore = map[string]string{
+	"predator":     "Worn by the first delvers, who learned that down here you hunt or you are hunted.",
+	"warden":       "Forged for the wardens who held the upper gates so others could flee the deep.",
+	"harvester":    "Trappings of the Gilded Harvest — the deep gives generously to those who take everything.",
+	"abyss_legacy": "Salvaged from the first expeditions; the abyss remembers every hand that held it.",
+}
+
+// SetLore returns the flavour lore line for an Abyss set ("" when the set has
+// none). Accepts the values of Gear.EffectiveSetID().
+func SetLore(setID string) string { return setLore[setID] }
 
 // IsAbyssGearID reports whether a gear ID belongs to the Abyss-exclusive set.
 func IsAbyssGearID(id string) bool { return strings.HasPrefix(id, "ABYSS_") }
@@ -1560,4 +1634,84 @@ func IsGearOrArtifact(name string) bool {
 		}
 	}
 	return false
+}
+
+// WithoutNegatives returns the stat block with every negative line raised to
+// zero — used to strip the trade-off from lucid Insanity variants (AB-81).
+func (s Stats) WithoutNegatives() Stats {
+	clamp := func(v int) int {
+		if v < 0 {
+			return 0
+		}
+		return v
+	}
+	return Stats{
+		HP: clamp(s.HP), STR: clamp(s.STR), DEF: clamp(s.DEF), SPD: clamp(s.SPD),
+		LCK: clamp(s.LCK), INT: clamp(s.INT), STA: clamp(s.STA), CRT: clamp(s.CRT),
+		DGE: clamp(s.DGE), MNA: clamp(s.MNA), CHA: clamp(s.CHA), STN: clamp(s.STN),
+		SHN: clamp(s.SHN), HGR: clamp(s.HGR),
+	}
+}
+
+// GemResonance counts same-type socketed gems (base name, tier suffix
+// stripped) across the equipped loadout (AB-83). The stat aggregation in
+// xp.go consumes it: 3+ of one type grant +5% to that gem's stat line.
+func GemResonance(equipped map[GearSlot]Gear) map[string]int {
+	counts := make(map[string]int)
+	for _, g := range equipped {
+		for _, gem := range g.Gemstones {
+			base, _, _ := strings.Cut(gem, " ")
+			if base != "" {
+				counts[base]++
+			}
+		}
+	}
+	return counts
+}
+
+// sentimentalValueAge is how long an item must be kept before the
+// sentimental-value ("broken in") bonus applies (AB-91).
+const sentimentalValueAge = 30 * 24 * time.Hour
+
+// BrokenIn reports whether the item qualifies for the sentimental-value bonus:
+// dropped 30+ days ago (FoundAt). Items without a timestamp never qualify.
+func (g Gear) BrokenIn(now time.Time) bool {
+	if g.FoundAt == "" {
+		return false
+	}
+	t, err := time.Parse(time.RFC3339, g.FoundAt)
+	if err != nil {
+		return false
+	}
+	return now.Sub(t) >= sentimentalValueAge
+}
+
+// DefensiveRuneResistPct is the elemental resist granted by an etched
+// defensive rune (AB-84), in percent.
+const DefensiveRuneResistPct = 5
+
+// DefensiveRuneName returns the rune name of the defensive (armor-etchable)
+// variant for an element, e.g. "Fire Ward".
+func DefensiveRuneName(e Element) string { return string(e) + " Ward" }
+
+// ParseDefensiveRune splits a defensive rune name back into its element,
+// reporting whether the name was a defensive rune at all. Offensive runes
+// ("Fire") and unknown names return false.
+func ParseDefensiveRune(name string) (Element, bool) {
+	base, ok := strings.CutSuffix(name, " Ward")
+	if !ok {
+		return "", false
+	}
+	switch Element(base) {
+	case ElementFire, ElementWater, ElementEarth, ElementAir, ElementPhysical:
+		return Element(base), true
+	}
+	return "", false
+}
+
+// IsDefensiveRune reports whether an etched rune (Gear.Rune) is a defensive
+// ward rune rather than an offensive elemental rune.
+func IsDefensiveRune(name string) bool {
+	_, ok := ParseDefensiveRune(name)
+	return ok
 }

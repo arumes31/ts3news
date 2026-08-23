@@ -282,16 +282,21 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 						}
 					}
 				} else {
-					// Normal Jewel
-					for _, neighborID := range content.AbyssTree().Adj[nid] {
-						if allocatedMap[neighborID] {
-							switch jewel {
-							case "ruby":
-								tb.Stats.STR += 15
-							case "sapphire":
-								tb.Stats.INT += 15
-							case "topaz":
-								tb.Stats.SPD += 15
+					// Normal Jewel (tiered codes "ruby_2" etc. from jewel fusing,
+					// AB-155, scale the flat bonus by tier).
+					base, tier, jok := parseJewelCode(jewel)
+					if jok {
+						for _, neighborID := range content.AbyssTree().Adj[nid] {
+							if allocatedMap[neighborID] {
+								v := 15 * tier
+								switch base {
+								case "ruby":
+									tb.Stats.STR += v
+								case "sapphire":
+									tb.Stats.INT += v
+								case "topaz":
+									tb.Stats.SPD += v
+								}
 							}
 						}
 					}
@@ -475,7 +480,7 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		pctView[treePctLabelPublic(k)] = fmt.Sprintf("%+.1f%%", v*100)
 	}
 
-	used := tree.SpentPoints(alloc)
+	used := s.bot.treeSpentEx(uid, alloc)
 	avail := total - used
 	if avail < 0 {
 		avail = 0
@@ -488,11 +493,36 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		socketsJson = "{}"
 	}
 
+	// Loose jewel pouch (AB-155), rendered raw like the socket map.
+	jewelsBytes, err := json.Marshal(s.bot.abyssJewelsMap(uid))
+	if err != nil {
+		jewelsBytes = []byte("{}")
+	}
+
 	// Load keystone status
 	var activeUntil string
 	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssKeystoneActiveKey(uid, content.NodeLimitBreak)).Scan(&activeUntil)
 	var cooldownUntil string
 	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssKeystoneCooldownKey(uid, content.NodeLimitBreak)).Scan(&cooldownUntil)
+
+	// Remaining seconds let the client render live countdown timers on the
+	// keystone node itself (AB-173).
+	now := time.Now()
+	activeSecs, cooldownSecs := 0, 0
+	if t, err := time.Parse(time.RFC3339, activeUntil); err == nil && t.After(now) {
+		activeSecs = int(time.Until(t).Seconds())
+	}
+	if t, err := time.Parse(time.RFC3339, cooldownUntil); err == nil && t.After(now) {
+		cooldownSecs = int(time.Until(t).Seconds())
+	}
+
+	// Loadout slot summary for the loadout bar (AB-151): slot → node count.
+	var loadoutsJson string
+	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssTreeLoadoutsKey(uid)).Scan(&loadoutsJson)
+	loadoutCounts := map[string]int{}
+	for slot, ids := range loadTreeLoadouts(loadoutsJson) {
+		loadoutCounts[slot] = len(ids)
+	}
 
 	st := s.bot.loadAbyssStats(uid) // one ~19-column read, reused for BestDepth + Stats below
 	s.render(w, "abysstree", map[string]any{
@@ -540,6 +570,15 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		"Sockets":   socketsJson,
 		"ActiveKeystoneExpiry": activeUntil,
 		"ActiveKeystoneCooldown": cooldownUntil,
+		// Group G (AB-151..175) page data.
+		"Jewels":           string(jewelsBytes),
+		"Loadouts":         loadoutCounts,
+		"NodeOfDay":        abyssNodeOfTheDay(now),
+		"FreeRespec":       s.bot.abyssFreeRespecAvailable(uid),
+		"MasteryShards":    s.bot.abyssMasteryShards(uid),
+		"PrestigeMemory":   s.bot.abyssPrestigeMemoryNode(uid),
+		"KeystoneActiveSecs":   activeSecs,
+		"KeystoneCooldownSecs": cooldownSecs,
 	})
 }
 
@@ -600,8 +639,9 @@ func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Reque
 		writeJSON(w, map[string]any{"ok": false, "error": "already allocated"})
 		return
 	}
-	spent := tree.SpentPoints(alloc)
-	cost := node.Cost()
+	spent := s.bot.treeSpentEx(uid, alloc)
+	// AB-167: the node of the day costs half points (rounded up).
+	cost := treeNodeCostFor(node, abyssNodeOfTheDay(time.Now()))
 	total := s.bot.treePointsTotal(uid)
 	if spent+cost > total {
 		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("not enough skill points — this node costs %d (spent %d of %d)", cost, spent, total)})
@@ -651,6 +691,9 @@ func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// AB-172: remember this allocation for the free 60-second undo.
+	s.bot.recordTreeAllocation(uid, req.NodeID)
+
 	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{
 		"ok": true, "node_id": req.NodeID, "used": spent + cost,
@@ -684,7 +727,9 @@ func (s *WebServer) handleAbyssTreeRespec(w http.ResponseWriter, r *http.Request
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	if !deductTokens(w, tx, uid, abyssTreeRespecTokens) {
+	// AB-157: the first respec of each ISO week is free.
+	free, ok := chargeTreeRespec(w, tx, uid)
+	if !ok {
 		return
 	}
 	if _, err := tx.Exec("DELETE FROM user_abyss_tree WHERE client_uid=$1", uid); err != nil {
@@ -695,7 +740,11 @@ func (s *WebServer) handleAbyssTreeRespec(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("🌳 Skill web reset for 🜲%d — every point refunded.", abyssTreeRespecTokens),
+	msg := fmt.Sprintf("🌳 Skill web reset for 🜲%d — every point refunded.", abyssTreeRespecTokens)
+	if free {
+		msg = "🌳 Skill web reset — every point refunded. (Your free weekly respec.)"
+	}
+	writeJSON(w, map[string]any{"ok": true, "msg": msg,
 		"tokens": s.bot.abyssTokens(uid)})
 }
 
@@ -745,10 +794,13 @@ func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request
 
 	// The target plus every dependent that would be orphaned once it is removed.
 	refundIDs := treeRefundSet(tree, alloc, req.NodeID)
+	// AB-167: a node bought at the node-of-the-day half price also refunds at
+	// that same price, so the discount can't be arbitraged.
+	dayID := abyssNodeOfTheDay(time.Now())
 	refundCost := 0
 	for _, id := range refundIDs {
 		if n := tree.Node(id); n != nil {
-			refundCost += n.Cost()
+			refundCost += treeNodeCostFor(n, dayID)
 		} else {
 			log.Printf("abyss tree refund: node %d not in layout, pricing as 1 point (uid %s)", id, uid)
 			refundCost++
@@ -801,7 +853,7 @@ func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request
 
 	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{
-		"ok": true, "node_id": req.NodeID, "used": tree.SpentPoints(remainingAlloc),
+		"ok": true, "node_id": req.NodeID, "used": s.bot.treeSpentEx(uid, remainingAlloc),
 		"points":   s.bot.treePointsTotal(uid),
 		"refunded": refundIDs,
 		"msg":      msg,
@@ -812,7 +864,7 @@ func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request
 
 type socketRequest struct {
 	NodeID int    `json:"node_id"`
-	Jewel  string `json:"jewel"` // ruby | sapphire | topaz | ""
+	Jewel  string `json:"jewel"` // ruby | sapphire | topaz | tiered "ruby_2"… | "" (clear)
 }
 
 func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request, uid string) {
@@ -851,9 +903,16 @@ func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if req.Jewel != "" && req.Jewel != "ruby" && req.Jewel != "sapphire" && req.Jewel != "topaz" {
-		writeJSON(w, map[string]any{"ok": false, "error": "invalid jewel type"})
-		return
+	// AB-155: besides the base shop jewels, tiered codes ("ruby_2" …) from jewel
+	// fusing are socketable too — but only from the loose-jewel pouch.
+	jewelTier := 0
+	if req.Jewel != "" {
+		_, tier, ok := parseJewelCode(req.Jewel)
+		if !ok {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid jewel type"})
+			return
+		}
+		jewelTier = tier
 	}
 
 	tx, err := s.bot.DB.Begin()
@@ -878,16 +937,44 @@ func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	// Loose-jewel pouch (AB-155), locked for the swap below.
+	var jewelsJson string
+	_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1 FOR UPDATE", abyssJewelsKey(uid)).Scan(&jewelsJson)
+	loose, err := loadTreeJewels(jewelsJson)
+	if err != nil {
+		log.Printf("abyss jewel pouch corrupt for %s: %v", uid, err)
+		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
+		return
+	}
+
 	if req.Jewel != "" {
 		if socketMap[req.NodeID] == req.Jewel {
 			writeJSON(w, map[string]any{"ok": false, "error": "that jewel is already socketed here"})
 			return
 		}
-		if !deductGold(w, tx, uid, 100) {
+		// Returned and fused jewels live in the pouch. Prefer that owned copy at
+		// every tier; otherwise base jewels can still be bought for the normal
+		// socket fee while fused tiers must be owned.
+		if loose[req.Jewel] > 0 {
+			loose[req.Jewel]--
+			if loose[req.Jewel] == 0 {
+				delete(loose, req.Jewel)
+			}
+		} else if jewelTier > 1 {
+			writeJSON(w, map[string]any{"ok": false, "error": "you don't own that jewel — fuse 3 lower-tier jewels first"})
+			return
+		} else if !deductGold(w, tx, uid, 100) {
 			return
 		}
 	}
 
+	// Whatever was socketed before returns to the pouch instead of vanishing.
+	if old := socketMap[req.NodeID]; old != "" && old != req.Jewel {
+		if _, _, ok := parseJewelCode(old); ok {
+			loose[old]++
+		}
+		// Timeless jewels are unique rolls — clearing one still destroys it.
+	}
 	if req.Jewel == "" {
 		delete(socketMap, req.NodeID)
 	} else {
@@ -897,6 +984,12 @@ func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request
 	newJson, _ := json.Marshal(socketMap)
 	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssSocketKey(uid), string(newJson)); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
+		return
+	}
+	newJewels, _ := json.Marshal(loose)
+	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssJewelsKey(uid), string(newJewels)); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
 		return
 	}
@@ -917,6 +1010,7 @@ func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request
 		"stats": tb.Stats,
 		"pct": tb.Pct,
 		"sockets": socketMap,
+		"jewels": loose,
 	})
 }
 

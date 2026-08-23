@@ -103,6 +103,7 @@
     <div class="ab-scene-top">
       <span class="ab-biome-chip" id="biomeChip" style="display:none"></span>
       <span class="ab-kill-chip" id="killChip" style="display:none">💀 <b id="killCount">0</b> slain this floor</span>
+      <span class="ab-boss-hp" id="bossHPOverlay" style="display:none"></span>
     </div>
     <div class="ab-wavepips" id="wavePips"></div>
     <div class="ab-event-icon" id="eventIcon" style="display:none"></div>
@@ -329,6 +330,7 @@
 
 <!-- Screen-edge glow for Legendary+ drops (UX-52) -->
 <div class="ab-edgeglow" id="edgeGlow" aria-hidden="true"></div>
+<div class="ab-damage-vignette" id="damageVignette" aria-hidden="true"></div>
 
 <!-- Stacked toast host (UX-91) -->
 <div class="ab-toasthost" id="abToastHost" aria-live="polite"></div>
@@ -361,6 +363,7 @@
     <button type="button" class="ghost xs" id="logRoundsBtn" aria-pressed="false" title="Toggle round numbers">№</button>
     <button type="button" class="ghost xs" id="logMonoBtn" aria-pressed="false" title="Toggle monospace log font">Aa</button>
     <button type="button" class="ghost xs" id="logCopyBtn" title="Copy the last fight as plain text">📋 Copy</button>
+    <button type="button" class="ghost xs" id="logHtmlBtn" title="Export the visible fight log as styled HTML">&lt;/&gt; HTML</button>
   </div>
   <!-- Fatal blow stays pinned until the revive choice is made (UI-29) -->
   <div class="ab-fatal-pin" id="fatalPin" style="display:none"></div>
@@ -746,6 +749,26 @@
         <!-- Insure Item -->
         <button id="btnForgeInsureItem" class="ghost xs" onclick="forgeInsureItem()" style="display:none; width:100%;">🛡️ Insure Item (Cost: 200g)</button>
         </div></details>
+
+        <details class="ab-acc" id="forgeAdvanced"><summary>🧪 Advanced Forge</summary><div class="ab-acc-body">
+          <input type="search" id="forgeActionSearch" class="ab-select" placeholder="Search actions…" aria-label="Search advanced forge actions" oninput="filterForge4Actions()">
+          <div id="forge4Actions" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px;margin-top:6px;">
+            <button class="ghost xs" data-forge4="temper batch" onclick="forge4BatchTemper()">⚒️ Batch temper</button>
+            <button class="ghost xs" data-forge4="temper insurance guard" onclick="forge4ItemAction('/api/abyss/temper_guard',{},'Guard the next failed temper for 2 cores?')">🛡️ Temper guard</button>
+            <button class="ghost xs" data-forge4="queue polish reinforce sharpen masterwork temper" onclick="forge4Queue()">📋 Forge queue</button>
+            <button class="ghost xs" data-forge4="gem bulk upgrade" onclick="forge4ItemAction('/api/abyss/gem_upgrade_all')">💎 Upgrade all gems</button>
+            <button class="ghost xs" data-forge4="rune scrape remove" onclick="forge4ItemAction('/api/abyss/scrape_rune')">🧽 Scrape rune</button>
+            <button class="ghost xs" data-forge4="attune remove" onclick="forge4ItemAction('/api/abyss/unattune',{},'Remove attunement and its +5% stats for 50 tokens?')">⛓️‍💥 Un-attune</button>
+            <button class="ghost xs" data-forge4="masterwork quality transfer" onclick="forge4MasterworkTransfer()">🏅 Transfer quality</button>
+            <button class="ghost xs" data-forge4="reforge lock stat" onclick="forge4ReforgeLock()">🔒 Locked reforge</button>
+            <button class="ghost xs" data-forge4="rebalance all stats" onclick="forge4RebalanceAll()">⚖️ Rebalance all</button>
+            <button class="ghost xs" data-forge4="brand remove set" onclick="forge4ItemAction('/api/abyss/unbrand')">🏷️ Remove brand</button>
+            <button class="ghost xs" data-forge4="special reroll" onclick="forge4ItemAction('/api/abyss/special_reroll',{},'Reroll this Special for 6 cores?')">🎲 Reroll Special</button>
+            <button class="ghost xs" data-forge4="guided awaken special" onclick="forge4GuidedAwaken()">🔮 Guided awaken</button>
+            <button class="ghost xs" data-forge4="imbue remove" onclick="forge4ItemAction('/api/abyss/imbue_remove')">💠 Remove imbue</button>
+            <button class="ghost xs" data-forge4="socket gem relocate move" onclick="forge4SocketRelocate()">🔨 Move socketed gem</button>
+          </div>
+        </div></details>
       </div>
 
       <!-- Panel-wide forge tools, grouped (UX-55) -->
@@ -756,6 +779,12 @@
         <div id="forgeStatConversionRow" style="border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
           <label class="muted small" style="display:block; margin-bottom:4px;">Stat Conversion (Convert 100 Mana to +50 Max HP):</label>
           <button class="ghost xs" onclick="forgeConvertMana()" style="width:100%;">❤️ Convert Mana (Free)</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+          <button class="ghost xs" onclick="forge4Simple('/api/abyss/polish_all',{},'Polish every eligible equipped item?')">🔧 Polish all</button>
+          <button class="ghost xs" onclick="forge4Simple('/api/abyss/craft_repair_kit2',{})">🧰 Craft Repair Kit II (8🌫️)</button>
+          <button class="ghost xs" onclick="forge4ConvertMats()">⚗️ Convert materials</button>
+          <button class="ghost xs" onclick="forge4Simple('/api/abyss/sanctuary_undo2',{},'Buy a permanent second daily forge undo for 50 tokens?')">↩️ Unlock second undo</button>
         </div>
       </div></details>
 
@@ -1410,7 +1439,40 @@ function setHP(hp,max){
   document.getElementById('hpText').textContent=fmtNum(hp)+' / '+fmtNum(max);
   var bar=document.getElementById('hpBar');
   bar.setAttribute('aria-valuenow',hp); bar.setAttribute('aria-valuemax',max);
+  bar.classList.toggle('ab-low-hp',max>0&&hp>0&&hp/max<0.20);
   var mh=document.getElementById('mhHP'); if(mh)mh.textContent=fmtNum(hp)+' ('+pct+'%)';
+}
+function setMana(mana,max){
+  mana=Number(mana)||0; max=Number(max)||0;
+  var pct=max>0?Math.max(0,Math.min(100,Math.round(mana*100/max))):0;
+  var fill=document.getElementById('mpFill'), text=document.getElementById('mpText'), bar=document.getElementById('mpBar');
+  if(fill)fill.style.width=pct+'%';
+  if(text)text.textContent='🔵 '+fmtNum(mana)+' / '+fmtNum(max)+' Mana';
+  if(bar){bar.setAttribute('aria-valuenow',mana);bar.setAttribute('aria-valuemax',max);}
+}
+function resetMana(){
+  var bar=document.getElementById('mpBar'); if(!bar)return;
+  var max=Number(bar.getAttribute('aria-valuemax'))||0;
+  setMana(max,max);
+}
+var combatLastHP=null;
+function flashCombatDamage(amount,max){
+  if(reduceMotion||!(amount>0)||!(max>0))return;
+  var el=document.getElementById('damageVignette'); if(!el)return;
+  el.style.setProperty('--damage-alpha',String(Math.max(.22,Math.min(.9,amount/max*2.4))));
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+}
+function applyCombatFrame(f){
+  var hp=Number(f.hp)||0,max=Number(f.max_hp)||0;
+  if(combatLastHP!==null&&hp<combatLastHP)flashCombatDamage(combatLastHP-hp,max);
+  combatLastHP=hp;
+  setHP(hp,max); setMana(f.mana,f.max_mana);
+  var boss=document.getElementById('bossHPOverlay');
+  if(boss){
+    var enemy=Number(f.enemy_hp)||0,enemyMax=Number(f.enemy_max)||0;
+    boss.style.display=enemyMax>0?'':'none';
+    if(enemyMax>0)boss.textContent='💀 '+fmtNum(enemy)+' / '+fmtNum(enemyMax)+' HP';
+  }
 }
 
 // Real-time life-regen ticker: equipped gear regen affixes heal the displayed HP
@@ -1537,7 +1599,7 @@ function clearBanner(){
 var lastFightText=''; // UI-37: plain text of the latest fight, for clipboard copy
 var fightMeta=null;   // per-floor parse state for the stage/log decorators
 var killsThisFloor=0; // UI-11
-function playLog(lines, loot, dura){
+function playLog(lines, loot, dura, timeline){
   return new Promise(function(resolve){
     var log=document.getElementById('abyssLog'), lootEl=document.getElementById('abyssLoot'), duraEl=document.getElementById('abyssDura');
     show('abyssControls', false);
@@ -1550,6 +1612,15 @@ function playLog(lines, loot, dura){
     updateWavePips(0,0); // UI-6
     fightMeta={actions:0, struck:false};
     lastFightText='';
+    timeline=Array.isArray(timeline)?timeline.slice().sort(function(a,b){return a.after_log-b.after_log;}):[];
+    var frameIndex=0;
+    function applyFrames(afterLog){
+      while(frameIndex<timeline.length && Number(timeline[frameIndex].after_log)<=afterLog){
+        var f=timeline[frameIndex++];
+        applyCombatFrame(f);
+      }
+    }
+    applyFrames(0);
     // UI-22: floor divider; UI-34: daily-affix reminder; UI-35: pacts echoed once.
     addLogHead(log, 'ab-log-divider', '—— Floor '+curDepth+' ——');
     if(dailyAffix) addLogHead(log, 'ab-log-affix', '📅 Daily affix: '+dailyAffixLabel());
@@ -1565,13 +1636,14 @@ function playLog(lines, loot, dura){
       applyLogFilter(); // UI-36: re-apply an active filter to the new lines
       resolve();
     }
-    if(reduceMotion){(lines||[]).forEach(function(l){appendLogLine(log,l);maybeBossCard(l);});finish();return;}
+    if(reduceMotion){(lines||[]).forEach(function(l,idx){appendLogLine(log,l);maybeBossCard(l);applyFrames(idx+1);});finish();return;}
     var i=0;
     (function step(){
       if(i>=lines.length){finish();return;}
       appendLogLine(log,lines[i]);log.scrollTop=log.scrollHeight;
       maybeBossCard(lines[i]); // UX-28
       i++;
+      applyFrames(i);
       setTimeout(step,logDelay); // Swiftness node (#154)
     })();
   });
@@ -1766,6 +1838,8 @@ function setStageEnraged(on){ var st=document.getElementById('abyssStage'); if(s
 function clearStageFx(){
   var st=document.getElementById('abyssStage'); if(!st) return;
   st.classList.remove('ab-enraged','ab-boss-fire','ab-boss-void','ab-boss-eye','ab-boss-heart','ab-fs-you','ab-fs-mob');
+  combatLastHP=null;
+  var boss=document.getElementById('bossHPOverlay'); if(boss)boss.style.display='none';
 }
 
 // UI-9/10: rest floors get ember drift, event floors a large centered icon.
@@ -1798,7 +1872,7 @@ function renderBuffStrip(){
   var el=document.getElementById('buffStrip'); if(!el) return;
   var html='';
   activeBuffs.forEach(function(b){
-    html+='<span class="ab-buff" title="'+consEsc(b.label)+'">'+b.icon+'<b>'+b.fights+'</b></span>';
+    html+='<span class="ab-buff'+(b.fights===1?' ab-expiring':'')+'" title="'+consEsc(b.label)+'">'+b.icon+'<b>'+b.fights+'</b></span>';
   });
   el.innerHTML=html;
 }
@@ -2477,7 +2551,7 @@ async function abyssDescendMulti() {
     // Floors cleared before the failure are already persisted — show their
     // logs/loot and apply the returned run snapshot so depth, escrow, HP and
     // the queue planner stay in sync with the server instead of drifting.
-    if(d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura); }
+    if(d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline); resetMana(); }
     if(typeof d.depth === 'number') setDepth(d.depth);
     if(typeof d.escrow === 'number') setEscrow(d.escrow);
     if(typeof d.hp === 'number') setHP(d.hp, d.max_hp);
@@ -2528,7 +2602,7 @@ async function processDescendResult(d, hp, max){
     setHP(hp, max);
     trailPush(d.depth, floorType); // UX-34
     // A batch descend may have fought floors before stopping here — show them.
-    if(d.logs && d.logs.length) await playLog(d.logs, d.loot, d.dura);
+    if(d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline); resetMana(); }
     document.getElementById('abStatus').textContent='Approaching non-combat floor: ' + floorType;
     renderState();
     setBusy(false);
@@ -2538,7 +2612,8 @@ async function processDescendResult(d, hp, max){
   setDepth(d.depth);
   setRisk(d.risk);
   trailPush(d.depth, d.depth % 5 === 0 ? 'boss' : 'combat'); // UX-34
-  await playLog(d.logs, d.loot, d.dura);
+  await playLog(d.logs, d.loot, d.dura, d.timeline);
+  resetMana();
   setHP(d.hp,d.max_hp); setGold(d.gold); setTokens(d.tokens);
   if(d.victory){
     runFloorsCleared++;
@@ -2646,7 +2721,8 @@ async function abyssRevive(){
   var d=await abPost('/api/abyss/revive');
   if(spin)clearInterval(spin);
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
-  await playLog(d.logs, d.loot, d.dura);
+  await playLog(d.logs, d.loot, d.dura, d.timeline);
+  resetMana();
   setGold(d.gold); setTokens(d.tokens);
   if(d.victory){
     downed=false; canRev=false; setHP(d.hp,d.max_hp); setEscrow(d.escrow);
@@ -3325,6 +3401,80 @@ async function forgeGemTransmute() {
   forgePost('/api/abyss/transmute_gem', params);
 }
 
+// ---- Forge round 5 client actions (AB-101..125) ----------------------------
+function filterForge4Actions(){
+  var q=(document.getElementById('forgeActionSearch').value||'').toLowerCase().trim();
+  document.querySelectorAll('#forge4Actions [data-forge4]').forEach(function(btn){
+    btn.style.display=!q||(btn.getAttribute('data-forge4')||'').indexOf(q)>=0?'':'none';
+  });
+}
+async function forge4Simple(url, body, promptText){
+  if(busy)return;
+  if(promptText && !(await confirmModal(promptText)))return;
+  setBusy(true);
+  forgePost(url,body||{});
+}
+async function forge4ItemAction(url, extra, promptText){
+  var params=getSelectedForgeParams();
+  if(!params){abToast('Pick an item first.',false);return;}
+  Object.keys(extra||{}).forEach(function(k){params[k]=extra[k];});
+  forge4Simple(url,params,promptText);
+}
+function forge4BatchTemper(){
+  var target=parseInt(window.prompt('Temper toward which level (1–15)?','15'),10);
+  if(!Number.isInteger(target)||target<1||target>15)return;
+  forge4ItemAction('/api/abyss/batch_temper',{target:target},'Batch temper stops at the target, after 2 failures, or when gold runs out. Continue?');
+}
+function forge4Queue(){
+  var raw=window.prompt('Queue 1–3 actions, comma-separated:\npolish, reinforce, sharpen, masterwork, temper','polish, temper');
+  if(!raw)return;
+  var actions=raw.split(',').map(function(v){return v.trim().toLowerCase();}).filter(Boolean);
+  if(!actions.length||actions.length>3){abToast('Queue 1 to 3 actions.',false);return;}
+  forge4ItemAction('/api/abyss/forge_queue',{actions:actions},'Execute '+actions.join(' → ')+' atomically?');
+}
+function forge4MasterworkTransfer(){
+  var second=document.getElementById('forgeSecondSelect').value;
+  if(!second){abToast('Pick a target backpack item in the second-item selector.',false);return;}
+  forge4ItemAction('/api/abyss/masterwork_transfer',{inv_id2:parseInt(second,10)},'Transfer quality at 80% efficiency for 2 cores plus gold?');
+}
+function forge4ReforgeLock(){
+  var stat=(window.prompt('Stat to lock: HP, STR, DEF, SPD, LCK, INT, STA, CRT, DGE or MNA','STR')||'').trim().toUpperCase();
+  if(!stat)return;
+  forge4ItemAction('/api/abyss/reforge_lock',{lock_stat:stat},'Locked reforge costs double and is daily-limited. Continue?');
+}
+function forge4RebalanceAll(){
+  var stat=(window.prompt('Shift 10% of all other positive stats toward: HP, STR, DEF, SPD, LCK, INT, STA, CRT, DGE or MNA','STR')||'').trim().toUpperCase();
+  if(!stat)return;
+  forge4ItemAction('/api/abyss/rebalance_all',{to:stat},'Bulk rebalance this item?');
+}
+async function forge4GuidedAwaken(){
+  var params=getSelectedForgeParams();
+  if(!params){abToast('Pick an item first.',false);return;}
+  if(busy)return;
+  setBusy(true);
+  var rolled=await abPost('/api/abyss/awaken_guided',params);
+  setBusy(false);
+  if(!rolled.ok){abToast(rolled.error||'Guided awaken failed.',false);return;}
+  var options=rolled.options||[];
+  var choice=parseInt(window.prompt('Choose a rolled Special (0–2):\n'+options.map(function(v,i){return i+': '+v;}).join('\n'),'0'),10);
+  if(choice<0||choice>2||!Number.isInteger(choice))return;
+  params.choice=choice;
+  forge4Simple('/api/abyss/awaken_guided',params,'Commit '+options[choice]+' for 6 cores?');
+}
+function forge4SocketRelocate(){
+  var from=parseInt(window.prompt('Move gem from socket index (first is 0):','0'),10);
+  var to=parseInt(window.prompt('Move gem to socket index:','1'),10);
+  if(!Number.isInteger(from)||!Number.isInteger(to)||from===to)return;
+  forge4ItemAction('/api/abyss/socket_relocate',{from:from,to:to});
+}
+function forge4ConvertMats(){
+  var pair=(window.prompt('Conversion: dust:shard, shard:core, or core:prism','dust:shard')||'').trim().toLowerCase().split(':');
+  if(pair.length!==2)return;
+  var count=parseInt(window.prompt('How many output units?','1'),10);
+  if(!Number.isInteger(count)||count<1)return;
+  forge4Simple('/api/abyss/convert_mats',{from:pair[0],to:pair[1],count:count},'Convert materials now?');
+}
+
 // ---- Expansion 2 client actions -------------------------------------------
 
 function setMaterials(mats){
@@ -3731,11 +3881,28 @@ function displayAutoFocus(focus) {
         function(){ abToast('Copy failed',false); });
     } else abToast('Clipboard unavailable',false);
   };
+  var logHtmlBtn=document.getElementById('logHtmlBtn');
+  if(logHtmlBtn) logHtmlBtn.onclick=function(){
+    var lines=Array.prototype.filter.call(document.querySelectorAll('#abyssLog .ab-log-line'),function(el){return el.style.display!=='none';});
+    if(!lines.length){abToast('No fight logged yet',false);return;}
+    var body=lines.map(function(el){return el.outerHTML;}).join('\n');
+    var html='<!doctype html><meta charset="utf-8"><title>Abyss combat log</title><style>body{background:#10131d;color:#e8ecf5;font:14px system-ui;padding:24px}.ab-log-line{padding:5px 8px;border-left:3px solid #38415a}.ab-log-crit{color:#ffd85b}.ab-log-heal{color:#41c97a}.ab-log-kill{color:#ff9d3c}</style><h1>Abyss combat log</h1>'+body;
+    var blob=new Blob([html],{type:'text/html'}),a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download='abyss-combat-log.html';a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
+    abToast('Styled combat log exported.',true);
+  };
   applyLogView();
 
   // UI-21: hovering a log line highlights the matching combatant's HP area.
   var logEl=document.getElementById('abyssLog');
   if(logEl){
+    logEl.addEventListener('dblclick',function(e){
+      var line=e.target.closest?e.target.closest('.ab-log-line'):null;if(!line)return;
+      var was=line.classList.contains('ab-user-pinned');
+      logEl.querySelectorAll('.ab-user-pinned').forEach(function(el){el.classList.remove('ab-user-pinned');});
+      if(!was){line.classList.add('ab-user-pinned');abToast('Log line pinned. Double-click it again to clear.',true);}
+    });
     logEl.addEventListener('mouseover', function(e){
       var l=e.target.closest?e.target.closest('.ab-log-line'):null; if(!l) return;
       var t=l.textContent||'';
@@ -4031,6 +4198,8 @@ document.addEventListener('click',function(e){
 // UI-65: loot manifest sort toggle (floor / rarity / CR delta), persisted.
 var lootSort='floor';
 try{ lootSort=localStorage.getItem('ab_lootsort')||'floor'; }catch(e){}
+var isSortingLoot=false;
+var lootSortObserver=null;
 function lootRowCR(row){
   var t=row.textContent||'';
   var up=/▲\+([\d.]+) CR/.exec(t); if(up)return parseFloat(up[1]);
@@ -4043,33 +4212,47 @@ function lootRowRarRank(row){
   return r;
 }
 function applyLootSort(){
+  if(isSortingLoot) return;
+  isSortingLoot=true;
   var manifest=document.getElementById('lootManifest');
-  if(!manifest)return;
-  var rows=Array.prototype.slice.call(manifest.querySelectorAll('.abyss-side-loot'));
-  var hdrs=Array.prototype.slice.call(manifest.querySelectorAll('.abyss-side-floorhdr'));
-  var bySeq=function(a,b){return (parseInt(a.dataset.seq,10)||0)-(parseInt(b.dataset.seq,10)||0);};
-  if(lootSort==='floor'){
-    rows.sort(function(a,b){
-      var da=parseInt(a.getAttribute('data-depth'),10)||0, db=parseInt(b.getAttribute('data-depth'),10)||0;
-      return da!==db?da-db:bySeq(a,b);
-    });
-    var byDepth={};
-    hdrs.forEach(function(h){ var m=/Floor (\d+)/.exec(h.textContent||''); if(m)byDepth[m[1]]=h; });
-    var frag=document.createDocumentFragment(), lastD=null;
-    rows.forEach(function(r){
-      var d=r.getAttribute('data-depth');
-      if(d!==lastD){ var h=byDepth[d]; if(h)frag.appendChild(h); lastD=d; }
-      frag.appendChild(r);
-    });
-    manifest.appendChild(frag);
-  } else {
-    rows.sort(function(a,b){
-      var d=lootSort==='rarity'?(lootRowRarRank(b)-lootRowRarRank(a)):(lootRowCR(b)-lootRowCR(a));
-      return d!==0?d:bySeq(a,b);
-    });
-    rows.forEach(function(r){ manifest.appendChild(r); });
+  var observer=lootSortObserver;
+  if(observer)observer.disconnect();
+  try {
+    if(!manifest)return;
+    var rows=Array.prototype.slice.call(manifest.querySelectorAll('.abyss-side-loot'));
+    var hdrs=Array.prototype.slice.call(manifest.querySelectorAll('.abyss-side-floorhdr'));
+    var bySeq=function(a,b){return (parseInt(a.dataset.seq,10)||0)-(parseInt(b.dataset.seq,10)||0);};
+    if(lootSort==='floor'){
+      rows.sort(function(a,b){
+        var da=parseInt(a.getAttribute('data-depth'),10)||0, db=parseInt(b.getAttribute('data-depth'),10)||0;
+        return da!==db?da-db:bySeq(a,b);
+      });
+      var byDepth={};
+      hdrs.forEach(function(h){ var m=/Floor (\d+)/.exec(h.textContent||''); if(m)byDepth[m[1]]=h; });
+      var frag=document.createDocumentFragment(), lastD=null;
+      rows.forEach(function(r){
+        var d=r.getAttribute('data-depth');
+        if(d!==lastD){ var h=byDepth[d]; if(h)frag.appendChild(h); lastD=d; }
+        frag.appendChild(r);
+      });
+      manifest.appendChild(frag);
+    } else {
+      rows.sort(function(a,b){
+        var d=lootSort==='rarity'?(lootRowRarRank(b)-lootRowRarRank(a)):(lootRowCR(b)-lootRowCR(a));
+        return d!==0?d:bySeq(a,b);
+      });
+      var sorted=document.createDocumentFragment();
+      rows.forEach(function(r){ sorted.appendChild(r); });
+      manifest.appendChild(sorted);
+    }
+    applyLootFilter();
+  } finally {
+    if(observer&&manifest){
+      observer.takeRecords();
+      observer.observe(manifest,{childList:true});
+    }
+    isSortingLoot=false;
   }
-  applyLootFilter();
 }
 // Wrap batch-1's filter so non-floor sorts keep their floor headers hidden.
 var abApplyLootFilterOrig=applyLootFilter;
@@ -4503,14 +4686,22 @@ function renderTierRisk(){
   if(manifest){
     manifest.querySelectorAll('.abyss-side-loot').forEach(decorateLootRow);
     // Rows appended by batch-1's appendRunLoot get the same treatment.
-    new MutationObserver(function(muts){
+    lootSortObserver=new MutationObserver(function(muts){
+      if(isSortingLoot) return;
+      var hasNewLoot = false;
       muts.forEach(function(mu){
         Array.prototype.slice.call(mu.addedNodes).forEach(function(n){
-          if(n.nodeType===1&&n.classList&&n.classList.contains('abyss-side-loot'))decorateLootRow(n);
+          if(n.nodeType===1&&n.classList&&n.classList.contains('abyss-side-loot')){
+            if(!n.dataset.ab2){
+              decorateLootRow(n);
+              hasNewLoot = true;
+            }
+          }
         });
       });
-      if(lootSort!=='floor')applyLootSort(); // keep the chosen order as drops land
-    }).observe(manifest,{childList:true});
+      if(hasNewLoot && lootSort!=='floor') applyLootSort(); // keep the chosen order as drops land
+    });
+    lootSortObserver.observe(manifest,{childList:true});
     var sortSel=document.getElementById('lootSort');
     if(sortSel){
       sortSel.value=lootSort;

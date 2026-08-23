@@ -477,9 +477,16 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 	var raw sql.NullString
 	var usedToday bool
 	_ = s.bot.DB.QueryRow("SELECT forge_undo, COALESCE(forge_undo_date = CURRENT_DATE, FALSE) FROM users WHERE client_uid=$1", uid).Scan(&raw, &usedToday)
+	usingSecondUndo := false
 	if usedToday {
-		writeJSON(w, map[string]any{"ok": false, "error": "undo already used today"})
-		return
+		var ownsSecond, secondUsedToday bool
+		_ = s.bot.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value='1')", forge4Undo2Key(uid)).Scan(&ownsSecond)
+		_ = s.bot.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value=CURRENT_DATE::text)", forge4Undo2Key(uid)+"_used").Scan(&secondUsedToday)
+		if !ownsSecond || secondUsedToday {
+			writeJSON(w, map[string]any{"ok": false, "error": "undo limit reached today"})
+			return
+		}
+		usingSecondUndo = true
 	}
 	if !raw.Valid || raw.String == "" {
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing to undo"})
@@ -534,6 +541,13 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 	if _, err := tx.Exec("UPDATE users SET forge_undo=NULL, forge_undo_date=CURRENT_DATE WHERE client_uid=$1", uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
+	}
+	if usingSecondUndo {
+		if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, CURRENT_DATE::text)
+			ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`, forge4Undo2Key(uid)+"_used"); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -644,7 +658,7 @@ func (s *WebServer) handleAbyssTemper(w http.ResponseWriter, r *http.Request, ui
 
 	var failStacks int
 	_ = tx.QueryRow("SELECT temper_fail_stacks FROM users WHERE client_uid=$1", uid).Scan(&failStacks)
-	cost := s.bot.forgeGoldCost(uid, int64(400*(g.Temper+1)), g.Rarity)
+	cost := s.forge4GoldCost(uid, int64(400*(g.Temper+1)), g.Rarity)
 	if !deductGold(w, tx, uid, cost) {
 		return
 	}
@@ -652,6 +666,19 @@ func (s *WebServer) handleAbyssTemper(w http.ResponseWriter, r *http.Request, ui
 	chance := temperChance(g.Temper, failStacks)
 	// #nosec G404 -- non-cryptographic forge roll
 	success := rand.Float64() < chance
+	guardUsed := false
+	if !success {
+		var guard string
+		_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4TemperGuardKey(uid)).Scan(&guard)
+		if guard == forge4ItemKey(req.InvID, req.Slot) {
+			success = true
+			guardUsed = true
+			if _, err := tx.Exec("DELETE FROM app_meta WHERE key=$1", forge4TemperGuardKey(uid)); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+		}
+	}
 
 	if success {
 		s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "temper")
@@ -671,6 +698,7 @@ func (s *WebServer) handleAbyssTemper(w http.ResponseWriter, r *http.Request, ui
 			return
 		}
 	}
+	forge4MasteryBump(tx, uid)
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -681,6 +709,7 @@ func (s *WebServer) handleAbyssTemper(w http.ResponseWriter, r *http.Request, ui
 	if success {
 		s.bot.recordForge(uid, "temper", fmt.Sprintf("%s → +%d", g.Name, g.Temper), fmt.Sprintf("%dg", cost))
 		writeJSON(w, map[string]any{"ok": true, "success": true, "temper": g.Temper, "gold": gold,
+			"guard_used": guardUsed,
 			"msg": fmt.Sprintf("⚒️ Temper succeeded! %s is now +%d (+2%% stats).", g.Name, g.Temper)})
 		return
 	}
