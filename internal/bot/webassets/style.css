@@ -264,11 +264,11 @@ h3 {
   border-radius: 10px
 }
 
-.bar.hp span {
+.bar.hp > span:first-of-type {
   background: linear-gradient(90deg, #2a8a4a, #41c97a)
 }
 
-.bar.xp span {
+.bar.xp > span:first-of-type {
   background: linear-gradient(90deg, #2575a8, #5bc0ff)
 }
 

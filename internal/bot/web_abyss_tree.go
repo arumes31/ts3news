@@ -869,8 +869,12 @@ func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request
 	_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssSocketKey(uid)).Scan(&storedJson)
 	socketMap := map[int]string{}
 	if storedJson != "" {
+		// Fail closed: continuing with an empty map would drop every other
+		// socketed jewel when the replacement map is persisted below.
 		if err := json.Unmarshal([]byte(storedJson), &socketMap); err != nil {
 			log.Printf("abyss socket map corrupt for %s: %v", uid, err)
+			writeJSON(w, map[string]any{"ok": false, "error": "db error"})
+			return
 		}
 	}
 
@@ -1089,8 +1093,12 @@ func (s *WebServer) handleAbyssTreeRollTimeless(w http.ResponseWriter, r *http.R
 	_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssSocketKey(uid)).Scan(&storedJson)
 	socketMap := map[int]string{}
 	if storedJson != "" {
+		// Fail closed: continuing with an empty map would drop every other
+		// socketed jewel when the replacement map is persisted below.
 		if err := json.Unmarshal([]byte(storedJson), &socketMap); err != nil {
 			log.Printf("abyss socket map corrupt for %s: %v", uid, err)
+			writeJSON(w, map[string]any{"ok": false, "error": "db error"})
+			return
 		}
 	}
 

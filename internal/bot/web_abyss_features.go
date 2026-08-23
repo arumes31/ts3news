@@ -440,6 +440,11 @@ type forgeUndoSnapshot struct {
 	Slot     string `json:"slot,omitempty"`
 	ItemData string `json:"item_data"`
 	Action   string `json:"action"`
+	// Two-item actions (special swap) also snapshot the second item so an undo
+	// restores both pre-action states together.
+	InvID2    int64  `json:"inv_id2,omitempty"`
+	Slot2     string `json:"slot2,omitempty"`
+	ItemData2 string `json:"item_data2,omitempty"`
 }
 
 // snapshotForgeUndo runs inside the caller's forge transaction so the snapshot
@@ -447,6 +452,14 @@ type forgeUndoSnapshot struct {
 // overwrites so the stored undo reflects the latest action.
 func (b *Bot) snapshotForgeUndo(tx *sql.Tx, uid string, invID int64, slot, itemData, action string) {
 	snap, _ := json.Marshal(forgeUndoSnapshot{InvID: invID, Slot: slot, ItemData: itemData, Action: action})
+	_, _ = tx.Exec(`UPDATE users SET forge_undo=$2 WHERE client_uid=$1`, uid, string(snap))
+}
+
+// snapshotForgeUndoPair is snapshotForgeUndo for two-item actions: both items'
+// pre-action states are captured so the undo restores them together.
+func (b *Bot) snapshotForgeUndoPair(tx *sql.Tx, uid string, invID int64, slot, itemData string, invID2 int64, slot2, itemData2, action string) {
+	snap, _ := json.Marshal(forgeUndoSnapshot{InvID: invID, Slot: slot, ItemData: itemData, Action: action,
+		InvID2: invID2, Slot2: slot2, ItemData2: itemData2})
 	_, _ = tx.Exec(`UPDATE users SET forge_undo=$2 WHERE client_uid=$1`, uid, string(snap))
 }
 
@@ -486,7 +499,7 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 	// writeGearItemData (web_abyss_customization.go, not this file) does not report
 	// RowsAffected, so verify the snapshotted item still exists up front — reverting
 	// a deleted/sold item must not burn the once-per-day undo.
-	var itemExists bool
+	itemExists := false
 	if snap.InvID > 0 {
 		_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_inventory WHERE id=$1 AND client_uid=$2)", snap.InvID, uid).Scan(&itemExists)
 	} else {
@@ -496,8 +509,27 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "item no longer exists"})
 		return
 	}
+	// Two-item snapshots (special swap): both items must still exist before
+	// either is restored, so the undo never leaves the pair half-reverted.
+	if snap.ItemData2 != "" {
+		item2Exists := false
+		if snap.InvID2 > 0 {
+			_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_inventory WHERE id=$1 AND client_uid=$2)", snap.InvID2, uid).Scan(&item2Exists)
+		} else {
+			_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE slot=$1 AND client_uid=$2)", snap.Slot2, uid).Scan(&item2Exists)
+		}
+		if !item2Exists {
+			writeJSON(w, map[string]any{"ok": false, "error": "item no longer exists"})
+			return
+		}
+	}
 	if !writeGearItemData(w, tx, uid, snap.InvID, snap.Slot, snap.ItemData) {
 		return
+	}
+	if snap.ItemData2 != "" {
+		if !writeGearItemData(w, tx, uid, snap.InvID2, snap.Slot2, snap.ItemData2) {
+			return
+		}
 	}
 	if _, err := tx.Exec("UPDATE users SET forge_undo=NULL, forge_undo_date=CURRENT_DATE WHERE client_uid=$1", uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})

@@ -63,7 +63,7 @@
       <div class="ab-hpfill" id="hpFill" style="width:{{mulpct .U.CurrentHP .U.MaxHP}}%"></div>
       <span class="ab-hptext" id="hpText" data-hp="{{.U.CurrentHP}}" data-max="{{.U.MaxHP}}"></span>
     </div>
-    <div class="ab-mpbar" role="progressbar" aria-label="Mana" aria-valuemin="0" aria-valuemax="{{.U.MaxMana}}" aria-valuenow="{{.U.MaxMana}}" aria-hidden="true" id="mpBar">
+    <div class="ab-mpbar" role="progressbar" aria-label="Mana" aria-valuemin="0" aria-valuemax="{{.U.MaxMana}}" aria-valuenow="{{.U.MaxMana}}" id="mpBar">
       <div class="ab-mpfill" id="mpFill" style="width:100%"></div>
       <span class="ab-mptext" id="mpText">🔵 {{comma .U.MaxMana}} Mana</span>
     </div>
@@ -2590,7 +2590,7 @@ async function forgeInfuseXP() {
   if (!second) { abToast('Pick a backpack item to sacrifice', false); return; }
   params.sacrifice_inv_id = parseInt(second, 10);
   if (busy) return; setBusy(true);
-  if (!(await confirmModal('Sacrifice the second item? Its combat rating ÷10 becomes gear XP on the selected weapon. This cannot be undone (except via today\'s forge undo).', {title:'Infuse Gear XP', okLabel:'Sacrifice'}))) { setBusy(false); return; }
+  if (!(await confirmModal('Sacrifice the second item? Its combat rating ÷10 becomes gear XP on the selected weapon. This cannot be undone.', {title:'Infuse Gear XP', okLabel:'Sacrifice'}))) { setBusy(false); return; }
   forgePost('/api/abyss/infuse_xp', params);
 }
 

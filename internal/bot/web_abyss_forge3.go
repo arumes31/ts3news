@@ -517,7 +517,7 @@ func (s *WebServer) handleAbyssSwapSpecial(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough Umbral Cores (need 8)"})
 		return
 	}
-	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, raw1, "special swap")
+	s.bot.snapshotForgeUndoPair(tx, uid, req.InvID, req.Slot, raw1, req.InvID2, req.Slot2, raw2, "special swap")
 	g1.Special, g2.Special = g2.Special, g1.Special
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g1) {
 		return
@@ -525,7 +525,6 @@ func (s *WebServer) handleAbyssSwapSpecial(w http.ResponseWriter, r *http.Reques
 	if !saveForgeItem(w, tx, uid, req.InvID2, req.Slot2, g2) {
 		return
 	}
-	_ = raw2 // snapshot covers the primary item; the swap is symmetric anyway
 	if !s.finishForge(w, tx, uid, "special swap", fmt.Sprintf("%s ↔ %s", g1.Name, g2.Name), "8🟣") {
 		return
 	}

@@ -339,7 +339,7 @@ func (s *WebServer) handleAbyssImbue(w http.ResponseWriter, r *http.Request, uid
 	}
 	eff, valid := imbueEffects[strings.ToLower(strings.TrimSpace(req.Effect))]
 	if !valid {
-		writeJSON(w, map[string]any{"ok": false, "error": "invalid effect — pick vampiric, thorns, lucky, quick, bulwark or radiant"})
+		writeJSON(w, map[string]any{"ok": false, "error": "invalid effect — pick vampiric, thorns, lucky, quick, bulwark, radiant, executioner or focused"})
 		return
 	}
 
@@ -630,7 +630,11 @@ func (s *WebServer) handleAbyssMasterwork(w http.ResponseWriter, r *http.Request
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	if !s.finishForge(w, tx, uid, "masterwork", fmt.Sprintf("%s → %s", g.Name, qualityNames[g.Quality]), fmt.Sprintf("%d🌫️ %d🔷", (q+1)*5, (q+1)*2)) {
+	costStr := fmt.Sprintf("%d🌫️ %d🔷", (q+1)*5, (q+1)*2)
+	if q >= 2 {
+		costStr += fmt.Sprintf(" %d🟣", q-1)
+	}
+	if !s.finishForge(w, tx, uid, "masterwork", fmt.Sprintf("%s → %s", g.Name, qualityNames[g.Quality]), costStr) {
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "quality": g.Quality, "materials": s.bot.loadMaterials(uid),

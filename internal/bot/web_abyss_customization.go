@@ -708,6 +708,12 @@ func (s *WebServer) handleAbyssTransmute(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "cannot transmute ascended gear (gear level cannot be preserved)"})
 		return
 	}
+	// Attunement is a binding contract: transmuting into a fresh catalog base
+	// would silently drop the flag and unbind the item. Refuse instead.
+	if g.Attuned {
+		writeJSON(w, map[string]any{"ok": false, "error": g.Name + " is attuned to you and cannot be transmuted"})
+		return
+	}
 
 	selected.Rarity = g.Rarity
 	selected.GearLevel = g.GearLevel
@@ -862,8 +868,12 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 	_ = tx.QueryRow("SELECT abyss_upgrades FROM users WHERE client_uid=$1", uid).Scan(&upgradesJSON)
 	upgrades := map[string]int{}
 	if upgradesJSON.Valid && upgradesJSON.String != "" {
+		// Fail closed (same as handleAbyssConvertMana): continuing with an empty
+		// map would wipe the player's converted HP/mana state below.
 		if err := json.Unmarshal([]byte(upgradesJSON.String), &upgrades); err != nil {
 			log.Printf("abyss upgrades blob corrupt for %s during talent reset: %v", uid, err)
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
 		}
 	}
 	preserved := map[string]int{}

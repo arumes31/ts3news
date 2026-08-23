@@ -164,7 +164,7 @@ async function identifyGear(slot, btn){
     const r=await fetch('/api/abyss/identify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot:slot})});
     const d=await r.json();
     if(d.ok){location.reload();}
-    else{openModal('<h3>Identify failed</h3><p>'+(d.error||'Could not identify item')+'</p><div class="modal-actions"><button onclick="closeModal()">OK</button></div>');if(btn){btn.disabled=false;btn.textContent='🔍 Identify (100g)';}}
+    else{var p=document.createElement('p');p.textContent=d.error||'Could not identify item';openModal('<h3>Identify failed</h3>'+p.outerHTML+'<div class="modal-actions"><button onclick="closeModal()">OK</button></div>');if(btn){btn.disabled=false;btn.textContent='🔍 Identify (100g)';}}
   }catch(e){if(btn){btn.disabled=false;btn.textContent='🔍 Identify (100g)';}}
 }
 </script>
