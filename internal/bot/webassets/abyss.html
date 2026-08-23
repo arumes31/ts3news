@@ -86,7 +86,7 @@
     <div class="abyss-side-list">
       {{range .Equipped}}
       <div class="abyss-side-gear" data-temper="{{.Temper}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .Durability 0}} · Dur {{.Durability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
-        <span class="gi icn" style="--gi:url(/static/icons/{{.IconName}}.svg);color:{{.RarityColor}}"></span>
+        <span class="gi icn" style="--gi:url({{iconURL .IconName}});color:{{.RarityColor}}"></span>
         <span style="color:{{.RarityColor}}">{{.Name}}</span>
         <span class="cr">CR {{printf "%.0f" .CR}}</span>
       </div>
@@ -4769,7 +4769,7 @@ function applyAmbienceFlag(){ document.body.classList.toggle('ab-no-amb', !ambOn
 var AB_TORCH_FAV='data:image/svg+xml,'+encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='#1a1206'/><text x='5' y='24' font-size='20'>🔥</text></svg>");
 function updateFavicon(){
   var link=document.querySelector('link[rel="icon"]'); if(!link)return;
-  if(!link.getAttribute('data-orig')) link.setAttribute('data-orig', link.getAttribute('href')||'/static/favicon.svg');
+  if(!link.getAttribute('data-orig')) link.setAttribute('data-orig', link.getAttribute('href')||'{{asset "/static/favicon.svg"}}');
   link.setAttribute('href', inRun ? AB_TORCH_FAV : link.getAttribute('data-orig'));
 }
 
@@ -5159,12 +5159,15 @@ function renderBestiaryProgress(){
 function renderForgeRoi(){
   var box=document.getElementById('forgeHistoryBox'); if(!box)return;
   var actions=0, mats=0;
-  var re=/([\d,]+)\s*(\u{1F32B}\uFE0F?|\u{1F537}|\u{1F7E3}|\u{1F4A0})/gu;
   box.querySelectorAll('div').forEach(function(d){
     var b=d.querySelector('b'); if(!b)return; // only real history rows have one
     actions++;
+    var text=d.textContent||'';
+    var re=/([\d,]+)\s*(\u{1F32B}\uFE0F?|\u{1F537}|\u{1F7E3}|\u{1F4A0})/gu;
     var m;
-    while((m=re.exec(d.textContent||''))) mats+=parseInt(m[1].replace(/,/g,''),10)||0;
+    while((m=re.exec(text))!==null){
+      mats+=parseInt(m[1].replace(/,/g,''),10)||0;
+    }
   });
   if(!actions) return;
   var line=document.createElement('div');

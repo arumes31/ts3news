@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"embed"
 	"encoding/hex"
 	"encoding/json"
@@ -37,24 +36,6 @@ func jsonJS(v any) template.JS {
 
 //go:embed webassets/*.html webassets/*.css webassets/*.svg webassets/icons/*.svg
 var webAssets embed.FS
-
-// styleCSSVer is a content hash of the embedded stylesheet, appended as a
-// ?v= query to its <link> URL. Cloudflare and browsers cache /static/style.css
-// aggressively, so without this a deploy can serve new HTML against a stale
-// stylesheet and break page layouts.
-var styleCSSVer = func() string {
-	b, _ := webAssets.ReadFile("webassets/style.css")
-	sum := sha256.Sum256(b)
-	return hex.EncodeToString(sum[:6])
-}()
-
-// ui200CSSVer is the same content-hash cache-buster as styleCSSVer, but for the
-// Abyss UI-200 additions stylesheet (webassets/abyss_ui200.css).
-var ui200CSSVer = func() string {
-	b, _ := webAssets.ReadFile("webassets/abyss_ui200.css")
-	sum := sha256.Sum256(b)
-	return hex.EncodeToString(sum[:6])
-}()
 
 const sessionCookie = "ts3session"
 
@@ -135,8 +116,13 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 		},
 		"jsonJS": jsonJS,
 		"mulf":   func(a, b float64) float64 { return a * b },
-		"cssver": func() string { return styleCSSVer },
-		"uicssver": func() string { return ui200CSSVer },
+		"asset":    AssetURL,
+		"assetver": AssetVer,
+		"iconURL":  IconURL,
+		"iconVer":  IconVer,
+		"cssver":   func() string { return AssetVer("webassets/style.css") },
+		"uicssver": func() string { return AssetVer("webassets/abyss_ui200.css") },
+		"appver":   func() string { return AssetVer("all") },
 		"halve":  func(n int) int { return n / 2 },
 		"dur":    func(ms int64) string { return fmt.Sprintf("%.1fs", float64(ms)/1000) },
 		// dict builds a map from alternating key/value pairs, for passing several
@@ -168,36 +154,21 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux := http.NewServeMux()
 
-	// Static assets.
-	mux.HandleFunc("/static/style.css", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/css; charset=utf-8")
-		// Long cache is safe: the <link> URL carries a content-hash ?v= that
-		// changes on every stylesheet edit, so deploys bust the cache themselves.
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		b, _ := webAssets.ReadFile("webassets/style.css")
-		_, _ = w.Write(b)
+	// Static assets with content hashing, ETag, and Cache-Control.
+	mux.HandleFunc("/static/style.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/style.css", "text/css; charset=utf-8")
 	})
-	mux.HandleFunc("/static/abyss_ui200.css", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/css; charset=utf-8")
-		// Same content-hash cache-busting contract as /static/style.css.
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		b, _ := webAssets.ReadFile("webassets/abyss_ui200.css")
-		_, _ = w.Write(b)
+	mux.HandleFunc("/static/abyss_ui200.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_ui200.css", "text/css; charset=utf-8")
 	})
-	mux.HandleFunc("/static/favicon.svg", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "image/svg+xml")
-		b, _ := webAssets.ReadFile("webassets/favicon.svg")
-		_, _ = w.Write(b)
+	mux.HandleFunc("/static/favicon.svg", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/favicon.svg", "image/svg+xml")
 	})
-	mux.HandleFunc("/static/logo.svg", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "image/svg+xml")
-		b, _ := webAssets.ReadFile("webassets/logo.svg")
-		_, _ = w.Write(b)
+	mux.HandleFunc("/static/logo.svg", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/logo.svg", "image/svg+xml")
 	})
-	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "image/svg+xml")
-		b, _ := webAssets.ReadFile("webassets/favicon.svg")
-		_, _ = w.Write(b)
+	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/favicon.svg", "image/svg+xml")
 	})
 	// game-icons.net SVGs (CC BY 3.0), themed via CSS mask.
 	mux.HandleFunc("/static/icons/", func(w http.ResponseWriter, r *http.Request) {
@@ -206,14 +177,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 			http.NotFound(w, r)
 			return
 		}
-		b, err := webAssets.ReadFile("webassets/icons/" + name)
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "image/svg+xml")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
-		_, _ = w.Write(b) // #nosec G705 - static SVG icon file, no user input
+		ServeAsset(w, r, "webassets/icons/"+name, "image/svg+xml")
 	})
 	// Game common assets (animation-framework.js, game-framework-enhanced.js)
 	mux.HandleFunc("/play/common/", func(w http.ResponseWriter, r *http.Request) {
@@ -222,14 +186,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 			http.NotFound(w, r)
 			return
 		}
-		b, err := webAssets.ReadFile("webassets/games/common/" + name)
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
-		_, _ = w.Write(b) // #nosec G705 - static JavaScript file, no user input
+		ServeAsset(w, r, "webassets/games/common/"+name, "application/javascript; charset=utf-8")
 	})
 
 	// Public.
@@ -525,6 +482,9 @@ func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) handleDenied(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	w.WriteHeader(http.StatusOK)
 	s.render(w, "denied", map[string]any{"Title": "Access"})
 }
@@ -599,7 +559,9 @@ func (s *WebServer) render(w http.ResponseWriter, name string, data any) {
 	// the Abyss link wherever its routes aren't registered.
 	if m, ok := data.(map[string]any); ok {
 		if _, exists := m["EnableAbyss"]; !exists {
-			m["EnableAbyss"] = s.bot.Cfg.EnableAbyss
+			if s.bot != nil && s.bot.Cfg != nil {
+				m["EnableAbyss"] = s.bot.Cfg.EnableAbyss
+			}
 		}
 	}
 	// Render into a buffer first. Executing straight into the ResponseWriter means a
@@ -613,5 +575,8 @@ func (s *WebServer) render(w http.ResponseWriter, name string, data any) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	_, _ = buf.WriteTo(w)
 }

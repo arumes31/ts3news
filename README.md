@@ -65,7 +65,7 @@ graph TD
 *   🕒 **Persistence**: Full lifetime connection tracking and notification history stored in PostgreSQL.
 *   ⚖️ **Auto-Balancing**: A **Combat Pity** system that buffs party stats if they suffer consecutive defeats.
 *   🤖 **Contextual Personas**: The bot renames itself based on context, adopting the **godsfinger** persona for rare loot.
-*   🌍 **Multilingual**: Every user-facing message — pokes, PMs, combat logs, loot, and content — is fully localized. Ships with **20 built-in languages**, selectable via a single `LANG` setting, with locale-aware number/currency formatting and pluralization.
+*   🌐 **Web Portal**: Responsive player dashboard (Armoury, Inventory, The Abyss, Arcade, Shop, Auction House, Leaderboards) with content-based SHA-256 asset cache versioning, RFC-compliant ETags, 304 conditional handling, and strict anti-caching headers on dynamic HTML and API endpoints.
 *   🖥️ **Headless Reliability**: Runs the official TS3 desktop client in Xvfb with a robust Go watchdog for 24/7 uptime.
 
 ---
