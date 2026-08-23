@@ -13,3 +13,23 @@ linters:
           - staticcheck
         text: "QF1003"
         path: internal/content/abysstree\.go
+
+      # The 300-item Abyss roadmap lands some helpers/state ahead of their UI or
+      # combat integration. Keep those exact declarations available for the next
+      # implementation batches without weakening `unused` for unrelated code.
+      - linters:
+          - unused
+        path: internal/bot/web_abyss_loop\.go
+        text: "(abyssLootHint|abyssKillerExpCap|bumpKillerExp|abyssReviveStreakKey|abyssReviveStreak|setAbyssReviveStreak|abyssEchoSeedKey|setAbyssEchoSeed|peekAbyssEchoSeed|clearAbyssEchoSeed|abyssEventVisitsKey|loadEventVisits|saveEventVisits|abyssWellLifetimeKey|abyssWellLifetime|abyssAddWellLifetime|abyssMirrorMemory|abyssMirrorKey|loadAbyssMirrorMemory|saveAbyssMirrorMemory|abyssNextEventIn|enrichEventState|abyssDownedTimeout|autoConcedeIfTimedOut|abyssRaffleDay|abyssRaffleEnter|abyssRafflePot|abyssRaffleSettle|abyssBankConfirmDisabled)"
+      - linters:
+          - unused
+        path: internal/bot/web_abyss_loot2\.go
+        text: "(abyssBeamClass|abyssPityDisplay|setAbyssDupLegendConvert|abyssNextFloorForecast|abyssRestFloorVacuum|abyssConsumableStackCap|grantConsumableStacked)"
+      - linters:
+          - unused
+        path: internal/bot/xp\.go
+        text: "(parryCount|stealthUntilRound|petFocusLogged|runeWardLogged)"
+      - linters:
+          - unused
+        path: internal/bot/xp_abyss_combat\.go
+        text: "(thorns|counters|runeWardResist|petFocusTarget|killChainNote)"
