@@ -28,23 +28,23 @@
 
 <h2>Attributes</h2>
 <div class="stats-grid">
-  <div class="stat"><span class="gi" style="--gi:url(/static/icons/biceps.svg)"></span><b>{{comma
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "biceps"}})"></span><b>{{comma
       .U.Stats.STR}}</b><span>Strength</span></div>
-  <div class="stat"><span class="gi" style="--gi:url(/static/icons/checked-shield.svg)"></span><b>{{comma
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "checked-shield"}})"></span><b>{{comma
       .U.Stats.DEF}}</b><span>Defense</span></div>
-  <div class="stat"><span class="gi" style="--gi:url(/static/icons/run.svg)"></span><b>{{comma
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "run"}})"></span><b>{{comma
       .U.Stats.SPD}}</b><span>Speed</span></div>
-  <div class="stat"><span class="gi" style="--gi:url(/static/icons/health-normal.svg)"></span><b>{{comma
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "health-normal"}})"></span><b>{{comma
       .U.Stats.HP}}</b><span>Max HP</span></div>
-  <div class="stat"><span class="gi" style="--gi:url(/static/icons/bullseye.svg)"></span><b>{{comma
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "bullseye"}})"></span><b>{{comma
       .U.Stats.CRT}}</b><span>Crit %</span></div>
-  <div class="stat"><span class="gi" style="--gi:url(/static/icons/dodging.svg)"></span><b>{{comma
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "dodging"}})"></span><b>{{comma
       .U.Stats.DGE}}</b><span>Dodge %</span></div>
-  <div class="stat"><span class="gi" style="--gi:url(/static/icons/clover.svg)"></span><b>{{comma
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "clover"}})"></span><b>{{comma
       .U.Stats.LCK}}</b><span>Luck</span></div>
-  <div class="stat"><span class="gi" style="--gi:url(/static/icons/brain.svg)"></span><b>{{comma
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "brain"}})"></span><b>{{comma
       .U.Stats.INT}}</b><span>Intellect</span></div>
-  <div class="stat"><span class="gi" style="--gi:url(/static/icons/lungs.svg)"></span><b>{{comma
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "lungs"}})"></span><b>{{comma
       .U.Stats.STA}}</b><span>Stamina</span></div>
 </div>
 
@@ -54,9 +54,9 @@
   <div class="gear-cell {{if .Empty}}empty{{end}}">
     <div class="gear-slot">
       <span class="gi slot-gi"
-        style="--gi:url(/static/icons/{{.IconName}}.svg){{if not .Empty}};color:{{.RarityColor}}{{end}}"></span>
+        style="--gi:url({{iconURL .IconName}}){{if not .Empty}};color:{{.RarityColor}}{{end}}"></span>
       {{if and (not .Empty) .RarityIcon}}<span class="gi slot-gi"
-        style="--gi:url(/static/icons/{{.RarityIcon}}.svg);color:{{.RarityColor}}"></span>{{end}}
+        style="--gi:url({{iconURL .RarityIcon}});color:{{.RarityColor}}"></span>{{end}}
       {{.Slot}}
     </div>
     {{if .Empty}}
@@ -71,7 +71,7 @@
       {{if .Element}}<span class="gtag elem">{{.Element}}</span>{{end}}
       {{if gt .XPBonusPct 0}}<span class="gtag xp">+{{.XPBonusPct}}% XP</span>{{end}}
       {{if .Effect}}<span class="gtag fx" title="{{.EffectDesc}}"><span class="gi"
-          style="--gi:url(/static/icons/{{.EffectIcon}}.svg)"></span> {{.Effect}}</span>{{end}}
+          style="--gi:url({{iconURL .EffectIcon}})"></span> {{.Effect}}</span>{{end}}
     </div>
     {{if .EffectDesc}}<div class="gear-fxdesc">{{.EffectDesc}}</div>{{end}}
     {{if .Unidentified}}<button class="primary xs identify-btn" onclick="identifyGear('{{.Slot}}', this)">🔍 Identify (100g)</button>{{end}}

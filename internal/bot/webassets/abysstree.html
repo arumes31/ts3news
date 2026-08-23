@@ -538,7 +538,8 @@ function loadNodeIcon(g, name, size, cx, cy, nodeId) {
     return;
   }
 
-  fetch('/static/icons/' + name + '.svg')
+  var assetVer = window.__ASSET_VER__ || '{{appver}}';
+  fetch('/static/icons/' + name + '.svg?v=' + assetVer)
     .then(function(r) {
       // Never cache/parse an error body as SVG.
       if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + name);
