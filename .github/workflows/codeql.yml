@@ -24,10 +24,11 @@ jobs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:
-        languages: csharp
-
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v3
+        # This is a Go project — there is no C# code, so the old csharp +
+        # autobuild config could only ever fail ("no suitable build method").
+        # Go analysis needs no build at all (build-mode: none).
+        languages: go
+        build-mode: none
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
