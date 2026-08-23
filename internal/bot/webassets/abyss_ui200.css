@@ -1,0 +1,1445 @@
+/* ==========================================================================
+   THEME (UI-189) — variables this file relies on (all defined in style.css):
+     --gold   #f4c542  currency / highlights / milestone glows
+     --accent #7b6cff  interactive accents, tab borders, checkpoints
+     --xp     #5bc0ff  XP blue, sparkline strokes, lore ring
+     --bad    #e2575b  errors, deaths, threat red band
+     --good   #41c97a  success, heals, banked bars
+     --muted  #8a93a8  secondary text
+     --text   #e8ecf5  primary text
+     --panel  #1a1f2b  card backgrounds (also used for sticky thead)
+   Rarity tints mirror updateLootSummary: rare #5bc0ff · epic #b26bff ·
+   legendary #ff9d3c · mythic #e2575b · divine #f4c542 · celestial #40c4ff ·
+   eternal #e040fb.
+   ========================================================================== */
+
+/* ==========================================================================
+   Abyss UI-200 batch (UI-1 .. UI-60): stage scene, combat-log decorators and
+   HUD run-awareness chips. Loaded after style.css; every animation is disabled
+   under prefers-reduced-motion (block at the bottom).
+   ========================================================================== */
+
+/* ---- Stage scene overlay (UI-1/2/5/6/9/10/11/18) --------------------------
+   .abyss-stage is a 3-column grid; the scene sits above it as a non-interactive
+   overlay so the grid layout is untouched. */
+
+.abyss-stage {
+  position: relative;
+}
+
+.ab-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: .6rem;
+  animation: ab-scene-bob 3.2s ease-in-out infinite; /* UI-2: subtle idle bob */
+}
+
+@keyframes ab-scene-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(2px); }
+}
+
+.ab-scene-top {
+  display: flex;
+  gap: .5rem;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.ab-biome-chip,
+.ab-kill-chip {
+  pointer-events: auto;
+  background: rgba(10, 12, 17, .78);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .15rem .6rem;
+  font-size: .78rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 45%;
+}
+
+.ab-kill-chip b { color: var(--bad); }
+
+/* UI-6: wave pips */
+.ab-wavepips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: .4rem;
+}
+
+.ab-pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+  background: transparent;
+}
+
+.ab-pip.done { background: var(--good); border-color: var(--good); }
+.ab-pip.cur { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 6px var(--gold); }
+
+.ab-pip-label {
+  font-size: .72rem;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+/* UI-10: large centered event icon */
+.ab-event-icon {
+  margin: auto;
+  font-size: 3.4rem;
+  text-shadow: 0 0 22px rgba(123, 108, 255, .55);
+  animation: ab-event-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes ab-event-pulse {
+  0%, 100% { transform: scale(1); opacity: .9; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+/* UI-9: rest-floor ember drift */
+.ab-rest-embers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.ab-rest-embers i {
+  position: absolute;
+  bottom: -6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+  opacity: 0;
+  animation: ab-ember 5s linear infinite;
+}
+
+.ab-rest-embers i:nth-child(1) { left: 18%; animation-delay: 0s; }
+.ab-rest-embers i:nth-child(2) { left: 36%; animation-delay: 1.2s; }
+.ab-rest-embers i:nth-child(3) { left: 55%; animation-delay: 2.4s; }
+.ab-rest-embers i:nth-child(4) { left: 70%; animation-delay: .8s; }
+.ab-rest-embers i:nth-child(5) { left: 86%; animation-delay: 3.1s; }
+
+@keyframes ab-ember {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  12% { opacity: .85; }
+  100% { transform: translateY(-140px) translateX(14px); opacity: 0; }
+}
+
+/* UI-18: active consumable buffs along the stage bottom edge */
+.ab-buffstrip {
+  margin-top: auto;
+  display: flex;
+  gap: .4rem;
+  justify-content: center;
+  width: 100%;
+}
+
+.ab-buff {
+  pointer-events: auto;
+  position: relative;
+  background: rgba(10, 12, 17, .78);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: .15rem .4rem;
+  font-size: .95rem;
+}
+
+.ab-buff b {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  font-size: .62rem;
+  min-width: 15px;
+  height: 15px;
+  line-height: 15px;
+  text-align: center;
+}
+
+/* UI-5: pet HP mini-bar under the stage */
+.ab-petbar {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  width: 60%;
+  margin-top: .35rem;
+  background: rgba(10, 12, 17, .78);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .1rem .55rem;
+  font-size: .75rem;
+}
+
+.ab-petbar-track {
+  flex: 1;
+  height: 6px;
+  background: #14171f;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.ab-petbar-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #41c97a, #5bc0ff);
+}
+
+/* UI-3: first-strike flash */
+.ab-scene.ab-fs-you { animation: none; }
+.ab-scene.ab-fs-you::before,
+.ab-scene.ab-fs-mob::before {
+  content: '⚡';
+  position: absolute;
+  top: 34%;
+  font-size: 2rem;
+  animation: ab-fs-flash .85s ease-out forwards;
+}
+
+.ab-scene.ab-fs-you::before { left: 12%; }
+.ab-scene.ab-fs-mob::before { right: 12%; }
+
+@keyframes ab-fs-flash {
+  0% { opacity: 0; transform: scale(.4); }
+  25% { opacity: 1; transform: scale(1.25); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+/* UI-7: boss element frames */
+.abyss-stage.ab-boss-fire { border-color: #ff6b3d; box-shadow: 0 0 24px rgba(255, 107, 61, .35); }
+.abyss-stage.ab-boss-void { border-color: #9c27b0; box-shadow: 0 0 24px rgba(156, 39, 176, .4); }
+.abyss-stage.ab-boss-eye { border-color: #ffeb3b; box-shadow: 0 0 24px rgba(255, 235, 59, .3); }
+.abyss-stage.ab-boss-heart { border-color: #e91e63; box-shadow: 0 0 26px rgba(233, 30, 99, .45); }
+
+/* UI-8: downed state desaturates the stage */
+.abyss-stage.ab-downed {
+  filter: grayscale(.92) brightness(.8);
+  transition: filter .6s ease;
+}
+
+/* UI-20: boss enrage — slow red breathing glow */
+.abyss-stage.ab-enraged { animation: ab-enrage-breath 2.6s ease-in-out infinite; }
+
+@keyframes ab-enrage-breath {
+  0%, 100% { box-shadow: 0 0 8px rgba(226, 87, 91, .25); }
+  50% { box-shadow: 0 0 30px rgba(226, 87, 91, .6); }
+}
+
+/* UI-12: OVERKILL stamp */
+.ab-overkill {
+  display: inline-block;
+  margin-left: .5rem;
+  padding: 0 .45rem;
+  border: 2px solid var(--bad);
+  border-radius: 4px;
+  color: var(--bad);
+  font-weight: 800;
+  font-size: .72rem;
+  letter-spacing: .12em;
+  transform: rotate(-6deg);
+  animation: ab-overkill-in .45s cubic-bezier(.2, 1.6, .4, 1);
+}
+
+@keyframes ab-overkill-in {
+  from { transform: rotate(-6deg) scale(2.4); opacity: 0; }
+  to { transform: rotate(-6deg) scale(1); opacity: 1; }
+}
+
+/* UI-13: slow zoom on the killing-blow line */
+.ab-log-kill { animation: ab-kill-zoom 1.1s ease; }
+
+@keyframes ab-kill-zoom {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* ---- Combat log decorators (UI-21..40) ----------------------------------- */
+
+.ab-log-line.ab-log-crit { font-weight: 800; } /* UI-23 */
+.ab-log-line.ab-log-dodge { font-style: italic; color: var(--muted); } /* UI-24 */
+.ab-log-line.ab-log-heal { color: var(--good); } /* UI-25 */
+
+.ab-log-line.ab-log-momentum { /* UI-32 */
+  color: #ff9d3c;
+  font-weight: 600;
+}
+
+.ab-log-line.ab-log-capture { animation: ab-capture-pop .8s ease; } /* UI-30 */
+
+.ab-log-line.ab-log-capture::after {
+  content: ' 🎯';
+  display: inline-block;
+  animation: ab-capture-spin .8s ease;
+}
+
+@keyframes ab-capture-pop {
+  0% { transform: scale(.96); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+@keyframes ab-capture-spin {
+  from { transform: rotate(-120deg) scale(.4); opacity: 0; }
+  to { transform: rotate(0) scale(1); opacity: 1; }
+}
+
+.ab-log-line.ab-log-pity { color: #d857ff; } /* UI-33 */
+
+/* UI-22/34/35: floor dividers + run headers */
+.ab-log-line.ab-log-divider {
+  text-align: center;
+  color: var(--muted);
+  letter-spacing: .08em;
+  border-top: 1px solid var(--line);
+  margin-top: .35rem;
+  padding-top: .35rem;
+  font-weight: 700;
+}
+
+.ab-log-line.ab-log-affix { color: #ffc107; font-size: .82rem; }
+.ab-log-line.ab-log-pacts { color: var(--accent); font-size: .82rem; }
+
+/* UI-28: rarity left-borders on loot lines inside the log (colors mirror the
+   rarity dots in updateLootSummary) */
+.ab-log-line.rar-rare { border-left: 3px solid #5bc0ff; padding-left: .45rem; }
+.ab-log-line.rar-epic { border-left: 3px solid #b26bff; padding-left: .45rem; }
+.ab-log-line.rar-legendary { border-left: 3px solid #ff9d3c; padding-left: .45rem; }
+.ab-log-line.rar-mythic { border-left: 3px solid #e2575b; padding-left: .45rem; }
+.ab-log-line.rar-divine { border-left: 3px solid #f4c542; padding-left: .45rem; }
+.ab-log-line.rar-celestial { border-left: 3px solid #40c4ff; padding-left: .45rem; }
+.ab-log-line.rar-eternal { border-left: 3px solid #e040fb; padding-left: .45rem; }
+
+.ab-elem-glyph { margin-right: .2rem; } /* UI-4 */
+.ab-dot-n { color: var(--muted); font-size: .78rem; } /* UI-40 */
+
+/* UI-27: collapsed middle rounds */
+.ab-log-line.ab-collapsed { display: none; }
+
+.ab-log-line.ab-log-collapse {
+  text-align: center;
+  color: var(--muted);
+  cursor: pointer;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  margin: .2rem 0;
+  padding: .1rem;
+  font-size: .8rem;
+}
+
+.ab-log-line.ab-log-collapse:hover { color: var(--text); border-color: var(--muted); }
+
+/* UI-29: pinned fatal blow */
+.ab-fatal-pin {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: rgba(42, 18, 22, .95);
+  border: 1px solid var(--bad);
+  border-radius: 8px;
+  padding: .35rem .6rem;
+  margin-bottom: .3rem;
+  font-size: .85rem;
+}
+
+/* UI-39: screen-reader-only summary */
+.ab-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* UI-36/26/38/37: log toolbar */
+.ab-log-tools {
+  display: flex;
+  gap: .4rem;
+  align-items: center;
+  margin-bottom: .35rem;
+}
+
+.ab-log-tools input[type='search'] {
+  flex: 1;
+  max-width: 260px;
+  background: #0a0c11;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  padding: .25rem .5rem;
+  font-size: .82rem;
+}
+
+/* UI-26: round-number gutter */
+#abyssLog.ab-numbered { counter-reset: abround; }
+
+#abyssLog.ab-numbered .ab-log-line:not(.ab-log-divider):not(.ab-log-affix):not(.ab-log-pacts)::before {
+  counter-increment: abround;
+  content: counter(abround);
+  display: inline-block;
+  min-width: 2ch;
+  margin-right: .5rem;
+  color: var(--muted);
+  font-size: .72rem;
+  text-align: right;
+}
+
+/* UI-38: ligature-safe monospace option */
+#abyssLog.ab-mono {
+  font-family: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  font-variant-ligatures: none;
+  letter-spacing: .01em;
+}
+
+/* UI-21: hover highlight of the matching combatant */
+#hpBar.ab-hl { outline: 2px solid var(--bad); outline-offset: 2px; }
+.ab-scene.ab-hl { outline: 2px solid var(--gold); outline-offset: -2px; border-radius: 10px; }
+
+/* ---- HUD chips (UI-41..60) ------------------------------------------------ */
+
+.ab-hudchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem;
+  justify-content: center;
+  max-width: 280px;
+}
+
+.ab-hudchip {
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .1rem .55rem;
+  font-size: .72rem;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+}
+
+.ab-hudchip.warn { border-color: var(--bad); color: var(--bad); }
+.ab-hudchip.good { border-color: var(--good); color: var(--good); }
+
+/* UI-50: bounty progress ring */
+.ab-bounty-ring { width: 16px; height: 16px; transform: rotate(-90deg); }
+.ab-bounty-ring .ab-br-bg { fill: none; stroke: rgba(255, 255, 255, .12); stroke-width: 2.4; }
+.ab-bounty-ring .ab-br-fg { fill: none; stroke: var(--good); stroke-width: 2.4; stroke-linecap: round; }
+
+/* UI-48: floors-since-rest ticks under the dial */
+.ab-restarts {
+  display: flex;
+  gap: 3px;
+  min-height: 8px;
+  align-items: center;
+}
+
+.ab-restarts .ab-tick {
+  width: 4px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: .65;
+}
+
+/* UI-17: milestone depth glow (composes with the idle shimmer) */
+.ab-depth-ring.milestone {
+  animation: ab-milestone-glow 2.2s ease;
+}
+
+@keyframes ab-milestone-glow {
+  0%, 100% { box-shadow: 0 0 28px rgba(123, 108, 255, .35) inset, 0 0 18px rgba(123, 108, 255, .25); border-color: var(--accent); }
+  40% { box-shadow: 0 0 34px rgba(244, 197, 66, .65) inset, 0 0 34px rgba(244, 197, 66, .55); border-color: var(--gold); }
+}
+
+/* UI-46: HP bar segment ticks at 25/50/75% (overlay above the fill) */
+.ab-hpbar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(90deg,
+    transparent calc(25% - 1px), rgba(255, 255, 255, .28) calc(25% - 1px), rgba(255, 255, 255, .28) 25%, transparent 25%,
+    transparent calc(50% - 1px), rgba(255, 255, 255, .28) calc(50% - 1px), rgba(255, 255, 255, .28) 50%, transparent 50%,
+    transparent calc(75% - 1px), rgba(255, 255, 255, .28) calc(75% - 1px), rgba(255, 255, 255, .28) 75%, transparent 75%);
+}
+
+/* UI-47: threat meter green/yellow/red bands */
+.ab-threat-bar {
+  background-color: #14171f;
+  background-image: linear-gradient(90deg,
+    rgba(65, 201, 122, .22) 0%, rgba(65, 201, 122, .22) 40%,
+    rgba(244, 197, 66, .22) 40%, rgba(244, 197, 66, .22) 70%,
+    rgba(226, 87, 91, .25) 70%, rgba(226, 87, 91, .25) 100%);
+}
+
+/* UI-19: momentum flame grows at ×5 / ×10 stacks */
+.ab-mom-flame {
+  display: inline-block;
+  transition: transform .3s ease;
+}
+
+.ab-mom-flame.f2 { transform: scale(1.35); }
+.ab-mom-flame.f3 { transform: scale(1.7); }
+
+/* UI-14: cracked-shield overlay on low-durability gear */
+.abyss-side-gear.ab-cracked {
+  position: relative;
+  border: 1px solid var(--bad);
+  border-radius: 6px;
+}
+
+.abyss-side-gear.ab-cracked::after {
+  content: '🛡️💔';
+  position: absolute;
+  top: -8px;
+  right: -4px;
+  font-size: .72rem;
+  filter: grayscale(.3);
+}
+
+/* ---- Reduced motion: kill every animation/transition this file adds ------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-scene,
+  .ab-event-icon,
+  .ab-rest-embers i,
+  .abyss-stage.ab-enraged,
+  .ab-depth-ring.milestone,
+  .ab-log-line.ab-log-kill,
+  .ab-log-line.ab-log-capture,
+  .ab-log-line.ab-log-capture::after,
+  .ab-overkill,
+  .ab-scene.ab-fs-you::before,
+  .ab-scene.ab-fs-mob::before,
+  .ab-unid-badge,
+  .ab-corrupt-drip::after,
+  .abyss-side-loot.ab-new,
+  .ab-coin,
+  .ab-tier:has(input[value='insanity']),
+  /* batch 3 (UI-116..200) */
+  .ab-tab-dot,
+  .ab-newdot,
+  .ab-skel,
+  .ab-ach-banner,
+  .ab-depth-ring.ab-recordburst,
+  .abyss-pity-hud.ab-pity-proc,
+  .toast2.ab-starburst::before,
+  .ab-btn-row.ab-downed-beat button,
+  .ab-escrow.ab-crumble,
+  .abyss-stage[class*='ab-amb-']::before,
+  body.ab-insanity-run .ab-hudchip,
+  body.ab-insanity-run .abyss-panel,
+  body.ab-insanity-run .ab-chip,
+  .ab-levelup,
+  button.primary:active:not(:disabled) {
+    animation: none !important;
+  }
+
+  .abyss-stage.ab-downed,
+  .ab-mom-flame,
+  /* batch 3 */
+  .ab-ach-banner,
+  #vigOverlay {
+    transition: none !important;
+  }
+
+  .ab-rest-embers i { opacity: 0; }
+}
+
+/* ==========================================================================
+   Abyss UI-200 batch 2 (UI-61 .. UI-115): loot & inventory presentation,
+   forge/workshop affordances, entry & run setup. Appended after batch 1.
+   ========================================================================== */
+
+/* ---- D. Loot & inventory (UI-61..80) -------------------------------------- */
+
+/* UI-65: sort toggle row above the manifest */
+.ab-loot-sort {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin: .3rem 0 .4rem;
+}
+
+.ab-loot-sort .ab-select { padding: .1rem .3rem; font-size: .78rem; }
+
+/* UI-61: slot glyph before the item name */
+.ab-slot-icn { margin-right: .3rem; }
+
+/* UI-62: pulsing "?" badge on unidentified rows */
+.ab-unid-badge {
+  display: inline-block;
+  margin-left: .35rem;
+  min-width: 15px;
+  height: 15px;
+  line-height: 15px;
+  text-align: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 800;
+  animation: ab-unid-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes ab-unid-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(123, 108, 255, .55); }
+  50% { box-shadow: 0 0 0 6px rgba(123, 108, 255, 0); }
+}
+
+/* UI-66: already-owned tag */
+.ab-owned-tag {
+  margin-left: .35rem;
+  padding: 0 .35rem;
+  border: 1px solid var(--muted);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: .66rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+/* UI-67/78: set tags, one color per set */
+.ab-set-tag {
+  margin-left: .35rem;
+  padding: 0 .35rem;
+  border-radius: 4px;
+  font-size: .66rem;
+  border: 1px solid var(--muted);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.ab-set-tag.ab-set-predator { border-color: #e2575b; color: #e2575b; }
+.ab-set-tag.ab-set-warden { border-color: #5bc0ff; color: #5bc0ff; }
+.ab-set-tag.ab-set-harvester { border-color: #41c97a; color: #41c97a; }
+
+/* UI-78: set ribbon on armoury cards (left border in the set's color) */
+.abyss-side-gear.ab-set-ribbon-predator { border-left: 3px solid #e2575b; padding-left: .35rem; }
+.abyss-side-gear.ab-set-ribbon-warden { border-left: 3px solid #5bc0ff; padding-left: .35rem; }
+.abyss-side-gear.ab-set-ribbon-harvester { border-left: 3px solid #41c97a; padding-left: .35rem; }
+
+/* UI-68: animated blood drip on corrupted drops */
+.ab-corrupt-drip { position: relative; }
+
+.ab-corrupt-drip::after {
+  content: '🩸';
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-size: .8rem;
+  animation: ab-drip 2.2s ease-in infinite;
+  pointer-events: none;
+}
+
+@keyframes ab-drip {
+  0% { transform: translateY(-4px); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translateY(10px); opacity: 0; }
+}
+
+/* UI-79: new-drop glow until first hover/click */
+.abyss-side-loot.ab-new {
+  border-radius: 6px;
+  animation: ab-new-glow 2s ease-in-out infinite;
+}
+
+@keyframes ab-new-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244, 197, 66, 0); background: rgba(244, 197, 66, .04); }
+  50% { box-shadow: 0 0 10px 1px rgba(244, 197, 66, .45); background: rgba(244, 197, 66, .1); }
+}
+
+/* UI-63/80: inline detail card under a clicked run-loot row */
+.ab-loot-detail {
+  margin: .15rem 0 .4rem .6rem;
+  padding: .45rem .6rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .03);
+  font-size: .8rem;
+}
+
+.ab-loot-detail .ab-ld-src {
+  margin-top: .3rem;
+  border-top: 1px dashed var(--line);
+  padding-top: .25rem;
+}
+
+.ab-hc-cmp.good { color: var(--good); }
+.ab-hc-cmp.bad { color: var(--bad); }
+
+/* UI-69/70/71/72/73/76: backpack quick-view rows */
+.ab-backpack {
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 6px;
+  padding: 8px;
+  background: rgba(255, 255, 255, .01);
+}
+
+.ab-bp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ab-bp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.ab-bp-row {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .2rem .35rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: .82rem;
+}
+
+.ab-bp-row:hover { background: rgba(255, 255, 255, .05); }
+
+.ab-bp-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ab-bp-stars { color: var(--gold); font-size: .68rem; letter-spacing: .05em; } /* UI-71 */
+
+.ab-bp-attuned {
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0 .25rem;
+  font-size: .68rem;
+} /* UI-70 */
+
+.ab-bp-cr { color: var(--muted); font-size: .72rem; white-space: nowrap; }
+
+/* UI-69: durability bar */
+.ab-bp-dur {
+  width: 42px;
+  height: 5px;
+  border-radius: 3px;
+  background: #14171f;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.ab-bp-dur i { display: block; height: 100%; background: var(--good); }
+.ab-bp-dur.low i { background: var(--bad); }
+
+/* rarity text colors shared by backpack rows + forge history (UI-96) */
+span.rar-common { color: var(--muted); }
+span.rar-uncommon { color: #9dcc8a; }
+span.rar-rare, .ab-bp-name.rar-rare { color: #5bc0ff; }
+span.rar-epic, .ab-bp-name.rar-epic { color: #b26bff; }
+span.rar-legendary, .ab-bp-name.rar-legendary { color: #ff9d3c; }
+span.rar-mythic, .ab-bp-name.rar-mythic { color: #e2575b; }
+span.rar-divine, .ab-bp-name.rar-divine { color: #f4c542; }
+span.rar-celestial, .ab-bp-name.rar-celestial { color: #40c4ff; }
+span.rar-eternal, .ab-bp-name.rar-eternal { color: #e040fb; }
+
+/* UI-74: temper pip row on armoury cards */
+.ab-temper-pips { display: inline-flex; align-items: center; gap: 2px; margin-left: .35rem; }
+.ab-temper-pips b { color: var(--gold); font-size: .68rem; margin-right: 2px; }
+.ab-temper-pips i {
+  width: 4px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--gold);
+  opacity: .8;
+}
+
+/* UI-75: gem socket pips (filled/empty) */
+.ab-socket-pips { display: inline-flex; align-items: center; gap: 3px; margin-left: .35rem; }
+.ab-socket-pips i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+  background: transparent;
+}
+.ab-socket-pips i.filled { background: #40c4ff; border-color: #40c4ff; }
+
+/* UI-76: side-by-side compare modal */
+.ab-cmp { display: flex; gap: 12px; }
+.ab-cmp-col { flex: 1; min-width: 0; }
+.ab-cmp-col h4 { margin: 0 0 6px; color: var(--muted); font-size: .8rem; }
+.ab-cmp-name { font-weight: 700; margin-bottom: 4px; }
+
+/* UI-77: negative stat values in warning tint */
+.ab-neg { color: var(--bad); background: rgba(226, 87, 91, .12); border-radius: 3px; padding: 0 2px; }
+
+/* ---- E. Forge & workshop (UI-81..100) ------------------------------------- */
+
+/* UI-83: greyed-out (still clickable) when short on gold/tokens/materials */
+.ab-cantafford { opacity: .45; filter: grayscale(.6); }
+
+/* UI-84: temper fail-stack pity meter */
+.ab-pity { display: flex; align-items: center; gap: .45rem; }
+.ab-pity-track {
+  flex: 1;
+  height: 7px;
+  border-radius: 4px;
+  background: #14171f;
+  overflow: hidden;
+}
+.ab-pity-track i { display: block; height: 100%; background: linear-gradient(90deg, #41c97a, #f4c542); }
+
+/* UI-85: coin-flip modal visual */
+.ab-coinflip { display: flex; justify-content: center; padding: .6rem 0; }
+.ab-coin {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  background: radial-gradient(circle at 35% 35%, #ffe9a8, var(--gold) 60%, #9c7a1e);
+  box-shadow: 0 4px 14px rgba(244, 197, 66, .4);
+  animation: ab-coin-flip 1.1s linear infinite;
+}
+.ab-coin.still { animation: none; }
+
+@keyframes ab-coin-flip {
+  0% { transform: rotateY(0); }
+  100% { transform: rotateY(360deg); }
+}
+
+.ab-coinflip-odds {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: .8rem;
+  color: var(--muted);
+}
+
+/* UI-86: stat block inside the reforge confirm modal */
+.ab-statblock {
+  display: inline-block;
+  padding: .3rem .55rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .03);
+  font-size: .82rem;
+}
+
+/* UI-90: special-swap mini-cards */
+.ab-swapcards { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.ab-mini {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .03);
+  padding: .3rem .5rem;
+  font-size: .78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ab-swap-arrow { color: var(--accent); font-size: 1.1rem; }
+
+/* UI-98: artisan rep progress bar */
+.ab-rep-track {
+  position: relative;
+  height: 14px;
+  border-radius: 7px;
+  background: #14171f;
+  overflow: hidden;
+  margin: 4px 0 8px;
+}
+.ab-rep-track i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #8d6e63, var(--gold));
+}
+.ab-rep-lbl {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .66rem;
+  color: var(--text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .8);
+}
+
+/* UI-99: happy-hour banner under the forge header */
+.ab-hh-banner {
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  background: rgba(244, 197, 66, .1);
+  color: var(--gold);
+  padding: .4rem .7rem;
+  margin-bottom: 8px;
+  font-size: .85rem;
+}
+
+/* UI-97: undo state text */
+.ab-undo-state { align-self: center; }
+
+/* UI-100: clickable material chips */
+.ab-mat-click { cursor: pointer; }
+.ab-mat-click:hover { border-color: var(--accent); }
+
+/* ---- F. Entry & run setup (UI-101..115) ----------------------------------- */
+
+/* UI-102: per-tier personal best line */
+.ab-tier-best { display: block; }
+
+/* UI-115: unlock progress bar on locked tiers */
+.ab-tier-unlockbar {
+  display: block;
+  height: 5px;
+  border-radius: 3px;
+  background: #14171f;
+  overflow: hidden;
+  margin-top: 3px;
+}
+.ab-tier-unlockbar i { display: block; height: 100%; background: var(--accent); }
+
+/* UI-113: daily free entry strikes the entry cost through */
+.ab-entry-cost.ab-free { text-decoration: line-through; color: var(--muted); }
+.ab-entry-cost.ab-free::after { content: ' 🎟️'; text-decoration: none; }
+
+/* UI-103: insanity tier flickers a warning border */
+.ab-tier:has(input[value='insanity']) {
+  border: 1px solid var(--bad);
+  animation: ab-insanity-flicker 1.8s steps(2, jump-none) infinite;
+}
+
+@keyframes ab-insanity-flicker {
+  0%, 100% { border-color: var(--bad); box-shadow: 0 0 8px rgba(226, 87, 91, .35); }
+  50% { border-color: rgba(226, 87, 91, .25); box-shadow: none; }
+}
+
+/* UI-105: pact conflict icon */
+.ab-pact-warn { color: #ffc107; }
+
+/* UI-114: high-risk forecast line */
+#tierRisk.bad { color: var(--bad); }
+
+/* ==========================================================================
+   Abyss UI-200 batch 3 (UI-116 .. UI-200): navigation & layout, feedback,
+   stats panels, theming & polish. Appended after batch 2; new animations are
+   also listed in the prefers-reduced-motion block above.
+   ========================================================================== */
+
+/* ---- G. Navigation & layout (UI-116..130) ---------------------------------- */
+
+/* UI-116: unread dot on section tabs with fresh content */
+.ab-tab { position: relative; }
+.ab-tab-dot {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: ab-dot-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes ab-dot-pulse {
+  0%, 100% { opacity: .35; }
+  50% { opacity: 1; }
+}
+
+/* UI-117: the tab bar becomes a horizontal scroll strip under 900px */
+@media (max-width: 900px) {
+  .ab-tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: thin; }
+  .ab-tab { flex: 0 0 auto; white-space: nowrap; }
+}
+
+/* UI-118: hover anchor links on panel headers */
+.ab-anchor {
+  opacity: 0;
+  margin-left: .4rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: .85rem;
+  font-weight: 400;
+}
+.abyss-panel h2:hover .ab-anchor,
+.abyss-lb h2:hover .ab-anchor { opacity: .85; }
+.ab-anchor:hover { color: var(--accent); }
+
+/* UI-119: back-to-top floating button */
+.ab-backtop {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 60;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .5);
+}
+.ab-backtop:hover { border-color: var(--accent); }
+
+/* UI-121: bestiary family grouping headers */
+.ab-best-fam td {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  border-top: 1px solid var(--line);
+  padding-top: .45rem;
+  user-select: none;
+}
+.ab-best-fam:hover td { color: var(--text); }
+.ab-best-arrow { display: inline-block; width: 1em; }
+
+/* UI-122: lore progress ring (10 segments) */
+.ab-lore-ring {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  margin-left: .4rem;
+  font-size: .75rem;
+  font-weight: 400;
+  color: var(--muted);
+  vertical-align: middle;
+}
+.ab-lore-svg { width: 20px; height: 20px; }
+.ab-lore-svg line { stroke: rgba(255, 255, 255, .15); stroke-width: 1.6; stroke-linecap: round; }
+.ab-lore-svg line.on { stroke: var(--xp); }
+
+/* UI-123: your leaderboard row */
+.lbtable tr.ab-me td { background: rgba(123, 108, 255, .14); }
+.lbtable tr.ab-me .lb-name { color: var(--accent); font-weight: 700; }
+
+/* UI-124: sticky table headers on scroll */
+.lbtable thead th,
+.ab-history thead th {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  z-index: 2;
+}
+
+/* UI-125: expandable history rows */
+.ab-history tr.ab-hist-click { cursor: pointer; }
+.ab-history tr.ab-hist-click:hover td { background: rgba(255, 255, 255, .04); }
+.ab-hist-detail-in {
+  padding: .4rem .2rem .4rem .6rem;
+  font-size: .82rem;
+  border-left: 3px solid var(--accent);
+}
+
+/* UI-126: locked achievements */
+.ab-ach.locked { opacity: .45; filter: grayscale(.8); }
+
+/* UI-130/199: skeleton shimmer placeholders */
+.ab-skel {
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .12) 50%, rgba(255, 255, 255, .05) 75%);
+  background-size: 200% 100%;
+  animation: ab-skel-shimmer 1.2s linear infinite;
+}
+.ab-skel-h { height: 18px; width: 55%; margin-bottom: 8px; }
+.ab-skel-r { height: 13px; margin-bottom: 6px; }
+
+@keyframes ab-skel-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ---- H. Feedback, toasts & modals (UI-131..150) ---------------------------- */
+
+/* UI-132: toast timestamp on hover */
+.toast2 { position: relative; }
+.toast2:hover::after {
+  content: attr(data-ts);
+  position: absolute;
+  right: 8px;
+  top: -9px;
+  font-size: .62rem;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 .3rem;
+}
+
+/* UI-133: copy-details button on error toasts */
+.ab-toast-copy {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: .8rem;
+  margin-left: .5rem;
+  padding: 0;
+  color: var(--text);
+}
+
+/* UI-140: achievement slide-down banner */
+.ab-ach-banner {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -115%);
+  z-index: 90;
+  background: var(--panel);
+  border: 1px solid var(--gold);
+  border-radius: 0 0 10px 10px;
+  padding: .55rem 1.1rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .6);
+  transition: transform .35s ease;
+}
+.ab-ach-banner.show { transform: translate(-50%, 0); }
+
+/* UI-141: new-record ring burst on the depth dial */
+.ab-depth-ring.ab-recordburst { animation: ab-record-burst 1.5s ease; }
+
+@keyframes ab-record-burst {
+  0% { box-shadow: 0 0 0 0 rgba(244, 197, 66, .8); }
+  100% { box-shadow: 0 0 0 46px rgba(244, 197, 66, 0); }
+}
+
+/* UI-142: golden flash when the pity-cap legendary lands */
+.abyss-pity-hud.ab-pity-proc { animation: ab-pity-proc 1.6s ease; }
+
+@keyframes ab-pity-proc {
+  0%, 100% { box-shadow: none; }
+  30% { box-shadow: 0 0 24px rgba(244, 197, 66, .75); border-color: var(--gold); }
+}
+
+/* UI-143: starburst rays behind celestial/eternal loot toasts */
+.toast2.ab-starburst { overflow: visible; }
+.toast2.ab-starburst::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  z-index: -1;
+  pointer-events: none;
+  background: conic-gradient(from 0deg,
+    transparent 0deg, rgba(224, 64, 251, .35) 10deg, transparent 20deg,
+    transparent 40deg, rgba(64, 196, 255, .35) 50deg, transparent 60deg,
+    transparent 90deg, rgba(224, 64, 251, .35) 100deg, transparent 110deg,
+    transparent 140deg, rgba(64, 196, 255, .35) 150deg, transparent 160deg,
+    transparent 190deg, rgba(224, 64, 251, .35) 200deg, transparent 210deg,
+    transparent 240deg, rgba(64, 196, 255, .35) 250deg, transparent 260deg,
+    transparent 290deg, rgba(224, 64, 251, .35) 300deg, transparent 310deg,
+    transparent 340deg, rgba(64, 196, 255, .35) 350deg, transparent 360deg);
+  animation: ab-starburst-spin 6s linear infinite;
+}
+
+@keyframes ab-starburst-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* UI-144: heartbeat pulse on the revive options while downed */
+.ab-btn-row.ab-downed-beat button { animation: ab-heartbeat 1.3s ease-in-out infinite; }
+
+@keyframes ab-heartbeat {
+  0%, 100% { transform: scale(1); }
+  12% { transform: scale(1.05); }
+  24% { transform: scale(1); }
+  36% { transform: scale(1.05); }
+}
+
+/* UI-146: quick 0.96 scale bounce on primary press — combines with the
+   existing button:active translateY(1px) from style.css (this rule is more
+   specific and includes both transforms, so no duplication). */
+button.primary:active:not(:disabled) { transform: translateY(1px) scale(.96); }
+
+/* UI-147: coin-arc spans flying from the dial to the gold counter */
+.ab-coin-arc {
+  position: absolute;
+  z-index: 999;
+  pointer-events: none;
+  font-size: 1.1rem;
+  transition: transform .85s cubic-bezier(.3, .6, .4, 1), opacity .85s ease;
+}
+
+/* UI-148: escrow crumble shake on death */
+.ab-escrow.ab-crumble { animation: ab-crumble-shake 1.4s ease; }
+
+@keyframes ab-crumble-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  15% { transform: translate(-2px, 1px) rotate(-1deg); }
+  30% { transform: translate(2px, -1px) rotate(1deg); }
+  45% { transform: translate(-2px, -1px) rotate(-1deg); }
+  60% { transform: translate(2px, 1px) rotate(1deg); }
+  75% { transform: translate(-1px, 0) rotate(0); }
+}
+
+/* ---- J. Stats, records & progression (UI-171..185) ------------------------- */
+
+.ab-rex { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+.ab-rex .ab-sub-label { display: block; margin-bottom: 4px; }
+
+/* UI-171: depth sparkline */
+.ab-spark polyline { fill: none; stroke: var(--xp); stroke-width: 1.6; }
+.ab-spark circle.w { fill: var(--good); }
+.ab-spark circle.l { fill: var(--bad); }
+
+/* UI-172: banked-vs-died bar */
+.ab-bd-chart {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #14171f;
+  margin: 4px 0;
+}
+.ab-bd-chart .ab-bd-w { background: var(--good); }
+.ab-bd-chart .ab-bd-l { background: var(--bad); }
+
+/* UI-174: tier win-rate chips reuse .ab-hudchip; wrapper spacing only */
+.ab-tierwr { display: flex; flex-wrap: wrap; gap: .3rem; }
+
+/* UI-175: bestiary completion + per-family bars */
+.ab-best-prog { margin: 6px 0; }
+.ab-bp-track {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: #14171f;
+  overflow: hidden;
+  margin-bottom: 3px;
+}
+.ab-bp-track i { display: block; height: 100%; background: linear-gradient(90deg, var(--xp), var(--accent)); }
+.ab-bp-track.sm { width: 90px; height: 6px; display: inline-block; margin-bottom: 0; }
+.ab-best-fams { margin-top: 4px; }
+.ab-bf-row { display: flex; align-items: center; gap: .45rem; font-size: .78rem; }
+.ab-bf-name { min-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* UI-180: rank-change arrows */
+.ab-rank-delta.up { color: var(--good); font-size: .72rem; }
+.ab-rank-delta.down { color: var(--bad); font-size: .72rem; }
+
+/* UI-181: pace marker under the depth rail */
+.ab-pace { text-align: center; margin-top: 2px; }
+
+/* UI-182: bounty day strip */
+.ab-bounty-days { display: inline-flex; gap: 2px; margin-left: 10px; align-items: center; }
+.ab-bd.miss { opacity: .45; }
+
+/* UI-183: pity cap tick + drops-left line */
+.ab-pity-cap { position: absolute; right: 2px; top: -14px; font-size: .6rem; color: #d857ff; }
+.ab-pity-left { margin-top: 4px; }
+
+/* UI-184: material income mini chart */
+.ab-mat-income { display: flex; align-items: flex-end; gap: 3px; margin-top: 6px; }
+.ab-mat-income .muted { align-self: center; margin-right: 4px; }
+.ab-mi-bar { display: inline-flex; align-items: flex-end; height: 20px; }
+.ab-mi-bar i {
+  display: block;
+  width: 9px;
+  background: linear-gradient(180deg, #8d6e63, var(--gold));
+  border-radius: 2px 2px 0 0;
+}
+
+/* UI-185: milestone map */
+.ab-mmap .mm-axis { stroke: var(--line); stroke-width: 1.4; }
+.ab-mmap .mm-boss { stroke: var(--bad); stroke-width: 1.6; }
+.ab-mmap .mm-ck { fill: var(--accent); }
+.ab-mmap .mm-you { stroke: var(--gold); stroke-width: 2; }
+.ab-mmap .mm-lbl { font-size: 8px; fill: var(--muted); text-anchor: middle; }
+
+/* UI-176: forge ROI line */
+.ab-forge-roi { margin-bottom: 6px; }
+
+/* UI-191/192: friendly empty states */
+.ab-empty-state { text-align: center; padding: 14px 6px; }
+.ab-empty-state svg { width: 120px; height: 60px; margin-bottom: 6px; }
+
+/* ---- K. Theming, polish & micro-copy (UI-186..200) ------------------------- */
+
+/* UI-186: depth-graded vignette (opacity driven by JS from the depth) */
+#vigOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .8s ease;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, .85) 100%);
+}
+
+/* UI-187: biome ambiences — faint CSS-only layers keyed off the stage class
+   set by setBiomeChip (batch-1 biome chip). */
+.abyss-stage[class*='ab-amb-']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 14px;
+}
+.abyss-stage.ab-amb-fire::before {
+  background: radial-gradient(circle at 20% 100%, rgba(255, 107, 61, .14), transparent 55%),
+    radial-gradient(circle at 80% 100%, rgba(244, 197, 66, .1), transparent 50%);
+  animation: ab-amb-flicker 2.8s ease-in-out infinite;
+}
+.abyss-stage.ab-amb-frost::before {
+  background: radial-gradient(circle at 30% 0%, rgba(91, 192, 255, .12), transparent 55%);
+  animation: ab-amb-drift 7s ease-in-out infinite;
+}
+.abyss-stage.ab-amb-void::before {
+  background-image: radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, .8), transparent),
+    radial-gradient(1px 1px at 60% 70%, rgba(255, 255, 255, .6), transparent),
+    radial-gradient(1.5px 1.5px at 80% 20%, rgba(123, 108, 255, .8), transparent),
+    radial-gradient(1px 1px at 40% 80%, rgba(255, 255, 255, .5), transparent);
+  animation: ab-amb-twinkle 4s ease-in-out infinite;
+}
+.abyss-stage.ab-amb-fog::before,
+.abyss-stage.ab-amb-ghost::before {
+  background: linear-gradient(100deg, transparent 20%, rgba(138, 147, 168, .1) 45%, transparent 70%);
+  background-size: 220% 100%;
+  animation: ab-amb-fog 9s linear infinite;
+}
+.abyss-stage.ab-amb-nature::before {
+  background: radial-gradient(circle at 50% 100%, rgba(65, 201, 122, .1), transparent 60%);
+  animation: ab-amb-drift 6s ease-in-out infinite;
+}
+.abyss-stage.ab-amb-blood::before {
+  background: radial-gradient(circle at 50% 100%, rgba(226, 87, 91, .13), transparent 58%);
+  animation: ab-amb-flicker 3.4s ease-in-out infinite;
+}
+.abyss-stage.ab-amb-storm::before {
+  background: radial-gradient(circle at 50% 0%, rgba(123, 108, 255, .12), transparent 55%);
+  animation: ab-amb-flicker 2.2s ease-in-out infinite;
+}
+.abyss-stage.ab-amb-venom::before {
+  background: radial-gradient(circle at 50% 100%, rgba(65, 201, 122, .12), transparent 55%);
+  animation: ab-amb-drift 5s ease-in-out infinite;
+}
+body.ab-no-amb .abyss-stage::before { display: none; }
+
+@keyframes ab-amb-flicker {
+  0%, 100% { opacity: .7; }
+  50% { opacity: 1; }
+}
+
+@keyframes ab-amb-drift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes ab-amb-twinkle {
+  0%, 100% { opacity: .5; }
+  50% { opacity: 1; }
+}
+
+@keyframes ab-amb-fog {
+  from { background-position: 0 0; }
+  to { background-position: 220% 0; }
+}
+
+/* UI-188: subtle glitch jitter while an insanity run is active */
+body.ab-insanity-run .ab-hudchip,
+body.ab-insanity-run .abyss-panel,
+body.ab-insanity-run .ab-chip { animation: ab-glitch-jitter 5s steps(1) infinite; }
+
+@keyframes ab-glitch-jitter {
+  0%, 93%, 100% { transform: translate(0, 0); }
+  94% { transform: translate(1px, -1px); }
+  96% { transform: translate(-1px, 1px); }
+  98% { transform: translate(1px, 0); }
+}
+
+/* UI-139: level-up flash on the HUD level chip / xp pill */
+.ab-levelup { animation: ab-levelup-flash 2.2s ease; }
+
+@keyframes ab-levelup-flash {
+  0%, 100% { box-shadow: none; }
+  25% { box-shadow: 0 0 18px rgba(91, 192, 255, .8); border-color: var(--xp); }
+}
+
+/* UI-150: new-since-update dot */
+.ab-newdot {
+  color: var(--gold);
+  font-size: .7rem;
+  margin-left: .35rem;
+  cursor: pointer;
+  vertical-align: middle;
+  animation: ab-dot-pulse 1.8s ease-in-out infinite;
+}
+
+/* UI-197: emoji fallback font stack for the log and toast text */
+.abyss-log,
+.abyss-loot,
+.abyss-dura,
+.toast2 {
+  font-family: 'Segoe UI', Roboto, system-ui, "Noto Color Emoji", "Segoe UI Emoji", sans-serif;
+}
+
+/* UI-200: settings modal rows + gear button */
+.ab-settings { display: flex; flex-direction: column; gap: 8px; }
+.ab-set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: .88rem;
+  cursor: pointer;
+}
+.ab-settings-btn { cursor: pointer; background: transparent; font-size: 1rem; }
+
+/* UI-129/198: print — clean run summary + record panel; the bank summary
+   modal prints cleanly too (stage/log/controls/overlays hidden). */
+@media print {
+  .abyss-stage-row,
+  .abyss-log-wrap,
+  .ab-toasthost,
+  .ab-backtop,
+  .ab-minihud,
+  .ab-tabs,
+  .ab-netbanner,
+  #vigOverlay,
+  .ab-vault-overlay,
+  .ab-gate,
+  .ab-bosscard,
+  .ab-edgeglow,
+  .abyss-banner,
+  .abyss-hero,
+  .topbar .nav,
+  .foot,
+  .ab-anchor,
+  .ab-newdot { display: none !important; }
+
+  /* tab-folded sections all print (the tab bar itself is hidden above) */
+  .abyss-cols,
+  .abyss-lore-bestiary,
+  .abyss-lb { display: block !important; }
+
+  .abyss-panel,
+  .abyss-lb { break-inside: avoid; box-shadow: none; border: 1px solid #999; }
+
+  /* UI-198: an open bank-summary / run-summary modal prints as a plain card */
+  .modal-overlay:not(.open) { display: none !important; }
+  .modal-overlay.open { position: static; display: block; background: none; padding: 0; }
+  .modal-overlay.open .modal-card { box-shadow: none; border: 1px solid #999; max-width: none; }
+  .modal-overlay.open .modal-actions { display: none; }
+}
+

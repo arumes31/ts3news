@@ -48,6 +48,14 @@ var styleCSSVer = func() string {
 	return hex.EncodeToString(sum[:6])
 }()
 
+// ui200CSSVer is the same content-hash cache-buster as styleCSSVer, but for the
+// Abyss UI-200 additions stylesheet (webassets/abyss_ui200.css).
+var ui200CSSVer = func() string {
+	b, _ := webAssets.ReadFile("webassets/abyss_ui200.css")
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:6])
+}()
+
 const sessionCookie = "ts3session"
 
 // WebServer is the player-facing portal: armoury, inventory, auto-battler,
@@ -128,6 +136,7 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 		"jsonJS": jsonJS,
 		"mulf":   func(a, b float64) float64 { return a * b },
 		"cssver": func() string { return styleCSSVer },
+		"uicssver": func() string { return ui200CSSVer },
 		"halve":  func(n int) int { return n / 2 },
 		"dur":    func(ms int64) string { return fmt.Sprintf("%.1fs", float64(ms)/1000) },
 		// dict builds a map from alternating key/value pairs, for passing several
@@ -166,6 +175,13 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		// changes on every stylesheet edit, so deploys bust the cache themselves.
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		b, _ := webAssets.ReadFile("webassets/style.css")
+		_, _ = w.Write(b)
+	})
+	mux.HandleFunc("/static/abyss_ui200.css", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		// Same content-hash cache-busting contract as /static/style.css.
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		b, _ := webAssets.ReadFile("webassets/abyss_ui200.css")
 		_, _ = w.Write(b)
 	})
 	mux.HandleFunc("/static/favicon.svg", func(w http.ResponseWriter, _ *http.Request) {
