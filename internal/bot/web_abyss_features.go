@@ -1399,6 +1399,9 @@ func (s *WebServer) handleAbyssLastStand(w http.ResponseWriter, r *http.Request,
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	if s.rejectDuringLiveCombat(w, uid) {
+		return
+	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 

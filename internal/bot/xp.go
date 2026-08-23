@@ -75,6 +75,9 @@ type UserInCombat struct {
 	// populates it; regular channel fights leave it zero so the Abyss tree never
 	// leaks into non-Abyss combat (and treeBonusFor's DB cost stays off that path).
 	treeBonus content.TreeBonus
+	// live is set only for interactive Abyss fights. It pauses the shared combat
+	// engine at player phases and supplies the party's submitted actions.
+	live *abyssLiveCombat
 }
 
 type activeUser struct {
@@ -108,6 +111,7 @@ type activeUser struct {
 	execFlourished    bool                 // AB-55 one-time Executioner+Execute flourish log
 	cursedMercyLogged bool                 // AB-54 one-time cursed mercy log
 	runeWardLogged    bool                 // AB-67 one-time rune-ward resist log
+	defendingRound    int                  // live combat: DEF boost remains through one enemy phase
 }
 
 // cycleContext holds per-cycle shared facts used by the XP modifiers.
@@ -1000,8 +1004,9 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 			continue
 		}
 
-		// Improvement 40: Scaling Consumables (Auto-use healing if < 50% HP)
-		if u.CurrentHP < u.Stats.HP/2 && healPenalty > 0 {
+		// Interactive fights let the submitted action/tactic engine decide whether
+		// a potion is worth spending; the legacy engine retains its automatic use.
+		if u.live == nil && u.CurrentHP < u.Stats.HP/2 && healPenalty > 0 {
 			cons := b.getConsumables(u.UID)
 			for _, c := range cons {
 				if c.Type == content.ConsumableHealing {
@@ -1053,11 +1058,23 @@ func randomLootEligibleUser(users []UserInCombat) *UserInCombat {
 }
 
 func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone content.Zone, intensify, healPenalty float64, logs *[]string, totalUserDamage, totalMobDamage *int, avgLvl int, diffFactor float64, originalUsers []UserInCombat, loots *[]LootResult, round int, track *abyssFightTrack) {
+	liveActions := map[string]abyssLiveAction{}
+	for i := range activeUsers {
+		if activeUsers[i].u != nil && activeUsers[i].u.live != nil {
+			liveActions = activeUsers[i].u.live.awaitActions(round, activeUsers, *mobs, *logs)
+			break
+		}
+	}
 	for i := range activeUsers {
 		au := &activeUsers[i]
 		u := au.u
 		if u.CurrentHP <= 0 {
 			continue
+		}
+		liveAction, isLiveAction := liveActions[u.UID]
+		if au.defendingRound > 0 && au.defendingRound < round {
+			u.DEFMod /= 1.5
+			au.defendingRound = 0
 		}
 		bossPresent := abyssBossAlive(*mobs)
 		// Scripted boss-phase stun: consume the flag and skip this turn.
@@ -1130,6 +1147,20 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					continue
 				}
 			}
+		}
+
+		if isLiveAction && liveAction.Kind == "defend" {
+			u.DEFMod *= 1.5
+			au.defendingRound = round
+			*logs = append(*logs, fmt.Sprintf("🛡️ %s braces for the enemy assault (+50%% DEF).", u.Nickname))
+			continue
+		}
+		if isLiveAction && liveAction.Kind == "item" {
+			target := liveAllyFromTarget(liveAction.TargetID, activeUsers)
+			if !b.useLiveConsumable(u, target, liveAction.AbilityID, logs) {
+				*logs = append(*logs, fmt.Sprintf("⚠️ %s's queued item is no longer available.", u.Nickname))
+			}
+			continue
 		}
 
 		// Check for sentient weapon
@@ -1235,8 +1266,27 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if len(aliveMobs) == 0 {
 				break
 			}
-			// #nosec G404
-			target := aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
+			liveHitKind := liveAction.Kind
+			if isLiveAction && h > 0 && liveHitKind == "skill" {
+				liveHitKind = "attack"
+			}
+			var target *content.Mob
+			if isLiveAction {
+				target = liveMobFromTarget(liveAction.TargetID, *mobs)
+				isAllySkill := liveHitKind == "skill" && strings.HasPrefix(liveAction.TargetID, "ally:")
+				if target == nil && !isAllySkill && liveHitKind != "attack" {
+					*logs = append(*logs, fmt.Sprintf("⚠️ %s's target is no longer valid; the action fizzles.", u.Nickname))
+					break
+				}
+			}
+			if target == nil {
+				if isLiveAction {
+					target = aliveMobs[0]
+				} else {
+					// #nosec G404 -- legacy combat target selection
+					target = aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
+				}
+			}
 
 			dmgMult := focusDmg
 			ignoreDef := 0.0
@@ -1277,10 +1327,15 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				*logs = append(*logs, fmt.Sprintf("🔷 %s holds their mana, saving their casts for the boss.", u.Nickname))
 			}
 
-			// #nosec G404
-			if !holdCast && len(u.Skills) > 0 && au.CurrentMana >= spellCost && rand.Float64() < 0.3 { // #nosec G404
-				// #nosec G404
-				s := u.Skills[rand.IntN(len(u.Skills))] // #nosec G404
+			var selectedSkill *content.Skill
+			if isLiveAction && liveHitKind == "skill" {
+				selectedSkill = findLiveSkill(u, liveAction.AbilityID)
+			} else if !isLiveAction && !holdCast && len(u.Skills) > 0 && au.CurrentMana >= spellCost && rand.Float64() < 0.3 { // #nosec G404
+				// #nosec G404 -- legacy automatic skill selection
+				selectedSkill = &u.Skills[rand.IntN(len(u.Skills))] // #nosec G404
+			}
+			if selectedSkill != nil && !holdCast && au.CurrentMana >= spellCost {
+				s := *selectedSkill
 				// AB-52 Mana overflow: casting at full mana overcharges the spell +15%.
 				overcharged := abyssCombatant(u) && au.CurrentMana >= au.MaxMana
 				au.CurrentMana -= spellCost
@@ -1310,15 +1365,21 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				*logs = append(*logs, fmt.Sprintf("✨ %s cast %s (cost: %d Mana, Remaining: %d/%d). Spell Power: +%d%%!", u.Nickname, s.Name, spellCost, au.CurrentMana, au.MaxMana, int(float64(u.Stats.INT)*spellPowerMult)))
 
 				if s.HealPercent > 0 {
-					healAmount := int(float64(u.Stats.HP) * s.HealPercent * healPenalty)
+					healTarget := u
+					if isLiveAction {
+						if selected := liveAllyFromTarget(liveAction.TargetID, activeUsers); selected != nil {
+							healTarget = selected
+						}
+					}
+					healAmount := int(float64(healTarget.Stats.HP) * s.HealPercent * healPenalty)
 					if healAmount < 0 {
 						healAmount = 0
 					}
-					u.CurrentHP += healAmount
-					if u.CurrentHP > u.Stats.HP {
-						u.CurrentHP = u.Stats.HP
+					healTarget.CurrentHP += healAmount
+					if healTarget.CurrentHP > healTarget.Stats.HP {
+						healTarget.CurrentHP = healTarget.Stats.HP
 					}
-					*logs = append(*logs, fmt.Sprintf("💚 %s restored %d HP (+%d%% of max HP) from %s!", u.Nickname, healAmount, int(s.HealPercent*100), s.Name))
+					*logs = append(*logs, fmt.Sprintf("💚 %s restores %d HP to %s (+%d%% of max HP) with %s!", u.Nickname, healAmount, healTarget.Nickname, int(s.HealPercent*100), s.Name))
 				}
 
 				// Combo System (Improvement 6)
@@ -1408,9 +1469,16 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			// Ultimate Skill activation: at most one fires per turn — the strongest
 			// ready one — so stacking 3 ultimates widens uptime, not burst.
 			var readyUlt *content.UltimateSkill
-			for _, us := range u.Ultimates {
-				if us.CurrentCooldown == 0 && (readyUlt == nil || us.Power > readyUlt.Power) {
-					readyUlt = us
+			if isLiveAction && liveAction.Kind == "ultimate" {
+				candidate := findLiveUltimate(u, liveAction.AbilityID)
+				if candidate != nil && candidate.CurrentCooldown == 0 {
+					readyUlt = candidate
+				}
+			} else if !isLiveAction {
+				for _, us := range u.Ultimates {
+					if us.CurrentCooldown == 0 && (readyUlt == nil || us.Power > readyUlt.Power) {
+						readyUlt = us
+					}
 				}
 			}
 			if readyUlt != nil && (!au.holdMana || bossPresent) {

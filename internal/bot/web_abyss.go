@@ -643,12 +643,24 @@ func (b *Bot) spawnEchoMob(uid string, avgLvl int) ([]content.Mob, string, int) 
 // same post-fight processing the bot cycle applies (reward XP with auto-prestige,
 // durability). The engine already persists HP, combat gold and loot drops.
 func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier string, focus string) (abyssFloorResult, error) {
+	return b.fightAbyssFloorLive(uid, depth, tier, modifier, focus, nil)
+}
+
+func (b *Bot) fightAbyssFloorLive(
+	uid string,
+	depth int,
+	tier abyssTier,
+	modifier string,
+	focus string,
+	live *abyssLiveCombat,
+) (abyssFloorResult, error) {
 	u, prestige, err := b.buildAbyssUser(uid)
 	if err != nil {
 		return abyssFloorResult{}, err
 	}
 	u.LootFocus = focus
 	u.FloorModifier = modifier
+	u.live = live
 
 	// Fold the active daily affix into the combat modifier so it actually bites in
 	// the engine (previously the daily mod only touched durability + the UI banner).
@@ -949,6 +961,7 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 			// bloodlust / double_hazards effects with the lead delver.
 			partner.FloorModifier = u.FloorModifier
 			partner.IsClone = true
+			partner.live = live
 			combatUsers = append(combatUsers, partner)
 			logs = append(logs, fmt.Sprintf("[color=#4a6fa5]🔔 Co-op Ally %s has entered the fray to assist you![/color]", partner.Nickname))
 		}
@@ -1688,6 +1701,17 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
+	var req struct {
+		Interactive bool `json:"interactive"`
+	}
+	if err := readJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+	if live, ok := s.liveCombatForUID(uid); ok && live.isActive() {
+		writeJSON(w, map[string]any{"ok": false, "error": "combat already active"})
+		return
+	}
 
 	run := s.bot.loadAbyssRun(uid)
 	if !run.Active {
@@ -1711,11 +1735,11 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	// Forced floors bypass the choice picker entirely: the Watcher Stalker
 	// ambush trigger (Item #67) and boss floors are never optional.
 	if !run.LastActionAt.IsZero() && time.Since(run.LastActionAt) > abyssWatcherIdle && run.Depth > 0 {
-		s.commitFloor(w, uid, run, newDepth, "combat", "watcher", "", tier, focus)
+		s.commitFloor(w, uid, run, newDepth, "combat", "watcher", "", tier, focus, req.Interactive)
 		return
 	}
 	if newDepth%abyssBossEvery == 0 {
-		s.commitFloor(w, uid, run, newDepth, "combat", "", "", tier, focus)
+		s.commitFloor(w, uid, run, newDepth, "combat", "", "", tier, focus, req.Interactive)
 		return
 	}
 
@@ -1723,7 +1747,7 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	// choice picker, the revealed type simply happens.
 	if ft, ok := s.bot.popFloorQueue(uid); ok {
 		modifier, eventState := rollFloorDetail(ft)
-		s.commitFloor(w, uid, run, newDepth, ft, modifier, eventState, tier, focus)
+		s.commitFloor(w, uid, run, newDepth, ft, modifier, eventState, tier, focus, req.Interactive)
 		return
 	}
 
@@ -1732,14 +1756,14 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	// nor on every floor. commitFloor re-anchors the next event.
 	if s.bot.abyssEventDue(uid, newDepth) {
 		modifier, eventState := rollFloorDetail("event")
-		s.commitFloor(w, uid, run, newDepth, "event", modifier, eventState, tier, focus)
+		s.commitFloor(w, uid, run, newDepth, "event", modifier, eventState, tier, focus, req.Interactive)
 		return
 	}
 
 	// Otherwise offer the player a choice between 2 candidate floor paths (combat/rest
 	// only — events are on their own cadence above).
 	candidates := rollFloorCandidates(2, false)
-	pending := pendingFloorChoice{Candidates: candidates, Focus: focus}
+	pending := pendingFloorChoice{Candidates: candidates, Focus: focus, Interactive: req.Interactive}
 	buf, err := json.Marshal(pending)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "internal"})
@@ -1777,6 +1801,9 @@ func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, 
 func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
 	unlock := s.lockAbyss(uid)
@@ -2057,8 +2084,9 @@ type floorCandidate struct {
 // pendingFloorChoice is stored uncommitted in abyss_active.pending_floor_choice
 // between the descend roll and the player's pick.
 type pendingFloorChoice struct {
-	Candidates []floorCandidate `json:"candidates"`
-	Focus      string           `json:"focus"`
+	Candidates  []floorCandidate `json:"candidates"`
+	Focus       string           `json:"focus"`
+	Interactive bool             `json:"interactive,omitempty"`
 }
 
 var floorCandidateInfo = map[string]struct{ Label, Icon string }{
@@ -2236,6 +2264,9 @@ func (s *WebServer) handleAbyssChooseFloor(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	if s.rejectDuringLiveCombat(w, uid) {
+		return
+	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
@@ -2277,13 +2308,13 @@ func (s *WebServer) handleAbyssChooseFloor(w http.ResponseWriter, r *http.Reques
 	newDepth := run.Depth + 1
 	tier, _ := abyssTierByKey(run.Tier)
 	modifier, eventState := rollFloorDetail(chosen.Type)
-	s.commitFloor(w, uid, run, newDepth, chosen.Type, modifier, eventState, tier, pending.Focus)
+	s.commitFloor(w, uid, run, newDepth, chosen.Type, modifier, eventState, tier, pending.Focus, pending.Interactive)
 }
 
 // commitFloor writes the resolved floor (type + rolled details) to abyss_active
 // and either returns the rest/event payload or resolves combat immediately.
 // Shared by the direct-descend (forced) path and the choose-floor path.
-func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun, newDepth int, floorType, modifier, eventState string, tier abyssTier, focus string) {
+func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun, newDepth int, floorType, modifier, eventState string, tier abyssTier, focus string, interactive bool) {
 	if floorType == "event" {
 		s.bot.abyssScheduleNextEvent(uid, newDepth) // re-anchor the 2-6 floor cadence
 	}
@@ -2327,6 +2358,19 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 	// stale choice can't be reused by handleAbyssChooseFloor afterwards.
 	if _, err := s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier=$2, event_state=NULL, pending_floor_choice=NULL, last_action_at=NOW() WHERE client_uid=$3", newDepth, modifier, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if interactive {
+		combat, err := s.startAbyssLiveCombat(uid, run, newDepth, tier, modifier, focus)
+		if err != nil {
+			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2", run.Depth, uid)
+			writeJSON(w, map[string]any{"ok": false, "error": "could not start live combat"})
+			return
+		}
+		writeJSON(w, map[string]any{
+			"ok": true, "live_combat": true, "session_id": combat.id,
+			"depth": newDepth, "state": combat.snapshotFor(uid),
+		})
 		return
 	}
 
@@ -2507,6 +2551,10 @@ func (s *WebServer) applyFloorDefeat(uid string, run abyssRun) (canRevive bool) 
 
 // finishDescend applies the win/loss bookkeeping shared by descend and revive.
 func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRun, depth int, escrowBefore int64, tier abyssTier, res abyssFloorResult, modifier string, focus string) {
+	writeJSON(w, s.finishDescendData(uid, run, depth, escrowBefore, tier, res, modifier, focus))
+}
+
+func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escrowBefore int64, tier abyssTier, res abyssFloorResult, modifier string, focus string) map[string]any {
 	_, _ = s.bot.DB.Exec("UPDATE users SET abyss_lifetime_floors = abyss_lifetime_floors + 1 WHERE client_uid=$1", uid)
 
 	out := map[string]any{
@@ -2520,8 +2568,7 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 	if res.Victory {
 		o := s.applyFloorVictory(uid, run, depth, escrowBefore, tier, modifier, focus)
 		if o.DBErr {
-			writeJSON(w, map[string]any{"ok": false, "error": "db"})
-			return
+			return map[string]any{"ok": false, "error": "db"}
 		}
 		out["bonus"] = o.Bonus
 		out["escrow"] = o.NewEscrow
@@ -2563,11 +2610,11 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 	out["gold"] = gold
 	out["tokens"] = s.bot.abyssTokens(uid)
 	out["consumables"] = s.bot.getConsumables(uid)
-	
+
 	runFinal := s.bot.loadAbyssRun(uid)
 	out["auto_focus"] = s.autoSelectFocus(uid, runFinal)
 	
-	writeJSON(w, out)
+	return out
 }
 
 // handleAbyssRevive spends the one-per-run double-or-nothing: heal to full and
@@ -2575,6 +2622,9 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
 	unlock := s.lockAbyss(uid)
@@ -2678,6 +2728,9 @@ func (s *WebServer) handleAbyssConcede(w http.ResponseWriter, r *http.Request, u
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	if s.rejectDuringLiveCombat(w, uid) {
+		return
+	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
@@ -2722,6 +2775,9 @@ func (b *Bot) abyssBankTokenGrant(uid string, depth, upTribute int) int {
 func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
 	unlock := s.lockAbyss(uid)
@@ -2953,6 +3009,9 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	if s.rejectDuringLiveCombat(w, uid) {
+		return
+	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
@@ -3074,6 +3133,9 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
 	unlock := s.lockAbyss(uid)
@@ -4085,6 +4147,9 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	if s.rejectDuringLiveCombat(w, uid) {
+		return
+	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
@@ -4293,6 +4358,9 @@ func (s *WebServer) handleAbyssCoopList(w http.ResponseWriter, _ *http.Request, 
 func (s *WebServer) handleAbyssCoopInvite(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.rejectDuringLiveCombat(w, uid) {
 		return
 	}
 	unlock := s.lockAbyss(uid)
