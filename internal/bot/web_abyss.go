@@ -3004,7 +3004,7 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 	case content.ConsumableRepair:
 		repairAmt := 30
 		if req.ConsID == "repair_kit_ii" {
-			repairAmt = 25
+			repairAmt = 50
 		}
 		if req.ConsID == "master_repair_kit" {
 			repairAmt = 150

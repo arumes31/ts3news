@@ -544,7 +544,7 @@ var activeKeystoneCooldown = {{if .ActiveKeystoneCooldown}}"{{.ActiveKeystoneCoo
 var LIMIT_BREAK_ID = {{.LimitBreakID}};
 var SANCTUARY_ID = {{.SanctuaryID}};
 // Group G (AB-151..175) server data.
-var JEWELS = {{.Jewels}}; // loose jewel pouch: code → count (AB-155)
+var JEWELS = {{jsonJS .Jewels}} || {}; // loose jewel pouch: code → count (AB-155)
 var NODE_OF_DAY = {{.NodeOfDay}}; // half-price node, rotates daily (AB-167)
 var LOADOUTS = {{jsonJS .Loadouts}} || {}; // slot → saved node count (AB-151)
 var FREE_RESPEC = {{.FreeRespec}}; // first respec of the week is free (AB-157)

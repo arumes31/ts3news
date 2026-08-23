@@ -472,7 +472,7 @@ func buildConsumables() []Consumable {
 // but must still resolve through GetConsumableByID.
 var abyssExclusiveConsumables = []Consumable{
 	{"abyss_emergency_revive", "Emergency Revive Potion", ConsumableRevive, 1.0, 0, "Single-use: instantly heals you to full HP if you fall in the Abyss, beyond your normal one-per-run revival."},
-	{"repair_kit_ii", "Repair Kit II", ConsumableRepair, 25, 0, "Restores 25 durability to every equipped item."},
+	{"repair_kit_ii", "Repair Kit II", ConsumableRepair, 50, 0, "Restores 50 durability to every equipped item."},
 	// Corrupted consumables (AB-85): stronger effect plus self-damage on use.
 	// They only enter the pool via CorruptedConsumableVariant at drop time; the
 	// self-damage backlash is applied by the consumable-use handler, which keys
@@ -506,6 +506,7 @@ var allEnchantments []Enchantment
 var corruptedArtifacts []Artifact
 var positiveTitles []Title
 var negativeTitles []Title
+var directTitles map[string]Title
 
 // Artifact is an equippable relic that multiplies XP gain (a "boon" above
 // 1.0x, a curse below it) alongside its stat bonus.
@@ -582,6 +583,7 @@ func buildContent() {
 	corruptedArtifacts = nil
 	positiveTitles = nil
 	negativeTitles = nil
+	directTitles = make(map[string]Title)
 	allEnchantments = nil
 	allConsumables = buildConsumables()
 
@@ -960,7 +962,7 @@ func buildContent() {
 	// Stamp set lore onto named-set pieces so labels/tooltips can show it
 	// straight off the catalog entry (AB-80).
 	for i := range abyssExclusiveGear {
-		if lore := setLore[abyssExclusiveGear[i].SetID]; lore != "" {
+		if lore := setLore[abyssExclusiveGear[i].EffectiveSetID()]; lore != "" {
 			abyssExclusiveGear[i].Lore = lore
 		}
 	}
@@ -1116,11 +1118,11 @@ func buildContent() {
 
 	// Treasure-goblin collectible title (AB-96): unlocked by banking 5 goblin
 	// tokens. Kept modest — it is a cosmetic brag, not a power title.
-	positiveTitles = append(positiveTitles, Title{
+	directTitles["Goblin King"] = Title{
 		Name:         "Goblin King",
 		XPMultiplier: 1.10,
 		Stats:        Stats{LCK: 50, CHA: 100},
-	})
+	}
 
 	// 4. Generate Enchantments
 	enchPrefixes := i18n.Pool("pool.enchantment.prefix")
@@ -1587,6 +1589,9 @@ func GetConsumableByID(id string) (Consumable, bool) {
 
 // GetTitleByName looks up a title (positive or negative) by its display name.
 func GetTitleByName(name string) (Title, bool) {
+	if t, ok := directTitles[name]; ok {
+		return t, true
+	}
 	for _, t := range positiveTitles {
 		if t.Name == name {
 			return t, true

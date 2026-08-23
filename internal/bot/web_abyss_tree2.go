@@ -506,7 +506,11 @@ func (s *WebServer) handleAbyssTreeSwapKeystone(w http.ResponseWriter, r *http.R
 	// The point budget must still cover the swap (keystones all cost the same,
 	// but the prestige-memory exemption could make sets differ in principle).
 	total := s.bot.treePointsTotal(uid)
-	if spent := s.bot.treeSpentEx(uid, alloc) - from.Cost() + to.Cost(); spent > total {
+	resultingAlloc := make([]int, 0, len(newSet))
+	for id := range newSet {
+		resultingAlloc = append(resultingAlloc, id)
+	}
+	if spent := s.bot.treeSpentEx(uid, resultingAlloc); spent > total {
 		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("not enough skill points (would need %d of %d)", spent, total)})
 		return
 	}
@@ -572,27 +576,27 @@ const abyssJewelMaxTier = 5
 // parseJewelCode splits a normal jewel code into base type and tier:
 // "ruby" → ("ruby", 1), "ruby_3" → ("ruby", 3). Timeless codes return ok=false
 // (they carry their own seed/size/stat format and are never fused).
-func parseJewelCode(code string) (string, int, bool) {
+func parseJewelCode(code string) (string, int, string, bool) {
 	if code == "" || strings.HasPrefix(code, "timeless_") {
-		return "", 0, false
+		return "", 0, "", false
 	}
 	base, tier := code, 1
 	if i := strings.LastIndex(code, "_"); i >= 0 {
 		t, err := strconv.Atoi(code[i+1:])
 		if err != nil {
-			return "", 0, false
+			return "", 0, "", false
 		}
 		base, tier = code[:i], t
 	}
 	switch base {
 	case "ruby", "sapphire", "topaz":
 	default:
-		return "", 0, false
+		return "", 0, "", false
 	}
 	if tier < 1 || tier > abyssJewelMaxTier {
-		return "", 0, false
+		return "", 0, "", false
 	}
-	return base, tier, true
+	return base, tier, jewelTierCode(base, tier), true
 }
 
 // jewelTierCode builds the code for base at tier ("ruby", "ruby_2", …).
@@ -613,7 +617,15 @@ func loadTreeJewels(stored string) (map[string]int, error) {
 	if err := json.Unmarshal([]byte(stored), &out); err != nil {
 		return nil, err
 	}
-	return out, nil
+	canonical := make(map[string]int, len(out))
+	for code, count := range out {
+		if _, _, key, ok := parseJewelCode(code); ok {
+			canonical[key] += count
+		} else {
+			canonical[code] += count
+		}
+	}
+	return canonical, nil
 }
 
 // abyssJewelsMap loads the loose-jewel pouch for rendering/bonus paths; a
@@ -647,11 +659,12 @@ func (s *WebServer) handleAbyssTreeJewelFuse(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
-	base, tier, ok := parseJewelCode(req.Jewel)
+	base, tier, canonical, ok := parseJewelCode(req.Jewel)
 	if !ok {
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid or non-fusable jewel (timeless jewels cannot be fused)"})
 		return
 	}
+	req.Jewel = canonical
 	if tier >= abyssJewelMaxTier {
 		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("tier %d is the maximum", abyssJewelMaxTier)})
 		return
@@ -683,6 +696,11 @@ func (s *WebServer) handleAbyssTreeJewelFuse(w http.ResponseWriter, r *http.Requ
 			log.Printf("abyss socket map corrupt for %s: %v", uid, err)
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
+		}
+	}
+	for nodeID, code := range socketMap {
+		if _, _, key, ok := parseJewelCode(code); ok {
+			socketMap[nodeID] = key
 		}
 	}
 

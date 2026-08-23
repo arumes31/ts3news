@@ -529,6 +529,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 					legendaryPity = 0
 					celestialPity++
 					gotGearThisCall = true
+					ownedGear[g.ID] = true
 				}
 			default:
 				if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
@@ -583,6 +584,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	if _, err := b.DB.Exec("UPDATE users SET legendary_pity=$1, abyss_drop_streak=$2 WHERE client_uid=$3", legendaryPity, dropStreak, uid); err != nil {
 		log.Printf("abyss pity/streak persist failed for %s: %v", uid, err)
 	}
+	b.abyssSetCelestialPity(uid, celestialPity)
 	return labels
 }
 
@@ -710,6 +712,10 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 			if _, err := b.DB.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", g.Tokens, uid); err != nil {
 				return err
 			}
+		}
+	case "goblin_token":
+		if g.GoblinTokens > 0 {
+			b.abyssAddGoblinTokens(uid, g.GoblinTokens)
 		}
 	}
 	return nil

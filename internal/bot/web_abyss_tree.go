@@ -284,7 +284,7 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 				} else {
 					// Normal Jewel (tiered codes "ruby_2" etc. from jewel fusing,
 					// AB-155, scale the flat bonus by tier).
-					base, tier, jok := parseJewelCode(jewel)
+					base, tier, _, jok := parseJewelCode(jewel)
 					if jok {
 						for _, neighborID := range content.AbyssTree().Adj[nid] {
 							if allocatedMap[neighborID] {
@@ -493,11 +493,8 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		socketsJson = "{}"
 	}
 
-	// Loose jewel pouch (AB-155), rendered raw like the socket map.
-	jewelsBytes, err := json.Marshal(s.bot.abyssJewelsMap(uid))
-	if err != nil {
-		jewelsBytes = []byte("{}")
-	}
+	// Loose jewel pouch (AB-155); jsonJS serializes the map for the page.
+	jewels := s.bot.abyssJewelsMap(uid)
 
 	// Load keystone status
 	var activeUntil string
@@ -571,7 +568,7 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		"ActiveKeystoneExpiry": activeUntil,
 		"ActiveKeystoneCooldown": cooldownUntil,
 		// Group G (AB-151..175) page data.
-		"Jewels":           string(jewelsBytes),
+		"Jewels":           jewels,
 		"Loadouts":         loadoutCounts,
 		"NodeOfDay":        abyssNodeOfTheDay(now),
 		"FreeRespec":       s.bot.abyssFreeRespecAvailable(uid),
@@ -907,12 +904,13 @@ func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request
 	// fusing are socketable too — but only from the loose-jewel pouch.
 	jewelTier := 0
 	if req.Jewel != "" {
-		_, tier, ok := parseJewelCode(req.Jewel)
+		_, tier, canonical, ok := parseJewelCode(req.Jewel)
 		if !ok {
 			writeJSON(w, map[string]any{"ok": false, "error": "invalid jewel type"})
 			return
 		}
 		jewelTier = tier
+		req.Jewel = canonical
 	}
 
 	tx, err := s.bot.DB.Begin()
@@ -934,6 +932,11 @@ func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request
 			log.Printf("abyss socket map corrupt for %s: %v", uid, err)
 			writeJSON(w, map[string]any{"ok": false, "error": "db error"})
 			return
+		}
+	}
+	for nodeID, code := range socketMap {
+		if _, _, canonical, ok := parseJewelCode(code); ok {
+			socketMap[nodeID] = canonical
 		}
 	}
 
@@ -970,8 +973,8 @@ func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request
 
 	// Whatever was socketed before returns to the pouch instead of vanishing.
 	if old := socketMap[req.NodeID]; old != "" && old != req.Jewel {
-		if _, _, ok := parseJewelCode(old); ok {
-			loose[old]++
+		if _, _, canonical, ok := parseJewelCode(old); ok {
+			loose[canonical]++
 		}
 		// Timeless jewels are unique rolls — clearing one still destroys it.
 	}

@@ -120,3 +120,32 @@ func TestRandomGenerators(t *testing.T) {
 	RandomEnchantment()
 	RandomTitle()
 }
+
+func TestGoblinKingIsDirectOnlyTitle(t *testing.T) {
+	title, ok := GetTitleByName("Goblin King")
+	if !ok {
+		t.Fatal("GetTitleByName(Goblin King) failed")
+	}
+	if title.XPMultiplier != 1.10 || title.Stats.LCK != 50 || title.Stats.CHA != 100 {
+		t.Fatalf("Goblin King changed: %#v", title)
+	}
+	for _, candidate := range positiveTitles {
+		if candidate.Name == "Goblin King" {
+			t.Fatal("Goblin King must not be in the random positive-title pool")
+		}
+	}
+}
+
+func TestRepairKitIIExceedsDefaultKit(t *testing.T) {
+	base, ok := GetConsumableByID("repair_kit")
+	if !ok {
+		t.Fatal("default repair kit missing")
+	}
+	upgraded, ok := GetConsumableByID("repair_kit_ii")
+	if !ok {
+		t.Fatal("Repair Kit II missing")
+	}
+	if upgraded.EffectValue <= base.EffectValue {
+		t.Fatalf("Repair Kit II effect %v must exceed default %v", upgraded.EffectValue, base.EffectValue)
+	}
+}

@@ -39,20 +39,24 @@ func (b *Bot) loadRunFlags(uid string) map[string]int64 {
 	return out
 }
 
-func (b *Bot) saveRunFlags(uid string, m map[string]int64) {
+func (b *Bot) saveRunFlags(uid string, m map[string]int64) error {
 	data, err := json.Marshal(m)
 	if err != nil {
-		return
+		return fmt.Errorf("marshal run flags: %w", err)
 	}
-	_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+	_, err = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssRunFlagsKey(uid), string(data))
+	if err != nil {
+		return fmt.Errorf("save run flags: %w", err)
+	}
+	return nil
 }
 
 // setRunFlag updates a single run flag (read-modify-write under the Abyss lock).
-func (b *Bot) setRunFlag(uid, key string, v int64) {
+func (b *Bot) setRunFlag(uid, key string, v int64) error {
 	m := b.loadRunFlags(uid)
 	m[key] = v
-	b.saveRunFlags(uid, m)
+	return b.saveRunFlags(uid, m)
 }
 
 // ---- Small shared scales ----------------------------------------------------
@@ -73,7 +77,7 @@ func abyssHeavyPocketsPct(escrow int64) int {
 	if escrow <= 100_000 {
 		return 0
 	}
-	p := int(escrow / 50_000)
+	p := int((escrow - 100_000) / 50_000)
 	if p > 20 {
 		p = 20
 	}
@@ -507,7 +511,10 @@ func (s *WebServer) handleAbyssDeathWish(w http.ResponseWriter, r *http.Request,
 	if req.On {
 		v = 1
 	}
-	s.bot.setRunFlag(uid, "death_wish", v)
+	if err := s.bot.setRunFlag(uid, "death_wish", v); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	msg := "Death wish lifted. The dark pretends not to be disappointed."
 	if req.On {
 		msg = "💀 Death wish accepted — the next floor is 3× as deadly and pays double."
@@ -552,7 +559,10 @@ func (s *WebServer) handleAbyssAnchorRune(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	s.bot.setRunFlag(uid, "anchor_rune", 1)
+	if err := s.bot.setRunFlag(uid, "anchor_rune", 1); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	writeJSON(w, map[string]any{
 		"ok": true, "tokens": s.bot.abyssTokens(uid),
 		"msg": fmt.Sprintf("⚓ Anchor rune set (−🜲%d) — if you fall this run, half your cache is hauled up with you. One charge.", abyssAnchorRuneCost),

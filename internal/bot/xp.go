@@ -516,7 +516,7 @@ func (b *Bot) resolveChannelCombatDetailed(users []UserInCombat, initialMobs []*
 			activeUsers[i].petFocus = b.abyssPetFocus(users[i].UID)
 		}
 	}
-	finalRound := 0
+	totalRounds := 0
 
 	for w := 1; w <= waves; w++ {
 		var currentMobs []*content.Mob
@@ -617,7 +617,7 @@ func (b *Bot) resolveChannelCombatDetailed(users []UserInCombat, initialMobs []*
 		summonTelegraph := make(map[*content.Mob]int)
 
 		for r := 1; r <= maxRounds; r++ {
-			finalRound = r
+			totalRounds++
 			intensify := 1.0 + float64(r-1)*0.15
 			fatigueMult := 1.0
 			if r > 5 {
@@ -891,13 +891,13 @@ func (b *Bot) resolveChannelCombatDetailed(users []UserInCombat, initialMobs []*
 	// AB-69 Kill-chain: clearing the floor in ≤2 rounds grants +5% speed next
 	// floor, stacking ×3. Granted after distributeRewards so the standard
 	// per-fight consumable decrement doesn't burn the fresh stack immediately.
-	if victory && isAbyss && finalRound >= 1 && finalRound <= 2 {
+	if victory && isAbyss && totalRounds >= 1 && totalRounds <= 2 {
 		for i := range users {
 			if users[i].IsClone {
 				continue
 			}
 			if stacks := b.grantKillChain(users[i].UID); stacks > 0 {
-				logs = append(logs, fmt.Sprintf("⚡ Kill-chain! %s cleared the floor in %d round(s) — +%d%% speed next floor!", users[i].Nickname, finalRound, stacks*5))
+				logs = append(logs, fmt.Sprintf("⚡ Kill-chain! %s cleared the floor in %d round(s) — +%d%% speed next floor!", users[i].Nickname, totalRounds, stacks*5))
 			}
 		}
 	}

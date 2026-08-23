@@ -234,9 +234,10 @@ func (s *WebServer) handleAbyssTemperGuard(w http.ResponseWriter, r *http.Reques
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	key := forge4ItemKey(req.InvID, req.Slot)
 	var existing string
 	_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4TemperGuardKey(uid)).Scan(&existing)
-	if existing != "" {
+	if existing == key {
 		writeJSON(w, map[string]any{"ok": false, "error": "an insurance stone is already active (" + existing + ") — it lasts until it absorbs a fail"})
 		return
 	}
@@ -244,7 +245,6 @@ func (s *WebServer) handleAbyssTemperGuard(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough Umbral Cores (need 2)"})
 		return
 	}
-	key := forge4ItemKey(req.InvID, req.Slot)
 	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 	                      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, forge4TemperGuardKey(uid), key); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -1342,6 +1342,18 @@ func (s *WebServer) handleAbyssFusePreview(w http.ResponseWriter, r *http.Reques
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
+	}
+	if len(req.InvIDs) < 2 || len(req.InvIDs) > 3 {
+		writeJSON(w, map[string]any{"ok": false, "error": "fusion preview requires 2 or 3 items"})
+		return
+	}
+	seen := make(map[int64]bool, len(req.InvIDs))
+	for _, id := range req.InvIDs {
+		if seen[id] {
+			writeJSON(w, map[string]any{"ok": false, "error": "duplicate inventory item"})
+			return
+		}
+		seen[id] = true
 	}
 
 	tx, err := s.bot.DB.Begin()
