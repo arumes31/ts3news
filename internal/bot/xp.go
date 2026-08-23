@@ -1413,7 +1413,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					readyUlt = us
 				}
 			}
-			if readyUlt != nil && !(au.holdMana && !bossPresent) {
+			if readyUlt != nil && (!au.holdMana || bossPresent) {
 				ultMult := readyUlt.Power
 				if bonus := au.treeBonus.Pct["ult_damage"]; bonus > 0 {
 					ultMult *= (1.0 + bonus)
