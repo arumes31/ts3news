@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand/v2"
+	"time"
 
 	"ts3news/internal/content"
 	"ts3news/internal/i18n"
@@ -33,12 +34,26 @@ const (
 )
 
 // abyssGearLabel builds the display label for an Abyss gear drop; unidentified
-// pieces hide the item name (slot shown in its place).
+// pieces render as a silhouette (slot icon + rarity hint only, AB-92) so the
+// stats stay hidden until the item is identified.
 func abyssGearLabel(g content.Gear) string {
 	if g.Unidentified {
-		return fmt.Sprintf("Unidentified %s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", string(g.Slot), string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
+		return fmt.Sprintf("%s Unidentified %s (R:[color=%s]%s[/color])", content.SlotIcon(g.Slot), string(g.Slot), g.Rarity.Color(), g.Rarity.String())
 	}
-	return fmt.Sprintf("%s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
+	label := fmt.Sprintf("%s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
+	// Foil flair (AB-78): cosmetic shine, no stat change.
+	if g.Foil {
+		label += " [color=#fff59d]✨FOIL[/color]"
+	}
+	// Doomed (AB-79): cursed+eldritch co-occurrence — red-black "beam-doomed".
+	if g.Doomed {
+		label += " [color=#b71c1c]☠DOOMED[/color]"
+	}
+	// Set/item lore tooltip line (AB-80).
+	if g.Lore != "" {
+		label += fmt.Sprintf(" [color=#8a93a8]❝%s❞[/color]", g.Lore)
+	}
+	return label
 }
 
 // awardCombatLoot routes a defeated mob's drops either to the normal inline loot
@@ -82,6 +97,9 @@ type abyssLootGrant struct {
 	MatID     string               `json:"mat_id,omitempty"` // crafting material (#101/#119)
 	MatN      int                  `json:"mat_n,omitempty"`
 	Tokens    int64                `json:"tokens,omitempty"`
+	// GoblinTokens is a treasure-goblin collectible grant (AB-96); 5 banked
+	// tokens unlock the "Goblin King" title.
+	GoblinTokens int `json:"goblin_tokens,omitempty"`
 }
 
 // lootRarityScale dampens high-rarity drop chances for low-level / low-difficulty
@@ -168,16 +186,23 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		}
 		lootFindBonus += bonus
 	}
+	// Celestial pity counter (AB-95): gear drops since the last Celestial+ piece,
+	// tracked in app_meta (display-only; there is no celestial pity cap).
+	celestialPity := b.abyssCelestialPity(uid)
 	gotGearThisCall := false
 
 	// Duplicate protection: gear rolls in this call retry (capped) to avoid an
 	// exact catalog ID the player already owns, equipped or in the backpack.
+	// ownedGearCount powers the duplicate-legendary auto-convert (AB-87).
 	ownedGear := make(map[string]bool)
-	if gearRows, err := b.DB.Query("SELECT gear_id FROM user_gear WHERE client_uid=$1 UNION SELECT gear_id FROM user_inventory WHERE client_uid=$1", uid); err == nil {
+	ownedGearCount := make(map[string]int)
+	if gearRows, err := b.DB.Query("SELECT gear_id, COUNT(*) FROM (SELECT gear_id FROM user_gear WHERE client_uid=$1 UNION ALL SELECT gear_id FROM user_inventory WHERE client_uid=$1) owned GROUP BY gear_id", uid); err == nil {
 		for gearRows.Next() {
 			var id string
-			if gearRows.Scan(&id) == nil {
+			var n int
+			if gearRows.Scan(&id, &n) == nil {
 				ownedGear[id] = true
+				ownedGearCount[id] = n
 			}
 		}
 		if err := gearRows.Err(); err != nil {
@@ -251,6 +276,13 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			g.Name = "🩸 Corrupted " + g.Name
 		}
 
+		// Doomed items (AB-79): the cursed+eldritch co-occurrence — both
+		// drawbacks (−2% HP/round and the eldritch price) on one oversized
+		// piece, rendered with the red-black "beam-doomed" beam.
+		if g.Cursed && g.Eldritch {
+			g.Doomed = true
+		}
+
 		// Life-regen affix (real-time Abyss web regen): Rare+ gear can roll a slow
 		// out-of-combat heal of 1-5 HP every 5-60s (both rolled). Ticks live on the
 		// Abyss dashboard; see (*Bot).applyAbyssRegen.
@@ -259,6 +291,24 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			g.RegenAmount = 1 + rand.IntN(5)       // 1-5 HP
 			g.RegenIntervalSec = 5 + rand.IntN(56) // 5-60 seconds
 		}
+
+		// Foil variants (AB-78): 1% of drops get a cosmetic animated shine
+		// (no stat change, pure brag).
+		// #nosec G404 -- non-cryptographic loot roll
+		if rand.Float64() < 0.01 {
+			g.Foil = true
+		}
+
+		// "of the Deep" suffix (AB-86): drops past depth 40 can roll bonus STA.
+		// #nosec G404 -- non-cryptographic loot roll
+		if run.Active && run.Depth > 40 && rand.Float64() < 0.10 {
+			g.Stats.STA += 10 + run.Depth/5
+			g.Name += " of the Deep"
+		}
+
+		// Acquisition timestamp for the sentimental-value "broken in" bonus
+		// (AB-91; the +1% stats are applied by the stat aggregation in xp.go).
+		g.FoundAt = time.Now().UTC().Format(time.RFC3339)
 
 		label := abyssGearLabel(g)
 		if !g.Unidentified && g.RegenAmount > 0 {
@@ -275,14 +325,22 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			} else {
 				label += " [color=#41c97a]▲ empty slot[/color]"
 			}
+			// Salvage preview (AB-100): expected material yield for this rarity.
+			if mat, n := materialYieldForRarity(g.Rarity); n > 0 {
+				label += fmt.Sprintf(" [color=#8a93a8]⚒ ~%s ×%d[/color]", abyssMaterialName(mat), n)
+			}
 		}
 		return label, g
 	}
 
 	// Bosses and legendaries always seal a guaranteed consumable.
 	if mob.Type == content.MobBoss || mob.Type == content.MobLegendary {
-		c := content.RandomConsumable()
-		add(i18n.T("bot.loot.item", c.Name, c.ID), abyssLootGrant{Type: "cons", ConsID: c.ID, ConsDur: c.Duration})
+		c := rollAbyssConsumable()
+		cl := i18n.T("bot.loot.item", c.Name, c.ID)
+		if content.IsCorruptedConsumable(c.ID) {
+			cl = "🩸 " + cl // corrupted consumables (AB-85) are red-flagged
+		}
+		add(cl, abyssLootGrant{Type: "cons", ConsID: c.ID, ConsDur: c.Duration})
 	}
 
 	// Deep material seams (#119): from depth 30 the dark bleeds crafting
@@ -312,7 +370,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		default:
 			relicName = mob.Name + "'s Ancient Sigil"
 		}
-		add(fmt.Sprintf("✨ Unique Relic: %s [Legendary]", relicName), abyssLootGrant{
+		add(fmt.Sprintf("✨ Unique Relic: %s [Legendary] [color=#8a93a8]❝%s❞[/color]", relicName, abyssBossRelicLore(mob.Name)), abyssLootGrant{
 			Type: "unique", UniqName: relicName, UniqRar: content.RarityLegendary, UniqPow: 15.0,
 		})
 	}
@@ -335,6 +393,11 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			// player keep a guaranteed Legendary for free by dying (escrow bypass).
 			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
 				legendaryPity = 0
+				if g.Rarity >= content.RarityCelestial {
+					celestialPity = 0
+				} else {
+					celestialPity++
+				}
 				gotGearThisCall = true
 				ownedGear[g.ID] = true // don't re-award this exact item on a later roll
 			}
@@ -379,22 +442,30 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			}
 			gold = int64(float64(gold) * goldFindMult) // skill web gold_find
 			add(fmt.Sprintf("💰 %d gold", gold), abyssLootGrant{Type: "gold", Gold: gold})
+			// Treasure goblins also drop a goblin-token collectible (AB-96);
+			// 5 banked tokens unlock the "Goblin King" title at bank time.
+			if mob.Type == content.MobTreasureGoblin {
+				add(fmt.Sprintf("🪙 Goblin Token (%d/%d banked)", b.abyssGoblinTokens(uid)+1, abyssGoblinTitleAt), abyssLootGrant{Type: "goblin_token", GoblinTokens: 1})
+			}
 			continue
 		}
 
-		// Cumulative loot bands (ascending). These MUST accumulate: the per-type chances
+		// Cumulative loot bands (ascending), built from the shared per-type
+		// probabilities (abyssDropForecastData) that also feed the drop-quality
+		// forecast (AB-77). These MUST accumulate: the per-type chances
 		// are individual probabilities, so used as bare thresholds in a first-match chain
 		// the duplicated ones (title==ultimate=0.005, artifact==unique=0.01, gear==cons=0.10)
 		// collapse to zero-width bands and gear/title/artifact never drop. Summing them
 		// gives each type its own slice: ~0.5/0.5/1/1/2/5/10/10% before the common default.
-		cUlt := ultimateSkillChance * qualityMult * rareScale
-		cTitle := cUlt + titleChance*qualityMult*rareScale
-		cUniq := cTitle + uniqueItemChance*qualityMult*rareScale
-		cArt := cUniq + artifactChance*qualityMult*rareScale
-		cEnch := cArt + enchChance*qualityMult*rareScale
-		cSkill := cEnch + skillChance*qualityMult
-		cCons := cSkill + consChance*qualityMult
-		cGear := cCons + gearChance*qualityMult
+		fc := abyssDropForecastData(qualityMult, rareScale)
+		cUlt := fc.Ultimate
+		cTitle := cUlt + fc.Title
+		cUniq := cTitle + fc.Unique
+		cArt := cUniq + fc.Artifact
+		cEnch := cArt + fc.Enchant
+		cSkill := cEnch + fc.Skill
+		cCons := cSkill + fc.Consumable
+		cGear := cCons + fc.Gear
 		switch {
 		case r < cUlt:
 			us := content.RandomUltimateSkill()
@@ -418,8 +489,12 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			s.Power *= zoneDifficulty
 			add(fmt.Sprintf("📘 Skill: %s (gs:%d)", s.Name, s.Score()), abyssLootGrant{Type: "skill", Skill: &s})
 		case r < cCons:
-			c := content.RandomConsumable()
-			add(i18n.T("bot.loot.item", c.Name, c.ID), abyssLootGrant{Type: "cons", ConsID: c.ID, ConsDur: c.Duration})
+			c := rollAbyssConsumable()
+			cl := i18n.T("bot.loot.item", c.Name, c.ID)
+			if content.IsCorruptedConsumable(c.ID) {
+				cl = "🩸 " + cl // corrupted consumables (AB-85) are red-flagged
+			}
+			add(cl, abyssLootGrant{Type: "cons", ConsID: c.ID, ConsDur: c.Duration})
 		case r < cGear:
 			g := content.RandomGearDropExcluding(ownedGear)
 			// #nosec G404 -- non-cryptographic loot roll
@@ -428,22 +503,55 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			}
 			// Insanity-tier exclusives: 25% of gear drops in an Insanity run come
 			// from the Insanity-only catalog (huge stats, harsh trade-offs).
+			insanityDrop := false
 			// #nosec G404 -- non-cryptographic loot roll
 			if run.Tier == "insanity" && rand.Float64() < 0.25 {
 				g = content.RandomInsanityGearDropExcluding(ownedGear)
+				insanityDrop = true
+			}
+			// Lucid variants (AB-81): 10% of Insanity drops lose the negative
+			// trade-off stat but scale 20% down.
+			// #nosec G404 -- non-cryptographic loot roll
+			if insanityDrop && rand.Float64() < 0.10 {
+				g = lucidInsanityVariant(g)
 			}
 			label, g := processGear(g)
 			// Escrow every drop (empty slots included) so it stays forfeitable on death.
 			// Only touch pity once the drop is actually escrowed, so a failed save
 			// can't reset (or skip incrementing) the counter.
-			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
-				if g.Rarity >= content.RarityLegendary {
+			switch {
+			// Duplicate-legendary auto-convert (AB-87): with the toggle on, a
+			// Legendary+ piece the player already owns twice becomes 5 Umbral
+			// Cores instead. Still counts as a legendary drop for pity.
+			case g.Rarity >= content.RarityLegendary && b.abyssDupLegendConvert(uid) && ownedGearCount[g.ID] >= 2:
+				cvLabel := fmt.Sprintf("♻ Duplicate converted: %s → %s ×5", g.Name, abyssMaterialName("core"))
+				if add(cvLabel, abyssLootGrant{Type: "mat", MatID: "core", MatN: 5}) {
 					legendaryPity = 0
-				} else {
-					legendaryPity++
+					celestialPity++
+					gotGearThisCall = true
+					ownedGear[g.ID] = true
 				}
-				gotGearThisCall = true
-				ownedGear[g.ID] = true // don't re-award this exact item on a later roll
+			default:
+				if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
+					if g.Rarity >= content.RarityLegendary {
+						legendaryPity = 0
+					} else {
+						legendaryPity++
+					}
+					if g.Rarity >= content.RarityCelestial {
+						celestialPity = 0
+					} else {
+						celestialPity++
+					}
+					gotGearThisCall = true
+					ownedGear[g.ID] = true // don't re-award this exact item on a later roll
+					// Eternal drops push a TS3 channel announcement (AB-93).
+					// Eternal gear is forge-ascension-only today, so this is a
+					// defensive hook; the ascension path calls the same fanfare.
+					if g.Rarity >= content.RarityEternal {
+						go b.broadcastAbyssEternalDrop(uid, g.Name)
+					}
+				}
 			}
 		default:
 			// 100% drop guarantee → a common gear or a small potion.
@@ -476,6 +584,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	if _, err := b.DB.Exec("UPDATE users SET legendary_pity=$1, abyss_drop_streak=$2 WHERE client_uid=$3", legendaryPity, dropStreak, uid); err != nil {
 		log.Printf("abyss pity/streak persist failed for %s: %v", uid, err)
 	}
+	b.abyssSetCelestialPity(uid, celestialPity)
 	return labels
 }
 
@@ -603,6 +712,10 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 			if _, err := b.DB.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", g.Tokens, uid); err != nil {
 				return err
 			}
+		}
+	case "goblin_token":
+		if g.GoblinTokens > 0 {
+			b.abyssAddGoblinTokens(uid, g.GoblinTokens)
 		}
 	}
 	return nil

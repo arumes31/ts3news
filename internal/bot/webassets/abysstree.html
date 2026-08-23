@@ -307,6 +307,129 @@
   stroke-width: 3.5px;
   filter: drop-shadow(0 0 4px rgba(244, 197, 66, 0.3));
 }
+
+/* ---- Group G (AB-151..175) ---- */
+/* AB-158: depth-gated nodes glow once you qualify for them. */
+.tn.gate-open {
+  filter: drop-shadow(0 0 7px rgba(65, 201, 122, 0.8));
+  stroke: var(--good);
+}
+/* AB-167: node of the day (half price). */
+@keyframes notdPulse {
+  50% { filter: drop-shadow(0 0 12px rgba(255, 216, 91, 0.95)); }
+}
+.tn.notd {
+  stroke: #ffd85b;
+  stroke-width: 2.5;
+  animation: notdPulse 2.2s ease-in-out infinite;
+}
+/* AB-174: glow tiers by point cost (notables/bridges 2, keystones 3; auras have
+   their own stronger t-aura style). */
+.tn.mg1 {
+  filter: drop-shadow(0 0 4px rgba(178, 107, 255, 0.45));
+}
+.tn.mg2 {
+  filter: drop-shadow(0 0 7px rgba(244, 197, 66, 0.55));
+}
+/* AB-168: prestige memory node. */
+.tn.pmem {
+  stroke-dasharray: 3 2;
+}
+/* AB-156: timeless jewel radius overlay + affected nodes. */
+.tj-radius {
+  fill: rgba(178, 107, 255, 0.07);
+  stroke: rgba(178, 107, 255, 0.6);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+}
+.tn.tj-in {
+  filter: drop-shadow(0 0 8px #b26bff) !important;
+}
+/* AB-154: pathfinder cheapest-path highlight. */
+.te.pf {
+  stroke: #5bc0ff !important;
+  stroke-width: 4 !important;
+  filter: drop-shadow(0 0 7px #5bc0ff) !important;
+}
+.tn.pf {
+  filter: drop-shadow(0 0 10px #5bc0ff) !important;
+  stroke: #5bc0ff !important;
+}
+/* AB-175: beginner path overlay. */
+.tn.beginner {
+  stroke: #9af0be !important;
+  stroke-width: 3 !important;
+  filter: drop-shadow(0 0 9px rgba(65, 201, 122, 0.9)) !important;
+}
+/* AB-173: keystone cooldown timer text under the node. */
+.tn-cd {
+  fill: #ff9f43;
+  font-size: 13px;
+  font-weight: bold;
+  text-anchor: middle;
+  pointer-events: none;
+  font-family: system-ui, sans-serif;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.7);
+  stroke-width: 3;
+}
+/* AB-163: minimap with viewport rectangle. */
+#treeStage {
+  position: relative;
+}
+#treeMinimap {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 170px;
+  height: 170px;
+  background: rgba(10, 12, 24, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  cursor: crosshair;
+  z-index: 5;
+}
+#treeMinimapSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#treeMinimapSvg .mm-view {
+  fill: rgba(91, 192, 255, 0.08);
+  stroke: #5bc0ff;
+  stroke-width: 1;
+  pointer-events: none;
+}
+/* AB-171: low-detail mode — kill edge flows, glows, swirls and the starfield. */
+.low-detail .te.on,
+.low-detail .te.te-chaotic.on,
+.low-detail .portal-swirl,
+.low-detail .tn.notd,
+.low-detail .tree-svg-fade {
+  animation: none !important;
+}
+.low-detail .tn,
+.low-detail .te,
+.low-detail .constell-line {
+  filter: none !important;
+  transition: none !important;
+}
+.low-detail .tree-bg-stars {
+  display: none;
+}
+/* Feature toolbar row (loadouts / build codes / toggles). */
+.tree-toolbar2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.tree-toolbar2 .ghost.active {
+  border-color: rgba(244, 197, 66, 0.5);
+  color: var(--gold);
+}
 </style>
 <div class="tree-head">
   <div>
@@ -317,9 +440,28 @@
     <span class="pill" id="treeAvailPill">✨ <b id="treeAvail">{{.Avail}}</b> available</span>
     <span class="pill" id="treePointsPill">🔵 <b id="treeUsed">{{.Used}}</b> / <b id="treePoints">{{.Points}}</b> points</span>
     <span class="pill" id="treeTokensPill" style="display:none; color:#f4c542;">🜲 <b id="treeTokens">{{.Tokens}}</b> tokens</span>
-    <button class="ghost xs" id="treeRespecBtn" onclick="treeRespec()">♻️ Respec (🜲 {{.RespecTk}})</button>
+    <button class="ghost xs" id="treeRespecBtn" onclick="treeRespec()">{{if .FreeRespec}}♻️ Respec (free this week){{else}}♻️ Respec (🜲 {{.RespecTk}}){{end}}</button>
+    <button class="ghost xs" id="treeUndoBtn" style="display:none;" onclick="tryUndoAlloc()">↩️ Undo</button>
     <a class="ghost xs" href="/abyss">← Back to the Abyss</a>
   </div>
+</div>
+
+<div class="tree-toolbar2" id="treeToolbar2">
+  <span class="muted small">Loadouts:</span>
+  <button class="ghost xs" onclick="loadoutSave(1)" title="Save current allocation to slot 1">💾1</button>
+  <button class="ghost xs" onclick="loadoutApply(1)" title="Apply loadout slot 1 (normal respec cost)">▶1<span id="lo1"></span></button>
+  <button class="ghost xs" onclick="loadoutSave(2)" title="Save current allocation to slot 2">💾2</button>
+  <button class="ghost xs" onclick="loadoutApply(2)" title="Apply loadout slot 2 (normal respec cost)">▶2<span id="lo2"></span></button>
+  <button class="ghost xs" onclick="loadoutSave(3)" title="Save current allocation to slot 3">💾3</button>
+  <button class="ghost xs" onclick="loadoutApply(3)" title="Apply loadout slot 3 (normal respec cost)">▶3<span id="lo3"></span></button>
+  <span class="muted small">·</span>
+  <button class="ghost xs" onclick="buildExport()" title="Copy a shareable build code">📤 Export</button>
+  <button class="ghost xs" onclick="buildImport()" title="Import a build code (normal respec cost)">📥 Import</button>
+  <span class="muted small">·</span>
+  <button class="ghost xs" id="treeBeginnerBtn" onclick="toggleBeginner()" title="Highlight a suggested first 10 nodes">🧭 Beginner path</button>
+  <button class="ghost xs" id="treeLowDetailBtn" onclick="toggleLowDetail()" title="Disable glows/animations for low-end devices">🐢 Low detail</button>
+  <button class="ghost xs" id="treePathfinderBtn" style="display:none;" onclick="clearPathfinder()" title="Clear the pathfinder highlight">🎯 Clear path</button>
+  <span class="pill" id="treeQueuePill" style="display:none;">📋 <b id="treeQueueCount">0</b> queued <a href="javascript:void(0)" onclick="clearAllocQueue()" title="Clear the allocation queue">✕</a></span>
 </div>
 
 <div class="tree-tabs">
@@ -341,6 +483,7 @@
 
 <div class="tree-stage" id="treeStage">
   <svg id="treeSvg" class="tree-svg"></svg>
+  <div id="treeMinimap" title="Minimap — click to pan"><svg id="treeMinimapSvg"></svg></div>
   <div id="treeTip" class="tree-tip" style="display:none;"></div>
 </div>
 
@@ -400,6 +543,34 @@ var activeKeystoneCooldown = {{if .ActiveKeystoneCooldown}}"{{.ActiveKeystoneCoo
 // Layout-derived special nodes (server-injected so they never drift from the tree).
 var LIMIT_BREAK_ID = {{.LimitBreakID}};
 var SANCTUARY_ID = {{.SanctuaryID}};
+// Group G (AB-151..175) server data.
+var JEWELS = {{jsonJS .Jewels}} || {}; // loose jewel pouch: code → count (AB-155)
+var NODE_OF_DAY = {{.NodeOfDay}}; // half-price node, rotates daily (AB-167)
+var LOADOUTS = {{jsonJS .Loadouts}} || {}; // slot → saved node count (AB-151)
+var FREE_RESPEC = {{.FreeRespec}}; // first respec of the week is free (AB-157)
+var MASTERY_SHARDS = {{.MasteryShards}}; // boss-drop branch refunds (AB-159)
+var PRESTIGE_MEMORY = {{.PrestigeMemory}}; // node kept free through prestige (AB-168)
+var KEYSTONE_ACTIVE_SECS = {{.KeystoneActiveSecs}}; // remaining timed-buff seconds (AB-173)
+var KEYSTONE_CD_SECS = {{.KeystoneCooldownSecs}}; // remaining cooldown seconds (AB-173)
+var beginnerOn = false, beginnerPath = [];
+var pathfinderChain = [], allocQueue = [];
+var queueRunning = false, lowDetailOn = false;
+var minimapBounds = null, minimapReady = false;
+var keystoneTimerStartedAt = Date.now();
+try {
+  var storedQueue = JSON.parse(localStorage.getItem('abyssTreeAllocQueue') || '[]');
+  if (Array.isArray(storedQueue)) {
+    var queueSeen = {};
+    allocQueue = storedQueue.map(Number).filter(function(id) {
+      if (!byId[id] || alloc[id] || queueSeen[id]) return false;
+      queueSeen[id] = true;
+      return true;
+    });
+  }
+  lowDetailOn = localStorage.getItem('abyssTreeLowDetail') === '1';
+} catch (e) {
+  allocQueue = [];
+}
 
 var CONSTELLATIONS = [
   // Sword (War - Sector 0)
@@ -612,6 +783,80 @@ function applyView(){
   if (gStars) {
     gStars.setAttribute('transform', 'translate(' + (view.x * 0.4) + ',' + (view.y * 0.4) + ')');
   }
+  updateMinimap(); // AB-163: keep the viewport rectangle in sync
+}
+
+// AB-163: render the whole tree as a single lightweight SVG path, then keep a
+// viewport rectangle in the same coordinate system as the main web.
+function updateMinimap(){
+  if (activeTab !== 'passive') return;
+  var mm = document.getElementById('treeMinimapSvg');
+  if (!mm || !NODES.length) return;
+  if (!minimapBounds) {
+    var minX = 0, minY = 0, maxX = 0, maxY = 0;
+    NODES.forEach(function(n){
+      minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
+      maxX = Math.max(maxX, n.x); maxY = Math.max(maxY, n.y);
+    });
+    var pad = 80;
+    minimapBounds = {x:minX-pad, y:minY-pad, w:maxX-minX+pad*2, h:maxY-minY+pad*2};
+  }
+  var b = minimapBounds;
+  mm.setAttribute('viewBox', b.x+' '+b.y+' '+b.w+' '+b.h);
+  mm.setAttribute('preserveAspectRatio', 'none');
+  if (!minimapReady) {
+    var d = '';
+    NODES.forEach(function(n){ d += 'M'+n.x+' '+n.y+'m-8 0a8 8 0 1 0 16 0a8 8 0 1 0-16 0'; });
+    var dots = document.createElementNS(NS, 'path');
+    dots.setAttribute('d', d);
+    dots.setAttribute('fill', 'rgba(91,192,255,.38)');
+    dots.setAttribute('pointer-events', 'none');
+    mm.appendChild(dots);
+    var rect = document.createElementNS(NS, 'rect');
+    rect.setAttribute('id', 'treeMinimapView');
+    rect.setAttribute('class', 'mm-view');
+    mm.appendChild(rect);
+    mm.addEventListener('click', function(ev){
+      var r = mm.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      var cx = b.x + (ev.clientX-r.left)/r.width*b.w;
+      var cy = b.y + (ev.clientY-r.top)/r.height*b.h;
+      view.x = cx-view.w/2; view.y = cy-view.h/2;
+      applyView();
+    });
+    minimapReady = true;
+  }
+  var vr = document.getElementById('treeMinimapView');
+  if (vr) {
+    vr.setAttribute('x', view.x); vr.setAttribute('y', view.y);
+    vr.setAttribute('width', view.w); vr.setAttribute('height', view.h);
+  }
+}
+
+// AB-156: preview the exact Euclidean radius used by treeBonusFor server-side.
+function showTimelessRadius(n){
+  hideTimelessRadius();
+  if (!n || n.type !== 'socket') return;
+  var code = sockets[n.id] || '';
+  if (code.indexOf('timeless_') !== 0) return;
+  var size = code.split('_')[2];
+  var radius = size === 'large' ? 350 : size === 'medium' ? 220 : 120;
+  var circle = document.createElementNS(NS, 'circle');
+  circle.setAttribute('id', 'treeTimelessRadius');
+  circle.setAttribute('class', 'tj-radius');
+  circle.setAttribute('cx', n.x); circle.setAttribute('cy', n.y);
+  circle.setAttribute('r', radius);
+  svg.appendChild(circle);
+  NODES.forEach(function(other){
+    if (Math.hypot(other.x-n.x, other.y-n.y) <= radius && nodeEls[other.id]) {
+      nodeEls[other.id].classList.add('tj-in');
+    }
+  });
+}
+function hideTimelessRadius(){
+  var circle = document.getElementById('treeTimelessRadius');
+  if (circle) circle.remove();
+  NODES.forEach(function(n){ if (nodeEls[n.id]) nodeEls[n.id].classList.remove('tj-in'); });
 }
 
 // Server-side allocation floor gates (Item 62), mirrored client-side so the
@@ -631,8 +876,15 @@ function nodeCost(n){
   if(!n) return 1;
   return n.type==='aura' ? 50 : n.type==='keystone' ? 3 : (n.type==='notable'||n.type==='bridge') ? 2 : 1;
 }
+// Effective cost with the node-of-the-day half price (AB-167), mirroring
+// treeNodeCostFor server-side.
+function effCost(n){
+  var c = nodeCost(n);
+  if(n && n.id === NODE_OF_DAY && c > 1) c = Math.ceil(c / 2);
+  return c;
+}
 function isAllocatable(id){
-  if(alloc[id] || used + nodeCost(byId[id]) > points) return false;
+  if(alloc[id] || used + effCost(byId[id]) > points) return false;
   if(gateFloor(byId[id]) > bestDepth) return false;
   var ns = adj[id] || [];
   for(var i=0;i<ns.length;i++){ if(ns[i]===0 || alloc[ns[i]]) return true; }
@@ -853,7 +1105,13 @@ function build(){
       c.setAttribute('tabindex','0');
       c.setAttribute('role','button');
       c.setAttribute('aria-label', n.name + (n.desc ? ' — ' + n.desc : ''));
-      c.addEventListener('click', function(ev){ ev.stopPropagation(); tryAllocate(n.id); });
+      c.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        if (ev.shiftKey) { queueAdd(n.id); return; } // AB-164: queue for later
+        if (ev.altKey) { setPathfinder(n.id); return; } // AB-154: cheapest path
+        if ((ev.ctrlKey || ev.metaKey) && n.type === 'keystone' && !alloc[n.id]) { tryKeystoneSwap(n.id); return; } // AB-152
+        tryAllocate(n.id);
+      });
       c.addEventListener('keydown', function(ev){
         if(ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar'){ ev.preventDefault(); tryAllocate(n.id); }
         // Keyboard refund (the tooltip's button is mouse-oriented).
@@ -862,6 +1120,7 @@ function build(){
       c.addEventListener('mouseenter', function(ev){
         showTip(n, ev);
         highlightPath(n); // Hover highlight path (Item 3)
+        showTimelessRadius(n); // AB-156: timeless jewel area preview
         if (isAllocatable(n.id)) {
           renderSummary(activePct, activeStats, n);
         }
@@ -871,6 +1130,7 @@ function build(){
         // button is otherwise unreachable); entering the tooltip cancels it.
         scheduleHideTip();
         clearPathHighlight(); // Clear hover path (Item 3)
+        hideTimelessRadius();
         renderSummary(activePct, activeStats);
       });
       // Keyboard users get the same tooltip, anchored to the node itself.
@@ -889,6 +1149,7 @@ function build(){
       }
     });
     svg.appendChild(gN);
+    renderKeystoneTimer();
     paint();
     applyView();
   } else if (activeTab === 'talents') {
@@ -1146,7 +1407,7 @@ function switchTab(tab) {
     sub.textContent = 'Thousands of nodes across six disciplines out to the far rim — every path connects. Points scale with levels, depth records, lifetime floors and prestige. Small nodes cost 1, ★ notables & bridges 2, keystones 3, 🌟 auras 50.';
     respecBtn.style.display = '';
     respecBtn.setAttribute('onclick', 'treeRespec()');
-    respecBtn.innerHTML = '♻️ Respec (🜲 {{.RespecTk}})';
+    respecBtn.innerHTML = FREE_RESPEC ? '♻️ Respec (free this week)' : '♻️ Respec (🜲 {{.RespecTk}})';
     document.getElementById('treePointsPill').style.display = '';
     document.getElementById('treeAvailPill').style.display = '';
     if (tokensPill) tokensPill.style.display = 'none';
@@ -1180,6 +1441,12 @@ function switchTab(tab) {
   view = (tab === 'passive')  ? {x:-1800, y:-1800, w:3600, h:3600}
        : (tab === 'talents')  ? {x:-780, y:-220, w:1560, h:1560}
        : {x:-560, y:-170, w:1120, h:1120};
+
+  // Group G widgets belong to the passive web only.
+  var tb2 = document.getElementById('treeToolbar2');
+  if (tb2) tb2.style.display = (tab === 'passive') ? '' : 'none';
+  var mm = document.getElementById('treeMinimap');
+  if (mm) mm.style.display = (tab === 'passive') ? '' : 'none';
   
   updateTokenDisplay();
   build();
@@ -1336,13 +1603,24 @@ function paint(){
     var cls = 'tn s'+n.sector+' t-'+n.type;
     if(alloc[n.id]) cls += ' on';
     else if(isAllocatable(n.id)) cls += ' can';
-    
-    // Add socketed jewel visual themes
+
+    // Add socketed jewel visual themes (tiered fused jewels share their base
+    // colour theme — "ruby_2" → socket-ruby).
     if (n.type === 'socket' && sockets[n.id]) {
       var j = sockets[n.id];
-      cls += ' socket-' + (j.indexOf('timeless_') === 0 ? 'timeless' : j);
+      cls += ' socket-' + (j.indexOf('timeless_') === 0 ? 'timeless' : j.split('_')[0]);
     }
-    
+
+    // Group G decorations:
+    if (n.id === NODE_OF_DAY) cls += ' notd'; // AB-167: half price today
+    var _gf = gateFloor(n);
+    if (!alloc[n.id] && _gf > 0 && bestDepth >= _gf) cls += ' gate-open'; // AB-158
+    var _c = nodeCost(n); // AB-174: glow tiers by point cost
+    if (_c === 2) cls += ' mg1';
+    else if (_c === 3) cls += ' mg2';
+    if (alloc[n.id] && n.id === PRESTIGE_MEMORY) cls += ' pmem'; // AB-168
+    if (beginnerOn && beginnerPath && !alloc[n.id] && beginnerPath.indexOf(n.id) >= 0) cls += ' beginner'; // AB-175
+
     nodeEls[n.id].setAttribute('class', cls);
     paintDecor(n.id);
 
@@ -1387,6 +1665,31 @@ function paint(){
   // Edge Glow Intensification (Item 2)
   var glowIntensity = Math.min(12, 4 + used * 0.15);
   svg.style.setProperty('--edge-glow-radius', glowIntensity + 'px');
+  applyPathfinder();
+}
+
+function renderKeystoneTimer(){
+  var old = document.getElementById('treeKeystoneTimer');
+  if (old) old.remove();
+  if (activeTab !== 'passive') return;
+  var n = byId[LIMIT_BREAK_ID];
+  if (!n || !alloc[LIMIT_BREAK_ID]) return;
+  var elapsed = Math.floor((Date.now()-keystoneTimerStartedAt)/1000);
+  var active = Math.max(0, KEYSTONE_ACTIVE_SECS-elapsed);
+  var cooldown = Math.max(0, KEYSTONE_CD_SECS-elapsed);
+  var secs = active || cooldown;
+  if (!secs) return;
+  var text = document.createElementNS(NS, 'text');
+  text.setAttribute('id', 'treeKeystoneTimer');
+  text.setAttribute('class', 'tn-cd');
+  text.setAttribute('x', n.x); text.setAttribute('y', n.y+30);
+  text.textContent = (active ? 'active ' : 'cd ') + formatTreeTimer(secs);
+  svg.appendChild(text);
+}
+function formatTreeTimer(secs){
+  if (secs >= 3600) return Math.floor(secs/3600)+'h '+Math.floor((secs%3600)/60)+'m';
+  if (secs >= 60) return Math.floor(secs/60)+'m '+(secs%60)+'s';
+  return secs+'s';
 }
 
 // ---- Interaction -----------------------------------------------------------
@@ -1562,7 +1865,7 @@ function pathToAllocated(targetId){
 }
 function pathCost(chain){
   var pc = 0;
-  (chain || []).forEach(function(id){ pc += nodeCost(byId[id]); });
+  (chain || []).forEach(function(id){ pc += effCost(byId[id]); });
   return pc;
 }
 function pathGateBlock(chain){
@@ -1571,6 +1874,276 @@ function pathGateBlock(chain){
     if(gf > bestDepth) return gf;
   }
   return 0;
+}
+
+// Dijkstra from a target toward the allocated web. Unlike pathToAllocated's
+// shortest-hop route, this minimizes actual point cost (AB-154).
+function cheapestPathToAllocated(targetId){
+  if (alloc[targetId] || !byId[targetId]) return null;
+  var dist = {}, prev = {}, open = [{id:targetId, cost:effCost(byId[targetId])}];
+  dist[targetId] = effCost(byId[targetId]); prev[targetId] = -1;
+  while (open.length) {
+    open.sort(function(a,b){ return a.cost-b.cost; });
+    var cur = open.shift(), u = cur.id;
+    if (cur.cost !== dist[u]) continue;
+    var ns = adj[u] || [];
+    for (var i=0;i<ns.length;i++) {
+      var v = ns[i];
+      if (v === 0 || alloc[v]) {
+        var chain = [];
+        for (var c=u; c!==-1; c=prev[c]) chain.push(c);
+        return {chain:chain, anchor:v, cost:dist[u]};
+      }
+      if (!byId[v] || gateFloor(byId[v]) > bestDepth) continue;
+      var nd = dist[u] + effCost(byId[v]);
+      if (!(v in dist) || nd < dist[v]) {
+        dist[v] = nd; prev[v] = u; open.push({id:v, cost:nd});
+      }
+    }
+  }
+  return null;
+}
+
+function applyPathfinder(){
+  edgeEls.forEach(function(l){ l.classList.remove('pf'); });
+  NODES.forEach(function(n){ if (nodeEls[n.id]) nodeEls[n.id].classList.remove('pf'); });
+  if (!pathfinderChain.length) return;
+  var ids = pathfinderChain.slice();
+  ids.forEach(function(id){ if (nodeEls[id]) nodeEls[id].classList.add('pf'); });
+  for (var i=1;i<ids.length;i++) markPathfinderEdge(ids[i-1], ids[i]);
+  if (pathfinderChain.anchor !== undefined) markPathfinderEdge(pathfinderChain.anchor, ids[0]);
+}
+function markPathfinderEdge(a, b){
+  edgeEls.forEach(function(l){
+    var e = l._e;
+    if ((e[0]===a && e[1]===b) || (e[0]===b && e[1]===a)) l.classList.add('pf');
+  });
+}
+function setPathfinder(id){
+  var result = cheapestPathToAllocated(id);
+  if (!result) { abToast(alloc[id] ? 'That node is already allocated.' : 'No eligible path found.', false); return; }
+  pathfinderChain = result.chain;
+  pathfinderChain.anchor = result.anchor;
+  applyPathfinder();
+  var btn = document.getElementById('treePathfinderBtn');
+  if (btn) { btn.style.display=''; btn.textContent='🎯 '+result.chain.length+' nodes · '+result.cost+' pts'; }
+}
+function clearPathfinder(){
+  pathfinderChain = [];
+  applyPathfinder();
+  var btn = document.getElementById('treePathfinderBtn');
+  if (btn) { btn.style.display='none'; btn.textContent='🎯 Clear path'; }
+}
+
+function saveAllocQueue(){
+  try { localStorage.setItem('abyssTreeAllocQueue', JSON.stringify(allocQueue)); } catch (e) {}
+  var pill = document.getElementById('treeQueuePill');
+  var count = document.getElementById('treeQueueCount');
+  if (count) count.textContent = allocQueue.length;
+  if (pill) pill.style.display = allocQueue.length ? '' : 'none';
+}
+function queueAdd(id){
+  if (alloc[id]) { abToast('Already allocated.', false); return; }
+  var chain = pathToAllocated(id) || [id], added = 0;
+  chain.forEach(function(nid){
+    if (!alloc[nid] && allocQueue.indexOf(nid) < 0) { allocQueue.push(nid); added++; }
+  });
+  saveAllocQueue();
+  if (added) abToast('📋 Queued '+added+' node'+(added===1?'':'s')+'.', true);
+  processAllocationQueue();
+}
+function clearAllocQueue(){
+  allocQueue = [];
+  saveAllocQueue();
+  abToast('Allocation queue cleared.', true);
+}
+async function processAllocationQueue(){
+  if (queueRunning || busy || !allocQueue.length) return;
+  queueRunning = true; setBusy(true);
+  try {
+    var progressed = true;
+    while (progressed && allocQueue.length) {
+      progressed = false;
+      for (var i=0;i<allocQueue.length;i++) {
+        var id = allocQueue[i];
+        if (alloc[id]) { allocQueue.splice(i,1); i--; progressed=true; continue; }
+        if (!isAllocatable(id)) continue;
+        var d = await abPost('/api/abyss/tree/allocate', {node_id:id});
+        if (!d.ok) { abToast(d.error||'Queued allocation failed.', false); return; }
+        alloc[id]=true; used=d.used; points=d.points; applyServerTotals(d);
+        allocQueue.splice(i,1); saveAllocQueue(); armUndoButton();
+        progressed=true; break;
+      }
+    }
+    paint(); renderSummary(activePct, activeStats);
+  } finally {
+    queueRunning=false; setBusy(false); saveAllocQueue();
+  }
+}
+
+async function loadoutSave(slot){
+  if (busy) return;
+  setBusy(true);
+  try {
+    var d = await abPost('/api/abyss/tree/loadout_save', {slot:slot});
+    if (!d.ok) { abToast(d.error||'Failed to save loadout.', false); return; }
+    LOADOUTS[String(slot)] = d.count;
+    refreshLoadoutLabels();
+    abToast(d.msg, true);
+  } finally { setBusy(false); }
+}
+async function loadoutApply(slot){
+  var count = Number(LOADOUTS[String(slot)] || 0);
+  if (!count) { abToast('Loadout slot '+slot+' is empty.', false); return; }
+  var cost = FREE_RESPEC ? 'your free weekly respec' : 'the normal respec cost';
+  if (!(await confirmModal('Apply loadout '+slot+' ('+count+' nodes) using '+cost+'?'))) return;
+  if (busy) return;
+  setBusy(true);
+  var d = await abPost('/api/abyss/tree/loadout_apply', {slot:slot});
+  if (!d.ok) { setBusy(false); abToast(d.error||'Failed to apply loadout.', false); return; }
+  abToast(d.msg, true);
+  setTimeout(function(){ location.reload(); }, 700);
+}
+function refreshLoadoutLabels(){
+  for (var i=1;i<=3;i++) {
+    var el = document.getElementById('lo'+i), count = Number(LOADOUTS[String(i)] || 0);
+    if (el) el.textContent = count ? ' ('+count+')' : '';
+  }
+}
+async function buildExport(){
+  var ids = Object.keys(alloc).filter(function(k){ return alloc[k]; }).map(Number).sort(function(a,b){ return a-b; });
+  if (!ids.length) { abToast('Allocate at least one node first.', false); return; }
+  var code = btoa('ABYSS1:'+ids.join(','));
+  try {
+    await navigator.clipboard.writeText(code);
+    abToast('📤 Build code copied ('+ids.length+' nodes).', true);
+  } catch (e) {
+    window.prompt('Copy your Abyss build code:', code);
+  }
+}
+async function buildImport(){
+  var code = window.prompt('Paste an Abyss build code:');
+  if (!code) return;
+  var decoded;
+  try { decoded = atob(code.trim()); } catch (e) { abToast('Invalid build code.', false); return; }
+  if (decoded.indexOf('ABYSS1:') !== 0) { abToast('Unsupported build-code version.', false); return; }
+  var raw = decoded.slice(7);
+  var ids = raw ? raw.split(',').map(Number).filter(function(id){ return Number.isInteger(id) && id>0; }) : [];
+  if (!ids.length) { abToast('Build code contains no nodes.', false); return; }
+  var cost = FREE_RESPEC ? 'your free weekly respec' : 'the normal respec cost';
+  if (!(await confirmModal('Import '+ids.length+' nodes using '+cost+'?'))) return;
+  if (busy) return;
+  setBusy(true);
+  var d = await abPost('/api/abyss/tree/build_import', {ids:ids});
+  if (!d.ok) { setBusy(false); abToast(d.error||'Import failed.', false); return; }
+  abToast(d.msg, true);
+  setTimeout(function(){ location.reload(); }, 700);
+}
+
+function buildBeginnerPath(){
+  var chosen = {}, result = [];
+  while (result.length < 10) {
+    var candidates = NODES.filter(function(n){
+      if (alloc[n.id] || chosen[n.id] || gateFloor(n)>bestDepth) return false;
+      return (adj[n.id]||[]).some(function(nb){ return nb===0 || alloc[nb] || chosen[nb]; });
+    });
+    if (!candidates.length) break;
+    candidates.sort(function(a,b){ return effCost(a)-effCost(b) || a.ring-b.ring || a.id-b.id; });
+    chosen[candidates[0].id]=true; result.push(candidates[0].id);
+  }
+  return result;
+}
+function toggleBeginner(){
+  beginnerOn = !beginnerOn;
+  beginnerPath = beginnerOn ? buildBeginnerPath() : [];
+  var btn = document.getElementById('treeBeginnerBtn');
+  if (btn) btn.classList.toggle('active', beginnerOn);
+  paint();
+}
+function toggleLowDetail(){
+  lowDetailOn = !lowDetailOn;
+  var stage = document.getElementById('treeStage');
+  if (stage) stage.classList.toggle('low-detail', lowDetailOn);
+  var btn = document.getElementById('treeLowDetailBtn');
+  if (btn) btn.classList.toggle('active', lowDetailOn);
+  try { localStorage.setItem('abyssTreeLowDetail', lowDetailOn ? '1' : '0'); } catch (e) {}
+}
+
+async function tryKeystoneSwap(toID){
+  var choices = NODES.filter(function(n){ return n.type==='keystone' && alloc[n.id]; });
+  if (!choices.length) { abToast('Allocate a keystone before swapping.', false); return; }
+  var from = choices[0];
+  if (choices.length > 1) {
+    var labels = choices.map(function(n){ return n.id+': '+n.name; }).join('\n');
+    var picked = Number(window.prompt('Swap which allocated keystone?\n'+labels, String(from.id)));
+    from = byId[picked];
+    if (!from || from.type!=='keystone' || !alloc[picked]) return;
+  }
+  if (!(await confirmModal('Swap '+from.name+' for '+byId[toID].name+' while keeping the path?'))) return;
+  if (busy) return;
+  setBusy(true);
+  try {
+    var d = await abPost('/api/abyss/tree/swap_keystone', {from_id:from.id, to_id:toID});
+    if (!d.ok) { abToast(d.error||'Keystone swap failed.', false); return; }
+    delete alloc[from.id]; alloc[toID]=true; applyServerTotals(d);
+    paint(); renderSummary(activePct, activeStats); abToast(d.msg, true);
+  } finally { setBusy(false); }
+}
+
+function armUndoButton(){
+  var btn = document.getElementById('treeUndoBtn');
+  if (!btn) return;
+  btn.style.display='';
+  clearTimeout(armUndoButton.timer);
+  armUndoButton.timer=setTimeout(function(){ btn.style.display='none'; }, 60000);
+}
+async function tryUndoAlloc(){
+  if (busy) return;
+  setBusy(true);
+  try {
+    var d = await abPost('/api/abyss/tree/undo', {});
+    if (!d.ok) { abToast(d.error||'Nothing to undo.', false); return; }
+    (d.refunded||[]).forEach(function(id){ delete alloc[id]; });
+    used=d.used; points=d.points; applyServerTotals(d);
+    document.getElementById('treeUndoBtn').style.display='none';
+    paint(); renderSummary(activePct, activeStats); abToast(d.msg, true);
+  } finally { setBusy(false); }
+}
+
+async function trySetPrestigeMemory(ev, id){
+  ev.stopPropagation();
+  if (busy) return;
+  setBusy(true);
+  var next = PRESTIGE_MEMORY===id ? 0 : id;
+  try {
+    var d = await abPost('/api/abyss/tree/prestige_memory', {node_id:next});
+    if (!d.ok) { abToast(d.error||'Could not set prestige memory.', false); return; }
+    PRESTIGE_MEMORY=d.node_id; paint(); hideTip(); abToast(d.msg, true);
+  } finally { setBusy(false); }
+}
+async function tryBranchRefund(ev, id){
+  ev.stopPropagation();
+  if (MASTERY_SHARDS < 1) { abToast('No mastery shards — bosses can drop them.', false); return; }
+  if (!(await confirmModal('Consume 1 mastery shard to refund this branch for free?'))) return;
+  if (busy) return;
+  setBusy(true);
+  try {
+    var d = await abPost('/api/abyss/tree/branch_refund', {node_id:id});
+    if (!d.ok) { abToast(d.error||'Branch refund failed.', false); return; }
+    (d.refunded||[]).forEach(function(nid){ delete alloc[nid]; });
+    MASTERY_SHARDS=d.shards; used=d.used; points=d.points; applyServerTotals(d);
+    paint(); renderSummary(activePct, activeStats); hideTip(); abToast(d.msg, true);
+  } finally { setBusy(false); }
+}
+async function tryFuseJewel(jewel){
+  if (busy) return;
+  setBusy(true);
+  try {
+    var d = await abPost('/api/abyss/tree/jewel_fuse', {jewel:jewel});
+    if (!d.ok) { abToast(d.error||'Jewel fusion failed.', false); return; }
+    sockets=d.sockets||sockets; JEWELS=d.jewels||JEWELS; applyServerTotals(d);
+    paint(); hideTip(); abToast(d.msg, true);
+  } finally { setBusy(false); }
 }
 
 // Auto-allocate every node along the shortest route to id (Item: auto-skill
@@ -1596,7 +2169,10 @@ async function tryAutoPath(id){
     }
     paint();
     renderSummary(activePct, activeStats);
-    if(completed) abToast('🌳 Path allocated — ' + chain.length + ' node' + (chain.length>1?'s':'') + ' for ' + pc + ' points.', true);
+    if(completed) {
+      armUndoButton();
+      abToast('🌳 Path allocated — ' + chain.length + ' node' + (chain.length>1?'s':'') + ' for ' + pc + ' points.', true);
+    }
   } finally {
     setBusy(false);
   }
@@ -1621,6 +2197,7 @@ async function tryAllocate(id){
     if(!d.ok){ abToast(d.error||'failed', false); return; }
     alloc[id] = true; used = d.used; points = d.points;
     abToast(d.msg, true);
+    armUndoButton();
     applyServerTotals(d);
     paint();
     renderSummary(activePct, activeStats);
@@ -1682,7 +2259,8 @@ async function tryRefund(ev, id){
 }
 
 async function treeRespec(){
-  if(!(await confirmModal('Reset every allocated node for 🜲 {{.RespecTk}}?'))) return;
+  var prompt = FREE_RESPEC ? 'Use your free weekly respec to reset every allocated node?' : 'Reset every allocated node for 🜲 {{.RespecTk}}?';
+  if(!(await confirmModal(prompt))) return;
   var d = await abPost('/api/abyss/tree/respec', {});
   if(!d.ok){ abToast(d.error||'failed', false); return; }
   abToast(d.msg, true);
@@ -1696,7 +2274,8 @@ async function trySocketJewel(nodeId, jewelType) {
     var d = await abPost('/api/abyss/tree/socket', {node_id: nodeId, jewel: jewelType});
     if (!d.ok) { abToast(d.error || 'failed', false); return; }
     abToast(d.msg, true);
-    sockets[nodeId] = jewelType;
+    sockets = d.sockets || sockets;
+    JEWELS = d.jewels || JEWELS;
     if (typeof d.gold === 'number') {
       var gp = document.getElementById('goldPill');
       if (gp) gp.textContent = '🪙 ' + d.gold.toLocaleString();
@@ -1865,6 +2444,12 @@ function showTip(n, ev){
       : 'Refund (🪙 ' + rgold + ')';
     actionHtml = '<br><span class="tt-on" style="margin-top:4px; display:inline-block;">● allocated</span>' +
                  '<br><button class="btn-refund" onclick="tryRefund(event, ' + n.id + ')">' + refundLabel + '</button>';
+    actionHtml += '<button class="btn-refund" style="margin-left:4px;" onclick="trySetPrestigeMemory(event, '+n.id+')">' +
+                  (PRESTIGE_MEMORY===n.id ? '★ Clear memory' : '☆ Remember at prestige') + '</button>';
+    if (MASTERY_SHARDS > 0) {
+      actionHtml += '<button class="btn-refund" style="margin-left:4px;background:#7157a8;" onclick="tryBranchRefund(event, '+n.id+')">' +
+                    '🔮 Refund branch ('+MASTERY_SHARDS+')</button>';
+    }
 
     // Jewel Socket interface
     if (n.type === 'socket') {
@@ -1882,6 +2467,25 @@ function showTip(n, ev){
       } else {
         jDesc = '<br><span class="muted small">💎 Empty Jewel Socket</span>';
       }
+      var pouchButtons = '';
+      Object.keys(JEWELS || {}).sort().forEach(function(code){
+        if ((JEWELS[code]||0) > 0) {
+          pouchButtons += '<button class="btn-refund" style="background:#7157a8;margin-top:0;" onclick="trySocketJewel('+n.id+', \''+code+'\')">'+
+                          escHtml(code)+' ×'+JEWELS[code]+'</button>';
+        }
+      });
+      var jewelTotals = {};
+      Object.keys(JEWELS || {}).forEach(function(code){ jewelTotals[code]=JEWELS[code]||0; });
+      Object.keys(sockets || {}).forEach(function(nid){
+        var code=sockets[nid]||'';
+        if (code && code.indexOf('timeless_')!==0) jewelTotals[code]=(jewelTotals[code]||0)+1;
+      });
+      var fuseButtons = '';
+      Object.keys(jewelTotals).sort().forEach(function(code){
+        if (jewelTotals[code] >= 3) {
+          fuseButtons += '<button class="btn-refund" style="background:#7157a8;margin-top:0;" onclick="tryFuseJewel(\''+code+'\')">Fuse 3× '+escHtml(code)+'</button>';
+        }
+      });
       actionHtml += '<div style="margin-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px;">' +
                     jDesc +
                     '<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;">' +
@@ -1890,6 +2494,7 @@ function showTip(n, ev){
                       '<button class="btn-refund" style="background:#ffd85b; color:#000; margin-top:0;" onclick="trySocketJewel(' + n.id + ', \'topaz\')">Topaz (100g)</button>' +
                       '<button class="btn-refund" style="background:#b26bff; margin-top:0;" onclick="tryRollTimeless(' + n.id + ')">🎲 Roll Timeless (500g)</button>' +
                       (j ? '<button class="btn-refund" style="background:#888; margin-top:0;" onclick="trySocketJewel(' + n.id + ', \'\')">Clear</button>' : '') +
+                      pouchButtons + fuseButtons +
                     '</div>' +
                   '</div>';
     }
@@ -2003,5 +2608,13 @@ function treeSearchApply(){
 build();
 paint();
 renderSummary(activePct, activeStats);
+refreshLoadoutLabels();
+saveAllocQueue();
+if (lowDetailOn) {
+  document.getElementById('treeStage').classList.add('low-detail');
+  document.getElementById('treeLowDetailBtn').classList.add('active');
+}
+setInterval(renderKeystoneTimer, 1000);
+setTimeout(processAllocationQueue, 0);
 </script>
 {{template "foot" .}}{{end}}

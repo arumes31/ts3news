@@ -587,6 +587,7 @@ type abyssFloorResult struct {
 	LogsHTML  []string
 	LootHTML  []string
 	DuraHTML  []string
+	Timeline  []combatTimelineFrame
 	CurrentHP int
 	MaxHP     int
 }
@@ -706,6 +707,57 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 			fams = 10
 		}
 		u.Stats.STR += u.Stats.STR * fams / 100
+	}
+
+	// 300-improvements run modifiers (docs/ABYSS_IMPROVEMENTS_300.md group A/B).
+	flags := b.loadRunFlags(uid)
+	if frun.Active {
+		if stacks := abyssGreedyGripStacks(frun.Depth); stacks > 0 { // AB-1 greedy grip
+			u.Stats.DEF -= u.Stats.DEF * 2 * stacks / 100
+			if u.Stats.DEF < 0 {
+				u.Stats.DEF = 0
+			}
+			logs = append(logs, fmt.Sprintf("[color=#f44336]✊ Greedy grip ×%d: -%d%% DEF, but +%d%% cache interest (bank to shake it off).[/color]", stacks, 2*stacks, 2*stacks))
+		}
+		if pct := abyssHeavyPocketsPct(frun.Escrow); pct > 0 { // AB-2 heavy pockets
+			u.Stats.SPD -= u.Stats.SPD * pct / 100
+			logs = append(logs, fmt.Sprintf("[color=#f44336]🎒 Heavy pockets: the cache weighs you down, -%d%% SPD.[/color]", pct))
+		}
+	}
+	if flags["death_wish"] == 1 { // AB-9
+		diff *= 3
+		logs = append(logs, "[color=#f44336]💀 DEATH WISH: this floor is 3× as deadly — and pays double.[/color]")
+	}
+	if flags["hybrid"] == 1 && depth%5 == 0 { // AB-25 hybrid runs
+		if nt, ok := abyssNextTier(tier.Key); ok {
+			diff *= nt.DiffMult
+			logs = append(logs, fmt.Sprintf("[color=#9c27b0]🌀 Hybrid run: this floor surges to %s-tier danger![/color]", nt.Name))
+		}
+	}
+	if flags["cold_muscles"] > 0 { // AB-13 cold muscles
+		u.Stats = u.Stats.Scaled(0.9)
+		logs = append(logs, "[color=#4a6fa5]🥶 Cold muscles: -10% stats (fresh from the elevator).[/color]")
+	}
+	if flags["spd_curse"] > 0 { // AB-32 cursed library SPD price
+		u.Stats.SPD = u.Stats.SPD * 85 / 100
+		logs = append(logs, "[color=#9c27b0]📚 The library's price: your legs feel leaden (-15% SPD).[/color]")
+	}
+	if dm := flags["def_momentum"]; dm > 0 { // AB-18 defensive momentum
+		if dm > 10 {
+			dm = 10
+		}
+		u.Stats.DEF += u.Stats.DEF * int(dm) * 2 / 100
+		logs = append(logs, fmt.Sprintf("[color=#41c97a]🛡️ Defensive momentum ×%d: +%d%% DEF (untouched streak).[/color]", dm, dm*2))
+	}
+	// AB-8 the abyss notices: idling on a floor adds +1% danger per minute.
+	if frun.Active && !frun.LastActionAt.IsZero() {
+		if mins := int(time.Since(frun.LastActionAt).Minutes()); mins >= 1 {
+			if mins > 50 {
+				mins = 50
+			}
+			diff *= 1.0 + float64(mins)/100.0
+			logs = append(logs, fmt.Sprintf("[color=#f44336]👁️ The abyss notices your hesitation: +%d%% danger.[/color]", mins))
+		}
 	}
 
 	// Check if the floor has the Artifact Corruption modifier
@@ -873,6 +925,13 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 		mobPtrs[i] = &mobs[i]
 	}
 
+	// AB-12 experience vs killer: a permanent grudge — bonus damage vs the mob
+	// families that have killed you before.
+	if kb := b.killerExpBonusTenths(uid, mobs); kb > 0 {
+		u.Stats.STR += u.Stats.STR * kb / 1000
+		logs = append(logs, fmt.Sprintf("[color=#41c97a]🎓 Experience vs killer: +%.1f%% damage — you know these foes all too well.[/color]", float64(kb)/10))
+	}
+
 	logs = append(logs, zone.Display())
 	if ml := abyssMilestoneLine(depth); ml != "" {
 		logs = append(logs, ml) // [38] depth-milestone flavour
@@ -899,9 +958,13 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 	startTime := time.Now()
 	// The engine's per-kill reward is ignored here: Abyss uses its own small
 	// per-floor XP payout below. We only need the win/loss outcome from combat.
-	resLogs, _, victory, loots := b.resolveChannelCombat(combatUsers, mobPtrs, u.Level, diff, zone)
+	combatLogOffset := len(logs)
+	resLogs, _, victory, loots, timeline := b.resolveChannelCombatDetailed(combatUsers, mobPtrs, u.Level, diff, zone)
 	duration := time.Since(startTime)
 	logs = append(logs, resLogs...)
+	for i := range timeline {
+		timeline[i].AfterLog += combatLogOffset
+	}
 
 	if victory && coopUID.Valid && coopUID.String != "" {
 		b.grantAbyssTokens(coopUID.String, 5)
@@ -920,6 +983,11 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 			"INSERT INTO abyss_boss_kills (client_uid, boss_name, depth, kill_time_ms, tier) VALUES ($1, $2, $3, $4, $5)",
 			uid, mobs[0].Name, depth, duration.Milliseconds(), tier.Key,
 		)
+		// AB-159: bosses have a modest chance to drop a branch-refund shard.
+		// #nosec G404 -- non-cryptographic reward roll
+		if rand.Float64() < 0.20 && b.grantAbyssMasteryShard(uid) {
+			logs = append(logs, "🔮 The boss dropped a Mastery Shard — refund one skill-web branch for free!")
+		}
 	}
 
 	// Record kills in Bestiary — use CurrentHP (live value) not Stats.HP (base max)
@@ -999,7 +1067,7 @@ func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier st
 	logs = append(logs, fmt.Sprintf("[hr][color=#8a93a8]📊 %s · %d foe(s) · fight time %d ms · HP %s → %s (%+d)[/color]",
 		outcome, len(mobs), duration.Milliseconds(), FormatGoldPlain(int64(hpBefore)), FormatGoldPlain(int64(curHP)), curHP-hpBefore))
 
-	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, CurrentHP: curHP, MaxHP: stats.HP}
+	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP}
 	for _, l := range logs {
 		res.LogsHTML = append(res.LogsHTML, bbToHTML(l))
 	}
@@ -1691,13 +1759,13 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 // Floors resolved before the failure are already persisted server-side, so
 // their logs/loot plus a fresh run snapshot ride along with the error and the
 // client can reconcile depth, escrow, HP and wallet instead of drifting.
-func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, loot, dura []string, rewardXP int) map[string]any {
+func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, loot, dura []string, timeline []combatTimelineFrame, rewardXP int) map[string]any {
 	runFinal := s.bot.loadAbyssRun(uid)
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	return map[string]any{
 		"ok": false, "error": errKey,
-		"logs": logs, "loot": loot, "dura": dura, "reward_xp": rewardXP,
+		"logs": logs, "loot": loot, "dura": dura, "timeline": timeline, "reward_xp": rewardXP,
 		"depth": runFinal.Depth, "escrow": runFinal.Escrow,
 		"hp": runFinal.CurHP, "max_hp": runFinal.MaxHP,
 		"gold": gold, "tokens": s.bot.abyssTokens(uid),
@@ -1738,6 +1806,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 	var combinedLogs []string
 	var combinedLoot []string
 	var combinedDura []string
+	var combinedTimeline []combatTimelineFrame
 	var totalRewardXP int
 	var gearMilestone string
 	var achs []string
@@ -1757,15 +1826,15 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 	for _, pt := range req.Paths {
 		run := s.bot.loadAbyssRun(uid)
 		if !run.Active {
-			writeJSON(w, s.descendMultiAbort(uid, "not in a run", tier, combinedLogs, combinedLoot, combinedDura, totalRewardXP))
+			writeJSON(w, s.descendMultiAbort(uid, "not in a run", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
 			return
 		}
 		if run.Downed {
-			writeJSON(w, s.descendMultiAbort(uid, "you are downed — revive or concede", tier, combinedLogs, combinedLoot, combinedDura, totalRewardXP))
+			writeJSON(w, s.descendMultiAbort(uid, "you are downed — revive or concede", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
 			return
 		}
 		if run.FloorType != "combat" {
-			writeJSON(w, s.descendMultiAbort(uid, "you must resolve the current floor action first", tier, combinedLogs, combinedLoot, combinedDura, totalRewardXP))
+			writeJSON(w, s.descendMultiAbort(uid, "you must resolve the current floor action first", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
 			return
 		}
 		focus := s.autoSelectFocus(uid, run)
@@ -1816,7 +1885,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				newDepth, actualType, modifier, evStateArg, uid,
 			)
 			if err != nil {
-				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, totalRewardXP))
+				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
 				return
 			}
 			if actualType == "event" {
@@ -1844,6 +1913,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"logs":        combinedLogs,
 				"loot":        combinedLoot,
 				"dura":        combinedDura,
+				"timeline":    combinedTimeline,
 				"reward_xp":   totalRewardXP,
 				"auto_focus":  s.autoSelectFocus(uid, runFinal),
 			})
@@ -1852,7 +1922,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 
 		// Normal Combat floor
 		if _, err := s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier=$2, event_state=NULL, pending_floor_choice=NULL, last_action_at=NOW() WHERE client_uid=$3", newDepth, modifier, uid); err != nil {
-			writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, totalRewardXP))
+			writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
 			return
 		}
 
@@ -1861,13 +1931,19 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2", run.Depth, uid)
 			// Earlier floors in this batch already resolved and persisted — return
 			// their logs/loot alongside the error so they aren't lost client-side.
-			writeJSON(w, s.descendMultiAbort(uid, "combat", tier, combinedLogs, combinedLoot, combinedDura, totalRewardXP))
+			writeJSON(w, s.descendMultiAbort(uid, "combat", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
 			return
 		}
 
+		timelineOffset := len(combinedLogs)
 		if len(res.LogsHTML) > 0 {
 			combinedLogs = append(combinedLogs, fmt.Sprintf("<div class='ab-batch-header'>Floor %d Combat Logs</div>", newDepth))
+			timelineOffset++
 			combinedLogs = append(combinedLogs, res.LogsHTML...)
+		}
+		for _, frame := range res.Timeline {
+			frame.AfterLog += timelineOffset
+			combinedTimeline = append(combinedTimeline, frame)
 		}
 		combinedLoot = append(combinedLoot, res.LootHTML...)
 		combinedDura = append(combinedDura, res.DuraHTML...)
@@ -1878,7 +1954,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		if res.Victory {
 			o := s.applyFloorVictory(uid, run, newDepth, run.Escrow, tier, modifier, focus)
 			if o.DBErr {
-				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, totalRewardXP))
+				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
 				return
 			}
 			if o.GearMilestone != "" {
@@ -1916,6 +1992,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"logs":             combinedLogs,
 				"loot":             combinedLoot,
 				"dura":             combinedDura,
+				"timeline":         combinedTimeline,
 				"reward_xp":        totalRewardXP,
 				"risk":             abyssRiskPct(newDepth+1, tier, s.bot.abyssPlayerCR(uid)),
 				"downed":           true,
@@ -1947,6 +2024,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		"logs":               combinedLogs,
 		"loot":               combinedLoot,
 		"dura":               combinedDura,
+		"timeline":           combinedTimeline,
 		"reward_xp":          totalRewardXP,
 		"risk":               abyssRiskPct(finalRun.Depth+1, tier, s.bot.abyssPlayerCR(uid)),
 		"escrow":             finalRun.Escrow,
@@ -2434,7 +2512,8 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 	out := map[string]any{
 		"ok": true, "victory": res.Victory, "depth": depth,
 		"hp": res.CurrentHP, "max_hp": res.MaxHP,
-		"logs": res.LogsHTML, "loot": res.LootHTML, "dura": res.DuraHTML, "reward_xp": res.RewardXP,
+		"logs": res.LogsHTML, "loot": res.LootHTML, "dura": res.DuraHTML,
+		"timeline": res.Timeline, "reward_xp": res.RewardXP,
 		"risk": abyssRiskPct(depth+1, tier, s.bot.abyssPlayerCR(uid)),
 	}
 
@@ -2559,7 +2638,8 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 		out := map[string]any{
 			"ok": true, "revived": true, "victory": true, "depth": run.Depth,
 			"hp": res.CurrentHP, "max_hp": res.MaxHP, "logs": res.LogsHTML,
-			"loot": res.LootHTML, "dura": res.DuraHTML, "escrow": newEscrow, "doubled": true,
+			"loot": res.LootHTML, "dura": res.DuraHTML, "timeline": res.Timeline,
+			"escrow": newEscrow, "doubled": true,
 			"reward_xp": res.RewardXP, "risk": abyssRiskPct(run.Depth+1, tier, s.bot.abyssPlayerCR(uid)),
 		}
 		var gold int64
@@ -2580,6 +2660,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 	out := map[string]any{
 		"ok": true, "revived": true, "victory": false, "depth": run.Depth,
 		"hp": 0, "logs": res.LogsHTML, "loot": res.LootHTML, "dura": res.DuraHTML,
+		"timeline": res.Timeline,
 		"forfeited": true, "insured_refund": payout, "escrow": 0,
 		"reward_xp": res.RewardXP, "risk": abyssRiskPct(run.Depth+1, tier, s.bot.abyssPlayerCR(uid)),
 	}
@@ -2922,6 +3003,9 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 		_, _ = s.bot.DB.Exec("UPDATE users SET current_hp = LEAST(current_hp + $1, $2) WHERE client_uid = $3", healAmt, stats.HP, uid)
 	case content.ConsumableRepair:
 		repairAmt := 30
+		if req.ConsID == "repair_kit_ii" {
+			repairAmt = 50
+		}
 		if req.ConsID == "master_repair_kit" {
 			repairAmt = 150
 		}
@@ -4292,6 +4376,7 @@ func (s *WebServer) handleAbyssPrestige(w http.ResponseWriter, r *http.Request, 
 		writeJSON(w, map[string]any{"ok": false, "error": "db commit"})
 		return
 	}
+	ApplyPrestigeMemory(s.bot, uid)
 
 	out := map[string]any{"ok": true, "prestige": st.AbyssPrestige + 1}
 	if ach := s.bot.checkThresholdAchievements(uid, 1, []achTier{{1, "prestige_1"}}); ach != "" {

@@ -88,6 +88,26 @@ type activeUser struct {
 	// Skill-web bonus, loaded once per fight: treeBonusFor hits the DB and
 	// scans the full 1000-node tree, so per-turn lookups must use this cache.
 	treeBonus content.TreeBonus
+
+	// --- Abyss combat mechanics (docs/ABYSS_IMPROVEMENTS_300.md, group C) ---
+	// All of these are only consulted on paths gated by abyssCombatant(u), so
+	// regular TS3 channel combat never sees them.
+	lastCastElement   content.Element      // AB-51 element of the previous cast (elemental combo)
+	stunbreakUsed     bool                 // AB-59 one free stun cleanse per boss fight
+	stunbrokenRound   int                  // AB-59 round the stunbreak fired (acts at 50%)
+	parryCount        int                  // AB-56 parries this fight (3 grant Stealth)
+	stealthUntilRound int                  // AB-56 granted stealth: mobs skip up to this round
+	fumbled           bool                 // AB-72 next hit gets +10% crit (embarrassed rage)
+	weaponSwapped     bool                 // AB-53 once-per-fight mid-boss weapon swap
+	petFocus          string               // AB-58 pet focus-fire target (mob name)
+	petFocusLogged    bool                 // AB-58 one-time focus-fire log
+	holdMana          bool                 // AB-64 hold-mana toggle (save casts for bosses)
+	holdManaLogged    bool                 // AB-64 one-time hold-mana log
+	lastAttackers     map[*content.Mob]bool // AB-68 mobs that targeted this user last mobTurn
+	lastUltRound      int                  // AB-70 round an ultimate was last fired
+	execFlourished    bool                 // AB-55 one-time Executioner+Execute flourish log
+	cursedMercyLogged bool                 // AB-54 one-time cursed mercy log
+	runeWardLogged    bool                 // AB-67 one-time rune-ward resist log
 }
 
 // cycleContext holds per-cycle shared facts used by the XP modifiers.
@@ -357,6 +377,47 @@ type LootResult struct {
 	Poke string
 }
 
+// combatTimelineFrame is an authoritative snapshot taken by the combat engine
+// after a group of log lines. The Abyss web UI replays these frames alongside
+// those lines so HP/mana animation never has to infer state from translated text.
+type combatTimelineFrame struct {
+	AfterLog int `json:"after_log"`
+	HP       int `json:"hp"`
+	MaxHP    int `json:"max_hp"`
+	Mana     int `json:"mana"`
+	MaxMana  int `json:"max_mana"`
+	EnemyHP  int `json:"enemy_hp"`
+	EnemyMax int `json:"enemy_max"`
+}
+
+func appendCombatTimelineFrame(frames *[]combatTimelineFrame, afterLog int, users []activeUser, mobs []*content.Mob) {
+	if len(users) == 0 || users[0].u == nil {
+		return
+	}
+	enemyHP, enemyMax := 0, 0
+	for _, mob := range mobs {
+		if mob == nil {
+			continue
+		}
+		enemyHP += max(0, mob.Stats.HP)
+		enemyMax += max(0, mob.MaxHP)
+	}
+	frame := combatTimelineFrame{
+		AfterLog: afterLog,
+		HP:       max(0, users[0].u.CurrentHP),
+		MaxHP:    max(0, users[0].u.Stats.HP),
+		Mana:     max(0, users[0].CurrentMana),
+		MaxMana:  max(0, users[0].MaxMana),
+		EnemyHP:  enemyHP,
+		EnemyMax: enemyMax,
+	}
+	if n := len(*frames); n > 0 && (*frames)[n-1].AfterLog == afterLog {
+		(*frames)[n-1] = frame
+		return
+	}
+	*frames = append(*frames, frame)
+}
+
 // ambushDamageCapPct bounds how much of a player's max HP a surprise round (mobs
 // acting before any player has moved) may strip. An ambush can wound but must
 // never be a guaranteed kill — combined with the "never below 1 HP during the
@@ -385,9 +446,10 @@ func bossResist(level, gearScore int) float64 {
 	return r
 }
 
-func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool, []LootResult) {
+func (b *Bot) resolveChannelCombatDetailed(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool, []LootResult, []combatTimelineFrame) {
 	var logs []string
 	var loots []LootResult
+	var timeline []combatTimelineFrame
 	victory := false
 	var totalUserDamage, totalMobDamage, killedXP int
 
@@ -437,6 +499,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 	}
 
 	phaseOnce := make(map[string]bool)
+	track := &abyssFightTrack{}
 	activeUsers := make([]activeUser, len(users))
 	for i := range users {
 		_, _, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
@@ -446,7 +509,14 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 		activeUsers[i].u.SPDMod = 1.0
 		activeUsers[i].MaxMana = 100 + users[i].Stats.MNA
 		activeUsers[i].CurrentMana = activeUsers[i].MaxMana
+		// Abyss-only combat options (AB-58 pet focus-fire, AB-64 hold mana),
+		// persisted in app_meta so no schema change is needed.
+		if abyssCombatant(&users[i]) {
+			activeUsers[i].holdMana = b.abyssHoldMana(users[i].UID)
+			activeUsers[i].petFocus = b.abyssPetFocus(users[i].UID)
+		}
 	}
+	totalRounds := 0
 
 	for w := 1; w <= waves; w++ {
 		var currentMobs []*content.Mob
@@ -519,6 +589,7 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			}
 		}
 		logs = append(logs, i18n.T("bot.combat.wave_header", w, totalEnemyCR, strings.Join(enemyNames, ", "), waves))
+		appendCombatTimelineFrame(&timeline, len(logs), activeUsers, currentMobs)
 
 		// Reset SPD for any stunned mobs from previous round/waves
 		for _, m := range currentMobs {
@@ -542,7 +613,11 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			enrageRound = 30
 		}
 
+		// AB-70: per-wave boss summon telegraphs (mob → round the channel began).
+		summonTelegraph := make(map[*content.Mob]int)
+
 		for r := 1; r <= maxRounds; r++ {
+			totalRounds++
 			intensify := 1.0 + float64(r-1)*0.15
 			fatigueMult := 1.0
 			if r > 5 {
@@ -558,6 +633,76 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			if healPenalty < 0 {
 				healPenalty = 0
 			}
+
+			// AB-75 Desperation: from round 25 both sides gain stacking +5%
+			// damage per round. Only reachable in the Abyss (normal combat caps
+			// at 10 rounds), so no extra gating is needed.
+			despMult := 1.0
+			if r > 25 {
+				despMult = 1.0 + float64(r-25)*0.05
+				if r == 26 {
+					logs = append(logs, "😤 Desperation sets in — both sides fight +5% harder each round!")
+				}
+			}
+
+			// AB-61 Enrage warning (combat-log side; the boss-card border flash
+			// is web UI): call out the coming enrage 2 rounds ahead.
+			if isAbyss && r == enrageRound-2 && !phaseOnce["enrage_warn"] {
+				for _, m := range currentMobs {
+					if m.Stats.HP > 0 && m.Type == content.MobBoss {
+						phaseOnce["enrage_warn"] = true
+						logs = append(logs, fmt.Sprintf("⚠️ %s is winding up — ENRAGE in 2 rounds!", m.Name))
+						break
+					}
+				}
+			}
+
+			// AB-70 Boss summon interrupt: below 50% HP an Abyss boss channels a
+			// summoning ritual for one round (skipping its attack); an ultimate
+			// fired during the channel cancels the summon.
+			if isAbyss {
+				for _, m := range currentMobs {
+					if m.Stats.HP <= 0 || m.Type != content.MobBoss {
+						continue
+					}
+					if tr, ok := summonTelegraph[m]; ok {
+						if tr >= r {
+							continue
+						}
+						delete(summonTelegraph, m)
+						interrupted := false
+						for i := range activeUsers {
+							if activeUsers[i].lastUltRound >= tr {
+								interrupted = true
+								break
+							}
+						}
+						if interrupted {
+							logs = append(logs, fmt.Sprintf("⚡ %s's summoning ritual is INTERRUPTED by the ultimate!", m.Name))
+						} else {
+							newMob := content.SpawnMob(spawnLvl, false, diffFactor*zone.Difficulty*0.7)
+							newMob.Name = "Summoned " + newMob.Name
+							add := newMob.Clone()
+							add.STRMod, add.DEFMod, add.SPDMod = 1.0, 1.0, 1.0
+							if add.MaxHP <= 0 {
+								add.MaxHP = add.Stats.HP
+								add.CurrentHP = add.MaxHP
+							}
+							currentMobs = append(currentMobs, add)
+							initialMobs = append(initialMobs, add) // track for rewards
+							logs = append(logs, fmt.Sprintf("📣 %s completes the ritual — reinforcements arrive!", m.Name))
+						}
+						continue
+					}
+					if m.MaxHP > 0 && m.Stats.HP*2 < m.MaxHP && !phaseOnce["summon:"+m.Name] {
+						phaseOnce["summon:"+m.Name] = true
+						summonTelegraph[m] = r
+						m.Stats.SPD = 0 // channelling: the boss skips this round's attack
+						logs = append(logs, fmt.Sprintf("📣 %s begins a summoning ritual! Fire an ULTIMATE this round to interrupt it!", m.Name))
+					}
+				}
+			}
+
 			// Scripted Boss Phases and Soft-Enrage (Item #63, #69, #70)
 			for _, m := range currentMobs {
 				if m.Stats.HP > 0 {
@@ -668,18 +813,22 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 			}
 
 			b.applyEffects(activeUsers, currentMobs, zone, r, intensify, healPenalty, &logs)
+			appendCombatTimelineFrame(&timeline, len(logs), activeUsers, currentMobs)
 
 			if playerStarts {
-				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots)
+				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track)
+				appendCombatTimelineFrame(&timeline, len(logs), activeUsers, currentMobs)
 				if len(b.getAliveMobs(currentMobs)) == 0 {
 					waveVictory = true
 					break
 				}
-				b.mobTurn(activeUsers, currentMobs, zone, intensify, &logs, &totalMobDamage, &totalUserDamage, r, false)
+				b.mobTurn(activeUsers, currentMobs, zone, intensify*despMult, &logs, &totalMobDamage, &totalUserDamage, r, false)
+				appendCombatTimelineFrame(&timeline, len(logs), activeUsers, currentMobs)
 			} else {
 				// The opening round of an enemy-first wave is the ambush: soften it so
 				// it can't one-shot a player before they ever act.
-				b.mobTurn(activeUsers, currentMobs, zone, intensify, &logs, &totalMobDamage, &totalUserDamage, r, r == 1)
+				b.mobTurn(activeUsers, currentMobs, zone, intensify*despMult, &logs, &totalMobDamage, &totalUserDamage, r, r == 1)
+				appendCombatTimelineFrame(&timeline, len(logs), activeUsers, currentMobs)
 				aliveUsers := 0
 				for _, u := range users {
 					if u.CurrentHP > 0 {
@@ -689,7 +838,8 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 				if aliveUsers == 0 {
 					break
 				}
-				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots)
+				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track)
+				appendCombatTimelineFrame(&timeline, len(logs), activeUsers, currentMobs)
 				if len(b.getAliveMobs(currentMobs)) == 0 {
 					waveVictory = true
 					break
@@ -737,7 +887,26 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 
 	var finalAwardedXP int
 	logs, finalAwardedXP, victory = b.distributeRewards(users, activeUsers, victory, totalUserDamage, totalMobDamage, killedXP, initialMobs, nil, zone, logs, avgLvl)
-	return logs, finalAwardedXP, victory, loots
+
+	// AB-69 Kill-chain: clearing the floor in ≤2 rounds grants +5% speed next
+	// floor, stacking ×3. Granted after distributeRewards so the standard
+	// per-fight consumable decrement doesn't burn the fresh stack immediately.
+	if victory && isAbyss && totalRounds >= 1 && totalRounds <= 2 {
+		for i := range users {
+			if users[i].IsClone {
+				continue
+			}
+			if stacks := b.grantKillChain(users[i].UID); stacks > 0 {
+				logs = append(logs, fmt.Sprintf("⚡ Kill-chain! %s cleared the floor in %d round(s) — +%d%% speed next floor!", users[i].Nickname, totalRounds, stacks*5))
+			}
+		}
+	}
+	return logs, finalAwardedXP, victory, loots, timeline
+}
+
+func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool, []LootResult) {
+	logs, xp, victory, loots, _ := b.resolveChannelCombatDetailed(users, initialMobs, avgLvl, diffFactor, zone)
+	return logs, xp, victory, loots
 }
 
 func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone content.Zone, round int, intensify, healPenalty float64, logs *[]string) {
@@ -883,18 +1052,26 @@ func randomLootEligibleUser(users []UserInCombat) *UserInCombat {
 	return eligible[rand.IntN(len(eligible))]
 }
 
-func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone content.Zone, intensify, healPenalty float64, logs *[]string, totalUserDamage, totalMobDamage *int, avgLvl int, diffFactor float64, originalUsers []UserInCombat, loots *[]LootResult) {
+func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone content.Zone, intensify, healPenalty float64, logs *[]string, totalUserDamage, totalMobDamage *int, avgLvl int, diffFactor float64, originalUsers []UserInCombat, loots *[]LootResult, round int, track *abyssFightTrack) {
 	for i := range activeUsers {
 		au := &activeUsers[i]
 		u := au.u
 		if u.CurrentHP <= 0 {
 			continue
 		}
+		bossPresent := abyssBossAlive(*mobs)
 		// Scripted boss-phase stun: consume the flag and skip this turn.
 		if au.Stunned {
 			if au.treeBonus.Pct["stun_immunity"] > 0 {
 				au.Stunned = false
 				*logs = append(*logs, fmt.Sprintf("🛡️ %s resists the stun due to Stun Immunity!", u.Nickname))
+			} else if abyssCombatant(u) && bossPresent && !au.stunbreakUsed {
+				// AB-59 Stunbreak: one free stun cleanse per boss fight, acting
+				// at 50% effectiveness this round (applied at dmgMult below).
+				au.Stunned = false
+				au.stunbreakUsed = true
+				au.stunbrokenRound = round
+				*logs = append(*logs, fmt.Sprintf("💪 %s breaks free of the stun through sheer will! (Stunbreak — acting at 50%% effectiveness)", u.Nickname))
 			} else {
 				au.Stunned = false
 				*logs = append(*logs, i18n.T("bot.combat.stunned", u.Nickname))
@@ -907,6 +1084,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			u.Stats.SPD = 10
 			if au.treeBonus.Pct["stun_immunity"] > 0 {
 				*logs = append(*logs, fmt.Sprintf("🛡️ %s resists the stun due to Stun Immunity!", u.Nickname))
+			} else if abyssCombatant(u) && bossPresent && !au.stunbreakUsed {
+				// AB-59 Stunbreak (skill-stun path).
+				au.stunbreakUsed = true
+				au.stunbrokenRound = round
+				*logs = append(*logs, fmt.Sprintf("💪 %s breaks free of the stun through sheer will! (Stunbreak — acting at 50%% effectiveness)", u.Nickname))
 			} else {
 				*logs = append(*logs, i18n.T("bot.combat.stunned", u.Nickname))
 				continue
@@ -929,16 +1111,24 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 		}
 		if isCursed {
-			loss := int(float64(u.Stats.HP) * 0.02)
-			if loss < 1 {
-				loss = 1
-			}
-			u.CurrentHP -= loss
-			*logs = append(*logs, fmt.Sprintf("💀 Cursed weapon drains %d HP from %s!", loss, u.Nickname))
-			if u.CurrentHP <= 0 {
-				u.CurrentHP = 0
-				*logs = append(*logs, fmt.Sprintf("💀 %s has succumbed to their cursed weapon's corruption!", u.Nickname))
-				continue
+			// AB-54 Cursed mercy rule: the HP drain pauses below 20% HP.
+			if abyssCombatant(u) && u.CurrentHP*5 < u.Stats.HP {
+				if !au.cursedMercyLogged {
+					au.cursedMercyLogged = true
+					*logs = append(*logs, fmt.Sprintf("😮‍💨 The curse relents — %s is below 20%% HP, so the drain pauses (Cursed Mercy).", u.Nickname))
+				}
+			} else {
+				loss := int(float64(u.Stats.HP) * 0.02)
+				if loss < 1 {
+					loss = 1
+				}
+				u.CurrentHP -= loss
+				*logs = append(*logs, fmt.Sprintf("💀 Cursed weapon drains %d HP from %s!", loss, u.Nickname))
+				if u.CurrentHP <= 0 {
+					u.CurrentHP = 0
+					*logs = append(*logs, fmt.Sprintf("💀 %s has succumbed to their cursed weapon's corruption!", u.Nickname))
+					continue
+				}
 			}
 		}
 
@@ -1013,6 +1203,16 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 		}
 
+		// AB-62 Focus synergy: the auto-selected loot focus adds a matching
+		// combat micro-bonus (gold focus → +2% crit, etc.).
+		focusCrit := 0
+		focusDmg := 1.0
+		if abyssCombatant(u) {
+			var focusLifesteal int
+			focusCrit, focusDmg, focusLifesteal = abyssFocusMicroBonus(u.LootFocus)
+			lifesteal += focusLifesteal
+		}
+
 		// Skill web: Souldrinker converts defensive stats into lifesteal —
 		// +v of DEF as lifesteal % (v=0.01 → DEF 400 grants +4%), capped so
 		// stacked-DEF builds can't become unkillable.
@@ -1038,9 +1238,13 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			// #nosec G404
 			target := aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
 
-			dmgMult := 1.0
+			dmgMult := focusDmg
 			ignoreDef := 0.0
 			skipDamage := false
+			// AB-59: a stunbroken delver acts at 50% effectiveness this round.
+			if au.stunbrokenRound == round {
+				dmgMult *= 0.5
+			}
 			for _, eff := range au.effects {
 				if eff == content.EffectBerserk && u.CurrentHP < u.Stats.HP/2 {
 					dmgMult += 0.2
@@ -1065,10 +1269,20 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				spellCost = 5
 			}
 
+			// AB-64 Hold mana: with the toggle on, save casts for boss floors
+			// while grinding normal waves.
+			holdCast := au.holdMana && !bossPresent
+			if holdCast && !au.holdManaLogged {
+				au.holdManaLogged = true
+				*logs = append(*logs, fmt.Sprintf("🔷 %s holds their mana, saving their casts for the boss.", u.Nickname))
+			}
+
 			// #nosec G404
-			if len(u.Skills) > 0 && au.CurrentMana >= spellCost && rand.Float64() < 0.3 { // #nosec G404
+			if !holdCast && len(u.Skills) > 0 && au.CurrentMana >= spellCost && rand.Float64() < 0.3 { // #nosec G404
 				// #nosec G404
 				s := u.Skills[rand.IntN(len(u.Skills))] // #nosec G404
+				// AB-52 Mana overflow: casting at full mana overcharges the spell +15%.
+				overcharged := abyssCombatant(u) && au.CurrentMana >= au.MaxMana
 				au.CurrentMana -= spellCost
 
 				// Spell Power scaling: +1% damage multiplier per 1 INT
@@ -1114,6 +1328,25 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 				au.lastSkillID = s.ID
 
+				// AB-52 Mana overflow: the overcharged spell lands +15% harder.
+				if overcharged {
+					dmgMult *= 1.15
+					*logs = append(*logs, fmt.Sprintf("🔷 Mana overflow! %s's %s is overcharged +15%%!", u.Nickname, s.Name))
+				}
+
+				// AB-51 Elemental combo: two same-element skills in a row boost
+				// the second +10%. Skills carry no element of their own, so the
+				// cast element is the channelled weapon element at cast time.
+				castElement := content.ElementPhysical
+				if mh, ok := u.Equipped[content.SlotMainHand]; ok {
+					castElement = mh.Element
+				}
+				if abyssCombatant(u) && au.lastCastElement != "" && au.lastCastElement == castElement {
+					dmgMult *= 1.10
+					*logs = append(*logs, fmt.Sprintf("🔥 Elemental combo! %s channels back-to-back %s magic — +10%%!", u.Nickname, castElement))
+				}
+				au.lastCastElement = castElement
+
 				// #nosec G404
 				if s.StunChance > 0 && rand.Float64() < s.StunChance { // #nosec G404
 					*logs = append(*logs, i18n.T("bot.combat.stunned", target.Name))
@@ -1121,12 +1354,29 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			} else {
 				au.lastSkillID = "" // Reset combo if no skill used
+				au.lastCastElement = ""
 			}
 
 			// Pure support cast (e.g. Arcane Shield): the heal already applied
 			// above, so skip the rest of the attack resolution — no mob damage.
 			if skipDamage {
 				continue
+			}
+
+			// AB-53 Weapon swap mid-boss: when the MainHand element is weak
+			// against the boss and the backpack holds a better matchup, swap
+			// once per fight at the cost of the next action (1-round penalty).
+			// The swap is in-memory for this fight; a manual trigger/persist
+			// endpoint is web-layer work (noted in the group-C report).
+			if abyssCombatant(u) && !au.weaponSwapped && (target.Type == content.MobBoss || target.Type == content.MobLegendary) {
+				if mh, ok := u.Equipped[content.SlotMainHand]; ok && getElementMult(mh.Element, target.Element) < 1.0 {
+					if backup, found := b.findBackupWeapon(u.UID, target.Element, mh.ID); found {
+						u.Equipped[content.SlotMainHand] = backup
+						au.weaponSwapped = true
+						au.Stunned = true // 1-round penalty: the swap costs the next action
+						*logs = append(*logs, fmt.Sprintf("🔄 %s swaps %s for %s mid-fight! (Loses their next action)", u.Nickname, mh.Name, backup.Name))
+					}
+				}
 			}
 
 			// Elemental System (Improvement 1)
@@ -1148,6 +1398,13 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				dmgMult *= 1.10 // 10% damage bonus for backline
 			}
 
+			// AB-68 Backstab: backline weapons deal +8% to mobs that didn't
+			// target this delver last round.
+			if abyssCombatant(u) && u.Position == content.PositionBackline && (au.lastAttackers == nil || !au.lastAttackers[target]) {
+				dmgMult *= 1.08
+				*logs = append(*logs, fmt.Sprintf("🗡️ %s strikes %s from an unseen angle! (Backstab +8%%)", u.Nickname, target.Name))
+			}
+
 			// Ultimate Skill activation: at most one fires per turn — the strongest
 			// ready one — so stacking 3 ultimates widens uptime, not burst.
 			var readyUlt *content.UltimateSkill
@@ -1156,13 +1413,14 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					readyUlt = us
 				}
 			}
-			if readyUlt != nil {
+			if readyUlt != nil && !(au.holdMana && !bossPresent) {
 				ultMult := readyUlt.Power
 				if bonus := au.treeBonus.Pct["ult_damage"]; bonus > 0 {
 					ultMult *= (1.0 + bonus)
 				}
 				dmgMult *= ultMult
 				*logs = append(*logs, i18n.T("bot.combat.ultimate_activation", readyUlt.Name))
+				au.lastUltRound = round // AB-70: interrupt window for boss summon telegraphs
 				
 				cooldownVal := readyUlt.CooldownRounds
 				if red := au.treeBonus.Pct["ult_cooldown"]; red > 0 {
@@ -1198,19 +1456,62 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				dmg = 1
 			}
 
+			// Abyss crit & fumble (AB-72 fumble recovery, AB-62 focus crit bonus).
+			// The CRT stat is displayed as "Crit %" in the armory but was never
+			// rolled in combat — the Abyss path now rolls it (×2 damage, capped).
+			if abyssCombatant(u) {
+				// #nosec G404 -- non-cryptographic combat roll
+				if rand.Float64() < 0.03 {
+					// Fumble: half damage, but the next hit gets +10% crit.
+					dmg = dmg / 2
+					if dmg < 1 {
+						dmg = 1
+					}
+					au.fumbled = true
+					*logs = append(*logs, fmt.Sprintf("😳 %s fumbles their attack! (Half damage — the next hit is fueled by embarrassed rage)", u.Nickname))
+				} else {
+					critPct := u.Stats.CRT + focusCrit
+					if au.fumbled {
+						critPct += 10 // AB-72 embarrassed rage
+						au.fumbled = false
+					}
+					if critPct > 50 {
+						critPct = 50
+					}
+					// #nosec G404 -- non-cryptographic combat roll
+					if critPct > 0 && rand.IntN(100) < critPct {
+						dmg *= 2
+						*logs = append(*logs, fmt.Sprintf("💥 CRITICAL HIT! %s lands a devastating blow on %s!", u.Nickname, target.Name))
+					}
+				}
+			}
+
 			// Daily affix: Execute — strikes land 50% harder on targets below 30% HP.
-			if strings.Contains(u.FloorModifier, "execute") && target.MaxHP > 0 && target.Stats.HP*10 < target.MaxHP*3 {
+			executeAffix := strings.Contains(u.FloorModifier, "execute") && target.MaxHP > 0 && target.Stats.HP*10 < target.MaxHP*3
+			if executeAffix {
 				dmg = dmg * 3 / 2
 			}
 
 			// Executioner affix: +25% damage to targets below 30% HP (stacks with
 			// the Execute daily affix).
+			executioner := false
 			if target.MaxHP > 0 && target.Stats.HP*10 < target.MaxHP*3 {
 				for _, eff := range au.effects {
 					if eff == content.EffectExecutioner {
 						dmg = dmg * 5 / 4
+						executioner = true
 						break
 					}
+				}
+			}
+
+			// AB-55: Executioner + Execute-affix days stack with a special log
+			// flourish and an extra +5%.
+			if executeAffix && executioner {
+				dmg = dmg * 21 / 20
+				if !au.execFlourished {
+					au.execFlourished = true
+					*logs = append(*logs, fmt.Sprintf("⚔️ EXECUTIONER'S FLOURISH! %s's blade sings on Execute day — both bonuses stack with an extra +5%%!", u.Nickname))
 				}
 			}
 

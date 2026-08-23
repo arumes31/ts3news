@@ -559,4 +559,38 @@ func TestAbyssCapTax(t *testing.T) {
 	}
 }
 
+func TestAbyssHeavyPocketsPctUsesExcessEscrow(t *testing.T) {
+	tests := []struct {
+		escrow int64
+		want   int
+	}{
+		{100_000, 0},
+		{149_999, 0},
+		{150_000, 1},
+		{200_000, 2},
+		{1_100_000, 20},
+		{2_000_000, 20},
+	}
+	for _, tt := range tests {
+		if got := abyssHeavyPocketsPct(tt.escrow); got != tt.want {
+			t.Errorf("abyssHeavyPocketsPct(%d) = %d, want %d", tt.escrow, got, tt.want)
+		}
+	}
+}
+
+func TestParseJewelCodeCanonicalizesTierOne(t *testing.T) {
+	base, tier, canonical, ok := parseJewelCode("ruby_1")
+	if !ok || base != "ruby" || tier != 1 || canonical != "ruby" {
+		t.Fatalf("parseJewelCode(ruby_1) = (%q, %d, %q, %v)", base, tier, canonical, ok)
+	}
+
+	jewels, err := loadTreeJewels(`{"ruby":2,"ruby_1":3,"ruby_2":1}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if jewels["ruby"] != 5 || jewels["ruby_1"] != 0 || jewels["ruby_2"] != 1 {
+		t.Fatalf("canonical pouch = %#v", jewels)
+	}
+}
+
 

@@ -27,6 +27,36 @@
   position: relative;
 }
 
+/* AB-201/211/216/225: live combat feedback driven by authoritative frames. */
+.ab-damage-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: inset 0 0 90px 28px rgba(218, 55, 55, .9);
+}
+.ab-damage-vignette.flash { animation: ab-damage-flash .45s ease-out; }
+@keyframes ab-damage-flash { 0% { opacity: var(--damage-alpha, .7); } 100% { opacity: 0; } }
+.ab-boss-hp {
+  margin-left: auto;
+  color: #ffb0b0;
+  font-size: .76rem;
+  font-weight: 800;
+  text-shadow: 0 1px 3px #000;
+}
+.ab-hpbar.ab-low-hp { animation: ab-low-hp-pulse 1.8s ease-in-out infinite; }
+@keyframes ab-low-hp-pulse { 50% { box-shadow: 0 0 12px rgba(226, 87, 91, .85); } }
+.ab-buff.ab-expiring { animation: ab-expiring-buff 1.25s ease-in-out infinite; }
+@keyframes ab-expiring-buff { 50% { opacity: .48; } }
+.ab-log-line.ab-user-pinned {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  border: 1px solid rgba(91, 192, 255, .55);
+  background: rgba(14, 27, 48, .96);
+}
+
 .ab-scene {
   position: absolute;
   inset: 0;
@@ -550,6 +580,9 @@
   body.ab-insanity-run .abyss-panel,
   body.ab-insanity-run .ab-chip,
   .ab-levelup,
+  .ab-damage-vignette.flash,
+  .ab-hpbar.ab-low-hp,
+  .ab-buff.ab-expiring,
   button.primary:active:not(:disabled) {
     animation: none !important;
   }

@@ -196,7 +196,7 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 
-		logs, xp, victory, loots := b.resolveChannelCombat(users, mobs, 10, 1.0, zone)
+		logs, xp, victory, loots, timeline := b.resolveChannelCombatDetailed(users, mobs, 10, 1.0, zone)
 		_ = loots
 
 		if !victory {
@@ -207,6 +207,20 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 		}
 		if len(logs) == 0 {
 			t.Errorf("expected logs")
+		}
+		if len(timeline) == 0 {
+			t.Fatal("expected authoritative combat timeline frames")
+		}
+		for i, frame := range timeline {
+			if frame.AfterLog < 0 || frame.AfterLog > len(logs) {
+				t.Fatalf("timeline frame %d has invalid log index %d (logs=%d)", i, frame.AfterLog, len(logs))
+			}
+			if frame.HP < 0 || frame.HP > frame.MaxHP {
+				t.Fatalf("timeline frame %d has invalid HP %d/%d", i, frame.HP, frame.MaxHP)
+			}
+			if frame.Mana < 0 || frame.Mana > frame.MaxMana {
+				t.Fatalf("timeline frame %d has invalid mana %d/%d", i, frame.Mana, frame.MaxMana)
+			}
 		}
 	})
 
