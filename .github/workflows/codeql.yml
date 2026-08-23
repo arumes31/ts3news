@@ -22,13 +22,15 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
+      uses: github/codeql-action/init@v4
       with:
-        # This is a Go project — there is no C# code, so the old csharp +
-        # autobuild config could only ever fail ("no suitable build method").
-        # Go analysis needs no build at all (build-mode: none).
+        # This is a Go project — there is no C# code, so the old csharp config
+        # could only ever fail ("no suitable build method"). Go needs a build,
+        # and this repo compiles cleanly, so autobuild works.
         languages: go
-        build-mode: none
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v4
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
+      uses: github/codeql-action/analyze@v4
