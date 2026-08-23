@@ -28,22 +28,29 @@
     stroke-dashoffset: -20;
   }
 }
+/* Diff bars are plain <div>s, not SVG paths: pulse brightness instead of the
+   stroke-dashoffset flow (which is a no-op outside SVG). */
+@keyframes diffPulse {
+  50% {
+    filter: brightness(1.5);
+  }
+}
 .te.on {
   stroke-dasharray: 6 4;
   animation: flowPulse 1.5s linear infinite;
-  stroke: #f4c542 !important; /* bright glowing golden line */
-  stroke-width: 3.5 !important;
+  stroke: var(--gold); /* bright glowing golden line */
+  stroke-width: 3.5;
 }
 .te.half {
   stroke-dasharray: 4 4;
   /* No animation: only fully-allocated (.on) edges flow. */
-  stroke: rgba(244, 197, 66, 0.4) !important;
-  stroke-width: 2 !important;
+  stroke: rgba(244, 197, 66, 0.4);
+  stroke-width: 2;
 }
 
 /* Unique tooltips styling */
 .tree-tip.tip-keystone {
-  border: 1px solid #f4c542;
+  border: 1px solid var(--gold);
   box-shadow: 0 0 15px rgba(244, 197, 66, 0.35), 0 10px 28px rgba(0, 0, 0, .55);
 }
 .tree-tip.tip-notable {
@@ -51,11 +58,11 @@
   box-shadow: 0 0 10px rgba(178, 107, 255, 0.25), 0 10px 28px rgba(0, 0, 0, .55);
 }
 .tree-tip.tip-bridge {
-  border: 1px solid #41c97a;
+  border: 1px solid var(--good);
   box-shadow: 0 0 10px rgba(65, 201, 122, 0.25), 0 10px 28px rgba(0, 0, 0, .55);
 }
 .tree-tip-header-keystone {
-  color: #f4c542;
+  color: var(--gold);
   font-size: 0.9rem;
   text-transform: uppercase;
   font-weight: bold;
@@ -74,12 +81,12 @@
 
 /* Stat diff preview styling */
 .preview-highlight {
-  border: 1px dashed #41c97a !important;
+  border: 1px dashed var(--good) !important;
   background: rgba(65, 201, 122, 0.15) !important;
   color: #9af0be !important;
 }
 .diff-add {
-  color: #41c97a;
+  color: var(--good);
   font-weight: bold;
   margin-left: 4px;
 }
@@ -118,7 +125,7 @@
 /* Aura mega-nodes: distinct golden glow so the outermost 50-point rewards pop. */
 .tn.t-aura {
   fill: rgba(244, 197, 66, 0.18);
-  stroke: #f4c542;
+  stroke: var(--gold);
   stroke-width: 2;
   filter: drop-shadow(0 0 6px rgba(244, 197, 66, 0.5));
 }
@@ -162,13 +169,13 @@
 
 /* Interactive Hover Path Highlight (Item 3) */
 .te.path-pulse {
-  stroke: #5bc0ff !important;
+  stroke: var(--xp) !important;
   stroke-width: 4.5 !important;
-  filter: drop-shadow(0 0 8px #5bc0ff) !important;
+  filter: drop-shadow(0 0 8px var(--xp)) !important;
 }
 .tn.path-glow {
-  filter: drop-shadow(0 0 12px #5bc0ff) !important;
-  stroke: #5bc0ff !important;
+  filter: drop-shadow(0 0 12px var(--xp)) !important;
+  stroke: var(--xp) !important;
 }
 
 /* Single-node refund button (Item 48) */
@@ -177,7 +184,7 @@
   color: #fff;
   border: none;
   border-radius: 4px;
-  padding: 3px 8px;
+  padding: 6px 12px;
   font-size: 0.75rem;
   font-weight: bold;
   cursor: pointer;
@@ -188,6 +195,9 @@
 }
 .btn-refund:hover {
   background: #f14c4c;
+}
+.btn-refund:active {
+  filter: brightness(.9);
 }
 
 /* Tabs styling */
@@ -214,7 +224,7 @@
 }
 .tree-tab.active {
   background: rgba(244, 197, 66, 0.12);
-  color: #f4c542;
+  color: var(--gold);
   border: 1px solid rgba(244, 197, 66, 0.4);
   box-shadow: 0 0 10px rgba(244, 197, 66, 0.15);
 }
@@ -241,9 +251,19 @@
   background: rgba(244, 197, 66, 0.5);
 }
 
+/* Reduced motion: kill the edge-flow, portal and tab-fade animations. */
+@media (prefers-reduced-motion: reduce) {
+  .te.on,
+  .te.te-chaotic.on,
+  .portal-swirl,
+  .tree-svg-fade {
+    animation: none !important;
+  }
+}
+
 /* Base edge thin style (Suggestion 11) */
 .te {
-  stroke-width: 1.5 !important;
+  stroke-width: 1.5;
 }
 
 /* Tab change animations (Suggestion 13) */
@@ -298,18 +318,18 @@
     <span class="pill" id="treePointsPill">🔵 <b id="treeUsed">{{.Used}}</b> / <b id="treePoints">{{.Points}}</b> points</span>
     <span class="pill" id="treeTokensPill" style="display:none; color:#f4c542;">🜲 <b id="treeTokens">{{.Tokens}}</b> tokens</span>
     <button class="ghost xs" id="treeRespecBtn" onclick="treeRespec()">♻️ Respec (🜲 {{.RespecTk}})</button>
-    <a class="ghost xs" href="/abyss" style="text-decoration:none; padding:.35rem .7rem; border:1px solid var(--line); border-radius:8px;">← Back to the Abyss</a>
+    <a class="ghost xs" href="/abyss">← Back to the Abyss</a>
   </div>
 </div>
 
 <div class="tree-tabs">
-  <button class="tree-tab active" id="tab-passive" onclick="switchTab('passive')">🌳 Passive Skill Web</button>
-  <button class="tree-tab" id="tab-talents" onclick="switchTab('talents')">🜲 Deep Delver Upgrades</button>
-  <button class="tree-tab" id="tab-specs" onclick="switchTab('specializations')">🎓 Specializations</button>
+  <button class="tree-tab active" id="tab-passive" onclick="switchTab('passive')" aria-pressed="true">🌳 Passive Skill Web</button>
+  <button class="tree-tab" id="tab-talents" onclick="switchTab('talents')" aria-pressed="false">🜲 Deep Delver Upgrades</button>
+  <button class="tree-tab" id="tab-specs" onclick="switchTab('specializations')" aria-pressed="false">🎓 Specializations</button>
 </div>
 
 <div class="tree-toolbar">
-  <input type="search" id="treeSearch" placeholder="🔍 Search nodes (e.g. 'loot find', 'Keystone', 'STR')" oninput="treeSearchApply()">
+  <input type="search" id="treeSearch" placeholder="🔍 Search nodes (e.g. 'loot find', 'Keystone', 'STR')" aria-label="Search skill nodes" oninput="treeSearchApply()">
   <span class="muted small" id="treeLegendText">Drag to pan · wheel to zoom · click a highlighted node to allocate</span>
   <div class="tree-legend" id="treeLegendPills">
     <span><i class="tl-dot tl-alloc"></i> allocated</span>
@@ -1108,6 +1128,9 @@ function switchTab(tab) {
   document.getElementById('tab-passive').classList.toggle('active', tab === 'passive');
   document.getElementById('tab-talents').classList.toggle('active', tab === 'talents');
   document.getElementById('tab-specs').classList.toggle('active', tab === 'specializations');
+  document.getElementById('tab-passive').setAttribute('aria-pressed', tab === 'passive');
+  document.getElementById('tab-talents').setAttribute('aria-pressed', tab === 'talents');
+  document.getElementById('tab-specs').setAttribute('aria-pressed', tab === 'specializations');
   
   var title = document.getElementById('treeTitle');
   var sub = document.getElementById('treeSubtitle');
@@ -1186,7 +1209,7 @@ async function tryUpgradeTalent(key) {
     return;
   }
   
-  if (!confirm('Upgrade ' + t.label + ' to Level ' + (level + 1) + ' for 🜲 ' + cost + ' tokens?')) return;
+  if (!(await confirmModal('Upgrade ' + t.label + ' to Level ' + (level + 1) + ' for 🜲 ' + cost + ' tokens?'))) return;
   
   if (busy) return;
   setBusy(true);
@@ -1225,7 +1248,7 @@ async function trySelectSpec(spec, label) {
     ? 'Clear your specialization (Free)?'
     : 'Choose ' + label + ' as your specialization? ' + costMsg;
     
-  if (!confirm(confirmText)) return;
+  if (!(await confirmModal(confirmText))) return;
   
   if (busy) return;
   setBusy(true);
@@ -1559,7 +1582,7 @@ async function tryAutoPath(id){
   if(gf){ abToast('Path blocked — a node on it requires clearing Abyss floor ' + gf + ' (your record: ' + bestDepth + ').', false); return; }
   var pc = pathCost(chain);
   if(used + pc > points){ abToast('Path costs ' + pc + ' points — you have ' + Math.max(0, points - used) + ' available.', false); return; }
-  if(!confirm('Auto-allocate ' + chain.length + ' node' + (chain.length>1?'s':'') + ' along the path for ' + pc + ' points?')) return;
+  if(!(await confirmModal('Auto-allocate ' + chain.length + ' node' + (chain.length>1?'s':'') + ' along the path for ' + pc + ' points?'))) return;
   if(busy) return;
   setBusy(true);
   var completed = true;
@@ -1635,7 +1658,7 @@ async function tryRefund(ev, id){
   var prompt = set.length > 1
     ? 'Refund this node and ' + (set.length-1) + ' dependent node' + (set.length-1>1?'s':'') + ' for 🪙 ' + gold + ' gold?'
     : 'Refund this node for 🪙 ' + gold + ' gold?';
-  if(!confirm(prompt)) return;
+  if(!(await confirmModal(prompt))) return;
   if(busy) return;
   setBusy(true);
   try {
@@ -1658,7 +1681,7 @@ async function tryRefund(ev, id){
 }
 
 async function treeRespec(){
-  if(!confirm('Reset every allocated node for 🜲 {{.RespecTk}}?')) return;
+  if(!(await confirmModal('Reset every allocated node for 🜲 {{.RespecTk}}?'))) return;
   var d = await abPost('/api/abyss/tree/respec', {});
   if(!d.ok){ abToast(d.error||'failed', false); return; }
   abToast(d.msg, true);
@@ -1784,7 +1807,7 @@ function renderSummary(pct, stats, diffNode){
     var val = displayStats[k] || 0;
     var pctWidth = maxVal > 0 ? (val / maxVal * 100) : 0;
     var barColor = k==='STR' ? '#ff5b5b' : k==='INT' ? '#5b8bff' : k==='SPD' ? '#ffd85b' : k==='DEF' ? '#5bff8b' : k==='HP' ? '#ff5be7' : '#b26bff';
-    var isDiff = diffStats[k] ? 'animation: flowPulse 2s infinite;' : '';
+    var isDiff = diffStats[k] ? 'animation: diffPulse 2s infinite;' : '';
     
     graphHtml += '<div style="display: flex; align-items: center; gap: 8px; font-size: 0.7rem;">' +
                    '<span style="width: 28px; font-weight: bold; color: #fff;">' + k + '</span>' +
@@ -1920,8 +1943,8 @@ function showTip(n, ev){
 }
 function moveTip(ev){
   var r = document.getElementById('treeStage').getBoundingClientRect();
-  tip.style.left = Math.min(ev.clientX - r.left + 14, r.width - 240) + 'px';
-  tip.style.top = (ev.clientY - r.top + 14) + 'px';
+  tip.style.left = Math.max(4, Math.min(ev.clientX - r.left + 14, r.width - 240)) + 'px';
+  tip.style.top = Math.min(ev.clientY - r.top + 14, r.height - tip.offsetHeight - 8) + 'px';
 }
 function hideTip(){ cancelHideTip(); tip.style.display = 'none'; }
 document.getElementById('treeStage').addEventListener('mousemove', function(ev){ if(tip.style.display!=='none') moveTip(ev); });

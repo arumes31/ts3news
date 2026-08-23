@@ -10,8 +10,8 @@
 
   <!-- Category Tabs -->
   <div class="lb-category-tabs">
-    {{if .AbyssLeaders}}<button class="lb-cat-btn active" data-cat="abyss">{{T "web.abyss.title"}}</button>{{end}}
-    <button class="lb-cat-btn{{if not .AbyssLeaders}} active{{end}}" data-cat="arcade">🎰 Arcade</button>
+    {{if .AbyssLeaders}}<button class="lb-cat-btn active" data-cat="abyss" aria-pressed="true">{{T "web.abyss.title"}}</button>{{end}}
+    <button class="lb-cat-btn{{if not .AbyssLeaders}} active{{end}}" data-cat="arcade" aria-pressed="{{if .AbyssLeaders}}false{{else}}true{{end}}">🎰 Arcade</button>
   </div>
 
   {{if .AbyssLeaders}}
@@ -45,9 +45,10 @@
     catBtns.forEach(function (btn) {
       btn.addEventListener('click', function () {
         var cat = this.getAttribute('data-cat');
-        catBtns.forEach(function (b) { b.classList.remove('active'); });
+        catBtns.forEach(function (b) { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
         panels.forEach(function (p) { p.classList.remove('active'); });
         this.classList.add('active');
+        this.setAttribute('aria-pressed', 'true');
         var target = document.querySelector('.lb-cat-panel[data-cat="' + cat + '"]');
         if (target) target.classList.add('active');
       });

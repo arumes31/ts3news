@@ -466,8 +466,13 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 
 	var gid string
 	var dur int
-	if err := s.bot.DB.QueryRow("SELECT gear_id, durability FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gid, &dur); err != nil {
+	var itemData sql.NullString
+	if err := s.bot.DB.QueryRow("SELECT gear_id, durability, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gid, &dur, &itemData); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
+		return
+	}
+	if ig, ok := s.bot.makeGear(gid, itemData); ok && ig.Attuned {
+		writeJSON(w, map[string]any{"ok": false, "error": ig.Name + " is attuned to you and cannot be auctioned"})
 		return
 	}
 	g, ok := content.GetGearByID(gid)

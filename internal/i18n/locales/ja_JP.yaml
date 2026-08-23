@@ -294,6 +294,8 @@ rarity.epic: "エピック"
 rarity.legendary: "レジェンダリー"
 rarity.mythic: "ミシック"
 rarity.divine: "ディバイン"
+rarity.celestial: "セレスティアル"
+rarity.eternal: "エターナル"
 rarity.unknown: "レアリティ(%[1]d)"
 
 # ─── Mob Type Names ───

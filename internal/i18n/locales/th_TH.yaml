@@ -294,6 +294,8 @@ rarity.epic: "เอปิก"
 rarity.legendary: "ในตำนาน"
 rarity.mythic: "มายาคติ"
 rarity.divine: "เทพเจ้า"
+rarity.celestial: "สวรรค์"
+rarity.eternal: "นิรันดร์"
 rarity.unknown: "ระดับความหายาก (%[1]d)"
 
 # ─── Mob Type Names ───

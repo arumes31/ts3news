@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand/v2"
 	"net/http"
 	"strings"
@@ -78,13 +79,6 @@ func (s *WebServer) handleAbyssIdentify(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	var gold int64
-	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
-	if gold < 100 {
-		writeJSON(w, map[string]any{"ok": false, "error": "Not enough gold (requires 100 gold)"})
-		return
-	}
-
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -123,12 +117,16 @@ func (s *WebServer) handleAbyssIdentify(w http.ResponseWriter, r *http.Request, 
 	}
 
 	g.Unidentified = false
-	dataBytes, _ := json.Marshal(g)
+	dataBytes, err := json.Marshal(g)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 
 	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
 		return
 	}
-	if !deductGold(w, tx, uid, 100) {
+	if !deductGold(w, tx, uid, s.bot.forgeGoldCost(uid, 100, g.Rarity)) {
 		return
 	}
 
@@ -137,7 +135,9 @@ func (s *WebServer) handleAbyssIdentify(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "msg": "Item successfully identified!", "gold": gold - 100})
+	var gold int64
+	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+	writeJSON(w, map[string]any{"ok": true, "msg": "Item successfully identified!", "gold": gold})
 }
 
 // handleAbyssSocketGem spends 50 gold to socket a gemstone.
@@ -182,13 +182,6 @@ func (s *WebServer) handleAbyssSocketGem(w http.ResponseWriter, r *http.Request,
 
 	if !valid {
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid gemstone type"})
-		return
-	}
-
-	var gold int64
-	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
-	if gold < 50 {
-		writeJSON(w, map[string]any{"ok": false, "error": "Not enough gold (requires 50 gold)"})
 		return
 	}
 
@@ -241,12 +234,16 @@ func (s *WebServer) handleAbyssSocketGem(w http.ResponseWriter, r *http.Request,
 	g.Gemstones = append(g.Gemstones, gem)
 	g.Stats = g.Stats.Add(gemStats)
 
-	dataBytes, _ := json.Marshal(g)
+	dataBytes, err := json.Marshal(g)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 
 	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
 		return
 	}
-	if !deductGold(w, tx, uid, 50) {
+	if !deductGold(w, tx, uid, s.bot.forgeGoldCost(uid, 50, g.Rarity)) {
 		return
 	}
 
@@ -255,7 +252,9 @@ func (s *WebServer) handleAbyssSocketGem(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Successfully socketed %s into your gear!", gem), "gold": gold - 50})
+	var gold int64
+	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Successfully socketed %s into your gear!", gem), "gold": gold})
 }
 
 // handleAbyssEtchRune spends 150 gold to etch an elemental rune.
@@ -292,16 +291,9 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	cost := int64(150)
+	costBase := int64(150)
 	if known {
-		cost = 50
-	}
-
-	var gold int64
-	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
-	if gold < cost {
-		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("Not enough gold (requires %d gold)", cost)})
-		return
+		costBase = 50
 	}
 
 	tx, err := s.bot.DB.Begin()
@@ -349,11 +341,16 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 	g.Rune = runeType
 	g.Element = content.Element(runeType)
 
-	dataBytes, _ := json.Marshal(g)
+	dataBytes, err := json.Marshal(g)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 
 	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
 		return
 	}
+	cost := s.bot.forgeGoldCost(uid, costBase, g.Rarity)
 	if !deductGold(w, tx, uid, cost) {
 		return
 	}
@@ -372,7 +369,9 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 	if !known {
 		msg += " 📖 Rune learned — re-etching it now costs only 50g."
 	}
-	writeJSON(w, map[string]any{"ok": true, "msg": msg, "gold": gold - cost})
+	var gold int64
+	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+	writeJSON(w, map[string]any{"ok": true, "msg": msg, "gold": gold})
 }
 
 // handleAbyssRecalibrate spends 5 tokens to reroll a single stat on Legendary+ gear.
@@ -397,13 +396,6 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 	stat := req.Stat
 	if stat != "HP" && stat != "MNA" && stat != "STR" && stat != "DEF" && stat != "SPD" && stat != "LCK" && stat != "INT" && stat != "STA" && stat != "CRT" && stat != "DGE" {
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid stat"})
-		return
-	}
-
-	var tokens int64
-	_ = s.bot.DB.QueryRow("SELECT abyss_tokens FROM users WHERE client_uid=$1", uid).Scan(&tokens)
-	if tokens < 5 {
-		writeJSON(w, map[string]any{"ok": false, "error": "Not enough tokens (requires 5 tokens)"})
 		return
 	}
 
@@ -472,7 +464,11 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 		g.Stats.DGE = 5 + rand.IntN(15) // #nosec G404 -- non-cryptographic stat reroll
 	}
 
-	dataBytes, _ := json.Marshal(g)
+	dataBytes, err := json.Marshal(g)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 
 	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
 		return
@@ -486,7 +482,8 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Successfully recalibrated %s stat!", stat), "tokens": tokens - 5})
+	s.bot.recordForge(uid, "recalibrate", stat+" stat", "5 tokens")
+	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Successfully recalibrated %s stat!", stat), "tokens": s.bot.abyssTokens(uid)})
 }
 
 // abyssUpgradeGearCost is the Abyss-token cost to ascend a piece of gear to the
@@ -494,6 +491,10 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 // Mythic/Divine piece is a real long-term goal rather than a cheap token dump.
 func abyssUpgradeGearCost(target content.Rarity) int64 {
 	switch target {
+	case content.RarityEternal:
+		return 800
+	case content.RarityCelestial:
+		return 400
 	case content.RarityDivine:
 		return 200
 	case content.RarityMythic:
@@ -526,9 +527,6 @@ func (s *WebServer) handleAbyssUpgradeGear(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
-
-	var tokens int64
-	_ = s.bot.DB.QueryRow("SELECT abyss_tokens FROM users WHERE client_uid=$1", uid).Scan(&tokens)
 
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
@@ -566,30 +564,31 @@ func (s *WebServer) handleAbyssUpgradeGear(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if g.Rarity >= content.RarityDivine {
-		writeJSON(w, map[string]any{"ok": false, "error": "item is already at max rarity (Divine)"})
+	if g.Rarity >= content.RarityEternal {
+		writeJSON(w, map[string]any{"ok": false, "error": "item is already at max rarity (Eternal)"})
 		return
 	}
 
 	target := g.Rarity + 1
 	cost := abyssUpgradeGearCost(target)
-	if tokens < cost {
-		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("Not enough tokens (requires %d tokens)", cost)})
-		return
-	}
 
 	g.Rarity = target
 	g.Stats = g.Stats.Scaled(1.3) // +30% stats
 	g.GearLevel++
 
 	// Ascending into the top tiers imbues extra bonus combat affixes: Mythic gains
-	// one, Divine two, so the very best gear is meaningfully more powerful.
+	// one, Divine two, Celestial two, Eternal three, so the very best gear is
+	// meaningfully more powerful.
 	added := 0
 	switch target {
 	case content.RarityMythic:
 		added = 1
 	case content.RarityDivine:
 		added = 2
+	case content.RarityCelestial:
+		added = 2
+	case content.RarityEternal:
+		added = 3
 	}
 	if added > 0 {
 		before := len(g.BonusEffects)
@@ -597,7 +596,11 @@ func (s *WebServer) handleAbyssUpgradeGear(w http.ResponseWriter, r *http.Reques
 		added = len(g.BonusEffects) - before
 	}
 
-	dataBytes, _ := json.Marshal(g)
+	dataBytes, err := json.Marshal(g)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 
 	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
 		return
@@ -619,7 +622,7 @@ func (s *WebServer) handleAbyssUpgradeGear(w http.ResponseWriter, r *http.Reques
 		}
 		msg += " New bonus effect(s): " + strings.Join(effNames, ", ")
 	}
-	writeJSON(w, map[string]any{"ok": true, "msg": msg, "tokens": tokens - cost})
+	writeJSON(w, map[string]any{"ok": true, "msg": msg, "tokens": s.bot.abyssTokens(uid)})
 }
 
 // handleAbyssTransmute converts a weapon into a class-suitable random weapon.
@@ -636,13 +639,6 @@ func (s *WebServer) handleAbyssTransmute(w http.ResponseWriter, r *http.Request,
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
-		return
-	}
-
-	var gold int64
-	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
-	if gold < 100 {
-		writeJSON(w, map[string]any{"ok": false, "error": "Not enough gold (requires 100 gold)"})
 		return
 	}
 
@@ -702,19 +698,31 @@ func (s *WebServer) handleAbyssTransmute(w http.ResponseWriter, r *http.Request,
 	selectedID := weaponPool[rand.IntN(len(weaponPool))]
 	selected, ok = content.GetGearByID(selectedID)
 	if !ok {
-		selected = g
+		writeJSON(w, map[string]any{"ok": false, "error": "transmute failed"})
+		return
+	}
+
+	// A fresh catalog base carries no per-level scaling or ascension multiplier, so
+	// transmuting an ascended piece would silently strip that power. Refuse instead.
+	if selected.GearLevel != g.GearLevel {
+		writeJSON(w, map[string]any{"ok": false, "error": "cannot transmute ascended gear (gear level cannot be preserved)"})
+		return
 	}
 
 	selected.Rarity = g.Rarity
 	selected.GearLevel = g.GearLevel
 	selected.Sockets = g.Sockets
 
-	dataBytes, _ := json.Marshal(selected)
+	dataBytes, err := json.Marshal(selected)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	if _, err := tx.Exec("UPDATE user_inventory SET gear_id=$1, item_data=$2 WHERE id=$3 AND client_uid=$4", selected.ID, string(dataBytes), req.InvID, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if !deductGold(w, tx, uid, 100) {
+	if !deductGold(w, tx, uid, s.bot.forgeGoldCost(uid, 100, g.Rarity)) {
 		return
 	}
 
@@ -723,7 +731,9 @@ func (s *WebServer) handleAbyssTransmute(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Transmuted weapon into a suitable %s!", selected.Name), "gold": gold - 100})
+	var gold int64
+	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Transmuted weapon into a suitable %s!", selected.Name), "gold": gold})
 }
 
 // handleAbyssConvertMana converts excess mana (INT stat / converts 2:1 to HP).
@@ -756,7 +766,12 @@ func (s *WebServer) handleAbyssConvertMana(w http.ResponseWriter, r *http.Reques
 
 	upgrades := make(map[string]int)
 	if upgradesJSON.Valid && upgradesJSON.String != "" {
-		_ = json.Unmarshal([]byte(upgradesJSON.String), &upgrades)
+		// Fail closed: a corrupt upgrades blob must not be overwritten with an
+		// empty map (that would wipe the player's converted HP/mana state).
+		if err := json.Unmarshal([]byte(upgradesJSON.String), &upgrades); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 	}
 
 	// Check if user has enough converted mana stats
@@ -769,8 +784,12 @@ func (s *WebServer) handleAbyssConvertMana(w http.ResponseWriter, r *http.Reques
 	upgrades["converted_hp"] += hpGain
 	upgrades["converted_mana_reduction"] += req.Amount
 
-	upgradesBytes, _ := json.Marshal(upgrades)
-	_, err := s.bot.DB.Exec("UPDATE users SET abyss_upgrades=$1 WHERE client_uid=$2", string(upgradesBytes), uid)
+	upgradesBytes, err := json.Marshal(upgrades)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	_, err = s.bot.DB.Exec("UPDATE users SET abyss_upgrades=$1 WHERE client_uid=$2", string(upgradesBytes), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db update"})
 		return
@@ -815,7 +834,7 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 	calcRefund := func(level int) int64 {
 		sum := int64(0)
 		for l := 1; l <= level; l++ {
-			sum += int64(l) * 10
+			sum += talentTokenCost(l - 1)
 		}
 		return sum
 	}
@@ -843,7 +862,9 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 	_ = tx.QueryRow("SELECT abyss_upgrades FROM users WHERE client_uid=$1", uid).Scan(&upgradesJSON)
 	upgrades := map[string]int{}
 	if upgradesJSON.Valid && upgradesJSON.String != "" {
-		_ = json.Unmarshal([]byte(upgradesJSON.String), &upgrades)
+		if err := json.Unmarshal([]byte(upgradesJSON.String), &upgrades); err != nil {
+			log.Printf("abyss upgrades blob corrupt for %s during talent reset: %v", uid, err)
+		}
 	}
 	preserved := map[string]int{}
 	for _, k := range []string{"converted_hp", "converted_mana_reduction"} {
@@ -851,7 +872,11 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 			preserved[k] = v
 		}
 	}
-	preservedBytes, _ := json.Marshal(preserved)
+	preservedBytes, err := json.Marshal(preserved)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 
 	// Reset columns
 	_, err = tx.Exec(`UPDATE users
@@ -880,7 +905,7 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Talents reset successfully! Refunded %d tokens.", totalRefund), "tokens": tokens + totalRefund})
+	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Talents reset successfully! Refunded %d tokens.", totalRefund), "tokens": s.bot.abyssTokens(uid)})
 }
 
 // handleAbyssInsureItem spends 200 gold to permanently mark a gear piece as insured.
@@ -898,13 +923,6 @@ func (s *WebServer) handleAbyssInsureItem(w http.ResponseWriter, r *http.Request
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
-		return
-	}
-
-	var gold int64
-	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
-	if gold < 200 {
-		writeJSON(w, map[string]any{"ok": false, "error": "Not enough gold (requires 200 gold)"})
 		return
 	}
 
@@ -950,12 +968,16 @@ func (s *WebServer) handleAbyssInsureItem(w http.ResponseWriter, r *http.Request
 	}
 
 	g.Insured = true
-	dataBytes, _ := json.Marshal(g)
+	dataBytes, err := json.Marshal(g)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 
 	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
 		return
 	}
-	if !deductGold(w, tx, uid, 200) {
+	if !deductGold(w, tx, uid, s.bot.forgeGoldCost(uid, 200, g.Rarity)) {
 		return
 	}
 
@@ -964,5 +986,7 @@ func (s *WebServer) handleAbyssInsureItem(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "msg": "Item marked as Insured! It will no longer take durability loss.", "gold": gold - 200})
+	var gold int64
+	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
+	writeJSON(w, map[string]any{"ok": true, "msg": "Item marked as Insured! It will no longer take durability loss.", "gold": gold})
 }

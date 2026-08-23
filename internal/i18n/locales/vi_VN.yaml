@@ -294,6 +294,8 @@ rarity.epic: "Sử thi"
 rarity.legendary: "Huyền thoại"
 rarity.mythic: "Huyền thoại"
 rarity.divine: "Thần thánh"
+rarity.celestial: "Thiên giới"
+rarity.eternal: "Vĩnh hằng"
 rarity.unknown: "Độ hiếm (%[1]d)"
 
 # ─── Mob Type Names ───

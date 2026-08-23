@@ -20,10 +20,12 @@ const (
 	RarityLegendary
 	RarityMythic
 	RarityDivine
+	RarityCelestial
+	RarityEternal
 )
 
 func (r Rarity) String() string {
-	list := []string{i18n.T("rarity.common"), i18n.T("rarity.uncommon"), i18n.T("rarity.rare"), i18n.T("rarity.epic"), i18n.T("rarity.legendary"), i18n.T("rarity.mythic"), i18n.T("rarity.divine")}
+	list := []string{i18n.T("rarity.common"), i18n.T("rarity.uncommon"), i18n.T("rarity.rare"), i18n.T("rarity.epic"), i18n.T("rarity.legendary"), i18n.T("rarity.mythic"), i18n.T("rarity.divine"), i18n.T("rarity.celestial"), i18n.T("rarity.eternal")}
 	if int(r) < 0 || int(r) >= len(list) {
 		return i18n.T("rarity.unknown", r)
 	}
@@ -40,6 +42,8 @@ func (r Rarity) Color() string {
 		"#ff9800", // Legendary (Orange)
 		"#f44336", // Mythic (Red)
 		"#ffeb3b", // Divine (Gold)
+		"#40c4ff", // Celestial (Sky)
+		"#e040fb", // Eternal (Magenta)
 	}
 	if int(r) < 0 || int(r) >= len(colors) {
 		return "#ffffff"
@@ -124,6 +128,8 @@ func (g Gear) CombatRating() float64 {
 		RarityLegendary: 2.3,
 		RarityMythic:    2.8,
 		RarityDivine:    3.4,
+		RarityCelestial: 4.1,
+		RarityEternal:   5.0,
 	}
 	if mult, ok := rarityMult[g.Rarity]; ok {
 		cr *= mult
@@ -262,6 +268,8 @@ const (
 	EffectStealth        ItemEffect = "Stealth"        // Skip first round mob damage
 	EffectParry          ItemEffect = "Parry"          // 10% chance to take 0 damage and counter for 50%
 	EffectCleanse        ItemEffect = "Cleanse"        // Remove one negative effect/hazard at start of turn
+	EffectExecutioner    ItemEffect = "Executioner"    // +25% damage to targets below 30% HP
+	EffectFocused        ItemEffect = "Focused"        // +10% CRT
 )
 
 // Element is a damage/resistance type used for elemental combat matchups.
@@ -323,6 +331,30 @@ type Gear struct {
 	// applied into Stats.HP). Cleansing at the forge adds CorruptHP back.
 	Corrupted bool `json:"corrupted,omitempty"`
 	CorruptHP int  `json:"corrupt_hp,omitempty"`
+	// Embraced marks a corrupted item whose owner embraced the corruption at the
+	// forge: the HP malus is halved permanently and the item can no longer be
+	// cleansed.
+	Embraced bool `json:"embraced,omitempty"`
+	// Prismatic marks an item whose etched rune was elevated at the forge,
+	// baking +5% into its highest combat stat (once per item).
+	Prismatic bool `json:"prismatic,omitempty"`
+
+	// Reinforced is the forge reinforce level (armor/jewelry only, cap 10); each
+	// level bakes +2% DEF (min +1). Sharpened is the weapon equivalent, baking
+	// +2% STR per level.
+	Reinforced int `json:"reinforced,omitempty"`
+	Sharpened  int `json:"sharpened,omitempty"`
+	// Awakened marks an item whose dormant Special was rolled at the forge (once
+	// per item, only when it had no Special).
+	Awakened bool `json:"awakened,omitempty"`
+	// Imbued records which extra effect was imbued into BonusEffects (once per
+	// item; empty means not imbued).
+	Imbued string `json:"imbued,omitempty"`
+	// Attuned binds the item to its owner (+5% stats baked once): it can no
+	// longer be fused, salvaged, dismantled or auctioned.
+	Attuned bool `json:"attuned,omitempty"`
+	// Quality is the masterwork level 0-5; each level bakes x1.03 combat stats.
+	Quality int `json:"quality,omitempty"`
 
 	// SetID identifies which named Abyss-exclusive set (if any) this item
 	// belongs to. Empty for gear predating the multi-set system.
@@ -387,6 +419,10 @@ var allGear []Gear
 var starterGear []Gear
 var uniqueLegendaries []Gear
 var abyssExclusiveGear []Gear
+
+// insanityExclusiveGear holds the Insanity-tier exclusive drops (populated in
+// buildContent alongside abyssExclusiveGear).
+var insanityExclusiveGear []Gear
 var legendaryCatalog []Gear
 var allConsumables []Consumable
 
@@ -515,7 +551,9 @@ func buildContent() {
 	// - Epic: +20% XP (1.20x)
 	// - Legendary: +30% XP (1.30x)
 	// - Mythic: +40% XP (1.40x)
-	// - Divine: +50% XP (1.50x) - maximum
+	// - Divine: +50% XP (1.50x)
+	// - Celestial: +60% XP (1.60x)
+	// - Eternal: +75% XP (1.75x) - maximum
 	getXPMult := func(rar Rarity) float64 {
 		switch rar {
 		case RarityCommon:
@@ -531,7 +569,11 @@ func buildContent() {
 		case RarityMythic:
 			return 1.40 // +40% XP
 		case RarityDivine:
-			return 1.50 // +50% XP (max)
+			return 1.50 // +50% XP
+		case RarityCelestial:
+			return 1.60 // +60% XP
+		case RarityEternal:
+			return 1.75 // +75% XP (max)
 		default:
 			return 1.0
 		}
@@ -849,8 +891,29 @@ func buildContent() {
 		{ID: "ABYSS_WANDERING_BOOTS", Name: "Wandering Boots", Slot: SlotFeet, Rarity: RarityEpic, XPMultiplier: 1.20, MaxDurability: 80, Stats: Stats{HP: 100, LCK: 20, SPD: 20}},
 		{ID: "ABYSS_SUN_KING", Name: "Sun-King Crown", Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 90, Stats: Stats{HP: 200, INT: 40}},
 		{ID: "ABYSS_LICH_CROWN", Name: "Lich Crown", Slot: SlotHead, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 85, Stats: Stats{HP: -150, INT: 80, MNA: 150}},
+
+		// Harvester set (luck/loot themed, 3 pieces).
+		{ID: "ABYSS_HARVESTER_HOOK", Name: "Harvester's Gulthook", Slot: SlotMainHand, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 95, Stats: Stats{STR: 800, LCK: 200, SPD: 150}, SetID: "harvester"},
+		{ID: "ABYSS_HARVESTER_EYE", Name: "Eye of the Harvester", Slot: SlotTrinket2, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 70, Stats: Stats{LCK: 250, CRT: 40}, SetID: "harvester"},
+		{ID: "ABYSS_HARVESTER_BAND", Name: "Band of the Gilded Harvest", Slot: SlotFinger2, Rarity: RarityLegendary, XPMultiplier: getXPMult(RarityLegendary), MaxDurability: 75, Stats: Stats{HP: 400, LCK: 200, CHA: 50}, SetID: "harvester"},
+	}
+
+	// Insanity-tier exclusives: oversized stats — including Celestial pieces —
+	// almost always balanced by a harsh trade-off (negative stats, Fragile,
+	// Cursed). They only drop in Insanity runs; every other pool skips the
+	// INSANITY_ prefix via IsInsanityGearID.
+	insanityExclusiveGear = []Gear{
+		{ID: "INSANITY_EDGE", Name: "Edge of Howling Madness", Slot: SlotMainHand, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 60, Stats: Stats{STR: 1500, CRT: 70, SPD: -150}, Special: EffectFragile},
+		{ID: "INSANITY_CLEAVER", Name: "Worldbreaker Cleaver", Slot: SlotMainHand, Rarity: RarityCelestial, XPMultiplier: getXPMult(RarityCelestial), MaxDurability: 50, Stats: Stats{STR: 2200, CRT: 80, DGE: -60}, Special: EffectFragile},
+		{ID: "INSANITY_CROWN", Name: "Crown of Shattered Sanity", Slot: SlotHead, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 70, Stats: Stats{INT: 600, HP: 800, LCK: -100}, Cursed: true},
+		{ID: "INSANITY_PLATE", Name: "Plate of the Screaming Deep", Slot: SlotChest, Rarity: RarityCelestial, XPMultiplier: getXPMult(RarityCelestial), MaxDurability: 80, Stats: Stats{HP: 2600, DEF: 950, SPD: -250}, Special: EffectFragile},
+		{ID: "INSANITY_TREADS", Name: "Treads of the Falling Mind", Slot: SlotFeet, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 65, Stats: Stats{SPD: 650, DGE: 90, HP: -400}},
+		{ID: "INSANITY_LOOP", Name: "Loop of Fractured Whispers", Slot: SlotFinger1, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 60, Stats: Stats{LCK: 320, CRT: 60, DEF: -150}, Cursed: true},
+		{ID: "INSANITY_PENDANT", Name: "Pendant of Beautiful Terror", Slot: SlotNeck, Rarity: RarityMythic, XPMultiplier: getXPMult(RarityMythic), MaxDurability: 60, Stats: Stats{INT: 520, MNA: 220, STA: -120}},
+		{ID: "INSANITY_HEART", Name: "Heart of Insanity", Slot: SlotRelic, Rarity: RarityCelestial, XPMultiplier: getXPMult(RarityCelestial), MaxDurability: 90, Stats: Stats{HP: 1200, STR: 500, INT: 500, LCK: -80}, Special: EffectBerserk, BonusEffects: []ItemEffect{EffectFragile}},
 	}
 	allGear = append(allGear, abyssExclusiveGear...)
+	allGear = append(allGear, insanityExclusiveGear...)
 
 	// 2. Generate 100 Corrupted Artifacts
 	idx = 1
@@ -1079,7 +1142,7 @@ func RandomGearDrop() Gear {
 			// #nosec G404
 			g = allGear[rand.IntN(len(allGear))] // #nosec G404
 		}
-		if !strings.HasPrefix(g.ID, "ABYSS_") {
+		if !strings.HasPrefix(g.ID, "ABYSS_") && !IsInsanityGearID(g.ID) {
 			break
 		}
 	}
@@ -1102,7 +1165,7 @@ func RandomArcadeGearDrop() Gear {
 func GearByMinRarity(floor Rarity) []Gear {
 	var out []Gear
 	for _, g := range allGear {
-		if !strings.HasPrefix(g.ID, "ABYSS_") && g.Rarity >= floor {
+		if !strings.HasPrefix(g.ID, "ABYSS_") && !IsInsanityGearID(g.ID) && g.Rarity >= floor {
 			out = append(out, g)
 		}
 	}
@@ -1119,6 +1182,7 @@ var abyssSetTiers = []struct {
 	{2, Stats{HP: 200, STR: 30, DEF: 30}},
 	{4, Stats{HP: 400, STR: 60, DEF: 60, SPD: 20}},
 	{6, Stats{HP: 800, STR: 120, DEF: 120, SPD: 40, CRT: 30}},
+	{8, Stats{HP: 1500, STR: 200, DEF: 200, SPD: 60, CRT: 50, LCK: 50}},
 }
 
 // AbyssSetBonus returns the cumulative Abyss-set bonus stats for the given number
@@ -1154,6 +1218,10 @@ var abyssNamedSetTiers = map[string][]struct {
 		{4, Stats{DEF: 80, STA: 30, HP: 200}},
 		{6, Stats{DEF: 150, STA: 50, HP: 500}},
 	},
+	"harvester": {
+		{2, Stats{LCK: 60, CRT: 20}},
+		{3, Stats{LCK: 150, CRT: 40, INT: 100}},
+	},
 }
 
 // AbyssSetBonusBySet returns the cumulative bonus across every named/legacy
@@ -1186,6 +1254,34 @@ func AbyssSetBonusBySet(counts map[string]int) (Stats, map[string]int) {
 
 // IsAbyssGearID reports whether a gear ID belongs to the Abyss-exclusive set.
 func IsAbyssGearID(id string) bool { return strings.HasPrefix(id, "ABYSS_") }
+
+// IsInsanityGearID reports whether a gear ID belongs to the Insanity-tier
+// exclusive pool; those items must never leak into standard drops or shops.
+func IsInsanityGearID(id string) bool { return strings.HasPrefix(id, "INSANITY_") }
+
+// RandomInsanityGearDrop returns a uniformly random Insanity-tier exclusive
+// item, rolling a random Special only on pieces without an authored one.
+func RandomInsanityGearDrop() Gear {
+	if len(insanityExclusiveGear) == 0 {
+		return RandomAbyssGearDrop()
+	}
+	// #nosec G404
+	g := insanityExclusiveGear[rand.IntN(len(insanityExclusiveGear))]
+	if g.Special == EffectNone {
+		g.Special = RandomItemEffect()
+	}
+	return g
+}
+
+// RandomInsanityGearDropExcluding re-rolls a few times to avoid handing out an
+// item the player already owns (mirrors RandomAbyssGearDropExcluding).
+func RandomInsanityGearDropExcluding(owned map[string]bool) Gear {
+	g := RandomInsanityGearDrop()
+	for i := 0; i < abyssDupRerollAttempts && owned[g.ID]; i++ {
+		g = RandomInsanityGearDrop()
+	}
+	return g
+}
 
 // RandomAbyssGearDrop returns a uniformly random Abyss-exclusive gear item.
 func RandomAbyssGearDrop() Gear {
@@ -1267,7 +1363,7 @@ func RandomTitle() Title {
 var combatEffectPool = []ItemEffect{
 	EffectThorns, EffectVampiric, EffectBerserk, EffectLucky, EffectQuick,
 	EffectBulwark, EffectRadiant, EffectSteady, EffectParry, EffectCleanse,
-	EffectTreasureHunter, EffectRegenStack,
+	EffectTreasureHunter, EffectRegenStack, EffectExecutioner, EffectFocused,
 }
 
 // AddBonusEffects appends up to n distinct combat effects to g.BonusEffects, skipping
@@ -1309,7 +1405,7 @@ func FeaturedShopItem(seed int64) Gear {
 	// legendaries are covered by the loop below — appending them separately would
 	// double their odds in the showcase pool.
 	for _, g := range allGear {
-		if g.Rarity >= RarityLegendary && !strings.HasPrefix(g.ID, "B_") {
+		if g.Rarity >= RarityLegendary && !strings.HasPrefix(g.ID, "B_") && !IsInsanityGearID(g.ID) {
 			pool = append(pool, g)
 		}
 	}
@@ -1352,7 +1448,7 @@ func ShopStock(seed int64, count int) []Gear {
 	r := rand.New(rand.NewPCG(uint64(seed), uint64(seed)+1)) // #nosec G404 G115 -- deterministic shop rotation, seed always non-negative
 	var pool []Gear
 	for _, g := range allGear {
-		if strings.HasPrefix(g.ID, "B_") { // skip Novice/starter junk
+		if strings.HasPrefix(g.ID, "B_") || IsInsanityGearID(g.ID) { // skip Novice/starter junk and tier-exclusive gear
 			continue
 		}
 		pool = append(pool, g)

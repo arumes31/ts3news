@@ -294,6 +294,8 @@ rarity.epic: "영웅"
 rarity.legendary: "전설"
 rarity.mythic: "신화"
 rarity.divine: "신성"
+rarity.celestial: "천상"
+rarity.eternal: "영원"
 rarity.unknown: "희귀도 (%[1]d)"
 
 # ─── Mob Type Names ───

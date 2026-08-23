@@ -294,6 +294,8 @@ rarity.epic: "Epický"
 rarity.legendary: "Legendární"
 rarity.mythic: "Mytický"
 rarity.divine: "Božský"
+rarity.celestial: "Nebeský"
+rarity.eternal: "Věčný"
 rarity.unknown: "Vzácnost(%[1]d)"
 
 # ─── Mob Type Names ───

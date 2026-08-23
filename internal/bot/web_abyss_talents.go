@@ -9,6 +9,7 @@ package bot
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"ts3news/internal/content"
@@ -16,13 +17,26 @@ import (
 
 func abyssTalentKey(uid string) string { return "abyss_talents_" + uid }
 
+// talentTokenCost is the Abyss-token cost of upgrading a talent from level to
+// level+1 (level is 0-based, so the first level costs 10). Shared by the spend,
+// the generic refund and the legacy talent reset so the pricing can't drift.
+func talentTokenCost(level int) int64 { return int64(level+1) * 10 }
+
 // loadAbyssTalentLevels returns the player's allocated generic-talent levels.
 func (b *Bot) loadAbyssTalentLevels(uid string) map[string]int {
 	out := map[string]int{}
 	var js string
 	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssTalentKey(uid)).Scan(&js)
 	if js != "" {
-		_ = json.Unmarshal([]byte(js), &out)
+		if err := json.Unmarshal([]byte(js), &out); err != nil {
+			log.Printf("abyss talent levels corrupt for %s: %v", uid, err)
+		}
+	}
+	// Corrupt negative levels are clamped here (the consumers only clamp the top).
+	for k, lvl := range out {
+		if lvl < 0 {
+			out[k] = 0
+		}
 	}
 	return out
 }
@@ -78,7 +92,7 @@ func (s *WebServer) handleAbyssTalentUpgrade(w http.ResponseWriter, uid string, 
 		writeJSON(w, map[string]any{"ok": false, "error": "locked — upgrade the prerequisite first"})
 		return
 	}
-	cost := int64(level+1) * 10
+	cost := talentTokenCost(level)
 	// Guarded debit: only proceeds if the player still has the tokens (matches the
 	// legacy Deep-Delver spend). RowsAffected==0 means someone else spent first.
 	res, err := s.bot.DB.Exec(
@@ -94,7 +108,9 @@ func (s *WebServer) handleAbyssTalentUpgrade(w http.ResponseWriter, uid string, 
 	levels[t.Key] = level + 1
 	if err := s.bot.saveAbyssTalentLevels(uid, levels); err != nil {
 		// Refund on persistence failure so tokens are never lost silently.
-		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", cost, uid)
+		if _, err := s.bot.DB.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", cost, uid); err != nil {
+			log.Printf("abyss talent refund failed for %s (%d tokens): %v", uid, cost, err)
+		}
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -113,7 +129,7 @@ func abyssTalentRefund(levels map[string]int) int64 {
 			lvl = content.TalentMaxLevel
 		}
 		for l := 1; l <= lvl; l++ {
-			refund += int64(l) * 10
+			refund += talentTokenCost(l - 1)
 		}
 	}
 	return refund

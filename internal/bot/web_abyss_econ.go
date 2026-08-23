@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand/v2"
 	"net/http"
 	"time"
@@ -36,9 +37,10 @@ var abyssTiers = map[string]abyssTier{
 	"normal":    {"normal", "Normal", 1.0, 1.0, 0, 0},
 	"nightmare": {"nightmare", "Nightmare", 1.6, 2.0, 500, 15},
 	"hell":      {"hell", "Hell", 2.5, 4.0, 5000, 30},
+	"insanity":  {"insanity", "Insanity", 20.0, 10.0, 50000, 50},
 }
 
-var abyssTierOrder = []string{"normal", "nightmare", "hell"}
+var abyssTierOrder = []string{"normal", "nightmare", "hell", "insanity"}
 
 func abyssTierByKey(k string) (abyssTier, bool) {
 	t, ok := abyssTiers[k]
@@ -149,28 +151,47 @@ type dbExecQuerier interface {
 	QueryRow(query string, args ...any) *sql.Row
 }
 
-// capAbyssDayGold clamps payout so a player's Abyss-banked gold can't exceed the
-// daily cap, protecting the shared economy. It runs through the supplied querier
-// so the cap consumption can participate in the caller's payout transaction and
-// roll back together with it. [59]
-func (b *Bot) capAbyssDayGold(q dbExecQuerier, uid string, payout int64) int64 {
+// abyssDayTaxRate is the levy the Abyss takes on the portion of a bank payout
+// above the daily gold cap: the excess is still paid out, but 80% of it feeds
+// the shared deep-cache jackpot instead of the player.
+const abyssDayTaxRate = 0.80
+
+// abyssCapTax splits a bank payout around the remaining daily-cap allowance:
+// the in-cap portion pays in full, only the excess is taxed at abyssDayTaxRate.
+func abyssCapTax(payout, remaining int64) (after, tax int64) {
+	if remaining < 0 {
+		remaining = 0
+	}
+	if payout <= remaining {
+		return payout, 0
+	}
+	tax = int64(float64(payout-remaining) * abyssDayTaxRate)
+	return payout - tax, tax
+}
+
+// taxAbyssDayGold applies the daily-cap tax to a bank payout: instead of a hard
+// clamp, amounts past the daily cap are paid out minus an 80% abyss tax that
+// feeds the shared deep-cache jackpot. The full pre-tax value counts against
+// the day counter, so everything banked past the cap today stays taxed. It runs
+// through the supplied querier so the day-counter consumption and jackpot feed
+// participate in the caller's payout transaction and roll back with it. [59]
+func (b *Bot) taxAbyssDayGold(q dbExecQuerier, uid string, payout int64) (int64, int64) {
 	if payout <= 0 {
-		return 0
+		return 0, 0
 	}
 	_, _ = q.Exec(
 		`UPDATE users SET abyss_day = CURRENT_DATE, abyss_day_gold = 0
 		  WHERE client_uid=$1 AND (abyss_day IS NULL OR abyss_day < CURRENT_DATE)`, uid)
 	var dayGold int64
 	_ = q.QueryRow("SELECT abyss_day_gold FROM users WHERE client_uid=$1", uid).Scan(&dayGold)
-	remaining := int64(abyssDayGoldCap) - dayGold
-	if remaining <= 0 {
-		return 0
-	}
-	if payout > remaining {
-		payout = remaining
-	}
+	after, tax := abyssCapTax(payout, int64(abyssDayGoldCap)-dayGold)
 	_, _ = q.Exec("UPDATE users SET abyss_day_gold = abyss_day_gold + $1 WHERE client_uid=$2", payout, uid)
-	return payout
+	if tax > 0 {
+		if _, err := q.Exec("UPDATE arcade_jackpots SET amount = amount + $1, updated_at = NOW() WHERE game_key='abyss'", tax); err != nil {
+			log.Printf("abyss day-cap tax feed to jackpot failed for %s: %v", uid, err)
+		}
+	}
+	return after, tax
 }
 
 // forfeitAbyss ends a downed run atomically: pays insurance back to gold, feeds
@@ -178,7 +199,7 @@ func (b *Bot) capAbyssDayGold(q dbExecQuerier, uid string, payout int64) int64 {
 // resets the streak. Returns the insured refund and an error if the transaction
 // could not be committed (so callers don't report a successful concede/revive on
 // a refund that never landed). [1][62]
-func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int64, err error) {
+func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, err error) {
 	if run.Insured > 0 {
 		refund = run.Escrow * int64(run.Insured) / 100
 	}
@@ -186,13 +207,13 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int6
 
 	tx, err := b.DB.Begin()
 	if err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 	defer func() { _ = tx.Rollback() }()
 
 	if refund > 0 {
 		if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", refund, uid); err != nil {
-			return 0, 0, err
+			return 0, err
 		}
 	}
 	// Feed the rest of the cache to the shared deep-cache jackpot inside the same
@@ -203,49 +224,49 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, jackpot int6
 			inc = 1
 		}
 		if _, err := tx.Exec("UPDATE arcade_jackpots SET amount = amount + $1, updated_at = NOW() WHERE game_key='abyss'", inc); err != nil {
-			return 0, 0, err
+			return 0, err
 		}
 	}
 	if run.Depth > 0 {
 		if _, err := tx.Exec(
 			"INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier) VALUES ($1,$2,$3,FALSE,$4)",
 			uid, run.Depth, refund, run.Tier); err != nil {
-			return 0, 0, err
+			return 0, err
 		}
 		if _, err := tx.Exec(
 			`UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1),
 			        abyss_deaths = abyss_deaths + 1, abyss_bank_streak = 0 WHERE client_uid=$2`,
 			run.Depth, uid); err != nil {
-			return 0, 0, err
+			return 0, err
 		}
 		// Daily death counter feeds the comeback buff (#24): 3 deaths in one day
 		// grant +10% stats on the next run.
 		if _, err := tx.Exec(
 			`UPDATE users SET abyss_deaths_today = CASE WHEN abyss_deaths_date = CURRENT_DATE THEN abyss_deaths_today + 1 ELSE 1 END,
 			        abyss_deaths_date = CURRENT_DATE WHERE client_uid=$1`, uid); err != nil {
-			return 0, 0, err
+			return 0, err
 		}
 	}
 	// End of run: clear the per-run win streak so its combat buff can't leak into
 	// regular cycle combat (which reads abyss_win_streak too).
 	if _, err := tx.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid); err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 	if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 	// Death forfeits the locked loot cache along with the gold.
 	if _, err := tx.Exec("DELETE FROM abyss_escrow_loot WHERE client_uid=$1", uid); err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 	if err := tx.Commit(); err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 	if run.Depth > 0 {
 		b.grantAbyssTokens(uid, run.Depth/10) // small consolation
 		b.recordGameResult(uid, "abyss", false, refund)
 	}
-	return refund, 0, nil
+	return refund, nil
 }
 
 // awardAbyssBonusGear grants a guaranteed gear reward on a deep bank, with a
@@ -663,6 +684,26 @@ func abyssZoneName(depth int) string {
 
 // ---- Salvage & upgrades --------------------------------------------------
 
+// boostedMaterials returns m with each count boosted by the Scavenger node
+// (#155) and the skill web's material_yield notables.
+func (b *Bot) boostedMaterials(uid string, m map[string]int) map[string]int {
+	scav := b.loadAbyssStats(uid).UpScavenger
+	matMult := 1 + b.treeBonusFor(uid).Pct["material_yield"]
+	out := make(map[string]int, len(m))
+	for mat, n := range m {
+		out[mat] = int(float64(scavengerYield(n, scav)) * matMult)
+	}
+	return out
+}
+
+// grantBoostedMaterials grants salvaged/dismantled crafting materials (#101)
+// with the Scavenger/skill-web boosts applied (see boostedMaterials).
+func (b *Bot) grantBoostedMaterials(uid string, m map[string]int) {
+	for mat, n := range b.boostedMaterials(uid, m) {
+		_ = b.grantMaterial(uid, mat, n)
+	}
+}
+
 // handleAbyssSalvage vendors all common/uncommon junk from the inventory for
 // immediate (non-escrow) gold — a merchant at the Abyss threshold. [60]
 func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, uid string) {
@@ -697,7 +738,7 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 		// the static catalog entry (makeGear falls back to the catalog for
 		// plain items).
 		g, ok := s.bot.makeGear(gid, itemData)
-		if !ok || g.Rarity > content.RarityUncommon {
+		if !ok || g.Rarity > content.RarityUncommon || g.Attuned {
 			continue
 		}
 		v := gearPrice(g) / 2
@@ -728,7 +769,10 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	for _, j := range toSell {
 		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", j.id, uid)
 		if err != nil {
-			continue
+			// A failed statement aborts the whole transaction; continuing would
+			// fail every later statement confusingly.
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
 		}
 		if n, _ := res.RowsAffected(); n > 0 {
 			total += j.value
@@ -749,13 +793,7 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	// Crafting materials (#101), boosted by the Scavenger node (#155) and the
-	// skill web's material_yield notables.
-	scav := s.bot.loadAbyssStats(uid).UpScavenger
-	matMult := 1 + s.bot.treeBonusFor(uid).Pct["material_yield"]
-	for mat, n := range matGained {
-		_ = s.bot.grantMaterial(uid, mat, int(float64(scavengerYield(n, scav))*matMult))
-	}
+	s.bot.grantBoostedMaterials(uid, matGained)
 	writeJSON(w, map[string]any{"ok": true, "sold": count, "value": total, "gold": gold,
 		"materials": s.bot.loadMaterials(uid)})
 }
@@ -764,6 +802,10 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 // of the given rarity. Below Rare yields nothing (use Salvage for those).
 func abyssDismantleTokens(rarity content.Rarity) int64 {
 	switch {
+	case rarity >= content.RarityEternal:
+		return 25
+	case rarity >= content.RarityCelestial:
+		return 15
 	case rarity >= content.RarityMythic:
 		return 10
 	case rarity >= content.RarityLegendary:
@@ -824,6 +866,9 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		if !ok {
 			continue
 		}
+		if g.Attuned {
+			continue
+		}
 		if req.MaxRarity > 0 && int(g.Rarity) > req.MaxRarity {
 			continue
 		}
@@ -843,11 +888,7 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		}
 		// Mirror the commit path's Scavenger (#155) and skill-web material_yield
 		// boosts so the preview shows the same totals the real dismantle grants.
-		scav := s.bot.loadAbyssStats(uid).UpScavenger
-		matMult := 1 + s.bot.treeBonusFor(uid).Pct["material_yield"]
-		for mat, n := range mats {
-			mats[mat] = int(float64(scavengerYield(n, scav)) * matMult)
-		}
+		mats = s.bot.boostedMaterials(uid, mats)
 		writeJSON(w, map[string]any{"ok": true, "preview": true, "count": len(toBreak), "tokens_gained": tk, "materials_gained": mats})
 		return
 	}
@@ -869,7 +910,10 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 	for _, sp := range toBreak {
 		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", sp.id, uid)
 		if err != nil {
-			continue
+			// A failed statement aborts the whole transaction; continuing would
+			// fail every later statement confusingly.
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
 		}
 		if n, _ := res.RowsAffected(); n > 0 {
 			total += sp.tokens
@@ -887,13 +931,7 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	// Crafting materials (#101), boosted by the Scavenger node (#155) and the
-	// skill web's material_yield notables.
-	scav := s.bot.loadAbyssStats(uid).UpScavenger
-	matMult := 1 + s.bot.treeBonusFor(uid).Pct["material_yield"]
-	for mat, n := range matGained {
-		_ = s.bot.grantMaterial(uid, mat, int(float64(scavengerYield(n, scav))*matMult))
-	}
+	s.bot.grantBoostedMaterials(uid, matGained)
 	writeJSON(w, map[string]any{"ok": true, "dismantled": count, "tokens_gained": total, "tokens": s.bot.abyssTokens(uid),
 		"materials": s.bot.loadMaterials(uid)})
 }

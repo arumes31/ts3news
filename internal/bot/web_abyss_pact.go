@@ -32,13 +32,19 @@ var abyssPactCatalog = []abyssPact{
 	{"glass_cannon", "Glass Cannon", "Floors are 30% deadlier.", 0.30, "", 1.3, false},
 }
 
-func abyssPactByKey(key string) (abyssPact, bool) {
+// abyssPactIndex maps pact key → catalog entry, built once from the catalog so
+// lookups stay O(1) instead of a linear scan per call.
+var abyssPactIndex = func() map[string]abyssPact {
+	m := make(map[string]abyssPact, len(abyssPactCatalog))
 	for _, p := range abyssPactCatalog {
-		if p.Key == key {
-			return p, true
-		}
+		m[p.Key] = p
 	}
-	return abyssPact{}, false
+	return m
+}()
+
+func abyssPactByKey(key string) (abyssPact, bool) {
+	p, ok := abyssPactIndex[key]
+	return p, ok
 }
 
 // abyssValidatePacts filters a requested pact list down to known keys, de-duplicated

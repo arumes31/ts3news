@@ -294,6 +294,8 @@ rarity.epic: "史诗"
 rarity.legendary: "传说"
 rarity.mythic: "神话"
 rarity.divine: "神圣"
+rarity.celestial: "天界"
+rarity.eternal: "永恒"
 rarity.unknown: "稀有度(%[1]d)"
 
 # ─── Mob Type Names ───

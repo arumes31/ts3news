@@ -3,6 +3,7 @@ package bot
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand/v2"
 
 	"ts3news/internal/content"
@@ -19,6 +20,26 @@ import (
 // This roller is intentionally self-contained — it mirrors the category cascade of
 // rollLootForUser but writes to escrow instead of applying — so the live
 // channel-cycle loot path stays untouched.
+
+// abyssLegendaryPityCap is the number of gear drops without a Legendary that
+// forces the next drop to be one (see the pity escalation in rollAbyssLootToEscrow).
+const abyssLegendaryPityCap = 40
+
+// Drop-streak consolation: each consecutive floor with no gear drop adds
+// abyssDropStreakBonusPerFloor to loot find, capped at abyssDropStreakBonusCap.
+const (
+	abyssDropStreakBonusPerFloor = 0.02
+	abyssDropStreakBonusCap      = 0.30
+)
+
+// abyssGearLabel builds the display label for an Abyss gear drop; unidentified
+// pieces hide the item name (slot shown in its place).
+func abyssGearLabel(g content.Gear) string {
+	if g.Unidentified {
+		return fmt.Sprintf("Unidentified %s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", string(g.Slot), string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
+	}
+	return fmt.Sprintf("%s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
+}
 
 // awardCombatLoot routes a defeated mob's drops either to the normal inline loot
 // path or, for Abyss combatants, into the run's loot escrow. It is the single
@@ -118,10 +139,11 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	goldFindMult := 1 + treePct["gold_find"]
 	rareScale := lootRarityScale(mob.Level)
 
-	// Check if user has Lucky Coin equipped
+	// Check if user has Lucky Coin equipped (the coin is Trinket1-only —
+	// see its definition in internal/content/artifacts.go).
 	equipped := b.getEquippedItems(uid)
 	hasLuckyCoin := false
-	if _, hasCoin := equipped[content.SlotTrinket1]; hasCoin && equipped[content.SlotTrinket1].ID == "ABYSS_LUCKY_COIN" {
+	if it, ok := equipped[content.SlotTrinket1]; ok && it.ID == "ABYSS_LUCKY_COIN" {
 		hasLuckyCoin = true
 	}
 
@@ -136,11 +158,13 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	// distinct from legendary pity — see abyss_drop_streak).
 	var legendaryPity int
 	var dropStreak int
-	_ = b.DB.QueryRow("SELECT legendary_pity, abyss_drop_streak FROM users WHERE client_uid=$1", uid).Scan(&legendaryPity, &dropStreak)
+	if err := b.DB.QueryRow("SELECT legendary_pity, abyss_drop_streak FROM users WHERE client_uid=$1", uid).Scan(&legendaryPity, &dropStreak); err != nil {
+		log.Printf("abyss pity/streak read failed for %s: %v", uid, err)
+	}
 	if dropStreak > 0 {
-		bonus := float64(dropStreak) * 0.02
-		if bonus > 0.30 {
-			bonus = 0.30
+		bonus := float64(dropStreak) * abyssDropStreakBonusPerFloor
+		if bonus > abyssDropStreakBonusCap {
+			bonus = abyssDropStreakBonusCap
 		}
 		lootFindBonus += bonus
 	}
@@ -155,6 +179,9 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			if gearRows.Scan(&id) == nil {
 				ownedGear[id] = true
 			}
+		}
+		if err := gearRows.Err(); err != nil {
+			log.Printf("abyss owned-gear scan failed for %s: %v", uid, err)
 		}
 		_ = gearRows.Close()
 	}
@@ -195,6 +222,14 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			g.Stats = g.Stats.Scaled(1.5)
 		}
 
+		// Celestial ascension: 4% of Mythic drops arrive Celestial (+50% stats).
+		// Eternal gear never drops — it is forge ascension/fusion only.
+		// #nosec G404 -- non-cryptographic loot roll
+		if g.Rarity == content.RarityMythic && rand.Float64() < 0.04 {
+			g.Rarity = content.RarityCelestial
+			g.Stats = g.Stats.Scaled(1.5)
+		}
+
 		// Cursed Weapons: 10% chance Epic+ weapon (MainHand, OffHand, Ranged) drops as Cursed (+50% stats, but -2% HP/turn)
 		isWeapon := g.Slot == content.SlotMainHand || g.Slot == content.SlotOffHand || g.Slot == content.SlotRanged
 		// #nosec G404 -- non-cryptographic loot roll
@@ -225,10 +260,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			g.RegenIntervalSec = 5 + rand.IntN(56) // 5-60 seconds
 		}
 
-		label := fmt.Sprintf("%s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
-		if g.Unidentified {
-			label = fmt.Sprintf("Unidentified %s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", string(g.Slot), string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
-		}
+		label := abyssGearLabel(g)
 		if !g.Unidentified && g.RegenAmount > 0 {
 			label += fmt.Sprintf(" [color=#63b3ff]♻ +%d HP/%ds[/color]", g.RegenAmount, g.RegenIntervalSec)
 		}
@@ -294,7 +326,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		// gold-focus / treasure-goblin payout and the ordinary reward switch — so
 		// nothing can skip the pity payout. Pity is only reset once the drop is
 		// actually escrowed.
-		if legendaryPity >= 40 {
+		if legendaryPity >= abyssLegendaryPityCap {
 			pg := content.RandomAbyssGearDropExcluding(ownedGear)
 			pg.Rarity = content.RarityLegendary
 			label, g := processGear(pg)
@@ -317,7 +349,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		// Materials focus drops material drops instead of other loot
 		if focus == "materials" {
 			mat, n := "shard", 3+rand.IntN(4)
-			if run.Depth >= 50 {
+			if run.Active && run.Depth >= 50 {
 				mat, n = "core", 2+rand.IntN(2)
 			}
 			add(fmt.Sprintf("⛏️ Material Drop: %s ×%d", abyssMaterialName(mat), n), abyssLootGrant{Type: "mat", MatID: mat, MatN: n})
@@ -394,6 +426,12 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			if rand.Float64() < 0.20 {
 				g = content.RandomAbyssGearDropExcluding(ownedGear)
 			}
+			// Insanity-tier exclusives: 25% of gear drops in an Insanity run come
+			// from the Insanity-only catalog (huge stats, harsh trade-offs).
+			// #nosec G404 -- non-cryptographic loot roll
+			if run.Tier == "insanity" && rand.Float64() < 0.25 {
+				g = content.RandomInsanityGearDropExcluding(ownedGear)
+			}
 			label, g := processGear(g)
 			// Escrow every drop (empty slots included) so it stays forfeitable on death.
 			// Only touch pity once the drop is actually escrowed, so a failed save
@@ -417,10 +455,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				if rand.Float64() < 0.20 {
 					g.Unidentified = true
 				}
-				label := fmt.Sprintf("%s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", g.Name, string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
-				if g.Unidentified {
-					label = fmt.Sprintf("Unidentified %s [s:%s] (gs:%d CR:%.1f R:[color=%s]%s[/color])", string(g.Slot), string(g.Slot), g.Stats.Score(), g.CombatRating(), g.Rarity.Color(), g.Rarity.String())
-				}
+				label := abyssGearLabel(g)
 				// Escrow it (empty slots included) so it stays forfeitable on death.
 				if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
 					legendaryPity++
@@ -438,7 +473,9 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	} else {
 		dropStreak++
 	}
-	_, _ = b.DB.Exec("UPDATE users SET legendary_pity=$1, abyss_drop_streak=$2 WHERE client_uid=$3", legendaryPity, dropStreak, uid)
+	if _, err := b.DB.Exec("UPDATE users SET legendary_pity=$1, abyss_drop_streak=$2 WHERE client_uid=$3", legendaryPity, dropStreak, uid); err != nil {
+		log.Printf("abyss pity/streak persist failed for %s: %v", uid, err)
+	}
 	return labels
 }
 
@@ -446,12 +483,16 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 func (b *Bot) escrowAbyssLoot(uid, label string, g abyssLootGrant) bool {
 	data, err := json.Marshal(g)
 	if err != nil {
+		log.Printf("abyss escrow marshal failed for %s: %v", uid, err)
 		return false
 	}
-	_, err = b.DB.Exec(
+	if _, err := b.DB.Exec(
 		"INSERT INTO abyss_escrow_loot (client_uid, item_type, label, item_data) VALUES ($1,$2,$3,$4)",
-		uid, g.Type, label, data)
-	return err == nil
+		uid, g.Type, label, data); err != nil {
+		log.Printf("abyss escrow insert failed for %s: %v", uid, err)
+		return false
+	}
+	return true
 }
 
 // applyAbyssEscrowLoot grants every escrowed item to the character and clears the
@@ -474,6 +515,9 @@ func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
 		if err := rows.Scan(&p.id, &p.label, &p.data); err == nil {
 			items = append(items, p)
 		}
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("abyss escrow drain failed for %s: %v", uid, err)
 	}
 	_ = rows.Close()
 
@@ -524,8 +568,10 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 			}
 		}
 	case "artifact":
-		_, _ = b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1",
-			uid, g.ArtMult, g.ArtName, g.ArtDura)
+		if _, err := b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1",
+			uid, g.ArtMult, g.ArtName, g.ArtDura); err != nil {
+			return err
+		}
 	case "title":
 		res, err := b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='abyss' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())",
 			uid, g.TitleName, g.TitleMult)
@@ -544,7 +590,9 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 		b.grantAbyssUnique(uid, g.UniqName, g.UniqRar, g.UniqPow)
 	case "gold":
 		if g.Gold > 0 {
-			_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", g.Gold, uid)
+			if _, err := b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", g.Gold, uid); err != nil {
+				return err
+			}
 		}
 	case "mat":
 		if err := b.grantMaterial(uid, g.MatID, g.MatN); err != nil {
@@ -552,7 +600,9 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 		}
 	case "tokens":
 		if g.Tokens > 0 {
-			b.grantAbyssTokens(uid, int(g.Tokens))
+			if _, err := b.DB.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", g.Tokens, uid); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -566,12 +616,20 @@ func (b *Bot) grantAbyssUltimate(uid, ultID string) {
 		return
 	}
 	var exists bool
-	_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_ultimate_skills WHERE client_uid=$1 AND ultimate_id=$2)", uid, ultID).Scan(&exists)
+	if err := b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_ultimate_skills WHERE client_uid=$1 AND ultimate_id=$2)", uid, ultID).Scan(&exists); err != nil {
+		log.Printf("abyss ultimate grant check failed for %s (%s): %v", uid, ultID, err)
+		return
+	}
 	if exists {
 		return
 	}
-	_, _ = b.DB.Exec("INSERT INTO user_ultimate_skills (client_uid, ultimate_id) VALUES ($1, $2)", uid, ultID)
-	_, _ = b.DB.Exec("UPDATE users SET ultimate_skills_count = ultimate_skills_count + 1 WHERE client_uid=$1", uid)
+	if _, err := b.DB.Exec("INSERT INTO user_ultimate_skills (client_uid, ultimate_id) VALUES ($1, $2)", uid, ultID); err != nil {
+		log.Printf("abyss ultimate grant failed for %s (%s): %v", uid, ultID, err)
+		return
+	}
+	if _, err := b.DB.Exec("UPDATE users SET ultimate_skills_count = ultimate_skills_count + 1 WHERE client_uid=$1", uid); err != nil {
+		log.Printf("abyss ultimate count update failed for %s (%s): %v", uid, ultID, err)
+	}
 	_ = b.activateUltimateIfSlotFree(uid, ultID)
 }
 
@@ -581,10 +639,18 @@ func (b *Bot) grantAbyssUnique(uid, name string, rarity content.Rarity, power fl
 		return
 	}
 	var exists bool
-	_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_unique_items WHERE client_uid=$1 AND item_name=$2)", uid, name).Scan(&exists)
+	if err := b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_unique_items WHERE client_uid=$1 AND item_name=$2)", uid, name).Scan(&exists); err != nil {
+		log.Printf("abyss unique grant check failed for %s (%s): %v", uid, name, err)
+		return
+	}
 	if exists {
 		return
 	}
-	_, _ = b.DB.Exec("INSERT INTO user_unique_items (client_uid, item_name, rarity, power) VALUES ($1, $2, $3, $4)", uid, name, rarity, power)
-	_, _ = b.DB.Exec("UPDATE users SET unique_items_count = unique_items_count + 1 WHERE client_uid=$1", uid)
+	if _, err := b.DB.Exec("INSERT INTO user_unique_items (client_uid, item_name, rarity, power) VALUES ($1, $2, $3, $4)", uid, name, rarity, power); err != nil {
+		log.Printf("abyss unique grant failed for %s (%s): %v", uid, name, err)
+		return
+	}
+	if _, err := b.DB.Exec("UPDATE users SET unique_items_count = unique_items_count + 1 WHERE client_uid=$1", uid); err != nil {
+		log.Printf("abyss unique count update failed for %s (%s): %v", uid, name, err)
+	}
 }

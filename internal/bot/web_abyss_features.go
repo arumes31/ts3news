@@ -9,7 +9,9 @@ package bot
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"math/rand/v2"
 	"net/http"
 	"strings"
@@ -47,6 +49,10 @@ func abyssMaterialName(id string) string {
 // drops. Scavenger (#155) multiplies the count.
 func materialYieldForRarity(r content.Rarity) (string, int) {
 	switch {
+	case r >= content.RarityEternal:
+		return "prism", 3
+	case r >= content.RarityCelestial:
+		return "prism", 2
 	case r >= content.RarityDivine:
 		return "prism", 1
 	case r >= content.RarityMythic:
@@ -381,6 +387,46 @@ func (b *Bot) forgeCost(uid string, base int64) int64 {
 	return c
 }
 
+// abyssForgeGoldFloor is the minimum pre-discount price of any gold forge
+// action — gear upgrades are end-game gold sinks, never pocket change.
+const abyssForgeGoldFloor = 10_000
+
+// forgeRarityGoldMult scales gold-based forge costs by item rarity, so pushing
+// top-tier gear costs a fortune: 10k for Commons, 10M+ for Eternal pieces.
+func forgeRarityGoldMult(r content.Rarity) int64 {
+	switch r {
+	case content.RarityUncommon:
+		return 100
+	case content.RarityRare:
+		return 250
+	case content.RarityEpic:
+		return 500
+	case content.RarityLegendary:
+		return 1000
+	case content.RarityMythic:
+		return 2000
+	case content.RarityDivine:
+		return 5000
+	case content.RarityCelestial:
+		return 10000
+	case content.RarityEternal:
+		return 25000
+	default:
+		return 100 // Common
+	}
+}
+
+// forgeGoldCost prices a gold forge action on an item of rarity r: base ×
+// rarity multiplier, floored at abyssForgeGoldFloor, with the artisan-rep and
+// happy-hour discounts applied last (via forgeCost).
+func (b *Bot) forgeGoldCost(uid string, base int64, r content.Rarity) int64 {
+	raw := base * forgeRarityGoldMult(r)
+	if raw < abyssForgeGoldFloor {
+		raw = abyssForgeGoldFloor
+	}
+	return b.forgeCost(uid, raw)
+}
+
 // recordForge appends to the forge history (#123) and grows artisan rep (#114).
 func (b *Bot) recordForge(uid, action, detail, cost string) {
 	_, _ = b.DB.Exec("INSERT INTO forge_history (client_uid, action, detail, cost) VALUES ($1,$2,$3,$4)", uid, action, detail, cost)
@@ -437,6 +483,19 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
+	// writeGearItemData (web_abyss_customization.go, not this file) does not report
+	// RowsAffected, so verify the snapshotted item still exists up front — reverting
+	// a deleted/sold item must not burn the once-per-day undo.
+	var itemExists bool
+	if snap.InvID > 0 {
+		_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_inventory WHERE id=$1 AND client_uid=$2)", snap.InvID, uid).Scan(&itemExists)
+	} else {
+		_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE slot=$1 AND client_uid=$2)", snap.Slot, uid).Scan(&itemExists)
+	}
+	if !itemExists {
+		writeJSON(w, map[string]any{"ok": false, "error": "item no longer exists"})
+		return
+	}
 	if !writeGearItemData(w, tx, uid, snap.InvID, snap.Slot, snap.ItemData) {
 		return
 	}
@@ -553,7 +612,7 @@ func (s *WebServer) handleAbyssTemper(w http.ResponseWriter, r *http.Request, ui
 
 	var failStacks int
 	_ = tx.QueryRow("SELECT temper_fail_stacks FROM users WHERE client_uid=$1", uid).Scan(&failStacks)
-	cost := s.bot.forgeCost(uid, int64(400*(g.Temper+1)))
+	cost := s.bot.forgeGoldCost(uid, int64(400*(g.Temper+1)), g.Rarity)
 	if !deductGold(w, tx, uid, cost) {
 		return
 	}
@@ -690,9 +749,9 @@ func (s *WebServer) handleAbyssUpgradeGem(w http.ResponseWriter, r *http.Request
 	var goldCost int64
 	var mats map[string]int
 	if tier == 1 {
-		goldCost, mats = s.bot.forgeCost(uid, 200), map[string]int{"shard": 5}
+		goldCost, mats = s.bot.forgeGoldCost(uid, 200, g.Rarity), map[string]int{"shard": 5}
 	} else {
-		goldCost, mats = s.bot.forgeCost(uid, 500), map[string]int{"core": 2}
+		goldCost, mats = s.bot.forgeGoldCost(uid, 500, g.Rarity), map[string]int{"core": 2}
 	}
 	if !deductGold(w, tx, uid, goldCost) {
 		return
@@ -756,7 +815,7 @@ func (s *WebServer) handleAbyssExtractGem(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "no gem in that socket"})
 		return
 	}
-	cost := s.bot.forgeCost(uid, 100)
+	cost := s.bot.forgeGoldCost(uid, 100, g.Rarity)
 	if !deductGold(w, tx, uid, cost) {
 		return
 	}
@@ -865,6 +924,12 @@ func (s *WebServer) handleAbyssMythicFuse(w http.ResponseWriter, r *http.Request
 	s.fuseCommon(w, r, uid, "mythic")
 }
 
+// handleAbyssCelestialFuse consumes 2 same-slot Celestial pieces: 25% chance of
+// an Eternal ascension, otherwise the survivor keeps +10% stats.
+func (s *WebServer) handleAbyssCelestialFuse(w http.ResponseWriter, r *http.Request, uid string) {
+	s.fuseCommon(w, r, uid, "celestial")
+}
+
 func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -885,6 +950,10 @@ func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode
 	if mode == "mythic" {
 		need = 2
 		minRarity = content.RarityMythic
+	}
+	if mode == "celestial" {
+		need = 2
+		minRarity = content.RarityCelestial
 	}
 	if len(req.InvIDs) != need {
 		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("select exactly %d items", need)})
@@ -910,6 +979,10 @@ func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode
 			writeJSON(w, map[string]any{"ok": false, "error": "all items must be " + minRarity.String()})
 			return
 		}
+		if g.Attuned {
+			writeJSON(w, map[string]any{"ok": false, "error": g.Name + " is attuned to you and cannot be fused"})
+			return
+		}
 		if i == 0 {
 			slot = g.Slot
 		} else if g.Slot != slot {
@@ -919,7 +992,7 @@ func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode
 		items = append(items, g)
 	}
 
-	cost := s.bot.forgeCost(uid, 2000)
+	cost := s.bot.forgeGoldCost(uid, 2000, minRarity)
 	if !deductGold(w, tx, uid, cost) {
 		return
 	}
@@ -949,12 +1022,18 @@ func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode
 		best.Name = "Ancient " + best.Name
 		msg = fmt.Sprintf("🏺 The three relics collapse into one: %s (+30%% stats)!", best.Name)
 	} else {
+		ascend := content.RarityDivine
+		prefix := "Divine "
+		if mode == "celestial" {
+			ascend = content.RarityEternal
+			prefix = "Eternal "
+		}
 		// #nosec G404 -- non-cryptographic fusion roll
 		if rand.Float64() < 0.25 {
-			best.Rarity = content.RarityDivine
+			best.Rarity = ascend
 			best.Stats = best.Stats.Scaled(1.25)
-			best.Name = "Divine " + best.Name
-			msg = fmt.Sprintf("🌟 DIVINE ASCENSION! %s emerges (+25%% stats)!", best.Name)
+			best.Name = prefix + best.Name
+			msg = fmt.Sprintf("🌟 %s ASCENSION! %s emerges (+25%% stats)!", strings.ToUpper(ascend.String()), best.Name)
 		} else {
 			best.Stats = best.Stats.Scaled(1.10)
 			msg = fmt.Sprintf("⚗️ The fusion holds: %s keeps +10%% stats (no ascension this time).", best.Name)
@@ -1059,7 +1138,11 @@ func (s *WebServer) handleAbyssCleanse(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "item is not corrupted"})
 		return
 	}
-	cost := s.bot.forgeCost(uid, 800)
+	if g.Embraced {
+		writeJSON(w, map[string]any{"ok": false, "error": "the corruption is embraced and cannot be cleansed"})
+		return
+	}
+	cost := s.bot.forgeGoldCost(uid, 800, g.Rarity)
 	if !deductGold(w, tx, uid, cost) {
 		return
 	}
@@ -1082,12 +1165,12 @@ func (s *WebServer) handleAbyssCleanse(w http.ResponseWriter, r *http.Request, u
 
 // ---- Repair all (#124) & auto-repair (#125) ---------------------------------
 
-// abyssRepairAllCost prices a full repair: 2 gold per missing durability point.
+// abyssRepairAllCost prices a full repair: 200 gold per missing durability point.
 func (b *Bot) abyssRepairAllCost(uid string) int64 {
 	b.ensureGearMaxDurability(uid)
 	var missing int64
 	_ = b.DB.QueryRow("SELECT COALESCE(SUM(GREATEST("+gearMaxDurExpr+" - durability, 0)),0) FROM user_gear WHERE client_uid=$1", uid).Scan(&missing)
-	return missing * 2
+	return missing * 200
 }
 
 func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request, uid string) {
@@ -1101,7 +1184,13 @@ func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request,
 	var req struct {
 		Preview bool `json:"preview"`
 	}
-	_ = readJSON(r, &req)
+	// Reject malformed JSON outright: a garbled body decoding to zero values
+	// would silently turn a preview request into a real, charged repair. An
+	// absent/empty body (io.EOF) stays valid and means "repair now".
+	if err := readJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
 
 	cost := s.bot.abyssRepairAllCost(uid)
 	if req.Preview {
@@ -1159,6 +1248,9 @@ func (s *WebServer) handleAbyssAutoRepair(w http.ResponseWriter, r *http.Request
 
 // ---- Identify all (#99) ------------------------------------------------------
 
+// abyssIdentifyCost is the per-item gold cost of identify-all.
+const abyssIdentifyCost = 1000
+
 func (s *WebServer) handleAbyssIdentifyAll(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -1205,7 +1297,7 @@ func (s *WebServer) handleAbyssIdentifyAll(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing to identify"})
 		return
 	}
-	cost := int64(100 * len(items))
+	cost := int64(abyssIdentifyCost * len(items))
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -1405,6 +1497,7 @@ func (s *WebServer) handleAbyssSanctuaryBuy(w http.ResponseWriter, r *http.Reque
 	for i := range sanctuaryUpgrades {
 		if sanctuaryUpgrades[i].Key == req.Key {
 			up = &sanctuaryUpgrades[i]
+			break
 		}
 	}
 	if up == nil {
@@ -1442,7 +1535,7 @@ func (s *WebServer) handleAbyssSanctuaryBuy(w http.ResponseWriter, r *http.Reque
 
 // ---- Forge history endpoint (#123) ------------------------------------------------
 
-func (s *WebServer) handleAbyssForgeHistory(w http.ResponseWriter, r *http.Request, uid string) {
+func (s *WebServer) handleAbyssForgeHistory(w http.ResponseWriter, _ *http.Request, uid string) {
 	rows := s.bot.loadForgeHistory(uid, 20)
 	out := make([]map[string]string, 0, len(rows))
 	for _, v := range rows {
@@ -1483,8 +1576,15 @@ func (s *WebServer) handleAbyssUnequip(w http.ResponseWriter, r *http.Request, u
 	var gearID string
 	var dura int
 	var itemData sql.NullString
-	if err := tx.QueryRow("SELECT gear_id, durability, item_data FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, req.Slot).Scan(&gearID, &dura, &itemData); err != nil {
+	var ench sql.NullString
+	if err := tx.QueryRow("SELECT gear_id, durability, item_data, enchantment_id FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, req.Slot).Scan(&gearID, &dura, &itemData, &ench); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing equipped in that slot"})
+		return
+	}
+	// user_inventory has no enchantment column, so unequipping would silently
+	// destroy the enchantment — refuse until the player removes it first.
+	if ench.Valid && ench.String != "" {
+		writeJSON(w, map[string]any{"ok": false, "error": "remove the enchantment first"})
 		return
 	}
 	// When the caller pinned a specific item (the auto-equip undo link), refuse
@@ -1551,7 +1651,11 @@ func (s *WebServer) handleAbyssRiftPeek(w http.ResponseWriter, r *http.Request, 
 	defer unlock()
 
 	run := s.bot.loadAbyssRun(uid)
-	if !run.Active || run.FloorType != "event" || !strings.Contains(run.EventState, `"rift"`) {
+	var riftState struct {
+		Type string `json:"type"`
+	}
+	_ = json.Unmarshal([]byte(run.EventState), &riftState)
+	if !run.Active || run.FloorType != "event" || riftState.Type != "rift" {
 		writeJSON(w, map[string]any{"ok": false, "error": "no rift on this floor"})
 		return
 	}
