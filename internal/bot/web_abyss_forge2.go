@@ -57,6 +57,7 @@ func (s *WebServer) finishForge(w http.ResponseWriter, tx *sql.Tx, uid, action, 
 		return false
 	}
 	s.bot.recordForge(uid, action, detail, cost)
+	recordAbyssForgeMaterialCost(uid, cost)
 	return true
 }
 

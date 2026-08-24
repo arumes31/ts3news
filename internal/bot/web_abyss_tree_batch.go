@@ -1,0 +1,143 @@
+package bot
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strconv"
+	"time"
+
+	"ts3news/internal/content"
+)
+
+type abyssSeasonalTreeBranch struct {
+	Key        string
+	Label      string
+	Desc       string
+	Sector     int
+	Ends       string
+	ActiveNode int
+}
+
+func abyssSeasonalTree(at time.Time) abyssSeasonalTreeBranch {
+	utc := at.UTC()
+	quarter := (int(utc.Month()) - 1) / 3
+	sector := (utc.Year()*4 + quarter) % 6
+	labels := []string{"Crimson Campaign", "Hearthwake", "Veiled Hunt", "Astral Study", "Gilded Road", "Void Pilgrimage"}
+	startMonth := time.Month(quarter*3 + 1)
+	ends := time.Date(utc.Year(), startMonth+3, 1, 0, 0, 0, 0, time.UTC)
+	return abyssSeasonalTreeBranch{
+		Key:   "season-" + strconv.Itoa(utc.Year()) + "-q" + strconv.Itoa(quarter+1),
+		Label: labels[sector], Sector: sector, Ends: ends.Format("2006-01-02"),
+		Desc: "Allocate 5 nodes in the highlighted sector to gain +5% material yield this season.",
+	}
+}
+
+func abyssTreeLoadoutNamesKey(uid string) string { return "abyss_tree_loadout_names_" + uid }
+
+func loadTreeLoadoutNames(stored string) map[string]string {
+	out := map[string]string{}
+	_ = json.Unmarshal([]byte(stored), &out)
+	for slot, name := range out {
+		n, err := strconv.Atoi(slot)
+		if err != nil || n < 1 || n > 3 {
+			delete(out, slot)
+			continue
+		}
+		out[slot] = normalizeAbyssPresetName(name, n)
+	}
+	return out
+}
+
+func (s *WebServer) handleAbyssTreeBatchAllocate(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
+
+	var req struct {
+		IDs []int `json:"ids"`
+	}
+	if readJSON(r, &req) != nil || len(req.IDs) == 0 || len(req.IDs) > 100 {
+		writeJSON(w, map[string]any{"ok": false, "error": "choose 1-100 queued nodes"})
+		return
+	}
+	alloc, err := s.bot.loadTreeAllocated(uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	tree := content.AbyssTree()
+	have := map[int]bool{0: true}
+	for _, id := range alloc {
+		have[id] = true
+	}
+	var bestDepth int
+	_ = s.bot.DB.QueryRow("SELECT COALESCE(abyss_best_depth, 0) FROM users WHERE client_uid=$1", uid).Scan(&bestDepth)
+	spent := s.bot.treeSpentEx(uid, alloc)
+	total := s.bot.treePointsTotal(uid)
+	dayID := abyssNodeOfTheDay(time.Now())
+	clean := make([]int, 0, len(req.IDs))
+	for _, id := range req.IDs {
+		node := tree.Node(id)
+		if node == nil || have[id] {
+			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("node %d is unknown or already allocated", id)})
+			return
+		}
+		connected := false
+		for _, neighbor := range tree.Adj[id] {
+			if have[neighbor] {
+				connected = true
+				break
+			}
+		}
+		if !connected {
+			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("node %d is not connected in queue order", id)})
+			return
+		}
+		required := 0
+		if node.Type == "keystone" {
+			required = 30
+		} else if node.Ring > 20 {
+			required = 20
+		} else if node.Ring > 10 {
+			required = 10
+		}
+		if id == treeNodeVictorsTrophy && required < 25 {
+			required = 25
+		}
+		if bestDepth < required {
+			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("node %d requires Abyss Floor %d", id, required)})
+			return
+		}
+		spent += treeNodeCostFor(node, dayID)
+		if spent > total {
+			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("queued changes cost more than your %d points", total)})
+			return
+		}
+		have[id] = true
+		clean = append(clean, id)
+	}
+
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	for _, id := range clean {
+		if _, err := tx.Exec("INSERT INTO user_abyss_tree (client_uid, node_id) VALUES ($1,$2)", uid, id); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	tb := s.bot.treeBonusFor(uid)
+	writeJSON(w, map[string]any{"ok": true, "used": spent, "points": total, "stats": tb.Stats, "pct": tb.Pct,
+		"msg": fmt.Sprintf("🌳 Applied %d queued tree changes atomically.", len(clean))})
+}

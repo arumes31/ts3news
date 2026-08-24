@@ -430,6 +430,8 @@
   border-color: rgba(244, 197, 66, 0.5);
   color: var(--gold);
 }
+.tn.seasonal { stroke:#6de6b2; filter:drop-shadow(0 0 5px rgba(109,230,178,.7)); }
+.tree-season { border:1px solid rgba(109,230,178,.35); background:rgba(35,112,84,.15); padding:7px 10px; border-radius:8px; }
 </style>
 <div class="tree-head">
   <div>
@@ -449,11 +451,11 @@
 <div class="tree-toolbar2" id="treeToolbar2">
   <span class="muted small">Loadouts:</span>
   <button class="ghost xs" onclick="loadoutSave(1)" title="Save current allocation to slot 1">💾1</button>
-  <button class="ghost xs" onclick="loadoutApply(1)" title="Apply loadout slot 1 (normal respec cost)">▶1<span id="lo1"></span></button>
+  <button class="ghost xs" onclick="loadoutApply(1)" title="Apply loadout slot 1 (normal respec cost)">▶ <span id="loname1">Preset 1</span><span id="lo1"></span></button>
   <button class="ghost xs" onclick="loadoutSave(2)" title="Save current allocation to slot 2">💾2</button>
-  <button class="ghost xs" onclick="loadoutApply(2)" title="Apply loadout slot 2 (normal respec cost)">▶2<span id="lo2"></span></button>
+  <button class="ghost xs" onclick="loadoutApply(2)" title="Apply loadout slot 2 (normal respec cost)">▶ <span id="loname2">Preset 2</span><span id="lo2"></span></button>
   <button class="ghost xs" onclick="loadoutSave(3)" title="Save current allocation to slot 3">💾3</button>
-  <button class="ghost xs" onclick="loadoutApply(3)" title="Apply loadout slot 3 (normal respec cost)">▶3<span id="lo3"></span></button>
+  <button class="ghost xs" onclick="loadoutApply(3)" title="Apply loadout slot 3 (normal respec cost)">▶ <span id="loname3">Preset 3</span><span id="lo3"></span></button>
   <span class="muted small">·</span>
   <button class="ghost xs" onclick="buildExport()" title="Copy a shareable build code">📤 Export</button>
   <button class="ghost xs" onclick="buildImport()" title="Import a build code (normal respec cost)">📥 Import</button>
@@ -461,8 +463,9 @@
   <button class="ghost xs" id="treeBeginnerBtn" onclick="toggleBeginner()" title="Highlight a suggested first 10 nodes">🧭 Beginner path</button>
   <button class="ghost xs" id="treeLowDetailBtn" onclick="toggleLowDetail()" title="Disable glows/animations for low-end devices">🐢 Low detail</button>
   <button class="ghost xs" id="treePathfinderBtn" style="display:none;" onclick="clearPathfinder()" title="Clear the pathfinder highlight">🎯 Clear path</button>
-  <span class="pill" id="treeQueuePill" style="display:none;">📋 <b id="treeQueueCount">0</b> queued <a href="javascript:void(0)" onclick="clearAllocQueue()" title="Clear the allocation queue">✕</a></span>
+  <span class="pill" id="treeQueuePill" style="display:none;">📋 <b id="treeQueueCount">0</b> queued <button class="ghost xs" onclick="confirmQueuedAllocations()">Review &amp; apply</button> <button class="ghost xs" onclick="clearAllocQueue()" title="Clear the allocation queue">✕</button></span>
 </div>
+<div class="tree-season small" id="treeSeason">🌿 <b>{{.SeasonalTree.Label}}</b> · {{.SeasonalTree.Desc}} Ends {{.SeasonalTree.Ends}}.</div>
 
 <div class="tree-tabs">
   <button class="tree-tab active" id="tab-passive" onclick="switchTab('passive')" aria-pressed="true">🌳 Passive Skill Web</button>
@@ -547,6 +550,8 @@ var SANCTUARY_ID = {{.SanctuaryID}};
 var JEWELS = {{jsonJS .Jewels}} || {}; // loose jewel pouch: code → count (AB-155)
 var NODE_OF_DAY = {{.NodeOfDay}}; // half-price node, rotates daily (AB-167)
 var LOADOUTS = {{jsonJS .Loadouts}} || {}; // slot → saved node count (AB-151)
+var LOADOUT_NAMES = {{jsonJS .LoadoutNames}} || {}; // slot → player-defined name
+var SEASONAL_SECTOR = {{.SeasonalTree.Sector}};
 var FREE_RESPEC = {{.FreeRespec}}; // first respec of the week is free (AB-157)
 var MASTERY_SHARDS = {{.MasteryShards}}; // boss-drop branch refunds (AB-159)
 var PRESTIGE_MEMORY = {{.PrestigeMemory}}; // node kept free through prestige (AB-168)
@@ -1620,6 +1625,7 @@ function paint(){
     else if (_c === 3) cls += ' mg2';
     if (alloc[n.id] && n.id === PRESTIGE_MEMORY) cls += ' pmem'; // AB-168
     if (beginnerOn && beginnerPath && !alloc[n.id] && beginnerPath.indexOf(n.id) >= 0) cls += ' beginner'; // AB-175
+    if (n.sector === SEASONAL_SECTOR) cls += ' seasonal';
 
     nodeEls[n.id].setAttribute('class', cls);
     paintDecor(n.id);
@@ -1950,7 +1956,7 @@ function queueAdd(id){
   });
   saveAllocQueue();
   if (added) abToast('📋 Queued '+added+' node'+(added===1?'':'s')+'.', true);
-  processAllocationQueue();
+  paint();
 }
 function clearAllocQueue(){
   allocQueue = [];
@@ -1958,36 +1964,35 @@ function clearAllocQueue(){
   abToast('Allocation queue cleared.', true);
 }
 async function processAllocationQueue(){
-  if (queueRunning || busy || !allocQueue.length) return;
-  queueRunning = true; setBusy(true);
-  try {
-    var progressed = true;
-    while (progressed && allocQueue.length) {
-      progressed = false;
-      for (var i=0;i<allocQueue.length;i++) {
-        var id = allocQueue[i];
-        if (alloc[id]) { allocQueue.splice(i,1); i--; progressed=true; continue; }
-        if (!isAllocatable(id)) continue;
-        var d = await abPost('/api/abyss/tree/allocate', {node_id:id});
-        if (!d.ok) { abToast(d.error||'Queued allocation failed.', false); return; }
-        alloc[id]=true; used=d.used; points=d.points; applyServerTotals(d);
-        allocQueue.splice(i,1); saveAllocQueue(); armUndoButton();
-        progressed=true; break;
-      }
-    }
-    paint(); renderSummary(activePct, activeStats);
-  } finally {
-    queueRunning=false; setBusy(false); saveAllocQueue();
-  }
+  return confirmQueuedAllocations();
+}
+async function confirmQueuedAllocations(){
+  if(queueRunning||busy||!allocQueue.length)return;
+  var cost=0, names=[];
+  allocQueue.forEach(function(id){var n=byId[id];if(n){cost+=effCost(n);names.push(n.name);}});
+  var preview='<b>'+allocQueue.length+' pending node'+(allocQueue.length===1?'':'s')+' · '+cost+' points</b><br>'+names.slice(0,8).map(escHtml).join('<br>');
+  if(names.length>8)preview+='<br>…and '+(names.length-8)+' more';
+  if(!(await confirmModal(preview,{title:'Apply queued tree changes?',okLabel:'Apply all'})))return;
+  queueRunning=true;setBusy(true);
+  try{
+    var d=await abPost('/api/abyss/tree/batch_allocate',{ids:allocQueue.slice()});
+    if(!d.ok){abToast(d.error||'Queued allocation failed.',false);return;}
+    allocQueue=[];saveAllocQueue();abToast(d.msg,true);
+    setTimeout(function(){location.reload();},500);
+  }finally{queueRunning=false;setBusy(false);}
 }
 
 async function loadoutSave(slot){
   if (busy) return;
   setBusy(true);
   try {
-    var d = await abPost('/api/abyss/tree/loadout_save', {slot:slot});
+    var current=LOADOUT_NAMES[String(slot)]||('Preset '+slot);
+    var name=window.prompt('Name this tree loadout:',current);
+    if(name===null)return;
+    var d = await abPost('/api/abyss/tree/loadout_save', {slot:slot,name:name});
     if (!d.ok) { abToast(d.error||'Failed to save loadout.', false); return; }
     LOADOUTS[String(slot)] = d.count;
+    LOADOUT_NAMES[String(slot)] = d.name;
     refreshLoadoutLabels();
     abToast(d.msg, true);
   } finally { setBusy(false); }
@@ -2008,6 +2013,8 @@ function refreshLoadoutLabels(){
   for (var i=1;i<=3;i++) {
     var el = document.getElementById('lo'+i), count = Number(LOADOUTS[String(i)] || 0);
     if (el) el.textContent = count ? ' ('+count+')' : '';
+    var nameEl=document.getElementById('loname'+i);
+    if(nameEl)nameEl.textContent=LOADOUT_NAMES[String(i)]||('Preset '+i);
   }
 }
 async function buildExport(){
@@ -2615,6 +2622,6 @@ if (lowDetailOn) {
   document.getElementById('treeLowDetailBtn').classList.add('active');
 }
 setInterval(renderKeystoneTimer, 1000);
-setTimeout(processAllocationQueue, 0);
+saveAllocQueue();
 </script>
 {{template "foot" .}}{{end}}

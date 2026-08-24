@@ -59,6 +59,9 @@ type WebServer struct {
 	// lets every authenticated party member resume the same group fight.
 	liveCombats     sync.Map // session ID -> *abyssLiveCombat
 	liveCombatByUID sync.Map // uid -> session ID
+
+	abyssFeatures abyssFeatureConfig
+	abyssOps      abyssOpsMetrics
 }
 
 // lockAbyss acquires the per-uid Abyss mutex and returns its unlock func.
@@ -151,7 +154,11 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parsing web templates: %w", err)
 	}
-	return &WebServer{bot: b, tmpl: tmpl}, nil
+	if err := validateAbyssContentReferences(); err != nil {
+		return nil, fmt.Errorf("validating Abyss content: %w", err)
+	}
+	server := &WebServer{bot: b, tmpl: tmpl, abyssFeatures: newAbyssFeatureConfig(b)}
+	return server, nil
 }
 
 // Start runs the HTTP server (blocking). Intended to be launched in a goroutine.
@@ -226,8 +233,22 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/use_consumable", s.authAPI(s.handleAbyssUseConsumable))
 		mux.HandleFunc("/api/abyss/combat/state", s.authAPI(s.handleAbyssCombatState))
 		mux.HandleFunc("/api/abyss/combat/action", s.authAPI(s.handleAbyssCombatAction))
+		mux.HandleFunc("/api/abyss/combat/ready", s.authAPI(s.handleAbyssCombatReady))
+		mux.HandleFunc("/api/abyss/combat/time", s.authAPI(s.handleAbyssCombatTimeBank))
+		mux.HandleFunc("/api/abyss/combat/pause", s.authAPI(s.handleAbyssCombatPauseMode))
+		mux.HandleFunc("/api/abyss/combat/policy", s.authAPI(s.handleAbyssCombatPolicy))
 		mux.HandleFunc("/api/abyss/combat/tactics", s.authAPI(s.handleAbyssCombatTactics))
+		mux.HandleFunc("/api/abyss/combat/social", s.authAPI(s.handleAbyssCombatSocial))
 		mux.HandleFunc("/api/abyss/combat/events", s.authAPI(s.handleAbyssCombatEvents))
+		mux.HandleFunc("/api/abyss/replay/code", s.authAPI(s.handleAbyssReplayCode))
+		mux.HandleFunc("/api/abyss/ops", s.authAPI(s.handleAbyssOps))
+		mux.HandleFunc("/api/abyss/practice", s.authAPI(s.handleAbyssBossPractice))
+		mux.HandleFunc("/api/abyss/build/respec", s.authAPI(s.handleAbyssBuildRespec))
+		mux.HandleFunc("/api/abyss/loot/settings", s.authAPI(s.handleAbyssLootSettings))
+		mux.HandleFunc("/api/abyss/loot/reserve", s.authAPI(s.handleAbyssLootReserve))
+		mux.HandleFunc("/api/abyss/economy/material_flow", s.authAPI(s.handleAbyssMaterialFlow))
+		mux.HandleFunc("/api/abyss/loadout/equipment", s.authAPI(s.handleAbyssEquipmentLoadout))
+		mux.HandleFunc("/api/abyss/loadout/gems", s.authAPI(s.handleAbyssGemPreset))
 		mux.HandleFunc("/api/abyss/noncombat/action", s.authAPI(s.handleAbyssNonCombatAction))
 		mux.HandleFunc("/api/abyss/noncombat/proceed", s.authAPI(s.handleAbyssNonCombatProceed))
 		mux.HandleFunc("/api/abyss/coop/list", s.authAPI(s.handleAbyssCoopList))
@@ -318,6 +339,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/anchor_rune", s.authAPI(s.handleAbyssAnchorRune))
 		mux.HandleFunc("/abyss/tree", s.auth(s.handleAbyssTreePage))
 		mux.HandleFunc("/api/abyss/tree/allocate", s.authAPI(s.handleAbyssTreeAllocate))
+		mux.HandleFunc("/api/abyss/tree/batch_allocate", s.authAPI(s.handleAbyssTreeBatchAllocate))
 		mux.HandleFunc("/api/abyss/tree/respec", s.authAPI(s.handleAbyssTreeRespec))
 		mux.HandleFunc("/api/abyss/tree/refund", s.authAPI(s.handleAbyssTreeRefund))
 		mux.HandleFunc("/api/abyss/tree/socket", s.authAPI(s.handleAbyssTreeSocket))

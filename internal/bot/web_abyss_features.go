@@ -80,6 +80,9 @@ func grantMaterialQ(q dbExecQuerier, uid, mat string, n int) error {
 	}
 	_, err := q.Exec(`INSERT INTO user_materials (client_uid, mat_id, count) VALUES ($1,$2,$3)
 	                  ON CONFLICT (client_uid, mat_id) DO UPDATE SET count = user_materials.count + $3`, uid, mat, n)
+	if err == nil {
+		recordAbyssMaterialFlow(uid, mat, "source", n)
+	}
 	return err
 }
 

@@ -22,3 +22,19 @@ func TestNormalizeAbyssTactic(t *testing.T) {
 		})
 	}
 }
+
+func TestAbyssLiveSnapshotIncludesSchemaVersion(t *testing.T) {
+	combat := &abyssLiveCombat{
+		id:           "session",
+		ownerUID:     "user",
+		participants: map[string]bool{"user": true},
+		tactics:      map[string]string{"user": "balanced"},
+		options:      map[string][]abyssLiveOption{},
+		queued:       map[string]abyssLiveAction{},
+	}
+
+	snapshot := combat.snapshotFor("user")
+	if snapshot.SchemaVersion != abyssLiveSnapshotSchemaVersion {
+		t.Fatalf("snapshot schema version = %d, want %d", snapshot.SchemaVersion, abyssLiveSnapshotSchemaVersion)
+	}
+}

@@ -86,7 +86,11 @@ type Config struct {
 	WebBaseURL    string // public base URL used to build per-user login links
 
 	// The Abyss (endless push-your-luck PvE dungeon web game)
-	EnableAbyss bool // serve the Abyss page/APIs and PM its deep-link each cycle
+	EnableAbyss             bool   // serve the Abyss page/APIs and PM its deep-link each cycle
+	AbyssLiveActions        bool   // interactive action bar kill switch
+	AbyssSocial             bool   // party coordination feature kill switch
+	AbyssLiveRolloutPercent int    // stable percentage of users receiving live combat, 0..100
+	AbyssOpsToken           string // bearer token for the private operations snapshot
 
 	// Idely — idle-music subsystem. A second, always-on TeamSpeak client
 	// (separate identity/profile/ClientQuery port) watches every occupied channel;
@@ -206,7 +210,11 @@ func LoadConfig() *Config {
 		WebListenAddr: envDefault("WEB_LISTEN_ADDR", ":18081"),
 		WebBaseURL:    envDefault("WEB_BASE_URL", "http://localhost:18081"),
 
-		EnableAbyss: envBool("ENABLE_ABYSS", true),
+		EnableAbyss:             envBool("ENABLE_ABYSS", true),
+		AbyssLiveActions:        envBool("ABYSS_LIVE_ACTIONS_ENABLED", true),
+		AbyssSocial:             envBool("ABYSS_SOCIAL_ENABLED", true),
+		AbyssLiveRolloutPercent: min(100, max(0, envInt("ABYSS_LIVE_ROLLOUT_PERCENT", 100))),
+		AbyssOpsToken:           os.Getenv("ABYSS_OPS_TOKEN"),
 
 		EnableIdely: envBool("ENABLE_IDELY", false),
 		IdelyOnly:   envBool("IDELY_ONLY", false),

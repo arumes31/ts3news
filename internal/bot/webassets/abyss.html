@@ -186,6 +186,40 @@
       {{end}}
     </div>
 
+    <div class="ab-startmode" id="buildPicker">
+      <span class="ab-sub-label">Starting build:</span>
+      <label>Kit
+        <select id="buildKit" class="ab-select">
+          <option value="vanguard">Vanguard · +10% STR, +5 CRT</option>
+          <option value="arcanist">Arcanist · +10% INT, +30 mana</option>
+          <option value="survival">Survivalist · +10% HP, +5% DEF</option>
+        </select>
+      </label>
+      <label>Skill mutation
+        <select id="buildMutation" class="ab-select">
+          <option value="empowered">Empowered · +20% power</option>
+          <option value="piercing">Piercing · +15% armor penetration</option>
+          <option value="restorative">Restorative · every skill heals 5% max HP</option>
+        </select>
+      </label>
+      <label>Party loot
+        <select id="partyLootRule" class="ab-select">
+          <option value="owner">Host cache · helper 🜲5</option>
+          <option value="round_robin">Round robin · helper 🜲8</option>
+          <option value="need_before_greed">Need before greed · helper 🜲6</option>
+        </select>
+      </label>
+      {{if ge .Stats.BestDepth 50}}<label>Veteran track
+        <select id="veteranTrack" class="ab-select">
+          <option value="">Off · standard run</option>
+          <option value="iron">Iron Nerve · finish at ≤50% HP</option>
+          <option value="untouched">Untouched · finish at ≥90% HP</option>
+          <option value="boss">Boss Oath · clear boss floors</option>
+        </select>
+      </label>{{end}}
+      <span class="muted small">Temporary for this run · one respec after entry</span>
+    </div>
+
     <!-- Pact picker (idle only): opt-in challenge modifiers for bonus rewards -->
     <div class="ab-pacts" id="pactPicker">
       <div class="ab-sub-label">⚔️ Pacts <span class="muted small">— optional challenges for bigger rewards <b id="pactBonus">(+0%)</b></span></div>
@@ -195,6 +229,11 @@
           {{.Label}} <span class="muted small">(+{{printf "%.0f" (mulf .Reward 100)}}% · {{.Desc}})</span>
         </label>
       {{end}}
+      <label class="ab-pact" data-tip="One seed and one rule remain fixed for the ISO week. Enemies are tougher and every cleared floor pays +25% cache.">
+        <input type="checkbox" id="weeklyExpedition"> 📅 Weekly Expedition
+        <span class="muted small">(+25% rewards · fixed weekly rule)</span>
+      </label>
+      <div class="muted small">🌐 Community expedition {{index .CommunityExpedition "Week"}}: {{index .CommunityExpedition "Floors"}} / {{index .CommunityExpedition "Target"}} floors</div>
     </div>
 
     <!-- Focus display (active run only) -->
@@ -218,6 +257,7 @@
       <button class="primary ab-enter" id="btnEnter" onclick="abyssEnter()">Enter the Abyss</button>
       <button class="primary ab-descend" id="btnDescend" onclick="abyssDescend()" style="display:none">⬇️ Descend</button>
       <button class="ghost ab-bank" id="btnBank" onclick="abyssBank()" style="display:none">🏦 Bank &amp; Leave</button>
+      <button class="ghost" id="btnBuildRespec" onclick="abyssBuildRespec()" style="display:none">🧬 Respec Mutation</button>
       <button class="primary ab-revive" id="btnRevive" onclick="abyssRevive()" style="display:none">🎲 Revive (double-or-nothing)</button>
       <button class="primary ab-laststand" id="btnLastStand" onclick="abyssLastStand()" style="display:none">🛡️ Last Stand (🜲 <span id="lsCost">{{.LastStandCost}}</span>)</button>
       <button class="ghost ab-concede" id="btnConcede" onclick="abyssConcede()" style="display:none">🏳️ Concede</button>
@@ -242,6 +282,8 @@
           <option value="{{.UID}}">{{.Nick}} (Floor {{.Depth}})</option>
         {{end}}
       </select>
+      <select id="coopPaceFilter" class="ab-select" onchange="filterCoopHelpers()"><option value="">Any pace</option><option value="fast">Online recently</option><option value="standard">Seen within 2h</option><option value="deliberate">Any availability</option></select>
+      <select id="coopDifficultyFilter" class="ab-select" onchange="filterCoopHelpers()"><option value="">Any difficulty</option><option value="normal">Normal+</option><option value="nightmare">Nightmare+</option><option value="hell">Hell+</option><option value="insanity">Insanity-ready</option></select>
       <span id="coopStatus" class="small muted" style="margin-left: 8px;">{{if .Run.CoopUID}}{{T "web.abyss.ally_invited"}}{{end}}</span>
     </div>
 
@@ -295,6 +337,17 @@
         <option value="rarity">Rarity</option>
         <option value="cr">CR Δ</option>
       </select>
+    </div>
+    <div class="ab-loot-sort" title="Targeting applies to Rare+ non-boss gear. Auto-salvage is capped below Rare; reserved backpack items are always protected.">
+      <label class="muted small" for="lootTarget">Chase:</label>
+      <select id="lootTarget" class="ab-select" onchange="saveAbyssLootSettings()">
+        <option value="">Any gear</option><option value="weapon">Weapons</option><option value="armor">Armor</option><option value="jewelry">Jewelry</option>
+      </select>
+      <label class="muted small" for="autoSalvage">Auto:</label>
+      <select id="autoSalvage" class="ab-select" onchange="saveAbyssLootSettings()">
+        <option value="-1">Keep all</option><option value="0">Salvage Common</option><option value="1">Salvage Uncommon−</option>
+      </select>
+      <button class="ghost xs" onclick="showAbyssMaterialFlow()">Flow</button>
     </div>
     <div class="abyss-side-list" id="lootManifest">
       {{range .RunLoot}}
@@ -492,8 +545,9 @@
     </div>
 
     <!-- Sanctuary upgrades (#38/#113) -->
-    <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
-      <h3 style="margin:0 0 6px;">🕊️ Sanctuary Upgrades</h3>
+    <div class="ab-sanctuary ab-sanctuary-stage-{{.SanctuaryStage}}" style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+      <div class="ab-sanctuary-scene" aria-hidden="true"><span>🕯️</span><span>🏕️</span><span>⚒️</span><span>✨</span></div>
+      <h3 style="margin:0 0 6px;">🕊️ Sanctuary Upgrades <span class="ab-up-lv">{{.SanctuaryStageName}}</span></h3>
       {{range .SanctuaryDefs}}
       <div class="ab-shop-item">
         <div><b>{{.Name}}</b> <span class="ab-up-lv">Lv {{index $.Sanctuary .Key}}/{{.Max}}</span><div class="muted small">{{.Desc}}</div></div>
@@ -552,6 +606,14 @@
           <button class="ab-chip" data-bf="other" aria-pressed="false">📦 Other</button>
         </div>
         <div id="bpList" class="ab-bp-list"></div>
+        <div class="ab-loot-sort">
+          <label class="muted small" for="gearPresetSlot">Preset:</label>
+          <select id="gearPresetSlot" class="ab-select"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
+          <button class="ghost xs" onclick="abyssPreset('equipment','save')">💾 Gear</button>
+          <button class="ghost xs" onclick="abyssPreset('equipment','apply')">▶ Gear</button>
+          <button class="ghost xs" onclick="abyssPreset('gems','save')">💾 Gems</button>
+          <button class="ghost xs" onclick="abyssPreset('gems','apply')">▶ Gems</button>
+        </div>
       </div>
 
       <div id="forgeActions" style="display:none; flex-direction:column; gap:8px;">
@@ -849,7 +911,20 @@
     {{end}}
     <button class="ghost xs" onclick="abyssSalvage()">🧹 Salvage junk for gold</button>
     <button class="ghost xs" onclick="abyssDismantle()">⚒️ Dismantle rare+ spares for 🜲</button>
+    <button class="ghost xs" onclick="shareLastAbyssReplay()">🎬 Share last replay</button>
+    <button class="ghost xs" onclick="armAbyssGhostReplay()">👻 Challenge replay code</button>
     {{if .Achieved}}<div class="ab-achievements"><h3>🏅 Achievements</h3>{{range .Achieved}}<span class="ab-ach">{{.}}</span>{{end}}</div>{{end}}
+    <div class="ab-progression-clarity">
+      <h3>🧭 Progression layers</h3>
+      <div><b>Run</b><span>cache, rooms, temporary kit/mutation, rested and returner charges</span></div>
+      <div><b>Character</b><span>level, gear, skills and consumables shared with the rest of the game</span></div>
+      <div><b>Account</b><span>skill web, prestige memory, Sanctuary, codex, achievements and cosmetic challenge tracks</span></div>
+      <p class="muted small">Major unlocks: boss floors every 5 · checkpoints every 10 · Nightmare 15 · Hell 30 · prestige and veteran tracks 50.</p>
+    </div>
+    <details class="ab-progress-tracks"><summary>🏅 Mastery &amp; veteran tracks</summary>
+      {{range .ProgressionTracks}}<div class="ab-progress-row"><span><b>{{.Name}}</b><small>{{.Desc}}</small></span><strong>{{.Value}}{{if .Next}} / {{.Next}}{{else}} · mastered{{end}}</strong></div>{{end}}
+      <p class="muted small">Tiers unlock at 10, 50, and 200 clears. Veteran rewards are badges only and never add combat power.</p>
+    </details>
     {{if .BadgeOptions}}
     <div class="ab-badge-picker">
       <span class="small muted">Badge: <b id="activeBadgeName">{{if .ActiveBadgeName}}{{.ActiveBadgeName}}{{else}}none{{end}}</b></span>
@@ -916,14 +991,14 @@
     <div class="ab-bestiary">
       <table class="ab-bestiary-table">
         <thead>
-          <tr><th>Monster Name</th><th>Kills</th></tr>
+		  <tr><th>Monster Name</th><th>Kills</th><th>Training</th></tr>
         </thead>
         <tbody>
           {{range .Bestiary}}
-          <tr><td>{{.MobName}}</td><td>⚔️ {{comma .Kills}}</td></tr>
+		  <tr><td>{{.MobName}}</td><td>⚔️ {{comma .Kills}}</td><td><button type="button" class="btn small" onclick="abyssPractice({{printf "%q" .MobName}})">Practice</button></td></tr>
           {{else}}
           <!-- UI-192: friendly empty state -->
-          <tr><td colspan="2"><div class="ab-empty-state">
+		  <tr><td colspan="3"><div class="ab-empty-state">
             <svg viewBox="0 0 120 60" aria-hidden="true"><ellipse cx="60" cy="34" rx="16" ry="12" fill="#14171f" stroke="#2a3040"/><circle cx="54" cy="32" r="3" fill="#7b6cff"/><circle cx="66" cy="32" r="3" fill="#7b6cff"/><path d="M40 52 Q60 42 80 52" stroke="#2a3040" fill="none"/></svg>
             <div class="muted">The Abyss keeps its secrets — descend and slay to fill these pages.</div>
           </div></td></tr>
@@ -1002,9 +1077,13 @@ var curInsured = {{.Run.Insured}}; // UI-43
 var logDelay = Math.max(30, 90 - 12 * {{.Stats.UpSwiftness}}); // Swiftness node (#154)
 var pageConsumables = {{jsonJS .Consumables}} || [];
 var runFloorsCleared = 0, runLootGained = 0; // run summary card (#341)
-var liveCombatSource=null, liveCombatPoll=null, liveCombatState=null;
-var liveSelectedTarget='', livePendingOption=null, liveFinishHandled=false;
+var liveCombatSource=null, liveCombatPoll=null, liveCombatState=null, liveLastEventID=-1;
+var liveReconnectTicker=null, liveActionReceipt=null;
+var liveSelectedTarget='', livePendingOption=null, liveFinishHandled=false, liveLoadoutPage=0;
 var liveStartHP=0, liveStartMaxHP=0, liveClockTimer=null;
+var liveTargetLocked=false, liveRoundHistory=[], liveLogFilter='all', liveGamepadIndex=-1;
+var liveActionOrder=[], livePinnedActions={}, liveShortcutMap={attack:'a',defend:'d',skill1:'1',skill2:'2',skill3:'3',skill4:'4',skill5:'5',item1:'q',item2:'e',item3:'r',ultimate1:'u',ultimate2:'i',ultimate3:'o'};
+try{liveActionOrder=JSON.parse(localStorage.getItem('abyssLiveActionOrder')||'[]')||[];livePinnedActions=JSON.parse(localStorage.getItem('abyssLivePinnedActions')||'{}')||{};Object.assign(liveShortcutMap,JSON.parse(localStorage.getItem('abyssLiveShortcuts')||'{}')||{});}catch(e){}
 
 // Modern hover tooltip for the Armoury + run-loot panels. A single viewport-fixed
 // card follows the cursor (so the scrolling sidebar never clips it), replacing the
@@ -1182,8 +1261,15 @@ async function abPost(url, body){
   }
 }
 
+async function abyssPractice(name){
+  var result=await abPost('/api/abyss/practice',{name:name});
+  if(!result.ok){abToast(result.error||'Practice drill unavailable.',false);return;}
+  var drill=(result.drill||[]).join(' · ');
+  abToast('🎯 '+result.boss+' · '+result.faction+' · '+result.pattern+' · '+drill,true,{ms:9000});
+}
+
 function setBusy(b){
-  busy=b;['btnEnter','btnDescend','btnBank','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
+  busy=b;['btnEnter','btnDescend','btnBank','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
   if(!b && lastActionBtn){ lastActionBtn.classList.remove('btn-busy'); lastActionBtn=null; }
 }
 function show(id, on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none';}
@@ -1206,8 +1292,10 @@ function renderState(){
   show('tierPicker', !inRun);
   show('pactPicker', !inRun);
   show('startPicker', !inRun);
+  show('buildPicker', !inRun);
   show('btnDescend', inRun && !downed);
   show('btnBank', inRun && !downed);
+  show('btnBuildRespec', inRun && !downed);
   show('liveRow', inRun && !downed);
   // Co-op summons are only for boss floors, so the row follows the *next* floor
   // preview (every 5th floor) rather than the initial server render.
@@ -1420,6 +1508,43 @@ function renderNonCombat(floorType, stateStr){
         btn.onclick=function(){abyssNCAction('mirrors_pick', String(idx));};
         options.appendChild(btn);
       });
+    } else if(state.type === 'challenge_room'){
+      title.innerHTML = '⚔️ Optional Trial Chamber';
+      desc.innerHTML = 'A sealed arena offers a vault key and a depth-scaled cache reward. The trial exacts 10% maximum health, but it can never kill you.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('challenge_attempt')">⚔️ Accept Trial (−10% max HP)</button>
+        <button class="ghost" onclick="abyssNCAction('challenge_leave')">🚶 Leave Untouched</button>
+      `;
+    } else if(state.type === 'cursed_door'){
+      title.innerHTML = '🚪 The Cursed Door';
+      desc.innerHTML = 'Runes promise immediate treasure. Passing through inflicts −15% STR and DEF for the next 3 fights.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('cursed_door_enter')">🚪 Enter and Take the Hoard</button>
+        <button class="ghost" onclick="abyssNCAction('cursed_door_leave')">🛡️ Refuse the Bargain</button>
+      `;
+    } else if(state.type === 'story_crossroads'){
+      title.innerHTML = '📜 Memorial Crossroads';
+      desc.innerHTML = 'Lost shades ask for a guide. Help them for a key and protection, or plunder their memorial for greater immediate wealth and a short curse.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('story_guide')">🧭 Guide the Shades</button>
+        <button class="ghost" onclick="abyssNCAction('story_plunder')">🗡️ Plunder the Memorial</button>
+      `;
+    } else if(state.type === 'lost_explorer'){
+      title.innerHTML = '🧗 Lost Explorer';
+      desc.innerHTML = 'An injured delver is pinned under stone. Spend 10% maximum health to rescue them and receive a vault key plus a 3-fight defensive map.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('explorer_rescue')">🤝 Rescue the Explorer</button>
+        <button class="ghost" onclick="abyssNCAction('explorer_leave')">🚶 Preserve Your Strength</button>
+      `;
+    } else if(state.type === 'locked_vault'){
+      title.innerHTML = '🔐 Locked Abyssal Vault';
+      desc.innerHTML = 'A single run-bound vault key opens this cache. Keys come from trials, rescues, and compassionate story choices.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('vault_cache')">💰 Cache Hoard (depth-scaled escrow)</button>
+        <button class="ghost" onclick="abyssNCAction('vault_tokens')">🜲 Token Coffer (6 tokens)</button>
+        <button class="ghost" onclick="abyssNCAction('vault_materials')">🟣 Forge Cache (4 cores)</button>
+        <button class="ghost" onclick="abyssNCAction('vault_leave')">🚶 Leave Sealed</button>
+      `;
     } else {
       desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
     }
@@ -2298,7 +2423,13 @@ async function abyssEnter(consumables){
   // Lock the UI before the cost-confirm modal so rapid re-clicks can't stack
   // multiple confirmations (and duplicate enter requests).
   setBusy(true); markBusyBtn('btnEnter');
-  var body={tier:selectedTier(), pacts:selectedPacts()};
+  var expedition=document.getElementById('weeklyExpedition');
+  var kit=document.getElementById('buildKit'), mutation=document.getElementById('buildMutation');
+  var veteran=document.getElementById('veteranTrack');
+  var lootRule=document.getElementById('partyLootRule');
+  var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),
+    kit:kit?kit.value:'vanguard', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
+    loot_rule:lootRule?lootRule.value:'owner'};
   // Start mode (#2/#3): surface, checkpoint or express elevator.
   var sm=document.querySelector('input[name=abstart]:checked');
   if(sm && sm.value){
@@ -2344,6 +2475,12 @@ async function abyssEnter(consumables){
   try{ sessionStorage.setItem('ab_run_tier', selectedTier()); }catch(e){}
   if(d.comeback) notes.push('💪 Comeback buff active: +10% stats this run.');
   if(d.auto_repaired) notes.push('🛠️ Auto-repaired all gear for '+fmtGold(d.auto_repaired)+'.');
+  if(d.weekly_expedition) notes.push('📅 '+d.weekly_expedition+' · +25% cache rewards.');
+  if(d.build_summary) notes.push('🧬 '+d.build_summary+'.');
+  if(d.rested_charges) notes.push('🌙 Rested reserve: +20% XP for '+d.rested_charges+' cleared floor'+(d.rested_charges===1?'':'s')+'.');
+  if(d.returning_bonus) notes.push('🧭 Welcome back: +25% XP and +10% cache for 10 cleared floors.');
+  if(d.veteran_track) notes.push('🏅 Veteran track active: '+d.veteran_track+' (cosmetic rewards only).');
+  if(d.loot_rule) notes.push('🤝 Party settlement: '+d.loot_rule.replace(/_/g,' ')+'.');
   if(notes.length) setBanner(notes.join(' '), 'good');
   // Fresh run: reset the floor trail (UX-34) and sweep the gate shut (UX-20).
   try{ sessionStorage.removeItem('ab_trail'); }catch(e){}
@@ -2354,6 +2491,21 @@ async function abyssEnter(consumables){
   } else {
     window.location.reload();
   }
+}
+
+async function abyssBuildRespec(){
+  if(busy)return;
+  var mutation=window.prompt('Choose your one in-run mutation respec: empowered, piercing, or restorative');
+  if(!mutation)return;
+  mutation=mutation.trim().toLowerCase();
+  if(['empowered','piercing','restorative'].indexOf(mutation)===-1){abToast('Unknown mutation.',false);return;}
+  setBusy(true); markBusyBtn('btnBuildRespec');
+  var d=await abPost('/api/abyss/build/respec',{mutation:mutation});
+  setBusy(false);
+  if(!d.ok){abToast(d.error||'Respec failed.',false);return;}
+  abToast('🧬 '+d.msg,true);
+  var button=document.getElementById('btnBuildRespec');
+  if(button)button.disabled=true;
 }
 
 // Last Stand (#15): token revive at 25% HP (+Mercy), seals banking for 2 floors.
@@ -2640,6 +2792,7 @@ async function processDescendResult(d, hp, max){
     if(d.daily)msg+=' 🎁 Daily first-descent bonus!';
     if(d.achievement){ msg+=' 🏅 '+d.achievement; achievementBanner(d.achievement); } // UI-140
     if(d.affix_reward)msg+=' 🎁 Affix reward: '+d.affix_reward+'!';
+    if(d.secondary_objective)msg+=' 🎯 '+d.secondary_objective+'.';
     if(d.lore_unlocked)msg+=' 📖 Found Lore Codex fragment!';
     if(d.recipe_unlocked)msg+=' 📖 Recipe discovered: '+d.recipe_unlocked+'!';
     if(d.gear_milestone)msg+=' '+d.gear_milestone;
@@ -2929,6 +3082,7 @@ async function abyssNCAction(action, payload){
   setBusy(false);
   if(!d.ok){ abToast(d.error||'failed',false); return; }
   if(d.gold !== undefined) setGold(d.gold);
+  if(d.tokens !== undefined) setTokens(d.tokens);
   if(d.hp !== undefined) {
     var bar=document.getElementById('hpBar');
     var max=Number(bar.getAttribute('aria-valuemax'));
@@ -2967,6 +3121,16 @@ async function abyssProceed(){
   window.location.reload();
 }
 
+async function filterCoopHelpers(){
+  var pace=document.getElementById('coopPaceFilter').value;
+  var difficulty=document.getElementById('coopDifficultyFilter').value;
+  var response=await fetch('/api/abyss/coop/list?pace='+encodeURIComponent(pace)+'&difficulty='+encodeURIComponent(difficulty));
+  var data=await response.json(); if(!data.ok)return;
+  var select=document.getElementById('coopSelect');
+  select.replaceChildren(new Option('Select a helper',''));
+  (data.helpers||[]).forEach(function(helper){select.add(new Option(helper.Nick+' (Floor '+helper.Depth+')',helper.UID));});
+}
+
 async function abyssInviteCoop(){
   var coopUID = document.getElementById('coopSelect').value;
   if(!coopUID) return;
@@ -2979,6 +3143,20 @@ async function abyssInviteCoop(){
   }
   document.getElementById('coopStatus').textContent = 'Ally invited!';
   abToast('Ally invited for the upcoming boss fight!', true);
+}
+
+async function shareLastAbyssReplay(){
+  var session='';try{session=sessionStorage.getItem('abyssLastReplaySession')||'';}catch(e){}
+  if(!session){abToast('Finish a live fight first.',false);return;}
+  var data=await abPost('/api/abyss/replay/code',{session_id:session});
+  if(!data.ok){abToast(data.error||'Replay unavailable',false);return;}
+  window.prompt('Copy this anonymous replay code:',data.code);
+}
+async function armAbyssGhostReplay(){
+  var code=window.prompt('Paste an anonymous Abyss replay code to race its round count:');
+  if(!code)return;
+  var data=await abPost('/api/abyss/replay/code',{code:code.trim(),ghost:true});
+  abToast(data.ok?data.msg:(data.error||'Invalid replay code'),!!data.ok);
 }
 
 async function abyssPrestige(){
@@ -4214,6 +4392,53 @@ var lootSort='floor';
 try{ lootSort=localStorage.getItem('ab_lootsort')||'floor'; }catch(e){}
 var isSortingLoot=false;
 var lootSortObserver=null;
+var lootSortFrame=0;
+var abyssReservedLoot={};
+function scheduleLootSort(){
+  if(lootSortFrame)return;
+  lootSortFrame=requestAnimationFrame(function(){lootSortFrame=0;applyLootSort();});
+}
+async function initAbyssLootSettings(){
+  try{
+    var response=await fetch('/api/abyss/loot/settings');
+    var data=await response.json();
+    if(!data.ok)return;
+    var settings=data.settings||{};
+    var target=document.getElementById('lootTarget'), salvage=document.getElementById('autoSalvage');
+    if(target)target.value=settings.target_category||'';
+    if(salvage)salvage.value=String(settings.auto_salvage_max===undefined?-1:settings.auto_salvage_max);
+    abyssReservedLoot={};(data.reserved_ids||[]).forEach(function(id){abyssReservedLoot[String(id)]=true;});
+    buildBackpackPanel();
+  }catch(e){}
+}
+async function saveAbyssLootSettings(){
+  var target=document.getElementById('lootTarget'), salvage=document.getElementById('autoSalvage');
+  var data=await abPost('/api/abyss/loot/settings',{target_category:target?target.value:'',auto_salvage_max:salvage?parseInt(salvage.value,10):-1});
+  abToast(data.ok?'Loot rules saved.':(data.error||'Could not save loot rules.'),!!data.ok);
+}
+async function toggleAbyssLootReserve(invID,button){
+  var data=await abPost('/api/abyss/loot/reserve',{inv_id:invID});
+  if(!data.ok){abToast(data.error||'Could not reserve item.',false);return;}
+  if(data.reserved)abyssReservedLoot[String(invID)]=true;else delete abyssReservedLoot[String(invID)];
+  if(button){button.textContent=data.reserved?'★':'☆';button.title=data.reserved?'Reserved from bulk salvage':'Reserve from bulk salvage';}
+}
+async function showAbyssMaterialFlow(){
+  try{
+    var response=await fetch('/api/abyss/economy/material_flow'),data=await response.json(),parts=[];
+    Object.keys(data.flow||{}).sort().forEach(function(mat){var flow=data.flow[mat]||{};parts.push(mat+': +'+(flow.source||0)+' / −'+(flow.sink||0));});
+    abToast(parts.length?('Material flow this process · '+parts.join(' · ')):'No material movement recorded yet.',true,{ms:8000});
+  }catch(e){abToast('Could not load material flow.',false);}
+}
+async function abyssPreset(kind,action){
+  var select=document.getElementById('gearPresetSlot'),slot=select?parseInt(select.value,10):1;
+  var name='';
+  if(action==='save'){name=window.prompt('Name this '+kind+' preset:','Loadout '+slot)||'';if(!name)return;}
+  if(action==='apply' && !(await confirmModal('Apply '+kind+' preset '+slot+'? Missing gear or changed socket counts cancel the whole operation.'))){return;}
+  var data=await abPost('/api/abyss/loadout/'+kind,{action:action,slot:slot,name:name});
+  if(!data.ok){abToast(data.error||'Preset failed.',false);return;}
+  abToast(data.msg,true);
+  if(action==='apply')setTimeout(function(){window.location.reload();},700);
+}
 function lootRowCR(row){
   var t=row.textContent||'';
   var up=/▲\+([\d.]+) CR/.exec(t); if(up)return parseFloat(up[1]);
@@ -4324,6 +4549,15 @@ function buildBackpackPanel(){
     if(set)html+='<span class="ab-set-tag ab-set-'+set+'">🧩 '+set+'</span>'; // UI-78
     html+='<span class="ab-bp-cr">CR '+(parseFloat(o.getAttribute('data-cr'))||0).toFixed(0)+'</span>';
     row.innerHTML=html;
+    var invID=parseInt(o.value.slice(4),10)||0;
+    if(invID){
+      var reserve=document.createElement('button');
+      reserve.className='ghost xs ab-bp-reserve';
+      reserve.textContent=abyssReservedLoot[String(invID)]?'★':'☆';
+      reserve.title=abyssReservedLoot[String(invID)]?'Reserved from bulk salvage':'Reserve from bulk salvage';
+      reserve.onclick=(function(id,button){return function(event){event.stopPropagation();toggleAbyssLootReserve(id,button);};})(invID,reserve);
+      row.appendChild(reserve);
+    }
     // UI-69: durability bar (the max is not exposed client-side; bar scaled /100).
     var dur=parseInt(o.getAttribute('data-dur'),10)||0;
     if(dur>0){
@@ -4616,7 +4850,7 @@ function renderUndoState(){
   try{ used=localStorage.getItem('ab_forge_undo')||''; }catch(e){}
   var lbl=document.createElement('span');
   lbl.className='muted small ab-undo-state';
-  lbl.textContent=(used===new Date().toISOString().slice(0,10))?'used — resets at midnight':'available today';
+  lbl.textContent=(used===new Date().toISOString().slice(0,10))?'used — resets at midnight':'latest action · no time expiry · 1 use/day';
   btn.parentNode.insertBefore(lbl,btn.nextSibling);
 }
 
@@ -4713,7 +4947,7 @@ function renderTierRisk(){
           }
         });
       });
-      if(hasNewLoot && lootSort!=='floor') applyLootSort(); // keep the chosen order as drops land
+      if(hasNewLoot && lootSort!=='floor') scheduleLootSort(); // coalesce rapid drops into one stable sort
     });
     lootSortObserver.observe(manifest,{childList:true});
     var sortSel=document.getElementById('lootSort');
@@ -4729,6 +4963,7 @@ function renderTierRisk(){
   }
 
   buildBackpackPanel();
+  initAbyssLootSettings();
   document.querySelectorAll('#bpFilters .ab-chip').forEach(function(c){
     c.onclick=function(){ bpFilter=c.getAttribute('data-bf'); applyBpFilter(); };
   });
@@ -5346,8 +5581,8 @@ function renderBestiaryProgress(){
   });
   if(!species) return;
   var pct=Math.min(100,Math.round(species*100/50));
-  var html='<div class="ab-best-prog"><div class="ab-bp-track" title="Measured against the 50-species Zoologist tier"><i style="width:'+pct+'%"></i></div>'+
-    '<span class="muted small">'+species+' species recorded · '+pct+'% of Zoologist (50)</span></div>';
+  var html='<div class="ab-best-prog"><div class="ab-bp-track" title="Complete 50 species for the Abyss Archivist badge and 50 tokens"><i style="width:'+pct+'%"></i></div>'+
+    '<span class="muted small">'+species+' species recorded · '+pct+'% of codex (50) · reward: Abyss Archivist + 🜲50</span></div>';
   var maxFam=1;
   Object.keys(fams).forEach(function(f){ if(fams[f]>maxFam)maxFam=fams[f]; });
   html+='<div class="ab-best-fams">';

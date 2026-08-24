@@ -363,7 +363,8 @@ func (s *WebServer) handleAbyssTreeLoadoutSave(w http.ResponseWriter, r *http.Re
 	defer unlock()
 
 	var req struct {
-		Slot int `json:"slot"`
+		Slot int    `json:"slot"`
+		Name string `json:"name"`
 	}
 	if err := readJSON(r, &req); err != nil || req.Slot < 1 || req.Slot > 3 {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request (slot 1-3)"})
@@ -384,15 +385,35 @@ func (s *WebServer) handleAbyssTreeLoadoutSave(w http.ResponseWriter, r *http.Re
 	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssTreeLoadoutsKey(uid)).Scan(&stored)
 	loadouts := loadTreeLoadouts(stored)
 	loadouts[strconv.Itoa(req.Slot)] = alloc
-
+	var storedNames string
+	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssTreeLoadoutNamesKey(uid)).Scan(&storedNames)
+	names := loadTreeLoadoutNames(storedNames)
+	names[strconv.Itoa(req.Slot)] = normalizeAbyssPresetName(req.Name, req.Slot)
 	newJson, _ := json.Marshal(loadouts)
-	if _, err := s.bot.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+	nameJSON, _ := json.Marshal(names)
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssTreeLoadoutsKey(uid), string(newJson)); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssTreeLoadoutNamesKey(uid), string(nameJSON)); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	writeJSON(w, map[string]any{"ok": true, "count": len(alloc),
-		"msg": fmt.Sprintf("💾 Loadout %d saved (%d nodes).", req.Slot, len(alloc))})
+		"name": names[strconv.Itoa(req.Slot)],
+		"msg": fmt.Sprintf("💾 %s saved (%d nodes).", names[strconv.Itoa(req.Slot)], len(alloc))})
 }
 
 // handleAbyssTreeLoadoutApply respecs and re-allocates a saved slot in one

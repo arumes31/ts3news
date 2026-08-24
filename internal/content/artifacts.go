@@ -1174,15 +1174,20 @@ func buildContent() {
 
 // RandomItemEffect rolls a 20% chance of a random combat affix, or EffectNone.
 func RandomItemEffect() ItemEffect {
+	return RandomItemEffectWithRandom(gameplayRandom)
+}
+
+// RandomItemEffectWithRandom rolls a combat affix using source.
+func RandomItemEffectWithRandom(source RandomSource) ItemEffect {
 	effects := []ItemEffect{
 		EffectThorns, EffectVampiric, EffectBerserk, EffectLucky, EffectTreasureHunter,
 		EffectQuick, EffectBulwark, EffectRadiant, EffectFragile, EffectSteady,
 		EffectMindControl, EffectRegenStack, EffectPhoenix, EffectStealth, EffectParry, EffectCleanse,
 	}
 	// #nosec G404
-	if rand.Float64() < 0.2 { // #nosec G404
+	if source.Float64() < 0.2 {
 		// #nosec G404
-		return effects[rand.IntN(len(effects))] // #nosec G404
+		return effects[source.IntN(len(effects))]
 	}
 	return EffectNone
 }
@@ -1193,22 +1198,27 @@ func RandomConsumable() Consumable { return allConsumables[rand.IntN(len(allCons
 
 // RandomGearDrop returns a uniformly random non-Abyss-exclusive gear item.
 func RandomGearDrop() Gear {
+	return RandomGearDropWithRandom(gameplayRandom)
+}
+
+// RandomGearDropWithRandom returns a gear drop using source.
+func RandomGearDropWithRandom(source RandomSource) Gear {
 	var g Gear
 	// Loop until we get a non-Abyss-exclusive item for standard drops
 	for {
 		// #nosec G404
-		if rand.Float64() < 0.05 { // #nosec G404
+		if source.Float64() < 0.05 {
 			// #nosec G404
-			g = uniqueLegendaries[rand.IntN(len(uniqueLegendaries))] // #nosec G404
+			g = uniqueLegendaries[source.IntN(len(uniqueLegendaries))]
 		} else {
 			// #nosec G404
-			g = allGear[rand.IntN(len(allGear))] // #nosec G404
+			g = allGear[source.IntN(len(allGear))]
 		}
 		if !strings.HasPrefix(g.ID, "ABYSS_") && !IsInsanityGearID(g.ID) {
 			break
 		}
 	}
-	g.Special = RandomItemEffect()
+	g.Special = RandomItemEffectWithRandom(source)
 	return g
 }
 
@@ -1397,6 +1407,42 @@ func RandomAbyssGearDropExcluding(owned map[string]bool) Gear {
 		g = RandomAbyssGearDrop()
 	}
 	return g
+}
+
+// RandomAbyssGearDropForCategoryExcluding provides a deterministic chase path
+// for broad equipment categories while retaining duplicate protection. It
+// falls back to the ordinary Abyss pool only when the requested category has no
+// eligible catalog entry.
+func RandomAbyssGearDropForCategoryExcluding(category string, owned map[string]bool) Gear {
+	matches := func(slot GearSlot) bool {
+		switch category {
+		case "weapon":
+			return slot == SlotMainHand || slot == SlotOffHand || slot == SlotRanged
+		case "armor":
+			return slot == SlotHead || slot == SlotChest || slot == SlotLegs || slot == SlotFeet || slot == SlotHands || slot == SlotWaist || slot == SlotBack
+		case "jewelry":
+			return slot == SlotNeck || slot == SlotFinger1 || slot == SlotFinger2 || slot == SlotTrinket1 || slot == SlotTrinket2
+		default:
+			return false
+		}
+	}
+	eligible := make([]Gear, 0)
+	for _, gear := range abyssExclusiveGear {
+		if matches(gear.Slot) && !owned[gear.ID] {
+			eligible = append(eligible, gear)
+		}
+	}
+	if len(eligible) == 0 {
+		for _, gear := range abyssExclusiveGear {
+			if matches(gear.Slot) {
+				eligible = append(eligible, gear)
+			}
+		}
+	}
+	if len(eligible) == 0 {
+		return RandomAbyssGearDropExcluding(owned)
+	}
+	return eligible[rand.IntN(len(eligible))] // #nosec G404 -- gameplay loot roll
 }
 
 // RandomStarterGear returns a uniformly random low-tier starter gear item.

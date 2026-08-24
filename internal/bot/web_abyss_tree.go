@@ -354,8 +354,9 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 	if allocatedMap[treeNodeAbyssalAttunement] {
 		var bestDepth int
 		_ = b.DB.QueryRow("SELECT abyss_best_depth FROM users WHERE client_uid=$1", uid).Scan(&bestDepth)
-		tb.Pct["str_pct"] += 0.005 * float64(bestDepth)
-		tb.Pct["hp_pct"] += 0.005 * float64(bestDepth)
+		attunement := softCap(0.005*float64(bestDepth), 0.50)
+		tb.Pct["str_pct"] += attunement
+		tb.Pct["hp_pct"] += attunement
 	}
 
 	// 6. Prestige Multipliers (Prestige Focus node)
@@ -363,7 +364,7 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 		var prestige int
 		_ = b.DB.QueryRow("SELECT abyss_prestige FROM users WHERE client_uid=$1", uid).Scan(&prestige)
 		if prestige > 0 {
-			mult := 0.10 * float64(prestige)
+			mult := softCap(0.10*float64(prestige), 0.50)
 			for nid := range allocatedMap {
 				if nid != treeNodePrestigeFocus {
 					n := content.AbyssTree().Node(nid)
@@ -434,7 +435,20 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 	var prestige int
 	_ = b.DB.QueryRow("SELECT abyss_prestige FROM users WHERE client_uid=$1", uid).Scan(&prestige)
 	if prestige > 0 {
-		tb.Stats = tb.Stats.Scaled(1.0 + 0.01*float64(prestige))
+		tb.Stats = tb.Stats.Scaled(abyssPermanentBonus(0.01*float64(prestige), 0.25))
+	}
+
+	// The highlighted sector rotates every quarter. Five allocated nodes unlock a
+	// horizontal economy perk; no allocation is added or removed when it rotates.
+	season := abyssSeasonalTree(time.Now())
+	seasonNodes := 0
+	for nid := range allocatedMap {
+		if node := content.AbyssTree().Node(nid); node != nil && node.Sector == season.Sector {
+			seasonNodes++
+		}
+	}
+	if seasonNodes >= 5 {
+		tb.Pct["material_yield"] += 0.05
 	}
 
 	return tb
@@ -520,6 +534,9 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 	for slot, ids := range loadTreeLoadouts(loadoutsJson) {
 		loadoutCounts[slot] = len(ids)
 	}
+	var loadoutNamesJSON string
+	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssTreeLoadoutNamesKey(uid)).Scan(&loadoutNamesJSON)
+	loadoutNames := loadTreeLoadoutNames(loadoutNamesJSON)
 
 	st := s.bot.loadAbyssStats(uid) // one ~19-column read, reused for BestDepth + Stats below
 	s.render(w, "abysstree", map[string]any{
@@ -570,6 +587,8 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		// Group G (AB-151..175) page data.
 		"Jewels":           jewels,
 		"Loadouts":         loadoutCounts,
+		"LoadoutNames":     loadoutNames,
+		"SeasonalTree":     abyssSeasonalTree(now),
 		"NodeOfDay":        abyssNodeOfTheDay(now),
 		"FreeRespec":       s.bot.abyssFreeRespecAvailable(uid),
 		"MasteryShards":    s.bot.abyssMasteryShards(uid),

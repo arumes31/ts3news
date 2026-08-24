@@ -59,6 +59,94 @@ func TestAbyssLivePartials(t *testing.T) {
 			}
 		})
 	}
+	if !strings.Contains(server.tmpl.Lookup("abyssLiveActionBarJS").Tree.Root.String(), "ev.lastEventId") {
+		t.Fatal("live action bar script does not preserve SSE event sequence IDs")
+	}
+	for _, required := range []string{
+		"scheduleLiveReconnect",
+		"RECEIVED · ",
+		"REPLACED · ",
+		"liveEffectEstimate",
+		"state.recommended",
+		"liveInitiative",
+		"state.enemy_intents",
+		"/api/abyss/combat/ready",
+		"setLiveReady",
+		"/api/abyss/combat/time",
+		"spendLiveTimeBank",
+		"/api/abyss/combat/pause",
+		"setLivePauseMode",
+		"/api/abyss/combat/policy",
+		"setLivePolicy",
+		"renderLiveLoadouts",
+		"liveLoadoutPage",
+		"liveRecap",
+		"THREAT ",
+		"entry.textContent=line",
+		"reorderLiveAction",
+		"toggleLivePin",
+		"--cooldown-angle",
+		"Mana after:",
+		"low-count",
+		" unavailable",
+		"TIMEOUT →",
+		"Use your last ",
+		"toggleLiveTargetLock",
+		"configureLiveShortcuts",
+		"pollLiveGamepad",
+		"toggleLiveCompact",
+		"toggleLiveLog",
+		"setLiveLogFilter",
+		"title=\"'+consEsc",
+		"renderLiveRoundTimeline",
+		"option.kind==='relic'",
+		"option.kind==='companion'",
+		"Combo tags:",
+		"liveSocialStatus",
+	} {
+		if !strings.Contains(server.tmpl.Lookup("abyssLiveActionBarJS").Tree.Root.String(), required) {
+			t.Errorf("live action bar script is missing %q feedback", required)
+		}
+	}
+	liveControls := server.tmpl.Lookup("abyssLiveControls").Tree.Root.String()
+	for _, required := range []string{"liveTacticVote", "liveSocial('revive_vote'", "liveSocial('abandon_vote'"} {
+		if !strings.Contains(liveControls, required) {
+			t.Errorf("live controls are missing %q social control", required)
+		}
+	}
+	abyssMain := server.tmpl.Lookup("abyss").Tree.Root.String()
+	for _, required := range []string{
+		"scheduleLootSort",
+		"saveAbyssLootSettings",
+		"toggleAbyssLootReserve",
+		"showAbyssMaterialFlow",
+		"abyssPreset",
+		"vault_cache",
+		"vault_tokens",
+		"vault_materials",
+		"veteranTrack",
+		"ab-progression-clarity",
+		"ab-sanctuary-stage-",
+		"partyLootRule",
+		"coopPaceFilter",
+		"shareLastAbyssReplay",
+		"armAbyssGhostReplay",
+	} {
+		if !strings.Contains(abyssMain, required) {
+			t.Errorf("abyss template is missing %q loot control", required)
+		}
+	}
+	abyssTree := server.tmpl.Lookup("abysstree").Tree.Root.String()
+	for _, required := range []string{
+		"/api/abyss/tree/batch_allocate",
+		"confirmQueuedAllocations",
+		"LOADOUT_NAMES",
+		"SEASONAL_SECTOR",
+	} {
+		if !strings.Contains(abyssTree, required) {
+			t.Errorf("Abyss tree template is missing %q progression control", required)
+		}
+	}
 
 	scriptServer, err := NewWebServer(nil)
 	if err != nil {
