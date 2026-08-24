@@ -52,7 +52,30 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0406 / UX-6** — live protected-versus-exposed cache values at defeat.
 - [x] **AAA-0407 / UX-7** — server-authoritative daily-free-entry label before descent.
 - [x] **AAA-0408 / UX-8** — one-time first-defeat decision explainer with current costs.
+- [x] **AAA-0409 / UX-9** — illustrated, instructive history and bestiary empty states.
+- [x] **AAA-0410 / UX-10** — locally dismissible new-content markers on updated panels.
 - [x] **AAA-0411 / UX-11** — progressive tier, route, build, and pact preparation workflow.
+- [x] **AAA-0412 / UX-12** — selected-tier floor-one risk projection.
+- [x] **AAA-0413 / UX-13** — disabled tiers show their exact depth requirement.
 - [x] **AAA-0414 / UX-14** — combined pact reward and danger preview.
 - [x] **AAA-0415 / UX-15** — restore the last valid descent setup from local browser state.
+- [x] **AAA-0416 / UX-16** — itemized confirmation for materially expensive entry routes.
+- [x] **AAA-0417 / UX-17** — current rotating affix presented before entry.
+- [x] **AAA-0418 / UX-18** — ownership-validated consumable carry loadout and capacity meter.
 - [x] **AAA-0419 / UX-19** — show the next locked checkpoint and its unlock requirement.
+- [x] **AAA-0420 / UX-20** — reduced-motion-safe gate transition into a descent.
+
+## Delivered tranche: combat recorder and fight readability
+
+- [x] **AAA-0421 / UX-21** — persisted All, Damage, Loot, Events, and Summary log filters.
+- [x] **AAA-0422 / UX-22** — keyboard-expandable exchange compaction for long fights.
+- [x] **AAA-0423 / UX-23** — source-coded log borders with a non-color-only legend.
+- [x] **AAA-0424 / UX-24** — timeline-driven overhead damage and healing values.
+- [x] **AAA-0425 / UX-25** — persisted 1×, 2×, and 4× playback speeds.
+- [x] **AAA-0426 / UX-26** — bounded skip-to-result drain for long resolved fights.
+- [x] **AAA-0427 / UX-27** — sticky floor, exchange, wave, and HP recorder status.
+- [x] **AAA-0428 / UX-28** — reduced-motion-safe boss introduction card and name plate.
+- [x] **AAA-0429 / UX-29** — inline flashes for critical, capture, phoenix, and high-rarity events.
+- [x] **AAA-0430 / UX-30** — post-fight HP, gold, loot, and gear-wear delta chips.
+- [x] **AAA-0431 / UX-31** — plain-text clipboard export of the latest complete fight.
+- [x] **AAA-0432 / UX-32** — explicit follow ownership and jump-to-latest recovery.

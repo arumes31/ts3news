@@ -67,6 +67,10 @@ func TestAbyssOnboardingAssetsAndModalAccessibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read onboarding stylesheet: %v", err)
 	}
+	uiCSS, err := webAssets.ReadFile("webassets/abyss_ui200.css")
+	if err != nil {
+		t.Fatalf("read Abyss UI stylesheet: %v", err)
+	}
 	partials, err := webAssets.ReadFile("webassets/partials.html")
 	if err != nil {
 		t.Fatalf("read shared partials: %v", err)
@@ -86,6 +90,13 @@ func TestAbyssOnboardingAssetsAndModalAccessibility(t *testing.T) {
 		{name: "modal focus return", source: string(partials), want: "modalReturnFocus"},
 		{name: "modal focus trap", source: string(partials), want: "trapSharedModalFocus"},
 		{name: "dialog label", source: string(partials), want: "aria-labelledby"},
+		{name: "run history empty state", source: string(page), want: "Your legend starts at floor 1"},
+		{name: "bestiary empty state", source: string(page), want: "descend and slay to fill these pages"},
+		{name: "lore locked state", source: string(page), want: `{{if .Unlocked}}unlocked{{else}}locked{{end}}`},
+		{name: "new panel markers", source: string(page), want: "function initNewDots"},
+		{name: "new marker persistence", source: string(page), want: "localStorage.getItem('ab_ui_ver')"},
+		{name: "new marker dismissal", source: string(page), want: "dot.onclick=function"},
+		{name: "new marker styling", source: string(uiCSS), want: ".ab-newdot"},
 	}
 	for _, check := range checks {
 		check := check

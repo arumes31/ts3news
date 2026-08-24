@@ -302,6 +302,17 @@
 /* ---- Combat log decorators (UI-21..40) ----------------------------------- */
 
 .ab-log-line.ab-log-crit { font-weight: 800; } /* UI-23 */
+.ab-log-line.ab-log-critical-event::before {
+  animation: ab-critical-event-flash .8s ease-out;
+  color: var(--gold);
+  content: '✦';
+  display: inline-block;
+  margin-right: .35rem;
+}
+@keyframes ab-critical-event-flash {
+  0% { opacity: 0; transform: scale(2.2) rotate(-20deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
 .ab-log-line.ab-log-dodge { font-style: italic; color: var(--muted); } /* UI-24 */
 .ab-log-line.ab-log-heal { color: var(--good); } /* UI-25 */
 
@@ -557,6 +568,7 @@
   .ab-log-line.ab-log-kill,
   .ab-log-line.ab-log-capture,
   .ab-log-line.ab-log-capture::after,
+  .ab-log-line.ab-log-critical-event::before,
   .ab-overkill,
   .ab-scene.ab-fs-you::before,
   .ab-scene.ab-fs-mob::before,

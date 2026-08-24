@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_onboarding.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_entry_planner.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_combat_recorder.css"}}">
 <div class="abyss-command-page" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
@@ -424,6 +425,7 @@
 
 <div class="abyss-log-wrap" id="logWrap" {{if not .Run.Active}}style="display:none"{{end}}>
   <h3>{{T "web.abyss.combat_log"}}</h3>
+  {{template "abyssCombatRecorderPanel" .}}
   <!-- Log tools (UI-26/36/37/38): substring filter, round numbers, mono font, copy -->
   <div class="ab-log-tools">
     <input type="search" id="logSearch" placeholder="Filter log…" aria-label="Filter combat log lines">
@@ -1692,6 +1694,7 @@ function applyCombatFrame(f){
     boss.style.display=enemyMax>0?'':'none';
     if(enemyMax>0)boss.textContent='💀 '+fmtNum(enemy)+' / '+fmtNum(enemyMax)+' HP';
   }
+  updateCombatRecorderFrame(f);
 }
 
 // Real-time life-regen ticker: equipped gear regen affixes heal the displayed HP
@@ -1709,7 +1712,7 @@ function applyCombatFrame(f){
     if(acc>=1){ var add=Math.floor(acc); acc-=add; setHP(Math.min(hp+add,max),max); }
   },1000);
 })();
-function setGold(g){var el=document.getElementById('goldPill');if(el){g=Number(g)||0;animateNumber(el, lastGold===null?g:lastGold, g, function(v){return '🪙 '+fmtGold(v);}); lastGold=g;}}
+function setGold(g){var el=document.getElementById('goldPill');if(el){g=Number(g)||0;animateNumber(el, lastGold===null?g:lastGold, g, function(v){return '🪙 '+fmtGold(v);});el.dataset.value=String(g);lastGold=g;}}
 // Tokens live in the shared header pill (next to gold), not on the page body.
 function setTokens(t){if(t!==undefined){var el=document.getElementById('tokenPill');if(el){t=Number(t)||0;
   // UI-42: track tokens earned this session (gains only) into the mini-HUD chip.
@@ -1819,7 +1822,7 @@ var lastFightText=''; // UI-37: plain text of the latest fight, for clipboard co
 var fightMeta=null;   // per-floor parse state for the stage/log decorators
 var killsThisFloor=0; // UI-11
 var AB_LOG_VIRTUAL_THRESHOLD=500,AB_LOG_VIRTUAL_HEAD=8,AB_LOG_VIRTUAL_TAIL=300,AB_LOG_RESTORE_BATCH=200;
-function playLog(lines, loot, dura, timeline){
+function playLog(lines, loot, dura, timeline, result){
   return new Promise(function(resolve){
     var log=document.getElementById('abyssLog'), lootEl=document.getElementById('abyssLoot'), duraEl=document.getElementById('abyssDura');
     show('abyssControls', false);
@@ -1833,6 +1836,7 @@ function playLog(lines, loot, dura, timeline){
     updateWavePips(0,0); // UI-6
     fightMeta={actions:0, struck:false};
     lastFightText='';
+    startCombatRecorder((lines||[]).length,loot,dura,result);
     timeline=Array.isArray(timeline)?timeline.slice().sort(function(a,b){return a.after_log-b.after_log;}):[];
     var frameIndex=0;
     function applyFrames(afterLog){
@@ -1855,17 +1859,24 @@ function playLog(lines, loot, dura, timeline){
       appendRunLoot(loot);
       collapseLongFight(log); // UI-27
       applyLogFilter(); // UI-36: re-apply an active filter to the new lines
+      finishCombatRecorder();
       resolve();
     }
-    if(reduceMotion){(lines||[]).forEach(function(l,idx){appendLogLine(log,l);maybeBossCard(l);applyFrames(idx+1);});finish();return;}
+    if(reduceMotion){(lines||[]).forEach(function(l,idx){appendLogLine(log,l);maybeBossCard(l);updateCombatRecorderProgress(idx+1,lines.length);applyFrames(idx+1);});finish();return;}
     var i=0;
     (function step(){
       if(i>=lines.length){finish();return;}
-      appendLogLine(log,lines[i]);log.scrollTop=log.scrollHeight;
+      if(shouldDrainCombatPlayback()){
+        while(i<lines.length){appendLogLine(log,lines[i]);maybeBossCard(lines[i]);i++;updateCombatRecorderProgress(i,lines.length);applyFrames(i);}
+        followCombatLog();finish();return;
+      }
+      appendLogLine(log,lines[i]);
       maybeBossCard(lines[i]); // UX-28
       i++;
+      updateCombatRecorderProgress(i,lines.length);
       applyFrames(i);
-      setTimeout(step,logDelay); // Swiftness node (#154)
+      followCombatLog();
+      setTimeout(step,combatRecorderDelay(logDelay)); // Swiftness baseline divided by the player's playback preference
     })();
   });
 }
@@ -1909,7 +1920,7 @@ var logNumbered=false, logMono=false; // UI-26 / UI-38 (persisted below)
 try{ logNumbered=localStorage.getItem('ab_lognum')==='1'; logMono=localStorage.getItem('ab_logmono')==='1'; }catch(e){}
 
 function addLogHead(log, cls, txt){
-  var d=document.createElement('div'); d.className='ab-log-line '+cls; d.textContent=txt; log.appendChild(d);
+  var d=document.createElement('div'); d.className='ab-log-line '+cls; d.textContent=txt; log.appendChild(d); recordCombatLogLine(d,txt);
 }
 function elemGlyph(el){return {Fire:'🔥',Water:'💧',Earth:'🪨',Air:'💨',Physical:'⚔️'}[el]||'';}
 function dailyAffixLabel(){
@@ -1925,6 +1936,7 @@ function appendLogLine(log, html){
   var txt=d.textContent||'';
   lastFightText+=txt+'\n';
   decorateLogLine(d, txt);
+  recordCombatLogLine(d,txt);
   var dot=/takes \d+ \w+ damage \(\d+ stacks\)/.test(txt)?txt:null;
   if(dot && lastDotEl && lastDotKey===dot){
     var n=(parseInt(lastDotEl.getAttribute('data-n'),10)||1)+1;
@@ -1999,6 +2011,7 @@ function decorateLogLine(d, txt){
   if(/ENRAGED/.test(txt)) setStageEnraged(true);
   // UI-23: crit lines get heavier weight, not just color.
   if(/CRITICAL/i.test(txt)) d.classList.add('ab-log-crit');
+  if(/CRITICAL|Phoenix|🌀 Captive|Legendary|Mythic|Celestial/i.test(txt)) d.classList.add('ab-log-critical-event');
   // UI-24: dodge lines in italic.
   if(/slipped into the shadows|missed\.|dodges/i.test(txt)) d.classList.add('ab-log-dodge');
   // UI-25: heals & lifesteal in green, distinct from damage red.
@@ -2155,9 +2168,10 @@ function collapseLongFight(log){
   hide.forEach(function(l){ l.classList.add('ab-collapsed'); });
   var row=document.createElement('div');
   row.className='ab-log-line ab-log-collapse';
-  row.textContent='… '+hide.length+' rounds …';
-  row.setAttribute('role','button'); row.tabIndex=0;
+  row.textContent='⚔️ '+hide.length+' exchanges — activate to expand';
+  row.setAttribute('role','button'); row.setAttribute('aria-label','Expand '+hide.length+' combat exchanges'); row.tabIndex=0;
   row.onclick=function(){ hide.forEach(function(l){ l.classList.remove('ab-collapsed'); }); row.remove(); };
+  row.onkeydown=function(event){if(event.key==='Enter'||event.key===' '){event.preventDefault();row.click();}};
   log.insertBefore(row, hide[0]);
 }
 
@@ -2196,7 +2210,8 @@ function applyLogFilter(){
   var log=document.getElementById('abyssLog'); if(!log) return;
   if(q) restoreVirtualLog(log,Infinity);
   log.querySelectorAll('.ab-log-line').forEach(function(l){
-    l.style.display=(!q || (l.textContent||'').toLowerCase().indexOf(q)>=0)?'':'none';
+    var categoryOK=typeof combatRecorderLineVisible!=='function'||combatRecorderLineVisible(l);
+    l.style.display=((!q || (l.textContent||'').toLowerCase().indexOf(q)>=0)&&categoryOK)?'':'none';
   });
 }
 
@@ -2870,7 +2885,7 @@ async function abyssDescendMulti() {
     // Floors cleared before the failure are already persisted — show their
     // logs/loot and apply the returned run snapshot so depth, escrow, HP and
     // the queue planner stay in sync with the server instead of drifting.
-    if(d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline); resetMana(); }
+    if(d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline, d); resetMana(); }
     if(typeof d.depth === 'number') setDepth(d.depth);
     if(typeof d.escrow === 'number') setEscrow(d.escrow);
     if(typeof d.hp === 'number') setHP(d.hp, d.max_hp);
@@ -2922,7 +2937,7 @@ async function processDescendResult(d, hp, max){
     setHP(hp, max);
     trailPush(d.depth, floorType); // UX-34
     // A batch descend may have fought floors before stopping here — show them.
-    if(d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline); resetMana(); }
+    if(d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline, d); resetMana(); }
     document.getElementById('abStatus').textContent='Approaching non-combat floor: ' + floorType;
     renderState();
     setBusy(false);
@@ -2932,7 +2947,7 @@ async function processDescendResult(d, hp, max){
   setDepth(d.depth);
   setRisk(d.risk);
   trailPush(d.depth, d.depth % 5 === 0 ? 'boss' : 'combat'); // UX-34
-  await playLog(d.logs, d.loot, d.dura, d.timeline);
+  await playLog(d.logs, d.loot, d.dura, d.timeline, d);
   resetMana();
   setHP(d.hp,d.max_hp); setGold(d.gold); setTokens(d.tokens);
   if(d.victory){
@@ -2999,6 +3014,7 @@ async function processDescendResult(d, hp, max){
 {{template "abyssLiveActionBarJS" .}}
 {{template "abyssOnboardingJS" .}}
 {{template "abyssEntryPlannerJS" .}}
+{{template "abyssCombatRecorderJS" .}}
 
 // Run summary card (#341): shown on bank or final death before the reload.
 function showRunSummary(title, rows, cls){
@@ -3048,7 +3064,7 @@ async function abyssRevive(){
   var d=await abPost('/api/abyss/revive');
   if(spin)clearInterval(spin);
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
-  await playLog(d.logs, d.loot, d.dura, d.timeline);
+  await playLog(d.logs, d.loot, d.dura, d.timeline, d);
   resetMana();
   setGold(d.gold); setTokens(d.tokens);
   if(d.victory){
