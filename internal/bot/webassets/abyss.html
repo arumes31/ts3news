@@ -3,7 +3,8 @@
 <link rel="stylesheet" href="/static/abyss_ui200.css?v={{uicssver}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_command.css"}}">
 <link rel="stylesheet" href="/static/abyss_live.css?v={{livecssver}}">
-<div class="abyss-command-page">
+<link rel="stylesheet" href="{{asset "/static/abyss_pixel.css"}}">
+<div class="abyss-command-page" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
   <div class="abyss-intro" id="abyssIntro">
@@ -88,9 +89,9 @@
     <h3>⚔️ Armoury</h3>
     <div class="abyss-side-list">
       {{range .Equipped}}
-      <div class="abyss-side-gear" data-temper="{{.Temper}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .Durability 0}} · Dur {{.Durability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
-        <span class="gi icn" style="--gi:url({{iconURL .IconName}});color:{{.RarityColor}}"></span>
-        <span style="color:{{.RarityColor}}">{{.Name}}</span>
+      <div class="abyss-side-gear" tabindex="0" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .Durability 0}} · Dur {{.Durability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+        <span class="ab-pixel-icon ab-gear-pixel" aria-hidden="true"></span>
+        <span class="ab-side-gear-name" style="color:{{.RarityColor}}">{{.Name}}</span>
         <span class="cr">CR {{printf "%.0f" .CR}}</span>
       </div>
       {{else}}
@@ -431,7 +432,7 @@
 </div>
 
 <div class="abyss-cols">
-  <section class="abyss-panel">
+  <section class="abyss-panel" id="abyssSetBonuses" data-abyss-section="progression">
     <h2>🛡️ Set Bonuses</h2>
     <p class="muted small" style="margin-bottom:12px;">Equip pieces from the same set to activate cumulative stat increases.</p>
 
@@ -488,7 +489,7 @@
   </section>
 
   <!-- Token Shop: open-ended sink for Abyss Tokens -->
-  <section class="abyss-panel">
+  <section class="abyss-panel" id="abyssTokenShop" data-abyss-section="shop">
     <h2>🜲 Token Shop</h2>
     <p class="muted small">Spend Abyss Tokens on consumables, gear and relics.</p>
     <div class="ab-shop">
@@ -505,7 +506,7 @@
   </section>
 
   <!-- Materials, crafting & exchange (#101-#105, #126) -->
-  <section class="abyss-panel">
+  <section class="abyss-panel" id="abyssWorkshop" data-abyss-section="forge">
     <h2>🧪 Workshop</h2>
     <div class="ab-materials">
       {{range .MaterialDefs}}
@@ -536,31 +537,37 @@
       </div>
     </div>
 
-    <!-- Token exchange (#126): 1 token = 100K gold -->
-    <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
-      <h3 style="margin:0 0 6px;">💱 Token Exchange <span class="ab-up-lv">1 🜲 = {{gold .TokenBuyGold}}</span></h3>
-      <div style="display:flex; align-items:center; gap:6px;">
-        <input type="number" id="exchAmount" value="1" min="1" max="1000" style="width:70px;">
-        <button class="ghost xs" onclick="abyssExchange('buy')">Buy 🜲 ({{gold .TokenBuyGold}} each)</button>
-        <button class="ghost xs" onclick="abyssExchange('sell')">Sell 🜲 ({{gold .TokenSellGold}} each)</button>
-      </div>
-    </div>
+  </section>
 
-    <!-- Sanctuary upgrades (#38/#113) -->
-    <div class="ab-sanctuary ab-sanctuary-stage-{{.SanctuaryStage}}" style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
-      <div class="ab-sanctuary-scene" aria-hidden="true"><span>🕯️</span><span>🏕️</span><span>⚒️</span><span>✨</span></div>
-      <h3 style="margin:0 0 6px;">🕊️ Sanctuary Upgrades <span class="ab-up-lv">{{.SanctuaryStageName}}</span></h3>
-      {{range .SanctuaryDefs}}
-      <div class="ab-shop-item">
-        <div><b>{{.Name}}</b> <span class="ab-up-lv">Lv {{index $.Sanctuary .Key}}/{{.Max}}</span><div class="muted small">{{.Desc}}</div></div>
-        <button class="ghost xs" onclick="abyssSanctuaryBuy('{{.Key}}', this)">🜲 {{.CostTk}}</button>
-      </div>
-      {{end}}
+  <!-- Token exchange (#126): 1 token = 100K gold -->
+  <section class="abyss-panel" id="abyssTokenExchange" data-abyss-section="shop">
+    <h2>💱 Token Exchange</h2>
+    <p class="muted small">Convert gold and Abyss Tokens at the current fixed rate.</p>
+    <div class="ab-shop-item">
+      <div><b>Exchange rate</b><div class="muted small">1 🜲 = {{gold .TokenBuyGold}} to buy · {{gold .TokenSellGold}} when sold</div></div>
+      <input type="number" id="exchAmount" value="1" min="1" max="1000" aria-label="Token exchange amount" style="width:70px;">
+    </div>
+    <div class="ab-btn-row">
+      <button class="ghost xs" onclick="abyssExchange('buy')">Buy 🜲 ({{gold .TokenBuyGold}} each)</button>
+      <button class="ghost xs" onclick="abyssExchange('sell')">Sell 🜲 ({{gold .TokenSellGold}} each)</button>
     </div>
   </section>
 
+  <!-- Sanctuary upgrades (#38/#113) -->
+  <section class="abyss-panel ab-sanctuary ab-sanctuary-stage-{{.SanctuaryStage}}" id="abyssSanctuaryUpgrades" data-abyss-section="progression">
+    <div class="ab-sanctuary-scene" aria-hidden="true"><span>🕯️</span><span>🏕️</span><span>⚒️</span><span>✨</span></div>
+    <h2>🕊️ Sanctuary Upgrades <span class="ab-up-lv">{{.SanctuaryStageName}}</span></h2>
+    <p class="muted small">Permanent account upgrades for safer, stronger descents.</p>
+    {{range .SanctuaryDefs}}
+    <div class="ab-shop-item">
+      <div><b>{{.Name}}</b> <span class="ab-up-lv">Lv {{index $.Sanctuary .Key}}/{{.Max}}</span><div class="muted small">{{.Desc}}</div></div>
+      <button class="ghost xs" onclick="abyssSanctuaryBuy('{{.Key}}', this)">🜲 {{.CostTk}}</button>
+    </div>
+    {{end}}
+  </section>
+
   <!-- Forge & Customization Panel -->
-  <section class="abyss-panel" id="abyssForgePanel">
+  <section class="abyss-panel" id="abyssForgePanel" data-abyss-section="forge">
     <h2>⚒️ Abyss Forge
       <span class="ab-up-lv" id="forgeHH">{{if .ForgeHappyHour}}🔥 Happy Hour −20%{{end}}</span>
       <span class="ab-up-lv" id="forgeRepChip" title="Artisan reputation: 5% forge discount per 25 actions (max 20%)">🏅 {{.ForgeRep.Rep}} rep · −{{.ForgeRep.DiscountPct}}%</span>
@@ -894,7 +901,7 @@
   </section>
 
   <!-- Lifetime stats [46] + salvage [60] -->
-  <section class="abyss-panel">
+  <section class="abyss-panel" id="abyssRecord" data-abyss-section="progression">
     <h2>{{T "web.abyss.record"}}</h2>
     <ul class="ab-record">
       <li><span>{{T "web.abyss.abyss_prestige"}}</span><b>⭐ {{comma .Stats.AbyssPrestige}}</b></li>
@@ -939,7 +946,7 @@
   </section>
 
   <!-- Run history [48] -->
-  <section class="abyss-panel">
+  <section class="abyss-panel" id="abyssRunHistory" data-abyss-section="progression">
     <h2>{{T "web.abyss.recent_runs"}}
       <!-- UI-179: history export -->
       <span style="float:right"><button class="ghost xs" id="histCsvBtn" title="Download run history as CSV">⬇ CSV</button> <button class="ghost xs" id="histJsonBtn" title="Copy run history as JSON">{} JSON</button></span>
@@ -967,7 +974,7 @@
   </section>
 </div>
 
-<div class="abyss-lore-bestiary">
+<div class="abyss-lore-bestiary" data-abyss-section="lore">
   <section class="abyss-panel">
     <h2>{{T "web.abyss.lore_codex"}} <span class="ab-lore-ring" id="loreRing" title="Lore fragments collected"></span></h2>
     <p class="muted small">{{T "web.abyss.lore_codex_desc"}}</p>
@@ -1011,7 +1018,7 @@
   </section>
 </div>
 
-<section class="abyss-lb" id="lb" data-nick="{{.U.Nickname}}">
+<section class="abyss-lb" id="lb" data-abyss-section="leaderboards" data-nick="{{.U.Nickname}}">
   <h2>🏆 Deepest Descents · {{.Season}}</h2>
   <!-- Per-tier board tabs (#276) -->
   <div class="ab-lb-tabs">
@@ -1020,7 +1027,7 @@
   {{template "abyssboards" .Leaders}}
 </section>
 
-<section class="abyss-lb" style="margin-top: 30px;">
+<section class="abyss-lb" id="abyssBossLeaderboards" data-abyss-section="leaderboards" style="margin-top: 30px;">
   <h2>{{T "web.abyss.boss_kills_title"}}</h2>
   <table class="lbtable">
     <thead>
@@ -1087,6 +1094,29 @@ var liveTargetLocked=false, liveRoundHistory=[], liveLogFilter='all', liveGamepa
 var liveActionOrder=[], livePinnedActions={}, liveShortcutMap={attack:'a',defend:'d',skill1:'1',skill2:'2',skill3:'3',skill4:'4',skill5:'5',item1:'q',item2:'e',item3:'r',ultimate1:'u',ultimate2:'i',ultimate3:'o'};
 try{liveActionOrder=JSON.parse(localStorage.getItem('abyssLiveActionOrder')||'[]')||[];livePinnedActions=JSON.parse(localStorage.getItem('abyssLivePinnedActions')||'{}')||{};Object.assign(liveShortcutMap,JSON.parse(localStorage.getItem('abyssLiveShortcuts')||'{}')||{});}catch(e){}
 
+function abAtlasPosition(cell){
+  return (cell[0]*100/7)+'% '+(cell[1]*100/5)+'%';
+}
+function applyAbPixelIcon(element,cell){
+  if(element)element.style.backgroundPosition=abAtlasPosition(cell);
+}
+function abGearIconCell(slot){
+  slot=String(slot||'').toLowerCase();
+  if(slot==='mainhand'||slot==='ranged')return [0,2];
+  if(slot==='offhand')return [1,2];
+  if(slot==='head')return [2,2];
+  if(slot==='chest'||slot==='shoulders')return [3,2];
+  if(slot==='hands'||slot==='wrists')return [4,2];
+  if(slot==='waist')return [5,2];
+  if(slot==='legs')return [6,2];
+  if(slot==='feet')return [7,2];
+  if(slot==='back')return [0,3];
+  if(slot.indexOf('finger')===0)return [1,3];
+  if(slot==='neck')return [2,3];
+  if(slot.indexOf('trinket')===0)return [3,3];
+  return [7,5];
+}
+
 // Modern hover tooltip for the Armoury + run-loot panels. A single viewport-fixed
 // card follows the cursor (so the scrolling sidebar never clips it), replacing the
 // plain native title= popups. Delegated on document so dynamically-added loot rows
@@ -1106,20 +1136,20 @@ try{liveActionOrder=JSON.parse(localStorage.getItem('abyssLiveActionOrder')||'[]
     tip.style.left = Math.max(8, x) + 'px';
     tip.style.top = Math.max(8, y) + 'px';
   }
+  function fill(host,txt){
+    var lines=txt.split('\n'), card=ensure(), icon='';
+    if(host.classList.contains('abyss-side-gear'))icon='<span class="ab-pixel-icon ab-hovertip-icon" style="background-position:'+abAtlasPosition(abGearIconCell(host.dataset.slot))+'"></span>';
+    card.innerHTML='<div class="ab-hovertip-title">'+icon+'<strong>'+consEsc(lines.shift()||'')+'</strong></div>'+lines.map(function(line){
+      return '<div>'+consEsc(line).replace(/(-\d+)/g,'<span class="ab-neg">$1</span>')+'</div>';
+    }).join('');
+  }
   document.addEventListener('mouseover', function(e){
     var host = e.target.closest ? e.target.closest('[data-tip]') : null;
     if(!host) return;
+    if(e.relatedTarget&&host.contains(e.relatedTarget))return;
     var txt = host.getAttribute('data-tip');
     if(!txt) return;
-    ensure();
-    // UI-77: negative stat values render in a warning tint.
-    if(/-\d/.test(txt)){
-      tip.innerHTML = txt.split('\n').map(function(l){
-        return consEsc(l).replace(/(-\d+)/g, '<span class="ab-neg">$1</span>');
-      }).join('<br>');
-    } else {
-      tip.textContent = txt;
-    }
+    fill(host,txt);
     tip.classList.add('show');
     place(e);
   });
@@ -1128,7 +1158,19 @@ try{liveActionOrder=JSON.parse(localStorage.getItem('abyssLiveActionOrder')||'[]
   });
   document.addEventListener('mouseout', function(e){
     var host = e.target.closest ? e.target.closest('[data-tip]') : null;
+    if(host&&e.relatedTarget&&host.contains(e.relatedTarget))return;
     if(host && tip) tip.classList.remove('show');
+  });
+  document.addEventListener('focusin',function(e){
+    var host=e.target.closest?e.target.closest('[data-tip]'):null;
+    if(!host)return;
+    var txt=host.getAttribute('data-tip');if(!txt)return;
+    fill(host,txt);tip.classList.add('show');
+    var rect=host.getBoundingClientRect();place({clientX:rect.right,clientY:rect.top});
+  });
+  document.addEventListener('focusout',function(e){
+    var host=e.target.closest?e.target.closest('[data-tip]'):null;
+    if(host&&tip)tip.classList.remove('show');
   });
 })();
 var buffNames = {giant_strength_elixir:'💪 Giant Strength (+40 STR, 3 fights)', iron_skin_brew:'🛡️ Iron Skin (+10 DEF, 3 fights)',
@@ -2874,6 +2916,7 @@ async function processDescendResult(d, hp, max){
   renderState(); setBusy(false);
 }
 
+{{template "abyssPixelCombatJS" .}}
 {{template "abyssLiveActionBarJS" .}}
 
 // Run summary card (#341): shown on bank or final death before the reload.
@@ -4008,59 +4051,86 @@ function displayAutoFocus(focus) {
   var pc = parseInt((document.getElementById('pityCount')||{}).textContent)||0;
   if(pc >= 36) document.getElementById('pityFill').classList.add('pulse');
 
-  // Section tabs (#303): fold the long lower page into tabbed groups.
-  (function buildTabs(){
+  // Section tabs (#303): fold the long lower page into focused workspaces.
+  window.buildAbyssTabs=function(){
     var groups = [
-      {label:'🛠️ Progression', els:[document.querySelector('.abyss-cols')]},
-      {label:'📖 Lore & Bestiary', els:[document.querySelector('.abyss-lore-bestiary')]},
-      {label:'🏆 Leaderboards', els:Array.prototype.slice.call(document.querySelectorAll('.abyss-lb'))}
+      {key:'progression', label:'🛠️ Progression', els:Array.prototype.slice.call(document.querySelectorAll('[data-abyss-section="progression"]'))},
+      {key:'shop', label:'🜲 Shop', els:Array.prototype.slice.call(document.querySelectorAll('[data-abyss-section="shop"]'))},
+      {key:'forge', label:'⚒️ Forge', els:Array.prototype.slice.call(document.querySelectorAll('[data-abyss-section="forge"]'))},
+      {key:'lore', label:'📖 Lore & Bestiary', els:Array.prototype.slice.call(document.querySelectorAll('[data-abyss-section="lore"]'))},
+      {key:'leaderboards', label:'🏆 Leaderboards', els:Array.prototype.slice.call(document.querySelectorAll('[data-abyss-section="leaderboards"]'))}
     ].filter(function(g){return g.els.length && g.els[0];});
     if(groups.length < 2) return;
     var bar = document.createElement('div');
     bar.className = 'ab-tabs';
+    bar.setAttribute('aria-label', 'Abyss sections');
     bar.setAttribute('role', 'tablist');
-    var first = groups[0].els[0];
+    var first = document.querySelector('.abyss-cols') || groups[0].els[0];
+    groups.forEach(function(g){
+      g.els.forEach(function(el, i){
+        if(!el.id) el.id='abyss-section-'+g.key+'-'+i;
+        el.setAttribute('role', 'tabpanel');
+      });
+    });
     // Leaderboard deep-links (#lb / ?lbtier=) land on the Leaderboards tab.
-    var initial = -1;
+    var initial = '';
     if (location.hash === '#lb' || location.search.indexOf('lbtier=') >= 0) {
-      var lbIdx = -1;
-      for (var i = 0; i < groups.length; i++) {
-        if (groups[i].label.indexOf('Leaderboards') >= 0) {
-          lbIdx = i;
-          break;
-        }
-      }
-      if (lbIdx >= 0) {
-        initial = lbIdx;
-      }
+      initial = 'leaderboards';
+    } else if(location.hash.length > 1) {
+      var linked = document.getElementById(location.hash.slice(1));
+      var linkedPanel = linked && linked.closest ? linked.closest('[data-abyss-section]') : null;
+      if(linkedPanel) initial = linkedPanel.getAttribute('data-abyss-section') || '';
     }
     // Otherwise restore the tab the player last had open (same pattern as
     // forge_selected_item persistence above).
-    if (initial < 0) {
-      try{ initial = parseInt(sessionStorage.getItem('abyss_section_tab'), 10); }catch(e){ initial = 0; }
-      if (isNaN(initial) || initial < 0) initial = 0;
+    if (!initial) {
+      try{
+        var storedTab=sessionStorage.getItem('abyss_section_tab')||'';
+        var legacyTabs=['progression','lore','leaderboards'];
+        initial=/^\d+$/.test(storedTab) ? (legacyTabs[parseInt(storedTab,10)]||'progression') : storedTab;
+      }catch(e){ initial='progression'; }
     }
-    if(initial >= groups.length) initial = 0;
-    groups.forEach(function(g, i){
+    if(!groups.some(function(g){return g.key===initial;})) initial='progression';
+    groups.forEach(function(g){
       var b = document.createElement('button');
-      b.className = 'ab-tab' + (i===initial ? ' active' : '');
+      var active=g.key===initial;
+      b.type = 'button';
+      b.id = 'abyss-tab-'+g.key;
+      b.dataset.tabKey = g.key;
+      b.className = 'ab-tab' + (active ? ' active' : '');
       b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', i===initial ? 'true' : 'false');
+      b.setAttribute('aria-selected', active ? 'true' : 'false');
+      b.tabIndex = active ? 0 : -1;
+      b.setAttribute('aria-controls', g.els.map(function(el){return el.id;}).join(' '));
+      g.els.forEach(function(el){el.setAttribute('aria-labelledby', b.id);});
       b.textContent = g.label;
       b.onclick = function(){
-        bar.querySelectorAll('.ab-tab').forEach(function(x){x.classList.remove('active');x.setAttribute('aria-selected','false');});
+        bar.querySelectorAll('[data-tab-key]').forEach(function(x){x.classList.remove('active');x.setAttribute('aria-selected','false');x.tabIndex=-1;});
         b.classList.add('active');
         b.setAttribute('aria-selected', 'true');
-        try{ sessionStorage.setItem('abyss_section_tab', String(i)); }catch(e){}
-        groups.forEach(function(g2, j){ g2.els.forEach(function(el){ if(el) el.style.display = (i===j) ? '' : 'none'; }); });
+        b.tabIndex = 0;
+        try{ sessionStorage.setItem('abyss_section_tab', g.key); }catch(e){}
+        groups.forEach(function(g2){ g2.els.forEach(function(el){ if(el) el.hidden = g2.key!==g.key; }); });
       };
+      b.addEventListener('keydown', function(event){
+        if(event.key!=='ArrowLeft' && event.key!=='ArrowRight' && event.key!=='Home' && event.key!=='End') return;
+        event.preventDefault();
+        var tabs=Array.prototype.slice.call(bar.querySelectorAll('[data-tab-key]'));
+        var current=tabs.indexOf(b), next=current;
+        if(event.key==='Home') next=0;
+        else if(event.key==='End') next=tabs.length-1;
+        else next=(current+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
+        tabs[next].focus();
+        tabs[next].click();
+      });
       bar.appendChild(b);
-      g.els.forEach(function(el){ if(el) el.style.display = (i===initial) ? '' : 'none'; });
+      g.els.forEach(function(el){ if(el) el.hidden = !active; });
     });
     // The Skill Web renders on its own page (it's a full pan/zoom SVG app),
     // but it gets its own tab here so every Abyss section shares one tab bar.
     var tw = document.createElement('button');
     tw.className = 'ab-tab';
+    tw.type = 'button';
     tw.setAttribute('role', 'tab');
     tw.setAttribute('aria-selected', 'false');
     tw.textContent = '🌳 Skill Web';
@@ -4068,7 +4138,7 @@ function displayAutoFocus(focus) {
     tw.onclick = function(){ window.location.href = '/abyss/tree'; };
     bar.appendChild(tw);
     first.parentNode.insertBefore(bar, first);
-  })();
+  };
 
   displayAutoFocus('{{.AutoFocus}}');
 
@@ -4631,6 +4701,7 @@ function decorateEquippedCards(){
   document.querySelectorAll('.abyss-side-gear').forEach(function(card){
     if(card.dataset.ab2)return;
     card.dataset.ab2='1';
+    applyAbPixelIcon(card.querySelector('.ab-gear-pixel'),abGearIconCell(card.dataset.slot));
     var temper=parseInt(card.getAttribute('data-temper'),10)||0;
     if(temper>0){ // UI-74
       var pips=document.createElement('span');
@@ -5258,10 +5329,13 @@ function updateFavicon(){
 function abTabSigs(){
   var sigs={};
   var hist=document.querySelector('.ab-history tbody tr');
-  sigs[0]=document.querySelectorAll('.ab-achievements .ab-ach').length+'|'+(hist?hist.textContent.replace(/\s+/g,' ').trim():'');
-  sigs[1]=document.querySelectorAll('.ab-codex-item.unlocked').length+'|'+document.querySelectorAll('.ab-bestiary-table tbody tr').length;
+  sigs.progression=document.querySelectorAll('.ab-achievements .ab-ach').length+'|'+(hist?hist.textContent.replace(/\s+/g,' ').trim():'');
+  sigs.shop=document.querySelectorAll('#abyssTokenShop .ab-shop-item').length+'|'+document.querySelectorAll('#abyssTokenExchange button').length;
+  var forgeHistory=document.querySelector('#forgeHistoryBox .muted.small');
+  sigs.forge=document.querySelectorAll('#abyssWorkshop .ab-shop-item').length+'|'+(forgeHistory?forgeHistory.textContent.replace(/\s+/g,' ').trim():'');
+  sigs.lore=document.querySelectorAll('.ab-codex-item.unlocked').length+'|'+document.querySelectorAll('.ab-bestiary-table tbody tr').length;
   var top=document.querySelector('#lb .lb-col:first-child .lbtable tbody tr .lb-name');
-  sigs[2]=top?top.textContent.trim():'';
+  sigs.leaderboards=top?top.textContent.trim():'';
   return sigs;
 }
 function initTabDots(){
@@ -5270,16 +5344,17 @@ function initTabDots(){
   var sigs=abTabSigs();
   var stored={};
   try{ stored=JSON.parse(localStorage.getItem('ab_tab_sig')||'{}'); }catch(e){}
-  tabs.forEach(function(b, i){
-    if(sigs[i]===undefined) return; // the Skill Web link tab carries no content
-    if(stored[String(i)]!==undefined && stored[String(i)]!==sigs[i] && !b.classList.contains('active')){
+  tabs.forEach(function(b){
+    var key=b.dataset.tabKey;
+    if(!key || sigs[key]===undefined) return; // the Skill Web link tab carries no content
+    if(stored[key]!==undefined && stored[key]!==sigs[key] && !b.classList.contains('active')){
       var dot=document.createElement('span');
       dot.className='ab-tab-dot'; dot.title='New content since your last visit';
       b.appendChild(dot);
     }
-    if(b.classList.contains('active')) stored[String(i)]=sigs[i];
+    if(b.classList.contains('active')) stored[key]=sigs[key];
     b.addEventListener('click',function(){
-      stored[String(i)]=sigs[i];
+      stored[key]=sigs[key];
       try{ localStorage.setItem('ab_tab_sig',JSON.stringify(stored)); }catch(e){}
       var d=b.querySelector('.ab-tab-dot'); if(d)d.remove();
     });
@@ -5484,13 +5559,15 @@ function initTabScroll(){
   var tabs=document.querySelectorAll('.ab-tabs .ab-tab'); if(!tabs.length)return;
   var map={};
   try{ map=JSON.parse(sessionStorage.getItem('ab_tab_scroll')||'{}'); }catch(e){}
-  tabs.forEach(function(b,i){ if(b.classList.contains('active')) abCurTab=i; });
-  tabs.forEach(function(b,i){
+  tabs.forEach(function(b){ if(b.classList.contains('active')) abCurTab=b.dataset.tabKey||''; });
+  tabs.forEach(function(b){
     b.addEventListener('click',function(){
-      if(abCurTab>=0 && abCurTab!==i) map[String(abCurTab)]=window.scrollY;
-      abCurTab=i;
+      var key=b.dataset.tabKey;
+      if(!key)return;
+      if(abCurTab && abCurTab!==key) map[abCurTab]=window.scrollY;
+      abCurTab=key;
       try{ sessionStorage.setItem('ab_tab_scroll',JSON.stringify(map)); }catch(e){}
-      var y=map[String(i)];
+      var y=map[key];
       if(y!==undefined) setTimeout(function(){ window.scrollTo(0,y); },0);
     });
   });
@@ -5953,7 +6030,6 @@ function openAbSettings(){
     openModal=wrapped;
   });
 
-  initTabDots();       // UI-116
   initPanelAnchors();  // UI-118
   initBackToTop();     // UI-119
   applySidebarOrder(); // UI-120
@@ -5962,7 +6038,6 @@ function openAbSettings(){
   initMyLbRow();       // UI-123
   initHistoryExpand(); // UI-125
   initAchievementHints();// UI-126
-  initTabScroll();     // UI-128
   initLbSkeleton();    // UI-130/199
 
   var rex=document.getElementById('recordExtras');
@@ -6007,6 +6082,11 @@ function openAbSettings(){
 </script>
 {{template "abyss-forge-workstation" .}}
 {{if .ForgeWorkbenchEnabled}}{{template "abyss-forge-planner" .}}{{end}}
+<script data-cfasync="false">
+window.buildAbyssTabs();
+initTabDots();
+initTabScroll();
+</script>
 </div>
 {{template "foot" .}}{{end}}
 

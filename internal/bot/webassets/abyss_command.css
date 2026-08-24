@@ -274,11 +274,9 @@ body:has(.abyss-command-page) .foot {
 }
 
 .abyss-command-page .ab-scene {
-  border-color: var(--cmd-line-soft);
+  border-color: transparent;
   border-radius: var(--cmd-cut-small);
-  background:
-    radial-gradient(circle at 50% 0, rgba(91, 214, 208, .09), transparent 48%),
-    rgba(5, 8, 13, .74);
+  background: transparent;
 }
 
 .abyss-command-page .ab-depth-ring {
@@ -434,14 +432,23 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
 
 /* Navigation tabs, sections, and data surfaces. */
 .abyss-command-page .ab-tabs {
+  position: relative;
+  z-index: 2;
+  flex-wrap: wrap;
   gap: 4px;
+  margin: 18px 0 0;
   padding: 5px;
   border: 1px solid var(--cmd-line);
   border-radius: var(--cmd-cut-small);
-  background: rgba(7, 11, 17, .82);
+  background:
+    linear-gradient(90deg, rgba(242, 189, 91, .055), transparent 40%),
+    rgba(7, 11, 17, .94);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .2), inset 0 1px rgba(255, 255, 255, .025);
 }
 
 .abyss-command-page .ab-tab {
+  flex: 1 1 128px;
+  min-height: 38px;
   border-color: transparent;
   border-radius: 2px 7px 2px 7px;
   background: transparent;
@@ -451,10 +458,34 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
   text-transform: uppercase;
 }
 
+.abyss-command-page .ab-tab:hover {
+  color: #f4f7fb;
+  border-color: rgba(242, 189, 91, .36);
+  background: rgba(242, 189, 91, .055);
+}
+
+.abyss-command-page .ab-tab:focus-visible {
+  outline: 2px solid var(--cmd-gold);
+  outline-offset: 2px;
+}
+
 .abyss-command-page .ab-tab.active {
   color: #11151d;
   border-color: var(--cmd-gold);
   background: var(--cmd-gold);
+}
+
+.abyss-command-page [data-abyss-section][hidden] {
+  display: none !important;
+}
+
+.abyss-command-page [data-abyss-section]:not([hidden]) {
+  animation: ab-section-enter .18s ease-out both;
+}
+
+@keyframes ab-section-enter {
+  from { opacity: .3; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .abyss-command-page .ab-lb-tab {
@@ -496,6 +527,23 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
 .abyss-command-page .abyss-cols,
 .abyss-command-page .abyss-lore-bestiary {
   gap: 12px;
+}
+
+.abyss-command-page #abyssTokenShop,
+.abyss-command-page #abyssForgePanel {
+  grid-column: span 2;
+}
+
+.abyss-command-page #abyssRunHistory {
+  grid-column: 1 / -1;
+}
+
+.abyss-command-page #abyssTokenExchange .ab-btn-row {
+  margin-top: 10px;
+}
+
+.abyss-command-page #forgePlanner {
+  scroll-margin-top: 72px;
 }
 
 .abyss-command-page .ab-acc {
@@ -704,6 +752,10 @@ body:has(.abyss-command-page) .modal-overlay {
   .abyss-command-page .abyss-cols,
   .abyss-command-page .abyss-lore-bestiary {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .abyss-command-page :is(#abyssTokenShop, #abyssForgePanel, #abyssRunHistory) {
+    grid-column: auto;
   }
 
   .abyss-command-page .abyss-stage { order: 1; }
