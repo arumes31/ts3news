@@ -21,6 +21,12 @@ func TestAssetVerAndURL(t *testing.T) {
 		t.Errorf("expected 12-char hex hash for abyss_ui200.css, got %q", uiVer)
 	}
 
+	// Check abyss_live.css version
+	liveVer := AssetVer("webassets/abyss_live.css")
+	if len(liveVer) != 12 {
+		t.Errorf("expected 12-char hex hash for abyss_live.css, got %q", liveVer)
+	}
+
 	// 3. Check favicon and logo
 	favVer := AssetVer("webassets/favicon.svg")
 	if len(favVer) != 12 {
@@ -42,6 +48,11 @@ func TestAssetVerAndURL(t *testing.T) {
 	wantStyleURL := "/static/style.css?v=" + styleVer
 	if got := AssetURL("/static/style.css"); got != wantStyleURL {
 		t.Errorf("AssetURL(/static/style.css) = %q, want %q", got, wantStyleURL)
+	}
+
+	wantLiveURL := "/static/abyss_live.css?v=" + liveVer
+	if got := AssetURL("/static/abyss_live.css"); got != wantLiveURL {
+		t.Errorf("AssetURL(/static/abyss_live.css) = %q, want %q", got, wantLiveURL)
 	}
 
 	wantFavURL := "/static/favicon.svg?v=" + favVer

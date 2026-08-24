@@ -72,7 +72,7 @@ func (s *WebServer) lockAbyss(uid string) func() {
 // NewWebServer parses the embedded templates and returns a ready server.
 func NewWebServer(b *Bot) (*WebServer, error) {
 	tmpl, err := template.New("").Funcs(template.FuncMap{
-		"gold":  func(v int64) string { return FormatGoldPlain(v) },
+		"gold": func(v int64) string { return FormatGoldPlain(v) },
 		"comma": func(v any) string {
 			var f float64
 			switch n := v.(type) {
@@ -119,17 +119,18 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 			}
 			return p
 		},
-		"jsonJS": jsonJS,
-		"mulf":   func(a, b float64) float64 { return a * b },
-		"asset":    AssetURL,
-		"assetver": AssetVer,
-		"iconURL":  IconURL,
-		"iconVer":  IconVer,
-		"cssver":   func() string { return AssetVer("webassets/style.css") },
-		"uicssver": func() string { return AssetVer("webassets/abyss_ui200.css") },
-		"appver":   func() string { return AssetVer("all") },
-		"halve":  func(n int) int { return n / 2 },
-		"dur":    func(ms int64) string { return fmt.Sprintf("%.1fs", float64(ms)/1000) },
+		"jsonJS":     jsonJS,
+		"mulf":       func(a, b float64) float64 { return a * b },
+		"asset":      AssetURL,
+		"assetver":   AssetVer,
+		"iconURL":    IconURL,
+		"iconVer":    IconVer,
+		"cssver":     func() string { return AssetVer("webassets/style.css") },
+		"uicssver":   func() string { return AssetVer("webassets/abyss_ui200.css") },
+		"livecssver": func() string { return AssetVer("webassets/abyss_live.css") },
+		"appver":     func() string { return AssetVer("all") },
+		"halve":      func(n int) int { return n / 2 },
+		"dur":        func(ms int64) string { return fmt.Sprintf("%.1fs", float64(ms)/1000) },
 		// dict builds a map from alternating key/value pairs, for passing several
 		// named values into a sub-template (used by the Abyss upgrade widget).
 		"dict": func(values ...any) (map[string]any, error) {
@@ -165,6 +166,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	})
 	mux.HandleFunc("/static/abyss_ui200.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_ui200.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_live.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_live.css", "text/css; charset=utf-8")
 	})
 	mux.HandleFunc("/static/favicon.svg", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/favicon.svg", "image/svg+xml")
