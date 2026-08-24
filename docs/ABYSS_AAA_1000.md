@@ -27,6 +27,8 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 
 - [x] **AAA-0986 / AB-286** — compare tier catalog values with the latest database constraints.
 - [x] **AAA-0987 / AB-287** — golden-render threshold and active-run page fixtures.
+- [x] **AAA-0990 / AB-290** — aggregate enter → floor 5 → bank funnel telemetry.
+- [ ] **AAA-0991 / AB-291** — inspect a player's live run for support (requires explicit approval for operator-visible player data).
 - [x] **AAA-0993 / AB-293** — bounded client error reporting.
 - [x] **AAA-0994 / AB-294** — combat-log DOM virtualization above 500 lines.
 - [x] **AAA-0995 / AB-295** — coalesce HUD chip recomputes to one animation frame.
@@ -39,3 +41,18 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 AAA-0997 intentionally remains pending while reconnect/session-cursor work is
 already modified in the worktree. It requires a server-authoritative deadline
 lease, not a cosmetic client countdown pause.
+
+## Delivered tranche: first-run clarity and descent preparation
+
+- [x] **AAA-0401 / UX-1** — anchored, dismissible five-step field-manual tour.
+- [x] **AAA-0402 / UX-2** — zero-run primer that retires after experience or dismissal.
+- [x] **AAA-0403 / UX-3** — keyboard-focusable glossary terms using the shared safe tooltip path.
+- [x] **AAA-0404 / UX-4** — CR-aware recommended tier without changing the player's selection.
+- [x] **AAA-0405 / UX-5** — floor-one risk breakdown with tier and equipped-CR inputs.
+- [x] **AAA-0406 / UX-6** — live protected-versus-exposed cache values at defeat.
+- [x] **AAA-0407 / UX-7** — server-authoritative daily-free-entry label before descent.
+- [x] **AAA-0408 / UX-8** — one-time first-defeat decision explainer with current costs.
+- [x] **AAA-0411 / UX-11** — progressive tier, route, build, and pact preparation workflow.
+- [x] **AAA-0414 / UX-14** — combined pact reward and danger preview.
+- [x] **AAA-0415 / UX-15** — restore the last valid descent setup from local browser state.
+- [x] **AAA-0419 / UX-19** — show the next locked checkpoint and its unlock requirement.
