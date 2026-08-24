@@ -94,6 +94,8 @@ type Mob struct {
 	STRMod      float64
 	DEFMod      float64
 	SPDMod      float64
+	StunRounds  int
+	PreStunSPD  int
 }
 
 // Clone returns a deep copy of m, so mutating the copy's slices never affects

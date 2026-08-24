@@ -21,15 +21,19 @@ import (
 type abyssFeatureConfig struct {
 	liveActions bool
 	social      bool
+	tree        bool
+	forge       bool
 	rollout     int
 	opsToken    string
 }
 
 func newAbyssFeatureConfig(b *Bot) abyssFeatureConfig {
-	cfg := abyssFeatureConfig{liveActions: true, social: true, rollout: 100}
+	cfg := abyssFeatureConfig{liveActions: true, social: true, tree: true, forge: true, rollout: 100}
 	if b != nil && b.Cfg != nil {
 		cfg.liveActions = b.Cfg.AbyssLiveActions
 		cfg.social = b.Cfg.AbyssSocial
+		cfg.tree = b.Cfg.AbyssTreeEnhancements
+		cfg.forge = b.Cfg.AbyssForgeWorkbench
 		cfg.rollout = min(100, max(0, b.Cfg.AbyssLiveRolloutPercent))
 		cfg.opsToken = b.Cfg.AbyssOpsToken
 	}
@@ -46,6 +50,10 @@ func (c abyssFeatureConfig) enabled(feature, uid string) bool {
 		if !c.liveActions {
 			return false
 		}
+	case "tree":
+		return c.tree
+	case "forge":
+		return c.forge
 	default:
 		return false
 	}
@@ -355,7 +363,10 @@ func (s *WebServer) handleAbyssOps(w http.ResponseWriter, r *http.Request, _ str
 		},
 		"features": map[string]any{
 			"live_actions": s.abyssFeatures.liveActions, "social": s.abyssFeatures.social,
+			"tree_enhancements": s.abyssFeatures.tree, "forge_workbench": s.abyssFeatures.forge,
 			"rollout_percent": s.abyssFeatures.rollout,
 		},
+		"skill_tree": s.abyssTreeOps.snapshot(),
+		"forge":      s.abyssForgeOps.snapshot(),
 	})
 }

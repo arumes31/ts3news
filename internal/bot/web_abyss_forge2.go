@@ -36,7 +36,7 @@ func isWeaponSlot(slot content.GearSlot) bool {
 // caller owns tx (defer Rollback) and gets the parsed gear plus its raw stored
 // JSON for the undo snapshot.
 func (s *WebServer) beginForgeTx(w http.ResponseWriter, uid string, invID int64, slot string) (*sql.Tx, content.Gear, string, bool) {
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return nil, content.Gear{}, "", false
@@ -57,7 +57,6 @@ func (s *WebServer) finishForge(w http.ResponseWriter, tx *sql.Tx, uid, action, 
 		return false
 	}
 	s.bot.recordForge(uid, action, detail, cost)
-	recordAbyssForgeMaterialCost(uid, cost)
 	return true
 }
 
@@ -483,8 +482,20 @@ func (s *WebServer) handleAbyssReforge(w http.ResponseWriter, r *http.Request, u
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	var req forgeItemReq
-	if !readForgeItemReq(w, r, &req) {
+	var req struct {
+		forgeItemReq
+		Family      string  `json:"family"`
+		MinQuality  float64 `json:"min_quality"`
+		RejectBelow bool    `json:"reject_below"`
+	}
+	if err := readJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+	req.Family = strings.ToLower(strings.TrimSpace(req.Family))
+	validFamilies := map[string]bool{"": true, "balanced": true, "offense": true, "defense": true, "speed": true, "utility": true}
+	if !validFamilies[req.Family] || req.MinQuality < 0 || req.MinQuality > 200 {
+		writeJSON(w, map[string]any{"ok": false, "error": "invalid reforge family or minimum quality"})
 		return
 	}
 
@@ -502,34 +513,55 @@ func (s *WebServer) handleAbyssReforge(w http.ResponseWriter, r *http.Request, u
 	if !deductGold(w, tx, uid, cost) {
 		return
 	}
-	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "reforge")
 	crBefore := g.CombatRating()
 	// #nosec G404 -- non-cryptographic forge rolls
-	reroll := func(v int) int {
+	reroll := func(code string, v int) int {
 		if v == 0 {
 			return 0
 		}
-		return int(float64(v) * (0.90 + rand.Float64()*0.20))
+		preferred := req.Family == "" || req.Family == "balanced" ||
+			(req.Family == "offense" && (code == "STR" || code == "CRT" || code == "INT")) ||
+			(req.Family == "defense" && (code == "HP" || code == "DEF" || code == "DGE")) ||
+			(req.Family == "speed" && (code == "SPD" || code == "DGE")) ||
+			(req.Family == "utility" && (code == "LCK" || code == "STA" || code == "MNA"))
+		low, spread := 0.90, 0.15
+		if preferred && req.Family != "" && req.Family != "balanced" {
+			low, spread = 1.0, 0.12
+		}
+		return int(float64(v) * (low + rand.Float64()*spread))
 	}
-	g.Stats.HP = reroll(g.Stats.HP)
-	g.Stats.STR = reroll(g.Stats.STR)
-	g.Stats.DEF = reroll(g.Stats.DEF)
-	g.Stats.SPD = reroll(g.Stats.SPD)
-	g.Stats.LCK = reroll(g.Stats.LCK)
-	g.Stats.INT = reroll(g.Stats.INT)
-	g.Stats.STA = reroll(g.Stats.STA)
-	g.Stats.CRT = reroll(g.Stats.CRT)
-	g.Stats.DGE = reroll(g.Stats.DGE)
-	g.Stats.MNA = reroll(g.Stats.MNA)
+	g.Stats.HP = reroll("HP", g.Stats.HP)
+	g.Stats.STR = reroll("STR", g.Stats.STR)
+	g.Stats.DEF = reroll("DEF", g.Stats.DEF)
+	g.Stats.SPD = reroll("SPD", g.Stats.SPD)
+	g.Stats.LCK = reroll("LCK", g.Stats.LCK)
+	g.Stats.INT = reroll("INT", g.Stats.INT)
+	g.Stats.STA = reroll("STA", g.Stats.STA)
+	g.Stats.CRT = reroll("CRT", g.Stats.CRT)
+	g.Stats.DGE = reroll("DGE", g.Stats.DGE)
+	g.Stats.MNA = reroll("MNA", g.Stats.MNA)
 	crAfter := g.CombatRating()
+	quality := 100.0
+	if crBefore > 0 {
+		quality = crAfter / crBefore * 100
+	}
+	if req.RejectBelow && quality < req.MinQuality {
+		if !s.finishForge(w, tx, uid, "reforge rejected", g.Name, fmt.Sprintf("%dg", cost)) {
+			return
+		}
+		writeJSON(w, map[string]any{"ok": true, "accepted": false, "quality": quality, "gold": s.bot.abyssGold(uid),
+			"msg": fmt.Sprintf("🎲 Reforge rejected automatically at %.1f%% quality; the original item was kept.", quality)})
+		return
+	}
+	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "reforge")
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
 	if !s.finishForge(w, tx, uid, "reforge", g.Name, fmt.Sprintf("%dg", cost)) {
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "gold": s.bot.abyssGold(uid),
-		"msg": fmt.Sprintf("🎲 Reforged %s — CR %.0f → %.0f.", g.Name, crBefore, crAfter)})
+	writeJSON(w, map[string]any{"ok": true, "accepted": true, "quality": quality, "family": req.Family, "gold": s.bot.abyssGold(uid),
+		"msg": fmt.Sprintf("🎲 Reforged %s — CR %.0f → %.0f (%.1f%% quality).", g.Name, crBefore, crAfter, quality)})
 }
 
 // ---- Embrace Corruption ---------------------------------------------------------

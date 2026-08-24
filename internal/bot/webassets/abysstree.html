@@ -503,6 +503,10 @@
 <script data-cfasync="false">
 var NODES = {{jsonJS .Nodes}};
 var EDGES = {{jsonJS .Edges}};
+var TREE_CATALOG = {{jsonJS .Catalog}};
+var TREE_EFFECTS = {{jsonJS .TreeEffects}};
+var TREE_SKILLS = {{jsonJS .SkillDetails}};
+var TREE_PROGRESSION = {{jsonJS .Progression}};
 // Only the real cross-sector portal edges get the distinct animated style; every
 // other long edge is a plain skill path. Keyed "min-max" for O(1) lookup.
 var PORTAL_SET = {};
@@ -772,7 +776,10 @@ function abToast(m, ok){
 }
 async function abPost(url, body){
   try{
-    const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body||{})});
+    var mutationKey=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():(Date.now().toString(36)+Math.random().toString(36).slice(2));
+    var headers={'Content-Type':'application/json','X-Abyss-Tree-Layout':TREE_CATALOG.layout_hash,'Idempotency-Key':mutationKey};
+    if(Number.isFinite(window.__abyssTreeRenderMS))headers['X-Abyss-Tree-Render-Ms']=String(window.__abyssTreeRenderMS.toFixed(2));
+    const r = await fetch(url, {method:'POST', headers:headers, body: JSON.stringify(body||{})});
     try{ return await r.json(); }catch(e){ return {ok:false, error:'server error ('+r.status+')'}; }
   }catch(e){ return {ok:false, error:'network error'}; }
 }
@@ -2341,6 +2348,14 @@ var PCT_LABELS = {
   def_to_lifesteal:'DEF converted to Lifesteal', pet_betrayal_reduce:'pet betrayal reduction', pet_damage_pct:'pet attack damage',
   stun_immunity:'Stun Immunity', limit_break:'Limit Break',
   skill_damage:'Skill damage', skill_mana_cost:'Skill mana cost reduction',
+  physical_skill_power:'Physical skill power', magic_skill_power:'Magic skill power',
+  healing_skill_power:'Healing skill power', buff_duration:'Buff duration', debuff_duration:'Debuff duration',
+  skill_cooldown_recovery:'Skill cooldown reduction', stun_effectiveness:'Stun effectiveness',
+  defense_penetration:'Skill defense penetration', elemental_skill_power:'Elemental skill power',
+  low_health_skill_power:'Low-health skill power', opener_skill_power:'Opening skill power',
+  alternating_element_power:'Alternating-element power', repeated_skill_retention:'Repeated-skill retention',
+  support_party_power:'Party support power', ultimate_charge:'Ultimate charge speed',
+  item_skill_power:'Combat item power', companion_skill_power:'Companion command power', relic_skill_power:'Active relic power',
   consumable_save:'chance consumables keep their charge',
   hp_regen:'HP regen / sec', def_pct:'DEF / armor (Abyss)', crt_pct:'CRT (Abyss)', dge_pct:'DGE (Abyss)', lck_pct:'LCK (Abyss)'
 };
@@ -2624,4 +2639,11 @@ if (lowDetailOn) {
 setInterval(renderKeystoneTimer, 1000);
 saveAllocQueue();
 </script>
+{{if .TreeFeaturesEnabled}}
+{{template "abysstree-navigation" .}}
+{{template "abysstree-planner" .}}
+{{template "abysstree-inspector" .}}
+{{template "abysstree-progression" .}}
+{{template "abysstree-accessibility" .}}
+{{end}}
 {{template "foot" .}}{{end}}

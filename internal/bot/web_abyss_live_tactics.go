@@ -435,7 +435,7 @@ func liveMobEffects(mob *content.Mob) []abyssLiveEffect {
 		})
 	}
 	if mob.Stats.SPD == 0 && !seen["Stunned"] {
-		effects = append(effects, abyssLiveEffect{Name: "Stunned", RemainingRounds: 1})
+		effects = append(effects, abyssLiveEffect{Name: "Stunned", RemainingRounds: max(1, mob.StunRounds)})
 	}
 	return effects
 }

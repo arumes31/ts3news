@@ -64,7 +64,8 @@ func (s *WebServer) handleAbyssTreeBatchAllocate(w http.ResponseWriter, r *http.
 		writeJSON(w, map[string]any{"ok": false, "error": "choose 1-100 queued nodes"})
 		return
 	}
-	alloc, err := s.bot.loadTreeAllocated(uid)
+	req.IDs = canonicalAbyssTreeIDs(req.IDs)
+	alloc, err := s.bot.loadTreeAllocatedContext(r.Context(), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -75,11 +76,13 @@ func (s *WebServer) handleAbyssTreeBatchAllocate(w http.ResponseWriter, r *http.
 		have[id] = true
 	}
 	var bestDepth int
-	_ = s.bot.DB.QueryRow("SELECT COALESCE(abyss_best_depth, 0) FROM users WHERE client_uid=$1", uid).Scan(&bestDepth)
+	_ = s.bot.DB.QueryRowContext(r.Context(), "SELECT COALESCE(abyss_best_depth, 0) FROM users WHERE client_uid=$1", uid).Scan(&bestDepth)
 	spent := s.bot.treeSpentEx(uid, alloc)
 	total := s.bot.treePointsTotal(uid)
 	dayID := abyssNodeOfTheDay(time.Now())
 	clean := make([]int, 0, len(req.IDs))
+	nodeCosts := make(map[int]int, len(req.IDs))
+	batchCost := 0
 	for _, id := range req.IDs {
 		node := tree.Node(id)
 		if node == nil || have[id] {
@@ -112,7 +115,10 @@ func (s *WebServer) handleAbyssTreeBatchAllocate(w http.ResponseWriter, r *http.
 			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("node %d requires Abyss Floor %d", id, required)})
 			return
 		}
-		spent += treeNodeCostFor(node, dayID)
+		cost := treeNodeCostFor(node, dayID)
+		nodeCosts[id] = cost
+		batchCost += cost
+		spent += cost
 		if spent > total {
 			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("queued changes cost more than your %d points", total)})
 			return
@@ -121,14 +127,14 @@ func (s *WebServer) handleAbyssTreeBatchAllocate(w http.ResponseWriter, r *http.
 		clean = append(clean, id)
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
 	for _, id := range clean {
-		if _, err := tx.Exec("INSERT INTO user_abyss_tree (client_uid, node_id) VALUES ($1,$2)", uid, id); err != nil {
+		if _, err := tx.ExecContext(r.Context(), "INSERT INTO user_abyss_tree (client_uid, node_id) VALUES ($1,$2)", uid, id); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -139,5 +145,19 @@ func (s *WebServer) handleAbyssTreeBatchAllocate(w http.ResponseWriter, r *http.
 	}
 	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{"ok": true, "used": spent, "points": total, "stats": tb.Stats, "pct": tb.Pct,
+		"node_costs": nodeCosts, "total_cost": batchCost,
 		"msg": fmt.Sprintf("🌳 Applied %d queued tree changes atomically.", len(clean))})
+}
+
+func canonicalAbyssTreeIDs(ids []int) []int {
+	seen := make(map[int]bool, len(ids))
+	canonical := make([]int, 0, len(ids))
+	for _, id := range ids {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		canonical = append(canonical, id)
+	}
+	return canonical
 }

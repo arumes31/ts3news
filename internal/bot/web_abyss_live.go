@@ -39,19 +39,21 @@ type abyssLiveAction struct {
 }
 
 type abyssLiveOption struct {
-	Kind        string   `json:"kind"`
-	ID          string   `json:"id,omitempty"`
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Target      string   `json:"target"`
-	Mana        int      `json:"mana,omitempty"`
-	Cooldown    int      `json:"cooldown,omitempty"`
-	Count       int      `json:"count,omitempty"`
-	Power       float64  `json:"power,omitempty"`
-	EffectLabel string   `json:"effect_label,omitempty"`
-	MinEffect   int      `json:"min_effect,omitempty"`
-	MaxEffect   int      `json:"max_effect,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
+	Kind         string   `json:"kind"`
+	ID           string   `json:"id,omitempty"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description,omitempty"`
+	Target       string   `json:"target"`
+	Mana         int      `json:"mana,omitempty"`
+	Cooldown     int      `json:"cooldown,omitempty"`
+	Count        int      `json:"count,omitempty"`
+	Power        float64  `json:"power,omitempty"`
+	EffectLabel  string   `json:"effect_label,omitempty"`
+	MinEffect    int      `json:"min_effect,omitempty"`
+	MaxEffect    int      `json:"max_effect,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+	EffectRounds int      `json:"effect_rounds,omitempty"`
+	Modifiers    []string `json:"modifiers,omitempty"`
 }
 
 type abyssLiveEffect struct {

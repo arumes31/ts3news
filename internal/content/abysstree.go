@@ -940,6 +940,33 @@ func buildAbyssTree() *AbyssTreeData {
 		addEdge(parentID, id) // single link, no onward edge = a dead-end branch
 	}
 
+	// Skill-specialisation nodes are append-only so every legacy node keeps its
+	// stable ID and existing player allocations remain valid.
+	for _, skillNode := range []mechSpec{
+		{"⚔️ Martial Technique", map[string]float64{"physical_skill_power": 0.10}},
+		{"🔮 Arcane Technique", map[string]float64{"magic_skill_power": 0.10}},
+		{"💚 Restorative Mastery", map[string]float64{"healing_skill_power": 0.15}},
+		{"✨ Lingering Boon", map[string]float64{"buff_duration": 0.25}},
+		{"🕸️ Lingering Hex", map[string]float64{"debuff_duration": 0.25}},
+		{"🔷 Arcane Economy", map[string]float64{"skill_mana_cost": 0.10}},
+		{"⏱️ Rapid Invocation", map[string]float64{"skill_cooldown_recovery": 0.20}},
+		{"💫 Concussive Force", map[string]float64{"stun_effectiveness": 0.25}},
+		{"🛡️ Spellbreaker", map[string]float64{"defense_penetration": 0.08}},
+		{"🌈 Elemental Savant", map[string]float64{"elemental_skill_power": 0.10}},
+		{"🩸 Desperate Focus", map[string]float64{"low_health_skill_power": 0.15}},
+		{"🌅 First Strike Doctrine", map[string]float64{"opener_skill_power": 0.15}},
+		{"⚗️ Elemental Cadence", map[string]float64{"alternating_element_power": 0.12}},
+		{"🔁 Practised Sequence", map[string]float64{"repeated_skill_retention": 0.60}},
+		{"🤝 War Chorus", map[string]float64{"support_party_power": 0.12}},
+		{"🌟 Rising Finale", map[string]float64{"ultimate_charge": 0.15}},
+		{"🧪 Battle Alchemy", map[string]float64{"item_skill_power": 0.15}},
+		{"🐾 Coordinated Assault", map[string]float64{"companion_skill_power": 0.15}},
+		{"🏺 Relic Resonance", map[string]float64{"relic_skill_power": 0.20}},
+	} {
+		addSpecial(skillNode.name, "notable", skillNode.pct)
+	}
+
+	normalizeTreeAdjacency(t.Adj)
 	for i := range t.Nodes {
 		t.byID[t.Nodes[i].ID] = &t.Nodes[i]
 	}
@@ -1365,6 +1392,42 @@ func treePctLabel(k string) string {
 		return "Skill damage"
 	case "skill_mana_cost":
 		return "Skill mana cost reduction"
+	case "physical_skill_power":
+		return "Physical skill power"
+	case "magic_skill_power":
+		return "Magic skill power"
+	case "healing_skill_power":
+		return "Healing skill power"
+	case "buff_duration":
+		return "Buff duration"
+	case "debuff_duration":
+		return "Debuff duration"
+	case "skill_cooldown_recovery":
+		return "Skill Cooldown reduction"
+	case "stun_effectiveness":
+		return "Stun effectiveness"
+	case "defense_penetration":
+		return "Skill defense penetration"
+	case "elemental_skill_power":
+		return "Elemental skill power"
+	case "low_health_skill_power":
+		return "Low-health skill power"
+	case "opener_skill_power":
+		return "Opening skill power"
+	case "alternating_element_power":
+		return "Alternating-element skill power"
+	case "repeated_skill_retention":
+		return "Repeated-skill retention"
+	case "support_party_power":
+		return "Party support power"
+	case "ultimate_charge":
+		return "Ultimate charge speed"
+	case "item_skill_power":
+		return "Combat item power"
+	case "companion_skill_power":
+		return "Companion command power"
+	case "relic_skill_power":
+		return "Active relic power"
 	case "consumable_save":
 		return "chance consumables keep their charge"
 	case "hp_regen":

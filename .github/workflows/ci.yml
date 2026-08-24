@@ -38,6 +38,9 @@ jobs:
       - name: Abyss balance, targeting, malformed-input, and SSE gates
         run: go test ./internal/bot -run 'TestAbyssBalanceGate|TestAbyssTargetingProperties|FuzzAbyssMalformedActionRequest|TestAbyssSSELoad|TestAbyssContentReferences'
 
+      - name: Abyss skill-tree and forge evidence gates
+        run: go test ./internal/bot -run 'TestAbyssSkillTreeImprovementEvidenceGate|TestAbyssForgeImprovementEvidenceGate|TestAbyssForgeQuoteCommitParityForEveryOperation|TestAbyssForgeRollbackCoverageForEveryMultiWriteOperation'
+
       - name: Race detector (Abyss runtime packages)
         run: go test -race ./internal/bot ./internal/content
 

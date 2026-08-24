@@ -91,6 +91,8 @@ type Config struct {
 	AbyssSocial             bool   // party coordination feature kill switch
 	AbyssLiveRolloutPercent int    // stable percentage of users receiving live combat, 0..100
 	AbyssOpsToken           string // bearer token for the private operations snapshot
+	AbyssTreeEnhancements   bool   // enhanced skill-tree UI/API kill switch
+	AbyssForgeWorkbench     bool   // authoritative forge quotes and workbench UI kill switch
 
 	// Idely — idle-music subsystem. A second, always-on TeamSpeak client
 	// (separate identity/profile/ClientQuery port) watches every occupied channel;
@@ -215,6 +217,8 @@ func LoadConfig() *Config {
 		AbyssSocial:             envBool("ABYSS_SOCIAL_ENABLED", true),
 		AbyssLiveRolloutPercent: min(100, max(0, envInt("ABYSS_LIVE_ROLLOUT_PERCENT", 100))),
 		AbyssOpsToken:           os.Getenv("ABYSS_OPS_TOKEN"),
+		AbyssTreeEnhancements:   envBool("ABYSS_TREE_ENHANCEMENTS_ENABLED", true),
+		AbyssForgeWorkbench:     envBool("ABYSS_FORGE_WORKBENCH_ENABLED", true),
 
 		EnableIdely: envBool("ENABLE_IDELY", false),
 		IdelyOnly:   envBool("IDELY_ONLY", false),

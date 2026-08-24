@@ -31,8 +31,12 @@ func (s *WebServer) handleAbyssCorrupt(w http.ResponseWriter, r *http.Request, u
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	var req forgeItemReq
-	if !readForgeItemReq(w, r, &req) {
+	var req struct {
+		forgeItemReq
+		UseProtection bool `json:"use_protection"`
+	}
+	if err := readJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
 
@@ -50,11 +54,18 @@ func (s *WebServer) handleAbyssCorrupt(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough Umbral Cores (need 5)"})
 		return
 	}
+	if req.UseProtection && !spendMaterials(tx, uid, map[string]int{"prism": 1}) {
+		writeJSON(w, map[string]any{"ok": false, "error": "not enough Eldritch Prisms for corruption protection (need 1)"})
+		return
+	}
 	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "corrupt")
 	g.Stats.STR = g.Stats.STR * 3 / 2
 	g.Stats.DEF = g.Stats.DEF * 3 / 2
 	g.Stats.SPD = g.Stats.SPD * 3 / 2
 	g.CorruptHP = g.Stats.Score()
+	if req.UseProtection {
+		g.CorruptHP = max(1, g.CorruptHP/2)
+	}
 	g.Stats.HP -= g.CorruptHP
 	// Perfect corruption (AB-108): a hidden 5% roll escapes the HP malus entirely.
 	perfect := rand.Float64() < 0.05 // #nosec G404 -- non-cryptographic forge roll
@@ -69,7 +80,11 @@ func (s *WebServer) handleAbyssCorrupt(w http.ResponseWriter, r *http.Request, u
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	if !s.finishForge(w, tx, uid, "corrupt", g.Name, "5🟣") {
+	costText := "5🟣"
+	if req.UseProtection {
+		costText += " 1💠"
+	}
+	if !s.finishForge(w, tx, uid, "corrupt", g.Name, costText) {
 		return
 	}
 	if perfect {
@@ -77,7 +92,7 @@ func (s *WebServer) handleAbyssCorrupt(w http.ResponseWriter, r *http.Request, u
 			"msg": fmt.Sprintf("😈✨ PERFECT CORRUPTION! %s swells with power (+50%% offensive stats) — and no HP malus at all!", g.Name)})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "materials": s.bot.loadMaterials(uid),
+	writeJSON(w, map[string]any{"ok": true, "materials": s.bot.loadMaterials(uid), "protected": req.UseProtection,
 		"msg": fmt.Sprintf("😈 %s swells with power (+50%% offensive stats, −%d max HP). Cleanse or embrace it later.", g.Name, g.CorruptHP)})
 }
 
@@ -413,11 +428,18 @@ func (s *WebServer) handleAbyssBrand(w http.ResponseWriter, r *http.Request, uid
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
+	brandProgress, err := bumpAbyssForgeMilestone(tx, uid, "brand:"+set)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	if !s.finishForge(w, tx, uid, "brand", fmt.Sprintf("%s → %s", g.Name, set), "10🟣") {
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "materials": s.bot.loadMaterials(uid),
-		"msg": fmt.Sprintf("🏷️ %s is now branded into the %s set.", g.Name, set)})
+	writeJSON(w, map[string]any{"ok": true, "materials": s.bot.loadMaterials(uid), "brand_progress": brandProgress,
+		"brand_stage": abyssForgeMilestoneStage(brandProgress),
+		"msg": fmt.Sprintf("🏷️ %s is now branded into the %s set. Brand progression: %s (%d).",
+			g.Name, set, abyssForgeMilestoneStage(brandProgress), brandProgress)})
 }
 
 // ---- Temper Surge ------------------------------------------------------------------

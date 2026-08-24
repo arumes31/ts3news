@@ -8,6 +8,7 @@ package bot
 // from the web's root; a full respec costs tokens.
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -91,13 +92,12 @@ func treeRefundSet(tree *content.AbyssTreeData, alloc []int, target int) []int {
 	return set
 }
 
-// resetAbyssTreeOnLayoutChange wipes every player's allocated web nodes — a
-// free full respec — when the generated layout no longer matches the layout
-// hash the allocations were made under, then records the current hash. Points
-// are derived (level/depth/floors/prestige), so nothing is lost but the
-// allocation choices, which may be invalid on the new layout anyway.
+// resetAbyssTreeOnLayoutChange records the allocation-compatible topology hash.
+// It intentionally never mass-deletes player allocations: metadata, balance,
+// and even future topology changes are migrated additively, while mutation
+// validation fails closed for any individual unknown or disconnected node.
 func (b *Bot) resetAbyssTreeOnLayoutChange() {
-	hash := content.AbyssTree().LayoutHash()
+	hash := content.AbyssTree().TopologyHash()
 
 	tx, err := b.DB.Begin()
 	if err != nil {
@@ -117,15 +117,6 @@ func (b *Bot) resetAbyssTreeOnLayoutChange() {
 		return
 	}
 
-	res, err := tx.Exec("DELETE FROM user_abyss_tree")
-	if err != nil {
-		log.Printf("Abyss skill web reset failed (layout %q -> %q): %v", stored, hash, err)
-		return
-	}
-	if n, _ := res.RowsAffected(); n > 0 {
-		log.Printf("Abyss skill web layout changed (%q -> %q): wiped %d allocated nodes — free respec for all players", stored, hash, n)
-	}
-
 	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ('abyss_tree_layout', $1)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, hash); err != nil {
 		log.Printf("Abyss skill web layout hash save failed: %v", err)
@@ -133,15 +124,21 @@ func (b *Bot) resetAbyssTreeOnLayoutChange() {
 	}
 
 	if err := tx.Commit(); err != nil {
-		log.Printf("Abyss skill web reset transaction commit failed: %v", err)
+		log.Printf("Abyss skill web topology hash commit failed: %v", err)
+		return
 	}
+	log.Printf("Abyss skill web topology hash updated (%q -> %q); allocations preserved", stored, hash)
 }
 
 // loadTreeAllocated returns the player's allocated node IDs. It fails closed:
 // callers that gate spending (allocate, respec) must treat an error as "state
 // unknown" and refuse, rather than proceeding as if the tree were empty.
 func (b *Bot) loadTreeAllocated(uid string) ([]int, error) {
-	rows, err := b.DB.Query("SELECT node_id FROM user_abyss_tree WHERE client_uid=$1", uid)
+	return b.loadTreeAllocatedContext(context.Background(), uid)
+}
+
+func (b *Bot) loadTreeAllocatedContext(ctx context.Context, uid string) ([]int, error) {
+	rows, err := b.DB.QueryContext(ctx, "SELECT node_id FROM user_abyss_tree WHERE client_uid=$1", uid)
 	if err != nil {
 		return nil, err
 	}
@@ -462,12 +459,13 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	tree := content.AbyssTree()
-	alloc, err := s.bot.loadTreeAllocated(uid)
+	alloc, err := s.bot.loadTreeAllocatedContext(r.Context(), uid)
 	if err != nil {
 		http.Error(w, "failed to load skill web state", http.StatusInternalServerError)
 		return
 	}
-	total := s.bot.treePointsTotal(uid)
+	progression := s.bot.abyssTreeProgressionFor(uid, alloc)
+	total := progression.TotalPoints
 	// Use the Bot-level bonus (not tree.BonusFor) so the page shows the same
 	// totals combat applies — including the prestige multiplier.
 	tb := s.bot.treeBonusFor(uid)
@@ -539,12 +537,18 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 	loadoutNames := loadTreeLoadoutNames(loadoutNamesJSON)
 
 	st := s.bot.loadAbyssStats(uid) // one ~19-column read, reused for BestDepth + Stats below
+	catalog := tree.CatalogSummary()
 	s.render(w, "abysstree", map[string]any{
 		"Title":     "Abyss Skill Web",
 		"Nav":       "abyss",
 		"U":         u,
-		"Nodes":     tree.Nodes,
-		"Edges":     edges,
+		"Nodes":       tree.Nodes,
+		"Edges":       edges,
+		"Catalog":      catalog,
+		"TreeEffects":  content.TreeEffects(),
+		"SkillDetails": s.bot.abyssTreeSkillDetails(uid),
+		"Progression":  progression,
+		"TreeFeaturesEnabled": s.abyssFeatures.enabled("tree", uid),
 		// Only the handful of real cross-sector portals render with the distinct
 		// animated style; every other long edge stays a plain skill path.
 		"Portals": tree.Portals,
@@ -606,6 +610,15 @@ func treePctLabelPublic(k string) string {
 		"escrow_bonus": "escrow floor bonus", "xp_gain": "floor XP",
 		"token_gain": "tokens on bank", "material_yield": "crafting materials",
 		"skill_damage": "skill damage", "skill_mana_cost": "skill mana cost reduction",
+		"physical_skill_power": "physical skill power", "magic_skill_power": "magic skill power",
+		"healing_skill_power": "healing skill power", "buff_duration": "buff duration",
+		"debuff_duration": "debuff duration", "skill_cooldown_recovery": "skill cooldown reduction",
+		"stun_effectiveness": "stun effectiveness", "defense_penetration": "skill defense penetration",
+		"elemental_skill_power": "elemental skill power", "low_health_skill_power": "low-health skill power",
+		"opener_skill_power": "opening skill power", "alternating_element_power": "alternating-element power",
+		"repeated_skill_retention": "repeated-skill retention", "support_party_power": "party support power",
+		"ultimate_charge": "ultimate charge speed", "item_skill_power": "combat item power",
+		"companion_skill_power": "companion command power", "relic_skill_power": "active relic power",
 		"consumable_save": "chance consumables keep their charge",
 		"hp_regen":        "HP regen / sec",
 	}
@@ -642,7 +655,7 @@ func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Reque
 
 	// Fail closed: with the allocation state unknown we cannot validate spent
 	// points or path connectivity, so refuse instead of treating it as empty.
-	alloc, err := s.bot.loadTreeAllocated(uid)
+	alloc, err := s.bot.loadTreeAllocatedContext(r.Context(), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -701,19 +714,21 @@ func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	if _, err := s.bot.DB.Exec(
+	if _, err := s.bot.DB.ExecContext(r.Context(),
 		"INSERT INTO user_abyss_tree (client_uid, node_id) VALUES ($1,$2) ON CONFLICT DO NOTHING", uid, req.NodeID); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 
 	// AB-172: remember this allocation for the free 60-second undo.
-	s.bot.recordTreeAllocation(uid, req.NodeID)
+	undoExpires := s.bot.recordTreeAllocationContext(r.Context(), uid, req.NodeID)
 
 	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{
 		"ok": true, "node_id": req.NodeID, "used": spent + cost,
 		"points": total,
+		"node_cost": cost,
+		"undo_expires_at": undoExpires.Format(time.RFC3339),
 		"msg":    "🌳 Allocated: " + node.Name,
 		"stats":  tb.Stats, "pct": tb.Pct,
 	})
@@ -728,7 +743,7 @@ func (s *WebServer) handleAbyssTreeRespec(w http.ResponseWriter, r *http.Request
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	alloc, err := s.bot.loadTreeAllocated(uid)
+	alloc, err := s.bot.loadTreeAllocatedContext(r.Context(), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -737,7 +752,7 @@ func (s *WebServer) handleAbyssTreeRespec(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing to respec"})
 		return
 	}
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -748,7 +763,7 @@ func (s *WebServer) handleAbyssTreeRespec(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	if _, err := tx.Exec("DELETE FROM user_abyss_tree WHERE client_uid=$1", uid); err != nil {
+	if _, err := tx.ExecContext(r.Context(), "DELETE FROM user_abyss_tree WHERE client_uid=$1", uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -790,7 +805,7 @@ func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	alloc, err := s.bot.loadTreeAllocated(uid)
+	alloc, err := s.bot.loadTreeAllocatedContext(r.Context(), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -814,17 +829,21 @@ func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request
 	// that same price, so the discount can't be arbitraged.
 	dayID := abyssNodeOfTheDay(time.Now())
 	refundCost := 0
+	refundNodeCosts := make(map[int]int, len(refundIDs))
 	for _, id := range refundIDs {
 		if n := tree.Node(id); n != nil {
-			refundCost += treeNodeCostFor(n, dayID)
+			cost := treeNodeCostFor(n, dayID)
+			refundNodeCosts[id] = cost
+			refundCost += cost
 		} else {
 			log.Printf("abyss tree refund: node %d not in layout, pricing as 1 point (uid %s)", id, uid)
 			refundCost++
+			refundNodeCosts[id] = 1
 		}
 	}
 	goldCost := int64(refundCost) * abyssTreeRefundGoldPerPoint
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -832,7 +851,7 @@ func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request
 	defer func() { _ = tx.Rollback() }()
 
 	for _, id := range refundIDs {
-		if _, err := tx.Exec("DELETE FROM user_abyss_tree WHERE client_uid=$1 AND node_id=$2", uid, id); err != nil {
+		if _, err := tx.ExecContext(r.Context(), "DELETE FROM user_abyss_tree WHERE client_uid=$1 AND node_id=$2", uid, id); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -872,6 +891,8 @@ func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request
 		"ok": true, "node_id": req.NodeID, "used": s.bot.treeSpentEx(uid, remainingAlloc),
 		"points":   s.bot.treePointsTotal(uid),
 		"refunded": refundIDs,
+		"affected_count": len(refundIDs), "node_costs": refundNodeCosts,
+		"refund_points": refundCost, "refund_gold": goldCost,
 		"msg":      msg,
 		"stats":    tb.Stats, "pct": tb.Pct,
 		"gold": gold,
@@ -902,7 +923,7 @@ func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	alloc, err := s.bot.loadTreeAllocated(uid)
+	alloc, err := s.bot.loadTreeAllocatedContext(r.Context(), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
 		return
@@ -1059,7 +1080,7 @@ func (s *WebServer) handleAbyssTreeActivateKeystone(w http.ResponseWriter, r *ht
 		return
 	}
 
-	alloc, err := s.bot.loadTreeAllocated(uid)
+	alloc, err := s.bot.loadTreeAllocatedContext(r.Context(), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
 		return
@@ -1149,7 +1170,7 @@ func (s *WebServer) handleAbyssTreeRollTimeless(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	alloc, err := s.bot.loadTreeAllocated(uid)
+	alloc, err := s.bot.loadTreeAllocatedContext(r.Context(), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db error"})
 		return

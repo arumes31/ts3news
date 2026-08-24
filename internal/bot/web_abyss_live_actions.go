@@ -24,41 +24,74 @@ func (c *abyssLiveCombat) optionsFor(
 			EffectLabel: "DEF", MinEffect: 50, MaxEffect: 50,
 		},
 	}
-	spellCost := 20
-	if chest, ok := au.u.Equipped[content.SlotChest]; ok && chest.ID == "ABYSS_ARCHMAGE_ROBES" {
-		spellCost -= 5
-	}
-	if spellCost < 5 {
-		spellCost = 5
-	}
 	for i := range au.u.Skills {
 		skill := au.u.Skills[i]
-		target := "enemy"
+		element := abyssSkillElement(skill, au.u.Equipped)
+		repeatCount := 0
+		if au.lastSkillID == skill.ID {
+			repeatCount = au.skillRepeatCount + 1
+		}
+		modifiers := calculateAbyssSkillModifiers(abyssSkillModifierContext{
+			Skill: skill, TreeBonus: au.treeBonus, Element: element,
+			PreviousElement: au.lastCastElement, CurrentHP: au.u.CurrentHP,
+			MaxHP: au.u.Stats.HP, PartySize: len(users), Round: c.round,
+			RepeatCount: repeatCount,
+		})
+		spellCost := skill.ManaCost
+		if spellCost <= 0 {
+			spellCost = 20
+		}
+		if chest, ok := au.u.Equipped[content.SlotChest]; ok && chest.ID == "ABYSS_ARCHMAGE_ROBES" {
+			spellCost -= 5
+		}
+		spellCost -= c.server.bot.loadAbyssStats(au.u.UID).UpInsight * 2
+		if value := au.treeBonus.Pct["skill_mana_cost"]; value > 0 {
+			spellCost = int(float64(spellCost) * (1 - value))
+		}
+		if spellCost < 5 {
+			spellCost = 5
+		}
+		target := string(skill.TargetMode)
+		if target == "" || target == string(content.SkillTargetAllEnemy) {
+			target = "enemy"
+		} else if target == string(content.SkillTargetAllAlly) {
+			target = "ally"
+		}
 		effectLabel := "DMG"
-		minEffect, maxEffect := estimateLiveDamageRange(au.u, skill.Power, skill.IgnoreDef, mobs)
+		effectivePower := skill.Power * modifiers.DamageMultiplier
+		minEffect, maxEffect := estimateLiveDamageRange(au.u, effectivePower, modifiers.IgnoreDefense, mobs)
 		if skill.HealPercent > 0 && skill.Power == 0 {
 			target = "ally"
 			effectLabel = "HEAL"
-			minEffect, maxEffect = estimateLiveSkillHeal(skill.HealPercent, users)
+			minEffect, maxEffect = estimateLiveSkillHeal(skill.HealPercent*modifiers.HealingMultiplier, users)
+		}
+		description := skill.Description
+		if summary := abyssModifierSummary(modifiers.Active); summary != "" {
+			description += " " + summary + "."
 		}
 		options = append(options, abyssLiveOption{
-			Kind:        "skill",
-			ID:          skill.ID,
-			Name:        skill.Name,
-			Description: skill.Description,
-			Target:      target,
-			Mana:        spellCost,
-			Power:       skill.Power + skill.HealPercent*2,
-			EffectLabel: effectLabel,
-			MinEffect:   minEffect,
-			MaxEffect:   maxEffect,
-			Tags:        abyssSkillComboTags(skill),
+			Kind:         "skill",
+			ID:           skill.ID,
+			Name:         skill.Name,
+			Description:  description,
+			Target:       target,
+			Mana:         spellCost,
+			Cooldown:     au.skillCooldowns[skill.ID],
+			Power:        effectivePower + skill.HealPercent*modifiers.HealingMultiplier*2,
+			EffectLabel:  effectLabel,
+			MinEffect:    minEffect,
+			MaxEffect:    maxEffect,
+			Tags:         abyssSkillComboTags(skill),
+			EffectRounds: modifiers.EffectRounds,
+			Modifiers:    append([]string(nil), modifiers.Active...),
 		})
 	}
 	for _, ultimate := range au.u.Ultimates {
 		if ultimate == nil {
 			continue
 		}
+		ultimateRecovery := clampRecovery(au.treeBonus.Pct["ult_cooldown"] + au.treeBonus.Pct["ultimate_charge"])
+		ultimateModifiers := actionModifierLabels("ultimate recovery", 1+ultimateRecovery)
 		minEffect, maxEffect := estimateLiveDamageRange(au.u, ultimate.Power, 0, mobs)
 		options = append(options, abyssLiveOption{
 			Kind:        "ultimate",
@@ -71,6 +104,7 @@ func (c *abyssLiveCombat) optionsFor(
 			EffectLabel: "DMG",
 			MinEffect:   minEffect,
 			MaxEffect:   maxEffect,
+			Modifiers:   ultimateModifiers,
 		})
 	}
 	for _, item := range c.server.bot.getConsumables(au.u.UID) {
@@ -82,11 +116,13 @@ func (c *abyssLiveCombat) optionsFor(
 		}
 		target := "self"
 		effectLabel := "BUFF"
-		minEffect, maxEffect := estimateLiveBuff(item.EffectValue)
+		itemMultiplier := abyssTreeActionMultiplier(au.treeBonus, "item_skill_power")
+		effectiveValue := item.EffectValue * itemMultiplier
+		minEffect, maxEffect := estimateLiveBuff(effectiveValue)
 		if item.Type == content.ConsumableHealing {
 			target = "ally"
 			effectLabel = "HEAL"
-			minEffect, maxEffect = estimateLiveItemHeal(item.EffectValue, users)
+			minEffect, maxEffect = estimateLiveItemHeal(effectiveValue, users)
 		}
 		options = append(options, abyssLiveOption{
 			Kind:        "item",
@@ -96,31 +132,44 @@ func (c *abyssLiveCombat) optionsFor(
 			Target:      target,
 			Count:       item.Duration,
 			Cooldown:    au.potionCooldown,
-			Power:       item.EffectValue,
+			Power:       effectiveValue,
 			EffectLabel: effectLabel,
 			MinEffect:   minEffect,
 			MaxEffect:   maxEffect,
+			Modifiers:   actionModifierLabels("combat item power", itemMultiplier),
 		})
 	}
 	if relic, ok := au.u.Equipped[content.SlotRelic]; ok && au.relicCharges > 0 {
+		relicMultiplier := abyssTreeActionMultiplier(au.treeBonus, "relic_skill_power")
+		relicHeal := int(float64(au.u.Stats.HP/5) * relicMultiplier)
 		options = append(options, abyssLiveOption{
 			Kind: "relic", ID: relic.ID, Name: relic.Name, Target: "self",
 			Description: "Once per run: restore 20% max HP and gain Guard.",
 			Count:       au.relicCharges, EffectLabel: "HEAL+DEF",
-			MinEffect: au.u.Stats.HP / 5, MaxEffect: au.u.Stats.HP / 5,
-			Tags: []string{"relic", "emergency", "guard"},
+			MinEffect: relicHeal, MaxEffect: relicHeal,
+			Tags:      []string{"relic", "emergency", "guard"},
+			Modifiers: actionModifierLabels("active relic power", relicMultiplier),
 		})
 	}
 	if len(au.u.Pets) > 0 && au.u.Pets[0] != nil {
 		pet := au.u.Pets[0]
+		companionMultiplier := abyssTreeActionMultiplier(au.treeBonus, "companion_skill_power")
 		options = append(options, abyssLiveOption{
 			Kind: "companion", ID: pet.Name, Name: "Command " + pet.Name,
 			Description: "Spend your action to order this companion to focus the selected enemy.",
-			Target:      "enemy", Power: float64(pet.Stats.STR), EffectLabel: "FOCUS",
+			Target:      "enemy", Power: float64(pet.Stats.STR) * companionMultiplier, EffectLabel: "FOCUS",
 			Tags: []string{"companion", "focus", "combo"},
+			Modifiers: actionModifierLabels("companion command power", companionMultiplier),
 		})
 	}
 	return options
+}
+
+func actionModifierLabels(label string, multiplier float64) []string {
+	if multiplier == 1 {
+		return nil
+	}
+	return []string{modifierPercentLabel(label, multiplier-1)}
 }
 
 func (c *abyssLiveCombat) bestActionLocked(uid string) abyssLiveAction {
@@ -479,11 +528,12 @@ func findLiveUltimate(u *UserInCombat, id string) *content.UltimateSkill {
 }
 
 func (b *Bot) useLiveConsumable(
-	actor *UserInCombat,
+	au *activeUser,
 	target *UserInCombat,
 	consumableID string,
 	logs *[]string,
 ) bool {
+	actor := au.u
 	consumable, ok := content.GetConsumableByID(consumableID)
 	if !ok || (consumable.Type != content.ConsumableHealing && consumable.Type != content.ConsumableBuff) {
 		return false
@@ -515,9 +565,10 @@ func (b *Bot) useLiveConsumable(
 		if target == nil {
 			target = actor
 		}
-		heal := int(consumable.EffectValue)
+		effectiveValue := consumable.EffectValue * abyssTreeActionMultiplier(au.treeBonus, "item_skill_power")
+		heal := int(effectiveValue)
 		if consumable.EffectValue <= 1 {
-			heal = int(float64(target.Stats.HP) * consumable.EffectValue)
+			heal = int(float64(target.Stats.HP) * effectiveValue)
 		}
 		if heal < 1 {
 			heal = 1
@@ -531,7 +582,7 @@ func (b *Bot) useLiveConsumable(
 			heal,
 		))
 	case content.ConsumableBuff:
-		amount := int(consumable.EffectValue)
+		amount := int(consumable.EffectValue * abyssTreeActionMultiplier(au.treeBonus, "item_skill_power"))
 		switch consumableID {
 		case "iron_skin_brew":
 			actor.Stats.DEF += amount

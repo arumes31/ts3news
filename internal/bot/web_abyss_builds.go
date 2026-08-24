@@ -158,7 +158,10 @@ func applyAbyssPartyBuildSynergy(users []UserInCombat, flagsByUID map[string]map
 }
 
 func abyssSkillComboTags(skill content.Skill) []string {
-	tags := []string{"spender"}
+	tags := append([]string(nil), skill.Tags...)
+	if len(tags) == 0 {
+		tags = []string{"spender"}
+	}
 	if element := abyssElementForSkillName(skill.Name); element != content.ElementPhysical {
 		tags = append(tags, strings.ToLower(string(element)))
 	}
@@ -194,6 +197,9 @@ func abyssElementForSkillName(name string) content.Element {
 }
 
 func abyssSkillElement(skill content.Skill, equipped map[content.GearSlot]content.Gear) content.Element {
+	if skill.Element != "" {
+		return skill.Element
+	}
 	if element := abyssElementForSkillName(skill.Name); element != content.ElementPhysical {
 		return element
 	}
@@ -272,12 +278,13 @@ func (b *Bot) useAbyssActiveRelic(au *activeUser, round int, logs *[]string) boo
 		return false
 	}
 	au.relicCharges--
-	heal := au.u.Stats.HP / 5
+	relicMultiplier := abyssTreeActionMultiplier(au.treeBonus, "relic_skill_power")
+	heal := int(float64(au.u.Stats.HP/5) * relicMultiplier)
 	au.u.CurrentHP += heal
 	if au.u.CurrentHP > au.u.Stats.HP {
 		au.u.CurrentHP = au.u.Stats.HP
 	}
-	au.u.DEFMod *= 1.5
+	au.u.DEFMod *= 1 + 0.5*relicMultiplier
 	au.defendingRound = round
 	*logs = append(*logs, fmt.Sprintf("🏺 %s invokes %s: restores %d HP and gains Guard. (No charges remain)", au.u.Nickname, relic.Name, heal))
 	return true

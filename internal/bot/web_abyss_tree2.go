@@ -6,6 +6,7 @@ package bot
 // allocation (undo), prestige memory, mastery shards.
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -194,7 +195,7 @@ func (s *WebServer) handleAbyssTreePrestigeMemorySet(w http.ResponseWriter, r *h
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown node"})
 		return
 	}
-	alloc, err := s.bot.loadTreeAllocated(uid)
+	alloc, err := s.bot.loadTreeAllocatedContext(r.Context(), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -249,49 +250,31 @@ func treeConnectedSet(tree *content.AbyssTreeData, ids map[int]bool) bool {
 }
 
 // validateTreeLoadout dedupes and validates a saved/imported node set against
-// the current layout and the player's point budget. Returns the cleaned ID
-// list. Base node costs apply (the node-of-the-day discount is for manual
-// allocation only).
-func (s *WebServer) validateTreeLoadout(uid string, ids []int) ([]int, string) {
+// the current layout, depth gates and the player's point budget. Returns the
+// canonical cleaned ID list using the same daily discount and prestige-memory
+// rules shown by the planner.
+func (s *WebServer) validateTreeLoadout(ctx context.Context, uid string, ids []int) ([]int, string) {
 	if len(ids) == 0 {
 		return nil, "empty build"
 	}
-	if len(ids) > 1500 {
+	if len(ids) > abyssTreePlanMaxNodes {
 		return nil, "build is too large"
 	}
-	tree := content.AbyssTree()
-	seen := map[int]bool{}
-	var clean []int
-	cost := 0
-	for _, id := range ids {
-		if id <= 0 || seen[id] {
-			continue
-		}
-		n := tree.Node(id)
-		if n == nil {
-			return nil, fmt.Sprintf("node %d does not exist on this layout", id)
-		}
-		seen[id] = true
-		clean = append(clean, id)
-		cost += n.Cost()
+	analysis, err := s.currentAbyssTreePlan(ctx, uid, ids)
+	if err != nil {
+		return nil, "failed to verify build"
 	}
-	if len(clean) == 0 {
-		return nil, "empty build"
+	if commitError := abyssTreePlanCommitError(analysis); commitError != "" {
+		return nil, commitError
 	}
-	if !treeConnectedSet(tree, seen) {
-		return nil, "build is not connected to the root"
-	}
-	if total := s.bot.treePointsTotal(uid); cost > total {
-		return nil, fmt.Sprintf("build costs %d points — you have %d", cost, total)
-	}
-	return clean, ""
+	return analysis.IDs, ""
 }
 
 // applyTreeLoadout atomically refunds everything and allocates the given set,
 // charging the normal respec cost (first of the week free, AB-157). Callers
 // must already hold the abyss lock.
-func (s *WebServer) applyTreeLoadout(w http.ResponseWriter, uid string, ids []int) {
-	clean, verr := s.validateTreeLoadout(uid, ids)
+func (s *WebServer) applyTreeLoadout(ctx context.Context, w http.ResponseWriter, uid string, ids []int) {
+	clean, verr := s.validateTreeLoadout(ctx, uid, ids)
 	if verr != "" {
 		writeJSON(w, map[string]any{"ok": false, "error": verr})
 		return
@@ -308,18 +291,7 @@ func (s *WebServer) applyTreeLoadout(w http.ResponseWriter, uid string, ids []in
 	if !ok {
 		return
 	}
-	if _, err := tx.Exec("DELETE FROM user_abyss_tree WHERE client_uid=$1", uid); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	for _, id := range clean {
-		if _, err := tx.Exec(
-			"INSERT INTO user_abyss_tree (client_uid, node_id) VALUES ($1,$2) ON CONFLICT DO NOTHING", uid, id); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "db"})
-			return
-		}
-	}
-	if err := tx.Commit(); err != nil {
+	if err := commitAbyssTreeReplacement(ctx, tx, uid, clean); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -370,7 +342,7 @@ func (s *WebServer) handleAbyssTreeLoadoutSave(w http.ResponseWriter, r *http.Re
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request (slot 1-3)"})
 		return
 	}
-	alloc, err := s.bot.loadTreeAllocated(uid)
+	alloc, err := s.bot.loadTreeAllocatedContext(r.Context(), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -391,18 +363,18 @@ func (s *WebServer) handleAbyssTreeLoadoutSave(w http.ResponseWriter, r *http.Re
 	names[strconv.Itoa(req.Slot)] = normalizeAbyssPresetName(req.Name, req.Slot)
 	newJson, _ := json.Marshal(loadouts)
 	nameJSON, _ := json.Marshal(names)
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+	if _, err := tx.ExecContext(r.Context(), `INSERT INTO app_meta (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssTreeLoadoutsKey(uid), string(newJson)); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+	if _, err := tx.ExecContext(r.Context(), `INSERT INTO app_meta (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssTreeLoadoutNamesKey(uid), string(nameJSON)); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -440,7 +412,7 @@ func (s *WebServer) handleAbyssTreeLoadoutApply(w http.ResponseWriter, r *http.R
 		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("loadout slot %d is empty", req.Slot)})
 		return
 	}
-	s.applyTreeLoadout(w, uid, ids)
+	s.applyTreeLoadout(r.Context(), w, uid, ids)
 }
 
 // handleAbyssTreeBuildImport applies a decoded build code (AB-170): the client
@@ -455,13 +427,26 @@ func (s *WebServer) handleAbyssTreeBuildImport(w http.ResponseWriter, r *http.Re
 	defer unlock()
 
 	var req struct {
-		IDs []int `json:"ids"`
+		IDs  []int `json:"ids"`
+		Code string `json:"code"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
-	s.applyTreeLoadout(w, uid, req.IDs)
+	if req.Code != "" {
+		code, err := decodeAbyssTreeBuildCode(req.Code)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		if code.Layout != content.AbyssTree().TopologyHash() {
+			writeJSON(w, map[string]any{"ok": false, "error": "build code targets another tree layout; preview it before committing"})
+			return
+		}
+		req.IDs = code.IDs
+	}
+	s.applyTreeLoadout(r.Context(), w, uid, req.IDs)
 }
 
 // ---------------------------------------------------------------------------
@@ -500,7 +485,7 @@ func (s *WebServer) handleAbyssTreeSwapKeystone(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	alloc, err := s.bot.loadTreeAllocated(uid)
+	alloc, err := s.bot.loadTreeAllocatedContext(r.Context(), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -841,7 +826,7 @@ func (s *WebServer) handleAbyssTreeBranchRefund(w http.ResponseWriter, r *http.R
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown node"})
 		return
 	}
-	alloc, err := s.bot.loadTreeAllocated(uid)
+	alloc, err := s.bot.loadTreeAllocatedContext(r.Context(), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -928,12 +913,18 @@ type abyssLastAllocRecord struct {
 
 // recordTreeAllocation remembers the player's latest allocation for the free
 // 60-second undo (AB-172). Best-effort: a failure only loses the undo option.
-func (b *Bot) recordTreeAllocation(uid string, nodeID int) {
-	rec, _ := json.Marshal(abyssLastAllocRecord{Node: nodeID, At: time.Now().UTC().Format(time.RFC3339)})
-	if _, err := b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+func (b *Bot) recordTreeAllocation(uid string, nodeID int) time.Time {
+	return b.recordTreeAllocationContext(context.Background(), uid, nodeID)
+}
+
+func (b *Bot) recordTreeAllocationContext(ctx context.Context, uid string, nodeID int) time.Time {
+	now := time.Now().UTC()
+	rec, _ := json.Marshal(abyssLastAllocRecord{Node: nodeID, At: now.Format(time.RFC3339)})
+	if _, err := b.DB.ExecContext(ctx, `INSERT INTO app_meta (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssLastAllocKey(uid), string(rec)); err != nil {
 		log.Printf("abyss undo marker write failed for %s: %v", uid, err)
 	}
+	return now.Add(abyssUndoWindow)
 }
 
 // handleAbyssTreeUndo refunds the most recent allocation for free when it
@@ -968,7 +959,7 @@ func (s *WebServer) handleAbyssTreeUndo(w http.ResponseWriter, r *http.Request, 
 		writeJSON(w, map[string]any{"ok": false, "error": "node no longer exists"})
 		return
 	}
-	alloc, err := s.bot.loadTreeAllocated(uid)
+	alloc, err := s.bot.loadTreeAllocatedContext(r.Context(), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return

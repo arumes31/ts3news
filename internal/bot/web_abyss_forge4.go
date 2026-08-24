@@ -103,7 +103,8 @@ func (s *WebServer) handleAbyssBatchTemper(w http.ResponseWriter, r *http.Reques
 
 	var req struct {
 		forgeItemReq
-		Target int `json:"target"`
+		Target         int  `json:"target"`
+		AutoProtection bool `json:"auto_protection"`
 	}
 	if err := readJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
@@ -138,6 +139,10 @@ func (s *WebServer) handleAbyssBatchTemper(w http.ResponseWriter, r *http.Reques
 	var guard string
 	_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4TemperGuardKey(uid)).Scan(&guard)
 	guardActive := guard != "" && guard == forge4ItemKey(req.InvID, req.Slot)
+	autoGuard := false
+	if req.AutoProtection && !guardActive {
+		guardActive, autoGuard = true, true
+	}
 
 	var spent int64
 	attempts, successes, fails := 0, 0, 0
@@ -155,6 +160,10 @@ func (s *WebServer) handleAbyssBatchTemper(w http.ResponseWriter, r *http.Reques
 		chance := temperChance(g.Temper, failStacks)
 		success := rand.Float64() < chance // #nosec G404 -- non-cryptographic forge roll
 		if !success && guardActive {
+			if autoGuard && !spendMaterials(tx, uid, map[string]int{"core": 2}) {
+				writeJSON(w, map[string]any{"ok": false, "error": "automatic temper protection needs 2 Umbral Cores"})
+				return
+			}
 			success, guardActive, guardUsed = true, false, true
 		}
 		if success {
@@ -201,7 +210,7 @@ func (s *WebServer) handleAbyssBatchTemper(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "temper": g.Temper, "attempts": attempts, "successes": successes,
-		"fails": fails, "spent": spent, "stopped": stopped, "guard_used": guardUsed,
+		"fails": fails, "spent": spent, "stopped": stopped, "guard_used": guardUsed, "auto_guard": autoGuard,
 		"gold": s.bot.abyssGold(uid), "mastery": s.bot.forge4MasteryInfo(uid),
 		"msg": fmt.Sprintf("⚒️ Batch temper on %s: %d/%d succeeded → +%d (%dg spent, %s).", g.Name, successes, attempts, g.Temper, spent, stopped)})
 }
@@ -274,7 +283,12 @@ func (s *WebServer) handleAbyssForgeQueue(w http.ResponseWriter, r *http.Request
 
 	var req struct {
 		forgeItemReq
-		Actions []string `json:"actions"`
+		Actions         []string         `json:"actions"`
+		FailurePolicies []string         `json:"failure_policies"`
+		GoldCap         int64            `json:"gold_cap"`
+		OperationCaps   map[string]int64 `json:"operation_caps"`
+		DryRun          bool             `json:"dry_run"`
+		Paused          bool             `json:"paused"`
 	}
 	if err := readJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
@@ -282,6 +296,15 @@ func (s *WebServer) handleAbyssForgeQueue(w http.ResponseWriter, r *http.Request
 	}
 	if len(req.Actions) == 0 || len(req.Actions) > 3 {
 		writeJSON(w, map[string]any{"ok": false, "error": "queue 1 to 3 actions"})
+		return
+	}
+	if req.GoldCap < 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "gold cap cannot be negative"})
+		return
+	}
+	if req.Paused {
+		writeJSON(w, map[string]any{"ok": true, "paused": true, "steps": []string{}, "spent": 0,
+			"msg": "📋 Forge queue remains paused; no costs or item changes were applied."})
 		return
 	}
 
@@ -299,7 +322,9 @@ func (s *WebServer) handleAbyssForgeQueue(w http.ResponseWriter, r *http.Request
 	polishes := 0
 	temperUsed := false
 	var steps []string
+	queueLoop:
 	for i, action := range req.Actions {
+		goldBefore := totalGold
 		stepErr := func(msg string) bool {
 			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("step %d (%s): %s", i+1, action, msg)})
 			return false
@@ -389,11 +414,27 @@ func (s *WebServer) handleAbyssForgeQueue(w http.ResponseWriter, r *http.Request
 			} else {
 				failStacks++
 				steps = append(steps, "temper (failed)")
+				if i < len(req.FailurePolicies) && req.FailurePolicies[i] == "stop on failure" {
+					break queueLoop
+				}
 			}
 		default:
 			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("step %d: unknown action %q (polish, reinforce, sharpen, masterwork, temper)", i+1, action)})
 			return
 		}
+		if cap := req.OperationCaps[action]; cap > 0 && totalGold-goldBefore > cap {
+			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("step %d (%s) exceeds its %dg spending limit", i+1, action, cap)})
+			return
+		}
+		if req.GoldCap > 0 && totalGold > req.GoldCap {
+			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("queue exceeds its %dg spending cap", req.GoldCap)})
+			return
+		}
+	}
+	if req.DryRun {
+		writeJSON(w, map[string]any{"ok": true, "dry_run": true, "steps": steps, "spent": totalGold,
+			"materials": mats, "msg": fmt.Sprintf("📋 Dry run complete: %d steps, %dg, no changes applied.", len(steps), totalGold)})
+		return
 	}
 
 	if totalGold > 0 && !deductGold(w, tx, uid, totalGold) {
@@ -443,8 +484,19 @@ func (s *WebServer) handleAbyssGemUpgradeAll(w http.ResponseWriter, r *http.Requ
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	var req forgeItemReq
-	if !readForgeItemReq(w, r, &req) {
+	var req struct {
+		forgeItemReq
+		StopAtTier int `json:"stop_at_tier"`
+	}
+	if err := readJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+	if req.StopAtTier == 0 {
+		req.StopAtTier = 2
+	}
+	if req.StopAtTier < 2 || req.StopAtTier > 3 {
+		writeJSON(w, map[string]any{"ok": false, "error": "stop_at_tier must be 2 or 3"})
 		return
 	}
 
@@ -454,45 +506,64 @@ func (s *WebServer) handleAbyssGemUpgradeAll(w http.ResponseWriter, r *http.Requ
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	var tier1 []int
+	var upgradeIndexes []int
+	steps := 0
 	for i, gem := range g.Gemstones {
 		base, tier := parseGem(gem)
-		if _, valid := gemBaseStats(base); valid && tier == 1 {
-			tier1 = append(tier1, i)
+		if _, valid := gemBaseStats(base); valid && tier < req.StopAtTier {
+			upgradeIndexes = append(upgradeIndexes, i)
+			steps += req.StopAtTier - tier
 		}
 	}
-	if len(tier1) == 0 {
-		writeJSON(w, map[string]any{"ok": false, "error": "no tier-I gems to upgrade"})
+	if len(upgradeIndexes) == 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "no gems below the requested stop tier"})
 		return
 	}
-	n := len(tier1)
-	goldCost := int64(n) * s.forge4GoldCost(uid, 200, g.Rarity)
+	goldCost := int64(0)
+	materialCost := map[string]int{}
+	for _, index := range upgradeIndexes {
+		_, tier := parseGem(g.Gemstones[index])
+		for tier < req.StopAtTier {
+			if tier == 1 {
+				goldCost += s.forge4GoldCost(uid, 200, g.Rarity)
+				materialCost["shard"] += 5
+			} else {
+				goldCost += s.forge4GoldCost(uid, 500, g.Rarity)
+				materialCost["core"] += 2
+			}
+			tier++
+		}
+	}
 	if !deductGold(w, tx, uid, goldCost) {
 		return
 	}
-	if !spendMaterials(tx, uid, map[string]int{"shard": 5 * n}) {
-		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("not enough Void Shards (need %d)", 5*n)})
+	if !spendMaterials(tx, uid, materialCost) {
+		writeJSON(w, map[string]any{"ok": false, "error": "not enough materials for every planned gem upgrade"})
 		return
 	}
 	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "bulk gem upgrade")
 	var names []string
-	for _, i := range tier1 {
+	for _, i := range upgradeIndexes {
 		base, _ := parseGem(g.Gemstones[i])
 		baseStats, _ := gemBaseStats(base)
-		g.Stats = g.Stats.Add(baseStats) // I→II adds 1x base
-		g.Gemstones[i] = gemName(base, 2)
+		_, tier := parseGem(g.Gemstones[i])
+		for tier < req.StopAtTier {
+			g.Stats = g.Stats.Add(baseStats.Scaled(float64(tier)))
+			tier++
+		}
+		g.Gemstones[i] = gemName(base, req.StopAtTier)
 		names = append(names, g.Gemstones[i])
 	}
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
 	forge4MasteryBump(tx, uid)
-	if !s.finishForge(w, tx, uid, "bulk gem upgrade", fmt.Sprintf("%s ×%d", g.Name, n), fmt.Sprintf("%dg %d🔷", goldCost, 5*n)) {
+	if !s.finishForge(w, tx, uid, "bulk gem upgrade", fmt.Sprintf("%s ×%d steps", g.Name, steps), fmt.Sprintf("%dg", goldCost)) {
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "upgraded": n, "gems": names,
+	writeJSON(w, map[string]any{"ok": true, "upgraded": len(upgradeIndexes), "steps": steps, "stop_at_tier": req.StopAtTier, "gems": names,
 		"gold": s.bot.abyssGold(uid), "materials": s.bot.loadMaterials(uid), "mastery": s.bot.forge4MasteryInfo(uid),
-		"msg": fmt.Sprintf("💎 Upgraded %d gems on %s to tier II (%s).", n, g.Name, strings.Join(names, ", "))})
+		"msg": fmt.Sprintf("💎 Upgraded %d gems on %s to tier %d (%s).", len(upgradeIndexes), g.Name, req.StopAtTier, strings.Join(names, ", "))})
 }
 
 // ---- Rune scraping (AB-105) --------------------------------------------------------
@@ -913,9 +984,21 @@ func (s *WebServer) handleAbyssSpecialReroll(w http.ResponseWriter, r *http.Requ
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	var req forgeItemReq
-	if !readForgeItemReq(w, r, &req) {
+	var req struct {
+		forgeItemReq
+		ExcludedEffects []string `json:"excluded_effects"`
+	}
+	if err := readJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
+	}
+	if len(req.ExcludedEffects) > 8 {
+		writeJSON(w, map[string]any{"ok": false, "error": "exclude at most eight Specials"})
+		return
+	}
+	excluded := make(map[string]bool, len(req.ExcludedEffects))
+	for _, effect := range req.ExcludedEffects {
+		excluded[strings.ToLower(strings.TrimSpace(effect))] = true
 	}
 
 	tx, g, rawData, ok := s.beginForgeTx(w, uid, req.InvID, req.Slot)
@@ -930,7 +1013,7 @@ func (s *WebServer) handleAbyssSpecialReroll(w http.ResponseWriter, r *http.Requ
 	}
 	var pool []content.ItemEffect
 	for _, e := range awakenPool {
-		if e != g.Special {
+		if e != g.Special && !excluded[strings.ToLower(string(e))] {
 			pool = append(pool, e)
 		}
 	}
@@ -1129,14 +1212,14 @@ func (s *WebServer) handleAbyssPolishAll(w http.ResponseWriter, r *http.Request,
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	rows, err := tx.Query("SELECT slot, gear_id, item_data FROM user_gear WHERE client_uid=$1", uid)
+	rows, err := tx.Query("SELECT slot, gear_id, item_data FROM user_gear WHERE client_uid=$1 FOR UPDATE", uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1227,7 +1310,7 @@ func (s *WebServer) handleAbyssCraftRepairKit2(w http.ResponseWriter, r *http.Re
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1356,7 +1439,7 @@ func (s *WebServer) handleAbyssFusePreview(w http.ResponseWriter, r *http.Reques
 		seen[id] = true
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1468,7 +1551,7 @@ func (s *WebServer) handleAbyssCelestialFuseBoosted(w http.ResponseWriter, r *ht
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1658,7 +1741,7 @@ func (s *WebServer) handleAbyssConvertMats(w http.ResponseWriter, r *http.Reques
 		req.Count = 1000
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1705,7 +1788,7 @@ func (s *WebServer) handleAbyssSanctuaryUndo2(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return

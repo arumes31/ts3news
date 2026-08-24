@@ -14,6 +14,7 @@ import (
 	"io"
 	"math/rand/v2"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -80,10 +81,13 @@ func grantMaterialQ(q dbExecQuerier, uid, mat string, n int) error {
 	}
 	_, err := q.Exec(`INSERT INTO user_materials (client_uid, mat_id, count) VALUES ($1,$2,$3)
 	                  ON CONFLICT (client_uid, mat_id) DO UPDATE SET count = user_materials.count + $3`, uid, mat, n)
-	if err == nil {
-		recordAbyssMaterialFlow(uid, mat, "source", n)
+	if err != nil {
+		return err
 	}
-	return err
+	_, _ = q.Exec(`INSERT INTO abyss_forge_material_flow (client_uid, mat_id, direction, amount)
+		VALUES ($1,$2,'source',$3)`, uid, mat, n)
+	recordAbyssMaterialFlow(uid, mat, "source", n)
+	return nil
 }
 
 // scavengerYield applies the Scavenger talent (+20% materials per level, floored).
@@ -110,7 +114,13 @@ func (b *Bot) loadMaterials(uid string) map[string]int64 {
 
 // spendMaterials debits a material cost map inside tx, all-or-nothing.
 func spendMaterials(tx *sql.Tx, uid string, cost map[string]int) bool {
-	for mat, n := range cost {
+	materials := make([]string, 0, len(cost))
+	for material := range cost {
+		materials = append(materials, material)
+	}
+	sort.Strings(materials)
+	for _, mat := range materials {
+		n := cost[mat]
 		if n <= 0 {
 			continue
 		}
@@ -121,6 +131,9 @@ func spendMaterials(tx *sql.Tx, uid string, cost map[string]int) bool {
 		if rows, _ := res.RowsAffected(); rows == 0 {
 			return false
 		}
+		_, _ = tx.Exec(`INSERT INTO abyss_forge_material_flow (client_uid, mat_id, direction, amount)
+			VALUES ($1,$2,'sink',$3)`, uid, mat, n)
+		recordAbyssMaterialFlow(uid, mat, "sink", n)
 	}
 	return true
 }
@@ -227,7 +240,7 @@ func (s *WebServer) handleAbyssCraft(w http.ResponseWriter, r *http.Request, uid
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -246,6 +259,15 @@ func (s *WebServer) handleAbyssCraft(w http.ResponseWriter, r *http.Request, uid
 	}
 	var done int
 	_ = tx.QueryRow("SELECT craft_quest_done FROM users WHERE client_uid=$1", uid).Scan(&done)
+	var craftCount int64
+	if err := tx.QueryRow(`INSERT INTO abyss_forge_recipe_crafts (client_uid, recipe_id, craft_count)
+		VALUES ($1,$2,1)
+		ON CONFLICT (client_uid, recipe_id) DO UPDATE SET
+		craft_count = abyss_forge_recipe_crafts.craft_count + 1, last_crafted_at = NOW()
+		RETURNING craft_count`, uid, rec.ID).Scan(&craftCount); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 
 	// Grant the crafted item (and any weekly-quest reward) inside the same
 	// transaction as the material spend, so a failure can't leave materials
@@ -266,6 +288,13 @@ func (s *WebServer) handleAbyssCraft(w http.ResponseWriter, r *http.Request, uid
 		return
 	}
 	msg := "Crafted " + rec.Name + "!"
+	firstCraft := craftCount == 1
+	if firstCraft {
+		if !grantCons(rec.ConsID) {
+			return
+		}
+		msg += " ✨ First-craft discovery bonus: one extra item!"
+	}
 	questDone := done == craftQuestTarget
 	if questDone {
 		if _, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens + 15 WHERE client_uid=$1", uid); err != nil {
@@ -287,8 +316,16 @@ func (s *WebServer) handleAbyssCraft(w http.ResponseWriter, r *http.Request, uid
 	if questDone {
 		s.bot.autoCombineConsumable(uid, "master_repair_kit")
 	}
+	costParts := make([]string, 0, len(rec.Cost))
+	for _, material := range abyssMaterials {
+		if amount := rec.Cost[material.ID]; amount > 0 {
+			costParts = append(costParts, fmt.Sprintf("%d%s", amount, material.Icon))
+		}
+	}
+	s.bot.recordForge(uid, "craft", rec.Name, strings.Join(costParts, " "))
 	writeJSON(w, map[string]any{
 		"ok": true, "msg": msg, "quest_done": done, "quest_target": craftQuestTarget,
+		"first_craft_bonus": firstCraft,
 		"materials": s.bot.loadMaterials(uid), "tokens": s.bot.abyssTokens(uid),
 		"consumables": s.bot.getConsumables(uid),
 	})
@@ -318,7 +355,7 @@ func (s *WebServer) handleAbyssExchange(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -434,6 +471,17 @@ func (b *Bot) forgeGoldCost(uid string, base int64, r content.Rarity) int64 {
 func (b *Bot) recordForge(uid, action, detail, cost string) {
 	_, _ = b.DB.Exec("INSERT INTO forge_history (client_uid, action, detail, cost) VALUES ($1,$2,$3,$4)", uid, action, detail, cost)
 	_, _ = b.DB.Exec("UPDATE users SET forge_rep = forge_rep + 1 WHERE client_uid=$1", uid)
+	discipline := abyssForgeDisciplineForAction(action)
+	_, _ = b.DB.Exec(`INSERT INTO abyss_forge_progression (client_uid, discipline, mastery_xp, first_craft_date)
+		VALUES ($1,$2,15,CURRENT_DATE)
+		ON CONFLICT (client_uid, discipline) DO UPDATE SET
+		mastery_xp = abyss_forge_progression.mastery_xp + CASE
+			WHEN abyss_forge_progression.first_craft_date IS DISTINCT FROM CURRENT_DATE THEN 15 ELSE 10 END,
+		first_craft_date = CURRENT_DATE, updated_at = NOW()`, uid, discipline)
+	result, _ := json.Marshal(map[string]string{"detail": detail, "cost": cost})
+	_, _ = b.DB.Exec(`INSERT INTO abyss_forge_receipts (client_uid, operation, item_name, result)
+		VALUES ($1,$2,$3,$4::jsonb)`, uid, action, detail, string(result))
+	recordAbyssForgeMaterialCost(uid, cost)
 }
 
 // forgeUndoSnapshot stores the pre-action item state of the most recent forge
@@ -500,7 +548,7 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "corrupt snapshot"})
 		return
 	}
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -592,9 +640,9 @@ func loadForgeItem(tx *sql.Tx, b *Bot, uid string, invID int64, slot string) (co
 	var itemData sql.NullString
 	var err error
 	if invID > 0 {
-		err = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", invID, uid).Scan(&gearID, &itemData)
+		err = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 FOR UPDATE", invID, uid).Scan(&gearID, &itemData)
 	} else if slot != "" {
-		err = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2", slot, uid).Scan(&gearID, &itemData)
+		err = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2 FOR UPDATE", slot, uid).Scan(&gearID, &itemData)
 	} else {
 		return content.Gear{}, "", false
 	}
@@ -638,7 +686,7 @@ func (s *WebServer) handleAbyssTemper(w http.ResponseWriter, r *http.Request, ui
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -783,7 +831,7 @@ func (s *WebServer) handleAbyssUpgradeGem(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -863,7 +911,7 @@ func (s *WebServer) handleAbyssExtractGem(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -933,7 +981,7 @@ func (s *WebServer) handleAbyssTransferEnchant(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -941,12 +989,12 @@ func (s *WebServer) handleAbyssTransferEnchant(w http.ResponseWriter, r *http.Re
 	defer func() { _ = tx.Rollback() }()
 
 	var ench sql.NullString
-	if err := tx.QueryRow("SELECT enchantment_id FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, req.FromSlot).Scan(&ench); err != nil || !ench.Valid || ench.String == "" {
+	if err := tx.QueryRow("SELECT enchantment_id FROM user_gear WHERE client_uid=$1 AND slot=$2 FOR UPDATE", uid, req.FromSlot).Scan(&ench); err != nil || !ench.Valid || ench.String == "" {
 		writeJSON(w, map[string]any{"ok": false, "error": "source item has no enchantment"})
 		return
 	}
 	var toEnch sql.NullString
-	if err := tx.QueryRow("SELECT enchantment_id FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, req.ToSlot).Scan(&toEnch); err != nil {
+	if err := tx.QueryRow("SELECT enchantment_id FROM user_gear WHERE client_uid=$1 AND slot=$2 FOR UPDATE", uid, req.ToSlot).Scan(&toEnch); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "no gear equipped in the target slot"})
 		return
 	}
@@ -1003,7 +1051,8 @@ func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode
 	defer unlock()
 
 	var req struct {
-		InvIDs []int64 `json:"inv_ids"`
+		InvIDs          []int64 `json:"inv_ids"`
+		DuplicatePolicy string  `json:"duplicate_policy"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
@@ -1023,8 +1072,15 @@ func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode
 		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("select exactly %d items", need)})
 		return
 	}
+	if req.DuplicatePolicy == "" {
+		req.DuplicatePolicy = "allow"
+	}
+	if req.DuplicatePolicy != "allow" && req.DuplicatePolicy != "avoid" {
+		writeJSON(w, map[string]any{"ok": false, "error": "duplicate_policy must be allow or avoid"})
+		return
+	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1055,6 +1111,37 @@ func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode
 		}
 		items = append(items, g)
 	}
+	selected := make(map[int64]bool, len(req.InvIDs))
+	for _, id := range req.InvIDs {
+		selected[id] = true
+	}
+	remainingDuplicates := map[string]bool{}
+	rows, err := tx.Query("SELECT id, gear_id FROM user_inventory WHERE client_uid=$1 FOR UPDATE", uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	for rows.Next() {
+		var id int64
+		var gearID string
+		if rows.Scan(&id, &gearID) == nil && !selected[id] {
+			remainingDuplicates[gearID] = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := rows.Close(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	best, err := selectFusionSurvivor(items, req.DuplicatePolicy == "avoid", remainingDuplicates)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
 
 	cost := s.bot.forgeGoldCost(uid, 2000, minRarity)
 	if !deductGold(w, tx, uid, cost) {
@@ -1073,13 +1160,8 @@ func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode
 		}
 	}
 
-	// The best CR piece survives, boosted.
-	best := items[0]
-	for _, g := range items[1:] {
-		if g.CombatRating() > best.CombatRating() {
-			best = g
-		}
-	}
+	// The best eligible CR piece survives, boosted. Duplicate protection can
+	// select the next-best input when the strongest result is already owned.
 	var msg string
 	if mode == "ancient" {
 		best.Stats = best.Stats.Scaled(1.30)
@@ -1109,12 +1191,21 @@ func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	var milestone int64
+	if mode == "celestial" {
+		milestone, err = bumpAbyssForgeMilestone(tx, uid, "celestial_fusion")
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	s.bot.recordForge(uid, mode+" fusion", best.Name, fmt.Sprintf("%dg", cost))
-	writeJSON(w, map[string]any{"ok": true, "msg": msg})
+	writeJSON(w, map[string]any{"ok": true, "msg": msg, "milestone_progress": milestone,
+		"milestone_stage": abyssForgeMilestoneStage(milestone)})
 }
 
 // ---- Deterministic legendary crafting (#120) --------------------------------
@@ -1142,7 +1233,7 @@ func (s *WebServer) handleAbyssCraftLegendary(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1186,7 +1277,7 @@ func (s *WebServer) handleAbyssCleanse(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1237,6 +1328,23 @@ func (b *Bot) abyssRepairAllCost(uid string) int64 {
 	return missing * 200
 }
 
+func abyssRepairAllCostTx(tx *sql.Tx, uid string) (int64, error) {
+	rows, err := tx.Query("SELECT durability, "+gearMaxDurExpr+" FROM user_gear WHERE client_uid=$1 FOR UPDATE", uid)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = rows.Close() }()
+	var missing int64
+	for rows.Next() {
+		var durability, maximum int64
+		if err := rows.Scan(&durability, &maximum); err != nil {
+			return 0, err
+		}
+		missing += max(0, maximum-durability)
+	}
+	return missing * 200, rows.Err()
+}
+
 func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -1256,21 +1364,26 @@ func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	cost := s.bot.abyssRepairAllCost(uid)
 	if req.Preview {
+		cost := s.bot.abyssRepairAllCost(uid)
 		writeJSON(w, map[string]any{"ok": true, "cost": cost})
+		return
+	}
+	tx, err := s.beginForgeRequestTx(w)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	cost, err := abyssRepairAllCostTx(tx, uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	if cost <= 0 {
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing to repair"})
 		return
 	}
-	tx, err := s.bot.DB.Begin()
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	defer func() { _ = tx.Rollback() }()
 	if !deductGold(w, tx, uid, cost) {
 		return
 	}
@@ -1299,7 +1412,7 @@ func (s *WebServer) handleAbyssAutoRepair(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
-	if _, err := s.bot.DB.Exec("UPDATE users SET abyss_auto_repair=$1 WHERE client_uid=$2", req.On, uid); err != nil {
+	if _, err := s.bot.DB.ExecContext(r.Context(), "UPDATE users SET abyss_auto_repair=$1 WHERE client_uid=$2", req.On, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -1329,11 +1442,17 @@ func (s *WebServer) handleAbyssIdentifyAll(w http.ResponseWriter, r *http.Reques
 		g     content.Gear
 	}
 	var items []unidentified
+	tx, err := s.beginForgeRequestTx(w)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
 
-	collect := func(query string, isInv bool) {
-		rows, err := s.bot.DB.Query(query, uid)
+	collect := func(query string, isInv bool) error {
+		rows, err := tx.Query(query, uid)
 		if err != nil {
-			return
+			return err
 		}
 		defer func() { _ = rows.Close() }()
 		for rows.Next() {
@@ -1353,21 +1472,22 @@ func (s *WebServer) handleAbyssIdentifyAll(w http.ResponseWriter, r *http.Reques
 				items = append(items, unidentified{invID: invID, slot: slot, g: g})
 			}
 		}
+		return rows.Err()
 	}
-	collect("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1", true)
-	collect("SELECT slot, gear_id, item_data FROM user_gear WHERE client_uid=$1", false)
+	if err := collect("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 FOR UPDATE", true); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := collect("SELECT slot, gear_id, item_data FROM user_gear WHERE client_uid=$1 FOR UPDATE", false); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 
 	if len(items) == 0 {
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing to identify"})
 		return
 	}
 	cost := int64(abyssIdentifyCost * len(items))
-	tx, err := s.bot.DB.Begin()
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	defer func() { _ = tx.Rollback() }()
 	if !deductGold(w, tx, uid, cost) {
 		return
 	}
@@ -1429,7 +1549,7 @@ func (s *WebServer) handleAbyssLastStand(w http.ResponseWriter, r *http.Request,
 		reviveHP = 1
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1491,7 +1611,7 @@ func (s *WebServer) handleAbyssSetSpec(w http.ResponseWriter, r *http.Request, u
 	}
 
 	cur := s.bot.abyssSpec(uid)
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1577,7 +1697,7 @@ func (s *WebServer) handleAbyssSanctuaryBuy(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1633,7 +1753,7 @@ func (s *WebServer) handleAbyssUnequip(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1644,7 +1764,7 @@ func (s *WebServer) handleAbyssUnequip(w http.ResponseWriter, r *http.Request, u
 	var dura int
 	var itemData sql.NullString
 	var ench sql.NullString
-	if err := tx.QueryRow("SELECT gear_id, durability, item_data, enchantment_id FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, req.Slot).Scan(&gearID, &dura, &itemData, &ench); err != nil {
+	if err := tx.QueryRow("SELECT gear_id, durability, item_data, enchantment_id FROM user_gear WHERE client_uid=$1 AND slot=$2 FOR UPDATE", uid, req.Slot).Scan(&gearID, &dura, &itemData, &ench); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing equipped in that slot"})
 		return
 	}
@@ -1734,7 +1854,7 @@ func (s *WebServer) handleAbyssRiftPeek(w http.ResponseWriter, r *http.Request, 
 		cost = 10
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return

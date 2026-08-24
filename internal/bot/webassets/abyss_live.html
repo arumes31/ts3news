@@ -248,7 +248,7 @@ function renderLiveActionBar(state){
 	button.className='ab-actionslot kind-'+option.kind+(livePendingOption===option?' armed':'')+(recommended?' recommended':'')+(unavailable?' unavailable':' valid')+(option.kind==='item'&&(option.count||0)<=1?' low-count':'')+(livePinnedActions[actionKey]?' pinned':'');
     button.disabled=unavailable;
 	button.draggable=true;button.dataset.actionKey=actionKey;button.dataset.shortcut=shortcut.toLowerCase();
-	button.title=(option.description||option.name)+(option.tags&&option.tags.length?' — Combo tags: '+option.tags.join(', '):'')+(option.mana?' — Mana after: '+Math.max(0,(own.mana||0)-option.mana):'')+(recommended&&state.recommended.reason?' — Recommended: '+state.recommended.reason:'');
+	button.title=(option.description||option.name)+(option.tags&&option.tags.length?' — Combo tags: '+option.tags.join(', '):'')+(option.effect_rounds?' — Effect: '+option.effect_rounds+' round'+(option.effect_rounds===1?'':'s'):'')+(option.modifiers&&option.modifiers.length?' — Active modifiers: '+option.modifiers.join(', '):'')+(option.mana?' — Mana after: '+Math.max(0,(own.mana||0)-option.mana):'')+(recommended&&state.recommended.reason?' — Recommended: '+state.recommended.reason:'');
 	if(option.cooldown)button.style.setProperty('--cooldown-angle',Math.min(360,option.cooldown*36)+'deg');
 	button.innerHTML='<span class="ab-action-key">'+consEsc(shortcut)+'</span><span class="ab-action-pin">'+(livePinnedActions[actionKey]?'★':'☆')+'</span><span class="ab-action-icon">'+liveActionIcon(option)+'</span>'+
       '<span class="ab-action-name">'+consEsc(option.name)+'</span>'+

@@ -81,13 +81,15 @@ type UserInCombat struct {
 }
 
 type activeUser struct {
-	u           *UserInCombat
-	effects     []content.ItemEffect
-	lastSkillID string
-	Stunned     bool // scripted boss-phase stun: skips this user's next turn
-	CurrentMana int
-	MaxMana     int
-	PetHealCD   int // Cooldown of pet2 heal spell in rounds
+	u                *UserInCombat
+	effects          []content.ItemEffect
+	lastSkillID      string
+	skillRepeatCount int
+	skillCooldowns   map[string]int
+	Stunned          bool // scripted boss-phase stun: skips this user's next turn
+	CurrentMana      int
+	MaxMana          int
+	PetHealCD        int // Cooldown of pet2 heal spell in rounds
 	// Skill-web bonus, loaded once per fight: treeBonusFor hits the DB and
 	// scans the full 1000-node tree, so per-turn lookups must use this cache.
 	treeBonus content.TreeBonus
@@ -510,7 +512,10 @@ func (b *Bot) resolveChannelCombatDetailed(users []UserInCombat, initialMobs []*
 	activeUsers := make([]activeUser, len(users))
 	for i := range users {
 		_, _, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
-		activeUsers[i] = activeUser{u: &users[i], effects: effects, treeBonus: users[i].treeBonus}
+		activeUsers[i] = activeUser{
+			u: &users[i], effects: effects, treeBonus: users[i].treeBonus,
+			skillCooldowns: map[string]int{},
+		}
 		activeUsers[i].u.STRMod = 1.0
 		activeUsers[i].u.DEFMod = 1.0
 		activeUsers[i].u.SPDMod = 1.0
@@ -894,6 +899,23 @@ func (b *Bot) resolveChannelCombatDetailed(users []UserInCombat, initialMobs []*
 				if activeUsers[i].potionCooldown > 0 {
 					activeUsers[i].potionCooldown--
 				}
+				for skillID, cooldown := range activeUsers[i].skillCooldowns {
+					if cooldown <= 1 {
+						delete(activeUsers[i].skillCooldowns, skillID)
+					} else {
+						activeUsers[i].skillCooldowns[skillID] = cooldown - 1
+					}
+				}
+			}
+			for _, mob := range currentMobs {
+				if mob.StunRounds <= 0 {
+					continue
+				}
+				mob.StunRounds--
+				if mob.StunRounds == 0 && mob.PreStunSPD > 0 {
+					mob.Stats.SPD = mob.PreStunSPD
+					mob.PreStunSPD = 0
+				}
 			}
 
 			aliveUsers := 0
@@ -1210,7 +1232,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				continue
 			}
 			target := liveAllyFromTarget(liveAction.TargetID, activeUsers)
-			if !b.useLiveConsumable(u, target, liveAction.AbilityID, logs) {
+			if !b.useLiveConsumable(au, target, liveAction.AbilityID, logs) {
 				*logs = append(*logs, fmt.Sprintf("⚠️ %s's queued item is no longer available.", u.Nickname))
 			} else {
 				au.potionCooldown = 2
@@ -1381,19 +1403,24 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 
 			// Spell cost and cast check
-			spellCost := 20
-			if chest, ok := u.Equipped[content.SlotChest]; ok && chest.ID == "ABYSS_ARCHMAGE_ROBES" {
-				spellCost -= 5
-			}
 			st := b.loadAbyssStats(u.UID)
-			spellCost -= st.UpInsight * 2
-			// Skill web: Spellweaver reduces skill mana cost.
-			if v := au.treeBonus.Pct["skill_mana_cost"]; v > 0 {
-				spellCost = int(float64(spellCost) * (1 - v))
+			spellCostFor := func(base int) int {
+				if base <= 0 {
+					base = 20
+				}
+				if chest, ok := u.Equipped[content.SlotChest]; ok && chest.ID == "ABYSS_ARCHMAGE_ROBES" {
+					base -= 5
+				}
+				base -= st.UpInsight * 2
+				if v := au.treeBonus.Pct["skill_mana_cost"]; v > 0 {
+					base = int(float64(base) * (1 - v))
+				}
+				if base < 5 {
+					base = 5
+				}
+				return base
 			}
-			if spellCost < 5 {
-				spellCost = 5
-			}
+			spellCost := spellCostFor(20)
 
 			// AB-64 Hold mana: with the toggle on, save casts for boss floors
 			// while grinding normal waves.
@@ -1406,11 +1433,24 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			var selectedSkill *content.Skill
 			manuallySelectedSkill := false
 			if isLiveAction && liveHitKind == "skill" {
-				selectedSkill = findLiveSkill(u, liveAction.AbilityID)
+				if au.skillCooldowns[liveAction.AbilityID] == 0 {
+					selectedSkill = findLiveSkill(u, liveAction.AbilityID)
+				}
 				manuallySelectedSkill = selectedSkill != nil
 			} else if !isLiveAction && !holdCast && len(u.Skills) > 0 && au.CurrentMana >= spellCost && rand.Float64() < 0.3 { // #nosec G404
-				// #nosec G404 -- legacy automatic skill selection
-				selectedSkill = &u.Skills[rand.IntN(len(u.Skills))] // #nosec G404
+				available := make([]int, 0, len(u.Skills))
+				for skillIndex := range u.Skills {
+					if au.skillCooldowns[u.Skills[skillIndex].ID] == 0 {
+						available = append(available, skillIndex)
+					}
+				}
+				if len(available) > 0 {
+					// #nosec G404 -- legacy automatic skill selection
+					selectedSkill = &u.Skills[available[rand.IntN(len(available))]] // #nosec G404
+				}
+			}
+			if selectedSkill != nil {
+				spellCost = spellCostFor(selectedSkill.ManaCost)
 			}
 			if selectedSkill != nil && canUseHeldManaAbility(au.holdMana, bossPresent, manuallySelectedSkill) && au.CurrentMana >= spellCost {
 				s := *selectedSkill
@@ -1434,18 +1474,29 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					spellPowerMult *= 1.15
 				}
 
-				dmgMult *= s.Power * spellPowerMult
+				castElement := abyssSkillElement(s, u.Equipped)
+				repeatCount := 0
+				if au.lastSkillID == s.ID {
+					repeatCount = au.skillRepeatCount + 1
+				}
+				skillModifiers := calculateAbyssSkillModifiers(abyssSkillModifierContext{
+					Skill: s, TreeBonus: au.treeBonus, Element: castElement,
+					PreviousElement: au.lastCastElement, CurrentHP: u.CurrentHP,
+					MaxHP: u.Stats.HP, PartySize: len(activeUsers), Round: round,
+					RepeatCount: repeatCount,
+				})
+
+				dmgMult *= s.Power * spellPowerMult * skillModifiers.DamageMultiplier
 				// Pure support skills (Power 0, e.g. Arcane Shield) only heal —
 				// flag the hit so it deals no mob damage below.
 				if s.Power == 0 {
 					skipDamage = true
 				}
-				// Skill web: Spellweaver boosts skill cast damage.
-				if v := au.treeBonus.Pct["skill_damage"]; v > 0 {
-					dmgMult *= 1 + v
-				}
-				ignoreDef = s.IgnoreDef
+				ignoreDef = skillModifiers.IgnoreDefense
 				*logs = append(*logs, fmt.Sprintf("✨ %s cast %s (cost: %d Mana, Remaining: %d/%d). Spell Power: +%d%%!", u.Nickname, s.Name, spellCost, au.CurrentMana, au.MaxMana, int(float64(u.Stats.INT)*spellPowerMult)))
+				if summary := abyssModifierSummary(skillModifiers.Active); summary != "" {
+					*logs = append(*logs, "🌐 "+summary)
+				}
 
 				if s.HealPercent > 0 {
 					healTarget := u
@@ -1454,7 +1505,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 							healTarget = selected
 						}
 					}
-					healAmount := int(float64(healTarget.Stats.HP) * s.HealPercent * healPenalty)
+					healAmount := int(float64(healTarget.Stats.HP) * s.HealPercent * healPenalty * skillModifiers.HealingMultiplier)
 					if healAmount < 0 {
 						healAmount = 0
 					}
@@ -1471,6 +1522,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					*logs = append(*logs, i18n.T("bot.combat.combo", s.Name))
 				}
 				au.lastSkillID = s.ID
+				au.skillRepeatCount = repeatCount
+				if skillModifiers.CooldownRounds > 0 {
+					au.skillCooldowns[s.ID] = skillModifiers.CooldownRounds
+				}
 
 				// AB-52 Mana overflow: the overcharged spell lands +15% harder.
 				if overcharged {
@@ -1481,7 +1536,6 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				// AB-51 Elemental combo: two same-element skills in a row boost
 				// the second +10%. Skills carry no element of their own, so the
 				// cast element is the channelled weapon element at cast time.
-				castElement := abyssSkillElement(s, u.Equipped)
 				if reaction := abyssElementReaction(au.lastCastElement, castElement); abyssCombatant(u) && reaction != "" {
 					dmgMult *= 1.20
 					*logs = append(*logs, fmt.Sprintf("⚗️ %s reaction! %s combines %s and %s — +20%%!", reaction, u.Nickname, au.lastCastElement, castElement))
@@ -1492,12 +1546,17 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				au.lastCastElement = castElement
 
 				// #nosec G404
-				if s.StunChance > 0 && rand.Float64() < s.StunChance { // #nosec G404
+				if skillModifiers.StunChance > 0 && rand.Float64() < skillModifiers.StunChance { // #nosec G404
 					*logs = append(*logs, i18n.T("bot.combat.stunned", target.Name))
+					if target.StunRounds == 0 {
+						target.PreStunSPD = target.Stats.SPD
+					}
 					target.Stats.SPD = 0
+					target.StunRounds = max(target.StunRounds, max(1, skillModifiers.EffectRounds))
 				}
 			} else {
 				au.lastSkillID = "" // Reset combo if no skill used
+				au.skillRepeatCount = 0
 				au.lastCastElement = ""
 			}
 
@@ -1576,7 +1635,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				au.lastUltRound = round // AB-70: interrupt window for boss summon telegraphs
 				
 				cooldownVal := readyUlt.CooldownRounds
-				if red := au.treeBonus.Pct["ult_cooldown"]; red > 0 {
+				if red := clampRecovery(au.treeBonus.Pct["ult_cooldown"] + au.treeBonus.Pct["ultimate_charge"]); red > 0 {
 					cooldownVal = int(float64(cooldownVal) * (1.0 - red))
 					if cooldownVal < 2 {
 						cooldownVal = 2
@@ -1854,6 +1913,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if bonus := au.treeBonus.Pct["pet_damage_pct"]; bonus > 0 {
 				petDmgMult += bonus
 			}
+			petDmgMult *= abyssTreeActionMultiplier(au.treeBonus, "companion_skill_power")
 			pdmg := int(float64(p.Stats.STR-ptarget.Stats.DEF) * petDmgMult * intensify)
 			if pdmg < 1 {
 				pdmg = 1
@@ -2777,16 +2837,18 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 	// Only Rare+ items provide XP bonuses (Common/Uncommon have 1.0-1.05x)
 	// Max possible from gear: 30 slots × 1.30x = ~2600x (capped by rarity distribution)
 	abyssSetCounts := make(map[string]int)
-	rows, err := b.DB.Query("SELECT gear_id, durability, enchantment_id, item_data FROM user_gear WHERE client_uid = $1", uid)
+	equippedGear := make(map[content.GearSlot]content.Gear)
+	rows, err := b.DB.Query("SELECT slot, gear_id, durability, enchantment_id, item_data FROM user_gear WHERE client_uid = $1", uid)
 	if err == nil {
 		defer func() { _ = rows.Close() }()
 		for rows.Next() {
-			var gearID string
+			var slot, gearID string
 			var dura int
 			var enchID sql.NullString
 			var itemData sql.NullString
-			if err := rows.Scan(&gearID, &dura, &enchID, &itemData); err == nil {
+			if err := rows.Scan(&slot, &gearID, &dura, &enchID, &itemData); err == nil {
 				if gear, ok := b.makeGear(gearID, itemData); ok {
+					equippedGear[content.GearSlot(slot)] = gear
 					if content.IsAbyssGearID(gearID) {
 						abyssSetCounts[gear.EffectiveSetID()]++
 					}
@@ -2857,6 +2919,18 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 				}
 			}
 		}
+	}
+	if resonanceBonus, resonance := abyssGemResonanceBonus(equippedGear); resonanceBonus != (content.Stats{}) {
+		stats = stats.Add(resonanceBonus)
+		gearScore += resonanceBonus.Score()
+		families := make([]string, 0, len(resonance))
+		for family, count := range resonance {
+			if count >= 3 {
+				families = append(families, fmt.Sprintf("%s ×%d", family, count))
+			}
+		}
+		sort.Strings(families)
+		notes = append(notes, "💎 Gem Resonance: "+strings.Join(families, ", "))
 	}
 
 	// Abyss set bonus: equipping multiple ABYSS_ pieces grants cumulative stat

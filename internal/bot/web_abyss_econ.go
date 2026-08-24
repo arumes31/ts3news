@@ -886,7 +886,13 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 	}
 
 	reserved := s.bot.loadAbyssReservedLoot(uid)
-	rows, err := s.bot.DB.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1", uid)
+	tx, err := s.beginForgeRequestTx(w)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	rows, err := tx.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 FOR UPDATE", uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -945,12 +951,6 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": true, "dismantled": 0, "tokens_gained": 0, "tokens": s.bot.abyssTokens(uid)})
 		return
 	}
-	tx, err := s.bot.DB.Begin()
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	defer func() { _ = tx.Rollback() }()
 
 	var total int64
 	var count int
@@ -975,11 +975,17 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 			return
 		}
 	}
+	matGained = s.bot.boostedMaterials(uid, matGained)
+	for material, amount := range matGained {
+		if err := grantMaterialQ(tx, uid, material, amount); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	s.bot.grantBoostedMaterials(uid, matGained)
 	writeJSON(w, map[string]any{"ok": true, "dismantled": count, "tokens_gained": total, "tokens": s.bot.abyssTokens(uid),
 		"materials": s.bot.loadMaterials(uid)})
 }

@@ -23,16 +23,31 @@ const (
 // Skill is a learnable combat ability a character can equip into one of their
 // skill slots.
 type Skill struct {
-	ID          string
-	Name        string
-	Type        SkillType
-	Rarity      Rarity
-	Power       float64 // Multiplier for damage/effect
-	IgnoreDef   float64 // Percentage (0.0 - 1.0)
-	StunChance  float64 // Percentage (0.0 - 1.0)
-	HealPercent float64 // Percentage of max HP
-	Description string
-	Special     ItemEffect
+	ID                   string
+	Name                 string
+	Type                 SkillType
+	Rarity               Rarity
+	TargetMode           SkillTargetMode
+	ManaCost             int
+	CooldownRounds       int
+	Element              Element
+	Tags                 []string
+	EffectDurationRounds int
+	StackLimit           int
+	ScalingStat          string
+	PreviewMin           float64
+	PreviewMax           float64
+	UpgradeRank          int
+	Archetype            string
+	Role                 string
+	Source               string
+	Mechanics            string
+	Power                float64 // Multiplier for damage/effect
+	IgnoreDef            float64 // Percentage (0.0 - 1.0)
+	StunChance           float64 // Percentage (0.0 - 1.0)
+	HealPercent          float64 // Percentage of max HP
+	Description          string
+	Special              ItemEffect
 }
 
 // UltimateSkill represents a powerful ability with multi-round cooldown
@@ -159,6 +174,7 @@ func initSkills() {
 				idx++
 			}
 		}
+		finalizeSkillCatalog(allSkills)
 	})
 }
 

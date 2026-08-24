@@ -142,9 +142,32 @@ func TestAbyssLivePartials(t *testing.T) {
 		"confirmQueuedAllocations",
 		"LOADOUT_NAMES",
 		"SEASONAL_SECTOR",
+		"abysstree-progression",
+		"abysstree-accessibility",
 	} {
 		if !strings.Contains(abyssTree, required) {
 			t.Errorf("Abyss tree template is missing %q progression control", required)
+		}
+	}
+	accessibility := server.tmpl.Lookup("abysstree-accessibility").Tree.Root.String()
+	for _, required := range []string{
+		"treeContrastToggle", "treeAnimationToggle", "treeMutationLive",
+		"ArrowLeft", "tryAllocate(node.id)", "prefers-reduced-motion",
+		"tree-touch-hit", "touchDistance", "parsedIconGeometry",
+		"virtualizeDecorations", "requestAnimationFrame", "treePerformanceMeter",
+	} {
+		if !strings.Contains(accessibility, required) {
+			t.Errorf("Abyss tree accessibility partial is missing %q", required)
+		}
+	}
+	progression := server.tmpl.Lookup("abysstree-progression").Tree.Root.String()
+	for _, required := range []string{
+		"treePointSources", "treeSectorMastery", "treeArchetypeScores",
+		"treeRecommendations", "treeArchetypePin", "treeCompletionGoal",
+		"abyssTreeDismissedRecommendations", "treeAchievementProgress",
+	} {
+		if !strings.Contains(progression, required) {
+			t.Errorf("Abyss tree progression partial is missing %q", required)
 		}
 	}
 
@@ -164,5 +187,54 @@ func TestAbyssLivePartials(t *testing.T) {
 	}
 	if strings.Contains(renderedScript.String(), "ZgotmplZ") {
 		t.Fatal("live action bar script is unsafe in its script context")
+	}
+}
+
+func TestAbyssTreeAndForgePartials(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewWebServer(nil)
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	tests := []struct {
+		host     string
+		partial  string
+		required []string
+	}{
+		{
+			host: "abysstree", partial: "abysstree-navigation",
+			required: []string{"treeSectorFilter", "treeEffectFilter", "abyssTreeBookmarks", "treeMinimapSvg"},
+		},
+		{
+			host: "abysstree", partial: "abysstree-planner",
+			required: []string{"treePlanToggle", "plan_preview", "treePlanCommit", "abyssTreeDraft"},
+		},
+		{
+			host: "abysstree", partial: "abysstree-inspector",
+			required: []string{"treeInspectorTitle", "shortestRouteData", "abyssTreeDiscoveredNodes", "treeInspectorLink"},
+		},
+		{
+			host: "abyss", partial: "abyss-forge-workstation",
+			required: []string{"forge-discipline-tabs", "forgeEligibilityFilter", "abyssForgeFavorites", "recordForgeRecent"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.partial, func(t *testing.T) {
+			host := server.tmpl.Lookup(tt.host)
+			if host == nil || !strings.Contains(host.Tree.Root.String(), `{{template "`+tt.partial+`" .}}`) {
+				t.Fatalf("%s does not invoke %s", tt.host, tt.partial)
+			}
+			partial := server.tmpl.Lookup(tt.partial)
+			if partial == nil {
+				t.Fatalf("partial %s is missing", tt.partial)
+			}
+			source := partial.Tree.Root.String()
+			for _, required := range tt.required {
+				if !strings.Contains(source, required) {
+					t.Errorf("%s is missing %q", tt.partial, required)
+				}
+			}
+		})
 	}
 }
