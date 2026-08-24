@@ -214,6 +214,28 @@ func TestAbyssLivePartials(t *testing.T) {
 	}
 }
 
+func TestAbyssLiveCombatResetsEventCursorForNewSession(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewWebServer(nil)
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	partial := server.tmpl.Lookup("abyssLiveActionBarJS")
+	if partial == nil {
+		t.Fatal("live action bar script is missing")
+	}
+	source := partial.Tree.Root.String()
+	reset := strings.Index(source, "liveLastEventID=liveEventCursor(payload&&payload.state)")
+	render := strings.Index(source, "renderLiveCombat(payload.state)")
+	if !strings.Contains(source, "function liveEventCursor(state)") {
+		t.Fatal("live action bar script has no session event cursor parser")
+	}
+	if reset < 0 || render < 0 || reset > render {
+		t.Fatal("new live combat must reset its SSE cursor before rendering the initial snapshot")
+	}
+}
+
 func TestAbyssTreeAndForgePartials(t *testing.T) {
 	t.Parallel()
 

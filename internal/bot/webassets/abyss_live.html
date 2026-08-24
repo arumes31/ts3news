@@ -82,10 +82,17 @@
 
 {{define "abyssLiveActionBarJS"}}// ---- Live action bar -------------------------------------------------------
 
+function liveEventCursor(state){
+  if(!state)return -1;
+  var version=Number(state&&state.version);
+  return Number.isFinite(version)&&version>=0?version:-1;
+}
+
 function startLiveCombat(payload, hp, max){
   liveStartHP=hp||Number(document.getElementById('hpBar').getAttribute('aria-valuenow'))||0;
   liveStartMaxHP=max||Number(document.getElementById('hpBar').getAttribute('aria-valuemax'))||1;
   liveFinishHandled=false;
+	liveLastEventID=liveEventCursor(payload&&payload.state);
 	liveSelectedTarget=''; livePendingOption=null; liveTargetLocked=false; liveRoundHistory=[];
 	if(payload&&payload.state)resetLivePixelState(payload.state.session_id||'');
 	var targetLock=document.getElementById('liveTargetLock');targetLock.setAttribute('aria-pressed','false');targetLock.textContent='TARGET LOCK';
