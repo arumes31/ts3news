@@ -1,0 +1,538 @@
+{{define "abyssLiveControls"}}<!-- Interactive combat command deck. Hidden outside a live server-authoritative
+     combat session; targets and action slots are populated from SSE snapshots. -->
+<section class="ab-livecombat" id="liveCombat" aria-label="Live combat controls" style="display:none">
+  <div class="ab-live-head">
+    <div>
+      <span class="ab-live-kicker">SYNCHRONIZED COMBAT</span>
+      <strong id="liveRound">ROUND —</strong>
+      <span class="ab-live-pause" id="livePause"></span>
+    </div>
+    <div class="ab-live-clock" id="liveClock" role="timer" aria-live="off">—</div>
+    <span class="ab-live-connection" id="liveConnection" data-state="connecting">CONNECTING</span>
+    <label class="ab-live-tactic">Tactic
+      <select id="liveTactic" onchange="setLiveTactic(this.value)">
+        <option value="aggressive">Aggressive</option>
+        <option value="balanced">Balanced</option>
+        <option value="defensive">Defensive</option>
+        <option value="conserve_items">Conserve Items</option>
+      </select>
+    </label>
+    <label class="ab-live-tactic">Pauses
+      <select id="livePauseMode" onchange="setLivePauseMode(this.value)">
+        <option value="adaptive">Adaptive</option>
+        <option value="bosses">Bosses</option>
+        <option value="danger">Danger</option>
+        <option value="fast">Fast</option>
+      </select>
+    </label>
+  </div>
+  <div class="ab-live-forecast">
+    <div><span class="ab-live-label">INITIATIVE</span><div class="ab-initiative" id="liveInitiative"></div></div>
+    <div><span class="ab-live-label hostile">ENEMY INTENT</span><div class="ab-intents" id="liveIntents"></div></div>
+  </div>
+  <div class="ab-live-policy">
+    <label>Critical fallback <select id="liveCriticalTactic" onchange="setLivePolicy()"><option value="same">Same tactic</option><option value="defensive">Defensive</option><option value="balanced">Balanced</option><option value="aggressive">Aggressive</option><option value="conserve_items">Conserve items</option></select></label>
+    <label>Attack target <select id="liveAttackPriority" onchange="setLivePolicy()"><option value="lowest_hp">Lowest HP</option><option value="highest_hp">Highest HP</option><option value="weakness">Elemental weakness</option></select></label>
+    <label>Skill target <select id="liveSkillPriority" onchange="setLivePolicy()"><option value="lowest_hp">Lowest HP</option><option value="highest_hp">Highest HP</option><option value="weakness">Elemental weakness</option></select></label>
+    <label>On timeout <select id="liveTimeoutAction" onchange="setLivePolicy()"><option value="best">Best safe action</option><option value="attack">Basic attack</option><option value="defend">Defend</option></select></label>
+  </div>
+  <div class="ab-live-social">
+    <label>Role <select id="livePreferredRole" onchange="saveLiveSocialPreferences()"><option value="flex">Flex</option><option value="tank">Tank</option><option value="damage">Damage</option><option value="support">Support</option></select></label>
+    <label>Party tactic vote <select id="liveTacticVote" onchange="liveSocial('tactic_vote',this.value)"><option value="balanced">Balanced</option><option value="defensive">Defensive</option><option value="conserve_items">Conserve items</option><option value="aggressive">Aggressive</option></select></label>
+    <label><input type="checkbox" id="liveAllowRisky" onchange="saveLiveSocialPreferences()"> allow risky proposals</label>
+    <button type="button" onclick="liveSocial('target_ping','',liveSelectedTarget)">🎯 Ping target</button>
+    <button type="button" onclick="liveSocial('danger_ping')">⚠️ Danger</button>
+    <button type="button" onclick="liveSocial('emote','nice')">👏 Nice</button>
+    <button type="button" onclick="liveSocial('revive_vote','', '', true)">❤️ Revive yes</button>
+    <button type="button" onclick="liveSocial('revive_vote','', '', false)">✖ Revive no</button>
+    <button type="button" onclick="liveSocial('abandon_vote')">⏩ Vote auto-resolve</button>
+  </div>
+  <div class="ab-live-social-status" id="liveSocialStatus"></div>
+  <div class="ab-round-recap" id="liveRecap"></div>
+  <div class="ab-live-field">
+    <div><span class="ab-live-label">ALLIES</span><div class="ab-live-targets" id="liveAllies"></div></div>
+    <div><span class="ab-live-label hostile">ENEMIES</span><div class="ab-live-targets" id="liveEnemies"></div></div>
+  </div>
+  <div class="ab-live-command">
+    <div class="ab-live-command-head">
+      <div class="ab-live-queue" id="liveQueue" role="status" aria-live="polite">Choose an action, then select a target.</div>
+      <button class="ab-timebank" id="liveTimeBank" type="button" onclick="spendLiveTimeBank()" disabled>+2s</button>
+      <button class="ab-ready" id="liveReady" type="button" onclick="setLiveReady()" disabled>READY</button>
+	  <button class="ab-live-tool" id="liveTargetLock" type="button" onclick="toggleLiveTargetLock()" aria-pressed="false">TARGET LOCK</button>
+	  <button class="ab-live-tool" type="button" onclick="toggleLiveCompact()">COMPACT</button>
+	  <button class="ab-live-tool" type="button" onclick="configureLiveShortcuts()">KEYS</button>
+    </div>
+	<div class="ab-auto-preview" id="liveAutoPreview"></div>
+    <div class="ab-loadouts" id="liveLoadouts" aria-label="Action bar loadouts"></div>
+    <div class="ab-actionbar" id="liveActionBar"></div>
+  </div>
+	<div class="ab-round-timeline" id="liveRoundTimeline" aria-label="Combat round timeline"></div>
+	<div class="ab-live-logtools"><label>Log <select id="liveLogFilter" onchange="setLiveLogFilter(this.value)"><option value="all">All</option><option value="damage">Damage</option><option value="healing">Healing</option><option value="system">System</option></select></label><button type="button" onclick="toggleLiveLog()">EXPAND LOG</button></div>
+	<div class="ab-live-feed" id="liveFeed" aria-live="polite"></div>
+</section>{{end}}
+
+{{define "abyssLiveActionBarJS"}}// ---- Live action bar -------------------------------------------------------
+
+function startLiveCombat(payload, hp, max){
+  liveStartHP=hp||Number(document.getElementById('hpBar').getAttribute('aria-valuenow'))||0;
+  liveStartMaxHP=max||Number(document.getElementById('hpBar').getAttribute('aria-valuemax'))||1;
+  liveFinishHandled=false;
+	liveSelectedTarget=''; livePendingOption=null; liveTargetLocked=false; liveRoundHistory=[];
+	var targetLock=document.getElementById('liveTargetLock');targetLock.setAttribute('aria-pressed','false');targetLock.textContent='TARGET LOCK';
+  document.getElementById('liveCombat').style.display='block';
+  document.getElementById('abStatus').textContent='Combat synchronized — choose an action before the round expires.';
+  setBusy(true);
+  if(payload && payload.state) renderLiveCombat(payload.state);
+  if(liveFinishHandled)return;
+  connectLiveCombat();
+  setTimeout(function(){document.getElementById('liveCombat').scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'center'});},50);
+}
+
+function connectLiveCombat(){
+  if(liveCombatSource){liveCombatSource.close();liveCombatSource=null;}
+  if(liveCombatPoll){clearTimeout(liveCombatPoll);liveCombatPoll=null;}
+  if(liveReconnectTicker){clearInterval(liveReconnectTicker);liveReconnectTicker=null;}
+  if(!window.EventSource){setLiveConnection('polling','POLLING');pollLiveCombat();return;}
+  setLiveConnection('connecting','CONNECTING');
+  var eventURL='/api/abyss/combat/events'+(liveLastEventID>=0?'?since='+encodeURIComponent(liveLastEventID):'');
+  var source=new EventSource(eventURL);
+  liveCombatSource=source;
+  source.onopen=function(){setLiveConnection('synced','LIVE · SYNCED');};
+  source.addEventListener('combat',function(ev){
+    if(ev.lastEventId)liveLastEventID=Math.max(liveLastEventID,Number(ev.lastEventId)||-1);
+    setLiveConnection('synced','LIVE · #'+liveLastEventID);
+    try{renderLiveCombat(JSON.parse(ev.data));}catch(e){}
+  });
+  source.onerror=function(){
+    source.close();
+    if(liveCombatSource===source)liveCombatSource=null;
+    if(!liveFinishHandled)scheduleLiveReconnect(1000);
+  };
+}
+
+function setLiveConnection(state,label){
+  var indicator=document.getElementById('liveConnection');
+  if(!indicator)return;
+  indicator.dataset.state=state;
+  indicator.textContent=label;
+}
+
+function scheduleLiveReconnect(delay){
+  if(liveCombatPoll){clearTimeout(liveCombatPoll);liveCombatPoll=null;}
+  if(liveReconnectTicker){clearInterval(liveReconnectTicker);liveReconnectTicker=null;}
+  var reconnectAt=Date.now()+delay;
+  function paintReconnect(){
+    var left=Math.max(0,reconnectAt-Date.now());
+    setLiveConnection('reconnecting','RECONNECT · '+(left/1000).toFixed(1)+'s');
+  }
+  paintReconnect();
+  liveReconnectTicker=setInterval(paintReconnect,100);
+  liveCombatPoll=setTimeout(connectLiveCombat,delay);
+}
+
+async function pollLiveCombat(){
+  if(liveFinishHandled)return;
+  try{
+    var response=await fetch('/api/abyss/combat/state',{cache:'no-store'});
+    var state=await response.json();
+    if(state.ok){setLiveConnection('synced','POLL · SYNCED');renderLiveCombat(state);}
+  }catch(e){setLiveConnection('reconnecting','POLL · RETRYING');}
+  if(!liveFinishHandled)liveCombatPoll=setTimeout(pollLiveCombat,900);
+}
+
+function livePct(value,maxValue){return maxValue>0?Math.max(0,Math.min(100,Math.round(value*100/maxValue))):0;}
+function liveTargetValid(option,target){
+  if(!option)return false;
+  if(option.target==='self')return true;
+  if(option.target==='ally')return (target||'').indexOf('ally:')===0;
+  if(option.target==='enemy')return (target||'').indexOf('enemy:')===0;
+  return false;
+}
+
+function renderLiveForecast(state){
+  var initiative=document.getElementById('liveInitiative'); initiative.innerHTML='';
+  (state.initiative||[]).forEach(function(entry,index){
+    var step=document.createElement('span');
+    step.className='ab-initiative-step '+(entry.side==='enemy'?'hostile':'ally');
+    step.textContent=String(index+1)+' · '+entry.name+' · SPD '+fmtNum(entry.speed);
+    initiative.appendChild(step);
+  });
+  var intents=document.getElementById('liveIntents'); intents.innerHTML='';
+  (state.enemy_intents||[]).forEach(function(intent){
+    var item=document.createElement('span');
+    item.className='ab-intent kind-'+String(intent.kind||'attack');
+    var target=intent.target?' → '+intent.target:'';
+    item.textContent=intent.enemy_name+' · '+(intent.ability||intent.kind)+target;
+    intents.appendChild(item);
+  });
+}
+
+function renderLiveTargets(hostID, combatants, hostile){
+  var host=document.getElementById(hostID); host.innerHTML='';
+  (combatants||[]).forEach(function(unit){
+    var button=document.createElement('button');
+    button.type='button'; button.className='ab-combatant'+(hostile?' hostile':'')+(liveSelectedTarget===unit.id?' selected':'');
+    button.disabled=unit.hp<=0;
+    button.setAttribute('data-target',unit.id);
+    button.setAttribute('aria-pressed',liveSelectedTarget===unit.id?'true':'false');
+    var traits=[];
+    if(unit.element)traits.push(unit.element);
+    if(unit.weak_to)traits.push('Weak: '+unit.weak_to);
+    if(unit.role)traits.push(String(unit.role).toUpperCase());
+    if(unit.faction)traits.push(unit.faction);
+    if(unit.hazard)traits.push('DESTRUCTIBLE HAZARD');
+    if(unit.position)traits.push(unit.position);
+    if(unit.speed)traits.push('SPD '+fmtNum(unit.speed));
+    if(unit.threat)traits.push('THREAT '+fmtNum(unit.threat));
+    var effects=(unit.effects||[]).map(function(effect){
+      var duration=effect.remaining_rounds?effect.remaining_rounds+'R':effect.duration||'';
+      return '<span class="ab-effect">'+consEsc(effect.name)+(duration?' · '+consEsc(duration):'')+'</span>';
+    }).join('');
+    var breakBar=unit.max_break?'<span class="ab-break" title="'+consEsc(unit.pattern||'Break this enemy to cancel its next action')+'"><b style="width:'+livePct(unit.break,unit.max_break)+'%"></b><i>BREAK '+fmtNum(unit.break)+' / '+fmtNum(unit.max_break)+'</i></span>':'';
+    button.innerHTML='<span class="ab-combatant-name">'+consEsc(unit.name)+(unit.ready?' <i>READY</i>':'')+'</span>'+
+      '<span class="ab-combatant-hp"><b style="width:'+livePct(unit.hp,unit.max_hp)+'%"></b></span>'+
+      '<span class="ab-combatant-stat">'+fmtNum(unit.hp)+' / '+fmtNum(unit.max_hp)+(unit.max_mana?' · 🔵 '+fmtNum(unit.mana):'')+'</span>'+
+      (traits.length?'<span class="ab-combatant-traits">'+traits.map(consEsc).join(' · ')+'</span>':'')+
+      (unit.pattern?'<span class="ab-enemy-pattern">'+consEsc(unit.pattern)+'</span>':'')+
+      breakBar+
+      (effects?'<span class="ab-effects">'+effects+'</span>':'');
+    button.onclick=function(){selectLiveTarget(unit.id);};
+    host.appendChild(button);
+  });
+}
+
+function selectLiveTarget(targetID){
+	if(liveTargetLocked&&liveSelectedTarget&&liveSelectedTarget!==targetID&&liveSelectedTarget.indexOf('enemy:')===0&&targetID.indexOf('enemy:')===0)return;
+  liveSelectedTarget=targetID;
+  if(liveCombatState)renderLiveCombat(liveCombatState,true);
+  if(livePendingOption && liveTargetValid(livePendingOption,targetID))submitLiveOption(livePendingOption);
+}
+
+function liveActionIcon(option){
+  if(option.kind==='attack')return '⚔️';
+  if(option.kind==='defend')return '🛡️';
+  if(option.kind==='item')return '🧪';
+  if(option.kind==='ultimate')return '🌟';
+  if(option.kind==='relic')return '🏺';
+  if(option.kind==='companion')return '🐾';
+  return option.target==='ally'?'💚':'✨';
+}
+
+function renderLiveActionBar(state){
+  var host=document.getElementById('liveActionBar'); host.innerHTML='';
+  var options=state.options||[];
+  var own=(state.allies||[]).find(function(a){return a.is_self;})||(state.allies||[])[0]||{};
+  var basics=options.filter(function(o){return o.kind==='attack'||o.kind==='defend';});
+  var allSkills=options.filter(function(o){return o.kind==='skill';});
+  var allUltimates=options.filter(function(o){return o.kind==='ultimate';});
+  var allItems=options.filter(function(o){return o.kind==='item';});
+  var specials=options.filter(function(o){return o.kind==='relic'||o.kind==='companion';});
+  var pageCount=Math.max(1,Math.ceil(allSkills.length/5),Math.ceil(allUltimates.length/3),Math.ceil(allItems.length/3));
+  liveLoadoutPage=Math.min(liveLoadoutPage,pageCount-1);
+  var skills=allSkills.slice(liveLoadoutPage*5,liveLoadoutPage*5+5);
+  var ultimates=allUltimates.slice(liveLoadoutPage*3,liveLoadoutPage*3+3);
+  var items=allItems.slice(liveLoadoutPage*3,liveLoadoutPage*3+3);
+  renderLiveLoadouts(pageCount);
+	var shown=basics.concat(specials,skills,ultimates,items);
+	shown.sort(function(a,b){
+	  var ak=liveActionKey(a),bk=liveActionKey(b),ap=livePinnedActions[ak]?0:1,bp=livePinnedActions[bk]?0:1;
+	  if(ap!==bp)return ap-bp;
+	  var ai=liveActionOrder.indexOf(ak),bi=liveActionOrder.indexOf(bk);
+	  return (ai===-1?999:ai)-(bi===-1?999:bi);
+	});
+  shown.forEach(function(option,index){
+    var button=document.createElement('button'); button.type='button';
+    var unavailable=(option.cooldown||0)>0 || ((option.mana||0)>(own.mana||0)) || (option.kind==='item'&&(option.count||0)<=0) || state.phase!=='planning';
+    var recommended=liveActionMatches(option,state.recommended&&state.recommended.action);
+	var actionKey=liveActionKey(option),shortcut=liveShortcut(option,skills,items,ultimates);
+	button.className='ab-actionslot kind-'+option.kind+(livePendingOption===option?' armed':'')+(recommended?' recommended':'')+(unavailable?' unavailable':' valid')+(option.kind==='item'&&(option.count||0)<=1?' low-count':'')+(livePinnedActions[actionKey]?' pinned':'');
+    button.disabled=unavailable;
+	button.draggable=true;button.dataset.actionKey=actionKey;button.dataset.shortcut=shortcut.toLowerCase();
+	button.title=(option.description||option.name)+(option.tags&&option.tags.length?' — Combo tags: '+option.tags.join(', '):'')+(option.effect_rounds?' — Effect: '+option.effect_rounds+' round'+(option.effect_rounds===1?'':'s'):'')+(option.modifiers&&option.modifiers.length?' — Active modifiers: '+option.modifiers.join(', '):'')+(option.mana?' — Mana after: '+Math.max(0,(own.mana||0)-option.mana):'')+(recommended&&state.recommended.reason?' — Recommended: '+state.recommended.reason:'');
+	if(option.cooldown)button.style.setProperty('--cooldown-angle',Math.min(360,option.cooldown*36)+'deg');
+	button.innerHTML='<span class="ab-action-key">'+consEsc(shortcut)+'</span><span class="ab-action-pin">'+(livePinnedActions[actionKey]?'★':'☆')+'</span><span class="ab-action-icon">'+liveActionIcon(option)+'</span>'+
+      '<span class="ab-action-name">'+consEsc(option.name)+'</span>'+
+      '<span class="ab-action-estimate">'+liveEffectEstimate(option)+'</span>'+
+	  '<span class="ab-action-cost">'+(option.mana?'🔵 '+option.mana+' → '+Math.max(0,(own.mana||0)-option.mana):option.cooldown?'⏳ '+option.cooldown:(option.kind==='item'||option.kind==='relic')?'×'+option.count:'')+'</span>';
+    button.onclick=function(){armLiveOption(option);};
+	button.querySelector('.ab-action-pin').onclick=function(event){event.preventDefault();event.stopPropagation();toggleLivePin(actionKey);};
+	button.ondragstart=function(event){event.dataTransfer.setData('text/plain',actionKey);};
+	button.ondragover=function(event){event.preventDefault();};
+	button.ondrop=function(event){event.preventDefault();reorderLiveAction(event.dataTransfer.getData('text/plain'),actionKey);};
+    host.appendChild(button);
+  });
+}
+
+function liveActionKey(option){return option.kind+':'+(option.id||'basic');}
+function toggleLivePin(key){livePinnedActions[key]=!livePinnedActions[key];if(!livePinnedActions[key])delete livePinnedActions[key];localStorage.setItem('abyssLivePinnedActions',JSON.stringify(livePinnedActions));if(liveCombatState)renderLiveActionBar(liveCombatState);}
+function reorderLiveAction(source,target){if(!source||source===target)return;liveActionOrder=liveActionOrder.filter(function(key){return key!==source;});var at=liveActionOrder.indexOf(target);if(at<0)liveActionOrder.push(target);at=liveActionOrder.indexOf(target);liveActionOrder.splice(at,0,source);localStorage.setItem('abyssLiveActionOrder',JSON.stringify(liveActionOrder));if(liveCombatState)renderLiveActionBar(liveCombatState);}
+
+function liveShortcut(option,skills,items,ultimates){
+	if(option.kind==='attack')return liveShortcutMap.attack.toUpperCase(); if(option.kind==='defend')return liveShortcutMap.defend.toUpperCase();
+	if(option.kind==='skill')return (liveShortcutMap['skill'+(skills.indexOf(option)+1)]||'').toUpperCase();
+	if(option.kind==='item')return (liveShortcutMap['item'+(items.indexOf(option)+1)]||'').toUpperCase();
+	return (liveShortcutMap['ultimate'+(ultimates.indexOf(option)+1)]||'').toUpperCase();
+}
+
+async function armLiveOption(option){
+  if(!liveCombatState||liveCombatState.phase!=='planning')return;
+	if(option.kind==='item'&&!((option.count||0)>1)&&typeof confirmModal==='function'){
+	  var confirmed=await confirmModal('Use your last '+option.name+'?',{ok:'USE ITEM',cancel:'KEEP IT'});
+	  if(!confirmed)return;
+	}
+  livePendingOption=option;
+  if(option.target==='self'||option.kind==='defend'){submitLiveOption(option);return;}
+  if(liveTargetValid(option,liveSelectedTarget)){submitLiveOption(option);return;}
+  document.getElementById('liveQueue').textContent='Targeting '+option.name+' — select a '+(option.target==='ally'?'party member':'hostile')+'.';
+  renderLiveCombat(liveCombatState,true);
+}
+
+async function submitLiveOption(option){
+  if(!liveCombatState||liveCombatState.phase!=='planning')return;
+  var target=(option.target==='self'||option.kind==='defend')?'':liveSelectedTarget;
+  var replacing=!!liveCombatState.queued;
+  setLiveActionReceipt('RECEIVED · '+option.name,1600);
+  var payload={session_id:liveCombatState.session_id,kind:option.kind,ability_id:option.id||'',target_id:target,round:liveCombatState.round,
+    idempotency_key:String(liveCombatState.round)+':'+option.kind+':'+(option.id||'')+':'+target+':'+Date.now()};
+  var response=await abPost('/api/abyss/combat/action',payload);
+  if(!response.ok){
+    if(response.state)renderLiveCombat(response.state);
+    setLiveActionReceipt('REJECTED · '+(response.error||'Action rejected'),2200);
+    abToast(response.error||'Action rejected',false); return;
+  }
+  setLiveActionReceipt((replacing?'REPLACED · ':'ACCEPTED · ')+option.name,1800);
+  livePendingOption=null;
+  renderLiveCombat(response);
+}
+
+function renderLiveLoadouts(pageCount){
+  var host=document.getElementById('liveLoadouts'); host.innerHTML='';
+  for(var page=0;page!==pageCount;page++){
+    var button=document.createElement('button'); button.type='button';
+    button.className=page===liveLoadoutPage?'active':'';
+    button.textContent='LOADOUT '+String(page+1);
+    button.setAttribute('aria-pressed',page===liveLoadoutPage?'true':'false');
+    button.onclick=(function(index){return function(){liveLoadoutPage=index;if(liveCombatState)renderLiveActionBar(liveCombatState);};})(page);
+    host.appendChild(button);
+  }
+}
+
+function liveActionMatches(option,action){
+  return !!action&&option.kind===action.kind&&(option.id||'')===(action.ability_id||'');
+}
+
+function liveEffectEstimate(option){
+  if(!option.effect_label||!option.max_effect)return '';
+  var value=option.min_effect===option.max_effect?fmtNum(option.max_effect):fmtNum(option.min_effect)+'–'+fmtNum(option.max_effect);
+  return consEsc(option.effect_label)+' '+value;
+}
+
+function setLiveActionReceipt(text,duration){
+  var receipt={text:text,until:Date.now()+duration};
+  liveActionReceipt=receipt;
+  var queue=document.getElementById('liveQueue');
+  if(queue)queue.textContent=text;
+  setTimeout(function(){
+    if(liveActionReceipt!==receipt)return;
+    liveActionReceipt=null;
+    if(liveCombatState)renderLiveCombat(liveCombatState,true);
+  },duration+20);
+}
+
+async function setLiveTactic(tactic){
+  var response=await abPost('/api/abyss/combat/tactics',{tactic:tactic});
+  if(response.ok)renderLiveCombat(response,true);else abToast(response.error||'Could not change tactic',false);
+}
+
+async function setLivePauseMode(mode){
+  var response=await abPost('/api/abyss/combat/pause',{mode:mode});
+  if(response.ok)renderLiveCombat(response,true);else abToast(response.error||'Could not change pause triggers',false);
+}
+
+async function setLivePolicy(){
+  var payload={critical_tactic:document.getElementById('liveCriticalTactic').value,attack_priority:document.getElementById('liveAttackPriority').value,skill_priority:document.getElementById('liveSkillPriority').value,timeout_action:document.getElementById('liveTimeoutAction').value};
+  var response=await abPost('/api/abyss/combat/policy',payload);
+  if(response.ok)renderLiveCombat(response,true);else abToast(response.error||'Could not update fallback policy',false);
+}
+
+async function liveSocial(action,value,targetID,vote){
+  var response=await abPost('/api/abyss/combat/social',{action:action,value:value||'',target_id:targetID||'',vote:!!vote});
+  if(response.ok)renderLiveCombat(response,true);else abToast(response.error||'Party action failed',false);
+}
+async function saveLiveSocialPreferences(){
+  var pref={role:document.getElementById('livePreferredRole').value,pace:'standard',difficulty:'any',allow_risky:document.getElementById('liveAllowRisky').checked};
+  var response=await abPost('/api/abyss/combat/social',{action:'preferences',preferences:pref});
+  if(response.ok)renderLiveCombat(response,true);else abToast(response.error||'Could not save role',false);
+}
+function renderLiveSocial(state){
+  var social=state.social||{};
+  document.getElementById('livePreferredRole').value=social.preferred_role||'flex';
+  var lines=[];
+  if(social.spectating)lines.push('👁️ You are defeated and spectating; your reserved party position remains visible.');
+  if(social.party_tactic)lines.push('🗳 Party default: '+social.party_tactic.replace('_',' ')+'.');
+  if(social.loot_rule)lines.push('🎁 Settlement: '+social.loot_rule.replace(/_/g,' ')+'.');
+  (social.combo_opportunities||[]).forEach(function(line){lines.push('🔗 '+line);});
+  (social.members||[]).forEach(function(member){if(!member.connected)lines.push('🔌 '+member.name+' disconnected · position reserved.');});
+  (social.signals||[]).slice(-3).forEach(function(signal){lines.push((signal.kind==='danger'?'⚠️ ':'💬 ')+signal.name+': '+signal.message);});
+  if(social.revive_needed)lines.push('❤️ Revive vote '+(social.revive_yes||0)+' / '+social.revive_needed+'.');
+  if(social.auto_resolve)lines.push('⏩ Majority chose automatic resolution.');
+  if((social.contributions||[]).length)lines.push('📊 '+social.contributions.map(function(c){return c.name+': '+c.actions+' actions, '+c.manual+' manual, '+c.ready_rounds+' ready';}).join(' · '));
+  document.getElementById('liveSocialStatus').textContent=lines.join(' ');
+}
+
+async function setLiveReady(){
+  if(!liveCombatState||liveCombatState.phase!=='planning'||!liveCombatState.queued)return;
+  setLiveActionReceipt('LOCKING IN…',1200);
+  var response=await abPost('/api/abyss/combat/ready',{session_id:liveCombatState.session_id,round:liveCombatState.round});
+  if(!response.ok){
+    if(response.state)renderLiveCombat(response.state);
+    setLiveActionReceipt('READY REJECTED · '+(response.error||'Try again'),2000);
+    return;
+  }
+  setLiveActionReceipt('READY · ACTION LOCKED',1400);
+  renderLiveCombat(response,true);
+}
+
+async function spendLiveTimeBank(){
+  if(!liveCombatState||liveCombatState.phase!=='planning'||!liveCombatState.time_bank_ms)return;
+  var response=await abPost('/api/abyss/combat/time',{session_id:liveCombatState.session_id,round:liveCombatState.round});
+  if(!response.ok){setLiveActionReceipt('TIME BANK · '+(response.error||'Unavailable'),1800);return;}
+  setLiveActionReceipt('TIME BANK · DEADLINE EXTENDED',1300);
+  renderLiveCombat(response,true);
+}
+
+function updateLiveClock(){
+  if(!liveCombatState||liveCombatState.phase!=='planning')return;
+  var left=Math.max(0,new Date(liveCombatState.deadline).getTime()-Date.now());
+  var clock=document.getElementById('liveClock');
+  clock.textContent=(left/1000).toFixed(1)+'s';
+  clock.classList.toggle('urgent',left<1500);
+}
+
+function toggleLiveTargetLock(){
+	liveTargetLocked=!liveTargetLocked&&!!liveSelectedTarget;
+	var button=document.getElementById('liveTargetLock');button.setAttribute('aria-pressed',liveTargetLocked?'true':'false');button.textContent=liveTargetLocked?'TARGET LOCKED':'TARGET LOCK';
+}
+function toggleLiveCompact(){document.getElementById('liveCombat').classList.toggle('compact');}
+function configureLiveShortcuts(){
+	var current=Object.keys(liveShortcutMap).map(function(key){return key+'='+liveShortcutMap[key];}).join(', ');
+	var next=window.prompt('Set shortcuts as action=key pairs',current);if(!next)return;
+	next.split(',').forEach(function(pair){var bits=pair.split('=');if(bits.length===2&&liveShortcutMap.hasOwnProperty(bits[0].trim()))liveShortcutMap[bits[0].trim()]=bits[1].trim().slice(0,1).toLowerCase();});
+	localStorage.setItem('abyssLiveShortcuts',JSON.stringify(liveShortcutMap));if(liveCombatState)renderLiveActionBar(liveCombatState);
+}
+function liveLogCategory(line){line=String(line||'').toLowerCase();if(/heal|potion|restor|reviv/.test(line))return 'healing';if(/damage|strike|attack|hit|crit|defeat|cleav/.test(line))return 'damage';return 'system';}
+function setLiveLogFilter(filter){liveLogFilter=filter;document.querySelectorAll('#liveFeed [data-category]').forEach(function(line){line.hidden=filter!=='all'&&line.dataset.category!==filter;});}
+function toggleLiveLog(){document.getElementById('liveFeed').classList.toggle('expanded');}
+function renderLiveRoundTimeline(state){
+	if(state.round&&(!liveRoundHistory.length||liveRoundHistory[liveRoundHistory.length-1].round!==state.round))liveRoundHistory.push({round:state.round,phase:state.phase,recap:state.round_recap||'Planning'});
+	if(liveRoundHistory.length>12)liveRoundHistory.shift();
+	var host=document.getElementById('liveRoundTimeline');host.innerHTML='';liveRoundHistory.forEach(function(entry){var step=document.createElement('span');step.title=entry.recap;step.textContent='R'+entry.round+' · '+entry.phase;host.appendChild(step);});
+}
+
+function renderLiveCombat(state,preserveFeed){
+  if(!state||!state.ok)return;
+  liveCombatState=state;
+	var targetStillExists=(state.allies||[]).concat(state.enemies||[]).some(function(unit){return unit.id===liveSelectedTarget&&unit.hp>0;});
+	if(!targetStillExists){liveSelectedTarget='';liveTargetLocked=false;}
+	var targetLock=document.getElementById('liveTargetLock');targetLock.setAttribute('aria-pressed',liveTargetLocked?'true':'false');targetLock.textContent=liveTargetLocked?'TARGET LOCKED':'TARGET LOCK';
+  liveLastEventID=Math.max(liveLastEventID,Number(state.version)||-1);
+  document.getElementById('liveCombat').style.display='block';
+  document.getElementById('liveRound').textContent='ROUND '+(state.round||'—')+' · '+String(state.phase||'').toUpperCase();
+  document.getElementById('livePause').textContent=state.pause_reason||'';
+  document.getElementById('liveTactic').value=state.tactic||'balanced';
+  var pauseMode=document.getElementById('livePauseMode');
+  pauseMode.value=state.pause_mode||'adaptive';
+  pauseMode.disabled=!state.can_configure_pause;
+  var policy=state.policy||{};
+  document.getElementById('liveCriticalTactic').value=policy.critical_tactic||'same';
+  document.getElementById('liveAttackPriority').value=policy.attack_priority||'lowest_hp';
+  document.getElementById('liveSkillPriority').value=policy.skill_priority||'lowest_hp';
+  document.getElementById('liveTimeoutAction').value=policy.timeout_action||'best';
+  renderLiveSocial(state);
+  document.getElementById('liveRecap').textContent=state.round_recap||'';
+	var autoPreview=document.getElementById('liveAutoPreview');
+	autoPreview.textContent=state.recommended?'TIMEOUT → '+String(state.recommended.action.kind||'DEFEND').toUpperCase()+' · '+state.recommended.reason:'TIMEOUT → server-selected safe action';
+	renderLiveRoundTimeline(state);
+  renderLiveForecast(state);
+  renderLiveTargets('liveAllies',state.allies,false);
+  renderLiveTargets('liveEnemies',state.enemies,true);
+  renderLiveActionBar(state);
+  var own=(state.allies||[]).find(function(ally){return ally.is_self;})||{};
+  var ready=document.getElementById('liveReady');
+  ready.disabled=state.phase!=='planning'||!state.queued||!!own.ready;
+  ready.textContent=own.ready?'LOCKED':'READY';
+  var timeBank=document.getElementById('liveTimeBank');
+  var bankSeconds=Math.ceil((state.time_bank_ms||0)/1000);
+  timeBank.disabled=state.phase!=='planning'||bankSeconds<=0;
+  timeBank.textContent='+2s · '+bankSeconds+'s bank';
+  var queue=document.getElementById('liveQueue');
+  if(liveActionReceipt&&liveActionReceipt.until>Date.now())queue.textContent=liveActionReceipt.text;
+  else if(state.queued)queue.textContent=(state.queued.automatic?'AUTO · ':'QUEUED · ')+state.queued.kind.toUpperCase()+(state.queued.ability_id?' · '+state.queued.ability_id:'');
+  else if(state.phase==='planning')queue.textContent=livePendingOption?'Select a valid target for '+livePendingOption.name+'.':state.recommended?'RECOMMENDED · '+state.recommended.reason:'Choose an action, then select a target. Timeout uses '+String(state.tactic||'balanced').replace('_',' ')+'.';
+  else queue.textContent='Resolving synchronized actions…';
+	if(!preserveFeed){
+    var feed=document.getElementById('liveFeed');
+	feed.innerHTML='';(state.recent_logs||[]).forEach(function(line){var category=liveLogCategory(line),entry=document.createElement('div');entry.dataset.category=category;entry.title=category+' event';entry.textContent=line;feed.appendChild(entry);});
+	setLiveLogFilter(liveLogFilter);
+    feed.scrollTop=feed.scrollHeight;
+  }
+  clearInterval(liveClockTimer); liveClockTimer=setInterval(updateLiveClock,100); updateLiveClock();
+  if(state.phase==='complete'||state.phase==='failed')finishLiveCombat(state);
+}
+
+async function finishLiveCombat(state){
+  if(liveFinishHandled)return; liveFinishHandled=true;
+  clearInterval(liveClockTimer);
+  if(liveReconnectTicker){clearInterval(liveReconnectTicker);liveReconnectTicker=null;}
+  if(liveCombatSource){liveCombatSource.close();liveCombatSource=null;}
+  if(liveCombatPoll){clearTimeout(liveCombatPoll);liveCombatPoll=null;}
+  setLiveConnection('complete','SESSION CLOSED');
+  var result=state.result||{ok:false,error:'combat ended without a result'};
+  try{sessionStorage.setItem('abyssLastReplaySession',state.session_id||'');}catch(e){}
+  if(!result.ok){
+    document.getElementById('liveCombat').style.display='none';
+    abToast(result.error||'Combat failed',false); setBusy(false); return;
+  }
+  document.getElementById('liveRound').textContent='COMBAT COMPLETE';
+  document.getElementById('liveQueue').textContent=result.victory?'Victory confirmed.':'Defeat confirmed.';
+  var priorReduce=reduceMotion; reduceMotion=true;
+  await processDescendResult(result,liveStartHP,liveStartMaxHP);
+  reduceMotion=priorReduce;
+  if(result.victory)setTimeout(function(){document.getElementById('liveCombat').style.display='none';},900);
+}
+
+async function resumeLiveCombat(){
+  try{
+    var response=await fetch('/api/abyss/combat/state',{cache:'no-store'});
+    var state=await response.json();
+    if(!state.ok)return;
+    var bar=document.getElementById('hpBar');
+    startLiveCombat({state:state},Number(bar.getAttribute('aria-valuenow')),Number(bar.getAttribute('aria-valuemax')));
+  }catch(e){}
+}
+
+document.addEventListener('keydown',function(e){
+  if(!liveCombatState||liveCombatState.phase!=='planning'||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(/INPUT|SELECT|TEXTAREA/.test((e.target&&e.target.tagName)||''))return;
+	var controls=Array.prototype.slice.call(document.querySelectorAll('#liveCombat button:not(:disabled)'));
+	if(['ArrowLeft','ArrowUp','ArrowRight','ArrowDown'].indexOf(e.key)>=0&&controls.length){var at=Math.max(0,controls.indexOf(document.activeElement)),delta=(e.key==='ArrowLeft'||e.key==='ArrowUp')?-1:1;controls[(at+delta+controls.length)%controls.length].focus();e.preventDefault();return;}
+	var button=Array.prototype.slice.call(document.querySelectorAll('#liveActionBar [data-shortcut]:not(:disabled)')).find(function(candidate){return candidate.dataset.shortcut===e.key.toLowerCase();});
+	if(button){e.preventDefault();button.click();}
+});
+
+var liveGamepadButtons={activate:false,previous:false,next:false};
+(function pollLiveGamepad(){
+	var pads=navigator.getGamepads?navigator.getGamepads():[],pad=null;for(var i=0;i!==pads.length;i++){if(pads[i]){pad=pads[i];break;}}
+	if(pad&&liveCombatState&&liveCombatState.phase==='planning'){
+	  var controls=Array.prototype.slice.call(document.querySelectorAll('#liveCombat button:not(:disabled)'));
+	  var buttons={activate:!!(pad.buttons[0]&&pad.buttons[0].pressed),previous:!!((pad.buttons[14]&&pad.buttons[14].pressed)||(pad.buttons[12]&&pad.buttons[12].pressed)),next:!!((pad.buttons[15]&&pad.buttons[15].pressed)||(pad.buttons[13]&&pad.buttons[13].pressed))};
+	  if(buttons.activate&&!liveGamepadButtons.activate&&liveGamepadIndex>=0&&controls[liveGamepadIndex])controls[liveGamepadIndex].click();
+	  if(buttons.previous&&!liveGamepadButtons.previous)liveGamepadIndex=Math.max(0,liveGamepadIndex-1);
+	  if(buttons.next&&!liveGamepadButtons.next)liveGamepadIndex=Math.min(controls.length-1,liveGamepadIndex+1);
+	  liveGamepadButtons=buttons;
+	  if(controls[liveGamepadIndex])controls[liveGamepadIndex].focus();
+	}
+	setTimeout(pollLiveGamepad,180);
+})();
+
+window.addEventListener('load',resumeLiveCombat);{{end}}

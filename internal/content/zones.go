@@ -2,7 +2,6 @@ package content
 
 import (
 	"fmt"
-	"math/rand/v2"
 	"strings"
 	"ts3news/internal/i18n"
 )
@@ -77,11 +76,10 @@ func initZoneEffects() {
 			}
 
 			ze := ZoneEffect{
-				ID:   fmt.Sprintf("ZE%d", idx),
-				Name: name,
-				Type: zType,
-				// #nosec G404
-				Power: 0.1 + (0.05 * float64(rand.IntN(10))), // #nosec G404
+				ID:    fmt.Sprintf("ZE%d", idx),
+				Name:  name,
+				Type:  zType,
+				Power: 0.1 + (0.05 * float64((idx*7)%10)),
 			}
 
 			switch zType {
@@ -118,6 +116,15 @@ func initZoneEffects() {
 // GetRandomZone rolls a random zone (Common/Rare/Legendary rarity band) scaled
 // to the party's average level and gear score.
 func GetRandomZone(partyAvgLvl int, partyGearScore float64) Zone {
+	return GetRandomZoneWithRandom(partyAvgLvl, partyGearScore, gameplayRandom)
+}
+
+// GetRandomZoneWithRandom rolls a zone using source.
+func GetRandomZoneWithRandom(
+	partyAvgLvl int,
+	partyGearScore float64,
+	source RandomSource,
+) Zone {
 	initZoneEffects()
 
 	// ... (common/rare/legendary selection) ...
@@ -126,23 +133,23 @@ func GetRandomZone(partyAvgLvl int, partyGearScore float64) Zone {
 	legendaryZones := []string{i18n.T("content.zone.molten_core"), i18n.T("content.zone.sunwell_plateau"), i18n.T("content.zone.icecrown_citadel"), i18n.T("content.zone.void_rift"), i18n.T("content.zone.maelstrom"), i18n.T("content.zone.firelands"), i18n.T("content.zone.shadowlands")}
 
 	// #nosec G404
-	r := rand.Float64() // #nosec G404
+	r := source.Float64()
 	var name string
 	var baseDiff float64
 
 	switch {
 	case r < 0.70: // Common
 		// #nosec G404
-		name = commonZones[rand.IntN(len(commonZones))] // #nosec G404
-		baseDiff = 0.8                                  // Easier than average
+		name = commonZones[source.IntN(len(commonZones))]
+		baseDiff = 0.8 // Easier than average
 	case r < 0.90: // Rare
 		// #nosec G404
-		name = rareZones[rand.IntN(len(rareZones))] // #nosec G404
+		name = rareZones[source.IntN(len(rareZones))]
 		baseDiff = 1.2
 	default: // Legendary
 		// #nosec G404
-		name = legendaryZones[rand.IntN(len(legendaryZones))] // #nosec G404
-		baseDiff = 1.8                                        // Dangerous
+		name = legendaryZones[source.IntN(len(legendaryZones))]
+		baseDiff = 1.8 // Dangerous
 	}
 
 	z := Zone{
@@ -155,7 +162,7 @@ func GetRandomZone(partyAvgLvl int, partyGearScore float64) Zone {
 
 	// Add 1-3 stacking effects (Legendary zones have more)
 	// #nosec G404
-	effectCount := 1 + rand.IntN(2) // #nosec G404
+	effectCount := 1 + source.IntN(2)
 	if r >= 0.90 {
 		effectCount = 3
 	}
@@ -169,7 +176,7 @@ func GetRandomZone(partyAvgLvl int, partyGearScore float64) Zone {
 
 	for i := 0; i < effectCount; i++ {
 		// #nosec G404
-		z.Effects = append(z.Effects, allZoneEffects[rand.IntN(len(allZoneEffects))]) // #nosec G404
+		z.Effects = append(z.Effects, allZoneEffects[source.IntN(len(allZoneEffects))])
 	}
 
 	return z

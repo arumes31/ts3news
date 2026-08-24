@@ -2,7 +2,6 @@ package content
 
 import (
 	"math"
-	"math/rand/v2"
 	"strings"
 	"sync"
 	"ts3news/internal/i18n"
@@ -84,6 +83,8 @@ type Mob struct {
 	Stats       Stats
 	CurrentHP   int
 	MaxHP       int
+	Break       int
+	MaxBreak    int
 	RewardXP    int
 	Element     Element
 	Effects     []MobEffect
@@ -93,6 +94,8 @@ type Mob struct {
 	STRMod      float64
 	DEFMod      float64
 	SPDMod      float64
+	StunRounds  int
+	PreStunSPD  int
 }
 
 // Clone returns a deep copy of m, so mutating the copy's slices never affects
@@ -199,21 +202,26 @@ func initMobs() {
 
 // SpawnMob scales a mob to the given level and difficulty factor (0.1 to 1.0+)
 func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
+	return SpawnMobWithRandom(level, isBoss, difficulty, gameplayRandom)
+}
+
+// SpawnMobWithRandom scales a mob using source for every encounter roll.
+func SpawnMobWithRandom(level int, isBoss bool, difficulty float64, source RandomSource) Mob {
 	initMobs()
 	// #nosec G404
-	idx := rand.IntN(100)      // index for common mobs // #nosec G404
+	idx := source.IntN(100)    // index for common mobs
 	if isBoss && level >= 10 { // Bosses require level 10+
 		// #nosec G404
-		idx = 106 + rand.IntN(2) // Bosses: 106-107
+		idx = 106 + source.IntN(2) // Bosses: 106-107
 	}
 
 	m := baseMobs[idx]
 	if !isBoss {
 		// #nosec G404
-		r := rand.Float64() // #nosec G404
+		r := source.Float64()
 		if r < 0.01 && level >= 25 { // Legendaries require level 25+
 			// #nosec G404
-			m = baseMobs[108+rand.IntN(2)]
+			m = baseMobs[108+source.IntN(2)]
 		} else if r < 0.03 { // 2% chance for Treasure Goblin (0.01 to 0.03)
 			m = Mob{
 				Name:     "Treasure Goblin",
@@ -223,16 +231,16 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 			}
 		} else if r < 0.05 && level >= 10 { // Bosses require level 10+
 			// #nosec G404
-			m = baseMobs[106+rand.IntN(2)]
+			m = baseMobs[106+source.IntN(2)]
 		} else if r < 0.12 && level >= 8 { // Minibosses require level 8+
 			// #nosec G404
-			m = baseMobs[104+rand.IntN(2)]
+			m = baseMobs[104+source.IntN(2)]
 		} else if r < 0.25 && level >= 5 { // Elites require level 5+
 			// #nosec G404
-			m = baseMobs[102+rand.IntN(2)]
+			m = baseMobs[102+source.IntN(2)]
 		} else if r < 0.40 && level >= 3 { // EliteMinions require level 3+
 			// #nosec G404
-			m = baseMobs[100+rand.IntN(2)]
+			m = baseMobs[100+source.IntN(2)]
 		}
 	}
 
@@ -283,10 +291,10 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 	// Random effect
 	// #nosec G404
-	if rand.Float64() < 0.3 { // #nosec G404
+	if source.Float64() < 0.3 {
 		effects := []MobEffect{EffectEnraged, EffectArmored, EffectFleet, EffectPoisoned, EffectWeakened, EffectBlinded, EffectRegen}
 		// #nosec G404
-		eff := effects[rand.IntN(len(effects))] // #nosec G404
+		eff := effects[source.IntN(len(effects))]
 		m.Effects = append(m.Effects, eff)
 
 		// Harder effects give more XP
@@ -304,17 +312,17 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 		spellCount = 2
 	}
 	for i := 0; i < spellCount; i++ {
-		m.Spells = append(m.Spells, RandomSkill())
+		m.Spells = append(m.Spells, RandomSkillWithRandom(source))
 	}
 
 	// 1-2 Equipped items that drop as loot
 	itemCount := 1
 	// #nosec G404
-	if rand.Float64() < 0.3 { // #nosec G404
+	if source.Float64() < 0.3 {
 		itemCount = 2
 	}
 	for i := 0; i < itemCount; i++ {
-		m.Equipped = append(m.Equipped, RandomGearDrop())
+		m.Equipped = append(m.Equipped, RandomGearDropWithRandom(source))
 	}
 
 	// Death Effect (Rare or based on type)
@@ -323,7 +331,7 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 		chance = 0.2 // Trash mobs often have effects
 	}
 	// #nosec G404
-	if rand.Float64() < chance { // #nosec G404
+	if source.Float64() < chance {
 		prefixes := i18n.Pool("pool.death.prefix")
 		actions := i18n.Pool("pool.death.action")
 
@@ -337,7 +345,7 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 		dType := DeathExplosion
 		// #nosec G404
-		r := rand.Float64() // #nosec G404
+		r := source.Float64()
 		if r < 0.4 {
 			dType = DeathSummon
 		} else if r < 0.6 {
@@ -350,7 +358,7 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 
 		m.DeathEffect = &MobDeathEffect{
 			// #nosec G404
-			Name: prefixes[rand.IntN(len(prefixes))] + " " + actions[rand.IntN(len(actions))], // #nosec G404
+			Name: prefixes[source.IntN(len(prefixes))] + " " + actions[source.IntN(len(actions))],
 			Type: dType,
 		}
 	}
@@ -361,9 +369,9 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 	// Assign random element
 	elements := []Element{ElementFire, ElementWater, ElementEarth, ElementAir}
 	// #nosec G404
-	if rand.Float64() < 0.4 { // 40% chance for elemental mob
+	if source.Float64() < 0.4 { // 40% chance for elemental mob
 		// #nosec G404
-		m.Element = elements[rand.IntN(len(elements))]
+		m.Element = elements[source.IntN(len(elements))]
 	} else {
 		m.Element = ElementPhysical
 	}
@@ -374,14 +382,26 @@ func SpawnMob(level int, isBoss bool, difficulty float64) Mob {
 // SpawnMobGroup spawns groupSize mobs scaled to avgLevel and difficulty, with
 // a chance of a boss encounter (guaranteed if forceBoss is set).
 func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64, groupSize int, forceBoss bool) []Mob {
+	return SpawnMobGroupWithRandom(avgLevel, zone, difficulty, groupSize, forceBoss, gameplayRandom)
+}
+
+// SpawnMobGroupWithRandom spawns a group using source for every encounter roll.
+func SpawnMobGroupWithRandom(
+	avgLevel int,
+	zone Zone,
+	difficulty float64,
+	groupSize int,
+	forceBoss bool,
+	source RandomSource,
+) []Mob {
 	initMobs()
 	// 15% chance to spawn a HORDE of weaker mobs (great for farming drops/XP)
 	// #nosec G404
-	isHorde := rand.Float64() < 0.15 // #nosec G404
+	isHorde := source.Float64() < 0.15
 
 	// Difficulty affects count: higher difficulty = more mobs
 	// #nosec G404
-	baseCount := 2 + rand.IntN(3) // Increased base from 1 to 2
+	baseCount := 2 + source.IntN(3) // Increased base from 1 to 2
 
 	// Zone Special effect: extra mobs
 	for _, eff := range zone.Effects {
@@ -393,7 +413,7 @@ func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64, groupSize int, f
 	// Horde spawns: 5-10 weaker mobs
 	if isHorde {
 		// #nosec G404
-		baseCount = 5 + rand.IntN(6) // 5 to 10 mobs in a horde // #nosec G404
+		baseCount = 5 + source.IntN(6) // 5 to 10 mobs in a horde
 	}
 
 	// Dampen count scaling
@@ -413,9 +433,9 @@ func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64, groupSize int, f
 
 	var out []Mob
 	// #nosec G404 -- non-cryptographic encounter roll
-	hasBoss := (rand.Float64() < 0.1*difficulty && !isHorde) || forceBoss // Bosses don't spawn in hordes unless forced
+	hasBoss := (source.Float64() < 0.1*difficulty && !isHorde) || forceBoss // Bosses don't spawn in hordes unless forced
 	for i := 0; i < count; i++ {
-		mob := SpawnMob(avgLevel, hasBoss && i == 0, difficulty)
+		mob := SpawnMobWithRandom(avgLevel, hasBoss && i == 0, difficulty, source)
 		// Apply group scaling
 		mob.Stats.HP = int(float64(mob.Stats.HP) * groupMult)
 		mob.Stats.STR = int(float64(mob.Stats.STR) * groupMult)
@@ -425,7 +445,7 @@ func SpawnMobGroup(avgLevel int, zone Zone, difficulty float64, groupSize int, f
 		if isHorde {
 			// Horde mobs are weaker (50-80% of normal level)
 			// #nosec G404
-			levelMult := 0.5 + rand.Float64()*0.3 // #nosec G404
+			levelMult := 0.5 + source.Float64()*0.3
 			mob.Level = int(float64(mob.Level) * levelMult)
 			if mob.Level < 1 {
 				mob.Level = 1

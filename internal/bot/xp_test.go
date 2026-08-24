@@ -155,9 +155,8 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 				UID:      "user1",
 				Nickname: "Hero",
 				Level:    10,
-				// Overwhelming bulk so the hero deterministically survives every
-				// randomly-spawned follow-up wave (combat uses unseeded RNG); the
-				// test's intent is "strong hero beats trivial content".
+				// Overwhelming bulk keeps the assertion focused on the intended
+				// behavior: a strong hero beats trivial content.
 				Stats:     content.Stats{HP: 1000000, STR: 1000000, DEF: 100000, SPD: 50},
 				CurrentHP: 1000000,
 			},
@@ -219,7 +218,14 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 
-		logs, xp, victory, loots, timeline := b.resolveChannelCombatDetailed(users, mobs, 10, 1.0, zone)
+		logs, xp, victory, loots, timeline := b.resolveChannelCombatDetailedWithRandom(
+			users,
+			mobs,
+			10,
+			1.0,
+			zone,
+			fixedCombatRandom{float: 1},
+		)
 		_ = loots
 
 		if !victory {

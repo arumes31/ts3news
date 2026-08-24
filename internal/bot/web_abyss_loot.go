@@ -167,6 +167,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 
 	// Dynamic Scaling: load active run depth
 	run := b.loadAbyssRun(uid)
+	lootSettings := b.loadAbyssLootSettings(uid)
 	scale := 1.0
 	if run.Active && run.Depth > 0 {
 		scale = 1.0 + float64(run.Depth)*0.02 // +2% stats per floor depth
@@ -225,6 +226,13 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	// eldritch/cursed affix rolls — and returns its display label. Shared by the
 	// forced-legendary pity path and the ordinary gear roll so they stay in sync.
 	processGear := func(g content.Gear) (string, content.Gear) {
+		if lootSettings.TargetCategory != "" && mob.Type != content.MobBoss && g.Rarity >= content.RarityRare {
+			rolledRarity := g.Rarity
+			g = content.RandomAbyssGearDropForCategoryExcluding(lootSettings.TargetCategory, ownedGear)
+			if g.Rarity < rolledRarity {
+				g.Rarity = rolledRarity
+			}
+		}
 		g.Stats = g.Stats.Scaled(zoneDifficulty * scale)
 
 		// 20% chance to drop Unidentified
@@ -658,6 +666,10 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 	switch g.Type {
 	case "gear":
 		if g.Gear != nil {
+			if b.shouldAutoSalvageAbyssGear(uid, *g.Gear) {
+				mat, count := materialYieldForRarity(g.Gear.Rarity)
+				return b.grantMaterial(uid, mat, count)
+			}
 			b.awardGearDrop(uid, *g.Gear)
 		}
 	case "cons":

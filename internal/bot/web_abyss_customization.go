@@ -79,7 +79,7 @@ func (s *WebServer) handleAbyssIdentify(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -92,9 +92,9 @@ func (s *WebServer) handleAbyssIdentify(w http.ResponseWriter, r *http.Request, 
 	var queryErr error
 
 	if req.InvID > 0 {
-		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gearID, &itemData)
+		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 FOR UPDATE", req.InvID, uid).Scan(&gearID, &itemData)
 	} else if req.Slot != "" {
-		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2", req.Slot, uid).Scan(&gearID, &itemData)
+		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2 FOR UPDATE", req.Slot, uid).Scan(&gearID, &itemData)
 	} else {
 		writeJSON(w, map[string]any{"ok": false, "error": "missing item specifier"})
 		return
@@ -185,7 +185,7 @@ func (s *WebServer) handleAbyssSocketGem(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -197,9 +197,9 @@ func (s *WebServer) handleAbyssSocketGem(w http.ResponseWriter, r *http.Request,
 	var queryErr error
 
 	if req.InvID > 0 {
-		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gearID, &itemData)
+		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 FOR UPDATE", req.InvID, uid).Scan(&gearID, &itemData)
 	} else if req.Slot != "" {
-		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2", req.Slot, uid).Scan(&gearID, &itemData)
+		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2 FOR UPDATE", req.Slot, uid).Scan(&gearID, &itemData)
 	} else {
 		writeJSON(w, map[string]any{"ok": false, "error": "missing item specifier"})
 		return
@@ -267,9 +267,10 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 	defer unlock()
 
 	var req struct {
-		InvID int64  `json:"inv_id"`
-		Slot  string `json:"slot"`
-		Rune  string `json:"rune"` // Fire, Water, Earth, Air, Physical
+		InvID  int64  `json:"inv_id"`
+		Slot   string `json:"slot"`
+		Rune   string `json:"rune"` // Fire, Water, Earth, Air, Physical
+		Family string `json:"rune_family"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
@@ -282,12 +283,17 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid rune element"})
 		return
 	}
+	defensive := strings.EqualFold(strings.TrimSpace(req.Family), "defensive")
+	storedRune := runeType
+	if defensive {
+		storedRune = content.DefensiveRuneName(content.Element(runeType))
+	}
 
 	// Rune library (#118): once a rune type has been etched, re-etching it
 	// anywhere costs a third of the price. A failed lookup must abort rather than
 	// default to first-time pricing and overcharge an already-known rune.
 	var known bool
-	if err := s.bot.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_runes WHERE client_uid=$1 AND rune=$2)", uid, runeType).Scan(&known); err != nil {
+	if err := s.bot.DB.QueryRowContext(r.Context(), "SELECT EXISTS(SELECT 1 FROM user_runes WHERE client_uid=$1 AND rune=$2)", uid, storedRune).Scan(&known); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -296,7 +302,7 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 		costBase = 50
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -308,9 +314,9 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 	var queryErr error
 
 	if req.InvID > 0 {
-		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gearID, &itemData)
+		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 FOR UPDATE", req.InvID, uid).Scan(&gearID, &itemData)
 	} else if req.Slot != "" {
-		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2", req.Slot, uid).Scan(&gearID, &itemData)
+		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2 FOR UPDATE", req.Slot, uid).Scan(&gearID, &itemData)
 	} else {
 		writeJSON(w, map[string]any{"ok": false, "error": "missing item specifier"})
 		return
@@ -333,12 +339,12 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 	}
 
 	isWeapon := g.Slot == content.SlotMainHand || g.Slot == content.SlotOffHand || g.Slot == content.SlotRanged
-	if !isWeapon {
+	if !defensive && !isWeapon {
 		writeJSON(w, map[string]any{"ok": false, "error": "runes can only be etched on weapons or shields"})
 		return
 	}
 
-	g.Rune = runeType
+	g.Rune = storedRune
 	g.Element = content.Element(runeType)
 
 	dataBytes, err := json.Marshal(g)
@@ -354,7 +360,7 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 	if !deductGold(w, tx, uid, cost) {
 		return
 	}
-	if _, err := tx.Exec("INSERT INTO user_runes (client_uid, rune) VALUES ($1,$2) ON CONFLICT DO NOTHING", uid, runeType); err != nil {
+	if _, err := tx.Exec("INSERT INTO user_runes (client_uid, rune) VALUES ($1,$2) ON CONFLICT DO NOTHING", uid, storedRune); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -364,8 +370,8 @@ func (s *WebServer) handleAbyssEtchRune(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	s.bot.recordForge(uid, "etch", runeType+" rune", fmt.Sprintf("%dg", cost))
-	msg := fmt.Sprintf("Etched %s Rune into your weapon!", runeType)
+	s.bot.recordForge(uid, "etch", storedRune+" rune", fmt.Sprintf("%dg", cost))
+	msg := fmt.Sprintf("Etched %s Rune into your gear!", storedRune)
 	if !known {
 		msg += " 📖 Rune learned — re-etching it now costs only 50g."
 	}
@@ -384,12 +390,17 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 	defer unlock()
 
 	var req struct {
-		InvID int64  `json:"inv_id"`
-		Slot  string `json:"slot"`
-		Stat  string `json:"stat"` // HP, MNA, STR, DEF, SPD, LCK, INT, STA, CRT, DGE
+		InvID     int64  `json:"inv_id"`
+		Slot      string `json:"slot"`
+		Stat      string `json:"stat"` // HP, MNA, STR, DEF, SPD, LCK, INT, STA, CRT, DGE
+		MaxTokens int64 `json:"max_tokens"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+	if req.MaxTokens > 0 && req.MaxTokens < 5 {
+		writeJSON(w, map[string]any{"ok": false, "error": "recalibration exceeds the requested token cap"})
 		return
 	}
 
@@ -399,7 +410,7 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -411,9 +422,9 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 	var queryErr error
 
 	if req.InvID > 0 {
-		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gearID, &itemData)
+		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 FOR UPDATE", req.InvID, uid).Scan(&gearID, &itemData)
 	} else if req.Slot != "" {
-		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2", req.Slot, uid).Scan(&gearID, &itemData)
+		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2 FOR UPDATE", req.Slot, uid).Scan(&gearID, &itemData)
 	} else {
 		writeJSON(w, map[string]any{"ok": false, "error": "missing item specifier"})
 		return
@@ -528,7 +539,7 @@ func (s *WebServer) handleAbyssUpgradeGear(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -540,9 +551,9 @@ func (s *WebServer) handleAbyssUpgradeGear(w http.ResponseWriter, r *http.Reques
 	var queryErr error
 
 	if req.InvID > 0 {
-		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gearID, &itemData)
+		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 FOR UPDATE", req.InvID, uid).Scan(&gearID, &itemData)
 	} else if req.Slot != "" {
-		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2", req.Slot, uid).Scan(&gearID, &itemData)
+		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2 FOR UPDATE", req.Slot, uid).Scan(&gearID, &itemData)
 	} else {
 		writeJSON(w, map[string]any{"ok": false, "error": "missing item specifier"})
 		return
@@ -642,7 +653,7 @@ func (s *WebServer) handleAbyssTransmute(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -651,7 +662,7 @@ func (s *WebServer) handleAbyssTransmute(w http.ResponseWriter, r *http.Request,
 
 	var gearID string
 	var itemData sql.NullString
-	if err := tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gearID, &itemData); err != nil {
+	if err := tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 FOR UPDATE", req.InvID, uid).Scan(&gearID, &itemData); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
 		return
 	}
@@ -813,7 +824,7 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -936,7 +947,7 @@ func (s *WebServer) handleAbyssInsureItem(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.beginForgeRequestTx(w)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -948,9 +959,9 @@ func (s *WebServer) handleAbyssInsureItem(w http.ResponseWriter, r *http.Request
 	var queryErr error
 
 	if req.InvID > 0 {
-		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gearID, &itemData)
+		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 FOR UPDATE", req.InvID, uid).Scan(&gearID, &itemData)
 	} else if req.Slot != "" {
-		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2", req.Slot, uid).Scan(&gearID, &itemData)
+		queryErr = tx.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE slot=$1 AND client_uid=$2 FOR UPDATE", req.Slot, uid).Scan(&gearID, &itemData)
 	} else {
 		writeJSON(w, map[string]any{"ok": false, "error": "missing item specifier"})
 		return

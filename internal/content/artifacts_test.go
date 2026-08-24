@@ -149,3 +149,17 @@ func TestRepairKitIIExceedsDefaultKit(t *testing.T) {
 		t.Fatalf("Repair Kit II effect %v must exceed default %v", upgraded.EffectValue, base.EffectValue)
 	}
 }
+
+func TestRandomAbyssGearDropForCategoryExcluding(t *testing.T) {
+	for _, category := range []string{"weapon", "armor", "jewelry"} {
+		for range 20 {
+			gear := RandomAbyssGearDropForCategoryExcluding(category, nil)
+			isWeapon := gear.Slot == SlotMainHand || gear.Slot == SlotOffHand || gear.Slot == SlotRanged
+			isArmor := gear.Slot == SlotHead || gear.Slot == SlotChest || gear.Slot == SlotLegs || gear.Slot == SlotFeet || gear.Slot == SlotHands || gear.Slot == SlotWaist || gear.Slot == SlotBack
+			isJewelry := gear.Slot == SlotNeck || gear.Slot == SlotFinger1 || gear.Slot == SlotFinger2 || gear.Slot == SlotTrinket1 || gear.Slot == SlotTrinket2
+			if (category == "weapon" && !isWeapon) || (category == "armor" && !isArmor) || (category == "jewelry" && !isJewelry) {
+				t.Fatalf("category %q returned %s in slot %s", category, gear.Name, gear.Slot)
+			}
+		}
+	}
+}

@@ -23,16 +23,31 @@ const (
 // Skill is a learnable combat ability a character can equip into one of their
 // skill slots.
 type Skill struct {
-	ID          string
-	Name        string
-	Type        SkillType
-	Rarity      Rarity
-	Power       float64 // Multiplier for damage/effect
-	IgnoreDef   float64 // Percentage (0.0 - 1.0)
-	StunChance  float64 // Percentage (0.0 - 1.0)
-	HealPercent float64 // Percentage of max HP
-	Description string
-	Special     ItemEffect
+	ID                   string
+	Name                 string
+	Type                 SkillType
+	Rarity               Rarity
+	TargetMode           SkillTargetMode
+	ManaCost             int
+	CooldownRounds       int
+	Element              Element
+	Tags                 []string
+	EffectDurationRounds int
+	StackLimit           int
+	ScalingStat          string
+	PreviewMin           float64
+	PreviewMax           float64
+	UpgradeRank          int
+	Archetype            string
+	Role                 string
+	Source               string
+	Mechanics            string
+	Power                float64 // Multiplier for damage/effect
+	IgnoreDef            float64 // Percentage (0.0 - 1.0)
+	StunChance           float64 // Percentage (0.0 - 1.0)
+	HealPercent          float64 // Percentage of max HP
+	Description          string
+	Special              ItemEffect
 }
 
 // UltimateSkill represents a powerful ability with multi-round cooldown
@@ -144,13 +159,12 @@ func initSkills() {
 						s.HealPercent = 0.1 + (0.05 * float64(rarity))
 					}
 
-					// Rare special effects
-					// #nosec G404
-					if rarity >= RarityEpic && rand.Float64() < 0.1 { // #nosec G404
+					// Rare catalog effects are keyed to the stable catalog index so the
+					// same skill definition is built after every process restart.
+					if rarity >= RarityEpic && idx%10 == 0 {
 						s.Special = EffectMindControl
 					}
-					// #nosec G404
-					if rarity == RarityLegendary && rand.Float64() < 0.05 { // #nosec G404
+					if rarity == RarityLegendary && idx%20 == 0 {
 						s.Special = EffectPhoenix
 					}
 
@@ -160,6 +174,7 @@ func initSkills() {
 				idx++
 			}
 		}
+		finalizeSkillCatalog(allSkills)
 	})
 }
 
@@ -177,12 +192,17 @@ func (s Skill) Score() int {
 
 // RandomSkill returns a uniformly random skill from the full catalog.
 func RandomSkill() Skill {
+	return RandomSkillWithRandom(gameplayRandom)
+}
+
+// RandomSkillWithRandom returns a skill using source.
+func RandomSkillWithRandom(source RandomSource) Skill {
 	initSkills()
 	// #nosec G404
-	s := allSkills[rand.IntN(len(allSkills))] // #nosec G404
+	s := allSkills[source.IntN(len(allSkills))]
 	// Roll for additional effect if it doesn't have one
 	if s.Special == EffectNone {
-		s.Special = RandomItemEffect()
+		s.Special = RandomItemEffectWithRandom(source)
 	}
 	return s
 }

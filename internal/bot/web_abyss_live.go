@@ -1,12 +1,9 @@
 package bot
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -15,13 +12,20 @@ import (
 )
 
 const (
-	abyssLiveRoundTime  = 4 * time.Second
-	abyssLiveHybridTime = 9 * time.Second
+	abyssLiveRoundTime                  = 4 * time.Second
+	abyssLiveHybridTime                 = 9 * time.Second
+	abyssLiveSnapshotSchemaVersion      = 1
+	abyssLiveMaxIdempotencyKeyLength    = 128
+	abyssLiveMaxIdempotencyKeysPerRound = 64
+	abyssLiveInitialTimeBank            = 6 * time.Second
+	abyssLiveTimeBankSpend              = 2 * time.Second
 )
 
 var (
-	errAbyssLiveNotFound = errors.New("live combat not found")
-	errAbyssLiveStale    = errors.New("live combat round is stale")
+	errAbyssLiveNotFound            = errors.New("live combat not found")
+	errAbyssLiveStale               = errors.New("live combat round is stale")
+	errAbyssLiveIdempotencyConflict = errors.New("idempotency key conflicts with an accepted action")
+	errAbyssLiveIdempotencyLimit    = errors.New("too many action attempts for this round")
 )
 
 type abyssLiveAction struct {
@@ -35,78 +39,154 @@ type abyssLiveAction struct {
 }
 
 type abyssLiveOption struct {
-	Kind        string  `json:"kind"`
-	ID          string  `json:"id,omitempty"`
-	Name        string  `json:"name"`
-	Description string  `json:"description,omitempty"`
-	Target      string  `json:"target"`
-	Mana        int     `json:"mana,omitempty"`
-	Cooldown    int     `json:"cooldown,omitempty"`
-	Count       int     `json:"count,omitempty"`
-	Power       float64 `json:"power,omitempty"`
+	Kind         string   `json:"kind"`
+	ID           string   `json:"id,omitempty"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description,omitempty"`
+	Target       string   `json:"target"`
+	Mana         int      `json:"mana,omitempty"`
+	Cooldown     int      `json:"cooldown,omitempty"`
+	Count        int      `json:"count,omitempty"`
+	Power        float64  `json:"power,omitempty"`
+	EffectLabel  string   `json:"effect_label,omitempty"`
+	MinEffect    int      `json:"min_effect,omitempty"`
+	MaxEffect    int      `json:"max_effect,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+	EffectRounds int      `json:"effect_rounds,omitempty"`
+	Modifiers    []string `json:"modifiers,omitempty"`
+}
+
+type abyssLiveEffect struct {
+	Name            string `json:"name"`
+	RemainingRounds int    `json:"remaining_rounds,omitempty"`
+	Duration        string `json:"duration,omitempty"`
 }
 
 type abyssLiveCombatantView struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	HP       int    `json:"hp"`
-	MaxHP    int    `json:"max_hp"`
-	Mana     int    `json:"mana,omitempty"`
-	MaxMana  int    `json:"max_mana,omitempty"`
-	Ready    bool   `json:"ready,omitempty"`
-	IsPlayer bool   `json:"is_player,omitempty"`
-	IsSelf   bool   `json:"is_self,omitempty"`
+	ID       string            `json:"id"`
+	Name     string            `json:"name"`
+	HP       int               `json:"hp"`
+	MaxHP    int               `json:"max_hp"`
+	Mana     int               `json:"mana,omitempty"`
+	MaxMana  int               `json:"max_mana,omitempty"`
+	Ready    bool              `json:"ready,omitempty"`
+	IsPlayer bool              `json:"is_player,omitempty"`
+	IsSelf   bool              `json:"is_self,omitempty"`
+	Element  string            `json:"element,omitempty"`
+	WeakTo   string            `json:"weak_to,omitempty"`
+	Position string            `json:"position,omitempty"`
+	Speed    int               `json:"speed,omitempty"`
+	Threat   int               `json:"threat,omitempty"`
+	Role     string            `json:"role,omitempty"`
+	Faction  string            `json:"faction,omitempty"`
+	Pattern  string            `json:"pattern,omitempty"`
+	Break    int               `json:"break,omitempty"`
+	MaxBreak int               `json:"max_break,omitempty"`
+	Hazard   bool              `json:"hazard,omitempty"`
+	Effects  []abyssLiveEffect `json:"effects,omitempty"`
+}
+
+type abyssLiveRecommendation struct {
+	Action abyssLiveAction `json:"action"`
+	Reason string          `json:"reason"`
+}
+
+type abyssLivePolicy struct {
+	CriticalTactic string `json:"critical_tactic"`
+	AttackPriority string `json:"attack_priority"`
+	SkillPriority  string `json:"skill_priority"`
+	TimeoutAction  string `json:"timeout_action"`
+}
+
+type abyssLiveEnemyIntent struct {
+	EnemyID   string `json:"enemy_id"`
+	EnemyName string `json:"enemy_name"`
+	Kind      string `json:"kind"`
+	Ability   string `json:"ability,omitempty"`
+	TargetID  string `json:"target_id,omitempty"`
+	Target    string `json:"target,omitempty"`
+}
+
+type abyssLiveInitiativeEntry struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Side  string `json:"side"`
+	Speed int    `json:"speed"`
 }
 
 type abyssLiveSnapshot struct {
-	OK            bool                     `json:"ok"`
-	SessionID     string                   `json:"session_id"`
-	OwnerUID      string                   `json:"-"`
-	Phase         string                   `json:"phase"`
-	Round         int                      `json:"round"`
-	Version       int64                    `json:"version"`
-	Deadline      time.Time                `json:"deadline,omitempty"`
-	PauseReason   string                   `json:"pause_reason,omitempty"`
-	Tactic        string                   `json:"tactic"`
-	Allies        []abyssLiveCombatantView `json:"allies"`
-	Enemies       []abyssLiveCombatantView `json:"enemies"`
-	Options       []abyssLiveOption        `json:"options"`
-	Queued        *abyssLiveAction         `json:"queued,omitempty"`
-	RecentLogs    []string                 `json:"recent_logs"`
-	Result        map[string]any           `json:"result,omitempty"`
-	PreviousDepth int                      `json:"previous_depth,omitempty"`
+	OK            bool                       `json:"ok"`
+	SchemaVersion int                        `json:"schema_version"`
+	SessionID     string                     `json:"session_id"`
+	OwnerUID      string                     `json:"-"`
+	Phase         string                     `json:"phase"`
+	Round         int                        `json:"round"`
+	Version       int64                      `json:"version"`
+	Deadline      time.Time                  `json:"deadline,omitempty"`
+	PauseReason   string                     `json:"pause_reason,omitempty"`
+	PauseMode     string                     `json:"pause_mode"`
+	CanConfigure  bool                       `json:"can_configure_pause,omitempty"`
+	Policy        abyssLivePolicy            `json:"policy"`
+	Tactic        string                     `json:"tactic"`
+	Allies        []abyssLiveCombatantView   `json:"allies"`
+	Enemies       []abyssLiveCombatantView   `json:"enemies"`
+	Options       []abyssLiveOption          `json:"options"`
+	Queued        *abyssLiveAction           `json:"queued,omitempty"`
+	Recommended   *abyssLiveRecommendation   `json:"recommended,omitempty"`
+	TimeBankMS    int64                      `json:"time_bank_ms,omitempty"`
+	EnemyIntents  []abyssLiveEnemyIntent     `json:"enemy_intents,omitempty"`
+	Initiative    []abyssLiveInitiativeEntry `json:"initiative,omitempty"`
+	RecentLogs    []string                   `json:"recent_logs"`
+	RoundRecap    string                     `json:"round_recap,omitempty"`
+	RandomSeed    [2]uint64                  `json:"random_seed"`
+	RandomDraws   uint64                     `json:"random_draws"`
+	Result        map[string]any             `json:"result,omitempty"`
+	PreviousDepth int                        `json:"previous_depth,omitempty"`
+	Social        abyssLiveSocialSnapshot    `json:"social"`
 }
 
 type abyssLiveCombat struct {
-	mu sync.Mutex
+	mu        sync.Mutex
+	persistMu sync.Mutex
+	rngMu     sync.Mutex
+	rng       combatRandomSource
 
-	server        *WebServer
-	id            string
-	ownerUID      string
-	participants  map[string]bool
-	tactics       map[string]string
-	phase         string
-	round         int
-	version       int64
-	deadline      time.Time
-	pauseReason   string
-	allies        []abyssLiveCombatantView
-	enemies       []abyssLiveCombatantView
-	options       map[string][]abyssLiveOption
-	queued        map[string]abyssLiveAction
-	recentLogs    []string
-	result        map[string]any
-	lastLogCount  int
-	idempotency   map[string]bool
-	previousDepth int
-}
-
-func newAbyssLiveSessionID() (string, error) {
-	buf := make([]byte, 16)
-	if _, err := rand.Read(buf); err != nil {
-		return "", fmt.Errorf("generating live combat id: %w", err)
-	}
-	return hex.EncodeToString(buf), nil
+	server         *WebServer
+	id             string
+	ownerUID       string
+	participants   map[string]bool
+	tactics        map[string]string
+	policies       map[string]abyssLivePolicy
+	phase          string
+	round          int
+	version        int64
+	deadline       time.Time
+	pauseReason    string
+	pauseMode      string
+	allies         []abyssLiveCombatantView
+	enemies        []abyssLiveCombatantView
+	options        map[string][]abyssLiveOption
+	queued         map[string]abyssLiveAction
+	ready          map[string]bool
+	readySignal    chan struct{}
+	timeBank       map[string]time.Duration
+	deadlineSignal chan struct{}
+	recentLogs     []string
+	roundRecap     string
+	result         map[string]any
+	lastLogCount   int
+	idempotency    map[string]abyssLiveIdempotency
+	history        []abyssLiveEvent
+	enemyPlans     map[int]abyssLiveEnemyPlan
+	actionCounts   map[string]int
+	bossAdaptation string
+	initiative     []abyssLiveInitiativeEntry
+	social         abyssLiveSocialState
+	previousDepth  int
+	randomSeed     [2]uint64
+	randomDraws    uint64
+	createdAt      time.Time
+	finishedAt     time.Time
 }
 
 func normalizeAbyssTactic(tactic string) string {
@@ -118,152 +198,13 @@ func normalizeAbyssTactic(tactic string) string {
 	}
 }
 
-func (s *WebServer) loadAbyssTactic(uid string) string {
-	var tactic string
-	err := s.bot.DB.QueryRow(
-		"SELECT value FROM app_meta WHERE key=$1",
-		"abyss_live_tactic_"+uid,
-	).Scan(&tactic)
-	if err != nil {
-		return "balanced"
+func normalizeAbyssPauseMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "bosses", "danger", "fast":
+		return strings.ToLower(strings.TrimSpace(mode))
+	default:
+		return "adaptive"
 	}
-	return normalizeAbyssTactic(tactic)
-}
-
-func (s *WebServer) startAbyssLiveCombat(
-	uid string,
-	run abyssRun,
-	depth int,
-	tier abyssTier,
-	modifier string,
-	focus string,
-) (*abyssLiveCombat, error) {
-	id, err := newAbyssLiveSessionID()
-	if err != nil {
-		return nil, err
-	}
-
-	participants := map[string]bool{uid: true}
-	var coopUID string
-	_ = s.bot.DB.QueryRow(
-		"SELECT COALESCE(coop_uid, '') FROM abyss_active WHERE client_uid=$1",
-		uid,
-	).Scan(&coopUID)
-	if coopUID != "" {
-		participants[coopUID] = true
-	}
-
-	c := &abyssLiveCombat{
-		server:        s,
-		id:            id,
-		ownerUID:      uid,
-		participants:  participants,
-		tactics:       make(map[string]string, len(participants)),
-		phase:         "starting",
-		options:       make(map[string][]abyssLiveOption, len(participants)),
-		queued:        make(map[string]abyssLiveAction, len(participants)),
-		idempotency:   make(map[string]bool),
-		previousDepth: run.Depth,
-	}
-	for memberUID := range participants {
-		c.tactics[memberUID] = s.loadAbyssTactic(memberUID)
-	}
-
-	tx, err := s.bot.DB.Begin()
-	if err != nil {
-		return nil, fmt.Errorf("starting live combat transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-	for memberUID := range participants {
-		if _, err := tx.Exec(
-			"DELETE FROM abyss_combat_sessions WHERE session_id IN (SELECT session_id FROM abyss_combat_members WHERE client_uid=$1)",
-			memberUID,
-		); err != nil {
-			return nil, fmt.Errorf("clearing previous live combat: %w", err)
-		}
-	}
-	if _, err := tx.Exec(
-		`INSERT INTO abyss_combat_sessions (session_id, owner_uid, depth, phase, state)
-		 VALUES ($1, $2, $3, 'starting', '{}'::jsonb)`,
-		id,
-		uid,
-		run.Depth,
-	); err != nil {
-		return nil, fmt.Errorf("inserting live combat: %w", err)
-	}
-	for memberUID := range participants {
-		if _, err := tx.Exec(
-			`INSERT INTO abyss_combat_members (session_id, client_uid, tactic)
-			 VALUES ($1, $2, $3)`,
-			id,
-			memberUID,
-			c.tactics[memberUID],
-		); err != nil {
-			return nil, fmt.Errorf("inserting live combat member: %w", err)
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("committing live combat: %w", err)
-	}
-
-	for memberUID := range participants {
-		if old, ok := s.liveCombatByUID.Load(memberUID); ok {
-			oldID, isString := old.(string)
-			if isString {
-				s.liveCombats.Delete(oldID)
-			}
-			s.liveCombatByUID.Delete(memberUID)
-		}
-	}
-	s.liveCombats.Store(id, c)
-	for memberUID := range participants {
-		s.liveCombatByUID.Store(memberUID, id)
-	}
-	c.persist()
-
-	go func() {
-		res, fightErr := s.bot.fightAbyssFloorLive(uid, depth, tier, modifier, focus, c)
-		if fightErr != nil {
-			_, _ = s.bot.DB.Exec(
-				"UPDATE abyss_active SET depth=$1, modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2",
-				run.Depth,
-				uid,
-			)
-			c.complete(map[string]any{"ok": false, "error": "combat"})
-			return
-		}
-		c.complete(s.finishDescendData(uid, run, depth, run.Escrow, tier, res, modifier, focus))
-	}()
-
-	return c, nil
-}
-
-func (s *WebServer) liveCombatForUID(uid string) (*abyssLiveCombat, bool) {
-	value, ok := s.liveCombatByUID.Load(uid)
-	if !ok {
-		return nil, false
-	}
-	sessionID, ok := value.(string)
-	if !ok {
-		return nil, false
-	}
-	combatValue, ok := s.liveCombats.Load(sessionID)
-	if !ok {
-		return nil, false
-	}
-	return combatValue.(*abyssLiveCombat), true
-}
-
-func (s *WebServer) rejectDuringLiveCombat(w http.ResponseWriter, uid string) bool {
-	combat, ok := s.liveCombatForUID(uid)
-	if !ok || !combat.isActive() {
-		return false
-	}
-	writeJSON(w, map[string]any{
-		"ok": false, "error": "finish the active combat first",
-		"state": combat.snapshotFor(uid),
-	})
-	return true
 }
 
 func (c *abyssLiveCombat) isActive() bool {
@@ -275,23 +216,45 @@ func (c *abyssLiveCombat) isActive() bool {
 func (c *abyssLiveCombat) snapshotFor(uid string) abyssLiveSnapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	return c.snapshotForLocked(uid)
+}
 
+func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 	allies := append([]abyssLiveCombatantView{}, c.allies...)
 	for i := range allies {
 		uidFromTarget := strings.TrimPrefix(allies[i].ID, "ally:")
-		_, allies[i].Ready = c.queued[uidFromTarget]
+		allies[i].Ready = c.ready[uidFromTarget]
 		allies[i].IsSelf = uidFromTarget == uid
+		if action, ok := c.queued[uidFromTarget]; ok && action.Kind == "defend" {
+			allies[i].Effects = append(allies[i].Effects, abyssLiveEffect{
+				Name: "Guard queued", Duration: "next enemy phase",
+			})
+		}
 	}
 	enemies := append([]abyssLiveCombatantView{}, c.enemies...)
 	options := append([]abyssLiveOption{}, c.options[uid]...)
 	recentLogs := append([]string{}, c.recentLogs...)
+	enemyIntents := make([]abyssLiveEnemyIntent, 0, len(c.enemyPlans))
+	for i := range c.enemies {
+		if plan, ok := c.enemyPlans[liveEnemyIndex(c.enemies[i].ID)]; ok {
+			enemyIntents = append(enemyIntents, plan.Intent)
+		}
+	}
+	initiative := append([]abyssLiveInitiativeEntry{}, c.initiative...)
+	timeBankMS := c.timeBank[uid].Milliseconds()
 	var queued *abyssLiveAction
 	if action, ok := c.queued[uid]; ok {
 		copyAction := action
 		queued = &copyAction
 	}
+	var recommended *abyssLiveRecommendation
+	if c.phase == "planning" && c.participants[uid] {
+		action, reason := c.bestActionWithReasonLocked(uid)
+		recommended = &abyssLiveRecommendation{Action: action, Reason: reason}
+	}
 	return abyssLiveSnapshot{
 		OK:            true,
+		SchemaVersion: abyssLiveSnapshotSchemaVersion,
 		SessionID:     c.id,
 		OwnerUID:      c.ownerUID,
 		Phase:         c.phase,
@@ -299,137 +262,25 @@ func (c *abyssLiveCombat) snapshotFor(uid string) abyssLiveSnapshot {
 		Version:       c.version,
 		Deadline:      c.deadline,
 		PauseReason:   c.pauseReason,
+		PauseMode:     normalizeAbyssPauseMode(c.pauseMode),
+		CanConfigure:  uid == c.ownerUID,
+		Policy:        normalizeLivePolicy(c.policies[uid]),
 		Tactic:        c.tactics[uid],
 		Allies:        allies,
 		Enemies:       enemies,
 		Options:       options,
 		Queued:        queued,
+		Recommended:   recommended,
+		TimeBankMS:    timeBankMS,
+		EnemyIntents:  enemyIntents,
+		Initiative:    initiative,
 		RecentLogs:    recentLogs,
+		RoundRecap:    c.roundRecap,
+		RandomSeed:    c.randomSeed,
+		RandomDraws:   c.randomDrawCount(),
 		Result:        c.result,
 		PreviousDepth: c.previousDepth,
-	}
-}
-
-func (s *WebServer) persistedAbyssLiveSnapshot(uid string) (abyssLiveSnapshot, bool) {
-	var stateJSON, ownerUID, phase, sessionID string
-	var depth int
-	err := s.bot.DB.QueryRow(
-		`SELECT m.state::text, s.owner_uid, s.phase, s.session_id, s.depth
-		   FROM abyss_combat_sessions s
-		   JOIN abyss_combat_members m ON m.session_id=s.session_id
-		  WHERE m.client_uid=$1
-		  ORDER BY s.updated_at DESC
-		  LIMIT 1`,
-		uid,
-	).Scan(&stateJSON, &ownerUID, &phase, &sessionID, &depth)
-	if err != nil {
-		return abyssLiveSnapshot{}, false
-	}
-	var snapshot abyssLiveSnapshot
-	if err := json.Unmarshal([]byte(stateJSON), &snapshot); err != nil {
-		return abyssLiveSnapshot{}, false
-	}
-	if phase == "starting" || phase == "planning" || phase == "resolving" {
-		if depth > 0 {
-			_, _ = s.bot.DB.Exec(
-				"UPDATE abyss_active SET depth=$1, modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2",
-				depth,
-				ownerUID,
-			)
-		}
-		snapshot.Phase = "failed"
-		snapshot.Result = map[string]any{
-			"ok": false, "error": "combat was safely cancelled after a server restart; descend again",
-		}
-		snapshot.Version++
-		updatedState, marshalErr := json.Marshal(snapshot)
-		if marshalErr == nil {
-			_, _ = s.bot.DB.Exec(
-				"UPDATE abyss_combat_sessions SET phase='failed', state=$1, version=$2, deadline=NULL, updated_at=NOW() WHERE session_id=$3",
-				string(updatedState),
-				snapshot.Version,
-				sessionID,
-			)
-			_, _ = s.bot.DB.Exec(
-				"UPDATE abyss_combat_members SET state=$1, queued_action=NULL WHERE session_id=$2 AND client_uid=$3",
-				string(updatedState),
-				sessionID,
-				uid,
-			)
-		}
-	}
-	snapshot.OK = true
-	return snapshot, true
-}
-
-func (c *abyssLiveCombat) persist() {
-	snapshot := c.snapshotFor(c.ownerUID)
-	state, err := json.Marshal(snapshot)
-	if err != nil {
-		return
-	}
-	var deadline any
-	if !snapshot.Deadline.IsZero() {
-		deadline = snapshot.Deadline
-	}
-	_, _ = c.server.bot.DB.Exec(
-		`UPDATE abyss_combat_sessions
-		    SET phase=$1, round=$2, version=$3, deadline=$4,
-		        pause_reason=$5, state=$6, updated_at=NOW()
-		  WHERE session_id=$7`,
-		snapshot.Phase,
-		snapshot.Round,
-		snapshot.Version,
-		deadline,
-		snapshot.PauseReason,
-		string(state),
-		c.id,
-	)
-	c.mu.Lock()
-	members := make(map[string]struct {
-		tactic string
-		action *abyssLiveAction
-	}, len(c.participants))
-	for uid := range c.participants {
-		member := struct {
-			tactic string
-			action *abyssLiveAction
-		}{tactic: c.tactics[uid]}
-		if action, ok := c.queued[uid]; ok {
-			copyAction := action
-			member.action = &copyAction
-		}
-		members[uid] = member
-	}
-	c.mu.Unlock()
-	for uid, member := range members {
-		var actionJSON any
-		var target string
-		var submittedRound int
-		if member.action != nil {
-			if encoded, err := json.Marshal(member.action); err == nil {
-				actionJSON = string(encoded)
-			}
-			target = member.action.TargetID
-			submittedRound = member.action.Round
-		}
-		memberSnapshot, snapshotErr := json.Marshal(c.snapshotFor(uid))
-		if snapshotErr != nil {
-			continue
-		}
-		_, _ = c.server.bot.DB.Exec(
-			`UPDATE abyss_combat_members
-			    SET tactic=$1, selected_target=$2, queued_action=$3,
-			        submitted_round=$4, state=$5
-			  WHERE session_id=$6 AND client_uid=$7`,
-			member.tactic,
-			target,
-			actionJSON,
-			submittedRound,
-			string(memberSnapshot),
-			c.id,
-			uid,
-		)
+		Social:        c.socialSnapshotLocked(uid),
 	}
 }
 
@@ -438,13 +289,15 @@ func (c *abyssLiveCombat) publishRound(
 	users []activeUser,
 	mobs []*content.Mob,
 	logs []string,
+	playerStarts bool,
 ) {
+	logs = c.applyLiveBossAdaptation(mobs, logs)
 	options := make(map[string][]abyssLiveOption, len(users))
 	for i := range users {
-		if users[i].u == nil {
+		if users[i].u == nil || users[i].u.CurrentHP <= 0 {
 			continue
 		}
-		options[users[i].u.UID] = c.optionsFor(&users[i])
+		options[users[i].u.UID] = c.optionsFor(&users[i], users, mobs)
 	}
 
 	allies := make([]abyssLiveCombatantView, 0, len(users))
@@ -466,6 +319,12 @@ func (c *abyssLiveCombat) publishRound(
 			MaxMana:  max(0, au.MaxMana),
 			Ready:    false,
 			IsPlayer: true,
+			Element:  string(liveUserElement(au.u)),
+			Position: string(au.u.Position),
+			Speed:    au.u.Stats.SPD,
+			Threat:   liveThreat(au.u),
+			Role:     c.social.preferences[au.u.UID].Role,
+			Effects:  liveAllyEffects(au),
 		})
 	}
 
@@ -477,15 +336,26 @@ func (c *abyssLiveCombat) publishRound(
 		}
 		boss = boss || mob.Type == content.MobBoss
 		enemies = append(enemies, abyssLiveCombatantView{
-			ID:    fmt.Sprintf("enemy:%d", i),
-			Name:  mob.Name,
-			HP:    max(0, mob.Stats.HP),
-			MaxHP: max(1, mob.MaxHP),
+			ID:       fmt.Sprintf("enemy:%d", i),
+			Name:     mob.Name,
+			HP:       max(0, mob.Stats.HP),
+			MaxHP:    max(1, mob.MaxHP),
+			Element:  string(mob.Element),
+			WeakTo:   string(liveElementWeakness(mob.Element)),
+			Speed:    mob.Stats.SPD,
+			Role:     abyssEnemyRole(mob),
+			Faction:  abyssEnemyFaction(mob),
+			Pattern:  abyssEnemyPattern(mob),
+			Break:    max(0, mob.Break),
+			MaxBreak: max(0, mob.MaxBreak),
+			Hazard:   abyssEnemyHazard(mob),
+			Effects:  liveMobEffects(mob),
 		})
 	}
 
 	duration := abyssLiveRoundTime
 	pauseReason := ""
+	pauseMode := c.currentPauseMode()
 	phaseEvent := false
 	if c.lastLogCount < len(logs) {
 		for _, line := range logs[c.lastLogCount:] {
@@ -500,16 +370,16 @@ func (c *abyssLiveCombat) publishRound(
 		}
 	}
 	switch {
-	case boss && round == 1:
+	case boss && round == 1 && livePauseEnabled(pauseMode, "boss"):
 		duration = abyssLiveHybridTime
 		pauseReason = "Boss engaged — plan your opening"
-	case phaseEvent:
+	case phaseEvent && livePauseEnabled(pauseMode, "phase"):
 		duration = abyssLiveHybridTime
 		pauseReason = "Boss phase changed — reassess the field"
-	case critical:
+	case critical && livePauseEnabled(pauseMode, "critical"):
 		duration = abyssLiveHybridTime
 		pauseReason = "Critical health — coordinate your response"
-	case boss && round%5 == 0:
+	case boss && round%5 == 0 && livePauseEnabled(pauseMode, "boss"):
 		duration = abyssLiveHybridTime
 		pauseReason = "Boss pressure rising — tactical pause"
 	}
@@ -520,21 +390,44 @@ func (c *abyssLiveCombat) publishRound(
 			recentLogs = append(recentLogs, bbToHTML(line))
 		}
 	}
+	enemyPlans := planLiveEnemyIntentsWithRandom(round, users, mobs, logs, c)
+	initiative := liveInitiative(users, mobs, playerStarts)
 
 	c.mu.Lock()
+	roundRecap := liveRoundRecap(c.round, c.allies, allies, c.enemies, enemies)
 	c.round = round
+	c.pruneIdempotencyLocked()
 	c.phase = "planning"
 	c.version++
 	c.deadline = time.Now().Add(duration)
+	if c.social.autoResolve {
+		c.deadline = time.Now()
+	}
 	c.pauseReason = pauseReason
 	c.allies = allies
 	c.enemies = enemies
 	c.options = options
 	c.queued = make(map[string]abyssLiveAction, len(users))
+	c.ready = make(map[string]bool, len(users))
+	c.readySignal = make(chan struct{}, 1)
+	if c.timeBank == nil {
+		c.timeBank = make(map[string]time.Duration, len(users))
+	}
+	for i := range users {
+		if users[i].u != nil {
+			if _, ok := c.timeBank[users[i].u.UID]; !ok {
+				c.timeBank[users[i].u.UID] = abyssLiveInitialTimeBank
+			}
+		}
+	}
+	c.deadlineSignal = make(chan struct{}, 1)
 	c.recentLogs = recentLogs
+	c.roundRecap = roundRecap
+	c.enemyPlans = enemyPlans
+	c.initiative = initiative
 	c.lastLogCount = len(logs)
 	c.mu.Unlock()
-	c.persist()
+	c.persistOrLog("publishing live combat round")
 }
 
 func (c *abyssLiveCombat) awaitActions(
@@ -542,298 +435,70 @@ func (c *abyssLiveCombat) awaitActions(
 	users []activeUser,
 	mobs []*content.Mob,
 	logs []string,
+	playerStarts bool,
 ) map[string]abyssLiveAction {
-	c.publishRound(round, users, mobs, logs)
+	planningStarted := time.Now()
+	c.publishRound(round, users, mobs, logs, playerStarts)
+
+	c.waitForPlanningDeadline()
 
 	c.mu.Lock()
-	wait := time.Until(c.deadline)
-	c.mu.Unlock()
-	if wait > 0 {
-		timer := time.NewTimer(wait)
-		<-timer.C
-	}
-
-	c.mu.Lock()
+	c.ensureSocialLocked()
 	for i := range users {
 		au := &users[i]
 		if au.u == nil || au.u.CurrentHP <= 0 {
 			continue
 		}
 		if _, ok := c.queued[au.u.UID]; !ok {
-			c.queued[au.u.UID] = c.bestActionLocked(au.u.UID)
+			c.queued[au.u.UID] = c.timeoutActionLocked(au.u.UID)
 		}
 	}
 	c.phase = "resolving"
 	c.version++
 	actions := make(map[string]abyssLiveAction, len(c.queued))
+	coordinationUIDs := []string{}
+	if c.allReadyLocked() && !c.social.readyAwarded[c.round] {
+		c.social.readyAwarded[c.round] = true
+		for uid := range c.participants {
+			coordinationUIDs = append(coordinationUIDs, uid)
+		}
+	}
+	comboTargets := map[string][]string{}
 	for uid, action := range c.queued {
 		actions[uid] = action
+		c.server.abyssOps.observeAction(action.Automatic)
+		if c.actionCounts == nil {
+			c.actionCounts = make(map[string]int)
+		}
+		c.actionCounts[action.Kind]++
+		c.social.actionCounts[uid]++
+		if !action.Automatic {
+			c.social.manualCounts[uid]++
+		}
+		if c.ready[uid] {
+			c.social.readyCounts[uid]++
+		}
+		if action.Kind == "skill" && action.TargetID != "" {
+			comboTargets[action.TargetID] = append(comboTargets[action.TargetID], uid)
+		}
+	}
+	comboUIDs := []string{}
+	for _, uids := range comboTargets {
+		if len(uids) >= 2 && !c.social.comboAwarded[c.round] {
+			c.social.comboAwarded[c.round] = true
+			comboUIDs = append(comboUIDs, uids...)
+		}
 	}
 	c.mu.Unlock()
-	c.persist()
+	for _, uid := range coordinationUIDs {
+		c.server.bot.recordAbyssProgression(uid, "coordinator")
+	}
+	for _, uid := range comboUIDs {
+		c.server.bot.recordAbyssProgression(uid, "party_combo")
+	}
+	c.persistOrLog("resolving live combat round")
+	c.server.abyssOps.observePlanning(time.Since(planningStarted))
 	return actions
-}
-
-func (c *abyssLiveCombat) optionsFor(au *activeUser) []abyssLiveOption {
-	options := []abyssLiveOption{
-		{Kind: "attack", Name: "Basic Attack", Target: "enemy", Power: 1},
-		{Kind: "defend", Name: "Defend", Target: "self"},
-	}
-	spellCost := 20
-	if chest, ok := au.u.Equipped[content.SlotChest]; ok && chest.ID == "ABYSS_ARCHMAGE_ROBES" {
-		spellCost -= 5
-	}
-	if spellCost < 5 {
-		spellCost = 5
-	}
-	for i := range au.u.Skills {
-		skill := au.u.Skills[i]
-		target := "enemy"
-		if skill.HealPercent > 0 && skill.Power == 0 {
-			target = "ally"
-		}
-		options = append(options, abyssLiveOption{
-			Kind:        "skill",
-			ID:          skill.ID,
-			Name:        skill.Name,
-			Description: skill.Description,
-			Target:      target,
-			Mana:        spellCost,
-			Power:       skill.Power + skill.HealPercent*2,
-		})
-	}
-	for _, ultimate := range au.u.Ultimates {
-		if ultimate == nil {
-			continue
-		}
-		options = append(options, abyssLiveOption{
-			Kind:        "ultimate",
-			ID:          ultimate.ID,
-			Name:        ultimate.Name,
-			Description: ultimate.Description,
-			Target:      "enemy",
-			Cooldown:    ultimate.CurrentCooldown,
-			Power:       ultimate.Power,
-		})
-	}
-	for _, item := range c.server.bot.getConsumables(au.u.UID) {
-		if item.Type != content.ConsumableHealing && item.Type != content.ConsumableBuff {
-			continue
-		}
-		if item.Duration <= 0 {
-			continue
-		}
-		target := "self"
-		if item.Type == content.ConsumableHealing {
-			target = "ally"
-		}
-		options = append(options, abyssLiveOption{
-			Kind:        "item",
-			ID:          item.ID,
-			Name:        item.Name,
-			Description: item.Description,
-			Target:      target,
-			Count:       item.Duration,
-			Power:       item.EffectValue,
-		})
-	}
-	return options
-}
-
-func (c *abyssLiveCombat) bestActionLocked(uid string) abyssLiveAction {
-	action := abyssLiveAction{Kind: "defend", Round: c.round, Automatic: true}
-	if len(c.enemies) > 0 {
-		target := c.enemies[0]
-		for _, enemy := range c.enemies[1:] {
-			if enemy.HP < target.HP {
-				target = enemy
-			}
-		}
-		action = abyssLiveAction{
-			Kind:      "attack",
-			TargetID:  target.ID,
-			Round:     c.round,
-			Automatic: true,
-		}
-	}
-
-	ally := abyssLiveCombatantView{}
-	for _, candidate := range c.allies {
-		if candidate.HP <= 0 {
-			continue
-		}
-		if ally.ID == "" || candidate.HP*ally.MaxHP < ally.HP*candidate.MaxHP {
-			ally = candidate
-		}
-	}
-	ratio := 1.0
-	if ally.ID != "" && ally.MaxHP > 0 {
-		ratio = float64(ally.HP) / float64(ally.MaxHP)
-	}
-	tactic := c.tactics[uid]
-	healThreshold := 0.40
-	itemThreshold := 0.28
-	switch tactic {
-	case "aggressive":
-		healThreshold, itemThreshold = 0.22, 0.14
-	case "defensive":
-		healThreshold, itemThreshold = 0.68, 0.45
-	case "conserve_items":
-		healThreshold, itemThreshold = 0.42, 0.12
-	}
-
-	if ratio <= healThreshold {
-		for _, option := range c.options[uid] {
-			if option.Kind == "skill" && option.Target == "ally" {
-				return abyssLiveAction{
-					Kind: option.Kind, AbilityID: option.ID, TargetID: ally.ID,
-					Round: c.round, Automatic: true,
-				}
-			}
-		}
-	}
-	if ratio <= itemThreshold {
-		for _, option := range c.options[uid] {
-			if option.Kind == "item" && option.Target == "ally" && option.Count > 0 {
-				return abyssLiveAction{
-					Kind: option.Kind, AbilityID: option.ID, TargetID: ally.ID,
-					Round: c.round, Automatic: true,
-				}
-			}
-		}
-	}
-
-	best := abyssLiveOption{}
-	currentMana := 0
-	for _, candidate := range c.allies {
-		if candidate.ID == "ally:"+uid {
-			currentMana = candidate.Mana
-			break
-		}
-	}
-	for _, option := range c.options[uid] {
-		if option.Target != "enemy" || option.Cooldown > 0 {
-			continue
-		}
-		if option.Mana > currentMana {
-			continue
-		}
-		if option.Kind != "skill" && option.Kind != "ultimate" {
-			continue
-		}
-		if option.Power > best.Power {
-			best = option
-		}
-	}
-	if best.ID != "" && action.TargetID != "" {
-		action.Kind = best.Kind
-		action.AbilityID = best.ID
-	}
-	return action
-}
-
-func (c *abyssLiveCombat) submit(uid string, action abyssLiveAction) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if !c.participants[uid] {
-		return errAbyssLiveNotFound
-	}
-	if action.SessionID != c.id {
-		return errAbyssLiveStale
-	}
-	if action.IdempotencyKey != "" && c.idempotency[uid+":"+action.IdempotencyKey] {
-		return nil
-	}
-	if c.phase != "planning" || action.Round != c.round || time.Now().After(c.deadline) {
-		return errAbyssLiveStale
-	}
-	validOption := false
-	for _, option := range c.options[uid] {
-		if option.Kind == action.Kind && option.ID == action.AbilityID {
-			validOption = option.Cooldown == 0
-			if option.Kind == "item" && option.Count <= 0 {
-				validOption = false
-			}
-			if option.Mana > 0 {
-				for _, ally := range c.allies {
-					if ally.ID == "ally:"+uid && ally.Mana < option.Mana {
-						validOption = false
-					}
-				}
-			}
-			break
-		}
-	}
-	if !validOption {
-		return fmt.Errorf("invalid or unavailable action")
-	}
-	if !c.validTargetLocked(uid, action) {
-		return fmt.Errorf("invalid target")
-	}
-	action.Automatic = false
-	c.queued[uid] = action
-	if action.IdempotencyKey != "" {
-		c.idempotency[uid+":"+action.IdempotencyKey] = true
-	}
-	c.version++
-	return nil
-}
-
-func (c *abyssLiveCombat) validTargetLocked(uid string, action abyssLiveAction) bool {
-	if action.Kind == "defend" {
-		return action.TargetID == "" || action.TargetID == "ally:"+uid
-	}
-	var targetType string
-	for _, option := range c.options[uid] {
-		if option.Kind == action.Kind && option.ID == action.AbilityID {
-			targetType = option.Target
-			break
-		}
-	}
-	switch targetType {
-	case "self":
-		return action.TargetID == "" || action.TargetID == "ally:"+uid
-	case "ally":
-		for _, ally := range c.allies {
-			if ally.ID == action.TargetID && ally.HP > 0 {
-				return true
-			}
-		}
-	case "enemy":
-		for _, enemy := range c.enemies {
-			if enemy.ID == action.TargetID && enemy.HP > 0 {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (c *abyssLiveCombat) setTactic(uid, tactic string) error {
-	tactic = normalizeAbyssTactic(tactic)
-	c.mu.Lock()
-	if !c.participants[uid] {
-		c.mu.Unlock()
-		return errAbyssLiveNotFound
-	}
-	c.tactics[uid] = tactic
-	c.version++
-	c.mu.Unlock()
-	_, err := c.server.bot.DB.Exec(
-		`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-		 ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`,
-		"abyss_live_tactic_"+uid,
-		tactic,
-	)
-	if err == nil {
-		_, err = c.server.bot.DB.Exec(
-			"UPDATE abyss_combat_members SET tactic=$1 WHERE session_id=$2 AND client_uid=$3",
-			tactic,
-			c.id,
-			uid,
-		)
-	}
-	return err
 }
 
 func (c *abyssLiveCombat) complete(result map[string]any) {
@@ -843,231 +508,16 @@ func (c *abyssLiveCombat) complete(result map[string]any) {
 		c.phase = "failed"
 	}
 	c.result = result
+	c.finishedAt = time.Now()
 	c.deadline = time.Time{}
 	c.pauseReason = ""
 	c.version++
 	c.mu.Unlock()
-	c.persist()
-}
-
-func (s *WebServer) handleAbyssCombatState(w http.ResponseWriter, r *http.Request, uid string) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "GET only", http.StatusMethodNotAllowed)
-		return
+	c.server.abyssOps.observeCompletion(c, result)
+	if err := c.persist(); err != nil {
+		log.Printf("abyss live: completing live combat: %v", err)
 	}
-	c, ok := s.liveCombatForUID(uid)
-	if !ok {
-		if snapshot, found := s.persistedAbyssLiveSnapshot(uid); found {
-			writeJSON(w, snapshot)
-			return
-		}
-		writeJSON(w, map[string]any{"ok": false, "error": "no active combat"})
-		return
+	if victory, _ := result["victory"].(bool); victory {
+		c.server.bot.resolveAbyssGhostChallenge(c.ownerUID, c.round)
 	}
-	writeJSON(w, c.snapshotFor(uid))
-}
-
-func (s *WebServer) handleAbyssCombatAction(w http.ResponseWriter, r *http.Request, uid string) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "POST only", http.StatusMethodNotAllowed)
-		return
-	}
-	c, ok := s.liveCombatForUID(uid)
-	if !ok {
-		writeJSON(w, map[string]any{"ok": false, "error": "no active combat"})
-		return
-	}
-	var action abyssLiveAction
-	if err := readJSON(r, &action); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
-		return
-	}
-	if err := c.submit(uid, action); err != nil {
-		if errors.Is(err, errAbyssLiveStale) {
-			writeJSON(w, map[string]any{"ok": false, "error": "round closed", "state": c.snapshotFor(uid)})
-			return
-		}
-		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	c.persist()
-	writeJSON(w, c.snapshotFor(uid))
-}
-
-func (s *WebServer) handleAbyssCombatTactics(w http.ResponseWriter, r *http.Request, uid string) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "POST only", http.StatusMethodNotAllowed)
-		return
-	}
-	c, ok := s.liveCombatForUID(uid)
-	if !ok {
-		writeJSON(w, map[string]any{"ok": false, "error": "no active combat"})
-		return
-	}
-	var req struct {
-		Tactic string `json:"tactic"`
-	}
-	if err := readJSON(r, &req); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
-		return
-	}
-	if err := c.setTactic(uid, req.Tactic); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	writeJSON(w, c.snapshotFor(uid))
-}
-
-func (s *WebServer) handleAbyssCombatEvents(w http.ResponseWriter, r *http.Request, uid string) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "GET only", http.StatusMethodNotAllowed)
-		return
-	}
-	c, ok := s.liveCombatForUID(uid)
-	if !ok {
-		http.Error(w, "no active combat", http.StatusNotFound)
-		return
-	}
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("X-Accel-Buffering", "no")
-
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-	var lastVersion int64 = -1
-	for {
-		snapshot := c.snapshotFor(uid)
-		if snapshot.Version != lastVersion {
-			data, err := json.Marshal(snapshot)
-			if err != nil {
-				return
-			}
-			if _, err := fmt.Fprintf(w, "event: combat\ndata: %s\n\n", data); err != nil {
-				return
-			}
-			flusher.Flush()
-			lastVersion = snapshot.Version
-			if snapshot.Phase == "complete" || snapshot.Phase == "failed" {
-				return
-			}
-		}
-		select {
-		case <-r.Context().Done():
-			return
-		case <-ticker.C:
-		}
-	}
-}
-
-func liveMobFromTarget(targetID string, mobs []*content.Mob) *content.Mob {
-	var index int
-	if _, err := fmt.Sscanf(targetID, "enemy:%d", &index); err != nil {
-		return nil
-	}
-	if index < 0 || index >= len(mobs) || mobs[index] == nil || mobs[index].Stats.HP <= 0 {
-		return nil
-	}
-	return mobs[index]
-}
-
-func liveAllyFromTarget(targetID string, users []activeUser) *UserInCombat {
-	uid := strings.TrimPrefix(targetID, "ally:")
-	for i := range users {
-		if users[i].u != nil && users[i].u.UID == uid && users[i].u.CurrentHP > 0 {
-			return users[i].u
-		}
-	}
-	return nil
-}
-
-func findLiveSkill(u *UserInCombat, id string) *content.Skill {
-	for i := range u.Skills {
-		if u.Skills[i].ID == id {
-			return &u.Skills[i]
-		}
-	}
-	return nil
-}
-
-func findLiveUltimate(u *UserInCombat, id string) *content.UltimateSkill {
-	for _, ultimate := range u.Ultimates {
-		if ultimate != nil && ultimate.ID == id {
-			return ultimate
-		}
-	}
-	return nil
-}
-
-func (b *Bot) useLiveConsumable(
-	actor *UserInCombat,
-	target *UserInCombat,
-	consumableID string,
-	logs *[]string,
-) bool {
-	consumable, ok := content.GetConsumableByID(consumableID)
-	if !ok || (consumable.Type != content.ConsumableHealing && consumable.Type != content.ConsumableBuff) {
-		return false
-	}
-	result, err := b.DB.Exec(
-		`UPDATE user_consumables
-		    SET remaining_fights=remaining_fights-1
-		  WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights>0`,
-		actor.UID,
-		consumableID,
-	)
-	if err != nil {
-		return false
-	}
-	rows, err := result.RowsAffected()
-	if err != nil || rows == 0 {
-		return false
-	}
-	_, _ = b.DB.Exec(
-		"DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights<=0",
-		actor.UID,
-		consumableID,
-	)
-	b.abyssSpendLoadout(actor.UID, consumableID)
-	_, _ = b.DB.Exec("UPDATE abyss_active SET momentum=0 WHERE client_uid=$1", actor.UID)
-
-	switch consumable.Type {
-	case content.ConsumableHealing:
-		if target == nil {
-			target = actor
-		}
-		heal := int(consumable.EffectValue)
-		if consumable.EffectValue <= 1 {
-			heal = int(float64(target.Stats.HP) * consumable.EffectValue)
-		}
-		if heal < 1 {
-			heal = 1
-		}
-		target.CurrentHP = min(target.Stats.HP, target.CurrentHP+heal)
-		*logs = append(*logs, fmt.Sprintf(
-			"🧪 %s uses %s on %s, restoring %d HP.",
-			actor.Nickname,
-			consumable.Name,
-			target.Nickname,
-			heal,
-		))
-	case content.ConsumableBuff:
-		amount := int(consumable.EffectValue)
-		switch consumableID {
-		case "iron_skin_brew":
-			actor.Stats.DEF += amount
-		case "speed_elixir":
-			actor.Stats.SPD += amount
-		case "intellect_elixir":
-			actor.Stats.INT += amount
-		default:
-			actor.Stats.STR += amount
-		}
-		*logs = append(*logs, fmt.Sprintf("🧪 %s uses %s and surges with power.", actor.Nickname, consumable.Name))
-	}
-	return true
 }

@@ -349,6 +349,7 @@ var abyssAchievementNames = map[string]string{
 	"bank_10m":    "Tycoon (10M Banked)",
 	"bestiary_25": "Naturalist (25 Species)",
 	"bestiary_50": "Zoologist (50 Species)",
+	"bestiary_complete": "Abyss Archivist (Codex Complete)",
 	"prestige_1":  "Reborn (First Abyss Prestige)",
 }
 
@@ -368,6 +369,9 @@ var (
 
 func abyssAchievementName(code string) string {
 	if n, ok := abyssAchievementNames[code]; ok {
+		return n
+	}
+	if n := abyssProgressionAchievementName(code); n != "" {
 		return n
 	}
 	return code
@@ -419,7 +423,34 @@ func (b *Bot) checkBossKillAchievements(uid string) string {
 func (b *Bot) checkBestiaryAchievements(uid string) string {
 	var n int64
 	_ = b.DB.QueryRow("SELECT COUNT(*) FROM abyss_bestiary WHERE client_uid=$1", uid).Scan(&n)
-	return b.checkThresholdAchievements(uid, n, abyssBestiaryTiers)
+	newest := b.checkThresholdAchievements(uid, n, abyssBestiaryTiers)
+	if n >= 50 && b.awardCodexCompletion(uid) {
+		return "Abyss Archivist — codex complete, awarded 50 Abyss Tokens"
+	}
+	return newest
+}
+
+// awardCodexCompletion records the one-time badge and token reward together so
+// a failed token credit cannot leave the reward permanently marked as claimed.
+func (b *Bot) awardCodexCompletion(uid string) bool {
+	tx, err := b.DB.Begin()
+	if err != nil {
+		return false
+	}
+	defer func() { _ = tx.Rollback() }()
+	res, err := tx.Exec(
+		"INSERT INTO abyss_achievements (client_uid, code) VALUES ($1,$2) ON CONFLICT DO NOTHING", uid, "bestiary_complete")
+	if err != nil {
+		return false
+	}
+	inserted, _ := res.RowsAffected()
+	if inserted == 0 {
+		return false
+	}
+	if _, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens+50 WHERE client_uid=$1", uid); err != nil {
+		return false
+	}
+	return tx.Commit() == nil
 }
 
 // checkBankAchievements awards lifetime-banked-gold milestones.
@@ -629,16 +660,21 @@ func (b *Bot) abyssLeaderboards(tier string) abyssBoards {
 
 // ---- Mob escalation & zone flavour ---------------------------------------
 
-// escalateMobs deepens the threat with depth by layering mob effects and, on
-// world-boss floors, promoting and empowering the lead enemy. [15][64]
-func escalateMobs(mobs []content.Mob, depth int, worldBoss bool) {
+// escalateMobsWithRandom deepens the threat with depth by layering mob effects
+// and, on world-boss floors, promoting and empowering the lead enemy. [15][64]
+func escalateMobsWithRandom(
+	mobs []content.Mob,
+	depth int,
+	worldBoss bool,
+	random combatRandomSource,
+) {
 	for i := range mobs {
 		// #nosec G404 -- cosmetic/balance roll, not security-sensitive
-		if depth >= 8 && rand.Float64() < 0.15+float64(depth)*0.005 {
+		if depth >= 8 && random.Float64() < 0.15+float64(depth)*0.005 {
 			mobs[i].Effects = append(mobs[i].Effects, content.EffectEnraged)
 		}
 		// #nosec G404
-		if depth >= 12 && rand.Float64() < 0.10+float64(depth)*0.004 {
+		if depth >= 12 && random.Float64() < 0.10+float64(depth)*0.004 {
 			mobs[i].Effects = append(mobs[i].Effects, content.EffectArmored)
 		}
 	}
@@ -714,6 +750,7 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
+	reserved := s.bot.loadAbyssReservedLoot(uid)
 	rows, err := s.bot.DB.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1", uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -731,6 +768,9 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 		var gid string
 		var itemData sql.NullString
 		if err := rows.Scan(&id, &gid, &itemData); err != nil {
+			continue
+		}
+		if reserved[id] {
 			continue
 		}
 		// Reconstruct the item like the dismantle path does, so upgraded or
@@ -841,7 +881,14 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	rows, err := s.bot.DB.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1", uid)
+	reserved := s.bot.loadAbyssReservedLoot(uid)
+	tx, err := s.beginForgeRequestTx(w)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	rows, err := tx.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 FOR UPDATE", uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -858,6 +905,9 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		var gid string
 		var itemData sql.NullString
 		if err := rows.Scan(&id, &gid, &itemData); err != nil {
+			continue
+		}
+		if reserved[id] {
 			continue
 		}
 		// Reconstruct the item from its persisted data so upgraded/generated gear is
@@ -897,12 +947,6 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": true, "dismantled": 0, "tokens_gained": 0, "tokens": s.bot.abyssTokens(uid)})
 		return
 	}
-	tx, err := s.bot.DB.Begin()
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	defer func() { _ = tx.Rollback() }()
 
 	var total int64
 	var count int
@@ -927,11 +971,17 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 			return
 		}
 	}
+	matGained = s.bot.boostedMaterials(uid, matGained)
+	for material, amount := range matGained {
+		if err := grantMaterialQ(tx, uid, material, amount); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	s.bot.grantBoostedMaterials(uid, matGained)
 	writeJSON(w, map[string]any{"ok": true, "dismantled": count, "tokens_gained": total, "tokens": s.bot.abyssTokens(uid),
 		"materials": s.bot.loadMaterials(uid)})
 }

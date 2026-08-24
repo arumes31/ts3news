@@ -44,6 +44,12 @@ type levelResult struct {
 
 // NewBot opens the database, runs pending migrations, and returns a ready-to-use Bot.
 func NewBot(cfg *config.Config) *Bot {
+	if err := content.ValidateAbyssTree(content.AbyssTree()); err != nil {
+		log.Fatalf("Invalid Abyss skill tree catalog: %v", err)
+	}
+	if err := content.ValidateSkillCatalog(); err != nil {
+		log.Fatalf("Invalid skill catalog: %v", err)
+	}
 	database, err := sql.Open("postgres", cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -67,8 +73,8 @@ func NewBot(cfg *config.Config) *Bot {
 	if cfg.XPServerGroups {
 		b.loadLevelGroups()
 	}
-	// A layout change in the Abyss skill web (nodes, edges, costs or balance)
-	// invalidates stored allocations: grant everyone a free respec once.
+	// A topology change in the Abyss skill web invalidates stored paths. Balance,
+	// labels, and costs deliberately do not wipe compatible allocations.
 	b.resetAbyssTreeOnLayoutChange()
 	return b
 }

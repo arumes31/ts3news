@@ -115,6 +115,10 @@ The bot is configured via environment variables or a `config.env` file.
 | | `WEB_LISTEN_ADDR` | Address the web server listens on. | `:18081` |
 | | `WEB_BASE_URL` | Public base URL used to build per-user login links. | `http://localhost:18081` |
 | | `ENABLE_ABYSS` | Serve **The Abyss** push-your-luck dungeon (tiers, escrow, insurance, revival, Deep-Delver upgrades, depth leaderboards). | `true` |
+| | `ABYSS_LIVE_ACTIONS_ENABLED` | Emergency kill switch for interactive live combat; disabled users fall back to automatic combat. | `true` |
+| | `ABYSS_SOCIAL_ENABLED` | Emergency kill switch for live party coordination actions. | `true` |
+| | `ABYSS_LIVE_ROLLOUT_PERCENT` | Stable per-player live-combat rollout cohort (`0` immediately rolls back to automatic combat). | `100` |
+| | `ABYSS_OPS_TOKEN` | Separate bearer token for the private `/api/abyss/ops` telemetry snapshot; the endpoint is hidden when unset. | *None* |
 | **System** | `ENABLE_GAME_NEWS` | Master switch for the free game notification feature. | `true` |
 | | `POKE_DELAY_MS` | Delay between individual pokes (anti-flood). | `1200` |
 | | `RESEND_AFTER_DAYS` | Allow re-sending a game after N days. | `60` |

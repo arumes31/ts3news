@@ -1,0 +1,141 @@
+{{define "abysstree-navigation"}}
+<style>
+.tree-nav-panel{margin:8px 0;padding:10px;border:1px solid rgba(91,192,255,.22);border-radius:10px;background:linear-gradient(135deg,rgba(18,25,47,.88),rgba(22,16,40,.88));display:grid;gap:8px}
+.tree-nav-filters,.tree-nav-actions,.tree-nav-trail{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tree-nav-panel select,.tree-nav-panel input[type=number]{min-height:34px;border:1px solid rgba(255,255,255,.14);border-radius:7px;background:#11172a;color:var(--text);padding:5px 8px}
+.tree-nav-panel input[type=number]{width:78px}
+.tree-nav-trail{font-size:.78rem;color:var(--muted)}
+.tree-nav-trail button{padding:2px 6px}
+.tree-nav-hidden{opacity:.055!important;pointer-events:none!important}
+.tree-nav-selected{stroke:#fff!important;stroke-width:5!important;filter:drop-shadow(0 0 10px #5bc0ff)!important}
+.tree-nav-bookmarked{stroke:#ffcf4a!important;stroke-width:4!important}
+.tree-nav-lists{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tree-nav-list{min-height:38px;padding:6px 8px;border-radius:7px;background:rgba(0,0,0,.18)}
+.tree-nav-list b{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px}
+.tree-nav-list button{margin:2px 3px 2px 0;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#treeMinimapSvg .mm-density-on{fill:#f4c542;opacity:.92;pointer-events:none}
+#treeMinimapSvg .mm-density-can{fill:#41c97a;opacity:.65;pointer-events:none}
+#treeMinimapSvg .mm-sector-label{fill:#d8e8ff;font-size:70px;font-weight:700;text-anchor:middle;paint-order:stroke;stroke:#0b1020;stroke-width:10px;pointer-events:none}
+@media(max-width:760px){.tree-nav-lists{grid-template-columns:1fr}.tree-nav-panel select{flex:1 1 130px}.tree-nav-actions .ghost{min-height:40px}}
+</style>
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var panel=document.createElement('section');
+  panel.className='tree-nav-panel';
+  panel.setAttribute('aria-label','Skill tree discovery controls');
+  panel.innerHTML='<div class="tree-nav-filters">'+
+    '<select id="treeSectorFilter" aria-label="Sector"><option value="">All sectors</option></select>'+
+    '<select id="treeKindFilter" aria-label="Node kind"><option value="">All node kinds</option></select>'+
+    '<select id="treeStateFilter" aria-label="Allocation state"><option value="">All states</option><option value="allocated">Allocated</option><option value="available">Available</option><option value="locked">Locked</option></select>'+
+    '<select id="treeEffectFilter" aria-label="Effect"><option value="">All effects</option></select>'+
+    '<select id="treeDepthFilter" aria-label="Minimum depth gate"><option value="0">Any depth</option><option value="10">Depth 10+</option><option value="20">Depth 20+</option><option value="25">Depth 25+</option><option value="30">Depth 30+</option></select>'+
+    '<input id="treeMinCost" type="number" min="1" max="50" placeholder="Min cost" aria-label="Minimum point cost">'+
+    '<input id="treeMaxCost" type="number" min="1" max="50" placeholder="Max cost" aria-label="Maximum point cost">'+
+    '</div><div class="tree-nav-actions">'+
+    '<button class="ghost xs" id="treePrevResult" type="button">← Result</button><button class="ghost xs" id="treeNextResult" type="button">Result →</button>'+
+    '<button class="ghost xs" id="treeJumpSector" type="button">Jump to sector</button><button class="ghost xs" id="treeFitResults" type="button">Fit results</button>'+
+    '<button class="ghost xs" id="treeResetView" type="button">Reset view</button><button class="ghost xs" id="treeBookmark" type="button">☆ Bookmark selected</button>'+
+    '<span class="muted small" id="treeResultCount" role="status" aria-live="polite">0 results</span></div>'+
+    '<div class="tree-nav-trail" id="treeBreadcrumb" aria-label="Path from root">Root</div>'+
+    '<div class="tree-nav-lists"><div class="tree-nav-list" id="treeRecent"><b>Recently inspected</b><span class="muted small">No nodes yet.</span></div>'+
+    '<div class="tree-nav-list" id="treeBookmarks"><b>Bookmarks</b><span class="muted small">No bookmarks yet.</span></div></div>';
+  var toolbar=document.querySelector('.tree-toolbar');
+  toolbar.parentNode.insertBefore(panel,toolbar.nextSibling);
+
+  var sectorNames=['War','Vitality','Shadow','Arcane','Fortune','Void'];
+  var sectorFilter=document.getElementById('treeSectorFilter');
+  sectorNames.forEach(function(label,index){var option=document.createElement('option');option.value=String(index);option.textContent=label;sectorFilter.appendChild(option);});
+  var kinds={};NODES.forEach(function(node){kinds[node.type]=true;});
+  Object.keys(kinds).sort().forEach(function(kind){var option=document.createElement('option');option.value=kind;option.textContent=kind.charAt(0).toUpperCase()+kind.slice(1);document.getElementById('treeKindFilter').appendChild(option);});
+  (TREE_EFFECTS||[]).forEach(function(effect){var option=document.createElement('option');option.value=effect.key;option.textContent=effect.label;option.title=effect.description;document.getElementById('treeEffectFilter').appendChild(option);});
+
+  var matches=[],resultIndex=-1,selectedID=0,recentIDs=[],bookmarkIDs=[];
+  try{recentIDs=JSON.parse(localStorage.getItem('abyssTreeRecentNodes')||'[]');bookmarkIDs=JSON.parse(localStorage.getItem('abyssTreeBookmarks')||'[]');}catch(_){recentIDs=[];bookmarkIDs=[];}
+  recentIDs=recentIDs.map(Number).filter(function(id,index,list){return !!byId[id]&&list.indexOf(id)===index;}).slice(0,8);
+  bookmarkIDs=bookmarkIDs.map(Number).filter(function(id,index,list){return !!byId[id]&&list.indexOf(id)===index;});
+
+  function saveLists(){try{localStorage.setItem('abyssTreeRecentNodes',JSON.stringify(recentIDs));localStorage.setItem('abyssTreeBookmarks',JSON.stringify(bookmarkIDs));}catch(_){}}
+  function parseSearch(query){
+    var terms=[],matcher=/(-?)(?:"([^"]+)"|(\S+))/g,match;
+    while((match=matcher.exec(query))!==null){var value=(match[2]||match[3]||'').toLowerCase();if(value)terms.push({negative:match[1]==='-',value:value});}
+    return terms;
+  }
+  function nodeState(node){return alloc[node.id]?'allocated':isAllocatable(node.id)?'available':'locked';}
+  function matchesFilters(node,terms){
+    var text=((node.name||'')+' '+(node.desc||'')+' '+(node.type||'')+' '+Object.keys(node.pct||{}).join(' ')).toLowerCase();
+    for(var i=0;i<terms.length;i++){var found=text.indexOf(terms[i].value)>=0;if((!terms[i].negative&&!found)||(terms[i].negative&&found))return false;}
+    var sector=sectorFilter.value;if(sector!==''&&node.sector!==Number(sector))return false;
+    var kind=document.getElementById('treeKindFilter').value;if(kind&&node.type!==kind)return false;
+    var state=document.getElementById('treeStateFilter').value;if(state&&nodeState(node)!==state)return false;
+    var effect=document.getElementById('treeEffectFilter').value;if(effect&&!(node.pct&&Object.prototype.hasOwnProperty.call(node.pct,effect)))return false;
+    var depth=Number(document.getElementById('treeDepthFilter').value||0);if(depth&&gateFloor(node)<depth)return false;
+    var minCost=Number(document.getElementById('treeMinCost').value||0),maxCost=Number(document.getElementById('treeMaxCost').value||0),cost=nodeCost(node);
+    return (!minCost||cost>=minCost)&&(!maxCost||cost<=maxCost);
+  }
+  function applyDiscovery(){
+    if(activeTab!=='passive')return;
+    var query=(document.getElementById('treeSearch').value||'').trim(),terms=parseSearch(query);
+    var filtering=!!query||Array.prototype.some.call(panel.querySelectorAll('select'),function(el){return el.id!=='treeDepthFilter'?el.value!=='':el.value!=='0';})||!!document.getElementById('treeMinCost').value||!!document.getElementById('treeMaxCost').value;
+    matches=[];
+    NODES.forEach(function(node){
+      var hit=matchesFilters(node,terms);if(hit)matches.push(node.id);
+      var element=nodeEls[node.id];if(!element)return;
+      element.classList.toggle('tree-nav-hidden',filtering&&!hit);element.classList.toggle('hit',filtering&&hit);
+      if(iconEls[node.id]){iconEls[node.id].classList.toggle('tree-nav-hidden',filtering&&!hit);iconEls[node.id].classList.toggle('hit',filtering&&hit);}
+    });
+    if(resultIndex>=matches.length)resultIndex=matches.length-1;
+    document.getElementById('treeResultCount').textContent=matches.length+' result'+(matches.length===1?'':'s');
+  }
+  treeSearchApply=applyDiscovery;
+  panel.querySelectorAll('select,input').forEach(function(control){control.addEventListener('input',applyDiscovery);control.addEventListener('change',applyDiscovery);});
+
+  function fitNodes(ids){
+    var nodes=ids.map(function(id){return byId[id];}).filter(Boolean);if(!nodes.length)return;
+    var minX=nodes[0].x,maxX=nodes[0].x,minY=nodes[0].y,maxY=nodes[0].y;
+    nodes.forEach(function(node){minX=Math.min(minX,node.x);maxX=Math.max(maxX,node.x);minY=Math.min(minY,node.y);maxY=Math.max(maxY,node.y);});
+    var size=Math.max(320,maxX-minX+260,maxY-minY+260);view.x=(minX+maxX-size)/2;view.y=(minY+maxY-size)/2;view.w=size;view.h=size;applyView();
+  }
+  function focusNode(id){var node=byId[id];if(!node)return;selectedID=id;fitNodes([id]);
+    NODES.forEach(function(item){if(nodeEls[item.id])nodeEls[item.id].classList.toggle('tree-nav-selected',item.id===id);});
+    recentIDs=[id].concat(recentIDs.filter(function(other){return other!==id;})).slice(0,8);saveLists();renderLists();renderBreadcrumb();updateBookmarkButton();
+    if(nodeEls[id])nodeEls[id].focus({preventScroll:true});
+  }
+  function cycleResult(direction){if(!matches.length)return;resultIndex=(resultIndex+direction+matches.length)%matches.length;focusNode(matches[resultIndex]);}
+  document.getElementById('treePrevResult').addEventListener('click',function(){cycleResult(-1);});
+  document.getElementById('treeNextResult').addEventListener('click',function(){cycleResult(1);});
+  document.getElementById('treeFitResults').addEventListener('click',function(){fitNodes(matches);});
+  document.getElementById('treeResetView').addEventListener('click',function(){view={x:-1800,y:-1800,w:3600,h:3600};applyView();});
+  document.getElementById('treeJumpSector').addEventListener('click',function(){var sector=sectorFilter.value;if(sector===''){abToast('Choose a sector first.',false);return;}fitNodes(NODES.filter(function(node){return node.sector===Number(sector);}).map(function(node){return node.id;}));});
+
+  function shortestRootPath(target){var queue=[target],previous={},seen={};seen[target]=true;
+    while(queue.length){var current=queue.shift();if(current===0)break;(adj[current]||[]).forEach(function(next){if(!seen[next]){seen[next]=true;previous[next]=current;queue.push(next);}});}
+    if(!seen[0])return[target];var path=[0],cursor=0;while(cursor!==target){cursor=previous[cursor];if(typeof cursor==='undefined')return[target];path.push(cursor);}return path;
+  }
+  function renderBreadcrumb(){var host=document.getElementById('treeBreadcrumb');host.replaceChildren();var path=selectedID?shortestRootPath(selectedID):[0];path.forEach(function(id,index){if(index){host.appendChild(document.createTextNode(' › '));}if(id===0){host.appendChild(document.createTextNode('Root'));return;}var button=document.createElement('button');button.className='ghost xs';button.type='button';button.textContent=byId[id].name;button.addEventListener('click',function(){focusNode(id);});host.appendChild(button);});}
+  function renderNodeButtons(hostID,ids,emptyText){var host=document.getElementById(hostID),heading=host.querySelector('b').textContent;host.replaceChildren();var title=document.createElement('b');title.textContent=heading;host.appendChild(title);if(!ids.length){var empty=document.createElement('span');empty.className='muted small';empty.textContent=emptyText;host.appendChild(empty);return;}ids.forEach(function(id){var button=document.createElement('button');button.className='ghost xs';button.type='button';button.textContent=byId[id].name;button.addEventListener('click',function(){focusNode(id);});host.appendChild(button);});}
+  function renderLists(){renderNodeButtons('treeRecent',recentIDs,'No nodes yet.');renderNodeButtons('treeBookmarks',bookmarkIDs,'No bookmarks yet.');NODES.forEach(function(node){if(nodeEls[node.id])nodeEls[node.id].classList.toggle('tree-nav-bookmarked',bookmarkIDs.indexOf(node.id)>=0);});}
+  function updateBookmarkButton(){var saved=bookmarkIDs.indexOf(selectedID)>=0;document.getElementById('treeBookmark').textContent=(saved?'★ Remove':'☆ Bookmark')+(selectedID?' '+byId[selectedID].name:' selected');}
+  document.getElementById('treeBookmark').addEventListener('click',function(){if(!selectedID){abToast('Inspect a node first.',false);return;}var index=bookmarkIDs.indexOf(selectedID);if(index>=0)bookmarkIDs.splice(index,1);else bookmarkIDs.push(selectedID);saveLists();renderLists();updateBookmarkButton();});
+  svg.addEventListener('pointerover',function(event){var id=Number(event.target&&event.target.getAttribute('data-id'));if(id&&byId[id]){selectedID=id;recentIDs=[id].concat(recentIDs.filter(function(other){return other!==id;})).slice(0,8);saveLists();renderLists();renderBreadcrumb();updateBookmarkButton();}});
+
+  var persistTimer=null,baseApplyView=applyView;
+  applyView=function(){baseApplyView();clearTimeout(persistTimer);persistTimer=setTimeout(function(){try{localStorage.setItem('abyssTreeView',JSON.stringify(view));}catch(_){}},150);};
+  try{var savedView=JSON.parse(localStorage.getItem('abyssTreeView')||'null');if(savedView&&[savedView.x,savedView.y,savedView.w,savedView.h].every(Number.isFinite)&&savedView.w>=300&&savedView.w<=13000){view=savedView;baseApplyView();}}catch(_){}
+
+  function drawMinimapLayers(){updateMinimap();var mm=document.getElementById('treeMinimapSvg');if(!mm||!minimapReady)return;mm.querySelectorAll('.mm-density-on,.mm-density-can,.mm-sector-label').forEach(function(el){el.remove();});
+    function densityPath(predicate,className){var path='';NODES.forEach(function(node){if(predicate(node))path+='M'+node.x+' '+node.y+'m-13 0a13 13 0 1 0 26 0a13 13 0 1 0-26 0';});var el=document.createElementNS(NS,'path');el.setAttribute('d',path);el.setAttribute('class',className);mm.insertBefore(el,document.getElementById('treeMinimapView'));}
+    densityPath(function(node){return !!alloc[node.id];},'mm-density-on');densityPath(function(node){return !alloc[node.id]&&isAllocatable(node.id);},'mm-density-can');
+    sectorNames.forEach(function(label,index){var sectorNodes=NODES.filter(function(node){return node.sector===index;});if(!sectorNodes.length)return;var far=sectorNodes.reduce(function(best,node){return Math.hypot(node.x,node.y)>Math.hypot(best.x,best.y)?node:best;},sectorNodes[0]);var text=document.createElementNS(NS,'text');text.setAttribute('x',far.x);text.setAttribute('y',far.y);text.setAttribute('class','mm-sector-label');text.textContent=label;mm.insertBefore(text,document.getElementById('treeMinimapView'));});
+  }
+  var basePaint=paint;paint=function(){basePaint();drawMinimapLayers();applyDiscovery();renderLists();};drawMinimapLayers();
+  var mm=document.getElementById('treeMinimapSvg'),mmDrag=false,mmMoved=false;
+  function panFromMinimap(event){if(!minimapBounds)return;var rect=mm.getBoundingClientRect();var cx=minimapBounds.x+(event.clientX-rect.left)/rect.width*minimapBounds.w,cy=minimapBounds.y+(event.clientY-rect.top)/rect.height*minimapBounds.h;view.x=cx-view.w/2;view.y=cy-view.h/2;applyView();}
+  mm.addEventListener('pointerdown',function(event){mmDrag=true;mmMoved=false;mm.setPointerCapture(event.pointerId);panFromMinimap(event);});
+  mm.addEventListener('pointermove',function(event){if(mmDrag){mmMoved=true;panFromMinimap(event);}});mm.addEventListener('pointerup',function(){mmDrag=false;});
+  mm.addEventListener('click',function(event){if(mmMoved){event.preventDefault();event.stopImmediatePropagation();mmMoved=false;}},true);
+  document.addEventListener('keydown',function(event){if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'||(event.key==='/'&&!/input|textarea|select/i.test(document.activeElement.tagName))){event.preventDefault();document.getElementById('treeSearch').focus();}else if(event.key==='F3'){event.preventDefault();cycleResult(event.shiftKey?-1:1);}});
+  renderLists();renderBreadcrumb();updateBookmarkButton();applyDiscovery();
+})();
+</script>
+{{end}}

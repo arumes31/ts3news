@@ -1,0 +1,12 @@
+[
+  {"from":1,"to":20,"evidence":["internal/content/abysstree_validation.go","internal/content/abysstree_validation_test.go"]},
+  {"from":21,"to":40,"evidence":["internal/content/abysstree.go","internal/bot/webassets/abysstree.html"]},
+  {"from":41,"to":60,"evidence":["internal/bot/webassets/abysstree_navigation.html"]},
+  {"from":61,"to":80,"evidence":["internal/bot/web_abyss_tree_plans.go","internal/bot/webassets/abysstree_planner.html"]},
+  {"from":81,"to":100,"evidence":["internal/bot/webassets/abysstree_inspector.html"]},
+  {"from":101,"to":120,"evidence":["internal/content/skills_metadata.go","internal/bot/web_abyss_tree_skills.go"]},
+  {"from":121,"to":140,"evidence":["internal/bot/abyss_skill_tree_modifiers.go","internal/bot/web_abyss_live_actions.go"]},
+  {"from":141,"to":160,"evidence":["internal/bot/web_abyss_tree_progression.go","internal/bot/webassets/abysstree_progression.html"]},
+  {"from":161,"to":180,"evidence":["internal/bot/webassets/abysstree_accessibility.html"]},
+  {"from":181,"to":200,"evidence":["internal/content/abysstree_properties_test.go","internal/bot/web_abyss_tree_ops.go","docs/abyss-skill-tree-api.md"]}
+]
