@@ -190,6 +190,7 @@ function renderAbyssTourStep(){
   var steps=abyssTourSteps();
   abyssTourIndex=Math.max(0,Math.min(steps.length-1,abyssTourIndex));
   var step=steps[abyssTourIndex];
+  if(typeof showAbyssEntryStepForTarget==='function')showAbyssEntryStepForTarget(step.target);
   document.getElementById('abyssTourTitle').textContent=step.title;
   document.getElementById('abyssTourBody').textContent=step.body;
   document.getElementById('abyssTourProgress').textContent=(abyssTourIndex+1)+' / '+steps.length;

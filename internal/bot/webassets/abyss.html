@@ -6,6 +6,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_pixel.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_onboarding.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_entry_planner.css"}}">
 <div class="abyss-command-page" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
@@ -153,6 +154,7 @@
     </p>
 
     {{template "abyssOnboardingPanel" .}}
+    {{template "abyssEntryPlannerPanel" .}}
 
     <!-- Tier picker (idle only) [16] -->
     <div class="ab-tiers" id="tierPicker">
@@ -185,12 +187,13 @@
       <label><input type="radio" name="abstart" value="checkpoint"> ⛓️ Checkpoint
         <select id="checkpointSel">
           {{range .Checkpoints}}<option value="{{.}}">Depth {{.}} (🜲 {{halve .}}) · ×0.75 rewards</option>{{end}}
+          <option id="lockedCheckpointHint" value="{{.NextCheckpoint}}" disabled>🔒 Depth {{.NextCheckpoint}} — reach depth {{.NextCheckpoint}} to unlock</option>
         </select>
         <span class="muted small">rewards ×0.75</span>
       </label>
       {{end}}
       {{if gt .ExpressStart 0}}
-      <label><input type="radio" name="abstart" value="express" data-cost="{{.ExpressCost}}"> ⚡ Express to {{.ExpressStart}} ({{gold .ExpressCost}}) <span class="muted small">skips floors 1–{{.ExpressStart}} · no floor gold/loot bonus until past your record (depth {{.Stats.BestDepth}})</span></label>
+      <label><input type="radio" name="abstart" value="express" data-cost="{{.ExpressCost}}" data-depth="{{.ExpressStart}}"> ⚡ Express to {{.ExpressStart}} ({{gold .ExpressCost}}) <span class="muted small">skips floors 1–{{.ExpressStart}} · no floor gold/loot bonus until past your record (depth {{.Stats.BestDepth}})</span></label>
       {{end}}
     </div>
 
@@ -233,7 +236,7 @@
       <div class="ab-sub-label"><span class="ab-glossary-term" tabindex="0" data-tip="Pacts&#10;Optional challenges that increase both danger and the run reward.">⚔️ Pacts</span> <span class="muted small">— optional challenges for bigger rewards <b id="pactBonus">(+0%)</b></span></div>
       {{range .Pacts}}
         <label class="ab-pact" data-tip="{{.Label}}&#10;{{.Desc}}&#10;Reward: +{{printf "%.0f" (mulf .Reward 100)}}% escrow · Danger: ×{{printf "%.1f" .Danger}}{{if .Enrage}} · enemies enraged{{end}}">
-          <input type="checkbox" name="abpact" value="{{.Key}}" data-reward="{{printf "%.0f" (mulf .Reward 100)}}" onchange="updatePactBonus()">
+          <input type="checkbox" name="abpact" value="{{.Key}}" data-reward="{{printf "%.0f" (mulf .Reward 100)}}" data-danger="{{printf "%.3f" .Danger}}" onchange="updatePactBonus()">
           {{.Label}} <span class="muted small">(+{{printf "%.0f" (mulf .Reward 100)}}% · {{.Desc}})</span>
         </label>
       {{end}}
@@ -1373,6 +1376,7 @@ function renderState(){
   // idle / alive / downed
   show('btnEnter', !inRun);
   show('tierPicker', !inRun);
+  show('abyssEntryPlanner', !inRun);
   show('pactPicker', !inRun);
   show('startPicker', !inRun);
   show('buildPicker', !inRun);
@@ -2622,6 +2626,7 @@ async function abyssEnter(consumables){
     if(manual)manual.dataset.freeEntry='false';
     renderFreeEntry();
   }
+  saveAbyssEntrySetup(body);
   // UI-102: the run's tier, so its result can update the per-tier personal best.
   try{ sessionStorage.setItem('ab_run_tier', selectedTier()); }catch(e){}
   if(d.comeback) notes.push('💪 Comeback buff active: +10% stats this run.');
@@ -2993,6 +2998,7 @@ async function processDescendResult(d, hp, max){
 {{template "abyssPixelCombatJS" .}}
 {{template "abyssLiveActionBarJS" .}}
 {{template "abyssOnboardingJS" .}}
+{{template "abyssEntryPlannerJS" .}}
 
 // Run summary card (#341): shown on bank or final death before the reload.
 function showRunSummary(title, rows, cls){

@@ -1,0 +1,25 @@
+.ab-entry-planner {
+  background: linear-gradient(120deg, rgba(12, 25, 34, .94), rgba(7, 14, 20, .96));
+  border: 1px solid #293d49;
+  border-left: 3px solid #efb94c;
+  margin: .55rem 0 .75rem;
+  padding: .75rem;
+}
+.ab-entry-planner-head { align-items: center; display: flex; justify-content: space-between; }
+.ab-entry-planner-head strong { color: #e6edf1; display: block; font-size: .9rem; }
+.ab-entry-eyebrow,
+.ab-entry-summary-label { color: #8299a8; font: 700 .58rem/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .14em; text-transform: uppercase; }
+.ab-entry-steps { display: grid; gap: 1px; grid-template-columns: repeat(4, 1fr); margin: .65rem 0; }
+.ab-entry-steps button { align-items: center; background: #0b151d; border: 1px solid #263945; color: #8fa4b1; cursor: pointer; display: flex; gap: .45rem; justify-content: center; min-height: 2.25rem; }
+.ab-entry-steps button b { border: 1px solid currentColor; border-radius: 50%; font: 700 .6rem/1.1rem ui-monospace, monospace; height: 1.1rem; width: 1.1rem; }
+.ab-entry-steps button[aria-current="step"] { background: rgba(239, 185, 76, .12); border-color: #efb94c; color: #f2c866; }
+.ab-entry-summary { align-items: baseline; display: grid; gap: .2rem .7rem; grid-template-columns: max-content 1fr; }
+.ab-entry-summary strong { color: #dce7ed; font-size: .76rem; }
+.ab-entry-summary > span:last-child { color: #89a2b1; font-size: .68rem; grid-column: 2; }
+.ab-pact-net { border-top: 1px solid rgba(255, 255, 255, .07); color: #9eb1bc; font-size: .7rem; margin-top: .55rem; padding-top: .45rem; }
+#lockedCheckpointHint { color: #788e9d; font-style: italic; }
+@media (max-width: 720px) {
+  .ab-entry-steps button span { display: none; }
+  .ab-entry-summary { grid-template-columns: 1fr; }
+  .ab-entry-summary > span:last-child { grid-column: 1; }
+}

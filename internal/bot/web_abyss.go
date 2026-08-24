@@ -1410,6 +1410,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	if st.BestDepth >= 8 {
 		expressStart = st.BestDepth - 5
 	}
+	nextCheckpoint := (st.BestDepth/10 + 1) * 10
 	sanctuary := s.bot.loadSanctuary(uid)
 	sanctuaryStage, sanctuaryStageName := abyssSanctuaryStage(sanctuary)
 
@@ -1500,6 +1501,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Checkpoints":      checkpoints,
 		"ExpressStart":     expressStart,
 		"ExpressCost":      int64(expressStart) * abyssExpressGoldPerDepth,
+		"NextCheckpoint":   nextCheckpoint,
 	})
 }
 
@@ -1798,6 +1800,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	s.abyssOps.funnel.observeEnter(uid, time.Now())
 
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
@@ -2772,6 +2775,7 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 
 	runFinal := s.bot.loadAbyssRun(uid)
 	out["auto_focus"] = s.autoSelectFocus(uid, runFinal)
+	s.abyssOps.funnel.observeFloor(uid, depth)
 	s.abyssOps.observeFloor(depth, escrowBefore, res, out)
 
 	return out
@@ -2871,6 +2875,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	s.abyssOps.funnel.observeConcede(uid)
 	out := map[string]any{
 		"ok": true, "revived": true, "victory": false, "depth": run.Depth,
 		"hp": 0, "logs": res.LogsHTML, "loot": res.LootHTML, "dura": res.DuraHTML,
@@ -2908,6 +2913,7 @@ func (s *WebServer) handleAbyssConcede(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	s.abyssOps.funnel.observeConcede(uid)
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	out := map[string]any{
@@ -3068,6 +3074,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	s.abyssOps.funnel.observeBank(uid)
 
 	// Post-commit side effects
 	if run.Depth >= 10 {

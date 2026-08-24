@@ -11,6 +11,16 @@
     "verification": ["internal/bot/web_abyss_onboarding_test.go"]
   },
   {
+    "ids": [411, 414, 415, 419],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_entry_planner.html",
+      "internal/bot/webassets/abyss_entry_planner.css"
+    ],
+    "verification": ["internal/bot/web_abyss_entry_planner_test.go"]
+  },
+  {
     "ids": [986, 987],
     "production": [
       "internal/bot/web_abyss_econ.go",
@@ -18,6 +28,16 @@
       "internal/db/migrations/0068_abyss_insanity_tier.up.sql"
     ],
     "verification": ["internal/bot/web_abyss_release_guards_test.go"]
+  },
+  {
+    "ids": [990],
+    "production": [
+      "internal/bot/web_abyss_funnel.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_loop.go",
+      "internal/bot/web_abyss_ops.go"
+    ],
+    "verification": ["internal/bot/web_abyss_funnel_test.go"]
   },
   {
     "ids": [993],

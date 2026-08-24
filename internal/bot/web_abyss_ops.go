@@ -91,6 +91,7 @@ type abyssOpsMetrics struct {
 	rewardAnomalies   atomic.Int64
 	damageAnomalies   atomic.Int64
 	economyAnomalies  atomic.Int64
+	funnel            abyssFunnelMetrics
 
 	mu         sync.Mutex
 	depthBands map[string]abyssOpsOutcome
@@ -359,6 +360,7 @@ func (s *WebServer) handleAbyssOps(w http.ResponseWriter, r *http.Request, _ str
 			"started": s.abyssOps.sessionsStarted.Load(), "completed": s.abyssOps.sessionsCompleted.Load(),
 			"sse_connections": s.abyssOps.sseConnections.Load(),
 		},
+		"funnel":            s.abyssOps.funnel.snapshot(),
 		"outcomes_by_depth": depthBands,
 		"outcomes_by_build": builds,
 		"anomalies": map[string]any{
