@@ -3,7 +3,6 @@ package bot
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"ts3news/internal/content"
@@ -158,34 +157,4 @@ func (s *WebServer) handleAbyssLootReserve(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "inv_id": req.InvID, "reserved": reserved[req.InvID], "count": len(reserved)})
-}
-
-func abyssLootCategoryFlag(category string) int64 {
-	switch category {
-	case "weapon":
-		return 1
-	case "armor":
-		return 2
-	case "jewelry":
-		return 3
-	default:
-		return 0
-	}
-}
-
-func abyssLootCategoryFromFlag(flag int64) string {
-	switch flag {
-	case 1:
-		return "weapon"
-	case 2:
-		return "armor"
-	case 3:
-		return "jewelry"
-	default:
-		return ""
-	}
-}
-
-func abyssReservationLabel(id int64) string {
-	return "reserved inventory item " + strconv.FormatInt(id, 10)
 }

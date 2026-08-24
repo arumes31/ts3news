@@ -911,12 +911,8 @@ type abyssLastAllocRecord struct {
 	At   string `json:"at"`
 }
 
-// recordTreeAllocation remembers the player's latest allocation for the free
-// 60-second undo (AB-172). Best-effort: a failure only loses the undo option.
-func (b *Bot) recordTreeAllocation(uid string, nodeID int) time.Time {
-	return b.recordTreeAllocationContext(context.Background(), uid, nodeID)
-}
-
+// recordTreeAllocationContext remembers the player's latest allocation for the
+// free 60-second undo (AB-172). Best-effort: a failure only loses the undo option.
 func (b *Bot) recordTreeAllocationContext(ctx context.Context, uid string, nodeID int) time.Time {
 	now := time.Now().UTC()
 	rec, _ := json.Marshal(abyssLastAllocRecord{Node: nodeID, At: now.Format(time.RFC3339)})

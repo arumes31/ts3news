@@ -455,7 +455,25 @@ func bossResist(level, gearScore int) float64 {
 }
 
 func (b *Bot) resolveChannelCombatDetailed(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool, []LootResult, []combatTimelineFrame) {
-	rand := combatRandomForUsers(users)
+	return b.resolveChannelCombatDetailedWithRandom(
+		users,
+		initialMobs,
+		avgLvl,
+		diffFactor,
+		zone,
+		combatRandomForUsers(users),
+	)
+}
+
+func (b *Bot) resolveChannelCombatDetailedWithRandom(
+	users []UserInCombat,
+	initialMobs []*content.Mob,
+	avgLvl int,
+	diffFactor float64,
+	zone content.Zone,
+	random combatRandomSource,
+) ([]string, int, bool, []LootResult, []combatTimelineFrame) {
+	rand := random
 	var logs []string
 	var loots []LootResult
 	var timeline []combatTimelineFrame

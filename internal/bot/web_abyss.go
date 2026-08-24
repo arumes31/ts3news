@@ -1049,8 +1049,8 @@ func (b *Bot) fightAbyssFloorLive(
 	// Clear co-op partner for next floor
 	_, _ = b.DB.Exec("UPDATE abyss_active SET coop_uid = NULL WHERE client_uid = $1", uid)
 
-	// Record boss kills — use isBossFloor so the check is unaffected by escalateMobs
-	// having promoted mobs[0].Type to MobLegendary.
+	// Record boss kills using isBossFloor so mob escalation promoting mobs[0] to
+	// MobLegendary cannot affect the result.
 	if victory && isBossFloor && len(mobs) > 0 {
 		_, _ = b.DB.Exec(
 			"INSERT INTO abyss_boss_kills (client_uid, boss_name, depth, kill_time_ms, tier) VALUES ($1, $2, $3, $4, $5)",

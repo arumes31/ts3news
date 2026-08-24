@@ -37,11 +37,14 @@ func TestAbyssReservedLootIDsDropsInvalidEntries(t *testing.T) {
 
 func TestAbyssMaterialFlowTracksSourcesAndSinksSeparately(t *testing.T) {
 	uid := t.Name()
+	before := abyssMaterialFlow(uid)
+	beforeSource := before["core"]["source"]
+	beforeSink := before["core"]["sink"]
 	recordAbyssMaterialFlow(uid, "core", "source", 7)
 	recordAbyssMaterialFlow(uid, "core", "sink", 3)
 	recordAbyssMaterialFlow(uid, "core", "invalid", 99)
 	flow := abyssMaterialFlow(uid)
-	if flow["core"]["source"] != 7 || flow["core"]["sink"] != 3 {
+	if flow["core"]["source"]-beforeSource != 7 || flow["core"]["sink"]-beforeSink != 3 {
 		t.Fatalf("material flow = %#v", flow)
 	}
 }

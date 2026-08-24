@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -360,12 +359,4 @@ func (s *WebServer) recordForgeMutationAudit(r *http.Request, uid, operation str
 	_, _ = s.bot.DB.ExecContext(ctx,
 		`DELETE FROM abyss_forge_mutation_audit WHERE client_uid=$1 AND id NOT IN
 		 (SELECT id FROM abyss_forge_mutation_audit WHERE client_uid=$1 ORDER BY id DESC LIMIT 100)`, uid)
-}
-
-func parseForgeRenderMillis(value string) int64 {
-	millis, err := strconv.ParseInt(value, 10, 64)
-	if err != nil || millis < 0 || millis > 60000 {
-		return 0
-	}
-	return millis
 }

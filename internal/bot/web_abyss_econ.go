@@ -660,12 +660,8 @@ func (b *Bot) abyssLeaderboards(tier string) abyssBoards {
 
 // ---- Mob escalation & zone flavour ---------------------------------------
 
-// escalateMobs deepens the threat with depth by layering mob effects and, on
-// world-boss floors, promoting and empowering the lead enemy. [15][64]
-func escalateMobs(mobs []content.Mob, depth int, worldBoss bool) {
-	escalateMobsWithRandom(mobs, depth, worldBoss, defaultCombatRandomSource{})
-}
-
+// escalateMobsWithRandom deepens the threat with depth by layering mob effects
+// and, on world-boss floors, promoting and empowering the lead enemy. [15][64]
 func escalateMobsWithRandom(
 	mobs []content.Mob,
 	depth int,

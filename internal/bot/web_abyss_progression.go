@@ -109,13 +109,6 @@ func abyssProgressionCounterKey(uid, track string) string {
 	return "abyss_progress_" + track + "_" + uid
 }
 
-func (b *Bot) abyssProgressionCounter(uid, track string) int64 {
-	var raw string
-	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssProgressionCounterKey(uid, track)).Scan(&raw)
-	value, _ := strconv.ParseInt(raw, 10, 64)
-	return value
-}
-
 func abyssProgressionTier(value int64) (suffix string, next int64) {
 	switch {
 	case value >= 200:
