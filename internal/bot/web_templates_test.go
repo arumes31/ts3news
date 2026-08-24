@@ -103,6 +103,8 @@ func TestAbyssLivePartials(t *testing.T) {
 		"THREAT ",
 		"entry.textContent=line",
 		"setTimeout(dismissFinishedLiveCombat,900)",
+		"!resumeLiveCombatPhase(state.phase)",
+		"phase==='starting'||phase==='planning'||phase==='resolving'",
 		"reorderLiveAction",
 		"toggleLivePin",
 		"--cooldown-angle",

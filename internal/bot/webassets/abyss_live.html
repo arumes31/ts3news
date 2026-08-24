@@ -507,11 +507,18 @@ async function finishLiveCombat(state){
   setTimeout(dismissFinishedLiveCombat,900);
 }
 
+function resumeLiveCombatPhase(phase){
+  return phase==='starting'||phase==='planning'||phase==='resolving';
+}
+
 async function resumeLiveCombat(){
   try{
     var response=await fetch('/api/abyss/combat/state',{cache:'no-store'});
     var state=await response.json();
-    if(!state.ok)return;
+    // The rendered page already contains the authoritative result of a finished
+    // fight. Replaying an old persisted terminal snapshot here can resurrect a
+    // stale defeat after a reload/restart and make an alive run look downed.
+    if(!state.ok||!resumeLiveCombatPhase(state.phase))return;
     var bar=document.getElementById('hpBar');
     startLiveCombat({state:state},Number(bar.getAttribute('aria-valuenow')),Number(bar.getAttribute('aria-valuemax')));
   }catch(e){}
