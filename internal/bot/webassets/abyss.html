@@ -5,6 +5,7 @@
 <link rel="stylesheet" href="/static/abyss_live.css?v={{livecssver}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_pixel.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_feedback.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_onboarding.css"}}">
 <div class="abyss-command-page" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
@@ -123,18 +124,18 @@
 
   <div class="abyss-dial">
     <div class="ab-depth-ring">
-      <span class="ab-depth-label">Depth</span>
+      <span class="ab-depth-label ab-glossary-term" tabindex="0" data-tip="Depth&#10;The floor you currently occupy. Deeper floors raise danger and rewards.">Depth</span>
       <span class="ab-depth-num" id="depthNum">{{if .Run.Active}}{{.Run.Depth}}{{else}}—{{end}}</span>
     </div>
     <div class="ab-escrow">
-      <span class="ab-escrow-label">💰 Cache at stake</span>
+      <span class="ab-escrow-label ab-glossary-term" tabindex="0" data-tip="Cache at stake&#10;Run gold held in escrow. Bank it to make it permanent; defeat risks the uninsured share.">💰 Cache at stake</span>
       <span class="ab-escrow-val" id="escrowVal" data-raw="{{.Run.Escrow}}"></span>
       <div class="ab-coinpile" id="coinPile" aria-hidden="true"></div>
       <span class="ab-insured-tag {{if gt .Run.Insured 0}}glow{{end}}" id="insuredTag" {{if le .Run.Insured 0}}style="display:none"{{end}}>🛡️ {{.Run.Insured}}% insured</span>
     </div>
     <!-- Threat / danger meter [91] -->
     <div class="ab-threat">
-      <span class="ab-threat-label">Threat</span>
+      <span class="ab-threat-label ab-glossary-term" tabindex="0" data-tip="Threat&#10;Current floor danger from depth, tier, pacts, and special encounters.">Threat</span>
       <div class="ab-threat-bar"><div class="ab-threat-fill" id="threatFill" style="width:0%"></div></div>
     </div>
     <!-- Run-awareness chips (UI-41/43/44/49/50/54/55/56/58/59/60), filled by renderHudChips() -->
@@ -151,6 +152,8 @@
       {{if .Run.Downed}}You fell. Gamble a revival or concede the cache.{{else if .Run.Active}}You are {{.Run.Depth}} {{if eq .Run.Depth 1}}floor{{else}}floors{{end}} deep. Descend deeper, insure, or bank.{{else}}Rest at the threshold. Choose a tier and descend.{{end}}
     </p>
 
+    {{template "abyssOnboardingPanel" .}}
+
     <!-- Tier picker (idle only) [16] -->
     <div class="ab-tiers" id="tierPicker">
       {{range .Tiers}}
@@ -160,7 +163,7 @@
         <span class="ab-tier-meta">×{{printf "%.1f" .RewardMult}} reward · ×{{printf "%.1f" .DiffMult}} danger</span>
         <!-- UI-101: entry fee + unlock requirement line; UI-113: .ab-entry-cost is
              struck through by JS while the daily free entry applies -->
-        <span class="ab-tier-meta">{{if gt .EntryGold 0}}entry <span class="ab-entry-cost">{{gold .EntryGold}}</span>{{else}}free{{end}}{{if not .Unlocked}} · 🔒 depth {{.MinBest}}{{end}}</span>
+        <span class="ab-tier-meta">{{if gt .EntryGold 0}}entry <span class="ab-entry-cost {{if $.FreeEntryAvailable}}ab-free{{end}}">{{gold .EntryGold}}</span>{{else}}free{{end}}{{if not .Unlocked}} · 🔒 depth {{.MinBest}}{{end}}</span>
         <!-- UI-102: per-tier personal best, filled from localStorage by JS -->
         <span class="ab-tier-best muted small" data-tier="{{.Key}}" style="display:none"></span>
         <!-- UI-115: progress toward the unlock depth while locked -->
@@ -171,6 +174,7 @@
     <!-- UI-114: floor-1 death-risk forecast for the selected tier (client-side
          mirror of abyssRiskPct); UI-108: previous-session summary (localStorage) -->
     <div class="muted small" id="tierRisk" style="margin:4px 0;"></div>
+    <div class="muted small ab-free-entry-status" id="freeEntryStatus">{{if .FreeEntryAvailable}}🎟 Daily waiver ready — your first eligible entry is free.{{else}}🎟 Daily waiver used today.{{end}}</div>
     <div class="muted small" id="ydaySummary" style="display:none; margin:4px 0;"></div>
 
     <!-- Start-mode picker (idle only): surface / checkpoint (#2) / express (#3) -->
@@ -226,7 +230,7 @@
 
     <!-- Pact picker (idle only): opt-in challenge modifiers for bonus rewards -->
     <div class="ab-pacts" id="pactPicker">
-      <div class="ab-sub-label">⚔️ Pacts <span class="muted small">— optional challenges for bigger rewards <b id="pactBonus">(+0%)</b></span></div>
+      <div class="ab-sub-label"><span class="ab-glossary-term" tabindex="0" data-tip="Pacts&#10;Optional challenges that increase both danger and the run reward.">⚔️ Pacts</span> <span class="muted small">— optional challenges for bigger rewards <b id="pactBonus">(+0%)</b></span></div>
       {{range .Pacts}}
         <label class="ab-pact" data-tip="{{.Label}}&#10;{{.Desc}}&#10;Reward: +{{printf "%.0f" (mulf .Reward 100)}}% escrow · Danger: ×{{printf "%.1f" .Danger}}{{if .Enrage}} · enemies enraged{{end}}">
           <input type="checkbox" name="abpact" value="{{.Key}}" data-reward="{{printf "%.0f" (mulf .Reward 100)}}" onchange="updatePactBonus()">
@@ -258,7 +262,7 @@
     </div>
 
     <div class="ab-btn-row">
-      <button class="primary ab-enter" id="btnEnter" onclick="abyssEnter()">Enter the Abyss</button>
+      <button class="primary ab-enter" id="btnEnter" onclick="abyssEnter()">{{if .FreeEntryAvailable}}Enter — FREE today{{else}}Enter the Abyss{{end}}</button>
       <button class="primary ab-descend" id="btnDescend" onclick="abyssDescend()" style="display:none">⬇️ Descend</button>
       <button class="ghost ab-bank" id="btnBank" onclick="abyssBank()" style="display:none">🏦 Bank &amp; Leave</button>
       <button class="ghost" id="btnBuildRespec" onclick="abyssBuildRespec()" style="display:none">🧬 Respec Mutation</button>
@@ -1424,6 +1428,7 @@ function renderState(){
   updateStageScene();
   renderHudChips();
   renderDepthRail();
+  renderAbyssDeathCoach();
 }
 
 function renderConsumables(list){
@@ -2613,6 +2618,9 @@ async function abyssEnter(consumables){
     // UI-113: remember the waiver so entry costs render struck-through for the
     // rest of the day (this browser only — a waiver used elsewhere is unknown).
     try{ localStorage.setItem('ab_free_entry', new Date().toISOString().slice(0,10)); }catch(e){}
+    var manual=document.getElementById('abyssFieldManual');
+    if(manual)manual.dataset.freeEntry='false';
+    renderFreeEntry();
   }
   // UI-102: the run's tier, so its result can update the per-tier personal best.
   try{ sessionStorage.setItem('ab_run_tier', selectedTier()); }catch(e){}
@@ -2984,6 +2992,7 @@ async function processDescendResult(d, hp, max){
 {{template "abyssCombatFeedbackJS" .}}
 {{template "abyssPixelCombatJS" .}}
 {{template "abyssLiveActionBarJS" .}}
+{{template "abyssOnboardingJS" .}}
 
 // Run summary card (#341): shown on bank or final death before the reload.
 function showRunSummary(title, rows, cls){
@@ -5068,15 +5077,19 @@ function initMatTips(){
 
 // ---- F. Entry & run setup (UI-101..115) --------------------------------------
 
-// UI-113: entry cost struck through while the daily free entry applies (tracked
-// client-side when the server reports free_entry — this browser only).
+// UI-113 / UX-7: the server supplies initial eligibility. localStorage only closes
+// the brief gap after this tab consumes the waiver and before the next page load.
 function renderFreeEntry(){
   var used='';
   try{ used=localStorage.getItem('ab_free_entry')||''; }catch(e){}
-  if(used!==new Date().toISOString().slice(0,10))return;
-  document.querySelectorAll('.ab-entry-cost').forEach(function(el){ el.classList.add('ab-free'); });
+  var manual=document.getElementById('abyssFieldManual');
+  var available=!!(manual&&manual.dataset.freeEntry==='true');
+  if(used===new Date().toISOString().slice(0,10))available=false;
+  document.querySelectorAll('.ab-entry-cost').forEach(function(el){ el.classList.toggle('ab-free',available); });
   var btn=document.getElementById('btnEnter');
-  if(btn&&btn.textContent.indexOf('🎟️')<0)btn.textContent='Enter the Abyss (🎟️ free today)';
+  if(btn)btn.textContent=available?'Enter — FREE today':'Enter the Abyss';
+  var status=document.getElementById('freeEntryStatus');
+  if(status)status.textContent=available?'🎟 Daily waiver ready — your first eligible entry is free.':'🎟 Daily waiver used today.';
 }
 
 // UI-114: floor-1 death-risk forecast for the selected tier. Client-side mirror
@@ -5096,11 +5109,10 @@ function renderTierRisk(){
   if(inRun){ el.style.display='none'; return; }
   var sel=document.querySelector('input[name=abtier]:checked');
   if(!sel){ el.textContent=''; return; }
+  var risk=floorOneRiskForTier(sel);
   var diff=parseFloat(sel.getAttribute('data-diff'))||1;
-  var eff=0.6*diff;
-  var risk=Math.round(100*eff/(eff+playerCRSum()/1000));
-  risk=Math.max(0,Math.min(100,risk));
-  el.textContent='☠️ Floor-1 death-risk forecast ('+sel.value+'): ≈'+risk+'%';
+  el.innerHTML='☠️ Floor-1 death-risk forecast ('+consEsc(sel.value)+'): ≈'+risk+'%'+
+    '<span class="ab-risk-breakdown">tier danger ×'+diff.toFixed(1)+' versus '+Math.round(playerCRSum()).toLocaleString()+' equipped CR · later floors and pacts add danger</span>';
   el.classList.toggle('bad',risk>=70);
 }
 
@@ -5195,8 +5207,9 @@ function renderTierRisk(){
   renderYdaySummary();
   renderFreeEntry();
   renderTierRisk();
+  recommendAbyssTier();
   document.querySelectorAll('input[name=abtier]').forEach(function(radio){
-    radio.addEventListener('change',renderTierRisk);
+    radio.addEventListener('change',function(){renderTierRisk();recommendAbyssTier();});
   });
 
   // UI-84: restore the pity meter from the last temper outcome this browser saw.

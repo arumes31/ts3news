@@ -1,0 +1,264 @@
+{{define "abyssOnboardingPanel"}}
+<section class="ab-field-manual" id="abyssFieldManual"
+  data-lifetime-floors="{{.Stats.LifetimeFloors}}"
+  data-deaths="{{.Stats.Deaths}}"
+  data-run-active="{{if .Run.Active}}true{{else}}false{{end}}"
+  data-initial-escrow="{{.Run.Escrow}}"
+  data-initial-insured="{{.Run.Insured}}"
+  data-free-entry="{{if .FreeEntryAvailable}}true{{else}}false{{end}}">
+  <div class="ab-manual-rail">
+    <span class="ab-manual-kicker">Delver field manual</span>
+    <button type="button" class="ghost xs ab-manual-launch" id="abyssFieldManualButton" onclick="startAbyssTour(true)">
+      <span aria-hidden="true">⌁</span> Show controls
+    </button>
+  </div>
+
+  <aside class="ab-primer" id="abyssPrimer" aria-labelledby="abyssPrimerTitle">
+    <div class="ab-primer-mark" aria-hidden="true">01</div>
+    <div>
+      <strong id="abyssPrimerTitle">Your first descent</strong>
+      <p>Choose a tier, review its forecast, then enter. Gold found below stays in your cache until you bank; defeat risks the uninsured share.</p>
+    </div>
+    <button type="button" class="ghost xs" onclick="startAbyssTour(true)">Guide me</button>
+    <button type="button" class="ab-primer-dismiss" onclick="dismissAbyssPrimer()" aria-label="Dismiss first-descent primer">×</button>
+  </aside>
+
+  <div class="ab-death-coach" id="abyssDeathCoach" role="status" aria-live="polite" hidden></div>
+
+  <details class="ab-glossary">
+    <summary>Field terms</summary>
+    <div class="ab-glossary-grid">
+      <span class="ab-glossary-term" tabindex="0" data-tip="Depth\nThe floor you currently occupy. Deeper floors raise danger and rewards."><b>Depth</b> current floor</span>
+      <span class="ab-glossary-term" tabindex="0" data-tip="Cache\nRun gold held in escrow. Bank it to make it permanent; defeat can forfeit the uninsured share."><b>Cache</b> unbanked gold</span>
+      <span class="ab-glossary-term" tabindex="0" data-tip="Threat\nA quick reading of current floor danger. It rises with depth, tier, pacts, and special encounters."><b>Threat</b> encounter danger</span>
+      <span class="ab-glossary-term" tabindex="0" data-tip="Pact\nAn optional rule that makes the run harder in exchange for a larger reward multiplier."><b>Pact</b> risk for reward</span>
+      <span class="ab-glossary-term" tabindex="0" data-tip="Insurance\nThe protected percentage of your cache. That share survives a final defeat."><b>Insurance</b> protected cache</span>
+      <span class="ab-glossary-term" tabindex="0" data-tip="Bank\nEnd the current run safely and transfer the cache to your permanent gold balance."><b>Bank</b> secure and leave</span>
+    </div>
+  </details>
+
+  <div class="ab-tour" id="abyssTour" role="dialog" aria-modal="true" aria-labelledby="abyssTourTitle" aria-describedby="abyssTourBody" hidden>
+    <div class="ab-tour-spot" id="abyssTourSpot" aria-hidden="true"></div>
+    <div class="ab-tour-card" id="abyssTourCard" tabindex="-1">
+      <div class="ab-tour-head">
+        <span class="ab-tour-kicker">Field manual <b id="abyssTourProgress">1 / 5</b></span>
+        <button type="button" class="ab-tour-close" onclick="closeAbyssTour(false)" aria-label="Close guide">×</button>
+      </div>
+      <h2 id="abyssTourTitle">Choose your danger</h2>
+      <p id="abyssTourBody"></p>
+      <div class="ab-tour-actions">
+        <button type="button" class="ghost" id="abyssTourSkip" onclick="closeAbyssTour(true)">Skip guide</button>
+        <span class="ab-tour-spacer"></span>
+        <button type="button" class="ghost" id="abyssTourBack" onclick="moveAbyssTour(-1)">Back</button>
+        <button type="button" class="primary" id="abyssTourNext" onclick="moveAbyssTour(1)">Next</button>
+      </div>
+      <span class="ab-tour-keys">← → navigate · Esc close</span>
+    </div>
+  </div>
+</section>
+{{end}}
+
+{{define "abyssOnboardingJS"}}
+var abyssOnboardingV1 = 'abyssOnboardingV1';
+var abyssTourIndex = 0;
+var abyssTourReturnFocus = null;
+var abyssTourOpen = false;
+var abyssTourReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function abyssOnboardingRead(key){
+  try{return localStorage.getItem(key)||'';}catch(e){return '';}
+}
+function abyssOnboardingWrite(key,value){
+  try{localStorage.setItem(key,value);}catch(e){}
+}
+function floorOneRiskForTier(input){
+  if(!input)return 0;
+  var diff=parseFloat(input.getAttribute('data-diff'))||1;
+  var effective=0.6*diff;
+  var cr=Math.max(0,playerCRSum());
+  return Math.max(0,Math.min(100,Math.round(100*effective/(effective+cr/1000))));
+}
+function recommendAbyssTier(){
+  var choices=Array.prototype.slice.call(document.querySelectorAll('input[name=abtier]:not(:disabled)'));
+  if(!choices.length)return null;
+  var recommended=choices[0];
+  choices.forEach(function(input){
+    var risk=floorOneRiskForTier(input);
+    if(risk<=35)recommended=input;
+    var card=input.closest('.ab-tier');
+    if(card){
+      card.classList.remove('ab-tier-recommended');
+      var old=card.querySelector('.ab-recommended-tag');
+      if(old)old.remove();
+    }
+  });
+  var recommendedCard=recommended.closest('.ab-tier');
+  if(recommendedCard){
+    recommendedCard.classList.add('ab-tier-recommended');
+    var tag=document.createElement('span');
+    tag.className='ab-recommended-tag';
+    tag.textContent='Recommended · '+floorOneRiskForTier(recommended)+'%';
+    tag.setAttribute('aria-label','Recommended tier, estimated '+floorOneRiskForTier(recommended)+' percent floor-one death risk');
+    recommendedCard.appendChild(tag);
+  }
+  return recommended;
+}
+function renderAbyssDeathCoach(){
+  var coach=document.getElementById('abyssDeathCoach');
+  if(!coach)return;
+  var active=typeof inRun!=='undefined'&&inRun&&typeof downed!=='undefined'&&downed;
+  coach.hidden=!active;
+  if(!active)return;
+  var escrow=Math.max(0,Number(typeof curEscrow!=='undefined'?curEscrow:coach.closest('[data-initial-escrow]').dataset.initialEscrow)||0);
+  var insured=Math.max(0,Math.min(100,Number(typeof curInsured!=='undefined'?curInsured:coach.closest('[data-initial-insured]').dataset.initialInsured)||0));
+  var protectedGold=Math.floor(escrow*insured/100);
+  var exposedGold=Math.max(0,escrow-protectedGold);
+  var choices=[];
+  if(typeof canRev!=='undefined'&&canRev)choices.push('revive gambles the entire cache');
+  if(typeof canLastStand!=='undefined'&&canLastStand)choices.push('Last Stand spends tokens');
+  choices.push('concede keeps '+fmtGold(protectedGold)+' and loses '+fmtGold(exposedGold));
+  coach.innerHTML='<span class="ab-death-coach-mark" aria-hidden="true">!</span><span><b>Defeat decision</b><br>'+choices.join(' · ')+'</span>';
+  var manual=document.getElementById('abyssFieldManual');
+  if(manual&&Number(manual.dataset.deaths||0)===0&&!abyssOnboardingRead(abyssOnboardingV1+':first-death')){
+    coach.classList.add('ab-first-death');
+    abyssOnboardingWrite(abyssOnboardingV1+':first-death','seen');
+    window.setTimeout(showAbyssFirstDeathExplainer,120);
+  }
+}
+function showAbyssFirstDeathExplainer(){
+  if(typeof openModal!=='function'||!inRun||!downed)return;
+  var escrow=Math.max(0,Number(curEscrow)||0);
+  var insured=Math.max(0,Math.min(100,Number(curInsured)||0));
+  var protectedGold=Math.floor(escrow*insured/100);
+  var exposedGold=Math.max(0,escrow-protectedGold);
+  var lastStand=document.getElementById('lsCost');
+  var lastStandCost=lastStand?lastStand.textContent:'—';
+  openModal('<h3>First defeat: choose your exit</h3><div class="modal-body ab-first-death-modal">'+
+    '<p>Your <b>'+fmtGold(escrow)+'</b> cache is not permanent yet. Insurance protects <b>'+fmtGold(protectedGold)+'</b>; <b>'+fmtGold(exposedGold)+'</b> remains exposed.</p>'+
+    '<dl><dt>Revive gamble</dt><dd>Double-or-nothing: recover and keep fighting, or lose the run cache.</dd>'+
+    '<dt>Last Stand</dt><dd>Spend <b>🜲 '+consEsc(lastStandCost)+'</b> to recover when the option is available.</dd>'+
+    '<dt>Concede</dt><dd>End the run now, keeping '+fmtGold(protectedGold)+' and forfeiting '+fmtGold(exposedGold)+'.</dd></dl></div>'+
+    '<div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">I understand</button></div>');
+}
+function abyssTourSteps(){
+  var active=typeof inRun!=='undefined'&&inRun;
+  if(active){
+    return [
+      {target:'#escrowVal',title:'Watch the cache',body:'Everything earned this run remains at stake until you bank. The shield shows the share protected by insurance.'},
+      {target:'#threatFill',title:'Read the threat',body:'Threat compresses the current floor danger into one signal. Bosses, pacts, and deeper floors push it higher.'},
+      {target:'#focusPicker',title:'Set your intent',body:'Your focus influences the next encounter. The live action bar still lets you override individual combat decisions.'},
+      {target:'#liveRow',title:'Insure before greed',body:'Insurance protects a percentage of the cache if the run ends in defeat. More safety costs more of the upside.'},
+      {target:'#btnBank',title:'Choose the exit',body:'Bank to secure the cache now, or descend for a larger reward under greater danger.'}
+    ];
+  }
+  return [
+    {target:'#tierPicker',title:'Choose your danger',body:'Tiers multiply both difficulty and reward. The outlined option is a recommendation, never an automatic selection.'},
+    {target:'#tierRisk',title:'Read the forecast',body:'The floor-one estimate compares tier danger with your equipped combat rating. Pacts and deeper floors add risk later.'},
+    {target:'#pactPicker',title:'Add optional pacts',body:'Pacts are voluntary challenges. Each one advertises its reward and danger before you commit.'},
+    {target:'#escrowVal',title:'Protect the cache',body:'Gold found below stays in escrow. Bank it to keep it; on defeat, only the insured share is protected.'},
+    {target:'#btnEnter',title:'Begin the descent',body:'Entry starts the run. During live combat, choose an action or let the server perform its safest useful action at timeout.'}
+  ];
+}
+function focusAbyssTourControl(){
+  var next=document.getElementById('abyssTourNext');
+  var card=document.getElementById('abyssTourCard');
+  (next||card).focus({preventScroll:true});
+}
+function positionAbyssTour(){
+  if(!abyssTourOpen)return;
+  var step=abyssTourSteps()[abyssTourIndex];
+  var target=step&&document.querySelector(step.target);
+  var spot=document.getElementById('abyssTourSpot');
+  var card=document.getElementById('abyssTourCard');
+  if(!spot||!card)return;
+  var rect=target&&target.getClientRects().length?target.getBoundingClientRect():{left:window.innerWidth/2-80,top:window.innerHeight/2-30,width:160,height:60,bottom:window.innerHeight/2+30,right:window.innerWidth/2+80};
+  var pad=8;
+  spot.style.left=Math.max(8,rect.left-pad)+'px';
+  spot.style.top=Math.max(8,rect.top-pad)+'px';
+  spot.style.width=Math.max(32,Math.min(window.innerWidth-16,rect.width+pad*2))+'px';
+  spot.style.height=Math.max(32,Math.min(window.innerHeight-16,rect.height+pad*2))+'px';
+  var cardWidth=Math.min(390,window.innerWidth-24);
+  var left=Math.max(12,Math.min(window.innerWidth-cardWidth-12,rect.left));
+  var cardHeight=card.offsetHeight||240;
+  var top=rect.bottom+18;
+  if(top+cardHeight>window.innerHeight-12)top=Math.max(12,rect.top-cardHeight-18);
+  card.style.width=cardWidth+'px';
+  card.style.left=left+'px';
+  card.style.top=top+'px';
+}
+function renderAbyssTourStep(){
+  var steps=abyssTourSteps();
+  abyssTourIndex=Math.max(0,Math.min(steps.length-1,abyssTourIndex));
+  var step=steps[abyssTourIndex];
+  document.getElementById('abyssTourTitle').textContent=step.title;
+  document.getElementById('abyssTourBody').textContent=step.body;
+  document.getElementById('abyssTourProgress').textContent=(abyssTourIndex+1)+' / '+steps.length;
+  document.getElementById('abyssTourBack').disabled=abyssTourIndex===0;
+  document.getElementById('abyssTourNext').textContent=abyssTourIndex===steps.length-1?'Finish':'Next';
+  var target=document.querySelector(step.target);
+  if(target&&!abyssTourReducedMotion)target.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
+  window.setTimeout(positionAbyssTour,abyssTourReducedMotion?0:180);
+}
+function startAbyssTour(force){
+  var tour=document.getElementById('abyssTour');
+  if(!tour||(!force&&abyssOnboardingRead(abyssOnboardingV1)==='complete'))return;
+  abyssTourReturnFocus=document.activeElement;
+  abyssTourIndex=0;
+  abyssTourOpen=true;
+  tour.hidden=false;
+  document.body.classList.add('ab-tour-active');
+  renderAbyssTourStep();
+  window.setTimeout(focusAbyssTourControl,0);
+}
+function closeAbyssTour(completed){
+  var tour=document.getElementById('abyssTour');
+  if(!tour)return;
+  abyssTourOpen=false;
+  tour.hidden=true;
+  document.body.classList.remove('ab-tour-active');
+  if(completed)abyssOnboardingWrite(abyssOnboardingV1,'complete');
+  if(abyssTourReturnFocus&&document.contains(abyssTourReturnFocus))abyssTourReturnFocus.focus();
+  abyssTourReturnFocus=null;
+}
+function moveAbyssTour(delta){
+  var steps=abyssTourSteps();
+  if(delta>0&&abyssTourIndex===steps.length-1){closeAbyssTour(true);return;}
+  abyssTourIndex=Math.max(0,Math.min(steps.length-1,abyssTourIndex+delta));
+  renderAbyssTourStep();
+  focusAbyssTourControl();
+}
+function dismissAbyssPrimer(){
+  var primer=document.getElementById('abyssPrimer');
+  if(primer)primer.hidden=true;
+  abyssOnboardingWrite(abyssOnboardingV1+':primer','dismissed');
+}
+function trapAbyssTourFocus(event){
+  if(!abyssTourOpen||event.key!=='Tab')return;
+  var tour=document.getElementById('abyssTour');
+  var focusable=Array.prototype.slice.call(tour.querySelectorAll('button:not(:disabled),[href],input:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter(function(el){return el.offsetParent!==null;});
+  if(!focusable.length){event.preventDefault();document.getElementById('abyssTourCard').focus();return;}
+  var first=focusable[0],last=focusable[focusable.length-1];
+  if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+  else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+}
+document.addEventListener('keydown',function(event){
+  if(!abyssTourOpen)return;
+  if(event.key==='Escape'){event.preventDefault();closeAbyssTour(false);return;}
+  if(event.key==='ArrowRight'){event.preventDefault();moveAbyssTour(1);return;}
+  if(event.key==='ArrowLeft'){event.preventDefault();moveAbyssTour(-1);return;}
+  trapAbyssTourFocus(event);
+});
+window.addEventListener('resize',positionAbyssTour);
+window.addEventListener('scroll',positionAbyssTour,true);
+(function initAbyssOnboarding(){
+  var manual=document.getElementById('abyssFieldManual');
+  if(!manual)return;
+  var floors=Number(manual.dataset.lifetimeFloors||0);
+  var primer=document.getElementById('abyssPrimer');
+  if(primer)primer.hidden=floors>0||abyssOnboardingRead(abyssOnboardingV1+':primer')==='dismissed';
+  recommendAbyssTier();
+  renderAbyssDeathCoach();
+  document.querySelectorAll('input[name=abtier]').forEach(function(input){input.addEventListener('change',recommendAbyssTier);});
+  if(floors===0&&!inRun&&abyssOnboardingRead(abyssOnboardingV1)!=='complete')window.setTimeout(function(){startAbyssTour(false);},650);
+})();
+{{end}}
