@@ -1,0 +1,155 @@
+{{define "abyssCombatFeedbackControls"}}
+<div class="ab-combat-feedback" role="group" aria-label="Combat feedback settings">
+  <button class="ab-live-tool" id="liveAudioToggle" type="button" onclick="enableLiveCombatAudio()" aria-pressed="false" title="Enable synthesized combat sound effects">🔇 SOUND OFF</button>
+  <label class="ab-combat-volume" for="liveCombatVolume">VOL
+    <input id="liveCombatVolume" type="range" min="0" max="100" step="5" value="35" oninput="setLiveCombatVolume(this.value)" aria-label="Combat sound volume">
+  </label>
+  <button class="ab-live-tool" id="liveImpactToggle" type="button" onclick="toggleLiveCombatImpact()" aria-pressed="true" title="Toggle visual hit flashes and stage impact">IMPACT ON</button>
+</div>
+{{end}}
+
+{{define "abyssCombatFeedbackJS"}}// ---- Live combat feedback --------------------------------------------------
+
+function readLiveCombatPreference(key,fallback){
+  try{var value=localStorage.getItem(key);return value===null?fallback:value;}catch(error){return fallback;}
+}
+
+function saveLiveCombatPreference(key,value){
+  try{localStorage.setItem(key,String(value));}catch(error){}
+}
+
+function clampLiveCombatVolume(value){
+  value=Number(value);
+  return Number.isFinite(value)?Math.max(0,Math.min(100,Math.round(value))):35;
+}
+
+var liveCombatAudioEnabled=readLiveCombatPreference('abyssCombatAudio','off')==='on';
+var liveCombatAudioVolume=clampLiveCombatVolume(readLiveCombatPreference('abyssCombatVolume','35'));
+var liveCombatImpactEnabled=readLiveCombatPreference('abyssCombatImpact','on')!=='off';
+var liveCombatAudioContext=null;
+
+function updateLiveCombatFeedbackControls(){
+  var audio=document.getElementById('liveAudioToggle');
+  var volume=document.getElementById('liveCombatVolume');
+  var impact=document.getElementById('liveImpactToggle');
+  if(audio){
+    audio.setAttribute('aria-pressed',liveCombatAudioEnabled?'true':'false');
+    audio.textContent=liveCombatAudioEnabled?'🔊 SOUND ON':'🔇 SOUND OFF';
+  }
+  if(volume){volume.value=String(liveCombatAudioVolume);volume.disabled=!liveCombatAudioEnabled;}
+  if(impact){
+    impact.setAttribute('aria-pressed',liveCombatImpactEnabled?'true':'false');
+    impact.textContent=liveCombatImpactEnabled?'IMPACT ON':'IMPACT OFF';
+  }
+}
+
+function primeLiveCombatAudio(){
+  if(!liveCombatAudioEnabled)return null;
+  var AudioContextClass=window.AudioContext||window.webkitAudioContext;
+  if(!AudioContextClass)return null;
+  try{
+    if(!liveCombatAudioContext)liveCombatAudioContext=new AudioContextClass();
+    if(liveCombatAudioContext.state==='suspended'){
+      var resumed=liveCombatAudioContext.resume();
+      if(resumed&&resumed.catch)resumed.catch(function(){});
+    }
+  }catch(error){return null;}
+  return liveCombatAudioContext;
+}
+
+function enableLiveCombatAudio(){
+  liveCombatAudioEnabled=!liveCombatAudioEnabled;
+  saveLiveCombatPreference('abyssCombatAudio',liveCombatAudioEnabled?'on':'off');
+  updateLiveCombatFeedbackControls();
+  if(liveCombatAudioEnabled){primeLiveCombatAudio();playLiveCombatCue('ready',.25);}
+}
+
+function setLiveCombatVolume(value){
+  liveCombatAudioVolume=clampLiveCombatVolume(value);
+  saveLiveCombatPreference('abyssCombatVolume',liveCombatAudioVolume);
+}
+
+function toggleLiveCombatImpact(){
+  liveCombatImpactEnabled=!liveCombatImpactEnabled;
+  saveLiveCombatPreference('abyssCombatImpact',liveCombatImpactEnabled?'on':'off');
+  updateLiveCombatFeedbackControls();
+}
+
+function liveCombatTone(context,frequency,duration,wave,gain,delay,endFrequency){
+  var start=context.currentTime+(delay||0),oscillator=context.createOscillator(),level=context.createGain();
+  oscillator.type=wave||'sine';
+  oscillator.frequency.setValueAtTime(frequency,start);
+  if(endFrequency)oscillator.frequency.exponentialRampToValueAtTime(Math.max(1,endFrequency),start+duration);
+  level.gain.setValueAtTime(Math.max(.0001,gain),start);
+  level.gain.exponentialRampToValueAtTime(.0001,start+duration);
+  oscillator.connect(level);level.connect(context.destination);
+  oscillator.start(start);oscillator.stop(start+duration+.02);
+}
+
+function playLiveCombatCue(kind,intensity){
+  var context=primeLiveCombatAudio();
+  if(!context||!liveCombatAudioEnabled||liveCombatAudioVolume<=0)return;
+  var strength=Math.max(.18,Math.min(1,Number(intensity)||.5));
+  var gain=(liveCombatAudioVolume/100)*.12*strength;
+  if(kind==='heal'){
+    liveCombatTone(context,440,.14,'sine',gain,0,620);
+    liveCombatTone(context,660,.18,'sine',gain*.72,.08,880);
+  }else if(kind==='cast'){
+    liveCombatTone(context,220,.2,'triangle',gain*.7,0,520);
+    liveCombatTone(context,520,.16,'sine',gain,.08,760);
+  }else if(kind==='ultimate'){
+    liveCombatTone(context,110,.32,'sawtooth',gain,0,440);
+    liveCombatTone(context,330,.28,'square',gain*.55,.1,990);
+  }else if(kind==='defeat'){
+    liveCombatTone(context,210,.35,'sawtooth',gain,0,58);
+  }else if(kind==='heavy'){
+    liveCombatTone(context,92,.17,'square',gain,0,48);
+    liveCombatTone(context,180,.09,'sawtooth',gain*.7,.025,70);
+  }else if(kind==='hit'){
+    liveCombatTone(context,150,.09,'square',gain,0,82);
+  }else{
+    liveCombatTone(context,520,.08,'sine',gain*.65,0,680);
+  }
+}
+
+function pulseLiveCombatStage(kind){
+  if(!liveCombatImpactEnabled)return;
+  var stage=document.getElementById('livePixelStage');
+  if(!stage)return;
+  stage.classList.remove('impact','impact-heavy','impact-heal');
+  void stage.offsetWidth;
+  stage.classList.add('impact');
+  if(kind==='heavy'||kind==='defeat'||kind==='ultimate')stage.classList.add('impact-heavy');
+  if(kind==='heal')stage.classList.add('impact-heal');
+  window.setTimeout(function(){stage.classList.remove('impact','impact-heavy','impact-heal');},420);
+}
+
+function emitLiveCombatFeedback(state,previous,newLogs){
+  var version=Number(state&&state.version),sameSession=previous&&previous.session===String(state&&state.session_id||'');
+  if(!sameSession||previous.version<0||!Number.isFinite(version)||version<=previous.version)return;
+  var damage=0,healing=0,maxDamageShare=0,defeated=0;
+  (state.allies||[]).concat(state.enemies||[]).forEach(function(unit){
+    var before=previous.units[unit.id];
+    if(!before)return;
+    var delta=Number(unit.hp)-Number(before.hp);
+    if(delta<0){damage-=delta;maxDamageShare=Math.max(maxDamageShare,-delta/Math.max(1,Number(unit.max_hp)||1));}
+    if(delta>0)healing+=delta;
+    if(before.hp>0&&unit.hp<=0)defeated++;
+  });
+  var logText=(newLogs||[]).join(' ').toLowerCase(),kind='';
+  if(/ultimate|limit break|devastating wave|piercing onslaught/.test(logText))kind='ultimate';
+  else if(defeated)kind='defeat';
+  else if(damage)kind=maxDamageShare>=.2?'heavy':'hit';
+  else if(healing)kind='heal';
+  else if(/cast|spell|skill|blast|bolt|curse|wave|storm|nova/.test(logText))kind='cast';
+  if(!kind)return;
+  var intensity=Math.min(1,.25+maxDamageShare*2+(defeated?.25:0));
+  playLiveCombatCue(kind,intensity);
+  pulseLiveCombatStage(kind);
+}
+
+document.addEventListener('pointerdown',function(){primeLiveCombatAudio();},{capture:true,once:true});
+document.addEventListener('keydown',function(){primeLiveCombatAudio();},{capture:true,once:true});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',updateLiveCombatFeedbackControls,{once:true});
+else updateLiveCombatFeedbackControls();
+{{end}}

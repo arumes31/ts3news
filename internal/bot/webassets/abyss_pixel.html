@@ -118,6 +118,7 @@ function livePixelCue(unit,newLogs,previous){
 function renderLivePixelStage(state){
   var logs=state.recent_logs||[],lastIndex=livePixelPrevious.lastLog?logs.lastIndexOf(livePixelPrevious.lastLog):-1;
   var newLogs=lastIndex>=0?logs.slice(lastIndex+1):logs;
+  emitLiveCombatFeedback(state,livePixelPrevious,newLogs);
   function renderSide(hostID,units,hostile){
     var host=document.getElementById(hostID);host.innerHTML='';
     (units||[]).forEach(function(unit,index){

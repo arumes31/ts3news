@@ -34,7 +34,7 @@ func jsonJS(v any) template.JS {
 	return template.JS(b) // #nosec G203 - trusted JSON data from server, not user input
 }
 
-//go:embed webassets/*.html webassets/*.css webassets/*.svg webassets/*.png webassets/icons/*.svg
+//go:embed webassets/*.html webassets/*.css webassets/*.svg webassets/*.png webassets/*.md webassets/icons/*.svg
 var webAssets embed.FS
 
 const sessionCookie = "ts3session"
@@ -60,11 +60,12 @@ type WebServer struct {
 	liveCombats     sync.Map // session ID -> *abyssLiveCombat
 	liveCombatByUID sync.Map // uid -> session ID
 
-	abyssFeatures abyssFeatureConfig
-	abyssOps      abyssOpsMetrics
-	abyssTreeOps  abyssTreeOpsMetrics
-	abyssForgeOps abyssForgeOpsMetrics
-	forgeQuoteKey [32]byte
+	abyssFeatures      abyssFeatureConfig
+	abyssOps           abyssOpsMetrics
+	abyssTreeOps       abyssTreeOpsMetrics
+	abyssForgeOps      abyssForgeOpsMetrics
+	abyssClientReports abyssClientReportStore
+	forgeQuoteKey      [32]byte
 }
 
 // lockAbyss acquires the per-uid Abyss mutex and returns its unlock func.
@@ -137,6 +138,7 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 		"cssver":     func() string { return AssetVer("webassets/style.css") },
 		"uicssver":   func() string { return AssetVer("webassets/abyss_ui200.css") },
 		"livecssver": func() string { return AssetVer("webassets/abyss_live.css") },
+		"abyssChangelog": loadAbyssChangelog,
 		"appver":     func() string { return AssetVer("all") },
 		"halve":      func(n int) int { return n / 2 },
 		"dur":        func(ms int64) string { return fmt.Sprintf("%.1fs", float64(ms)/1000) },
@@ -162,6 +164,9 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 	}
 	if err := validateAbyssContentReferences(); err != nil {
 		return nil, fmt.Errorf("validating Abyss content: %w", err)
+	}
+	if _, err := loadAbyssChangelog(); err != nil {
+		return nil, fmt.Errorf("loading Abyss changelog: %w", err)
 	}
 	server := &WebServer{bot: b, tmpl: tmpl, abyssFeatures: newAbyssFeatureConfig(b)}
 	if _, err := rand.Read(server.forgeQuoteKey[:]); err != nil {
@@ -191,6 +196,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	})
 	mux.HandleFunc("/static/abyss_pixel.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_pixel.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_combat_feedback.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_combat_feedback.css", "text/css; charset=utf-8")
 	})
 	mux.HandleFunc("/static/abyss_combat_sprites.png", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_combat_sprites.png", "image/png")
@@ -266,6 +274,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/combat/events", s.authAPI(s.handleAbyssCombatEvents))
 		mux.HandleFunc("/api/abyss/replay/code", s.authAPI(s.handleAbyssReplayCode))
 		mux.HandleFunc("/api/abyss/ops", s.authAPI(s.handleAbyssOps))
+		mux.HandleFunc("/api/abyss/client-error", s.authAPI(s.handleAbyssClientError))
 		mux.HandleFunc("/api/abyss/practice", s.authAPI(s.handleAbyssBossPractice))
 		mux.HandleFunc("/api/abyss/build/respec", s.authAPI(s.handleAbyssBuildRespec))
 		mux.HandleFunc("/api/abyss/loot/settings", s.authAPI(s.handleAbyssLootSettings))

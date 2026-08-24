@@ -4,6 +4,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_command.css"}}">
 <link rel="stylesheet" href="/static/abyss_live.css?v={{livecssver}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_pixel.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_combat_feedback.css"}}">
 <div class="abyss-command-page" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
@@ -1808,6 +1809,7 @@ function clearBanner(){
 var lastFightText=''; // UI-37: plain text of the latest fight, for clipboard copy
 var fightMeta=null;   // per-floor parse state for the stage/log decorators
 var killsThisFloor=0; // UI-11
+var AB_LOG_VIRTUAL_THRESHOLD=500,AB_LOG_VIRTUAL_HEAD=8,AB_LOG_VIRTUAL_TAIL=300,AB_LOG_RESTORE_BATCH=200;
 function playLog(lines, loot, dura, timeline){
   return new Promise(function(resolve){
     var log=document.getElementById('abyssLog'), lootEl=document.getElementById('abyssLoot'), duraEl=document.getElementById('abyssDura');
@@ -1815,6 +1817,7 @@ function playLog(lines, loot, dura, timeline){
     show('nonCombatPanel', false);
     document.getElementById('logWrap').style.display='';
     log.innerHTML=''; lootEl.innerHTML=''; duraEl.innerHTML='';
+    log._abyssVirtualRows=[];
     clearFatalPin(); // UI-29: a new floor settles the previous death
     clearStageFx();  // UI-3/7/20: stage effects are per-floor
     killsThisFloor=0; updateKillChip(); // UI-11: reset per floor
@@ -1924,6 +1927,47 @@ function appendLogLine(log, html){
   }
   lastDotKey=dot; lastDotEl=dot?d:null;
   log.appendChild(d);
+  virtualizeCombatLog(log);
+}
+
+// AB-294: keep long multi-floor fights bounded to a small DOM window. Removed
+// rows remain serialized in chronological order and can be restored in chunks
+// for inspection, filtering, or export without losing the full plain-text log.
+function virtualizeCombatLog(log){
+  var lines=Array.prototype.slice.call(log.querySelectorAll('.ab-log-line:not(.ab-log-virtual-gap)'));
+  if(lines.length<=AB_LOG_VIRTUAL_THRESHOLD)return;
+  var end=lines.length-AB_LOG_VIRTUAL_TAIL;
+  if(end<=AB_LOG_VIRTUAL_HEAD)return;
+  var removed=lines.slice(AB_LOG_VIRTUAL_HEAD,end);
+  log._abyssVirtualRows=(log._abyssVirtualRows||[]).concat(removed.map(function(line){return line.outerHTML;}));
+  removed.forEach(function(line){line.remove();});
+  var gap=log.querySelector('.ab-log-virtual-gap');
+  if(!gap){
+    gap=document.createElement('div');
+    gap.className='ab-log-line ab-log-virtual-gap';
+    gap.innerHTML='<span></span><button type="button" class="ghost xs">Load previous lines</button>';
+    gap.querySelector('button').addEventListener('click',function(){restoreVirtualLog(log,AB_LOG_RESTORE_BATCH);});
+    var remaining=log.querySelectorAll('.ab-log-line:not(.ab-log-virtual-gap)');
+    log.insertBefore(gap,remaining[Math.min(AB_LOG_VIRTUAL_HEAD,remaining.length)]||null);
+  }
+  updateVirtualLogGap(log);
+  window.__abyssLogDOMCount=log.childElementCount;
+}
+function updateVirtualLogGap(log){
+  var gap=log.querySelector('.ab-log-virtual-gap'),count=(log._abyssVirtualRows||[]).length;
+  if(!gap)return;
+  if(!count){gap.remove();return;}
+  gap.querySelector('span').textContent=count+' earlier combat lines virtualized for performance';
+  gap.querySelector('button').textContent='Load previous '+Math.min(AB_LOG_RESTORE_BATCH,count);
+}
+function restoreVirtualLog(log,limit){
+  var rows=log._abyssVirtualRows||[],gap=log.querySelector('.ab-log-virtual-gap');
+  if(!rows.length||!gap)return;
+  var count=Math.min(rows.length,Number.isFinite(limit)?limit:rows.length);
+  var start=rows.length-count,chunk=rows.splice(start,count);
+  gap.insertAdjacentHTML('afterend',chunk.join(''));
+  updateVirtualLogGap(log);
+  window.__abyssLogDOMCount=log.childElementCount;
 }
 
 // decorateLogLine: single classifier pass over a combat-log line.
@@ -2094,6 +2138,7 @@ function tickBuffs(){
 
 // UI-27: fights longer than 20 lines collapse their middle behind an expander.
 function collapseLongFight(log){
+  if(log.querySelector('.ab-log-virtual-gap')) return;
   var lines=log.querySelectorAll('.ab-log-line:not(.ab-log-divider):not(.ab-log-affix):not(.ab-log-pacts)');
   if(lines.length<=20) return;
   var hide=[];
@@ -2140,6 +2185,7 @@ function applyLogFilter(){
   var inp=document.getElementById('logSearch');
   var q=inp?(inp.value||'').toLowerCase():'';
   var log=document.getElementById('abyssLog'); if(!log) return;
+  if(q) restoreVirtualLog(log,Infinity);
   log.querySelectorAll('.ab-log-line').forEach(function(l){
     l.style.display=(!q || (l.textContent||'').toLowerCase().indexOf(q)>=0)?'':'none';
   });
@@ -2218,9 +2264,16 @@ function bountyRingHTML(){
     '<circle cx="9" cy="9" r="'+r+'" class="ab-br-fg" style="stroke-dasharray:'+c.toFixed(1)+';stroke-dashoffset:'+(c*(1-pct)).toFixed(1)+'"/></svg>🎯';
 }
 
-// renderHudChips (UI-41/43/44/49/50/51/54/55/56/58/59/60): the run-awareness
-// chip row under the threat meter. Rebuilt from current state on every render.
+// AB-295: callers can update several state fields in one task; coalesce their
+// HUD work into one browser frame instead of rebuilding the chip row each time.
+var hudChipFrame=0;
 function renderHudChips(){
+  if(hudChipFrame)return;
+  hudChipFrame=requestAnimationFrame(function(){hudChipFrame=0;renderHudChipsNow();});
+}
+// renderHudChipsNow (UI-41/43/44/49/50/51/54/55/56/58/59/60): the run-awareness
+// chip row under the threat meter.
+function renderHudChipsNow(){
   var host=document.getElementById('hudChips'); if(!host) return;
   var chips=[];
   if(inRun){
@@ -2260,18 +2313,32 @@ function renderHudChips(){
   var html='';
   chips.forEach(function(c){ html+='<span class="ab-hudchip '+(c[1]||'')+'">'+(c[2]?c[0]:consEsc(c[0]))+'</span>'; });
   host.innerHTML=html;
+  window.__abyssHUDRenderCount=(window.__abyssHUDRenderCount||0)+1;
 }
+
+// AB-296: immutable rarity metadata is computed once and shared by classifiers,
+// counters, filters, and presentation instead of rebuilding maps per loot row.
+var AB_RARITY_META=Object.freeze([
+  {terms:['eternal'],cls:'rar-eternal',color:'#e040fb',rank:9},
+  {terms:['celestial'],cls:'rar-celestial',color:'#40c4ff',rank:8},
+  {terms:['divine'],cls:'rar-divine',color:'#f4c542',rank:7},
+  {terms:['mythic','eldritch'],cls:'rar-mythic',color:'#e2575b',rank:6},
+  {terms:['legendary'],cls:'rar-legendary',color:'#ff9d3c',rank:5},
+  {terms:['epic'],cls:'rar-epic',color:'#b26bff',rank:4},
+  {terms:['rare'],cls:'rar-rare',color:'#5bc0ff',rank:3}
+]);
+var AB_RARITY_COLORS=Object.freeze(AB_RARITY_META.reduce(function(out,meta){out[meta.cls]=meta.color;return out;},{}));
+var AB_RARITY_RANKS=Object.freeze(AB_RARITY_META.reduce(function(out,meta){out[meta.cls]=meta.rank;return out;},{}));
+var AB_RARITY_CLASSES=Object.freeze(Object.keys(AB_RARITY_COLORS));
+var AB_RARITY_NAMES=Object.freeze({Common:'rar-common',Uncommon:'rar-uncommon',Rare:'rar-rare',Epic:'rar-epic',Legendary:'rar-legendary',Mythic:'rar-mythic',Divine:'rar-divine',Celestial:'rar-celestial',Eternal:'rar-eternal'});
 
 // rarityClass (#88/#329): tag loot lines with a rarity class for colored beams.
 function rarityClass(html){
   var t=(html||'').toLowerCase();
-  if(t.indexOf('eternal')>=0)return 'rar-eternal';
-  if(t.indexOf('celestial')>=0)return 'rar-celestial';
-  if(t.indexOf('divine')>=0)return 'rar-divine';
-  if(t.indexOf('mythic')>=0||t.indexOf('eldritch')>=0)return 'rar-mythic';
-  if(t.indexOf('legendary')>=0)return 'rar-legendary';
-  if(t.indexOf('epic')>=0)return 'rar-epic';
-  if(t.indexOf('rare')>=0)return 'rar-rare';
+  for(var i=0;i<AB_RARITY_META.length;i++){
+    var meta=AB_RARITY_META[i];
+    for(var j=0;j<meta.terms.length;j++)if(t.indexOf(meta.terms[j])>=0)return meta.cls;
+  }
   return '';
 }
 
@@ -2297,14 +2364,13 @@ function updateLootSummary(){
   // Rarity dot counters in the header (UX-48).
   var dots = document.getElementById('lootRarityDots');
   if(dots){
-    var colors = {'rar-rare':'#5bc0ff','rar-epic':'#b26bff','rar-legendary':'#ff9d3c','rar-mythic':'#e2575b','rar-divine':'#f4c542','rar-celestial':'#40c4ff','rar-eternal':'#e040fb'};
     var counts = {};
     manifest.querySelectorAll('.abyss-side-loot').forEach(function(row){
-      Object.keys(colors).forEach(function(c){ if(row.classList.contains(c)) counts[c]=(counts[c]||0)+1; });
+      AB_RARITY_CLASSES.forEach(function(c){ if(row.classList.contains(c)) counts[c]=(counts[c]||0)+1; });
     });
     var html = '';
-    Object.keys(colors).forEach(function(c){
-      if(counts[c]) html += '<span class="ab-dot" style="color:'+colors[c]+'" title="'+c.replace('rar-','')+' ×'+counts[c]+'">● '+counts[c]+'</span>';
+    AB_RARITY_CLASSES.forEach(function(c){
+      if(counts[c]) html += '<span class="ab-dot" style="color:'+AB_RARITY_COLORS[c]+'" title="'+c.replace('rar-','')+' ×'+counts[c]+'">● '+counts[c]+'</span>';
     });
     dots.innerHTML = html;
   }
@@ -2322,14 +2388,13 @@ function applyLootFilter(){
     c.classList.toggle('active', c.getAttribute('data-f') === lootFilter);
     c.setAttribute('aria-pressed', c.getAttribute('data-f')===lootFilter ? 'true' : 'false');
   });
-  var rank = {'rar-rare':3,'rar-epic':4,'rar-legendary':5,'rar-mythic':6,'rar-divine':7,'rar-celestial':8,'rar-eternal':9};
   var min = {rare:3, epic:4, legendary:5}[lootFilter] || 0;
   manifest.querySelectorAll('.abyss-side-loot').forEach(function(row){
     var ok = true;
     if(lootFilter === 'up'){ ok = (row.textContent.indexOf('▲') >= 0); }
     else if(min > 0){
       var r = 0;
-      row.classList.forEach(function(c){ if(rank[c]) r = rank[c]; });
+      row.classList.forEach(function(c){ if(AB_RARITY_RANKS[c]) r = AB_RARITY_RANKS[c]; });
       ok = r >= min;
     }
     row.style.display = ok ? '' : 'none';
@@ -2916,6 +2981,7 @@ async function processDescendResult(d, hp, max){
   renderState(); setBusy(false);
 }
 
+{{template "abyssCombatFeedbackJS" .}}
 {{template "abyssPixelCombatJS" .}}
 {{template "abyssLiveActionBarJS" .}}
 
@@ -4182,6 +4248,8 @@ function displayAutoFocus(focus) {
   };
   var logHtmlBtn=document.getElementById('logHtmlBtn');
   if(logHtmlBtn) logHtmlBtn.onclick=function(){
+    var exportLog=document.getElementById('abyssLog');
+    if(exportLog)restoreVirtualLog(exportLog,Infinity);
     var lines=Array.prototype.filter.call(document.querySelectorAll('#abyssLog .ab-log-line'),function(el){return el.style.display!=='none';});
     if(!lines.length){abToast('No fight logged yet',false);return;}
     var body=lines.map(function(el){return el.outerHTML;}).join('\n');
@@ -4246,7 +4314,7 @@ var AB_SET_PIECES={
   harvester:["Harvester's Gulthook",'Eye of the Harvester','Band of the Gilded Harvest']
 };
 var AB_SET_MAX={predator:6,warden:6,harvester:3};
-var AB_RAR_ORDER=['rar-rare','rar-epic','rar-legendary','rar-mythic','rar-divine','rar-celestial','rar-eternal'];
+var AB_RAR_ORDER=AB_RARITY_META.slice().reverse().map(function(meta){return meta.cls;});
 
 function abSetCounts(){
   var out={predator:0,warden:0,harvester:0};
@@ -4939,11 +5007,10 @@ function initForgeHistory(){
     });
   };
   // UI-96: item names colored by the rarity words in the detail text.
-  var rarCls={Common:'rar-common',Uncommon:'rar-uncommon',Rare:'rar-rare',Epic:'rar-epic',Legendary:'rar-legendary',Mythic:'rar-mythic',Divine:'rar-divine',Celestial:'rar-celestial',Eternal:'rar-eternal'};
   Array.prototype.slice.call(box.children).forEach(function(d){
     if(d.tagName!=='DIV')return;
     d.innerHTML=d.innerHTML.replace(/\b(Common|Uncommon|Rare|Epic|Legendary|Mythic|Divine|Celestial|Eternal)\b/g,function(m){
-      return '<span class="'+rarCls[m]+'">'+m+'</span>';
+      return '<span class="'+AB_RARITY_NAMES[m]+'">'+m+'</span>';
     });
   });
 }
@@ -6082,6 +6149,7 @@ function openAbSettings(){
 </script>
 {{template "abyss-forge-workstation" .}}
 {{if .ForgeWorkbenchEnabled}}{{template "abyss-forge-planner" .}}{{end}}
+{{template "abyssAAARuntime" .}}
 <script data-cfasync="false">
 window.buildAbyssTabs();
 initTabDots();

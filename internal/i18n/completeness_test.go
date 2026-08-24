@@ -116,3 +116,27 @@ func TestEveryLocaleHasEveryTranslation(t *testing.T) {
 		})
 	}
 }
+
+func TestMessageCoverageReportsAbyssKeysForEveryLocale(t *testing.T) {
+	if err := InitWithLocale(defaultLocale); err != nil {
+		t.Fatalf("initialize locale bundle: %v", err)
+	}
+	rows := MessageCoverage("web.abyss.")
+	if len(rows) != len(AllLocales) {
+		t.Fatalf("coverage rows = %d, want %d", len(rows), len(AllLocales))
+	}
+	for _, row := range rows {
+		if row.Total == 0 {
+			t.Fatalf("locale %s reported no Abyss translation keys", row.Locale)
+		}
+		if row.Present+len(row.Missing) != row.Total {
+			t.Fatalf(
+				"locale %s coverage is inconsistent: present=%d missing=%d total=%d",
+				row.Locale,
+				row.Present,
+				len(row.Missing),
+				row.Total,
+			)
+		}
+	}
+}

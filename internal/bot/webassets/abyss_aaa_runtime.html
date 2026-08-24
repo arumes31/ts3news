@@ -1,0 +1,58 @@
+{{define "abyssAAARuntime"}}
+<section class="abyss-panel ab-changelog" id="abyssChangelog" data-abyss-section="progression">
+  <h2>📡 What's New <span class="ab-up-lv">Live build notes</span></h2>
+  <p class="muted small">Player-facing changes shipped to the Abyss command deck.</p>
+  <div class="ab-release-timeline">
+    {{range abyssChangelog}}
+    <article class="ab-release">
+      <time datetime="{{.Date}}">{{.Date}}</time>
+      <h3>{{.Title}}</h3>
+      <ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul>
+    </article>
+    {{end}}
+  </div>
+</section>
+<script data-cfasync="false">
+(function initAbyssClientReporting(){
+  'use strict';
+  var sent=[],recent={};
+  function safeSource(value){
+    if(!value)return'inline';
+    try{
+      var url=new URL(String(value),location.href);
+      if(url.origin!==location.origin)return'cross-origin';
+      return url.pathname.indexOf('/static/')===0?url.pathname:'inline';
+    }catch(_){return'other';}
+  }
+  function reportClientError(kind,source,line,column){
+    var now=Date.now();
+    sent=sent.filter(function(at){return now-at<60000;});
+    if(sent.length>=3)return;
+    source=safeSource(source);
+    var signature=kind+'|'+source+'|'+Number(line||0)+'|'+Number(column||0);
+    if(recent[signature]&&now-recent[signature]<10000)return;
+    recent[signature]=now;sent.push(now);
+    fetch('/api/abyss/client-error',{
+      method:'POST',credentials:'same-origin',keepalive:true,
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        kind:kind,source:source,path:location.pathname,
+        line:Number(line)||0,column:Number(column)||0
+      })
+    }).catch(function(){});
+  }
+  window.addEventListener('error',function(event){
+    if(event.message){
+      reportClientError('script_error',event.filename,event.lineno,event.colno);
+      return;
+    }
+    var target=event.target||{},resource=target.src||target.href;
+    if(resource)reportClientError('resource_error',resource,0,0);
+  },true);
+  window.addEventListener('unhandledrejection',function(){
+    reportClientError('promise_rejection','inline',0,0);
+  });
+  window.__abyssReportClientError=reportClientError;
+})();
+</script>
+{{end}}

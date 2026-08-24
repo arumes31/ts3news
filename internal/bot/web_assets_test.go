@@ -216,6 +216,14 @@ func TestAbyssPixelCombatTemplates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read pixel combat stylesheet: %v", err)
 	}
+	feedback, err := webAssets.ReadFile("webassets/abyss_combat_feedback.html")
+	if err != nil {
+		t.Fatalf("read combat feedback template: %v", err)
+	}
+	feedbackCSS, err := webAssets.ReadFile("webassets/abyss_combat_feedback.css")
+	if err != nil {
+		t.Fatalf("read combat feedback stylesheet: %v", err)
+	}
 
 	markers := []struct {
 		name   string
@@ -232,6 +240,14 @@ func TestAbyssPixelCombatTemplates(t *testing.T) {
 		{name: "boss tier", source: string(css), want: ".ab-pixel-unit.boss-tier"},
 		{name: "icon classifier", source: string(pixel), want: "function liveActionIconCell(option)"},
 		{name: "reduced motion", source: string(css), want: "@media (prefers-reduced-motion: reduce)"},
+		{name: "feedback stylesheet", source: string(page), want: `{{asset "/static/abyss_combat_feedback.css"}}`},
+		{name: "feedback controls", source: string(live), want: `{{template "abyssCombatFeedbackControls" .}}`},
+		{name: "feedback script", source: string(page), want: `{{template "abyssCombatFeedbackJS" .}}`},
+		{name: "saved audio preference", source: string(feedback), want: "abyssCombatAudio"},
+		{name: "gesture-gated audio", source: string(feedback), want: "function enableLiveCombatAudio()"},
+		{name: "snapshot feedback", source: string(feedback), want: "function emitLiveCombatFeedback(state,previous,newLogs)"},
+		{name: "impact styling", source: string(feedbackCSS), want: ".ab-pixel-stage.impact"},
+		{name: "feedback reduced motion", source: string(feedbackCSS), want: "@media (prefers-reduced-motion: reduce)"},
 	}
 	for _, marker := range markers {
 		if !strings.Contains(marker.source, marker.want) {

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"ts3news/internal/content"
+	"ts3news/internal/i18n"
 )
 
 // abyssFeatureConfig keeps risky live-combat additions independently
@@ -232,6 +233,9 @@ func ratio(part, total int64) float64 {
 }
 
 func validateAbyssContentReferences() error {
+	if err := content.ValidateGearCatalog(); err != nil {
+		return fmt.Errorf("gear catalog: %w", err)
+	}
 	for _, id := range []string{"small_health_potion", "great_health_potion", "elixir_of_life", "abyss_emergency_revive"} {
 		if _, ok := content.GetConsumableByID(id); !ok {
 			return fmt.Errorf("unknown consumable %q", id)
@@ -368,5 +372,9 @@ func (s *WebServer) handleAbyssOps(w http.ResponseWriter, r *http.Request, _ str
 		},
 		"skill_tree": s.abyssTreeOps.snapshot(),
 		"forge":      s.abyssForgeOps.snapshot(),
+		"client_errors": s.abyssClientReports.snapshot(),
+		"i18n": map[string]any{
+			"abyss": i18n.MessageCoverage("web.abyss."),
+		},
 	})
 }

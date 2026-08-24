@@ -546,6 +546,74 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
   scroll-margin-top: 72px;
 }
 
+.abyss-command-page .ab-changelog {
+  grid-column: 1 / -1;
+}
+
+.abyss-command-page .ab-release-timeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.abyss-command-page .ab-release {
+  position: relative;
+  min-width: 0;
+  padding: 12px 14px 12px 18px;
+  border: 1px solid var(--cmd-line-soft);
+  border-radius: var(--cmd-cut-small);
+  background: linear-gradient(135deg, rgba(91, 214, 208, .055), rgba(7, 11, 17, .72));
+}
+
+.abyss-command-page .ab-release::before {
+  position: absolute;
+  inset: 12px auto 12px 7px;
+  width: 2px;
+  content: "";
+  background: linear-gradient(var(--cmd-cyan), transparent);
+}
+
+.abyss-command-page .ab-release time {
+  color: var(--cmd-cyan);
+  font: .62rem/1.2 var(--cmd-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.abyss-command-page .ab-release h3 {
+  margin: 4px 0 7px;
+  color: #f4f7fb;
+  font: .82rem/1.2 var(--cmd-display);
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.abyss-command-page .ab-release ul {
+  margin: 0;
+  padding-left: 17px;
+  color: #aeb9c9;
+  font-size: .76rem;
+  line-height: 1.55;
+}
+
+.abyss-command-page .ab-log-virtual-gap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 6px 0;
+  padding: 8px 10px;
+  color: #8f9bad;
+  border: 1px dashed rgba(91, 214, 208, .28);
+  border-radius: var(--cmd-cut-small);
+  background: rgba(91, 214, 208, .04);
+  font: .64rem/1.35 var(--cmd-mono);
+}
+
+.abyss-command-page .ab-log-virtual-gap button {
+  flex: none;
+}
+
 .abyss-command-page .ab-acc {
   overflow: hidden;
   border-color: #303b4d;

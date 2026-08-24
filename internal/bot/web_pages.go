@@ -60,28 +60,6 @@ type gearView struct {
 	Prismatic    bool // rune already elevated to prismatic
 }
 
-// gearEffectDescriptions maps each special effect to a short player-facing blurb.
-var gearEffectDescriptions = map[content.ItemEffect]string{
-	content.EffectThorns:         "Reflects 10% of damage taken",
-	content.EffectVampiric:       "Heals for 5% of damage dealt",
-	content.EffectBerserk:        "+20% STR while below 50% HP",
-	content.EffectLucky:          "+10% Luck",
-	content.EffectTreasureHunter: "+5% item find chance",
-	content.EffectQuick:          "+10% Speed",
-	content.EffectBulwark:        "+10% Defense",
-	content.EffectRadiant:        "+10% XP gained",
-	content.EffectFragile:        "+30% STR but double durability loss",
-	content.EffectSteady:         "-50% stun chance",
-	content.EffectMindControl:    "Chance to capture low-health mobs",
-	content.EffectRegenStack:     "Permanent regen stack on victory",
-	content.EffectPhoenix:        "Revive once per fight at 50% HP",
-	content.EffectStealth:        "Skip first-round mob damage",
-	content.EffectParry:          "10% chance to negate a hit and counter",
-	content.EffectCleanse:        "Removes a negative effect each turn",
-	content.EffectExecutioner:    "+25% damage to targets below 30% HP",
-	content.EffectFocused:        "+10% Crit Rate",
-}
-
 // gearStatList returns the gear's non-zero combat stats, largest first.
 func gearStatList(s content.Stats) []statKV {
 	pairs := []statKV{
@@ -100,7 +78,7 @@ func gearStatList(s content.Stats) []statKV {
 func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	name := g.Name
 	stats := gearStatList(g.Stats)
-	effDesc := gearEffectDescriptions[g.Special]
+	effDesc := content.ItemEffectDescription(g.Special)
 
 	if g.Unidentified {
 		name = "Unidentified " + string(slot)
