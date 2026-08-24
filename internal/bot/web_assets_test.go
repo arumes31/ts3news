@@ -21,6 +21,11 @@ func TestAssetVerAndURL(t *testing.T) {
 		t.Errorf("expected 12-char hex hash for abyss_ui200.css, got %q", uiVer)
 	}
 
+	commandVer := AssetVer("webassets/abyss_command.css")
+	if len(commandVer) != 12 {
+		t.Errorf("expected 12-char hex hash for abyss_command.css, got %q", commandVer)
+	}
+
 	// Check abyss_live.css version
 	liveVer := AssetVer("webassets/abyss_live.css")
 	if len(liveVer) != 12 {
@@ -48,6 +53,11 @@ func TestAssetVerAndURL(t *testing.T) {
 	wantStyleURL := "/static/style.css?v=" + styleVer
 	if got := AssetURL("/static/style.css"); got != wantStyleURL {
 		t.Errorf("AssetURL(/static/style.css) = %q, want %q", got, wantStyleURL)
+	}
+
+	wantCommandURL := "/static/abyss_command.css?v=" + commandVer
+	if got := AssetURL("/static/abyss_command.css"); got != wantCommandURL {
+		t.Errorf("AssetURL(/static/abyss_command.css) = %q, want %q", got, wantCommandURL)
 	}
 
 	wantLiveURL := "/static/abyss_live.css?v=" + liveVer
