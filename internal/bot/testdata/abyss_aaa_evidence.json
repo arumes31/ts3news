@@ -1,0 +1,50 @@
+[
+  {
+    "ids": [986, 987],
+    "production": [
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/db/migrations/0068_abyss_insanity_tier.up.sql"
+    ],
+    "verification": ["internal/bot/web_abyss_release_guards_test.go"]
+  },
+  {
+    "ids": [993],
+    "production": [
+      "internal/bot/web_abyss_client_reports.go",
+      "internal/bot/webassets/abyss_aaa_runtime.html",
+      "internal/bot/web_abyss_ops.go"
+    ],
+    "verification": ["internal/bot/web_abyss_client_reports_test.go"]
+  },
+  {
+    "ids": [994, 995, 996],
+    "production": ["internal/bot/webassets/abyss.html"],
+    "verification": ["internal/bot/web_abyss_aaa_runtime_test.go"]
+  },
+  {
+    "ids": [998],
+    "production": [
+      "internal/i18n/i18n.go",
+      "internal/bot/web_abyss_ops.go"
+    ],
+    "verification": ["internal/i18n/completeness_test.go"]
+  },
+  {
+    "ids": [999],
+    "production": [
+      "internal/content/artifacts_validation.go",
+      "internal/bot/web.go"
+    ],
+    "verification": ["internal/content/artifacts_validation_test.go"]
+  },
+  {
+    "ids": [1000],
+    "production": [
+      "internal/bot/web_abyss_changelog.go",
+      "internal/bot/webassets/abyss_changelog.md",
+      "internal/bot/webassets/abyss_aaa_runtime.html"
+    ],
+    "verification": ["internal/bot/web_abyss_changelog_test.go"]
+  }
+]

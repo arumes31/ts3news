@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -193,8 +194,19 @@ func (s *WebServer) handleAbyssClientError(w http.ResponseWriter, r *http.Reques
 	decoder.DisallowUnknownFields()
 	var report abyssClientErrorReport
 	if err := decoder.Decode(&report); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		writeJSON(w, map[string]any{"ok": false, "error": "invalid client report"})
+		writeAbyssClientReportJSON(
+			w,
+			http.StatusBadRequest,
+			map[string]any{"ok": false, "error": "invalid client report"},
+		)
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		writeAbyssClientReportJSON(
+			w,
+			http.StatusBadRequest,
+			map[string]any{"ok": false, "error": "invalid client report"},
+		)
 		return
 	}
 	summary, accepted := s.abyssClientReports.record(uid, report, time.Now())
@@ -207,6 +219,19 @@ func (s *WebServer) handleAbyssClientError(w http.ResponseWriter, r *http.Reques
 			"source", summary.Source,
 		)
 	}
-	w.WriteHeader(http.StatusAccepted)
-	writeJSON(w, map[string]any{"ok": true, "accepted": accepted})
+	writeAbyssClientReportJSON(
+		w,
+		http.StatusAccepted,
+		map[string]any{"ok": true, "accepted": accepted},
+	)
+}
+
+func writeAbyssClientReportJSON(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(value); err != nil {
+		slog.Error("write Abyss client report response", "error", err)
+	}
 }

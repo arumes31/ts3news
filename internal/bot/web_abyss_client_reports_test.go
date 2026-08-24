@@ -87,12 +87,31 @@ func TestHandleAbyssClientErrorAcceptsBoundedJSON(t *testing.T) {
 	if recorder.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusAccepted)
 	}
+	if contentType := recorder.Header().Get("Content-Type"); contentType != "application/json; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want JSON", contentType)
+	}
 	var response map[string]any
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
 	if response["ok"] != true || response["accepted"] != true {
 		t.Fatalf("response = %#v", response)
+	}
+}
+
+func TestHandleAbyssClientErrorRejectsMultipleJSONValues(t *testing.T) {
+	t.Parallel()
+
+	server := &WebServer{}
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/abyss/client-error",
+		strings.NewReader(`{"kind":"script_error"} {"kind":"resource_error"}`),
+	)
+	recorder := httptest.NewRecorder()
+	server.handleAbyssClientError(recorder, request, "player-1")
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
 	}
 }
 
