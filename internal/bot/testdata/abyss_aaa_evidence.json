@@ -33,6 +33,18 @@
     "verification": ["internal/bot/web_abyss_combat_recorder_test.go"]
   },
   {
+    "ids": [433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_run_awareness.html",
+      "internal/bot/webassets/abyss_run_awareness.css",
+      "internal/bot/webassets/abyss_ui200.css",
+      "internal/bot/webassets/style.css"
+    ],
+    "verification": ["internal/bot/web_abyss_run_awareness_test.go"]
+  },
+  {
     "ids": [986, 987],
     "production": [
       "internal/bot/web_abyss_econ.go",

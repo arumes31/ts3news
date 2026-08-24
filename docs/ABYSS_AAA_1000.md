@@ -79,3 +79,18 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0430 / UX-30** — post-fight HP, gold, loot, and gear-wear delta chips.
 - [x] **AAA-0431 / UX-31** — plain-text clipboard export of the latest complete fight.
 - [x] **AAA-0432 / UX-32** — explicit follow ownership and jump-to-latest recovery.
+
+## Delivered tranche: run-awareness HUD
+
+- [x] **AAA-0433 / UX-33** — reduced-motion-safe cache delta values at the escrow counter.
+- [x] **AAA-0434 / UX-34** — persisted ten-floor trail with encounter icons and next-boss marker.
+- [x] **AAA-0435 / UX-35** — sticky distance-to-record readout with gold new-record state.
+- [x] **AAA-0436 / UX-36** — momentum displays its current strength bonus.
+- [x] **AAA-0437 / UX-37** — bank-lock countdown mirrored beside the sticky actions.
+- [x] **AAA-0438 / UX-38** — visible insured-share badge on the cache.
+- [x] **AAA-0439 / UX-39** — compact, labelled quick-use consumable belt plus active-buff strip.
+- [x] **AAA-0440 / UX-40** — threat-derived projected-health ghost segment with explicit forecast text.
+- [x] **AAA-0441 / UX-41** — exact drops-left text beside the Legendary pity meter.
+- [x] **AAA-0442 / UX-42** — state-aware Bank and Descend controls in the sticky mini-HUD.
+- [x] **AAA-0443 / UX-43** — reload-stable run timer and floors-cleared counter.
+- [x] **AAA-0444 / UX-44** — opaque low-health stage warning at under 25% HP.

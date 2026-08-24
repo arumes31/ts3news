@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_onboarding.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_entry_planner.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_recorder.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_run_awareness.css"}}">
 <div class="abyss-command-page" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
@@ -71,6 +72,7 @@
     <span class="ab-chip-label">{{T "web.abyss.health"}}</span>
     <div class="ab-hpbar" role="progressbar" aria-label="Health" aria-valuemin="0" aria-valuemax="{{.U.MaxHP}}" aria-valuenow="{{.U.CurrentHP}}" id="hpBar">
       <div class="ab-hpfill" id="hpFill" style="width:{{mulpct .U.CurrentHP .U.MaxHP}}%"></div>
+      <div class="ab-hpforecast" id="hpForecast" aria-hidden="true"></div>
       <span class="ab-hptext" id="hpText" data-hp="{{.U.CurrentHP}}" data-max="{{.U.MaxHP}}"></span>
     </div>
     <div class="ab-mpbar" role="progressbar" aria-label="Mana" aria-valuemin="0" aria-valuemax="{{.U.MaxMana}}" aria-valuenow="{{.U.MaxMana}}" id="mpBar">
@@ -274,6 +276,7 @@
       <button class="primary ab-laststand" id="btnLastStand" onclick="abyssLastStand()" style="display:none">🛡️ Last Stand (🜲 <span id="lsCost">{{.LastStandCost}}</span>)</button>
       <button class="ghost ab-concede" id="btnConcede" onclick="abyssConcede()" style="display:none">🏳️ Concede</button>
     </div>
+    {{template "abyssRunAwarenessBelt" .}}
 
     <div class="ab-subrow" id="liveRow" style="display:none">
       <span class="ab-sub-label">{{T "web.abyss.insure_cache"}}</span>
@@ -376,13 +379,14 @@
 {{template "abyssLiveControls" .}}
 
 <!-- Sticky mini-HUD (#301): mirrors HP / depth / escrow / threat once the stage scrolls away -->
-<div class="ab-minihud" id="miniHud" aria-hidden="true">
+<div class="ab-minihud" id="miniHud" aria-hidden="true" inert>
   <span>❤️ <b id="mhHP"></b></span>
   <span>🕳️ <b id="mhDepth">—</b></span>
   <span>💰 <b id="mhEscrow">0g</b></span>
   <span>⚠️ <b id="mhRisk">0%</b></span>
   <span id="mhLockWrap" style="display:none" title="Banking sealed for this many floors">🔒 <b id="mhLock">0</b></span>
   <span id="mhTkWrap" style="display:none" title="Tokens earned this session">🜲 <b id="mhTk">+0</b></span>
+  {{template "abyssRunAwarenessMiniHUD" .}}
 </div>
 
 <!-- Bank vault animation overlay (#339) -->
@@ -1359,6 +1363,7 @@ async function abyssPractice(name){
 function setBusy(b){
   busy=b;['btnEnter','btnDescend','btnBank','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
   if(!b && lastActionBtn){ lastActionBtn.classList.remove('btn-busy'); lastActionBtn=null; }
+  if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
 }
 function show(id, on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none';}
 
@@ -1435,10 +1440,12 @@ function renderState(){
   renderHudChips();
   renderDepthRail();
   renderAbyssDeathCoach();
+  if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
 }
 
 function renderConsumables(list){
   pageConsumables = list || [];
+  if(typeof renderRunAwarenessConsumables==='function')renderRunAwarenessConsumables(pageConsumables);
   var container = document.getElementById('consList');
   if(!container) return;
   container.innerHTML = '';
@@ -1661,6 +1668,8 @@ function setHP(hp,max){
   var bar=document.getElementById('hpBar');
   bar.setAttribute('aria-valuenow',hp); bar.setAttribute('aria-valuemax',max);
   bar.classList.toggle('ab-low-hp',max>0&&hp>0&&hp/max<0.20);
+  var stage=document.getElementById('abyssStage');if(stage)stage.classList.toggle('ab-critical-hp',max>0&&hp>0&&hp/max<0.25);
+  if(typeof updateProjectedHP==='function')updateProjectedHP(hp,max);
   var mh=document.getElementById('mhHP'); if(mh)mh.textContent=fmtNum(hp)+' ('+pct+'%)';
 }
 function setMana(mana,max){
@@ -1785,6 +1794,7 @@ function setDepth(d){
   updateThreat();updateElevator();
   var mh=document.getElementById('mhDepth'); if(mh)mh.textContent=d;
   renderHudChips(); renderRestArc();
+  if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
 }
 // Greed Meter: server-computed risk (next floor's difficulty vs. current gear
 // combat rating) when available, falling back to a depth-only heuristic.
@@ -3015,6 +3025,7 @@ async function processDescendResult(d, hp, max){
 {{template "abyssOnboardingJS" .}}
 {{template "abyssEntryPlannerJS" .}}
 {{template "abyssCombatRecorderJS" .}}
+{{template "abyssRunAwarenessJS" .}}
 
 // Run summary card (#341): shown on bank or final death before the reload.
 function showRunSummary(title, rows, cls){
@@ -4140,7 +4151,10 @@ function displayAutoFocus(focus) {
   if(stage && hud){
     window.addEventListener('scroll', function(){
       var below = stage.getBoundingClientRect().bottom < 60;
-      hud.classList.toggle('show', inRun && below);
+      var visible=inRun&&below;
+      hud.classList.toggle('show',visible);
+      hud.setAttribute('aria-hidden',visible?'false':'true');
+      hud.inert=!visible;
     }, {passive:true});
   }
 

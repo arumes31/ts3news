@@ -1,0 +1,79 @@
+{{define "abyssRunAwarenessBelt"}}
+<section class="ab-run-awareness-strip" id="runAwarenessStrip" aria-label="Run forecast and quick consumables" hidden>
+  <div class="ab-run-awareness-forecast"><span aria-hidden="true">◫</span><span id="hpForecastText">Next-floor HP forecast unavailable.</span></div>
+  <div class="ab-consumable-belt" id="consumableBelt" role="toolbar" aria-label="Quick consumables" hidden></div>
+</section>
+{{end}}
+
+{{define "abyssRunAwarenessMiniHUD"}}
+<span id="mhRecordWrap" class="ab-mh-record" title="Distance from your best depth"><b id="mhRecord">—</b></span>
+<span id="mhSession" title="Time and floors cleared in this run">⏱ 00:00 · 0 floors</span>
+<span class="ab-mh-actions">
+  <button type="button" id="mhDescend" onclick="abyssDescend()" aria-label="Descend one floor">⬇ Descend</button>
+  <button type="button" id="mhBank" onclick="abyssBank()" aria-label="Bank cache and leave">🏦 Bank</button>
+</span>
+{{end}}
+
+{{define "abyssRunAwarenessJS"}}
+var abyssRunAwarenessStart=0;
+var abyssRunRecordBaseline=(function(){var el=document.getElementById('bestDepth');return parseInt((el&&el.textContent||'').replace(/\D/g,''),10)||0;})();
+
+function ensureAbyssRunAwarenessStart(){
+  if(!inRun){abyssRunAwarenessStart=0;try{sessionStorage.removeItem('ab_run_started_at');sessionStorage.removeItem('ab_run_floors');}catch(e){}return;}
+  if(abyssRunAwarenessStart)return;
+  try{abyssRunAwarenessStart=Number(sessionStorage.getItem('ab_run_started_at'))||0;runFloorsCleared=Math.max(runFloorsCleared,Number(sessionStorage.getItem('ab_run_floors'))||0);}catch(e){}
+  if(!abyssRunAwarenessStart){abyssRunAwarenessStart=Date.now();try{sessionStorage.setItem('ab_run_started_at',String(abyssRunAwarenessStart));}catch(e){}}
+}
+function formatAbyssRunDuration(milliseconds){
+  var total=Math.max(0,Math.floor(milliseconds/1000)),hours=Math.floor(total/3600),minutes=Math.floor(total%3600/60),seconds=total%60;
+  return (hours?String(hours).padStart(2,'0')+':':'')+String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0');
+}
+function updateProjectedHP(hp,max){
+  var ghost=document.getElementById('hpForecast'),text=document.getElementById('hpForecastText');if(!ghost)return;
+  hp=Number(hp)||0;max=Number(max)||0;
+  if(!inRun||downed||max<=0||hp<=0){ghost.style.width='0';ghost.hidden=true;if(text)text.textContent='Next-floor HP forecast unavailable.';return;}
+  var currentPct=Math.max(0,Math.min(100,hp*100/max));
+  var estimatedLoss=Math.min(hp,Math.round(max*(.08+Math.min(80,Math.max(0,Number(curRisk)||0))*.006)));
+  var projectedHP=Math.max(0,hp-estimatedLoss),projectedPct=projectedHP*100/max;
+  ghost.style.left=projectedPct+'%';ghost.style.width=Math.max(0,currentPct-projectedPct)+'%';ghost.hidden=false;
+  ghost.title='Forecast: about '+fmtNum(projectedHP)+' HP after the next floor, estimated from current threat';
+  if(text)text.textContent='Forecast ≈ '+fmtNum(projectedHP)+' HP after next floor · threat estimate, not a guarantee';
+  var bar=document.getElementById('hpBar');if(bar)bar.setAttribute('aria-description',ghost.title);
+}
+function renderRunAwarenessConsumables(list){
+  var belt=document.getElementById('consumableBelt');if(!belt)return;
+  var usable=(list||[]).filter(function(item){return item&&Number(item.Count)>0&&(item.Type==='Healing'||item.Type==='Repair'||item.Type==='Buff');});
+  belt.replaceChildren();belt.hidden=!inRun||downed||!usable.length;
+  usable.slice(0,8).forEach(function(item){
+    var button=document.createElement('button');button.type='button';button.className='ab-belt-item';button.dataset.consumableId=item.ID;
+    var icon=item.Type==='Healing'?'🧪':item.Type==='Repair'?'🛠️':'✨';
+    button.textContent=icon+' ×'+item.Count;button.title=(item.Name||item.ID)+' — '+(item.Description||'Use in the current run');
+    button.setAttribute('aria-label','Use '+(item.Name||item.ID)+', '+item.Count+' available');
+    button.disabled=busy;button.setAttribute('aria-disabled',busy?'true':'false');
+    button.addEventListener('click',function(){abyssUseConsumable(item.ID);});belt.appendChild(button);
+  });
+}
+function updateAbyssRunAwareness(){
+  ensureAbyssRunAwarenessStart();
+  var strip=document.getElementById('runAwarenessStrip');if(strip)strip.hidden=!inRun||downed;
+  var record=document.getElementById('mhRecord'),recordWrap=document.getElementById('mhRecordWrap');
+  if(record&&recordWrap){
+    var gap=abyssRunRecordBaseline-curDepth;
+    record.textContent=gap>0?'best '+abyssRunRecordBaseline+' · '+plural(gap,'floor')+' to go':gap===0?'best '+abyssRunRecordBaseline+' · record tied':'new record +'+(-gap);
+    recordWrap.classList.toggle('is-record',gap<0);
+  }
+  var session=document.getElementById('mhSession');
+  if(session)session.textContent='⏱ '+formatAbyssRunDuration(abyssRunAwarenessStart?Date.now()-abyssRunAwarenessStart:0)+' · '+plural(runFloorsCleared,'floor');
+  if(inRun)try{sessionStorage.setItem('ab_run_floors',String(runFloorsCleared));}catch(e){}
+  var descend=document.getElementById('mhDescend'),bank=document.getElementById('mhBank');
+  if(descend){descend.hidden=!inRun||downed;descend.disabled=busy||floorType==='rest'||floorType==='event';}
+  if(bank){bank.hidden=!inRun||downed;bank.disabled=busy||bankLocked>0;bank.textContent=bankLocked>0?'🔒 '+bankLocked:'🏦 Bank';}
+  var hpBar=document.getElementById('hpBar');if(hpBar)updateProjectedHP(hpBar.getAttribute('aria-valuenow'),hpBar.getAttribute('aria-valuemax'));
+  renderRunAwarenessConsumables(pageConsumables);
+}
+function initAbyssRunAwareness(){
+  updateAbyssRunAwareness();
+  window.setInterval(function(){if(inRun)updateAbyssRunAwareness();},1000);
+}
+initAbyssRunAwareness();
+{{end}}
