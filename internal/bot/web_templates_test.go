@@ -81,6 +81,8 @@ func TestAbyssLivePartials(t *testing.T) {
 	if !strings.Contains(server.tmpl.Lookup("abyssLiveActionBarJS").Tree.Root.String(), "ev.lastEventId") {
 		t.Fatal("live action bar script does not preserve SSE event sequence IDs")
 	}
+	liveScripts := server.tmpl.Lookup("abyssLiveActionBarJS").Tree.Root.String() +
+		server.tmpl.Lookup("abyssPixelCombatJS").Tree.Root.String()
 	for _, required := range []string{
 		"scheduleLiveReconnect",
 		"RECEIVED · ",
@@ -126,8 +128,8 @@ func TestAbyssLivePartials(t *testing.T) {
 		"Combo tags:",
 		"liveSocialStatus",
 	} {
-		if !strings.Contains(server.tmpl.Lookup("abyssLiveActionBarJS").Tree.Root.String(), required) {
-			t.Errorf("live action bar script is missing %q feedback", required)
+		if !strings.Contains(liveScripts, required) {
+			t.Errorf("live combat scripts are missing %q feedback", required)
 		}
 	}
 	liveControls := server.tmpl.Lookup("abyssLiveControls").Tree.Root.String()

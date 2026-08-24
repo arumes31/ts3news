@@ -1,0 +1,175 @@
+{{define "abyssPixelCombatJS"}}// ---- Pixel combat presentation -------------------------------------------
+
+var livePixelPrevious={session:'',version:-1,lastLog:'',units:{}};
+
+function resetLivePixelState(sessionID){
+  if(sessionID===livePixelPrevious.session)return;
+  livePixelPrevious={session:sessionID||'',version:-1,lastLog:'',units:{}};
+}
+
+function liveSpritePosition(cell){return (cell[0]*100/3)+'% '+(cell[1]*100/2)+'%';}
+
+function liveEnemySpritePosition(cell){return (cell[0]*20)+'% '+(cell[1]*20)+'%';}
+
+function liveNameHash(name){
+  var hash=2166136261,text=String(name||'');
+  for(var i=0;i<text.length;i++){hash^=text.charCodeAt(i);hash=Math.imul(hash,16777619);}
+  return hash>>>0;
+}
+
+function liveActorCell(unit,hostile){
+  var name=String(unit.name||'').toLowerCase(),role=String(unit.role||'').toLowerCase(),element=String(unit.element||'').toLowerCase();
+  if(!hostile){
+    if(role==='tank')return [0,0];
+    if(role==='support'||/heal|nature|druid/.test(name))return [3,0];
+    if(/shadow|rogue|assassin/.test(name+element))return [2,0];
+    return /arcane|frost|fire|storm|magic/.test(name+element)?[1,0]:[0,0];
+  }
+  if(/dragon/.test(name))return [0,1];
+  if(/orc/.test(name))return [1,1];
+  if(/assassin|shadow/.test(name))return [2,1];
+  if(/rat/.test(name))return [3,1];
+  if(/lich|necrom|skeleton/.test(name))return [0,2];
+  if(/gatekeeper|guard|knight|sentinel/.test(name))return [1,2];
+  if(/slime|ooze|blob/.test(name))return [2,2];
+  return [3,2];
+}
+
+// The bestiary atlas is six rows: beasts, humanoids, undead, aberrations,
+// elites, and bosses. Current named mobs get stable art; procedural or
+// localized names fall back deterministically within the appropriate tier.
+function liveEnemyArt(unit){
+  var name=String(unit.name||'').toLowerCase(),role=String(unit.role||'').toLowerCase();
+  var legacy=[
+    [/ancient dragon|\bdragon\b/,[0,1]],[/\borc\b/,[1,1]],
+    [/shadow assassin|\bassassin\b/,[2,1]],[/\brat\b/,[3,1]],
+    [/frost lich|\blich\b/,[0,2]],[/gatekeeper|dread knight|corrupted guard/,[1,2]],
+    [/slime|ooze|blob/,[2,2]]
+  ];
+  for(var i=0;i<legacy.length;i++)if(legacy[i][0].test(name))return {atlas:'legacy',cell:legacy[i][1]};
+
+  var bosses=[
+    [/kraken|leviathan|tentacl/,[0,5]],[/gorgoroth|demon lord|infernal king/,[1,5]],
+    [/chronos|fallen celestial|seraph/,[2,5]],[/void lord|malakor|void titan|azazoth/,[3,5]],
+    [/abyssus|abyss queen|dark queen/,[4,5]],[/world serpent|wyrm|jormung/,[5,5]]
+  ];
+  for(var j=0;j<bosses.length;j++)if(bosses[j][0].test(name))return {atlas:'bestiary',cell:bosses[j][1]};
+  if(role==='boss')return {atlas:'bestiary',cell:[liveNameHash(name)%6,5]};
+  if(unit.hazard){
+    if(/volatile rift|beholder|watcher|many-eyed/.test(name))return {atlas:'bestiary',cell:[5,3]};
+    return {atlas:'bestiary',cell:[liveNameHash(name)%6,3]};
+  }
+  if(/^nemesis:/.test(name))return {atlas:'bestiary',cell:[liveNameHash(name)%6,4]};
+
+  // Match procedural creature nouns before elemental prefixes: "Ghostly Wolf"
+  // should still read as a wolf silhouette, with its ghostly tint added by CSS.
+  var commons=[
+    [/goblin|gremlin/,[0,1]],[/troll|ogre/,[1,1]],[/zombie/,[1,2]],
+    [/skeleton|bone warrior/,[0,2]],[/\bbat\b/,[4,0]],[/wolf|hound/,[0,0]],
+    [/spider|arachnid/,[1,0]]
+  ];
+  for(var k=0;k<commons.length;k++)if(commons[k][0].test(name))return {atlas:'bestiary',cell:commons[k][1]};
+
+  var atlas=[
+    [/pit demon|demon|devil/,[0,4]],[/frost giant|ice giant/,[1,4]],
+    [/hydra|three-headed/,[2,4]],[/phoenix|firebird/,[3,4]],
+    [/abyssal invader|void knight|eldritch knight/,[4,4]],[/plague doctor|alchemist/,[5,4]],
+    [/volatile rift|beholder|watcher|many-eyed/,[5,3]],[/mimic|living chest/,[4,3]],
+    [/mushroom|fungal|spore/,[3,3]],[/storm djinn|tempest|djinn/,[2,3]],
+    [/ice golem|frost golem/,[1,3]],[/fire elemental|flame elemental/,[0,3]],
+    [/bone golem|bone colossus/,[5,2]],[/mummy|wrapped/,[4,2]],
+    [/banshee|wraith|ghost|spect/,[3,2]],[/vampire|blood lord/,[2,2]],
+    [/zombie|undead/,[1,2]],[/skeleton|bone warrior/,[0,2]],
+    [/fishman|deep one|drowned/,[5,1]],[/witch|hag/,[4,1]],
+    [/cultist|warlock/,[3,1]],[/minotaur|raging behemoth/,[2,1]],
+    [/crocodile|alligator/,[5,0]],[/boar|tusk/,[3,0]],[/scorpion/,[2,0]]
+  ];
+  for(var l=0;l<atlas.length;l++)if(atlas[l][0].test(name))return {atlas:'bestiary',cell:atlas[l][1]};
+  var fallback=liveNameHash(name)%24;
+  return {atlas:'bestiary',cell:[fallback%6,Math.floor(fallback/6)]};
+}
+
+function liveEnemyAffinity(unit){
+  var name=String(unit.name||'').toLowerCase(),element=String(unit.element||'').toLowerCase();
+  if(/fiery|fire|flame/.test(name+element))return ' affinity-fire';
+  if(/ice-cold|frost|ice/.test(name+element))return ' affinity-frost';
+  if(/toxic|poison|venom/.test(name+element))return ' affinity-toxic';
+  if(/ghostly|shadow|void/.test(name+element))return ' affinity-void';
+  if(/metallic|armored/.test(name))return ' affinity-metal';
+  if(/giant|behemoth|titan/.test(name))return ' affinity-giant';
+  return '';
+}
+
+function livePixelCue(unit,newLogs,previous){
+  var cue='',needle=String(unit.name||'').toLowerCase();
+  for(var i=newLogs.length-1;i>=0;i--){
+    var line=String(newLogs[i]||'').toLowerCase();
+    if(line.indexOf(needle)<0)continue;
+    if(/cast|spell|skill|ultimate|blast|bolt|curse|wave|storm|nova|heal|mend|potion/.test(line))cue=' casting';
+    else if(/attack|strike|hit|slash|bite|claw|bash|pierc|shoot|cleav/.test(line))cue=' attacking';
+    break;
+  }
+  if(previous&&unit.hp<previous.hp)cue+=' taking-hit';
+  if(previous&&unit.hp>previous.hp)cue+=' healing';
+  if(unit.hp<=0)cue+=' defeated';
+  return cue;
+}
+
+function renderLivePixelStage(state){
+  var logs=state.recent_logs||[],lastIndex=livePixelPrevious.lastLog?logs.lastIndexOf(livePixelPrevious.lastLog):-1;
+  var newLogs=lastIndex>=0?logs.slice(lastIndex+1):logs;
+  function renderSide(hostID,units,hostile){
+    var host=document.getElementById(hostID);host.innerHTML='';
+    (units||[]).forEach(function(unit,index){
+      var previous=livePixelPrevious.units[unit.id],button=document.createElement('button'),art=hostile?liveEnemyArt(unit):null;
+      var tier=hostile&&String(unit.role||'').toLowerCase()==='boss'?' boss-tier':hostile&&(/^nemesis:|behemoth|gatekeeper|lich|knight|invader/i.test(unit.name||''))?' elite-tier':'';
+      button.type='button';button.className='ab-pixel-unit'+(hostile?' hostile':'')+tier+(hostile?liveEnemyAffinity(unit):'')+(liveSelectedTarget===unit.id?' selected':'')+livePixelCue(unit,newLogs,previous);
+      button.disabled=unit.hp<=0;button.dataset.target=unit.id;button.style.setProperty('--unit-delay',(index*45)+'ms');
+      button.setAttribute('aria-label',(hostile?'Target ':'Inspect ')+unit.name+', '+livePct(unit.hp,unit.max_hp)+' percent health');
+      button.setAttribute('aria-pressed',liveSelectedTarget===unit.id?'true':'false');
+      var delta=previous?unit.hp-previous.hp:0,deltaHTML=delta?'<span class="ab-pixel-float '+(delta>0?'heal':'damage')+'">'+(delta>0?'+':'')+fmtNum(delta)+'</span>':'';
+      var effects=(unit.effects||[]).slice(0,4).map(function(effect){return '<i title="'+consEsc(effect.name)+'"></i>';}).join('');
+      var cell=hostile?art.cell:liveActorCell(unit,false),spriteClass='ab-actor-sprite'+(hostile&&art.atlas==='bestiary'?' ab-enemy-sprite':'');
+      var spritePosition=hostile&&art.atlas==='bestiary'?liveEnemySpritePosition(cell):liveSpritePosition(cell);
+      var rank=tier?'<span class="ab-pixel-rank">'+(tier===' boss-tier'?'BOSS':'ELITE')+'</span>':'';
+      button.innerHTML='<span class="ab-pixel-name"><b>'+consEsc(unit.name)+'</b><span>'+consEsc(unit.role||unit.element||'')+'</span></span>'+deltaHTML+
+        '<span class="ab-overhead-hp"><i style="width:'+livePct(unit.hp,unit.max_hp)+'%"></i><em>'+livePct(unit.hp,unit.max_hp)+'%</em></span>'+
+        rank+'<span class="'+spriteClass+'" style="background-position:'+spritePosition+'" aria-hidden="true"></span>'+
+        '<span class="ab-pixel-shadow" aria-hidden="true"></span><span class="ab-pixel-effects">'+effects+'</span>';
+      button.onclick=function(){selectLiveTarget(unit.id);};host.appendChild(button);
+      livePixelPrevious.units[unit.id]={hp:unit.hp,maxHP:unit.max_hp};
+    });
+  }
+  renderSide('livePixelAllies',state.allies,false);renderSide('livePixelEnemies',state.enemies,true);
+  livePixelPrevious.session=state.session_id||livePixelPrevious.session;
+  livePixelPrevious.version=Number(state.version)||0;
+  livePixelPrevious.lastLog=logs.length?logs[logs.length-1]:'';
+}
+
+function liveActionIconCell(option){
+  var name=String(option.name||'').toLowerCase();
+  if(option.kind==='attack')return [0,0];
+  if(option.kind==='defend')return [1,0];
+  if(option.kind==='item')return /repair/.test(name)?[7,3]:[6,3];
+  if(option.kind==='ultimate')return [6,4];
+  if(option.kind==='relic')return [5,3];
+  if(option.kind==='companion')return [7,4];
+  if(/sunder/.test(name))return [0,4];
+  if(/bash/.test(name))return [1,4];
+  if(/heal|mend|restor|rejuven/.test(name)||option.target==='ally')return [2,4];
+  if(/drain|leech|vamp/.test(name))return [3,4];
+  if(/earth|quake/.test(name))return [4,4];
+  if(/shield|barrier|ward/.test(name))return [5,4];
+  if(/fire|flame|burn|inciner/.test(name))return [0,1];
+  if(/frost|ice|freez/.test(name))return [1,1];
+  if(/storm|lightning|electr|thunder/.test(name))return [2,1];
+  if(/wind|gale|zephyr/.test(name))return [4,1];
+  if(/shadow|dark|void/.test(name))return [5,1];
+  if(/holy|light|radiant|divine/.test(name))return [6,1];
+  if(/toxic|poison|venom|acid/.test(name))return [7,1];
+  if(/curse|necrot|death/.test(name))return [7,0];
+  if(/bolt|pierc/.test(name))return [4,0];
+  if(/blast|nova|wave|spark/.test(name))return [3,0];
+  return [2,0];
+}
+{{end}}

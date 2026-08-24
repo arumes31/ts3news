@@ -34,7 +34,7 @@ func jsonJS(v any) template.JS {
 	return template.JS(b) // #nosec G203 - trusted JSON data from server, not user input
 }
 
-//go:embed webassets/*.html webassets/*.css webassets/*.svg webassets/icons/*.svg
+//go:embed webassets/*.html webassets/*.css webassets/*.svg webassets/*.png webassets/icons/*.svg
 var webAssets embed.FS
 
 const sessionCookie = "ts3session"
@@ -188,6 +188,18 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	})
 	mux.HandleFunc("/static/abyss_live.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_live.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_pixel.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_pixel.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_combat_sprites.png", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_combat_sprites.png", "image/png")
+	})
+	mux.HandleFunc("/static/abyss_enemy_atlas.png", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_enemy_atlas.png", "image/png")
+	})
+	mux.HandleFunc("/static/abyss_icon_atlas.png", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_icon_atlas.png", "image/png")
 	})
 	mux.HandleFunc("/static/favicon.svg", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/favicon.svg", "image/svg+xml")

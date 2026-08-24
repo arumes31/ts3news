@@ -1,7 +1,10 @@
 package bot
 
 import (
+	"bytes"
 	"encoding/json"
+	"image"
+	_ "image/png"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -78,6 +81,162 @@ func TestAssetVerAndURL(t *testing.T) {
 	// AssetURL with already existing query params
 	if got := AssetURL("/static/style.css?foo=bar"); got != "/static/style.css?foo=bar&v="+styleVer {
 		t.Errorf("AssetURL with existing query = %q", got)
+	}
+}
+
+func TestAbyssSceneLayerRemainsTransparent(t *testing.T) {
+	css, err := webAssets.ReadFile("webassets/abyss_command.css")
+	if err != nil {
+		t.Fatalf("read abyss command theme: %v", err)
+	}
+	source := string(css)
+	start := strings.Index(source, ".abyss-command-page .ab-scene {")
+	if start < 0 {
+		t.Fatal("abyss scene theme rule is missing")
+	}
+	end := strings.Index(source[start:], "}")
+	if end < 0 {
+		t.Fatal("abyss scene theme rule is unterminated")
+	}
+	rule := source[start : start+end]
+	if !strings.Contains(rule, "background: transparent;") {
+		t.Fatalf("abyss scene must remain transparent instead of covering the stage: %q", rule)
+	}
+}
+
+func TestAbyssWorkspaceTabs(t *testing.T) {
+	page, err := webAssets.ReadFile("webassets/abyss.html")
+	if err != nil {
+		t.Fatalf("read Abyss page: %v", err)
+	}
+	planner, err := webAssets.ReadFile("webassets/abyss_forge_planner.html")
+	if err != nil {
+		t.Fatalf("read forge planner: %v", err)
+	}
+
+	source := string(page)
+	wantMarkers := []string{
+		`id="abyssSetBonuses" data-abyss-section="progression"`,
+		`id="abyssSanctuaryUpgrades" data-abyss-section="progression"`,
+		`id="abyssTokenShop" data-abyss-section="shop"`,
+		`id="abyssTokenExchange" data-abyss-section="shop"`,
+		`id="abyssWorkshop" data-abyss-section="forge"`,
+		`id="abyssForgePanel" data-abyss-section="forge"`,
+		`sessionStorage.setItem('abyss_section_tab', g.key)`,
+	}
+	for _, marker := range wantMarkers {
+		if !strings.Contains(source, marker) {
+			t.Errorf("Abyss workspace marker is missing: %s", marker)
+		}
+	}
+	if !strings.Contains(string(planner), `id="forgePlanner" data-abyss-section="forge"`) {
+		t.Error("forge planner must participate in the Forge workspace")
+	}
+
+	partial := strings.LastIndex(source, `{{if .ForgeWorkbenchEnabled}}{{template "abyss-forge-planner" .}}{{end}}`)
+	initTabs := strings.LastIndex(source, "buildAbyssTabs();")
+	if partial < 0 || initTabs < partial {
+		t.Error("workspace tabs must initialize after the optional forge planner partial")
+	}
+}
+
+func TestAbyssPixelArtAssets(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		cols int
+		rows int
+	}{
+		{
+			name: "combat sprites",
+			path: "webassets/abyss_combat_sprites.png",
+			cols: 4,
+			rows: 3,
+		},
+		{
+			name: "enemy atlas",
+			path: "webassets/abyss_enemy_atlas.png",
+			cols: 6,
+			rows: 6,
+		},
+		{
+			name: "icon atlas",
+			path: "webassets/abyss_icon_atlas.png",
+			cols: 8,
+			rows: 6,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			asset, err := webAssets.ReadFile(tt.path)
+			if err != nil {
+				t.Fatalf("read pixel art asset: %v", err)
+			}
+			if len(asset) < 50_000 {
+				t.Fatalf("pixel art asset is unexpectedly small: %d bytes", len(asset))
+			}
+			if len(asset) < 8 || string(asset[:8]) != "\x89PNG\r\n\x1a\n" {
+				t.Fatal("pixel art asset must be a PNG")
+			}
+			config, _, err := image.DecodeConfig(bytes.NewReader(asset))
+			if err != nil {
+				t.Fatalf("decode pixel art dimensions: %v", err)
+			}
+			if config.Width%tt.cols != 0 || config.Height%tt.rows != 0 {
+				t.Fatalf(
+					"pixel art dimensions %dx%d do not divide into a %dx%d atlas",
+					config.Width,
+					config.Height,
+					tt.cols,
+					tt.rows,
+				)
+			}
+			if len(AssetVer(tt.path)) != 12 {
+				t.Fatal("pixel art asset must receive a content hash")
+			}
+		})
+	}
+}
+
+func TestAbyssPixelCombatTemplates(t *testing.T) {
+	page, err := webAssets.ReadFile("webassets/abyss.html")
+	if err != nil {
+		t.Fatalf("read Abyss page: %v", err)
+	}
+	live, err := webAssets.ReadFile("webassets/abyss_live.html")
+	if err != nil {
+		t.Fatalf("read live combat template: %v", err)
+	}
+	pixel, err := webAssets.ReadFile("webassets/abyss_pixel.html")
+	if err != nil {
+		t.Fatalf("read pixel combat template: %v", err)
+	}
+	css, err := webAssets.ReadFile("webassets/abyss_pixel.css")
+	if err != nil {
+		t.Fatalf("read pixel combat stylesheet: %v", err)
+	}
+
+	markers := []struct {
+		name   string
+		source string
+		want   string
+	}{
+		{name: "page stylesheet", source: string(page), want: `{{asset "/static/abyss_pixel.css"}}`},
+		{name: "page renderer partial", source: string(page), want: `{{template "abyssPixelCombatJS" .}}`},
+		{name: "battlefield", source: string(live), want: `id="livePixelStage"`},
+		{name: "renderer", source: string(pixel), want: "function renderLivePixelStage(state)"},
+		{name: "bestiary classifier", source: string(pixel), want: "function liveEnemyArt(unit)"},
+		{name: "deterministic fallback", source: string(pixel), want: "function liveNameHash(name)"},
+		{name: "enemy atlas", source: string(page), want: `{{asset "/static/abyss_enemy_atlas.png"}}`},
+		{name: "boss tier", source: string(css), want: ".ab-pixel-unit.boss-tier"},
+		{name: "icon classifier", source: string(pixel), want: "function liveActionIconCell(option)"},
+		{name: "reduced motion", source: string(css), want: "@media (prefers-reduced-motion: reduce)"},
+	}
+	for _, marker := range markers {
+		if !strings.Contains(marker.source, marker.want) {
+			t.Errorf("%s marker is missing", marker.name)
+		}
 	}
 }
 

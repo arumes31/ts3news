@@ -1466,6 +1466,8 @@ body.ab-insanity-run .ab-chip { animation: ab-glitch-jitter 5s steps(1) infinite
   .abyss-lore-bestiary,
   .abyss-lb { display: block !important; }
 
+  [data-abyss-section] { display: block !important; }
+
   .abyss-panel,
   .abyss-lb { break-inside: avoid; box-shadow: none; border: 1px solid #999; }
 
