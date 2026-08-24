@@ -480,6 +480,12 @@ function renderLiveCombat(state,preserveFeed){
   if(state.phase==='complete'||state.phase==='failed')finishLiveCombat(state);
 }
 
+function dismissFinishedLiveCombat(){
+  var combat=document.getElementById('liveCombat');
+  if(combat)combat.style.display='none';
+  liveCombatState=null;
+}
+
 async function finishLiveCombat(state){
   if(liveFinishHandled)return; liveFinishHandled=true;
   clearInterval(liveClockTimer);
@@ -490,7 +496,7 @@ async function finishLiveCombat(state){
   var result=state.result||{ok:false,error:'combat ended without a result'};
   try{sessionStorage.setItem('abyssLastReplaySession',state.session_id||'');}catch(e){}
   if(!result.ok){
-    document.getElementById('liveCombat').style.display='none';
+    dismissFinishedLiveCombat();
     abToast(result.error||'Combat failed',false); setBusy(false); return;
   }
   document.getElementById('liveRound').textContent='COMBAT COMPLETE';
@@ -498,7 +504,7 @@ async function finishLiveCombat(state){
   var priorReduce=reduceMotion; reduceMotion=true;
   await processDescendResult(result,liveStartHP,liveStartMaxHP);
   reduceMotion=priorReduce;
-  if(result.victory)setTimeout(function(){document.getElementById('liveCombat').style.display='none';},900);
+  setTimeout(dismissFinishedLiveCombat,900);
 }
 
 async function resumeLiveCombat(){

@@ -1,7 +1,9 @@
 {{define "abyss"}}{{template "head" .}}
 <!-- UI-200 additions stylesheet (served at /static/abyss_ui200.css, hash-busted via uicssver). -->
 <link rel="stylesheet" href="/static/abyss_ui200.css?v={{uicssver}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_command.css"}}">
 <link rel="stylesheet" href="/static/abyss_live.css?v={{livecssver}}">
+<div class="abyss-command-page">
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
   <div class="abyss-intro" id="abyssIntro">
@@ -6005,6 +6007,7 @@ function openAbSettings(){
 </script>
 {{template "abyss-forge-workstation" .}}
 {{if .ForgeWorkbenchEnabled}}{{template "abyss-forge-planner" .}}{{end}}
+</div>
 {{template "foot" .}}{{end}}
 
 {{define "abUpgrade"}}

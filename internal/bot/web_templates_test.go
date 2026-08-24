@@ -15,6 +15,25 @@ func TestTemplatesParse(t *testing.T) {
 	}
 }
 
+func TestAbyssCommandTheme(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewWebServer(nil)
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	abyss := server.tmpl.Lookup("abyss")
+	if abyss == nil {
+		t.Fatal("abyss template is missing")
+	}
+	source := abyss.Tree.Root.String()
+	for _, required := range []string{"abyss_command.css", `class="abyss-command-page"`} {
+		if !strings.Contains(source, required) {
+			t.Errorf("abyss template is missing command theme marker %q", required)
+		}
+	}
+}
+
 func TestAbyssLivePartials(t *testing.T) {
 	server, err := NewWebServer(nil)
 	if err != nil {
@@ -83,6 +102,7 @@ func TestAbyssLivePartials(t *testing.T) {
 		"liveRecap",
 		"THREAT ",
 		"entry.textContent=line",
+		"setTimeout(dismissFinishedLiveCombat,900)",
 		"reorderLiveAction",
 		"toggleLivePin",
 		"--cooldown-angle",
@@ -217,6 +237,10 @@ func TestAbyssTreeAndForgePartials(t *testing.T) {
 		{
 			host: "abyss", partial: "abyss-forge-workstation",
 			required: []string{"forge-discipline-tabs", "forgeEligibilityFilter", "abyssForgeFavorites", "recordForgeRecent"},
+		},
+		{
+			host: "abyss", partial: "abyss-forge-planner",
+			required: []string{"color-scheme:dark", ".forge-plan select", "forgePlanOperation", "forgeRecipeSearch"},
 		},
 	}
 	for _, tt := range tests {
