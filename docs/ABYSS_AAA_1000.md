@@ -457,12 +457,19 @@ lease, not a cosmetic client countdown pause.
 ## Delivered tranche: remembered encounters and deep-floor markets
 
 - [x] **AAA-0727 / AB-27** — event familiarity resets atomically on entry, adds a capped 10% offer improvement per repeat encounter, and posts the exact bonus.
+- [x] **AAA-0728 / AB-28** — Cursed Elevator plates preview both server-sealed destination depths and room types before a route is committed.
+- [x] **AAA-0729 / AB-29** — Trap Chamber posts the authoritative DGE-versus-depth pass chance and uses that exact value for settlement.
 - [x] **AAA-0731 / AB-31** — depth 41 unlocks five server-validated high-roller tables with tenfold stakes and payouts at unchanged posted odds.
 - [x] **AAA-0732 / AB-32** — the Cursed Library accepts a three-fight 15% SPD curse as an alternative to permanent-run HP damage.
+- [x] **AAA-0733 / AB-33** — Mirror Floor constructs its hostile clone from the player's current gear, stats, and active skills and posts a pre-fight warning.
 - [x] **AAA-0734 / AB-34** — every merchant visit carries one opaque 750g mystery box with enforced 55/28/12/4/1 rarity odds and escrowed loot.
 - [x] **AAA-0735 / AB-35** — the first rift vision per run is free, the next two cost progressively more, and a fourth server request is rejected.
+- [x] **AAA-0736 / AB-36** — Storm Floor selects a side with the authoritative combat RNG, telegraphs it one full round ahead, and applies a five-percent strike.
+- [x] **AAA-0737 / AB-37** — Darkness Floor redacts enemy health from live cards, pixel bars, and serialized replay timelines without mutating combat state.
 - [x] **AAA-0741 / AB-41** — a corrupted blood-altar sacrifice doubles the familiar-event-adjusted buff duration, with the committed duration returned to the UI.
 - [x] **AAA-0743 / AB-43** — risky alchemy posts its 50% longer duration and 20% backfire odds, then settles ingredients, HP damage, and the floor atomically.
+- [x] **AAA-0744 / AB-44** — Unstable Portal advances exactly three depths and reports the three server-derived floor types forfeited by the jump only after commitment.
+- [x] **AAA-0745 / AB-45** — Delver Graveyard reveals a persistent ghost identity and death depth before the player chooses honor or plunder.
 - [x] **AAA-0748 / AB-48** — wishing wells display and transactionally update the account's lifetime gold contribution.
 - [x] **AAA-0750 / AB-50** — mirror choices count once per distinct run; a three-run same-reflection streak empowers the timed buff and is persisted transactionally.
 

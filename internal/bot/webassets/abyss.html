@@ -1763,6 +1763,25 @@ function renderNonCombat(floorType, stateStr){
       var gardenNames={dust:'Abyssal Dust',shard:'Void Shards',core:'Umbral Cores'};
       desc.textContent = 'A '+(gardenNames[state.node]||'strange')+' node has rooted in the dark. Harvest the same node type three times to master Green Thumb and permanently gain +1 material from that node.';
       options.innerHTML = `<button class="ghost" onclick="abyssNCAction('garden_harvest')">🌱 Harvest Node · 2 materials</button>`;
+    } else if(state.type === 'cursed_elevator'){
+      title.innerHTML = '🛗 Cursed Elevator';
+      desc.innerHTML = 'Two destination plates glow through the rust. Both routes are rolled and sealed by the server before you choose; skipped floors grant no loot.';
+      options.innerHTML = (state.destinations||[]).map(function(destination,index){
+        return '<button class="ghost" onclick="abyssNCAction(\'elevator_choose_'+index+'\')">F'+Number(destination.depth)+' · '+consEsc(destination.label||destination.type)+'</button>';
+      }).join('');
+    } else if(state.type === 'trap_chamber'){
+      title.innerHTML = '🪤 Trap Chamber';
+      var trapChance=Math.max(0,Math.min(100,Number(state.pass_chance)||0));
+      desc.textContent = 'Your dodge rating gives an authoritative '+trapChance+'% chance to cross cleanly at this floor\'s difficulty. Failure costs 12.5% maximum HP but cannot kill you.';
+      options.innerHTML = '<button class="ghost" onclick="abyssNCAction(\'trap_attempt\')">🏃 Attempt Crossing · '+trapChance+'% pass</button> <button class="ghost" onclick="abyssNCAction(\'trap_detour\')">🛡️ Take Safe Detour</button>';
+    } else if(state.type === 'unstable_portal'){
+      title.innerHTML = '🌀 Unstable Portal';
+      desc.innerHTML = 'The tear jumps three floors deeper. Entering forfeits every skipped room and its rewards; the portal will reveal what passed behind you afterwards.';
+      options.innerHTML = `<button class="ghost" onclick="abyssNCAction('portal_enter')">🌀 Enter · skip 3 floors</button> <button class="ghost" onclick="abyssNCAction('portal_leave')">🚶 Let It Collapse</button>`;
+    } else if(state.type === 'graveyard'){
+      title.textContent = '🪦 Grave of '+(state.ghost_name||'an unknown delver');
+      desc.textContent = (state.ghost_name||'This delver')+' fell at depth '+Number(state.death_depth||0)+'. Honor the grave for materials, or disturb it for cache at a posted health cost.';
+      options.innerHTML = `<button class="ghost" onclick="abyssNCAction('graveyard_honor')">🕯️ Honor · gain 2 Abyssal Dust</button> <button class="ghost" onclick="abyssNCAction('graveyard_disturb')">👻 Disturb · gain cache · −10% max HP</button>`;
     } else {
       desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
     }
@@ -3543,6 +3562,7 @@ async function abyssNCAction(action, payload){
     document.getElementById('ncOptions').innerHTML = '';
     document.getElementById('ncDesc').textContent = d.msg;
   }
+  if(d.reload){ setTimeout(function(){window.location.reload();}, 650); }
 }
 
 async function abyssProceed(){

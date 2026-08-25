@@ -55,6 +55,8 @@ func abyssEventTypeLabel(raw string) string {
 		"mirrors": "Hall of Mirrors", "challenge_room": "Trial Chamber", "cursed_door": "Cursed Door",
 		"story_crossroads": "Memorial Crossroads", "lost_explorer": "Lost Explorer", "locked_vault": "Locked Vault",
 		"collapsed_passage": "Collapsed Passage", "abyssal_garden": "Abyssal Garden",
+		"cursed_elevator": "Cursed Elevator", "trap_chamber": "Trap Chamber",
+		"unstable_portal": "Unstable Portal", "graveyard": "Delver Graveyard",
 	}
 	if label := labels[state.Type]; label != "" {
 		return label

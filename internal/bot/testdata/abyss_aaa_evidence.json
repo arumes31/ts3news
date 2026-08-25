@@ -469,5 +469,30 @@
       "internal/bot/webassets/abyss_events.css"
     ],
     "verification": ["internal/bot/web_abyss_event_intel_test.go", "internal/bot/web_abyss_rooms_test.go"]
+  },
+  {
+    "ids": [728, 729, 744, 745],
+    "production": [
+      "internal/bot/web_abyss_traversal_rooms.go",
+      "internal/bot/web_abyss_rooms.go",
+      "internal/bot/web_abyss_loop.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/webassets/abyss.html"
+    ],
+    "verification": ["internal/bot/web_abyss_traversal_rooms_test.go", "internal/bot/web_abyss_rooms_test.go"]
+  },
+  {
+    "ids": [733, 736, 737],
+    "production": [
+      "internal/bot/web_abyss_combat_rooms.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_session.go",
+      "internal/bot/xp.go",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/webassets/abyss_live.css",
+      "internal/bot/webassets/abyss_pixel.html"
+    ],
+    "verification": ["internal/bot/web_abyss_combat_rooms_test.go"]
   }
 ]

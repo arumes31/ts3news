@@ -866,6 +866,16 @@ func (b *Bot) fightAbyssFloorLive(
 		if len(mobs) > 0 {
 			logs = append(logs, fmt.Sprintf("[color=#9c27b0]👻 An eerie silence falls. Out of the shadows rises the Ghostly Echo of %s (Depth %d delver)![/color]", echoNick, echoDepth))
 		}
+	case "mirror_clone":
+		mobs = []content.Mob{abyssMirrorClone(u)}
+		logs = append(logs,
+			"[hr]",
+			"[center][size=12][color=#9c27b0]🪞 MIRROR FLOOR[/color][/size][/center]",
+			fmt.Sprintf("[center][color=#d8c5ff]Your current gear and active skills take shape as %s.[/color][/center]", mobs[0].Name),
+			"[hr]",
+		)
+	case "storm_floor", "darkness":
+		logs = append(logs, "[color=#ffd991]⚠️ "+abyssEncounterWarning(modifier)+"[/color]")
 	}
 
 	if len(mobs) == 0 {
@@ -947,10 +957,12 @@ func (b *Bot) fightAbyssFloorLive(
 
 	isBossFloor := forceBoss || worldBoss
 
-	escalateMobsWithRandom(mobs, depth, worldBoss, encounterRandom) // [15] deeper floors → denser elites/effects
-	var enemySystemLogs []string
-	mobs, enemySystemLogs = b.prepareAbyssEnemies(uid, depth, mobs, encounterRandom)
-	logs = append(logs, enemySystemLogs...)
+	if modifier != "mirror_clone" {
+		escalateMobsWithRandom(mobs, depth, worldBoss, encounterRandom) // [15] deeper floors → denser elites/effects
+		var enemySystemLogs []string
+		mobs, enemySystemLogs = b.prepareAbyssEnemies(uid, depth, mobs, encounterRandom)
+		logs = append(logs, enemySystemLogs...)
+	}
 	if dailyMod == "enraged_mobs" || abyssPactsEnrage(pacts) || weeklyRule.Key == "elite_surge" {
 		for i := range mobs {
 			mobs[i].Effects = append(mobs[i].Effects, content.EffectEnraged)
@@ -966,7 +978,7 @@ func (b *Bot) fightAbyssFloorLive(
 		// Dampen Abyss mob damage so floors play out over several rounds instead of
 		// ending in the opening volley. HP is left intact so the fight still has
 		// to be won — it just takes longer and rewards survivability.
-		if mobs[i].Stats.STR > 0 {
+		if modifier != "mirror_clone" && mobs[i].Stats.STR > 0 {
 			mobs[i].Stats.STR = int(float64(mobs[i].Stats.STR) * abyssMobDamageMult)
 			if mobs[i].Stats.STR < 1 {
 				mobs[i].Stats.STR = 1
@@ -2516,9 +2528,8 @@ func rollFloorDetail(floorType string) (modifier, eventState string) {
 	case "combat":
 		// #nosec G404
 		if rand.Float64() < 0.15 {
-			mods := []string{"enraged", "no_healing", "artifact_corrupted", "treasure_goblin", "echo_encounter", "fragile_cache"}
 			// #nosec G404
-			modifier = mods[rand.IntN(len(mods))]
+			modifier = abyssCombatFloorModifiers[rand.IntN(len(abyssCombatFloorModifiers))]
 		}
 	}
 	return
@@ -2890,8 +2901,11 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		"ok": true, "victory": res.Victory, "depth": depth,
 		"hp": res.CurrentHP, "max_hp": res.MaxHP,
 		"logs": res.LogsHTML, "loot": res.LootHTML, "dura": res.DuraHTML,
-		"timeline": res.Timeline, "reward_xp": res.RewardXP,
+		"timeline": res.Timeline, "reward_xp": res.RewardXP, "modifier": modifier,
 		"risk": abyssRiskPct(depth+1, tier, s.bot.abyssPlayerCR(uid)),
+	}
+	if hasAbyssFloorModifier(modifier, "darkness") {
+		out["timeline"] = concealAbyssTimeline(res.Timeline)
 	}
 
 	if res.Victory {
@@ -3890,6 +3904,9 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			return
 		}
 	case "event":
+		if s.handleAbyssTraversalRoom(w, uid, run, req.Action) {
+			return
+		}
 		if s.handleAbyssSpecialRoom(w, uid, run, req.Action) {
 			return
 		}

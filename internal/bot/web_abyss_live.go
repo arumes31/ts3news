@@ -67,6 +67,7 @@ type abyssLiveCombatantView struct {
 	Name     string            `json:"name"`
 	HP       int               `json:"hp"`
 	MaxHP    int               `json:"max_hp"`
+	HPHidden bool              `json:"hp_hidden,omitempty"`
 	Mana     int               `json:"mana,omitempty"`
 	MaxMana  int               `json:"max_mana,omitempty"`
 	Ready    bool              `json:"ready,omitempty"`
@@ -124,6 +125,8 @@ type abyssLiveSnapshot struct {
 	Version       int64                      `json:"version"`
 	Deadline      time.Time                  `json:"deadline,omitempty"`
 	PauseReason   string                     `json:"pause_reason,omitempty"`
+	Warning       string                     `json:"encounter_warning,omitempty"`
+	Telegraph     string                     `json:"hazard_telegraph,omitempty"`
 	PauseMode     string                     `json:"pause_mode"`
 	CanConfigure  bool                       `json:"can_configure_pause,omitempty"`
 	Policy        abyssLivePolicy            `json:"policy"`
@@ -183,6 +186,9 @@ type abyssLiveCombat struct {
 	initiative     []abyssLiveInitiativeEntry
 	social         abyssLiveSocialState
 	previousDepth  int
+	modifier       string
+	warning        string
+	telegraph      string
 	randomSeed     [2]uint64
 	randomDraws    uint64
 	createdAt      time.Time
@@ -232,6 +238,9 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 		}
 	}
 	enemies := append([]abyssLiveCombatantView{}, c.enemies...)
+	if hasAbyssFloorModifier(c.modifier, "darkness") {
+		concealAbyssEnemyViews(enemies)
+	}
 	options := append([]abyssLiveOption{}, c.options[uid]...)
 	recentLogs := append([]string{}, c.recentLogs...)
 	enemyIntents := make([]abyssLiveEnemyIntent, 0, len(c.enemyPlans))
@@ -262,6 +271,8 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 		Version:       c.version,
 		Deadline:      c.deadline,
 		PauseReason:   c.pauseReason,
+		Warning:       c.warning,
+		Telegraph:     c.telegraph,
 		PauseMode:     normalizeAbyssPauseMode(c.pauseMode),
 		CanConfigure:  uid == c.ownerUID,
 		Policy:        normalizeLivePolicy(c.policies[uid]),
@@ -282,6 +293,12 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 		PreviousDepth: c.previousDepth,
 		Social:        c.socialSnapshotLocked(uid),
 	}
+}
+
+func (c *abyssLiveCombat) setHazardTelegraph(message string) {
+	c.mu.Lock()
+	c.telegraph = message
+	c.mu.Unlock()
 }
 
 func (c *abyssLiveCombat) publishRound(

@@ -327,6 +327,7 @@ func (b *Bot) enrichEventState(uid, eventState string) string {
 	if typ == "" {
 		return eventState
 	}
+	b.enrichAbyssTraversalEvent(uid, m)
 	visits := b.loadEventVisits(uid)
 	visits[typ]++
 	b.saveEventVisits(uid, visits)

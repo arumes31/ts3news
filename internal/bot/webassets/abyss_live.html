@@ -49,6 +49,12 @@
   </div>
   <div class="ab-live-social-status" id="liveSocialStatus"></div>
   <div class="ab-round-recap" id="liveRecap"></div>
+  <aside class="ab-encounter-warning" id="liveEncounterWarning" hidden>
+    <strong>ENCOUNTER PROTOCOL</strong><span id="liveEncounterWarningText"></span>
+  </aside>
+  <aside class="ab-hazard-telegraph" id="liveHazardTelegraph" hidden>
+    <strong>NEXT ROUND</strong><span id="liveHazardTelegraphText"></span>
+  </aside>
   <div class="ab-pixel-stage" id="livePixelStage" aria-label="Animated combat battlefield">
     <div class="ab-pixel-backdrop" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="ab-pixel-party" id="livePixelAllies" aria-label="Allied combatants"></div>
@@ -189,8 +195,9 @@ function renderLiveTargets(hostID, combatants, hostile){
   var host=document.getElementById(hostID); host.innerHTML='';
   (combatants||[]).forEach(function(unit){
     var button=document.createElement('button');
-    button.type='button'; button.className='ab-combatant'+(hostile?' hostile':'')+(liveSelectedTarget===unit.id?' selected':'');
-    button.disabled=unit.hp<=0;
+    var hpHidden=hostile&&!!unit.hp_hidden;
+    button.type='button'; button.className='ab-combatant'+(hostile?' hostile':'')+(hpHidden?' hp-concealed':'')+(liveSelectedTarget===unit.id?' selected':'');
+    button.disabled=unit.hp===0;
     button.setAttribute('data-target',unit.id);
     button.setAttribute('aria-pressed',liveSelectedTarget===unit.id?'true':'false');
     var traits=[];
@@ -207,9 +214,11 @@ function renderLiveTargets(hostID, combatants, hostile){
       return '<span class="ab-effect">'+consEsc(effect.name)+(duration?' · '+consEsc(duration):'')+'</span>';
     }).join('');
     var breakBar=unit.max_break?'<span class="ab-break" title="'+consEsc(unit.pattern||'Break this enemy to cancel its next action')+'"><b style="width:'+livePct(unit.break,unit.max_break)+'%"></b><i>BREAK '+fmtNum(unit.break)+' / '+fmtNum(unit.max_break)+'</i></span>':'';
+    var hpBar=hpHidden?'<span class="ab-combatant-hp concealed"><b></b></span>':'<span class="ab-combatant-hp"><b style="width:'+livePct(unit.hp,unit.max_hp)+'%"></b></span>';
+    var hpText=hpHidden?'HP CONCEALED':fmtNum(unit.hp)+' / '+fmtNum(unit.max_hp);
     button.innerHTML='<span class="ab-combatant-name">'+consEsc(unit.name)+(unit.ready?' <i>READY</i>':'')+'</span>'+
-      '<span class="ab-combatant-hp"><b style="width:'+livePct(unit.hp,unit.max_hp)+'%"></b></span>'+
-      '<span class="ab-combatant-stat">'+fmtNum(unit.hp)+' / '+fmtNum(unit.max_hp)+(unit.max_mana?' · 🔵 '+fmtNum(unit.mana):'')+'</span>'+
+      hpBar+
+      '<span class="ab-combatant-stat">'+hpText+(unit.max_mana?' · 🔵 '+fmtNum(unit.mana):'')+'</span>'+
       (traits.length?'<span class="ab-combatant-traits">'+traits.map(consEsc).join(' · ')+'</span>':'')+
       (unit.pattern?'<span class="ab-enemy-pattern">'+consEsc(unit.pattern)+'</span>':'')+
       breakBar+
@@ -440,7 +449,7 @@ function renderLiveRoundTimeline(state){
 function renderLiveCombat(state,preserveFeed){
   if(!state||!state.ok)return;
   liveCombatState=state;
-	var targetStillExists=(state.allies||[]).concat(state.enemies||[]).some(function(unit){return unit.id===liveSelectedTarget&&unit.hp>0;});
+	var targetStillExists=(state.allies||[]).concat(state.enemies||[]).some(function(unit){return unit.id===liveSelectedTarget&&unit.hp!==0;});
 	if(!targetStillExists){liveSelectedTarget='';liveTargetLocked=false;}
 	var targetLock=document.getElementById('liveTargetLock');targetLock.setAttribute('aria-pressed',liveTargetLocked?'true':'false');targetLock.textContent=liveTargetLocked?'TARGET LOCKED':'TARGET LOCK';
   liveLastEventID=Math.max(liveLastEventID,Number(state.version)||-1);
@@ -458,6 +467,12 @@ function renderLiveCombat(state,preserveFeed){
   document.getElementById('liveTimeoutAction').value=policy.timeout_action||'best';
   renderLiveSocial(state);
   document.getElementById('liveRecap').textContent=state.round_recap||'';
+	var encounterWarning=document.getElementById('liveEncounterWarning');
+	encounterWarning.hidden=!state.encounter_warning;
+	document.getElementById('liveEncounterWarningText').textContent=state.encounter_warning||'';
+	var hazardTelegraph=document.getElementById('liveHazardTelegraph');
+	hazardTelegraph.hidden=!state.hazard_telegraph;
+	document.getElementById('liveHazardTelegraphText').textContent=state.hazard_telegraph||'';
 	var autoPreview=document.getElementById('liveAutoPreview');
 	autoPreview.textContent=state.recommended?'TIMEOUT → '+String(state.recommended.action.kind||'DEFEND').toUpperCase()+' · '+state.recommended.reason:'TIMEOUT → server-selected safe action';
 	renderLiveRoundTimeline(state);

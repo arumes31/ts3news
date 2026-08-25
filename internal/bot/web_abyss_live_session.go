@@ -93,6 +93,8 @@ func (s *WebServer) startAbyssLiveCombat(
 		idempotency:   make(map[string]abyssLiveIdempotency),
 		actionCounts:  make(map[string]int),
 		previousDepth: run.Depth,
+		modifier:      modifier,
+		warning:       abyssEncounterWarning(modifier),
 		randomSeed:    randomSeed,
 		createdAt:     time.Now(),
 	}

@@ -88,6 +88,22 @@
 .ab-live-policy label { flex: 1; }
 .ab-live-policy select { width: 100%; margin-top: 2px; padding: 3px; color: #dfe5ef; border: 1px solid #343d4d; background: #111722; font-size: .62rem; }
 .ab-round-recap { min-height: 18px; padding: 2px 15px 5px; color: #aab6c9; font: .59rem ui-monospace, 'Cascadia Mono', monospace; }
+.ab-encounter-warning,
+.ab-hazard-telegraph {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 5px 15px;
+  padding: 7px 10px;
+  border: 1px solid rgba(242, 189, 91, .38);
+  background: linear-gradient(90deg, rgba(242, 189, 91, .12), rgba(13, 17, 25, .9));
+  color: #e5d4ae;
+  font: .64rem ui-monospace, 'Cascadia Mono', monospace;
+}
+.ab-encounter-warning[hidden], .ab-hazard-telegraph[hidden] { display: none; }
+.ab-encounter-warning strong, .ab-hazard-telegraph strong { color: var(--live-gold); letter-spacing: .12em; white-space: nowrap; }
+.ab-hazard-telegraph { border-color: rgba(91, 214, 208, .4); background: linear-gradient(90deg, rgba(91, 214, 208, .13), rgba(13, 17, 25, .9)); }
+.ab-hazard-telegraph strong { color: var(--live-cyan); }
 .ab-initiative,
 .ab-intents { display: flex; gap: 4px; overflow-x: auto; padding: 5px 0 3px; }
 .ab-initiative-step,
@@ -135,6 +151,18 @@
 .ab-combatant-name i { color: var(--live-cyan); font: 700 .55rem ui-monospace, monospace; }
 .ab-combatant-hp { display: block; height: 4px; margin: 6px 0 4px; background: #07090d; overflow: hidden; }
 .ab-combatant-hp b { display: block; height: 100%; background: linear-gradient(90deg, #b6393d, #ef7267); }
+.ab-combatant-hp.concealed b {
+  width: 100%;
+  background: repeating-linear-gradient(110deg, #242332 0 9px, #48415c 9px 13px);
+  animation: ab-concealed-hp 1.8s linear infinite;
+}
+.ab-combatant.hp-concealed { border-color: #4b425f; }
+@keyframes ab-concealed-hp { 50% { opacity: .45; } }
+.ab-overhead-hp.concealed i {
+  width: 100%;
+  background: repeating-linear-gradient(110deg, #262431 0 8px, #5a506e 8px 12px);
+  animation: ab-concealed-hp 1.8s linear infinite;
+}
 .ab-combatant-stat { color: #8f99aa; font: .64rem ui-monospace, 'Cascadia Mono', monospace; }
 .ab-combatant-traits {
   display: block;

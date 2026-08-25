@@ -126,7 +126,8 @@ func abyssSpecialRoomForRoll(roll float64) string {
 	}
 	rooms := []string{
 		"challenge_room", "cursed_door", "story_crossroads", "lost_explorer",
-		"locked_vault", "collapsed_passage", "abyssal_garden",
+		"locked_vault", "collapsed_passage", "abyssal_garden", "cursed_elevator",
+		"trap_chamber", "unstable_portal", "graveyard",
 	}
 	index := int(roll / (0.20 / float64(len(rooms))))
 	if index >= len(rooms) {
@@ -148,6 +149,7 @@ func prepareAbyssEventForDepth(raw string, depth int) string {
 		return raw
 	}
 	state["depth"] = depth
+	prepareAbyssTraversalEvent(state, depth)
 	switch state["type"] {
 	case "lost_explorer":
 		names := []string{"Mara Flint", "Orin Vale", "Tessa Quill", "Bram Hollow"}

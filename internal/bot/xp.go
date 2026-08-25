@@ -627,6 +627,9 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 		totalEnemyCR := 0
 		for _, m := range currentMobs {
 			dn := m.DisplayName()
+			if hasAbyssFloorModifier(floorMod, "darkness") {
+				dn = m.DisplayNameShort()
+			}
 			mobCounts[dn]++
 			mobTypes[dn] = m.Type
 			totalEnemyCR += m.Score()
@@ -681,6 +684,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 
 		// AB-70: per-wave boss summon telegraphs (mob → round the channel began).
 		summonTelegraph := make(map[*content.Mob]int)
+		stormSide := ""
 
 		for r := 1; r <= maxRounds; r++ {
 			totalRounds++
@@ -698,6 +702,42 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 			}
 			if healPenalty < 0 {
 				healPenalty = 0
+			}
+
+			// AB-36: storm rooms announce the side selected by the authoritative
+			// combat RNG one full planning round before the strike lands.
+			if hasAbyssFloorModifier(floorMod, "storm_floor") {
+				if stormSide != "" {
+					partyDamage, enemyDamage := strikeAbyssStorm(stormSide, activeUsers, currentMobs)
+					totalMobDamage += partyDamage
+					totalUserDamage += enemyDamage
+					logs = append(logs, abyssStormImpactLog(stormSide, partyDamage+enemyDamage))
+					for i := range activeUsers {
+						if activeUsers[i].u != nil && activeUsers[i].u.CurrentHP <= 0 {
+							_ = b.checkUserRevive(activeUsers[i].u, &logs)
+						}
+					}
+					appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
+					aliveUsers := 0
+					for i := range activeUsers {
+						if activeUsers[i].u != nil && activeUsers[i].u.CurrentHP > 0 {
+							aliveUsers++
+						}
+					}
+					if aliveUsers == 0 {
+						break
+					}
+					if len(b.getAliveMobs(currentMobs)) == 0 {
+						waveVictory = true
+						break
+					}
+				}
+				stormSide = nextAbyssStormSide(rand)
+				telegraph := abyssStormTelegraph(stormSide)
+				logs = append(logs, telegraph)
+				if liveCombat := abyssLiveCombatFor(activeUsers); liveCombat != nil {
+					liveCombat.setHazardTelegraph(telegraph)
+				}
 			}
 
 			// AB-75 Desperation: from round 25 both sides gain stacking +5%

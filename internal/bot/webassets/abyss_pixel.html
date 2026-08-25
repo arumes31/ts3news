@@ -109,8 +109,8 @@ function livePixelCue(unit,newLogs,previous){
     else if(/attack|strike|hit|slash|bite|claw|bash|pierc|shoot|cleav/.test(line))cue=' attacking';
     break;
   }
-  if(previous&&unit.hp<previous.hp)cue+=' taking-hit';
-  if(previous&&unit.hp>previous.hp)cue+=' healing';
+  if(!unit.hp_hidden&&previous&&unit.hp<previous.hp)cue+=' taking-hit';
+  if(!unit.hp_hidden&&previous&&unit.hp>previous.hp)cue+=' healing';
   if(unit.hp<=0)cue+=' defeated';
   return cue;
 }
@@ -123,18 +123,19 @@ function renderLivePixelStage(state){
     var host=document.getElementById(hostID);host.innerHTML='';
     (units||[]).forEach(function(unit,index){
       var previous=livePixelPrevious.units[unit.id],button=document.createElement('button'),art=hostile?liveEnemyArt(unit):null;
+      var hpHidden=hostile&&!!unit.hp_hidden;
       var tier=hostile&&String(unit.role||'').toLowerCase()==='boss'?' boss-tier':hostile&&(/^nemesis:|behemoth|gatekeeper|lich|knight|invader/i.test(unit.name||''))?' elite-tier':'';
-      button.type='button';button.className='ab-pixel-unit'+(hostile?' hostile':'')+tier+(hostile?liveEnemyAffinity(unit):'')+(liveSelectedTarget===unit.id?' selected':'')+livePixelCue(unit,newLogs,previous);
-      button.disabled=unit.hp<=0;button.dataset.target=unit.id;button.style.setProperty('--unit-delay',(index*45)+'ms');
-      button.setAttribute('aria-label',(hostile?'Target ':'Inspect ')+unit.name+', '+livePct(unit.hp,unit.max_hp)+' percent health');
+      button.type='button';button.className='ab-pixel-unit'+(hostile?' hostile':'')+tier+(hpHidden?' hp-concealed':'')+(hostile?liveEnemyAffinity(unit):'')+(liveSelectedTarget===unit.id?' selected':'')+livePixelCue(unit,newLogs,previous);
+      button.disabled=unit.hp===0;button.dataset.target=unit.id;button.style.setProperty('--unit-delay',(index*45)+'ms');
+      button.setAttribute('aria-label',(hostile?'Target ':'Inspect ')+unit.name+', '+(hpHidden?'health concealed':livePct(unit.hp,unit.max_hp)+' percent health'));
       button.setAttribute('aria-pressed',liveSelectedTarget===unit.id?'true':'false');
-      var delta=previous?unit.hp-previous.hp:0,deltaHTML=delta?'<span class="ab-pixel-float '+(delta>0?'heal':'damage')+'">'+(delta>0?'+':'')+fmtNum(delta)+'</span>':'';
+      var delta=!hpHidden&&previous?unit.hp-previous.hp:0,deltaHTML=delta?'<span class="ab-pixel-float '+(delta>0?'heal':'damage')+'">'+(delta>0?'+':'')+fmtNum(delta)+'</span>':'';
       var effects=(unit.effects||[]).slice(0,4).map(function(effect){return '<i title="'+consEsc(effect.name)+'"></i>';}).join('');
       var cell=hostile?art.cell:liveActorCell(unit,false),spriteClass='ab-actor-sprite'+(hostile&&art.atlas==='bestiary'?' ab-enemy-sprite':'');
       var spritePosition=hostile&&art.atlas==='bestiary'?liveEnemySpritePosition(cell):liveSpritePosition(cell);
       var rank=tier?'<span class="ab-pixel-rank">'+(tier===' boss-tier'?'BOSS':'ELITE')+'</span>':'';
       button.innerHTML='<span class="ab-pixel-name"><b>'+consEsc(unit.name)+'</b><span>'+consEsc(unit.role||unit.element||'')+'</span></span>'+deltaHTML+
-        '<span class="ab-overhead-hp"><i style="width:'+livePct(unit.hp,unit.max_hp)+'%"></i><em>'+livePct(unit.hp,unit.max_hp)+'%</em></span>'+
+        (hpHidden?'<span class="ab-overhead-hp concealed"><i></i><em>??</em></span>':'<span class="ab-overhead-hp"><i style="width:'+livePct(unit.hp,unit.max_hp)+'%"></i><em>'+livePct(unit.hp,unit.max_hp)+'%</em></span>')+
         rank+'<span class="'+spriteClass+'" style="background-position:'+spritePosition+'" aria-hidden="true"></span>'+
         '<span class="ab-pixel-shadow" aria-hidden="true"></span><span class="ab-pixel-effects">'+effects+'</span>';
       button.onclick=function(){selectLiveTarget(unit.id);};host.appendChild(button);

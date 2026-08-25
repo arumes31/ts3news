@@ -59,9 +59,12 @@ func TestPublicFloorCandidatesDoNotLeakHiddenRoomTypes(t *testing.T) {
 func TestAbyssSpecialRoomRollsCoverRunStructureRooms(t *testing.T) {
 	t.Parallel()
 
-	rolls := []float64{0.00, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18}
-	want := []string{"challenge_room", "cursed_door", "story_crossroads", "lost_explorer", "locked_vault", "collapsed_passage", "abyssal_garden"}
-	for i, roll := range rolls {
+	want := []string{
+		"challenge_room", "cursed_door", "story_crossroads", "lost_explorer", "locked_vault",
+		"collapsed_passage", "abyssal_garden", "cursed_elevator", "trap_chamber", "unstable_portal", "graveyard",
+	}
+	for i := range want {
+		roll := (float64(i) + 0.5) * 0.20 / float64(len(want))
 		if got := abyssSpecialRoomForRoll(roll); !strings.Contains(got, want[i]) {
 			t.Fatalf("roll %.2f produced %q, want %q", roll, got, want[i])
 		}
