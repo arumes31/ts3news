@@ -162,7 +162,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		chanUsers[cl.CID] = append(chanUsers[cl.CID], UserInCombat{
 			UID: cl.UID, Nickname: cl.Nickname, CLID: cl.CLID, Stats: stats, Level: lvl, Skills: skills,
 			Ultimates: ultimates, CurrentHP: curHP, RegenStacks: regen, Gold: gold, Pets: pets,
-			Equipped: equipped,
+			Equipped: abyssPlayerEquipment(equipped),
 		})
 	}
 

@@ -1391,5 +1391,24 @@
       "internal/bot/web_abyss_enemies_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [226],
+    "production": [
+      "internal/content/artifacts.go",
+      "internal/bot/abyss_pet_gear.go",
+      "internal/bot/xp.go",
+      "internal/bot/xp_abyss_combat.go",
+      "internal/bot/bot.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_tree.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/webassets/abyss_social.html"
+    ],
+    "verification": [
+      "internal/bot/abyss_pet_gear_test.go",
+      "internal/bot/web_abyss_boss_social_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

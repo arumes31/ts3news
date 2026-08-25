@@ -166,7 +166,10 @@ func abyssRiskPct(depth int, tier abyssTier, playerCR float64) int {
 // same per-item metric already shown on the Armoury page.
 func (b *Bot) abyssPlayerCR(uid string) float64 {
 	var total float64
-	for _, g := range b.getEquippedItems(uid) {
+	for slot, g := range b.getEquippedItems(uid) {
+		if content.IsPetGearSlot(slot) {
+			continue
+		}
 		total += g.CombatRating()
 	}
 	return total
@@ -247,7 +250,7 @@ func (b *Bot) buildAbyssUser(uid string) (UserInCombat, int, error) {
 		Gold:           gold,
 		Pets:           b.getPets(uid),
 		petHealEnabled: b.loadPetHealSettings(uid),
-		Equipped:       b.getEquippedItems(uid),
+		Equipped:       abyssPlayerEquipment(b.getEquippedItems(uid)),
 		// Abyss drops are escrowed for the run, not granted inline by the engine.
 		EscrowLoot: true,
 		treeBonus:  tb,
@@ -289,7 +292,10 @@ func nullStr(s sql.NullString) string {
 // ticker. Regen accrues between page loads / out of combat.
 func (b *Bot) applyAbyssRegen(uid string, equipped map[content.GearSlot]content.Gear, curHP, maxHP int) (int, float64) {
 	perSec := 0.0
-	for _, g := range equipped {
+	for slot, g := range equipped {
+		if content.IsPetGearSlot(slot) {
+			continue
+		}
 		if g.RegenAmount > 0 && g.RegenIntervalSec > 0 {
 			perSec += float64(g.RegenAmount) / float64(g.RegenIntervalSec)
 		}

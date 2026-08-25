@@ -7,13 +7,13 @@
   <div class="ab-social-grid">
     <article class="ab-social-card ab-pet-command">
       <h3>🐾 Companion command</h3>
-      <p class="muted small">Mood changes combat performance by ±2%. Train three times daily; slot two unlocks at prestige 2.</p>
+      <p class="muted small">Mood changes combat performance by ±2%. Collar and charm stats empower active pets only. Train three times daily; slot two unlocks at prestige 2.</p>
       <div class="ab-pet-list">
       {{range .Pets}}
         <div class="ab-pet-card" data-pet-id="{{.ID}}">
           <div class="ab-pet-head"><strong>{{.MoodIcon}} {{.Name}}</strong><span class="ab-mood {{.Mood}}">{{.Mood}} {{if gt .MoodPct 0}}+{{end}}{{.MoodPct}}%</span></div>
           <div class="ab-pet-stats"><span>Lv {{.Level}} {{.Type}}</span><span>♥ {{comma .HP}}/{{comma .MaxHP}}</span><span>⚔ {{comma .STR}}</span><span>🛡 {{comma .DEF}}</span><span>➤ {{comma .SPD}}</span></div>
-          <div class="ab-pet-equipment">🔗 {{.Equipment}}</div>
+          <div class="ab-pet-equipment" title="Pet-only equipment; these stats do not affect your delver.">🔗 {{.Equipment}}</div>
           <div class="ab-pet-actions">
             <label>Formation <select onchange="abyssPetSlot({{.ID}},this.value)">
               <option value="0" {{if eq .ActiveSlot 0}}selected{{end}}>Reserve</option>

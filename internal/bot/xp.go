@@ -316,12 +316,20 @@ func (b *Bot) getPets(uid string) []*content.Mob {
 		if err := rows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &maxHP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD, &m.Loyalty); err == nil {
 			m.Type = content.MobType(mType)
 			m.MaxHP = maxHP
-			_, _, moodPct := abyssPetMood(m.Stats.HP, m.MaxHP, m.Loyalty)
-			m.Stats.STR = abyssPetMoodScale(m.Stats.STR, moodPct)
-			m.Stats.DEF = abyssPetMoodScale(m.Stats.DEF, moodPct)
-			m.Stats.SPD = abyssPetMoodScale(m.Stats.SPD, moodPct)
 			out = append(out, &m)
 		}
+	}
+	if rows.Err() != nil || len(out) == 0 {
+		return out
+	}
+	_ = rows.Close()
+	petGearStats := abyssPetGearStats(b.getEquippedItems(uid))
+	for _, pet := range out {
+		applyAbyssPetGear(pet, petGearStats)
+		_, _, moodPct := abyssPetMood(pet.Stats.HP, pet.MaxHP, pet.Loyalty)
+		pet.Stats.STR = abyssPetMoodScale(pet.Stats.STR, moodPct)
+		pet.Stats.DEF = abyssPetMoodScale(pet.Stats.DEF, moodPct)
+		pet.Stats.SPD = abyssPetMoodScale(pet.Stats.SPD, moodPct)
 	}
 	return out
 }
@@ -3148,7 +3156,11 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 			var itemData sql.NullString
 			if err := rows.Scan(&slot, &gearID, &dura, &enchID, &itemData); err == nil {
 				if gear, ok := b.makeGear(gearID, itemData); ok {
-					equippedGear[content.GearSlot(slot)] = gear
+					equippedSlot := content.GearSlot(slot)
+					if content.IsPetGearSlot(equippedSlot) {
+						continue
+					}
+					equippedGear[equippedSlot] = gear
 					if content.IsAbyssGearID(gearID) {
 						abyssSetCounts[gear.EffectiveSetID()]++
 					}

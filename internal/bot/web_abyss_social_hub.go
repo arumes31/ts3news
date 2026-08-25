@@ -184,9 +184,9 @@ func applyAbyssDuoBonus(users []UserInCombat, assists int) bool {
 	return true
 }
 
-func abyssPetEquipmentLabel(gear content.Gear) string {
+func abyssPetGearItemLabel(gear content.Gear) string {
 	if gear.Name == "" {
-		return "No collar/charm equipped"
+		return "empty"
 	}
 	parts := make([]string, 0, 3)
 	if gear.Stats.STR != 0 {
@@ -202,6 +202,11 @@ func abyssPetEquipmentLabel(gear content.Gear) string {
 		parts = append(parts, "utility effect")
 	}
 	return gear.Name + " · " + strings.Join(parts, " · ")
+}
+
+func abyssPetEquipmentLabel(equipped map[content.GearSlot]content.Gear) string {
+	return "Collar: " + abyssPetGearItemLabel(equipped[content.SlotPet1]) +
+		" · Charm: " + abyssPetGearItemLabel(equipped[content.SlotPet2])
 }
 
 func (b *Bot) abyssSocialPets(uid string) []abyssSocialPetView {
@@ -222,11 +227,7 @@ func (b *Bot) abyssSocialPets(uid string) []abyssSocialPetView {
 			return nil
 		}
 		view.Mood, view.MoodIcon, view.MoodPct = abyssPetMood(view.HP, view.MaxHP, view.Loyalty)
-		slot := content.SlotPet1
-		if view.ActiveSlot == 2 {
-			slot = content.SlotPet2
-		}
-		view.Equipment = abyssPetEquipmentLabel(equipped[slot])
+		view.Equipment = abyssPetEquipmentLabel(equipped)
 		views = append(views, view)
 	}
 	if rows.Err() != nil {

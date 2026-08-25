@@ -247,6 +247,12 @@ func SlotIcon(slot GearSlot) string {
 	return "💎"
 }
 
+// IsPetGearSlot reports whether a persisted equipment slot contributes to
+// captured companions instead of the owning player's combat stat block.
+func IsPetGearSlot(slot GearSlot) bool {
+	return slot == SlotPet1 || slot == SlotPet2
+}
+
 // ItemEffect is a special combat affix carried by gear, artifacts, or skills.
 type ItemEffect string
 
