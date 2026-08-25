@@ -1,0 +1,73 @@
+.abyss-command-page .ab-tabs {
+  position: sticky;
+  top: 2.8rem;
+  z-index: 35;
+}
+.ab-library-tools {
+  align-items: center;
+  backdrop-filter: blur(12px);
+  background: #091118;
+  border: 1px solid #263b47;
+  display: flex;
+  gap: .5rem;
+  margin-bottom: .65rem;
+  padding: .55rem;
+  position: sticky;
+  top: 7.1rem;
+  z-index: 8;
+}
+.ab-library-tools input { flex: 1; min-height: 40px; }
+.ab-library-results { color: #8fa5af; font-size: .65rem; white-space: nowrap; }
+.ab-panel-collapse {
+  float: right;
+  margin-left: .5rem;
+  min-height: 32px;
+}
+.ab-nav-collapsible.ab-panel-collapsed > :not(h2) { display: none !important; }
+.ab-overflow {
+  border: 1px solid #283d49;
+  margin-top: .6rem;
+}
+.ab-overflow > summary {
+  color: #aebdc4;
+  cursor: pointer;
+  font: 800 .65rem/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+  padding: .65rem;
+}
+.ab-overflow-body { display: flex; flex-wrap: wrap; gap: .45rem; padding: 0 .65rem .65rem; }
+.ab-overflow-body #prestigePreview { flex-basis: 100%; }
+.ab-overflow-body > button { width: auto !important; }
+.ab-shortcut-help {
+  display: grid;
+  gap: .4rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.ab-shortcut-help span { align-items: center; background: #0b151d; border: 1px solid #293e4b; display: flex; gap: .5rem; padding: .5rem; }
+.ab-shortcut-help kbd { background: #17242d; border: 1px solid #49606d; color: #f3d885; min-width: 1.8rem; padding: .2rem .35rem; text-align: center; }
+body.ab-compact .abyss-command-page {
+  --cmd-space: 8px;
+  font-size: .92em;
+}
+body.ab-compact .abyss-command-page :is(.abyss-panel, .abyss-lb, .abyss-side-panel) { padding: .55rem; }
+body.ab-compact .abyss-command-page :is(.ab-shop-item, .abyss-side-gear, .abyss-side-loot) { min-height: 30px; padding-block: .28rem; }
+body.ab-compact .abyss-command-page .ab-tabs { margin-top: .5rem; padding: 3px; }
+body.ab-compact .abyss-command-page .ab-tab { min-height: 32px; }
+.ab-shortcut-flash { outline: 2px solid #d7a93b !important; outline-offset: 3px; }
+@media (max-width: 900px) {
+  .abyss-command-page .ab-tabs { top: 2.55rem; }
+  .ab-library-tools { top: 6.5rem; }
+  .abyss-stage-row.ab-loot-first .abyss-side-right { order: 2; }
+  .abyss-stage-row.ab-loot-first .abyss-side-left { order: 3; }
+}
+@media (max-width: 620px) {
+  .ab-shortcut-help { grid-template-columns: 1fr; }
+  .ab-library-tools { align-items: stretch; display: grid; position: static; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ab-shortcut-flash { transition: none; }
+}
+@media (forced-colors: active) {
+  .ab-library-tools,
+  .ab-overflow,
+  .ab-shortcut-help span { border: 1px solid CanvasText; }
+}

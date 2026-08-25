@@ -122,3 +122,16 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0464 / UX-64** — locked recipe silhouettes with discovery guidance and completion count.
 - [x] **AAA-0465 / UX-65** — relative, icon-coded forge history with newest-action inline undo.
 - [x] **AAA-0466 / UX-66** — same-slot manual fusion picker with exact selection and live result odds.
+
+## Delivered tranche: navigation and information architecture
+
+- [x] **AAA-0467 / UX-67** — sticky section tabs below the global navigation.
+- [x] **AAA-0468 / UX-68** — active section persisted across browser visits.
+- [x] **AAA-0469 / UX-69** — stable section aliases and panel-level deep links.
+- [x] **AAA-0470 / UX-70** — counted, persisted collapse controls for long library and history panels.
+- [x] **AAA-0471 / UX-71** — one keyboard-friendly search across lore and bestiary entries.
+- [x] **AAA-0472 / UX-72** — active runs automatically prioritize Run Loot ahead of Armoury.
+- [x] **AAA-0473 / UX-73** — persisted compact veteran layout setting.
+- [x] **AAA-0474 / UX-74** — guarded D/B/R/L shortcuts plus an in-page shortcut guide.
+- [x] **AAA-0475 / UX-75** — live depth and escrow breadcrumbs in the browser title.
+- [x] **AAA-0476 / UX-76** — prestige and badge controls moved into a rare-actions overflow.

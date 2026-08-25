@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_run_awareness.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_loot_presentation.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_forge_experience.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_navigation.css"}}">
 <div class="abyss-command-page" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
@@ -4217,7 +4218,7 @@ function displayAutoFocus(focus) {
     // forge_selected_item persistence above).
     if (!initial) {
       try{
-        var storedTab=sessionStorage.getItem('abyss_section_tab')||'';
+        var storedTab=localStorage.getItem('abyss_section_tab')||'';
         var legacyTabs=['progression','lore','leaderboards'];
         initial=/^\d+$/.test(storedTab) ? (legacyTabs[parseInt(storedTab,10)]||'progression') : storedTab;
       }catch(e){ initial='progression'; }
@@ -4241,7 +4242,7 @@ function displayAutoFocus(focus) {
         b.classList.add('active');
         b.setAttribute('aria-selected', 'true');
         b.tabIndex = 0;
-        try{ sessionStorage.setItem('abyss_section_tab', g.key); }catch(e){}
+        try{ localStorage.setItem('abyss_section_tab', g.key); }catch(e){}
         groups.forEach(function(g2){ g2.els.forEach(function(el){ if(el) el.hidden = g2.key!==g.key; }); });
       };
       b.addEventListener('keydown', function(event){
@@ -5545,14 +5546,8 @@ function abSettingGet(s){
 }
 function applySidebarOrder(){
   var row=document.querySelector('.abyss-stage-row'); if(!row)return;
-  var left=row.querySelector('.abyss-side-left'), right=row.querySelector('.abyss-side-right'), stage=document.getElementById('abyssStage');
-  if(!left||!right||!stage)return;
-  if(abSettingGet({key:'ab_sidebar_order',type:'bool',def:false})){
-    row.insertBefore(right,left);
-  } else {
-    row.insertBefore(left,stage);
-    row.appendChild(right);
-  }
+  var lootFirst=inRun || abSettingGet({key:'ab_sidebar_order',type:'bool',def:false});
+  row.classList.toggle('ab-loot-first',lootFirst);
 }
 
 // UI-121: bestiary family grouping with collapse toggles. Bestiary rows carry
@@ -6117,6 +6112,7 @@ var AB_SETTINGS=[
   {key:'ab_lootf', label:'Run loot filter', type:'select', def:'all', opts:[['all','All'],['up','Upgrades only'],['rare','Rare+'],['epic','Epic+'],['legendary','Legendary+']], apply:function(v){ setLootFilter(v); }},
   {key:'ab_lootsort', label:'Run loot sort', type:'select', def:'floor', opts:[['floor','Floor'],['rarity','Rarity'],['cr','CR Δ']], apply:function(v){ lootSort=v; try{localStorage.setItem('ab_lootsort',v);}catch(e){} var sel=document.getElementById('lootSort'); if(sel)sel.value=v; applyLootSort(); }},
   {key:'ab_sidebar_order', label:'Sidebar: Run Loot before Armoury', type:'bool', def:false, apply:function(){ applySidebarOrder(); }},
+  {key:'ab_compact', label:'Compact veteran layout', type:'bool', def:false, apply:function(v){ document.body.classList.toggle('ab-compact',v); }},
   {key:'ab_vignette', label:'Depth vignette (corners darken as you descend)', type:'bool', def:true, apply:function(v){ vigOn=v; updateVignette(); }},
   {key:'ab_amb', label:'Biome ambience effects (fog/embers/stars)', type:'bool', def:true, apply:function(v){ ambOn=v; applyAmbienceFlag(); }}
 ];
@@ -6220,6 +6216,7 @@ function openAbSettings(){
 {{template "abyss-forge-workstation" .}}
 {{if .ForgeWorkbenchEnabled}}{{template "abyss-forge-planner" .}}{{end}}
 {{template "abyss-forge-experience" .}}
+{{template "abyss-navigation" .}}
 {{template "abyssAAARuntime" .}}
 <script data-cfasync="false">
 window.buildAbyssTabs();

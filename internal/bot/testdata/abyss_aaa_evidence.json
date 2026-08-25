@@ -74,6 +74,18 @@
     "verification": ["internal/bot/web_abyss_forge_experience_test.go"]
   },
   {
+    "ids": [467, 468, 469, 470, 471, 472, 473, 474, 475, 476],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_navigation.html",
+      "internal/bot/webassets/abyss_navigation.css",
+      "internal/bot/webassets/abyss_command.css",
+      "internal/bot/webassets/abyss_ui200.css"
+    ],
+    "verification": ["internal/bot/web_abyss_navigation_test.go"]
+  },
+  {
     "ids": [986, 987],
     "production": [
       "internal/bot/web_abyss_econ.go",

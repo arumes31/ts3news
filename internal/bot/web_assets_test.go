@@ -122,7 +122,7 @@ func TestAbyssWorkspaceTabs(t *testing.T) {
 		`id="abyssTokenExchange" data-abyss-section="shop"`,
 		`id="abyssWorkshop" data-abyss-section="forge"`,
 		`id="abyssForgePanel" data-abyss-section="forge"`,
-		`sessionStorage.setItem('abyss_section_tab', g.key)`,
+		`localStorage.setItem('abyss_section_tab', g.key)`,
 	}
 	for _, marker := range wantMarkers {
 		if !strings.Contains(source, marker) {
