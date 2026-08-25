@@ -86,11 +86,15 @@ type UserInCombat struct {
 }
 
 func abyssKillerDamage(base int, user *UserInCombat, mob *content.Mob) int {
-	if base <= 0 || user == nil || mob == nil || len(user.killerExp) == 0 {
+	if base <= 0 || user == nil || mob == nil {
 		return base
 	}
 	bonus := min(max(user.killerExp[string(mob.Type)], 0), abyssKillerExpCap)
-	return base + base*bonus/1000
+	damage := base + base*bonus/1000
+	if familyBonus := user.treeBonus.Pct["bestiary_damage_"+strings.ToLower(string(mob.Type))]; familyBonus > 0 {
+		damage += int(float64(damage) * familyBonus)
+	}
+	return damage
 }
 
 type activeUser struct {

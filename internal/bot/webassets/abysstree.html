@@ -401,23 +401,20 @@
   stroke-width: 1;
   pointer-events: none;
 }
-/* AB-171: low-detail mode — kill edge flows, glows, swirls and the starfield. */
-.low-detail .te.on,
-.low-detail .te.te-chaotic.on,
-.low-detail .portal-swirl,
-.low-detail .tn.notd,
-.low-detail .tree-svg-fade {
-  animation: none !important;
-}
-.low-detail .tn,
-.low-detail .te,
-.low-detail .constell-line {
-  filter: none !important;
-  transition: none !important;
-}
-.low-detail .tree-bg-stars {
+/* AB-171: the canvas renderer keeps SVG hit targets while replacing expensive
+   filters, gradients and animations with one lightweight raster pass. */
+#treeCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   display: none;
+  pointer-events: none;
+  z-index: 0;
 }
+#treeSvg { position: relative; z-index: 1; }
+.canvas-mode #treeCanvas { display: block; }
+.canvas-mode #treeSvg { opacity: 0; }
 /* Feature toolbar row (loadouts / build codes / toggles). */
 .tree-toolbar2 {
   display: flex;
@@ -461,7 +458,7 @@
   <button class="ghost xs" onclick="buildImport()" title="Import a build code (normal respec cost)">📥 Import</button>
   <span class="muted small">·</span>
   <button class="ghost xs" id="treeBeginnerBtn" onclick="toggleBeginner()" title="Highlight a suggested first 10 nodes">🧭 Beginner path</button>
-  <button class="ghost xs" id="treeLowDetailBtn" onclick="toggleLowDetail()" title="Disable glows/animations for low-end devices">🐢 Low detail</button>
+  <button class="ghost xs" id="treeCanvasBtn" onclick="toggleCanvasMode()" title="Render the tree on a lightweight canvas for low-end devices">🖼️ Canvas renderer</button>
   <button class="ghost xs" id="treePathfinderBtn" style="display:none;" onclick="clearPathfinder()" title="Clear the pathfinder highlight">🎯 Clear path</button>
   <span class="pill" id="treeQueuePill" style="display:none;">📋 <b id="treeQueueCount">0</b> queued <button class="ghost xs" onclick="confirmQueuedAllocations()">Review &amp; apply</button> <button class="ghost xs" onclick="clearAllocQueue()" title="Clear the allocation queue">✕</button></span>
 </div>
@@ -485,6 +482,7 @@
 </div>
 
 <div class="tree-stage" id="treeStage">
+  <canvas id="treeCanvas" aria-hidden="true"></canvas>
   <svg id="treeSvg" class="tree-svg"></svg>
   <div id="treeMinimap" title="Minimap — click to pan"><svg id="treeMinimapSvg"></svg></div>
   <div id="treeTip" class="tree-tip" style="display:none;"></div>
@@ -563,7 +561,8 @@ var KEYSTONE_ACTIVE_SECS = {{.KeystoneActiveSecs}}; // remaining timed-buff seco
 var KEYSTONE_CD_SECS = {{.KeystoneCooldownSecs}}; // remaining cooldown seconds (AB-173)
 var beginnerOn = false, beginnerPath = [];
 var pathfinderChain = [], allocQueue = [];
-var queueRunning = false, lowDetailOn = false;
+var queueRunning = false, canvasModeOn = false;
+var canvasDrawPending = false;
 var minimapBounds = null, minimapReady = false;
 var keystoneTimerStartedAt = Date.now();
 try {
@@ -576,7 +575,7 @@ try {
       return true;
     });
   }
-  lowDetailOn = localStorage.getItem('abyssTreeLowDetail') === '1';
+  canvasModeOn = localStorage.getItem('abyssTreeCanvasMode') === '1';
 } catch (e) {
   allocQueue = [];
 }
@@ -796,6 +795,53 @@ function applyView(){
     gStars.setAttribute('transform', 'translate(' + (view.x * 0.4) + ',' + (view.y * 0.4) + ')');
   }
   updateMinimap(); // AB-163: keep the viewport rectangle in sync
+  queueTreeCanvasDraw();
+}
+
+function queueTreeCanvasDraw(){
+  if (!canvasModeOn || canvasDrawPending) return;
+  canvasDrawPending = true;
+  requestAnimationFrame(function(){ canvasDrawPending = false; drawTreeCanvas(); });
+}
+function drawTreeCanvas(){
+  var canvas = document.getElementById('treeCanvas');
+  var stage = document.getElementById('treeStage');
+  if (!canvas || !stage) return;
+  var rect = stage.getBoundingClientRect();
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var width = Math.max(1, Math.round(rect.width));
+  var height = Math.max(1, Math.round(rect.height));
+  canvas.width = Math.round(width*dpr);
+  canvas.height = Math.round(height*dpr);
+  var ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,width,height);
+  if (!canvasModeOn || activeTab !== 'passive') return;
+  var sx = width/view.w, sy = height/view.h;
+  function pos(id){
+    var n = id===0 ? {x:0,y:0} : byId[id];
+    return n ? {x:(n.x-view.x)*sx,y:(n.y-view.y)*sy} : null;
+  }
+  ctx.lineCap = 'round';
+  EDGES.forEach(function(edge){
+    var a=pos(edge[0]), b=pos(edge[1]);
+    if(!a||!b)return;
+    var on=(edge[0]===0||alloc[edge[0]])&&(edge[1]===0||alloc[edge[1]]);
+    var half=!on&&((edge[0]===0||alloc[edge[0]])||(edge[1]===0||alloc[edge[1]]));
+    ctx.strokeStyle=on?'#f4c542':half?'rgba(91,192,255,.62)':'rgba(70,80,105,.38)';
+    ctx.lineWidth=on?2.2:half?1.5:1;
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  });
+  NODES.forEach(function(n){
+    var p=pos(n.id);
+    if(!p||p.x<-20||p.y<-20||p.x>width+20||p.y>height+20)return;
+    var radius=n.type==='aura'?7:n.type==='keystone'?6:(n.type==='notable'||n.type==='bridge')?4.5:3;
+    var on=!!alloc[n.id], can=isAllocatable(n.id);
+    ctx.fillStyle=on?'#f4c542':can?'#152e47':'#232a3d';
+    ctx.strokeStyle=n.id===NODE_OF_DAY?'#ffd85b':on?'#fff0a8':can?'#5bc0ff':'#52607c';
+    ctx.lineWidth=on||can?1.7:1;
+    ctx.beginPath(); ctx.arc(p.x,p.y,radius,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  });
 }
 
 // AB-163: render the whole tree as a single lightweight SVG path, then keep a
@@ -1681,6 +1727,7 @@ function paint(){
   var glowIntensity = Math.min(12, 4 + used * 0.15);
   svg.style.setProperty('--edge-glow-radius', glowIntensity + 'px');
   applyPathfinder();
+  queueTreeCanvasDraw();
 }
 
 function renderKeystoneTimer(){
@@ -1966,6 +2013,7 @@ function queueAdd(id){
   saveAllocQueue();
   if (added) abToast('📋 Queued '+added+' node'+(added===1?'':'s')+'.', true);
   paint();
+  setTimeout(autoApplyAffordableQueue, 0);
 }
 function clearAllocQueue(){
   allocQueue = [];
@@ -1974,6 +2022,32 @@ function clearAllocQueue(){
 }
 async function processAllocationQueue(){
   return confirmQueuedAllocations();
+}
+function affordableQueuePrefix(){
+  var have={0:true}, remaining=Math.max(0,points-used), prefix=[];
+  Object.keys(alloc).forEach(function(id){if(alloc[id])have[Number(id)]=true;});
+  for(var i=0;i<allocQueue.length;i++){
+    var id=allocQueue[i], n=byId[id];
+    if(!n||alloc[id])continue;
+    var connected=(adj[id]||[]).some(function(neighbor){return !!have[neighbor];});
+    var cost=effCost(n);
+    if(!connected||gateFloor(n)>bestDepth||cost>remaining)break;
+    prefix.push(id);have[id]=true;remaining-=cost;
+  }
+  return prefix;
+}
+async function autoApplyAffordableQueue(){
+  if(queueRunning||busy||!allocQueue.length)return;
+  var prefix=affordableQueuePrefix();
+  if(!prefix.length)return;
+  queueRunning=true;setBusy(true);
+  try{
+    var d=await abPost('/api/abyss/tree/batch_allocate',{ids:prefix});
+    if(!d.ok){abToast(d.error||'Queued allocation is waiting.',false);return;}
+    allocQueue=allocQueue.slice(prefix.length);saveAllocQueue();
+    abToast('📋 '+prefix.length+' queued node'+(prefix.length===1?'':'s')+' applied automatically.',true);
+    setTimeout(function(){location.reload();},450);
+  }finally{queueRunning=false;setBusy(false);}
 }
 async function confirmQueuedAllocations(){
   if(queueRunning||busy||!allocQueue.length)return;
@@ -2029,7 +2103,7 @@ function refreshLoadoutLabels(){
 async function buildExport(){
   var ids = Object.keys(alloc).filter(function(k){ return alloc[k]; }).map(Number).sort(function(a,b){ return a-b; });
   if (!ids.length) { abToast('Allocate at least one node first.', false); return; }
-  var code = btoa('ABYSS1:'+ids.join(','));
+  var code = btoa(JSON.stringify({v:1,schema:TREE_CATALOG.schema_version,layout:TREE_CATALOG.layout_hash,ids:ids}));
   try {
     await navigator.clipboard.writeText(code);
     abToast('📤 Build code copied ('+ids.length+' nodes).', true);
@@ -2040,17 +2114,11 @@ async function buildExport(){
 async function buildImport(){
   var code = window.prompt('Paste an Abyss build code:');
   if (!code) return;
-  var decoded;
-  try { decoded = atob(code.trim()); } catch (e) { abToast('Invalid build code.', false); return; }
-  if (decoded.indexOf('ABYSS1:') !== 0) { abToast('Unsupported build-code version.', false); return; }
-  var raw = decoded.slice(7);
-  var ids = raw ? raw.split(',').map(Number).filter(function(id){ return Number.isInteger(id) && id>0; }) : [];
-  if (!ids.length) { abToast('Build code contains no nodes.', false); return; }
   var cost = FREE_RESPEC ? 'your free weekly respec' : 'the normal respec cost';
-  if (!(await confirmModal('Import '+ids.length+' nodes using '+cost+'?'))) return;
+  if (!(await confirmModal('Import this server-validated build using '+cost+'?'))) return;
   if (busy) return;
   setBusy(true);
-  var d = await abPost('/api/abyss/tree/build_import', {ids:ids});
+  var d = await abPost('/api/abyss/tree/build_import', {code:code.trim()});
   if (!d.ok) { setBusy(false); abToast(d.error||'Import failed.', false); return; }
   abToast(d.msg, true);
   setTimeout(function(){ location.reload(); }, 700);
@@ -2076,13 +2144,14 @@ function toggleBeginner(){
   if (btn) btn.classList.toggle('active', beginnerOn);
   paint();
 }
-function toggleLowDetail(){
-  lowDetailOn = !lowDetailOn;
+function toggleCanvasMode(){
+  canvasModeOn = !canvasModeOn;
   var stage = document.getElementById('treeStage');
-  if (stage) stage.classList.toggle('low-detail', lowDetailOn);
-  var btn = document.getElementById('treeLowDetailBtn');
-  if (btn) btn.classList.toggle('active', lowDetailOn);
-  try { localStorage.setItem('abyssTreeLowDetail', lowDetailOn ? '1' : '0'); } catch (e) {}
+  if (stage) stage.classList.toggle('canvas-mode', canvasModeOn);
+  var btn = document.getElementById('treeCanvasBtn');
+  if (btn) btn.classList.toggle('active', canvasModeOn);
+  try { localStorage.setItem('abyssTreeCanvasMode', canvasModeOn ? '1' : '0'); } catch (e) {}
+  drawTreeCanvas();
 }
 
 async function tryKeystoneSwap(toID){
@@ -2438,6 +2507,21 @@ tip.addEventListener('mouseleave', function(){ hideTip(); });
 function escHtml(s){
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+function treeBranchSummary(n){
+  var names=['War','Vitality','Shadow','Arcane','Fortune','Void'],count=0,stats={},pct={};
+  NODES.forEach(function(node){if(!alloc[node.id]||node.sector!==n.sector)return;count++;Object.keys(node.stats||{}).forEach(function(key){stats[key]=(stats[key]||0)+Number(node.stats[key]||0);});Object.keys(node.pct||{}).forEach(function(key){pct[key]=(pct[key]||0)+Number(node.pct[key]||0);});});
+  var parts=Object.keys(stats).filter(function(key){return stats[key];}).slice(0,4).map(function(key){return key+' '+(stats[key]>0?'+':'')+stats[key];});
+  Object.keys(pct).filter(function(key){return pct[key];}).slice(0,3).forEach(function(key){parts.push(key+' '+(pct[key]>0?'+':'')+(pct[key]*100).toFixed(1)+'%');});
+  return '<br><span class="muted small">Branch total · '+escHtml(names[n.sector]||'Cross-sector')+' · '+count+' allocated'+(parts.length?' · '+escHtml(parts.join(', ')):'')+'</span>';
+}
+function treeShiftDelta(n){
+  var ids=alloc[n.id]?refundSet(n.id):pathToAllocated(n.id),sign=alloc[n.id]?-1:1,stats={},pct={};
+  if(!ids||!ids.length)return '';
+  ids.forEach(function(id){var node=byId[id];if(!node)return;Object.keys(node.stats||{}).forEach(function(key){stats[key]=(stats[key]||0)+sign*Number(node.stats[key]||0);});Object.keys(node.pct||{}).forEach(function(key){pct[key]=(pct[key]||0)+sign*Number(node.pct[key]||0);});});
+  var parts=Object.keys(stats).filter(function(key){return stats[key];}).map(function(key){return key+' '+(stats[key]>0?'+':'')+stats[key];});
+  Object.keys(pct).filter(function(key){return pct[key];}).forEach(function(key){parts.push(key+' '+(pct[key]>0?'+':'')+(pct[key]*100).toFixed(1)+'%');});
+  return '<br><span class="tt-can">⇧ Build delta ('+ids.length+' node'+(ids.length===1?'':'s')+'): '+escHtml(parts.join(', ')||'no direct stat change')+'</span>';
+}
 function showTip(n, ev){
   cancelHideTip();
   tip.className = 'tree-tip tip-' + n.type;
@@ -2567,7 +2651,7 @@ function showTip(n, ev){
     }
   }
   
-  tip.innerHTML = nameHtml + '<br><span class="muted small" style="margin-top:4px; display:inline-block;">'+escHtml(n.desc||'')+'</span>'+ actionHtml;
+  tip.innerHTML = nameHtml + '<br><span class="muted small" style="margin-top:4px; display:inline-block;">'+escHtml(n.desc||'')+'</span>'+treeBranchSummary(n)+(ev.shiftKey?treeShiftDelta(n):'<br><span class="muted small">Hold Shift to compare this route with your current build.</span>')+ actionHtml;
   tip.style.display = '';
   moveTip(ev);
 }
@@ -2583,7 +2667,10 @@ document.getElementById('treeStage').addEventListener('mousemove', function(ev){
 function treeSearchApply(){
   var q = (document.getElementById('treeSearch').value||'').toLowerCase().trim();
   NODES.forEach(function(n){
-    var hit = q && ((n.name||'').toLowerCase().indexOf(q) >= 0 || (n.desc||'').toLowerCase().indexOf(q) >= 0 || (n.type||'').indexOf(q) >= 0);
+    var statKeys=Object.keys(n.stats||{}).concat(Object.keys(n.pct||{}));
+    var statLabels=statKeys.map(function(key){return PCT_LABELS[key]||key;});
+    var haystack=[n.name||'',n.desc||'',n.type||''].concat(statKeys,statLabels).join(' ').toLowerCase();
+    var hit = q && haystack.indexOf(q) >= 0;
     nodeEls[n.id].classList.toggle('hit', !!hit);
     nodeEls[n.id].classList.toggle('dim', !!q && !hit);
     if(iconEls[n.id]){
@@ -2634,18 +2721,21 @@ paint();
 renderSummary(activePct, activeStats);
 refreshLoadoutLabels();
 saveAllocQueue();
-if (lowDetailOn) {
-  document.getElementById('treeStage').classList.add('low-detail');
-  document.getElementById('treeLowDetailBtn').classList.add('active');
+if (canvasModeOn) {
+  document.getElementById('treeStage').classList.add('canvas-mode');
+  document.getElementById('treeCanvasBtn').classList.add('active');
+  drawTreeCanvas();
 }
 setInterval(renderKeystoneTimer, 1000);
-saveAllocQueue();
+window.addEventListener('resize', queueTreeCanvasDraw);
+setTimeout(autoApplyAffordableQueue, 0);
 </script>
 {{if .TreeFeaturesEnabled}}
 {{template "abysstree-navigation" .}}
 {{template "abysstree-planner" .}}
 {{template "abysstree-inspector" .}}
 {{template "abysstree-progression" .}}
+{{template "abysstree-mastery" .}}
 {{template "abysstree-accessibility" .}}
 {{end}}
 {{template "foot" .}}{{end}}

@@ -459,6 +459,8 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/tree/undo", s.authAPI(s.abyssTreeMutation("refund", s.handleAbyssTreeUndo)))
 		mux.HandleFunc("/api/abyss/tree/plan_preview", s.authAPI(s.abyssTreePreview(s.handleAbyssTreePlanPreview)))
 		mux.HandleFunc("/api/abyss/tree/plan_draft", s.authAPI(s.abyssTreeEnhancedMutation("commit", s.handleAbyssTreePlanDraft)))
+		mux.HandleFunc("/api/abyss/tree/paragon", s.authAPI(s.abyssTreeMutation("commit", s.handleAbyssTreeParagon)))
+		mux.HandleFunc("/api/abyss/tree/bestiary_talent", s.authAPI(s.abyssTreeMutation("commit", s.handleAbyssTreeBestiaryTalent)))
 	}
 
 	// Authenticated JSON APIs.

@@ -267,6 +267,20 @@ func (s *WebServer) validateTreeLoadout(ctx context.Context, uid string, ids []i
 	if commitError := abyssTreePlanCommitError(analysis); commitError != "" {
 		return nil, commitError
 	}
+	for _, id := range analysis.IDs {
+		if id != treeNodeVictorsTrophy {
+			continue
+		}
+		var earned bool
+		if err := s.bot.DB.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM abyss_achievements
+			WHERE client_uid=$1 AND code='depth_25')`, uid).Scan(&earned); err != nil {
+			return nil, "failed to verify achievements"
+		}
+		if !earned {
+			return nil, "Victor's Trophy requires the Depth 25 achievement"
+		}
+		break
+	}
 	return analysis.IDs, ""
 }
 
@@ -385,7 +399,7 @@ func (s *WebServer) handleAbyssTreeLoadoutSave(w http.ResponseWriter, r *http.Re
 	}
 	writeJSON(w, map[string]any{"ok": true, "count": len(alloc),
 		"name": names[strconv.Itoa(req.Slot)],
-		"msg": fmt.Sprintf("💾 %s saved (%d nodes).", names[strconv.Itoa(req.Slot)], len(alloc))})
+		"msg":  fmt.Sprintf("💾 %s saved (%d nodes).", names[strconv.Itoa(req.Slot)], len(alloc))})
 }
 
 // handleAbyssTreeLoadoutApply respecs and re-allocates a saved slot in one
@@ -427,7 +441,7 @@ func (s *WebServer) handleAbyssTreeBuildImport(w http.ResponseWriter, r *http.Re
 	defer unlock()
 
 	var req struct {
-		IDs  []int `json:"ids"`
+		IDs  []int  `json:"ids"`
 		Code string `json:"code"`
 	}
 	if err := readJSON(r, &req); err != nil {
@@ -567,8 +581,8 @@ func (s *WebServer) handleAbyssTreeSwapKeystone(w http.ResponseWriter, r *http.R
 	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{
 		"ok": true, "from_id": req.FromID, "to_id": req.ToID,
-		"msg":    fmt.Sprintf("👑 Keystone swapped: %s → %s (path kept).", from.Name, to.Name),
-		"stats":  tb.Stats, "pct": tb.Pct,
+		"msg":   fmt.Sprintf("👑 Keystone swapped: %s → %s (path kept).", from.Name, to.Name),
+		"stats": tb.Stats, "pct": tb.Pct,
 	})
 }
 

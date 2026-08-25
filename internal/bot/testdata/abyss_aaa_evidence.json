@@ -615,5 +615,30 @@
       "internal/bot/web_abyss_economy4_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [851, 852, 853, 854, 855, 856, 857, 858, 859, 860, 861, 862, 863, 864, 865, 866, 867, 868, 869, 870, 871, 872, 873, 874, 875],
+    "production": [
+      "internal/bot/web_abyss_tree.go",
+      "internal/bot/web_abyss_tree2.go",
+      "internal/bot/web_abyss_tree_batch.go",
+      "internal/bot/web_abyss_tree_codes.go",
+      "internal/bot/web_abyss_tree_mastery.go",
+      "internal/bot/web_abyss_tree_plans.go",
+      "internal/bot/web_abyss_tree_progression.go",
+      "internal/bot/web.go",
+      "internal/bot/xp.go",
+      "internal/bot/webassets/abysstree.html",
+      "internal/bot/webassets/abysstree_mastery.html",
+      "internal/bot/webassets/abysstree_navigation.html",
+      "internal/bot/webassets/abysstree_planner.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_tree_mastery_test.go",
+      "internal/bot/web_abyss_tree_plans_test.go",
+      "internal/bot/web_abyss_tree_progression_test.go",
+      "internal/bot/web_abyss_tree_contract_test.go",
+      "internal/bot/web_abyss_tree_fuzz_test.go"
+    ]
   }
 ]

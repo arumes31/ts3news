@@ -596,3 +596,31 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0848 / AB-148** — valid reserved-gold bids placed in the final sixty seconds extend their auction by exactly sixty seconds.
 - [x] **AAA-0849 / AB-149** — keyboard-accessible Sold, Listed, and Expired history tabs display authoritative totals and recent item details.
 - [x] **AAA-0850 / AB-150** — every new shop and Auction House action discloses its exact price, escrow, fee, or refund formula on hover.
+
+## Delivered tranche: Progression and talent mastery
+
+- [x] **AAA-0851 / AB-151** — three named, server-persisted loadout slots save and atomically apply complete connected skill-web builds.
+- [x] **AAA-0852 / AB-152** — a validated keystone swap replaces one allocated keystone while preserving the paid path around it.
+- [x] **AAA-0853 / AB-153** — tree search discovers nodes by name, type, description, and normalized stat/effect vocabulary.
+- [x] **AAA-0854 / AB-154** — Alt-click Pathfinder computes and highlights the cheapest point-cost route from the allocated web.
+- [x] **AAA-0855 / AB-155** — three identical loose or socketed jewels fuse transactionally into one next-tier jewel.
+- [x] **AAA-0856 / AB-156** — timeless jewels render their authoritative small, medium, or large effect radius and every affected node.
+- [x] **AAA-0857 / AB-157** — the first full respec in each ISO week is free and consumed in the same transaction as the reset.
+- [x] **AAA-0858 / AB-158** — newly qualified depth-gated nodes receive a distinct accessible glow without changing their server gate.
+- [x] **AAA-0859 / AB-159** — bosses can drop persisted Mastery Shards that transactionally refund one dependent branch for free.
+- [x] **AAA-0860 / AB-160** — the first Abyss prestige unlocks a seven-node hexagonal Paragon board with ten points per prestige and exact +0.1% ranks.
+- [x] **AAA-0861 / AB-161** — recorded boss-kill counts are cumulatively spent across six family-specific Bestiary talents that add one percent damage per rank without erasing codex records.
+- [x] **AAA-0862 / AB-162** — every node tooltip summarizes allocated node, stat, and effect totals for its discipline branch.
+- [x] **AAA-0863 / AB-163** — a low-cost minimap mirrors the full web and keeps its clickable viewport rectangle synchronized while panning and zooming.
+- [x] **AAA-0864 / AB-164** — Shift-click queues ordered allocations locally and automatically applies each affordable connected prefix atomically as points arrive.
+- [x] **AAA-0865 / AB-165** — Victor's Trophy is an achievement-condition node whose allocation stays locked until the depth-25 feat is satisfied.
+- [x] **AAA-0866 / AB-166** — Set Resonance activates a matching mini-mastery only for each fully equipped six-piece set and scales four base attributes.
+- [x] **AAA-0867 / AB-167** — one deterministic non-aura node rotates daily at half point cost with quote, commit, refund, and plan parity.
+- [x] **AAA-0868 / AB-168** — prestige memory preserves one chosen valid node allocation for free across an Abyss prestige reset.
+- [x] **AAA-0869 / AB-169** — Shift-hover shows the direct stat and percentage delta for adding a cheapest route or removing a dependent branch.
+- [x] **AAA-0870 / AB-170** — versioned, schema-bound Base64 build codes export and import complete builds with strict size and field validation.
+- [x] **AAA-0871 / AB-171** — a persisted canvas renderer replaces the SVG's filters, gradients, and animation work while retaining its authoritative hit targets.
+- [x] **AAA-0872 / AB-172** — the most recent allocation can be undone for free within sixty seconds, including dependent connectivity cleanup.
+- [x] **AAA-0873 / AB-173** — active and cooldown seconds render directly beneath the timed keystone and update without server polling.
+- [x] **AAA-0874 / AB-174** — notable, bridge, keystone, and aura nodes use restrained power-tier glow treatments with reduced-motion support.
+- [x] **AAA-0875 / AB-175** — a beginner overlay highlights a connected suggested first-ten-node route and can be toggled without mutating the build.
