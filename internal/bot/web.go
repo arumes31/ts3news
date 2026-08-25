@@ -317,6 +317,21 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_icon_atlas_expanded.png", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_icon_atlas_expanded.png", "image/png")
 	})
+	atlasNames := []string{
+		"items",
+		"skills",
+		"creatures",
+		"bosses",
+		"artifacts",
+		"companions",
+	}
+	for _, atlas := range atlasNames {
+		path := "/static/abyss_atlas_" + atlas + ".png"
+		asset := "webassets/abyss_atlas_" + atlas + ".png"
+		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			ServeAsset(w, r, asset, "image/png")
+		})
+	}
 	mux.HandleFunc("/static/favicon.svg", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/favicon.svg", "image/svg+xml")
 	})

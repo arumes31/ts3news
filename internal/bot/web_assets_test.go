@@ -3,6 +3,8 @@ package bot
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"hash/fnv"
 	"image"
 	_ "image/png"
 	"net/http"
@@ -242,11 +244,16 @@ func TestAbyssPixelCombatTemplates(t *testing.T) {
 		{name: "deterministic fallback", source: string(pixel), want: "function liveNameHash(name)"},
 		{name: "enemy atlas", source: string(page), want: `{{asset "/static/abyss_enemy_atlas.png"}}`},
 		{name: "expanded enemy atlas", source: string(page), want: `{{asset "/static/abyss_enemy_atlas_expanded.png"}}`},
-		{name: "expanded enemy fallback", source: string(pixel), want: "return {atlas:'expanded',cell:[fallback%8"},
+		{name: "catalog enemy selection", source: string(pixel), want: "function liveEnemyArt(unit)"},
+		{name: "creature atlas", source: string(page), want: `{{asset "/static/abyss_atlas_creatures.png"}}`},
+		{name: "boss atlas", source: string(page), want: `{{asset "/static/abyss_atlas_bosses.png"}}`},
 		{name: "boss tier", source: string(css), want: ".ab-pixel-unit.boss-tier"},
-		{name: "icon classifier", source: string(pixel), want: "function liveActionIconCell(option)"},
+		{name: "action atlas family", source: string(pixel), want: "function liveActionArtFamily(option)"},
 		{name: "expanded icon atlas", source: string(page), want: `{{asset "/static/abyss_icon_atlas_expanded.png"}}`},
-		{name: "expanded action icon", source: string(live), want: "ab-pixel-icon ab-expanded-icon"},
+		{name: "catalog art selector", source: string(pixel), want: "function liveCatalogArt(key,family)"},
+		{name: "catalog action icon", source: string(live), want: "ab-pixel-icon ab-catalog-icon"},
+		{name: "catalog icon styling", source: string(css), want: ".ab-pixel-icon.ab-catalog-icon"},
+		{name: "catalog actor styling", source: string(css), want: ".ab-actor-sprite.ab-catalog-actor"},
 		{name: "reduced motion", source: string(css), want: "@media (prefers-reduced-motion: reduce)"},
 		{name: "feedback stylesheet", source: string(page), want: `{{asset "/static/abyss_combat_feedback.css"}}`},
 		{name: "feedback controls", source: string(live), want: `{{template "abyssCombatFeedbackControls" .}}`},
@@ -265,24 +272,68 @@ func TestAbyssPixelCombatTemplates(t *testing.T) {
 }
 
 func TestAbyssExpandedPixelAtlasesAreSquare(t *testing.T) {
-	for _, name := range []string{
-		"webassets/abyss_icon_atlas_expanded.png",
-		"webassets/abyss_enemy_atlas_expanded.png",
-	} {
-		asset, err := webAssets.ReadFile(name)
-		if err != nil {
-			t.Fatalf("read %s: %v", name, err)
-		}
-		config, _, err := image.DecodeConfig(bytes.NewReader(asset))
-		if err != nil {
-			t.Fatalf("decode %s: %v", name, err)
-		}
-		if config.Width != config.Height || config.Width < 512 {
-			t.Errorf("%s dimensions = %dx%d, want square atlas of at least 512px", name, config.Width, config.Height)
-		}
-		if version := AssetVer(name); len(version) != 12 {
-			t.Errorf("%s asset version = %q, want 12 characters", name, version)
-		}
+	atlases := []struct {
+		name    string
+		columns int
+		rows    int
+	}{
+		{name: "webassets/abyss_icon_atlas_expanded.png", columns: 8, rows: 8},
+		{name: "webassets/abyss_enemy_atlas_expanded.png", columns: 8, rows: 8},
+		{name: "webassets/abyss_atlas_items.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_skills.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_creatures.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_bosses.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_artifacts.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_companions.png", columns: 14, rows: 12},
+	}
+	artworkCount := 0
+	seenArtwork := make(map[uint64]string, 1_136)
+	for _, atlas := range atlases {
+		t.Run(atlas.name, func(t *testing.T) {
+			asset, err := webAssets.ReadFile(atlas.name)
+			if err != nil {
+				t.Fatalf("read %s: %v", atlas.name, err)
+			}
+			decoded, _, err := image.Decode(bytes.NewReader(asset))
+			if err != nil {
+				t.Fatalf("decode %s: %v", atlas.name, err)
+			}
+			bounds := decoded.Bounds()
+			width, height := bounds.Dx(), bounds.Dy()
+			if width != height || width < 512 {
+				t.Errorf(
+					"%s dimensions = %dx%d, want square atlas of at least 512px",
+					atlas.name,
+					width,
+					height,
+				)
+			}
+			for row := range atlas.rows {
+				for column := range atlas.columns {
+					digest := fnv.New64a()
+					for y := row * height / atlas.rows; y < (row+1)*height/atlas.rows; y++ {
+						for x := column * width / atlas.columns; x < (column+1)*width/atlas.columns; x++ {
+							red, green, blue, alpha := decoded.At(bounds.Min.X+x, bounds.Min.Y+y).RGBA()
+							pixel := [4]byte{byte(red >> 8), byte(green >> 8), byte(blue >> 8), byte(alpha >> 8)}
+							_, _ = digest.Write(pixel[:])
+						}
+					}
+					cell := fmt.Sprintf("%s[%d,%d]", atlas.name, column, row)
+					sum := digest.Sum64()
+					if previous, exists := seenArtwork[sum]; exists {
+						t.Errorf("pixel artwork %s duplicates %s", cell, previous)
+					}
+					seenArtwork[sum] = cell
+				}
+			}
+			if version := AssetVer(atlas.name); len(version) != 12 {
+				t.Errorf("%s asset version = %q, want 12 characters", atlas.name, version)
+			}
+		})
+		artworkCount += atlas.columns * atlas.rows
+	}
+	if artworkCount < 1_000 {
+		t.Errorf("authored pixel artwork count = %d, want at least 1000", artworkCount)
 	}
 }
 
