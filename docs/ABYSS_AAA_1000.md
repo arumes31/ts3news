@@ -402,3 +402,26 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0678 / UI-178** — prestige preview values come from the server's current prestige state and permanent 5% progression rule.
 - [x] **AAA-0679 / UI-179** — tier/result filters drive both the history table and bounded 30-run CSV/JSON exports.
 - [x] **AAA-0680 / UI-180** — leaderboard arrows compare current ranks with a server-computed snapshot excluding today's runs, including new entries.
+
+## Delivered tranche: persistent pace, polish, and focused settings
+
+- [x] **AAA-0681 / UI-181** — the pace ghost compares the current persisted run start and cleared-floor count with the previous completed run across devices.
+- [x] **AAA-0682 / UI-182** — the seven-day bounty strip is built from authoritative claim rows rather than browser marks.
+- [x] **AAA-0683 / UI-183** — the drop-streak widget uses persisted pity, streak, bonus, and the server's guarantee cap.
+- [x] **AAA-0684 / UI-184** — the seven-day material chart aggregates persisted Forge sources and sinks.
+- [x] **AAA-0685 / UI-185** — milestone nodes are authored from server boss cadence, checkpoint cadence, jackpot depth, tier gates, and best depth.
+- [x] **AAA-0686 / UI-186** — an optional depth-graded vignette follows authoritative run depth.
+- [x] **AAA-0687 / UI-187** — optional biome ambience follows the server-selected stage biome.
+- [x] **AAA-0688 / UI-188** — the Insanity visual treatment activates only for the authoritative Insanity run tier.
+- [x] **AAA-0689 / UI-189** — server season labels drive bounded seasonal design variables.
+- [x] **AAA-0690 / UI-190** — active runs receive a distinct torch favicon and restore the application icon when idle.
+- [x] **AAA-0691 / UI-191** — empty run history includes a friendly illustrated first-run state.
+- [x] **AAA-0692 / UI-192** — empty bestiary state explains how the first encounter is recorded.
+- [x] **AAA-0693 / UI-193** — terse persistence errors are translated to actionable player-facing copy.
+- [x] **AAA-0694 / UI-194** — gold, token, and material values retain consistent currency symbols at decision points.
+- [x] **AAA-0695 / UI-195** — a shared pluralizer keeps dynamic floor, item, and drop copy grammatical.
+- [x] **AAA-0696 / UI-196** — action labels use consistent sentence casing and verb-first wording.
+- [x] **AAA-0697 / UI-197** — emoji-bearing feedback uses a cross-platform fallback font stack.
+- [x] **AAA-0698 / UI-198** — completed runs can export a print-friendly local PNG recap from server-confirmed results.
+- [x] **AAA-0699 / UI-199** — leaderboard transitions use reduced-motion-safe skeleton rows.
+- [x] **AAA-0700 / UI-200** — every persisted presentation preference lives in one searchable settings modal.

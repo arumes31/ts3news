@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_insights.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_polish.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_longterm.css"}}">
 <div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 <div class="abyss-hero">
@@ -3562,13 +3563,7 @@ async function abyssBountyClaim(){
   setGold(d.gold); setTokens(d.tokens);
   var act=document.getElementById('bountyAction');
   if(act)act.innerHTML='<b style="color:#7ee787">✅ Claimed today</b>';
-  // UI-182: day mark for the bounty history strip.
-  try{
-    var marks=JSON.parse(localStorage.getItem('ab_bounty_days')||'{}');
-    marks[new Date().toISOString().slice(0,10)]=1;
-    localStorage.setItem('ab_bounty_days',JSON.stringify(marks));
-    renderBountyDays();
-  }catch(e){}
+  if(typeof markBountyClaimedToday==='function')markBountyClaimedToday();
   var bmsg='🎯 Daily Bounty complete! +🜲'+d.reward_tokens+' tokens and +'+fmtGold(d.reward_gold)+'.';
   if(d.streak>1)bmsg+=' 🔥 '+d.streak+'-day streak (+🜲 '+d.streak_bonus+' bonus)!';
   setBanner(bmsg,'good');
@@ -5542,90 +5537,6 @@ function drainEscrow(){
   setTimeout(function(){ animateNumber(el, 0, cur, fmtGold); }, 750);
 }
 
-// UI-181: session pace tracker (floors/min); the best pace persists.
-var paceSess=null;
-try{ paceSess=JSON.parse(sessionStorage.getItem('ab_pace')||'null'); }catch(e){ paceSess=null; }
-function trackPaceFloor(){
-  if(!paceSess) paceSess={t0:Date.now(),floors:0};
-  paceSess.floors++;
-  try{ sessionStorage.setItem('ab_pace',JSON.stringify(paceSess)); }catch(e){}
-  var mins=(Date.now()-paceSess.t0)/60000;
-  if(paceSess.floors>=3 && mins>0.2){
-    var rate=paceSess.floors/mins;
-    var best=0;
-    try{ best=parseFloat(localStorage.getItem('ab_pace_best'))||0; }catch(e){}
-    if(rate>best){ try{ localStorage.setItem('ab_pace_best',rate.toFixed(2)); }catch(e){} }
-  }
-  renderPaceMarker();
-}
-function renderPaceMarker(){
-  var rail=document.getElementById('depthRail'); if(!rail)return;
-  var mk=document.getElementById('paceMarker');
-  if(!mk){
-    mk=document.createElement('div');
-    mk.id='paceMarker'; mk.className='ab-pace muted small';
-    rail.parentNode.insertBefore(mk, rail.nextSibling);
-  }
-  var best=0;
-  try{ best=parseFloat(localStorage.getItem('ab_pace_best'))||0; }catch(e){}
-  if(!inRun || best<=0){ mk.style.display='none'; return; }
-  mk.style.display='';
-  var cur=(paceSess&&paceSess.floors)?(paceSess.floors/((Date.now()-paceSess.t0)/60000)):0;
-  mk.textContent='⏱ pace '+cur.toFixed(1)+' f/min · best '+best.toFixed(1)+' f/min';
-}
-
-// UI-182: bounty history strip — last 7 days claimed/missed (claimed days are
-// marked on a successful claim; unmarked days render as "no claim recorded",
-// an approximation since missed days can't be told from unseen ones).
-function renderBountyDays(){
-  var card=document.getElementById('bountyCard'); if(!card)return;
-  var strip=document.getElementById('bountyDays');
-  if(!strip){
-    strip=document.createElement('span');
-    strip.id='bountyDays'; strip.className='ab-bounty-days';
-    card.appendChild(strip);
-  }
-  var marks={};
-  try{ marks=JSON.parse(localStorage.getItem('ab_bounty_days')||'{}'); }catch(e){}
-  var html='<span class="muted small">last 7 days:</span> ';
-  for(var i=6;i>=0;i--){
-    var d=new Date(Date.now()-i*86400000).toISOString().slice(0,10);
-    html+='<span class="ab-bd '+(marks[d]?'got':'miss')+'" title="'+d+(marks[d]?' — claimed':' — no claim recorded in this browser')+'">'+(marks[d]?'✅':'▫️')+'</span>';
-  }
-  strip.innerHTML=html;
-}
-
-// UI-186: depth-graded vignette — page corners darken every 10 floors.
-var vigOn=true;
-try{ vigOn=localStorage.getItem('ab_vignette')!=='0'; }catch(e){}
-function updateVignette(){
-  var ov=document.getElementById('vigOverlay');
-  if(!ov){
-    ov=document.createElement('div');
-    ov.id='vigOverlay'; ov.setAttribute('aria-hidden','true');
-    document.body.appendChild(ov);
-  }
-  var depth=inRun?curDepth:0;
-  var strength=Math.min(0.55, Math.floor(depth/10)*0.09);
-  ov.style.opacity=vigOn?String(strength):'0';
-}
-var abSetDepthOrig=setDepth;
-setDepth=function(d){ abSetDepthOrig(d); updateVignette(); }; // UI-186
-
-// UI-187: ambience master toggle (the per-biome class is set by setBiomeChip;
-// this flag gates the CSS overlays via body.ab-no-amb).
-var ambOn=true;
-try{ ambOn=localStorage.getItem('ab_amb')!=='0'; }catch(e){}
-function applyAmbienceFlag(){ document.body.classList.toggle('ab-no-amb', !ambOn); }
-
-// UI-190: torch-style favicon while a run is active, default when idle.
-var AB_TORCH_FAV='data:image/svg+xml,'+encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='#1a1206'/><text x='5' y='24' font-size='20'>🔥</text></svg>");
-function updateFavicon(){
-  var link=document.querySelector('link[rel="icon"]'); if(!link)return;
-  if(!link.getAttribute('data-orig')) link.setAttribute('data-orig', link.getAttribute('href')||'{{asset "/static/favicon.svg"}}');
-  link.setAttribute('href', inRun ? AB_TORCH_FAV : link.getAttribute('data-orig'));
-}
-
 // ---- G. Navigation & layout -------------------------------------------------
 
 // UI-116: unread dot on section tabs whose content changed since the last visit.
@@ -5718,112 +5629,6 @@ function applySidebarOrder(){
 
 {{template "abyssCodexNavigationJS" .}}
 
-// UI-183: drop-streak/pity augmentation — cap tick on the pity track and a
-// "drops to the guaranteed Legendary" line (the client-side pity counts gear
-// drops, mirroring batch-1's approximation).
-function initPityCap(){
-  var fill=document.getElementById('pityFill'); if(!fill)return;
-  var track=fill.parentElement;
-  if(track && !track.querySelector('.ab-pity-cap')){
-    track.style.position='relative';
-    var tick=document.createElement('span');
-    tick.className='ab-pity-cap'; tick.title='Guaranteed Legendary at 40';
-    tick.textContent='40';
-    track.appendChild(tick);
-  }
-  var cnt=document.getElementById('pityCount');
-  var hud=fill.closest?fill.closest('.abyss-pity-hud'):null;
-  if(cnt && hud && !hud.querySelector('.ab-pity-left')){
-    var p=parseInt(cnt.textContent,10)||0;
-    var d=document.createElement('div');
-    d.className='ab-pity-left muted small';
-    d.textContent=p>=40?'✨ Guaranteed Legendary on your next gear drop!':(plural(Math.max(0,40-p),'gear drop')+' to the guaranteed Legendary');
-    hud.appendChild(d);
-  }
-}
-
-// UI-184: material income chart — positive deltas from setMaterials booked to a
-// per-day ledger in localStorage, rendered as a tiny 7-day bar chart.
-var matPrev=null;
-function snapshotMats(){
-  var cur={};
-  ['dust','shard','core','prism'].forEach(function(k){
-    var el=document.getElementById('mat-'+k);
-    if(el) cur[k]=parseInt((el.textContent||'').replace(/[^\d]/g,''),10)||0;
-  });
-  return cur;
-}
-function renderMatIncome(){
-  var strip=document.querySelector('.ab-materials'); if(!strip)return;
-  var host=document.getElementById('matIncome');
-  if(!host){
-    host=document.createElement('div');
-    host.id='matIncome'; host.className='ab-mat-income';
-    strip.appendChild(host);
-  }
-  var ledger={};
-  try{ ledger=JSON.parse(localStorage.getItem('ab_mat_income')||'{}'); }catch(e){}
-  var days=[], i;
-  for(i=6;i>=0;i--) days.push(new Date(Date.now()-i*86400000).toISOString().slice(0,10));
-  var max=1;
-  days.forEach(function(d){
-    var r=ledger[d];
-    var tot=r?((r.dust||0)+(r.shard||0)+(r.core||0)+(r.prism||0)):0;
-    if(tot>max)max=tot;
-  });
-  var html='<span class="muted small">materials/day:</span>';
-  days.forEach(function(d){
-    var r=ledger[d]||{};
-    var tot=(r.dust||0)+(r.shard||0)+(r.core||0)+(r.prism||0);
-    var h=Math.max(2,Math.round(tot/max*18));
-    html+='<span class="ab-mi-bar" title="'+d+': 🌫️'+(r.dust||0)+' 🔷'+(r.shard||0)+' 🟣'+(r.core||0)+' 💠'+(r.prism||0)+'"><i style="height:'+h+'px"></i></span>';
-  });
-  host.innerHTML=html;
-}
-var abSetMatOrig=setMaterials;
-setMaterials=function(mats){ // UI-184
-  if(!matPrev) matPrev=snapshotMats();
-  abSetMatOrig(mats);
-  var now=snapshotMats();
-  var deltas={}, any=false;
-  Object.keys(now).forEach(function(k){
-    var d=now[k]-(matPrev[k]||0);
-    if(d>0){ deltas[k]=d; any=true; }
-  });
-  matPrev=now;
-  if(!any) return;
-  try{
-    var ledger=JSON.parse(localStorage.getItem('ab_mat_income')||'{}');
-    var day=new Date().toISOString().slice(0,10);
-    var rec=ledger[day]||{dust:0,shard:0,core:0,prism:0};
-    Object.keys(deltas).forEach(function(k){ rec[k]=(rec[k]||0)+deltas[k]; });
-    ledger[day]=rec;
-    localStorage.setItem('ab_mat_income',JSON.stringify(ledger));
-  }catch(e){}
-  renderMatIncome();
-};
-
-// UI-185: milestone map — static depth chart with boss cadence (every 5),
-// checkpoints (every 10), jackpot depth 25 and tier unlocks 15/30/50.
-function renderMilestoneMap(host){
-  var best=parseInt((document.getElementById('bestDepth').textContent||'').replace(/\D/g,''),10)||0;
-  var maxD=Math.max(50, Math.ceil(best/10)*10);
-  var w=260, h=48;
-  var x=function(d){ return 10 + (d/maxD)*(w-20); };
-  var svg='<svg class="ab-mmap" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="Depth milestone map">';
-  svg+='<line x1="10" y1="30" x2="'+(w-10)+'" y2="30" class="mm-axis"/>';
-  var d;
-  for(d=5; d<=maxD; d+=5) svg+='<line x1="'+x(d)+'" y1="26" x2="'+x(d)+'" y2="34" class="mm-boss"><title>Boss floor '+d+'</title></line>';
-  for(d=10; d<=maxD; d+=10) svg+='<circle cx="'+x(d)+'" cy="30" r="3" class="mm-ck"><title>Checkpoint depth '+d+'</title></circle>';
-  svg+='<text x="'+x(25)+'" y="13" class="mm-lbl">💰25</text>';
-  svg+='<text x="'+x(15)+'" y="46" class="mm-lbl">😈15</text>';
-  if(maxD>=30) svg+='<text x="'+x(30)+'" y="13" class="mm-lbl">🔥30</text>';
-  if(maxD>=50) svg+='<text x="'+x(50)+'" y="46" class="mm-lbl">💀50</text>';
-  if(best>0) svg+='<line x1="'+x(best)+'" y1="16" x2="'+x(best)+'" y2="44" class="mm-you"><title>Your best depth: '+best+'</title></line>';
-  svg+='</svg>';
-  host.insertAdjacentHTML('beforeend','<div class="ab-rex"><span class="ab-sub-label">🗺️ Milestone map — bosses every 5 · checkpoints every 10 · 💰 jackpot 25 · 😈 nightmare 15 · 🔥 hell 30 · 💀 insanity 50</span>'+svg+'</div>');
-}
-
 // ---- K. Theming, polish & micro-copy -----------------------------------------
 
 // UI-139: level-up flash on the HUD level chip when the level rose since the
@@ -5896,47 +5701,6 @@ function initNewDots(){
   });
 }
 
-// UI-200: one ⚙️ settings modal collecting every persisted toggle, data-driven.
-var AB_SETTINGS=[
-  {key:'ab_lognum', label:'Combat log: round numbers', type:'bool', def:false, apply:function(v){ logNumbered=v; applyLogView(); }},
-  {key:'ab_logmono', label:'Combat log: monospace font', type:'bool', def:false, apply:function(v){ logMono=v; applyLogView(); }},
-  {key:'ab_lootf', label:'Run loot filter', type:'select', def:'all', opts:[['all','All'],['up','Upgrades only'],['rare','Rare+'],['epic','Epic+'],['legendary','Legendary+']], apply:function(v){ setLootFilter(v); }},
-  {key:'ab_lootsort', label:'Run loot sort', type:'select', def:'floor', opts:[['floor','Floor'],['rarity','Rarity'],['cr','CR Δ']], apply:function(v){ lootSort=v; try{localStorage.setItem('ab_lootsort',v);}catch(e){} var sel=document.getElementById('lootSort'); if(sel)sel.value=v; applyLootSort(); }},
-  {key:'ab_sidebar_order', label:'Sidebar: Run Loot before Armoury', type:'bool', def:false, apply:function(){ applySidebarOrder(); }},
-  {key:'ab_compact', label:'Compact veteran layout', type:'bool', def:false, apply:function(v){ document.body.classList.toggle('ab-compact',v); }},
-  {key:'ab_contrast', label:'High-contrast solid panels', type:'bool', def:false, apply:function(v){ applyAbyssContrast(v); }},
-  {key:'ab_colorblind', label:'Colorblind rarity shapes', type:'bool', def:false, apply:function(v){ applyAbyssColorblind(v); }},
-  {key:'ab_logsize', label:'Combat log text size', type:'select', def:'m', opts:[['s','Small'],['m','Medium'],['l','Large']], apply:function(v){ applyAbyssLogSize(v); }},
-  {key:'ab_haptic', label:'Mobile haptics for danger and legendary loot', type:'bool', def:false},
-  {key:'ab_vignette', label:'Depth vignette (corners darken as you descend)', type:'bool', def:true, apply:function(v){ vigOn=v; updateVignette(); }},
-  {key:'ab_amb', label:'Biome ambience effects (fog/embers/stars)', type:'bool', def:true, apply:function(v){ ambOn=v; applyAmbienceFlag(); }}
-];
-function openAbSettings(){
-  var html='<h3>⚙️ Abyss settings</h3><div class="modal-body ab-settings">';
-  AB_SETTINGS.forEach(function(s,i){
-    var v=abSettingGet(s);
-    if(s.type==='bool'){
-      html+='<label class="ab-set-row"><input type="checkbox" data-set="'+i+'"'+(v?' checked':'')+'> '+consEsc(s.label)+'</label>';
-    } else {
-      html+='<label class="ab-set-row"><span>'+consEsc(s.label)+'</span><select data-set="'+i+'" class="ab-select">';
-      s.opts.forEach(function(o){ html+='<option value="'+o[0]+'"'+(v===o[0]?' selected':'')+'>'+o[1]+'</option>'; });
-      html+='</select></label>';
-    }
-  });
-  html+='</div><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Done</button></div>';
-  openModal(html);
-  document.querySelectorAll('#sharedModalCard [data-set]').forEach(function(inp){
-    inp.addEventListener('change',function(){
-      var s=AB_SETTINGS[parseInt(inp.getAttribute('data-set'),10)];
-      if(!s) return;
-      var val=s.type==='bool'?(inp.checked?'1':'0'):inp.value;
-      try{ localStorage.setItem(s.key,val); }catch(e){}
-      if(s.apply) s.apply(s.type==='bool'?inp.checked:inp.value);
-      abToast('Setting saved',true);
-    });
-  });
-}
-
 // Batch-3 init (runs after batch-2's init; the whole DOM is parsed).
 (function initAbyssUI200c(){
   // UI-137: focus the safe button when a modal opens. The shared modal helpers
@@ -5968,33 +5732,10 @@ function openAbSettings(){
   initAchievementHints();// UI-126
   initLbSkeleton();    // UI-130/199
 
-  var rex=document.getElementById('recordExtras');
-  if(rex){
-    renderMilestoneMap(rex);  // UI-185
-  }
-  renderPaceMarker();         // UI-181
-  renderBountyDays();         // UI-182
-  initPityCap();              // UI-183
-  matPrev=snapshotMats(); renderMatIncome(); // UI-184
-
-  updateVignette();           // UI-186
-  applyAmbienceFlag();        // UI-187
-  if(inRun && curTier==='insanity') document.body.classList.add('ab-insanity-run'); // UI-188
-  updateFavicon();            // UI-190
   initLevelFlash();           // UI-139
   initIdleReminder();         // UI-149
   initNewDots();              // UI-150
 
-  // UI-200: ⚙️ settings button in the HUD stats row.
-  var statsRow=document.querySelector('.abyss-stats');
-  if(statsRow){
-    var gb=document.createElement('button');
-    gb.className='ab-chip ab-settings-btn';
-    gb.id='abSettingsBtn'; gb.type='button';
-    gb.textContent='⚙️'; gb.title='Abyss settings';
-    gb.onclick=openAbSettings;
-    statsRow.appendChild(gb);
-  }
 })();
 </script>
 {{template "abyss-forge-workstation" .}}
@@ -6004,6 +5745,7 @@ function openAbSettings(){
 {{template "abyss-accessibility" .}}
 {{template "abyss-mobile" .}}
 {{template "abyss-insights" .}}
+{{template "abyss-longterm" .}}
 {{template "abyss-feedback" .}}
 {{template "abyss-polish" .}}
 {{template "abyss-stage-presentation" .}}

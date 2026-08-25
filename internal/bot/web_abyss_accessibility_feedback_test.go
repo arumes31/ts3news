@@ -17,6 +17,7 @@ func TestAbyssUI141Through160Contracts(t *testing.T) {
 		"webassets/abyss_accessibility.css",
 		"webassets/abyss_live.html",
 		"webassets/abyss_ui200.css",
+		"webassets/abyss_longterm.html",
 		"webassets/partials.html",
 	} {
 		content, err := webAssets.ReadFile(name)
@@ -26,7 +27,7 @@ func TestAbyssUI141Through160Contracts(t *testing.T) {
 		assets[name] = string(content)
 	}
 
-	page := assets["webassets/abyss.html"]
+	page := assets["webassets/abyss.html"] + assets["webassets/abyss_longterm.html"]
 	for _, contract := range []string{
 		`if(d.new_record) recordBurst(d.depth)`,
 		`if(d.pity_proc) pityProcFlash()`,

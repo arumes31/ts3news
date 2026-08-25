@@ -40,14 +40,6 @@
   wrapAfter('showRunSummary',function(title){installRecapButton(title,{banked:0,died:true});});
   wrapAfter('showBankSummary',function(result){installRecapButton('🏦 Run banked',{depth:result&&result.depth,banked:result&&result.banked,died:false});});
 
-  function recentRuns(){return Array.prototype.slice.call(document.querySelectorAll('.ab-history tbody tr[data-depth]')).map(function(row){return{depth:Number(row.dataset.depth)||0,gold:Number(row.dataset.gold)||0,victory:row.dataset.victory==='true',when:row.dataset.when||''};});}
-  function points(values,width,height){var max=Math.max.apply(Math,[1].concat(values));return values.map(function(value,index){return(6+index*(width-12)/Math.max(1,values.length-1)).toFixed(1)+','+(height-6-value/max*(height-12)).toFixed(1);}).join(' ');}
-  function causeBars(){var causes=[];try{causes=JSON.parse(localStorage.getItem('ab_run_causes')||'[]');}catch(_){}var counts={};causes.filter(function(item){return !item.victory;}).forEach(function(item){counts[item.cause||'Defeated']=(counts[item.cause||'Defeated']||0)+1;});var total=Object.keys(counts).reduce(function(sum,key){return sum+counts[key];},0);if(!total)return'<p class="muted small">Death causes will appear after runs finish in this browser.</p>';return Object.keys(counts).sort().map(function(key){var pct=Math.round(counts[key]*100/total);return'<div class="ab-cause-row"><span>'+consEsc(key)+'</span><i><b style="width:'+pct+'%"></b></i><strong>'+counts[key]+'</strong></div>';}).join('');}
-  function renderPersonalDashboard(){
-    var host=document.getElementById('recordExtras'),runs=recentRuns();if(!host||!runs.length)return;var old=document.getElementById('abyssPersonalDashboard');if(old)old.remove();var average=Math.round(runs.reduce(function(sum,run){return sum+run.depth;},0)/runs.length),banked=runs.filter(function(run){return run.victory;}),rate=Math.round(banked.length*100/runs.length),days={};banked.forEach(function(run){var day=run.when.split(/\s+/).slice(0,2).join(' ');days[day]=(days[day]||0)+run.gold;});var daily=Object.keys(days).reverse().map(function(day){return days[day];}),depths=runs.slice().reverse().map(function(run){return run.depth;});
-    var section=document.createElement('section');section.id='abyssPersonalDashboard';section.className='ab-personal-dashboard';section.innerHTML='<div class="ab-personal-head"><b>📊 Personal run dashboard</b><span class="muted small">last '+runs.length+' server-recorded runs</span></div><div class="ab-personal-kpis"><span><small>Average depth</small><b>'+average+'</b></span><span><small>Bank rate</small><b>'+rate+'%</b></span><span><small>Recent banked</small><b>'+fmtGold(banked.reduce(function(sum,run){return sum+run.gold;},0))+'</b></span></div><div class="ab-personal-charts"><figure><figcaption>Depth trend</figcaption><svg viewBox="0 0 240 58" role="img" aria-label="Recent depth trend"><polyline points="'+points(depths,240,58)+'"/></svg></figure><figure><figcaption>Gold banked by day</figcaption><svg viewBox="0 0 240 58" role="img" aria-label="Recent gold banked by day"><polyline points="'+points(daily.length?daily:[0],240,58)+'"/></svg></figure></div><div class="ab-causes"><b>Recorded death causes</b>'+causeBars()+'</div>';host.insertBefore(section,host.firstChild);
-  }
-
   function depthBand(depth){depth=Number(depth)||0;return depth>=75?'abyssal':depth>=40?'deep':depth>=15?'mid':'shallow';}
   function applyDepthTheme(){document.body.dataset.abDepthBand=depthBand(inRun?curDepth:0);}
   function applySeason(){var month=String(seasonLabel||'').split(' ')[0].toLowerCase(),winter=['december','january','february'],bloom=['march','april','may'],ember=['june','july','august'];document.body.dataset.abSeason=winter.indexOf(month)>=0?'winter':bloom.indexOf(month)>=0?'bloom':ember.indexOf(month)>=0?'ember':'harvest';}
@@ -63,8 +55,8 @@
   wrapAfter('renderState',function(){var now=!!downed;if(now&&!wasDowned)playLiveCombatCue('defeat',.35);wasDowned=now;});
   wrapAfter('lootToast',function(_,rarity){if(rarity)playLiveCombatCue('cast',.28);});
 
-  renderPersonalDashboard();installSoundSetting();
-  window.__abyssPolish={exportRecap:exportRecap,renderPersonalDashboard:renderPersonalDashboard,applyDepthTheme:applyDepthTheme,celebrate:celebrate};
+  installSoundSetting();
+  window.__abyssPolish={exportRecap:exportRecap,applyDepthTheme:applyDepthTheme,celebrate:celebrate};
 })();
 </script>
 {{end}}

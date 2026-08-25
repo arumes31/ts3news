@@ -1,0 +1,123 @@
+{{define "abyss-longterm"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var state={{jsonJS .LongTerm}}||{};state.pace=state.pace||{};state.bounty_days=state.bounty_days||[];state.material_flow_7d=state.material_flow_7d||{};state.milestones=state.milestones||[];
+  var pity=Number(state.legendary_pity)||0,pityCap=Number(state.legendary_cap)||40,dropStreak={{.DropStreak}},dropBonus={{.DropStreakBonusPct}};
+  var paceFloors=Number(state.pace.current_floors)||0,paceStartedAt=Number(state.pace.started_unix)*1000||0;
+
+  function renderPaceMarker(){
+    var rail=document.getElementById('depthRail'); if(!rail)return;
+    var host=document.getElementById('paceMarker');
+    if(!host){host=document.createElement('div');host.id='paceMarker';host.className='ab-pace muted small';rail.parentNode.insertBefore(host,rail.nextSibling);}
+    var ghost=Number(state.pace.last_floors_per_minute)||0;
+    if(!inRun || ghost<=0){host.hidden=true;return;}
+    var current=state.pace.current_floors_per_minute;
+    if(paceStartedAt>0)current=paceFloors/Math.max((Date.now()-paceStartedAt)/60000,0.01);
+    host.hidden=false;
+    host.textContent='⏱ pace '+current.toFixed(1)+' f/min · last run ghost '+ghost.toFixed(1)+' f/min';
+    host.classList.toggle('ahead',current>=ghost);
+  }
+  window.trackPaceFloor=function(){paceFloors++;renderPaceMarker();};
+
+  function renderBountyDays(){
+    var card=document.getElementById('bountyCard'); if(!card)return;
+    var host=document.getElementById('bountyDays');
+    if(!host){host=document.createElement('span');host.id='bountyDays';host.className='ab-bounty-days';card.appendChild(host);}
+    host.replaceChildren();
+    var label=document.createElement('span');label.className='muted small';label.textContent='last 7 days:';host.appendChild(label);
+    state.bounty_days.forEach(function(day){
+      var mark=document.createElement('span');mark.className='ab-bd '+(day.claimed?'got':'miss');
+      mark.title=day.date+(day.claimed?' — claimed':' — not claimed');mark.textContent=day.claimed?'✓':'·';host.appendChild(mark);
+    });
+  }
+  window.markBountyClaimedToday=function(){
+    if(state.bounty_days.length)state.bounty_days[state.bounty_days.length-1].claimed=true;
+    renderBountyDays();
+  };
+
+  function initPityCap(){
+    var fill=document.getElementById('pityFill'); if(!fill)return;
+    var track=fill.parentElement;
+    if(track && !track.querySelector('.ab-pity-cap')){var tick=document.createElement('span');tick.className='ab-pity-cap';tick.title='Guaranteed Legendary at '+pityCap;tick.textContent=String(pityCap);track.appendChild(tick);}
+    var hud=fill.closest?fill.closest('.abyss-pity-hud'):null;
+    if(!hud || hud.querySelector('.ab-pity-left'))return;
+    var line=document.createElement('div');line.className='ab-pity-left muted small';
+    var remaining=Math.max(0,pityCap-pity);
+    line.textContent=(remaining===0?'✨ Legendary guaranteed on the next gear drop':remaining+' gear '+(remaining===1?'drop':'drops')+' to guaranteed Legendary')+' · streak '+dropStreak+' · +'+dropBonus+'% drop chance';
+    hud.appendChild(line);
+  }
+
+  function renderMaterialFlow(){
+    var strip=document.querySelector('.ab-materials'); if(!strip)return;
+    var host=document.getElementById('matIncome');
+    if(!host){host=document.createElement('div');host.id='matIncome';host.className='ab-mat-income';strip.appendChild(host);}
+    var keys=['dust','shard','core','prism'], totals=[];
+    for(var day=0;day<7;day++){var total=0;keys.forEach(function(key){total+=(state.material_flow_7d[key]||[])[day]||0;});totals.push(total);}
+    var scale=Math.max.apply(Math,totals.map(function(value){return Math.abs(value);}).concat([1]));
+    host.innerHTML='<span class="muted small">7-day net materials:</span>';
+    totals.forEach(function(total,index){
+      var bar=document.createElement('span');bar.className='ab-mi-bar '+(total<0?'sink':'source');
+      var detail=keys.map(function(key){return key+' '+((state.material_flow_7d[key]||[])[index]||0);}).join(', ');
+      bar.title=detail;var fill=document.createElement('i');fill.style.height=Math.max(2,Math.round(Math.abs(total)/scale*18))+'px';bar.appendChild(fill);host.appendChild(bar);
+    });
+  }
+
+  function renderMilestones(){
+    var host=document.getElementById('recordExtras');if(!host)return;
+    var wrap=document.createElement('div');wrap.className='ab-rex ab-milestone-map';
+    var label=document.createElement('span');label.className='ab-sub-label';label.textContent='🗺️ Authoritative milestone map';wrap.appendChild(label);
+    var track=document.createElement('div');track.className='ab-milestone-track';
+    state.milestones.forEach(function(m){var node=document.createElement('span');node.className='ab-milestone '+m.kind+(m.reached?' reached':'');node.style.left=(m.depth/state.map_depth*100)+'%';node.title='Depth '+m.depth+': '+m.label;node.setAttribute('aria-label',node.title);track.appendChild(node);});
+    if(state.best_depth>0){var best=document.createElement('i');best.className='ab-milestone-best';best.style.left=(Math.min(state.best_depth,state.map_depth)/state.map_depth*100)+'%';best.title='Your best: '+state.best_depth;track.appendChild(best);}
+    wrap.appendChild(track);host.appendChild(wrap);
+  }
+
+  var vignette=true, ambience=true;
+  try{vignette=localStorage.getItem('ab_vignette')!=='0';ambience=localStorage.getItem('ab_amb')!=='0';}catch(_){}
+  function updateVignette(){
+    var overlay=document.getElementById('vigOverlay');if(!overlay){overlay=document.createElement('div');overlay.id='vigOverlay';overlay.setAttribute('aria-hidden','true');document.body.appendChild(overlay);}
+    overlay.style.opacity=vignette?String(Math.min(.55,Math.floor((inRun?curDepth:0)/10)*.09)):'0';
+  }
+  function applyAmbience(){document.body.classList.toggle('ab-no-amb',!ambience);}
+  function updateFavicon(){
+    var link=document.querySelector('link[rel="icon"]');if(!link)return;
+    if(!link.dataset.orig)link.dataset.orig=link.getAttribute('href')||'{{asset "/static/favicon.svg"}}';
+    var torch='data:image/svg+xml,'+encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='#1a1206'/><text x='5' y='24' font-size='20'>🔥</text></svg>");
+    link.href=inRun?torch:link.dataset.orig;
+  }
+  var originalSetDepth=setDepth;
+  setDepth=function(depth){originalSetDepth(depth);updateVignette();renderPaceMarker();};
+  window.updateFavicon=updateFavicon;
+
+  var settings=[
+    {key:'ab_lognum',label:'Combat log round numbers',type:'bool',def:false,apply:function(v){logNumbered=v;applyLogView();}},
+    {key:'ab_logmono',label:'Combat log monospace font',type:'bool',def:false,apply:function(v){logMono=v;applyLogView();}},
+    {key:'ab_lootf',label:'Run loot filter',type:'select',def:'all',opts:[['all','All'],['up','Upgrades only'],['rare','Rare+'],['epic','Epic+'],['legendary','Legendary+']],apply:function(v){setLootFilter(v);}},
+    {key:'ab_lootsort',label:'Run loot sort',type:'select',def:'floor',opts:[['floor','Floor'],['rarity','Rarity'],['cr','CR Δ']],apply:function(v){lootSort=v;var select=document.getElementById('lootSort');if(select)select.value=v;applyLootSort();}},
+    {key:'ab_sidebar_order',label:'Run Loot before Armoury',type:'bool',def:false,apply:applySidebarOrder},
+    {key:'ab_compact',label:'Compact veteran layout',type:'bool',def:false,apply:function(v){document.body.classList.toggle('ab-compact',v);}},
+    {key:'ab_contrast',label:'High-contrast solid panels',type:'bool',def:false,apply:applyAbyssContrast},
+    {key:'ab_colorblind',label:'Colorblind rarity shapes',type:'bool',def:false,apply:applyAbyssColorblind},
+    {key:'ab_logsize',label:'Combat log text size',type:'select',def:'m',opts:[['s','Small'],['m','Medium'],['l','Large']],apply:applyAbyssLogSize},
+    {key:'ab_haptic',label:'Mobile haptics',type:'bool',def:false},
+    {key:'ab_vignette',label:'Depth vignette',type:'bool',def:true,apply:function(v){vignette=v;updateVignette();}},
+    {key:'ab_amb',label:'Biome ambience',type:'bool',def:true,apply:function(v){ambience=v;applyAmbience();}}
+  ];
+  window.AB_SETTINGS=settings;
+  function valueOf(setting){var raw=null;try{raw=localStorage.getItem(setting.key);}catch(_){}return setting.type==='bool'?(raw===null?setting.def:raw==='1'):(raw===null?setting.def:raw);}
+  function openSettings(){
+    var html='<h3>⚙️ Abyss settings</h3><div class="modal-body ab-settings"><input id="abSettingsSearch" class="ab-settings-search" type="search" placeholder="Search settings…" aria-label="Search Abyss settings"><div id="abSettingsRows">';
+    settings.forEach(function(setting,index){var value=valueOf(setting);html+='<label class="ab-set-row" data-search="'+consEsc(setting.label.toLowerCase())+'"><span>'+consEsc(setting.label)+'</span>'+(setting.type==='bool'?'<input type="checkbox" data-set="'+index+'"'+(value?' checked':'')+'>':'<select data-set="'+index+'" class="ab-select">'+setting.opts.map(function(option){return '<option value="'+option[0]+'"'+(value===option[0]?' selected':'')+'>'+option[1]+'</option>';}).join('')+'</select>')+'</label>';});
+    html+='</div></div><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Done</button></div>';openModal(html);
+    document.getElementById('abSettingsSearch').addEventListener('input',function(){var query=this.value.trim().toLowerCase();document.querySelectorAll('#abSettingsRows .ab-set-row').forEach(function(row){row.hidden=query && row.dataset.search.indexOf(query)<0;});});
+    document.querySelectorAll('#abSettingsRows [data-set]').forEach(function(input){input.addEventListener('change',function(){var setting=settings[parseInt(input.dataset.set,10)],value=setting.type==='bool'?input.checked:input.value;try{localStorage.setItem(setting.key,setting.type==='bool'?(value?'1':'0'):value);}catch(_){}if(setting.apply)setting.apply(value);abToast('Setting saved',true);});});
+  }
+
+  renderPaceMarker();renderBountyDays();initPityCap();renderMaterialFlow();renderMilestones();updateVignette();applyAmbience();updateFavicon();
+  if(inRun && curTier==='insanity')document.body.classList.add('ab-insanity-run');
+  var row=document.querySelector('.abyss-stats');if(row){var button=document.createElement('button');button.className='ab-chip ab-settings-btn';button.id='abSettingsBtn';button.type='button';button.textContent='⚙️';button.title='Search Abyss settings';button.onclick=openSettings;row.appendChild(button);}
+  window.__abyssLongTerm={renderPace:renderPaceMarker,renderBounties:renderBountyDays,renderMaterials:renderMaterialFlow,openSettings:openSettings};
+})();
+</script>
+{{end}}

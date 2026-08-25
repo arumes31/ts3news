@@ -334,6 +334,25 @@
     "verification": ["internal/bot/web_abyss_insights_test.go"]
   },
   {
+    "ids": [681, 682, 683, 684, 685, 686, 687, 688, 689, 690, 691, 692, 693, 694, 695, 696, 697, 698, 699, 700],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_history.go",
+      "internal/bot/web_abyss_longterm.go",
+      "internal/bot/web_abyss_forge_guides.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_longterm.html",
+      "internal/bot/webassets/abyss_longterm.css",
+      "internal/bot/webassets/abyss_polish.html",
+      "internal/bot/webassets/abyss_polish.css",
+      "internal/bot/webassets/abyss_ui200.css",
+      "internal/db/migrations/0078_abyss_run_duration.up.sql"
+    ],
+    "verification": ["internal/bot/web_abyss_longterm_test.go", "internal/bot/web_abyss_polish_test.go"]
+  },
+  {
     "ids": [986, 987],
     "production": [
       "internal/bot/web_abyss_econ.go",

@@ -25,15 +25,15 @@ func TestAbyssHistoryLoadsBoundedAuthoritativeLootSummary(t *testing.T) {
 		WithArgs("player", 50).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"depth", "gold_banked", "victory", "tier", "hardcore",
-			"end_reason", "loot_count", "loot_summary", "created_at",
-		}).AddRow(17, int64(4200), true, "hell", true, "banked", 3, []byte(`["Crown","Ward"]`), when))
+			"end_reason", "loot_count", "loot_summary", "created_at", "duration_ms", "floors_cleared",
+		}).AddRow(17, int64(4200), true, "hell", true, "banked", 3, []byte(`["Crown","Ward"]`), when, int64(90_000), 12))
 
 	rows := (&Bot{DB: database}).abyssHistory("player", 500)
 	if len(rows) != 1 {
 		t.Fatalf("history rows = %d, want 1", len(rows))
 	}
 	row := rows[0]
-	if row.Depth != 17 || row.Tier != "hell" || !row.Hardcore || row.EndReason != "banked" || row.LootCount != 3 {
+	if row.Depth != 17 || row.Tier != "hell" || !row.Hardcore || row.EndReason != "banked" || row.LootCount != 3 || row.FloorsCleared != 12 {
 		t.Fatalf("history row = %#v", row)
 	}
 	if strings.Join(row.Loot, ",") != "Crown,Ward" || row.LootTruncated != 1 {

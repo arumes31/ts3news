@@ -48,7 +48,11 @@ func TestAbyssAccessibilityAssetsAndSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read Abyss page: %v", err)
 	}
-	pageSource := string(page)
+	longTerm, err := webAssets.ReadFile("webassets/abyss_longterm.html")
+	if err != nil {
+		t.Fatalf("read long-term module: %v", err)
+	}
+	pageSource := string(page) + string(longTerm)
 	for _, required := range []string{
 		`{{asset "/static/abyss_accessibility.css"}}`,
 		`{{template "abyss-accessibility" .}}`,

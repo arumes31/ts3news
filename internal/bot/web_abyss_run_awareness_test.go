@@ -46,6 +46,11 @@ func TestAbyssRunAwarenessAssetsAndHooks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read Abyss page: %v", err)
 	}
+	longTerm, err := webAssets.ReadFile("webassets/abyss_longterm.html")
+	if err != nil {
+		t.Fatalf("read long-term module: %v", err)
+	}
+	pageSource := string(page) + string(longTerm)
 	css, err := webAssets.ReadFile("webassets/abyss_run_awareness.css")
 	if err != nil {
 		t.Fatalf("read run-awareness stylesheet: %v", err)
@@ -66,7 +71,7 @@ func TestAbyssRunAwarenessAssetsAndHooks(t *testing.T) {
 		"hud.inert=!visible",
 		"updateAbyssRunAwareness==='function'",
 	} {
-		if !strings.Contains(string(page), required) {
+		if !strings.Contains(pageSource, required) {
 			t.Errorf("Abyss page is missing run-awareness hook %q", required)
 		}
 	}

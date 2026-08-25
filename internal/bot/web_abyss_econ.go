@@ -232,12 +232,12 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund i
 	}
 	if run.Depth > 0 {
 		if _, err := tx.Exec(
-			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary, end_reason)
+			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary, end_reason, duration_ms, floors_cleared)
 			 SELECT $1,$2,$3,FALSE,$4,$5,
 			   (SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1),
 			   COALESCE((SELECT jsonb_agg(label ORDER BY id) FROM
-			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), $6`,
-			uid, run.Depth, refund, run.Tier, hardcore, endReason); err != nil {
+			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), $6, $7, $8`,
+			uid, run.Depth, refund, run.Tier, hardcore, endReason, abyssRunDurationMS(run), abyssRunFloorsCleared(run)); err != nil {
 			return 0, err
 		}
 		if !policy.CountDeath {

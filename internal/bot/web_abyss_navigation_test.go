@@ -54,6 +54,11 @@ func TestAbyssNavigationAssetsAndIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read Abyss page: %v", err)
 	}
+	longTerm, err := webAssets.ReadFile("webassets/abyss_longterm.html")
+	if err != nil {
+		t.Fatalf("read long-term module: %v", err)
+	}
+	pageSource := string(page) + string(longTerm)
 	css, err := webAssets.ReadFile("webassets/abyss_navigation.css")
 	if err != nil {
 		t.Fatalf("read navigation CSS: %v", err)
@@ -67,7 +72,7 @@ func TestAbyssNavigationAssetsAndIntegration(t *testing.T) {
 		"row.classList.toggle('ab-loot-first'",
 		"key:'ab_compact'",
 	} {
-		if !strings.Contains(string(page), required) {
+		if !strings.Contains(pageSource, required) {
 			t.Errorf("Abyss page is missing navigation hook %q", required)
 		}
 	}

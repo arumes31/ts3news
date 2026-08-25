@@ -283,7 +283,7 @@ func (s *WebServer) abyssForgeWorkbench(uid string) abyssForgeWorkbenchData {
 			objective("weekly_celestial", "Complete a Celestial fusion", weeklyCelestial, 1, "celestial milestone"),
 		},
 		QueuePolicies: []string{"stop on failure", "skip failed item", "continue within cap", "pause for manual approval"},
-		MaterialFlow:  s.loadAbyssForgeMaterialFlow(uid),
+		MaterialFlow:  s.bot.loadAbyssForgeMaterialFlow(uid),
 		GeneratedAt:   time.Now().UTC(),
 		ActiveEvent:   abyssForgeEventRecipe(time.Now()),
 		CraftCap:      craftCap,
@@ -310,9 +310,9 @@ func (s *WebServer) loadAbyssForgeMilestones(uid string) map[string]int64 {
 	return milestones
 }
 
-func (s *WebServer) loadAbyssForgeMaterialFlow(uid string) map[string][]int64 {
+func (b *Bot) loadAbyssForgeMaterialFlow(uid string) map[string][]int64 {
 	flow := map[string][]int64{"dust": make([]int64, 7), "shard": make([]int64, 7), "core": make([]int64, 7), "prism": make([]int64, 7)}
-	rows, err := s.bot.DB.Query(`SELECT mat_id, direction, amount, created_at FROM abyss_forge_material_flow
+	rows, err := b.DB.Query(`SELECT mat_id, direction, amount, created_at FROM abyss_forge_material_flow
 		WHERE client_uid=$1 AND created_at >= CURRENT_DATE - INTERVAL '6 days' ORDER BY created_at`, uid)
 	if err != nil {
 		return flow

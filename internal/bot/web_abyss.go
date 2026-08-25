@@ -1406,6 +1406,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	history := s.bot.abyssHistory(uid, 30)
 	bestiary := s.bot.loadAbyssBestiary(uid)
 	insights := s.bot.abyssRunInsights(uid, run, history, bestiary, st.AbyssPrestige)
+	longTerm := s.bot.abyssLongTermStatus(uid, run, history, st.BestDepth, pity)
 
 	s.render(w, "abyss", map[string]any{
 		"Title":              "The Abyss",
@@ -1422,6 +1423,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Season":             abyssSeasonLabel(),
 		"History":            history,
 		"RunInsights":        insights,
+		"LongTerm":           longTerm,
 		"Achievements":       achievementViews,
 		"BadgeOptions":       badgeOptions,
 		"ActiveBadge":        activeBadge,
@@ -3191,12 +3193,12 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		}
 
 		if _, err := tx.Exec(
-			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary, end_reason)
+			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary, end_reason, duration_ms, floors_cleared)
 			 SELECT $1,$2,$3,TRUE,$4,$5,
 			   (SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1),
 			   COALESCE((SELECT jsonb_agg(label ORDER BY id) FROM
-			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), 'banked'`,
-			uid, run.Depth, payout, run.Tier, hardcore); err != nil {
+			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), 'banked', $6, $7`,
+			uid, run.Depth, payout, run.Tier, hardcore, abyssRunDurationMS(run), abyssRunFloorsCleared(run)); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
