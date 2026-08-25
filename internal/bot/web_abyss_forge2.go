@@ -309,10 +309,10 @@ func (s *WebServer) handleAbyssAwaken(w http.ResponseWriter, r *http.Request, ui
 
 // imbueEffects whitelists the effects that can be imbued (body param → enum).
 var imbueEffects = map[string]content.ItemEffect{
-	"vampiric": content.EffectVampiric,
-	"thorns":   content.EffectThorns,
-	"lucky":    content.EffectLucky,
-	"quick":    content.EffectQuick,
+	"vampiric":    content.EffectVampiric,
+	"thorns":      content.EffectThorns,
+	"lucky":       content.EffectLucky,
+	"quick":       content.EffectQuick,
 	"bulwark":     content.EffectBulwark,
 	"radiant":     content.EffectRadiant,
 	"executioner": content.EffectExecutioner,
@@ -384,8 +384,17 @@ func (s *WebServer) handleAbyssImbue(w http.ResponseWriter, r *http.Request, uid
 
 const maxPunchedSockets = 4
 
-// handleAbyssPunchSocket adds one gemstone socket to an item (10 Void Shards),
-// capped at 4 sockets total.
+func abyssPunchSocketResult(current int, roll float64) (sockets int, perfect bool) {
+	sockets = current + 1
+	if current == maxPunchedSockets-1 && roll < 0.10 {
+		return maxPunchedSockets + 1, true
+	}
+	return sockets, false
+}
+
+// handleAbyssPunchSocket adds one gemstone socket to an item (10 Void Shards).
+// The normal cap is four; the fourth punch has a ten-percent Perfect result
+// that grants a fifth socket.
 func (s *WebServer) handleAbyssPunchSocket(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -414,15 +423,20 @@ func (s *WebServer) handleAbyssPunchSocket(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "punch socket")
-	g.Sockets++
+	sockets, perfect := abyssPunchSocketResult(g.Sockets, rand.Float64())
+	g.Sockets = sockets
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
 	if !s.finishForge(w, tx, uid, "punch socket", fmt.Sprintf("%s → %d sockets", g.Name, g.Sockets), "10🔷") {
 		return
 	}
+	message := fmt.Sprintf("🔨 Punched a new socket into %s (%d/%d).", g.Name, g.Sockets, maxPunchedSockets)
+	if perfect {
+		message = fmt.Sprintf("💎 Perfect punch! %s gained two sockets at once (%d total).", g.Name, g.Sockets)
+	}
 	writeJSON(w, map[string]any{"ok": true, "materials": s.bot.loadMaterials(uid),
-		"msg": fmt.Sprintf("🔨 Punched a new socket into %s (%d/%d).", g.Name, g.Sockets, maxPunchedSockets)})
+		"perfect": perfect, "sockets": g.Sockets, "msg": message})
 }
 
 // ---- Attune ---------------------------------------------------------------------
@@ -509,6 +523,15 @@ func (s *WebServer) handleAbyssReforge(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "only Rare or better gear can be reforged"})
 		return
 	}
+	usesLeft, allowed, err := forge4ConsumeReforgeUse(tx, uid, g.Rarity)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if !allowed {
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("reforge limit reached for today (%d/day)", forge4ReforgeDailyLimit(g.Rarity))})
+		return
+	}
 	cost := s.bot.forgeGoldCost(uid, 300, g.Rarity)
 	if !deductGold(w, tx, uid, cost) {
 		return
@@ -549,7 +572,7 @@ func (s *WebServer) handleAbyssReforge(w http.ResponseWriter, r *http.Request, u
 		if !s.finishForge(w, tx, uid, "reforge rejected", g.Name, fmt.Sprintf("%dg", cost)) {
 			return
 		}
-		writeJSON(w, map[string]any{"ok": true, "accepted": false, "quality": quality, "gold": s.bot.abyssGold(uid),
+		writeJSON(w, map[string]any{"ok": true, "accepted": false, "quality": quality, "uses_left": usesLeft, "gold": s.bot.abyssGold(uid),
 			"msg": fmt.Sprintf("🎲 Reforge rejected automatically at %.1f%% quality; the original item was kept.", quality)})
 		return
 	}
@@ -560,7 +583,7 @@ func (s *WebServer) handleAbyssReforge(w http.ResponseWriter, r *http.Request, u
 	if !s.finishForge(w, tx, uid, "reforge", g.Name, fmt.Sprintf("%dg", cost)) {
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "accepted": true, "quality": quality, "family": req.Family, "gold": s.bot.abyssGold(uid),
+	writeJSON(w, map[string]any{"ok": true, "accepted": true, "quality": quality, "family": req.Family, "uses_left": usesLeft, "gold": s.bot.abyssGold(uid),
 		"msg": fmt.Sprintf("🎲 Reforged %s — CR %.0f → %.0f (%.1f%% quality).", g.Name, crBefore, crAfter, quality)})
 }
 

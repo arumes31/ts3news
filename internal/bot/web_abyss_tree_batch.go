@@ -77,6 +77,9 @@ func (s *WebServer) handleAbyssTreeBatchAllocate(w http.ResponseWriter, r *http.
 	}
 	var bestDepth int
 	_ = s.bot.DB.QueryRowContext(r.Context(), "SELECT COALESCE(abyss_best_depth, 0) FROM users WHERE client_uid=$1", uid).Scan(&bestDepth)
+	var hasDepth25Achievement bool
+	_ = s.bot.DB.QueryRowContext(r.Context(), `SELECT EXISTS(SELECT 1 FROM abyss_achievements
+		WHERE client_uid=$1 AND code='depth_25')`, uid).Scan(&hasDepth25Achievement)
 	spent := s.bot.treeSpentEx(uid, alloc)
 	total := s.bot.treePointsTotal(uid)
 	dayID := abyssNodeOfTheDay(time.Now())
@@ -108,8 +111,9 @@ func (s *WebServer) handleAbyssTreeBatchAllocate(w http.ResponseWriter, r *http.
 		} else if node.Ring > 10 {
 			required = 10
 		}
-		if id == treeNodeVictorsTrophy && required < 25 {
-			required = 25
+		if id == treeNodeVictorsTrophy && !hasDepth25Achievement {
+			writeJSON(w, map[string]any{"ok": false, "error": "Victor's Trophy requires the Depth 25 achievement"})
+			return
 		}
 		if bestDepth < required {
 			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("node %d requires Abyss Floor %d", id, required)})

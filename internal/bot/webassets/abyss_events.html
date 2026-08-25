@@ -1,0 +1,48 @@
+{{define "abyss-events"}}
+<script data-cfasync="false">
+(function(){
+  window.renderAbyssEventMemory=function(host,state){
+    if(!host||!state||Number(state.mem_mult)<=1)return;
+    var note=document.createElement('div');
+    note.className='ab-event-memory';
+    note.textContent='🜁 Familiar encounter · offer +'+Math.round((Number(state.mem_mult)-1)*100)+'%';
+    host.prepend(note);
+  };
+
+  window.renderAbyssMarketMystery=function(host,state){
+    if(!host||!state||!state.mystery_available)return;
+    var card=document.createElement('div'); card.className='ab-event-offer';
+    var copy=document.createElement('div');
+    copy.textContent='🎁 Sealed mystery box · 55% Common · 28% Uncommon · 12% Rare · 4% Epic · 1% Legendary';
+    var button=document.createElement('button'); button.className='ghost';
+    button.textContent='Open for '+fmtNum(Number(state.mystery_price)||750)+'g';
+    button.onclick=function(){abyssNCAction('market_mystery');};
+    card.appendChild(copy); card.appendChild(button); host.appendChild(card);
+  };
+
+  window.renderAbyssHighRoller=function(host,state){
+    if(!host||!state||Number(state.depth)<=40)return;
+    var memory=Math.max(1,Math.min(1.5,Number(state.mem_mult)||1));
+    var card=document.createElement('div'); card.className='ab-event-offer ab-event-highroller';
+    var title=document.createElement('strong'); title.textContent='♠ High-roller table · 10× stakes and payouts';
+    card.appendChild(title);
+    [
+      ['den_dice_high','🎲 Dice',3000,'50%',6000],
+      ['den_card_high','🃏 High Card',3000,'33%',9000],
+      ['den_wheel_high','🎡 Wheel',5000,'10%',40000],
+      ['den_longshot_high','🎯 Long Shot',2000,'5%',40000],
+      ['den_cascade_high','🪙 Cascade',4000,'75%',6000]
+    ].forEach(function(game){
+      var button=document.createElement('button'); button.className='ghost';
+      button.textContent=game[1]+' · '+fmtNum(game[2])+'g · '+game[3]+' → '+fmtNum(Math.round(game[4]*memory))+'g';
+      button.onclick=function(){abyssNCAction(game[0]);}; card.appendChild(button);
+    });
+    host.appendChild(card);
+  };
+
+  if(window.inRun&&window.floorType==='event'&&typeof window.renderNonCombat==='function'){
+    window.renderNonCombat(window.floorType,window.eventState);
+  }
+})();
+</script>
+{{end}}

@@ -46,6 +46,7 @@ type abyssLiveOption struct {
 	Target       string   `json:"target"`
 	Mana         int      `json:"mana,omitempty"`
 	Cooldown     int      `json:"cooldown,omitempty"`
+	CooldownMax  int      `json:"cooldown_max,omitempty"`
 	Count        int      `json:"count,omitempty"`
 	Power        float64  `json:"power,omitempty"`
 	EffectLabel  string   `json:"effect_label,omitempty"`
@@ -67,6 +68,7 @@ type abyssLiveCombatantView struct {
 	Name     string            `json:"name"`
 	HP       int               `json:"hp"`
 	MaxHP    int               `json:"max_hp"`
+	HPHidden bool              `json:"hp_hidden,omitempty"`
 	Mana     int               `json:"mana,omitempty"`
 	MaxMana  int               `json:"max_mana,omitempty"`
 	Ready    bool              `json:"ready,omitempty"`
@@ -83,6 +85,7 @@ type abyssLiveCombatantView struct {
 	Break    int               `json:"break,omitempty"`
 	MaxBreak int               `json:"max_break,omitempty"`
 	Hazard   bool              `json:"hazard,omitempty"`
+	Revenge  bool              `json:"revenge,omitempty"`
 	Effects  []abyssLiveEffect `json:"effects,omitempty"`
 }
 
@@ -124,6 +127,8 @@ type abyssLiveSnapshot struct {
 	Version       int64                      `json:"version"`
 	Deadline      time.Time                  `json:"deadline,omitempty"`
 	PauseReason   string                     `json:"pause_reason,omitempty"`
+	Warning       string                     `json:"encounter_warning,omitempty"`
+	Telegraph     string                     `json:"hazard_telegraph,omitempty"`
 	PauseMode     string                     `json:"pause_mode"`
 	CanConfigure  bool                       `json:"can_configure_pause,omitempty"`
 	Policy        abyssLivePolicy            `json:"policy"`
@@ -180,9 +185,13 @@ type abyssLiveCombat struct {
 	enemyPlans     map[int]abyssLiveEnemyPlan
 	actionCounts   map[string]int
 	bossAdaptation string
+	revengeFamily  string
 	initiative     []abyssLiveInitiativeEntry
 	social         abyssLiveSocialState
 	previousDepth  int
+	modifier       string
+	warning        string
+	telegraph      string
 	randomSeed     [2]uint64
 	randomDraws    uint64
 	createdAt      time.Time
@@ -232,6 +241,9 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 		}
 	}
 	enemies := append([]abyssLiveCombatantView{}, c.enemies...)
+	if hasAbyssFloorModifier(c.modifier, "darkness") {
+		concealAbyssEnemyViews(enemies)
+	}
 	options := append([]abyssLiveOption{}, c.options[uid]...)
 	recentLogs := append([]string{}, c.recentLogs...)
 	enemyIntents := make([]abyssLiveEnemyIntent, 0, len(c.enemyPlans))
@@ -262,6 +274,8 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 		Version:       c.version,
 		Deadline:      c.deadline,
 		PauseReason:   c.pauseReason,
+		Warning:       c.warning,
+		Telegraph:     c.telegraph,
 		PauseMode:     normalizeAbyssPauseMode(c.pauseMode),
 		CanConfigure:  uid == c.ownerUID,
 		Policy:        normalizeLivePolicy(c.policies[uid]),
@@ -282,6 +296,12 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 		PreviousDepth: c.previousDepth,
 		Social:        c.socialSnapshotLocked(uid),
 	}
+}
+
+func (c *abyssLiveCombat) setHazardTelegraph(message string) {
+	c.mu.Lock()
+	c.telegraph = message
+	c.mu.Unlock()
 }
 
 func (c *abyssLiveCombat) publishRound(
@@ -326,6 +346,22 @@ func (c *abyssLiveCombat) publishRound(
 			Role:     c.social.preferences[au.u.UID].Role,
 			Effects:  liveAllyEffects(au),
 		})
+		for petIndex, pet := range au.u.Pets {
+			if pet == nil || pet.Stats.HP <= 0 {
+				continue
+			}
+			allies = append(allies, abyssLiveCombatantView{
+				ID:      fmt.Sprintf("pet:%s:%d", au.u.UID, petIndex),
+				Name:    pet.Name,
+				HP:      max(0, pet.Stats.HP),
+				MaxHP:   max(1, pet.MaxHP),
+				Element: string(pet.Element),
+				Speed:   pet.Stats.SPD,
+				Role:    "Mind-controlled ally",
+				Faction: "Converted",
+				Effects: []abyssLiveEffect{{Name: "Mind-controlled", Duration: "Allied"}},
+			})
+		}
 	}
 
 	enemies := make([]abyssLiveCombatantView, 0, len(mobs))
@@ -349,6 +385,7 @@ func (c *abyssLiveCombat) publishRound(
 			Break:    max(0, mob.Break),
 			MaxBreak: max(0, mob.MaxBreak),
 			Hazard:   abyssEnemyHazard(mob),
+			Revenge:  c.revengeFamily != "" && string(mob.Type) == c.revengeFamily,
 			Effects:  liveMobEffects(mob),
 		})
 	}

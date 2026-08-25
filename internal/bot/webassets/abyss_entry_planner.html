@@ -1,0 +1,146 @@
+{{define "abyssEntryPlannerPanel"}}
+<section class="ab-entry-planner" id="abyssEntryPlanner" aria-labelledby="abyssEntryPlannerTitle">
+  <div class="ab-entry-planner-head">
+    <div>
+      <span class="ab-entry-eyebrow">Descent protocol</span>
+      <strong id="abyssEntryPlannerTitle">Prepare your run</strong>
+    </div>
+    <button type="button" class="ghost xs" id="abyssRestoreSetup" onclick="restoreAbyssEntrySetup()" hidden>↻ Same as last run</button>
+  </div>
+  <div class="ab-entry-steps" role="tablist" aria-label="Descent preparation steps">
+    <button type="button" role="tab" data-entry-step="tier" aria-current="step" onclick="showAbyssEntryStep('tier')"><b>1</b><span>Tier</span></button>
+    <button type="button" role="tab" data-entry-step="route" onclick="showAbyssEntryStep('route')"><b>2</b><span>Route</span></button>
+    <button type="button" role="tab" data-entry-step="build" onclick="showAbyssEntryStep('build')"><b>3</b><span>Build</span></button>
+    <button type="button" role="tab" data-entry-step="pacts" onclick="showAbyssEntryStep('pacts')"><b>4</b><span>Pacts</span></button>
+  </div>
+  <div class="ab-entry-summary" id="abyssEntrySummary" aria-live="polite">
+    <span class="ab-entry-summary-label">Loadout</span>
+    <strong id="abyssEntrySummaryLine">Normal · Surface · Vanguard · no pacts</strong>
+    <span id="abyssEntrySummaryRisk">Calculating forecast…</span>
+  </div>
+  <div class="ab-pact-net" id="pactNetPreview" aria-live="polite">No pacts selected · standard rewards and danger.</div>
+</section>
+{{end}}
+
+{{define "abyssEntryPlannerJS"}}
+var abyssEntryStep='tier';
+var abyssEntryPanels={tier:['tierPicker','tierRisk','freeEntryStatus','ydaySummary','entryJackpot'],route:['startPicker'],build:['buildPicker'],pacts:['pactPicker']};
+
+function showAbyssEntryStep(step){
+  if(!abyssEntryPanels[step])step='tier';
+  abyssEntryStep=step;
+  Object.keys(abyssEntryPanels).forEach(function(key){
+    abyssEntryPanels[key].forEach(function(id){var panel=document.getElementById(id);if(panel)panel.hidden=key!==step;});
+  });
+  document.querySelectorAll('[data-entry-step]').forEach(function(button){
+    var active=button.dataset.entryStep===step;
+    if(active)button.setAttribute('aria-current','step');else button.removeAttribute('aria-current');
+    button.setAttribute('aria-selected',active?'true':'false');
+  });
+  renderAbyssEntrySummary();
+}
+function showAbyssEntryStepForTarget(selector){
+  var id=String(selector||'').replace(/^#/,'');
+  Object.keys(abyssEntryPanels).some(function(step){
+    if(abyssEntryPanels[step].indexOf(id)<0)return false;
+    showAbyssEntryStep(step);
+    return true;
+  });
+}
+function abyssSelectedLabel(selector,fallback){
+  var input=document.querySelector(selector);
+  if(!input)return fallback;
+  var label=input.closest('label');
+  var named=label&&label.querySelector('.ab-tier-name');
+  return named?named.textContent.trim():(label?label.textContent.trim().replace(/\s+/g,' '):fallback);
+}
+function captureAbyssEntrySetup(){
+  var start=document.querySelector('input[name=abstart]:checked');
+  var checkpoint=document.getElementById('checkpointSel');
+  var kit=document.getElementById('buildKit'),mutation=document.getElementById('buildMutation'),loot=document.getElementById('partyLootRule');
+  var focus=document.getElementById('entryFocus');
+  var veteran=document.getElementById('veteranTrack');
+  return {tier:selectedTier(),pacts:selectedPacts(),start:start?start.value:'',checkpoint:checkpoint?(Number(checkpoint.value)||0):0,
+    kit:kit?kit.value:'vanguard',mutation:mutation?mutation.value:'empowered',loot_rule:loot?loot.value:'owner',veteran_track:veteran?veteran.value:'',
+    focus:focus?focus.value:'auto',
+    expedition:!!(document.getElementById('weeklyExpedition')&&document.getElementById('weeklyExpedition').checked),
+    hardcore:!!(document.getElementById('hardcoreMode')&&document.getElementById('hardcoreMode').checked),
+    hybrid:!!(document.getElementById('hybridMode')&&document.getElementById('hybridMode').checked)};
+}
+function saveAbyssEntrySetup(setup){
+  if(!abyssSetupState)abyssSetupState={};
+  abyssSetupState.last_setup=setup||captureAbyssEntrySetup();
+  renderAbyssEntrySetupAvailability();
+}
+function findAbyssSetupRadio(name,value){
+  return Array.prototype.find.call(document.querySelectorAll('input[name="'+name+'"]'),function(input){return input.value===String(value||'');})||null;
+}
+function restoreAbyssEntrySetup(){
+  var saved=abyssSetupState&&abyssSetupState.last_setup;
+  if(!saved){abToast('No previous descent setup is stored for this account.',false);return;}
+  var tier=findAbyssSetupRadio('abtier',saved.tier);
+  if(tier&&!tier.disabled)tier.checked=true;
+  var start=findAbyssSetupRadio('abstart',saved.start);
+  if(start&&!start.disabled)start.checked=true;
+  var checkpoint=document.getElementById('checkpointSel');
+  if(checkpoint&&saved.checkpoint&&Array.prototype.some.call(checkpoint.options,function(option){return option.value===String(saved.checkpoint)&&!option.disabled;}))checkpoint.value=String(saved.checkpoint);
+  [['buildKit','kit'],['buildMutation','mutation'],['partyLootRule','loot_rule'],['veteranTrack','veteran_track'],['entryFocus','focus']].forEach(function(pair){
+    var select=document.getElementById(pair[0]);if(!select||saved[pair[1]]===undefined)return;
+    if(Array.prototype.some.call(select.options,function(option){return option.value===String(saved[pair[1]]);}))select.value=String(saved[pair[1]]);
+  });
+  document.querySelectorAll('input[name=abpact]').forEach(function(input){input.checked=(saved.pacts||[]).indexOf(input.value)>=0;});
+  var expedition=document.getElementById('weeklyExpedition');if(expedition)expedition.checked=!!saved.expedition;
+  var hardcore=document.getElementById('hardcoreMode');if(hardcore)hardcore.checked=!!saved.hardcore;
+  var hybrid=document.getElementById('hybridMode');if(hybrid)hybrid.checked=!!saved.hybrid;
+  updatePactBonus();renderTierRisk();recommendAbyssTier();renderAbyssEntrySummary();
+  abToast('Previous account setup restored, including reward focus.',true);
+}
+function renderAbyssEntrySetupAvailability(){
+  var restore=document.getElementById('abyssRestoreSetup');
+  if(restore)restore.hidden=!(abyssSetupState&&abyssSetupState.last_setup);
+}
+function renderAbyssEntrySummary(){
+  var line=document.getElementById('abyssEntrySummaryLine'),forecast=document.getElementById('abyssEntrySummaryRisk');
+  if(!line||!forecast)return;
+  var tierInput=document.querySelector('input[name=abtier]:checked');
+  var tier=abyssSelectedLabel('input[name=abtier]:checked',selectedTier());
+  var startInput=document.querySelector('input[name=abstart]:checked');
+  var checkpoint=document.getElementById('checkpointSel');
+  var route=!startInput||!startInput.value?'Surface':startInput.value==='checkpoint'?'Checkpoint '+(checkpoint?checkpoint.value:''):'Express to '+(startInput.dataset.depth||'record');
+  var kit=document.getElementById('buildKit');
+  var kitLabel=kit&&kit.options[kit.selectedIndex]?kit.options[kit.selectedIndex].text.split('·')[0].trim():'Vanguard';
+  var focus=document.getElementById('entryFocus');
+  var focusLabel=focus&&focus.options[focus.selectedIndex]?focus.options[focus.selectedIndex].text.split('·')[0].trim():'🧭 Auto';
+  var pacts=selectedPacts();
+  var hardcore=document.getElementById('hardcoreMode');
+  var hybrid=document.getElementById('hybridMode');
+  var tiers=Array.prototype.slice.call(document.querySelectorAll('input[name=abtier]')),tierIndex=tiers.indexOf(tierInput);
+  if(hybrid){hybrid.disabled=tierIndex<0||tierIndex===tiers.length-1;if(hybrid.disabled)hybrid.checked=false;}
+  line.textContent=[tier,route,kitLabel,focusLabel,pacts.length?pacts.length+' pact'+(pacts.length===1?'':'s'):'no pacts',hardcore&&hardcore.checked?'Hardcore':'Standard',hybrid&&hybrid.checked?'Hybrid':'Steady tier'].join(' · ');
+  var reward=0,danger=1;
+  document.querySelectorAll('input[name=abpact]:checked').forEach(function(input){reward+=Number(input.dataset.reward)||0;danger*=Number(input.dataset.danger)||1;});
+  var pactPreview=document.getElementById('pactNetPreview');
+  if(pactPreview)pactPreview.textContent=pacts.length?'Combined pacts: +'+reward+'% cache · ×'+danger.toFixed(2)+' encounter danger.':'No pacts selected · standard rewards and danger.';
+  var risks=abyssSetupState&&abyssSetupState.floor_one_risk_by_tier||{};
+  var risk=Number(risks[tierInput?tierInput.value:'']);
+  var cost=Number(tierInput&&tierInput.dataset.entry)||0;
+  if(startInput&&startInput.value==='express')cost+=Number(startInput.dataset.cost)||0;
+  var freeReady=!!(abyssSetupState&&abyssSetupState.free_entry_available);
+  forecast.textContent=(Number.isFinite(risk)?'Floor 1 '+risk+'% risk':'Loading server risk forecast…')+' · '+(freeReady&&cost>0?'daily waiver ready':cost>0?fmtGold(cost):'free entry');
+}
+function initAbyssEntryPlanner(){
+  var planner=document.getElementById('abyssEntryPlanner');if(!planner)return;
+  renderAbyssEntrySetupAvailability();
+  document.querySelectorAll('#tierPicker input,#startPicker input,#startPicker select,#buildPicker select,#pactPicker input').forEach(function(control){
+    control.addEventListener('change',renderAbyssEntrySummary);
+  });
+  planner.querySelector('.ab-entry-steps').addEventListener('keydown',function(event){
+    if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;
+    var order=['tier','route','build','pacts'];var index=order.indexOf(abyssEntryStep)+(event.key==='ArrowRight'?1:-1);
+    index=(index+order.length)%order.length;event.preventDefault();showAbyssEntryStep(order[index]);
+    planner.querySelector('[data-entry-step="'+order[index]+'"]').focus();
+  });
+  showAbyssEntryStep('tier');
+}
+initAbyssEntryPlanner();
+{{end}}

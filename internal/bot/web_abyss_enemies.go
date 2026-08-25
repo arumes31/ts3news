@@ -359,13 +359,23 @@ func (s *WebServer) handleAbyssBossPractice(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	mob := &content.Mob{Name: req.Name, Type: content.MobBoss}
+	cr := max(1, int(s.bot.abyssPlayerCR(uid)))
+	estimatedDPS := max(1, cr*3)
 	writeJSON(w, map[string]any{
-		"ok":      true,
-		"boss":    req.Name,
-		"role":    abyssEnemyRole(mob),
-		"faction": abyssEnemyFaction(mob),
-		"pattern": abyssEnemyPattern(mob),
-		"rewards": false,
+		"ok":            true,
+		"boss":          req.Name,
+		"role":          abyssEnemyRole(mob),
+		"faction":       abyssEnemyFaction(mob),
+		"pattern":       abyssEnemyPattern(mob),
+		"rewards":       false,
+		"estimated_dps": estimatedDPS,
+		"practice_log": []string{
+			fmt.Sprintf("R1 · opening guard absorbs the first telegraph · estimated %d damage", estimatedDPS/2),
+			fmt.Sprintf("R2 · core skill rotation establishes %d estimated DPS", estimatedDPS),
+			"R3 · interrupt reserved for the 50% summon",
+			"R4 · stagger window opens; Ultimate committed",
+			"R5 · execution rehearsal complete · no HP, items, or rewards changed",
+		},
 		"drill": []string{
 			"Opening: read the intent and establish Guard before committing resources.",
 			"At 50%: hold an Ultimate to interrupt the telegraphed summon.",

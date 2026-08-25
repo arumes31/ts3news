@@ -230,6 +230,9 @@
   background: linear-gradient(90deg, #41c97a, #5bc0ff);
 }
 
+.ab-petbar.is-low { border-color: var(--bad); }
+.ab-petbar.is-low .ab-petbar-fill { background: var(--bad); }
+
 /* UI-3: first-strike flash */
 .ab-scene.ab-fs-you { animation: none; }
 .ab-scene.ab-fs-you::before,
@@ -302,6 +305,17 @@
 /* ---- Combat log decorators (UI-21..40) ----------------------------------- */
 
 .ab-log-line.ab-log-crit { font-weight: 800; } /* UI-23 */
+.ab-log-line.ab-log-critical-event::before {
+  animation: ab-critical-event-flash .8s ease-out;
+  color: var(--gold);
+  content: '✦';
+  display: inline-block;
+  margin-right: .35rem;
+}
+@keyframes ab-critical-event-flash {
+  0% { opacity: 0; transform: scale(2.2) rotate(-20deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
 .ab-log-line.ab-log-dodge { font-style: italic; color: var(--muted); } /* UI-24 */
 .ab-log-line.ab-log-heal { color: var(--good); } /* UI-25 */
 
@@ -420,11 +434,8 @@
 }
 
 /* UI-26: round-number gutter */
-#abyssLog.ab-numbered { counter-reset: abround; }
-
-#abyssLog.ab-numbered .ab-log-line:not(.ab-log-divider):not(.ab-log-affix):not(.ab-log-pacts)::before {
-  counter-increment: abround;
-  content: counter(abround);
+#abyssLog.ab-numbered .ab-log-line[data-round]::before {
+  content: attr(data-round);
   display: inline-block;
   min-width: 2ch;
   margin-right: .5rem;
@@ -442,9 +453,14 @@
 
 /* UI-21: hover highlight of the matching combatant */
 #hpBar.ab-hl { outline: 2px solid var(--bad); outline-offset: 2px; }
-.ab-scene.ab-hl { outline: 2px solid var(--gold); outline-offset: -2px; border-radius: 10px; }
+#bossHPOverlay.ab-hl { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+#petHPBar.ab-hl { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---- HUD chips (UI-41..60) ------------------------------------------------ */
+.ab-hudchip.focus { padding: 0; overflow: hidden; }
+.ab-focus-chip { display: inline-flex; align-items: center; gap: 4px; padding-left: 7px; }
+.ab-focus-chip select { border: 0; border-left: 1px solid var(--line); border-radius: 0; background: transparent; color: inherit; min-height: 28px; padding: 3px 22px 3px 7px; }
+.ab-hudchip.pact:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .ab-hudchips {
   display: flex;
@@ -468,6 +484,9 @@
 
 .ab-hudchip.warn { border-color: var(--bad); color: var(--bad); }
 .ab-hudchip.good { border-color: var(--good); color: var(--good); }
+.ab-hudchip.pact { cursor: help; }
+.ab-hudchip.jackpot.grow { animation: ab-jackpot-grow 1.6s ease; border-color: var(--gold); color: var(--gold); }
+@keyframes ab-jackpot-grow { 35% { box-shadow: 0 0 18px rgba(244,197,66,.65); transform: scale(1.08); } }
 
 /* UI-50: bounty progress ring */
 .ab-bounty-ring { width: 16px; height: 16px; transform: rotate(-90deg); }
@@ -521,6 +540,18 @@
     rgba(226, 87, 91, .25) 70%, rgba(226, 87, 91, .25) 100%);
 }
 
+.ab-threat-fill { position: relative; }
+.ab-threat-fill::after {
+  position: absolute;
+  top: -3px;
+  right: -2px;
+  width: 3px;
+  height: 12px;
+  background: #fff;
+  box-shadow: 0 0 5px rgba(255,255,255,.8);
+  content: '';
+}
+
 /* UI-19: momentum flame grows at ×5 / ×10 stacks */
 .ab-mom-flame {
   display: inline-block;
@@ -557,11 +588,15 @@
   .ab-log-line.ab-log-kill,
   .ab-log-line.ab-log-capture,
   .ab-log-line.ab-log-capture::after,
+  .ab-log-line.ab-log-critical-event::before,
+  .ab-hudchip.jackpot.grow,
   .ab-overkill,
   .ab-scene.ab-fs-you::before,
   .ab-scene.ab-fs-mob::before,
   .ab-unid-badge,
+  .ab-loot-question,
   .ab-corrupt-drip::after,
+  .ab-loot-corrupted::after,
   .abyss-side-loot.ab-new,
   .ab-coin,
   .ab-tier:has(input[value='insanity']),
@@ -717,6 +752,17 @@
   border-top: 1px dashed var(--line);
   padding-top: .25rem;
 }
+.ab-loot-main { display: block; min-width: 0; }
+.ab-loot-slot { margin-right: .3rem; }
+.ab-loot-tags { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .2rem; }
+.ab-loot-question { display: inline-grid; place-items: center; min-width: 15px; height: 15px; border-radius: 50%; background: var(--accent); color: #fff; font-size: .68rem; animation: ab-unid-pulse 1.6s ease-in-out infinite; }
+.ab-loot-detail[hidden] { display: none; }
+.ab-loot-detail { display: block; }
+.ab-equip-best { margin-top: .35rem; width: 100%; }
+.ab-equip-best.selected { border-color: var(--good); color: var(--good); }
+.ab-loot-corrupted { position: relative; }
+.ab-loot-corrupted::after { content: '🩸'; position: absolute; right: 2px; top: 0; font-size: .8rem; animation: ab-drip 2.2s ease-in infinite; pointer-events: none; }
+.ab-corrupt-tag { color: var(--bad); font-size: .68rem; text-transform: uppercase; }
 
 .ab-hc-cmp.good { color: var(--good); }
 .ab-hc-cmp.bad { color: var(--bad); }
@@ -826,6 +872,19 @@ span.rar-eternal, .ab-bp-name.rar-eternal { color: #e040fb; }
 .ab-neg { color: var(--bad); background: rgba(226, 87, 91, .12); border-radius: 3px; padding: 0 2px; }
 
 /* ---- E. Forge & workshop (UI-81..100) ------------------------------------- */
+
+.ab-forge-selected {
+  display: grid;
+  gap: .2rem;
+  margin-top: .45rem;
+  padding: .55rem .65rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.ab-forge-selected[hidden] { display: none; }
 
 /* UI-83: greyed-out (still clickable) when short on gold/tokens/materials */
 .ab-cantafford { opacity: .45; filter: grayscale(.6); }
@@ -1081,14 +1140,24 @@ span.rar-eternal, .ab-bp-name.rar-eternal { color: #e040fb; }
 /* UI-125: expandable history rows */
 .ab-history tr.ab-hist-click { cursor: pointer; }
 .ab-history tr.ab-hist-click:hover td { background: rgba(255, 255, 255, .04); }
+.ab-history tr.ab-hist-click:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .ab-hist-detail-in {
   padding: .4rem .2rem .4rem .6rem;
   font-size: .82rem;
   border-left: 3px solid var(--accent);
 }
+.ab-history-loot {
+  display: grid;
+  gap: .2rem;
+  margin: .45rem 0 0;
+  padding-left: 1.15rem;
+}
 
 /* UI-126: locked achievements */
 .ab-ach.locked { opacity: .45; filter: grayscale(.8); }
+.ab-achievements > summary { cursor: pointer; font-weight: 700; }
+.ab-achievement-grid { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .45rem; }
+.ab-ach:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* UI-130/199: skeleton shimmer placeholders */
 .ab-skel {

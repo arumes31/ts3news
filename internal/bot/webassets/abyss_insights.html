@@ -1,0 +1,41 @@
+{{define "abyss-insights"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var insights={{jsonJS .RunInsights}}||{}, svgNS='http://www.w3.org/2000/svg';
+  function node(tag,className,text){var el=document.createElement(tag);if(className)el.className=className;if(text!==undefined)el.textContent=text;return el;}
+  function card(host,title){var el=node('section','ab-insight-card'),heading=node('h3','',title);el.appendChild(heading);host.appendChild(el);return el;}
+  function renderSparkline(host){
+    var runs=(insights.runs||[]).slice(0,30).reverse(),box=card(host,'📈 Depth · last '+runs.length+' runs');
+    if(runs.length<2){box.appendChild(node('span','muted small','Complete two runs to draw a trend.'));return;}
+    var width=260,height=62,maxDepth=Math.max.apply(null,runs.map(function(run){return Number(run.depth)||0;}).concat([1]));
+    var points=runs.map(function(run,index){return [8+index*(width-16)/(runs.length-1),height-9-(Number(run.depth)||0)*(height-18)/maxDepth];});
+    var svg=document.createElementNS(svgNS,'svg');svg.setAttribute('viewBox','0 0 '+width+' '+height);svg.setAttribute('role','img');svg.setAttribute('aria-label','Depth over the last '+runs.length+' authoritative runs');svg.classList.add('ab-insight-spark');
+    var axis=document.createElementNS(svgNS,'line');axis.setAttribute('x1','8');axis.setAttribute('x2',String(width-8));axis.setAttribute('y1',String(height-8));axis.setAttribute('y2',String(height-8));axis.setAttribute('class','axis');svg.appendChild(axis);
+    var line=document.createElementNS(svgNS,'polyline');line.setAttribute('points',points.map(function(point){return point[0].toFixed(1)+','+point[1].toFixed(1);}).join(' '));line.setAttribute('class','line');svg.appendChild(line);
+    points.forEach(function(point,index){var circle=document.createElementNS(svgNS,'circle');circle.setAttribute('cx',point[0].toFixed(1));circle.setAttribute('cy',point[1].toFixed(1));circle.setAttribute('r','3');if(!runs[index].victory)circle.setAttribute('class','loss');var title=document.createElementNS(svgNS,'title');title.textContent=(runs[index].victory?'Banked':'Fell')+' at depth '+runs[index].depth+' · '+runs[index].when;circle.appendChild(title);svg.appendChild(circle);});box.appendChild(svg);
+  }
+  function renderBars(host,title,rows,label,count,percent){var box=card(host,title),bars=node('div','ab-insight-bars');if(!rows.length){box.appendChild(node('span','muted small','No recorded data yet.'));return;}rows.forEach(function(row){var line=node('div','ab-insight-bar'),name=node('span','',label(row)),track=node('span','ab-insight-track'),fill=node('i');fill.style.width=Math.max(0,Math.min(100,percent(row)))+'%';track.appendChild(fill);line.append(name,track,node('b','',String(count(row))));bars.appendChild(line);});box.appendChild(bars);}
+  function renderRecordInsights(){var host=document.getElementById('recordExtras');if(!host)return;var grid=node('div','ab-insight-grid');host.appendChild(grid);renderSparkline(grid);var causes=insights.death_causes||[],maxCause=Math.max.apply(null,causes.map(function(row){return row.count;}).concat([1]));renderBars(grid,'💀 Defeat causes',causes,function(row){return row.label;},function(row){return row.count;},function(row){return row.count*100/maxCause;});
+    var session=card(grid,'⏱ Current run pace'),seconds=Number(insights.session_seconds)||0,escrow=Number(insights.session_escrow)||0,rate=Number(insights.session_gold_per_hour)||0;session.appendChild(node('b','',seconds?fmtGold(escrow)+' cache · ≈'+fmtGold(rate)+'/h':'Start a run to measure cache pace.'));
+    var tiers=card(grid,'🎯 Tier win rates'),chips=node('div','ab-insight-chips');(insights.tier_rates||[]).forEach(function(row){var chip=node('span','ab-hudchip',row.tier+' '+row.percent+'%');chip.title=row.wins+' banked / '+row.runs+' runs';chips.appendChild(chip);});if(!chips.children.length)chips.appendChild(node('span','muted small','No completed runs yet.'));tiers.appendChild(chips);
+  }
+  function renderBestiary(){var host=document.getElementById('bestiaryProgress');if(!host)return;host.replaceChildren();renderBars(host,'Family completion',insights.bestiary||[],function(row){return row.family;},function(row){return row.seen+' / '+row.target;},function(row){return row.percent;});}
+  function renderForgeROI(){var box=document.getElementById('forgeHistoryBox'),roi=insights.forge_roi||{};if(!box)return;var line=node('div','muted small ab-forge-roi','📊 This week · '+Number(roi.actions||0)+' audited forge actions · '+fmtNum(Number(roi.material_spent)||0)+' materials spent · +'+Number(roi.cr_gained||0).toFixed(1)+' CR');box.insertBefore(line,box.firstChild);}
+  function renderPrestige(){var el=document.getElementById('prestigePreview'),p=insights.prestige||{};if(!el)return;el.textContent='✨ Next prestige (⭐ '+p.next+'): +'+p.next_pct+'% gold & XP rewards (currently +'+p.current_pct+'%) — best depth resets to 0.';}
+  function initHistory(){
+    var table=document.querySelector('.ab-history'),csv=document.getElementById('histCsvBtn'),json=document.getElementById('histJsonBtn');if(!table)return;
+    var controls=node('div','ab-history-filters'),tier=node('select'),result=node('select');tier.setAttribute('aria-label','Filter history by tier');result.setAttribute('aria-label','Filter history by result');
+    ['all','normal','nightmare','hell','insanity'].forEach(function(value){var option=node('option','',value==='all'?'All tiers':value);option.value=value;tier.appendChild(option);});[['all','All results'],['banked','Victories'],['died','Deaths'],['records','Personal records']].forEach(function(pair){var option=node('option','',pair[1]);option.value=pair[0];result.appendChild(option);});controls.append(tier,result);table.parentNode.insertBefore(controls,table);
+    var recordDepth=Math.max.apply(null,(insights.runs||[]).map(function(run){return Number(run.depth)||0;}).concat([0]));
+    function resultMatch(value,victory,depth){if(value==='all')return true;if(value==='records')return Number(depth)===recordDepth;return (value==='banked')===!!victory;}
+    function filtered(){return (insights.runs||[]).filter(function(run){return (tier.value==='all'||run.tier===tier.value)&&resultMatch(result.value,run.victory,run.depth);});}
+    function apply(){table.querySelectorAll('tbody tr.ab-hist-click').forEach(function(row){var show=(tier.value==='all'||row.dataset.tier===tier.value)&&resultMatch(result.value,row.dataset.victory==='true',row.dataset.depth);row.hidden=!show;var detail=row.nextElementSibling;if(detail&&detail.classList.contains('ab-hist-detail')&&!show)detail.hidden=true;});}
+    tier.onchange=apply;result.onchange=apply;
+    if(csv)csv.onclick=function(){var rows=filtered();if(!rows.length){abToast('No matching runs to export',false);return;}var body='result,depth,tier,gold,end_reason,when\n'+rows.map(function(run){return [run.victory?'banked':'died',run.depth,run.tier,run.gold,run.end_reason,'"'+String(run.when).replace(/"/g,'')+'"'].join(',');}).join('\n'),url=URL.createObjectURL(new Blob([body],{type:'text/csv'})),anchor=node('a');anchor.href=url;anchor.download='abyss-history-'+tier.value+'-'+result.value+'.csv';document.body.appendChild(anchor);anchor.click();anchor.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);};
+    if(json)json.onclick=function(){var text=JSON.stringify(filtered(),null,2);if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(function(){abToast('Filtered history JSON copied',true);},function(){abToast('Copy failed',false);});else abToast('Clipboard unavailable',false);};
+  }
+  renderRecordInsights();renderBestiary();renderForgeROI();renderPrestige();initHistory();
+})();
+</script>
+{{end}}

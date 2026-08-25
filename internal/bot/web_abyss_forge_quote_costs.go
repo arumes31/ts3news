@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"ts3news/internal/content"
 )
@@ -150,7 +151,7 @@ func (s *WebServer) resolveAbyssForgeQuoteCost(
 		var gearID string
 		var itemData sql.NullString
 		if err := s.bot.DB.QueryRowContext(ctx,
-			"SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", ids[0], uid,
+			"SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE", ids[0], uid,
 		).Scan(&gearID, &itemData); err != nil {
 			return cost, minimum, maximum, errors.New("fusion item not found")
 		}
@@ -195,7 +196,8 @@ func (s *WebServer) resolveAbyssForgeQuoteCost(
 		}
 		setExact(abyssForgeQuoteCost{Gold: total, Materials: map[string]int{}})
 	case "repair_all":
-		setExact(abyssForgeQuoteCost{Gold: s.bot.abyssRepairAllCost(uid), Materials: map[string]int{}})
+		cost := s.bot.abyssRepairAllCost(uid)
+		setExact(abyssForgeQuoteCost{Gold: abyssRepairSubscriptionCharge(cost, s.bot.abyssRepairSubscriptionActive(uid, time.Now())), Materials: map[string]int{}})
 	case "identify_all":
 		count, err := s.countUnidentifiedForgeItems(ctx, uid)
 		if err != nil {
@@ -252,7 +254,7 @@ func (s *WebServer) forgeDismantleQuoteRecovery(
 	maximumRarity int,
 ) (int64, map[string]int, error) {
 	reserved := s.bot.loadAbyssReservedLoot(uid)
-	rows, err := s.bot.DB.QueryContext(ctx, "SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1", uid)
+	rows, err := s.bot.DB.QueryContext(ctx, "SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 AND locked=FALSE", uid)
 	if err != nil {
 		return 0, nil, err
 	}

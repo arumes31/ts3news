@@ -27,6 +27,24 @@ type abyssProgressTrackView struct {
 	Next  int64
 }
 
+type abyssProgressTrackDef struct {
+	Key  string
+	Name string
+	Desc string
+}
+
+var abyssProgressTrackDefs = []abyssProgressTrackDef{
+	{Key: "cachekeeper", Name: "Cachekeeper", Desc: "Preserve Fragile Caches above 50% HP"},
+	{Key: "bossbreaker", Name: "Bossbreaker", Desc: "Clear boss floors"},
+	{Key: "expeditioner", Name: "Expeditioner", Desc: "Clear Weekly Expedition floors"},
+	{Key: "veteran_iron", Name: "Iron Nerve", Desc: "Clear while at 50% HP or lower"},
+	{Key: "veteran_untouched", Name: "Untouched", Desc: "Clear at 90% HP or higher"},
+	{Key: "veteran_boss", Name: "Boss Oath", Desc: "Clear boss floors with the track active"},
+	{Key: "coordinator", Name: "Synchronized", Desc: "Have every living party member ready before the timer"},
+	{Key: "party_combo", Name: "Chain Reaction", Desc: "Coordinate two skills on the same target"},
+	{Key: "ghost_party", Name: "Ghost Chaser", Desc: "Beat an asynchronous party replay's round count"},
+}
+
 var abyssVeteranTracks = []struct {
 	Key   string
 	Label string
@@ -181,23 +199,10 @@ func (b *Bot) advanceAbyssProgression(uid string, depth, currentHP, maxHP int, m
 }
 
 func (b *Bot) abyssProgressionViews(uid string) []abyssProgressTrackView {
-	defs := []struct {
-		Key, Name, Desc string
-	}{
-		{"cachekeeper", "Cachekeeper", "Preserve Fragile Caches above 50% HP"},
-		{"bossbreaker", "Bossbreaker", "Clear boss floors"},
-		{"expeditioner", "Expeditioner", "Clear Weekly Expedition floors"},
-		{"veteran_iron", "Iron Nerve", "Clear while at 50% HP or lower"},
-		{"veteran_untouched", "Untouched", "Clear at 90% HP or higher"},
-		{"veteran_boss", "Boss Oath", "Clear boss floors with the track active"},
-		{"coordinator", "Synchronized", "Have every living party member ready before the timer"},
-		{"party_combo", "Chain Reaction", "Coordinate two skills on the same target"},
-		{"ghost_party", "Ghost Chaser", "Beat an asynchronous party replay's round count"},
-	}
-	values := make(map[string]int64, len(defs))
-	args := make([]any, len(defs))
-	keyToTrack := make(map[string]string, len(defs))
-	for i, def := range defs {
+	values := make(map[string]int64, len(abyssProgressTrackDefs))
+	args := make([]any, len(abyssProgressTrackDefs))
+	keyToTrack := make(map[string]string, len(abyssProgressTrackDefs))
+	for i, def := range abyssProgressTrackDefs {
 		key := abyssProgressionCounterKey(uid, def.Key)
 		args[i] = key
 		keyToTrack[key] = def.Key
@@ -213,8 +218,8 @@ func (b *Bot) abyssProgressionViews(uid string) []abyssProgressTrackView {
 			}
 		}
 	}
-	views := make([]abyssProgressTrackView, 0, len(defs))
-	for _, def := range defs {
+	views := make([]abyssProgressTrackView, 0, len(abyssProgressTrackDefs))
+	for _, def := range abyssProgressTrackDefs {
 		value := values[def.Key]
 		_, next := abyssProgressionTier(value)
 		views = append(views, abyssProgressTrackView{Name: def.Name, Desc: def.Desc, Value: value, Next: next})

@@ -1,0 +1,61 @@
+{{define "abyss-mobile"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+
+  function initMobileForgeAccordions(){
+    if(!window.matchMedia('(max-width: 700px)').matches)return;
+    document.querySelectorAll('#abyssForgePanel details.ab-acc').forEach(function(section){section.removeAttribute('open');});
+  }
+
+  function initMobileTierSelect(){
+    var picker=document.getElementById('tierPicker');if(!picker||document.getElementById('abyssMobileTier'))return;
+    var label=document.createElement('label');label.className='ab-mobile-tier-select';label.textContent='Challenge tier';
+    var select=document.createElement('select');select.id='abyssMobileTier';select.setAttribute('aria-label','Challenge tier');
+    var summary=document.createElement('span');summary.className='ab-mobile-tier-summary';
+    Array.prototype.slice.call(picker.querySelectorAll('input[name="abtier"]')).forEach(function(input){
+      var option=document.createElement('option'),card=input.closest('.ab-tier'),name=card&&card.querySelector('.ab-tier-name');
+      option.value=input.value;option.textContent=name?name.textContent.trim():input.value;option.disabled=input.disabled;option.selected=input.checked;select.appendChild(option);
+    });
+    function selectedRadio(){return Array.prototype.slice.call(picker.querySelectorAll('input[name="abtier"]')).find(function(input){return input.value===select.value;});}
+    function syncSummary(){var input=selectedRadio();if(!input)return;var risk=input.getAttribute('data-risk'),danger=input.getAttribute('data-diff');summary.textContent=(risk?'Estimated floor-one risk '+risk+'%. ':'')+(danger?'Danger multiplier ×'+danger+'.':'');}
+    select.addEventListener('change',function(){var input=selectedRadio();if(input&&!input.disabled){input.click();syncSummary();}});
+    picker.addEventListener('change',function(event){if(event.target.matches('input[name="abtier"]')){select.value=event.target.value;syncSummary();}});
+    label.appendChild(select);label.appendChild(summary);picker.insertBefore(label,picker.firstChild);syncSummary();
+  }
+
+  function initLandscapeLog(){
+    var row=document.querySelector('.abyss-stage-row'),log=document.getElementById('logWrap');if(!row||!log)return;
+    var home=document.createElement('span');home.hidden=true;home.id='abyssLogHome';log.parentNode.insertBefore(home,log);
+    var query=window.matchMedia('(max-height: 520px) and (orientation: landscape) and (max-width: 950px)');
+    function sync(){if(query.matches){row.appendChild(log);row.classList.add('ab-landscape-log');}else{home.parentNode.insertBefore(log,home.nextSibling);row.classList.remove('ab-landscape-log');}}
+    if(query.addEventListener)query.addEventListener('change',sync);else query.addListener(sync);sync();
+  }
+
+  function visibleBackpackRows(){return Array.prototype.slice.call(document.querySelectorAll('#bpList .ab-bp-row')).filter(function(row){return row.offsetParent!==null;});}
+  async function keyboardBackpackAction(row,salvage){
+    var invID=Number(row.dataset.invId)||0;if(!invID)return;
+    var name=(row.getAttribute('data-tip')||'this item').split('\n')[0],verb=salvage?'Salvage':'Equip';
+    var approved=await confirmModal(verb+' '+consEsc(name)+'?',{title:verb+' backpack item',okLabel:verb});if(!approved)return;
+    row.setAttribute('aria-busy','true');
+    var result=await abRawPost(salvage?'/api/abyss/salvage':'/api/inventory/equip',{inv_id:invID});
+    row.removeAttribute('aria-busy');
+    if(!result.ok){abToast(result.error||verb+' failed',false);return;}
+    if(salvage&&!result.sold){abToast('Only unreserved Common or Uncommon gear can be salvaged.',false);return;}
+    abToast(salvage?('Salvaged '+name+' for '+fmtGold(result.value)):('Equipped '+result.equipped),true);setTimeout(function(){window.location.reload();},450);
+  }
+  function initBackpackKeyboard(){
+    var list=document.getElementById('bpList');if(!list)return;
+    list.addEventListener('keydown',function(event){var row=event.target.closest('.ab-bp-row');if(!row||event.target.closest('button'))return;var rows=visibleBackpackRows(),index=rows.indexOf(row),next=-1;if(event.key==='ArrowDown'||event.key==='ArrowRight')next=Math.min(rows.length-1,index+1);else if(event.key==='ArrowUp'||event.key==='ArrowLeft')next=Math.max(0,index-1);else if(event.key==='Home')next=0;else if(event.key==='End')next=rows.length-1;else if(event.key==='Enter'){event.preventDefault();keyboardBackpackAction(row,false);return;}else if(event.key==='Delete'){event.preventDefault();keyboardBackpackAction(row,true);return;}else return;event.preventDefault();if(rows[next])rows[next].focus();});
+  }
+
+  function initRunModalFocus(){
+    var overlay=document.getElementById('sharedModal');if(!overlay)return;var wasOpen=overlay.classList.contains('open');
+    new MutationObserver(function(){var open=overlay.classList.contains('open');if(wasOpen&&!open&&typeof inRun!=='undefined'&&inRun&&typeof downed!=='undefined'&&!downed){setTimeout(function(){var descend=document.getElementById('btnDescend');if(descend&&descend.offsetParent!==null&&!descend.disabled)descend.focus();},0);}wasOpen=open;}).observe(overlay,{attributes:true,attributeFilter:['class']});
+  }
+
+  function init(){initMobileForgeAccordions();initMobileTierSelect();initLandscapeLog();initBackpackKeyboard();initRunModalFocus();}
+  setTimeout(init,0);
+})();
+</script>
+{{end}}

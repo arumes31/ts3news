@@ -21,20 +21,26 @@ type statKV struct {
 
 // gearView is a template-friendly view of a gear piece.
 type gearView struct {
-	InvID       int64
-	Slot        string
-	Icon        string
-	IconName    string // game-icons.net SVG basename for the slot
-	ID          string
-	Name        string
-	Rarity      string
-	RarityColor string
-	RarityIcon  string // game-icons.net SVG basename for the rarity
-	CR          float64
-	Score       int
-	Durability  int
-	Empty       bool
-	AHPrice     int64 // auto-calculated auction house listing price
+	InvID         int64
+	Slot          string
+	Icon          string
+	IconName      string // game-icons.net SVG basename for the slot
+	ID            string
+	Name          string
+	Rarity        string
+	RarityColor   string
+	RarityIcon    string // game-icons.net SVG basename for the rarity
+	CR            float64
+	Score         int
+	Durability    int
+	MaxDurability int
+	Empty         bool
+	AHPrice       int64 // auto-calculated auction house listing price
+	VendorPrice   int64 // current item's exact server-side vendor value
+	StatsJSON     string
+	GemstonesJSON string
+	KillCount     int
+	MilestoneTier int
 
 	// Detail surfaced in the armoury/inventory.
 	Element    string
@@ -44,42 +50,24 @@ type gearView struct {
 	XPBonusPct int
 	Stats      []statKV
 
-	Unidentified bool
-	Sockets      int
-	Gemstones    []string
-	RarityVal    int
-	Insured      bool // whether the piece is death-insured (drives the forge picker)
-	Corrupted    bool // carries an HP malus, cleansable at the forge (#83)
-	Temper       int  // forge temper level (#106)
-	HasSpecial   bool // carries a Special effect (drives the forge awaken action)
-	Imbued       bool // already imbued via the forge
-	Attuned      bool // bound to its owner via the forge
-	Cursed       bool // cursed: drains HP in combat (drives forge curse infusion)
-	Eldritch     bool // eldritch affix applied (drives forge eldritch infusion)
-	HasRune      bool // an elemental rune is etched (drives prismatic rune)
-	Prismatic    bool // rune already elevated to prismatic
-}
-
-// gearEffectDescriptions maps each special effect to a short player-facing blurb.
-var gearEffectDescriptions = map[content.ItemEffect]string{
-	content.EffectThorns:         "Reflects 10% of damage taken",
-	content.EffectVampiric:       "Heals for 5% of damage dealt",
-	content.EffectBerserk:        "+20% STR while below 50% HP",
-	content.EffectLucky:          "+10% Luck",
-	content.EffectTreasureHunter: "+5% item find chance",
-	content.EffectQuick:          "+10% Speed",
-	content.EffectBulwark:        "+10% Defense",
-	content.EffectRadiant:        "+10% XP gained",
-	content.EffectFragile:        "+30% STR but double durability loss",
-	content.EffectSteady:         "-50% stun chance",
-	content.EffectMindControl:    "Chance to capture low-health mobs",
-	content.EffectRegenStack:     "Permanent regen stack on victory",
-	content.EffectPhoenix:        "Revive once per fight at 50% HP",
-	content.EffectStealth:        "Skip first-round mob damage",
-	content.EffectParry:          "10% chance to negate a hit and counter",
-	content.EffectCleanse:        "Removes a negative effect each turn",
-	content.EffectExecutioner:    "+25% damage to targets below 30% HP",
-	content.EffectFocused:        "+10% Crit Rate",
+	Unidentified   bool
+	Sockets        int
+	Gemstones      []string
+	RarityVal      int
+	Insured        bool // whether the piece is death-insured (drives the forge picker)
+	Corrupted      bool // carries an HP malus, cleansable at the forge (#83)
+	Temper         int  // forge temper level (#106)
+	Quality        int  // masterwork quality tier (0-5)
+	SetID          string
+	HasSpecial     bool // carries a Special effect (drives the forge awaken action)
+	Imbued         bool // already imbued via the forge
+	Attuned        bool // bound to its owner via the forge
+	Cursed         bool // cursed: drains HP in combat (drives forge curse infusion)
+	Eldritch       bool // eldritch affix applied (drives forge eldritch infusion)
+	HasRune        bool // an elemental rune is etched (drives prismatic rune)
+	Prismatic      bool // rune already elevated to prismatic
+	Locked         bool // protected from sale, salvage, dismantle, and sacrifice
+	RecentlyLooted bool
 }
 
 // gearStatList returns the gear's non-zero combat stats, largest first.
@@ -100,12 +88,50 @@ func gearStatList(s content.Stats) []statKV {
 func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	name := g.Name
 	stats := gearStatList(g.Stats)
-	effDesc := gearEffectDescriptions[g.Special]
+	effDesc := content.ItemEffectDescription(g.Special)
+	statsJSON := "{}"
+	gemstonesJSON := "[]"
+	killCount := 0
+	milestoneTier := 0
+	rarityName := g.Rarity.String()
+	rarityColor := g.Rarity.Color()
+	rarityIcon := content.RarityIconName(g.Rarity)
+	rarityValue := int(g.Rarity)
+	combatRating := g.CombatRating()
+	score := g.Stats.Score()
+	gearID := g.ID
+	maxDurability := g.MaxDurability
+	xpBonusPct := int(math.Round((g.XPMultiplier - 1.0) * 100))
+	sockets := g.Sockets
+	gemstones := g.Gemstones
+	insured := g.Insured
+	if !g.Unidentified {
+		if encoded, err := json.Marshal(g.Stats); err == nil {
+			statsJSON = string(encoded)
+		}
+		if encoded, err := json.Marshal(g.Gemstones); err == nil {
+			gemstonesJSON = string(encoded)
+		}
+		killCount = g.KillCount
+		milestoneTier = g.MilestoneTier
+	}
 
 	if g.Unidentified {
 		name = "Unidentified " + string(slot)
 		stats = []statKV{{"???", 0}}
 		effDesc = "Identify this item to reveal its stats and effects."
+		rarityName = "Unknown"
+		rarityColor = "#8c96aa"
+		rarityIcon = ""
+		rarityValue = 0
+		combatRating = 0
+		score = 0
+		gearID = ""
+		maxDurability = 0
+		xpBonusPct = 0
+		sockets = 0
+		gemstones = nil
+		insured = false
 	} else {
 		if g.GearLevel > 0 {
 			name = fmt.Sprintf("%s +%d", name, g.GearLevel)
@@ -166,34 +192,54 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	}
 
 	v := gearView{
-		Slot:        string(slot),
-		Icon:        content.SlotIcon(slot),
-		IconName:    content.SlotIconName(slot),
-		ID:          g.ID,
-		Name:        name,
-		Rarity:      g.Rarity.String(),
-		RarityColor: g.Rarity.Color(),
-		RarityIcon:  content.RarityIconName(g.Rarity),
-		CR:          g.CombatRating(),
-		Score:       g.Stats.Score(),
-		Stats:       stats,
-		XPBonusPct:  int(math.Round((g.XPMultiplier - 1.0) * 100)),
-		Unidentified: g.Unidentified,
-		Sockets:      g.Sockets,
-		Gemstones:    g.Gemstones,
-		RarityVal:    int(g.Rarity),
-		Insured:      g.Insured,
-		Corrupted:    g.Corrupted,
-		Temper:       g.Temper,
-		HasSpecial:   g.Special != content.EffectNone,
-		Imbued:       g.Imbued != "",
-		Attuned:      g.Attuned,
-		Cursed:       g.Cursed,
-		Eldritch:     g.Eldritch,
-		HasRune:      g.Rune != "",
-		Prismatic:    g.Prismatic,
+		Slot:          string(slot),
+		Icon:          content.SlotIcon(slot),
+		IconName:      content.SlotIconName(slot),
+		ID:            gearID,
+		Name:          name,
+		Rarity:        rarityName,
+		RarityColor:   rarityColor,
+		RarityIcon:    rarityIcon,
+		CR:            combatRating,
+		Score:         score,
+		MaxDurability: maxDurability,
+		StatsJSON:     statsJSON,
+		GemstonesJSON: gemstonesJSON,
+		KillCount:     killCount,
+		MilestoneTier: milestoneTier,
+		Stats:         stats,
+		XPBonusPct:    xpBonusPct,
+		Unidentified:  g.Unidentified,
+		Sockets:       sockets,
+		Gemstones:     gemstones,
+		RarityVal:     rarityValue,
+		Insured:       insured,
+		Corrupted:     g.Corrupted,
+		Temper:        g.Temper,
+		Quality:       g.Quality,
+		SetID:         g.SetID,
+		HasSpecial:    g.Special != content.EffectNone,
+		Imbued:        g.Imbued != "",
+		Attuned:       g.Attuned,
+		Cursed:        g.Cursed,
+		Eldritch:      g.Eldritch,
+		HasRune:       g.Rune != "",
+		Prismatic:     g.Prismatic,
 	}
-	if g.Element != "" && g.Element != content.ElementPhysical {
+	if g.Unidentified {
+		v.Corrupted = false
+		v.Temper = 0
+		v.Quality = 0
+		v.SetID = ""
+		v.HasSpecial = false
+		v.Imbued = false
+		v.Attuned = false
+		v.Cursed = false
+		v.Eldritch = false
+		v.HasRune = false
+		v.Prismatic = false
+	}
+	if !g.Unidentified && g.Element != "" && g.Element != content.ElementPhysical {
 		v.Element = string(g.Element)
 	}
 	if g.Special != content.EffectNone && !g.Unidentified {
@@ -216,9 +262,14 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
+	writeJSONStatus(w, http.StatusOK, v)
+}
+
+func writeJSONStatus(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
 	w.Header().Set("Pragma", "no-cache")
+	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		log.Printf("web: json encode failed: %v", err)
 	}
@@ -400,18 +451,21 @@ func (s *WebServer) handleInventory(w http.ResponseWriter, r *http.Request, uid 
 
 // inventoryItems returns the user's owned, unequipped gear.
 func (b *Bot) inventoryItems(uid string) []gearView {
-	rows, err := b.DB.Query("SELECT id, gear_id, durability, item_data FROM user_inventory WHERE client_uid=$1 ORDER BY id DESC", uid)
+	rows, err := b.DB.Query("SELECT id, gear_id, durability, item_data, locked, acquired_at FROM user_inventory WHERE client_uid=$1 ORDER BY id DESC", uid)
 	if err != nil {
 		return nil
 	}
 	defer func() { _ = rows.Close() }()
 	var out []gearView
+	now := time.Now()
 	for rows.Next() {
 		var id int64
 		var gid string
 		var dur int
 		var itemData sql.NullString
-		if err := rows.Scan(&id, &gid, &dur, &itemData); err != nil {
+		var locked bool
+		var acquiredAt time.Time
+		if err := rows.Scan(&id, &gid, &dur, &itemData, &locked, &acquiredAt); err != nil {
 			continue
 		}
 		g, ok := b.makeGear(gid, itemData)
@@ -420,13 +474,20 @@ func (b *Bot) inventoryItems(uid string) []gearView {
 		}
 		v := toGearView(g.Slot, g)
 		v.InvID = id
-		v.Durability = dur
+		v.Locked = locked
+		v.RecentlyLooted = abyssRecentlyLooted(acquiredAt, now)
+		if !g.Unidentified {
+			v.Durability = dur
+		}
 		// Auto-calculate AH listing price: (CR×10 + GS×5) × (Rarity+1)
 		price := int64(g.CombatRating()*10+float64(g.Stats.Score())*5) * (int64(g.Rarity) + 1)
 		if price < 10 {
 			price = 10
 		}
-		v.AHPrice = price
+		if !g.Unidentified {
+			v.AHPrice = price
+			v.VendorPrice = max(gearPrice(g)/2, 1)
+		}
 		out = append(out, v)
 	}
 	return out
@@ -527,28 +588,40 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 		return
 	}
 
-	var gid string
-	if err := s.bot.DB.QueryRow("SELECT gear_id FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gid); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
-		return
-	}
-	g, ok := content.GetGearByID(gid)
-	if !ok {
-		writeJSON(w, map[string]any{"ok": false, "error": "unknown gear"})
-		return
-	}
-	value := gearPrice(g) / 2
-	if value < 1 {
-		value = 1
-	}
-
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "tx"})
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid)
+
+	// Load and price the exact instance under the same row lock as deletion so a
+	// concurrent equip, forge, or sale cannot change what the vendor receives.
+	var gid string
+	var itemData sql.NullString
+	if err := tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE FOR UPDATE", req.InvID, uid).Scan(&gid, &itemData); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
+		return
+	}
+	g, ok := s.bot.makeGear(gid, itemData)
+	if !ok {
+		writeJSON(w, map[string]any{"ok": false, "error": "unknown gear"})
+		return
+	}
+	baseValue := max(gearPrice(g)/2, int64(1))
+	// Loyalty is earned per exact catalog item, not merely per slot, so selling
+	// five different swords cannot unlock the repeat-seller premium for all swords.
+	itemType := gid
+	var priorSales int
+	if err := tx.QueryRow("SELECT sold_count FROM abyss_vendor_sales WHERE client_uid=$1 AND item_type=$2", uid, itemType).Scan(&priorSales); err != nil && err != sql.ErrNoRows {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	loyaltyPct := abyssVendorLoyaltyPercent(priorSales)
+	loyaltyBonus := baseValue * int64(loyaltyPct) / 100
+	value := baseValue + loyaltyBonus
+
+	res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE", req.InvID, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "remove"})
 		return
@@ -562,10 +635,16 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 		writeJSON(w, map[string]any{"ok": false, "error": "gold"})
 		return
 	}
+	if _, err := tx.Exec(`INSERT INTO abyss_vendor_sales (client_uid,item_type,sold_count) VALUES ($1,$2,1)
+		ON CONFLICT (client_uid,item_type) DO UPDATE SET sold_count=abyss_vendor_sales.sold_count+1`, uid, itemType); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "commit"})
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "value": value, "gold": gold})
+	writeJSON(w, map[string]any{"ok": true, "value": value, "base_value": baseValue, "loyalty_bonus": loyaltyBonus,
+		"loyalty_pct": loyaltyPct, "loyalty_sales": priorSales + 1, "gold": gold})
 }

@@ -1,6 +1,7 @@
 {{define "ah"}}{{template "head" .}}
 <h1>Auction House</h1>
 <div id="ahMsg" class="toast"></div>
+<div class="ah-ticker" aria-live="polite">📈 Cheapest active Legendary: {{if .Economy.CheapestLegendary}}🪙 {{.Economy.CheapestLegendary}}{{else}}none listed{{end}} · ✉ <span id="ahNoticeCount">{{.Economy.UnseenNotices}}</span> new market notices</div>
 
 <!-- Search Form -->
 <form method="GET" action="/ah" class="search-form" style="margin: 15px 0 20px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -9,8 +10,9 @@
     <input type="checkbox" name="upgrades" value="1" {{if .UpgradesOnly}}checked{{end}} onchange="this.form.submit()">
     ⬆ Upgrades only
   </label>
+  <label class="btn ghost" style="display:flex;gap:7px;align-items:center"><input type="checkbox" name="insanity" value="1" {{if .InsanityOnly}}checked{{end}} onchange="this.form.submit()"> 🌀 Insanity</label>
   <button type="submit" class="btn primary" style="padding: 10px 20px; font-size: 14px; cursor: pointer;">Search</button>
-  {{if or .SearchQuery .UpgradesOnly}}
+  {{if or .SearchQuery .UpgradesOnly .InsanityOnly}}
     <a href="/ah" style="color: #58a6ff; font-size: 14px; text-decoration: none; margin-left: 5px;">Clear</a>
   {{end}}
 </form>
@@ -38,11 +40,10 @@
         <td>{{.ItemType}}</td>
         <td>{{if .Rarity}}<span style="color:{{.RarityColor}}">{{.Rarity}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
         <td>{{if .GS}}{{.GS}}{{else}}<span class="muted">—</span>{{end}}</td>
-        <td>{{.Seller}}</td>
+        <td>{{.Seller}} <span class="muted small" title="Completed auction sales">★{{.SellerRep}}</span></td>
         <td>{{.Listed}}</td>
-        <td class="goldcell">🪙 {{.Price}}</td>
-        <td>{{if .Mine}}<span class="muted">yours</span>{{else}}<button class="buybtn"
-            onclick="buyAH('{{.ID}}',this)">Buy</button>{{end}}</td>
+        <td class="goldcell" title="{{.FeeSummary}}">🪙 {{.Price}}{{if .CurrentBid}}<div class="muted small">bid {{.CurrentBid}}</div>{{end}}</td>
+        <td>{{if .Mine}}<span class="muted">yours</span>{{else}}<button class="buybtn" onclick="buyAH('{{.ID}}',this)" title="Buy now · buyer fee 0g · exact total {{.Price}}g">Buy</button> <button class="ghost xs" onclick="bidAH('{{.ID}}',{{.Price}},this)" title="Bid reservation fee 0g · winning bid is the exact total">Bid</button>{{end}} <button class="ghost xs" aria-pressed="{{.Watched}}" onclick="watchAH('{{.ItemID}}',this)" title="Watchlist fee 0g · toggle listing and 20% price alerts">{{if .Watched}}★{{else}}☆{{end}}</button></td>
       </tr>
       {{end}}
     </tbody>
@@ -52,7 +53,7 @@
   {{if gt .TotalPages 1}}
   <div class="pagination" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; margin-bottom: 20px;">
     {{if gt .CurrentPage 1}}
-      <a href="/ah?page={{.PrevPage}}{{if .SearchQuery}}&q={{.SearchQuery}}{{end}}{{if .UpgradesOnly}}&upgrades=1{{end}}" class="btn ghost" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; text-decoration: none; font-size: 14px;">&larr; Prev</a>
+      <a href="/ah?page={{.PrevPage}}{{if .SearchQuery}}&q={{.SearchQuery}}{{end}}{{if .UpgradesOnly}}&upgrades=1{{end}}{{if .InsanityOnly}}&insanity=1{{end}}" class="btn ghost" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; text-decoration: none; font-size: 14px;">&larr; Prev</a>
     {{else}}
       <span class="btn ghost disabled" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; color: #8b949e; border-radius: 6px; opacity: 0.5; font-size: 14px; cursor: not-allowed;">&larr; Prev</span>
     {{end}}
@@ -60,7 +61,7 @@
     <span class="page-info" style="font-size: 14px; color: #c9d1d9;">Page <b>{{.CurrentPage}}</b> of <b>{{.TotalPages}}</b> ({{.TotalCount}} listings)</span>
     
     {{if lt .CurrentPage .TotalPages}}
-      <a href="/ah?page={{.NextPage}}{{if .SearchQuery}}&q={{.SearchQuery}}{{end}}{{if .UpgradesOnly}}&upgrades=1{{end}}" class="btn ghost" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; text-decoration: none; font-size: 14px;">Next &rarr;</a>
+      <a href="/ah?page={{.NextPage}}{{if .SearchQuery}}&q={{.SearchQuery}}{{end}}{{if .UpgradesOnly}}&upgrades=1{{end}}{{if .InsanityOnly}}&insanity=1{{end}}" class="btn ghost" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; text-decoration: none; font-size: 14px;">Next &rarr;</a>
     {{else}}
       <span class="btn ghost disabled" style="padding: 8px 16px; background: #21262d; border: 1px solid #30363d; color: #8b949e; border-radius: 6px; opacity: 0.5; font-size: 14px; cursor: not-allowed;">Next &rarr;</span>
     {{end}}
@@ -95,12 +96,40 @@
         <td>{{.Score}}</td>
         <td class="goldcell" title="Auto-priced: (CR×10 + GS×5) × (Rarity+1)">🪙 {{.AHPrice}} <span class="muted"
             style="font-size:0.8em">fixed</span></td>
-        <td><button onclick="listAH({{.InvID}},this)">List</button></td>
+        <td><button onclick="listAH({{.InvID}},this)" {{if .Attuned}}disabled title="Attuned items are soulbound. Use Forge → Un-attune before listing."{{else}}title="Listing fee 0g · seller fee 0g"{{end}}>List</button></td>
       </tr>
       {{end}}
     </tbody>
   </table>
   {{else}}<p class="muted">No inventory items to sell.</p>{{end}}
+</section>
+
+<section>
+  <h2>My Auction History</h2>
+  <div class="ah-history-tabs" role="tablist" aria-label="Auction history">
+    <button class="ghost active" role="tab" aria-selected="true" aria-controls="ahHistSold" onclick="showAHHistory('sold',this)">Sold · {{.Economy.SoldTotal}}</button>
+    <button class="ghost" role="tab" aria-selected="false" aria-controls="ahHistListed" onclick="showAHHistory('listed',this)">Listed · {{.Economy.ListedTotal}}</button>
+    <button class="ghost" role="tab" aria-selected="false" aria-controls="ahHistExpired" onclick="showAHHistory('expired',this)">Expired · {{.Economy.ExpiredTotal}}</button>
+  </div>
+  <div id="ahHistSold" data-ah-history="sold" role="tabpanel"><ul>{{range .History}}{{if eq .Role "Sold"}}<li>{{.When}} · {{.Name}} · 🪙 {{.Price}} to {{.Other}}</li>{{end}}{{end}}</ul></div>
+  <div id="ahHistListed" data-ah-history="listed" role="tabpanel" hidden>{{if .Mine}}<ul>{{range .Mine}}<li>{{.Icon}} {{.Name}} · 🪙 {{.Price}}</li>{{end}}</ul>{{else}}<p class="muted">No active listings.</p>{{end}}</div>
+  <div id="ahHistExpired" data-ah-history="expired" role="tabpanel" hidden>
+    <div class="ab-btn-row"><button class="ghost" onclick="bulkRelistAH(this)" title="Fee 0g · each expired unbid price is reduced by exactly 1% before relisting">Relist all expired −1%</button></div>
+    {{if .Economy.Expired}}<ul>{{range .Economy.Expired}}<li>{{.Icon}} {{.Name}} · 🪙 {{.Price}}</li>{{end}}</ul>{{else}}<p class="muted">No expired listings.</p>{{end}}
+  </div>
+</section>
+
+<section>
+  <h2>Material Buy Orders</h2>
+  <div class="ab-btn-row"><button class="ghost" onclick="createMaterialOrder()" title="Exact charge: quantity × unit price held in escrow · posting fee 0g">Post buy order</button></div>
+  {{if .Economy.Orders}}<table class="histtable"><thead><tr><th>Buyer</th><th>Material</th><th>Wanted</th><th>Unit price</th><th></th></tr></thead><tbody>
+  {{range .Economy.Orders}}<tr><td>{{.Buyer}}</td><td>{{.Material}}</td><td>{{.Remaining}}</td><td title="Seller fee 0g">🪙 {{.UnitPrice}}</td><td>{{if .Mine}}<button class="ghost xs" onclick="cancelMaterialOrder({{.ID}},{{.Escrow}},this)" title="Cancellation fee 0g · refund exact remaining escrow {{.Escrow}}g">Cancel · {{.Escrow}}g</button>{{else}}<button class="ghost xs" onclick="fillMaterialOrder({{.ID}},{{.Remaining}},this)" title="Seller fee 0g · exact proceeds = filled quantity × {{.UnitPrice}}g">Fill</button>{{end}}</td></tr>{{end}}
+  </tbody></table>{{else}}<p class="muted">No open material orders.</p>{{end}}
+</section>
+
+<section>
+  <h2>Most Taxed This Season</h2>
+  {{if .Economy.TaxLeaders}}<ol>{{range .Economy.TaxLeaders}}<li>{{.Nickname}} · 🪙 {{.Tax}} {{if .Badge}}<span class="upgrade-badge">{{.Badge}}</span>{{end}}</li>{{end}}</ol>{{else}}<p class="muted">The tax office has no victims yet.</p>{{end}}
 </section>
 
 <section>
@@ -121,7 +150,7 @@
       <tr>
         <td>{{.When}}</td>
         <td>{{.Name}}</td>
-        <td class="{{if eq .Role " Sold"}}win{{else}}loss{{end}}">{{.Role}}</td>
+        <td class="{{if eq .Role "Sold"}}win{{else}}loss{{end}}">{{.Role}}</td>
         <td>{{.Other}}</td>
         <td>🪙 {{.Price}}</td>
       </tr>
@@ -151,12 +180,20 @@
     if (btn) btn.disabled = true;
     const d = await post('/api/ah/list', { inv_id: invID });
     if (d.ok) {
-      toast('Listed ' + d.listed + ' for ' + d.price, true);
+      toast(d.msg||('Listed ' + d.listed + ' for ' + d.price), true);
       setTimeout(() => location.reload(), 700);
     } else {
       toast(d.error, false);
       if (btn) btn.disabled = false;
     }
   }
+  async function watchAH(itemID,btn){const d=await post('/api/ah/watch',{item_id:itemID});if(d.ok){btn.textContent=d.watched?'★':'☆';btn.setAttribute('aria-pressed',String(d.watched));toast(d.msg,true);}else toast(d.error,false);}
+  async function bidAH(id,buyNow,btn){const amount=parseInt(prompt('Bid amount (must stay below Buy Now '+buyNow+')',''),10);if(!amount)return;if(btn)btn.disabled=true;const d=await post('/api/ah/bid',{id:id,amount:amount});if(d.ok){toast(d.msg,true);setTimeout(()=>location.reload(),700);}else{toast(d.error,false);if(btn)btn.disabled=false;}}
+  async function bulkRelistAH(btn){if(btn)btn.disabled=true;const d=await post('/api/ah/bulk_relist',{});if(d.ok){toast(d.msg,true);setTimeout(()=>location.reload(),600);}else{toast(d.error,false);if(btn)btn.disabled=false;}}
+  async function createMaterialOrder(){const material=(prompt('Material: dust, shard, or core','dust')||'').toLowerCase(),count=parseInt(prompt('Quantity','10'),10),unit=parseInt(prompt('Gold per unit','100'),10);if(!material||!count||!unit)return;const d=await post('/api/ah/material_order',{material:material,count:count,unit_price:unit});toast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(()=>location.reload(),700);}
+  async function fillMaterialOrder(id,remaining,btn){const count=parseInt(prompt('How many to sell? Max '+remaining,String(remaining)),10);if(!count)return;if(btn)btn.disabled=true;const d=await post('/api/ah/material_fill',{id:id,count:count});toast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(()=>location.reload(),700);else if(btn)btn.disabled=false;}
+  async function cancelMaterialOrder(id,escrow,btn){if(!confirm('Cancel this order and refund '+escrow+'g?'))return;if(btn)btn.disabled=true;const d=await post('/api/ah/material_cancel',{id:id});toast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(()=>location.reload(),700);else if(btn)btn.disabled=false;}
+  function showAHHistory(kind,button){document.querySelectorAll('[data-ah-history]').forEach(function(panel){panel.hidden=panel.dataset.ahHistory!==kind;});document.querySelectorAll('.ah-history-tabs [role="tab"]').forEach(function(tab){tab.classList.toggle('active',tab===button);tab.setAttribute('aria-selected',String(tab===button));});}
+  (async function loadAHNotices(){const d=await post('/api/ah/notices',{});if(!d.ok||!d.notices||!d.notices.length)return;document.getElementById('ahNoticeCount').textContent='0';toast(d.notices.map(n=>n.message).join(' · '),true);})();
 </script>
 {{template "foot" .}}{{end}}

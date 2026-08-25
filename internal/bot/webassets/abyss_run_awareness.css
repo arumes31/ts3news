@@ -1,0 +1,67 @@
+.ab-hpbar { overflow: hidden; }
+.ab-hpforecast {
+  background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .42) 0 3px, rgba(255, 255, 255, .08) 3px 6px);
+  border-left: 1px solid rgba(255, 255, 255, .78);
+  bottom: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  z-index: 2;
+}
+.ab-hptext { z-index: 3; }
+.ab-run-awareness-strip {
+  border-block: 1px solid rgba(215, 169, 59, .18);
+  display: grid;
+  gap: .4rem;
+  margin-top: .55rem;
+  padding: .45rem 0;
+}
+.ab-run-awareness-strip[hidden] { display: none; }
+.ab-run-awareness-forecast {
+  align-items: center;
+  color: #91a7b3;
+  display: flex;
+  font: 700 .62rem/1.25 ui-monospace, SFMono-Regular, Consolas, monospace;
+  gap: .35rem;
+}
+.ab-consumable-belt {
+  align-items: center;
+  display: flex;
+  gap: .35rem;
+  overflow-x: auto;
+}
+.ab-consumable-belt[hidden] { display: none; }
+.ab-belt-item,
+.ab-mh-actions button {
+  background: #0a151d;
+  border: 1px solid #324754;
+  color: #dce7ec;
+  cursor: pointer;
+  font: 700 .68rem/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+  min-height: 2.75rem;
+  padding: .4rem .55rem;
+  white-space: nowrap;
+}
+.ab-belt-item:hover,
+.ab-mh-actions button:hover { border-color: #d7a93b; color: #f2cb6b; }
+.ab-mh-record.is-record { color: #f2cb6b; text-shadow: 0 0 10px rgba(215, 169, 59, .4); }
+.ab-mh-actions { display: inline-flex; gap: .25rem; }
+.ab-mh-actions button { min-height: 2rem; }
+.ab-mh-actions button:disabled { cursor: not-allowed; opacity: .45; }
+.abyss-stage.ab-critical-hp {
+  border-color: rgba(255, 83, 91, .9);
+  box-shadow: inset 0 0 45px rgba(132, 12, 22, .34), 0 0 18px rgba(255, 83, 91, .15);
+}
+@media (max-width: 880px) {
+  .ab-minihud { gap: .55rem; max-width: calc(100vw - 1rem); overflow-x: auto; }
+  .ab-minihud > span:not(.ab-mh-actions) { white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .abyss-stage.ab-critical-hp { transition: none; }
+}
+@media (forced-colors: active) {
+  .ab-hpforecast,
+  .ab-belt-item,
+  .ab-mh-actions button,
+  .abyss-stage.ab-critical-hp { border: 1px solid CanvasText; }
+}

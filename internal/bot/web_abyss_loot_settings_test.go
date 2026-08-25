@@ -18,6 +18,7 @@ func TestNormalizeAbyssLootSettingsKeepsSafeChoices(t *testing.T) {
 		{abyssLootSettings{TargetCategory: "armor", AutoSalvageMax: int(content.RarityUncommon)}, abyssLootSettings{TargetCategory: "armor", AutoSalvageMax: 1}},
 		{abyssLootSettings{TargetCategory: "invalid", AutoSalvageMax: 99}, abyssLootSettings{AutoSalvageMax: 1}},
 		{abyssLootSettings{TargetCategory: "jewelry", AutoSalvageMax: -10}, abyssLootSettings{TargetCategory: "jewelry", AutoSalvageMax: -1}},
+		{abyssLootSettings{AutoSalvageMax: -1, DuplicateLegendConvert: true}, abyssLootSettings{AutoSalvageMax: -1, DuplicateLegendConvert: true}},
 	}
 	for _, test := range tests {
 		if got := normalizeAbyssLootSettings(test.input); got != test.want {

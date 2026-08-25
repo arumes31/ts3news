@@ -1,0 +1,70 @@
+/* Isolated live-combat feedback controls and impact treatment. */
+.abyss-command-page .ab-combat-feedback {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding-right: 3px;
+}
+
+.abyss-command-page .ab-combat-volume {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #8995a8;
+  font: 700 .5rem/1 var(--cmd-mono, ui-monospace, monospace);
+  letter-spacing: .08em;
+}
+
+.abyss-command-page .ab-combat-volume input {
+  width: 62px;
+  min-height: 22px;
+  accent-color: var(--live-cyan, #5bd6d0);
+}
+
+.abyss-command-page .ab-combat-volume input:disabled { opacity: .38; }
+
+.abyss-command-page .ab-pixel-stage.impact::after {
+  position: absolute;
+  z-index: 9;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 58%, rgba(255, 239, 178, .22), transparent 52%);
+  animation: ab-combat-impact .34s steps(3) both;
+}
+
+.abyss-command-page .ab-pixel-stage.impact-heavy {
+  animation: ab-combat-stage-kick .28s steps(4) both;
+}
+
+.abyss-command-page .ab-pixel-stage.impact-heal::after {
+  background: radial-gradient(circle at 30% 58%, rgba(85, 223, 146, .25), transparent 48%);
+}
+
+@keyframes ab-combat-impact {
+  from { opacity: 0; }
+  35% { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes ab-combat-stage-kick {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  55% { transform: translateX(3px); }
+  78% { transform: translateX(-1px); }
+}
+
+@media (max-width: 760px) {
+  .abyss-command-page .ab-combat-feedback { width: 100%; margin-left: 0; }
+  .abyss-command-page .ab-combat-volume { margin-left: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .abyss-command-page .ab-pixel-stage.impact,
+  .abyss-command-page .ab-pixel-stage.impact::after { animation: none !important; }
+}
+
+@media (forced-colors: active) {
+  .abyss-command-page .ab-combat-feedback { border: 1px solid CanvasText; }
+}

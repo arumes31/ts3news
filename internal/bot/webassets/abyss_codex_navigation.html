@@ -1,0 +1,125 @@
+{{define "abyssCodexNavigationJS"}}
+// UI-121: bestiary family grouping with collapse toggles. The server classifies
+// every recorded species; the browser only handles presentation state.
+function initBestiaryGroups(){
+  var tbl=document.querySelector('.ab-bestiary-table tbody'); if(!tbl)return;
+  var rows=Array.prototype.slice.call(tbl.querySelectorAll('tr'));
+  rows=rows.filter(function(tr){ return tr.querySelectorAll('td').length>1; });
+  if(!rows.length) return;
+  var collapsed={};
+  try{ collapsed=JSON.parse(localStorage.getItem('ab_best_collapsed')||'{}'); }catch(e){}
+  var groups={};
+  rows.forEach(function(tr){
+    var fam=tr.getAttribute('data-family')||'Lost Delvers';
+    (groups[fam]=groups[fam]||[]).push(tr);
+  });
+  var fams=Object.keys(groups);
+  if(fams.length<2) return;
+  fams.sort();
+  fams.forEach(function(fam){
+    var hdr=document.createElement('tr');
+    hdr.className='ab-best-fam';
+    var th=document.createElement('td');
+    th.colSpan=3;
+    var open=!collapsed[fam];
+    th.innerHTML='<span class="ab-best-arrow">'+(open?'▾':'▸')+'</span> '+consEsc(fam)+' <span class="muted small">('+groups[fam].length+')</span>';
+    hdr.appendChild(th);
+    hdr.title='Click to collapse/expand';
+    hdr.addEventListener('click',function(){
+      collapsed[fam]=!collapsed[fam];
+      try{ localStorage.setItem('ab_best_collapsed',JSON.stringify(collapsed)); }catch(e){}
+      var nowOpen=!collapsed[fam];
+      th.querySelector('.ab-best-arrow').textContent=nowOpen?'▾':'▸';
+      groups[fam].forEach(function(r){ r.style.display=nowOpen?'':'none'; });
+    });
+    tbl.appendChild(hdr);
+    groups[fam].forEach(function(r){ tbl.appendChild(r); r.style.display=open?'':'none'; });
+  });
+}
+
+// UI-122: segmented lore progress ring driven by the server's catalog size.
+function renderLoreRing(){
+  var el=document.getElementById('loreRing'); if(!el)return;
+  var n=document.querySelectorAll('.ab-codex-item.unlocked').length;
+  var total=Math.max(1,parseInt(el.getAttribute('data-total'),10)||1);
+  var filled=Math.min(n,total);
+  var html='<svg viewBox="0 0 20 20" class="ab-lore-svg" aria-hidden="true">';
+  for(var i=0;i<total;i++){
+    var a=(i/total)*Math.PI*2-Math.PI/2;
+    html+='<line x1="'+(10+Math.cos(a)*6.5).toFixed(1)+'" y1="'+(10+Math.sin(a)*6.5).toFixed(1)+'" x2="'+(10+Math.cos(a)*9).toFixed(1)+'" y2="'+(10+Math.sin(a)*9).toFixed(1)+'" class="'+(i<filled?'on':'')+'"/>';
+  }
+  html+='</svg><span class="ab-lore-n">'+n+'/'+total+'</span>';
+  el.innerHTML=html;
+  el.title=n+' of '+total+' lore fragments found';
+}
+
+// UI-123: the server marks rows by authenticated UID, so duplicate nicknames
+// cannot highlight another player. Scroll the first owned row into view.
+function initMyLbRow(){
+  var sec=document.getElementById('lb'); if(!sec)return;
+  var mine=document.querySelector('#lb .lbtable tr.ab-me, #abyssBossLeaderboards tr.ab-me');
+  if(mine && (location.hash==='#lb' || sec.offsetParent!==null)){
+    setTimeout(function(){ mine.scrollIntoView({block:'center',behavior:reduceMotion?'auto':'smooth'}); },300);
+  }
+}
+
+// UI-125: toggle the server-rendered run and loot summary paired with each row.
+function initHistoryExpand(){
+  var tb=document.querySelector('.ab-history tbody'); if(!tb)return;
+  tb.querySelectorAll('tr.ab-hist-click').forEach(function(tr){
+    tr.title='Click for run details';
+    var toggle=function(){
+      var detail=tr.nextElementSibling;if(!detail||!detail.classList.contains('ab-hist-detail'))return;
+      var open=detail.hidden;
+      document.querySelectorAll('.ab-hist-detail').forEach(function(row){row.hidden=true;});
+      document.querySelectorAll('.ab-hist-click').forEach(function(row){row.setAttribute('aria-expanded','false');});
+      detail.hidden=!open;tr.setAttribute('aria-expanded',open?'true':'false');
+    };
+    tr.addEventListener('click',toggle);
+    tr.addEventListener('keydown',function(event){if(event.key==='Enter'||event.key===' '){event.preventDefault();toggle();}});
+  });
+}
+
+// UI-126: names, earned state, and unlock conditions are server-authored.
+function initAchievementHints(){
+  var box=document.querySelector('.ab-achievements'); if(!box)return;
+  box.querySelectorAll('.ab-ach').forEach(function(item){item.tabIndex=0;});
+}
+
+// UI-128: remember the scroll position per section tab, restored on switch.
+var abCurTab=-1;
+function initTabScroll(){
+  var tabs=document.querySelectorAll('.ab-tabs .ab-tab'); if(!tabs.length)return;
+  var map={};
+  try{ map=JSON.parse(sessionStorage.getItem('ab_tab_scroll')||'{}'); }catch(e){}
+  tabs.forEach(function(b){ if(b.classList.contains('active')) abCurTab=b.dataset.tabKey||''; });
+  tabs.forEach(function(b){
+    b.addEventListener('click',function(){
+      var key=b.dataset.tabKey;
+      if(!key)return;
+      if(abCurTab && abCurTab!==key) map[abCurTab]=window.scrollY;
+      abCurTab=key;
+      try{ sessionStorage.setItem('ab_tab_scroll',JSON.stringify(map)); }catch(e){}
+      var y=map[key];
+      if(y!==undefined) setTimeout(function(){ window.scrollTo(0,y); },0);
+    });
+  });
+}
+
+// UI-130/199: show skeleton rows while a leaderboard tier navigation loads.
+function initLbSkeleton(){
+  document.querySelectorAll('.ab-lb-tab').forEach(function(a){
+    a.addEventListener('click',function(){
+      var grid=document.querySelector('#lb .lb-grid');
+      if(!grid) return;
+      var html='';
+      for(var i=0;i<3;i++){
+        html+='<div class="lb-col"><div class="ab-skel ab-skel-h"></div>';
+        for(var j=0;j<5;j++) html+='<div class="ab-skel ab-skel-r"></div>';
+        html+='</div>';
+      }
+      grid.innerHTML=html;
+    });
+  });
+}
+{{end}}

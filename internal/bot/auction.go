@@ -86,16 +86,21 @@ func (b *Bot) listAuctionItem(uid, itype, id, name string, data interface{}, pri
 		uid, itype, id, name, dataJSON, price, expires)
 	if err != nil {
 		log.Printf("Failed to list item on AH: %v", err)
+		return
 	}
+	b.notifyAbyssAHListing(uid, id, name, price)
 }
 
 // CleanupAuctionHouse performs maintenance on the Auction House.
 // Items older than 7 days are bought by 'The House' for 0.00001% of their price (min 1g).
 func (b *Bot) CleanupAuctionHouse() {
+	// Player bids reserve real gold, so settle them before the legacy House
+	// cleanup sees expired buy-now listings.
+	b.settleAbyssAuctionBids()
 	rows, err := b.DB.Query(`
 		SELECT id, seller_uid, price 
 		FROM auction_house 
-		WHERE sold_at IS NULL AND listed_at < NOW() - INTERVAL '7 days'`)
+		WHERE sold_at IS NULL AND bidder_uid IS NULL AND listed_at < NOW() - INTERVAL '7 days'`)
 	if err != nil {
 		return
 	}

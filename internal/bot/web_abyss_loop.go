@@ -12,6 +12,7 @@ package bot
 // here runs under the per-uid Abyss lock (lockAbyss).
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
@@ -40,11 +41,15 @@ func (b *Bot) loadRunFlags(uid string) map[string]int64 {
 }
 
 func (b *Bot) saveRunFlags(uid string, m map[string]int64) error {
+	return saveRunFlags(b.DB, uid, m)
+}
+
+func saveRunFlags(exec dbExecQuerier, uid string, m map[string]int64) error {
 	data, err := json.Marshal(m)
 	if err != nil {
 		return fmt.Errorf("marshal run flags: %w", err)
 	}
-	_, err = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+	_, err = exec.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssRunFlagsKey(uid), string(data))
 	if err != nil {
 		return fmt.Errorf("save run flags: %w", err)
@@ -134,7 +139,7 @@ func (b *Bot) killerExpBonusTenths(uid string, mobs []content.Mob) int {
 	exp := b.loadKillerExp(uid)
 	best := 0
 	for _, m := range mobs {
-		if v := exp[m.Name]; v > best {
+		if v := exp[string(m.Type)]; v > best {
 			best = v
 		}
 	}
@@ -142,15 +147,23 @@ func (b *Bot) killerExpBonusTenths(uid string, mobs []content.Mob) int {
 }
 
 // bumpKillerExp records a death: +0.1% permanent damage vs each killer's family.
-func (b *Bot) bumpKillerExp(uid string, mobNames []string) {
-	if len(mobNames) == 0 {
+func (b *Bot) bumpKillerExp(uid string, families []string) {
+	if len(families) == 0 {
 		return
 	}
 	exp := b.loadKillerExp(uid)
 	changed := false
-	for _, n := range mobNames {
-		if exp[n] < abyssKillerExpCap {
-			exp[n]++
+	seen := make(map[string]struct{}, len(families))
+	for _, family := range families {
+		if family == "" {
+			continue
+		}
+		if _, duplicate := seen[family]; duplicate {
+			continue
+		}
+		seen[family] = struct{}{}
+		if exp[family] < abyssKillerExpCap {
+			exp[family]++
 			changed = true
 		}
 	}
@@ -167,7 +180,11 @@ func (b *Bot) bumpKillerExp(uid string, mobNames []string) {
 
 // ---- AB-22 revive pity streak -------------------------------------------------
 
-func abyssReviveStreakKey(uid string) string { return "abyss_revive_streak_" + uid }
+func abyssReviveStreakKeyAt(uid string, now time.Time) string {
+	return "abyss_revive_streak_" + now.UTC().Format("2006-01-02") + "_" + uid
+}
+
+func abyssReviveStreakKey(uid string) string { return abyssReviveStreakKeyAt(uid, time.Now()) }
 
 // abyssReviveStreak counts consecutive daily deaths without a successful revive
 // gamble; each adds +5% to the next double-or-nothing offer (cap +25%).
@@ -187,15 +204,6 @@ func (b *Bot) setAbyssReviveStreak(uid string, n int) {
 
 func abyssEchoSeedKey(uid string) string { return "abyss_echo_seed_" + uid }
 
-// setAbyssEchoSeed stores the head-start cache the next descent begins with.
-func (b *Bot) setAbyssEchoSeed(uid string, amt int64) {
-	if amt <= 0 {
-		return
-	}
-	_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssEchoSeedKey(uid), strconv.FormatInt(amt, 10))
-}
-
 // peekAbyssEchoSeed reads the stored head-start without consuming it (the enter
 // handler clears it only after the run-insert commits).
 func (b *Bot) peekAbyssEchoSeed(uid string) int64 {
@@ -203,10 +211,6 @@ func (b *Bot) peekAbyssEchoSeed(uid string) int64 {
 	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssEchoSeedKey(uid)).Scan(&s)
 	seed, _ := strconv.ParseInt(s, 10, 64)
 	return seed
-}
-
-func (b *Bot) clearAbyssEchoSeed(uid string) {
-	_, _ = b.DB.Exec("DELETE FROM app_meta WHERE key=$1", abyssEchoSeedKey(uid))
 }
 
 // ---- AB-27 event memory ---------------------------------------------------------
@@ -261,8 +265,9 @@ func (b *Bot) abyssAddWellLifetime(uid string, n int64) int64 {
 // ---- AB-50 hall of mirrors memory --------------------------------------------------
 
 type abyssMirrorMemory struct {
-	Pick   string `json:"pick"`
-	Streak int    `json:"streak"`
+	Pick    string `json:"pick"`
+	Streak  int    `json:"streak"`
+	LastRun string `json:"last_run,omitempty"`
 }
 
 func abyssMirrorKey(uid string) string { return "abyss_mirror_memory_" + uid }
@@ -322,6 +327,8 @@ func (b *Bot) enrichEventState(uid, eventState string) string {
 	if typ == "" {
 		return eventState
 	}
+	b.enrichAbyssTraversalEvent(uid, m)
+	b.enrichAbyssContractEvent(uid, m)
 	visits := b.loadEventVisits(uid)
 	visits[typ]++
 	b.saveEventVisits(uid, visits)
@@ -331,6 +338,22 @@ func (b *Bot) enrichEventState(uid, eventState string) string {
 			mult = 1.5
 		}
 		m["mem_mult"] = mult
+		// A familiar merchant recognizes a repeat customer. Persist the discounted
+		// prices in the authoritative event payload so the posted UI and debit
+		// always agree.
+		if typ == "merchant" {
+			if items, ok := m["items"].([]any); ok {
+				for _, rawItem := range items {
+					item, ok := rawItem.(map[string]any)
+					if !ok {
+						continue
+					}
+					if price, ok := item["price"].(float64); ok {
+						item["price"] = int64(price / mult)
+					}
+				}
+			}
+		}
 	}
 	if typ == "wishing_well" {
 		m["lifetime"] = b.abyssWellLifetime(uid)
@@ -358,11 +381,12 @@ func (s *WebServer) autoConcedeIfTimedOut(w http.ResponseWriter, uid string, run
 	if run.Insured < 10 {
 		run.Insured = 10 // the pity cache
 	}
-	payout, err := s.bot.forfeitAbyss(uid, run)
+	payout, err := s.bot.forfeitAbyss(uid, run, "timeout")
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return true
 	}
+	s.abyssOps.funnel.observeConcede(uid)
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	writeJSON(w, map[string]any{
@@ -377,19 +401,6 @@ func (s *WebServer) autoConcedeIfTimedOut(w http.ResponseWriter, uid string, run
 
 func abyssRaffleDay(t time.Time) string { return t.UTC().Format("2006-01-02") }
 
-// abyssRaffleEnter records today's bank: 1% of the payout feeds the daily pot
-// and the delver joins today's draw.
-func (b *Bot) abyssRaffleEnter(uid string, fee int64) {
-	day := abyssRaffleDay(time.Now())
-	if fee > 0 {
-		_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-			ON CONFLICT (key) DO UPDATE SET value = (COALESCE(NULLIF(app_meta.value, '')::bigint, 0) + $3)::text`,
-			"abyss_raffle_pot_"+day, strconv.FormatInt(fee, 10), fee)
-	}
-	_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, '1')
-		ON CONFLICT (key) DO NOTHING`, "abyss_raffle_entry_"+day+"_"+uid)
-}
-
 // abyssRafflePot returns today's accumulated pot (for display).
 func (b *Bot) abyssRafflePot() int64 {
 	var s string
@@ -403,7 +414,12 @@ func (b *Bot) abyssRafflePot() int64 {
 // banks on never disturbs older pots. Returns the winnings when the caller won.
 func (b *Bot) abyssRaffleSettle(uid string) int64 {
 	yesterday := abyssRaffleDay(time.Now().Add(-24 * time.Hour))
-	res, err := b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, '1')
+	tx, err := b.DB.Begin()
+	if err != nil {
+		return 0
+	}
+	defer func() { _ = tx.Rollback() }()
+	res, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, '1')
 		ON CONFLICT (key) DO NOTHING`, "abyss_raffle_settled_"+yesterday)
 	if err != nil {
 		return 0
@@ -412,13 +428,20 @@ func (b *Bot) abyssRaffleSettle(uid string) int64 {
 		return 0 // already drawn
 	}
 	var s string
-	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_raffle_pot_"+yesterday).Scan(&s)
+	if err := tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_raffle_pot_"+yesterday).Scan(&s); err != nil {
+		if err != sql.ErrNoRows {
+			return 0
+		}
+	}
 	pot, _ := strconv.ParseInt(s, 10, 64)
 	if pot <= 0 {
+		if err := tx.Commit(); err != nil {
+			return 0
+		}
 		return 0
 	}
 	prefix := "abyss_raffle_entry_" + yesterday + "_"
-	rows, err := b.DB.Query("SELECT key FROM app_meta WHERE key LIKE $1", prefix+"%")
+	rows, err := tx.Query("SELECT key FROM app_meta WHERE key LIKE $1 ORDER BY key", prefix+"%")
 	if err != nil {
 		return 0
 	}
@@ -434,7 +457,12 @@ func (b *Bot) abyssRaffleSettle(uid string) int64 {
 		return 0
 	}
 	winner := entrants[rand.IntN(len(entrants))] // #nosec G404 -- non-cryptographic raffle draw
-	_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", pot, winner)
+	if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", pot, winner); err != nil {
+		return 0
+	}
+	if err := tx.Commit(); err != nil {
+		return 0
+	}
 	if winner == uid {
 		return pot
 	}
@@ -494,6 +522,9 @@ func (s *WebServer) handleAbyssDeathWish(w http.ResponseWriter, r *http.Request,
 	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
+	if s.rejectDuringLiveCombat(w, uid) {
+		return
+	}
 
 	var req struct {
 		On bool `json:"on"`
@@ -536,13 +567,17 @@ func (s *WebServer) handleAbyssAnchorRune(w http.ResponseWriter, r *http.Request
 	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
+	if s.rejectDuringLiveCombat(w, uid) {
+		return
+	}
 
 	run := s.bot.loadAbyssRun(uid)
 	if !run.Active || run.Downed {
 		writeJSON(w, map[string]any{"ok": false, "error": "no live run"})
 		return
 	}
-	if s.bot.loadRunFlags(uid)["anchor_rune"] == 1 {
+	flags := s.bot.loadRunFlags(uid)
+	if flags[abyssRunFlagAnchorRune] == 1 {
 		writeJSON(w, map[string]any{"ok": false, "error": "the anchor rune is already set"})
 		return
 	}
@@ -555,11 +590,12 @@ func (s *WebServer) handleAbyssAnchorRune(w http.ResponseWriter, r *http.Request
 	if !deductTokens(w, tx, uid, abyssAnchorRuneCost) {
 		return
 	}
-	if err := tx.Commit(); err != nil {
+	flags[abyssRunFlagAnchorRune] = 1
+	if err := saveRunFlags(tx, uid, flags); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if err := s.bot.setRunFlag(uid, "anchor_rune", 1); err != nil {
+	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

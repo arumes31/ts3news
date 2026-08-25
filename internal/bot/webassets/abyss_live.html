@@ -36,20 +36,36 @@
     <label>Skill target <select id="liveSkillPriority" onchange="setLivePolicy()"><option value="lowest_hp">Lowest HP</option><option value="highest_hp">Highest HP</option><option value="weakness">Elemental weakness</option></select></label>
     <label>On timeout <select id="liveTimeoutAction" onchange="setLivePolicy()"><option value="best">Best safe action</option><option value="attack">Basic attack</option><option value="defend">Defend</option></select></label>
   </div>
-  <div class="ab-live-social">
-    <label>Role <select id="livePreferredRole" onchange="saveLiveSocialPreferences()"><option value="flex">Flex</option><option value="tank">Tank</option><option value="damage">Damage</option><option value="support">Support</option></select></label>
-    <label>Party tactic vote <select id="liveTacticVote" onchange="liveSocial('tactic_vote',this.value)"><option value="balanced">Balanced</option><option value="defensive">Defensive</option><option value="conserve_items">Conserve items</option><option value="aggressive">Aggressive</option></select></label>
-    <label><input type="checkbox" id="liveAllowRisky" onchange="saveLiveSocialPreferences()"> allow risky proposals</label>
-    <button type="button" onclick="liveSocial('target_ping','',liveSelectedTarget)">🎯 Ping target</button>
-    <button type="button" onclick="liveSocial('danger_ping')">⚠️ Danger</button>
-    <button type="button" onclick="liveSocial('emote','nice')">👏 Nice</button>
-    <button type="button" onclick="liveSocial('revive_vote','', '', true)">❤️ Revive yes</button>
-    <button type="button" onclick="liveSocial('revive_vote','', '', false)">✖ Revive no</button>
+  <details class="ab-live-social-shell" id="liveSocialShell">
+    <summary>🤝 Party coordination <span id="liveSocialSummary">preferences · signals · votes</span></summary>
+    <div class="ab-live-social">
+      <label>Role <select id="livePreferredRole" onchange="saveLiveSocialPreferences()"><option value="flex">Flex</option><option value="tank">Tank</option><option value="damage">Damage</option><option value="support">Support</option></select></label>
+      <label>Pace <select id="livePreferredPace" onchange="saveLiveSocialPreferences()"><option value="fast">Fast</option><option value="standard">Standard</option><option value="deliberate">Deliberate</option></select></label>
+      <label>Difficulty <select id="livePreferredDifficulty" onchange="saveLiveSocialPreferences()"><option value="any">Any</option><option value="normal">Normal</option><option value="nightmare">Nightmare</option><option value="hell">Hell</option><option value="insanity">Insanity</option></select></label>
+      <label>Party tactic vote <select id="liveTacticVote" onchange="liveSocial('tactic_vote',this.value)"><option value="balanced">Balanced</option><option value="defensive">Defensive</option><option value="conserve_items">Conserve items</option><option value="aggressive">Aggressive</option></select></label>
+      <label><input type="checkbox" id="liveAllowRisky" onchange="saveLiveSocialPreferences()"> allow risky proposals</label>
+      <button type="button" onclick="liveSocial('target_ping','',liveSelectedTarget)">🎯 Ping target</button>
+      <button type="button" onclick="liveSocial('danger_ping')">⚠️ Danger</button>
+      <label>Emote <select id="liveEmote"><option value="cheer">✨ Ready</option><option value="thanks">🙏 Thanks</option><option value="help">🆘 Help</option><option value="nice">👏 Nice</option></select></label>
+      <button type="button" onclick="liveSocial('emote',document.getElementById('liveEmote').value)">Send</button>
+      <button type="button" onclick="liveSocial('revive_vote','', '', true)">❤️ Revive yes</button>
+      <button type="button" onclick="liveSocial('revive_vote','', '', false)">✖ Revive no</button>
     <button type="button" onclick="liveSocial('abandon_vote')">⏩ Vote auto-resolve</button>
-  </div>
-  <div class="ab-live-social-status" id="liveSocialStatus"></div>
+    <button type="button" onclick="copyAbyssSpectatorLink()">📡 Copy spectator link</button>
+      <button type="button" id="liveReplayExport" onclick="exportLiveReplay()" disabled>📼 Copy replay</button>
+      <button type="button" onclick="armLiveGhost()">👻 Arm ghost</button>
+    </div>
+    <div class="ab-live-social-status" id="liveSocialStatus"></div>
+  </details>
   <div class="ab-round-recap" id="liveRecap"></div>
+  <aside class="ab-encounter-warning" id="liveEncounterWarning" hidden>
+    <strong>ENCOUNTER PROTOCOL</strong><span id="liveEncounterWarningText"></span>
+  </aside>
+  <aside class="ab-hazard-telegraph" id="liveHazardTelegraph" hidden>
+    <strong>NEXT ROUND</strong><span id="liveHazardTelegraphText"></span>
+  </aside>
   <div class="ab-pixel-stage" id="livePixelStage" aria-label="Animated combat battlefield">
+    <div class="ab-ultimate-charge" id="liveUltimateCharge" role="status" aria-label="Ultimate readiness"><b>ULT</b><span>—</span></div>
     <div class="ab-pixel-backdrop" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="ab-pixel-party" id="livePixelAllies" aria-label="Allied combatants"></div>
     <div class="ab-pixel-party hostile" id="livePixelEnemies" aria-label="Enemy combatants"></div>
@@ -70,6 +86,7 @@
 	  <button class="ab-live-tool" id="liveTargetLock" type="button" onclick="toggleLiveTargetLock()" aria-pressed="false">TARGET LOCK</button>
 	  <button class="ab-live-tool" type="button" onclick="toggleLiveCompact()">COMPACT</button>
 	  <button class="ab-live-tool" type="button" onclick="configureLiveShortcuts()">KEYS</button>
+	  {{template "abyssCombatFeedbackControls" .}}
     </div>
 	<div class="ab-auto-preview" id="liveAutoPreview"></div>
     <div class="ab-loadouts" id="liveLoadouts" aria-label="Action bar loadouts"></div>
@@ -77,15 +94,22 @@
   </div>
 	<div class="ab-round-timeline" id="liveRoundTimeline" aria-label="Combat round timeline"></div>
 	<div class="ab-live-logtools"><label>Log <select id="liveLogFilter" onchange="setLiveLogFilter(this.value)"><option value="all">All</option><option value="damage">Damage</option><option value="healing">Healing</option><option value="system">System</option></select></label><button type="button" onclick="toggleLiveLog()">EXPAND LOG</button></div>
-	<div class="ab-live-feed" id="liveFeed" aria-live="polite"></div>
+	<div class="ab-live-feed" id="liveFeed" aria-live="off"></div>
 </section>{{end}}
 
 {{define "abyssLiveActionBarJS"}}// ---- Live action bar -------------------------------------------------------
+
+function liveEventCursor(state){
+  if(!state)return -1;
+  var version=Number(state&&state.version);
+  return Number.isFinite(version)&&version>=0?version:-1;
+}
 
 function startLiveCombat(payload, hp, max){
   liveStartHP=hp||Number(document.getElementById('hpBar').getAttribute('aria-valuenow'))||0;
   liveStartMaxHP=max||Number(document.getElementById('hpBar').getAttribute('aria-valuemax'))||1;
   liveFinishHandled=false;
+	liveLastEventID=liveEventCursor(payload&&payload.state);
 	liveSelectedTarget=''; livePendingOption=null; liveTargetLocked=false; liveRoundHistory=[];
 	if(payload&&payload.state)resetLivePixelState(payload.state.session_id||'');
 	var targetLock=document.getElementById('liveTargetLock');targetLock.setAttribute('aria-pressed','false');targetLock.textContent='TARGET LOCK';
@@ -181,8 +205,9 @@ function renderLiveTargets(hostID, combatants, hostile){
   var host=document.getElementById(hostID); host.innerHTML='';
   (combatants||[]).forEach(function(unit){
     var button=document.createElement('button');
-    button.type='button'; button.className='ab-combatant'+(hostile?' hostile':'')+(liveSelectedTarget===unit.id?' selected':'');
-    button.disabled=unit.hp<=0;
+    var hpHidden=hostile&&!!unit.hp_hidden;
+    button.type='button'; button.className='ab-combatant'+(hostile?' hostile':'')+(!hostile&&!unit.is_player?' ally-converted':'')+(hostile&&String(unit.role||'').toLowerCase()==='boss'?' boss-tier':'')+(hpHidden?' hp-concealed':'')+(liveSelectedTarget===unit.id?' selected':'');
+	button.disabled=unit.hp===0||(!hostile&&!unit.is_player);
     button.setAttribute('data-target',unit.id);
     button.setAttribute('aria-pressed',liveSelectedTarget===unit.id?'true':'false');
     var traits=[];
@@ -191,6 +216,7 @@ function renderLiveTargets(hostID, combatants, hostile){
     if(unit.role)traits.push(String(unit.role).toUpperCase());
     if(unit.faction)traits.push(unit.faction);
     if(unit.hazard)traits.push('DESTRUCTIBLE HAZARD');
+    if(unit.revenge)traits.push('◎ REVENGE TARGET');
     if(unit.position)traits.push(unit.position);
     if(unit.speed)traits.push('SPD '+fmtNum(unit.speed));
     if(unit.threat)traits.push('THREAT '+fmtNum(unit.threat));
@@ -199,9 +225,12 @@ function renderLiveTargets(hostID, combatants, hostile){
       return '<span class="ab-effect">'+consEsc(effect.name)+(duration?' · '+consEsc(duration):'')+'</span>';
     }).join('');
     var breakBar=unit.max_break?'<span class="ab-break" title="'+consEsc(unit.pattern||'Break this enemy to cancel its next action')+'"><b style="width:'+livePct(unit.break,unit.max_break)+'%"></b><i>BREAK '+fmtNum(unit.break)+' / '+fmtNum(unit.max_break)+'</i></span>':'';
-    button.innerHTML='<span class="ab-combatant-name">'+consEsc(unit.name)+(unit.ready?' <i>READY</i>':'')+'</span>'+
-      '<span class="ab-combatant-hp"><b style="width:'+livePct(unit.hp,unit.max_hp)+'%"></b></span>'+
-      '<span class="ab-combatant-stat">'+fmtNum(unit.hp)+' / '+fmtNum(unit.max_hp)+(unit.max_mana?' · 🔵 '+fmtNum(unit.mana):'')+'</span>'+
+    var dotActive=(unit.effects||[]).some(function(effect){return /poison|bleed|burn|damage over time/i.test(effect.name||'');});
+    var hpBar=hpHidden?'<span class="ab-combatant-hp concealed"><b></b></span>':'<span class="ab-combatant-hp'+(dotActive?' dot-active':'')+'"><b style="width:'+livePct(unit.hp,unit.max_hp)+'%"></b></span>';
+    var hpText=hpHidden?'HP CONCEALED':fmtNum(unit.hp)+' / '+fmtNum(unit.max_hp);
+    button.innerHTML='<span class="ab-combatant-name">'+(unit.revenge?'◎ ':'')+consEsc(unit.name)+(unit.ready?' <i>READY</i>':'')+'</span>'+
+      hpBar+
+      '<span class="ab-combatant-stat">'+hpText+(unit.max_mana?' · 🔵 '+fmtNum(unit.mana):'')+'</span>'+
       (traits.length?'<span class="ab-combatant-traits">'+traits.map(consEsc).join(' · ')+'</span>':'')+
       (unit.pattern?'<span class="ab-enemy-pattern">'+consEsc(unit.pattern)+'</span>':'')+
       breakBar+
@@ -254,6 +283,7 @@ function renderLiveActionBar(state){
       '<span class="ab-action-name">'+consEsc(option.name)+'</span>'+
       '<span class="ab-action-estimate">'+liveEffectEstimate(option)+'</span>'+
 	  '<span class="ab-action-cost">'+(option.mana?'🔵 '+option.mana+' → '+Math.max(0,(own.mana||0)-option.mana):option.cooldown?'⏳ '+option.cooldown:(option.kind==='item'||option.kind==='relic')?'×'+option.count:'')+'</span>';
+    if(option.kind==='skill'&&option.cooldown){var pips=document.createElement('span');pips.className='ab-cooldown-pips';pips.title=option.cooldown+' rounds until ready';for(var pip=Math.min(8,option.cooldown);pip>0;pip--)pips.appendChild(document.createElement('i'));button.appendChild(pips);}
     button.onclick=function(){armLiveOption(option);};
 	button.querySelector('.ab-action-pin').onclick=function(event){event.preventDefault();event.stopPropagation();toggleLivePin(actionKey);};
 	button.ondragstart=function(event){event.dataTransfer.setData('text/plain',actionKey);};
@@ -360,24 +390,48 @@ async function liveSocial(action,value,targetID,vote){
   if(response.ok)renderLiveCombat(response,true);else abToast(response.error||'Party action failed',false);
 }
 async function saveLiveSocialPreferences(){
-  var pref={role:document.getElementById('livePreferredRole').value,pace:'standard',difficulty:'any',allow_risky:document.getElementById('liveAllowRisky').checked};
+  var pref={role:document.getElementById('livePreferredRole').value,pace:document.getElementById('livePreferredPace').value,difficulty:document.getElementById('livePreferredDifficulty').value,allow_risky:document.getElementById('liveAllowRisky').checked};
   var response=await abPost('/api/abyss/combat/social',{action:'preferences',preferences:pref});
-  if(response.ok)renderLiveCombat(response,true);else abToast(response.error||'Could not save role',false);
+  if(response.ok)renderLiveCombat(response,true);else abToast(response.error||'Could not save party preferences',false);
 }
 function renderLiveSocial(state){
   var social=state.social||{};
   document.getElementById('livePreferredRole').value=social.preferred_role||'flex';
+  document.getElementById('livePreferredPace').value=social.preferred_pace||'standard';
+  document.getElementById('livePreferredDifficulty').value=social.preferred_difficulty||'any';
+  document.getElementById('liveAllowRisky').checked=!!social.allow_risky;
+  document.getElementById('liveTacticVote').value=social.tactic_vote||'balanced';
+  var members=social.members||[],online=members.filter(function(member){return member.connected;}).length;
+  var shell=document.getElementById('liveSocialShell');
+  if(!shell.dataset.initialized){shell.open=members.length>1;shell.dataset.initialized='1';}
+  document.getElementById('liveSocialSummary').textContent=online+'/'+members.length+' online'+(social.party_tactic?' · '+social.party_tactic.replace('_',' '):'');
+  document.getElementById('liveReplayExport').disabled=state.phase!=='complete'&&state.phase!=='failed';
   var lines=[];
   if(social.spectating)lines.push('👁️ You are defeated and spectating; your reserved party position remains visible.');
   if(social.party_tactic)lines.push('🗳 Party default: '+social.party_tactic.replace('_',' ')+'.');
+  var votes=Object.keys(social.tactic_votes||{}).filter(function(key){return social.tactic_votes[key];}).map(function(key){return key.replace('_',' ')+' '+social.tactic_votes[key];});
+  if(votes.length)lines.push('🗳 Votes: '+votes.join(', ')+'.');
   if(social.loot_rule)lines.push('🎁 Settlement: '+social.loot_rule.replace(/_/g,' ')+'.');
   (social.combo_opportunities||[]).forEach(function(line){lines.push('🔗 '+line);});
-  (social.members||[]).forEach(function(member){if(!member.connected)lines.push('🔌 '+member.name+' disconnected · position reserved.');});
+  members.forEach(function(member){if(!member.connected){var until=member.reserved_until?' until '+new Date(member.reserved_until).toLocaleTimeString():'';lines.push('🔌 '+member.name+' disconnected · position reserved'+until+'.');}});
   (social.signals||[]).slice(-3).forEach(function(signal){lines.push((signal.kind==='danger'?'⚠️ ':'💬 ')+signal.name+': '+signal.message);});
   if(social.revive_needed)lines.push('❤️ Revive vote '+(social.revive_yes||0)+' / '+social.revive_needed+'.');
+  if(social.abandon_needed)lines.push('⏩ Auto-resolve vote '+(social.abandon_yes||0)+' / '+social.abandon_needed+'.');
   if(social.auto_resolve)lines.push('⏩ Majority chose automatic resolution.');
   if((social.contributions||[]).length)lines.push('📊 '+social.contributions.map(function(c){return c.name+': '+c.actions+' actions, '+c.manual+' manual, '+c.ready_rounds+' ready';}).join(' · '));
   document.getElementById('liveSocialStatus').textContent=lines.join(' ');
+}
+async function exportLiveReplay(){
+  if(!liveCombatState||!liveCombatState.session_id)return;
+  var response=await abPost('/api/abyss/replay/code',{session_id:liveCombatState.session_id});
+  if(!response.ok){abToast(response.error||'Replay is not ready.',false);return;}
+  try{await navigator.clipboard.writeText(response.code);abToast('📼 Anonymous replay code copied.',true);}catch(ignore){window.prompt('Copy replay code:',response.code);}
+}
+async function armLiveGhost(){
+  var code=window.prompt('Paste an anonymous Abyss replay code:');
+  if(!code)return;
+  var response=await abPost('/api/abyss/replay/code',{code:code.trim(),ghost:true});
+  abToast(response.msg||response.error,!!response.ok);
 }
 
 async function setLiveReady(){
@@ -429,10 +483,25 @@ function renderLiveRoundTimeline(state){
 	var host=document.getElementById('liveRoundTimeline');host.innerHTML='';liveRoundHistory.forEach(function(entry){var step=document.createElement('span');step.title=entry.recap;step.textContent='R'+entry.round+' · '+entry.phase;host.appendChild(step);});
 }
 
+function renderLiveUltimateCharge(state){
+	var ring=document.getElementById('liveUltimateCharge');if(!ring)return;
+	var ultimates=(state.options||[]).filter(function(option){return option.kind==='ultimate';});
+	var cooldown=ultimates.length?Math.min.apply(null,ultimates.map(function(option){return Math.max(0,Number(option.cooldown)||0);})):0;
+	var ready=ultimates.length&&cooldown===0,maximum=Math.max(1,ultimates.reduce(function(maximum,option){return Math.max(maximum,Number(option.cooldown_max)||Number(option.cooldown)||0);},cooldown));
+	ring.classList.toggle('ready',ready);ring.style.setProperty('--ult-progress',Math.round((1-cooldown/maximum)*360)+'deg');
+	ring.querySelector('span').textContent=ultimates.length?(ready?'READY':cooldown+'R'):'—';
+	ring.title=ultimates.length?(ready?'Ultimate ready':'Estimated '+cooldown+' round'+(cooldown===1?'':'s')+' until an ultimate is ready'):'No ultimate equipped';
+}
+
+function renderLiveEnrageWarning(state){
+	var imminent=(state.recent_logs||[]).some(function(line){return /ENRAGE in 2 rounds/i.test(line);});
+	document.getElementById('liveCombat').classList.toggle('enrage-imminent',imminent);
+}
+
 function renderLiveCombat(state,preserveFeed){
   if(!state||!state.ok)return;
   liveCombatState=state;
-	var targetStillExists=(state.allies||[]).concat(state.enemies||[]).some(function(unit){return unit.id===liveSelectedTarget&&unit.hp>0;});
+	var targetStillExists=(state.allies||[]).concat(state.enemies||[]).some(function(unit){return unit.id===liveSelectedTarget&&unit.hp!==0;});
 	if(!targetStillExists){liveSelectedTarget='';liveTargetLocked=false;}
 	var targetLock=document.getElementById('liveTargetLock');targetLock.setAttribute('aria-pressed',liveTargetLocked?'true':'false');targetLock.textContent=liveTargetLocked?'TARGET LOCKED':'TARGET LOCK';
   liveLastEventID=Math.max(liveLastEventID,Number(state.version)||-1);
@@ -450,9 +519,17 @@ function renderLiveCombat(state,preserveFeed){
   document.getElementById('liveTimeoutAction').value=policy.timeout_action||'best';
   renderLiveSocial(state);
   document.getElementById('liveRecap').textContent=state.round_recap||'';
+	var encounterWarning=document.getElementById('liveEncounterWarning');
+	encounterWarning.hidden=!state.encounter_warning;
+	document.getElementById('liveEncounterWarningText').textContent=state.encounter_warning||'';
+	var hazardTelegraph=document.getElementById('liveHazardTelegraph');
+	hazardTelegraph.hidden=!state.hazard_telegraph;
+	document.getElementById('liveHazardTelegraphText').textContent=state.hazard_telegraph||'';
 	var autoPreview=document.getElementById('liveAutoPreview');
 	autoPreview.textContent=state.recommended?'TIMEOUT → '+String(state.recommended.action.kind||'DEFEND').toUpperCase()+' · '+state.recommended.reason:'TIMEOUT → server-selected safe action';
 	renderLiveRoundTimeline(state);
+  renderLiveUltimateCharge(state);
+  renderLiveEnrageWarning(state);
   renderLiveForecast(state);
   renderLiveTargets('liveAllies',state.allies,false);
   renderLiveTargets('liveEnemies',state.enemies,true);

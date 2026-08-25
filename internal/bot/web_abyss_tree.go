@@ -33,11 +33,11 @@ const abyssTreeRespecTokens = 50
 const (
 	treeNodeArcaneWarrior          = 617 // synergy: +2 STR per allocated Arcane-sector node
 	treeNodeBeastmastersCommand    = 478 // synergy: +8 HP per allocated Void-sector node
-	treeNodeVictorsTrophy          = 697 // achievement gate: requires best depth 25 to allocate
+	treeNodeVictorsTrophy          = 697 // achievement gate: requires the depth_25 achievement
 	treeNodeSpecialistsHarmony     = 771 // passive bonus keyed off the active specialization
 	treeNodeAbyssalAttunement      = 818 // +0.5% STR/HP per best-depth floor
 	treeNodePrestigeFocus          = 834 // multiplies War-sector nodes by +10% per prestige
-	treeNodeSetResonance           = 883 // +5% base attributes per equipped set tier
+	treeNodeSetResonance           = 883 // +5% base attributes per fully equipped set
 	treeNodeElementalTransmutation = 932 // converts 50% of STR% into INT%
 )
 
@@ -381,8 +381,8 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 		}
 	}
 
-	// 7. Set Resonance (Set Resonance node): +5% str/hp/int/spd per full set tier
-	// (every 2 equipped pieces sharing a set). Counts equipped gear by EffectiveSetID,
+	// 7. Set Resonance (Set Resonance node): +5% str/hp/int/spd per full set.
+	// Counts equipped gear by EffectiveSetID,
 	// mirroring activeLootMult's set counting — the old query hit a non-existent
 	// `user_gears` table (with no such columns) and silently granted nothing.
 	if allocatedMap[treeNodeSetResonance] {
@@ -392,14 +392,9 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 				setCount[sid]++
 			}
 		}
-		var setBonusTiers int
-		for _, cnt := range setCount {
-			if cnt >= 2 {
-				setBonusTiers += cnt / 2
-			}
-		}
-		if setBonusTiers > 0 {
-			mult := 0.05 * float64(setBonusTiers)
+		fullSets := abyssFullSetCount(setCount)
+		if fullSets > 0 {
+			mult := 0.05 * float64(fullSets)
 			tb.Pct["str_pct"] += mult
 			tb.Pct["hp_pct"] += mult
 			tb.Pct["int_pct"] += mult
@@ -424,6 +419,9 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 	for k, v := range talentBonus.Pct {
 		tb.Pct[k] += v
 	}
+	// Post-prestige Paragon ranks and family-specific Bestiary talents share the
+	// cached tree-bonus payload used by the live Abyss combat engine.
+	b.applyAbyssMasteryBonuses(uid, &tb)
 
 	// Apply Prestige Reset Bonus Multipliers (Item 61): +1% flat tree stats per Abyss
 	// prestige. Keyed off abyss_prestige (like treePointsTotal and applyAbyssRegen),
@@ -539,19 +537,19 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 	st := s.bot.loadAbyssStats(uid) // one ~19-column read, reused for BestDepth + Stats below
 	catalog := tree.CatalogSummary()
 	s.render(w, "abysstree", map[string]any{
-		"Title":     "Abyss Skill Web",
-		"Nav":       "abyss",
-		"U":         u,
-		"Nodes":       tree.Nodes,
-		"Edges":       edges,
-		"Catalog":      catalog,
-		"TreeEffects":  content.TreeEffects(),
-		"SkillDetails": s.bot.abyssTreeSkillDetails(uid),
-		"Progression":  progression,
+		"Title":               "Abyss Skill Web",
+		"Nav":                 "abyss",
+		"U":                   u,
+		"Nodes":               tree.Nodes,
+		"Edges":               edges,
+		"Catalog":             catalog,
+		"TreeEffects":         content.TreeEffects(),
+		"SkillDetails":        s.bot.abyssTreeSkillDetails(uid),
+		"Progression":         progression,
 		"TreeFeaturesEnabled": s.abyssFeatures.enabled("tree", uid),
 		// Only the handful of real cross-sector portals render with the distinct
 		// animated style; every other long edge stays a plain skill path.
-		"Portals": tree.Portals,
+		"Portals":   tree.Portals,
 		"Allocated": alloc,
 		"Points":    total,
 		"Used":      used,
@@ -567,9 +565,9 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		"BestDepth": st.BestDepth,
 		"RespecTk":  abyssTreeRespecTokens,
 		// Talent/Spec updates
-		"Stats":     st,
-		"Spec":      s.bot.abyssSpec(uid),
-		"SpecDefs":  abyssSpecs,
+		"Stats":    st,
+		"Spec":     s.bot.abyssSpec(uid),
+		"SpecDefs": abyssSpecs,
 		// Deep-Delver extension: 50 generic talent nodes + their allocated levels,
 		// concatenated into the client TALENTS array (single source of truth in Go).
 		"DelverTalentDefs":   content.DeepDelverTalents,
@@ -578,27 +576,29 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		// drawn in the Specializations tab. Levels reuse DelverTalentLevels above
 		// (loadAbyssTalentLevels returns every generic key, spec nodes included).
 		"SpecTalentDefs": content.SpecTalents,
-		"Tokens":    s.bot.abyssTokens(uid),
-		"NodeGates": abyssUpgradeMinDepth,
+		"Tokens":         s.bot.abyssTokens(uid),
+		"NodeGates":      abyssUpgradeMinDepth,
 		// Layout-derived special node IDs, injected so the client special-cases the
 		// right nodes instead of the old 1000-node literals (974/999) that drift when
 		// the ring count changes.
-		"LimitBreakID": content.NodeLimitBreak,
-		"SanctuaryID":  content.NodeSecretSanctuary,
-		"Sockets":   socketsJson,
-		"ActiveKeystoneExpiry": activeUntil,
+		"LimitBreakID":           content.NodeLimitBreak,
+		"SanctuaryID":            content.NodeSecretSanctuary,
+		"Sockets":                socketsJson,
+		"ActiveKeystoneExpiry":   activeUntil,
 		"ActiveKeystoneCooldown": cooldownUntil,
 		// Group G (AB-151..175) page data.
-		"Jewels":           jewels,
-		"Loadouts":         loadoutCounts,
-		"LoadoutNames":     loadoutNames,
-		"SeasonalTree":     abyssSeasonalTree(now),
-		"NodeOfDay":        abyssNodeOfTheDay(now),
-		"FreeRespec":       s.bot.abyssFreeRespecAvailable(uid),
-		"MasteryShards":    s.bot.abyssMasteryShards(uid),
-		"PrestigeMemory":   s.bot.abyssPrestigeMemoryNode(uid),
+		"Jewels":               jewels,
+		"Loadouts":             loadoutCounts,
+		"LoadoutNames":         loadoutNames,
+		"SeasonalTree":         abyssSeasonalTree(now),
+		"NodeOfDay":            abyssNodeOfTheDay(now),
+		"FreeRespec":           s.bot.abyssFreeRespecAvailable(uid),
+		"MasteryShards":        s.bot.abyssMasteryShards(uid),
+		"PrestigeMemory":       s.bot.abyssPrestigeMemoryNode(uid),
 		"KeystoneActiveSecs":   activeSecs,
 		"KeystoneCooldownSecs": cooldownSecs,
+		"Paragon":              s.bot.abyssParagonView(uid),
+		"BestiaryTalents":      s.bot.abyssBestiaryTalentViews(uid),
 	})
 }
 
@@ -706,10 +706,11 @@ func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Reque
 
 	// Achievement Gate Nodes check (Item 60)
 	if req.NodeID == treeNodeVictorsTrophy {
-		var maxFloor int
-		_ = s.bot.DB.QueryRow("SELECT COALESCE(abyss_best_depth, 0) FROM users WHERE client_uid=$1", uid).Scan(&maxFloor)
-		if maxFloor < 25 {
-			writeJSON(w, map[string]any{"ok": false, "error": "Requires clearing Abyss Floor 25 to allocate this node (Victor's Trophy)"})
+		var earned bool
+		_ = s.bot.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM abyss_achievements
+			WHERE client_uid=$1 AND code='depth_25')`, uid).Scan(&earned)
+		if !earned {
+			writeJSON(w, map[string]any{"ok": false, "error": "Requires the Depth 25 achievement to allocate Victor's Trophy"})
 			return
 		}
 	}
@@ -726,11 +727,11 @@ func (s *WebServer) handleAbyssTreeAllocate(w http.ResponseWriter, r *http.Reque
 	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{
 		"ok": true, "node_id": req.NodeID, "used": spent + cost,
-		"points": total,
-		"node_cost": cost,
+		"points":          total,
+		"node_cost":       cost,
 		"undo_expires_at": undoExpires.Format(time.RFC3339),
-		"msg":    "🌳 Allocated: " + node.Name,
-		"stats":  tb.Stats, "pct": tb.Pct,
+		"msg":             "🌳 Allocated: " + node.Name,
+		"stats":           tb.Stats, "pct": tb.Pct,
 	})
 }
 
@@ -889,12 +890,12 @@ func (s *WebServer) handleAbyssTreeRefund(w http.ResponseWriter, r *http.Request
 	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{
 		"ok": true, "node_id": req.NodeID, "used": s.bot.treeSpentEx(uid, remainingAlloc),
-		"points":   s.bot.treePointsTotal(uid),
-		"refunded": refundIDs,
+		"points":         s.bot.treePointsTotal(uid),
+		"refunded":       refundIDs,
 		"affected_count": len(refundIDs), "node_costs": refundNodeCosts,
 		"refund_points": refundCost, "refund_gold": goldCost,
-		"msg":      msg,
-		"stats":    tb.Stats, "pct": tb.Pct,
+		"msg":   msg,
+		"stats": tb.Stats, "pct": tb.Pct,
 		"gold": gold,
 	})
 }
@@ -1047,13 +1048,13 @@ func (s *WebServer) handleAbyssTreeSocket(w http.ResponseWriter, r *http.Request
 
 	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{
-		"ok": true,
-		"msg": fmt.Sprintf("💎 Jewel Socket updated: %s", req.Jewel),
-		"gold": gold,
-		"stats": tb.Stats,
-		"pct": tb.Pct,
+		"ok":      true,
+		"msg":     fmt.Sprintf("💎 Jewel Socket updated: %s", req.Jewel),
+		"gold":    gold,
+		"stats":   tb.Stats,
+		"pct":     tb.Pct,
 		"sockets": socketMap,
-		"jewels": loose,
+		"jewels":  loose,
 	})
 }
 
@@ -1138,11 +1139,11 @@ func (s *WebServer) handleAbyssTreeActivateKeystone(w http.ResponseWriter, r *ht
 
 	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{
-		"ok": true,
-		"msg": "⏳ Chronobreak activated! +50% XP Gain for the next 1 hour.",
-		"stats": tb.Stats,
-		"pct": tb.Pct,
-		"active_until": expiry,
+		"ok":             true,
+		"msg":            "⏳ Chronobreak activated! +50% XP Gain for the next 1 hour.",
+		"stats":          tb.Stats,
+		"pct":            tb.Pct,
+		"active_until":   expiry,
 		"cooldown_until": cooldown,
 	})
 }
@@ -1282,11 +1283,11 @@ func (s *WebServer) handleAbyssTreeRollTimeless(w http.ResponseWriter, r *http.R
 
 	tb := s.bot.treeBonusFor(uid)
 	writeJSON(w, map[string]any{
-		"ok": true,
-		"msg": msg,
-		"gold": gold,
-		"stats": tb.Stats,
-		"pct": tb.Pct,
+		"ok":      true,
+		"msg":     msg,
+		"gold":    gold,
+		"stats":   tb.Stats,
+		"pct":     tb.Pct,
 		"sockets": socketMap,
 	})
 }

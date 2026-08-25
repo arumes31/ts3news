@@ -1,0 +1,79 @@
+{{define "abyssCodexExplorer"}}
+<section class="ab-codex-explorer" id="abyssCodexExplorer" aria-label="Bestiary explorer">
+  <div class="ab-codex-summary" aria-live="polite">
+    <span><b id="codexSpeciesCount">0</b> / 50 species</span>
+    <span><b id="codexKillCount">0</b> total kills</span>
+    <span><b id="codexMasteryCount">0</b> mastered</span>
+    <span class="ab-codex-completion"><i id="codexCompletionFill"></i></span>
+  </div>
+  <div class="ab-codex-controls">
+    <label>Search<input id="codexSearch" type="search" autocomplete="off" placeholder="Name or family"></label>
+    <label>Family<select id="codexFamily"><option value="">All families</option></select></label>
+    <label>Sort<select id="codexSort"><option value="kills">Most kills</option><option value="name">Name</option><option value="recent">Recently fought</option><option value="first">First discovered</option></select></label>
+    <label>Minimum<select id="codexMinKills"><option value="0">Any kills</option><option value="10">10+ kills</option><option value="50">50+ kills</option><option value="100">Mastered (100+)</option></select></label>
+    <label class="ab-codex-check"><input id="codexFavoritesOnly" type="checkbox"> Favorites</label>
+    <button class="ghost xs" id="codexLayout" type="button" aria-pressed="false">▦ Card view</button>
+    <button class="ghost xs" id="codexExport" type="button">⇩ Export JSON</button>
+    <button class="ghost xs" id="codexPrint" type="button">⎙ Print</button>
+  </div>
+  <div class="ab-codex-family-progress" id="codexFamilyProgress" aria-label="Family discovery progress"></div>
+  <p class="muted small" id="codexResultStatus" role="status"></p>
+  <aside class="ab-codex-inspector" id="codexInspector" hidden aria-labelledby="codexInspectorName">
+    <button class="ghost xs ab-codex-close" id="codexInspectorClose" type="button" aria-label="Close monster inspector">×</button>
+    <span class="ab-codex-family" id="codexInspectorFamily"></span>
+    <h3 id="codexInspectorName"></h3>
+    <div class="ab-codex-inspector-stats">
+      <span><b id="codexInspectorKills">0</b> kills</span>
+      <span id="codexInspectorMilestone"></span>
+      <span id="codexInspectorFirst"></span>
+      <span id="codexInspectorLast"></span>
+    </div>
+    <div class="ab-codex-next"><i id="codexInspectorProgress"></i></div>
+    <p class="muted small" id="codexInspectorNext"></p>
+    <div class="ab-codex-inspector-actions">
+      <button class="primary xs" id="codexPractice" type="button">⚔ Practice</button>
+      <button class="ghost xs" id="codexFavorite" type="button" aria-pressed="false">☆ Favorite</button>
+      <button class="ghost xs" id="codexCompareA" type="button">Compare A</button>
+      <button class="ghost xs" id="codexCompareB" type="button">Compare B</button>
+      <button class="ghost xs" id="codexCopy" type="button">Copy summary</button>
+      <button class="ghost xs" id="codexDeepLink" type="button">Copy deep link</button>
+    </div>
+  </aside>
+  <section class="ab-codex-compare" id="codexCompare" hidden aria-label="Monster comparison">
+    <div><small>A</small><b id="codexCompareAName">Choose a monster</b><span id="codexCompareAKills">—</span></div>
+    <strong id="codexCompareDelta">VS</strong>
+    <div><small>B</small><b id="codexCompareBName">Choose a monster</b><span id="codexCompareBKills">—</span></div>
+    <button class="ghost xs" id="codexCompareClear" type="button">Clear</button>
+  </section>
+</section>
+{{end}}
+
+{{define "abyssCodexExplorerJS"}}
+(function(){
+  'use strict';
+  var root=document.getElementById('abyssCodexExplorer'),table=document.querySelector('.ab-bestiary-table'),selected=null,compareA=null,compareB=null,favorites=new Set(),cardView=false;
+  if(!root||!table)return;
+  try{favorites=new Set(JSON.parse(localStorage.getItem('ab_codex_favorites')||'[]'));cardView=localStorage.getItem('ab_codex_layout')==='cards';}catch(_){favorites=new Set();}
+  var familyTargets={Common:12,EliteMinion:8,Elite:8,Miniboss:7,Boss:7,Legendary:4,TreasureGoblin:4,'Legacy encounters':50};
+  function rows(){return Array.prototype.slice.call(table.querySelectorAll('tbody tr[data-name]'));}
+  function data(row){return {name:row.dataset.name||'',family:row.dataset.family||'Unknown',kills:Math.max(0,Number(row.dataset.kills)||0),first:row.dataset.firstKill||'',last:row.dataset.lastKill||'',milestone:row.dataset.milestone||'Discovered',next:Math.max(0,Number(row.dataset.nextMilestone)||0),remaining:Math.max(0,Number(row.dataset.killsToNext)||0),mastered:row.dataset.mastered==='true'};}
+  function saveFavorites(){try{localStorage.setItem('ab_codex_favorites',JSON.stringify(Array.from(favorites).sort()));}catch(_){}}
+  function dateLabel(value){var date=new Date(value);return Number.isNaN(date.getTime())?'unknown':date.toLocaleString();}
+  function summaryText(item){return item.name+' · '+item.family+' · '+item.kills+' kills · '+item.milestone+' · first '+dateLabel(item.first)+' · last '+dateLabel(item.last);}
+  function writeClipboard(value,success){if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(value).then(function(){abToast(success,true);},function(){abToast('Clipboard access was blocked.',false);});else abToast('Clipboard is unavailable in this browser.',false);}
+  function make(tag,className,text){var node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node;}
+  function enhanceRows(){rows().forEach(function(row){var item=data(row),first=row.cells[0];row.tabIndex=0;row.setAttribute('aria-label',summaryText(item));row.classList.toggle('is-mastered',item.mastered);if(!first.querySelector('.ab-codex-favorite')){var favorite=make('button','ab-codex-favorite',favorites.has(item.name)?'★':'☆');favorite.type='button';favorite.title='Toggle favorite';favorite.setAttribute('aria-label','Favorite '+item.name);favorite.setAttribute('aria-pressed',favorites.has(item.name)?'true':'false');favorite.addEventListener('click',function(event){event.stopPropagation();toggleFavorite(item.name);});first.insertBefore(favorite,first.firstChild);var badge=make('span','ab-codex-milestone',item.milestone);badge.title=item.next?item.remaining+' kills to '+item.next:item.milestone+' milestone complete';first.appendChild(badge);}row.addEventListener('click',function(event){if(!event.target.closest('button'))openInspector(row,true);});row.addEventListener('keydown',function(event){if(event.key==='Enter'){event.preventDefault();openInspector(row,true);}else if(event.key.toLowerCase()==='f'){event.preventDefault();toggleFavorite(item.name);}else if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();var visible=rows().filter(function(entry){return !entry.hidden;}),index=visible.indexOf(row),next=visible[index+(event.key==='ArrowDown'?1:-1)];if(next)next.focus();}});});}
+  function toggleFavorite(name){if(favorites.has(name))favorites.delete(name);else favorites.add(name);saveFavorites();rows().forEach(function(row){if(data(row).name!==name)return;var button=row.querySelector('.ab-codex-favorite'),on=favorites.has(name);button.textContent=on?'★':'☆';button.setAttribute('aria-pressed',on?'true':'false');});if(selected&&selected.name===name)paintFavorite();applyFilters();}
+  function paintFavorite(){var button=document.getElementById('codexFavorite'),on=selected&&favorites.has(selected.name);button.textContent=on?'★ Favorited':'☆ Favorite';button.setAttribute('aria-pressed',on?'true':'false');}
+  function populateFamilies(){var select=document.getElementById('codexFamily'),families=Array.from(new Set(rows().map(function(row){return data(row).family;}))).sort();families.forEach(function(family){var option=document.createElement('option');option.value=family;option.textContent=family;select.appendChild(option);});}
+  function renderOverview(){var entries=rows().map(data),kills=entries.reduce(function(total,item){return total+item.kills;},0),mastered=entries.filter(function(item){return item.mastered;}).length;document.getElementById('codexSpeciesCount').textContent=String(entries.length);document.getElementById('codexKillCount').textContent=fmtNum(kills);document.getElementById('codexMasteryCount').textContent=String(mastered);document.getElementById('codexCompletionFill').style.width=Math.min(100,entries.length*2)+'%';var host=document.getElementById('codexFamilyProgress');host.replaceChildren();var counts={};entries.forEach(function(item){counts[item.family]=(counts[item.family]||0)+1;});Object.keys(counts).sort().forEach(function(family){var target=Math.max(counts[family],familyTargets[family]||counts[family]),chip=make('button','ghost xs ab-family-progress',family+' '+counts[family]+'/'+target);chip.type='button';chip.title=Math.round(counts[family]*100/target)+'% discovered';chip.addEventListener('click',function(){document.getElementById('codexFamily').value=family;applyFilters();});var fill=make('i');fill.style.width=Math.min(100,counts[family]*100/target)+'%';chip.appendChild(fill);host.appendChild(chip);});}
+  function applyFilters(){var query=document.getElementById('codexSearch').value.trim().toLowerCase(),family=document.getElementById('codexFamily').value,min=Number(document.getElementById('codexMinKills').value)||0,favoritesOnly=document.getElementById('codexFavoritesOnly').checked,sort=document.getElementById('codexSort').value,body=table.tBodies[0],entries=rows();entries.sort(function(a,b){var left=data(a),right=data(b);if(sort==='name')return left.name.localeCompare(right.name);if(sort==='recent')return right.last.localeCompare(left.last)||left.name.localeCompare(right.name);if(sort==='first')return left.first.localeCompare(right.first)||left.name.localeCompare(right.name);return right.kills-left.kills||left.name.localeCompare(right.name);});var visible=0;entries.forEach(function(row){var item=data(row),show=(!query||(item.name+' '+item.family).toLowerCase().includes(query))&&(!family||item.family===family)&&item.kills>=min&&(!favoritesOnly||favorites.has(item.name));row.hidden=!show;if(show)visible++;body.appendChild(row);});document.getElementById('codexResultStatus').textContent=visible+' of '+entries.length+' discovered species shown.';}
+  function openInspector(row,updateHash){selected=data(row);var panel=document.getElementById('codexInspector');panel.hidden=false;document.getElementById('codexInspectorName').textContent=selected.name;document.getElementById('codexInspectorFamily').textContent=selected.family;document.getElementById('codexInspectorKills').textContent=fmtNum(selected.kills);document.getElementById('codexInspectorMilestone').textContent=selected.milestone;document.getElementById('codexInspectorFirst').textContent='First · '+dateLabel(selected.first);document.getElementById('codexInspectorLast').textContent='Latest · '+dateLabel(selected.last);var previous=selected.next?Math.max(0,selected.next-selected.remaining):selected.kills,span=Math.max(1,selected.next-previous),progress=selected.next?Math.max(0,Math.min(100,(selected.kills-previous)*100/span)):100;document.getElementById('codexInspectorProgress').style.width=progress+'%';document.getElementById('codexInspectorNext').textContent=selected.next?selected.remaining+' more kills to the '+selected.next+' milestone.':'All tracked kill milestones complete.';paintFavorite();if(updateHash)history.replaceState(null,'','#bestiary='+encodeURIComponent(selected.name));panel.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'nearest'});}
+  function renderCompare(){var panel=document.getElementById('codexCompare');panel.hidden=!compareA&&!compareB;document.getElementById('codexCompareAName').textContent=compareA?compareA.name:'Choose a monster';document.getElementById('codexCompareAKills').textContent=compareA?fmtNum(compareA.kills)+' kills':'—';document.getElementById('codexCompareBName').textContent=compareB?compareB.name:'Choose a monster';document.getElementById('codexCompareBKills').textContent=compareB?fmtNum(compareB.kills)+' kills':'—';var delta=compareA&&compareB?compareA.kills-compareB.kills:0;document.getElementById('codexCompareDelta').textContent=compareA&&compareB?(delta===0?'TIED':fmtNum(Math.abs(delta))+' MORE '+(delta>0?'ON A':'ON B')):'VS';}
+  function exportCodex(){var payload=rows().map(data),blob=new Blob([JSON.stringify({exported_at:new Date().toISOString(),species:payload},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='abyss-bestiary.json';link.click();setTimeout(function(){URL.revokeObjectURL(url);},0);}
+  document.getElementById('codexSearch').addEventListener('input',applyFilters);['codexFamily','codexSort','codexMinKills','codexFavoritesOnly'].forEach(function(id){document.getElementById(id).addEventListener('change',applyFilters);});
+  document.getElementById('codexLayout').addEventListener('click',function(){cardView=!cardView;table.classList.toggle('ab-codex-cards',cardView);this.setAttribute('aria-pressed',cardView?'true':'false');this.textContent=cardView?'☷ Table view':'▦ Card view';try{localStorage.setItem('ab_codex_layout',cardView?'cards':'table');}catch(_){}});
+  document.getElementById('codexExport').addEventListener('click',exportCodex);document.getElementById('codexPrint').addEventListener('click',function(){document.body.classList.add('ab-print-codex');window.print();document.body.classList.remove('ab-print-codex');});document.getElementById('codexInspectorClose').addEventListener('click',function(){document.getElementById('codexInspector').hidden=true;selected=null;history.replaceState(null,'',location.pathname+location.search+'#lore');});document.getElementById('codexPractice').addEventListener('click',function(){if(selected)abyssPractice(selected.name);});document.getElementById('codexFavorite').addEventListener('click',function(){if(selected)toggleFavorite(selected.name);});document.getElementById('codexCompareA').addEventListener('click',function(){compareA=selected;renderCompare();});document.getElementById('codexCompareB').addEventListener('click',function(){compareB=selected;renderCompare();});document.getElementById('codexCompareClear').addEventListener('click',function(){compareA=compareB=null;renderCompare();});document.getElementById('codexCopy').addEventListener('click',function(){if(selected)writeClipboard(summaryText(selected),'Monster summary copied.');});document.getElementById('codexDeepLink').addEventListener('click',function(){if(selected)writeClipboard(location.origin+location.pathname+location.search+'#bestiary='+encodeURIComponent(selected.name),'Bestiary deep link copied.');});
+  enhanceRows();populateFamilies();renderOverview();table.classList.toggle('ab-codex-cards',cardView);var layout=document.getElementById('codexLayout');layout.setAttribute('aria-pressed',cardView?'true':'false');layout.textContent=cardView?'☷ Table view':'▦ Card view';applyFilters();var match=/^#bestiary=(.+)$/.exec(location.hash);if(match){var wanted='';try{wanted=decodeURIComponent(match[1]);}catch(_){wanted='';}var row=rows().find(function(entry){return data(entry).name===wanted;});if(row)openInspector(row,false);}
+})();
+{{end}}

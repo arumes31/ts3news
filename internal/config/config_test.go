@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -103,7 +104,7 @@ func TestEnvList(t *testing.T) {
 }
 
 func TestLoadDotEnv(t *testing.T) {
-	const filename = "test_config.env"
+	filename := filepath.Join(t.TempDir(), "test_config.env")
 	content := `
 # Comment
 KEY1=VAL1
@@ -113,8 +114,9 @@ INVALID_LINE
 =VALUE
 ONLYKEY
 `
-	_ = os.WriteFile(filename, []byte(content), 0644)
-	defer func() { _ = os.Remove(filename) }()
+	if err := os.WriteFile(filename, []byte(content), 0644); err != nil {
+		t.Fatalf("write dotenv fixture: %v", err)
+	}
 
 	// Set one existing to test precedence
 	_ = os.Setenv("KEY1", "ORIGINAL")

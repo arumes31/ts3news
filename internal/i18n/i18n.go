@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/rand/v2"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -91,6 +92,57 @@ func CurrentLocale() LocaleID {
 		return defaultLocale
 	}
 	return global.current
+}
+
+// MessageCoverage reports direct translation coverage for keys under prefix.
+// Fallbacks are deliberately ignored so operators can see missing locale data.
+func MessageCoverage(prefix string) []LocaleCoverage {
+	globalMutex.RLock()
+	defer globalMutex.RUnlock()
+
+	rows := make([]LocaleCoverage, 0, len(AllLocales))
+	if global == nil {
+		return rows
+	}
+	base := global.locales[defaultLocale]
+	if base == nil {
+		return rows
+	}
+	keys := make([]string, 0, len(base.messages))
+	for key := range base.messages {
+		if strings.HasPrefix(key, prefix) {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	for _, id := range AllLocales {
+		missing := make([]string, 0)
+		locale := global.locales[id]
+		for _, key := range keys {
+			if locale == nil {
+				missing = append(missing, key)
+				continue
+			}
+			if _, ok := locale.messages[key]; !ok {
+				missing = append(missing, key)
+			}
+		}
+		rows = append(rows, LocaleCoverage{
+			Locale:  id,
+			Total:   len(keys),
+			Present: len(keys) - len(missing),
+			Missing: missing,
+		})
+	}
+	return rows
+}
+
+// LocaleCoverage is one locale's direct coverage of a message-key prefix.
+type LocaleCoverage struct {
+	Locale  LocaleID `json:"locale"`
+	Total   int      `json:"total"`
+	Present int      `json:"present"`
+	Missing []string `json:"missing"`
 }
 
 // T translates a message key with the given arguments.

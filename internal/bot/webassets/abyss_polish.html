@@ -1,0 +1,62 @@
+{{define "abyss-polish"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var seasonLabel={{jsonJS .Season}},lastSummary=null,lastCelebration=0,wasDowned=!!downed,lastSoundDepth=Number(curDepth)||0;
+  function wrapAfter(name,after){var original=window[name];if(typeof original!=='function'||original._abPolish)return;var wrapped=function(){var result=original.apply(this,arguments);after.apply(this,arguments);return result;};wrapped._abPolish=true;window[name]=wrapped;}
+
+  function summaryRows(){return Array.prototype.slice.call(document.querySelectorAll('#sharedModalCard .ab-rs-row')).map(function(row){var label=row.querySelector('span'),value=row.querySelector('b,strong');return[label?(label.textContent||'').trim():'Result',value?(value.textContent||'').trim():''];});}
+  function recapCanvas(title,rows){
+    var canvas=document.createElement('canvas'),context=canvas.getContext('2d'),width=1200,height=630;canvas.width=width;canvas.height=height;
+    var gradient=context.createLinearGradient(0,0,width,height);gradient.addColorStop(0,'#071018');gradient.addColorStop(.55,'#111827');gradient.addColorStop(1,'#241438');context.fillStyle=gradient;context.fillRect(0,0,width,height);
+    context.strokeStyle='#d7a93b';context.lineWidth=8;context.strokeRect(28,28,width-56,height-56);
+    context.fillStyle='#f2c14f';context.font='700 28px system-ui';context.fillText('TS3 RPG · THE ABYSS',70,90);
+    context.fillStyle='#fff';context.font='800 54px system-ui';context.fillText(String(title||'Run recap').replace(/<[^>]*>/g,''),70,165);
+    context.fillStyle='#9fb2bd';context.font='24px system-ui';context.fillText((pageNick||'Delver')+' · '+new Date().toLocaleDateString()+' · '+String(curTier||'normal').toUpperCase(),70,210);
+    rows.slice(0,7).forEach(function(row,index){var y=285+index*43;context.fillStyle='#9fb2bd';context.font='22px system-ui';context.fillText(row[0].slice(0,38),75,y);context.fillStyle='#fff';context.font='700 23px system-ui';context.textAlign='right';context.fillText(row[1].slice(0,34),1125,y);context.textAlign='left';});
+    context.fillStyle='#6f8792';context.font='18px system-ui';context.fillText('Server-authoritative result · generated locally for sharing',70,575);return canvas;
+  }
+  function recapRows(title,details){
+    details=details||{};
+    var rendered=summaryRows(),find=function(term,fallback){var match=rendered.find(function(row){return row[0].toLowerCase().indexOf(term)>=0;});return match?match[1]:fallback;};
+    var drop=document.querySelector('#bestLootPin .ab-best-loot-card strong'),died=!!details.died;
+    return[
+      ['Depth',details.depth!=null?String(details.depth):find('deepest floor',find('depth reached','—'))],
+      ['Gold banked',fmtGold(Number(details.banked)||0)],
+      ['Best drop',drop?(drop.textContent||'').replace(/\s+/g,' ').trim():'No gear recorded'],
+      ['Deaths',died?'1':'0'],
+      ['Floors cleared',find('floors cleared','0')],
+      ['Items',find('items recovered',find('loot escrowed','0'))],
+      ['Outcome',died?'Defeated':'Banked']
+    ];
+  }
+  function exportRecap(){
+    if(!lastSummary){abToast('Finish a run to create a recap.',false);return;}
+    var canvas=recapCanvas(lastSummary.title,lastSummary.rows),plain=lastSummary.title+'\n'+lastSummary.rows.map(function(row){return row.join(': ');}).join('\n');
+    canvas.toBlob(function(blob){if(!blob){abToast('Could not render the recap image.',false);return;}if(navigator.clipboard&&navigator.clipboard.write&&window.ClipboardItem){navigator.clipboard.write([new ClipboardItem({'image/png':blob})]).then(function(){abToast('Run recap image copied.',true);},function(){downloadRecap(blob,plain);});}else downloadRecap(blob,plain);},'image/png');
+  }
+  function downloadRecap(blob,plain){var link=document.createElement('a');link.download='abyss-run-recap.png';link.href=URL.createObjectURL(blob);link.click();setTimeout(function(){URL.revokeObjectURL(link.href);},1000);if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(plain).catch(function(){});abToast('Run recap downloaded as PNG.',true);}
+  function installRecapButton(title,details){setTimeout(function(){var actions=document.querySelector('#sharedModalCard .modal-actions');if(!actions||actions.querySelector('.ab-share-recap'))return;lastSummary={title:String(title||'Abyss run recap').replace(/<[^>]*>/g,''),rows:recapRows(title,details)};var button=document.createElement('button');button.type='button';button.className='ghost ab-share-recap';button.textContent='🖼 Copy recap';button.addEventListener('click',exportRecap);actions.insertBefore(button,actions.firstChild);},0);}
+  wrapAfter('showRunSummary',function(title){installRecapButton(title,{banked:0,died:true});});
+  wrapAfter('showBankSummary',function(result){installRecapButton('🏦 Run banked',{depth:result&&result.depth,banked:result&&result.banked,died:false});});
+
+  function depthBand(depth){depth=Number(depth)||0;return depth>=75?'abyssal':depth>=40?'deep':depth>=15?'mid':'shallow';}
+  function applyDepthTheme(){document.body.dataset.abDepthBand=depthBand(inRun?curDepth:0);}
+  function applySeason(){var month=String(seasonLabel||'').split(' ')[0].toLowerCase(),winter=['december','january','february'],bloom=['march','april','may'],ember=['june','july','august'];document.body.dataset.abSeason=winter.indexOf(month)>=0?'winter':bloom.indexOf(month)>=0?'bloom':ember.indexOf(month)>=0?'ember':'harvest';}
+  wrapAfter('setDepth',function(){applyDepthTheme();var next=Number(curDepth)||0;if(inRun&&next>0&&next!==lastSoundDepth)playLiveCombatCue('ready',.18);lastSoundDepth=next;});applyDepthTheme();applySeason();
+
+  function celebrate(kind){if(reduceMotion||Date.now()-lastCelebration<1200)return;lastCelebration=Date.now();var colors=kind==='boss'?['#ff6b6b','#f2c14f','#fff']:['#f2c14f','#7bdff2','#b2f7ef'];for(var i=0;i<24;i++){var particle=document.createElement('i');particle.className='ab-confetti';particle.style.setProperty('--x',(Math.random()*100)+'vw');particle.style.setProperty('--drift',((Math.random()-.5)*180)+'px');particle.style.setProperty('--delay',(Math.random()*.25)+'s');particle.style.background=colors[i%colors.length];document.body.appendChild(particle);setTimeout(function(node){node.remove();},1900,particle);}}
+  wrapAfter('recordBurst',function(){celebrate('record');});
+  wrapAfter('achievementBanner',function(){celebrate('achievement');});
+  var originalProcess=window.processDescendResult;if(typeof originalProcess==='function')window.processDescendResult=async function(result){var value=await originalProcess.apply(this,arguments);if(result&&result.victory&&Number(result.depth)%5===0){var seen=false;try{seen=localStorage.getItem('ab_first_boss_confetti')==='1';if(!seen)localStorage.setItem('ab_first_boss_confetti','1');}catch(_){}if(!seen)celebrate('boss');}return value;};
+
+  function applySound(on){liveCombatAudioEnabled=!!on;saveLiveCombatPreference('abyssCombatAudio',on?'on':'off');updateLiveCombatFeedbackControls();if(on)primeLiveCombatAudio();}
+  function installSoundSetting(){var enabled=readLiveCombatPreference('abyssCombatAudio','off')==='on',stored=null;try{stored=localStorage.getItem('ab_sound');}catch(_){}if(stored!==null)enabled=stored==='1';applySound(enabled);if(Array.isArray(window.AB_SETTINGS)&&!AB_SETTINGS.some(function(setting){return setting.key==='ab_sound';}))AB_SETTINGS.push({key:'ab_sound',label:'Abyss sound cues',type:'bool',def:enabled,apply:applySound});wrapAfter('enableLiveCombatAudio',function(){try{localStorage.setItem('ab_sound',liveCombatAudioEnabled?'1':'0');}catch(_){}});}
+  wrapAfter('renderState',function(){var now=!!downed;if(now&&!wasDowned)playLiveCombatCue('defeat',.35);wasDowned=now;});
+  wrapAfter('lootToast',function(_,rarity){if(rarity)playLiveCombatCue('cast',.28);});
+
+  installSoundSetting();
+  window.__abyssPolish={exportRecap:exportRecap,applyDepthTheme:applyDepthTheme,celebrate:celebrate};
+})();
+</script>
+{{end}}

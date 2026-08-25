@@ -21,6 +21,19 @@ type abyssFightTrack struct {
 	counters int // total parry counter-attack damage dealt to mobs
 }
 
+func appendAbyssFightBreakdown(logs []string, track *abyssFightTrack) []string {
+	if track == nil {
+		return logs
+	}
+	if track.thorns > 0 {
+		logs = append(logs, fmt.Sprintf("🌵 Thorns reflected: %d damage", track.thorns))
+	}
+	if track.counters > 0 {
+		logs = append(logs, fmt.Sprintf("🤺 Parry counter-attacks: %d damage", track.counters))
+	}
+	return logs
+}
+
 // abyssCombatant reports whether u is fighting inside an Abyss run. Regular
 // channel combat leaves both markers empty, so every mechanic below stays out
 // of the non-Abyss path.
@@ -97,17 +110,15 @@ func (b *Bot) abyssCombatOption(uid, name string) string {
 	return v
 }
 
-// SetAbyssCombatOption persists a per-user Abyss combat toggle in app_meta.
-// Exported so the web layer (or a TS3 command) can wire an endpoint without
-// touching the combat engine. Empty value clears the toggle.
-func (b *Bot) SetAbyssCombatOption(uid, name, value string) {
+func (b *Bot) setAbyssCombatOption(uid, name, value string) error {
 	key := "abyss_" + name + ":" + uid
 	if value == "" {
-		_, _ = b.DB.Exec("DELETE FROM app_meta WHERE key=$1", key)
-		return
+		_, err := b.DB.Exec("DELETE FROM app_meta WHERE key=$1", key)
+		return err
 	}
-	_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-	                  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, key, value)
+	_, err := b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+	                     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, key, value)
+	return err
 }
 
 // AB-64 Hold mana: when the toggle is on, the delver saves casts (and

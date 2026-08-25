@@ -115,6 +115,7 @@ func TestAbyssRebalanceMovesStat(t *testing.T) {
 	mock.ExpectExec("UPDATE users SET gold = gold -").
 		WithArgs(sqlmock.AnyArg(), uid).
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	expectNoSecondForgeUndo(mock, uid)
 	mock.ExpectExec("UPDATE users SET forge_undo=").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	var saved string
@@ -177,6 +178,7 @@ func TestAbyssGemTransmuteSwapsStats(t *testing.T) {
 	mock.ExpectExec("UPDATE users SET gold = gold -").
 		WithArgs(sqlmock.AnyArg(), uid).
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	expectNoSecondForgeUndo(mock, uid)
 	mock.ExpectExec("UPDATE users SET forge_undo=").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	var saved string
@@ -227,6 +229,7 @@ func TestAbyssSwapSpecial(t *testing.T) {
 	mock.ExpectExec("UPDATE user_materials SET count = count -").
 		WithArgs(8, uid, "core").
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	expectNoSecondForgeUndo(mock, uid)
 	mock.ExpectExec("UPDATE users SET forge_undo=").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	var saved1, saved2 string

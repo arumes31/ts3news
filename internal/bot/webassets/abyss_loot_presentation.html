@@ -1,0 +1,59 @@
+{{define "abyssLootPresentationPin"}}
+<div class="ab-loot-custody" id="lootCustody" hidden>
+  <span class="ab-loot-custody-state"><span aria-hidden="true">🔒</span> Escrowed until banked</span>
+  <div class="ab-best-loot" id="bestLootPin" aria-live="polite"></div>
+</div>
+{{end}}
+
+{{define "abyssLootPresentationJS"}}
+function abyssLootPresentationRarity(row){
+  var rank=0,cls='';
+  AB_RARITY_META.forEach(function(meta){if(row.classList.contains(meta.cls)&&meta.rank>rank){rank=meta.rank;cls=meta.cls;}});
+  return {rank:rank,cls:cls};
+}
+function abyssLootPresentationScore(row){
+  var rarity=abyssLootPresentationRarity(row),text=row.textContent||'';
+  var upgrade=/▲\+([\d.]+) CR/.exec(text),rating=/\bCR:([\d.]+)/.exec(text),score=/\bgs:(-?\d+)/.exec(text);
+  return rarity.rank*1e9+(upgrade?Number(upgrade[1])*1e6:0)+(rating?Number(rating[1])*1e3:0)+(score?Number(score[1]):0);
+}
+function updateLootRewardPresentation(){
+  var manifest=document.getElementById('lootManifest'),custody=document.getElementById('lootCustody'),pin=document.getElementById('bestLootPin');
+  if(!manifest||!custody||!pin)return;
+  var rows=Array.prototype.slice.call(manifest.querySelectorAll('.abyss-side-loot'));
+  custody.hidden=!inRun||rows.length===0;
+  rows.forEach(function(row){
+    row.classList.add('ab-escrowed');
+    if(!row.hasAttribute('tabindex'))row.tabIndex=0;
+    row.setAttribute('aria-label','Escrowed loot: '+(row.textContent||'').replace(/\s+/g,' ').trim());
+  });
+  if(!rows.length){pin.replaceChildren();return;}
+  var best=rows.slice().sort(function(a,b){return abyssLootPresentationScore(b)-abyssLootPresentationScore(a);})[0];
+  var rarity=abyssLootPresentationRarity(best),card=document.createElement('div');
+  card.className='ab-best-loot-card '+rarity.cls;
+  var kicker=document.createElement('span');kicker.className='ab-best-loot-kicker';kicker.textContent='BEST DROP THIS RUN';
+  var value=document.createElement('strong');value.textContent=(best.textContent||'').replace(/\s+/g,' ').trim();
+  card.append(kicker,value);card.setAttribute('data-tip',best.getAttribute('data-tip')||value.textContent);card.tabIndex=0;
+  pin.replaceChildren(card);
+}
+function abyssLootPreviewIcon(item){
+  var cell=item&&item.slot?abGearIconCell(item.slot):item&&item.type==='cons'?[5,4]:[7,5];
+  return '<span class="ab-pixel-icon ab-loot-preview-icon" style="background-position:'+abAtlasPosition(cell)+'" aria-hidden="true"></span>';
+}
+function renderBankPreviewLoot(items,total){
+  items=Array.isArray(items)?items.slice(0,24):[];total=Math.max(0,Number(total)||0);
+  if(!items.length)return '<div class="ab-bank-loot-empty">No item drops are sealed in this cache.</div>';
+  var html='<div class="ab-bank-loot-preview"><b>Sealed manifest</b><div class="ab-bank-loot-list">';
+  items.forEach(function(item){
+    var label=String(item&&item.label||'Unknown reward');
+    html+='<div class="ab-bank-loot-row">'+abyssLootPreviewIcon(item)+'<span>'+consEsc(label.replace(/\s*\[s:[^\]]+\]/g,''))+'</span></div>';
+  });
+  html+='</div>';
+  if(total>items.length)html+='<span class="muted small">+'+(total-items.length)+' more sealed item'+(total-items.length===1?'':'s')+'</span>';
+  return html+'</div>';
+}
+function releaseEscrowLoot(){
+  var custody=document.getElementById('lootCustody');
+  document.querySelectorAll('#lootManifest .abyss-side-loot').forEach(function(row){row.classList.remove('ab-escrowed');row.classList.add('ab-loot-released');});
+  if(custody){custody.classList.add('is-released');var state=custody.querySelector('.ab-loot-custody-state');if(state)state.textContent='🔓 Secured in your inventory';}
+}
+{{end}}

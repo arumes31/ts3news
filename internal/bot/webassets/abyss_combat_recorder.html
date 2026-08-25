@@ -1,0 +1,193 @@
+{{define "abyssCombatRecorderPanel"}}
+<section class="ab-combat-recorder" id="combatRecorder" aria-label="Combat recorder">
+  <div class="ab-recorder-status" id="fightStatus" role="status" aria-live="polite">
+    <span class="ab-recorder-light" aria-hidden="true"></span>
+    <strong>Recorder idle</strong>
+    <span id="fightStatusDetail">Awaiting the next floor.</span>
+  </div>
+  <div class="ab-recorder-controls">
+    <div class="ab-log-categories" id="logCategoryFilters" role="group" aria-label="Combat log categories">
+      <button type="button" class="active" data-log-category="all" aria-pressed="true">All</button>
+      <button type="button" data-log-category="damage" aria-pressed="false">Damage</button>
+      <button type="button" data-log-category="loot" aria-pressed="false">Loot</button>
+      <button type="button" data-log-category="events" aria-pressed="false">Events</button>
+      <button type="button" data-log-category="summary" aria-pressed="false">Summary</button>
+    </div>
+    <label class="ab-recorder-speed">Playback
+      <select id="logPlaybackRate" aria-label="Combat log playback speed">
+        <option value="1">1×</option>
+        <option value="2">2×</option>
+        <option value="4">4×</option>
+      </select>
+    </label>
+    <button type="button" class="ghost xs" id="logSkipButton" onclick="skipCombatPlayback()" hidden>Skip to result</button>
+    <label class="ab-recorder-follow"><input type="checkbox" id="logAutoScroll" checked> Follow</label>
+    <button type="button" class="ghost xs ab-jump-latest" id="logJumpLatest" onclick="setCombatAutoScroll(true,true)" hidden>↓ Latest</button>
+  </div>
+  <div class="ab-recorder-legend" aria-label="Damage source legend">
+    <span class="you"><i></i>You</span><span class="enemy"><i></i>Enemy</span><span class="dot"><i></i>Damage over time</span><span class="system"><i></i>Encounter</span>
+  </div>
+  <div class="ab-fight-delta" id="fightResultDelta" aria-live="polite" hidden></div>
+</section>
+<div class="ab-damage-float-layer" id="damageFloatLayer" aria-hidden="true"></div>
+{{end}}
+
+{{define "abyssCombatRecorderJS"}}
+var abyssCombatRecorderV1='abyssCombatRecorderV1';
+var AB_RECORDER_MAX_FLOATS=12;
+var combatRecorderState={playing:false,skip:false,rate:1,category:'all',autoScroll:true,total:0,index:0,startHP:0,startMaxHP:0,startGold:0,lastHP:null,lastEnemyHP:null,loot:[],dura:[],result:null};
+
+function readCombatRecorderPreferences(){
+  var saved={};
+  try{saved=JSON.parse(localStorage.getItem(abyssCombatRecorderV1)||'{}')||{};}catch(e){}
+  combatRecorderState.rate=[1,2,4].indexOf(Number(saved.rate))>=0?Number(saved.rate):1;
+  combatRecorderState.category=['all','damage','loot','events','summary'].indexOf(saved.category)>=0?saved.category:'all';
+  combatRecorderState.autoScroll=saved.autoScroll!==false;
+}
+function saveCombatRecorderPreferences(){
+  try{localStorage.setItem(abyssCombatRecorderV1,JSON.stringify({rate:combatRecorderState.rate,category:combatRecorderState.category,autoScroll:combatRecorderState.autoScroll}));}catch(e){}
+}
+function startCombatRecorder(total,loot,dura,result){
+  var hpBar=document.getElementById('hpBar'),gold=document.getElementById('goldPill');
+  combatRecorderState.playing=true;combatRecorderState.skip=false;combatRecorderState.total=Number(total)||0;combatRecorderState.index=0;
+  combatRecorderState.startHP=Number(hpBar&&hpBar.getAttribute('aria-valuenow'))||0;
+  combatRecorderState.startMaxHP=Number(hpBar&&hpBar.getAttribute('aria-valuemax'))||0;
+  combatRecorderState.startGold=Number(gold&&gold.dataset.value)||0;
+  combatRecorderState.lastHP=null;combatRecorderState.lastEnemyHP=null;
+  combatRecorderState.loot=Array.isArray(loot)?loot:[];combatRecorderState.dura=Array.isArray(dura)?dura:[];combatRecorderState.result=result||null;
+  var recorder=document.getElementById('combatRecorder');if(recorder)recorder.classList.add('is-recording');
+  var skip=document.getElementById('logSkipButton');if(skip){skip.hidden=false;skip.disabled=false;skip.textContent='Skip to result';}
+  var delta=document.getElementById('fightResultDelta');if(delta){delta.hidden=true;delta.innerHTML='';}
+  updateCombatRecorderStatus('recording','Floor '+curDepth+' · opening exchange · HP '+fmtNum(combatRecorderState.startHP));
+}
+function classifyCombatLogLine(text){
+  text=String(text||'');
+  if(/🎁|loot|dropped|Legendary|Epic|Rare/i.test(text))return 'loot';
+  if(/Floor \d+|VICTORY|DEFEAT|Party\s+\d+|Enemy\s+\d+|fight time|survived/i.test(text))return 'summary';
+  if(/damage|CRITICAL|takes \d+|deals \d+|hits|strikes|attacks|slain|defeated by/i.test(text))return 'damage';
+  return 'events';
+}
+function combatLogSource(text){
+  text=String(text||'');
+  if(/takes \d+ \w+ damage \(\d+ stacks\)|poison|bleed|burn/i.test(text))return 'dot';
+  if(/^\s*💢|Enemy|mob|monster/i.test(text))return 'enemy';
+  if(/^\s*(✨|🌟|⚔️|🐾)|You /i.test(text)||(typeof pageNick==='string'&&pageNick&&text.indexOf(pageNick+' ')===0))return 'you';
+  return 'system';
+}
+function recordCombatLogLine(line,text){
+  if(!line)return;
+  var category=classifyCombatLogLine(text),source=combatLogSource(text);
+  line.dataset.logCategory=category;line.dataset.logSource=source;
+  line.classList.add('ab-source-'+source);
+  var wave=/WAVE (\d+) of (\d+)/i.exec(text||'');
+  if(wave)updateCombatRecorderStatus('recording','Floor '+curDepth+' · wave '+wave[1]+'/'+wave[2]+' · line '+combatRecorderState.index+'/'+combatRecorderState.total);
+  var search=document.getElementById('logSearch'),query=search?(search.value||'').toLowerCase():'';
+  line.style.display=(!query||(line.textContent||'').toLowerCase().indexOf(query)>=0)&&combatRecorderLineVisible(line)?'':'none';
+}
+function combatRecorderLineVisible(line){
+  return combatRecorderState.category==='all'||line.dataset.logCategory===combatRecorderState.category||line.classList.contains('ab-log-divider');
+}
+function applyCombatCategoryFilter(){
+  var search=document.getElementById('logSearch');var query=search?(search.value||'').toLowerCase():'';
+  document.querySelectorAll('#abyssLog .ab-log-line').forEach(function(line){
+    var searchMatch=!query||(line.textContent||'').toLowerCase().indexOf(query)>=0;
+    line.style.display=searchMatch&&combatRecorderLineVisible(line)?'':'none';
+  });
+}
+function setCombatLogCategory(category){
+  if(['all','damage','loot','events','summary'].indexOf(category)<0)category='all';
+  combatRecorderState.category=category;
+  document.querySelectorAll('#logCategoryFilters [data-log-category]').forEach(function(button){
+    var active=button.dataset.logCategory===category;button.classList.toggle('active',active);button.setAttribute('aria-pressed',active?'true':'false');
+  });
+  saveCombatRecorderPreferences();applyCombatCategoryFilter();
+}
+function combatRecorderDelay(baseDelay){
+  if(reduceMotion||combatRecorderState.skip)return 0;
+  return Math.max(12,Math.round((Number(baseDelay)||0)/combatRecorderState.rate));
+}
+function skipCombatPlayback(){
+  if(!combatRecorderState.playing)return;
+  combatRecorderState.skip=true;
+  var button=document.getElementById('logSkipButton');if(button){button.disabled=true;button.textContent='Resolving…';}
+  updateCombatRecorderStatus('skipping','Floor '+curDepth+' · resolving final state');
+}
+function shouldDrainCombatPlayback(){return combatRecorderState.playing&&combatRecorderState.skip;}
+function updateCombatRecorderProgress(index,total){
+  combatRecorderState.index=Number(index)||0;combatRecorderState.total=Number(total)||combatRecorderState.total;
+  var detail='Floor '+curDepth+' · exchange '+combatRecorderState.index+'/'+combatRecorderState.total;
+  if(combatRecorderState.lastHP!==null)detail+=' · HP '+fmtNum(combatRecorderState.lastHP);
+  updateCombatRecorderStatus('recording',detail);
+}
+function updateCombatRecorderStatus(mode,detail){
+  var status=document.getElementById('fightStatus');if(!status)return;
+  status.dataset.mode=mode||'idle';
+  var title=status.querySelector('strong');if(title)title.textContent=mode==='recording'?'Combat recording':mode==='skipping'?'Fast resolving':mode==='complete'?'Combat complete':'Recorder idle';
+  var text=document.getElementById('fightStatusDetail');if(text)text.textContent=detail||'';
+}
+function updateCombatRecorderFrame(frame){
+  if(!frame||!combatRecorderState.playing)return;
+  var hp=Number(frame.hp)||0,enemy=Number(frame.enemy_hp)||0;
+  if(combatRecorderState.lastHP!==null){
+    var playerDelta=hp-combatRecorderState.lastHP;
+    if(playerDelta<0)spawnCombatDamageFloat('enemy',playerDelta);
+    else if(playerDelta>0)spawnCombatDamageFloat('heal',playerDelta);
+  }
+  if(combatRecorderState.lastEnemyHP!==null){
+    var enemyDelta=enemy-combatRecorderState.lastEnemyHP;
+    if(enemyDelta<0)spawnCombatDamageFloat('you',enemyDelta);
+  }
+  combatRecorderState.lastHP=hp;combatRecorderState.lastEnemyHP=enemy;
+  updateCombatRecorderProgress(combatRecorderState.index,combatRecorderState.total);
+}
+function spawnCombatDamageFloat(source,amount){
+  if(reduceMotion||!amount)return;
+  var layer=document.getElementById('damageFloatLayer'),stage=document.getElementById('abyssStage');if(!layer||!stage)return;
+  while(layer.childElementCount>=AB_RECORDER_MAX_FLOATS)layer.firstElementChild.remove();
+  var rect=stage.getBoundingClientRect(),float=document.createElement('span');
+  float.className='ab-damage-float '+source;float.textContent=(amount>0?'+':'')+fmtNum(amount);
+  float.style.left=Math.round(source==='enemy'?rect.left+rect.width*.28:source==='you'?rect.left+rect.width*.72:rect.left+rect.width*.28)+'px';
+  float.style.top=Math.round(rect.top+rect.height*.34)+'px';layer.appendChild(float);
+  window.setTimeout(function(){float.remove();},900);
+}
+function finishCombatRecorder(){
+  combatRecorderState.playing=false;
+  var recorder=document.getElementById('combatRecorder');if(recorder)recorder.classList.remove('is-recording');
+  var skip=document.getElementById('logSkipButton');if(skip)skip.hidden=true;
+  updateCombatRecorderStatus('complete','Floor '+curDepth+' · '+combatRecorderState.total+' recorded exchanges');
+  renderFightResultDelta();
+}
+function renderFightResultDelta(){
+  var result=combatRecorderState.result||{},finalHP=Number(result.hp);
+  if(!Number.isFinite(finalHP))finalHP=combatRecorderState.lastHP===null?combatRecorderState.startHP:combatRecorderState.lastHP;
+  var hpLost=Math.max(0,combatRecorderState.startHP-finalHP);
+  var finalGold=Number(result.gold),goldGain=Number.isFinite(finalGold)?Math.max(0,finalGold-combatRecorderState.startGold):0;
+  var delta=document.getElementById('fightResultDelta');if(!delta)return;
+  var chips=[['HP lost',fmtNum(hpLost),hpLost?'bad':'good'],['Gold gained',fmtGold(goldGain),'gold'],['Loot',String(combatRecorderState.loot.length),'loot'],['Gear wear',String(combatRecorderState.dura.length)+' item'+(combatRecorderState.dura.length===1?'':'s'),'wear']];
+  delta.innerHTML=chips.map(function(chip){return '<span class="'+chip[2]+'"><small>'+chip[0]+'</small><b>'+chip[1]+'</b></span>';}).join('');
+  delta.hidden=false;
+}
+function setCombatAutoScroll(enabled,persist){
+  combatRecorderState.autoScroll=!!enabled;
+  var check=document.getElementById('logAutoScroll');if(check)check.checked=combatRecorderState.autoScroll;
+  var jump=document.getElementById('logJumpLatest');if(jump)jump.hidden=combatRecorderState.autoScroll;
+  if(combatRecorderState.autoScroll){var log=document.getElementById('abyssLog');if(log)log.scrollTop=log.scrollHeight;}
+  if(persist!==false)saveCombatRecorderPreferences();
+}
+function followCombatLog(){
+  if(!combatRecorderState.autoScroll)return;
+  var log=document.getElementById('abyssLog');if(log)log.scrollTop=log.scrollHeight;
+}
+function initAbyssCombatRecorder(){
+  var recorder=document.getElementById('combatRecorder');if(!recorder)return;
+  readCombatRecorderPreferences();
+  var rate=document.getElementById('logPlaybackRate');if(rate){rate.value=String(combatRecorderState.rate);rate.addEventListener('change',function(){combatRecorderState.rate=Number(rate.value)||1;saveCombatRecorderPreferences();});}
+  document.querySelectorAll('#logCategoryFilters [data-log-category]').forEach(function(button){button.addEventListener('click',function(){setCombatLogCategory(button.dataset.logCategory);});});
+  var follow=document.getElementById('logAutoScroll');if(follow)follow.addEventListener('change',function(){setCombatAutoScroll(follow.checked,true);});
+  var log=document.getElementById('abyssLog');if(log){
+    log.addEventListener('scroll',function(){if(combatRecorderState.playing&&log.scrollHeight-log.scrollTop-log.clientHeight>36&&combatRecorderState.autoScroll)setCombatAutoScroll(false,true);},{passive:true});
+  }
+  setCombatLogCategory(combatRecorderState.category);setCombatAutoScroll(combatRecorderState.autoScroll,false);
+}
+initAbyssCombatRecorder();
+{{end}}

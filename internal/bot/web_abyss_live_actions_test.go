@@ -250,6 +250,7 @@ func TestMobTurnConsumesAbyssLiveEnemyPlan(t *testing.T) {
 		&totalUserDamage,
 		4,
 		false,
+		nil,
 		defaultCombatRandomSource{},
 	)
 	if users[0].u.CurrentHP != 500 {

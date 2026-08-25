@@ -1,0 +1,38 @@
+{{define "abysstree-mastery"}}
+<style>
+.tree-mastery-lab{margin-top:1rem;border:1px solid var(--line);border-radius:12px;background:linear-gradient(150deg,rgba(15,22,36,.94),rgba(8,12,20,.96));overflow:hidden}
+.tree-mastery-lab>summary{cursor:pointer;padding:.85rem 1rem;font-weight:800;color:var(--gold)}
+.tree-mastery-grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(260px,1fr);gap:1rem;padding:0 1rem 1rem}
+.tree-mastery-card{border:1px solid rgba(139,148,158,.24);border-radius:10px;padding:.8rem;background:rgba(7,12,21,.68)}
+.tree-hex-board{display:grid;grid-template-columns:repeat(3,minmax(82px,1fr));gap:.45rem;max-width:430px;margin:.8rem auto}
+.tree-hex{min-height:78px;clip-path:polygon(25% 6%,75% 6%,100% 50%,75% 94%,25% 94%,0 50%);border:0;background:linear-gradient(145deg,#263454,#121a2d);color:var(--text);padding:.8rem .35rem}
+.tree-hex:nth-child(4){grid-column:2}.tree-hex:hover:not(:disabled){background:linear-gradient(145deg,#4d397c,#253b68);transform:translateY(-1px)}
+.tree-family-list{display:grid;gap:.45rem}.tree-family{display:grid;grid-template-columns:1fr auto;gap:.5rem;align-items:center;border:1px solid rgba(139,148,158,.2);border-radius:8px;padding:.55rem .65rem}
+@media(max-width:760px){.tree-mastery-grid{grid-template-columns:1fr}.tree-hex-board{grid-template-columns:repeat(2,minmax(82px,1fr))}.tree-hex:nth-child(4){grid-column:auto}}
+</style>
+<details class="tree-mastery-lab" id="treeMasteryLab">
+  <summary>✦ Post-prestige &amp; Bestiary mastery</summary>
+  <div class="tree-mastery-grid">
+    <section class="tree-mastery-card">
+      <h3>Paragon hex board</h3>
+      {{if .Paragon.Unlocked}}
+      <p class="muted small">Prestige {{.Paragon.Prestige}} · {{.Paragon.Used}} / {{.Paragon.Points}} points · each rank grants exactly +0.1%.</p>
+      <div class="tree-hex-board">
+        {{range .Paragon.Nodes}}<button class="tree-hex" onclick="allocateParagon('{{.Key}}',this)" {{if or (ge .Rank .Max) (ge $.Paragon.Used $.Paragon.Points)}}disabled{{end}}><b>{{.Label}}</b><br><small>{{.Rank}}/{{.Max}} · +{{printf "%.1f" (mulf .Pct 100)}}%</small></button>{{end}}
+      </div>
+      {{else}}<p class="muted">Reach your first Abyss prestige to unlock this board.</p>{{end}}
+    </section>
+    <section class="tree-mastery-card">
+      <h3>Bestiary talents</h3>
+      <p class="muted small">Spend recorded boss-kill counts on permanent family-specific +1% damage ranks. Codex records remain intact.</p>
+      <div class="tree-family-list">
+        {{range .BestiaryTalents}}<div class="tree-family"><span><b>{{.Label}}</b><br><small>{{.Kills}} boss kills · {{.Spent}} spent · {{.Available}} available · rank {{.Rank}}/{{.Max}}</small></span><button class="ghost xs" onclick="allocateBestiaryTalent('{{.Family}}',this)" {{if or (ge .Rank .Max) (lt .Available .NextCost)}}disabled{{end}}>{{if ge .Rank .Max}}Max{{else}}Spend {{.NextCost}}{{end}}</button></div>{{end}}
+      </div>
+    </section>
+  </div>
+</details>
+<script data-cfasync="false">
+async function allocateParagon(key,button){if(button)button.disabled=true;var d=await abPost('/api/abyss/tree/paragon',{key:key});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},500);else if(button)button.disabled=false;}
+async function allocateBestiaryTalent(family,button){if(button)button.disabled=true;var d=await abPost('/api/abyss/tree/bestiary_talent',{family:family});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},500);else if(button)button.disabled=false;}
+</script>
+{{end}}

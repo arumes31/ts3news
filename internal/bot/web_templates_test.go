@@ -45,7 +45,11 @@ func TestAbyssLivePartials(t *testing.T) {
 		t.Fatal("abyss template is missing")
 	}
 	abyssSource := abyss.Tree.Root.String()
-	for _, partialName := range []string{"abyssLiveControls", "abyssLiveActionBarJS"} {
+	for _, partialName := range []string{
+		"abyssLiveControls",
+		"abyssLiveActionBarJS",
+		"abyssCombatFeedbackJS",
+	} {
 		if !strings.Contains(abyssSource, `{{template "`+partialName+`" .}}`) {
 			t.Errorf("abyss template does not invoke %q at its extraction point", partialName)
 		}
@@ -66,6 +70,16 @@ func TestAbyssLivePartials(t *testing.T) {
 			templateName: "abyssLiveActionBarJS",
 			contains:     "function startLiveCombat",
 		},
+		{
+			name:         "combat feedback controls",
+			templateName: "abyssCombatFeedbackControls",
+			contains:     `id="liveAudioToggle"`,
+		},
+		{
+			name:         "combat feedback script",
+			templateName: "abyssCombatFeedbackJS",
+			contains:     "function emitLiveCombatFeedback",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -82,7 +96,8 @@ func TestAbyssLivePartials(t *testing.T) {
 		t.Fatal("live action bar script does not preserve SSE event sequence IDs")
 	}
 	liveScripts := server.tmpl.Lookup("abyssLiveActionBarJS").Tree.Root.String() +
-		server.tmpl.Lookup("abyssPixelCombatJS").Tree.Root.String()
+		server.tmpl.Lookup("abyssPixelCombatJS").Tree.Root.String() +
+		server.tmpl.Lookup("abyssCombatFeedbackJS").Tree.Root.String()
 	for _, required := range []string{
 		"scheduleLiveReconnect",
 		"RECEIVED · ",
@@ -155,9 +170,26 @@ func TestAbyssLivePartials(t *testing.T) {
 		"coopPaceFilter",
 		"shareLastAbyssReplay",
 		"armAbyssGhostReplay",
+		"abyssAAARuntime",
+		"AB_LOG_VIRTUAL_THRESHOLD",
 	} {
 		if !strings.Contains(abyssMain, required) {
 			t.Errorf("abyss template is missing %q loot control", required)
+		}
+	}
+	runtime := server.tmpl.Lookup("abyssAAARuntime")
+	if runtime == nil {
+		t.Fatal("Abyss AAA runtime partial is missing")
+	}
+	runtimeSource := runtime.Tree.Root.String()
+	for _, required := range []string{
+		`range abyssChangelog`,
+		`kind:kind`,
+		`/api/abyss/client-error`,
+		`unhandledrejection`,
+	} {
+		if !strings.Contains(runtimeSource, required) {
+			t.Errorf("Abyss AAA runtime is missing %q", required)
 		}
 	}
 	abyssTree := server.tmpl.Lookup("abysstree").Tree.Root.String()
@@ -211,6 +243,28 @@ func TestAbyssLivePartials(t *testing.T) {
 	}
 	if strings.Contains(renderedScript.String(), "ZgotmplZ") {
 		t.Fatal("live action bar script is unsafe in its script context")
+	}
+}
+
+func TestAbyssLiveCombatResetsEventCursorForNewSession(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewWebServer(nil)
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	partial := server.tmpl.Lookup("abyssLiveActionBarJS")
+	if partial == nil {
+		t.Fatal("live action bar script is missing")
+	}
+	source := partial.Tree.Root.String()
+	reset := strings.Index(source, "liveLastEventID=liveEventCursor(payload&&payload.state)")
+	render := strings.Index(source, "renderLiveCombat(payload.state)")
+	if !strings.Contains(source, "function liveEventCursor(state)") {
+		t.Fatal("live action bar script has no session event cursor parser")
+	}
+	if reset < 0 || render < 0 || reset > render {
+		t.Fatal("new live combat must reset its SSE cursor before rendering the initial snapshot")
 	}
 }
 

@@ -1,10 +1,12 @@
 package bot
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand/v2"
+	"strings"
 	"time"
 
 	"ts3news/internal/content"
@@ -61,9 +63,10 @@ func abyssGearLabel(g content.Gear) string {
 // loot entry point used by the combat engine.
 func (b *Bot) awardCombatLoot(winner *UserInCombat, mob content.Mob, zone content.Zone, logs *[]string, loots *[]LootResult) {
 	if winner.EscrowLoot {
-		for _, label := range b.rollAbyssLootToEscrow(winner.UID, mob, zone.Difficulty, winner.LootFocus) {
+		roll := b.rollAbyssLootToEscrow(winner.UID, mob, zone.Difficulty, winner.LootFocus)
+		for index, label := range roll.Labels {
 			*logs = append(*logs, fmt.Sprintf("[color=#b9a36b]🔒 %s — sealed into the cache (lost if you fall): %s[/color]", winner.Nickname, label))
-			*loots = append(*loots, LootResult{UID: winner.UID, Note: label})
+			*loots = append(*loots, LootResult{UID: winner.UID, Note: label, PityProc: roll.PityProc && index == 0})
 		}
 		return
 	}
@@ -116,9 +119,14 @@ func lootRarityScale(level int) float64 {
 	return 0.3 + 0.7*float64(level-1)/49.0
 }
 
+type abyssLootRoll struct {
+	Labels   []string
+	PityProc bool
+}
+
 // rollAbyssLootToEscrow rolls the drops for one defeated mob and writes them to the
-// run's loot escrow, returning the display labels for the combat log.
-func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty float64, focus string) []string {
+// run's loot escrow, returning display labels and an authoritative pity-proc signal.
+func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty float64, focus string) abyssLootRoll {
 	count := 1
 	switch mob.Type {
 	case content.MobBoss:
@@ -144,12 +152,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		lootFindBonus += float64(st.UpFortune) * 0.04
 	}
 	// Depth milestones (#16): +1% permanent loot find per 25 best depth, cap +4%.
-	if ms := st.BestDepth / 25; ms > 0 {
-		if ms > 4 {
-			ms = 4
-		}
-		lootFindBonus += float64(ms) * 0.01
-	}
+	lootFindBonus += abyssDepthLootFindBonus(st.BestDepth)
 	// Skill web: Fortune-sector loot_find notables and the Midas keystone;
 	// gold_find scales the gold drop rolls below.
 	treePct := b.treeBonusFor(uid).Pct
@@ -213,8 +216,9 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	}
 
 	var labels []string
+	pityProc := false
 	add := func(label string, g abyssLootGrant) bool {
-		if b.escrowAbyssLoot(uid, label, g) {
+		if b.escrowAbyssLoot(uid, run.Depth, label, g) {
 			labels = append(labels, label)
 			return true
 		}
@@ -400,6 +404,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			// forfeitable on death. Equipping straight to user_gear here would let the
 			// player keep a guaranteed Legendary for free by dying (escrow bypass).
 			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
+				pityProc = true
 				legendaryPity = 0
 				if g.Rarity >= content.RarityCelestial {
 					celestialPity = 0
@@ -593,43 +598,111 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		log.Printf("abyss pity/streak persist failed for %s: %v", uid, err)
 	}
 	b.abyssSetCelestialPity(uid, celestialPity)
-	return labels
+	return abyssLootRoll{Labels: labels, PityProc: pityProc}
 }
 
 // escrowAbyssLoot persists one rolled drop into the run's loot escrow.
-func (b *Bot) escrowAbyssLoot(uid, label string, g abyssLootGrant) bool {
+func (b *Bot) escrowAbyssLoot(uid string, depth int, label string, g abyssLootGrant) bool {
 	data, err := json.Marshal(g)
 	if err != nil {
 		log.Printf("abyss escrow marshal failed for %s: %v", uid, err)
 		return false
 	}
 	if _, err := b.DB.Exec(
-		"INSERT INTO abyss_escrow_loot (client_uid, item_type, label, item_data) VALUES ($1,$2,$3,$4)",
-		uid, g.Type, label, data); err != nil {
+		"INSERT INTO abyss_escrow_loot (client_uid, item_type, label, item_data, depth) VALUES ($1,$2,$3,$4,$5)",
+		uid, g.Type, label, data, max(depth, 0)); err != nil {
 		log.Printf("abyss escrow insert failed for %s: %v", uid, err)
 		return false
 	}
 	return true
 }
 
+func abyssDepthLootFindBonus(bestDepth int) float64 {
+	milestones := min(max(bestDepth, 0)/25, 4)
+	return float64(milestones) * 0.01
+}
+
+const abyssBankPreviewLootLimit = 24
+const abyssBankPreviewLabelLimit = 240
+
+type abyssBankPreviewLoot struct {
+	Label string `json:"label"`
+	Type  string `json:"type"`
+	Slot  string `json:"slot,omitempty"`
+}
+
+func abyssLootSlotFromLabel(label string) string {
+	const prefix = "[s:"
+	start := strings.Index(label, prefix)
+	if start < 0 {
+		return ""
+	}
+	value := label[start+len(prefix):]
+	end := strings.IndexByte(value, ']')
+	if end <= 0 {
+		return ""
+	}
+	value = value[:end]
+	for _, r := range value {
+		if (r < 'A' || r > 'Z') && (r < 'a' || r > 'z') && (r < '0' || r > '9') {
+			return ""
+		}
+	}
+	return value
+}
+
+// currentAbyssBankPreviewLoot returns a bounded, plain-text view of escrow.
+// It is deliberately read-only: the bank commit remains the only path that
+// applies or deletes pending grants.
+func (b *Bot) currentAbyssBankPreviewLoot(ctx context.Context, uid string, limit int) ([]abyssBankPreviewLoot, error) {
+	limit = min(max(limit, 1), abyssBankPreviewLootLimit)
+	rows, err := b.DB.QueryContext(ctx,
+		"SELECT item_type, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT $2",
+		uid, limit)
+	if err != nil {
+		return nil, fmt.Errorf("querying Abyss bank preview loot: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	items := make([]abyssBankPreviewLoot, 0, limit)
+	for rows.Next() {
+		var item abyssBankPreviewLoot
+		var label string
+		if err := rows.Scan(&item.Type, &label); err != nil {
+			return nil, fmt.Errorf("scanning Abyss bank preview loot: %w", err)
+		}
+		item.Slot = abyssLootSlotFromLabel(label)
+		item.Label = strings.TrimSpace(bbTagRe.ReplaceAllString(label, ""))
+		if runes := []rune(item.Label); len(runes) > abyssBankPreviewLabelLimit {
+			item.Label = string(runes[:abyssBankPreviewLabelLimit]) + "…"
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating Abyss bank preview loot: %w", err)
+	}
+	return items, nil
+}
+
 // applyAbyssEscrowLoot grants every escrowed item to the character and clears the
 // escrow, returning the display labels of what was awarded. Called on bank.
 func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
-	rows, err := b.DB.Query("SELECT id, label, item_data FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id", uid)
+	rows, err := b.DB.Query("SELECT id, label, item_data, equip_on_bank FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id", uid)
 	if err != nil {
 		return nil
 	}
 	type pending struct {
-		id    int64
-		label string
-		data  []byte
+		id          int64
+		label       string
+		data        []byte
+		equipOnBank bool
 	}
 	// Drain the cursor before issuing the per-item grant writes (which use the same
 	// connection pool) to avoid an in-flight query conflict.
 	var items []pending
 	for rows.Next() {
 		var p pending
-		if err := rows.Scan(&p.id, &p.label, &p.data); err == nil {
+		if err := rows.Scan(&p.id, &p.label, &p.data, &p.equipOnBank); err == nil {
 			items = append(items, p)
 		}
 	}
@@ -646,13 +719,23 @@ func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
 			_, _ = b.DB.Exec("DELETE FROM abyss_escrow_loot WHERE id=$1", p.id)
 			continue
 		}
-		if err := b.applyAbyssLootGrant(uid, g); err != nil {
+		var applyErr error
+		preferredGear := p.equipOnBank && g.Gear != nil
+		if preferredGear {
+			applyErr = b.consumeAndEquipAbyssEscrowGear(uid, p.id, *g.Gear)
+		} else {
+			applyErr = b.applyAbyssLootGrant(uid, g)
+		}
+		if applyErr != nil {
 			// Transient write failure — keep the escrow row so a later bank can
 			// retry the grant instead of silently losing it.
 			continue
 		}
-		// Delete each row as it is applied so a mid-loop failure can't double-grant.
-		_, _ = b.DB.Exec("DELETE FROM abyss_escrow_loot WHERE id=$1", p.id)
+		// Preferred gear is consumed in the same transaction as its equip. Other
+		// grants retain the existing post-apply row deletion path.
+		if !preferredGear {
+			_, _ = b.DB.Exec("DELETE FROM abyss_escrow_loot WHERE id=$1", p.id)
+		}
 		applied = append(applied, p.label)
 	}
 	return applied
@@ -674,7 +757,7 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 		}
 	case "cons":
 		if g.ConsID != "" {
-			b.grantConsumable(uid, g.ConsID, g.ConsDur)
+			return b.grantConsumableStacked(uid, g.ConsID, g.ConsDur)
 		}
 	case "skill":
 		if g.Skill != nil {

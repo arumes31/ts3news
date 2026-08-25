@@ -45,18 +45,24 @@ type abyssLiveMemberPresence struct {
 }
 
 type abyssLiveSocialSnapshot struct {
-	PreferredRole      string                    `json:"preferred_role"`
-	PartyTactic        string                    `json:"party_tactic"`
-	TacticVotes        map[string]int            `json:"tactic_votes"`
-	LootRule           string                    `json:"loot_rule"`
-	Signals            []abyssLiveSocialSignal   `json:"signals,omitempty"`
-	Contributions      []abyssLiveContribution   `json:"contributions,omitempty"`
-	Members            []abyssLiveMemberPresence `json:"members,omitempty"`
-	ComboOpportunities []string                  `json:"combo_opportunities,omitempty"`
-	ReviveYes          int                       `json:"revive_yes,omitempty"`
-	ReviveNeeded       int                       `json:"revive_needed,omitempty"`
-	AutoResolve        bool                      `json:"auto_resolve,omitempty"`
-	Spectating         bool                      `json:"spectating,omitempty"`
+	PreferredRole       string                    `json:"preferred_role"`
+	PreferredPace       string                    `json:"preferred_pace"`
+	PreferredDifficulty string                    `json:"preferred_difficulty"`
+	AllowRisky          bool                      `json:"allow_risky"`
+	PartyTactic         string                    `json:"party_tactic"`
+	TacticVote          string                    `json:"tactic_vote,omitempty"`
+	TacticVotes         map[string]int            `json:"tactic_votes"`
+	LootRule            string                    `json:"loot_rule"`
+	Signals             []abyssLiveSocialSignal   `json:"signals,omitempty"`
+	Contributions       []abyssLiveContribution   `json:"contributions,omitempty"`
+	Members             []abyssLiveMemberPresence `json:"members,omitempty"`
+	ComboOpportunities  []string                  `json:"combo_opportunities,omitempty"`
+	ReviveYes           int                       `json:"revive_yes,omitempty"`
+	ReviveNeeded        int                       `json:"revive_needed,omitempty"`
+	AbandonYes          int                       `json:"abandon_yes,omitempty"`
+	AbandonNeeded       int                       `json:"abandon_needed,omitempty"`
+	AutoResolve         bool                      `json:"auto_resolve,omitempty"`
+	Spectating          bool                      `json:"spectating,omitempty"`
 }
 
 type abyssLiveSocialState struct {
@@ -71,6 +77,7 @@ type abyssLiveSocialState struct {
 	abandonVotes map[string]bool
 	readyAwarded map[int]bool
 	comboAwarded map[int]bool
+	lastSignal   map[string]time.Time
 	partyTactic  string
 	lootRule     string
 	autoResolve  bool
@@ -106,6 +113,9 @@ func (c *abyssLiveCombat) ensureSocialLocked() {
 	}
 	if c.social.comboAwarded == nil {
 		c.social.comboAwarded = map[int]bool{}
+	}
+	if c.social.lastSignal == nil {
+		c.social.lastSignal = map[string]time.Time{}
 	}
 	if c.social.lootRule == "" {
 		c.social.lootRule = "owner"
@@ -160,7 +170,8 @@ func newAbyssLiveSocialState(server *WebServer, participants map[string]bool, lo
 		actionCounts: make(map[string]int), manualCounts: make(map[string]int), readyCounts: make(map[string]int),
 		reviveVotes: make(map[string]bool), abandonVotes: make(map[string]bool),
 		readyAwarded: make(map[int]bool), comboAwarded: make(map[int]bool),
-		lootRule: normalizeAbyssPartyLootRule(lootRule),
+		lastSignal: make(map[string]time.Time),
+		lootRule:   normalizeAbyssPartyLootRule(lootRule),
 	}
 	for uid := range participants {
 		state.preferences[uid] = server.bot.loadAbyssSocialPreferences(uid)
@@ -225,7 +236,8 @@ func (c *abyssLiveCombat) socialSnapshotLocked(uid string) abyssLiveSocialSnapsh
 		voteCounts[tactic]++
 	}
 	uidNames := make(map[string]string, len(c.allies))
-	spectating := false
+	downed, _ := c.result["downed"].(bool)
+	spectating := downed && (c.phase == "complete" || c.phase == "failed")
 	for _, ally := range c.allies {
 		memberUID := strings.TrimPrefix(ally.ID, "ally:")
 		uidNames[memberUID] = ally.Name
@@ -263,11 +275,20 @@ func (c *abyssLiveCombat) socialSnapshotLocked(uid string) abyssLiveSocialSnapsh
 			reviveYes++
 		}
 	}
+	reviveNeeded := 0
+	if downed {
+		reviveNeeded = len(c.participants)/2 + 1
+	}
+	preference := c.social.preferences[uid]
 	return abyssLiveSocialSnapshot{
-		PreferredRole: c.social.preferences[uid].Role, PartyTactic: c.social.partyTactic,
+		PreferredRole: preference.Role, PreferredPace: preference.Pace,
+		PreferredDifficulty: preference.Difficulty, AllowRisky: preference.AllowRisky,
+		PartyTactic: c.social.partyTactic, TacticVote: c.social.tacticVotes[uid],
 		TacticVotes: voteCounts, LootRule: c.social.lootRule, Signals: append([]abyssLiveSocialSignal{}, c.social.signals...),
 		Contributions: contributions, Members: members, ComboOpportunities: c.comboOpportunitiesLocked(),
-		ReviveYes: reviveYes, ReviveNeeded: len(c.participants)/2 + 1, AutoResolve: c.social.autoResolve, Spectating: spectating,
+		ReviveYes: reviveYes, ReviveNeeded: reviveNeeded,
+		AbandonYes: len(c.social.abandonVotes), AbandonNeeded: len(c.participants)/2 + 1,
+		AutoResolve: c.social.autoResolve, Spectating: spectating,
 	}
 }
 
@@ -337,6 +358,10 @@ func (c *abyssLiveCombat) addSocialSignal(uid, kind, targetID, message string) e
 	if !c.participants[uid] {
 		return errAbyssLiveNotFound
 	}
+	now := time.Now()
+	if last := c.social.lastSignal[uid]; !last.IsZero() && now.Sub(last) < 750*time.Millisecond {
+		return fmt.Errorf("wait a moment before sending another party signal")
+	}
 	name := "Adventurer"
 	for _, ally := range c.allies {
 		if ally.ID == "ally:"+uid {
@@ -348,7 +373,7 @@ func (c *abyssLiveCombat) addSocialSignal(uid, kind, targetID, message string) e
 	case "target":
 		valid := false
 		for _, enemy := range c.enemies {
-			valid = valid || enemy.ID == targetID
+			valid = valid || enemy.ID == targetID && enemy.HP > 0
 		}
 		if !valid {
 			return fmt.Errorf("choose a living enemy to ping")
@@ -364,7 +389,8 @@ func (c *abyssLiveCombat) addSocialSignal(uid, kind, targetID, message string) e
 	default:
 		return fmt.Errorf("unknown signal")
 	}
-	c.social.signals = append(c.social.signals, abyssLiveSocialSignal{Name: name, Kind: kind, TargetID: targetID, Message: message, At: time.Now().UTC()})
+	c.social.lastSignal[uid] = now
+	c.social.signals = append(c.social.signals, abyssLiveSocialSignal{Name: name, Kind: kind, TargetID: targetID, Message: message, At: now.UTC()})
 	if len(c.social.signals) > 12 {
 		c.social.signals = c.social.signals[len(c.social.signals)-12:]
 	}
@@ -378,6 +404,10 @@ func (c *abyssLiveCombat) voteRevive(uid string, yes bool) error {
 	c.ensureSocialLocked()
 	if !c.participants[uid] {
 		return errAbyssLiveNotFound
+	}
+	downed, _ := c.result["downed"].(bool)
+	if !downed || (c.phase != "complete" && c.phase != "failed") {
+		return fmt.Errorf("revive voting opens after a party defeat")
 	}
 	c.social.reviveVotes[uid] = yes
 	c.version++
@@ -535,6 +565,11 @@ func decodeAbyssReplayCode(code string) (abyssReplayCode, error) {
 	if json.Unmarshal(raw, &replay) != nil || replay.Version != 1 || replay.Rounds < 1 || replay.Rounds > 10000 || len(replay.Enemies) > 64 {
 		return abyssReplayCode{}, fmt.Errorf("invalid replay code")
 	}
+	for _, enemy := range replay.Enemies {
+		if strings.TrimSpace(enemy) == "" || len([]rune(enemy)) > 80 {
+			return abyssReplayCode{}, fmt.Errorf("invalid replay code")
+		}
+	}
 	return replay, nil
 }
 
@@ -560,7 +595,11 @@ func (s *WebServer) handleAbyssReplayCode(w http.ResponseWriter, r *http.Request
 		}
 		_, err = s.bot.DB.Exec(`INSERT INTO app_meta (key,value) VALUES ($1,$2)
 			ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`, "abyss_ghost_rounds_"+uid, fmt.Sprint(replay.Rounds))
-		writeJSON(w, map[string]any{"ok": err == nil, "msg": "Ghost-party challenge armed for your next live fight."})
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "could not arm ghost challenge"})
+			return
+		}
+		writeJSON(w, map[string]any{"ok": true, "msg": "Ghost-party challenge armed for your next live fight."})
 		return
 	}
 	var owned, raw string
@@ -603,5 +642,10 @@ func (b *Bot) communityExpeditionStatus() map[string]any {
 	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_community_expedition_"+week).Scan(&raw)
 	var floors int64
 	_, _ = fmt.Sscan(raw, &floors)
-	return map[string]any{"Week": week, "Floors": floors, "Target": int64(1000)}
+	const target int64 = 1000
+	return map[string]any{
+		"Week": week, "Floors": floors, "Target": target,
+		"Percent":   min(100, max(0, floors*100/target)),
+		"Remaining": max(0, target-floors), "Complete": floors >= target,
+	}
 }
