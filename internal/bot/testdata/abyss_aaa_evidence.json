@@ -909,6 +909,21 @@
     ]
   },
   {
+    "ids": [176, 177],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_pact_program.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_pact_program.css",
+      "internal/bot/webassets/abyss_pact_program.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_pact_program_test.go"
+    ]
+  },
+  {
     "ids": [178, 179, 180, 181, 182, 183, 184, 185, 186, 187],
     "production": [
       "internal/bot/web_abyss.go",

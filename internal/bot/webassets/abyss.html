@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_onboarding.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_entry_planner.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_pact_program.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_recorder.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_run_awareness.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_loot_presentation.css"}}">
@@ -291,6 +292,7 @@
     <!-- Pact picker (idle only): opt-in challenge modifiers for bonus rewards -->
     <div class="ab-pacts" id="pactPicker">
       <div class="ab-sub-label"><span class="ab-glossary-term" tabindex="0" data-tip="Pacts&#10;Optional challenges that increase both danger and the run reward.">⚔️ Pacts</span> <span class="muted small">— optional challenges for bigger rewards <b id="pactBonus">(+0%)</b></span></div>
+      {{template "abyssPactProgramPanel" .}}
       {{range .Pacts}}
         <label class="ab-pact" data-tip="{{.Label}}&#10;{{.Desc}}&#10;Reward: +{{printf "%.0f" (mulf .Reward 100)}}% escrow · Danger: ×{{printf "%.1f" .Danger}}{{if .Enrage}} · enemies enraged{{end}}">
           <input type="checkbox" name="abpact" value="{{.Key}}" data-reward="{{printf "%.0f" (mulf .Reward 100)}}" data-danger="{{printf "%.3f" .Danger}}" onchange="updatePactBonus()">
@@ -6085,6 +6087,7 @@ function initNewDots(){
 <script data-cfasync="false">{{template "abyssCodexExplorerJS" .}}</script>
 <script data-cfasync="false">{{template "abyssPanelToolsJS" .}}</script>
 <script data-cfasync="false">{{template "abyssPlayerExperienceJS" .}}</script>
+<script data-cfasync="false">{{template "abyssPactProgramJS" .}}</script>
 {{template "abyssCoreRiskJS" .}}
 {{template "abyss-feedback" .}}
 {{template "abyss-polish" .}}

@@ -146,6 +146,11 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0173 / 173** — returning after fourteen days seeds exactly ten authoritative +25% XP and +10% cache catch-up charges.
 - [x] **AAA-0175 / 175** — the post-prestige Paragon board grants bounded +0.1% ranks across seven permanent effects.
 
+## Delivered tranche: pact program
+
+- [x] **AAA-0176 / 176** — three account-level named preset slots save canonical pact combinations and restore them safely in the entry planner.
+- [x] **AAA-0177 / 177** — each pact tracks authoritative completed runs; at ten completions its own cache bonus improves by 5% on subsequent floors.
+
 ## Delivered tranche: challenge pacts
 
 - [x] **AAA-0178 / 178** — Abstinence persists an empty run consumable allowance and pays +15% cache.

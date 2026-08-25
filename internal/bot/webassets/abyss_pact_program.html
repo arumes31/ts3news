@@ -1,0 +1,104 @@
+{{define "abyssPactProgramPanel"}}
+<details class="ab-pact-program" id="pactProgram">
+  <summary>
+    <span>🗂️ Pact arsenal</span>
+    <span class="muted small" id="pactMasterySummary">Save combinations · {{.PactProgram.MasteredCount}} mastered</span>
+  </summary>
+  <div class="ab-pact-program-body">
+    <div class="ab-pact-preset-list" id="pactPresetList" aria-label="Saved pact combinations"></div>
+    <div class="ab-pact-mastery-list" id="pactMasteryList" aria-live="polite"></div>
+  </div>
+</details>
+{{end}}
+
+{{define "abyssPactProgramJS"}}
+var pactProgramState={{jsonJS .PactProgram}}||{presets:[],mastery:[],mastered_count:0};
+
+function pactProgramNode(tag,className,text){
+  var node=document.createElement(tag);
+  if(className)node.className=className;
+  if(text!==undefined)node.textContent=text;
+  return node;
+}
+
+function pactPresetAt(slot){
+  return (pactProgramState.presets||[]).find(function(preset){return Number(preset.slot)===slot;})||null;
+}
+
+function pactLabel(key){
+  var input=document.querySelector('input[name=abpact][value="'+key+'"]');
+  if(!input||!input.parentElement)return key;
+  return input.parentElement.textContent.trim().split('(')[0].trim();
+}
+
+function applyAbyssPactPreset(slot){
+  var preset=pactPresetAt(slot);
+  if(!preset){abToast('That preset slot is empty.',false);return;}
+  var selected=preset.pacts||[];
+  document.querySelectorAll('input[name=abpact]').forEach(function(input){input.checked=selected.indexOf(input.value)>=0;});
+  updatePactBonus();
+  if(typeof updateAbyssEntrySummary==='function')updateAbyssEntrySummary();
+  abToast('Applied '+preset.name+'.',true);
+}
+
+async function saveAbyssPactPreset(slot){
+  var row=document.querySelector('[data-pact-preset-slot="'+slot+'"]');
+  var nameInput=row&&row.querySelector('input');
+  var pacts=selectedPacts();
+  if(!pacts.length){abToast('Choose at least one pact before saving.',false);return;}
+  var result=await abPost('/api/abyss/pact/presets',{action:'save',slot:slot,name:nameInput?nameInput.value:'',pacts:pacts});
+  if(!result.ok){abToast(result.error||'Could not save pact preset.',false);return;}
+  pactProgramState=result.state;
+  renderAbyssPactProgram();
+  abToast('Pact preset saved to slot '+slot+'.',true);
+}
+
+async function deleteAbyssPactPreset(slot){
+  if(!pactPresetAt(slot))return;
+  var result=await abPost('/api/abyss/pact/presets',{action:'delete',slot:slot});
+  if(!result.ok){abToast(result.error||'Could not delete pact preset.',false);return;}
+  pactProgramState=result.state;
+  renderAbyssPactProgram();
+  abToast('Pact preset removed.',true);
+}
+
+function renderAbyssPactProgram(){
+  var list=document.getElementById('pactPresetList');
+  if(!list)return;
+  list.replaceChildren();
+  for(var slot=1;slot<=3;slot++){
+    var preset=pactPresetAt(slot),row=pactProgramNode('div','ab-pact-preset');
+    row.dataset.pactPresetSlot=String(slot);
+    var identity=pactProgramNode('div','ab-pact-preset-identity');
+    identity.appendChild(pactProgramNode('span','ab-pact-slot','0'+slot));
+    var input=pactProgramNode('input','ab-pact-preset-name');
+    input.type='text';input.maxLength=32;input.value=preset?preset.name:'Preset '+slot;
+    input.setAttribute('aria-label','Name for pact preset '+slot);
+    identity.appendChild(input);
+    var detail=pactProgramNode('span','ab-pact-preset-detail',preset?(preset.pacts||[]).map(pactLabel).join(' · '):'Empty slot');
+    var actions=pactProgramNode('div','ab-pact-preset-actions');
+    var apply=pactProgramNode('button','ghost xs','Apply');apply.type='button';apply.disabled=!preset;
+    apply.onclick=(function(value){return function(){applyAbyssPactPreset(value);};})(slot);
+    var save=pactProgramNode('button','xs','Save current');save.type='button';
+    save.onclick=(function(value){return function(){saveAbyssPactPreset(value);};})(slot);
+    var remove=pactProgramNode('button','ghost xs','Delete');remove.type='button';remove.disabled=!preset;
+    remove.onclick=(function(value){return function(){deleteAbyssPactPreset(value);};})(slot);
+    actions.append(apply,save,remove);row.append(identity,detail,actions);list.appendChild(row);
+  }
+
+  var mastery=document.getElementById('pactMasteryList');
+  mastery.replaceChildren();
+  var active=(pactProgramState.mastery||[]).filter(function(entry){return entry.runs>0;});
+  if(!active.length){mastery.appendChild(pactProgramNode('p','muted small','Mastery starts when you finish a run with a pact. Ten completed runs improve that pact’s reward bonus by 5%.'));}
+  active.forEach(function(entry){
+    var item=pactProgramNode('div','ab-pact-mastery'+(entry.mastered?' mastered':''));
+    var label=pactProgramNode('span','',entry.label);
+    var progress=entry.mastered?'Mastered · +'+Number(entry.effective_bonus_pct).toFixed(1)+'%':entry.runs+' / '+entry.required_runs+' runs';
+    item.append(label,pactProgramNode('b','',progress));mastery.appendChild(item);
+  });
+  var summary=document.getElementById('pactMasterySummary');
+  if(summary)summary.textContent='3 preset slots · '+Number(pactProgramState.mastered_count||0)+' / '+(pactProgramState.mastery||[]).length+' mastered';
+}
+
+renderAbyssPactProgram();
+{{end}}

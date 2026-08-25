@@ -1528,6 +1528,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Bounty":              s.bot.abyssBountyStatus(uid),
 		"Shop":                s.bot.abyssShopViews(uid, time.Now()),
 		"Pacts":               abyssPactCatalog,
+		"PactProgram":         s.bot.abyssPactProgramState(uid),
 		"Equipped":            slots,
 		"Inventory":           inventory,
 		"LegendaryPity":       pity,
@@ -2798,7 +2799,13 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 	bonus = int64(float64(bonus) * tier.RewardMult * (1.0 + float64(st.UpGreed)*0.05) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50))
 	_, dailyMod := s.bot.currentDailyChallenge()
 	bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
-	bonus = int64(float64(bonus) * abyssPactRewardMult(s.bot.abyssRunPacts(uid)))
+	pacts := s.bot.abyssRunPacts(uid)
+	mastery, err := s.bot.loadAbyssPactMastery(uid)
+	if err != nil {
+		o.DBErr = true
+		return o
+	}
+	bonus = int64(float64(bonus) * abyssPactRewardMultWithMastery(pacts, mastery))
 	runFlags := s.bot.loadRunFlags(uid)
 	if abyssHybridSurge(runFlags[abyssRunFlagHybrid] == 1, depth) {
 		bonus = int64(float64(bonus) * abyssHybridRewardMultiplier(tier))
@@ -3439,6 +3446,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 
+	runPacts := s.bot.abyssRunPacts(uid)
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -3505,6 +3513,10 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			   COALESCE((SELECT jsonb_agg(label ORDER BY id) FROM
 			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), 'banked', $6, $7`,
 			uid, run.Depth, payout, run.Tier, hardcore, abyssRunDurationMS(run), abyssRunFloorsCleared(run)); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if err := incrementAbyssPactMastery(tx, uid, runPacts); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -4984,7 +4996,13 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	bonus = int64(float64(bonus) * (1.0 + float64(st.UpGreed)*0.05) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50))
 	_, dailyMod := s.bot.currentDailyChallenge()
 	bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
-	bonus = int64(float64(bonus) * abyssPactRewardMult(s.bot.abyssRunPacts(uid)))
+	pacts := s.bot.abyssRunPacts(uid)
+	mastery, err := s.bot.loadAbyssPactMastery(uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	bonus = int64(float64(bonus) * abyssPactRewardMultWithMastery(pacts, mastery))
 	if _, weekly := abyssWeeklyRuleFromFlags(runFlags); weekly {
 		bonus = bonus * 5 / 4
 	}
@@ -4998,7 +5016,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	interestRate := abyssGreedyInterestRate(abyssEffectiveInterest(st.UpInterest, hasLuckyCoin), run.Depth)
 	newEscrow := int64(float64(run.Escrow)*(1.0+interestRate)) + bonus
 
-	_, err := s.bot.DB.Exec(
+	_, err = s.bot.DB.Exec(
 		`UPDATE abyss_active 
 		    SET escrow = $1, floor_type = 'combat', modifier = '', event_state = NULL, last_action_at = NOW() 
 		  WHERE client_uid = $2`, newEscrow, uid)

@@ -199,6 +199,7 @@ func (b *Bot) taxAbyssDayGold(q dbExecQuerier, uid string, payout int64) (int64,
 // a refund that never landed). [1][62]
 func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund int64, err error) {
 	flags := b.loadRunFlags(uid)
+	pacts := b.abyssRunPacts(uid)
 	hardcore := abyssHardcoreRun(flags)
 	policy := planAbyssForfeit(run.Escrow, run.Insured, run.Depth, hardcore)
 	anchorActive := flags[abyssRunFlagAnchorRune] == 1
@@ -242,6 +243,9 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund i
 			   COALESCE((SELECT jsonb_agg(label ORDER BY id) FROM
 			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), $6, $7, $8`,
 			uid, run.Depth, refund, run.Tier, hardcore, endReason, abyssRunDurationMS(run), abyssRunFloorsCleared(run)); err != nil {
+			return 0, err
+		}
+		if err := incrementAbyssPactMastery(tx, uid, pacts); err != nil {
 			return 0, err
 		}
 		if !policy.CountDeath {

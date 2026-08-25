@@ -206,6 +206,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_entry_planner.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_entry_planner.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_pact_program.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_pact_program.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_combat_recorder.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_combat_recorder.css", "text/css; charset=utf-8")
 	})
@@ -314,6 +317,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/abyss", s.auth(s.handleAbyssPage))
 		mux.HandleFunc("/abyss/spectate", s.auth(s.handleAbyssSpectatePage))
 		mux.HandleFunc("/api/abyss/enter", s.authAPI(s.handleAbyssEnter))
+		mux.HandleFunc("/api/abyss/pact/presets", s.authAPI(s.handleAbyssPactPresets))
 		mux.HandleFunc("/api/abyss/descend", s.authAPI(s.handleAbyssDescend))
 		mux.HandleFunc("/api/abyss/descend_multi", s.authAPI(s.handleAbyssDescendMulti))
 		mux.HandleFunc("/api/abyss/choose_floor", s.authAPI(s.handleAbyssChooseFloor))
