@@ -189,6 +189,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0205 / 205** — four named rare elites can invade from depth 6, advertise and escrow a fixed signature relic, and preserve that reward for retry when storage fails.
 - [x] **AAA-0206 / 206** — live boss combat exposes the authoritative round-30 enrage threshold in a persistent countdown chip that becomes urgent for the final two rounds.
 - [x] **AAA-0207 / 207** — each named boss has a tier-specific fastest-clear board ranking one indexed personal best per player, with authenticated-player highlighting.
+- [x] **AAA-0208 / 208** — every defeated boss unlocks a deterministic 30-round, reward-free refight sandbox with balanced, aggressive, and defensive tactic comparisons.
 
 ## Active tranche: operational quality and client performance
 

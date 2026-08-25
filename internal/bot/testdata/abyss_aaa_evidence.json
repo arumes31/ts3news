@@ -1119,5 +1119,16 @@
       "internal/bot/web_abyss_boss_leaderboards_test.go",
       "internal/bot/web_abyss_library_feedback_test.go"
     ]
+  },
+  {
+    "ids": [208],
+    "production": [
+      "internal/bot/web_abyss_boss_practice.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_practice.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_enemies_test.go"
+    ]
   }
 ]

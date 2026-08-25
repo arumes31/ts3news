@@ -3,7 +3,6 @@ package bot
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"ts3news/internal/content"
@@ -337,57 +336,4 @@ func (b *Bot) updateAbyssNemesis(uid string, mobs []*content.Mob, victory bool) 
 		abyssNemesisPrefix+uid,
 		string(encoded),
 	)
-}
-
-func (s *WebServer) handleAbyssBossPractice(w http.ResponseWriter, r *http.Request, uid string) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "POST only", http.StatusMethodNotAllowed)
-		return
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, 4096)
-	var req struct {
-		Name string `json:"name"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "invalid request"})
-		return
-	}
-	req.Name = strings.TrimSpace(req.Name)
-	if req.Name == "" || len(req.Name) > 160 {
-		writeJSON(w, map[string]any{"ok": false, "error": "invalid boss name"})
-		return
-	}
-	var encountered bool
-	if err := s.bot.DB.QueryRow(
-		"SELECT EXISTS(SELECT 1 FROM abyss_boss_kills WHERE client_uid=$1 AND boss_name=$2)",
-		uid,
-		req.Name,
-	).Scan(&encountered); err != nil || !encountered {
-		writeJSON(w, map[string]any{"ok": false, "error": "defeat this boss once to unlock its practice drill"})
-		return
-	}
-	mob := &content.Mob{Name: req.Name, Type: content.MobBoss}
-	cr := max(1, int(s.bot.abyssPlayerCR(uid)))
-	estimatedDPS := max(1, cr*3)
-	writeJSON(w, map[string]any{
-		"ok":            true,
-		"boss":          req.Name,
-		"role":          abyssEnemyRole(mob),
-		"faction":       abyssEnemyFaction(mob),
-		"pattern":       abyssEnemyPattern(mob),
-		"rewards":       false,
-		"estimated_dps": estimatedDPS,
-		"practice_log": []string{
-			fmt.Sprintf("R1 · opening guard absorbs the first telegraph · estimated %d damage", estimatedDPS/2),
-			fmt.Sprintf("R2 · core skill rotation establishes %d estimated DPS", estimatedDPS),
-			"R3 · interrupt reserved for the 50% summon",
-			"R4 · stagger window opens; Ultimate committed",
-			"R5 · execution rehearsal complete · no HP, items, or rewards changed",
-		},
-		"drill": []string{
-			"Opening: read the intent and establish Guard before committing resources.",
-			"At 50%: hold an Ultimate to interrupt the telegraphed summon.",
-			"At 25%: break the stagger bar before the enrage sequence resolves.",
-		},
-	})
 }

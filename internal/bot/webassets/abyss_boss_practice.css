@@ -1,0 +1,4 @@
+.ab-practice-dps { margin: 10px 0; padding: 10px 12px; border-left: 3px solid var(--gold); border-radius: 4px 10px 4px 10px; background: linear-gradient(90deg,rgba(244,197,66,.1),transparent); color: var(--muted); font: .78rem/1.6 ui-monospace,'Cascadia Mono',monospace; }
+.ab-practice-dps b { color: var(--text); }
+.ab-practice-log { max-height: min(42vh,360px); overflow: auto; margin: 10px 0; padding: 10px 10px 10px 36px; border: 1px solid var(--line); border-radius: 8px; background: #090e16; color: #aebbd0; font: .72rem/1.55 ui-monospace,'Cascadia Mono',monospace; }
+.ab-practice-log li::marker { color: var(--gold); }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -239,20 +240,60 @@ func TestHandleAbyssBossPracticeRequiresUnlockedBossAndGrantsNoRewards(t *testin
 		t.Fatalf("sqlmock.New(): %v", err)
 	}
 	defer func() { _ = db.Close() }()
-	mock.ExpectQuery("SELECT EXISTS").
+	mock.ExpectQuery("SELECT COALESCE\\(MAX\\(depth\\),0\\)").
 		WithArgs("user", "The Watcher").
-		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+		WillReturnRows(sqlmock.NewRows([]string{"depth"}).AddRow(25))
 	server := &WebServer{bot: &Bot{DB: db}}
-	request := httptest.NewRequest("POST", "/api/abyss/practice", strings.NewReader(`{"name":"The Watcher"}`))
+	request := httptest.NewRequest("POST", "/api/abyss/practice", strings.NewReader(`{"name":"The Watcher","tactic":"aggressive"}`))
 	recorder := httptest.NewRecorder()
 
 	server.handleAbyssBossPractice(recorder, request, "user")
 	body := recorder.Body.String()
 	if !strings.Contains(body, `"ok":true`) || !strings.Contains(body, `"rewards":false`) ||
-		!strings.Contains(body, `"drill"`) {
+		!strings.Contains(body, `"drill"`) || !strings.Contains(body, `"tactic":"aggressive"`) ||
+		!strings.Contains(body, `"rounds":`) || !strings.Contains(body, `"player_max_hp":`) {
 		t.Fatalf("practice response = %s", body)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet database expectations: %v", err)
+	}
+}
+
+func TestSimulateAbyssBossPracticeIsDeterministicAndTactical(t *testing.T) {
+	t.Parallel()
+
+	balanced := simulateAbyssBossPractice("Abyssus, Heart of the Void", 50, 250, "balanced")
+	repeat := simulateAbyssBossPractice("Abyssus, Heart of the Void", 50, 250, "balanced")
+	aggressive := simulateAbyssBossPractice("Abyssus, Heart of the Void", 50, 250, "aggressive")
+	defensive := simulateAbyssBossPractice("Abyssus, Heart of the Void", 50, 250, "defensive")
+	if !reflect.DeepEqual(balanced, repeat) {
+		t.Fatal("identical boss-practice inputs produced different simulations")
+	}
+	if aggressive.EstimatedDPS <= defensive.EstimatedDPS {
+		t.Fatalf("tactics did not change output: aggressive=%d defensive=%d", aggressive.EstimatedDPS, defensive.EstimatedDPS)
+	}
+	for name, result := range map[string]abyssBossPracticeResult{
+		"balanced": balanced, "aggressive": aggressive, "defensive": defensive,
+	} {
+		if result.Rounds <= 0 || result.Rounds > combatBossEnrageRound(true) || len(result.Logs) < 3 {
+			t.Errorf("%s practice result is incomplete: %#v", name, result)
+		}
+	}
+}
+
+func TestAbyssBossPracticeUIExposesSandboxTactics(t *testing.T) {
+	t.Parallel()
+
+	page, err := webAssets.ReadFile("webassets/abyss.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, token := range []string{
+		"practiceBossName", "Simulation tactic", "aggressive", "defensive",
+		"Deterministic sandbox only", "player_max_hp", "boss_max_hp",
+	} {
+		if !strings.Contains(string(page), token) {
+			t.Errorf("practice UI missing %q", token)
+		}
 	}
 }
