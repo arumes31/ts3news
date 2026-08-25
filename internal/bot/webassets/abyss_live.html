@@ -83,6 +83,7 @@
   <div class="ab-live-command">
     <div class="ab-live-command-head">
       <div class="ab-live-queue" id="liveQueue" role="status" aria-live="polite">Choose an action, then select a target.</div>
+      <span class="ab-action-budget" id="liveActionBudget" role="status" title="Server-authoritative action changes remaining this round" hidden></span>
       <button class="ab-timebank" id="liveTimeBank" type="button" onclick="spendLiveTimeBank()" disabled>+2s</button>
       <button class="ab-ready" id="liveReady" type="button" onclick="setLiveReady()" disabled>READY</button>
 	  <button class="ab-live-tool" id="liveTargetLock" type="button" onclick="toggleLiveTargetLock()" aria-pressed="false">TARGET LOCK</button>
@@ -254,6 +255,7 @@ function selectLiveTarget(targetID){
 function renderLiveActionBar(state){
   var host=document.getElementById('liveActionBar'); host.innerHTML='';
   var options=state.options||[];
+	var budget=state.action_budget||{},budgetExhausted=Number(budget.limit)>0&&Number(budget.remaining)<=0;
   var own=(state.allies||[]).find(function(a){return a.is_self;})||(state.allies||[])[0]||{};
   var basics=options.filter(function(o){return o.kind==='attack'||o.kind==='defend';});
   var allSkills=options.filter(function(o){return o.kind==='skill';});
@@ -275,7 +277,7 @@ function renderLiveActionBar(state){
 	});
   shown.forEach(function(option,index){
     var button=document.createElement('button'); button.type='button';
-    var unavailable=(option.cooldown||0)>0 || ((option.mana||0)>(own.mana||0)) || (option.kind==='item'&&(option.count||0)<=0) || state.phase!=='planning';
+    var unavailable=(option.cooldown||0)>0 || ((option.mana||0)>(own.mana||0)) || (option.kind==='item'&&(option.count||0)<=0) || state.phase!=='planning' || budgetExhausted;
     var recommended=liveActionMatches(option,state.recommended&&state.recommended.action);
 	var actionKey=liveActionKey(option),shortcut=liveShortcut(option,skills,items,ultimates);
 	button.className='ab-actionslot kind-'+option.kind+(livePendingOption===option?' armed':'')+(recommended?' recommended':'')+(unavailable?' unavailable':' valid')+(option.kind==='item'&&(option.count||0)<=1?' low-count':'')+(livePinnedActions[actionKey]?' pinned':'');
@@ -328,6 +330,11 @@ function liveShortcut(option,skills,items,ultimates){
 
 async function armLiveOption(option){
   if(!liveCombatState||liveCombatState.phase!=='planning')return;
+	var budget=liveCombatState.action_budget||{};
+	if(Number(budget.limit)>0&&Number(budget.remaining)<=0){
+	  setLiveActionReceipt('LIMIT REACHED · queued action remains active',2200);
+	  return;
+	}
 	if(option.kind==='item'&&!((option.count||0)>1)&&typeof confirmModal==='function'){
 	  var confirmed=await confirmModal('Use your last '+option.name+'?',{ok:'USE ITEM',cancel:'KEEP IT'});
 	  if(!confirmed)return;
@@ -526,6 +533,17 @@ function renderLiveEnrageWarning(state){
 	document.getElementById('liveCombat').classList.toggle('enrage-imminent',imminent);
 }
 
+function renderLiveActionBudget(state){
+	var chip=document.getElementById('liveActionBudget');
+	var budget=state.action_budget||{},limit=Math.max(0,Number(budget.limit)||0);
+	var remaining=Math.max(0,Math.min(limit,Number(budget.remaining)||0));
+	chip.hidden=limit===0;
+	chip.textContent=remaining+' / '+limit+' CHANGES';
+	chip.classList.toggle('warning',limit>0&&remaining<=Math.max(3,Math.ceil(limit*.1)));
+	chip.classList.toggle('exhausted',limit>0&&remaining===0);
+	chip.title=remaining===0?'No action changes remain; your queued action or timeout fallback stays active.':remaining+' server-authoritative action changes remain this round.';
+}
+
 function renderLiveCombat(state,preserveFeed){
   if(!state||!state.ok)return;
   liveCombatState=state;
@@ -558,6 +576,7 @@ function renderLiveCombat(state,preserveFeed){
 	renderLiveRoundTimeline(state);
   renderLiveUltimateCharge(state);
   renderLiveEnrageWarning(state);
+	renderLiveActionBudget(state);
   renderLiveForecast(state);
   renderLiveTargets('liveAllies',state.allies,false);
   renderLiveTargets('liveEnemies',state.enemies,true);

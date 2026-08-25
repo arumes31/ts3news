@@ -215,6 +215,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 
 - [x] **AAA-0981 / AB-281** — terminal live combats transactionally archive their deterministic seed and participant-visible event log, with an owner-authorized bounded portal viewer.
 - [x] **AAA-0982 / AB-282** — a versioned anonymous public endpoint exposes only cached global and per-tier aggregates, with CORS, ETag, HEAD, and generic failure handling.
+- [x] **AAA-0984 / AB-284** — live snapshots expose the authoritative per-round action-change budget, with proactive warnings and client lockout that preserves the queued or automatic fallback action.
 - [x] **AAA-0985 / AB-285** — persisted killer-family counts select the player's most lethal family and mark every matching live enemy as a revenge target.
 - [x] **AAA-0986 / AB-286** — compare tier catalog values with the latest database constraints.
 - [x] **AAA-0987 / AB-287** — golden-render threshold and active-run page fixtures.

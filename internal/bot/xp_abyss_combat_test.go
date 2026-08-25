@@ -134,6 +134,7 @@ func TestAbyssCombatHUDContracts(t *testing.T) {
 		"liveUltimateCharge", "renderLiveUltimateCharge", "ab-cooldown-pips",
 		"cooldown_max", "dot-active", "ab-dot-stripes", "ENRAGE in 2 rounds", "enrage-imminent",
 		"liveEnrage", "enrage_round", "ENRAGE NOW", "ab-enrage-chip",
+		"liveActionBudget", "action_budget", "ab-action-budget", "LIMIT REACHED",
 	} {
 		if !strings.Contains(source, required) {
 			t.Errorf("Abyss combat HUD is missing %q", required)

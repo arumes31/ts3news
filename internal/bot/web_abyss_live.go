@@ -120,6 +120,11 @@ type abyssLiveInitiativeEntry struct {
 	Speed int    `json:"speed"`
 }
 
+type abyssLiveActionBudget struct {
+	Remaining int `json:"remaining"`
+	Limit     int `json:"limit"`
+}
+
 type abyssLiveSnapshot struct {
 	OK            bool                       `json:"ok"`
 	SchemaVersion int                        `json:"schema_version"`
@@ -143,6 +148,7 @@ type abyssLiveSnapshot struct {
 	Queued        *abyssLiveAction           `json:"queued,omitempty"`
 	Recommended   *abyssLiveRecommendation   `json:"recommended,omitempty"`
 	TimeBankMS    int64                      `json:"time_bank_ms,omitempty"`
+	ActionBudget  abyssLiveActionBudget      `json:"action_budget"`
 	EnemyIntents  []abyssLiveEnemyIntent     `json:"enemy_intents,omitempty"`
 	Initiative    []abyssLiveInitiativeEntry `json:"initiative,omitempty"`
 	RecentLogs    []string                   `json:"recent_logs"`
@@ -268,6 +274,10 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 	}
 	initiative := append([]abyssLiveInitiativeEntry{}, c.initiative...)
 	timeBankMS := c.timeBank[uid].Milliseconds()
+	actionAttemptsRemaining := max(
+		0,
+		abyssLiveMaxIdempotencyKeysPerRound-c.idempotencyCountLocked(uid),
+	)
 	var queued *abyssLiveAction
 	if action, ok := c.queued[uid]; ok {
 		copyAction := action
@@ -301,6 +311,10 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 		Queued:        queued,
 		Recommended:   recommended,
 		TimeBankMS:    timeBankMS,
+		ActionBudget: abyssLiveActionBudget{
+			Remaining: actionAttemptsRemaining,
+			Limit:     abyssLiveMaxIdempotencyKeysPerRound,
+		},
 		EnemyIntents:  enemyIntents,
 		Initiative:    initiative,
 		RecentLogs:    recentLogs,

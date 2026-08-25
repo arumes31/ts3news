@@ -605,6 +605,16 @@ func TestAbyssLiveCombatIdempotencyExpiresByRound(t *testing.T) {
 			t.Fatalf("submit key %d: %v", i, err)
 		}
 	}
+	snapshot := combat.snapshotFor("user")
+	if snapshot.ActionBudget.Remaining != 0 ||
+		snapshot.ActionBudget.Limit != abyssLiveMaxIdempotencyKeysPerRound {
+		t.Fatalf(
+			"action budget = %d/%d, want 0/%d",
+			snapshot.ActionBudget.Remaining,
+			snapshot.ActionBudget.Limit,
+			abyssLiveMaxIdempotencyKeysPerRound,
+		)
+	}
 	overflow := abyssLiveAction{
 		SessionID:      "session",
 		Kind:           "attack",

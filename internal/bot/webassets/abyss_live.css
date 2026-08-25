@@ -214,6 +214,18 @@
   font: .72rem ui-monospace, 'Cascadia Mono', monospace;
   letter-spacing: .025em;
 }
+.ab-action-budget {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  color: #89c9bb;
+  border: 1px solid rgba(83,202,145,.35);
+  border-radius: 999px;
+  background: rgba(28,83,69,.2);
+  font: 700 .52rem ui-monospace, 'Cascadia Mono', monospace;
+  letter-spacing: .06em;
+}
+.ab-action-budget.warning { color: #f0c66d; border-color: rgba(240,198,109,.45); background: rgba(95,67,20,.24); }
+.ab-action-budget.exhausted { color: #f08091; border-color: rgba(240,91,112,.48); background: rgba(91,25,38,.28); }
 .ab-ready {
   flex: 0 0 auto;
   padding: 5px 12px;

@@ -309,3 +309,26 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   await page.locator('#liveActionBar .kind-attack').click();
   await expect.poll(() => submittedTarget).toBe('enemy:5');
 });
+
+test('live combat exposes and enforces the remaining action-change budget', async ({ page }) => {
+  await page.goto('/abyss?active=1');
+  await page.evaluate(() => {
+    window.reduceMotion = true;
+    window.renderLiveCombat({
+      ok: true, session_id: 'e2e-budget', phase: 'planning', round: 4,
+      deadline: new Date(Date.now() + 60000).toISOString(), tactic: 'balanced',
+      policy: {}, action_budget: { limit: 64, remaining: 0 },
+      queued: { kind: 'attack', ability_id: '', target_id: 'enemy:0', round: 4 },
+      allies: [{ id: 'ally:e2e', name: 'Tester', hp: 900, max_hp: 1000, is_self: true, is_player: true }],
+      enemies: [{ id: 'enemy:0', name: 'Rate Warden', hp: 100, max_hp: 100 }],
+      options: [{ kind: 'attack', id: '', name: 'Basic Attack', target: 'enemy', cooldown: 0 }],
+      recent_logs: [], initiative: [], enemy_intents: [], social: {},
+    });
+  });
+
+  await expect(page.locator('#liveActionBudget')).toHaveText('0 / 64 CHANGES');
+  await expect(page.locator('#liveActionBudget')).toHaveClass(/exhausted/);
+  await expect(page.locator('#liveActionBar .kind-attack')).toBeDisabled();
+  await expect(page.locator('#liveQueue')).toContainText('QUEUED · ATTACK');
+  await expect(page.locator('#liveActionBudget')).toHaveAttribute('title', /queued action or timeout fallback/);
+});

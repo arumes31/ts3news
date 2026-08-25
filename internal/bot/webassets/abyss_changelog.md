@@ -9,3 +9,4 @@
 - Forge and shop tools live in dedicated tabs, keeping the main descent flow focused.
 - Community tools can read versioned, anonymous run and tier aggregates from `/api/abyss/public/stats`.
 - Finished live combats retain their deterministic seed and bounded event history in an owner-authorized replay viewer.
+- Live combat now shows the exact action changes remaining each round and preserves the queued or timeout action when that safety budget is exhausted.

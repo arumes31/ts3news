@@ -63,6 +63,14 @@ func (s *WebServer) handleAbyssCombatAction(w http.ResponseWriter, r *http.Reque
 			writeJSON(w, map[string]any{"ok": false, "error": "round closed", "state": c.snapshotFor(uid)})
 			return
 		}
+		if errors.Is(err, errAbyssLiveIdempotencyLimit) {
+			writeJSON(w, map[string]any{
+				"ok":    false,
+				"error": "action change limit reached; the queued action remains active",
+				"state": c.snapshotFor(uid),
+			})
+			return
+		}
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
