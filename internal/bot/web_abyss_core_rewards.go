@@ -14,6 +14,7 @@ const (
 	abyssRunFlagDefensiveMomentum   = "def_momentum"
 	abyssRunFlagCheckpointTokenCost = "checkpoint_token_cost"
 	abyssRunFlagSecondLastStandUsed = "second_last_stand_used"
+	abyssRunFlagHybrid              = "hybrid"
 )
 
 type abyssCoreLoopView struct {
@@ -38,11 +39,15 @@ type abyssCoreLoopView struct {
 	RestShrinkTokens       int64 `json:"rest_shrink_tokens"`
 	RafflePot              int64 `json:"raffle_pot"`
 	DownedTimeoutSeconds   int   `json:"downed_timeout_seconds"`
+	ReviveStreak           int   `json:"revive_streak"`
+	ReviveChancePct        int   `json:"revive_chance_pct"`
+	Hybrid                 bool  `json:"hybrid"`
 }
 
 func (b *Bot) abyssCoreLoopStatus(uid string, run abyssRun) abyssCoreLoopView {
 	flags := b.loadRunFlags(uid)
 	cache, tokens := abyssRestCacheConversion(run.Escrow)
+	stats := b.loadAbyssStats(uid)
 	maxHP := b.abyssCombatStats(uid).HP
 	status := abyssCoreLoopView{
 		GreedyGripStacks:       abyssGreedyGripStacks(run.Depth),
@@ -62,7 +67,10 @@ func (b *Bot) abyssCoreLoopStatus(uid string, run abyssRun) abyssCoreLoopView {
 		RestShrinkCache:        cache,
 		RestShrinkTokens:       tokens,
 		RafflePot:              b.abyssRafflePot(),
+		Hybrid:                 flags[abyssRunFlagHybrid] == 1,
 	}
+	status.ReviveStreak = b.abyssReviveStreak(uid)
+	status.ReviveChancePct = abyssReviveOfferChancePct(status.ReviveStreak, stats.UpMercy)
 	status.GreedyInterestPct = status.GreedyGripStacks * 2
 	status.GreedyDEFPct = status.GreedyGripStacks * 2
 	status.RestShrinkReady = run.Active && !run.Downed && run.FloorType == "rest" && tokens > 0 && flags["cache_shrink_depth"] != int64(run.Depth)
@@ -70,6 +78,67 @@ func (b *Bot) abyssCoreLoopStatus(uid string, run abyssRun) abyssCoreLoopView {
 		status.DownedTimeoutSeconds = max(int(time.Until(run.LastActionAt.Add(abyssDownedTimeout)).Seconds()), 0)
 	}
 	return status
+}
+
+func abyssReviveOfferChancePct(streak, mercy int) int {
+	return min(100, 45+8*max(mercy, 0)+5*min(max(streak, 0), 5))
+}
+
+func abyssColdMusclesOnEntry(startDepth int) int64 {
+	if startDepth > 0 {
+		return 2
+	}
+	return 0
+}
+
+func abyssRecordPushReward(reward int64, depth, bestDepth int) int64 {
+	if depth > bestDepth {
+		return reward * 103 / 100
+	}
+	return reward
+}
+
+func abyssNextDefensiveMomentum(stacks int64, untouched bool) int64 {
+	if !untouched {
+		return 0
+	}
+	return min(max(stacks, 0)+1, int64(10))
+}
+
+func abyssHybridDangerMultiplier(tier abyssTier) float64 {
+	next, ok := abyssNextTier(tier.Key)
+	if !ok || tier.DiffMult <= 0 {
+		return 1
+	}
+	return next.DiffMult / tier.DiffMult
+}
+
+func abyssHybridRewardMultiplier(tier abyssTier) float64 {
+	next, ok := abyssNextTier(tier.Key)
+	if !ok || tier.RewardMult <= 0 {
+		return 1
+	}
+	return (tier.RewardMult + next.RewardMult) / 2 / tier.RewardMult
+}
+
+func abyssHybridSurge(active bool, depth int) bool {
+	return active && depth > 0 && depth%5 == 0
+}
+
+func abyssFatigueDamage(maxHP, round int) int {
+	if maxHP <= 0 || round <= 30 {
+		return 0
+	}
+	return max(1, maxHP*(round-30)/100)
+}
+
+func clearAbyssPerfectRunInTx(tx *sql.Tx, uid string) error {
+	flags, err := loadAbyssRunFlagsInTx(tx, uid)
+	if err != nil {
+		return err
+	}
+	flags[abyssRunFlagPerfect] = 0
+	return saveAbyssRunFlagsInTx(tx, uid, flags)
 }
 
 func abyssFranticBankFee(cache int64, currentHP, maxHP int) int64 {

@@ -10,6 +10,10 @@
 <details class="ab-risk-console" id="abyssRiskConsole" {{if .Run.Active}}open{{end}}>
   <summary><span>⚖️ Risk protocols</span><span class="ab-risk-summary" id="abyssRiskSummary">Server-authoritative</span></summary>
   <div class="ab-risk-chips" id="abyssRiskChips" aria-live="polite"></div>
+  <div class="ab-interest-curve" id="abyssInterestCurve" role="img" aria-label="Escrow diminishing-returns curve">
+    <svg viewBox="0 0 240 42" aria-hidden="true"><path d="M4 36 C42 8 112 5 236 4"></path><circle id="abyssInterestMarker" r="4" cx="4" cy="36"></circle></svg>
+    <span id="abyssInterestCurveLabel">Cache position loading…</span>
+  </div>
   <div class="ab-risk-actions">
     <label class="ab-risk-switch"><input id="bankSafeWordToggle" type="checkbox" {{if .CoreLoop.BankConfirm}}checked{{end}}> Type BANK above 1M</label>
     <label class="ab-risk-switch ab-risk-danger"><input id="deathWishToggle" type="checkbox" {{if .CoreLoop.DeathWish}}checked{{end}}> Death Wish: 3× danger / 2× reward</label>
@@ -42,11 +46,29 @@
     if(state.anchor_rune){host.appendChild(chip('⚓','Half-cache anchor armed','good'));active++;}
     if(state.low_hp){host.appendChild(chip('🫀','Frantic bank fee · −'+state.frantic_fee_pct+'% cache','danger'));active++;}
     if(state.echo_seed){host.appendChild(chip('↩️','Next-run echo '+fmtGold(state.echo_seed),'good'));active++;}
+    if(state.revive_streak){host.appendChild(chip('🎲','Revive '+state.revive_chance_pct+'% · pity ×'+state.revive_streak,'good'));active++;}
+    if(state.hybrid){host.appendChild(chip('🌀','Hybrid · '+((Number(curDepth)||0)%5===4?'next floor surges':'surge every 5th floor'),'warn'));active++;}
+    if(state.perfect_run){host.appendChild(chip('✨','Perfect run intact','good'));active++;}
     if(!active)host.appendChild(chip('✓','No active penalties','good'));
     if(summary)summary.textContent=active?active+' active':'Clear';
+    renderInterestCurve();
+    var revive=document.getElementById('btnRevive');
+    if(revive&&state.revive_chance_pct)revive.textContent='🎲 Revive · '+state.revive_chance_pct+'% offer (double-or-nothing)';
+  }
+
+  function renderInterestCurve(){
+    var box=document.getElementById('abyssInterestCurve'),marker=document.getElementById('abyssInterestMarker'),label=document.getElementById('abyssInterestCurveLabel');if(!box||!marker||!label)return;
+    var cap=Math.max(1,Number(window.escrowSoftCap)||1),cache=Math.max(0,Number(curEscrow)||0),position=Math.min(1,cache/(cap*2));
+    var rawEff=Number(window.escrowEfficiencyPct),eff=Number.isFinite(rawEff)?Math.max(0,Math.min(100,rawEff)):100;
+    var x=4+232*position,y=4+32*Math.pow(1-position,3);
+    marker.setAttribute('cx',x.toFixed(1));marker.setAttribute('cy',y.toFixed(1));
+    label.textContent=fmtGold(cache)+' / '+fmtGold(cap)+' soft cap · '+eff+'% marginal value';
+    box.setAttribute('data-tip','Diminishing cache returns\nThe marker is your current cache position. Growth beyond '+fmtGold(cap)+' is compressed to 25%; the server currently values the next cache gain at '+eff+'%.');
+    box.setAttribute('aria-label','Current cache '+fmtGold(cache)+', soft cap '+fmtGold(cap)+', marginal value '+eff+' percent');
   }
 
   window.abyssInsureSelected=function(){var input=document.getElementById('insurancePct');if(input)abyssInsure(Number(input.value));};
+	window.updateAbyssReviveRisk=function(streak,chance){state.revive_streak=Math.max(0,Number(streak)||0);state.revive_chance_pct=Math.max(0,Number(chance)||0);render();};
   var insurance=document.getElementById('insurancePct'),insuranceOut=document.getElementById('insurancePctOut');
   if(insurance)insurance.addEventListener('input',function(){if(insuranceOut)insuranceOut.value=insurance.value+'%';});
 
@@ -88,6 +110,12 @@
   if(typeof originalSetEscrow==='function')window.setEscrow=function(value){originalSetEscrow(value);render();};
   var originalSetDepth=window.setDepth;
   if(typeof originalSetDepth==='function')window.setDepth=function(value){originalSetDepth(value);render();};
+	var originalRenderState=window.renderState;
+	if(typeof originalRenderState==='function')window.renderState=function(){
+		var result=originalRenderState.apply(this,arguments);
+		if(downed)scheduleDownedDeadline(state.downed_timeout_seconds||1);else clearTimeout(downedTimer);
+		return result;
+	};
 
 	var downedTimer=0;
 	function scheduleDownedDeadline(seconds){
@@ -108,6 +136,8 @@
 		scheduleDownedDeadline(result.remaining_seconds||1);
 	}
 	document.addEventListener('visibilitychange',function(){if(!document.hidden&&inRun&&downed)checkDownedDeadline();});
+  var originalRenderState=window.renderState;
+  if(typeof originalRenderState==='function')window.renderState=function(){var result=originalRenderState.apply(this,arguments);render();scheduleDownedDeadline(state.downed_timeout_seconds||1);return result;};
   render();injectRestAction();
 	scheduleDownedDeadline(state.downed_timeout_seconds||1);
   window.__abyssCoreRisk={render:render,state:state};

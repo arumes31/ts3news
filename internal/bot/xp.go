@@ -76,9 +76,21 @@ type UserInCombat struct {
 	// populates it; regular channel fights leave it zero so the Abyss tree never
 	// leaks into non-Abyss combat (and treeBonusFor's DB cost stays off that path).
 	treeBonus content.TreeBonus
+	// killerExp is an Abyss-only per-mob-tier damage bonus in tenths of a
+	// percent. Keeping it on the combatant lets mixed waves apply grudges only
+	// to the matching target family.
+	killerExp map[string]int
 	// live is set only for interactive Abyss fights. It pauses the shared combat
 	// engine at player phases and supplies the party's submitted actions.
 	live *abyssLiveCombat
+}
+
+func abyssKillerDamage(base int, user *UserInCombat, mob *content.Mob) int {
+	if base <= 0 || user == nil || mob == nil || len(user.killerExp) == 0 {
+		return base
+	}
+	bonus := min(max(user.killerExp[string(mob.Type)], 0), abyssKillerExpCap)
+	return base + base*bonus/1000
 }
 
 type activeUser struct {
@@ -915,6 +927,51 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track, liveActions, rand)
 				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
 				observeLiveResolution()
+				if len(b.getAliveMobs(currentMobs)) == 0 {
+					waveVictory = true
+					break
+				}
+			}
+
+			// AB-24 Anti-stall: from round 31, unavoidable fatigue burns both
+			// sides for an additional 1% of max HP per overtime round. Resolve it
+			// simultaneously after both turns so initiative cannot evade the tax.
+			if isAbyss && r > 30 {
+				userFatigue, mobFatigue := 0, 0
+				for i := range activeUsers {
+					u := activeUsers[i].u
+					if u == nil || u.CurrentHP <= 0 {
+						continue
+					}
+					damage := min(abyssFatigueDamage(u.Stats.HP, r), u.CurrentHP)
+					u.CurrentHP -= damage
+					u.DamageTaken += damage
+					userFatigue += damage
+					if u.CurrentHP <= 0 {
+						_ = b.checkUserRevive(u, &logs)
+					}
+				}
+				for _, mob := range currentMobs {
+					if mob == nil || mob.Stats.HP <= 0 {
+						continue
+					}
+					damage := min(abyssFatigueDamage(mob.MaxHP, r), mob.Stats.HP)
+					mob.Stats.HP -= damage
+					mobFatigue += damage
+				}
+				totalMobDamage += userFatigue
+				totalUserDamage += mobFatigue
+				logs = append(logs, fmt.Sprintf("🥀 Overtime fatigue ×%d sears both sides — party %d, enemies %d.", r-30, userFatigue, mobFatigue))
+				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
+				aliveUsers := 0
+				for i := range activeUsers {
+					if activeUsers[i].u != nil && activeUsers[i].u.CurrentHP > 0 {
+						aliveUsers++
+					}
+				}
+				if aliveUsers == 0 {
+					break
+				}
 				if len(b.getAliveMobs(currentMobs)) == 0 {
 					waveVictory = true
 					break
@@ -1765,6 +1822,8 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			}
 
+			killerBaseDamage := dmg
+			dmg = abyssKillerDamage(killerBaseDamage, u, target)
 			remainingHP := target.Stats.HP
 			overkill := max(0, dmg-remainingHP)
 			massiveOverkill := abyssOverkillHit(dmg, remainingHP)
@@ -1796,10 +1855,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 						}
 					}
 					if chainTarget != nil {
-						chainDmg := dmg / 2
+						chainDmg := killerBaseDamage / 2
 						if chainDmg < 1 {
 							chainDmg = 1
 						}
+						chainDmg = abyssKillerDamage(chainDmg, u, chainTarget)
 						chainTarget.Stats.HP -= chainDmg
 						applyAbyssBreakDamage(chainTarget, chainDmg, logs)
 						*totalUserDamage += chainDmg
@@ -1863,7 +1923,8 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if isLiveAction && overkill > 1 && liveHitKind != "item" {
 				cleaveTarget := lowestHealthMobExcept(*mobs, target)
 				if cleaveTarget != nil {
-					cleaveDamage := max(1, overkill/2)
+					cleaveDamage := max(1, max(0, killerBaseDamage-remainingHP)/2)
+					cleaveDamage = abyssKillerDamage(cleaveDamage, u, cleaveTarget)
 					cleaveOverkill := abyssOverkillHit(cleaveDamage, cleaveTarget.Stats.HP)
 					cleaveTarget.Stats.HP -= cleaveDamage
 					applyAbyssBreakDamage(cleaveTarget, cleaveDamage, logs)
@@ -1907,6 +1968,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					if pdmg < 1 {
 						pdmg = 1
 					}
+					target.DamageTaken += pdmg
 					target.CurrentHP -= pdmg
 					*logs = append(*logs, i18n.T("bot.combat.rogue_pet_bite", p.Name, target.Nickname, pdmg))
 					*totalMobDamage += pdmg
@@ -1965,6 +2027,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if pdmg < 1 {
 				pdmg = 1
 			}
+			pdmg = abyssKillerDamage(pdmg, u, ptarget)
 			petOverkill := abyssOverkillHit(pdmg, ptarget.Stats.HP)
 			ptarget.Stats.HP -= pdmg
 			applyAbyssBreakDamage(ptarget, pdmg, logs)
@@ -2066,6 +2129,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			if counterDmg < 1 {
 				counterDmg = 1
 			}
+			counterDmg = abyssKillerDamage(counterDmg, target, m)
 			m.Stats.HP -= counterDmg
 			*totalUserDamage += counterDmg
 			continue
@@ -2197,6 +2261,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			dmg = dmg * 7 / 10
 		}
 
+		target.DamageTaken += max(dmg, 0)
 		target.CurrentHP -= dmg
 		*totalMobDamage += dmg
 
@@ -2229,6 +2294,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 				if reflect < 1 {
 					reflect = 1
 				}
+				reflect = abyssKillerDamage(reflect, target, m)
 				m.Stats.HP -= reflect
 				*totalUserDamage += reflect
 			}
@@ -2481,6 +2547,7 @@ func (b *Bot) handleDeathEffects(m *content.Mob, mobs *[]*content.Mob, logs *[]s
 			if target.CurrentHP <= 0 {
 				continue
 			}
+			target.DamageTaken += max(dmg, 0)
 			target.CurrentHP -= dmg
 			if target.CurrentHP <= 0 {
 				target.CurrentHP = 0

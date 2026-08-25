@@ -438,3 +438,18 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0708 / AB-8** — floor idling adds 1% danger per complete minute after the first minute, capped at 50% and surfaced on the HUD.
 - [x] **AAA-0709 / AB-9** — Death Wish is a one-fight wager with triple danger, double floor reward, and explicit armed/consumed state.
 - [x] **AAA-0710 / AB-10** — each rest floor can atomically compress half the cache into tokens at 70% of the normal exchange value.
+- [x] **AAA-0711 / AB-11** — a spent Last Stand unlocks one final charge at triple cost, with both charges enforced by persisted run state.
+- [x] **AAA-0712 / AB-12** — each defeat adds 0.1% permanent damage against every unique killer family, capped at 5% per family.
+- [x] **AAA-0713 / AB-13** — checkpoint and express starts apply a visible 10% stat penalty that expires after two cleared floors.
+- [x] **AAA-0714 / AB-14** — banking exactly on a checkpoint refunds the authoritative token cost paid at entry in the bank transaction.
+- [x] **AAA-0715 / AB-15** — combat and event rewards beyond personal best depth gain an additional 3% record-push bonus.
+- [x] **AAA-0716 / AB-16** — every full bank contributes 1% to a transactional daily raffle with one entry per banker and a lazy atomic draw.
+- [x] **AAA-0717 / AB-17** — the downed screen schedules a server-authoritative five-minute timeout that auto-concedes for a 10% pity cache.
+- [x] **AAA-0718 / AB-18** — untouched combat clears build a capped 2%-per-stack defensive momentum variant and damage resets it.
+- [x] **AAA-0719 / AB-19** — buying insurance for a premium below 5% of cache value can award the seven-day Cheapskate title.
+- [x] **AAA-0720 / AB-20** — banking a run with no recorded incoming or self damage pays 25% extra and awards the Untouchable badge.
+- [x] **AAA-0721 / AB-21** — the risk console plots the server soft-cap curve, marks current cache position, and explains 100% versus 25% marginal growth.
+- [x] **AAA-0722 / AB-22** — same-day defeats add five points to the revive-offer chance up to +25, reset on success, and show the exact chance.
+- [x] **AAA-0723 / AB-23** — the bank confirmation can double the next-run echo seed from 5% to 10% without allowing partial-bank ambiguity.
+- [x] **AAA-0724 / AB-24** — Abyss rounds past 30 deal stacking max-HP fatigue to both sides and report each pulse in the combat timeline.
+- [x] **AAA-0725 / AB-25** — optional Hybrid runs surge every fifth combat floor to next-tier danger with half of its additional reward multiplier.

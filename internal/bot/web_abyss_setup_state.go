@@ -21,6 +21,7 @@ type abyssEntrySetup struct {
 	Focus        string   `json:"focus"`
 	Expedition   bool     `json:"expedition"`
 	Hardcore     bool     `json:"hardcore"`
+	Hybrid       bool     `json:"hybrid"`
 }
 
 type abyssSetupYesterday struct {
@@ -54,6 +55,9 @@ func normalizeAbyssEntryFocus(value string) (string, int64, bool) {
 func canonicalAbyssEntrySetup(setup abyssEntrySetup) abyssEntrySetup {
 	if _, ok := abyssTierByKey(setup.Tier); !ok {
 		setup.Tier = "normal"
+	}
+	if _, hasNextTier := abyssNextTier(setup.Tier); !hasNextTier {
+		setup.Hybrid = false
 	}
 	setup.Pacts = strings.Fields(abyssValidatePacts(setup.Pacts))
 	switch setup.Start {

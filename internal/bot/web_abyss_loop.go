@@ -180,7 +180,11 @@ func (b *Bot) bumpKillerExp(uid string, families []string) {
 
 // ---- AB-22 revive pity streak -------------------------------------------------
 
-func abyssReviveStreakKey(uid string) string { return "abyss_revive_streak_" + uid }
+func abyssReviveStreakKeyAt(uid string, now time.Time) string {
+	return "abyss_revive_streak_" + now.UTC().Format("2006-01-02") + "_" + uid
+}
+
+func abyssReviveStreakKey(uid string) string { return abyssReviveStreakKeyAt(uid, time.Now()) }
 
 // abyssReviveStreak counts consecutive daily deaths without a successful revive
 // gamble; each adds +5% to the next double-or-nothing offer (cap +25%).
@@ -200,15 +204,6 @@ func (b *Bot) setAbyssReviveStreak(uid string, n int) {
 
 func abyssEchoSeedKey(uid string) string { return "abyss_echo_seed_" + uid }
 
-// setAbyssEchoSeed stores the head-start cache the next descent begins with.
-func (b *Bot) setAbyssEchoSeed(uid string, amt int64) {
-	if amt <= 0 {
-		return
-	}
-	_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssEchoSeedKey(uid), strconv.FormatInt(amt, 10))
-}
-
 // peekAbyssEchoSeed reads the stored head-start without consuming it (the enter
 // handler clears it only after the run-insert commits).
 func (b *Bot) peekAbyssEchoSeed(uid string) int64 {
@@ -216,10 +211,6 @@ func (b *Bot) peekAbyssEchoSeed(uid string) int64 {
 	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssEchoSeedKey(uid)).Scan(&s)
 	seed, _ := strconv.ParseInt(s, 10, 64)
 	return seed
-}
-
-func (b *Bot) clearAbyssEchoSeed(uid string) {
-	_, _ = b.DB.Exec("DELETE FROM app_meta WHERE key=$1", abyssEchoSeedKey(uid))
 }
 
 // ---- AB-27 event memory ---------------------------------------------------------
@@ -390,19 +381,6 @@ func (s *WebServer) autoConcedeIfTimedOut(w http.ResponseWriter, uid string, run
 // ---- AB-16 bankers' raffle ---------------------------------------------------------------
 
 func abyssRaffleDay(t time.Time) string { return t.UTC().Format("2006-01-02") }
-
-// abyssRaffleEnter records today's bank: 1% of the payout feeds the daily pot
-// and the delver joins today's draw.
-func (b *Bot) abyssRaffleEnter(uid string, fee int64) {
-	day := abyssRaffleDay(time.Now())
-	if fee > 0 {
-		_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-			ON CONFLICT (key) DO UPDATE SET value = (COALESCE(NULLIF(app_meta.value, '')::bigint, 0) + $3)::text`,
-			"abyss_raffle_pot_"+day, strconv.FormatInt(fee, 10), fee)
-	}
-	_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, '1')
-		ON CONFLICT (key) DO NOTHING`, "abyss_raffle_entry_"+day+"_"+uid)
-}
 
 // abyssRafflePot returns today's accumulated pot (for display).
 func (b *Bot) abyssRafflePot() int64 {

@@ -411,16 +411,34 @@
     "verification": ["internal/bot/web_abyss_changelog_test.go"]
   },
   {
-    "ids": [701, 702, 703, 704, 705, 706, 707, 708, 709, 710],
+    "ids": [701, 702, 703, 704, 705, 706, 707, 708, 709, 710, 711, 712, 713, 714, 715, 716, 717, 718, 719, 720],
     "production": [
       "internal/bot/web_abyss_core_rewards.go",
       "internal/bot/web_abyss_core_risk.go",
       "internal/bot/web_abyss.go",
       "internal/bot/web_abyss_econ.go",
-      "internal/bot/web_abyss_loop.go",
+	  "internal/bot/web_abyss_features.go",
+	  "internal/bot/web_abyss_loop.go",
+	  "internal/bot/web_abyss_codex.go",
+	  "internal/bot/xp.go",
       "internal/bot/webassets/abyss_core_risk.html",
       "internal/bot/webassets/abyss_core_risk.css"
     ],
-    "verification": ["internal/bot/web_abyss_core_risk_test.go"]
+    "verification": ["internal/bot/web_abyss_core_risk_test.go", "internal/bot/web_abyss_core_rewards_test.go"]
+  },
+  {
+    "ids": [721, 722, 723, 724, 725],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_core_rewards.go",
+      "internal/bot/web_abyss_hud.go",
+      "internal/bot/web_abyss_loop.go",
+      "internal/bot/web_abyss_setup_state.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_core_risk.html",
+      "internal/bot/webassets/abyss_entry_planner.html",
+      "internal/bot/xp.go"
+    ],
+    "verification": ["internal/bot/web_abyss_core_rewards_test.go", "internal/bot/web_abyss_hud_test.go"]
   }
 ]

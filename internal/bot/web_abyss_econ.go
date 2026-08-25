@@ -1265,19 +1265,27 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	cheapskateTitle := false
+	if abyssCheapskateEligible(cost, run.Escrow) {
+		res, err := tx.Exec(`UPDATE users SET title='The Cheapskate', title_mult=1,
+			title_expires=NOW() + INTERVAL '7 days', title_source='abyss'
+			WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())
+			AND NOT EXISTS (SELECT 1 FROM app_meta WHERE key=$2)`, uid, "abyss_cheapskate_"+uid)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if rows, rowsErr := res.RowsAffected(); rowsErr == nil && rows == 1 {
+			if _, err := tx.Exec("INSERT INTO app_meta (key, value) VALUES ($1, '1')", "abyss_cheapskate_"+uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			cheapskateTitle = true
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
-	}
-	cheapskateTitle := false
-	if abyssCheapskateEligible(cost, run.Escrow) {
-		res, err := s.bot.DB.Exec(`UPDATE users SET title='The Cheapskate', title_mult=1,
-			title_expires=NOW() + INTERVAL '7 days', title_source='abyss'
-			WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())`, uid)
-		if err == nil {
-			rows, rowsErr := res.RowsAffected()
-			cheapskateTitle = rowsErr == nil && rows == 1
-		}
 	}
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)

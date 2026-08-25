@@ -56,7 +56,8 @@ func TestAbyssHUDPageStateUsesAuthoritativeRunData(t *testing.T) {
 	if state.Jackpot != 54_321 {
 		t.Fatalf("jackpot = %d", state.Jackpot)
 	}
-	if math.Abs(state.InterestRatePct-0.84) > 0.0001 || state.InterestTotalPct <= state.InterestRatePct {
+	wantInterest := abyssGreedyInterestRate(abyssEffectiveInterest(2, true), run.Depth) * 100
+	if math.Abs(state.InterestRatePct-wantInterest) > 0.0001 || state.InterestTotalPct <= state.InterestRatePct {
 		t.Fatalf("interest = %.4f%% per floor, %.4f%% total", state.InterestRatePct, state.InterestTotalPct)
 	}
 	if len(state.Pacts) != 1 || state.Pacts[0].Key != "glass_cannon" {

@@ -277,6 +277,10 @@
         <input type="checkbox" id="hardcoreMode"> 💀 Hardcore
         <span class="muted small">(×2 cache · no protection or revival)</span>
       </label>
+      <label class="ab-pact" data-tip="Every fifth floor uses the next unlocked tier's danger. Its extra reward is split in half, creating predictable difficulty spikes without a full tier jump.">
+        <input type="checkbox" id="hybridMode"> 🌀 Hybrid run
+        <span class="muted small">(next-tier danger every 5th floor · half its extra reward)</span>
+      </label>
       <div class="muted small">🌐 Community expedition {{index .CommunityExpedition "Week"}}: {{index .CommunityExpedition "Floors"}} / {{index .CommunityExpedition "Target"}} floors</div>
     </div>
 
@@ -2450,7 +2454,9 @@ function renderHudChipsNow(){
   if(inRun){
     // UI-41: escrow earn-rate estimate for the current run.
     if(runFloorsCleared>0) chips.push(['💰 ≈'+fmtGold(Math.round(curEscrow/runFloorsCleared))+'/floor','']);
-    chips.push(['⚖️ cap '+fmtGold(escrowSoftCap)+' · '+escrowEfficiencyPct+'% marginal',escrowEfficiencyPct<100?'warn':'']);
+    var capPosition=escrowSoftCap>0?Math.round(curEscrow*100/escrowSoftCap):0;
+    var capTooltip='Escrow growth curve: 100% of each gain is kept below '+fmtGold(escrowSoftCap)+', then 25% is kept above it. Your cache is '+capPosition+'% of this floor’s cap.';
+    chips.push(['⚖️ cap '+fmtGold(escrowSoftCap)+' · '+escrowEfficiencyPct+'% marginal',escrowEfficiencyPct<100?'warn':'',false,capTooltip]);
     // UI-43: insurance is run-wide, so its remaining floor coverage is unbounded.
     if(curInsured>0) chips.push(['🛡️ '+curInsured+'% · ∞ floors','']);
     // UI-44: floors to the next checkpoint (every 10 depths).
@@ -2751,11 +2757,11 @@ async function abyssEnter(consumables){
   // multiple confirmations (and duplicate enter requests).
   setBusy(true); markBusyBtn('btnEnter');
   var expedition=document.getElementById('weeklyExpedition');
-	var hardcore=document.getElementById('hardcoreMode');
+	var hardcore=document.getElementById('hardcoreMode'),hybrid=document.getElementById('hybridMode');
   var kit=document.getElementById('buildKit'), mutation=document.getElementById('buildMutation'), entryFocus=document.getElementById('entryFocus');
   var veteran=document.getElementById('veteranTrack');
   var lootRule=document.getElementById('partyLootRule');
-  var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),hardcore:!!(hardcore&&hardcore.checked),
+  var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),hardcore:!!(hardcore&&hardcore.checked),hybrid:!!(hybrid&&hybrid.checked),
     kit:kit?kit.value:'vanguard', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
     loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto'};
   if(body.hardcore && !(await confirmModalDangerous('Begin a Hardcore run? Grace floors, insurance, revival items, Last Stand, and revival gambles are disabled. Cleared-floor cache rewards are doubled and the run enters the Hardcore leaderboard.',{title:'Begin Hardcore',okLabel:'Enter Hardcore'}))){
@@ -2813,6 +2819,7 @@ async function abyssEnter(consumables){
   if(d.auto_repaired) notes.push('🛠️ Auto-repaired all gear for '+fmtGold(d.auto_repaired)+'.');
   if(d.weekly_expedition) notes.push('📅 '+d.weekly_expedition+' · +25% cache rewards.');
 	if(d.hardcore) notes.push('💀 Hardcore active: ×2 cache, no grace, insurance, or revival.');
+	if(d.hybrid) notes.push('🌀 Hybrid active: every fifth floor surges to next-tier danger for half its extra reward.');
   if(d.build_summary) notes.push('🧬 '+d.build_summary+'.');
   if(d.rested_charges) notes.push('🌙 Rested reserve: +20% XP for '+d.rested_charges+' cleared floor'+(d.rested_charges===1?'':'s')+'.');
   if(d.returning_bonus) notes.push('🧭 Welcome back: +25% XP and +10% cache for 10 cleared floors.');
@@ -3159,6 +3166,7 @@ async function processDescendResult(d, hp, max){
     srSummary('Floor '+d.depth+' cleared. HP now '+fmtNum(d.hp)+' of '+fmtNum(d.max_hp)+'. '+plural((d.loot||[]).length,'item')+' escrowed.');
   } else {
     downed=true; canRev=d.can_revive; canLastStand=d.can_last_stand;
+	if(typeof updateAbyssReviveRisk==='function')updateAbyssReviveRisk(d.revive_streak,d.revive_chance_pct);
     var ls=document.getElementById('lsCost'); if(ls && d.last_stand_cost)ls.textContent=d.last_stand_cost;
 	 hardcoreRun=!!d.hardcore;
     setBanner('💀 You fell on floor '+d.depth+'! '+(d.grace_protected?'Grace protection will return the full '+fmtGold(d.escrow)+' cache on concede.':('Cache of '+fmtGold(d.escrow)+' is in peril.'+(d.insured>0?' ('+d.insured+'% insured)':''))),'bad');
@@ -3237,6 +3245,7 @@ async function abyssRevive(){
   setGold(d.gold); setTokens(d.tokens);
   if(d.victory){
     downed=false; canRev=false; setHP(d.hp,d.max_hp); setEscrow(d.escrow);
+	if(typeof updateAbyssReviveRisk==='function')updateAbyssReviveRisk(0,0);
     setBanner('🎲✨ REVIVED — and the cache DOUBLED to '+fmtGold(d.escrow)+'! Press on or bank.','good');
     document.getElementById('abStatus').textContent='Back from the brink. Descend or bank.';
     renderConsumables(d.consumables);
