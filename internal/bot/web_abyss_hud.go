@@ -19,16 +19,6 @@ type abyssHUDPageState struct {
 	Contract            *abyssContractPactView
 }
 
-func abyssHUDPacts(keys []string) []abyssPact {
-	pacts := make([]abyssPact, 0, len(keys))
-	for _, key := range keys {
-		if pact, ok := abyssPactByKey(key); ok {
-			pacts = append(pacts, pact)
-		}
-	}
-	return pacts
-}
-
 func abyssRunFloorsCleared(run abyssRun) int {
 	floors := max(0, run.Depth-run.CheckpointStart)
 	if run.Active && (run.Downed || run.FloorType != "combat") && floors > 0 {

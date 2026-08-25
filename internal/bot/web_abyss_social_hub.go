@@ -219,7 +219,7 @@ func (b *Bot) abyssSocialPets(uid string) []abyssSocialPetView {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	equipped := b.getEquippedItems(uid)
 	views := make([]abyssSocialPetView, 0)
 	for rows.Next() {
@@ -245,7 +245,7 @@ func (b *Bot) abyssDeathWall(uid string) []abyssDeathView {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	deaths := make([]abyssDeathView, 0, 10)
 	for rows.Next() {
 		var death abyssDeathView
@@ -272,7 +272,7 @@ func (b *Bot) abyssPetMemorials(uid string) []abyssMemorialView {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var views []abyssMemorialView
 	for rows.Next() {
 		var view abyssMemorialView
@@ -292,7 +292,7 @@ func (b *Bot) abyssBossTrophies(uid string) []abyssTrophyView {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var views []abyssTrophyView
 	for rows.Next() {
 		var view abyssTrophyView
@@ -378,7 +378,7 @@ func (b *Bot) abyssBankFeed(uid string) (bool, []abyssBankFeedView) {
 	if err != nil {
 		return true, nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var feed []abyssBankFeedView
 	for rows.Next() {
 		var item abyssBankFeedView
@@ -398,7 +398,7 @@ func (b *Bot) abyssSocialNotifications(uid string) []abyssNotificationView {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var views []abyssNotificationView
 	for rows.Next() {
 		var view abyssNotificationView
@@ -419,7 +419,7 @@ func (b *Bot) abyssSocialHub(uid string, prestige int) abyssSocialHubView {
 	return abyssSocialHubView{
 		Pets: b.abyssSocialPets(uid), SecondPetUnlocked: prestige >= 2,
 		PendingCapture: b.abyssPendingPetCapture(uid),
-		Deaths: deaths, Memorials: b.abyssPetMemorials(uid), Trophies: trophies, BossLore: abyssBossLoreViews(trophies),
+		Deaths:         deaths, Memorials: b.abyssPetMemorials(uid), Trophies: trophies, BossLore: abyssBossLoreViews(trophies),
 		RevengeFamily: b.abyssRevengeFamily(uid), Rival: b.ensureAbyssWeeklyRival(uid), BankFeedEnabled: bankEnabled,
 		BankFeed: bankFeed, WeeklyBoss: b.abyssWeeklyBossStatus(uid), Notifications: b.abyssSocialNotifications(uid),
 		FriendEcho: b.abyssFriendEchoSettings(uid),

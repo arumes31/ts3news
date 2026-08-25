@@ -40,7 +40,7 @@ func TestAbyssBossCosmeticGrantSharesBossRewardTransaction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO abyss_boss_kills").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("SELECT boss_contract_wager,boss_contract_depth").WithArgs("hunter").WillReturnError(sql.ErrNoRows)
@@ -61,7 +61,7 @@ func TestAbyssBossCosmeticDropCommitsWithBossRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO abyss_boss_kills").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("SELECT boss_contract_wager,boss_contract_depth").WithArgs("hunter").WillReturnError(sql.ErrNoRows)
@@ -82,7 +82,7 @@ func TestGrantAbyssBossCosmeticIsDuplicateSafe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO abyss_shop_cosmetics").WithArgs("hunter", "boss_banner_crownless").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectCommit()
@@ -107,7 +107,7 @@ func TestAbyssBossCosmeticEquipRequiresOwnership(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectExec("INSERT INTO abyss_boss_cosmetic_loadouts").WithArgs("hunter", "boss_mount_bone_runner").WillReturnResult(sqlmock.NewResult(0, 0))
 	server := &WebServer{bot: &Bot{DB: database}}
 	request := httptest.NewRequest(http.MethodPost, "/api/abyss/boss_cosmetic/equip", strings.NewReader(`{"key":"boss_mount_bone_runner"}`))

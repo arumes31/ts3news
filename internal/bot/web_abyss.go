@@ -1237,9 +1237,7 @@ func (b *Bot) fightAbyssFloorLive(
 		if duration > 0 {
 			res.BossDPS = int64(max(mobs[0].MaxHP, 0)) * int64(time.Second) / int64(duration)
 		}
-		for _, taunt := range abyssBossTaunts(mobs[0].Name, timeline) {
-			logs = append(logs, taunt)
-		}
+		logs = append(logs, abyssBossTaunts(mobs[0].Name, timeline)...)
 	}
 	if tier.Key == "insanity" && encounterRandom.IntN(3) == 0 {
 		logs = append(logs, abyssInsanityWhisper(depth, encounterRandom.IntN(4)))

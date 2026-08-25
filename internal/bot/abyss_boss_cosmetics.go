@@ -93,10 +93,6 @@ type abyssBossCosmeticCollectionView struct {
 	Rates        string
 }
 
-func (b *Bot) abyssBossCosmeticCollection(uid string) abyssBossCosmeticCollectionView {
-	return b.abyssBossCosmeticCollectionWithOwned(uid, b.abyssOwnedShopCosmetics(uid))
-}
-
 func (b *Bot) abyssBossCosmeticCollectionWithOwned(uid string, owned map[string]bool) abyssBossCosmeticCollectionView {
 	view := abyssBossCosmeticCollectionView{Total: len(abyssBossCosmeticCatalog), Rates: "Normal 2% · Nightmare 4% · Hell 7% · Insanity 12%"}
 	_ = b.DB.QueryRow("SELECT mount_key,banner_key FROM abyss_boss_cosmetic_loadouts WHERE client_uid=$1", uid).Scan(&view.ActiveMount, &view.ActiveBanner)

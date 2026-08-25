@@ -100,9 +100,10 @@ func (s *WebServer) handleAbyssTraversalRoom(w http.ResponseWriter, uid string, 
 	switch state.Type {
 	case "cursed_elevator":
 		index := -1
-		if action == "elevator_choose_0" {
+		switch action {
+		case "elevator_choose_0":
 			index = 0
-		} else if action == "elevator_choose_1" {
+		case "elevator_choose_1":
 			index = 1
 		}
 		if index < 0 || index >= len(state.Destinations) {

@@ -16,7 +16,7 @@ func TestSelectAbyssEchoIdentityPrefersConsentingBond(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	mock.ExpectQuery("FROM abyss_social_profiles owner").WithArgs("delver").
 		WillReturnRows(sqlmock.NewRows([]string{"client_uid", "nickname", "depth"}).AddRow("friend", "Nyra", 42))
 
@@ -37,7 +37,7 @@ func TestSelectAbyssEchoIdentityFallsBackToLegacyPool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	mock.ExpectQuery("FROM abyss_social_profiles owner").WithArgs("delver").WillReturnError(sql.ErrNoRows)
 	mock.ExpectQuery("FROM abyss_runs r JOIN users").WithArgs("delver").
 		WillReturnRows(sqlmock.NewRows([]string{"client_uid", "nickname", "depth"}).AddRow("random", "Sable", 30))
@@ -59,7 +59,7 @@ func TestAbyssFriendEchoSettingsRejectsUnconsentingTarget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	mock.ExpectQuery("SELECT EXISTS").WithArgs("delver", "friend").
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 	server := &WebServer{bot: &Bot{DB: db}}
@@ -80,7 +80,7 @@ func TestAbyssFriendEchoSettingsPersistsSharingOptIn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	mock.ExpectExec("INSERT INTO abyss_social_profiles").WithArgs("delver", true, "").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	server := &WebServer{bot: &Bot{DB: db}}

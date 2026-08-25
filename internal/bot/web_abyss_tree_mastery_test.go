@@ -59,7 +59,7 @@ func TestAbyssBestiaryTalentViewsShareBossKillBudget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	mock.ExpectQuery("SELECT value FROM app_meta").
 		WithArgs(abyssBestiaryTalentsKey("hunter")).
@@ -90,7 +90,7 @@ func TestAbyssParagonAllocationPersistsOneRank(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT abyss_prestige FROM users").

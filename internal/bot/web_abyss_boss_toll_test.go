@@ -25,7 +25,7 @@ func TestAbyssBossTollAvailabilityRequiresResolvedPreBossFloor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectQuery("SELECT boss_contract_wager").WithArgs("hunter", 5).
 		WillReturnRows(sqlmock.NewRows([]string{"boss_contract_wager"}).AddRow(int64(3)))
 	view := (&Bot{DB: database}).abyssBossToll("hunter", abyssRun{Active: true, Depth: 4, FloorType: "combat"}, 100, abyssSecretBossChainView{})
@@ -46,7 +46,7 @@ func TestAbyssBossTollQuotesTheSecretReplacement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectQuery("SELECT boss_contract_wager").WithArgs("hunter", 65).
 		WillReturnRows(sqlmock.NewRows([]string{"boss_contract_wager"}).AddRow(int64(0)))
 	chain := abyssSecretBossChainView{Unlocked: true, Stage: 1, NextDepth: 65}
@@ -65,7 +65,7 @@ func TestAbyssBossTollCommitIsAtomicAndRewardFree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	cost, _ := abyssBossTollExpectedValue(100, 5)
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT active.depth,active.floor_type").WithArgs("hunter").

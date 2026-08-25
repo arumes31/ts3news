@@ -51,7 +51,7 @@ func (b *Bot) abyssBossKillCounts(uid string) map[string]int {
 	if err != nil {
 		return map[string]int{}
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	counts := map[string]int{}
 	for rows.Next() {
 		var name string

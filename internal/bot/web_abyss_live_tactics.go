@@ -205,15 +205,6 @@ func livePotentialTargets(users []activeUser) []activeUser {
 	return potentialTargets
 }
 
-func liveActiveUserByUID(users []activeUser, uid string) (activeUser, bool) {
-	for _, au := range users {
-		if au.u != nil && au.u.UID == uid && au.u.CurrentHP > 0 {
-			return au, true
-		}
-	}
-	return activeUser{}, false
-}
-
 func lowestHealthMobExcept(mobs []*content.Mob, excluded *content.Mob) *content.Mob {
 	var target *content.Mob
 	for _, mob := range mobs {

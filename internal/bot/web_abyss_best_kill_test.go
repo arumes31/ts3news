@@ -15,7 +15,7 @@ func TestAbyssBestKillUsesAuthoritativeLeaderboardOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	killedAt := time.Date(2026, time.August, 25, 22, 0, 0, 0, time.FixedZone("test", 2*60*60))
 	mock.ExpectQuery("SELECT boss_name,depth,kill_time_ms,tier,killed_at.*ORDER BY depth DESC,kill_time_ms ASC,killed_at DESC LIMIT 1").WithArgs("hunter").
 		WillReturnRows(sqlmock.NewRows([]string{"boss_name", "depth", "kill_time_ms", "tier", "killed_at"}).

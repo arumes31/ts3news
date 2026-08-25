@@ -341,7 +341,7 @@ func (b *Bot) loadPetHealSettings(uid string) map[string]bool {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	settings := map[string]bool{}
 	for rows.Next() {
 		var name string
@@ -368,14 +368,6 @@ func (b *Bot) deletePet(uid, name string) {
 		RETURNING client_uid,name,mob_type,level,loyalty
 	) INSERT INTO abyss_pet_memorials (client_uid,name,mob_type,level,loyalty)
 	SELECT client_uid,name,mob_type,level,loyalty FROM fallen`, uid, name)
-}
-
-func (b *Bot) updatePetHP(uid, name string, hp int) {
-	if hp <= 0 {
-		b.deletePet(uid, name)
-	} else {
-		_, _ = b.DB.Exec("UPDATE user_pets SET hp = $3 WHERE client_uid = $1 AND name = $2", uid, name, hp)
-	}
 }
 
 func (b *Bot) updatePetState(uid string, pet *content.Mob) {

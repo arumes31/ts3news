@@ -91,10 +91,6 @@ func abyssShopEffectiveCost(item abyssShopItem, now time.Time) (int64, bool) {
 	return abyssDiscountedCost(item.Cost), true
 }
 
-func (b *Bot) abyssShopViews(uid string, now time.Time) []abyssShopItemView {
-	return b.abyssShopViewsWithOwned(uid, now, b.abyssOwnedShopCosmetics(uid))
-}
-
 func (b *Bot) abyssShopViewsWithOwned(uid string, now time.Time, ownedCosmetics map[string]bool) []abyssShopItemView {
 	b.maybeDeliverAbyssPotionSubscription(uid, now)
 	activeCosmetic := abyssActiveInsanityCosmetic(now)

@@ -496,42 +496,6 @@ func (b *Bot) checkBankAchievements(uid string, lifetimeBanked int64) string {
 	return b.checkThresholdAchievements(uid, lifetimeBanked, abyssBankTiers)
 }
 
-func (b *Bot) abyssAchievements(uid string) []string {
-	rows, err := b.DB.Query("SELECT code FROM abyss_achievements WHERE client_uid=$1 ORDER BY earned_at", uid)
-	if err != nil {
-		return nil
-	}
-	defer func() { _ = rows.Close() }()
-	var out []string
-	for rows.Next() {
-		var code string
-		if err := rows.Scan(&code); err != nil {
-			continue
-		}
-		out = append(out, abyssAchievementName(code))
-	}
-	return out
-}
-
-// abyssAchievementCodes returns the raw earned achievement codes (as opposed to
-// abyssAchievements' display names), used to drive the badge picker.
-func (b *Bot) abyssAchievementCodes(uid string) []string {
-	rows, err := b.DB.Query("SELECT code FROM abyss_achievements WHERE client_uid=$1 ORDER BY earned_at", uid)
-	if err != nil {
-		return nil
-	}
-	defer func() { _ = rows.Close() }()
-	var out []string
-	for rows.Next() {
-		var code string
-		if err := rows.Scan(&code); err != nil {
-			continue
-		}
-		out = append(out, code)
-	}
-	return out
-}
-
 // handleAbyssSetBadge lets a player display one earned achievement as a
 // persistent cosmetic badge next to their name. An empty code clears it.
 func (s *WebServer) handleAbyssSetBadge(w http.ResponseWriter, r *http.Request, uid string) {

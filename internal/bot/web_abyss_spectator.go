@@ -20,7 +20,7 @@ func validAbyssSpectatorSessionID(sessionID string) bool {
 		return false
 	}
 	for _, char := range sessionID {
-		if !(char >= '0' && char <= '9' || char >= 'a' && char <= 'f') {
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
 			return false
 		}
 	}

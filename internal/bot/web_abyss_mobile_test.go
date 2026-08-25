@@ -63,7 +63,7 @@ func TestAbyssTargetedSalvageRejectsProtectedRarity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT value FROM app_meta WHERE key=$1")).
 		WithArgs(abyssLootReservedKey("player")).
