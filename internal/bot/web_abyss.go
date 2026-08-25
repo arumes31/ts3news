@@ -3905,7 +3905,11 @@ func (run abyssRun) depthLevelHint() int {
 
 // abyssSeasonLabel is the current month, used for the "deepest this season" board.
 func abyssSeasonLabel() string {
-	return time.Now().UTC().Format("January 2006")
+	return abyssSeasonLabelAt(time.Now())
+}
+
+func abyssSeasonLabelAt(now time.Time) string {
+	return now.UTC().Format("January 2006")
 }
 
 func abyssSeasonStart() time.Time {

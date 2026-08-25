@@ -65,6 +65,7 @@ type WebServer struct {
 	abyssTreeOps       abyssTreeOpsMetrics
 	abyssForgeOps      abyssForgeOpsMetrics
 	abyssClientReports abyssClientReportStore
+	abyssPublicStats   abyssPublicStatsCache
 	forgeQuoteKey      [32]byte
 }
 
@@ -388,6 +389,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/leaderboards", s.auth(s.handleLeaderboardsPage))
 
 	if s.bot.Cfg.EnableAbyss {
+		mux.HandleFunc("/api/abyss/public/stats", s.handleAbyssPublicStats)
 		mux.HandleFunc("/abyss", s.auth(s.handleAbyssPage))
 		mux.HandleFunc("/abyss/spectate", s.auth(s.handleAbyssSpectatePage))
 		mux.HandleFunc("/api/abyss/enter", s.authAPI(s.handleAbyssEnter))
