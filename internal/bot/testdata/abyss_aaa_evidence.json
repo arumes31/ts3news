@@ -1031,5 +1031,18 @@
       "internal/bot/web_abyss_contract_pacts_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [200],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_community_weekend.go",
+      "internal/bot/web_abyss_pact_program.go",
+      "internal/bot/webassets/abyss_pact_program.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_community_weekend_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

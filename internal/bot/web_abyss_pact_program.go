@@ -35,15 +35,16 @@ type abyssPactMasteryView struct {
 }
 
 type abyssPactProgramState struct {
-	Presets       []abyssPactPreset       `json:"presets"`
-	Mastery       []abyssPactMasteryView  `json:"mastery"`
-	MasteredCount int                     `json:"mastered_count"`
-	Calendar      []abyssAffixCalendarDay `json:"calendar"`
-	Featured      abyssPactFeaturedView   `json:"featured"`
-	Synergies     []abyssPactSynergy      `json:"synergies"`
-	WeekendPoll   abyssWeekendAffixPoll   `json:"weekend_poll"`
-	PersonalAffix abyssPersonalAffixView  `json:"personal_affix"`
-	AffixStats    []abyssAffixStatView    `json:"affix_stats"`
+	Presets       []abyssPactPreset          `json:"presets"`
+	Mastery       []abyssPactMasteryView     `json:"mastery"`
+	MasteredCount int                        `json:"mastered_count"`
+	Calendar      []abyssAffixCalendarDay    `json:"calendar"`
+	Featured      abyssPactFeaturedView      `json:"featured"`
+	Synergies     []abyssPactSynergy         `json:"synergies"`
+	WeekendPoll   abyssWeekendAffixPoll      `json:"weekend_poll"`
+	PersonalAffix abyssPersonalAffixView     `json:"personal_affix"`
+	AffixStats    []abyssAffixStatView       `json:"affix_stats"`
+	Community     abyssCommunityWeekendState `json:"community_weekend"`
 }
 
 func abyssPactPresetsKey(uid string) string { return "abyss_pact_presets_" + uid }
@@ -270,6 +271,7 @@ func (b *Bot) enrichAbyssPactProgramState(state abyssPactProgramState, uid strin
 	if stats, err := b.loadAbyssAffixStats(uid); err == nil {
 		state.AffixStats = stats
 	}
+	state.Community = b.abyssCommunityWeekendState(at)
 	poll, err := b.abyssWeekendAffixPoll(uid, at)
 	if err != nil {
 		return state

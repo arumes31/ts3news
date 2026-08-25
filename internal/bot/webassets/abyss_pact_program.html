@@ -10,6 +10,7 @@
       <div class="ab-affix-calendar" id="affixCalendar" aria-label="This week's daily Abyss affixes"></div>
       <div class="ab-affix-poll" id="personalAffixControl"></div>
       <div class="ab-pact-mastery-list" id="affixPersonalStats" aria-label="Personal daily affix statistics"></div>
+      <div class="ab-community-expedition" id="communityAffixWeekend"></div>
       <div class="ab-affix-poll" id="affixWeekendPoll"></div>
       <div class="ab-pact-synergy" id="pactSynergyCallout" hidden></div>
     </div>
@@ -78,6 +79,16 @@ function renderAbyssAffixStats(){
     item.append(pactProgramNode('span','',stat.label),pactProgramNode('b','',stat.wins+' / '+stat.runs+' wins · '+Number(stat.win_rate_pct).toFixed(1)+'% · avg depth '+Number(stat.average_depth).toFixed(1)));
     host.appendChild(item);
   });
+}
+
+function renderAbyssCommunityWeekend(){
+  var host=document.getElementById('communityAffixWeekend'),state=pactProgramState.community_weekend||{};
+  if(!host)return;
+  host.replaceChildren();
+  var status=state.active?'✨ Weekend buff active · +'+Number(state.bonus_pct||0)+'% cache':state.unlocked?'✅ Weekend buff unlocked':'🌐 Community weekend · '+fmtGold(state.banked||0)+' / '+fmtGold(state.target||0);
+  host.appendChild(pactProgramNode('span','',status));
+  var progress=pactProgramNode('progress','');progress.max=100;progress.value=Number(state.percent)||0;progress.setAttribute('aria-label','Community weekend goal progress');host.appendChild(progress);
+  if(!state.unlocked)host.appendChild(pactProgramNode('span','muted small',fmtGold(state.remaining||0)+' left to unlock +'+Number(state.bonus_pct||0)+'% weekend cache'));
 }
 
 async function voteAbyssWeekendAffix(key){
@@ -174,6 +185,7 @@ function renderAbyssPactProgram(){
   }
   renderAbyssPersonalAffix();
   renderAbyssAffixStats();
+  renderAbyssCommunityWeekend();
   renderAbyssWeekendAffixPoll();
   for(var slot=1;slot<=3;slot++){
     var preset=pactPresetAt(slot),row=pactProgramNode('div','ab-pact-preset');

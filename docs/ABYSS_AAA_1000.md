@@ -178,6 +178,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0197 / 197** — the token-shop Affix Suppressor is consumed transactionally at entry and disables the daily affix for the full run.
 - [x] **AAA-0198 / 198** — normalized per-player affix outcomes track authoritative runs, wins, win rate, and average depth across banks and forfeits.
 - [x] **AAA-0199 / 199** — Flawless and Checkpoint contract pacts pay +20% while valid, expose live clause state, and transactionally forfeit 25% to the jackpot when broken.
+- [x] **AAA-0200 / 200** — authoritative ISO-week banked gold fills a server-wide goal that unlocks a visible +10% cache buff for Saturday and Sunday.
 
 ## Active tranche: operational quality and client performance
 

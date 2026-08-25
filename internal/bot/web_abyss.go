@@ -2876,6 +2876,7 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 	bonus = int64(float64(bonus) * tier.RewardMult * (1.0 + float64(st.UpGreed)*0.05) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50))
 	_, dailyMod := s.bot.abyssRunDailyChallenge(uid)
 	bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
+	bonus = int64(float64(bonus) * s.bot.abyssCommunityWeekendRewardMult(time.Now().UTC()))
 	pacts := s.bot.abyssRunPacts(uid)
 	mastery, err := s.bot.loadAbyssPactMastery(uid)
 	if err != nil {
@@ -5120,6 +5121,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	bonus = int64(float64(bonus) * (1.0 + float64(st.UpGreed)*0.05) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50))
 	_, dailyMod := s.bot.abyssRunDailyChallenge(uid)
 	bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
+	bonus = int64(float64(bonus) * s.bot.abyssCommunityWeekendRewardMult(time.Now().UTC()))
 	pacts := s.bot.abyssRunPacts(uid)
 	mastery, err := s.bot.loadAbyssPactMastery(uid)
 	if err != nil {
