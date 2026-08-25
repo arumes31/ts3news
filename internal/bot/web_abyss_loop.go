@@ -362,7 +362,7 @@ func (s *WebServer) autoConcedeIfTimedOut(w http.ResponseWriter, uid string, run
 	if run.Insured < 10 {
 		run.Insured = 10 // the pity cache
 	}
-	payout, err := s.bot.forfeitAbyss(uid, run)
+	payout, err := s.bot.forfeitAbyss(uid, run, "timeout")
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return true

@@ -25,15 +25,15 @@ func TestAbyssHistoryLoadsBoundedAuthoritativeLootSummary(t *testing.T) {
 		WithArgs("player", 50).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"depth", "gold_banked", "victory", "tier", "hardcore",
-			"loot_count", "loot_summary", "created_at",
-		}).AddRow(17, int64(4200), true, "hell", true, 3, []byte(`["Crown","Ward"]`), when))
+			"end_reason", "loot_count", "loot_summary", "created_at",
+		}).AddRow(17, int64(4200), true, "hell", true, "banked", 3, []byte(`["Crown","Ward"]`), when))
 
 	rows := (&Bot{DB: database}).abyssHistory("player", 500)
 	if len(rows) != 1 {
 		t.Fatalf("history rows = %d, want 1", len(rows))
 	}
 	row := rows[0]
-	if row.Depth != 17 || row.Tier != "hell" || !row.Hardcore || row.LootCount != 3 {
+	if row.Depth != 17 || row.Tier != "hell" || !row.Hardcore || row.EndReason != "banked" || row.LootCount != 3 {
 		t.Fatalf("history row = %#v", row)
 	}
 	if strings.Join(row.Loot, ",") != "Crown,Ward" || row.LootTruncated != 1 {
@@ -114,18 +114,20 @@ func TestAbyssLeaderboardsMarkOnlyAuthenticatedUID(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	descents := func() *sqlmock.Rows {
-		return sqlmock.NewRows([]string{"client_uid", "nick", "depth", "gold"}).
-			AddRow("other", "Twin", 20, int64(900)).
-			AddRow("player", "Twin", 18, int64(800))
+		return sqlmock.NewRows([]string{"client_uid", "nick", "depth", "gold", "previous_rank"}).
+			AddRow("other", "Twin", 20, int64(900), 2).
+			AddRow("player", "Twin", 18, int64(800), 1)
 	}
 	for range 3 {
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT a.client_uid")).
-			WithArgs("normal", sqlmock.AnyArg(), 10).
+		mock.ExpectQuery("WITH player_totals AS").
+			WithArgs("normal", sqlmock.AnyArg(), sqlmock.AnyArg(), 10).
 			WillReturnRows(descents())
 	}
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT a.client_uid")).
 		WithArgs("normal", 10).
-		WillReturnRows(descents())
+		WillReturnRows(sqlmock.NewRows([]string{"client_uid", "nick", "depth", "gold"}).
+			AddRow("other", "Twin", 20, int64(900)).
+			AddRow("player", "Twin", 18, int64(800)))
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT k.client_uid")).
 		WithArgs(10, "normal").
 		WillReturnRows(sqlmock.NewRows([]string{

@@ -202,7 +202,7 @@ func (b *Bot) taxAbyssDayGold(q dbExecQuerier, uid string, payout int64) (int64,
 // resets the streak. Returns the insured refund and an error if the transaction
 // could not be committed (so callers don't report a successful concede/revive on
 // a refund that never landed). [1][62]
-func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, err error) {
+func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund int64, err error) {
 	hardcore := abyssHardcoreRun(b.loadRunFlags(uid))
 	policy := planAbyssForfeit(run.Escrow, run.Insured, run.Depth, hardcore)
 	refund = policy.Refund
@@ -232,12 +232,12 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, err error) {
 	}
 	if run.Depth > 0 {
 		if _, err := tx.Exec(
-			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary)
+			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary, end_reason)
 			 SELECT $1,$2,$3,FALSE,$4,$5,
 			   (SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1),
 			   COALESCE((SELECT jsonb_agg(label ORDER BY id) FROM
-			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb)`,
-			uid, run.Depth, refund, run.Tier, hardcore); err != nil {
+			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), $6`,
+			uid, run.Depth, refund, run.Tier, hardcore, endReason); err != nil {
 			return 0, err
 		}
 		if !policy.CountDeath {
@@ -546,12 +546,16 @@ func (s *WebServer) handleAbyssSetBadge(w http.ResponseWriter, r *http.Request, 
 // ---- Leaderboards (per tier) ---------------------------------------------
 
 type abyssRow struct {
-	Rank      int
-	UID       string
-	Nickname  string
-	Depth     int
-	Gold      int64
-	IsCurrent bool
+	Rank         int
+	PreviousRank int
+	RankDelta    int
+	RankDown     int
+	IsNew        bool
+	UID          string
+	Nickname     string
+	Depth        int
+	Gold         int64
+	IsCurrent    bool
 }
 
 type bossKillRow struct {
@@ -575,15 +579,25 @@ type abyssBoards struct {
 }
 
 func (b *Bot) topDescents(tier string, since time.Time, limit int) []abyssRow {
+	previousCutoff := time.Now().UTC().Truncate(24 * time.Hour)
 	rows, err := b.DB.Query(
-		`SELECT a.client_uid, COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
-		        MAX(a.depth) AS depth, COALESCE(SUM(a.gold_banked), 0) AS gold
-		   FROM abyss_runs a
-		   LEFT JOIN users u ON u.client_uid = a.client_uid
-		  WHERE a.tier = $1 AND a.created_at >= $2 AND a.hardcore = FALSE
-		  GROUP BY a.client_uid, u.nickname
-		  ORDER BY depth DESC, gold DESC
-		  LIMIT $3`, tier, since, limit)
+		`WITH player_totals AS (
+		   SELECT a.client_uid, COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
+		          MAX(a.depth) AS depth, COALESCE(SUM(a.gold_banked), 0) AS gold,
+		          MAX(a.depth) FILTER (WHERE a.created_at < $3) AS previous_depth,
+		          COALESCE(SUM(a.gold_banked) FILTER (WHERE a.created_at < $3), 0) AS previous_gold
+		     FROM abyss_runs a
+		     LEFT JOIN users u ON u.client_uid = a.client_uid
+		    WHERE a.tier = $1 AND a.created_at >= $2 AND a.hardcore = FALSE
+		    GROUP BY a.client_uid, u.nickname
+		 ), ranked AS (
+		   SELECT *, CASE WHEN previous_depth IS NOT NULL THEN
+		          RANK() OVER (ORDER BY (previous_depth IS NULL), previous_depth DESC, previous_gold DESC)
+		        END AS previous_rank
+		     FROM player_totals
+		 )
+		 SELECT client_uid, nick, depth, gold, previous_rank
+		   FROM ranked ORDER BY depth DESC, gold DESC LIMIT $4`, tier, since, previousCutoff, limit)
 	if err != nil {
 		return nil
 	}
@@ -592,10 +606,20 @@ func (b *Bot) topDescents(tier string, since time.Time, limit int) []abyssRow {
 	rank := 1
 	for rows.Next() {
 		var r abyssRow
-		if err := rows.Scan(&r.UID, &r.Nickname, &r.Depth, &r.Gold); err != nil {
+		var previousRank sql.NullInt64
+		if err := rows.Scan(&r.UID, &r.Nickname, &r.Depth, &r.Gold, &previousRank); err != nil {
 			continue
 		}
 		r.Rank = rank
+		if previousRank.Valid {
+			r.PreviousRank = int(previousRank.Int64)
+			r.RankDelta = r.PreviousRank - r.Rank
+			if r.RankDelta < 0 {
+				r.RankDown = -r.RankDelta
+			}
+		} else {
+			r.IsNew = true
+		}
 		rank++
 		out = append(out, r)
 	}
@@ -789,9 +813,25 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
+	if s.rejectDuringLiveCombat(w, uid) {
+		return
+	}
+	var req struct {
+		InvID int64 `json:"inv_id"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
 
 	reserved := s.bot.loadAbyssReservedLoot(uid)
-	rows, err := s.bot.DB.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1", uid)
+	query := "SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1"
+	args := []any{uid}
+	if req.InvID > 0 {
+		query += " AND id=$2"
+		args = append(args, req.InvID)
+	}
+	rows, err := s.bot.DB.Query(query, args...)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -811,6 +851,11 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 			continue
 		}
 		if reserved[id] {
+			if req.InvID > 0 {
+				_ = rows.Close()
+				writeJSON(w, map[string]any{"ok": false, "error": "reserved items cannot be salvaged"})
+				return
+			}
 			continue
 		}
 		// Reconstruct the item like the dismantle path does, so upgraded or
@@ -819,6 +864,11 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 		// plain items).
 		g, ok := s.bot.makeGear(gid, itemData)
 		if !ok || g.Rarity > content.RarityUncommon || g.Attuned {
+			if req.InvID > 0 {
+				_ = rows.Close()
+				writeJSON(w, map[string]any{"ok": false, "error": "only unreserved Common or Uncommon gear can be salvaged"})
+				return
+			}
 			continue
 		}
 		v := gearPrice(g) / 2
@@ -830,6 +880,10 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	}
 	_ = rows.Close()
 
+	if req.InvID > 0 && len(toSell) == 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
+		return
+	}
 	if len(toSell) == 0 {
 		var gold int64
 		_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)

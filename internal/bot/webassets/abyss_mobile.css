@@ -1,0 +1,96 @@
+.ab-mobile-tier-select { display: none; }
+
+@media (max-width: 700px) {
+  .ab-mobile-tier-select {
+    align-items: stretch;
+    background: #0b111b;
+    border: 1px solid #d6aa45;
+    border-radius: 10px;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    display: grid;
+    gap: 5px;
+    padding: 9px;
+    position: sticky;
+    z-index: 30;
+  }
+  .ab-mobile-tier-select select { min-height: 44px; width: 100%; }
+  .ab-mobile-tier-summary { color: var(--muted, #b8c0d0); font-size: .75rem; }
+  #tierPicker > .ab-tier { display: none; }
+
+  #consList.ab-consumables-list {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-block: 4px 9px;
+    scroll-snap-type: x mandatory;
+  }
+  #consList.ab-consumables-list > * {
+    flex: 0 0 min(82vw, 320px);
+    scroll-snap-align: start;
+  }
+}
+
+@media (pointer: coarse) {
+  :is(#lootFilters, #bpFilters) .ab-chip { min-height: 36px; min-width: 36px; }
+}
+
+@media (max-height: 520px) and (orientation: landscape) and (max-width: 950px) {
+  .abyss-stage-row.ab-landscape-log {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
+  }
+  .abyss-stage-row.ab-landscape-log > .abyss-side-panel { display: none; }
+  .abyss-stage-row.ab-landscape-log > :is(.abyss-stage, .abyss-log-wrap) {
+    grid-column: auto;
+    margin: 0;
+    min-height: 0;
+    min-width: 0;
+  }
+  .abyss-stage-row.ab-landscape-log > .abyss-log-wrap {
+    max-height: calc(100vh - 76px);
+    overflow: auto;
+  }
+}
+
+/* Zoom-safe wrapping: at 200% browser zoom the CSS viewport reaches these
+   breakpoints, so controls wrap instead of clipping or forcing page overflow. */
+@media (max-width: 1100px) {
+  .abyss-command-page :is(.abyss-stage, .abyss-controls, .ab-btn-row, .ab-live-command-head, .ab-log-tools) {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .abyss-command-page :is(.ab-btn-row, .ab-live-command-head, .ab-log-tools) { flex-wrap: wrap; }
+  .abyss-command-page :is(button, label, .ab-chip, .ab-status) { overflow-wrap: anywhere; }
+}
+
+@media (prefers-color-scheme: light) {
+  body:not(.ab-high-contrast) .abyss-command-page {
+    --cmd-bg: #f4f1e9;
+    --cmd-panel: #fffdf8;
+    --cmd-line: #687486;
+    --line: #8792a1;
+    --muted: #526070;
+    color: #17212b;
+    color-scheme: light;
+  }
+  body:not(.ab-high-contrast) .abyss-command-page::before { opacity: .16; }
+  body:not(.ab-high-contrast) .abyss-command-page :is(.abyss-hero, .abyss-stage, .abyss-side-panel, .abyss-panel, .abyss-lb, .ab-chip, .ab-tabs, .forge-card, .abyss-log-wrap) {
+    background: rgba(255, 253, 248, .96);
+    border-color: #7a8798;
+    color: #17212b;
+    text-shadow: none;
+  }
+  body:not(.ab-high-contrast) .abyss-command-page :is(input, select, textarea, button.ghost) {
+    background: #fff;
+    border-color: #687486;
+    color: #17212b;
+  }
+  body:not(.ab-high-contrast) .abyss-command-page :is(.muted, .small, .ab-chip-label) { color: #526070 !important; opacity: 1; }
+  body:not(.ab-high-contrast) .abyss-command-page .abyss-log { background: #f8fafc; color: #1b2632; }
+}
+
+@media (forced-colors: active) {
+  .ab-mobile-tier-select { border: 1px solid CanvasText; }
+}

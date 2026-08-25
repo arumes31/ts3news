@@ -72,9 +72,9 @@
   <thead><tr><th>#</th><th>{{T "web.abyss.lb_player"}}</th><th>{{T "web.abyss.lb_depth"}}</th><th>{{T "web.abyss.lb_banked"}}</th></tr></thead>
   <tbody>
   {{range .}}
-    <tr{{if .IsCurrent}} class="ab-me" aria-current="true"{{end}}>
+    <tr data-rank-delta="{{.RankDelta}}" data-rank-new="{{.IsNew}}"{{if .IsCurrent}} class="ab-me" aria-current="true"{{end}}>
       <td class="lb-rank lb-rank-{{.Rank}}">{{.Rank}}</td>
-      <td class="lb-name">{{.Nickname}}</td>
+      <td class="lb-name">{{.Nickname}}{{if gt .RankDelta 0}} <span class="ab-rank-delta up" title="Rank change since yesterday">▲{{.RankDelta}}</span>{{else if lt .RankDelta 0}} <span class="ab-rank-delta down" title="Rank change since yesterday">▼{{.RankDown}}</span>{{else if .IsNew}} <span class="ab-rank-delta new" title="New since yesterday">NEW</span>{{end}}</td>
       <td class="lb-wins">🕳️ {{.Depth}}</td>
       <td class="win">{{gold .Gold}}</td>
     </tr>

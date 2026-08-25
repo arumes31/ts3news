@@ -376,3 +376,29 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0658 / UI-158** — high-contrast mode uses solid panels and brighter muted text.
 - [x] **AAA-0659 / UI-159** — deliberate horizontal stage swipes offer confirmed descend or bank actions.
 - [x] **AAA-0660 / UI-160** — long-pressing an item opens its detail surface for touch users without hover.
+
+## Delivered tranche: mobile, zoom, and adaptive presentation
+
+- [x] **AAA-0661 / UI-161** — Forge accordions start collapsed on phone-sized viewports to reduce initial overload.
+- [x] **AAA-0662 / UI-162** — the mobile tier picker becomes a sticky, accessible select with live risk context.
+- [x] **AAA-0663 / UI-163** — consumables form a horizontal, snap-aligned touch belt without trapping page scroll.
+- [x] **AAA-0664 / UI-164** — loot and backpack filter chips meet a 36px coarse-pointer target minimum.
+- [x] **AAA-0665 / UI-165** — short landscape phones move the combat log beside the stage and restore its DOM position on rotation.
+- [x] **AAA-0666 / UI-166** — zoom-responsive controls wrap, shrink safely, and break long labels instead of clipping at 200%.
+- [x] **AAA-0667 / UI-167** — backpack rows support arrow navigation, Enter-to-equip, and confirmed Delete-to-salvage.
+- [x] **AAA-0668 / UI-168** — closing a run modal restores keyboard focus to the available Descend action.
+- [x] **AAA-0669 / UI-169** — light color-scheme users receive readable solid panels, controls, logs, and muted text.
+- [x] **AAA-0670 / UI-170** — a screen-reader-only page map explains the run stage and the major navigation sections.
+
+## Delivered tranche: authoritative records and progression insight
+
+- [x] **AAA-0671 / UI-171** — the record panel graphs the last 30 persisted runs rather than the eight visible table rows.
+- [x] **AAA-0672 / UI-172** — completed runs persist explicit bank, defeat, failed-revival, concede, and timeout outcomes for the death-cause chart.
+- [x] **AAA-0673 / UI-173** — current cache per hour derives from the persisted run start time and authoritative escrow.
+- [x] **AAA-0674 / UI-174** — per-tier win-rate chips aggregate the account's complete run history across devices.
+- [x] **AAA-0675 / UI-175** — bestiary family bars compare persisted unique encounters against server-defined family targets totaling 50 species.
+- [x] **AAA-0676 / UI-176** — weekly Forge ROI uses successful audited before/after snapshots for materials spent and positive CR gained.
+- [x] **AAA-0677 / UI-177** — the skill-web header exposes spent, available, and total points and updates all three after mutations.
+- [x] **AAA-0678 / UI-178** — prestige preview values come from the server's current prestige state and permanent 5% progression rule.
+- [x] **AAA-0679 / UI-179** — tier/result filters drive both the history table and bounded 30-run CSV/JSON exports.
+- [x] **AAA-0680 / UI-180** — leaderboard arrows compare current ranks with a server-computed snapshot excluding today's runs, including new entries.

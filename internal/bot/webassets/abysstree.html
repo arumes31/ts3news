@@ -440,7 +440,7 @@
   </div>
   <div class="tree-head-right">
     <span class="pill" id="treeAvailPill">✨ <b id="treeAvail">{{.Avail}}</b> available</span>
-    <span class="pill" id="treePointsPill">🔵 <b id="treeUsed">{{.Used}}</b> / <b id="treePoints">{{.Points}}</b> points</span>
+    <span class="pill" id="treePointsPill" aria-label="Skill points spent and available">🔵 <b id="treeUsed">{{.Used}}</b> spent · <b id="treeAvailable">{{.Avail}}</b> available · <b id="treePoints">{{.Points}}</b> total</span>
     <span class="pill" id="treeTokensPill" style="display:none; color:#f4c542;">🜲 <b id="treeTokens">{{.Tokens}}</b> tokens</span>
     <button class="ghost xs" id="treeRespecBtn" onclick="treeRespec()">{{if .FreeRespec}}♻️ Respec (free this week){{else}}♻️ Respec (🜲 {{.RespecTk}}){{end}}</button>
     <button class="ghost xs" id="treeUndoBtn" style="display:none;" onclick="tryUndoAlloc()">↩️ Undo</button>
@@ -1672,6 +1672,8 @@ function paint(){
   document.getElementById('treeUsed').textContent = used;
   document.getElementById('treePoints').textContent = points;
   var avail = Math.max(0, points - used);
+  var availableNode = document.getElementById('treeAvailable');
+  if (availableNode) availableNode.textContent = avail;
   document.getElementById('treeAvail').textContent = avail;
   document.getElementById('treeAvailPill').style.opacity = avail > 0 ? '' : '0.55';
   

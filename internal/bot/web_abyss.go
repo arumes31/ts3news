@@ -1403,6 +1403,9 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	materials := s.bot.loadMaterials(uid)
 	runFlags := s.bot.loadRunFlags(uid)
 	hudState := s.bot.abyssHUDPageState(uid, run, st, equipped)
+	history := s.bot.abyssHistory(uid, 30)
+	bestiary := s.bot.loadAbyssBestiary(uid)
+	insights := s.bot.abyssRunInsights(uid, run, history, bestiary, st.AbyssPrestige)
 
 	s.render(w, "abyss", map[string]any{
 		"Title":              "The Abyss",
@@ -1417,14 +1420,15 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Tiers":              abyssTierList(st.BestDepth),
 		"Leaders":            s.bot.abyssLeaderboardsForUID(lbTier, uid),
 		"Season":             abyssSeasonLabel(),
-		"History":            s.bot.abyssHistory(uid, 8),
+		"History":            history,
+		"RunInsights":        insights,
 		"Achievements":       achievementViews,
 		"BadgeOptions":       badgeOptions,
 		"ActiveBadge":        activeBadge,
 		"ActiveBadgeName":    activeBadgeName,
 		"LoreList":           loreList,
 		"LoreTotal":          len(abyssLoreFragments),
-		"Bestiary":           s.bot.loadAbyssBestiary(uid),
+		"Bestiary":           bestiary,
 		"Consumables":        s.bot.getConsumables(uid),
 		"DailyMod":           dailyMod,
 		"CommunityExpedition": s.bot.communityExpeditionStatus(),
@@ -2946,7 +2950,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 
 	// Failed the second chance → forfeit.
 	graceProtected := abyssGraceProtected(run.Depth, false)
-	payout, ferr := s.bot.forfeitAbyss(uid, run)
+	payout, ferr := s.bot.forfeitAbyss(uid, run, "revive_failed")
 	if ferr != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -2987,7 +2991,7 @@ func (s *WebServer) handleAbyssConcede(w http.ResponseWriter, r *http.Request, u
 	}
 	hardcore := abyssHardcoreRun(s.bot.loadRunFlags(uid))
 	graceProtected := abyssGraceProtected(run.Depth, hardcore)
-	payout, ferr := s.bot.forfeitAbyss(uid, run)
+	payout, ferr := s.bot.forfeitAbyss(uid, run, "conceded")
 	if ferr != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -3187,11 +3191,11 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		}
 
 		if _, err := tx.Exec(
-			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary)
+			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary, end_reason)
 			 SELECT $1,$2,$3,TRUE,$4,$5,
 			   (SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1),
 			   COALESCE((SELECT jsonb_agg(label ORDER BY id) FROM
-			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb)`,
+			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), 'banked'`,
 			uid, run.Depth, payout, run.Tier, hardcore); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return

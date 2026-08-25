@@ -67,9 +67,9 @@ func TestAbyssPolishAssetsAndIntegration(t *testing.T) {
 		`data-depth="{{.Depth}}"`,
 		`data-gold="{{.Gold}}"`,
 		`data-victory="{{.Victory}}"`,
+		`data-end-reason="{{.EndReason}}"`,
+		`{{template "abyss-insights" .}}`,
 		"recordSessionRun(false, curDepth, 0, 'Conceded')",
-		"localStorage.getItem('ab_run_causes')",
-		"causes.slice(0,50)",
 	} {
 		if !strings.Contains(source, required) {
 			t.Errorf("Abyss page is missing polish contract %q", required)

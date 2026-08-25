@@ -307,6 +307,33 @@
     "verification": ["internal/bot/web_abyss_accessibility_feedback_test.go"]
   },
   {
+    "ids": [661, 662, 663, 664, 665, 666, 667, 668, 669, 670],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_mobile.html",
+      "internal/bot/webassets/abyss_mobile.css"
+    ],
+    "verification": ["internal/bot/web_abyss_mobile_test.go"]
+  },
+  {
+    "ids": [671, 672, 673, 674, 675, 676, 677, 678, 679, 680],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_history.go",
+      "internal/bot/web_abyss_insights.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_insights.html",
+      "internal/bot/webassets/abyss_insights.css",
+      "internal/bot/webassets/abysstree.html",
+      "internal/bot/webassets/partials.html",
+      "internal/db/migrations/0077_abyss_run_outcomes.up.sql"
+    ],
+    "verification": ["internal/bot/web_abyss_insights_test.go"]
+  },
+  {
     "ids": [986, 987],
     "production": [
       "internal/bot/web_abyss_econ.go",

@@ -6,22 +6,24 @@ import (
 )
 
 type abyssHistoryRow struct {
-	Depth         int
-	Gold          int64
-	Victory       bool
-	Tier          string
-	Hardcore      bool
-	LootCount     int
-	Loot          []string
-	LootTruncated int
-	When          string
+	Depth         int      `json:"depth"`
+	Gold          int64    `json:"gold"`
+	Victory       bool     `json:"victory"`
+	Tier          string   `json:"tier"`
+	Hardcore      bool     `json:"hardcore"`
+	EndReason     string   `json:"end_reason"`
+	LootCount     int      `json:"loot_count"`
+	Loot          []string `json:"loot"`
+	LootTruncated int      `json:"loot_truncated"`
+	When          string   `json:"when"`
+	AtUnix        int64    `json:"at_unix"`
 }
 
 func (b *Bot) abyssHistory(uid string, limit int) []abyssHistoryRow {
 	limit = min(max(limit, 1), 50)
 	rows, err := b.DB.Query(
 		`SELECT depth, gold_banked, victory, COALESCE(tier, 'normal'), hardcore,
-		        loot_count, loot_summary, created_at
+		        end_reason, loot_count, loot_summary, created_at
 		   FROM abyss_runs WHERE client_uid=$1 ORDER BY id DESC LIMIT $2`,
 		uid, limit)
 	if err != nil {
@@ -34,7 +36,7 @@ func (b *Bot) abyssHistory(uid string, limit int) []abyssHistoryRow {
 		var lootJSON []byte
 		var when time.Time
 		if err := rows.Scan(
-			&h.Depth, &h.Gold, &h.Victory, &h.Tier, &h.Hardcore,
+			&h.Depth, &h.Gold, &h.Victory, &h.Tier, &h.Hardcore, &h.EndReason,
 			&h.LootCount, &lootJSON, &when,
 		); err != nil {
 			continue
@@ -42,6 +44,7 @@ func (b *Bot) abyssHistory(uid string, limit int) []abyssHistoryRow {
 		_ = json.Unmarshal(lootJSON, &h.Loot)
 		h.LootTruncated = max(0, h.LootCount-len(h.Loot))
 		h.When = when.Format("Jan 2 15:04")
+		h.AtUnix = when.Unix()
 		out = append(out, h)
 	}
 	return out

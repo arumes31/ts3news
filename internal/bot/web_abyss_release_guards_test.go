@@ -69,8 +69,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "3b65c9edfac7de24ebde2b266384ee73160550a55af4f52d44b9e38954e414da"},
-		{name: "active_run", active: true, want: "830d5b616c33aa9678d09d7f9cddd8b9f86063960fd4191411e8329d1550b7e0"},
+		{name: "threshold", want: "bdd4f22dad3de3aa07e5278853c1e8f280ee3fbb17aa886aaa24a4c7bbf88add"},
+		{name: "active_run", active: true, want: "dda5eab61dedd3c8f821c27b1d3815baf882b2d9deaf18934a130a186261916c"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -140,6 +140,7 @@ func abyssGoldenFixture(active bool) map[string]any {
 		"Stats": stats, "Run": run, "RegenPerSec": 0.0, "AutoFocus": "balanced",
 		"Tiers": abyssTierList(stats.BestDepth), "Leaders": abyssBoards{}, "Season": "S1",
 		"History": []any{}, "Achievements": []abyssAchievementView{}, "BadgeOptions": []any{},
+		"RunInsights": abyssRunInsightsView{},
 		"ActiveBadge": "", "ActiveBadgeName": "", "LoreList": []any{}, "LoreTotal": len(abyssLoreFragments),
 		"Bestiary": []any{}, "Consumables": []any{}, "DailyMod": "",
 		"CommunityExpedition": map[string]any{"Week": "2026-W35", "Floors": 0, "Target": 1000},
