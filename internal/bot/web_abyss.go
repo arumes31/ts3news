@@ -892,45 +892,16 @@ func (b *Bot) fightAbyssFloorLive(
 
 	if len(mobs) == 0 {
 		if forceBoss {
-			var bossName string
-			switch {
-			case depth == 100:
-				bossName = "Abyssus, Heart of the Void"
-			case depth%20 == 5:
-				bossName = "Gorgoroth the Firelord"
-			case depth%20 == 10:
-				bossName = "Malakor the Voidweaver"
-			case depth%20 == 15:
-				bossName = "Azazoth the Slumbering Eye"
-			default:
-				bosses := []string{"Gorgoroth the Firelord", "Malakor the Voidweaver", "Azazoth the Slumbering Eye"}
-				bossName = bosses[(depth/5)%len(bosses)]
-			}
-
-			lvlScale, effectiveDiff := abyssMobScalars(mobLevel, diff)
-			bossDef := 10 + mobLevel/2
-			if bossDef > 90 {
-				bossDef = 90
-			}
-			mobs = []content.Mob{
-				{
-					Name:  bossName,
-					Type:  content.MobBoss,
-					Level: mobLevel + 1,
-					Stats: content.Stats{
-						HP:  int(1000 * lvlScale * effectiveDiff),
-						STR: int(50 * lvlScale * abyssMobDamageMult * effectiveDiff),
-						DEF: bossDef,
-						SPD: 105,
-					},
-					RewardXP: 500,
-					Element:  content.ElementPhysical,
-				},
-			}
+			mobs = abyssBossEncounter(depth, mobLevel, diff)
+			bossName := mobs[0].Name
 			// Boss intro card (#201): a framed banner with name and stakes.
+			bossHeading := fmt.Sprintf("💀 BOSS — %s", bossName)
+			if len(mobs) > 1 {
+				bossHeading = fmt.Sprintf("⚔ TWIN TYRANTS — %s + %s", mobs[0].Name, mobs[1].Name)
+			}
 			logs = append(logs,
 				"[hr]",
-				fmt.Sprintf("[center][size=12][color=#e91e63]💀 BOSS — %s[/color][/size][/center]", bossName),
+				fmt.Sprintf("[center][size=12][color=#e91e63]%s[/color][/size][/center]", bossHeading),
 				fmt.Sprintf("[center][color=#f0b35a][b]%s[/b][/color][/center]", abyssBossTitle(bossName)),
 				fmt.Sprintf("[center][color=#8a93a8][i]Depth %d · steel yourself — it knows you are here.[/i][/color][/center]", depth),
 				fmt.Sprintf("[center][color=#ffd991]Scout tip: %s[/color][/center]", abyssBossTip(bossName)),

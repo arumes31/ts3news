@@ -1274,5 +1274,15 @@
       "internal/bot/web_abyss_boss_vendor_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [219],
+    "production": [
+      "internal/bot/abyss_double_boss.go",
+      "internal/bot/web_abyss.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_double_boss_test.go"
+    ]
   }
 ]
