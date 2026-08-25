@@ -457,6 +457,10 @@
 #petHPBar.ab-hl { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---- HUD chips (UI-41..60) ------------------------------------------------ */
+.ab-hudchip.focus { padding: 0; overflow: hidden; }
+.ab-focus-chip { display: inline-flex; align-items: center; gap: 4px; padding-left: 7px; }
+.ab-focus-chip select { border: 0; border-left: 1px solid var(--line); border-radius: 0; background: transparent; color: inherit; min-height: 28px; padding: 3px 22px 3px 7px; }
+.ab-hudchip.pact:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .ab-hudchips {
   display: flex;
@@ -480,6 +484,9 @@
 
 .ab-hudchip.warn { border-color: var(--bad); color: var(--bad); }
 .ab-hudchip.good { border-color: var(--good); color: var(--good); }
+.ab-hudchip.pact { cursor: help; }
+.ab-hudchip.jackpot.grow { animation: ab-jackpot-grow 1.6s ease; border-color: var(--gold); color: var(--gold); }
+@keyframes ab-jackpot-grow { 35% { box-shadow: 0 0 18px rgba(244,197,66,.65); transform: scale(1.08); } }
 
 /* UI-50: bounty progress ring */
 .ab-bounty-ring { width: 16px; height: 16px; transform: rotate(-90deg); }
@@ -582,6 +589,7 @@
   .ab-log-line.ab-log-capture,
   .ab-log-line.ab-log-capture::after,
   .ab-log-line.ab-log-critical-event::before,
+  .ab-hudchip.jackpot.grow,
   .ab-overkill,
   .ab-scene.ab-fs-you::before,
   .ab-scene.ab-fs-mob::before,

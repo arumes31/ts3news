@@ -12,7 +12,19 @@ const (
 	abyssRunFlagDoubleBonusDepth = "double_bonus_depth"
 	abyssRunFlagHardcore         = "hardcore"
 	abyssPartialBankFeePct       = 10
+	abyssRestFloorGap            = 7
 )
+
+func abyssRestFloorDue(lastRestDepth, nextDepth int) bool {
+	return nextDepth > 0 && nextDepth-lastRestDepth >= abyssRestFloorGap
+}
+
+func abyssInsuranceLoyaltyPct(lifetimeBanked int64) int {
+	if lifetimeBanked <= 0 {
+		return 0
+	}
+	return min(int(lifetimeBanked/1_000_000), 15)
+}
 
 func abyssHardcoreRun(flags map[string]int64) bool {
 	return flags[abyssRunFlagHardcore] == 1

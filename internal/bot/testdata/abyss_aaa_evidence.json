@@ -29,6 +29,17 @@
     "verification": ["internal/bot/web_abyss_risk_rewards_test.go"]
   },
   {
+    "ids": [11, 13],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_risk_rewards.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/db/migrations/0073_abyss_rest_cadence.up.sql"
+    ],
+    "verification": ["internal/bot/web_abyss_core_loop_test.go"]
+  },
+  {
     "ids": [401, 402, 403, 404, 405, 406, 407, 408, 409, 410],
     "production": [
       "internal/bot/web_abyss.go",
@@ -181,6 +192,20 @@
       "internal/bot/webassets/abyss_ui200.css"
     ],
     "verification": ["internal/bot/web_abyss_combat_log_ui_test.go"]
+  },
+  {
+    "ids": [541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559, 560],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_focus.go",
+      "internal/bot/web_abyss_hud.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/webassets/abyss_live.css",
+      "internal/bot/webassets/abyss_ui200.css"
+    ],
+    "verification": ["internal/bot/web_abyss_hud_test.go"]
   },
   {
     "ids": [986, 987],

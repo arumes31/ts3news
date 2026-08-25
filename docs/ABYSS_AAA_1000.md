@@ -35,6 +35,8 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0008 / 8** — floors 1–3 return the full cache and loot without death or bank-streak penalties.
 - [x] **AAA-0009 / 9** — hardcore runs disable protection and revival, double cache rewards, and use a dedicated board and badge.
 - [x] **AAA-0010 / 10** — opt-in weekly expeditions retain one UTC ISO-week seed for the full run.
+- [x] **AAA-0011 / 11** — lifetime banking loyalty lowers the charged and previewed insurance premium rate by up to 15 points.
+- [x] **AAA-0013 / 13** — an authoritative run cadence guarantees a sanctuary after seven floors without rest.
 
 ## Active tranche: operational quality and client performance
 
@@ -230,3 +232,26 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0538 / UI-38** — persisted monospace mode disables font ligatures.
 - [x] **AAA-0539 / UI-39** — post-fight outcome, HP, and loot summaries are announced to screen readers.
 - [x] **AAA-0540 / UI-40** — server-marked consecutive DoT ticks collapse independent of the active locale.
+
+## Delivered tranche: authoritative run-awareness HUD
+
+- [x] **AAA-0541 / UI-41** — current escrow pace uses persisted run depth and cache totals.
+- [x] **AAA-0542 / UI-42** — positive token deltas accumulate in a session-earned mini-HUD counter.
+- [x] **AAA-0543 / UI-43** — run-wide insurance explicitly shows unlimited remaining floor coverage.
+- [x] **AAA-0544 / UI-44** — the HUD shows exact distance to the next ten-floor checkpoint.
+- [x] **AAA-0545 / UI-45** — a Last Stand bank seal mirrors its remaining floor count into the mini-HUD.
+- [x] **AAA-0546 / UI-46** — HP bars carry non-color segment ticks at 25, 50, and 75 percent.
+- [x] **AAA-0547 / UI-47** — the threat track uses green, yellow, and red danger bands behind its needle.
+- [x] **AAA-0548 / UI-48** — depth-dial rest ticks use the persisted last-sanctuary depth.
+- [x] **AAA-0549 / UI-49** — a proximity chip appears within five floors of leaderboard rank ten.
+- [x] **AAA-0550 / UI-50** — the active daily bounty is mirrored as a compact progress ring.
+- [x] **AAA-0551 / UI-51** — reward focus supports a persisted, server-validated HUD quick switch and automatic mode.
+- [x] **AAA-0552 / UI-52** — active pact chips expose exact reward and danger effects to pointer and keyboard users.
+- [x] **AAA-0553 / UI-53** — unavailable live items show their cooldown as a radial sweep.
+- [x] **AAA-0554 / UI-54** — aggregate equipped durability warns below forty percent.
+- [x] **AAA-0555 / UI-55** — Last Stand readiness and exact token cost remain visible before defeat.
+- [x] **AAA-0556 / UI-56** — the one-run comeback bonus is visible in the HUD.
+- [x] **AAA-0557 / UI-57** — the current server-side deep-cache jackpot is shown in the HUD.
+- [x] **AAA-0558 / UI-58** — bank streak displays its exact current multiplier.
+- [x] **AAA-0559 / UI-59** — forge happy hour receives a UTC-aware HUD marker.
+- [x] **AAA-0560 / UI-60** — interest shows the authoritative per-floor rate and compounded run total.

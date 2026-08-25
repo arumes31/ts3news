@@ -1242,6 +1242,7 @@ type abyssRun struct {
 	CheckpointStart  int  // #2 run started at this checkpoint depth (rewards ×0.75)
 	ExpressUntil     int  // #3 express elevator: no floor bonus until past this depth
 	Comeback         bool // #24 comeback buff active (+10% stats)
+	LastRestDepth    int  // #13 last sanctuary floor, persisted across reloads
 }
 
 // loadAbyssRun reads the active run plus the player's live HP so callers can tell
@@ -1252,10 +1253,10 @@ func (b *Bot) loadAbyssRun(uid string) abyssRun {
 	var startedAt, lastAct time.Time
 	err := b.DB.QueryRow(
 		`SELECT depth, escrow, tier, insured, revived, floor_type, modifier, event_state, started_at, last_action_at, coop_uid,
-		        momentum, bank_locked_floors, last_stand_used, revive_locked, checkpoint_start, express_until, comeback
+		        momentum, bank_locked_floors, last_stand_used, revive_locked, checkpoint_start, express_until, comeback, last_rest_depth
 		   FROM abyss_active WHERE client_uid=$1`, uid,
 	).Scan(&r.Depth, &r.Escrow, &r.Tier, &r.Insured, &r.Revived, &r.FloorType, &r.Modifier, &evState, &startedAt, &lastAct, &coop,
-		&r.Momentum, &r.BankLockedFloors, &r.LastStandUsed, &r.ReviveLocked, &r.CheckpointStart, &r.ExpressUntil, &r.Comeback)
+		&r.Momentum, &r.BankLockedFloors, &r.LastStandUsed, &r.ReviveLocked, &r.CheckpointStart, &r.ExpressUntil, &r.Comeback, &r.LastRestDepth)
 	if err != nil {
 		return r
 	}
@@ -1348,9 +1349,12 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	newHP, regenPerSec := s.bot.applyAbyssRegen(uid, equipped, u.CurrentHP, u.MaxHP)
 	u.CurrentHP = newHP
 	var slots []gearView
+	durabilityBySlot := s.bot.abyssEquippedDurability(uid)
 	for _, slot := range content.AllSlots {
 		if g, ok := equipped[slot]; ok {
-			slots = append(slots, toGearView(slot, g))
+			view := toGearView(slot, g)
+			view.Durability = durabilityBySlot[slot]
+			slots = append(slots, view)
 		}
 	}
 	inventory := s.bot.inventoryItems(uid)
@@ -1412,6 +1416,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	sanctuaryStage, sanctuaryStageName := abyssSanctuaryStage(sanctuary)
 	materials := s.bot.loadMaterials(uid)
 	runFlags := s.bot.loadRunFlags(uid)
+	hudState := s.bot.abyssHUDPageState(uid, run, st, equipped)
 
 	s.render(w, "abyss", map[string]any{
 		"Title":              "The Abyss",
@@ -1420,7 +1425,9 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"RegenPerSec":        regenPerSec,
 		"Stats":              st,
 		"Run":                run,
-		"AutoFocus":          s.autoSelectFocus(uid, run),
+		"AutoFocus":          s.selectedAbyssFocus(uid, run),
+		"FocusPreference":    abyssFocusPreference(runFlags),
+		"HUD":                hudState,
 		"Tiers":              abyssTierList(st.BestDepth),
 		"Leaders":            s.bot.abyssLeaderboards(lbTier),
 		"Season":             abyssSeasonLabel(),
@@ -1761,8 +1768,8 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	if _, err := tx.Exec(
 		`INSERT INTO abyss_active (client_uid, depth, escrow, tier, insured, revived, pacts, consumables, started_at, last_action_at,
-		                           checkpoint_start, express_until, comeback)
-		 VALUES ($1, $5, 0, $2, 0, FALSE, $3, $4, NOW(), NOW(), $6, $7, $8)`,
+		                           checkpoint_start, express_until, comeback, last_rest_depth)
+		 VALUES ($1, $5, 0, $2, 0, FALSE, $3, $4, NOW(), NOW(), $6, $7, $8, $5)`,
 		uid, tier.Key, pacts, loadoutJSON, startDepth, route.CheckpointStart, route.ExpressUntil, comeback); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1809,6 +1816,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		"free_entry": freeEntry, "comeback": comeback, "auto_repaired": autoRepaired,
 		"weekly_expedition": weeklyRule.Label,
 		"hardcore": req.Hardcore,
+		"active_pacts": abyssHUDPacts(strings.Fields(pacts)),
 		"build_summary": abyssBuildSummary(startUser, startBuildFlags),
 		"rested_charges": entryProgression.RestedCharges,
 		"returning_bonus": entryProgression.Returning,
@@ -1854,7 +1862,7 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
-	focus := s.autoSelectFocus(uid, run)
+	focus := s.selectedAbyssFocus(uid, run)
 
 	newDepth := run.Depth + 1
 	tier, _ := abyssTierByKey(run.Tier)
@@ -1867,6 +1875,10 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	}
 	if newDepth%abyssBossEvery == 0 {
 		s.commitFloor(w, uid, run, newDepth, "combat", "", "", tier, focus, req.Interactive)
+		return
+	}
+	if abyssRestFloorDue(run.LastRestDepth, newDepth) {
+		s.commitFloor(w, uid, run, newDepth, "rest", "", "", tier, focus, req.Interactive)
 		return
 	}
 
@@ -1992,7 +2004,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			writeJSON(w, s.descendMultiAbort(uid, "you must resolve the current floor action first", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
 			return
 		}
-		focus := s.autoSelectFocus(uid, run)
+		focus := s.selectedAbyssFocus(uid, run)
 
 		newDepth := run.Depth + 1
 
@@ -2009,6 +2021,8 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			modifier = "watcher"
 		} else if newDepth%abyssBossEvery == 0 {
 			// Boss floors are never optional.
+		} else if abyssRestFloorDue(run.LastRestDepth, newDepth) {
+			actualType = "rest"
 		} else {
 			if ft, ok := s.bot.popFloorQueue(uid); ok {
 				actualType = ft
@@ -2036,7 +2050,8 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			}
 			_, err := s.bot.DB.Exec(
 				`UPDATE abyss_active
-				    SET depth=$1, floor_type=$2, modifier=$3, event_state=$4, pending_floor_choice=NULL, last_action_at=NOW()
+				    SET depth=$1, floor_type=$2, modifier=$3, event_state=$4, pending_floor_choice=NULL,
+				        last_rest_depth=CASE WHEN $2='rest' THEN $1 ELSE last_rest_depth END, last_action_at=NOW()
 				  WHERE client_uid=$5`,
 				newDepth, actualType, modifier, evStateArg, uid,
 			)
@@ -2071,7 +2086,9 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"dura":        combinedDura,
 				"timeline":    combinedTimeline,
 				"reward_xp":   totalRewardXP,
-				"auto_focus":  s.autoSelectFocus(uid, runFinal),
+				"auto_focus":  s.selectedAbyssFocus(uid, runFinal),
+				"run_floors_cleared": abyssRunFloorsCleared(runFinal),
+				"jackpot":     s.bot.getJackpot("abyss"),
 			})
 			return
 		}
@@ -2164,7 +2181,8 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"gold":             gold,
 				"tokens":           s.bot.abyssTokens(uid),
 				"consumables":      s.bot.getConsumables(uid),
-				"auto_focus":       s.autoSelectFocus(uid, runFinal),
+				"auto_focus":       s.selectedAbyssFocus(uid, runFinal),
+				"run_floors_cleared": abyssRunFloorsCleared(runFinal),
 			})
 			return
 		}
@@ -2197,13 +2215,15 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		"recipe_unlocked":    recipeUnlocked,
 		"affix_reward":       affixReward,
 		"daily":              dailyFirst,
-		"auto_focus":         s.autoSelectFocus(uid, finalRun),
+		"auto_focus":         s.selectedAbyssFocus(uid, finalRun),
 		"double_bonus":       pendingAbyssDoubleBonus(s.bot.loadRunFlags(uid), finalRun.Depth),
+		"run_floors_cleared": abyssRunFloorsCleared(finalRun),
 	}
 	if len(achs) > 0 {
 		out["achievement"] = strings.Join(achs, " · ")
 	}
 	s.bot.addAbyssLegendaryPity(out, uid)
+	out["jackpot"] = s.bot.getJackpot("abyss")
 	writeJSON(w, out)
 }
 
@@ -2472,7 +2492,8 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 		// picker), so it can't be replayed by handleAbyssChooseFloor after this commit.
 		_, err := s.bot.DB.Exec(
 			`UPDATE abyss_active
-			    SET depth=$1, floor_type=$2, modifier=$3, event_state=$4, pending_floor_choice=NULL, last_action_at=NOW()
+			    SET depth=$1, floor_type=$2, modifier=$3, event_state=$4, pending_floor_choice=NULL,
+			        last_rest_depth=CASE WHEN $2='rest' THEN $1 ELSE last_rest_depth END, last_action_at=NOW()
 			  WHERE client_uid=$5`,
 			newDepth, floorType, modifier, evStateArg, uid,
 		)
@@ -2786,10 +2807,12 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 	out["consumables"] = s.bot.getConsumables(uid)
 
 	runFinal := s.bot.loadAbyssRun(uid)
-	out["auto_focus"] = s.autoSelectFocus(uid, runFinal)
+	out["auto_focus"] = s.selectedAbyssFocus(uid, runFinal)
+	out["run_floors_cleared"] = abyssRunFloorsCleared(runFinal)
 	s.abyssOps.funnel.observeFloor(uid, depth)
 	s.abyssOps.observeFloor(depth, escrowBefore, res, out)
 	s.bot.addAbyssLegendaryPity(out, uid)
+	out["jackpot"] = s.bot.getJackpot("abyss")
 
 	return out
 }
@@ -2855,7 +2878,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 	}
 
 	tier, _ := abyssTierByKey(run.Tier)
-	focus := s.autoSelectFocus(uid, run)
+	focus := s.selectedAbyssFocus(uid, run)
 	res, err := s.bot.fightAbyssFloor(uid, run.Depth, tier, run.Modifier, focus)
 	if err != nil {
 		// Roll back the heal and the revived flag so a failed combat call doesn't
@@ -4452,7 +4475,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	tier, _ := abyssTierByKey(run.Tier)
 	bonus := abyssFloorBonus(run.Depth, run.depthLevelHint())
 	
-	focus := s.autoSelectFocus(uid, run)
+	focus := s.selectedAbyssFocus(uid, run)
 
 	// The xp/materials/tokens focuses trade the gold floor bonus for a matching
 	// reward, mirroring what they do on combat floors — never for nothing.

@@ -21,20 +21,21 @@ type statKV struct {
 
 // gearView is a template-friendly view of a gear piece.
 type gearView struct {
-	InvID       int64
-	Slot        string
-	Icon        string
-	IconName    string // game-icons.net SVG basename for the slot
-	ID          string
-	Name        string
-	Rarity      string
-	RarityColor string
-	RarityIcon  string // game-icons.net SVG basename for the rarity
-	CR          float64
-	Score       int
-	Durability  int
-	Empty       bool
-	AHPrice     int64 // auto-calculated auction house listing price
+	InvID         int64
+	Slot          string
+	Icon          string
+	IconName      string // game-icons.net SVG basename for the slot
+	ID            string
+	Name          string
+	Rarity        string
+	RarityColor   string
+	RarityIcon    string // game-icons.net SVG basename for the rarity
+	CR            float64
+	Score         int
+	Durability    int
+	MaxDurability int
+	Empty         bool
+	AHPrice       int64 // auto-calculated auction house listing price
 
 	// Detail surfaced in the armoury/inventory.
 	Element    string
@@ -144,18 +145,19 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	}
 
 	v := gearView{
-		Slot:        string(slot),
-		Icon:        content.SlotIcon(slot),
-		IconName:    content.SlotIconName(slot),
-		ID:          g.ID,
-		Name:        name,
-		Rarity:      g.Rarity.String(),
-		RarityColor: g.Rarity.Color(),
-		RarityIcon:  content.RarityIconName(g.Rarity),
-		CR:          g.CombatRating(),
-		Score:       g.Stats.Score(),
-		Stats:       stats,
-		XPBonusPct:  int(math.Round((g.XPMultiplier - 1.0) * 100)),
+		Slot:          string(slot),
+		Icon:          content.SlotIcon(slot),
+		IconName:      content.SlotIconName(slot),
+		ID:            g.ID,
+		Name:          name,
+		Rarity:        g.Rarity.String(),
+		RarityColor:   g.Rarity.Color(),
+		RarityIcon:    content.RarityIconName(g.Rarity),
+		CR:            g.CombatRating(),
+		Score:         g.Stats.Score(),
+		MaxDurability: g.MaxDurability,
+		Stats:         stats,
+		XPBonusPct:    int(math.Round((g.XPMultiplier - 1.0) * 100)),
 		Unidentified: g.Unidentified,
 		Sockets:      g.Sockets,
 		Gemstones:    g.Gemstones,

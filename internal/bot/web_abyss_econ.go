@@ -1178,7 +1178,8 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 	}
 
 	st := s.bot.loadAbyssStats(uid)
-	cost := abyssInsuranceCost(run.Escrow, req.Pct, st.UpWard)
+	loyaltyPct := abyssInsuranceLoyaltyPct(st.LifetimeBanked)
+	cost := abyssInsuranceCost(run.Escrow, req.Pct, st.UpWard, st.LifetimeBanked)
 	if cost < 1 {
 		cost = 1
 	}
@@ -1208,13 +1209,16 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 	}
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
-	writeJSON(w, map[string]any{"ok": true, "insured": req.Pct, "cost": cost, "gold": gold})
+	writeJSON(w, map[string]any{
+		"ok": true, "insured": req.Pct, "cost": cost, "gold": gold,
+		"loyalty_discount_pct": loyaltyPct,
+	})
 }
 
 // abyssInsuranceCost is the premium to protect pct% of an escrow, discounted by
 // the Ward upgrade level.
-func abyssInsuranceCost(escrow int64, pct, ward int) int64 {
-	rate := 0.5 - float64(ward)*0.05
+func abyssInsuranceCost(escrow int64, pct, ward int, lifetimeBanked int64) int64 {
+	rate := 0.5 - float64(ward)*0.05 - float64(abyssInsuranceLoyaltyPct(lifetimeBanked))/100
 	if rate < 0.25 {
 		rate = 0.25
 	}

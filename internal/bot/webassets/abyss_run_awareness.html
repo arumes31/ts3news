@@ -21,7 +21,7 @@ var abyssRunRecordBaseline=(function(){var el=document.getElementById('bestDepth
 function ensureAbyssRunAwarenessStart(){
   if(!inRun){abyssRunAwarenessStart=0;try{sessionStorage.removeItem('ab_run_started_at');sessionStorage.removeItem('ab_run_floors');}catch(e){}return;}
   if(abyssRunAwarenessStart)return;
-  try{abyssRunAwarenessStart=Number(sessionStorage.getItem('ab_run_started_at'))||0;runFloorsCleared=Math.max(runFloorsCleared,Number(sessionStorage.getItem('ab_run_floors'))||0);}catch(e){}
+  try{abyssRunAwarenessStart=Number(sessionStorage.getItem('ab_run_started_at'))||0;}catch(e){}
   if(!abyssRunAwarenessStart){abyssRunAwarenessStart=Date.now();try{sessionStorage.setItem('ab_run_started_at',String(abyssRunAwarenessStart));}catch(e){}}
 }
 function formatAbyssRunDuration(milliseconds){

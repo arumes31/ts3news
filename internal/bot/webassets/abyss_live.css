@@ -226,7 +226,8 @@
 .ab-actionslot.valid { border-left-color: #4d8f69; }
 .ab-actionslot.unavailable { border-style: dashed; }
 .ab-actionslot.low-count { box-shadow: inset 0 0 0 1px rgba(218,78,78,.42); }
-.ab-actionslot.kind-ultimate.unavailable::before { position: absolute; inset: 4px; border-radius: 50%; background: conic-gradient(rgba(30,35,45,.72) var(--cooldown-angle, 0deg), transparent 0); content: ''; pointer-events: none; }
+.ab-actionslot.kind-ultimate.unavailable::before,
+.ab-actionslot.kind-item.unavailable::before { position: absolute; inset: 4px; border-radius: 50%; background: conic-gradient(rgba(30,35,45,.72) var(--cooldown-angle, 0deg), transparent 0); content: ''; pointer-events: none; }
 .ab-actionslot.pinned { order: -1; }
 .ab-actionslot:disabled { filter: grayscale(.8); opacity: .42; cursor: not-allowed; }
 .ab-actionslot.kind-item { border-bottom-color: #68bf82; }

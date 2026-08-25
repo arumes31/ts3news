@@ -101,7 +101,7 @@
     <h3>⚔️ Armoury</h3>
     <div class="abyss-side-list">
       {{range .Equipped}}
-      <div class="abyss-side-gear" tabindex="0" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .Durability 0}} · Dur {{.Durability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+      <div class="abyss-side-gear" tabindex="0" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
         <span class="ab-pixel-icon ab-gear-pixel" aria-hidden="true"></span>
         <span class="ab-side-gear-name" style="color:{{.RarityColor}}">{{.Name}}</span>
         <span class="cr">CR {{printf "%.0f" .CR}}</span>
@@ -1097,7 +1097,9 @@ var downed  = {{if .Run.Downed}}true{{else}}false{{end}};
 var canRev  = {{if or .Hardcore .Run.Revived .Run.ReviveLocked}}false{{else}}true{{end}};
 var hardcoreRun = {{if .Hardcore}}true{{else}}false{{end}};
 var wardLv  = {{.Stats.UpWard}};
+var lifetimeBanked = {{.Stats.LifetimeBanked}};
 var curDepth = {{if .Run.Active}}{{.Run.Depth}}{{else}}0{{end}};
+var lastRestDepth = {{.Run.LastRestDepth}}; // UI-48 authoritative sanctuary cadence
 var pendingDoubleBonus = {{with .PendingDoubleBonus}}{{.}}{{else}}0{{end}};
 var curTier = '{{.Run.Tier}}'; // UI-188: active run's tier (insanity glitch)
 var pageLevel = {{.U.Level}}; // UI-139: level-up flash baseline
@@ -1114,11 +1116,16 @@ var bankLocked = {{.Run.BankLockedFloors}};
 var curMomentum = {{.Run.Momentum}};
 var bankStreak = {{.Stats.Streak}}; // UI-58
 var dailyAffix = '{{if .DailyMod}}{{.DailyMod}}{{end}}'; // UI-34
-var runStartEscrow = {{.Run.Escrow}}; // UI-41 rate baseline
+var interestRatePct = {{printf "%.3f" .HUD.InterestRatePct}}; // UI-60 authoritative rate
+var interestTotalPct = {{printf "%.3f" .HUD.InterestTotalPct}};
+var abyssJackpot = {{.HUD.Jackpot}}; // UI-57
+var jackpotPulse = false, jackpotPulseTimer = 0;
+var activeRunPacts = {{jsonJS .HUD.Pacts}} || []; // UI-52
+var focusPreference = '{{.FocusPreference}}', currentFocus = '{{.AutoFocus}}'; // UI-51
 var curInsured = {{.Run.Insured}}; // UI-43
 var logDelay = Math.max(30, 90 - 12 * {{.Stats.UpSwiftness}}); // Swiftness node (#154)
 var pageConsumables = {{jsonJS .Consumables}} || [];
-var runFloorsCleared = 0, runLootGained = 0; // run summary card (#341)
+var runFloorsCleared = {{.HUD.FloorsCleared}}, runLootGained = 0; // run summary card (#341)
 var liveCombatSource=null, liveCombatPoll=null, liveCombatState=null, liveLastEventID=-1;
 var liveReconnectTicker=null, liveActionReceipt=null;
 var liveSelectedTarget='', livePendingOption=null, liveFinishHandled=false, liveLoadoutPage=0;
@@ -1772,6 +1779,13 @@ function setTokens(t){if(t!==undefined){var el=document.getElementById('tokenPil
     if(mw&&mht){mht.textContent='+'+fmtNum(sessionTokensEarned); mw.style.display='';}
   }
   animateNumber(el, lastTokens===null?t:lastTokens, t, function(v){return '🜲 '+fmtNum(v);}); lastTokens=t;}}}
+function updateJackpot(value){
+  value=Math.max(0,Number(value)||0);
+  jackpotPulse=value>abyssJackpot;
+  abyssJackpot=value;
+  if(jackpotPulse){clearTimeout(jackpotPulseTimer);jackpotPulseTimer=setTimeout(function(){jackpotPulse=false;renderHudChips();},1800);}
+  renderHudChips();
+}
 function setEscrow(v){
   var prev=curEscrow;
   curEscrow=Number(v)||0;
@@ -1800,6 +1814,7 @@ var floorTrail=[];
 try{ floorTrail=JSON.parse(sessionStorage.getItem('ab_trail')||'[]'); }catch(e){ floorTrail=[]; }
 function trailPush(depth,type){
   if(!inRun)return;
+  if(type==='rest') lastRestDepth=Number(depth)||lastRestDepth;
   if(floorTrail.length && floorTrail[floorTrail.length-1].d===depth)return;
   floorTrail.push({d:depth,t:type});
   if(floorTrail.length>30)floorTrail=floorTrail.slice(-30);
@@ -2309,21 +2324,20 @@ function highlightLogCombatant(text){
   if(el) el.classList.add('ab-hl');
 }
 
-// UI-14 + UI-54: durability lives on the equipped cards' data-tip ("· Dur N",
-// base max 100). <20% gets the cracked-shield overlay; the aggregate feeds a chip.
+// UI-14 + UI-54: exact current/maximum durability is carried on each equipped card.
 function gearCondition(){
   var rows=document.querySelectorAll('.abyss-side-gear');
-  var sum=0, n=0;
+  var current=0, maximum=0;
   rows.forEach(function(r){
-    var m=/Dur (\d+)/.exec(r.getAttribute('data-tip')||'');
-    if(m){ sum+=Math.min(100,parseInt(m[1],10)); n++; }
+    var dur=Number(r.getAttribute('data-dur'))||0,maxDur=Number(r.getAttribute('data-max-dur'))||0;
+    if(maxDur>0){current+=Math.max(0,Math.min(maxDur,dur));maximum+=maxDur;}
   });
-  return n?Math.round(sum/n):-1;
+  return maximum?Math.round(current*100/maximum):-1;
 }
 function markCrackedGear(){
   document.querySelectorAll('.abyss-side-gear').forEach(function(r){
-    var m=/Dur (\d+)/.exec(r.getAttribute('data-tip')||'');
-    if(m && parseInt(m[1],10)<20) r.classList.add('ab-cracked');
+    var dur=Number(r.getAttribute('data-dur'))||0,maxDur=Number(r.getAttribute('data-max-dur'))||0;
+    r.classList.toggle('ab-cracked',maxDur>0&&dur/maxDur<0.20);
   });
 }
 
@@ -2331,10 +2345,7 @@ function markCrackedGear(){
 function renderRestArc(){
   var el=document.getElementById('restArc'); if(!el) return;
   if(!inRun){ el.innerHTML=''; return; }
-  var since=curDepth;
-  for(var i=floorTrail.length-1;i>=0;i--){
-    if(floorTrail[i].t==='rest'){ since=curDepth-floorTrail[i].d; break; }
-  }
+  var since=Math.max(0,curDepth-lastRestDepth);
   var html='';
   for(var j=0;j<Math.min(since,20);j++) html+='<span class="ab-tick"></span>';
   el.innerHTML=html;
@@ -2369,8 +2380,8 @@ function bountyRingHTML(){
   if(!target) return '';
   var pct=Math.min(1,prog/target);
   var r=7, c=2*Math.PI*r;
-  return '<svg class="ab-bounty-ring" viewBox="0 0 18 18"><circle cx="9" cy="9" r="'+r+'" class="ab-br-bg"/>'+
-    '<circle cx="9" cy="9" r="'+r+'" class="ab-br-fg" style="stroke-dasharray:'+c.toFixed(1)+';stroke-dashoffset:'+(c*(1-pct)).toFixed(1)+'"/></svg>🎯';
+  return '<svg class="ab-bounty-ring" aria-hidden="true" viewBox="0 0 18 18"><circle cx="9" cy="9" r="'+r+'" class="ab-br-bg"/>'+
+    '<circle cx="9" cy="9" r="'+r+'" class="ab-br-fg" style="stroke-dasharray:'+c.toFixed(1)+';stroke-dashoffset:'+(c*(1-pct)).toFixed(1)+'"/></svg>🎯 '+fmtNum(prog)+'/'+fmtNum(target);
 }
 
 // AB-295: callers can update several state fields in one task; coalesce their
@@ -2387,21 +2398,26 @@ function renderHudChipsNow(){
   var chips=[];
   if(inRun){
     // UI-41: escrow earn-rate estimate for the current run.
-    if(runFloorsCleared>0 && curEscrow>runStartEscrow)
-      chips.push(['💰 +'+fmtGold(Math.round((curEscrow-runStartEscrow)/runFloorsCleared))+'/floor','']);
-    // UI-43: current insured % while the run is active.
-    if(curInsured>0) chips.push(['🛡️ '+curInsured+'% insured','']);
+    if(runFloorsCleared>0) chips.push(['💰 ≈'+fmtGold(Math.round(curEscrow/runFloorsCleared))+'/floor','']);
+    // UI-43: insurance is run-wide, so its remaining floor coverage is unbounded.
+    if(curInsured>0) chips.push(['🛡️ '+curInsured+'% · ∞ floors','']);
     // UI-44: floors to the next checkpoint (every 10 depths).
     if(curDepth>0){ var toCk=10-(curDepth%10); if(toCk>0) chips.push(['⛓️ checkpoint in '+toCk,'']); }
-    // UI-60: escrow interest accrual (+0.5%/floor without banking).
-    chips.push(['📈 +0.5%/floor · ≈+'+(runFloorsCleared*0.5).toFixed(1)+'%','']);
-    // UI-51: current auto-selected focus (manual swap needs a server endpoint).
-    var fd=document.getElementById('autoFocusDisplay');
-    if(fd && fd.textContent && fd.textContent!=='Auto-Selecting...') chips.push([fd.textContent,'']);
-    // UI-55: Last Stand token-cost preview while downed.
-    if(downed && canLastStand){ var ls=document.getElementById('lsCost'); chips.push(['🛡️ Last Stand: 🜲 '+(ls?ls.textContent:'?'),'warn']); }
+    // UI-60: exact per-floor interest and compounded total from authoritative run depth.
+    interestTotalPct=(Math.pow(1+interestRatePct/100,runFloorsCleared)-1)*100;
+    chips.push(['📈 +'+interestRatePct.toFixed(1)+'%/floor · +'+interestTotalPct.toFixed(1)+'% total','']);
+    // UI-51: persisted manual/automatic reward-focus quick swap.
+    chips.push([focusHUDHTML(),'focus',true]);
+    // UI-52: each active pact retains its exact danger/reward breakdown.
+    activeRunPacts.forEach(function(pact){
+      chips.push(['⚔️ '+pact.Label,'pact',false,pact.Desc+' Reward +'+Math.round(Number(pact.Reward)*100)+'%; danger +'+Math.round(Math.max(0,Number(pact.Danger)-1)*100)+'%.']);
+    });
+    // UI-55: show Last Stand readiness before a defeat makes the choice urgent.
+    if(canLastStand){ var ls=document.getElementById('lsCost'); chips.push(['🛡️ Last Stand ready · 🜲 '+(ls?ls.textContent:'?'),downed?'warn':'']); }
     // UI-56: comeback buff indicator (server renders .ab-comeback-note).
-    if(document.querySelector('.ab-comeback-note')) chips.push(['💪 Comeback +10%','good']);
+    if(document.querySelector('.ab-comeback-note')) chips.push(['💪 Comeback +10% · this run','good']);
+    // UI-57: shared deep-cache jackpot; updateJackpot marks growth pulses.
+    chips.push(['🔥 jackpot '+fmtGold(abyssJackpot),'jackpot'+(jackpotPulse?' grow':'')]);
   }
   // UI-58: bank streak with the multiplier it grants (1 + depth·1% + streak·2%).
   if(bankStreak>0){
@@ -2420,7 +2436,7 @@ function renderHudChipsNow(){
   var br=bountyRingHTML();
   if(br){ chips.push([br,'ring',true]); }
   var html='';
-  chips.forEach(function(c){ html+='<span class="ab-hudchip '+(c[1]||'')+'">'+(c[2]?c[0]:consEsc(c[0]))+'</span>'; });
+  chips.forEach(function(c){ html+='<span class="ab-hudchip '+(c[1]||'')+'"'+(c[3]?' tabindex="0" title="'+consEsc(c[3])+'" aria-label="'+consEsc(c[0]+'. '+c[3])+'"':'')+'>'+(c[2]?c[0]:consEsc(c[0]))+'</span>'; });
   host.innerHTML=html;
   window.__abyssHUDRenderCount=(window.__abyssHUDRenderCount||0)+1;
 }
@@ -3025,6 +3041,9 @@ async function abyssChooseFloor(i, hp, max){
 // Shared by the direct-descend and choose-floor paths once a floor has been
 // resolved (rest/event vs. combat win/loss).
 async function processDescendResult(d, hp, max){
+  var hasExactRunFloors=d.run_floors_cleared!==undefined;
+  if(hasExactRunFloors) runFloorsCleared=Math.max(0,Number(d.run_floors_cleared)||0);
+  if(d.jackpot!==undefined) updateJackpot(d.jackpot);
   if(d.auto_focus){
     displayAutoFocus(d.auto_focus);
   }
@@ -3054,7 +3073,7 @@ async function processDescendResult(d, hp, max){
   setHP(d.hp,d.max_hp); setGold(d.gold); setTokens(d.tokens);
   if(d.victory){
 	 pendingDoubleBonus=Number(d.double_bonus)||0;
-    runFloorsCleared++;
+    if(!hasExactRunFloors) runFloorsCleared++;
     trackPaceFloor(); // UI-181: session pace tracker
     curMomentum++; if(bankLocked>0)bankLocked--;
     setEscrow(d.escrow);
@@ -3325,15 +3344,17 @@ function showBankSummary(d){
 
 async function abyssInsure(pct){
   if(busy)return; setBusy(true);
-  var rate=Math.max(0.25,0.5-wardLv*0.05);
+  var loyaltyPct=Math.min(15,Math.floor(Math.max(0,lifetimeBanked)/1000000));
+  var rate=Math.max(0.25,0.5-wardLv*0.05-loyaltyPct/100);
   var cost=Math.floor(curEscrow*pct/100*rate);
   if(curEscrow<=0){abToast('No cache to insure yet',false);setBusy(false);return;}
-  if(!(await confirmModal('Insure '+pct+'% of your '+fmtGold(curEscrow)+' cache for ~'+fmtGold(cost)+' gold?', {title:'Insure Cache', okLabel:'Insure (~'+fmtGold(cost)+')'}))){setBusy(false);return;} // UI-134
+  var loyaltyNote=loyaltyPct?' Your banking loyalty reduces the premium rate by '+loyaltyPct+' points.':'';
+  if(!(await confirmModal('Insure '+pct+'% of your '+fmtGold(curEscrow)+' cache for '+fmtGold(cost)+' gold?'+loyaltyNote, {title:'Insure Cache', okLabel:'Insure ('+fmtGold(cost)+')'}))){setBusy(false);return;} // UI-134
   var d=await abPost('/api/abyss/insure',{pct:pct});
   setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setInsured(d.insured); setGold(d.gold);
-  abToast('Insured '+d.insured+'% for '+fmtGold(d.cost),true);
+  abToast('Insured '+d.insured+'% for '+fmtGold(d.cost)+(d.loyalty_discount_pct?' · loyalty −'+d.loyalty_discount_pct+' points':''),true);
 }
 
 async function abyssSalvage(){
@@ -4189,6 +4210,7 @@ function updateForgeHH(){
 }
 
 function displayAutoFocus(focus) {
+  currentFocus=focus||'balanced';
   var el = document.getElementById('autoFocusDisplay');
   if (!el) return;
   var label = '⚖️ Balanced';
@@ -4231,6 +4253,28 @@ function displayAutoFocus(focus) {
   el.style.color = color;
   el.style.backgroundColor = bg;
   el.style.borderColor = border;
+  renderHudChips();
+}
+
+function focusHUDHTML(){
+  var options=[['auto','Auto ('+currentFocus+')'],['balanced','Balanced'],['gold','Gold'],['loot','Loot'],['xp','XP'],['materials','Materials'],['tokens','Tokens']];
+  var selected=focusPreference||'auto',html='<label class="ab-focus-chip">🎯 <span class="ab-sr-only">Reward focus</span><select aria-label="Reward focus" onchange="abyssSetFocus(this.value)">';
+  options.forEach(function(option){html+='<option value="'+option[0]+'"'+(selected===option[0]?' selected':'')+'>'+consEsc(option[1])+'</option>';});
+  return html+'</select></label>';
+}
+
+async function abyssSetFocus(focus){
+  if(busy||!inRun||downed)return;
+  setBusy(true);
+  var previous=focusPreference;
+  focusPreference=focus==='auto'?'':focus;
+  renderHudChips();
+  var d=await abPost('/api/abyss/focus',{focus:focus});
+  setBusy(false);
+  if(!d.ok){focusPreference=previous;renderHudChips();abToast(d.error||'Focus change failed',false);return;}
+  focusPreference=d.preference||'';
+  displayAutoFocus(d.focus);
+  abToast(focusPreference?'Focus locked to '+d.focus:'Automatic focus restored',true);
 }
 
 // Initial paint (consistent formatting on load).

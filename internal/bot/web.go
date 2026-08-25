@@ -290,6 +290,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/concede", s.authAPI(s.handleAbyssConcede))
 		mux.HandleFunc("/api/abyss/bank", s.authAPI(s.handleAbyssBank))
 		mux.HandleFunc("/api/abyss/double_bonus", s.authAPI(s.handleAbyssDoubleBonus))
+		mux.HandleFunc("/api/abyss/focus", s.authAPI(s.handleAbyssFocus))
 		mux.HandleFunc("/api/abyss/insure", s.authAPI(s.handleAbyssInsure))
 		mux.HandleFunc("/api/abyss/salvage", s.authAPI(s.handleAbyssSalvage))
 		mux.HandleFunc("/api/abyss/upgrade", s.authAPI(s.handleAbyssUpgrade))

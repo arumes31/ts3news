@@ -191,15 +191,15 @@ func TestAbyssBankMultiplier(t *testing.T) {
 // TestAbyssInsuranceCost checks the premium scales with cache and coverage, and
 // that the Ward upgrade discounts it down to a floor.
 func TestAbyssInsuranceCost(t *testing.T) {
-	full := abyssInsuranceCost(10000, 50, 0)
+	full := abyssInsuranceCost(10000, 50, 0, 0)
 	if full != int64(10000*0.50*0.50) {
 		t.Errorf("base 50%% premium = %d, want %d", full, int64(10000*0.5*0.5))
 	}
-	if warded := abyssInsuranceCost(10000, 50, 3); warded >= full {
+	if warded := abyssInsuranceCost(10000, 50, 3, 0); warded >= full {
 		t.Errorf("Ward should discount: warded=%d full=%d", warded, full)
 	}
 	// Rate floor is 0.25 even at absurd Ward levels.
-	if got, floor := abyssInsuranceCost(10000, 100, 99), int64(float64(10000)*1.0*0.25); got < floor {
+	if got, floor := abyssInsuranceCost(10000, 100, 99, 0), int64(float64(10000)*1.0*0.25); got < floor {
 		t.Errorf("premium %d below the rate floor %d", got, floor)
 	}
 }
