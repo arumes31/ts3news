@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -26,6 +27,7 @@ func TestAbyssForgeExperienceContracts(t *testing.T) {
 		"ab-action-price",
 		"Confirm dismantle manifest",
 		"inv_ids:ids",
+		"revision:preview.revision",
 		"function fusionCatalog",
 		"/api/abyss/fuse_preview",
 		"Loading authoritative result preview",
@@ -99,6 +101,67 @@ func TestAbyssDismantleSelectionIsExactAndBounded(t *testing.T) {
 	bounded, remaining := boundAbyssDismantleBatch(items)
 	if len(bounded) != abyssDismantleBatchLimit || remaining != 3 {
 		t.Fatalf("bounded batch = %d + %d, want %d + 3", len(bounded), remaining, abyssDismantleBatchLimit)
+	}
+}
+
+func TestAbyssDismantleCommitRequiresReviewedManifest(t *testing.T) {
+	t.Parallel()
+
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest("POST", "/api/abyss/dismantle", strings.NewReader(`{"preview":false}`))
+	server := &WebServer{bot: &Bot{DB: database}}
+	server.handleAbyssDismantle(recorder, request, "user")
+	if body := recorder.Body.String(); !strings.Contains(body, "preview dismantle before confirming") {
+		t.Fatalf("empty dismantle commit response = %q", body)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAbyssDismantleManifestRevisionBindsItemState(t *testing.T) {
+	t.Parallel()
+
+	items := []abyssDismantleSpare{{id: 7, state: "before"}, {id: 9, state: "stable"}}
+	before := abyssDismantleManifestRevision(items)
+	items[0].state = "after"
+	if after := abyssDismantleManifestRevision(items); before == after {
+		t.Fatal("manifest revision did not change with item state")
+	}
+	query, args := abyssDismantleInventoryQuery("user", []int64{7, 9}, false)
+	if !strings.Contains(query, "id IN ($2,$3)") || !strings.Contains(query, "FOR UPDATE") || len(args) != 3 {
+		t.Fatalf("exact commit query = %q %#v", query, args)
+	}
+	previewQuery, previewArgs := abyssDismantleInventoryQuery("user", nil, true)
+	if !strings.Contains(previewQuery, "LIMIT $2") || strings.Contains(previewQuery, "FOR UPDATE") || len(previewArgs) != 2 {
+		t.Fatalf("bounded preview query = %q %#v", previewQuery, previewArgs)
+	}
+}
+
+func TestAbyssDismantleManifestRevisionBindsReviewedState(t *testing.T) {
+	t.Parallel()
+
+	items := []abyssDismantleSpare{{id: 7, state: "first"}, {id: 11, state: "second"}}
+	revision := abyssDismantleManifestRevision(items)
+	if revision == "" {
+		t.Fatal("dismantle revision is empty")
+	}
+	items[1].state = "changed"
+	if changed := abyssDismantleManifestRevision(items); changed == revision {
+		t.Fatal("dismantle revision did not bind the reviewed item state")
+	}
+	previewQuery, previewArgs := abyssDismantleInventoryQuery("user", nil, true)
+	if !strings.Contains(previewQuery, "LIMIT $2") || len(previewArgs) != 2 || previewArgs[1] != abyssDismantleScanLimit+1 {
+		t.Fatalf("preview query is not bounded: %q %#v", previewQuery, previewArgs)
+	}
+	commitQuery, commitArgs := abyssDismantleInventoryQuery("user", []int64{7, 11}, false)
+	if !strings.Contains(commitQuery, "id IN ($2,$3)") || !strings.Contains(commitQuery, "FOR UPDATE") || len(commitArgs) != 3 {
+		t.Fatalf("commit query is not selection-scoped and locked: %q %#v", commitQuery, commitArgs)
 	}
 }
 

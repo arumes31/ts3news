@@ -76,6 +76,7 @@
   async function confirmDismantle(preview){
     var rows=(preview.items||[]).map(function(item){return '<div class="ab-forge-review-row '+rarityClass(item.rarity)+'"><span class="ab-forge-review-name"><b>'+consEsc(item.name||'Unknown gear')+'</b><small class="muted"> · '+consEsc(item.slot||'Gear')+' · '+consEsc(item.rarity||'Unknown')+'</small></span><span class="ab-forge-review-yield">🜲 '+Number(item.tokens||0)+'</span></div>';}).join('');
     var remainder=preview.remaining?'<p class="muted small">'+Number(preview.remaining)+' more eligible items remain for the next bounded batch.</p>':'';
+    if(preview.scan_limited)remainder+='<p class="muted small">The safety scan stopped after 1,000 inventory rows; repeat after this batch to review anything beyond it.</p>';
     return modalChoice('<h3>⚒️ Confirm dismantle manifest</h3><p>Only these '+Number(preview.count||0)+' reviewed items will be destroyed.</p><div class="ab-forge-review-list">'+rows+'</div>'+remainder+'<div class="modal-actions"><button class="ghost" id="modalCancelBtn">Keep gear</button><button id="modalOkBtn">Dismantle · 🜲 '+Number(preview.tokens_gained||0)+'</button></div>',function(settle){document.getElementById('modalOkBtn').onclick=function(){settle((preview.items||[]).map(function(item){return Number(item.inv_id);}));};});
   }
   window.abyssDismantle=async function(){
@@ -85,7 +86,7 @@
     if(!preview.count){abToast('No rare+ spares to dismantle',false);return;}
     var ids=await confirmDismantle(preview);if(!ids)return;
     if(busy)return;setBusy(true);
-    var result=await abPost('/api/abyss/dismantle',{preview:false,max_rarity:0,inv_ids:ids});setBusy(false);
+    var result=await abPost('/api/abyss/dismantle',{preview:false,max_rarity:0,inv_ids:ids,revision:preview.revision});setBusy(false);
     if(!result.ok){abToast(result.error||'Dismantle failed',false);return;}
     setTokens(result.tokens);abToast('Dismantled '+result.dismantled+' reviewed spares for 🜲 '+result.tokens_gained,true);
     setTimeout(function(){window.location.reload();},900);

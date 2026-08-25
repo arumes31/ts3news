@@ -939,6 +939,7 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		Preview   bool    `json:"preview"`
 		MaxRarity int     `json:"max_rarity"` // 0 = no cap; e.g. 4 = keep Legendary+ safe
 		InvIDs    []int64 `json:"inv_ids"`
+		Revision  string  `json:"revision"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
@@ -949,6 +950,10 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid dismantle selection"})
 		return
 	}
+	if !req.Preview && (len(wanted) == 0 || req.Revision == "") {
+		writeJSON(w, map[string]any{"ok": false, "error": "preview dismantle before confirming"})
+		return
+	}
 
 	reserved := s.bot.loadAbyssReservedLoot(uid)
 	tx, err := s.beginForgeRequestTx(w)
@@ -957,13 +962,21 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	rows, err := tx.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 FOR UPDATE", uid)
+	query, args := abyssDismantleInventoryQuery(uid, req.InvIDs, req.Preview)
+	rows, err := tx.QueryContext(r.Context(), query, args...)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	var toBreak []abyssDismantleSpare
+	scanned := 0
+	scanLimited := false
 	for rows.Next() {
+		scanned++
+		if req.Preview && scanned > abyssDismantleScanLimit {
+			scanLimited = true
+			break
+		}
 		var id int64
 		var gid string
 		var itemData sql.NullString
@@ -992,9 +1005,11 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		}
 		if tk := abyssDismantleTokens(g.Rarity); tk > 0 {
 			mat, matN := materialYieldForRarity(g.Rarity)
+			stateHash := sha256.Sum256([]byte(gid + "\x00" + itemData.String))
 			toBreak = append(toBreak, abyssDismantleSpare{
 				id: id, tokens: tk, mat: mat, matN: matN,
 				name: g.Name, rarity: g.Rarity.String(), slot: string(g.Slot),
+				state: hex.EncodeToString(stateHash[:16]),
 			})
 		}
 	}
@@ -1013,6 +1028,11 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 	}
 	var remaining int
 	toBreak, remaining = boundAbyssDismantleBatch(toBreak)
+	revision := abyssDismantleManifestRevision(toBreak)
+	if !req.Preview && req.Revision != revision {
+		writeJSON(w, map[string]any{"ok": false, "error": "inventory changed — preview dismantle again"})
+		return
+	}
 
 	if req.Preview {
 		var tk int64
@@ -1029,7 +1049,7 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		// Mirror the commit path's Scavenger (#155) and skill-web material_yield
 		// boosts so the preview shows the same totals the real dismantle grants.
 		mats = s.bot.boostedMaterials(uid, mats)
-		writeJSON(w, map[string]any{"ok": true, "preview": true, "count": len(toBreak), "remaining": remaining, "tokens_gained": tk, "materials_gained": mats, "items": items})
+		writeJSON(w, map[string]any{"ok": true, "preview": true, "count": len(toBreak), "remaining": remaining, "scan_limited": scanLimited, "revision": revision, "tokens_gained": tk, "materials_gained": mats, "items": items})
 		return
 	}
 
@@ -1049,11 +1069,14 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
-		if n, _ := res.RowsAffected(); n > 0 {
-			total += sp.tokens
-			count++
-			matGained[sp.mat] += sp.matN
+		n, err := res.RowsAffected()
+		if err != nil || n != 1 {
+			writeJSON(w, map[string]any{"ok": false, "error": "inventory changed — preview dismantle again"})
+			return
 		}
+		total += sp.tokens
+		count++
+		matGained[sp.mat] += sp.matN
 	}
 	if total > 0 {
 		if _, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", total, uid); err != nil {
