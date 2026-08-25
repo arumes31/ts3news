@@ -135,6 +135,10 @@ func (b *Bot) prepareAbyssEnemies(
 		})
 		logs = append(logs, "🌀 A rare Void Court invasion breaches this biome!")
 	}
+	if rare, signature, ok := abyssNamedRareSpawn(depth, random); ok {
+		mobs = append(mobs, rare)
+		logs = append(logs, fmt.Sprintf("💠 NAMED RARE — %s carries the fixed signature drop %s.", rare.Name, signature))
+	}
 	if nemesis, ok := b.loadAbyssNemesis(uid); ok && depth >= 5 && random.Float64() < 0.25 {
 		level := max(depth, nemesis.Level+nemesis.Victories)
 		hp := max(150, level*24)

@@ -2,6 +2,7 @@ package bot
 
 import (
 	"database/sql"
+	"errors"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -65,8 +66,8 @@ func TestPrepareAbyssEnemiesAddsMechanicalVariety(t *testing.T) {
 	}
 
 	prepared, logs := bot.prepareAbyssEnemies("user", 20, mobs, fixedCombatRandom{})
-	if len(prepared) != 4 {
-		t.Fatalf("prepared enemy count = %d, want elite pack + hazard + invader", len(prepared))
+	if len(prepared) != 5 {
+		t.Fatalf("prepared enemy count = %d, want elite pack + hazard + invader + named rare", len(prepared))
 	}
 	if prepared[0].MaxBreak <= 0 || prepared[0].Break != prepared[0].MaxBreak {
 		t.Fatalf("elite break bar was not initialized: %+v", prepared[0])
@@ -75,13 +76,92 @@ func TestPrepareAbyssEnemiesAddsMechanicalVariety(t *testing.T) {
 		t.Fatal("elite did not receive an affix")
 	}
 	joined := strings.Join(logs, "\n")
-	for _, marker := range []string{"Volatile Rift", "invasion", "pack synergy", "Coordinated elite"} {
+	for _, marker := range []string{"Volatile Rift", "invasion", "NAMED RARE", "Sableclaw's Phase Fang", "pack synergy", "Coordinated elite"} {
 		if !strings.Contains(joined, marker) {
 			t.Errorf("enemy-system logs missing %q:\n%s", marker, joined)
 		}
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet database expectations: %v", err)
+	}
+}
+
+func TestAbyssNamedRaresHaveFixedDistinctSignatureDrops(t *testing.T) {
+	t.Parallel()
+
+	names := make(map[string]bool, len(abyssNamedRareDefinitions))
+	signatures := make(map[string]bool, len(abyssNamedRareDefinitions))
+	for _, definition := range abyssNamedRareDefinitions {
+		if names[definition.Name] || signatures[definition.Signature] {
+			t.Fatalf("duplicate named rare definition: %#v", definition)
+		}
+		names[definition.Name] = true
+		signatures[definition.Signature] = true
+		label, grant, ok := abyssNamedRareDrop(definition.Name)
+		if !ok || grant.Type != "unique" || grant.UniqName != definition.Signature || grant.UniqPow != definition.Power {
+			t.Errorf("signature drop for %q = %q, %#v, %v", definition.Name, label, grant, ok)
+		}
+	}
+	if _, _, ok := abyssNamedRareDrop("ordinary mob"); ok {
+		t.Fatal("ordinary mob received a named-rare signature drop")
+	}
+}
+
+func TestAbyssNamedRareSpawnUsesDepthGateAndCatalog(t *testing.T) {
+	t.Parallel()
+
+	if _, _, ok := abyssNamedRareSpawn(5, fixedCombatRandom{}); ok {
+		t.Fatal("named rare spawned before depth gate")
+	}
+	if _, _, ok := abyssNamedRareSpawn(20, fixedCombatRandom{float: 0.50}); ok {
+		t.Fatal("named rare ignored spawn chance")
+	}
+	mob, signature, ok := abyssNamedRareSpawn(20, fixedCombatRandom{float: 0.03, intn: 2})
+	if !ok || mob.Name != "Orryx, the Drowned Star" || signature != "Orryx's Tidal Lens" || mob.Type != content.MobElite {
+		t.Fatalf("named rare spawn = %#v, %q, %v", mob, signature, ok)
+	}
+}
+
+func TestAbyssNamedRareGrantRemainsRetryableOnDatabaseFailure(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+
+	storageErr := errors.New("storage unavailable")
+	mock.ExpectExec("INSERT INTO user_unique_items").
+		WithArgs("rare-hunter", "Orryx's Tidal Lens", content.RarityEpic, float64(10)).
+		WillReturnError(storageErr)
+	bot := &Bot{DB: db}
+	_, grant, ok := abyssNamedRareDrop("Orryx, the Drowned Star")
+	if !ok {
+		t.Fatal("named rare drop missing")
+	}
+	if err := bot.applyAbyssLootGrant("rare-hunter", grant); !errors.Is(err, storageErr) {
+		t.Fatalf("unique grant error = %v, want %v", err, storageErr)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAbyssUniqueGrantReliesOnDatabaseCounterTrigger(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectExec("INSERT INTO user_unique_items").
+		WithArgs("rare-hunter", "Sableclaw's Phase Fang", content.RarityEpic, float64(8)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	bot := &Bot{DB: db}
+	if err := bot.grantAbyssUnique("rare-hunter", "Sableclaw's Phase Fang", content.RarityEpic, 8); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }
 

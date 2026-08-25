@@ -169,7 +169,13 @@ func (s *WebServer) handleAbyssShopBuy(w http.ResponseWriter, r *http.Request, u
 			writeJSON(w, map[string]any{"ok": false, "error": ui.Name + " already owned — tokens refunded", "tokens": s.bot.abyssTokens(uid)})
 			return
 		}
-		s.bot.grantAbyssUnique(uid, ui.Name, ui.Rarity, ui.Power)
+		if err := s.bot.grantAbyssUnique(uid, ui.Name, ui.Rarity, ui.Power); err != nil {
+			if _, refundErr := s.bot.DB.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", tokenCost, uid); refundErr != nil {
+				log.Printf("abyss shop relic refund failed for %s (%d tokens): %v", uid, tokenCost, refundErr)
+			}
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 		msg = "Relic acquired: " + ui.Name + " [" + ui.Rarity.String() + "]!"
 	case "emergency_revive":
 		s.bot.grantConsumable(uid, "abyss_emergency_revive", 1)

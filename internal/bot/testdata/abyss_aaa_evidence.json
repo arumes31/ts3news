@@ -1079,5 +1079,17 @@
     "verification": [
       "internal/bot/web_abyss_enemies_test.go"
     ]
+  },
+  {
+    "ids": [205],
+    "production": [
+      "internal/bot/web_abyss_named_rares.go",
+      "internal/bot/web_abyss_enemies.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_shop.go"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_enemies_test.go"
+    ]
   }
 ]
