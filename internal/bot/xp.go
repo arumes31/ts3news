@@ -853,13 +853,14 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 						if interrupted {
 							logs = append(logs, fmt.Sprintf("⚡ %s's summoning ritual is INTERRUPTED by the ultimate!", m.Name))
 						} else {
+							choreography := abyssBossSummonFor(m.Name)
 							newMob := content.SpawnMobWithRandom(
 								spawnLvl,
 								false,
 								diffFactor*zone.Difficulty*0.7,
 								rand,
 							)
-							newMob.Name = "Summoned " + newMob.Name
+							newMob.Name = choreography.AddPrefix + " " + newMob.Name
 							add := newMob.Clone()
 							add.STRMod, add.DEFMod, add.SPDMod = 1.0, 1.0, 1.0
 							if add.MaxHP <= 0 {
@@ -868,7 +869,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 							}
 							currentMobs = append(currentMobs, add)
 							initialMobs = append(initialMobs, add) // track for rewards
-							logs = append(logs, fmt.Sprintf("📣 %s completes the ritual — reinforcements arrive!", m.Name))
+							logs = append(logs, choreography.Arrival)
 						}
 						continue
 					}
@@ -876,7 +877,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 						phaseOnce["summon:"+m.Name] = true
 						summonTelegraph[m] = r
 						m.Stats.SPD = 0 // channelling: the boss skips this round's attack
-						logs = append(logs, fmt.Sprintf("📣 %s begins a summoning ritual! Fire an ULTIMATE this round to interrupt it!", m.Name))
+						logs = append(logs, abyssBossSummonFor(m.Name).Telegraph)
 					}
 				}
 			}

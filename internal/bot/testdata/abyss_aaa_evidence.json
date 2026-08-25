@@ -1143,5 +1143,15 @@
     "verification": [
       "internal/bot/web_abyss_boss_vendor_test.go"
     ]
+  },
+  {
+    "ids": [210],
+    "production": [
+      "internal/bot/abyss_boss_summons.go",
+      "internal/bot/xp.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_boss_summons_test.go"
+    ]
   }
 ]
