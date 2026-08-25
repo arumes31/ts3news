@@ -594,8 +594,10 @@
     "production": [
       "internal/db/migrations/0080_abyss_economy.up.sql",
       "internal/bot/web_abyss_shop_economy.go",
+      "internal/bot/web_abyss_shop_gifts.go",
       "internal/bot/web_abyss_bank_economy.go",
       "internal/bot/web_ah_economy.go",
+      "internal/bot/web_ah_bids.go",
       "internal/bot/web_abyss_shop.go",
       "internal/bot/web_abyss_bounty.go",
       "internal/bot/web_abyss_features.go",
