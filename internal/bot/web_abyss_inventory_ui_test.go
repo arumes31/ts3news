@@ -139,6 +139,7 @@ func TestAbyssInventoryPresentationContracts(t *testing.T) {
 	paths := []string{
 		"web_abyss_inventory_ui.go",
 		"webassets/abyss.html",
+		"webassets/abyss_inventory_ui.html",
 		"webassets/abyss_ui200.css",
 		"../db/migrations/0074_abyss_loot_presentation.up.sql",
 	}

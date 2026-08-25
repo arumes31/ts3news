@@ -230,6 +230,7 @@
       "internal/bot/web_abyss_loot2.go",
       "internal/bot/web_pages.go",
       "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_inventory_ui.html",
       "internal/bot/webassets/abyss_ui200.css",
       "internal/db/migrations/0074_abyss_loot_presentation.up.sql"
     ],
