@@ -36,6 +36,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0009 / 9** — hardcore runs disable protection and revival, double cache rewards, and use a dedicated board and badge.
 - [x] **AAA-0010 / 10** — opt-in weekly expeditions retain one UTC ISO-week seed for the full run.
 - [x] **AAA-0011 / 11** — lifetime banking loyalty lowers the charged and previewed insurance premium rate by up to 15 points.
+- [x] **AAA-0012 / 12** — five percent of ordinary descents become a server-authoritative two-floor cursed-elevator drop; both forced combat floors resolve rewards and danger independently, stop on defeat, and play back in order (`web_abyss.go`, `web_abyss_live_layout_test.go`, `webassets/abyss.html`).
 - [x] **AAA-0013 / 13** — an authoritative run cadence guarantees a sanctuary after seven floors without rest.
 - [x] **AAA-0014 / 14** — depth-scaled escrow thresholds visibly reduce only new marginal growth to 25 percent.
 - [x] **AAA-0015 / 15** — one token-priced Last Stand restores at least 25% HP and seals banking for two victories.

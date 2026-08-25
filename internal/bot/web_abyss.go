@@ -2182,6 +2182,10 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 
 	focus := s.selectedAbyssFocus(uid, run)
 	runPacts := s.bot.abyssRunPacts(uid)
+	if abyssCursedElevatorTriggered(rand.Float64()) {
+		s.descendFloors(w, uid, []string{"combat", "combat"}, true)
+		return
+	}
 
 	newDepth := run.Depth + 1
 	tier, _ := abyssTierByKey(run.Tier)
@@ -2283,9 +2287,14 @@ func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, 
 }
 
 const (
-	abyssDescendPlanMin = 3
-	abyssDescendPlanMax = 20
+	abyssDescendPlanMin       = 3
+	abyssDescendPlanMax       = 20
+	abyssCursedElevatorChance = 0.05
 )
+
+func abyssCursedElevatorTriggered(roll float64) bool {
+	return roll >= 0 && roll < abyssCursedElevatorChance
+}
 
 // handleAbyssDescendMulti processes a queue of 3 to 20 planned floor descents sequentially.
 func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Request, uid string) {
@@ -2319,7 +2328,10 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			return
 		}
 	}
+	s.descendFloors(w, uid, req.Paths, false)
+}
 
+func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []string, cursedElevator bool) {
 	var combinedLogs []string
 	var combinedLoot []string
 	var combinedDura []string
@@ -2339,6 +2351,13 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 	var escrowEfficiencyPct int
 	var bossContractPayout int64
 	var bossTokenAwarded bool
+	abort := func(errKey string, tier abyssTier) map[string]any {
+		out := s.descendMultiAbort(uid, errKey, tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP)
+		if cursedElevator {
+			out["cursed_elevator"] = true
+		}
+		return out
+	}
 
 	runInit := s.bot.loadAbyssRun(uid)
 	if !runInit.Active {
@@ -2348,18 +2367,18 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 	tier, _ := abyssTierByKey(runInit.Tier)
 	runPacts := s.bot.abyssRunPacts(uid)
 
-	for _, pt := range req.Paths {
+	for _, pt := range paths {
 		run := s.bot.loadAbyssRun(uid)
 		if !run.Active {
-			writeJSON(w, s.descendMultiAbort(uid, "not in a run", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
+			writeJSON(w, abort("not in a run", tier))
 			return
 		}
 		if run.Downed {
-			writeJSON(w, s.descendMultiAbort(uid, "you are downed — revive or concede", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
+			writeJSON(w, abort("you are downed — revive or concede", tier))
 			return
 		}
 		if run.FloorType != "combat" {
-			writeJSON(w, s.descendMultiAbort(uid, "you must resolve the current floor action first", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
+			writeJSON(w, abort("you must resolve the current floor action first", tier))
 			return
 		}
 		focus := s.selectedAbyssFocus(uid, run)
@@ -2375,7 +2394,12 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		modifier := ""
 		eventState := ""
 
-		if abyssWatcherAmbushDue(run, time.Now()) {
+		if cursedElevator {
+			// The cursed elevator always opens onto danger. Boss rules still apply
+			// inside fightAbyssFloor, while rest/event floors are bypassed so both
+			// dropped floors grant a combat reward and carry combat risk.
+			actualType = "combat"
+		} else if abyssWatcherAmbushDue(run, time.Now()) {
 			modifier = "watcher"
 		} else if newDepth%abyssBossEvery == 0 || abyssPactBossFloor(runPacts, newDepth) {
 			// Boss floors are never optional.
@@ -2429,7 +2453,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				newDepth, actualType, modifier, evStateArg, uid,
 			)
 			if err != nil {
-				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
+				writeJSON(w, abort("db", tier))
 				return
 			}
 			if actualType == "event" {
@@ -2469,7 +2493,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 
 		// Normal Combat floor
 		if _, err := s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier=$2, event_state=NULL, pending_floor_choice=NULL, last_action_at=NOW() WHERE client_uid=$3", newDepth, modifier, uid); err != nil {
-			writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
+			writeJSON(w, abort("db", tier))
 			return
 		}
 
@@ -2478,7 +2502,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2", run.Depth, uid)
 			// Earlier floors in this batch already resolved and persisted — return
 			// their logs/loot alongside the error so they aren't lost client-side.
-			writeJSON(w, s.descendMultiAbort(uid, "combat", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
+			writeJSON(w, abort("combat", tier))
 			return
 		}
 
@@ -2514,7 +2538,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		if res.Victory {
 			o := s.applyFloorVictory(uid, run, newDepth, run.Escrow, tier, modifier, focus, res.DamageTaken == 0)
 			if o.DBErr {
-				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
+				writeJSON(w, abort("db", tier))
 				return
 			}
 			if o.GearMilestone != "" {
@@ -2583,6 +2607,9 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"run_floors_cleared":  abyssRunFloorsCleared(runFinal),
 				"pity_proc":           pityProc,
 			}
+			if cursedElevator {
+				out["cursed_elevator"] = true
+			}
 			if bossTokenAwarded {
 				out["boss_tokens"] = s.bot.abyssBossTokens(uid)
 			}
@@ -2629,6 +2656,9 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		"escrow_soft_cap":       escrowSoftCap,
 		"escrow_efficiency_pct": escrowEfficiencyPct,
 		"run_floors_cleared":    abyssRunFloorsCleared(finalRun),
+	}
+	if cursedElevator {
+		out["cursed_elevator"] = true
 	}
 	if len(achs) > 0 {
 		out["achievement"] = strings.Join(achs, " · ")

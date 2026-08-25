@@ -3233,7 +3233,19 @@ async function abyssDescend(){
   document.getElementById('abStatus').textContent='Descending…';
 
   var d=await abPost('/api/abyss/descend',{interactive:true});
-  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  if(!d.ok){
+    if(d.cursed_elevator){
+      await playAbyssMultiFloorResults(d);
+      if(typeof d.depth==='number')setDepth(d.depth);
+      if(typeof d.escrow==='number')setEscrow(d.escrow);
+      if(typeof d.hp==='number')setHP(d.hp,d.max_hp);
+      if(typeof d.gold==='number')setGold(d.gold);
+      if(typeof d.tokens==='number')setTokens(d.tokens);
+      if(typeof d.risk==='number')setRisk(d.risk);
+      renderState();
+    }
+    abToast(d.error||'failed',false);setBusy(false);return;
+  }
 
   if(d.choose_floor){
     setBusy(false);
@@ -3246,6 +3258,11 @@ async function abyssDescend(){
     return;
   }
 
+  if(d.cursed_elevator){
+    updateFloatingDescend('Cursed elevator · 0/2');
+    abToast('🛗 Cursed elevator! Two dangerous floors, two reward rolls.', true);
+    d.batch_floors_played=await playAbyssMultiFloorResults(d);
+  }
   await processDescendResult(d, hp, max);
 }
 

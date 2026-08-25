@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"math"
 	"strings"
 	"testing"
 )
@@ -53,6 +54,40 @@ func TestAbyssPlannedDescentControlsContract(t *testing.T) {
 	for _, token := range []string{".ab-path-queue-editor", "#btnQueueMore", ".ab-floating-descend"} {
 		if !strings.Contains(string(styles), token) {
 			t.Errorf("planned descent CSS is missing %q", token)
+		}
+	}
+}
+
+func TestAbyssCursedElevatorContract(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		roll float64
+		want bool
+	}{
+		{name: "first roll", roll: 0, want: true},
+		{name: "inside five percent", roll: 0.049999, want: true},
+		{name: "boundary excluded", roll: abyssCursedElevatorChance, want: false},
+		{name: "ordinary roll", roll: 0.5, want: false},
+		{name: "invalid negative", roll: -0.01, want: false},
+		{name: "invalid NaN", roll: math.NaN(), want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := abyssCursedElevatorTriggered(tt.roll); got != tt.want {
+				t.Fatalf("abyssCursedElevatorTriggered(%v) = %t, want %t", tt.roll, got, tt.want)
+			}
+		})
+	}
+
+	page, err := webAssets.ReadFile("webassets/abyss.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, token := range []string{"d.cursed_elevator", "Cursed elevator · 0/2", "playAbyssMultiFloorResults(d)"} {
+		if !strings.Contains(string(page), token) {
+			t.Errorf("cursed elevator playback contract is missing %q", token)
 		}
 	}
 }
