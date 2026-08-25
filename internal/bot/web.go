@@ -467,6 +467,8 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/prestige", s.authAPI(s.handleAbyssPrestige))
 		mux.HandleFunc("/api/abyss/bounty/claim", s.authAPI(s.handleAbyssBountyClaim))
 		mux.HandleFunc("/api/abyss/season/claim", s.authAPI(s.handleAbyssSeasonClaim))
+		mux.HandleFunc("/api/abyss/season/premium/unlock", s.authAPI(s.handleAbyssSeasonPremiumUnlock))
+		mux.HandleFunc("/api/abyss/season/premium/claim", s.authAPI(s.handleAbyssSeasonPremiumClaim))
 		mux.HandleFunc("/api/abyss/set_badge", s.authAPI(s.handleAbyssSetBadge))
 		mux.HandleFunc("/api/abyss/shop/buy", s.authAPI(s.handleAbyssShopBuy))
 		mux.HandleFunc("/api/abyss/shop/token_bundle", s.authAPI(s.handleAbyssTokenBundle))

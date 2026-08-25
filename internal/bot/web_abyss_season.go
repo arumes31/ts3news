@@ -60,31 +60,37 @@ type abyssSeasonCampaign struct {
 }
 
 type abyssSeasonRewardView struct {
-	Week      int
-	Name      string
-	Kind      string
-	Goal      int64
-	Progress  int64
-	Percent   int
-	Available bool
-	Complete  bool
-	Claimed   bool
-	Current   bool
+	Week           int
+	Name           string
+	Kind           string
+	PremiumName    string
+	PremiumKind    string
+	Goal           int64
+	Progress       int64
+	Percent        int
+	Available      bool
+	Complete       bool
+	Claimed        bool
+	PremiumClaimed bool
+	Current        bool
 }
 
 type abyssSeasonJourneyView struct {
-	ID          string
-	Name        string
-	Icon        string
-	Affinity    string
-	Palette     string
-	Tagline     string
-	StartLabel  string
-	EndLabel    string
-	CurrentWeek int
-	Weeks       []abyssSeasonRewardView
-	Claimed     int
-	LoadError   string
+	ID              string
+	Name            string
+	Icon            string
+	Affinity        string
+	Palette         string
+	Tagline         string
+	StartLabel      string
+	EndLabel        string
+	CurrentWeek     int
+	Weeks           []abyssSeasonRewardView
+	Claimed         int
+	PremiumClaimed  int
+	PremiumUnlocked bool
+	PremiumCost     int64
+	LoadError       string
 }
 
 func abyssSeasonCampaignAt(at time.Time) abyssSeasonCampaign {
@@ -148,8 +154,10 @@ func (b *Bot) abyssSeasonJourney(ctx context.Context, uid string, at time.Time, 
 		ID: campaign.ID, Name: campaign.Name, Icon: campaign.Icon,
 		Affinity: campaign.Affinity, Palette: campaign.Palette, Tagline: campaign.Tagline,
 		StartLabel: campaign.Start.Format("02 Jan 2006"), EndLabel: campaign.End.Add(-time.Second).Format("02 Jan 2006"),
-		CurrentWeek: campaign.CurrentWeek,
-		Weeks:       make([]abyssSeasonRewardView, 0, abyssSeasonWeeks),
+		CurrentWeek:     campaign.CurrentWeek,
+		Weeks:           make([]abyssSeasonRewardView, 0, abyssSeasonWeeks),
+		PremiumUnlocked: owned[abyssSeasonPremiumEntitlementKey(campaign)],
+		PremiumCost:     abyssSeasonPremiumUnlockCost,
 	}
 	progress, err := b.abyssSeasonProgress(ctx, uid, campaign)
 	if err != nil {
@@ -159,19 +167,25 @@ func (b *Bot) abyssSeasonJourney(ctx context.Context, uid string, at time.Time, 
 		goal := abyssSeasonWeekGoals[week-1]
 		floors := progress[week-1]
 		claimed := owned[abyssSeasonCosmeticKey(campaign, week)]
+		premiumClaimed := owned[abyssSeasonPremiumCosmeticKey(campaign, week)]
 		percent := int(floors * 100 / goal)
 		if percent > 100 {
 			percent = 100
 		}
 		view.Weeks = append(view.Weeks, abyssSeasonRewardView{
 			Week: week, Name: campaign.RewardWord + " " + abyssSeasonRewardNames[week-1],
-			Kind: abyssSeasonRewardKinds[week-1], Goal: goal, Progress: floors, Percent: percent,
+			Kind:        abyssSeasonRewardKinds[week-1],
+			PremiumName: abyssSeasonPremiumRewardName(campaign, week), PremiumKind: "Gilded " + abyssSeasonRewardKinds[week-1],
+			Goal: goal, Progress: floors, Percent: percent,
 			Available: err == nil && week <= campaign.CurrentWeek,
 			Complete:  err == nil && floors >= goal,
-			Claimed:   claimed, Current: week == campaign.CurrentWeek,
+			Claimed:   claimed, PremiumClaimed: premiumClaimed, Current: week == campaign.CurrentWeek,
 		})
 		if claimed {
 			view.Claimed++
+		}
+		if premiumClaimed {
+			view.PremiumClaimed++
 		}
 	}
 	return view, err

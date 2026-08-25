@@ -155,9 +155,19 @@ test('command palette ranks sections, remembers recents, and explains locked act
   await expect(page.locator('#abCommandSearch')).toBeVisible();
 });
 
-test('season journey is a dedicated responsive tab with an idempotent cosmetic claim', async ({ page }) => {
+test('season journey has responsive free and token-premium reward lanes', async ({ page }) => {
   let claimedWeek = 0;
+  let premiumUnlocked = false;
+  let premiumClaimedWeek = 0;
   await fulfillAbyssAPI(page, (path, body) => {
+    if (path.endsWith('/season/premium/unlock')) {
+      premiumUnlocked = true;
+      return { ok: true, unlocked: true, already_unlocked: false, tokens: 2 };
+    }
+    if (path.endsWith('/season/premium/claim')) {
+      premiumClaimedWeek = body.week;
+      return { ok: true, week: body.week, name: 'Ember Gilded Scout Sigil', claimed: true, already_owned: false };
+    }
     if (path.endsWith('/season/claim')) {
       claimedWeek = body.week;
       return { ok: true, week: body.week, name: 'Ember Scout Sigil', claimed: true, already_owned: false };
@@ -172,12 +182,24 @@ test('season journey is a dedicated responsive tab with an idempotent cosmetic c
   await expect(page.locator('#abyssSeasonTitle')).toHaveText('Ember Descent');
   await expect(page.locator('body')).toHaveAttribute('data-ab-season', 'ember');
   await expect(page.locator('.ab-season-week')).toHaveCount(10);
+  await expect(page.locator('[data-season-lane="free"]')).toHaveCount(10);
+  await expect(page.locator('[data-season-lane="premium"]')).toHaveCount(10);
   await expect(page.locator('.ab-season-affinity')).toContainText('fire ×3');
-  await page.getByRole('button', { name: 'Claim cosmetic' }).click();
+  await page.getByRole('button', { name: 'Claim free reward' }).click();
   await expect.poll(() => claimedWeek).toBe(1);
-  await expect(page.locator('#abyssSeasonWeek1')).toHaveClass(/claimed/);
-  await expect(page.locator('#abyssSeasonWeek1 button')).toHaveText('✓ In collection');
+  await expect(page.locator('#abyssSeasonWeek1 [data-season-lane="free"]')).toHaveClass(/claimed/);
+  await expect(page.locator('#abyssSeasonWeek1 [data-season-lane="free"] button')).toHaveText('✓ In collection');
+  await expect(page.locator('#seasonFreeClaimed')).toHaveText('1');
 
+  await page.getByRole('button', { name: 'Unlock for' }).click();
+  await expect.poll(() => premiumUnlocked).toBe(true);
+  await expect(page.locator('#abyssSeasonPremiumPass')).toHaveClass(/unlocked/);
+  await page.getByRole('button', { name: 'Claim premium reward' }).click();
+  await expect.poll(() => premiumClaimedWeek).toBe(1);
+  await expect(page.locator('#abyssSeasonWeek1 [data-season-lane="premium"]')).toHaveClass(/claimed/);
+  await expect(page.locator('#seasonPremiumClaimed')).toHaveText('1');
+
+  await page.setViewportSize({ width: 480, height: 900 });
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });

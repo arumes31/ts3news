@@ -1523,7 +1523,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	history := s.bot.abyssHistory(uid, 30)
 	bestiary := s.bot.loadAbyssBestiary(uid)
 	insights := s.bot.abyssRunInsights(uid, run, history, bestiary, st.AbyssPrestige)
-	longTerm := s.bot.abyssLongTermStatus(uid, run, history, st.BestDepth, pity)
+	longTerm := s.bot.abyssLongTermStatus(r.Context(), uid, run, history, st.BestDepth, pity)
 	coreLoop := s.bot.abyssCoreLoopStatus(uid, run)
 	eventIntel := s.bot.abyssEventIntel(uid, run)
 	watcherPressure := abyssWatcherPressure(run, time.Now())

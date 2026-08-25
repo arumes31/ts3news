@@ -41,7 +41,9 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0015 / 15** — one token-priced Last Stand restores at least 25% HP and seals banking for two victories.
 - [x] **AAA-0016 / 16** — each 25 best-depth milestone grants 1% permanent loot find, capped at 4%.
 - [x] **AAA-0017 / 17** — a validated 5/10/20-token ante is debited atomically at entry, boosts every floor's cache by the same percentage, and returns only after a successful full bank (`web_abyss_stakes.go`, `web_abyss_stakes_test.go`).
+- [x] **AAA-0018 / 18** — the live pace marker compares the current run with the player's server-authoritative all-history best floors-per-minute run while retaining the latest-run reference (`web_abyss_longterm.go`, `web_abyss_longterm_test.go`).
 - [x] **AAA-0019 / 19** — five prestige tiers expose escalating names and cosmetic auras.
+- [x] **AAA-0020 / 20** — the ten-week floor-progress journey presents free and premium cosmetic lanes; a one-time seasonal token unlock and every premium claim are atomic and idempotent (`web_abyss_season.go`, `web_abyss_season_premium.go`, `web_abyss_season_test.go`, `tests/e2e/abyss.spec.js`).
 - [x] **AAA-0021 / 21** — Descend shows the server-estimated next-floor death risk.
 - [x] **AAA-0022 / 22** — every third consecutive full bank atomically grants one non-stacking insurance voucher; the next valid coverage purchase consumes it in the same transaction (`web_abyss_bank_incentives.go`, `web_abyss_bank_incentives_test.go`).
 - [x] **AAA-0023 / 23** — full banks convert a rounded 10% share of cache above the depth soft cap into tokens at the normal exchange rate, with the exact gold and tokens itemized before confirmation (`web_abyss_bank_incentives.go`, `web_abyss_bank_incentives_test.go`, `tests/e2e/abyss.spec.js`).

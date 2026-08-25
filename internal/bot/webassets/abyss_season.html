@@ -1,5 +1,6 @@
 {{define "abyssSeasonJourney"}}
 {{with .SeasonJourney}}
+{{$premiumUnlocked := .PremiumUnlocked}}
 <section class="abyss-panel ab-season" id="abyssSeasonJourney" data-abyss-section="season" data-season-id="{{.ID}}" aria-labelledby="abyssSeasonTitle">
   <header class="ab-season-hero">
     <div class="ab-season-mark" aria-hidden="true">{{.Icon}}</div>
@@ -10,7 +11,8 @@
       <div class="ab-season-meta">
         <span>Week <b>{{.CurrentWeek}}</b> / 10</span>
         <span>{{.StartLabel}} — {{.EndLabel}}</span>
-        <span><b>{{.Claimed}}</b> / 10 recovered</span>
+        <span><b id="seasonFreeClaimed">{{.Claimed}}</b> / 10 free recovered</span>
+        <span><b id="seasonPremiumClaimed">{{.PremiumClaimed}}</b> / 10 premium recovered</span>
       </div>
     </div>
     <div class="ab-season-affinity">
@@ -24,30 +26,63 @@
   <div class="ab-season-error" role="status">⚠️ {{.LoadError}} Existing rewards remain safe.</div>
   {{end}}
 
+  <div class="ab-season-pass {{if .PremiumUnlocked}}unlocked{{end}}" id="abyssSeasonPremiumPass">
+    <div>
+      <span class="ab-season-pass-kicker">TOKEN PASS</span>
+      <strong>{{if .PremiumUnlocked}}Premium route active{{else}}Unlock the premium route{{end}}</strong>
+      <p>One unlock covers this entire season. Both lanes use the same server-authoritative floor progress.</p>
+    </div>
+    {{if .PremiumUnlocked}}
+      <span class="ab-season-pass-state">✓ UNLOCKED</span>
+    {{else}}
+      <button type="button" class="primary" id="abyssSeasonPremiumUnlock" onclick="abyssSeasonPremiumUnlock(this)">Unlock for 🜲 {{.PremiumCost}}</button>
+    {{end}}
+  </div>
+
   <div class="ab-season-track" aria-label="Season journey rewards">
     {{range .Weeks}}
     <article class="ab-season-week {{if .Current}}current{{end}} {{if .Claimed}}claimed{{end}} {{if not .Available}}locked{{end}}" id="abyssSeasonWeek{{.Week}}" data-season-week="{{.Week}}">
       <div class="ab-season-week-head">
         <span class="ab-season-week-number">W{{.Week}}</span>
         {{if .Current}}<span class="ab-season-now">NOW</span>{{end}}
-        {{if .Claimed}}<span class="ab-season-owned">RECOVERED</span>{{end}}
+        {{if and .Claimed .PremiumClaimed}}<span class="ab-season-owned">COMPLETE</span>{{end}}
       </div>
-      <div class="ab-season-reward-glyph" aria-hidden="true">{{if .Claimed}}✦{{else if .Available}}◆{{else}}◇{{end}}</div>
-      <small>{{.Kind}}</small>
-      <h3>{{.Name}}</h3>
       <div class="ab-season-progress" role="progressbar" aria-label="Week {{.Week}} floors cleared" aria-valuemin="0" aria-valuemax="{{.Goal}}" aria-valuenow="{{.Progress}}">
         <span style="width:{{.Percent}}%"></span>
       </div>
       <p><b>{{.Progress}}</b> / {{.Goal}} floors cleared this week</p>
-      {{if .Claimed}}
-        <button type="button" class="ghost xs" disabled>✓ In collection</button>
-      {{else if not .Available}}
-        <button type="button" class="ghost xs" disabled>🔒 Week {{.Week}}</button>
-      {{else if .Complete}}
-        <button type="button" class="primary xs" onclick="abyssSeasonClaim({{.Week}},this)">Claim cosmetic</button>
-      {{else}}
-        <button type="button" class="ghost xs" disabled>{{.Goal}} floors required</button>
-      {{end}}
+      <div class="ab-season-lanes">
+        <div class="ab-season-lane free {{if .Claimed}}claimed{{end}}" data-season-lane="free">
+          <div class="ab-season-lane-head"><span>FREE</span><i aria-hidden="true">{{if .Claimed}}✦{{else}}◆{{end}}</i></div>
+          <small>{{.Kind}}</small>
+          <h3>{{.Name}}</h3>
+          {{if .Claimed}}
+            <button type="button" class="ghost xs" disabled>✓ In collection</button>
+          {{else if not .Available}}
+            <button type="button" class="ghost xs" disabled>🔒 Week {{.Week}}</button>
+          {{else if .Complete}}
+            <button type="button" class="primary xs" onclick="abyssSeasonClaim({{.Week}},this)">Claim free reward</button>
+          {{else}}
+            <button type="button" class="ghost xs" disabled>{{.Goal}} floors required</button>
+          {{end}}
+        </div>
+        <div class="ab-season-lane premium {{if .PremiumClaimed}}claimed{{end}}" data-season-lane="premium">
+          <div class="ab-season-lane-head"><span>PREMIUM</span><i aria-hidden="true">{{if .PremiumClaimed}}✦{{else if $premiumUnlocked}}◆{{else}}◇{{end}}</i></div>
+          <small>{{.PremiumKind}}</small>
+          <h3>{{.PremiumName}}</h3>
+          {{if .PremiumClaimed}}
+            <button type="button" class="ghost xs" disabled>✓ In collection</button>
+          {{else if not $premiumUnlocked}}
+            <button type="button" class="ghost xs ab-season-premium-action" data-claimable="{{if and .Available .Complete}}1{{else}}0{{end}}" data-pending="{{if not .Available}}Week {{.Week}}{{else}}{{.Goal}} floors required{{end}}" disabled>🔒 Premium route</button>
+          {{else if not .Available}}
+            <button type="button" class="ghost xs" disabled>🔒 Week {{.Week}}</button>
+          {{else if .Complete}}
+            <button type="button" class="primary xs" onclick="abyssSeasonPremiumClaim({{.Week}},this)">Claim premium reward</button>
+          {{else}}
+            <button type="button" class="ghost xs" disabled>{{.Goal}} floors required</button>
+          {{end}}
+        </div>
+      </div>
     </article>
     {{end}}
   </div>
@@ -70,12 +105,12 @@ async function abyssSeasonClaim(week,button){
     if(!data.ok)throw new Error(data.error||'claim failed');
     var card=document.getElementById('abyssSeasonWeek'+week);
     if(card){
-      card.classList.add('claimed');
+      var lane=button.closest('[data-season-lane="free"]');if(lane)lane.classList.add('claimed');
       var owned=card.querySelector('.ab-season-owned');
-      if(!owned){
+      if(!owned&&card.querySelector('[data-season-lane="premium"].claimed')){
         owned=document.createElement('span');
         owned.className='ab-season-owned';
-        owned.textContent='RECOVERED';
+        owned.textContent='COMPLETE';
         var head=card.querySelector('.ab-season-week-head');
         if(head)head.appendChild(owned);
       }
@@ -83,11 +118,51 @@ async function abyssSeasonClaim(week,button){
     button.className='ghost xs';
     button.textContent='✓ In collection';
     button.disabled=true;
-    abToast((data.already_owned?'Already in collection: ':'Cosmetic recovered: ')+data.name,true);
+    var count=document.getElementById('seasonFreeClaimed');if(count&&!data.already_owned)count.textContent=String((Number(count.textContent)||0)+1);
+    abToast((data.already_owned?'Already in collection: ':'Free reward recovered: ')+data.name,true);
   }catch(error){
     button.disabled=false;
     button.textContent=oldText;
     abToast(error.message||'Could not claim the season reward.',false);
   }
+}
+
+async function abyssSeasonPremiumUnlock(button){
+  if(!button||button.disabled)return;
+  button.disabled=true;var oldText=button.textContent;button.textContent='Unlocking…';
+  try{
+    var data=await abPost('/api/abyss/season/premium/unlock',{});
+    if(!data.ok)throw new Error(data.error||'unlock failed');
+    if(data.tokens!==undefined)setTokens(data.tokens);
+    var pass=document.getElementById('abyssSeasonPremiumPass');
+    if(pass){pass.classList.add('unlocked');var strong=pass.querySelector('strong');if(strong)strong.textContent='Premium route active';button.outerHTML='<span class="ab-season-pass-state">✓ UNLOCKED</span>';}
+    document.querySelectorAll('.ab-season-premium-action').forEach(function(action){
+      if(action.dataset.claimable==='1'){
+        var card=action.closest('[data-season-week]');var week=Number(card&&card.dataset.seasonWeek)||0;
+        action.disabled=false;action.className='primary xs';action.textContent='Claim premium reward';
+        action.onclick=function(){abyssSeasonPremiumClaim(week,action);};
+      }else{
+        action.textContent=action.dataset.pending||'Objective incomplete';
+      }
+    });
+    abToast(data.already_unlocked?'Premium route was already active.':'Premium route unlocked for this season.',true);
+  }catch(error){button.disabled=false;button.textContent=oldText;abToast(error.message||'Could not unlock the premium route.',false);}
+}
+
+async function abyssSeasonPremiumClaim(week,button){
+  if(!button||button.disabled)return;
+  button.disabled=true;var oldText=button.textContent;button.textContent='Recovering…';
+  try{
+    var data=await abPost('/api/abyss/season/premium/claim',{week:week});
+    if(!data.ok)throw new Error(data.error||'claim failed');
+    var card=document.getElementById('abyssSeasonWeek'+week);var lane=button.closest('[data-season-lane="premium"]');
+    if(lane)lane.classList.add('claimed');
+    if(card&&card.querySelector('[data-season-lane="free"].claimed')&&!card.querySelector('.ab-season-owned')){
+      var owned=document.createElement('span');owned.className='ab-season-owned';owned.textContent='COMPLETE';card.querySelector('.ab-season-week-head').appendChild(owned);
+    }
+    var count=document.getElementById('seasonPremiumClaimed');if(count&&!data.already_owned)count.textContent=String((Number(count.textContent)||0)+1);
+    button.className='ghost xs';button.textContent='✓ In collection';button.disabled=true;
+    abToast((data.already_owned?'Already in collection: ':'Premium reward recovered: ')+data.name,true);
+  }catch(error){button.disabled=false;button.textContent=oldText;abToast(error.message||'Could not claim the premium reward.',false);}
 }
 {{end}}

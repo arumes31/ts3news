@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"math"
 	"time"
 )
@@ -8,9 +9,11 @@ import (
 type abyssPaceView struct {
 	CurrentFloorsPerMinute float64 `json:"current_floors_per_minute"`
 	LastFloorsPerMinute    float64 `json:"last_floors_per_minute"`
+	BestFloorsPerMinute    float64 `json:"best_floors_per_minute"`
 	CurrentFloors          int     `json:"current_floors"`
 	StartedUnix            int64   `json:"started_unix"`
 	LastDepth              int     `json:"last_depth"`
+	BestDepth              int     `json:"best_depth"`
 }
 
 type abyssBountyDayView struct {
@@ -37,7 +40,7 @@ type abyssLongTermView struct {
 	LegendaryCap  int                  `json:"legendary_cap"`
 }
 
-func (b *Bot) abyssLongTermStatus(uid string, run abyssRun, history []abyssHistoryRow, bestDepth, legendaryPity int) abyssLongTermView {
+func (b *Bot) abyssLongTermStatus(ctx context.Context, uid string, run abyssRun, history []abyssHistoryRow, bestDepth, legendaryPity int) abyssLongTermView {
 	view := abyssLongTermView{
 		BountyDays:    b.abyssBountyHistory(uid, time.Now()),
 		MaterialFlow:  b.loadAbyssForgeMaterialFlow(uid),
@@ -47,8 +50,39 @@ func (b *Bot) abyssLongTermStatus(uid string, run abyssRun, history []abyssHisto
 		LegendaryCap:  abyssLegendaryPityCap,
 	}
 	view.Pace = abyssPaceStatus(run, history)
+	view.Pace.BestFloorsPerMinute, view.Pace.BestDepth = b.abyssBestPace(ctx, uid, history)
 	view.Milestones = abyssMilestones(bestDepth)
 	return view
+}
+
+func (b *Bot) abyssBestPace(ctx context.Context, uid string, history []abyssHistoryRow) (float64, int) {
+	bestPace, bestDepth := bestPaceFromHistory(history)
+	var depth, floors int
+	var durationMS int64
+	err := b.DB.QueryRowContext(ctx, `SELECT depth,floors_cleared,duration_ms
+		FROM abyss_runs
+		WHERE client_uid=$1 AND floors_cleared>0 AND duration_ms>0
+		ORDER BY floors_cleared::numeric/duration_ms DESC,depth DESC,id DESC LIMIT 1`, uid).
+		Scan(&depth, &floors, &durationMS)
+	if err == nil {
+		return float64(floors) * 60_000 / float64(durationMS), depth
+	}
+	return bestPace, bestDepth
+}
+
+func bestPaceFromHistory(history []abyssHistoryRow) (float64, int) {
+	var bestPace float64
+	var bestDepth int
+	for _, row := range history {
+		if row.FloorsCleared <= 0 || row.DurationMS <= 0 {
+			continue
+		}
+		pace := float64(row.FloorsCleared) * 60_000 / float64(row.DurationMS)
+		if pace > bestPace || pace == bestPace && row.Depth > bestDepth {
+			bestPace, bestDepth = pace, row.Depth
+		}
+	}
+	return bestPace, bestDepth
 }
 
 func abyssPaceStatus(run abyssRun, history []abyssHistoryRow) abyssPaceView {

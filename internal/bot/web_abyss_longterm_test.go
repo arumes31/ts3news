@@ -29,16 +29,24 @@ func TestAbyssLongTermStatusUsesPersistedPaceBountiesAndMaterialFlow(t *testing.
 		WillReturnRows(sqlmock.NewRows([]string{"mat_id", "direction", "amount", "created_at"}).
 			AddRow("dust", "source", int64(9), now).
 			AddRow("dust", "sink", int64(4), now))
+	mock.ExpectQuery("SELECT depth,floors_cleared,duration_ms").WithArgs("player").
+		WillReturnRows(sqlmock.NewRows([]string{"depth", "floors_cleared", "duration_ms"}).AddRow(44, 20, int64(100_000)))
 
 	run := abyssRun{Active: true, Depth: 15, CheckpointStart: 10, FloorType: "combat", StartedAt: now.Add(-time.Minute)}
-	history := []abyssHistoryRow{{Depth: 22, FloorsCleared: 12, DurationMS: 120_000}}
-	view := (&Bot{DB: database}).abyssLongTermStatus("player", run, history, 37, 31)
+	history := []abyssHistoryRow{
+		{Depth: 22, FloorsCleared: 12, DurationMS: 120_000},
+		{Depth: 31, FloorsCleared: 18, DurationMS: 90_000},
+	}
+	view := (&Bot{DB: database}).abyssLongTermStatus(t.Context(), "player", run, history, 37, 31)
 
 	if view.Pace.CurrentFloors != 5 || view.Pace.CurrentFloorsPerMinute < 4.8 || view.Pace.CurrentFloorsPerMinute > 5.2 {
 		t.Fatalf("current pace = %#v", view.Pace)
 	}
 	if view.Pace.LastFloorsPerMinute != 6 || view.Pace.LastDepth != 22 {
 		t.Fatalf("last-run ghost = %#v", view.Pace)
+	}
+	if view.Pace.BestFloorsPerMinute != 12 || view.Pace.BestDepth != 44 {
+		t.Fatalf("best-run ghost = %#v", view.Pace)
 	}
 	if len(view.BountyDays) != 7 || !view.BountyDays[6].Claimed {
 		t.Fatalf("bounty history = %#v", view.BountyDays)
@@ -54,6 +62,18 @@ func TestAbyssLongTermStatusUsesPersistedPaceBountiesAndMaterialFlow(t *testing.
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestBestPaceFromHistoryUsesFastestRunAndDepthTieBreak(t *testing.T) {
+	t.Parallel()
+	pace, depth := bestPaceFromHistory([]abyssHistoryRow{
+		{Depth: 18, FloorsCleared: 10, DurationMS: 60_000},
+		{Depth: 24, FloorsCleared: 20, DurationMS: 120_000},
+		{Depth: 99, FloorsCleared: 0, DurationMS: 1},
+	})
+	if pace != 10 || depth != 24 {
+		t.Fatalf("best history pace = %.1f at depth %d, want 10.0 at depth 24", pace, depth)
 	}
 }
 
@@ -79,7 +99,7 @@ func TestAbyssUI181Through190AuthoritativeModule(t *testing.T) {
 	page, module, styles := string(pageBytes), string(moduleBytes), string(styleBytes)+string(baseStyleBytes)
 	for _, contract := range []string{
 		`/static/abyss_longterm.css`, `template "abyss-longterm"`,
-		`last_floors_per_minute`, `current_floors`, `started_unix`,
+		`last_floors_per_minute`, `best_floors_per_minute`, `best_depth`, `current_floors`, `started_unix`,
 		`bounty_days`, `material_flow_7d`, `legendary_pity`, `legendary_cap`,
 		`Authoritative milestone map`, `window.trackPaceFloor`, `markBountyClaimedToday`,
 		`Search settings`, `prefers-reduced-motion`, `.ab-milestone`,

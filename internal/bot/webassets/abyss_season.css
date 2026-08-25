@@ -123,6 +123,31 @@
   color: #f4c77f;
 }
 
+.ab-season-pass {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: .8rem .9rem;
+  border: 1px solid #725d2f;
+  border-radius: .55rem;
+  background: linear-gradient(110deg, rgba(121, 88, 24, .22), rgba(8, 13, 22, .92) 58%);
+}
+
+.ab-season-pass.unlocked {
+  border-color: color-mix(in srgb, var(--ab-season-accent) 48%, #725d2f);
+}
+
+.ab-season-pass > div { min-width: 0; }
+.ab-season-pass strong { display: block; color: #fff0b5; }
+.ab-season-pass p { margin: .2rem 0 0; color: #8291aa; font-size: .72rem; }
+.ab-season-pass-kicker,
+.ab-season-pass-state { color: #f6c453; font: 800 .62rem/1.2 var(--font-mono, monospace); letter-spacing: .14em; }
+.ab-season-pass button,
+.ab-season-pass-state { flex: 0 0 auto; }
+
 .ab-season-track {
   position: relative;
   display: grid;
@@ -133,7 +158,7 @@
 
 .ab-season-week {
   display: flex;
-  min-height: 13rem;
+  min-height: 21rem;
   flex-direction: column;
   padding: .8rem;
   border: 1px solid #28354a;
@@ -150,10 +175,6 @@
 .ab-season-week.current {
   border-color: var(--ab-season-accent);
   box-shadow: 0 0 1.25rem var(--ab-season-glow);
-}
-
-.ab-season-week.claimed {
-  background: linear-gradient(145deg, color-mix(in srgb, var(--ab-season-accent) 12%, #09101a), #090e17);
 }
 
 .ab-season-week.locked {
@@ -174,21 +195,14 @@
 .ab-season-now { color: var(--ab-season-hot); }
 .ab-season-owned { margin-left: auto; color: var(--ab-season-accent); }
 
-.ab-season-reward-glyph {
-  margin: .8rem 0 .45rem;
-  color: var(--ab-season-accent);
-  font-size: 1.6rem;
-  text-shadow: 0 0 .75rem var(--ab-season-glow);
-}
-
-.ab-season-week small {
+.ab-season-lane small {
   color: #71819b;
   font-size: .61rem;
   letter-spacing: .11em;
   text-transform: uppercase;
 }
 
-.ab-season-week h3 {
+.ab-season-lane h3 {
   min-height: 2.5em;
   margin: .25rem 0 .65rem;
   color: #eef3ff;
@@ -210,7 +224,46 @@
 }
 
 .ab-season-week p { margin: .45rem 0 .7rem; }
-.ab-season-week button { width: 100%; margin-top: auto; }
+
+.ab-season-lanes {
+  display: grid;
+  gap: .5rem;
+  margin-top: auto;
+}
+
+.ab-season-lane {
+  display: flex;
+  min-height: 8.1rem;
+  flex-direction: column;
+  padding: .55rem;
+  border: 1px solid #26344a;
+  border-radius: .45rem;
+  background: rgba(4, 8, 14, .58);
+}
+
+.ab-season-lane.premium {
+  border-color: #5f5030;
+  background: linear-gradient(145deg, rgba(105, 78, 24, .15), rgba(4, 8, 14, .68));
+}
+
+.ab-season-lane.claimed {
+  border-color: color-mix(in srgb, var(--ab-season-accent) 58%, #26344a);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--ab-season-accent) 10%, #09101a), #090e17);
+}
+
+.ab-season-lane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .45rem;
+  color: #91a0b8;
+  font: 800 .58rem/1 var(--font-mono, monospace);
+  letter-spacing: .13em;
+}
+
+.ab-season-lane.premium .ab-season-lane-head { color: #f6c453; }
+.ab-season-lane-head i { color: var(--ab-season-accent); font-style: normal; }
+.ab-season-lane button { width: 100%; margin-top: auto; }
 
 .ab-season-foot {
   display: flex;
@@ -235,6 +288,8 @@
   .ab-season-affinity { grid-column: 1 / -1; }
   .ab-season-track { grid-template-columns: 1fr; }
   .ab-season-week { min-height: 0; }
+  .ab-season-pass { align-items: stretch; flex-direction: column; }
+  .ab-season-pass button { width: 100%; }
   .ab-season-foot { flex-direction: column; }
 }
 
