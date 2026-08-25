@@ -440,5 +440,19 @@
       "internal/bot/xp.go"
     ],
     "verification": ["internal/bot/web_abyss_core_rewards_test.go", "internal/bot/web_abyss_hud_test.go"]
+  },
+  {
+    "ids": [727, 731, 732, 734, 735, 741, 743, 748, 750],
+    "production": [
+      "internal/bot/web_abyss_events.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_loop.go",
+      "internal/bot/web_abyss_rooms.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_events.html",
+      "internal/bot/webassets/abyss_events.css"
+    ],
+    "verification": ["internal/bot/web_abyss_events_test.go", "internal/bot/web_abyss_release_guards_test.go"]
   }
 ]

@@ -1866,11 +1866,6 @@ func (s *WebServer) handleAbyssRiftPeek(w http.ResponseWriter, r *http.Request, 
 	}
 	st := s.bot.loadAbyssStats(uid)
 	n := 3 + st.UpCartographer
-	cost := int64(50 * (run.Depth + 1))
-	cost -= cost * int64(st.UpCartographer) / 10
-	if cost < 10 {
-		cost = 10
-	}
 
 	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -1878,7 +1873,30 @@ func (s *WebServer) handleAbyssRiftPeek(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	if !deductGold(w, tx, uid, cost) {
+	flags, err := loadAbyssRunFlagsInTx(tx, uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	peekNumber := flags[abyssRunFlagRiftPeeks] + 1
+	if peekNumber > 3 {
+		writeJSON(w, map[string]any{"ok": false, "error": "the rift has closed after three visions"})
+		return
+	}
+	cost := int64(0)
+	if peekNumber > 1 {
+		cost = int64(50*(run.Depth+1)) * (peekNumber - 1)
+		cost -= cost * int64(st.UpCartographer) / 10
+		if cost < 10 {
+			cost = 10
+		}
+	}
+	if cost > 0 && !deductGold(w, tx, uid, cost) {
+		return
+	}
+	flags[abyssRunFlagRiftPeeks] = peekNumber
+	if err := saveAbyssRunFlagsInTx(tx, uid, flags); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	queue := make([]string, 0, n)
@@ -1908,7 +1926,16 @@ func (s *WebServer) handleAbyssRiftPeek(w http.ResponseWriter, r *http.Request, 
 		info := floorCandidateInfo[t]
 		labels[i] = fmt.Sprintf("Floor %d: %s %s", run.Depth+1+i, info.Icon, info.Label)
 	}
+	nextCost := int64(0)
+	if peekNumber < 3 {
+		nextCost = int64(50*(run.Depth+1)) * peekNumber
+		nextCost -= nextCost * int64(st.UpCartographer) / 10
+		if nextCost < 10 {
+			nextCost = 10
+		}
+	}
 	writeJSON(w, map[string]any{"ok": true, "gold": gold, "peek": labels,
+		"peek_number": peekNumber, "cost": cost, "next_cost": nextCost,
 		"msg": "👁️ The rift shows what waits below. These floors are now sealed to your fate."})
 }
 

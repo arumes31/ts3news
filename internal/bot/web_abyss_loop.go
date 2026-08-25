@@ -265,8 +265,9 @@ func (b *Bot) abyssAddWellLifetime(uid string, n int64) int64 {
 // ---- AB-50 hall of mirrors memory --------------------------------------------------
 
 type abyssMirrorMemory struct {
-	Pick   string `json:"pick"`
-	Streak int    `json:"streak"`
+	Pick    string `json:"pick"`
+	Streak  int    `json:"streak"`
+	LastRun string `json:"last_run,omitempty"`
 }
 
 func abyssMirrorKey(uid string) string { return "abyss_mirror_memory_" + uid }
@@ -335,6 +336,22 @@ func (b *Bot) enrichEventState(uid, eventState string) string {
 			mult = 1.5
 		}
 		m["mem_mult"] = mult
+		// A familiar merchant recognizes a repeat customer. Persist the discounted
+		// prices in the authoritative event payload so the posted UI and debit
+		// always agree.
+		if typ == "merchant" {
+			if items, ok := m["items"].([]any); ok {
+				for _, rawItem := range items {
+					item, ok := rawItem.(map[string]any)
+					if !ok {
+						continue
+					}
+					if price, ok := item["price"].(float64); ok {
+						item["price"] = int64(price / mult)
+					}
+				}
+			}
+		}
 	}
 	if typ == "wishing_well" {
 		m["lifetime"] = b.abyssWellLifetime(uid)

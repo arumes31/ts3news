@@ -128,16 +128,25 @@ func abyssSpecialRoomForRoll(roll float64) string {
 	return fmt.Sprintf(`{"type":%q}`, rooms[index])
 }
 
-// prepareAbyssEventForDepth makes traveling-merchant inventory scale with the
-// floor where it was discovered. Deep merchants carry the same fixed rolled
-// stock, but its scarcity premium rises gradually and is persisted in state.
+// prepareAbyssEventForDepth stamps the discovery depth on every encounter and
+// makes traveling-merchant inventory scale with the floor where it was found.
+// Deep merchants carry the same fixed rolled stock, but its scarcity premium
+// rises gradually and is persisted in state.
 func prepareAbyssEventForDepth(raw string, depth int) string {
 	if raw == "" {
 		return raw
 	}
 	var state map[string]any
-	if json.Unmarshal([]byte(raw), &state) != nil || state["type"] != "merchant" {
+	if json.Unmarshal([]byte(raw), &state) != nil {
 		return raw
+	}
+	state["depth"] = depth
+	if state["type"] != "merchant" {
+		encoded, err := json.Marshal(state)
+		if err != nil {
+			return raw
+		}
+		return string(encoded)
 	}
 	items, ok := state["items"].([]any)
 	if !ok {
@@ -157,7 +166,10 @@ func prepareAbyssEventForDepth(raw string, depth int) string {
 			item["price"] = int64(price) * int64(100+premium) / 100
 		}
 	}
-	state["depth"] = depth
+	// AB-34: every market visit has one opaque, flat-price mystery box. The
+	// result is rolled only after purchase, so event_state never leaks it.
+	state["mystery_available"] = true
+	state["mystery_price"] = int64(750)
 	encoded, err := json.Marshal(state)
 	if err != nil {
 		return raw
@@ -359,7 +371,7 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 func (b *Bot) tickAbyssRoomEffects(uid string) {
 	flags := b.loadRunFlags(uid)
 	changed := false
-	for _, key := range []string{"cursed_door_floors", "explorer_guard_floors"} {
+	for _, key := range []string{"cursed_door_floors", "explorer_guard_floors", "spd_curse"} {
 		if flags[key] > 0 {
 			flags[key]--
 			changed = true

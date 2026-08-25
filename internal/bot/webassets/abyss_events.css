@@ -1,0 +1,48 @@
+.ab-event-memory,
+.ab-event-offer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--accent, #d8ad53) 38%, transparent);
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--panel, #0b111c) 88%, #d8ad53 12%);
+}
+
+.ab-event-memory {
+  color: #f2cd74;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.ab-event-offer > div {
+  color: var(--muted, #9aa7bc);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.ab-event-highroller {
+  flex-wrap: wrap;
+  border-color: color-mix(in srgb, #b58cff 48%, transparent);
+  background: linear-gradient(135deg, rgba(75, 42, 105, 0.26), rgba(10, 16, 27, 0.94));
+}
+
+.ab-event-highroller strong {
+  flex: 1 0 100%;
+  color: #d7bcff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 720px) {
+  .ab-event-offer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ab-event-highroller .ghost {
+    width: 100%;
+  }
+}

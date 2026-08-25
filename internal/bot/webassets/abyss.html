@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_polish.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_longterm.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_core_risk.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_events.css"}}">
 <div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 <div class="abyss-hero">
@@ -1601,6 +1602,7 @@ function renderNonCombat(floorType, stateStr){
         btn.onclick = function(){ abyssNCAction('merchant_buy', idx.toString()); };
         options.appendChild(btn);
       });
+      if(typeof renderAbyssMarketMystery==='function')renderAbyssMarketMystery(options,state);
     } else if(state.type === 'imp'){
       desc.innerHTML = 'A cackling Gambling Imp blocks your path. "Wager 300 gold on a dice roll! You might get rich, or you might get nothing! Hee hee!"';
       options.innerHTML = `
@@ -1612,7 +1614,7 @@ function renderNonCombat(floorType, stateStr){
         <button class="ghost" onclick="abyssNCAction('shrine_accept')">☠️ Accept Shrine (+1,000g Escrow &amp; Cursed)</button>
       `;
     } else if(state.type === 'wishing_well'){
-      desc.innerHTML = 'A still, black Wishing Well waits in the dark. Toss in a coin and let fortune decide — the well may swell your cache, or swallow your gold whole.';
+      desc.textContent = 'A still, black Wishing Well waits in the dark. Toss in a coin and let fortune decide — the well may swell your cache, or swallow your gold whole. Lifetime contribution: '+fmtNum(Number(state.lifetime)||0)+'g.';
       options.innerHTML = `
         <button class="ghost" onclick="abyssNCAction('well_toss')">🪙 Toss a Coin (250g) — chance at a cache blessing</button>
       `;
@@ -1654,6 +1656,7 @@ function renderNonCombat(floorType, stateStr){
       desc.innerHTML = 'Shelves of skin-bound tomes lean over you. The pages will trade knowledge for blood: −15% HP for a lore fragment, an Intellect Elixir — and perhaps a crafting secret.';
       options.innerHTML = `
         <button class="ghost" onclick="abyssNCAction('library_trade')">🩸 Offer Blood (−15% HP → lore + elixir)</button>
+        <button class="ghost" onclick="abyssNCAction('library_trade_spd')">🪽 Offer Speed (−15% SPD for 3 fights → lore + elixir)</button>
       `;
     } else if(state.type === 'den'){
       title.innerHTML = '🎰 Gambling Den';
@@ -1665,15 +1668,16 @@ function renderNonCombat(floorType, stateStr){
         <button class="ghost" onclick="abyssNCAction('den_longshot')">🎯 Long Shot — 200g · 5% to win 4,000g</button>
         <button class="ghost" onclick="abyssNCAction('den_cascade')">🪙 Coin Cascade — 400g · 75% to win 600g</button>
       `;
+      if(typeof renderAbyssHighRoller==='function')renderAbyssHighRoller(options,state);
     } else if(state.type === 'rift'){
       title.innerHTML = '👁️ Scrying Rift';
       desc.innerHTML = 'A tear in the dark shows fragments of what lies below. Pay to fix the next floors in place and see them — Cartographer levels see further, cheaper.';
       options.innerHTML = `
-        <button class="ghost" onclick="abyssRiftPeek()">👁️ Peer Through (gold scales with depth)</button>
+        <button class="ghost" onclick="abyssRiftPeek()">👁️ First vision free · up to 3 visions</button>
       `;
     } else if(state.type === 'blood_altar'){
       title.innerHTML = '🩸 Blood Altar';
-      desc.innerHTML = 'The altar hungers for a possession, not blood. Sacrifice one consumable and it answers with a mighty elixir, already coursing through you for 3 fights. <i>(Sacrificing does not break momentum.)</i>';
+      desc.innerHTML = 'The altar hungers for a possession, not blood. Sacrifice one consumable for a mighty timed elixir; a corrupted sacrifice doubles its duration. <i>(Sacrificing does not break momentum.)</i>';
       var altarSel = '<select id="altarSel" class="ab-select">';
       (pageConsumables||[]).forEach(function(c){altarSel+='<option value="'+c.ID+'">'+consEsc(c.Name)+'</option>';});
       altarSel += '</select>';
@@ -1689,7 +1693,7 @@ function renderNonCombat(floorType, stateStr){
         options.innerHTML = '<div class="muted small">You need at least two consumables to mix.</div>';
       } else {
         var mk = function(id){var s='<select id="'+id+'" class="ab-select">';(pageConsumables||[]).forEach(function(c){s+='<option value="'+c.ID+'">'+consEsc(c.Name)+'</option>';});return s+'</select>';};
-        options.innerHTML = mk('labSel1')+' + '+mk('labSel2')+' <button class="ghost" onclick="abyssNCAction(\'lab_combine\', document.getElementById(\'labSel1\').value+\',\'+document.getElementById(\'labSel2\').value)">⚗️ Combine</button>';
+        options.innerHTML = mk('labSel1')+' + '+mk('labSel2')+' <button class="ghost" onclick="abyssNCAction(\'lab_combine\', document.getElementById(\'labSel1\').value+\',\'+document.getElementById(\'labSel2\').value)">⚗️ Combine</button> <button class="ghost" onclick="abyssNCAction(\'lab_risky\', document.getElementById(\'labSel1\').value+\',\'+document.getElementById(\'labSel2\').value)">🔥 Risky brew · +50% duration · 20% backfire</button>';
       }
     } else if(state.type === 'mirrors'){
       title.innerHTML = '🪞 Hall of Mirrors';
@@ -1742,6 +1746,7 @@ function renderNonCombat(floorType, stateStr){
     } else {
       desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
     }
+    if(typeof renderAbyssEventMemory==='function')renderAbyssEventMemory(options,state);
   }
 }
 
@@ -4249,8 +4254,15 @@ async function abyssRiftPeek(){
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setGold(d.gold);
   var desc=document.getElementById('ncDesc');
-  desc.innerHTML=d.msg+'<br>'+(d.peek||[]).join('<br>');
-  document.getElementById('ncOptions').innerHTML='';
+  desc.textContent='';
+  var intro=document.createElement('div'); intro.textContent=d.msg||'The rift answers.'; desc.appendChild(intro);
+  (d.peek||[]).forEach(function(line){var row=document.createElement('div');row.textContent=line;desc.appendChild(row);});
+  var options=document.getElementById('ncOptions'); options.innerHTML='';
+  if(Number(d.peek_number)<3){
+    var again=document.createElement('button'); again.className='ghost';
+    again.textContent='👁️ Seek vision '+(Number(d.peek_number)+1)+' ('+fmtNum(Number(d.next_cost)||0)+'g)';
+    again.onclick=abyssRiftPeek; options.appendChild(again);
+  }
 }
 
 // Forge happy-hour clock (UX-60/UI-99): count down from the server-authored
@@ -5776,6 +5788,7 @@ function initNewDots(){
 {{template "abyss-mobile" .}}
 {{template "abyss-insights" .}}
 {{template "abyss-longterm" .}}
+{{template "abyss-events" .}}
 {{template "abyssCoreRiskJS" .}}
 {{template "abyss-feedback" .}}
 {{template "abyss-polish" .}}

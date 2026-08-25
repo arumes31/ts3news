@@ -453,3 +453,15 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0723 / AB-23** — the bank confirmation can double the next-run echo seed from 5% to 10% without allowing partial-bank ambiguity.
 - [x] **AAA-0724 / AB-24** — Abyss rounds past 30 deal stacking max-HP fatigue to both sides and report each pulse in the combat timeline.
 - [x] **AAA-0725 / AB-25** — optional Hybrid runs surge every fifth combat floor to next-tier danger with half of its additional reward multiplier.
+
+## Delivered tranche: remembered encounters and deep-floor markets
+
+- [x] **AAA-0727 / AB-27** — event familiarity resets atomically on entry, adds a capped 10% offer improvement per repeat encounter, and posts the exact bonus.
+- [x] **AAA-0731 / AB-31** — depth 41 unlocks five server-validated high-roller tables with tenfold stakes and payouts at unchanged posted odds.
+- [x] **AAA-0732 / AB-32** — the Cursed Library accepts a three-fight 15% SPD curse as an alternative to permanent-run HP damage.
+- [x] **AAA-0734 / AB-34** — every merchant visit carries one opaque 750g mystery box with enforced 55/28/12/4/1 rarity odds and escrowed loot.
+- [x] **AAA-0735 / AB-35** — the first rift vision per run is free, the next two cost progressively more, and a fourth server request is rejected.
+- [x] **AAA-0741 / AB-41** — a corrupted blood-altar sacrifice doubles the familiar-event-adjusted buff duration, with the committed duration returned to the UI.
+- [x] **AAA-0743 / AB-43** — risky alchemy posts its 50% longer duration and 20% backfire odds, then settles ingredients, HP damage, and the floor atomically.
+- [x] **AAA-0748 / AB-48** — wishing wells display and transactionally update the account's lifetime gold contribution.
+- [x] **AAA-0750 / AB-50** — mirror choices count once per distinct run; a three-run same-reflection streak empowers the timed buff and is persisted transactionally.
