@@ -1143,7 +1143,7 @@ func (b *Bot) fightAbyssFloorLive(
 
 	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP}
 	for _, l := range logs {
-		res.LogsHTML = append(res.LogsHTML, bbToHTML(l))
+		res.LogsHTML = append(res.LogsHTML, abyssCombatLogHTML(l))
 	}
 	for _, lt := range loots {
 		if lt.UID == uid && lt.Note != "" {
@@ -1411,6 +1411,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	sanctuary := s.bot.loadSanctuary(uid)
 	sanctuaryStage, sanctuaryStageName := abyssSanctuaryStage(sanctuary)
 	materials := s.bot.loadMaterials(uid)
+	runFlags := s.bot.loadRunFlags(uid)
 
 	s.render(w, "abyss", map[string]any{
 		"Title":              "The Abyss",
@@ -1500,6 +1501,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"ExpressStart":     expressStart,
 		"ExpressCost":      int64(expressStart) * abyssExpressGoldPerDepth,
 		"NextCheckpoint":   nextCheckpoint,
+		"PendingDoubleBonus": pendingAbyssDoubleBonus(runFlags, run.Depth),
 	})
 }
 
@@ -2126,6 +2128,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				affixReward = o.AffixReward
 			}
 			run.Escrow = o.NewEscrow
+			_ = s.bot.setPendingAbyssDoubleBonus(uid, newDepth, o.Bonus)
 		} else {
 			// Defeat: stop batch run
 			canRevive := s.applyFloorDefeat(uid, run)
@@ -2189,6 +2192,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		"affix_reward":       affixReward,
 		"daily":              dailyFirst,
 		"auto_focus":         s.autoSelectFocus(uid, finalRun),
+		"double_bonus":       pendingAbyssDoubleBonus(s.bot.loadRunFlags(uid), finalRun.Depth),
 	}
 	if len(achs) > 0 {
 		out["achievement"] = strings.Join(achs, " · ")
@@ -2720,6 +2724,9 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		}
 		out["bonus"] = o.Bonus
 		out["escrow"] = o.NewEscrow
+		if err := s.bot.setPendingAbyssDoubleBonus(uid, depth, o.Bonus); err == nil && o.Bonus > 0 {
+			out["double_bonus"] = o.Bonus
+		}
 		if o.ExpressSkip {
 			out["express_skip"] = true
 		}
@@ -2945,6 +2952,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	var req struct {
 		Cursed  bool `json:"cursed"`
 		Preview bool `json:"preview"`
+		Percent int  `json:"percent"`
 	}
 	// Reject malformed JSON outright: a garbled body decoding to zero values
 	// would silently turn a preview request into a real, irreversible bank
@@ -2968,14 +2976,37 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("the exit is sealed — descend %d more floor(s) first", run.BankLockedFloors)})
 		return
 	}
+	partial := req.Percent != 0
+	if partial && req.Cursed {
+		writeJSON(w, map[string]any{"ok": false, "error": "cursed banking cannot be combined with a partial bank"})
+		return
+	}
+	if partial && pendingAbyssDoubleBonus(s.bot.loadRunFlags(uid), run.Depth) > 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "resolve the floor-bonus gamble or descend before partial banking"})
+		return
+	}
 
 	st := s.bot.loadAbyssStats(uid)
 	mult := s.bot.abyssBankMultiplier(run.Depth, st.Streak) // [2][12] depth + streak
-	payout := int64(float64(run.Escrow) * mult)
+	bankEscrow := run.Escrow
+	remainingEscrow := int64(0)
+	partialFee := int64(0)
+	if partial {
+		quote, valid := quoteAbyssPartialBank(run.Escrow, mult, req.Percent)
+		if !valid {
+			writeJSON(w, map[string]any{"ok": false, "error": "partial bank must be 25% or 50% of a non-empty cache"})
+			return
+		}
+		bankEscrow = quote.Escrow
+		remainingEscrow = quote.Remaining
+		partialFee = quote.Fee
+	}
+	grossPayout := int64(float64(bankEscrow) * mult)
+	payout := grossPayout - partialFee
 	depthBonusPct := min(max(run.Depth, 0), 100)
 	streakBonusPct := min(max(st.Streak, 0), 25) * 2
-	depthBonus := int64(float64(run.Escrow) * float64(depthBonusPct) / 100)
-	streakBonus := max(payout-run.Escrow-depthBonus, 0)
+	depthBonus := int64(float64(bankEscrow) * float64(depthBonusPct) / 100)
+	streakBonus := max(grossPayout-bankEscrow-depthBonus, 0)
 	var cursedBonus int64
 	if req.Cursed && payout > 0 {
 		cursedPayout := payout * 12 / 10 // [9] +20%
@@ -3000,30 +3031,42 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		capped := payout > capRemaining
 		estPayout, estTax := abyssCapTax(payout, capRemaining)
 		baseTokens := s.bot.abyssBankTokenGrant(uid, run.Depth, st.UpTribute)
-		var lootCount int
-		if err := s.bot.DB.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1", uid).Scan(&lootCount); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "db"})
-			return
+		if partial {
+			baseTokens = 0
 		}
-		lootPreview, err := s.bot.currentAbyssBankPreviewLoot(r.Context(), uid, abyssBankPreviewLootLimit)
-		if err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "db"})
-			return
+		var lootCount int
+		var lootPreview []abyssBankPreviewLoot
+		if !partial {
+			if err := s.bot.DB.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1", uid).Scan(&lootCount); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			var previewErr error
+			lootPreview, previewErr = s.bot.currentAbyssBankPreviewLoot(r.Context(), uid, abyssBankPreviewLootLimit)
+			if previewErr != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
 		}
 		writeJSON(w, map[string]any{
 			"ok": true, "preview": true,
-			"escrow": run.Escrow, "mult": mult, "cursed": req.Cursed,
+			"escrow": bankEscrow, "source_escrow": run.Escrow, "mult": mult, "cursed": req.Cursed,
 			"depth_bonus": depthBonus, "depth_bonus_pct": depthBonusPct,
 			"streak_bonus": streakBonus, "streak_bonus_pct": streakBonusPct, "cursed_bonus": cursedBonus,
+			"partial": partial, "percent": req.Percent, "partial_fee": partialFee, "remaining_escrow": remainingEscrow,
 			"payout": estPayout, "capped": capped, "cap_remaining": capRemaining, "cap_tax": estTax,
 			"tokens_grant": baseTokens, "loot_count": lootCount,
 			"loot_preview": lootPreview, "loot_preview_truncated": lootCount > len(lootPreview),
-			"bonus_gear_eligible": run.Depth >= 10,
+			"bonus_gear_eligible": !partial && run.Depth >= 10,
 			"depth":               run.Depth, "streak": st.Streak,
 		})
 		return
 	}
 
+	var partialFlags map[string]int64
+	if partial {
+		partialFlags = s.bot.loadRunFlags(uid)
+	}
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -3050,7 +3093,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	var bonusGear string
 	isRecord := false
 
-	if run.Depth > 0 {
+	if run.Depth > 0 && !partial {
 		// Record breaker check (Item #82) — compare against the true global max
 		var maxDepth int
 		_ = tx.QueryRow("SELECT COALESCE(MAX(depth), 0) FROM abyss_runs").Scan(&maxDepth)
@@ -3070,29 +3113,46 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			        abyss_bank_streak = abyss_bank_streak + 1 WHERE client_uid=$3`,
 			run.Depth, payout, uid)
 	}
-	if req.Cursed {
+	if req.Cursed && !partial {
 		_, _ = tx.Exec("UPDATE users SET abyss_curse_fights = 3 WHERE client_uid=$1", uid)
 	}
-	// End of run: clear the per-run win streak so its combat buff (abyssStreakBuff)
-	// can't leak into regular TeamSpeak-cycle fights, which read abyss_win_streak too.
-	_, _ = tx.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
-	if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
+	if partial {
+		if _, err := tx.Exec("UPDATE abyss_active SET escrow=$1, last_action_at=NOW() WHERE client_uid=$2", remainingEscrow, uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if _, err := tx.Exec("UPDATE users SET abyss_lifetime_banked = abyss_lifetime_banked + $1 WHERE client_uid=$2", payout, uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if err := consumePendingAbyssDoubleBonus(tx, uid, partialFlags); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	} else {
+		// End of run: clear the per-run win streak so its combat buff (abyssStreakBuff)
+		// can't leak into regular TeamSpeak-cycle fights, which read abyss_win_streak too.
+		_, _ = tx.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
+		if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	s.abyssOps.funnel.observeBank(uid)
+	if !partial {
+		s.abyssOps.funnel.observeBank(uid)
+	}
 
 	// Post-commit side effects
-	if run.Depth >= 10 {
+	if !partial && run.Depth >= 10 {
 		// Awarded only after the bank transaction commits so a rolled-back commit
 		// can't hand out duplicate gear on retry. [55][57]
 		bonusGear = s.bot.awardAbyssBonusGear(uid, run.Depth)
 	}
-	if run.Depth > 0 {
+	if !partial && run.Depth > 0 {
 		s.bot.grantAbyssTokens(uid, s.bot.abyssBankTokenGrant(uid, run.Depth, st.UpTribute)) // [44] + Tribute node
 		s.bot.recordGameResult(uid, "abyss", true, payout)
 		jackpotWin = s.bot.tryAbyssJackpot(uid, run.Depth) // [62]
@@ -3108,8 +3168,10 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	// Escrowed loot is now safely the player's — apply it and surface what they kept.
 	// Done post-commit so a rolled-back bank can't hand out items for free.
 	var escrowLoot []string
-	for _, label := range s.bot.applyAbyssEscrowLoot(uid) {
-		escrowLoot = append(escrowLoot, bbToHTML(label))
+	if !partial {
+		for _, label := range s.bot.applyAbyssEscrowLoot(uid) {
+			escrowLoot = append(escrowLoot, bbToHTML(label))
+		}
 	}
 
 	out := map[string]any{
@@ -3118,8 +3180,9 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		// Raw payout components for the vault subtotal animation (UX-54). The
 		// separately returned cap tax is subtracted after these components, so the
 		// final step always matches the committed payout.
-		"base": run.Escrow, "depth_bonus": depthBonus, "streak_bonus": streakBonus, "cursed_bonus": cursedBonus,
+		"base": bankEscrow, "depth_bonus": depthBonus, "streak_bonus": streakBonus, "cursed_bonus": cursedBonus,
 		"mult_bonus": depthBonus + streakBonus + cursedBonus,
+		"partial": partial, "percent": req.Percent, "partial_fee": partialFee, "remaining_escrow": remainingEscrow,
 	}
 	if capTax > 0 {
 		out["cap_tax"] = capTax

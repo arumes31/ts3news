@@ -29,6 +29,8 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0002 / 2** — reached ten-floor checkpoints with token pricing and 75% floor rewards.
 - [x] **AAA-0003 / 3** — best-depth-minus-five express starts with paid, reward-free catch-up floors.
 - [x] **AAA-0004 / 4** — 0.5% base cache interest compounded before each new floor reward.
+- [x] **AAA-0005 / 5** — secure 25% or 50% of a live cache for a visible 10% fee and continue the run.
+- [x] **AAA-0006 / 6** — one persisted coin flip can double or remove only the latest cleared floor's bonus.
 - [x] **AAA-0007 / 7** — consumable-free momentum grants 2% strength per floor, capped at 20%.
 - [x] **AAA-0010 / 10** — opt-in weekly expeditions retain one UTC ISO-week seed for the full run.
 
@@ -190,3 +192,16 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0508 / UI-8** — grayscale downed-stage treatment cleared by normal run-state rendering.
 - [x] **AAA-0509 / UI-9** — bounded rest-floor ember layer disabled by reduced-motion preferences.
 - [x] **AAA-0510 / UI-10** — centered event-type glyph for library, den, gambler, and unknown events.
+
+## Delivered tranche: exact stage feedback
+
+- [x] **AAA-0511 / UI-11** — per-floor kill counter reset before every combat playback.
+- [x] **AAA-0512 / UI-12** — server-verified OVERKILL signal only above twice the target's remaining HP.
+- [x] **AAA-0513 / UI-13** — reduced-motion-safe killing-line emphasis.
+- [x] **AAA-0514 / UI-14** — cracked-shield treatment from exact sub-20 durability values.
+- [x] **AAA-0515 / UI-15** — threat fill and needle share the existing half-second risk transition.
+- [x] **AAA-0516 / UI-16** — reduced-motion-aware numeric depth transition.
+- [x] **AAA-0517 / UI-17** — gold ring treatment on each ten-floor milestone.
+- [ ] **AAA-0518 / UI-18** — active buff badges remain pending authoritative, restart-safe duration state.
+- [x] **AAA-0519 / UI-19** — three momentum-flame sizes at zero, five, and ten stacks.
+- [x] **AAA-0520 / UI-20** — reduced-motion-safe enrage state driven by combat logs.

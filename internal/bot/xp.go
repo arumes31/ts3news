@@ -1757,7 +1757,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			}
 
-			overkill := max(0, dmg-target.Stats.HP)
+			remainingHP := target.Stats.HP
+			overkill := max(0, dmg-remainingHP)
+			massiveOverkill := abyssOverkillHit(dmg, remainingHP)
 			target.Stats.HP -= dmg
 			applyAbyssBreakDamage(target, dmg, logs)
 			*totalUserDamage += dmg
@@ -1826,7 +1828,8 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 
 			if target.Stats.HP <= 0 {
-				*logs = append(*logs, i18n.T("bot.combat.defeated", target.Name, u.Nickname))
+				defeatLog := i18n.T("bot.combat.defeated", target.Name, u.Nickname)
+				*logs = append(*logs, markAbyssOverkillLog(defeatLog, abyssCombatant(u) && massiveOverkill))
 				// #nosec G404 -- non-cryptographic flavour-text roll
 				if hasSentient && rand.Float64() < 0.4 {
 					*logs = append(*logs, fmt.Sprintf("💬 [%s]: 'Their soul is ours now!'", sentientName))
@@ -1849,12 +1852,14 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				cleaveTarget := lowestHealthMobExcept(*mobs, target)
 				if cleaveTarget != nil {
 					cleaveDamage := max(1, overkill/2)
+					cleaveOverkill := abyssOverkillHit(cleaveDamage, cleaveTarget.Stats.HP)
 					cleaveTarget.Stats.HP -= cleaveDamage
 					applyAbyssBreakDamage(cleaveTarget, cleaveDamage, logs)
 					*totalUserDamage += cleaveDamage
 					*logs = append(*logs, fmt.Sprintf("🪓 %s's overkill cleaves %s for %d damage!", u.Nickname, cleaveTarget.Name, cleaveDamage))
 					if cleaveTarget.Stats.HP <= 0 {
-						*logs = append(*logs, i18n.T("bot.combat.defeated", cleaveTarget.Name, u.Nickname))
+						defeatLog := i18n.T("bot.combat.defeated", cleaveTarget.Name, u.Nickname)
+						*logs = append(*logs, markAbyssOverkillLog(defeatLog, abyssCombatant(u) && cleaveOverkill))
 						if winner := randomLootEligibleUser(originalUsers, rand); winner != nil {
 							b.awardCombatLoot(winner, *cleaveTarget, zone, logs, loots)
 						}
@@ -1948,11 +1953,13 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if pdmg < 1 {
 				pdmg = 1
 			}
+			petOverkill := abyssOverkillHit(pdmg, ptarget.Stats.HP)
 			ptarget.Stats.HP -= pdmg
 			applyAbyssBreakDamage(ptarget, pdmg, logs)
 			*totalUserDamage += pdmg
 			if ptarget.Stats.HP <= 0 {
-				*logs = append(*logs, i18n.T("bot.combat.killed_by_pet", ptarget.Name, p.Name))
+				killLog := i18n.T("bot.combat.killed_by_pet", ptarget.Name, p.Name)
+				*logs = append(*logs, markAbyssOverkillLog(killLog, abyssCombatant(u) && petOverkill))
 				// Clones (co-op helpers) are excluded so loot never persists for them.
 				if winner := randomLootEligibleUser(originalUsers, rand); winner != nil {
 					b.awardCombatLoot(winner, *ptarget, zone, logs, loots)

@@ -535,6 +535,18 @@
     rgba(226, 87, 91, .25) 70%, rgba(226, 87, 91, .25) 100%);
 }
 
+.ab-threat-fill { position: relative; }
+.ab-threat-fill::after {
+  position: absolute;
+  top: -3px;
+  right: -2px;
+  width: 3px;
+  height: 12px;
+  background: #fff;
+  box-shadow: 0 0 5px rgba(255,255,255,.8);
+  content: '';
+}
+
 /* UI-19: momentum flame grows at ×5 / ×10 stacks */
 .ab-mom-flame {
   display: inline-block;

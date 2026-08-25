@@ -277,6 +277,7 @@
       <button class="primary ab-enter" id="btnEnter" onclick="abyssEnter()">{{if .FreeEntryAvailable}}Enter — FREE today{{else}}Enter the Abyss{{end}}</button>
       <button class="primary ab-descend" id="btnDescend" onclick="abyssDescend()" style="display:none">⬇️ Descend</button>
       <button class="ghost ab-bank" id="btnBank" onclick="abyssBank()" style="display:none">🏦 Bank &amp; Leave</button>
+      <button class="ghost" id="btnDoubleBonus" onclick="abyssDoubleBonus()" {{with .PendingDoubleBonus}}{{else}}style="display:none"{{end}}>🪙 Double floor bonus</button>
       <button class="ghost" id="btnBuildRespec" onclick="abyssBuildRespec()" style="display:none">🧬 Respec Mutation</button>
       <button class="primary ab-revive" id="btnRevive" onclick="abyssRevive()" style="display:none">🎲 Revive (double-or-nothing)</button>
       <button class="primary ab-laststand" id="btnLastStand" onclick="abyssLastStand()" style="display:none">🛡️ Last Stand (🜲 <span id="lsCost">{{.LastStandCost}}</span>)</button>
@@ -289,6 +290,9 @@
       <button class="ghost xs" onclick="abyssInsure(25)">25%</button>
       <button class="ghost xs" onclick="abyssInsure(50)">50%</button>
       <button class="ghost xs" onclick="abyssInsure(75)">75%</button>
+      <span class="ab-sub-label">Secure &amp; continue:</span>
+      <button class="ghost xs" id="btnBank25" onclick="abyssBank(25)">25%</button>
+      <button class="ghost xs" id="btnBank50" onclick="abyssBank(50)">50%</button>
       <label class="ab-cursed" data-tip="Cursed bank: +20% payout when you bank, but a hex saps your combat stats (−15%) for your next 3 fights."><input type="checkbox" id="cursedBank"> {{T "web.abyss.cursed_bank"}}</label>
     </div>
 
@@ -1088,6 +1092,7 @@ var downed  = {{if .Run.Downed}}true{{else}}false{{end}};
 var canRev  = {{if or .Run.Revived .Run.ReviveLocked}}false{{else}}true{{end}};
 var wardLv  = {{.Stats.UpWard}};
 var curDepth = {{if .Run.Active}}{{.Run.Depth}}{{else}}0{{end}};
+var pendingDoubleBonus = {{with .PendingDoubleBonus}}{{.}}{{else}}0{{end}};
 var curTier = '{{.Run.Tier}}'; // UI-188: active run's tier (insanity glitch)
 var pageLevel = {{.U.Level}}; // UI-139: level-up flash baseline
 var pageNick = {{jsonJS .U.Nickname}}; // UI-123/127: leaderboard self-highlight / badge preview
@@ -1384,7 +1389,7 @@ async function abyssPractice(name){
 }
 
 function setBusy(b){
-  busy=b;['btnEnter','btnDescend','btnBank','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
+  busy=b;['btnEnter','btnDescend','btnBank','btnBank25','btnBank50','btnDoubleBonus','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
   if(b&&!lastActionBtn&&document.activeElement&&document.activeElement.tagName==='BUTTON')markBusyElement(document.activeElement);
   if(!b){if(lastActionBtnTimer){clearTimeout(lastActionBtnTimer);lastActionBtnTimer=null;}if(lastActionBtn){lastActionBtn.classList.remove('btn-busy');lastActionBtn=null;}}
   if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
@@ -1413,6 +1418,7 @@ function renderState(){
   show('buildPicker', !inRun);
   show('btnDescend', inRun && !downed);
   show('btnBank', inRun && !downed);
+  show('btnDoubleBonus', inRun && !downed && pendingDoubleBonus > 0);
   show('btnBuildRespec', inRun && !downed);
   show('liveRow', inRun && !downed);
   // Co-op summons are only for boss floors, so the row follows the *next* floor
@@ -1446,6 +1452,9 @@ function renderState(){
     bb.disabled = busy || bankLocked > 0;
     bb.innerHTML = bankLocked > 0 ? '🔒 Sealed (' + bankLocked + ' floors)' : '🏦 Bank &amp; Leave';
   }
+  ['btnBank25','btnBank50'].forEach(function(id){
+    var partial=document.getElementById(id);if(partial)partial.disabled=busy||bankLocked>0;
+  });
   var mv = document.getElementById('momVal');
   // Momentum chip shows the live bonus (UX-36), not just the counter.
   if (mv) {
@@ -2069,9 +2078,9 @@ function decorateLogLine(d, txt){
   if(/☠️ .* defeated by|killed by pet|was slain by pet/.test(txt)){
     killsThisFloor++; updateKillChip();
     d.classList.add('ab-log-kill');
-    // UI-12 (approximation): a kill inside the opening actions reads as an
-    // overwhelming hit; true remaining-HP×2 detection needs server data.
-    if(fightMeta.actions<=3) stampOverkill(d);
+    // UI-12: the hidden marker is emitted only by the authoritative combat
+    // engine when this hit exceeded twice the target's remaining HP.
+    if(d.querySelector('.ab-overkill-signal')) stampOverkill(d);
   }
 }
 
@@ -2132,8 +2141,8 @@ function stampOverkill(lineEl){
   lineEl.appendChild(s);
 }
 
-// UI-5: pet mini-bar under the stage. Pet HP is not exposed client-side, so the
-// bar shows the pet as present/at full rather than a live percentage.
+// UI-5: pet mini-bar fallback for pet action lines. Authoritative timeline
+// frames update its name and exact HP through updatePetCombatFrame.
 function showPetBar(txt){
   var bar=document.getElementById('petBar'); if(!bar) return;
   var name='';
@@ -2969,6 +2978,7 @@ async function processDescendResult(d, hp, max){
     displayAutoFocus(d.auto_focus);
   }
   if(d.noncombat){
+	 pendingDoubleBonus=0;
     // Rest or Event floor rolled
     floorType = d.floor_type;
     eventState = d.event_state;
@@ -2992,6 +3002,7 @@ async function processDescendResult(d, hp, max){
   resetMana();
   setHP(d.hp,d.max_hp); setGold(d.gold); setTokens(d.tokens);
   if(d.victory){
+	 pendingDoubleBonus=Number(d.double_bonus)||0;
     runFloorsCleared++;
     trackPaceFloor(); // UI-181: session pace tracker
     curMomentum++; if(bankLocked>0)bankLocked--;
@@ -3116,6 +3127,7 @@ async function abyssRevive(){
     document.getElementById('abStatus').textContent='Back from the brink. Descend or bank.';
     renderConsumables(d.consumables);
   } else {
+	 pendingDoubleBonus=0;
     var finishedDepth=curDepth;
     recordSessionRun(false, finishedDepth, 0, 'Failed revival'); // UI-108: the run ends here, cache lost
     inRun=false; downed=false; setEscrow(0); setDepth('—');
@@ -3146,38 +3158,56 @@ async function abyssConcede(){
 
 // Bank flow (UX-49): fetch a server-computed preview first and show an
 // itemized confirmation modal; the real bank runs only after "Confirm".
-async function abyssBank(){
+async function abyssDoubleBonus(){
+  if(busy||pendingDoubleBonus<=0)return;
+  var amount=pendingDoubleBonus;
+  if(!(await confirmModal('Flip a coin for this floor\'s '+fmtGold(amount)+' bonus? Heads adds it again; tails removes it from the cache.',{title:'Double or descend',okLabel:'Flip coin'})))return;
+  setBusy(true);markBusyBtn('btnDoubleBonus');clearBanner();
+  var d=await abPost('/api/abyss/double_bonus');
+  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  pendingDoubleBonus=0;setEscrow(d.escrow);
+  setBanner(d.won?'🪙 Heads! The floor bonus doubled to '+fmtGold(d.bonus*2)+'.':'🪙 Tails. The floor bonus was removed; the run continues.',d.won?'good':'bad');
+  renderState();setBusy(false);
+}
+
+async function abyssBank(percent){
   if(busy)return;
-  var cursed=document.getElementById('cursedBank').checked;
+  percent=Number(percent)||0;
+  var cursed=percent?false:document.getElementById('cursedBank').checked;
   // Lock every action while the preview request is in flight so a descend or
   // second bank click can't race it; unlocked again before the confirm modal
   // (its own buttons drive the commit, which re-locks).
   setBusy(true); markBusyBtn('btnBank');
-  var p=await abPost('/api/abyss/bank',{cursed:cursed,preview:true});
+  var p=await abPost('/api/abyss/bank',{cursed:cursed,preview:true,percent:percent});
   setBusy(false);
   if(!p.ok){abToast(p.error||'failed',false);return;}
   function row(k,v){return '<div class="ab-rs-row"><span>'+k+'</span><b>'+v+'</b></div>';}
-  var html='<h3>🏦 Bank this run?</h3><div class="modal-body ab-runsummary">'+
-    row('Cache (floor interest included)', fmtGold(p.escrow))+
+  var html='<h3>'+(p.partial?'🔐 Secure '+p.percent+'% and continue?':'🏦 Bank this run?')+'</h3><div class="modal-body ab-runsummary">'+
+    row(p.partial?'Cache share':'Cache (floor interest included)', fmtGold(p.escrow))+
     row('Depth bonus +'+p.depth_bonus_pct+'%', '+'+fmtGold(p.depth_bonus))+
     (p.streak_bonus_pct?row('Bank-streak bonus +'+p.streak_bonus_pct+'%', '+'+fmtGold(p.streak_bonus)):'')+
     (p.cursed?row('☠️ Cursed bonus +20%','+'+fmtGold(p.cursed_bonus)):'')+
+    (p.partial?row('Partial-bank fee −10%','−'+fmtGold(p.partial_fee)):'')+
     row('Estimated payout', '<span style="color:var(--gold)">'+fmtGold(p.payout)+'</span>')+
-    row('Tokens on bank', '🜲 '+p.tokens_grant)+
-    row('Sealed loot to recover', p.loot_count)+
-    (p.bonus_gear_eligible?row('Depth gear reward','🎁 guaranteed'):'')+
+    (p.partial?row('Cache left in run',fmtGold(p.remaining_escrow)):row('Tokens on bank', '🜲 '+p.tokens_grant)+row('Sealed loot to recover', p.loot_count))+
+    (!p.partial&&p.bonus_gear_eligible?row('Depth gear reward','🎁 guaranteed'):'')+
     (p.capped?'<div class="ab-hc-cmp">⚠️ Daily gold cap: the Abyss levies an 80% tax on the excess (−'+fmtGold(p.cap_tax)+', fed to the deep-cache jackpot).</div>':'')+
-    (typeof renderBankPreviewLoot==='function'?renderBankPreviewLoot(p.loot_preview,p.loot_count):'')+
-  '</div><div class="modal-actions"><button class="ghost" id="modalCancelBtn">Keep descending</button><button id="modalOkBtn">🏦 Bank it</button></div>';
+    (!p.partial&&typeof renderBankPreviewLoot==='function'?renderBankPreviewLoot(p.loot_preview,p.loot_count):'')+
+  '</div><div class="modal-actions"><button class="ghost" id="modalCancelBtn">Keep descending</button><button id="modalOkBtn">'+(p.partial?'🔐 Secure share':'🏦 Bank it')+'</button></div>';
   openModal(html);
   document.getElementById('modalCancelBtn').onclick=closeModal;
-  document.getElementById('modalOkBtn').onclick=function(){closeModal();abyssBankCommit(cursed);};
+  document.getElementById('modalOkBtn').onclick=function(){closeModal();abyssBankCommit(cursed,percent);};
 }
 
-async function abyssBankCommit(cursed){
+async function abyssBankCommit(cursed,percent){
   if(busy)return; setBusy(true); markBusyBtn('btnBank'); clearBanner();
-  var d=await abPost('/api/abyss/bank',{cursed:cursed});
+  var d=await abPost('/api/abyss/bank',{cursed:cursed,percent:Number(percent)||0});
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  if(d.partial){
+    setGold(d.gold);setEscrow(d.remaining_escrow);
+    setBanner('🔐 Secured '+fmtGold(d.banked)+' with a '+fmtGold(d.partial_fee)+' fee. '+fmtGold(d.remaining_escrow)+' remains at stake.','good');
+    coinArc();renderState();setBusy(false);return;
+  }
   recordSessionRun(true, d.depth, d.banked); // UI-108
   recordTierBest(d.depth); // UI-102
   var msg='🏦 Banked '+fmtGold(d.banked)+' from a depth-'+d.depth+' run (×'+Number(d.mult).toFixed(2)+').';
