@@ -324,6 +324,17 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		"bosses",
 		"artifacts",
 		"companions",
+		"relics",
+		"ranged",
+		"souls",
+		"auras",
+		"charms",
+		"mounts",
+		"pets",
+		"emblems",
+		"banners",
+		"totems",
+		"offhands",
 	}
 	for _, atlas := range atlasNames {
 		path := "/static/abyss_atlas_" + atlas + ".png"

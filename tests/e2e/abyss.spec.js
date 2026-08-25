@@ -74,6 +74,18 @@ test('desktop Abyss keeps its dark canvas and aligned stage in light system mode
   expect(layout.overflow).toEqual([]);
 });
 
+test('dedicated special-item pixel atlases are served', async ({ request }) => {
+  const families = [
+    'relics', 'ranged', 'artifacts', 'souls', 'auras', 'charms', 'mounts',
+    'companions', 'pets', 'emblems', 'banners', 'totems', 'offhands',
+  ];
+  await Promise.all(families.map(async family => {
+    const response = await request.head(`/static/abyss_atlas_${family}.png`);
+    expect(response.ok(), `${family} atlas should be served`).toBe(true);
+    expect(response.headers()['content-type']).toContain('image/png');
+  }));
+});
+
 test('a victorious descend can preview and commit bank', async ({ page }) => {
   let committed = false;
   await fulfillAbyssAPI(page, (path, body) => {
@@ -165,8 +177,14 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
       ],
       recent_logs: [], initiative: [], enemy_intents: [], social: {},
     });
-    document.querySelector('#lootManifest').innerHTML = '<div class="abyss-side-loot" data-loot-id="42" data-gear-id="ABYSS_TEST" data-slot="MainHand" data-tip="Test Blade"><span class="ab-loot-main"><span>Test Blade</span></span></div>';
+    document.querySelector('#lootManifest').innerHTML = '<div class="abyss-side-loot" data-loot-id="42" data-gear-id="ABYSS_TEST" data-slot="MainHand" data-tip="Test Blade"><span class="ab-loot-main"><span>Test Blade</span></span></div><div class="abyss-side-loot" data-loot-id="43" data-gear-id="ABYSS_RELIC" data-slot="Relic" data-tip="Test Relic"><span class="ab-loot-main"><span>Test Relic</span></span></div>';
     window.updateLootRewardPresentation();
+    const petCard = document.createElement('div');
+    petCard.className = 'ab-pet-card';
+    petCard.dataset.petArtKey = 'pet:e2e:frost-lich';
+    petCard.innerHTML = '<span class="ab-pixel-icon ab-pet-pixel"></span>';
+    document.querySelector('.abyss-command-page').appendChild(petCard);
+    window.decorateAbyssPetCards();
   });
   const ordinary = page.locator('#livePixelEnemies [data-target="enemy:5"]');
   await expect(ordinary).toBeVisible();
@@ -188,9 +206,29 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   expect(new Set(skillComposites).size).toBe(2);
   const skillMotif = await page.locator('#liveActionBar .kind-skill .ab-art-unique').first().evaluate(node => getComputedStyle(node, '::before').backgroundImage);
   expect(skillMotif).toContain('abyss_atlas_skills');
-  const lootIcon = page.locator('#lootManifest .ab-loot-pixel.ab-art-unique');
-  await expect(lootIcon).toHaveCount(1);
-  await expect(lootIcon).toHaveCSS('background-image', /abyss_atlas_items/);
+  const lootIcons = page.locator('#lootManifest .ab-loot-pixel.ab-art-unique');
+  await expect(lootIcons).toHaveCount(2);
+  await expect(lootIcons.nth(0)).toHaveCSS('background-image', /abyss_atlas_items/);
+  await expect(lootIcons.nth(1)).toHaveCSS('background-image', /abyss_atlas_relics/);
+  await expect(lootIcons.nth(1)).toHaveCSS('background-size', '1300% 1200%');
+  await expect(lootIcons.nth(1)).toHaveAttribute('data-art-sheet', 'relics');
+  const petIcon = page.locator('.ab-pet-card[data-pet-art-key="pet:e2e:frost-lich"] .ab-pet-pixel');
+  await expect(petIcon).toHaveCSS('background-image', /abyss_atlas_pets/);
+  await expect(petIcon).toHaveCSS('width', '48px');
+  await expect(petIcon).toHaveCSS('height', '48px');
+  await expect(petIcon).toHaveAttribute('data-art-sheet', 'pets');
+  const specialFamilies = await page.evaluate(() => ({
+    relic: abGearArtFamily('Relic'), ranged: abGearArtFamily('Ranged'), artifact: abGearArtFamily('Artifact'),
+    soul: abGearArtFamily('Soul'), aura: abGearArtFamily('Aura'), charm: abGearArtFamily('Charm'),
+    mount: abGearArtFamily('Mount'), companion: abGearArtFamily('Companion'), pet1: abGearArtFamily('Pet1'),
+    pet2: abGearArtFamily('Pet2'), emblem1: abGearArtFamily('Emblem1'), emblem2: abGearArtFamily('Emblem2'),
+    banner: abGearArtFamily('Banner'), totem: abGearArtFamily('Totem'), offhand: abGearArtFamily('OffHand'),
+  }));
+  expect(specialFamilies).toEqual({
+    relic: 'relics', ranged: 'ranged', artifact: 'artifacts', soul: 'souls', aura: 'auras',
+    charm: 'charms', mount: 'mounts', companion: 'companions', pet1: 'pets', pet2: 'pets',
+    emblem1: 'emblems', emblem2: 'emblems', banner: 'banners', totem: 'totems', offhand: 'offhands',
+  });
   await page.locator('#liveActionBar .kind-attack').click();
   await expect.poll(() => submittedTarget).toBe('enemy:5');
 });

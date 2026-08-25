@@ -39,7 +39,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_secret_boss_chain.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_cosmetics.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_watcher_pressure.css"}}">
-<div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-expanded-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas_expanded.png"}}');--ab-expanded-icon-atlas:url('{{asset "/static/abyss_icon_atlas_expanded.png"}}');--ab-atlas-items:url('{{asset "/static/abyss_atlas_items.png"}}');--ab-atlas-skills:url('{{asset "/static/abyss_atlas_skills.png"}}');--ab-atlas-creatures:url('{{asset "/static/abyss_atlas_creatures.png"}}');--ab-atlas-bosses:url('{{asset "/static/abyss_atlas_bosses.png"}}');--ab-atlas-artifacts:url('{{asset "/static/abyss_atlas_artifacts.png"}}');--ab-atlas-companions:url('{{asset "/static/abyss_atlas_companions.png"}}')">
+<div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-expanded-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas_expanded.png"}}');--ab-expanded-icon-atlas:url('{{asset "/static/abyss_icon_atlas_expanded.png"}}');--ab-atlas-items:url('{{asset "/static/abyss_atlas_items.png"}}');--ab-atlas-skills:url('{{asset "/static/abyss_atlas_skills.png"}}');--ab-atlas-creatures:url('{{asset "/static/abyss_atlas_creatures.png"}}');--ab-atlas-bosses:url('{{asset "/static/abyss_atlas_bosses.png"}}');--ab-atlas-artifacts:url('{{asset "/static/abyss_atlas_artifacts.png"}}');--ab-atlas-companions:url('{{asset "/static/abyss_atlas_companions.png"}}');--ab-atlas-relics:url('{{asset "/static/abyss_atlas_relics.png"}}');--ab-atlas-ranged:url('{{asset "/static/abyss_atlas_ranged.png"}}');--ab-atlas-souls:url('{{asset "/static/abyss_atlas_souls.png"}}');--ab-atlas-auras:url('{{asset "/static/abyss_atlas_auras.png"}}');--ab-atlas-charms:url('{{asset "/static/abyss_atlas_charms.png"}}');--ab-atlas-mounts:url('{{asset "/static/abyss_atlas_mounts.png"}}');--ab-atlas-pets:url('{{asset "/static/abyss_atlas_pets.png"}}');--ab-atlas-emblems:url('{{asset "/static/abyss_atlas_emblems.png"}}');--ab-atlas-banners:url('{{asset "/static/abyss_atlas_banners.png"}}');--ab-atlas-totems:url('{{asset "/static/abyss_atlas_totems.png"}}');--ab-atlas-offhands:url('{{asset "/static/abyss_atlas_offhands.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
@@ -1352,16 +1352,24 @@ function abExpandedGearIconCell(slot){
   if(slot==='neck'||slot.indexOf('trinket')===0)return [7,1];
   return [7,6];
 }
-function applyAbUniquePixelIcon(element,cell,key){
+var AB_GEAR_ART_FAMILIES={
+  offhand:'offhands',ranged:'ranged',relic:'relics',artifact:'artifacts',
+  soul:'souls',aura:'auras',charm:'charms',mount:'mounts',companion:'companions',
+  pet1:'pets',pet2:'pets',emblem1:'emblems',emblem2:'emblems',banner:'banners',totem:'totems'
+};
+function abGearArtFamily(slot){
+  return AB_GEAR_ART_FAMILIES[String(slot||'').toLowerCase()]||'items';
+}
+function applyAbUniquePixelIcon(element,cell,key,family){
   if(!element)return;
-  var art=liveCatalogArt(key,'items');
+  var art=liveCatalogArt(key,family||'items');
   element.classList.add('ab-catalog-icon','ab-art-unique');
   element.style.cssText+=';'+liveUniqueArtStyle(key,art.family);
   element.dataset.artSignature=liveArtIdentity(key).signature;
   element.dataset.artSheet=art.family;
 }
-function abUniquePixelIconHTML(cell,key,extraClass){
-  var identity=liveArtIdentity(key),art=liveCatalogArt(key,'items');
+function abUniquePixelIconHTML(cell,key,extraClass,family){
+  var identity=liveArtIdentity(key),art=liveCatalogArt(key,family||'items');
   return '<span class="ab-pixel-icon ab-catalog-icon ab-art-unique '+(extraClass||'')+'" data-art-signature="'+identity.signature+'" data-art-sheet="'+art.family+'" style="'+liveUniqueArtStyle(key,art.family)+'" aria-hidden="true"></span>';
 }
 
@@ -1386,7 +1394,7 @@ function abUniquePixelIconHTML(cell,key,extraClass){
   }
   function fill(host,txt){
     var lines=txt.split('\n'), card=ensure(), icon='';
-    if(host.classList.contains('abyss-side-gear'))icon=abUniquePixelIconHTML(abExpandedGearIconCell(host.dataset.slot),host.dataset.artKey||host.dataset.tip,'ab-hovertip-icon');
+    if(host.classList.contains('abyss-side-gear'))icon=abUniquePixelIconHTML(abExpandedGearIconCell(host.dataset.slot),host.dataset.artKey||host.dataset.tip,'ab-hovertip-icon',abGearArtFamily(host.dataset.slot));
     card.innerHTML='<div class="ab-hovertip-title">'+icon+'<strong>'+consEsc(lines.shift()||'')+'</strong></div>'+lines.map(function(line){
       return '<div>'+consEsc(line).replace(/(-\d+)/g,'<span class="ab-neg">$1</span>')+'</div>';
     }).join('');
@@ -1493,7 +1501,7 @@ function lootToast(labelHTML, rarCls){
   var burst = (rarCls === 'rar-celestial' || rarCls === 'rar-eternal') ? ' ab-starburst' : '';
   var slot=/\[s:([A-Za-z0-9]+)\]/.exec((labelHTML||'').replace(/<[^>]*>/g,''));
   var key='loot-toast:'+(labelHTML||'').replace(/<[^>]*>/g,'');
-  var icon=abUniquePixelIconHTML(abExpandedGearIconCell(slot?slot[1]:''),key,'ab-loot-toast-icon');
+  var icon=abUniquePixelIconHTML(abExpandedGearIconCell(slot?slot[1]:''),key,'ab-loot-toast-icon',abGearArtFamily(slot?slot[1]:''));
   abToast(labelHTML, true, {html: true, icon: icon, cls: 'loot ' + rarCls + burst, ms: 3600});
 }
 
@@ -5428,7 +5436,7 @@ function decorateEquippedCards(){
   document.querySelectorAll('.abyss-side-gear').forEach(function(card){
     if(card.dataset.ab2)return;
     card.dataset.ab2='1';
-    applyAbUniquePixelIcon(card.querySelector('.ab-gear-pixel'),abExpandedGearIconCell(card.dataset.slot),card.dataset.artKey);
+    applyAbUniquePixelIcon(card.querySelector('.ab-gear-pixel'),abExpandedGearIconCell(card.dataset.slot),card.dataset.artKey,abGearArtFamily(card.dataset.slot));
     var temper=parseInt(card.getAttribute('data-temper'),10)||0;
     if(temper>0){ // UI-74
       var pips=document.createElement('span');
@@ -5890,6 +5898,7 @@ function renderTierRisk(){
   }
 
   decorateEquippedCards();
+  decorateAbyssPetCards();
   updateOptgroupCounts();
 
   // Forge picker change → affordability + all the selection-driven previews.

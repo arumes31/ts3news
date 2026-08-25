@@ -9,7 +9,15 @@ function resetLivePixelState(sessionID){
 
 function liveSpritePosition(cell){return (cell[0]*100/3)+'% '+(cell[1]*100/2)+'%';}
 
-function liveCatalogSpritePosition(cell){return (cell[0]*100/13)+'% '+(cell[1]*100/11)+'%';}
+var AB_CATALOG_GRIDS={
+  artifacts:[14,11],auras:[12,12],banners:[13,10],charms:[14,11],
+  emblems:[12,12],mounts:[12,12],relics:[13,12],totems:[14,10]
+};
+function liveCatalogGrid(family){return AB_CATALOG_GRIDS[family]||[14,12];}
+function liveCatalogSpritePosition(cell,family){
+  var grid=liveCatalogGrid(family);
+  return (cell[0]*100/(grid[0]-1))+'% '+(cell[1]*100/(grid[1]-1))+'%';
+}
 
 function liveNameHash(name){
   var hash=2166136261,text=String(name||'');
@@ -33,18 +41,19 @@ function liveArtIdentity(key){
 
 function liveCatalogArt(key,family){
   key=String(key||'unknown');family=family||'skills';
-  var primary=liveNameHash('abyss-primary:'+key),motif=liveNameHash('abyss-motif:'+key);
+  var primary=liveNameHash('abyss-primary:'+key),motif=liveNameHash('abyss-motif:'+key),grid=liveCatalogGrid(family);
   return {
     family:family,
-    cell:[primary%14,Math.floor(primary/14)%12],
+    grid:grid,
+    cell:[primary%grid[0],Math.floor(primary/grid[0])%grid[1]],
     motifFamily:family,
-    motifCell:[motif%14,Math.floor(motif/14)%12]
+    motifCell:[motif%grid[0],Math.floor(motif/grid[0])%grid[1]]
   };
 }
 
 function liveUniqueArtStyle(key,family){
   var identity=liveArtIdentity(key),art=liveCatalogArt(key,family);
-  return '--ab-art-hue:'+identity.hue+'deg;--ab-art-sigil:'+identity.sigil+';--ab-catalog-atlas:var(--ab-atlas-'+art.family+');--ab-catalog-position:'+liveCatalogSpritePosition(art.cell)+';--ab-art-motif-atlas:var(--ab-atlas-'+art.motifFamily+');--ab-art-motif-position:'+liveCatalogSpritePosition(art.motifCell);
+  return '--ab-art-hue:'+identity.hue+'deg;--ab-art-sigil:'+identity.sigil+';--ab-catalog-atlas:var(--ab-atlas-'+art.family+');--ab-catalog-position:'+liveCatalogSpritePosition(art.cell,art.family)+';--ab-catalog-size-x:'+(art.grid[0]*100)+'%;--ab-catalog-size-y:'+(art.grid[1]*100)+'%;--ab-art-motif-atlas:var(--ab-atlas-'+art.motifFamily+');--ab-art-motif-position:'+liveCatalogSpritePosition(art.motifCell,art.motifFamily);
 }
 
 function liveActionArtKey(option){
@@ -53,7 +62,8 @@ function liveActionArtKey(option){
 
 function liveActionArtFamily(option){
   if(option.kind==='item')return 'items';
-  if(option.kind==='relic')return 'artifacts';
+  if(option.kind==='relic')return 'relics';
+  if(option.kind==='artifact')return 'artifacts';
   if(option.kind==='companion')return 'companions';
   return 'skills';
 }
@@ -120,9 +130,10 @@ function renderLivePixelStage(state){
       button.setAttribute('aria-pressed',liveSelectedTarget===unit.id?'true':'false');
       var delta=!hpHidden&&previous?unit.hp-previous.hp:0,deltaHTML=delta?'<span class="ab-pixel-float '+(delta>0?'heal':'damage')+'">'+(delta>0?'+':'')+fmtNum(delta)+'</span>':'';
       var effects=(unit.effects||[]).slice(0,4).map(function(effect){return '<i title="'+consEsc(effect.name)+'"></i>';}).join('');
+      var artFamily=art&&art.family?art.family:'skills';
       var cell=art?art.cell:livePlayerCell(unit),spriteClass='ab-actor-sprite'+(art?' ab-catalog-actor':'');
-      var spritePosition=art?liveCatalogSpritePosition(cell):liveSpritePosition(cell);
-      var artIdentity=liveArtIdentity(artKey),artFamily=art&&art.family?art.family:'skills';
+      var spritePosition=art?liveCatalogSpritePosition(cell,artFamily):liveSpritePosition(cell);
+      var artIdentity=liveArtIdentity(artKey);
       var rank=tier?'<span class="ab-pixel-rank">'+(tier===' boss-tier'?'BOSS':'ELITE')+'</span>':'';
       button.innerHTML='<span class="ab-pixel-name"><b>'+(unit.revenge?'◎ ':'')+consEsc(unit.name)+'</b><span>'+consEsc(unit.revenge?'REVENGE TARGET':unit.role||unit.element||'')+'</span></span>'+deltaHTML+
         (hpHidden?'<span class="ab-overhead-hp concealed"><i></i><em>??</em></span>':'<span class="ab-overhead-hp'+(dotActive?' dot-active':'')+'"><i style="width:'+livePct(unit.hp,unit.max_hp)+'%"></i><em>'+livePct(unit.hp,unit.max_hp)+'%</em></span>')+

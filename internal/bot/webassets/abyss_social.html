@@ -22,7 +22,8 @@
       {{end}}
       <div class="ab-pet-list">
       {{range .Pets}}
-        <div class="ab-pet-card {{if .Favorite}}favorite{{end}} {{if .Shiny}}shiny{{end}}" data-pet-id="{{.ID}}">
+        <div class="ab-pet-card {{if .Favorite}}favorite{{end}} {{if .Shiny}}shiny{{end}}" data-pet-id="{{.ID}}" data-pet-art-key="pet:{{.ID}}:{{.Type}}">
+          <span class="ab-pixel-icon ab-pet-pixel" aria-hidden="true"></span>
           <div class="ab-pet-head"><strong>{{if .Favorite}}★ {{end}}{{if .Shiny}}✦ {{end}}{{.MoodIcon}} <span data-pet-name>{{.Name}}</span></strong><span class="ab-mood {{.Mood}}">{{.Mood}} {{if gt .MoodPct 0}}+{{end}}{{.MoodPct}}%</span></div>
           <div class="ab-pet-stats"><span>Lv {{.Level}} {{.Type}}{{if .BossVariant}} · boss variant{{end}}</span><span class="ab-pet-class">{{.Class}}</span><span>♥ {{comma .HP}}/{{comma .MaxHP}}</span><span>⚔ {{comma .STR}}</span><span>🛡 {{comma .DEF}}</span><span>➤ {{comma .SPD}}</span></div>
           <div class="ab-pet-growth"><span>Bond XP {{comma .XP}} / {{comma .XPNext}}</span><progress max="{{.XPNext}}" value="{{.XP}}"></progress><span>Loyalty {{.Loyalty}}% · +{{.LoyaltyPct}}% combat stats</span></div>
@@ -94,6 +95,11 @@
 {{end}}{{end}}
 
 {{define "abyssSocialHubJS"}}
+function decorateAbyssPetCards(){
+  document.querySelectorAll('.ab-pet-card[data-pet-art-key]').forEach(function(card){
+    applyAbUniquePixelIcon(card.querySelector('.ab-pet-pixel'),[0,0],card.dataset.petArtKey,'pets');
+  });
+}
 async function abyssPetTrain(id,button){if(button)button.disabled=true;var d=await abPost('/api/abyss/social/pet/train',{pet_id:id});abToast(d.msg||d.error,!!d.ok);if(d.ok){setGold(d.gold);setTimeout(function(){location.reload();},450);}else if(button)button.disabled=false;}
 async function abyssPetSlot(id,slot){var d=await abPost('/api/abyss/social/pet/slot',{pet_id:id,slot:Number(slot)});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);}
 async function abyssPetAutoskill(id,enabled){var d=await abPost('/api/abyss/social/pet/autoskill',{pet_id:id,ability:'heal',enabled:enabled});abToast(d.msg||d.error,!!d.ok);}

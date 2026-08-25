@@ -283,11 +283,22 @@ func TestAbyssExpandedPixelAtlasesAreSquare(t *testing.T) {
 		{name: "webassets/abyss_atlas_skills.png", columns: 14, rows: 12},
 		{name: "webassets/abyss_atlas_creatures.png", columns: 14, rows: 12},
 		{name: "webassets/abyss_atlas_bosses.png", columns: 14, rows: 12},
-		{name: "webassets/abyss_atlas_artifacts.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_artifacts.png", columns: 14, rows: 11},
 		{name: "webassets/abyss_atlas_companions.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_relics.png", columns: 13, rows: 12},
+		{name: "webassets/abyss_atlas_ranged.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_souls.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_auras.png", columns: 12, rows: 12},
+		{name: "webassets/abyss_atlas_charms.png", columns: 14, rows: 11},
+		{name: "webassets/abyss_atlas_mounts.png", columns: 12, rows: 12},
+		{name: "webassets/abyss_atlas_pets.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_emblems.png", columns: 12, rows: 12},
+		{name: "webassets/abyss_atlas_banners.png", columns: 13, rows: 10},
+		{name: "webassets/abyss_atlas_totems.png", columns: 14, rows: 10},
+		{name: "webassets/abyss_atlas_offhands.png", columns: 14, rows: 12},
 	}
 	artworkCount := 0
-	seenArtwork := make(map[uint64]string, 1_136)
+	seenArtwork := make(map[uint64]string, 2_806)
 	for _, atlas := range atlases {
 		t.Run(atlas.name, func(t *testing.T) {
 			asset, err := webAssets.ReadFile(atlas.name)
@@ -332,8 +343,63 @@ func TestAbyssExpandedPixelAtlasesAreSquare(t *testing.T) {
 		})
 		artworkCount += atlas.columns * atlas.rows
 	}
-	if artworkCount < 1_000 {
-		t.Errorf("authored pixel artwork count = %d, want at least 1000", artworkCount)
+	if artworkCount < 2_800 {
+		t.Errorf("authored pixel artwork count = %d, want at least 2800", artworkCount)
+	}
+}
+
+func TestAbyssSpecialGearAtlasRouting(t *testing.T) {
+	page, err := webAssets.ReadFile("webassets/abyss.html")
+	if err != nil {
+		t.Fatalf("read Abyss page: %v", err)
+	}
+	social, err := webAssets.ReadFile("webassets/abyss_social.html")
+	if err != nil {
+		t.Fatalf("read Abyss social hub: %v", err)
+	}
+	source := string(page)
+	families := map[string][]string{
+		"relics":     {"relic"},
+		"ranged":     {"ranged"},
+		"artifacts":  {"artifact"},
+		"souls":      {"soul"},
+		"auras":      {"aura"},
+		"charms":     {"charm"},
+		"mounts":     {"mount"},
+		"companions": {"companion"},
+		"pets":       {"pet1", "pet2"},
+		"emblems":    {"emblem1", "emblem2"},
+		"banners":    {"banner"},
+		"totems":     {"totem"},
+		"offhands":   {"offhand"},
+	}
+	for family, slots := range families {
+		if !strings.Contains(source, `{{asset "/static/abyss_atlas_`+family+`.png"}}`) {
+			t.Errorf("%s atlas is not attached to the Abyss page", family)
+		}
+		for _, slot := range slots {
+			if !strings.Contains(source, slot+`:'`+family+`'`) {
+				t.Errorf("slot %s is not routed to the %s atlas", slot, family)
+			}
+		}
+	}
+	gridOverrides := map[string]string{
+		"artifacts": "[14,11]", "auras": "[12,12]", "banners": "[13,10]",
+		"charms": "[14,11]", "emblems": "[12,12]", "mounts": "[12,12]",
+		"relics": "[13,12]", "totems": "[14,10]",
+	}
+	pixel, err := webAssets.ReadFile("webassets/abyss_pixel.html")
+	if err != nil {
+		t.Fatalf("read pixel renderer: %v", err)
+	}
+	for family, grid := range gridOverrides {
+		if !strings.Contains(string(pixel), family+":"+grid) {
+			t.Errorf("%s atlas grid %s is not registered", family, grid)
+		}
+	}
+	if !strings.Contains(string(social), `data-pet-art-key="pet:{{.ID}}:{{.Type}}"`) ||
+		!strings.Contains(string(social), `card.dataset.petArtKey,'pets'`) {
+		t.Error("captured pets must render from the pets atlas")
 	}
 }
 

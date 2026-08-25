@@ -29,7 +29,7 @@ function updateLootRewardPresentation(){
     if(main&&!main.querySelector('.ab-loot-pixel')){
       var icon=document.createElement('span'),key='loot:'+String(row.dataset.lootId||'')+':'+String(row.dataset.gearId||'')+':'+String(row.dataset.tip||'');
       icon.className='ab-pixel-icon ab-loot-pixel';
-      applyAbUniquePixelIcon(icon,abExpandedGearIconCell(row.dataset.slot),key);
+      applyAbUniquePixelIcon(icon,abExpandedGearIconCell(row.dataset.slot),key,abGearArtFamily(row.dataset.slot));
       main.prepend(icon);
     }
   });
@@ -45,7 +45,7 @@ function updateLootRewardPresentation(){
 function abyssLootPreviewIcon(item){
   var cell=item&&item.slot?abExpandedGearIconCell(item.slot):item&&item.type==='cons'?[0,4]:[7,6];
   var key='bank-preview:'+String(item&&item.id||item&&item.label||'unknown');
-  return abUniquePixelIconHTML(cell,key,'ab-loot-preview-icon');
+  return abUniquePixelIconHTML(cell,key,'ab-loot-preview-icon',item&&item.slot?abGearArtFamily(item.slot):'items');
 }
 function renderBankPreviewLoot(items,total){
   items=Array.isArray(items)?items.slice(0,24):[];total=Math.max(0,Number(total)||0);

@@ -22,7 +22,7 @@
   background-color: #07101c;
   background-image: var(--ab-catalog-atlas);
   background-position: var(--ab-catalog-position);
-  background-size: 1400% 1200%;
+  background-size: var(--ab-catalog-size-x, 1400%) var(--ab-catalog-size-y, 1200%);
 }
 .abyss-command-page .ab-pixel-icon.ab-art-unique {
   filter: hue-rotate(var(--ab-art-hue, 0deg)) drop-shadow(0 2px 2px rgba(0, 0, 0, .72));
@@ -37,7 +37,7 @@
   background-image: var(--ab-art-motif-atlas);
   background-position: var(--ab-art-motif-position);
   background-repeat: no-repeat;
-  background-size: 1400% 1200%;
+  background-size: var(--ab-catalog-size-x, 1400%) var(--ab-catalog-size-y, 1200%);
   clip-path: polygon(72% 0, 100% 0, 100% 100%, 58% 100%);
   mix-blend-mode: screen;
   image-rendering: pixelated;
@@ -172,7 +172,7 @@
   background-color: #07101c;
   background-image: var(--ab-catalog-atlas);
   background-position: var(--ab-catalog-position);
-  background-size: 1400% 1200%;
+  background-size: var(--ab-catalog-size-x, 1400%) var(--ab-catalog-size-y, 1200%);
   filter: hue-rotate(var(--ab-art-hue, 0deg)) drop-shadow(0 5px 3px rgba(0, 0, 0, .72));
 }
 .abyss-command-page .ab-actor-sprite.ab-catalog-actor::after {
@@ -183,7 +183,7 @@
   background-image: var(--ab-art-motif-atlas);
   background-position: var(--ab-art-motif-position);
   background-repeat: no-repeat;
-  background-size: 1400% 1200%;
+  background-size: var(--ab-catalog-size-x, 1400%) var(--ab-catalog-size-y, 1200%);
   clip-path: polygon(76% 0, 100% 0, 100% 100%, 62% 100%);
   mix-blend-mode: screen;
   image-rendering: pixelated;
