@@ -1105,5 +1105,19 @@
       "internal/bot/web_abyss_live_test.go",
       "internal/bot/xp_abyss_combat_test.go"
     ]
+  },
+  {
+    "ids": [207],
+    "production": [
+      "internal/bot/web_abyss_boss_leaderboards.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/db/migrations/0086_abyss_boss_speed_boards.up.sql",
+      "internal/bot/webassets/abyss_boss_leaderboards.html",
+      "internal/bot/webassets/abyss_boss_leaderboards.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_boss_leaderboards_test.go",
+      "internal/bot/web_abyss_library_feedback_test.go"
+    ]
   }
 ]

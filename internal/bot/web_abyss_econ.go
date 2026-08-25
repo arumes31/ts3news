@@ -591,6 +591,7 @@ type abyssBoards struct {
 	AllTime   []abyssRow
 	Hardcore  []abyssRow
 	BossKills []bossKillRow
+	BossSpeed []abyssBossSpeedBoard
 }
 
 func (b *Bot) topDescents(tier string, since time.Time, limit int) []abyssRow {
@@ -717,6 +718,7 @@ func (b *Bot) abyssLeaderboards(tier string) abyssBoards {
 		AllTime:   b.topDescents(tier, time.Unix(0, 0), top),
 		Hardcore:  b.topHardcoreDescents(tier, top),
 		BossKills: b.topBossKills(top, tier),
+		BossSpeed: b.topBossSpeedBoards(tier, top),
 	}
 }
 
@@ -733,6 +735,12 @@ func (b *Bot) abyssLeaderboardsForUID(tier, uid string) abyssBoards {
 	markRows(boards.Hardcore)
 	for i := range boards.BossKills {
 		boards.BossKills[i].IsCurrent = boards.BossKills[i].UID == uid
+	}
+	for boardIndex := range boards.BossSpeed {
+		for rowIndex := range boards.BossSpeed[boardIndex].Rows {
+			row := &boards.BossSpeed[boardIndex].Rows[rowIndex]
+			row.IsCurrent = row.UID == uid
+		}
 	}
 	return boards
 }
