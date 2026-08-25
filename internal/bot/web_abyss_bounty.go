@@ -107,7 +107,6 @@ func abyssStreakBonusTokens(streak int) int {
 	return n * 5
 }
 
-
 // abyssBountyView is the template-facing snapshot of the player's daily bounty.
 type abyssBountyView struct {
 	Desc     string
@@ -170,9 +169,13 @@ func (s *WebServer) handleAbyssBountyClaim(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Streak continues only if yesterday was also claimed; otherwise it resets to 1.
+	// One missed bounty per ISO week is insured: a claim two days ago can bridge
+	// exactly one missing day if that week's policy has not already been used.
 	newStreak := 1
-	if s.bot.abyssBountyClaimedDay(uid, day.AddDate(0, 0, -1)) {
+	claimedYesterday := s.bot.abyssBountyClaimedDay(uid, day.AddDate(0, 0, -1))
+	claimedTwoDaysAgo := s.bot.abyssBountyClaimedDay(uid, day.AddDate(0, 0, -2))
+	continues, useInsurance := abyssBountyContinues(claimedYesterday, claimedTwoDaysAgo, s.bot.bountyInsuranceAvailable(uid, day))
+	if continues {
 		var prev int
 		if err := s.bot.DB.QueryRow("SELECT abyss_bounty_streak FROM users WHERE client_uid=$1", uid).Scan(&prev); err != nil {
 			log.Printf("abyss bounty streak read failed for %s: %v", uid, err)
@@ -202,6 +205,12 @@ func (s *WebServer) handleAbyssBountyClaim(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "already claimed today"})
 		return
 	}
+	if useInsurance {
+		if err := useBountyInsurance(tx, uid, day); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
 	if bounty.RewardGd > 0 {
 		if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", bounty.RewardGd, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -227,7 +236,7 @@ func (s *WebServer) handleAbyssBountyClaim(w http.ResponseWriter, r *http.Reques
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	writeJSON(w, map[string]any{
 		"ok": true, "reward_tokens": totalTokens, "reward_gold": bounty.RewardGd,
-		"streak": newStreak, "streak_bonus": streakBonus,
+		"streak": newStreak, "streak_bonus": streakBonus, "bounty_insurance_used": useInsurance,
 		"gold": gold, "tokens": s.bot.abyssTokens(uid),
 	})
 }

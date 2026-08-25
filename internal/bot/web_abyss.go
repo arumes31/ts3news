@@ -1477,7 +1477,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"HarvesterPieces":     harvesterPieces,
 		"HarvesterTier":       harvesterTier,
 		"Bounty":              s.bot.abyssBountyStatus(uid),
-		"Shop":                abyssShopCatalog,
+		"Shop":                s.bot.abyssShopViews(uid, time.Now()),
 		"Pacts":               abyssPactCatalog,
 		"Equipped":            slots,
 		"Inventory":           inventory,
@@ -1780,12 +1780,20 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		_ = s.bot.DB.QueryRow("SELECT abyss_auto_repair FROM users WHERE client_uid=$1", uid).Scan(&on)
 		if on {
 			if cost := s.bot.abyssRepairAllCost(uid); cost > 0 {
-				res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
-				if err != nil {
-					writeJSON(w, map[string]any{"ok": false, "error": "db"})
-					return
+				covered := s.bot.abyssRepairSubscriptionActive(uid, time.Now())
+				charge := abyssRepairSubscriptionCharge(cost, covered)
+				canRepair := covered
+				if !covered {
+					res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", charge, uid)
+					if err != nil {
+						writeJSON(w, map[string]any{"ok": false, "error": "db"})
+						return
+					}
+					if n, _ := res.RowsAffected(); n > 0 {
+						canRepair = true
+					}
 				}
-				if n, _ := res.RowsAffected(); n > 0 {
+				if canRepair {
 					if _, err := tx.Exec("UPDATE user_gear SET durability = "+gearMaxDurExpr+" WHERE client_uid=$1", uid); err != nil {
 						writeJSON(w, map[string]any{"ok": false, "error": "db"})
 						return
@@ -1794,7 +1802,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 						writeJSON(w, map[string]any{"ok": false, "error": "db"})
 						return
 					}
-					autoRepaired = cost
+					autoRepaired = charge
 				}
 			}
 		}
@@ -3284,6 +3292,9 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		raffleFee = payout / 100
 		payout -= raffleFee
 	}
+	loanFee := s.bot.currentAbyssLoanFee(uid)
+	loanFeeCharged := min(max(int64(0), payout), loanFee)
+	payout -= loanFeeCharged
 	checkpointRefund := 0
 	if !partial && run.Depth > 0 && run.Depth%10 == 0 {
 		checkpointRefund = int(runFlags[abyssRunFlagCheckpointTokenCost])
@@ -3330,7 +3341,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			"depth_bonus": depthBonus, "depth_bonus_pct": depthBonusPct,
 			"streak_bonus": streakBonus, "streak_bonus_pct": streakBonusPct, "cursed_bonus": cursedBonus,
 			"partial": partial, "percent": req.Percent, "partial_fee": partialFee, "frantic_fee": franticFee,
-			"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee,
+			"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee, "loan_fee": loanFeeCharged,
 			"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
 			"remaining_escrow": remainingEscrow, "requires_safe_word": requiresSafeWord,
 			"payout": estPayout, "capped": capped, "cap_remaining": capRemaining, "cap_tax": estTax,
@@ -3357,6 +3368,12 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	// the jackpot feed are only consumed if the gold credit and the rest of the
 	// bank commit succeed. [59]
 	payout, capTax := s.bot.taxAbyssDayGold(tx, uid, payout)
+	if loanFeeCharged > 0 && partial {
+		if _, err := tx.Exec("UPDATE abyss_active SET economy_loan_fee=GREATEST(0,economy_loan_fee-$1) WHERE client_uid=$2", loanFeeCharged, uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
 	nextEchoSeed := int64(0)
 	if !partial {
 		nextEchoSeed = abyssEchoBankSeed(payout, req.DoubleBank)
@@ -3440,6 +3457,10 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			return
 		}
 	}
+	if err := recordAbyssTax(tx, uid, capTax); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -3447,19 +3468,20 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	if !partial {
 		s.abyssOps.funnel.observeBank(uid)
 	}
-
 	// Post-commit side effects
 	if !partial && run.Depth >= 10 {
 		// Awarded only after the bank transaction commits so a rolled-back commit
 		// can't hand out duplicate gear on retry. [55][57]
 		bonusGear = s.bot.awardAbyssBonusGear(uid, run.Depth)
 	}
+	jackpotHelperSplit := int64(0)
 	if !partial && run.Depth > 0 {
 		s.bot.grantAbyssTokens(uid, s.bot.abyssBankTokenGrant(uid, run.Depth, st.UpTribute)) // [44] + Tribute node
 		s.bot.recordGameResult(uid, "abyss", true, payout)
 		jackpotWin = s.bot.tryAbyssJackpot(uid, run.Depth) // [62]
 		if jackpotWin > 0 {
-			gold += jackpotWin
+			jackpotHelperSplit = s.bot.splitAbyssJackpot(uid, run.CoopUID, jackpotWin)
+			gold += jackpotWin - jackpotHelperSplit
 		}
 		if isRecord {
 			uInfo, _ := s.loadWebUser(uid)
@@ -3498,7 +3520,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		"base": bankEscrow, "depth_bonus": depthBonus, "streak_bonus": streakBonus, "cursed_bonus": cursedBonus,
 		"mult_bonus": depthBonus + streakBonus + cursedBonus,
 		"partial":    partial, "percent": req.Percent, "partial_fee": partialFee, "frantic_fee": franticFee,
-		"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee,
+		"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee, "loan_fee": loanFeeCharged,
 		"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
 		"remaining_escrow": remainingEscrow, "next_echo_seed": nextEchoSeed,
 	}
@@ -3507,6 +3529,9 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	}
 	if jackpotWin > 0 {
 		out["jackpot_win"] = jackpotWin
+	}
+	if jackpotHelperSplit > 0 {
+		out["jackpot_helper_split"] = jackpotHelperSplit
 	}
 	if raffleWin > 0 {
 		out["raffle_win"] = raffleWin

@@ -588,5 +588,30 @@
       "internal/bot/web_abyss_forge_catalog_test.go",
       "internal/bot/web_abyss_forge_workbench_test.go"
     ]
+  },
+  {
+    "ids": [826, 827, 828, 829, 830, 831, 832, 833, 834, 835, 836, 837, 838, 839, 840, 841, 842, 843, 844, 845, 846, 847, 848, 849, 850],
+    "production": [
+      "internal/db/migrations/0080_abyss_economy.up.sql",
+      "internal/bot/web_abyss_shop_economy.go",
+      "internal/bot/web_abyss_bank_economy.go",
+      "internal/bot/web_ah_economy.go",
+      "internal/bot/web_abyss_shop.go",
+      "internal/bot/web_abyss_bounty.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_ah.go",
+      "internal/bot/web_pages.go",
+      "internal/bot/auction.go",
+      "internal/bot/xp.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/ah.html",
+      "internal/bot/webassets/style.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_economy4_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

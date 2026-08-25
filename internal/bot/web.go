@@ -341,6 +341,14 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/bounty/claim", s.authAPI(s.handleAbyssBountyClaim))
 		mux.HandleFunc("/api/abyss/set_badge", s.authAPI(s.handleAbyssSetBadge))
 		mux.HandleFunc("/api/abyss/shop/buy", s.authAPI(s.handleAbyssShopBuy))
+		mux.HandleFunc("/api/abyss/shop/token_bundle", s.authAPI(s.handleAbyssTokenBundle))
+		mux.HandleFunc("/api/abyss/shop/potion_subscription", s.authAPI(s.handleAbyssPotionSubscription))
+		mux.HandleFunc("/api/abyss/shop/repair_subscription", s.authAPI(s.handleAbyssRepairSubscription))
+		mux.HandleFunc("/api/abyss/shop/scratch", s.authAPI(s.handleAbyssScratch))
+		mux.HandleFunc("/api/abyss/shop/gift_create", s.authAPI(s.handleAbyssGiftCreate))
+		mux.HandleFunc("/api/abyss/shop/gift_redeem", s.authAPI(s.handleAbyssGiftRedeem))
+		mux.HandleFunc("/api/abyss/economy/loan", s.authAPI(s.handleAbyssEconomyLoan))
+		mux.HandleFunc("/api/abyss/economy/tax_rebate", s.authAPI(s.handleAbyssTaxRebate))
 		mux.HandleFunc("/api/abyss/set_trade", s.authAPI(s.handleAbyssSetTrade))
 		mux.HandleFunc("/api/abyss/dismantle", s.authAPI(s.forgeMutation("dismantle", s.handleAbyssDismantle)))
 		mux.HandleFunc("/api/abyss/identify", s.authAPI(s.forgeMutation("identify", s.handleAbyssIdentify)))
@@ -462,6 +470,13 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/api/inventory/sell", s.auth(s.handleSellAPI))
 	mux.HandleFunc("/api/ah/buy", s.auth(s.handleAHBuyAPI))
 	mux.HandleFunc("/api/ah/list", s.auth(s.handleAHListAPI))
+	mux.HandleFunc("/api/ah/watch", s.authAPI(s.handleAHWatch))
+	mux.HandleFunc("/api/ah/notices", s.authAPI(s.handleAHNotices))
+	mux.HandleFunc("/api/ah/bulk_relist", s.authAPI(s.handleAHBulkRelist))
+	mux.HandleFunc("/api/ah/material_order", s.authAPI(s.handleAHMaterialOrder))
+	mux.HandleFunc("/api/ah/material_fill", s.authAPI(s.handleAHMaterialFill))
+	mux.HandleFunc("/api/ah/material_cancel", s.authAPI(s.handleAHMaterialCancel))
+	mux.HandleFunc("/api/ah/bid", s.authAPI(s.handleAHBid))
 
 	srv := &http.Server{
 		Addr:              addr,

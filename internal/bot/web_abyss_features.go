@@ -1452,7 +1452,8 @@ func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request,
 
 	if req.Preview {
 		cost := s.bot.abyssRepairAllCost(uid)
-		writeJSON(w, map[string]any{"ok": true, "cost": cost})
+		covered := s.bot.abyssRepairSubscriptionActive(uid, time.Now())
+		writeJSON(w, map[string]any{"ok": true, "cost": abyssRepairSubscriptionCharge(cost, covered), "covered": covered})
 		return
 	}
 	tx, err := s.beginForgeRequestTx(w)
@@ -1470,7 +1471,9 @@ func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing to repair"})
 		return
 	}
-	if !deductGold(w, tx, uid, cost) {
+	covered := s.bot.abyssRepairSubscriptionActive(uid, time.Now())
+	charged := abyssRepairSubscriptionCharge(cost, covered)
+	if charged > 0 && !deductGold(w, tx, uid, charged) {
 		return
 	}
 	if _, err := tx.Exec("UPDATE user_gear SET durability = "+gearMaxDurExpr+" WHERE client_uid=$1", uid); err != nil {
@@ -1483,7 +1486,11 @@ func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request,
 	}
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
-	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("🛠️ All gear repaired for %dg.", cost), "gold": gold})
+	msg := fmt.Sprintf("🛠️ All gear repaired for %dg.", charged)
+	if covered {
+		msg = "🛠️ All gear repaired — 0g, covered by your repair subscription."
+	}
+	writeJSON(w, map[string]any{"ok": true, "msg": msg, "gold": gold, "cost": charged, "covered": covered})
 }
 
 func (s *WebServer) handleAbyssAutoRepair(w http.ResponseWriter, r *http.Request, uid string) {

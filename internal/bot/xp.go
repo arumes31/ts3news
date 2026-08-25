@@ -2853,6 +2853,9 @@ func (b *Bot) ensureUserHasGear(uid string) {
 
 func (b *Bot) applyDurabilityLoss(uid string, defeat bool) []string {
 	var warnings []string
+	if b.abyssRepairSubscriptionActive(uid, time.Now()) {
+		return []string{"🛠️ Repair subscription covered all durability loss."}
+	}
 	var stats content.Stats
 	var effects []content.ItemEffect
 	_, stats, _, _, effects = b.activeLootMult(uid, time.Now())

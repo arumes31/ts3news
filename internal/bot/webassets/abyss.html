@@ -573,15 +573,19 @@
   <!-- Token Shop: open-ended sink for Abyss Tokens -->
   <section class="abyss-panel" id="abyssTokenShop" data-abyss-section="shop">
     <h2>🜲 Token Shop</h2>
-    <p class="muted small">Spend Abyss Tokens on consumables, gear and relics.</p>
+    <p class="muted small">Spend Abyss Tokens on consumables, gear and relics. Prices show the exact charged amount; there is no hidden shop fee.</p>
+    <div class="ab-shop-tabs" role="tablist" aria-label="Token Shop category">
+      <button class="ghost xs active" role="tab" aria-selected="true" onclick="abyssShopCategory('supplies',this)">Supplies</button>
+      <button class="ghost xs" role="tab" aria-selected="false" onclick="abyssShopCategory('insanity',this)">🌀 Insanity cosmetic</button>
+    </div>
     <div class="ab-shop">
       {{range .Shop}}
-      <div class="ab-shop-item">
+      <div class="ab-shop-item{{if .HappyAccident}} ab-shop-deal{{end}}{{if .Insanity}} ab-shop-insanity{{end}}" data-shop-category="{{if .Insanity}}insanity{{else}}supplies{{end}}" {{if .Insanity}}hidden{{end}}>
         <div>
-          <b>{{.Name}}</b>
+          <b>{{if .HappyAccident}}🎉 {{end}}{{if .Insanity}}🌀 {{end}}{{.Name}}</b>{{if .Owned}} <span class="ab-up-lv">owned</span>{{end}}
           <div class="muted small">{{.Desc}}</div>
         </div>
-        <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', this)">{{if .CostGold}}🪙 {{gold .CostGold}}{{else}}🜲 {{.Cost}}{{end}}</button>
+        <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', this)" title="{{if .Owned}}Re-equip this permanent cosmetic at no charge{{else}}Item {{if .CostGold}}{{.CostGold}} gold{{else}}{{.EffectiveCost}} tokens{{end}} · fee 0{{end}}">{{if .Owned}}Equip · free{{else if .CostGold}}🪙 {{gold .CostGold}}{{else}}🜲 {{.EffectiveCost}}{{if .HappyAccident}} <s>{{.Cost}}</s> −40%{{end}}{{end}}</button>
       </div>
       {{end}}
     </div>
@@ -640,9 +644,22 @@
       <input type="number" id="exchAmount" value="1" min="1" max="1000" aria-label="Token exchange amount" style="width:70px;">
     </div>
     <div class="ab-btn-row">
-      <button class="ghost xs" onclick="abyssExchange('buy')">Buy 🜲 ({{gold .TokenBuyGold}} each)</button>
-      <button class="ghost xs" onclick="abyssExchange('sell')">Sell 🜲 ({{gold .TokenSellGold}} each)</button>
+      <button class="ghost xs" onclick="abyssExchange('buy')" title="Rate {{gold .TokenBuyGold}}g per token · exchange fee 0g">Buy 🜲 ({{gold .TokenBuyGold}} each)</button>
+      <button class="ghost xs" onclick="abyssExchange('sell')" title="Rate {{gold .TokenSellGold}}g per token · exchange fee 0g">Sell 🜲 ({{gold .TokenSellGold}} each)</button>
     </div>
+    <details class="ab-acc"><summary>Economy services</summary><div class="ab-acc-body">
+      <div class="ab-btn-row">
+        <button class="ghost xs" onclick="abyssTokenBundle()" title="First token 100,000g today; +20,000g per additional daily token · fee 0g">Gold → token bundle</button>
+        <button class="ghost xs" onclick="abyssPotionSubscription(true)" title="Subscription fee 25,000g per delivered UTC day · two Great Health Potions">Enable potion plan</button>
+        <button class="ghost xs" onclick="abyssPotionSubscription(false)" title="Pause fee 0g · no delivery charge while paused">Pause potion plan</button>
+        <button class="ghost xs" onclick="abyssRepairSubscription()" title="Exact fee 70,000g prepaid · 7 days · repairs and durability loss cost 0g while active">7-day repair plan</button>
+        <button class="ghost xs" onclick="abyssScratch()" title="Exact price 50 tokens · fee 0 · once/day · 70%:0, 20%:75, 9%:150, 1%:1000">Daily scratch card</button>
+        <button class="ghost xs" onclick="abyssGiftCreate()" title="Gift item price equals its posted token-shop price · gift fee 0">Create gift code</button>
+        <button class="ghost xs" onclick="abyssGiftRedeem()" title="Redemption fee 0g / 0 tokens">Redeem gift code</button>
+        <button class="ghost xs" onclick="abyssTaxRebate()" title="Claim fee 0g · bank-free today · refunds exactly 10% of this week's recorded Abyss tax">Claim tax rebate</button>
+        {{if .Run.Active}}<button class="ghost xs" onclick="abyssEconomyLoan()" title="Principal leaves escrow · exact fee 10%, ceiling-rounded, due at bank · no setup fee">Borrow from cache</button>{{end}}
+      </div>
+    </div></details>
   </section>
 
   <!-- Sanctuary upgrades (#38/#113) -->
@@ -3716,6 +3733,65 @@ async function abyssShopBuy(item, btn){
   setTokens(d.tokens); setGold(d.gold);
   if(d.consumables)renderConsumables(d.consumables);
   abToast(d.msg||'Purchased!', true);
+}
+
+function abyssShopCategory(category, button){
+  document.querySelectorAll('#abyssTokenShop [data-shop-category]').forEach(function(row){row.hidden=row.dataset.shopCategory!==category;});
+  document.querySelectorAll('#abyssTokenShop [role="tab"]').forEach(function(tab){tab.classList.toggle('active',tab===button);tab.setAttribute('aria-selected',String(tab===button));});
+}
+
+async function abyssEconomyPost(url, body){
+  var d = await abPost(url, body || {});
+  abToast(d.msg || d.error || (d.ok ? 'Done.' : 'Request failed.'), !!d.ok);
+  if(d.ok && d.gold !== undefined)setGold(d.gold);
+  if(d.ok && d.tokens !== undefined)setTokens(d.tokens);
+  if(d.ok && d.consumables)renderConsumables(d.consumables);
+  return d;
+}
+
+async function abyssTokenBundle(){
+  var count=parseInt(prompt('How many Abyss Tokens? (1–25)','1'),10);
+  if(!count)return;
+  await abyssEconomyPost('/api/abyss/shop/token_bundle',{count:count});
+}
+
+async function abyssPotionSubscription(enabled){
+  await abyssEconomyPost('/api/abyss/shop/potion_subscription',{enabled:!!enabled});
+}
+
+async function abyssRepairSubscription(){
+  if(!confirm('Prepay 70,000 gold for seven days of complete durability-loss protection?'))return;
+  await abyssEconomyPost('/api/abyss/shop/repair_subscription',{});
+}
+
+async function abyssScratch(){
+  if(!confirm('Spend 50 Abyss Tokens on today\'s scratch card?'))return;
+  await abyssEconomyPost('/api/abyss/shop/scratch',{});
+}
+
+async function abyssGiftCreate(){
+  var recipient=(prompt('Recipient nickname or client UID','')||'').trim();
+  if(!recipient)return;
+  var item=(prompt('Gift item: great_potions, repair_kits, phoenix, or elixir_of_life','great_potions')||'').trim();
+  if(!item)return;
+  var d=await abyssEconomyPost('/api/abyss/shop/gift_create',{recipient:recipient,item:item});
+  if(d.ok && d.code)prompt('Gift code (only the named recipient can redeem it):',d.code);
+}
+
+async function abyssGiftRedeem(){
+  var code=(prompt('Gift code','')||'').trim();
+  if(!code)return;
+  await abyssEconomyPost('/api/abyss/shop/gift_redeem',{code:code});
+}
+
+async function abyssTaxRebate(){
+  await abyssEconomyPost('/api/abyss/economy/tax_rebate',{});
+}
+
+async function abyssEconomyLoan(){
+  var amount=parseInt(prompt('Gold to borrow from the live cache (10% fee due when banking)',''),10);
+  if(!amount)return;
+  await abyssEconomyPost('/api/abyss/economy/loan',{amount:amount});
 }
 
 function updateForgeOptions() {

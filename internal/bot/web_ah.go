@@ -28,16 +28,21 @@ func isAuctionUpgrade(itemID string, equippedGear map[string]content.Gear) bool 
 }
 
 type ahListingView struct {
-	ID        string
-	ItemType  string
-	ItemID    string
-	Icon      string
-	Name      string
-	Price     int64
-	Seller    string
-	Listed    string
-	Mine      bool
-	IsUpgrade bool
+	ID         string
+	ItemType   string
+	ItemID     string
+	Icon       string
+	Name       string
+	Price      int64
+	Seller     string
+	Listed     string
+	Mine       bool
+	IsUpgrade  bool
+	Insanity   bool
+	Watched    bool
+	SellerRep  int
+	CurrentBid int64
+	FeeSummary string
 
 	// Display metadata resolved from the listed instance's item_data (falling
 	// back to the catalog): gear score and rarity.
@@ -118,6 +123,7 @@ type ahHistoryView struct {
 }
 
 func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid string) {
+	s.bot.settleAbyssAuctionBids()
 	u, err := s.loadWebUser(uid)
 	if err != nil {
 		http.Redirect(w, r, "/denied", http.StatusSeeOther)
@@ -126,6 +132,7 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 
 	searchQuery := r.URL.Query().Get("q")
 	upgradesOnly := r.URL.Query().Get("upgrades") == "1"
+	insanityOnly := r.URL.Query().Get("insanity") == "1"
 	pageStr := r.URL.Query().Get("page")
 	page := 1
 	if pageStr != "" {
@@ -151,8 +158,13 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 		}
 	}
 
-	activeListings := s.bot.ahActiveListings(uid, equippedGear, searchQuery, upgradesOnly, limit, offset)
-	totalCount := s.bot.ahActiveListingsCount(searchQuery, equippedGear, upgradesOnly)
+	activeListings := s.bot.ahActiveListings(uid, equippedGear, searchQuery, upgradesOnly, insanityOnly, limit, offset)
+	totalCount := s.bot.ahActiveListingsCount(searchQuery, equippedGear, upgradesOnly, insanityOnly)
+	watched := s.bot.abyssAHWatchlist(uid)
+	for i := range activeListings {
+		activeListings[i].Watched = watched[activeListings[i].ItemID]
+		activeListings[i].FeeSummary = "Buyer fee 0g · seller receives the exact buy-now price"
+	}
 	totalPages := (totalCount + limit - 1) / limit
 	if totalPages < 1 {
 		totalPages = 1
@@ -168,23 +180,29 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 		"Sellable":     s.bot.inventoryItems(uid),
 		"SearchQuery":  searchQuery,
 		"UpgradesOnly": upgradesOnly,
+		"InsanityOnly": insanityOnly,
 		"CurrentPage":  page,
 		"TotalPages":   totalPages,
 		"TotalCount":   totalCount,
 		"PrevPage":     page - 1,
 		"NextPage":     page + 1,
+		"Economy":      s.bot.abyssAHEconomyPage(uid),
 	})
 }
 
-func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear, search string, upgradesOnly bool, limit, offset int) []ahListingView {
+func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear, search string, upgradesOnly, insanityOnly bool, limit, offset int) []ahListingView {
 	query := `
-		SELECT a.id, a.item_type, a.item_id, a.item_name, a.item_data, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid
+		SELECT a.id, a.item_type, a.item_id, a.item_name, a.item_data, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid,
+		       a.current_bid, (SELECT COUNT(*) FROM auction_house sold WHERE sold.seller_uid=a.seller_uid AND sold.sold_at IS NOT NULL)
 		FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
 		WHERE a.sold_at IS NULL AND a.expires_at > NOW()`
 	var args []any
 	if search != "" {
 		query += ` AND a.item_name ILIKE $1`
 		args = append(args, "%"+search+"%")
+	}
+	if insanityOnly {
+		query += ` AND a.item_id LIKE 'INSANITY_%'`
 	}
 	query += ` ORDER BY a.price ASC`
 	// upgradesOnly filters in Go after fetching, so it must scan the full result set
@@ -207,12 +225,13 @@ func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear,
 		var t time.Time
 		var seller string
 		var dataJSON []byte
-		if err := rows.Scan(&v.ID, &v.ItemType, &v.ItemID, &v.Name, &dataJSON, &v.Price, &t, &v.Seller, &seller); err != nil {
+		if err := rows.Scan(&v.ID, &v.ItemType, &v.ItemID, &v.Name, &dataJSON, &v.Price, &t, &v.Seller, &seller, &v.CurrentBid, &v.SellerRep); err != nil {
 			continue
 		}
 		v.Icon = ahIcon(v.ItemType, v.ItemID)
 		v.Listed = t.Format("Jan 02")
 		v.Mine = seller == uid
+		v.Insanity = content.IsInsanityGearID(v.ItemID)
 		ahEnrichListing(&v, dataJSON)
 
 		if v.ItemType == "gear" {
@@ -239,7 +258,7 @@ func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear,
 	return all
 }
 
-func (b *Bot) ahActiveListingsCount(search string, equippedGear map[string]content.Gear, upgradesOnly bool) int {
+func (b *Bot) ahActiveListingsCount(search string, equippedGear map[string]content.Gear, upgradesOnly, insanityOnly bool) int {
 	if upgradesOnly {
 		// For upgrades-only count we must enumerate and filter
 		var rows *sql.Rows
@@ -248,12 +267,14 @@ func (b *Bot) ahActiveListingsCount(search string, equippedGear map[string]conte
 			rows, err = b.DB.Query(`
 				SELECT a.item_type, a.item_id
 				FROM auction_house a
-				WHERE a.sold_at IS NULL AND a.expires_at > NOW() AND a.item_name ILIKE $1`, "%"+search+"%")
+				WHERE a.sold_at IS NULL AND a.expires_at > NOW() AND a.item_name ILIKE $1
+				  AND ($2=FALSE OR a.item_id LIKE 'INSANITY_%')`, "%"+search+"%", insanityOnly)
 		} else {
 			rows, err = b.DB.Query(`
 				SELECT item_type, item_id
 				FROM auction_house
-				WHERE sold_at IS NULL AND expires_at > NOW()`)
+				WHERE sold_at IS NULL AND expires_at > NOW()
+				  AND ($1=FALSE OR item_id LIKE 'INSANITY_%')`, insanityOnly)
 		}
 		if err != nil {
 			return 0
@@ -278,12 +299,14 @@ func (b *Bot) ahActiveListingsCount(search string, equippedGear map[string]conte
 		err = b.DB.QueryRow(`
 			SELECT COUNT(*)
 			FROM auction_house
-			WHERE sold_at IS NULL AND expires_at > NOW() AND item_name ILIKE $1`, "%"+search+"%").Scan(&count)
+			WHERE sold_at IS NULL AND expires_at > NOW() AND item_name ILIKE $1
+			  AND ($2=FALSE OR item_id LIKE 'INSANITY_%')`, "%"+search+"%", insanityOnly).Scan(&count)
 	} else {
 		err = b.DB.QueryRow(`
 			SELECT COUNT(*)
 			FROM auction_house
-			WHERE sold_at IS NULL AND expires_at > NOW()`).Scan(&count)
+			WHERE sold_at IS NULL AND expires_at > NOW()
+			  AND ($1=FALSE OR item_id LIKE 'INSANITY_%')`, insanityOnly).Scan(&count)
 	}
 	if err != nil {
 		return 0
@@ -376,13 +399,14 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 
 	var itemType, itemID, name, sellerUID string
 	var dataJSON []byte
-	var price int64
+	var price, currentBid int64
+	var bidderUID sql.NullString
 	var durability sql.NullInt64
 	err = tx.QueryRow(`
-		SELECT item_type, item_id, item_name, item_data, price, seller_uid, durability
+		SELECT item_type, item_id, item_name, item_data, price, seller_uid, durability, current_bid, bidder_uid
 		FROM auction_house
 		WHERE id=$1 AND sold_at IS NULL AND expires_at > NOW() FOR UPDATE`, req.ID).
-		Scan(&itemType, &itemID, &name, &dataJSON, &price, &sellerUID, &durability)
+		Scan(&itemType, &itemID, &name, &dataJSON, &price, &sellerUID, &durability, &currentBid, &bidderUID)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "listing unavailable"})
 		return
@@ -392,6 +416,67 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 		return
 	}
 
+	// Validate the complete delivery before moving any gold. Legacy listings can
+	// contain several collectible types; a corrupt or unknown payload must never
+	// become a successful purchase with no item delivered.
+	var gear *content.Gear
+	var ultimate *content.UltimateSkill
+	var unique *content.UniqueItem
+	switch itemType {
+	case "gear":
+		var value content.Gear
+		if err := json.Unmarshal(dataJSON, &value); err != nil || value.ID == "" || value.ID != itemID {
+			writeJSON(w, map[string]any{"ok": false, "error": "listing has invalid gear data"})
+			return
+		}
+		gear = &value
+	case "ultimate":
+		var value content.UltimateSkill
+		if err := json.Unmarshal(dataJSON, &value); err != nil || value.ID == "" || value.ID != itemID {
+			writeJSON(w, map[string]any{"ok": false, "error": "listing has invalid ultimate data"})
+			return
+		}
+		var owned bool
+		if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM user_ultimate_skills
+			WHERE client_uid=$1 AND ultimate_id=$2)`, uid, itemID).Scan(&owned); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if owned {
+			writeJSON(w, map[string]any{"ok": false, "error": "ultimate already owned"})
+			return
+		}
+		ultimate = &value
+	case "unique":
+		var value content.UniqueItem
+		if err := json.Unmarshal(dataJSON, &value); err != nil || value.Name == "" || value.Name != itemID {
+			writeJSON(w, map[string]any{"ok": false, "error": "listing has invalid unique-item data"})
+			return
+		}
+		var owned bool
+		if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM user_unique_items
+			WHERE client_uid=$1 AND item_name=$2)`, uid, itemID).Scan(&owned); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if owned {
+			writeJSON(w, map[string]any{"ok": false, "error": "unique item already owned"})
+			return
+		}
+		unique = &value
+	default:
+		writeJSON(w, map[string]any{"ok": false, "error": "this legacy listing type cannot be delivered safely"})
+		return
+	}
+
+	// Buy Now cancels any reserved bid. Refund it before charging so the leading
+	// bidder can use their own reservation toward the fixed-price purchase.
+	if bidderUID.Valid && currentBid > 0 {
+		if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", currentBid, bidderUID.String); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "refund bid"})
+			return
+		}
+	}
 	// Deduct buyer gold.
 	res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", price, uid)
 	if err != nil {
@@ -403,7 +488,7 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 		return
 	}
 	// Mark sold, pay seller.
-	if _, err := tx.Exec("UPDATE auction_house SET buyer_uid=$1, sold_at=NOW() WHERE id=$2", uid, req.ID); err != nil {
+	if _, err := tx.Exec("UPDATE auction_house SET buyer_uid=$1, sold_at=NOW(), current_bid=0, bidder_uid=NULL WHERE id=$2", uid, req.ID); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "sold"})
 		return
 	}
@@ -411,28 +496,48 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 		writeJSON(w, map[string]any{"ok": false, "error": "pay"})
 		return
 	}
+	if _, err := tx.Exec(`INSERT INTO abyss_economy_events (client_uid,kind,message,amount)
+		VALUES ($1,'sale',$2,$3)`, sellerUID, fmt.Sprintf("Sale proceeds: %s sold for %dg · listing 0g · seller 0g · net %dg.", name, price, price), price); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "notice"})
+		return
+	}
 	var equippedMsg = ""
 	// Deliver gear into the buyer's inventory, preserving the listing's durability.
 	// Auto-equips if the gear is an upgrade, displacing the old item back into inventory.
-	if itemType == "gear" {
-		var g content.Gear
-		if err := json.Unmarshal(dataJSON, &g); err == nil {
-			dur := g.MaxDurability
-			if durability.Valid {
-				dur = int(durability.Int64)
+	switch {
+	case gear != nil:
+		dur := gear.MaxDurability
+		if durability.Valid {
+			dur = max(0, int(durability.Int64))
+		}
+		if s.bot.shouldEquip(uid, *gear) {
+			if err := s.bot.equipGear(tx, uid, *gear, dur, dataJSON); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "equip"})
+				return
 			}
-			if s.bot.shouldEquip(uid, g) {
-				if err := s.bot.equipGear(tx, uid, g, dur, dataJSON); err != nil {
-					writeJSON(w, map[string]any{"ok": false, "error": "equip"})
-					return
-				}
-				equippedMsg = " and equipped!"
-			} else {
-				if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1, $2, $3, $4)", uid, g.ID, dur, dataJSON); err != nil {
-					writeJSON(w, map[string]any{"ok": false, "error": "deliver"})
-					return
-				}
-			}
+			equippedMsg = " and equipped!"
+		} else if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1, $2, $3, $4)", uid, gear.ID, dur, dataJSON); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "deliver"})
+			return
+		}
+	case ultimate != nil:
+		if _, err := tx.Exec("INSERT INTO user_ultimate_skills (client_uid,ultimate_id) VALUES ($1,$2)", uid, ultimate.ID); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "deliver"})
+			return
+		}
+		if _, err := tx.Exec("UPDATE users SET ultimate_skills_count=ultimate_skills_count+1 WHERE client_uid=$1", uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "deliver"})
+			return
+		}
+	case unique != nil:
+		if _, err := tx.Exec(`INSERT INTO user_unique_items (client_uid,item_name,rarity,power)
+			VALUES ($1,$2,$3,$4)`, uid, unique.Name, unique.Rarity, unique.Power); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "deliver"})
+			return
+		}
+		if _, err := tx.Exec("UPDATE users SET unique_items_count=unique_items_count+1 WHERE client_uid=$1", uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "deliver"})
+			return
 		}
 	}
 	// Read the post-purchase balance inside the transaction to avoid a race between
@@ -498,7 +603,6 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 	if price < 10 {
 		price = 10
 	}
-
 	res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "remove"})
@@ -520,5 +624,7 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 		writeJSON(w, map[string]any{"ok": false, "error": "commit"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "listed": g.Name, "price": price})
+	s.bot.notifyAbyssAHListing(uid, g.ID, g.Name, price)
+	writeJSON(w, map[string]any{"ok": true, "listed": g.Name, "price": price,
+		"fee": 0, "msg": fmt.Sprintf("Listed %s at %dg · 0g listing fee.", g.Name, price)})
 }

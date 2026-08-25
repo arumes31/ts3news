@@ -3498,6 +3498,66 @@ tr.bought-flash {
   padding: 6px 0;
 }
 
+.ab-shop-item.ab-shop-deal {
+  margin-inline: -6px;
+  padding-inline: 8px;
+  border: 1px solid rgba(126, 231, 135, .35);
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(46, 160, 67, .14), transparent 72%);
+}
+
+.ab-shop-item.ab-shop-insanity {
+  margin-inline: -6px;
+  padding-inline: 8px;
+  border: 1px solid rgba(163, 113, 247, .42);
+  border-radius: 8px;
+  background: linear-gradient(100deg, rgba(137, 87, 229, .16), rgba(88, 166, 255, .05));
+}
+
+.ah-ticker {
+  display: flex;
+  gap: .45rem;
+  align-items: center;
+  margin: .55rem 0 1rem;
+  padding: .65rem .8rem;
+  border: 1px solid rgba(88, 166, 255, .32);
+  border-radius: 9px;
+  color: #c9d1d9;
+  background: linear-gradient(90deg, rgba(31, 111, 235, .14), rgba(22, 27, 34, .8));
+}
+
+.ah-table .ah-row:hover {
+  background: rgba(88, 166, 255, .065);
+}
+
+.ah-table button[aria-pressed="true"] {
+  color: #f4c542;
+  border-color: rgba(244, 197, 66, .55);
+}
+
+.ab-shop-tabs,
+.ah-history-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin: .55rem 0 .75rem;
+}
+
+.ab-shop-tabs .active,
+.ah-history-tabs .active {
+  color: #fff;
+  border-color: rgba(88, 166, 255, .72);
+  background: rgba(31, 111, 235, .2);
+}
+
+[data-ah-history] {
+  min-height: 3rem;
+  padding: .5rem .7rem;
+  border: 1px solid rgba(139, 148, 158, .22);
+  border-radius: 8px;
+  background: rgba(13, 17, 23, .48);
+}
+
 .ab-select {
   padding: 6px;
   background: #161b22;

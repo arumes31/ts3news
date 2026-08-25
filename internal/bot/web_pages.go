@@ -581,9 +581,18 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 		return
 	}
 
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "tx"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Load and price the exact instance under the same row lock as deletion so a
+	// concurrent equip, forge, or sale cannot change what the vendor receives.
 	var gid string
 	var itemData sql.NullString
-	if err := s.bot.DB.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gid, &itemData); err != nil {
+	if err := tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 FOR UPDATE", req.InvID, uid).Scan(&gid, &itemData); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
 		return
 	}
@@ -592,17 +601,19 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown gear"})
 		return
 	}
-	value := gearPrice(g) / 2
-	if value < 1 {
-		value = 1
-	}
-
-	tx, err := s.bot.DB.Begin()
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "tx"})
+	baseValue := max(gearPrice(g)/2, int64(1))
+	// Loyalty is earned per exact catalog item, not merely per slot, so selling
+	// five different swords cannot unlock the repeat-seller premium for all swords.
+	itemType := gid
+	var priorSales int
+	if err := tx.QueryRow("SELECT sold_count FROM abyss_vendor_sales WHERE client_uid=$1 AND item_type=$2", uid, itemType).Scan(&priorSales); err != nil && err != sql.ErrNoRows {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	defer func() { _ = tx.Rollback() }()
+	loyaltyPct := abyssVendorLoyaltyPercent(priorSales)
+	loyaltyBonus := baseValue * int64(loyaltyPct) / 100
+	value := baseValue + loyaltyBonus
+
 	res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "remove"})
@@ -617,10 +628,16 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 		writeJSON(w, map[string]any{"ok": false, "error": "gold"})
 		return
 	}
+	if _, err := tx.Exec(`INSERT INTO abyss_vendor_sales (client_uid,item_type,sold_count) VALUES ($1,$2,1)
+		ON CONFLICT (client_uid,item_type) DO UPDATE SET sold_count=abyss_vendor_sales.sold_count+1`, uid, itemType); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "commit"})
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "value": value, "gold": gold})
+	writeJSON(w, map[string]any{"ok": true, "value": value, "base_value": baseValue, "loyalty_bonus": loyaltyBonus,
+		"loyalty_pct": loyaltyPct, "loyalty_sales": priorSales + 1, "gold": gold})
 }

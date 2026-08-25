@@ -568,3 +568,31 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0823 / AB-123** — up to eight valid discovered recipe favorites persist per account and pin above other recipes.
 - [x] **AAA-0824 / AB-124** — the exchange converts bounded quantities upward at 10 dust to shard, 10 shards to core, and 5 cores to prism.
 - [x] **AAA-0825 / AB-125** — a permanent Sanctuary purchase unlocks and independently tracks a second daily Forge undo.
+
+## Delivered tranche: Economy, shop, and Auction House
+
+- [x] **AAA-0826 / AB-126** — the Auction House exposes a persisted Insanity-only filter for tier-exclusive gear and preserves it through pagination.
+- [x] **AAA-0827 / AB-127** — per-player item watchlists create durable, one-shot market notices surfaced as Auction House toasts.
+- [x] **AAA-0828 / AB-128** — one guarded action relists every expired, unbid player listing for seven days at an integer-exact one-percent lower price.
+- [x] **AAA-0829 / AB-129** — every listing displays its seller's authoritative completed-sale count as reputation.
+- [x] **AAA-0830 / AB-130** — attuned inventory items disable listing and explain their soulbound state and un-attune remedy on hover.
+- [x] **AAA-0831 / AB-131** — one deterministic UTC-daily shop item receives an exact forty-percent server-side discount.
+- [x] **AAA-0832 / AB-132** — an accessible Insanity cosmetic shop tab rotates one permanent, power-neutral collectible each UTC day.
+- [x] **AAA-0833 / AB-133** — bounded gold-to-token bundles start at 100,000 gold and increase by exactly 20,000 per token bought that UTC day.
+- [x] **AAA-0834 / AB-134** — an opt-in subscription atomically charges 25,000 gold and delivers two Great Health Potions at most once per UTC day.
+- [x] **AAA-0835 / AB-135** — five completed vendor sales of the exact same catalog item unlock a persisted two-percent resale bonus.
+- [x] **AAA-0836 / AB-136** — live runs may borrow at most half their original escrow, with a ceiling-rounded ten-percent fee previewed and collected at banking.
+- [x] **AAA-0837 / AB-137** — a banked jackpot transactionally transfers exactly ten percent to the run's last distinct co-op helper.
+- [x] **AAA-0838 / AB-138** — one bank-free day per ISO week can refund ten percent of that week's recorded Abyss cap tax.
+- [x] **AAA-0839 / AB-139** — one insured missed bounty day per ISO week can bridge an otherwise consecutive claim streak.
+- [x] **AAA-0840 / AB-140** — the Auction House header shows the authoritative cheapest active Legendary buy-now price.
+- [x] **AAA-0841 / AB-141** — completed sales create durable mail-style proceeds notices with gross, fee, and exact net amounts.
+- [x] **AAA-0842 / AB-142** — a monthly most-taxed board ranks recorded tax totals and gives its leader the ironic Tax Titan badge.
+- [x] **AAA-0843 / AB-143** — material buy orders escrow their full value, settle partial fills atomically, and allow owners to cancel for the exact remainder.
+- [x] **AAA-0844 / AB-144** — cryptographically random, recipient-bound, single-use gift codes transfer supported shop consumables without exposing player data.
+- [x] **AAA-0845 / AB-145** — new listings at least twenty percent below the active same-item average create durable price-alert toasts for current sellers.
+- [x] **AAA-0846 / AB-146** — a seven-day repair subscription covers both combat durability loss and manual full repairs for exactly zero additional gold.
+- [x] **AAA-0847 / AB-147** — the once-daily 50-token scratch card enforces its posted 70/20/9/1 reward distribution on the server.
+- [x] **AAA-0848 / AB-148** — valid reserved-gold bids placed in the final sixty seconds extend their auction by exactly sixty seconds.
+- [x] **AAA-0849 / AB-149** — keyboard-accessible Sold, Listed, and Expired history tabs display authoritative totals and recent item details.
+- [x] **AAA-0850 / AB-150** — every new shop and Auction House action discloses its exact price, escrow, fee, or refund formula on hover.

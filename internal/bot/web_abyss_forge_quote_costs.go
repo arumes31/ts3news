@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"ts3news/internal/content"
 )
@@ -195,7 +196,8 @@ func (s *WebServer) resolveAbyssForgeQuoteCost(
 		}
 		setExact(abyssForgeQuoteCost{Gold: total, Materials: map[string]int{}})
 	case "repair_all":
-		setExact(abyssForgeQuoteCost{Gold: s.bot.abyssRepairAllCost(uid), Materials: map[string]int{}})
+		cost := s.bot.abyssRepairAllCost(uid)
+		setExact(abyssForgeQuoteCost{Gold: abyssRepairSubscriptionCharge(cost, s.bot.abyssRepairSubscriptionActive(uid, time.Now())), Materials: map[string]int{}})
 	case "identify_all":
 		count, err := s.countUnidentifiedForgeItems(ctx, uid)
 		if err != nil {
