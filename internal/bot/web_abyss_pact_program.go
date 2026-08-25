@@ -47,6 +47,32 @@ type abyssPactProgramState struct {
 func abyssPactPresetsKey(uid string) string { return "abyss_pact_presets_" + uid }
 func abyssPactMasteryKey(uid string) string { return "abyss_pact_mastery_" + uid }
 
+func abyssPactAchievementCode(key string) string { return "pact_" + key }
+
+func abyssPactAchievementName(code string) string {
+	key := strings.TrimPrefix(code, "pact_")
+	if key == code {
+		return ""
+	}
+	pact, ok := abyssPactByKey(key)
+	if !ok {
+		return ""
+	}
+	return pact.Label + " Victor"
+}
+
+func abyssPactAchievementViews() []abyssAchievementView {
+	views := make([]abyssAchievementView, 0, len(abyssPactCatalog))
+	for _, pact := range abyssPactCatalog {
+		views = append(views, abyssAchievementView{
+			Code:      abyssPactAchievementCode(pact.Key),
+			Name:      abyssPactAchievementName(abyssPactAchievementCode(pact.Key)),
+			Condition: "Complete a run with the " + pact.Label + " pact active",
+		})
+	}
+	return views
+}
+
 func canonicalAbyssPactPreset(slot int, name string, pacts []string) (abyssPactPreset, bool) {
 	if slot < 1 || slot > abyssPactPresetSlots {
 		return abyssPactPreset{}, false
@@ -168,6 +194,14 @@ func incrementAbyssPactMastery(tx *sql.Tx, uid string, pacts []string) error {
 	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssPactMasteryKey(uid), string(payload)); err != nil {
 		return fmt.Errorf("save Abyss pact mastery: %w", err)
+	}
+	for _, key := range canonical {
+		if _, err := tx.Exec(
+			"INSERT INTO abyss_achievements (client_uid, code) VALUES ($1,$2) ON CONFLICT DO NOTHING",
+			uid, abyssPactAchievementCode(key),
+		); err != nil {
+			return fmt.Errorf("award Abyss pact achievement: %w", err)
+		}
 	}
 	return nil
 }

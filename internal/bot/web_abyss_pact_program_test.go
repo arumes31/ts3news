@@ -94,6 +94,9 @@ func TestIncrementAbyssPactMasteryUsesCallerTransaction(t *testing.T) {
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO app_meta (key, value) VALUES ($1, $2)")).
 		WithArgs("abyss_pact_mastery_player", sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO abyss_achievements (client_uid, code) VALUES ($1,$2) ON CONFLICT DO NOTHING")).
+		WithArgs("player", "pact_blind").
+		WillReturnResult(sqlmock.NewResult(1, 1))
 	if err := incrementAbyssPactMastery(tx, "player", []string{"blind", "blind"}); err != nil {
 		t.Fatal(err)
 	}
@@ -103,6 +106,24 @@ func TestIncrementAbyssPactMasteryUsesCallerTransaction(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestAbyssPactAchievementsCoverCatalog(t *testing.T) {
+	t.Parallel()
+
+	views := abyssPactAchievementViews()
+	if len(views) != len(abyssPactCatalog) {
+		t.Fatalf("achievement views = %d, want %d", len(views), len(abyssPactCatalog))
+	}
+	for index, pact := range abyssPactCatalog {
+		view := views[index]
+		if view.Code != "pact_"+pact.Key || view.Name == "" || !strings.Contains(view.Condition, pact.Label) {
+			t.Errorf("achievement for %q = %#v", pact.Key, view)
+		}
+		if got := abyssAchievementName(view.Code); got != view.Name {
+			t.Errorf("achievement name %q = %q, want %q", view.Code, got, view.Name)
+		}
 	}
 }
 

@@ -120,7 +120,7 @@ func TestAbyssAchievementCatalogCoversProgressionSourceOfTruth(t *testing.T) {
 	t.Parallel()
 
 	views := allAbyssAchievementViews()
-	want := len(abyssAchievementCatalog) + len(abyssProgressTrackDefs)*3
+	want := len(abyssAchievementCatalog) + len(abyssPactCatalog) + len(abyssProgressTrackDefs)*3
 	if len(views) != want {
 		t.Fatalf("achievement catalog size = %d, want %d", len(views), want)
 	}

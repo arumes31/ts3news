@@ -972,5 +972,17 @@
       "internal/bot/web_abyss_pact_campaign_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [195],
+    "production": [
+      "internal/bot/web_abyss_codex.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_pact_program.go"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_library_feedback_test.go",
+      "internal/bot/web_abyss_pact_program_test.go"
+    ]
   }
 ]

@@ -173,6 +173,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0192 / 192** — immutable run pact risk converts into a bounded token grant whose preview and transactional bank commit share the exact quote.
 - [x] **AAA-0193 / 193** — bank confirmation itemizes every pact's base, mastery, featured, and synergy contribution plus the exact total multiplier.
 - [x] **AAA-0194 / 194** — one deterministic ISO-week featured pact doubles its full pact contribution and is highlighted in the entry planner.
+- [x] **AAA-0195 / 195** — every concrete pact awards a distinct, selectable achievement badge on the first transactionally completed run using it.
 
 ## Active tranche: operational quality and client performance
 

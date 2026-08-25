@@ -114,6 +114,7 @@ var abyssAchievementCatalog = []abyssAchievementView{
 
 func allAbyssAchievementViews() []abyssAchievementView {
 	views := append([]abyssAchievementView(nil), abyssAchievementCatalog...)
+	views = append(views, abyssPactAchievementViews()...)
 	for _, track := range abyssProgressTrackDefs {
 		for _, tier := range []struct {
 			Suffix string

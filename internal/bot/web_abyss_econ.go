@@ -404,6 +404,9 @@ func abyssAchievementName(code string) string {
 	if n := abyssProgressionAchievementName(code); n != "" {
 		return n
 	}
+	if n := abyssPactAchievementName(code); n != "" {
+		return n
+	}
 	return code
 }
 
