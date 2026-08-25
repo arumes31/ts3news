@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1542,6 +1543,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 // abyssRecipeViews resolves recipes for the template, marking discovery state.
 func abyssRecipeViews(b *Bot, uid string, materials map[string]int64) []map[string]any {
 	known := b.knownRecipes(uid)
+	_, favorites := b.forge4RecipeFavorites(uid)
 	out := make([]map[string]any, 0, len(craftRecipes))
 	for _, r := range craftRecipes {
 		cost := make([]string, 0, len(r.Cost))
@@ -1565,11 +1567,17 @@ func abyssRecipeViews(b *Bot, uid string, materials map[string]int64) []map[stri
 			"ID": r.ID, "Name": r.Name, "Desc": r.Desc,
 			"Cost":       strings.Join(cost, " "),
 			"Locked":     r.Secret && !known[r.ID],
+			"Favorite":   favorites[r.ID],
 			"Craftable":  craftable,
 			"Affordable": craftable > 0,
 			"Missing":    strings.Join(missing, ", "),
 		})
 	}
+	sort.SliceStable(out, func(i, j int) bool {
+		left, _ := out[i]["Favorite"].(bool)
+		right, _ := out[j]["Favorite"].(bool)
+		return left && !right
+	})
 	return out
 }
 

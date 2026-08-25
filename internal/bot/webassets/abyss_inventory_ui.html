@@ -25,6 +25,7 @@ function applyRunLootData(row,item){
     'gear-id':item.gear_id,'slot':item.slot,'slot-icon':item.slot_icon,
     'rarity-name':item.rarity,'rarity-rank':item.rarity_rank,'score':item.score,
     'cr':item.cr,'cr-delta':item.cr_delta,'main-stat':item.main_stat,'quality':item.quality,
+    'beam-class':item.beam_class,'foil':item.foil,'doomed':item.doomed,
     'unidentified':item.unidentified,'owned':item.already_owned,'set-id':item.set_id,
     'set-count':item.set_count,'set-max':item.set_max,'corrupted':item.corrupted,
     'empty-slot':item.empty_slot,'can-equip-best':item.can_equip_best,'equip-on-bank':item.equip_on_bank
@@ -37,7 +38,9 @@ function applyRunLootData(row,item){
 
 function buildAuthoritativeRunLootRow(item){
   var row=document.createElement('div');
-  row.className='abyss-side-loot'+(item.unidentified?' ab-loot-unidentified':'')+(item.corrupted?' ab-loot-corrupted':'');
+  var beams=['beam-common','beam-rare','beam-epic','beam-legendary','beam-high','beam-celestial','beam-eternal','beam-doomed'];
+  var beam=beams.indexOf(item.beam_class)>=0?' '+item.beam_class:'';
+  row.className='abyss-side-loot'+beam+(item.foil?' ab-loot-foil':'')+(item.doomed?' ab-loot-doomed':'')+(item.unidentified?' ab-loot-unidentified':'')+(item.corrupted?' ab-loot-corrupted':'');
   row.tabIndex=0;row.setAttribute('role','button');row.setAttribute('aria-expanded','false');
   row.setAttribute('data-tip',(item.title||'')+'\n'+(item.source||'Run cache'));
   applyRunLootData(row,item);

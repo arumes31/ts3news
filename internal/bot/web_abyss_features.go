@@ -284,10 +284,16 @@ func (s *WebServer) handleAbyssCraft(w http.ResponseWriter, r *http.Request, uid
 		}
 		return true
 	}
-	if !grantCons(rec.ConsID) {
-		return
+	output, craftCrit := forge4CraftOutput(rand.Float64()) // #nosec G404 -- non-cryptographic crafting roll
+	for range output {
+		if !grantCons(rec.ConsID) {
+			return
+		}
 	}
 	msg := "Crafted " + rec.Name + "!"
+	if craftCrit {
+		msg += " ✨ CRITICAL CRAFT: double output!"
+	}
 	firstCraft := craftCount == 1
 	if firstCraft {
 		if !grantCons(rec.ConsID) {
@@ -326,6 +332,8 @@ func (s *WebServer) handleAbyssCraft(w http.ResponseWriter, r *http.Request, uid
 	writeJSON(w, map[string]any{
 		"ok": true, "msg": msg, "quest_done": done, "quest_target": craftQuestTarget,
 		"first_craft_bonus": firstCraft,
+		"craft_crit":         craftCrit,
+		"output":             output,
 		"materials":         s.bot.loadMaterials(uid), "tokens": s.bot.abyssTokens(uid),
 		"consumables": s.bot.getConsumables(uid),
 	})
@@ -464,10 +472,16 @@ func (b *Bot) forgeGoldCost(uid string, base int64, r content.Rarity) int64 {
 	if raw < abyssForgeGoldFloor {
 		raw = abyssForgeGoldFloor
 	}
-	return b.forgeCost(uid, raw)
+	cost := b.forgeCost(uid, raw)
+	cost -= cost * int64(b.forge4MasteryDiscount(uid)) / 100
+	if cost < 1 {
+		cost = 1
+	}
+	return cost
 }
 
-// recordForge appends to the forge history (#123) and grows artisan rep (#114).
+// recordForge appends to the forge history (#123), grows artisan rep (#114),
+// and advances the account-wide forge-mastery discount (AB-117).
 func (b *Bot) recordForge(uid, action, detail, cost string) {
 	_, _ = b.DB.Exec("INSERT INTO forge_history (client_uid, action, detail, cost) VALUES ($1,$2,$3,$4)", uid, action, detail, cost)
 	_, _ = b.DB.Exec("UPDATE users SET forge_rep = forge_rep + 1 WHERE client_uid=$1", uid)
@@ -482,6 +496,7 @@ func (b *Bot) recordForge(uid, action, detail, cost string) {
 	_, _ = b.DB.Exec(`INSERT INTO abyss_forge_receipts (client_uid, operation, item_name, result)
 		VALUES ($1,$2,$3,$4::jsonb)`, uid, action, detail, string(result))
 	recordAbyssForgeMaterialCost(uid, cost)
+	b.forge4MasteryAdd(uid, 1)
 }
 
 // forgeUndoSnapshot stores the pre-action item state of the most recent forge
@@ -503,7 +518,7 @@ type forgeUndoSnapshot struct {
 // overwrites so the stored undo reflects the latest action.
 func (b *Bot) snapshotForgeUndo(tx *sql.Tx, uid string, invID int64, slot, itemData, action string) {
 	snap, _ := json.Marshal(forgeUndoSnapshot{InvID: invID, Slot: slot, ItemData: itemData, Action: action})
-	_, _ = tx.Exec(`UPDATE users SET forge_undo=$2 WHERE client_uid=$1`, uid, string(snap))
+	b.storeForgeUndoSnapshot(tx, uid, string(snap))
 }
 
 // snapshotForgeUndoPair is snapshotForgeUndo for two-item actions: both items'
@@ -511,7 +526,26 @@ func (b *Bot) snapshotForgeUndo(tx *sql.Tx, uid string, invID int64, slot, itemD
 func (b *Bot) snapshotForgeUndoPair(tx *sql.Tx, uid string, invID int64, slot, itemData string, invID2 int64, slot2, itemData2, action string) {
 	snap, _ := json.Marshal(forgeUndoSnapshot{InvID: invID, Slot: slot, ItemData: itemData, Action: action,
 		InvID2: invID2, Slot2: slot2, ItemData2: itemData2})
-	_, _ = tx.Exec(`UPDATE users SET forge_undo=$2 WHERE client_uid=$1`, uid, string(snap))
+	b.storeForgeUndoSnapshot(tx, uid, string(snap))
+}
+
+// storeForgeUndoSnapshot keeps the previous snapshot only for owners of the
+// second-undo Sanctuary upgrade. Both stack movement and the forge mutation use
+// the same transaction, so a failed forge cannot corrupt the undo order.
+func (b *Bot) storeForgeUndoSnapshot(tx *sql.Tx, uid, snapshot string) {
+	var ownsSecond bool
+	_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value='1')", forge4Undo2Key(uid)).Scan(&ownsSecond)
+	if ownsSecond {
+		var current sql.NullString
+		_ = tx.QueryRow("SELECT forge_undo FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&current)
+		if current.Valid && current.String != "" {
+			_, _ = tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+				ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`, forge4Undo2Key(uid)+"_previous", current.String)
+		} else {
+			_, _ = tx.Exec("DELETE FROM app_meta WHERE key=$1", forge4Undo2Key(uid)+"_previous")
+		}
+	}
+	_, _ = tx.Exec(`UPDATE users SET forge_undo=$2 WHERE client_uid=$1`, uid, snapshot)
 }
 
 // handleAbyssForgeUndo restores the last snapshotted forge action (#116). The
@@ -525,14 +559,24 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	var raw sql.NullString
 	var usedToday bool
-	_ = s.bot.DB.QueryRow("SELECT forge_undo, COALESCE(forge_undo_date = CURRENT_DATE, FALSE) FROM users WHERE client_uid=$1", uid).Scan(&raw, &usedToday)
+	if err := tx.QueryRow("SELECT forge_undo, COALESCE(forge_undo_date = CURRENT_DATE, FALSE) FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&raw, &usedToday); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	usingSecondUndo := false
 	if usedToday {
 		var ownsSecond, secondUsedToday bool
-		_ = s.bot.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value='1')", forge4Undo2Key(uid)).Scan(&ownsSecond)
-		_ = s.bot.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value=CURRENT_DATE::text)", forge4Undo2Key(uid)+"_used").Scan(&secondUsedToday)
+		_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value='1')", forge4Undo2Key(uid)).Scan(&ownsSecond)
+		_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value=CURRENT_DATE::text)", forge4Undo2Key(uid)+"_used").Scan(&secondUsedToday)
 		if !ownsSecond || secondUsedToday {
 			writeJSON(w, map[string]any{"ok": false, "error": "undo limit reached today"})
 			return
@@ -548,12 +592,6 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "corrupt snapshot"})
 		return
 	}
-	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	defer func() { _ = tx.Rollback() }()
 	// writeGearItemData (web_abyss_customization.go, not this file) does not report
 	// RowsAffected, so verify the snapshotted item still exists up front — reverting
 	// a deleted/sold item must not burn the once-per-day undo.
@@ -589,7 +627,15 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 			return
 		}
 	}
-	if _, err := tx.Exec("UPDATE users SET forge_undo=NULL, forge_undo_date=CURRENT_DATE WHERE client_uid=$1", uid); err != nil {
+	nextSnapshot := ""
+	if !usingSecondUndo {
+		_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4Undo2Key(uid)+"_previous").Scan(&nextSnapshot)
+	}
+	if _, err := tx.Exec("UPDATE users SET forge_undo=NULLIF($2, ''), forge_undo_date=CURRENT_DATE WHERE client_uid=$1", uid, nextSnapshot); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if _, err := tx.Exec("DELETE FROM app_meta WHERE key=$1", forge4Undo2Key(uid)+"_previous"); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -751,7 +797,6 @@ func (s *WebServer) handleAbyssTemper(w http.ResponseWriter, r *http.Request, ui
 			return
 		}
 	}
-	forge4MasteryBump(tx, uid)
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return

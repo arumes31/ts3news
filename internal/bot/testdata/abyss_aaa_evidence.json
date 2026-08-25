@@ -569,5 +569,21 @@
       "internal/bot/xp_abyss_combat_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [801, 802, 803, 804, 805, 806, 807, 808, 809, 810, 811, 812, 813, 814, 815, 816, 817, 818, 819, 820, 821, 822, 823, 824, 825],
+    "production": [
+      "internal/bot/web_abyss_forge4.go",
+      "internal/bot/web_abyss_forge3.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_forge4_test.go",
+      "internal/bot/web_abyss_forge_catalog_test.go",
+      "internal/bot/web_abyss_forge_workbench_test.go"
+    ]
   }
 ]

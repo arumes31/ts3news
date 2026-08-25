@@ -14,8 +14,8 @@ package bot
 // Deliberate deviations, forced by file ownership:
 //   - AB-108 (perfect corruption) is NOT here: the corrupt handler lives in
 //     web_abyss_forge3.go (handleAbyssCorrupt) and needs a hidden 5% roll there.
-//   - AB-117 (forge mastery) discounts only the handlers in this file via
-//     forge4GoldCost; the forge2/forge3 handlers can't see it.
+//   - AB-117 (forge mastery) is counted here and applied by the shared
+//     forgeGoldCost path so every Forge generation receives the same price.
 //   - AB-125 sells the flag here; handleAbyssForgeUndo honors it and records
 //     the second use independently from the base daily undo date.
 
@@ -47,31 +47,28 @@ func (b *Bot) forge4MasteryCount(uid string) int {
 	return n
 }
 
+func forge4MasteryDiscountForCount(actions int) int {
+	return min(5, max(0, actions)/50)
+}
+
 // forge4MasteryDiscount is +1% per 50 recorded actions, capped at 5%.
 func (b *Bot) forge4MasteryDiscount(uid string) int {
-	d := b.forge4MasteryCount(uid) / 50
-	if d > 5 {
-		d = 5
+	return forge4MasteryDiscountForCount(b.forge4MasteryCount(uid))
+}
+
+func (b *Bot) forge4MasteryAdd(uid string, actions int) {
+	if actions <= 0 {
+		return
 	}
-	return d
+	_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+		ON CONFLICT (key) DO UPDATE SET value = (COALESCE(NULLIF(app_meta.value, ''), '0')::int + $2)::text`,
+		forge4MasteryKey(uid), actions)
 }
 
-// forge4MasteryBump records one forge4 action inside the caller's transaction.
-func forge4MasteryBump(tx *sql.Tx, uid string) {
-	_, _ = tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, '1')
-	                ON CONFLICT (key) DO UPDATE SET value = (COALESCE(NULLIF(app_meta.value, ''), '0')::int + 1)::text`,
-		forge4MasteryKey(uid))
-}
-
-// forge4GoldCost wraps forgeGoldCost with the forge-mastery discount (AB-117).
-// Only forge4 handlers see this discount; forge2/forge3 price via forgeGoldCost.
+// forge4GoldCost uses the shared Forge price path. forgeGoldCost applies
+// mastery for every Forge generation so previews and commits stay identical.
 func (s *WebServer) forge4GoldCost(uid string, base int64, r content.Rarity) int64 {
-	c := s.bot.forgeGoldCost(uid, base, r)
-	c -= c * int64(s.bot.forge4MasteryDiscount(uid)) / 100
-	if c < 1 {
-		c = 1
-	}
-	return c
+	return s.bot.forgeGoldCost(uid, base, r)
 }
 
 // forge4MasteryInfo is the response fragment describing the player's mastery.
@@ -205,7 +202,6 @@ func (s *WebServer) handleAbyssBatchTemper(w http.ResponseWriter, r *http.Reques
 			return
 		}
 	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "batch temper", fmt.Sprintf("%s → +%d (%d attempts)", g.Name, g.Temper, attempts), fmt.Sprintf("%dg", spent)) {
 		return
 	}
@@ -259,7 +255,6 @@ func (s *WebServer) handleAbyssTemperGuard(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "temper guard", g.Name, "2🟣") {
 		return
 	}
@@ -460,12 +455,10 @@ queueLoop:
 			return
 		}
 	}
-	for range req.Actions {
-		forge4MasteryBump(tx, uid)
-	}
 	if !s.finishForge(w, tx, uid, "forge queue", g.Name+": "+strings.Join(steps, ", "), fmt.Sprintf("%dg", totalGold)) {
 		return
 	}
+	s.bot.forge4MasteryAdd(uid, len(steps)-1)
 	writeJSON(w, map[string]any{"ok": true, "steps": steps, "spent": totalGold,
 		"gold": s.bot.abyssGold(uid), "materials": s.bot.loadMaterials(uid), "mastery": s.bot.forge4MasteryInfo(uid),
 		"msg": fmt.Sprintf("📋 Forge queue complete on %s: %s.", g.Name, strings.Join(steps, " → "))})
@@ -557,7 +550,6 @@ func (s *WebServer) handleAbyssGemUpgradeAll(w http.ResponseWriter, r *http.Requ
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "bulk gem upgrade", fmt.Sprintf("%s ×%d steps", g.Name, steps), fmt.Sprintf("%dg", goldCost)) {
 		return
 	}
@@ -616,7 +608,6 @@ func (s *WebServer) handleAbyssScrapeRune(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "rune scrape", fmt.Sprintf("%s — %s rune", g.Name, runeName), fmt.Sprintf("+%d🌫️", dust)) {
 		return
 	}
@@ -661,7 +652,6 @@ func (s *WebServer) handleAbyssUnattune(w http.ResponseWriter, r *http.Request, 
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "un-attune", g.Name, "🜲50") {
 		return
 	}
@@ -671,10 +661,23 @@ func (s *WebServer) handleAbyssUnattune(w http.ResponseWriter, r *http.Request, 
 
 // ---- Masterwork transfer (AB-107) ------------------------------------------------------
 
+func forge4MasterworkTransferLevels(sourceQuality, targetQuality int) int {
+	moved := max(0, sourceQuality) * 4 / 5
+	return min(moved, max(0, masterworkMax-targetQuality))
+}
+
+func forge4RemoveMasterworkStats(stats content.Stats, quality int) content.Stats {
+	for range max(0, quality) {
+		stats = stats.Scaled(1 / 1.03)
+	}
+	return stats
+}
+
 // handleAbyssMasterworkTransfer moves an item's masterwork Quality onto another
-// same-slot item at 80% efficiency (floor), zeroing the source's Quality. The
-// source keeps its already-baked stats (they can't be unbaked); the target gets
-// x1.03 per transferred level baked in. Costs 2 Umbral Cores + gold.
+// same-slot item at 80% efficiency (floor), zeroing the source's Quality and
+// reversing its baked quality multipliers. The target gets x1.03 per transferred
+// level. Integer rounding makes the reversal approximate but prevents repeatedly
+// transferring and re-masterworking one source to duplicate stats.
 func (s *WebServer) handleAbyssMasterworkTransfer(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -720,10 +723,7 @@ func (s *WebServer) handleAbyssMasterworkTransfer(w http.ResponseWriter, r *http
 		writeJSON(w, map[string]any{"ok": false, "error": "the source item has no masterwork quality to transfer"})
 		return
 	}
-	moved := g1.Quality * 4 / 5
-	if room := masterworkMax - g2.Quality; moved > room {
-		moved = room
-	}
+	moved := forge4MasterworkTransferLevels(g1.Quality, g2.Quality)
 	if moved < 1 {
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing would transfer (80% efficiency, target nearly maxed)"})
 		return
@@ -738,7 +738,8 @@ func (s *WebServer) handleAbyssMasterworkTransfer(w http.ResponseWriter, r *http
 	}
 	s.bot.snapshotForgeUndoPair(tx, uid, req.InvID, req.Slot, raw1, req.InvID2, req.Slot2, raw2, "masterwork transfer")
 	fromQ := g1.Quality
-	g1.Quality = 0 // source stats stay baked; only the Quality rating moves
+	g1.Stats = forge4RemoveMasterworkStats(g1.Stats, fromQ)
+	g1.Quality = 0
 	for i := 0; i < moved; i++ {
 		g2.Stats = g2.Stats.Scaled(1.03)
 	}
@@ -749,7 +750,6 @@ func (s *WebServer) handleAbyssMasterworkTransfer(w http.ResponseWriter, r *http
 	if !saveForgeItem(w, tx, uid, req.InvID2, req.Slot2, g2) {
 		return
 	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "masterwork transfer", fmt.Sprintf("%s → %s (%s)", g1.Name, g2.Name, qualityNames[g2.Quality]), fmt.Sprintf("%dg 2🟣", cost)) {
 		return
 	}
@@ -764,10 +764,44 @@ func (s *WebServer) handleAbyssMasterworkTransfer(w http.ResponseWriter, r *http
 // "YYYY-MM-DD:count" (UTC day).
 func forge4ReforgeUsesKey(uid string) string { return "abyss_reforge_uses_" + uid }
 
+func forge4ReforgeDailyLimit(rarity content.Rarity) int {
+	if rarity >= content.RarityEternal {
+		return 2
+	}
+	return 1
+}
+
+func forge4ConsumeReforgeUse(tx *sql.Tx, uid string, rarity content.Rarity) (usesLeft int, allowed bool, err error) {
+	var lockedUID string
+	if err := tx.QueryRow("SELECT client_uid FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&lockedUID); err != nil {
+		return 0, false, err
+	}
+	today := time.Now().UTC().Format("2006-01-02")
+	uses := 0
+	var value string
+	if err := tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4ReforgeUsesKey(uid)).Scan(&value); err == nil {
+		if day, count, found := strings.Cut(value, ":"); found && day == today {
+			uses, _ = strconv.Atoi(count)
+		}
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return 0, false, err
+	}
+	limit := forge4ReforgeDailyLimit(rarity)
+	if uses >= limit {
+		return 0, false, nil
+	}
+	uses++
+	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+		ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`, forge4ReforgeUsesKey(uid), fmt.Sprintf("%s:%d", today, uses)); err != nil {
+		return 0, false, err
+	}
+	return limit - uses, true, nil
+}
+
 // handleAbyssReforgeLock is reforge with one stat line excluded from the ±10%
 // reroll, at double price (600g base). Limited to once per day — Eternal items
-// may be locked-reforged twice per day (AB-121). Note: the plain reforge in
-// web_abyss_forge2.go has no daily counter; this counter only gates this endpoint.
+// may be reforged twice per day (AB-121). Plain and locked reforge share the
+// same account-level daily allowance, so switching endpoints cannot bypass it.
 func (s *WebServer) handleAbyssReforgeLock(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -800,20 +834,13 @@ func (s *WebServer) handleAbyssReforgeLock(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "only Rare or better gear can be reforged"})
 		return
 	}
-	maxUses := 1
-	if g.Rarity >= content.RarityEternal {
-		maxUses = 2
+	usesLeft, allowed, err := forge4ConsumeReforgeUse(tx, uid, g.Rarity)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
 	}
-	today := time.Now().UTC().Format("2006-01-02")
-	uses := 0
-	var v string
-	if err := tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4ReforgeUsesKey(uid)).Scan(&v); err == nil {
-		if d, c, found := strings.Cut(v, ":"); found && d == today {
-			uses, _ = strconv.Atoi(c)
-		}
-	}
-	if uses >= maxUses {
-		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("locked reforge limit reached for today (%d/%d)", uses, maxUses)})
+	if !allowed {
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("reforge limit reached for today (%d/day)", forge4ReforgeDailyLimit(g.Rarity))})
 		return
 	}
 	cost := s.forge4GoldCost(uid, 600, g.Rarity)
@@ -840,18 +867,10 @@ func (s *WebServer) handleAbyssReforgeLock(w http.ResponseWriter, r *http.Reques
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	uses++
-	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-	                      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-		forge4ReforgeUsesKey(uid), fmt.Sprintf("%s:%d", today, uses)); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "reforge lock", fmt.Sprintf("%s (locked %s)", g.Name, lockStat), fmt.Sprintf("%dg", cost)) {
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "uses_left": maxUses - uses,
+	writeJSON(w, map[string]any{"ok": true, "uses_left": usesLeft,
 		"gold": s.bot.abyssGold(uid), "mastery": s.bot.forge4MasteryInfo(uid),
 		"msg": fmt.Sprintf("🎲 Reforged %s with %s locked — CR %.0f → %.0f.", g.Name, lockStat, crBefore, crAfter)})
 }
@@ -919,7 +938,6 @@ func (s *WebServer) handleAbyssRebalanceAll(w http.ResponseWriter, r *http.Reque
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "bulk rebalance", fmt.Sprintf("%s → %s", g.Name, to), fmt.Sprintf("%dg", cost)) {
 		return
 	}
@@ -964,7 +982,6 @@ func (s *WebServer) handleAbyssUnbrand(w http.ResponseWriter, r *http.Request, u
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "brand removal", fmt.Sprintf("%s — %s", g.Name, oldSet), "2🟣") {
 		return
 	}
@@ -1031,7 +1048,6 @@ func (s *WebServer) handleAbyssSpecialReroll(w http.ResponseWriter, r *http.Requ
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "special reroll", fmt.Sprintf("%s %s→%s", g.Name, old, g.Special), "6🟣") {
 		return
 	}
@@ -1042,11 +1058,27 @@ func (s *WebServer) handleAbyssSpecialReroll(w http.ResponseWriter, r *http.Requ
 // ---- Guided awaken (AB-113) ----------------------------------------------------------------------
 
 // forge4GuidedAwakenKey is the app_meta key storing a pending guided-awaken roll.
-func forge4GuidedAwakenKey(uid string) string { return "abyss_guided_awaken_" + uid }
+func forge4GuidedAwakenKey(uid, itemKey string) string {
+	return "abyss_guided_awaken_" + uid + "_" + itemKey
+}
 
 type forge4GuidedAwakenPending struct {
 	ItemKey string   `json:"item_key"`
 	Options []string `json:"options"`
+}
+
+func forge4GuidedAwakenOptions() []string {
+	options := make([]string, 0, 3)
+	seen := make(map[content.ItemEffect]bool, 3)
+	for len(options) < 3 {
+		effect := awakenPool[rand.IntN(len(awakenPool))] // #nosec G404 -- non-cryptographic forge roll
+		if seen[effect] {
+			continue
+		}
+		seen[effect] = true
+		options = append(options, string(effect))
+	}
+	return options
 }
 
 // handleAbyssGuidedAwaken is the two-step guided awaken (6 Umbral Cores = double
@@ -1082,9 +1114,10 @@ func (s *WebServer) handleAbyssGuidedAwaken(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	key := forge4ItemKey(req.InvID, req.Slot)
+	pendingKey := forge4GuidedAwakenKey(uid, key)
 	var pending forge4GuidedAwakenPending
 	var raw string
-	if err := tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4GuidedAwakenKey(uid)).Scan(&raw); err == nil {
+	if err := tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", pendingKey).Scan(&raw); err == nil {
 		_ = json.Unmarshal([]byte(raw), &pending)
 	}
 	if len(pending.Options) == 3 && pending.ItemKey == key {
@@ -1097,15 +1130,10 @@ func (s *WebServer) handleAbyssGuidedAwaken(w http.ResponseWriter, r *http.Reque
 			writeJSON(w, map[string]any{"ok": false, "error": "no pending roll for this item — call without choice first"})
 			return
 		}
-		// #nosec G404 -- non-cryptographic forge rolls
-		pending = forge4GuidedAwakenPending{ItemKey: key, Options: []string{
-			string(awakenPool[rand.IntN(len(awakenPool))]),
-			string(awakenPool[rand.IntN(len(awakenPool))]),
-			string(awakenPool[rand.IntN(len(awakenPool))]),
-		}}
+		pending = forge4GuidedAwakenPending{ItemKey: key, Options: forge4GuidedAwakenOptions()}
 		buf, _ := json.Marshal(pending)
 		if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-		                      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, forge4GuidedAwakenKey(uid), string(buf)); err != nil {
+		                      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, pendingKey, string(buf)); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -1134,11 +1162,10 @@ func (s *WebServer) handleAbyssGuidedAwaken(w http.ResponseWriter, r *http.Reque
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	if _, err := tx.Exec("DELETE FROM app_meta WHERE key=$1", forge4GuidedAwakenKey(uid)); err != nil {
+	if _, err := tx.Exec("DELETE FROM app_meta WHERE key=$1", pendingKey); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "guided awaken", fmt.Sprintf("%s → %s", g.Name, pick), "6🟣") {
 		return
 	}
@@ -1190,7 +1217,6 @@ func (s *WebServer) handleAbyssImbueRemove(w http.ResponseWriter, r *http.Reques
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "imbue removal", fmt.Sprintf("%s — %s", g.Name, removed), "1💠") {
 		return
 	}
@@ -1234,7 +1260,9 @@ func (s *WebServer) handleAbyssPolishAll(w http.ResponseWriter, r *http.Request,
 		var slot, gearID string
 		var itemData sql.NullString
 		if err := rows.Scan(&slot, &gearID, &itemData); err != nil {
-			continue
+			_ = rows.Close()
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
 		}
 		g, ok := s.bot.makeGear(gearID, itemData)
 		if !ok {
@@ -1242,7 +1270,15 @@ func (s *WebServer) handleAbyssPolishAll(w http.ResponseWriter, r *http.Request,
 		}
 		pieces = append(pieces, equippedPiece{slot, g, itemData.String})
 	}
-	_ = rows.Close()
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := rows.Close(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 
 	var total int64
 	var polishable []int
@@ -1288,7 +1324,6 @@ func (s *WebServer) handleAbyssPolishAll(w http.ResponseWriter, r *http.Request,
 		}
 		names = append(names, p.g.Name)
 	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "polish all", fmt.Sprintf("%d pieces", len(polishable)), fmt.Sprintf("%dg", total)) {
 		return
 	}
@@ -1298,6 +1333,13 @@ func (s *WebServer) handleAbyssPolishAll(w http.ResponseWriter, r *http.Request,
 }
 
 // ---- Repair Kit II (AB-116) + crafting crit (AB-122) --------------------------------------------------------
+
+func forge4CraftOutput(roll float64) (count int, critical bool) {
+	if roll < 0.05 {
+		return 2, true
+	}
+	return 1, false
+}
 
 // handleAbyssCraftRepairKit2 crafts a Repair Kit II for 8 Abyssal Dust, with a
 // 5% crafting-crit chance of double output (AB-122). It does not advance the
@@ -1321,11 +1363,7 @@ func (s *WebServer) handleAbyssCraftRepairKit2(w http.ResponseWriter, r *http.Re
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough Abyssal Dust (need 8)"})
 		return
 	}
-	crit := rand.Float64() < 0.05 // #nosec G404 -- non-cryptographic crafting roll
-	count := 1
-	if crit {
-		count = 2
-	}
+	count, crit := forge4CraftOutput(rand.Float64()) // #nosec G404 -- non-cryptographic crafting roll
 	if _, err := tx.Exec(
 		`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
 		 VALUES ($1, 'repair_kit_ii', $2)
@@ -1335,7 +1373,6 @@ func (s *WebServer) handleAbyssCraftRepairKit2(w http.ResponseWriter, r *http.Re
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	forge4MasteryBump(tx, uid)
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1352,6 +1389,21 @@ func (s *WebServer) handleAbyssCraftRepairKit2(w http.ResponseWriter, r *http.Re
 }
 
 // ---- Socket relocation (AB-118) --------------------------------------------------------------------------------
+
+func forge4RelocateGem(gems []string, from, to int) ([]string, bool) {
+	if from < 0 || from >= len(gems) || to < 0 || to >= len(gems) || from == to {
+		return nil, false
+	}
+	out := append([]string(nil), gems...)
+	gem := out[from]
+	if from < to {
+		copy(out[from:to], out[from+1:to+1])
+	} else {
+		copy(out[to+1:from+1], out[to:from])
+	}
+	out[to] = gem
+	return out, true
+}
 
 // handleAbyssSocketRelocate moves a socketed gem to another position in the
 // Gemstones array (order matters for gem tooling), for a small gold fee.
@@ -1380,7 +1432,8 @@ func (s *WebServer) handleAbyssSocketRelocate(w http.ResponseWriter, r *http.Req
 	defer func() { _ = tx.Rollback() }()
 
 	n := len(g.Gemstones)
-	if req.From < 0 || req.From >= n || req.To < 0 || req.To >= n || req.From == req.To {
+	relocated, valid := forge4RelocateGem(g.Gemstones, req.From, req.To)
+	if !valid {
 		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("pick two different socket indexes (0-%d)", n-1)})
 		return
 	}
@@ -1390,15 +1443,10 @@ func (s *WebServer) handleAbyssSocketRelocate(w http.ResponseWriter, r *http.Req
 	}
 	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "socket relocation")
 	gem := g.Gemstones[req.From]
-	rest := append(g.Gemstones[:req.From], g.Gemstones[req.From+1:]...)
-	rest = append(rest, "")
-	copy(rest[req.To+1:], rest[req.To:])
-	rest[req.To] = gem
-	g.Gemstones = rest
+	g.Gemstones = relocated
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	forge4MasteryBump(tx, uid)
 	if !s.finishForge(w, tx, uid, "socket relocation", fmt.Sprintf("%s: %s %d→%d", g.Name, gem, req.From, req.To), fmt.Sprintf("%dg", cost)) {
 		return
 	}
@@ -1420,7 +1468,8 @@ func (s *WebServer) handleAbyssFusePreview(w http.ResponseWriter, r *http.Reques
 	defer unlock()
 
 	var req struct {
-		InvIDs []int64 `json:"inv_ids"`
+		InvIDs  []int64 `json:"inv_ids"`
+		Boosted bool    `json:"boosted"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
@@ -1514,14 +1563,24 @@ func (s *WebServer) handleAbyssFusePreview(w http.ResponseWriter, r *http.Reques
 		up := best
 		up.Rarity = ascend
 		up.Stats = up.Stats.Scaled(1.25)
-		outcomes = append(outcomes, map[string]any{"chance": 0.25, "ascended": true,
+		ascendChance := 0.25
+		if mode == "celestial" && req.Boosted {
+			ascendChance = 0.50
+		}
+		outcomes = append(outcomes, map[string]any{"chance": ascendChance, "ascended": true,
 			"name": prefix + best.Name, "rarity": ascend.String(), "stats": up.Stats, "cr": up.CombatRating()})
 		flat := best
 		flat.Stats = flat.Stats.Scaled(1.10)
-		outcomes = append(outcomes, map[string]any{"chance": 0.75, "ascended": false,
+		outcomes = append(outcomes, map[string]any{"chance": 1 - ascendChance, "ascended": false,
 			"name": best.Name, "stats": flat.Stats, "cr": flat.CombatRating()})
 	}
+	boosted := req.Boosted && mode == "celestial"
+	prismCost := 0
+	if boosted {
+		prismCost = 10
+	}
 	writeJSON(w, map[string]any{"ok": true, "mode": mode, "cost": cost, "survivor": survivor, "outcomes": outcomes,
+		"boosted": boosted, "prism_cost": prismCost,
 		"msg": fmt.Sprintf("🔮 %s fusion preview: %s survives.", mode, best.Name)})
 }
 
@@ -1624,7 +1683,6 @@ func (s *WebServer) handleAbyssCelestialFuseBoosted(w http.ResponseWriter, r *ht
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	forge4MasteryBump(tx, uid)
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1641,6 +1699,26 @@ func (s *WebServer) handleAbyssCelestialFuseBoosted(w http.ResponseWriter, r *ht
 
 // forge4RecipeFavKey is the app_meta key storing the player's favorite recipes.
 func forge4RecipeFavKey(uid string) string { return "abyss_recipe_favs_" + uid }
+
+func (b *Bot) forge4RecipeFavorites(uid string) ([]string, map[string]bool) {
+	var favorites []string
+	var raw string
+	if err := b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4RecipeFavKey(uid)).Scan(&raw); err == nil {
+		_ = json.Unmarshal([]byte(raw), &favorites)
+	}
+	if len(favorites) > 8 {
+		favorites = favorites[:8]
+	}
+	set := make(map[string]bool, len(favorites))
+	normalized := make([]string, 0, len(favorites))
+	for _, recipeID := range favorites {
+		if _, ok := craftRecipeByID(recipeID); ok && !set[recipeID] {
+			set[recipeID] = true
+			normalized = append(normalized, recipeID)
+		}
+	}
+	return normalized, set
+}
 
 // handleAbyssRecipeFav toggles a recipe in the player's favorites list (stored
 // in app_meta, max 8). The craft UI pins favorites atop the craft list.
@@ -1659,16 +1737,17 @@ func (s *WebServer) handleAbyssRecipeFav(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
-	if _, ok := craftRecipeByID(req.RecipeID); !ok {
+	recipe, ok := craftRecipeByID(req.RecipeID)
+	if !ok {
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown recipe"})
 		return
 	}
-
-	var favs []string
-	var raw string
-	if err := s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4RecipeFavKey(uid)).Scan(&raw); err == nil {
-		_ = json.Unmarshal([]byte(raw), &favs)
+	if recipe.Secret && !s.bot.knownRecipes(uid)[recipe.ID] {
+		writeJSON(w, map[string]any{"ok": false, "error": "discover this recipe before favoriting it"})
+		return
 	}
+
+	favs, _ := s.bot.forge4RecipeFavorites(uid)
 	faved := true
 	out := favs[:0]
 	found := false
@@ -1784,25 +1863,23 @@ func (s *WebServer) handleAbyssSanctuaryUndo2(w http.ResponseWriter, r *http.Req
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 
-	var owned string
-	_ = s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4Undo2Key(uid)).Scan(&owned)
-	if owned == "1" {
-		writeJSON(w, map[string]any{"ok": false, "error": "you already own the second daily forge undo"})
-		return
-	}
-
 	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	if !deductTokens(w, tx, uid, 50) {
+	res, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, '1')
+	                      ON CONFLICT (key) DO NOTHING`, forge4Undo2Key(uid))
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, '1')
-	                      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, forge4Undo2Key(uid)); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+	if n, _ := res.RowsAffected(); n != 1 {
+		writeJSON(w, map[string]any{"ok": false, "error": "you already own the second daily forge undo"})
+		return
+	}
+	if !deductTokens(w, tx, uid, 50) {
 		return
 	}
 	if err := tx.Commit(); err != nil {

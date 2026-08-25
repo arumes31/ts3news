@@ -429,7 +429,7 @@
     </div>
     <div class="abyss-side-list" id="lootManifest">
       {{range .RunLoot}}
-      <div class="abyss-side-loot {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-tip="{{.Title}}&#10;{{.Source}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
+      <div class="abyss-side-loot {{.BeamClass}} {{if .Foil}}ab-loot-foil{{end}} {{if .Doomed}}ab-loot-doomed{{end}} {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-tip="{{.Title}}&#10;{{.Source}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
         <span class="ab-loot-main">{{if .SlotIcon}}<span class="ab-loot-slot" aria-hidden="true">{{.SlotIcon}}</span>{{end}}<span>{{.Label}}</span></span>
         <span class="ab-loot-tags">{{if .Unidentified}}<b class="ab-loot-question">?</b>{{end}}{{if .AlreadyOwned}}<b class="ab-owned-tag">owned</b>{{end}}{{if .SetID}}<b class="ab-set-tag ab-set-{{.SetID}}">🧩 {{.SetID}} {{.SetCount}}/{{.SetMax}}</b>{{end}}{{if .Corrupted}}<b class="ab-corrupt-tag">🩸 corrupted</b>{{end}}</span>
         <span class="ab-loot-detail" hidden>{{.Source}}{{if .Slot}} · {{.Slot}}{{end}}{{if gt .CR 0.0}} · CR {{printf "%.0f" .CR}} ({{if ge .CRDelta 0.0}}+{{end}}{{printf "%.0f" .CRDelta}}){{end}}{{if gt .Quality 0}} · {{.Quality}}★ quality{{end}}</span>
@@ -604,7 +604,10 @@
           <div class="muted small">{{if .Locked}}Discovered through lore fragments{{else}}{{.Desc}} · can make ×{{.Craftable}}{{end}}</div>
           {{if and (not .Locked) (not .Affordable)}}<div class="small ab-forge-missing">Missing: {{.Missing}}</div>{{end}}
         </div>
-        {{if .Locked}}<span class="muted small">{{.Cost}}</span>{{else}}<button class="ghost xs" onclick="abyssCraft('{{.ID}}', this)" {{if not .Affordable}}disabled{{end}}>{{.Cost}}</button>{{end}}
+		<div class="ab-btn-row">
+		  {{if not .Locked}}<button class="ghost xs" aria-pressed="{{.Favorite}}" title="{{if .Favorite}}Unpin recipe{{else}}Pin recipe{{end}}" onclick="abyssRecipeFavorite('{{.ID}}',this)">{{if .Favorite}}★{{else}}☆{{end}}</button>{{end}}
+		  {{if .Locked}}<span class="muted small">{{.Cost}}</span>{{else}}<button class="ghost xs" onclick="abyssCraft('{{.ID}}', this)" {{if not .Affordable}}disabled{{end}}>{{.Cost}}</button>{{end}}
+		</div>
       </div>
       {{end}}
     </div>
@@ -959,7 +962,7 @@
           <button class="ghost xs" onclick="forgeConvertMana()" style="width:100%;">❤️ Convert Mana (Free)</button>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
-          <button class="ghost xs" onclick="forge4Simple('/api/abyss/polish_all',{},'Polish every eligible equipped item?')">🔧 Polish all</button>
+          <button class="ghost xs" onclick="forge4QuotedAction('/api/abyss/polish_all','polish_all',{},'Polish every eligible equipped item?')">🔧 Polish all</button>
           <button class="ghost xs" onclick="forge4Simple('/api/abyss/craft_repair_kit2',{})">🧰 Craft Repair Kit II (8🌫️)</button>
           <button class="ghost xs" onclick="forge4ConvertMats()">⚗️ Convert materials</button>
           <button class="ghost xs" onclick="forge4Simple('/api/abyss/sanctuary_undo2',{},'Buy a permanent second daily forge undo for 50 tokens?')">↩️ Unlock second undo</button>
@@ -982,6 +985,7 @@
           <button class="ghost xs" onclick="abyssFuse('ancient')" title="Consume 3 same-slot Legendaries from the backpack → one Ancient piece, +30% stats">🏺 Ancient Fusion (3× Legendary)</button>
           <button class="ghost xs" onclick="abyssFuse('mythic')" title="Consume 2 same-slot Mythics: 25% Divine ascension">🌟 Mythic Fusion (2× Mythic)</button>
           <button class="ghost xs" onclick="abyssFuse('celestial')" title="Consume 2 same-slot Celestials: 25% Eternal ascension">☄️ Celestial Fusion (2× Celestial)</button>
+		  <button class="ghost xs" onclick="abyssFuse('celestial',true)" title="Consume 2 same-slot Celestials and 10 Eldritch Prisms: 50% Eternal ascension">💠 Blessed Celestial (50%)</button>
         </div>
       </div></details>
 
@@ -4123,10 +4127,39 @@ async function forge4ItemAction(url, extra, promptText){
   Object.keys(extra||{}).forEach(function(k){params[k]=extra[k];});
   forge4Simple(url,params,promptText);
 }
-function forge4BatchTemper(){
+function forge4CostText(cost){
+  cost=cost||{};
+  var parts=[];
+  if(Number(cost.gold||0)>0)parts.push(fmtNum(cost.gold)+'g');
+  if(Number(cost.tokens||0)>0)parts.push(fmtNum(cost.tokens)+' tokens');
+  Object.keys(cost.materials||{}).sort().forEach(function(id){
+    var count=Number(cost.materials[id]||0);
+    if(count>0)parts.push(fmtNum(count)+' '+id);
+  });
+  return parts.join(' + ')||'free';
+}
+async function forge4QuotedAction(url,operation,body,promptText){
+  if(busy)return;
+  var commitBody=Object.assign({},body||{}),parameters=Object.assign({},commitBody);
+  var invID=Number(parameters.inv_id||0),slot=String(parameters.slot||'');
+  delete parameters.inv_id;delete parameters.slot;
+  setBusy(true);
+  var result=await abRawPost('/api/abyss/forge/quote',{operation:operation,inv_id:invID,slot:slot,parameters:parameters});
+  setBusy(false);
+  if(!result.ok){abToast(result.error||'Quote unavailable.',false);return;}
+  var quote=result.quote||{},minimum=forge4CostText(quote.cost_minimum),maximum=forge4CostText(quote.cost_maximum);
+  var cost=minimum===maximum?minimum:(minimum+' to '+maximum);
+  if(!(await confirmModal(promptText+'\nQuoted cost: '+cost,{title:'Confirm Forge Cost',okLabel:'Forge · '+cost})))return;
+  setBusy(true);
+  forgePost(url,commitBody);
+}
+async function forge4BatchTemper(){
   var target=parseInt(window.prompt('Temper toward which level (1–15)?','15'),10);
   if(!Number.isInteger(target)||target<1||target>15)return;
-  forge4ItemAction('/api/abyss/batch_temper',{target:target},'Batch temper stops at the target, after 2 failures, or when gold runs out. Continue?');
+  var params=getSelectedForgeParams();
+  if(!params){abToast('Pick an item first.',false);return;}
+  params.target=target;
+  forge4QuotedAction('/api/abyss/batch_temper','batch_temper',params,'Batch temper stops at the target, after 2 failures, or when gold runs out.');
 }
 function forge4Queue(){
   var raw=window.prompt('Queue 1–3 actions, comma-separated:\npolish, reinforce, sharpen, masterwork, temper','polish, temper');
@@ -4307,11 +4340,11 @@ async function abyssTransferEnchant(){
 
 // Fusion (#92/#112): scan the forge picker's backpack options for a same-slot
 // group of the required rarity and confirm before consuming them.
-async function abyssFuse(mode){
+async function abyssFuse(mode,boosted){
   var need=(mode==='ancient')?3:2, rarity=(mode==='celestial')?7:((mode==='mythic')?5:4);
   var label=(mode==='celestial')?'Celestial':((mode==='mythic')?'Mythic':'Legendary');
   var title=(mode==='celestial')?'Celestial':((mode==='mythic')?'Mythic':'Ancient');
-  var url=(mode==='celestial')?'/api/abyss/celestial_fuse':((mode==='mythic')?'/api/abyss/mythic_fuse':'/api/abyss/fuse');
+  var url=(mode==='celestial')?(boosted?'/api/abyss/celestial_fuse_boosted':'/api/abyss/celestial_fuse'):((mode==='mythic')?'/api/abyss/mythic_fuse':'/api/abyss/fuse');
   var groups={};
   document.querySelectorAll('#forgeItemSelect option').forEach(function(o){
     if(!o.value||o.value.indexOf('inv:')!==0)return;
@@ -4324,8 +4357,12 @@ async function abyssFuse(mode){
   if(!pickSlot){abToast('Need '+need+' same-slot '+label+' spares in the backpack.',false);return;}
   var chosen=groups[pickSlot].slice(0,need);
   if(busy)return; setBusy(true);
-  if(!(await confirmModal('Consume: '+chosen.map(function(c){return c.name;}).join(' + ')+'?', {title:title+' Fusion', okLabel:'Fuse'}))){setBusy(false);return;}
-  var d=await abPost(url,{inv_ids:chosen.map(function(c){return c.id;})});
+  var ids=chosen.map(function(c){return c.id;}),preview=await abPost('/api/abyss/fuse_preview',{inv_ids:ids,boosted:!!boosted});
+  if(!preview.ok){setBusy(false);abToast(preview.error||'Could not preview fusion.',false);return;}
+  var outcomes=(preview.outcomes||[]).map(function(o){return Math.round((Number(o.chance)||0)*100)+'% '+o.name+' (CR '+Math.round(Number(o.cr)||0)+')';}).join(' · ');
+  var cost='Gold '+fmtNum(Number(preview.cost)||0)+(preview.prism_cost?' + '+preview.prism_cost+' Eldritch Prisms':'');
+  if(!(await confirmModal('Consume: '+chosen.map(function(c){return c.name;}).join(' + ')+'?\n'+outcomes+'\n'+cost, {title:title+(boosted?' Blessed':'')+' Fusion', okLabel:'Fuse'}))){setBusy(false);return;}
+  var d=await abPost(url,{inv_ids:ids});
   setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   abToast(d.msg,true);
@@ -4363,6 +4400,13 @@ async function abyssRiftPeek(){
     again.textContent='👁️ Seek vision '+(Number(d.peek_number)+1)+' ('+fmtNum(Number(d.next_cost)||0)+'g)';
     again.onclick=abyssRiftPeek; options.appendChild(again);
   }
+}
+
+async function abyssRecipeFavorite(id,button){
+  if(button)button.disabled=true;
+  var d=await abPost('/api/abyss/recipe_fav',{recipe_id:id});
+  if(!d.ok){if(button)button.disabled=false;abToast(d.error||'Could not update favorite.',false);return;}
+  abToast(d.msg,true);setTimeout(function(){window.location.reload();},350);
 }
 
 async function loadAbyssSetTrade(){

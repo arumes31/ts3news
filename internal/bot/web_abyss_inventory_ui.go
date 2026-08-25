@@ -33,7 +33,10 @@ type runLootRow struct {
 	CR           float64       `json:"cr,omitempty"`
 	CRDelta      float64       `json:"cr_delta,omitempty"`
 	MainStat     int           `json:"main_stat,omitempty"`
+	BeamClass    string        `json:"beam_class,omitempty"`
 	Quality      int           `json:"quality,omitempty"`
+	Foil         bool          `json:"foil,omitempty"`
+	Doomed       bool          `json:"doomed,omitempty"`
 	Unidentified bool          `json:"unidentified,omitempty"`
 	AlreadyOwned bool          `json:"already_owned,omitempty"`
 	SetID        string        `json:"set_id,omitempty"`
@@ -140,6 +143,8 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 			row.SlotIcon = content.SlotIcon(gear.Slot)
 			row.Rarity = gear.Rarity.String()
 			row.RarityRank = int(gear.Rarity)
+			row.BeamClass = abyssBeamClass(gear.Rarity, gear.Doomed && !gear.Unidentified)
+			row.Foil = gear.Foil
 			row.Unidentified = gear.Unidentified
 			if gear.Unidentified {
 				out = append(out, row)
@@ -155,6 +160,7 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 			row.SetCount = setCounts[gear.SetID]
 			row.SetMax = abyssSetDisplayMax(gear.SetID)
 			row.Corrupted = gear.Corrupted
+			row.Doomed = gear.Doomed
 			current, occupied := equipped[gear.Slot]
 			row.EmptySlot = !occupied
 			if occupied {

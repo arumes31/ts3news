@@ -267,6 +267,7 @@ func TestAbyssCombatAndItemPresentationContracts(t *testing.T) {
 		"survival_chance_pct", "Post-fight odds", "ally-converted",
 		"!unit.is_player", "Upgrades first", "Build stat", "ab-charm-dangle",
 		"Set Trading Post", "Convert 3rd Leg+", "/api/abyss/set_trade",
+		"beam-eternal", "beam-doomed", "ab-loot-foil",
 	} {
 		if !strings.Contains(source, required) {
 			t.Errorf("Abyss presentation is missing %q", required)

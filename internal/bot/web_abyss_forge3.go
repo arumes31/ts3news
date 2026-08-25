@@ -20,6 +20,8 @@ import (
 
 // ---- Corrupt ------------------------------------------------------------------
 
+func abyssPerfectCorruption(roll float64) bool { return roll < 0.05 }
+
 // handleAbyssCorrupt deliberately corrupts an item (5 Umbral Cores): +50%
 // offensive stats, but an HP malus equal to its score — the same trade-off as
 // corrupted drops (#83), so it can still be cleansed or embraced afterwards.
@@ -68,7 +70,7 @@ func (s *WebServer) handleAbyssCorrupt(w http.ResponseWriter, r *http.Request, u
 	}
 	g.Stats.HP -= g.CorruptHP
 	// Perfect corruption (AB-108): a hidden 5% roll escapes the HP malus entirely.
-	perfect := rand.Float64() < 0.05 // #nosec G404 -- non-cryptographic forge roll
+	perfect := abyssPerfectCorruption(rand.Float64()) // #nosec G404 -- non-cryptographic forge roll
 	if perfect {
 		g.Stats.HP += g.CorruptHP
 		g.CorruptHP = 0

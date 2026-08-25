@@ -392,8 +392,9 @@ func abyssPunchSocketResult(current int, roll float64) (sockets int, perfect boo
 	return sockets, false
 }
 
-// handleAbyssPunchSocket adds one gemstone socket to an item (10 Void Shards),
-// capped at 4 sockets total.
+// handleAbyssPunchSocket adds one gemstone socket to an item (10 Void Shards).
+// The normal cap is four; the fourth punch has a ten-percent Perfect result
+// that grants a fifth socket.
 func (s *WebServer) handleAbyssPunchSocket(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -522,6 +523,15 @@ func (s *WebServer) handleAbyssReforge(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "only Rare or better gear can be reforged"})
 		return
 	}
+	usesLeft, allowed, err := forge4ConsumeReforgeUse(tx, uid, g.Rarity)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if !allowed {
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("reforge limit reached for today (%d/day)", forge4ReforgeDailyLimit(g.Rarity))})
+		return
+	}
 	cost := s.bot.forgeGoldCost(uid, 300, g.Rarity)
 	if !deductGold(w, tx, uid, cost) {
 		return
@@ -562,7 +572,7 @@ func (s *WebServer) handleAbyssReforge(w http.ResponseWriter, r *http.Request, u
 		if !s.finishForge(w, tx, uid, "reforge rejected", g.Name, fmt.Sprintf("%dg", cost)) {
 			return
 		}
-		writeJSON(w, map[string]any{"ok": true, "accepted": false, "quality": quality, "gold": s.bot.abyssGold(uid),
+		writeJSON(w, map[string]any{"ok": true, "accepted": false, "quality": quality, "uses_left": usesLeft, "gold": s.bot.abyssGold(uid),
 			"msg": fmt.Sprintf("🎲 Reforge rejected automatically at %.1f%% quality; the original item was kept.", quality)})
 		return
 	}
@@ -573,7 +583,7 @@ func (s *WebServer) handleAbyssReforge(w http.ResponseWriter, r *http.Request, u
 	if !s.finishForge(w, tx, uid, "reforge", g.Name, fmt.Sprintf("%dg", cost)) {
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "accepted": true, "quality": quality, "family": req.Family, "gold": s.bot.abyssGold(uid),
+	writeJSON(w, map[string]any{"ok": true, "accepted": true, "quality": quality, "family": req.Family, "uses_left": usesLeft, "gold": s.bot.abyssGold(uid),
 		"msg": fmt.Sprintf("🎲 Reforged %s — CR %.0f → %.0f (%.1f%% quality).", g.Name, crBefore, crAfter, quality)})
 }
 

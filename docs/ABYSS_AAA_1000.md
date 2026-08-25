@@ -521,7 +521,7 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0779 / AB-79** — simultaneous cursed and eldritch rolls create a named Doomed variant with a distinct red-black beam treatment.
 - [x] **AAA-0780 / AB-80** — named Predator, Warden, and Harvester pieces carry inspectable set-specific lore.
 - [x] **AAA-0781 / AB-81** — Insanity loot can roll a Lucid variant that removes negative stats and scales the remaining positive package by 80%.
-- [x] **AAA-0782 / AB-82** — punching a third socket has a posted ten-percent Perfect result that grants two sockets at once.
+- [x] **AAA-0782 / AB-82** — punching the fourth socket has a posted ten-percent Perfect result that grants a fifth socket at once.
 - [x] **AAA-0783 / AB-83** — equipping three or more gems from one family activates a matching five-percent resonance bonus with a stat-summary note.
 - [x] **AAA-0784 / AB-84** — armor-etched elemental wards stack five-percent matching resistance per piece, cap below immunity, and report their resolved reduction.
 - [x] **AAA-0785 / AB-85** — corrupted potions and elixirs roll as stronger drops and inflict their advertised five- or ten-percent backlash in lobby and live combat.
@@ -540,3 +540,31 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0798 / AB-98** — identical escrowed consumables merge into bounded five-charge stacks instead of overwriting or multiplying rows.
 - [x] **AAA-0799 / AB-99** — a weekly Set Trading Post atomically exchanges two true spare duplicates for a rotating piece the account is missing.
 - [x] **AAA-0800 / AB-100** — every gear drop label previews its expected rarity-based salvage material yield before banking.
+
+## Delivered tranche: Forge control and crafting depth
+
+- [x] **AAA-0801 / AB-101** — batch temper shows its authoritative minimum-to-maximum cost, then stops at the target, two failures, or insufficient gold.
+- [x] **AAA-0802 / AB-102** — a two-core one-shot temper guard converts the next failed single or batch temper on its bound item into a success.
+- [x] **AAA-0803 / AB-103** — the Forge executes a validated queue of up to three item actions atomically behind one confirmation.
+- [x] **AAA-0804 / AB-104** — bulk gem upgrade advances every eligible socket to a chosen tier using one exact accumulated price.
+- [x] **AAA-0805 / AB-105** — rune scraping removes an etched rune and transactionally recovers half of its dust value.
+- [x] **AAA-0806 / AB-106** — un-attuning costs 50 tokens, reverses the baked five-percent stat bonus, and restores item mobility.
+- [x] **AAA-0807 / AB-107** — same-slot masterwork transfer moves bounded quality at 80% efficiency and snapshots both items.
+- [x] **AAA-0808 / AB-108** — corruption has a server-rolled five-percent Perfect outcome that retains the boon without the HP penalty.
+- [x] **AAA-0809 / AB-109** — locked reforge preserves one selected stat line at double cost with a persisted daily limit.
+- [x] **AAA-0810 / AB-110** — bulk rebalance shifts ten percent of every other positive stat toward one validated target stat.
+- [x] **AAA-0811 / AB-111** — two cores remove an item's set brand and return it to the unbranded item pool.
+- [x] **AAA-0812 / AB-112** — six cores reroll an item's Special while honoring validated effect exclusions.
+- [x] **AAA-0813 / AB-113** — guided awaken persists three distinct server-rolled Specials and commits exactly the player's selected option.
+- [x] **AAA-0814 / AB-114** — one prism strips an imbued effect and its corresponding stat bonus from an item.
+- [x] **AAA-0815 / AB-115** — polish-all quotes the summed price and upgrades every eligible equipped piece in one transaction.
+- [x] **AAA-0816 / AB-116** — the eight-dust Repair Kit II recipe creates an upgraded consumable that restores 50 durability across equipped gear.
+- [x] **AAA-0817 / AB-117** — every 50 committed Forge actions grants a global one-percent price discount, capped at five percent and stacked after reputation.
+- [x] **AAA-0818 / AB-118** — paid socket relocation preserves every gem while moving the chosen gem to an exact socket index.
+- [x] **AAA-0819 / AB-119** — fusion preview exposes the server-selected survivor, projected stats, odds, and costs before consumption.
+- [x] **AAA-0820 / AB-120** — spending ten prisms raises Celestial-to-Eternal fusion odds from 25% to 50% in preview and settlement.
+- [x] **AAA-0821 / AB-121** — Eternal items receive a second persisted locked-reforge use each UTC day.
+- [x] **AAA-0822 / AB-122** — Repair Kit II crafting has a server-rolled five-percent critical result that doubles output and celebrates it.
+- [x] **AAA-0823 / AB-123** — up to eight valid discovered recipe favorites persist per account and pin above other recipes.
+- [x] **AAA-0824 / AB-124** — the exchange converts bounded quantities upward at 10 dust to shard, 10 shards to core, and 5 cores to prism.
+- [x] **AAA-0825 / AB-125** — a permanent Sanctuary purchase unlocks and independently tracks a second daily Forge undo.
