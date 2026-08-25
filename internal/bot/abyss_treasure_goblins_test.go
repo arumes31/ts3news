@@ -40,7 +40,7 @@ func TestGrantAbyssRunVaultKeyCommitsWithRunFlags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("abyss_run_flags_delver").
 		WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(`{"vault_keys":2}`))
@@ -60,7 +60,7 @@ func TestGrantAbyssRunVaultKeyRollsBackOnFlagWriteFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("abyss_run_flags_delver").
 		WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(`{"vault_keys":2}`))

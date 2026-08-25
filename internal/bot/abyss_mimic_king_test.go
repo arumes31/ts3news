@@ -9,7 +9,9 @@ import (
 
 func TestAbyssMimicKingChainRequiresThreeSurvivedBites(t *testing.T) {
 	flags := map[string]int64{}
-	if advanceAbyssMimicChain(flags) || advanceAbyssMimicChain(flags) {
+	firstBiteAwakened := advanceAbyssMimicChain(flags)
+	secondBiteAwakened := advanceAbyssMimicChain(flags)
+	if firstBiteAwakened || secondBiteAwakened {
 		t.Fatal("Mimic King awakened before the third bite")
 	}
 	if !advanceAbyssMimicChain(flags) || flags[abyssRunFlagMimicsSurvived] != 3 {

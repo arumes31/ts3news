@@ -8,6 +8,18 @@
     <article class="ab-social-card ab-pet-command">
       <h3>🐾 Companion command</h3>
       <p class="muted small">Mood changes combat performance by ±2%. Collar and charm stats empower active pets only. Train three times daily; slot two unlocks at prestige 2.</p>
+      {{with .PendingCapture}}
+      <section class="ab-pending-capture" aria-labelledby="pendingCaptureTitle">
+        <div><span class="ab-kicker">STABLE DECISION</span><strong id="pendingCaptureTitle">🌀 {{.Name}}</strong><small>Lv {{.Level}} {{.Type}} · ♥ {{comma .HP}}/{{comma .MaxHP}} · ⚔ {{comma .STR}} · 🛡 {{comma .DEF}} · ➤ {{comma .SPD}} · loyalty {{.Loyalty}}%</small></div>
+        {{if ge (len $.Social.Pets) 3}}<p>Your three-pet stable is full. Choose exactly who leaves; no companion is replaced automatically.</p>{{else}}<p>A stable slot opened after capture. Recruit this companion or release it back into the Abyss.</p>{{end}}
+        <div class="ab-capture-actions">
+          {{if ge (len $.Social.Pets) 3}}
+            {{range $.Social.Pets}}<button class="danger xs" type="button" data-name="{{.Name}}" onclick="abyssResolvePetCapture({{.ID}},this)">Release {{.Name}}</button>{{end}}
+          {{else}}<button class="primary xs" type="button" onclick="abyssResolvePetCapture(0,this)">Recruit {{.Name}}</button>{{end}}
+          <button class="ghost xs" type="button" onclick="abyssDeclinePetCapture()">Release new capture</button>
+        </div>
+      </section>
+      {{end}}
       <div class="ab-pet-list">
       {{range .Pets}}
         <div class="ab-pet-card" data-pet-id="{{.ID}}">
@@ -80,6 +92,8 @@
 async function abyssPetTrain(id,button){if(button)button.disabled=true;var d=await abPost('/api/abyss/social/pet/train',{pet_id:id});abToast(d.msg||d.error,!!d.ok);if(d.ok){setGold(d.gold);setTimeout(function(){location.reload();},450);}else if(button)button.disabled=false;}
 async function abyssPetSlot(id,slot){var d=await abPost('/api/abyss/social/pet/slot',{pet_id:id,slot:Number(slot)});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);}
 async function abyssPetAutoskill(id,enabled){var d=await abPost('/api/abyss/social/pet/autoskill',{pet_id:id,ability:'heal',enabled:enabled});abToast(d.msg||d.error,!!d.ok);}
+async function abyssResolvePetCapture(id,button){var name=button&&button.dataset?String(button.dataset.name||''):'';if(name&&!confirm('Release '+name+' and recruit the pending capture?'))return;var d=await abPost('/api/abyss/social/pet/capture/resolve',{release_pet_id:Number(id),decline:false});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);}
+async function abyssDeclinePetCapture(){if(!confirm('Release the newly captured companion?'))return;var d=await abPost('/api/abyss/social/pet/capture/resolve',{release_pet_id:0,decline:true});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);}
 async function abyssBankFeedToggle(enabled){var d=await abPost('/api/abyss/social/bank_feed',{enabled:enabled});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},300);}
 async function abyssFriendEchoSave(){var share=document.getElementById('friendEchoShare'),pick=document.getElementById('friendEchoUID');if(!share||!pick)return;share.disabled=pick.disabled=true;var d=await abPost('/api/abyss/social/friend_echo',{share_enabled:share.checked,echo_uid:pick.value});abToast(d.msg||d.error,!!d.ok);share.disabled=pick.disabled=false;if(!d.ok)setTimeout(function(){location.reload();},500);}
 async function abyssRivalClaim(button){button.disabled=true;var d=await abPost('/api/abyss/social/rival/claim',{});abToast(d.msg||d.error,!!d.ok);if(d.ok){setTokens(d.tokens);setTimeout(function(){location.reload();},450);}else button.disabled=false;}

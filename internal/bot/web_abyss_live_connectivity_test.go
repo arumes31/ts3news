@@ -14,7 +14,9 @@ func TestAbyssLiveConnectivityGraceIsBoundedPerParticipantAndRound(t *testing.T)
 		deadline:       now.Add(time.Second),
 		deadlineSignal: make(chan struct{}, 1),
 	}
-	if !combat.openMemberConnection("player", now) || !combat.openMemberConnection("player", now) {
+	firstConnectionOpened := combat.openMemberConnection("player", now)
+	secondConnectionOpened := combat.openMemberConnection("player", now)
+	if !firstConnectionOpened || !secondConnectionOpened {
 		t.Fatal("participant connections were not registered")
 	}
 	if combat.closeMemberConnection("player", now) {

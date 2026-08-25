@@ -24,6 +24,15 @@ test('enter sends the selected run setup', async ({ page }) => {
   await expect.poll(() => entered).toBe(true);
 });
 
+test('HUD normalizes an interest rate from a rolling deployment', async ({ page }) => {
+  await page.goto('/abyss?active=1');
+  await page.evaluate(() => {
+    window.interestRatePct = '0.500';
+    window.renderHudChipsNow();
+  });
+  await expect(page.locator('#hudChips')).toContainText('+0.5%/floor');
+});
+
 test('a victorious descend can preview and commit bank', async ({ page }) => {
   let committed = false;
   await fulfillAbyssAPI(page, (path, body) => {

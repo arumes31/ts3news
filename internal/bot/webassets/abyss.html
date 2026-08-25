@@ -1293,7 +1293,7 @@ var bankLocked = {{.Run.BankLockedFloors}};
 var curMomentum = {{.Run.Momentum}};
 var bankStreak = {{.Stats.Streak}}; // UI-58
 var dailyAffix = '{{if .DailyMod}}{{.DailyMod}}{{end}}'; // UI-34
-var interestRatePct = {{printf "%.3f" .HUD.InterestRatePct}}; // UI-60 authoritative rate
+var interestRatePct = Number('{{printf "%.3f" .HUD.InterestRatePct}}') || 0; // UI-60 authoritative rate
 var interestTotalPct = {{printf "%.3f" .HUD.InterestTotalPct}};
 var escrowSoftCap = {{.HUD.EscrowSoftCap}}, escrowEfficiencyPct = {{.HUD.EscrowEfficiencyPct}};
 var forgeUIState = null, forgeUIStateReceivedAt = 0, abyssSetupState = null;
@@ -2688,6 +2688,8 @@ function renderHudChipsNow(){
     // UI-44: floors to the next checkpoint (every 10 depths).
     if(curDepth>0){ var toCk=10-(curDepth%10); if(toCk>0) chips.push(['⛓️ checkpoint in '+toCk,'']); }
     // UI-60: exact per-floor interest and compounded total from authoritative run depth.
+    interestRatePct=Number(interestRatePct);
+    if(!Number.isFinite(interestRatePct))interestRatePct=0;
     interestTotalPct=(Math.pow(1+interestRatePct/100,runFloorsCleared)-1)*100;
     chips.push(['📈 +'+interestRatePct.toFixed(1)+'%/floor · +'+interestTotalPct.toFixed(1)+'% total','']);
     // UI-51: persisted manual/automatic reward-focus quick swap.

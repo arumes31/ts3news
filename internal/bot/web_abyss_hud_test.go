@@ -107,7 +107,8 @@ func TestAbyssHUDAndFocusContracts(t *testing.T) {
 		"calc(25% - 1px)", "UI-47: threat meter", "curDepth-lastRestDepth", "leaderDistance()",
 		"bountyRingHTML()", "focusHUDHTML()", "activeRunPacts.forEach",
 		"--cooldown-angle", ".kind-item.unavailable::before", "gearCondition()", "Last Stand ready", "Comeback +10% · this run",
-		"abyssJackpot", "bank ×", "Happy Hour −20%", "interestRatePct",
+		"abyssJackpot", "bank ×", "Happy Hour −20%", "Number('{{printf \"%.3f\" .HUD.InterestRatePct}}') || 0",
+		"if(!Number.isFinite(interestRatePct))interestRatePct=0",
 		"/api/abyss/focus", `aria-label="Reward focus"`,
 	} {
 		if !strings.Contains(source, required) {

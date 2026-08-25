@@ -70,8 +70,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "09ca90a8f36e7ffb3510b3b9719462919570c208983a2d933d4c020d868ebb5c"},
-		{name: "active_run", active: true, want: "84b9b529a834a77e88acc3f8c59d74856f1f86ea80b1063682007abbe5eec076"},
+		{name: "threshold", want: "1eb503e5bb1823dd681daf38bdc94dbac319864d6e27f8ba07456b907a3e1f4e"},
+		{name: "active_run", active: true, want: "0a24fcbb0afde9c3ea181d911a034fa3b868d293e83a74fb618b97cb2178d263"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -87,6 +87,7 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 				rendered.Bytes(),
 				[]byte("<asset-version>"),
 			)
+			stable = bytes.ReplaceAll(stable, []byte("\r\n"), []byte("\n"))
 			digest := fmt.Sprintf("%x", sha256.Sum256(stable))
 			if digest != fixture.want {
 				t.Fatalf("golden digest = %s, want %s", digest, fixture.want)

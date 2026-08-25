@@ -15,7 +15,7 @@ func TestAbyssSecretBossChainRequiresEveryLoreFragment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectQuery("SELECT COUNT").WithArgs("hunter", 10).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(9))
 	view := (&Bot{DB: database}).abyssSecretBossChain("hunter", abyssRun{Depth: 12})
 	if view.Unlocked || view.LoreFound != 9 || view.LoreTotal != 10 {
@@ -31,7 +31,7 @@ func TestAbyssSecretBossChainRestoresPersistentStage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectQuery("SELECT COUNT").WithArgs("hunter", 10).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(10))
 	mock.ExpectExec("INSERT INTO abyss_secret_boss_chains").WithArgs("hunter").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery("SELECT stage FROM abyss_secret_boss_chains").WithArgs("hunter").WillReturnRows(sqlmock.NewRows([]string{"stage"}).AddRow(1))
@@ -49,7 +49,7 @@ func TestAbyssSecretBossChainFinalAdvanceIsAtomic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectExec("UPDATE abyss_secret_boss_chains SET stage").WithArgs(3, 3, "hunter", 2).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("INSERT INTO abyss_achievements").WithArgs("hunter", abyssSecretBossAchievement).WillReturnResult(sqlmock.NewResult(0, 1))
@@ -71,7 +71,7 @@ func TestAbyssSecretBossReplacesOnlyNaturalBossFloors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectQuery("SELECT COUNT").WithArgs("hunter", 10).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(10))
 	mock.ExpectExec("INSERT INTO abyss_secret_boss_chains").WithArgs("hunter").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery("SELECT stage FROM abyss_secret_boss_chains").WithArgs("hunter").WillReturnRows(sqlmock.NewRows([]string{"stage"}).AddRow(2))

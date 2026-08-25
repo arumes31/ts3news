@@ -36,7 +36,7 @@ func TestRecordAbyssBossKillSettlesContractAtomically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO abyss_boss_kills").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("SELECT boss_contract_wager,boss_contract_depth").WithArgs("hunter").
@@ -61,7 +61,7 @@ func TestForfeitAbyssBossContractReturnsCommittedStake(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectQuery("WITH contract AS").WithArgs("hunter", 25).
 		WillReturnRows(sqlmock.NewRows([]string{"boss_contract_wager"}).AddRow(int64(5)))
 
@@ -78,7 +78,7 @@ func TestAbyssBossContractDeclarationIsAtomic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT active.depth,active.boss_contract_wager,active.boss_contract_depth,users.current_hp").WithArgs("hunter").
 		WillReturnRows(sqlmock.NewRows([]string{"depth", "wager", "target", "current_hp"}).AddRow(7, int64(0), 0, 100))
@@ -108,7 +108,7 @@ func TestAbyssBossContractRejectsDownedDelver(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT active.depth,active.boss_contract_wager,active.boss_contract_depth,users.current_hp").WithArgs("hunter").
 		WillReturnRows(sqlmock.NewRows([]string{"depth", "wager", "target", "current_hp"}).AddRow(7, int64(0), 0, 0))

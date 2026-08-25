@@ -39,7 +39,7 @@ func (b *Bot) abyssFriendEchoSettings(uid string) abyssFriendEchoView {
 	if err != nil {
 		return view
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var candidate abyssFriendEchoCandidate
 		if rows.Scan(&candidate.UID, &candidate.Nick, &candidate.Assists) != nil {

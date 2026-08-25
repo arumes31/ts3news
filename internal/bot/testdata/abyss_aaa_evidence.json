@@ -1424,5 +1424,22 @@
       "internal/bot/web_abyss_boss_social_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [228],
+    "production": [
+      "internal/bot/abyss_pet_capture.go",
+      "internal/bot/xp.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss_social.html",
+      "internal/bot/webassets/abyss_social.css",
+      "internal/db/migrations/0093_abyss_pending_pet_captures.up.sql",
+      "internal/db/migrations/0093_abyss_pending_pet_captures.down.sql"
+    ],
+    "verification": [
+      "internal/bot/abyss_pet_capture_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

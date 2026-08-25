@@ -27,7 +27,7 @@ func (s *WebServer) handleAbyssPetTrain(w http.ResponseWriter, r *http.Request, 
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var strength, defense, speed, count int
 	if tx.QueryRow(`SELECT str,def,spd,CASE WHEN trained_on=CURRENT_DATE THEN training_count ELSE 0 END FROM user_pets
 		WHERE pet_id=$1 AND client_uid=$2 FOR UPDATE`, req.PetID, uid).Scan(&strength, &defense, &speed, &count) != nil {
@@ -82,7 +82,7 @@ func (s *WebServer) handleAbyssPetSlot(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var prestige int
 	if tx.QueryRow("SELECT abyss_prestige FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&prestige) != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -168,7 +168,7 @@ func (s *WebServer) handleAbyssRivalClaim(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	week := abyssCurrentWeek(time.Now())
 	var target, current int
 	var claimed sql.NullTime
@@ -210,7 +210,7 @@ func (s *WebServer) handleAbyssWeeklyBossStrike(w http.ResponseWriter, r *http.R
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	now := time.Now()
 	week, name := abyssWeeklyBossDefinition(now)
 	if _, err := tx.Exec(`INSERT INTO abyss_weekly_bosses (week_key,boss_name,max_hp,current_hp)
