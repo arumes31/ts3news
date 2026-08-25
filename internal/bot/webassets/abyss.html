@@ -3474,6 +3474,18 @@ async function abyssBank(percent){
   setBusy(false);
   if(!p.ok){abToast(p.error||'failed',false);return;}
   function row(k,v){return '<div class="ab-rs-row"><span>'+k+'</span><b>'+v+'</b></div>';}
+  function pactMath(b){
+    if(!b||!Array.isArray(b.lines)||!b.lines.length)return '';
+    var lines='<details class="ab-bank-pact-math" open><summary>⚔️ Pact cache math · +'+Number(b.total_bonus_pct||0).toFixed(1)+'%</summary>';
+    b.lines.forEach(function(line){
+      var math='base +'+Number(line.base_bonus_pct||0).toFixed(1)+'%';
+      if(line.mastery_bonus_pct)math+=' · mastery +'+Number(line.mastery_bonus_pct).toFixed(1)+'%';
+      if(line.featured_bonus_pct)math+=' · featured +'+Number(line.featured_bonus_pct).toFixed(1)+'%';
+      lines+=row(consEsc(line.label),math+' = +'+Number(line.total_bonus_pct||0).toFixed(1)+'%');
+    });
+    (b.synergies||[]).forEach(function(synergy){lines+=row('⚡ '+consEsc(synergy.label),'+'+Math.round(Number(synergy.bonus||0)*100)+'%');});
+    return lines+row('Total pact multiplier','×'+Number(b.multiplier||1).toFixed(3))+'</details>';
+  }
   var html='<h3>'+(p.partial?'🔐 Secure '+p.percent+'% and continue?':'🏦 Bank this run?')+'</h3><div class="modal-body ab-runsummary">'+
     row(p.partial?'Cache share':'Cache (floor interest included)', fmtGold(p.escrow))+
     row('Depth bonus +'+p.depth_bonus_pct+'%', '+'+fmtGold(p.depth_bonus))+
@@ -3483,6 +3495,7 @@ async function abyssBank(percent){
     (p.frantic_fee?row('🫀 Frantic fee below 15% HP','−'+fmtGold(p.frantic_fee)):'')+
 	(p.perfect_bonus?row('✨ Perfect-run bonus +25%','+'+fmtGold(p.perfect_bonus)):'')+
 	(p.raffle_fee?row('🎟️ Bankers’ raffle contribution −1%','−'+fmtGold(p.raffle_fee)):'')+
+    pactMath(p.pact_breakdown)+
     row('Estimated payout', '<span style="color:var(--gold)">'+fmtGold(p.payout)+'</span>')+
     (p.partial?row('Cache left in run',fmtGold(p.remaining_escrow)):row('Tokens on bank', '🜲 '+p.tokens_grant)+row('Sealed loot to recover', p.loot_count))+
 	(p.checkpoint_refund?row('Checkpoint token refund','🜲 +'+p.checkpoint_refund):'')+

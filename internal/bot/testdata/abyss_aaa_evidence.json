@@ -936,5 +936,20 @@
       "internal/bot/web_abyss_pact_expansion_test.go",
       "internal/bot/web_abyss_test.go"
     ]
+  },
+  {
+    "ids": [188, 190, 193, 194],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_pact_campaign.go",
+      "internal/bot/web_abyss_pact_program.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_pact_program.css",
+      "internal/bot/webassets/abyss_pact_program.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_pact_campaign_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

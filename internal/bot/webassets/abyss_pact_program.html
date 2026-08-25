@@ -5,6 +5,11 @@
     <span class="muted small" id="pactMasterySummary">Save combinations · {{.PactProgram.MasteredCount}} mastered</span>
   </summary>
   <div class="ab-pact-program-body">
+    <div class="ab-pact-campaign">
+      <div class="ab-pact-featured" id="pactFeatured"></div>
+      <div class="ab-affix-calendar" id="affixCalendar" aria-label="This week's daily Abyss affixes"></div>
+      <div class="ab-pact-synergy" id="pactSynergyCallout" hidden></div>
+    </div>
     <div class="ab-pact-preset-list" id="pactPresetList" aria-label="Saved pact combinations"></div>
     <div class="ab-pact-mastery-list" id="pactMasteryList" aria-live="polite"></div>
   </div>
@@ -29,6 +34,27 @@ function pactLabel(key){
   var input=document.querySelector('input[name=abpact][value="'+key+'"]');
   if(!input||!input.parentElement)return key;
   return input.parentElement.textContent.trim().split('(')[0].trim();
+}
+
+function pactMasteryAt(key){
+  return (pactProgramState.mastery||[]).find(function(entry){return entry.key===key;})||null;
+}
+
+function renderAbyssPactSelectionBonus(){
+  var selected=selectedPacts(),featured=(pactProgramState.featured||{}).key,total=0,synergyHost=document.getElementById('pactSynergyCallout');
+  selected.forEach(function(key){
+    var input=document.querySelector('input[name=abpact][value="'+key+'"]'),base=Number(input&&input.dataset.reward)||0;
+    var mastery=pactMasteryAt(key),effective=base*(mastery&&mastery.mastered?1.05:1);
+    total+=effective+(key===featured?effective:0);
+  });
+  var activeSynergies=(pactProgramState.synergies||[]).filter(function(rule){return selected.indexOf(rule.pact_key)>=0&&rule.affix_key===dailyAffix;});
+  activeSynergies.forEach(function(rule){total+=Number(rule.bonus||0)*100;});
+  var totalNode=document.getElementById('pactBonus');
+  if(totalNode)totalNode.textContent='(+'+(Math.round(total*10)/10).toFixed(total%1?1:0)+'%)';
+  if(synergyHost){
+    synergyHost.replaceChildren();synergyHost.hidden=!activeSynergies.length;
+    activeSynergies.forEach(function(rule){synergyHost.appendChild(pactProgramNode('span','', '⚡ '+rule.label+': +'+Math.round(Number(rule.bonus||0)*100)+'% extra cache'));});
+  }
 }
 
 function applyAbyssPactPreset(slot){
@@ -66,6 +92,23 @@ function renderAbyssPactProgram(){
   var list=document.getElementById('pactPresetList');
   if(!list)return;
   list.replaceChildren();
+
+  var featured=document.getElementById('pactFeatured'),featuredState=pactProgramState.featured||{};
+  if(featured)featured.textContent=featuredState.label?'⭐ Featured pact · '+featuredState.label+' · double its pact bonus this week':'Featured pact unavailable';
+  document.querySelectorAll('.ab-pact-featured-badge').forEach(function(node){node.remove();});
+  if(featuredState.key){
+    var featuredInput=document.querySelector('input[name=abpact][value="'+featuredState.key+'"]');
+    if(featuredInput&&featuredInput.parentElement)featuredInput.parentElement.appendChild(pactProgramNode('span','ab-pact-featured-badge',' ⭐ 2×'));
+  }
+  var calendar=document.getElementById('affixCalendar');
+  if(calendar){
+    calendar.replaceChildren();
+    (pactProgramState.calendar||[]).forEach(function(day){
+      var item=pactProgramNode('div','ab-affix-day'+(day.today?' today':day.upcoming?' upcoming':' past'));
+      item.append(pactProgramNode('b','',day.weekday),pactProgramNode('span','',day.label));
+      item.title=day.date+(day.today?' · active today':day.upcoming?' · upcoming':' · completed');calendar.appendChild(item);
+    });
+  }
   for(var slot=1;slot<=3;slot++){
     var preset=pactPresetAt(slot),row=pactProgramNode('div','ab-pact-preset');
     row.dataset.pactPresetSlot=String(slot);
@@ -98,7 +141,10 @@ function renderAbyssPactProgram(){
   });
   var summary=document.getElementById('pactMasterySummary');
   if(summary)summary.textContent='3 preset slots · '+Number(pactProgramState.mastered_count||0)+' / '+(pactProgramState.mastery||[]).length+' mastered';
+  renderAbyssPactSelectionBonus();
 }
 
+var basePactBonusUpdate=updatePactBonus;
+updatePactBonus=function(){basePactBonusUpdate();renderAbyssPactSelectionBonus();};
 renderAbyssPactProgram();
 {{end}}

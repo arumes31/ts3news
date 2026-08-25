@@ -164,6 +164,13 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0186 / 186** — Famine removes sanctuary floors from single and queued descents and pays +20% cache.
 - [x] **AAA-0187 / 187** — dangerous pact combinations display pre-entry warnings as selections change.
 
+## Delivered tranche: pact and affix campaign
+
+- [x] **AAA-0188 / 188** — a Monday-to-Sunday calendar previews all seven affixes from the same authoritative daily selector used by combat.
+- [x] **AAA-0190 / 190** — active pact/affix synergies are called out before entry and included in the authoritative floor-reward multiplier.
+- [x] **AAA-0193 / 193** — bank confirmation itemizes every pact's base, mastery, featured, and synergy contribution plus the exact total multiplier.
+- [x] **AAA-0194 / 194** — one deterministic ISO-week featured pact doubles its full pact contribution and is highlighted in the entry planner.
+
 ## Active tranche: operational quality and client performance
 
 - [x] **AAA-0986 / AB-286** — compare tier catalog values with the latest database constraints.

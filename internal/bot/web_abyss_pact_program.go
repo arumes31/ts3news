@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 )
 
 const (
@@ -34,9 +35,12 @@ type abyssPactMasteryView struct {
 }
 
 type abyssPactProgramState struct {
-	Presets       []abyssPactPreset      `json:"presets"`
-	Mastery       []abyssPactMasteryView `json:"mastery"`
-	MasteredCount int                    `json:"mastered_count"`
+	Presets       []abyssPactPreset       `json:"presets"`
+	Mastery       []abyssPactMasteryView  `json:"mastery"`
+	MasteredCount int                     `json:"mastered_count"`
+	Calendar      []abyssAffixCalendarDay `json:"calendar"`
+	Featured      abyssPactFeaturedView   `json:"featured"`
+	Synergies     []abyssPactSynergy      `json:"synergies"`
 }
 
 func abyssPactPresetsKey(uid string) string { return "abyss_pact_presets_" + uid }
@@ -184,7 +188,14 @@ func abyssPactRewardMultWithMastery(pacts []string, mastery map[string]int) floa
 }
 
 func abyssPactProgramStateFrom(presets []abyssPactPreset, mastery map[string]int) abyssPactProgramState {
-	state := abyssPactProgramState{Presets: presets, Mastery: make([]abyssPactMasteryView, 0, len(abyssPactCatalog))}
+	return abyssPactProgramStateFromAt(presets, mastery, time.Now().UTC())
+}
+
+func abyssPactProgramStateFromAt(presets []abyssPactPreset, mastery map[string]int, at time.Time) abyssPactProgramState {
+	state := abyssPactProgramState{
+		Presets: presets, Mastery: make([]abyssPactMasteryView, 0, len(abyssPactCatalog)),
+		Calendar: abyssAffixCalendar(at), Featured: abyssFeaturedPactAt(at), Synergies: abyssPactSynergyCatalog,
+	}
 	for _, pact := range abyssPactCatalog {
 		runs := max(0, mastery[pact.Key])
 		mastered := runs >= abyssPactMasteryRuns

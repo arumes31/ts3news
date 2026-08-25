@@ -2805,7 +2805,8 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 		o.DBErr = true
 		return o
 	}
-	bonus = int64(float64(bonus) * abyssPactRewardMultWithMastery(pacts, mastery))
+	pactRewards := abyssPactRewardBreakdownAt(pacts, mastery, dailyMod, time.Now().UTC())
+	bonus = int64(float64(bonus) * pactRewards.Multiplier)
 	runFlags := s.bot.loadRunFlags(uid)
 	if abyssHybridSurge(runFlags[abyssRunFlagHybrid] == 1, depth) {
 		bonus = int64(float64(bonus) * abyssHybridRewardMultiplier(tier))
@@ -3321,6 +3322,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 	runFlags := s.bot.loadRunFlags(uid)
+	runPacts := s.bot.abyssRunPacts(uid)
 	hardcore := abyssHardcoreRun(runFlags)
 	// Last Stand seal (#15): the exit stays shut for 2 floors after a token revive.
 	if run.BankLockedFloors > 0 {
@@ -3410,6 +3412,13 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		if partial {
 			baseTokens = 0
 		}
+		mastery, err := s.bot.loadAbyssPactMastery(uid)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		_, dailyAffix := s.bot.currentDailyChallenge()
+		pactBreakdown := abyssPactRewardBreakdownAt(runPacts, mastery, dailyAffix, time.Now().UTC())
 		var lootCount int
 		var lootPreview []abyssBankPreviewLoot
 		if !partial {
@@ -3435,7 +3444,8 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			"remaining_escrow": remainingEscrow, "requires_safe_word": requiresSafeWord,
 			"payout": estPayout, "capped": capped, "cap_remaining": capRemaining, "cap_tax": estTax,
 			"tokens_grant": baseTokens, "loot_count": lootCount,
-			"loot_preview": lootPreview, "loot_preview_truncated": lootCount > len(lootPreview),
+			"pact_breakdown": pactBreakdown,
+			"loot_preview":   lootPreview, "loot_preview_truncated": lootCount > len(lootPreview),
 			"bonus_gear_eligible": !partial && run.Depth >= 10,
 			"depth":               run.Depth, "streak": st.Streak,
 		})
@@ -3446,7 +3456,6 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 
-	runPacts := s.bot.abyssRunPacts(uid)
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -5002,7 +5011,8 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	bonus = int64(float64(bonus) * abyssPactRewardMultWithMastery(pacts, mastery))
+	pactRewards := abyssPactRewardBreakdownAt(pacts, mastery, dailyMod, time.Now().UTC())
+	bonus = int64(float64(bonus) * pactRewards.Multiplier)
 	if _, weekly := abyssWeeklyRuleFromFlags(runFlags); weekly {
 		bonus = bonus * 5 / 4
 	}
@@ -5070,11 +5080,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 // ---- Co-op, Prestige & Weekly challenge Helpers/Handlers ------------------
 
 func (b *Bot) currentDailyChallenge() (int64, string) {
-	now := time.Now().UTC()
-	// Seed by calendar day (year + day-of-year) so the challenge affix rotates once
-	// per day rather than once per week.
-	seed := int64(now.Year()*1000 + now.YearDay())
-	return seed, abyssDailyMods[seed%int64(len(abyssDailyMods))]
+	return abyssDailyChallengeAt(time.Now().UTC())
 }
 
 // abyssDailyMods is the rotating pool of daily challenge affixes. Each is wired

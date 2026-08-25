@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"ts3news/internal/i18n"
 )
@@ -69,8 +70,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "35a49f8d24bff30a0856966fa66b7925c53d3994181fd7382924f98acf8eb016"},
-		{name: "active_run", active: true, want: "c48f07a1219792da0b126d244aac1b35e5392530c6429574ce5807ae25e0e975"},
+		{name: "threshold", want: "6578890cd37c266e63a3eb3208b48813ca05109153a675570582eaa3e56b96b4"},
+		{name: "active_run", active: true, want: "047526605ce4911597bcbe8436c6c6075e60d187b52acf00aacb6c5133026a47"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -147,7 +148,7 @@ func abyssGoldenFixture(active bool) map[string]any {
 		"Helpers":             []any{}, "NextIsBoss": false, "AbyssSetPieces": 0, "AbyssSetTier": 0,
 		"PredatorPieces": 0, "PredatorTier": 0, "WardenPieces": 0, "WardenTier": 0,
 		"HarvesterPieces": 0, "HarvesterTier": 0, "Bounty": nil, "Shop": []any{},
-		"Pacts": []any{}, "PactProgram": abyssPactProgramStateFrom(nil, nil),
+		"Pacts": []any{}, "PactProgram": abyssPactProgramStateFromAt(nil, nil, time.Date(2026, time.August, 25, 0, 0, 0, 0, time.UTC)),
 		"Equipped": []gearView{}, "Inventory": []gearView{},
 		"LegendaryPity": 0, "DropStreak": 0, "DropStreakBonusPct": 0, "Risk": 0,
 		"RunLoot": []runLootRow{}, "CanLastStand": false, "Materials": map[string]int{},
