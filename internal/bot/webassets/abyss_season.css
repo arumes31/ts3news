@@ -1,0 +1,244 @@
+.abyss-command-page[data-ab-campaign="ember"] {
+  --ab-season-accent: #ff9f43;
+  --ab-season-hot: #ff5d3d;
+  --ab-season-glow: rgba(255, 93, 61, .22);
+}
+
+.abyss-command-page[data-ab-campaign="winter"] {
+  --ab-season-accent: #75d8ff;
+  --ab-season-hot: #9b8cff;
+  --ab-season-glow: rgba(117, 216, 255, .2);
+}
+
+.abyss-command-page[data-ab-campaign="bloom"] {
+  --ab-season-accent: #75e69b;
+  --ab-season-hot: #c7e66f;
+  --ab-season-glow: rgba(117, 230, 155, .18);
+}
+
+.abyss-command-page[data-ab-campaign="void"] {
+  --ab-season-accent: #bd8cff;
+  --ab-season-hot: #6f8dff;
+  --ab-season-glow: rgba(189, 140, 255, .2);
+}
+
+.ab-season {
+	position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--ab-season-accent) 42%, #263248);
+  background:
+    radial-gradient(circle at 92% 5%, var(--ab-season-glow), transparent 31rem),
+    linear-gradient(145deg, #111621 0%, #0b1019 68%);
+}
+
+.ab-season::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .18;
+  background-image: linear-gradient(90deg, transparent 49%, var(--ab-season-accent) 50%, transparent 51%);
+  background-size: 5rem 100%;
+  mask-image: linear-gradient(to bottom, #000, transparent 55%);
+}
+
+.ab-season-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1.1rem;
+  align-items: center;
+  padding: .4rem .2rem 1.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ab-season-accent) 28%, transparent);
+}
+
+.ab-season-mark {
+  display: grid;
+  width: 4.25rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid var(--ab-season-accent);
+  border-radius: 50%;
+  background: #090d14;
+  box-shadow: 0 0 2rem var(--ab-season-glow), inset 0 0 1.2rem var(--ab-season-glow);
+  font-size: 2rem;
+}
+
+.ab-season-kicker,
+.ab-season-affinity small {
+  color: var(--ab-season-accent);
+  font: 700 .65rem/1.2 var(--font-mono, monospace);
+  letter-spacing: .16em;
+}
+
+.ab-season-copy h2 {
+  margin: .18rem 0 .35rem;
+  font-size: clamp(1.45rem, 3vw, 2.35rem);
+  letter-spacing: .035em;
+}
+
+.ab-season-copy p {
+  max-width: 58rem;
+  margin: 0;
+  color: #aebbd0;
+}
+
+.ab-season-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem 1rem;
+  margin-top: .75rem;
+  color: #8393ac;
+  font-size: .75rem;
+}
+
+.ab-season-affinity {
+  display: grid;
+  min-width: 10.5rem;
+  gap: .25rem;
+  padding: .75rem .9rem;
+  border: 1px solid color-mix(in srgb, var(--ab-season-accent) 36%, #263248);
+  border-radius: .55rem;
+  background: rgba(4, 8, 14, .72);
+}
+
+.ab-season-affinity strong {
+  color: #f4f7ff;
+  text-transform: capitalize;
+}
+
+.ab-season-affinity span,
+.ab-season-foot,
+.ab-season-week p {
+  color: #7f8fa8;
+  font-size: .7rem;
+}
+
+.ab-season-error {
+  margin-top: 1rem;
+  padding: .7rem .85rem;
+  border: 1px solid #d99b45;
+  border-radius: .45rem;
+  background: rgba(217, 155, 69, .1);
+  color: #f4c77f;
+}
+
+.ab-season-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(9.5rem, 1fr));
+  gap: .7rem;
+  padding: 1.1rem 0 .5rem;
+}
+
+.ab-season-week {
+  display: flex;
+  min-height: 13rem;
+  flex-direction: column;
+  padding: .8rem;
+  border: 1px solid #28354a;
+  border-radius: .6rem;
+  background: rgba(9, 14, 23, .9);
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+
+.ab-season-week:hover:not(.locked) {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--ab-season-accent) 62%, #28354a);
+}
+
+.ab-season-week.current {
+  border-color: var(--ab-season-accent);
+  box-shadow: 0 0 1.25rem var(--ab-season-glow);
+}
+
+.ab-season-week.claimed {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--ab-season-accent) 12%, #09101a), #090e17);
+}
+
+.ab-season-week.locked {
+  opacity: .53;
+  filter: saturate(.55);
+}
+
+.ab-season-week-head {
+  display: flex;
+  min-height: 1.25rem;
+  align-items: center;
+  gap: .35rem;
+  font: 700 .62rem/1 var(--font-mono, monospace);
+  letter-spacing: .1em;
+}
+
+.ab-season-week-number { color: #8798b3; }
+.ab-season-now { color: var(--ab-season-hot); }
+.ab-season-owned { margin-left: auto; color: var(--ab-season-accent); }
+
+.ab-season-reward-glyph {
+  margin: .8rem 0 .45rem;
+  color: var(--ab-season-accent);
+  font-size: 1.6rem;
+  text-shadow: 0 0 .75rem var(--ab-season-glow);
+}
+
+.ab-season-week small {
+  color: #71819b;
+  font-size: .61rem;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.ab-season-week h3 {
+  min-height: 2.5em;
+  margin: .25rem 0 .65rem;
+  color: #eef3ff;
+  font-size: .83rem;
+}
+
+.ab-season-progress {
+  height: .34rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #1d2737;
+}
+
+.ab-season-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--ab-season-hot), var(--ab-season-accent));
+}
+
+.ab-season-week p { margin: .45rem 0 .7rem; }
+.ab-season-week button { width: 100%; margin-top: auto; }
+
+.ab-season-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: .75rem;
+  border-top: 1px solid #202c3e;
+}
+
+.abyss-command-page[data-ab-campaign="ember"] .ab-tab[data-tab-key="season"].active {
+  border-color: #ff9f43;
+  background: linear-gradient(180deg, #ba502d, #71321f);
+  color: #fff7ed;
+}
+
+@media (max-width: 1100px) {
+  .ab-season-track { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 680px) {
+  .ab-season-hero { grid-template-columns: auto 1fr; }
+  .ab-season-affinity { grid-column: 1 / -1; }
+  .ab-season-track { grid-template-columns: 1fr; }
+  .ab-season-week { min-height: 0; }
+  .ab-season-foot { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-season-week { transition: none; }
+  .ab-season-week:hover:not(.locked) { transform: none; }
+}

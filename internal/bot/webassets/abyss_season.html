@@ -1,0 +1,93 @@
+{{define "abyssSeasonJourney"}}
+{{with .SeasonJourney}}
+<section class="abyss-panel ab-season" id="abyssSeasonJourney" data-abyss-section="season" data-season-id="{{.ID}}" aria-labelledby="abyssSeasonTitle">
+  <header class="ab-season-hero">
+    <div class="ab-season-mark" aria-hidden="true">{{.Icon}}</div>
+    <div class="ab-season-copy">
+      <span class="ab-season-kicker">TEN-WEEK EXPEDITION</span>
+      <h2 id="abyssSeasonTitle">{{.Name}}</h2>
+      <p>{{.Tagline}}</p>
+      <div class="ab-season-meta">
+        <span>Week <b>{{.CurrentWeek}}</b> / 10</span>
+        <span>{{.StartLabel}} — {{.EndLabel}}</span>
+        <span><b>{{.Claimed}}</b> / 10 recovered</span>
+      </div>
+    </div>
+    <div class="ab-season-affinity">
+      <small>ACTIVE INFLUENCE</small>
+      <strong>{{.Icon}} {{.Affinity}} ×3</strong>
+      <span>matching biome weight</span>
+    </div>
+  </header>
+
+  {{if .LoadError}}
+  <div class="ab-season-error" role="status">⚠️ {{.LoadError}} Existing rewards remain safe.</div>
+  {{end}}
+
+  <div class="ab-season-track" aria-label="Season journey rewards">
+    {{range .Weeks}}
+    <article class="ab-season-week {{if .Current}}current{{end}} {{if .Claimed}}claimed{{end}} {{if not .Available}}locked{{end}}" id="abyssSeasonWeek{{.Week}}" data-season-week="{{.Week}}">
+      <div class="ab-season-week-head">
+        <span class="ab-season-week-number">W{{.Week}}</span>
+        {{if .Current}}<span class="ab-season-now">NOW</span>{{end}}
+        {{if .Claimed}}<span class="ab-season-owned">RECOVERED</span>{{end}}
+      </div>
+      <div class="ab-season-reward-glyph" aria-hidden="true">{{if .Claimed}}✦{{else if .Available}}◆{{else}}◇{{end}}</div>
+      <small>{{.Kind}}</small>
+      <h3>{{.Name}}</h3>
+      <div class="ab-season-progress" role="progressbar" aria-label="Week {{.Week}} floors cleared" aria-valuemin="0" aria-valuemax="{{.Goal}}" aria-valuenow="{{.Progress}}">
+        <span style="width:{{.Percent}}%"></span>
+      </div>
+      <p><b>{{.Progress}}</b> / {{.Goal}} floors cleared this week</p>
+      {{if .Claimed}}
+        <button type="button" class="ghost xs" disabled>✓ In collection</button>
+      {{else if not .Available}}
+        <button type="button" class="ghost xs" disabled>🔒 Week {{.Week}}</button>
+      {{else if .Complete}}
+        <button type="button" class="primary xs" onclick="abyssSeasonClaim({{.Week}},this)">Claim cosmetic</button>
+      {{else}}
+        <button type="button" class="ghost xs" disabled>{{.Goal}} floors required</button>
+      {{end}}
+    </article>
+    {{end}}
+  </div>
+  <footer class="ab-season-foot">
+    <span>Progress resets each Monday at 00:00 UTC.</span>
+    <span>Collectibles are visual only and grant no combat power.</span>
+  </footer>
+</section>
+{{end}}
+{{end}}
+
+{{define "abyssSeasonJourneyJS"}}
+async function abyssSeasonClaim(week,button){
+  if(!button||button.disabled)return;
+  button.disabled=true;
+  var oldText=button.textContent;
+  button.textContent='Recovering…';
+  try{
+    var data=await abPost('/api/abyss/season/claim',{week:week});
+    if(!data.ok)throw new Error(data.error||'claim failed');
+    var card=document.getElementById('abyssSeasonWeek'+week);
+    if(card){
+      card.classList.add('claimed');
+      var owned=card.querySelector('.ab-season-owned');
+      if(!owned){
+        owned=document.createElement('span');
+        owned.className='ab-season-owned';
+        owned.textContent='RECOVERED';
+        var head=card.querySelector('.ab-season-week-head');
+        if(head)head.appendChild(owned);
+      }
+    }
+    button.className='ghost xs';
+    button.textContent='✓ In collection';
+    button.disabled=true;
+    abToast((data.already_owned?'Already in collection: ':'Cosmetic recovered: ')+data.name,true);
+  }catch(error){
+    button.disabled=false;
+    button.textContent=oldText;
+    abToast(error.message||'Could not claim the season reward.',false);
+  }
+}
+{{end}}

@@ -70,8 +70,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "a02471b097730fbcf6fc261cf98e64ded219ed627e73d2098ee5640ea9685afb"},
-		{name: "active_run", active: true, want: "db3ba305b09da127500585c7b28cae6016ad70e41114ca8be17ad46e95a7b30b"},
+		{name: "threshold", want: "e85a15b14732e8e33cca76f432e2f69105e2b02ee0d91377929e17683e414374"},
+		{name: "active_run", active: true, want: "1b247a95f5b8fb134390da390af98721517aa0aa910468f02e7e738ce4e73e5c"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -125,6 +125,27 @@ func TestAbyssHistoryLootEscapesMarkup(t *testing.T) {
 func abyssGoldenFixture(active bool) map[string]any {
 	stats := abyssStats{BestDepth: 57, Tokens: 42, LifetimeFloors: 321, LifetimeBanked: 654321}
 	run := abyssRun{Tier: "normal", FloorType: "combat"}
+	campaign := abyssSeasonCampaignAt(time.Date(2026, time.August, 25, 12, 0, 0, 0, time.UTC))
+	seasonJourney := abyssSeasonJourneyView{
+		ID: campaign.ID, Name: campaign.Name, Icon: campaign.Icon,
+		Affinity: campaign.Affinity, Palette: campaign.Palette, Tagline: campaign.Tagline,
+		StartLabel: campaign.Start.Format("02 Jan 2006"), EndLabel: campaign.End.Add(-time.Second).Format("02 Jan 2006"),
+		CurrentWeek: campaign.CurrentWeek,
+	}
+	for week := 1; week <= abyssSeasonWeeks; week++ {
+		progress := int64(0)
+		percent := 0
+		if week == 1 {
+			progress = abyssSeasonWeekGoals[0]
+			percent = 100
+		}
+		seasonJourney.Weeks = append(seasonJourney.Weeks, abyssSeasonRewardView{
+			Week: week, Name: campaign.RewardWord + " " + abyssSeasonRewardNames[week-1],
+			Kind: abyssSeasonRewardKinds[week-1], Goal: abyssSeasonWeekGoals[week-1],
+			Progress: progress, Percent: percent,
+			Available: week <= campaign.CurrentWeek, Complete: week == 1, Current: week == campaign.CurrentWeek,
+		})
+	}
 	if active {
 		run.Active = true
 		run.Depth = 12
@@ -140,7 +161,7 @@ func abyssGoldenFixture(active bool) map[string]any {
 			Gold: 123456, AbyssTokens: 42, CurrentHP: 750, MaxHP: 1000,
 		},
 		"Stats": stats, "Run": run, "RegenPerSec": 0.0, "AutoFocus": "balanced",
-		"Tiers": abyssTierList(stats.BestDepth), "Leaders": abyssBoards{}, "Season": "S1",
+		"Tiers": abyssTierList(stats.BestDepth), "Leaders": abyssBoards{}, "Season": "S1", "SeasonJourney": seasonJourney,
 		"History": []any{}, "Achievements": []abyssAchievementView{}, "BadgeOptions": []any{},
 		"RunInsights": abyssRunInsightsView{}, "LongTerm": abyssLongTermView{},
 		"ActiveBadge": "", "ActiveBadgeName": "", "LoreList": []any{}, "LoreTotal": len(abyssLoreFragments),

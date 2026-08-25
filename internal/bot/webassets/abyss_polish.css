@@ -6,6 +6,7 @@ body[data-ab-season="winter"] { --ab-season-accent: #8dddf8; --ab-season-wash: r
 body[data-ab-season="bloom"] { --ab-season-accent: #82d995; --ab-season-wash: rgba(76,175,80,.06); }
 body[data-ab-season="ember"] { --ab-season-accent: #f0a34a; --ab-season-wash: rgba(224,112,38,.06); }
 body[data-ab-season="harvest"] { --ab-season-accent: #c892e8; --ab-season-wash: rgba(126,70,155,.07); }
+body[data-ab-season="void"] { --ab-season-accent: #bd8cff; --ab-season-wash: rgba(94,72,170,.07); }
 body:has(.abyss-command-page) { background-color:#080b11; background-image:radial-gradient(circle at 50% 22%,var(--ab-depth-glow,transparent),transparent 48%),linear-gradient(var(--ab-season-wash,transparent),var(--ab-season-wash,transparent)); }
 body.ab-high-contrast:has(.abyss-command-page) { background-image: none; }
 .abyss-command-page .abyss-stage { border-color: color-mix(in srgb,var(--ab-season-accent,#d7a93b) 45%,#31434d); }

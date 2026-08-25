@@ -213,6 +213,8 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 
 ## Delivered tranche: operational quality and client performance
 
+- [x] **AAA-0976 / AB-276** — deterministic ten-week campaigns now apply a visible seasonal palette and triple-weight their matching biome affinity through the replay-safe encounter RNG.
+- [x] **AAA-0977 / AB-277** — a dedicated Season tab aggregates weekly cleared floors server-side and grants ten idempotent, cosmetic-only account collectibles through guarded claims.
 - [x] **AAA-0981 / AB-281** — terminal live combats transactionally archive their deterministic seed and participant-visible event log, with an owner-authorized bounded portal viewer.
 - [x] **AAA-0982 / AB-282** — a versioned anonymous public endpoint exposes only cached global and per-tier aggregates, with CORS, ETag, HEAD, and generic failure handling.
 - [x] **AAA-0984 / AB-284** — live snapshots expose the authoritative per-round action-change budget, with proactive warnings and client lockout that preserves the queued or automatic fallback action.

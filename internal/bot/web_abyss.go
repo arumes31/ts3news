@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"math"
 	"math/rand/v2"
 	"net/http"
@@ -833,10 +834,16 @@ func (b *Bot) fightAbyssFloorLive(
 		}
 	}
 
-	theme := content.CurrentTheme(time.Now())
-	biome := content.AbyssBiomeFor(depth)
+	encounterTime := time.Now()
+	theme := content.CurrentTheme(encounterTime)
+	seasonCampaign := abyssSeasonCampaignAt(encounterTime)
+	biomeWeight := content.AbyssBiomeWeight(depth, seasonCampaign.Affinity)
+	biome := content.AbyssBiomeForAffinity(depth, seasonCampaign.Affinity, encounterRandom.IntN(biomeWeight))
 	zoneName := biome.Name + " " + abyssZoneName(depth)
 	diff *= biome.DiffMod
+	if biome.Affinity == seasonCampaign.Affinity {
+		logs = append(logs, fmt.Sprintf("%s %s influence: %s biomes are surging this season.", seasonCampaign.Icon, seasonCampaign.Name, seasonCampaign.Affinity))
+	}
 	if theme != nil {
 		logs = append(logs, fmt.Sprintf("%s The Abyss is gripped by the %s theme!", theme.Emoji, theme.Name))
 		switch theme.Emoji {
@@ -1529,6 +1536,10 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	ownedCosmetics := s.bot.abyssOwnedShopCosmetics(uid)
 	bossCosmetics := s.bot.abyssBossCosmeticCollectionWithOwned(uid, ownedCosmetics)
 	shopViews := s.bot.abyssShopViewsWithOwned(uid, time.Now(), ownedCosmetics)
+	seasonJourney, seasonJourneyErr := s.bot.abyssSeasonJourney(r.Context(), uid, time.Now(), ownedCosmetics)
+	if seasonJourneyErr != nil {
+		log.Printf("abyss season journey read failed: uid=%q err=%v", uid, seasonJourneyErr)
+	}
 
 	s.render(w, "abyss", map[string]any{
 		"Title":               "The Abyss",
@@ -1543,6 +1554,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Tiers":               abyssTierList(st.BestDepth),
 		"Leaders":             s.bot.abyssLeaderboardsForUID(lbTier, uid),
 		"Season":              abyssSeasonLabel(),
+		"SeasonJourney":       seasonJourney,
 		"History":             history,
 		"RunInsights":         insights,
 		"LongTerm":            longTerm,

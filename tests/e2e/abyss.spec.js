@@ -115,6 +115,33 @@ test('command palette ranks sections, remembers recents, and explains locked act
   await expect(page.locator('#abCommandSearch')).toBeVisible();
 });
 
+test('season journey is a dedicated responsive tab with an idempotent cosmetic claim', async ({ page }) => {
+  let claimedWeek = 0;
+  await fulfillAbyssAPI(page, (path, body) => {
+    if (path.endsWith('/season/claim')) {
+      claimedWeek = body.week;
+      return { ok: true, week: body.week, name: 'Ember Scout Sigil', claimed: true, already_owned: false };
+    }
+    return { ok: false, error: 'unexpected e2e request' };
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/abyss');
+  await page.locator('.ab-tab[data-tab-key="season"]').click();
+
+  await expect(page.locator('#abyssSeasonJourney')).toBeVisible();
+  await expect(page.locator('#abyssSeasonTitle')).toHaveText('Ember Descent');
+  await expect(page.locator('body')).toHaveAttribute('data-ab-season', 'ember');
+  await expect(page.locator('.ab-season-week')).toHaveCount(10);
+  await expect(page.locator('.ab-season-affinity')).toContainText('fire ×3');
+  await page.getByRole('button', { name: 'Claim cosmetic' }).click();
+  await expect.poll(() => claimedWeek).toBe(1);
+  await expect(page.locator('#abyssSeasonWeek1')).toHaveClass(/claimed/);
+  await expect(page.locator('#abyssSeasonWeek1 button')).toHaveText('✓ In collection');
+
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
 test('dedicated special-item pixel atlases are served', async ({ request }) => {
   const families = [
     'relics', 'ranged', 'artifacts', 'souls', 'auras', 'charms', 'mounts',
