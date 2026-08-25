@@ -332,8 +332,8 @@ func (s *WebServer) handleAbyssCraft(w http.ResponseWriter, r *http.Request, uid
 	writeJSON(w, map[string]any{
 		"ok": true, "msg": msg, "quest_done": done, "quest_target": craftQuestTarget,
 		"first_craft_bonus": firstCraft,
-		"craft_crit":         craftCrit,
-		"output":             output,
+		"craft_crit":        craftCrit,
+		"output":            output,
 		"materials":         s.bot.loadMaterials(uid), "tokens": s.bot.abyssTokens(uid),
 		"consumables": s.bot.getConsumables(uid),
 	})
@@ -518,7 +518,12 @@ type forgeUndoSnapshot struct {
 // overwrites so the stored undo reflects the latest action.
 func (b *Bot) snapshotForgeUndo(tx *sql.Tx, uid string, invID int64, slot, itemData, action string) {
 	snap, _ := json.Marshal(forgeUndoSnapshot{InvID: invID, Slot: slot, ItemData: itemData, Action: action})
-	b.storeForgeUndoSnapshot(tx, uid, string(snap))
+	if err := b.storeForgeUndoSnapshot(tx, uid, string(snap)); err != nil {
+		// Callers perform more transactional work immediately after taking the
+		// snapshot. Rolling back here makes that work fail closed instead of ever
+		// committing a mutation without its promised undo state.
+		_ = tx.Rollback()
+	}
 }
 
 // snapshotForgeUndoPair is snapshotForgeUndo for two-item actions: both items'
@@ -526,26 +531,37 @@ func (b *Bot) snapshotForgeUndo(tx *sql.Tx, uid string, invID int64, slot, itemD
 func (b *Bot) snapshotForgeUndoPair(tx *sql.Tx, uid string, invID int64, slot, itemData string, invID2 int64, slot2, itemData2, action string) {
 	snap, _ := json.Marshal(forgeUndoSnapshot{InvID: invID, Slot: slot, ItemData: itemData, Action: action,
 		InvID2: invID2, Slot2: slot2, ItemData2: itemData2})
-	b.storeForgeUndoSnapshot(tx, uid, string(snap))
+	if err := b.storeForgeUndoSnapshot(tx, uid, string(snap)); err != nil {
+		_ = tx.Rollback()
+	}
 }
 
 // storeForgeUndoSnapshot keeps the previous snapshot only for owners of the
 // second-undo Sanctuary upgrade. Both stack movement and the forge mutation use
 // the same transaction, so a failed forge cannot corrupt the undo order.
-func (b *Bot) storeForgeUndoSnapshot(tx *sql.Tx, uid, snapshot string) {
+func (b *Bot) storeForgeUndoSnapshot(tx *sql.Tx, uid, snapshot string) error {
 	var ownsSecond bool
-	_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value='1')", forge4Undo2Key(uid)).Scan(&ownsSecond)
+	if err := tx.QueryRow("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value='1')", forge4Undo2Key(uid)).Scan(&ownsSecond); err != nil {
+		return err
+	}
 	if ownsSecond {
 		var current sql.NullString
-		_ = tx.QueryRow("SELECT forge_undo FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&current)
+		if err := tx.QueryRow("SELECT forge_undo FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&current); err != nil {
+			return err
+		}
 		if current.Valid && current.String != "" {
-			_, _ = tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-				ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`, forge4Undo2Key(uid)+"_previous", current.String)
+			if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+				ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`, forge4Undo2Key(uid)+"_previous", current.String); err != nil {
+				return err
+			}
 		} else {
-			_, _ = tx.Exec("DELETE FROM app_meta WHERE key=$1", forge4Undo2Key(uid)+"_previous")
+			if _, err := tx.Exec("DELETE FROM app_meta WHERE key=$1", forge4Undo2Key(uid)+"_previous"); err != nil {
+				return err
+			}
 		}
 	}
-	_, _ = tx.Exec(`UPDATE users SET forge_undo=$2 WHERE client_uid=$1`, uid, snapshot)
+	_, err := tx.Exec(`UPDATE users SET forge_undo=$2 WHERE client_uid=$1`, uid, snapshot)
+	return err
 }
 
 // handleAbyssForgeUndo restores the last snapshotted forge action (#116). The
@@ -575,8 +591,14 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 	usingSecondUndo := false
 	if usedToday {
 		var ownsSecond, secondUsedToday bool
-		_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value='1')", forge4Undo2Key(uid)).Scan(&ownsSecond)
-		_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value=CURRENT_DATE::text)", forge4Undo2Key(uid)+"_used").Scan(&secondUsedToday)
+		if err := tx.QueryRow("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value='1')", forge4Undo2Key(uid)).Scan(&ownsSecond); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if err := tx.QueryRow("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value=CURRENT_DATE::text)", forge4Undo2Key(uid)+"_used").Scan(&secondUsedToday); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 		if !ownsSecond || secondUsedToday {
 			writeJSON(w, map[string]any{"ok": false, "error": "undo limit reached today"})
 			return
@@ -596,10 +618,15 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 	// RowsAffected, so verify the snapshotted item still exists up front — reverting
 	// a deleted/sold item must not burn the once-per-day undo.
 	itemExists := false
+	var existsErr error
 	if snap.InvID > 0 {
-		_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_inventory WHERE id=$1 AND client_uid=$2)", snap.InvID, uid).Scan(&itemExists)
+		existsErr = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_inventory WHERE id=$1 AND client_uid=$2)", snap.InvID, uid).Scan(&itemExists)
 	} else {
-		_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE slot=$1 AND client_uid=$2)", snap.Slot, uid).Scan(&itemExists)
+		existsErr = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE slot=$1 AND client_uid=$2)", snap.Slot, uid).Scan(&itemExists)
+	}
+	if existsErr != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
 	}
 	if !itemExists {
 		writeJSON(w, map[string]any{"ok": false, "error": "item no longer exists"})
@@ -610,9 +637,13 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 	if snap.ItemData2 != "" {
 		item2Exists := false
 		if snap.InvID2 > 0 {
-			_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_inventory WHERE id=$1 AND client_uid=$2)", snap.InvID2, uid).Scan(&item2Exists)
+			existsErr = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_inventory WHERE id=$1 AND client_uid=$2)", snap.InvID2, uid).Scan(&item2Exists)
 		} else {
-			_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE slot=$1 AND client_uid=$2)", snap.Slot2, uid).Scan(&item2Exists)
+			existsErr = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_gear WHERE slot=$1 AND client_uid=$2)", snap.Slot2, uid).Scan(&item2Exists)
+		}
+		if existsErr != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
 		}
 		if !item2Exists {
 			writeJSON(w, map[string]any{"ok": false, "error": "item no longer exists"})
@@ -629,7 +660,10 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 	}
 	nextSnapshot := ""
 	if !usingSecondUndo {
-		_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4Undo2Key(uid)+"_previous").Scan(&nextSnapshot)
+		if err := tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4Undo2Key(uid)+"_previous").Scan(&nextSnapshot); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 	}
 	if _, err := tx.Exec("UPDATE users SET forge_undo=NULLIF($2, ''), forge_undo_date=CURRENT_DATE WHERE client_uid=$1", uid, nextSnapshot); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})

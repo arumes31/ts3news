@@ -256,9 +256,10 @@ func (b *Bot) broadcastAbyssEternalDrop(uid, itemName string) {
 	}
 	_ = c.Use(1)
 
-	// Nickname is user-controlled; neutralize BBCode so the broadcast can't
-	// inject formatting or links (same guard as BroadcastAbyssRecord).
+	// Nickname and the item label can both originate in persisted player-facing
+	// data; neutralize BBCode so the broadcast cannot inject formatting or links.
 	nick = sanitizeBBCode(nick)
+	itemName = sanitizeBBCode(itemName)
 
 	oldNick := b.Cfg.TS3Nickname
 	_ = c.SetNickname("Eternal Drop!")

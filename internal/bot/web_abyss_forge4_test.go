@@ -1,11 +1,24 @@
 package bot
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
+
 	"ts3news/internal/content"
 )
+
+func expectForge4Audit(mock sqlmock.Sqlmock) {
+	mock.ExpectExec("INSERT INTO forge_history").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("UPDATE users SET forge_rep").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("INSERT INTO abyss_forge_progression").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT INTO abyss_forge_receipts").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT INTO app_meta").WillReturnResult(sqlmock.NewResult(1, 1))
+}
 
 func TestForge4PureMechanics(t *testing.T) {
 	t.Parallel()
@@ -113,5 +126,107 @@ func TestForge4RoutesHavePlayerControls(t *testing.T) {
 		if !strings.Contains(source, required) {
 			t.Errorf("Forge control contract is missing %q", required)
 		}
+	}
+}
+
+func TestStoreForgeUndoSnapshotPreservesPreviousForUpgradeOwner(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectBegin()
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	uid := "forge-player"
+	upgradeKey := forge4Undo2Key(uid)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM app_meta WHERE key=$1 AND value='1')")).
+		WithArgs(upgradeKey).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT forge_undo FROM users WHERE client_uid=$1 FOR UPDATE")).
+		WithArgs(uid).WillReturnRows(sqlmock.NewRows([]string{"forge_undo"}).AddRow(`{"action":"older"}`))
+	mock.ExpectExec("INSERT INTO app_meta").WithArgs(upgradeKey+"_previous", `{"action":"older"}`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("UPDATE users SET forge_undo").WithArgs(uid, `{"action":"newer"}`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	if err := (&Bot{DB: db}).storeForgeUndoSnapshot(tx, uid, `{"action":"newer"}`); err != nil {
+		t.Fatalf("store snapshot: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestForgeUndoConsumesTwoSnapshotsInNewestFirstOrder(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	mock.MatchExpectationsInOrder(true)
+	server := &WebServer{bot: &Bot{DB: db}}
+	uid := "forge-player"
+	upgradeKey := forge4Undo2Key(uid)
+	newest := `{"inv_id":7,"item_data":"newest-before","action":"newest"}`
+	previous := `{"inv_id":7,"item_data":"previous-before","action":"previous"}`
+
+	// First use restores the newest snapshot and promotes the older one.
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT forge_undo").WithArgs(uid).
+		WillReturnRows(sqlmock.NewRows([]string{"forge_undo", "used_today"}).AddRow(newest, false))
+	mock.ExpectQuery("SELECT EXISTS.*user_inventory").WithArgs(int64(7), uid).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	mock.ExpectExec("UPDATE user_inventory SET item_data").WithArgs("newest-before", int64(7), uid).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs(upgradeKey + "_previous").
+		WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(previous))
+	mock.ExpectExec("UPDATE users SET forge_undo").WithArgs(uid, previous).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("DELETE FROM app_meta").WithArgs(upgradeKey + "_previous").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	expectForge4Audit(mock)
+
+	response := httptest.NewRecorder()
+	server.handleAbyssForgeUndo(response, httptest.NewRequest(http.MethodPost, "/api/abyss/forge_undo", nil), uid)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"ok":true`) {
+		t.Fatalf("first undo response = %d %s", response.Code, response.Body.String())
+	}
+
+	// The second use restores the promoted snapshot and clears the stack.
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT forge_undo").WithArgs(uid).
+		WillReturnRows(sqlmock.NewRows([]string{"forge_undo", "used_today"}).AddRow(previous, true))
+	mock.ExpectQuery("SELECT EXISTS.*app_meta").WithArgs(upgradeKey).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	mock.ExpectQuery("SELECT EXISTS.*app_meta").WithArgs(upgradeKey + "_used").
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+	mock.ExpectQuery("SELECT EXISTS.*user_inventory").WithArgs(int64(7), uid).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	mock.ExpectExec("UPDATE user_inventory SET item_data").WithArgs("previous-before", int64(7), uid).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("UPDATE users SET forge_undo").WithArgs(uid, "").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("DELETE FROM app_meta").WithArgs(upgradeKey + "_previous").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("INSERT INTO app_meta").WithArgs(upgradeKey + "_used").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+	expectForge4Audit(mock)
+
+	response = httptest.NewRecorder()
+	server.handleAbyssForgeUndo(response, httptest.NewRequest(http.MethodPost, "/api/abyss/forge_undo", nil), uid)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"ok":true`) {
+		t.Fatalf("second undo response = %d %s", response.Code, response.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }

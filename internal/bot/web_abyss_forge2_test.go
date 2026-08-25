@@ -38,6 +38,11 @@ func newForge2TestServer(t *testing.T) (*WebServer, sqlmock.Sqlmock, func()) {
 	return &WebServer{bot: b}, mock, func() { _ = db.Close() }
 }
 
+func expectNoSecondForgeUndo(mock sqlmock.Sqlmock, uid string) {
+	mock.ExpectQuery("SELECT EXISTS.*app_meta").WithArgs(forge4Undo2Key(uid)).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+}
+
 // postForge2 invokes a forge2 handler with a JSON body and returns the response.
 func postForge2(t *testing.T, h func(w http.ResponseWriter, r *http.Request, uid string), body, uid string) *httptest.ResponseRecorder {
 	t.Helper()
@@ -67,6 +72,7 @@ func TestAbyssSharpenBakesSTR(t *testing.T) {
 	mock.ExpectExec("UPDATE user_materials SET count = count -").
 		WithArgs(2, uid, "dust").
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	expectNoSecondForgeUndo(mock, uid)
 	mock.ExpectExec("UPDATE users SET forge_undo=").
 		WithArgs(uid, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -183,6 +189,7 @@ func TestAbyssAttuneBinds(t *testing.T) {
 	mock.ExpectExec("UPDATE users SET abyss_tokens = abyss_tokens -").
 		WithArgs(int64(15), uid).
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	expectNoSecondForgeUndo(mock, uid)
 	mock.ExpectExec("UPDATE users SET forge_undo=").
 		WithArgs(uid, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(0, 1))
