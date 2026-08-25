@@ -110,25 +110,25 @@ type activeUser struct {
 	// --- Abyss combat mechanics (docs/ABYSS_IMPROVEMENTS_300.md, group C) ---
 	// All of these are only consulted on paths gated by abyssCombatant(u), so
 	// regular TS3 channel combat never sees them.
-	lastCastElement   content.Element      // AB-51 element of the previous cast (elemental combo)
-	stunbreakUsed     bool                 // AB-59 one free stun cleanse per boss fight
-	stunbrokenRound   int                  // AB-59 round the stunbreak fired (acts at 50%)
-	parryCount        int                  // AB-56 parries this fight (3 grant Stealth)
-	stealthUntilRound int                  // AB-56 granted stealth: mobs skip up to this round
-	fumbled           bool                 // AB-72 next hit gets +10% crit (embarrassed rage)
-	weaponSwapped     bool                 // AB-53 once-per-fight mid-boss weapon swap
-	petFocus          string               // AB-58 pet focus-fire target (mob name)
-	petFocusLogged    bool                 // AB-58 one-time focus-fire log
-	holdMana          bool                 // AB-64 hold-mana toggle (save casts for bosses)
-	holdManaLogged    bool                 // AB-64 one-time hold-mana log
+	lastCastElement   content.Element       // AB-51 element of the previous cast (elemental combo)
+	stunbreakUsed     bool                  // AB-59 one free stun cleanse per boss fight
+	stunbrokenRound   int                   // AB-59 round the stunbreak fired (acts at 50%)
+	parryCount        int                   // AB-56 parries this fight (3 grant Stealth)
+	stealthUntilRound int                   // AB-56 granted stealth: mobs skip up to this round
+	fumbled           bool                  // AB-72 next hit gets +10% crit (embarrassed rage)
+	weaponSwapped     bool                  // AB-53 once-per-fight mid-boss weapon swap
+	petFocus          string                // AB-58 pet focus-fire target (mob name)
+	petFocusLogged    bool                  // AB-58 one-time focus-fire log
+	holdMana          bool                  // AB-64 hold-mana toggle (save casts for bosses)
+	holdManaLogged    bool                  // AB-64 one-time hold-mana log
 	lastAttackers     map[*content.Mob]bool // AB-68 mobs that targeted this user last mobTurn
-	lastUltRound      int                  // AB-70 round an ultimate was last fired
-	execFlourished    bool                 // AB-55 one-time Executioner+Execute flourish log
-	cursedMercyLogged bool                 // AB-54 one-time cursed mercy log
-	runeWardLogged    bool                 // AB-67 one-time rune-ward resist log
-	defendingRound    int                  // live combat: DEF boost remains through one enemy phase
-	potionCooldown    int                  // shared cooldown for powerful live consumables
-	relicCharges      int                  // run-bound active relic uses remaining
+	lastUltRound      int                   // AB-70 round an ultimate was last fired
+	execFlourished    bool                  // AB-55 one-time Executioner+Execute flourish log
+	cursedMercyLogged bool                  // AB-54 one-time cursed mercy log
+	runeWardLogged    bool                  // AB-67 one-time rune-ward resist log
+	defendingRound    int                   // live combat: DEF boost remains through one enemy phase
+	potionCooldown    int                   // shared cooldown for powerful live consumables
+	relicCharges      int                   // run-bound active relic uses remaining
 }
 
 // cycleContext holds per-cycle shared facts used by the XP modifiers.
@@ -212,15 +212,15 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 		award = base // base is already negative here
 		var curXP, curLevel int
 		_ = b.DB.QueryRow("SELECT xp, level FROM users WHERE client_uid=$1", uid).Scan(&curXP, &curLevel)
-		
+
 		baseXP := leveling.XPForLevel(curLevel)
 		levelProgress := curXP - baseXP
-		
+
 		maxLoss := -levelProgress
 		if maxLoss > -10 {
 			maxLoss = -10 // minimum 10 xp loss
 		}
-		
+
 		if award < maxLoss {
 			award = maxLoss
 		}
@@ -241,10 +241,10 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 				g.Rarity = content.RarityEpic
 			}
 			_ = b.awardGearDrop(uid, g)
-			
+
 			c := content.RandomConsumable()
 			_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
-			
+
 			notes = append(notes, fmt.Sprintf("🎁 Level %d Milestone Reached! You found a %s and a %s!", (lr.NewLevel/lootBoxEveryLevels)*lootBoxEveryLevels, g.Name, c.Name))
 		}
 	}
@@ -554,7 +554,10 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 	}
 
 	phaseOnce := make(map[string]bool)
-	track := &abyssFightTrack{}
+	var track *abyssFightTrack
+	if isAbyss {
+		track = &abyssFightTrack{}
+	}
 	activeUsers := make([]activeUser, len(users))
 	for i := range users {
 		_, _, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
@@ -946,13 +949,13 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 					waveVictory = true
 					break
 				}
-				b.mobTurn(activeUsers, currentMobs, zone, intensify*despMult, &logs, &totalMobDamage, &totalUserDamage, r, false, rand)
+				b.mobTurn(activeUsers, currentMobs, zone, intensify*despMult, &logs, &totalMobDamage, &totalUserDamage, r, false, track, rand)
 				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
 				observeLiveResolution()
 			} else {
 				// The opening round of an enemy-first wave is the ambush: soften it so
 				// it can't one-shot a player before they ever act.
-				b.mobTurn(activeUsers, currentMobs, zone, intensify*despMult, &logs, &totalMobDamage, &totalUserDamage, r, r == 1, rand)
+				b.mobTurn(activeUsers, currentMobs, zone, intensify*despMult, &logs, &totalMobDamage, &totalUserDamage, r, r == 1, track, rand)
 				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
 				aliveUsers := 0
 				for _, u := range users {
@@ -1078,7 +1081,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 	}
 
 	var finalAwardedXP int
-	logs, finalAwardedXP, victory = b.distributeRewards(users, activeUsers, victory, totalUserDamage, totalMobDamage, killedXP, initialMobs, nil, zone, logs, avgLvl, rand)
+	logs, finalAwardedXP, victory = b.distributeRewards(users, activeUsers, victory, totalUserDamage, totalMobDamage, killedXP, initialMobs, nil, zone, logs, avgLvl, track, rand)
 
 	// AB-69 Kill-chain: clearing the floor in ≤2 rounds grants +5% speed next
 	// floor, stacking ×3. Granted after distributeRewards so the standard
@@ -1768,7 +1771,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				dmgMult *= ultMult
 				*logs = append(*logs, i18n.T("bot.combat.ultimate_activation", readyUlt.Name))
 				au.lastUltRound = round // AB-70: interrupt window for boss summon telegraphs
-				
+
 				cooldownVal := readyUlt.CooldownRounds
 				if red := clampRecovery(au.treeBonus.Pct["ult_cooldown"] + au.treeBonus.Pct["ultimate_charge"]); red > 0 {
 					cooldownVal = int(float64(cooldownVal) * (1.0 - red))
@@ -2056,8 +2059,15 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if len(aliveMobs) == 0 {
 				break
 			}
-			// #nosec G404
-			ptarget := aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
+			ptarget := petFocusTarget(aliveMobs, au.petFocus)
+			if ptarget != nil && !au.petFocusLogged {
+				au.petFocusLogged = true
+				*logs = append(*logs, fmt.Sprintf("🎯 %s focuses %s on %s.", u.Nickname, p.Name, ptarget.Name))
+			}
+			if ptarget == nil {
+				// #nosec G404 -- legacy random pet targeting fallback
+				ptarget = aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
+			}
 			petDmgMult := 1.0
 			if bonus := au.treeBonus.Pct["pet_damage_pct"]; bonus > 0 {
 				petDmgMult += bonus
@@ -2089,10 +2099,13 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 	}
 }
 
-func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone content.Zone, intensify float64, logs *[]string, totalMobDamage, totalUserDamage *int, round int, ambush bool, rand combatRandomSource) {
+func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone content.Zone, intensify float64, logs *[]string, totalMobDamage, totalUserDamage *int, round int, ambush bool, track *abyssFightTrack, rand combatRandomSource) {
 	livePlans := map[int]abyssLiveEnemyPlan{}
 	if live := abyssLiveCombatFor(activeUsers); live != nil {
 		livePlans = live.enemyPlansForRound(round)
+	}
+	for i := range activeUsers {
+		activeUsers[i].lastAttackers = make(map[*content.Mob]bool)
 	}
 	// Ambush softening (all modes): track a per-target damage budget so a surprise
 	// round can strip at most ambushDamageCapPct of each player's max HP, and clamp
@@ -2122,16 +2135,30 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 		}
 
 		plan, planned := livePlans[mobIndex]
-		targetAU, targetPlanned := liveActiveUserByUID(activeUsers, plan.TargetUID)
-		if !targetPlanned {
-			potentialTargets := livePotentialTargets(activeUsers)
+		var targetAU *activeUser
+		if planned {
+			for i := range activeUsers {
+				if activeUsers[i].u != nil && activeUsers[i].u.UID == plan.TargetUID && activeUsers[i].u.CurrentHP > 0 {
+					targetAU = &activeUsers[i]
+					break
+				}
+			}
+		}
+		if targetAU == nil {
+			potentialTargets := make([]int, 0, len(activeUsers))
+			for i := range activeUsers {
+				if activeUsers[i].u != nil && activeUsers[i].u.CurrentHP > 0 {
+					potentialTargets = append(potentialTargets, i)
+				}
+			}
 			if len(potentialTargets) == 0 {
 				continue
 			}
 			// #nosec G404 -- legacy combat target selection
-			targetAU = potentialTargets[rand.IntN(len(potentialTargets))] // #nosec G404
+			targetAU = &activeUsers[potentialTargets[rand.IntN(len(potentialTargets))]] // #nosec G404
 		}
 		target := targetAU.u
+		targetAU.lastAttackers[m] = true
 
 		// Physical Evasion for Backline
 		if target.Position == content.PositionBackline && m.Element == content.ElementPhysical {
@@ -2150,7 +2177,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 				break
 			}
 		}
-		if round == 1 && hasStealth {
+		if (round == 1 && hasStealth) || targetAU.stealthUntilRound >= round {
 			continue
 		}
 
@@ -2172,6 +2199,16 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			counterDmg = abyssKillerDamage(counterDmg, target, m)
 			m.Stats.HP -= counterDmg
 			*totalUserDamage += counterDmg
+			if track != nil {
+				track.counters += counterDmg
+			}
+			if abyssCombatant(target) {
+				targetAU.parryCount++
+				if targetAU.parryCount == 3 {
+					targetAU.stealthUntilRound = round + 1
+					*logs = append(*logs, fmt.Sprintf("🌫️ Parry mastery! %s vanishes into Stealth for the next round.", target.Nickname))
+				}
+			}
 			continue
 		}
 
@@ -2277,6 +2314,13 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 				}
 			}
 		}
+		if abyssCombatant(target) && runeWardResist(target.Equipped, m.Element) {
+			dmg = dmg * 9 / 10
+			if !targetAU.runeWardLogged {
+				targetAU.runeWardLogged = true
+				*logs = append(*logs, fmt.Sprintf("🔷 %s's three-rune ward resists 10%% %s damage.", target.Nickname, m.Element))
+			}
+		}
 
 		// Ambush cap: limit total surprise-round damage to this target and never let
 		// it reduce them below 1 HP, so a dense enemy group can't erase a full-HP
@@ -2337,18 +2381,22 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 				reflect = abyssKillerDamage(reflect, target, m)
 				m.Stats.HP -= reflect
 				*totalUserDamage += reflect
+				if track != nil {
+					track.thorns += reflect
+				}
 			}
 		}
 	}
 }
 
-func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory bool, totalUserDamage, totalMobDamage, killedXP int, initialMobs []*content.Mob, _ []*content.Mob, zone content.Zone, logs []string, avgLvl int, rand combatRandomSource) ([]string, int, bool) {
+func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory bool, totalUserDamage, totalMobDamage, killedXP int, initialMobs []*content.Mob, _ []*content.Mob, zone content.Zone, logs []string, avgLvl int, track *abyssFightTrack, rand combatRandomSource) ([]string, int, bool) {
 	// Summarize Combat — centred header plus visual damage-share bars.
 	totalDamage := totalUserDamage + totalMobDamage
 	logs = append(logs, hr())
 	logs = append(logs, centerHeader(i18n.T("bot.combat.summary_title")))
 	logs = append(logs, i18n.T("bot.combat.summary_party", colorHeal(totalUserDamage), damageBar(totalUserDamage, totalDamage)))
 	logs = append(logs, i18n.T("bot.combat.summary_mobs", colorDmg(totalMobDamage), damageBar(totalMobDamage, totalDamage)))
+	logs = appendAbyssFightBreakdown(logs, track)
 
 	// Update pity, quests, consumables AND persistent stats
 	for i := range users {
@@ -2428,7 +2476,7 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 				// #nosec G404
 				goldDrop += int(float64(baseGold) * (0.8 + rand.Float64()*0.4) * inflationMult)
 			}
-			
+
 			// First Win of the Day Bonus
 			if !u.IsClone {
 				var lastWin sql.NullTime
@@ -2869,15 +2917,15 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) []string {
 		for _, gl := range losses {
 			var oldDura int
 			_ = b.DB.QueryRow("SELECT durability FROM user_gear WHERE client_uid = $1 AND gear_id = $2", uid, gl.gearID).Scan(&oldDura)
-			
+
 			_, _ = b.DB.Exec("UPDATE user_gear SET durability = durability - $2 WHERE client_uid = $1 AND gear_id = $3", uid, gl.loss, gl.gearID)
-			
+
 			if gl.loss > baseLoss*2 && gl.loss >= 10 {
 				if gear, ok := content.GetGearByID(gl.gearID); ok {
 					warnings = append(warnings, fmt.Sprintf("⚠️ Your %s took heavy damage (-%d durability)!", gear.Name, gl.loss))
 				}
 			}
-			
+
 			if oldDura > 0 && oldDura-gl.loss <= 0 {
 				if gear, ok := content.GetGearByID(gl.gearID); ok {
 					warnings = append(warnings, fmt.Sprintf("💥 Your %s shattered into pieces!", gear.Name))
@@ -2894,22 +2942,22 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) []string {
 	}
 
 	_, _ = b.DB.Exec("DELETE FROM user_gear WHERE client_uid = $1 AND durability <= 0", uid)
-	
+
 	// Artifact break check
 	var oldArtDura int
 	var artName sql.NullString
 	_ = b.DB.QueryRow("SELECT artifact_durability, artifact_name FROM users WHERE client_uid = $1", uid).Scan(&oldArtDura, &artName)
-	
+
 	_, _ = b.DB.Exec("UPDATE users SET artifact_durability = artifact_durability - $2 WHERE client_uid = $1 AND artifact_durability > 0", uid, baseLoss)
-	
+
 	if oldArtDura > 0 && oldArtDura-baseLoss <= 0 && artName.Valid && artName.String != "" {
 		warnings = append(warnings, fmt.Sprintf("💥 Your %s shattered into pieces!", artName.String))
 	} else if oldArtDura > 10 && oldArtDura-baseLoss <= 10 && artName.Valid && artName.String != "" {
 		warnings = append(warnings, fmt.Sprintf("⚠️ Your %s is badly damaged and will break soon!", artName.String))
 	}
-	
+
 	_, _ = b.DB.Exec("UPDATE users SET artifact_mult=1, artifact_name=NULL, artifact_durability=0 WHERE client_uid=$1 AND artifact_durability <= 0 AND artifact_name IS NOT NULL", uid)
-	
+
 	return warnings
 }
 
@@ -3277,9 +3325,9 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		// ... rest of loop ...
 		// Checks ordered by ascending threshold so smaller chances are evaluated first
 		// Thresholds: title=0.005, ultimateSkill=0.005, uniqueItem=0.01, artifact=0.01, ench=0.02, skill=0.05, cons=0.1, gear=0.10
-		
+
 		effUltChance := ultimateSkillChance*qualityMult*rareScale + float64(ultPity)*0.001 // 0.1% extra per pity point
-		effArtChance := artifactChance*qualityMult*rareScale + float64(artPity)*0.002 // 0.2% extra per pity point
+		effArtChance := artifactChance*qualityMult*rareScale + float64(artPity)*0.002      // 0.2% extra per pity point
 
 		if r < effUltChance {
 			// Ultimate skill drop (0.5%)
@@ -3412,7 +3460,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			}
 		}
 	}
-	
+
 	// Gold-focus rolls skip every item roll, so they must not advance pity (which
 	// would otherwise inflate ultimate/artifact odds for free).
 	if focus != "gold" {
@@ -3428,7 +3476,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		}
 		_, _ = b.DB.Exec("UPDATE users SET ultimate_pity=$2, artifact_pity=$3 WHERE client_uid=$1", uid, ultPity, artPity)
 	}
-	
+
 	resStr := ""
 	if len(results) > 0 {
 		resStr = strings.Join(results, ", ")

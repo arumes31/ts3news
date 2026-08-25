@@ -328,6 +328,7 @@ func (b *Bot) enrichEventState(uid, eventState string) string {
 		return eventState
 	}
 	b.enrichAbyssTraversalEvent(uid, m)
+	b.enrichAbyssContractEvent(uid, m)
 	visits := b.loadEventVisits(uid)
 	visits[typ]++
 	b.saveEventVisits(uid, visits)

@@ -127,7 +127,7 @@ func abyssSpecialRoomForRoll(roll float64) string {
 	rooms := []string{
 		"challenge_room", "cursed_door", "story_crossroads", "lost_explorer",
 		"locked_vault", "collapsed_passage", "abyssal_garden", "cursed_elevator",
-		"trap_chamber", "unstable_portal", "graveyard",
+		"trap_chamber", "unstable_portal", "graveyard", "echo_floor", "bounty_board",
 	}
 	index := int(roll / (0.20 / float64(len(rooms))))
 	if index >= len(rooms) {

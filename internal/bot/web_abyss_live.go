@@ -46,6 +46,7 @@ type abyssLiveOption struct {
 	Target       string   `json:"target"`
 	Mana         int      `json:"mana,omitempty"`
 	Cooldown     int      `json:"cooldown,omitempty"`
+	CooldownMax  int      `json:"cooldown_max,omitempty"`
 	Count        int      `json:"count,omitempty"`
 	Power        float64  `json:"power,omitempty"`
 	EffectLabel  string   `json:"effect_label,omitempty"`

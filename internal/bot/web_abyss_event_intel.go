@@ -57,6 +57,7 @@ func abyssEventTypeLabel(raw string) string {
 		"collapsed_passage": "Collapsed Passage", "abyssal_garden": "Abyssal Garden",
 		"cursed_elevator": "Cursed Elevator", "trap_chamber": "Trap Chamber",
 		"unstable_portal": "Unstable Portal", "graveyard": "Delver Graveyard",
+		"echo_floor": "Echo Floor", "bounty_board": "Bounty Board",
 	}
 	if label := labels[state.Type]; label != "" {
 		return label

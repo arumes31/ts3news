@@ -69,8 +69,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "529db09494c98f3a2d9af8abb15b312e4be96c3699af427f6557c6d45c53dfad"},
-		{name: "active_run", active: true, want: "6d8cda423097be57cea6f910618d625baa964507ada3fcfa19179fae67faaa05"},
+		{name: "threshold", want: "9188911f55d186da0c485c376c18748e974820127161c4e2abdd946a49562e11"},
+		{name: "active_run", active: true, want: "2ddf9e08eaec1f445322c58667e5e7238782d8b6a523c15ff9c575e58965ac27"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -144,7 +144,7 @@ func abyssGoldenFixture(active bool) map[string]any {
 		"ActiveBadge": "", "ActiveBadgeName": "", "LoreList": []any{}, "LoreTotal": len(abyssLoreFragments),
 		"Bestiary": []any{}, "Consumables": []any{}, "DailyMod": "",
 		"CommunityExpedition": map[string]any{"Week": "2026-W35", "Floors": 0, "Target": 1000},
-		"Helpers": []any{}, "NextIsBoss": false, "AbyssSetPieces": 0, "AbyssSetTier": 0,
+		"Helpers":             []any{}, "NextIsBoss": false, "AbyssSetPieces": 0, "AbyssSetTier": 0,
 		"PredatorPieces": 0, "PredatorTier": 0, "WardenPieces": 0, "WardenTier": 0,
 		"HarvesterPieces": 0, "HarvesterTier": 0, "Bounty": nil, "Shop": []any{},
 		"Pacts": []any{}, "Equipped": []gearView{}, "Inventory": []gearView{},
@@ -152,14 +152,14 @@ func abyssGoldenFixture(active bool) map[string]any {
 		"RunLoot": []runLootRow{}, "CanLastStand": false, "Materials": map[string]int{},
 		"MaterialDefs": []any{}, "Recipes": []any{},
 		"CraftQuest": map[string]int{"Done": 0, "Target": 5},
-		"Sanctuary": map[string]int{}, "SanctuaryDefs": []any{}, "SanctuaryStage": 0,
+		"Sanctuary":  map[string]int{}, "SanctuaryDefs": []any{}, "SanctuaryStage": 0,
 		"SanctuaryStageName": "Dormant", "ProgressionTracks": []any{}, "Spec": "",
 		"SpecDefs": []any{}, "ForgeHistory": []any{},
 		"ForgeRep": map[string]int{"Rep": 0, "DiscountPct": 0}, "ForgeHappyHour": false,
 		"ForgeCatalog": map[string]any{}, "ForgeOperations": []any{},
 		"ForgeWorkbenchEnabled": false, "ForgeWorkbench": map[string]any{}, "AutoRepair": false,
 		"TokenBuyGold": int64(100), "TokenSellGold": int64(50),
-		"PrestigeTier": map[string]string{"Name": "", "Aura": ""},
+		"PrestigeTier":     map[string]string{"Name": "", "Aura": ""},
 		"CraftLegendaries": []any{}, "LBTier": "normal", "LBTiers": abyssTierList(999),
 		"LastStandCost": int64(10), "NodeGates": map[string]int{}, "Checkpoints": []int{10, 20, 30, 40, 50},
 		"ExpressStart": 52, "ExpressCost": int64(5200),

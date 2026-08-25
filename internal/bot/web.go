@@ -129,19 +129,19 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 			}
 			return p
 		},
-		"jsonJS":     jsonJS,
-		"mulf":       func(a, b float64) float64 { return a * b },
-		"asset":      AssetURL,
-		"assetver":   AssetVer,
-		"iconURL":    IconURL,
-		"iconVer":    IconVer,
-		"cssver":     func() string { return AssetVer("webassets/style.css") },
-		"uicssver":   func() string { return AssetVer("webassets/abyss_ui200.css") },
-		"livecssver": func() string { return AssetVer("webassets/abyss_live.css") },
+		"jsonJS":         jsonJS,
+		"mulf":           func(a, b float64) float64 { return a * b },
+		"asset":          AssetURL,
+		"assetver":       AssetVer,
+		"iconURL":        IconURL,
+		"iconVer":        IconVer,
+		"cssver":         func() string { return AssetVer("webassets/style.css") },
+		"uicssver":       func() string { return AssetVer("webassets/abyss_ui200.css") },
+		"livecssver":     func() string { return AssetVer("webassets/abyss_live.css") },
 		"abyssChangelog": loadAbyssChangelog,
-		"appver":     func() string { return AssetVer("all") },
-		"halve":      func(n int) int { return n / 2 },
-		"dur":        func(ms int64) string { return fmt.Sprintf("%.1fs", float64(ms)/1000) },
+		"appver":         func() string { return AssetVer("all") },
+		"halve":          func(n int) int { return n / 2 },
+		"dur":            func(ms int64) string { return fmt.Sprintf("%.1fs", float64(ms)/1000) },
 		// dict builds a map from alternating key/value pairs, for passing several
 		// named values into a sub-template (used by the Abyss upgrade widget).
 		"dict": func(values ...any) (map[string]any, error) {
@@ -317,6 +317,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/combat/pause", s.authAPI(s.handleAbyssCombatPauseMode))
 		mux.HandleFunc("/api/abyss/combat/policy", s.authAPI(s.handleAbyssCombatPolicy))
 		mux.HandleFunc("/api/abyss/combat/tactics", s.authAPI(s.handleAbyssCombatTactics))
+		mux.HandleFunc("/api/abyss/combat/settings", s.authAPI(s.handleAbyssCombatSettings))
 		mux.HandleFunc("/api/abyss/combat/social", s.authAPI(s.handleAbyssCombatSocial))
 		mux.HandleFunc("/api/abyss/combat/events", s.authAPI(s.handleAbyssCombatEvents))
 		mux.HandleFunc("/api/abyss/replay/code", s.authAPI(s.handleAbyssReplayCode))
@@ -333,6 +334,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/loadout/gems", s.authAPI(s.handleAbyssGemPreset))
 		mux.HandleFunc("/api/abyss/noncombat/action", s.authAPI(s.handleAbyssNonCombatAction))
 		mux.HandleFunc("/api/abyss/noncombat/proceed", s.authAPI(s.handleAbyssNonCombatProceed))
+		mux.HandleFunc("/api/abyss/event/deferred", s.authAPI(s.handleAbyssDeferredEventClaim))
 		mux.HandleFunc("/api/abyss/coop/list", s.authAPI(s.handleAbyssCoopList))
 		mux.HandleFunc("/api/abyss/coop/invite", s.authAPI(s.handleAbyssCoopInvite))
 		mux.HandleFunc("/api/abyss/prestige", s.authAPI(s.handleAbyssPrestige))

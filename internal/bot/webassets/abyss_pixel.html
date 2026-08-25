@@ -124,6 +124,7 @@ function renderLivePixelStage(state){
     (units||[]).forEach(function(unit,index){
       var previous=livePixelPrevious.units[unit.id],button=document.createElement('button'),art=hostile?liveEnemyArt(unit):null;
       var hpHidden=hostile&&!!unit.hp_hidden;
+      var dotActive=hostile&&(unit.effects||[]).some(function(effect){return /poison|bleed|burn|damage over time/i.test(effect.name||'');});
       var tier=hostile&&String(unit.role||'').toLowerCase()==='boss'?' boss-tier':hostile&&(/^nemesis:|behemoth|gatekeeper|lich|knight|invader/i.test(unit.name||''))?' elite-tier':'';
       button.type='button';button.className='ab-pixel-unit'+(hostile?' hostile':'')+tier+(hpHidden?' hp-concealed':'')+(hostile?liveEnemyAffinity(unit):'')+(liveSelectedTarget===unit.id?' selected':'')+livePixelCue(unit,newLogs,previous);
       button.disabled=unit.hp===0;button.dataset.target=unit.id;button.style.setProperty('--unit-delay',(index*45)+'ms');
@@ -135,7 +136,7 @@ function renderLivePixelStage(state){
       var spritePosition=hostile&&art.atlas==='bestiary'?liveEnemySpritePosition(cell):liveSpritePosition(cell);
       var rank=tier?'<span class="ab-pixel-rank">'+(tier===' boss-tier'?'BOSS':'ELITE')+'</span>':'';
       button.innerHTML='<span class="ab-pixel-name"><b>'+consEsc(unit.name)+'</b><span>'+consEsc(unit.role||unit.element||'')+'</span></span>'+deltaHTML+
-        (hpHidden?'<span class="ab-overhead-hp concealed"><i></i><em>??</em></span>':'<span class="ab-overhead-hp"><i style="width:'+livePct(unit.hp,unit.max_hp)+'%"></i><em>'+livePct(unit.hp,unit.max_hp)+'%</em></span>')+
+        (hpHidden?'<span class="ab-overhead-hp concealed"><i></i><em>??</em></span>':'<span class="ab-overhead-hp'+(dotActive?' dot-active':'')+'"><i style="width:'+livePct(unit.hp,unit.max_hp)+'%"></i><em>'+livePct(unit.hp,unit.max_hp)+'%</em></span>')+
         rank+'<span class="'+spriteClass+'" style="background-position:'+spritePosition+'" aria-hidden="true"></span>'+
         '<span class="ab-pixel-shadow" aria-hidden="true"></span><span class="ab-pixel-effects">'+effects+'</span>';
       button.onclick=function(){selectLiveTarget(unit.id);};host.appendChild(button);

@@ -56,6 +56,7 @@
     <strong>NEXT ROUND</strong><span id="liveHazardTelegraphText"></span>
   </aside>
   <div class="ab-pixel-stage" id="livePixelStage" aria-label="Animated combat battlefield">
+    <div class="ab-ultimate-charge" id="liveUltimateCharge" role="status" aria-label="Ultimate readiness"><b>ULT</b><span>—</span></div>
     <div class="ab-pixel-backdrop" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="ab-pixel-party" id="livePixelAllies" aria-label="Allied combatants"></div>
     <div class="ab-pixel-party hostile" id="livePixelEnemies" aria-label="Enemy combatants"></div>
@@ -196,7 +197,7 @@ function renderLiveTargets(hostID, combatants, hostile){
   (combatants||[]).forEach(function(unit){
     var button=document.createElement('button');
     var hpHidden=hostile&&!!unit.hp_hidden;
-    button.type='button'; button.className='ab-combatant'+(hostile?' hostile':'')+(hpHidden?' hp-concealed':'')+(liveSelectedTarget===unit.id?' selected':'');
+    button.type='button'; button.className='ab-combatant'+(hostile?' hostile':'')+(hostile&&String(unit.role||'').toLowerCase()==='boss'?' boss-tier':'')+(hpHidden?' hp-concealed':'')+(liveSelectedTarget===unit.id?' selected':'');
     button.disabled=unit.hp===0;
     button.setAttribute('data-target',unit.id);
     button.setAttribute('aria-pressed',liveSelectedTarget===unit.id?'true':'false');
@@ -214,7 +215,8 @@ function renderLiveTargets(hostID, combatants, hostile){
       return '<span class="ab-effect">'+consEsc(effect.name)+(duration?' · '+consEsc(duration):'')+'</span>';
     }).join('');
     var breakBar=unit.max_break?'<span class="ab-break" title="'+consEsc(unit.pattern||'Break this enemy to cancel its next action')+'"><b style="width:'+livePct(unit.break,unit.max_break)+'%"></b><i>BREAK '+fmtNum(unit.break)+' / '+fmtNum(unit.max_break)+'</i></span>':'';
-    var hpBar=hpHidden?'<span class="ab-combatant-hp concealed"><b></b></span>':'<span class="ab-combatant-hp"><b style="width:'+livePct(unit.hp,unit.max_hp)+'%"></b></span>';
+    var dotActive=(unit.effects||[]).some(function(effect){return /poison|bleed|burn|damage over time/i.test(effect.name||'');});
+    var hpBar=hpHidden?'<span class="ab-combatant-hp concealed"><b></b></span>':'<span class="ab-combatant-hp'+(dotActive?' dot-active':'')+'"><b style="width:'+livePct(unit.hp,unit.max_hp)+'%"></b></span>';
     var hpText=hpHidden?'HP CONCEALED':fmtNum(unit.hp)+' / '+fmtNum(unit.max_hp);
     button.innerHTML='<span class="ab-combatant-name">'+consEsc(unit.name)+(unit.ready?' <i>READY</i>':'')+'</span>'+
       hpBar+
@@ -271,6 +273,7 @@ function renderLiveActionBar(state){
       '<span class="ab-action-name">'+consEsc(option.name)+'</span>'+
       '<span class="ab-action-estimate">'+liveEffectEstimate(option)+'</span>'+
 	  '<span class="ab-action-cost">'+(option.mana?'🔵 '+option.mana+' → '+Math.max(0,(own.mana||0)-option.mana):option.cooldown?'⏳ '+option.cooldown:(option.kind==='item'||option.kind==='relic')?'×'+option.count:'')+'</span>';
+    if(option.kind==='skill'&&option.cooldown){var pips=document.createElement('span');pips.className='ab-cooldown-pips';pips.title=option.cooldown+' rounds until ready';for(var pip=Math.min(8,option.cooldown);pip>0;pip--)pips.appendChild(document.createElement('i'));button.appendChild(pips);}
     button.onclick=function(){armLiveOption(option);};
 	button.querySelector('.ab-action-pin').onclick=function(event){event.preventDefault();event.stopPropagation();toggleLivePin(actionKey);};
 	button.ondragstart=function(event){event.dataTransfer.setData('text/plain',actionKey);};
@@ -446,6 +449,21 @@ function renderLiveRoundTimeline(state){
 	var host=document.getElementById('liveRoundTimeline');host.innerHTML='';liveRoundHistory.forEach(function(entry){var step=document.createElement('span');step.title=entry.recap;step.textContent='R'+entry.round+' · '+entry.phase;host.appendChild(step);});
 }
 
+function renderLiveUltimateCharge(state){
+	var ring=document.getElementById('liveUltimateCharge');if(!ring)return;
+	var ultimates=(state.options||[]).filter(function(option){return option.kind==='ultimate';});
+	var cooldown=ultimates.length?Math.min.apply(null,ultimates.map(function(option){return Math.max(0,Number(option.cooldown)||0);})):0;
+	var ready=ultimates.length&&cooldown===0,maximum=Math.max(1,ultimates.reduce(function(maximum,option){return Math.max(maximum,Number(option.cooldown_max)||Number(option.cooldown)||0);},cooldown));
+	ring.classList.toggle('ready',ready);ring.style.setProperty('--ult-progress',Math.round((1-cooldown/maximum)*360)+'deg');
+	ring.querySelector('span').textContent=ultimates.length?(ready?'READY':cooldown+'R'):'—';
+	ring.title=ultimates.length?(ready?'Ultimate ready':'Estimated '+cooldown+' round'+(cooldown===1?'':'s')+' until an ultimate is ready'):'No ultimate equipped';
+}
+
+function renderLiveEnrageWarning(state){
+	var imminent=(state.recent_logs||[]).some(function(line){return /ENRAGE in 2 rounds/i.test(line);});
+	document.getElementById('liveCombat').classList.toggle('enrage-imminent',imminent);
+}
+
 function renderLiveCombat(state,preserveFeed){
   if(!state||!state.ok)return;
   liveCombatState=state;
@@ -476,6 +494,8 @@ function renderLiveCombat(state,preserveFeed){
 	var autoPreview=document.getElementById('liveAutoPreview');
 	autoPreview.textContent=state.recommended?'TIMEOUT → '+String(state.recommended.action.kind||'DEFEND').toUpperCase()+' · '+state.recommended.reason:'TIMEOUT → server-selected safe action';
 	renderLiveRoundTimeline(state);
+  renderLiveUltimateCharge(state);
+  renderLiveEnrageWarning(state);
   renderLiveForecast(state);
   renderLiveTargets('liveAllies',state.allies,false);
   renderLiveTargets('liveEnemies',state.enemies,true);

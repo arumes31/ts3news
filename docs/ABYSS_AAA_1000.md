@@ -481,3 +481,31 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0740 / AB-40** — Cartographer-revealed route choices include a depth-aware expected loot-quality forecast without leaking hidden routes.
 - [x] **AAA-0747 / AB-47** — Collapsed Passage offers a risky shortcut while its safe detour still grants a transactionally settled material find.
 - [x] **AAA-0749 / AB-49** — Abyssal Garden tracks each material node permanently and grants Green Thumb's +1 yield from the third matching harvest onward.
+
+## Delivered tranche: deferred contracts and combat expression
+
+- [x] **AAA-0726 / AB-26** — event floors can be deferred once, returned to within three cleared floors, and visibly expire when their server-owned deadline passes.
+- [x] **AAA-0742 / AB-42** — consecutive Echo Floors preserve the original completed-floor reward and increase the repeat payout from 50% to 75%.
+- [x] **AAA-0746 / AB-46** — signed bounties pay on the next combat victory, while the fourth completed contract in one run doubles exactly once.
+- [x] **AAA-0751 / AB-51** — consecutive same-element skill casts gain a logged 10% elemental combo bonus, while valid mixed elements retain their stronger reactions.
+- [x] **AAA-0752 / AB-52** — skills cast at full mana consume their normal cost and land with a logged 15% overcharge bonus.
+- [x] **AAA-0753 / AB-53** — a weak MainHand can swap once to a compatible backpack weapon during a boss fight at the cost of the next action.
+- [x] **AAA-0754 / AB-54** — cursed-gear health drain pauses below 20% health and reports Cursed Mercy once per fight.
+- [x] **AAA-0755 / AB-55** — Executioner and the daily Execute affix stack with one extra 5% flourish and an explicit combat callout.
+- [x] **AAA-0756 / AB-56** — a third parry in one fight grants a full next round of Stealth without leaking into ordinary channel combat.
+- [x] **AAA-0757 / AB-57** — the authoritative fight summary reports total reflected Thorns damage when any was dealt.
+- [x] **AAA-0758 / AB-58** — live companion commands bind pets to the selected living enemy, with random targeting retained only as a fallback.
+- [x] **AAA-0759 / AB-59** — one boss-fight stunbreak restores the turn at 50% effectiveness and remains unavailable on ordinary waves.
+- [x] **AAA-0760 / AB-60** — poisoned, bleeding, burning, and other damage-over-time targets receive animated striped health segments on both tactical and pixel bars.
+- [x] **AAA-0761 / AB-61** — the live combat cards flash a high-contrast warning when the authoritative log announces boss enrage in two rounds.
+- [x] **AAA-0762 / AB-62** — each reward focus supplies its matching small combat bonus, including the documented two-point Gold crit bonus.
+- [x] **AAA-0763 / AB-63** — unavailable skills display one exact cooldown pip per remaining round, bounded for compact action slots.
+- [x] **AAA-0764 / AB-64** — a persisted Hold Mana control suppresses only automatic normal-wave casts; bosses and explicit live selections still execute.
+- [x] **AAA-0765 / AB-65** — the pixel stage carries an ultimate readiness ring with the nearest authoritative cooldown and a ready-state pulse.
+- [x] **AAA-0766 / AB-66** — the authoritative fight summary separately reports total parry counter-attack damage.
+- [x] **AAA-0767 / AB-67** — three equipped runes matching an attack element reduce its resolved incoming damage by 10% and report the ward once.
+- [x] **AAA-0768 / AB-68** — backline attacks gain 8% Backstab damage only against mobs that did not target that delver in the preceding enemy phase.
+- [x] **AAA-0769 / AB-69** — combat floors cleared within two rounds grant a persisted next-floor speed chain capped at three stacks.
+- [x] **AAA-0770 / AB-70** — bosses telegraph a one-round summon channel that any ultimate fired in that window interrupts before reinforcements spawn.
+- [x] **AAA-0772 / AB-72** — an Abyss fumble halves the current hit but grants ten additional crit points to the following non-fumbled strike.
+- [x] **AAA-0775 / AB-75** — rounds after 25 add a logged, stacking 5% desperation multiplier to both sides.

@@ -55,6 +55,16 @@
       </span>
     </div>
   {{end}}
+  {{with .DeferredEvent}}
+    {{if .Available}}
+    <div class="ab-panel ab-deferred-event" id="deferredEventCard">
+      <span>⏳ <strong>{{.Label}}</strong> waits from floor {{.OriginDepth}}. Return by floor {{.ExpiresDepth}} · {{.FloorsLeft}} floor(s) left.</span>
+      <button class="ghost" type="button" onclick="abyssDeferredEventClaim()">Return to Event</button>
+    </div>
+    {{else if .Expired}}
+    <div class="ab-panel ab-deferred-event ab-deferred-expired">⌛ The deferred <strong>{{.Label}}</strong> expired after floor {{.ExpiresDepth}} — the moment passed.</div>
+    {{end}}
+  {{end}}
   
   <!-- Loot Pity Counter HUD -->
   <div class="abyss-pity-hud" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; margin: 15px 0;">
@@ -257,6 +267,9 @@
           <option value="materials">⛏️ Materials · converts floor gold into crafting stock</option>
           <option value="tokens">🜲 Tokens · converts floor gold into Abyss tokens</option>
         </select>
+      </label>
+      <label class="ab-combat-pref" title="Automatic combat saves skills and ultimates for bosses. Manual live actions always override this setting.">
+        <input type="checkbox" id="holdManaSetting" onchange="saveAbyssCombatSettings()"> Hold mana for bosses
       </label>
       {{if ge .Stats.BestDepth 50}}<label>Veteran track
         <select id="veteranTrack" class="ab-select">
@@ -1188,6 +1201,24 @@ var liveSelectedTarget='', livePendingOption=null, liveFinishHandled=false, live
 var liveStartHP=0, liveStartMaxHP=0, liveClockTimer=null;
 var liveTargetLocked=false, liveRoundHistory=[], liveLogFilter='all', liveGamepadIndex=-1;
 var liveActionOrder=[], livePinnedActions={}, liveShortcutMap={attack:'a',defend:'d',skill1:'1',skill2:'2',skill3:'3',skill4:'4',skill5:'5',item1:'q',item2:'e',item3:'r',ultimate1:'u',ultimate2:'i',ultimate3:'o'};
+
+async function initAbyssCombatSettings(){
+  var input=document.getElementById('holdManaSetting');if(!input)return;
+  try{var response=await fetch('/api/abyss/combat/settings',{cache:'no-store'}),data=await response.json();if(data.ok)input.checked=!!data.hold_mana;}catch(e){}
+}
+
+async function saveAbyssCombatSettings(){
+  var input=document.getElementById('holdManaSetting');if(!input)return;
+  var wanted=input.checked;input.disabled=true;
+  try{var response=await fetch('/api/abyss/combat/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hold_mana:wanted})}),data=await response.json();if(!data.ok)throw new Error(data.error||'save failed');input.checked=!!data.hold_mana;abToast(input.checked?'Mana hold enabled for automatic combat.':'Mana hold disabled.',true);}catch(e){input.checked=!wanted;abToast(e.message||'Could not save combat setting.',false);}finally{input.disabled=false;}
+}
+
+async function abyssDeferredEventClaim(){
+  if(busy)return;setBusy(true);
+  var data=await abPost('/api/abyss/event/deferred',{});
+  if(!data.ok){abToast(data.error||'Could not return to the deferred event.',false);setBusy(false);return;}
+  window.location.reload();
+}
 try{liveActionOrder=JSON.parse(localStorage.getItem('abyssLiveActionOrder')||'[]')||[];livePinnedActions=JSON.parse(localStorage.getItem('abyssLivePinnedActions')||'{}')||{};Object.assign(liveShortcutMap,JSON.parse(localStorage.getItem('abyssLiveShortcuts')||'{}')||{});}catch(e){}
 
 function abAtlasPosition(cell){
@@ -1782,8 +1813,21 @@ function renderNonCombat(floorType, stateStr){
       title.textContent = '🪦 Grave of '+(state.ghost_name||'an unknown delver');
       desc.textContent = (state.ghost_name||'This delver')+' fell at depth '+Number(state.death_depth||0)+'. Honor the grave for materials, or disturb it for cache at a posted health cost.';
       options.innerHTML = `<button class="ghost" onclick="abyssNCAction('graveyard_honor')">🕯️ Honor · gain 2 Abyssal Dust</button> <button class="ghost" onclick="abyssNCAction('graveyard_disturb')">👻 Disturb · gain cache · −10% max HP</button>`;
+    } else if(state.type === 'echo_floor'){
+      title.textContent = '🔁 Echo Floor';
+      var echoOriginal=Math.max(0,Number(state.previous_reward)||0),echoReward=Math.max(0,Number(state.echo_reward)||0),echoPercent=Math.max(0,Number(state.echo_percent)||50);
+      desc.textContent = echoOriginal>0?'The last credited floor reward echoes at '+echoPercent+'% value. Consecutive Echo Floors retain the original roll and rise to 75%.':'No prior floor reward remains for the chamber to echo.';
+      options.innerHTML = (echoReward>0?'<button class="ghost" onclick="abyssNCAction(\'echo_claim\')">🔁 Recover '+echoPercent+'% · +'+fmtGold(echoReward)+'</button> ':'')+'<button class="ghost" onclick="abyssNCAction(\'echo_leave\')">Let the Echo Fade</button>';
+    } else if(state.type === 'bounty_board'){
+      title.textContent = '🎯 Bounty Board';
+      var bountyReward=Math.max(0,Number(state.bounty_reward)||0),bountyDone=Math.max(0,Number(state.bounties_completed)||0);
+      desc.textContent = state.bounty_active?'A signed contract is already active: win your next combat to collect it.':'Sign a contract to defeat your next combat floor. Completed this run: '+bountyDone+(state.double_reward?' — this fourth payout is doubled.':'.');
+      options.innerHTML = (state.bounty_active?'':'<button class="ghost" onclick="abyssNCAction(\'bounty_accept\')">🎯 Accept · next combat pays '+fmtGold(bountyReward)+(state.double_reward?' ×2':'')+'</button> ')+'<button class="ghost" onclick="abyssNCAction(\'bounty_leave\')">Leave Board</button>';
     } else {
       desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
+    }
+    if(!state.deferred){
+      options.insertAdjacentHTML('beforeend',' <button class="ghost" onclick="abyssNCAction(\'event_defer\')">⏳ Leave for Later · expires after 3 floors</button>');
     }
     if(typeof renderAbyssEventMemory==='function')renderAbyssEventMemory(options,state);
   }
@@ -5807,6 +5851,7 @@ function initNewDots(){
   });
 
   initPanelAnchors();  // UI-118
+  initAbyssCombatSettings();
   initBackToTop();     // UI-119
   applySidebarOrder(); // UI-120
   initBestiaryGroups();// UI-121

@@ -77,6 +77,7 @@ func (c *abyssLiveCombat) optionsFor(
 			Target:       target,
 			Mana:         spellCost,
 			Cooldown:     au.skillCooldowns[skill.ID],
+			CooldownMax:  modifiers.CooldownRounds,
 			Power:        effectivePower + skill.HealPercent*modifiers.HealingMultiplier*2,
 			EffectLabel:  effectLabel,
 			MinEffect:    minEffect,
@@ -91,6 +92,10 @@ func (c *abyssLiveCombat) optionsFor(
 			continue
 		}
 		ultimateRecovery := clampRecovery(au.treeBonus.Pct["ult_cooldown"] + au.treeBonus.Pct["ultimate_charge"])
+		ultimateCooldown := ultimate.CooldownRounds
+		if ultimateRecovery > 0 {
+			ultimateCooldown = max(2, int(float64(ultimateCooldown)*(1-ultimateRecovery)))
+		}
 		ultimateModifiers := actionModifierLabels("ultimate recovery", 1+ultimateRecovery)
 		minEffect, maxEffect := estimateLiveDamageRange(au.u, ultimate.Power, 0, mobs)
 		options = append(options, abyssLiveOption{
@@ -100,6 +105,7 @@ func (c *abyssLiveCombat) optionsFor(
 			Description: ultimate.Description,
 			Target:      "enemy",
 			Cooldown:    ultimate.CurrentCooldown,
+			CooldownMax: ultimateCooldown,
 			Power:       ultimate.Power,
 			EffectLabel: "DMG",
 			MinEffect:   minEffect,
@@ -158,7 +164,7 @@ func (c *abyssLiveCombat) optionsFor(
 			Kind: "companion", ID: pet.Name, Name: "Command " + pet.Name,
 			Description: "Spend your action to order this companion to focus the selected enemy.",
 			Target:      "enemy", Power: float64(pet.Stats.STR) * companionMultiplier, EffectLabel: "FOCUS",
-			Tags: []string{"companion", "focus", "combo"},
+			Tags:      []string{"companion", "focus", "combo"},
 			Modifiers: actionModifierLabels("companion command power", companionMultiplier),
 		})
 	}
