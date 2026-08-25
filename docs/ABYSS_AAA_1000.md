@@ -40,9 +40,11 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0014 / 14** — depth-scaled escrow thresholds visibly reduce only new marginal growth to 25 percent.
 - [x] **AAA-0015 / 15** — one token-priced Last Stand restores at least 25% HP and seals banking for two victories.
 - [x] **AAA-0016 / 16** — each 25 best-depth milestone grants 1% permanent loot find, capped at 4%.
+- [x] **AAA-0017 / 17** — a validated 5/10/20-token ante is debited atomically at entry, boosts every floor's cache by the same percentage, and returns only after a successful full bank (`web_abyss_stakes.go`, `web_abyss_stakes_test.go`).
 - [x] **AAA-0019 / 19** — five prestige tiers expose escalating names and cosmetic auras.
 - [x] **AAA-0021 / 21** — Descend shows the server-estimated next-floor death risk.
 - [x] **AAA-0024 / 24** — three same-day deaths fund one clearly labeled +10% comeback run.
+- [x] **AAA-0025 / 25** — a server-authoritative −20%…+50% dial moves encounter danger and floor cache together and can be changed between, but not during, live floors (`web_abyss_stakes.go`, `web_abyss_stakes_test.go`).
 
 ## Delivered tranche: floor ecology audit
 

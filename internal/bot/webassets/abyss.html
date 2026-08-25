@@ -352,6 +352,19 @@
           <option value="checkpoint">Checkpoint Clause · reach the next checkpoint</option>
         </select>
       </label>
+      <div class="ab-entry-stakes" aria-label="Custom run stakes">
+        <label>🜲 Token ante
+          <select id="tokenAnte" class="ab-select" title="The stake is returned only after a successful full bank. Each token also adds 1% to every floor's cache reward.">
+            <option value="0">No ante</option>
+            <option value="5">5 tokens · +5% cache</option>
+            <option value="10">10 tokens · +10% cache</option>
+            <option value="20">20 tokens · +20% cache</option>
+          </select>
+        </label>
+        <label for="entryRiskDial">⚖️ Floor risk <output id="entryRiskDialOut">+0%</output></label>
+        <input id="entryRiskDial" type="range" min="-20" max="50" step="10" value="0" oninput="updateAbyssEntryRiskDial()" aria-label="Initial floor danger and reward adjustment">
+        <span class="muted small">Danger and cache move together · adjustable between floors</span>
+      </div>
       <div class="muted small ab-community-expedition" title="Every cleared weekly-expedition floor contributes to this shared weekly objective.">
         <span>🌐 Community expedition {{index .CommunityExpedition "Week"}}: {{index .CommunityExpedition "Floors"}} / {{index .CommunityExpedition "Target"}} floors</span>
         <progress value="{{index .CommunityExpedition "Percent"}}" max="100" aria-label="Community expedition progress"></progress>
@@ -3031,9 +3044,11 @@ async function abyssEnter(consumables){
   var lootRule=document.getElementById('partyLootRule');
   var suppressAffix=document.getElementById('suppressDailyAffix');
   var contractPact=document.getElementById('contractPact');
+  var tokenAnte=document.getElementById('tokenAnte'),entryRiskDial=document.getElementById('entryRiskDial');
   var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),hardcore:!!(hardcore&&hardcore.checked),hybrid:!!(hybrid&&hybrid.checked),
     kit:kit?kit.value:'vanguard', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
-    loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto', suppress_affix:!!(suppressAffix&&suppressAffix.checked), contract:contractPact?contractPact.value:''};
+    loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto', suppress_affix:!!(suppressAffix&&suppressAffix.checked), contract:contractPact?contractPact.value:'',
+    token_ante:tokenAnte?(Number(tokenAnte.value)||0):0,risk_dial_pct:entryRiskDial?(Number(entryRiskDial.value)||0):0};
   if(body.hardcore && !(await confirmModalDangerous('Begin a Hardcore run? Grace floors, insurance, revival items, Last Stand, and revival gambles are disabled. Cleared-floor cache rewards are doubled and the run enters the Hardcore leaderboard.',{title:'Begin Hardcore',okLabel:'Enter Hardcore'}))){
     setBusy(false);
     return;
@@ -3052,6 +3067,7 @@ async function abyssEnter(consumables){
   if(te>0){goldCost+=te;lines.push('Tier entry: '+fmtGold(te)+' <span class="muted small">(waived if your daily free entry is unused)</span>');}
   if(sm&&sm.value==='express'){var xc=Number(sm.getAttribute('data-cost'))||0;goldCost+=xc;lines.push('Express elevator: '+fmtGold(xc));}
   if(sm&&sm.value==='checkpoint'){var ck=Math.floor((cs?(parseInt(cs.value,10)||0):0)/2);tokenCost+=ck;lines.push('Checkpoint drop: 🜲 '+ck);}
+  if(body.token_ante>0){tokenCost+=body.token_ante;lines.push('Token ante: 🜲 '+body.token_ante+' · returned on a successful full bank');}
   if(goldCost>1000||tokenCost>0){
     var total=(goldCost>0?fmtGold(goldCost):'')+(goldCost>0&&tokenCost>0?' + ':'')+(tokenCost>0?'🜲 '+tokenCost:'');
     if(!(await confirmModal(lines.join('<br>')+'<br><b>Total: '+total+'</b>',{title:'Confirm descent costs',okLabel:'Pay '+total+' & Enter'}))){ setBusy(false); return; } // UI-134: cost on the primary button
@@ -3090,6 +3106,8 @@ async function abyssEnter(consumables){
   if(d.weekly_expedition) notes.push('📅 '+d.weekly_expedition+' · +25% cache rewards.');
 	if(d.hardcore) notes.push('💀 Hardcore active: ×2 cache, no grace, insurance, or revival.');
 	if(d.hybrid) notes.push('🌀 Hybrid active: every fifth floor surges to next-tier danger for half its extra reward.');
+  if(d.token_ante) notes.push('🜲 '+d.token_ante+'-token ante active: +'+d.token_ante+'% cache, returned on a successful full bank.');
+  if(d.risk_dial_pct) notes.push('⚖️ Risk dial '+(d.risk_dial_pct>0?'+':'')+d.risk_dial_pct+'% danger and cache.');
   if(d.build_summary) notes.push('🧬 '+d.build_summary+'.');
   if(d.rested_charges) notes.push('🌙 Rested reserve: +20% XP for '+d.rested_charges+' cleared floor'+(d.rested_charges===1?'':'s')+'.');
   if(d.returning_bonus) notes.push('🧭 Welcome back: +25% XP and +10% cache for 10 cleared floors.');
@@ -3646,7 +3664,7 @@ async function abyssBank(percent){
 	(p.raffle_fee?row('🎟️ Bankers’ raffle contribution −1%','−'+fmtGold(p.raffle_fee)):'')+
     pactMath(p.pact_breakdown)+
     row('Estimated payout', '<span style="color:var(--gold)">'+fmtGold(p.payout)+'</span>')+
-    (p.partial?row('Cache left in run',fmtGold(p.remaining_escrow)):row('Base tokens on bank', '🜲 '+p.base_tokens_grant)+row('Pact-risk tokens', '🜲 +'+p.pact_tokens_grant)+row('Total tokens on bank', '🜲 '+p.tokens_grant)+row('Sealed loot to recover', p.loot_count))+
+    (p.partial?row('Cache left in run',fmtGold(p.remaining_escrow)):row('Base tokens on bank', '🜲 '+p.base_tokens_grant)+row('Pact-risk tokens', '🜲 +'+p.pact_tokens_grant)+(p.ante_return?row('Token ante returned','🜲 +'+p.ante_return):'')+row('Total tokens on bank', '🜲 '+p.tokens_grant)+row('Sealed loot to recover', p.loot_count))+
 	(p.checkpoint_refund?row('Checkpoint token refund','🜲 +'+p.checkpoint_refund):'')+
     (!p.partial&&p.bonus_gear_eligible?row('Depth gear reward','🎁 guaranteed'):'')+
     (p.capped?'<div class="ab-hc-cmp">⚠️ Daily gold cap: the Abyss levies an 80% tax on the excess (−'+fmtGold(p.cap_tax)+', fed to the deep-cache jackpot).</div>':'')+

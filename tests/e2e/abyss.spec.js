@@ -24,6 +24,46 @@ test('enter sends the selected run setup', async ({ page }) => {
   await expect.poll(() => entered).toBe(true);
 });
 
+test('custom stakes preview, submit, and remain adjustable between floors', async ({ page }) => {
+  let enteredBody = null;
+  let dialBody = null;
+  await fulfillAbyssAPI(page, (path, body) => {
+    if (path.endsWith('/enter')) {
+      enteredBody = body;
+      return { ok: true, token_ante: body.token_ante, risk_dial_pct: body.risk_dial_pct, tokens: 32 };
+    }
+    if (path.endsWith('/risk_dial')) {
+      dialBody = body;
+      return { ok: true, percent: body.percent, risk: 42, msg: 'Next-floor danger and cache reward adjusted together.' };
+    }
+    return { ok: false, error: 'unexpected e2e request' };
+  });
+
+  await page.setViewportSize({ width: 480, height: 900 });
+  await page.goto('/abyss');
+  await page.evaluate(() => { window.reduceMotion = true; });
+  await page.locator('[data-entry-step="pacts"]').click();
+  await page.locator('#tokenAnte').selectOption('10');
+  await page.locator('#entryRiskDial').fill('30');
+  await expect(page.locator('#abyssEntrySummaryLine')).toContainText('🜲10 ante');
+  await expect(page.locator('#abyssEntrySummaryLine')).toContainText('+30% risk');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  await page.locator('#btnEnter').click();
+  await expect(page.locator('#sharedModal')).toHaveClass(/open/);
+  await expect(page.locator('#sharedModalCard')).toContainText('Token ante');
+  await page.locator('#modalOkBtn').click();
+  await expect.poll(() => enteredBody).not.toBeNull();
+  expect(enteredBody.token_ante).toBe(10);
+  expect(enteredBody.risk_dial_pct).toBe(30);
+
+  await page.goto('/abyss?active=1');
+  await page.locator('#runRiskDial').fill('40');
+  await expect(page.locator('#runRiskDialOut')).toHaveText('+40%');
+  await page.locator('#saveRunRiskDial').click();
+  await expect.poll(() => dialBody).toEqual({ percent: 40 });
+  await expect(page.locator('#abyssRiskChips')).toContainText('Risk dial +40%');
+});
+
 test('HUD normalizes an interest rate from a rolling deployment', async ({ page }) => {
   await page.goto('/abyss?active=1');
   await page.evaluate(() => {

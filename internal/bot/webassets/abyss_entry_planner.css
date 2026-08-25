@@ -28,3 +28,5 @@ body.ab-pact-blind #depthRail { display: none; }
 }
 .ab-community-expedition{display:grid;grid-template-columns:auto minmax(90px,1fr) auto;align-items:center;gap:8px;width:100%;padding:7px 9px;border:1px solid rgba(91,192,255,.2);border-radius:8px;background:rgba(20,58,86,.15)}.ab-community-expedition progress{width:100%;height:7px;accent-color:#5bc0ff}.ab-community-expedition b{color:#70e0ad}
 @media(max-width:640px){.ab-community-expedition{grid-template-columns:1fr}.ab-community-expedition progress{height:9px}}
+.ab-entry-stakes{align-items:center;background:rgba(239,185,76,.06);border:1px solid rgba(239,185,76,.22);display:grid;gap:.45rem .7rem;grid-template-columns:minmax(12rem,1fr) auto minmax(8rem,1fr);padding:.6rem;width:100%}.ab-entry-stakes label{color:#c7d3da;font-size:.72rem}.ab-entry-stakes output{color:#f2c866;font-weight:800}.ab-entry-stakes input[type=range]{accent-color:#efb94c;width:100%}.ab-entry-stakes>span{grid-column:1/-1}
+@media(max-width:720px){.ab-entry-stakes{grid-template-columns:1fr}}

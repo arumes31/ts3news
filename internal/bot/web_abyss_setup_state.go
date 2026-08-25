@@ -23,6 +23,8 @@ type abyssEntrySetup struct {
 	Hardcore     bool     `json:"hardcore"`
 	Hybrid       bool     `json:"hybrid"`
 	Contract     string   `json:"contract"`
+	TokenAnte    int      `json:"token_ante"`
+	RiskDialPct  int      `json:"risk_dial_pct"`
 }
 
 type abyssSetupYesterday struct {
@@ -62,6 +64,12 @@ func canonicalAbyssEntrySetup(setup abyssEntrySetup) abyssEntrySetup {
 	}
 	setup.Pacts = canonicalAbyssPactRequest(setup.Pacts)
 	setup.Contract, _ = normalizeAbyssContractPact(setup.Contract)
+	if !abyssTokenAnteValid(setup.TokenAnte) {
+		setup.TokenAnte = 0
+	}
+	if !abyssRiskDialValid(setup.RiskDialPct) {
+		setup.RiskDialPct = 0
+	}
 	switch setup.Start {
 	case "checkpoint":
 		if setup.Checkpoint < 10 || setup.Checkpoint%10 != 0 {

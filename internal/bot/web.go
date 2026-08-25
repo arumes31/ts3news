@@ -563,6 +563,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		// Run-loop quick wins (docs/ABYSS_IMPROVEMENTS_300.md groups A-B).
 		mux.HandleFunc("/api/abyss/bank_confirm_toggle", s.authAPI(s.handleAbyssBankConfirmToggle))
 		mux.HandleFunc("/api/abyss/death_wish", s.authAPI(s.handleAbyssDeathWish))
+		mux.HandleFunc("/api/abyss/risk_dial", s.authAPI(s.handleAbyssRiskDial))
 		mux.HandleFunc("/api/abyss/anchor_rune", s.authAPI(s.handleAbyssAnchorRune))
 		mux.HandleFunc("/api/abyss/rest_cache_shrink", s.authAPI(s.handleAbyssRestCacheShrink))
 		mux.HandleFunc("/api/abyss/downed_timeout", s.authAPI(s.handleAbyssDownedTimeout))

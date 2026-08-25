@@ -778,6 +778,10 @@ func (b *Bot) fightAbyssFloorLive(
 		diff *= 3
 		logs = append(logs, "[color=#f44336]💀 DEATH WISH: this floor is 3× as deadly — and pays double.[/color]")
 	}
+	if dial := int(flags[abyssRunFlagRiskDialPct]); dial != 0 {
+		diff *= abyssRiskDialMultiplier(dial)
+		logs = append(logs, fmt.Sprintf("[color=#efb94c]⚖️ Risk dial %+d%%: encounter danger and cache reward move together.[/color]", dial))
+	}
 	if abyssHybridSurge(flags[abyssRunFlagHybrid] == 1, depth) { // AB-25 hybrid runs
 		if nt, ok := abyssNextTier(tier.Key); ok {
 			diff *= abyssHybridDangerMultiplier(tier)
@@ -1490,7 +1494,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	risk := 0
 	if run.Active {
 		if runTier, ok := abyssTierByKey(run.Tier); ok {
-			risk = abyssRiskPct(run.Depth+1, runTier, playerCR)
+			risk = s.bot.abyssRunRiskPct(uid, run.Depth+1, runTier)
 		}
 	}
 
@@ -1736,6 +1740,8 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		VeteranTrack  string         `json:"veteran_track"`  // optional cosmetic challenge, unlocked at depth 50
 		SuppressAffix bool           `json:"suppress_affix"` // consume one Affix Suppressor for this run
 		Contract      string         `json:"contract"`       // optional mid-run failure contract
+		TokenAnte     int            `json:"token_ante"`     // returned on a successful full bank; also boosts floor cache
+		RiskDialPct   int            `json:"risk_dial_pct"`  // symmetric next-floor danger and cache modifier
 	}
 	// Reject malformed JSON outright: a garbled body would silently decode to the
 	// zero-value request (Normal tier, no pacts, no loadout). An absent/empty body
@@ -1822,6 +1828,14 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	if contract, _ := normalizeAbyssContractPact(req.Contract); req.Contract != "" && contract == "" {
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown contract pact"})
+		return
+	}
+	if !abyssTokenAnteValid(req.TokenAnte) {
+		writeJSON(w, map[string]any{"ok": false, "error": "token ante must be 0, 5, 10, or 20"})
+		return
+	}
+	if !abyssRiskDialValid(req.RiskDialPct) {
+		writeJSON(w, map[string]any{"ok": false, "error": "risk dial must be between -20% and +50% in 10% steps"})
 		return
 	}
 
@@ -1917,14 +1931,15 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 			return
 		}
 	}
-	if route.TokenCost > 0 {
-		res, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1", route.TokenCost, uid)
+	tokenCharge := route.TokenCost + int64(req.TokenAnte)
+	if tokenCharge > 0 {
+		res, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1", tokenCharge, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
 		if n, _ := res.RowsAffected(); n == 0 {
-			writeJSON(w, map[string]any{"ok": false, "error": "not enough tokens for the checkpoint"})
+			writeJSON(w, map[string]any{"ok": false, "error": "not enough tokens for the selected entry stakes"})
 			return
 		}
 	}
@@ -2036,6 +2051,8 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	if req.Hybrid {
 		flags[abyssRunFlagHybrid] = 1
 	}
+	flags[abyssRunFlagTokenAnte] = int64(req.TokenAnte)
+	flags[abyssRunFlagRiskDialPct] = int64(req.RiskDialPct)
 	if coldMuscles := abyssColdMusclesOnEntry(startDepth); coldMuscles > 0 {
 		flags[abyssRunFlagColdMuscles] = coldMuscles
 	}
@@ -2082,6 +2099,8 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		Hardcore:     req.Hardcore,
 		Hybrid:       req.Hybrid,
 		Contract:     req.Contract,
+		TokenAnte:    req.TokenAnte,
+		RiskDialPct:  req.RiskDialPct,
 	}); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -2112,6 +2131,8 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		"weekly_expedition": weeklyRule.Label,
 		"hardcore":          req.Hardcore,
 		"hybrid":            req.Hybrid,
+		"token_ante":        req.TokenAnte,
+		"risk_dial_pct":     req.RiskDialPct,
 		"active_pacts":      abyssVisiblePacts(pactKeys, flags),
 		"build_summary":     abyssBuildSummary(startUser, startBuildFlags),
 		"rested_charges":    entryProgression.RestedCharges,
@@ -2257,7 +2278,7 @@ func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, 
 		"depth": runFinal.Depth, "escrow": runFinal.Escrow,
 		"hp": runFinal.CurHP, "max_hp": runFinal.MaxHP,
 		"gold": gold, "tokens": s.bot.abyssTokens(uid),
-		"risk": abyssRiskPct(runFinal.Depth+1, tier, s.bot.abyssPlayerCR(uid)),
+		"risk": s.bot.abyssRunRiskPct(uid, runFinal.Depth+1, tier),
 	}
 }
 
@@ -2429,7 +2450,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"depth":              newDepth,
 				"event_state":        eventState,
 				"escrow":             run.Escrow,
-				"risk":               abyssRiskPct(newDepth+1, tier, s.bot.abyssPlayerCR(uid)),
+				"risk":               s.bot.abyssRunRiskPct(uid, newDepth+1, tier),
 				"gold":               gold,
 				"tokens":             s.bot.abyssTokens(uid),
 				"consumables":        s.bot.getConsumables(uid),
@@ -2543,8 +2564,8 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"timeline":            combinedTimeline,
 				"floor_results":       floorResults,
 				"reward_xp":           totalRewardXP,
-				"risk":                abyssRiskPct(newDepth+1, tier, s.bot.abyssPlayerCR(uid)),
-				"survival_chance_pct": abyssPostHocSurvivalChance(newDepth, tier, s.bot.abyssPlayerCR(uid)),
+				"risk":                s.bot.abyssRunRiskPct(uid, newDepth+1, tier),
+				"survival_chance_pct": s.bot.abyssRunSurvivalChance(uid, newDepth, tier),
 				"downed":              true,
 				"can_revive":          canRevive,
 				"revive_streak":       reviveStreak,
@@ -2590,7 +2611,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		"timeline":              combinedTimeline,
 		"floor_results":         floorResults,
 		"reward_xp":             totalRewardXP,
-		"risk":                  abyssRiskPct(finalRun.Depth+1, tier, s.bot.abyssPlayerCR(uid)),
+		"risk":                  s.bot.abyssRunRiskPct(uid, finalRun.Depth+1, tier),
 		"escrow":                finalRun.Escrow,
 		"gold":                  finalGold,
 		"tokens":                s.bot.abyssTokens(uid),
@@ -2907,7 +2928,7 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 			"depth":       newDepth,
 			"event_state": eventState,
 			"escrow":      run.Escrow,
-			"risk":        abyssRiskPct(newDepth+1, tier, s.bot.abyssPlayerCR(uid)),
+			"risk":        s.bot.abyssRunRiskPct(uid, newDepth+1, tier),
 		})
 		return
 	}
@@ -3002,6 +3023,7 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 		bonus = bonus * 11 / 10
 	}
 	bonus = abyssDeathWishFloorReward(bonus, runFlags[abyssRunFlagDeathWish] == 1)
+	bonus = applyAbyssStakeReward(bonus, int(runFlags[abyssRunFlagTokenAnte]), int(runFlags[abyssRunFlagRiskDialPct]))
 	bonus = abyssRecordPushReward(bonus, depth, st.BestDepth)
 
 	switch focus {
@@ -3211,7 +3233,7 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		"hp": res.CurrentHP, "max_hp": res.MaxHP,
 		"logs": res.LogsHTML, "loot": res.LootHTML, "dura": res.DuraHTML,
 		"timeline": res.Timeline, "reward_xp": res.RewardXP, "modifier": modifier,
-		"risk": abyssRiskPct(depth+1, tier, s.bot.abyssPlayerCR(uid)),
+		"risk": s.bot.abyssRunRiskPct(uid, depth+1, tier),
 	}
 	if res.BossName != "" {
 		out["boss_name"] = res.BossName
@@ -3299,7 +3321,7 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		out["insured"] = run.Insured
 		out["hardcore"] = hardcore
 		out["grace_protected"] = abyssGraceProtected(depth, hardcore)
-		out["survival_chance_pct"] = abyssPostHocSurvivalChance(depth, tier, s.bot.abyssPlayerCR(uid))
+		out["survival_chance_pct"] = s.bot.abyssRunSurvivalChance(uid, depth, tier)
 		assignment := s.abyssFeatures.rewardAssignment(uid)
 		if assignment.Cohort != "off" {
 			out["reward_experiment"] = assignment
@@ -3409,7 +3431,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 			"hp": res.CurrentHP, "max_hp": res.MaxHP, "logs": res.LogsHTML,
 			"loot": res.LootHTML, "dura": res.DuraHTML, "timeline": res.Timeline,
 			"escrow": newEscrow, "doubled": true,
-			"reward_xp": res.RewardXP, "risk": abyssRiskPct(run.Depth+1, tier, s.bot.abyssPlayerCR(uid)),
+			"reward_xp": res.RewardXP, "risk": s.bot.abyssRunRiskPct(uid, run.Depth+1, tier),
 		}
 		if res.BossName != "" {
 			out["boss_name"], out["boss_execution"], out["boss_dps"], out["boss_finale"] = res.BossName, res.BossExecution, res.BossDPS, res.BossFinale
@@ -3446,7 +3468,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 		"forfeited": true, "insured_refund": payout, "escrow": 0,
 		"grace_protected": graceProtected,
 		"mystery_reveal":  mysteryReveal,
-		"reward_xp":       res.RewardXP, "risk": abyssRiskPct(run.Depth+1, tier, s.bot.abyssPlayerCR(uid)),
+		"reward_xp":       res.RewardXP, "risk": s.bot.abyssRunRiskPct(uid, run.Depth+1, tier),
 	}
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
@@ -3634,11 +3656,13 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	)
 	baseTokens := s.bot.abyssBankTokenGrant(uid, run.Depth, st.UpTribute)
 	pactTokens := abyssPactBankTokenGrant(abyssRunFloorsCleared(run), abyssPactTokenRiskPct(runPacts, runFlags))
+	anteReturn := int(runFlags[abyssRunFlagTokenAnte])
 	if partial {
 		baseTokens = 0
 		pactTokens = 0
+		anteReturn = 0
 	}
-	tokensGrant := baseTokens + pactTokens
+	tokensGrant := baseTokens + pactTokens + anteReturn
 
 	// Preview mode (UX-49): report the itemized payout without committing
 	// anything, so the client can show a bank-confirmation breakdown first.
@@ -3682,6 +3706,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			"remaining_escrow": remainingEscrow, "requires_safe_word": requiresSafeWord,
 			"payout": estPayout, "capped": capped, "cap_remaining": capRemaining, "cap_tax": estTax,
 			"base_tokens_grant": baseTokens, "pact_tokens_grant": pactTokens,
+			"ante_return":  anteReturn,
 			"tokens_grant": tokensGrant, "loot_count": lootCount,
 			"pact_breakdown": redactAbyssMysteryPactBreakdown(pactBreakdown, runFlags),
 			"loot_preview":   lootPreview, "loot_preview_truncated": lootCount > len(lootPreview),
@@ -3880,7 +3905,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee, "loan_fee": loanFeeCharged,
 		"contract": abyssContractViewFromFlags(runFlags, run.Depth), "contract_forfeit": contractForfeit,
 		"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
-		"base_tokens_grant": baseTokens, "pact_tokens_grant": pactTokens, "tokens_grant": tokensGrant,
+		"base_tokens_grant": baseTokens, "pact_tokens_grant": pactTokens, "ante_return": anteReturn, "tokens_grant": tokensGrant,
 		"remaining_escrow": remainingEscrow, "next_echo_seed": nextEchoSeed,
 	}
 	if !partial {
