@@ -4688,7 +4688,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			}
 			s.bot.grantConsumable(uid, pick, duration)
 			msg := fmt.Sprintf("🪞 Your reflection steps into you: %s burns bright for %d fights (same-reflection streak ×%d).", c.Name, duration, memory.Streak)
-			writeJSON(w, map[string]any{"ok": true, "msg": msg, "resolved": true, "mirror_streak": memory.Streak, "empowered": memory.Streak >= 3, "consumables": s.bot.getConsumables(uid)})
+			writeJSON(w, map[string]any{"ok": true, "msg": msg, "resolved": true, "mirror_streak": memory.Streak, "empowered": memory.Streak >= 3, "buff_duration": duration, "consumables": s.bot.getConsumables(uid)})
 			return
 		}
 	}

@@ -3505,10 +3505,11 @@ async function abyssNCAction(action, payload){
     setHP(d.hp, max);
   }
   if(d.escrow !== undefined) setEscrow(d.escrow);
-  // UI-18: altar/mirrors buffs ("…for 3 fights") join the stage buff strip.
-  if(d.msg && /for 3 fights/.test(d.msg)){
+  // UI-18: event buffs join the stage strip using the committed duration.
+  var eventBuffDuration=Number(d.buff_duration)||0;
+  if(eventBuffDuration>0){
     var bm=/Your reflection steps into you: ([^ ]+) /.exec(d.msg);
-    addBuffChip(bm?bm[1]:'event_buff', 3);
+    addBuffChip(bm?bm[1]:'event_buff', eventBuffDuration);
   }
   abToast(d.msg || 'Action resolved!', true);
   
