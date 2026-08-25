@@ -181,8 +181,8 @@ func forgeGearFingerprint(g content.Gear, raw string, invID int64, slot string) 
 func (s *WebServer) forgeInventoryRevision(ctx context.Context, uid string) (string, error) {
 	hash := sha256.New()
 	queries := []string{
-		"SELECT id::text, gear_id, COALESCE(item_data,''), durability FROM user_inventory WHERE client_uid=$1 ORDER BY id",
-		"SELECT slot, gear_id, COALESCE(item_data,''), durability FROM user_gear WHERE client_uid=$1 ORDER BY slot",
+		"SELECT id::text, gear_id, COALESCE(item_data::text,''), durability FROM user_inventory WHERE client_uid=$1 ORDER BY id",
+		"SELECT slot, gear_id, COALESCE(item_data::text,''), durability FROM user_gear WHERE client_uid=$1 ORDER BY slot",
 	}
 	for _, query := range queries {
 		rows, err := s.bot.DB.QueryContext(ctx, query, uid)
@@ -251,11 +251,11 @@ func (s *WebServer) loadForgeQuoteItem(ctx context.Context, uid string, invID in
 	var err error
 	if invID > 0 {
 		err = s.bot.DB.QueryRowContext(ctx,
-			"SELECT gear_id, COALESCE(item_data,''), durability FROM user_inventory WHERE id=$1 AND client_uid=$2", invID, uid,
+			"SELECT gear_id, COALESCE(item_data::text,''), durability FROM user_inventory WHERE id=$1 AND client_uid=$2", invID, uid,
 		).Scan(&gearID, &raw, &durability)
 	} else if slot != "" {
 		err = s.bot.DB.QueryRowContext(ctx,
-			"SELECT gear_id, COALESCE(item_data,''), durability FROM user_gear WHERE slot=$1 AND client_uid=$2", slot, uid,
+			"SELECT gear_id, COALESCE(item_data::text,''), durability FROM user_gear WHERE slot=$1 AND client_uid=$2", slot, uid,
 		).Scan(&gearID, &raw, &durability)
 	} else {
 		return content.Gear{}, "", false

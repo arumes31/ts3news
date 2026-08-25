@@ -3,7 +3,10 @@
 package bot
 
 import (
+	"mime"
 	"net/http"
+	"path"
+	"strings"
 	"testing"
 
 	"ts3news/internal/i18n"
@@ -20,6 +23,19 @@ func TestAbyssE2EServer(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/static/")
+		if name == "" || path.Clean(name) != name {
+			http.NotFound(w, r)
+			return
+		}
+		ServeAsset(
+			w,
+			r,
+			"webassets/"+name,
+			mime.TypeByExtension(path.Ext(name)),
+		)
 	})
 	mux.HandleFunc("/abyss", func(w http.ResponseWriter, r *http.Request) {
 		fixture := abyssGoldenFixture(r.URL.Query().Get("active") == "1")

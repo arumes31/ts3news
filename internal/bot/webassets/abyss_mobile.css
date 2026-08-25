@@ -66,7 +66,7 @@
 }
 
 @media (prefers-color-scheme: light) {
-  body:not(.ab-high-contrast) .abyss-command-page {
+  body.ab-light-theme:not(.ab-high-contrast) .abyss-command-page {
     --cmd-bg: #f4f1e9;
     --cmd-panel: #fffdf8;
     --cmd-line: #687486;
@@ -75,20 +75,20 @@
     color: #17212b;
     color-scheme: light;
   }
-  body:not(.ab-high-contrast) .abyss-command-page::before { opacity: .16; }
-  body:not(.ab-high-contrast) .abyss-command-page :is(.abyss-hero, .abyss-stage, .abyss-side-panel, .abyss-panel, .abyss-lb, .ab-chip, .ab-tabs, .forge-card, .abyss-log-wrap) {
+  body.ab-light-theme:not(.ab-high-contrast) .abyss-command-page::before { opacity: .16; }
+  body.ab-light-theme:not(.ab-high-contrast) .abyss-command-page :is(.abyss-hero, .abyss-stage, .abyss-side-panel, .abyss-panel, .abyss-lb, .ab-chip, .ab-tabs, .forge-card, .abyss-log-wrap) {
     background: rgba(255, 253, 248, .96);
     border-color: #7a8798;
     color: #17212b;
     text-shadow: none;
   }
-  body:not(.ab-high-contrast) .abyss-command-page :is(input, select, textarea, button.ghost) {
+  body.ab-light-theme:not(.ab-high-contrast) .abyss-command-page :is(input, select, textarea, button.ghost) {
     background: #fff;
     border-color: #687486;
     color: #17212b;
   }
-  body:not(.ab-high-contrast) .abyss-command-page :is(.muted, .small, .ab-chip-label) { color: #526070 !important; opacity: 1; }
-  body:not(.ab-high-contrast) .abyss-command-page .abyss-log { background: #f8fafc; color: #1b2632; }
+  body.ab-light-theme:not(.ab-high-contrast) .abyss-command-page :is(.muted, .small, .ab-chip-label) { color: #526070 !important; opacity: 1; }
+  body.ab-light-theme:not(.ab-high-contrast) .abyss-command-page .abyss-log { background: #f8fafc; color: #1b2632; }
 }
 
 @media (forced-colors: active) {

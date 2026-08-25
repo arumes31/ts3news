@@ -33,6 +33,47 @@ test('HUD normalizes an interest rate from a rolling deployment', async ({ page 
   await expect(page.locator('#hudChips')).toContainText('+0.5%/floor');
 });
 
+test('desktop Abyss keeps its dark canvas and aligned stage in light system mode', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
+  await page.goto('/abyss?active=1');
+
+  const layout = await page.evaluate(() => {
+    const box = selector => document.querySelector(selector).getBoundingClientRect();
+    const bodyStyle = getComputedStyle(document.body);
+    const panelStyle = getComputedStyle(document.querySelector('.abyss-stage'));
+    const objective = box('#abCurrentObjective');
+    const elevator = box('.ab-elevator');
+    const dial = box('.abyss-dial');
+    const controls = box('.abyss-controls');
+    return {
+      bodyBackground: bodyStyle.backgroundColor,
+      panelBackground: panelStyle.backgroundColor,
+      objectiveBottom: objective.bottom,
+      elevatorTop: elevator.top,
+      dialTop: dial.top,
+      controlsTop: controls.top,
+      controlsWidth: controls.width,
+      overflow: Array.from(document.querySelectorAll('body *')).map(element => {
+        const rect = element.getBoundingClientRect();
+        return {
+          element: element.id || element.className || element.tagName,
+          right: rect.right,
+          visible: getComputedStyle(element).visibility !== 'hidden',
+        };
+      }).filter(item => item.visible && item.right > window.innerWidth + 1).slice(0, 12),
+    };
+  });
+
+  expect(layout.bodyBackground).toBe('rgb(8, 11, 17)');
+  expect(layout.panelBackground).not.toBe('rgb(255, 253, 248)');
+  expect(layout.objectiveBottom).toBeLessThanOrEqual(layout.elevatorTop + 1);
+  expect(Math.abs(layout.elevatorTop - layout.dialTop)).toBeLessThan(2);
+  expect(Math.abs(layout.dialTop - layout.controlsTop)).toBeLessThan(2);
+  expect(layout.controlsWidth).toBeGreaterThan(300);
+  expect(layout.overflow).toEqual([]);
+});
+
 test('a victorious descend can preview and commit bank', async ({ page }) => {
   let committed = false;
   await fulfillAbyssAPI(page, (path, body) => {
