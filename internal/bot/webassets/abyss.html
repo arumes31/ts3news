@@ -29,6 +29,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_leaderboards.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_practice.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_vendor.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_boss_lore.css"}}">
 <div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 <div class="abyss-hero">
@@ -1149,6 +1150,24 @@
           </div>
         {{else}}
           <div class="muted small">No lore fragments unlocked yet.</div>
+        {{end}}
+      </div>
+    </div>
+    <div class="ab-boss-chronicles" aria-labelledby="abBossChroniclesTitle">
+      <div class="ab-boss-chronicles-head">
+        <span class="ab-kicker">FIRST-KILL ARCHIVE</span>
+        <h3 id="abBossChroniclesTitle">Boss Chronicles</h3>
+      </div>
+      <div class="ab-boss-chronicle-grid">
+        {{range .Social.BossLore}}
+        <article class="ab-boss-chronicle {{if .Unlocked}}unlocked{{else}}locked{{end}}">
+          <span class="ab-boss-chronicle-seal" aria-hidden="true">{{if .Unlocked}}♛{{else}}?{{end}}</span>
+          <div>
+            <small>{{if .Unlocked}}{{.Boss}}{{else}}UNDISCOVERED SOVEREIGN{{end}}</small>
+            <h4>{{if .Unlocked}}{{.Title}}{{else}}Chronicle sealed{{end}}</h4>
+            {{if .Unlocked}}<p>{{.Text}}</p><time>First slain {{.FirstSlain}}</time>{{else}}<p>Defeat this boss once to recover its chronicle.</p>{{end}}
+          </div>
+        </article>
         {{end}}
       </div>
     </div>

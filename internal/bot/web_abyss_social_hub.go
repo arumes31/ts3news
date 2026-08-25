@@ -100,6 +100,7 @@ type abyssSocialHubView struct {
 	Deaths            []abyssDeathView
 	Memorials         []abyssMemorialView
 	Trophies          []abyssTrophyView
+	BossLore          []abyssBossLoreView
 	RevengeFamily     string
 	Rival             abyssRivalView
 	BankFeedEnabled   bool
@@ -403,9 +404,10 @@ func (b *Bot) abyssSocialNotifications(uid string) []abyssNotificationView {
 func (b *Bot) abyssSocialHub(uid string, prestige int) abyssSocialHubView {
 	deaths := b.abyssDeathWall(uid)
 	bankEnabled, bankFeed := b.abyssBankFeed(uid)
+	trophies := b.abyssBossTrophies(uid)
 	return abyssSocialHubView{
 		Pets: b.abyssSocialPets(uid), SecondPetUnlocked: prestige >= 2,
-		Deaths: deaths, Memorials: b.abyssPetMemorials(uid), Trophies: b.abyssBossTrophies(uid),
+		Deaths: deaths, Memorials: b.abyssPetMemorials(uid), Trophies: trophies, BossLore: abyssBossLoreViews(trophies),
 		RevengeFamily: b.abyssRevengeFamily(uid), Rival: b.ensureAbyssWeeklyRival(uid), BankFeedEnabled: bankEnabled,
 		BankFeed: bankFeed, WeeklyBoss: b.abyssWeeklyBossStatus(uid), Notifications: b.abyssSocialNotifications(uid),
 	}

@@ -1168,6 +1168,20 @@
     ],
     "verification": [
 	  "internal/bot/abyss_boss_weakpoints_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [212],
+    "production": [
+      "internal/bot/abyss_boss_lore.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_lore.css"
+    ],
+    "verification": [
+	  "internal/bot/abyss_boss_lore_test.go",
 	  "internal/bot/web_abyss_release_guards_test.go"
     ]
   }
