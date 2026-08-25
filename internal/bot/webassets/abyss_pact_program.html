@@ -8,6 +8,7 @@
     <div class="ab-pact-campaign">
       <div class="ab-pact-featured" id="pactFeatured"></div>
       <div class="ab-affix-calendar" id="affixCalendar" aria-label="This week's daily Abyss affixes"></div>
+      <div class="ab-affix-poll" id="affixWeekendPoll"></div>
       <div class="ab-pact-synergy" id="pactSynergyCallout" hidden></div>
     </div>
     <div class="ab-pact-preset-list" id="pactPresetList" aria-label="Saved pact combinations"></div>
@@ -38,6 +39,29 @@ function pactLabel(key){
 
 function pactMasteryAt(key){
   return (pactProgramState.mastery||[]).find(function(entry){return entry.key===key;})||null;
+}
+
+async function voteAbyssWeekendAffix(key){
+  var result=await abPost('/api/abyss/affix/weekend_vote',{affix:key});
+  if(!result.ok){abToast(result.error||'Weekend vote failed.',false);return;}
+  pactProgramState.weekend_poll=result.poll;
+  renderAbyssWeekendAffixPoll();
+  abToast('Weekend affix vote recorded.',true);
+}
+
+function renderAbyssWeekendAffixPoll(){
+  var host=document.getElementById('affixWeekendPoll'),poll=pactProgramState.weekend_poll||{};
+  if(!host)return;
+  host.replaceChildren();
+  var title=pactProgramNode('div','ab-affix-poll-title',poll.voting_open?'🗳️ Choose this weekend’s affix':'🏁 Weekend vote locked');
+  var result=pactProgramNode('span','muted small',poll.winner?'Leader: '+poll.winner_label:'Awaiting the first vote');title.appendChild(result);host.appendChild(title);
+  var options=pactProgramNode('div','ab-affix-poll-options');
+  (poll.options||[]).forEach(function(option){
+    var button=pactProgramNode('button','ghost xs'+(option.selected?' selected':''),option.label+' · '+option.votes);
+    button.type='button';button.disabled=!poll.voting_open;button.setAttribute('aria-pressed',option.selected?'true':'false');
+    button.onclick=function(){voteAbyssWeekendAffix(option.key);};options.appendChild(button);
+  });
+  host.appendChild(options);
 }
 
 function renderAbyssPactSelectionBonus(){
@@ -109,6 +133,7 @@ function renderAbyssPactProgram(){
       item.title=day.date+(day.today?' · active today':day.upcoming?' · upcoming':' · completed');calendar.appendChild(item);
     });
   }
+  renderAbyssWeekendAffixPoll();
   for(var slot=1;slot<=3;slot++){
     var preset=pactPresetAt(slot),row=pactProgramNode('div','ab-pact-preset');
     row.dataset.pactPresetSlot=String(slot);

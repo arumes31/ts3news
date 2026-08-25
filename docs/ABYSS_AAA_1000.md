@@ -167,6 +167,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 ## Delivered tranche: pact and affix campaign
 
 - [x] **AAA-0188 / 188** — a Monday-to-Sunday calendar previews all seven affixes from the same authoritative daily selector used by combat.
+- [x] **AAA-0189 / 189** — authenticated players cast one replaceable weekday vote; the deterministic winner locks and becomes Saturday/Sunday's authoritative affix.
 - [x] **AAA-0190 / 190** — active pact/affix synergies are called out before entry and included in the authoritative floor-reward multiplier.
 - [x] **AAA-0193 / 193** — bank confirmation itemizes every pact's base, mastery, featured, and synergy contribution plus the exact total multiplier.
 - [x] **AAA-0194 / 194** — one deterministic ISO-week featured pact doubles its full pact contribution and is highlighted in the entry planner.

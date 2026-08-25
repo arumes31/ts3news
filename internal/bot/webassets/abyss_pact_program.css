@@ -13,6 +13,10 @@
 .ab-affix-day span { font-size: .62rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ab-affix-day.today { background: rgba(55, 205, 190, .12); border-color: rgba(55, 205, 190, .5); box-shadow: inset 0 0 0 1px rgba(55, 205, 190, .08); }
 .ab-affix-day.past { opacity: .48; }
+.ab-affix-poll { background: rgba(123, 104, 238, .06); border: 1px solid rgba(123, 104, 238, .2); border-radius: 7px; display: grid; gap: .38rem; padding: .42rem .5rem; }
+.ab-affix-poll-title { align-items: center; display: flex; font-size: .7rem; font-weight: 700; gap: .5rem; justify-content: space-between; }
+.ab-affix-poll-options { display: flex; flex-wrap: wrap; gap: .3rem; }
+.ab-affix-poll-options .selected { border-color: #7ee4d4; color: #7ee4d4; }
 .ab-pact-synergy { align-items: center; background: rgba(245, 207, 114, .08); border: 1px solid rgba(245, 207, 114, .28); border-radius: 7px; color: #f5cf72; display: flex; flex-wrap: wrap; font-size: .68rem; gap: .45rem; padding: .38rem .5rem; }
 .ab-pact-preset-list { display: grid; gap: .35rem; }
 .ab-pact-preset { align-items: center; background: rgba(6, 12, 22, .58); border: 1px solid rgba(255, 255, 255, .08); border-radius: 8px; display: grid; gap: .35rem .55rem; grid-template-columns: minmax(130px, .8fr) minmax(150px, 1.4fr) auto; padding: .4rem; }

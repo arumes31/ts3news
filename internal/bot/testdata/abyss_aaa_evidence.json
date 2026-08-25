@@ -938,9 +938,11 @@
     ]
   },
   {
-    "ids": [188, 190, 193, 194],
+    "ids": [188, 189, 190, 193, 194],
     "production": [
+      "internal/bot/web.go",
       "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_affix_poll.go",
       "internal/bot/web_abyss_pact_campaign.go",
       "internal/bot/web_abyss_pact_program.go",
       "internal/bot/webassets/abyss.html",
@@ -948,6 +950,7 @@
       "internal/bot/webassets/abyss_pact_program.html"
     ],
     "verification": [
+      "internal/bot/web_abyss_affix_poll_test.go",
       "internal/bot/web_abyss_pact_campaign_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]

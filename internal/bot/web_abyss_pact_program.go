@@ -41,6 +41,7 @@ type abyssPactProgramState struct {
 	Calendar      []abyssAffixCalendarDay `json:"calendar"`
 	Featured      abyssPactFeaturedView   `json:"featured"`
 	Synergies     []abyssPactSynergy      `json:"synergies"`
+	WeekendPoll   abyssWeekendAffixPoll   `json:"weekend_poll"`
 }
 
 func abyssPactPresetsKey(uid string) string { return "abyss_pact_presets_" + uid }
@@ -195,6 +196,7 @@ func abyssPactProgramStateFromAt(presets []abyssPactPreset, mastery map[string]i
 	state := abyssPactProgramState{
 		Presets: presets, Mastery: make([]abyssPactMasteryView, 0, len(abyssPactCatalog)),
 		Calendar: abyssAffixCalendar(at), Featured: abyssFeaturedPactAt(at), Synergies: abyssPactSynergyCatalog,
+		WeekendPoll: abyssWeekendAffixPollBase(at),
 	}
 	for _, pact := range abyssPactCatalog {
 		runs := max(0, mastery[pact.Key])
@@ -215,6 +217,7 @@ func abyssPactProgramStateFromAt(presets []abyssPactPreset, mastery map[string]i
 }
 
 func (b *Bot) abyssPactProgramState(uid string) abyssPactProgramState {
+	at := time.Now().UTC()
 	presets, presetErr := b.loadAbyssPactPresets(uid)
 	mastery, masteryErr := b.loadAbyssPactMastery(uid)
 	if presetErr != nil {
@@ -223,7 +226,17 @@ func (b *Bot) abyssPactProgramState(uid string) abyssPactProgramState {
 	if masteryErr != nil {
 		mastery = make(map[string]int)
 	}
-	return abyssPactProgramStateFrom(presets, mastery)
+	return b.enrichAbyssPactProgramState(abyssPactProgramStateFromAt(presets, mastery, at), uid, at)
+}
+
+func (b *Bot) enrichAbyssPactProgramState(state abyssPactProgramState, uid string, at time.Time) abyssPactProgramState {
+	poll, err := b.abyssWeekendAffixPoll(uid, at)
+	if err != nil {
+		return state
+	}
+	state.WeekendPoll = poll
+	state.Calendar = applyAbyssWeekendAffix(state.Calendar, poll.Winner)
+	return state
 }
 
 func (s *WebServer) handleAbyssPactPresets(w http.ResponseWriter, r *http.Request, uid string) {
@@ -285,5 +298,6 @@ func (s *WebServer) handleAbyssPactPresets(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "state": abyssPactProgramStateFrom(presets, mastery)})
+	state := s.bot.enrichAbyssPactProgramState(abyssPactProgramStateFrom(presets, mastery), uid, time.Now().UTC())
+	writeJSON(w, map[string]any{"ok": true, "state": state})
 }

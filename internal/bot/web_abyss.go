@@ -5080,7 +5080,18 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 // ---- Co-op, Prestige & Weekly challenge Helpers/Handlers ------------------
 
 func (b *Bot) currentDailyChallenge() (int64, string) {
-	return abyssDailyChallengeAt(time.Now().UTC())
+	return b.currentDailyChallengeAt(time.Now().UTC())
+}
+
+func (b *Bot) currentDailyChallengeAt(now time.Time) (int64, string) {
+	now = now.UTC()
+	seed, affix := abyssDailyChallengeAt(now)
+	if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
+		if winner := b.abyssWeekendAffixWinner(now); winner != "" {
+			affix = winner
+		}
+	}
+	return seed, affix
 }
 
 // abyssDailyMods is the rotating pool of daily challenge affixes. Each is wired
