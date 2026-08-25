@@ -8,6 +8,7 @@
       <span class="ab-live-pause" id="livePause"></span>
     </div>
     <div class="ab-live-clock" id="liveClock" role="timer" aria-live="off">—</div>
+    <span class="ab-enrage-chip" id="liveEnrage" hidden></span>
     <span class="ab-live-connection" id="liveConnection" data-state="connecting">CONNECTING</span>
     <label class="ab-live-tactic">Tactic
       <select id="liveTactic" onchange="setLiveTactic(this.value)">
@@ -494,7 +495,11 @@ function renderLiveUltimateCharge(state){
 }
 
 function renderLiveEnrageWarning(state){
-	var imminent=(state.recent_logs||[]).some(function(line){return /ENRAGE in 2 rounds/i.test(line);});
+	var chip=document.getElementById('liveEnrage'),threshold=Math.max(0,Number(state.enrage_round)||0),round=Math.max(0,Number(state.round)||0),remaining=Math.max(0,threshold-round);
+	chip.hidden=!threshold;
+	chip.textContent=!threshold?'':remaining===0?'ENRAGE NOW':'ENRAGE R'+threshold+' · '+remaining+'R';
+	chip.classList.toggle('urgent',!!threshold&&remaining<=2);
+	var imminent=(!!threshold&&remaining<=2)||(state.recent_logs||[]).some(function(line){return /ENRAGE in 2 rounds/i.test(line);});
 	document.getElementById('liveCombat').classList.toggle('enrage-imminent',imminent);
 }
 

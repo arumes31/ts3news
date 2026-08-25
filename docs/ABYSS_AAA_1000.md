@@ -187,6 +187,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0203 / 203** — the four weekly server bosses rotate distinct visible drop tables, with one server-authoritative deterministic reward per player and UTC day.
 - [x] **AAA-0204 / 204** — every third depth promotes an elite aura carrier whose rotating Blood, Iron, or Gale hymn visibly empowers the full enemy pack.
 - [x] **AAA-0205 / 205** — four named rare elites can invade from depth 6, advertise and escrow a fixed signature relic, and preserve that reward for retry when storage fails.
+- [x] **AAA-0206 / 206** — live boss combat exposes the authoritative round-30 enrage threshold in a persistent countdown chip that becomes urgent for the final two rounds.
 
 ## Active tranche: operational quality and client performance
 

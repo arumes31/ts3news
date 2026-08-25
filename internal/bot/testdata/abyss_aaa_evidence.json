@@ -1091,5 +1091,19 @@
     "verification": [
       "internal/bot/web_abyss_enemies_test.go"
     ]
+  },
+  {
+    "ids": [206],
+    "production": [
+      "internal/bot/combat_enrage.go",
+      "internal/bot/xp.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/webassets/abyss_live.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_live_test.go",
+      "internal/bot/xp_abyss_combat_test.go"
+    ]
   }
 ]

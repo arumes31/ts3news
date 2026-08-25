@@ -125,6 +125,7 @@ type abyssLiveSnapshot struct {
 	OwnerUID      string                     `json:"-"`
 	Phase         string                     `json:"phase"`
 	Round         int                        `json:"round"`
+	EnrageRound   int                        `json:"enrage_round,omitempty"`
 	Version       int64                      `json:"version"`
 	Deadline      time.Time                  `json:"deadline,omitempty"`
 	PauseReason   string                     `json:"pause_reason,omitempty"`
@@ -244,6 +245,13 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 		}
 	}
 	enemies := append([]abyssLiveCombatantView{}, c.enemies...)
+	enrageRound := 0
+	for _, enemy := range enemies {
+		if enemy.Role == "boss" {
+			enrageRound = combatBossEnrageRound(true)
+			break
+		}
+	}
 	if hasAbyssFloorModifier(c.modifier, "darkness") {
 		concealAbyssEnemyViews(enemies)
 	}
@@ -274,6 +282,7 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 		OwnerUID:      c.ownerUID,
 		Phase:         c.phase,
 		Round:         c.round,
+		EnrageRound:   enrageRound,
 		Version:       c.version,
 		Deadline:      c.deadline,
 		PauseReason:   c.pauseReason,

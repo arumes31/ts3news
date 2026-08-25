@@ -27,7 +27,7 @@
 }
 .ab-live-head {
   display: grid;
-  grid-template-columns: 1fr auto auto auto auto;
+  grid-template-columns: 1fr repeat(5, auto);
   align-items: center;
   gap: 18px;
   padding: 11px 15px 8px;
@@ -52,6 +52,17 @@
 }
 .ab-live-clock.urgent { color: var(--live-red); animation: ab-live-urgent .5s steps(2) infinite; }
 @keyframes ab-live-urgent { 50% { opacity: .55; } }
+.ab-enrage-chip {
+  padding: 5px 8px;
+  color: #ffb4ad;
+  border: 1px solid rgba(237, 106, 101, .42);
+  border-radius: 2px;
+  background: rgba(83, 18, 23, .48);
+  font: 800 .58rem/1 ui-monospace, 'Cascadia Mono', monospace;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+.ab-enrage-chip.urgent { color: #fff; border-color: var(--live-red); animation: ab-live-urgent .5s steps(2) infinite; }
 .ab-live-connection {
   min-width: 92px;
   padding: 4px 7px;

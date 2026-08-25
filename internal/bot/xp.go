@@ -744,10 +744,9 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 		}
 
 		maxRounds := 10
-		enrageRound := 8
+		enrageRound := combatBossEnrageRound(isAbyss)
 		if isAbyss {
 			maxRounds = 40
-			enrageRound = 30
 		}
 
 		// AB-70: per-wave boss summon telegraphs (mob → round the channel began).
@@ -885,8 +884,8 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 			// Scripted Boss Phases and Soft-Enrage (Item #63, #69, #70)
 			for _, m := range currentMobs {
 				if m.Stats.HP > 0 {
-					// Check soft-enrage past round 8
-					if r > enrageRound && m.Type == content.MobBoss {
+					// Check soft-enrage at the advertised threshold.
+					if combatBossShouldEnrage(r, isAbyss) && m.Type == content.MobBoss {
 						hasEnraged := false
 						for _, eff := range m.Effects {
 							if eff == content.EffectEnraged {
