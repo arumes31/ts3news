@@ -39,6 +39,18 @@
       <details><summary>Death wall · last {{len .Deaths}}</summary><div class="ab-death-wall">
         {{range .Deaths}}<div><span>💀 F{{.Depth}} · <b>{{.KillerName}}</b> <small>{{.KillerFamily}}</small></span><time>{{.When}}</time></div>{{else}}<p class="muted small">No recorded deaths.</p>{{end}}
       </div></details>
+      {{with .FriendEcho}}
+      <h3 class="ab-social-sub">👻 Bonded echoes</h3>
+      <p class="muted small">Share your echo only by consent. A selected bonded helper replaces the random echo when they remain opted in.</p>
+      <label class="ab-toggle"><input id="friendEchoShare" type="checkbox" {{if .ShareEnabled}}checked{{end}} onchange="abyssFriendEchoSave()"> let bonded friends encounter my echo</label>
+      <label class="ab-social-echo-pick">Preferred echo
+        <select id="friendEchoUID" onchange="abyssFriendEchoSave()">
+          <option value="">Random delver</option>
+          {{range .Candidates}}<option value="{{.UID}}" {{if .Selected}}selected{{end}}>{{.Nick}} · {{.Assists}} assists</option>{{end}}
+        </select>
+      </label>
+      {{if not .Candidates}}<p class="muted small">Complete co-op assists with a friend after they enable echo sharing.</p>{{end}}
+      {{end}}
     </article>
 
     <article class="ab-social-card ab-world-boss">
@@ -68,6 +80,7 @@ async function abyssPetTrain(id,button){if(button)button.disabled=true;var d=awa
 async function abyssPetSlot(id,slot){var d=await abPost('/api/abyss/social/pet/slot',{pet_id:id,slot:Number(slot)});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);}
 async function abyssPetAutoskill(id,enabled){var d=await abPost('/api/abyss/social/pet/autoskill',{pet_id:id,ability:'heal',enabled:enabled});abToast(d.msg||d.error,!!d.ok);}
 async function abyssBankFeedToggle(enabled){var d=await abPost('/api/abyss/social/bank_feed',{enabled:enabled});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},300);}
+async function abyssFriendEchoSave(){var share=document.getElementById('friendEchoShare'),pick=document.getElementById('friendEchoUID');if(!share||!pick)return;share.disabled=pick.disabled=true;var d=await abPost('/api/abyss/social/friend_echo',{share_enabled:share.checked,echo_uid:pick.value});abToast(d.msg||d.error,!!d.ok);share.disabled=pick.disabled=false;if(!d.ok)setTimeout(function(){location.reload();},500);}
 async function abyssRivalClaim(button){button.disabled=true;var d=await abPost('/api/abyss/social/rival/claim',{});abToast(d.msg||d.error,!!d.ok);if(d.ok){setTokens(d.tokens);setTimeout(function(){location.reload();},450);}else button.disabled=false;}
 async function abyssWeeklyBossStrike(button){button.disabled=true;var d=await abPost('/api/abyss/social/weekly_boss',{ });abToast(d.msg||d.error,!!d.ok);if(d.ok){setTokens(d.tokens);setTimeout(function(){location.reload();},550);}else button.disabled=false;}
 function copyAbyssSpectatorLink(){if(!liveCombatState||!liveCombatState.session_id){abToast('No live combat to spectate.',false);return;}var link=location.origin+'/abyss/spectate?session='+encodeURIComponent(liveCombatState.session_id);if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(link).then(function(){abToast('Read-only spectator link copied.',true);},function(){window.prompt('Copy spectator link:',link);});}else window.prompt('Copy spectator link:',link);}

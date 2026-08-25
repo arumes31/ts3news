@@ -1239,5 +1239,21 @@
       "internal/bot/abyss_watcher_pressure_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [217],
+    "production": [
+      "internal/bot/web_abyss_friend_echoes.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss_social.html",
+      "internal/db/migrations/0088_abyss_friend_echoes.up.sql",
+      "internal/db/migrations/0088_abyss_friend_echoes.down.sql"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_friend_echoes_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

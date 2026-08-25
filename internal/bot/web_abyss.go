@@ -618,25 +618,16 @@ var abyssLoreFragments = map[int]string{
 }
 
 func (b *Bot) spawnEchoMob(uid string, avgLvl int) ([]content.Mob, string, int) {
-	var echoUID, echoNick string
-	var echoDepth int
-	err := b.DB.QueryRow(
-		`SELECT r.client_uid, COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick, r.depth
-		   FROM abyss_runs r
-		   JOIN users u ON u.client_uid = r.client_uid
-		  WHERE r.client_uid != $1
-		  ORDER BY r.depth DESC, r.gold_banked DESC
-		  LIMIT 1`, uid,
-	).Scan(&echoUID, &echoNick, &echoDepth)
+	echo, err := b.selectAbyssEchoIdentity(uid)
 	if err != nil {
 		return nil, "", 0
 	}
-	stats, _, _, _ := b.calculateTotalStats(echoUID, time.Now())
+	stats, _, _, _ := b.calculateTotalStats(echo.UID, time.Now())
 	echoLvl := avgLvl
-	_ = b.DB.QueryRow("SELECT level FROM users WHERE client_uid=$1", echoUID).Scan(&echoLvl)
+	_ = b.DB.QueryRow("SELECT level FROM users WHERE client_uid=$1", echo.UID).Scan(&echoLvl)
 
 	mob := content.Mob{
-		Name:     "Echo of " + echoNick,
+		Name:     "Echo of " + echo.Nick,
 		Type:     content.MobElite,
 		Level:    echoLvl,
 		Stats:    stats,
@@ -646,9 +637,9 @@ func (b *Bot) spawnEchoMob(uid string, avgLvl int) ([]content.Mob, string, int) 
 	mob.Stats.HP *= 2
 	mob.MaxHP = mob.Stats.HP
 	mob.CurrentHP = mob.MaxHP
-	mob.Spells = b.getSkills(echoUID)
+	mob.Spells = b.getSkills(echo.UID)
 
-	return []content.Mob{mob}, echoNick, echoDepth
+	return []content.Mob{mob}, echo.Nick, echo.Depth
 }
 
 // fightAbyssFloor resolves one floor through the shared engine and applies the

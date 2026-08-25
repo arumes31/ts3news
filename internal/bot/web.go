@@ -370,6 +370,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/social/pet/slot", s.authAPI(s.handleAbyssPetSlot))
 		mux.HandleFunc("/api/abyss/social/pet/autoskill", s.authAPI(s.handleAbyssPetAutoskill))
 		mux.HandleFunc("/api/abyss/social/bank_feed", s.authAPI(s.handleAbyssBankFeedToggle))
+		mux.HandleFunc("/api/abyss/social/friend_echo", s.authAPI(s.handleAbyssFriendEchoSettings))
 		mux.HandleFunc("/api/abyss/social/rival/claim", s.authAPI(s.handleAbyssRivalClaim))
 		mux.HandleFunc("/api/abyss/social/weekly_boss", s.authAPI(s.handleAbyssWeeklyBossStrike))
 		mux.HandleFunc("/api/abyss/inventory/lock", s.authAPI(s.handleAbyssInventoryLock))

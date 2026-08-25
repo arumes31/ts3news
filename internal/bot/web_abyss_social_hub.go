@@ -109,6 +109,7 @@ type abyssSocialHubView struct {
 	BankFeed          []abyssBankFeedView
 	WeeklyBoss        abyssWeeklyBossView
 	Notifications     []abyssNotificationView
+	FriendEcho        abyssFriendEchoView
 }
 
 func abyssPetMood(currentHP, maxHP, loyalty int) (string, string, int) {
@@ -416,5 +417,6 @@ func (b *Bot) abyssSocialHub(uid string, prestige int) abyssSocialHubView {
 		Deaths: deaths, Memorials: b.abyssPetMemorials(uid), Trophies: trophies, BossLore: abyssBossLoreViews(trophies),
 		RevengeFamily: b.abyssRevengeFamily(uid), Rival: b.ensureAbyssWeeklyRival(uid), BankFeedEnabled: bankEnabled,
 		BankFeed: bankFeed, WeeklyBoss: b.abyssWeeklyBossStatus(uid), Notifications: b.abyssSocialNotifications(uid),
+		FriendEcho: b.abyssFriendEchoSettings(uid),
 	}
 }
