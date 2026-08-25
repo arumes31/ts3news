@@ -104,9 +104,9 @@ func TestForgeMutationRequiresQuoteAndRejectsAlteredParameters(t *testing.T) {
 }
 
 func expectForgeRevision(mock sqlmock.Sqlmock, uid string) {
-	mock.ExpectQuery("SELECT id::text, gear_id").WithArgs(uid).
+	mock.ExpectQuery("SELECT id::text, gear_id, COALESCE\\(item_data::text,''\\), durability FROM user_inventory").WithArgs(uid).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "gear_id", "item_data", "durability"}).AddRow("7", "U_LEG_2", "", 100))
-	mock.ExpectQuery("SELECT slot, gear_id").WithArgs(uid).
+	mock.ExpectQuery("SELECT slot, gear_id, COALESCE\\(item_data::text,''\\), durability FROM user_gear").WithArgs(uid).
 		WillReturnRows(sqlmock.NewRows([]string{"slot", "gear_id", "item_data", "durability"}))
 	mock.ExpectQuery("SELECT gold, abyss_tokens FROM users").WithArgs(uid).
 		WillReturnRows(sqlmock.NewRows([]string{"gold", "abyss_tokens"}).AddRow(1000, 50))
@@ -149,7 +149,7 @@ func TestForgeCommitRejectsStaleInventoryAndGear(t *testing.T) {
 	}
 
 	expectForgeRevision(mock, uid)
-	mock.ExpectQuery("SELECT gear_id, COALESCE\\(item_data,''\\), durability FROM user_inventory").WithArgs(int64(7), uid).
+	mock.ExpectQuery("SELECT gear_id, COALESCE\\(item_data::text,''\\), durability FROM user_inventory").WithArgs(int64(7), uid).
 		WillReturnRows(sqlmock.NewRows([]string{"gear_id", "item_data", "durability"}).AddRow("U_LEG_2", "", 100))
 	claims.Inventory = revision
 	claims.Gear = "outdated-fingerprint"
