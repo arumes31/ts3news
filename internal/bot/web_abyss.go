@@ -938,6 +938,7 @@ func (b *Bot) fightAbyssFloorLive(
 			logs = append(logs,
 				"[hr]",
 				fmt.Sprintf("[center][size=12][color=#e91e63]💀 BOSS — %s[/color][/size][/center]", bossName),
+				fmt.Sprintf("[center][color=#f0b35a][b]%s[/b][/color][/center]", abyssBossTitle(bossName)),
 				fmt.Sprintf("[center][color=#8a93a8][i]Depth %d · steel yourself — it knows you are here.[/i][/color][/center]", depth),
 				fmt.Sprintf("[center][color=#ffd991]Scout tip: %s[/color][/center]", abyssBossTip(bossName)),
 				"[hr]")

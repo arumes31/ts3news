@@ -38,6 +38,22 @@ func TestAbyssBossTauntsCrossEachThresholdOnce(t *testing.T) {
 	}
 }
 
+func TestAbyssBossIntroMetadataCoversNamedBosses(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{
+		"Gorgoroth the Firelord", "Malakor the Voidweaver",
+		"Azazoth the Slumbering Eye", "Abyssus, Heart of the Void",
+	} {
+		if title, tip := abyssBossTitle(name), abyssBossTip(name); title == "" || tip == "" {
+			t.Errorf("intro metadata for %q = %q / %q", name, title, tip)
+		}
+	}
+	if got := abyssBossTitle("Unknown Boss"); got != "Warden of the Deep" {
+		t.Fatalf("fallback title = %q", got)
+	}
+}
+
 func TestAbyssDeathKillerUsesStrongestSurvivor(t *testing.T) {
 	t.Parallel()
 	name, family := abyssDeathKiller([]*content.Mob{

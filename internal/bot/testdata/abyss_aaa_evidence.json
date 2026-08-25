@@ -1044,5 +1044,17 @@
       "internal/bot/web_abyss_community_weekend_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [201, 202],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_boss_social.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/style.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_boss_social_test.go"
+    ]
   }
 ]

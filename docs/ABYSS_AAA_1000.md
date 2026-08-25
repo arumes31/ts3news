@@ -180,6 +180,11 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0199 / 199** — Flawless and Checkpoint contract pacts pay +20% while valid, expose live clause state, and transactionally forfeit 25% to the jackpot when broken.
 - [x] **AAA-0200 / 200** — authoritative ISO-week banked gold fills a server-wide goal that unlocks a visible +10% cache buff for Saturday and Sunday.
 
+## Delivered tranche: bosses and monsters
+
+- [x] **AAA-0201 / 201** — every named boss opens with a distinct name, title, depth stake, and deterministic mechanic hint before combat.
+- [x] **AAA-0202 / 202** — boss timelines emit one round-specific taunt at the first authoritative 50% and 25% health crossings.
+
 ## Active tranche: operational quality and client performance
 
 - [x] **AAA-0986 / AB-286** — compare tier catalog values with the latest database constraints.
