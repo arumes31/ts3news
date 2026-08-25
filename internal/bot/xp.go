@@ -109,7 +109,7 @@ type activeUser struct {
 	Stunned          bool // scripted boss-phase stun: skips this user's next turn
 	CurrentMana      int
 	MaxMana          int
-	PetHealCD        int // Cooldown of pet2 heal spell in rounds
+	petCooldowns      map[int]int // Independent active-pet ability cooldowns by formation index.
 	// Skill-web bonus, loaded once per fight: treeBonusFor hits the DB and
 	// scans the full 1000-node tree, so per-turn lookups must use this cache.
 	treeBonus content.TreeBonus
@@ -636,7 +636,8 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 		_, _, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
 		activeUsers[i] = activeUser{
 			u: &users[i], effects: effects, treeBonus: users[i].treeBonus,
-			skillCooldowns: map[string]int{}, petNervousLogged: map[*content.Mob]bool{},
+			skillCooldowns: map[string]int{}, petCooldowns: map[int]int{},
+			petNervousLogged: map[*content.Mob]bool{},
 		}
 		activeUsers[i].u.STRMod = 1.0
 		activeUsers[i].u.DEFMod = 1.0
@@ -1100,9 +1101,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 						us.CurrentCooldown--
 					}
 				}
-				if activeUsers[i].PetHealCD > 0 {
-					activeUsers[i].PetHealCD--
-				}
+				logs = append(logs, tickAbyssPetAbilityCooldowns(&activeUsers[i])...)
 				if activeUsers[i].potionCooldown > 0 {
 					activeUsers[i].potionCooldown--
 				}
@@ -2071,7 +2070,8 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 		}
 
-		// Pet Attack (Silent damage)
+		// Pet actions: each active formation slot carries one visible ability with
+		// an independent cooldown, then falls back to its normal attack.
 		for petIdx, p := range u.Pets {
 			if p.Stats.HP <= 0 {
 				continue
@@ -2113,8 +2113,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			}
 
-			// pet2 healspell logic: index 1 in u.Pets (the second pet)
-			if petIdx == 1 && au.PetHealCD == 0 && abyssPetAutoskillEnabled(u.petHealEnabled, p.Name) {
+			ability, hasAbility := abyssPetAbilityForSlot(petIdx + 1)
+			abilityReady := hasAbility && au.petCooldowns[petIdx] == 0
+			if abilityReady && ability.Kind == "heal" && abyssPetAutoskillEnabled(u.petHealEnabled, p.Name) {
 				var bestTarget *UserInCombat
 				lowestHPPct := 1.0
 				for k := range activeUsers {
@@ -2128,7 +2129,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					}
 				}
 				if bestTarget != nil {
-					healAmt := int(float64(bestTarget.Stats.HP)*0.15) + p.Level*3
+					healAmt := int(float64(bestTarget.Stats.HP)*ability.PowerScale) + p.Level*3
 					if healAmt < 10 {
 						healAmt = 10
 					}
@@ -2137,8 +2138,8 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 						healAmt -= (bestTarget.CurrentHP - bestTarget.Stats.HP)
 						bestTarget.CurrentHP = bestTarget.Stats.HP
 					}
-					au.PetHealCD = 2
-					*logs = append(*logs, fmt.Sprintf("✨ [color=#4caf50]%s's Pet %s casts a Healing Spell on %s, restoring %d HP! (2-round cooldown)[/color]", u.Nickname, p.Name, bestTarget.Nickname, healAmt))
+					setAbyssPetAbilityCooldown(au, petIdx, ability.Cooldown)
+					*logs = append(*logs, fmt.Sprintf("✨ [color=#4caf50]%s's Pet %s casts %s on %s, restoring %d HP! (Cooldown: %d rounds)[/color]", u.Nickname, p.Name, ability.Name, bestTarget.Nickname, healAmt, ability.Cooldown))
 					continue
 				}
 			}
@@ -2161,6 +2162,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				petDmgMult += bonus
 			}
 			petDmgMult *= abyssTreeActionMultiplier(au.treeBonus, "companion_skill_power")
+			usesAttackAbility := abilityReady && ability.Kind == "attack"
+			if usesAttackAbility {
+				petDmgMult *= ability.PowerScale
+			}
 			pdmg := int(float64(p.Stats.STR-ptarget.Stats.DEF) * petDmgMult * intensify)
 			if pdmg < 1 {
 				pdmg = 1
@@ -2170,6 +2175,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			ptarget.Stats.HP -= pdmg
 			applyAbyssBreakDamage(ptarget, pdmg, logs)
 			*totalUserDamage += pdmg
+			if usesAttackAbility {
+				setAbyssPetAbilityCooldown(au, petIdx, ability.Cooldown)
+				*logs = append(*logs, fmt.Sprintf("🦷 %s uses %s on %s for %d damage! (Cooldown: %d rounds)", p.Name, ability.Name, ptarget.Name, pdmg, ability.Cooldown))
+			}
 			if ptarget.Stats.HP <= 0 {
 				killLog := i18n.T("bot.combat.killed_by_pet", ptarget.Name, p.Name)
 				*logs = append(*logs, markAbyssOverkillLog(killLog, abyssCombatant(u) && petOverkill))

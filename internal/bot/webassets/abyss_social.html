@@ -14,6 +14,7 @@
           <div class="ab-pet-head"><strong>{{.MoodIcon}} {{.Name}}</strong><span class="ab-mood {{.Mood}}">{{.Mood}} {{if gt .MoodPct 0}}+{{end}}{{.MoodPct}}%</span></div>
           <div class="ab-pet-stats"><span>Lv {{.Level}} {{.Type}}</span><span>♥ {{comma .HP}}/{{comma .MaxHP}}</span><span>⚔ {{comma .STR}}</span><span>🛡 {{comma .DEF}}</span><span>➤ {{comma .SPD}}</span></div>
           <div class="ab-pet-equipment" title="Pet-only equipment; these stats do not affect your delver.">🔗 {{.Equipment}}</div>
+          <div class="ab-pet-equipment" title="Ability cooldowns tick once after every combat round.">⚡ {{.Ability}}</div>
           <div class="ab-pet-actions">
             <label>Formation <select onchange="abyssPetSlot({{.ID}},this.value)">
               <option value="0" {{if eq .ActiveSlot 0}}selected{{end}}>Reserve</option>

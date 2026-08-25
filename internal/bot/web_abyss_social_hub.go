@@ -37,6 +37,7 @@ type abyssSocialPetView struct {
 	Training    int
 	HealEnabled bool
 	Equipment   string
+	Ability     string
 }
 
 type abyssDeathView struct {
@@ -228,6 +229,7 @@ func (b *Bot) abyssSocialPets(uid string) []abyssSocialPetView {
 		}
 		view.Mood, view.MoodIcon, view.MoodPct = abyssPetMood(view.HP, view.MaxHP, view.Loyalty)
 		view.Equipment = abyssPetEquipmentLabel(equipped)
+		view.Ability = abyssPetAbilityLabel(view.ActiveSlot)
 		views = append(views, view)
 	}
 	if rows.Err() != nil {

@@ -208,6 +208,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0224 / 224** — boss kills roll duplicate-safe cosmetic-only mounts and banners at explicit 2/4/7/12% tier rates inside the atomic trophy transaction, with ownership-verified persistent loadouts.
 - [x] **AAA-0225 / 225** — after ten confirmed defeats, each named boss permanently learns one deterministic combat trick; the next-boss forecast exposes kill progress and the learned counter before descent.
 - [x] **AAA-0226 / 226** — the persisted Pet1/Pet2 equipment slots now form an explicit collar-and-charm loadout whose combined stats apply to active companions only, never the owning delver.
+- [x] **AAA-0227 / 227** — formation slots grant independent Pounce and Healing Spell abilities whose cast logs expose exact cooldowns and announce when each companion ability becomes ready again.
 
 ## Active tranche: operational quality and client performance
 
