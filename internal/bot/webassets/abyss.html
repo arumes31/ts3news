@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_core_risk.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_events.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_social.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_replay.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_stage_hud.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_codex_explorer.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_panel_tools.css"}}">
@@ -1103,6 +1104,7 @@
     <button class="ghost xs" onclick="abyssSalvage()">🧹 Salvage junk for gold</button>
     <button class="ghost xs" onclick="abyssDismantle()">⚒️ Dismantle rare+ spares for 🜲</button>
     <button class="ghost xs" onclick="shareLastAbyssReplay()">🎬 Share last replay</button>
+    <button class="ghost xs" onclick="viewLastAbyssReplay()">📽️ View last replay</button>
     <button class="ghost xs" onclick="armAbyssGhostReplay()">👻 Challenge replay code</button>
     {{if .Achievements}}<details class="ab-achievements"><summary>🏅 Achievements</summary><div class="ab-achievement-grid">{{range .Achievements}}<span class="ab-ach {{if not .Earned}}locked{{end}}" data-code="{{.Code}}" title="{{if .Earned}}Earned ✓{{else}}Unlock: {{.Condition}}{{end}}">{{if not .Earned}}🔒 {{end}}{{.Name}}</span>{{end}}</div></details>{{end}}
     <div class="ab-progression-clarity">
@@ -6279,6 +6281,7 @@ function initNewDots(){
 {{template "abyss-longterm" .}}
 {{template "abyss-events" .}}
 <script data-cfasync="false">{{template "abyssSocialHubJS" .}}</script>
+<script data-cfasync="false">{{template "abyssReplayViewerJS" .}}</script>
 <script data-cfasync="false">{{template "abyssBossCosmeticsJS" .}}</script>
 <script data-cfasync="false">{{template "abyssStageHUDJS" .}}</script>
 <script data-cfasync="false">{{template "abyssCodexExplorerJS" .}}</script>

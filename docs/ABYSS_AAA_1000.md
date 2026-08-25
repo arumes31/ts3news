@@ -211,8 +211,11 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0227 / 227** — formation slots grant independent Pounce and Healing Spell abilities whose cast logs expose exact cooldowns and announce when each companion ability becomes ready again.
 - [x] **AAA-0228 / 228** — a successful Mind Control at the three-pet cap creates one restart-safe stable decision, where the owner explicitly recruits, declines, or replaces a chosen companion in a single transaction.
 
-## Active tranche: operational quality and client performance
+## Delivered tranche: operational quality and client performance
 
+- [x] **AAA-0981 / AB-281** — terminal live combats transactionally archive their deterministic seed and participant-visible event log, with an owner-authorized bounded portal viewer.
+- [x] **AAA-0982 / AB-282** — a versioned anonymous public endpoint exposes only cached global and per-tier aggregates, with CORS, ETag, HEAD, and generic failure handling.
+- [x] **AAA-0985 / AB-285** — persisted killer-family counts select the player's most lethal family and mark every matching live enemy as a revenge target.
 - [x] **AAA-0986 / AB-286** — compare tier catalog values with the latest database constraints.
 - [x] **AAA-0987 / AB-287** — golden-render threshold and active-run page fixtures.
 - [x] **AAA-0988 / AB-288** — Playwright exercises enter, victorious descend, bank preview/commit, and the fatal revive/concede decision in CI.
@@ -902,20 +905,6 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0973 / AB-273** — the command page clarifies the UTC daily bounty cadence and warns when buffs expire after the next floor.
 - [x] **AAA-0974 / AB-274** — a persisted, reorderable three-consumable next-run shelf feeds the authoritative entry request.
 - [x] **AAA-0975 / AB-275** — responsive sidebar opacity and density controls persist independently and respect reduced-motion preferences.
-
-## Delivered tranche: public tooling and release hardening
-
-- [x] **AAA-0982 / AB-282** — a versioned anonymous public endpoint exposes only cached global and per-tier aggregates, with CORS, ETag, HEAD, and generic failure handling.
-- [x] **AAA-0986 / AB-286** — CI compares the authoritative tier catalog against the latest database constraints for every Abyss tier-bearing table.
-- [x] **AAA-0987 / AB-287** — stable threshold and active-run page fixtures are protected by normalized full-template golden digests.
-- [x] **AAA-0988 / AB-288** — CI runs Chromium journeys covering entry, descent, banking, defeat, layout, accessibility, and interaction regressions.
-- [x] **AAA-0989 / AB-289** — CI drives one hundred independent delvers through the authoritative descend HTTP path concurrently under a bounded runtime.
-- [x] **AAA-0993 / AB-293** — bounded, rate-limited, metadata-only client error reports capture script, promise, and resource failures without player-controlled messages.
-- [x] **AAA-0994 / AB-294** — combat logs virtualize oversized histories while preserving the visible tail and explicit access to earlier entries.
-- [x] **AAA-0995 / AB-295** — HUD refresh bursts coalesce through one animation-frame callback instead of repeatedly rebuilding the interface.
-- [x] **AAA-0996 / AB-296** — immutable rarity metadata and its derived order are computed once and reused by filters, sorting, and presentation.
-- [x] **AAA-0999 / AB-299** — startup and CI validate unique gear IDs, complete set membership, and effect-description coverage across the content catalog.
-- [x] **AAA-1000 / AB-300** — a validated embedded Markdown changelog is rendered as safe structured content inside the Abyss portal.
 
 ## Delivered tranche: player display controls audit
 

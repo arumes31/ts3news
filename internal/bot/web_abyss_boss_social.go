@@ -100,3 +100,7 @@ func abyssDeathKiller(mobs []*content.Mob) (string, string) {
 	}
 	return killerName, killerFamily
 }
+
+func abyssIsRevengeTarget(family string, mob *content.Mob) bool {
+	return family != "" && mob != nil && string(mob.Type) == family
+}

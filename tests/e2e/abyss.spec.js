@@ -127,6 +127,42 @@ test('dedicated special-item pixel atlases are served', async ({ request }) => {
   }));
 });
 
+test('owned combat replay renders server logs as escaped text', async ({ page }) => {
+  await page.route('**/api/abyss/replay/code', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        replay: {
+          version: 1,
+          session_id: 'e2e-replay',
+          archived_at: '2026-08-25T12:00:00Z',
+          random_seed: [31, 41],
+          truncated: false,
+          total_events: 1,
+          frames: [{
+            event_id: 7,
+            at: '2026-08-25T12:00:01Z',
+            round: 3,
+            phase: 'complete',
+            allies: { alive: 1, units: 1, hp: 80, max_hp: 100 },
+            enemies: { alive: 0, units: 1, hp: 0, max_hp: 100 },
+            logs: ['<img id="replay-xss" src=x> Victory confirmed.'],
+          }],
+        },
+      }),
+    });
+  });
+  await page.goto('/abyss');
+  await page.evaluate(() => sessionStorage.setItem('abyssLastReplaySession', 'e2e-replay'));
+  await page.getByRole('button', { name: 'View last replay' }).click();
+
+  await expect(page.locator('#sharedModalCard')).toContainText('<img id="replay-xss" src=x> Victory confirmed.');
+  await expect(page.locator('#sharedModalCard #replay-xss')).toHaveCount(0);
+  await expect(page.locator('.ab-replay-frame')).toContainText('ROUND 3');
+});
+
 test('a victorious descend can preview and commit bank', async ({ page }) => {
   let committed = false;
   await fulfillAbyssAPI(page, (path, body) => {

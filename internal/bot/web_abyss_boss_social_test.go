@@ -71,6 +71,32 @@ func TestAbyssDeathKillerUsesStrongestSurvivor(t *testing.T) {
 	}
 }
 
+func TestAbyssKilledByAggregateDrivesRevengeTargets(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	mock.ExpectQuery("SELECT killer_family FROM abyss_deaths").
+		WithArgs("delver").
+		WillReturnRows(sqlmock.NewRows([]string{"killer_family"}).AddRow("Undead"))
+
+	family := (&Bot{DB: database}).abyssRevengeFamily("delver")
+	if family != "Undead" {
+		t.Fatalf("aggregated revenge family = %q, want Undead", family)
+	}
+	if !abyssIsRevengeTarget(family, &content.Mob{Type: content.MobType("Undead")}) {
+		t.Fatal("matching ordinary enemy was not marked as a revenge target")
+	}
+	if abyssIsRevengeTarget(family, &content.Mob{Type: content.MobType("Beast")}) ||
+		abyssIsRevengeTarget(family, nil) {
+		t.Fatal("unrelated or absent enemy was marked as a revenge target")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAbyssPetMoodAndDuoBonus(t *testing.T) {
 	t.Parallel()
 	if mood, _, pct := abyssPetMood(20, 100, 100); mood != "scared" || pct != -2 {

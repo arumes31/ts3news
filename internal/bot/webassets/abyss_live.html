@@ -54,6 +54,7 @@
     <button type="button" onclick="liveSocial('abandon_vote')">⏩ Vote auto-resolve</button>
     <button type="button" onclick="copyAbyssSpectatorLink()">📡 Copy spectator link</button>
       <button type="button" id="liveReplayExport" onclick="exportLiveReplay()" disabled>📼 Copy replay</button>
+      <button type="button" id="liveReplayView" onclick="viewAbyssReplay(liveCombatState&&liveCombatState.session_id)" disabled>📽️ View replay</button>
       <button type="button" onclick="armLiveGhost()">👻 Arm ghost</button>
     </div>
     <div class="ab-live-social-status" id="liveSocialStatus"></div>
@@ -428,6 +429,7 @@ function renderLiveSocial(state){
   if(!shell.dataset.initialized){shell.open=members.length>1;shell.dataset.initialized='1';}
   document.getElementById('liveSocialSummary').textContent=online+'/'+members.length+' online'+(social.party_tactic?' · '+social.party_tactic.replace('_',' '):'');
   document.getElementById('liveReplayExport').disabled=state.phase!=='complete'&&state.phase!=='failed';
+  document.getElementById('liveReplayView').disabled=state.phase!=='complete'&&state.phase!=='failed';
   var lines=[];
   if(social.spectating)lines.push('👁️ You are defeated and spectating; your reserved party position remains visible.');
   if(social.party_tactic)lines.push('🗳 Party default: '+social.party_tactic.replace('_',' ')+'.');

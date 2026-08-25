@@ -400,7 +400,7 @@ func (c *abyssLiveCombat) publishRound(
 			Break:    max(0, mob.Break),
 			MaxBreak: max(0, mob.MaxBreak),
 			Hazard:   abyssEnemyHazard(mob),
-			Revenge:  c.revengeFamily != "" && string(mob.Type) == c.revengeFamily,
+			Revenge:  abyssIsRevengeTarget(c.revengeFamily, mob),
 			Effects:  liveMobEffects(mob),
 		})
 	}

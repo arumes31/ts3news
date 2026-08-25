@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
@@ -578,12 +580,8 @@ func (s *WebServer) handleAbyssReplayCode(w http.ResponseWriter, r *http.Request
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
-	var req struct {
-		SessionID string `json:"session_id"`
-		Code      string `json:"code"`
-		Ghost     bool   `json:"ghost"`
-	}
-	if readJSON(r, &req) != nil {
+	req, err := decodeAbyssReplayRequest(w, r)
+	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
@@ -593,7 +591,7 @@ func (s *WebServer) handleAbyssReplayCode(w http.ResponseWriter, r *http.Request
 			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 			return
 		}
-		_, err = s.bot.DB.Exec(`INSERT INTO app_meta (key,value) VALUES ($1,$2)
+		_, err = s.bot.DB.ExecContext(r.Context(), `INSERT INTO app_meta (key,value) VALUES ($1,$2)
 			ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`, "abyss_ghost_rounds_"+uid, fmt.Sprint(replay.Rounds))
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "could not arm ghost challenge"})
@@ -602,15 +600,18 @@ func (s *WebServer) handleAbyssReplayCode(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": true, "msg": "Ghost-party challenge armed for your next live fight."})
 		return
 	}
-	var owned, raw string
-	if s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_live_replay_user_"+uid+"_"+req.SessionID).Scan(&owned) != nil ||
-		s.bot.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_live_replay_session_"+req.SessionID).Scan(&raw) != nil {
+	archive, err := s.loadOwnedAbyssReplay(r.Context(), uid, req.SessionID)
+	if errors.Is(err, errAbyssReplayNotFound) {
 		writeJSON(w, map[string]any{"ok": false, "error": "replay not found"})
 		return
 	}
-	var archive abyssLiveReplayArchive
-	if json.Unmarshal([]byte(raw), &archive) != nil {
+	if err != nil {
+		slog.Error("load Abyss replay", "error", err)
 		writeJSON(w, map[string]any{"ok": false, "error": "replay unavailable"})
+		return
+	}
+	if req.View {
+		writeJSON(w, map[string]any{"ok": true, "replay": buildAbyssReplayView(archive, uid)})
 		return
 	}
 	code, err := encodeAbyssReplayCode(archive.State.Snapshot)

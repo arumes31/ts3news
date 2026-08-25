@@ -1,0 +1,48 @@
+{{define "abyssReplayViewerJS"}}
+(function(){
+  function lastSession(){
+    try{return sessionStorage.getItem('abyssLastReplaySession')||'';}catch(ignore){return '';}
+  }
+  function number(value){
+    value=Number(value||0);
+    return typeof fmtNum==='function'?fmtNum(value):value.toLocaleString();
+  }
+  function clock(value){
+    var date=new Date(value||'');
+    return Number.isNaN(date.getTime())?'—':date.toLocaleString();
+  }
+  function side(label,side,hostile){
+    side=side||{};
+    return '<span class="ab-replay-side '+(hostile?'hostile':'party')+'"><b>'+label+'</b><strong>'+number(side.hp)+' / '+number(side.max_hp)+'</strong><small>'+number(side.alive)+' of '+number(side.units)+' standing</small></span>';
+  }
+  function render(replay){
+    replay=replay||{};
+    var frames=(replay.frames||[]).map(function(frame,index){
+      var logs=(frame.logs||[]).map(function(line){return '<li>'+consEsc(String(line))+'</li>';}).join('');
+      var phase=String(frame.phase||'unknown');
+      return '<article class="ab-replay-frame" data-phase="'+consEsc(phase)+'">'+
+        '<header><span>FRAME '+number(index+1)+'</span><b>ROUND '+number(frame.round)+'</b><em>'+consEsc(phase.toUpperCase())+'</em><time>'+consEsc(clock(frame.at))+'</time></header>'+
+        '<div class="ab-replay-sides">'+side('PARTY',frame.allies,false)+side('HOSTILES',frame.enemies,true)+'</div>'+
+        (logs?'<ol class="ab-replay-logs">'+logs+'</ol>':'<p class="muted small">No new combat lines in this frame.</p>')+
+      '</article>';
+    }).join('');
+    var seed=(replay.random_seed||[]).map(function(value){return consEsc(String(value));}).join(' · ')||'unavailable';
+    var warning=replay.truncated?'<p class="ab-replay-truncated">Earlier frames were omitted from this bounded viewer.</p>':'';
+    openModal('<section class="ab-replay-modal">'+
+      '<header class="ab-replay-title"><div><span>AUTHORITATIVE COMBAT ARCHIVE</span><h3>Run replay</h3></div><div><b>'+number(replay.total_events)+'</b><small>persisted events</small></div></header>'+
+      '<div class="ab-replay-ledger"><span><small>ARCHIVED</small>'+consEsc(clock(replay.archived_at))+'</span><span><small>DETERMINISTIC SEED</small>'+seed+'</span></div>'+warning+
+      '<div class="ab-replay-timeline">'+(frames||'<p class="ab-replay-empty">No participant-visible frames were archived.</p>')+'</div>'+
+      '<div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close archive</button></div></section>');
+  }
+  async function view(session){
+    session=String(session||'');
+    if(!session){abToast('Finish a live fight first.',false);return;}
+    var data=await abPost('/api/abyss/replay/code',{session_id:session,view:true});
+    if(!data.ok){abToast(data.error||'Replay unavailable',false);return;}
+    render(data.replay);
+  }
+  window.viewAbyssReplay=view;
+  window.viewLastAbyssReplay=function(){return view(lastSession());};
+  window.renderAbyssReplayView=render;
+})();
+{{end}}
