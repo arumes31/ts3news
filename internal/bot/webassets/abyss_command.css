@@ -530,6 +530,8 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
 }
 
 .abyss-command-page #abyssTokenShop,
+.abyss-command-page #abyssTokenExchange,
+.abyss-command-page #abyssWorkshop,
 .abyss-command-page #abyssForgePanel {
   grid-column: span 2;
 }

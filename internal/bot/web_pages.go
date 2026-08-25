@@ -37,6 +37,10 @@ type gearView struct {
 	Empty         bool
 	AHPrice       int64 // auto-calculated auction house listing price
 	VendorPrice   int64 // current item's exact server-side vendor value
+	StatsJSON     string
+	GemstonesJSON string
+	KillCount     int
+	MilestoneTier int
 
 	// Detail surfaced in the armoury/inventory.
 	Element    string
@@ -83,11 +87,49 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	name := g.Name
 	stats := gearStatList(g.Stats)
 	effDesc := content.ItemEffectDescription(g.Special)
+	statsJSON := "{}"
+	gemstonesJSON := "[]"
+	killCount := 0
+	milestoneTier := 0
+	rarityName := g.Rarity.String()
+	rarityColor := g.Rarity.Color()
+	rarityIcon := content.RarityIconName(g.Rarity)
+	rarityValue := int(g.Rarity)
+	combatRating := g.CombatRating()
+	score := g.Stats.Score()
+	gearID := g.ID
+	maxDurability := g.MaxDurability
+	xpBonusPct := int(math.Round((g.XPMultiplier - 1.0) * 100))
+	sockets := g.Sockets
+	gemstones := g.Gemstones
+	insured := g.Insured
+	if !g.Unidentified {
+		if encoded, err := json.Marshal(g.Stats); err == nil {
+			statsJSON = string(encoded)
+		}
+		if encoded, err := json.Marshal(g.Gemstones); err == nil {
+			gemstonesJSON = string(encoded)
+		}
+		killCount = g.KillCount
+		milestoneTier = g.MilestoneTier
+	}
 
 	if g.Unidentified {
 		name = "Unidentified " + string(slot)
 		stats = []statKV{{"???", 0}}
 		effDesc = "Identify this item to reveal its stats and effects."
+		rarityName = "Unknown"
+		rarityColor = "#8c96aa"
+		rarityIcon = ""
+		rarityValue = 0
+		combatRating = 0
+		score = 0
+		gearID = ""
+		maxDurability = 0
+		xpBonusPct = 0
+		sockets = 0
+		gemstones = nil
+		insured = false
 	} else {
 		if g.GearLevel > 0 {
 			name = fmt.Sprintf("%s +%d", name, g.GearLevel)
@@ -151,34 +193,51 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		Slot:          string(slot),
 		Icon:          content.SlotIcon(slot),
 		IconName:      content.SlotIconName(slot),
-		ID:            g.ID,
+		ID:            gearID,
 		Name:          name,
-		Rarity:        g.Rarity.String(),
-		RarityColor:   g.Rarity.Color(),
-		RarityIcon:    content.RarityIconName(g.Rarity),
-		CR:            g.CombatRating(),
-		Score:         g.Stats.Score(),
-		MaxDurability: g.MaxDurability,
+		Rarity:        rarityName,
+		RarityColor:   rarityColor,
+		RarityIcon:    rarityIcon,
+		CR:            combatRating,
+		Score:         score,
+		MaxDurability: maxDurability,
+		StatsJSON:     statsJSON,
+		GemstonesJSON: gemstonesJSON,
+		KillCount:     killCount,
+		MilestoneTier: milestoneTier,
 		Stats:         stats,
-		XPBonusPct:    int(math.Round((g.XPMultiplier - 1.0) * 100)),
-		Unidentified: g.Unidentified,
-		Sockets:      g.Sockets,
-		Gemstones:    g.Gemstones,
-		RarityVal:    int(g.Rarity),
-		Insured:      g.Insured,
-		Corrupted:    g.Corrupted,
-		Temper:       g.Temper,
-		Quality:      g.Quality,
-		SetID:        g.SetID,
-		HasSpecial:   g.Special != content.EffectNone,
-		Imbued:       g.Imbued != "",
-		Attuned:      g.Attuned,
-		Cursed:       g.Cursed,
-		Eldritch:     g.Eldritch,
-		HasRune:      g.Rune != "",
-		Prismatic:    g.Prismatic,
+		XPBonusPct:    xpBonusPct,
+		Unidentified:  g.Unidentified,
+		Sockets:       sockets,
+		Gemstones:     gemstones,
+		RarityVal:     rarityValue,
+		Insured:       insured,
+		Corrupted:     g.Corrupted,
+		Temper:        g.Temper,
+		Quality:       g.Quality,
+		SetID:         g.SetID,
+		HasSpecial:    g.Special != content.EffectNone,
+		Imbued:        g.Imbued != "",
+		Attuned:       g.Attuned,
+		Cursed:        g.Cursed,
+		Eldritch:      g.Eldritch,
+		HasRune:       g.Rune != "",
+		Prismatic:     g.Prismatic,
 	}
-	if g.Element != "" && g.Element != content.ElementPhysical {
+	if g.Unidentified {
+		v.Corrupted = false
+		v.Temper = 0
+		v.Quality = 0
+		v.SetID = ""
+		v.HasSpecial = false
+		v.Imbued = false
+		v.Attuned = false
+		v.Cursed = false
+		v.Eldritch = false
+		v.HasRune = false
+		v.Prismatic = false
+	}
+	if !g.Unidentified && g.Element != "" && g.Element != content.ElementPhysical {
 		v.Element = string(g.Element)
 	}
 	if g.Special != content.EffectNone && !g.Unidentified {
@@ -410,14 +469,18 @@ func (b *Bot) inventoryItems(uid string) []gearView {
 		}
 		v := toGearView(g.Slot, g)
 		v.InvID = id
-		v.Durability = dur
+		if !g.Unidentified {
+			v.Durability = dur
+		}
 		// Auto-calculate AH listing price: (CR×10 + GS×5) × (Rarity+1)
 		price := int64(g.CombatRating()*10+float64(g.Stats.Score())*5) * (int64(g.Rarity) + 1)
 		if price < 10 {
 			price = 10
 		}
-		v.AHPrice = price
-		v.VendorPrice = max(gearPrice(g)/2, 1)
+		if !g.Unidentified {
+			v.AHPrice = price
+			v.VendorPrice = max(gearPrice(g)/2, 1)
+		}
 		out = append(out, v)
 	}
 	return out

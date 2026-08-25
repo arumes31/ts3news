@@ -19,8 +19,7 @@
     return (tip.split('\n')[0]||option.textContent||'').replace(/^\s*[\p{Extended_Pictographic}\s]+/u,'').trim();
   }
   function accountDiscount(){
-    var chip=document.getElementById('forgeRepChip'),match=/[−-](\d+)%/.exec(chip?chip.textContent:'');
-    return Math.min(40,(match?Number(match[1]):0)+(new Date().getUTCHours()===18?20:0));
+    return Math.max(0,Math.min(40,Number(forgeUIState&&forgeUIState.account_discount_pct)||0));
   }
   function priceButtons(option){
     if(typeof AB_FORGE_COSTS==='undefined'||typeof abForgeGoldRaw!=='function')return;
@@ -43,8 +42,7 @@
     var option=select.options[select.selectedIndex];
     if(!option||!option.value){card.hidden=true;return;}
     card.hidden=false;
-    var name=selectedName(option),slot=option.dataset.slot||'Gear',rarity=Number(option.dataset.rarity||0),cr=Number(option.dataset.cr||0),gs=Number(option.dataset.gs||0),level=Number(option.dataset.temper||0),pity=0;
-    try{pity=Number(localStorage.getItem('ab_temper_pity')||0);}catch(_){}
+    var name=selectedName(option),slot=option.dataset.slot||'Gear',rarity=Number(option.dataset.rarity||0),cr=Number(option.dataset.cr||0),gs=Number(option.dataset.gs||0),level=Number(option.dataset.temper||0),pity=Number(forgeUIState&&forgeUIState.temper_fail_stacks)||0;
     var base=Math.max(20,Math.min(95,95-6*level)),chance=Math.max(20,Math.min(95,base+5*pity));
     document.getElementById('forgeSelectionName').textContent=name;
     var rarityNames=['Common','Uncommon','Rare','Epic','Legendary','Mythic','Divine','Celestial','Eternal'];

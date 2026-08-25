@@ -873,6 +873,19 @@ span.rar-eternal, .ab-bp-name.rar-eternal { color: #e040fb; }
 
 /* ---- E. Forge & workshop (UI-81..100) ------------------------------------- */
 
+.ab-forge-selected {
+  display: grid;
+  gap: .2rem;
+  margin-top: .45rem;
+  padding: .55rem .65rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.ab-forge-selected[hidden] { display: none; }
+
 /* UI-83: greyed-out (still clickable) when short on gold/tokens/materials */
 .ab-cantafford { opacity: .45; filter: grayscale(.6); }
 

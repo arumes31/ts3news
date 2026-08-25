@@ -284,3 +284,26 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0578 / UI-78** — equipped and backpack set ribbons use persisted SetID values.
 - [x] **AAA-0579 / UI-79** — new run loot glows until its first pointer or keyboard interaction.
 - [x] **AAA-0580 / UI-80** — run-loot detail cards retain the authoritative persisted drop floor.
+
+## Delivered tranche: forge decision clarity
+
+- [x] **AAA-0581 / UI-81** — the selected forge item receives a compact exact-metadata summary card.
+- [x] **AAA-0582 / UI-82** — equipped and backpack picker groups show their live item counts.
+- [x] **AAA-0583 / UI-83** — affordability hints remain advisory while every commit refreshes an exact signed server quote.
+- [x] **AAA-0584 / UI-84** — temper pity restores from account-wide server state across browsers and sessions.
+- [x] **AAA-0585 / UI-85** — temper surge uses a reduced-motion-safe coin-flip confirmation with both outcomes visible.
+- [x] **AAA-0586 / UI-86** — forge confirmations show the selected item's current stat block.
+- [x] **AAA-0587 / UI-87** — awakening previews the possible Special pool before confirmation.
+- [x] **AAA-0588 / UI-88** — imbue selection includes a live mechanical effect description.
+- [x] **AAA-0589 / UI-89** — brand selection previews current and resulting equipped set progress.
+- [x] **AAA-0590 / UI-90** — Special swaps render both selected items as mini-cards.
+- [x] **AAA-0591 / UI-91** — gear-XP infusion previews the exact CR-derived sacrifice value and milestones.
+- [x] **AAA-0592 / UI-92** — prismatic rune preview identifies the exact highest stat and projected value.
+- [x] **AAA-0593 / UI-93** — rebalance preview shows the exact source-stat transfer before committing.
+- [x] **AAA-0594 / UI-94** — gem transmutation compares persisted before/after gem stats at the retained tier.
+- [x] **AAA-0595 / UI-95** — forge history can be filtered by its authoritative action labels.
+- [x] **AAA-0596 / UI-96** — history rarity names reuse the standard rarity color language.
+- [x] **AAA-0597 / UI-97** — undo readiness and daily usage come from server state rather than local storage.
+- [x] **AAA-0598 / UI-98** — artisan reputation shows exact progress to the next discount tier.
+- [x] **AAA-0599 / UI-99** — happy-hour status and countdown derive from the server's UTC window.
+- [x] **AAA-0600 / UI-100** — material chips explain their canonical acquisition sources by pointer and keyboard.

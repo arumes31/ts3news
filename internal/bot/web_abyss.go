@@ -1320,7 +1320,9 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	for _, slot := range content.AllSlots {
 		if g, ok := equipped[slot]; ok {
 			view := toGearView(slot, g)
-			view.Durability = durabilityBySlot[slot]
+			if !g.Unidentified {
+				view.Durability = durabilityBySlot[slot]
+			}
 			slots = append(slots, view)
 		}
 	}

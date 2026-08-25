@@ -113,8 +113,12 @@ func TestAbyssWorkspaceTabs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read forge planner: %v", err)
 	}
+	navigation, err := webAssets.ReadFile("webassets/abyss_navigation.html")
+	if err != nil {
+		t.Fatalf("read Abyss navigation: %v", err)
+	}
 
-	source := string(page)
+	source := string(page) + string(navigation)
 	wantMarkers := []string{
 		`id="abyssSetBonuses" data-abyss-section="progression"`,
 		`id="abyssSanctuaryUpgrades" data-abyss-section="progression"`,
@@ -122,7 +126,7 @@ func TestAbyssWorkspaceTabs(t *testing.T) {
 		`id="abyssTokenExchange" data-abyss-section="shop"`,
 		`id="abyssWorkshop" data-abyss-section="forge"`,
 		`id="abyssForgePanel" data-abyss-section="forge"`,
-		`localStorage.setItem('abyss_section_tab', g.key)`,
+		`localStorage.setItem('abyss_section_tab',group.key)`,
 	}
 	for _, marker := range wantMarkers {
 		if !strings.Contains(source, marker) {

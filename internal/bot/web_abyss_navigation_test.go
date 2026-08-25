@@ -18,6 +18,10 @@ func TestAbyssNavigationContracts(t *testing.T) {
 		t.Fatal("Abyss navigation template is missing")
 	}
 	for _, required := range []string{
+		"function buildAbyssTabs",
+		"{key:'shop',label:'🜲 Shop'}",
+		"{key:'forge',label:'⚒️ Forge'}",
+		"panel.hidden=candidate.key!==group.key",
 		"function activateDeepLink",
 		"forge:'#abyssForgePanel'",
 		"workshop:'#abyssWorkshop'",
@@ -57,8 +61,8 @@ func TestAbyssNavigationAssetsAndIntegration(t *testing.T) {
 	for _, required := range []string{
 		`{{asset "/static/abyss_navigation.css"}}`,
 		`{{template "abyss-navigation" .}}`,
-		"localStorage.getItem('abyss_section_tab')",
-		"localStorage.setItem('abyss_section_tab'",
+		`data-abyss-section="shop"`,
+		`data-abyss-section="forge"`,
 		"var lootFirst=inRun || abSettingGet",
 		"row.classList.toggle('ab-loot-first'",
 		"key:'ab_compact'",
