@@ -63,6 +63,11 @@ runtime/music/*
 coverage.html
 .coverage/
 
+# Browser-test dependencies and diagnostics
+/node_modules/
+/test-results/
+/playwright-report/
+
 # OS files
 Thumbs.db
 Desktop.ini

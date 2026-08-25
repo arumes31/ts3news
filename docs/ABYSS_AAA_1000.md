@@ -150,8 +150,11 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 
 - [x] **AAA-0986 / AB-286** — compare tier catalog values with the latest database constraints.
 - [x] **AAA-0987 / AB-287** — golden-render threshold and active-run page fixtures.
+- [x] **AAA-0988 / AB-288** — Playwright exercises enter, victorious descend, bank preview/commit, and the fatal revive/concede decision in CI.
+- [x] **AAA-0989 / AB-289** — the production descend HTTP handler admits 100 simultaneous independent delvers inside a bounded CI load gate.
 - [x] **AAA-0990 / AB-290** — aggregate enter → floor 5 → bank funnel telemetry.
 - [x] **AAA-0991 / AB-291** — an explicit confirmation creates a bounded, manually shared live-run support bundle that excludes names, IDs, logs, and RNG state.
+- [x] **AAA-0992 / AB-292** — difficulty values load from a strict embedded JSON catalog or an optional startup-time operator override without recompilation.
 - [x] **AAA-0993 / AB-293** — bounded client error reporting.
 - [x] **AAA-0994 / AB-294** — combat-log DOM virtualization above 500 lines.
 - [x] **AAA-0995 / AB-295** — coalesce HUD chip recomputes to one animation frame.

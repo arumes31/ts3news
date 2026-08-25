@@ -363,6 +363,26 @@
     "verification": ["internal/bot/web_abyss_release_guards_test.go"]
   },
   {
+    "ids": [988, 989, 992],
+    "production": [
+      "internal/bot/abyss_tiers.json",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_tiers.go",
+      "internal/bot/webassets/abyss_core_risk.html"
+    ],
+    "verification": [
+      ".github/workflows/ci.yml",
+      "internal/bot/web_abyss_descend_load_test.go",
+      "internal/bot/web_abyss_e2e_test.go",
+      "internal/bot/web_abyss_tiers_test.go",
+      "package-lock.json",
+      "playwright.config.js",
+      "tests/e2e/abyss.spec.js",
+      "tests/e2e/run.js"
+    ]
+  },
+  {
     "ids": [990],
     "production": [
       "internal/bot/web_abyss_funnel.go",

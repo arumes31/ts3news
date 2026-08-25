@@ -28,22 +28,17 @@ func readJSON(r *http.Request, v any) error {
 // abyssTier is a difficulty mode: harder tiers multiply both danger and reward,
 // gate behind a best-depth requirement, and cost gold to enter. [16][54]
 type abyssTier struct {
-	Key        string
-	Name       string
-	DiffMult   float64
-	RewardMult float64
-	EntryGold  int64
-	MinBest    int
-}
-
-var abyssTiers = map[string]abyssTier{
-	"normal":    {"normal", "Normal", 1.0, 1.0, 0, 0},
-	"nightmare": {"nightmare", "Nightmare", 1.6, 2.0, 500, 15},
-	"hell":      {"hell", "Hell", 2.5, 4.0, 5000, 30},
-	"insanity":  {"insanity", "Insanity", 20.0, 10.0, 50000, 50},
+	Key        string  `json:"key"`
+	Name       string  `json:"name"`
+	DiffMult   float64 `json:"difficulty_multiplier"`
+	RewardMult float64 `json:"reward_multiplier"`
+	EntryGold  int64   `json:"entry_gold"`
+	MinBest    int     `json:"minimum_best_depth"`
 }
 
 var abyssTierOrder = []string{"normal", "nightmare", "hell", "insanity"}
+
+var abyssTiers = mustLoadAbyssTierCatalog()
 
 func abyssTierByKey(k string) (abyssTier, bool) {
 	t, ok := abyssTiers[k]
