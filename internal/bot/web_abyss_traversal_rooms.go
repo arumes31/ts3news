@@ -23,6 +23,7 @@ type abyssTraversalEvent struct {
 	Destinations []abyssTraversalDestination `json:"destinations"`
 	PassChance   int                         `json:"pass_chance"`
 	GhostName    string                      `json:"ghost_name"`
+	GhostUID     string                      `json:"ghost_uid,omitempty"`
 	DeathDepth   int                         `json:"death_depth"`
 	MissedFloors []string                    `json:"missed_floors"`
 }
@@ -56,11 +57,21 @@ func prepareAbyssTraversalEvent(state map[string]any, depth int) {
 }
 
 func (b *Bot) enrichAbyssTraversalEvent(uid string, state map[string]any) {
-	if state["type"] != "trap_chamber" {
-		return
+	switch state["type"] {
+	case "trap_chamber":
+		depth, _ := state["depth"].(float64)
+		state["pass_chance"] = abyssTrapPassChance(b.abyssCombatStats(uid).DGE, int(depth))
+	case "graveyard":
+		var ghostUID, ghostName string
+		var deathDepth int
+		if b.DB.QueryRow(`SELECT d.client_uid,COALESCE(NULLIF(u.nickname,''),'Fallen Delver'),d.depth
+			FROM abyss_deaths d JOIN users u ON u.client_uid=d.client_uid
+			WHERE d.client_uid<>$1
+			ORDER BY ABS(u.level-(SELECT level FROM users WHERE client_uid=$1)),d.died_at DESC LIMIT 1`, uid).
+			Scan(&ghostUID, &ghostName, &deathDepth) == nil {
+			state["ghost_uid"], state["ghost_name"], state["death_depth"] = ghostUID, ghostName, deathDepth
+		}
 	}
-	depth, _ := state["depth"].(float64)
-	state["pass_chance"] = abyssTrapPassChance(b.abyssCombatStats(uid).DGE, int(depth))
 }
 
 func (s *WebServer) handleAbyssTraversalRoom(w http.ResponseWriter, uid string, run abyssRun, action string) bool {
@@ -155,6 +166,19 @@ func (s *WebServer) handleAbyssTraversalRoom(w http.ResponseWriter, uid string, 
 			newEscrow += gain
 			newHP = max(1, newHP-max(1, run.MaxHP/10))
 			msg = fmt.Sprintf("👻 You disturb %s's grave: +%d cache, −10%% maximum HP.", state.GhostName, gain)
+		case "graveyard_duel":
+			gain := int64(500 + run.Depth*30)
+			newEscrow += gain
+			courtesy := gain / 20
+			if state.GhostUID != "" && state.GhostUID != uid {
+				if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", courtesy, state.GhostUID); err != nil {
+					writeJSON(w, map[string]any{"ok": false, "error": "db"})
+					return true
+				}
+				_, _ = tx.Exec("INSERT INTO abyss_social_notifications (client_uid,kind,message) VALUES ($1,'ghost_courtesy',$2)",
+					state.GhostUID, fmt.Sprintf("A delver defeated your depth-%d echo. Courtesy fee: %dg.", state.DeathDepth, courtesy))
+			}
+			msg = fmt.Sprintf("⚔️ You defeat %s's echo: +%d cache. A 5%% courtesy fee reaches the fallen delver.", state.GhostName, gain)
 		default:
 			writeJSON(w, map[string]any{"ok": false, "error": "invalid graveyard choice"})
 			return true

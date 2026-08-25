@@ -236,17 +236,18 @@ func (b *Bot) buildAbyssUser(uid string) (UserInCombat, int, error) {
 	}
 
 	u := UserInCombat{
-		UID:         uid,
-		Nickname:    nullStr(nick),
-		Stats:       stats,
-		Level:       lvl,
-		Skills:      b.getSkills(uid),
-		Ultimates:   b.getActiveUltimates(uid),
-		CurrentHP:   curHP,
-		RegenStacks: regen,
-		Gold:        gold,
-		Pets:        b.getPets(uid),
-		Equipped:    b.getEquippedItems(uid),
+		UID:            uid,
+		Nickname:       nullStr(nick),
+		Stats:          stats,
+		Level:          lvl,
+		Skills:         b.getSkills(uid),
+		Ultimates:      b.getActiveUltimates(uid),
+		CurrentHP:      curHP,
+		RegenStacks:    regen,
+		Gold:           gold,
+		Pets:           b.getPets(uid),
+		petHealEnabled: b.loadPetHealSettings(uid),
+		Equipped:       b.getEquippedItems(uid),
 		// Abyss drops are escrowed for the run, not granted inline by the engine.
 		EscrowLoot: true,
 		treeBonus:  tb,
@@ -586,16 +587,20 @@ func (b *Bot) abyssSpendLoadout(uid, consID string) {
 
 // abyssFloorResult is the outcome of fighting a single floor.
 type abyssFloorResult struct {
-	Victory     bool
-	RewardXP    int
-	LogsHTML    []string
-	LootHTML    []string
-	DuraHTML    []string
-	Timeline    []combatTimelineFrame
-	CurrentHP   int
-	MaxHP       int
-	PityProc    bool
-	DamageTaken int
+	Victory       bool
+	RewardXP      int
+	LogsHTML      []string
+	LootHTML      []string
+	DuraHTML      []string
+	Timeline      []combatTimelineFrame
+	BossFinale    []combatTimelineFrame
+	CurrentHP     int
+	MaxHP         int
+	PityProc      bool
+	DamageTaken   int
+	BossExecution bool
+	BossName      string
+	BossDPS       int64
 }
 
 var abyssLoreFragments = map[int]string{
@@ -921,6 +926,7 @@ func (b *Bot) fightAbyssFloorLive(
 				"[hr]",
 				fmt.Sprintf("[center][size=12][color=#e91e63]💀 BOSS — %s[/color][/size][/center]", bossName),
 				fmt.Sprintf("[center][color=#8a93a8][i]Depth %d · steel yourself — it knows you are here.[/i][/color][/center]", depth),
+				fmt.Sprintf("[center][color=#ffd991]Scout tip: %s[/color][/center]", abyssBossTip(bossName)),
 				"[hr]")
 		} else if modifier == "treasure_goblin" {
 			lvlScale, effectiveDiff := abyssMobScalars(mobLevel, diff)
@@ -1023,6 +1029,9 @@ func (b *Bot) fightAbyssFloorLive(
 			logs = append(logs, fmt.Sprintf("[color=#4a6fa5]🔔 Co-op Ally %s has entered the fray to assist you![/color]", partner.Nickname))
 		}
 	}
+	if coopUID.Valid && applyAbyssDuoBonus(combatUsers, b.abyssDuoAssists(uid, coopUID.String)) {
+		logs = append(logs, "[color=#41c97a]🤝 Trusted duo: five shared assists unlock +2% party combat stats.[/color]")
+	}
 	flagsByUID := make(map[string]map[string]int64, len(combatUsers))
 	for i := range combatUsers {
 		flagsByUID[combatUsers[i].UID] = b.loadRunFlags(combatUsers[i].UID)
@@ -1064,6 +1073,9 @@ func (b *Bot) fightAbyssFloorLive(
 		coopNick := coopUID.String
 		_ = b.DB.QueryRow("SELECT COALESCE(NULLIF(nickname, ''), 'Adventurer') FROM users WHERE client_uid=$1", coopUID.String).Scan(&coopNick)
 		logs = append(logs, fmt.Sprintf("[color=#4a6fa5]🔔 Helper %s receives %d Abyss Tokens under the %s party rule; run gear remains with the host cache.[/color]", coopNick, helperTokens, strings.ReplaceAll(abyssPartyLootRuleFromID(flags["party_loot_rule"]), "_", " ")))
+		assists := b.recordAbyssDuoAssist(uid, coopUID.String)
+		notice := fmt.Sprintf("Your assist secured a floor clear with %s. Reliability: %d assist(s).", u.Nickname, assists)
+		_, _ = b.DB.Exec("INSERT INTO abyss_social_notifications (client_uid,kind,message) VALUES ($1,'helper_kill',$2)", coopUID.String, notice)
 	}
 	// Clear co-op partner for next floor
 	_, _ = b.DB.Exec("UPDATE abyss_active SET coop_uid = NULL WHERE client_uid = $1", uid)
@@ -1080,6 +1092,9 @@ func (b *Bot) fightAbyssFloorLive(
 		if encounterRandom.Float64() < 0.20 && b.grantAbyssMasteryShard(uid) {
 			logs = append(logs, "🔮 The boss dropped a Mastery Shard — refund one skill-web branch for free!")
 		}
+	}
+	if !victory {
+		b.recordAbyssDeath(uid, depth, mobPtrs)
 	}
 
 	// Record kills in Bestiary — use CurrentHP (live value) not Stats.HP (base max)
@@ -1167,6 +1182,20 @@ func (b *Bot) fightAbyssFloorLive(
 		outcome, len(mobs), duration.Milliseconds(), FormatGoldPlain(int64(hpBefore)), FormatGoldPlain(int64(curHP)), curHP-hpBefore))
 
 	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken}
+	if isBossFloor && len(mobs) > 0 {
+		res.BossName = mobs[0].Name
+		res.BossExecution = victory
+		res.BossFinale = abyssBossFinale(timeline, 5)
+		if duration > 0 {
+			res.BossDPS = int64(max(mobs[0].MaxHP, 0)) * int64(time.Second) / int64(duration)
+		}
+		for _, taunt := range abyssBossTaunts(mobs[0].Name, timeline) {
+			logs = append(logs, taunt)
+		}
+	}
+	if tier.Key == "insanity" && encounterRandom.IntN(3) == 0 {
+		logs = append(logs, abyssInsanityWhisper(depth, encounterRandom.IntN(4)))
+	}
 	for _, l := range logs {
 		res.LogsHTML = append(res.LogsHTML, abyssCombatLogHTML(l))
 	}
@@ -1451,6 +1480,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"History":             history,
 		"RunInsights":         insights,
 		"LongTerm":            longTerm,
+		"Social":              s.bot.abyssSocialHub(uid, st.AbyssPrestige),
 		"CoreLoop":            coreLoop,
 		"EventIntel":          eventIntel,
 		"DropForecast":        dropForecast,
@@ -2939,6 +2969,12 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		"timeline": res.Timeline, "reward_xp": res.RewardXP, "modifier": modifier,
 		"risk": abyssRiskPct(depth+1, tier, s.bot.abyssPlayerCR(uid)),
 	}
+	if res.BossName != "" {
+		out["boss_name"] = res.BossName
+		out["boss_execution"] = res.BossExecution
+		out["boss_dps"] = res.BossDPS
+		out["boss_finale"] = res.BossFinale
+	}
 	if hasAbyssFloorModifier(modifier, "darkness") {
 		out["timeline"] = concealAbyssTimeline(res.Timeline)
 	}
@@ -3104,6 +3140,9 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 			"loot": res.LootHTML, "dura": res.DuraHTML, "timeline": res.Timeline,
 			"escrow": newEscrow, "doubled": true,
 			"reward_xp": res.RewardXP, "risk": abyssRiskPct(run.Depth+1, tier, s.bot.abyssPlayerCR(uid)),
+		}
+		if res.BossName != "" {
+			out["boss_name"], out["boss_execution"], out["boss_dps"], out["boss_finale"] = res.BossName, res.BossExecution, res.BossDPS, res.BossFinale
 		}
 		var gold int64
 		_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
@@ -5058,10 +5097,12 @@ func (b *Bot) loadCoopHelpersFiltered(uid, pace, difficulty string) []map[string
 		difficulty = ""
 	}
 	rows, err := b.DB.Query(
-		`SELECT client_uid, COALESCE(NULLIF(nickname, ''), 'Adventurer') AS nick, abyss_best_depth, last_seen
-		   FROM users
-		  WHERE client_uid != $1 AND abyss_best_depth > 0
-		  ORDER BY last_seen DESC
+		`SELECT u.client_uid, COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick, u.abyss_best_depth, u.last_seen,
+		        COALESCE((SELECT assists FROM abyss_helper_bonds b
+		          WHERE b.uid_low=LEAST($1,u.client_uid) AND b.uid_high=GREATEST($1,u.client_uid)),0)
+		   FROM users u
+		  WHERE u.client_uid != $1 AND u.abyss_best_depth > 0
+		  ORDER BY u.last_seen DESC
 		  LIMIT 6`, uid)
 	if err != nil {
 		return nil
@@ -5070,9 +5111,9 @@ func (b *Bot) loadCoopHelpersFiltered(uid, pace, difficulty string) []map[string
 	var out []map[string]any
 	for rows.Next() {
 		var cuid, nick string
-		var depth int
+		var depth, assists int
 		var lastSeen time.Time
-		if err := rows.Scan(&cuid, &nick, &depth, &lastSeen); err == nil {
+		if err := rows.Scan(&cuid, &nick, &depth, &lastSeen, &assists); err == nil {
 			age := time.Since(lastSeen)
 			if (pace == "fast" && age > 15*time.Minute) || (pace == "standard" && age > 2*time.Hour) {
 				continue
@@ -5081,9 +5122,8 @@ func (b *Bot) loadCoopHelpersFiltered(uid, pace, difficulty string) []map[string
 				continue
 			}
 			out = append(out, map[string]any{
-				"UID":   cuid,
-				"Nick":  nick,
-				"Depth": depth,
+				"UID": cuid, "Nick": nick, "Depth": depth, "Reliability": assists,
+				"Badge": map[bool]string{true: "Trusted Ally", false: "New Ally"}[assists >= abyssDuoUnlocksAt],
 			})
 		}
 	}

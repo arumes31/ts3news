@@ -640,5 +640,34 @@
       "internal/bot/web_abyss_tree_contract_test.go",
       "internal/bot/web_abyss_tree_fuzz_test.go"
     ]
+  },
+  {
+    "ids": [876, 877, 878, 879, 880, 881, 882, 883, 884, 885, 886, 887, 888, 889, 890, 891, 892, 893, 894, 895, 896, 897, 898, 899, 900],
+    "production": [
+      "internal/db/migrations/0081_abyss_social.up.sql",
+      "internal/bot/web_abyss_boss_social.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/web_abyss_social_handlers.go",
+      "internal/bot/web_abyss_spectator.go",
+      "internal/bot/web_abyss_social_handlers.go",
+      "internal/bot/web_abyss_spectator.go",
+      "internal/bot/web_abyss_traversal_rooms.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_session.go",
+      "internal/bot/web_abyss_enemies.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/xp.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/webassets/abyss_pixel.html",
+      "internal/bot/webassets/abyss_social.html",
+      "internal/bot/webassets/abyss_spectate.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_boss_social_test.go",
+      "internal/bot/web_abyss_live_social_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

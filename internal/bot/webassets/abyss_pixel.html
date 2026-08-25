@@ -135,7 +135,7 @@ function renderLivePixelStage(state){
       var cell=hostile?art.cell:liveActorCell(unit,false),spriteClass='ab-actor-sprite'+(hostile&&art.atlas==='bestiary'?' ab-enemy-sprite':'');
       var spritePosition=hostile&&art.atlas==='bestiary'?liveEnemySpritePosition(cell):liveSpritePosition(cell);
       var rank=tier?'<span class="ab-pixel-rank">'+(tier===' boss-tier'?'BOSS':'ELITE')+'</span>':'';
-      button.innerHTML='<span class="ab-pixel-name"><b>'+consEsc(unit.name)+'</b><span>'+consEsc(unit.role||unit.element||'')+'</span></span>'+deltaHTML+
+      button.innerHTML='<span class="ab-pixel-name"><b>'+(unit.revenge?'◎ ':'')+consEsc(unit.name)+'</b><span>'+consEsc(unit.revenge?'REVENGE TARGET':unit.role||unit.element||'')+'</span></span>'+deltaHTML+
         (hpHidden?'<span class="ab-overhead-hp concealed"><i></i><em>??</em></span>':'<span class="ab-overhead-hp'+(dotActive?' dot-active':'')+'"><i style="width:'+livePct(unit.hp,unit.max_hp)+'%"></i><em>'+livePct(unit.hp,unit.max_hp)+'%</em></span>')+
         rank+'<span class="'+spriteClass+'" style="background-position:'+spritePosition+'" aria-hidden="true"></span>'+
         '<span class="ab-pixel-shadow" aria-hidden="true"></span><span class="ab-pixel-effects">'+effects+'</span>';

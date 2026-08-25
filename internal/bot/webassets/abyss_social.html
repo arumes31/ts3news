@@ -1,0 +1,72 @@
+{{define "abyssSocialHub"}}{{with .Social}}
+<section class="abyss-social-hub" id="abyssSocialHub" data-abyss-section="social">
+  <header class="ab-social-title">
+    <div><span class="ab-kicker">FELLOWSHIP NETWORK</span><h2>Companions, rivals &amp; world threats</h2></div>
+    <p>Persistent relationships and server-wide challenges. Every reward is settled by the server.</p>
+  </header>
+  <div class="ab-social-grid">
+    <article class="ab-social-card ab-pet-command">
+      <h3>🐾 Companion command</h3>
+      <p class="muted small">Mood changes combat performance by ±2%. Train three times daily; slot two unlocks at prestige 2.</p>
+      <div class="ab-pet-list">
+      {{range .Pets}}
+        <div class="ab-pet-card" data-pet-id="{{.ID}}">
+          <div class="ab-pet-head"><strong>{{.MoodIcon}} {{.Name}}</strong><span class="ab-mood {{.Mood}}">{{.Mood}} {{if gt .MoodPct 0}}+{{end}}{{.MoodPct}}%</span></div>
+          <div class="ab-pet-stats"><span>Lv {{.Level}} {{.Type}}</span><span>♥ {{comma .HP}}/{{comma .MaxHP}}</span><span>⚔ {{comma .STR}}</span><span>🛡 {{comma .DEF}}</span><span>➤ {{comma .SPD}}</span></div>
+          <div class="ab-pet-equipment">🔗 {{.Equipment}}</div>
+          <div class="ab-pet-actions">
+            <label>Formation <select onchange="abyssPetSlot({{.ID}},this.value)">
+              <option value="0" {{if eq .ActiveSlot 0}}selected{{end}}>Reserve</option>
+              <option value="1" {{if eq .ActiveSlot 1}}selected{{end}}>Active I</option>
+              <option value="2" {{if eq .ActiveSlot 2}}selected{{end}} {{if not $.Social.SecondPetUnlocked}}disabled{{end}}>Active II{{if not $.Social.SecondPetUnlocked}} · P2{{end}}</option>
+            </select></label>
+            <label class="ab-toggle"><input type="checkbox" {{if .HealEnabled}}checked{{end}} onchange="abyssPetAutoskill({{.ID}},this.checked)"> auto-heal</label>
+            <button class="ghost xs" onclick="abyssPetTrain({{.ID}},this)" {{if ge .Training 3}}disabled{{end}}>Train 1000g · {{.Training}}/3</button>
+          </div>
+        </div>
+      {{else}}<div class="ab-social-empty">Capture an enemy with Mind Control to recruit your first companion.</div>{{end}}
+      </div>
+    </article>
+
+    <article class="ab-social-card">
+      <h3>⚔ Weekly rival</h3>
+      {{with .Rival}}{{if .Available}}
+      <div class="ab-rival"><strong>{{.Nick}}</strong><span>Target: pass depth {{.TargetDepth}}</span><progress max="{{.NextDepth}}" value="{{.Current}}"></progress>
+      {{if .Claimed}}<b class="good">✓ reward claimed</b>{{else if .Passed}}<button class="primary xs" onclick="abyssRivalClaim(this)">Claim 15 🜲</button>{{else}}<small>Current depth {{.Current}} · reach {{.NextDepth}}</small>{{end}}</div>
+      {{else}}<div class="ab-social-empty">You currently lead every eligible rival.</div>{{end}}{{end}}
+      <h3 class="ab-social-sub">🎯 Revenge mark</h3>
+      {{if .RevengeFamily}}<div class="ab-revenge">◎ {{.RevengeFamily}} is your most lethal enemy family.</div>{{else}}<p class="muted small">No nemesis established yet.</p>{{end}}
+      <details><summary>Death wall · last {{len .Deaths}}</summary><div class="ab-death-wall">
+        {{range .Deaths}}<div><span>💀 F{{.Depth}} · <b>{{.KillerName}}</b> <small>{{.KillerFamily}}</small></span><time>{{.When}}</time></div>{{else}}<p class="muted small">No recorded deaths.</p>{{end}}
+      </div></details>
+    </article>
+
+    <article class="ab-social-card ab-world-boss">
+      <div class="ab-world-boss-head"><span class="ab-kicker">WEEKLY SERVER BOSS</span><h3>☄ {{.WeeklyBoss.Name}}</h3></div>
+      <div class="ab-world-hp"><i style="width:{{.WeeklyBoss.Percent}}%"></i><span>{{comma .WeeklyBoss.HP}} / {{comma .WeeklyBoss.MaxHP}} HP</span></div>
+      <div class="ab-world-meta"><span>{{.WeeklyBoss.Contributors}} contributors</span><span>Your damage: {{comma .WeeklyBoss.Damage}}</span></div>
+      {{if .WeeklyBoss.Defeated}}<b class="good">Defeated · all contributors received 25 🜲</b>{{else if .WeeklyBoss.Contributed}}<span class="muted small">Today's contribution is locked. Return tomorrow.</span>{{else}}<button class="primary" onclick="abyssWeeklyBossStrike(this)">Contribute today's strike</button>{{end}}
+      <h3 class="ab-social-sub">🏦 Nearby bank feed</h3>
+      <label class="ab-toggle"><input type="checkbox" {{if .BankFeedEnabled}}checked{{end}} onchange="abyssBankFeedToggle(this.checked)"> opt in to nearby-depth banks</label>
+      {{if .BankFeedEnabled}}<div class="ab-bank-feed">{{range .BankFeed}}<div><span><b>{{.Nick}}</b> banked F{{.Depth}}</span><strong>{{gold .Gold}}</strong><time>{{.When}}</time></div>{{else}}<p class="muted small">No nearby banks yet.</p>{{end}}</div>{{end}}
+    </article>
+
+    <article class="ab-social-card">
+      <h3>🏆 First-kill trophies</h3>
+      <div class="ab-trophy-grid">{{range .Trophies}}<div><span>♛</span><b>{{.Boss}}</b><time>First slain {{.Date}}</time></div>{{else}}<p class="muted small">Boss trophies appear after a first kill.</p>{{end}}</div>
+      <details><summary>🕯 Pet memorials · {{len .Memorials}}</summary><div class="ab-memorials">{{range .Memorials}}<div><span>🕯 <b>{{.Name}}</b> · Lv {{.Level}} {{.Type}}</span><time>{{.When}}</time></div>{{else}}<p class="muted small">No companions have fallen.</p>{{end}}</div></details>
+      {{if .Notifications}}<h3 class="ab-social-sub">🔔 Fellowship feed</h3><div class="ab-notifications">{{range .Notifications}}<div><span>{{.Message}}</span><time>{{.When}}</time></div>{{end}}</div>{{end}}
+    </article>
+  </div>
+</section>
+{{end}}{{end}}
+
+{{define "abyssSocialHubJS"}}
+async function abyssPetTrain(id,button){if(button)button.disabled=true;var d=await abPost('/api/abyss/social/pet/train',{pet_id:id});abToast(d.msg||d.error,!!d.ok);if(d.ok){setGold(d.gold);setTimeout(function(){location.reload();},450);}else if(button)button.disabled=false;}
+async function abyssPetSlot(id,slot){var d=await abPost('/api/abyss/social/pet/slot',{pet_id:id,slot:Number(slot)});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);}
+async function abyssPetAutoskill(id,enabled){var d=await abPost('/api/abyss/social/pet/autoskill',{pet_id:id,ability:'heal',enabled:enabled});abToast(d.msg||d.error,!!d.ok);}
+async function abyssBankFeedToggle(enabled){var d=await abPost('/api/abyss/social/bank_feed',{enabled:enabled});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},300);}
+async function abyssRivalClaim(button){button.disabled=true;var d=await abPost('/api/abyss/social/rival/claim',{});abToast(d.msg||d.error,!!d.ok);if(d.ok){setTokens(d.tokens);setTimeout(function(){location.reload();},450);}else button.disabled=false;}
+async function abyssWeeklyBossStrike(button){button.disabled=true;var d=await abPost('/api/abyss/social/weekly_boss',{ });abToast(d.msg||d.error,!!d.ok);if(d.ok){setTokens(d.tokens);setTimeout(function(){location.reload();},550);}else button.disabled=false;}
+function copyAbyssSpectatorLink(){if(!liveCombatState||!liveCombatState.session_id){abToast('No live combat to spectate.',false);return;}var link=location.origin+'/abyss/spectate?session='+encodeURIComponent(liveCombatState.session_id);if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(link).then(function(){abToast('Read-only spectator link copied.',true);},function(){window.prompt('Copy spectator link:',link);});}else window.prompt('Copy spectator link:',link);}
+{{end}}

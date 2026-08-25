@@ -95,6 +95,7 @@ func (s *WebServer) startAbyssLiveCombat(
 		previousDepth: run.Depth,
 		modifier:      modifier,
 		warning:       abyssEncounterWarning(modifier),
+		revengeFamily: s.bot.abyssRevengeFamily(uid),
 		randomSeed:    randomSeed,
 		createdAt:     time.Now(),
 	}

@@ -20,6 +20,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_longterm.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_core_risk.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_events.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_social.css"}}">
 <div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 <div class="abyss-hero">
@@ -304,7 +305,11 @@
         <input type="checkbox" id="hybridMode"> 🌀 Hybrid run
         <span class="muted small">(next-tier danger every 5th floor · half its extra reward)</span>
       </label>
-      <div class="muted small">🌐 Community expedition {{index .CommunityExpedition "Week"}}: {{index .CommunityExpedition "Floors"}} / {{index .CommunityExpedition "Target"}} floors</div>
+      <div class="muted small ab-community-expedition" title="Every cleared weekly-expedition floor contributes to this shared weekly objective.">
+        <span>🌐 Community expedition {{index .CommunityExpedition "Week"}}: {{index .CommunityExpedition "Floors"}} / {{index .CommunityExpedition "Target"}} floors</span>
+        <progress value="{{index .CommunityExpedition "Percent"}}" max="100" aria-label="Community expedition progress"></progress>
+        {{if index .CommunityExpedition "Complete"}}<b>✨ Complete</b>{{else}}<span>{{index .CommunityExpedition "Remaining"}} remaining</span>{{end}}
+      </div>
     </div>
 
     <!-- Focus display (active run only) -->
@@ -465,7 +470,7 @@
 
 <!-- Boss intro card (UX-28): brief zooming name plate over the stage -->
 <div class="ab-bosscard" id="bossCard" aria-hidden="true" inert>
-  <div class="ab-bosscard-inner"><span class="ab-bosscard-skull">💀</span><b id="bossCardName"></b><span class="muted small" id="bossCardSub"></span></div>
+  <div class="ab-bosscard-inner"><span class="ab-bosscard-skull">💀</span><b id="bossCardName"></b><span class="muted small" id="bossCardSub"></span><label class="ab-boss-note-label">Local strategy note<input id="bossStrategyNote" maxlength="120" placeholder="e.g. save interrupt for the summon"><button type="button" onclick="saveBossStrategyNote()">Save</button></label></div>
 </div>
 
 <!-- Screen-edge glow for Legendary+ drops (UX-52) -->
@@ -1103,6 +1108,8 @@
   </section>
 </div>
 
+{{template "abyssSocialHub" .}}
+
 <div class="abyss-lore-bestiary" data-abyss-section="lore">
   <section class="abyss-panel">
     <h2>{{T "web.abyss.lore_codex"}} <span class="ab-lore-ring" id="loreRing" data-total="{{.LoreTotal}}" title="Lore fragments collected"></span></h2>
@@ -1232,6 +1239,7 @@ var liveSelectedTarget='', livePendingOption=null, liveFinishHandled=false, live
 var liveStartHP=0, liveStartMaxHP=0, liveClockTimer=null;
 var liveTargetLocked=false, liveRoundHistory=[], liveLogFilter='all', liveGamepadIndex=-1;
 var liveActionOrder=[], livePinnedActions={}, liveShortcutMap={attack:'a',defend:'d',skill1:'1',skill2:'2',skill3:'3',skill4:'4',skill5:'5',item1:'q',item2:'e',item3:'r',ultimate1:'u',ultimate2:'i',ultimate3:'o'};
+var currentBossNoteName='';
 
 async function initAbyssCombatSettings(){
   var input=document.getElementById('holdManaSetting');if(!input)return;
@@ -1518,8 +1526,8 @@ async function abPost(url,body){
 async function abyssPractice(name){
   var result=await abPost('/api/abyss/practice',{name:name});
   if(!result.ok){abToast(result.error||'Practice drill unavailable.',false);return;}
-  var drill=(result.drill||[]).join(' · ');
-  abToast('🎯 '+result.boss+' · '+result.faction+' · '+result.pattern+' · '+drill,true,{ms:9000});
+  var lines=(result.practice_log||[]).map(function(line){return '<li>'+consEsc(line)+'</li>';}).join('');
+  openModal('<h3>🎯 Sanctuary practice · '+consEsc(result.boss)+'</h3><p>'+consEsc(result.faction)+' · '+consEsc(result.pattern)+'</p><div class="ab-practice-dps">Estimated DPS <b>'+fmtNum(result.estimated_dps)+'</b></div><ol class="ab-practice-log">'+lines+'</ol><p class="muted small">No health, consumables, cooldowns, loot, or run state changed.</p><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close drill</button></div>');
 }
 
 function setBusy(b){
@@ -1842,8 +1850,8 @@ function renderNonCombat(floorType, stateStr){
       options.innerHTML = `<button class="ghost" onclick="abyssNCAction('portal_enter')">🌀 Enter · skip 3 floors</button> <button class="ghost" onclick="abyssNCAction('portal_leave')">🚶 Let It Collapse</button>`;
     } else if(state.type === 'graveyard'){
       title.textContent = '🪦 Grave of '+(state.ghost_name||'an unknown delver');
-      desc.textContent = (state.ghost_name||'This delver')+' fell at depth '+Number(state.death_depth||0)+'. Honor the grave for materials, or disturb it for cache at a posted health cost.';
-      options.innerHTML = `<button class="ghost" onclick="abyssNCAction('graveyard_honor')">🕯️ Honor · gain 2 Abyssal Dust</button> <button class="ghost" onclick="abyssNCAction('graveyard_disturb')">👻 Disturb · gain cache · −10% max HP</button>`;
+      desc.textContent = (state.ghost_name||'This delver')+' fell at depth '+Number(state.death_depth||0)+'. Honor the grave, duel the echo, or disturb it for a dangerous cache.';
+      options.innerHTML = `<button class="ghost" onclick="abyssNCAction('graveyard_honor')">🕯️ Honor · gain 2 Abyssal Dust</button> <button class="ghost" onclick="abyssNCAction('graveyard_duel')">⚔️ Duel echo · 5% courtesy fee</button> <button class="ghost" onclick="abyssNCAction('graveyard_disturb')">👻 Disturb · gain cache · −10% max HP</button>`;
     } else if(state.type === 'echo_floor'){
       title.textContent = '🔁 Echo Floor';
       var echoOriginal=Math.max(0,Number(state.previous_reward)||0),echoReward=Math.max(0,Number(state.echo_reward)||0),echoPercent=Math.max(0,Number(state.echo_percent)||50);
@@ -2143,10 +2151,23 @@ function maybeBossCard(html){
   var card=document.getElementById('bossCard');
   if(!card) return;
   document.getElementById('bossCardName').textContent=name;
-  document.getElementById('bossCardSub').textContent='Depth '+curDepth+' · steel yourself';
+  currentBossNoteName=name;
+  var note='';try{note=localStorage.getItem('abyss_boss_note_'+name)||'';}catch(e){}
+  document.getElementById('bossStrategyNote').value=note;
+  document.getElementById('bossCardSub').textContent='Depth '+curDepth+(note?' · '+note:' · steel yourself');
+  card.setAttribute('aria-hidden','false');
+  card.inert=false;
   card.classList.remove('show'); void card.offsetWidth;
   card.classList.add('show');
-  setTimeout(function(){card.classList.remove('show');},1500);
+  setTimeout(function(){card.classList.remove('show');card.setAttribute('aria-hidden','true');card.inert=true;},6000);
+}
+
+function saveBossStrategyNote(){
+  if(!currentBossNoteName)return;
+  var input=document.getElementById('bossStrategyNote'),note=(input.value||'').trim().slice(0,120);
+  try{if(note)localStorage.setItem('abyss_boss_note_'+currentBossNoteName,note);else localStorage.removeItem('abyss_boss_note_'+currentBossNoteName);}catch(e){}
+  document.getElementById('bossCardSub').textContent='Depth '+curDepth+(note?' · '+note:' · steel yourself');
+  abToast(note?'Boss strategy note saved on this device.':'Boss strategy note cleared.',true);
 }
 
 // bossFrameClass (UI-7): named bosses map to their element frame color.
@@ -3217,6 +3238,18 @@ async function abyssChooseFloor(i, hp, max){
 
 // Shared by the direct-descend and choose-floor paths once a floor has been
 // resolved (rest/event vs. combat win/loss).
+var abyssLastBossFinale=null;
+function playAbyssBossExecution(data){
+  if(!data||!data.boss_execution||reduceMotion)return;
+  var stage=document.getElementById('abyssStage');if(!stage)return;
+  stage.classList.remove('ab-boss-execution');void stage.offsetWidth;stage.classList.add('ab-boss-execution');
+  setTimeout(function(){stage.classList.remove('ab-boss-execution');},900);
+}
+function showAbyssBossKillCam(){
+  var data=abyssLastBossFinale;if(!data)return;
+  var frames=(data.frames||[]).map(function(frame){var pct=frame.enemy_max?Math.max(0,Math.round(frame.enemy_hp*100/frame.enemy_max)):0;return '<li><b>Round '+Number(frame.round||0)+'</b><span>Boss '+fmtNum(frame.enemy_hp)+' / '+fmtNum(frame.enemy_max)+' HP · '+pct+'%</span><span>Party '+fmtNum(frame.hp)+' / '+fmtNum(frame.max_hp)+' HP</span></li>';}).join('');
+  openModal('<h3>🎬 Final five · '+consEsc(data.name)+'</h3><ol class="ab-killcam">'+frames+'</ol><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close replay</button></div>');
+}
 async function processDescendResult(d, hp, max){
   if(d.escrow_soft_cap!==undefined) escrowSoftCap=Number(d.escrow_soft_cap)||escrowSoftCap;
   if(d.escrow_efficiency_pct!==undefined) escrowEfficiencyPct=Number(d.escrow_efficiency_pct)||100;
@@ -3248,6 +3281,7 @@ async function processDescendResult(d, hp, max){
   setRisk(d.risk);
   trailPush(d.depth, d.depth % 5 === 0 ? 'boss' : 'combat'); // UX-34
   await playLog(d.logs, d.loot, d.dura, d.timeline, d);
+  playAbyssBossExecution(d);
   resetMana();
   setHP(d.hp,d.max_hp); setGold(d.gold); setTokens(d.tokens);
   if(d.victory){
@@ -3268,6 +3302,7 @@ async function processDescendResult(d, hp, max){
     if(d.lore_unlocked)msg+=' 📖 Found Lore Codex fragment!';
     if(d.recipe_unlocked)msg+=' 📖 Recipe discovered: '+d.recipe_unlocked+'!';
     if(d.gear_milestone)msg+=' '+d.gear_milestone;
+    if(d.boss_name){abyssLastBossFinale={name:d.boss_name,frames:d.boss_finale||[]};msg+=' 💥 '+consEsc(d.boss_name)+' executed · estimated '+fmtNum(d.boss_dps)+' DPS. <button class="ghost xs" onclick="showAbyssBossKillCam()">🎬 Final 5 rounds</button>';}
     setBanner(msg,'good');
     document.getElementById('abStatus').textContent='Floor '+d.depth+' survived. The next floor is deadlier.';
     renderConsumables(d.consumables);
@@ -6036,6 +6071,7 @@ function initNewDots(){
 {{template "abyss-insights" .}}
 {{template "abyss-longterm" .}}
 {{template "abyss-events" .}}
+<script data-cfasync="false">{{template "abyssSocialHubJS" .}}</script>
 {{template "abyssCoreRiskJS" .}}
 {{template "abyss-feedback" .}}
 {{template "abyss-polish" .}}

@@ -85,6 +85,7 @@ type abyssLiveCombatantView struct {
 	Break    int               `json:"break,omitempty"`
 	MaxBreak int               `json:"max_break,omitempty"`
 	Hazard   bool              `json:"hazard,omitempty"`
+	Revenge  bool              `json:"revenge,omitempty"`
 	Effects  []abyssLiveEffect `json:"effects,omitempty"`
 }
 
@@ -184,6 +185,7 @@ type abyssLiveCombat struct {
 	enemyPlans     map[int]abyssLiveEnemyPlan
 	actionCounts   map[string]int
 	bossAdaptation string
+	revengeFamily  string
 	initiative     []abyssLiveInitiativeEntry
 	social         abyssLiveSocialState
 	previousDepth  int
@@ -383,6 +385,7 @@ func (c *abyssLiveCombat) publishRound(
 			Break:    max(0, mob.Break),
 			MaxBreak: max(0, mob.MaxBreak),
 			Hazard:   abyssEnemyHazard(mob),
+			Revenge:  c.revengeFamily != "" && string(mob.Type) == c.revengeFamily,
 			Effects:  liveMobEffects(mob),
 		})
 	}

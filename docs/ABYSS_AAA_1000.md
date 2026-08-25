@@ -624,3 +624,31 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0873 / AB-173** — active and cooldown seconds render directly beneath the timed keystone and update without server polling.
 - [x] **AAA-0874 / AB-174** — notable, bridge, keystone, and aura nodes use restrained power-tier glow treatments with reduced-motion support.
 - [x] **AAA-0875 / AB-175** — a beginner overlay highlights a connected suggested first-ten-node route and can be toggled without mutating the build.
+
+## Delivered tranche: Boss spectacle, companions, and fellowship
+
+- [x] **AAA-0876 / AB-176** — a server-confirmed boss killing blow triggers a short stage execution zoom with a reduced-motion fallback.
+- [x] **AAA-0877 / AB-177** — each boss result reports a duration-derived estimated DPS value beside the victory summary.
+- [x] **AAA-0878 / AB-178** — Sanctuary practice produces a five-round build log and DPS estimate without changing health, consumables, cooldowns, run state, or rewards.
+- [x] **AAA-0879 / AB-179** — each boss intro card loads and saves one device-local strategy note without sending it to the server.
+- [x] **AAA-0880 / AB-180** — companion mood derives from health and loyalty, displays an icon, and applies a temporary two-percent combat-stat modifier.
+- [x] **AAA-0881 / AB-181** — companion cards show the equipped collar or charm and its exact positive combat stats.
+- [x] **AAA-0882 / AB-182** — a locked 1,000-gold training transaction raises the companion's lowest combat stat by at least one percent, capped at three sessions per UTC day.
+- [x] **AAA-0883 / AB-183** — prestige two unlocks a server-enforced second active companion formation slot.
+- [x] **AAA-0884 / AB-184** — a successful helper floor clear creates a durable notification for the assisting player.
+- [x] **AAA-0885 / AB-185** — helper selection exposes persisted assist counts and promotes five-assist pairs to Trusted Ally.
+- [x] **AAA-0886 / AB-186** — Graveyard rooms prefer a persistent fallen-player ghost nearest the current player's level.
+- [x] **AAA-0887 / AB-187** — the Fellowship death wall lists the player's ten most recent depths, killers, families, and times.
+- [x] **AAA-0888 / AB-188** — each ISO week assigns the nearest higher-depth rival and atomically pays tokens only after the target is passed.
+- [x] **AAA-0889 / AB-189** — the nearby-depth bank feed requires opt-in from both viewer and publisher before showing a bank event.
+- [x] **AAA-0890 / AB-190** — the most lethal recorded enemy family receives a visible Revenge Target mark in tactical and pixel combat views.
+- [x] **AAA-0891 / AB-191** — a boss victory retains one authoritative snapshot for each of the final five rounds and exposes a compact kill-cam replay.
+- [x] **AAA-0892 / AB-192** — five shared clears unlock a logged two-percent combat-stat bonus for the established duo.
+- [x] **AAA-0893 / AB-193** — a defeated companion moves atomically from the living roster into a dated memorial list.
+- [x] **AAA-0894 / AB-194** — the weekly server boss has shared locked HP, one contribution per player per UTC day, immediate material loot, and a contributor-wide defeat payout.
+- [x] **AAA-0895 / AB-195** — boss combat logs deliver threshold-specific taunts at the first authoritative 50% and 25% health crossings.
+- [x] **AAA-0896 / AB-196** — each active healing companion has a persisted, server-enforced auto-heal toggle.
+- [x] **AAA-0897 / AB-197** — defeating a named Graveyard echo transfers five percent of its cache reward to the fallen player and posts a durable courtesy notice.
+- [x] **AAA-0898 / AB-198** — Insanity combat occasionally appends one deterministic-RNG atmospheric whisper to its authoritative log.
+- [x] **AAA-0899 / AB-199** — the Fellowship trophy gallery records and dates the first persisted kill of every distinct boss.
+- [x] **AAA-0900 / AB-200** — authenticated bearer links open a read-only live spectator deck whose snapshot strips controls, results, RNG state, and raw combatant IDs.

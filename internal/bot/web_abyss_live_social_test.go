@@ -3,6 +3,7 @@ package bot
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"ts3news/internal/content"
 )
@@ -35,7 +36,10 @@ func TestMentorScaledStatsCapsPowerAtOneHundredTwentyPercent(t *testing.T) {
 }
 
 func TestAbyssReviveVoteRequiresMajority(t *testing.T) {
-	c := &abyssLiveCombat{participants: map[string]bool{"a": true, "b": true, "c": true}}
+	c := &abyssLiveCombat{
+		participants: map[string]bool{"a": true, "b": true, "c": true},
+		phase:        "complete", result: map[string]any{"downed": true},
+	}
 	if c.reviveApproved() {
 		t.Fatal("party revive approved without votes")
 	}
@@ -50,6 +54,41 @@ func TestAbyssReviveVoteRequiresMajority(t *testing.T) {
 	}
 	if !c.reviveApproved() {
 		t.Fatal("two of three votes did not form a majority")
+	}
+}
+
+func TestAbyssReviveVoteCannotBePrecast(t *testing.T) {
+	c := &abyssLiveCombat{participants: map[string]bool{"a": true}, phase: "planning"}
+	if err := c.voteRevive("a", true); err == nil || !strings.Contains(err.Error(), "after a party defeat") {
+		t.Fatalf("precast revive vote error = %v", err)
+	}
+}
+
+func TestAbyssSocialSnapshotReturnsCallerPreferencesAndVotes(t *testing.T) {
+	c := &abyssLiveCombat{
+		participants: map[string]bool{"a": true}, phase: "planning",
+		allies: []abyssLiveCombatantView{{ID: "ally:a", Name: "Ada", HP: 10}},
+		social: abyssLiveSocialState{
+			preferences: map[string]abyssSocialPreferences{"a": {Role: "support", Pace: "deliberate", Difficulty: "hell", AllowRisky: true}},
+			tacticVotes: map[string]string{"a": "defensive"}, lastSeen: map[string]time.Time{"a": time.Now()},
+		},
+	}
+	c.mu.Lock()
+	snapshot := c.socialSnapshotLocked("a")
+	c.mu.Unlock()
+	if snapshot.PreferredRole != "support" || snapshot.PreferredPace != "deliberate" || snapshot.PreferredDifficulty != "hell" || !snapshot.AllowRisky || snapshot.TacticVote != "defensive" {
+		t.Fatalf("caller social preferences = %#v", snapshot)
+	}
+}
+
+func TestAbyssTargetPingRejectsDefeatedEnemy(t *testing.T) {
+	c := &abyssLiveCombat{
+		participants: map[string]bool{"a": true},
+		allies:       []abyssLiveCombatantView{{ID: "ally:a", Name: "Ada", HP: 10}},
+		enemies:      []abyssLiveCombatantView{{ID: "enemy:1", Name: "Gone", HP: 0}},
+	}
+	if err := c.addSocialSignal("a", "target", "enemy:1", ""); err == nil {
+		t.Fatal("defeated enemy accepted as a target ping")
 	}
 }
 
@@ -73,5 +112,17 @@ func TestAnonymousReplayCodeContainsNoPlayerIdentityOrLogs(t *testing.T) {
 	}
 	if strings.Contains(code, "Private") || strings.Contains(code, "secret-uid") {
 		t.Fatalf("replay code leaked player identity: %q", code)
+	}
+}
+
+func TestAnonymousReplayCodeRejectsInvalidEnemyLabels(t *testing.T) {
+	for _, enemy := range []string{"", strings.Repeat("x", 81)} {
+		code, err := encodeAbyssReplayCode(abyssLiveSnapshot{Round: 1, Enemies: []abyssLiveCombatantView{{Name: enemy}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := decodeAbyssReplayCode(code); err == nil {
+			t.Fatalf("invalid enemy label accepted: %q", enemy)
+		}
 	}
 }

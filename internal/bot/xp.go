@@ -83,6 +83,9 @@ type UserInCombat struct {
 	// live is set only for interactive Abyss fights. It pauses the shared combat
 	// engine at player phases and supplies the party's submitted actions.
 	live *abyssLiveCombat
+	// petHealEnabled carries the owner's per-companion autoskill preference into
+	// the fight snapshot. Missing entries preserve the legacy enabled behavior.
+	petHealEnabled map[string]bool
 }
 
 func abyssKillerDamage(base int, user *UserInCombat, mob *content.Mob) int {
@@ -297,7 +300,10 @@ func (b *Bot) computeMiscMult(uid, _ string, cid int, ctx cycleContext) float64 
 }
 
 func (b *Bot) getPets(uid string) []*content.Mob {
-	rows, err := b.DB.Query("SELECT name, mob_type, level, hp, max_hp, str, def, spd, loyalty FROM user_pets WHERE client_uid = $1", uid)
+	rows, err := b.DB.Query(`SELECT p.name,p.mob_type,p.level,p.hp,p.max_hp,p.str,p.def,p.spd,p.loyalty
+		FROM user_pets p JOIN users u ON u.client_uid=p.client_uid
+		WHERE p.client_uid=$1 AND (p.active_slot=1 OR (p.active_slot=2 AND u.abyss_prestige>=2))
+		ORDER BY p.active_slot`, uid)
 	if err != nil {
 		return nil
 	}
@@ -310,10 +316,41 @@ func (b *Bot) getPets(uid string) []*content.Mob {
 		if err := rows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &maxHP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD, &m.Loyalty); err == nil {
 			m.Type = content.MobType(mType)
 			m.MaxHP = maxHP
+			_, _, moodPct := abyssPetMood(m.Stats.HP, m.MaxHP, m.Loyalty)
+			m.Stats.STR = abyssPetMoodScale(m.Stats.STR, moodPct)
+			m.Stats.DEF = abyssPetMoodScale(m.Stats.DEF, moodPct)
+			m.Stats.SPD = abyssPetMoodScale(m.Stats.SPD, moodPct)
 			out = append(out, &m)
 		}
 	}
 	return out
+}
+
+func (b *Bot) loadPetHealSettings(uid string) map[string]bool {
+	rows, err := b.DB.Query(`SELECT name,COALESCE((autoskills->>'heal')::boolean,TRUE)
+		FROM user_pets WHERE client_uid=$1 AND active_slot>0`, uid)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	settings := map[string]bool{}
+	for rows.Next() {
+		var name string
+		var enabled bool
+		if rows.Scan(&name, &enabled) != nil {
+			return nil
+		}
+		settings[name] = enabled
+	}
+	return settings
+}
+
+func abyssPetAutoskillEnabled(settings map[string]bool, petName string) bool {
+	if settings == nil {
+		return true
+	}
+	enabled, exists := settings[petName]
+	return !exists || enabled
 }
 
 func (b *Bot) savePet(uid string, m *content.Mob) {
@@ -331,7 +368,11 @@ func (b *Bot) savePet(uid string, m *content.Mob) {
 }
 
 func (b *Bot) deletePet(uid, name string) {
-	_, _ = b.DB.Exec("DELETE FROM user_pets WHERE client_uid = $1 AND name = $2", uid, name)
+	_, _ = b.DB.Exec(`WITH fallen AS (
+		DELETE FROM user_pets WHERE client_uid=$1 AND name=$2
+		RETURNING client_uid,name,mob_type,level,loyalty
+	) INSERT INTO abyss_pet_memorials (client_uid,name,mob_type,level,loyalty)
+	SELECT client_uid,name,mob_type,level,loyalty FROM fallen`, uid, name)
 }
 
 func (b *Bot) updatePetHP(uid, name string, hp int) {
@@ -2055,7 +2096,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 
 			// pet2 healspell logic: index 1 in u.Pets (the second pet)
-			if petIdx == 1 && au.PetHealCD == 0 {
+			if petIdx == 1 && au.PetHealCD == 0 && abyssPetAutoskillEnabled(u.petHealEnabled, p.Name) {
 				var bestTarget *UserInCombat
 				lowestHPPct := 1.0
 				for k := range activeUsers {

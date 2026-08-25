@@ -245,6 +245,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_events.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_events.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_social.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_social.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_combat_sprites.png", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_combat_sprites.png", "image/png")
 	})
@@ -297,6 +300,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 
 	if s.bot.Cfg.EnableAbyss {
 		mux.HandleFunc("/abyss", s.auth(s.handleAbyssPage))
+		mux.HandleFunc("/abyss/spectate", s.auth(s.handleAbyssSpectatePage))
 		mux.HandleFunc("/api/abyss/enter", s.authAPI(s.handleAbyssEnter))
 		mux.HandleFunc("/api/abyss/descend", s.authAPI(s.handleAbyssDescend))
 		mux.HandleFunc("/api/abyss/descend_multi", s.authAPI(s.handleAbyssDescendMulti))
@@ -324,6 +328,13 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/ops", s.authAPI(s.handleAbyssOps))
 		mux.HandleFunc("/api/abyss/client-error", s.authAPI(s.handleAbyssClientError))
 		mux.HandleFunc("/api/abyss/practice", s.authAPI(s.handleAbyssBossPractice))
+		mux.HandleFunc("/api/abyss/spectate", s.authAPI(s.handleAbyssSpectateState))
+		mux.HandleFunc("/api/abyss/social/pet/train", s.authAPI(s.handleAbyssPetTrain))
+		mux.HandleFunc("/api/abyss/social/pet/slot", s.authAPI(s.handleAbyssPetSlot))
+		mux.HandleFunc("/api/abyss/social/pet/autoskill", s.authAPI(s.handleAbyssPetAutoskill))
+		mux.HandleFunc("/api/abyss/social/bank_feed", s.authAPI(s.handleAbyssBankFeedToggle))
+		mux.HandleFunc("/api/abyss/social/rival/claim", s.authAPI(s.handleAbyssRivalClaim))
+		mux.HandleFunc("/api/abyss/social/weekly_boss", s.authAPI(s.handleAbyssWeeklyBossStrike))
 		mux.HandleFunc("/api/abyss/build/respec", s.authAPI(s.handleAbyssBuildRespec))
 		mux.HandleFunc("/api/abyss/loot/settings", s.authAPI(s.handleAbyssLootSettings))
 		mux.HandleFunc("/api/abyss/loot/reserve", s.authAPI(s.handleAbyssLootReserve))
