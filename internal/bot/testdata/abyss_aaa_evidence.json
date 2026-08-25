@@ -86,6 +86,17 @@
     "verification": ["internal/bot/web_abyss_navigation_test.go"]
   },
   {
+    "ids": [477, 478, 479, 480, 481, 482, 483, 484, 485, 486],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_accessibility.html",
+      "internal/bot/webassets/abyss_accessibility.css",
+      "internal/bot/webassets/partials.html"
+    ],
+    "verification": ["internal/bot/web_abyss_accessibility_test.go"]
+  },
+  {
     "ids": [986, 987],
     "production": [
       "internal/bot/web_abyss_econ.go",

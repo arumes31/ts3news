@@ -135,3 +135,16 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0474 / UX-74** — guarded D/B/R/L shortcuts plus an in-page shortcut guide.
 - [x] **AAA-0475 / UX-75** — live depth and escrow breadcrumbs in the browser title.
 - [x] **AAA-0476 / UX-76** — prestige and badge controls moved into a rare-actions overflow.
+
+## Delivered tranche: mobile and accessibility
+
+- [x] **AAA-0477 / UX-77** — viewport-pinned Descend, Bank, and usable-item actions during mobile runs.
+- [x] **AAA-0478 / UX-78** — guarded horizontal swipe navigation between section tabs.
+- [x] **AAA-0479 / UX-79** — 44px minimum forge and workshop targets on coarse pointers.
+- [x] **AAA-0480 / UX-80** — polite, atomic result banner and additive toast announcements.
+- [x] **AAA-0481 / UX-81** — focus-trapped shared and consumable dialogs with Escape and trigger restoration.
+- [x] **AAA-0482 / UX-82** — persisted high-contrast theme with solid panels and stronger focus indicators.
+- [x] **AAA-0483 / UX-83** — visible tier-count glyphs supplement every supported rarity color.
+- [x] **AAA-0484 / UX-84** — page-wide reduced-motion coverage including coins, vault, and numeric effects.
+- [x] **AAA-0485 / UX-85** — persisted Small, Medium, and Large combat-log text sizes.
+- [x] **AAA-0486 / UX-86** — opt-in, coarse-pointer haptics for downed and Legendary-or-better events.

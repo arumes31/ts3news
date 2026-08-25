@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_loot_presentation.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_forge_experience.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_navigation.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_accessibility.css"}}">
 <div class="abyss-command-page" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
@@ -378,7 +379,7 @@
   </aside>
 </div>
 
-<div class="abyss-banner" id="abyssBanner" role="status" aria-live="assertive"></div>
+<div class="abyss-banner" id="abyssBanner" role="status" aria-live="polite" aria-atomic="true"></div>
 
 {{template "abyssLiveControls" .}}
 
@@ -409,7 +410,7 @@
 <div class="ab-damage-vignette" id="damageVignette" aria-hidden="true"></div>
 
 <!-- Stacked toast host (UX-91) -->
-<div class="ab-toasthost" id="abToastHost" aria-live="polite"></div>
+<div class="ab-toasthost" id="abToastHost" role="status" aria-live="polite" aria-relevant="additions text"></div>
 
 <!-- Connectivity banner (UX-93) -->
 <div class="ab-netbanner" id="netBanner" style="display:none" role="alert">📡 Connection lost — waiting for the network to return…</div>
@@ -417,8 +418,8 @@
 <!-- Consumable carry-cap picker: shown when the player holds more consumables than
      they may bring into one descent. Unbrought consumables stay in their stash. -->
 <div id="consPickOverlay" class="modal-overlay" onclick="if(event.target===this)closeConsumablePick()">
-  <div class="modal-card">
-    <h3 style="margin:0 0 6px;">🎒 Pack your consumables</h3>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="consPickTitle" tabindex="-1">
+    <h3 id="consPickTitle" style="margin:0 0 6px;">🎒 Pack your consumables</h3>
     <p class="muted small" style="margin:0 0 10px;">You can bring <b id="consPickMax">–</b> into this descent but hold <b id="consPickTotal">–</b>. Pick which to take — the rest stay safe in your stash for later.</p>
     <div id="consPickList" style="display:flex; flex-direction:column; gap:8px;"></div>
     <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px;">
@@ -6113,6 +6114,9 @@ var AB_SETTINGS=[
   {key:'ab_lootsort', label:'Run loot sort', type:'select', def:'floor', opts:[['floor','Floor'],['rarity','Rarity'],['cr','CR Δ']], apply:function(v){ lootSort=v; try{localStorage.setItem('ab_lootsort',v);}catch(e){} var sel=document.getElementById('lootSort'); if(sel)sel.value=v; applyLootSort(); }},
   {key:'ab_sidebar_order', label:'Sidebar: Run Loot before Armoury', type:'bool', def:false, apply:function(){ applySidebarOrder(); }},
   {key:'ab_compact', label:'Compact veteran layout', type:'bool', def:false, apply:function(v){ document.body.classList.toggle('ab-compact',v); }},
+  {key:'ab_contrast', label:'High-contrast solid panels', type:'bool', def:false, apply:function(v){ applyAbyssContrast(v); }},
+  {key:'ab_logsize', label:'Combat log text size', type:'select', def:'m', opts:[['s','Small'],['m','Medium'],['l','Large']], apply:function(v){ applyAbyssLogSize(v); }},
+  {key:'ab_haptic', label:'Mobile haptics for danger and legendary loot', type:'bool', def:false},
   {key:'ab_vignette', label:'Depth vignette (corners darken as you descend)', type:'bool', def:true, apply:function(v){ vigOn=v; updateVignette(); }},
   {key:'ab_amb', label:'Biome ambience effects (fog/embers/stars)', type:'bool', def:true, apply:function(v){ ambOn=v; applyAmbienceFlag(); }}
 ];
@@ -6217,6 +6221,7 @@ function openAbSettings(){
 {{if .ForgeWorkbenchEnabled}}{{template "abyss-forge-planner" .}}{{end}}
 {{template "abyss-forge-experience" .}}
 {{template "abyss-navigation" .}}
+{{template "abyss-accessibility" .}}
 {{template "abyssAAARuntime" .}}
 <script data-cfasync="false">
 window.buildAbyssTabs();

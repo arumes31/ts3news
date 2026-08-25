@@ -1,0 +1,93 @@
+.ab-a11y-live {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.ab-mobile-actions { display: none; }
+
+.ab-rarity-glyph {
+  color: currentColor;
+  flex: 0 0 auto;
+  font-size: .48rem;
+  letter-spacing: -1px;
+  line-height: 1;
+  max-width: 3rem;
+  overflow: hidden;
+  text-shadow: 0 0 5px currentColor;
+  white-space: nowrap;
+}
+
+body[data-ab-log-size="s"] :is(#abyssLog, #liveFeed) { font-size: .72rem; }
+body[data-ab-log-size="m"] :is(#abyssLog, #liveFeed) { font-size: .86rem; }
+body[data-ab-log-size="l"] :is(#abyssLog, #liveFeed) { font-size: 1.02rem; line-height: 1.65; }
+
+body.ab-high-contrast .abyss-command-page {
+  --cmd-line: #fff;
+  --line: #fff;
+  --muted: #d7d7d7;
+}
+body.ab-high-contrast .abyss-command-page :is(.abyss-panel, .abyss-lb, .abyss-stage, .abyss-side-panel, .ab-chip, .ab-tabs, .ab-library-tools, .forge-card) {
+  backdrop-filter: none !important;
+  background: #000 !important;
+  border-color: #fff !important;
+  border-width: 2px !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+body.ab-high-contrast .abyss-command-page :is(button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid #ffea73 !important;
+  outline-offset: 3px;
+}
+body.ab-high-contrast .ab-rarity-glyph { background: #000; border: 1px solid currentColor; padding: 2px; }
+
+@media (max-width: 700px) {
+  body.ab-mobile-run { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .ab-mobile-actions:not([hidden]) {
+    align-items: stretch;
+    background: #080d13;
+    border-top: 2px solid #d6aa45;
+    bottom: 0;
+    display: grid;
+    gap: 6px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    left: 0;
+    padding: 8px max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    position: fixed;
+    right: 0;
+    z-index: 1200;
+  }
+  .ab-mobile-actions button { min-height: 48px; padding: .55rem .35rem; }
+}
+
+@media (pointer: coarse) {
+  .abyss-command-page :is(#abyssForgePanel, #abyssWorkshop, #forgePlanner, .forge-plan, .forge-picker-list) :is(button.xs, button.ghost.xs, button, .ab-chip) { min-height: 44px; min-width: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .abyss-command-page *,
+  .abyss-command-page *::before,
+  .abyss-command-page *::after,
+  .ab-toasthost *,
+  .ab-vault-overlay,
+  .ab-coin-arc {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+  #coinPile,
+  .ab-coinflip,
+  .ab-float-delta,
+  .ab-coin-arc { transform: none !important; }
+  .ab-coin-arc { display: none !important; }
+}
+
+@media (forced-colors: active) {
+  .ab-mobile-actions,
+  .ab-rarity-glyph { border: 1px solid CanvasText; }
+  .ab-mobile-actions button:focus-visible { outline: 3px solid Highlight; }
+}

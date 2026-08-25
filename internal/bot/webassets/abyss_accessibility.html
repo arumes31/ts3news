@@ -1,0 +1,75 @@
+{{define "abyss-accessibility"}}
+<nav class="ab-mobile-actions" id="abyssMobileActions" aria-label="Abyss run actions" hidden>
+  <button type="button" class="primary" data-mobile-action="btnDescend" aria-controls="btnDescend">⬇ Descend</button>
+  <button type="button" class="ghost" data-mobile-action="btnBank" aria-controls="btnBank">🏦 Bank</button>
+  <button type="button" class="ghost" id="abyssMobileItems" aria-controls="prepPanel">🧪 Items <span id="abyssMobileItemCount">0</span></button>
+</nav>
+<div class="ab-a11y-live" id="abyssActionLive" role="status" aria-live="polite" aria-atomic="true"></div>
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  function preference(key,fallback){try{var value=localStorage.getItem(key);return value===null?fallback:value;}catch(_){return fallback;}}
+  function announce(message){var live=document.getElementById('abyssActionLive');if(!live)return;live.textContent='';setTimeout(function(){live.textContent=message;},20);}
+  function applyAbyssContrast(on){document.body.classList.toggle('ab-high-contrast',!!on);}
+  function applyAbyssLogSize(size){size=/^(s|m|l)$/.test(size)?size:'m';document.body.dataset.abLogSize=size;}
+  window.applyAbyssContrast=applyAbyssContrast;
+  window.applyAbyssLogSize=applyAbyssLogSize;
+
+  function actionAvailable(button){return !!(button&&button.offsetParent!==null&&!button.disabled);}
+  function itemCount(){return (window.pageConsumables||[]).filter(function(item){return item.Type==='Healing'||item.Type==='Repair'||item.Type==='Buff';}).reduce(function(total,item){return total+Math.max(0,Number(item.Count)||0);},0);}
+  function syncMobileActions(){
+    var bar=document.getElementById('abyssMobileActions');if(!bar)return;
+    var active=typeof inRun!=='undefined'&&inRun;
+    bar.hidden=!active;
+    document.body.classList.toggle('ab-mobile-run',active);
+    bar.querySelectorAll('[data-mobile-action]').forEach(function(proxy){var source=document.getElementById(proxy.dataset.mobileAction);proxy.disabled=!actionAvailable(source);});
+    var items=document.getElementById('abyssMobileItems'),count=itemCount(),countNode=document.getElementById('abyssMobileItemCount');
+    if(countNode)countNode.textContent=String(count);
+    var panel=document.getElementById('prepPanel');
+    if(items)items.disabled=!active||count<1||!panel||panel.offsetParent===null;
+  }
+  function initMobileActions(){
+    var bar=document.getElementById('abyssMobileActions');if(!bar)return;
+    bar.querySelectorAll('[data-mobile-action]').forEach(function(proxy){proxy.addEventListener('click',function(){var source=document.getElementById(proxy.dataset.mobileAction);if(actionAvailable(source)){announce(proxy.textContent.trim());source.click();}});});
+    var items=document.getElementById('abyssMobileItems');
+    if(items)items.addEventListener('click',function(){var panel=document.getElementById('prepPanel');if(!panel||panel.offsetParent===null)return;panel.scrollIntoView({block:'center',behavior:reduceMotion?'auto':'smooth'});var use=panel.querySelector('button:not(:disabled)');if(use)use.focus();announce(itemCount()+' usable consumables');});
+    var controls=document.getElementById('abyssControls');
+    if(controls)new MutationObserver(syncMobileActions).observe(controls,{attributes:true,subtree:true,attributeFilter:['style','disabled']});
+    var list=document.getElementById('consList');if(list)new MutationObserver(syncMobileActions).observe(list,{childList:true,subtree:true});
+    syncMobileActions();
+  }
+
+  function initTabSwipe(){
+    var start=null;
+    document.addEventListener('touchstart',function(event){var target=event.target;if(event.touches.length!==1||!target.closest('[data-abyss-section]:not([hidden])')||target.closest('button,a,input,select,textarea,[contenteditable="true"],.ab-tabs,.ab-live-combat')){start=null;return;}start={x:event.touches[0].clientX,y:event.touches[0].clientY};},{passive:true});
+    document.addEventListener('touchend',function(event){if(!start||event.changedTouches.length!==1)return;var dx=event.changedTouches[0].clientX-start.x,dy=event.changedTouches[0].clientY-start.y;start=null;if(Math.abs(dx)<70||Math.abs(dx)<Math.abs(dy)*1.3)return;var tabs=Array.prototype.slice.call(document.querySelectorAll('.ab-tab[data-tab-key]')),active=tabs.findIndex(function(tab){return tab.classList.contains('active');});if(active<0||tabs.length<2)return;var next=(active+(dx<0?1:-1)+tabs.length)%tabs.length;tabs[next].click();tabs[next].focus();announce(tabs[next].textContent.trim()+' section');},{passive:true});
+  }
+
+  function initConsumableDialogFocus(){
+    var overlay=document.getElementById('consPickOverlay');if(!overlay)return;
+    var card=overlay.querySelector('.modal-card'),returnFocus=null;
+    new MutationObserver(function(){if(overlay.classList.contains('open')){returnFocus=document.activeElement;setTimeout(function(){var first=card.querySelector('input:not(:disabled),button:not(:disabled),select:not(:disabled)');(first||card).focus();},0);}else if(returnFocus&&document.contains(returnFocus)){returnFocus.focus();returnFocus=null;}}).observe(overlay,{attributes:true,attributeFilter:['class']});
+    document.addEventListener('keydown',function(event){if(event.key!=='Tab'||!overlay.classList.contains('open'))return;var focusable=Array.prototype.slice.call(card.querySelectorAll('input:not(:disabled),button:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter(function(node){return node.offsetParent!==null;});if(!focusable.length){event.preventDefault();card.focus();return;}var first=focusable[0],last=focusable[focusable.length-1];if(!card.contains(document.activeElement)){event.preventDefault();(event.shiftKey?last:first).focus();}else if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}});
+  }
+
+  function rarityRank(node){var raw=node.getAttribute('data-rarity');if(raw!==null&&raw!=='')return Math.max(1,Math.min(9,(Number(raw)||0)+1));if(typeof AB_RARITY_RANKS!=='undefined'){for(var name in AB_RARITY_RANKS)if(node.classList.contains(name))return AB_RARITY_RANKS[name];}return 0;}
+  var rarityTargets='.abyss-side-gear,.abyss-side-loot,.ab-best-loot-card,.ab-forge-review-row,.rar-common,.rar-uncommon,.rar-rare,.rar-epic,.rar-legendary,.rar-mythic,.rar-divine,.rar-celestial,.rar-eternal';
+  function enhanceRarityGlyphs(root){var nodes=[];if(root&&root.matches&&root.matches(rarityTargets))nodes.push(root);if(root&&root.querySelectorAll)nodes=nodes.concat(Array.prototype.slice.call(root.querySelectorAll(rarityTargets)));nodes.forEach(function(node){if(/^(OPTION|SELECT)$/.test(node.tagName)||node.querySelector(':scope > .ab-rarity-glyph'))return;var rank=rarityRank(node);if(!rank)return;var glyph=document.createElement('span');glyph.className='ab-rarity-glyph';glyph.textContent='◆'.repeat(rank);glyph.setAttribute('aria-label','Rarity tier '+rank);glyph.title='Rarity tier '+rank;var name=node.querySelector('.ab-side-gear-name');node.insertBefore(glyph,name||node.firstChild);});}
+  function initRarityGlyphs(){enhanceRarityGlyphs(document);var page=document.querySelector('.abyss-command-page');if(page)new MutationObserver(function(records){records.forEach(function(record){record.addedNodes.forEach(function(node){if(node.nodeType===1)enhanceRarityGlyphs(node);});});}).observe(page,{childList:true,subtree:true});}
+
+  function hapticsEnabled(){return preference('ab_haptic','0')==='1';}
+  function abyssHaptic(pattern){if(!hapticsEnabled()||document.hidden||!navigator.vibrate)return;var coarse=window.matchMedia&&window.matchMedia('(pointer: coarse)');if(coarse&&!coarse.matches)return;try{navigator.vibrate(pattern);}catch(_){}}
+  function wrap(name,after){var original=window[name];if(typeof original!=='function'||original._abAccessibility)return;var wrapped=function(){var result=original.apply(this,arguments);after.apply(this,arguments);return result;};wrapped._abAccessibility=true;window[name]=wrapped;}
+  function initHaptics(){var wasDowned=typeof downed!=='undefined'&&downed;wrap('renderState',function(){syncMobileActions();var isDowned=typeof downed!=='undefined'&&downed;if(isDowned&&!wasDowned)abyssHaptic([70,40,110]);wasDowned=isDowned;});wrap('lootToast',function(_,rarity){if(rarity&&rarity!=='rar-epic')abyssHaptic([30,35,30]);});}
+
+  function init(){
+    applyAbyssContrast(preference('ab_contrast','0')==='1');
+    applyAbyssLogSize(preference('ab_logsize','m'));
+    var host=document.getElementById('abToastHost');if(host){host.setAttribute('aria-relevant','additions text');host.setAttribute('aria-atomic','false');}
+    initMobileActions();initTabSwipe();initConsumableDialogFocus();initRarityGlyphs();initHaptics();
+  }
+  setTimeout(init,0);
+  window.__abyssAccessibility={announce:announce,syncMobileActions:syncMobileActions,enhanceRarityGlyphs:enhanceRarityGlyphs};
+})();
+</script>
+{{end}}

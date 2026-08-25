@@ -88,7 +88,7 @@
 
 <!-- Shared modal shell: openModal/closeModal/confirmModal/promptModal are available
      on every page and replace ad-hoc overlays + native confirm()/prompt(). -->
-<div id="sharedModal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+<div id="sharedModal" class="modal-overlay" aria-hidden="true" onclick="if(event.target===this)closeModal()">
   <div class="modal-card" id="sharedModalCard" role="dialog" aria-modal="true" aria-labelledby="sharedModalTitle" tabindex="-1"></div>
 </div>
 <script>
@@ -112,6 +112,7 @@ function openModal(html){
     card.setAttribute('aria-label', 'Dialog');
   }
   document.getElementById('sharedModal').classList.add('open');
+  document.getElementById('sharedModal').setAttribute('aria-hidden', 'false');
   window.setTimeout(function(){
     var first = card.querySelector('input:not(:disabled),select:not(:disabled),textarea:not(:disabled),button:not(:disabled),[href],[tabindex]:not([tabindex="-1"])');
     (first || card).focus();
@@ -119,6 +120,7 @@ function openModal(html){
 }
 function closeModal(){
   document.getElementById('sharedModal').classList.remove('open');
+  document.getElementById('sharedModal').setAttribute('aria-hidden', 'true');
   // Settle any pending confirm/prompt promise on a forced dismissal.
   if (pendingModalResolve) {
     var resolve = pendingModalResolve;
@@ -137,6 +139,7 @@ function trapSharedModalFocus(e){
   var focusable = Array.prototype.slice.call(card.querySelectorAll('input:not(:disabled),select:not(:disabled),textarea:not(:disabled),button:not(:disabled),[href],[tabindex]:not([tabindex="-1"])')).filter(function(el){ return el.offsetParent !== null; });
   if (!focusable.length) { e.preventDefault(); card.focus(); return; }
   var first = focusable[0], last = focusable[focusable.length - 1];
+  if (!card.contains(document.activeElement)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); return; }
   if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
   else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 }
