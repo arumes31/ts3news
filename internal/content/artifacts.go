@@ -472,6 +472,7 @@ func buildConsumables() []Consumable {
 // but must still resolve through GetConsumableByID.
 var abyssExclusiveConsumables = []Consumable{
 	{"abyss_emergency_revive", "Emergency Revive Potion", ConsumableRevive, 1.0, 0, "Single-use: instantly heals you to full HP if you fall in the Abyss, beyond your normal one-per-run revival."},
+	{"abyss_affix_suppressor", "Affix Suppressor", ConsumableBuff, 0, 0, "Consume at entry to ignore the daily affix for one entire Abyss run."},
 	{"repair_kit_ii", "Repair Kit II", ConsumableRepair, 50, 0, "Restores 50 durability to every equipped item."},
 	// Corrupted consumables (AB-85): stronger effect plus self-damage on use.
 	// They only enter the pool via CorruptedConsumableVariant at drop time; the

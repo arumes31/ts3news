@@ -174,6 +174,8 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0193 / 193** — bank confirmation itemizes every pact's base, mastery, featured, and synergy contribution plus the exact total multiplier.
 - [x] **AAA-0194 / 194** — one deterministic ISO-week featured pact doubles its full pact contribution and is highlighted in the entry planner.
 - [x] **AAA-0195 / 195** — every concrete pact awards a distinct, selectable achievement badge on the first transactionally completed run using it.
+- [x] **AAA-0196 / 196** — one cryptographic personal affix reroll per UTC day costs ten tokens and is snapshotted authoritatively for the next run.
+- [x] **AAA-0197 / 197** — the token-shop Affix Suppressor is consumed transactionally at entry and disables the daily affix for the full run.
 
 ## Active tranche: operational quality and client performance
 

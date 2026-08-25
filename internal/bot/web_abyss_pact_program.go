@@ -42,6 +42,7 @@ type abyssPactProgramState struct {
 	Featured      abyssPactFeaturedView   `json:"featured"`
 	Synergies     []abyssPactSynergy      `json:"synergies"`
 	WeekendPoll   abyssWeekendAffixPoll   `json:"weekend_poll"`
+	PersonalAffix abyssPersonalAffixView  `json:"personal_affix"`
 }
 
 func abyssPactPresetsKey(uid string) string { return "abyss_pact_presets_" + uid }
@@ -264,6 +265,7 @@ func (b *Bot) abyssPactProgramState(uid string) abyssPactProgramState {
 }
 
 func (b *Bot) enrichAbyssPactProgramState(state abyssPactProgramState, uid string, at time.Time) abyssPactProgramState {
+	state.PersonalAffix = b.abyssPersonalAffixView(uid, at)
 	poll, err := b.abyssWeekendAffixPoll(uid, at)
 	if err != nil {
 		return state

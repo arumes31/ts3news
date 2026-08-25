@@ -36,6 +36,7 @@ var abyssShopCatalog = []abyssShopItem{
 	{"giant_strength", "Giant Strength Elixirs ×2", "Massively boost Strength for 3 fights.", 7, 0},
 	{"speed_elixir_pack", "Speed Elixirs ×2", "Boost Speed by +25 for 3 fights.", 5, 0},
 	{"lucky_draught_pack", "Lucky Draughts ×2", "Boost Luck by +20 for 3 fights.", 5, 0},
+	{"affix_suppressor", "Affix Suppressor", "Ignore the daily affix for one entire run.", 12, 0},
 	{"abyss_gear", "Abyss Gear Cache", "A random Abyss-exclusive gear piece.", 15, 0},
 	{"epic_gear", "Epic Abyss Cache", "A guaranteed Epic-or-better Abyss piece.", 30, 0},
 	{"relic", "Unstable Relic", "A random Unique item.", 40, 0},
@@ -137,6 +138,8 @@ func (s *WebServer) handleAbyssShopBuy(w http.ResponseWriter, r *http.Request, u
 		s.bot.grantConsumable(uid, "speed_elixir", 2)
 	case "lucky_draught_pack":
 		s.bot.grantConsumable(uid, "lucky_draught", 2)
+	case "affix_suppressor":
+		s.bot.grantConsumable(uid, "abyss_affix_suppressor", 1)
 	case "abyss_gear":
 		g := content.RandomAbyssGearDrop()
 		got := s.bot.awardGearDrop(uid, g)

@@ -315,6 +315,10 @@
         <input type="checkbox" id="hybridMode"> 🌀 Hybrid run
         <span class="muted small">(next-tier danger every 5th floor · half its extra reward)</span>
       </label>
+      <label class="ab-pact" data-tip="Consumes one Affix Suppressor at successful entry. The current daily affix has no combat, durability, or reward effect for the full run.">
+        <input type="checkbox" id="suppressDailyAffix"> 🧿 Suppress daily affix
+        <span class="muted small">(uses 1 Affix Suppressor · this run only)</span>
+      </label>
       <div class="muted small ab-community-expedition" title="Every cleared weekly-expedition floor contributes to this shared weekly objective.">
         <span>🌐 Community expedition {{index .CommunityExpedition "Week"}}: {{index .CommunityExpedition "Floors"}} / {{index .CommunityExpedition "Target"}} floors</span>
         <progress value="{{index .CommunityExpedition "Percent"}}" max="100" aria-label="Community expedition progress"></progress>
@@ -2916,9 +2920,10 @@ async function abyssEnter(consumables){
   var kit=document.getElementById('buildKit'), mutation=document.getElementById('buildMutation'), entryFocus=document.getElementById('entryFocus');
   var veteran=document.getElementById('veteranTrack');
   var lootRule=document.getElementById('partyLootRule');
+  var suppressAffix=document.getElementById('suppressDailyAffix');
   var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),hardcore:!!(hardcore&&hardcore.checked),hybrid:!!(hybrid&&hybrid.checked),
     kit:kit?kit.value:'vanguard', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
-    loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto'};
+    loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto', suppress_affix:!!(suppressAffix&&suppressAffix.checked)};
   if(body.hardcore && !(await confirmModalDangerous('Begin a Hardcore run? Grace floors, insurance, revival items, Last Stand, and revival gambles are disabled. Cleared-floor cache rewards are doubled and the run enters the Hardcore leaderboard.',{title:'Begin Hardcore',okLabel:'Enter Hardcore'}))){
     setBusy(false);
     return;

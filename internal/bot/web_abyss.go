@@ -682,7 +682,7 @@ func (b *Bot) fightAbyssFloorLive(
 	// The token-carried affixes are read inside the combat engine via FloorModifier:
 	// double_hazards (applyEffects), iron_skin (mobTurn), bloodlust (userTurn).
 	// enraged_mobs is wired onto the spawned mobs below; glass_cannon ramps difficulty.
-	_, dailyMod := b.currentDailyChallenge()
+	_, dailyMod := b.abyssRunDailyChallenge(uid)
 	switch dailyMod {
 	case "double_hazards", "iron_skin", "bloodlust", "execute", "vampiric_mobs":
 		if !strings.Contains(u.FloorModifier, dailyMod) {
@@ -1382,7 +1382,12 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		})
 	}
 
-	_, dailyMod := s.bot.currentDailyChallenge()
+	var dailyMod string
+	if run.Active {
+		_, dailyMod = s.bot.abyssRunDailyChallenge(uid)
+	} else {
+		_, dailyMod, _ = s.bot.currentPersonalAbyssAffixAt(uid, time.Now().UTC())
+	}
 	helpers := s.bot.loadCoopHelpers(uid)
 	abyssGearBySet := s.bot.countEquippedAbyssGearBySet(uid)
 	_, abyssTierBySet := content.AbyssSetBonusBySet(abyssGearBySet)
@@ -1662,19 +1667,20 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	defer unlock()
 
 	var req struct {
-		Tier         string         `json:"tier"`
-		Pacts        []string       `json:"pacts"`
-		Consumables  map[string]int `json:"consumables"`   // optional picked loadout: cons_id -> count to bring
-		Start        string         `json:"start"`         // "" | "checkpoint" | "express" (#2/#3)
-		Checkpoint   int            `json:"checkpoint"`    // requested checkpoint depth (multiple of 10)
-		Expedition   bool           `json:"expedition"`    // weekly fixed-seed rules
-		Hardcore     bool           `json:"hardcore"`      // no protection or revival, ×2 floor cache
-		Hybrid       bool           `json:"hybrid"`        // every fifth floor borrows the next tier's danger
-		Kit          string         `json:"kit"`           // starting combat identity
-		Mutation     string         `json:"mutation"`      // temporary in-run skill mutation
-		Focus        string         `json:"focus"`         // auto | balanced | gold | loot | xp | materials | tokens
-		LootRule     string         `json:"loot_rule"`     // party reward settlement selected before entry
-		VeteranTrack string         `json:"veteran_track"` // optional cosmetic challenge, unlocked at depth 50
+		Tier          string         `json:"tier"`
+		Pacts         []string       `json:"pacts"`
+		Consumables   map[string]int `json:"consumables"`    // optional picked loadout: cons_id -> count to bring
+		Start         string         `json:"start"`          // "" | "checkpoint" | "express" (#2/#3)
+		Checkpoint    int            `json:"checkpoint"`     // requested checkpoint depth (multiple of 10)
+		Expedition    bool           `json:"expedition"`     // weekly fixed-seed rules
+		Hardcore      bool           `json:"hardcore"`       // no protection or revival, ×2 floor cache
+		Hybrid        bool           `json:"hybrid"`         // every fifth floor borrows the next tier's danger
+		Kit           string         `json:"kit"`            // starting combat identity
+		Mutation      string         `json:"mutation"`       // temporary in-run skill mutation
+		Focus         string         `json:"focus"`          // auto | balanced | gold | loot | xp | materials | tokens
+		LootRule      string         `json:"loot_rule"`      // party reward settlement selected before entry
+		VeteranTrack  string         `json:"veteran_track"`  // optional cosmetic challenge, unlocked at depth 50
+		SuppressAffix bool           `json:"suppress_affix"` // consume one Affix Suppressor for this run
 	}
 	// Reject malformed JSON outright: a garbled body would silently decode to the
 	// zero-value request (Normal tier, no pacts, no loadout). An absent/empty body
@@ -1777,6 +1783,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	startDepth := route.Depth
 	echoSeed := s.bot.peekAbyssEchoSeed(uid)
+	_, entryDailyAffix, _ := s.bot.currentPersonalAbyssAffixAt(uid, time.Now().UTC())
 
 	// Comeback buff (#24): three deaths on the same calendar day grant +10% stats
 	// on the next run, clearly labeled in the run state.
@@ -1862,6 +1869,28 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 			return
 		}
 	}
+	if req.SuppressAffix {
+		var remaining int
+		err := tx.QueryRow(
+			`UPDATE user_consumables SET remaining_fights=remaining_fights-1
+			 WHERE client_uid=$1 AND cons_id='abyss_affix_suppressor' AND remaining_fights > 0
+			 RETURNING remaining_fights`, uid,
+		).Scan(&remaining)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSON(w, map[string]any{"ok": false, "error": "you do not own an Affix Suppressor"})
+			return
+		}
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if remaining == 0 {
+			if _, err := tx.Exec("DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id='abyss_affix_suppressor'", uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+		}
+	}
 
 	// Auto-repair before the descent (#125), silently skipped if unaffordable. A
 	// DB error after the gold debit aborts the whole entry transaction, so the
@@ -1937,6 +1966,10 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	flags[abyssRunFlagPerfect] = 1
 	flags[abyssRunFlagCheckpointTokenCost] = route.TokenCost
+	flags[abyssRunFlagDailyAffix] = abyssDailyAffixIndex(entryDailyAffix)
+	if req.SuppressAffix {
+		flags[abyssRunFlagDailyAffix] = -1
+	}
 	if mysteryPactFlag > 0 {
 		flags[abyssRunFlagMysteryPact] = mysteryPactFlag
 	}
@@ -2834,7 +2867,7 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 
 	bonus := abyssFloorBonus(depth, run.depthLevelHint())
 	bonus = int64(float64(bonus) * tier.RewardMult * (1.0 + float64(st.UpGreed)*0.05) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50))
-	_, dailyMod := s.bot.currentDailyChallenge()
+	_, dailyMod := s.bot.abyssRunDailyChallenge(uid)
 	bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
 	pacts := s.bot.abyssRunPacts(uid)
 	mastery, err := s.bot.loadAbyssPactMastery(uid)
@@ -3440,7 +3473,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	_, dailyAffix := s.bot.currentDailyChallenge()
+	_, dailyAffix := s.bot.abyssRunDailyChallenge(uid)
 	pactBreakdown := abyssPactRewardBreakdownForRunAt(
 		runPacts, mastery, dailyAffix, time.Now().UTC(), runFlags[abyssRunFlagMysteryPact] > 0,
 	)
@@ -5062,7 +5095,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	// Apply tier reward multiplier to match combat floor scaling
 	bonus = int64(float64(bonus) * tier.RewardMult)
 	bonus = int64(float64(bonus) * (1.0 + float64(st.UpGreed)*0.05) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50))
-	_, dailyMod := s.bot.currentDailyChallenge()
+	_, dailyMod := s.bot.abyssRunDailyChallenge(uid)
 	bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
 	pacts := s.bot.abyssRunPacts(uid)
 	mastery, err := s.bot.loadAbyssPactMastery(uid)
