@@ -192,6 +192,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0208 / 208** — every defeated boss unlocks a deterministic 30-round, reward-free refight sandbox with balanced, aggressive, and defensive tactic comparisons.
 - [x] **AAA-0209 / 209** — boss kills atomically mint dedicated trophies spent through a guarded, all-or-nothing Trophy Quartermaster for materials and Abyss Tokens.
 - [x] **AAA-0210 / 210** — every named boss performs distinct summon choreography with themed reinforcements while preserving the live one-round Ultimate interrupt window.
+- [x] **AAA-0211 / 211** — below half health, bosses expose server-validated Head and Arms weakpoints for +20% hit damage or one-use spell suppression.
 
 ## Active tranche: operational quality and client performance
 

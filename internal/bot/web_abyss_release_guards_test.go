@@ -70,8 +70,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "0a2a73ec2f5110e185a6652b0e678d3e56086b5027f3b08eab470a2a44ef1b8e"},
-		{name: "active_run", active: true, want: "e0a6d5437c7f58f34b46fe8d99c1bc96cba69ec0c565dac56bd8fe93cedce768"},
+		{name: "threshold", want: "757f9e248ebbcb1331e0f06173008b249f93da97b61994a644db79432d95038b"},
+		{name: "active_run", active: true, want: "c3c89c43826a68428f1376622a6aa8d106248e42c33dc4188276712a46fed489"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {

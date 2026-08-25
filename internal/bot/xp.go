@@ -1858,6 +1858,16 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if hasScope {
 				dmgMult *= 1.15
 			}
+			if isLiveAction && h == 0 {
+				weakpoint := resolveAbyssBossWeakpoint(liveAction.Weakpoint, target)
+				dmgMult *= weakpoint.DamageMultiplier
+				if weakpoint.Silence {
+					silenceAbyssBoss(target)
+				}
+				if weakpoint.Log != "" {
+					*logs = append(*logs, weakpoint.Log)
+				}
+			}
 
 			effDef := float64(target.Stats.DEF) * target.DEFMod * (1.0 - ignoreDef)
 			dmg := int((float64(uSTR)*dmgMult - effDef) * intensify)
@@ -2294,7 +2304,10 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 
 		dmgMult := 1.0
 		spellIndex := -1
-		if planned {
+		silenced := consumeAbyssBossSilence(m)
+		if silenced {
+			*logs = append(*logs, fmt.Sprintf("🔇 %s's spell fails; the arms weakpoint remains disabled!", m.Name))
+		} else if planned {
 			spellIndex = plan.SpellIndex
 		} else if len(m.Spells) > 0 && rand.Float64() < 0.2 { // #nosec G404
 			// #nosec G404 -- legacy combat spell selection

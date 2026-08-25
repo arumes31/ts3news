@@ -443,6 +443,7 @@ func (a abyssLiveAction) sameIntent(other abyssLiveAction) bool {
 		a.Kind == other.Kind &&
 		a.AbilityID == other.AbilityID &&
 		a.TargetID == other.TargetID &&
+		a.Weakpoint == other.Weakpoint &&
 		a.Round == other.Round
 }
 
@@ -466,7 +467,7 @@ func (c *abyssLiveCombat) pruneIdempotencyLocked() {
 
 func (c *abyssLiveCombat) validTargetLocked(uid string, action abyssLiveAction) bool {
 	if action.Kind == "defend" {
-		return action.TargetID == "" || action.TargetID == "ally:"+uid
+		return action.Weakpoint == "" && (action.TargetID == "" || action.TargetID == "ally:"+uid)
 	}
 	var targetType string
 	for _, option := range c.options[uid] {
@@ -477,8 +478,11 @@ func (c *abyssLiveCombat) validTargetLocked(uid string, action abyssLiveAction) 
 	}
 	switch targetType {
 	case "self":
-		return action.TargetID == "" || action.TargetID == "ally:"+uid
+		return action.Weakpoint == "" && (action.TargetID == "" || action.TargetID == "ally:"+uid)
 	case "ally":
+		if action.Weakpoint != "" {
+			return false
+		}
 		for _, ally := range c.allies {
 			if ally.ID == action.TargetID && ally.HP > 0 {
 				return true
@@ -487,7 +491,7 @@ func (c *abyssLiveCombat) validTargetLocked(uid string, action abyssLiveAction) 
 	case "enemy":
 		for _, enemy := range c.enemies {
 			if enemy.ID == action.TargetID && enemy.HP > 0 {
-				return true
+				return validAbyssBossWeakpoint(action.Weakpoint, enemy)
 			}
 		}
 	}

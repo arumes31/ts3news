@@ -306,6 +306,10 @@
   border-top: 1px solid rgba(255,255,255,.07);
   font: .65rem/1.35 ui-monospace, 'Cascadia Mono', monospace;
 }
+.ab-weakpoints { display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:7px 15px;border-top:1px solid rgba(255,255,255,.06);background:linear-gradient(90deg,rgba(111,31,37,.22),transparent); }
+.ab-weakpoints>span { color:#d7988e;font:800 .58rem ui-monospace,monospace;letter-spacing:.12em; }
+.ab-weakpoints button { min-height:30px;padding:5px 9px;color:#c8d2e0;border:1px solid #3a4658;border-radius:5px;background:#111923;font:700 .62rem ui-monospace,monospace;cursor:pointer; }
+.ab-weakpoints button:hover,.ab-weakpoints button.active { color:#fff3d1;border-color:#d8a84f;background:#332515;box-shadow:0 0 0 1px rgba(216,168,79,.18); }
 .ab-live-feed.expanded { max-height: 260px; }
 .ab-live-logtools { display: flex; justify-content: flex-end; gap: 6px; padding: 4px 15px; border-top: 1px solid rgba(255,255,255,.05); color: #7f899b; font: .55rem ui-monospace, monospace; }
 .ab-live-logtools select,.ab-live-logtools button { color: #aab6c9; border: 1px solid #30394a; background: #10151e; font: inherit; }

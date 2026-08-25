@@ -54,6 +54,7 @@ const (
 	EffectWeakened MobEffect = "Weakened"     // -50% STR
 	EffectBlinded  MobEffect = "Blinded"      // 50% miss chance
 	EffectRegen    MobEffect = "Regenerative" // Heals 5% HP per round
+	EffectSilenced MobEffect = "Silenced"     // Next spell is suppressed
 )
 
 // DeathEffectType is the kind of special effect a mob triggers when defeated.

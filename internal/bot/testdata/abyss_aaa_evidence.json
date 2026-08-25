@@ -1153,5 +1153,22 @@
     "verification": [
       "internal/bot/abyss_boss_summons_test.go"
     ]
+  },
+  {
+    "ids": [211],
+    "production": [
+      "internal/bot/abyss_boss_weakpoints.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_actions.go",
+      "internal/bot/xp.go",
+      "internal/content/mobs.go",
+	  "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/webassets/abyss_live.css"
+    ],
+    "verification": [
+	  "internal/bot/abyss_boss_weakpoints_test.go",
+	  "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]
