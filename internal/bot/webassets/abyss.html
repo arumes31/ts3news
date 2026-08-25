@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_navigation.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_accessibility.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_feedback.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_polish.css"}}">
 <div class="abyss-command-page" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
@@ -978,7 +979,7 @@
       </thead>
       <tbody>
       {{range .History}}
-        <tr class="{{if .Victory}}win{{else}}loss{{end}}">
+        <tr class="{{if .Victory}}win{{else}}loss{{end}}" data-depth="{{.Depth}}" data-gold="{{.Gold}}" data-victory="{{.Victory}}" data-when="{{.When}}">
           <td>{{if .Victory}}🏦{{else}}💀{{end}} 🕳️ {{.Depth}}</td>
           <td>{{gold .Gold}}</td>
           <td class="muted small">{{.When}}</td>
@@ -3114,7 +3115,7 @@ async function abyssRevive(){
     document.getElementById('abStatus').textContent='Back from the brink. Descend or bank.';
     renderConsumables(d.consumables);
   } else {
-    recordSessionRun(false, curDepth, 0); // UI-108: the run ends here, cache lost
+    recordSessionRun(false, curDepth, 0, 'Failed revival'); // UI-108: the run ends here, cache lost
     inRun=false; downed=false; setEscrow(0); setDepth('—');
     updateFavicon(); // UI-190: back to the idle icon
     setBanner('💀 The gamble failed. Cache lost'+(d.insured_refund>0?' ('+fmtGold(d.insured_refund)+' insured back)':'')+'.','bad');
@@ -3136,7 +3137,7 @@ async function abyssConcede(){
   setBusy(true); markBusyBtn('btnConcede'); clearBanner();
   var d=await abPost('/api/abyss/concede');
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
-  recordSessionRun(false, curDepth, 0); // UI-108
+  recordSessionRun(false, curDepth, 0, 'Conceded'); // UI-108
   try{ sessionStorage.removeItem('ab_trail'); }catch(e){}
   window.location.reload();
 }
@@ -4495,11 +4496,14 @@ function renderTierBests(){
 
 // UI-108: previous-session summary, tracked client-side (approximation: only
 // runs finished in this browser are remembered).
-function recordSessionRun(victory,depth,banked){
+function recordSessionRun(victory,depth,banked,cause){
   try{
     localStorage.setItem('ab_last_session',JSON.stringify({
       date:new Date().toISOString().slice(0,10), victory:!!victory, depth:depth||0, banked:banked||0
     }));
+    var causes=[];try{causes=JSON.parse(localStorage.getItem('ab_run_causes')||'[]');if(!Array.isArray(causes))causes=[];}catch(e3){causes=[];}
+    causes.unshift({at:Date.now(),victory:!!victory,cause:victory?'Banked':(cause||'Defeated'),depth:depth||0});
+    localStorage.setItem('ab_run_causes',JSON.stringify(causes.slice(0,50)));
     // UI-174: per-tier personal banked/died tallies for the win-rate chips
     // (approximation: only runs finished in this browser are counted; the run's
     // tier comes from the ab_run_tier session marker written at enter time).
@@ -6246,6 +6250,7 @@ function openAbSettings(){
 {{template "abyss-navigation" .}}
 {{template "abyss-accessibility" .}}
 {{template "abyss-feedback" .}}
+{{template "abyss-polish" .}}
 {{template "abyssAAARuntime" .}}
 <script data-cfasync="false">
 window.buildAbyssTabs();

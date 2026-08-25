@@ -108,6 +108,17 @@
     "verification": ["internal/bot/web_abyss_feedback_test.go"]
   },
   {
+    "ids": [495, 496, 497, 498, 499, 500],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_polish.html",
+      "internal/bot/webassets/abyss_polish.css",
+      "internal/bot/webassets/abyss_combat_feedback.html"
+    ],
+    "verification": ["internal/bot/web_abyss_polish_test.go"]
+  },
+  {
     "ids": [986, 987],
     "production": [
       "internal/bot/web_abyss_econ.go",

@@ -159,3 +159,12 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0492 / UX-92** — ten-minute background-tab reminder with live floor and downed context.
 - [x] **AAA-0493 / UX-93** — persistent offline banner with browser-online and bounded HEAD-probe recovery.
 - [x] **AAA-0494 / UX-94** — HTTP 401 detection, re-login guidance, and same-tab workspace restoration.
+
+## Delivered tranche: delight, stats, and long-term polish
+
+- [x] **AAA-0495 / UX-95** — locally rendered 1200×630 run recap with image clipboard and PNG fallback.
+- [x] **AAA-0496 / UX-96** — exact recent depth, banked-gold, average, bank-rate, and bounded browser death-cause dashboard.
+- [x] **AAA-0497 / UX-97** — four depth-band background treatments driven only by live run depth.
+- [x] **AAA-0498 / UX-98** — bounded, reduced-motion-safe celebration particles for records, achievements, and first boss.
+- [x] **AAA-0499 / UX-99** — unified opt-in sound setting for descend, rare-loot, downed, and live-combat cues.
+- [x] **AAA-0500 / UX-100** — UTC-season cosmetic variables for stage accent and page wash with no gameplay effect.
