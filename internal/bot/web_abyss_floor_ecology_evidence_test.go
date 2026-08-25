@@ -28,6 +28,7 @@ func TestAbyssFloorEcologyRegistries(t *testing.T) {
 		"graveyard":         "Delver Graveyard",
 		"echo_floor":        "Echo Floor",
 		"bounty_board":      "Bounty Board",
+		abyssForgeFloorType: "Silent Anvil",
 	}
 	for eventType, label := range events {
 		raw := `{"type":"` + eventType + `"}`
@@ -72,6 +73,7 @@ func TestAbyssFloorEcologyResolutionContracts(t *testing.T) {
 		"darkness", "sanctuary_buy", "altar_sacrifice", "echo_claim",
 		"lab_combine", "portal_enter", "graveyard_duel", "bounty_accept",
 		"passage_squeeze", "well_toss", "garden_harvest", "mirrors_pick",
+		"forge_floor_leave", "openAbyssForgeFloor", "forge_floor_used",
 	} {
 		if !strings.Contains(joined, contract) {
 			t.Errorf("floor ecology is missing resolution contract %q", contract)

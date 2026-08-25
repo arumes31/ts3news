@@ -23,14 +23,14 @@ func TestAbyssForgeQuoteTokenRoundTripAndTamperRejection(t *testing.T) {
 	copy(server.forgeQuoteKey[:], []byte("01234567890123456789012345678901"))
 	claims := abyssForgeQuoteClaims{
 		UID: "user", Operation: "temper", InvID: 7, Parameters: json.RawMessage(`{"target":5}`),
-		Gear: "gear", Inventory: "inventory", ExpiresUnix: time.Now().Add(time.Minute).Unix(),
+		Gear: "gear", Inventory: "inventory", ForgeFloor: true, ExpiresUnix: time.Now().Add(time.Minute).Unix(),
 	}
 	token, err := server.signForgeClaims(claims)
 	if err != nil {
 		t.Fatal(err)
 	}
 	decoded, err := server.verifyForgeClaims(token)
-	if err != nil || decoded.UID != claims.UID || decoded.Operation != claims.Operation {
+	if err != nil || decoded.UID != claims.UID || decoded.Operation != claims.Operation || !decoded.ForgeFloor {
 		t.Fatalf("decoded claims = %+v, %v", decoded, err)
 	}
 	tampered := token[:len(token)-1] + map[bool]string{true: "A", false: "B"}[token[len(token)-1] != 'A']

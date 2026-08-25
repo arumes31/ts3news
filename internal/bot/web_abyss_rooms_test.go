@@ -62,7 +62,7 @@ func TestAbyssSpecialRoomRollsCoverRunStructureRooms(t *testing.T) {
 	want := []string{
 		"challenge_room", "cursed_door", "story_crossroads", "lost_explorer", "locked_vault",
 		"collapsed_passage", "abyssal_garden", "cursed_elevator", "trap_chamber", "unstable_portal", "graveyard",
-		"echo_floor", "bounty_board",
+		"echo_floor", "bounty_board", abyssForgeFloorType,
 	}
 	for i := range want {
 		roll := (float64(i) + 0.5) * 0.20 / float64(len(want))

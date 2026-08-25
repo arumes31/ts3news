@@ -58,6 +58,7 @@ func abyssEventTypeLabel(raw string) string {
 		"cursed_elevator": "Cursed Elevator", "trap_chamber": "Trap Chamber",
 		"unstable_portal": "Unstable Portal", "graveyard": "Delver Graveyard",
 		"echo_floor": "Echo Floor", "bounty_board": "Bounty Board",
+		abyssForgeFloorType: "Silent Anvil",
 	}
 	if label := labels[state.Type]; label != "" {
 		return label

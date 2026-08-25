@@ -128,6 +128,7 @@ func abyssSpecialRoomForRoll(roll float64) string {
 		"challenge_room", "cursed_door", "story_crossroads", "lost_explorer",
 		"locked_vault", "collapsed_passage", "abyssal_garden", "cursed_elevator",
 		"trap_chamber", "unstable_portal", "graveyard", "echo_floor", "bounty_board",
+		abyssForgeFloorType,
 	}
 	index := int(roll / (0.20 / float64(len(rooms))))
 	if index >= len(rooms) {
@@ -277,7 +278,7 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 		return false
 	}
 	switch state.Type {
-	case "challenge_room", "cursed_door", "story_crossroads", "lost_explorer", "locked_vault", "collapsed_passage", "abyssal_garden":
+	case "challenge_room", "cursed_door", "story_crossroads", "lost_explorer", "locked_vault", "collapsed_passage", "abyssal_garden", abyssForgeFloorType:
 	default:
 		return false
 	}
@@ -462,6 +463,12 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 		if count == 3 {
 			msg += " Green Thumb mastered: every future node of this type yields +1 material."
 		}
+	case abyssForgeFloorType:
+		if action != "forge_floor_leave" {
+			writeJSON(w, map[string]any{"ok": false, "error": "choose a free forge action or leave the anvil"})
+			return true
+		}
+		msg = "⚒️ You leave the Silent Anvil unused."
 	}
 
 	if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {

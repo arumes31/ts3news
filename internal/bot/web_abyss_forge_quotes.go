@@ -105,6 +105,7 @@ type abyssForgeQuoteClaims struct {
 	Parameters  json.RawMessage `json:"parameters"`
 	Gear        string          `json:"gear"`
 	Inventory   string          `json:"inventory"`
+	ForgeFloor  bool            `json:"forge_floor,omitempty"`
 	ExpiresUnix int64           `json:"expires_unix"`
 }
 
@@ -171,6 +172,11 @@ func (s *WebServer) verifyForgeClaims(token string) (abyssForgeQuoteClaims, erro
 		return claims, errors.New("forge quote expired")
 	}
 	return claims, nil
+}
+
+func (s *WebServer) forgeQuoteRequiresFloor(r *http.Request, operation string) bool {
+	claims, err := s.verifyForgeClaims(r.Header.Get(abyssForgeQuoteHeader))
+	return err == nil && claims.Operation == operation && claims.ForgeFloor
 }
 
 func forgeGearFingerprint(g content.Gear, raw string, invID int64, slot string) string {
@@ -538,6 +544,13 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 		cost = abyssForgeQuoteCost{Gold: s.forge4GoldCost(uid, 300, target.Rarity), Materials: map[string]int{"core": 2}}
 		minimumCost, maximumCost = cost, cost
 	}
+	forgeFloorFree := s.bot.abyssForgeFloorAvailable(ctx, uid, operation.ID)
+	cost, minimumCost, maximumCost = applyAbyssForgeFloorQuoteCost(
+		forgeFloorFree,
+		cost,
+		minimumCost,
+		maximumCost,
+	)
 	before, err := s.loadForgeBalance(ctx, uid)
 	if err != nil {
 		return abyssForgeQuote{}, fmt.Errorf("forge balance: %w", err)
@@ -545,7 +558,7 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 	expires := time.Now().Add(abyssForgeQuoteTTL).UTC()
 	claims := abyssForgeQuoteClaims{
 		UID: uid, Operation: operation.ID, InvID: request.InvID, Slot: request.Slot, Parameters: parameters,
-		Gear: fingerprint, Inventory: revision, ExpiresUnix: expires.Unix(),
+		Gear: fingerprint, Inventory: revision, ForgeFloor: forgeFloorFree, ExpiresUnix: expires.Unix(),
 	}
 	token, err := s.signForgeClaims(claims)
 	if err != nil {
@@ -733,6 +746,9 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 		quote.CostExplanation = "Locking one stat doubles the 300g base to 600g before rarity, reputation, happy-hour, and mastery modifiers."
 	default:
 		quote.CostExplanation = operation.Cost.Formula
+	}
+	if forgeFloorFree {
+		quote.CostExplanation = "The active Silent Anvil makes one temper, socket punch, or full repair free and is consumed only when that mutation commits."
 	}
 	if quote.Irreversible {
 		quote.Confirmation = "FORGE " + strings.ToUpper(operation.ID)

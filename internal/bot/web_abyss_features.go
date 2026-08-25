@@ -792,8 +792,20 @@ func (s *WebServer) handleAbyssTemper(w http.ResponseWriter, r *http.Request, ui
 	var failStacks int
 	_ = tx.QueryRow("SELECT temper_fail_stacks FROM users WHERE client_uid=$1", uid).Scan(&failStacks)
 	cost := s.forge4GoldCost(uid, int64(400*(g.Temper+1)), g.Rarity)
-	if !deductGold(w, tx, uid, cost) {
+	forgeFloorUsed, err := claimAbyssForgeFloorInTx(tx, uid, "temper")
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
+	}
+	if s.forgeQuoteRequiresFloor(r, "temper") && !forgeFloorUsed {
+		writeJSON(w, map[string]any{"ok": false, "error": "Silent Anvil changed; refresh the forge quote"})
+		return
+	}
+	if !forgeFloorUsed && !deductGold(w, tx, uid, cost) {
+		return
+	}
+	if forgeFloorUsed {
+		cost = 0
 	}
 
 	chance := temperChance(g.Temper, failStacks)
@@ -839,16 +851,30 @@ func (s *WebServer) handleAbyssTemper(w http.ResponseWriter, r *http.Request, ui
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	if success {
-		s.bot.recordForge(uid, "temper", fmt.Sprintf("%s → +%d", g.Name, g.Temper), fmt.Sprintf("%dg", cost))
+		costLabel := fmt.Sprintf("%dg", cost)
+		if forgeFloorUsed {
+			costLabel = "Silent Anvil"
+		}
+		s.bot.recordForge(uid, "temper", fmt.Sprintf("%s → +%d", g.Name, g.Temper), costLabel)
+		msg := fmt.Sprintf("⚒️ Temper succeeded! %s is now +%d (+2%% stats).", g.Name, g.Temper)
+		if forgeFloorUsed {
+			msg = "⚒️ Silent Anvil: " + msg
+		}
 		writeJSON(w, map[string]any{"ok": true, "success": true, "temper": g.Temper, "gold": gold,
-			"guard_used": guardUsed,
-			"msg":        fmt.Sprintf("⚒️ Temper succeeded! %s is now +%d (+2%% stats).", g.Name, g.Temper)})
+			"guard_used": guardUsed, "forge_floor_used": forgeFloorUsed, "msg": msg})
 		return
 	}
-	s.bot.recordForge(uid, "temper", g.Name+" failed", fmt.Sprintf("%dg", cost))
+	costLabel := fmt.Sprintf("%dg", cost)
+	if forgeFloorUsed {
+		costLabel = "Silent Anvil"
+	}
+	s.bot.recordForge(uid, "temper", g.Name+" failed", costLabel)
+	msg := fmt.Sprintf("💥 Temper failed (%.0f%% chance). Pity grows: +5%% on the next attempt.", chance*100)
+	if forgeFloorUsed {
+		msg = "⚒️ Silent Anvil spent. " + msg
+	}
 	writeJSON(w, map[string]any{"ok": true, "success": false, "temper": g.Temper, "gold": gold,
-		"fail_stacks": failStacks + 1,
-		"msg":         fmt.Sprintf("💥 Temper failed (%.0f%% chance). Pity grows: +5%% on the next attempt.", chance*100)})
+		"fail_stacks": failStacks + 1, "forge_floor_used": forgeFloorUsed, "msg": msg})
 }
 
 // ---- Gem tiers & upgrades (#84) --------------------------------------------
@@ -1453,7 +1479,14 @@ func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request,
 	if req.Preview {
 		cost := s.bot.abyssRepairAllCost(uid)
 		covered := s.bot.abyssRepairSubscriptionActive(uid, time.Now())
-		writeJSON(w, map[string]any{"ok": true, "cost": abyssRepairSubscriptionCharge(cost, covered), "covered": covered})
+		forgeFloor := s.bot.abyssForgeFloorAvailable(r.Context(), uid, "repair_all")
+		charged := abyssRepairSubscriptionCharge(cost, covered)
+		if forgeFloor {
+			charged = 0
+		}
+		writeJSON(w, map[string]any{
+			"ok": true, "cost": charged, "covered": covered, "forge_floor": forgeFloor, "repairable": cost > 0,
+		})
 		return
 	}
 	tx, err := s.beginForgeRequestTx(w)
@@ -1471,8 +1504,20 @@ func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing to repair"})
 		return
 	}
+	forgeFloorUsed, err := claimAbyssForgeFloorInTx(tx, uid, "repair_all")
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if s.forgeQuoteRequiresFloor(r, "repair_all") && !forgeFloorUsed {
+		writeJSON(w, map[string]any{"ok": false, "error": "Silent Anvil changed; refresh the forge quote"})
+		return
+	}
 	covered := s.bot.abyssRepairSubscriptionActive(uid, time.Now())
 	charged := abyssRepairSubscriptionCharge(cost, covered)
+	if forgeFloorUsed {
+		charged = 0
+	}
 	if charged > 0 && !deductGold(w, tx, uid, charged) {
 		return
 	}
@@ -1487,10 +1532,15 @@ func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request,
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	msg := fmt.Sprintf("🛠️ All gear repaired for %dg.", charged)
-	if covered {
+	if forgeFloorUsed {
+		msg = "⚒️ Silent Anvil: all equipped gear repaired for free."
+	} else if covered {
 		msg = "🛠️ All gear repaired — 0g, covered by your repair subscription."
 	}
-	writeJSON(w, map[string]any{"ok": true, "msg": msg, "gold": gold, "cost": charged, "covered": covered})
+	writeJSON(w, map[string]any{
+		"ok": true, "msg": msg, "gold": gold, "cost": charged, "covered": covered,
+		"forge_floor_used": forgeFloorUsed,
+	})
 }
 
 func (s *WebServer) handleAbyssAutoRepair(w http.ResponseWriter, r *http.Request, uid string) {

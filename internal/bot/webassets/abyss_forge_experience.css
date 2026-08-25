@@ -112,3 +112,29 @@
   .ab-forge-review-row,
   .ab-fusion-item { border: 1px solid CanvasText; }
 }
+.ab-forge-floor-banner {
+  display: grid;
+  gap: .25rem;
+  margin: .7rem 0;
+  padding: .75rem .9rem;
+  border: 1px solid rgba(244, 184, 71, .62);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: linear-gradient(100deg, rgba(73, 43, 12, .88), rgba(17, 23, 34, .96) 72%);
+  box-shadow: inset 0 1px rgba(255, 224, 158, .12), 0 8px 24px rgba(0, 0, 0, .18);
+  color: #f6d68f;
+}
+
+.ab-forge-floor-banner[hidden] {
+  display: none;
+}
+
+.ab-forge-floor-banner span {
+  color: #c5b99f;
+  font-size: .78rem;
+}
+
+.abyss-command-page .ab-forge-floor-free {
+  border-color: rgba(244, 184, 71, .78);
+  box-shadow: 0 0 0 1px rgba(244, 184, 71, .18), 0 0 18px rgba(244, 142, 40, .16);
+}

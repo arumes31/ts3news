@@ -51,10 +51,13 @@ test('custom stakes preview, submit, and remain adjustable between floors', asyn
   await page.locator('#btnEnter').click();
   await expect(page.locator('#sharedModal')).toHaveClass(/open/);
   await expect(page.locator('#sharedModalCard')).toContainText('Token ante');
+  const enteredNavigation = page.waitForEvent('framenavigated', frame => frame === page.mainFrame());
   await page.locator('#modalOkBtn').click();
   await expect.poll(() => enteredBody).not.toBeNull();
   expect(enteredBody.token_ante).toBe(10);
   expect(enteredBody.risk_dial_pct).toBe(30);
+  await enteredNavigation;
+  await page.waitForLoadState('load');
 
   await page.goto('/abyss?active=1');
   await page.locator('#runRiskDial').fill('40');
@@ -71,6 +74,27 @@ test('HUD normalizes an interest rate from a rolling deployment', async ({ page 
     window.renderHudChipsNow();
   });
   await expect(page.locator('#hudChips')).toContainText('+0.5%/floor');
+});
+
+test('Silent Anvil guides a free action through the dedicated Forge tab', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/abyss?active=1&room=forge_floor');
+  await page.evaluate(() => { window.reduceMotion = true; });
+
+  const room = page.locator('#nonCombatPanel');
+  await expect(room).toBeVisible();
+  await expect(room).toContainText('The Silent Anvil');
+  await expect(room).toContainText('Free Temper');
+  await room.getByRole('button', { name: /Choose Gear · Free Temper/ }).click();
+
+  await expect(page.locator('.ab-tab[data-tab-key="forge"]')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#forgeFloorBanner')).toBeVisible();
+  await expect(page.locator('#forgeFloorBanner')).toContainText('socket punch, or full repair is free');
+  await expect(page.locator('#btnForgeTemper')).toHaveClass(/ab-forge-floor-free/);
+  await expect(page.locator('#btnForgePunchSocket')).toHaveClass(/ab-forge-floor-free/);
+  await expect(page.locator('#btnForgeRepairAll')).toHaveClass(/ab-forge-floor-free/);
+  await expect(page.locator('#forgeItemSelect')).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
 test('desktop Abyss keeps its dark canvas and aligned stage in light system mode', async ({ page }) => {

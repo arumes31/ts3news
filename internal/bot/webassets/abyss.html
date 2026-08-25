@@ -758,6 +758,10 @@
     <div class="ab-rep-track" id="repTrack"><i id="repFill"></i><span class="ab-rep-lbl" id="repLbl"></span></div>
     <!-- UI-99: banner variant of the happy-hour chip while 18:00–18:59 UTC (toggled by JS) -->
     <div class="ab-hh-banner" id="hhBanner" style="display:none">🔥 Forge Happy Hour — gold costs −20% · <b id="hhMins"></b> left</div>
+    <div class="ab-forge-floor-banner" id="forgeFloorBanner" hidden role="status">
+      <b>⚒️ Silent Anvil charge ready</b>
+      <span>One temper attempt, socket punch, or full repair is free. A failed temper still spends the charge.</span>
+    </div>
     <p class="muted small">Upgrade, socket, identify, transmute, or recalibrate your gear.</p>
     
     <div class="ab-forge" style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
@@ -1045,7 +1049,7 @@
       <!-- Panel-wide forge tools, grouped (UX-55) -->
       <details class="ab-acc" style="margin-top:8px;"><summary>🧰 Maintenance</summary><div class="ab-acc-body">
         <button class="ghost xs" onclick="abyssIdentifyAll(this)">🔍 Identify All (1,000g each)</button>
-        <button class="ghost xs" onclick="abyssRepairAll(this)">🛠️ Repair All Gear (200g / missing point)</button>
+        <button class="ghost xs" id="btnForgeRepairAll" onclick="abyssRepairAll(this)">🛠️ Repair All Gear (200g / missing point)</button>
         <label class="small"><input type="checkbox" id="autoRepairToggle" {{if .AutoRepair}}checked{{end}} onchange="abyssAutoRepairToggle(this.checked)"> Auto-repair before every descent</label>
         <div id="forgeStatConversionRow" style="border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
           <label class="muted small" style="display:block; margin-bottom:4px;">Stat Conversion (Convert 100 Mana to +50 Max HP):</label>
@@ -1317,7 +1321,7 @@ var dailyAffix = '{{if .DailyMod}}{{.DailyMod}}{{end}}'; // UI-34
 var interestRatePct = Number('{{printf "%.3f" .HUD.InterestRatePct}}') || 0; // UI-60 authoritative rate
 var interestTotalPct = {{printf "%.3f" .HUD.InterestTotalPct}};
 var escrowSoftCap = {{.HUD.EscrowSoftCap}}, escrowEfficiencyPct = {{.HUD.EscrowEfficiencyPct}};
-var forgeUIState = null, forgeUIStateReceivedAt = 0, abyssSetupState = null;
+var forgeUIState = null, forgeUIStateReceivedAt = 0, abyssSetupState = null, forgeFloorActive = false;
 var abyssJackpot = {{.HUD.Jackpot}}; // UI-57
 var jackpotPulse = false, jackpotPulseTimer = 0;
 var activeRunPacts = {{jsonJS .HUD.Pacts}} || []; // UI-52
@@ -1768,6 +1772,7 @@ function renderNonCombat(floorType, stateStr){
   var desc = document.getElementById('ncDesc');
   var options = document.getElementById('ncOptions');
   options.innerHTML = '';
+  setAbyssForgeFloor(false);
   
   if(!floorType || floorType === 'combat'){
     panel.style.display = 'none';
@@ -1987,6 +1992,11 @@ function renderNonCombat(floorType, stateStr){
       var bountyReward=Math.max(0,Number(state.bounty_reward)||0),bountyDone=Math.max(0,Number(state.bounties_completed)||0);
       desc.textContent = state.bounty_active?'A signed contract is already active: win your next combat to collect it.':'Sign a contract to defeat your next combat floor. Completed this run: '+bountyDone+(state.double_reward?' — this fourth payout is doubled.':'.');
       options.innerHTML = (state.bounty_active?'':'<button class="ghost" onclick="abyssNCAction(\'bounty_accept\')">🎯 Accept · next combat pays '+fmtGold(bountyReward)+(state.double_reward?' ×2':'')+'</button> ')+'<button class="ghost" onclick="abyssNCAction(\'bounty_leave\')">Leave Board</button>';
+    } else if(state.type === 'forge_floor'){
+      setAbyssForgeFloor(true);
+      title.textContent = '⚒️ The Silent Anvil';
+      desc.textContent = 'An ancient forge wakes for one committed action. Choose a free temper attempt, punch one socket, or repair every equipped item. Eligibility and temper odds remain unchanged.';
+      options.innerHTML = `<button class="primary" onclick="openAbyssForgeFloor('temper')">⚒️ Choose Gear · Free Temper</button> <button class="ghost" onclick="openAbyssForgeFloor('punch_socket')">💎 Choose Gear · Free Socket</button> <button class="ghost" onclick="openAbyssForgeFloor('repair_all')">🛠️ Free Full Repair</button> <button class="ghost" onclick="abyssNCAction('forge_floor_leave')">🚶 Leave the Anvil</button>`;
     } else {
       desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
     }
@@ -1995,6 +2005,29 @@ function renderNonCombat(floorType, stateStr){
     }
     if(typeof renderAbyssEventMemory==='function')renderAbyssEventMemory(options,state);
   }
+}
+
+function setAbyssForgeFloor(active){
+  forgeFloorActive=!!active;
+  var banner=document.getElementById('forgeFloorBanner');
+  if(banner)banner.hidden=!forgeFloorActive;
+  ['btnForgeTemper','btnForgePunchSocket','btnForgeRepairAll'].forEach(function(id){
+    var button=document.getElementById(id);if(button)button.classList.toggle('ab-forge-floor-free',forgeFloorActive);
+  });
+}
+
+function openAbyssForgeFloor(operation){
+  var tab=document.querySelector('.ab-tab[data-tab-key="forge"]');
+  if(tab)tab.click();
+  if(operation==='repair_all'){
+    abyssRepairAll(document.getElementById('btnForgeRepairAll'));
+    return;
+  }
+  var select=document.getElementById('forgeItemSelect');
+  var target=document.getElementById(operation==='temper'?'btnForgeTemper':'btnForgePunchSocket');
+  var focus=select||target;
+  if(focus){focus.scrollIntoView({block:'center',behavior:reduceMotion?'auto':'smooth'});focus.focus({preventScroll:true});}
+  abToast(operation==='temper'?'Select eligible gear, then use the glowing Temper action.':'Select gear below four sockets, then use the glowing Punch Socket action.',true);
 }
 
 // animateNumber (#335/#336): count a numeric change up/down over ~400ms.
@@ -3900,6 +3933,7 @@ async function abyssNCAction(action, payload){
   }
   
   if(d.resolved){
+    setAbyssForgeFloor(false);
     document.getElementById('ncOptions').innerHTML = '';
     document.getElementById('ncDesc').textContent = d.msg;
   }
@@ -4609,7 +4643,7 @@ async function forgeTemper(){
   var stacks=d.success?0:(parseInt(d.fail_stacks,10)||0);
   renderTemperPity(stacks);
   void refreshForgeUIState();
-  if(d.success)setTimeout(function(){window.location.reload();},900);
+  if(d.success||d.forge_floor_used)setTimeout(function(){window.location.reload();},900);
 }
 
 async function forgeCleanse(){
@@ -4646,12 +4680,15 @@ async function abyssRepairAll(btn){
   if(busy)return; setBusy(true);
   var p=await abPost('/api/abyss/repair_all',{preview:true});
   if(!p.ok){abToast(p.error||'failed',false);setBusy(false);return;}
-  if(p.cost<=0){abToast('Nothing to repair.',true);setBusy(false);return;}
-  if(!(await confirmModal('Repair all gear for '+fmtGold(p.cost)+'?', {title:'Repair All', okLabel:'Repair ('+fmtGold(p.cost)+')'}))){setBusy(false);return;} // UI-134
+  if(p.repairable===false){abToast('Nothing to repair.',true);setBusy(false);return;}
+  var repairPrompt=p.forge_floor?'Spend the Silent Anvil charge to repair all equipped gear for free?':'Repair all gear for '+fmtGold(p.cost)+'?';
+  var repairLabel=p.forge_floor?'Repair Free':'Repair ('+fmtGold(p.cost)+')';
+  if(!(await confirmModal(repairPrompt, {title:p.forge_floor?'Silent Anvil Repair':'Repair All', okLabel:repairLabel}))){setBusy(false);return;} // UI-134
   var d=await abPost('/api/abyss/repair_all',{});
   setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setGold(d.gold); abToast(d.msg,true);
+  if(d.forge_floor_used)setTimeout(function(){window.location.reload();},700);
 }
 
 async function abyssAutoRepairToggle(on){

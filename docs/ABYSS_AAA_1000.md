@@ -60,6 +60,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0030 / 30** — Cursed Libraries trade either maximum health or a timed speed penalty for lore and a skill elixir.
 - [x] **AAA-0031 / 31** — Mirror combat clones the player's current stats, skills, and equipped gear without aliasing mutable state.
 - [x] **AAA-0032 / 32** — Gambling Dens expose posted stake, prize, and odds for five depth-gated games.
+- [x] **AAA-0033 / 33** — the Silent Anvil offers one free eligible temper attempt, socket punch, or full equipped-gear repair; the existing forge mutation transaction locks and consumes the room only when the chosen operation commits, while quotes and the Forge tab expose the exact zero cost (`abyss_forge_floor.go`, `abyss_forge_floor_test.go`, `web_abyss_features.go`, `web_abyss_forge2.go`, `web_abyss_forge_quotes.go`, `webassets/abyss.html`).
 - [x] **AAA-0034 / 34** — Abyssal Market prices scale with discovery depth and include one opaque fixed-price mystery slot.
 - [x] **AAA-0035 / 35** — Scrying Rifts offer up to three paid visions and persist the revealed floor queue server-side.
 - [x] **AAA-0036 / 36** — Storm combat telegraphs its next target side before applying bounded environmental damage.
