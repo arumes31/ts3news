@@ -19,6 +19,7 @@ const (
 	abyssLiveMaxIdempotencyKeysPerRound = 64
 	abyssLiveInitialTimeBank            = 6 * time.Second
 	abyssLiveTimeBankSpend              = 2 * time.Second
+	abyssLiveConnectivityGrace          = 20 * time.Second
 )
 
 var (
@@ -176,6 +177,8 @@ type abyssLiveCombat struct {
 	readySignal    chan struct{}
 	timeBank       map[string]time.Duration
 	deadlineSignal chan struct{}
+	connections    map[string]int
+	reconnectRound map[string]int
 	recentLogs     []string
 	roundRecap     string
 	result         map[string]any

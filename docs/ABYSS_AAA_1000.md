@@ -44,24 +44,122 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0021 / 21** — Descend shows the server-estimated next-floor death risk.
 - [x] **AAA-0024 / 24** — three same-day deaths fund one clearly labeled +10% comeback run.
 
+## Delivered tranche: floor ecology audit
+
+- [x] **AAA-0026 / 26** — Three Chests persists one hidden answer and resolves a single hinted choice without leaking it to the client.
+- [x] **AAA-0027 / 27** — Trap Chambers publish bounded DGE-based pass odds and atomically apply either cache gain or nonlethal damage.
+- [x] **AAA-0028 / 28** — Locked Vaults consume run-scoped keys for one explicit cache, token, or material reward.
+- [x] **AAA-0030 / 30** — Cursed Libraries trade either maximum health or a timed speed penalty for lore and a skill elixir.
+- [x] **AAA-0031 / 31** — Mirror combat clones the player's current stats, skills, and equipped gear without aliasing mutable state.
+- [x] **AAA-0032 / 32** — Gambling Dens expose posted stake, prize, and odds for five depth-gated games.
+- [x] **AAA-0034 / 34** — Abyssal Market prices scale with discovery depth and include one opaque fixed-price mystery slot.
+- [x] **AAA-0035 / 35** — Scrying Rifts offer up to three paid visions and persist the revealed floor queue server-side.
+- [x] **AAA-0036 / 36** — Storm combat telegraphs its next target side before applying bounded environmental damage.
+- [x] **AAA-0037 / 37** — Darkness combat redacts enemy health from snapshots and timelines without mutating authoritative combat state.
+- [x] **AAA-0038 / 38** — Sanctuary improvements persist token-funded upgrades to healing, repair, rerolls, maps, and crafting.
+- [x] **AAA-0041 / 41** — Blood Altars consume an owned item for a timed buff, with explicit corrupted-item amplification.
+- [x] **AAA-0042 / 42** — Echo Floors recover a bounded share of the last credited reward without rerolling it.
+- [x] **AAA-0043 / 43** — Alchemy Labs atomically combine two owned consumables into a stronger result.
+- [x] **AAA-0044 / 44** — Unstable Portals jump exactly three floors, disclose skipped room labels, and grant no skipped rewards.
+- [x] **AAA-0045 / 45** — Delver Graveyards use a persisted real death when available and support honor, disturb, or echo-duel outcomes.
+- [x] **AAA-0046 / 46** — Bounty Boards persist one five-floor side objective with explicit success and failure conditions.
+- [x] **AAA-0047 / 47** — Collapsed Passages offer a safe dust detour or a visible health-for-shards squeeze.
+- [x] **AAA-0048 / 48** — Wishing Well contributions feed a shared jackpot and retain bounded lifetime contribution context.
+- [x] **AAA-0049 / 49** — Abyssal Gardens grant depth-selected materials and a persisted three-harvest mastery bonus.
+- [x] **AAA-0050 / 50** — Hall of Mirrors presents three exact temporary buffs and empowers repeated choices across distinct runs.
+
+## Delivered tranche: combat mechanics audit
+
+- [x] **AAA-0051 / 51** — every fight ends with party/enemy damage totals plus non-zero Abyss breakdown lines for thorns and counters.
+- [x] **AAA-0053 / 53** — live floors expose server-persisted aggressive, balanced, defensive, and conserve-items tactics.
+- [x] **AAA-0055 / 55** — the pre-run hold-mana preference suppresses automatic ultimates on normal waves while explicit live ultimates bypass it.
+- [x] **AAA-0063 / 63** — poison and related damage-over-time effects tick per round and receive visible log and health-bar treatment.
+- [x] **AAA-0064 / 64** — boss encounters announce enrage two rounds ahead and expose an imminent-enrage HUD state.
+- [x] **AAA-0068 / 68** — downed responses and controls show the authoritative revive offer percentage and pity streak.
+- [x] **AAA-0069 / 69** — persisted 1×, 2×, and 4× combat playback rates support instant, fast, and dramatic viewing preferences.
+- [x] **AAA-0070 / 70** — Skip to Result drains only presentation while retaining authoritative reward, loot, and summary lines.
+- [x] **AAA-0071 / 71** — round-thirty overtime warns before unavoidable bounded fatigue begins damaging both sides.
+
+## Delivered tranche: loot and itemization audit
+
+- [x] **AAA-0076 / 76** — run-loot gear exposes exact combat-rating delta against the equipped slot on focus, hover, and expansion.
+- [x] **AAA-0077 / 77** — account loot rules auto-salvage only Common or Uncommon gear and preserve an authoritative recap.
+- [x] **AAA-0081 / 81** — persistent owner-scoped item locks prevent sale, salvage, dismantle, listing, fusion, and sacrifice accidents.
+- [x] **AAA-0082 / 82** — Legendary-or-better recalibration rerolls one chosen stat line for a fixed five-token cost.
+- [x] **AAA-0083 / 83** — corrupted gear carries oversized trade-off stats and supports explicit cleanse or embrace forge paths.
+- [x] **AAA-0084 / 84** — gems have bounded tiers I–III and deterministic three-into-one upgrades.
+- [x] **AAA-0086 / 86** — the catalog includes validated build-changing unique gear with described special effects.
+- [x] **AAA-0088 / 88** — loot presentation assigns distinct reduced-motion-safe rarity beams through Eternal quality.
+- [x] **AAA-0092 / 92** — three compatible same-slot Legendary ingredients fuse through server-validated preview and commit paths.
+- [x] **AAA-0099 / 99** — Identify All quotes one combined cost and mutates the reviewed unidentified inventory atomically.
+- [x] **AAA-0100 / 100** — keyboard and pointer expansion reveals complete escrow gear stats before the bank decision.
+
+## Delivered tranche: forge and crafting audit
+
+- [x] **AAA-0101 / 101** — rarity-scaled salvage and dismantle yield bounded Dust, Shard, Core, and Prism materials.
+- [x] **AAA-0102 / 102** — a dedicated material wallet reports exact counts and acquisition sources.
+- [x] **AAA-0103 / 103** — depth-gated recipes craft consumables through authoritative material deductions.
+- [x] **AAA-0104 / 104** — lore-fragment progression unlocks persisted recipes instead of client-only visibility.
+- [x] **AAA-0105 / 105** — the weekly crafting objective persists progress and pays its guaranteed reward once.
+- [x] **AAA-0106 / 106** — Temper raises gear through bounded tiers with posted success odds and optional protection.
+- [x] **AAA-0107 / 107** — failed Temper attempts persist a capped pity contribution used by the next quote and roll.
+- [x] **AAA-0108 / 108** — equipped gear accumulates kill milestones that unlock durable bonus effects.
+- [x] **AAA-0109 / 109** — Reforge previews bounded stat outcome ranges before an item is mutated.
+- [x] **AAA-0110 / 110** — batch dismantle commits only the exact reviewed inventory manifest and revision.
+- [x] **AAA-0111 / 111** — enchant transfer validates both owned items and atomically moves the effect for tokens.
+- [x] **AAA-0112 / 112** — Mythic fusion publishes its Divine chance before consuming two compatible items.
+- [x] **AAA-0113 / 113** — a token-purchased Sanctuary Crafting Station enables mid-run recipe access.
+- [x] **AAA-0114 / 114** — persisted artisan reputation reduces forge prices and is reflected in server quotes.
+- [x] **AAA-0115 / 115** — recalibration and reforge surfaces show exact bounded stat ranges before commit.
+- [x] **AAA-0116 / 116** — one server-owned daily forge undo retains a bounded, item-specific recovery snapshot.
+- [x] **AAA-0117 / 117** — socket extraction removes one selected gem intact for the quoted fee.
+- [x] **AAA-0118 / 118** — etched rune families persist in an account library and discount future matching work.
+- [x] **AAA-0119 / 119** — floors thirty and deeper add gem-focused material seams to authoritative loot rolls.
+- [x] **AAA-0120 / 120** — a fixed 500-material contract crafts the chosen eligible Legendary catalog target.
+- [x] **AAA-0121 / 121** — the forge header announces the daily discount hour and its live UTC countdown.
+- [x] **AAA-0122 / 122** — applicable forge actions expose their quoted combat-rating and gear-score deltas.
+- [x] **AAA-0123 / 123** — the last twenty persisted forge actions include cost, outcome, and relative time.
+- [x] **AAA-0124 / 124** — Repair All previews its exact combined cost before atomically restoring eligible gear.
+- [x] **AAA-0125 / 125** — opt-in Auto Repair quotes and charges its cost before each descent.
+
+## Delivered tranche: economy and market audit
+
+- [x] **AAA-0126 / 126** — the token exchange posts distinct server-authoritative buy and sell rates before either transaction.
+- [x] **AAA-0130 / 130** — the Auction House exposes material listings and escrow-backed material buy orders.
+- [x] **AAA-0140 / 140** — the live deep-cache jackpot balance is visible before entry and refreshes after authoritative economy responses.
+- [x] **AAA-0142 / 142** — a bid placed during an auction's final minute extends its expiry by exactly sixty seconds.
+- [x] **AAA-0149 / 149** — material buy orders reserve the maximum spend, fill at or below the posted unit price, and refund unused escrow.
+
+## Delivered tranche: progression and talents audit
+
+- [x] **AAA-0151 / 151** — three named Deep Delver loadout slots save and atomically reapply validated talent-tree allocations.
+- [x] **AAA-0152 / 152** — a selected talent node can be refunded with an explicit quote, cascading only when allocated dependents require it.
+- [x] **AAA-0154 / 154** — Swiftness shortens combat presentation delay at each purchased rank.
+- [x] **AAA-0155 / 155** — Scavenger increases authoritative crafting-material yields by rank.
+- [x] **AAA-0156 / 156** — Mercy raises both revive-offer odds and Last Stand healing through server calculations.
+- [x] **AAA-0157 / 157** — Cartographer extends paid route visions and lowers their posted cost.
+- [x] **AAA-0158 / 158** — Quartermaster adds one server-enforced consumable carry slot per rank.
+- [x] **AAA-0159 / 159** — the talent interface is a connected, keyboard-accessible branched tree rather than a flat upgrade list.
+- [x] **AAA-0161 / 161** — Delver, Plunderer, and Warden are mutually exclusive specializations with distinct live bonuses.
+- [x] **AAA-0163 / 163** — prestige grants a dedicated Paragon point budget spendable only on post-prestige nodes.
+- [x] **AAA-0168 / 168** — accumulated boss-family kills buy bounded +1% damage mastery ranks against chosen bestiary families.
+- [x] **AAA-0173 / 173** — returning after fourteen days seeds exactly ten authoritative +25% XP and +10% cache catch-up charges.
+- [x] **AAA-0175 / 175** — the post-prestige Paragon board grants bounded +0.1% ranks across seven permanent effects.
+
 ## Active tranche: operational quality and client performance
 
 - [x] **AAA-0986 / AB-286** — compare tier catalog values with the latest database constraints.
 - [x] **AAA-0987 / AB-287** — golden-render threshold and active-run page fixtures.
 - [x] **AAA-0990 / AB-290** — aggregate enter → floor 5 → bank funnel telemetry.
-- [ ] **AAA-0991 / AB-291** — inspect a player's live run for support (requires explicit approval for operator-visible player data).
+- [x] **AAA-0991 / AB-291** — an explicit confirmation creates a bounded, manually shared live-run support bundle that excludes names, IDs, logs, and RNG state.
 - [x] **AAA-0993 / AB-293** — bounded client error reporting.
 - [x] **AAA-0994 / AB-294** — combat-log DOM virtualization above 500 lines.
 - [x] **AAA-0995 / AB-295** — coalesce HUD chip recomputes to one animation frame.
 - [x] **AAA-0996 / AB-296** — compute rarity metadata once and reuse it.
-- [ ] **AAA-0997 / AB-297** — pause authoritative run timers during connectivity loss.
+- [x] **AAA-0997 / AB-297** — losing the final live event stream grants one persisted, server-authoritative twenty-second planning lease per participant and round.
 - [x] **AAA-0998 / AB-298** — expose per-locale Abyss i18n coverage to operators.
 - [x] **AAA-0999 / AB-299** — validate unique gear IDs, set size, and effect descriptions.
 - [x] **AAA-1000 / AB-300** — render an in-portal changelog from release-note data.
-
-AAA-0997 intentionally remains pending while reconnect/session-cursor work is
-already modified in the worktree. It requires a server-authoritative deadline
-lease, not a cosmetic client countdown pause.
 
 ## Delivered tranche: first-run clarity and descent preparation
 
@@ -212,7 +310,7 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0515 / UI-15** — threat fill and needle share the existing half-second risk transition.
 - [x] **AAA-0516 / UI-16** — reduced-motion-aware numeric depth transition.
 - [x] **AAA-0517 / UI-17** — gold ring treatment on each ten-floor milestone.
-- [ ] **AAA-0518 / UI-18** — active buff badges remain pending authoritative, restart-safe duration state.
+- [x] **AAA-0518 / UI-18** — active buff badges hydrate and refresh from persisted server-owned remaining-fight durations, including after restart.
 - [x] **AAA-0519 / UI-19** — three momentum-flame sizes at zero, five, and ten stacks.
 - [x] **AAA-0520 / UI-20** — reduced-motion-safe enrage state driven by combat logs.
 
@@ -736,3 +834,9 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0973 / AB-273** — the command page clarifies the UTC daily bounty cadence and warns when buffs expire after the next floor.
 - [x] **AAA-0974 / AB-274** — a persisted, reorderable three-consumable next-run shelf feeds the authoritative entry request.
 - [x] **AAA-0975 / AB-275** — responsive sidebar opacity and density controls persist independently and respect reduced-motion preferences.
+
+## Delivered tranche: player display controls audit
+
+- [x] **AAA-0353 / 353** — persisted semantic color profiles combine colorblind-safe hues with the existing non-color rarity glyphs.
+- [x] **AAA-0354 / 354** — a persisted motion policy can suppress every descendant animation and transition while honoring the system preference.
+- [x] **AAA-0372 / 372** — the dynamic page title marks downed and decision-floor states while retaining the existing live depth title.

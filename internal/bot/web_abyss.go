@@ -3732,6 +3732,7 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 			"gold":            gold,
 			"momentum":        0,
 			"momentum_broken": momentumBefore > 0,
+			"consumables":     s.bot.getConsumables(uid),
 		})
 		return
 	case content.ConsumableRevive:

@@ -726,5 +726,166 @@
       "internal/bot/web_abyss_panel_tools_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [26, 27, 28, 30, 31, 32, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_combat_rooms.go",
+      "internal/bot/web_abyss_event_intel.go",
+      "internal/bot/web_abyss_events.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_loop.go",
+      "internal/bot/web_abyss_rooms.go",
+      "internal/bot/web_abyss_traversal_rooms.go",
+      "internal/bot/xp.go",
+      "internal/bot/webassets/abyss.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_floor_ecology_evidence_test.go",
+      "internal/bot/web_abyss_combat_rooms_test.go",
+      "internal/bot/web_abyss_event_intel_test.go",
+      "internal/bot/web_abyss_events_test.go",
+      "internal/bot/web_abyss_rooms_test.go",
+      "internal/bot/web_abyss_traversal_rooms_test.go"
+    ]
+  },
+  {
+    "ids": [51, 53, 55, 63, 64, 68, 69, 70, 71],
+    "production": [
+      "internal/bot/xp.go",
+      "internal/bot/xp_abyss_combat.go",
+      "internal/bot/web_abyss_core_rewards.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_actions.go",
+      "internal/bot/web_abyss_live_tactics.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_combat_recorder.html",
+      "internal/bot/webassets/abyss_core_risk.html",
+      "internal/bot/webassets/abyss_live.html"
+    ],
+    "verification": [
+      "internal/bot/xp_test.go",
+      "internal/bot/xp_abyss_combat_test.go",
+      "internal/bot/web_abyss_combat_log_ui_test.go",
+      "internal/bot/web_abyss_combat_recorder_test.go",
+      "internal/bot/web_abyss_core_rewards_test.go"
+    ]
+  },
+  {
+    "ids": [353, 354, 372, 518, 976, 977, 978, 979, 980, 981, 982, 983, 984, 985, 991, 997],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_connectivity.go",
+      "internal/bot/web_abyss_live_http.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_navigation.html",
+      "internal/bot/webassets/abyss_player_experience.html",
+      "internal/bot/webassets/abyss_player_experience.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_authoritative_buffs_test.go",
+      "internal/bot/web_abyss_live_connectivity_test.go",
+      "internal/bot/web_abyss_player_experience_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [76, 77, 81, 82, 83, 84, 86, 88, 92, 99, 100],
+    "production": [
+      "internal/content/artifacts.go",
+      "internal/bot/web_abyss_customization.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_forge2.go",
+      "internal/bot/web_abyss_forge3.go",
+      "internal/bot/web_abyss_forge_crafting.go",
+      "internal/bot/web_abyss_inventory_lock.go",
+      "internal/bot/web_abyss_inventory_ui.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_loot2.go",
+      "internal/bot/web_abyss_loot_settings.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_inventory_ui.html",
+      "internal/bot/webassets/abyss_loot_presentation.css"
+    ],
+    "verification": [
+      "internal/content/artifacts_validation_test.go",
+      "internal/content/unique_items_test.go",
+      "internal/bot/web_abyss_forge2_test.go",
+      "internal/bot/web_abyss_forge3_test.go",
+      "internal/bot/web_abyss_inventory_lock_test.go",
+      "internal/bot/web_abyss_inventory_ui_test.go",
+      "internal/bot/web_abyss_loot_settings_test.go",
+      "internal/bot/web_abyss_combat_items_test.go"
+    ]
+  },
+  {
+    "ids": [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125],
+    "production": [
+      "internal/bot/web_abyss_customization.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_forge2.go",
+      "internal/bot/web_abyss_forge3.go",
+      "internal/bot/web_abyss_forge4.go",
+      "internal/bot/web_abyss_forge_crafting.go",
+      "internal/bot/web_abyss_forge_ops.go",
+      "internal/bot/web_abyss_forge_quote_costs.go",
+      "internal/bot/web_abyss_forge_quotes.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_forge_experience.html",
+      "internal/bot/webassets/abyss_forge_planner.html",
+      "internal/bot/webassets/abyss_forge_workstation.html"
+    ],
+    "verification": [
+      "internal/bot/abyss_forge_evidence_test.go",
+      "internal/bot/abyss_forge_fusion_test.go",
+      "internal/bot/abyss_forge_progression_test.go",
+      "internal/bot/web_abyss_forge2_test.go",
+      "internal/bot/web_abyss_forge3_test.go",
+      "internal/bot/web_abyss_forge4_test.go",
+      "internal/bot/web_abyss_forge_catalog_test.go",
+      "internal/bot/web_abyss_forge_experience_test.go",
+      "internal/bot/web_abyss_forge_ui_state_test.go"
+    ]
+  },
+  {
+    "ids": [126, 130, 140, 142, 149],
+    "production": [
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_ah_economy.go",
+      "internal/bot/web_ah_bids.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/ah.html",
+      "internal/db/migrations/0080_abyss_economy.up.sql"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_economy4_test.go",
+      "internal/bot/web_abyss_hud_test.go"
+    ]
+  },
+  {
+    "ids": [151, 152, 154, 155, 156, 157, 158, 159, 161, 163, 168, 173, 175],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_progression.go",
+      "internal/bot/web_abyss_talents.go",
+      "internal/bot/web_abyss_tree.go",
+      "internal/bot/web_abyss_tree2.go",
+      "internal/bot/web_abyss_tree_mastery.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abysstree.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_progression_evidence_test.go",
+      "internal/bot/web_abyss_progression_test.go",
+      "internal/bot/web_abyss_rooms_test.go",
+      "internal/bot/web_abyss_tree_mastery_test.go",
+      "internal/bot/web_abyss_tree_plans_test.go"
+    ]
   }
 ]

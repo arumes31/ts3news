@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_stage_hud.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_codex_explorer.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_panel_tools.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_player_experience.css"}}">
 <div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 <div class="abyss-hero">
@@ -220,7 +221,6 @@
     <div class="muted small ab-free-entry-status" id="freeEntryStatus">{{if .FreeEntryAvailable}}🎟 Daily waiver ready — your first eligible entry is free.{{else}}🎟 Daily waiver used today.{{end}}</div>
     <div class="muted small" id="ydaySummary" style="display:none; margin:4px 0;"></div>
     <div class="muted small ab-entry-jackpot" id="entryJackpot">🔥 Deep-cache jackpot: <strong>{{with .HUD.Jackpot}}{{gold .}}{{else}}0g{{end}}</strong> · Bank at depth 25+ for a chance to claim it—or feed it when the Abyss taxes excess gold.</div>
-    <div class="muted small ab-entry-jackpot" id="entryJackpot">🔥 Deep-cache jackpot: <strong>{{with .HUD.Jackpot}}{{gold .}}{{else}}—{{end}}</strong> · bank deep, feed the cache, and you may claim it.</div>
 
     <!-- Start-mode picker (idle only): surface / checkpoint (#2) / express (#3) -->
     <div class="ab-startmode" id="startPicker">
@@ -1626,6 +1626,7 @@ function renderState(){
 
 function renderConsumables(list){
   pageConsumables = list || [];
+  syncActiveBuffsFromConsumables(pageConsumables);
   if(typeof renderRunAwarenessConsumables==='function')renderRunAwarenessConsumables(pageConsumables);
   var container = document.getElementById('consList');
   if(!container) return;
@@ -2187,7 +2188,14 @@ function bossFrameClass(name){
 // ---- UI-200 batch: stage scene, log decorators, HUD chips -------------------
 
 var lastDotKey=null, lastDotEl=null; // UI-40: DoT tick collapse state
-var activeBuffs=[];   // UI-18: client-side approximation {name, icon, fights}
+function activeBuffState(list){
+  return (list||[]).filter(function(item){return item&&item.Type==='Buff'&&(Number(item.Duration)||0)>0;}).map(function(item){
+    var label=buffNames[item.ID]||item.Name||item.ID;
+    return {id:item.ID,icon:label.split(' ')[0]||'🧪',label:label,fights:Number(item.Duration)||0};
+  });
+}
+var activeBuffs=activeBuffState(pageConsumables); // UI-18: persisted server duration state
+function syncActiveBuffsFromConsumables(list){activeBuffs=activeBuffState(list);renderBuffStrip();}
 var weaponElement=''; // UI-4: etched rune element of the equipped weapon, if detectable
 var logNumbered=false, logMono=false; // UI-26 / UI-38 (persisted below)
 try{ logNumbered=localStorage.getItem('ab_lognum')==='1'; logMono=localStorage.getItem('ab_logmono')==='1'; }catch(e){}
@@ -2412,8 +2420,8 @@ function updateStageScene(){
   }
 }
 
-// UI-18: active consumable buffs along the stage bottom edge (approximation —
-// buffs run 3 fights, decremented per cleared floor).
+// UI-18: active consumable buffs along the stage bottom edge. Durations come
+// from committed server responses and the persisted page model.
 function addBuffChip(id, fights){
   var icon=buffNames[id]?buffNames[id].split(' ')[0]:'🧪';
   var label=buffNames[id]||id;
@@ -2431,13 +2439,6 @@ function renderBuffStrip(){
   });
   el.innerHTML=html;
 }
-function tickBuffs(){
-  if(!activeBuffs.length) return;
-  activeBuffs=activeBuffs.map(function(b){ return {id:b.id, icon:b.icon, label:b.label, fights:b.fights-1}; })
-    .filter(function(b){ return b.fights>0; });
-  renderBuffStrip();
-}
-
 // UI-27: fights longer than 20 lines collapse complete middle rounds.
 function collapseLongFight(log){
   if(log.querySelector('.ab-log-virtual-gap')) return;
@@ -3312,7 +3313,7 @@ async function processDescendResult(d, hp, max){
     setBanner(msg,'good');
     document.getElementById('abStatus').textContent='Floor '+d.depth+' survived. The next floor is deadlier.';
     renderConsumables(d.consumables);
-    tickBuffs(); // UI-18: one fight consumed per cleared floor
+    // UI-18: renderConsumables already synchronized the server-decremented durations.
     // UI-33: render only the authoritative post-floor pity value returned by the server.
     var pityEl=document.getElementById('pityCount');
     if(pityEl && d.legendary_pity!==undefined){
@@ -3646,8 +3647,9 @@ async function abyssUseConsumable(cid){
     addLogHead(document.getElementById('abyssLog'),'ab-log-momentum','🔥 Momentum ×'+curMomentum+': broken by consumable use.');
     renderHudChips();
   }
-  // UI-18: buff consumables appear on the stage buff strip for 3 fights.
-  if(usedCons && usedCons.Type==='Buff') addBuffChip(usedCons.ID, 3);
+  // UI-18: older servers may omit the refreshed list; keep their committed
+  // duration as a compatibility fallback without running a local countdown.
+  if(d.consumables===undefined && usedCons && usedCons.Type==='Buff') addBuffChip(usedCons.ID, 3);
   abToast(d.msg || 'Consumable used!', true);
 }
 
@@ -3664,9 +3666,10 @@ async function abyssNCAction(action, payload){
     setHP(d.hp, max);
   }
   if(d.escrow !== undefined) setEscrow(d.escrow);
-  // UI-18: event buffs join the stage strip using the committed duration.
+  if(d.consumables !== undefined) renderConsumables(d.consumables);
+  // UI-18: compatibility fallback for a committed response without a list.
   var eventBuffDuration=Number(d.buff_duration)||0;
-  if(eventBuffDuration>0){
+  if(d.consumables===undefined && eventBuffDuration>0){
     var bm=/Your reflection steps into you: ([^ ]+) /.exec(d.msg);
     addBuffChip(bm?bm[1]:'event_buff', eventBuffDuration);
   }
@@ -6081,6 +6084,7 @@ function initNewDots(){
 <script data-cfasync="false">{{template "abyssStageHUDJS" .}}</script>
 <script data-cfasync="false">{{template "abyssCodexExplorerJS" .}}</script>
 <script data-cfasync="false">{{template "abyssPanelToolsJS" .}}</script>
+<script data-cfasync="false">{{template "abyssPlayerExperienceJS" .}}</script>
 {{template "abyssCoreRiskJS" .}}
 {{template "abyss-feedback" .}}
 {{template "abyss-polish" .}}
