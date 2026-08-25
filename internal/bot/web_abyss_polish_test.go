@@ -20,6 +20,10 @@ func TestAbyssPolishContracts(t *testing.T) {
 	source := partial.Tree.Root.String()
 	for _, required := range []string{
 		"function recapCanvas",
+		"function recapRows",
+		"['Gold banked'",
+		"['Best drop'",
+		"['Deaths'",
 		"canvas.toBlob",
 		"new ClipboardItem",
 		"abyss-run-recap.png",
@@ -41,6 +45,7 @@ func TestAbyssPolishContracts(t *testing.T) {
 		"readLiveCombatPreference('abyssCombatAudio','off')",
 		"playLiveCombatCue('ready'",
 		"playLiveCombatCue('defeat'",
+		"if(rarity)playLiveCombatCue('cast'",
 	} {
 		if !strings.Contains(source, required) {
 			t.Errorf("polish module is missing %q", required)
@@ -62,7 +67,6 @@ func TestAbyssPolishAssetsAndIntegration(t *testing.T) {
 		`data-depth="{{.Depth}}"`,
 		`data-gold="{{.Gold}}"`,
 		`data-victory="{{.Victory}}"`,
-		"recordSessionRun(false, curDepth, 0, 'Failed revival')",
 		"recordSessionRun(false, curDepth, 0, 'Conceded')",
 		"localStorage.getItem('ab_run_causes')",
 		"causes.slice(0,50)",
@@ -70,6 +74,11 @@ func TestAbyssPolishAssetsAndIntegration(t *testing.T) {
 		if !strings.Contains(source, required) {
 			t.Errorf("Abyss page is missing polish contract %q", required)
 		}
+	}
+	if !strings.Contains(source, "var finishedDepth=curDepth") ||
+		!strings.Contains(source, "recordSessionRun(false, finishedDepth, 0, 'Failed revival')") ||
+		!strings.Contains(source, "['Deepest floor', finishedDepth]") {
+		t.Error("failed-revival summary must preserve the completed depth before resetting run state")
 	}
 
 	css, err := webAssets.ReadFile("webassets/abyss_polish.css")

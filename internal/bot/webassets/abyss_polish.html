@@ -16,15 +16,29 @@
     rows.slice(0,7).forEach(function(row,index){var y=285+index*43;context.fillStyle='#9fb2bd';context.font='22px system-ui';context.fillText(row[0].slice(0,38),75,y);context.fillStyle='#fff';context.font='700 23px system-ui';context.textAlign='right';context.fillText(row[1].slice(0,34),1125,y);context.textAlign='left';});
     context.fillStyle='#6f8792';context.font='18px system-ui';context.fillText('Server-authoritative result · generated locally for sharing',70,575);return canvas;
   }
+  function recapRows(title,details){
+    details=details||{};
+    var rendered=summaryRows(),find=function(term,fallback){var match=rendered.find(function(row){return row[0].toLowerCase().indexOf(term)>=0;});return match?match[1]:fallback;};
+    var drop=document.querySelector('#bestLootPin .ab-best-loot-card strong'),died=!!details.died;
+    return[
+      ['Depth',details.depth!=null?String(details.depth):find('deepest floor',find('depth reached','—'))],
+      ['Gold banked',fmtGold(Number(details.banked)||0)],
+      ['Best drop',drop?(drop.textContent||'').replace(/\s+/g,' ').trim():'No gear recorded'],
+      ['Deaths',died?'1':'0'],
+      ['Floors cleared',find('floors cleared','0')],
+      ['Items',find('items recovered',find('loot escrowed','0'))],
+      ['Outcome',died?'Defeated':'Banked']
+    ];
+  }
   function exportRecap(){
     if(!lastSummary){abToast('Finish a run to create a recap.',false);return;}
     var canvas=recapCanvas(lastSummary.title,lastSummary.rows),plain=lastSummary.title+'\n'+lastSummary.rows.map(function(row){return row.join(': ');}).join('\n');
     canvas.toBlob(function(blob){if(!blob){abToast('Could not render the recap image.',false);return;}if(navigator.clipboard&&navigator.clipboard.write&&window.ClipboardItem){navigator.clipboard.write([new ClipboardItem({'image/png':blob})]).then(function(){abToast('Run recap image copied.',true);},function(){downloadRecap(blob,plain);});}else downloadRecap(blob,plain);},'image/png');
   }
   function downloadRecap(blob,plain){var link=document.createElement('a');link.download='abyss-run-recap.png';link.href=URL.createObjectURL(blob);link.click();setTimeout(function(){URL.revokeObjectURL(link.href);},1000);if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(plain).catch(function(){});abToast('Run recap downloaded as PNG.',true);}
-  function installRecapButton(title){setTimeout(function(){var actions=document.querySelector('#sharedModalCard .modal-actions');if(!actions||actions.querySelector('.ab-share-recap'))return;lastSummary={title:String(title||'Abyss run recap').replace(/<[^>]*>/g,''),rows:summaryRows()};var button=document.createElement('button');button.type='button';button.className='ghost ab-share-recap';button.textContent='🖼 Copy recap';button.addEventListener('click',exportRecap);actions.insertBefore(button,actions.firstChild);},0);}
-  wrapAfter('showRunSummary',function(title){installRecapButton(title);});
-  wrapAfter('showBankSummary',function(){installRecapButton('🏦 Run banked');});
+  function installRecapButton(title,details){setTimeout(function(){var actions=document.querySelector('#sharedModalCard .modal-actions');if(!actions||actions.querySelector('.ab-share-recap'))return;lastSummary={title:String(title||'Abyss run recap').replace(/<[^>]*>/g,''),rows:recapRows(title,details)};var button=document.createElement('button');button.type='button';button.className='ghost ab-share-recap';button.textContent='🖼 Copy recap';button.addEventListener('click',exportRecap);actions.insertBefore(button,actions.firstChild);},0);}
+  wrapAfter('showRunSummary',function(title){installRecapButton(title,{banked:0,died:true});});
+  wrapAfter('showBankSummary',function(result){installRecapButton('🏦 Run banked',{depth:result&&result.depth,banked:result&&result.banked,died:false});});
 
   function recentRuns(){return Array.prototype.slice.call(document.querySelectorAll('.ab-history tbody tr[data-depth]')).map(function(row){return{depth:Number(row.dataset.depth)||0,gold:Number(row.dataset.gold)||0,victory:row.dataset.victory==='true',when:row.dataset.when||''};});}
   function points(values,width,height){var max=Math.max.apply(Math,[1].concat(values));return values.map(function(value,index){return(6+index*(width-12)/Math.max(1,values.length-1)).toFixed(1)+','+(height-6-value/max*(height-12)).toFixed(1);}).join(' ');}
@@ -47,7 +61,7 @@
   function applySound(on){liveCombatAudioEnabled=!!on;saveLiveCombatPreference('abyssCombatAudio',on?'on':'off');updateLiveCombatFeedbackControls();if(on)primeLiveCombatAudio();}
   function installSoundSetting(){var enabled=readLiveCombatPreference('abyssCombatAudio','off')==='on',stored=null;try{stored=localStorage.getItem('ab_sound');}catch(_){}if(stored!==null)enabled=stored==='1';applySound(enabled);if(Array.isArray(window.AB_SETTINGS)&&!AB_SETTINGS.some(function(setting){return setting.key==='ab_sound';}))AB_SETTINGS.push({key:'ab_sound',label:'Abyss sound cues',type:'bool',def:enabled,apply:applySound});wrapAfter('enableLiveCombatAudio',function(){try{localStorage.setItem('ab_sound',liveCombatAudioEnabled?'1':'0');}catch(_){}});}
   wrapAfter('renderState',function(){var now=!!downed;if(now&&!wasDowned)playLiveCombatCue('defeat',.35);wasDowned=now;});
-  wrapAfter('lootToast',function(_,rarity){if(rarity&&rarity!=='rar-epic')playLiveCombatCue('cast',.28);});
+  wrapAfter('lootToast',function(_,rarity){if(rarity)playLiveCombatCue('cast',.28);});
 
   renderPersonalDashboard();installSoundSetting();
   window.__abyssPolish={exportRecap:exportRecap,renderPersonalDashboard:renderPersonalDashboard,applyDepthTheme:applyDepthTheme,celebrate:celebrate};

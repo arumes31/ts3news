@@ -3115,13 +3115,14 @@ async function abyssRevive(){
     document.getElementById('abStatus').textContent='Back from the brink. Descend or bank.';
     renderConsumables(d.consumables);
   } else {
-    recordSessionRun(false, curDepth, 0, 'Failed revival'); // UI-108: the run ends here, cache lost
+    var finishedDepth=curDepth;
+    recordSessionRun(false, finishedDepth, 0, 'Failed revival'); // UI-108: the run ends here, cache lost
     inRun=false; downed=false; setEscrow(0); setDepth('—');
     updateFavicon(); // UI-190: back to the idle icon
     setBanner('💀 The gamble failed. Cache lost'+(d.insured_refund>0?' ('+fmtGold(d.insured_refund)+' insured back)':'')+'.','bad');
     document.getElementById('abStatus').textContent='Defeated. Enter again when ready.';
     showRunSummary('💀 Run over', [
-      ['Deepest floor', curDepth],
+      ['Deepest floor', finishedDepth],
       ['Floors cleared this session', runFloorsCleared],
       ['Loot escrowed (lost)', runLootGained],
       ['Insurance returned', fmtGold(d.insured_refund||0)]
