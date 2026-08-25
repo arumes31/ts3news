@@ -168,9 +168,9 @@ func (s *WebServer) handleAbyssTraversalRoom(w http.ResponseWriter, uid string, 
 			msg = fmt.Sprintf("👻 You disturb %s's grave: +%d cache, −10%% maximum HP.", state.GhostName, gain)
 		case "graveyard_duel":
 			gain := int64(500 + run.Depth*30)
-			newEscrow += gain
-			courtesy := gain / 20
+			courtesy := int64(0)
 			if state.GhostUID != "" && state.GhostUID != uid {
+				courtesy = gain / 20
 				if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", courtesy, state.GhostUID); err != nil {
 					writeJSON(w, map[string]any{"ok": false, "error": "db"})
 					return true
@@ -178,7 +178,11 @@ func (s *WebServer) handleAbyssTraversalRoom(w http.ResponseWriter, uid string, 
 				_, _ = tx.Exec("INSERT INTO abyss_social_notifications (client_uid,kind,message) VALUES ($1,'ghost_courtesy',$2)",
 					state.GhostUID, fmt.Sprintf("A delver defeated your depth-%d echo. Courtesy fee: %dg.", state.DeathDepth, courtesy))
 			}
-			msg = fmt.Sprintf("⚔️ You defeat %s's echo: +%d cache. A 5%% courtesy fee reaches the fallen delver.", state.GhostName, gain)
+			newEscrow += gain - courtesy
+			msg = fmt.Sprintf("⚔️ You defeat %s's echo: +%d cache.", state.GhostName, gain-courtesy)
+			if courtesy > 0 {
+				msg += fmt.Sprintf(" A %dg courtesy fee reaches the fallen delver.", courtesy)
+			}
 		default:
 			writeJSON(w, map[string]any{"ok": false, "error": "invalid graveyard choice"})
 			return true

@@ -68,16 +68,20 @@ func abyssInsanityWhisper(depth, variant int) string {
 }
 
 func (b *Bot) recordAbyssDeath(uid string, depth int, mobs []*content.Mob) {
-	killerName, killerFamily, strongest := "The Abyss", "Unknown", -1
-	for _, mob := range mobs {
-		if mob == nil {
-			continue
-		}
-		hp := max(mob.CurrentHP, mob.Stats.HP)
-		if hp > strongest {
-			killerName, killerFamily, strongest = mob.Name, string(mob.Type), hp
-		}
-	}
+	killerName, killerFamily := abyssDeathKiller(mobs)
 	_, _ = b.DB.Exec(`INSERT INTO abyss_deaths (client_uid,depth,killer_name,killer_family)
 		VALUES ($1,$2,$3,$4)`, uid, max(depth, 0), killerName, killerFamily)
+}
+
+func abyssDeathKiller(mobs []*content.Mob) (string, string) {
+	killerName, killerFamily, strongest := "The Abyss", "Unknown", -1
+	for _, mob := range mobs {
+		if mob == nil || mob.CurrentHP <= 0 {
+			continue
+		}
+		if mob.CurrentHP > strongest {
+			killerName, killerFamily, strongest = mob.Name, string(mob.Type), mob.CurrentHP
+		}
+	}
+	return killerName, killerFamily
 }

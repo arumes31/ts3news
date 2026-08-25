@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS abyss_weekly_bosses (
     week_key TEXT PRIMARY KEY,
     boss_name TEXT NOT NULL,
     max_hp BIGINT NOT NULL CHECK (max_hp > 0),
-    current_hp BIGINT NOT NULL CHECK (current_hp >= 0),
+    current_hp BIGINT NOT NULL CHECK (current_hp BETWEEN 0 AND max_hp),
     defeated_at TIMESTAMPTZ
 );
 

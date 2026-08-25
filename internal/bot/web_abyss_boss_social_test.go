@@ -3,6 +3,8 @@ package bot
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -33,6 +35,22 @@ func TestAbyssBossTauntsCrossEachThresholdOnce(t *testing.T) {
 	})
 	if len(lines) != 2 || !strings.Contains(lines[0], "R2") || !strings.Contains(lines[1], "R3") {
 		t.Fatalf("unexpected boss taunts: %#v", lines)
+	}
+}
+
+func TestAbyssDeathKillerUsesStrongestSurvivor(t *testing.T) {
+	t.Parallel()
+	name, family := abyssDeathKiller([]*content.Mob{
+		{Name: "Dead Giant", Type: content.MobType("Giant"), CurrentHP: 0, Stats: content.Stats{HP: 10_000}},
+		{Name: "Living Rat", Type: content.MobType("Beast"), CurrentHP: 12},
+		{Name: "Living Lich", Type: content.MobType("Undead"), CurrentHP: 800},
+	})
+	if name != "Living Lich" || family != "Undead" {
+		t.Fatalf("death killer = %q, %q", name, family)
+	}
+	name, family = abyssDeathKiller(nil)
+	if name != "The Abyss" || family != "Unknown" {
+		t.Fatalf("fallback death killer = %q, %q", name, family)
 	}
 }
 
@@ -82,6 +100,36 @@ func TestAbyssSocialPureRules(t *testing.T) {
 	for _, invalid := range []string{"", strings.Repeat("a", 31), strings.Repeat("A", 32), strings.Repeat("g", 32)} {
 		if validAbyssSpectatorSessionID(invalid) {
 			t.Fatalf("invalid spectator session accepted: %q", invalid)
+		}
+	}
+}
+
+func TestAbyssSocialPersistenceAndUIContracts(t *testing.T) {
+	t.Parallel()
+	root := abyssAAARepositoryRoot(t)
+	checks := map[string][]string{
+		filepath.Join(root, "internal", "db", "migrations", "0081_abyss_social.up.sql"): {
+			"active_slot", "autoskills", "abyss_pet_memorials", "abyss_deaths", "abyss_helper_bonds",
+			"abyss_weekly_rivals", "abyss_weekly_boss_contributions", "PRIMARY KEY (week_key, client_uid, contribution_date)",
+		},
+		filepath.Join(root, "internal", "bot", "webassets", "abyss_social.html"): {
+			"Companion command", "Weekly rival", "Revenge mark", "WEEKLY SERVER BOSS", "First-kill trophies",
+			"/api/abyss/social/pet/train", "/api/abyss/social/weekly_boss",
+		},
+		filepath.Join(root, "internal", "bot", "webassets", "abyss_spectate.html"): {
+			"READ-ONLY LIVE FEED", "textContent", "replaceChildren", "/api/abyss/spectate",
+		},
+	}
+	for path, required := range checks {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		source := string(raw)
+		for _, token := range required {
+			if !strings.Contains(source, token) {
+				t.Errorf("%s is missing %q", filepath.Base(path), token)
+			}
 		}
 	}
 }
