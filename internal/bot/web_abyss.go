@@ -801,9 +801,13 @@ func (b *Bot) fightAbyssFloorLive(
 		u.Stats.DEF = u.Stats.DEF * 85 / 100
 		logs = append(logs, "[color=#9c27b0]🚪 Door curse: -15% STR and DEF this fight.[/color]")
 	}
-	if flags["explorer_guard_floors"] > 0 {
+	if flags[abyssRunFlagExplorerGuardFloors] > 0 {
 		u.Stats.DEF += u.Stats.DEF / 10
 		logs = append(logs, "[color=#41c97a]🧭 Explorer's map: +10% DEF this fight.[/color]")
+		if support := abyssRescueSupportFromFlags(flags, u.Stats.STR, u.Stats.SPD); support != nil {
+			u.abyssSupport = support
+			logs = append(logs, fmt.Sprintf("[color=#41c97a]🤝 %s joins the formation for %d more fight(s).[/color]", support.Name, support.Remaining))
+		}
 	}
 	if dm := flags["def_momentum"]; dm > 0 { // AB-18 defensive momentum
 		if dm > 10 {
@@ -1614,6 +1618,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"RunLoot":             s.bot.currentRunLootManifest(uid, equipped, abyssOwnedGearSet(equipped, inventory)),
 		"CanLastStand":        run.Active && !abyssHardcoreRun(runFlags) && lastStandAvailable && s.bot.abyssTokens(uid) >= lastStandCost,
 		"Hardcore":            abyssHardcoreRun(runFlags),
+		"ExplorerSupport":     abyssRescueSupportViewFromFlags(runFlags),
 
 		// Expansion 2 (docs/ABYSS_IDEAS.md)
 		"Materials":    materials,
@@ -2282,7 +2287,8 @@ func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, 
 		"depth": runFinal.Depth, "escrow": runFinal.Escrow,
 		"hp": runFinal.CurHP, "max_hp": runFinal.MaxHP,
 		"gold": gold, "tokens": s.bot.abyssTokens(uid),
-		"risk": s.bot.abyssRunRiskPct(uid, runFinal.Depth+1, tier),
+		"risk":             s.bot.abyssRunRiskPct(uid, runFinal.Depth+1, tier),
+		"explorer_support": s.bot.abyssRescueSupportView(uid),
 	}
 }
 
@@ -2487,6 +2493,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				"auto_focus":         s.selectedAbyssFocus(uid, runFinal),
 				"run_floors_cleared": abyssRunFloorsCleared(runFinal),
 				"jackpot":            s.bot.getJackpot("abyss"),
+				"explorer_support":   s.bot.abyssRescueSupportView(uid),
 			})
 			return
 		}
@@ -2606,6 +2613,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				"auto_focus":          s.selectedAbyssFocus(uid, runFinal),
 				"run_floors_cleared":  abyssRunFloorsCleared(runFinal),
 				"pity_proc":           pityProc,
+				"explorer_support":    s.bot.abyssRescueSupportView(uid),
 			}
 			if cursedElevator {
 				out["cursed_elevator"] = true
@@ -2656,6 +2664,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		"escrow_soft_cap":       escrowSoftCap,
 		"escrow_efficiency_pct": escrowEfficiencyPct,
 		"run_floors_cleared":    abyssRunFloorsCleared(finalRun),
+		"explorer_support":      s.bot.abyssRescueSupportView(uid),
 	}
 	if cursedElevator {
 		out["cursed_elevator"] = true
@@ -3368,6 +3377,7 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 	runFinal := s.bot.loadAbyssRun(uid)
 	out["auto_focus"] = s.selectedAbyssFocus(uid, runFinal)
 	out["run_floors_cleared"] = abyssRunFloorsCleared(runFinal)
+	out["explorer_support"] = s.bot.abyssRescueSupportView(uid)
 	s.abyssOps.funnel.observeFloor(uid, depth)
 	s.abyssOps.observeFloor(depth, escrowBefore, res, out)
 	s.bot.addAbyssLegendaryPity(out, uid)

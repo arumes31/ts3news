@@ -349,7 +349,7 @@ func (c *abyssLiveCombat) publishRound(
 		options[users[i].u.UID] = c.optionsFor(&users[i], users, mobs)
 	}
 
-	allies := make([]abyssLiveCombatantView, 0, len(users))
+	allies := make([]abyssLiveCombatantView, 0, len(users)+1)
 	critical := false
 	for i := range users {
 		au := &users[i]
@@ -391,6 +391,22 @@ func (c *abyssLiveCombat) publishRound(
 				Effects: []abyssLiveEffect{{Name: "Mind-controlled", Duration: "Allied"}},
 			})
 		}
+	}
+	if _, support := abyssRescueSupportForUsers(users); support != nil {
+		allies = append(allies, abyssLiveCombatantView{
+			ID:       "support:explorer",
+			Name:     support.Name,
+			HP:       1,
+			MaxHP:    1,
+			HPHidden: true,
+			Element:  string(content.ElementPhysical),
+			Speed:    support.Speed,
+			Role:     fmt.Sprintf("Rescued support · %d fights", support.Remaining),
+			Faction:  "Delver",
+			Effects: []abyssLiveEffect{{
+				Name: "Fights beside you", Duration: fmt.Sprintf("%d fights remain", support.Remaining),
+			}},
+		})
 	}
 
 	enemies := make([]abyssLiveCombatantView, 0, len(mobs))

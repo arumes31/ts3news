@@ -237,6 +237,11 @@ func liveInitiative(
 			ID: "ally:" + au.u.UID, Name: au.u.Nickname, Side: "ally", Speed: au.u.Stats.SPD,
 		})
 	}
+	if _, support := abyssRescueSupportForUsers(users); support != nil {
+		allies = append(allies, abyssLiveInitiativeEntry{
+			ID: "support:explorer", Name: support.Name, Side: "ally", Speed: support.Speed,
+		})
+	}
 	enemies := make([]abyssLiveInitiativeEntry, 0, len(mobs))
 	for i, mob := range mobs {
 		if mob == nil || mob.Stats.HP <= 0 {

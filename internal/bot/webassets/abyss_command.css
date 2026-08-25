@@ -183,6 +183,10 @@ body:has(.abyss-command-page) .foot {
   box-shadow: inset 0 1px rgba(255, 255, 255, .035);
 }
 
+.abyss-command-page #explorerSupportChip[hidden] {
+  display: none;
+}
+
 .abyss-command-page .abyss-stats > .ab-chip:first-child {
   border-color: rgba(91, 214, 208, .34);
 }

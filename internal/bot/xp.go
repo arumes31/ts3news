@@ -86,6 +86,10 @@ type UserInCombat struct {
 	// petHealEnabled carries the owner's per-companion autoskill preference into
 	// the fight snapshot. Missing entries preserve the legacy enabled behavior.
 	petHealEnabled map[string]bool
+	// abyssSupport is a run-scoped rescued delver. It is deliberately not a
+	// UserInCombat or persisted pet: it can assist and appear in the live ally
+	// roster without receiving player actions, loot, HP writes, or pet progression.
+	abyssSupport *abyssRescueSupport
 }
 
 func abyssKillerDamage(base int, user *UserInCombat, mob *content.Mob) int {
@@ -2232,6 +2236,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			break
 		}
 	}
+
+	// A rescued delver is one server-owned party action per round, not one
+	// action per player. Resolve it after every real player and pet has acted.
+	b.applyAbyssRescueSupportTurn(activeUsers, mobs, zone, intensify, logs, totalUserDamage, avgLvl, diffFactor, originalUsers, loots, rand)
 }
 
 func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone content.Zone, intensify float64, logs *[]string, totalMobDamage, totalUserDamage *int, round int, ambush bool, track *abyssFightTrack, rand combatRandomSource) {

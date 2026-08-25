@@ -56,6 +56,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0026 / 26** — Three Chests persists one hidden answer and resolves a single hinted choice without leaking it to the client.
 - [x] **AAA-0027 / 27** — Trap Chambers publish bounded DGE-based pass odds and atomically apply either cache gain or nonlethal damage.
 - [x] **AAA-0028 / 28** — Locked Vaults consume run-scoped keys for one explicit cache, token, or material reward.
+- [x] **AAA-0029 / 29** — rescuing a canonical Lost Explorer creates one server-owned ally strike per combat round for the next three cleared fights, exposes the delver in the live formation and initiative order, and retains the existing defensive map and vault-key rewards (`abyss_rescue_support.go`, `abyss_rescue_support_test.go`, `web_abyss_rooms.go`, `web_abyss_live.go`, `webassets/abyss.html`).
 - [x] **AAA-0030 / 30** — Cursed Libraries trade either maximum health or a timed speed penalty for lore and a skill elixir.
 - [x] **AAA-0031 / 31** — Mirror combat clones the player's current stats, skills, and equipped gear without aliasing mutable state.
 - [x] **AAA-0032 / 32** — Gambling Dens expose posted stake, prize, and odds for five depth-gated games.

@@ -130,6 +130,7 @@
   <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.best_depth"}}</span><span class="ab-chip-val" id="bestDepth">🕳️ {{.Stats.BestDepth}}</span></div>
   {{if .PrestigeTier.Name}}<div class="ab-chip ab-prestige-chip"><span class="ab-chip-label">Prestige Tier</span><span class="ab-chip-val">{{.PrestigeTier.Aura}} {{.PrestigeTier.Name}}</span></div>{{end}}
   {{if .Run.Active}}<div class="ab-chip"><span class="ab-chip-label">Momentum</span><span class="ab-chip-val" id="momVal" title="+2% STR per floor cleared without consumables (max +20%)">🔥 ×{{.Run.Momentum}}</span></div>{{end}}
+  <div class="ab-chip" id="explorerSupportChip" {{if not .ExplorerSupport.Active}}hidden{{end}}><span class="ab-chip-label">Rescued ally</span><span class="ab-chip-val" id="explorerSupportValue">🤝 {{.ExplorerSupport.Name}} · {{.ExplorerSupport.Remaining}} fights</span></div>
 </div>
 
 {{if .Run.Comeback}}<div class="ab-comeback-note">💪 <b>Comeback:</b> the Abyss pities your losses today — +10% to all stats this run.</div>{{end}}
@@ -1931,7 +1932,7 @@ function renderNonCombat(floorType, stateStr){
       `;
     } else if(state.type === 'lost_explorer'){
       title.textContent = '🧗 Lost Explorer · '+(state.name||'Unknown Delver');
-      desc.textContent = (state.name||'An injured delver')+' is pinned under stone. Spend 10% maximum health to rescue them and receive a vault key plus a 3-fight defensive map. Rescue the same explorer twice and they will entrust you with a keepsake.';
+      desc.textContent = (state.name||'An injured delver')+' is pinned under stone. Spend 10% maximum health to rescue them: they join your ally formation for 3 fights, attack once per round, grant +10% DEF, and bring a vault key. Rescue the same explorer twice and they will entrust you with a keepsake.';
       options.innerHTML = `
         <button class="ghost" onclick="abyssNCAction('explorer_rescue')">🤝 Rescue the Explorer</button>
         <button class="ghost" onclick="abyssNCAction('explorer_leave')">🚶 Preserve Your Strength</button>
@@ -2019,6 +2020,13 @@ function setHP(hp,max){
   var stage=document.getElementById('abyssStage');if(stage)stage.classList.toggle('ab-critical-hp',max>0&&hp>0&&hp/max<0.25);
   if(typeof updateProjectedHP==='function')updateProjectedHP(hp,max);
   var mh=document.getElementById('mhHP'); if(mh)mh.textContent=fmtNum(hp)+' ('+pct+'%)';
+}
+function renderExplorerSupport(support){
+  var chip=document.getElementById('explorerSupportChip'),value=document.getElementById('explorerSupportValue');
+  if(!chip||!value)return;
+  var active=!!(support&&support.active&&Number(support.remaining)>0);
+  chip.hidden=!active;
+  if(active)value.textContent='🤝 '+String(support.name||'Rescued delver')+' · '+Number(support.remaining)+' fights';
 }
 function setMana(mana,max){
   mana=Number(mana)||0; max=Number(max)||0;
@@ -3443,6 +3451,7 @@ function showAbyssBossKillCam(){
 }
 async function processDescendResult(d, hp, max){
 	if(d.boss_tokens!==undefined&&typeof setBossTokens==='function')setBossTokens(d.boss_tokens);
+  if(d.explorer_support!==undefined)renderExplorerSupport(d.explorer_support);
   if(d.escrow_soft_cap!==undefined) escrowSoftCap=Number(d.escrow_soft_cap)||escrowSoftCap;
   if(d.escrow_efficiency_pct!==undefined) escrowEfficiencyPct=Number(d.escrow_efficiency_pct)||100;
   var hasExactRunFloors=d.run_floors_cleared!==undefined;
@@ -3876,6 +3885,7 @@ async function abyssNCAction(action, payload){
   }
   if(d.escrow !== undefined) setEscrow(d.escrow);
   if(d.consumables !== undefined) renderConsumables(d.consumables);
+  if(d.explorer_support !== undefined) renderExplorerSupport(d.explorer_support);
   // UI-18: compatibility fallback for a committed response without a list.
   var eventBuffDuration=Number(d.buff_duration)||0;
   if(d.consumables===undefined && eventBuffDuration>0){
