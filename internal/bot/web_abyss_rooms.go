@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"ts3news/internal/content"
 )
 
 const (
@@ -91,9 +93,10 @@ type floorCandidateView struct {
 	Label    string `json:"label"`
 	Icon     string `json:"icon"`
 	Revealed bool   `json:"revealed"`
+	LootHint string `json:"loot_hint,omitempty"`
 }
 
-func publicFloorCandidates(candidates []floorCandidate, reveal bool) []floorCandidateView {
+func publicFloorCandidates(candidates []floorCandidate, reveal bool, depth int) []floorCandidateView {
 	views := make([]floorCandidateView, len(candidates))
 	for i, candidate := range candidates {
 		views[i] = floorCandidateView{
@@ -109,6 +112,7 @@ func publicFloorCandidates(candidates []floorCandidate, reveal bool) []floorCand
 			Label:    candidate.Label,
 			Icon:     candidate.Icon,
 			Revealed: true,
+			LootHint: abyssLootHint(candidate.Type, depth),
 		}
 	}
 	return views
@@ -120,7 +124,10 @@ func abyssSpecialRoomForRoll(roll float64) string {
 	if roll < 0 || roll >= 0.20 {
 		return ""
 	}
-	rooms := []string{"challenge_room", "cursed_door", "story_crossroads", "lost_explorer", "locked_vault"}
+	rooms := []string{
+		"challenge_room", "cursed_door", "story_crossroads", "lost_explorer",
+		"locked_vault", "collapsed_passage", "abyssal_garden",
+	}
 	index := int(roll / (0.20 / float64(len(rooms))))
 	if index >= len(rooms) {
 		index = len(rooms) - 1
@@ -141,6 +148,16 @@ func prepareAbyssEventForDepth(raw string, depth int) string {
 		return raw
 	}
 	state["depth"] = depth
+	switch state["type"] {
+	case "lost_explorer":
+		names := []string{"Mara Flint", "Orin Vale", "Tessa Quill", "Bram Hollow"}
+		index := depth % len(names)
+		state["npc_id"] = index
+		state["name"] = names[index]
+	case "abyssal_garden":
+		nodes := []string{"dust", "shard", "core"}
+		state["node"] = nodes[depth%len(nodes)]
+	}
 	if state["type"] != "merchant" {
 		encoded, err := json.Marshal(state)
 		if err != nil {
@@ -207,18 +224,59 @@ func clearAbyssSpecialRoomInTx(tx *sql.Tx, uid string) error {
 	return err
 }
 
+func incrementAbyssMetaCounter(tx *sql.Tx, key string) (int, error) {
+	var raw string
+	err := tx.QueryRow(`INSERT INTO app_meta (key, value) VALUES ($1, '1')
+		ON CONFLICT (key) DO UPDATE SET value = (COALESCE(NULLIF(app_meta.value, '')::int, 0) + 1)::text
+		RETURNING value`, key).Scan(&raw)
+	if err != nil {
+		return 0, err
+	}
+	var count int
+	_, err = fmt.Sscan(raw, &count)
+	return count, err
+}
+
+func escrowExplorerKeepsake(tx *sql.Tx, uid string, depth int) error {
+	gear, ok := content.GetGearByID("ABYSS_CURSED_COMPASS")
+	if !ok {
+		return fmt.Errorf("explorer keepsake gear missing")
+	}
+	data, err := json.Marshal(abyssLootGrant{Type: "gear", Gear: &gear})
+	if err != nil {
+		return err
+	}
+	label := fmt.Sprintf("%s [s:%s] (gs:%d R:%s)", gear.Name, string(gear.Slot), gear.Stats.Score(), gear.Rarity.String())
+	_, err = tx.Exec("INSERT INTO abyss_escrow_loot (client_uid, item_type, label, item_data, depth) VALUES ($1,$2,$3,$4,$5)", uid, "gear", label, data, depth)
+	return err
+}
+
+func abyssExplorerKeepsakeDue(rescueCount int) bool { return rescueCount == 2 }
+
+func abyssGardenHarvestReward(harvestCount int) (amount int, greenThumb bool) {
+	greenThumb = harvestCount >= 3
+	amount = 2
+	if greenThumb {
+		amount++
+	}
+	return amount, greenThumb
+}
+
 // handleAbyssSpecialRoom resolves the focused run-structure encounters outside
 // web_abyss.go. It returns false only when the current event is owned by the
 // legacy event switch.
 func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, run abyssRun, action string) bool {
 	var state struct {
-		Type string `json:"type"`
+		Type  string `json:"type"`
+		Name  string `json:"name"`
+		NPCID int    `json:"npc_id"`
+		Node  string `json:"node"`
 	}
 	if json.Unmarshal([]byte(run.EventState), &state) != nil {
 		return false
 	}
 	switch state.Type {
-	case "challenge_room", "cursed_door", "story_crossroads", "lost_explorer", "locked_vault":
+	case "challenge_room", "cursed_door", "story_crossroads", "lost_explorer", "locked_vault", "collapsed_passage", "abyssal_garden":
 	default:
 		return false
 	}
@@ -238,6 +296,8 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 	msg := ""
 	newEscrow := run.Escrow
 	newHP := run.CurHP
+	keepsake := false
+	greenThumb := false
 
 	switch state.Type {
 	case "challenge_room":
@@ -289,6 +349,10 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 	case "lost_explorer":
 		switch action {
 		case "explorer_rescue":
+			explorerName := state.Name
+			if explorerName == "" {
+				explorerName = "the stranded explorer"
+			}
 			cost := run.MaxHP / 10
 			if cost < 1 {
 				cost = 1
@@ -299,7 +363,20 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 			}
 			flags[abyssRunFlagVaultKeys]++
 			flags["explorer_guard_floors"] = 3
-			msg = "🧗 Explorer rescued: gain a vault key and +10% DEF for 3 fights."
+			rescueCount, err := incrementAbyssMetaCounter(tx, fmt.Sprintf("abyss_explorer_rescues_%s_%d", uid, state.NPCID))
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return true
+			}
+			msg = fmt.Sprintf("🧗 %s rescued: gain a vault key and +10%% DEF for 3 fights.", explorerName)
+			if abyssExplorerKeepsakeDue(rescueCount) {
+				if err := escrowExplorerKeepsake(tx, uid, run.Depth); err != nil {
+					writeJSON(w, map[string]any{"ok": false, "error": "db"})
+					return true
+				}
+				keepsake = true
+				msg += " They remember you and entrust their Cursed Compass keepsake to the run cache."
+			}
 		case "explorer_leave":
 			msg = "The explorer's lantern fades behind you."
 		default:
@@ -337,6 +414,51 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 			writeJSON(w, map[string]any{"ok": false, "error": "invalid vault choice"})
 			return true
 		}
+	case "collapsed_passage":
+		switch action {
+		case "passage_detour":
+			if err := grantMaterialQ(tx, uid, "dust", 1); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return true
+			}
+			msg = "🪨 The safe detour is slow, but loose stone yields 1 Abyssal Dust."
+		case "passage_squeeze":
+			cost := max(1, run.MaxHP/10)
+			newHP = max(1, newHP-cost)
+			if err := grantMaterialQ(tx, uid, "shard", 3); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return true
+			}
+			msg = "🧗 You force the dangerous gap, lose 10% maximum HP, and pry out 3 Void Shards."
+		default:
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid passage choice"})
+			return true
+		}
+	case "abyssal_garden":
+		if action != "garden_harvest" {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid garden choice"})
+			return true
+		}
+		material := state.Node
+		if material != "dust" && material != "shard" && material != "core" {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid garden node"})
+			return true
+		}
+		count, err := incrementAbyssMetaCounter(tx, fmt.Sprintf("abyss_garden_harvests_%s_%s", uid, material))
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return true
+		}
+		amount, mastered := abyssGardenHarvestReward(count)
+		greenThumb = mastered
+		if err := grantMaterialQ(tx, uid, material, amount); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return true
+		}
+		msg = fmt.Sprintf("🌿 You harvest %d %s from the garden (%d/3 familiarity).", amount, abyssMaterialName(material), min(count, 3))
+		if count == 3 {
+			msg += " Green Thumb mastered: every future node of this type yields +1 material."
+		}
 	}
 
 	if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
@@ -362,8 +484,11 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 	writeJSON(w, map[string]any{
 		"ok": true, "resolved": true, "msg": msg,
 		"hp": newHP, "escrow": newEscrow,
-		"vault_keys": flags[abyssRunFlagVaultKeys],
-		"tokens":     s.bot.abyssTokens(uid),
+		"vault_keys":  flags[abyssRunFlagVaultKeys],
+		"tokens":      s.bot.abyssTokens(uid),
+		"keepsake":    keepsake,
+		"green_thumb": greenThumb,
+		"materials":   s.bot.loadMaterials(uid),
 	})
 	return true
 }

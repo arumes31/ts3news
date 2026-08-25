@@ -453,6 +453,21 @@
       "internal/bot/webassets/abyss_events.html",
       "internal/bot/webassets/abyss_events.css"
     ],
-    "verification": ["internal/bot/web_abyss_events_test.go", "internal/bot/web_abyss_release_guards_test.go"]
+    "verification": [
+      "internal/bot/web_abyss_events_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [730, 738, 739, 740, 747, 749],
+    "production": [
+      "internal/bot/web_abyss_event_intel.go",
+      "internal/bot/web_abyss_rooms.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_events.css"
+    ],
+    "verification": ["internal/bot/web_abyss_event_intel_test.go", "internal/bot/web_abyss_rooms_test.go"]
   }
 ]

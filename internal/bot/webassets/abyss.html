@@ -159,6 +159,14 @@
     <div class="ab-hudchips" id="hudChips"></div>
     <!-- Floors since the last rest floor as dial ticks (UI-48) -->
     <div class="ab-restarts" id="restArc" aria-hidden="true"></div>
+    {{if .Run.Active}}
+    <div class="ab-event-intel" id="eventIntel" aria-label="Event chain and map forecast">
+      <span class="ab-sigil-ribbon">✦ Sigils {{.EventIntel.Sigils}}/3{{if .EventIntel.Chains}} · chain {{.EventIntel.Chains}}{{end}}</span>
+      {{if and .EventIntel.MapOwned (le .EventIntel.NextIn 2) (gt .EventIntel.NextDepth 0)}}
+      <span class="ab-map-forecast">🗺️ F{{.EventIntel.NextDepth}} · {{if .EventIntel.EventLabel}}{{.EventIntel.EventLabel}}{{else}}charted anomaly{{end}}</span>
+      {{end}}
+    </div>
+    {{end}}
     <!-- Floor trail mini-map (UX-34): last floors + distance to the next boss -->
     <div class="ab-depthrail" id="depthRail" aria-hidden="true"></div>
   </div>
@@ -1728,8 +1736,8 @@ function renderNonCombat(floorType, stateStr){
         <button class="ghost" onclick="abyssNCAction('story_plunder')">🗡️ Plunder the Memorial</button>
       `;
     } else if(state.type === 'lost_explorer'){
-      title.innerHTML = '🧗 Lost Explorer';
-      desc.innerHTML = 'An injured delver is pinned under stone. Spend 10% maximum health to rescue them and receive a vault key plus a 3-fight defensive map.';
+      title.textContent = '🧗 Lost Explorer · '+(state.name||'Unknown Delver');
+      desc.textContent = (state.name||'An injured delver')+' is pinned under stone. Spend 10% maximum health to rescue them and receive a vault key plus a 3-fight defensive map. Rescue the same explorer twice and they will entrust you with a keepsake.';
       options.innerHTML = `
         <button class="ghost" onclick="abyssNCAction('explorer_rescue')">🤝 Rescue the Explorer</button>
         <button class="ghost" onclick="abyssNCAction('explorer_leave')">🚶 Preserve Your Strength</button>
@@ -1743,6 +1751,18 @@ function renderNonCombat(floorType, stateStr){
         <button class="ghost" onclick="abyssNCAction('vault_materials')">🟣 Forge Cache (4 cores)</button>
         <button class="ghost" onclick="abyssNCAction('vault_leave')">🚶 Leave Sealed</button>
       `;
+    } else if(state.type === 'collapsed_passage'){
+      title.innerHTML = '🪨 Collapsed Passage';
+      desc.innerHTML = 'A narrow crack offers a painful shortcut. The longer detour is safe and still contains a small material find.';
+      options.innerHTML = `
+        <button class="ghost" onclick="abyssNCAction('passage_detour')">🥾 Safe Detour · gain 1 Abyssal Dust</button>
+        <button class="ghost" onclick="abyssNCAction('passage_squeeze')">🧗 Force the Gap · −10% max HP · gain 3 Void Shards</button>
+      `;
+    } else if(state.type === 'abyssal_garden'){
+      title.innerHTML = '🌿 Abyssal Garden';
+      var gardenNames={dust:'Abyssal Dust',shard:'Void Shards',core:'Umbral Cores'};
+      desc.textContent = 'A '+(gardenNames[state.node]||'strange')+' node has rooted in the dark. Harvest the same node type three times to master Green Thumb and permanently gain +1 material from that node.';
+      options.innerHTML = `<button class="ghost" onclick="abyssNCAction('garden_harvest')">🌱 Harvest Node · 2 materials</button>`;
     } else {
       desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
     }
@@ -3082,7 +3102,8 @@ async function abyssDescendMulti() {
 function openFloorChoiceModal(options, depth, hp, max){
   var html = '<h3>🕳️ Floor '+depth+'</h3><p>Choose your path.</p><div class="modal-body">';
   (options||[]).forEach(function(o){
-    html += '<button class="modal-option" onclick="abyssChooseFloor('+o.index+','+hp+','+max+')">'+(o.icon||'')+' '+consEsc(o.label)+'</button>';
+    var hint=o.loot_hint?'<small class="ab-floor-loot-hint">'+consEsc(o.loot_hint)+'</small>':'';
+    html += '<button class="modal-option" onclick="abyssChooseFloor('+o.index+','+hp+','+max+')">'+(o.icon||'')+' '+consEsc(o.label)+hint+'</button>';
   });
   html += '</div>';
   openModal(html);

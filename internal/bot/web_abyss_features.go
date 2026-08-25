@@ -1671,6 +1671,7 @@ var sanctuaryUpgrades = []sanctuaryUpgrade{
 	{"heal", "Warm Hearth", "Rest-floor healing costs 25% less per level", 3, 15},
 	{"repair", "Anvil Blessing", "Rest-floor repairs cost 25% less per level", 3, 15},
 	{"forge", "Crafting Station", "Unlocks a free full repair once per rest floor", 1, 40},
+	{"map", "Map Table", "Reveals event types two floors ahead", 1, 50},
 }
 
 func (b *Bot) loadSanctuary(uid string) map[string]int {
@@ -1733,6 +1734,14 @@ func (s *WebServer) handleAbyssSanctuaryBuy(w http.ResponseWriter, r *http.Reque
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
+	}
+	if up.Key == "map" {
+		run := s.bot.loadAbyssRun(uid)
+		if run.Active {
+			if nextIn := s.bot.abyssNextEventIn(uid, run.Depth); nextIn > 0 {
+				s.bot.ensureAbyssEventPreview(uid, run.Depth+nextIn)
+			}
+		}
 	}
 	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("🕊️ %s upgraded to level %d!", up.Name, sanct[up.Key]),
 		"tokens": s.bot.abyssTokens(uid), "sanctuary": sanct})

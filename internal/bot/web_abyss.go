@@ -1418,6 +1418,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	insights := s.bot.abyssRunInsights(uid, run, history, bestiary, st.AbyssPrestige)
 	longTerm := s.bot.abyssLongTermStatus(uid, run, history, st.BestDepth, pity)
 	coreLoop := s.bot.abyssCoreLoopStatus(uid, run)
+	eventIntel := s.bot.abyssEventIntel(uid, run)
 
 	s.render(w, "abyss", map[string]any{
 		"Title":              "The Abyss",
@@ -1436,6 +1437,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"RunInsights":        insights,
 		"LongTerm":           longTerm,
 		"CoreLoop":           coreLoop,
+		"EventIntel":         eventIntel,
 		"Achievements":       achievementViews,
 		"BadgeOptions":       badgeOptions,
 		"ActiveBadge":        activeBadge,
@@ -1962,7 +1964,12 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	// than leaving events to a random per-floor roll, so they never land back-to-back
 	// nor on every floor. commitFloor re-anchors the next event.
 	if s.bot.abyssEventDue(uid, newDepth) {
-		modifier, eventState := rollFloorDetail("event")
+		modifier, eventState := "", ""
+		if preview, ok := s.bot.takeAbyssEventPreview(uid, newDepth); ok {
+			eventState = preview
+		} else {
+			modifier, eventState = rollFloorDetail("event")
+		}
 		s.commitFloor(w, uid, run, newDepth, "event", modifier, eventState, tier, focus, req.Interactive)
 		return
 	}
@@ -1983,7 +1990,7 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	revealRoute := s.bot.loadAbyssStats(uid).UpCartographer > 0
 	writeJSON(w, map[string]any{
 		"ok": true, "choose_floor": true, "depth": newDepth,
-		"options": publicFloorCandidates(candidates, revealRoute), "escrow": run.Escrow,
+		"options": publicFloorCandidates(candidates, revealRoute, newDepth), "escrow": run.Escrow,
 	})
 }
 
@@ -2110,7 +2117,15 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 					}
 				}
 			}
-			modifier, eventState = rollFloorDetail(actualType)
+			if actualType == "event" {
+				if preview, ok := s.bot.takeAbyssEventPreview(uid, newDepth); ok {
+					eventState = preview
+				} else {
+					modifier, eventState = rollFloorDetail(actualType)
+				}
+			} else {
+				modifier, eventState = rollFloorDetail(actualType)
+			}
 		}
 		eventState = prepareAbyssEventForDepth(eventState, newDepth)
 		if actualType == "event" {
@@ -2367,6 +2382,7 @@ func (b *Bot) abyssScheduleNextEvent(uid string, depth int) {
 	next := depth + abyssEventGapMin + rand.IntN(abyssEventGapMax-abyssEventGapMin+1)
 	_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, "abyss_next_event_depth_"+uid, strconv.Itoa(next))
+	b.ensureAbyssEventPreview(uid, next)
 }
 
 // rollFloorCandidates weighted-samples n distinct floor types (without replacement).
@@ -4822,8 +4838,11 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	}
 	if runFlags[abyssRunFlagColdMuscles] > 0 {
 		runFlags[abyssRunFlagColdMuscles]--
-		_ = s.bot.saveRunFlags(uid, runFlags)
 	}
+	if run.FloorType == "event" {
+		runFlags[abyssRunFlagEventSigils]++
+	}
+	_ = s.bot.saveRunFlags(uid, runFlags)
 
 	affixReward := ""
 	if run.Modifier != "" {

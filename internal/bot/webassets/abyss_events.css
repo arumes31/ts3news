@@ -36,6 +36,38 @@
   letter-spacing: 0.08em;
 }
 
+.ab-floor-loot-hint {
+  display: block;
+  margin-top: 0.3rem;
+  color: #8fc7a8;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.ab-event-intel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.ab-sigil-ribbon,
+.ab-map-forecast {
+  padding: 0.22rem 0.45rem;
+  border: 1px solid rgba(216, 173, 83, 0.28);
+  border-radius: 999px;
+  background: rgba(8, 13, 22, 0.86);
+  color: #e8c86f;
+}
+
+.ab-map-forecast {
+  border-color: rgba(103, 190, 167, 0.35);
+  color: #9bd9c4;
+}
+
 @media (max-width: 720px) {
   .ab-event-offer {
     align-items: stretch;

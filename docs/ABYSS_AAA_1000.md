@@ -465,3 +465,12 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0743 / AB-43** — risky alchemy posts its 50% longer duration and 20% backfire odds, then settles ingredients, HP damage, and the floor atomically.
 - [x] **AAA-0748 / AB-48** — wishing wells display and transactionally update the account's lifetime gold contribution.
 - [x] **AAA-0750 / AB-50** — mirror choices count once per distinct run; a three-run same-reflection streak empowers the timed buff and is persisted transactionally.
+
+## Delivered tranche: room identities and route intelligence
+
+- [x] **AAA-0730 / AB-30** — lost explorers receive stable encounter identities, with per-player rescue memory and a Cursed Compass keepsake escrowed on the second rescue.
+- [x] **AAA-0738 / AB-38** — the Sanctuary Map Table rolls one server-owned event preview and reveals its type only when the scheduled room is within two floors.
+- [x] **AAA-0739 / AB-39** — an event-chain ribbon below the depth dial reports authoritative per-run sigils and completed three-sigil chains.
+- [x] **AAA-0740 / AB-40** — Cartographer-revealed route choices include a depth-aware expected loot-quality forecast without leaking hidden routes.
+- [x] **AAA-0747 / AB-47** — Collapsed Passage offers a risky shortcut while its safe detour still grants a transactionally settled material find.
+- [x] **AAA-0749 / AB-49** — Abyssal Garden tracks each material node permanently and grants Green Thumb's +1 yield from the third matching harvest onward.
