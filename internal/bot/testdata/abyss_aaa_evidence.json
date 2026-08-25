@@ -1354,5 +1354,25 @@
       "internal/bot/abyss_secret_boss_chain_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [224],
+    "production": [
+      "internal/bot/abyss_boss_cosmetics.go",
+      "internal/bot/web_abyss_boss_vendor.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_shop_economy.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_cosmetics.html",
+      "internal/bot/webassets/abyss_boss_cosmetics.css",
+      "internal/db/migrations/0092_abyss_boss_cosmetic_loadouts.up.sql",
+      "internal/db/migrations/0092_abyss_boss_cosmetic_loadouts.down.sql"
+    ],
+    "verification": [
+      "internal/bot/abyss_boss_cosmetics_test.go",
+      "internal/bot/web_abyss_boss_vendor_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

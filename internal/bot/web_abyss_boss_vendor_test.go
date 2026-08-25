@@ -31,7 +31,7 @@ func TestRecordAbyssBossKillAwardsTrophyAtomically(t *testing.T) {
 		WithArgs(int64(1), "hunter").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
-	awarded, payout := (&Bot{DB: database}).recordAbyssBossKillWithToken("hunter", "Abyssus", 50, 1234*time.Millisecond, "hell")
+	awarded, payout, _ := (&Bot{DB: database}).recordAbyssBossKillWithTokenRolls("hunter", "Abyssus", 50, 1234*time.Millisecond, "hell", 1, 0)
 	if !awarded || payout != 0 {
 		t.Fatal("boss kill and trophy transaction failed")
 	}
@@ -55,7 +55,7 @@ func TestRecordAbyssBossKillRollsBackWhenTrophyFails(t *testing.T) {
 	mock.ExpectExec("UPDATE users SET abyss_boss_tokens").
 		WillReturnError(errors.New("award failed"))
 	mock.ExpectRollback()
-	awarded, _ := (&Bot{DB: database}).recordAbyssBossKillWithToken("hunter", "Abyssus", 50, time.Second, "hell")
+	awarded, _, _ := (&Bot{DB: database}).recordAbyssBossKillWithTokenRolls("hunter", "Abyssus", 50, time.Second, "hell", 1, 0)
 	if awarded {
 		t.Fatal("boss kill committed without its trophy")
 	}

@@ -3,6 +3,7 @@ package bot
 import (
 	"database/sql"
 	"log"
+	"math/rand/v2"
 	"net/http"
 	"time"
 )
@@ -40,11 +41,16 @@ func (b *Bot) abyssBossTokens(uid string) int64 {
 	return tokens
 }
 
-func (b *Bot) recordAbyssBossKillWithToken(uid, bossName string, depth int, killTime time.Duration, tier string) (bool, int64) {
+func (b *Bot) recordAbyssBossKillWithToken(uid, bossName string, depth int, killTime time.Duration, tier string) (bool, int64, string) {
+	// #nosec G404 -- cosmetic-only reward selection; no security boundary.
+	return b.recordAbyssBossKillWithTokenRolls(uid, bossName, depth, killTime, tier, rand.Float64(), rand.Float64())
+}
+
+func (b *Bot) recordAbyssBossKillWithTokenRolls(uid, bossName string, depth int, killTime time.Duration, tier string, dropRoll, choiceRoll float64) (bool, int64, string) {
 	tx, err := b.DB.Begin()
 	if err != nil {
 		log.Printf("boss trophy transaction failed to start for %s: %v", uid, err)
-		return false, 0
+		return false, 0, ""
 	}
 	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.Exec(
@@ -52,22 +58,30 @@ func (b *Bot) recordAbyssBossKillWithToken(uid, bossName string, depth int, kill
 		uid, bossName, depth, max(int64(0), killTime.Milliseconds()), tier,
 	); err != nil {
 		log.Printf("boss kill record failed for %s: %v", uid, err)
-		return false, 0
+		return false, 0, ""
 	}
 	contractPayout, err := claimAbyssBossContractTx(tx, uid, depth)
 	if err != nil {
 		log.Printf("boss contract settlement failed for %s: %v", uid, err)
-		return false, 0
+		return false, 0, ""
 	}
 	if _, err := tx.Exec("UPDATE users SET abyss_boss_tokens=abyss_boss_tokens+$1 WHERE client_uid=$2", 1+contractPayout, uid); err != nil {
 		log.Printf("boss trophy award failed for %s: %v", uid, err)
-		return false, 0
+		return false, 0, ""
+	}
+	cosmetic, cosmeticGranted, err := grantAbyssBossCosmeticTx(tx, uid, tier, dropRoll, choiceRoll)
+	if err != nil {
+		log.Printf("boss cosmetic award failed for %s: %v", uid, err)
+		return false, 0, ""
 	}
 	if err := tx.Commit(); err != nil {
 		log.Printf("boss trophy transaction failed to commit for %s: %v", uid, err)
-		return false, 0
+		return false, 0, ""
 	}
-	return true, contractPayout
+	if cosmeticGranted {
+		return true, contractPayout, cosmetic.Name
+	}
+	return true, contractPayout, ""
 }
 
 func grantAbyssBossVendorMaterial(tx *sql.Tx, uid, material string, amount int) error {

@@ -603,6 +603,7 @@ type abyssFloorResult struct {
 	BossDPS            int64
 	BossToken          bool
 	BossContractPayout int64
+	BossCosmetic       string
 	SecretBossStage    int
 	SecretBossComplete bool
 	SecretAchievement  string
@@ -1088,16 +1089,21 @@ func (b *Bot) fightAbyssFloorLive(
 	// MobLegendary cannot affect the result.
 	bossTokenAwarded := false
 	bossContractPayout := int64(0)
+	bossCosmetic := ""
 	secretBossResultStage := 0
 	secretBossComplete := false
 	secretAchievement := ""
 	if victory && isBossFloor && len(mobs) > 0 {
-		if awarded, payout := b.recordAbyssBossKillWithToken(uid, mobs[0].Name, depth, duration, tier.Key); awarded {
+		if awarded, payout, cosmetic := b.recordAbyssBossKillWithToken(uid, mobs[0].Name, depth, duration, tier.Key); awarded {
 			bossTokenAwarded = true
 			bossContractPayout = payout
+			bossCosmetic = cosmetic
 			logs = append(logs, "🏆 Boss trophy secured: +1 Boss Token for the Trophy Vendor.")
 			if payout > 0 {
 				logs = append(logs, fmt.Sprintf("📜 Boss contract fulfilled: +%d Boss Tokens returned.", payout))
+			}
+			if cosmetic != "" {
+				logs = append(logs, "🎏 Cosmetic boss drop: "+cosmetic+" — no combat power.")
 			}
 		}
 		// AB-159: bosses have a modest chance to drop a branch-refund shard.
@@ -1212,7 +1218,7 @@ func (b *Bot) fightAbyssFloorLive(
 	logs = append(logs, fmt.Sprintf("[hr][color=#8a93a8]📊 %s · %d foe(s) · fight time %d ms · HP %s → %s (%+d)[/color]",
 		outcome, len(mobs), duration.Milliseconds(), FormatGoldPlain(int64(hpBefore)), FormatGoldPlain(int64(curHP)), curHP-hpBefore))
 
-	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, BossToken: bossTokenAwarded, BossContractPayout: bossContractPayout, SecretBossStage: secretBossResultStage, SecretBossComplete: secretBossComplete, SecretAchievement: secretAchievement}
+	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, BossToken: bossTokenAwarded, BossContractPayout: bossContractPayout, BossCosmetic: bossCosmetic, SecretBossStage: secretBossResultStage, SecretBossComplete: secretBossComplete, SecretAchievement: secretAchievement}
 	if isBossFloor && len(mobs) > 0 {
 		res.BossName = mobs[0].Name
 		res.BossExecution = victory
@@ -1510,6 +1516,9 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	if allocated, err := s.bot.loadTreeAllocatedContext(r.Context(), uid); err == nil {
 		treeUnspent = max(0, s.bot.treePointsTotal(uid)-s.bot.treeSpentEx(uid, allocated))
 	}
+	ownedCosmetics := s.bot.abyssOwnedShopCosmetics(uid)
+	bossCosmetics := s.bot.abyssBossCosmeticCollectionWithOwned(uid, ownedCosmetics)
+	shopViews := s.bot.abyssShopViewsWithOwned(uid, time.Now(), ownedCosmetics)
 
 	s.render(w, "abyss", map[string]any{
 		"Title":               "The Abyss",
@@ -1536,6 +1545,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"BossToll":            bossToll,
 		"BestKill":            s.bot.abyssBestKill(uid),
 		"SecretChain":         secretChain,
+		"BossCosmetics":       bossCosmetics,
 		"DropForecast":        dropForecast,
 		"DropForecastOK":      dropForecastOK,
 		"DeferredEvent":       s.bot.abyssDeferredEventView(uid, run),
@@ -1560,7 +1570,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"HarvesterPieces":     harvesterPieces,
 		"HarvesterTier":       harvesterTier,
 		"Bounty":              s.bot.abyssBountyStatus(uid),
-		"Shop":                s.bot.abyssShopViews(uid, time.Now()),
+		"Shop":                shopViews,
 		"BossVendor":          abyssBossVendorCatalog,
 		"Pacts":               abyssPactCatalog,
 		"PactProgram":         s.bot.abyssPactProgramState(uid),
@@ -3151,6 +3161,9 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 	}
 	if res.BossContractPayout > 0 {
 		out["boss_contract_payout"] = res.BossContractPayout
+	}
+	if res.BossCosmetic != "" {
+		out["boss_cosmetic"] = res.BossCosmetic
 	}
 	if res.SecretBossStage > 0 {
 		out["secret_boss_stage"] = res.SecretBossStage

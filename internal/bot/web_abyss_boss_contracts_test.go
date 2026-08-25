@@ -47,7 +47,7 @@ func TestRecordAbyssBossKillSettlesContractAtomically(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
-	awarded, payout := (&Bot{DB: database}).recordAbyssBossKillWithToken("hunter", "Abyssus", 50, time.Second, "hell")
+	awarded, payout, _ := (&Bot{DB: database}).recordAbyssBossKillWithTokenRolls("hunter", "Abyssus", 50, time.Second, "hell", 1, 0)
 	if !awarded || payout != 6 {
 		t.Fatalf("boss rewards = awarded %v, payout %d", awarded, payout)
 	}

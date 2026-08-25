@@ -92,9 +92,12 @@ func abyssShopEffectiveCost(item abyssShopItem, now time.Time) (int64, bool) {
 }
 
 func (b *Bot) abyssShopViews(uid string, now time.Time) []abyssShopItemView {
+	return b.abyssShopViewsWithOwned(uid, now, b.abyssOwnedShopCosmetics(uid))
+}
+
+func (b *Bot) abyssShopViewsWithOwned(uid string, now time.Time, ownedCosmetics map[string]bool) []abyssShopItemView {
 	b.maybeDeliverAbyssPotionSubscription(uid, now)
 	activeCosmetic := abyssActiveInsanityCosmetic(now)
-	ownedCosmetics := b.abyssOwnedShopCosmetics(uid)
 	out := make([]abyssShopItemView, 0, len(abyssShopCatalog))
 	for _, item := range abyssShopCatalog {
 		insanity := strings.HasPrefix(item.Key, "insanity_")

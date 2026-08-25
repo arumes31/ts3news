@@ -1,0 +1,22 @@
+{{define "abyssBossCosmetics"}}{{with .BossCosmetics}}
+<section class="ab-boss-cosmetics" aria-labelledby="bossCosmeticsTitle">
+  <header>
+    <div><span class="ab-kicker">SOVEREIGN SPOILS · COSMETIC ONLY</span><h2 id="bossCosmeticsTitle">Mounts &amp; banners</h2></div>
+    <div class="ab-cosmetic-count"><b>{{.Owned}} / {{.Total}}</b><small>collected</small></div>
+  </header>
+  <p class="muted small">Boss kills can unlock permanent visual regalia. Drop rates: {{.Rates}}. No item changes stats, rewards, targeting, or combat.</p>
+  <div class="ab-cosmetic-grid">
+  {{range .Items}}
+    <article class="{{if .Owned}}owned{{else}}locked{{end}} {{if .Active}}active{{end}}">
+      <span class="ab-cosmetic-icon" aria-hidden="true">{{if .Owned}}{{.Icon}}{{else}}?{{end}}</span>
+      <div><small>{{.MinTier}} {{.Kind}}</small><h3>{{.Name}}</h3><p>{{if .Owned}}{{.Lore}}{{else}}Defeat bosses at {{.MinTier}} tier or higher to discover this cosmetic.{{end}}</p></div>
+      {{if .Active}}<b class="ab-cosmetic-equipped">EQUIPPED</b>{{else if .Owned}}<button type="button" class="ghost xs" data-key="{{.Key}}" onclick="equipAbyssBossCosmetic(this)">Equip</button>{{end}}
+    </article>
+  {{end}}
+  </div>
+</section>
+{{end}}{{end}}
+
+{{define "abyssBossCosmeticsJS"}}
+async function equipAbyssBossCosmetic(button){button.disabled=true;var d=await abPost('/api/abyss/boss_cosmetic/equip',{key:button.dataset.key||''});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);else button.disabled=false;}
+{{end}}
