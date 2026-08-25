@@ -108,10 +108,10 @@ func TestAbyssPactCampaignClientAndRewardContract(t *testing.T) {
 		}
 	}
 	serverText := string(server)
-	if strings.Count(serverText, "abyssPactRewardBreakdownAt(") < 3 {
+	if strings.Count(serverText, "abyssPactRewardBreakdownForRunAt(") < 3 {
 		t.Error("combat, non-combat, and bank preview do not share the authoritative pact breakdown")
 	}
-	if !strings.Contains(serverText, `"pact_breakdown": pactBreakdown`) {
+	if !strings.Contains(serverText, `"pact_breakdown": redactAbyssMysteryPactBreakdown(pactBreakdown, runFlags)`) {
 		t.Error("bank preview does not return its authoritative pact breakdown")
 	}
 }

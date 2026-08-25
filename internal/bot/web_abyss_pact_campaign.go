@@ -45,6 +45,7 @@ type abyssPactRewardBreakdown struct {
 	MasteryBonusPct  float64               `json:"mastery_bonus_pct"`
 	FeaturedBonusPct float64               `json:"featured_bonus_pct"`
 	SynergyBonusPct  float64               `json:"synergy_bonus_pct"`
+	MysteryBonusPct  float64               `json:"mystery_bonus_pct"`
 	TotalBonusPct    float64               `json:"total_bonus_pct"`
 	Multiplier       float64               `json:"multiplier"`
 	Featured         abyssPactFeaturedView `json:"featured"`
@@ -105,6 +106,10 @@ func abyssFeaturedPactAt(at time.Time) abyssPactFeaturedView {
 }
 
 func abyssPactRewardBreakdownAt(pacts []string, mastery map[string]int, dailyAffix string, at time.Time) abyssPactRewardBreakdown {
+	return abyssPactRewardBreakdownForRunAt(pacts, mastery, dailyAffix, at, false)
+}
+
+func abyssPactRewardBreakdownForRunAt(pacts []string, mastery map[string]int, dailyAffix string, at time.Time, mystery bool) abyssPactRewardBreakdown {
 	featured := abyssFeaturedPactAt(at)
 	breakdown := abyssPactRewardBreakdown{Featured: featured, Multiplier: 1}
 	selected := make(map[string]bool, len(pacts))
@@ -143,6 +148,10 @@ func abyssPactRewardBreakdownAt(pacts []string, mastery map[string]int, dailyAff
 			breakdown.Multiplier += synergy.Bonus
 		}
 	}
+	if mystery {
+		breakdown.MysteryBonusPct = abyssMysteryPactReward * 100
+		breakdown.Multiplier += abyssMysteryPactReward
+	}
 	breakdown.BaseBonusPct = pctNumber1(breakdown.BaseBonusPct)
 	breakdown.MasteryBonusPct = pctNumber1(breakdown.MasteryBonusPct)
 	breakdown.FeaturedBonusPct = pctNumber1(breakdown.FeaturedBonusPct)
@@ -155,4 +164,15 @@ func pct1(value float64) float64 { return pctNumber1(value * 100) }
 
 func pctNumber1(value float64) float64 {
 	return float64(int(value*10+0.5)) / 10
+}
+
+// abyssPactBankTokenGrant converts a conservative share of pact risk into
+// tokens. Five hundred floor-percentage points produce one token, with one
+// token guaranteed for any completed pact run and a cap of one per floor.
+func abyssPactBankTokenGrant(floors int, bonusPct float64) int {
+	if floors <= 0 || bonusPct <= 0 {
+		return 0
+	}
+	tokens := int(float64(floors) * bonusPct / 500)
+	return min(max(tokens, 1), floors)
 }

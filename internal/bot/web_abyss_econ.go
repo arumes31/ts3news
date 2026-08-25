@@ -1241,12 +1241,17 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 		writeJSON(w, map[string]any{"ok": false, "error": "no live run"})
 		return
 	}
-	if abyssHardcoreRun(s.bot.loadRunFlags(uid)) {
+	runFlags := s.bot.loadRunFlags(uid)
+	if abyssHardcoreRun(runFlags) {
 		writeJSON(w, map[string]any{"ok": false, "error": "hardcore runs cannot buy cache insurance"})
 		return
 	}
 	if abyssHasPact(s.bot.abyssRunPacts(uid), "uninsured") {
-		writeJSON(w, map[string]any{"ok": false, "error": "the Uninsured pact disables cache insurance"})
+		message := "the Uninsured pact disables cache insurance"
+		if hidden, ok := abyssMysteryPactFromFlags(runFlags); ok && hidden.Key == "uninsured" {
+			message = "the Mystery Pact disables cache insurance"
+		}
+		writeJSON(w, map[string]any{"ok": false, "error": message})
 		return
 	}
 	if run.Insured >= req.Pct {

@@ -59,7 +59,7 @@ func canonicalAbyssEntrySetup(setup abyssEntrySetup) abyssEntrySetup {
 	if _, hasNextTier := abyssNextTier(setup.Tier); !hasNextTier {
 		setup.Hybrid = false
 	}
-	setup.Pacts = strings.Fields(abyssValidatePacts(setup.Pacts))
+	setup.Pacts = canonicalAbyssPactRequest(setup.Pacts)
 	switch setup.Start {
 	case "checkpoint":
 		if setup.Checkpoint < 10 || setup.Checkpoint%10 != 0 {

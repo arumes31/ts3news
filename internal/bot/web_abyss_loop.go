@@ -381,6 +381,7 @@ func (s *WebServer) autoConcedeIfTimedOut(w http.ResponseWriter, uid string, run
 	if run.Insured < 10 {
 		run.Insured = 10 // the pity cache
 	}
+	mysteryReveal := abyssMysteryRevealFromFlags(s.bot.loadRunFlags(uid))
 	payout, err := s.bot.forfeitAbyss(uid, run, "timeout")
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -392,7 +393,8 @@ func (s *WebServer) autoConcedeIfTimedOut(w http.ResponseWriter, uid string, run
 	writeJSON(w, map[string]any{
 		"ok": true, "auto_conceded": true, "insured_refund": payout,
 		"gold": gold, "tokens": s.bot.abyssTokens(uid),
-		"msg": "⏳ Five minutes in the dirt — the Abyss loses patience and drags you out. A 10% pity cache is paid.",
+		"mystery_reveal": mysteryReveal,
+		"msg":            "⏳ Five minutes in the dirt — the Abyss loses patience and drags you out. A 10% pity cache is paid.",
 	})
 	return true
 }

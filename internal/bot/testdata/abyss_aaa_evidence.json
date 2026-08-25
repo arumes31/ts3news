@@ -954,5 +954,23 @@
       "internal/bot/web_abyss_pact_campaign_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [191, 192],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_hud.go",
+      "internal/bot/web_abyss_loop.go",
+      "internal/bot/web_abyss_mystery_pact.go",
+      "internal/bot/web_abyss_pact_campaign.go",
+      "internal/bot/web_abyss_pact_program.go",
+      "internal/bot/web_abyss_setup_state.go",
+      "internal/bot/webassets/abyss.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_mystery_pact_test.go",
+      "internal/bot/web_abyss_pact_campaign_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

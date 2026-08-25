@@ -726,10 +726,16 @@ func (b *Bot) fightAbyssFloorLive(
 		u.Stats = u.Stats.Scaled(1.10)
 		logs = append(logs, "[color=#41c97a]💪 Comeback: the Abyss pities you — +10% to all stats this run.[/color]")
 	}
+	flags := b.loadRunFlags(uid)
+	hiddenPact, hasMysteryPact := abyssMysteryPactFromFlags(flags)
 	if abyssHasPact(pacts, "anemic") {
 		u.Stats.HP = abyssPactMaxHP(pacts, u.Stats.HP)
 		u.CurrentHP = min(u.CurrentHP, u.Stats.HP)
-		logs = append(logs, "[color=#f44336]🩸 Anemic: maximum HP is halved for this fight.[/color]")
+		if hasMysteryPact && hiddenPact.Key == "anemic" {
+			logs = append(logs, "[color=#f44336]🎭 Mystery Pact: maximum HP is halved for this fight.[/color]")
+		} else {
+			logs = append(logs, "[color=#f44336]🩸 Anemic: maximum HP is halved for this fight.[/color]")
+		}
 	}
 	if b.abyssSpec(uid) == "warden" {
 		u.Stats = u.Stats.Scaled(1.05)
@@ -742,7 +748,6 @@ func (b *Bot) fightAbyssFloorLive(
 	}
 
 	// 300-improvements run modifiers (docs/ABYSS_IMPROVEMENTS_300.md group A/B).
-	flags := b.loadRunFlags(uid)
 	weeklyRule, weeklyExpedition := abyssWeeklyRuleFromFlags(flags)
 	if weeklyExpedition {
 		diff *= weeklyRule.DangerMult
@@ -985,7 +990,11 @@ func (b *Bot) fightAbyssFloorLive(
 	}
 	if abyssHasPact(pacts, "cursed_horde") {
 		abyssApplyCursedHorde(mobs, encounterRandom)
-		logs = append(logs, "[color=#9c27b0]☠️ Cursed Horde: every enemy manifests an additional affix.[/color]")
+		if hasMysteryPact && hiddenPact.Key == "cursed_horde" {
+			logs = append(logs, "[color=#9c27b0]🎭 Mystery Pact: every enemy manifests an additional affix.[/color]")
+		} else {
+			logs = append(logs, "[color=#9c27b0]☠️ Cursed Horde: every enemy manifests an additional affix.[/color]")
+		}
 	}
 	if weeklyRule.Key == "iron_trial" {
 		for i := range mobs {
@@ -1674,8 +1683,12 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
-	pacts := abyssValidatePacts(req.Pacts)
-	pactKeys := strings.Fields(pacts)
+	equipped := s.bot.getEquippedItems(uid)
+	requestedPacts, mysteryRequested := splitAbyssPactRequest(req.Pacts)
+	pactKeys := requestedPacts
+	mysteryPactFlag := int64(0)
+	pacts := abyssValidatePacts(pactKeys)
+	pactKeys = strings.Fields(pacts)
 
 	// Consumable carry cap. A player may hold more consumables than they can bring
 	// into a single descent (raised by an equipped Consumable Pouch). When they're
@@ -1683,7 +1696,6 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	// stay in their stash, just unusable this run. loadout stays nil (SQL NULL,
 	// meaning "no restriction") when they're already under the cap.
 	maxAllowedConsumables := abyssCarryCapBase
-	equipped := s.bot.getEquippedItems(uid)
 	for _, g := range equipped {
 		if g.ID == "ABYSS_POUCH" {
 			maxAllowedConsumables = abyssCarryCapPouch
@@ -1776,6 +1788,28 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		_ = s.bot.DB.QueryRow("SELECT abyss_deaths_today FROM users WHERE client_uid=$1 AND abyss_deaths_date = CURRENT_DATE", uid).Scan(&deaths)
 		if abyssComebackEligible(deaths) {
 			comeback = true
+		}
+	}
+
+	// Resolve the opaque pact only after every recoverable entry prompt and
+	// validation has passed. A consumable-picker retry must not become a hidden
+	// pact reroll oracle.
+	if mysteryRequested {
+		mysteryExclusions := append([]string(nil), pactKeys...)
+		if abyssPactEquipmentError([]string{"pauper"}, equipped) != "" {
+			mysteryExclusions = append(mysteryExclusions, "pauper")
+		}
+		mysteryPact, flag, err := resolveAbyssMysteryPact(crand.Reader, mysteryExclusions)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "mystery pact unavailable"})
+			return
+		}
+		pactKeys = append(pactKeys, mysteryPact.Key)
+		pacts = abyssValidatePacts(pactKeys)
+		pactKeys = strings.Fields(pacts)
+		mysteryPactFlag = int64(flag)
+		if mysteryPact.Key == "abstinence" {
+			loadoutJSON = "{}"
 		}
 	}
 
@@ -1903,6 +1937,9 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	flags[abyssRunFlagPerfect] = 1
 	flags[abyssRunFlagCheckpointTokenCost] = route.TokenCost
+	if mysteryPactFlag > 0 {
+		flags[abyssRunFlagMysteryPact] = mysteryPactFlag
+	}
 	if req.Hybrid {
 		flags[abyssRunFlagHybrid] = 1
 	}
@@ -1940,7 +1977,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	if err := saveAbyssEntrySetup(tx, uid, abyssEntrySetup{
 		Tier:         tier.Key,
-		Pacts:        strings.Fields(pacts),
+		Pacts:        canonicalAbyssPactRequest(req.Pacts),
 		Start:        req.Start,
 		Checkpoint:   req.Checkpoint,
 		Kit:          req.Kit,
@@ -1981,7 +2018,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		"weekly_expedition": weeklyRule.Label,
 		"hardcore":          req.Hardcore,
 		"hybrid":            req.Hybrid,
-		"active_pacts":      abyssHUDPacts(strings.Fields(pacts)),
+		"active_pacts":      abyssVisiblePacts(pactKeys, flags),
 		"build_summary":     abyssBuildSummary(startUser, startBuildFlags),
 		"rested_charges":    entryProgression.RestedCharges,
 		"returning_bonus":   entryProgression.Returning,
@@ -2805,9 +2842,11 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 		o.DBErr = true
 		return o
 	}
-	pactRewards := abyssPactRewardBreakdownAt(pacts, mastery, dailyMod, time.Now().UTC())
-	bonus = int64(float64(bonus) * pactRewards.Multiplier)
 	runFlags := s.bot.loadRunFlags(uid)
+	pactRewards := abyssPactRewardBreakdownForRunAt(
+		pacts, mastery, dailyMod, time.Now().UTC(), runFlags[abyssRunFlagMysteryPact] > 0,
+	)
+	bonus = int64(float64(bonus) * pactRewards.Multiplier)
 	if abyssHybridSurge(runFlags[abyssRunFlagHybrid] == 1, depth) {
 		bonus = int64(float64(bonus) * abyssHybridRewardMultiplier(tier))
 	}
@@ -3207,6 +3246,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 	// Failed the second chance → forfeit.
 	s.bot.setAbyssReviveStreak(uid, min(s.bot.abyssReviveStreak(uid)+1, 5))
 	graceProtected := abyssGraceProtected(run.Depth, false)
+	mysteryReveal := abyssMysteryRevealFromFlags(s.bot.loadRunFlags(uid))
 	payout, ferr := s.bot.forfeitAbyss(uid, run, "revive_failed")
 	if ferr != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -3219,6 +3259,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 		"timeline":  res.Timeline,
 		"forfeited": true, "insured_refund": payout, "escrow": 0,
 		"grace_protected": graceProtected,
+		"mystery_reveal":  mysteryReveal,
 		"reward_xp":       res.RewardXP, "risk": abyssRiskPct(run.Depth+1, tier, s.bot.abyssPlayerCR(uid)),
 	}
 	var gold int64
@@ -3249,8 +3290,10 @@ func (s *WebServer) handleAbyssConcede(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "not downed"})
 		return
 	}
-	hardcore := abyssHardcoreRun(s.bot.loadRunFlags(uid))
+	runFlags := s.bot.loadRunFlags(uid)
+	hardcore := abyssHardcoreRun(runFlags)
 	graceProtected := abyssGraceProtected(run.Depth, hardcore)
+	mysteryReveal := abyssMysteryRevealFromFlags(runFlags)
 	payout, ferr := s.bot.forfeitAbyss(uid, run, "conceded")
 	if ferr != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -3263,6 +3306,7 @@ func (s *WebServer) handleAbyssConcede(w http.ResponseWriter, r *http.Request, u
 		"ok": true, "conceded": true, "depth": run.Depth,
 		"insured_refund": payout, "gold": gold, "tokens": s.bot.abyssTokens(uid),
 		"grace_protected": graceProtected, "hardcore": hardcore,
+		"mystery_reveal": mysteryReveal,
 	}
 	writeJSON(w, out)
 }
@@ -3391,6 +3435,22 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		checkpointRefund = int(runFlags[abyssRunFlagCheckpointTokenCost])
 	}
 	requiresSafeWord := abyssBankNeedsSafeWord(payout, !s.bot.abyssBankConfirmDisabled(uid))
+	mastery, err := s.bot.loadAbyssPactMastery(uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	_, dailyAffix := s.bot.currentDailyChallenge()
+	pactBreakdown := abyssPactRewardBreakdownForRunAt(
+		runPacts, mastery, dailyAffix, time.Now().UTC(), runFlags[abyssRunFlagMysteryPact] > 0,
+	)
+	baseTokens := s.bot.abyssBankTokenGrant(uid, run.Depth, st.UpTribute)
+	pactTokens := abyssPactBankTokenGrant(abyssRunFloorsCleared(run), abyssPactTokenRiskPct(runPacts, runFlags))
+	if partial {
+		baseTokens = 0
+		pactTokens = 0
+	}
+	tokensGrant := baseTokens + pactTokens
 
 	// Preview mode (UX-49): report the itemized payout without committing
 	// anything, so the client can show a bank-confirmation breakdown first.
@@ -3408,17 +3468,6 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		}
 		capped := payout > capRemaining
 		estPayout, estTax := abyssCapTax(payout, capRemaining)
-		baseTokens := s.bot.abyssBankTokenGrant(uid, run.Depth, st.UpTribute)
-		if partial {
-			baseTokens = 0
-		}
-		mastery, err := s.bot.loadAbyssPactMastery(uid)
-		if err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "db"})
-			return
-		}
-		_, dailyAffix := s.bot.currentDailyChallenge()
-		pactBreakdown := abyssPactRewardBreakdownAt(runPacts, mastery, dailyAffix, time.Now().UTC())
 		var lootCount int
 		var lootPreview []abyssBankPreviewLoot
 		if !partial {
@@ -3443,8 +3492,9 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
 			"remaining_escrow": remainingEscrow, "requires_safe_word": requiresSafeWord,
 			"payout": estPayout, "capped": capped, "cap_remaining": capRemaining, "cap_tax": estTax,
-			"tokens_grant": baseTokens, "loot_count": lootCount,
-			"pact_breakdown": pactBreakdown,
+			"base_tokens_grant": baseTokens, "pact_tokens_grant": pactTokens,
+			"tokens_grant": tokensGrant, "loot_count": lootCount,
+			"pact_breakdown": redactAbyssMysteryPactBreakdown(pactBreakdown, runFlags),
 			"loot_preview":   lootPreview, "loot_preview_truncated": lootCount > len(lootPreview),
 			"bonus_gear_eligible": !partial && run.Depth >= 10,
 			"depth":               run.Depth, "streak": st.Streak,
@@ -3486,6 +3536,12 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		}
 		if checkpointRefund > 0 {
 			if _, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", checkpointRefund, uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+		}
+		if tokensGrant > 0 {
+			if _, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", tokensGrant, uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -3579,7 +3635,6 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	}
 	jackpotHelperSplit := int64(0)
 	if !partial && run.Depth > 0 {
-		s.bot.grantAbyssTokens(uid, s.bot.abyssBankTokenGrant(uid, run.Depth, st.UpTribute)) // [44] + Tribute node
 		s.bot.recordGameResult(uid, "abyss", true, payout)
 		jackpotWin = s.bot.tryAbyssJackpot(uid, run.Depth) // [62]
 		if jackpotWin > 0 {
@@ -3625,7 +3680,11 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		"partial":    partial, "percent": req.Percent, "partial_fee": partialFee, "frantic_fee": franticFee,
 		"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee, "loan_fee": loanFeeCharged,
 		"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
+		"base_tokens_grant": baseTokens, "pact_tokens_grant": pactTokens, "tokens_grant": tokensGrant,
 		"remaining_escrow": remainingEscrow, "next_echo_seed": nextEchoSeed,
+	}
+	if !partial {
+		out["mystery_reveal"] = abyssMysteryRevealFromFlags(runFlags)
 	}
 	if capTax > 0 {
 		out["cap_tax"] = capTax
@@ -5011,7 +5070,9 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	pactRewards := abyssPactRewardBreakdownAt(pacts, mastery, dailyMod, time.Now().UTC())
+	pactRewards := abyssPactRewardBreakdownForRunAt(
+		pacts, mastery, dailyMod, time.Now().UTC(), runFlags[abyssRunFlagMysteryPact] > 0,
+	)
 	bonus = int64(float64(bonus) * pactRewards.Multiplier)
 	if _, weekly := abyssWeeklyRuleFromFlags(runFlags); weekly {
 		bonus = bonus * 5 / 4

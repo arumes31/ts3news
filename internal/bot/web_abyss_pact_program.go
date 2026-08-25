@@ -61,7 +61,7 @@ func canonicalAbyssPactPreset(slot int, name string, pacts []string) (abyssPactP
 	return abyssPactPreset{
 		Slot:  slot,
 		Name:  name,
-		Pacts: strings.Fields(abyssValidatePacts(pacts)),
+		Pacts: canonicalAbyssPactRequest(pacts),
 	}, true
 }
 
