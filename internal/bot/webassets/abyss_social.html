@@ -45,6 +45,7 @@
       <div class="ab-world-boss-head"><span class="ab-kicker">WEEKLY SERVER BOSS</span><h3>☄ {{.WeeklyBoss.Name}}</h3></div>
       <div class="ab-world-hp"><i style="width:{{.WeeklyBoss.Percent}}%"></i><span>{{comma .WeeklyBoss.HP}} / {{comma .WeeklyBoss.MaxHP}} HP</span></div>
       <div class="ab-world-meta"><span>{{.WeeklyBoss.Contributors}} contributors</span><span>Your damage: {{comma .WeeklyBoss.Damage}}</span></div>
+      <div class="muted small"><b>Rotating drops:</b> {{.WeeklyBoss.Drops}}</div>
       {{if .WeeklyBoss.Defeated}}<b class="good">Defeated · all contributors received 25 🜲</b>{{else if .WeeklyBoss.Contributed}}<span class="muted small">Today's contribution is locked. Return tomorrow.</span>{{else}}<button class="primary" onclick="abyssWeeklyBossStrike(this)">Contribute today's strike</button>{{end}}
       <h3 class="ab-social-sub">🏦 Nearby bank feed</h3>
       <label class="ab-toggle"><input type="checkbox" {{if .BankFeedEnabled}}checked{{end}} onchange="abyssBankFeedToggle(this.checked)"> opt in to nearby-depth banks</label>

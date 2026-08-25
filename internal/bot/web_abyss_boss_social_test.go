@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 
@@ -120,6 +121,48 @@ func TestAbyssSocialPureRules(t *testing.T) {
 	}
 }
 
+func TestAbyssWeeklyBossesHaveDistinctValidDropTables(t *testing.T) {
+	t.Parallel()
+
+	bosses := []string{
+		"Nhal, the Starved Horizon",
+		"Veyra of the Thousand Eyes",
+		"The Iron Leviathan",
+		"Mournroot Prime",
+	}
+	validMaterials := map[string]bool{"dust": true, "shard": true, "core": true, "prism": true}
+	summaries := make(map[string]bool, len(bosses))
+	for _, boss := range bosses {
+		table := abyssWeeklyBossDropTable(boss)
+		weight := 0
+		for _, drop := range table {
+			weight += drop.Weight
+			if !validMaterials[drop.Material] || drop.Amount <= 0 || drop.Weight <= 0 {
+				t.Errorf("%q has invalid drop: %#v", boss, drop)
+			}
+		}
+		if weight != 100 {
+			t.Errorf("%q drop weight = %d", boss, weight)
+		}
+		summary := abyssWeeklyBossDropSummary(boss)
+		if summary == "" || summaries[summary] {
+			t.Errorf("%q has empty or duplicate drop table %q", boss, summary)
+		}
+		summaries[summary] = true
+	}
+}
+
+func TestAbyssWeeklyBossDropIsStableForPlayerDay(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 25, 12, 0, 0, 0, time.UTC)
+	first := abyssWeeklyBossDropFor("Veyra of the Thousand Eyes", "2026-W35", "player-1", now)
+	second := abyssWeeklyBossDropFor("Veyra of the Thousand Eyes", "2026-W35", "player-1", now.Add(8*time.Hour))
+	if first != second {
+		t.Fatalf("same-day drop changed: %#v != %#v", first, second)
+	}
+}
+
 func TestAbyssSocialPersistenceAndUIContracts(t *testing.T) {
 	t.Parallel()
 	root := abyssAAARepositoryRoot(t)
@@ -130,7 +173,7 @@ func TestAbyssSocialPersistenceAndUIContracts(t *testing.T) {
 		},
 		filepath.Join(root, "internal", "bot", "webassets", "abyss_social.html"): {
 			"Companion command", "Weekly rival", "Revenge mark", "WEEKLY SERVER BOSS", "First-kill trophies",
-			"/api/abyss/social/pet/train", "/api/abyss/social/weekly_boss",
+			"Rotating drops:", "/api/abyss/social/pet/train", "/api/abyss/social/weekly_boss",
 		},
 		filepath.Join(root, "internal", "bot", "webassets", "abyss_spectate.html"): {
 			"READ-ONLY LIVE FEED", "textContent", "replaceChildren", "/api/abyss/spectate",

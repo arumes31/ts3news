@@ -1056,5 +1056,17 @@
     "verification": [
       "internal/bot/web_abyss_boss_social_test.go"
     ]
+  },
+  {
+    "ids": [203],
+    "production": [
+      "internal/bot/web_abyss_weekly_boss.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/web_abyss_social_handlers.go",
+      "internal/bot/webassets/abyss_social.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_boss_social_test.go"
+    ]
   }
 ]

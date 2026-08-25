@@ -79,6 +79,7 @@ type abyssRivalView struct {
 type abyssWeeklyBossView struct {
 	Week         string
 	Name         string
+	Drops        string
 	HP           int64
 	MaxHP        int64
 	Percent      int
@@ -346,6 +347,7 @@ func (b *Bot) abyssWeeklyBossStatus(uid string) abyssWeeklyBossView {
 	if view.MaxHP > 0 {
 		view.Percent = int(view.HP * 100 / view.MaxHP)
 	}
+	view.Drops = abyssWeeklyBossDropSummary(view.Name)
 	return view
 }
 
