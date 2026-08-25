@@ -1,0 +1,11 @@
+{{define "abyssBossAffinity"}}{{with .BossAffinity}}
+<aside class="ab-affinity-forecast is-{{.Color}}" aria-label="Daily boss elemental affinity">
+  <div class="ab-affinity-sigil" aria-hidden="true">{{.Icon}}</div>
+  <div class="ab-affinity-copy">
+    <span class="ab-kicker">TODAY'S BOSS AFFINITY · UTC</span>
+    <strong>{{.Name}} · {{.Element}}</strong>
+    <small>Counter with <b>{{.WeakTo}}</b> for 2× damage · avoid {{.StrongAgainst}} attacks at ½ damage</small>
+  </div>
+  <div class="ab-affinity-target"><span>NATURAL BOSS</span><b>F{{.TargetDepth}}</b>{{if .TwinBosses}}<small>⚔ Twin Tyrants</small>{{else}}<small>single boss</small>{{end}}</div>
+</aside>
+{{end}}{{end}}

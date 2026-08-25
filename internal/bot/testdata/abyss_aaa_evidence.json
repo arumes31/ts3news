@@ -1284,5 +1284,21 @@
     "verification": [
       "internal/bot/abyss_double_boss_test.go"
     ]
+  },
+  {
+    "ids": [220],
+    "production": [
+      "internal/bot/abyss_boss_affinity.go",
+      "internal/bot/abyss_double_boss.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_affinity.html",
+      "internal/bot/webassets/abyss_boss_affinity.css"
+    ],
+    "verification": [
+      "internal/bot/abyss_boss_affinity_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

@@ -892,8 +892,10 @@ func (b *Bot) fightAbyssFloorLive(
 
 	if len(mobs) == 0 {
 		if forceBoss {
-			mobs = abyssBossEncounter(depth, mobLevel, diff)
+			bossNow := time.Now()
+			mobs = abyssBossEncounterAt(depth, mobLevel, diff, bossNow)
 			bossName := mobs[0].Name
+			affinity := abyssDailyBossAffinity(bossNow)
 			// Boss intro card (#201): a framed banner with name and stakes.
 			bossHeading := fmt.Sprintf("💀 BOSS — %s", bossName)
 			if len(mobs) > 1 {
@@ -905,6 +907,7 @@ func (b *Bot) fightAbyssFloorLive(
 				fmt.Sprintf("[center][color=#f0b35a][b]%s[/b][/color][/center]", abyssBossTitle(bossName)),
 				fmt.Sprintf("[center][color=#8a93a8][i]Depth %d · steel yourself — it knows you are here.[/i][/color][/center]", depth),
 				fmt.Sprintf("[center][color=#ffd991]Scout tip: %s[/color][/center]", abyssBossTip(bossName)),
+				fmt.Sprintf("[center][color=#ffd991]%s %s affinity · weak to %s · punishes %s[/color][/center]", affinity.Icon, affinity.Element, affinity.WeakTo, affinity.StrongAgainst),
 				"[hr]")
 		} else if modifier == "treasure_goblin" {
 			lvlScale, effectiveDiff := abyssMobScalars(mobLevel, diff)
@@ -1471,6 +1474,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	eventIntel := s.bot.abyssEventIntel(uid, run)
 	watcherPressure := abyssWatcherPressure(run, time.Now())
 	bossContract := s.bot.abyssBossContract(uid, run)
+	bossAffinity := abyssBossAffinityForecast(run, time.Now())
 	dropForecast, dropForecastOK := s.bot.abyssNextFloorForecast(uid)
 	celestialPity := s.bot.abyssCelestialPity(uid)
 	treeUnspent := 0
@@ -1499,6 +1503,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"EventIntel":          eventIntel,
 		"Watcher":             watcherPressure,
 		"BossContract":        bossContract,
+		"BossAffinity":        bossAffinity,
 		"DropForecast":        dropForecast,
 		"DropForecastOK":      dropForecastOK,
 		"DeferredEvent":       s.bot.abyssDeferredEventView(uid, run),

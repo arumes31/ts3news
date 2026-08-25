@@ -1,6 +1,10 @@
 package bot
 
-import "ts3news/internal/content"
+import (
+	"time"
+
+	"ts3news/internal/content"
+)
 
 const abyssDoubleBossDepth = 60
 
@@ -38,7 +42,12 @@ func abyssBossNamesAtDepth(depth int) []string {
 }
 
 func abyssBossEncounter(depth, mobLevel int, difficulty float64) []content.Mob {
+	return abyssBossEncounterAt(depth, mobLevel, difficulty, time.Now())
+}
+
+func abyssBossEncounterAt(depth, mobLevel int, difficulty float64, now time.Time) []content.Mob {
 	names := abyssBossNamesAtDepth(depth)
+	affinity := abyssDailyBossAffinity(now)
 	lvlScale, effectiveDiff := abyssMobScalars(mobLevel, difficulty)
 	bossDef := min(10+mobLevel/2, 90)
 	hpScale, damageScale, rewardXP := 1.0, 1.0, 500
@@ -60,7 +69,7 @@ func abyssBossEncounter(depth, mobLevel int, difficulty float64) []content.Mob {
 				SPD: 105,
 			},
 			RewardXP: rewardXP,
-			Element:  content.ElementPhysical,
+			Element:  affinity.Element,
 		})
 	}
 	return mobs
