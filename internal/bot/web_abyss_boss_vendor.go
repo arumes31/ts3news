@@ -40,11 +40,11 @@ func (b *Bot) abyssBossTokens(uid string) int64 {
 	return tokens
 }
 
-func (b *Bot) recordAbyssBossKillWithToken(uid, bossName string, depth int, killTime time.Duration, tier string) bool {
+func (b *Bot) recordAbyssBossKillWithToken(uid, bossName string, depth int, killTime time.Duration, tier string) (bool, int64) {
 	tx, err := b.DB.Begin()
 	if err != nil {
 		log.Printf("boss trophy transaction failed to start for %s: %v", uid, err)
-		return false
+		return false, 0
 	}
 	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.Exec(
@@ -52,17 +52,22 @@ func (b *Bot) recordAbyssBossKillWithToken(uid, bossName string, depth int, kill
 		uid, bossName, depth, max(int64(0), killTime.Milliseconds()), tier,
 	); err != nil {
 		log.Printf("boss kill record failed for %s: %v", uid, err)
-		return false
+		return false, 0
 	}
-	if _, err := tx.Exec("UPDATE users SET abyss_boss_tokens=abyss_boss_tokens+1 WHERE client_uid=$1", uid); err != nil {
+	contractPayout, err := claimAbyssBossContractTx(tx, uid, depth)
+	if err != nil {
+		log.Printf("boss contract settlement failed for %s: %v", uid, err)
+		return false, 0
+	}
+	if _, err := tx.Exec("UPDATE users SET abyss_boss_tokens=abyss_boss_tokens+$1 WHERE client_uid=$2", 1+contractPayout, uid); err != nil {
 		log.Printf("boss trophy award failed for %s: %v", uid, err)
-		return false
+		return false, 0
 	}
 	if err := tx.Commit(); err != nil {
 		log.Printf("boss trophy transaction failed to commit for %s: %v", uid, err)
-		return false
+		return false, 0
 	}
-	return true
+	return true, contractPayout
 }
 
 func grantAbyssBossVendorMaterial(tx *sql.Tx, uid, material string, amount int) error {

@@ -1,0 +1,31 @@
+{{define "abyssBossContracts"}}
+<section class="abyss-panel ab-boss-contract" id="abyssBossContract" data-abyss-section="shop">
+  <header><div><span>HUNTER'S LEDGER</span><h2>⚔ Boss Contract</h2></div><b>2× stake on success</b></header>
+  {{with .BossContract}}
+    {{if not .RunActive}}
+      <p class="muted small">Begin a run to declare a wager against its next natural boss.</p>
+    {{else if gt .Wager 0}}
+      <div class="ab-boss-contract-active"><strong>SEALED · FLOOR {{.TargetDepth}}</strong><span>🏆 {{.Wager}} committed · victory returns 🏆 {{.Payout}}</span><small>Banking, conceding, or losing that boss attempt forfeits the stake.</small></div>
+    {{else if .Downed}}
+      <p class="muted small">Revive or concede before declaring another risk.</p>
+    {{else}}
+      <p class="muted small">Target: floor {{.TargetDepth}}. The stake is debited now and cannot be replaced; victory returns twice the wager.</p>
+      <div class="ab-boss-contract-wagers" role="group" aria-label="Boss contract wager">
+        <button type="button" data-contract-wager="1" onclick="abyssBossContract(1,this)" {{if lt $.Stats.BossTokens 1}}disabled{{end}}>Stake 🏆 1 <small>return 2</small></button>
+        <button type="button" data-contract-wager="3" onclick="abyssBossContract(3,this)" {{if lt $.Stats.BossTokens 3}}disabled{{end}}>Stake 🏆 3 <small>return 6</small></button>
+        <button type="button" data-contract-wager="5" onclick="abyssBossContract(5,this)" {{if lt $.Stats.BossTokens 5}}disabled{{end}}>Stake 🏆 5 <small>return 10</small></button>
+      </div>
+    {{end}}
+  {{end}}
+</section>
+<script>
+async function abyssBossContract(wager,button){
+  if(button)button.disabled=true;
+  var result=await abPost('/api/abyss/boss_contract',{wager:wager});
+  if(!result.ok){abToast(result.error||'Boss contract failed.',false);if(button)button.disabled=false;return;}
+  if(typeof setBossTokens==='function')setBossTokens(result.boss_tokens);
+  abToast(result.msg+' Target: floor '+result.target_depth+'.',true);
+  setTimeout(function(){location.reload();},450);
+}
+</script>
+{{end}}

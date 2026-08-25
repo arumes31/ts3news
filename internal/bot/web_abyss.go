@@ -587,21 +587,22 @@ func (b *Bot) abyssSpendLoadout(uid, consID string) {
 
 // abyssFloorResult is the outcome of fighting a single floor.
 type abyssFloorResult struct {
-	Victory       bool
-	RewardXP      int
-	LogsHTML      []string
-	LootHTML      []string
-	DuraHTML      []string
-	Timeline      []combatTimelineFrame
-	BossFinale    []combatTimelineFrame
-	CurrentHP     int
-	MaxHP         int
-	PityProc      bool
-	DamageTaken   int
-	BossExecution bool
-	BossName      string
-	BossDPS       int64
-	BossToken     bool
+	Victory            bool
+	RewardXP           int
+	LogsHTML           []string
+	LootHTML           []string
+	DuraHTML           []string
+	Timeline           []combatTimelineFrame
+	BossFinale         []combatTimelineFrame
+	CurrentHP          int
+	MaxHP              int
+	PityProc           bool
+	DamageTaken        int
+	BossExecution      bool
+	BossName           string
+	BossDPS            int64
+	BossToken          bool
+	BossContractPayout int64
 }
 
 var abyssLoreFragments = map[int]string{
@@ -1100,15 +1101,25 @@ func (b *Bot) fightAbyssFloorLive(
 	// Record boss kills using isBossFloor so mob escalation promoting mobs[0] to
 	// MobLegendary cannot affect the result.
 	bossTokenAwarded := false
+	bossContractPayout := int64(0)
 	if victory && isBossFloor && len(mobs) > 0 {
-		if b.recordAbyssBossKillWithToken(uid, mobs[0].Name, depth, duration, tier.Key) {
+		if awarded, payout := b.recordAbyssBossKillWithToken(uid, mobs[0].Name, depth, duration, tier.Key); awarded {
 			bossTokenAwarded = true
+			bossContractPayout = payout
 			logs = append(logs, "🏆 Boss trophy secured: +1 Boss Token for the Trophy Vendor.")
+			if payout > 0 {
+				logs = append(logs, fmt.Sprintf("📜 Boss contract fulfilled: +%d Boss Tokens returned.", payout))
+			}
 		}
 		// AB-159: bosses have a modest chance to drop a branch-refund shard.
 		// #nosec G404 -- non-cryptographic reward roll
 		if encounterRandom.Float64() < 0.20 && b.grantAbyssMasteryShard(uid) {
 			logs = append(logs, "🔮 The boss dropped a Mastery Shard — refund one skill-web branch for free!")
+		}
+	}
+	if !victory && isBossFloor {
+		if wager := b.forfeitAbyssBossContract(uid, depth); wager > 0 {
+			logs = append(logs, fmt.Sprintf("📜 Boss contract failed: the %d-token stake is forfeit.", wager))
 		}
 	}
 	if !victory {
@@ -1202,7 +1213,7 @@ func (b *Bot) fightAbyssFloorLive(
 	logs = append(logs, fmt.Sprintf("[hr][color=#8a93a8]📊 %s · %d foe(s) · fight time %d ms · HP %s → %s (%+d)[/color]",
 		outcome, len(mobs), duration.Milliseconds(), FormatGoldPlain(int64(hpBefore)), FormatGoldPlain(int64(curHP)), curHP-hpBefore))
 
-	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, BossToken: bossTokenAwarded}
+	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, BossToken: bossTokenAwarded, BossContractPayout: bossContractPayout}
 	if isBossFloor && len(mobs) > 0 {
 		res.BossName = mobs[0].Name
 		res.BossExecution = victory
@@ -1488,6 +1499,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	coreLoop := s.bot.abyssCoreLoopStatus(uid, run)
 	eventIntel := s.bot.abyssEventIntel(uid, run)
 	watcherPressure := abyssWatcherPressure(run, time.Now())
+	bossContract := s.bot.abyssBossContract(uid, run)
 	dropForecast, dropForecastOK := s.bot.abyssNextFloorForecast(uid)
 	celestialPity := s.bot.abyssCelestialPity(uid)
 	treeUnspent := 0
@@ -1515,6 +1527,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"CoreLoop":            coreLoop,
 		"EventIntel":          eventIntel,
 		"Watcher":             watcherPressure,
+		"BossContract":        bossContract,
 		"DropForecast":        dropForecast,
 		"DropForecastOK":      dropForecastOK,
 		"DeferredEvent":       s.bot.abyssDeferredEventView(uid, run),
@@ -2245,6 +2258,8 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 	var pityProc bool
 	var escrowSoftCap int64
 	var escrowEfficiencyPct int
+	var bossContractPayout int64
+	var bossTokenAwarded bool
 
 	runInit := s.bot.loadAbyssRun(uid)
 	if !runInit.Active {
@@ -2401,6 +2416,8 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		combinedDura = append(combinedDura, res.DuraHTML...)
 		totalRewardXP += res.RewardXP
 		pityProc = pityProc || res.PityProc
+		bossContractPayout += res.BossContractPayout
+		bossTokenAwarded = bossTokenAwarded || res.BossToken
 
 		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_lifetime_floors = abyss_lifetime_floors + 1 WHERE client_uid=$1", uid)
 
@@ -2445,7 +2462,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			reviveStreak := s.bot.abyssReviveStreak(uid)
 			reviveChance := abyssReviveOfferChancePct(reviveStreak, s.bot.loadAbyssStats(uid).UpMercy)
 			lastStandCost, lastStandAvailable := abyssLastStandOffer(run, flags)
-			writeJSON(w, map[string]any{
+			out := map[string]any{
 				"ok":                  true,
 				"victory":             false,
 				"depth":               newDepth,
@@ -2474,7 +2491,14 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"auto_focus":          s.selectedAbyssFocus(uid, runFinal),
 				"run_floors_cleared":  abyssRunFloorsCleared(runFinal),
 				"pity_proc":           pityProc,
-			})
+			}
+			if bossTokenAwarded {
+				out["boss_tokens"] = s.bot.abyssBossTokens(uid)
+			}
+			if bossContractPayout > 0 {
+				out["boss_contract_payout"] = bossContractPayout
+			}
+			writeJSON(w, out)
 			return
 		}
 	}
@@ -2516,6 +2540,12 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 	}
 	if len(achs) > 0 {
 		out["achievement"] = strings.Join(achs, " · ")
+	}
+	if bossTokenAwarded {
+		out["boss_tokens"] = s.bot.abyssBossTokens(uid)
+	}
+	if bossContractPayout > 0 {
+		out["boss_contract_payout"] = bossContractPayout
 	}
 	s.bot.addAbyssLegendaryPity(out, uid)
 	out["jackpot"] = s.bot.getJackpot("abyss")
@@ -3111,6 +3141,9 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 	if res.BossToken {
 		out["boss_tokens"] = s.bot.abyssBossTokens(uid)
 	}
+	if res.BossContractPayout > 0 {
+		out["boss_contract_payout"] = res.BossContractPayout
+	}
 	if hasAbyssFloorModifier(modifier, "darkness") {
 		out["timeline"] = concealAbyssTimeline(res.Timeline)
 	}
@@ -3282,6 +3315,9 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 		}
 		if res.BossToken {
 			out["boss_tokens"] = s.bot.abyssBossTokens(uid)
+		}
+		if res.BossContractPayout > 0 {
+			out["boss_contract_payout"] = res.BossContractPayout
 		}
 		var gold int64
 		_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)

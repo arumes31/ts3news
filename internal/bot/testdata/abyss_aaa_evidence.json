@@ -1255,5 +1255,24 @@
       "internal/bot/web_abyss_friend_echoes_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [218],
+    "production": [
+      "internal/bot/web_abyss_boss_contracts.go",
+      "internal/bot/web_abyss_boss_vendor.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_contracts.html",
+      "internal/bot/webassets/abyss_boss_contracts.css",
+      "internal/db/migrations/0089_abyss_boss_contracts.up.sql",
+      "internal/db/migrations/0089_abyss_boss_contracts.down.sql"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_boss_contracts_test.go",
+      "internal/bot/web_abyss_boss_vendor_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

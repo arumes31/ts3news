@@ -278,6 +278,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_world_boss.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_world_boss.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_boss_contracts.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_boss_contracts.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_watcher_pressure.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_watcher_pressure.css", "text/css; charset=utf-8")
 	})
@@ -365,6 +368,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/client-error", s.authAPI(s.handleAbyssClientError))
 		mux.HandleFunc("/api/abyss/practice", s.authAPI(s.handleAbyssBossPractice))
 		mux.HandleFunc("/api/abyss/boss_vendor/buy", s.authAPI(s.handleAbyssBossVendorBuy))
+		mux.HandleFunc("/api/abyss/boss_contract", s.authAPI(s.handleAbyssBossContract))
 		mux.HandleFunc("/api/abyss/spectate", s.authAPI(s.handleAbyssSpectateState))
 		mux.HandleFunc("/api/abyss/social/pet/train", s.authAPI(s.handleAbyssPetTrain))
 		mux.HandleFunc("/api/abyss/social/pet/slot", s.authAPI(s.handleAbyssPetSlot))

@@ -199,6 +199,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0215 / 215** — surviving three actual mimic bites awakens a non-deferable Mimic King showdown whose bounded final bite atomically seals a unique crown and resets the run chain.
 - [x] **AAA-0216 / 216** — active delvers see a server-derived Watcher stalking meter count down to the authoritative 15-minute ambush threshold and clearly announce when the next descent is compromised.
 - [x] **AAA-0217 / 217** — delvers can replace random combat echoes with a specifically selected co-op bond only while that friend explicitly opts in to sharing their echo.
+- [x] **AAA-0218 / 218** — run-bound boss contracts atomically debit a bounded 1/3/5 Boss Token stake and return twice the wager only when the declared natural boss floor is authoritatively defeated.
 
 ## Active tranche: operational quality and client performance
 

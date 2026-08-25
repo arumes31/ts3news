@@ -25,11 +25,14 @@ func TestRecordAbyssBossKillAwardsTrophyAtomically(t *testing.T) {
 	mock.ExpectExec("INSERT INTO abyss_boss_kills").
 		WithArgs("hunter", "Abyssus", 50, int64(1234), "hell").
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("SELECT boss_contract_wager,boss_contract_depth").
+		WithArgs("hunter").WillReturnError(sql.ErrNoRows)
 	mock.ExpectExec("UPDATE users SET abyss_boss_tokens").
-		WithArgs("hunter").
+		WithArgs(int64(1), "hunter").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
-	if !(&Bot{DB: database}).recordAbyssBossKillWithToken("hunter", "Abyssus", 50, 1234*time.Millisecond, "hell") {
+	awarded, payout := (&Bot{DB: database}).recordAbyssBossKillWithToken("hunter", "Abyssus", 50, 1234*time.Millisecond, "hell")
+	if !awarded || payout != 0 {
 		t.Fatal("boss kill and trophy transaction failed")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -47,10 +50,13 @@ func TestRecordAbyssBossKillRollsBackWhenTrophyFails(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO abyss_boss_kills").
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("SELECT boss_contract_wager,boss_contract_depth").
+		WithArgs("hunter").WillReturnError(sql.ErrNoRows)
 	mock.ExpectExec("UPDATE users SET abyss_boss_tokens").
 		WillReturnError(errors.New("award failed"))
 	mock.ExpectRollback()
-	if (&Bot{DB: database}).recordAbyssBossKillWithToken("hunter", "Abyssus", 50, time.Second, "hell") {
+	awarded, _ := (&Bot{DB: database}).recordAbyssBossKillWithToken("hunter", "Abyssus", 50, time.Second, "hell")
+	if awarded {
 		t.Fatal("boss kill committed without its trophy")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
