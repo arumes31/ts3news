@@ -1140,14 +1140,24 @@ span.rar-eternal, .ab-bp-name.rar-eternal { color: #e040fb; }
 /* UI-125: expandable history rows */
 .ab-history tr.ab-hist-click { cursor: pointer; }
 .ab-history tr.ab-hist-click:hover td { background: rgba(255, 255, 255, .04); }
+.ab-history tr.ab-hist-click:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .ab-hist-detail-in {
   padding: .4rem .2rem .4rem .6rem;
   font-size: .82rem;
   border-left: 3px solid var(--accent);
 }
+.ab-history-loot {
+  display: grid;
+  gap: .2rem;
+  margin: .45rem 0 0;
+  padding-left: 1.15rem;
+}
 
 /* UI-126: locked achievements */
 .ab-ach.locked { opacity: .45; filter: grayscale(.8); }
+.ab-achievements > summary { cursor: pointer; font-weight: 700; }
+.ab-achievement-grid { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .45rem; }
+.ab-ach:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* UI-130/199: skeleton shimmer placeholders */
 .ab-skel {

@@ -330,3 +330,26 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0618 / UI-118** — panel headers expose stable hover and keyboard deep links.
 - [x] **AAA-0619 / UI-119** — a floating back-to-top control appears after two viewports.
 - [x] **AAA-0620 / UI-120** — sidebar Armoury/Run Loot ordering is user-configurable and persisted.
+
+## Delivered tranche: codex, history, and feedback clarity
+
+- [x] **AAA-0621 / UI-121** — bestiary species group under server-recorded encounter families with persistent collapse state.
+- [x] **AAA-0622 / UI-122** — the lore ring derives its segment count from the authoritative server catalog.
+- [x] **AAA-0623 / UI-123** — leaderboard ownership uses authenticated UID identity, including duplicate nicknames, and auto-scrolls to the owned row.
+- [x] **AAA-0624 / UI-124** — leaderboard and history headers remain sticky while their results scroll.
+- [x] **AAA-0625 / UI-125** — run rows expand by pointer or keyboard into a bounded, server-persisted loot summary with exact total count.
+- [x] **AAA-0626 / UI-126** — the server supplies earned state and unlock conditions for the complete achievement catalog.
+- [x] **AAA-0627 / UI-127** — badge choices preview inline beside the current nickname before selection.
+- [x] **AAA-0628 / UI-128** — section-tab scroll positions persist for the browser session and restore on return.
+- [x] **AAA-0629 / UI-129** — print media hides controls and preserves a clean run-record summary.
+- [x] **AAA-0630 / UI-130** — leaderboard navigation immediately substitutes shape-matched reduced-motion-safe shimmer rows.
+- [x] **AAA-0631 / UI-131** — success, warning, error, and loot feedback use distinct icon categories.
+- [x] **AAA-0632 / UI-132** — every stacked toast records and exposes its local creation time on hover.
+- [x] **AAA-0633 / UI-133** — error toasts offer a bounded copyable diagnostic containing page, time, and user-agent context.
+- [x] **AAA-0634 / UI-134** — paid confirmations state their exact gold, token, or material cost on the primary action.
+- [x] **AAA-0635 / UI-135** — concede and prestige confirmations disable their destructive action synchronously for three seconds.
+- [x] **AAA-0636 / UI-136** — Escape dismisses only the top consumable/shared-modal layer.
+- [x] **AAA-0637 / UI-137** — confirmation focus lands on the safe cancel action while destructive actions remain unavailable.
+- [x] **AAA-0638 / UI-138** — the vault count-up offers an immediate reduced-motion-compatible skip to the committed total.
+- [x] **AAA-0639 / UI-139** — an observed level increase flashes the HUD level chip without requiring a reload.
+- [x] **AAA-0640 / UI-140** — achievement responses raise a named, icon-led, reduced-motion-safe top banner.

@@ -77,7 +77,8 @@ func TestAbyssHardcoreLeaderboardUsesDedicatedRuns(t *testing.T) {
 	defer func() { _ = database.Close() }()
 	mock.ExpectQuery("WHERE a.tier = \\$1 AND a.hardcore = TRUE").
 		WithArgs("normal", 10).
-		WillReturnRows(sqlmock.NewRows([]string{"nick", "depth", "gold"}).AddRow("Iron", 22, int64(900)))
+		WillReturnRows(sqlmock.NewRows([]string{"client_uid", "nick", "depth", "gold"}).
+			AddRow("iron-uid", "Iron", 22, int64(900)))
 	bot := &Bot{DB: database}
 	rows := bot.topHardcoreDescents("normal", 10)
 	if len(rows) != 1 || rows[0].Nickname != "Iron" || rows[0].Depth != 22 || rows[0].Rank != 1 {

@@ -987,7 +987,7 @@
     <button class="ghost xs" onclick="abyssDismantle()">⚒️ Dismantle rare+ spares for 🜲</button>
     <button class="ghost xs" onclick="shareLastAbyssReplay()">🎬 Share last replay</button>
     <button class="ghost xs" onclick="armAbyssGhostReplay()">👻 Challenge replay code</button>
-    {{if .Achieved}}<div class="ab-achievements"><h3>🏅 Achievements</h3>{{range .Achieved}}<span class="ab-ach">{{.}}</span>{{end}}</div>{{end}}
+    {{if .Achievements}}<details class="ab-achievements"><summary>🏅 Achievements</summary><div class="ab-achievement-grid">{{range .Achievements}}<span class="ab-ach {{if not .Earned}}locked{{end}}" data-code="{{.Code}}" title="{{if .Earned}}Earned ✓{{else}}Unlock: {{.Condition}}{{end}}">{{if not .Earned}}🔒 {{end}}{{.Name}}</span>{{end}}</div></details>{{end}}
     <div class="ab-progression-clarity">
       <h3>🧭 Progression layers</h3>
       <div><b>Run</b><span>cache, rooms, temporary kit/mutation, rested and returner charges</span></div>
@@ -1022,11 +1022,15 @@
       </thead>
       <tbody>
       {{range .History}}
-        <tr class="{{if .Victory}}win{{else}}loss{{end}}" data-depth="{{.Depth}}" data-gold="{{.Gold}}" data-victory="{{.Victory}}" data-when="{{.When}}">
+        <tr class="ab-hist-click {{if .Victory}}win{{else}}loss{{end}}" data-depth="{{.Depth}}" data-gold="{{.Gold}}" data-victory="{{.Victory}}" data-when="{{.When}}" tabindex="0" aria-expanded="false">
           <td>{{if .Victory}}🏦{{else}}💀{{end}} 🕳️ {{.Depth}}</td>
           <td>{{gold .Gold}}</td>
           <td class="muted small">{{.When}}</td>
         </tr>
+        <tr class="ab-hist-detail" hidden><td colspan="3"><div class="ab-hist-detail-in">
+          <b>{{if .Victory}}🏦 Banked{{else}}💀 Fell{{end}}</b> · {{.Tier}}{{if .Hardcore}} · Hardcore{{end}} · depth {{.Depth}} · {{gold .Gold}}
+          {{if .Loot}}<ul class="ab-history-loot">{{range .Loot}}<li>{{.}}</li>{{end}}{{if gt .LootTruncated 0}}<li class="muted">+{{.LootTruncated}} more sealed item(s)</li>{{end}}</ul>{{else}}<div class="muted small">No loot was sealed in this run.</div>{{end}}
+        </div></td></tr>
       {{else}}
         <!-- UI-191: friendly empty state with a little torch-in-the-dark art -->
         <tr><td colspan="3"><div class="ab-empty-state">
@@ -1041,7 +1045,7 @@
 
 <div class="abyss-lore-bestiary" data-abyss-section="lore">
   <section class="abyss-panel">
-    <h2>{{T "web.abyss.lore_codex"}} <span class="ab-lore-ring" id="loreRing" title="Lore fragments collected"></span></h2>
+    <h2>{{T "web.abyss.lore_codex"}} <span class="ab-lore-ring" id="loreRing" data-total="{{.LoreTotal}}" title="Lore fragments collected"></span></h2>
     <p class="muted small">{{T "web.abyss.lore_codex_desc"}}</p>
     <div class="ab-codex">
       <div class="ab-codex-grid">
@@ -1069,7 +1073,7 @@
         </thead>
         <tbody>
           {{range .Bestiary}}
-		  <tr><td>{{.MobName}}</td><td>⚔️ {{comma .Kills}}</td><td><button type="button" class="btn small" onclick="abyssPractice({{printf "%q" .MobName}})">Practice</button></td></tr>
+		  <tr data-family="{{.Family}}"><td>{{.MobName}}</td><td>⚔️ {{comma .Kills}}</td><td><button type="button" class="btn small" onclick="abyssPractice({{printf "%q" .MobName}})">Practice</button></td></tr>
           {{else}}
           <!-- UI-192: friendly empty state -->
 		  <tr><td colspan="3"><div class="ab-empty-state">
@@ -1083,7 +1087,7 @@
   </section>
 </div>
 
-<section class="abyss-lb" id="lb" data-abyss-section="leaderboards" data-nick="{{.U.Nickname}}">
+<section class="abyss-lb" id="lb" data-abyss-section="leaderboards">
   <h2>🏆 Deepest Descents · {{.Season}}</h2>
   <!-- Per-tier board tabs (#276) -->
   <div class="ab-lb-tabs">
@@ -1107,7 +1111,7 @@
     </thead>
     <tbody>
       {{range .Leaders.BossKills}}
-      <tr>
+      <tr{{if .IsCurrent}} class="ab-me" aria-current="true"{{end}}>
         <td class="lb-rank lb-rank-{{.Rank}}">{{.Rank}}</td>
         <td class="lb-name">{{.Nickname}}</td>
         <td>{{.BossName}}</td>
@@ -1137,7 +1141,7 @@ var lastRestDepth = {{.Run.LastRestDepth}}; // UI-48 authoritative sanctuary cad
 var pendingDoubleBonus = {{with .PendingDoubleBonus}}{{.}}{{else}}0{{end}};
 var curTier = '{{.Run.Tier}}'; // UI-188: active run's tier (insanity glitch)
 var pageLevel = {{.U.Level}}; // UI-139: level-up flash baseline
-var pageNick = {{jsonJS .U.Nickname}}; // UI-123/127: leaderboard self-highlight / badge preview
+var pageNick = {{jsonJS .U.Nickname}}; // UI-127: badge preview
 var curEscrow = {{.Run.Escrow}};
 var curRisk = {{.Risk}};
 var floorType = {{if .Run.Active}}{{.Run.FloorType}}{{else}}"combat"{{end}};
@@ -5472,20 +5476,8 @@ function renderTierRisk(){
 
 // UI-135: destructive confirms arm only after a 3-second countdown.
 async function confirmModalDangerous(message, opts){
-  var p=confirmModal(message, opts);
-  setTimeout(function(){
-    var ok=document.getElementById('modalOkBtn'); if(!ok)return;
-    var base=ok.textContent, n=3;
-    ok.disabled=true; ok.textContent=base+' ('+n+'…)';
-    var iv=setInterval(function(){
-      var sm=document.getElementById('sharedModal');
-      if(!sm || !sm.classList.contains('open')){ clearInterval(iv); return; }
-      n--;
-      if(n<=0){ clearInterval(iv); ok.disabled=false; ok.textContent=base; }
-      else ok.textContent=base+' ('+n+'…)';
-    },1000);
-  },0);
-  return p;
+	opts=Object.assign({},opts||{},{armSeconds:3});
+	return confirmModal(message,opts);
 }
 
 // UI-140: achievement unlock — top slide-down banner with the badge icon.
@@ -5731,179 +5723,7 @@ function applySidebarOrder(){
   row.classList.toggle('ab-loot-first',lootFirst);
 }
 
-// UI-121: bestiary family grouping with collapse toggles. Bestiary rows carry
-// no family/type field, so mobs are grouped by the first word of their name —
-// a heuristic that groups e.g. "Abyssal …" / "Void …" families.
-function initBestiaryGroups(){
-  var tbl=document.querySelector('.ab-bestiary-table tbody'); if(!tbl)return;
-  var rows=Array.prototype.slice.call(tbl.querySelectorAll('tr'));
-  rows=rows.filter(function(tr){ return tr.querySelectorAll('td').length>1; });
-  if(rows.length<3) return;
-  var collapsed={};
-  try{ collapsed=JSON.parse(localStorage.getItem('ab_best_collapsed')||'{}'); }catch(e){}
-  var groups={};
-  rows.forEach(function(tr){
-    var td=tr.querySelector('td');
-    var fam=((td.textContent||'').trim().split(/\s+/)[0])||'Misc';
-    (groups[fam]=groups[fam]||[]).push(tr);
-  });
-  var fams=Object.keys(groups);
-  if(fams.length<2) return;
-  fams.sort();
-  fams.forEach(function(fam){
-    var hdr=document.createElement('tr');
-    hdr.className='ab-best-fam';
-    var th=document.createElement('td');
-    th.colSpan=2;
-    var open=!collapsed[fam];
-    th.innerHTML='<span class="ab-best-arrow">'+(open?'▾':'▸')+'</span> '+consEsc(fam)+' <span class="muted small">('+groups[fam].length+')</span>';
-    hdr.appendChild(th);
-    hdr.title='Click to collapse/expand';
-    hdr.addEventListener('click',function(){
-      collapsed[fam]=!collapsed[fam];
-      try{ localStorage.setItem('ab_best_collapsed',JSON.stringify(collapsed)); }catch(e){}
-      var nowOpen=!collapsed[fam];
-      th.querySelector('.ab-best-arrow').textContent=nowOpen?'▾':'▸';
-      groups[fam].forEach(function(r){ r.style.display=nowOpen?'':'none'; });
-    });
-    tbl.appendChild(hdr);
-    groups[fam].forEach(function(r){ tbl.appendChild(r); r.style.display=open?'':'none'; });
-  });
-}
-
-// UI-122: 10-segment lore progress ring in the codex header (N/10 fragments).
-function renderLoreRing(){
-  var el=document.getElementById('loreRing'); if(!el)return;
-  var n=document.querySelectorAll('.ab-codex-item.unlocked').length;
-  var total=10; // the codex ships ten fragments
-  var filled=Math.min(n,total);
-  var html='<svg viewBox="0 0 20 20" class="ab-lore-svg" aria-hidden="true">';
-  for(var i=0;i<total;i++){
-    var a=(i/total)*Math.PI*2-Math.PI/2;
-    html+='<line x1="'+(10+Math.cos(a)*6.5).toFixed(1)+'" y1="'+(10+Math.sin(a)*6.5).toFixed(1)+'" x2="'+(10+Math.cos(a)*9).toFixed(1)+'" y2="'+(10+Math.sin(a)*9).toFixed(1)+'" class="'+(i<filled?'on':'')+'"/>';
-  }
-  html+='</svg><span class="ab-lore-n">'+n+'/10</span>';
-  el.innerHTML=html;
-  el.title=n+' of 10 lore fragments found';
-}
-
-// UI-123: highlight your leaderboard row and scroll it into view (only when the
-// leaderboards are actually on screen, i.e. the tab is active or deep-linked).
-function initMyLbRow(){
-  var sec=document.getElementById('lb'); if(!sec)return;
-  var nick=(sec.getAttribute('data-nick')||pageNick||'').trim();
-  if(!nick)return;
-  var mine=null;
-  document.querySelectorAll('#lb .lbtable .lb-name').forEach(function(td){
-    if((td.textContent||'').trim()===nick){
-      var tr=td.closest?td.closest('tr'):null;
-      if(tr){ tr.classList.add('ab-me'); if(!mine)mine=tr; }
-    }
-  });
-  if(mine && (location.hash==='#lb' || sec.offsetParent!==null)){
-    setTimeout(function(){ mine.scrollIntoView({block:'center',behavior:reduceMotion?'auto':'smooth'}); },300);
-  }
-}
-
-// UI-125: expand a history row for its run summary. Per-run loot is NOT
-// recorded server-side (abyss_runs stores only depth/gold/victory/time), so
-// the detail shows the row's depth/gold/result plus that note.
-function initHistoryExpand(){
-  var tb=document.querySelector('.ab-history tbody'); if(!tb)return;
-  tb.querySelectorAll('tr').forEach(function(tr){
-    if(tr.querySelector('.ab-empty-state')) return;
-    tr.classList.add('ab-hist-click');
-    tr.title='Click for run details';
-    tr.addEventListener('click',function(){
-      var next=tr.nextElementSibling;
-      if(next&&next.classList.contains('ab-hist-detail')){ next.remove(); return; }
-      document.querySelectorAll('.ab-hist-detail').forEach(function(d){ d.remove(); });
-      var cells=tr.querySelectorAll('td');
-      var win=tr.classList.contains('win');
-      var d=document.createElement('tr');
-      d.className='ab-hist-detail';
-      d.innerHTML='<td colspan="3"><div class="ab-hist-detail-in">'+
-        '<b>'+(win?'🏦 Banked':'💀 Fell')+'</b> · '+consEsc((cells[0]?cells[0].textContent:'').trim())+
-        ' · gold '+consEsc((cells[1]?cells[1].textContent:'').trim())+
-        ' · '+consEsc((cells[2]?cells[2].textContent:'').trim())+
-        '<div class="muted small">Per-run loot is not recorded for history rows.</div></div></td>';
-      tr.parentNode.insertBefore(d, tr.nextSibling);
-    });
-  });
-}
-
-// UI-126: locked achievements show their unlock condition on hover. The page
-// renders only earned achievements (display names, not codes), so the known
-// ladder is matched by name and the missing ones render dimmed with a hint.
-var AB_ACH_HINTS={
-  'Threshold Breaker (Depth 10)':'Reach depth 10 in a single run',
-  'Deep Diver (Depth 25)':'Reach depth 25 in a single run',
-  'Abyssal Veteran (Depth 50)':'Reach depth 50 in a single run',
-  'Voidwalker (Depth 100)':'Reach depth 100 in a single run',
-  'Giant Slayer (First Boss)':'Defeat your first floor boss',
-  'Boss Hunter (25 Bosses)':'Defeat 25 bosses (lifetime)',
-  'Worldbreaker (100 Bosses)':'Defeat 100 bosses (lifetime)',
-  'Treasurer (1M Banked)':'Bank 1,000,000 gold (lifetime)',
-  'Tycoon (10M Banked)':'Bank 10,000,000 gold (lifetime)',
-  'Naturalist (25 Species)':'Slay 25 different monster species',
-  'Zoologist (50 Species)':'Slay 50 different monster species',
-  'Reborn (First Abyss Prestige)':'Prestige the Abyss once'
-};
-function initAchievementHints(){
-  var box=document.querySelector('.ab-achievements'); if(!box)return;
-  var earned={};
-  box.querySelectorAll('.ab-ach').forEach(function(s){
-    earned[(s.textContent||'').trim()]=1;
-    s.title='Earned ✓';
-  });
-  Object.keys(AB_ACH_HINTS).forEach(function(name){
-    if(earned[name])return;
-    var s=document.createElement('span');
-    s.className='ab-ach locked';
-    s.textContent='🔒 '+name;
-    s.title='Unlock: '+AB_ACH_HINTS[name];
-    box.appendChild(s);
-  });
-}
-
-// UI-128: remember the scroll position per section tab, restored on switch.
-var abCurTab=-1;
-function initTabScroll(){
-  var tabs=document.querySelectorAll('.ab-tabs .ab-tab'); if(!tabs.length)return;
-  var map={};
-  try{ map=JSON.parse(sessionStorage.getItem('ab_tab_scroll')||'{}'); }catch(e){}
-  tabs.forEach(function(b){ if(b.classList.contains('active')) abCurTab=b.dataset.tabKey||''; });
-  tabs.forEach(function(b){
-    b.addEventListener('click',function(){
-      var key=b.dataset.tabKey;
-      if(!key)return;
-      if(abCurTab && abCurTab!==key) map[abCurTab]=window.scrollY;
-      abCurTab=key;
-      try{ sessionStorage.setItem('ab_tab_scroll',JSON.stringify(map)); }catch(e){}
-      var y=map[key];
-      if(y!==undefined) setTimeout(function(){ window.scrollTo(0,y); },0);
-    });
-  });
-}
-
-// UI-130/199: skeleton shimmer while the leaderboard reloads. Tier tabs are
-// full page loads (?lbtier=) — no fetch-based refresh exists on this page —
-// so the shimmer covers the navigation gap after a tab click.
-function initLbSkeleton(){
-  document.querySelectorAll('.ab-lb-tab').forEach(function(a){
-    a.addEventListener('click',function(){
-      var grid=document.querySelector('#lb .lb-grid');
-      if(!grid) return;
-      var html='';
-      for(var i=0;i<3;i++){
-        html+='<div class="lb-col"><div class="ab-skel ab-skel-h"></div>';
-        for(var j=0;j<5;j++) html+='<div class="ab-skel ab-skel-r"></div>';
-        html+='</div>';
-      }
-      grid.innerHTML=html;
-    });
-  });
-}
+{{template "abyssCodexNavigationJS" .}}
 
 // ---- J. Stats, records & progression panels ---------------------------------
 
@@ -5996,7 +5816,7 @@ function renderTierWinChips(host){
 
 // UI-175: bestiary completion with per-family bars. The total species pool is
 // not exposed client-side, so completion is measured against the Zoologist
-// achievement tier (50 species); families use the first-word heuristic (UI-121).
+// achievement tier (50 species); family labels come from server-authored rows.
 function renderBestiaryProgress(){
   var host=document.getElementById('bestiaryProgress'); if(!host)return;
   var fams={}, species=0;
@@ -6004,7 +5824,7 @@ function renderBestiaryProgress(){
     var tds=tr.querySelectorAll('td');
     if(tds.length<2) return; // skips group headers + the empty state
     species++;
-    var fam=((tds[0].textContent||'').trim().split(/\s+/)[0])||'Misc';
+    var fam=tr.getAttribute('data-family')||'Lost Delvers';
     fams[fam]=(fams[fam]||0)+1;
   });
   if(!species) return;

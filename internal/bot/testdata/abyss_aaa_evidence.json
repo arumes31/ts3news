@@ -275,6 +275,22 @@
     ]
   },
   {
+    "ids": [621, 622, 623, 624, 625, 626, 627, 628, 629, 630, 631, 632, 633, 634, 635, 636, 637, 638, 639, 640],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_codex.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_history.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_codex_navigation.html",
+      "internal/bot/webassets/abyss_ui200.css",
+      "internal/bot/webassets/partials.html",
+      "internal/db/migrations/0075_abyss_run_loot_history.up.sql",
+      "internal/db/migrations/0076_abyss_bestiary_family.up.sql"
+    ],
+    "verification": ["internal/bot/web_abyss_library_feedback_test.go"]
+  },
+  {
     "ids": [986, 987],
     "production": [
       "internal/bot/web_abyss_econ.go",

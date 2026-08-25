@@ -232,7 +232,11 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, err error) {
 	}
 	if run.Depth > 0 {
 		if _, err := tx.Exec(
-			"INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore) VALUES ($1,$2,$3,FALSE,$4,$5)",
+			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary)
+			 SELECT $1,$2,$3,FALSE,$4,$5,
+			   (SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1),
+			   COALESCE((SELECT jsonb_agg(label ORDER BY id) FROM
+			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb)`,
 			uid, run.Depth, refund, run.Tier, hardcore); err != nil {
 			return 0, err
 		}
@@ -539,52 +543,26 @@ func (s *WebServer) handleAbyssSetBadge(w http.ResponseWriter, r *http.Request, 
 	writeJSON(w, map[string]any{"ok": true, "badge": req.Code, "badge_name": abyssAchievementName(req.Code)})
 }
 
-// ---- Run history ---------------------------------------------------------
-
-type abyssHistoryRow struct {
-	Depth   int
-	Gold    int64
-	Victory bool
-	When    string
-}
-
-func (b *Bot) abyssHistory(uid string, limit int) []abyssHistoryRow {
-	rows, err := b.DB.Query(
-		"SELECT depth, gold_banked, victory, created_at FROM abyss_runs WHERE client_uid=$1 ORDER BY id DESC LIMIT $2",
-		uid, limit)
-	if err != nil {
-		return nil
-	}
-	defer func() { _ = rows.Close() }()
-	var out []abyssHistoryRow
-	for rows.Next() {
-		var h abyssHistoryRow
-		var when time.Time
-		if err := rows.Scan(&h.Depth, &h.Gold, &h.Victory, &when); err != nil {
-			continue
-		}
-		h.When = when.Format("Jan 2 15:04")
-		out = append(out, h)
-	}
-	return out
-}
-
 // ---- Leaderboards (per tier) ---------------------------------------------
 
 type abyssRow struct {
-	Rank     int
-	Nickname string
-	Depth    int
-	Gold     int64
+	Rank      int
+	UID       string
+	Nickname  string
+	Depth     int
+	Gold      int64
+	IsCurrent bool
 }
 
 type bossKillRow struct {
 	Rank       int
+	UID        string
 	Nickname   string
 	BossName   string
 	Depth      int
 	KillTimeMs int64
 	KilledAt   string
+	IsCurrent  bool
 }
 
 type abyssBoards struct {
@@ -598,7 +576,7 @@ type abyssBoards struct {
 
 func (b *Bot) topDescents(tier string, since time.Time, limit int) []abyssRow {
 	rows, err := b.DB.Query(
-		`SELECT COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
+		`SELECT a.client_uid, COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
 		        MAX(a.depth) AS depth, COALESCE(SUM(a.gold_banked), 0) AS gold
 		   FROM abyss_runs a
 		   LEFT JOIN users u ON u.client_uid = a.client_uid
@@ -614,7 +592,7 @@ func (b *Bot) topDescents(tier string, since time.Time, limit int) []abyssRow {
 	rank := 1
 	for rows.Next() {
 		var r abyssRow
-		if err := rows.Scan(&r.Nickname, &r.Depth, &r.Gold); err != nil {
+		if err := rows.Scan(&r.UID, &r.Nickname, &r.Depth, &r.Gold); err != nil {
 			continue
 		}
 		r.Rank = rank
@@ -626,7 +604,7 @@ func (b *Bot) topDescents(tier string, since time.Time, limit int) []abyssRow {
 
 func (b *Bot) topHardcoreDescents(tier string, limit int) []abyssRow {
 	rows, err := b.DB.Query(
-		`SELECT COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
+		`SELECT a.client_uid, COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
 		        MAX(a.depth) AS depth, COALESCE(SUM(a.gold_banked), 0) AS gold
 		   FROM abyss_runs a
 		   LEFT JOIN users u ON u.client_uid = a.client_uid
@@ -641,7 +619,7 @@ func (b *Bot) topHardcoreDescents(tier string, limit int) []abyssRow {
 	out := make([]abyssRow, 0, limit)
 	for rows.Next() {
 		var row abyssRow
-		if err := rows.Scan(&row.Nickname, &row.Depth, &row.Gold); err != nil {
+		if err := rows.Scan(&row.UID, &row.Nickname, &row.Depth, &row.Gold); err != nil {
 			continue
 		}
 		row.Rank = len(out) + 1
@@ -655,7 +633,7 @@ func (b *Bot) topBossKills(limit int, tier string) []bossKillRow {
 	var err error
 	if tier != "" {
 		rows, err = b.DB.Query(
-			`SELECT COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
+			`SELECT k.client_uid, COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
 			        k.boss_name, k.depth, k.kill_time_ms, k.killed_at
 			   FROM abyss_boss_kills k
 			   LEFT JOIN users u ON u.client_uid = k.client_uid
@@ -664,7 +642,7 @@ func (b *Bot) topBossKills(limit int, tier string) []bossKillRow {
 			  LIMIT $1`, limit, tier)
 	} else {
 		rows, err = b.DB.Query(
-			`SELECT COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
+			`SELECT k.client_uid, COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
 			        k.boss_name, k.depth, k.kill_time_ms, k.killed_at
 			   FROM abyss_boss_kills k
 			   LEFT JOIN users u ON u.client_uid = k.client_uid
@@ -680,7 +658,7 @@ func (b *Bot) topBossKills(limit int, tier string) []bossKillRow {
 	for rows.Next() {
 		var r bossKillRow
 		var t time.Time
-		if err := rows.Scan(&r.Nickname, &r.BossName, &r.Depth, &r.KillTimeMs, &t); err == nil {
+		if err := rows.Scan(&r.UID, &r.Nickname, &r.BossName, &r.Depth, &r.KillTimeMs, &t); err == nil {
 			r.Rank = rank
 			r.KilledAt = t.Format("2006-01-02 15:04")
 			out = append(out, r)
@@ -701,6 +679,23 @@ func (b *Bot) abyssLeaderboards(tier string) abyssBoards {
 		Hardcore:  b.topHardcoreDescents(tier, top),
 		BossKills: b.topBossKills(top, tier),
 	}
+}
+
+func (b *Bot) abyssLeaderboardsForUID(tier, uid string) abyssBoards {
+	boards := b.abyssLeaderboards(tier)
+	markRows := func(rows []abyssRow) {
+		for i := range rows {
+			rows[i].IsCurrent = rows[i].UID == uid
+		}
+	}
+	markRows(boards.Day)
+	markRows(boards.Season)
+	markRows(boards.AllTime)
+	markRows(boards.Hardcore)
+	for i := range boards.BossKills {
+		boards.BossKills[i].IsCurrent = boards.BossKills[i].UID == uid
+	}
+	return boards
 }
 
 // ---- Mob escalation & zone flavour ---------------------------------------
@@ -1370,38 +1365,5 @@ func (b *Bot) loadUnlockedLore(uid string) []int {
 		}
 	}
 	return out
-}
-
-type abyssBestiaryRow struct {
-	MobName string
-	Kills   int
-}
-
-func (b *Bot) loadAbyssBestiary(uid string) []abyssBestiaryRow {
-	rows, err := b.DB.Query("SELECT mob_name, kills FROM abyss_bestiary WHERE client_uid = $1 ORDER BY kills DESC", uid)
-	if err != nil {
-		return nil
-	}
-	defer func() { _ = rows.Close() }()
-	var out []abyssBestiaryRow
-	for rows.Next() {
-		var r abyssBestiaryRow
-		if err := rows.Scan(&r.MobName, &r.Kills); err == nil {
-			out = append(out, r)
-		}
-	}
-	return out
-}
-
-func (b *Bot) recordAbyssKills(uid string, mobNames []string) {
-	for _, name := range mobNames {
-		_, _ = b.DB.Exec(
-			`INSERT INTO abyss_bestiary (client_uid, mob_name, kills, first_kill_at)
-			 VALUES ($1, $2, 1, NOW())
-			 ON CONFLICT (client_uid, mob_name)
-			 DO UPDATE SET kills = abyss_bestiary.kills + 1`,
-			uid, name,
-		)
-	}
 }
 

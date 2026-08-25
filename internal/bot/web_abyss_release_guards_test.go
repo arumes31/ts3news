@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
 	"testing"
 
 	"ts3news/internal/i18n"
@@ -68,8 +69,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "a4e15ee894d93d57f836659ef937e99e16149e77f742a7c9b961d003d3e8e11d"},
-		{name: "active_run", active: true, want: "8ccb2706020b8ca877cdc472d58f749292cde3932e712a19b1b35f9059a1d837"},
+		{name: "threshold", want: "51e900f5aaf49dd0dfadc54cb45e392ced3c2cd707c275e0b3aeaefb023f014a"},
+		{name: "active_run", active: true, want: "617dbd4aed770fe688a3721c49deb5ceb825eb120de6bcac1e09e7513ec3e70a"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -93,6 +94,32 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 	}
 }
 
+func TestAbyssHistoryLootEscapesMarkup(t *testing.T) {
+	if err := i18n.InitWithLocale(i18n.LocaleEnUS); err != nil {
+		t.Fatalf("initialize locale bundle: %v", err)
+	}
+	server, err := NewWebServer(nil)
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	fixture := abyssGoldenFixture(false)
+	fixture["History"] = []abyssHistoryRow{{
+		Depth: 4, Tier: "normal", LootCount: 1,
+		Loot: []string{`<img src=x onerror="alert(1)">`},
+	}}
+	var rendered bytes.Buffer
+	if err := server.tmpl.ExecuteTemplate(&rendered, "abyss", fixture); err != nil {
+		t.Fatalf("render Abyss fixture: %v", err)
+	}
+	page := rendered.String()
+	if strings.Contains(page, `<img src=x onerror="alert(1)">`) {
+		t.Fatal("history loot rendered as executable markup")
+	}
+	if !strings.Contains(page, `&lt;img src=x onerror=&#34;alert(1)&#34;&gt;`) {
+		t.Fatal("escaped history loot label not found")
+	}
+}
+
 func abyssGoldenFixture(active bool) map[string]any {
 	stats := abyssStats{BestDepth: 57, Tokens: 42, LifetimeFloors: 321, LifetimeBanked: 654321}
 	run := abyssRun{Tier: "normal", FloorType: "combat"}
@@ -112,8 +139,8 @@ func abyssGoldenFixture(active bool) map[string]any {
 		},
 		"Stats": stats, "Run": run, "RegenPerSec": 0.0, "AutoFocus": "balanced",
 		"Tiers": abyssTierList(stats.BestDepth), "Leaders": abyssBoards{}, "Season": "S1",
-		"History": []any{}, "Achieved": []string{}, "BadgeOptions": []any{},
-		"ActiveBadge": "", "ActiveBadgeName": "", "LoreList": []any{},
+		"History": []any{}, "Achievements": []abyssAchievementView{}, "BadgeOptions": []any{},
+		"ActiveBadge": "", "ActiveBadgeName": "", "LoreList": []any{}, "LoreTotal": len(abyssLoreFragments),
 		"Bestiary": []any{}, "Consumables": []any{}, "DailyMod": "",
 		"CommunityExpedition": map[string]any{"Week": "2026-W35", "Floors": 0, "Target": 1000},
 		"Helpers": []any{}, "NextIsBoss": false, "AbyssSetPieces": 0, "AbyssSetTier": 0,

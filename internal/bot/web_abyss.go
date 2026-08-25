@@ -1060,10 +1060,13 @@ func (b *Bot) fightAbyssFloorLive(
 	}
 
 	// Record kills in Bestiary — use CurrentHP (live value) not Stats.HP (base max)
-	var killedMobs []string
+	var killedMobs []abyssBestiaryKill
 	for _, m := range mobPtrs {
 		if m.CurrentHP <= 0 && m.Type != content.MobTreasureGoblin && !abyssEnemyHazard(m) {
-			killedMobs = append(killedMobs, m.Name)
+			killedMobs = append(killedMobs, abyssBestiaryKill{
+				MobName: m.Name,
+				Family:  string(m.Type),
+			})
 		}
 	}
 	if len(killedMobs) > 0 {
@@ -1349,8 +1352,11 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		activeBadgeName = abyssAchievementName(activeBadge)
 	}
 	badgeOptions := []map[string]string{}
-	for _, code := range s.bot.abyssAchievementCodes(uid) {
-		badgeOptions = append(badgeOptions, map[string]string{"Code": code, "Name": abyssAchievementName(code)})
+	achievementViews := s.bot.abyssAchievementViews(uid)
+	for _, achievement := range achievementViews {
+		if achievement.Earned {
+			badgeOptions = append(badgeOptions, map[string]string{"Code": achievement.Code, "Name": achievement.Name})
+		}
 	}
 
 	dropStreakBonusPct := dropStreak * 2
@@ -1405,14 +1411,15 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"FocusPreference":    abyssFocusPreference(runFlags),
 		"HUD":                hudState,
 		"Tiers":              abyssTierList(st.BestDepth),
-		"Leaders":            s.bot.abyssLeaderboards(lbTier),
+		"Leaders":            s.bot.abyssLeaderboardsForUID(lbTier, uid),
 		"Season":             abyssSeasonLabel(),
 		"History":            s.bot.abyssHistory(uid, 8),
-		"Achieved":           s.bot.abyssAchievements(uid),
+		"Achievements":       achievementViews,
 		"BadgeOptions":       badgeOptions,
 		"ActiveBadge":        activeBadge,
 		"ActiveBadgeName":    activeBadgeName,
 		"LoreList":           loreList,
+		"LoreTotal":          len(abyssLoreFragments),
 		"Bestiary":           s.bot.loadAbyssBestiary(uid),
 		"Consumables":        s.bot.getConsumables(uid),
 		"DailyMod":           dailyMod,
@@ -3166,7 +3173,11 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		}
 
 		if _, err := tx.Exec(
-			"INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore) VALUES ($1,$2,$3,TRUE,$4,$5)",
+			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary)
+			 SELECT $1,$2,$3,TRUE,$4,$5,
+			   (SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1),
+			   COALESCE((SELECT jsonb_agg(label ORDER BY id) FROM
+			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb)`,
 			uid, run.Depth, payout, run.Tier, hardcore); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
