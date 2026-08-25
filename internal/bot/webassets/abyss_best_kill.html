@@ -1,0 +1,42 @@
+{{define "abyssBestKill"}}{{with .BestKill}}{{if .Available}}
+<section class="ab-best-kill" id="abyssBestKill" aria-labelledby="bestKillTitle">
+  <div class="ab-best-kill-seal" aria-hidden="true"><span>♛</span><small>F{{.Depth}}</small></div>
+  <div class="ab-best-kill-copy">
+    <span class="ab-kicker">PERSONAL BOSS RECORD</span>
+    <h2 id="bestKillTitle">{{.Boss}}</h2>
+    <div class="ab-best-kill-stats">
+      <span><small>Depth</small><b>{{.Depth}}</b></span>
+      <span><small>Tier</small><b>{{.TierName}}</b></span>
+      <span><small>Clear</small><b>{{.KillTime}}</b></span>
+      <span><small>Slain UTC</small><b>{{.KilledAt}}</b></span>
+    </div>
+    <small class="muted">Authoritative result · generated locally for sharing · public nickname only, no account ID.</small>
+  </div>
+  <div class="ab-best-kill-actions">
+    <button type="button" onclick="copyAbyssBestKillPNG()">🖼 Copy PNG</button>
+    <button type="button" class="ghost" onclick="copyAbyssBestKillText()">⧉ Copy text</button>
+  </div>
+</section>
+{{end}}{{end}}
+<script>
+(function(){
+  function cardData(){
+    var card=document.getElementById('abyssBestKill');if(!card)return null;
+    var stats=Array.prototype.map.call(card.querySelectorAll('.ab-best-kill-stats span'),function(node){return[(node.querySelector('small')||{}).textContent||'',(node.querySelector('b')||{}).textContent||''];});
+    return{boss:(card.querySelector('h2')||{}).textContent||'Boss',delver:String(window.pageNick||'Delver'),stats:stats};
+  }
+  function cardText(data){return'TS3 RPG · THE ABYSS\nPERSONAL BOSS RECORD\n'+data.delver+' · '+data.boss+'\n'+data.stats.map(function(row){return row[0]+': '+row[1];}).join('\n');}
+  function cardCanvas(data){
+    var canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');canvas.width=1200;canvas.height=630;
+    var bg=ctx.createLinearGradient(0,0,1200,630);bg.addColorStop(0,'#070d16');bg.addColorStop(.6,'#151321');bg.addColorStop(1,'#3b2414');ctx.fillStyle=bg;ctx.fillRect(0,0,1200,630);
+    ctx.strokeStyle='#d7a93b';ctx.lineWidth=8;ctx.strokeRect(28,28,1144,574);ctx.fillStyle='#d7a93b';ctx.font='700 26px system-ui';ctx.fillText('TS3 RPG · THE ABYSS',72,92);
+    ctx.fillStyle='#8fa2bb';ctx.font='700 22px system-ui';ctx.fillText('PERSONAL BOSS RECORD · '+data.delver.slice(0,28),72,143);ctx.fillStyle='#fff4d0';ctx.font='800 54px system-ui';ctx.fillText(data.boss.slice(0,34),72,215);
+    data.stats.forEach(function(row,index){var x=72+(index%2)*540,y=315+Math.floor(index/2)*105;ctx.fillStyle='#8fa2bb';ctx.font='20px system-ui';ctx.fillText(row[0].toUpperCase(),x,y);ctx.fillStyle='#fff';ctx.font='700 32px system-ui';ctx.fillText(row[1].slice(0,24),x,y+42);});
+    ctx.fillStyle='#6f829a';ctx.font='18px system-ui';ctx.fillText('Server-authoritative result · generated locally · no account ID',72,562);return canvas;
+  }
+  function download(blob){var link=document.createElement('a');link.download='abyss-best-kill.png';link.href=URL.createObjectURL(blob);link.click();setTimeout(function(){URL.revokeObjectURL(link.href);},1000);abToast('Best-kill card downloaded.',true);}
+  window.copyAbyssBestKillText=function(){var data=cardData();if(!data)return;if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(cardText(data)).then(function(){abToast('Best-kill summary copied.',true);},function(){window.prompt('Copy best-kill summary:',cardText(data));});else window.prompt('Copy best-kill summary:',cardText(data));};
+  window.copyAbyssBestKillPNG=function(){var data=cardData();if(!data)return;cardCanvas(data).toBlob(function(blob){if(!blob){abToast('Could not render the best-kill card.',false);return;}if(navigator.clipboard&&navigator.clipboard.write&&window.ClipboardItem)navigator.clipboard.write([new ClipboardItem({'image/png':blob})]).then(function(){abToast('Best-kill PNG copied.',true);},function(){download(blob);});else download(blob);},'image/png');};
+})();
+</script>
+{{end}}

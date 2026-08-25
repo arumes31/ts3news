@@ -1315,5 +1315,22 @@
       "internal/bot/web_abyss_boss_toll_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [222],
+    "production": [
+      "internal/bot/web_abyss_best_kill.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_best_kill.html",
+      "internal/bot/webassets/abyss_best_kill.css",
+      "internal/db/migrations/0090_abyss_best_kill_index.up.sql",
+      "internal/db/migrations/0090_abyss_best_kill_index.down.sql"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_best_kill_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

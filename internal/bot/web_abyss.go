@@ -1506,6 +1506,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"BossContract":        bossContract,
 		"BossAffinity":        bossAffinity,
 		"BossToll":            bossToll,
+		"BestKill":            s.bot.abyssBestKill(uid),
 		"DropForecast":        dropForecast,
 		"DropForecastOK":      dropForecastOK,
 		"DeferredEvent":       s.bot.abyssDeferredEventView(uid, run),
