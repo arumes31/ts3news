@@ -194,6 +194,8 @@ func TestAbyssCoreRiskAssetsAndTabs(t *testing.T) {
 		`abyssInterestMarker`,
 		`updateAbyssReviveRisk`,
 		`id="hybridMode"`,
+		`state.cold_muscles_floors`,
+		`state.defensive_momentum`,
 		`data-abyss-section="shop"`,
 		`data-abyss-section="forge"`,
 		`{key:'shop',label:'🜲 Shop'}`,

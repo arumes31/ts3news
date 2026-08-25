@@ -46,6 +46,9 @@
     if(state.anchor_rune){host.appendChild(chip('⚓','Half-cache anchor armed','good'));active++;}
     if(state.low_hp){host.appendChild(chip('🫀','Frantic bank fee · −'+state.frantic_fee_pct+'% cache','danger'));active++;}
     if(state.echo_seed){host.appendChild(chip('↩️','Next-run echo '+fmtGold(state.echo_seed),'good'));active++;}
+    if(state.cold_muscles_floors){host.appendChild(chip('🥶','Cold muscles · −10% stats · '+state.cold_muscles_floors+' floor'+(state.cold_muscles_floors===1?'':'s'),'warn'));active++;}
+    if(state.defensive_momentum){host.appendChild(chip('🛡️','Untouched ×'+state.defensive_momentum+' · +'+Math.min(20,state.defensive_momentum*2)+'% DEF','good'));active++;}
+    if(state.raffle_pot){host.appendChild(chip('🎟️','Daily raffle '+fmtGold(state.raffle_pot),'good'));active++;}
     if(state.revive_streak){host.appendChild(chip('🎲','Revive '+state.revive_chance_pct+'% · pity ×'+state.revive_streak,'good'));active++;}
     if(state.hybrid){host.appendChild(chip('🌀','Hybrid · '+((Number(curDepth)||0)%5===4?'next floor surges':'surge every 5th floor'),'warn'));active++;}
     if(state.perfect_run){host.appendChild(chip('✨','Perfect run intact','good'));active++;}

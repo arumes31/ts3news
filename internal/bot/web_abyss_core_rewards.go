@@ -42,6 +42,8 @@ type abyssCoreLoopView struct {
 	ReviveStreak           int   `json:"revive_streak"`
 	ReviveChancePct        int   `json:"revive_chance_pct"`
 	Hybrid                 bool  `json:"hybrid"`
+	ColdMusclesFloors      int64 `json:"cold_muscles_floors"`
+	DefensiveMomentum      int64 `json:"defensive_momentum"`
 }
 
 func (b *Bot) abyssCoreLoopStatus(uid string, run abyssRun) abyssCoreLoopView {
@@ -68,6 +70,8 @@ func (b *Bot) abyssCoreLoopStatus(uid string, run abyssRun) abyssCoreLoopView {
 		RestShrinkTokens:       tokens,
 		RafflePot:              b.abyssRafflePot(),
 		Hybrid:                 flags[abyssRunFlagHybrid] == 1,
+		ColdMusclesFloors:      flags[abyssRunFlagColdMuscles],
+		DefensiveMomentum:      flags[abyssRunFlagDefensiveMomentum],
 	}
 	status.ReviveStreak = b.abyssReviveStreak(uid)
 	status.ReviveChancePct = abyssReviveOfferChancePct(status.ReviveStreak, stats.UpMercy)
