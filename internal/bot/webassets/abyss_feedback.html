@@ -1,0 +1,57 @@
+{{define "abyss-feedback"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var sessionExpiryOpen=false,resumeKey='abyss_session_resume_v1';
+  function humanError(message){
+    var raw=String(message||'failed'),messages={
+      db:"Couldn't save a confirmed result. Refresh state before trying again.",
+      'network error':'Connection interrupted — the action was not retried automatically.',
+      unauthenticated:'Your portal session expired. Sign in again to continue.',
+      combat:'Combat could not be resolved. Your run state was preserved.',
+      failed:'The action could not be completed.'
+    };
+    return messages[raw]||raw;
+  }
+  window.abyssHumanError=humanError;
+
+  function snapshotSession(){
+    var active=document.querySelector('.ab-tab[data-tab-key].active');
+    try{sessionStorage.setItem(resumeKey,JSON.stringify({at:Date.now(),path:location.pathname+location.search+location.hash,tab:active&&active.dataset.tabKey||'',scroll:window.scrollY||0}));}catch(_){}
+  }
+  function showSessionExpiry(){
+    if(sessionExpiryOpen)return;sessionExpiryOpen=true;snapshotSession();
+    if(typeof openModal!=='function'){setTimeout(showSessionExpiry,50);return;}
+    openModal('<h3>🔒 Session expired</h3><p>Your Abyss run remains server-authoritative. Sign in with your personal bot link, then return here; this tab and scroll position are saved.</p><div class="modal-actions"><button class="ghost" id="modalCancelBtn">Stay here</button><button id="modalOkBtn">Re-login</button></div>');
+    document.getElementById('modalCancelBtn').onclick=function(){sessionExpiryOpen=false;closeModal();};
+    document.getElementById('modalOkBtn').onclick=function(){location.assign('/denied');};
+  }
+  function restoreSessionView(){
+    var saved=null;try{saved=JSON.parse(sessionStorage.getItem(resumeKey)||'null');}catch(_){}
+    if(!saved||Date.now()-Number(saved.at)>60*60*1000)return;
+    setTimeout(function(){var tab=saved.tab&&document.querySelector('.ab-tab[data-tab-key="'+saved.tab+'"]');if(tab)tab.click();window.scrollTo({top:Number(saved.scroll)||0,behavior:'auto'});try{sessionStorage.removeItem(resumeKey);}catch(_){}},0);
+  }
+  window.handleAbyssSessionExpiry=showSessionExpiry;
+
+  var originalToast=window.abToast;
+  if(typeof originalToast==='function')window.abToast=function(message,ok,options){return originalToast(ok?message:humanError(message),ok,options);};
+
+  function enhanceNetworkBanner(){
+    var original=window.updateNetBanner;if(typeof original!=='function'||original._abFeedback)return;
+    var wrapped=function(){original.apply(this,arguments);var banner=document.getElementById('netBanner');if(!banner||!netDown)return;var check=document.createElement('button');check.type='button';check.className='ghost xs ab-network-check';check.textContent='Check now';check.onclick=function(){check.disabled=true;check.textContent='Checking…';fetch(location.pathname,{method:'HEAD',cache:'no-store'}).then(function(){setNetDown(false);abToast('📡 Connection restored. Your page state is intact.',true);},function(){check.disabled=false;check.textContent='Still offline · check again';});};banner.appendChild(check);};
+    wrapped._abFeedback=true;window.updateNetBanner=wrapped;if(netDown)wrapped();
+  }
+
+  function initResumeReminder(){
+    var hiddenAt=0;
+    document.addEventListener('visibilitychange',function(){
+      if(document.hidden){hiddenAt=Date.now();return;}
+      if(typeof inRun!=='undefined'&&inRun&&hiddenAt&&Date.now()-hiddenAt>=10*60*1000){var message='▶ Resume your run at floor '+curDepth+(downed?' — choose revive or concede.':' — descend or bank when ready.');setBanner(message,'good');abToast('Your Abyss run is ready at floor '+curDepth+'.',true,{ms:7000});}
+      hiddenAt=0;
+    });
+  }
+  restoreSessionView();initResumeReminder();enhanceNetworkBanner();
+  window.__abyssFeedback={humanError:humanError,snapshotSession:snapshotSession};
+})();
+</script>
+{{end}}

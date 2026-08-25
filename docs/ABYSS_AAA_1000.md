@@ -148,3 +148,14 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0484 / UX-84** — page-wide reduced-motion coverage including coins, vault, and numeric effects.
 - [x] **AAA-0485 / UX-85** — persisted Small, Medium, and Large combat-log text sizes.
 - [x] **AAA-0486 / UX-86** — opt-in, coarse-pointer haptics for downed and Legendary-or-better events.
+
+## Delivered tranche: feedback, errors, and recovery
+
+- [x] **AAA-0487 / UX-87** — human error messages plus safe connectivity rechecks without replaying ambiguous mutations.
+- [x] **AAA-0488 / UX-88** — optimistic loot-rule and reservation updates with authoritative rollback and stale-response protection.
+- [x] **AAA-0489 / UX-89** — clicked-button loading indicators delayed until an action exceeds 400 ms.
+- [x] **AAA-0490 / UX-90** — concede confirmation names exact cache, insured refund, and forfeited amount.
+- [x] **AAA-0491 / UX-91** — three-toast queue that preserves visible errors ahead of later successes.
+- [x] **AAA-0492 / UX-92** — ten-minute background-tab reminder with live floor and downed context.
+- [x] **AAA-0493 / UX-93** — persistent offline banner with browser-online and bounded HEAD-probe recovery.
+- [x] **AAA-0494 / UX-94** — HTTP 401 detection, re-login guidance, and same-tab workspace restoration.

@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_forge_experience.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_navigation.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_accessibility.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_feedback.css"}}">
 <div class="abyss-command-page" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
@@ -1220,7 +1221,8 @@ function abToast(m, ok, opts){
   opts = opts || {};
   var host = document.getElementById('abToastHost');
   if(!host){ return; }
-  if(m === 'db') m = "Couldn't save — nothing was charged. Retry?"; // UI-193
+  if(typeof abyssHumanError==='function')m=abyssHumanError(m);
+  else if(m === 'db') m = "Couldn't save — nothing was charged. Retry?"; // UI-193
   var t = document.createElement('div');
   t.className = 'toast2 ' + (ok ? 'good' : 'bad') + (opts.cls ? ' ' + opts.cls : '');
   t.setAttribute('data-ts', new Date().toLocaleTimeString()); // UI-132
@@ -1308,10 +1310,17 @@ window.addEventListener('online', function(){ setNetDown(false); });
 
 // Per-button spinner (UX-89): the clicked action button shows a spinner; the
 // existing global setBusy(false) clears it on every exit path.
-var lastActionBtn = null;
+var lastActionBtn = null, lastActionBtnTimer = null;
+function markBusyElement(el){
+  if(!el)return;
+  if(lastActionBtnTimer)clearTimeout(lastActionBtnTimer);
+  if(lastActionBtn&&lastActionBtn!==el)lastActionBtn.classList.remove('btn-busy');
+  lastActionBtn=el;
+  lastActionBtnTimer=setTimeout(function(){lastActionBtnTimer=null;if(busy&&lastActionBtn===el)el.classList.add('btn-busy');},400);
+}
 function markBusyBtn(id){
   var el = document.getElementById(id);
-  if(el){ el.classList.add('btn-busy'); lastActionBtn = el; }
+  markBusyElement(el);
 }
 
 async function abRawPost(url, body, extraHeaders){
@@ -1321,7 +1330,11 @@ async function abRawPost(url, body, extraHeaders){
 	var headers={'Content-Type':'application/json'};
 	Object.keys(extraHeaders||{}).forEach(function(key){headers[key]=extraHeaders[key];});
     const r=await fetch(url,{method:'POST',headers:headers,body:JSON.stringify(body||{})});
-    try{ return await r.json(); }
+    try{
+      var data=await r.json();
+      if((r.status===401||data&&data.error==='unauthenticated')&&typeof handleAbyssSessionExpiry==='function')handleAbyssSessionExpiry();
+      return data;
+    }
     catch(e){ return {ok:false, error:'server error ('+r.status+')'}; }
   }catch(e){
     netFailed++; // UI-145
@@ -1371,7 +1384,8 @@ async function abyssPractice(name){
 
 function setBusy(b){
   busy=b;['btnEnter','btnDescend','btnBank','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
-  if(!b && lastActionBtn){ lastActionBtn.classList.remove('btn-busy'); lastActionBtn=null; }
+  if(b&&!lastActionBtn&&document.activeElement&&document.activeElement.tagName==='BUTTON')markBusyElement(document.activeElement);
+  if(!b){if(lastActionBtnTimer){clearTimeout(lastActionBtnTimer);lastActionBtnTimer=null;}if(lastActionBtn){lastActionBtn.classList.remove('btn-busy');lastActionBtn=null;}}
   if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
 }
 function show(id, on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none';}
@@ -3117,7 +3131,8 @@ async function abyssRevive(){
 
 async function abyssConcede(){
   if(busy)return;
-  if(!(await confirmModalDangerous('Concede and lose your '+fmtGold(curEscrow)+' cache?',{title:'Concede',okLabel:'Concede'})))return; // UI-135: 3s arm delay
+  var insuredRefund=Math.floor(curEscrow*Math.max(0,Math.min(100,curInsured))/100),forfeited=curEscrow-insuredRefund;
+  if(!(await confirmModalDangerous('Concede on floor '+curDepth+'? Cache at stake: '+fmtGold(curEscrow)+'. Insurance returns '+fmtGold(insuredRefund)+'; '+fmtGold(forfeited)+' is forfeited and the run ends.',{title:'Concede',okLabel:'Concede'})))return; // UI-135: 3s arm delay
   setBusy(true); markBusyBtn('btnConcede'); clearBanner();
   var d=await abPost('/api/abyss/concede');
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
@@ -4636,7 +4651,7 @@ try{ lootSort=localStorage.getItem('ab_lootsort')||'floor'; }catch(e){}
 var isSortingLoot=false;
 var lootSortObserver=null;
 var lootSortFrame=0;
-var abyssReservedLoot={};
+var abyssReservedLoot={},abyssLootSettingsRevision=0;
 function scheduleLootSort(){
   if(lootSortFrame)return;
   lootSortFrame=requestAnimationFrame(function(){lootSortFrame=0;applyLootSort();});
@@ -4648,22 +4663,30 @@ async function initAbyssLootSettings(){
     if(!data.ok)return;
     var settings=data.settings||{};
     var target=document.getElementById('lootTarget'), salvage=document.getElementById('autoSalvage');
-    if(target)target.value=settings.target_category||'';
-    if(salvage)salvage.value=String(settings.auto_salvage_max===undefined?-1:settings.auto_salvage_max);
+    var loaded={targetCategory:settings.target_category||'',autoSalvageMax:String(settings.auto_salvage_max===undefined?-1:settings.auto_salvage_max)};
+    if(abyssLootSettingsRevision===0){if(target)target.value=loaded.targetCategory;if(salvage)salvage.value=loaded.autoSalvageMax;abyssSavedLootSettings=loaded;}
     abyssReservedLoot={};(data.reserved_ids||[]).forEach(function(id){abyssReservedLoot[String(id)]=true;});
     buildBackpackPanel();
   }catch(e){}
 }
+var abyssSavedLootSettings={targetCategory:'',autoSalvageMax:'-1'};
 async function saveAbyssLootSettings(){
   var target=document.getElementById('lootTarget'), salvage=document.getElementById('autoSalvage');
-  var data=await abPost('/api/abyss/loot/settings',{target_category:target?target.value:'',auto_salvage_max:salvage?parseInt(salvage.value,10):-1});
-  abToast(data.ok?'Loot rules saved.':(data.error||'Could not save loot rules.'),!!data.ok);
+  var next={targetCategory:target?target.value:'',autoSalvageMax:salvage?salvage.value:'-1'},previous=Object.assign({},abyssSavedLootSettings),revision=++abyssLootSettingsRevision;
+  var request={target_category:next.targetCategory,auto_salvage_max:parseInt(next.autoSalvageMax,10)},data=await abPost('/api/abyss/loot/settings',request);
+  if(revision!==abyssLootSettingsRevision)return;
+  if(!data.ok){if(target)target.value=previous.targetCategory;if(salvage)salvage.value=previous.autoSalvageMax;abToast(data.error||'Could not save loot rules.',false);return;}
+  abyssSavedLootSettings=next;abToast('Loot rules saved.',true);
 }
 async function toggleAbyssLootReserve(invID,button){
+  var key=String(invID),previous=!!abyssReservedLoot[key],optimistic=!previous;
+  if(optimistic)abyssReservedLoot[key]=true;else delete abyssReservedLoot[key];
+  if(button){button.disabled=true;button.textContent=optimistic?'★':'☆';button.title=optimistic?'Reserved from bulk salvage':'Reserve from bulk salvage';button.setAttribute('aria-pressed',optimistic?'true':'false');}
   var data=await abPost('/api/abyss/loot/reserve',{inv_id:invID});
-  if(!data.ok){abToast(data.error||'Could not reserve item.',false);return;}
-  if(data.reserved)abyssReservedLoot[String(invID)]=true;else delete abyssReservedLoot[String(invID)];
-  if(button){button.textContent=data.reserved?'★':'☆';button.title=data.reserved?'Reserved from bulk salvage':'Reserve from bulk salvage';}
+  if(button)button.disabled=false;
+  if(!data.ok){if(previous)abyssReservedLoot[key]=true;else delete abyssReservedLoot[key];if(button){button.textContent=previous?'★':'☆';button.title=previous?'Reserved from bulk salvage':'Reserve from bulk salvage';button.setAttribute('aria-pressed',previous?'true':'false');}abToast(data.error||'Could not reserve item.',false);return;}
+  if(data.reserved)abyssReservedLoot[key]=true;else delete abyssReservedLoot[key];
+  if(button){button.textContent=data.reserved?'★':'☆';button.title=data.reserved?'Reserved from bulk salvage':'Reserve from bulk salvage';button.setAttribute('aria-pressed',data.reserved?'true':'false');}
 }
 async function showAbyssMaterialFlow(){
   try{
@@ -6222,6 +6245,7 @@ function openAbSettings(){
 {{template "abyss-forge-experience" .}}
 {{template "abyss-navigation" .}}
 {{template "abyss-accessibility" .}}
+{{template "abyss-feedback" .}}
 {{template "abyssAAARuntime" .}}
 <script data-cfasync="false">
 window.buildAbyssTabs();

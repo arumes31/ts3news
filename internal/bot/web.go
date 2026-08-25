@@ -224,6 +224,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_accessibility.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_accessibility.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_feedback.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_feedback.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_combat_sprites.png", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_combat_sprites.png", "image/png")
 	})
@@ -557,12 +560,12 @@ func (s *WebServer) authAPI(h func(http.ResponseWriter, *http.Request, string)) 
 	return func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(sessionCookie)
 		if err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "unauthenticated"})
+			writeJSONStatus(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "unauthenticated"})
 			return
 		}
 		uid, ok := s.uidForToken(c.Value)
 		if !ok {
-			writeJSON(w, map[string]any{"ok": false, "error": "unauthenticated"})
+			writeJSONStatus(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "unauthenticated"})
 			return
 		}
 		h(w, r, uid)

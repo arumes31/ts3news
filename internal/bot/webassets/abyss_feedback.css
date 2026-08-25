@@ -1,0 +1,8 @@
+.ab-network-check {
+  margin-left: .65rem;
+  min-height: 32px;
+  vertical-align: middle;
+}
+@media (pointer: coarse) { .ab-network-check { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .ab-network-check { transition: none; } }
+@media (forced-colors: active) { .ab-network-check { border: 2px solid ButtonText; } }
