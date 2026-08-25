@@ -48,8 +48,8 @@ func TestGetPetsAppliesBothPetGearSlots(t *testing.T) {
 		return string(data)
 	}
 	mock.ExpectQuery("SELECT p.name,p.mob_type").WithArgs("keeper").WillReturnRows(
-		sqlmock.NewRows([]string{"name", "mob_type", "level", "hp", "max_hp", "str", "def", "spd", "loyalty"}).
-			AddRow("Mossling", string(content.MobCommon), 5, 40, 100, 10, 4, 8, 100),
+		sqlmock.NewRows([]string{"name", "mob_type", "level", "hp", "max_hp", "str", "def", "spd", "loyalty", "autoskills"}).
+			AddRow("Mossling", string(content.MobCommon), 5, 40, 100, 10, 4, 8, 100, `{}`),
 	)
 	mock.ExpectQuery("SELECT slot, gear_id, item_data FROM user_gear").WithArgs("keeper").WillReturnRows(
 		sqlmock.NewRows([]string{"slot", "gear_id", "item_data"}).
@@ -61,7 +61,7 @@ func TestGetPetsAppliesBothPetGearSlots(t *testing.T) {
 		t.Fatalf("pets = %#v", pets)
 	}
 	pet := pets[0]
-	if pet.Stats.HP != 40 || pet.MaxHP != 125 || pet.Stats.STR != 112 || pet.Stats.DEF != 14 {
+	if pet.Stats.HP != 40 || pet.MaxHP != 125 || pet.Stats.STR != 117 || pet.Stats.DEF != 14 || pet.PetClass != "support" {
 		t.Fatalf("geared pet = %#v", pet)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {

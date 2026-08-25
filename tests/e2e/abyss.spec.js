@@ -116,3 +116,72 @@ test('a fatal descend exposes the revive and concede decision', async ({ page })
   await expect(page.locator('#btnRevive')).toBeVisible();
   await expect(page.locator('#btnConcede')).toBeVisible();
 });
+
+test('planned multi-floor descent presents every combat floor in order', async ({ page }) => {
+  await fulfillAbyssAPI(page, path => path.endsWith('/descend_multi') ? {
+    ok: true, victory: true, depth: 15, risk: 20, hp: 760, max_hp: 1000,
+    gold: 5000, tokens: 12, bonus: 900, escrow: 4650, logs: [], loot: [],
+    dura: [], timeline: [], consumables: [], run_floors_cleared: 5,
+    floor_results: [13, 14, 15].map((depth, index) => ({
+      depth, victory: true, hp: 920 - index * 80, max_hp: 1000,
+      logs: [`Floor ${depth} test combat`], loot: [], dura: [], timeline: [],
+    })),
+  } : { ok: false, error: 'unexpected e2e request' });
+  await page.goto('/abyss?active=1');
+  await page.evaluate(() => {
+    window.reduceMotion = true;
+    window.__batchFloors = [];
+    document.addEventListener('abyss:batch-floor', event => window.__batchFloors.push(event.detail.depth));
+  });
+  await page.locator('#btnDescendMulti').click();
+  await expect.poll(() => page.evaluate(() => window.__batchFloors)).toEqual([13, 14, 15]);
+  await expect(page.locator('#abStatus')).toContainText('survived');
+});
+
+test('crowded live combat can target an ordinary enemy', async ({ page }) => {
+  let submittedTarget = '';
+  await fulfillAbyssAPI(page, (path, body) => {
+    if (path.endsWith('/combat/action')) {
+      submittedTarget = body.target_id;
+      return { ok: false, error: 'e2e receipt complete' };
+    }
+    return { ok: false, error: 'unexpected e2e request' };
+  });
+  await page.goto('/abyss?active=1');
+  await page.evaluate(() => {
+    window.reduceMotion = true;
+    const enemies = Array.from({ length: 7 }, (_, index) => ({
+      id: `enemy:${index}`, name: `Raider ${index}`, hp: 100, max_hp: 100,
+      role: 'common', speed: 10 + index, effects: [],
+    }));
+    window.renderLiveCombat({
+      ok: true, session_id: 'e2e-live', phase: 'planning', round: 1,
+      deadline: new Date(Date.now() + 60000).toISOString(), tactic: 'balanced',
+      policy: {}, allies: [{ id: 'ally:e2e', name: 'Tester', hp: 900, max_hp: 1000, mana: 100, max_mana: 100, is_self: true, is_player: true }],
+      enemies, options: [
+        { kind: 'attack', id: '', name: 'Basic Attack', target: 'enemy', cooldown: 0 },
+        { kind: 'skill', id: 'S_E2E_A', name: 'Fiery Blast', target: 'enemy', mana: 5, cooldown: 0 },
+        { kind: 'skill', id: 'S_E2E_B', name: 'Fiery Blast', target: 'enemy', mana: 5, cooldown: 0 },
+      ],
+      recent_logs: [], initiative: [], enemy_intents: [], social: {},
+    });
+    document.querySelector('#lootManifest').innerHTML = '<div class="abyss-side-loot" data-loot-id="42" data-gear-id="ABYSS_TEST" data-slot="MainHand" data-tip="Test Blade"><span class="ab-loot-main"><span>Test Blade</span></span></div>';
+    window.updateLootRewardPresentation();
+  });
+  const ordinary = page.locator('#livePixelEnemies [data-target="enemy:5"]');
+  await expect(ordinary).toBeVisible();
+  const enemySide = await page.locator('#livePixelEnemies').boundingBox();
+  const allySide = await page.locator('#livePixelAllies').boundingBox();
+  expect(enemySide.x).toBeLessThan(allySide.x);
+  await expect(ordinary.locator('.ab-expanded-enemy-sprite')).toHaveCSS('background-image', /abyss_enemy_atlas_expanded/);
+  const monsterSignatures = await page.locator('#livePixelEnemies .ab-actor-sigil').evaluateAll(nodes => nodes.map(node => node.dataset.artSignature));
+  expect(new Set(monsterSignatures).size).toBe(7);
+  await ordinary.click();
+  await expect(page.locator('#liveQueue')).toContainText('TARGET · Raider 5');
+  await expect(page.locator('#liveActionBar .kind-attack .ab-expanded-icon')).toHaveCSS('background-image', /abyss_icon_atlas_expanded/);
+  const skillSignatures = await page.locator('#liveActionBar .kind-skill .ab-art-unique').evaluateAll(nodes => nodes.map(node => node.dataset.artSignature));
+  expect(new Set(skillSignatures).size).toBe(2);
+  await expect(page.locator('#lootManifest .ab-loot-pixel.ab-art-unique')).toHaveCount(1);
+  await page.locator('#liveActionBar .kind-attack').click();
+  await expect.poll(() => submittedTarget).toBe('enemy:5');
+});

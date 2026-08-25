@@ -883,13 +883,13 @@ func buildAbyssTree() *AbyssTreeData {
 			{"Time Dilation", map[string]float64{"ult_cooldown": 0.08}}, {"Haste Field", map[string]float64{"spd_pct": 0.06}}, {"Temporal Study", map[string]float64{"xp_gain": 0.05}}, {"Rewind", map[string]float64{"ult_cooldown": 0.10}}, {"Quicken", map[string]float64{"spd_pct": 0.08}}, {"Foresight", map[string]float64{"loot_find": 0.05}}, {"Stasis Ward", map[string]float64{"hp_pct": 0.06}}, {"Eternity's Edge", map[string]float64{"ult_cooldown": 0.12}},
 		}},
 		{"💀 Necromancy", []mechSpec{
-			{"Raise Thrall", map[string]float64{"pet_damage_pct": 0.12}}, {"Life Siphon", map[string]float64{"def_to_lifesteal": 0.006}}, {"Bone Armor", map[string]float64{"def_pct": 0.10}}, {"Soul Harvest", map[string]float64{"hp_pct": 0.06}}, {"Undying Servant", map[string]float64{"pet_betrayal_reduce": 0.03}}, {"Grave Bond", map[string]float64{"pet_damage_pct": 0.15}}, {"Death's Embrace", map[string]float64{"def_to_lifesteal": 0.008}}, {"Lich's Ascension", map[string]float64{"hp_pct": 0.08}},
+			{"Raise Thrall", map[string]float64{"pet_damage_pct": 0.12}}, {"Life Siphon", map[string]float64{"def_to_lifesteal": 0.006}}, {"Bone Armor", map[string]float64{"def_pct": 0.10}}, {"Soul Harvest", map[string]float64{"hp_pct": 0.06}}, {"Undying Servant", map[string]float64{"pet_betrayal_reduce": 0.03, "pet_cap": 1}}, {"Grave Bond", map[string]float64{"pet_damage_pct": 0.15}}, {"Death's Embrace", map[string]float64{"def_to_lifesteal": 0.008}}, {"Lich's Ascension", map[string]float64{"hp_pct": 0.08}},
 		}},
 		{"🧪 Alchemy", []mechSpec{
 			{"Transmute", map[string]float64{"gold_find": 0.06}}, {"Distillation", map[string]float64{"material_yield": 0.06}}, {"Philosopher's Stone", map[string]float64{"gold_find": 0.08}}, {"Elixir Craft", map[string]float64{"hp_regen": 0.05}}, {"Reagent Cache", map[string]float64{"material_yield": 0.08}}, {"Alchemical Insight", map[string]float64{"xp_gain": 0.05}}, {"Golden Formula", map[string]float64{"gold_find": 0.10}}, {"Panacea", map[string]float64{"hp_regen": 0.08}},
 		}},
 		{"🐾 Beastmastery", []mechSpec{
-			{"Wild Empathy", map[string]float64{"pet_damage_pct": 0.12}}, {"Tame Beast", map[string]float64{"pet_betrayal_reduce": 0.04}}, {"Pack Tactics", map[string]float64{"pet_damage_pct": 0.15}}, {"Feral Strength", map[string]float64{"str_pct": 0.06}}, {"Primal Bond", map[string]float64{"pet_damage_pct": 0.18}}, {"Beast Within", map[string]float64{"str_pct": 0.08}}, {"Alpha Instinct", map[string]float64{"pet_betrayal_reduce": 0.05}}, {"Kingdom of Beasts", map[string]float64{"pet_damage_pct": 0.20}},
+			{"Wild Empathy", map[string]float64{"pet_damage_pct": 0.12}}, {"Tame Beast", map[string]float64{"pet_betrayal_reduce": 0.04}}, {"Pack Tactics", map[string]float64{"pet_damage_pct": 0.15}}, {"Feral Strength", map[string]float64{"str_pct": 0.06}}, {"Primal Bond", map[string]float64{"pet_damage_pct": 0.18}}, {"Beast Within", map[string]float64{"str_pct": 0.08}}, {"Alpha Instinct", map[string]float64{"pet_betrayal_reduce": 0.05}}, {"Kingdom of Beasts", map[string]float64{"pet_damage_pct": 0.20, "pet_cap": 1}},
 		}},
 		{"📜 Runecraft", []mechSpec{
 			{"Rune of Power", map[string]float64{"skill_damage": 0.06}}, {"Glyph of Focus", map[string]float64{"int_pct": 0.06}}, {"Sigil of Ruin", map[string]float64{"ult_damage": 0.06}}, {"Runic Overflow", map[string]float64{"skill_damage": 0.08}}, {"Arcane Etching", map[string]float64{"int_pct": 0.08}}, {"Warding Rune", map[string]float64{"def_pct": 0.10}}, {"Cataclysm Glyph", map[string]float64{"ult_damage": 0.08}}, {"Master Runesmith", map[string]float64{"skill_damage": 0.10}},
@@ -1384,6 +1384,8 @@ func treePctLabel(k string) string {
 		return "pet betrayal reduction"
 	case "pet_damage_pct":
 		return "pet attack damage"
+	case "pet_cap":
+		return "companion stable capacity"
 	case "stun_immunity":
 		return "Stun Immunity"
 	case "limit_break":

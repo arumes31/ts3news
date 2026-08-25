@@ -241,8 +241,12 @@ func TestAbyssPixelCombatTemplates(t *testing.T) {
 		{name: "bestiary classifier", source: string(pixel), want: "function liveEnemyArt(unit)"},
 		{name: "deterministic fallback", source: string(pixel), want: "function liveNameHash(name)"},
 		{name: "enemy atlas", source: string(page), want: `{{asset "/static/abyss_enemy_atlas.png"}}`},
+		{name: "expanded enemy atlas", source: string(page), want: `{{asset "/static/abyss_enemy_atlas_expanded.png"}}`},
+		{name: "expanded enemy fallback", source: string(pixel), want: "return {atlas:'expanded',cell:[fallback%8"},
 		{name: "boss tier", source: string(css), want: ".ab-pixel-unit.boss-tier"},
 		{name: "icon classifier", source: string(pixel), want: "function liveActionIconCell(option)"},
+		{name: "expanded icon atlas", source: string(page), want: `{{asset "/static/abyss_icon_atlas_expanded.png"}}`},
+		{name: "expanded action icon", source: string(live), want: "ab-pixel-icon ab-expanded-icon"},
 		{name: "reduced motion", source: string(css), want: "@media (prefers-reduced-motion: reduce)"},
 		{name: "feedback stylesheet", source: string(page), want: `{{asset "/static/abyss_combat_feedback.css"}}`},
 		{name: "feedback controls", source: string(live), want: `{{template "abyssCombatFeedbackControls" .}}`},
@@ -256,6 +260,28 @@ func TestAbyssPixelCombatTemplates(t *testing.T) {
 	for _, marker := range markers {
 		if !strings.Contains(marker.source, marker.want) {
 			t.Errorf("%s marker is missing", marker.name)
+		}
+	}
+}
+
+func TestAbyssExpandedPixelAtlasesAreSquare(t *testing.T) {
+	for _, name := range []string{
+		"webassets/abyss_icon_atlas_expanded.png",
+		"webassets/abyss_enemy_atlas_expanded.png",
+	} {
+		asset, err := webAssets.ReadFile(name)
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		config, _, err := image.DecodeConfig(bytes.NewReader(asset))
+		if err != nil {
+			t.Fatalf("decode %s: %v", name, err)
+		}
+		if config.Width != config.Height || config.Width < 512 {
+			t.Errorf("%s dimensions = %dx%d, want square atlas of at least 512px", name, config.Width, config.Height)
+		}
+		if version := AssetVer(name); len(version) != 12 {
+			t.Errorf("%s asset version = %q, want 12 characters", name, version)
 		}
 	}
 }

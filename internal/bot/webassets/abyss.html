@@ -39,7 +39,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_secret_boss_chain.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_cosmetics.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_watcher_pressure.css"}}">
-<div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
+<div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-expanded-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas_expanded.png"}}');--ab-expanded-icon-atlas:url('{{asset "/static/abyss_icon_atlas_expanded.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
@@ -137,7 +137,7 @@
     <h3>⚔️ Armoury</h3>
     <div class="abyss-side-list">
       {{range .Equipped}}
-      <div class="abyss-side-gear" tabindex="0" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-stats="{{.StatsJSON}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+      <div class="abyss-side-gear" tabindex="0" data-slot="{{.Slot}}" data-art-key="item:{{.InvID}}:{{.ID}}:{{.Name}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-stats="{{.StatsJSON}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
         <span class="ab-pixel-icon ab-gear-pixel" aria-hidden="true"></span>
         <span class="ab-side-gear-name" style="color:{{.RarityColor}}">{{.Name}}</span>
         <span class="cr">CR {{printf "%.0f" .CR}}</span>
@@ -162,6 +162,7 @@
     <div class="ab-rest-embers" id="restEmbers" style="display:none"><i></i><i></i><i></i><i></i><i></i></div>
     <div class="ab-buffstrip" id="buffStrip"></div>
     <div class="ab-petbar" id="petBar" style="display:none">🐾 <span id="petName"></span><span class="ab-petbar-track" id="petHPBar" role="progressbar" aria-label="Pet health" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><span class="ab-petbar-fill" id="petFill"></span></span></div>
+    <div class="ab-combat-exchange" id="combatExchange" hidden aria-live="polite"><span class="enemy">HOSTILES</span><i>⚔</i><span class="player">DELVER</span><b id="combatExchangeLabel"></b></div>
   </div>
   <!-- Elevator shaft visual [85] -->
   <div class="ab-elevator" aria-hidden="true">
@@ -363,10 +364,10 @@
 
     <!-- Multi-floor queue planner (active run only) -->
     <div class="ab-focus-row" id="multiQueuePlanner" style="display:none; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
-      <span class="ab-sub-label">Plan next floors (3-10 paths):</span>
-      <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+      <span class="ab-sub-label">Plan next floors (3-20 paths):</span>
+      <div class="ab-path-queue-editor">
         <button class="ghost xs" id="btnQueueLess" onclick="removePathFromQueue()" aria-label="Remove one floor from the planned queue">−</button>
-        <div id="pathQueueContainer" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;"></div>
+        <div id="pathQueueContainer"></div>
         <button class="ghost xs" id="btnQueueMore" onclick="addPathToQueue()" aria-label="Add one floor to the planned queue">+</button>
       </div>
       <button class="primary xs" id="btnDescendMulti" onclick="abyssDescendMulti()" style="margin-top:10px;" aria-label="Descend through all planned floors in sequence">⚡ Plan &amp; Descend Queue</button>
@@ -382,6 +383,7 @@
       <button class="primary ab-laststand" id="btnLastStand" onclick="abyssLastStand()" style="display:none">🛡️ Last Stand (🜲 <span id="lsCost">{{.LastStandCost}}</span>)</button>
       <button class="ghost ab-concede" id="btnConcede" onclick="abyssConcede()" style="display:none">🏳️ Concede</button>
     </div>
+    <button class="ab-floating-descend" id="abyssFloatingDescend" type="button" hidden onclick="focusAbyssDescend()" aria-live="polite">↓ Descending…</button>
     {{template "abyssRunAwarenessBelt" .}}
 
     <div class="ab-subrow" id="liveRow" style="display:none">
@@ -1285,7 +1287,7 @@ var curEscrow = {{.Run.Escrow}};
 var curRisk = {{.Risk}};
 var floorType = {{if .Run.Active}}{{.Run.FloorType}}{{else}}"combat"{{end}};
 var eventState = {{if .Run.Active}}{{.Run.EventState}}{{else}}""{{end}};
-var busy = false;
+var busy = false, abyssDescendInFlight = false;
 var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 // Expansion 2 state
 var canLastStand = {{if .CanLastStand}}true{{else}}false{{end}};
@@ -1305,7 +1307,7 @@ var abyssIntelConcealed = {{.HUD.IntelConcealed}};
 if(abyssIntelConcealed)document.body.classList.add('ab-pact-blind');
 var focusPreference = '{{.FocusPreference}}', currentFocus = '{{.AutoFocus}}'; // UI-51
 var curInsured = {{.Run.Insured}}; // UI-43
-var logDelay = Math.max(30, 90 - 12 * {{.Stats.UpSwiftness}}); // Swiftness node (#154)
+var logDelay = Math.max(70, 150 - 10 * {{.Stats.UpSwiftness}}); // readable exchange cadence; Swiftness still accelerates it
 var pageConsumables = {{jsonJS .Consumables}} || [];
 var runFloorsCleared = {{.HUD.FloorsCleared}}, runLootGained = 0; // run summary card (#341)
 var liveCombatSource=null, liveCombatPoll=null, liveCombatState=null, liveLastEventID=-1;
@@ -1335,27 +1337,31 @@ async function abyssDeferredEventClaim(){
 }
 try{liveActionOrder=JSON.parse(localStorage.getItem('abyssLiveActionOrder')||'[]')||[];livePinnedActions=JSON.parse(localStorage.getItem('abyssLivePinnedActions')||'{}')||{};Object.assign(liveShortcutMap,JSON.parse(localStorage.getItem('abyssLiveShortcuts')||'{}')||{});}catch(e){}
 
-function abAtlasPosition(cell){
-  return (cell[0]*100/7)+'% '+(cell[1]*100/5)+'%';
-}
-function applyAbPixelIcon(element,cell){
-  if(element)element.style.backgroundPosition=abAtlasPosition(cell);
-}
-function abGearIconCell(slot){
+function abExpandedGearIconCell(slot){
   slot=String(slot||'').toLowerCase();
-  if(slot==='mainhand'||slot==='ranged')return [0,2];
-  if(slot==='offhand')return [1,2];
-  if(slot==='head')return [2,2];
-  if(slot==='chest'||slot==='shoulders')return [3,2];
-  if(slot==='hands'||slot==='wrists')return [4,2];
-  if(slot==='waist')return [5,2];
-  if(slot==='legs')return [6,2];
-  if(slot==='feet')return [7,2];
-  if(slot==='back')return [0,3];
-  if(slot.indexOf('finger')===0)return [1,3];
-  if(slot==='neck')return [2,3];
-  if(slot.indexOf('trinket')===0)return [3,3];
-  return [7,5];
+  if(slot==='mainhand')return [0,0];
+  if(slot==='ranged')return [3,0];
+  if(slot==='offhand')return [6,0];
+  if(slot==='head')return [0,1];
+  if(slot==='chest'||slot==='shoulders')return [1,1];
+  if(slot==='hands'||slot==='wrists')return [2,1];
+  if(slot==='feet'||slot==='legs')return [3,1];
+  if(slot==='waist')return [4,1];
+  if(slot==='back')return [5,1];
+  if(slot.indexOf('finger')===0)return [6,1];
+  if(slot==='neck'||slot.indexOf('trinket')===0)return [7,1];
+  return [7,6];
+}
+function applyAbUniquePixelIcon(element,cell,key){
+  if(!element)return;
+  element.classList.add('ab-expanded-icon','ab-art-unique');
+  element.style.backgroundPosition=liveExpandedSpritePosition(cell);
+  element.style.cssText+=';'+liveUniqueArtStyle(key);
+  element.dataset.artSignature=liveArtIdentity(key).signature;
+}
+function abUniquePixelIconHTML(cell,key,extraClass){
+  var identity=liveArtIdentity(key);
+  return '<span class="ab-pixel-icon ab-expanded-icon ab-art-unique '+(extraClass||'')+'" data-art-signature="'+identity.signature+'" style="background-position:'+liveExpandedSpritePosition(cell)+';'+liveUniqueArtStyle(key)+'" aria-hidden="true"></span>';
 }
 
 // Modern hover tooltip for the Armoury + run-loot panels. A single viewport-fixed
@@ -1379,7 +1385,7 @@ function abGearIconCell(slot){
   }
   function fill(host,txt){
     var lines=txt.split('\n'), card=ensure(), icon='';
-    if(host.classList.contains('abyss-side-gear'))icon='<span class="ab-pixel-icon ab-hovertip-icon" style="background-position:'+abAtlasPosition(abGearIconCell(host.dataset.slot))+'"></span>';
+    if(host.classList.contains('abyss-side-gear'))icon=abUniquePixelIconHTML(abExpandedGearIconCell(host.dataset.slot),host.dataset.artKey||host.dataset.tip,'ab-hovertip-icon');
     card.innerHTML='<div class="ab-hovertip-title">'+icon+'<strong>'+consEsc(lines.shift()||'')+'</strong></div>'+lines.map(function(line){
       return '<div>'+consEsc(line).replace(/(-\d+)/g,'<span class="ab-neg">$1</span>')+'</div>';
     }).join('');
@@ -1485,8 +1491,8 @@ function abToast(m, ok, opts){
 function lootToast(labelHTML, rarCls){
   var burst = (rarCls === 'rar-celestial' || rarCls === 'rar-eternal') ? ' ab-starburst' : '';
   var slot=/\[s:([A-Za-z0-9]+)\]/.exec((labelHTML||'').replace(/<[^>]*>/g,''));
-  var cell=abGearIconCell(slot?slot[1]:'');
-  var icon='<span class="ab-pixel-icon ab-loot-toast-icon" style="background-position:'+abAtlasPosition(cell)+'" aria-hidden="true"></span>';
+  var key='loot-toast:'+(labelHTML||'').replace(/<[^>]*>/g,'');
+  var icon=abUniquePixelIconHTML(abExpandedGearIconCell(slot?slot[1]:''),key,'ab-loot-toast-icon');
   abToast(labelHTML, true, {html: true, icon: icon, cls: 'loot ' + rarCls + burst, ms: 3600});
 }
 
@@ -1595,7 +1601,11 @@ async function abyssForgeCommit(url,body,operation){
 window.abyssForgeCommit=abyssForgeCommit;
 async function abPost(url,body){
   var operation=abyssForgeCommitOperations[url];
-  return operation?abyssForgeCommit(url,body,operation):abRawPost(url,body);
+  var actionElement=(lastActionBtn&&lastActionBtn.isConnected)?lastActionBtn:document.activeElement;
+  var returnAfterAction=!!(actionElement&&actionElement.closest&&actionElement.closest('[data-abyss-section="shop"],[data-abyss-section="forge"]'));
+  var result=operation?await abyssForgeCommit(url,body,operation):await abRawPost(url,body);
+  if(result&&result.ok&&returnAfterAction)setTimeout(function(){focusAbyssDescend();},180);
+  return result;
 }
 
 var practiceBossName='';
@@ -1613,9 +1623,11 @@ async function abyssPractice(name,tactic){
 function setBusy(b){
   busy=b;['btnEnter','btnDescend','btnBank','btnBank25','btnBank50','btnDoubleBonus','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
   if(b&&!lastActionBtn&&document.activeElement&&document.activeElement.tagName==='BUTTON')markBusyElement(document.activeElement);
-  if(!b){if(lastActionBtnTimer){clearTimeout(lastActionBtnTimer);lastActionBtnTimer=null;}if(lastActionBtn){lastActionBtn.classList.remove('btn-busy');lastActionBtn=null;}}
+  if(!b){if(lastActionBtnTimer){clearTimeout(lastActionBtnTimer);lastActionBtnTimer=null;}if(lastActionBtn){lastActionBtn.classList.remove('btn-busy');lastActionBtn=null;}abyssDescendInFlight=false;updateFloatingDescend();}
   if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
 }
+function updateFloatingDescend(label){var button=document.getElementById('abyssFloatingDescend');if(!button)return;button.hidden=!abyssDescendInFlight;if(label)button.textContent='↓ '+label;else if(abyssDescendInFlight)button.textContent='↓ Descending…';}
+function focusAbyssDescend(){var controls=document.getElementById('abyssControls'),button=document.getElementById('btnDescend');if(!controls||!inRun)return;controls.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'center'});setTimeout(function(){if(button&&button.offsetParent!==null)button.focus({preventScroll:true});},reduceMotion?0:350);}
 function show(id, on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none';}
 
 function renderState(){
@@ -2001,6 +2013,15 @@ function flashCombatDamage(amount,max){
   el.style.setProperty('--damage-alpha',String(Math.max(.22,Math.min(.9,amount/max*2.4))));
   el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
 }
+var combatExchangeTimer=0;
+function animateCombatExchange(f){
+  var side=String(f&&f.side||''),exchange=document.getElementById('combatExchange'),label=document.getElementById('combatExchangeLabel');
+  if(!exchange||!side||reduceMotion)return;
+  clearTimeout(combatExchangeTimer);exchange.hidden=false;exchange.classList.remove('player-turn','enemy-turn');void exchange.offsetWidth;
+  exchange.classList.add(side==='enemy'?'enemy-turn':'player-turn');
+  var actions=Math.max(1,Number(f.actions)||1);label.textContent=(side==='enemy'?'HOSTILE':'PLAYER')+' EXCHANGE'+(actions>1?' · ×'+actions:'');
+  combatExchangeTimer=setTimeout(function(){exchange.classList.remove('player-turn','enemy-turn');exchange.hidden=true;},760);
+}
 function applyCombatFrame(f){
   var hp=Number(f.hp)||0,max=Number(f.max_hp)||0;
   if(combatLastHP!==null&&hp<combatLastHP)flashCombatDamage(combatLastHP-hp,max);
@@ -2013,6 +2034,7 @@ function applyCombatFrame(f){
     if(enemyMax>0)boss.textContent='💀 '+fmtNum(enemy)+' / '+fmtNum(enemyMax)+' HP';
   }
   if(typeof updatePetCombatFrame==='function')updatePetCombatFrame(f);
+  animateCombatExchange(f);
   updateCombatRecorderFrame(f);
 }
 
@@ -2216,7 +2238,9 @@ function playLog(lines, loot, dura, timeline, result){
       updateCombatRecorderProgress(i,lines.length);
       applyFrames(i);
       followCombatLog();
-      setTimeout(step,combatRecorderDelay(logDelay)); // Swiftness baseline divided by the player's playback preference
+      var lineText=String(lines[i-1]||'').replace(/<[^>]*>/g,' ');
+      var exchangePause=/attack|strike|cast|skill|ultimate|potion|heal|damage|defeat|slain|round/i.test(lineText)?110:0;
+      setTimeout(step,combatRecorderDelay(logDelay+exchangePause)); // action beats stay legible; playback preference still applies
     })();
   });
 }
@@ -2480,6 +2504,7 @@ function setStageEnraged(on){ var st=document.getElementById('abyssStage'); if(s
 function clearStageFx(){
   var st=document.getElementById('abyssStage'); if(!st) return;
   st.classList.remove('ab-enraged','ab-boss-fire','ab-boss-void','ab-boss-eye','ab-boss-heart','ab-fs-you','ab-fs-mob');
+  clearTimeout(combatExchangeTimer);var exchange=document.getElementById('combatExchange');if(exchange){exchange.hidden=true;exchange.classList.remove('player-turn','enemy-turn');}
   combatLastHP=null;
   var boss=document.getElementById('bossHPOverlay'); if(boss)boss.style.display='none';
 }
@@ -3171,6 +3196,7 @@ async function abyssDescend(){
   var bar=document.getElementById('hpBar');
   var hp=Number(bar.getAttribute('aria-valuenow')), max=Number(bar.getAttribute('aria-valuemax'));
   if(!(await confirmLowHP()))return;
+  abyssDescendInFlight=true;updateFloatingDescend('Descending to floor '+(curDepth+1)+'…');
   setBusy(true); markBusyBtn('btnDescend'); clearBanner();
   document.getElementById('abStatus').textContent='Descending…';
 
@@ -3205,7 +3231,7 @@ function addPathToQueue() {
   var container = document.getElementById('pathQueueContainer');
   if (!container) return;
   var count = container.querySelectorAll('.ab-path-select').length;
-  if (count >= 10) return;
+  if (count >= 20) return;
   
   var wrap = document.createElement('div');
   wrap.style.display = 'flex';
@@ -3263,7 +3289,30 @@ function updateQueueUI() {
   var btnLess = document.getElementById('btnQueueLess');
   var btnMore = document.getElementById('btnQueueMore');
   if (btnLess) btnLess.disabled = busy || wraps.length <= 3;
-  if (btnMore) btnMore.disabled = busy || wraps.length >= 10;
+  if (btnMore) btnMore.disabled = busy || wraps.length >= 20;
+}
+
+async function playAbyssMultiFloorResults(data) {
+  var floors = Array.isArray(data && data.floor_results) ? data.floor_results : [];
+  if (!floors.length) return false;
+  var stage = document.getElementById('abyssStage');
+  try {
+    for (var i = 0; i < floors.length; i++) {
+      var floor = floors[i] || {};
+      var depth = Number(floor.depth) || curDepth;
+      updateFloatingDescend('Floor ' + depth + ' combat · ' + (i + 1) + '/' + floors.length);
+      setDepth(depth);
+      if (typeof floor.hp === 'number') setHP(floor.hp, floor.max_hp);
+      document.getElementById('abStatus').textContent = 'Floor ' + depth + ' combat (' + (i + 1) + '/' + floors.length + ')…';
+      if (stage) stage.dataset.batchFloor = String(depth);
+      document.dispatchEvent(new CustomEvent('abyss:batch-floor', {detail: {depth: depth, index: i, total: floors.length}}));
+      await playLog(floor.logs || [], floor.loot || [], floor.dura || [], floor.timeline || [], floor);
+      resetMana();
+    }
+  } finally {
+    if (stage) delete stage.dataset.batchFloor;
+  }
+  return true;
 }
 
 async function abyssDescendMulti() {
@@ -3272,8 +3321,8 @@ async function abyssDescendMulti() {
   document.querySelectorAll('.ab-path-select').forEach(function(el) {
     paths.push(el.value);
   });
-  if (paths.length < 3 || paths.length > 10) {
-    abToast('Queue must have 3 to 10 floors.', false);
+  if (paths.length < 3 || paths.length > 20) {
+    abToast('Queue must have 3 to 20 floors.', false);
     return;
   }
 
@@ -3281,6 +3330,7 @@ async function abyssDescendMulti() {
   var hp = Number(bar.getAttribute('aria-valuenow')), max = Number(bar.getAttribute('aria-valuemax'));
   if (!(await confirmLowHP())) return;
 
+  abyssDescendInFlight=true;updateFloatingDescend('Planned descent · 0/'+paths.length);
   setBusy(true); markBusyBtn('btnDescendMulti'); clearBanner();
   document.getElementById('abStatus').textContent = 'Descending queue (' + paths.length + ' floors)…';
 
@@ -3289,7 +3339,8 @@ async function abyssDescendMulti() {
     // Floors cleared before the failure are already persisted — show their
     // logs/loot and apply the returned run snapshot so depth, escrow, HP and
     // the queue planner stay in sync with the server instead of drifting.
-    if(d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline, d); resetMana(); }
+    var partialFloorsPlayed = await playAbyssMultiFloorResults(d);
+    if(!partialFloorsPlayed && d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline, d); resetMana(); }
     if(typeof d.depth === 'number') setDepth(d.depth);
     if(typeof d.escrow === 'number') setEscrow(d.escrow);
     if(typeof d.hp === 'number') setHP(d.hp, d.max_hp);
@@ -3300,6 +3351,7 @@ async function abyssDescendMulti() {
     abToast(d.error || 'failed', false); setBusy(false); return;
   }
 
+  d.batch_floors_played = await playAbyssMultiFloorResults(d);
   await processDescendResult(d, hp, max);
 }
 
@@ -3361,7 +3413,7 @@ async function processDescendResult(d, hp, max){
     setHP(hp, max);
     trailPush(d.depth, floorType); // UX-34
     // A batch descend may have fought floors before stopping here — show them.
-    if(d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline, d); resetMana(); }
+    if(!d.batch_floors_played && d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline, d); resetMana(); }
     document.getElementById('abStatus').textContent='Approaching non-combat floor: ' + floorType;
     renderState();
     setBusy(false);
@@ -3371,7 +3423,7 @@ async function processDescendResult(d, hp, max){
   setDepth(d.depth);
   setRisk(d.risk);
   trailPush(d.depth, d.depth % 5 === 0 ? 'boss' : 'combat'); // UX-34
-  await playLog(d.logs, d.loot, d.dura, d.timeline, d);
+  if(!d.batch_floors_played) await playLog(d.logs, d.loot, d.dura, d.timeline, d);
   playAbyssBossExecution(d);
   resetMana();
   setHP(d.hp,d.max_hp); setGold(d.gold); setTokens(d.tokens);
@@ -5375,7 +5427,7 @@ function decorateEquippedCards(){
   document.querySelectorAll('.abyss-side-gear').forEach(function(card){
     if(card.dataset.ab2)return;
     card.dataset.ab2='1';
-    applyAbPixelIcon(card.querySelector('.ab-gear-pixel'),abGearIconCell(card.dataset.slot));
+    applyAbUniquePixelIcon(card.querySelector('.ab-gear-pixel'),abExpandedGearIconCell(card.dataset.slot),card.dataset.artKey);
     var temper=parseInt(card.getAttribute('data-temper'),10)||0;
     if(temper>0){ // UI-74
       var pips=document.createElement('span');

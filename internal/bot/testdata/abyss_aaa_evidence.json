@@ -1441,5 +1441,28 @@
       "internal/bot/abyss_pet_capture_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [229, 230, 231, 232, 233, 234, 242, 247, 248, 249],
+    "production": [
+      "internal/bot/abyss_pet_stable.go",
+      "internal/bot/web_abyss_pet_stable.go",
+      "internal/bot/abyss_pet_capture.go",
+      "internal/bot/abyss_pet_abilities.go",
+      "internal/bot/xp.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss_social.html",
+      "internal/bot/webassets/abyss_social.css",
+      "internal/content/abysstree.go",
+      "internal/content/abysstree_validation.go",
+      "internal/content/mobs.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_pet_stable_test.go",
+      "internal/bot/abyss_pet_capture_test.go",
+      "internal/bot/abyss_pet_gear_test.go",
+      "tests/e2e/abyss.spec.js"
+    ]
   }
 ]

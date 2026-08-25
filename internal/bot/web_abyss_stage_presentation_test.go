@@ -14,6 +14,7 @@ func TestCombatTimelineCarriesAuthoritativePetHealth(t *testing.T) {
 	user := &UserInCombat{CurrentHP: 80, Stats: content.Stats{HP: 100}, Pets: []*content.Mob{pet}}
 	frames := []combatTimelineFrame{}
 	appendCombatTimelineFrame(&frames, 3, 2, []activeUser{{u: user}}, nil)
+	markCombatTimelineExchange(&frames, "player", 4)
 
 	if len(frames) != 1 {
 		t.Fatalf("timeline frames = %d, want 1", len(frames))
@@ -24,6 +25,9 @@ func TestCombatTimelineCarriesAuthoritativePetHealth(t *testing.T) {
 	}
 	if frame.Round != 2 {
 		t.Fatalf("round = %d, want 2", frame.Round)
+	}
+	if frame.Side != "player" || frame.Actions != 4 {
+		t.Fatalf("exchange metadata = %#v, want four player actions", frame)
 	}
 }
 
@@ -49,6 +53,8 @@ func TestAbyssStagePresentationContracts(t *testing.T) {
 		"classList.toggle('ab-downed'",
 		"function updateStageScene",
 		"updatePetCombatFrame(f)",
+		`id="combatExchange"`,
+		"animateCombatExchange(f)",
 		`{{template "abyss-stage-presentation" .}}`,
 	} {
 		if !strings.Contains(pageSource, required) {
@@ -86,7 +92,11 @@ func TestAbyssStagePresentationContracts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read pixel CSS: %v", err)
 	}
-	styles := string(uiCSS) + string(pixelCSS)
+	commandCSS, err := webAssets.ReadFile("webassets/abyss_command.css")
+	if err != nil {
+		t.Fatalf("read command CSS: %v", err)
+	}
+	styles := string(uiCSS) + string(pixelCSS) + string(commandCSS)
 	for _, required := range []string{
 		"@keyframes ab-pixel-idle",
 		".ab-scene.ab-fs-you::before",
@@ -96,6 +106,8 @@ func TestAbyssStagePresentationContracts(t *testing.T) {
 		".abyss-stage.ab-downed",
 		".ab-rest-embers",
 		".ab-event-icon",
+		"@keyframes ab-exchange-player",
+		"@keyframes ab-exchange-enemy",
 	} {
 		if !strings.Contains(styles, required) {
 			t.Errorf("stage presentation CSS is missing %q", required)

@@ -308,8 +308,14 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_enemy_atlas.png", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_enemy_atlas.png", "image/png")
 	})
+	mux.HandleFunc("/static/abyss_enemy_atlas_expanded.png", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_enemy_atlas_expanded.png", "image/png")
+	})
 	mux.HandleFunc("/static/abyss_icon_atlas.png", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_icon_atlas.png", "image/png")
+	})
+	mux.HandleFunc("/static/abyss_icon_atlas_expanded.png", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_icon_atlas_expanded.png", "image/png")
 	})
 	mux.HandleFunc("/static/favicon.svg", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/favicon.svg", "image/svg+xml")
@@ -393,6 +399,8 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/social/pet/train", s.authAPI(s.handleAbyssPetTrain))
 		mux.HandleFunc("/api/abyss/social/pet/slot", s.authAPI(s.handleAbyssPetSlot))
 		mux.HandleFunc("/api/abyss/social/pet/autoskill", s.authAPI(s.handleAbyssPetAutoskill))
+		mux.HandleFunc("/api/abyss/social/pet/manage", s.authAPI(s.handleAbyssPetManage))
+		mux.HandleFunc("/api/abyss/social/pet/feed", s.authAPI(s.handleAbyssPetFeed))
 		mux.HandleFunc("/api/abyss/social/pet/capture/resolve", s.authAPI(s.handleAbyssPetCaptureResolve))
 		mux.HandleFunc("/api/abyss/social/bank_feed", s.authAPI(s.handleAbyssBankFeedToggle))
 		mux.HandleFunc("/api/abyss/social/friend_echo", s.authAPI(s.handleAbyssFriendEchoSettings))

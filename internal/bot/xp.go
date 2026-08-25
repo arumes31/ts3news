@@ -301,7 +301,7 @@ func (b *Bot) computeMiscMult(uid, _ string, cid int, ctx cycleContext) float64 
 }
 
 func (b *Bot) getPets(uid string) []*content.Mob {
-	rows, err := b.DB.Query(`SELECT p.name,p.mob_type,p.level,p.hp,p.max_hp,p.str,p.def,p.spd,p.loyalty
+	rows, err := b.DB.Query(`SELECT p.name,p.mob_type,p.level,p.hp,p.max_hp,p.str,p.def,p.spd,p.loyalty,p.autoskills::text
 		FROM user_pets p JOIN users u ON u.client_uid=p.client_uid
 		WHERE p.client_uid=$1 AND (p.active_slot=1 OR (p.active_slot=2 AND u.abyss_prestige>=2))
 		ORDER BY p.active_slot`, uid)
@@ -314,9 +314,17 @@ func (b *Bot) getPets(uid string) []*content.Mob {
 		var m content.Mob
 		var mType string
 		var maxHP int
-		if err := rows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &maxHP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD, &m.Loyalty); err == nil {
+		var rawProfile string
+		if err := rows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &maxHP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD, &m.Loyalty, &rawProfile); err == nil {
+			profile := decodeAbyssPetProfile(rawProfile)
+			if profile.busy(time.Now()) {
+				continue
+			}
 			m.Type = content.MobType(mType)
 			m.MaxHP = maxHP
+			m.PetShiny = profile.Shiny
+			m.PetBoss = profile.BossVariant
+			m.PetBark = profile.BarkStyle
 			out = append(out, &m)
 		}
 	}
@@ -327,10 +335,12 @@ func (b *Bot) getPets(uid string) []*content.Mob {
 	petGearStats := abyssPetGearStats(b.getEquippedItems(uid))
 	for _, pet := range out {
 		applyAbyssPetGear(pet, petGearStats)
+		applyAbyssPetClass(pet)
 		_, _, moodPct := abyssPetMood(pet.Stats.HP, pet.MaxHP, pet.Loyalty)
-		pet.Stats.STR = abyssPetMoodScale(pet.Stats.STR, moodPct)
-		pet.Stats.DEF = abyssPetMoodScale(pet.Stats.DEF, moodPct)
-		pet.Stats.SPD = abyssPetMoodScale(pet.Stats.SPD, moodPct)
+		combatPct := moodPct + abyssPetLoyaltyBonusPct(pet.Loyalty)
+		pet.Stats.STR = abyssPetMoodScale(pet.Stats.STR, combatPct)
+		pet.Stats.DEF = abyssPetMoodScale(pet.Stats.DEF, combatPct)
+		pet.Stats.SPD = abyssPetMoodScale(pet.Stats.SPD, combatPct)
 	}
 	return out
 }
@@ -466,6 +476,8 @@ type combatTimelineFrame struct {
 	PetName  string `json:"pet_name,omitempty"`
 	PetHP    int    `json:"pet_hp,omitempty"`
 	PetMax   int    `json:"pet_max,omitempty"`
+	Side     string `json:"side,omitempty"`
+	Actions  int    `json:"actions,omitempty"`
 }
 
 func appendCombatTimelineFrame(frames *[]combatTimelineFrame, afterLog, round int, users []activeUser, mobs []*content.Mob) {
@@ -504,6 +516,15 @@ func appendCombatTimelineFrame(frames *[]combatTimelineFrame, afterLog, round in
 		return
 	}
 	*frames = append(*frames, frame)
+}
+
+func markCombatTimelineExchange(frames *[]combatTimelineFrame, side string, actionLogs int) {
+	if len(*frames) == 0 {
+		return
+	}
+	frame := &(*frames)[len(*frames)-1]
+	frame.Side = side
+	frame.Actions = min(6, max(1, actionLogs))
 }
 
 // ambushDamageCapPct bounds how much of a player's max HP a surprise round (mobs
@@ -995,21 +1016,27 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 			}
 
 			if playerStarts {
+				userLogStart := len(logs)
 				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track, liveActions, rand)
 				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
+				markCombatTimelineExchange(&timeline, "player", len(logs)-userLogStart)
 				if len(b.getAliveMobs(currentMobs)) == 0 {
 					observeLiveResolution()
 					waveVictory = true
 					break
 				}
+				mobLogStart := len(logs)
 				b.mobTurn(activeUsers, currentMobs, zone, intensify*despMult, &logs, &totalMobDamage, &totalUserDamage, r, false, track, rand)
 				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
+				markCombatTimelineExchange(&timeline, "enemy", len(logs)-mobLogStart)
 				observeLiveResolution()
 			} else {
 				// The opening round of an enemy-first wave is the ambush: soften it so
 				// it can't one-shot a player before they ever act.
+				mobLogStart := len(logs)
 				b.mobTurn(activeUsers, currentMobs, zone, intensify*despMult, &logs, &totalMobDamage, &totalUserDamage, r, r == 1, track, rand)
 				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
+				markCombatTimelineExchange(&timeline, "enemy", len(logs)-mobLogStart)
 				aliveUsers := 0
 				for _, u := range users {
 					if u.CurrentHP > 0 {
@@ -1020,8 +1047,10 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 					observeLiveResolution()
 					break
 				}
+				userLogStart := len(logs)
 				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track, liveActions, rand)
 				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
+				markCombatTimelineExchange(&timeline, "player", len(logs)-userLogStart)
 				observeLiveResolution()
 				if len(b.getAliveMobs(currentMobs)) == 0 {
 					waveVictory = true
@@ -1974,14 +2003,17 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			// Mind Control Logic (Scale with level). At the three-pet cap, preserve
 			// a successful capture as a restart-safe decision instead of silently
 			// discarding it or overwriting an existing companion.
-			if abyssCanAttemptPetCapture(len(u.Pets), mindControlLevel, au.petCaptureAttempted) &&
+			captureLimit := abyssPetCaptureLimitWithBonus(mindControlLevel, int(au.treeBonus.Pct["pet_cap"]))
+			if abyssCanAttemptPetCaptureAtLimit(len(u.Pets), captureLimit, au.petCaptureAttempted) &&
 				target.Stats.HP > 0 && float64(target.Stats.HP) < float64(target.Level*20)*0.2 {
 				// #nosec G404
-				if rand.Float64() < 0.5 { // #nosec G404
+				if rand.Float64() < abyssPetCaptureChance(target.Type) { // #nosec G404
 					captured := false
 					candidate := *target
+					candidate.PetBoss = target.Type == content.MobBoss
+					candidate.PetShiny = rand.Float64() < 0.01 // #nosec G404 -- cosmetic rarity roll
 					abyssMindControlCapture(&candidate)
-					result, err := b.persistAbyssPetCapture(u.UID, &candidate, abyssPetCaptureLimit(mindControlLevel))
+					result, err := b.persistAbyssPetCapture(u.UID, &candidate, captureLimit)
 					switch {
 					case err != nil:
 						au.petCaptureAttempted = true
@@ -2086,14 +2118,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				*logs = append(*logs, fmt.Sprintf("🐾 %s hangs back, eyes darting toward the exit. (Loyalty %d%% — betrayal risk)", p.Name, p.Loyalty))
 			}
 
-			// Betrayal check (3% chance)
-			betrayalChance := 0.03
-			if red := au.treeBonus.Pct["pet_betrayal_reduce"]; red > 0 {
-				betrayalChance -= red
-				if betrayalChance < 0 {
-					betrayalChance = 0
-				}
-			}
+			// Loyalty steadily suppresses the base betrayal risk; the skill-web
+			// reduction remains additive on top of that bond.
+			betrayalChance := abyssPetBetrayalChance(p.Loyalty, au.treeBonus.Pct["pet_betrayal_reduce"])
 			if rand.Float64() < betrayalChance { // #nosec G404
 				p.Loyalty = max(0, p.Loyalty-5)
 				// #nosec G404
@@ -2118,7 +2145,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			}
 
-			ability, hasAbility := abyssPetAbilityForSlot(petIdx + 1)
+			ability, hasAbility := abyssPetAbilityForClass(petIdx+1, p.PetClass)
 			abilityReady := hasAbility && au.petCooldowns[petIdx] == 0
 			if abilityReady && ability.Kind == "heal" && abyssPetAutoskillEnabled(u.petHealEnabled, p.Name) {
 				var bestTarget *UserInCombat
@@ -2145,6 +2172,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					}
 					setAbyssPetAbilityCooldown(au, petIdx, ability.Cooldown)
 					*logs = append(*logs, fmt.Sprintf("✨ [color=#4caf50]%s's Pet %s casts %s on %s, restoring %d HP! (Cooldown: %d rounds)[/color]", u.Nickname, p.Name, ability.Name, bestTarget.Nickname, healAmt, ability.Cooldown))
+					if bark := abyssPetBark(p.PetBark, p.Name, "heal"); bark != "" {
+						*logs = append(*logs, bark)
+					}
 					continue
 				}
 			}
@@ -2187,6 +2217,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if ptarget.Stats.HP <= 0 {
 				killLog := i18n.T("bot.combat.killed_by_pet", ptarget.Name, p.Name)
 				*logs = append(*logs, markAbyssOverkillLog(killLog, abyssCombatant(u) && petOverkill))
+				if bark := abyssPetBark(p.PetBark, p.Name, "kill"); bark != "" {
+					*logs = append(*logs, bark)
+				}
 				// Clones (co-op helpers) are excluded so loot never persists for them.
 				if winner := randomLootEligibleUser(originalUsers, rand); winner != nil {
 					b.awardCombatLoot(winner, *ptarget, zone, logs, loots)

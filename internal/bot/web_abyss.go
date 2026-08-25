@@ -2224,13 +2224,24 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 // Floors resolved before the failure are already persisted server-side, so
 // their logs/loot plus a fresh run snapshot ride along with the error and the
 // client can reconcile depth, escrow, HP and wallet instead of drifting.
-func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, loot, dura []string, timeline []combatTimelineFrame, rewardXP int) map[string]any {
+type abyssMultiFloorResult struct {
+	Depth    int                   `json:"depth"`
+	Victory  bool                  `json:"victory"`
+	HP       int                   `json:"hp"`
+	MaxHP    int                   `json:"max_hp"`
+	Logs     []string              `json:"logs"`
+	Loot     []string              `json:"loot"`
+	Dura     []string              `json:"dura"`
+	Timeline []combatTimelineFrame `json:"timeline"`
+}
+
+func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, loot, dura []string, timeline []combatTimelineFrame, floorResults []abyssMultiFloorResult, rewardXP int) map[string]any {
 	runFinal := s.bot.loadAbyssRun(uid)
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	return map[string]any{
 		"ok": false, "error": errKey,
-		"logs": logs, "loot": loot, "dura": dura, "timeline": timeline, "reward_xp": rewardXP,
+		"logs": logs, "loot": loot, "dura": dura, "timeline": timeline, "floor_results": floorResults, "reward_xp": rewardXP,
 		"depth": runFinal.Depth, "escrow": runFinal.Escrow,
 		"hp": runFinal.CurHP, "max_hp": runFinal.MaxHP,
 		"gold": gold, "tokens": s.bot.abyssTokens(uid),
@@ -2238,7 +2249,12 @@ func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, 
 	}
 }
 
-// handleAbyssDescendMulti processes a queue of 3 to 10 planned floor descents sequentially.
+const (
+	abyssDescendPlanMin = 3
+	abyssDescendPlanMax = 20
+)
+
+// handleAbyssDescendMulti processes a queue of 3 to 20 planned floor descents sequentially.
 func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -2258,8 +2274,8 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if len(req.Paths) < 3 || len(req.Paths) > 10 {
-		writeJSON(w, map[string]any{"ok": false, "error": "Invalid queue length (must be 3 to 10 floors)"})
+	if len(req.Paths) < abyssDescendPlanMin || len(req.Paths) > abyssDescendPlanMax {
+		writeJSON(w, map[string]any{"ok": false, "error": "Invalid queue length (must be 3 to 20 floors)"})
 		return
 	}
 	// The planned paths are preferences, validated up-front; the server owns the
@@ -2275,6 +2291,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 	var combinedLoot []string
 	var combinedDura []string
 	var combinedTimeline []combatTimelineFrame
+	var floorResults []abyssMultiFloorResult
 	var totalRewardXP int
 	var gearMilestone string
 	var achs []string
@@ -2301,15 +2318,15 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 	for _, pt := range req.Paths {
 		run := s.bot.loadAbyssRun(uid)
 		if !run.Active {
-			writeJSON(w, s.descendMultiAbort(uid, "not in a run", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
+			writeJSON(w, s.descendMultiAbort(uid, "not in a run", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
 			return
 		}
 		if run.Downed {
-			writeJSON(w, s.descendMultiAbort(uid, "you are downed — revive or concede", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
+			writeJSON(w, s.descendMultiAbort(uid, "you are downed — revive or concede", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
 			return
 		}
 		if run.FloorType != "combat" {
-			writeJSON(w, s.descendMultiAbort(uid, "you must resolve the current floor action first", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
+			writeJSON(w, s.descendMultiAbort(uid, "you must resolve the current floor action first", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
 			return
 		}
 		focus := s.selectedAbyssFocus(uid, run)
@@ -2379,7 +2396,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				newDepth, actualType, modifier, evStateArg, uid,
 			)
 			if err != nil {
-				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
+				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
 				return
 			}
 			if actualType == "event" {
@@ -2408,6 +2425,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"loot":               combinedLoot,
 				"dura":               combinedDura,
 				"timeline":           combinedTimeline,
+				"floor_results":      floorResults,
 				"reward_xp":          totalRewardXP,
 				"auto_focus":         s.selectedAbyssFocus(uid, runFinal),
 				"run_floors_cleared": abyssRunFloorsCleared(runFinal),
@@ -2418,7 +2436,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 
 		// Normal Combat floor
 		if _, err := s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier=$2, event_state=NULL, pending_floor_choice=NULL, last_action_at=NOW() WHERE client_uid=$3", newDepth, modifier, uid); err != nil {
-			writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
+			writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
 			return
 		}
 
@@ -2427,7 +2445,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2", run.Depth, uid)
 			// Earlier floors in this batch already resolved and persisted — return
 			// their logs/loot alongside the error so they aren't lost client-side.
-			writeJSON(w, s.descendMultiAbort(uid, "combat", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
+			writeJSON(w, s.descendMultiAbort(uid, "combat", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
 			return
 		}
 
@@ -2444,6 +2462,16 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		combinedLoot = append(combinedLoot, res.LootHTML...)
 		combinedDura = append(combinedDura, res.DuraHTML...)
 		totalRewardXP += res.RewardXP
+		floorResults = append(floorResults, abyssMultiFloorResult{
+			Depth:    newDepth,
+			Victory:  res.Victory,
+			HP:       res.CurrentHP,
+			MaxHP:    res.MaxHP,
+			Logs:     append([]string(nil), res.LogsHTML...),
+			Loot:     append([]string(nil), res.LootHTML...),
+			Dura:     append([]string(nil), res.DuraHTML...),
+			Timeline: append([]combatTimelineFrame(nil), res.Timeline...),
+		})
 		pityProc = pityProc || res.PityProc
 		bossContractPayout += res.BossContractPayout
 		bossTokenAwarded = bossTokenAwarded || res.BossToken
@@ -2453,7 +2481,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		if res.Victory {
 			o := s.applyFloorVictory(uid, run, newDepth, run.Escrow, tier, modifier, focus, res.DamageTaken == 0)
 			if o.DBErr {
-				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
+				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP))
 				return
 			}
 			if o.GearMilestone != "" {
@@ -2501,6 +2529,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"loot":                combinedLoot,
 				"dura":                combinedDura,
 				"timeline":            combinedTimeline,
+				"floor_results":       floorResults,
 				"reward_xp":           totalRewardXP,
 				"risk":                abyssRiskPct(newDepth+1, tier, s.bot.abyssPlayerCR(uid)),
 				"survival_chance_pct": abyssPostHocSurvivalChance(newDepth, tier, s.bot.abyssPlayerCR(uid)),
@@ -2547,6 +2576,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		"loot":                  combinedLoot,
 		"dura":                  combinedDura,
 		"timeline":              combinedTimeline,
+		"floor_results":         floorResults,
 		"reward_xp":             totalRewardXP,
 		"risk":                  abyssRiskPct(finalRun.Depth+1, tier, s.bot.abyssPlayerCR(uid)),
 		"escrow":                finalRun.Escrow,
