@@ -1475,6 +1475,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	watcherPressure := abyssWatcherPressure(run, time.Now())
 	bossContract := s.bot.abyssBossContract(uid, run)
 	bossAffinity := abyssBossAffinityForecast(run, time.Now())
+	bossToll := s.bot.abyssBossToll(uid, run, u.Level)
 	dropForecast, dropForecastOK := s.bot.abyssNextFloorForecast(uid)
 	celestialPity := s.bot.abyssCelestialPity(uid)
 	treeUnspent := 0
@@ -1504,6 +1505,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Watcher":             watcherPressure,
 		"BossContract":        bossContract,
 		"BossAffinity":        bossAffinity,
+		"BossToll":            bossToll,
 		"DropForecast":        dropForecast,
 		"DropForecastOK":      dropForecastOK,
 		"DeferredEvent":       s.bot.abyssDeferredEventView(uid, run),

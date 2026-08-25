@@ -1300,5 +1300,20 @@
       "internal/bot/abyss_boss_affinity_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [221],
+    "production": [
+      "internal/bot/web_abyss_boss_toll.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_toll.html",
+      "internal/bot/webassets/abyss_boss_toll.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_boss_toll_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

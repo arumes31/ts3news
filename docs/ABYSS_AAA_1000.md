@@ -202,6 +202,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0218 / 218** — run-bound boss contracts atomically debit a bounded 1/3/5 Boss Token stake and return twice the wager only when the declared natural boss floor is authoritatively defeated.
 - [x] **AAA-0219 / 219** — every boss floor beyond depth 60 fields two distinct named Twin Tyrants with a deliberately bounded combined stat budget and increased total experience.
 - [x] **AAA-0220 / 220** — a four-element UTC daily boss affinity changes authoritative incoming and outgoing combat multipliers and forecasts its exact counter, trap, target floor, and Twin Tyrant status before descent.
+- [x] **AAA-0221 / 221** — immediately before a resolved natural boss floor, a server-quoted gold toll can atomically bypass it for the expected value of its real loot bands while granting no combat rewards or credit.
 
 ## Active tranche: operational quality and client performance
 

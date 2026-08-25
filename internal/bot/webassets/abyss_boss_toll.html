@@ -1,0 +1,26 @@
+{{define "abyssBossToll"}}{{with .BossToll}}{{if .Available}}
+<aside class="ab-boss-toll" id="abyssBossToll" aria-labelledby="bossTollTitle">
+  <div class="ab-boss-toll-gate" aria-hidden="true"><i></i><span>♜</span><i></i></div>
+  <div class="ab-boss-toll-copy">
+    <span class="ab-kicker">THE CHANCELLOR'S GATE</span>
+    <strong id="bossTollTitle">Bypass floor {{.TargetDepth}} · {{.Bosses}}</strong>
+    <small>Expected value of {{.Rolls}} boss loot roll(s). No combat loot, XP, trophy, kill credit, streak, or floor reward.</small>
+    {{if gt .ContractForfeit 0}}<em>⚠ Your sealed 🏆 {{.ContractForfeit}} Boss Token contract is also forfeited.</em>{{end}}
+  </div>
+  <button type="button" data-target="{{.TargetDepth}}" data-cost="{{.Cost}}" onclick="abyssPayBossToll(this)" {{if lt $.U.Gold .Cost}}disabled title="Not enough gold"{{end}}><span>PAY TOLL</span><b>🪙 {{gold .Cost}}</b></button>
+</aside>
+{{end}}{{end}}
+<script>
+async function abyssPayBossToll(button){
+  var target=Number(button.dataset.target)||0,cost=Number(button.dataset.cost)||0;
+  var accepted=await confirmModal('Pay '+fmtGold(cost)+' to bypass boss floor '+target+'? No boss rewards will be granted.',{confirmLabel:'Pay toll',cancelLabel:'Face the boss'});
+  if(!accepted)return;
+  button.disabled=true;
+  var result=await abPost('/api/abyss/boss_toll',{target_depth:target,quoted_cost:cost});
+  if(!result.ok){abToast(result.error||'The toll gate stayed shut.',false);button.disabled=false;return;}
+  setGold(result.gold);
+  abToast(result.msg+(result.contract_forfeit?' Contract stake forfeited.':''),true);
+  setTimeout(function(){location.reload();},500);
+}
+</script>
+{{end}}
