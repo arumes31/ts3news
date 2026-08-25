@@ -101,16 +101,16 @@ func abyssKillerDamage(base int, user *UserInCombat, mob *content.Mob) int {
 }
 
 type activeUser struct {
-	u                *UserInCombat
-	effects          []content.ItemEffect
-	lastSkillID      string
-	skillRepeatCount int
-	skillCooldowns   map[string]int
-	Stunned          bool // scripted boss-phase stun: skips this user's next turn
-	CurrentMana      int
-	MaxMana          int
-	petCooldowns      map[int]int // Independent active-pet ability cooldowns by formation index.
-	pendingPetCapture bool        // At most one full-stable capture offer per fight.
+	u                   *UserInCombat
+	effects             []content.ItemEffect
+	lastSkillID         string
+	skillRepeatCount    int
+	skillCooldowns      map[string]int
+	Stunned             bool // scripted boss-phase stun: skips this user's next turn
+	CurrentMana         int
+	MaxMana             int
+	petCooldowns        map[int]int // Independent active-pet ability cooldowns by formation index.
+	petCaptureAttempted bool        // Avoid repeated full-stable capture offers or failure spam per fight.
 	// Skill-web bonus, loaded once per fight: treeBonusFor hits the DB and
 	// scans the full 1000-node tree, so per-turn lookups must use this cache.
 	treeBonus content.TreeBonus
@@ -1982,7 +1982,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			// Mind Control Logic (Scale with level). At the three-pet cap, preserve
 			// a successful capture as a restart-safe decision instead of silently
 			// discarding it or overwriting an existing companion.
-			if abyssCanAttemptPetCapture(len(u.Pets), mindControlLevel, au.pendingPetCapture) &&
+			if abyssCanAttemptPetCapture(len(u.Pets), mindControlLevel, au.petCaptureAttempted) &&
 				target.Stats.HP > 0 && float64(target.Stats.HP) < float64(target.Level*20)*0.2 {
 				// #nosec G404
 				if rand.Float64() < 0.5 { // #nosec G404
@@ -1991,24 +1991,24 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					abyssMindControlCapture(&candidate)
 					result, err := b.persistAbyssPetCapture(u.UID, &candidate, abyssPetCaptureLimit(mindControlLevel))
 					switch {
-						case err != nil:
-							au.pendingPetCapture = true
-							*logs = append(*logs, "⚠️ The stable could not preserve this capture; the enemy breaks free.")
-						case result == abyssPetCapturePreserved:
-							au.pendingPetCapture = true
-							*logs = append(*logs, "🐾 Your stable already has a captured companion awaiting a decision.")
-						case result == abyssPetCapturePending:
-							au.pendingPetCapture = true
-							*target = candidate
-							captured = true
-							*logs = append(*logs, fmt.Sprintf("🐾 Stable full — %s is secured. Choose a companion to release after combat.", target.Name))
-						case result == abyssPetCaptureRecruited:
-							*target = candidate
-							u.Pets = append(u.Pets, target)
-							captured = true
-						case result == abyssPetCaptureFull:
-							au.pendingPetCapture = true
-							*logs = append(*logs, "🐾 Your current Mind Control bond cannot hold another companion.")
+					case err != nil:
+						au.petCaptureAttempted = true
+						*logs = append(*logs, "⚠️ The stable could not preserve this capture; the enemy breaks free.")
+					case result == abyssPetCapturePreserved:
+						au.petCaptureAttempted = true
+						*logs = append(*logs, "🐾 Your stable already has a captured companion awaiting a decision.")
+					case result == abyssPetCapturePending:
+						au.petCaptureAttempted = true
+						*target = candidate
+						captured = true
+						*logs = append(*logs, fmt.Sprintf("🐾 Stable full — %s is secured. Choose a companion to release after combat.", target.Name))
+					case result == abyssPetCaptureRecruited:
+						*target = candidate
+						u.Pets = append(u.Pets, target)
+						captured = true
+					case result == abyssPetCaptureFull:
+						au.petCaptureAttempted = true
+						*logs = append(*logs, "🐾 Your current Mind Control bond cannot hold another companion.")
 					}
 					if captured {
 						*logs = append(*logs, i18n.T("bot.combat.captive", target.Name))
