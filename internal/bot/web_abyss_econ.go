@@ -245,6 +245,9 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund i
 			uid, run.Depth, refund, run.Tier, hardcore, endReason, abyssRunDurationMS(run), abyssRunFloorsCleared(run)); err != nil {
 			return 0, err
 		}
+		if err := recordAbyssAffixRun(tx, uid, abyssDailyAffixFromFlags(flags), run.Depth, false); err != nil {
+			return 0, err
+		}
 		if err := incrementAbyssPactMastery(tx, uid, pacts); err != nil {
 			return 0, err
 		}

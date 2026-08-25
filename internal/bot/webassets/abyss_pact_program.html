@@ -9,6 +9,7 @@
       <div class="ab-pact-featured" id="pactFeatured"></div>
       <div class="ab-affix-calendar" id="affixCalendar" aria-label="This week's daily Abyss affixes"></div>
       <div class="ab-affix-poll" id="personalAffixControl"></div>
+      <div class="ab-pact-mastery-list" id="affixPersonalStats" aria-label="Personal daily affix statistics"></div>
       <div class="ab-affix-poll" id="affixWeekendPoll"></div>
       <div class="ab-pact-synergy" id="pactSynergyCallout" hidden></div>
     </div>
@@ -64,6 +65,19 @@ function renderAbyssPersonalAffix(){
   var button=pactProgramNode('button','ghost xs',personal.rerolled?'Reroll used today':'Reroll · 🜲 '+Number(personal.cost||0));
   button.type='button';button.disabled=!personal.available;button.onclick=rerollAbyssPersonalAffix;
   title.appendChild(button);host.appendChild(title);
+}
+
+function renderAbyssAffixStats(){
+  var host=document.getElementById('affixPersonalStats'),stats=(pactProgramState.affix_stats||[]).filter(function(stat){return Number(stat.runs)>0;});
+  if(!host)return;
+  host.replaceChildren();
+  if(!stats.length){host.appendChild(pactProgramNode('p','muted small','Personal affix win rate and average depth appear after your first completed run.'));return;}
+  host.appendChild(pactProgramNode('b','ab-affix-poll-title','Personal affix record'));
+  stats.forEach(function(stat){
+    var item=pactProgramNode('div','ab-pact-mastery');
+    item.append(pactProgramNode('span','',stat.label),pactProgramNode('b','',stat.wins+' / '+stat.runs+' wins · '+Number(stat.win_rate_pct).toFixed(1)+'% · avg depth '+Number(stat.average_depth).toFixed(1)));
+    host.appendChild(item);
+  });
 }
 
 async function voteAbyssWeekendAffix(key){
@@ -159,6 +173,7 @@ function renderAbyssPactProgram(){
     });
   }
   renderAbyssPersonalAffix();
+  renderAbyssAffixStats();
   renderAbyssWeekendAffixPoll();
   for(var slot=1;slot<=3;slot++){
     var preset=pactPresetAt(slot),row=pactProgramNode('div','ab-pact-preset');

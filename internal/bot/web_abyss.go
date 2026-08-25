@@ -3618,6 +3618,10 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
+		if err := recordAbyssAffixRun(tx, uid, abyssDailyAffixFromFlags(runFlags), run.Depth, true); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 		_, _ = tx.Exec(
 			`UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1),
 			        abyss_lifetime_banked = abyss_lifetime_banked + $2,

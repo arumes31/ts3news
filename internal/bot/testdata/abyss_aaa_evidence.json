@@ -1001,5 +1001,20 @@
       "internal/bot/web_abyss_personal_affix_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [198],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_affix_stats.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_pact_program.go",
+      "internal/bot/webassets/abyss_pact_program.html",
+      "internal/db/migrations/0085_abyss_affix_stats.up.sql"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_affix_stats_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]
