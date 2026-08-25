@@ -4617,7 +4617,21 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			if _, err := tx.Exec("UPDATE abyss_active SET event_state = NULL, last_action_at = NOW() WHERE client_uid = $1", uid); err != nil {
+			flags, err := loadAbyssRunFlagsInTx(tx, uid)
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			kingAwakened := advanceAbyssMimicChain(flags)
+			var nextState any
+			if kingAwakened {
+				nextState = `{"type":"mimic_king"}`
+			}
+			if err := saveAbyssRunFlagsInTx(tx, uid, flags); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if _, err := tx.Exec("UPDATE abyss_active SET event_state = $1, last_action_at = NOW() WHERE client_uid = $2", nextState, uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -4625,7 +4639,81 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
+			if kingAwakened {
+				writeJSON(w, map[string]any{
+					"ok": true, "msg": "🦷 The third mimic flees—but three sets of footprints converge. The Mimic King unfolds from the vault!",
+					"hp": newHP, "resolved": false, "event_state": `{"type":"mimic_king"}`,
+				})
+				return
+			}
 			writeJSON(w, map[string]any{"ok": true, "msg": "🦷 IT'S A MIMIC! The chest sprouts teeth and bites you before fleeing.", "hp": newHP, "resolved": true})
+			return
+
+		case "mimic_king_challenge", "mimic_king_retreat":
+			if state.Type != "mimic_king" {
+				writeJSON(w, map[string]any{"ok": false, "error": "the Mimic King is not here"})
+				return
+			}
+			maxHP := 0
+			if req.Action == "mimic_king_challenge" {
+				maxHP = s.bot.abyssCombatStats(uid).HP
+			}
+			tx, err := s.bot.DB.Begin()
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			defer func() { _ = tx.Rollback() }()
+			flags, err := loadAbyssRunFlagsInTx(tx, uid)
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			resetAbyssMimicChain(flags)
+			if err := saveAbyssRunFlagsInTx(tx, uid, flags); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if req.Action == "mimic_king_retreat" {
+				if _, err := tx.Exec("UPDATE abyss_active SET event_state=NULL,last_action_at=NOW() WHERE client_uid=$1", uid); err != nil || tx.Commit() != nil {
+					writeJSON(w, map[string]any{"ok": false, "error": "db"})
+					return
+				}
+				writeJSON(w, map[string]any{"ok": true, "resolved": true, "msg": "The false throne snaps shut behind you. The mimic chain is broken."})
+				return
+			}
+			var currentHP int
+			if err := tx.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&currentHP); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			newHP := abyssMimicKingSurvivalHP(currentHP, maxHP)
+			label, grant := abyssMimicKingGrant()
+			data, err := json.Marshal(grant)
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if _, err := tx.Exec("INSERT INTO abyss_escrow_loot (client_uid,item_type,label,item_data,depth) VALUES ($1,$2,$3,$4,$5)", uid, grant.Type, label, data, run.Depth); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if err := clearAbyssPerfectRunInTx(tx, uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if _, err := tx.Exec("UPDATE abyss_active SET event_state=NULL,last_action_at=NOW() WHERE client_uid=$1", uid); err != nil || tx.Commit() != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			writeJSON(w, map[string]any{
+				"ok": true, "resolved": true, "hp": newHP,
+				"msg": "👑 The Mimic King bites deep, but its false crown is sealed into your run cache.",
+			})
 			return
 
 		case "cache_dig":

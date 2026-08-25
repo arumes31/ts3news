@@ -196,6 +196,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0212 / 212** — each named boss's first authoritative kill unlocks a distinct dated Boss Chronicle in the lore codex while unbeaten entries remain sealed.
 - [x] **AAA-0213 / 213** — the shared weekly boss enters a visible Saturday–Sunday UTC raid surge that transactionally doubles both strike damage and immediate material quantity.
 - [x] **AAA-0214 / 214** — treasure encounters roll visible Gem, Token, or Key Goblins with guaranteed Prism, token, or atomic in-run vault-key rewards alongside the existing fleeing haul.
+- [x] **AAA-0215 / 215** — surviving three actual mimic bites awakens a non-deferable Mimic King showdown whose bounded final bite atomically seals a unique crown and resets the run chain.
 
 ## Active tranche: operational quality and client performance
 

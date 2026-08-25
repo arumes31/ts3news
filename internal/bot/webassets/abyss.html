@@ -1773,6 +1773,10 @@ function renderNonCombat(floorType, stateStr){
       options.innerHTML = `
         <button class="ghost" onclick="abyssNCAction('mimic_open')">🎁 Open the Chest (treasure… or a bite)</button>
       `;
+    } else if(state.type === 'mimic_king'){
+      title.textContent = '👑 The Mimic King';
+      desc.textContent = 'Three surviving mimics have joined into a sovereign false chest. Challenge it for the unique Crown of False Gold; its final bite costs one third of maximum HP but cannot kill you.';
+      options.innerHTML = `<button class="primary" onclick="abyssNCAction('mimic_king_challenge')">⚔ Challenge · crown sealed to cache</button> <button class="ghost" onclick="abyssNCAction('mimic_king_retreat')">🚪 Break the chain & leave</button>`;
     } else if(state.type === 'buried_cache'){
       desc.innerHTML = 'Loose stone and a half-buried strap betray a cache someone hid here long ago. A little digging should turn up whatever they left behind.';
       options.innerHTML = `
@@ -1922,7 +1926,7 @@ function renderNonCombat(floorType, stateStr){
     } else {
       desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
     }
-    if(!state.deferred){
+    if(state.type!=='mimic_king'&&!state.deferred){
       options.insertAdjacentHTML('beforeend',' <button class="ghost" onclick="abyssNCAction(\'event_defer\')">⏳ Leave for Later · expires after 3 floors</button>');
     }
     if(typeof renderAbyssEventMemory==='function')renderAbyssEventMemory(options,state);

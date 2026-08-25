@@ -1213,5 +1213,17 @@
       "internal/bot/abyss_treasure_goblins_test.go",
       "internal/content/mobs_treasure_goblins_test.go"
     ]
+  },
+  {
+    "ids": [215],
+    "production": [
+      "internal/bot/abyss_mimic_king.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/webassets/abyss.html"
+    ],
+    "verification": [
+	  "internal/bot/abyss_mimic_king_test.go",
+	  "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]
