@@ -307,3 +307,26 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0598 / UI-98** — artisan reputation shows exact progress to the next discount tier.
 - [x] **AAA-0599 / UI-99** — happy-hour status and countdown derive from the server's UTC window.
 - [x] **AAA-0600 / UI-100** — material chips explain their canonical acquisition sources by pointer and keyboard.
+
+## Delivered tranche: authoritative entry and navigation
+
+- [x] **AAA-0601 / UI-101** — tier cards show entry fees and unlock requirements together.
+- [x] **AAA-0602 / UI-102** — per-tier best depths come from account run history across devices.
+- [x] **AAA-0603 / UI-103** — Insanity carries a reduced-motion-safe warning border.
+- [x] **AAA-0604 / UI-104** — pact reward totals animate from the previous exact value.
+- [x] **AAA-0605 / UI-105** — dangerous pact combinations receive explicit warning icons.
+- [x] **AAA-0606 / UI-106** — checkpoint choices state their 0.75 reward multiplier inline.
+- [x] **AAA-0607 / UI-107** — Express entry names skipped floors and forfeited pre-record rewards.
+- [x] **AAA-0608 / UI-108** — yesterday's runs, wins, deaths, banked gold, and best depth are aggregated from authoritative history.
+- [x] **AAA-0609 / UI-109** — entry setup surfaces the live shared jackpot with cache-building context.
+- [x] **AAA-0610 / UI-110** — Cursed Bank explains both its 20% upside and three-fight penalty.
+- [x] **AAA-0611 / UI-111** — initial reward focus uses icon-led choices with exact mechanical effects.
+- [x] **AAA-0612 / UI-112** — last-used tier, route, build, pacts, and focus persist as validated account state.
+- [x] **AAA-0613 / UI-113** — daily free-entry presentation follows locked server eligibility rather than browser dates.
+- [x] **AAA-0614 / UI-114** — floor-one forecasts use exact equipped CR computed by the server.
+- [x] **AAA-0615 / UI-115** — locked tiers visualize progress toward their required best depth.
+- [x] **AAA-0616 / UI-116** — section tabs show dismissible unread-content dots.
+- [x] **AAA-0617 / UI-117** — the section bar becomes a horizontal scroll strip below 900px.
+- [x] **AAA-0618 / UI-118** — panel headers expose stable hover and keyboard deep links.
+- [x] **AAA-0619 / UI-119** — a floating back-to-top control appears after two viewports.
+- [x] **AAA-0620 / UI-120** — sidebar Armoury/Run Loot ordering is user-configurable and persisted.

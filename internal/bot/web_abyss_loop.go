@@ -40,11 +40,15 @@ func (b *Bot) loadRunFlags(uid string) map[string]int64 {
 }
 
 func (b *Bot) saveRunFlags(uid string, m map[string]int64) error {
+	return saveRunFlags(b.DB, uid, m)
+}
+
+func saveRunFlags(exec dbExecQuerier, uid string, m map[string]int64) error {
 	data, err := json.Marshal(m)
 	if err != nil {
 		return fmt.Errorf("marshal run flags: %w", err)
 	}
-	_, err = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+	_, err = exec.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssRunFlagsKey(uid), string(data))
 	if err != nil {
 		return fmt.Errorf("save run flags: %w", err)

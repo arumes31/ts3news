@@ -23,14 +23,18 @@ func TestAbyssEntryPlannerAssetsAndContracts(t *testing.T) {
 		"function captureAbyssEntrySetup",
 		"function restoreAbyssEntrySetup",
 		"function saveAbyssEntrySetup",
-		"abyssEntrySetupV1",
+		"last_setup",
+		"entryFocus",
 		"aria-current",
-		"floorOneRiskForTier",
-		"Floor 1 ≈",
+		"server risk forecast",
+		"Floor 1 ",
 	} {
 		if !strings.Contains(script.Tree.Root.String(), required) {
 			t.Errorf("Abyss entry planner script is missing %q", required)
 		}
+	}
+	if strings.Contains(script.Tree.Root.String(), "localStorage") {
+		t.Error("Abyss entry setup must not be persisted in browser-only localStorage")
 	}
 
 	page, err := webAssets.ReadFile("webassets/abyss.html")
@@ -51,6 +55,9 @@ func TestAbyssEntryPlannerAssetsAndContracts(t *testing.T) {
 		`{{template "abyssEntryPlannerJS" .}}`,
 		`id="lockedCheckpointHint"`,
 		`data-danger=`,
+		`data-risk=`,
+		`id="entryFocus"`,
+		`id="entryJackpot"`,
 		`{{if not .Unlocked}}disabled{{end}}`,
 		`🔒 depth {{.MinBest}}`,
 		`Confirm descent costs`,

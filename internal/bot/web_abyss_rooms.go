@@ -48,6 +48,7 @@ func resetAbyssRunFlagsInTx(
 	weekly bool,
 	kit string,
 	mutation string,
+	focusID int64,
 	hasActiveRelic bool,
 	hardcore bool,
 	at time.Time,
@@ -55,6 +56,9 @@ func resetAbyssRunFlagsInTx(
 	flags := map[string]int64{
 		abyssRunFlagBuildKit:      abyssBuildKits[normalizeAbyssBuildKit(kit)],
 		abyssRunFlagSkillMutation: abyssSkillMutations[normalizeAbyssSkillMutation(mutation)],
+	}
+	if focusID > 0 {
+		flags[abyssRunFlagFocus] = focusID
 	}
 	if hasActiveRelic {
 		flags[abyssRunFlagRelicCharges] = 1

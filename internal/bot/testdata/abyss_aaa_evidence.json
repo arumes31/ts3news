@@ -254,6 +254,27 @@
     ]
   },
   {
+    "ids": [601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 612, 613, 614, 615, 616, 617, 618, 619, 620],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_focus.go",
+      "internal/bot/web_abyss_rooms.go",
+      "internal/bot/web_abyss_setup_state.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_entry_planner.html",
+      "internal/bot/webassets/abyss_navigation.html",
+      "internal/bot/webassets/abyss_onboarding.html",
+      "internal/bot/webassets/abyss_ui200.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_entry_planner_test.go",
+      "internal/bot/web_abyss_navigation_test.go",
+      "internal/bot/web_abyss_setup_contract_test.go",
+      "internal/bot/web_abyss_setup_state_test.go"
+    ]
+  },
+  {
     "ids": [986, 987],
     "production": [
       "internal/bot/web_abyss_econ.go",

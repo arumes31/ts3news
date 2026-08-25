@@ -23,9 +23,8 @@
 {{end}}
 
 {{define "abyssEntryPlannerJS"}}
-var abyssEntrySetupV1='abyssEntrySetupV1';
 var abyssEntryStep='tier';
-var abyssEntryPanels={tier:['tierPicker','tierRisk','freeEntryStatus'],route:['startPicker'],build:['buildPicker'],pacts:['pactPicker']};
+var abyssEntryPanels={tier:['tierPicker','tierRisk','freeEntryStatus','ydaySummary','entryJackpot'],route:['startPicker'],build:['buildPicker'],pacts:['pactPicker']};
 
 function showAbyssEntryStep(step){
   if(!abyssEntryPanels[step])step='tier';
@@ -59,29 +58,32 @@ function captureAbyssEntrySetup(){
   var start=document.querySelector('input[name=abstart]:checked');
   var checkpoint=document.getElementById('checkpointSel');
   var kit=document.getElementById('buildKit'),mutation=document.getElementById('buildMutation'),loot=document.getElementById('partyLootRule');
+  var focus=document.getElementById('entryFocus');
   var veteran=document.getElementById('veteranTrack');
-  return {tier:selectedTier(),pacts:selectedPacts(),start:start?start.value:'',checkpoint:checkpoint?checkpoint.value:'',
+  return {tier:selectedTier(),pacts:selectedPacts(),start:start?start.value:'',checkpoint:checkpoint?(Number(checkpoint.value)||0):0,
     kit:kit?kit.value:'vanguard',mutation:mutation?mutation.value:'empowered',loot_rule:loot?loot.value:'owner',veteran_track:veteran?veteran.value:'',
+    focus:focus?focus.value:'auto',
     expedition:!!(document.getElementById('weeklyExpedition')&&document.getElementById('weeklyExpedition').checked),
     hardcore:!!(document.getElementById('hardcoreMode')&&document.getElementById('hardcoreMode').checked)};
 }
 function saveAbyssEntrySetup(setup){
-  try{localStorage.setItem(abyssEntrySetupV1,JSON.stringify(setup||captureAbyssEntrySetup()));}catch(e){}
+  if(!abyssSetupState)abyssSetupState={};
+  abyssSetupState.last_setup=setup||captureAbyssEntrySetup();
+  renderAbyssEntrySetupAvailability();
 }
 function findAbyssSetupRadio(name,value){
   return Array.prototype.find.call(document.querySelectorAll('input[name="'+name+'"]'),function(input){return input.value===String(value||'');})||null;
 }
 function restoreAbyssEntrySetup(){
-  var saved=null;
-  try{saved=JSON.parse(localStorage.getItem(abyssEntrySetupV1)||'null');}catch(e){}
-  if(!saved){abToast('No previous descent setup is stored in this browser.',false);return;}
+  var saved=abyssSetupState&&abyssSetupState.last_setup;
+  if(!saved){abToast('No previous descent setup is stored for this account.',false);return;}
   var tier=findAbyssSetupRadio('abtier',saved.tier);
   if(tier&&!tier.disabled)tier.checked=true;
   var start=findAbyssSetupRadio('abstart',saved.start);
   if(start&&!start.disabled)start.checked=true;
   var checkpoint=document.getElementById('checkpointSel');
   if(checkpoint&&saved.checkpoint&&Array.prototype.some.call(checkpoint.options,function(option){return option.value===String(saved.checkpoint)&&!option.disabled;}))checkpoint.value=String(saved.checkpoint);
-  [['buildKit','kit'],['buildMutation','mutation'],['partyLootRule','loot_rule'],['veteranTrack','veteran_track']].forEach(function(pair){
+  [['buildKit','kit'],['buildMutation','mutation'],['partyLootRule','loot_rule'],['veteranTrack','veteran_track'],['entryFocus','focus']].forEach(function(pair){
     var select=document.getElementById(pair[0]);if(!select||saved[pair[1]]===undefined)return;
     if(Array.prototype.some.call(select.options,function(option){return option.value===String(saved[pair[1]]);}))select.value=String(saved[pair[1]]);
   });
@@ -89,7 +91,11 @@ function restoreAbyssEntrySetup(){
   var expedition=document.getElementById('weeklyExpedition');if(expedition)expedition.checked=!!saved.expedition;
   var hardcore=document.getElementById('hardcoreMode');if(hardcore)hardcore.checked=!!saved.hardcore;
   updatePactBonus();renderTierRisk();recommendAbyssTier();renderAbyssEntrySummary();
-  abToast('Previous descent setup restored.',true);
+  abToast('Previous account setup restored, including reward focus.',true);
+}
+function renderAbyssEntrySetupAvailability(){
+  var restore=document.getElementById('abyssRestoreSetup');
+  if(restore)restore.hidden=!(abyssSetupState&&abyssSetupState.last_setup);
 }
 function renderAbyssEntrySummary(){
   var line=document.getElementById('abyssEntrySummaryLine'),forecast=document.getElementById('abyssEntrySummaryRisk');
@@ -101,24 +107,25 @@ function renderAbyssEntrySummary(){
   var route=!startInput||!startInput.value?'Surface':startInput.value==='checkpoint'?'Checkpoint '+(checkpoint?checkpoint.value:''):'Express to '+(startInput.dataset.depth||'record');
   var kit=document.getElementById('buildKit');
   var kitLabel=kit&&kit.options[kit.selectedIndex]?kit.options[kit.selectedIndex].text.split('·')[0].trim():'Vanguard';
+  var focus=document.getElementById('entryFocus');
+  var focusLabel=focus&&focus.options[focus.selectedIndex]?focus.options[focus.selectedIndex].text.split('·')[0].trim():'🧭 Auto';
   var pacts=selectedPacts();
   var hardcore=document.getElementById('hardcoreMode');
-  line.textContent=[tier,route,kitLabel,pacts.length?pacts.length+' pact'+(pacts.length===1?'':'s'):'no pacts',hardcore&&hardcore.checked?'Hardcore':'Standard'].join(' · ');
+  line.textContent=[tier,route,kitLabel,focusLabel,pacts.length?pacts.length+' pact'+(pacts.length===1?'':'s'):'no pacts',hardcore&&hardcore.checked?'Hardcore':'Standard'].join(' · ');
   var reward=0,danger=1;
   document.querySelectorAll('input[name=abpact]:checked').forEach(function(input){reward+=Number(input.dataset.reward)||0;danger*=Number(input.dataset.danger)||1;});
   var pactPreview=document.getElementById('pactNetPreview');
   if(pactPreview)pactPreview.textContent=pacts.length?'Combined pacts: +'+reward+'% cache · ×'+danger.toFixed(2)+' encounter danger.':'No pacts selected · standard rewards and danger.';
-  var risk=tierInput?floorOneRiskForTier(tierInput):0;
+  var risks=abyssSetupState&&abyssSetupState.floor_one_risk_by_tier||{};
+  var risk=Number(risks[tierInput?tierInput.value:'']);
   var cost=Number(tierInput&&tierInput.dataset.entry)||0;
   if(startInput&&startInput.value==='express')cost+=Number(startInput.dataset.cost)||0;
-  var free=document.getElementById('abyssFieldManual');
-  var freeReady=!!(free&&free.dataset.freeEntry==='true');
-  forecast.textContent='Floor 1 ≈'+risk+'% risk · '+(freeReady&&cost>0?'daily waiver ready':cost>0?fmtGold(cost):'free entry');
+  var freeReady=!!(abyssSetupState&&abyssSetupState.free_entry_available);
+  forecast.textContent=(Number.isFinite(risk)?'Floor 1 '+risk+'% risk':'Loading server risk forecast…')+' · '+(freeReady&&cost>0?'daily waiver ready':cost>0?fmtGold(cost):'free entry');
 }
 function initAbyssEntryPlanner(){
   var planner=document.getElementById('abyssEntryPlanner');if(!planner)return;
-  var restore=document.getElementById('abyssRestoreSetup');
-  if(restore)restore.hidden=!abyssOnboardingRead(abyssEntrySetupV1);
+  renderAbyssEntrySetupAvailability();
   document.querySelectorAll('#tierPicker input,#startPicker input,#startPicker select,#buildPicker select,#pactPicker input').forEach(function(control){
     control.addEventListener('change',renderAbyssEntrySummary);
   });

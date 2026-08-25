@@ -64,7 +64,31 @@ func (s *WebServer) handleAbyssFocus(w http.ResponseWriter, r *http.Request, uid
 			return
 		}
 	}
-	if err := s.bot.setRunFlag(uid, abyssRunFlagFocus, focusID); err != nil {
+	flags := s.bot.loadRunFlags(uid)
+	flags[abyssRunFlagFocus] = focusID
+	setup := s.bot.loadAbyssEntrySetup(uid)
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := saveRunFlags(tx, uid, flags); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	rememberedFocus := req.Focus
+	if rememberedFocus == "" {
+		rememberedFocus = "auto"
+	}
+	if setup != nil {
+		setup.Focus = rememberedFocus
+		if err := saveAbyssEntrySetup(tx, uid, *setup); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

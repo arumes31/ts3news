@@ -356,6 +356,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/forge_undo", s.authAPI(s.handleAbyssForgeUndo))
 		mux.HandleFunc("/api/abyss/forge/quote", s.authAPI(s.handleAbyssForgeQuote))
 		mux.HandleFunc("/api/abyss/forge/state", s.authAPI(s.handleAbyssForgeUIState))
+		mux.HandleFunc("/api/abyss/setup/state", s.authAPI(s.handleAbyssSetupState))
 		mux.HandleFunc("/api/abyss/forge/workbench", s.authAPI(s.handleAbyssForgeWorkbench))
 		mux.HandleFunc("/api/abyss/forge/receipts", s.authAPI(s.handleAbyssForgeReceipts))
 		mux.HandleFunc("/api/abyss/forge/target_craft", s.authAPI(s.forgeMutation("target_craft", s.handleAbyssTargetCraft)))

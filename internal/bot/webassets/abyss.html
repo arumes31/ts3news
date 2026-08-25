@@ -169,25 +169,28 @@
     <!-- Tier picker (idle only) [16] -->
     <div class="ab-tiers" id="tierPicker">
       {{range .Tiers}}
+      {{$tierKey := .Key}}
       <label class="ab-tier {{if not .Unlocked}}locked{{end}}">
-        <input type="radio" name="abtier" value="{{.Key}}" data-entry="{{.EntryGold}}" data-diff="{{.DiffMult}}" {{if and (eq .Key "normal") .Unlocked}}checked{{end}} {{if not .Unlocked}}disabled{{end}}>
+        <input type="radio" name="abtier" value="{{.Key}}" data-entry="{{.EntryGold}}" data-diff="{{.DiffMult}}" data-risk="{{with $.FloorOneRiskByTier}}{{index . $tierKey}}{{end}}" {{if and (eq .Key "normal") .Unlocked}}checked{{end}} {{if not .Unlocked}}disabled{{end}}>
         <span class="ab-tier-name">{{.Name}}</span>
         <span class="ab-tier-meta">×{{printf "%.1f" .RewardMult}} reward · ×{{printf "%.1f" .DiffMult}} danger</span>
         <!-- UI-101: entry fee + unlock requirement line; UI-113: .ab-entry-cost is
              struck through by JS while the daily free entry applies -->
         <span class="ab-tier-meta">{{if gt .EntryGold 0}}entry <span class="ab-entry-cost {{if $.FreeEntryAvailable}}ab-free{{end}}">{{gold .EntryGold}}</span>{{else}}free{{end}}{{if not .Unlocked}} · 🔒 depth {{.MinBest}}{{end}}</span>
-        <!-- UI-102: per-tier personal best, filled from localStorage by JS -->
+        <!-- UI-102: per-tier account best, filled from authoritative run history -->
         <span class="ab-tier-best muted small" data-tier="{{.Key}}" style="display:none"></span>
         <!-- UI-115: progress toward the unlock depth while locked -->
         {{if not .Unlocked}}<span class="ab-tier-unlockbar" title="Best depth {{$.Stats.BestDepth}} / {{.MinBest}}"><i style="width:{{mulpct $.Stats.BestDepth .MinBest}}%"></i></span>{{end}}
       </label>
       {{end}}
     </div>
-    <!-- UI-114: floor-1 death-risk forecast for the selected tier (client-side
-         mirror of abyssRiskPct); UI-108: previous-session summary (localStorage) -->
+    <!-- UI-114: exact server-computed floor-1 death-risk forecast;
+         UI-108: authoritative previous-session summary -->
     <div class="muted small" id="tierRisk" style="margin:4px 0;"></div>
     <div class="muted small ab-free-entry-status" id="freeEntryStatus">{{if .FreeEntryAvailable}}🎟 Daily waiver ready — your first eligible entry is free.{{else}}🎟 Daily waiver used today.{{end}}</div>
     <div class="muted small" id="ydaySummary" style="display:none; margin:4px 0;"></div>
+    <div class="muted small ab-entry-jackpot" id="entryJackpot">🔥 Deep-cache jackpot: <strong>{{with .HUD.Jackpot}}{{gold .}}{{else}}0g{{end}}</strong> · Bank at depth 25+ for a chance to claim it—or feed it when the Abyss taxes excess gold.</div>
+    <div class="muted small ab-entry-jackpot" id="entryJackpot">🔥 Deep-cache jackpot: <strong>{{with .HUD.Jackpot}}{{gold .}}{{else}}—{{end}}</strong> · bank deep, feed the cache, and you may claim it.</div>
 
     <!-- Start-mode picker (idle only): surface / checkpoint (#2) / express (#3) -->
     <div class="ab-startmode" id="startPicker">
@@ -228,6 +231,17 @@
           <option value="owner">Host cache · helper 🜲5</option>
           <option value="round_robin">Round robin · helper 🜲8</option>
           <option value="need_before_greed">Need before greed · helper 🜲6</option>
+        </select>
+      </label>
+      <label>Reward focus
+        <select id="entryFocus" class="ab-select">
+          <option value="auto">🧭 Auto · chooses the strongest situational reward</option>
+          <option value="balanced">⚖️ Balanced · standard rewards with no trade-off</option>
+          <option value="gold">💰 Gold · doubles floor gold</option>
+          <option value="loot">🎁 Loot · +50% find and +20% quality</option>
+          <option value="xp">✨ XP · doubles floor XP</option>
+          <option value="materials">⛏️ Materials · converts floor gold into crafting stock</option>
+          <option value="tokens">🜲 Tokens · converts floor gold into Abyss tokens</option>
         </select>
       </label>
       {{if ge .Stats.BestDepth 50}}<label>Veteran track
@@ -1139,7 +1153,7 @@ var dailyAffix = '{{if .DailyMod}}{{.DailyMod}}{{end}}'; // UI-34
 var interestRatePct = {{printf "%.3f" .HUD.InterestRatePct}}; // UI-60 authoritative rate
 var interestTotalPct = {{printf "%.3f" .HUD.InterestTotalPct}};
 var escrowSoftCap = {{.HUD.EscrowSoftCap}}, escrowEfficiencyPct = {{.HUD.EscrowEfficiencyPct}};
-var forgeUIState = null, forgeUIStateReceivedAt = 0;
+var forgeUIState = null, forgeUIStateReceivedAt = 0, abyssSetupState = null;
 var abyssJackpot = {{.HUD.Jackpot}}; // UI-57
 var jackpotPulse = false, jackpotPulseTimer = 0;
 var activeRunPacts = {{jsonJS .HUD.Pacts}} || []; // UI-52
@@ -2723,12 +2737,12 @@ async function abyssEnter(consumables){
   setBusy(true); markBusyBtn('btnEnter');
   var expedition=document.getElementById('weeklyExpedition');
 	var hardcore=document.getElementById('hardcoreMode');
-  var kit=document.getElementById('buildKit'), mutation=document.getElementById('buildMutation');
+  var kit=document.getElementById('buildKit'), mutation=document.getElementById('buildMutation'), entryFocus=document.getElementById('entryFocus');
   var veteran=document.getElementById('veteranTrack');
   var lootRule=document.getElementById('partyLootRule');
   var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),hardcore:!!(hardcore&&hardcore.checked),
     kit:kit?kit.value:'vanguard', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
-    loot_rule:lootRule?lootRule.value:'owner'};
+    loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto'};
   if(body.hardcore && !(await confirmModalDangerous('Begin a Hardcore run? Grace floors, insurance, revival items, Last Stand, and revival gambles are disabled. Cleared-floor cache rewards are doubled and the run enters the Hardcore leaderboard.',{title:'Begin Hardcore',okLabel:'Enter Hardcore'}))){
     setBusy(false);
     return;
@@ -2774,11 +2788,7 @@ async function abyssEnter(consumables){
   var notes=[];
   if(d.free_entry){
     notes.push('🎟️ Daily free entry — the toll is waived!');
-    // UI-113: remember the waiver so entry costs render struck-through for the
-    // rest of the day (this browser only — a waiver used elsewhere is unknown).
-    try{ localStorage.setItem('ab_free_entry', new Date().toISOString().slice(0,10)); }catch(e){}
-    var manual=document.getElementById('abyssFieldManual');
-    if(manual)manual.dataset.freeEntry='false';
+    if(abyssSetupState)abyssSetupState.free_entry_available=false;
     renderFreeEntry();
   }
   saveAbyssEntrySetup(body);
@@ -4537,33 +4547,21 @@ function renderTemperPity(stacks){
   if(lbl)lbl.textContent=stacks>0?('+'+(stacks*5)+'% next try'):'';
 }
 
-// UI-102: per-tier personal bests, tracked in localStorage keyed by tier.
-function recordTierBest(depth){
-  try{
-    var tier=sessionStorage.getItem('ab_run_tier')||'normal';
-    var bests=JSON.parse(localStorage.getItem('ab_tier_best')||'{}');
-    if((depth||0)>(bests[tier]||0)){
-      bests[tier]=depth;
-      localStorage.setItem('ab_tier_best',JSON.stringify(bests));
-    }
-  }catch(e){}
-}
+// UI-102: finished-run tier bests are persisted and returned by the server.
+function recordTierBest(){void refreshAbyssSetupState();}
 function renderTierBests(){
-  var bests={};
-  try{ bests=JSON.parse(localStorage.getItem('ab_tier_best')||'{}'); }catch(e){}
+  var bests=abyssSetupState&&abyssSetupState.tier_bests||{};
   document.querySelectorAll('.ab-tier-best').forEach(function(el){
     var d=bests[el.getAttribute('data-tier')];
-    if(d){ el.style.display=''; el.textContent='best 🕳️ '+d+' (this browser)'; }
+    el.style.display=d?'':'none';
+    el.textContent=d?('best 🕳️ '+d+' · account record'):'';
   });
 }
 
-// UI-108: previous-session summary, tracked client-side (approximation: only
-// runs finished in this browser are remembered).
+// UI-108: local run-cause telemetry remains a UI aid; yesterday's displayed
+// aggregate comes from the authoritative run history.
 function recordSessionRun(victory,depth,banked,cause){
   try{
-    localStorage.setItem('ab_last_session',JSON.stringify({
-      date:new Date().toISOString().slice(0,10), victory:!!victory, depth:depth||0, banked:banked||0
-    }));
     var causes=[];try{causes=JSON.parse(localStorage.getItem('ab_run_causes')||'[]');if(!Array.isArray(causes))causes=[];}catch(e3){causes=[];}
     causes.unshift({at:Date.now(),victory:!!victory,cause:victory?'Banked':(cause||'Defeated'),depth:depth||0});
     localStorage.setItem('ab_run_causes',JSON.stringify(causes.slice(0,50)));
@@ -4578,15 +4576,17 @@ function recordSessionRun(victory,depth,banked,cause){
     tr[tier]=rec;
     localStorage.setItem('ab_tier_wr',JSON.stringify(tr));
   }catch(e){}
+  void refreshAbyssSetupState();
 }
 function renderYdaySummary(){
   var el=document.getElementById('ydaySummary'); if(!el)return;
-  var s=null;
-  try{ s=JSON.parse(localStorage.getItem('ab_last_session')||'null'); }catch(e){}
-  if(!s||!s.date)return;
-  if(s.date===new Date().toISOString().slice(0,10))return; // only earlier sessions
-  el.style.display='';
-  el.textContent='📜 Last session ('+s.date+'): '+(s.victory?('🏦 banked '+fmtGold(s.banked)+' at depth '+s.depth):('💀 fell at depth '+s.depth))+'.';
+  var y=abyssSetupState&&abyssSetupState.yesterday;
+  if(y&&Number(y.runs)>0){
+    el.style.display='';
+    el.textContent='📜 Yesterday · '+Number(y.runs).toLocaleString()+' run'+(Number(y.runs)===1?'':'s')+' · '+Number(y.wins).toLocaleString()+' banked / '+Number(y.deaths).toLocaleString()+' fell · 🏦 '+fmtGold(y.gold_banked)+' banked · best depth '+Number(y.best_depth).toLocaleString()+'.';
+    return;
+  }
+  el.style.display='none';el.textContent='';
 }
 
 // ---- D. Loot & inventory presentation (UI-61..80) ---------------------------
@@ -5305,14 +5305,34 @@ function initMatTips(){
 
 // ---- F. Entry & run setup (UI-101..115) --------------------------------------
 
-// UI-113 / UX-7: the server supplies initial eligibility. localStorage only closes
-// the brief gap after this tab consumes the waiver and before the next page load.
+var abyssSetupRefreshPromise=null;
+async function refreshAbyssSetupState(){
+  if(abyssSetupRefreshPromise)return abyssSetupRefreshPromise;
+  abyssSetupRefreshPromise=(async function(){
+    try{
+      var response=await fetch('/api/abyss/setup/state',{credentials:'same-origin'});
+      var data=await response.json();
+      if(!response.ok||!data.ok)return;
+      abyssSetupState=data.state||{};
+      renderTierBests();
+      renderYdaySummary();
+      renderFreeEntry();
+      renderTierRisk();
+      if(typeof renderAbyssEntrySummary==='function')renderAbyssEntrySummary();
+      if(typeof renderAbyssEntrySetupAvailability==='function')renderAbyssEntrySetupAvailability();
+      var jackpot=document.querySelector('#entryJackpot strong');
+      if(jackpot&&Number.isFinite(Number(abyssSetupState.jackpot)))jackpot.textContent=fmtGold(abyssSetupState.jackpot);
+    }catch(e){}
+    finally{abyssSetupRefreshPromise=null;}
+  })();
+  return abyssSetupRefreshPromise;
+}
+
+// UI-113 / UX-7: daily waiver eligibility is account state returned by the server.
 function renderFreeEntry(){
-  var used='';
-  try{ used=localStorage.getItem('ab_free_entry')||''; }catch(e){}
+  var available=!!(abyssSetupState&&abyssSetupState.free_entry_available);
   var manual=document.getElementById('abyssFieldManual');
-  var available=!!(manual&&manual.dataset.freeEntry==='true');
-  if(used===new Date().toISOString().slice(0,10))available=false;
+  if(manual)manual.dataset.freeEntry=available?'true':'false';
   document.querySelectorAll('.ab-entry-cost').forEach(function(el){ el.classList.toggle('ab-free',available); });
   var btn=document.getElementById('btnEnter');
   if(btn)btn.textContent=available?'Enter — FREE today':'Enter the Abyss';
@@ -5320,27 +5340,24 @@ function renderFreeEntry(){
   if(status)status.textContent=available?'🎟 Daily waiver ready — your first eligible entry is free.':'🎟 Daily waiver used today.';
 }
 
-// UI-114: floor-1 death-risk forecast for the selected tier. Client-side mirror
-// of abyssRiskPct: effDiff(1)=0.6×tier.DiffMult, risk=100·d/(d+CR/1000), with the
-// player's CR summed off the armoury card tooltips.
-function playerCRSum(){
-  var sum=0;
-  document.querySelectorAll('.abyss-side-gear').forEach(function(c){
-    var m=/CR ([\d.]+)/.exec(c.getAttribute('data-tip')||'');
-    if(m)sum+=parseFloat(m[1])||0;
-  });
-  return sum;
-}
+// UI-114: exact floor-1 death-risk forecast calculated from authoritative CR.
 function renderTierRisk(){
   var el=document.getElementById('tierRisk');
   if(!el)return;
   if(inRun){ el.style.display='none'; return; }
   var sel=document.querySelector('input[name=abtier]:checked');
   if(!sel){ el.textContent=''; return; }
-  var risk=floorOneRiskForTier(sel);
+  var risks=abyssSetupState&&abyssSetupState.floor_one_risk_by_tier||{};
+  var risk=Number(risks[sel.value]);
+  if(!Number.isFinite(risk))risk=Number(sel.getAttribute('data-risk'));
+  if(!Number.isFinite(risk)){
+    el.classList.remove('bad');
+    el.textContent='☠️ Loading server risk forecast…';
+    return;
+  }
   var diff=parseFloat(sel.getAttribute('data-diff'))||1;
-  el.innerHTML='☠️ Floor-1 death-risk forecast ('+consEsc(sel.value)+'): ≈'+risk+'%'+
-    '<span class="ab-risk-breakdown">tier danger ×'+diff.toFixed(1)+' versus '+Math.round(playerCRSum()).toLocaleString()+' equipped CR · later floors and pacts add danger</span>';
+  el.innerHTML='☠️ Floor-1 death-risk forecast ('+consEsc(sel.value)+'): '+risk+'%'+
+    '<span class="ab-risk-breakdown">server forecast · tier danger ×'+diff.toFixed(1)+' · exact equipped combat rating · later floors and pacts add danger</span>';
   el.classList.toggle('bad',risk>=70);
 }
 
@@ -5433,10 +5450,7 @@ function renderTierRisk(){
   void refreshForgeUIState();
   initMatTips();
 
-  renderTierBests();
-  renderYdaySummary();
-  renderFreeEntry();
-  renderTierRisk();
+  void refreshAbyssSetupState();
   recommendAbyssTier();
   document.querySelectorAll('input[name=abtier]').forEach(function(radio){
     radio.addEventListener('change',function(){renderTierRisk();recommendAbyssTier();});

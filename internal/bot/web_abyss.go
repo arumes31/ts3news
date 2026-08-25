@@ -1358,10 +1358,17 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		dropStreakBonusPct = 30
 	}
 
+	playerCR := s.bot.abyssPlayerCR(uid)
+	floorOneRiskByTier := make(map[string]int, len(abyssTierOrder))
+	for _, key := range abyssTierOrder {
+		if tier, ok := abyssTierByKey(key); ok {
+			floorOneRiskByTier[key] = abyssRiskPct(1, tier, playerCR)
+		}
+	}
 	risk := 0
 	if run.Active {
 		if runTier, ok := abyssTierByKey(run.Tier); ok {
-			risk = abyssRiskPct(run.Depth+1, runTier, s.bot.abyssPlayerCR(uid))
+			risk = abyssRiskPct(run.Depth+1, runTier, playerCR)
 		}
 	}
 
@@ -1429,6 +1436,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"DropStreak":         dropStreak,
 		"DropStreakBonusPct": dropStreakBonusPct,
 		"Risk":               risk,
+		"FloorOneRiskByTier": floorOneRiskByTier,
 		"FreeEntryAvailable": freeEntryAvailable,
 		"RunLoot":            s.bot.currentRunLootManifest(uid, equipped, abyssOwnedGearSet(equipped, inventory)),
 		"CanLastStand":       run.Active && !abyssHardcoreRun(runFlags) && !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(run.Depth),
@@ -1546,6 +1554,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		Hardcore    bool           `json:"hardcore"`    // no protection or revival, ×2 floor cache
 		Kit         string         `json:"kit"`         // starting combat identity
 		Mutation    string         `json:"mutation"`    // temporary in-run skill mutation
+		Focus       string         `json:"focus"`       // auto | balanced | gold | loot | xp | materials | tokens
 		LootRule    string         `json:"loot_rule"`   // party reward settlement selected before entry
 		VeteranTrack string        `json:"veteran_track"` // optional cosmetic challenge, unlocked at depth 50
 	}
@@ -1595,6 +1604,11 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		return
 	}
 	pacts := abyssValidatePacts(req.Pacts)
+	focus, focusID, focusOK := normalizeAbyssEntryFocus(req.Focus)
+	if !focusOK {
+		writeJSON(w, map[string]any{"ok": false, "error": "unknown focus"})
+		return
+	}
 
 	st := stPre
 	if st.BestDepth < tier.MinBest {
@@ -1745,7 +1759,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	_, hasActiveRelic := equipped[content.SlotRelic]
 	weeklyRule, err := resetAbyssRunFlagsInTx(
-		tx, uid, req.Expedition, req.Kit, req.Mutation, hasActiveRelic, req.Hardcore, time.Now(),
+		tx, uid, req.Expedition, req.Kit, req.Mutation, focusID, hasActiveRelic, req.Hardcore, time.Now(),
 	)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -1757,6 +1771,22 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	entryProgression, err := seedAbyssProgressionFlagsInTx(tx, uid, req.VeteranTrack, time.Now())
 	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := saveAbyssEntrySetup(tx, uid, abyssEntrySetup{
+		Tier:         tier.Key,
+		Pacts:        strings.Fields(pacts),
+		Start:        req.Start,
+		Checkpoint:   req.Checkpoint,
+		Kit:          req.Kit,
+		Mutation:     req.Mutation,
+		LootRule:     req.LootRule,
+		VeteranTrack: req.VeteranTrack,
+		Focus:        focus,
+		Expedition:   req.Expedition,
+		Hardcore:     req.Hardcore,
+	}); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

@@ -73,10 +73,8 @@ function abyssOnboardingWrite(key,value){
 }
 function floorOneRiskForTier(input){
   if(!input)return 0;
-  var diff=parseFloat(input.getAttribute('data-diff'))||1;
-  var effective=0.6*diff;
-  var cr=Math.max(0,playerCRSum());
-  return Math.max(0,Math.min(100,Math.round(100*effective/(effective+cr/1000))));
+	var risk=Number(input.getAttribute('data-risk'));
+	return Number.isFinite(risk)?Math.max(0,Math.min(100,Math.round(risk))):0;
 }
 function recommendAbyssTier(){
   var choices=Array.prototype.slice.call(document.querySelectorAll('input[name=abtier]:not(:disabled)'));
