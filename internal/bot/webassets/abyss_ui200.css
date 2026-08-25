@@ -434,11 +434,8 @@
 }
 
 /* UI-26: round-number gutter */
-#abyssLog.ab-numbered { counter-reset: abround; }
-
-#abyssLog.ab-numbered .ab-log-line:not(.ab-log-divider):not(.ab-log-affix):not(.ab-log-pacts)::before {
-  counter-increment: abround;
-  content: counter(abround);
+#abyssLog.ab-numbered .ab-log-line[data-round]::before {
+  content: attr(data-round);
   display: inline-block;
   min-width: 2ch;
   margin-right: .5rem;
@@ -456,7 +453,8 @@
 
 /* UI-21: hover highlight of the matching combatant */
 #hpBar.ab-hl { outline: 2px solid var(--bad); outline-offset: 2px; }
-.ab-scene.ab-hl { outline: 2px solid var(--gold); outline-offset: -2px; border-radius: 10px; }
+#bossHPOverlay.ab-hl { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+#petHPBar.ab-hl { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---- HUD chips (UI-41..60) ------------------------------------------------ */
 

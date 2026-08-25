@@ -32,6 +32,8 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0005 / 5** — secure 25% or 50% of a live cache for a visible 10% fee and continue the run.
 - [x] **AAA-0006 / 6** — one persisted coin flip can double or remove only the latest cleared floor's bonus.
 - [x] **AAA-0007 / 7** — consumable-free momentum grants 2% strength per floor, capped at 20%.
+- [x] **AAA-0008 / 8** — floors 1–3 return the full cache and loot without death or bank-streak penalties.
+- [x] **AAA-0009 / 9** — hardcore runs disable protection and revival, double cache rewards, and use a dedicated board and badge.
 - [x] **AAA-0010 / 10** — opt-in weekly expeditions retain one UTC ISO-week seed for the full run.
 
 ## Active tranche: operational quality and client performance
@@ -205,3 +207,26 @@ lease, not a cosmetic client countdown pause.
 - [ ] **AAA-0518 / UI-18** — active buff badges remain pending authoritative, restart-safe duration state.
 - [x] **AAA-0519 / UI-19** — three momentum-flame sizes at zero, five, and ten stacks.
 - [x] **AAA-0520 / UI-20** — reduced-motion-safe enrage state driven by combat logs.
+
+## Delivered tranche: authoritative combat log
+
+- [x] **AAA-0521 / UI-21** — log hover targets the matching player, enemy, or pet HP area.
+- [x] **AAA-0522 / UI-22** — numbered floor dividers split the log into readable chapters.
+- [x] **AAA-0523 / UI-23** — critical-hit lines use heavier type as well as color.
+- [x] **AAA-0524 / UI-24** — dodge and miss lines use an italic avoidance treatment.
+- [x] **AAA-0525 / UI-25** — exact restored lifesteal HP is logged in green with a plus prefix.
+- [x] **AAA-0526 / UI-26** — persisted round-number gutter uses authoritative combat round metadata.
+- [x] **AAA-0527 / UI-27** — fights over twenty lines collapse complete middle rounds behind a keyboard-accessible expander.
+- [x] **AAA-0528 / UI-28** — inline loot lines reuse manifest rarity borders.
+- [x] **AAA-0529 / UI-29** — fatal blows remain pinned until revive resolution or the next fight.
+- [x] **AAA-0530 / UI-30** — pet captures receive a reduced-motion-safe target flourish.
+- [x] **AAA-0531 / UI-31** — durability-loss lines carry an explicit wrench prefix.
+- [x] **AAA-0532 / UI-32** — momentum gain and consumable-break lines show a flame and exact multiplier.
+- [x] **AAA-0533 / UI-33** — pity lines render the persisted post-floor counter instead of inferring it from loot HTML.
+- [x] **AAA-0534 / UI-34** — every floor section begins with the active daily-affix reminder.
+- [x] **AAA-0535 / UI-35** — selected pacts are echoed once with exact reward and danger percentages.
+- [x] **AAA-0536 / UI-36** — substring search filters currently visible combat lines.
+- [x] **AAA-0537 / UI-37** — plain-text copy is scoped to the most recently played fight.
+- [x] **AAA-0538 / UI-38** — persisted monospace mode disables font ligatures.
+- [x] **AAA-0539 / UI-39** — post-fight outcome, HP, and loot summaries are announced to screen readers.
+- [x] **AAA-0540 / UI-40** — server-marked consecutive DoT ticks collapse independent of the active locale.

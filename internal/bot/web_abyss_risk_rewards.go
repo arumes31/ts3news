@@ -10,8 +10,41 @@ import (
 const (
 	abyssRunFlagDoubleBonus      = "double_bonus"
 	abyssRunFlagDoubleBonusDepth = "double_bonus_depth"
+	abyssRunFlagHardcore         = "hardcore"
 	abyssPartialBankFeePct       = 10
 )
+
+func abyssHardcoreRun(flags map[string]int64) bool {
+	return flags[abyssRunFlagHardcore] == 1
+}
+
+func abyssGraceProtected(depth int, hardcore bool) bool {
+	return depth >= 1 && depth <= 3 && !hardcore
+}
+
+func abyssHardcoreFloorReward(bonus int64, hardcore bool) int64 {
+	if hardcore {
+		return bonus * 2
+	}
+	return bonus
+}
+
+type abyssForfeitPolicy struct {
+	Refund       int64
+	CountDeath   bool
+	PreserveLoot bool
+}
+
+func planAbyssForfeit(escrow int64, insured, depth int, hardcore bool) abyssForfeitPolicy {
+	if abyssGraceProtected(depth, hardcore) {
+		return abyssForfeitPolicy{Refund: escrow, PreserveLoot: true}
+	}
+	refund := int64(0)
+	if !hardcore && insured > 0 {
+		refund = escrow * int64(min(insured, 100)) / 100
+	}
+	return abyssForfeitPolicy{Refund: refund, CountDeath: true}
+}
 
 type abyssPartialBankQuote struct {
 	Escrow    int64

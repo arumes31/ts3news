@@ -1535,6 +1535,10 @@ func (s *WebServer) handleAbyssLastStand(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "not downed"})
 		return
 	}
+	if abyssHardcoreRun(s.bot.loadRunFlags(uid)) {
+		writeJSON(w, map[string]any{"ok": false, "error": "hardcore runs do not allow Last Stand"})
+		return
+	}
 	if run.LastStandUsed {
 		writeJSON(w, map[string]any{"ok": false, "error": "Last Stand already spent this run"})
 		return

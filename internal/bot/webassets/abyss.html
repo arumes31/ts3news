@@ -142,6 +142,7 @@
       <span class="ab-escrow-val" id="escrowVal" data-raw="{{.Run.Escrow}}"></span>
       <div class="ab-coinpile" id="coinPile" aria-hidden="true"></div>
       <span class="ab-insured-tag {{if gt .Run.Insured 0}}glow{{end}}" id="insuredTag" {{if le .Run.Insured 0}}style="display:none"{{end}}>🛡️ {{.Run.Insured}}% insured</span>
+      <span class="ab-insured-tag ab-hardcore-tag" id="hardcoreTag" {{if not .Hardcore}}style="display:none"{{end}}>💀 HARDCORE · ×2 cache</span>
     </div>
     <!-- Threat / danger meter [91] -->
     <div class="ab-threat">
@@ -253,6 +254,10 @@
         <input type="checkbox" id="weeklyExpedition"> 📅 Weekly Expedition
         <span class="muted small">(+25% rewards · fixed weekly rule)</span>
       </label>
+      <label class="ab-pact ab-hardcore-choice" data-tip="No insurance, revival, Last Stand, or grace protection. Every cleared floor pays twice its final cache bonus and the run enters a separate leaderboard.">
+        <input type="checkbox" id="hardcoreMode"> 💀 Hardcore
+        <span class="muted small">(×2 cache · no protection or revival)</span>
+      </label>
       <div class="muted small">🌐 Community expedition {{index .CommunityExpedition "Week"}}: {{index .CommunityExpedition "Floors"}} / {{index .CommunityExpedition "Target"}} floors</div>
     </div>
 
@@ -286,10 +291,10 @@
     {{template "abyssRunAwarenessBelt" .}}
 
     <div class="ab-subrow" id="liveRow" style="display:none">
-      <span class="ab-sub-label">{{T "web.abyss.insure_cache"}}</span>
+      <span id="insuranceControls"><span class="ab-sub-label">{{T "web.abyss.insure_cache"}}</span>
       <button class="ghost xs" onclick="abyssInsure(25)">25%</button>
       <button class="ghost xs" onclick="abyssInsure(50)">50%</button>
-      <button class="ghost xs" onclick="abyssInsure(75)">75%</button>
+      <button class="ghost xs" onclick="abyssInsure(75)">75%</button></span>
       <span class="ab-sub-label">Secure &amp; continue:</span>
       <button class="ghost xs" id="btnBank25" onclick="abyssBank(25)">25%</button>
       <button class="ghost xs" id="btnBank50" onclick="abyssBank(50)">50%</button>
@@ -1089,7 +1094,8 @@
 <script data-cfasync="false">
 var inRun   = {{if .Run.Active}}true{{else}}false{{end}};
 var downed  = {{if .Run.Downed}}true{{else}}false{{end}};
-var canRev  = {{if or .Run.Revived .Run.ReviveLocked}}false{{else}}true{{end}};
+var canRev  = {{if or .Hardcore .Run.Revived .Run.ReviveLocked}}false{{else}}true{{end}};
+var hardcoreRun = {{if .Hardcore}}true{{else}}false{{end}};
 var wardLv  = {{.Stats.UpWard}};
 var curDepth = {{if .Run.Active}}{{.Run.Depth}}{{else}}0{{end}};
 var pendingDoubleBonus = {{with .PendingDoubleBonus}}{{.}}{{else}}0{{end}};
@@ -1421,6 +1427,7 @@ function renderState(){
   show('btnDoubleBonus', inRun && !downed && pendingDoubleBonus > 0);
   show('btnBuildRespec', inRun && !downed);
   show('liveRow', inRun && !downed);
+  show('insuranceControls', inRun && !downed && !hardcoreRun);
   // Co-op summons are only for boss floors, so the row follows the *next* floor
   // preview (every 5th floor) rather than the initial server render.
   var nextIsBoss = inRun && !downed && ((curDepth + 1) % 5 === 0);
@@ -1880,8 +1887,10 @@ function playLog(lines, loot, dura, timeline, result){
     updateWavePips(0,0); // UI-6
     fightMeta={actions:0, struck:false};
     lastFightText='';
+    lastDotKey=null; lastDotEl=null;
     startCombatRecorder((lines||[]).length,loot,dura,result);
     timeline=Array.isArray(timeline)?timeline.slice().sort(function(a,b){return a.after_log-b.after_log;}):[];
+    var roundTimeline=timeline.slice();
     var frameIndex=0;
     function applyFrames(afterLog){
       while(frameIndex<timeline.length && Number(timeline[frameIndex].after_log)<=afterLog){
@@ -1906,15 +1915,15 @@ function playLog(lines, loot, dura, timeline, result){
       finishCombatRecorder();
       resolve();
     }
-    if(reduceMotion){(lines||[]).forEach(function(l,idx){appendLogLine(log,l);maybeBossCard(l);updateCombatRecorderProgress(idx+1,lines.length);applyFrames(idx+1);});finish();return;}
+    if(reduceMotion){(lines||[]).forEach(function(l,idx){appendLogLine(log,l,combatRoundAt(roundTimeline,idx));maybeBossCard(l);updateCombatRecorderProgress(idx+1,lines.length);applyFrames(idx+1);});finish();return;}
     var i=0;
     (function step(){
       if(i>=lines.length){finish();return;}
       if(shouldDrainCombatPlayback()){
-        while(i<lines.length){appendLogLine(log,lines[i]);maybeBossCard(lines[i]);i++;updateCombatRecorderProgress(i,lines.length);applyFrames(i);}
+        while(i<lines.length){appendLogLine(log,lines[i],combatRoundAt(roundTimeline,i));maybeBossCard(lines[i]);i++;updateCombatRecorderProgress(i,lines.length);applyFrames(i);}
         followCombatLog();finish();return;
       }
-      appendLogLine(log,lines[i]);
+      appendLogLine(log,lines[i],combatRoundAt(roundTimeline,i));
       maybeBossCard(lines[i]); // UX-28
       i++;
       updateCombatRecorderProgress(i,lines.length);
@@ -1966,6 +1975,12 @@ try{ logNumbered=localStorage.getItem('ab_lognum')==='1'; logMono=localStorage.g
 function addLogHead(log, cls, txt){
   var d=document.createElement('div'); d.className='ab-log-line '+cls; d.textContent=txt; log.appendChild(d); recordCombatLogLine(d,txt);
 }
+function combatRoundAt(timeline, logIndex){
+  for(var i=0;i<timeline.length;i++){
+    if(Number(timeline[i].after_log)>=logIndex+1 && Number(timeline[i].round)>0) return Number(timeline[i].round);
+  }
+  return 0;
+}
 function elemGlyph(el){return {Fire:'🔥',Water:'💧',Earth:'🪨',Air:'💨',Physical:'⚔️'}[el]||'';}
 function dailyAffixLabel(){
   var el=document.querySelector('.ab-weekly-alert');
@@ -1975,13 +1990,14 @@ function dailyAffixLabel(){
 
 // appendLogLine: one log line in, decorated (UI-3/4/6/11..13/20/23..25/28/30/32),
 // with consecutive identical DoT ticks collapsed behind a ×N suffix (UI-40).
-function appendLogLine(log, html){
+function appendLogLine(log, html, round){
   var d=document.createElement('div'); d.className='ab-log-line'; d.innerHTML=html;
+  if(round>0) d.setAttribute('data-round',String(round));
   var txt=d.textContent||'';
   lastFightText+=txt+'\n';
   decorateLogLine(d, txt);
   recordCombatLogLine(d,txt);
-  var dot=/takes \d+ \w+ damage \(\d+ stacks\)/.test(txt)?txt:null;
+  var dot=d.querySelector('.ab-dot-signal')?txt:null;
   if(dot && lastDotEl && lastDotKey===dot){
     var n=(parseInt(lastDotEl.getAttribute('data-n'),10)||1)+1;
     lastDotEl.setAttribute('data-n',n);
@@ -2202,18 +2218,28 @@ function tickBuffs(){
   renderBuffStrip();
 }
 
-// UI-27: fights longer than 20 lines collapse their middle behind an expander.
+// UI-27: fights longer than 20 lines collapse complete middle rounds.
 function collapseLongFight(log){
   if(log.querySelector('.ab-log-virtual-gap')) return;
   var lines=log.querySelectorAll('.ab-log-line:not(.ab-log-divider):not(.ab-log-affix):not(.ab-log-pacts)');
   if(lines.length<=20) return;
-  var hide=[];
-  for(var i=5;i<lines.length-5;i++) hide.push(lines[i]);
+  var rounds=[];
+  Array.prototype.forEach.call(lines,function(line){
+    var round=Number(line.getAttribute('data-round'))||0;
+    if(round>0 && rounds.indexOf(round)<0) rounds.push(round);
+  });
+  if(rounds.length<=2) return;
+  var firstRound=rounds[0],lastRound=rounds[rounds.length-1],hide=[];
+  Array.prototype.forEach.call(lines,function(line){
+    var round=Number(line.getAttribute('data-round'))||0;
+    if(round>firstRound && round<lastRound) hide.push(line);
+  });
+  if(!hide.length) return;
   hide.forEach(function(l){ l.classList.add('ab-collapsed'); });
   var row=document.createElement('div');
   row.className='ab-log-line ab-log-collapse';
-  row.textContent='⚔️ '+hide.length+' exchanges — activate to expand';
-  row.setAttribute('role','button'); row.setAttribute('aria-label','Expand '+hide.length+' combat exchanges'); row.tabIndex=0;
+  row.textContent='… '+Math.max(0,rounds.length-2)+' rounds … activate to expand';
+  row.setAttribute('role','button'); row.setAttribute('aria-label','Expand '+Math.max(0,rounds.length-2)+' middle combat rounds'); row.tabIndex=0;
   row.onclick=function(){ hide.forEach(function(l){ l.classList.remove('ab-collapsed'); }); row.remove(); };
   row.onkeydown=function(event){if(event.key==='Enter'||event.key===' '){event.preventDefault();row.click();}};
   log.insertBefore(row, hide[0]);
@@ -2266,6 +2292,21 @@ function applyLogView(){
   log.classList.toggle('ab-mono',logMono);
   var rb=document.getElementById('logRoundsBtn'); if(rb) rb.setAttribute('aria-pressed',logNumbered?'true':'false');
   var mb=document.getElementById('logMonoBtn'); if(mb) mb.setAttribute('aria-pressed',logMono?'true':'false');
+}
+
+function clearLogCombatantHighlight(){
+  ['hpBar','bossHPOverlay','petHPBar'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.classList.remove('ab-hl');
+  });
+}
+function highlightLogCombatant(text){
+  clearLogCombatantHighlight();
+  var id='';
+  if(/🐾|🌀 Captive/.test(text)) id='petHPBar';
+  else if(/💢|was slain by|hazard/i.test(text)) id='hpBar';
+  else if(/✨|🌟|⚔️|☠️/.test(text)) id='bossHPOverlay';
+  var el=id?document.getElementById(id):null;
+  if(el) el.classList.add('ab-hl');
 }
 
 // UI-14 + UI-54: durability lives on the equipped cards' data-tip ("· Dur N",
@@ -2641,12 +2682,17 @@ async function abyssEnter(consumables){
   // multiple confirmations (and duplicate enter requests).
   setBusy(true); markBusyBtn('btnEnter');
   var expedition=document.getElementById('weeklyExpedition');
+	var hardcore=document.getElementById('hardcoreMode');
   var kit=document.getElementById('buildKit'), mutation=document.getElementById('buildMutation');
   var veteran=document.getElementById('veteranTrack');
   var lootRule=document.getElementById('partyLootRule');
-  var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),
+  var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),hardcore:!!(hardcore&&hardcore.checked),
     kit:kit?kit.value:'vanguard', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
     loot_rule:lootRule?lootRule.value:'owner'};
+  if(body.hardcore && !(await confirmModalDangerous('Begin a Hardcore run? Grace floors, insurance, revival items, Last Stand, and revival gambles are disabled. Cleared-floor cache rewards are doubled and the run enters the Hardcore leaderboard.',{title:'Begin Hardcore',okLabel:'Enter Hardcore'}))){
+    setBusy(false);
+    return;
+  }
   // Start mode (#2/#3): surface, checkpoint or express elevator.
   var sm=document.querySelector('input[name=abstart]:checked');
   if(sm && sm.value){
@@ -2670,7 +2716,11 @@ async function abyssEnter(consumables){
   try{
     var pl=selectedPacts().map(function(k){
       var el=document.querySelector('input[name=abpact][value="'+k+'"]');
-      return el?el.parentElement.textContent.trim().split('(')[0].trim():k;
+      if(!el) return k;
+      var label=el.parentElement.textContent.trim().split('(')[0].trim();
+      var reward=Math.round(Number(el.getAttribute('data-reward'))||0);
+      var danger=Math.round(Math.max(0,(Number(el.getAttribute('data-danger'))||1)-1)*100);
+      return label+': +'+reward+'% reward / +'+danger+'% danger';
     });
     if(pl.length) sessionStorage.setItem('ab_pact_echo',pl.join(', ')); else sessionStorage.removeItem('ab_pact_echo');
   }catch(e){}
@@ -2697,6 +2747,7 @@ async function abyssEnter(consumables){
   if(d.comeback) notes.push('💪 Comeback buff active: +10% stats this run.');
   if(d.auto_repaired) notes.push('🛠️ Auto-repaired all gear for '+fmtGold(d.auto_repaired)+'.');
   if(d.weekly_expedition) notes.push('📅 '+d.weekly_expedition+' · +25% cache rewards.');
+	if(d.hardcore) notes.push('💀 Hardcore active: ×2 cache, no grace, insurance, or revival.');
   if(d.build_summary) notes.push('🧬 '+d.build_summary+'.');
   if(d.rested_charges) notes.push('🌙 Rested reserve: +20% XP for '+d.rested_charges+' cleared floor'+(d.rested_charges===1?'':'s')+'.');
   if(d.returning_bonus) notes.push('🧭 Welcome back: +25% XP and +10% cache for 10 cleared floors.');
@@ -3023,21 +3074,17 @@ async function processDescendResult(d, hp, max){
     document.getElementById('abStatus').textContent='Floor '+d.depth+' survived. The next floor is deadlier.';
     renderConsumables(d.consumables);
     tickBuffs(); // UI-18: one fight consumed per cleared floor
-    // UI-33: pity counter approximation — gear drops move it, a Legendary+ resets it.
+    // UI-33: render only the authoritative post-floor pity value returned by the server.
     var pityEl=document.getElementById('pityCount');
-    if(pityEl){
-      var p=parseInt(pityEl.textContent,10)||0;
+    if(pityEl && d.legendary_pity!==undefined){
+      var previousPity=parseInt(pityEl.textContent,10)||0;
+      var p=Math.max(0,Math.min(40,Number(d.legendary_pity)||0));
       var ltxt=(d.loot||[]).join(' ');
       var lrc=rarityClass(ltxt);
       var hasGear=ltxt.indexOf('[s:')>=0;
-      // UI-142: a Legendary+ drop while the pity sat near the 40-cap reads as
-      // the guaranteed proc — flash the pity meter gold (approximation: the
-      // server doesn't say which drop consumed the pity).
-      if(hasGear && (lrc==='rar-legendary'||lrc==='rar-mythic'||lrc==='rar-divine'||lrc==='rar-celestial'||lrc==='rar-eternal')){
-        if(p>=36) pityProcFlash();
-        p=0;
-      }
-      else if(hasGear) p=Math.min(40,p+1);
+      // UI-142 remains a presentation inference: only the counter itself and
+      // its UI-33 log line are authoritative.
+      if(hasGear && p===0 && previousPity>=36 && (lrc==='rar-legendary'||lrc==='rar-mythic'||lrc==='rar-divine'||lrc==='rar-celestial'||lrc==='rar-eternal')) pityProcFlash();
       pityEl.textContent=p;
       var pf=document.getElementById('pityFill'); if(pf) pf.style.width=Math.round(p*100/40)+'%';
       if(hasGear) addLogHead(document.getElementById('abyssLog'), 'ab-log-pity', '✨ pity '+p+'/40');
@@ -3047,7 +3094,8 @@ async function processDescendResult(d, hp, max){
   } else {
     downed=true; canRev=d.can_revive; canLastStand=d.can_last_stand;
     var ls=document.getElementById('lsCost'); if(ls && d.last_stand_cost)ls.textContent=d.last_stand_cost;
-    setBanner('💀 You fell on floor '+d.depth+'! Cache of '+fmtGold(d.escrow)+' is in peril.'+(d.insured>0?' ('+d.insured+'% insured)':''),'bad');
+	 hardcoreRun=!!d.hardcore;
+    setBanner('💀 You fell on floor '+d.depth+'! '+(d.grace_protected?'Grace protection will return the full '+fmtGold(d.escrow)+' cache on concede.':('Cache of '+fmtGold(d.escrow)+' is in peril.'+(d.insured>0?' ('+d.insured+'% insured)':''))),'bad');
     var opts=[];
     if(canRev)opts.push('gamble a revival (double-or-nothing)');
     if(canLastStand)opts.push('spend tokens on a Last Stand');
@@ -3146,8 +3194,10 @@ async function abyssRevive(){
 
 async function abyssConcede(){
   if(busy)return;
-  var insuredRefund=Math.floor(curEscrow*Math.max(0,Math.min(100,curInsured))/100),forfeited=curEscrow-insuredRefund;
-  if(!(await confirmModalDangerous('Concede on floor '+curDepth+'? Cache at stake: '+fmtGold(curEscrow)+'. Insurance returns '+fmtGold(insuredRefund)+'; '+fmtGold(forfeited)+' is forfeited and the run ends.',{title:'Concede',okLabel:'Concede'})))return; // UI-135: 3s arm delay
+  var grace=!hardcoreRun&&curDepth>=1&&curDepth<=3;
+  var insuredRefund=grace?curEscrow:Math.floor(curEscrow*Math.max(0,Math.min(100,curInsured))/100),forfeited=curEscrow-insuredRefund;
+  var protection=grace?'Grace floors return the full cache and preserve its loot.':'Insurance returns '+fmtGold(insuredRefund)+'; '+fmtGold(forfeited)+' is forfeited.';
+  if(!(await confirmModalDangerous('Concede on floor '+curDepth+'? Cache at stake: '+fmtGold(curEscrow)+'. '+protection+' The run ends.',{title:'Concede',okLabel:'Concede'})))return; // UI-135: 3s arm delay
   setBusy(true); markBusyBtn('btnConcede'); clearBanner();
   var d=await abPost('/api/abyss/concede');
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
@@ -3213,6 +3263,7 @@ async function abyssBankCommit(cursed,percent){
   var msg='🏦 Banked '+fmtGold(d.banked)+' from a depth-'+d.depth+' run (×'+Number(d.mult).toFixed(2)+').';
   if(d.escrow_loot&&d.escrow_loot.length)msg+=' 🎒 '+plural(d.escrow_loot.length,'cached item')+' recovered.';
   if(d.bonus_gear)msg+=' 🎁 Depth reward: '+d.bonus_gear+'.';
+	if(d.hardcore_badge)msg+=' 🏅 '+d.hardcore_badge+'.';
   if(d.cursed)msg+=' ☠️ Cursed — your next cycle fights are hexed.';
   if(d.jackpot_win)msg+=' 🔥 DEEP-CACHE JACKPOT +'+fmtGold(d.jackpot_win)+'!';
   if(d.cap_tax)msg+=' 💸 Abyss tax −'+fmtGold(d.cap_tax)+' (fed the deep-cache jackpot).';
@@ -3329,6 +3380,12 @@ async function abyssUseConsumable(cid){
   if(!d.ok){ abToast(d.error||'failed',false); return; }
   setHP(d.hp, d.max_hp); setGold(d.gold);
   renderConsumables(d.consumables);
+  if(d.momentum_broken){
+    curMomentum=Number(d.momentum)||0;
+    var momentumValue=document.getElementById('momVal'); if(momentumValue) momentumValue.textContent='🔥 ×'+curMomentum;
+    addLogHead(document.getElementById('abyssLog'),'ab-log-momentum','🔥 Momentum ×'+curMomentum+': broken by consumable use.');
+    renderHudChips();
+  }
   // UI-18: buff consumables appear on the stage buff strip for 3 fights.
   if(usedCons && usedCons.Type==='Buff') addBuffChip(usedCons.ID, 3);
   abToast(d.msg || 'Consumable used!', true);
@@ -4388,16 +4445,9 @@ function displayAutoFocus(focus) {
     });
     logEl.addEventListener('mouseover', function(e){
       var l=e.target.closest?e.target.closest('.ab-log-line'):null; if(!l) return;
-      var t=l.textContent||'';
-      var bar=document.getElementById('hpBar'), scene=document.getElementById('stageScene');
-      if(/💢|was slain by/.test(t)){ if(bar) bar.classList.add('ab-hl'); }
-      else if(/✨|🌟|⚔️|🐾|☠️/.test(t)){ if(scene) scene.classList.add('ab-hl'); }
+      highlightLogCombatant(l.textContent||'');
     });
-    logEl.addEventListener('mouseout', function(){
-      var bar=document.getElementById('hpBar'), scene=document.getElementById('stageScene');
-      if(bar) bar.classList.remove('ab-hl');
-      if(scene) scene.classList.remove('ab-hl');
-    });
+    logEl.addEventListener('mouseout', clearLogCombatantHighlight);
   }
 
   // UI-14: cracked-shield overlay on gear under 20% durability.

@@ -1455,7 +1455,8 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Risk":               risk,
 		"FreeEntryAvailable": freeEntryAvailable,
 		"RunLoot":            s.bot.currentRunLootManifest(uid),
-		"CanLastStand":       run.Active && !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(run.Depth),
+		"CanLastStand":       run.Active && !abyssHardcoreRun(runFlags) && !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(run.Depth),
+		"Hardcore":           abyssHardcoreRun(runFlags),
 
 		// Expansion 2 (docs/ABYSS_IDEAS.md)
 		"Materials":    materials,
@@ -1566,6 +1567,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		Start       string         `json:"start"`       // "" | "checkpoint" | "express" (#2/#3)
 		Checkpoint  int            `json:"checkpoint"`  // requested checkpoint depth (multiple of 10)
 		Expedition  bool           `json:"expedition"`  // weekly fixed-seed rules
+		Hardcore    bool           `json:"hardcore"`    // no protection or revival, ×2 floor cache
 		Kit         string         `json:"kit"`         // starting combat identity
 		Mutation    string         `json:"mutation"`    // temporary in-run skill mutation
 		LootRule    string         `json:"loot_rule"`   // party reward settlement selected before entry
@@ -1767,7 +1769,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	_, hasActiveRelic := equipped[content.SlotRelic]
 	weeklyRule, err := resetAbyssRunFlagsInTx(
-		tx, uid, req.Expedition, req.Kit, req.Mutation, hasActiveRelic, time.Now(),
+		tx, uid, req.Expedition, req.Kit, req.Mutation, hasActiveRelic, req.Hardcore, time.Now(),
 	)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -1806,6 +1808,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		"hp": startHP, "max_hp": stats.HP, "gold": gold,
 		"free_entry": freeEntry, "comeback": comeback, "auto_repaired": autoRepaired,
 		"weekly_expedition": weeklyRule.Label,
+		"hardcore": req.Hardcore,
 		"build_summary": abyssBuildSummary(startUser, startBuildFlags),
 		"rested_charges": entryProgression.RestedCharges,
 		"returning_bonus": entryProgression.Returning,
@@ -2137,6 +2140,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 
 			runFinal := s.bot.loadAbyssRun(uid)
+			hardcore := abyssHardcoreRun(s.bot.loadRunFlags(uid))
 			writeJSON(w, map[string]any{
 				"ok":               true,
 				"victory":          false,
@@ -2151,10 +2155,12 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"risk":             abyssRiskPct(newDepth+1, tier, s.bot.abyssPlayerCR(uid)),
 				"downed":           true,
 				"can_revive":       canRevive,
-				"can_last_stand":   !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(newDepth),
+				"can_last_stand":   !hardcore && !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(newDepth),
 				"last_stand_cost":  abyssLastStandCost(newDepth),
 				"escrow":           run.Escrow,
 				"insured":          run.Insured,
+				"hardcore":         hardcore,
+				"grace_protected":  abyssGraceProtected(newDepth, hardcore),
 				"gold":             gold,
 				"tokens":           s.bot.abyssTokens(uid),
 				"consumables":      s.bot.getConsumables(uid),
@@ -2197,6 +2203,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 	if len(achs) > 0 {
 		out["achievement"] = strings.Join(achs, " · ")
 	}
+	s.bot.addAbyssLegendaryPity(out, uid)
 	writeJSON(w, out)
 }
 
@@ -2598,6 +2605,7 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 		s.bot.grantAbyssTokens(uid, 5)
 		o.DailyFirst = true
 	}
+	bonus = abyssHardcoreFloorReward(bonus, abyssHardcoreRun(runFlags))
 
 	hasLuckyCoin := false
 	equipped := s.bot.getEquippedItems(uid)
@@ -2685,6 +2693,11 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 // resets the win streak. Shared by finishDescend and handleAbyssDescendMulti.
 // The offer is rolled once and persisted so a refresh can't reroll it.
 func (s *WebServer) applyFloorDefeat(uid string, run abyssRun) (canRevive bool) {
+	if abyssHardcoreRun(s.bot.loadRunFlags(uid)) {
+		_, _ = s.bot.DB.Exec("UPDATE abyss_active SET revive_locked=TRUE WHERE client_uid=$1", uid)
+		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
+		return false
+	}
 	st := s.bot.loadAbyssStats(uid)
 	canRevive = !run.Revived
 	if canRevive && !run.ReviveLocked {
@@ -2755,12 +2768,15 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 	} else {
 		// Downed: hold the cache; the player must revive (if available) or concede.
 		canRevive := s.applyFloorDefeat(uid, run)
+		hardcore := abyssHardcoreRun(s.bot.loadRunFlags(uid))
 		out["downed"] = true
 		out["can_revive"] = canRevive
-		out["can_last_stand"] = !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(depth)
+		out["can_last_stand"] = !hardcore && !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(depth)
 		out["last_stand_cost"] = abyssLastStandCost(depth)
 		out["escrow"] = escrowBefore
 		out["insured"] = run.Insured
+		out["hardcore"] = hardcore
+		out["grace_protected"] = abyssGraceProtected(depth, hardcore)
 	}
 
 	var gold int64
@@ -2773,6 +2789,7 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 	out["auto_focus"] = s.autoSelectFocus(uid, runFinal)
 	s.abyssOps.funnel.observeFloor(uid, depth)
 	s.abyssOps.observeFloor(depth, escrowBefore, res, out)
+	s.bot.addAbyssLegendaryPity(out, uid)
 
 	return out
 }
@@ -2797,6 +2814,10 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 	run := s.bot.loadAbyssRun(uid)
 	if !run.Active || !run.Downed {
 		writeJSON(w, map[string]any{"ok": false, "error": "not downed"})
+		return
+	}
+	if abyssHardcoreRun(s.bot.loadRunFlags(uid)) {
+		writeJSON(w, map[string]any{"ok": false, "error": "hardcore runs do not allow revival"})
 		return
 	}
 	if run.Revived {
@@ -2866,6 +2887,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 	}
 
 	// Failed the second chance → forfeit.
+	graceProtected := abyssGraceProtected(run.Depth, false)
 	payout, ferr := s.bot.forfeitAbyss(uid, run)
 	if ferr != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -2877,6 +2899,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 		"hp": 0, "logs": res.LogsHTML, "loot": res.LootHTML, "dura": res.DuraHTML,
 		"timeline": res.Timeline,
 		"forfeited": true, "insured_refund": payout, "escrow": 0,
+		"grace_protected": graceProtected,
 		"reward_xp": res.RewardXP, "risk": abyssRiskPct(run.Depth+1, tier, s.bot.abyssPlayerCR(uid)),
 	}
 	var gold int64
@@ -2904,6 +2927,8 @@ func (s *WebServer) handleAbyssConcede(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "not downed"})
 		return
 	}
+	hardcore := abyssHardcoreRun(s.bot.loadRunFlags(uid))
+	graceProtected := abyssGraceProtected(run.Depth, hardcore)
 	payout, ferr := s.bot.forfeitAbyss(uid, run)
 	if ferr != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -2915,6 +2940,7 @@ func (s *WebServer) handleAbyssConcede(w http.ResponseWriter, r *http.Request, u
 	out := map[string]any{
 		"ok": true, "conceded": true, "depth": run.Depth,
 		"insured_refund": payout, "gold": gold, "tokens": s.bot.abyssTokens(uid),
+		"grace_protected": graceProtected, "hardcore": hardcore,
 	}
 	writeJSON(w, out)
 }
@@ -2971,6 +2997,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		writeJSON(w, map[string]any{"ok": false, "error": "you are downed — revive or concede"})
 		return
 	}
+	hardcore := abyssHardcoreRun(s.bot.loadRunFlags(uid))
 	// Last Stand seal (#15): the exit stays shut for 2 floors after a token revive.
 	if run.BankLockedFloors > 0 {
 		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("the exit is sealed — descend %d more floor(s) first", run.BankLockedFloors)})
@@ -3102,8 +3129,8 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		}
 
 		if _, err := tx.Exec(
-			"INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier) VALUES ($1,$2,$3,TRUE,$4)",
-			uid, run.Depth, payout, run.Tier); err != nil {
+			"INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore) VALUES ($1,$2,$3,TRUE,$4,$5)",
+			uid, run.Depth, payout, run.Tier, hardcore); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -3173,6 +3200,10 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			escrowLoot = append(escrowLoot, bbToHTML(label))
 		}
 	}
+	hardcoreBadge := ""
+	if !partial && hardcore && run.Depth >= 10 && s.bot.awardAchievement(uid, "hardcore_depth_10") {
+		hardcoreBadge = abyssAchievementName("hardcore_depth_10")
+	}
 
 	out := map[string]any{
 		"ok": true, "banked": payout, "mult": mult, "depth": run.Depth,
@@ -3195,6 +3226,9 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	}
 	if len(escrowLoot) > 0 {
 		out["escrow_loot"] = escrowLoot
+	}
+	if hardcoreBadge != "" {
+		out["hardcore_badge"] = hardcoreBadge
 	}
 	// Lifetime-banked milestone check (post-commit, so the running total is current).
 	if run.Depth > 0 {
@@ -3288,6 +3322,7 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 	}
 
 	stats := s.bot.abyssCombatStats(uid)
+	momentumBefore := s.bot.loadAbyssRun(uid).Momentum
 
 	switch c.Type {
 	case content.ConsumableHealing:
@@ -3326,10 +3361,12 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 		var gold int64
 		_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 		writeJSON(w, map[string]any{
-			"ok":     true,
-			"hp":     curHP,
-			"max_hp": stats.HP,
-			"gold":   gold,
+			"ok":              true,
+			"hp":              curHP,
+			"max_hp":          stats.HP,
+			"gold":            gold,
+			"momentum":        0,
+			"momentum_broken": momentumBefore > 0,
 		})
 		return
 	case content.ConsumableRevive:
@@ -3364,11 +3401,13 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 
 	writeJSON(w, map[string]any{
-		"ok":          true,
-		"hp":          curHP,
-		"max_hp":      stats.HP,
-		"gold":        gold,
-		"consumables": s.bot.getConsumables(uid),
+		"ok":              true,
+		"hp":              curHP,
+		"max_hp":          stats.HP,
+		"gold":            gold,
+		"consumables":     s.bot.getConsumables(uid),
+		"momentum":        0,
+		"momentum_broken": momentumBefore > 0,
 	})
 }
 
@@ -3601,6 +3640,10 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 		}
 	case "event":
 		if s.handleAbyssSpecialRoom(w, uid, run, req.Action) {
+			return
+		}
+		if abyssHardcoreRun(s.bot.loadRunFlags(uid)) {
+			writeJSON(w, map[string]any{"ok": false, "error": "hardcore runs do not allow revival items"})
 			return
 		}
 		var state struct {

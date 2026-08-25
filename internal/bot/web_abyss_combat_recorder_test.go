@@ -80,7 +80,7 @@ func TestAbyssCombatRecorderAssetsAndHooks(t *testing.T) {
 		"finishCombatRecorder(",
 		"recordCombatLogLine(",
 		"updateCombatRecorderFrame(",
-		"exchanges — activate to expand",
+		"middle combat rounds",
 		"row.onkeydown=",
 		"function maybeBossCard",
 		"ab-log-critical-event",

@@ -13,7 +13,7 @@ func TestCombatTimelineCarriesAuthoritativePetHealth(t *testing.T) {
 	pet := &content.Mob{Name: "Mossling", Stats: content.Stats{HP: 42}, MaxHP: 100}
 	user := &UserInCombat{CurrentHP: 80, Stats: content.Stats{HP: 100}, Pets: []*content.Mob{pet}}
 	frames := []combatTimelineFrame{}
-	appendCombatTimelineFrame(&frames, 3, []activeUser{{u: user}}, nil)
+	appendCombatTimelineFrame(&frames, 3, 2, []activeUser{{u: user}}, nil)
 
 	if len(frames) != 1 {
 		t.Fatalf("timeline frames = %d, want 1", len(frames))
@@ -21,6 +21,9 @@ func TestCombatTimelineCarriesAuthoritativePetHealth(t *testing.T) {
 	frame := frames[0]
 	if frame.PetName != "Mossling" || frame.PetHP != 42 || frame.PetMax != 100 {
 		t.Fatalf("pet frame = %#v, want Mossling at 42/100 HP", frame)
+	}
+	if frame.Round != 2 {
+		t.Fatalf("round = %d, want 2", frame.Round)
 	}
 }
 

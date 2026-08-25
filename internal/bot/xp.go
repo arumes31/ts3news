@@ -389,19 +389,20 @@ type LootResult struct {
 // after a group of log lines. The Abyss web UI replays these frames alongside
 // those lines so HP/mana animation never has to infer state from translated text.
 type combatTimelineFrame struct {
-	AfterLog int `json:"after_log"`
-	HP       int `json:"hp"`
-	MaxHP    int `json:"max_hp"`
-	Mana     int `json:"mana"`
-	MaxMana  int `json:"max_mana"`
-	EnemyHP  int `json:"enemy_hp"`
-	EnemyMax int `json:"enemy_max"`
+	AfterLog int    `json:"after_log"`
+	Round    int    `json:"round,omitempty"`
+	HP       int    `json:"hp"`
+	MaxHP    int    `json:"max_hp"`
+	Mana     int    `json:"mana"`
+	MaxMana  int    `json:"max_mana"`
+	EnemyHP  int    `json:"enemy_hp"`
+	EnemyMax int    `json:"enemy_max"`
 	PetName  string `json:"pet_name,omitempty"`
 	PetHP    int    `json:"pet_hp,omitempty"`
 	PetMax   int    `json:"pet_max,omitempty"`
 }
 
-func appendCombatTimelineFrame(frames *[]combatTimelineFrame, afterLog int, users []activeUser, mobs []*content.Mob) {
+func appendCombatTimelineFrame(frames *[]combatTimelineFrame, afterLog, round int, users []activeUser, mobs []*content.Mob) {
 	if len(users) == 0 || users[0].u == nil {
 		return
 	}
@@ -415,6 +416,7 @@ func appendCombatTimelineFrame(frames *[]combatTimelineFrame, afterLog int, user
 	}
 	frame := combatTimelineFrame{
 		AfterLog: afterLog,
+		Round:    round,
 		HP:       max(0, users[0].u.CurrentHP),
 		MaxHP:    max(0, users[0].u.Stats.HP),
 		Mana:     max(0, users[0].CurrentMana),
@@ -639,7 +641,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 			}
 		}
 		logs = append(logs, i18n.T("bot.combat.wave_header", w, totalEnemyCR, strings.Join(enemyNames, ", "), waves))
-		appendCombatTimelineFrame(&timeline, len(logs), activeUsers, currentMobs)
+		appendCombatTimelineFrame(&timeline, len(logs), 0, activeUsers, currentMobs)
 
 		// Reset SPD for any stunned mobs from previous round/waves
 		for _, m := range currentMobs {
@@ -868,7 +870,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 			}
 
 			b.applyEffects(activeUsers, currentMobs, zone, r, intensify, healPenalty, &logs)
-			appendCombatTimelineFrame(&timeline, len(logs), activeUsers, currentMobs)
+			appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
 			liveActions := map[string]abyssLiveAction{}
 			liveCombat := abyssLiveCombatFor(activeUsers)
 			if liveCombat != nil {
@@ -884,20 +886,20 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 
 			if playerStarts {
 				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track, liveActions, rand)
-				appendCombatTimelineFrame(&timeline, len(logs), activeUsers, currentMobs)
+				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
 				if len(b.getAliveMobs(currentMobs)) == 0 {
 					observeLiveResolution()
 					waveVictory = true
 					break
 				}
 				b.mobTurn(activeUsers, currentMobs, zone, intensify*despMult, &logs, &totalMobDamage, &totalUserDamage, r, false, rand)
-				appendCombatTimelineFrame(&timeline, len(logs), activeUsers, currentMobs)
+				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
 				observeLiveResolution()
 			} else {
 				// The opening round of an enemy-first wave is the ambush: soften it so
 				// it can't one-shot a player before they ever act.
 				b.mobTurn(activeUsers, currentMobs, zone, intensify*despMult, &logs, &totalMobDamage, &totalUserDamage, r, r == 1, rand)
-				appendCombatTimelineFrame(&timeline, len(logs), activeUsers, currentMobs)
+				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
 				aliveUsers := 0
 				for _, u := range users {
 					if u.CurrentHP > 0 {
@@ -909,7 +911,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 					break
 				}
 				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track, liveActions, rand)
-				appendCombatTimelineFrame(&timeline, len(logs), activeUsers, currentMobs)
+				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
 				observeLiveResolution()
 				if len(b.getAliveMobs(currentMobs)) == 0 {
 					waveVictory = true
@@ -1002,10 +1004,11 @@ func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.
 
 func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone content.Zone, round int, intensify, healPenalty float64, logs *[]string) {
 	doubleHazards := false
+	isAbyss := false
 	for _, au := range activeUsers {
+		isAbyss = isAbyss || au.u != nil && abyssCombatant(au.u)
 		if strings.Contains(au.u.FloorModifier, "double_hazards") {
 			doubleHazards = true
-			break
 		}
 	}
 	for _, eff := range zone.Effects {
@@ -1073,7 +1076,8 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 			}
 			m.Stats.HP -= delta
 			if round%3 == 0 {
-				*logs = append(*logs, i18n.T("bot.combat.poison_damage", m.Name, delta, poisonStacks))
+				line := i18n.T("bot.combat.poison_damage", m.Name, delta, poisonStacks)
+				*logs = append(*logs, markAbyssDoTLog(line, isAbyss))
 			}
 		}
 		if regenStacks > 0 {
@@ -1820,9 +1824,13 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if lifesteal > 0 {
 				heal := int(float64(dmg) * float64(lifesteal) / 100.0 * healPenalty)
 				if heal > 0 {
+					beforeHeal := u.CurrentHP
 					u.CurrentHP += heal
 					if u.CurrentHP > u.Stats.HP {
 						u.CurrentHP = u.Stats.HP
+					}
+					if restored := u.CurrentHP - beforeHeal; restored > 0 {
+						*logs = append(*logs, fmt.Sprintf("[color=#41c97a]💚 %s lifesteal: +%d HP.[/color]", u.Nickname, restored))
 					}
 				}
 			}

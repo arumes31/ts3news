@@ -47,6 +47,47 @@ func TestResolveAbyssDoubleBonusAddsOrRemovesOnlyTheFloorBonus(t *testing.T) {
 	}
 }
 
+func TestAbyssGraceAndHardcoreForfeitPoliciesAreMutuallyExclusive(t *testing.T) {
+	t.Parallel()
+
+	grace := planAbyssForfeit(1_000, 0, 3, false)
+	if grace != (abyssForfeitPolicy{Refund: 1_000, PreserveLoot: true}) {
+		t.Fatalf("grace policy = %#v", grace)
+	}
+	normal := planAbyssForfeit(1_000, 50, 4, false)
+	if normal != (abyssForfeitPolicy{Refund: 500, CountDeath: true}) {
+		t.Fatalf("normal policy = %#v", normal)
+	}
+	hardcore := planAbyssForfeit(1_000, 75, 2, true)
+	if hardcore != (abyssForfeitPolicy{CountDeath: true}) {
+		t.Fatalf("hardcore policy = %#v", hardcore)
+	}
+	if got := abyssHardcoreFloorReward(250, true); got != 500 {
+		t.Fatalf("hardcore floor reward = %d, want 500", got)
+	}
+}
+
+func TestAbyssHardcoreLeaderboardUsesDedicatedRuns(t *testing.T) {
+	t.Parallel()
+
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+	mock.ExpectQuery("WHERE a.tier = \\$1 AND a.hardcore = TRUE").
+		WithArgs("normal", 10).
+		WillReturnRows(sqlmock.NewRows([]string{"nick", "depth", "gold"}).AddRow("Iron", 22, int64(900)))
+	bot := &Bot{DB: database}
+	rows := bot.topHardcoreDescents("normal", 10)
+	if len(rows) != 1 || rows[0].Nickname != "Iron" || rows[0].Depth != 22 || rows[0].Rank != 1 {
+		t.Fatalf("hardcore leaderboard = %#v", rows)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestConsumePendingAbyssDoubleBonusPreservesOtherRunFlags(t *testing.T) {
 	t.Parallel()
 
@@ -88,6 +129,8 @@ func TestAbyssRiskRewardControlsExposeOnlySupportedActions(t *testing.T) {
 	}
 	source := string(page)
 	for _, required := range []string{
+		"Begin a Hardcore run?",
+		"Enter Hardcore",
 		`id="btnBank25" onclick="abyssBank(25)"`,
 		`id="btnBank50" onclick="abyssBank(50)"`,
 		`id="btnDoubleBonus"`,
@@ -95,6 +138,9 @@ func TestAbyssRiskRewardControlsExposeOnlySupportedActions(t *testing.T) {
 		`percent:Number(percent)||0`,
 		`Partial-bank fee −10%`,
 		`pendingDoubleBonus=0`,
+		`id="hardcoreMode"`,
+		`hardcore:!!(hardcore&&hardcore.checked)`,
+		`Grace floors return the full cache and preserve its loot.`,
 	} {
 		if !strings.Contains(source, required) {
 			t.Errorf("Abyss risk/reward controls are missing %q", required)
@@ -113,6 +159,15 @@ func TestAbyssRiskRewardControlsExposeOnlySupportedActions(t *testing.T) {
 	} {
 		if !strings.Contains(serverSource, required) {
 			t.Errorf("Abyss risk/reward handlers are missing %q", required)
+		}
+	}
+	migration, err := os.ReadFile("../db/migrations/0072_abyss_hardcore.up.sql")
+	if err != nil {
+		t.Fatalf("read hardcore migration: %v", err)
+	}
+	for _, required := range []string{"ADD COLUMN IF NOT EXISTS hardcore", "WHERE hardcore = TRUE"} {
+		if !strings.Contains(string(migration), required) {
+			t.Errorf("hardcore migration is missing %q", required)
 		}
 	}
 }

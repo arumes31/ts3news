@@ -62,7 +62,8 @@ function captureAbyssEntrySetup(){
   var veteran=document.getElementById('veteranTrack');
   return {tier:selectedTier(),pacts:selectedPacts(),start:start?start.value:'',checkpoint:checkpoint?checkpoint.value:'',
     kit:kit?kit.value:'vanguard',mutation:mutation?mutation.value:'empowered',loot_rule:loot?loot.value:'owner',veteran_track:veteran?veteran.value:'',
-    expedition:!!(document.getElementById('weeklyExpedition')&&document.getElementById('weeklyExpedition').checked)};
+    expedition:!!(document.getElementById('weeklyExpedition')&&document.getElementById('weeklyExpedition').checked),
+    hardcore:!!(document.getElementById('hardcoreMode')&&document.getElementById('hardcoreMode').checked)};
 }
 function saveAbyssEntrySetup(setup){
   try{localStorage.setItem(abyssEntrySetupV1,JSON.stringify(setup||captureAbyssEntrySetup()));}catch(e){}
@@ -86,6 +87,7 @@ function restoreAbyssEntrySetup(){
   });
   document.querySelectorAll('input[name=abpact]').forEach(function(input){input.checked=(saved.pacts||[]).indexOf(input.value)>=0;});
   var expedition=document.getElementById('weeklyExpedition');if(expedition)expedition.checked=!!saved.expedition;
+  var hardcore=document.getElementById('hardcoreMode');if(hardcore)hardcore.checked=!!saved.hardcore;
   updatePactBonus();renderTierRisk();recommendAbyssTier();renderAbyssEntrySummary();
   abToast('Previous descent setup restored.',true);
 }
@@ -100,7 +102,8 @@ function renderAbyssEntrySummary(){
   var kit=document.getElementById('buildKit');
   var kitLabel=kit&&kit.options[kit.selectedIndex]?kit.options[kit.selectedIndex].text.split('·')[0].trim():'Vanguard';
   var pacts=selectedPacts();
-  line.textContent=[tier,route,kitLabel,pacts.length?pacts.length+' pact'+(pacts.length===1?'':'s'):'no pacts'].join(' · ');
+  var hardcore=document.getElementById('hardcoreMode');
+  line.textContent=[tier,route,kitLabel,pacts.length?pacts.length+' pact'+(pacts.length===1?'':'s'):'no pacts',hardcore&&hardcore.checked?'Hardcore':'Standard'].join(' · ');
   var reward=0,danger=1;
   document.querySelectorAll('input[name=abpact]:checked').forEach(function(input){reward+=Number(input.dataset.reward)||0;danger*=Number(input.dataset.danger)||1;});
   var pactPreview=document.getElementById('pactNetPreview');

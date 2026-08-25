@@ -203,9 +203,9 @@ func (b *Bot) taxAbyssDayGold(q dbExecQuerier, uid string, payout int64) (int64,
 // could not be committed (so callers don't report a successful concede/revive on
 // a refund that never landed). [1][62]
 func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, err error) {
-	if run.Insured > 0 {
-		refund = run.Escrow * int64(run.Insured) / 100
-	}
+	hardcore := abyssHardcoreRun(b.loadRunFlags(uid))
+	policy := planAbyssForfeit(run.Escrow, run.Insured, run.Depth, hardcore)
+	refund = policy.Refund
 	remainder := run.Escrow - refund
 
 	tx, err := b.DB.Begin()
@@ -232,22 +232,30 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, err error) {
 	}
 	if run.Depth > 0 {
 		if _, err := tx.Exec(
-			"INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier) VALUES ($1,$2,$3,FALSE,$4)",
-			uid, run.Depth, refund, run.Tier); err != nil {
+			"INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore) VALUES ($1,$2,$3,FALSE,$4,$5)",
+			uid, run.Depth, refund, run.Tier, hardcore); err != nil {
 			return 0, err
 		}
-		if _, err := tx.Exec(
-			`UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1),
-			        abyss_deaths = abyss_deaths + 1, abyss_bank_streak = 0 WHERE client_uid=$2`,
-			run.Depth, uid); err != nil {
-			return 0, err
+		if !policy.CountDeath {
+			if _, err := tx.Exec("UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1) WHERE client_uid=$2", run.Depth, uid); err != nil {
+				return 0, err
+			}
+		} else {
+			if _, err := tx.Exec(
+				`UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1),
+				        abyss_deaths = abyss_deaths + 1, abyss_bank_streak = 0 WHERE client_uid=$2`,
+				run.Depth, uid); err != nil {
+				return 0, err
+			}
 		}
 		// Daily death counter feeds the comeback buff (#24): 3 deaths in one day
 		// grant +10% stats on the next run.
-		if _, err := tx.Exec(
+		if policy.CountDeath {
+			if _, err := tx.Exec(
 			`UPDATE users SET abyss_deaths_today = CASE WHEN abyss_deaths_date = CURRENT_DATE THEN abyss_deaths_today + 1 ELSE 1 END,
 			        abyss_deaths_date = CURRENT_DATE WHERE client_uid=$1`, uid); err != nil {
-			return 0, err
+				return 0, err
+			}
 		}
 	}
 	// End of run: clear the per-run win streak so its combat buff can't leak into
@@ -259,13 +267,18 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun) (refund int64, err error) {
 		return 0, err
 	}
 	// Death forfeits the locked loot cache along with the gold.
-	if _, err := tx.Exec("DELETE FROM abyss_escrow_loot WHERE client_uid=$1", uid); err != nil {
-		return 0, err
+	if !policy.PreserveLoot {
+		if _, err := tx.Exec("DELETE FROM abyss_escrow_loot WHERE client_uid=$1", uid); err != nil {
+			return 0, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
 	if run.Depth > 0 {
+		if policy.PreserveLoot {
+			_ = b.applyAbyssEscrowLoot(uid)
+		}
 		b.grantAbyssTokens(uid, run.Depth/10) // small consolation
 		b.recordGameResult(uid, "abyss", false, refund)
 	}
@@ -354,6 +367,7 @@ var abyssAchievementNames = map[string]string{
 	"bestiary_50": "Zoologist (50 Species)",
 	"bestiary_complete": "Abyss Archivist (Codex Complete)",
 	"prestige_1":  "Reborn (First Abyss Prestige)",
+	"hardcore_depth_10": "Iron Delver (Hardcore Depth 10)",
 }
 
 // achTier is a count threshold that, once reached, awards an achievement code.
@@ -578,6 +592,7 @@ type abyssBoards struct {
 	Day       []abyssRow
 	Season    []abyssRow
 	AllTime   []abyssRow
+	Hardcore  []abyssRow
 	BossKills []bossKillRow
 }
 
@@ -587,7 +602,7 @@ func (b *Bot) topDescents(tier string, since time.Time, limit int) []abyssRow {
 		        MAX(a.depth) AS depth, COALESCE(SUM(a.gold_banked), 0) AS gold
 		   FROM abyss_runs a
 		   LEFT JOIN users u ON u.client_uid = a.client_uid
-		  WHERE a.tier = $1 AND a.created_at >= $2
+		  WHERE a.tier = $1 AND a.created_at >= $2 AND a.hardcore = FALSE
 		  GROUP BY a.client_uid, u.nickname
 		  ORDER BY depth DESC, gold DESC
 		  LIMIT $3`, tier, since, limit)
@@ -605,6 +620,32 @@ func (b *Bot) topDescents(tier string, since time.Time, limit int) []abyssRow {
 		r.Rank = rank
 		rank++
 		out = append(out, r)
+	}
+	return out
+}
+
+func (b *Bot) topHardcoreDescents(tier string, limit int) []abyssRow {
+	rows, err := b.DB.Query(
+		`SELECT COALESCE(NULLIF(u.nickname, ''), 'Adventurer') AS nick,
+		        MAX(a.depth) AS depth, COALESCE(SUM(a.gold_banked), 0) AS gold
+		   FROM abyss_runs a
+		   LEFT JOIN users u ON u.client_uid = a.client_uid
+		  WHERE a.tier = $1 AND a.hardcore = TRUE
+		  GROUP BY a.client_uid, u.nickname
+		  ORDER BY depth DESC, gold DESC
+		  LIMIT $2`, tier, limit)
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = rows.Close() }()
+	out := make([]abyssRow, 0, limit)
+	for rows.Next() {
+		var row abyssRow
+		if err := rows.Scan(&row.Nickname, &row.Depth, &row.Gold); err != nil {
+			continue
+		}
+		row.Rank = len(out) + 1
+		out = append(out, row)
 	}
 	return out
 }
@@ -657,6 +698,7 @@ func (b *Bot) abyssLeaderboards(tier string) abyssBoards {
 		Day:       b.topDescents(tier, now.AddDate(0, 0, -1), top),
 		Season:    b.topDescents(tier, abyssSeasonStart(), top),
 		AllTime:   b.topDescents(tier, time.Unix(0, 0), top),
+		Hardcore:  b.topHardcoreDescents(tier, top),
 		BossKills: b.topBossKills(top, tier),
 	}
 }
@@ -1124,6 +1166,10 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 	run := s.bot.loadAbyssRun(uid)
 	if !run.Active || run.Downed {
 		writeJSON(w, map[string]any{"ok": false, "error": "no live run"})
+		return
+	}
+	if abyssHardcoreRun(s.bot.loadRunFlags(uid)) {
+		writeJSON(w, map[string]any{"ok": false, "error": "hardcore runs cannot buy cache insurance"})
 		return
 	}
 	if run.Insured >= req.Pct {

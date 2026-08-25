@@ -49,6 +49,7 @@ func resetAbyssRunFlagsInTx(
 	kit string,
 	mutation string,
 	hasActiveRelic bool,
+	hardcore bool,
 	at time.Time,
 ) (abyssWeeklyRule, error) {
 	flags := map[string]int64{
@@ -57,6 +58,9 @@ func resetAbyssRunFlagsInTx(
 	}
 	if hasActiveRelic {
 		flags[abyssRunFlagRelicCharges] = 1
+	}
+	if hardcore {
+		flags[abyssRunFlagHardcore] = 1
 	}
 	var rule abyssWeeklyRule
 	if weekly {
