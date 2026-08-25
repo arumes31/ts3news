@@ -594,7 +594,9 @@
   .ab-scene.ab-fs-you::before,
   .ab-scene.ab-fs-mob::before,
   .ab-unid-badge,
+  .ab-loot-question,
   .ab-corrupt-drip::after,
+  .ab-loot-corrupted::after,
   .abyss-side-loot.ab-new,
   .ab-coin,
   .ab-tier:has(input[value='insanity']),
@@ -750,6 +752,17 @@
   border-top: 1px dashed var(--line);
   padding-top: .25rem;
 }
+.ab-loot-main { display: block; min-width: 0; }
+.ab-loot-slot { margin-right: .3rem; }
+.ab-loot-tags { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .2rem; }
+.ab-loot-question { display: inline-grid; place-items: center; min-width: 15px; height: 15px; border-radius: 50%; background: var(--accent); color: #fff; font-size: .68rem; animation: ab-unid-pulse 1.6s ease-in-out infinite; }
+.ab-loot-detail[hidden] { display: none; }
+.ab-loot-detail { display: block; }
+.ab-equip-best { margin-top: .35rem; width: 100%; }
+.ab-equip-best.selected { border-color: var(--good); color: var(--good); }
+.ab-loot-corrupted { position: relative; }
+.ab-loot-corrupted::after { content: '🩸'; position: absolute; right: 2px; top: 0; font-size: .8rem; animation: ab-drip 2.2s ease-in infinite; pointer-events: none; }
+.ab-corrupt-tag { color: var(--bad); font-size: .68rem; text-transform: uppercase; }
 
 .ab-hc-cmp.good { color: var(--good); }
 .ab-hc-cmp.bad { color: var(--bad); }

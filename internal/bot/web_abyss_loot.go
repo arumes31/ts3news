@@ -146,12 +146,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		lootFindBonus += float64(st.UpFortune) * 0.04
 	}
 	// Depth milestones (#16): +1% permanent loot find per 25 best depth, cap +4%.
-	if ms := st.BestDepth / 25; ms > 0 {
-		if ms > 4 {
-			ms = 4
-		}
-		lootFindBonus += float64(ms) * 0.01
-	}
+	lootFindBonus += abyssDepthLootFindBonus(st.BestDepth)
 	// Skill web: Fortune-sector loot_find notables and the Midas keystone;
 	// gold_find scales the gold drop rolls below.
 	treePct := b.treeBonusFor(uid).Pct
@@ -216,7 +211,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 
 	var labels []string
 	add := func(label string, g abyssLootGrant) bool {
-		if b.escrowAbyssLoot(uid, label, g) {
+		if b.escrowAbyssLoot(uid, run.Depth, label, g) {
 			labels = append(labels, label)
 			return true
 		}
@@ -599,19 +594,24 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 }
 
 // escrowAbyssLoot persists one rolled drop into the run's loot escrow.
-func (b *Bot) escrowAbyssLoot(uid, label string, g abyssLootGrant) bool {
+func (b *Bot) escrowAbyssLoot(uid string, depth int, label string, g abyssLootGrant) bool {
 	data, err := json.Marshal(g)
 	if err != nil {
 		log.Printf("abyss escrow marshal failed for %s: %v", uid, err)
 		return false
 	}
 	if _, err := b.DB.Exec(
-		"INSERT INTO abyss_escrow_loot (client_uid, item_type, label, item_data) VALUES ($1,$2,$3,$4)",
-		uid, g.Type, label, data); err != nil {
+		"INSERT INTO abyss_escrow_loot (client_uid, item_type, label, item_data, depth) VALUES ($1,$2,$3,$4,$5)",
+		uid, g.Type, label, data, max(depth, 0)); err != nil {
 		log.Printf("abyss escrow insert failed for %s: %v", uid, err)
 		return false
 	}
 	return true
+}
+
+func abyssDepthLootFindBonus(bestDepth int) float64 {
+	milestones := min(max(bestDepth, 0)/25, 4)
+	return float64(milestones) * 0.01
 }
 
 const abyssBankPreviewLootLimit = 24
@@ -679,21 +679,22 @@ func (b *Bot) currentAbyssBankPreviewLoot(ctx context.Context, uid string, limit
 // applyAbyssEscrowLoot grants every escrowed item to the character and clears the
 // escrow, returning the display labels of what was awarded. Called on bank.
 func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
-	rows, err := b.DB.Query("SELECT id, label, item_data FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id", uid)
+	rows, err := b.DB.Query("SELECT id, label, item_data, equip_on_bank FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id", uid)
 	if err != nil {
 		return nil
 	}
 	type pending struct {
-		id    int64
-		label string
-		data  []byte
+		id          int64
+		label       string
+		data        []byte
+		equipOnBank bool
 	}
 	// Drain the cursor before issuing the per-item grant writes (which use the same
 	// connection pool) to avoid an in-flight query conflict.
 	var items []pending
 	for rows.Next() {
 		var p pending
-		if err := rows.Scan(&p.id, &p.label, &p.data); err == nil {
+		if err := rows.Scan(&p.id, &p.label, &p.data, &p.equipOnBank); err == nil {
 			items = append(items, p)
 		}
 	}
@@ -710,13 +711,23 @@ func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
 			_, _ = b.DB.Exec("DELETE FROM abyss_escrow_loot WHERE id=$1", p.id)
 			continue
 		}
-		if err := b.applyAbyssLootGrant(uid, g); err != nil {
+		var applyErr error
+		preferredGear := p.equipOnBank && g.Gear != nil
+		if preferredGear {
+			applyErr = b.consumeAndEquipAbyssEscrowGear(uid, p.id, *g.Gear)
+		} else {
+			applyErr = b.applyAbyssLootGrant(uid, g)
+		}
+		if applyErr != nil {
 			// Transient write failure — keep the escrow row so a later bank can
 			// retry the grant instead of silently losing it.
 			continue
 		}
-		// Delete each row as it is applied so a mid-loop failure can't double-grant.
-		_, _ = b.DB.Exec("DELETE FROM abyss_escrow_loot WHERE id=$1", p.id)
+		// Preferred gear is consumed in the same transaction as its equip. Other
+		// grants retain the existing post-apply row deletion path.
+		if !preferredGear {
+			_, _ = b.DB.Exec("DELETE FROM abyss_escrow_loot WHERE id=$1", p.id)
+		}
 		applied = append(applied, p.label)
 	}
 	return applied

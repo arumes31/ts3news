@@ -213,7 +213,7 @@ func (b *Bot) abyssRestFloorVacuum(uid string, depth int) []string {
 	var labels []string
 	gold := int64(depth * 10) // ~50% of the value of the common drops walked past
 	label := fmt.Sprintf("🧹 Loot vacuum: %d gold swept from the floors above", gold)
-	if b.escrowAbyssLoot(uid, label, abyssLootGrant{Type: "gold", Gold: gold}) {
+	if b.escrowAbyssLoot(uid, depth, label, abyssLootGrant{Type: "gold", Gold: gold}) {
 		labels = append(labels, label)
 	}
 	// #nosec G404 -- non-cryptographic loot roll
@@ -223,7 +223,7 @@ func (b *Bot) abyssRestFloorVacuum(uid string, depth int) []string {
 			mat = "shard"
 		}
 		label = fmt.Sprintf("🧹 Loot vacuum: %s ×%d", abyssMaterialName(mat), n)
-		if b.escrowAbyssLoot(uid, label, abyssLootGrant{Type: "mat", MatID: mat, MatN: n}) {
+		if b.escrowAbyssLoot(uid, depth, label, abyssLootGrant{Type: "mat", MatID: mat, MatN: n}) {
 			labels = append(labels, label)
 		}
 	}

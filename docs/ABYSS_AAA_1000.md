@@ -37,6 +37,12 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0010 / 10** — opt-in weekly expeditions retain one UTC ISO-week seed for the full run.
 - [x] **AAA-0011 / 11** — lifetime banking loyalty lowers the charged and previewed insurance premium rate by up to 15 points.
 - [x] **AAA-0013 / 13** — an authoritative run cadence guarantees a sanctuary after seven floors without rest.
+- [x] **AAA-0014 / 14** — depth-scaled escrow thresholds visibly reduce only new marginal growth to 25 percent.
+- [x] **AAA-0015 / 15** — one token-priced Last Stand restores at least 25% HP and seals banking for two victories.
+- [x] **AAA-0016 / 16** — each 25 best-depth milestone grants 1% permanent loot find, capped at 4%.
+- [x] **AAA-0019 / 19** — five prestige tiers expose escalating names and cosmetic auras.
+- [x] **AAA-0021 / 21** — Descend shows the server-estimated next-floor death risk.
+- [x] **AAA-0024 / 24** — three same-day deaths fund one clearly labeled +10% comeback run.
 
 ## Active tranche: operational quality and client performance
 
@@ -255,3 +261,26 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0558 / UI-58** — bank streak displays its exact current multiplier.
 - [x] **AAA-0559 / UI-59** — forge happy hour receives a UTC-aware HUD marker.
 - [x] **AAA-0560 / UI-60** — interest shows the authoritative per-floor rate and compounded run total.
+
+## Delivered tranche: authoritative run-loot inventory
+
+- [x] **AAA-0561 / UI-61** — escrowed gear carries its canonical slot icon from structured grant data.
+- [x] **AAA-0562 / UI-62** — unidentified gear receives a pulsing question badge without parsing localized labels.
+- [x] **AAA-0563 / UI-63** — each loot row expands by pointer or keyboard to show source, slot, CR delta, and quality.
+- [x] **AAA-0564 / UI-64** — the strongest positive run-loot upgrade per slot can be transactionally reserved to equip on bank.
+- [x] **AAA-0565 / UI-65** — existing floor and rarity sorting operates on exact manifest metadata.
+- [x] **AAA-0566 / UI-66** — exact gear-ID ownership marks duplicate drops without name matching.
+- [x] **AAA-0567 / UI-67** — set-piece tags and equipped counts use canonical SetID fields.
+- [x] **AAA-0568 / UI-68** — corrupted drops receive a reduced-motion-safe blood-drip treatment from the persisted corruption flag.
+- [x] **AAA-0569 / UI-69** — backpack durability bars use exact current and maximum durability.
+- [x] **AAA-0570 / UI-70** — attuned backpack items carry a dedicated binding ribbon.
+- [x] **AAA-0571 / UI-71** — quality stars use the persisted zero-to-five masterwork tier.
+- [x] **AAA-0572 / UI-72** — backpack filters separate weapons, armor, jewelry, and other items.
+- [x] **AAA-0573 / UI-73** — the backpack header totals the server's exact current vendor values.
+- [x] **AAA-0574 / UI-74** — equipped temper levels render as compact pip rows.
+- [x] **AAA-0575 / UI-75** — equipped sockets render filled and empty gem positions.
+- [x] **AAA-0576 / UI-76** — backpack clicks open a side-by-side comparison with the equipped slot.
+- [x] **AAA-0577 / UI-77** — negative comparison stats receive an explicit warning treatment.
+- [x] **AAA-0578 / UI-78** — equipped and backpack set ribbons use persisted SetID values.
+- [x] **AAA-0579 / UI-79** — new run loot glows until its first pointer or keyboard interaction.
+- [x] **AAA-0580 / UI-80** — run-loot detail cards retain the authoritative persisted drop floor.

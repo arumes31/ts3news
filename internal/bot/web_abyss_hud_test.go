@@ -1,11 +1,35 @@
 package bot
 
 import (
+	"math"
 	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+
+	"ts3news/internal/content"
 )
+
+func TestAbyssRunFloorsCleared(t *testing.T) {
+	tests := []struct {
+		name string
+		run  abyssRun
+		want int
+	}{
+		{name: "surface", run: abyssRun{}, want: 0},
+		{name: "cleared combat", run: abyssRun{Active: true, Depth: 3, FloorType: "combat"}, want: 3},
+		{name: "checkpoint entry", run: abyssRun{Active: true, Depth: 20, CheckpointStart: 20, FloorType: "combat"}, want: 0},
+		{name: "unresolved sanctuary", run: abyssRun{Active: true, Depth: 7, FloorType: "rest"}, want: 6},
+		{name: "defeated floor", run: abyssRun{Active: true, Downed: true, Depth: 12, FloorType: "combat"}, want: 11},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := abyssRunFloorsCleared(test.run); got != test.want {
+				t.Fatalf("floors cleared = %d, want %d", got, test.want)
+			}
+		})
+	}
+}
 
 func TestAbyssHUDPageStateUsesAuthoritativeRunData(t *testing.T) {
 	db, mock, err := sqlmock.New()
@@ -22,12 +46,18 @@ func TestAbyssHUDPageStateUsesAuthoritativeRunData(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"pacts"}).AddRow("glass_cannon"))
 
 	run := abyssRun{Active: true, Depth: 12, CheckpointStart: 10, Escrow: 2_400, FloorType: "combat"}
-	state := (&Bot{DB: db}).abyssHUDPageState("player", run, abyssStats{}, nil)
+	equipped := map[content.GearSlot]content.Gear{
+		content.SlotTrinket1: {ID: "ABYSS_LUCKY_COIN"},
+	}
+	state := (&Bot{DB: db}).abyssHUDPageState("player", run, abyssStats{UpInterest: 2}, equipped)
 	if state.FloorsCleared != 2 || state.EscrowPerFloor != 1_200 {
 		t.Fatalf("HUD pace = %d floors at %d/floor", state.FloorsCleared, state.EscrowPerFloor)
 	}
 	if state.Jackpot != 54_321 {
 		t.Fatalf("jackpot = %d", state.Jackpot)
+	}
+	if math.Abs(state.InterestRatePct-0.84) > 0.0001 || state.InterestTotalPct <= state.InterestRatePct {
+		t.Fatalf("interest = %.4f%% per floor, %.4f%% total", state.InterestRatePct, state.InterestTotalPct)
 	}
 	if len(state.Pacts) != 1 || state.Pacts[0].Key != "glass_cannon" {
 		t.Fatalf("pacts = %#v", state.Pacts)
@@ -49,6 +79,9 @@ func TestAbyssHUDAndFocusContracts(t *testing.T) {
 	}
 	if got := abyssFocusPreference(map[string]int64{}); got != "" {
 		t.Fatalf("automatic focus preference = %q", got)
+	}
+	if got := abyssFocusPreference(map[string]int64{abyssRunFlagFocus: 99}); got != "" {
+		t.Fatalf("invalid focus preference = %q", got)
 	}
 
 	page, err := webAssets.ReadFile("webassets/abyss.html")
@@ -78,6 +111,23 @@ func TestAbyssHUDAndFocusContracts(t *testing.T) {
 	} {
 		if !strings.Contains(source, required) {
 			t.Errorf("HUD contract missing %q", required)
+		}
+	}
+
+	uiCSS, err := webAssets.ReadFile("webassets/abyss_ui200.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	liveCSS, err := webAssets.ReadFile("webassets/abyss_live.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{
+		".ab-hudchip.pact", ".ab-focus-chip select", "ab-jackpot-grow",
+		".kind-item.unavailable::before", "conic-gradient",
+	} {
+		if !strings.Contains(string(uiCSS)+string(liveCSS), required) {
+			t.Errorf("HUD styling contract missing %q", required)
 		}
 	}
 }

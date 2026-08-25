@@ -19,6 +19,10 @@ func abyssRestFloorDue(lastRestDepth, nextDepth int) bool {
 	return nextDepth > 0 && nextDepth-lastRestDepth >= abyssRestFloorGap
 }
 
+func abyssComebackEligible(deathsToday int) bool {
+	return deathsToday >= 3
+}
+
 func abyssInsuranceLoyaltyPct(lifetimeBanked int64) int {
 	if lifetimeBanked <= 0 {
 		return 0
@@ -45,6 +49,45 @@ type abyssForfeitPolicy struct {
 	Refund       int64
 	CountDeath   bool
 	PreserveLoot bool
+}
+
+type abyssEscrowGrowth struct {
+	Escrow        int64
+	Bonus         int64
+	SoftCap       int64
+	EfficiencyPct int
+}
+
+func abyssEscrowSoftCap(depth int) int64 {
+	return 50_000 + int64(max(depth, 1))*10_000
+}
+
+func diminishAbyssEscrowGain(current, gain, cap int64) int64 {
+	if gain <= 0 {
+		return 0
+	}
+	room := max(cap-current, 0)
+	full := min(gain, room)
+	return full + (gain-full)/4
+}
+
+func applyAbyssEscrowSoftCap(escrow, interestGain, bonus int64, depth int) abyssEscrowGrowth {
+	cap := abyssEscrowSoftCap(depth)
+	adjustedInterest := diminishAbyssEscrowGain(escrow, interestGain, cap)
+	afterInterest := escrow + adjustedInterest
+	adjustedBonus := diminishAbyssEscrowGain(afterInterest, bonus, cap)
+	rawGain := max(interestGain, 0) + max(bonus, 0)
+	adjustedGain := adjustedInterest + adjustedBonus
+	efficiency := 100
+	if rawGain > 0 {
+		efficiency = int(adjustedGain * 100 / rawGain)
+	}
+	return abyssEscrowGrowth{
+		Escrow:        afterInterest + adjustedBonus,
+		Bonus:         adjustedBonus,
+		SoftCap:       cap,
+		EfficiencyPct: efficiency,
+	}
 }
 
 func planAbyssForfeit(escrow int64, insured, depth int, hardcore bool) abyssForfeitPolicy {

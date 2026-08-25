@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"html/template"
 	"io"
 	"math"
 	"math/rand/v2"
@@ -1181,38 +1180,6 @@ func bbToHTML(s string) string {
 	return bbTagReplacer.Replace(s)
 }
 
-// runLootRow is one escrowed drop, formatted for the right-hand loot manifest
-// sidebar on the Abyss page. Label is pre-sanitised HTML from bbToHTML (which
-// escapes its input first), typed template.HTML so the template doesn't
-// escape it a second time and show literal <span> markup.
-type runLootRow struct {
-	Label template.HTML
-	Depth int
-	Title string // plain-text label for the hover tooltip (full, un-truncated detail)
-}
-
-// bbTagRe strips every BBCode tag, leaving plain text for title tooltips.
-var bbTagRe = regexp.MustCompile(`\[[^\]]*\]`)
-
-// currentRunLootManifest returns every item escrowed so far in the player's
-// active run, oldest first, for the loot manifest sidebar.
-func (b *Bot) currentRunLootManifest(uid string) []runLootRow {
-	rows, err := b.DB.Query("SELECT label, depth FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id", uid)
-	if err != nil {
-		return nil
-	}
-	defer func() { _ = rows.Close() }()
-	var out []runLootRow
-	for rows.Next() {
-		var label string
-		var depth int
-		if err := rows.Scan(&label, &depth); err == nil {
-			out = append(out, runLootRow{Label: template.HTML(bbToHTML(label)), Depth: depth, Title: bbTagRe.ReplaceAllString(label, "")}) // #nosec G203 -- bbToHTML escapes first
-		}
-	}
-	return out
-}
-
 // ---- Run state -----------------------------------------------------------
 
 // abyssRun is the server-authoritative state of a player's active descent.
@@ -1461,7 +1428,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"DropStreakBonusPct": dropStreakBonusPct,
 		"Risk":               risk,
 		"FreeEntryAvailable": freeEntryAvailable,
-		"RunLoot":            s.bot.currentRunLootManifest(uid),
+		"RunLoot":            s.bot.currentRunLootManifest(uid, equipped, abyssOwnedGearSet(equipped, inventory)),
 		"CanLastStand":       run.Active && !abyssHardcoreRun(runFlags) && !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(run.Depth),
 		"Hardcore":           abyssHardcoreRun(runFlags),
 
@@ -1668,7 +1635,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		// a Go-side date comparison can disagree with the DB's timezone.
 		var deaths int
 		_ = s.bot.DB.QueryRow("SELECT abyss_deaths_today FROM users WHERE client_uid=$1 AND abyss_deaths_date = CURRENT_DATE", uid).Scan(&deaths)
-		if deaths >= 3 {
+		if abyssComebackEligible(deaths) {
 			comeback = true
 		}
 	}
@@ -1982,6 +1949,8 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 	var recipeUnlocked string
 	var affixReward string
 	var dailyFirst bool
+	var escrowSoftCap int64
+	var escrowEfficiencyPct int
 
 	runInit := s.bot.loadAbyssRun(uid)
 	if !runInit.Active {
@@ -2147,6 +2116,8 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			if o.AffixReward != "" {
 				affixReward = o.AffixReward
 			}
+			escrowSoftCap = o.EscrowSoftCap
+			escrowEfficiencyPct = o.EscrowEfficiencyPct
 			run.Escrow = o.NewEscrow
 			_ = s.bot.setPendingAbyssDoubleBonus(uid, newDepth, o.Bonus)
 		} else {
@@ -2217,7 +2188,9 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		"daily":              dailyFirst,
 		"auto_focus":         s.selectedAbyssFocus(uid, finalRun),
 		"double_bonus":       pendingAbyssDoubleBonus(s.bot.loadRunFlags(uid), finalRun.Depth),
-		"run_floors_cleared": abyssRunFloorsCleared(finalRun),
+		"escrow_soft_cap":       escrowSoftCap,
+		"escrow_efficiency_pct": escrowEfficiencyPct,
+		"run_floors_cleared":    abyssRunFloorsCleared(finalRun),
 	}
 	if len(achs) > 0 {
 		out["achievement"] = strings.Join(achs, " · ")
@@ -2551,18 +2524,20 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 // the single-descend and batch-descend paths, so both report identical fields
 // and cannot drift apart again.
 type abyssFloorOutcome struct {
-	Bonus          int64
-	NewEscrow      int64
-	ExpressSkip    bool
-	SecondaryGoal  string
-	GearMilestone  string
-	DailyFirst     bool
-	Achievements   []string
-	LoreUnlocked   bool
-	LoreFragment   string
-	RecipeUnlocked string
-	AffixReward    string
-	DBErr          bool
+	Bonus               int64
+	NewEscrow           int64
+	EscrowSoftCap       int64
+	EscrowEfficiencyPct int
+	ExpressSkip         bool
+	SecondaryGoal       string
+	GearMilestone       string
+	DailyFirst          bool
+	Achievements        []string
+	LoreUnlocked        bool
+	LoreFragment        string
+	RecipeUnlocked      string
+	AffixReward         string
+	DBErr               bool
 }
 
 // applyFloorVictory performs all victory bookkeeping for one cleared floor:
@@ -2633,7 +2608,10 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 	if _, hasCoin := equipped[content.SlotTrinket1]; hasCoin && equipped[content.SlotTrinket1].ID == "ABYSS_LUCKY_COIN" {
 		hasLuckyCoin = true
 	}
-	newEscrow := int64(float64(escrowBefore)*(1.0+abyssEffectiveInterest(st.UpInterest, hasLuckyCoin))) + bonus // [56] interest + Compounding node
+	withInterest := int64(float64(escrowBefore) * (1.0 + abyssEffectiveInterest(st.UpInterest, hasLuckyCoin)))
+	growth := applyAbyssEscrowSoftCap(escrowBefore, withInterest-escrowBefore, bonus, depth)
+	bonus = growth.Bonus
+	newEscrow := growth.Escrow // [56] interest + Compounding node, then #14 marginal soft cap
 	if _, err := s.bot.DB.Exec("UPDATE abyss_active SET escrow=$1, floor_type='combat', modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2", newEscrow, uid); err != nil {
 		o.DBErr = true
 		return o
@@ -2665,6 +2643,8 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 
 	o.Bonus = bonus
 	o.NewEscrow = newEscrow
+	o.EscrowSoftCap = growth.SoftCap
+	o.EscrowEfficiencyPct = growth.EfficiencyPct
 
 	// Surface any milestone newly earned this floor: depth, plus boss-kill and
 	// bestiary counts (both updated during the fight that just resolved).
@@ -2758,6 +2738,8 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		}
 		out["bonus"] = o.Bonus
 		out["escrow"] = o.NewEscrow
+		out["escrow_soft_cap"] = o.EscrowSoftCap
+		out["escrow_efficiency_pct"] = o.EscrowEfficiencyPct
 		if err := s.bot.setPendingAbyssDoubleBonus(uid, depth, o.Bonus); err == nil && o.Bonus > 0 {
 			out["double_bonus"] = o.Bonus
 		}
@@ -4092,7 +4074,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			defer func() { _ = tx.Rollback() }()
-			if _, err := tx.Exec("INSERT INTO abyss_escrow_loot (client_uid, item_type, label, item_data) VALUES ($1,$2,$3,$4)", uid, "gear", label, data); err != nil {
+			if _, err := tx.Exec("INSERT INTO abyss_escrow_loot (client_uid, item_type, label, item_data, depth) VALUES ($1,$2,$3,$4,$5)", uid, "gear", label, data, run.Depth); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -4502,13 +4484,13 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 		if run.Depth >= 50 {
 			mat, n = "core", 1+rand.IntN(2) // #nosec G404
 		}
-		if s.bot.escrowAbyssLoot(uid, fmt.Sprintf("⛏️ Material Drop: %s ×%d", abyssMaterialName(mat), n), abyssLootGrant{Type: "mat", MatID: mat, MatN: n}) {
+		if s.bot.escrowAbyssLoot(uid, run.Depth, fmt.Sprintf("⛏️ Material Drop: %s ×%d", abyssMaterialName(mat), n), abyssLootGrant{Type: "mat", MatID: mat, MatN: n}) {
 			focusReward = fmt.Sprintf("⛏️ %s ×%d sealed into the cache", abyssMaterialName(mat), n)
 		}
 	case "tokens":
 		bonus = 0
 		tks := int64(1 + rand.IntN(2)) // #nosec G404 -- non-cryptographic reward roll
-		if s.bot.escrowAbyssLoot(uid, fmt.Sprintf("🜲 %d Abyss Tokens", tks), abyssLootGrant{Type: "tokens", Tokens: tks}) {
+		if s.bot.escrowAbyssLoot(uid, run.Depth, fmt.Sprintf("🜲 %d Abyss Tokens", tks), abyssLootGrant{Type: "tokens", Tokens: tks}) {
 			focusReward = fmt.Sprintf("🜲 %d tokens sealed into the cache", tks)
 		}
 	}

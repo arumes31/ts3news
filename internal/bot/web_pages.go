@@ -36,6 +36,7 @@ type gearView struct {
 	MaxDurability int
 	Empty         bool
 	AHPrice       int64 // auto-calculated auction house listing price
+	VendorPrice   int64 // current item's exact server-side vendor value
 
 	// Detail surfaced in the armoury/inventory.
 	Element    string
@@ -52,6 +53,8 @@ type gearView struct {
 	Insured      bool // whether the piece is death-insured (drives the forge picker)
 	Corrupted    bool // carries an HP malus, cleansable at the forge (#83)
 	Temper       int  // forge temper level (#106)
+	Quality      int  // masterwork quality tier (0-5)
+	SetID        string
 	HasSpecial   bool // carries a Special effect (drives the forge awaken action)
 	Imbued       bool // already imbued via the forge
 	Attuned      bool // bound to its owner via the forge
@@ -165,6 +168,8 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		Insured:      g.Insured,
 		Corrupted:    g.Corrupted,
 		Temper:       g.Temper,
+		Quality:      g.Quality,
+		SetID:        g.SetID,
 		HasSpecial:   g.Special != content.EffectNone,
 		Imbued:       g.Imbued != "",
 		Attuned:      g.Attuned,
@@ -412,6 +417,7 @@ func (b *Bot) inventoryItems(uid string) []gearView {
 			price = 10
 		}
 		v.AHPrice = price
+		v.VendorPrice = max(gearPrice(g)/2, 1)
 		out = append(out, v)
 	}
 	return out
@@ -513,11 +519,12 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 	}
 
 	var gid string
-	if err := s.bot.DB.QueryRow("SELECT gear_id FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gid); err != nil {
+	var itemData sql.NullString
+	if err := s.bot.DB.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gid, &itemData); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
 		return
 	}
-	g, ok := content.GetGearByID(gid)
+	g, ok := s.bot.makeGear(gid, itemData)
 	if !ok {
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown gear"})
 		return

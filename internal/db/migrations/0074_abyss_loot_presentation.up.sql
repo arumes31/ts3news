@@ -1,0 +1,2 @@
+ALTER TABLE abyss_escrow_loot
+    ADD COLUMN IF NOT EXISTS equip_on_bank BOOLEAN NOT NULL DEFAULT FALSE;

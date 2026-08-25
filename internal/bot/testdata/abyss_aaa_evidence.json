@@ -40,6 +40,17 @@
     "verification": ["internal/bot/web_abyss_core_loop_test.go"]
   },
   {
+    "ids": [14, 15, 16, 19, 21, 24],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_risk_rewards.go",
+      "internal/bot/webassets/abyss.html"
+    ],
+    "verification": ["internal/bot/web_abyss_core_rules_test.go"]
+  },
+  {
     "ids": [401, 402, 403, 404, 405, 406, 407, 408, 409, 410],
     "production": [
       "internal/bot/web_abyss.go",
@@ -200,12 +211,29 @@
       "internal/bot/web_abyss.go",
       "internal/bot/web_abyss_focus.go",
       "internal/bot/web_abyss_hud.go",
+      "internal/bot/web_pages.go",
       "internal/bot/webassets/abyss.html",
       "internal/bot/webassets/abyss_live.html",
       "internal/bot/webassets/abyss_live.css",
+      "internal/bot/webassets/abyss_run_awareness.html",
       "internal/bot/webassets/abyss_ui200.css"
     ],
     "verification": ["internal/bot/web_abyss_hud_test.go"]
+  },
+  {
+    "ids": [561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572, 573, 574, 575, 576, 577, 578, 579, 580],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_inventory_ui.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_loot2.go",
+      "internal/bot/web_pages.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_ui200.css",
+      "internal/db/migrations/0074_abyss_loot_presentation.up.sql"
+    ],
+    "verification": ["internal/bot/web_abyss_inventory_ui_test.go"]
   },
   {
     "ids": [986, 987],

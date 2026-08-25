@@ -7,12 +7,14 @@ import (
 )
 
 type abyssHUDPageState struct {
-	EscrowPerFloor   int64
-	FloorsCleared    int
-	InterestRatePct  float64
-	InterestTotalPct float64
-	Jackpot          int64
-	Pacts            []abyssPact
+	EscrowPerFloor      int64
+	EscrowSoftCap       int64
+	EscrowEfficiencyPct int
+	FloorsCleared       int
+	InterestRatePct     float64
+	InterestTotalPct    float64
+	Jackpot             int64
+	Pacts               []abyssPact
 }
 
 func abyssHUDPacts(keys []string) []abyssPact {
@@ -41,10 +43,15 @@ func (b *Bot) abyssHUDPageState(uid string, run abyssRun, st abyssStats, equippe
 	}
 	rate := abyssEffectiveInterest(st.UpInterest, hasLuckyCoin)
 	state := abyssHUDPageState{
-		FloorsCleared:    floors,
-		InterestRatePct:  rate * 100,
-		InterestTotalPct: (math.Pow(1+rate, float64(floors)) - 1) * 100,
-		Jackpot:          b.getJackpot("abyss"),
+		FloorsCleared:       floors,
+		InterestRatePct:     rate * 100,
+		InterestTotalPct:    (math.Pow(1+rate, float64(floors)) - 1) * 100,
+		Jackpot:             b.getJackpot("abyss"),
+		EscrowSoftCap:       abyssEscrowSoftCap(run.Depth),
+		EscrowEfficiencyPct: 100,
+	}
+	if run.Escrow >= state.EscrowSoftCap {
+		state.EscrowEfficiencyPct = 25
 	}
 	if floors > 0 {
 		state.EscrowPerFloor = run.Escrow / int64(floors)

@@ -101,7 +101,7 @@
     <h3>⚔️ Armoury</h3>
     <div class="abyss-side-list">
       {{range .Equipped}}
-      <div class="abyss-side-gear" tabindex="0" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+      <div class="abyss-side-gear" tabindex="0" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
         <span class="ab-pixel-icon ab-gear-pixel" aria-hidden="true"></span>
         <span class="ab-side-gear-name" style="color:{{.RarityColor}}">{{.Name}}</span>
         <span class="cr">CR {{printf "%.0f" .CR}}</span>
@@ -382,7 +382,12 @@
     </div>
     <div class="abyss-side-list" id="lootManifest">
       {{range .RunLoot}}
-      <div class="abyss-side-loot" data-depth="{{.Depth}}" data-tip="{{.Title}}&#10;(floor {{.Depth}})">{{.Label}}</div>
+      <div class="abyss-side-loot {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-tip="{{.Title}}&#10;{{.Source}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
+        <span class="ab-loot-main">{{if .SlotIcon}}<span class="ab-loot-slot" aria-hidden="true">{{.SlotIcon}}</span>{{end}}<span>{{.Label}}</span></span>
+        <span class="ab-loot-tags">{{if .Unidentified}}<b class="ab-loot-question">?</b>{{end}}{{if .AlreadyOwned}}<b class="ab-owned-tag">owned</b>{{end}}{{if .SetID}}<b class="ab-set-tag ab-set-{{.SetID}}">🧩 {{.SetID}} {{.SetCount}}/{{.SetMax}}</b>{{end}}{{if .Corrupted}}<b class="ab-corrupt-tag">🩸 corrupted</b>{{end}}</span>
+        <span class="ab-loot-detail" hidden>{{.Source}}{{if .Slot}} · {{.Slot}}{{end}}{{if gt .CR 0.0}} · CR {{printf "%.0f" .CR}} ({{if ge .CRDelta 0.0}}+{{end}}{{printf "%.0f" .CRDelta}}){{end}}{{if gt .Quality 0}} · {{.Quality}}★ quality{{end}}</span>
+        {{if .CanEquipBest}}<button type="button" class="ghost xs ab-equip-best {{if .EquipOnBank}}selected{{end}}" onclick="abyssEquipBestLoot({{.EscrowID}},event)">{{if .EquipOnBank}}✓ Equip on bank{{else}}Equip best on bank{{end}}</button>{{end}}
+      </div>
       {{else}}
       <div class="abyss-side-empty">No loot escrowed yet this run.</div>
       {{end}}
@@ -616,14 +621,14 @@
           <option value="">-- Choose Item --</option>
           <optgroup label="Equipped Items">
             {{range .Equipped}}
-              <option value="equipped:{{.Slot}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}" data-special="{{.HasSpecial}}" data-imbued="{{.Imbued}}" data-attuned="{{.Attuned}}" data-temper="{{.Temper}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}" data-rune="{{.HasRune}}" data-prismatic="{{.Prismatic}}" data-cr="{{printf "%.1f" .CR}}" data-gs="{{.Score}}" data-dur="{{.Durability}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .Durability 0}} · Dur {{.Durability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+              <option value="equipped:{{.Slot}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}" data-special="{{.HasSpecial}}" data-imbued="{{.Imbued}}" data-attuned="{{.Attuned}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}" data-rune="{{.HasRune}}" data-prismatic="{{.Prismatic}}" data-cr="{{printf "%.1f" .CR}}" data-gs="{{.Score}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
                 {{.Icon}} [Equipped] {{.Name}} ({{.Rarity}}) · CR {{printf "%.0f" .CR}}
               </option>
             {{end}}
           </optgroup>
           <optgroup label="Backpack Inventory">
             {{range .Inventory}}
-              <option value="inv:{{.InvID}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}" data-special="{{.HasSpecial}}" data-imbued="{{.Imbued}}" data-attuned="{{.Attuned}}" data-temper="{{.Temper}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}" data-rune="{{.HasRune}}" data-prismatic="{{.Prismatic}}" data-cr="{{printf "%.1f" .CR}}" data-gs="{{.Score}}" data-dur="{{.Durability}}" data-ah="{{.AHPrice}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .Durability 0}} · Dur {{.Durability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+              <option value="inv:{{.InvID}}" data-id="{{.ID}}" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}" data-special="{{.HasSpecial}}" data-imbued="{{.Imbued}}" data-attuned="{{.Attuned}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}" data-rune="{{.HasRune}}" data-prismatic="{{.Prismatic}}" data-cr="{{printf "%.1f" .CR}}" data-gs="{{.Score}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-ah="{{.AHPrice}}" data-vendor="{{.VendorPrice}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
                 {{.Icon}} [Inv] {{.Name}} ({{.Rarity}}) · CR {{printf "%.0f" .CR}}
               </option>
             {{end}}
@@ -636,7 +641,7 @@
       <div id="backpackPanel" class="ab-backpack">
         <div class="ab-bp-head">
           <span class="ab-sub-label" style="margin-bottom:0;">🎒 Backpack <b id="bpCount"></b></span>
-          <span class="muted small" id="bpValue" title="Sum of auto-calculated listing prices: (CR×10 + GS×5) × (rarity+1); a vendor pays less"></span>
+          <span class="muted small" id="bpValue" title="Exact total gold the server would currently pay for these backpack items"></span>
         </div>
         <div class="ab-loot-filters" id="bpFilters">
           <button class="ab-chip active" data-bf="all" aria-pressed="true">All</button>
@@ -1118,6 +1123,7 @@ var bankStreak = {{.Stats.Streak}}; // UI-58
 var dailyAffix = '{{if .DailyMod}}{{.DailyMod}}{{end}}'; // UI-34
 var interestRatePct = {{printf "%.3f" .HUD.InterestRatePct}}; // UI-60 authoritative rate
 var interestTotalPct = {{printf "%.3f" .HUD.InterestTotalPct}};
+var escrowSoftCap = {{.HUD.EscrowSoftCap}}, escrowEfficiencyPct = {{.HUD.EscrowEfficiencyPct}};
 var abyssJackpot = {{.HUD.Jackpot}}; // UI-57
 var jackpotPulse = false, jackpotPulseTimer = 0;
 var activeRunPacts = {{jsonJS .HUD.Pacts}} || []; // UI-52
@@ -2399,6 +2405,7 @@ function renderHudChipsNow(){
   if(inRun){
     // UI-41: escrow earn-rate estimate for the current run.
     if(runFloorsCleared>0) chips.push(['💰 ≈'+fmtGold(Math.round(curEscrow/runFloorsCleared))+'/floor','']);
+    chips.push(['⚖️ cap '+fmtGold(escrowSoftCap)+' · '+escrowEfficiencyPct+'% marginal',escrowEfficiencyPct<100?'warn':'']);
     // UI-43: insurance is run-wide, so its remaining floor coverage is unbounded.
     if(curInsured>0) chips.push(['🛡️ '+curInsured+'% · ∞ floors','']);
     // UI-44: floors to the next checkpoint (every 10 depths).
@@ -2609,6 +2616,7 @@ function appendRunLoot(loot){
   });
   updateLootSummary();
   applyLootFilter();
+  void refreshRunLootManifest();
 }
 
 // Hover compare card on loot rows (UX-47), built from the label's own
@@ -3041,6 +3049,8 @@ async function abyssChooseFloor(i, hp, max){
 // Shared by the direct-descend and choose-floor paths once a floor has been
 // resolved (rest/event vs. combat win/loss).
 async function processDescendResult(d, hp, max){
+  if(d.escrow_soft_cap!==undefined) escrowSoftCap=Number(d.escrow_soft_cap)||escrowSoftCap;
+  if(d.escrow_efficiency_pct!==undefined) escrowEfficiencyPct=Number(d.escrow_efficiency_pct)||100;
   var hasExactRunFloors=d.run_floors_cleared!==undefined;
   if(hasExactRunFloors) runFloorsCleared=Math.max(0,Number(d.run_floors_cleared)||0);
   if(d.jackpot!==undefined) updateJackpot(d.jackpot);
@@ -4657,7 +4667,7 @@ function renderYdaySummary(){
 var lootSeq=0;
 var lootSeen=[];
 try{ lootSeen=JSON.parse(sessionStorage.getItem('ab_loot_seen')||'[]'); }catch(e){ lootSeen=[]; }
-function lootSig(row){ return (row.getAttribute('data-depth')||'')+'|'+(row.textContent||'').replace(/\s+/g,' ').slice(0,80); }
+function lootSig(row){ var id=row.getAttribute('data-loot-id');return id?('id:'+id):((row.getAttribute('data-depth')||'')+'|'+(row.textContent||'').replace(/\s+/g,' ').slice(0,80)); }
 
 // UI-66: "already owned" is a name match against equipped/backpack pieces
 // (escrowed drop labels carry no item ID — accepted approximation).
@@ -4674,10 +4684,115 @@ function ownedGearNames(){
   return names;
 }
 
+function toggleRunLootDetail(row,event){
+  if(event&&event.target&&event.target.closest&&event.target.closest('button'))return;
+  var detail=row?row.querySelector('.ab-loot-detail'):null;
+  if(!detail)return;
+  var open=detail.hidden;
+  detail.hidden=!open;
+  row.setAttribute('aria-expanded',open?'true':'false');
+  markLootSeen(row);
+}
+
+async function abyssEquipBestLoot(id,event){
+  if(event){event.preventDefault();event.stopPropagation();}
+  var button=event&&event.currentTarget; if(button)button.disabled=true;
+  var data=await abPost('/api/abyss/loot/equip_best',{id:Number(id)||0});
+  if(button)button.disabled=false;
+  if(!data.ok){abToast(data.error||'Could not reserve that upgrade.',false);return;}
+  abToast('Best '+data.slot+' upgrade will equip when you bank.',true);
+  await refreshRunLootManifest();
+}
+
+function applyRunLootData(row,item){
+  var fields={
+    'loot-id':item.id,'depth':item.depth,'source':item.source,'item-type':item.item_type,
+    'gear-id':item.gear_id,'slot':item.slot,'slot-icon':item.slot_icon,
+    'rarity-name':item.rarity,'rarity-rank':item.rarity_rank,'score':item.score,
+    'cr':item.cr,'cr-delta':item.cr_delta,'quality':item.quality,
+    'unidentified':item.unidentified,'owned':item.already_owned,'set-id':item.set_id,
+    'set-count':item.set_count,'set-max':item.set_max,'corrupted':item.corrupted,
+    'empty-slot':item.empty_slot,'can-equip-best':item.can_equip_best,'equip-on-bank':item.equip_on_bank
+  };
+  Object.keys(fields).forEach(function(key){
+    var value=fields[key];
+    row.setAttribute('data-'+key,value===undefined||value===null?'':String(value));
+  });
+}
+
+function buildAuthoritativeRunLootRow(item){
+  var row=document.createElement('div');
+  row.className='abyss-side-loot'+(item.unidentified?' ab-loot-unidentified':'')+(item.corrupted?' ab-loot-corrupted':'');
+  row.tabIndex=0;row.setAttribute('role','button');row.setAttribute('aria-expanded','false');
+  row.setAttribute('data-tip',(item.title||'')+'\n'+(item.source||'Run cache'));
+  applyRunLootData(row,item);
+  var main=document.createElement('span');main.className='ab-loot-main';
+  if(item.slot_icon){var icon=document.createElement('span');icon.className='ab-loot-slot';icon.setAttribute('aria-hidden','true');icon.textContent=item.slot_icon;main.appendChild(icon);}
+  var label=document.createElement('span');label.innerHTML=item.label||'';main.appendChild(label);row.appendChild(main);
+  var tags=document.createElement('span');tags.className='ab-loot-tags';
+  function tag(text,className){var el=document.createElement('b');if(className)el.className=className;el.textContent=text;tags.appendChild(el);}
+  if(item.unidentified)tag('?','ab-loot-question');
+  if(item.already_owned)tag('owned','ab-owned-tag');
+  if(item.set_id)tag('🧩 '+item.set_id+' '+item.set_count+'/'+item.set_max,'ab-set-tag ab-set-'+item.set_id);
+  if(item.corrupted)tag('🩸 corrupted','ab-corrupt-tag');
+  row.appendChild(tags);
+  var detail=document.createElement('span');detail.className='ab-loot-detail';detail.hidden=true;
+  var detailText=item.source||'Run cache';
+  if(item.slot)detailText+=' · '+item.slot;
+  if(Number(item.cr)>0)detailText+=' · CR '+Math.round(Number(item.cr))+' ('+(Number(item.cr_delta)>=0?'+':'')+Math.round(Number(item.cr_delta))+')';
+  if(Number(item.quality)>0)detailText+=' · '+item.quality+'★ quality';
+  detail.textContent=detailText;row.appendChild(detail);
+  if(item.can_equip_best){
+    var button=document.createElement('button');button.type='button';button.className='ghost xs ab-equip-best'+(item.equip_on_bank?' selected':'');
+    button.textContent=item.equip_on_bank?'✓ Equip on bank':'Equip best on bank';
+    button.onclick=function(event){abyssEquipBestLoot(item.id,event);};row.appendChild(button);
+  }
+  row.onclick=function(event){toggleRunLootDetail(row,event);};
+  row.onkeydown=function(event){if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(row,event);}};
+  return row;
+}
+
+var runLootManifestRevision=0;
+async function refreshRunLootManifest(){
+  var revision=++runLootManifestRevision;
+  try{
+    var response=await fetch('/api/abyss/loot/manifest'),data=await response.json();
+    if(revision!==runLootManifestRevision||!data.ok)return;
+    var manifest=document.getElementById('lootManifest');if(!manifest)return;
+    manifest.replaceChildren();lastLootDepth=null;
+    (data.items||[]).forEach(function(item){
+      var depth=String(item.depth||0);
+      if(lastLootDepth!==depth){manifest.appendChild(lootFloorHeader(depth||'?'));lastLootDepth=depth;}
+      var row=buildAuthoritativeRunLootRow(item),rarity=rarityClass(item.label||'');
+      if(rarity)row.classList.add(rarity);
+      manifest.appendChild(row);decorateLootRow(row);
+    });
+    if(!(data.items||[]).length){var empty=document.createElement('div');empty.className='abyss-side-empty';empty.textContent='No loot escrowed yet this run.';manifest.appendChild(empty);}
+    updateLootSummary();applyLootFilter();if(lootSort!=='floor')applyLootSort();
+  }catch(_){/* Keep the already-rendered manifest on transient read failure. */}
+}
+
 function decorateLootRow(row){
   if(row.dataset.ab2)return;
   row.dataset.ab2='1';
   row.dataset.seq=String(lootSeq++);
+  // Manifest rows already carry authoritative server-side gear metadata.
+  // Keep the legacy text parser only for transient pre-refresh drop rows.
+  if(row.dataset.lootId){
+    var manifestRarity=parseInt(row.dataset.rarityRank||'0',10);
+    var manifestClasses=['rar-common','rar-uncommon','rar-rare','rar-epic','rar-legendary','rar-mythic','rar-divine','rar-celestial','rar-eternal'];
+    if(manifestRarity>=0&&manifestRarity<manifestClasses.length)row.classList.add(manifestClasses[manifestRarity]);
+    if(row.dataset.corrupted==='true')row.classList.add('ab-corrupt-drip');
+    var exactSig=lootSig(row);
+    if(lootSeen.indexOf(exactSig)<0)row.classList.add('ab-new');
+    return;
+  }
+  if(row.querySelector('.ab-loot-main')){
+    if(row.getAttribute('data-corrupted')==='true')row.classList.add('ab-corrupt-drip');
+    var exactSig=lootSig(row);
+    if(lootSeen.indexOf(exactSig)<0)row.classList.add('ab-new');
+    return;
+  }
   var t=row.textContent||'';
   // UI-61: slot icon before the item name.
   var sm=/\[s:([A-Za-z0-9]+)\]/.exec(t);
@@ -4727,8 +4842,6 @@ function decorateLootRow(row){
   var sig=lootSig(row);
   if(lootSeen.indexOf(sig)<0){
     row.classList.add('ab-new');
-    lootSeen.push(sig);
-    try{ sessionStorage.setItem('ab_loot_seen',JSON.stringify(lootSeen.slice(-200))); }catch(e){}
   }
 }
 
@@ -4759,6 +4872,7 @@ function buildLootDetail(row){
 document.addEventListener('click',function(e){
   var row=e.target.closest?e.target.closest('.abyss-side-loot'):null;
   if(!row)return;
+  if(row.dataset.lootId)return; // authoritative rows own their inline detail state
   if(e.target.closest&&e.target.closest('.ab-undo-link'))return; // UX-53 undo button
   var next=row.nextElementSibling;
   if(next&&next.classList.contains('ab-loot-detail')){ next.remove(); return; }
@@ -4766,13 +4880,19 @@ document.addEventListener('click',function(e){
   row.parentNode.insertBefore(buildLootDetail(row),row.nextSibling);
 });
 // UI-79: the new-glow clears on first hover/click.
+function markLootSeen(row){
+  if(!row)return;
+  var sig=lootSig(row);
+  if(lootSeen.indexOf(sig)<0){lootSeen.push(sig);try{sessionStorage.setItem('ab_loot_seen',JSON.stringify(lootSeen.slice(-200)));}catch(e){}}
+  row.classList.remove('ab-new');
+}
 document.addEventListener('mouseover',function(e){
   var r=e.target.closest?e.target.closest('.abyss-side-loot.ab-new'):null;
-  if(r)r.classList.remove('ab-new');
+  markLootSeen(r);
 });
 document.addEventListener('click',function(e){
   var r=e.target.closest?e.target.closest('.abyss-side-loot.ab-new'):null;
-  if(r)r.classList.remove('ab-new');
+  markLootSeen(r);
 });
 
 // UI-65: loot manifest sort toggle (floor / rarity / CR delta), persisted.
@@ -4836,12 +4956,14 @@ async function abyssPreset(kind,action){
   if(action==='apply')setTimeout(function(){window.location.reload();},700);
 }
 function lootRowCR(row){
+  if(row.dataset&&row.dataset.lootId)return Number(row.dataset.crDelta)||0;
   var t=row.textContent||'';
   var up=/▲\+([\d.]+) CR/.exec(t); if(up)return parseFloat(up[1]);
   var dn=/▼(-?[\d.]+) CR/.exec(t); if(dn)return -Math.abs(parseFloat(dn[1]));
   return 0;
 }
 function lootRowRarRank(row){
+  if(row.dataset&&row.dataset.lootId)return parseInt(row.dataset.rarityRank||'0',10)||0;
   var r=0;
   AB_RAR_ORDER.forEach(function(c,i){ if(row.classList.contains(c))r=i+1; });
   return r;
@@ -4902,10 +5024,9 @@ applyLootFilter=function(){
 // carry bars or badges, so rich rows are built from the forge picker's data.
 var BP_SLOT_CLASS={MainHand:'weapon',OffHand:'weapon',Ranged:'weapon',Head:'armor',Chest:'armor',Legs:'armor',Feet:'armor',Hands:'armor',Waist:'armor',Back:'armor',Neck:'jewelry',Finger1:'jewelry',Finger2:'jewelry',Trinket1:'jewelry',Trinket2:'jewelry'};
 var bpFilter='all';
-function bpStars(name){ // UI-71: quality tier from the "[Fine]…[Masterwork]" suffix
-  var q=['Fine','Superior','Exquisite','Flawless','Masterwork'];
-  for(var i=q.length-1;i>=0;i--){ if(name.indexOf('['+q[i]+']')>=0)return '★'.repeat(i+1); }
-  return '';
+function bpStars(option){ // UI-71: exact persisted quality tier (0..5).
+  var quality=Math.max(0,Math.min(5,parseInt(option.getAttribute('data-quality'),10)||0));
+  return '★'.repeat(quality);
 }
 function applyBpFilter(){
   document.querySelectorAll('#bpFilters .ab-chip').forEach(function(c){
@@ -4925,7 +5046,7 @@ function buildBackpackPanel(){
   document.querySelectorAll('#forgeItemSelect option').forEach(function(o){
     if(!o.value||o.value.indexOf('inv:')!==0)return;
     count++;
-    total+=parseInt(o.getAttribute('data-ah'),10)||0;
+    total+=parseInt(o.getAttribute('data-vendor'),10)||0;
     var slot=o.getAttribute('data-slot')||'';
     var name=shortOptName(o);
     var rar=parseInt(o.getAttribute('data-rarity'),10)||0;
@@ -4936,13 +5057,13 @@ function buildBackpackPanel(){
     row.dataset.slot=slot;
     row.dataset.forgeValue=o.value;
     row.setAttribute('data-tip',o.getAttribute('data-tip')||'');
-    var stars=bpStars(name);
+    var stars=bpStars(o);
     var html='<span class="ab-bp-name'+(rarCls?' '+rarCls:'')+'">'+consEsc(name)+'</span>';
     if(stars)html+='<span class="ab-bp-stars" title="quality tier">'+stars+'</span>'; // UI-71
     // UI-70: attuned ribbon (the name already carries 🔗; this makes it a badge —
     // a pure CSS hook can't restyle one emoji inside a text node).
     if(o.getAttribute('data-attuned')==='true')html+='<span class="ab-bp-attuned" title="Attuned — bound to you, cannot be fused/sold">🔗</span>';
-    var set=abSetOfName(name);
+    var set=o.getAttribute('data-set-id')||'';
     if(set)html+='<span class="ab-set-tag ab-set-'+set+'">🧩 '+set+'</span>'; // UI-78
     html+='<span class="ab-bp-cr">CR '+(parseFloat(o.getAttribute('data-cr'))||0).toFixed(0)+'</span>';
     row.innerHTML=html;
@@ -4955,22 +5076,23 @@ function buildBackpackPanel(){
       reserve.onclick=(function(id,button){return function(event){event.stopPropagation();toggleAbyssLootReserve(id,button);};})(invID,reserve);
       row.appendChild(reserve);
     }
-    // UI-69: durability bar (the max is not exposed client-side; bar scaled /100).
+    // UI-69: durability bar uses exact persisted current and catalog maximum.
     var dur=parseInt(o.getAttribute('data-dur'),10)||0;
-    if(dur>0){
-      var w=Math.max(0,Math.min(100,dur));
+    var maxDur=parseInt(o.getAttribute('data-max-dur'),10)||0;
+    if(maxDur>0){
+      var w=Math.max(0,Math.min(100,dur*100/maxDur));
       var db=document.createElement('span');
       db.className='ab-bp-dur'+(w<20?' low':'');
-      db.title='Durability '+dur;
+      db.title='Durability '+dur+'/'+maxDur;
       db.innerHTML='<i style="width:'+w+'%"></i>';
       row.appendChild(db);
     }
     list.appendChild(row);
   });
   var cnt=document.getElementById('bpCount'); if(cnt)cnt.textContent=count?('· '+count):'';
-  // UI-73: total value estimate (auto-calculated listing price; vendor pays less).
+  // UI-73: exact aggregate vendor value from the server's current item payloads.
   var val=document.getElementById('bpValue');
-  if(val)val.textContent=total>0?('≈ '+fmtGold(total)+' est. listing value'):'';
+  if(val)val.textContent=total>0?(fmtGold(total)+' vendor value'):'';
   applyBpFilter();
 }
 // UI-76: click a backpack row for a side-by-side compare vs the equipped piece.
@@ -5015,9 +5137,8 @@ function decorateEquippedCards(){
       }
       card.appendChild(sk);
     }
-    // UI-78: set membership ribbon (derived from known set-piece names).
-    var nm=(card.getAttribute('data-tip')||'').split('\n')[0];
-    var set=abSetOfName(nm);
+    // UI-78: set membership ribbon uses the gear's persisted SetID.
+    var set=card.getAttribute('data-set-id')||'';
     if(set){
       card.classList.add('ab-set-ribbon-'+set);
       var rb=document.createElement('span');
