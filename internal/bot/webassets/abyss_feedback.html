@@ -4,14 +4,14 @@
   'use strict';
   var sessionExpiryOpen=false,resumeKey='abyss_session_resume_v1';
   function humanError(message){
-    var raw=String(message||'failed'),messages={
+    var raw=String(message||'failed'),key=raw.toLowerCase(),messages={
       db:"Couldn't save a confirmed result. Refresh state before trying again.",
       'network error':'Connection interrupted — the action was not retried automatically.',
       unauthenticated:'Your portal session expired. Sign in again to continue.',
       combat:'Combat could not be resolved. Your run state was preserved.',
       failed:'The action could not be completed.'
     };
-    return messages[raw]||raw;
+    return messages[key]||raw;
   }
   window.abyssHumanError=humanError;
 
@@ -32,9 +32,6 @@
     setTimeout(function(){var tab=saved.tab&&document.querySelector('.ab-tab[data-tab-key="'+saved.tab+'"]');if(tab)tab.click();window.scrollTo({top:Number(saved.scroll)||0,behavior:'auto'});try{sessionStorage.removeItem(resumeKey);}catch(_){}},0);
   }
   window.handleAbyssSessionExpiry=showSessionExpiry;
-
-  var originalToast=window.abToast;
-  if(typeof originalToast==='function')window.abToast=function(message,ok,options){return originalToast(ok?message:humanError(message),ok,options);};
 
   function enhanceNetworkBanner(){
     var original=window.updateNetBanner;if(typeof original!=='function'||original._abFeedback)return;

@@ -1221,8 +1221,8 @@ function abToast(m, ok, opts){
   opts = opts || {};
   var host = document.getElementById('abToastHost');
   if(!host){ return; }
-  if(typeof abyssHumanError==='function')m=abyssHumanError(m);
-  else if(m === 'db') m = "Couldn't save — nothing was charged. Retry?"; // UI-193
+  if(!ok&&typeof abyssHumanError==='function')m=abyssHumanError(m);
+  else if(!ok&&m === 'db') m = "Couldn't save a confirmed result. Refresh state before trying again."; // UI-193
   var t = document.createElement('div');
   t.className = 'toast2 ' + (ok ? 'good' : 'bad') + (opts.cls ? ' ' + opts.cls : '');
   t.setAttribute('data-ts', new Date().toLocaleTimeString()); // UI-132
@@ -4656,7 +4656,7 @@ function scheduleLootSort(){
   if(lootSortFrame)return;
   lootSortFrame=requestAnimationFrame(function(){lootSortFrame=0;applyLootSort();});
 }
-async function initAbyssLootSettings(){
+async function initAbyssLootSettings(force){
   try{
     var response=await fetch('/api/abyss/loot/settings');
     var data=await response.json();
@@ -4664,7 +4664,7 @@ async function initAbyssLootSettings(){
     var settings=data.settings||{};
     var target=document.getElementById('lootTarget'), salvage=document.getElementById('autoSalvage');
     var loaded={targetCategory:settings.target_category||'',autoSalvageMax:String(settings.auto_salvage_max===undefined?-1:settings.auto_salvage_max)};
-    if(abyssLootSettingsRevision===0){if(target)target.value=loaded.targetCategory;if(salvage)salvage.value=loaded.autoSalvageMax;abyssSavedLootSettings=loaded;}
+    if(force||abyssLootSettingsRevision===0){if(target)target.value=loaded.targetCategory;if(salvage)salvage.value=loaded.autoSalvageMax;abyssSavedLootSettings=loaded;}
     abyssReservedLoot={};(data.reserved_ids||[]).forEach(function(id){abyssReservedLoot[String(id)]=true;});
     buildBackpackPanel();
   }catch(e){}
@@ -4674,9 +4674,9 @@ async function saveAbyssLootSettings(){
   var target=document.getElementById('lootTarget'), salvage=document.getElementById('autoSalvage');
   var next={targetCategory:target?target.value:'',autoSalvageMax:salvage?salvage.value:'-1'},previous=Object.assign({},abyssSavedLootSettings),revision=++abyssLootSettingsRevision;
   var request={target_category:next.targetCategory,auto_salvage_max:parseInt(next.autoSalvageMax,10)},data=await abPost('/api/abyss/loot/settings',request);
-  if(revision!==abyssLootSettingsRevision)return;
-  if(!data.ok){if(target)target.value=previous.targetCategory;if(salvage)salvage.value=previous.autoSalvageMax;abToast(data.error||'Could not save loot rules.',false);return;}
-  abyssSavedLootSettings=next;abToast('Loot rules saved.',true);
+  if(revision!==abyssLootSettingsRevision){await initAbyssLootSettings(true);return;}
+  if(!data.ok){if(target)target.value=previous.targetCategory;if(salvage)salvage.value=previous.autoSalvageMax;await initAbyssLootSettings(true);abToast(data.error||'Could not save loot rules.',false);return;}
+  if(target)target.value=next.targetCategory;if(salvage)salvage.value=next.autoSalvageMax;abyssSavedLootSettings=next;abToast('Loot rules saved.',true);
 }
 async function toggleAbyssLootReserve(invID,button){
   var key=String(invID),previous=!!abyssReservedLoot[key],optimistic=!previous;
