@@ -195,6 +195,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0211 / 211** — below half health, bosses expose server-validated Head and Arms weakpoints for +20% hit damage or one-use spell suppression.
 - [x] **AAA-0212 / 212** — each named boss's first authoritative kill unlocks a distinct dated Boss Chronicle in the lore codex while unbeaten entries remain sealed.
 - [x] **AAA-0213 / 213** — the shared weekly boss enters a visible Saturday–Sunday UTC raid surge that transactionally doubles both strike damage and immediate material quantity.
+- [x] **AAA-0214 / 214** — treasure encounters roll visible Gem, Token, or Key Goblins with guaranteed Prism, token, or atomic in-run vault-key rewards alongside the existing fleeing haul.
 
 ## Active tranche: operational quality and client performance
 

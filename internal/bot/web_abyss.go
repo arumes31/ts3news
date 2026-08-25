@@ -951,7 +951,7 @@ func (b *Bot) fightAbyssFloorLive(
 			}
 			mobs = []content.Mob{
 				{
-					Name:  "Hoarder Treasure Goblin",
+					Name:  content.RandomTreasureGoblinName(encounterRandom),
 					Type:  content.MobTreasureGoblin,
 					Level: mobLevel,
 					Stats: content.Stats{
@@ -964,7 +964,7 @@ func (b *Bot) fightAbyssFloorLive(
 					Element:  content.ElementPhysical,
 				},
 			}
-			logs = append(logs, "[color=#ffeb3b]💰 A Treasure Goblin hoard! You corner a wealthy Treasure Goblin, but it starts sprinting towards a portal![/color]")
+			logs = append(logs, fmt.Sprintf("[color=#ffeb3b]💰 %s sighted! Corner it before it escapes through a portal![/color]", mobs[0].Name))
 		} else {
 			mobs = content.SpawnMobGroupWithRandom(
 				mobLevel,

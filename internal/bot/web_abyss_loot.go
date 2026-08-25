@@ -229,6 +229,17 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	if label, grant, ok := abyssNamedRareDrop(mob.Name); ok {
 		add(label, grant)
 	}
+	if reward, ok := abyssTreasureGoblinSignature(mob.Name); ok {
+		if reward.RunKey {
+			if err := b.grantAbyssRunVaultKey(uid); err != nil {
+				log.Printf("abyss key goblin reward failed for %s: %v", uid, err)
+			} else {
+				labels = append(labels, reward.Label)
+			}
+		} else {
+			add(reward.Label, reward.Grant)
+		}
+	}
 
 	// processGear applies the shared post-roll treatment to a gear drop — dynamic
 	// stat scaling (all stats, MNA included), unidentified chance, sockets and the

@@ -1198,7 +1198,20 @@
     ],
     "verification": [
 	  "internal/bot/abyss_world_boss_weekend_test.go",
-	  "internal/bot/web_abyss_release_guards_test.go"
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [214],
+    "production": [
+      "internal/bot/abyss_treasure_goblins.go",
+      "internal/content/mobs.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_loot.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_treasure_goblins_test.go",
+      "internal/content/mobs_treasure_goblins_test.go"
     ]
   }
 ]
