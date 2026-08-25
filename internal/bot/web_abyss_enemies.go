@@ -269,7 +269,7 @@ func applyBossAdaptation(mobs []*content.Mob, adaptation string) bool {
 	default:
 		return false
 	}
-	applied := false
+	changed := false
 	for _, mob := range mobs {
 		if mob == nil || (mob.Type != content.MobBoss && mob.Type != content.MobLegendary) {
 			continue
@@ -283,10 +283,10 @@ func applyBossAdaptation(mobs []*content.Mob, adaptation string) bool {
 		}
 		if !hasEffect {
 			mob.Effects = append(mob.Effects, effect)
+			changed = true
 		}
-		applied = true
 	}
-	return applied
+	return changed
 }
 
 func (b *Bot) loadAbyssNemesis(uid string) (abyssNemesisState, bool) {

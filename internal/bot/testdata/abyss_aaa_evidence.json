@@ -1374,5 +1374,22 @@
       "internal/bot/web_abyss_boss_vendor_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [225],
+    "production": [
+      "internal/bot/abyss_boss_adaptation.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_enemies.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_adaptation.html",
+      "internal/bot/webassets/abyss_boss_adaptation.css"
+    ],
+    "verification": [
+      "internal/bot/abyss_boss_adaptation_test.go",
+      "internal/bot/web_abyss_enemies_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

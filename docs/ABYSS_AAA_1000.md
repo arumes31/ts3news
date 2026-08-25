@@ -206,6 +206,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0222 / 222** — each delver's authoritative deepest-and-fastest boss kill renders as a locally generated, privacy-bounded PNG or text trophy card backed by a matching database index.
 - [x] **AAA-0223 / 223** — collecting all ten lore fragments unlocks a restart-safe three-sovereign boss chain whose escalating natural-boss replacements advance only on victory and end in a permanent title.
 - [x] **AAA-0224 / 224** — boss kills roll duplicate-safe cosmetic-only mounts and banners at explicit 2/4/7/12% tier rates inside the atomic trophy transaction, with ownership-verified persistent loadouts.
+- [x] **AAA-0225 / 225** — after ten confirmed defeats, each named boss permanently learns one deterministic combat trick; the next-boss forecast exposes kill progress and the learned counter before descent.
 
 ## Active tranche: operational quality and client performance
 

@@ -1,0 +1,20 @@
+{{define "abyssBossAdaptation"}}{{with .BossAdaptation}}
+<aside class="ab-adaptation-forecast" aria-labelledby="bossAdaptationTitle">
+  <div class="ab-adaptation-heading">
+    <span class="ab-adaptation-icon" aria-hidden="true">🧠</span>
+    <div><span class="ab-kicker">BOSS MEMORY · F{{.TargetDepth}}</span><strong id="bossAdaptationTitle">Adaptive rivals</strong></div>
+  </div>
+  <div class="ab-adaptation-list">
+    {{range .Bosses}}
+    <article class="ab-adaptation-boss {{if .Active}}is-active{{end}}">
+      <div><strong>{{.Name}}</strong><small>{{.Kills}} confirmed defeat{{if ne .Kills 1}}s{{end}}</small></div>
+      {{if .Active}}
+      <span class="ab-adaptation-trick"><b>{{.Trick}}</b><small>{{.Desc}}</small></span>
+      {{else}}
+      <span class="ab-adaptation-progress"><b>{{.Remaining}} more</b><small>until it learns a permanent trick</small></span>
+      {{end}}
+    </article>
+    {{end}}
+  </div>
+</aside>
+{{end}}{{end}}
