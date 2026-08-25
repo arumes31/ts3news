@@ -18,28 +18,37 @@ type abyssBossTollView struct {
 }
 
 func abyssBossTollExpectedValue(level, targetDepth int) (cost int64, rolls int) {
+	return abyssBossTollExpectedValueForRolls(level, targetDepth, len(abyssBossNamesAtDepth(targetDepth)))
+}
+
+func abyssBossTollExpectedValueForRolls(level, targetDepth, rolls int) (cost int64, resolvedRolls int) {
 	difficulty, _ := abyssDifficulty(targetDepth)
 	forecast := abyssDropForecastData(max(1, difficulty), lootRarityScale(level))
 	expected := forecast.Ultimate*100_000 + forecast.Title*60_000 + forecast.Unique*40_000 +
 		forecast.Artifact*25_000 + forecast.Enchant*12_000 + forecast.Skill*8_000 +
 		forecast.Consumable*2_000 + forecast.Gear*3_000 + forecast.Common*500
-	rolls = len(abyssBossNamesAtDepth(targetDepth))
+	rolls = max(1, rolls)
 	cost = int64(expected * float64(rolls))
 	cost = max(cost, int64(targetDepth*100))
 	cost = (cost + 99) / 100 * 100
 	return cost, rolls
 }
 
-func (b *Bot) abyssBossToll(uid string, run abyssRun, level int) abyssBossTollView {
+func (b *Bot) abyssBossToll(uid string, run abyssRun, level int, chain abyssSecretBossChainView) abyssBossTollView {
 	target := run.Depth + 1
 	view := abyssBossTollView{TargetDepth: target}
-	view.Cost, view.Rolls = abyssBossTollExpectedValue(level, target)
-	view.Bosses = strings.Join(abyssBossNamesAtDepth(target), " + ")
 	view.Available = run.Active && !run.Downed && target > 0 && target%abyssBossEvery == 0 && run.FloorType == "combat" && run.EventState == ""
+	names := abyssBossNamesAtDepth(target)
+	view.Bosses = strings.Join(names, " + ")
+	rolls := len(names)
 	if view.Available {
+		if chain.Unlocked && !chain.Completed && chain.NextDepth == target && chain.Stage >= 0 && chain.Stage < len(abyssSecretBosses) {
+			view.Bosses, rolls = abyssSecretBosses[chain.Stage].Name, 1
+		}
 		_ = b.DB.QueryRow(`SELECT boss_contract_wager FROM abyss_active
 			WHERE client_uid=$1 AND boss_contract_depth=$2`, uid, target).Scan(&view.ContractForfeit)
 	}
+	view.Cost, view.Rolls = abyssBossTollExpectedValueForRolls(level, target, rolls)
 	return view
 }
 
@@ -61,6 +70,7 @@ func (s *WebServer) handleAbyssBossToll(w http.ResponseWriter, r *http.Request, 
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid boss toll quote"})
 		return
 	}
+	_, _, secretToll := s.bot.abyssSecretBossForFloor(uid, req.TargetDepth, true)
 	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -86,11 +96,15 @@ func (s *WebServer) handleAbyssBossToll(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	target := depth + 1
-	cost, rolls := abyssBossTollExpectedValue(level, target)
 	if currentHP <= 0 || floorType != "combat" || eventState.Valid || pending.Valid || target%abyssBossEvery != 0 {
 		writeJSON(w, map[string]any{"ok": false, "error": "boss toll is not available from this floor"})
 		return
 	}
+	rolls := len(abyssBossNamesAtDepth(target))
+	if secretToll && req.TargetDepth == target {
+		rolls = 1
+	}
+	cost, rolls := abyssBossTollExpectedValueForRolls(level, target, rolls)
 	if req.TargetDepth != target || req.QuotedCost != cost {
 		writeJSON(w, map[string]any{"ok": false, "error": "boss toll quote changed; review the new price"})
 		return

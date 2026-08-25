@@ -603,6 +603,9 @@ type abyssFloorResult struct {
 	BossDPS            int64
 	BossToken          bool
 	BossContractPayout int64
+	SecretBossStage    int
+	SecretBossComplete bool
+	SecretAchievement  string
 }
 
 var abyssLoreFragments = map[int]string{
@@ -699,6 +702,7 @@ func (b *Bot) fightAbyssFloorLive(
 	}
 	diff *= tier.DiffMult * (1.0 + float64(prestige)*0.05) * abyssDailyDangerMult(dailyMod) * abyssPactDangerMult(pacts) // [17] prestige & tier scaling + daily affix + pacts
 	worldBoss := forceBoss && depth%(abyssBossEvery*2) == 0
+	secretBoss, secretBossStage, secretBossActive := b.abyssSecretBossForFloor(uid, depth, forceBoss && depth%abyssBossEvery == 0)
 	// Mob level is decoupled from the player's exact level (see abyssMobLevel): the
 	// custom encounters and the spawned group all key off this depth-scaled value.
 	mobLevel := abyssMobLevel(depth, u.Level)
@@ -893,22 +897,30 @@ func (b *Bot) fightAbyssFloorLive(
 	if len(mobs) == 0 {
 		if forceBoss {
 			bossNow := time.Now()
-			mobs = abyssBossEncounterAt(depth, mobLevel, diff, bossNow)
+			if secretBossActive {
+				mobs = abyssSecretBossEncounter(secretBoss, mobLevel, diff)
+			} else {
+				mobs = abyssBossEncounterAt(depth, mobLevel, diff, bossNow)
+			}
 			bossName := mobs[0].Name
 			affinity := abyssDailyBossAffinity(bossNow)
-			// Boss intro card (#201): a framed banner with name and stakes.
-			bossHeading := fmt.Sprintf("💀 BOSS — %s", bossName)
-			if len(mobs) > 1 {
-				bossHeading = fmt.Sprintf("⚔ TWIN TYRANTS — %s + %s", mobs[0].Name, mobs[1].Name)
+			if secretBossActive {
+				logs = append(logs, abyssSecretBossIntro(secretBoss, secretBossStage, depth)...)
+			} else {
+				// Boss intro card (#201): a framed banner with name and stakes.
+				bossHeading := fmt.Sprintf("💀 BOSS — %s", bossName)
+				if len(mobs) > 1 {
+					bossHeading = fmt.Sprintf("⚔ TWIN TYRANTS — %s + %s", mobs[0].Name, mobs[1].Name)
+				}
+				logs = append(logs,
+					"[hr]",
+					fmt.Sprintf("[center][size=12][color=#e91e63]%s[/color][/size][/center]", bossHeading),
+					fmt.Sprintf("[center][color=#f0b35a][b]%s[/b][/color][/center]", abyssBossTitle(bossName)),
+					fmt.Sprintf("[center][color=#8a93a8][i]Depth %d · steel yourself — it knows you are here.[/i][/color][/center]", depth),
+					fmt.Sprintf("[center][color=#ffd991]Scout tip: %s[/color][/center]", abyssBossTip(bossName)),
+					fmt.Sprintf("[center][color=#ffd991]%s %s affinity · weak to %s · punishes %s[/color][/center]", affinity.Icon, affinity.Element, affinity.WeakTo, affinity.StrongAgainst),
+					"[hr]")
 			}
-			logs = append(logs,
-				"[hr]",
-				fmt.Sprintf("[center][size=12][color=#e91e63]%s[/color][/size][/center]", bossHeading),
-				fmt.Sprintf("[center][color=#f0b35a][b]%s[/b][/color][/center]", abyssBossTitle(bossName)),
-				fmt.Sprintf("[center][color=#8a93a8][i]Depth %d · steel yourself — it knows you are here.[/i][/color][/center]", depth),
-				fmt.Sprintf("[center][color=#ffd991]Scout tip: %s[/color][/center]", abyssBossTip(bossName)),
-				fmt.Sprintf("[center][color=#ffd991]%s %s affinity · weak to %s · punishes %s[/color][/center]", affinity.Icon, affinity.Element, affinity.WeakTo, affinity.StrongAgainst),
-				"[hr]")
 		} else if modifier == "treasure_goblin" {
 			lvlScale, effectiveDiff := abyssMobScalars(mobLevel, diff)
 			gobDef := 5 + mobLevel/10
@@ -1076,6 +1088,9 @@ func (b *Bot) fightAbyssFloorLive(
 	// MobLegendary cannot affect the result.
 	bossTokenAwarded := false
 	bossContractPayout := int64(0)
+	secretBossResultStage := 0
+	secretBossComplete := false
+	secretAchievement := ""
 	if victory && isBossFloor && len(mobs) > 0 {
 		if awarded, payout := b.recordAbyssBossKillWithToken(uid, mobs[0].Name, depth, duration, tier.Key); awarded {
 			bossTokenAwarded = true
@@ -1089,6 +1104,16 @@ func (b *Bot) fightAbyssFloorLive(
 		// #nosec G404 -- non-cryptographic reward roll
 		if encounterRandom.Float64() < 0.20 && b.grantAbyssMasteryShard(uid) {
 			logs = append(logs, "🔮 The boss dropped a Mastery Shard — refund one skill-web branch for free!")
+		}
+		if secretBossActive {
+			secretBossResultStage, secretBossComplete, secretAchievement = b.advanceAbyssSecretBossChain(uid, secretBossStage)
+			if secretBossResultStage > secretBossStage {
+				if secretBossComplete {
+					logs = append(logs, "🔓 The forbidden codex closes. Every hidden sovereign has fallen.")
+				} else {
+					logs = append(logs, fmt.Sprintf("🔓 Secret chain advanced: %d/%d hidden sovereigns defeated.", secretBossResultStage, abyssSecretBossChainLength))
+				}
+			}
 		}
 	}
 	if !victory && isBossFloor {
@@ -1187,7 +1212,7 @@ func (b *Bot) fightAbyssFloorLive(
 	logs = append(logs, fmt.Sprintf("[hr][color=#8a93a8]📊 %s · %d foe(s) · fight time %d ms · HP %s → %s (%+d)[/color]",
 		outcome, len(mobs), duration.Milliseconds(), FormatGoldPlain(int64(hpBefore)), FormatGoldPlain(int64(curHP)), curHP-hpBefore))
 
-	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, BossToken: bossTokenAwarded, BossContractPayout: bossContractPayout}
+	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, BossToken: bossTokenAwarded, BossContractPayout: bossContractPayout, SecretBossStage: secretBossResultStage, SecretBossComplete: secretBossComplete, SecretAchievement: secretAchievement}
 	if isBossFloor && len(mobs) > 0 {
 		res.BossName = mobs[0].Name
 		res.BossExecution = victory
@@ -1351,10 +1376,12 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	for _, id := range s.bot.loadUnlockedLore(uid) {
 		unlockedMap[id] = true
 	}
+	loreFound := 0
 	for id := 1; id <= len(abyssLoreFragments); id++ {
 		text := "[Locked — Reach deeper floors to discover this fragment]"
 		unlocked := unlockedMap[id]
 		if unlocked {
+			loreFound++
 			text = abyssLoreFragments[id]
 		}
 		loreList = append(loreList, map[string]any{
@@ -1363,6 +1390,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 			"Unlocked": unlocked,
 		})
 	}
+	secretChain := s.bot.abyssSecretBossChainWithLore(uid, run, loreFound)
 
 	var dailyMod string
 	if run.Active {
@@ -1474,8 +1502,8 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	eventIntel := s.bot.abyssEventIntel(uid, run)
 	watcherPressure := abyssWatcherPressure(run, time.Now())
 	bossContract := s.bot.abyssBossContract(uid, run)
-	bossAffinity := abyssBossAffinityForecast(run, time.Now())
-	bossToll := s.bot.abyssBossToll(uid, run, u.Level)
+	bossAffinity := abyssBossAffinityForecastForSecret(run, time.Now(), secretChain)
+	bossToll := s.bot.abyssBossToll(uid, run, u.Level, secretChain)
 	dropForecast, dropForecastOK := s.bot.abyssNextFloorForecast(uid)
 	celestialPity := s.bot.abyssCelestialPity(uid)
 	treeUnspent := 0
@@ -1507,6 +1535,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"BossAffinity":        bossAffinity,
 		"BossToll":            bossToll,
 		"BestKill":            s.bot.abyssBestKill(uid),
+		"SecretChain":         secretChain,
 		"DropForecast":        dropForecast,
 		"DropForecastOK":      dropForecastOK,
 		"DeferredEvent":       s.bot.abyssDeferredEventView(uid, run),
@@ -3123,6 +3152,10 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 	if res.BossContractPayout > 0 {
 		out["boss_contract_payout"] = res.BossContractPayout
 	}
+	if res.SecretBossStage > 0 {
+		out["secret_boss_stage"] = res.SecretBossStage
+		out["secret_boss_complete"] = res.SecretBossComplete
+	}
 	if hasAbyssFloorModifier(modifier, "darkness") {
 		out["timeline"] = concealAbyssTimeline(res.Timeline)
 	}
@@ -3154,7 +3187,12 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 			out["daily"] = true
 		}
 		if len(o.Achievements) > 0 {
+			if res.SecretAchievement != "" {
+				o.Achievements = append(o.Achievements, res.SecretAchievement)
+			}
 			out["achievement"] = strings.Join(o.Achievements, " · ")
+		} else if res.SecretAchievement != "" {
+			out["achievement"] = res.SecretAchievement
 		}
 		if o.LoreUnlocked {
 			out["lore_unlocked"] = true

@@ -24,6 +24,32 @@ type abyssBossAffinityForecastView struct {
 	Color         string
 	TargetDepth   int
 	TwinBosses    bool
+	Neutral       bool
+}
+
+func abyssBossAffinityForecastForSecret(run abyssRun, now time.Time, chain abyssSecretBossChainView) abyssBossAffinityForecastView {
+	view := abyssBossAffinityForecast(run, now)
+	if !chain.Unlocked || chain.Completed || chain.Stage < 0 || chain.Stage >= len(abyssSecretBosses) {
+		return view
+	}
+	def := abyssSecretBosses[chain.Stage]
+	view.Name, view.Icon, view.Element = "Forbidden Signature", "⌬", string(def.Element)
+	view.TargetDepth, view.TwinBosses = chain.NextDepth, false
+	view.WeakTo = string(liveElementWeakness(def.Element))
+	view.StrongAgainst = ""
+	switch def.Element {
+	case content.ElementFire:
+		view.StrongAgainst, view.Color = string(content.ElementAir), "fire"
+	case content.ElementWater:
+		view.StrongAgainst, view.Color = string(content.ElementFire), "water"
+	case content.ElementEarth:
+		view.StrongAgainst, view.Color = string(content.ElementWater), "earth"
+	case content.ElementAir:
+		view.StrongAgainst, view.Color = string(content.ElementEarth), "air"
+	default:
+		view.Neutral, view.Color = true, "physical"
+	}
+	return view
 }
 
 var abyssBossAffinityRotation = []abyssBossAffinity{

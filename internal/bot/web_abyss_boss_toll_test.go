@@ -28,13 +28,32 @@ func TestAbyssBossTollAvailabilityRequiresResolvedPreBossFloor(t *testing.T) {
 	defer database.Close()
 	mock.ExpectQuery("SELECT boss_contract_wager").WithArgs("hunter", 5).
 		WillReturnRows(sqlmock.NewRows([]string{"boss_contract_wager"}).AddRow(int64(3)))
-	view := (&Bot{DB: database}).abyssBossToll("hunter", abyssRun{Active: true, Depth: 4, FloorType: "combat"}, 100)
+	view := (&Bot{DB: database}).abyssBossToll("hunter", abyssRun{Active: true, Depth: 4, FloorType: "combat"}, 100, abyssSecretBossChainView{})
 	if !view.Available || view.TargetDepth != 5 || view.ContractForfeit != 3 || view.Cost <= 0 {
 		t.Fatalf("available toll = %+v", view)
 	}
-	blocked := (&Bot{DB: database}).abyssBossToll("hunter", abyssRun{Active: true, Depth: 4, FloorType: "event", EventState: `{}`}, 100)
+	blocked := (&Bot{DB: database}).abyssBossToll("hunter", abyssRun{Active: true, Depth: 4, FloorType: "event", EventState: `{}`}, 100, abyssSecretBossChainView{})
 	if blocked.Available {
 		t.Fatalf("unresolved event exposed toll: %+v", blocked)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAbyssBossTollQuotesTheSecretReplacement(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	mock.ExpectQuery("SELECT boss_contract_wager").WithArgs("hunter", 65).
+		WillReturnRows(sqlmock.NewRows([]string{"boss_contract_wager"}).AddRow(int64(0)))
+	chain := abyssSecretBossChainView{Unlocked: true, Stage: 1, NextDepth: 65}
+	view := (&Bot{DB: database}).abyssBossToll("hunter", abyssRun{Active: true, Depth: 64, FloorType: "combat"}, 100, chain)
+	wantCost, _ := abyssBossTollExpectedValueForRolls(100, 65, 1)
+	if view.Bosses != "Mnemos, Keeper of Names" || view.Rolls != 1 || view.Cost != wantCost {
+		t.Fatalf("secret toll = %+v", view)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

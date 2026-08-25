@@ -385,6 +385,7 @@ var abyssAchievementNames = map[string]string{
 	"prestige_1":        "Reborn (First Abyss Prestige)",
 	"hardcore_depth_10": "Iron Delver (Hardcore Depth 10)",
 	"perfect_run":       "Untouchable (Perfect Run)",
+	"lore_secret_chain": "Abyss Unmasked (Secret Sovereigns)",
 }
 
 // achTier is a count threshold that, once reached, awards an achievement code.
