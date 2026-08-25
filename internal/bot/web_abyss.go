@@ -1413,6 +1413,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	nextCheckpoint := (st.BestDepth/10 + 1) * 10
 	sanctuary := s.bot.loadSanctuary(uid)
 	sanctuaryStage, sanctuaryStageName := abyssSanctuaryStage(sanctuary)
+	materials := s.bot.loadMaterials(uid)
 
 	s.render(w, "abyss", map[string]any{
 		"Title":              "The Abyss",
@@ -1459,9 +1460,9 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"CanLastStand":       run.Active && !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(run.Depth),
 
 		// Expansion 2 (docs/ABYSS_IDEAS.md)
-		"Materials":    s.bot.loadMaterials(uid),
+		"Materials":    materials,
 		"MaterialDefs": abyssMaterials,
-		"Recipes":      abyssRecipeViews(s.bot, uid),
+		"Recipes":      abyssRecipeViews(s.bot, uid, materials),
 		"CraftQuest": func() map[string]any {
 			done := craftDone
 			if !craftWeek.Valid || craftWeek.String != craftQuestWeek() {
@@ -1506,20 +1507,34 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 }
 
 // abyssRecipeViews resolves recipes for the template, marking discovery state.
-func abyssRecipeViews(b *Bot, uid string) []map[string]any {
+func abyssRecipeViews(b *Bot, uid string, materials map[string]int64) []map[string]any {
 	known := b.knownRecipes(uid)
 	out := make([]map[string]any, 0, len(craftRecipes))
 	for _, r := range craftRecipes {
 		cost := make([]string, 0, len(r.Cost))
+		missing := make([]string, 0, len(r.Cost))
+		craftable := 0
+		firstCost := true
 		for _, m := range abyssMaterials { // stable icon order
 			if n := r.Cost[m.ID]; n > 0 {
 				cost = append(cost, fmt.Sprintf("%s ×%d", m.Icon, n))
+				canMake := int(materials[m.ID]) / n
+				if firstCost || canMake < craftable {
+					craftable = canMake
+					firstCost = false
+				}
+				if have := materials[m.ID]; have < int64(n) {
+					missing = append(missing, fmt.Sprintf("%s %d", m.Name, int64(n)-have))
+				}
 			}
 		}
 		out = append(out, map[string]any{
 			"ID": r.ID, "Name": r.Name, "Desc": r.Desc,
-			"Cost":   strings.Join(cost, " "),
-			"Locked": r.Secret && !known[r.ID],
+			"Cost":       strings.Join(cost, " "),
+			"Locked":     r.Secret && !known[r.ID],
+			"Craftable":  craftable,
+			"Affordable": craftable > 0,
+			"Missing":    strings.Join(missing, ", "),
 		})
 	}
 	return out

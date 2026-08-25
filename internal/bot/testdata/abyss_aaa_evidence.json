@@ -59,6 +59,21 @@
     "verification": ["internal/bot/web_abyss_loot_presentation_test.go"]
   },
   {
+    "ids": [455, 456, 457, 458, 459, 460, 461, 462, 463, 464, 465, 466],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_forge_workstation.html",
+      "internal/bot/webassets/abyss_forge_planner.html",
+      "internal/bot/webassets/abyss_forge_experience.html",
+      "internal/bot/webassets/abyss_forge_experience.css"
+    ],
+    "verification": ["internal/bot/web_abyss_forge_experience_test.go"]
+  },
+  {
     "ids": [986, 987],
     "production": [
       "internal/bot/web_abyss_econ.go",

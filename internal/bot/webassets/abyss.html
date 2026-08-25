@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_recorder.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_run_awareness.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_loot_presentation.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_forge_experience.css"}}">
 <div class="abyss-command-page" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
@@ -532,12 +533,13 @@
     <p class="muted small">Materials come from salvaging, dismantling and deep floors (30+). Weekly quest: craft {{.CraftQuest.Target}} items → 🜲15 + Master Repair Kit ({{.CraftQuest.Done}}/{{.CraftQuest.Target}}).</p>
     <div class="ab-shop">
       {{range .Recipes}}
-      <div class="ab-shop-item">
+      <div class="ab-shop-item{{if and (not .Locked) (not .Affordable)}} is-unaffordable{{end}}">
         <div>
           <b>{{if .Locked}}🔒 ???{{else}}{{.Name}}{{end}}</b>
-          <div class="muted small">{{if .Locked}}Discovered through lore fragments{{else}}{{.Desc}}{{end}}</div>
+          <div class="muted small">{{if .Locked}}Discovered through lore fragments{{else}}{{.Desc}} · can make ×{{.Craftable}}{{end}}</div>
+          {{if and (not .Locked) (not .Affordable)}}<div class="small ab-forge-missing">Missing: {{.Missing}}</div>{{end}}
         </div>
-        {{if .Locked}}<span class="muted small">{{.Cost}}</span>{{else}}<button class="ghost xs" onclick="abyssCraft('{{.ID}}', this)">{{.Cost}}</button>{{end}}
+        {{if .Locked}}<span class="muted small">{{.Cost}}</span>{{else}}<button class="ghost xs" onclick="abyssCraft('{{.ID}}', this)" {{if not .Affordable}}disabled{{end}}>{{.Cost}}</button>{{end}}
       </div>
       {{end}}
     </div>
@@ -905,8 +907,8 @@
         <div id="forgeHistoryBox" style="display:none;">
           <!-- UI-95: filter the history by action type (options filled by JS) -->
           <select id="forgeHistoryFilter" class="ab-select" style="margin:0 0 6px;"><option value="">All actions</option></select>
-          {{range .ForgeHistory}}
-          <div class="muted small">{{.When}} · <b>{{.Action}}</b> {{.Detail}} <span style="float:right">{{.Cost}}</span></div>
+          {{range $i, $entry := .ForgeHistory}}
+          <div class="muted small ab-forge-history-row" data-created="{{$entry.AtUnix}}" data-action="{{$entry.Action}}"><span class="ab-forge-history-icon" aria-hidden="true">✨</span> <time>{{$entry.When}}</time> · <b>{{$entry.Action}}</b> {{$entry.Detail}} <span class="ab-forge-history-cost">{{$entry.Cost}}</span>{{if eq $i 0}} <button class="ghost xs ab-forge-history-undo" onclick="abyssForgeUndo(this)">↩ Undo</button>{{end}}</div>
           {{else}}
           <div class="muted small">No forge actions yet.</div>
           {{end}}
@@ -6217,6 +6219,7 @@ function openAbSettings(){
 </script>
 {{template "abyss-forge-workstation" .}}
 {{if .ForgeWorkbenchEnabled}}{{template "abyss-forge-planner" .}}{{end}}
+{{template "abyss-forge-experience" .}}
 {{template "abyssAAARuntime" .}}
 <script data-cfasync="false">
 window.buildAbyssTabs();

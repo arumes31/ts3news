@@ -107,3 +107,18 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0452 / UX-52** — reduced-motion-safe edge treatment for Legendary-or-better drops.
 - [x] **AAA-0453 / UX-53** — item-bound ten-second undo for auto-equipped loot.
 - [x] **AAA-0454 / UX-54** — sequential cache, multiplier, jackpot, and tax bank summary.
+
+## Delivered tranche: forge and workshop usability
+
+- [x] **AAA-0455 / UX-55** — grouped Improve, Gems & Runes, Recovery, Fusion, and History workstations.
+- [x] **AAA-0456 / UX-56** — item-first workpiece card with applicable-action count and live costs.
+- [x] **AAA-0457 / UX-57** — visual Temper success meter with a separately colored pity contribution.
+- [x] **AAA-0458 / UX-58** — current, expected, and maximum two-column/stat-card forge outcomes.
+- [x] **AAA-0459 / UX-59** — struck-through base gold price beside the current account-discounted price.
+- [x] **AAA-0460 / UX-60** — live happy-hour status and countdown in the forge header.
+- [x] **AAA-0461 / UX-61** — bounded exact-item dismantle manifest committed by reviewed inventory IDs.
+- [x] **AAA-0462 / UX-62** — sticky four-material wallet with source and flow context.
+- [x] **AAA-0463 / UX-63** — craftable counts, disabled unaffordable recipes, and explicit missing materials.
+- [x] **AAA-0464 / UX-64** — locked recipe silhouettes with discovery guidance and completion count.
+- [x] **AAA-0465 / UX-65** — relative, icon-coded forge history with newest-action inline undo.
+- [x] **AAA-0466 / UX-66** — same-slot manual fusion picker with exact selection and live result odds.

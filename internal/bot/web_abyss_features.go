@@ -613,6 +613,7 @@ type forgeHistoryRow struct {
 	Detail string
 	Cost   string
 	When   string
+	AtUnix int64
 }
 
 func (b *Bot) loadForgeHistory(uid string, limit int) []forgeHistoryRow {
@@ -627,6 +628,7 @@ func (b *Bot) loadForgeHistory(uid string, limit int) []forgeHistoryRow {
 		var t time.Time
 		if err := rows.Scan(&v.Action, &v.Detail, &v.Cost, &t); err == nil {
 			v.When = t.Format("Jan 02 15:04")
+			v.AtUnix = t.Unix()
 			out = append(out, v)
 		}
 	}

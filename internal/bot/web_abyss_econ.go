@@ -1,12 +1,15 @@
 package bot
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand/v2"
 	"net/http"
+	"strings"
 	"time"
 
 	"ts3news/internal/content"
@@ -858,6 +861,66 @@ func abyssDismantleTokens(rarity content.Rarity) int64 {
 	return 0
 }
 
+const (
+	abyssDismantleBatchLimit = 100
+	abyssDismantleScanLimit  = 1000
+)
+
+type abyssDismantleSpare struct {
+	id     int64
+	tokens int64
+	mat    string
+	matN   int
+	name   string
+	rarity string
+	slot   string
+	state  string
+}
+
+func abyssDismantleIDSet(ids []int64) (map[int64]bool, bool) {
+	if len(ids) > abyssDismantleBatchLimit {
+		return nil, false
+	}
+	out := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		if id <= 0 || out[id] {
+			return nil, false
+		}
+		out[id] = true
+	}
+	return out, true
+}
+
+func boundAbyssDismantleBatch(items []abyssDismantleSpare) ([]abyssDismantleSpare, int) {
+	if len(items) <= abyssDismantleBatchLimit {
+		return items, 0
+	}
+	return items[:abyssDismantleBatchLimit], len(items) - abyssDismantleBatchLimit
+}
+
+func abyssDismantleManifestRevision(items []abyssDismantleSpare) string {
+	hash := sha256.New()
+	for _, item := range items {
+		_, _ = fmt.Fprintf(hash, "%d\x00%s\n", item.id, item.state)
+	}
+	return hex.EncodeToString(hash.Sum(nil)[:16])
+}
+
+func abyssDismantleInventoryQuery(uid string, ids []int64, preview bool) (string, []any) {
+	query := "SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1"
+	args := make([]any, 0, len(ids)+2)
+	args = append(args, uid)
+	if preview {
+		return query + " ORDER BY id LIMIT $2", append(args, abyssDismantleScanLimit+1)
+	}
+	placeholders := make([]string, len(ids))
+	for i, id := range ids {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args = append(args, id)
+	}
+	return query + " AND id IN (" + strings.Join(placeholders, ",") + ") ORDER BY id FOR UPDATE", args
+}
+
 // handleAbyssDismantle breaks down all Rare-or-better spares sitting in the backpack
 // (user_inventory — never equipped gear) into Abyss Tokens, giving the token economy
 // a faucet to match the Token Shop sink. Common/uncommon junk still goes to Salvage.
@@ -873,11 +936,17 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 	// yield before committing. Malformed JSON must not fall through to the
 	// defaults (no cap, no preview) — that would dismantle everything.
 	var req struct {
-		Preview   bool `json:"preview"`
-		MaxRarity int  `json:"max_rarity"` // 0 = no cap; e.g. 4 = keep Legendary+ safe
+		Preview   bool    `json:"preview"`
+		MaxRarity int     `json:"max_rarity"` // 0 = no cap; e.g. 4 = keep Legendary+ safe
+		InvIDs    []int64 `json:"inv_ids"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+	wanted, validIDs := abyssDismantleIDSet(req.InvIDs)
+	if !validIDs {
+		writeJSON(w, map[string]any{"ok": false, "error": "invalid dismantle selection"})
 		return
 	}
 
@@ -893,21 +962,20 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	type spare struct {
-		id     int64
-		tokens int64
-		mat    string
-		matN   int
-	}
-	var toBreak []spare
+	var toBreak []abyssDismantleSpare
 	for rows.Next() {
 		var id int64
 		var gid string
 		var itemData sql.NullString
 		if err := rows.Scan(&id, &gid, &itemData); err != nil {
-			continue
+			_ = rows.Close()
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
 		}
 		if reserved[id] {
+			continue
+		}
+		if len(wanted) > 0 && !wanted[id] {
 			continue
 		}
 		// Reconstruct the item from its persisted data so upgraded/generated gear is
@@ -924,22 +992,44 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		}
 		if tk := abyssDismantleTokens(g.Rarity); tk > 0 {
 			mat, matN := materialYieldForRarity(g.Rarity)
-			toBreak = append(toBreak, spare{id, tk, mat, matN})
+			toBreak = append(toBreak, abyssDismantleSpare{
+				id: id, tokens: tk, mat: mat, matN: matN,
+				name: g.Name, rarity: g.Rarity.String(), slot: string(g.Slot),
+			})
 		}
 	}
-	_ = rows.Close()
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := rows.Close(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if !req.Preview && len(wanted) > 0 && len(toBreak) != len(wanted) {
+		writeJSON(w, map[string]any{"ok": false, "error": "inventory changed — preview dismantle again"})
+		return
+	}
+	var remaining int
+	toBreak, remaining = boundAbyssDismantleBatch(toBreak)
 
 	if req.Preview {
 		var tk int64
 		mats := map[string]int{}
+		items := make([]map[string]any, 0, len(toBreak))
 		for _, sp := range toBreak {
 			tk += sp.tokens
 			mats[sp.mat] += sp.matN
+			items = append(items, map[string]any{
+				"inv_id": sp.id, "name": sp.name, "rarity": sp.rarity,
+				"slot": sp.slot, "tokens": sp.tokens,
+			})
 		}
 		// Mirror the commit path's Scavenger (#155) and skill-web material_yield
 		// boosts so the preview shows the same totals the real dismantle grants.
 		mats = s.bot.boostedMaterials(uid, mats)
-		writeJSON(w, map[string]any{"ok": true, "preview": true, "count": len(toBreak), "tokens_gained": tk, "materials_gained": mats})
+		writeJSON(w, map[string]any{"ok": true, "preview": true, "count": len(toBreak), "remaining": remaining, "tokens_gained": tk, "materials_gained": mats, "items": items})
 		return
 	}
 

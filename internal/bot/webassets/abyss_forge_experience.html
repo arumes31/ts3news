@@ -1,0 +1,130 @@
+{{define "abyss-forge-experience"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var select=document.getElementById('forgeItemSelect'),actions=document.getElementById('forgeActions'),materialFlow={{jsonJS .ForgeWorkbench.MaterialFlow}}||{};
+  if(!select||!actions)return;
+
+  var card=document.createElement('section');
+  card.className='ab-forge-selection';card.id='forgeSelectionCard';card.hidden=true;
+  card.setAttribute('aria-live','polite');
+  card.innerHTML='<div class="ab-forge-selection-head"><div><span class="ab-forge-selection-kicker">Selected workpiece</span><strong id="forgeSelectionName"></strong><div class="ab-forge-selection-meta" id="forgeSelectionMeta"></div></div><div class="ab-forge-selection-actions" id="forgeSelectionActions"></div></div>'+ 
+    '<div class="ab-forge-chance" id="forgeTemperChance"><div class="ab-forge-chance-copy"><span class="ab-forge-meter-label">Temper success</span><b id="forgeTemperChanceLabel"></b></div><div class="ab-forge-chance-track" role="meter" aria-label="Temper success chance" aria-valuemin="0" aria-valuemax="100"><i class="ab-forge-chance-base" id="forgeTemperBase"></i><i class="ab-forge-chance-pity" id="forgeTemperPityBonus"></i></div></div>'+ 
+    '<div class="ab-forge-before-after"><span id="forgeBefore"></span><i aria-hidden="true">→</i><span id="forgeAfter"></span></div>';
+  select.parentNode.insertAdjacentElement('afterend',card);
+
+  function selectedName(option){
+    if(!option)return'';
+    var tip=option.getAttribute('data-tip')||'';
+    return (tip.split('\n')[0]||option.textContent||'').replace(/^\s*[\p{Extended_Pictographic}\s]+/u,'').trim();
+  }
+  function accountDiscount(){
+    var chip=document.getElementById('forgeRepChip'),match=/[−-](\d+)%/.exec(chip?chip.textContent:'');
+    return Math.min(40,(match?Number(match[1]):0)+(new Date().getUTCHours()===18?20:0));
+  }
+  function priceButtons(option){
+    if(typeof AB_FORGE_COSTS==='undefined'||typeof abForgeGoldRaw!=='function')return;
+    var rarity=Number(option.getAttribute('data-rarity')||0),temper=Number(option.getAttribute('data-temper')||0),discount=accountDiscount();
+    Object.keys(AB_FORGE_COSTS).forEach(function(id){
+      var button=document.getElementById(id);if(!button)return;
+      button.classList.toggle('ab-forge-applicable',button.style.display!=='none');
+      var old=button.querySelector('.ab-action-price');if(old)old.remove();
+      var spec=AB_FORGE_COSTS[id],raw=0;
+      if(id==='btnForgeTemper')raw=abForgeGoldRaw(400*(temper+1),rarity);
+      else if(spec&&spec[0])raw=abForgeGoldRaw(spec[0],rarity);
+      if(!raw)return;
+      var current=raw-Math.floor(raw*discount/100),price=document.createElement('span');price.className='ab-action-price';
+      if(discount){var base=document.createElement('s');base.textContent=fmtGold(raw);var now=document.createElement('b');now.textContent=fmtGold(current)+' · −'+discount+'%';price.append(base,now);}
+      else price.textContent=fmtGold(raw);
+      button.appendChild(price);
+    });
+  }
+  function updateSelection(){
+    var option=select.options[select.selectedIndex];
+    if(!option||!option.value){card.hidden=true;return;}
+    card.hidden=false;
+    var name=selectedName(option),slot=option.dataset.slot||'Gear',rarity=Number(option.dataset.rarity||0),cr=Number(option.dataset.cr||0),gs=Number(option.dataset.gs||0),level=Number(option.dataset.temper||0),pity=0;
+    try{pity=Number(localStorage.getItem('ab_temper_pity')||0);}catch(_){}
+    var base=Math.max(20,Math.min(95,95-6*level)),chance=Math.max(20,Math.min(95,base+5*pity));
+    document.getElementById('forgeSelectionName').textContent=name;
+    var rarityNames=['Common','Uncommon','Rare','Epic','Legendary','Mythic','Divine','Celestial','Eternal'];
+    document.getElementById('forgeSelectionMeta').textContent=slot+' · '+(rarityNames[rarity]||'Unknown')+' · CR '+cr.toFixed(1)+' · GS '+gs;
+    var visible=Array.prototype.slice.call(actions.querySelectorAll('button')).filter(function(button){return button.style.display!=='none';}).length;
+    document.getElementById('forgeSelectionActions').textContent=visible+' applicable action'+(visible===1?'':'s');
+    document.getElementById('forgeTemperChanceLabel').textContent=chance+'%'+(pity?' · +'+Math.min(chance-base,5*pity)+'% pity':'');
+    var track=document.querySelector('#forgeTemperChance .ab-forge-chance-track');track.setAttribute('aria-valuenow',String(chance));
+    document.getElementById('forgeTemperBase').style.width=base+'%';
+    var bonus=document.getElementById('forgeTemperPityBonus');bonus.style.left=base+'%';bonus.style.width=Math.max(0,chance-base)+'%';
+    document.getElementById('forgeBefore').textContent='Now · +'+level+' · CR '+cr.toFixed(1);
+    document.getElementById('forgeAfter').textContent=level>=15?'Temper cap reached':'Success · +'+(level+1)+' · CR ≈'+(cr*1.02).toFixed(1);
+    priceButtons(option);
+  }
+  var baseUpdate=window.updateForgeOptions;
+  if(typeof baseUpdate==='function')window.updateForgeOptions=function(){var result=baseUpdate.apply(this,arguments);updateSelection();return result;};
+  var basePity=window.renderTemperPity;
+  if(typeof basePity==='function')window.renderTemperPity=function(){var result=basePity.apply(this,arguments);updateSelection();return result;};
+
+  function modalChoice(html,wire){
+    return new Promise(function(resolve){
+      pendingModalResolve=resolve;pendingModalDismissValue=null;openModal(html);
+      function settle(value){pendingModalResolve=null;closeModal();resolve(value);}
+      document.getElementById('modalCancelBtn').onclick=function(){settle(null);};
+      wire(settle);
+    });
+  }
+  function rarityClass(name){return 'rar-'+String(name||'').toLowerCase().replace(/[^a-z]/g,'');}
+  async function confirmDismantle(preview){
+    var rows=(preview.items||[]).map(function(item){return '<div class="ab-forge-review-row '+rarityClass(item.rarity)+'"><span class="ab-forge-review-name"><b>'+consEsc(item.name||'Unknown gear')+'</b><small class="muted"> · '+consEsc(item.slot||'Gear')+' · '+consEsc(item.rarity||'Unknown')+'</small></span><span class="ab-forge-review-yield">🜲 '+Number(item.tokens||0)+'</span></div>';}).join('');
+    var remainder=preview.remaining?'<p class="muted small">'+Number(preview.remaining)+' more eligible items remain for the next bounded batch.</p>':'';
+    return modalChoice('<h3>⚒️ Confirm dismantle manifest</h3><p>Only these '+Number(preview.count||0)+' reviewed items will be destroyed.</p><div class="ab-forge-review-list">'+rows+'</div>'+remainder+'<div class="modal-actions"><button class="ghost" id="modalCancelBtn">Keep gear</button><button id="modalOkBtn">Dismantle · 🜲 '+Number(preview.tokens_gained||0)+'</button></div>',function(settle){document.getElementById('modalOkBtn').onclick=function(){settle((preview.items||[]).map(function(item){return Number(item.inv_id);}));};});
+  }
+  window.abyssDismantle=async function(){
+    if(busy)return;setBusy(true);
+    var preview=await abPost('/api/abyss/dismantle',{preview:true,max_rarity:0});setBusy(false);
+    if(!preview.ok){abToast(preview.error||'Dismantle preview failed',false);return;}
+    if(!preview.count){abToast('No rare+ spares to dismantle',false);return;}
+    var ids=await confirmDismantle(preview);if(!ids)return;
+    if(busy)return;setBusy(true);
+    var result=await abPost('/api/abyss/dismantle',{preview:false,max_rarity:0,inv_ids:ids});setBusy(false);
+    if(!result.ok){abToast(result.error||'Dismantle failed',false);return;}
+    setTokens(result.tokens);abToast('Dismantled '+result.dismantled+' reviewed spares for 🜲 '+result.tokens_gained,true);
+    setTimeout(function(){window.location.reload();},900);
+  };
+
+  function fusionCatalog(mode){
+    var need=mode==='ancient'?3:2,rarity=mode==='celestial'?7:(mode==='mythic'?5:4),title=mode==='celestial'?'Celestial':(mode==='mythic'?'Mythic':'Ancient');
+    var url=mode==='celestial'?'/api/abyss/celestial_fuse':(mode==='mythic'?'/api/abyss/mythic_fuse':'/api/abyss/fuse'),groups={};
+    Array.prototype.slice.call(select.options).forEach(function(option){if(!option.value||option.value.indexOf('inv:')!==0||Number(option.dataset.rarity)!==rarity)return;var slot=option.dataset.slot||'Gear';(groups[slot]=groups[slot]||[]).push({id:Number(option.value.slice(4)),name:selectedName(option),cr:Number(option.dataset.cr||0)});});
+    return{need:need,title:title,url:url,groups:groups};
+  }
+  function chooseFusionItems(config){
+    var slots=Object.keys(config.groups).filter(function(slot){return config.groups[slot].length>=config.need;}).sort();
+    if(!slots.length)return Promise.resolve(null);
+    var options=slots.map(function(slot){return '<option value="'+consEsc(slot)+'">'+consEsc(slot)+' · '+config.groups[slot].length+' eligible</option>';}).join('');
+    return modalChoice('<h3>'+config.title+' fusion</h3><p>Select exactly '+config.need+' same-slot items. Nothing is consumed until confirmation.</p><select id="fusionSlot" class="ab-select" aria-label="Fusion slot">'+options+'</select><div class="ab-fusion-grid" id="fusionItems"></div><div class="ab-fusion-result" id="fusionResult" role="status"></div><div class="modal-actions"><button class="ghost" id="modalCancelBtn">Cancel</button><button id="modalOkBtn" disabled>Fuse selected</button></div>',function(settle){
+      var slotSelect=document.getElementById('fusionSlot'),host=document.getElementById('fusionItems'),result=document.getElementById('fusionResult'),submit=document.getElementById('modalOkBtn');
+      function render(){host.replaceChildren();config.groups[slotSelect.value].slice(0,200).forEach(function(item){var label=document.createElement('label');label.className='ab-fusion-item';var box=document.createElement('input');box.type='checkbox';box.value=String(item.id);var name=document.createElement('span');name.textContent=item.name;var cr=document.createElement('b');cr.textContent='CR '+item.cr.toFixed(0);label.append(box,name,cr);host.appendChild(label);});update();}
+      var previewSequence=0;
+      async function update(){var sequence=++previewSequence,checked=Array.prototype.slice.call(host.querySelectorAll('input:checked'));if(checked.length>config.need){checked[checked.length-1].checked=false;checked.pop();}submit.disabled=true;if(checked.length!==config.need){result.textContent=checked.length+'/'+config.need+' selected';return;}var ids=checked.map(function(box){return Number(box.value);});result.textContent='Loading authoritative result preview…';var preview=await abPost('/api/abyss/fuse_preview',{inv_ids:ids});if(sequence!==previewSequence)return;if(!preview.ok){result.textContent=preview.error||'These items cannot be fused.';return;}result.replaceChildren();var survivor=document.createElement('b');survivor.textContent=(preview.survivor&&preview.survivor.name||'Best item')+' survives · '+fmtGold(preview.cost||0);result.appendChild(survivor);(preview.outcomes||[]).forEach(function(outcome){var line=document.createElement('div');line.textContent=Math.round(Number(outcome.chance||0)*100)+'% · '+outcome.name+' · CR '+Number(outcome.cr||0).toFixed(1);result.appendChild(line);});submit.disabled=false;}
+      host.addEventListener('change',update);slotSelect.addEventListener('change',render);submit.onclick=function(){settle(Array.prototype.slice.call(host.querySelectorAll('input:checked')).map(function(box){return Number(box.value);}));};render();
+    });
+  }
+  window.abyssFuse=async function(mode){
+    var config=fusionCatalog(mode),ids=await chooseFusionItems(config);
+    if(!ids){if(!Object.keys(config.groups).some(function(slot){return config.groups[slot].length>=config.need;}))abToast('No same-slot fusion set is ready.',false);return;}
+    if(busy)return;setBusy(true);var result=await abPost(config.url,{inv_ids:ids});setBusy(false);
+    if(!result.ok){abToast(result.error||'Fusion failed',false);return;}abToast(result.msg,true);setTimeout(function(){window.location.reload();},900);
+  };
+
+  function updateHistory(){
+    var icons={temper:'⚒️',sharpen:'⚔️',reinforce:'🛡️',gem:'💎',socket:'💎',rune:'🧿',repair:'🧰',polish:'🧰',undo:'↩️'};
+    document.querySelectorAll('.ab-forge-history-row').forEach(function(row){var age=Math.max(0,Math.floor(Date.now()/1000-Number(row.dataset.created||0))),label=age<60?'just now':age<3600?Math.floor(age/60)+' min ago':age<86400?Math.floor(age/3600)+' h ago':Math.floor(age/86400)+' d ago';var time=row.querySelector('time');if(time)time.textContent=label;var action=(row.dataset.action||'').toLowerCase(),icon='✨';Object.keys(icons).some(function(key){if(action.indexOf(key)>=0){icon=icons[key];return true;}return false;});var host=row.querySelector('.ab-forge-history-icon');if(host)host.textContent=icon;});
+  }
+  function updateMaterialRates(){
+    document.querySelectorAll('.ab-materials .ab-mat').forEach(function(row){var id=(row.querySelector('b')||{}).id||'',key=id.replace(/^mat-/,''),values=materialFlow[key]||[],net=values.reduce(function(sum,value){return sum+Number(value||0);},0),rate=net/168;row.title=(row.title||key)+' · 7-day net '+(net>=0?'+':'')+net+' · '+(rate>=0?'+':'')+rate.toFixed(2)+'/hour';});
+  }
+  updateSelection();updateHistory();updateMaterialRates();
+  if(document.querySelector('.ab-forge-history-row'))setInterval(updateHistory,60000);
+})();
+</script>
+{{end}}
