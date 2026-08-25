@@ -1,5 +1,18 @@
 [
   {
+    "ids": [1, 2, 3, 4, 7, 10],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_foundations.go",
+      "internal/bot/web_abyss_rooms.go"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_foundations_test.go",
+      "internal/bot/web_abyss_rooms_test.go",
+      "internal/bot/web_abyss_test.go"
+    ]
+  },
+  {
     "ids": [401, 402, 403, 404, 405, 406, 407, 408, 409, 410],
     "production": [
       "internal/bot/web_abyss.go",
@@ -117,6 +130,17 @@
       "internal/bot/webassets/abyss_combat_feedback.html"
     ],
     "verification": ["internal/bot/web_abyss_polish_test.go"]
+  },
+  {
+    "ids": [501, 502, 503, 504, 505, 506, 507, 508, 509, 510],
+    "production": [
+      "internal/bot/xp.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_stage_presentation.html",
+      "internal/bot/webassets/abyss_ui200.css",
+      "internal/bot/webassets/abyss_pixel.css"
+    ],
+    "verification": ["internal/bot/web_abyss_stage_presentation_test.go"]
   },
   {
     "ids": [986, 987],

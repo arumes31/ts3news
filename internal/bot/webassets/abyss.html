@@ -125,7 +125,7 @@
     <div class="ab-event-icon" id="eventIcon" style="display:none"></div>
     <div class="ab-rest-embers" id="restEmbers" style="display:none"><i></i><i></i><i></i><i></i><i></i></div>
     <div class="ab-buffstrip" id="buffStrip"></div>
-    <div class="ab-petbar" id="petBar" style="display:none">🐾 <span id="petName"></span><span class="ab-petbar-track"><span class="ab-petbar-fill" id="petFill"></span></span></div>
+    <div class="ab-petbar" id="petBar" style="display:none">🐾 <span id="petName"></span><span class="ab-petbar-track" id="petHPBar" role="progressbar" aria-label="Pet health" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><span class="ab-petbar-fill" id="petFill"></span></span></div>
   </div>
   <!-- Elevator shaft visual [85] -->
   <div class="ab-elevator" aria-hidden="true">
@@ -1727,6 +1727,7 @@ function applyCombatFrame(f){
     boss.style.display=enemyMax>0?'':'none';
     if(enemyMax>0)boss.textContent='💀 '+fmtNum(enemy)+' / '+fmtNum(enemyMax)+' HP';
   }
+  if(typeof updatePetCombatFrame==='function')updatePetCombatFrame(f);
   updateCombatRecorderFrame(f);
 }
 
@@ -6252,6 +6253,7 @@ function openAbSettings(){
 {{template "abyss-accessibility" .}}
 {{template "abyss-feedback" .}}
 {{template "abyss-polish" .}}
+{{template "abyss-stage-presentation" .}}
 {{template "abyssAAARuntime" .}}
 <script data-cfasync="false">
 window.buildAbyssTabs();

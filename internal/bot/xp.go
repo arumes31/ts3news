@@ -396,6 +396,9 @@ type combatTimelineFrame struct {
 	MaxMana  int `json:"max_mana"`
 	EnemyHP  int `json:"enemy_hp"`
 	EnemyMax int `json:"enemy_max"`
+	PetName  string `json:"pet_name,omitempty"`
+	PetHP    int    `json:"pet_hp,omitempty"`
+	PetMax   int    `json:"pet_max,omitempty"`
 }
 
 func appendCombatTimelineFrame(frames *[]combatTimelineFrame, afterLog int, users []activeUser, mobs []*content.Mob) {
@@ -418,6 +421,15 @@ func appendCombatTimelineFrame(frames *[]combatTimelineFrame, afterLog int, user
 		MaxMana:  max(0, users[0].MaxMana),
 		EnemyHP:  enemyHP,
 		EnemyMax: enemyMax,
+	}
+	for _, pet := range users[0].u.Pets {
+		if pet == nil || pet.MaxHP <= 0 {
+			continue
+		}
+		frame.PetName = pet.Name
+		frame.PetHP = max(0, min(pet.Stats.HP, pet.MaxHP))
+		frame.PetMax = pet.MaxHP
+		break
 	}
 	if n := len(*frames); n > 0 && (*frames)[n-1].AfterLog == afterLog {
 		(*frames)[n-1] = frame

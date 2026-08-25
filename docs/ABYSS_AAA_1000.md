@@ -23,6 +23,15 @@ remain keyboard accessible, avoid unbounded browser/server state, expose useful
 failure diagnostics without leaking player data, and pass the complete Go test
 and vet gates. Performance claims require an enforceable bound or measurement.
 
+## Delivered tranche: foundational run rules
+
+- [x] **AAA-0001 / 1** — one transactionally claimed free paid-tier entry per database day.
+- [x] **AAA-0002 / 2** — reached ten-floor checkpoints with token pricing and 75% floor rewards.
+- [x] **AAA-0003 / 3** — best-depth-minus-five express starts with paid, reward-free catch-up floors.
+- [x] **AAA-0004 / 4** — 0.5% base cache interest compounded before each new floor reward.
+- [x] **AAA-0007 / 7** — consumable-free momentum grants 2% strength per floor, capped at 20%.
+- [x] **AAA-0010 / 10** — opt-in weekly expeditions retain one UTC ISO-week seed for the full run.
+
 ## Active tranche: operational quality and client performance
 
 - [x] **AAA-0986 / AB-286** — compare tier catalog values with the latest database constraints.
@@ -168,3 +177,16 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0498 / UX-98** — bounded, reduced-motion-safe celebration particles for records, achievements, and first boss.
 - [x] **AAA-0499 / UX-99** — unified opt-in sound setting for descend, rare-loot, downed, and live-combat cues.
 - [x] **AAA-0500 / UX-100** — UTC-season cosmetic variables for stage accent and page wash with no gameplay effect.
+
+## Delivered tranche: authoritative stage presentation
+
+- [x] **AAA-0501 / UI-1** — biome name and inferred biome glyph in the stage header.
+- [x] **AAA-0502 / UI-2** — two-pixel idle motion on rendered combat sprites with reduced-motion fallback.
+- [x] **AAA-0503 / UI-3** — first-strike side flash driven by the first authoritative action line.
+- [x] **AAA-0504 / UI-4** — elemental damage glyphs derived from combat effectiveness and equipped rune data.
+- [x] **AAA-0505 / UI-5** — pet health mini-bar updated from authoritative combat timeline frames.
+- [x] **AAA-0506 / UI-6** — current, completed, and remaining wave pips for multi-wave encounters.
+- [x] **AAA-0507 / UI-7** — boss-family element borders retained independently of motion preferences.
+- [x] **AAA-0508 / UI-8** — grayscale downed-stage treatment cleared by normal run-state rendering.
+- [x] **AAA-0509 / UI-9** — bounded rest-floor ember layer disabled by reduced-motion preferences.
+- [x] **AAA-0510 / UI-10** — centered event-type glyph for library, den, gambler, and unknown events.

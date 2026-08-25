@@ -708,12 +708,9 @@ func (b *Bot) fightAbyssFloorLive(
 	// per mob family with 100+ kills, cap +10%).
 	frun := b.loadAbyssRun(uid)
 	if frun.Active && frun.Momentum > 0 {
-		mom := frun.Momentum
-		if mom > 10 {
-			mom = 10
-		}
-		u.Stats.STR += u.Stats.STR * mom * 2 / 100
-		logs = append(logs, fmt.Sprintf("[color=#41c97a]🔥 Momentum ×%d: +%d%% STR (no consumables used).[/color]", mom, mom*2))
+		strength := abyssMomentumStrength(frun.Momentum)
+		u.Stats.STR += u.Stats.STR * strength / 100
+		logs = append(logs, fmt.Sprintf("[color=#41c97a]🔥 Momentum ×%d: +%d%% STR (no consumables used).[/color]", strength/2, strength))
 	}
 	if frun.Active && frun.Comeback {
 		u.Stats = u.Stats.Scaled(1.10)
@@ -1645,26 +1642,12 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	// depths already reached and cost tokens; the run's rewards are reduced ×0.75.
 	// Express skips to (best−5) for gold but pays no floor bonus until the player
 	// passes their record.
-	startDepth, checkpointStart, expressUntil := 0, 0, 0
-	var startTokenCost, startGoldCost int64
-	switch req.Start {
-	case "checkpoint":
-		c := req.Checkpoint
-		if c <= 0 || c%10 != 0 || c > st.BestDepth {
-			writeJSON(w, map[string]any{"ok": false, "error": "invalid checkpoint — pick a multiple of 10 you have already reached"})
-			return
-		}
-		startDepth, checkpointStart = c, c
-		startTokenCost = int64(c / 2)
-	case "express":
-		if st.BestDepth < 8 {
-			writeJSON(w, map[string]any{"ok": false, "error": "the express elevator unlocks at best depth 8"})
-			return
-		}
-		startDepth = st.BestDepth - 5
-		expressUntil = st.BestDepth
-		startGoldCost = int64(startDepth) * abyssExpressGoldPerDepth
+	route, routeErr := planAbyssEntryRoute(req.Start, req.Checkpoint, st.BestDepth)
+	if routeErr != "" {
+		writeJSON(w, map[string]any{"ok": false, "error": routeErr})
+		return
 	}
+	startDepth := route.Depth
 
 	// Comeback buff (#24): three deaths on the same calendar day grant +10% stats
 	// on the next run, clearly labeled in the run state.
@@ -1698,18 +1681,15 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 
 	// Daily free descent (#1): the first paid entry of the calendar day is waived.
 	entryGold := tier.EntryGold
-	freeEntry := false
-	if entryGold > 0 {
-		res, err := tx.Exec(`UPDATE users SET abyss_free_entry_date = CURRENT_DATE
-		                      WHERE client_uid=$1 AND (abyss_free_entry_date IS NULL OR abyss_free_entry_date < CURRENT_DATE)`, uid)
-		if err == nil {
-			if n, _ := res.RowsAffected(); n > 0 {
-				entryGold = 0
-				freeEntry = true
-			}
-		}
+	freeEntry, err := claimAbyssDailyFreeEntry(tx, uid, entryGold > 0)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
 	}
-	if charge := entryGold + startGoldCost; charge > 0 {
+	if freeEntry {
+		entryGold = 0
+	}
+	if charge := entryGold + route.GoldCost; charge > 0 {
 		res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", charge, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -1720,8 +1700,8 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 			return
 		}
 	}
-	if startTokenCost > 0 {
-		res, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1", startTokenCost, uid)
+	if route.TokenCost > 0 {
+		res, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1", route.TokenCost, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
@@ -1779,7 +1759,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		`INSERT INTO abyss_active (client_uid, depth, escrow, tier, insured, revived, pacts, consumables, started_at, last_action_at,
 		                           checkpoint_start, express_until, comeback)
 		 VALUES ($1, $5, 0, $2, 0, FALSE, $3, $4, NOW(), NOW(), $6, $7, $8)`,
-		uid, tier.Key, pacts, loadoutJSON, startDepth, checkpointStart, expressUntil, comeback); err != nil {
+		uid, tier.Key, pacts, loadoutJSON, startDepth, route.CheckpointStart, route.ExpressUntil, comeback); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -2600,15 +2580,9 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 	if v := s.bot.treeBonusFor(uid).Pct["escrow_bonus"]; v > 0 {
 		bonus = int64(float64(bonus) * (1 + v))
 	}
-	// Checkpoint starts (#2) trade convenience for ×0.75 rewards.
-	if run.CheckpointStart > 0 {
-		bonus = bonus * 3 / 4
-	}
-	// Express elevator (#3): no floor bonus until past the old record.
-	if run.ExpressUntil > 0 && depth <= run.ExpressUntil {
-		bonus = 0
-		o.ExpressSkip = true
-	}
+	// Checkpoints trade convenience for ×0.75 rewards; express starts pay no
+	// floor bonus until the player passes their old record.
+	bonus, o.ExpressSkip = applyAbyssRouteReward(bonus, depth, run)
 	// Momentum (#7) builds each cleared floor; a Last Stand bank lock (#15)
 	// ticks down one floor per victory.
 	_, _ = s.bot.DB.Exec("UPDATE abyss_active SET momentum = momentum + 1, bank_locked_floors = GREATEST(bank_locked_floors - 1, 0) WHERE client_uid=$1", uid)

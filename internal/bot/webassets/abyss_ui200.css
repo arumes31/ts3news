@@ -230,6 +230,9 @@
   background: linear-gradient(90deg, #41c97a, #5bc0ff);
 }
 
+.ab-petbar.is-low { border-color: var(--bad); }
+.ab-petbar.is-low .ab-petbar-fill { background: var(--bad); }
+
 /* UI-3: first-strike flash */
 .ab-scene.ab-fs-you { animation: none; }
 .ab-scene.ab-fs-you::before,
