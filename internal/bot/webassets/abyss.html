@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_onboarding.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_entry_planner.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_pact_program.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_recorder.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_run_awareness.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_loot_presentation.css"}}">
@@ -24,6 +25,20 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_stage_hud.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_codex_explorer.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_panel_tools.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_player_experience.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_boss_leaderboards.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_boss_practice.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_boss_vendor.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_boss_lore.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_world_boss.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_boss_contracts.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_boss_affinity.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_boss_adaptation.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_boss_toll.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_best_kill.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_secret_boss_chain.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_boss_cosmetics.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_watcher_pressure.css"}}">
 <div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 <div class="abyss-hero">
@@ -182,6 +197,15 @@
       <span class="ab-map-forecast">🗺️ F{{.EventIntel.NextDepth}} · {{if .EventIntel.EventLabel}}{{.EventIntel.EventLabel}}{{else}}charted anomaly{{end}}</span>
       {{end}}
     </div>
+    {{if .Watcher.Active}}
+    <div class="ab-watcher-pressure {{if ge .Watcher.Percent 100}}is-armed{{end}}" id="abyssWatcherPressure" data-deadline="{{.Watcher.DeadlineUnixMilli}}" data-now="{{.Watcher.NowUnixMilli}}" data-threshold="{{.Watcher.ThresholdSeconds}}" aria-label="The Watcher stalking pressure">
+      <div class="ab-watcher-pressure-head"><span>👁 The Watcher</span><span id="watcherPressurePercent">{{.Watcher.Percent}}%</span></div>
+      <div class="ab-watcher-pressure-track" role="progressbar" aria-label="Watcher stalking pressure" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{.Watcher.Percent}}">
+        <div class="ab-watcher-pressure-fill" id="watcherPressureFill" style="width:{{.Watcher.Percent}}%"></div>
+      </div>
+      <div class="ab-watcher-pressure-status" id="watcherPressureStatus">{{if ge .Watcher.Percent 100}}AMBUSH ARMED · next descent{{else}}Stalking · strikes in {{.Watcher.Countdown}}{{end}}</div>
+    </div>
+    {{end}}
     {{end}}
     <!-- Floor trail mini-map (UX-34): last floors + distance to the next boss -->
     <div class="ab-depthrail" id="depthRail" aria-hidden="true"></div>
@@ -220,7 +244,6 @@
     <div class="muted small ab-free-entry-status" id="freeEntryStatus">{{if .FreeEntryAvailable}}🎟 Daily waiver ready — your first eligible entry is free.{{else}}🎟 Daily waiver used today.{{end}}</div>
     <div class="muted small" id="ydaySummary" style="display:none; margin:4px 0;"></div>
     <div class="muted small ab-entry-jackpot" id="entryJackpot">🔥 Deep-cache jackpot: <strong>{{with .HUD.Jackpot}}{{gold .}}{{else}}0g{{end}}</strong> · Bank at depth 25+ for a chance to claim it—or feed it when the Abyss taxes excess gold.</div>
-    <div class="muted small ab-entry-jackpot" id="entryJackpot">🔥 Deep-cache jackpot: <strong>{{with .HUD.Jackpot}}{{gold .}}{{else}}—{{end}}</strong> · bank deep, feed the cache, and you may claim it.</div>
 
     <!-- Start-mode picker (idle only): surface / checkpoint (#2) / express (#3) -->
     <div class="ab-startmode" id="startPicker">
@@ -291,12 +314,17 @@
     <!-- Pact picker (idle only): opt-in challenge modifiers for bonus rewards -->
     <div class="ab-pacts" id="pactPicker">
       <div class="ab-sub-label"><span class="ab-glossary-term" tabindex="0" data-tip="Pacts&#10;Optional challenges that increase both danger and the run reward.">⚔️ Pacts</span> <span class="muted small">— optional challenges for bigger rewards <b id="pactBonus">(+0%)</b></span></div>
+      {{template "abyssPactProgramPanel" .}}
       {{range .Pacts}}
         <label class="ab-pact" data-tip="{{.Label}}&#10;{{.Desc}}&#10;Reward: +{{printf "%.0f" (mulf .Reward 100)}}% escrow · Danger: ×{{printf "%.1f" .Danger}}{{if .Enrage}} · enemies enraged{{end}}">
           <input type="checkbox" name="abpact" value="{{.Key}}" data-reward="{{printf "%.0f" (mulf .Reward 100)}}" data-danger="{{printf "%.3f" .Danger}}" onchange="updatePactBonus()">
           {{.Label}} <span class="muted small">(+{{printf "%.0f" (mulf .Reward 100)}}% · {{.Desc}})</span>
         </label>
       {{end}}
+      <label class="ab-pact ab-mystery-pact" data-tip="Mystery Pact&#10;The server secretly selects one unchosen pact. Its identity and exact danger remain hidden until the run ends.&#10;Reward: +40% escrow in addition to the hidden pact.">
+        <input type="checkbox" name="abpact" value="mystery" data-reward="40" data-danger="1" onchange="updatePactBonus()">
+        🎭 Mystery Pact <span class="muted small">(+40% · hidden server-selected danger)</span>
+      </label>
       <label class="ab-pact" data-tip="One seed and one rule remain fixed for the ISO week. Enemies are tougher and every cleared floor pays +25% cache.">
         <input type="checkbox" id="weeklyExpedition"> 📅 Weekly Expedition
         <span class="muted small">(+25% rewards · fixed weekly rule)</span>
@@ -308,6 +336,17 @@
       <label class="ab-pact" data-tip="Every fifth floor uses the next unlocked tier's danger. Its extra reward is split in half, creating predictable difficulty spikes without a full tier jump.">
         <input type="checkbox" id="hybridMode"> 🌀 Hybrid run
         <span class="muted small">(next-tier danger every 5th floor · half its extra reward)</span>
+      </label>
+      <label class="ab-pact" data-tip="Consumes one Affix Suppressor at successful entry. The current daily affix has no combat, durability, or reward effect for the full run.">
+        <input type="checkbox" id="suppressDailyAffix"> 🧿 Suppress daily affix
+        <span class="muted small">(uses 1 Affix Suppressor · this run only)</span>
+      </label>
+      <label class="ab-pact">📜 Contract pact
+        <select id="contractPact" class="ab-select" title="Contracts add +20% floor cache while their clause remains valid. A failed clause forfeits 25% of the bank payout.">
+          <option value="">No contract</option>
+          <option value="flawless">Flawless Clause · take no damage</option>
+          <option value="checkpoint">Checkpoint Clause · reach the next checkpoint</option>
+        </select>
       </label>
       <div class="muted small ab-community-expedition" title="Every cleared weekly-expedition floor contributes to this shared weekly objective.">
         <span>🌐 Community expedition {{index .CommunityExpedition "Week"}}: {{index .CommunityExpedition "Floors"}} / {{index .CommunityExpedition "Target"}} floors</span>
@@ -353,6 +392,9 @@
       <label class="ab-cursed" data-tip="Cursed bank: +20% payout when you bank, but a hex saps your combat stats (−15%) for your next 3 fights."><input type="checkbox" id="cursedBank"> {{T "web.abyss.cursed_bank"}}</label>
     </div>
     {{template "abyssCoreRiskConsole" .}}
+    {{template "abyssBossAffinity" .}}
+    {{template "abyssBossAdaptation" .}}
+    {{template "abyssBossToll" .}}
 
     <!-- Co-op invite row. Always rendered so renderState() can show/hide it as the
          floor preview changes; visibility is driven client-side, not by the initial
@@ -599,6 +641,9 @@
       {{end}}
     </div>
   </section>
+
+  {{template "abyssBossVendor" .}}
+  {{template "abyssBossContracts" .}}
 
   <!-- Materials, crafting & exchange (#101-#105, #126) -->
   <section class="abyss-panel" id="abyssWorkshop" data-abyss-section="forge">
@@ -1113,11 +1158,14 @@
 </div>
 
 {{template "abyssSocialHub" .}}
+{{template "abyssBestKill" .}}
+{{template "abyssBossCosmetics" .}}
 
 <div class="abyss-lore-bestiary" data-abyss-section="lore">
   <section class="abyss-panel">
     <h2>{{T "web.abyss.lore_codex"}} <span class="ab-lore-ring" id="loreRing" data-total="{{.LoreTotal}}" title="Lore fragments collected"></span></h2>
     <p class="muted small">{{T "web.abyss.lore_codex_desc"}}</p>
+    {{template "abyssSecretBossChain" .}}
     <div class="ab-codex">
       <div class="ab-codex-grid">
         {{range .LoreList}}
@@ -1127,6 +1175,24 @@
           </div>
         {{else}}
           <div class="muted small">No lore fragments unlocked yet.</div>
+        {{end}}
+      </div>
+    </div>
+    <div class="ab-boss-chronicles" aria-labelledby="abBossChroniclesTitle">
+      <div class="ab-boss-chronicles-head">
+        <span class="ab-kicker">FIRST-KILL ARCHIVE</span>
+        <h3 id="abBossChroniclesTitle">Boss Chronicles</h3>
+      </div>
+      <div class="ab-boss-chronicle-grid">
+        {{range .Social.BossLore}}
+        <article class="ab-boss-chronicle {{if .Unlocked}}unlocked{{else}}locked{{end}}">
+          <span class="ab-boss-chronicle-seal" aria-hidden="true">{{if .Unlocked}}♛{{else}}?{{end}}</span>
+          <div>
+            <small>{{if .Unlocked}}{{.Boss}}{{else}}UNDISCOVERED SOVEREIGN{{end}}</small>
+            <h4>{{if .Unlocked}}{{.Title}}{{else}}Chronicle sealed{{end}}</h4>
+            {{if .Unlocked}}<p>{{.Text}}</p><time>First slain {{.FirstSlain}}</time>{{else}}<p>Defeat this boss once to recover its chronicle.</p>{{end}}
+          </div>
+        </article>
         {{end}}
       </div>
     </div>
@@ -1197,6 +1263,7 @@
     </tbody>
   </table>
 </section>
+{{template "abyssBossSpeedBoards" .Leaders}}
 
 <!-- data-cfasync="false" keeps Cloudflare Rocket Loader from deferring/rewriting
      this inline script; without it the functions below aren't defined when the
@@ -1233,6 +1300,9 @@ var forgeUIState = null, forgeUIStateReceivedAt = 0, abyssSetupState = null;
 var abyssJackpot = {{.HUD.Jackpot}}; // UI-57
 var jackpotPulse = false, jackpotPulseTimer = 0;
 var activeRunPacts = {{jsonJS .HUD.Pacts}} || []; // UI-52
+var activeContractPact = {{jsonJS .HUD.Contract}};
+var abyssIntelConcealed = {{.HUD.IntelConcealed}};
+if(abyssIntelConcealed)document.body.classList.add('ab-pact-blind');
 var focusPreference = '{{.FocusPreference}}', currentFocus = '{{.AutoFocus}}'; // UI-51
 var curInsured = {{.Run.Insured}}; // UI-43
 var logDelay = Math.max(30, 90 - 12 * {{.Stats.UpSwiftness}}); // Swiftness node (#154)
@@ -1240,7 +1310,7 @@ var pageConsumables = {{jsonJS .Consumables}} || [];
 var runFloorsCleared = {{.HUD.FloorsCleared}}, runLootGained = 0; // run summary card (#341)
 var liveCombatSource=null, liveCombatPoll=null, liveCombatState=null, liveLastEventID=-1;
 var liveReconnectTicker=null, liveActionReceipt=null;
-var liveSelectedTarget='', livePendingOption=null, liveFinishHandled=false, liveLoadoutPage=0;
+var liveSelectedTarget='', liveSelectedWeakpoint='', livePendingOption=null, liveFinishHandled=false, liveLoadoutPage=0;
 var liveStartHP=0, liveStartMaxHP=0, liveClockTimer=null;
 var liveTargetLocked=false, liveRoundHistory=[], liveLogFilter='all', liveGamepadIndex=-1;
 var liveActionOrder=[], livePinnedActions={}, liveShortcutMap={attack:'a',defend:'d',skill1:'1',skill2:'2',skill3:'3',skill4:'4',skill5:'5',item1:'q',item2:'e',item3:'r',ultimate1:'u',ultimate2:'i',ultimate3:'o'};
@@ -1528,11 +1598,16 @@ async function abPost(url,body){
   return operation?abyssForgeCommit(url,body,operation):abRawPost(url,body);
 }
 
-async function abyssPractice(name){
-  var result=await abPost('/api/abyss/practice',{name:name});
-  if(!result.ok){abToast(result.error||'Practice drill unavailable.',false);return;}
-  var lines=(result.practice_log||[]).map(function(line){return '<li>'+consEsc(line)+'</li>';}).join('');
-  openModal('<h3>🎯 Sanctuary practice · '+consEsc(result.boss)+'</h3><p>'+consEsc(result.faction)+' · '+consEsc(result.pattern)+'</p><div class="ab-practice-dps">Estimated DPS <b>'+fmtNum(result.estimated_dps)+'</b></div><ol class="ab-practice-log">'+lines+'</ol><p class="muted small">No health, consumables, cooldowns, loot, or run state changed.</p><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close drill</button></div>');
+var practiceBossName='';
+async function abyssPractice(name,tactic){
+	  practiceBossName=name||practiceBossName;
+	  tactic=tactic||'balanced';
+	  var result=await abPost('/api/abyss/practice',{name:practiceBossName,tactic:tactic});
+	  if(!result.ok){abToast(result.error||'Practice drill unavailable.',false);return;}
+	  var lines=(result.practice_log||[]).map(function(line){return '<li>'+consEsc(line)+'</li>';}).join('');
+	  var tactics=['balanced','aggressive','defensive'].map(function(value){return '<option value="'+value+'"'+(value===result.tactic?' selected':'')+'>'+value.charAt(0).toUpperCase()+value.slice(1)+'</option>';}).join('');
+	  var outcome=result.victory?'Victory':'Defeat';
+	  openModal('<h3>🎯 Sanctuary practice · '+consEsc(result.boss)+'</h3><p>'+consEsc(result.faction)+' · '+consEsc(result.pattern)+'</p><label>Simulation tactic <select onchange="abyssPractice(practiceBossName,this.value)">'+tactics+'</select></label><div class="ab-practice-dps"><b>'+outcome+'</b> · '+fmtNum(result.rounds)+' rounds · estimated DPS <b>'+fmtNum(result.estimated_dps)+'</b><br>You '+fmtNum(result.player_hp)+' / '+fmtNum(result.player_max_hp)+' HP · Boss '+fmtNum(result.boss_hp)+' / '+fmtNum(result.boss_max_hp)+' HP</div><ol class="ab-practice-log">'+lines+'</ol><p class="muted small">Deterministic sandbox only: no health, consumables, cooldowns, loot, achievements, or run state changed.</p><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close drill</button></div>');
 }
 
 function setBusy(b){
@@ -1626,6 +1701,7 @@ function renderState(){
 
 function renderConsumables(list){
   pageConsumables = list || [];
+  syncActiveBuffsFromConsumables(pageConsumables);
   if(typeof renderRunAwarenessConsumables==='function')renderRunAwarenessConsumables(pageConsumables);
   var container = document.getElementById('consList');
   if(!container) return;
@@ -1721,6 +1797,10 @@ function renderNonCombat(floorType, stateStr){
       options.innerHTML = `
         <button class="ghost" onclick="abyssNCAction('mimic_open')">🎁 Open the Chest (treasure… or a bite)</button>
       `;
+    } else if(state.type === 'mimic_king'){
+      title.textContent = '👑 The Mimic King';
+      desc.textContent = 'Three surviving mimics have joined into a sovereign false chest. Challenge it for the unique Crown of False Gold; its final bite costs one third of maximum HP but cannot kill you.';
+      options.innerHTML = `<button class="primary" onclick="abyssNCAction('mimic_king_challenge')">⚔ Challenge · crown sealed to cache</button> <button class="ghost" onclick="abyssNCAction('mimic_king_retreat')">🚪 Break the chain & leave</button>`;
     } else if(state.type === 'buried_cache'){
       desc.innerHTML = 'Loose stone and a half-buried strap betray a cache someone hid here long ago. A little digging should turn up whatever they left behind.';
       options.innerHTML = `
@@ -1870,7 +1950,7 @@ function renderNonCombat(floorType, stateStr){
     } else {
       desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
     }
-    if(!state.deferred){
+    if(state.type!=='mimic_king'&&!state.deferred){
       options.insertAdjacentHTML('beforeend',' <button class="ghost" onclick="abyssNCAction(\'event_defer\')">⏳ Leave for Later · expires after 3 floors</button>');
     }
     if(typeof renderAbyssEventMemory==='function')renderAbyssEventMemory(options,state);
@@ -2187,7 +2267,14 @@ function bossFrameClass(name){
 // ---- UI-200 batch: stage scene, log decorators, HUD chips -------------------
 
 var lastDotKey=null, lastDotEl=null; // UI-40: DoT tick collapse state
-var activeBuffs=[];   // UI-18: client-side approximation {name, icon, fights}
+function activeBuffState(list){
+  return (list||[]).filter(function(item){return item&&item.Type==='Buff'&&(Number(item.Duration)||0)>0;}).map(function(item){
+    var label=buffNames[item.ID]||item.Name||item.ID;
+    return {id:item.ID,icon:label.split(' ')[0]||'🧪',label:label,fights:Number(item.Duration)||0};
+  });
+}
+var activeBuffs=activeBuffState(pageConsumables); // UI-18: persisted server duration state
+function syncActiveBuffsFromConsumables(list){activeBuffs=activeBuffState(list);renderBuffStrip();}
 var weaponElement=''; // UI-4: etched rune element of the equipped weapon, if detectable
 var logNumbered=false, logMono=false; // UI-26 / UI-38 (persisted below)
 try{ logNumbered=localStorage.getItem('ab_lognum')==='1'; logMono=localStorage.getItem('ab_logmono')==='1'; }catch(e){}
@@ -2412,8 +2499,8 @@ function updateStageScene(){
   }
 }
 
-// UI-18: active consumable buffs along the stage bottom edge (approximation —
-// buffs run 3 fights, decremented per cleared floor).
+// UI-18: active consumable buffs along the stage bottom edge. Durations come
+// from committed server responses and the persisted page model.
 function addBuffChip(id, fights){
   var icon=buffNames[id]?buffNames[id].split(' ')[0]:'🧪';
   var label=buffNames[id]||id;
@@ -2431,13 +2518,6 @@ function renderBuffStrip(){
   });
   el.innerHTML=html;
 }
-function tickBuffs(){
-  if(!activeBuffs.length) return;
-  activeBuffs=activeBuffs.map(function(b){ return {id:b.id, icon:b.icon, label:b.label, fights:b.fights-1}; })
-    .filter(function(b){ return b.fights>0; });
-  renderBuffStrip();
-}
-
 // UI-27: fights longer than 20 lines collapse complete middle rounds.
 function collapseLongFight(log){
   if(log.querySelector('.ab-log-virtual-gap')) return;
@@ -2616,6 +2696,7 @@ function renderHudChipsNow(){
     activeRunPacts.forEach(function(pact){
       chips.push(['⚔️ '+pact.Label,'pact',false,pact.Desc+' Reward +'+Math.round(Number(pact.Reward)*100)+'%; danger +'+Math.round(Math.max(0,Number(pact.Danger)-1)*100)+'%.']);
     });
+    if(activeContractPact)chips.push(['📜 '+activeContractPact.label,activeContractPact.failed?'warn':'good',false,activeContractPact.desc+(activeContractPact.failed?' Clause failed: 25% bank forfeiture applies.':' Clause intact: +20% floor cache.')]);
     // UI-55: show Last Stand readiness before a defeat makes the choice urgent.
     if(canLastStand){ var ls=document.getElementById('lsCost'); chips.push(['🛡️ Last Stand ready · 🜲 '+(ls?ls.textContent:'?'),downed?'warn':'']); }
     // UI-56: comeback buff indicator (server renders .ab-comeback-note).
@@ -2863,9 +2944,8 @@ function selectedTier(){var el=document.querySelector('input[name=abtier]:checke
 function selectedPacts(){
   return Array.prototype.slice.call(document.querySelectorAll('input[name=abpact]:checked')).map(function(el){return el.value;});
 }
-// UI-105: no true contradictions exist among the four pacts, so these pairs flag
-// the combos that compound incoming damage / enemy sustain.
-var pactConflicts=[['glass_cannon','enraged'],['glass_cannon','vampiric_mobs'],['enraged','vampiric_mobs']];
+// UI-105: flag combinations that compound incoming damage, attrition, or enemy sustain.
+var pactConflicts=[['glass_cannon','enraged'],['glass_cannon','vampiric_mobs'],['enraged','vampiric_mobs'],['anemic','glass_cannon'],['anemic','deep_drums'],['brittle','cursed_horde']];
 var lastPactSum=0; // UI-104 animation baseline
 function updatePactBonus(){
   var sum=0, checked=[];
@@ -2908,9 +2988,11 @@ async function abyssEnter(consumables){
   var kit=document.getElementById('buildKit'), mutation=document.getElementById('buildMutation'), entryFocus=document.getElementById('entryFocus');
   var veteran=document.getElementById('veteranTrack');
   var lootRule=document.getElementById('partyLootRule');
+  var suppressAffix=document.getElementById('suppressDailyAffix');
+  var contractPact=document.getElementById('contractPact');
   var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),hardcore:!!(hardcore&&hardcore.checked),hybrid:!!(hybrid&&hybrid.checked),
     kit:kit?kit.value:'vanguard', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
-    loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto'};
+    loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto', suppress_affix:!!(suppressAffix&&suppressAffix.checked), contract:contractPact?contractPact.value:''};
   if(body.hardcore && !(await confirmModalDangerous('Begin a Hardcore run? Grace floors, insurance, revival items, Last Stand, and revival gambles are disabled. Cleared-floor cache rewards are doubled and the run enters the Hardcore leaderboard.',{title:'Begin Hardcore',okLabel:'Enter Hardcore'}))){
     setBusy(false);
     return;
@@ -3257,6 +3339,7 @@ function showAbyssBossKillCam(){
   openModal('<h3>🎬 Final five · '+consEsc(data.name)+'</h3><ol class="ab-killcam">'+frames+'</ol><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close replay</button></div>');
 }
 async function processDescendResult(d, hp, max){
+	if(d.boss_tokens!==undefined&&typeof setBossTokens==='function')setBossTokens(d.boss_tokens);
   if(d.escrow_soft_cap!==undefined) escrowSoftCap=Number(d.escrow_soft_cap)||escrowSoftCap;
   if(d.escrow_efficiency_pct!==undefined) escrowEfficiencyPct=Number(d.escrow_efficiency_pct)||100;
   var hasExactRunFloors=d.run_floors_cleared!==undefined;
@@ -3312,7 +3395,7 @@ async function processDescendResult(d, hp, max){
     setBanner(msg,'good');
     document.getElementById('abStatus').textContent='Floor '+d.depth+' survived. The next floor is deadlier.';
     renderConsumables(d.consumables);
-    tickBuffs(); // UI-18: one fight consumed per cleared floor
+    // UI-18: renderConsumables already synchronized the server-decremented durations.
     // UI-33: render only the authoritative post-floor pity value returned by the server.
     var pityEl=document.getElementById('pityCount');
     if(pityEl && d.legendary_pity!==undefined){
@@ -3471,6 +3554,18 @@ async function abyssBank(percent){
   setBusy(false);
   if(!p.ok){abToast(p.error||'failed',false);return;}
   function row(k,v){return '<div class="ab-rs-row"><span>'+k+'</span><b>'+v+'</b></div>';}
+  function pactMath(b){
+    if(!b||!Array.isArray(b.lines)||!b.lines.length)return '';
+    var lines='<details class="ab-bank-pact-math" open><summary>⚔️ Pact cache math · +'+Number(b.total_bonus_pct||0).toFixed(1)+'%</summary>';
+    b.lines.forEach(function(line){
+      var math='base +'+Number(line.base_bonus_pct||0).toFixed(1)+'%';
+      if(line.mastery_bonus_pct)math+=' · mastery +'+Number(line.mastery_bonus_pct).toFixed(1)+'%';
+      if(line.featured_bonus_pct)math+=' · featured +'+Number(line.featured_bonus_pct).toFixed(1)+'%';
+      lines+=row(consEsc(line.label),math+' = +'+Number(line.total_bonus_pct||0).toFixed(1)+'%');
+    });
+    (b.synergies||[]).forEach(function(synergy){lines+=row('⚡ '+consEsc(synergy.label),'+'+Math.round(Number(synergy.bonus||0)*100)+'%');});
+    return lines+row('Total pact multiplier','×'+Number(b.multiplier||1).toFixed(3))+'</details>';
+  }
   var html='<h3>'+(p.partial?'🔐 Secure '+p.percent+'% and continue?':'🏦 Bank this run?')+'</h3><div class="modal-body ab-runsummary">'+
     row(p.partial?'Cache share':'Cache (floor interest included)', fmtGold(p.escrow))+
     row('Depth bonus +'+p.depth_bonus_pct+'%', '+'+fmtGold(p.depth_bonus))+
@@ -3479,9 +3574,11 @@ async function abyssBank(percent){
     (p.partial?row('Partial-bank fee −10%','−'+fmtGold(p.partial_fee)):'')+
     (p.frantic_fee?row('🫀 Frantic fee below 15% HP','−'+fmtGold(p.frantic_fee)):'')+
 	(p.perfect_bonus?row('✨ Perfect-run bonus +25%','+'+fmtGold(p.perfect_bonus)):'')+
+	(p.contract_forfeit?row('📜 Failed contract forfeiture −25%','−'+fmtGold(p.contract_forfeit)):'')+
 	(p.raffle_fee?row('🎟️ Bankers’ raffle contribution −1%','−'+fmtGold(p.raffle_fee)):'')+
+    pactMath(p.pact_breakdown)+
     row('Estimated payout', '<span style="color:var(--gold)">'+fmtGold(p.payout)+'</span>')+
-    (p.partial?row('Cache left in run',fmtGold(p.remaining_escrow)):row('Tokens on bank', '🜲 '+p.tokens_grant)+row('Sealed loot to recover', p.loot_count))+
+    (p.partial?row('Cache left in run',fmtGold(p.remaining_escrow)):row('Base tokens on bank', '🜲 '+p.base_tokens_grant)+row('Pact-risk tokens', '🜲 +'+p.pact_tokens_grant)+row('Total tokens on bank', '🜲 '+p.tokens_grant)+row('Sealed loot to recover', p.loot_count))+
 	(p.checkpoint_refund?row('Checkpoint token refund','🜲 +'+p.checkpoint_refund):'')+
     (!p.partial&&p.bonus_gear_eligible?row('Depth gear reward','🎁 guaranteed'):'')+
     (p.capped?'<div class="ab-hc-cmp">⚠️ Daily gold cap: the Abyss levies an 80% tax on the excess (−'+fmtGold(p.cap_tax)+', fed to the deep-cache jackpot).</div>':'')+
@@ -3518,6 +3615,9 @@ async function abyssBankCommit(cursed,percent,safeWord,doubleBank){
   if(d.jackpot_win)msg+=' 🔥 DEEP-CACHE JACKPOT +'+fmtGold(d.jackpot_win)+'!';
 	if(d.raffle_win)msg+=' 🎟️ BANKERS’ RAFFLE +'+fmtGold(d.raffle_win)+'!';
 	if(d.checkpoint_refund)msg+=' 🜲 Checkpoint refund +'+d.checkpoint_refund+'.';
+	if(d.pact_tokens_grant)msg+=' ⚔️ Pact-risk tokens +'+d.pact_tokens_grant+'.';
+	if(d.mystery_reveal)msg+=' 🎭 Mystery revealed: '+d.mystery_reveal.label+'.';
+	if(d.contract_forfeit)msg+=' 📜 Failed contract forfeiture −'+fmtGold(d.contract_forfeit)+'.';
 	if(d.cap_tax)msg+=' 💸 Abyss tax −'+fmtGold(d.cap_tax)+' (fed the deep-cache jackpot).';
   if(d.frantic_fee)msg+=' 🫀 Frantic fee −'+fmtGold(d.frantic_fee)+'.';
   if(d.next_echo_seed)msg+=' ↩️ Next run begins with '+fmtGold(d.next_echo_seed)+' echo cache.';
@@ -3646,8 +3746,9 @@ async function abyssUseConsumable(cid){
     addLogHead(document.getElementById('abyssLog'),'ab-log-momentum','🔥 Momentum ×'+curMomentum+': broken by consumable use.');
     renderHudChips();
   }
-  // UI-18: buff consumables appear on the stage buff strip for 3 fights.
-  if(usedCons && usedCons.Type==='Buff') addBuffChip(usedCons.ID, 3);
+  // UI-18: older servers may omit the refreshed list; keep their committed
+  // duration as a compatibility fallback without running a local countdown.
+  if(d.consumables===undefined && usedCons && usedCons.Type==='Buff') addBuffChip(usedCons.ID, 3);
   abToast(d.msg || 'Consumable used!', true);
 }
 
@@ -3664,9 +3765,10 @@ async function abyssNCAction(action, payload){
     setHP(d.hp, max);
   }
   if(d.escrow !== undefined) setEscrow(d.escrow);
-  // UI-18: event buffs join the stage strip using the committed duration.
+  if(d.consumables !== undefined) renderConsumables(d.consumables);
+  // UI-18: compatibility fallback for a committed response without a list.
   var eventBuffDuration=Number(d.buff_duration)||0;
-  if(eventBuffDuration>0){
+  if(d.consumables===undefined && eventBuffDuration>0){
     var bm=/Your reflection steps into you: ([^ ]+) /.exec(d.msg);
     addBuffChip(bm?bm[1]:'event_buff', eventBuffDuration);
   }
@@ -5779,6 +5881,40 @@ function renderTierRisk(){
   updateInfusePreview();
 })();
 
+(function initWatcherPressure(){
+  var root=document.getElementById('abyssWatcherPressure');
+  if(!root)return;
+  var fill=document.getElementById('watcherPressureFill');
+  var percentLabel=document.getElementById('watcherPressurePercent');
+  var status=document.getElementById('watcherPressureStatus');
+  var track=root.querySelector('[role="progressbar"]');
+  var deadline=Number(root.dataset.deadline)||0;
+  var serverNow=Number(root.dataset.now)||0;
+  var threshold=Math.max(1,Number(root.dataset.threshold)||900);
+  var baseTick=window.performance&&performance.now?performance.now():Date.now();
+  function clockNow(){
+    var tick=window.performance&&performance.now?performance.now():Date.now();
+    return serverNow+(tick-baseTick);
+  }
+  function clock(seconds){
+    var minutes=Math.floor(seconds/60);
+    return String(minutes).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
+  }
+  function update(){
+    var remaining=Math.max(0,Math.ceil((deadline-clockNow())/1000));
+    var percent=Math.max(0,Math.min(100,Math.floor((threshold-remaining)*100/threshold)));
+    fill.style.width=percent+'%';
+    percentLabel.textContent=percent+'%';
+    track.setAttribute('aria-valuenow',String(percent));
+    root.classList.toggle('is-armed',remaining===0);
+    status.textContent=remaining===0?'AMBUSH ARMED · next descent':'Stalking · strikes in '+clock(remaining);
+    return remaining;
+  }
+  if(update()>0){
+    var timer=window.setInterval(function(){if(update()===0)window.clearInterval(timer);},1000);
+  }
+})();
+
 // ======================= UI-200 batch 3 (UI-116 .. UI-200) =======================
 // Navigation & layout, feedback/toasts/modals, stats panels, theming & polish.
 // Additive like batch 2: earlier functions are wrapped or observed, storage is
@@ -6078,9 +6214,12 @@ function initNewDots(){
 {{template "abyss-longterm" .}}
 {{template "abyss-events" .}}
 <script data-cfasync="false">{{template "abyssSocialHubJS" .}}</script>
+<script data-cfasync="false">{{template "abyssBossCosmeticsJS" .}}</script>
 <script data-cfasync="false">{{template "abyssStageHUDJS" .}}</script>
 <script data-cfasync="false">{{template "abyssCodexExplorerJS" .}}</script>
 <script data-cfasync="false">{{template "abyssPanelToolsJS" .}}</script>
+<script data-cfasync="false">{{template "abyssPlayerExperienceJS" .}}</script>
+<script data-cfasync="false">{{template "abyssPactProgramJS" .}}</script>
 {{template "abyssCoreRiskJS" .}}
 {{template "abyss-feedback" .}}
 {{template "abyss-polish" .}}

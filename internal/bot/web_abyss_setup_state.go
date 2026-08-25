@@ -22,6 +22,7 @@ type abyssEntrySetup struct {
 	Expedition   bool     `json:"expedition"`
 	Hardcore     bool     `json:"hardcore"`
 	Hybrid       bool     `json:"hybrid"`
+	Contract     string   `json:"contract"`
 }
 
 type abyssSetupYesterday struct {
@@ -59,7 +60,8 @@ func canonicalAbyssEntrySetup(setup abyssEntrySetup) abyssEntrySetup {
 	if _, hasNextTier := abyssNextTier(setup.Tier); !hasNextTier {
 		setup.Hybrid = false
 	}
-	setup.Pacts = strings.Fields(abyssValidatePacts(setup.Pacts))
+	setup.Pacts = canonicalAbyssPactRequest(setup.Pacts)
+	setup.Contract, _ = normalizeAbyssContractPact(setup.Contract)
 	switch setup.Start {
 	case "checkpoint":
 		if setup.Checkpoint < 10 || setup.Checkpoint%10 != 0 {

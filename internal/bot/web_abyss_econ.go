@@ -28,22 +28,17 @@ func readJSON(r *http.Request, v any) error {
 // abyssTier is a difficulty mode: harder tiers multiply both danger and reward,
 // gate behind a best-depth requirement, and cost gold to enter. [16][54]
 type abyssTier struct {
-	Key        string
-	Name       string
-	DiffMult   float64
-	RewardMult float64
-	EntryGold  int64
-	MinBest    int
-}
-
-var abyssTiers = map[string]abyssTier{
-	"normal":    {"normal", "Normal", 1.0, 1.0, 0, 0},
-	"nightmare": {"nightmare", "Nightmare", 1.6, 2.0, 500, 15},
-	"hell":      {"hell", "Hell", 2.5, 4.0, 5000, 30},
-	"insanity":  {"insanity", "Insanity", 20.0, 10.0, 50000, 50},
+	Key        string  `json:"key"`
+	Name       string  `json:"name"`
+	DiffMult   float64 `json:"difficulty_multiplier"`
+	RewardMult float64 `json:"reward_multiplier"`
+	EntryGold  int64   `json:"entry_gold"`
+	MinBest    int     `json:"minimum_best_depth"`
 }
 
 var abyssTierOrder = []string{"normal", "nightmare", "hell", "insanity"}
+
+var abyssTiers = mustLoadAbyssTierCatalog()
 
 func abyssTierByKey(k string) (abyssTier, bool) {
 	t, ok := abyssTiers[k]
@@ -72,6 +67,7 @@ func abyssTierList(bestDepth int) []abyssTierView {
 type abyssStats struct {
 	BestDepth       int
 	Tokens          int64
+	BossTokens      int64
 	LifetimeFloors  int64
 	LifetimeBanked  int64
 	Deaths          int
@@ -94,13 +90,13 @@ type abyssStats struct {
 func (b *Bot) loadAbyssStats(uid string) abyssStats {
 	var st abyssStats
 	_ = b.DB.QueryRow(
-		`SELECT abyss_best_depth, abyss_tokens, abyss_lifetime_floors, abyss_lifetime_banked,
+		`SELECT abyss_best_depth, abyss_tokens, abyss_boss_tokens, abyss_lifetime_floors, abyss_lifetime_banked,
 		        abyss_deaths, abyss_bank_streak, abyss_up_vigor, abyss_up_greed, abyss_up_fortune, abyss_up_ward,
 		        abyss_up_interest, abyss_up_tribute, abyss_up_insight,
 		        abyss_up_swiftness, abyss_up_scavenger, abyss_up_mercy, abyss_up_cartographer, abyss_up_quartermaster,
 		        abyss_prestige
 		   FROM users WHERE client_uid=$1`, uid,
-	).Scan(&st.BestDepth, &st.Tokens, &st.LifetimeFloors, &st.LifetimeBanked,
+	).Scan(&st.BestDepth, &st.Tokens, &st.BossTokens, &st.LifetimeFloors, &st.LifetimeBanked,
 		&st.Deaths, &st.Streak, &st.UpVigor, &st.UpGreed, &st.UpFortune, &st.UpWard,
 		&st.UpInterest, &st.UpTribute, &st.UpInsight,
 		&st.UpSwiftness, &st.UpScavenger, &st.UpMercy, &st.UpCartographer, &st.UpQuartermaster,
@@ -204,6 +200,7 @@ func (b *Bot) taxAbyssDayGold(q dbExecQuerier, uid string, payout int64) (int64,
 // a refund that never landed). [1][62]
 func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund int64, err error) {
 	flags := b.loadRunFlags(uid)
+	pacts := b.abyssRunPacts(uid)
 	hardcore := abyssHardcoreRun(flags)
 	policy := planAbyssForfeit(run.Escrow, run.Insured, run.Depth, hardcore)
 	anchorActive := flags[abyssRunFlagAnchorRune] == 1
@@ -247,6 +244,12 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund i
 			   COALESCE((SELECT jsonb_agg(label ORDER BY id) FROM
 			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), $6, $7, $8`,
 			uid, run.Depth, refund, run.Tier, hardcore, endReason, abyssRunDurationMS(run), abyssRunFloorsCleared(run)); err != nil {
+			return 0, err
+		}
+		if err := recordAbyssAffixRun(tx, uid, abyssDailyAffixFromFlags(flags), run.Depth, false); err != nil {
+			return 0, err
+		}
+		if err := incrementAbyssPactMastery(tx, uid, pacts); err != nil {
 			return 0, err
 		}
 		if !policy.CountDeath {
@@ -382,6 +385,7 @@ var abyssAchievementNames = map[string]string{
 	"prestige_1":        "Reborn (First Abyss Prestige)",
 	"hardcore_depth_10": "Iron Delver (Hardcore Depth 10)",
 	"perfect_run":       "Untouchable (Perfect Run)",
+	"lore_secret_chain": "Abyss Unmasked (Secret Sovereigns)",
 }
 
 // achTier is a count threshold that, once reached, awards an achievement code.
@@ -403,6 +407,9 @@ func abyssAchievementName(code string) string {
 		return n
 	}
 	if n := abyssProgressionAchievementName(code); n != "" {
+		return n
+	}
+	if n := abyssPactAchievementName(code); n != "" {
 		return n
 	}
 	return code
@@ -586,6 +593,7 @@ type abyssBoards struct {
 	AllTime   []abyssRow
 	Hardcore  []abyssRow
 	BossKills []bossKillRow
+	BossSpeed []abyssBossSpeedBoard
 }
 
 func (b *Bot) topDescents(tier string, since time.Time, limit int) []abyssRow {
@@ -712,6 +720,7 @@ func (b *Bot) abyssLeaderboards(tier string) abyssBoards {
 		AllTime:   b.topDescents(tier, time.Unix(0, 0), top),
 		Hardcore:  b.topHardcoreDescents(tier, top),
 		BossKills: b.topBossKills(top, tier),
+		BossSpeed: b.topBossSpeedBoards(tier, top),
 	}
 }
 
@@ -728,6 +737,12 @@ func (b *Bot) abyssLeaderboardsForUID(tier, uid string) abyssBoards {
 	markRows(boards.Hardcore)
 	for i := range boards.BossKills {
 		boards.BossKills[i].IsCurrent = boards.BossKills[i].UID == uid
+	}
+	for boardIndex := range boards.BossSpeed {
+		for rowIndex := range boards.BossSpeed[boardIndex].Rows {
+			row := &boards.BossSpeed[boardIndex].Rows[rowIndex]
+			row.IsCurrent = row.UID == uid
+		}
 	}
 	return boards
 }
@@ -1242,8 +1257,17 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 		writeJSON(w, map[string]any{"ok": false, "error": "no live run"})
 		return
 	}
-	if abyssHardcoreRun(s.bot.loadRunFlags(uid)) {
+	runFlags := s.bot.loadRunFlags(uid)
+	if abyssHardcoreRun(runFlags) {
 		writeJSON(w, map[string]any{"ok": false, "error": "hardcore runs cannot buy cache insurance"})
+		return
+	}
+	if abyssHasPact(s.bot.abyssRunPacts(uid), "uninsured") {
+		message := "the Uninsured pact disables cache insurance"
+		if hidden, ok := abyssMysteryPactFromFlags(runFlags); ok && hidden.Key == "uninsured" {
+			message = "the Mystery Pact disables cache insurance"
+		}
+		writeJSON(w, map[string]any{"ok": false, "error": message})
 		return
 	}
 	if run.Insured >= req.Pct {

@@ -206,6 +206,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_entry_planner.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_entry_planner.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_pact_program.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_pact_program.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_combat_recorder.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_combat_recorder.css", "text/css; charset=utf-8")
 	})
@@ -256,6 +259,48 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	})
 	mux.HandleFunc("/static/abyss_panel_tools.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_panel_tools.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_player_experience.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_player_experience.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_boss_leaderboards.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_boss_leaderboards.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_boss_practice.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_boss_practice.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_boss_vendor.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_boss_vendor.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_boss_lore.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_boss_lore.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_world_boss.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_world_boss.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_boss_contracts.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_boss_contracts.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_boss_affinity.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_boss_affinity.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_boss_adaptation.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_boss_adaptation.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_boss_toll.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_boss_toll.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_best_kill.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_best_kill.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_secret_boss_chain.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_secret_boss_chain.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_boss_cosmetics.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_boss_cosmetics.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_watcher_pressure.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_watcher_pressure.css", "text/css; charset=utf-8")
 	})
 	mux.HandleFunc("/static/abyss_combat_sprites.png", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_combat_sprites.png", "image/png")
@@ -311,6 +356,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/abyss", s.auth(s.handleAbyssPage))
 		mux.HandleFunc("/abyss/spectate", s.auth(s.handleAbyssSpectatePage))
 		mux.HandleFunc("/api/abyss/enter", s.authAPI(s.handleAbyssEnter))
+		mux.HandleFunc("/api/abyss/pact/presets", s.authAPI(s.handleAbyssPactPresets))
+		mux.HandleFunc("/api/abyss/affix/weekend_vote", s.authAPI(s.handleAbyssWeekendAffixVote))
+		mux.HandleFunc("/api/abyss/affix/reroll", s.authAPI(s.handleAbyssPersonalAffixReroll))
 		mux.HandleFunc("/api/abyss/descend", s.authAPI(s.handleAbyssDescend))
 		mux.HandleFunc("/api/abyss/descend_multi", s.authAPI(s.handleAbyssDescendMulti))
 		mux.HandleFunc("/api/abyss/choose_floor", s.authAPI(s.handleAbyssChooseFloor))
@@ -337,11 +385,16 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/ops", s.authAPI(s.handleAbyssOps))
 		mux.HandleFunc("/api/abyss/client-error", s.authAPI(s.handleAbyssClientError))
 		mux.HandleFunc("/api/abyss/practice", s.authAPI(s.handleAbyssBossPractice))
+		mux.HandleFunc("/api/abyss/boss_vendor/buy", s.authAPI(s.handleAbyssBossVendorBuy))
+		mux.HandleFunc("/api/abyss/boss_contract", s.authAPI(s.handleAbyssBossContract))
+		mux.HandleFunc("/api/abyss/boss_toll", s.authAPI(s.handleAbyssBossToll))
+		mux.HandleFunc("/api/abyss/boss_cosmetic/equip", s.authAPI(s.handleAbyssBossCosmeticEquip))
 		mux.HandleFunc("/api/abyss/spectate", s.authAPI(s.handleAbyssSpectateState))
 		mux.HandleFunc("/api/abyss/social/pet/train", s.authAPI(s.handleAbyssPetTrain))
 		mux.HandleFunc("/api/abyss/social/pet/slot", s.authAPI(s.handleAbyssPetSlot))
 		mux.HandleFunc("/api/abyss/social/pet/autoskill", s.authAPI(s.handleAbyssPetAutoskill))
 		mux.HandleFunc("/api/abyss/social/bank_feed", s.authAPI(s.handleAbyssBankFeedToggle))
+		mux.HandleFunc("/api/abyss/social/friend_echo", s.authAPI(s.handleAbyssFriendEchoSettings))
 		mux.HandleFunc("/api/abyss/social/rival/claim", s.authAPI(s.handleAbyssRivalClaim))
 		mux.HandleFunc("/api/abyss/social/weekly_boss", s.authAPI(s.handleAbyssWeeklyBossStrike))
 		mux.HandleFunc("/api/abyss/inventory/lock", s.authAPI(s.handleAbyssInventoryLock))

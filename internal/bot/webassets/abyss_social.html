@@ -7,13 +7,14 @@
   <div class="ab-social-grid">
     <article class="ab-social-card ab-pet-command">
       <h3>🐾 Companion command</h3>
-      <p class="muted small">Mood changes combat performance by ±2%. Train three times daily; slot two unlocks at prestige 2.</p>
+      <p class="muted small">Mood changes combat performance by ±2%. Collar and charm stats empower active pets only. Train three times daily; slot two unlocks at prestige 2.</p>
       <div class="ab-pet-list">
       {{range .Pets}}
         <div class="ab-pet-card" data-pet-id="{{.ID}}">
           <div class="ab-pet-head"><strong>{{.MoodIcon}} {{.Name}}</strong><span class="ab-mood {{.Mood}}">{{.Mood}} {{if gt .MoodPct 0}}+{{end}}{{.MoodPct}}%</span></div>
           <div class="ab-pet-stats"><span>Lv {{.Level}} {{.Type}}</span><span>♥ {{comma .HP}}/{{comma .MaxHP}}</span><span>⚔ {{comma .STR}}</span><span>🛡 {{comma .DEF}}</span><span>➤ {{comma .SPD}}</span></div>
-          <div class="ab-pet-equipment">🔗 {{.Equipment}}</div>
+          <div class="ab-pet-equipment" title="Pet-only equipment; these stats do not affect your delver.">🔗 {{.Equipment}}</div>
+          <div class="ab-pet-equipment" title="Ability cooldowns tick once after every combat round.">⚡ {{.Ability}}</div>
           <div class="ab-pet-actions">
             <label>Formation <select onchange="abyssPetSlot({{.ID}},this.value)">
               <option value="0" {{if eq .ActiveSlot 0}}selected{{end}}>Reserve</option>
@@ -39,12 +40,26 @@
       <details><summary>Death wall · last {{len .Deaths}}</summary><div class="ab-death-wall">
         {{range .Deaths}}<div><span>💀 F{{.Depth}} · <b>{{.KillerName}}</b> <small>{{.KillerFamily}}</small></span><time>{{.When}}</time></div>{{else}}<p class="muted small">No recorded deaths.</p>{{end}}
       </div></details>
+      {{with .FriendEcho}}
+      <h3 class="ab-social-sub">👻 Bonded echoes</h3>
+      <p class="muted small">Share your echo only by consent. A selected bonded helper replaces the random echo when they remain opted in.</p>
+      <label class="ab-toggle"><input id="friendEchoShare" type="checkbox" {{if .ShareEnabled}}checked{{end}} onchange="abyssFriendEchoSave()"> let bonded friends encounter my echo</label>
+      <label class="ab-social-echo-pick">Preferred echo
+        <select id="friendEchoUID" onchange="abyssFriendEchoSave()">
+          <option value="">Random delver</option>
+          {{range .Candidates}}<option value="{{.UID}}" {{if .Selected}}selected{{end}}>{{.Nick}} · {{.Assists}} assists</option>{{end}}
+        </select>
+      </label>
+      {{if not .Candidates}}<p class="muted small">Complete co-op assists with a friend after they enable echo sharing.</p>{{end}}
+      {{end}}
     </article>
 
     <article class="ab-social-card ab-world-boss">
       <div class="ab-world-boss-head"><span class="ab-kicker">WEEKLY SERVER BOSS</span><h3>☄ {{.WeeklyBoss.Name}}</h3></div>
+      <div class="ab-world-weekend {{if .WeeklyBoss.WeekendSurge}}active{{end}}">{{if .WeeklyBoss.WeekendSurge}}WEEKEND RAID SURGE · {{.WeeklyBoss.Multiplier}}× strike damage &amp; immediate loot{{else}}Weekend raid surge · Saturday–Sunday UTC · 2× damage &amp; loot{{end}}</div>
       <div class="ab-world-hp"><i style="width:{{.WeeklyBoss.Percent}}%"></i><span>{{comma .WeeklyBoss.HP}} / {{comma .WeeklyBoss.MaxHP}} HP</span></div>
       <div class="ab-world-meta"><span>{{.WeeklyBoss.Contributors}} contributors</span><span>Your damage: {{comma .WeeklyBoss.Damage}}</span></div>
+      <div class="muted small"><b>Rotating drops:</b> {{.WeeklyBoss.Drops}}</div>
       {{if .WeeklyBoss.Defeated}}<b class="good">Defeated · all contributors received 25 🜲</b>{{else if .WeeklyBoss.Contributed}}<span class="muted small">Today's contribution is locked. Return tomorrow.</span>{{else}}<button class="primary" onclick="abyssWeeklyBossStrike(this)">Contribute today's strike</button>{{end}}
       <h3 class="ab-social-sub">🏦 Nearby bank feed</h3>
       <label class="ab-toggle"><input type="checkbox" {{if .BankFeedEnabled}}checked{{end}} onchange="abyssBankFeedToggle(this.checked)"> opt in to nearby-depth banks</label>
@@ -66,6 +81,7 @@ async function abyssPetTrain(id,button){if(button)button.disabled=true;var d=awa
 async function abyssPetSlot(id,slot){var d=await abPost('/api/abyss/social/pet/slot',{pet_id:id,slot:Number(slot)});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);}
 async function abyssPetAutoskill(id,enabled){var d=await abPost('/api/abyss/social/pet/autoskill',{pet_id:id,ability:'heal',enabled:enabled});abToast(d.msg||d.error,!!d.ok);}
 async function abyssBankFeedToggle(enabled){var d=await abPost('/api/abyss/social/bank_feed',{enabled:enabled});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},300);}
+async function abyssFriendEchoSave(){var share=document.getElementById('friendEchoShare'),pick=document.getElementById('friendEchoUID');if(!share||!pick)return;share.disabled=pick.disabled=true;var d=await abPost('/api/abyss/social/friend_echo',{share_enabled:share.checked,echo_uid:pick.value});abToast(d.msg||d.error,!!d.ok);share.disabled=pick.disabled=false;if(!d.ok)setTimeout(function(){location.reload();},500);}
 async function abyssRivalClaim(button){button.disabled=true;var d=await abPost('/api/abyss/social/rival/claim',{});abToast(d.msg||d.error,!!d.ok);if(d.ok){setTokens(d.tokens);setTimeout(function(){location.reload();},450);}else button.disabled=false;}
 async function abyssWeeklyBossStrike(button){button.disabled=true;var d=await abPost('/api/abyss/social/weekly_boss',{ });abToast(d.msg||d.error,!!d.ok);if(d.ok){setTokens(d.tokens);setTimeout(function(){location.reload();},550);}else button.disabled=false;}
 function copyAbyssSpectatorLink(){if(!liveCombatState||!liveCombatState.session_id){abToast('No live combat to spectate.',false);return;}var link=location.origin+'/abyss/spectate?session='+encodeURIComponent(liveCombatState.session_id);if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(link).then(function(){abToast('Read-only spectator link copied.',true);},function(){window.prompt('Copy spectator link:',link);});}else window.prompt('Copy spectator link:',link);}

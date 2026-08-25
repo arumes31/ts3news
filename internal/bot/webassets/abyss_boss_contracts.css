@@ -1,0 +1,74 @@
+.ab-boss-contract header,
+.ab-boss-contract-active {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem;
+}
+
+.ab-boss-contract header > div > span {
+  color: #e1b65a;
+  font: 700 .68rem/1.2 var(--font-mono, monospace);
+  letter-spacing: .12em;
+}
+
+.ab-boss-contract header h2 {
+  margin: .18rem 0 0;
+}
+
+.ab-boss-contract header > b {
+  color: #ffd56d;
+}
+
+.ab-boss-contract-active {
+  align-items: flex-start;
+  flex-direction: column;
+  padding: .8rem;
+  border: 1px solid rgb(225 182 90 / 42%);
+  border-radius: .65rem;
+  background: linear-gradient(135deg, rgb(225 182 90 / 10%), rgb(10 16 28 / 92%));
+}
+
+.ab-boss-contract-active strong {
+  color: #ffd56d;
+  letter-spacing: .08em;
+}
+
+.ab-boss-contract-active small {
+  color: var(--muted);
+}
+
+.ab-boss-contract-wagers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .6rem;
+}
+
+.ab-boss-contract-wagers button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  min-height: 3rem;
+  border: 1px solid rgb(225 182 90 / 35%);
+  border-radius: .55rem;
+  color: #ffe29a;
+  background: rgb(225 182 90 / 8%);
+  cursor: pointer;
+}
+
+.ab-boss-contract-wagers button:hover:not(:disabled) {
+  border-color: #e1b65a;
+  background: rgb(225 182 90 / 15%);
+}
+
+.ab-boss-contract-wagers button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 680px) {
+  .ab-boss-contract-wagers {
+    grid-template-columns: 1fr;
+  }
+}

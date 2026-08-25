@@ -1,0 +1,228 @@
+{{define "abyssPactProgramPanel"}}
+<details class="ab-pact-program" id="pactProgram">
+  <summary>
+    <span>🗂️ Pact arsenal</span>
+    <span class="muted small" id="pactMasterySummary">Save combinations · {{.PactProgram.MasteredCount}} mastered</span>
+  </summary>
+  <div class="ab-pact-program-body">
+    <div class="ab-pact-campaign">
+      <div class="ab-pact-featured" id="pactFeatured"></div>
+      <div class="ab-affix-calendar" id="affixCalendar" aria-label="This week's daily Abyss affixes"></div>
+      <div class="ab-affix-poll" id="personalAffixControl"></div>
+      <div class="ab-pact-mastery-list" id="affixPersonalStats" aria-label="Personal daily affix statistics"></div>
+      <div class="ab-community-expedition" id="communityAffixWeekend"></div>
+      <div class="ab-affix-poll" id="affixWeekendPoll"></div>
+      <div class="ab-pact-synergy" id="pactSynergyCallout" hidden></div>
+    </div>
+    <div class="ab-pact-preset-list" id="pactPresetList" aria-label="Saved pact combinations"></div>
+    <div class="ab-pact-mastery-list" id="pactMasteryList" aria-live="polite"></div>
+  </div>
+</details>
+{{end}}
+
+{{define "abyssPactProgramJS"}}
+var pactProgramState={{jsonJS .PactProgram}}||{presets:[],mastery:[],mastered_count:0};
+
+function pactProgramNode(tag,className,text){
+  var node=document.createElement(tag);
+  if(className)node.className=className;
+  if(text!==undefined)node.textContent=text;
+  return node;
+}
+
+function pactPresetAt(slot){
+  return (pactProgramState.presets||[]).find(function(preset){return Number(preset.slot)===slot;})||null;
+}
+
+function pactLabel(key){
+  var input=document.querySelector('input[name=abpact][value="'+key+'"]');
+  if(!input||!input.parentElement)return key;
+  return input.parentElement.textContent.trim().split('(')[0].trim();
+}
+
+function pactMasteryAt(key){
+  return (pactProgramState.mastery||[]).find(function(entry){return entry.key===key;})||null;
+}
+
+async function rerollAbyssPersonalAffix(){
+  var personal=pactProgramState.personal_affix||{};
+  if(!personal.available)return;
+  if(!(await confirmModal('Spend 🜲 '+Number(personal.cost||0)+' to replace today’s affix for your next run? This can be done once per UTC day.',{title:'Reroll personal affix',okLabel:'Reroll for 🜲 '+Number(personal.cost||0)})))return;
+  var result=await abPost('/api/abyss/affix/reroll',{});
+  if(!result.ok){abToast(result.error||'Affix reroll failed.',false);return;}
+  pactProgramState.personal_affix=result.affix;
+  dailyAffix=result.affix.key;
+  setTokens(result.tokens);
+  renderAbyssPactProgram();
+  abToast('Personal affix rerolled to '+result.affix.label+'.',true);
+  setTimeout(function(){window.location.reload();},700);
+}
+
+function renderAbyssPersonalAffix(){
+  var host=document.getElementById('personalAffixControl'),personal=pactProgramState.personal_affix||{};
+  if(!host)return;
+  host.replaceChildren();
+  var title=pactProgramNode('div','ab-affix-poll-title',(personal.rerolled?'🎲 Personal affix · ':'📅 Today’s affix · ')+(personal.label||'Unavailable'));
+  var button=pactProgramNode('button','ghost xs',personal.rerolled?'Reroll used today':'Reroll · 🜲 '+Number(personal.cost||0));
+  button.type='button';button.disabled=!personal.available;button.onclick=rerollAbyssPersonalAffix;
+  title.appendChild(button);host.appendChild(title);
+}
+
+function renderAbyssAffixStats(){
+  var host=document.getElementById('affixPersonalStats'),stats=(pactProgramState.affix_stats||[]).filter(function(stat){return Number(stat.runs)>0;});
+  if(!host)return;
+  host.replaceChildren();
+  if(!stats.length){host.appendChild(pactProgramNode('p','muted small','Personal affix win rate and average depth appear after your first completed run.'));return;}
+  host.appendChild(pactProgramNode('b','ab-affix-poll-title','Personal affix record'));
+  stats.forEach(function(stat){
+    var item=pactProgramNode('div','ab-pact-mastery');
+    item.append(pactProgramNode('span','',stat.label),pactProgramNode('b','',stat.wins+' / '+stat.runs+' wins · '+Number(stat.win_rate_pct).toFixed(1)+'% · avg depth '+Number(stat.average_depth).toFixed(1)));
+    host.appendChild(item);
+  });
+}
+
+function renderAbyssCommunityWeekend(){
+  var host=document.getElementById('communityAffixWeekend'),state=pactProgramState.community_weekend||{};
+  if(!host)return;
+  host.replaceChildren();
+  var status=state.active?'✨ Weekend buff active · +'+Number(state.bonus_pct||0)+'% cache':state.unlocked?'✅ Weekend buff unlocked':'🌐 Community weekend · '+fmtGold(state.banked||0)+' / '+fmtGold(state.target||0);
+  host.appendChild(pactProgramNode('span','',status));
+  var progress=pactProgramNode('progress','');progress.max=100;progress.value=Number(state.percent)||0;progress.setAttribute('aria-label','Community weekend goal progress');host.appendChild(progress);
+  if(!state.unlocked)host.appendChild(pactProgramNode('span','muted small',fmtGold(state.remaining||0)+' left to unlock +'+Number(state.bonus_pct||0)+'% weekend cache'));
+}
+
+async function voteAbyssWeekendAffix(key){
+  var result=await abPost('/api/abyss/affix/weekend_vote',{affix:key});
+  if(!result.ok){abToast(result.error||'Weekend vote failed.',false);return;}
+  pactProgramState.weekend_poll=result.poll;
+  renderAbyssWeekendAffixPoll();
+  abToast('Weekend affix vote recorded.',true);
+}
+
+function renderAbyssWeekendAffixPoll(){
+  var host=document.getElementById('affixWeekendPoll'),poll=pactProgramState.weekend_poll||{};
+  if(!host)return;
+  host.replaceChildren();
+  var title=pactProgramNode('div','ab-affix-poll-title',poll.voting_open?'🗳️ Choose this weekend’s affix':'🏁 Weekend vote locked');
+  var result=pactProgramNode('span','muted small',poll.winner?'Leader: '+poll.winner_label:'Awaiting the first vote');title.appendChild(result);host.appendChild(title);
+  var options=pactProgramNode('div','ab-affix-poll-options');
+  (poll.options||[]).forEach(function(option){
+    var button=pactProgramNode('button','ghost xs'+(option.selected?' selected':''),option.label+' · '+option.votes);
+    button.type='button';button.disabled=!poll.voting_open;button.setAttribute('aria-pressed',option.selected?'true':'false');
+    button.onclick=function(){voteAbyssWeekendAffix(option.key);};options.appendChild(button);
+  });
+  host.appendChild(options);
+}
+
+function renderAbyssPactSelectionBonus(){
+  var selected=selectedPacts(),featured=(pactProgramState.featured||{}).key,total=0,synergyHost=document.getElementById('pactSynergyCallout');
+  selected.forEach(function(key){
+    var input=document.querySelector('input[name=abpact][value="'+key+'"]'),base=Number(input&&input.dataset.reward)||0;
+    var mastery=pactMasteryAt(key),effective=base*(mastery&&mastery.mastered?1.05:1);
+    total+=effective+(key===featured?effective:0);
+  });
+  var activeSynergies=(pactProgramState.synergies||[]).filter(function(rule){return selected.indexOf(rule.pact_key)>=0&&rule.affix_key===dailyAffix;});
+  activeSynergies.forEach(function(rule){total+=Number(rule.bonus||0)*100;});
+  var totalNode=document.getElementById('pactBonus');
+  if(totalNode)totalNode.textContent='(+'+(Math.round(total*10)/10).toFixed(total%1?1:0)+'%)';
+  if(synergyHost){
+    synergyHost.replaceChildren();synergyHost.hidden=!activeSynergies.length;
+    activeSynergies.forEach(function(rule){synergyHost.appendChild(pactProgramNode('span','', '⚡ '+rule.label+': +'+Math.round(Number(rule.bonus||0)*100)+'% extra cache'));});
+  }
+}
+
+function applyAbyssPactPreset(slot){
+  var preset=pactPresetAt(slot);
+  if(!preset){abToast('That preset slot is empty.',false);return;}
+  var selected=preset.pacts||[];
+  document.querySelectorAll('input[name=abpact]').forEach(function(input){input.checked=selected.indexOf(input.value)>=0;});
+  updatePactBonus();
+  if(typeof updateAbyssEntrySummary==='function')updateAbyssEntrySummary();
+  abToast('Applied '+preset.name+'.',true);
+}
+
+async function saveAbyssPactPreset(slot){
+  var row=document.querySelector('[data-pact-preset-slot="'+slot+'"]');
+  var nameInput=row&&row.querySelector('input');
+  var pacts=selectedPacts();
+  if(!pacts.length){abToast('Choose at least one pact before saving.',false);return;}
+  var result=await abPost('/api/abyss/pact/presets',{action:'save',slot:slot,name:nameInput?nameInput.value:'',pacts:pacts});
+  if(!result.ok){abToast(result.error||'Could not save pact preset.',false);return;}
+  pactProgramState=result.state;
+  renderAbyssPactProgram();
+  abToast('Pact preset saved to slot '+slot+'.',true);
+}
+
+async function deleteAbyssPactPreset(slot){
+  if(!pactPresetAt(slot))return;
+  var result=await abPost('/api/abyss/pact/presets',{action:'delete',slot:slot});
+  if(!result.ok){abToast(result.error||'Could not delete pact preset.',false);return;}
+  pactProgramState=result.state;
+  renderAbyssPactProgram();
+  abToast('Pact preset removed.',true);
+}
+
+function renderAbyssPactProgram(){
+  var list=document.getElementById('pactPresetList');
+  if(!list)return;
+  list.replaceChildren();
+
+  var featured=document.getElementById('pactFeatured'),featuredState=pactProgramState.featured||{};
+  if(featured)featured.textContent=featuredState.label?'⭐ Featured pact · '+featuredState.label+' · double its pact bonus this week':'Featured pact unavailable';
+  document.querySelectorAll('.ab-pact-featured-badge').forEach(function(node){node.remove();});
+  if(featuredState.key){
+    var featuredInput=document.querySelector('input[name=abpact][value="'+featuredState.key+'"]');
+    if(featuredInput&&featuredInput.parentElement)featuredInput.parentElement.appendChild(pactProgramNode('span','ab-pact-featured-badge',' ⭐ 2×'));
+  }
+  var calendar=document.getElementById('affixCalendar');
+  if(calendar){
+    calendar.replaceChildren();
+    (pactProgramState.calendar||[]).forEach(function(day){
+      var item=pactProgramNode('div','ab-affix-day'+(day.today?' today':day.upcoming?' upcoming':' past'));
+      item.append(pactProgramNode('b','',day.weekday),pactProgramNode('span','',day.label));
+      item.title=day.date+(day.today?' · active today':day.upcoming?' · upcoming':' · completed');calendar.appendChild(item);
+    });
+  }
+  renderAbyssPersonalAffix();
+  renderAbyssAffixStats();
+  renderAbyssCommunityWeekend();
+  renderAbyssWeekendAffixPoll();
+  for(var slot=1;slot<=3;slot++){
+    var preset=pactPresetAt(slot),row=pactProgramNode('div','ab-pact-preset');
+    row.dataset.pactPresetSlot=String(slot);
+    var identity=pactProgramNode('div','ab-pact-preset-identity');
+    identity.appendChild(pactProgramNode('span','ab-pact-slot','0'+slot));
+    var input=pactProgramNode('input','ab-pact-preset-name');
+    input.type='text';input.maxLength=32;input.value=preset?preset.name:'Preset '+slot;
+    input.setAttribute('aria-label','Name for pact preset '+slot);
+    identity.appendChild(input);
+    var detail=pactProgramNode('span','ab-pact-preset-detail',preset?(preset.pacts||[]).map(pactLabel).join(' · '):'Empty slot');
+    var actions=pactProgramNode('div','ab-pact-preset-actions');
+    var apply=pactProgramNode('button','ghost xs','Apply');apply.type='button';apply.disabled=!preset;
+    apply.onclick=(function(value){return function(){applyAbyssPactPreset(value);};})(slot);
+    var save=pactProgramNode('button','xs','Save current');save.type='button';
+    save.onclick=(function(value){return function(){saveAbyssPactPreset(value);};})(slot);
+    var remove=pactProgramNode('button','ghost xs','Delete');remove.type='button';remove.disabled=!preset;
+    remove.onclick=(function(value){return function(){deleteAbyssPactPreset(value);};})(slot);
+    actions.append(apply,save,remove);row.append(identity,detail,actions);list.appendChild(row);
+  }
+
+  var mastery=document.getElementById('pactMasteryList');
+  mastery.replaceChildren();
+  var active=(pactProgramState.mastery||[]).filter(function(entry){return entry.runs>0;});
+  if(!active.length){mastery.appendChild(pactProgramNode('p','muted small','Mastery starts when you finish a run with a pact. Ten completed runs improve that pact’s reward bonus by 5%.'));}
+  active.forEach(function(entry){
+    var item=pactProgramNode('div','ab-pact-mastery'+(entry.mastered?' mastered':''));
+    var label=pactProgramNode('span','',entry.label);
+    var progress=entry.mastered?'Mastered · +'+Number(entry.effective_bonus_pct).toFixed(1)+'%':entry.runs+' / '+entry.required_runs+' runs';
+    item.append(label,pactProgramNode('b','',progress));mastery.appendChild(item);
+  });
+  var summary=document.getElementById('pactMasterySummary');
+  if(summary)summary.textContent='3 preset slots · '+Number(pactProgramState.mastered_count||0)+' / '+(pactProgramState.mastery||[]).length+' mastered';
+  renderAbyssPactSelectionBonus();
+}
+
+var basePactBonusUpdate=updatePactBonus;
+updatePactBonus=function(){basePactBonusUpdate();renderAbyssPactSelectionBonus();};
+renderAbyssPactProgram();
+{{end}}

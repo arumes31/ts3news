@@ -109,7 +109,7 @@ type activeUser struct {
 	Stunned          bool // scripted boss-phase stun: skips this user's next turn
 	CurrentMana      int
 	MaxMana          int
-	PetHealCD        int // Cooldown of pet2 heal spell in rounds
+	petCooldowns      map[int]int // Independent active-pet ability cooldowns by formation index.
 	// Skill-web bonus, loaded once per fight: treeBonusFor hits the DB and
 	// scans the full 1000-node tree, so per-turn lookups must use this cache.
 	treeBonus content.TreeBonus
@@ -316,12 +316,20 @@ func (b *Bot) getPets(uid string) []*content.Mob {
 		if err := rows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &maxHP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD, &m.Loyalty); err == nil {
 			m.Type = content.MobType(mType)
 			m.MaxHP = maxHP
-			_, _, moodPct := abyssPetMood(m.Stats.HP, m.MaxHP, m.Loyalty)
-			m.Stats.STR = abyssPetMoodScale(m.Stats.STR, moodPct)
-			m.Stats.DEF = abyssPetMoodScale(m.Stats.DEF, moodPct)
-			m.Stats.SPD = abyssPetMoodScale(m.Stats.SPD, moodPct)
 			out = append(out, &m)
 		}
+	}
+	if rows.Err() != nil || len(out) == 0 {
+		return out
+	}
+	_ = rows.Close()
+	petGearStats := abyssPetGearStats(b.getEquippedItems(uid))
+	for _, pet := range out {
+		applyAbyssPetGear(pet, petGearStats)
+		_, _, moodPct := abyssPetMood(pet.Stats.HP, pet.MaxHP, pet.Loyalty)
+		pet.Stats.STR = abyssPetMoodScale(pet.Stats.STR, moodPct)
+		pet.Stats.DEF = abyssPetMoodScale(pet.Stats.DEF, moodPct)
+		pet.Stats.SPD = abyssPetMoodScale(pet.Stats.SPD, moodPct)
 	}
 	return out
 }
@@ -628,7 +636,8 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 		_, _, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
 		activeUsers[i] = activeUser{
 			u: &users[i], effects: effects, treeBonus: users[i].treeBonus,
-			skillCooldowns: map[string]int{}, petNervousLogged: map[*content.Mob]bool{},
+			skillCooldowns: map[string]int{}, petCooldowns: map[int]int{},
+			petNervousLogged: map[*content.Mob]bool{},
 		}
 		activeUsers[i].u.STRMod = 1.0
 		activeUsers[i].u.DEFMod = 1.0
@@ -744,10 +753,9 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 		}
 
 		maxRounds := 10
-		enrageRound := 8
+		enrageRound := combatBossEnrageRound(isAbyss)
 		if isAbyss {
 			maxRounds = 40
-			enrageRound = 30
 		}
 
 		// AB-70: per-wave boss summon telegraphs (mob → round the channel began).
@@ -854,13 +862,14 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 						if interrupted {
 							logs = append(logs, fmt.Sprintf("⚡ %s's summoning ritual is INTERRUPTED by the ultimate!", m.Name))
 						} else {
+							choreography := abyssBossSummonFor(m.Name)
 							newMob := content.SpawnMobWithRandom(
 								spawnLvl,
 								false,
 								diffFactor*zone.Difficulty*0.7,
 								rand,
 							)
-							newMob.Name = "Summoned " + newMob.Name
+							newMob.Name = choreography.AddPrefix + " " + newMob.Name
 							add := newMob.Clone()
 							add.STRMod, add.DEFMod, add.SPDMod = 1.0, 1.0, 1.0
 							if add.MaxHP <= 0 {
@@ -869,7 +878,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 							}
 							currentMobs = append(currentMobs, add)
 							initialMobs = append(initialMobs, add) // track for rewards
-							logs = append(logs, fmt.Sprintf("📣 %s completes the ritual — reinforcements arrive!", m.Name))
+							logs = append(logs, choreography.Arrival)
 						}
 						continue
 					}
@@ -877,7 +886,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 						phaseOnce["summon:"+m.Name] = true
 						summonTelegraph[m] = r
 						m.Stats.SPD = 0 // channelling: the boss skips this round's attack
-						logs = append(logs, fmt.Sprintf("📣 %s begins a summoning ritual! Fire an ULTIMATE this round to interrupt it!", m.Name))
+						logs = append(logs, abyssBossSummonFor(m.Name).Telegraph)
 					}
 				}
 			}
@@ -885,8 +894,8 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 			// Scripted Boss Phases and Soft-Enrage (Item #63, #69, #70)
 			for _, m := range currentMobs {
 				if m.Stats.HP > 0 {
-					// Check soft-enrage past round 8
-					if r > enrageRound && m.Type == content.MobBoss {
+					// Check soft-enrage at the advertised threshold.
+					if combatBossShouldEnrage(r, isAbyss) && m.Type == content.MobBoss {
 						hasEnraged := false
 						for _, eff := range m.Effects {
 							if eff == content.EffectEnraged {
@@ -1092,9 +1101,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 						us.CurrentCooldown--
 					}
 				}
-				if activeUsers[i].PetHealCD > 0 {
-					activeUsers[i].PetHealCD--
-				}
+				logs = append(logs, tickAbyssPetAbilityCooldowns(&activeUsers[i])...)
 				if activeUsers[i].potionCooldown > 0 {
 					activeUsers[i].potionCooldown--
 				}
@@ -1858,6 +1865,16 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if hasScope {
 				dmgMult *= 1.15
 			}
+			if isLiveAction && h == 0 {
+				weakpoint := resolveAbyssBossWeakpoint(liveAction.Weakpoint, target)
+				dmgMult *= weakpoint.DamageMultiplier
+				if weakpoint.Silence {
+					silenceAbyssBoss(target)
+				}
+				if weakpoint.Log != "" {
+					*logs = append(*logs, weakpoint.Log)
+				}
+			}
 
 			effDef := float64(target.Stats.DEF) * target.DEFMod * (1.0 - ignoreDef)
 			dmg := int((float64(uSTR)*dmgMult - effDef) * intensify)
@@ -2053,7 +2070,8 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 		}
 
-		// Pet Attack (Silent damage)
+		// Pet actions: each active formation slot carries one visible ability with
+		// an independent cooldown, then falls back to its normal attack.
 		for petIdx, p := range u.Pets {
 			if p.Stats.HP <= 0 {
 				continue
@@ -2095,8 +2113,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			}
 
-			// pet2 healspell logic: index 1 in u.Pets (the second pet)
-			if petIdx == 1 && au.PetHealCD == 0 && abyssPetAutoskillEnabled(u.petHealEnabled, p.Name) {
+			ability, hasAbility := abyssPetAbilityForSlot(petIdx + 1)
+			abilityReady := hasAbility && au.petCooldowns[petIdx] == 0
+			if abilityReady && ability.Kind == "heal" && abyssPetAutoskillEnabled(u.petHealEnabled, p.Name) {
 				var bestTarget *UserInCombat
 				lowestHPPct := 1.0
 				for k := range activeUsers {
@@ -2110,7 +2129,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					}
 				}
 				if bestTarget != nil {
-					healAmt := int(float64(bestTarget.Stats.HP)*0.15) + p.Level*3
+					healAmt := int(float64(bestTarget.Stats.HP)*ability.PowerScale) + p.Level*3
 					if healAmt < 10 {
 						healAmt = 10
 					}
@@ -2119,8 +2138,8 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 						healAmt -= (bestTarget.CurrentHP - bestTarget.Stats.HP)
 						bestTarget.CurrentHP = bestTarget.Stats.HP
 					}
-					au.PetHealCD = 2
-					*logs = append(*logs, fmt.Sprintf("✨ [color=#4caf50]%s's Pet %s casts a Healing Spell on %s, restoring %d HP! (2-round cooldown)[/color]", u.Nickname, p.Name, bestTarget.Nickname, healAmt))
+					setAbyssPetAbilityCooldown(au, petIdx, ability.Cooldown)
+					*logs = append(*logs, fmt.Sprintf("✨ [color=#4caf50]%s's Pet %s casts %s on %s, restoring %d HP! (Cooldown: %d rounds)[/color]", u.Nickname, p.Name, ability.Name, bestTarget.Nickname, healAmt, ability.Cooldown))
 					continue
 				}
 			}
@@ -2143,6 +2162,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				petDmgMult += bonus
 			}
 			petDmgMult *= abyssTreeActionMultiplier(au.treeBonus, "companion_skill_power")
+			usesAttackAbility := abilityReady && ability.Kind == "attack"
+			if usesAttackAbility {
+				petDmgMult *= ability.PowerScale
+			}
 			pdmg := int(float64(p.Stats.STR-ptarget.Stats.DEF) * petDmgMult * intensify)
 			if pdmg < 1 {
 				pdmg = 1
@@ -2152,6 +2175,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			ptarget.Stats.HP -= pdmg
 			applyAbyssBreakDamage(ptarget, pdmg, logs)
 			*totalUserDamage += pdmg
+			if usesAttackAbility {
+				setAbyssPetAbilityCooldown(au, petIdx, ability.Cooldown)
+				*logs = append(*logs, fmt.Sprintf("🦷 %s uses %s on %s for %d damage! (Cooldown: %d rounds)", p.Name, ability.Name, ptarget.Name, pdmg, ability.Cooldown))
+			}
 			if ptarget.Stats.HP <= 0 {
 				killLog := i18n.T("bot.combat.killed_by_pet", ptarget.Name, p.Name)
 				*logs = append(*logs, markAbyssOverkillLog(killLog, abyssCombatant(u) && petOverkill))
@@ -2294,7 +2321,10 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 
 		dmgMult := 1.0
 		spellIndex := -1
-		if planned {
+		silenced := consumeAbyssBossSilence(m)
+		if silenced {
+			*logs = append(*logs, fmt.Sprintf("🔇 %s's spell fails; the arms weakpoint remains disabled!", m.Name))
+		} else if planned {
 			spellIndex = plan.SpellIndex
 		} else if len(m.Spells) > 0 && rand.Float64() < 0.2 { // #nosec G404
 			// #nosec G404 -- legacy combat spell selection
@@ -3135,7 +3165,11 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 			var itemData sql.NullString
 			if err := rows.Scan(&slot, &gearID, &dura, &enchID, &itemData); err == nil {
 				if gear, ok := b.makeGear(gearID, itemData); ok {
-					equippedGear[content.GearSlot(slot)] = gear
+					equippedSlot := content.GearSlot(slot)
+					if content.IsPetGearSlot(equippedSlot) {
+						continue
+					}
+					equippedGear[equippedSlot] = gear
 					if content.IsAbyssGearID(gearID) {
 						abyssSetCounts[gear.EffectiveSetID()]++
 					}

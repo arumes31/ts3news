@@ -118,6 +118,7 @@ The bot is configured via environment variables or a `config.env` file.
 | | `ABYSS_LIVE_ACTIONS_ENABLED` | Emergency kill switch for interactive live combat; disabled users fall back to automatic combat. | `true` |
 | | `ABYSS_SOCIAL_ENABLED` | Emergency kill switch for live party coordination actions. | `true` |
 | | `ABYSS_LIVE_ROLLOUT_PERCENT` | Stable per-player live-combat rollout cohort (`0` immediately rolls back to automatic combat). | `100` |
+| | `TS3NEWS_ABYSS_TIERS_FILE` | Optional path to a strict JSON override for the four tier values, loaded and validated at startup. | *Embedded catalog* |
 | | `ABYSS_OPS_TOKEN` | Separate bearer token for the private `/api/abyss/ops` telemetry snapshot; the endpoint is hidden when unset. | *None* |
 | **System** | `ENABLE_GAME_NEWS` | Master switch for the free game notification feature. | `true` |
 | | `POKE_DELAY_MS` | Delay between individual pokes (anti-flood). | `1200` |

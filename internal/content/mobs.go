@@ -54,6 +54,7 @@ const (
 	EffectWeakened MobEffect = "Weakened"     // -50% STR
 	EffectBlinded  MobEffect = "Blinded"      // 50% miss chance
 	EffectRegen    MobEffect = "Regenerative" // Heals 5% HP per round
+	EffectSilenced MobEffect = "Silenced"     // Next spell is suppressed
 )
 
 // DeathEffectType is the kind of special effect a mob triggers when defeated.
@@ -153,6 +154,12 @@ func (m Mob) Score() int {
 var baseMobs []Mob
 var mobsInitOnce sync.Once
 
+var TreasureGoblinNames = []string{"Gem Goblin", "Token Goblin", "Key Goblin"}
+
+func RandomTreasureGoblinName(source RandomSource) string {
+	return TreasureGoblinNames[source.IntN(len(TreasureGoblinNames))]
+}
+
 func initMobs() {
 	mobsInitOnce.Do(func() {
 
@@ -225,7 +232,7 @@ func SpawnMobWithRandom(level int, isBoss bool, difficulty float64, source Rando
 			m = baseMobs[108+source.IntN(2)]
 		} else if r < 0.03 { // 2% chance for Treasure Goblin (0.01 to 0.03)
 			m = Mob{
-				Name:     "Treasure Goblin",
+				Name:     RandomTreasureGoblinName(source),
 				Type:     MobTreasureGoblin,
 				Stats:    Stats{HP: 400, STR: 5, DEF: 20, SPD: 150},
 				RewardXP: 50,

@@ -37,6 +37,7 @@ type abyssSocialPetView struct {
 	Training    int
 	HealEnabled bool
 	Equipment   string
+	Ability     string
 }
 
 type abyssDeathView struct {
@@ -79,6 +80,7 @@ type abyssRivalView struct {
 type abyssWeeklyBossView struct {
 	Week         string
 	Name         string
+	Drops        string
 	HP           int64
 	MaxHP        int64
 	Percent      int
@@ -86,6 +88,8 @@ type abyssWeeklyBossView struct {
 	Damage       int64
 	Contributors int
 	Defeated     bool
+	WeekendSurge bool
+	Multiplier   int
 }
 
 type abyssNotificationView struct {
@@ -99,12 +103,14 @@ type abyssSocialHubView struct {
 	Deaths            []abyssDeathView
 	Memorials         []abyssMemorialView
 	Trophies          []abyssTrophyView
+	BossLore          []abyssBossLoreView
 	RevengeFamily     string
 	Rival             abyssRivalView
 	BankFeedEnabled   bool
 	BankFeed          []abyssBankFeedView
 	WeeklyBoss        abyssWeeklyBossView
 	Notifications     []abyssNotificationView
+	FriendEcho        abyssFriendEchoView
 }
 
 func abyssPetMood(currentHP, maxHP, loyalty int) (string, string, int) {
@@ -179,9 +185,9 @@ func applyAbyssDuoBonus(users []UserInCombat, assists int) bool {
 	return true
 }
 
-func abyssPetEquipmentLabel(gear content.Gear) string {
+func abyssPetGearItemLabel(gear content.Gear) string {
 	if gear.Name == "" {
-		return "No collar/charm equipped"
+		return "empty"
 	}
 	parts := make([]string, 0, 3)
 	if gear.Stats.STR != 0 {
@@ -197,6 +203,11 @@ func abyssPetEquipmentLabel(gear content.Gear) string {
 		parts = append(parts, "utility effect")
 	}
 	return gear.Name + " · " + strings.Join(parts, " · ")
+}
+
+func abyssPetEquipmentLabel(equipped map[content.GearSlot]content.Gear) string {
+	return "Collar: " + abyssPetGearItemLabel(equipped[content.SlotPet1]) +
+		" · Charm: " + abyssPetGearItemLabel(equipped[content.SlotPet2])
 }
 
 func (b *Bot) abyssSocialPets(uid string) []abyssSocialPetView {
@@ -217,11 +228,8 @@ func (b *Bot) abyssSocialPets(uid string) []abyssSocialPetView {
 			return nil
 		}
 		view.Mood, view.MoodIcon, view.MoodPct = abyssPetMood(view.HP, view.MaxHP, view.Loyalty)
-		slot := content.SlotPet1
-		if view.ActiveSlot == 2 {
-			slot = content.SlotPet2
-		}
-		view.Equipment = abyssPetEquipmentLabel(equipped[slot])
+		view.Equipment = abyssPetEquipmentLabel(equipped)
+		view.Ability = abyssPetAbilityLabel(view.ActiveSlot)
 		views = append(views, view)
 	}
 	if rows.Err() != nil {
@@ -333,8 +341,12 @@ func abyssWeeklyBossDefinition(now time.Time) (string, string) {
 }
 
 func (b *Bot) abyssWeeklyBossStatus(uid string) abyssWeeklyBossView {
-	week, name := abyssWeeklyBossDefinition(time.Now())
-	view := abyssWeeklyBossView{Week: week, Name: name, HP: abyssWeeklyBossHP, MaxHP: abyssWeeklyBossHP, Percent: 100}
+	now := time.Now()
+	week, name := abyssWeeklyBossDefinition(now)
+	view := abyssWeeklyBossView{
+		Week: week, Name: name, HP: abyssWeeklyBossHP, MaxHP: abyssWeeklyBossHP, Percent: 100,
+		WeekendSurge: abyssWorldBossWeekend(now), Multiplier: abyssWorldBossStrikeMultiplier(now),
+	}
 	var defeated sql.NullTime
 	_ = b.DB.QueryRow(`SELECT boss_name,current_hp,max_hp,defeated_at FROM abyss_weekly_bosses WHERE week_key=$1`, week).
 		Scan(&view.Name, &view.HP, &view.MaxHP, &defeated)
@@ -346,6 +358,7 @@ func (b *Bot) abyssWeeklyBossStatus(uid string) abyssWeeklyBossView {
 	if view.MaxHP > 0 {
 		view.Percent = int(view.HP * 100 / view.MaxHP)
 	}
+	view.Drops = abyssWeeklyBossDropSummary(view.Name)
 	return view
 }
 
@@ -401,10 +414,12 @@ func (b *Bot) abyssSocialNotifications(uid string) []abyssNotificationView {
 func (b *Bot) abyssSocialHub(uid string, prestige int) abyssSocialHubView {
 	deaths := b.abyssDeathWall(uid)
 	bankEnabled, bankFeed := b.abyssBankFeed(uid)
+	trophies := b.abyssBossTrophies(uid)
 	return abyssSocialHubView{
 		Pets: b.abyssSocialPets(uid), SecondPetUnlocked: prestige >= 2,
-		Deaths: deaths, Memorials: b.abyssPetMemorials(uid), Trophies: b.abyssBossTrophies(uid),
+		Deaths: deaths, Memorials: b.abyssPetMemorials(uid), Trophies: trophies, BossLore: abyssBossLoreViews(trophies),
 		RevengeFamily: b.abyssRevengeFamily(uid), Rival: b.ensureAbyssWeeklyRival(uid), BankFeedEnabled: bankEnabled,
 		BankFeed: bankFeed, WeeklyBoss: b.abyssWeeklyBossStatus(uid), Notifications: b.abyssSocialNotifications(uid),
+		FriendEcho: b.abyssFriendEchoSettings(uid),
 	}
 }

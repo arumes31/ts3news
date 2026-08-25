@@ -60,7 +60,10 @@ func runeWardResist(equipped map[content.GearSlot]content.Gear, mobElement conte
 		return false
 	}
 	n := 0
-	for _, g := range equipped {
+	for slot, g := range equipped {
+		if content.IsPetGearSlot(slot) {
+			continue
+		}
 		if g.Rune == string(mobElement) {
 			n++
 		}

@@ -1,0 +1,31 @@
+{{define "abyssBossSpeedBoards"}}
+<section class="abyss-lb ab-boss-speed" id="abyssBossSpeedBoards" data-abyss-section="leaderboards">
+  <h2>⏱️ Fastest Kills by Boss</h2>
+  <p class="muted small">Each board ranks one personal best per player for the selected difficulty.</p>
+  <div class="ab-boss-speed-grid">
+    {{range $index, $board := .BossSpeed}}
+    <details class="ab-boss-speed-card"{{if eq $index 0}} open{{end}}>
+      <summary>{{$board.Name}} <span>{{len $board.Rows}} ranked</span></summary>
+      <div class="ab-table-scroll">
+        <table class="lbtable">
+          <thead><tr><th>#</th><th>Player</th><th>Time</th><th>Floor</th><th>Date</th></tr></thead>
+          <tbody>
+            {{range $board.Rows}}
+            <tr{{if .IsCurrent}} class="ab-me" aria-current="true"{{end}}>
+              <td class="lb-rank lb-rank-{{.Rank}}">{{.Rank}}</td>
+              <td class="lb-name">{{.Nickname}}</td>
+              <td class="win">{{dur .KillTimeMs}}</td>
+              <td>🕳️ {{.Depth}}</td>
+              <td class="muted small">{{.KilledAt}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </details>
+    {{else}}
+    <div class="ab-empty-state muted">No boss speed records exist for this difficulty yet.</div>
+    {{end}}
+  </div>
+</section>
+{{end}}

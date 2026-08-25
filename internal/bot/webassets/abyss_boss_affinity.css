@@ -1,0 +1,49 @@
+.ab-affinity-forecast {
+  --affinity: #d7dce8;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .8rem;
+  margin: .7rem 0;
+  padding: .65rem .75rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--affinity) 45%, var(--border));
+  border-radius: .65rem;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--affinity) 12%, #080d16), #080d16 62%);
+  box-shadow: inset .2rem 0 0 var(--affinity);
+}
+
+.ab-affinity-forecast.is-fire { --affinity: #ff714b; }
+.ab-affinity-forecast.is-water { --affinity: #55bfff; }
+.ab-affinity-forecast.is-earth { --affinity: #b5ca69; }
+.ab-affinity-forecast.is-air { --affinity: #c5a7ff; }
+
+.ab-affinity-sigil {
+  filter: drop-shadow(0 0 .55rem var(--affinity));
+  font-size: 1.75rem;
+}
+
+.ab-affinity-copy {
+  display: grid;
+  gap: .12rem;
+}
+
+.ab-affinity-copy strong { color: var(--affinity); }
+.ab-affinity-copy small { color: var(--muted); }
+.ab-affinity-copy small b { color: var(--text); }
+
+.ab-affinity-target {
+  display: grid;
+  justify-items: end;
+  min-width: 5rem;
+  font-family: var(--font-mono, monospace);
+}
+
+.ab-affinity-target > span { color: var(--muted); font-size: .6rem; letter-spacing: .1em; }
+.ab-affinity-target > b { color: var(--affinity); font-size: 1.2rem; }
+.ab-affinity-target > small { white-space: nowrap; }
+
+@media (max-width: 620px) {
+  .ab-affinity-forecast { grid-template-columns: auto 1fr; }
+  .ab-affinity-target { grid-column: 2; justify-items: start; }
+}

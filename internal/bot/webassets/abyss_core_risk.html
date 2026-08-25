@@ -113,13 +113,6 @@
   if(typeof originalSetEscrow==='function')window.setEscrow=function(value){originalSetEscrow(value);render();};
   var originalSetDepth=window.setDepth;
   if(typeof originalSetDepth==='function')window.setDepth=function(value){originalSetDepth(value);render();};
-	var originalRenderState=window.renderState;
-	if(typeof originalRenderState==='function')window.renderState=function(){
-		var result=originalRenderState.apply(this,arguments);
-		if(downed)scheduleDownedDeadline(state.downed_timeout_seconds||1);else clearTimeout(downedTimer);
-		return result;
-	};
-
 	var downedTimer=0;
 	function scheduleDownedDeadline(seconds){
 		clearTimeout(downedTimer);
@@ -139,8 +132,13 @@
 		scheduleDownedDeadline(result.remaining_seconds||1);
 	}
 	document.addEventListener('visibilitychange',function(){if(!document.hidden&&inRun&&downed)checkDownedDeadline();});
-  var originalRenderState=window.renderState;
-  if(typeof originalRenderState==='function')window.renderState=function(){var result=originalRenderState.apply(this,arguments);render();scheduleDownedDeadline(state.downed_timeout_seconds||1);return result;};
+  var baseRenderState=window.renderState;
+  if(typeof baseRenderState==='function')window.renderState=function(){
+    var result=baseRenderState.apply(this,arguments);
+    render();
+    if(downed)scheduleDownedDeadline(state.downed_timeout_seconds||1);else clearTimeout(downedTimer);
+    return result;
+  };
   render();injectRestAction();
 	scheduleDownedDeadline(state.downed_timeout_seconds||1);
   window.__abyssCoreRisk={render:render,state:state};

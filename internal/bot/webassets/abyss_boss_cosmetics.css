@@ -1,0 +1,20 @@
+.ab-boss-cosmetics { margin: 1rem 0; padding: 1rem; border: 1px solid #28364b; border-radius: .75rem; background: #09101a; }
+.ab-boss-cosmetics > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.ab-boss-cosmetics h2 { margin: .15rem 0; }
+.ab-cosmetic-count { display: grid; min-width: 4.5rem; text-align: right; }
+.ab-cosmetic-count b { color: #f0c96d; font-size: 1.15rem; }
+.ab-cosmetic-count small { color: #7789a1; text-transform: uppercase; }
+.ab-cosmetic-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .55rem; margin-top: .8rem; }
+.ab-cosmetic-grid article { position: relative; display: grid; grid-template-columns: auto 1fr; gap: .65rem; min-width: 0; padding: .7rem; border: 1px solid #263348; border-radius: .5rem; background: #0d1521; }
+.ab-cosmetic-grid article.owned { border-color: rgb(215 169 59 / 38%); background: linear-gradient(140deg, rgb(58 40 17 / 48%), #0d1521 60%); }
+.ab-cosmetic-grid article.active { box-shadow: inset 0 0 0 1px #d7a93b, 0 0 .8rem rgb(215 169 59 / 9%); }
+.ab-cosmetic-icon { display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid currentColor; border-radius: 50%; color: #697b93; font-size: 1.05rem; }
+.owned .ab-cosmetic-icon { color: #e2b95f; }
+.ab-cosmetic-grid h3 { margin: .1rem 0 .25rem; font-size: .82rem; }
+.ab-cosmetic-grid small { color: #7789a1; text-transform: uppercase; }
+.ab-cosmetic-grid p { margin: 0; color: #899ab1; font-size: .68rem; }
+.ab-cosmetic-grid button,.ab-cosmetic-equipped { grid-column: 1 / -1; }
+.ab-cosmetic-equipped { color: #77dbae; font: 700 .6rem var(--font-mono, monospace); letter-spacing: .1em; }
+
+@media (max-width: 1050px) { .ab-cosmetic-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .ab-cosmetic-grid { grid-template-columns: 1fr; } }

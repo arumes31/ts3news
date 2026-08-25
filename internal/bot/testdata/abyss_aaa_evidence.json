@@ -363,6 +363,26 @@
     "verification": ["internal/bot/web_abyss_release_guards_test.go"]
   },
   {
+    "ids": [988, 989, 992],
+    "production": [
+      "internal/bot/abyss_tiers.json",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_tiers.go",
+      "internal/bot/webassets/abyss_core_risk.html"
+    ],
+    "verification": [
+      ".github/workflows/ci.yml",
+      "internal/bot/web_abyss_descend_load_test.go",
+      "internal/bot/web_abyss_e2e_test.go",
+      "internal/bot/web_abyss_tiers_test.go",
+      "package-lock.json",
+      "playwright.config.js",
+      "tests/e2e/abyss.spec.js",
+      "tests/e2e/run.js"
+    ]
+  },
+  {
     "ids": [990],
     "production": [
       "internal/bot/web_abyss_funnel.go",
@@ -724,6 +744,684 @@
     "verification": [
       "internal/bot/web_abyss_inventory_lock_test.go",
       "internal/bot/web_abyss_panel_tools_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [26, 27, 28, 30, 31, 32, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_combat_rooms.go",
+      "internal/bot/web_abyss_event_intel.go",
+      "internal/bot/web_abyss_events.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_loop.go",
+      "internal/bot/web_abyss_rooms.go",
+      "internal/bot/web_abyss_traversal_rooms.go",
+      "internal/bot/xp.go",
+      "internal/bot/webassets/abyss.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_floor_ecology_evidence_test.go",
+      "internal/bot/web_abyss_combat_rooms_test.go",
+      "internal/bot/web_abyss_event_intel_test.go",
+      "internal/bot/web_abyss_events_test.go",
+      "internal/bot/web_abyss_rooms_test.go",
+      "internal/bot/web_abyss_traversal_rooms_test.go"
+    ]
+  },
+  {
+    "ids": [51, 53, 55, 63, 64, 68, 69, 70, 71],
+    "production": [
+      "internal/bot/xp.go",
+      "internal/bot/xp_abyss_combat.go",
+      "internal/bot/web_abyss_core_rewards.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_actions.go",
+      "internal/bot/web_abyss_live_tactics.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_combat_recorder.html",
+      "internal/bot/webassets/abyss_core_risk.html",
+      "internal/bot/webassets/abyss_live.html"
+    ],
+    "verification": [
+      "internal/bot/xp_test.go",
+      "internal/bot/xp_abyss_combat_test.go",
+      "internal/bot/web_abyss_combat_log_ui_test.go",
+      "internal/bot/web_abyss_combat_recorder_test.go",
+      "internal/bot/web_abyss_core_rewards_test.go"
+    ]
+  },
+  {
+    "ids": [353, 354, 372, 518, 976, 977, 978, 979, 980, 981, 982, 983, 984, 985, 991, 997],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_connectivity.go",
+      "internal/bot/web_abyss_live_http.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_navigation.html",
+      "internal/bot/webassets/abyss_player_experience.html",
+      "internal/bot/webassets/abyss_player_experience.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_authoritative_buffs_test.go",
+      "internal/bot/web_abyss_live_connectivity_test.go",
+      "internal/bot/web_abyss_player_experience_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [76, 77, 81, 82, 83, 84, 86, 88, 92, 99, 100],
+    "production": [
+      "internal/content/artifacts.go",
+      "internal/bot/web_abyss_customization.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_forge2.go",
+      "internal/bot/web_abyss_forge3.go",
+      "internal/bot/web_abyss_forge_crafting.go",
+      "internal/bot/web_abyss_inventory_lock.go",
+      "internal/bot/web_abyss_inventory_ui.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_loot2.go",
+      "internal/bot/web_abyss_loot_settings.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_inventory_ui.html",
+      "internal/bot/webassets/abyss_loot_presentation.css"
+    ],
+    "verification": [
+      "internal/content/artifacts_validation_test.go",
+      "internal/content/unique_items_test.go",
+      "internal/bot/web_abyss_forge2_test.go",
+      "internal/bot/web_abyss_forge3_test.go",
+      "internal/bot/web_abyss_inventory_lock_test.go",
+      "internal/bot/web_abyss_inventory_ui_test.go",
+      "internal/bot/web_abyss_loot_settings_test.go",
+      "internal/bot/web_abyss_combat_items_test.go"
+    ]
+  },
+  {
+    "ids": [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125],
+    "production": [
+      "internal/bot/web_abyss_customization.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_forge2.go",
+      "internal/bot/web_abyss_forge3.go",
+      "internal/bot/web_abyss_forge4.go",
+      "internal/bot/web_abyss_forge_crafting.go",
+      "internal/bot/web_abyss_forge_ops.go",
+      "internal/bot/web_abyss_forge_quote_costs.go",
+      "internal/bot/web_abyss_forge_quotes.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_forge_experience.html",
+      "internal/bot/webassets/abyss_forge_planner.html",
+      "internal/bot/webassets/abyss_forge_workstation.html"
+    ],
+    "verification": [
+      "internal/bot/abyss_forge_evidence_test.go",
+      "internal/bot/abyss_forge_fusion_test.go",
+      "internal/bot/abyss_forge_progression_test.go",
+      "internal/bot/web_abyss_forge2_test.go",
+      "internal/bot/web_abyss_forge3_test.go",
+      "internal/bot/web_abyss_forge4_test.go",
+      "internal/bot/web_abyss_forge_catalog_test.go",
+      "internal/bot/web_abyss_forge_experience_test.go",
+      "internal/bot/web_abyss_forge_ui_state_test.go"
+    ]
+  },
+  {
+    "ids": [126, 130, 140, 142, 149],
+    "production": [
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_ah_economy.go",
+      "internal/bot/web_ah_bids.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/ah.html",
+      "internal/db/migrations/0080_abyss_economy.up.sql"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_economy4_test.go",
+      "internal/bot/web_abyss_hud_test.go"
+    ]
+  },
+  {
+    "ids": [151, 152, 154, 155, 156, 157, 158, 159, 161, 163, 168, 173, 175],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_progression.go",
+      "internal/bot/web_abyss_talents.go",
+      "internal/bot/web_abyss_tree.go",
+      "internal/bot/web_abyss_tree2.go",
+      "internal/bot/web_abyss_tree_mastery.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abysstree.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_progression_evidence_test.go",
+      "internal/bot/web_abyss_progression_test.go",
+      "internal/bot/web_abyss_rooms_test.go",
+      "internal/bot/web_abyss_tree_mastery_test.go",
+      "internal/bot/web_abyss_tree_plans_test.go"
+    ]
+  },
+  {
+    "ids": [176, 177],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_pact_program.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_pact_program.css",
+      "internal/bot/webassets/abyss_pact_program.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_pact_program_test.go"
+    ]
+  },
+  {
+    "ids": [178, 179, 180, 181, 182, 183, 184, 185, 186, 187],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_pact.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_entry_planner.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_pact_expansion_test.go",
+      "internal/bot/web_abyss_test.go"
+    ]
+  },
+  {
+    "ids": [188, 189, 190, 193, 194],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_affix_poll.go",
+      "internal/bot/web_abyss_pact_campaign.go",
+      "internal/bot/web_abyss_pact_program.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_pact_program.css",
+      "internal/bot/webassets/abyss_pact_program.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_affix_poll_test.go",
+      "internal/bot/web_abyss_pact_campaign_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [191, 192],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_hud.go",
+      "internal/bot/web_abyss_loop.go",
+      "internal/bot/web_abyss_mystery_pact.go",
+      "internal/bot/web_abyss_pact_campaign.go",
+      "internal/bot/web_abyss_pact_program.go",
+      "internal/bot/web_abyss_setup_state.go",
+      "internal/bot/webassets/abyss.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_mystery_pact_test.go",
+      "internal/bot/web_abyss_pact_campaign_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [195],
+    "production": [
+      "internal/bot/web_abyss_codex.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_pact_program.go"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_library_feedback_test.go",
+      "internal/bot/web_abyss_pact_program_test.go"
+    ]
+  },
+  {
+    "ids": [196, 197],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_pact_program.go",
+      "internal/bot/web_abyss_personal_affix.go",
+      "internal/bot/web_abyss_shop.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_pact_program.html",
+      "internal/content/artifacts.go"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_personal_affix_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [198],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_affix_stats.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_pact_program.go",
+      "internal/bot/webassets/abyss_pact_program.html",
+      "internal/db/migrations/0085_abyss_affix_stats.up.sql"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_affix_stats_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [199],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_contract_pacts.go",
+      "internal/bot/web_abyss_hud.go",
+      "internal/bot/web_abyss_setup_state.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_entry_planner.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_contract_pacts_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [200],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_community_weekend.go",
+      "internal/bot/web_abyss_pact_program.go",
+      "internal/bot/webassets/abyss_pact_program.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_community_weekend_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [201, 202],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_boss_social.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/style.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_boss_social_test.go"
+    ]
+  },
+  {
+    "ids": [203],
+    "production": [
+      "internal/bot/web_abyss_weekly_boss.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/web_abyss_social_handlers.go",
+      "internal/bot/webassets/abyss_social.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_boss_social_test.go"
+    ]
+  },
+  {
+    "ids": [204],
+    "production": [
+      "internal/bot/web_abyss_elite_auras.go",
+      "internal/bot/web_abyss_enemies.go",
+      "internal/bot/web_abyss.go"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_enemies_test.go"
+    ]
+  },
+  {
+    "ids": [205],
+    "production": [
+      "internal/bot/web_abyss_named_rares.go",
+      "internal/bot/web_abyss_enemies.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_shop.go"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_enemies_test.go"
+    ]
+  },
+  {
+    "ids": [206],
+    "production": [
+      "internal/bot/combat_enrage.go",
+      "internal/bot/xp.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/webassets/abyss_live.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_live_test.go",
+      "internal/bot/xp_abyss_combat_test.go"
+    ]
+  },
+  {
+    "ids": [207],
+    "production": [
+      "internal/bot/web_abyss_boss_leaderboards.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/db/migrations/0086_abyss_boss_speed_boards.up.sql",
+      "internal/bot/webassets/abyss_boss_leaderboards.html",
+      "internal/bot/webassets/abyss_boss_leaderboards.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_boss_leaderboards_test.go",
+      "internal/bot/web_abyss_library_feedback_test.go"
+    ]
+  },
+  {
+    "ids": [208],
+    "production": [
+      "internal/bot/web_abyss_boss_practice.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_practice.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_enemies_test.go"
+    ]
+  },
+  {
+    "ids": [209],
+    "production": [
+      "internal/bot/web_abyss_boss_vendor.go",
+      "internal/bot/web_abyss.go",
+      "internal/db/migrations/0087_abyss_boss_tokens.up.sql",
+      "internal/bot/webassets/abyss_boss_vendor.html",
+      "internal/bot/webassets/abyss_boss_vendor.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_boss_vendor_test.go"
+    ]
+  },
+  {
+    "ids": [210],
+    "production": [
+      "internal/bot/abyss_boss_summons.go",
+      "internal/bot/xp.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_boss_summons_test.go"
+    ]
+  },
+  {
+    "ids": [211],
+    "production": [
+      "internal/bot/abyss_boss_weakpoints.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_actions.go",
+      "internal/bot/xp.go",
+      "internal/content/mobs.go",
+	  "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/webassets/abyss_live.css"
+    ],
+    "verification": [
+	  "internal/bot/abyss_boss_weakpoints_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [212],
+    "production": [
+      "internal/bot/abyss_boss_lore.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_lore.css"
+    ],
+    "verification": [
+	  "internal/bot/abyss_boss_lore_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [213],
+    "production": [
+      "internal/bot/abyss_world_boss_weekend.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/web_abyss_social_handlers.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_social.html",
+      "internal/bot/webassets/abyss_world_boss.css"
+    ],
+    "verification": [
+	  "internal/bot/abyss_world_boss_weekend_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [214],
+    "production": [
+      "internal/bot/abyss_treasure_goblins.go",
+      "internal/content/mobs.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_loot.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_treasure_goblins_test.go",
+      "internal/content/mobs_treasure_goblins_test.go"
+    ]
+  },
+  {
+    "ids": [215],
+    "production": [
+      "internal/bot/abyss_mimic_king.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/webassets/abyss.html"
+    ],
+    "verification": [
+	  "internal/bot/abyss_mimic_king_test.go",
+	  "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [216],
+    "production": [
+      "internal/bot/abyss_watcher_pressure.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_watcher_pressure.css"
+    ],
+    "verification": [
+      "internal/bot/abyss_watcher_pressure_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [217],
+    "production": [
+      "internal/bot/web_abyss_friend_echoes.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss_social.html",
+      "internal/db/migrations/0088_abyss_friend_echoes.up.sql",
+      "internal/db/migrations/0088_abyss_friend_echoes.down.sql"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_friend_echoes_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [218],
+    "production": [
+      "internal/bot/web_abyss_boss_contracts.go",
+      "internal/bot/web_abyss_boss_vendor.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_contracts.html",
+      "internal/bot/webassets/abyss_boss_contracts.css",
+      "internal/db/migrations/0089_abyss_boss_contracts.up.sql",
+      "internal/db/migrations/0089_abyss_boss_contracts.down.sql"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_boss_contracts_test.go",
+      "internal/bot/web_abyss_boss_vendor_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [219],
+    "production": [
+      "internal/bot/abyss_double_boss.go",
+      "internal/bot/web_abyss.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_double_boss_test.go"
+    ]
+  },
+  {
+    "ids": [220],
+    "production": [
+      "internal/bot/abyss_boss_affinity.go",
+      "internal/bot/abyss_double_boss.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_affinity.html",
+      "internal/bot/webassets/abyss_boss_affinity.css"
+    ],
+    "verification": [
+      "internal/bot/abyss_boss_affinity_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [221],
+    "production": [
+      "internal/bot/web_abyss_boss_toll.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_toll.html",
+      "internal/bot/webassets/abyss_boss_toll.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_boss_toll_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [222],
+    "production": [
+      "internal/bot/web_abyss_best_kill.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_best_kill.html",
+      "internal/bot/webassets/abyss_best_kill.css",
+      "internal/db/migrations/0090_abyss_best_kill_index.up.sql",
+      "internal/db/migrations/0090_abyss_best_kill_index.down.sql"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_best_kill_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [223],
+    "production": [
+      "internal/bot/abyss_secret_boss_chain.go",
+      "internal/bot/abyss_boss_affinity.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_boss_toll.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_codex.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_secret_boss_chain.html",
+      "internal/bot/webassets/abyss_secret_boss_chain.css",
+      "internal/bot/webassets/abyss_boss_affinity.html",
+      "internal/db/migrations/0091_abyss_secret_boss_chain.up.sql",
+      "internal/db/migrations/0091_abyss_secret_boss_chain.down.sql"
+    ],
+    "verification": [
+      "internal/bot/abyss_secret_boss_chain_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [224],
+    "production": [
+      "internal/bot/abyss_boss_cosmetics.go",
+      "internal/bot/web_abyss_boss_vendor.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_shop_economy.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_cosmetics.html",
+      "internal/bot/webassets/abyss_boss_cosmetics.css",
+      "internal/db/migrations/0092_abyss_boss_cosmetic_loadouts.up.sql",
+      "internal/db/migrations/0092_abyss_boss_cosmetic_loadouts.down.sql"
+    ],
+    "verification": [
+      "internal/bot/abyss_boss_cosmetics_test.go",
+      "internal/bot/web_abyss_boss_vendor_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [225],
+    "production": [
+      "internal/bot/abyss_boss_adaptation.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_enemies.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_adaptation.html",
+      "internal/bot/webassets/abyss_boss_adaptation.css"
+    ],
+    "verification": [
+      "internal/bot/abyss_boss_adaptation_test.go",
+      "internal/bot/web_abyss_enemies_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [226],
+    "production": [
+      "internal/content/artifacts.go",
+      "internal/bot/abyss_pet_gear.go",
+      "internal/bot/xp.go",
+      "internal/bot/xp_abyss_combat.go",
+      "internal/bot/bot.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_tree.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/webassets/abyss_social.html"
+    ],
+    "verification": [
+      "internal/bot/abyss_pet_gear_test.go",
+      "internal/bot/web_abyss_boss_social_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [227],
+    "production": [
+      "internal/bot/abyss_pet_abilities.go",
+      "internal/bot/xp.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/webassets/abyss_social.html"
+    ],
+    "verification": [
+      "internal/bot/abyss_pet_abilities_test.go",
+      "internal/bot/web_abyss_boss_social_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
   }

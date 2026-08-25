@@ -19,6 +19,21 @@ func abyssBossTip(name string) string {
 	return tips[int(hash.Sum32())%len(tips)]
 }
 
+func abyssBossTitle(name string) string {
+	switch name {
+	case "Gorgoroth the Firelord":
+		return "The Cinder Tyrant"
+	case "Malakor the Voidweaver":
+		return "Architect of the Last Dark"
+	case "Azazoth the Slumbering Eye":
+		return "The Dream That Watches"
+	case "Abyssus, Heart of the Void":
+		return "Sovereign Below All Floors"
+	default:
+		return "Warden of the Deep"
+	}
+}
+
 func abyssBossFinale(timeline []combatTimelineFrame, rounds int) []combatTimelineFrame {
 	if rounds <= 0 || len(timeline) == 0 {
 		return nil

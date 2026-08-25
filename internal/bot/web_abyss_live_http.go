@@ -250,6 +250,15 @@ func (s *WebServer) handleAbyssCombatEvents(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Last-Event-ID is ahead of combat", http.StatusBadRequest)
 		return
 	}
+	if !c.openMemberConnection(uid, time.Now()) {
+		http.Error(w, "not a combat participant", http.StatusForbidden)
+		return
+	}
+	defer func() {
+		if c.closeMemberConnection(uid, time.Now()) {
+			c.persistOrLog("granting connectivity grace")
+		}
+	}()
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache, no-transform")
 	w.Header().Set("X-Accel-Buffering", "no")

@@ -1,0 +1,32 @@
+.ab-pact-program { border: 1px solid rgba(123, 104, 238, .24); border-radius: 10px; margin: .45rem 0 .6rem; overflow: clip; }
+.ab-pact-program > summary { align-items: center; background: linear-gradient(110deg, rgba(123, 104, 238, .12), rgba(55, 205, 190, .05)); cursor: pointer; display: flex; gap: .7rem; justify-content: space-between; list-style: none; min-height: 36px; padding: .45rem .65rem; }
+.ab-pact-program > summary::-webkit-details-marker { display: none; }
+.ab-pact-program > summary::after { color: var(--accent, #9a8cff); content: '+'; font-weight: 800; }
+.ab-pact-program[open] > summary::after { content: '−'; }
+.ab-pact-program-body { display: grid; gap: .55rem; padding: .6rem; }
+.ab-pact-campaign { display: grid; gap: .45rem; }
+.ab-pact-featured { color: #f5cf72; font-size: .72rem; font-weight: 700; }
+.ab-pact-featured-badge { color: #f5cf72; font-size: .65rem; font-weight: 800; white-space: nowrap; }
+.ab-affix-calendar { display: grid; gap: .28rem; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.ab-affix-day { background: rgba(6, 12, 22, .58); border: 1px solid rgba(255, 255, 255, .07); border-radius: 7px; display: grid; gap: .18rem; min-width: 0; padding: .35rem; }
+.ab-affix-day b { color: #8294a5; font: 700 .6rem/1 ui-monospace, monospace; text-transform: uppercase; }
+.ab-affix-day span { font-size: .62rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-affix-day.today { background: rgba(55, 205, 190, .12); border-color: rgba(55, 205, 190, .5); box-shadow: inset 0 0 0 1px rgba(55, 205, 190, .08); }
+.ab-affix-day.past { opacity: .48; }
+.ab-affix-poll { background: rgba(123, 104, 238, .06); border: 1px solid rgba(123, 104, 238, .2); border-radius: 7px; display: grid; gap: .38rem; padding: .42rem .5rem; }
+.ab-affix-poll-title { align-items: center; display: flex; font-size: .7rem; font-weight: 700; gap: .5rem; justify-content: space-between; }
+.ab-affix-poll-options { display: flex; flex-wrap: wrap; gap: .3rem; }
+.ab-affix-poll-options .selected { border-color: #7ee4d4; color: #7ee4d4; }
+.ab-pact-synergy { align-items: center; background: rgba(245, 207, 114, .08); border: 1px solid rgba(245, 207, 114, .28); border-radius: 7px; color: #f5cf72; display: flex; flex-wrap: wrap; font-size: .68rem; gap: .45rem; padding: .38rem .5rem; }
+.ab-pact-preset-list { display: grid; gap: .35rem; }
+.ab-pact-preset { align-items: center; background: rgba(6, 12, 22, .58); border: 1px solid rgba(255, 255, 255, .08); border-radius: 8px; display: grid; gap: .35rem .55rem; grid-template-columns: minmax(130px, .8fr) minmax(150px, 1.4fr) auto; padding: .4rem; }
+.ab-pact-preset-identity { align-items: center; display: flex; gap: .35rem; min-width: 0; }
+.ab-pact-slot { color: #7ee4d4; font: 700 .65rem/1 ui-monospace, monospace; }
+.ab-pact-preset-name { background: rgba(4, 9, 17, .82); border: 1px solid rgba(255, 255, 255, .13); border-radius: 6px; color: inherit; min-width: 0; padding: .32rem .4rem; width: 100%; }
+.ab-pact-preset-detail { color: #92a6b6; font-size: .68rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-pact-preset-actions { display: flex; gap: .3rem; }
+.ab-pact-mastery-list { border-top: 1px solid rgba(255, 255, 255, .07); display: grid; gap: .3rem; padding-top: .5rem; }
+.ab-pact-mastery { align-items: center; display: flex; font-size: .69rem; justify-content: space-between; }
+.ab-pact-mastery b { color: #9fb3c8; }
+.ab-pact-mastery.mastered b { color: #69e6ad; }
+@media (max-width: 760px) { .ab-affix-calendar { grid-template-columns: repeat(4, minmax(0, 1fr)); } .ab-pact-preset { grid-template-columns: 1fr; } .ab-pact-preset-actions { flex-wrap: wrap; } }

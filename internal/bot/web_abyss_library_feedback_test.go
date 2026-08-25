@@ -120,7 +120,7 @@ func TestAbyssAchievementCatalogCoversProgressionSourceOfTruth(t *testing.T) {
 	t.Parallel()
 
 	views := allAbyssAchievementViews()
-	want := len(abyssAchievementCatalog) + len(abyssProgressTrackDefs)*3
+	want := len(abyssAchievementCatalog) + len(abyssPactCatalog) + len(abyssProgressTrackDefs)*3
 	if len(views) != want {
 		t.Fatalf("achievement catalog size = %d, want %d", len(views), want)
 	}
@@ -160,6 +160,11 @@ func TestAbyssLeaderboardsMarkOnlyAuthenticatedUID(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{
 			"client_uid", "nick", "boss_name", "depth", "kill_time_ms", "killed_at",
 		}).AddRow("player", "Twin", "The Maw", 25, int64(1234), time.Now()))
+	mock.ExpectQuery("WITH personal_best AS").
+		WithArgs("normal", 10).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"boss_rank", "client_uid", "nick", "boss_name", "depth", "kill_time_ms", "killed_at",
+		}).AddRow(1, "player", "Twin", "The Maw", 25, int64(1234), time.Now()))
 
 	boards := (&Bot{DB: database}).abyssLeaderboardsForUID("normal", "player")
 	for name, rows := range map[string][]abyssRow{
@@ -171,6 +176,9 @@ func TestAbyssLeaderboardsMarkOnlyAuthenticatedUID(t *testing.T) {
 	}
 	if len(boards.BossKills) != 1 || !boards.BossKills[0].IsCurrent {
 		t.Fatalf("boss ownership markers = %#v", boards.BossKills)
+	}
+	if len(boards.BossSpeed) != 1 || len(boards.BossSpeed[0].Rows) != 1 || !boards.BossSpeed[0].Rows[0].IsCurrent {
+		t.Fatalf("boss speed ownership markers = %#v", boards.BossSpeed)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

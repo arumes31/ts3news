@@ -1,0 +1,34 @@
+{{define "abyssBossVendor"}}
+<section class="abyss-panel ab-boss-vendor" id="abyssBossVendor" data-abyss-section="shop">
+  <div class="ab-boss-vendor-head">
+    <div><span>TROPHY QUARTERMASTER</span><h2>🏆 Boss Token Vendor</h2></div>
+    <strong><b id="bossTokenBalance">{{comma .Stats.BossTokens}}</b> Boss Tokens</strong>
+  </div>
+  <p class="muted small">Every cleared boss awards one trophy. Purchases debit the trophy and deliver every listed reward in one transaction.</p>
+  <div class="ab-boss-vendor-grid">
+    {{range .BossVendor}}
+    <article>
+      <div><b>{{.Name}}</b><p>{{.Desc}}</p></div>
+      <button type="button" class="ghost xs" data-boss-token-cost="{{.Cost}}" onclick="abyssBossVendorBuy('{{.Key}}',this)" {{if lt $.Stats.BossTokens .Cost}}disabled{{end}}>🏆 {{.Cost}}</button>
+    </article>
+    {{end}}
+  </div>
+</section>
+<script>
+function setBossTokens(value){
+  value=Math.max(0,Number(value)||0);
+  var balance=document.getElementById('bossTokenBalance');if(balance)balance.textContent=fmtNum(value);
+  document.querySelectorAll('#abyssBossVendor [data-boss-token-cost]').forEach(function(button){button.disabled=value<(Number(button.dataset.bossTokenCost)||0);});
+}
+async function abyssBossVendorBuy(item,button){
+  button.disabled=true;
+  var result=await abPost('/api/abyss/boss_vendor/buy',{item:item});
+  if(!result.ok){abToast(result.error||'Trophy purchase failed.',false);button.disabled=false;return;}
+  setBossTokens(result.boss_tokens);
+  setTokens(result.tokens);
+  Object.keys(result.materials||{}).forEach(function(id){var node=document.getElementById('mat-'+id);if(node)node.textContent=fmtNum(result.materials[id]);});
+  abToast(result.msg,true);
+  setTimeout(function(){location.reload();},500);
+}
+</script>
+{{end}}

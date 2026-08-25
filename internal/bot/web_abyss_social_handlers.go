@@ -211,7 +211,8 @@ func (s *WebServer) handleAbyssWeeklyBossStrike(w http.ResponseWriter, r *http.R
 		return
 	}
 	defer tx.Rollback()
-	week, name := abyssWeeklyBossDefinition(time.Now())
+	now := time.Now()
+	week, name := abyssWeeklyBossDefinition(now)
 	if _, err := tx.Exec(`INSERT INTO abyss_weekly_bosses (week_key,boss_name,max_hp,current_hp)
 		VALUES ($1,$2,$3,$3) ON CONFLICT (week_key) DO NOTHING`, week, name, abyssWeeklyBossHP); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -219,8 +220,8 @@ func (s *WebServer) handleAbyssWeeklyBossStrike(w http.ResponseWriter, r *http.R
 	}
 	var hp, maxHP int64
 	var defeated sql.NullTime
-	if tx.QueryRow("SELECT current_hp,max_hp,defeated_at FROM abyss_weekly_bosses WHERE week_key=$1 FOR UPDATE", week).
-		Scan(&hp, &maxHP, &defeated) != nil {
+	if tx.QueryRow("SELECT boss_name,current_hp,max_hp,defeated_at FROM abyss_weekly_bosses WHERE week_key=$1 FOR UPDATE", week).
+		Scan(&name, &hp, &maxHP, &defeated) != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -228,14 +229,10 @@ func (s *WebServer) handleAbyssWeeklyBossStrike(w http.ResponseWriter, r *http.R
 		writeJSON(w, map[string]any{"ok": false, "error": "the weekly server boss is already defeated"})
 		return
 	}
+	drop := abyssWeeklyBossDropFor(name, week, uid, now)
+	damage, drop = applyAbyssWorldBossWeekendReward(now, damage, drop)
 	damage = min(damage, hp)
-	loot := "2 Abyssal Dust"
-	material, amount := "dust", 2
-	if damage%10 == 0 {
-		loot, material, amount = "1 Abyssal Core", "core", 1
-	} else if damage%5 == 0 {
-		loot, material, amount = "1 Abyssal Shard", "shard", 1
-	}
+	loot := abyssWeeklyBossDropLabel(drop)
 	result, err := tx.Exec(`INSERT INTO abyss_weekly_boss_contributions
 		(week_key,client_uid,damage,loot_label) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`, week, uid, damage, loot)
 	if err != nil {
@@ -246,7 +243,7 @@ func (s *WebServer) handleAbyssWeeklyBossStrike(w http.ResponseWriter, r *http.R
 		writeJSON(w, map[string]any{"ok": false, "error": "you already contributed today"})
 		return
 	}
-	if err := grantMaterialQ(tx, uid, material, amount); err != nil {
+	if err := grantMaterialQ(tx, uid, drop.Material, drop.Amount); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

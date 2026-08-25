@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS abyss_boss_kills_tier_boss_player_time_idx;

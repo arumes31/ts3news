@@ -387,7 +387,10 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 	// `user_gears` table (with no such columns) and silently granted nothing.
 	if allocatedMap[treeNodeSetResonance] {
 		setCount := map[string]int{}
-		for _, g := range b.getEquippedItems(uid) {
+		for slot, g := range b.getEquippedItems(uid) {
+			if content.IsPetGearSlot(slot) {
+				continue
+			}
 			if sid := g.EffectiveSetID(); sid != "" {
 				setCount[sid]++
 			}

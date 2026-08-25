@@ -224,6 +224,22 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		}
 		return false
 	}
+	// Named rares always seal their catalogued signature relic before ordinary
+	// focus and rarity rolls, so even XP focus cannot erase the promised drop.
+	if label, grant, ok := abyssNamedRareDrop(mob.Name); ok {
+		add(label, grant)
+	}
+	if reward, ok := abyssTreasureGoblinSignature(mob.Name); ok {
+		if reward.RunKey {
+			if err := b.grantAbyssRunVaultKey(uid); err != nil {
+				log.Printf("abyss key goblin reward failed for %s: %v", uid, err)
+			} else {
+				labels = append(labels, reward.Label)
+			}
+		} else {
+			add(reward.Label, reward.Grant)
+		}
+	}
 
 	// processGear applies the shared post-roll treatment to a gear drop — dynamic
 	// stat scaling (all stats, MNA included), unidentified chance, sockets and the
@@ -791,7 +807,7 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 	case "ultimate":
 		b.grantAbyssUltimate(uid, g.UltID)
 	case "unique":
-		b.grantAbyssUnique(uid, g.UniqName, g.UniqRar, g.UniqPow)
+		return b.grantAbyssUnique(uid, g.UniqName, g.UniqRar, g.UniqPow)
 	case "gold":
 		if g.Gold > 0 {
 			if _, err := b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", g.Gold, uid); err != nil {
@@ -841,24 +857,13 @@ func (b *Bot) grantAbyssUltimate(uid, ultID string) {
 	_ = b.activateUltimateIfSlotFree(uid, ultID)
 }
 
-// grantAbyssUnique awards a unique item, ignoring exact duplicates.
-func (b *Bot) grantAbyssUnique(uid, name string, rarity content.Rarity, power float64) {
+// grantAbyssUnique awards a unique item, ignoring exact duplicates. The table's
+// insert trigger owns unique_items_count, so this path must not increment it.
+func (b *Bot) grantAbyssUnique(uid, name string, rarity content.Rarity, power float64) error {
 	if name == "" {
-		return
+		return nil
 	}
-	var exists bool
-	if err := b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_unique_items WHERE client_uid=$1 AND item_name=$2)", uid, name).Scan(&exists); err != nil {
-		log.Printf("abyss unique grant check failed for %s (%s): %v", uid, name, err)
-		return
-	}
-	if exists {
-		return
-	}
-	if _, err := b.DB.Exec("INSERT INTO user_unique_items (client_uid, item_name, rarity, power) VALUES ($1, $2, $3, $4)", uid, name, rarity, power); err != nil {
-		log.Printf("abyss unique grant failed for %s (%s): %v", uid, name, err)
-		return
-	}
-	if _, err := b.DB.Exec("UPDATE users SET unique_items_count = unique_items_count + 1 WHERE client_uid=$1", uid); err != nil {
-		log.Printf("abyss unique count update failed for %s (%s): %v", uid, name, err)
-	}
+	_, err := b.DB.Exec(`INSERT INTO user_unique_items (client_uid,item_name,rarity,power)
+		VALUES ($1,$2,$3,$4) ON CONFLICT (client_uid,item_name) DO NOTHING`, uid, name, rarity, power)
+	return err
 }
