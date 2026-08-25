@@ -31,6 +31,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_vendor.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_lore.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_world_boss.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_watcher_pressure.css"}}">
 <div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 <div class="abyss-hero">
@@ -189,6 +190,15 @@
       <span class="ab-map-forecast">🗺️ F{{.EventIntel.NextDepth}} · {{if .EventIntel.EventLabel}}{{.EventIntel.EventLabel}}{{else}}charted anomaly{{end}}</span>
       {{end}}
     </div>
+    {{if .Watcher.Active}}
+    <div class="ab-watcher-pressure {{if ge .Watcher.Percent 100}}is-armed{{end}}" id="abyssWatcherPressure" data-deadline="{{.Watcher.DeadlineUnixMilli}}" data-now="{{.Watcher.NowUnixMilli}}" data-threshold="{{.Watcher.ThresholdSeconds}}" aria-label="The Watcher stalking pressure">
+      <div class="ab-watcher-pressure-head"><span>👁 The Watcher</span><span id="watcherPressurePercent">{{.Watcher.Percent}}%</span></div>
+      <div class="ab-watcher-pressure-track" role="progressbar" aria-label="Watcher stalking pressure" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{.Watcher.Percent}}">
+        <div class="ab-watcher-pressure-fill" id="watcherPressureFill" style="width:{{.Watcher.Percent}}%"></div>
+      </div>
+      <div class="ab-watcher-pressure-status" id="watcherPressureStatus">{{if ge .Watcher.Percent 100}}AMBUSH ARMED · next descent{{else}}Stalking · strikes in {{.Watcher.Countdown}}{{end}}</div>
+    </div>
+    {{end}}
     {{end}}
     <!-- Floor trail mini-map (UX-34): last floors + distance to the next boss -->
     <div class="ab-depthrail" id="depthRail" aria-hidden="true"></div>
@@ -5855,6 +5865,40 @@ function renderTierRisk(){
   updateBrandProgress();
   updateSwapCards();
   updateInfusePreview();
+})();
+
+(function initWatcherPressure(){
+  var root=document.getElementById('abyssWatcherPressure');
+  if(!root)return;
+  var fill=document.getElementById('watcherPressureFill');
+  var percentLabel=document.getElementById('watcherPressurePercent');
+  var status=document.getElementById('watcherPressureStatus');
+  var track=root.querySelector('[role="progressbar"]');
+  var deadline=Number(root.dataset.deadline)||0;
+  var serverNow=Number(root.dataset.now)||0;
+  var threshold=Math.max(1,Number(root.dataset.threshold)||900);
+  var baseTick=window.performance&&performance.now?performance.now():Date.now();
+  function clockNow(){
+    var tick=window.performance&&performance.now?performance.now():Date.now();
+    return serverNow+(tick-baseTick);
+  }
+  function clock(seconds){
+    var minutes=Math.floor(seconds/60);
+    return String(minutes).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
+  }
+  function update(){
+    var remaining=Math.max(0,Math.ceil((deadline-clockNow())/1000));
+    var percent=Math.max(0,Math.min(100,Math.floor((threshold-remaining)*100/threshold)));
+    fill.style.width=percent+'%';
+    percentLabel.textContent=percent+'%';
+    track.setAttribute('aria-valuenow',String(percent));
+    root.classList.toggle('is-armed',remaining===0);
+    status.textContent=remaining===0?'AMBUSH ARMED · next descent':'Stalking · strikes in '+clock(remaining);
+    return remaining;
+  }
+  if(update()>0){
+    var timer=window.setInterval(function(){if(update()===0)window.clearInterval(timer);},1000);
+  }
 })();
 
 // ======================= UI-200 batch 3 (UI-116 .. UI-200) =======================

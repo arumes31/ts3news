@@ -197,6 +197,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0213 / 213** — the shared weekly boss enters a visible Saturday–Sunday UTC raid surge that transactionally doubles both strike damage and immediate material quantity.
 - [x] **AAA-0214 / 214** — treasure encounters roll visible Gem, Token, or Key Goblins with guaranteed Prism, token, or atomic in-run vault-key rewards alongside the existing fleeing haul.
 - [x] **AAA-0215 / 215** — surviving three actual mimic bites awakens a non-deferable Mimic King showdown whose bounded final bite atomically seals a unique crown and resets the run chain.
+- [x] **AAA-0216 / 216** — active delvers see a server-derived Watcher stalking meter count down to the authoritative 15-minute ambush threshold and clearly announce when the next descent is compromised.
 
 ## Active tranche: operational quality and client performance
 

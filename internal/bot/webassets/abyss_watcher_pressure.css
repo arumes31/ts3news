@@ -1,0 +1,61 @@
+.ab-watcher-pressure {
+  width: min(100%, 18rem);
+  margin-top: .65rem;
+  padding: .55rem .65rem;
+  border: 1px solid color-mix(in srgb, #9d7cff 42%, var(--border));
+  border-radius: .55rem;
+  background: linear-gradient(135deg, rgb(20 15 35 / 92%), rgb(8 13 24 / 96%));
+  box-shadow: inset 0 0 1.25rem rgb(112 76 210 / 10%);
+}
+
+.ab-watcher-pressure-head,
+.ab-watcher-pressure-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .65rem;
+}
+
+.ab-watcher-pressure-head {
+  color: #d9ccff;
+  font: 700 .69rem/1.2 var(--font-mono, monospace);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.ab-watcher-pressure-track {
+  height: .38rem;
+  margin: .4rem 0 .32rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 8%);
+}
+
+.ab-watcher-pressure-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6652a8, #aa66ff 72%, #ff4f87);
+  box-shadow: 0 0 .75rem rgb(170 102 255 / 55%);
+  transition: width .35s linear;
+}
+
+.ab-watcher-pressure-status {
+  color: var(--muted);
+  font-size: .68rem;
+}
+
+.ab-watcher-pressure.is-armed {
+  border-color: #ff4f87;
+  box-shadow: inset 0 0 1.25rem rgb(255 79 135 / 14%), 0 0 1rem rgb(255 79 135 / 12%);
+}
+
+.ab-watcher-pressure.is-armed .ab-watcher-pressure-status {
+  color: #ff9dbc;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-watcher-pressure-fill {
+    transition: none;
+  }
+}

@@ -1496,6 +1496,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	longTerm := s.bot.abyssLongTermStatus(uid, run, history, st.BestDepth, pity)
 	coreLoop := s.bot.abyssCoreLoopStatus(uid, run)
 	eventIntel := s.bot.abyssEventIntel(uid, run)
+	watcherPressure := abyssWatcherPressure(run, time.Now())
 	dropForecast, dropForecastOK := s.bot.abyssNextFloorForecast(uid)
 	celestialPity := s.bot.abyssCelestialPity(uid)
 	treeUnspent := 0
@@ -1522,6 +1523,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Social":              s.bot.abyssSocialHub(uid, st.AbyssPrestige),
 		"CoreLoop":            coreLoop,
 		"EventIntel":          eventIntel,
+		"Watcher":             watcherPressure,
 		"DropForecast":        dropForecast,
 		"DropForecastOK":      dropForecastOK,
 		"DeferredEvent":       s.bot.abyssDeferredEventView(uid, run),
@@ -2120,7 +2122,7 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 
 	// Forced floors bypass the choice picker entirely: the Watcher Stalker
 	// ambush trigger (Item #67) and boss floors are never optional.
-	if !run.LastActionAt.IsZero() && time.Since(run.LastActionAt) > abyssWatcherIdle && run.Depth > 0 {
+	if abyssWatcherAmbushDue(run, time.Now()) {
 		s.commitFloor(w, uid, run, newDepth, "combat", "watcher", "", tier, focus, req.Interactive)
 		return
 	}
@@ -2288,7 +2290,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		modifier := ""
 		eventState := ""
 
-		if !run.LastActionAt.IsZero() && time.Since(run.LastActionAt) > abyssWatcherIdle && run.Depth > 0 {
+		if abyssWatcherAmbushDue(run, time.Now()) {
 			modifier = "watcher"
 		} else if newDepth%abyssBossEvery == 0 || abyssPactBossFloor(runPacts, newDepth) {
 			// Boss floors are never optional.
