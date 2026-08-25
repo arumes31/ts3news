@@ -16,6 +16,7 @@ type abyssHUDPageState struct {
 	Jackpot             int64
 	Pacts               []abyssPact
 	IntelConcealed      bool
+	Contract            *abyssContractPactView
 }
 
 func abyssHUDPacts(keys []string) []abyssPact {
@@ -58,8 +59,10 @@ func (b *Bot) abyssHUDPageState(uid string, run abyssRun, st abyssStats, equippe
 		state.EscrowPerFloor = run.Escrow / int64(floors)
 	}
 	runPacts := b.abyssRunPacts(uid)
-	state.Pacts = abyssVisiblePacts(runPacts, b.loadRunFlags(uid))
+	runFlags := b.loadRunFlags(uid)
+	state.Pacts = abyssVisiblePacts(runPacts, runFlags)
 	state.IntelConcealed = abyssHasPact(runPacts, "blind")
+	state.Contract = abyssContractViewFromFlags(runFlags, run.Depth)
 	return state
 }
 

@@ -319,6 +319,13 @@
         <input type="checkbox" id="suppressDailyAffix"> 🧿 Suppress daily affix
         <span class="muted small">(uses 1 Affix Suppressor · this run only)</span>
       </label>
+      <label class="ab-pact">📜 Contract pact
+        <select id="contractPact" class="ab-select" title="Contracts add +20% floor cache while their clause remains valid. A failed clause forfeits 25% of the bank payout.">
+          <option value="">No contract</option>
+          <option value="flawless">Flawless Clause · take no damage</option>
+          <option value="checkpoint">Checkpoint Clause · reach the next checkpoint</option>
+        </select>
+      </label>
       <div class="muted small ab-community-expedition" title="Every cleared weekly-expedition floor contributes to this shared weekly objective.">
         <span>🌐 Community expedition {{index .CommunityExpedition "Week"}}: {{index .CommunityExpedition "Floors"}} / {{index .CommunityExpedition "Target"}} floors</span>
         <progress value="{{index .CommunityExpedition "Percent"}}" max="100" aria-label="Community expedition progress"></progress>
@@ -1243,6 +1250,7 @@ var forgeUIState = null, forgeUIStateReceivedAt = 0, abyssSetupState = null;
 var abyssJackpot = {{.HUD.Jackpot}}; // UI-57
 var jackpotPulse = false, jackpotPulseTimer = 0;
 var activeRunPacts = {{jsonJS .HUD.Pacts}} || []; // UI-52
+var activeContractPact = {{jsonJS .HUD.Contract}};
 var abyssIntelConcealed = {{.HUD.IntelConcealed}};
 if(abyssIntelConcealed)document.body.classList.add('ab-pact-blind');
 var focusPreference = '{{.FocusPreference}}', currentFocus = '{{.AutoFocus}}'; // UI-51
@@ -2629,6 +2637,7 @@ function renderHudChipsNow(){
     activeRunPacts.forEach(function(pact){
       chips.push(['⚔️ '+pact.Label,'pact',false,pact.Desc+' Reward +'+Math.round(Number(pact.Reward)*100)+'%; danger +'+Math.round(Math.max(0,Number(pact.Danger)-1)*100)+'%.']);
     });
+    if(activeContractPact)chips.push(['📜 '+activeContractPact.label,activeContractPact.failed?'warn':'good',false,activeContractPact.desc+(activeContractPact.failed?' Clause failed: 25% bank forfeiture applies.':' Clause intact: +20% floor cache.')]);
     // UI-55: show Last Stand readiness before a defeat makes the choice urgent.
     if(canLastStand){ var ls=document.getElementById('lsCost'); chips.push(['🛡️ Last Stand ready · 🜲 '+(ls?ls.textContent:'?'),downed?'warn':'']); }
     // UI-56: comeback buff indicator (server renders .ab-comeback-note).
@@ -2921,9 +2930,10 @@ async function abyssEnter(consumables){
   var veteran=document.getElementById('veteranTrack');
   var lootRule=document.getElementById('partyLootRule');
   var suppressAffix=document.getElementById('suppressDailyAffix');
+  var contractPact=document.getElementById('contractPact');
   var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),hardcore:!!(hardcore&&hardcore.checked),hybrid:!!(hybrid&&hybrid.checked),
     kit:kit?kit.value:'vanguard', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
-    loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto', suppress_affix:!!(suppressAffix&&suppressAffix.checked)};
+    loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto', suppress_affix:!!(suppressAffix&&suppressAffix.checked), contract:contractPact?contractPact.value:''};
   if(body.hardcore && !(await confirmModalDangerous('Begin a Hardcore run? Grace floors, insurance, revival items, Last Stand, and revival gambles are disabled. Cleared-floor cache rewards are doubled and the run enters the Hardcore leaderboard.',{title:'Begin Hardcore',okLabel:'Enter Hardcore'}))){
     setBusy(false);
     return;
@@ -3504,6 +3514,7 @@ async function abyssBank(percent){
     (p.partial?row('Partial-bank fee −10%','−'+fmtGold(p.partial_fee)):'')+
     (p.frantic_fee?row('🫀 Frantic fee below 15% HP','−'+fmtGold(p.frantic_fee)):'')+
 	(p.perfect_bonus?row('✨ Perfect-run bonus +25%','+'+fmtGold(p.perfect_bonus)):'')+
+	(p.contract_forfeit?row('📜 Failed contract forfeiture −25%','−'+fmtGold(p.contract_forfeit)):'')+
 	(p.raffle_fee?row('🎟️ Bankers’ raffle contribution −1%','−'+fmtGold(p.raffle_fee)):'')+
     pactMath(p.pact_breakdown)+
     row('Estimated payout', '<span style="color:var(--gold)">'+fmtGold(p.payout)+'</span>')+
@@ -3546,6 +3557,7 @@ async function abyssBankCommit(cursed,percent,safeWord,doubleBank){
 	if(d.checkpoint_refund)msg+=' 🜲 Checkpoint refund +'+d.checkpoint_refund+'.';
 	if(d.pact_tokens_grant)msg+=' ⚔️ Pact-risk tokens +'+d.pact_tokens_grant+'.';
 	if(d.mystery_reveal)msg+=' 🎭 Mystery revealed: '+d.mystery_reveal.label+'.';
+	if(d.contract_forfeit)msg+=' 📜 Failed contract forfeiture −'+fmtGold(d.contract_forfeit)+'.';
 	if(d.cap_tax)msg+=' 💸 Abyss tax −'+fmtGold(d.cap_tax)+' (fed the deep-cache jackpot).';
   if(d.frantic_fee)msg+=' 🫀 Frantic fee −'+fmtGold(d.frantic_fee)+'.';
   if(d.next_echo_seed)msg+=' ↩️ Next run begins with '+fmtGold(d.next_echo_seed)+' echo cache.';

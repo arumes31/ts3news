@@ -60,9 +60,10 @@ function captureAbyssEntrySetup(){
   var kit=document.getElementById('buildKit'),mutation=document.getElementById('buildMutation'),loot=document.getElementById('partyLootRule');
   var focus=document.getElementById('entryFocus');
   var veteran=document.getElementById('veteranTrack');
+  var contract=document.getElementById('contractPact');
   return {tier:selectedTier(),pacts:selectedPacts(),start:start?start.value:'',checkpoint:checkpoint?(Number(checkpoint.value)||0):0,
     kit:kit?kit.value:'vanguard',mutation:mutation?mutation.value:'empowered',loot_rule:loot?loot.value:'owner',veteran_track:veteran?veteran.value:'',
-    focus:focus?focus.value:'auto',
+    focus:focus?focus.value:'auto',contract:contract?contract.value:'',
     expedition:!!(document.getElementById('weeklyExpedition')&&document.getElementById('weeklyExpedition').checked),
     hardcore:!!(document.getElementById('hardcoreMode')&&document.getElementById('hardcoreMode').checked),
     hybrid:!!(document.getElementById('hybridMode')&&document.getElementById('hybridMode').checked)};
@@ -84,7 +85,7 @@ function restoreAbyssEntrySetup(){
   if(start&&!start.disabled)start.checked=true;
   var checkpoint=document.getElementById('checkpointSel');
   if(checkpoint&&saved.checkpoint&&Array.prototype.some.call(checkpoint.options,function(option){return option.value===String(saved.checkpoint)&&!option.disabled;}))checkpoint.value=String(saved.checkpoint);
-  [['buildKit','kit'],['buildMutation','mutation'],['partyLootRule','loot_rule'],['veteranTrack','veteran_track'],['entryFocus','focus']].forEach(function(pair){
+  [['buildKit','kit'],['buildMutation','mutation'],['partyLootRule','loot_rule'],['veteranTrack','veteran_track'],['entryFocus','focus'],['contractPact','contract']].forEach(function(pair){
     var select=document.getElementById(pair[0]);if(!select||saved[pair[1]]===undefined)return;
     if(Array.prototype.some.call(select.options,function(option){return option.value===String(saved[pair[1]]);}))select.value=String(saved[pair[1]]);
   });

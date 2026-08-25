@@ -1681,6 +1681,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		LootRule      string         `json:"loot_rule"`      // party reward settlement selected before entry
 		VeteranTrack  string         `json:"veteran_track"`  // optional cosmetic challenge, unlocked at depth 50
 		SuppressAffix bool           `json:"suppress_affix"` // consume one Affix Suppressor for this run
+		Contract      string         `json:"contract"`       // optional mid-run failure contract
 	}
 	// Reject malformed JSON outright: a garbled body would silently decode to the
 	// zero-value request (Normal tier, no pacts, no loadout). An absent/empty body
@@ -1764,6 +1765,10 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 			writeJSON(w, map[string]any{"ok": false, "error": "unknown veteran challenge track"})
 			return
 		}
+	}
+	if contract, _ := normalizeAbyssContractPact(req.Contract); req.Contract != "" && contract == "" {
+		writeJSON(w, map[string]any{"ok": false, "error": "unknown contract pact"})
+		return
 	}
 
 	// Reject entering while a run is already active (no free heal/reset).
@@ -1970,6 +1975,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	if req.SuppressAffix {
 		flags[abyssRunFlagDailyAffix] = -1
 	}
+	seedAbyssContractPact(flags, req.Contract, startDepth)
 	if mysteryPactFlag > 0 {
 		flags[abyssRunFlagMysteryPact] = mysteryPactFlag
 	}
@@ -2021,6 +2027,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		Expedition:   req.Expedition,
 		Hardcore:     req.Hardcore,
 		Hybrid:       req.Hybrid,
+		Contract:     req.Contract,
 	}); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -2880,6 +2887,7 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 		pacts, mastery, dailyMod, time.Now().UTC(), runFlags[abyssRunFlagMysteryPact] > 0,
 	)
 	bonus = int64(float64(bonus) * pactRewards.Multiplier)
+	bonus = int64(float64(bonus) * applyAbyssContractFloor(runFlags, untouched))
 	if abyssHybridSurge(runFlags[abyssRunFlagHybrid] == 1, depth) {
 		bonus = int64(float64(bonus) * abyssHybridRewardMultiplier(tier))
 	}
@@ -3050,6 +3058,7 @@ func (s *WebServer) applyFloorDefeat(uid string, run abyssRun) (canRevive bool) 
 	flags[abyssRunFlagDeathWish] = 0
 	flags[abyssRunFlagDefensiveMomentum] = 0
 	flags[abyssRunFlagPerfect] = 0
+	failAbyssContractOnDefeat(flags)
 	if flags[abyssRunFlagColdMuscles] > 0 {
 		flags[abyssRunFlagColdMuscles]--
 	}
@@ -3455,6 +3464,8 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		perfectBonus = payout / 4
 		payout += perfectBonus
 	}
+	contractForfeit := abyssContractForfeit(payout, runFlags, run.Depth, partial)
+	payout -= contractForfeit
 	raffleFee := int64(0)
 	if !partial && payout > 0 {
 		raffleFee = payout / 100
@@ -3522,6 +3533,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			"streak_bonus": streakBonus, "streak_bonus_pct": streakBonusPct, "cursed_bonus": cursedBonus,
 			"partial": partial, "percent": req.Percent, "partial_fee": partialFee, "frantic_fee": franticFee,
 			"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee, "loan_fee": loanFeeCharged,
+			"contract": abyssContractViewFromFlags(runFlags, run.Depth), "contract_forfeit": contractForfeit,
 			"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
 			"remaining_escrow": remainingEscrow, "requires_safe_word": requiresSafeWord,
 			"payout": estPayout, "capped": capped, "cap_remaining": capRemaining, "cap_tax": estTax,
@@ -3545,6 +3557,12 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
+	if contractForfeit > 0 {
+		if _, err := tx.Exec("UPDATE arcade_jackpots SET amount=amount+$1, updated_at=NOW() WHERE game_key='abyss'", contractForfeit); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
 
 	// Apply the per-day gold tax inside the transaction so the day counter and
 	// the jackpot feed are only consumed if the gold credit and the rest of the
@@ -3716,6 +3734,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		"mult_bonus": depthBonus + streakBonus + cursedBonus,
 		"partial":    partial, "percent": req.Percent, "partial_fee": partialFee, "frantic_fee": franticFee,
 		"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee, "loan_fee": loanFeeCharged,
+		"contract": abyssContractViewFromFlags(runFlags, run.Depth), "contract_forfeit": contractForfeit,
 		"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
 		"base_tokens_grant": baseTokens, "pact_tokens_grant": pactTokens, "tokens_grant": tokensGrant,
 		"remaining_escrow": remainingEscrow, "next_echo_seed": nextEchoSeed,
@@ -5111,6 +5130,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 		pacts, mastery, dailyMod, time.Now().UTC(), runFlags[abyssRunFlagMysteryPact] > 0,
 	)
 	bonus = int64(float64(bonus) * pactRewards.Multiplier)
+	bonus = int64(float64(bonus) * abyssContractNonCombatRewardMult(runFlags))
 	if _, weekly := abyssWeeklyRuleFromFlags(runFlags); weekly {
 		bonus = bonus * 5 / 4
 	}
