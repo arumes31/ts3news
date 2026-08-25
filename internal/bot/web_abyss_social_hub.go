@@ -87,6 +87,8 @@ type abyssWeeklyBossView struct {
 	Damage       int64
 	Contributors int
 	Defeated     bool
+	WeekendSurge bool
+	Multiplier   int
 }
 
 type abyssNotificationView struct {
@@ -335,8 +337,12 @@ func abyssWeeklyBossDefinition(now time.Time) (string, string) {
 }
 
 func (b *Bot) abyssWeeklyBossStatus(uid string) abyssWeeklyBossView {
-	week, name := abyssWeeklyBossDefinition(time.Now())
-	view := abyssWeeklyBossView{Week: week, Name: name, HP: abyssWeeklyBossHP, MaxHP: abyssWeeklyBossHP, Percent: 100}
+	now := time.Now()
+	week, name := abyssWeeklyBossDefinition(now)
+	view := abyssWeeklyBossView{
+		Week: week, Name: name, HP: abyssWeeklyBossHP, MaxHP: abyssWeeklyBossHP, Percent: 100,
+		WeekendSurge: abyssWorldBossWeekend(now), Multiplier: abyssWorldBossStrikeMultiplier(now),
+	}
 	var defeated sql.NullTime
 	_ = b.DB.QueryRow(`SELECT boss_name,current_hp,max_hp,defeated_at FROM abyss_weekly_bosses WHERE week_key=$1`, week).
 		Scan(&view.Name, &view.HP, &view.MaxHP, &defeated)

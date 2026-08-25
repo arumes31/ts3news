@@ -1182,6 +1182,22 @@
     ],
     "verification": [
 	  "internal/bot/abyss_boss_lore_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [213],
+    "production": [
+      "internal/bot/abyss_world_boss_weekend.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/web_abyss_social_handlers.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_social.html",
+      "internal/bot/webassets/abyss_world_boss.css"
+    ],
+    "verification": [
+	  "internal/bot/abyss_world_boss_weekend_test.go",
 	  "internal/bot/web_abyss_release_guards_test.go"
     ]
   }

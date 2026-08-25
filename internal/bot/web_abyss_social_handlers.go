@@ -229,8 +229,9 @@ func (s *WebServer) handleAbyssWeeklyBossStrike(w http.ResponseWriter, r *http.R
 		writeJSON(w, map[string]any{"ok": false, "error": "the weekly server boss is already defeated"})
 		return
 	}
-	damage = min(damage, hp)
 	drop := abyssWeeklyBossDropFor(name, week, uid, now)
+	damage, drop = applyAbyssWorldBossWeekendReward(now, damage, drop)
+	damage = min(damage, hp)
 	loot := abyssWeeklyBossDropLabel(drop)
 	result, err := tx.Exec(`INSERT INTO abyss_weekly_boss_contributions
 		(week_key,client_uid,damage,loot_label) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`, week, uid, damage, loot)
