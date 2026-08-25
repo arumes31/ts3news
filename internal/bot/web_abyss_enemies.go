@@ -151,6 +151,10 @@ func (b *Bot) prepareAbyssEnemies(
 		})
 		logs = append(logs, fmt.Sprintf("☠️ %s has returned as your nemesis (victories: %d).", nemesis.Name, nemesis.Victories))
 	}
+	if empowered, auraLog := applyScheduledAbyssEliteAura(depth, mobs); auraLog != "" {
+		mobs = empowered
+		logs = append(logs, auraLog)
+	}
 
 	factionCounts := make(map[string]int)
 	eliteCount := 0

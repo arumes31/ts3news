@@ -1068,5 +1068,16 @@
     "verification": [
       "internal/bot/web_abyss_boss_social_test.go"
     ]
+  },
+  {
+    "ids": [204],
+    "production": [
+      "internal/bot/web_abyss_elite_auras.go",
+      "internal/bot/web_abyss_enemies.go",
+      "internal/bot/web_abyss.go"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_enemies_test.go"
+    ]
   }
 ]

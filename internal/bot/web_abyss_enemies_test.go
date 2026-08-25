@@ -85,6 +85,46 @@ func TestPrepareAbyssEnemiesAddsMechanicalVariety(t *testing.T) {
 	}
 }
 
+func TestScheduledAbyssEliteAuraPromotesCarrierEveryThirdFloor(t *testing.T) {
+	t.Parallel()
+
+	base := []content.Mob{
+		{Name: "Scout", Type: content.MobCommon, Stats: content.Stats{HP: 100, STR: 20, DEF: 10, SPD: 5}},
+		{Name: "Brute", Type: content.MobCommon, Stats: content.Stats{HP: 200, STR: 30, DEF: 20, SPD: 4}},
+	}
+	unchanged, log := applyScheduledAbyssEliteAura(5, append([]content.Mob(nil), base...))
+	if log != "" || unchanged[1].Type != content.MobCommon {
+		t.Fatalf("non-third floor received elite aura: %q, %#v", log, unchanged)
+	}
+
+	empowered, log := applyScheduledAbyssEliteAura(6, append([]content.Mob(nil), base...))
+	if empowered[1].Type != content.MobElite || empowered[1].Stats.DEF != 22 {
+		t.Fatalf("scheduled carrier = %#v", empowered[1])
+	}
+	if empowered[0].Stats.DEF != 11 || !strings.Contains(log, "Iron Canticle") || !strings.Contains(log, "+10% DEF") {
+		t.Fatalf("scheduled aura did not empower pack: %#v, %q", empowered, log)
+	}
+	foundArmored := false
+	for _, effect := range empowered[1].Effects {
+		foundArmored = foundArmored || effect == content.EffectArmored
+	}
+	if !foundArmored {
+		t.Fatal("elite aura carrier is missing its visible affix")
+	}
+}
+
+func TestScheduledAbyssEliteAurasRotate(t *testing.T) {
+	t.Parallel()
+
+	want := map[int]string{3: "Blood Chorus", 6: "Iron Canticle", 9: "Gale Hymn", 12: "Blood Chorus"}
+	for depth, name := range want {
+		aura, ok := abyssEliteAuraForDepth(depth)
+		if !ok || aura.Name != name {
+			t.Errorf("depth %d aura = %#v, %v; want %q", depth, aura, ok, name)
+		}
+	}
+}
+
 func TestAbyssBreakAndBossAdaptation(t *testing.T) {
 	mob := &content.Mob{
 		Name:     "Boss",

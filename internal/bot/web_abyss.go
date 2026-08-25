@@ -983,6 +983,9 @@ func (b *Bot) fightAbyssFloorLive(
 		var enemySystemLogs []string
 		mobs, enemySystemLogs = b.prepareAbyssEnemies(uid, depth, mobs, encounterRandom)
 		logs = append(logs, enemySystemLogs...)
+	} else if empowered, auraLog := applyScheduledAbyssEliteAura(depth, mobs); auraLog != "" {
+		mobs = empowered
+		logs = append(logs, auraLog)
 	}
 	if dailyMod == "enraged_mobs" || abyssPactsEnrage(pacts) || weeklyRule.Key == "elite_surge" {
 		for i := range mobs {
