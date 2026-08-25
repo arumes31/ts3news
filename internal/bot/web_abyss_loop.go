@@ -12,6 +12,7 @@ package bot
 // here runs under the per-uid Abyss lock (lockAbyss).
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
@@ -138,7 +139,7 @@ func (b *Bot) killerExpBonusTenths(uid string, mobs []content.Mob) int {
 	exp := b.loadKillerExp(uid)
 	best := 0
 	for _, m := range mobs {
-		if v := exp[m.Name]; v > best {
+		if v := exp[string(m.Type)]; v > best {
 			best = v
 		}
 	}
@@ -146,15 +147,23 @@ func (b *Bot) killerExpBonusTenths(uid string, mobs []content.Mob) int {
 }
 
 // bumpKillerExp records a death: +0.1% permanent damage vs each killer's family.
-func (b *Bot) bumpKillerExp(uid string, mobNames []string) {
-	if len(mobNames) == 0 {
+func (b *Bot) bumpKillerExp(uid string, families []string) {
+	if len(families) == 0 {
 		return
 	}
 	exp := b.loadKillerExp(uid)
 	changed := false
-	for _, n := range mobNames {
-		if exp[n] < abyssKillerExpCap {
-			exp[n]++
+	seen := make(map[string]struct{}, len(families))
+	for _, family := range families {
+		if family == "" {
+			continue
+		}
+		if _, duplicate := seen[family]; duplicate {
+			continue
+		}
+		seen[family] = struct{}{}
+		if exp[family] < abyssKillerExpCap {
+			exp[family]++
 			changed = true
 		}
 	}
@@ -408,7 +417,12 @@ func (b *Bot) abyssRafflePot() int64 {
 // banks on never disturbs older pots. Returns the winnings when the caller won.
 func (b *Bot) abyssRaffleSettle(uid string) int64 {
 	yesterday := abyssRaffleDay(time.Now().Add(-24 * time.Hour))
-	res, err := b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, '1')
+	tx, err := b.DB.Begin()
+	if err != nil {
+		return 0
+	}
+	defer func() { _ = tx.Rollback() }()
+	res, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, '1')
 		ON CONFLICT (key) DO NOTHING`, "abyss_raffle_settled_"+yesterday)
 	if err != nil {
 		return 0
@@ -417,13 +431,20 @@ func (b *Bot) abyssRaffleSettle(uid string) int64 {
 		return 0 // already drawn
 	}
 	var s string
-	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_raffle_pot_"+yesterday).Scan(&s)
+	if err := tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_raffle_pot_"+yesterday).Scan(&s); err != nil {
+		if err != sql.ErrNoRows {
+			return 0
+		}
+	}
 	pot, _ := strconv.ParseInt(s, 10, 64)
 	if pot <= 0 {
+		if err := tx.Commit(); err != nil {
+			return 0
+		}
 		return 0
 	}
 	prefix := "abyss_raffle_entry_" + yesterday + "_"
-	rows, err := b.DB.Query("SELECT key FROM app_meta WHERE key LIKE $1", prefix+"%")
+	rows, err := tx.Query("SELECT key FROM app_meta WHERE key LIKE $1 ORDER BY key", prefix+"%")
 	if err != nil {
 		return 0
 	}
@@ -439,7 +460,12 @@ func (b *Bot) abyssRaffleSettle(uid string) int64 {
 		return 0
 	}
 	winner := entrants[rand.IntN(len(entrants))] // #nosec G404 -- non-cryptographic raffle draw
-	_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", pot, winner)
+	if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", pot, winner); err != nil {
+		return 0
+	}
+	if err := tx.Commit(); err != nil {
+		return 0
+	}
 	if winner == uid {
 		return pot
 	}
@@ -499,6 +525,9 @@ func (s *WebServer) handleAbyssDeathWish(w http.ResponseWriter, r *http.Request,
 	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
+	if s.rejectDuringLiveCombat(w, uid) {
+		return
+	}
 
 	var req struct {
 		On bool `json:"on"`
@@ -541,13 +570,17 @@ func (s *WebServer) handleAbyssAnchorRune(w http.ResponseWriter, r *http.Request
 	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
+	if s.rejectDuringLiveCombat(w, uid) {
+		return
+	}
 
 	run := s.bot.loadAbyssRun(uid)
 	if !run.Active || run.Downed {
 		writeJSON(w, map[string]any{"ok": false, "error": "no live run"})
 		return
 	}
-	if s.bot.loadRunFlags(uid)["anchor_rune"] == 1 {
+	flags := s.bot.loadRunFlags(uid)
+	if flags[abyssRunFlagAnchorRune] == 1 {
 		writeJSON(w, map[string]any{"ok": false, "error": "the anchor rune is already set"})
 		return
 	}
@@ -560,11 +593,12 @@ func (s *WebServer) handleAbyssAnchorRune(w http.ResponseWriter, r *http.Request
 	if !deductTokens(w, tx, uid, abyssAnchorRuneCost) {
 		return
 	}
-	if err := tx.Commit(); err != nil {
+	flags[abyssRunFlagAnchorRune] = 1
+	if err := saveRunFlags(tx, uid, flags); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if err := s.bot.setRunFlag(uid, "anchor_rune", 1); err != nil {
+	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

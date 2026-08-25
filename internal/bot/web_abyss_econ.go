@@ -203,8 +203,11 @@ func (b *Bot) taxAbyssDayGold(q dbExecQuerier, uid string, payout int64) (int64,
 // could not be committed (so callers don't report a successful concede/revive on
 // a refund that never landed). [1][62]
 func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund int64, err error) {
-	hardcore := abyssHardcoreRun(b.loadRunFlags(uid))
+	flags := b.loadRunFlags(uid)
+	hardcore := abyssHardcoreRun(flags)
 	policy := planAbyssForfeit(run.Escrow, run.Insured, run.Depth, hardcore)
+	anchorActive := flags[abyssRunFlagAnchorRune] == 1
+	policy.Refund = abyssAnchorRefund(policy.Refund, run.Escrow, anchorActive)
 	refund = policy.Refund
 	remainder := run.Escrow - refund
 
@@ -213,6 +216,12 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund i
 		return 0, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if anchorActive {
+		flags[abyssRunFlagAnchorRune] = 0
+		if err := saveRunFlags(tx, uid, flags); err != nil {
+			return 0, err
+		}
+	}
 
 	if refund > 0 {
 		if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", refund, uid); err != nil {
@@ -372,6 +381,7 @@ var abyssAchievementNames = map[string]string{
 	"bestiary_complete": "Abyss Archivist (Codex Complete)",
 	"prestige_1":  "Reborn (First Abyss Prestige)",
 	"hardcore_depth_10": "Iron Delver (Hardcore Depth 10)",
+	"perfect_run": "Untouchable (Perfect Run)",
 }
 
 // achTier is a count threshold that, once reached, awards an achievement code.
@@ -1199,6 +1209,9 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
+	if s.rejectDuringLiveCombat(w, uid) {
+		return
+	}
 
 	var req struct {
 		Pct int `json:"pct"`
@@ -1207,7 +1220,7 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
-	if req.Pct != 25 && req.Pct != 50 && req.Pct != 75 {
+	if !abyssInsurancePercentValid(req.Pct) {
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid amount"})
 		return
 	}
@@ -1256,11 +1269,22 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	cheapskateTitle := false
+	if abyssCheapskateEligible(cost, run.Escrow) {
+		res, err := s.bot.DB.Exec(`UPDATE users SET title='The Cheapskate', title_mult=1,
+			title_expires=NOW() + INTERVAL '7 days', title_source='abyss'
+			WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())`, uid)
+		if err == nil {
+			rows, rowsErr := res.RowsAffected()
+			cheapskateTitle = rowsErr == nil && rows == 1
+		}
+	}
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	writeJSON(w, map[string]any{
 		"ok": true, "insured": req.Pct, "cost": cost, "gold": gold,
 		"loyalty_discount_pct": loyaltyPct,
+		"cheapskate_title": cheapskateTitle,
 	})
 }
 

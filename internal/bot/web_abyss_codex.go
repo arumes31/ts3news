@@ -75,6 +75,7 @@ var abyssAchievementCatalog = []abyssAchievementView{
 	{Code: "bestiary_complete", Condition: "Complete the 50-species Abyss codex"},
 	{Code: "prestige_1", Condition: "Prestige the Abyss once"},
 	{Code: "hardcore_depth_10", Condition: "Reach depth 10 in Hardcore mode"},
+	{Code: "perfect_run", Condition: "Bank a run after taking no damage"},
 }
 
 func allAbyssAchievementViews() []abyssAchievementView {

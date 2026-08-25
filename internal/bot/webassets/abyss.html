@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_polish.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_longterm.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_core_risk.css"}}">
 <div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 <div class="abyss-hero">
@@ -309,15 +310,13 @@
     {{template "abyssRunAwarenessBelt" .}}
 
     <div class="ab-subrow" id="liveRow" style="display:none">
-      <span id="insuranceControls"><span class="ab-sub-label">{{T "web.abyss.insure_cache"}}</span>
-      <button class="ghost xs" onclick="abyssInsure(25)">25%</button>
-      <button class="ghost xs" onclick="abyssInsure(50)">50%</button>
-      <button class="ghost xs" onclick="abyssInsure(75)">75%</button></span>
+      {{template "abyssCoreInsurance" .}}
       <span class="ab-sub-label">Secure &amp; continue:</span>
       <button class="ghost xs" id="btnBank25" onclick="abyssBank(25)">25%</button>
       <button class="ghost xs" id="btnBank50" onclick="abyssBank(50)">50%</button>
       <label class="ab-cursed" data-tip="Cursed bank: +20% payout when you bank, but a hex saps your combat stats (−15%) for your next 3 fights."><input type="checkbox" id="cursedBank"> {{T "web.abyss.cursed_bank"}}</label>
     </div>
+    {{template "abyssCoreRiskConsole" .}}
 
     <!-- Co-op invite row. Always rendered so renderState() can show/hide it as the
          floor preview changes; visibility is driven client-side, not by the initial
@@ -3305,24 +3304,35 @@ async function abyssBank(percent){
     (p.streak_bonus_pct?row('Bank-streak bonus +'+p.streak_bonus_pct+'%', '+'+fmtGold(p.streak_bonus)):'')+
     (p.cursed?row('☠️ Cursed bonus +20%','+'+fmtGold(p.cursed_bonus)):'')+
     (p.partial?row('Partial-bank fee −10%','−'+fmtGold(p.partial_fee)):'')+
+    (p.frantic_fee?row('🫀 Frantic fee below 15% HP','−'+fmtGold(p.frantic_fee)):'')+
+	(p.perfect_bonus?row('✨ Perfect-run bonus +25%','+'+fmtGold(p.perfect_bonus)):'')+
+	(p.raffle_fee?row('🎟️ Bankers’ raffle contribution −1%','−'+fmtGold(p.raffle_fee)):'')+
     row('Estimated payout', '<span style="color:var(--gold)">'+fmtGold(p.payout)+'</span>')+
     (p.partial?row('Cache left in run',fmtGold(p.remaining_escrow)):row('Tokens on bank', '🜲 '+p.tokens_grant)+row('Sealed loot to recover', p.loot_count))+
+	(p.checkpoint_refund?row('Checkpoint token refund','🜲 +'+p.checkpoint_refund):'')+
     (!p.partial&&p.bonus_gear_eligible?row('Depth gear reward','🎁 guaranteed'):'')+
     (p.capped?'<div class="ab-hc-cmp">⚠️ Daily gold cap: the Abyss levies an 80% tax on the excess (−'+fmtGold(p.cap_tax)+', fed to the deep-cache jackpot).</div>':'')+
     (!p.partial&&typeof renderBankPreviewLoot==='function'?renderBankPreviewLoot(p.loot_preview,p.loot_count):'')+
+	(p.requires_safe_word?'<label class="ab-bank-safe-word">Type <b>BANK</b> to confirm this high-value withdrawal<input id="bankSafeWord" autocomplete="off" maxlength="16" spellcheck="false" aria-label="Type BANK to confirm"></label>':'')+
+	(!p.partial?'<label class="ab-bank-double"><input id="bankDoubleSeed" type="checkbox"> Seed the next run with 10% instead of 5%</label>':'')+
   '</div><div class="modal-actions"><button class="ghost" id="modalCancelBtn">Keep descending</button><button id="modalOkBtn">'+(p.partial?'🔐 Secure share':'🏦 Bank it')+'</button></div>';
   openModal(html);
   document.getElementById('modalCancelBtn').onclick=closeModal;
-  document.getElementById('modalOkBtn').onclick=function(){closeModal();abyssBankCommit(cursed,percent);};
+  document.getElementById('modalOkBtn').onclick=function(){
+	var safeWord=(document.getElementById('bankSafeWord')||{}).value||'';
+	var doubleBank=!!((document.getElementById('bankDoubleSeed')||{}).checked);
+	if(p.requires_safe_word&&safeWord.trim().toUpperCase()!=='BANK'){abToast('Type BANK to confirm this withdrawal.',false);return;}
+	closeModal();abyssBankCommit(cursed,percent,safeWord,doubleBank);
+  };
 }
 
-async function abyssBankCommit(cursed,percent){
+async function abyssBankCommit(cursed,percent,safeWord,doubleBank){
   if(busy)return; setBusy(true); markBusyBtn('btnBank'); clearBanner();
-  var d=await abPost('/api/abyss/bank',{cursed:cursed,percent:Number(percent)||0});
+  var d=await abPost('/api/abyss/bank',{cursed:cursed,percent:Number(percent)||0,safe_word:safeWord||'',double_bank:!!doubleBank});
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
   if(d.partial){
     setGold(d.gold);setEscrow(d.remaining_escrow);
-    setBanner('🔐 Secured '+fmtGold(d.banked)+' with a '+fmtGold(d.partial_fee)+' fee. '+fmtGold(d.remaining_escrow)+' remains at stake.','good');
+    setBanner('🔐 Secured '+fmtGold(d.banked)+' with '+fmtGold((d.partial_fee||0)+(d.frantic_fee||0))+' total fees. '+fmtGold(d.remaining_escrow)+' remains at stake.','good');
     coinArc();renderState();setBusy(false);return;
   }
   recordSessionRun(true, d.depth, d.banked); // UI-108
@@ -3333,7 +3343,12 @@ async function abyssBankCommit(cursed,percent){
 	if(d.hardcore_badge)msg+=' 🏅 '+d.hardcore_badge+'.';
   if(d.cursed)msg+=' ☠️ Cursed — your next cycle fights are hexed.';
   if(d.jackpot_win)msg+=' 🔥 DEEP-CACHE JACKPOT +'+fmtGold(d.jackpot_win)+'!';
-  if(d.cap_tax)msg+=' 💸 Abyss tax −'+fmtGold(d.cap_tax)+' (fed the deep-cache jackpot).';
+	if(d.raffle_win)msg+=' 🎟️ BANKERS’ RAFFLE +'+fmtGold(d.raffle_win)+'!';
+	if(d.checkpoint_refund)msg+=' 🜲 Checkpoint refund +'+d.checkpoint_refund+'.';
+	if(d.cap_tax)msg+=' 💸 Abyss tax −'+fmtGold(d.cap_tax)+' (fed the deep-cache jackpot).';
+  if(d.frantic_fee)msg+=' 🫀 Frantic fee −'+fmtGold(d.frantic_fee)+'.';
+  if(d.next_echo_seed)msg+=' ↩️ Next run begins with '+fmtGold(d.next_echo_seed)+' echo cache.';
+	if(d.perfect_badge){msg+=' ✨ '+d.perfect_badge+'.';achievementBanner(d.perfect_badge);}
   if(d.achievement){ msg+=' 🏅 '+d.achievement; achievementBanner(d.achievement); } // UI-140
   if(d.global_record) recordBurst(d.depth,true); // UI-141: authoritative global record
   if(typeof releaseEscrowLoot==='function')releaseEscrowLoot();
@@ -3351,14 +3366,19 @@ async function abyssBankCommit(cursed,percent){
 // up in stages — cache, then the multiplier bonus, then any jackpot.
 function showBankSummary(d){
   var base=Number(d.base)||0, depthBonus=Number(d.depth_bonus)||0, streakBonus=Number(d.streak_bonus)||0;
-  var cursedBonus=Number(d.cursed_bonus)||0, jp=Number(d.jackpot_win)||0, tax=Number(d.cap_tax)||0;
+  var cursedBonus=Number(d.cursed_bonus)||0,perfect=Number(d.perfect_bonus)||0,raffle=Number(d.raffle_fee)||0;
+	var jp=Number(d.jackpot_win)||0,raffleWin=Number(d.raffle_win)||0,tax=Number(d.cap_tax)||0,frantic=Number(d.frantic_fee)||0;
   var html='<h3>🏦 Run banked!</h3><div class="modal-body ab-runsummary good">'+
     '<div class="ab-rs-row"><span>Depth reached</span><b>'+d.depth+'</b></div>'+
     '<div class="ab-rs-row"><span>Cache (floor interest included)</span><b>'+fmtGold(base)+'</b></div>'+
     '<div class="ab-rs-row"><span>Depth bonus</span><b>+'+fmtGold(depthBonus)+'</b></div>'+
     (streakBonus?'<div class="ab-rs-row"><span>Bank-streak bonus</span><b>+'+fmtGold(streakBonus)+'</b></div>':'')+
     (cursedBonus?'<div class="ab-rs-row"><span>☠️ Cursed bonus</span><b>+'+fmtGold(cursedBonus)+'</b></div>':'')+
+    (frantic?'<div class="ab-rs-row"><span>🫀 Frantic fee</span><b>−'+fmtGold(frantic)+'</b></div>':'')+
+	(perfect?'<div class="ab-rs-row"><span>✨ Perfect-run bonus</span><b>+'+fmtGold(perfect)+'</b></div>':'')+
+	(raffle?'<div class="ab-rs-row"><span>🎟️ Raffle contribution</span><b>−'+fmtGold(raffle)+'</b></div>':'')+
     (jp?'<div class="ab-rs-row"><span>🔥 Deep-cache jackpot</span><b>+'+fmtGold(jp)+'</b></div>':'')+
+	(raffleWin?'<div class="ab-rs-row"><span>🎟️ Bankers’ raffle win</span><b>+'+fmtGold(raffleWin)+'</b></div>':'')+
     (tax?'<div class="ab-rs-row"><span>💸 Abyss tax (80% over daily cap)</span><b>−'+fmtGold(tax)+'</b></div>':'')+
     '<div class="ab-rs-row"><span>Items recovered</span><b>'+((d.escrow_loot||[]).length)+'</b></div>'+
     '<div class="ab-rs-row"><span>Floors cleared this session</span><b>'+runFloorsCleared+'</b></div>'+
@@ -3367,8 +3387,8 @@ function showBankSummary(d){
   openModal(html);
   var el=document.getElementById('bankTotalTick');
   if(!el)return;
-  var raw=base+depthBonus+streakBonus+cursedBonus;
-  var steps=[base,base+depthBonus,base+depthBonus+streakBonus,raw,raw-tax,raw-tax+jp].filter(function(v,i,a){return i===0||v!==a[i-1];});
+  var raw=base+depthBonus+streakBonus+cursedBonus-frantic+perfect-raffle;
+  var steps=[base,base+depthBonus,base+depthBonus+streakBonus,raw,raw-tax,raw-tax+jp,raw-tax+jp+raffleWin].filter(function(v,i,a){return i===0||v!==a[i-1];});
   // UI-138: skip button jumps straight to the final total.
   var skipped=false;
   var skipBtn=document.getElementById('bankSkipBtn');
@@ -3400,6 +3420,7 @@ async function abyssInsure(pct){
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setInsured(d.insured); setGold(d.gold);
   abToast('Insured '+d.insured+'% for '+fmtGold(d.cost)+(d.loyalty_discount_pct?' · loyalty −'+d.loyalty_discount_pct+' points':''),true);
+	if(d.cheapskate_title)achievementBanner('The Cheapskate · 7-day title earned');
 }
 
 async function abyssSalvage(){
@@ -5746,6 +5767,7 @@ function initNewDots(){
 {{template "abyss-mobile" .}}
 {{template "abyss-insights" .}}
 {{template "abyss-longterm" .}}
+{{template "abyssCoreRiskJS" .}}
 {{template "abyss-feedback" .}}
 {{template "abyss-polish" .}}
 {{template "abyss-stage-presentation" .}}

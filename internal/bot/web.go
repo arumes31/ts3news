@@ -239,6 +239,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_longterm.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_longterm.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_core_risk.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_core_risk.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_combat_sprites.png", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_combat_sprites.png", "image/png")
 	})
@@ -419,6 +422,8 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/bank_confirm_toggle", s.authAPI(s.handleAbyssBankConfirmToggle))
 		mux.HandleFunc("/api/abyss/death_wish", s.authAPI(s.handleAbyssDeathWish))
 		mux.HandleFunc("/api/abyss/anchor_rune", s.authAPI(s.handleAbyssAnchorRune))
+		mux.HandleFunc("/api/abyss/rest_cache_shrink", s.authAPI(s.handleAbyssRestCacheShrink))
+		mux.HandleFunc("/api/abyss/downed_timeout", s.authAPI(s.handleAbyssDownedTimeout))
 		mux.HandleFunc("/abyss/tree", s.auth(s.handleAbyssTreePage))
 		mux.HandleFunc("/api/abyss/tree/allocate", s.authAPI(s.abyssTreeMutation("commit", s.handleAbyssTreeAllocate)))
 		mux.HandleFunc("/api/abyss/tree/batch_allocate", s.authAPI(s.abyssTreeEnhancedMutation("commit", s.handleAbyssTreeBatchAllocate)))

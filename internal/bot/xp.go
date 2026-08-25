@@ -56,6 +56,7 @@ type UserInCombat struct {
 	Skills        []content.Skill
 	Ultimates     []*content.UltimateSkill // up to maxActiveUltimates, no duplicates
 	CurrentHP     int
+	DamageTaken   int // per-fight incoming/self damage; used by authoritative Abyss perfect-run tracking
 	RegenStacks   int
 	Gold          int64
 	Pets          []*content.Mob
@@ -1036,6 +1037,7 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 					}
 					continue
 				}
+				u.DamageTaken += max(dmg, 0)
 				u.CurrentHP -= dmg
 				if u.CurrentHP <= 0 {
 					u.CurrentHP = 0
@@ -1235,6 +1237,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				if loss < 1 {
 					loss = 1
 				}
+				u.DamageTaken += max(loss, 0)
 				u.CurrentHP -= loss
 				*logs = append(*logs, fmt.Sprintf("💀 Cursed weapon drains %d HP from %s!", loss, u.Nickname))
 				if u.CurrentHP <= 0 {

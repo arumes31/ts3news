@@ -409,5 +409,18 @@
       "internal/bot/webassets/abyss_aaa_runtime.html"
     ],
     "verification": ["internal/bot/web_abyss_changelog_test.go"]
+  },
+  {
+    "ids": [701, 702, 703, 704, 705, 706, 707, 708, 709, 710],
+    "production": [
+      "internal/bot/web_abyss_core_rewards.go",
+      "internal/bot/web_abyss_core_risk.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_loop.go",
+      "internal/bot/webassets/abyss_core_risk.html",
+      "internal/bot/webassets/abyss_core_risk.css"
+    ],
+    "verification": ["internal/bot/web_abyss_core_risk_test.go"]
   }
 ]

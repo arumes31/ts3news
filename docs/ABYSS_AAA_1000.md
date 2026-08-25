@@ -425,3 +425,16 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0698 / UI-198** — completed runs can export a print-friendly local PNG recap from server-confirmed results.
 - [x] **AAA-0699 / UI-199** — leaderboard transitions use reduced-motion-safe skeleton rows.
 - [x] **AAA-0700 / UI-200** — every persisted presentation preference lives in one searchable settings modal.
+
+## Delivered tranche: core risk and reward protocols
+
+- [x] **AAA-0701 / AB-1** — every ten unbanked floors add 2% interest and remove 2% DEF, capped and exposed as one exact HUD chip.
+- [x] **AAA-0702 / AB-2** — caches above 100k apply a capped, server-computed SPD penalty shown with its current percentage.
+- [x] **AAA-0703 / AB-3** — banking below 15% HP deducts 5% of the banked cache in both authoritative preview and commit results.
+- [x] **AAA-0704 / AB-4** — payouts above 1M require the normalized `BANK` safe word unless the account-level preference is disabled.
+- [x] **AAA-0705 / AB-5** — a full bank atomically seeds the next run with 5% of the credited payout and consumes that seed only when entry commits.
+- [x] **AAA-0706 / AB-6** — a one-charge Anchor Rune is bought transactionally and guarantees at least half-cache recovery on the next forfeit.
+- [x] **AAA-0707 / AB-7** — fixed insurance buttons are replaced by a 10–90% slider whose five-point steps are validated by the server.
+- [x] **AAA-0708 / AB-8** — floor idling adds 1% danger per complete minute after the first minute, capped at 50% and surfaced on the HUD.
+- [x] **AAA-0709 / AB-9** — Death Wish is a one-fight wager with triple danger, double floor reward, and explicit armed/consumed state.
+- [x] **AAA-0710 / AB-10** — each rest floor can atomically compress half the cache into tokens at 70% of the normal exchange value.

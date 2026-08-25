@@ -594,6 +594,7 @@ type abyssFloorResult struct {
 	CurrentHP int
 	MaxHP     int
 	PityProc  bool
+	DamageTaken int
 }
 
 var abyssLoreFragments = map[int]string{
@@ -1023,6 +1024,13 @@ func (b *Bot) fightAbyssFloorLive(
 	combatLogOffset := len(logs)
 	resLogs, _, victory, loots, timeline := b.resolveChannelCombatDetailed(combatUsers, mobPtrs, u.Level, diff, zone)
 	b.updateAbyssNemesis(uid, mobPtrs, victory)
+	if !victory {
+		families := make([]string, 0, len(mobs))
+		for _, mob := range mobs {
+			families = append(families, string(mob.Type))
+		}
+		b.bumpKillerExp(uid, families)
+	}
 	duration := time.Since(startTime)
 	logs = append(logs, resLogs...)
 	for i := range timeline {
@@ -1144,7 +1152,7 @@ func (b *Bot) fightAbyssFloorLive(
 	logs = append(logs, fmt.Sprintf("[hr][color=#8a93a8]📊 %s · %d foe(s) · fight time %d ms · HP %s → %s (%+d)[/color]",
 		outcome, len(mobs), duration.Milliseconds(), FormatGoldPlain(int64(hpBefore)), FormatGoldPlain(int64(curHP)), curHP-hpBefore))
 
-	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP}
+	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: u.DamageTaken}
 	for _, l := range logs {
 		res.LogsHTML = append(res.LogsHTML, abyssCombatLogHTML(l))
 	}
@@ -1402,11 +1410,13 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	sanctuaryStage, sanctuaryStageName := abyssSanctuaryStage(sanctuary)
 	materials := s.bot.loadMaterials(uid)
 	runFlags := s.bot.loadRunFlags(uid)
+	lastStandCost, lastStandAvailable := abyssLastStandOffer(run, runFlags)
 	hudState := s.bot.abyssHUDPageState(uid, run, st, equipped)
 	history := s.bot.abyssHistory(uid, 30)
 	bestiary := s.bot.loadAbyssBestiary(uid)
 	insights := s.bot.abyssRunInsights(uid, run, history, bestiary, st.AbyssPrestige)
 	longTerm := s.bot.abyssLongTermStatus(uid, run, history, st.BestDepth, pity)
+	coreLoop := s.bot.abyssCoreLoopStatus(uid, run)
 
 	s.render(w, "abyss", map[string]any{
 		"Title":              "The Abyss",
@@ -1424,6 +1434,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"History":            history,
 		"RunInsights":        insights,
 		"LongTerm":           longTerm,
+		"CoreLoop":           coreLoop,
 		"Achievements":       achievementViews,
 		"BadgeOptions":       badgeOptions,
 		"ActiveBadge":        activeBadge,
@@ -1456,7 +1467,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"FloorOneRiskByTier": floorOneRiskByTier,
 		"FreeEntryAvailable": freeEntryAvailable,
 		"RunLoot":            s.bot.currentRunLootManifest(uid, equipped, abyssOwnedGearSet(equipped, inventory)),
-		"CanLastStand":       run.Active && !abyssHardcoreRun(runFlags) && !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(run.Depth),
+		"CanLastStand":       run.Active && !abyssHardcoreRun(runFlags) && lastStandAvailable && s.bot.abyssTokens(uid) >= lastStandCost,
 		"Hardcore":           abyssHardcoreRun(runFlags),
 
 		// Expansion 2 (docs/ABYSS_IDEAS.md)
@@ -1497,7 +1508,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"CraftLegendaries": content.LegendaryCatalog(),
 		"LBTier":           lbTier,
 		"LBTiers":          abyssTierList(math.MaxInt32), // full list for the board tabs: a huge depth unlocks every tier
-		"LastStandCost":    abyssLastStandCost(run.Depth),
+		"LastStandCost":    lastStandCost,
 		"NodeGates":        abyssUpgradeMinDepth,
 		"Checkpoints":      checkpoints,
 		"ExpressStart":     expressStart,
@@ -1659,6 +1670,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		return
 	}
 	startDepth := route.Depth
+	echoSeed := s.bot.peekAbyssEchoSeed(uid)
 
 	// Comeback buff (#24): three deaths on the same calendar day grant +10% stats
 	// on the next run, clearly labeled in the run state.
@@ -1769,8 +1781,8 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	if _, err := tx.Exec(
 		`INSERT INTO abyss_active (client_uid, depth, escrow, tier, insured, revived, pacts, consumables, started_at, last_action_at,
 		                           checkpoint_start, express_until, comeback, last_rest_depth)
-		 VALUES ($1, $5, 0, $2, 0, FALSE, $3, $4, NOW(), NOW(), $6, $7, $8, $5)`,
-		uid, tier.Key, pacts, loadoutJSON, startDepth, route.CheckpointStart, route.ExpressUntil, comeback); err != nil {
+		 VALUES ($1, $5, $9, $2, 0, FALSE, $3, $4, NOW(), NOW(), $6, $7, $8, $5)`,
+		uid, tier.Key, pacts, loadoutJSON, startDepth, route.CheckpointStart, route.ExpressUntil, comeback, echoSeed); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -1781,6 +1793,26 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
+	}
+	flags, err := loadAbyssRunFlagsInTx(tx, uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	flags[abyssRunFlagPerfect] = 1
+	flags[abyssRunFlagCheckpointTokenCost] = route.TokenCost
+	if startDepth > 0 {
+		flags[abyssRunFlagColdMuscles] = 2
+	}
+	if err := saveAbyssRunFlagsInTx(tx, uid, flags); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if echoSeed > 0 {
+		if _, err := tx.Exec("DELETE FROM app_meta WHERE key=$1", abyssEchoSeedKey(uid)); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 	}
 	if err := seedAbyssSocialRunFlagsInTx(tx, uid, req.LootRule); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -1827,7 +1859,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	writeJSON(w, map[string]any{
-		"ok": true, "depth": startDepth, "escrow": 0, "tier": tier.Key,
+		"ok": true, "depth": startDepth, "escrow": echoSeed, "tier": tier.Key,
 		"hp": startHP, "max_hp": stats.HP, "gold": gold,
 		"free_entry": freeEntry, "comeback": comeback, "auto_repaired": autoRepaired,
 		"weekly_expedition": weeklyRule.Label,
@@ -1839,6 +1871,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		"veteran_track": entryProgression.VeteranTrack,
 		"loot_rule": normalizeAbyssPartyLootRule(req.LootRule),
 		"tokens": s.bot.abyssTokens(uid),
+		"echo_seed": echoSeed,
 	})
 }
 
@@ -2146,7 +2179,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_lifetime_floors = abyss_lifetime_floors + 1 WHERE client_uid=$1", uid)
 
 		if res.Victory {
-			o := s.applyFloorVictory(uid, run, newDepth, run.Escrow, tier, modifier, focus)
+			o := s.applyFloorVictory(uid, run, newDepth, run.Escrow, tier, modifier, focus, res.DamageTaken == 0)
 			if o.DBErr {
 				writeJSON(w, s.descendMultiAbort(uid, "db", tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, totalRewardXP))
 				return
@@ -2196,8 +2229,8 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"risk":             abyssRiskPct(newDepth+1, tier, s.bot.abyssPlayerCR(uid)),
 				"downed":           true,
 				"can_revive":       canRevive,
-				"can_last_stand":   !hardcore && !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(newDepth),
-				"last_stand_cost":  abyssLastStandCost(newDepth),
+				"can_last_stand":   func() bool { cost, available := abyssLastStandOffer(run, s.bot.loadRunFlags(uid)); return !hardcore && available && s.bot.abyssTokens(uid) >= cost }(),
+				"last_stand_cost":  func() int64 { cost, _ := abyssLastStandOffer(run, s.bot.loadRunFlags(uid)); return cost }(),
 				"escrow":           run.Escrow,
 				"insured":          run.Insured,
 				"hardcore":         hardcore,
@@ -2602,7 +2635,7 @@ type abyssFloorOutcome struct {
 // gear XP, the daily first-descent bonus, best-depth/win-streak updates,
 // artifact leveling, achievements, lore/recipe discovery and the affix
 // consumable reward. Used by finishDescend and handleAbyssDescendMulti.
-func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escrowBefore int64, tier abyssTier, modifier, focus string) abyssFloorOutcome {
+func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escrowBefore int64, tier abyssTier, modifier, focus string, untouched bool) abyssFloorOutcome {
 	st := s.bot.loadAbyssStats(uid)
 	o := abyssFloorOutcome{NewRecord: depth > st.BestDepth}
 
@@ -2618,6 +2651,10 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 	}
 	if runFlags[abyssRunFlagCatchupCharges] > 0 {
 		bonus = bonus * 11 / 10
+	}
+	bonus = abyssDeathWishFloorReward(bonus, runFlags[abyssRunFlagDeathWish] == 1)
+	if depth > st.BestDepth {
+		bonus = bonus * 103 / 100
 	}
 
 	switch focus {
@@ -2665,7 +2702,8 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 	if _, hasCoin := equipped[content.SlotTrinket1]; hasCoin && equipped[content.SlotTrinket1].ID == "ABYSS_LUCKY_COIN" {
 		hasLuckyCoin = true
 	}
-	withInterest := int64(float64(escrowBefore) * (1.0 + abyssEffectiveInterest(st.UpInterest, hasLuckyCoin)))
+	interestRate := abyssGreedyInterestRate(abyssEffectiveInterest(st.UpInterest, hasLuckyCoin), depth)
+	withInterest := int64(float64(escrowBefore) * (1.0 + interestRate))
 	growth := applyAbyssEscrowSoftCap(escrowBefore, withInterest-escrowBefore, bonus, depth)
 	bonus = growth.Bonus
 	newEscrow := growth.Escrow // [56] interest + Compounding node, then #14 marginal soft cap
@@ -2673,6 +2711,17 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 		o.DBErr = true
 		return o
 	}
+	runFlags[abyssRunFlagDeathWish] = 0
+	if runFlags[abyssRunFlagColdMuscles] > 0 {
+		runFlags[abyssRunFlagColdMuscles]--
+	}
+	if untouched {
+		runFlags[abyssRunFlagDefensiveMomentum] = min(runFlags[abyssRunFlagDefensiveMomentum]+1, 10)
+	} else {
+		runFlags[abyssRunFlagDefensiveMomentum] = 0
+		runFlags[abyssRunFlagPerfect] = 0
+	}
+	_ = s.bot.saveRunFlags(uid, runFlags)
 	if o.SecondaryGoal != "" {
 		s.bot.grantAbyssTokens(uid, 1)
 	}
@@ -2751,7 +2800,17 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 // resets the win streak. Shared by finishDescend and handleAbyssDescendMulti.
 // The offer is rolled once and persisted so a refresh can't reroll it.
 func (s *WebServer) applyFloorDefeat(uid string, run abyssRun) (canRevive bool) {
-	if abyssHardcoreRun(s.bot.loadRunFlags(uid)) {
+	flags := s.bot.loadRunFlags(uid)
+	flags[abyssRunFlagDeathWish] = 0
+	flags[abyssRunFlagDefensiveMomentum] = 0
+	flags[abyssRunFlagPerfect] = 0
+	if flags[abyssRunFlagColdMuscles] > 0 {
+		flags[abyssRunFlagColdMuscles]--
+	}
+	_ = s.bot.saveRunFlags(uid, flags)
+	streak := min(s.bot.abyssReviveStreak(uid)+1, 5)
+	s.bot.setAbyssReviveStreak(uid, streak)
+	if abyssHardcoreRun(flags) {
 		_, _ = s.bot.DB.Exec("UPDATE abyss_active SET revive_locked=TRUE WHERE client_uid=$1", uid)
 		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
 		return false
@@ -2759,7 +2818,7 @@ func (s *WebServer) applyFloorDefeat(uid string, run abyssRun) (canRevive bool) 
 	st := s.bot.loadAbyssStats(uid)
 	canRevive = !run.Revived
 	if canRevive && !run.ReviveLocked {
-		offerChance := 0.45 + 0.08*float64(st.UpMercy)
+		offerChance := 0.45 + 0.08*float64(st.UpMercy) + 0.05*float64(streak)
 		// #nosec G404 -- non-cryptographic offer roll
 		if rand.Float64() >= offerChance {
 			canRevive = false
@@ -2789,7 +2848,7 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 	}
 
 	if res.Victory {
-		o := s.applyFloorVictory(uid, run, depth, escrowBefore, tier, modifier, focus)
+		o := s.applyFloorVictory(uid, run, depth, escrowBefore, tier, modifier, focus, res.DamageTaken == 0)
 		if o.DBErr {
 			return map[string]any{"ok": false, "error": "db"}
 		}
@@ -2833,8 +2892,9 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		hardcore := abyssHardcoreRun(s.bot.loadRunFlags(uid))
 		out["downed"] = true
 		out["can_revive"] = canRevive
-		out["can_last_stand"] = !hardcore && !run.LastStandUsed && s.bot.abyssTokens(uid) >= abyssLastStandCost(depth)
-		out["last_stand_cost"] = abyssLastStandCost(depth)
+		lastStandCost, lastStandAvailable := abyssLastStandOffer(run, s.bot.loadRunFlags(uid))
+		out["can_last_stand"] = !hardcore && lastStandAvailable && s.bot.abyssTokens(uid) >= lastStandCost
+		out["last_stand_cost"] = lastStandCost
 		out["escrow"] = escrowBefore
 		out["insured"] = run.Insured
 		out["hardcore"] = hardcore
@@ -2876,6 +2936,9 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 	}
 
 	run := s.bot.loadAbyssRun(uid)
+	if s.autoConcedeIfTimedOut(w, uid, run) {
+		return
+	}
 	if !run.Active || !run.Downed {
 		writeJSON(w, map[string]any{"ok": false, "error": "not downed"})
 		return
@@ -2932,6 +2995,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 
 	if res.Victory {
 		// Double-or-nothing: the cache doubles, the run continues.
+		s.bot.setAbyssReviveStreak(uid, 0)
 		newEscrow := run.Escrow * 2
 		_, _ = s.bot.DB.Exec("UPDATE abyss_active SET escrow=$1, floor_type='combat', modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2", newEscrow, uid)
 		out := map[string]any{
@@ -2951,6 +3015,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 	}
 
 	// Failed the second chance → forfeit.
+	s.bot.setAbyssReviveStreak(uid, min(s.bot.abyssReviveStreak(uid)+1, 5))
 	graceProtected := abyssGraceProtected(run.Depth, false)
 	payout, ferr := s.bot.forfeitAbyss(uid, run, "revive_failed")
 	if ferr != nil {
@@ -2987,6 +3052,9 @@ func (s *WebServer) handleAbyssConcede(w http.ResponseWriter, r *http.Request, u
 	}
 
 	run := s.bot.loadAbyssRun(uid)
+	if s.autoConcedeIfTimedOut(w, uid, run) {
+		return
+	}
 	if !run.Active || !run.Downed {
 		writeJSON(w, map[string]any{"ok": false, "error": "not downed"})
 		return
@@ -3040,9 +3108,11 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	}
 
 	var req struct {
-		Cursed  bool `json:"cursed"`
-		Preview bool `json:"preview"`
-		Percent int  `json:"percent"`
+		Cursed     bool   `json:"cursed"`
+		Preview    bool   `json:"preview"`
+		Percent    int    `json:"percent"`
+		SafeWord   string `json:"safe_word"`
+		DoubleBank bool   `json:"double_bank"`
 	}
 	// Reject malformed JSON outright: a garbled body decoding to zero values
 	// would silently turn a preview request into a real, irreversible bank
@@ -3061,7 +3131,8 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		writeJSON(w, map[string]any{"ok": false, "error": "you are downed — revive or concede"})
 		return
 	}
-	hardcore := abyssHardcoreRun(s.bot.loadRunFlags(uid))
+	runFlags := s.bot.loadRunFlags(uid)
+	hardcore := abyssHardcoreRun(runFlags)
 	// Last Stand seal (#15): the exit stays shut for 2 floors after a token revive.
 	if run.BankLockedFloors > 0 {
 		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("the exit is sealed — descend %d more floor(s) first", run.BankLockedFloors)})
@@ -3072,7 +3143,11 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		writeJSON(w, map[string]any{"ok": false, "error": "cursed banking cannot be combined with a partial bank"})
 		return
 	}
-	if partial && pendingAbyssDoubleBonus(s.bot.loadRunFlags(uid), run.Depth) > 0 {
+	if partial && req.DoubleBank {
+		writeJSON(w, map[string]any{"ok": false, "error": "echo doubling cannot be combined with a partial bank"})
+		return
+	}
+	if partial && pendingAbyssDoubleBonus(runFlags, run.Depth) > 0 {
 		writeJSON(w, map[string]any{"ok": false, "error": "resolve the floor-bonus gamble or descend before partial banking"})
 		return
 	}
@@ -3093,7 +3168,9 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		partialFee = quote.Fee
 	}
 	grossPayout := int64(float64(bankEscrow) * mult)
-	payout := grossPayout - partialFee
+	maxHP := s.bot.abyssCombatStats(uid).HP
+	franticFee := abyssFranticBankFee(bankEscrow, run.CurHP, maxHP)
+	payout := max(grossPayout-partialFee-franticFee, int64(0))
 	depthBonusPct := min(max(run.Depth, 0), 100)
 	streakBonusPct := min(max(st.Streak, 0), 25) * 2
 	depthBonus := int64(float64(bankEscrow) * float64(depthBonusPct) / 100)
@@ -3104,6 +3181,22 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		cursedBonus = cursedPayout - payout
 		payout = cursedPayout
 	}
+	perfectRun := !partial && abyssRunFloorsCleared(run) > 0 && runFlags[abyssRunFlagPerfect] == 1
+	perfectBonus := int64(0)
+	if perfectRun {
+		perfectBonus = payout / 4
+		payout += perfectBonus
+	}
+	raffleFee := int64(0)
+	if !partial && payout > 0 {
+		raffleFee = payout / 100
+		payout -= raffleFee
+	}
+	checkpointRefund := 0
+	if !partial && run.Depth > 0 && run.Depth%10 == 0 {
+		checkpointRefund = int(runFlags[abyssRunFlagCheckpointTokenCost])
+	}
+	requiresSafeWord := abyssBankNeedsSafeWord(payout, !s.bot.abyssBankConfirmDisabled(uid))
 
 	// Preview mode (UX-49): report the itemized payout without committing
 	// anything, so the client can show a bank-confirmation breakdown first.
@@ -3144,7 +3237,10 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			"escrow": bankEscrow, "source_escrow": run.Escrow, "mult": mult, "cursed": req.Cursed,
 			"depth_bonus": depthBonus, "depth_bonus_pct": depthBonusPct,
 			"streak_bonus": streakBonus, "streak_bonus_pct": streakBonusPct, "cursed_bonus": cursedBonus,
-			"partial": partial, "percent": req.Percent, "partial_fee": partialFee, "remaining_escrow": remainingEscrow,
+			"partial": partial, "percent": req.Percent, "partial_fee": partialFee, "frantic_fee": franticFee,
+			"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee,
+			"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
+			"remaining_escrow": remainingEscrow, "requires_safe_word": requiresSafeWord,
 			"payout": estPayout, "capped": capped, "cap_remaining": capRemaining, "cap_tax": estTax,
 			"tokens_grant": baseTokens, "loot_count": lootCount,
 			"loot_preview": lootPreview, "loot_preview_truncated": lootCount > len(lootPreview),
@@ -3153,11 +3249,11 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		})
 		return
 	}
-
-	var partialFlags map[string]int64
-	if partial {
-		partialFlags = s.bot.loadRunFlags(uid)
+	if requiresSafeWord && normalizeAbyssSafeWord(req.SafeWord) != "BANK" {
+		writeJSON(w, map[string]any{"ok": false, "error": "safe word required: type BANK to confirm this payout"})
+		return
 	}
+
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -3169,6 +3265,24 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	// the jackpot feed are only consumed if the gold credit and the rest of the
 	// bank commit succeed. [59]
 	payout, capTax := s.bot.taxAbyssDayGold(tx, uid, payout)
+	nextEchoSeed := int64(0)
+	if !partial {
+		nextEchoSeed = abyssEchoBankSeed(payout, req.DoubleBank)
+		if err := saveAbyssEchoSeed(tx, uid, nextEchoSeed); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if err := recordAbyssRaffleEntry(tx, uid, raffleFee, time.Now()); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if checkpointRefund > 0 {
+			if _, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", checkpointRefund, uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+		}
+	}
 
 	var gold int64
 	if payout > 0 {
@@ -3181,6 +3295,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	}
 
 	var jackpotWin int64
+	var raffleWin int64
 	var bonusGear string
 	isRecord := false
 
@@ -3220,7 +3335,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
-		if err := consumePendingAbyssDoubleBonus(tx, uid, partialFlags); err != nil {
+		if err := consumePendingAbyssDoubleBonus(tx, uid, runFlags); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -3267,10 +3382,18 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		for _, label := range s.bot.applyAbyssEscrowLoot(uid) {
 			escrowLoot = append(escrowLoot, bbToHTML(label))
 		}
+		raffleWin = s.bot.abyssRaffleSettle(uid)
+		if raffleWin > 0 {
+			gold += raffleWin
+		}
 	}
 	hardcoreBadge := ""
 	if !partial && hardcore && run.Depth >= 10 && s.bot.awardAchievement(uid, "hardcore_depth_10") {
 		hardcoreBadge = abyssAchievementName("hardcore_depth_10")
+	}
+	perfectBadge := ""
+	if perfectRun && s.bot.awardAchievement(uid, "perfect_run") {
+		perfectBadge = abyssAchievementName("perfect_run")
 	}
 
 	out := map[string]any{
@@ -3282,13 +3405,19 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		// final step always matches the committed payout.
 		"base": bankEscrow, "depth_bonus": depthBonus, "streak_bonus": streakBonus, "cursed_bonus": cursedBonus,
 		"mult_bonus": depthBonus + streakBonus + cursedBonus,
-		"partial": partial, "percent": req.Percent, "partial_fee": partialFee, "remaining_escrow": remainingEscrow,
+		"partial": partial, "percent": req.Percent, "partial_fee": partialFee, "frantic_fee": franticFee,
+		"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee,
+		"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
+		"remaining_escrow": remainingEscrow, "next_echo_seed": nextEchoSeed,
 	}
 	if capTax > 0 {
 		out["cap_tax"] = capTax
 	}
 	if jackpotWin > 0 {
 		out["jackpot_win"] = jackpotWin
+	}
+	if raffleWin > 0 {
+		out["raffle_win"] = raffleWin
 	}
 	if bonusGear != "" {
 		out["bonus_gear"] = bonusGear
@@ -3298,6 +3427,9 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	}
 	if hardcoreBadge != "" {
 		out["hardcore_badge"] = hardcoreBadge
+	}
+	if perfectBadge != "" {
+		out["perfect_badge"] = perfectBadge
 	}
 	// Lifetime-banked milestone check (post-commit, so the running total is current).
 	if run.Depth > 0 {
@@ -4564,16 +4696,21 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	_, dailyMod := s.bot.currentDailyChallenge()
 	bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
 	bonus = int64(float64(bonus) * abyssPactRewardMult(s.bot.abyssRunPacts(uid)))
-	if _, weekly := abyssWeeklyRuleFromFlags(s.bot.loadRunFlags(uid)); weekly {
+	runFlags := s.bot.loadRunFlags(uid)
+	if _, weekly := abyssWeeklyRuleFromFlags(runFlags); weekly {
 		bonus = bonus * 5 / 4
 	}
-	
+	if run.Depth > st.BestDepth {
+		bonus = bonus * 103 / 100
+	}
+
 	hasLuckyCoin := false
 	equipped := s.bot.getEquippedItems(uid)
 	if _, hasCoin := equipped[content.SlotTrinket1]; hasCoin && equipped[content.SlotTrinket1].ID == "ABYSS_LUCKY_COIN" {
 		hasLuckyCoin = true
 	}
-	newEscrow := int64(float64(run.Escrow)*(1.0+abyssEffectiveInterest(st.UpInterest, hasLuckyCoin))) + bonus
+	interestRate := abyssGreedyInterestRate(abyssEffectiveInterest(st.UpInterest, hasLuckyCoin), run.Depth)
+	newEscrow := int64(float64(run.Escrow)*(1.0+interestRate)) + bonus
 
 	_, err := s.bot.DB.Exec(
 		`UPDATE abyss_active 
@@ -4582,6 +4719,10 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
+	}
+	if runFlags[abyssRunFlagColdMuscles] > 0 {
+		runFlags[abyssRunFlagColdMuscles]--
+		_ = s.bot.saveRunFlags(uid, runFlags)
 	}
 
 	affixReward := ""

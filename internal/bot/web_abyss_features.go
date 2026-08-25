@@ -1531,6 +1531,9 @@ func (s *WebServer) handleAbyssLastStand(w http.ResponseWriter, r *http.Request,
 	}
 
 	run := s.bot.loadAbyssRun(uid)
+	if s.autoConcedeIfTimedOut(w, uid, run) {
+		return
+	}
 	if !run.Active || !run.Downed {
 		writeJSON(w, map[string]any{"ok": false, "error": "not downed"})
 		return
@@ -1539,13 +1542,14 @@ func (s *WebServer) handleAbyssLastStand(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "hardcore runs do not allow Last Stand"})
 		return
 	}
-	if run.LastStandUsed {
-		writeJSON(w, map[string]any{"ok": false, "error": "Last Stand already spent this run"})
+	flags := s.bot.loadRunFlags(uid)
+	cost, available := abyssLastStandOffer(run, flags)
+	if !available {
+		writeJSON(w, map[string]any{"ok": false, "error": "both Last Stand charges are spent this run"})
 		return
 	}
 
 	st := s.bot.loadAbyssStats(uid)
-	cost := abyssLastStandCost(run.Depth)
 	// Revive against the true combat max (base+gear+skill-web), matching handleAbyssRevive
 	// and every other Abyss HP surface — calculateTotalStats alone omits the tree bonus.
 	stats := s.bot.abyssCombatStats(uid)
@@ -1564,6 +1568,13 @@ func (s *WebServer) handleAbyssLastStand(w http.ResponseWriter, r *http.Request,
 	if !deductTokens(w, tx, uid, cost) {
 		return
 	}
+	if run.LastStandUsed {
+		flags[abyssRunFlagSecondLastStandUsed] = 1
+		if err := saveRunFlags(tx, uid, flags); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
 	if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", reviveHP, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1579,6 +1590,7 @@ func (s *WebServer) handleAbyssLastStand(w http.ResponseWriter, r *http.Request,
 	writeJSON(w, map[string]any{
 		"ok": true, "hp": reviveHP, "max_hp": stats.HP, "tokens": s.bot.abyssTokens(uid),
 		"msg": fmt.Sprintf("🛡️ LAST STAND! You rise at %d%% HP — but the exit is sealed for the next 2 floors.", revivePct),
+		"second_charge": run.LastStandUsed,
 	})
 }
 
