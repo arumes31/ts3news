@@ -1,13 +1,298 @@
 {{define "abyssCommandPaletteJS"}}
 (function(){
   'use strict';
-  var paletteItems=[],paletteIndex=0;
-  function make(tag,className,text){var node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node;}
-  function experience(){return window.__abyssPlayerExperience||{};}
-  function commands(){var items=[];document.querySelectorAll('#abyssControls button,.ab-tabs button,#abyssRecord button,#abyssTokenShop button,#abyssForgePanel button').forEach(function(button){if(!button.id||button.disabled||button.offsetParent===null)return;var label=(button.textContent||'').trim().replace(/\s+/g,' ');if(label)items.push({label:label,group:(button.closest('[data-abyss-section]')||{}).dataset&&button.closest('[data-abyss-section]').dataset.abyssSection||'run',run:function(){button.scrollIntoView({block:'center'});button.focus();button.click();}});});var player=experience();items.unshift({label:'Resume active run control',group:'navigation',run:player.resume},{label:'Open player experience settings',group:'settings',run:player.openSettings},{label:'Copy current run report',group:'report',run:player.copyReport});return items.filter(function(item){return typeof item.run==='function';}).slice(0,120);}
-  function renderPalette(query){var host=document.getElementById('abCommandResults');if(!host)return;host.replaceChildren();var normalized=(query||'').trim().toLowerCase();paletteItems=commands().filter(function(item){return !normalized||(item.label+' '+item.group).toLowerCase().indexOf(normalized)>=0;}).slice(0,30);paletteIndex=Math.min(paletteIndex,Math.max(0,paletteItems.length-1));paletteItems.forEach(function(item,index){var button=make('button','ghost ab-command-result'+(index===paletteIndex?' active':'')),label=make('span','',item.label),group=make('small','',item.group);button.type='button';button.append(label,group);button.onclick=function(){closeModal();item.run();};host.appendChild(button);});if(!paletteItems.length)host.appendChild(make('div','muted small','No matching commands.'));}
-  function openPalette(){openModal('<h3>⌘ Abyss command palette</h3><input id="abCommandSearch" class="ab-settings-search" type="search" placeholder="Search actions…" aria-label="Search available Abyss actions"><div id="abCommandResults" class="ab-command-results" role="listbox"></div><div class="muted small">↑↓ select · Enter run · Esc close · Ctrl/⌘ K anywhere</div>');var input=document.getElementById('abCommandSearch');paletteIndex=0;input.oninput=function(){paletteIndex=0;renderPalette(input.value);};input.onkeydown=function(event){if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();paletteIndex=Math.max(0,Math.min(paletteItems.length-1,paletteIndex+(event.key==='ArrowDown'?1:-1)));renderPalette(input.value);}else if(event.key==='Enter'&&paletteItems[paletteIndex]){event.preventDefault();var action=paletteItems[paletteIndex];closeModal();action.run();}};renderPalette('');}
-  document.addEventListener('keydown',function(event){if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();openPalette();}});
-  window.__abyssCommandPalette={open:openPalette};
+
+  var recentKey='ab_command_recent_v2';
+  var maxRecent=8;
+  var paletteItems=[];
+  var paletteIndex=0;
+
+  function make(tag,className,text){
+    var node=document.createElement(tag);
+    if(className)node.className=className;
+    if(text!==undefined)node.textContent=text;
+    return node;
+  }
+
+  function clean(value){
+    return String(value||'').trim().replace(/\s+/g,' ');
+  }
+
+  function normalize(value){
+    var valueText=clean(value).toLowerCase();
+    return valueText.normalize?valueText.normalize('NFKD').replace(/[\u0300-\u036f]/g,''):valueText;
+  }
+
+  function experience(){
+    return window.__abyssPlayerExperience||{};
+  }
+
+  function announce(message){
+    if(window.__abyssAccessibility&&window.__abyssAccessibility.announce){
+      window.__abyssAccessibility.announce(message);
+    }
+  }
+
+  function readRecent(){
+    try{
+      var value=JSON.parse(localStorage.getItem(recentKey)||'[]');
+      return Array.isArray(value)?value.filter(function(id){return typeof id==='string';}).slice(0,maxRecent):[];
+    }catch(_){
+      return [];
+    }
+  }
+
+  function remember(id){
+    var recent=readRecent().filter(function(item){return item!==id;});
+    recent.unshift(id);
+    try{localStorage.setItem(recentKey,JSON.stringify(recent.slice(0,maxRecent)));}catch(_){}
+  }
+
+  function currentSection(){
+    var tab=document.querySelector('.ab-tab.active[data-tab-key]');
+    return tab?tab.dataset.tabKey:'run';
+  }
+
+  function sectionLabel(key){
+    return key?key.charAt(0).toUpperCase()+key.slice(1):'Run';
+  }
+
+  function unavailableReason(button){
+    if(!button.disabled&&button.getAttribute('aria-disabled')!=='true')return '';
+    if(button.dataset.commandDisabledReason)return button.dataset.commandDisabledReason;
+    if(button.title)return button.title;
+    if(typeof liveCombatState!=='undefined'&&liveCombatState)return 'Unavailable while live combat is resolving.';
+    if(typeof downed!=='undefined'&&downed)return 'Resolve the revival decision first.';
+    if(typeof busy!=='undefined'&&busy)return 'Another Abyss action is still resolving.';
+    return 'Unavailable in the current run state.';
+  }
+
+  function activateButton(button,section){
+    if(section){
+      var tab=document.querySelector('.ab-tab[data-tab-key="'+section+'"]');
+      if(tab&&!tab.classList.contains('active'))tab.click();
+    }
+    window.setTimeout(function(){
+      button.scrollIntoView({block:'center',behavior:window.reduceMotion?'auto':'smooth'});
+      button.focus();
+      button.click();
+    },0);
+  }
+
+  function commandRegistry(){
+    var player=experience();
+    var items=[
+      {id:'special:resume',label:'Resume active run control',group:'Navigation',icon:'↳',keywords:'continue descend current objective',enabled:typeof player.resume==='function',reason:'Run controls are not ready.',run:player.resume},
+      {id:'special:experience',label:'Open player experience settings',group:'Settings',icon:'✨',keywords:'accessibility display motion focus contrast',enabled:typeof player.openSettings==='function',reason:'Player settings are not ready.',run:player.openSettings},
+      {id:'special:report',label:'Copy current run report',group:'Report',icon:'⎘',keywords:'clipboard diagnostics combat log',enabled:typeof player.copyReport==='function',reason:'The run report is not ready.',run:player.copyReport}
+    ];
+    var seen={};
+
+    document.querySelectorAll('.ab-tab[data-tab-key]').forEach(function(tab){
+      var key=tab.dataset.tabKey;
+      if(!key||seen['section:'+key])return;
+      seen['section:'+key]=true;
+      items.push({
+        id:'section:'+key,
+        label:'Open '+clean(tab.textContent).replace(/^\S+\s*/,''),
+        group:'Navigation',
+        icon:'◇',
+        keywords:'section tab panel '+key,
+        enabled:true,
+        reason:'',
+        run:function(){tab.click();tab.focus();tab.scrollIntoView({block:'nearest'});}
+      });
+    });
+
+    document.querySelectorAll('#abyssControls button[id],[data-abyss-section] button[id]').forEach(function(button){
+      var id='control:'+button.id;
+      if(seen[id]||button.closest('#sharedModal'))return;
+      var label=clean(button.textContent);
+      if(!label||!/[A-Za-z0-9]/.test(label))return;
+      seen[id]=true;
+      var panel=button.closest('[data-abyss-section]');
+      var section=panel?panel.dataset.abyssSection:'run';
+      var reason=unavailableReason(button);
+      items.push({
+        id:id,
+        label:label.slice(0,96),
+        group:sectionLabel(section),
+        icon:'›',
+        keywords:[button.id,button.title||'',section].join(' '),
+        enabled:!reason,
+        reason:reason,
+        run:function(){activateButton(button,section);}
+      });
+    });
+    return items.slice(0,240);
+  }
+
+  function subsequenceScore(needle,haystack){
+    var cursor=0,score=0,last=-2;
+    for(var index=0;index<haystack.length&&cursor<needle.length;index++){
+      if(haystack[index]===needle[cursor]){
+        score+=index===last+1?4:1;
+        last=index;
+        cursor++;
+      }
+    }
+    return cursor===needle.length?score:-1;
+  }
+
+  function scoreCommand(item,query,recent,index){
+    var label=normalize(item.label),haystack=normalize(item.label+' '+item.group+' '+item.keywords);
+    var tokens=normalize(query).split(' ').filter(Boolean),score=0;
+    if(tokens.length){
+      if(label===tokens.join(' '))score+=240;
+      else if(label.indexOf(tokens.join(' '))===0)score+=140;
+      for(var tokenIndex=0;tokenIndex<tokens.length;tokenIndex++){
+        var token=tokens[tokenIndex],position=haystack.indexOf(token);
+        if(position>=0)score+=position<label.length?(label.indexOf(token)===0?70:42):20;
+        else{
+          var fuzzy=subsequenceScore(token,haystack);
+          if(fuzzy<token.length*2)return -1;
+          score+=fuzzy;
+        }
+      }
+    }else{
+      score+=Math.max(0,24-index/20);
+    }
+    var recentIndex=recent.indexOf(item.id);
+    if(recentIndex>=0)score+=tokens.length?10-recentIndex:120-recentIndex*8;
+    if(normalize(item.group)===normalize(sectionLabel(currentSection())))score+=8;
+    if(item.enabled)score+=3;
+    return score;
+  }
+
+  function rankCommands(query){
+    var recent=readRecent();
+    return commandRegistry().map(function(item,index){
+      return {item:item,score:scoreCommand(item,query,recent,index),order:index};
+    }).filter(function(entry){return entry.score>=0;}).sort(function(left,right){
+      return right.score-left.score||left.order-right.order||left.item.label.localeCompare(right.item.label);
+    }).slice(0,40).map(function(entry){return entry.item;});
+  }
+
+  function appendHighlighted(host,label,query){
+    var normalizedQuery=clean(query);
+    var position=label.toLowerCase().indexOf(normalizedQuery.toLowerCase());
+    if(!normalizedQuery||position<0){host.textContent=label;return;}
+    host.appendChild(document.createTextNode(label.slice(0,position)));
+    var mark=make('mark','',label.slice(position,position+normalizedQuery.length));
+    host.appendChild(mark);
+    host.appendChild(document.createTextNode(label.slice(position+normalizedQuery.length)));
+  }
+
+  function setActive(index){
+    var input=document.getElementById('abCommandSearch');
+    if(!paletteItems.length){
+      paletteIndex=0;
+      if(input)input.removeAttribute('aria-activedescendant');
+      return;
+    }
+    paletteIndex=Math.max(0,Math.min(paletteItems.length-1,index));
+    document.querySelectorAll('#abCommandResults [role="option"]').forEach(function(option,optionIndex){
+      var active=optionIndex===paletteIndex;
+      option.classList.toggle('active',active);
+      option.setAttribute('aria-selected',active?'true':'false');
+      if(active){
+        if(input)input.setAttribute('aria-activedescendant',option.id);
+        option.scrollIntoView({block:'nearest'});
+      }
+    });
+  }
+
+  function execute(item){
+    var status=document.getElementById('abCommandStatus');
+    if(!item.enabled){
+      var reason=item.reason||'Unavailable in the current run state.';
+      if(status)status.textContent=item.label+' — '+reason;
+      announce(reason);
+      var input=document.getElementById('abCommandSearch');
+      if(input)input.focus();
+      return;
+    }
+    remember(item.id);
+    closeModal();
+    window.setTimeout(item.run,0);
+  }
+
+  function renderPalette(query){
+    var host=document.getElementById('abCommandResults');
+    var status=document.getElementById('abCommandStatus');
+    if(!host)return;
+    host.replaceChildren();
+    paletteItems=rankCommands(query);
+    paletteIndex=Math.min(paletteIndex,Math.max(0,paletteItems.length-1));
+    var recent=readRecent();
+
+    paletteItems.forEach(function(item,index){
+      var button=make('button','ab-command-result'+(index===paletteIndex?' active':'')+(item.enabled?'':' is-disabled'));
+      var icon=make('span','ab-command-icon',item.icon);
+      var copy=make('span','ab-command-copy');
+      var label=make('span','ab-command-label');
+      var meta=make('span','ab-command-meta',item.group+(recent.indexOf(item.id)>=0?' · Recent':''));
+      var key=make('kbd','ab-command-enter',item.enabled?'↵':'Locked');
+      button.type='button';
+      button.id='ab-command-option-'+index;
+      button.setAttribute('role','option');
+      button.setAttribute('aria-selected',index===paletteIndex?'true':'false');
+      button.setAttribute('aria-disabled',item.enabled?'false':'true');
+      button.tabIndex=-1;
+      button.dataset.commandId=item.id;
+      appendHighlighted(label,item.label,query);
+      copy.append(label,meta);
+      if(!item.enabled)copy.appendChild(make('span','ab-command-reason',item.reason));
+      button.append(icon,copy,key);
+      button.addEventListener('mouseenter',function(){setActive(index);});
+      button.addEventListener('click',function(){execute(item);});
+      host.appendChild(button);
+    });
+
+    if(!paletteItems.length){
+      host.appendChild(make('div','ab-command-empty','No matching commands. Try a section, action, or control name.'));
+    }
+    if(status)status.textContent=paletteItems.length+' command'+(paletteItems.length===1?'':'s')+' available';
+    setActive(paletteIndex);
+  }
+
+  function moveSelection(key){
+    if(!paletteItems.length)return;
+    if(key==='Home')setActive(0);
+    else if(key==='End')setActive(paletteItems.length-1);
+    else setActive((paletteIndex+(key==='ArrowDown'?1:-1)+paletteItems.length)%paletteItems.length);
+  }
+
+  function openPalette(){
+    openModal('<div class="ab-command-heading"><span class="ab-command-eyebrow">ABYSS OPERATIONS</span><h3>⌘ Abyss command palette</h3><p>Navigate sections and launch available run actions without losing your place.</p></div><div class="ab-command-query"><span aria-hidden="true">⌕</span><input id="abCommandSearch" type="search" role="combobox" autocomplete="off" spellcheck="false" placeholder="Search actions, sections, or controls…" aria-label="Search available Abyss actions" aria-autocomplete="list" aria-controls="abCommandResults" aria-expanded="true" aria-activedescendant=""></div><div id="abCommandResults" class="ab-command-results" role="listbox" aria-label="Abyss commands"></div><div class="ab-command-footer"><span id="abCommandStatus" role="status" aria-live="polite"></span><span><kbd>↑</kbd><kbd>↓</kbd> select · <kbd>Enter</kbd> run · <kbd>Esc</kbd> close · <kbd>Ctrl/⌘ K</kbd> or <kbd>/</kbd></span></div>');
+    var input=document.getElementById('abCommandSearch');
+    paletteIndex=0;
+    input.addEventListener('input',function(){paletteIndex=0;renderPalette(input.value);});
+    input.addEventListener('keydown',function(event){
+      if(event.key==='ArrowDown'||event.key==='ArrowUp'||event.key==='Home'||event.key==='End'){
+        event.preventDefault();
+        moveSelection(event.key);
+      }else if(event.key==='Enter'&&paletteItems[paletteIndex]){
+        event.preventDefault();
+        execute(paletteItems[paletteIndex]);
+      }
+    });
+    renderPalette('');
+  }
+
+  function isTypingTarget(target){
+    return !!(target&&(/INPUT|SELECT|TEXTAREA/.test(target.tagName)||target.isContentEditable));
+  }
+
+  document.addEventListener('keydown',function(event){
+    var commandKey=(event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k';
+    var slashKey=event.key==='/'&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&!isTypingTarget(event.target);
+    if(event.defaultPrevented||event.repeat||(!commandKey&&!slashKey))return;
+    if(slashKey&&document.getElementById('sharedModal').classList.contains('open'))return;
+    event.preventDefault();
+    openPalette();
+  });
+
+  window.__abyssCommandPalette={open:openPalette,commands:commandRegistry,rank:rankCommands};
 })();
 {{end}}

@@ -74,6 +74,47 @@ test('desktop Abyss keeps its dark canvas and aligned stage in light system mode
   expect(layout.overflow).toEqual([]);
 });
 
+test('command palette ranks sections, remembers recents, and explains locked actions', async ({ page }) => {
+  await page.goto('/abyss?active=1');
+  await page.evaluate(() => {
+    window.reduceMotion = true;
+    localStorage.removeItem('ab_command_recent_v2');
+    const locked = document.createElement('button');
+    locked.id = 'e2eLockedCommand';
+    locked.type = 'button';
+    locked.textContent = 'Use locked test action';
+    locked.disabled = true;
+    locked.dataset.commandDisabledReason = 'Needs an E2E key.';
+    document.querySelector('#abyssControls').appendChild(locked);
+  });
+
+  await page.keyboard.press('Control+k');
+  const search = page.locator('#abCommandSearch');
+  await expect(search).toBeVisible();
+  await expect(search).toHaveAttribute('role', 'combobox');
+  await expect(search).toHaveAttribute('aria-controls', 'abCommandResults');
+  await search.fill('frg');
+  await expect(page.locator('#abCommandResults [role="option"]').first()).toContainText('Forge');
+  await search.press('Enter');
+  await expect(page.locator('.ab-tab[data-tab-key="forge"]')).toHaveClass(/active/);
+
+  await page.keyboard.press('Control+k');
+  await expect(page.locator('#abCommandResults [role="option"]').first()).toHaveAttribute('data-command-id', 'section:forge');
+  await search.fill('no-such-abyss-command-zzzz');
+  await expect(page.locator('.ab-command-empty')).toBeVisible();
+  await expect.poll(() => search.getAttribute('aria-activedescendant')).toBeNull();
+  await search.fill('locked test');
+  const lockedResult = page.locator('[data-command-id="control:e2eLockedCommand"]');
+  await expect(lockedResult).toHaveAttribute('aria-disabled', 'true');
+  await search.press('Enter');
+  await expect(page.locator('#sharedModal')).toHaveClass(/open/);
+  await expect(page.locator('#abCommandStatus')).toContainText('Needs an E2E key.');
+
+  await page.keyboard.press('Escape');
+  await page.locator('body').press('/');
+  await expect(page.locator('#abCommandSearch')).toBeVisible();
+});
+
 test('dedicated special-item pixel atlases are served', async ({ request }) => {
   const families = [
     'relics', 'ranged', 'artifacts', 'souls', 'auras', 'charms', 'mounts',
