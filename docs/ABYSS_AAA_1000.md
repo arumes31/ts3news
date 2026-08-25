@@ -652,3 +652,31 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0898 / AB-198** — Insanity combat occasionally appends one deterministic-RNG atmospheric whisper to its authoritative log.
 - [x] **AAA-0899 / AB-199** — the Fellowship trophy gallery records and dates the first persisted kill of every distinct boss.
 - [x] **AAA-0900 / AB-200** — authenticated bearer links open a read-only live spectator deck whose snapshot strips controls, results, RNG state, and raw combatant IDs.
+
+## Delivered tranche: Stage, combat log, and run HUD
+
+- [x] **AAA-0901 / AB-201** — authoritative HP-frame losses trigger a proportional red edge vignette, with reduced-motion suppression.
+- [x] **AAA-0902 / AB-202** — the stage HUD mirrors the lead enemy intent as a normal, special, or heavy icon and accessible description.
+- [x] **AAA-0903 / AB-203** — live encounters report the rolling average duration of rounds in the current session only.
+- [x] **AAA-0904 / AB-204** — any rendered combat-log line can be pinned as the sticky top line and toggled off again.
+- [x] **AAA-0905 / AB-205** — the visible, filtered combat log exports as a self-contained styled HTML file with its color classes preserved.
+- [x] **AAA-0906 / AB-206** — the HP bar overlays a clearly labelled next-floor threat forecast without presenting it as guaranteed damage.
+- [x] **AAA-0907 / AB-207** — quick-belt consumables support persisted drag ordering by stable consumable ID.
+- [x] **AAA-0908 / AB-208** — an explicit HUD edit mode persists chip ordering with stable semantic keys.
+- [x] **AAA-0909 / AB-209** — the HUD draws the last twenty server risk readings as a compact accessible threat sparkline.
+- [x] **AAA-0910 / AB-210** — cleared-floor client durations feed a session average chip beside the stage.
+- [x] **AAA-0911 / AB-211** — the boss HP overlay toggles between exact health and percentage by pointer or keyboard and remembers the preference.
+- [x] **AAA-0912 / AB-212** — completed floors receive a cosmetic S/A/B/C tempo grade that has no reward or combat effect.
+- [x] **AAA-0913 / AB-213** — boss floors create session-persisted jump bookmarks containing escaped plain-text fight logs.
+- [x] **AAA-0914 / AB-214** — multi-wave pips use repeating segment colors to distinguish current and completed waves.
+- [x] **AAA-0915 / AB-215** — the HUD shows the primary active companion's name, loyalty heart, and exact loyalty value.
+- [x] **AAA-0916 / AB-216** — buffs with one fight remaining receive a gentle blink that is disabled for reduced motion.
+- [x] **AAA-0917 / AB-217** — the HP bar tooltip groups observed fight damage into physical, elemental, and damage-over-time estimates.
+- [x] **AAA-0918 / AB-218** — long-pressing either Descend control opens a five-floor plan with its authoritative stop conditions stated before confirmation.
+- [x] **AAA-0919 / AB-219** — hovering escrow loot desaturates equipped cards outside the matching gear slot.
+- [x] **AAA-0920 / AB-220** — right-clicking the boss intro dismisses and makes the card inert immediately.
+- [x] **AAA-0921 / AB-221** — the run clock counts visible, recently active play time and pauses after idle or tab hiding.
+- [x] **AAA-0922 / AB-222** — live mana bars are segmented by the cheapest currently available spell and report the casts remaining.
+- [x] **AAA-0923 / AB-223** — the depth dial tooltip summarizes depth, cleared floors, risk, HP, active time, and average floor time.
+- [x] **AAA-0924 / AB-224** — the escrow tooltip separates current gold from item and material-stack counts.
+- [x] **AAA-0925 / AB-225** — health below twenty percent receives a slow heartbeat pulse with a reduced-motion fallback.

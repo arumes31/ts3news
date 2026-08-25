@@ -1,0 +1,90 @@
+{{define "abyssStageHUD"}}
+<div class="ab-stage-hud-tools" id="abyssStageHUDTools">
+  <button type="button" class="ghost xs" id="abyssHUDEdit" aria-pressed="false">↕ Arrange HUD</button>
+  <span class="ab-stage-intent" id="abyssIntentChip" hidden></span>
+  <span class="ab-stage-metric" id="abyssRoundAverage" hidden>R avg —</span>
+  <span class="ab-stage-metric" id="abyssFloorAverage" hidden>Floor avg —</span>
+  <span class="ab-clear-rating" id="abyssClearRating" hidden></span>
+  <svg class="ab-threat-spark" id="abyssThreatSpark" viewBox="0 0 120 24" role="img" aria-label="Threat history"><polyline points="0,22 120,22"></polyline></svg>
+  <span class="ab-pet-status" id="abyssPetStatus" hidden></span>
+</div>
+<nav class="ab-boss-bookmarks" id="abyssBossBookmarks" aria-label="Boss combat log bookmarks" hidden></nav>
+<div id="abyssPetHUDData" hidden>{{with .Social}}{{range .Pets}}{{if gt .ActiveSlot 0}}<span data-name="{{.Name}}" data-loyalty="{{.Loyalty}}" data-slot="{{.ActiveSlot}}"></span>{{end}}{{end}}{{end}}</div>
+{{end}}
+
+{{define "abyssStageHUDJS"}}
+(function(){
+  'use strict';
+  var threatHistory=[],hudOrder=[],hudEditing=false,bossHPMode='exact',liveSessionID='',roundStarted=0,lastRound=0,roundDurations=[],floorStarted=0,floorDurations=[],skipNextDescend=false,lastFrameHP=null,lastDamageKind='physical',damageParts={physical:0,elemental:0,dot:0},bossBookmarks=[];
+  try{threatHistory=JSON.parse(sessionStorage.getItem('ab_threat_history')||'[]')||[];hudOrder=JSON.parse(localStorage.getItem('ab_hud_order')||'[]')||[];bossHPMode=localStorage.getItem('ab_boss_hp_mode')||'exact';floorDurations=JSON.parse(sessionStorage.getItem('ab_floor_durations')||'[]')||[];bossBookmarks=JSON.parse(sessionStorage.getItem('ab_boss_bookmarks')||'[]')||[];}catch(e){}
+  if(!inRun){threatHistory=[];floorDurations=[];bossBookmarks=[];}
+  function duration(ms){return ms<1000?Math.round(ms)+'ms':(ms/1000).toFixed(1)+'s';}
+  function saveSession(key,value){try{sessionStorage.setItem(key,JSON.stringify(value));}catch(e){}}
+
+  function renderThreatSpark(){
+    var svg=document.getElementById('abyssThreatSpark'),line=svg&&svg.querySelector('polyline');if(!line)return;
+    var values=threatHistory.slice(-20);if(!values.length)values=[Number(curRisk)||0];
+    var points=values.map(function(value,index){var x=values.length===1?0:index*120/(values.length-1),y=22-Math.max(0,Math.min(100,Number(value)||0))*20/100;return x.toFixed(1)+','+y.toFixed(1);}).join(' ');
+    line.setAttribute('points',points);svg.setAttribute('aria-label','Threat history: '+values.join(', ')+' percent');svg.title='Threat history · '+values.join('% → ')+'%';
+  }
+  function recordThreat(value){value=Math.max(0,Math.min(100,Number(value)||0));if(threatHistory[threatHistory.length-1]!==value){threatHistory.push(value);threatHistory=threatHistory.slice(-20);saveSession('ab_threat_history',threatHistory);}renderThreatSpark();}
+  var originalSetRisk=window.setRisk;window.setRisk=function(value){var result=originalSetRisk.apply(this,arguments);recordThreat(value);return result;};
+
+  function hudKey(chip,index){
+    if(chip.classList.contains('focus'))return 'focus';
+    if(chip.classList.contains('pact'))return 'pact-'+(chip.textContent||'').replace(/^⚔️?\s*/, '').trim();
+    var label=(chip.textContent||'').trim(),icon=Array.from(label)[0]||'';
+    if(/jackpot/i.test(label))return 'jackpot';if(/streak/i.test(label))return 'bank-streak';if(/Last Stand/i.test(label))return 'last-stand';if(/Comeback/i.test(label))return 'comeback';
+    var keys={'💰':'earn-rate','⚖':'soft-cap','🛡':'insurance','⛓':'checkpoint','📈':'interest','🔥':'streak','⚒':'happy-hour','⚙':'gear','🏆':'leaderboard','🎯':'bounty'};
+    var identity=chip.id||chip.getAttribute('aria-label')||chip.getAttribute('title')||label;
+    identity=identity.toLowerCase().replace(/[0-9.,+×%]/g,'').replace(/\s+/g,'-').replace(/^-+|-+$/g,'').slice(0,48);
+    return keys[icon]||identity||'hud-chip-'+index;
+  }
+  function arrangeHUD(){
+    var host=document.getElementById('hudChips');if(!host)return;
+    var chips=Array.prototype.slice.call(host.children);chips.forEach(function(chip,index){if(!chip.dataset.hudKey)chip.dataset.hudKey=hudKey(chip,index);});
+    chips.sort(function(a,b){var ai=hudOrder.indexOf(a.dataset.hudKey),bi=hudOrder.indexOf(b.dataset.hudKey);if(ai<0)ai=999;if(bi<0)bi=999;return ai-bi;}).forEach(function(chip){chip.draggable=hudEditing;chip.classList.toggle('ab-hud-draggable',hudEditing);host.appendChild(chip);chip.ondragstart=function(event){event.dataTransfer.setData('text/plain',chip.dataset.hudKey);};chip.ondragover=function(event){if(hudEditing)event.preventDefault();};chip.ondrop=function(event){if(!hudEditing)return;event.preventDefault();var source=event.dataTransfer.getData('text/plain');var keys=Array.prototype.map.call(host.children,function(node){return node.dataset.hudKey;}).filter(function(key){return key!==source;}),at=keys.indexOf(chip.dataset.hudKey);keys.splice(Math.max(0,at),0,source);hudOrder=keys;try{localStorage.setItem('ab_hud_order',JSON.stringify(keys));}catch(e){}arrangeHUD();};});
+  }
+  var originalHUDRender=window.renderHudChipsNow;window.renderHudChipsNow=function(){var result=originalHUDRender.apply(this,arguments);arrangeHUD();return result;};
+  document.getElementById('abyssHUDEdit').addEventListener('click',function(){hudEditing=!hudEditing;this.setAttribute('aria-pressed',String(hudEditing));this.textContent=hudEditing?'✓ Finish arranging':'↕ Arrange HUD';document.getElementById('hudChips').classList.toggle('ab-hud-editing',hudEditing);arrangeHUD();});
+
+  function updateRoundMetrics(state){
+    var now=performance.now(),round=Number(state&&state.round)||0;
+    var sessionID=String(state&&state.session_id||'');
+    if(sessionID&&sessionID!==liveSessionID){liveSessionID=sessionID;lastRound=0;roundStarted=0;roundDurations=[];lastFrameHP=null;damageParts={physical:0,elemental:0,dot:0};}
+    if(round&&round!==lastRound){if(lastRound&&roundStarted){roundDurations.push(now-roundStarted);roundDurations=roundDurations.slice(-30);}lastRound=round;roundStarted=now;}
+    var metric=document.getElementById('abyssRoundAverage');metric.hidden=!roundDurations.length;if(roundDurations.length)metric.textContent='R avg '+duration(roundDurations.reduce(function(sum,value){return sum+value;},0)/roundDurations.length);
+    var intent=document.getElementById('abyssIntentChip'),intents=state&&state.enemy_intents||[],lead=intents[0];
+    if(intent){intent.hidden=!lead;if(lead){var ability=String(lead.ability||lead.kind||'attack'),kind=/heavy|ultimate|execute|slam|crush/i.test(ability)?'heavy':String(lead.kind||'attack')!=='attack'?'special':'normal',icons={heavy:'💥',special:'✦',normal:'⚔'};intent.className='ab-stage-intent '+kind;intent.textContent=icons[kind]+' '+kind.toUpperCase()+' · '+ability;intent.title=String(lead.enemy_name||'Enemy')+' intends '+ability+(lead.target?' against '+lead.target:'');}}
+    var own=(state&&state.allies||[]).find(function(unit){return unit.is_self;})||{},costs=(state&&state.options||[]).map(function(option){return Number(option.mana)||0;}).filter(function(cost){return cost>0;}),bar=document.getElementById('mpBar');
+    if(bar&&costs.length&&own.max_mana){var cheapest=Math.min.apply(Math,costs),segment=Math.max(4,cheapest*100/own.max_mana);bar.style.setProperty('--mana-segment',segment+'%');bar.classList.add('ab-mana-segmented');bar.title=Math.floor((Number(own.mana)||0)/cheapest)+' casts at the cheapest ready spell cost ('+fmtNum(cheapest)+' mana).';}
+  }
+  var originalRenderLive=window.renderLiveCombat;window.renderLiveCombat=function(state){var result=originalRenderLive.apply(this,arguments);updateRoundMetrics(state);return result;};
+
+  function classifyDamage(text){if(/poison|bleed|burn|damage over time|dot\b/i.test(text))return 'dot';if(/fire|frost|ice|water|earth|air|lightning|void|arcane/i.test(text))return 'elemental';return 'physical';}
+  var originalAppendLog=window.appendLogLine;window.appendLogLine=function(log,html,round){lastDamageKind=classifyDamage(String(html||'').replace(/<[^>]*>/g,' '));return originalAppendLog.apply(this,arguments);};
+  function updateDamageTooltip(){var bar=document.getElementById('hpBar');if(!bar)return;var total=damageParts.physical+damageParts.elemental+damageParts.dot;bar.title='Damage taken this fight · Physical '+fmtNum(damageParts.physical)+' · Elemental '+fmtNum(damageParts.elemental)+' · DoT '+fmtNum(damageParts.dot)+' · Total '+fmtNum(total);}
+  var originalApplyFrame=window.applyCombatFrame;window.applyCombatFrame=function(frame){var hp=Math.max(0,Number(frame&&frame.hp)||0);if(lastFrameHP!==null&&hp<lastFrameHP)damageParts[lastDamageKind]+=lastFrameHP-hp;lastFrameHP=hp;var result=originalApplyFrame.apply(this,arguments);updateDamageTooltip();var boss=document.getElementById('bossHPOverlay'),enemy=Number(frame&&frame.enemy_hp)||0,maxEnemy=Number(frame&&frame.enemy_max)||0;if(boss&&maxEnemy>0)boss.textContent=bossHPMode==='percent'?'💀 '+Math.max(0,Math.round(enemy*100/maxEnemy))+'%':'💀 '+fmtNum(enemy)+' / '+fmtNum(maxEnemy)+' HP';return result;};
+  var originalClearStage=window.clearStageFx;window.clearStageFx=function(){var result=originalClearStage.apply(this,arguments),bar=document.getElementById('hpBar');lastFrameHP=bar?Math.max(0,Number(bar.getAttribute('aria-valuenow'))||0):null;damageParts={physical:0,elemental:0,dot:0};updateDamageTooltip();return result;};
+
+  function renderFloorAverage(){var metric=document.getElementById('abyssFloorAverage');metric.hidden=!floorDurations.length;if(floorDurations.length)metric.textContent='Floor avg '+duration(floorDurations.reduce(function(sum,value){return sum+value;},0)/floorDurations.length);}
+  function rateFloor(milliseconds){return milliseconds<2500?'S':milliseconds<5000?'A':milliseconds<9000?'B':'C';}
+  function renderBossBookmarks(){var nav=document.getElementById('abyssBossBookmarks');if(!nav)return;nav.hidden=!bossBookmarks.length;nav.replaceChildren();bossBookmarks.forEach(function(mark){var button=document.createElement('button');button.type='button';button.className='ghost xs';button.textContent='♛ F'+mark.depth;button.title=mark.name;button.onclick=function(){openModal('<h3>♛ '+consEsc(mark.name)+' · floor '+Number(mark.depth)+'</h3><pre class="ab-bookmark-log">'+consEsc(mark.log)+'</pre><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close</button></div>');};nav.appendChild(button);});}
+  function addBossBookmark(data){if(!data.boss_name)return;bossBookmarks.push({depth:data.depth,name:String(data.boss_name),log:lastFightText});bossBookmarks=bossBookmarks.slice(-12);saveSession('ab_boss_bookmarks',bossBookmarks);renderBossBookmarks();}
+  var originalProcessResult=window.processDescendResult;window.processDescendResult=async function(data){var result=await originalProcessResult.apply(this,arguments);if(data&&data.victory&&floorStarted){var elapsed=performance.now()-floorStarted;floorStarted=0;floorDurations.push(elapsed);floorDurations=floorDurations.slice(-30);saveSession('ab_floor_durations',floorDurations);renderFloorAverage();var rating=document.getElementById('abyssClearRating');rating.hidden=false;rating.textContent=rateFloor(elapsed)+' RANK · '+duration(elapsed);rating.dataset.grade=rateFloor(elapsed);}if(data&&data.boss_name)addBossBookmark(data);updateDialTooltips();return result;};
+  var originalDescend=window.abyssDescend;window.abyssDescend=function(){floorStarted=performance.now();return originalDescend.apply(this,arguments);};
+
+  function prepareFiveFloorDescent(){while(document.querySelectorAll('.ab-path-select').length<5&&typeof addPathToQueue==='function')addPathToQueue();closeModal();floorStarted=performance.now();abyssDescendMulti();}
+  window.abyssHUDConfirmFive=prepareFiveFloorDescent;
+  function bindLongPress(button){if(!button)return;var timer=0;button.addEventListener('pointerdown',function(){timer=setTimeout(function(){timer=0;skipNextDescend=true;openModal('<h3>⚡ Five-floor descent</h3><p>Runs five planned floors and stops immediately for defeat, a non-combat room, a route choice, or a server rejection.</p><div class="modal-actions"><button onclick="closeModal()">Cancel</button><button id="modalOkBtn" onclick="abyssHUDConfirmFive()">Plan ×5</button></div>');},650);});['pointerup','pointercancel','pointerleave'].forEach(function(name){button.addEventListener(name,function(){if(timer){clearTimeout(timer);timer=0;}});});button.addEventListener('click',function(event){if(skipNextDescend){skipNextDescend=false;event.preventDefault();event.stopImmediatePropagation();}},true);}
+
+  document.addEventListener('mouseover',function(event){var loot=event.target.closest&&event.target.closest('.abyss-side-loot[data-slot]');if(!loot)return;var slot=loot.dataset.slot;document.querySelectorAll('.abyss-side-gear[data-slot]').forEach(function(gear){gear.classList.toggle('ab-slot-mismatch',!!slot&&gear.dataset.slot!==slot);});});
+  document.addEventListener('mouseout',function(event){if(event.target.closest&&event.target.closest('.abyss-side-loot[data-slot]'))document.querySelectorAll('.abyss-side-gear').forEach(function(gear){gear.classList.remove('ab-slot-mismatch');});});
+  var bossCard=document.getElementById('bossCard');if(bossCard)bossCard.addEventListener('contextmenu',function(event){event.preventDefault();bossCard.classList.remove('show');bossCard.setAttribute('aria-hidden','true');bossCard.inert=true;});
+  var bossOverlay=document.getElementById('bossHPOverlay');if(bossOverlay){bossOverlay.tabIndex=0;bossOverlay.setAttribute('role','button');bossOverlay.title='Activate to toggle exact health and percentage';bossOverlay.addEventListener('click',function(){bossHPMode=bossHPMode==='exact'?'percent':'exact';try{localStorage.setItem('ab_boss_hp_mode',bossHPMode);}catch(e){}abToast('Boss HP display: '+bossHPMode+'.',true);});bossOverlay.addEventListener('keydown',function(event){if(event.key==='Enter'||event.key===' '){event.preventDefault();bossOverlay.click();}});}
+
+  function updateDialTooltips(){var depth=document.getElementById('abyssDepthDial'),hp=document.getElementById('hpBar'),loot=document.querySelectorAll('.abyss-side-loot'),materials=Array.prototype.filter.call(loot,function(row){return /material|dust|shard|core|prism/i.test(row.dataset.itemType||row.textContent||'');}).length,items=Math.max(0,loot.length-materials),avg=floorDurations.length?floorDurations.reduce(function(sum,value){return sum+value;},0)/floorDurations.length:0;if(depth)depth.title='Run depth '+curDepth+' · '+plural(runFloorsCleared,'floor')+' cleared · risk '+curRisk+'% · HP '+(hp?hp.getAttribute('aria-valuenow')+'/'+hp.getAttribute('aria-valuemax'):'—')+' · active '+formatAbyssRunDuration(abyssRunActiveMS)+(avg?' · floor avg '+duration(avg):'');var escrow=document.getElementById('escrowVal');if(escrow)escrow.title='Cache split · gold '+fmtGold(curEscrow)+' · '+items+' item(s) · '+materials+' material stack(s)';}
+  function renderPetStatus(){var data=document.querySelector('#abyssPetHUDData [data-slot]'),status=document.getElementById('abyssPetStatus');if(!data||!status)return;var loyalty=Math.max(0,Math.min(100,Number(data.dataset.loyalty)||0));status.hidden=false;status.textContent='🐾 '+data.dataset.name+' '+(loyalty>=75?'♥':loyalty>=40?'♡':'💔')+' '+loyalty;status.title='Active companion loyalty '+loyalty+'/100';}
+  bindLongPress(document.getElementById('btnDescend'));bindLongPress(document.getElementById('mhDescend'));recordThreat(curRisk);renderFloorAverage();renderPetStatus();renderBossBookmarks();arrangeHUD();updateDialTooltips();setInterval(updateDialTooltips,1000);
+})();
+{{end}}

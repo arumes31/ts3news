@@ -16,10 +16,14 @@
 
 {{define "abyssRunAwarenessJS"}}
 var abyssRunAwarenessStart=0;
+var abyssRunActiveMS=0,abyssRunLastTick=Date.now(),abyssRunLastActivity=Date.now();
 var abyssRunRecordBaseline=(function(){var el=document.getElementById('bestDepth');return parseInt((el&&el.textContent||'').replace(/\D/g,''),10)||0;})();
+var abyssConsumableOrder=[];
+try{abyssConsumableOrder=JSON.parse(localStorage.getItem('ab_consumable_order')||'[]')||[];abyssRunActiveMS=Number(sessionStorage.getItem('ab_run_active_ms'))||0;}catch(e){}
+['pointerdown','keydown','wheel'].forEach(function(eventName){document.addEventListener(eventName,function(){abyssRunLastActivity=Date.now();},{passive:true});});
 
 function ensureAbyssRunAwarenessStart(){
-  if(!inRun){abyssRunAwarenessStart=0;try{sessionStorage.removeItem('ab_run_started_at');sessionStorage.removeItem('ab_run_floors');}catch(e){}return;}
+  if(!inRun){abyssRunAwarenessStart=0;abyssRunActiveMS=0;try{sessionStorage.removeItem('ab_run_started_at');sessionStorage.removeItem('ab_run_floors');sessionStorage.removeItem('ab_run_active_ms');}catch(e){}return;}
   if(abyssRunAwarenessStart)return;
   try{abyssRunAwarenessStart=Number(sessionStorage.getItem('ab_run_started_at'))||0;}catch(e){}
   if(!abyssRunAwarenessStart){abyssRunAwarenessStart=Date.now();try{sessionStorage.setItem('ab_run_started_at',String(abyssRunAwarenessStart));}catch(e){}}
@@ -43,18 +47,26 @@ function updateProjectedHP(hp,max){
 function renderRunAwarenessConsumables(list){
   var belt=document.getElementById('consumableBelt');if(!belt)return;
   var usable=(list||[]).filter(function(item){return item&&Number(item.Count)>0&&(item.Type==='Healing'||item.Type==='Repair'||item.Type==='Buff');});
+  usable.sort(function(a,b){var ai=abyssConsumableOrder.indexOf(a.ID),bi=abyssConsumableOrder.indexOf(b.ID);if(ai<0)ai=999;if(bi<0)bi=999;return ai-bi;});
   belt.replaceChildren();belt.hidden=!inRun||downed||!usable.length;
   usable.slice(0,8).forEach(function(item){
     var button=document.createElement('button');button.type='button';button.className='ab-belt-item';button.dataset.consumableId=item.ID;
+    button.draggable=true;
     var icon=item.Type==='Healing'?'🧪':item.Type==='Repair'?'🛠️':'✨';
     button.textContent=icon+' ×'+item.Count;button.title=(item.Name||item.ID)+' — '+(item.Description||'Use in the current run');
     button.setAttribute('aria-label','Use '+(item.Name||item.ID)+', '+item.Count+' available');
     button.disabled=busy;button.setAttribute('aria-disabled',busy?'true':'false');
-    button.addEventListener('click',function(){abyssUseConsumable(item.ID);});belt.appendChild(button);
+    button.addEventListener('click',function(){abyssUseConsumable(item.ID);});
+    button.addEventListener('dragstart',function(event){event.dataTransfer.setData('text/plain',item.ID);button.classList.add('is-dragging');});
+    button.addEventListener('dragend',function(){button.classList.remove('is-dragging');});
+    button.addEventListener('dragover',function(event){event.preventDefault();});
+    button.addEventListener('drop',function(event){event.preventDefault();var source=event.dataTransfer.getData('text/plain');if(!source||source===item.ID)return;var ids=usable.map(function(value){return value.ID;}).filter(function(id){return id!==source;}),at=ids.indexOf(item.ID);ids.splice(Math.max(0,at),0,source);abyssConsumableOrder=ids;try{localStorage.setItem('ab_consumable_order',JSON.stringify(ids));}catch(e){}renderRunAwarenessConsumables(list);});belt.appendChild(button);
   });
 }
 function updateAbyssRunAwareness(){
   ensureAbyssRunAwarenessStart();
+  var now=Date.now(),elapsed=Math.max(0,now-abyssRunLastTick);abyssRunLastTick=now;
+  if(inRun&&!document.hidden&&now-abyssRunLastActivity<30000){abyssRunActiveMS+=elapsed;try{sessionStorage.setItem('ab_run_active_ms',String(abyssRunActiveMS));}catch(e){}}
   var strip=document.getElementById('runAwarenessStrip');if(strip)strip.hidden=!inRun||downed;
   var record=document.getElementById('mhRecord'),recordWrap=document.getElementById('mhRecordWrap');
   if(record&&recordWrap){
@@ -63,7 +75,7 @@ function updateAbyssRunAwareness(){
     recordWrap.classList.toggle('is-record',gap<0);
   }
   var session=document.getElementById('mhSession');
-  if(session)session.textContent='⏱ '+formatAbyssRunDuration(abyssRunAwarenessStart?Date.now()-abyssRunAwarenessStart:0)+' · '+plural(runFloorsCleared,'floor');
+  if(session){session.textContent='⏱ '+formatAbyssRunDuration(abyssRunActiveMS)+' · '+plural(runFloorsCleared,'floor');session.title='Active run time; pauses after 30 seconds without input or while this tab is hidden.';}
   if(inRun)try{sessionStorage.setItem('ab_run_floors',String(runFloorsCleared));}catch(e){}
   var descend=document.getElementById('mhDescend'),bank=document.getElementById('mhBank');
   if(descend){descend.hidden=!inRun||downed;descend.disabled=busy||floorType==='rest'||floorType==='event';}

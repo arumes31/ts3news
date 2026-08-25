@@ -669,5 +669,22 @@
       "internal/bot/web_abyss_live_social_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [901, 902, 903, 904, 905, 906, 907, 908, 909, 910, 911, 912, 913, 914, 915, 916, 917, 918, 919, 920, 921, 922, 923, 924, 925],
+    "production": [
+      "internal/bot/webassets/abyss_stage_hud.html",
+      "internal/bot/webassets/abyss_stage_hud.css",
+      "internal/bot/webassets/abyss_run_awareness.html",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_ui200.css",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/web.go"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_stage_hud_test.go",
+      "internal/bot/web_abyss_run_awareness_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]
