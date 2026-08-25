@@ -1252,21 +1252,37 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
+	// Match the bank transaction's users -> app_meta lock order so a bank and an
+	// insurance request on different server instances cannot deadlock each other.
+	var lockedGold int64
+	if err := tx.QueryRow("SELECT gold FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&lockedGold); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	freeInsuranceUsed, err := consumeAbyssFreeInsurance(tx, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
-		return
+	if freeInsuranceUsed {
+		cost = 0
+	} else {
+		res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
+			return
+		}
 	}
 	if _, err := tx.Exec("UPDATE abyss_active SET insured=$1 WHERE client_uid=$2", req.Pct, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	cheapskateTitle := false
-	if abyssCheapskateEligible(cost, run.Escrow) {
+	if !freeInsuranceUsed && abyssCheapskateEligible(cost, run.Escrow) {
 		res, err := tx.Exec(`UPDATE users SET title='The Cheapskate', title_mult=1,
 			title_expires=NOW() + INTERVAL '7 days', title_source='abyss'
 			WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())
@@ -1293,6 +1309,7 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 		"ok": true, "insured": req.Pct, "cost": cost, "gold": gold,
 		"loyalty_discount_pct": loyaltyPct,
 		"cheapskate_title":     cheapskateTitle,
+		"free_insurance_used":  freeInsuranceUsed,
 	})
 }
 

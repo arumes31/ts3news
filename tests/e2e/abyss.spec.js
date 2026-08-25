@@ -287,8 +287,10 @@ test('a victorious descend can preview and commit bank', async ({ page }) => {
       dura: [], timeline: [], consumables: [], run_floors_cleared: 3,
     };
     if (path.endsWith('/bank') && body.preview) return {
-      ok: true, escrow: 3750, depth_bonus_pct: 13, depth_bonus: 488,
+      ok: true, escrow: 3750, source_escrow: 13750, depth_bonus_pct: 13, depth_bonus: 488,
       streak_bonus_pct: 0, streak_bonus: 0, payout: 4238, tokens_grant: 2,
+      base_tokens_grant: 1, pact_tokens_grant: 0, overcap_gold_converted: 100000,
+      overcap_tokens_grant: 1, next_bank_streak: 3, free_insurance_earned: true,
       loot_count: 0, capped: false, partial: false,
     };
     if (path.endsWith('/bank')) {
@@ -302,8 +304,35 @@ test('a victorious descend can preview and commit bank', async ({ page }) => {
   await page.locator('#btnDescend').click();
   await expect(page.locator('#abStatus')).toContainText('survived');
   await page.locator('#btnBank').click();
+  await expect(page.locator('#sharedModalCard')).toContainText('Over-cap conversion');
+  await expect(page.locator('#sharedModalCard')).toContainText('Next insurance is free');
   await page.locator('#modalOkBtn').click();
   await expect.poll(() => committed).toBe(true);
+});
+
+test('bank-streak insurance is presented and consumed as free cover', async ({ page }) => {
+  let insuredBody = null;
+  await fulfillAbyssAPI(page, (path, body) => {
+    if (path.endsWith('/insure')) {
+      insuredBody = body;
+      return { ok: true, insured: body.pct, cost: 0, gold: 5000, free_insurance_used: true };
+    }
+    return { ok: false, error: 'unexpected e2e request' };
+  });
+  await page.setViewportSize({ width: 480, height: 900 });
+  await page.goto('/abyss?active=1');
+  await page.evaluate(() => {
+    window.reduceMotion = true;
+    window.__abyssCoreRisk.state.free_insurance_ready = true;
+    window.__abyssCoreRisk.render();
+  });
+  await expect(page.locator('#btnInsureSelected')).toHaveText('Use free cover');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  await page.locator('#btnInsureSelected').click();
+  await expect(page.locator('#sharedModalCard')).toContainText('for free');
+  await page.locator('#modalOkBtn').click();
+  await expect.poll(() => insuredBody).toEqual({ pct: 25 });
+  await expect(page.locator('#btnInsureSelected')).toHaveText('Buy cover');
 });
 
 test('a fatal descend exposes the revive and concede decision', async ({ page }) => {

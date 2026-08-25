@@ -3610,10 +3610,14 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		remainingEscrow = quote.Remaining
 		partialFee = quote.Fee
 	}
+	overcapConversion := abyssOvercapConversion{}
+	if !partial {
+		overcapConversion = abyssOvercapBankConversion(run.Escrow, run.Depth)
+	}
 	grossPayout := int64(float64(bankEscrow) * mult)
 	maxHP := s.bot.abyssCombatStats(uid).HP
 	franticFee := abyssFranticBankFee(bankEscrow, run.CurHP, maxHP)
-	payout := max(grossPayout-partialFee-franticFee, int64(0))
+	payout := max(grossPayout-partialFee-franticFee-overcapConversion.Gold, int64(0))
 	depthBonusPct := min(max(run.Depth, 0), 100)
 	streakBonusPct := min(max(st.Streak, 0), 25) * 2
 	depthBonus := int64(float64(bankEscrow) * float64(depthBonusPct) / 100)
@@ -3662,7 +3666,13 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		pactTokens = 0
 		anteReturn = 0
 	}
-	tokensGrant := baseTokens + pactTokens + anteReturn
+	tokensGrant := baseTokens + pactTokens + anteReturn + overcapConversion.Tokens
+	freeInsuranceReady := s.bot.abyssFreeInsuranceReady(uid)
+	nextBankStreak := st.Streak
+	if !partial && run.Depth > 0 {
+		nextBankStreak++
+	}
+	freeInsuranceEarned := !partial && run.Depth > 0 && nextBankStreak%abyssBankStreakInsuranceEvery == 0
 
 	// Preview mode (UX-49): report the itemized payout without committing
 	// anything, so the client can show a bank-confirmation breakdown first.
@@ -3706,12 +3716,14 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			"remaining_escrow": remainingEscrow, "requires_safe_word": requiresSafeWord,
 			"payout": estPayout, "capped": capped, "cap_remaining": capRemaining, "cap_tax": estTax,
 			"base_tokens_grant": baseTokens, "pact_tokens_grant": pactTokens,
-			"ante_return":  anteReturn,
-			"tokens_grant": tokensGrant, "loot_count": lootCount,
+			"ante_return": anteReturn, "overcap_gold_converted": overcapConversion.Gold,
+			"overcap_tokens_grant": overcapConversion.Tokens,
+			"tokens_grant":         tokensGrant, "loot_count": lootCount,
 			"pact_breakdown": redactAbyssMysteryPactBreakdown(pactBreakdown, runFlags),
 			"loot_preview":   lootPreview, "loot_preview_truncated": lootCount > len(lootPreview),
 			"bonus_gear_eligible": !partial && run.Depth >= 10,
-			"depth":               run.Depth, "streak": st.Streak,
+			"depth":               run.Depth, "streak": st.Streak, "next_bank_streak": nextBankStreak,
+			"free_insurance_ready": freeInsuranceReady, "free_insurance_earned": freeInsuranceEarned,
 		})
 		return
 	}
@@ -3782,6 +3794,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	var raffleWin int64
 	var bonusGear string
 	isRecord := false
+	newBankStreak := st.Streak
 
 	if run.Depth > 0 && !partial {
 		// Record breaker check (Item #82) — compare against the true global max
@@ -3809,11 +3822,20 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
-		_, _ = tx.Exec(
+		if err := tx.QueryRow(
 			`UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1),
 			        abyss_lifetime_banked = abyss_lifetime_banked + $2,
-			        abyss_bank_streak = abyss_bank_streak + 1 WHERE client_uid=$3`,
-			run.Depth, payout, uid)
+			        abyss_bank_streak = abyss_bank_streak + 1 WHERE client_uid=$3
+			 RETURNING abyss_bank_streak`,
+			run.Depth, payout, uid).Scan(&newBankStreak); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		freeInsuranceEarned, err = awardAbyssBankStreakInsurance(tx, uid, newBankStreak)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 	}
 	if req.Cursed && !partial {
 		_, _ = tx.Exec("UPDATE users SET abyss_curse_fights = 3 WHERE client_uid=$1", uid)
@@ -3906,6 +3928,8 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		"contract": abyssContractViewFromFlags(runFlags, run.Depth), "contract_forfeit": contractForfeit,
 		"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
 		"base_tokens_grant": baseTokens, "pact_tokens_grant": pactTokens, "ante_return": anteReturn, "tokens_grant": tokensGrant,
+		"overcap_gold_converted": overcapConversion.Gold, "overcap_tokens_grant": overcapConversion.Tokens,
+		"bank_streak": newBankStreak, "free_insurance_earned": freeInsuranceEarned,
 		"remaining_escrow": remainingEscrow, "next_echo_seed": nextEchoSeed,
 	}
 	if !partial {

@@ -2,7 +2,7 @@
 <span class="ab-insurance-slider" id="insuranceControls">
   <label for="insurancePct">🛡️ Insure <output id="insurancePctOut">{{if .CoreLoop.Insured}}{{.CoreLoop.Insured}}{{else}}25{{end}}%</output></label>
   <input id="insurancePct" type="range" min="{{.CoreLoop.InsuranceMin}}" max="{{.CoreLoop.InsuranceMax}}" step="{{.CoreLoop.InsuranceStep}}" value="{{if .CoreLoop.Insured}}{{.CoreLoop.Insured}}{{else}}25{{end}}" aria-label="Cache insurance percentage">
-  <button class="ghost xs" id="btnInsureSelected" type="button" onclick="abyssInsureSelected()">Buy cover</button>
+  <button class="ghost xs" id="btnInsureSelected" type="button" onclick="abyssInsureSelected()">{{if .CoreLoop.FreeInsuranceReady}}Use free cover{{else}}Buy cover{{end}}</button>
 </span>
 {{end}}
 
@@ -59,9 +59,13 @@
     if(state.hybrid){host.appendChild(chip('🌀','Hybrid · '+((Number(curDepth)||0)%5===4?'next floor surges':'surge every 5th floor'),'warn'));active++;}
     if(state.token_ante){host.appendChild(chip('🜲','Ante '+state.token_ante+' · +'+state.token_ante+'% cache','good'));active++;}
     if(state.risk_dial_pct){host.appendChild(chip('⚖️','Risk dial '+(state.risk_dial_pct>0?'+':'')+state.risk_dial_pct+'%','warn'));active++;}
+	if(state.free_insurance_ready){host.appendChild(chip('🛡️','Bank-streak cover ready','good'));active++;}
+	else if(state.banks_to_free_insurance){host.appendChild(chip('🏦',state.banks_to_free_insurance+' bank'+(state.banks_to_free_insurance===1?'':'s')+' to free cover',''));active++;}
+	if(state.overcap_tokens){host.appendChild(chip('🜲','Bank converts '+fmtGold(state.overcap_gold)+' into '+state.overcap_tokens+' token'+(state.overcap_tokens===1?'':'s'),'good'));active++;}
     if(state.perfect_run){host.appendChild(chip('✨','Perfect run intact','good'));active++;}
     if(!active)host.appendChild(chip('✓','No active penalties','good'));
     if(summary)summary.textContent=active?active+' active':'Clear';
+	var insureButton=document.getElementById('btnInsureSelected');if(insureButton)insureButton.textContent=state.free_insurance_ready?'Use free cover':'Buy cover';
     renderInterestCurve();
     var revive=document.getElementById('btnRevive');
     if(revive&&state.revive_chance_pct)revive.textContent='🎲 Revive · '+state.revive_chance_pct+'% offer (double-or-nothing)';

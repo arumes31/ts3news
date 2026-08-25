@@ -3653,7 +3653,8 @@ async function abyssBank(percent){
     return lines+row('Total pact multiplier','×'+Number(b.multiplier||1).toFixed(3))+'</details>';
   }
   var html='<h3>'+(p.partial?'🔐 Secure '+p.percent+'% and continue?':'🏦 Bank this run?')+'</h3><div class="modal-body ab-runsummary">'+
-    row(p.partial?'Cache share':'Cache (floor interest included)', fmtGold(p.escrow))+
+    row(p.partial?'Cache share':'Cache (floor interest included)', fmtGold(p.partial||p.source_escrow===undefined?p.escrow:p.source_escrow))+
+	(p.overcap_gold_converted?row('🜲 Over-cap conversion · '+p.overcap_tokens_grant+' token'+(p.overcap_tokens_grant===1?'':'s'),'−'+fmtGold(p.overcap_gold_converted)):'')+
     row('Depth bonus +'+p.depth_bonus_pct+'%', '+'+fmtGold(p.depth_bonus))+
     (p.streak_bonus_pct?row('Bank-streak bonus +'+p.streak_bonus_pct+'%', '+'+fmtGold(p.streak_bonus)):'')+
     (p.cursed?row('☠️ Cursed bonus +20%','+'+fmtGold(p.cursed_bonus)):'')+
@@ -3664,7 +3665,7 @@ async function abyssBank(percent){
 	(p.raffle_fee?row('🎟️ Bankers’ raffle contribution −1%','−'+fmtGold(p.raffle_fee)):'')+
     pactMath(p.pact_breakdown)+
     row('Estimated payout', '<span style="color:var(--gold)">'+fmtGold(p.payout)+'</span>')+
-    (p.partial?row('Cache left in run',fmtGold(p.remaining_escrow)):row('Base tokens on bank', '🜲 '+p.base_tokens_grant)+row('Pact-risk tokens', '🜲 +'+p.pact_tokens_grant)+(p.ante_return?row('Token ante returned','🜲 +'+p.ante_return):'')+row('Total tokens on bank', '🜲 '+p.tokens_grant)+row('Sealed loot to recover', p.loot_count))+
+    (p.partial?row('Cache left in run',fmtGold(p.remaining_escrow)):row('Base tokens on bank', '🜲 '+p.base_tokens_grant)+row('Pact-risk tokens', '🜲 +'+p.pact_tokens_grant)+(p.overcap_tokens_grant?row('Over-cap tokens','🜲 +'+p.overcap_tokens_grant):'')+(p.ante_return?row('Token ante returned','🜲 +'+p.ante_return):'')+row('Total tokens on bank', '🜲 '+p.tokens_grant)+row('Bank streak after cash-out',p.next_bank_streak)+(p.free_insurance_earned?row('🛡️ Streak reward','Next insurance is free'):p.free_insurance_ready?row('🛡️ Streak reward','Free insurance already ready'):'')+row('Sealed loot to recover', p.loot_count))+
 	(p.checkpoint_refund?row('Checkpoint token refund','🜲 +'+p.checkpoint_refund):'')+
     (!p.partial&&p.bonus_gear_eligible?row('Depth gear reward','🎁 guaranteed'):'')+
     (p.capped?'<div class="ab-hc-cmp">⚠️ Daily gold cap: the Abyss levies an 80% tax on the excess (−'+fmtGold(p.cap_tax)+', fed to the deep-cache jackpot).</div>':'')+
@@ -3702,6 +3703,8 @@ async function abyssBankCommit(cursed,percent,safeWord,doubleBank){
 	if(d.raffle_win)msg+=' 🎟️ BANKERS’ RAFFLE +'+fmtGold(d.raffle_win)+'!';
 	if(d.checkpoint_refund)msg+=' 🜲 Checkpoint refund +'+d.checkpoint_refund+'.';
 	if(d.pact_tokens_grant)msg+=' ⚔️ Pact-risk tokens +'+d.pact_tokens_grant+'.';
+	if(d.overcap_tokens_grant)msg+=' 🜲 Over-cap conversion: '+fmtGold(d.overcap_gold_converted)+' → '+d.overcap_tokens_grant+' token'+(d.overcap_tokens_grant===1?'':'s')+'.';
+	if(d.free_insurance_earned)msg+=' 🛡️ Bank streak '+d.bank_streak+': your next insurance is free.';
 	if(d.mystery_reveal)msg+=' 🎭 Mystery revealed: '+d.mystery_reveal.label+'.';
 	if(d.contract_forfeit)msg+=' 📜 Failed contract forfeiture −'+fmtGold(d.contract_forfeit)+'.';
 	if(d.cap_tax)msg+=' 💸 Abyss tax −'+fmtGold(d.cap_tax)+' (fed the deep-cache jackpot).';
@@ -3726,10 +3729,11 @@ async function abyssBankCommit(cursed,percent,safeWord,doubleBank){
 function showBankSummary(d){
   var base=Number(d.base)||0, depthBonus=Number(d.depth_bonus)||0, streakBonus=Number(d.streak_bonus)||0;
   var cursedBonus=Number(d.cursed_bonus)||0,perfect=Number(d.perfect_bonus)||0,raffle=Number(d.raffle_fee)||0;
-	var jp=Number(d.jackpot_win)||0,raffleWin=Number(d.raffle_win)||0,tax=Number(d.cap_tax)||0,frantic=Number(d.frantic_fee)||0;
+	var jp=Number(d.jackpot_win)||0,raffleWin=Number(d.raffle_win)||0,tax=Number(d.cap_tax)||0,frantic=Number(d.frantic_fee)||0,overcap=Number(d.overcap_gold_converted)||0;
   var html='<h3>🏦 Run banked!</h3><div class="modal-body ab-runsummary good">'+
     '<div class="ab-rs-row"><span>Depth reached</span><b>'+d.depth+'</b></div>'+
     '<div class="ab-rs-row"><span>Cache (floor interest included)</span><b>'+fmtGold(base)+'</b></div>'+
+	(overcap?'<div class="ab-rs-row"><span>🜲 Over-cap conversion · '+d.overcap_tokens_grant+' token'+(d.overcap_tokens_grant===1?'':'s')+'</span><b>−'+fmtGold(overcap)+'</b></div>':'')+
     '<div class="ab-rs-row"><span>Depth bonus</span><b>+'+fmtGold(depthBonus)+'</b></div>'+
     (streakBonus?'<div class="ab-rs-row"><span>Bank-streak bonus</span><b>+'+fmtGold(streakBonus)+'</b></div>':'')+
     (cursedBonus?'<div class="ab-rs-row"><span>☠️ Cursed bonus</span><b>+'+fmtGold(cursedBonus)+'</b></div>':'')+
@@ -3746,8 +3750,8 @@ function showBankSummary(d){
   openModal(html);
   var el=document.getElementById('bankTotalTick');
   if(!el)return;
-  var raw=base+depthBonus+streakBonus+cursedBonus-frantic+perfect-raffle;
-  var steps=[base,base+depthBonus,base+depthBonus+streakBonus,raw,raw-tax,raw-tax+jp,raw-tax+jp+raffleWin].filter(function(v,i,a){return i===0||v!==a[i-1];});
+  var raw=base+depthBonus+streakBonus+cursedBonus-frantic-overcap+perfect-raffle;
+  var steps=[base,base-overcap,base-overcap+depthBonus,base-overcap+depthBonus+streakBonus,raw,raw-tax,raw-tax+jp,raw-tax+jp+raffleWin].filter(function(v,i,a){return i===0||v!==a[i-1];});
   // UI-138: skip button jumps straight to the final total.
   var skipped=false;
   var skipBtn=document.getElementById('bankSkipBtn');
@@ -3768,17 +3772,20 @@ function showBankSummary(d){
 
 async function abyssInsure(pct){
   if(busy)return; setBusy(true);
+	var riskState=window.__abyssCoreRisk&&window.__abyssCoreRisk.state||{},freeInsurance=!!riskState.free_insurance_ready;
   var loyaltyPct=Math.min(15,Math.floor(Math.max(0,lifetimeBanked)/1000000));
   var rate=Math.max(0.25,0.5-wardLv*0.05-loyaltyPct/100);
   var cost=Math.floor(curEscrow*pct/100*rate);
   if(curEscrow<=0){abToast('No cache to insure yet',false);setBusy(false);return;}
   var loyaltyNote=loyaltyPct?' Your banking loyalty reduces the premium rate by '+loyaltyPct+' points.':'';
-  if(!(await confirmModal('Insure '+pct+'% of your '+fmtGold(curEscrow)+' cache for '+fmtGold(cost)+' gold?'+loyaltyNote, {title:'Insure Cache', okLabel:'Insure ('+fmtGold(cost)+')'}))){setBusy(false);return;} // UI-134
+	var prompt=freeInsurance?'Use your bank-streak reward to insure '+pct+'% of your '+fmtGold(curEscrow)+' cache for free?':'Insure '+pct+'% of your '+fmtGold(curEscrow)+' cache for '+fmtGold(cost)+' gold?'+loyaltyNote;
+  if(!(await confirmModal(prompt, {title:'Insure Cache', okLabel:freeInsurance?'Use free cover':'Insure ('+fmtGold(cost)+')'}))){setBusy(false);return;} // UI-134
   var d=await abPost('/api/abyss/insure',{pct:pct});
   setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setInsured(d.insured); setGold(d.gold);
-  abToast('Insured '+d.insured+'% for '+fmtGold(d.cost)+(d.loyalty_discount_pct?' · loyalty −'+d.loyalty_discount_pct+' points':''),true);
+	if(d.free_insurance_used){riskState.free_insurance_ready=false;if(window.__abyssCoreRisk)window.__abyssCoreRisk.render();}
+  abToast('Insured '+d.insured+'% '+(d.free_insurance_used?'with free bank-streak cover':'for '+fmtGold(d.cost)+(d.loyalty_discount_pct?' · loyalty −'+d.loyalty_discount_pct+' points':'')),true);
 	if(d.cheapskate_title)achievementBanner('The Cheapskate · 7-day title earned');
 }
 

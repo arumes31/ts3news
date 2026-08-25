@@ -43,6 +43,8 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0017 / 17** — a validated 5/10/20-token ante is debited atomically at entry, boosts every floor's cache by the same percentage, and returns only after a successful full bank (`web_abyss_stakes.go`, `web_abyss_stakes_test.go`).
 - [x] **AAA-0019 / 19** — five prestige tiers expose escalating names and cosmetic auras.
 - [x] **AAA-0021 / 21** — Descend shows the server-estimated next-floor death risk.
+- [x] **AAA-0022 / 22** — every third consecutive full bank atomically grants one non-stacking insurance voucher; the next valid coverage purchase consumes it in the same transaction (`web_abyss_bank_incentives.go`, `web_abyss_bank_incentives_test.go`).
+- [x] **AAA-0023 / 23** — full banks convert a rounded 10% share of cache above the depth soft cap into tokens at the normal exchange rate, with the exact gold and tokens itemized before confirmation (`web_abyss_bank_incentives.go`, `web_abyss_bank_incentives_test.go`, `tests/e2e/abyss.spec.js`).
 - [x] **AAA-0024 / 24** — three same-day deaths fund one clearly labeled +10% comeback run.
 - [x] **AAA-0025 / 25** — a server-authoritative −20%…+50% dial moves encounter danger and floor cache together and can be changed between, but not during, live floors (`web_abyss_stakes.go`, `web_abyss_stakes_test.go`).
 
