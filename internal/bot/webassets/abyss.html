@@ -1233,6 +1233,7 @@ var forgeUIState = null, forgeUIStateReceivedAt = 0, abyssSetupState = null;
 var abyssJackpot = {{.HUD.Jackpot}}; // UI-57
 var jackpotPulse = false, jackpotPulseTimer = 0;
 var activeRunPacts = {{jsonJS .HUD.Pacts}} || []; // UI-52
+if(activeRunPacts.some(function(pact){return pact&&pact.Key==='blind';}))document.body.classList.add('ab-pact-blind');
 var focusPreference = '{{.FocusPreference}}', currentFocus = '{{.AutoFocus}}'; // UI-51
 var curInsured = {{.Run.Insured}}; // UI-43
 var logDelay = Math.max(30, 90 - 12 * {{.Stats.UpSwiftness}}); // Swiftness node (#154)
@@ -2864,9 +2865,8 @@ function selectedTier(){var el=document.querySelector('input[name=abtier]:checke
 function selectedPacts(){
   return Array.prototype.slice.call(document.querySelectorAll('input[name=abpact]:checked')).map(function(el){return el.value;});
 }
-// UI-105: no true contradictions exist among the four pacts, so these pairs flag
-// the combos that compound incoming damage / enemy sustain.
-var pactConflicts=[['glass_cannon','enraged'],['glass_cannon','vampiric_mobs'],['enraged','vampiric_mobs']];
+// UI-105: flag combinations that compound incoming damage, attrition, or enemy sustain.
+var pactConflicts=[['glass_cannon','enraged'],['glass_cannon','vampiric_mobs'],['enraged','vampiric_mobs'],['anemic','glass_cannon'],['anemic','deep_drums'],['brittle','cursed_horde']];
 var lastPactSum=0; // UI-104 animation baseline
 function updatePactBonus(){
   var sum=0, checked=[];

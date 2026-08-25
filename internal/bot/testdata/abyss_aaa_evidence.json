@@ -907,5 +907,19 @@
       "internal/bot/web_abyss_tree_mastery_test.go",
       "internal/bot/web_abyss_tree_plans_test.go"
     ]
+  },
+  {
+    "ids": [178, 179, 180, 181, 182, 183, 184, 185, 186, 187],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_pact.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_entry_planner.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_pact_expansion_test.go",
+      "internal/bot/web_abyss_test.go"
+    ]
   }
 ]

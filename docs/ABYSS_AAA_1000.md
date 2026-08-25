@@ -146,6 +146,19 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0173 / 173** — returning after fourteen days seeds exactly ten authoritative +25% XP and +10% cache catch-up charges.
 - [x] **AAA-0175 / 175** — the post-prestige Paragon board grants bounded +0.1% ranks across seven permanent effects.
 
+## Delivered tranche: challenge pacts
+
+- [x] **AAA-0178 / 178** — Abstinence persists an empty run consumable allowance and pays +15% cache.
+- [x] **AAA-0179 / 179** — Pauper rejects entry while any equipped item is above Rare and pays +30% cache.
+- [x] **AAA-0180 / 180** — Anemic halves authoritative combat maximum HP and pays +25% cache.
+- [x] **AAA-0181 / 181** — Cursed Horde grants every spawned enemy one additional distinct beneficial affix and pays +20% cache.
+- [x] **AAA-0182 / 182** — Deep Drums makes every third floor a forced boss across single and queued descents and pays +35% cache.
+- [x] **AAA-0183 / 183** — Uninsured rejects cache-insurance purchases for the full run and pays +15% cache.
+- [x] **AAA-0184 / 184** — Blind resolves paths server-side while concealing route forecasts and threat UI, paying +10% cache.
+- [x] **AAA-0185 / 185** — Brittle applies a second authoritative durability-loss pass after combat and pays +10% cache.
+- [x] **AAA-0186 / 186** — Famine removes sanctuary floors from single and queued descents and pays +20% cache.
+- [x] **AAA-0187 / 187** — dangerous pact combinations display pre-entry warnings as selections change.
+
 ## Active tranche: operational quality and client performance
 
 - [x] **AAA-0986 / AB-286** — compare tier catalog values with the latest database constraints.

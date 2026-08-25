@@ -17,6 +17,9 @@
 .ab-entry-summary strong { color: #dce7ed; font-size: .76rem; }
 .ab-entry-summary > span:last-child { color: #89a2b1; font-size: .68rem; grid-column: 2; }
 .ab-pact-net { border-top: 1px solid rgba(255, 255, 255, .07); color: #9eb1bc; font-size: .7rem; margin-top: .55rem; padding-top: .45rem; }
+body.ab-pact-blind .ab-threat,
+body.ab-pact-blind #eventIntel,
+body.ab-pact-blind #depthRail { display: none; }
 #lockedCheckpointHint { color: #788e9d; font-style: italic; }
 @media (max-width: 720px) {
   .ab-entry-steps button span { display: none; }

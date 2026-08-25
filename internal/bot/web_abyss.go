@@ -701,6 +701,9 @@ func (b *Bot) fightAbyssFloorLive(
 
 	st := b.loadAbyssStats(uid)
 	diff, forceBoss := abyssDifficulty(depth)
+	if abyssPactBossFloor(pacts, depth) {
+		forceBoss = true
+	}
 	diff *= tier.DiffMult * (1.0 + float64(prestige)*0.05) * abyssDailyDangerMult(dailyMod) * abyssPactDangerMult(pacts) // [17] prestige & tier scaling + daily affix + pacts
 	worldBoss := forceBoss && depth%(abyssBossEvery*2) == 0
 	// Mob level is decoupled from the player's exact level (see abyssMobLevel): the
@@ -722,6 +725,11 @@ func (b *Bot) fightAbyssFloorLive(
 	if frun.Active && frun.Comeback {
 		u.Stats = u.Stats.Scaled(1.10)
 		logs = append(logs, "[color=#41c97a]💪 Comeback: the Abyss pities you — +10% to all stats this run.[/color]")
+	}
+	if abyssHasPact(pacts, "anemic") {
+		u.Stats.HP = abyssPactMaxHP(pacts, u.Stats.HP)
+		u.CurrentHP = min(u.CurrentHP, u.Stats.HP)
+		logs = append(logs, "[color=#f44336]🩸 Anemic: maximum HP is halved for this fight.[/color]")
 	}
 	if b.abyssSpec(uid) == "warden" {
 		u.Stats = u.Stats.Scaled(1.05)
@@ -975,6 +983,10 @@ func (b *Bot) fightAbyssFloorLive(
 			mobs[i].Effects = append(mobs[i].Effects, content.EffectEnraged)
 		}
 	}
+	if abyssHasPact(pacts, "cursed_horde") {
+		abyssApplyCursedHorde(mobs, encounterRandom)
+		logs = append(logs, "[color=#9c27b0]☠️ Cursed Horde: every enemy manifests an additional affix.[/color]")
+	}
 	if weeklyRule.Key == "iron_trial" {
 		for i := range mobs {
 			mobs[i].Stats.DEF += mobs[i].Stats.DEF * 15 / 100
@@ -1163,10 +1175,13 @@ func (b *Bot) fightAbyssFloorLive(
 	// Gear wears down each floor (more on defeat), exactly like a cycle fight.
 	var duraWarnings []string
 	if dailyMod != "zero_durability_loss" {
-		duraWarnings = b.applyDurabilityLoss(uid, !victory)
+		for range abyssPactDurabilityPasses(pacts) {
+			duraWarnings = append(duraWarnings, b.applyDurabilityLoss(uid, !victory)...)
+		}
 	}
 
 	stats := b.abyssCombatStats(uid)
+	stats.HP = abyssPactMaxHP(pacts, stats.HP)
 	var curHP int
 	_ = b.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&curHP)
 	if curHP < 0 {
@@ -1658,6 +1673,8 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
+	pacts := abyssValidatePacts(req.Pacts)
+	pactKeys := strings.Fields(pacts)
 
 	// Consumable carry cap. A player may hold more consumables than they can bring
 	// into a single descent (raised by an equipped Consumable Pouch). When they're
@@ -1677,7 +1694,9 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	maxAllowedConsumables += stPre.UpQuartermaster
 	owned, totalConsumables := s.bot.abyssOwnedConsumables(uid)
 	var loadoutJSON any // nil => stored as SQL NULL (unrestricted)
-	if totalConsumables > maxAllowedConsumables {
+	if abyssHasPact(pactKeys, "abstinence") {
+		loadoutJSON = "{}"
+	} else if totalConsumables > maxAllowedConsumables {
 		picked, perr := abyssBuildConsumableLoadout(req.Consumables, owned, maxAllowedConsumables)
 		if perr != "" {
 			// Ask the client to prompt a picker; no state has changed yet.
@@ -1689,6 +1708,10 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		}
 		b, _ := json.Marshal(picked)
 		loadoutJSON = string(b)
+	}
+	if pactError := abyssPactEquipmentError(pactKeys, equipped); pactError != "" {
+		writeJSON(w, map[string]any{"ok": false, "error": pactError})
+		return
 	}
 
 	tier, ok := abyssTierByKey(req.Tier)
@@ -1702,7 +1725,6 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 			return
 		}
 	}
-	pacts := abyssValidatePacts(req.Pacts)
 	focus, focusID, focusOK := normalizeAbyssEntryFocus(req.Focus)
 	if !focusOK {
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown focus"})
@@ -2006,6 +2028,7 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	}
 
 	focus := s.selectedAbyssFocus(uid, run)
+	runPacts := s.bot.abyssRunPacts(uid)
 
 	newDepth := run.Depth + 1
 	tier, _ := abyssTierByKey(run.Tier)
@@ -2016,11 +2039,11 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 		s.commitFloor(w, uid, run, newDepth, "combat", "watcher", "", tier, focus, req.Interactive)
 		return
 	}
-	if newDepth%abyssBossEvery == 0 {
+	if newDepth%abyssBossEvery == 0 || abyssPactBossFloor(runPacts, newDepth) {
 		s.commitFloor(w, uid, run, newDepth, "combat", "", "", tier, focus, req.Interactive)
 		return
 	}
-	if abyssRestFloorDue(run.LastRestDepth, newDepth) {
+	if abyssRestFloorDue(run.LastRestDepth, newDepth) && abyssPactAllowsRest(runPacts) {
 		s.commitFloor(w, uid, run, newDepth, "rest", "", "", tier, focus, req.Interactive)
 		return
 	}
@@ -2044,6 +2067,16 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 			modifier, eventState = rollFloorDetail("event")
 		}
 		s.commitFloor(w, uid, run, newDepth, "event", modifier, eventState, tier, focus, req.Interactive)
+		return
+	}
+	if abyssHasPact(runPacts, "famine") {
+		s.commitFloor(w, uid, run, newDepth, "combat", "", "", tier, focus, req.Interactive)
+		return
+	}
+	if abyssHasPact(runPacts, "blind") {
+		candidate := rollFloorCandidates(1, false)[0]
+		modifier, eventState := rollFloorDetail(candidate.Type)
+		s.commitFloor(w, uid, run, newDepth, candidate.Type, modifier, eventState, tier, focus, req.Interactive)
 		return
 	}
 
@@ -2141,6 +2174,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	tier, _ := abyssTierByKey(runInit.Tier)
+	runPacts := s.bot.abyssRunPacts(uid)
 
 	for _, pt := range req.Paths {
 		run := s.bot.loadAbyssRun(uid)
@@ -2171,22 +2205,26 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 
 		if !run.LastActionAt.IsZero() && time.Since(run.LastActionAt) > abyssWatcherIdle && run.Depth > 0 {
 			modifier = "watcher"
-		} else if newDepth%abyssBossEvery == 0 {
+		} else if newDepth%abyssBossEvery == 0 || abyssPactBossFloor(runPacts, newDepth) {
 			// Boss floors are never optional.
-		} else if abyssRestFloorDue(run.LastRestDepth, newDepth) {
+		} else if abyssRestFloorDue(run.LastRestDepth, newDepth) && abyssPactAllowsRest(runPacts) {
 			actualType = "rest"
 		} else {
 			if ft, ok := s.bot.popFloorQueue(uid); ok {
 				actualType = ft
 			} else if s.bot.abyssEventDue(uid, newDepth) {
 				actualType = "event" // cadence: force the due event (every 2-6 floors)
+			} else if abyssHasPact(runPacts, "famine") {
+				actualType = "combat"
 			} else {
 				candidates := rollFloorCandidates(2, false)
 				actualType = candidates[0].Type
-				for _, c := range candidates {
-					if c.Type == pt {
-						actualType = c.Type
-						break
+				if !abyssHasPact(runPacts, "blind") {
+					for _, c := range candidates {
+						if c.Type == pt {
+							actualType = c.Type
+							break
+						}
 					}
 				}
 			}

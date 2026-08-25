@@ -1241,6 +1241,10 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 		writeJSON(w, map[string]any{"ok": false, "error": "hardcore runs cannot buy cache insurance"})
 		return
 	}
+	if abyssHasPact(s.bot.abyssRunPacts(uid), "uninsured") {
+		writeJSON(w, map[string]any{"ok": false, "error": "the Uninsured pact disables cache insurance"})
+		return
+	}
 	if run.Insured >= req.Pct {
 		writeJSON(w, map[string]any{"ok": false, "error": "already insured"})
 		return
