@@ -72,7 +72,7 @@ func TestTargetCraftKeepsSlotAsSignedParameterAndStripsMiddlewareConfirmation(t 
 }
 
 func TestForgeMutationRequiresQuoteAndRejectsAlteredParameters(t *testing.T) {
-	server := &WebServer{bot: &Bot{}, abyssFeatures: abyssFeatureConfig{forge: true}}
+	server := &WebServer{bot: &Bot{}, abyssFeatures: &abyssFeatureConfig{forge: true}}
 	copy(server.forgeQuoteKey[:], []byte("01234567890123456789012345678901"))
 	var calls atomic.Int64
 	handler := server.forgeMutation("temper", func(w http.ResponseWriter, _ *http.Request, _ string) {
@@ -120,7 +120,7 @@ func TestForgeCommitRejectsStaleInventoryAndGear(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = database.Close() }()
-	server := &WebServer{bot: &Bot{DB: database}, abyssFeatures: abyssFeatureConfig{forge: true}}
+	server := &WebServer{bot: &Bot{DB: database}, abyssFeatures: &abyssFeatureConfig{forge: true}}
 	copy(server.forgeQuoteKey[:], []byte("01234567890123456789012345678901"))
 	const uid = "user"
 
@@ -319,7 +319,7 @@ func TestIdempotentForgeMutationReplaysCommit(t *testing.T) {
 }
 
 func TestIdempotentForgeReplayDoesNotRequireNowStaleQuote(t *testing.T) {
-	server := &WebServer{bot: &Bot{}, abyssFeatures: abyssFeatureConfig{forge: true}}
+	server := &WebServer{bot: &Bot{}, abyssFeatures: &abyssFeatureConfig{forge: true}}
 	payload := []byte(`{"inv_id":1}`)
 	hash := sha256.Sum256(payload)
 	key := "user\x00temper\x00replay"

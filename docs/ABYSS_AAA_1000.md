@@ -215,6 +215,9 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 
 - [x] **AAA-0976 / AB-276** — deterministic ten-week campaigns now apply a visible seasonal palette and triple-weight their matching biome affinity through the replay-safe encounter RNG.
 - [x] **AAA-0977 / AB-277** — a dedicated Season tab aggregates weekly cleared floors server-side and grants ten idempotent, cosmetic-only account collectibles through guarded claims.
+- [x] **AAA-0978 / AB-278** — a dedicated operator dashboard charts authoritative thirty-day death rates and drops per cleared floor without adding controls to the player page.
+- [x] **AAA-0979 / AB-279** — bearer-protected runtime controls update independently locked Abyss subsystem flags and rollout percentages, with strict bounded requests and restart semantics disclosed.
+- [x] **AAA-0980 / AB-280** — stable control, treatment, and holdout cohorts apply an integer-exact bounded reward multiplier and expose revision-isolated death and anomaly guardrails.
 - [x] **AAA-0981 / AB-281** — terminal live combats transactionally archive their deterministic seed and participant-visible event log, with an owner-authorized bounded portal viewer.
 - [x] **AAA-0982 / AB-282** — a versioned anonymous public endpoint exposes only cached global and per-tier aggregates, with CORS, ETag, HEAD, and generic failure handling.
 - [x] **AAA-0984 / AB-284** — live snapshots expose the authoritative per-round action-change budget, with proactive warnings and client lockout that preserves the queued or automatic fallback action.

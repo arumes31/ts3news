@@ -3,7 +3,6 @@ package bot
 import (
 	"crypto/subtle"
 	"fmt"
-	"hash/fnv"
 	"log"
 	"net/http"
 	"sort"
@@ -15,59 +14,6 @@ import (
 	"ts3news/internal/content"
 	"ts3news/internal/i18n"
 )
-
-// abyssFeatureConfig keeps risky live-combat additions independently
-// reversible. Rollout assignment is stable per player, so refreshing a run
-// cannot move somebody between cohorts.
-type abyssFeatureConfig struct {
-	liveActions bool
-	social      bool
-	tree        bool
-	forge       bool
-	rollout     int
-	opsToken    string
-}
-
-func newAbyssFeatureConfig(b *Bot) abyssFeatureConfig {
-	cfg := abyssFeatureConfig{liveActions: true, social: true, tree: true, forge: true, rollout: 100}
-	if b != nil && b.Cfg != nil {
-		cfg.liveActions = b.Cfg.AbyssLiveActions
-		cfg.social = b.Cfg.AbyssSocial
-		cfg.tree = b.Cfg.AbyssTreeEnhancements
-		cfg.forge = b.Cfg.AbyssForgeWorkbench
-		cfg.rollout = min(100, max(0, b.Cfg.AbyssLiveRolloutPercent))
-		cfg.opsToken = b.Cfg.AbyssOpsToken
-	}
-	return cfg
-}
-
-func (c abyssFeatureConfig) enabled(feature, uid string) bool {
-	switch feature {
-	case "social":
-		if !c.social {
-			return false
-		}
-	case "live_actions":
-		if !c.liveActions {
-			return false
-		}
-	case "tree":
-		return c.tree
-	case "forge":
-		return c.forge
-	default:
-		return false
-	}
-	if c.rollout >= 100 {
-		return true
-	}
-	if c.rollout <= 0 {
-		return false
-	}
-	h := fnv.New32a()
-	_, _ = h.Write([]byte(uid))
-	return int(h.Sum32()%100) < c.rollout
-}
 
 type abyssOpsOutcome struct {
 	Runs int64 `json:"runs"`
@@ -93,9 +39,11 @@ type abyssOpsMetrics struct {
 	economyAnomalies  atomic.Int64
 	funnel            abyssFunnelMetrics
 
-	mu         sync.Mutex
-	depthBands map[string]abyssOpsOutcome
-	builds     map[string]abyssOpsOutcome
+	mu                       sync.Mutex
+	depthBands               map[string]abyssOpsOutcome
+	builds                   map[string]abyssOpsOutcome
+	rewardExperimentRevision uint64
+	rewardCohorts            map[string]abyssRewardCohortMetrics
 }
 
 func (m *abyssOpsMetrics) observeAction(automatic bool) {
@@ -327,14 +275,19 @@ func cloneAbyssOutcomes(in map[string]abyssOpsOutcome) map[string]abyssOpsOutcom
 // The normal player session is necessary but insufficient to access operational
 // health, rollout, latency, or outcome telemetry.
 func (s *WebServer) handleAbyssOps(w http.ResponseWriter, r *http.Request, _ string) {
-	if !abyssOpsAuthorized(r, s.abyssFeatures.opsToken) {
+	if !abyssOpsAuthorized(r, s.abyssFeatures.token()) {
 		http.NotFound(w, r)
 		return
 	}
-	if r.Method != http.MethodGet {
-		http.Error(w, "GET only", http.StatusMethodNotAllowed)
+	if r.Method == http.MethodPost {
+		s.handleAbyssOpsUpdate(w, r)
 		return
 	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "GET or POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	features := s.abyssFeatures.snapshot()
 	active, stale, orphan := s.abyssRegistryHealth(time.Now())
 	auto, manual := s.abyssOps.automaticActions.Load(), s.abyssOps.manualActions.Load()
 	requestCount := s.abyssOps.requestCount.Load()
@@ -367,14 +320,12 @@ func (s *WebServer) handleAbyssOps(w http.ResponseWriter, r *http.Request, _ str
 			"total": s.abyssOps.anomalies.Load(), "reward": s.abyssOps.rewardAnomalies.Load(),
 			"damage": s.abyssOps.damageAnomalies.Load(), "economy": s.abyssOps.economyAnomalies.Load(),
 		},
-		"features": map[string]any{
-			"live_actions": s.abyssFeatures.liveActions, "social": s.abyssFeatures.social,
-			"tree_enhancements": s.abyssFeatures.tree, "forge_workbench": s.abyssFeatures.forge,
-			"rollout_percent": s.abyssFeatures.rollout,
-		},
-		"skill_tree": s.abyssTreeOps.snapshot(),
-		"forge":      s.abyssForgeOps.snapshot(),
-		"client_errors": s.abyssClientReports.snapshot(),
+		"features":          features,
+		"reward_experiment": s.abyssOps.rewardExperimentSnapshot(features),
+		"balance":           s.abyssBalanceSnapshot(r.Context()),
+		"skill_tree":        s.abyssTreeOps.snapshot(),
+		"forge":             s.abyssForgeOps.snapshot(),
+		"client_errors":     s.abyssClientReports.snapshot(),
 		"i18n": map[string]any{
 			"abyss": i18n.MessageCoverage("web.abyss."),
 		},

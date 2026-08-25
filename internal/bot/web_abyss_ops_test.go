@@ -6,16 +6,19 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strconv"
 	"sync"
 	"testing"
 	"testing/quick"
 	"time"
+
+	"github.com/DATA-DOG/go-sqlmock"
 )
 
 func TestAbyssFeatureRolloutIsStableAndBounded(t *testing.T) {
 	for _, percent := range []int{0, 1, 50, 99, 100} {
-		cfg := abyssFeatureConfig{liveActions: true, social: true, rollout: percent}
+		cfg := &abyssFeatureConfig{liveActions: true, social: true, rollout: percent}
 		for i := range 500 {
 			uid := "player-" + strconv.Itoa(i)
 			first := cfg.enabled("live_actions", uid)
@@ -131,7 +134,7 @@ func TestAbyssSSELoad(t *testing.T) {
 }
 
 func TestAbyssOpsRequiresDedicatedToken(t *testing.T) {
-	server := &WebServer{abyssFeatures: abyssFeatureConfig{opsToken: "operator-secret"}}
+	server := &WebServer{abyssFeatures: &abyssFeatureConfig{opsToken: "operator-secret"}}
 	request := httptest.NewRequest(http.MethodGet, "/api/abyss/ops", nil)
 	recorder := httptest.NewRecorder()
 	server.handleAbyssOps(recorder, request, "player")
@@ -168,3 +171,115 @@ func TestAbyssContentReferencesAndAnomalyThresholds(t *testing.T) {
 		t.Fatal("economy anomaly thresholds do not separate ordinary and impossible rewards")
 	}
 }
+
+func TestAbyssFeatureConfigUpdateAndRewardAssignment(t *testing.T) {
+	cfg := newAbyssFeatureConfig(nil)
+	enabled := true
+	snapshot, experimentChanged, err := cfg.update(abyssFeatureUpdate{Feature: "reward_experiment", Enabled: &enabled})
+	if err != nil || !experimentChanged || !snapshot.RewardExperimentEnabled {
+		t.Fatalf("enable reward experiment = %#v, changed=%v, err=%v", snapshot, experimentChanged, err)
+	}
+	bonus := 750
+	snapshot, experimentChanged, err = cfg.update(abyssFeatureUpdate{Feature: "reward_treatment_bonus", BonusBPS: &bonus})
+	if err != nil || !experimentChanged || snapshot.RewardTreatmentBonusBPS != 750 {
+		t.Fatalf("set reward bonus = %#v, changed=%v, err=%v", snapshot, experimentChanged, err)
+	}
+	if _, _, err := cfg.update(abyssFeatureUpdate{Feature: "reward_treatment_bonus", BonusBPS: ptr(2501)}); err == nil {
+		t.Fatal("out-of-bounds treatment bonus was accepted")
+	}
+
+	assignment := cfg.rewardAssignment("stable-player")
+	if assignment != cfg.rewardAssignment("stable-player") {
+		t.Fatal("reward cohort assignment changed for the same player")
+	}
+	adjusted := applyAbyssRewardAssignment(10_000, assignment)
+	if assignment.Cohort == "treatment" && adjusted != 10_750 {
+		t.Fatalf("treatment reward = %d, want 10750", adjusted)
+	}
+	if assignment.Cohort != "treatment" && adjusted != 10_000 {
+		t.Fatalf("non-treatment reward = %d, want 10000", adjusted)
+	}
+}
+
+func TestAbyssFeatureConfigIsConcurrencySafe(t *testing.T) {
+	cfg := newAbyssFeatureConfig(nil)
+	var wait sync.WaitGroup
+	for index := range 50 {
+		wait.Go(func() {
+			enabled := index%2 == 0
+			_, _, _ = cfg.update(abyssFeatureUpdate{Feature: "social", Enabled: &enabled})
+			_ = cfg.enabled("social", strconv.Itoa(index))
+			_ = cfg.snapshot()
+		})
+	}
+	wait.Wait()
+}
+
+func TestAbyssRewardExperimentGuardrails(t *testing.T) {
+	features := abyssFeatureSnapshot{RewardExperimentEnabled: true, RewardExperimentRevision: 3}
+	var metrics abyssOpsMetrics
+	metrics.resetRewardExperiment(3)
+	control := abyssRewardAssignment{Cohort: "control", MultiplierBPS: abyssRewardBaseBPS, Revision: 3}
+	treatment := abyssRewardAssignment{Cohort: "treatment", MultiplierBPS: 10_500, Revision: 3}
+	for index := range abyssExperimentGuardrailSample {
+		metrics.observeRewardExperiment(control, 100, true, true, false)
+		metrics.observeRewardExperiment(treatment, 105, true, index < 15, false)
+	}
+	snapshot := metrics.rewardExperimentSnapshot(features)
+	if snapshot.Status != "halt_recommended" {
+		t.Fatalf("guardrail status = %q, want halt_recommended", snapshot.Status)
+	}
+	if snapshot.Cohorts["treatment"].DeathRate != 0.25 {
+		t.Fatalf("treatment death rate = %v, want 0.25", snapshot.Cohorts["treatment"].DeathRate)
+	}
+}
+
+func TestAbyssBalanceSnapshotUsesAuthoritativeRunHistory(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	day := time.Date(2026, time.August, 24, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT DATE_TRUNC('day', created_at), COUNT(*)")).
+		WillReturnRows(sqlmock.NewRows([]string{"day", "runs", "deaths", "loot", "floors"}).AddRow(day, int64(10), int64(2), int64(30), int64(20)))
+	server := &WebServer{bot: &Bot{DB: database}}
+	snapshot := server.abyssBalanceSnapshot(t.Context())
+	if !snapshot.Available || len(snapshot.Days) != 1 {
+		t.Fatalf("balance snapshot = %#v", snapshot)
+	}
+	if snapshot.Days[0].DeathRate != 0.2 || snapshot.Days[0].DropsPerFloor != 1.5 {
+		t.Fatalf("balance point = %#v", snapshot.Days[0])
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAbyssOpsRuntimeUpdateRequiresTokenAndStrictJSON(t *testing.T) {
+	server := &WebServer{abyssFeatures: &abyssFeatureConfig{opsToken: "operator-secret", rollout: 100}}
+	request := httptest.NewRequest(http.MethodPost, "/api/abyss/ops", bytes.NewBufferString(`{"feature":"social","enabled":false}`))
+	recorder := httptest.NewRecorder()
+	server.handleAbyssOps(recorder, request, "player")
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("unauthorized update status = %d, want 404", recorder.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/abyss/ops", bytes.NewBufferString(`{"feature":"social","enabled":false,"unexpected":1}`))
+	request.Header.Set("Authorization", "Bearer operator-secret")
+	recorder = httptest.NewRecorder()
+	server.handleAbyssOps(recorder, request, "player")
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("unknown field status = %d, want 400", recorder.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/abyss/ops", bytes.NewBufferString(`{"feature":"social","enabled":false}`))
+	request.Header.Set("Authorization", "Bearer operator-secret")
+	recorder = httptest.NewRecorder()
+	server.handleAbyssOps(recorder, request, "player")
+	if recorder.Code != http.StatusOK || server.abyssFeatures.snapshot().Social {
+		t.Fatalf("authorized update status=%d config=%#v", recorder.Code, server.abyssFeatures.snapshot())
+	}
+}
+
+func ptr[T any](value T) *T { return &value }

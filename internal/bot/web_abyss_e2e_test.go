@@ -43,6 +43,11 @@ func TestAbyssE2EServer(t *testing.T) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
+	mux.HandleFunc("/abyss/ops", func(w http.ResponseWriter, _ *http.Request) {
+		if err := server.tmpl.ExecuteTemplate(w, "abyssOps", map[string]any{"Title": "Abyss Operations", "Nav": "ops"}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
 	t.Log("Abyss E2E fixture listening on http://127.0.0.1:18082")
 	if err := http.ListenAndServe("127.0.0.1:18082", mux); err != nil {
 		t.Fatal(err)

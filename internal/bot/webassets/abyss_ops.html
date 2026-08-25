@@ -1,0 +1,65 @@
+{{define "abyssOps"}}{{template "head" .}}
+<link rel="stylesheet" href="{{asset "/static/abyss_ops.css"}}">
+<div class="ops-shell" id="abyssOps">
+  <header class="ops-hero">
+    <div>
+      <p class="ops-kicker">ABYSS CONTROL PLANE · PROCESS-LOCAL</p>
+      <h1>Balance operations</h1>
+      <p>Live health, thirty-day reward outcomes, reversible subsystem controls, and experiment guardrails.</p>
+    </div>
+    <form class="ops-auth" id="opsAuth">
+      <label for="opsToken">Operator token</label>
+      <div><input id="opsToken" name="token" type="password" autocomplete="off" required><button type="submit">Connect</button></div>
+      <small>The token stays in this browser tab and is never placed in the URL.</small>
+    </form>
+  </header>
+
+  <div class="ops-status" id="opsStatus" role="status" aria-live="polite">Awaiting operator authentication.</div>
+
+  <section class="ops-metrics" aria-label="Operational summary">
+    <article><span>ACTIVE COMBATS</span><strong id="opsActive">—</strong><small id="opsRegistry">registry unavailable</small></article>
+    <article><span>REQUEST LATENCY</span><strong id="opsLatency">—</strong><small>average / maximum</small></article>
+    <article><span>AUTO ACTION RATE</span><strong id="opsAutomation">—</strong><small id="opsActions">no action sample</small></article>
+    <article><span>ANOMALIES</span><strong id="opsAnomalies">—</strong><small id="opsAnomalySplit">reward · damage · economy</small></article>
+  </section>
+
+  <section class="ops-grid ops-balance">
+    <article class="ops-panel">
+      <header><div><p class="ops-kicker">SURVIVAL PRESSURE</p><h2>Death rate</h2></div><span>30 days</span></header>
+      <svg class="ops-chart" id="opsDeathChart" role="img" aria-label="Abyss death rate by day"></svg>
+      <p class="ops-empty" id="opsDeathEmpty">Connect to load balance history.</p>
+    </article>
+    <article class="ops-panel">
+      <header><div><p class="ops-kicker">REWARD VELOCITY</p><h2>Drops per cleared floor</h2></div><span>30 days</span></header>
+      <svg class="ops-chart" id="opsDropChart" role="img" aria-label="Abyss drops per cleared floor by day"></svg>
+      <p class="ops-empty" id="opsDropEmpty">Connect to load balance history.</p>
+    </article>
+  </section>
+
+  <section class="ops-grid ops-controls">
+    <article class="ops-panel">
+      <header><div><p class="ops-kicker">KILL SWITCHES</p><h2>Runtime feature flags</h2></div><span id="opsRevision">revision —</span></header>
+      <p class="ops-note">Changes affect this process immediately. Environment defaults return after restart.</p>
+      <div class="ops-switches">
+        <label><span><b>Live actions</b><small>Interactive combat action bar</small></span><input type="checkbox" data-ops-feature="live_actions"></label>
+        <label><span><b>Social combat</b><small>Party coordination and shared actions</small></span><input type="checkbox" data-ops-feature="social"></label>
+        <label><span><b>Skill tree</b><small>Enhanced skill-tree API and UI</small></span><input type="checkbox" data-ops-feature="tree_enhancements"></label>
+        <label><span><b>Forge workbench</b><small>Authoritative quotes and mutations</small></span><input type="checkbox" data-ops-feature="forge_workbench"></label>
+      </div>
+      <label class="ops-range"><span><b>Live rollout</b><output id="liveRolloutValue">—</output></span><input id="liveRollout" type="range" min="0" max="100" step="1" data-ops-percent="live_rollout"></label>
+    </article>
+
+    <article class="ops-panel ops-experiment">
+      <header><div><p class="ops-kicker">REWARD LAB</p><h2>A/B multiplier harness</h2></div><span class="ops-badge" id="opsExperimentStatus">disabled</span></header>
+      <p class="ops-note">Stable player cohorts. Control remains at 1.00×; treatment uplift is capped at +25%.</p>
+      <label class="ops-master"><span><b>Experiment enabled</b><small>50/50 control and treatment inside rollout</small></span><input type="checkbox" data-ops-feature="reward_experiment"></label>
+      <label class="ops-range"><span><b>Enrollment</b><output id="rewardRolloutValue">—</output></span><input id="rewardRollout" type="range" min="0" max="100" step="1" data-ops-percent="reward_experiment_rollout"></label>
+      <label class="ops-range"><span><b>Treatment uplift</b><output id="rewardBonusValue">—</output></span><input id="rewardBonus" type="range" min="0" max="2500" step="25" data-ops-bonus="reward_treatment_bonus"></label>
+      <div class="ops-table-wrap"><table><thead><tr><th>Cohort</th><th>Floors</th><th>Avg reward</th><th>Deaths</th><th>Anomalies</th></tr></thead><tbody id="opsCohorts"><tr><td colspan="5">No experiment samples.</td></tr></tbody></table></div>
+    </article>
+  </section>
+
+  <footer class="ops-footer"><span id="opsUpdated">Never refreshed</span><button type="button" id="opsRefresh">Refresh snapshot</button></footer>
+</div>
+<script src="{{asset "/static/abyss_ops.js"}}" defer></script>
+{{template "foot" .}}{{end}}

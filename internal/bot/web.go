@@ -34,7 +34,7 @@ func jsonJS(v any) template.JS {
 	return template.JS(b) // #nosec G203 - trusted JSON data from server, not user input
 }
 
-//go:embed webassets/*.html webassets/*.css webassets/*.svg webassets/*.png webassets/*.md webassets/icons/*.svg
+//go:embed webassets/*.html webassets/*.css webassets/*.js webassets/*.svg webassets/*.png webassets/*.md webassets/icons/*.svg
 var webAssets embed.FS
 
 const sessionCookie = "ts3session"
@@ -60,7 +60,7 @@ type WebServer struct {
 	liveCombats     sync.Map // session ID -> *abyssLiveCombat
 	liveCombatByUID sync.Map // uid -> session ID
 
-	abyssFeatures      abyssFeatureConfig
+	abyssFeatures      *abyssFeatureConfig
 	abyssOps           abyssOpsMetrics
 	abyssTreeOps       abyssTreeOpsMetrics
 	abyssForgeOps      abyssForgeOpsMetrics
@@ -312,6 +312,12 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_season.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_season.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_ops.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_ops.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_ops.js", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_ops.js", "application/javascript; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_combat_sprites.png", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_combat_sprites.png", "image/png")
 	})
@@ -398,6 +404,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/public/stats", s.handleAbyssPublicStats)
 		mux.HandleFunc("/abyss", s.auth(s.handleAbyssPage))
 		mux.HandleFunc("/abyss/spectate", s.auth(s.handleAbyssSpectatePage))
+		mux.HandleFunc("/abyss/ops", s.auth(s.handleAbyssOpsPage))
 		mux.HandleFunc("/api/abyss/enter", s.authAPI(s.handleAbyssEnter))
 		mux.HandleFunc("/api/abyss/pact/presets", s.authAPI(s.handleAbyssPactPresets))
 		mux.HandleFunc("/api/abyss/affix/weekend_vote", s.authAPI(s.handleAbyssWeekendAffixVote))

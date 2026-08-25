@@ -154,6 +154,54 @@ test('dedicated special-item pixel atlases are served', async ({ request }) => {
   }));
 });
 
+test('operator dashboard charts balance data and applies runtime flags', async ({ page }) => {
+  let socialEnabled = true;
+  const snapshot = () => ({
+    ok: true,
+    registry: { active: 3, stale: 0, orphan: 0 },
+    latency_ms: { request_avg: 18, request_max: 44 },
+    actions: { automatic: 80, manual: 20, automatic_rate: 0.8 },
+    anomalies: { total: 1, reward: 1, damage: 0, economy: 0 },
+    features: {
+      live_actions: true, social: socialEnabled, tree_enhancements: true,
+      forge_workbench: true, rollout_percent: 100,
+      reward_experiment_enabled: true, reward_experiment_rollout_percent: 50,
+      reward_treatment_bonus_bps: 500, revision: 4, reward_experiment_revision: 2,
+    },
+    reward_experiment: {
+      enabled: true, revision: 2, status: 'collecting',
+      cohorts: { control: { floors: 8, average_reward: 1200, death_rate: 0.125, anomaly_rate: 0 } },
+    },
+    balance: {
+      available: true, window_days: 30,
+      days: [
+        { date: '2026-08-23', death_rate: 0.2, drops_per_floor: 0.6 },
+        { date: '2026-08-24', death_rate: 0.1, drops_per_floor: 0.8 },
+      ],
+    },
+  });
+  await page.route('**/api/abyss/ops', async route => {
+    const request = route.request();
+    expect(request.headers().authorization).toBe('Bearer e2e-operator');
+    if (request.method() === 'POST') {
+      const body = request.postDataJSON();
+      if (body.feature === 'social') socialEnabled = body.enabled;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, features: snapshot().features, reward_experiment: snapshot().reward_experiment }) });
+      return;
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(snapshot()) });
+  });
+  await page.goto('/abyss/ops');
+  await page.locator('#opsToken').fill('e2e-operator');
+  await page.getByRole('button', { name: 'Connect' }).click();
+  await expect(page.locator('#opsActive')).toHaveText('3');
+  await expect(page.locator('#opsDeathChart path.line')).toHaveCount(1);
+  await expect(page.locator('#opsDropChart circle')).toHaveCount(2);
+  await page.locator('[data-ops-feature="social"]').uncheck();
+  await expect.poll(() => socialEnabled).toBe(false);
+  await expect(page.locator('#opsStatus')).toContainText('updated');
+});
+
 test('owned combat replay renders server logs as escaped text', async ({ page }) => {
   await page.route('**/api/abyss/replay/code', async route => {
     await route.fulfill({

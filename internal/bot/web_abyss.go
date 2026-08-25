@@ -2961,6 +2961,7 @@ type abyssFloorOutcome struct {
 	LoreFragment        string
 	RecipeUnlocked      string
 	AffixReward         string
+	RewardExperiment    abyssRewardAssignment
 	DBErr               bool
 }
 
@@ -3042,6 +3043,8 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 		o.DailyFirst = true
 	}
 	bonus = abyssHardcoreFloorReward(bonus, abyssHardcoreRun(runFlags))
+	o.RewardExperiment = s.abyssFeatures.rewardAssignment(uid)
+	bonus = applyAbyssRewardAssignment(bonus, o.RewardExperiment)
 	bountyReward, bountyDoubled := settleAbyssRunBounty(runFlags)
 	if bountyReward > 0 {
 		label := fmt.Sprintf("Run bounty complete: +%d cache", bountyReward)
@@ -3146,6 +3149,13 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 		s.bot.grantConsumable(uid, c.ID, c.Duration)
 		o.AffixReward = c.Name
 	}
+	s.abyssOps.observeRewardExperiment(
+		o.RewardExperiment,
+		o.Bonus,
+		true,
+		true,
+		abyssEconomyAnomaly(depth, o.Bonus),
+	)
 	return o
 }
 
@@ -3232,6 +3242,9 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 			return map[string]any{"ok": false, "error": "db"}
 		}
 		out["bonus"] = o.Bonus
+		if o.RewardExperiment.Cohort != "off" {
+			out["reward_experiment"] = o.RewardExperiment
+		}
 		out["escrow"] = o.NewEscrow
 		out["escrow_soft_cap"] = o.EscrowSoftCap
 		out["escrow_efficiency_pct"] = o.EscrowEfficiencyPct
@@ -3287,6 +3300,11 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		out["hardcore"] = hardcore
 		out["grace_protected"] = abyssGraceProtected(depth, hardcore)
 		out["survival_chance_pct"] = abyssPostHocSurvivalChance(depth, tier, s.bot.abyssPlayerCR(uid))
+		assignment := s.abyssFeatures.rewardAssignment(uid)
+		if assignment.Cohort != "off" {
+			out["reward_experiment"] = assignment
+		}
+		s.abyssOps.observeRewardExperiment(assignment, 0, true, false, false)
 	}
 
 	var gold int64
@@ -5354,6 +5372,8 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 		bonus = bonus * 5 / 4
 	}
 	bonus = abyssRecordPushReward(bonus, run.Depth, st.BestDepth)
+	rewardExperiment := s.abyssFeatures.rewardAssignment(uid)
+	bonus = applyAbyssRewardAssignment(bonus, rewardExperiment)
 
 	hasLuckyCoin := false
 	equipped := s.bot.getEquippedItems(uid)
@@ -5387,6 +5407,13 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 		rememberAbyssNonCombatReward(runFlags, bonus)
 	}
 	_ = s.bot.saveRunFlags(uid, runFlags)
+	s.abyssOps.observeRewardExperiment(
+		rewardExperiment,
+		bonus,
+		false,
+		true,
+		abyssEconomyAnomaly(run.Depth, bonus),
+	)
 
 	affixReward := ""
 	if run.Modifier != "" {
@@ -5401,16 +5428,17 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	_ = s.bot.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&curHP)
 
 	writeJSON(w, map[string]any{
-		"ok":           true,
-		"resolved":     true,
-		"depth":        run.Depth,
-		"escrow":       newEscrow,
-		"bonus":        bonus,
-		"gold":         gold,
-		"hp":           curHP,
-		"affix_reward": affixReward,
-		"focus_reward": focusReward,
-		"vacuum_loot":  vacuumLoot,
+		"ok":                true,
+		"resolved":          true,
+		"depth":             run.Depth,
+		"escrow":            newEscrow,
+		"bonus":             bonus,
+		"gold":              gold,
+		"hp":                curHP,
+		"affix_reward":      affixReward,
+		"focus_reward":      focusReward,
+		"vacuum_loot":       vacuumLoot,
+		"reward_experiment": rewardExperiment,
 	})
 }
 

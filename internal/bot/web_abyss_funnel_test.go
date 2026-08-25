@@ -41,7 +41,7 @@ func TestAbyssFunnelOpsSnapshotContainsNoPlayerIdentifiers(t *testing.T) {
 	t.Parallel()
 
 	const privateUID = "private-player-identity"
-	server := &WebServer{abyssFeatures: abyssFeatureConfig{opsToken: "operator-secret"}}
+	server := &WebServer{abyssFeatures: &abyssFeatureConfig{opsToken: "operator-secret"}}
 	server.abyssOps.funnel.observeEnter(privateUID, time.Now())
 	server.abyssOps.funnel.observeFloor(privateUID, 5)
 
