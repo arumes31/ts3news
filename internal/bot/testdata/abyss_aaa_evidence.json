@@ -228,6 +228,7 @@
       "internal/bot/web_abyss_inventory_ui.go",
       "internal/bot/web_abyss_loot.go",
       "internal/bot/web_abyss_loot2.go",
+      "internal/bot/web_abyss_loot_settings.go",
       "internal/bot/web_pages.go",
       "internal/bot/webassets/abyss.html",
       "internal/bot/webassets/abyss_inventory_ui.html",
@@ -526,6 +527,47 @@
       "internal/bot/xp_abyss_combat_test.go",
       "internal/bot/web_abyss_combat_settings_test.go",
       "internal/bot/web_abyss_live_actions_test.go"
+    ]
+  },
+  {
+    "ids": [771, 773, 774],
+    "production": [
+      "internal/bot/web_abyss_posthoc_odds.go",
+      "internal/bot/xp_abyss_companions.go",
+      "internal/bot/xp.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/webassets/abyss_live.css",
+      "internal/bot/webassets/abyss_pixel.html",
+      "internal/content/mobs.go",
+      "internal/db/migrations/0079_pet_loyalty.up.sql"
+    ],
+    "verification": ["internal/bot/web_abyss_combat_items_test.go"]
+  },
+  {
+    "ids": [776, 777, 778, 779, 780, 781, 782, 783, 784, 785, 786, 787, 788, 789, 790, 791, 792, 793, 794, 795, 796, 797, 798, 799, 800],
+    "production": [
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_loot2.go",
+      "internal/bot/web_abyss_itemization.go",
+      "internal/bot/web_abyss_set_trade.go",
+      "internal/bot/web_abyss_inventory_ui.go",
+      "internal/bot/web_abyss_forge2.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_forge4.go",
+      "internal/bot/web_abyss_live_actions.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/xp.go",
+      "internal/content/artifacts.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_inventory_ui.html",
+      "internal/bot/webassets/abyss_loot_presentation.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_combat_items_test.go",
+      "internal/bot/xp_abyss_combat_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
     ]
   }
 ]

@@ -88,16 +88,14 @@ func (b *Bot) abyssPityDisplay(uid string) (legendary, legendaryCap, celestial i
 // abyssDupLegendConvert reports whether the player opted into auto-converting
 // duplicate legendaries (owned 2+) into 5 Umbral Cores.
 func (b *Bot) abyssDupLegendConvert(uid string) bool {
-	return b.abyssMetaGet("abyss_dup_legend_convert_"+uid) == "1"
+	return b.loadAbyssLootSettings(uid).DuplicateLegendConvert
 }
 
 // setAbyssDupLegendConvert is the toggle the settings UI writes.
-func (b *Bot) setAbyssDupLegendConvert(uid string, on bool) {
-	v := "0"
-	if on {
-		v = "1"
-	}
-	b.abyssMetaSet("abyss_dup_legend_convert_"+uid, v)
+func (b *Bot) setAbyssDupLegendConvert(uid string, on bool) error {
+	settings := b.loadAbyssLootSettings(uid)
+	settings.DuplicateLegendConvert = on
+	return b.saveAbyssLootSettings(uid, settings)
 }
 
 // ---- Goblin token collectibles (AB-96) ---------------------------------------
@@ -161,20 +159,23 @@ type abyssDropForecast struct {
 // given quality multiplier and rarity scale — the same bands
 // rollAbyssLootToEscrow accumulates into its drop cascade.
 func abyssDropForecastData(qualityMult, rareScale float64) abyssDropForecast {
+	remaining := 1.0
+	claim := func(probability float64) float64 {
+		probability = max(0, min(probability, remaining))
+		remaining -= probability
+		return probability
+	}
 	f := abyssDropForecast{
-		Ultimate:   ultimateSkillChance * qualityMult * rareScale,
-		Title:      titleChance * qualityMult * rareScale,
-		Unique:     uniqueItemChance * qualityMult * rareScale,
-		Artifact:   artifactChance * qualityMult * rareScale,
-		Enchant:    enchChance * qualityMult * rareScale,
-		Skill:      skillChance * qualityMult,
-		Consumable: consChance * qualityMult,
-		Gear:       gearChance * qualityMult,
+		Ultimate: claim(ultimateSkillChance * qualityMult * rareScale),
+		Title:    claim(titleChance * qualityMult * rareScale),
+		Unique:   claim(uniqueItemChance * qualityMult * rareScale),
+		Artifact: claim(artifactChance * qualityMult * rareScale),
+		Enchant:  claim(enchChance * qualityMult * rareScale),
+		Skill:    claim(skillChance * qualityMult),
 	}
-	used := f.Ultimate + f.Title + f.Unique + f.Artifact + f.Enchant + f.Skill + f.Consumable + f.Gear
-	if f.Common = 1 - used; f.Common < 0 {
-		f.Common = 0
-	}
+	f.Consumable = claim(consChance * qualityMult)
+	f.Gear = claim(gearChance * qualityMult)
+	f.Common = remaining
 	return f
 }
 
@@ -281,8 +282,7 @@ func (b *Bot) broadcastAbyssEternalDrop(uid, itemName string) {
 // ---- Boss relic flavor text (AB-97) ------------------------------------------
 
 // abyssBossRelicLore maps each named Abyss boss to the flavour inspect text
-// of its unique relic; appended to the relic's loot label and available for
-// the inventory inspect tooltip.
+// of its unique relic and is appended to the escrowed loot label.
 func abyssBossRelicLore(bossName string) string {
 	switch bossName {
 	case "Gorgoroth the Firelord":
@@ -306,17 +306,20 @@ const abyssConsumableStackCap = 5
 
 // grantConsumableStacked merges an escrowed consumable into the player's
 // stack (remaining_fights add), capped at abyssConsumableStackCap charges.
-func (b *Bot) grantConsumableStacked(uid, consID string, fights int) {
+func (b *Bot) grantConsumableStacked(uid, consID string, fights int) error {
 	if fights <= 0 {
 		fights = 1
 	}
-	_, _ = b.DB.Exec(
+	if _, err := b.DB.Exec(
 		`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
 		 VALUES ($1, $2, LEAST($3, $4))
 		 ON CONFLICT (client_uid, cons_id)
 		 DO UPDATE SET remaining_fights = LEAST(user_consumables.remaining_fights + EXCLUDED.remaining_fights, $4)`,
-		uid, consID, fights, abyssConsumableStackCap)
+		uid, consID, fights, abyssConsumableStackCap); err != nil {
+		return err
+	}
 	b.autoCombineConsumable(uid, consID)
+	return nil
 }
 
 // ---- Drop variants: corrupted consumables (AB-85), lucid insanity (AB-81) ----

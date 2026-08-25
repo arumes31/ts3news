@@ -344,6 +344,22 @@ func (c *abyssLiveCombat) publishRound(
 			Role:     c.social.preferences[au.u.UID].Role,
 			Effects:  liveAllyEffects(au),
 		})
+		for petIndex, pet := range au.u.Pets {
+			if pet == nil || pet.Stats.HP <= 0 {
+				continue
+			}
+			allies = append(allies, abyssLiveCombatantView{
+				ID:      fmt.Sprintf("pet:%s:%d", au.u.UID, petIndex),
+				Name:    pet.Name,
+				HP:      max(0, pet.Stats.HP),
+				MaxHP:   max(1, pet.MaxHP),
+				Element: string(pet.Element),
+				Speed:   pet.Stats.SPD,
+				Role:    "Mind-controlled ally",
+				Faction: "Converted",
+				Effects: []abyssLiveEffect{{Name: "Mind-controlled", Duration: "Allied"}},
+			})
+		}
 	}
 
 	enemies := make([]abyssLiveCombatantView, 0, len(mobs))

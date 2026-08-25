@@ -507,5 +507,36 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0768 / AB-68** — backline attacks gain 8% Backstab damage only against mobs that did not target that delver in the preceding enemy phase.
 - [x] **AAA-0769 / AB-69** — combat floors cleared within two rounds grant a persisted next-floor speed chain capped at three stacks.
 - [x] **AAA-0770 / AB-70** — bosses telegraph a one-round summon channel that any ultimate fired in that window interrupts before reinforcements spawn.
+- [x] **AAA-0771 / AB-71** — defeat responses expose a bounded post-fight survival estimate derived from the completed floor's authoritative risk model.
 - [x] **AAA-0772 / AB-72** — an Abyss fumble halves the current hit but grants ten additional crit points to the following non-fumbled strike.
+- [x] **AAA-0773 / AB-73** — mind-controlled enemies are captured at one HP with proportional loyalty, warn below ten percent, and gain loyalty after victories.
+- [x] **AAA-0774 / AB-74** — captured companions appear as converted allies with health, element, and identity on both tactical and pixel combat stages.
 - [x] **AAA-0775 / AB-75** — rounds after 25 add a logged, stacking 5% desperation multiplier to both sides.
+
+## Delivered tranche: loot identity and collection agency
+
+- [x] **AAA-0776 / AB-76** — Sanctuary floors sweep a depth-scaled missed-loot consolation into escrow, preserving the run's bank-or-lose tension.
+- [x] **AAA-0777 / AB-77** — the threat tooltip previews next-floor drop bands using the same ordered, bounded probability cascade as the authoritative roller.
+- [x] **AAA-0778 / AB-78** — one percent of gear drops become stat-neutral Foil collectibles with an animated shine and explicit label.
+- [x] **AAA-0779 / AB-79** — simultaneous cursed and eldritch rolls create a named Doomed variant with a distinct red-black beam treatment.
+- [x] **AAA-0780 / AB-80** — named Predator, Warden, and Harvester pieces carry inspectable set-specific lore.
+- [x] **AAA-0781 / AB-81** — Insanity loot can roll a Lucid variant that removes negative stats and scales the remaining positive package by 80%.
+- [x] **AAA-0782 / AB-82** — punching a third socket has a posted ten-percent Perfect result that grants two sockets at once.
+- [x] **AAA-0783 / AB-83** — equipping three or more gems from one family activates a matching five-percent resonance bonus with a stat-summary note.
+- [x] **AAA-0784 / AB-84** — armor-etched elemental wards stack five-percent matching resistance per piece, cap below immunity, and report their resolved reduction.
+- [x] **AAA-0785 / AB-85** — corrupted potions and elixirs roll as stronger drops and inflict their advertised five- or ten-percent backlash in lobby and live combat.
+- [x] **AAA-0786 / AB-86** — deep-floor gear can gain an “of the Deep” identity and an additional Stamina roll after floor 40.
+- [x] **AAA-0787 / AB-87** — an account-persisted opt-in converts third-and-later duplicate Legendary drops into five Umbral Cores.
+- [x] **AAA-0788 / AB-88** — loot rows receive rarity-scaled beams from Common through Eternal with reduced-motion support.
+- [x] **AAA-0789 / AB-89** — Charm icons use a restrained hanging animation with an explicit reduced-motion fallback.
+- [x] **AAA-0790 / AB-90** — run loot can sort by the selected build's authoritative main stat, including Survival's combined HP and DEF value.
+- [x] **AAA-0791 / AB-91** — equipped gear held for 30 days gains a derived one-percent positive-stat bonus without mutating its stored roll.
+- [x] **AAA-0792 / AB-92** — unidentified drops expose only slot and rarity silhouette information until identification.
+- [x] **AAA-0793 / AB-93** — committed Eternal drops and successful Celestial ascensions trigger the sanitized TS3-wide fanfare only after persistence succeeds.
+- [x] **AAA-0794 / AB-94** — the run-loot manifest defaults to upgrades-first ordering with deterministic CR and acquisition tie-breaks.
+- [x] **AAA-0795 / AB-95** — the HUD separates Legendary guarantee progress from the independent Celestial drop counter.
+- [x] **AAA-0796 / AB-96** — Treasure Goblins escrow collectible tokens, and five banked tokens unlock the timed Goblin King title.
+- [x] **AAA-0797 / AB-97** — named boss-relic drops display unique lore tied to the defeated boss instead of a generic reward line.
+- [x] **AAA-0798 / AB-98** — identical escrowed consumables merge into bounded five-charge stacks instead of overwriting or multiplying rows.
+- [x] **AAA-0799 / AB-99** — a weekly Set Trading Post atomically exchanges two true spare duplicates for a rotating piece the account is missing.
+- [x] **AAA-0800 / AB-100** — every gear drop label previews its expected rarity-based salvage material yield before banking.

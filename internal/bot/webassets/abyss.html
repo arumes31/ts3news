@@ -75,6 +75,7 @@
     <div style="background: rgba(0,0,0,0.3); height: 10px; border-radius: 5px; overflow:hidden;">
       <div id="pityFill" style="background: linear-gradient(90deg, #ff7b72, #d857ff); height: 100%; width: {{mulpct .LegendaryPity 40}}%;"></div>
     </div>
+    <div class="muted small" style="margin-top:7px;">✦ Celestial drought: <b>{{.CelestialPity}}</b> gear drops <span title="Display-only counter; Celestial drops have no guaranteed cap.">(no cap)</span></div>
   </div>
 
   <!-- Loot drop streak HUD: floors in a row with no gear item, boosts loot find -->
@@ -162,7 +163,7 @@
     </div>
     <!-- Threat / danger meter [91] -->
     <div class="ab-threat">
-      <span class="ab-threat-label ab-glossary-term" tabindex="0" data-tip="Threat&#10;Current floor danger from depth, tier, pacts, and special encounters.">Threat</span>
+      <span class="ab-threat-label ab-glossary-term" tabindex="0" data-tip="Threat&#10;Current floor danger from depth, tier, pacts, and special encounters.{{if .DropForecastOK}}{{with .DropForecast}}&#10;&#10;Next-floor drop forecast&#10;Gear {{printf "%.1f" (mulf .Gear 100.0)}}% · Consumable {{printf "%.1f" (mulf .Consumable 100.0)}}% · Skill {{printf "%.1f" (mulf .Skill 100.0)}}%&#10;Enchant {{printf "%.1f" (mulf .Enchant 100.0)}}% · Artifact {{printf "%.1f" (mulf .Artifact 100.0)}}% · Unique {{printf "%.1f" (mulf .Unique 100.0)}}% · Ultimate {{printf "%.2f" (mulf .Ultimate 100.0)}}%{{end}}{{end}}">Threat</span>
       <div class="ab-threat-bar"><div class="ab-threat-fill" id="threatFill" style="width:0%"></div></div>
     </div>
     <!-- Run-awareness chips (UI-41/43/44/49/50/54/55/56/58/59/60), filled by renderHudChips() -->
@@ -407,9 +408,11 @@
     <div class="ab-loot-sort">
       <label class="muted small" for="lootSort">Sort:</label>
       <select id="lootSort" class="ab-select">
+        <option value="upgrade">Upgrades first</option>
         <option value="floor">Floor</option>
         <option value="rarity">Rarity</option>
         <option value="cr">CR Δ</option>
+        <option value="build">Build stat</option>
       </select>
     </div>
     <div class="ab-loot-sort" title="Targeting applies to Rare+ non-boss gear. Auto-salvage is capped below Rare; reserved backpack items are always protected.">
@@ -421,11 +424,12 @@
       <select id="autoSalvage" class="ab-select" onchange="saveAbyssLootSettings()">
         <option value="-1">Keep all</option><option value="0">Salvage Common</option><option value="1">Salvage Uncommon−</option>
       </select>
+      <label class="muted small" title="Convert a third copy of Legendary-or-better gear into 5 Umbral Cores."><input id="dupLegendConvert" type="checkbox" onchange="saveAbyssLootSettings()"> Convert 3rd Leg+</label>
       <button class="ghost xs" onclick="showAbyssMaterialFlow()">Flow</button>
     </div>
     <div class="abyss-side-list" id="lootManifest">
       {{range .RunLoot}}
-      <div class="abyss-side-loot {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-tip="{{.Title}}&#10;{{.Source}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
+      <div class="abyss-side-loot {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-tip="{{.Title}}&#10;{{.Source}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
         <span class="ab-loot-main">{{if .SlotIcon}}<span class="ab-loot-slot" aria-hidden="true">{{.SlotIcon}}</span>{{end}}<span>{{.Label}}</span></span>
         <span class="ab-loot-tags">{{if .Unidentified}}<b class="ab-loot-question">?</b>{{end}}{{if .AlreadyOwned}}<b class="ab-owned-tag">owned</b>{{end}}{{if .SetID}}<b class="ab-set-tag ab-set-{{.SetID}}">🧩 {{.SetID}} {{.SetCount}}/{{.SetMax}}</b>{{end}}{{if .Corrupted}}<b class="ab-corrupt-tag">🩸 corrupted</b>{{end}}</span>
         <span class="ab-loot-detail" hidden>{{.Source}}{{if .Slot}} · {{.Slot}}{{end}}{{if gt .CR 0.0}} · CR {{printf "%.0f" .CR}} ({{if ge .CRDelta 0.0}}+{{end}}{{printf "%.0f" .CRDelta}}){{end}}{{if gt .Quality 0}} · {{.Quality}}★ quality{{end}}</span>
@@ -604,6 +608,12 @@
       </div>
       {{end}}
     </div>
+
+	<div class="ab-set-trade" id="abyssSetTrade" aria-live="polite">
+	  <h3>🧩 Set Trading Post <span class="ab-up-lv">weekly offers</span></h3>
+	  <p class="muted small">Exchange two spare duplicate pieces from one set for its offered missing piece.</p>
+	  <div class="ab-shop" id="abyssSetTradeOffers"><span class="muted small">Loading offers…</span></div>
+	</div>
 
     <!-- Deterministic legendary craft (#120) -->
     <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
@@ -2017,6 +2027,7 @@ function setBanner(html,cls){
   var b=document.getElementById('abyssBanner');
   b.innerHTML=html;
   b.className='abyss-banner show '+(cls||'');
+  b.removeAttribute('title');
   sessionStorage.setItem('ab_banner', html);
   sessionStorage.setItem('ab_banner_cls', cls||'');
 }
@@ -3259,6 +3270,8 @@ async function processDescendResult(d, hp, max){
     var ls=document.getElementById('lsCost'); if(ls && d.last_stand_cost)ls.textContent=d.last_stand_cost;
 	 hardcoreRun=!!d.hardcore;
     setBanner('💀 You fell on floor '+d.depth+'! '+(d.grace_protected?'Grace protection will return the full '+fmtGold(d.escrow)+' cache on concede.':('Cache of '+fmtGold(d.escrow)+' is in peril.'+(d.insured>0?' ('+d.insured+'% insured)':''))),'bad');
+    var deathBanner=document.getElementById('abyssBanner');
+    if(deathBanner&&d.survival_chance_pct!==undefined){deathBanner.title='Post-fight odds: this loadout had an estimated '+Math.max(0,Math.min(100,Number(d.survival_chance_pct)||0))+'% chance to survive this floor.';}
     var opts=[];
     if(canRev)opts.push('gamble a revival (double-or-nothing)');
     if(canLastStand)opts.push('spend tokens on a Last Stand');
@@ -3618,6 +3631,7 @@ async function abyssProceed(){
   var bannerMsg = '🕊️ Survived floor ' + d.depth + '! +' + fmtGold(d.bonus) + ' to your cache (now ' + fmtGold(d.escrow) + ').';
   if(d.focus_reward) bannerMsg += ' ' + d.focus_reward + '.';
   if(d.affix_reward) bannerMsg += ' 🎁 Affix reward: ' + d.affix_reward + '!';
+  if(d.vacuum_loot&&d.vacuum_loot.length) bannerMsg += ' ' + d.vacuum_loot.map(consEsc).join(' · ') + '.';
 
   setBanner(bannerMsg, 'good');
   window.location.reload();
@@ -4351,6 +4365,30 @@ async function abyssRiftPeek(){
   }
 }
 
+async function loadAbyssSetTrade(){
+  var host=document.getElementById('abyssSetTradeOffers'); if(!host)return;
+  try{
+    var response=await fetch('/api/abyss/set_trade',{cache:'no-store'}),data=await response.json();
+    if(!data.ok)throw new Error(data.error||'failed');
+    host.replaceChildren();
+    (data.offers||[]).forEach(function(offer){
+      var row=document.createElement('div'); row.className='ab-shop-item';
+      var copy=document.createElement('div'),name=document.createElement('b'),detail=document.createElement('div');
+      name.textContent=offer.name?(offer.set_id+': '+offer.name):offer.set_id+' set complete';
+      detail.className='muted small'; detail.textContent=offer.name?(offer.slot+' · '+offer.spare_count+' spare duplicate'+(offer.spare_count===1?'':'s')):'No missing pieces';
+      copy.append(name,detail); row.appendChild(copy);
+      if(offer.name){var button=document.createElement('button');button.className='ghost xs';button.textContent='Trade 2 spares';button.disabled=!offer.can_trade;button.onclick=function(){abyssSetTrade(offer.set_id,button);};row.appendChild(button);}
+      host.appendChild(row);
+    });
+  }catch(e){host.textContent='Set offers are temporarily unavailable.';}
+}
+async function abyssSetTrade(setID,button){
+  if(button)button.disabled=true;
+  var d=await abPost('/api/abyss/set_trade',{set_id:setID});
+  if(!d.ok){abToast(d.error||'trade failed',false);await loadAbyssSetTrade();return;}
+  abToast(d.msg,true);await loadAbyssSetTrade();
+}
+
 // Forge happy-hour clock (UX-60/UI-99): count down from the server-authored
 // UTC window so a client with a wrong clock cannot display a false discount.
 function updateForgeHH(){
@@ -4853,8 +4891,8 @@ document.addEventListener('click',function(e){
 });
 
 // UI-65: loot manifest sort toggle (floor / rarity / CR delta), persisted.
-var lootSort='floor';
-try{ lootSort=localStorage.getItem('ab_lootsort')||'floor'; }catch(e){}
+var lootSort='upgrade';
+try{ lootSort=localStorage.getItem('ab_lootsort')||'upgrade'; }catch(e){}
 var isSortingLoot=false;
 var lootSortObserver=null;
 var lootSortFrame=0;
@@ -4869,21 +4907,21 @@ async function initAbyssLootSettings(force){
     var data=await response.json();
     if(!data.ok)return;
     var settings=data.settings||{};
-    var target=document.getElementById('lootTarget'), salvage=document.getElementById('autoSalvage');
-    var loaded={targetCategory:settings.target_category||'',autoSalvageMax:String(settings.auto_salvage_max===undefined?-1:settings.auto_salvage_max)};
-    if(force||abyssLootSettingsRevision===0){if(target)target.value=loaded.targetCategory;if(salvage)salvage.value=loaded.autoSalvageMax;abyssSavedLootSettings=loaded;}
+    var target=document.getElementById('lootTarget'), salvage=document.getElementById('autoSalvage'), convert=document.getElementById('dupLegendConvert');
+    var loaded={targetCategory:settings.target_category||'',autoSalvageMax:String(settings.auto_salvage_max===undefined?-1:settings.auto_salvage_max),duplicateLegendConvert:!!settings.duplicate_legend_convert};
+    if(force||abyssLootSettingsRevision===0){if(target)target.value=loaded.targetCategory;if(salvage)salvage.value=loaded.autoSalvageMax;if(convert)convert.checked=loaded.duplicateLegendConvert;abyssSavedLootSettings=loaded;}
     abyssReservedLoot={};(data.reserved_ids||[]).forEach(function(id){abyssReservedLoot[String(id)]=true;});
     buildBackpackPanel();
   }catch(e){}
 }
-var abyssSavedLootSettings={targetCategory:'',autoSalvageMax:'-1'};
+var abyssSavedLootSettings={targetCategory:'',autoSalvageMax:'-1',duplicateLegendConvert:false};
 async function saveAbyssLootSettings(){
-  var target=document.getElementById('lootTarget'), salvage=document.getElementById('autoSalvage');
-  var next={targetCategory:target?target.value:'',autoSalvageMax:salvage?salvage.value:'-1'},previous=Object.assign({},abyssSavedLootSettings),revision=++abyssLootSettingsRevision;
-  var request={target_category:next.targetCategory,auto_salvage_max:parseInt(next.autoSalvageMax,10)},data=await abPost('/api/abyss/loot/settings',request);
+  var target=document.getElementById('lootTarget'), salvage=document.getElementById('autoSalvage'), convert=document.getElementById('dupLegendConvert');
+  var next={targetCategory:target?target.value:'',autoSalvageMax:salvage?salvage.value:'-1',duplicateLegendConvert:!!(convert&&convert.checked)},previous=Object.assign({},abyssSavedLootSettings),revision=++abyssLootSettingsRevision;
+  var request={target_category:next.targetCategory,auto_salvage_max:parseInt(next.autoSalvageMax,10),duplicate_legend_convert:next.duplicateLegendConvert},data=await abPost('/api/abyss/loot/settings',request);
   if(revision!==abyssLootSettingsRevision){await initAbyssLootSettings(true);return;}
-  if(!data.ok){if(target)target.value=previous.targetCategory;if(salvage)salvage.value=previous.autoSalvageMax;await initAbyssLootSettings(true);abToast(data.error||'Could not save loot rules.',false);return;}
-  if(target)target.value=next.targetCategory;if(salvage)salvage.value=next.autoSalvageMax;abyssSavedLootSettings=next;abToast('Loot rules saved.',true);
+  if(!data.ok){if(target)target.value=previous.targetCategory;if(salvage)salvage.value=previous.autoSalvageMax;if(convert)convert.checked=previous.duplicateLegendConvert;await initAbyssLootSettings(true);abToast(data.error||'Could not save loot rules.',false);return;}
+  if(target)target.value=next.targetCategory;if(salvage)salvage.value=next.autoSalvageMax;if(convert)convert.checked=next.duplicateLegendConvert;abyssSavedLootSettings=next;abToast('Loot rules saved.',true);
 }
 async function toggleAbyssLootReserve(invID,button){
   var key=String(invID),previous=!!abyssReservedLoot[key],optimistic=!previous;
@@ -4925,6 +4963,7 @@ function lootRowRarRank(row){
   AB_RAR_ORDER.forEach(function(c,i){ if(row.classList.contains(c))r=i+1; });
   return r;
 }
+function lootRowMainStat(row){return parseInt(row.dataset&&row.dataset.mainStat||'0',10)||0;}
 function applyLootSort(){
   if(isSortingLoot) return;
   isSortingLoot=true;
@@ -4952,7 +4991,7 @@ function applyLootSort(){
       manifest.appendChild(frag);
     } else {
       rows.sort(function(a,b){
-        var d=lootSort==='rarity'?(lootRowRarRank(b)-lootRowRarRank(a)):(lootRowCR(b)-lootRowCR(a));
+        var d=lootSort==='rarity'?(lootRowRarRank(b)-lootRowRarRank(a)):lootSort==='build'?(lootRowMainStat(b)-lootRowMainStat(a)):lootSort==='upgrade'?((Number(b.dataset.crDelta)>0?1:0)-(Number(a.dataset.crDelta)>0?1:0)||lootRowCR(b)-lootRowCR(a)):(lootRowCR(b)-lootRowCR(a));
         return d!==0?d:bySeq(a,b);
       });
       var sorted=document.createDocumentFragment();
@@ -5852,6 +5891,7 @@ function initNewDots(){
 
   initPanelAnchors();  // UI-118
   initAbyssCombatSettings();
+	loadAbyssSetTrade();
   initBackToTop();     // UI-119
   applySidebarOrder(); // UI-120
   initBestiaryGroups();// UI-121

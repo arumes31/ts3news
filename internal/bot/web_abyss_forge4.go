@@ -322,7 +322,7 @@ func (s *WebServer) handleAbyssForgeQueue(w http.ResponseWriter, r *http.Request
 	polishes := 0
 	temperUsed := false
 	var steps []string
-	queueLoop:
+queueLoop:
 	for i, action := range req.Actions {
 		goldBefore := totalGold
 		stepErr := func(msg string) bool {
@@ -1630,6 +1630,9 @@ func (s *WebServer) handleAbyssCelestialFuseBoosted(w http.ResponseWriter, r *ht
 		return
 	}
 	s.bot.recordForge(uid, "celestial fusion (blessed)", best.Name, fmt.Sprintf("%dg 10💠", cost))
+	if ascended {
+		go s.bot.broadcastAbyssEternalDrop(uid, best.Name)
+	}
 	writeJSON(w, map[string]any{"ok": true, "ascended": ascended, "msg": msg,
 		"gold": s.bot.abyssGold(uid), "materials": s.bot.loadMaterials(uid), "mastery": s.bot.forge4MasteryInfo(uid)})
 }

@@ -32,6 +32,7 @@ type runLootRow struct {
 	Score        int           `json:"score,omitempty"`
 	CR           float64       `json:"cr,omitempty"`
 	CRDelta      float64       `json:"cr_delta,omitempty"`
+	MainStat     int           `json:"main_stat,omitempty"`
 	Quality      int           `json:"quality,omitempty"`
 	Unidentified bool          `json:"unidentified,omitempty"`
 	AlreadyOwned bool          `json:"already_owned,omitempty"`
@@ -88,9 +89,21 @@ func abyssOwnedGearSet(equipped map[content.GearSlot]content.Gear, inventory []g
 	return owned
 }
 
+func abyssLootMainStat(gear content.Gear, buildKit int64) int {
+	switch abyssBuildNameByValue(abyssBuildKits, buildKit) {
+	case "arcanist":
+		return gear.Stats.INT
+	case "survival":
+		return gear.Stats.HP + gear.Stats.DEF
+	default:
+		return gear.Stats.STR
+	}
+}
+
 // currentRunLootManifest returns every escrowed item oldest-first and derives
 // gear presentation from the serialized grant, never from localized label text.
 func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]content.Gear, owned map[string]bool) []runLootRow {
+	buildKit := b.loadRunFlags(uid)[abyssRunFlagBuildKit]
 	setCounts := map[string]int{}
 	for _, gear := range equipped {
 		if gear.SetID != "" {
@@ -135,6 +148,7 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 			row.GearID = gear.ID
 			row.Score = gear.Stats.Score()
 			row.CR = gear.CombatRating()
+			row.MainStat = abyssLootMainStat(gear, buildKit)
 			row.Quality = gear.Quality
 			row.AlreadyOwned = owned[gear.ID]
 			row.SetID = gear.SetID

@@ -197,8 +197,8 @@ function renderLiveTargets(hostID, combatants, hostile){
   (combatants||[]).forEach(function(unit){
     var button=document.createElement('button');
     var hpHidden=hostile&&!!unit.hp_hidden;
-    button.type='button'; button.className='ab-combatant'+(hostile?' hostile':'')+(hostile&&String(unit.role||'').toLowerCase()==='boss'?' boss-tier':'')+(hpHidden?' hp-concealed':'')+(liveSelectedTarget===unit.id?' selected':'');
-    button.disabled=unit.hp===0;
+    button.type='button'; button.className='ab-combatant'+(hostile?' hostile':'')+(!hostile&&!unit.is_player?' ally-converted':'')+(hostile&&String(unit.role||'').toLowerCase()==='boss'?' boss-tier':'')+(hpHidden?' hp-concealed':'')+(liveSelectedTarget===unit.id?' selected':'');
+	button.disabled=unit.hp===0||(!hostile&&!unit.is_player);
     button.setAttribute('data-target',unit.id);
     button.setAttribute('aria-pressed',liveSelectedTarget===unit.id?'true':'false');
     var traits=[];

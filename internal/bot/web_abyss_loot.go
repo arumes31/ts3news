@@ -757,7 +757,7 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 		}
 	case "cons":
 		if g.ConsID != "" {
-			b.grantConsumable(uid, g.ConsID, g.ConsDur)
+			return b.grantConsumableStacked(uid, g.ConsID, g.ConsDur)
 		}
 	case "skill":
 		if g.Skill != nil {

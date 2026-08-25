@@ -96,6 +96,7 @@ type Mob struct {
 	SPDMod      float64
 	StunRounds  int
 	PreStunSPD  int
+	Loyalty     int
 }
 
 // Clone returns a deep copy of m, so mutating the copy's slices never affects

@@ -486,9 +486,9 @@ var abyssExclusiveConsumables = []Consumable{
 // variant (stronger effect plus self-damage). Consumables absent from the map
 // have no corrupted form.
 var corruptedConsumableVariants = map[string]string{
-	"great_health_potion":  "corrupted_great_health_potion",
-	"strength_elixir":      "corrupted_strength_elixir",
-	"rejuvenation_potion":  "corrupted_rejuvenation_potion",
+	"great_health_potion": "corrupted_great_health_potion",
+	"strength_elixir":     "corrupted_strength_elixir",
+	"rejuvenation_potion": "corrupted_rejuvenation_potion",
 }
 
 // CorruptedConsumableVariant returns the corrupted variant ID for a standard
@@ -1175,6 +1175,20 @@ func buildContent() {
 // RandomItemEffect rolls a 20% chance of a random combat affix, or EffectNone.
 func RandomItemEffect() ItemEffect {
 	return RandomItemEffectWithRandom(gameplayRandom)
+}
+
+// AbyssSetCatalog returns a detached copy of every named-set item. Callers can
+// safely customize an offered item without mutating the global loot catalog.
+func AbyssSetCatalog(setID string) []Gear {
+	var out []Gear
+	for _, gear := range abyssExclusiveGear {
+		if gear.SetID == setID {
+			gear.BonusEffects = append([]ItemEffect(nil), gear.BonusEffects...)
+			gear.Gemstones = append([]string(nil), gear.Gemstones...)
+			out = append(out, gear)
+		}
+	}
+	return out
 }
 
 // RandomItemEffectWithRandom rolls a combat affix using source.

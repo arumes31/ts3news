@@ -9,8 +9,9 @@ import (
 )
 
 type abyssLootSettings struct {
-	TargetCategory string `json:"target_category,omitempty"`
-	AutoSalvageMax int    `json:"auto_salvage_max"`
+	TargetCategory         string `json:"target_category,omitempty"`
+	AutoSalvageMax         int    `json:"auto_salvage_max"`
+	DuplicateLegendConvert bool   `json:"duplicate_legend_convert"`
 }
 
 func abyssLootSettingsKey(uid string) string { return "abyss_loot_settings_" + uid }

@@ -1431,6 +1431,8 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	longTerm := s.bot.abyssLongTermStatus(uid, run, history, st.BestDepth, pity)
 	coreLoop := s.bot.abyssCoreLoopStatus(uid, run)
 	eventIntel := s.bot.abyssEventIntel(uid, run)
+	dropForecast, dropForecastOK := s.bot.abyssNextFloorForecast(uid)
+	celestialPity := s.bot.abyssCelestialPity(uid)
 
 	s.render(w, "abyss", map[string]any{
 		"Title":               "The Abyss",
@@ -1450,6 +1452,8 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"LongTerm":            longTerm,
 		"CoreLoop":            coreLoop,
 		"EventIntel":          eventIntel,
+		"DropForecast":        dropForecast,
+		"DropForecastOK":      dropForecastOK,
 		"DeferredEvent":       s.bot.abyssDeferredEventView(uid, run),
 		"Achievements":        achievementViews,
 		"BadgeOptions":        badgeOptions,
@@ -1477,6 +1481,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Equipped":            slots,
 		"Inventory":           inventory,
 		"LegendaryPity":       pity,
+		"CelestialPity":       celestialPity,
 		"DropStreak":          dropStreak,
 		"DropStreakBonusPct":  dropStreakBonusPct,
 		"Risk":                risk,
@@ -2274,33 +2279,34 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			reviveChance := abyssReviveOfferChancePct(reviveStreak, s.bot.loadAbyssStats(uid).UpMercy)
 			lastStandCost, lastStandAvailable := abyssLastStandOffer(run, flags)
 			writeJSON(w, map[string]any{
-				"ok":                 true,
-				"victory":            false,
-				"depth":              newDepth,
-				"hp":                 res.CurrentHP,
-				"max_hp":             res.MaxHP,
-				"logs":               combinedLogs,
-				"loot":               combinedLoot,
-				"dura":               combinedDura,
-				"timeline":           combinedTimeline,
-				"reward_xp":          totalRewardXP,
-				"risk":               abyssRiskPct(newDepth+1, tier, s.bot.abyssPlayerCR(uid)),
-				"downed":             true,
-				"can_revive":         canRevive,
-				"revive_streak":      reviveStreak,
-				"revive_chance_pct":  reviveChance,
-				"can_last_stand":     !hardcore && lastStandAvailable && s.bot.abyssTokens(uid) >= lastStandCost,
-				"last_stand_cost":    lastStandCost,
-				"escrow":             run.Escrow,
-				"insured":            run.Insured,
-				"hardcore":           hardcore,
-				"grace_protected":    abyssGraceProtected(newDepth, hardcore),
-				"gold":               gold,
-				"tokens":             s.bot.abyssTokens(uid),
-				"consumables":        s.bot.getConsumables(uid),
-				"auto_focus":         s.selectedAbyssFocus(uid, runFinal),
-				"run_floors_cleared": abyssRunFloorsCleared(runFinal),
-				"pity_proc":          pityProc,
+				"ok":                  true,
+				"victory":             false,
+				"depth":               newDepth,
+				"hp":                  res.CurrentHP,
+				"max_hp":              res.MaxHP,
+				"logs":                combinedLogs,
+				"loot":                combinedLoot,
+				"dura":                combinedDura,
+				"timeline":            combinedTimeline,
+				"reward_xp":           totalRewardXP,
+				"risk":                abyssRiskPct(newDepth+1, tier, s.bot.abyssPlayerCR(uid)),
+				"survival_chance_pct": abyssPostHocSurvivalChance(newDepth, tier, s.bot.abyssPlayerCR(uid)),
+				"downed":              true,
+				"can_revive":          canRevive,
+				"revive_streak":       reviveStreak,
+				"revive_chance_pct":   reviveChance,
+				"can_last_stand":      !hardcore && lastStandAvailable && s.bot.abyssTokens(uid) >= lastStandCost,
+				"last_stand_cost":     lastStandCost,
+				"escrow":              run.Escrow,
+				"insured":             run.Insured,
+				"hardcore":            hardcore,
+				"grace_protected":     abyssGraceProtected(newDepth, hardcore),
+				"gold":                gold,
+				"tokens":              s.bot.abyssTokens(uid),
+				"consumables":         s.bot.getConsumables(uid),
+				"auto_focus":          s.selectedAbyssFocus(uid, runFinal),
+				"run_floors_cleared":  abyssRunFloorsCleared(runFinal),
+				"pity_proc":           pityProc,
 			})
 			return
 		}
@@ -2976,6 +2982,7 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		out["insured"] = run.Insured
 		out["hardcore"] = hardcore
 		out["grace_protected"] = abyssGraceProtected(depth, hardcore)
+		out["survival_chance_pct"] = abyssPostHocSurvivalChance(depth, tier, s.bot.abyssPlayerCR(uid))
 	}
 
 	var gold int64
@@ -3634,6 +3641,9 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 		_, _ = s.bot.DB.Exec("UPDATE user_consumables SET remaining_fights = 3 WHERE client_uid = $1 AND cons_id = $2", uid, req.ConsID)
 		s.bot.abyssSpendLoadout(uid, req.ConsID)
 		_, _ = s.bot.DB.Exec("UPDATE abyss_active SET momentum = 0 WHERE client_uid=$1", uid) // #7 momentum breaks on consumable use
+		if backlash := corruptedConsumableBacklash(req.ConsID, stats.HP); backlash > 0 {
+			_, _ = s.bot.DB.Exec("UPDATE users SET current_hp = GREATEST(0, current_hp - $1) WHERE client_uid = $2", backlash, uid)
+		}
 		var curHP int
 		_ = s.bot.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&curHP)
 		var gold int64
@@ -3661,6 +3671,9 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 	default:
 		writeJSON(w, map[string]any{"ok": false, "error": "consumable type cannot be used manually"})
 		return
+	}
+	if backlash := corruptedConsumableBacklash(req.ConsID, stats.HP); backlash > 0 {
+		_, _ = s.bot.DB.Exec("UPDATE users SET current_hp = GREATEST(0, current_hp - $1) WHERE client_uid = $2", backlash, uid)
 	}
 
 	// Consume 1 stacked item: decrement remaining_fights and only delete the row
@@ -4877,6 +4890,10 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	vacuumLoot := []string{}
+	if run.FloorType == "rest" && !deferredReturn {
+		vacuumLoot = s.bot.abyssRestFloorVacuum(uid, run.Depth)
+	}
 	if runFlags[abyssRunFlagColdMuscles] > 0 {
 		runFlags[abyssRunFlagColdMuscles]--
 	}
@@ -4912,6 +4929,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 		"hp":           curHP,
 		"affix_reward": affixReward,
 		"focus_reward": focusReward,
+		"vacuum_loot":  vacuumLoot,
 	})
 }
 

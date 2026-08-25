@@ -309,10 +309,10 @@ func (s *WebServer) handleAbyssAwaken(w http.ResponseWriter, r *http.Request, ui
 
 // imbueEffects whitelists the effects that can be imbued (body param → enum).
 var imbueEffects = map[string]content.ItemEffect{
-	"vampiric": content.EffectVampiric,
-	"thorns":   content.EffectThorns,
-	"lucky":    content.EffectLucky,
-	"quick":    content.EffectQuick,
+	"vampiric":    content.EffectVampiric,
+	"thorns":      content.EffectThorns,
+	"lucky":       content.EffectLucky,
+	"quick":       content.EffectQuick,
 	"bulwark":     content.EffectBulwark,
 	"radiant":     content.EffectRadiant,
 	"executioner": content.EffectExecutioner,
@@ -384,6 +384,14 @@ func (s *WebServer) handleAbyssImbue(w http.ResponseWriter, r *http.Request, uid
 
 const maxPunchedSockets = 4
 
+func abyssPunchSocketResult(current int, roll float64) (sockets int, perfect bool) {
+	sockets = current + 1
+	if current == maxPunchedSockets-1 && roll < 0.10 {
+		return maxPunchedSockets + 1, true
+	}
+	return sockets, false
+}
+
 // handleAbyssPunchSocket adds one gemstone socket to an item (10 Void Shards),
 // capped at 4 sockets total.
 func (s *WebServer) handleAbyssPunchSocket(w http.ResponseWriter, r *http.Request, uid string) {
@@ -414,15 +422,20 @@ func (s *WebServer) handleAbyssPunchSocket(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "punch socket")
-	g.Sockets++
+	sockets, perfect := abyssPunchSocketResult(g.Sockets, rand.Float64())
+	g.Sockets = sockets
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
 	if !s.finishForge(w, tx, uid, "punch socket", fmt.Sprintf("%s → %d sockets", g.Name, g.Sockets), "10🔷") {
 		return
 	}
+	message := fmt.Sprintf("🔨 Punched a new socket into %s (%d/%d).", g.Name, g.Sockets, maxPunchedSockets)
+	if perfect {
+		message = fmt.Sprintf("💎 Perfect punch! %s gained two sockets at once (%d total).", g.Name, g.Sockets)
+	}
 	writeJSON(w, map[string]any{"ok": true, "materials": s.bot.loadMaterials(uid),
-		"msg": fmt.Sprintf("🔨 Punched a new socket into %s (%d/%d).", g.Name, g.Sockets, maxPunchedSockets)})
+		"perfect": perfect, "sockets": g.Sockets, "msg": message})
 }
 
 // ---- Attune ---------------------------------------------------------------------

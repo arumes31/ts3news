@@ -601,5 +601,10 @@ func (b *Bot) useLiveConsumable(
 		}
 		*logs = append(*logs, fmt.Sprintf("🧪 %s uses %s and surges with power.", actor.Nickname, consumable.Name))
 	}
+	if backlash := corruptedConsumableBacklash(consumableID, actor.Stats.HP); backlash > 0 {
+		actor.CurrentHP = max(0, actor.CurrentHP-backlash)
+		*logs = append(*logs, fmt.Sprintf("🩸 Corruption tears through %s for %d HP.", actor.Nickname, backlash))
+		b.checkUserRevive(actor, logs)
+	}
 	return true
 }

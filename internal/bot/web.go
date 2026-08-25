@@ -341,6 +341,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/bounty/claim", s.authAPI(s.handleAbyssBountyClaim))
 		mux.HandleFunc("/api/abyss/set_badge", s.authAPI(s.handleAbyssSetBadge))
 		mux.HandleFunc("/api/abyss/shop/buy", s.authAPI(s.handleAbyssShopBuy))
+		mux.HandleFunc("/api/abyss/set_trade", s.authAPI(s.handleAbyssSetTrade))
 		mux.HandleFunc("/api/abyss/dismantle", s.authAPI(s.forgeMutation("dismantle", s.handleAbyssDismantle)))
 		mux.HandleFunc("/api/abyss/identify", s.authAPI(s.forgeMutation("identify", s.handleAbyssIdentify)))
 		mux.HandleFunc("/api/abyss/socket_gem", s.authAPI(s.forgeMutation("socket_gem", s.handleAbyssSocketGem)))

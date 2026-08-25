@@ -84,6 +84,8 @@
   top: .42rem;
 }
 .abyss-side-loot.ab-loot-released { animation: ab-loot-release .7s ease-out both; }
+.abyss-side-loot[data-slot="Charm"] .ab-loot-slot,
+.abyss-side-gear[data-slot="Charm"] .ab-gear-icon { display: inline-block; transform-origin: 50% 0; animation: ab-charm-dangle 2.4s ease-in-out infinite; }
 .ab-loot-custody.is-released { border-color: #55d889; }
 .ab-loot-custody.is-released .ab-loot-custody-state { color: #55d889; }
 @keyframes ab-loot-release {
@@ -91,8 +93,11 @@
   45% { filter: saturate(1.35) brightness(1.2); transform: translateX(-3px); }
   100% { filter: none; transform: translateX(0); }
 }
+@keyframes ab-charm-dangle { 0%,100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .abyss-side-loot.ab-loot-released { animation: none; }
+  .abyss-side-loot.ab-loot-released,
+  .abyss-side-loot[data-slot="Charm"] .ab-loot-slot,
+  .abyss-side-gear[data-slot="Charm"] .ab-gear-icon { animation: none; }
 }
 @media (forced-colors: active) {
   .ab-loot-custody,

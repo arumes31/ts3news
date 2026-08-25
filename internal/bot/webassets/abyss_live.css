@@ -159,6 +159,10 @@
   background: repeating-linear-gradient(110deg, #242332 0 9px, #48415c 9px 13px);
   animation: ab-concealed-hp 1.8s linear infinite;
 }
+.ab-combatant.ally-converted { border-color: #4fd8b4; background: linear-gradient(145deg,rgba(27,104,91,.24),rgba(55,31,82,.26)); box-shadow: inset 3px 0 #4fd8b4; }
+.ab-combatant.ally-converted .ab-combatant-name { color: #8ff5dc; }
+.ab-pixel-unit.ally-converted { filter: hue-rotate(125deg) saturate(1.25); }
+.ab-pixel-unit.ally-converted::after { content: 'ALLY'; position: absolute; right: 3px; top: 3px; color: #8ff5dc; font: 700 .48rem ui-monospace,monospace; }
 .ab-combatant.hp-concealed { border-color: #4b425f; }
 @keyframes ab-concealed-hp { 50% { opacity: .45; } }
 .ab-overhead-hp.concealed i {

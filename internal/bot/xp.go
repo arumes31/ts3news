@@ -126,6 +126,8 @@ type activeUser struct {
 	execFlourished    bool                  // AB-55 one-time Executioner+Execute flourish log
 	cursedMercyLogged bool                  // AB-54 one-time cursed mercy log
 	runeWardLogged    bool                  // AB-67 one-time rune-ward resist log
+	defRuneLogged     bool                  // AB-84 one-time defensive-rune resist log
+	petNervousLogged  map[*content.Mob]bool // AB-73 low-loyalty foreshadowing, once per pet per fight
 	defendingRound    int                   // live combat: DEF boost remains through one enemy phase
 	potionCooldown    int                   // shared cooldown for powerful live consumables
 	relicCharges      int                   // run-bound active relic uses remaining
@@ -291,7 +293,7 @@ func (b *Bot) computeMiscMult(uid, _ string, cid int, ctx cycleContext) float64 
 }
 
 func (b *Bot) getPets(uid string) []*content.Mob {
-	rows, err := b.DB.Query("SELECT name, mob_type, level, hp, max_hp, str, def, spd FROM user_pets WHERE client_uid = $1", uid)
+	rows, err := b.DB.Query("SELECT name, mob_type, level, hp, max_hp, str, def, spd, loyalty FROM user_pets WHERE client_uid = $1", uid)
 	if err != nil {
 		return nil
 	}
@@ -301,7 +303,7 @@ func (b *Bot) getPets(uid string) []*content.Mob {
 		var m content.Mob
 		var mType string
 		var maxHP int
-		if err := rows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &maxHP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD); err == nil {
+		if err := rows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &maxHP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD, &m.Loyalty); err == nil {
 			m.Type = content.MobType(mType)
 			m.MaxHP = maxHP
 			out = append(out, &m)
@@ -311,9 +313,17 @@ func (b *Bot) getPets(uid string) []*content.Mob {
 }
 
 func (b *Bot) savePet(uid string, m *content.Mob) {
-	_, _ = b.DB.Exec(`INSERT INTO user_pets (client_uid, name, mob_type, level, hp, max_hp, str, def, spd) 
-	                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		uid, m.Name, string(m.Type), m.Level, m.Stats.HP, m.Stats.HP, m.Stats.STR, m.Stats.DEF, m.Stats.SPD)
+	maxHP := m.MaxHP
+	if maxHP <= 0 {
+		maxHP = max(1, m.Stats.HP)
+	}
+	loyalty := m.Loyalty
+	if loyalty <= 0 {
+		loyalty = 100
+	}
+	_, _ = b.DB.Exec(`INSERT INTO user_pets (client_uid, name, mob_type, level, hp, max_hp, str, def, spd, loyalty)
+	                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		uid, m.Name, string(m.Type), m.Level, m.Stats.HP, maxHP, m.Stats.STR, m.Stats.DEF, m.Stats.SPD, loyalty)
 }
 
 func (b *Bot) deletePet(uid, name string) {
@@ -326,6 +336,16 @@ func (b *Bot) updatePetHP(uid, name string, hp int) {
 	} else {
 		_, _ = b.DB.Exec("UPDATE user_pets SET hp = $3 WHERE client_uid = $1 AND name = $2", uid, name, hp)
 	}
+}
+
+func (b *Bot) updatePetState(uid string, pet *content.Mob) {
+	if pet == nil || pet.Stats.HP <= 0 {
+		if pet != nil {
+			b.deletePet(uid, pet.Name)
+		}
+		return
+	}
+	_, _ = b.DB.Exec("UPDATE user_pets SET hp=$1, loyalty=$2 WHERE client_uid=$3 AND name=$4", pet.Stats.HP, pet.Loyalty, uid, pet.Name)
 }
 
 func (b *Bot) checkUserRevive(u *UserInCombat, logs *[]string) bool {
@@ -563,7 +583,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 		_, _, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
 		activeUsers[i] = activeUser{
 			u: &users[i], effects: effects, treeBonus: users[i].treeBonus,
-			skillCooldowns: map[string]int{},
+			skillCooldowns: map[string]int{}, petNervousLogged: map[*content.Mob]bool{},
 		}
 		activeUsers[i].u.STRMod = 1.0
 		activeUsers[i].u.DEFMod = 1.0
@@ -1915,9 +1935,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				// #nosec G404
 				if rand.Float64() < 0.5 { // #nosec G404
 					*logs = append(*logs, i18n.T("bot.combat.captive", target.Name))
+					abyssMindControlCapture(target)
 					u.Pets = append(u.Pets, target)
 					b.savePet(u.UID, target)
-					target.Stats.HP = target.Level * 10
 					newMobs := []*content.Mob{}
 					for _, xm := range *mobs {
 						if xm != target {
@@ -1993,6 +2013,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if p.Stats.HP <= 0 {
 				continue
 			}
+			if abyssCombatant(u) && abyssPetNervous(p.Loyalty) && !au.petNervousLogged[p] {
+				au.petNervousLogged[p] = true
+				*logs = append(*logs, fmt.Sprintf("🐾 %s hangs back, eyes darting toward the exit. (Loyalty %d%% — betrayal risk)", p.Name, p.Loyalty))
+			}
 
 			// Betrayal check (3% chance)
 			betrayalChance := 0.03
@@ -2003,6 +2027,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			}
 			if rand.Float64() < betrayalChance { // #nosec G404
+				p.Loyalty = max(0, p.Loyalty-5)
 				// #nosec G404
 				targetAU := activeUsers[rand.IntN(len(activeUsers))] // #nosec G404
 				target := targetAU.u
@@ -2321,6 +2346,13 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 				*logs = append(*logs, fmt.Sprintf("🔷 %s's three-rune ward resists 10%% %s damage.", target.Nickname, m.Element))
 			}
 		}
+		if resist := defensiveRuneResistPct(target.Equipped, m.Element); abyssCombatant(target) && resist > 0 {
+			dmg = dmg * (100 - resist) / 100
+			if !targetAU.defRuneLogged {
+				targetAU.defRuneLogged = true
+				*logs = append(*logs, fmt.Sprintf("🛡️ %s's etched wards resist %d%% %s damage.", target.Nickname, resist, m.Element))
+			}
+		}
 
 		// Ambush cap: limit total surprise-round damage to this target and never let
 		// it reduce them below 1 HP, so a dense enemy group can't erase a full-HP
@@ -2404,7 +2436,10 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 		// Save pets state
 		if !u.IsClone {
 			for _, p := range u.Pets {
-				b.updatePetHP(u.UID, p.Name, p.Stats.HP)
+				if victory && p != nil && p.Stats.HP > 0 {
+					p.Loyalty = min(100, p.Loyalty+1)
+				}
+				b.updatePetState(u.UID, p)
 			}
 		}
 
@@ -3090,6 +3125,11 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 
 					stats = stats.Add(gear.Stats)
 					gearScore += gear.Stats.Score()
+					if bonus := sentimentalValueBonus(gear, today); bonus != (content.Stats{}) {
+						stats = stats.Add(bonus)
+						gearScore += bonus.Score()
+						notes = append(notes, fmt.Sprintf("💛 Broken in: %s (+1%% stats)", gear.Name))
+					}
 					if gear.Special != content.EffectNone {
 						effects = append(effects, gear.Special)
 					}

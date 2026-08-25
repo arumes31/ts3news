@@ -326,7 +326,7 @@ func (s *WebServer) handleAbyssCraft(w http.ResponseWriter, r *http.Request, uid
 	writeJSON(w, map[string]any{
 		"ok": true, "msg": msg, "quest_done": done, "quest_target": craftQuestTarget,
 		"first_craft_bonus": firstCraft,
-		"materials": s.bot.loadMaterials(uid), "tokens": s.bot.abyssTokens(uid),
+		"materials":         s.bot.loadMaterials(uid), "tokens": s.bot.abyssTokens(uid),
 		"consumables": s.bot.getConsumables(uid),
 	})
 }
@@ -763,7 +763,7 @@ func (s *WebServer) handleAbyssTemper(w http.ResponseWriter, r *http.Request, ui
 		s.bot.recordForge(uid, "temper", fmt.Sprintf("%s → +%d", g.Name, g.Temper), fmt.Sprintf("%dg", cost))
 		writeJSON(w, map[string]any{"ok": true, "success": true, "temper": g.Temper, "gold": gold,
 			"guard_used": guardUsed,
-			"msg": fmt.Sprintf("⚒️ Temper succeeded! %s is now +%d (+2%% stats).", g.Name, g.Temper)})
+			"msg":        fmt.Sprintf("⚒️ Temper succeeded! %s is now +%d (+2%% stats).", g.Name, g.Temper)})
 		return
 	}
 	s.bot.recordForge(uid, "temper", g.Name+" failed", fmt.Sprintf("%dg", cost))
@@ -1165,6 +1165,7 @@ func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode
 	// The best eligible CR piece survives, boosted. Duplicate protection can
 	// select the next-best input when the strongest result is already owned.
 	var msg string
+	eternalAscended := false
 	if mode == "ancient" {
 		best.Stats = best.Stats.Scaled(1.30)
 		best.Name = "Ancient " + best.Name
@@ -1181,6 +1182,7 @@ func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode
 			best.Rarity = ascend
 			best.Stats = best.Stats.Scaled(1.25)
 			best.Name = prefix + best.Name
+			eternalAscended = mode == "celestial"
 			msg = fmt.Sprintf("🌟 %s ASCENSION! %s emerges (+25%% stats)!", strings.ToUpper(ascend.String()), best.Name)
 		} else {
 			best.Stats = best.Stats.Scaled(1.10)
@@ -1206,6 +1208,9 @@ func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode
 		return
 	}
 	s.bot.recordForge(uid, mode+" fusion", best.Name, fmt.Sprintf("%dg", cost))
+	if eternalAscended {
+		go s.bot.broadcastAbyssEternalDrop(uid, best.Name)
+	}
 	writeJSON(w, map[string]any{"ok": true, "msg": msg, "milestone_progress": milestone,
 		"milestone_stage": abyssForgeMilestoneStage(milestone)})
 }
@@ -1589,7 +1594,7 @@ func (s *WebServer) handleAbyssLastStand(w http.ResponseWriter, r *http.Request,
 	}
 	writeJSON(w, map[string]any{
 		"ok": true, "hp": reviveHP, "max_hp": stats.HP, "tokens": s.bot.abyssTokens(uid),
-		"msg": fmt.Sprintf("🛡️ LAST STAND! You rise at %d%% HP — but the exit is sealed for the next 2 floors.", revivePct),
+		"msg":           fmt.Sprintf("🛡️ LAST STAND! You rise at %d%% HP — but the exit is sealed for the next 2 floors.", revivePct),
 		"second_charge": run.LastStandUsed,
 	})
 }
