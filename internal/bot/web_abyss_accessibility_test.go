@@ -28,7 +28,7 @@ func TestAbyssAccessibilityContracts(t *testing.T) {
 		"function initConsumableDialogFocus",
 		"!card.contains(document.activeElement)",
 		"function enhanceRarityGlyphs",
-		"'◆'.repeat(rank)",
+		"var rarityGlyphs=['●','■','▲','◆'",
 		"function abyssHaptic",
 		"localStorage.getItem(key)",
 		"'(pointer: coarse)'",

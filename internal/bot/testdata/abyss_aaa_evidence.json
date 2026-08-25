@@ -281,6 +281,7 @@
       "internal/bot/web_abyss_codex.go",
       "internal/bot/web_abyss_econ.go",
       "internal/bot/web_abyss_history.go",
+      "internal/bot/web_abyss_progression.go",
       "internal/bot/webassets/abyss.html",
       "internal/bot/webassets/abyss_codex_navigation.html",
       "internal/bot/webassets/abyss_ui200.css",
@@ -289,6 +290,21 @@
       "internal/db/migrations/0076_abyss_bestiary_family.up.sql"
     ],
     "verification": ["internal/bot/web_abyss_library_feedback_test.go"]
+  },
+  {
+    "ids": [641, 642, 643, 644, 645, 646, 647, 648, 649, 650, 651, 652, 653, 654, 655, 656, 657, 658, 659, 660],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/xp.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_accessibility.html",
+      "internal/bot/webassets/abyss_accessibility.css",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/webassets/abyss_ui200.css",
+      "internal/bot/webassets/partials.html"
+    ],
+    "verification": ["internal/bot/web_abyss_accessibility_feedback_test.go"]
   },
   {
     "ids": [986, 987],

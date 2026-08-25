@@ -63,9 +63,10 @@ func abyssGearLabel(g content.Gear) string {
 // loot entry point used by the combat engine.
 func (b *Bot) awardCombatLoot(winner *UserInCombat, mob content.Mob, zone content.Zone, logs *[]string, loots *[]LootResult) {
 	if winner.EscrowLoot {
-		for _, label := range b.rollAbyssLootToEscrow(winner.UID, mob, zone.Difficulty, winner.LootFocus) {
+		roll := b.rollAbyssLootToEscrow(winner.UID, mob, zone.Difficulty, winner.LootFocus)
+		for index, label := range roll.Labels {
 			*logs = append(*logs, fmt.Sprintf("[color=#b9a36b]🔒 %s — sealed into the cache (lost if you fall): %s[/color]", winner.Nickname, label))
-			*loots = append(*loots, LootResult{UID: winner.UID, Note: label})
+			*loots = append(*loots, LootResult{UID: winner.UID, Note: label, PityProc: roll.PityProc && index == 0})
 		}
 		return
 	}
@@ -118,9 +119,14 @@ func lootRarityScale(level int) float64 {
 	return 0.3 + 0.7*float64(level-1)/49.0
 }
 
+type abyssLootRoll struct {
+	Labels   []string
+	PityProc bool
+}
+
 // rollAbyssLootToEscrow rolls the drops for one defeated mob and writes them to the
-// run's loot escrow, returning the display labels for the combat log.
-func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty float64, focus string) []string {
+// run's loot escrow, returning display labels and an authoritative pity-proc signal.
+func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty float64, focus string) abyssLootRoll {
 	count := 1
 	switch mob.Type {
 	case content.MobBoss:
@@ -210,6 +216,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	}
 
 	var labels []string
+	pityProc := false
 	add := func(label string, g abyssLootGrant) bool {
 		if b.escrowAbyssLoot(uid, run.Depth, label, g) {
 			labels = append(labels, label)
@@ -397,6 +404,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			// forfeitable on death. Equipping straight to user_gear here would let the
 			// player keep a guaranteed Legendary for free by dying (escrow bypass).
 			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
+				pityProc = true
 				legendaryPity = 0
 				if g.Rarity >= content.RarityCelestial {
 					celestialPity = 0
@@ -590,7 +598,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		log.Printf("abyss pity/streak persist failed for %s: %v", uid, err)
 	}
 	b.abyssSetCelestialPity(uid, celestialPity)
-	return labels
+	return abyssLootRoll{Labels: labels, PityProc: pityProc}
 }
 
 // escrowAbyssLoot persists one rolled drop into the run's loot escrow.

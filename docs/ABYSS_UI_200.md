@@ -175,7 +175,7 @@ Numbers are stable — reference them in issues.
 142. Pity proc: screen-wide subtle golden flash on the guaranteed legendary.
 143. Celestial/Eternal drops: distinct toast sound-free visual (starburst rays behind the toast).
 144. Downed: heartbeat pulse on the revive options.
-145. Network error banner: shows queued action count ("2 actions will retry").
+145. Network error banner: counts blocked or uncertain actions and requires state review before manual retry; mutations are never queued or replayed.
 146. Button press: short haptic-style scale bounce (0.96) on primary actions.
 147. Bank success: gold coins arc from the depth dial to the gold counter.
 148. Death: the escrow number visually crumbles/drains into the jackpot ticker.

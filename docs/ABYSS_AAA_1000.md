@@ -353,3 +353,26 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0638 / UI-138** — the vault count-up offers an immediate reduced-motion-compatible skip to the committed total.
 - [x] **AAA-0639 / UI-139** — an observed level increase flashes the HUD level chip without requiring a reload.
 - [x] **AAA-0640 / UI-140** — achievement responses raise a named, icon-led, reduced-motion-safe top banner.
+
+## Delivered tranche: authoritative feedback and accessible interaction
+
+- [x] **AAA-0641 / UI-141** — personal and global record bursts use separate, one-per-depth server-confirmed signals.
+- [x] **AAA-0642 / UI-142** — the pity flash is emitted only by the exact guaranteed-legendary award branch after escrow succeeds.
+- [x] **AAA-0643 / UI-143** — Celestial and Eternal loot toasts receive distinct sound-free starburst treatments.
+- [x] **AAA-0644 / UI-144** — downed revive choices receive a reduced-motion-safe heartbeat emphasis.
+- [x] **AAA-0645 / UI-145** — the connectivity banner distinguishes blocked and uncertain actions, probes with HEAD only, and requires state review before manual retry; mutations are never replayed.
+- [x] **AAA-0646 / UI-146** — enabled primary actions provide a short tactile scale response with keyboard and reduced-motion fallbacks.
+- [x] **AAA-0647 / UI-147** — confirmed bank success animates coins from the depth dial toward the gold counter.
+- [x] **AAA-0648 / UI-148** — defeat visually drains escrow toward the jackpot without changing authoritative balances.
+- [x] **AAA-0649 / UI-149** — an active run waiting five minutes gently marks the document title until the player returns.
+- [x] **AAA-0650 / UI-150** — versioned, dismiss-on-visit dots identify newly updated panels once per browser.
+- [x] **AAA-0651 / UI-151** — decorative vault and boss overlays are inert and hidden from the accessibility tree.
+- [x] **AAA-0652 / UI-152** — an Abyss-only first-tab-stop skip link moves focus directly to run controls.
+- [x] **AAA-0653 / UI-153** — combat feeds stop announcing every mutation and post-fight summaries collapse into a throttled dedicated live region.
+- [x] **AAA-0654 / UI-154** — rarity presentation adds explicit spoken labels instead of relying on color or dots.
+- [x] **AAA-0655 / UI-155** — the depth dial announces current depth, next boss distance, threat, and cache state.
+- [x] **AAA-0656 / UI-156** — optional colorblind mode adds a distinct shape for every rarity tier.
+- [x] **AAA-0657 / UI-157** — reduced-motion preferences disable dial, counter, feedback, and gesture animations.
+- [x] **AAA-0658 / UI-158** — high-contrast mode uses solid panels and brighter muted text.
+- [x] **AAA-0659 / UI-159** — deliberate horizontal stage swipes offer confirmed descend or bank actions.
+- [x] **AAA-0660 / UI-160** — long-pressing an item opens its detail surface for touch users without hover.

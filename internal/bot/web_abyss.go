@@ -593,6 +593,7 @@ type abyssFloorResult struct {
 	Timeline  []combatTimelineFrame
 	CurrentHP int
 	MaxHP     int
+	PityProc  bool
 }
 
 var abyssLoreFragments = map[int]string{
@@ -1150,6 +1151,9 @@ func (b *Bot) fightAbyssFloorLive(
 	for _, lt := range loots {
 		if lt.UID == uid && lt.Note != "" {
 			res.LootHTML = append(res.LootHTML, bbToHTML(lt.Note))
+		}
+		if lt.UID == uid && lt.PityProc {
+			res.PityProc = true
 		}
 	}
 	for _, d := range duraWarnings {
@@ -1988,6 +1992,8 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 	var recipeUnlocked string
 	var affixReward string
 	var dailyFirst bool
+	var newRecord bool
+	var pityProc bool
 	var escrowSoftCap int64
 	var escrowEfficiencyPct int
 
@@ -2129,6 +2135,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		combinedLoot = append(combinedLoot, res.LootHTML...)
 		combinedDura = append(combinedDura, res.DuraHTML...)
 		totalRewardXP += res.RewardXP
+		pityProc = pityProc || res.PityProc
 
 		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_lifetime_floors = abyss_lifetime_floors + 1 WHERE client_uid=$1", uid)
 
@@ -2144,6 +2151,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			if o.DailyFirst {
 				dailyFirst = true
 			}
+			newRecord = newRecord || o.NewRecord
 			achs = append(achs, o.Achievements...)
 			if o.LoreUnlocked {
 				loreUnlocked = true
@@ -2193,6 +2201,7 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 				"consumables":      s.bot.getConsumables(uid),
 				"auto_focus":       s.selectedAbyssFocus(uid, runFinal),
 				"run_floors_cleared": abyssRunFloorsCleared(runFinal),
+				"pity_proc":          pityProc,
 			})
 			return
 		}
@@ -2225,6 +2234,8 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 		"recipe_unlocked":    recipeUnlocked,
 		"affix_reward":       affixReward,
 		"daily":              dailyFirst,
+		"new_record":         newRecord,
+		"pity_proc":          pityProc,
 		"auto_focus":         s.selectedAbyssFocus(uid, finalRun),
 		"double_bonus":       pendingAbyssDoubleBonus(s.bot.loadRunFlags(uid), finalRun.Depth),
 		"escrow_soft_cap":       escrowSoftCap,
@@ -2571,6 +2582,7 @@ type abyssFloorOutcome struct {
 	SecondaryGoal       string
 	GearMilestone       string
 	DailyFirst          bool
+	NewRecord           bool
 	Achievements        []string
 	LoreUnlocked        bool
 	LoreFragment        string
@@ -2586,7 +2598,7 @@ type abyssFloorOutcome struct {
 // consumable reward. Used by finishDescend and handleAbyssDescendMulti.
 func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escrowBefore int64, tier abyssTier, modifier, focus string) abyssFloorOutcome {
 	st := s.bot.loadAbyssStats(uid)
-	var o abyssFloorOutcome
+	o := abyssFloorOutcome{NewRecord: depth > st.BestDepth}
 
 	bonus := abyssFloorBonus(depth, run.depthLevelHint())
 	bonus = int64(float64(bonus) * tier.RewardMult * (1.0 + float64(st.UpGreed)*0.05) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50))
@@ -2779,6 +2791,8 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		out["escrow"] = o.NewEscrow
 		out["escrow_soft_cap"] = o.EscrowSoftCap
 		out["escrow_efficiency_pct"] = o.EscrowEfficiencyPct
+		out["new_record"] = o.NewRecord
+		out["pity_proc"] = res.PityProc
 		if err := s.bot.setPendingAbyssDoubleBonus(uid, depth, o.Bonus); err == nil && o.Bonus > 0 {
 			out["double_bonus"] = o.Bonus
 		}
@@ -3256,6 +3270,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	out := map[string]any{
 		"ok": true, "banked": payout, "mult": mult, "depth": run.Depth,
 		"gold": gold, "tokens": s.bot.abyssTokens(uid), "cursed": req.Cursed,
+		"global_record": isRecord,
 		// Raw payout components for the vault subtotal animation (UX-54). The
 		// separately returned cap tax is subtracted after these components, so the
 		// final step always matches the committed payout.

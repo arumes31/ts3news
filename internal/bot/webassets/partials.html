@@ -9,6 +9,7 @@
 <script>window.__ASSET_VER__ = "{{appver}}";</script>
 </head>
 <body>
+{{if eq .Nav "abyss"}}<a class="ab-skip-link" href="#abyssControls">Skip to run controls</a>{{end}}
 <header class="topbar">
   <div class="brand"><img src="{{asset "/static/favicon.svg"}}" alt="" style="width:24px;height:24px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">TS3 RPG</div>
   {{if .U}}
@@ -121,7 +122,7 @@ function openModal(html){
   }, 0);
 }
 function closeModal(){
-	if (modalArmTimer) { window.clearInterval(modalArmTimer); modalArmTimer = null; }
+  if (modalArmTimer) { window.clearInterval(modalArmTimer); modalArmTimer = null; }
   document.getElementById('sharedModal').classList.remove('open');
   document.getElementById('sharedModal').setAttribute('aria-hidden', 'true');
   // Settle any pending confirm/prompt promise on a forced dismissal.
@@ -153,8 +154,8 @@ document.addEventListener('keydown', function(e){
 function confirmModal(message, opts){
   opts = opts || {};
   return new Promise(function(resolve){
-	var armSeconds = Math.max(0, Math.floor(Number(opts.armSeconds) || 0));
-	var okLabel = opts.okLabel || 'Confirm';
+    var armSeconds = Math.max(0, Math.floor(Number(opts.armSeconds) || 0));
+    var okLabel = opts.okLabel || 'Confirm';
     pendingModalResolve = resolve;
     pendingModalDismissValue = false; // Escape / backdrop = "not confirmed"
     openModal(
@@ -162,21 +163,21 @@ function confirmModal(message, opts){
       '<p>' + message + '</p>' +
       '<div class="modal-actions">' +
         '<button class="ghost" id="modalCancelBtn">' + (opts.cancelLabel || 'Cancel') + '</button>' +
-		'<button id="modalOkBtn"' + (armSeconds ? ' disabled' : '') + '>' + okLabel + (armSeconds ? ' (' + armSeconds + '…)' : '') + '</button>' +
+        '<button id="modalOkBtn"' + (armSeconds ? ' disabled' : '') + '>' + okLabel + (armSeconds ? ' (' + armSeconds + '…)' : '') + '</button>' +
       '</div>'
     );
-	var okButton = document.getElementById('modalOkBtn');
-	if (armSeconds) {
-	  var remaining = armSeconds;
-	  modalArmTimer = window.setInterval(function(){
-		remaining--;
-		if (remaining <= 0) {
-		  window.clearInterval(modalArmTimer); modalArmTimer = null;
-		  okButton.disabled = false; okButton.textContent = okLabel;
-		} else { okButton.textContent = okLabel + ' (' + remaining + '…)'; }
-	  }, 1000);
-	}
-	okButton.onclick = function(){ pendingModalResolve = null; closeModal(); resolve(true); };
+    var okButton = document.getElementById('modalOkBtn');
+    if (armSeconds) {
+      var remaining = armSeconds;
+      modalArmTimer = window.setInterval(function(){
+        remaining--;
+        if (remaining <= 0) {
+          window.clearInterval(modalArmTimer); modalArmTimer = null;
+          okButton.disabled = false; okButton.textContent = okLabel;
+        } else { okButton.textContent = okLabel + ' (' + remaining + '…)'; }
+      }, 1000);
+    }
+    okButton.onclick = function(){ pendingModalResolve = null; closeModal(); resolve(true); };
     document.getElementById('modalCancelBtn').onclick = function(){ pendingModalResolve = null; closeModal(); resolve(false); };
   });
 }

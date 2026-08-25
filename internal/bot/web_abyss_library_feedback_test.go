@@ -89,6 +89,21 @@ func TestAbyssBestiaryKillPersistsEncounterFamily(t *testing.T) {
 	}
 }
 
+func TestAbyssAchievementCatalogCoversProgressionSourceOfTruth(t *testing.T) {
+	t.Parallel()
+
+	views := allAbyssAchievementViews()
+	want := len(abyssAchievementCatalog) + len(abyssProgressTrackDefs)*3
+	if len(views) != want {
+		t.Fatalf("achievement catalog size = %d, want %d", len(views), want)
+	}
+	for _, view := range views {
+		if view.Code == "" || view.Name == "" || view.Condition == "" {
+			t.Fatalf("incomplete achievement view: %#v", view)
+		}
+	}
+}
+
 func TestAbyssLeaderboardsMarkOnlyAuthenticatedUID(t *testing.T) {
 	t.Parallel()
 

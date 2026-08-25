@@ -78,7 +78,7 @@
   </div>
 	<div class="ab-round-timeline" id="liveRoundTimeline" aria-label="Combat round timeline"></div>
 	<div class="ab-live-logtools"><label>Log <select id="liveLogFilter" onchange="setLiveLogFilter(this.value)"><option value="all">All</option><option value="damage">Damage</option><option value="healing">Healing</option><option value="system">System</option></select></label><button type="button" onclick="toggleLiveLog()">EXPAND LOG</button></div>
-	<div class="ab-live-feed" id="liveFeed" aria-live="polite"></div>
+	<div class="ab-live-feed" id="liveFeed" aria-live="off"></div>
 </section>{{end}}
 
 {{define "abyssLiveActionBarJS"}}// ---- Live action bar -------------------------------------------------------

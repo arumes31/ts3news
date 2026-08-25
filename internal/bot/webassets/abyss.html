@@ -132,7 +132,7 @@
     <div class="ab-shaft"><div class="ab-cage" id="elevCage" style="top:0%"></div></div>
   </div>
 
-  <div class="abyss-dial">
+  <div class="abyss-dial" id="abyssDepthDial" role="group" aria-label="Abyss run depth and risk">
     <div class="ab-depth-ring">
       <span class="ab-depth-label ab-glossary-term" tabindex="0" data-tip="Depth&#10;The floor you currently occupy. Deeper floors raise danger and rewards.">Depth</span>
       <span class="ab-depth-num" id="depthNum">{{if .Run.Active}}{{.Run.Depth}}{{else}}—{{end}}</span>
@@ -425,13 +425,13 @@
 </div>
 
 <!-- Bank vault animation overlay (#339) -->
-<div class="ab-vault-overlay" id="vaultOverlay"><div class="ab-vault-door">🏦</div></div>
+<div class="ab-vault-overlay" id="vaultOverlay" aria-hidden="true" inert><div class="ab-vault-door">🏦</div></div>
 
 <!-- Entry gate transition (UX-20): doors sweep shut as the descent begins -->
 <div class="ab-gate" id="gateOverlay" aria-hidden="true"><div class="ab-gate-l"></div><div class="ab-gate-r"></div></div>
 
 <!-- Boss intro card (UX-28): brief zooming name plate over the stage -->
-<div class="ab-bosscard" id="bossCard" aria-hidden="true">
+<div class="ab-bosscard" id="bossCard" aria-hidden="true" inert>
   <div class="ab-bosscard-inner"><span class="ab-bosscard-skull">💀</span><b id="bossCardName"></b><span class="muted small" id="bossCardSub"></span></div>
 </div>
 
@@ -475,7 +475,7 @@
   </div>
   <!-- Fatal blow stays pinned until the revive choice is made (UI-29) -->
   <div class="ab-fatal-pin" id="fatalPin" style="display:none"></div>
-  <div class="abyss-log" id="abyssLog" aria-live="polite"></div>
+  <div class="abyss-log" id="abyssLog" aria-live="off"></div>
   <div class="abyss-loot" id="abyssLoot"></div>
   <div class="abyss-dura" id="abyssDura"></div>
 </div>
@@ -1342,30 +1342,31 @@ function flashEdgeGlow(rarCls){
 
 // Connectivity banner (UX-93): shown on network failure; a light HEAD probe
 // (and the browser's online event) auto-hides it when the link returns.
-// UI-145: the banner counts the actions that failed while the link was down.
+// UI-145: count actions blocked by an offline preflight or left uncertain by a
+// transport failure. Never replay mutations automatically after reconnect.
 var netDown = false, netTimer = null, netFailed = 0;
 function updateNetBanner(){
   var b = document.getElementById('netBanner');
   if(!b) return;
-  b.style.display = netDown ? '' : 'none';
-  if(netDown) b.textContent = '📡 Connection lost — waiting for the network to return…' + (netFailed > 0 ? ' (' + plural(netFailed, 'action') + ' will need a retry)' : '');
+  b.style.display = (netDown||netFailed>0) ? '' : 'none';
+  if(netDown) b.textContent = '📡 Connection lost — waiting for the network to return…' + (netFailed > 0 ? ' (' + plural(netFailed, 'action') + ' need state review)' : '');
+  else if(netFailed>0) b.textContent='📡 Connection restored — review the current state, then retry '+plural(netFailed,'action')+' manually.';
 }
 function setNetDown(down){
   if(down === netDown){ updateNetBanner(); return; }
   netDown = down;
-  if(!down) netFailed = 0;
   updateNetBanner();
   if(down && !netTimer){
     netTimer = setInterval(function(){
       fetch(window.location.pathname, {method: 'HEAD', cache: 'no-store'})
-        .then(function(){ setNetDown(false); abToast('📡 Connection restored — retry your last action.', true); })
+        .then(function(){ setNetDown(false); abToast('📡 Connection restored — review current state before acting again.', true); })
         .catch(function(){});
     }, 5000);
   }
   if(!down && netTimer){ clearInterval(netTimer); netTimer = null; }
 }
 window.addEventListener('offline', function(){ setNetDown(true); });
-window.addEventListener('online', function(){ setNetDown(false); });
+window.addEventListener('online', function(){ setNetDown(false);if(netFailed)abToast('📡 Connection restored. Review state before retrying '+plural(netFailed,'action')+'.',true); });
 
 // Per-button spinner (UX-89): the clicked action button shows a spinner; the
 // existing global setBusy(false) clears it on every exit path.
@@ -1385,12 +1386,14 @@ function markBusyBtn(id){
 async function abRawPost(url, body, extraHeaders){
   // Always resolve to an object with .ok so callers can clear `busy` and toast on
   // network errors or non-JSON error responses instead of hanging.
+  var headers={'Content-Type':'application/json'};
+  Object.keys(extraHeaders||{}).forEach(function(key){headers[key]=extraHeaders[key];});
+  if(navigator.onLine===false){netFailed++;setNetDown(true);return {ok:false,error:'offline — action was not submitted'};}
   try{
-	var headers={'Content-Type':'application/json'};
-	Object.keys(extraHeaders||{}).forEach(function(key){headers[key]=extraHeaders[key];});
     const r=await fetch(url,{method:'POST',headers:headers,body:JSON.stringify(body||{})});
     try{
       var data=await r.json();
+      if(netFailed>0){netFailed=0;updateNetBanner();}
       if((r.status===401||data&&data.error==='unauthenticated')&&typeof handleAbyssSessionExpiry==='function')handleAbyssSessionExpiry();
       return data;
     }
@@ -1846,6 +1849,7 @@ function setEscrow(v){
   // Coin pile (#350): the hoard visibly grows with the cache.
   var pile=document.getElementById('coinPile');
   if(pile){var n=curEscrow<=0?0:Math.min(8,Math.floor(Math.log10(curEscrow))+1);pile.textContent='🪙'.repeat(n);}
+  updateDepthA11y();
 }
 
 // Floor trail mini-map (UX-34): the last floors as icons plus the next boss
@@ -1898,6 +1902,14 @@ function setRisk(v){ if(v!==undefined && v!==null){ curRisk=Number(v)||0; } upda
 function updateThreat(){
   var pct=Math.min(100,curRisk||curDepth*4);document.getElementById('threatFill').style.width=pct+'%';
   var mh=document.getElementById('mhRisk'); if(mh)mh.textContent=pct+'%';
+  updateDepthA11y();
+}
+function updateDepthA11y(){
+  var dial=document.getElementById('abyssDepthDial');if(!dial)return;
+  var depth=Number(curDepth)||0, threat=Math.min(100,Number(curRisk)||depth*4);
+  if(!inRun){dial.setAttribute('aria-label','Abyss threshold. No active run.');return;}
+  var nextBoss=(Math.floor(depth/5)+1)*5, distance=Math.max(1,nextBoss-depth);
+  dial.setAttribute('aria-label','Depth '+depth+'. Boss in '+distance+' '+(distance===1?'floor':'floors')+'. Threat '+Math.round(threat)+' percent. Cache '+fmtGold(curEscrow)+'.');
 }
 function updateElevator(){
   var cage=document.getElementById('elevCage');
@@ -2321,11 +2333,7 @@ function clearFatalPin(){
 
 // UI-39: sr-only post-fight summary for screen readers.
 function srSummary(text){
-  var log=document.getElementById('abyssLog'); if(!log) return;
-  var d=document.createElement('div');
-  d.className='ab-sr-only'; d.setAttribute('role','status');
-  d.textContent=text;
-  log.appendChild(d);
+  if(window.__abyssAccessibility)window.__abyssAccessibility.announce(text);
 }
 
 // UI-36: substring filter over the visible log lines.
@@ -3119,7 +3127,7 @@ async function processDescendResult(d, hp, max){
     setEscrow(d.escrow);
     var best=parseInt((document.getElementById('bestDepth').textContent||'').replace(/\D/g,''))||0;
     document.getElementById('bestDepth').textContent='🕳️ '+Math.max(best,d.depth);
-    if(d.depth>best) recordBurst(); // UI-141: new personal record → ring burst
+    if(d.new_record) recordBurst(d.depth); // UI-141: server-confirmed personal record
     var msg='✅ Floor '+d.depth+' cleared! +'+fmtGold(d.bonus)+' to your cache (now '+fmtGold(d.escrow)+').';
     if(d.express_skip)msg+=' ⚡ Express floor — no bonus until you pass your record.';
     if(d.daily)msg+=' 🎁 Daily first-descent bonus!';
@@ -3136,14 +3144,10 @@ async function processDescendResult(d, hp, max){
     // UI-33: render only the authoritative post-floor pity value returned by the server.
     var pityEl=document.getElementById('pityCount');
     if(pityEl && d.legendary_pity!==undefined){
-      var previousPity=parseInt(pityEl.textContent,10)||0;
       var p=Math.max(0,Math.min(40,Number(d.legendary_pity)||0));
       var ltxt=(d.loot||[]).join(' ');
-      var lrc=rarityClass(ltxt);
       var hasGear=ltxt.indexOf('[s:')>=0;
-      // UI-142 remains a presentation inference: only the counter itself and
-      // its UI-33 log line are authoritative.
-      if(hasGear && p===0 && previousPity>=36 && (lrc==='rar-legendary'||lrc==='rar-mythic'||lrc==='rar-divine'||lrc==='rar-celestial'||lrc==='rar-eternal')) pityProcFlash();
+      if(d.pity_proc) pityProcFlash(); // UI-142: authoritative guaranteed drop
       pityEl.textContent=p;
       var pf=document.getElementById('pityFill'); if(pf) pf.style.width=Math.round(p*100/40)+'%';
       if(hasGear) addLogHead(document.getElementById('abyssLog'), 'ab-log-pity', '✨ pity '+p+'/40');
@@ -3327,10 +3331,7 @@ async function abyssBankCommit(cursed,percent){
   if(d.jackpot_win)msg+=' 🔥 DEEP-CACHE JACKPOT +'+fmtGold(d.jackpot_win)+'!';
   if(d.cap_tax)msg+=' 💸 Abyss tax −'+fmtGold(d.cap_tax)+' (fed the deep-cache jackpot).';
   if(d.achievement){ msg+=' 🏅 '+d.achievement; achievementBanner(d.achievement); } // UI-140
-  // UI-141: banked depth beyond the personal best bursts the dial ring (the
-  // bank response exposes no is_record flag; this compares against the chip).
-  var bestNow=parseInt((document.getElementById('bestDepth').textContent||'').replace(/\D/g,''))||0;
-  if(d.depth>bestNow) recordBurst();
+  if(d.global_record) recordBurst(d.depth,true); // UI-141: authoritative global record
   if(typeof releaseEscrowLoot==='function')releaseEscrowLoot();
   coinArc(); // UI-147: coins fly from the dial toward the gold counter
   setBanner(msg,'good');
@@ -5476,8 +5477,8 @@ function renderTierRisk(){
 
 // UI-135: destructive confirms arm only after a 3-second countdown.
 async function confirmModalDangerous(message, opts){
-	opts=Object.assign({},opts||{},{armSeconds:3});
-	return confirmModal(message,opts);
+  opts=Object.assign({},opts||{},{armSeconds:3});
+  return confirmModal(message,opts);
 }
 
 // UI-140: achievement unlock — top slide-down banner with the badge icon.
@@ -5493,8 +5494,10 @@ function achievementBanner(name){
 }
 
 // UI-141: one-time ring burst on the depth dial for a new personal record.
-function recordBurst(){
-  abToast('🏆 New personal record depth!',true);
+function recordBurst(depth,globalRecord){
+  var key='ab_record_burst_'+(globalRecord?'global':'personal'), value=String(Number(depth)||'');
+  try{if(value&&sessionStorage.getItem(key)===value)return;if(value)sessionStorage.setItem(key,value);}catch(e){}
+  abToast(globalRecord?'🌍 New global record depth!':'🏆 New personal record depth!',true);
   if(reduceMotion) return;
   var ring=document.querySelector('.ab-depth-ring'); if(!ring)return;
   ring.classList.remove('ab-recordburst'); void ring.offsetWidth; ring.classList.add('ab-recordburst');
@@ -6115,6 +6118,7 @@ var AB_SETTINGS=[
   {key:'ab_sidebar_order', label:'Sidebar: Run Loot before Armoury', type:'bool', def:false, apply:function(){ applySidebarOrder(); }},
   {key:'ab_compact', label:'Compact veteran layout', type:'bool', def:false, apply:function(v){ document.body.classList.toggle('ab-compact',v); }},
   {key:'ab_contrast', label:'High-contrast solid panels', type:'bool', def:false, apply:function(v){ applyAbyssContrast(v); }},
+  {key:'ab_colorblind', label:'Colorblind rarity shapes', type:'bool', def:false, apply:function(v){ applyAbyssColorblind(v); }},
   {key:'ab_logsize', label:'Combat log text size', type:'select', def:'m', opts:[['s','Small'],['m','Medium'],['l','Large']], apply:function(v){ applyAbyssLogSize(v); }},
   {key:'ab_haptic', label:'Mobile haptics for danger and legendary loot', type:'bool', def:false},
   {key:'ab_vignette', label:'Depth vignette (corners darken as you descend)', type:'bool', def:true, apply:function(v){ vigOn=v; updateVignette(); }},

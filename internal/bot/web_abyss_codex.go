@@ -77,26 +77,16 @@ var abyssAchievementCatalog = []abyssAchievementView{
 	{Code: "hardcore_depth_10", Condition: "Reach depth 10 in Hardcore mode"},
 }
 
-var abyssProgressAchievementTracks = []struct {
-	Key, Label string
-}{
-	{"cachekeeper", "Cachekeeper"}, {"bossbreaker", "Bossbreaker"},
-	{"expeditioner", "Expeditioner"}, {"veteran_iron", "Iron Nerve"},
-	{"veteran_untouched", "Untouched"}, {"veteran_boss", "Boss Oath"},
-	{"coordinator", "Synchronized"}, {"party_combo", "Chain Reaction"},
-	{"ghost_party", "Ghost Chaser"},
-}
-
 func allAbyssAchievementViews() []abyssAchievementView {
 	views := append([]abyssAchievementView(nil), abyssAchievementCatalog...)
-	for _, track := range abyssProgressAchievementTracks {
+	for _, track := range abyssProgressTrackDefs {
 		for _, tier := range []struct {
 			Suffix string
 			Count  int
 		}{{"bronze", 10}, {"silver", 50}, {"gold", 200}} {
 			code := "progress_" + track.Key + "_" + tier.Suffix
 			views = append(views, abyssAchievementView{
-				Code: code, Condition: "Complete " + itoa(tier.Count) + " " + track.Label + " objectives",
+				Code: code, Condition: "Complete " + itoa(tier.Count) + " " + track.Name + " objectives",
 			})
 		}
 	}

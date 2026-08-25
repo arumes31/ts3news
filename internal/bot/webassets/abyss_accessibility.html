@@ -9,10 +9,14 @@
 (function(){
   'use strict';
   function preference(key,fallback){try{var value=localStorage.getItem(key);return value===null?fallback:value;}catch(_){return fallback;}}
-  function announce(message){var live=document.getElementById('abyssActionLive');if(!live)return;live.textContent='';setTimeout(function(){live.textContent=message;},20);}
+  var pendingAnnouncement='',announceTimer=null,lastAnnouncement=0;
+  function flushAnnouncement(){var live=document.getElementById('abyssActionLive');announceTimer=null;if(!live||!pendingAnnouncement)return;var message=pendingAnnouncement;pendingAnnouncement='';live.textContent='';setTimeout(function(){live.textContent=message;lastAnnouncement=Date.now();},20);}
+  function announce(message){pendingAnnouncement=String(message||'');if(!pendingAnnouncement)return;if(announceTimer)clearTimeout(announceTimer);announceTimer=setTimeout(flushAnnouncement,Math.max(0,700-(Date.now()-lastAnnouncement)));}
   function applyAbyssContrast(on){document.body.classList.toggle('ab-high-contrast',!!on);}
+  function applyAbyssColorblind(on){document.body.classList.toggle('ab-colorblind',!!on);}
   function applyAbyssLogSize(size){size=/^(s|m|l)$/.test(size)?size:'m';document.body.dataset.abLogSize=size;}
   window.applyAbyssContrast=applyAbyssContrast;
+  window.applyAbyssColorblind=applyAbyssColorblind;
   window.applyAbyssLogSize=applyAbyssLogSize;
 
   function actionAvailable(button){return !!(button&&button.offsetParent!==null&&!button.disabled);}
@@ -41,8 +45,22 @@
 
   function initTabSwipe(){
     var start=null;
-    document.addEventListener('touchstart',function(event){var target=event.target;if(event.touches.length!==1||!target.closest('[data-abyss-section]:not([hidden])')||target.closest('button,a,input,select,textarea,[contenteditable="true"],.ab-tabs,.ab-live-combat')){start=null;return;}start={x:event.touches[0].clientX,y:event.touches[0].clientY};},{passive:true});
+    document.addEventListener('touchstart',function(event){var target=event.target;if(event.touches.length!==1||!target.closest('[data-abyss-section]:not([hidden])')||target.closest('button,a,input,select,textarea,[contenteditable="true"],.ab-tabs,.ab-live-combat,#abyssStage')){start=null;return;}start={x:event.touches[0].clientX,y:event.touches[0].clientY};},{passive:true});
     document.addEventListener('touchend',function(event){if(!start||event.changedTouches.length!==1)return;var dx=event.changedTouches[0].clientX-start.x,dy=event.changedTouches[0].clientY-start.y;start=null;if(Math.abs(dx)<70||Math.abs(dx)<Math.abs(dy)*1.3)return;var tabs=Array.prototype.slice.call(document.querySelectorAll('.ab-tab[data-tab-key]')),active=tabs.findIndex(function(tab){return tab.classList.contains('active');});if(active<0||tabs.length<2)return;var next=(active+(dx<0?1:-1)+tabs.length)%tabs.length;tabs[next].click();tabs[next].focus();announce(tabs[next].textContent.trim()+' section');},{passive:true});
+  }
+
+  function initStageSwipe(){
+    var stage=document.getElementById('abyssStage'),start=null;if(!stage)return;
+    stage.addEventListener('touchstart',function(event){var target=event.target;if(event.touches.length!==1||target.closest('button,a,input,select,textarea,[contenteditable="true"],.ab-livecombat')){start=null;return;}start={x:event.touches[0].clientX,y:event.touches[0].clientY};},{passive:true});
+    stage.addEventListener('touchend',function(event){if(!start||event.changedTouches.length!==1)return;var dx=event.changedTouches[0].clientX-start.x,dy=event.changedTouches[0].clientY-start.y;start=null;if(Math.abs(dx)<70||Math.abs(dx)<Math.abs(dy)*1.3)return;var id=dx<0?'btnDescend':'btnBank',label=dx<0?'descend':'bank',source=document.getElementById(id);if(!actionAvailable(source)){announce(label+' is not available');return;}var ask=typeof confirmModal==='function'?confirmModal('Swipe gesture selected '+label+'. Continue?',{title:'Confirm run action',okLabel:label==='bank'?'Bank cache':'Descend'}):Promise.resolve(false);ask.then(function(ok){if(ok&&actionAvailable(source))source.click();});},{passive:true});
+  }
+
+  function initLongPressDetails(){
+    var timer=null,target=null,start=null,fired=false;
+    function clear(){if(timer)clearTimeout(timer);timer=null;start=null;if(target&&fired)setTimeout(function(node){node.classList.remove('ab-longpress-active');},1200,target);target=null;fired=false;}
+    document.addEventListener('touchstart',function(event){if(event.touches.length!==1)return;var node=event.target.closest('.abyss-side-gear[data-tip],.abyss-side-loot[data-tip],[data-tip].ab-best-loot-card');if(!node)return;target=node;start={x:event.touches[0].clientX,y:event.touches[0].clientY};timer=setTimeout(function(){timer=null;fired=true;node.classList.add('ab-longpress-active');try{node.focus({preventScroll:true});}catch(_){node.focus();}announce((node.getAttribute('data-tip')||'Item details').split('\n')[0]);},550);},{passive:true});
+    document.addEventListener('touchmove',function(event){if(!timer||!start||event.touches.length!==1)return;if(Math.abs(event.touches[0].clientX-start.x)>12||Math.abs(event.touches[0].clientY-start.y)>12)clear();},{passive:true});
+    document.addEventListener('touchend',clear,{passive:true});document.addEventListener('touchcancel',clear,{passive:true});
   }
 
   function initConsumableDialogFocus(){
@@ -54,7 +72,9 @@
 
   function rarityRank(node){var raw=node.getAttribute('data-rarity');if(raw!==null&&raw!=='')return Math.max(1,Math.min(9,(Number(raw)||0)+1));if(typeof AB_RARITY_RANKS!=='undefined'){for(var name in AB_RARITY_RANKS)if(node.classList.contains(name))return AB_RARITY_RANKS[name];}return 0;}
   var rarityTargets='.abyss-side-gear,.abyss-side-loot,.ab-best-loot-card,.ab-forge-review-row,.rar-common,.rar-uncommon,.rar-rare,.rar-epic,.rar-legendary,.rar-mythic,.rar-divine,.rar-celestial,.rar-eternal';
-  function enhanceRarityGlyphs(root){var nodes=[];if(root&&root.matches&&root.matches(rarityTargets))nodes.push(root);if(root&&root.querySelectorAll)nodes=nodes.concat(Array.prototype.slice.call(root.querySelectorAll(rarityTargets)));nodes.forEach(function(node){if(/^(OPTION|SELECT)$/.test(node.tagName)||node.querySelector(':scope > .ab-rarity-glyph'))return;var rank=rarityRank(node);if(!rank)return;var glyph=document.createElement('span');glyph.className='ab-rarity-glyph';glyph.textContent='◆'.repeat(rank);glyph.setAttribute('aria-label','Rarity tier '+rank);glyph.title='Rarity tier '+rank;var name=node.querySelector('.ab-side-gear-name');node.insertBefore(glyph,name||node.firstChild);});}
+  var rarityNames=['Common','Uncommon','Rare','Epic','Legendary','Mythic','Divine','Celestial','Eternal'];
+  var rarityGlyphs=['●','■','▲','◆','✦','⬟','★','✹','✺'];
+  function enhanceRarityGlyphs(root){var nodes=[];if(root&&root.matches&&root.matches(rarityTargets))nodes.push(root);if(root&&root.querySelectorAll)nodes=nodes.concat(Array.prototype.slice.call(root.querySelectorAll(rarityTargets)));nodes.forEach(function(node){if(/^(OPTION|SELECT)$/.test(node.tagName)||node.querySelector(':scope > .ab-rarity-glyph'))return;var rank=rarityRank(node);if(!rank)return;var rarity=rarityNames[rank-1]||('Tier '+rank),spoken=(node.getAttribute('aria-label')||node.textContent||'').trim();if(spoken&&!new RegExp('\\b'+rarity+'\\b','i').test(spoken))node.setAttribute('aria-label',spoken+'. '+rarity+' rarity.');var glyph=document.createElement('span');glyph.className='ab-rarity-glyph';glyph.textContent=rarityGlyphs[rank-1]||'◆';glyph.setAttribute('aria-hidden','true');glyph.title=rarity+' rarity';var name=node.querySelector('.ab-side-gear-name');node.insertBefore(glyph,name||node.firstChild);});}
   function initRarityGlyphs(){enhanceRarityGlyphs(document);var page=document.querySelector('.abyss-command-page');if(page)new MutationObserver(function(records){records.forEach(function(record){record.addedNodes.forEach(function(node){if(node.nodeType===1)enhanceRarityGlyphs(node);});});}).observe(page,{childList:true,subtree:true});}
 
   function hapticsEnabled(){return preference('ab_haptic','0')==='1';}
@@ -64,9 +84,10 @@
 
   function init(){
     applyAbyssContrast(preference('ab_contrast','0')==='1');
+    applyAbyssColorblind(preference('ab_colorblind','0')==='1');
     applyAbyssLogSize(preference('ab_logsize','m'));
     var host=document.getElementById('abToastHost');if(host){host.setAttribute('aria-relevant','additions text');host.setAttribute('aria-atomic','false');}
-    initMobileActions();initTabSwipe();initConsumableDialogFocus();initRarityGlyphs();initHaptics();
+    initMobileActions();initTabSwipe();initStageSwipe();initLongPressDetails();initConsumableDialogFocus();initRarityGlyphs();initHaptics();
   }
   setTimeout(init,0);
   window.__abyssAccessibility={announce:announce,syncMobileActions:syncMobileActions,enhanceRarityGlyphs:enhanceRarityGlyphs};

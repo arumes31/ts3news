@@ -10,8 +10,21 @@
 
 .ab-mobile-actions { display: none; }
 
+.ab-skip-link {
+  background: #fff;
+  color: #000;
+  left: 12px;
+  padding: 10px 14px;
+  position: fixed;
+  top: 8px;
+  transform: translateY(-160%);
+  z-index: 3000;
+}
+.ab-skip-link:focus { transform: translateY(0); }
+
 .ab-rarity-glyph {
   color: currentColor;
+  display: none;
   flex: 0 0 auto;
   font-size: .48rem;
   letter-spacing: -1px;
@@ -21,6 +34,8 @@
   text-shadow: 0 0 5px currentColor;
   white-space: nowrap;
 }
+body.ab-colorblind .ab-rarity-glyph { display: inline-block; }
+.ab-longpress-active { outline: 3px solid var(--gold, #f0bd55); outline-offset: 3px; }
 
 body[data-ab-log-size="s"] :is(#abyssLog, #liveFeed) { font-size: .72rem; }
 body[data-ab-log-size="m"] :is(#abyssLog, #liveFeed) { font-size: .86rem; }
@@ -43,6 +58,9 @@ body.ab-high-contrast .abyss-command-page :is(button, input, select, textarea, [
   outline: 3px solid #ffea73 !important;
   outline-offset: 3px;
 }
+body.ab-high-contrast .abyss-command-page :is(.muted, .small, p, span, label) { opacity: 1 !important; text-shadow: none !important; }
+body.ab-high-contrast .abyss-command-page a { text-decoration: underline; text-decoration-thickness: 2px; }
+body.ab-high-contrast .abyss-command-page :is(.ab-threat-fill, .hp-fill, .mana-fill) { filter: contrast(1.35) saturate(1.2); }
 body.ab-high-contrast .ab-rarity-glyph { background: #000; border: 1px solid currentColor; padding: 2px; }
 
 @media (max-width: 700px) {
