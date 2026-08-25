@@ -25,10 +25,12 @@ body:has(.abyss-command-page),
 
 body:has(.abyss-command-page) {
   color-scheme: dark;
+  overflow-x: clip;
   background:
     radial-gradient(circle at 50% -20%, rgba(91, 214, 208, .1), transparent 36rem),
     radial-gradient(circle at 100% 30%, rgba(242, 189, 91, .055), transparent 30rem),
     linear-gradient(180deg, #080b11, #0c1119 45%, #080b11);
+  background-color: #080b11;
 }
 
 body:has(.abyss-command-page) .topbar {
@@ -243,10 +245,29 @@ body:has(.abyss-command-page) .foot {
   border-color: rgba(242, 189, 91, .32);
 }
 
+.abyss-command-page .abyss-stage > :is(.ab-current-objective, .ab-noncombat-panel) {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
 .abyss-command-page .abyss-side-panel {
   gap: 7px;
   padding: 11px;
   scrollbar-color: #3b4659 #090d14;
+}
+
+.abyss-command-page .abyss-side-right .ab-loot-sort {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.abyss-command-page .abyss-side-right .ab-loot-sort > :is(select, label, button) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.abyss-command-page .abyss-side-right .ab-loot-sort > :is(label:has(input), button) {
+  grid-column: 1 / -1;
 }
 
 .abyss-command-page .abyss-side-panel h3 {
@@ -767,6 +788,13 @@ body:has(.abyss-command-page) .modal-overlay {
   backdrop-filter: blur(7px);
 }
 
+.abyss-command-page .ab-gate {
+  contain: strict;
+  visibility: hidden;
+}
+
+.abyss-command-page .ab-gate.closing { visibility: visible; }
+
 .abyss-command-page .ab-minihud {
   border-color: rgba(242, 189, 91, .38);
   border-radius: 2px 12px 2px 12px;
@@ -796,7 +824,7 @@ body:has(.abyss-command-page) .modal-overlay {
 .abyss-command-page *::-webkit-scrollbar-thumb { border: 2px solid #090d14; border-radius: 8px; background: #3d495d; }
 .abyss-command-page *::-webkit-scrollbar-thumb:hover { background: #52627b; }
 
-@media (max-width: 1220px) {
+@media (max-width: 1400px) {
   .abyss-command-page .abyss-stage-row {
     grid-template-columns: minmax(0, 1fr) 260px;
   }
