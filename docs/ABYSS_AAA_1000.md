@@ -94,3 +94,16 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0442 / UX-42** — state-aware Bank and Descend controls in the sticky mini-HUD.
 - [x] **AAA-0443 / UX-43** — reload-stable run timer and floors-cleared counter.
 - [x] **AAA-0444 / UX-44** — opaque low-health stage warning at under 25% HP.
+
+## Delivered tranche: loot custody and reward presentation
+
+- [x] **AAA-0445 / UX-45** — rarity-framed toast queue for Epic-or-better drops.
+- [x] **AAA-0446 / UX-46** — persisted rarity and upgrade-only manifest filters.
+- [x] **AAA-0447 / UX-47** — comparison cards on hover, keyboard focus, and touch focus with Escape dismissal.
+- [x] **AAA-0448 / UX-48** — live rarity counts in the run-loot header.
+- [x] **AAA-0449 / UX-49** — server-computed, read-only itemized bank preview before commit.
+- [x] **AAA-0450 / UX-50** — visible escrow seal and bank-release transition for unsecured loot.
+- [x] **AAA-0451 / UX-51** — read-only best-drop pin ranked by rarity, upgrade, CR, and gear score.
+- [x] **AAA-0452 / UX-52** — reduced-motion-safe edge treatment for Legendary-or-better drops.
+- [x] **AAA-0453 / UX-53** — item-bound ten-second undo for auto-equipped loot.
+- [x] **AAA-0454 / UX-54** — sequential cache, multiplier, jackpot, and tax bank summary.

@@ -2983,17 +2983,27 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	st := s.bot.loadAbyssStats(uid)
 	mult := s.bot.abyssBankMultiplier(run.Depth, st.Streak) // [2][12] depth + streak
 	payout := int64(float64(run.Escrow) * mult)
+	depthBonusPct := min(max(run.Depth, 0), 100)
+	streakBonusPct := min(max(st.Streak, 0), 25) * 2
+	depthBonus := int64(float64(run.Escrow) * float64(depthBonusPct) / 100)
+	streakBonus := max(payout-run.Escrow-depthBonus, 0)
+	var cursedBonus int64
 	if req.Cursed && payout > 0 {
-		payout = payout * 12 / 10 // [9] +20%
+		cursedPayout := payout * 12 / 10 // [9] +20%
+		cursedBonus = cursedPayout - payout
+		payout = cursedPayout
 	}
 
 	// Preview mode (UX-49): report the itemized payout without committing
 	// anything, so the client can show a bank-confirmation breakdown first.
 	if req.Preview {
 		var dayGold int64
-		_ = s.bot.DB.QueryRow(
+		if err := s.bot.DB.QueryRowContext(r.Context(),
 			"SELECT CASE WHEN abyss_day IS NULL OR abyss_day < CURRENT_DATE THEN 0 ELSE abyss_day_gold END FROM users WHERE client_uid=$1",
-			uid).Scan(&dayGold)
+			uid).Scan(&dayGold); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 		capRemaining := int64(abyssDayGoldCap) - dayGold
 		if capRemaining < 0 {
 			capRemaining = 0
@@ -3002,12 +3012,23 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		estPayout, estTax := abyssCapTax(payout, capRemaining)
 		baseTokens := s.bot.abyssBankTokenGrant(uid, run.Depth, st.UpTribute)
 		var lootCount int
-		_ = s.bot.DB.QueryRow("SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1", uid).Scan(&lootCount)
+		if err := s.bot.DB.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1", uid).Scan(&lootCount); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		lootPreview, err := s.bot.currentAbyssBankPreviewLoot(r.Context(), uid, abyssBankPreviewLootLimit)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 		writeJSON(w, map[string]any{
 			"ok": true, "preview": true,
 			"escrow": run.Escrow, "mult": mult, "cursed": req.Cursed,
+			"depth_bonus": depthBonus, "depth_bonus_pct": depthBonusPct,
+			"streak_bonus": streakBonus, "streak_bonus_pct": streakBonusPct, "cursed_bonus": cursedBonus,
 			"payout": estPayout, "capped": capped, "cap_remaining": capRemaining, "cap_tax": estTax,
 			"tokens_grant": baseTokens, "loot_count": lootCount,
+			"loot_preview": lootPreview, "loot_preview_truncated": lootCount > len(lootPreview),
 			"bonus_gear_eligible": run.Depth >= 10,
 			"depth":               run.Depth, "streak": st.Streak,
 		})
@@ -3105,12 +3126,11 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	out := map[string]any{
 		"ok": true, "banked": payout, "mult": mult, "depth": run.Depth,
 		"gold": gold, "tokens": s.bot.abyssTokens(uid), "cursed": req.Cursed,
-		// Payout breakdown for the vault subtotal animation (UX-54). When the
-		// daily-cap tax shrinks the payout below the raw cache, shrink the base to
-		// the paid amount so the parts always sum to the payout and the bonus
-		// never goes negative.
-		"base":       min(run.Escrow, payout),
-		"mult_bonus": max(payout-run.Escrow, 0),
+		// Raw payout components for the vault subtotal animation (UX-54). The
+		// separately returned cap tax is subtracted after these components, so the
+		// final step always matches the committed payout.
+		"base": run.Escrow, "depth_bonus": depthBonus, "streak_bonus": streakBonus, "cursed_bonus": cursedBonus,
+		"mult_bonus": depthBonus + streakBonus + cursedBonus,
 	}
 	if capTax > 0 {
 		out["cap_tax"] = capTax

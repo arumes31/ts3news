@@ -45,6 +45,20 @@
     "verification": ["internal/bot/web_abyss_run_awareness_test.go"]
   },
   {
+    "ids": [445, 446, 447, 448, 449, 450, 451, 452, 453, 454],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_loot_presentation.html",
+      "internal/bot/webassets/abyss_loot_presentation.css",
+      "internal/bot/webassets/style.css"
+    ],
+    "verification": ["internal/bot/web_abyss_loot_presentation_test.go"]
+  },
+  {
     "ids": [986, 987],
     "production": [
       "internal/bot/web_abyss_econ.go",

@@ -1,10 +1,12 @@
 package bot
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand/v2"
+	"strings"
 	"time"
 
 	"ts3news/internal/content"
@@ -610,6 +612,68 @@ func (b *Bot) escrowAbyssLoot(uid, label string, g abyssLootGrant) bool {
 		return false
 	}
 	return true
+}
+
+const abyssBankPreviewLootLimit = 24
+const abyssBankPreviewLabelLimit = 240
+
+type abyssBankPreviewLoot struct {
+	Label string `json:"label"`
+	Type  string `json:"type"`
+	Slot  string `json:"slot,omitempty"`
+}
+
+func abyssLootSlotFromLabel(label string) string {
+	const prefix = "[s:"
+	start := strings.Index(label, prefix)
+	if start < 0 {
+		return ""
+	}
+	value := label[start+len(prefix):]
+	end := strings.IndexByte(value, ']')
+	if end <= 0 {
+		return ""
+	}
+	value = value[:end]
+	for _, r := range value {
+		if (r < 'A' || r > 'Z') && (r < 'a' || r > 'z') && (r < '0' || r > '9') {
+			return ""
+		}
+	}
+	return value
+}
+
+// currentAbyssBankPreviewLoot returns a bounded, plain-text view of escrow.
+// It is deliberately read-only: the bank commit remains the only path that
+// applies or deletes pending grants.
+func (b *Bot) currentAbyssBankPreviewLoot(ctx context.Context, uid string, limit int) ([]abyssBankPreviewLoot, error) {
+	limit = min(max(limit, 1), abyssBankPreviewLootLimit)
+	rows, err := b.DB.QueryContext(ctx,
+		"SELECT item_type, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT $2",
+		uid, limit)
+	if err != nil {
+		return nil, fmt.Errorf("querying Abyss bank preview loot: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	items := make([]abyssBankPreviewLoot, 0, limit)
+	for rows.Next() {
+		var item abyssBankPreviewLoot
+		var label string
+		if err := rows.Scan(&item.Type, &label); err != nil {
+			return nil, fmt.Errorf("scanning Abyss bank preview loot: %w", err)
+		}
+		item.Slot = abyssLootSlotFromLabel(label)
+		item.Label = strings.TrimSpace(bbTagRe.ReplaceAllString(label, ""))
+		if runes := []rune(item.Label); len(runes) > abyssBankPreviewLabelLimit {
+			item.Label = string(runes[:abyssBankPreviewLabelLimit]) + "…"
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating Abyss bank preview loot: %w", err)
+	}
+	return items, nil
 }
 
 // applyAbyssEscrowLoot grants every escrowed item to the character and clears the

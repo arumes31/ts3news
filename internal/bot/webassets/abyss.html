@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_entry_planner.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_recorder.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_run_awareness.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_loot_presentation.css"}}">
 <div class="abyss-command-page" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <div class="abyss-hero">
   <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
@@ -336,6 +337,7 @@
   <aside class="abyss-side-panel abyss-side-right">
     <h3>🎒 Run Loot <span class="muted small" id="lootSummary"></span></h3>
     <div class="ab-rar-dots" id="lootRarityDots" title="Escrowed items by rarity"></div>
+    {{template "abyssLootPresentationPin" .}}
     <!-- Loot filters (UX-46): rarity chips + upgrades-only, persisted -->
     <div class="ab-loot-filters" id="lootFilters">
       <button class="ab-chip active" data-f="all" aria-pressed="true">All</button>
@@ -1256,7 +1258,10 @@ function abToast(m, ok, opts){
 // UI-131: 💎 loot category icon; UI-143: celestial/eternal get starburst rays.
 function lootToast(labelHTML, rarCls){
   var burst = (rarCls === 'rar-celestial' || rarCls === 'rar-eternal') ? ' ab-starburst' : '';
-  abToast(labelHTML, true, {html: true, icon: '💎 ', cls: 'loot ' + rarCls + burst, ms: 3600});
+  var slot=/\[s:([A-Za-z0-9]+)\]/.exec((labelHTML||'').replace(/<[^>]*>/g,''));
+  var cell=abGearIconCell(slot?slot[1]:'');
+  var icon='<span class="ab-pixel-icon ab-loot-toast-icon" style="background-position:'+abAtlasPosition(cell)+'" aria-hidden="true"></span>';
+  abToast(labelHTML, true, {html: true, icon: icon, cls: 'loot ' + rarCls + burst, ms: 3600});
 }
 
 // Screen-edge glow on Legendary+ drops (UX-52), skipped for reduced motion.
@@ -2408,6 +2413,7 @@ function updateLootSummary(){
     });
     dots.innerHTML = html;
   }
+  if(typeof updateLootRewardPresentation==='function')updateLootRewardPresentation();
 }
 
 // Loot filter chips (UX-46): rarity floor or upgrades-only, persisted.
@@ -2524,9 +2530,8 @@ function appendRunLoot(loot){
 (function(){
   var tip = null;
   function hideTip(){ if(tip){ tip.remove(); tip = null; } }
-  document.addEventListener('mouseover', function(e){
-    var row = e.target.closest ? e.target.closest('.abyss-side-loot') : null;
-    if(!row){ hideTip(); return; }
+  function showTip(row){
+    if(!row){hideTip();return;}
     if(tip && tip._row === row) return;
     hideTip();
     var t = row.textContent || '';
@@ -2553,7 +2558,13 @@ function appendRunLoot(loot){
     if(left < 8) left = window.scrollX + r.right + 10;
     tip.style.top = (window.scrollY + r.top) + 'px';
     tip.style.left = left + 'px';
+  }
+  document.addEventListener('mouseover', function(e){
+    showTip(e.target.closest ? e.target.closest('.abyss-side-loot') : null);
   });
+  document.addEventListener('focusin',function(e){showTip(e.target.closest?e.target.closest('.abyss-side-loot'):null);});
+  document.addEventListener('focusout',function(e){if(!e.relatedTarget||!e.relatedTarget.closest||!e.relatedTarget.closest('.abyss-side-loot'))hideTip();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&tip){var row=tip._row;hideTip();if(row&&row.blur)row.blur();}});
   document.addEventListener('scroll', hideTip, {passive: true});
 })();
 
@@ -3026,6 +3037,7 @@ async function processDescendResult(d, hp, max){
 {{template "abyssEntryPlannerJS" .}}
 {{template "abyssCombatRecorderJS" .}}
 {{template "abyssRunAwarenessJS" .}}
+{{template "abyssLootPresentationJS" .}}
 
 // Run summary card (#341): shown on bank or final death before the reload.
 function showRunSummary(title, rows, cls){
@@ -3124,14 +3136,16 @@ async function abyssBank(){
   if(!p.ok){abToast(p.error||'failed',false);return;}
   function row(k,v){return '<div class="ab-rs-row"><span>'+k+'</span><b>'+v+'</b></div>';}
   var html='<h3>🏦 Bank this run?</h3><div class="modal-body ab-runsummary">'+
-    row('Cache', fmtGold(p.escrow))+
-    row('Depth '+p.depth+' + streak '+p.streak, '×'+Number(p.mult).toFixed(2))+
-    (p.cursed?row('☠️ Cursed bank','+20%'):'')+
+    row('Cache (floor interest included)', fmtGold(p.escrow))+
+    row('Depth bonus +'+p.depth_bonus_pct+'%', '+'+fmtGold(p.depth_bonus))+
+    (p.streak_bonus_pct?row('Bank-streak bonus +'+p.streak_bonus_pct+'%', '+'+fmtGold(p.streak_bonus)):'')+
+    (p.cursed?row('☠️ Cursed bonus +20%','+'+fmtGold(p.cursed_bonus)):'')+
     row('Estimated payout', '<span style="color:var(--gold)">'+fmtGold(p.payout)+'</span>')+
     row('Tokens on bank', '🜲 '+p.tokens_grant)+
     row('Sealed loot to recover', p.loot_count)+
     (p.bonus_gear_eligible?row('Depth gear reward','🎁 guaranteed'):'')+
     (p.capped?'<div class="ab-hc-cmp">⚠️ Daily gold cap: the Abyss levies an 80% tax on the excess (−'+fmtGold(p.cap_tax)+', fed to the deep-cache jackpot).</div>':'')+
+    (typeof renderBankPreviewLoot==='function'?renderBankPreviewLoot(p.loot_preview,p.loot_count):'')+
   '</div><div class="modal-actions"><button class="ghost" id="modalCancelBtn">Keep descending</button><button id="modalOkBtn">🏦 Bank it</button></div>';
   openModal(html);
   document.getElementById('modalCancelBtn').onclick=closeModal;
@@ -3155,6 +3169,7 @@ async function abyssBankCommit(cursed){
   // bank response exposes no is_record flag; this compares against the chip).
   var bestNow=parseInt((document.getElementById('bestDepth').textContent||'').replace(/\D/g,''))||0;
   if(d.depth>bestNow) recordBurst();
+  if(typeof releaseEscrowLoot==='function')releaseEscrowLoot();
   coinArc(); // UI-147: coins fly from the dial toward the gold counter
   setBanner(msg,'good');
   try{ sessionStorage.removeItem('ab_trail'); }catch(e){}
@@ -3168,11 +3183,14 @@ async function abyssBankCommit(cursed){
 // Run-banked summary with sequential subtotal ticks (UX-54): the total counts
 // up in stages — cache, then the multiplier bonus, then any jackpot.
 function showBankSummary(d){
-  var base=Number(d.base)||0, mb=Number(d.mult_bonus)||0, jp=Number(d.jackpot_win)||0, tax=Number(d.cap_tax)||0;
+  var base=Number(d.base)||0, depthBonus=Number(d.depth_bonus)||0, streakBonus=Number(d.streak_bonus)||0;
+  var cursedBonus=Number(d.cursed_bonus)||0, jp=Number(d.jackpot_win)||0, tax=Number(d.cap_tax)||0;
   var html='<h3>🏦 Run banked!</h3><div class="modal-body ab-runsummary good">'+
     '<div class="ab-rs-row"><span>Depth reached</span><b>'+d.depth+'</b></div>'+
-    '<div class="ab-rs-row"><span>Cache</span><b>'+fmtGold(base)+'</b></div>'+
-    '<div class="ab-rs-row"><span>Multiplier ×'+Number(d.mult).toFixed(2)+'</span><b>'+(mb>=0?'+':'')+fmtGold(mb)+'</b></div>'+
+    '<div class="ab-rs-row"><span>Cache (floor interest included)</span><b>'+fmtGold(base)+'</b></div>'+
+    '<div class="ab-rs-row"><span>Depth bonus</span><b>+'+fmtGold(depthBonus)+'</b></div>'+
+    (streakBonus?'<div class="ab-rs-row"><span>Bank-streak bonus</span><b>+'+fmtGold(streakBonus)+'</b></div>':'')+
+    (cursedBonus?'<div class="ab-rs-row"><span>☠️ Cursed bonus</span><b>+'+fmtGold(cursedBonus)+'</b></div>':'')+
     (jp?'<div class="ab-rs-row"><span>🔥 Deep-cache jackpot</span><b>+'+fmtGold(jp)+'</b></div>':'')+
     (tax?'<div class="ab-rs-row"><span>💸 Abyss tax (80% over daily cap)</span><b>−'+fmtGold(tax)+'</b></div>':'')+
     '<div class="ab-rs-row"><span>Items recovered</span><b>'+((d.escrow_loot||[]).length)+'</b></div>'+
@@ -3182,7 +3200,8 @@ function showBankSummary(d){
   openModal(html);
   var el=document.getElementById('bankTotalTick');
   if(!el)return;
-  var steps=[base, base+mb, base+mb+jp];
+  var raw=base+depthBonus+streakBonus+cursedBonus;
+  var steps=[base,base+depthBonus,base+depthBonus+streakBonus,raw,raw-tax,raw-tax+jp].filter(function(v,i,a){return i===0||v!==a[i-1];});
   // UI-138: skip button jumps straight to the final total.
   var skipped=false;
   var skipBtn=document.getElementById('bankSkipBtn');
@@ -3191,7 +3210,7 @@ function showBankSummary(d){
     el.textContent=fmtGold(steps[steps.length-1]);
     skipBtn.remove();
   };
-  if(reduceMotion){el.textContent=fmtGold(steps[2]); if(skipBtn)skipBtn.remove(); return;}
+  if(reduceMotion){el.textContent=fmtGold(steps[steps.length-1]); if(skipBtn)skipBtn.remove(); return;}
   var i=0, from=0;
   (function tick(){
     if(skipped||i>=steps.length)return;
