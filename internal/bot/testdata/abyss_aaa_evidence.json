@@ -1130,5 +1130,18 @@
     "verification": [
       "internal/bot/web_abyss_enemies_test.go"
     ]
+  },
+  {
+    "ids": [209],
+    "production": [
+      "internal/bot/web_abyss_boss_vendor.go",
+      "internal/bot/web_abyss.go",
+      "internal/db/migrations/0087_abyss_boss_tokens.up.sql",
+      "internal/bot/webassets/abyss_boss_vendor.html",
+      "internal/bot/webassets/abyss_boss_vendor.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_boss_vendor_test.go"
+    ]
   }
 ]

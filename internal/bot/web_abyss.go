@@ -601,6 +601,7 @@ type abyssFloorResult struct {
 	BossExecution bool
 	BossName      string
 	BossDPS       int64
+	BossToken     bool
 }
 
 var abyssLoreFragments = map[int]string{
@@ -1107,11 +1108,12 @@ func (b *Bot) fightAbyssFloorLive(
 
 	// Record boss kills using isBossFloor so mob escalation promoting mobs[0] to
 	// MobLegendary cannot affect the result.
+	bossTokenAwarded := false
 	if victory && isBossFloor && len(mobs) > 0 {
-		_, _ = b.DB.Exec(
-			"INSERT INTO abyss_boss_kills (client_uid, boss_name, depth, kill_time_ms, tier) VALUES ($1, $2, $3, $4, $5)",
-			uid, mobs[0].Name, depth, duration.Milliseconds(), tier.Key,
-		)
+		if b.recordAbyssBossKillWithToken(uid, mobs[0].Name, depth, duration, tier.Key) {
+			bossTokenAwarded = true
+			logs = append(logs, "🏆 Boss trophy secured: +1 Boss Token for the Trophy Vendor.")
+		}
 		// AB-159: bosses have a modest chance to drop a branch-refund shard.
 		// #nosec G404 -- non-cryptographic reward roll
 		if encounterRandom.Float64() < 0.20 && b.grantAbyssMasteryShard(uid) {
@@ -1209,7 +1211,7 @@ func (b *Bot) fightAbyssFloorLive(
 	logs = append(logs, fmt.Sprintf("[hr][color=#8a93a8]📊 %s · %d foe(s) · fight time %d ms · HP %s → %s (%+d)[/color]",
 		outcome, len(mobs), duration.Milliseconds(), FormatGoldPlain(int64(hpBefore)), FormatGoldPlain(int64(curHP)), curHP-hpBefore))
 
-	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken}
+	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, BossToken: bossTokenAwarded}
 	if isBossFloor && len(mobs) > 0 {
 		res.BossName = mobs[0].Name
 		res.BossExecution = victory
@@ -1545,6 +1547,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"HarvesterTier":       harvesterTier,
 		"Bounty":              s.bot.abyssBountyStatus(uid),
 		"Shop":                s.bot.abyssShopViews(uid, time.Now()),
+		"BossVendor":          abyssBossVendorCatalog,
 		"Pacts":               abyssPactCatalog,
 		"PactProgram":         s.bot.abyssPactProgramState(uid),
 		"Equipped":            slots,
@@ -3112,6 +3115,9 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		out["boss_dps"] = res.BossDPS
 		out["boss_finale"] = res.BossFinale
 	}
+	if res.BossToken {
+		out["boss_tokens"] = s.bot.abyssBossTokens(uid)
+	}
 	if hasAbyssFloorModifier(modifier, "darkness") {
 		out["timeline"] = concealAbyssTimeline(res.Timeline)
 	}
@@ -3280,6 +3286,9 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 		}
 		if res.BossName != "" {
 			out["boss_name"], out["boss_execution"], out["boss_dps"], out["boss_finale"] = res.BossName, res.BossExecution, res.BossDPS, res.BossFinale
+		}
+		if res.BossToken {
+			out["boss_tokens"] = s.bot.abyssBossTokens(uid)
 		}
 		var gold int64
 		_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)

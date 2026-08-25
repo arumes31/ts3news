@@ -1,0 +1,9 @@
+.ab-boss-vendor { background: radial-gradient(circle at 92% 0,rgba(244,197,66,.11),transparent 38%),var(--panel); }
+.ab-boss-vendor-head { display: flex; align-items: end; justify-content: space-between; gap: 18px; }
+.ab-boss-vendor-head span { color: var(--gold); font: 800 .58rem ui-monospace,'Cascadia Mono',monospace; letter-spacing: .16em; }
+.ab-boss-vendor-head h2 { margin: 3px 0 0; }
+.ab-boss-vendor-head strong { padding: 6px 9px; border: 1px solid #665326; border-radius: 3px 10px; background: #17140c; color: #f4d87d; font: 700 .72rem ui-monospace,monospace; white-space: nowrap; }
+.ab-boss-vendor-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 8px; }
+.ab-boss-vendor-grid article { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 4px 12px; background: linear-gradient(120deg,rgba(255,255,255,.025),transparent),#0c111a; }
+.ab-boss-vendor-grid p { margin: 3px 0 0; color: var(--muted); font-size: .72rem; }
+@media(max-width:600px){.ab-boss-vendor-head{align-items:start;flex-direction:column}.ab-boss-vendor-head strong{align-self:stretch;text-align:center}}

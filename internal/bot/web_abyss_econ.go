@@ -67,6 +67,7 @@ func abyssTierList(bestDepth int) []abyssTierView {
 type abyssStats struct {
 	BestDepth       int
 	Tokens          int64
+	BossTokens      int64
 	LifetimeFloors  int64
 	LifetimeBanked  int64
 	Deaths          int
@@ -89,13 +90,13 @@ type abyssStats struct {
 func (b *Bot) loadAbyssStats(uid string) abyssStats {
 	var st abyssStats
 	_ = b.DB.QueryRow(
-		`SELECT abyss_best_depth, abyss_tokens, abyss_lifetime_floors, abyss_lifetime_banked,
+		`SELECT abyss_best_depth, abyss_tokens, abyss_boss_tokens, abyss_lifetime_floors, abyss_lifetime_banked,
 		        abyss_deaths, abyss_bank_streak, abyss_up_vigor, abyss_up_greed, abyss_up_fortune, abyss_up_ward,
 		        abyss_up_interest, abyss_up_tribute, abyss_up_insight,
 		        abyss_up_swiftness, abyss_up_scavenger, abyss_up_mercy, abyss_up_cartographer, abyss_up_quartermaster,
 		        abyss_prestige
 		   FROM users WHERE client_uid=$1`, uid,
-	).Scan(&st.BestDepth, &st.Tokens, &st.LifetimeFloors, &st.LifetimeBanked,
+	).Scan(&st.BestDepth, &st.Tokens, &st.BossTokens, &st.LifetimeFloors, &st.LifetimeBanked,
 		&st.Deaths, &st.Streak, &st.UpVigor, &st.UpGreed, &st.UpFortune, &st.UpWard,
 		&st.UpInterest, &st.UpTribute, &st.UpInsight,
 		&st.UpSwiftness, &st.UpScavenger, &st.UpMercy, &st.UpCartographer, &st.UpQuartermaster,
