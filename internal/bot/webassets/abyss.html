@@ -22,6 +22,8 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_events.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_social.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_stage_hud.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_codex_explorer.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_panel_tools.css"}}">
 <div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 <div class="abyss-hero">
@@ -120,7 +122,7 @@
     <h3>⚔️ Armoury</h3>
     <div class="abyss-side-list">
       {{range .Equipped}}
-      <div class="abyss-side-gear" tabindex="0" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+      <div class="abyss-side-gear" tabindex="0" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-stats="{{.StatsJSON}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
         <span class="ab-pixel-icon ab-gear-pixel" aria-hidden="true"></span>
         <span class="ab-side-gear-name" style="color:{{.RarityColor}}">{{.Name}}</span>
         <span class="cr">CR {{printf "%.0f" .CR}}</span>
@@ -603,13 +605,13 @@
     <h2>🧪 Workshop</h2>
     <div class="ab-materials">
       {{range .MaterialDefs}}
-      <span class="ab-mat" title="{{.Name}}">{{.Icon}} <b id="mat-{{.ID}}">{{comma (index $.Materials .ID)}}</b></span>
+      <span class="ab-mat" title="{{.Name}}" data-material="{{.ID}}" data-count="{{index $.Materials .ID}}">{{.Icon}} <b id="mat-{{.ID}}">{{comma (index $.Materials .ID)}}</b></span>
       {{end}}
     </div>
     <p class="muted small">Materials come from salvaging, dismantling and deep floors (30+). Weekly quest: craft {{.CraftQuest.Target}} items → 🜲15 + Master Repair Kit ({{.CraftQuest.Done}}/{{.CraftQuest.Target}}).</p>
     <div class="ab-shop">
       {{range .Recipes}}
-      <div class="ab-shop-item{{if and (not .Locked) (not .Affordable)}} is-unaffordable{{end}}">
+      <div class="ab-shop-item{{if and (not .Locked) (not .Affordable)}} is-unaffordable{{end}}" data-recipe-state="{{if .Locked}}locked{{else}}known{{end}}">
         <div>
           <b>{{if .Locked}}🔒 ???{{else}}{{.Name}}{{end}}</b>
           <div class="muted small">{{if .Locked}}Discovered through lore fragments{{else}}{{.Desc}} · can make ×{{.Craftable}}{{end}}</div>
@@ -721,7 +723,7 @@
                 data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}" data-special="{{.HasSpecial}}" data-imbued="{{.Imbued}}" data-attuned="{{.Attuned}}"
                 data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}"
                 data-rune="{{.HasRune}}" data-prismatic="{{.Prismatic}}" data-cr="{{printf "%.1f" .CR}}" data-gs="{{.Score}}"
-                data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-ah="{{.AHPrice}}" data-vendor="{{.VendorPrice}}"
+                data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-ah="{{.AHPrice}}" data-vendor="{{.VendorPrice}}" data-locked="{{.Locked}}" data-recent="{{.RecentlyLooted}}"
                 data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
                 {{.Icon}} [Inv] {{.Name}} ({{.Rarity}}) · CR {{printf "%.0f" .CR}}
               </option>
@@ -1033,7 +1035,7 @@
   </section>
 
   <!-- Lifetime stats [46] + salvage [60] -->
-  <section class="abyss-panel" id="abyssRecord" data-abyss-section="progression">
+  <section class="abyss-panel" id="abyssRecord" data-abyss-section="progression" data-best-depth="{{.Stats.BestDepth}}" data-lifetime-banked="{{.Stats.LifetimeBanked}}" data-prestige="{{.Stats.AbyssPrestige}}">
     <h2>{{T "web.abyss.record"}}</h2>
     <ul class="ab-record">
       <li><span>{{T "web.abyss.abyss_prestige"}}</span><b>⭐ {{comma .Stats.AbyssPrestige}}</b></li>
@@ -1133,6 +1135,7 @@
   <section class="abyss-panel">
     <h2>{{T "web.abyss.bestiary"}}</h2>
     <p class="muted small">{{T "web.abyss.bestiary_desc"}}</p>
+    {{template "abyssCodexExplorer" .}}
     <!-- UI-175: completion bar, filled by JS from the bestiary rows -->
     <div id="bestiaryProgress"></div>
     <div class="ab-bestiary">
@@ -1142,7 +1145,7 @@
         </thead>
         <tbody>
           {{range .Bestiary}}
-		  <tr data-family="{{.Family}}"><td>{{.MobName}}</td><td>⚔️ {{comma .Kills}}</td><td><button type="button" class="btn small" onclick="abyssPractice({{printf "%q" .MobName}})">Practice</button></td></tr>
+		  <tr data-name="{{.MobName}}" data-family="{{.Family}}" data-kills="{{.Kills}}" data-first-kill="{{.FirstKillISO}}" data-last-kill="{{.LastKillISO}}" data-milestone="{{.Milestone}}" data-next-milestone="{{.NextMilestone}}" data-kills-to-next="{{.KillsToNext}}" data-mastered="{{.Mastered}}"><td>{{.MobName}}</td><td>⚔️ {{comma .Kills}}</td><td><button type="button" class="btn small" onclick="abyssPractice({{printf "%q" .MobName}})">Practice</button></td></tr>
           {{else}}
           <!-- UI-192: friendly empty state -->
 		  <tr><td colspan="3"><div class="ab-empty-state">
@@ -2895,6 +2898,7 @@ function updatePactBonus(){
 }
 
 async function abyssEnter(consumables){
+  if(!consumables && typeof window.abyssPanelLoadout==='function')consumables=window.abyssPanelLoadout();
   if(busy)return;
   // Lock the UI before the cost-confirm modal so rapid re-clicks can't stack
   // multiple confirmations (and duplicate enter requests).
@@ -6075,6 +6079,8 @@ function initNewDots(){
 {{template "abyss-events" .}}
 <script data-cfasync="false">{{template "abyssSocialHubJS" .}}</script>
 <script data-cfasync="false">{{template "abyssStageHUDJS" .}}</script>
+<script data-cfasync="false">{{template "abyssCodexExplorerJS" .}}</script>
+<script data-cfasync="false">{{template "abyssPanelToolsJS" .}}</script>
 {{template "abyssCoreRiskJS" .}}
 {{template "abyss-feedback" .}}
 {{template "abyss-polish" .}}

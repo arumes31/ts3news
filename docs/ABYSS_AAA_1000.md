@@ -680,3 +680,59 @@ lease, not a cosmetic client countdown pause.
 - [x] **AAA-0923 / AB-223** — the depth dial tooltip summarizes depth, cleared floors, risk, HP, active time, and average floor time.
 - [x] **AAA-0924 / AB-224** — the escrow tooltip separates current gold from item and material-stack counts.
 - [x] **AAA-0925 / AB-225** — health below twenty percent receives a slow heartbeat pulse with a reduced-motion fallback.
+
+## Delivered tranche: Bestiary Codex Explorer
+
+- [x] **AAA-0926 / AB-226** — the Bestiary searches discovered monsters by normalized name or encounter family.
+- [x] **AAA-0927 / AB-227** — a generated family selector filters only families present in the authoritative codex.
+- [x] **AAA-0928 / AB-228** — the codex sorts deterministically by descending kill count with a name tie-breaker.
+- [x] **AAA-0929 / AB-229** — an alphabetical sort provides a stable species index.
+- [x] **AAA-0930 / AB-230** — a recent-encounter sort uses the server-persisted latest kill timestamp.
+- [x] **AAA-0931 / AB-231** — a discovery-order sort uses the immutable first-kill timestamp.
+- [x] **AAA-0932 / AB-232** — minimum-kill filters jump directly to tracked, hunted, or mastered entries.
+- [x] **AAA-0933 / AB-233** — the explorer reports discovered species against the fifty-species account goal.
+- [x] **AAA-0934 / AB-234** — a lifetime total sums authoritative kill counts across every discovered species.
+- [x] **AAA-0935 / AB-235** — the summary reports how many species have reached one hundred-kill mastery.
+- [x] **AAA-0936 / AB-236** — each encountered family receives a bounded discovery-progress meter and exact count.
+- [x] **AAA-0937 / AB-237** — activating a family progress chip applies that family as the current filter.
+- [x] **AAA-0938 / AB-238** — every species retains and displays its first authoritative discovery time.
+- [x] **AAA-0939 / AB-239** — every kill refreshes a server-owned latest-encounter time without rewriting first discovery.
+- [x] **AAA-0940 / AB-240** — eight monotonic kill milestones progress from Discovered through Mythic.
+- [x] **AAA-0941 / AB-241** — the inspector shows exact remaining kills and a bounded meter to the next milestone.
+- [x] **AAA-0942 / AB-242** — mastered species receive a distinct, power-neutral visual treatment.
+- [x] **AAA-0943 / AB-243** — device-local favorites use stable monster names and persist across visits.
+- [x] **AAA-0944 / AB-244** — a favorites-only view composes safely with search, family, and kill filters.
+- [x] **AAA-0945 / AB-245** — persistent table and responsive card layouts serve dense and visual browsing styles.
+- [x] **AAA-0946 / AB-246** — a focused monster inspector exposes family, kills, chronology, mastery, and practice access.
+- [x] **AAA-0947 / AB-247** — monster summaries copy as plain text without interpreting player-visible names as markup.
+- [x] **AAA-0948 / AB-248** — device-shareable deep links reopen the exact discovered monster inspector.
+- [x] **AAA-0949 / AB-249** — the discovered codex exports to bounded structured JSON and a print-focused layout.
+- [x] **AAA-0950 / AB-250** — a keyboard-operable two-slot comparison bench reports the exact kill-count delta.
+
+## Delivered tranche: Inventory and panel command tools
+
+- [x] **AAA-0951 / AB-251** — the backpack searches owned gear by normalized item name and slot.
+- [x] **AAA-0952 / AB-252** — backpack rows sort by recency, combat rating, name, or equipment slot with deterministic tie-breakers.
+- [x] **AAA-0953 / AB-253** — device-local list and responsive grid layouts persist as an explicit inventory preference.
+- [x] **AAA-0954 / AB-254** — gear acquired during the last ten minutes receives a server-derived recent-loot marker protected against future timestamps.
+- [x] **AAA-0955 / AB-255** — owned gear can be persistently locked through an owner-scoped server endpoint.
+- [x] **AAA-0956 / AB-256** — sales, salvage, dismantling, forge consumption, auctions, and set sacrifices all reject persistently locked gear.
+- [x] **AAA-0957 / AB-257** — keyboard-focusable backpack rows support explicit multiselection without triggering equip behavior.
+- [x] **AAA-0958 / AB-258** — selected unlocked items can be salvaged in one reviewed, server-authoritative batch.
+- [x] **AAA-0959 / AB-259** — up to three inventory items remain pinned in a device-local comparison rack.
+- [x] **AAA-0960 / AB-260** — comparison cards show exact item stats and percentage deltas against the currently equipped slot.
+- [x] **AAA-0961 / AB-261** — the armoury sidebar summarizes non-zero stats across the equipped loadout.
+- [x] **AAA-0962 / AB-262** — equipped and progression set cards expose bounded progress toward their next tier.
+- [x] **AAA-0963 / AB-263** — scarce crafting materials receive a reduced-motion-safe low-stock warning.
+- [x] **AAA-0964 / AB-264** — the Workshop reports discovered recipes against all currently visible recipes.
+- [x] **AAA-0965 / AB-265** — the same Workshop summary reports how many known recipes are presently affordable.
+- [x] **AAA-0966 / AB-266** — a sticky forge search highlights matching actions and reports their count.
+- [x] **AAA-0967 / AB-267** — the five most recently used forge actions persist as device-local jump shortcuts.
+- [x] **AAA-0968 / AB-268** — forge controls display immediate affordable or unavailable status dots without overriding server quotes.
+- [x] **AAA-0969 / AB-269** — locked achievements expose exact progress and highlight the nearest supported target.
+- [x] **AAA-0970 / AB-270** — the Skill Web tab displays the authoritative count of unspent talent points.
+- [x] **AAA-0971 / AB-271** — the shop shows the UTC stock-refresh countdown and states that server pricing is authoritative.
+- [x] **AAA-0972 / AB-272** — unlocked lore entries support keyboard-operable, device-local read tracking.
+- [x] **AAA-0973 / AB-273** — the command page clarifies the UTC daily bounty cadence and warns when buffs expire after the next floor.
+- [x] **AAA-0974 / AB-274** — a persisted, reorderable three-consumable next-run shelf feeds the authoritative entry request.
+- [x] **AAA-0975 / AB-275** — responsive sidebar opacity and density controls persist independently and respect reduced-motion preferences.

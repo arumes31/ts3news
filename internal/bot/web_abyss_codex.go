@@ -2,12 +2,21 @@ package bot
 
 import (
 	"sort"
+	"time"
 )
 
 type abyssBestiaryRow struct {
-	MobName string
-	Family  string
-	Kills   int
+	MobName       string
+	Family        string
+	Kills         int
+	FirstKillAt   time.Time
+	LastKillAt    time.Time
+	FirstKillISO  string
+	LastKillISO   string
+	Milestone     string
+	NextMilestone int
+	KillsToNext   int
+	Mastered      bool
 }
 
 type abyssBestiaryKill struct {
@@ -19,7 +28,9 @@ const abyssLegacyBestiaryFamily = "Legacy encounters"
 
 func (b *Bot) loadAbyssBestiary(uid string) []abyssBestiaryRow {
 	rows, err := b.DB.Query(
-		"SELECT mob_name, mob_family, kills FROM abyss_bestiary WHERE client_uid = $1 ORDER BY mob_family, kills DESC, mob_name",
+		`SELECT mob_name, mob_family, kills, first_kill_at, last_kill_at
+		 FROM abyss_bestiary WHERE client_uid = $1
+		 ORDER BY mob_family, kills DESC, mob_name`,
 		uid,
 	)
 	if err != nil {
@@ -29,25 +40,48 @@ func (b *Bot) loadAbyssBestiary(uid string) []abyssBestiaryRow {
 	var out []abyssBestiaryRow
 	for rows.Next() {
 		var row abyssBestiaryRow
-		if err := rows.Scan(&row.MobName, &row.Family, &row.Kills); err != nil {
+		if err := rows.Scan(&row.MobName, &row.Family, &row.Kills, &row.FirstKillAt, &row.LastKillAt); err != nil {
 			continue
 		}
 		if row.Family == "" {
 			row.Family = abyssLegacyBestiaryFamily
 		}
+		row.FirstKillISO = row.FirstKillAt.UTC().Format(time.RFC3339)
+		row.LastKillISO = row.LastKillAt.UTC().Format(time.RFC3339)
+		row.Milestone, row.NextMilestone, row.KillsToNext = abyssBestiaryMilestone(row.Kills)
+		row.Mastered = row.Kills >= 100
 		out = append(out, row)
 	}
 	return out
 }
 
+func abyssBestiaryMilestone(kills int) (string, int, int) {
+	milestones := []struct {
+		Kills int
+		Name  string
+	}{
+		{1, "Discovered"}, {10, "Tracked"}, {25, "Studied"}, {50, "Hunted"},
+		{100, "Mastered"}, {250, "Nemesis"}, {500, "Legend"}, {1000, "Mythic"},
+	}
+	current := "Undiscovered"
+	for _, milestone := range milestones {
+		if kills < milestone.Kills {
+			return current, milestone.Kills, milestone.Kills - max(kills, 0)
+		}
+		current = milestone.Name
+	}
+	return current, 0, 0
+}
+
 func (b *Bot) recordAbyssKills(uid string, kills []abyssBestiaryKill) {
 	for _, kill := range kills {
 		_, _ = b.DB.Exec(
-			`INSERT INTO abyss_bestiary (client_uid, mob_name, mob_family, kills, first_kill_at)
-			 VALUES ($1, $2, $3, 1, NOW())
+			`INSERT INTO abyss_bestiary (client_uid, mob_name, mob_family, kills, first_kill_at, last_kill_at)
+			 VALUES ($1, $2, $3, 1, NOW(), NOW())
 			 ON CONFLICT (client_uid, mob_name)
 			 DO UPDATE SET kills = abyss_bestiary.kills + 1,
-			               mob_family = EXCLUDED.mob_family`,
+			               mob_family = EXCLUDED.mob_family,
+			               last_kill_at = NOW()`,
 			uid, kill.MobName, kill.Family,
 		)
 	}

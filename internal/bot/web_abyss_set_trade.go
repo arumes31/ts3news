@@ -62,7 +62,7 @@ func abyssSetTradeSpareIDs(items []abyssSetTradeItem, setID string, equipped ...
 func (s *WebServer) abyssSetTradeState(queryer interface {
 	Query(string, ...any) (*sql.Rows, error)
 }, uid string, now time.Time) ([]abyssSetTradeOffer, map[string][]int64, error) {
-	rows, err := queryer.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 ORDER BY id FOR UPDATE", uid)
+	rows, err := queryer.Query("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 AND locked=FALSE ORDER BY id FOR UPDATE", uid)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -183,7 +183,7 @@ func (s *WebServer) handleAbyssSetTrade(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	for _, invID := range spares[:2] {
-		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", invID, uid)
+		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE", invID, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return

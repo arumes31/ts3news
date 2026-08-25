@@ -686,5 +686,45 @@
       "internal/bot/web_abyss_run_awareness_test.go",
       "internal/bot/web_abyss_release_guards_test.go"
     ]
+  },
+  {
+    "ids": [926, 927, 928, 929, 930, 931, 932, 933, 934, 935, 936, 937, 938, 939, 940, 941, 942, 943, 944, 945, 946, 947, 948, 949, 950],
+    "production": [
+      "internal/db/migrations/0083_abyss_bestiary_last_kill.up.sql",
+      "internal/bot/web_abyss_codex.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_codex_explorer.html",
+      "internal/bot/webassets/abyss_codex_explorer.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_codex_explorer_test.go",
+      "internal/bot/web_abyss_library_feedback_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
+  },
+  {
+    "ids": [951, 952, 953, 954, 955, 956, 957, 958, 959, 960, 961, 962, 963, 964, 965, 966, 967, 968, 969, 970, 971, 972, 973, 974, 975],
+    "production": [
+      "internal/db/migrations/0084_abyss_inventory_lock.up.sql",
+      "internal/bot/web_abyss_inventory_lock.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_forge3.go",
+      "internal/bot/web_abyss_forge_crafting.go",
+      "internal/bot/web_abyss_forge_quote_costs.go",
+      "internal/bot/web_abyss_set_trade.go",
+      "internal/bot/web_ah.go",
+      "internal/bot/web_pages.go",
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_panel_tools.html",
+      "internal/bot/webassets/abyss_panel_tools.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_inventory_lock_test.go",
+      "internal/bot/web_abyss_panel_tools_test.go",
+      "internal/bot/web_abyss_release_guards_test.go"
+    ]
   }
 ]

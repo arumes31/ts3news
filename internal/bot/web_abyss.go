@@ -1463,6 +1463,10 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	eventIntel := s.bot.abyssEventIntel(uid, run)
 	dropForecast, dropForecastOK := s.bot.abyssNextFloorForecast(uid)
 	celestialPity := s.bot.abyssCelestialPity(uid)
+	treeUnspent := 0
+	if allocated, err := s.bot.loadTreeAllocatedContext(r.Context(), uid); err == nil {
+		treeUnspent = max(0, s.bot.treePointsTotal(uid)-s.bot.treeSpentEx(uid, allocated))
+	}
 
 	s.render(w, "abyss", map[string]any{
 		"Title":               "The Abyss",
@@ -1513,6 +1517,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Inventory":           inventory,
 		"LegendaryPity":       pity,
 		"CelestialPity":       celestialPity,
+		"TreeUnspent":         treeUnspent,
 		"DropStreak":          dropStreak,
 		"DropStreakBonusPct":  dropStreakBonusPct,
 		"Risk":                risk,

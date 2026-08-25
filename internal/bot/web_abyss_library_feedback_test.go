@@ -53,18 +53,45 @@ func TestAbyssBestiaryUsesPersistedFamilyAndLegacyFallback(t *testing.T) {
 	}
 	defer func() { _ = database.Close() }()
 
-	mock.ExpectQuery("SELECT mob_name, mob_family, kills FROM abyss_bestiary").
+	firstSeen := time.Date(2026, time.January, 2, 3, 4, 5, 0, time.UTC)
+	lastSeen := firstSeen.Add(48 * time.Hour)
+	mock.ExpectQuery("SELECT mob_name, mob_family, kills, first_kill_at, last_kill_at").
 		WithArgs("player").
-		WillReturnRows(sqlmock.NewRows([]string{"mob_name", "mob_family", "kills"}).
-			AddRow("Frost Lich", "Elite", 9).
-			AddRow("Void Watcher", "", 4))
+		WillReturnRows(sqlmock.NewRows([]string{"mob_name", "mob_family", "kills", "first_kill_at", "last_kill_at"}).
+			AddRow("Frost Lich", "Elite", 9, firstSeen, lastSeen).
+			AddRow("Void Watcher", "", 4, firstSeen, lastSeen))
 
 	rows := (&Bot{DB: database}).loadAbyssBestiary("player")
 	if len(rows) != 2 || rows[0].Family != "Elite" || rows[1].Family != abyssLegacyBestiaryFamily {
 		t.Fatalf("bestiary rows = %#v", rows)
 	}
+	if rows[0].Milestone != "Discovered" || rows[0].NextMilestone != 10 || rows[0].KillsToNext != 1 || rows[0].LastKillISO != lastSeen.Format(time.RFC3339) {
+		t.Fatalf("decorated bestiary row = %#v", rows[0])
+	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestAbyssBestiaryMilestonesAreMonotonicAndBounded(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		kills     int
+		label     string
+		next      int
+		remaining int
+	}{
+		{-5, "Undiscovered", 1, 1},
+		{1, "Discovered", 10, 9},
+		{99, "Hunted", 100, 1},
+		{100, "Mastered", 250, 150},
+		{1000, "Mythic", 0, 0},
+	}
+	for _, test := range tests {
+		label, next, remaining := abyssBestiaryMilestone(test.kills)
+		if label != test.label || next != test.next || remaining != test.remaining {
+			t.Errorf("milestone(%d) = %q, %d, %d", test.kills, label, next, remaining)
+		}
 	}
 }
 

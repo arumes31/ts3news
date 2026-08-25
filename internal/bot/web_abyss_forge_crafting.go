@@ -443,7 +443,7 @@ func (s *WebServer) handleAbyssCelestialFuseBoosted(w http.ResponseWriter, r *ht
 		return
 	}
 	for _, id := range req.InvIDs {
-		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", id, uid)
+		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE", id, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return

@@ -581,7 +581,7 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 	var gid string
 	var dur int
 	var itemData sql.NullString
-	if err := tx.QueryRow("SELECT gear_id, durability, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 FOR UPDATE", req.InvID, uid).Scan(&gid, &dur, &itemData); err != nil {
+	if err := tx.QueryRow("SELECT gear_id, durability, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE FOR UPDATE", req.InvID, uid).Scan(&gid, &dur, &itemData); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
 		return
 	}
@@ -603,7 +603,7 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 	if price < 10 {
 		price = 10
 	}
-	res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid)
+	res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE", req.InvID, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "remove"})
 		return

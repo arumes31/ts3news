@@ -70,25 +70,25 @@ func abyssTierList(bestDepth int) []abyssTierView {
 // abyssStats is the player's persistent Abyss profile (best depth, tokens,
 // Deep-Delver upgrade levels, lifetime tallies, streak).
 type abyssStats struct {
-	BestDepth      int
-	Tokens         int64
-	LifetimeFloors int64
-	LifetimeBanked int64
-	Deaths         int
-	Streak         int
-	UpVigor        int
-	UpGreed        int
-	UpFortune      int
-	UpWard         int
-	UpInterest     int
-	UpTribute      int
-	UpInsight      int
+	BestDepth       int
+	Tokens          int64
+	LifetimeFloors  int64
+	LifetimeBanked  int64
+	Deaths          int
+	Streak          int
+	UpVigor         int
+	UpGreed         int
+	UpFortune       int
+	UpWard          int
+	UpInterest      int
+	UpTribute       int
+	UpInsight       int
 	UpSwiftness     int
 	UpScavenger     int
 	UpMercy         int
 	UpCartographer  int
 	UpQuartermaster int
-	AbyssPrestige  int
+	AbyssPrestige   int
 }
 
 func (b *Bot) loadAbyssStats(uid string) abyssStats {
@@ -265,7 +265,7 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund i
 		// grant +10% stats on the next run.
 		if policy.CountDeath {
 			if _, err := tx.Exec(
-			`UPDATE users SET abyss_deaths_today = CASE WHEN abyss_deaths_date = CURRENT_DATE THEN abyss_deaths_today + 1 ELSE 1 END,
+				`UPDATE users SET abyss_deaths_today = CASE WHEN abyss_deaths_date = CURRENT_DATE THEN abyss_deaths_today + 1 ELSE 1 END,
 			        abyss_deaths_date = CURRENT_DATE WHERE client_uid=$1`, uid); err != nil {
 				return 0, err
 			}
@@ -367,21 +367,21 @@ var abyssDepthAchievements = map[int]string{
 
 // abyssAchievementNames maps an achievement code to its player-facing name.
 var abyssAchievementNames = map[string]string{
-	"depth_10":    "Threshold Breaker (Depth 10)",
-	"depth_25":    "Deep Diver (Depth 25)",
-	"depth_50":    "Abyssal Veteran (Depth 50)",
-	"depth_100":   "Voidwalker (Depth 100)",
-	"boss_1":      "Giant Slayer (First Boss)",
-	"boss_25":     "Boss Hunter (25 Bosses)",
-	"boss_100":    "Worldbreaker (100 Bosses)",
-	"bank_1m":     "Treasurer (1M Banked)",
-	"bank_10m":    "Tycoon (10M Banked)",
-	"bestiary_25": "Naturalist (25 Species)",
-	"bestiary_50": "Zoologist (50 Species)",
+	"depth_10":          "Threshold Breaker (Depth 10)",
+	"depth_25":          "Deep Diver (Depth 25)",
+	"depth_50":          "Abyssal Veteran (Depth 50)",
+	"depth_100":         "Voidwalker (Depth 100)",
+	"boss_1":            "Giant Slayer (First Boss)",
+	"boss_25":           "Boss Hunter (25 Bosses)",
+	"boss_100":          "Worldbreaker (100 Bosses)",
+	"bank_1m":           "Treasurer (1M Banked)",
+	"bank_10m":          "Tycoon (10M Banked)",
+	"bestiary_25":       "Naturalist (25 Species)",
+	"bestiary_50":       "Zoologist (50 Species)",
 	"bestiary_complete": "Abyss Archivist (Codex Complete)",
-	"prestige_1":  "Reborn (First Abyss Prestige)",
+	"prestige_1":        "Reborn (First Abyss Prestige)",
 	"hardcore_depth_10": "Iron Delver (Hardcore Depth 10)",
-	"perfect_run": "Untouchable (Perfect Run)",
+	"perfect_run":       "Untouchable (Perfect Run)",
 }
 
 // achTier is a count threshold that, once reached, awards an achievement code.
@@ -827,15 +827,24 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 	var req struct {
-		InvID int64 `json:"inv_id"`
+		InvID  int64   `json:"inv_id"`
+		InvIDs []int64 `json:"inv_ids"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
 
+	wanted, validIDs := abyssDismantleIDSet(req.InvIDs)
+	if !validIDs || req.InvID > 0 && len(wanted) > 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "invalid salvage selection"})
+		return
+	}
+	if req.InvID > 0 {
+		wanted[req.InvID] = true
+	}
 	reserved := s.bot.loadAbyssReservedLoot(uid)
-	query := "SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1"
+	query := "SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 AND locked=FALSE"
 	args := []any{uid}
 	if req.InvID > 0 {
 		query += " AND id=$2"
@@ -866,6 +875,9 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 				writeJSON(w, map[string]any{"ok": false, "error": "reserved items cannot be salvaged"})
 				return
 			}
+			continue
+		}
+		if len(wanted) > 0 && !wanted[id] {
 			continue
 		}
 		// Reconstruct the item like the dismantle path does, so upgraded or
@@ -911,7 +923,7 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	var count int
 	matGained := map[string]int{}
 	for _, j := range toSell {
-		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", j.id, uid)
+		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE", j.id, uid)
 		if err != nil {
 			// A failed statement aborts the whole transaction; continuing would
 			// fail every later statement confusingly.
@@ -1008,7 +1020,7 @@ func abyssDismantleManifestRevision(items []abyssDismantleSpare) string {
 }
 
 func abyssDismantleInventoryQuery(uid string, ids []int64, preview bool) (string, []any) {
-	query := "SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1"
+	query := "SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 AND locked=FALSE"
 	args := make([]any, 0, len(ids)+2)
 	args = append(args, uid)
 	if preview {
@@ -1163,7 +1175,7 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 	var count int
 	matGained := map[string]int{}
 	for _, sp := range toBreak {
-		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", sp.id, uid)
+		res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE", sp.id, uid)
 		if err != nil {
 			// A failed statement aborts the whole transaction; continuing would
 			// fail every later statement confusingly.
@@ -1292,7 +1304,7 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 	writeJSON(w, map[string]any{
 		"ok": true, "insured": req.Pct, "cost": cost, "gold": gold,
 		"loyalty_discount_pct": loyaltyPct,
-		"cheapskate_title": cheapskateTitle,
+		"cheapskate_title":     cheapskateTitle,
 	})
 }
 
@@ -1309,13 +1321,13 @@ func abyssInsuranceCost(escrow int64, pct, ward int, lifetimeBanked int64) int64
 // abyssUpgradeCols maps a Deep-Delver node to its column; the whitelist prevents
 // any SQL-identifier injection from the request.
 var abyssUpgradeCols = map[string]string{
-	"vigor":    "abyss_up_vigor",
-	"greed":    "abyss_up_greed",
-	"fortune":  "abyss_up_fortune",
-	"ward":     "abyss_up_ward",
-	"interest": "abyss_up_interest",
-	"tribute":  "abyss_up_tribute",
-	"insight":  "abyss_up_insight",
+	"vigor":         "abyss_up_vigor",
+	"greed":         "abyss_up_greed",
+	"fortune":       "abyss_up_fortune",
+	"ward":          "abyss_up_ward",
+	"interest":      "abyss_up_interest",
+	"tribute":       "abyss_up_tribute",
+	"insight":       "abyss_up_insight",
 	"swiftness":     "abyss_up_swiftness",
 	"scavenger":     "abyss_up_scavenger",
 	"mercy":         "abyss_up_mercy",
@@ -1452,4 +1464,3 @@ func (b *Bot) loadUnlockedLore(uid string) []int {
 	}
 	return out
 }
-

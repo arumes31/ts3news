@@ -50,22 +50,24 @@ type gearView struct {
 	XPBonusPct int
 	Stats      []statKV
 
-	Unidentified bool
-	Sockets      int
-	Gemstones    []string
-	RarityVal    int
-	Insured      bool // whether the piece is death-insured (drives the forge picker)
-	Corrupted    bool // carries an HP malus, cleansable at the forge (#83)
-	Temper       int  // forge temper level (#106)
-	Quality      int  // masterwork quality tier (0-5)
-	SetID        string
-	HasSpecial   bool // carries a Special effect (drives the forge awaken action)
-	Imbued       bool // already imbued via the forge
-	Attuned      bool // bound to its owner via the forge
-	Cursed       bool // cursed: drains HP in combat (drives forge curse infusion)
-	Eldritch     bool // eldritch affix applied (drives forge eldritch infusion)
-	HasRune      bool // an elemental rune is etched (drives prismatic rune)
-	Prismatic    bool // rune already elevated to prismatic
+	Unidentified   bool
+	Sockets        int
+	Gemstones      []string
+	RarityVal      int
+	Insured        bool // whether the piece is death-insured (drives the forge picker)
+	Corrupted      bool // carries an HP malus, cleansable at the forge (#83)
+	Temper         int  // forge temper level (#106)
+	Quality        int  // masterwork quality tier (0-5)
+	SetID          string
+	HasSpecial     bool // carries a Special effect (drives the forge awaken action)
+	Imbued         bool // already imbued via the forge
+	Attuned        bool // bound to its owner via the forge
+	Cursed         bool // cursed: drains HP in combat (drives forge curse infusion)
+	Eldritch       bool // eldritch affix applied (drives forge eldritch infusion)
+	HasRune        bool // an elemental rune is etched (drives prismatic rune)
+	Prismatic      bool // rune already elevated to prismatic
+	Locked         bool // protected from sale, salvage, dismantle, and sacrifice
+	RecentlyLooted bool
 }
 
 // gearStatList returns the gear's non-zero combat stats, largest first.
@@ -449,18 +451,21 @@ func (s *WebServer) handleInventory(w http.ResponseWriter, r *http.Request, uid 
 
 // inventoryItems returns the user's owned, unequipped gear.
 func (b *Bot) inventoryItems(uid string) []gearView {
-	rows, err := b.DB.Query("SELECT id, gear_id, durability, item_data FROM user_inventory WHERE client_uid=$1 ORDER BY id DESC", uid)
+	rows, err := b.DB.Query("SELECT id, gear_id, durability, item_data, locked, acquired_at FROM user_inventory WHERE client_uid=$1 ORDER BY id DESC", uid)
 	if err != nil {
 		return nil
 	}
 	defer func() { _ = rows.Close() }()
 	var out []gearView
+	now := time.Now()
 	for rows.Next() {
 		var id int64
 		var gid string
 		var dur int
 		var itemData sql.NullString
-		if err := rows.Scan(&id, &gid, &dur, &itemData); err != nil {
+		var locked bool
+		var acquiredAt time.Time
+		if err := rows.Scan(&id, &gid, &dur, &itemData, &locked, &acquiredAt); err != nil {
 			continue
 		}
 		g, ok := b.makeGear(gid, itemData)
@@ -469,6 +474,8 @@ func (b *Bot) inventoryItems(uid string) []gearView {
 		}
 		v := toGearView(g.Slot, g)
 		v.InvID = id
+		v.Locked = locked
+		v.RecentlyLooted = abyssRecentlyLooted(acquiredAt, now)
 		if !g.Unidentified {
 			v.Durability = dur
 		}
@@ -592,7 +599,7 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 	// concurrent equip, forge, or sale cannot change what the vendor receives.
 	var gid string
 	var itemData sql.NullString
-	if err := tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 FOR UPDATE", req.InvID, uid).Scan(&gid, &itemData); err != nil {
+	if err := tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE FOR UPDATE", req.InvID, uid).Scan(&gid, &itemData); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
 		return
 	}
@@ -614,7 +621,7 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 	loyaltyBonus := baseValue * int64(loyaltyPct) / 100
 	value := baseValue + loyaltyBonus
 
-	res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid)
+	res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE", req.InvID, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "remove"})
 		return

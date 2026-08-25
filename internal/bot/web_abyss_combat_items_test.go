@@ -182,7 +182,7 @@ func TestAbyssSetTradeTransaction(t *testing.T) {
 			defer func() { _ = db.Close() }()
 
 			mock.ExpectBegin()
-			mock.ExpectQuery(regexp.QuoteMeta("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 ORDER BY id FOR UPDATE")).
+			mock.ExpectQuery(regexp.QuoteMeta("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 AND locked=FALSE ORDER BY id FOR UPDATE")).
 				WithArgs("user1").
 				WillReturnRows(sqlmock.NewRows([]string{"id", "gear_id", "item_data"}).
 					AddRow(1, catalog[0].ID, nil).

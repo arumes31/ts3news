@@ -251,6 +251,12 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_stage_hud.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_stage_hud.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_codex_explorer.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_codex_explorer.css", "text/css; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_panel_tools.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_panel_tools.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_combat_sprites.png", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_combat_sprites.png", "image/png")
 	})
@@ -338,6 +344,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/social/bank_feed", s.authAPI(s.handleAbyssBankFeedToggle))
 		mux.HandleFunc("/api/abyss/social/rival/claim", s.authAPI(s.handleAbyssRivalClaim))
 		mux.HandleFunc("/api/abyss/social/weekly_boss", s.authAPI(s.handleAbyssWeeklyBossStrike))
+		mux.HandleFunc("/api/abyss/inventory/lock", s.authAPI(s.handleAbyssInventoryLock))
 		mux.HandleFunc("/api/abyss/build/respec", s.authAPI(s.handleAbyssBuildRespec))
 		mux.HandleFunc("/api/abyss/loot/settings", s.authAPI(s.handleAbyssLootSettings))
 		mux.HandleFunc("/api/abyss/loot/reserve", s.authAPI(s.handleAbyssLootReserve))

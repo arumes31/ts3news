@@ -68,7 +68,7 @@ func TestAbyssTargetedSalvageRejectsProtectedRarity(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT value FROM app_meta WHERE key=$1")).
 		WithArgs(abyssLootReservedKey("player")).
 		WillReturnRows(sqlmock.NewRows([]string{"value"}))
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 AND id=$2")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 AND locked=FALSE AND id=$2")).
 		WithArgs("player", int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "gear_id", "item_data"}).AddRow(42, "U_LEG_2", nil))
 

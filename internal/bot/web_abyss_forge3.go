@@ -620,7 +620,7 @@ func (s *WebServer) handleAbyssInfuseXP(w http.ResponseWriter, r *http.Request, 
 	if xp < 1 {
 		xp = 1
 	}
-	res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", req.SacrificeInvID, uid)
+	res, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE", req.SacrificeInvID, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
