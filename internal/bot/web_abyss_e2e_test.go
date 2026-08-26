@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"ts3news/internal/content"
 	"ts3news/internal/i18n"
@@ -122,6 +123,17 @@ func TestAbyssE2EServer(t *testing.T) {
 	mux.HandleFunc("/abyss", func(w http.ResponseWriter, r *http.Request) {
 		fixture := abyssGoldenFixture(r.URL.Query().Get("active") == "1")
 		fixture["FreeID"] = true
+		shopNow := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+		weeklyKey := abyssWeeklyInsanityCosmetic(shopNow)
+		weeklyItem := abyssShopIndex[weeklyKey]
+		fixture["Shop"] = []abyssShopItemView{
+			{abyssShopItem: abyssShopCatalog[0], EffectiveCost: abyssShopCatalog[0].Cost},
+			{
+				abyssShopItem: weeklyItem, EffectiveCost: weeklyItem.Cost, Insanity: true,
+				RotationWeek: abyssEconomyWeek(shopNow),
+				RotationEnds: abyssWeeklyCosmeticReset(shopNow).Format("2006-01-02 15:04 UTC"),
+			},
+		}
 		fixture["SetPityPanel"] = abyssSetPityPanelView{
 			ChancePct: 25, HiddenItems: 1,
 			Sets: []abyssSetPityProgressView{

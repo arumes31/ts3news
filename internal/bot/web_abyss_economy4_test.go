@@ -81,8 +81,15 @@ func TestAbyssEconomyCalendarAndInsurance(t *testing.T) {
 	if abyssEconomyWeek(before) == abyssEconomyWeek(after) {
 		t.Error("ISO week key did not roll over at the Monday boundary")
 	}
-	if abyssActiveInsanityCosmetic(before) == abyssActiveInsanityCosmetic(before.AddDate(0, 0, 1)) {
-		t.Error("Insanity cosmetic rotation did not advance on the next UTC day")
+	friday := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	if abyssWeeklyInsanityCosmetic(friday) != abyssWeeklyInsanityCosmetic(friday.AddDate(0, 0, 2)) {
+		t.Error("Insanity cosmetic rotation changed within one ISO week")
+	}
+	if abyssWeeklyInsanityCosmetic(friday) == abyssWeeklyInsanityCosmetic(friday.AddDate(0, 0, 3)) {
+		t.Error("Insanity cosmetic rotation did not advance at the next ISO week")
+	}
+	if reset := abyssWeeklyCosmeticReset(friday); !reset.Equal(time.Date(2026, 8, 24, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("weekly cosmetic reset = %v, want Monday 00:00 UTC", reset)
 	}
 	for _, test := range []struct {
 		yesterday, twoDays, available bool
@@ -156,6 +163,7 @@ func TestAbyssEconomyPlayerControlsAndRoutes(t *testing.T) {
 		"Cheapest active Legendary", "Insanity", "seller receives the exact buy-now price", "Attuned items are soulbound",
 		"Most Taxed This Season", "Relist all expired", "Daily scratch card", "Gold → token bundle",
 		"role=\"tablist\" aria-label=\"Token Shop category\"", "role=\"tablist\" aria-label=\"Auction history\"",
+		"Weekly cosmetic", "refreshes {{.RotationEnds}}",
 		"Redemption fee 0g / 0 tokens", "winning bid is the exact total", "Cancellation fee 0g",
 	} {
 		if !strings.Contains(combined, required) {

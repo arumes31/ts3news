@@ -1,6 +1,26 @@
 const { test, expect } = require('@playwright/test');
 const { fulfillAbyssAPI } = require('./helpers/abyss');
 
+test('weekly cosmetic stock is focused, dated, and accessible from the Shop tab', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.goto('/abyss');
+
+  const shopTab = page.locator('#abyss-tab-shop');
+  await shopTab.click();
+  await expect(shopTab).toHaveAttribute('aria-selected', 'true');
+  const cosmeticTab = page.getByRole('tab', { name: 'Weekly cosmetic' });
+  await cosmeticTab.click();
+  await expect(cosmeticTab).toHaveAttribute('aria-selected', 'true');
+
+  const weeklyStock = page.locator('#abyssTokenShop [data-shop-category="insanity"]:visible');
+  await expect(weeklyStock).toHaveCount(1);
+  await expect(weeklyStock).toContainText(/\d{4}-W\d{2}/);
+  await expect(weeklyStock).toContainText(/refreshes \d{4}-\d{2}-\d{2} 00:00 UTC/);
+  await expect(page.locator('#abyssTokenShop [data-shop-category="supplies"]:visible')).toHaveCount(0);
+  expect(pageErrors).toEqual([]);
+});
+
 test('enter sends the selected run setup', async ({ page }) => {
   let enteredBody = null;
   await fulfillAbyssAPI(page, (path, body) => {

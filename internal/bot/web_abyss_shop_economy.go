@@ -29,6 +29,8 @@ type abyssShopItemView struct {
 	HappyAccident bool
 	Insanity      bool
 	Owned         bool
+	RotationWeek  string
+	RotationEnds  string
 }
 
 func abyssEconomyDayIndex(now time.Time) int {
@@ -67,8 +69,25 @@ func abyssScratchReward(roll float64) int {
 	}
 }
 
-func abyssActiveInsanityCosmetic(now time.Time) string {
-	return abyssInsanityCosmeticKeys[abyssEconomyDayIndex(now)%len(abyssInsanityCosmeticKeys)]
+func abyssWeeklyInsanityCosmetic(now time.Time) string {
+	utc := now.UTC()
+	daysSinceMonday := (int(utc.Weekday()) + 6) % 7
+	monday := time.Date(utc.Year(), utc.Month(), utc.Day()-daysSinceMonday, 0, 0, 0, 0, time.UTC)
+	weekIndex := monday.Unix() / int64((7*24*time.Hour)/time.Second)
+	index := int(weekIndex % int64(len(abyssInsanityCosmeticKeys)))
+	if index < 0 {
+		index += len(abyssInsanityCosmeticKeys)
+	}
+	return abyssInsanityCosmeticKeys[index]
+}
+
+func abyssWeeklyCosmeticReset(now time.Time) time.Time {
+	utc := now.UTC()
+	daysUntilMonday := (8 - int(utc.Weekday())) % 7
+	if daysUntilMonday == 0 {
+		daysUntilMonday = 7
+	}
+	return time.Date(utc.Year(), utc.Month(), utc.Day()+daysUntilMonday, 0, 0, 0, 0, time.UTC)
 }
 
 func abyssShopEffectiveCost(item abyssShopItem, now time.Time) (int64, bool) {
@@ -93,7 +112,9 @@ func abyssShopEffectiveCost(item abyssShopItem, now time.Time) (int64, bool) {
 
 func (b *Bot) abyssShopViewsWithOwned(uid string, now time.Time, ownedCosmetics map[string]bool) []abyssShopItemView {
 	b.maybeDeliverAbyssPotionSubscription(uid, now)
-	activeCosmetic := abyssActiveInsanityCosmetic(now)
+	activeCosmetic := abyssWeeklyInsanityCosmetic(now)
+	rotationWeek := abyssEconomyWeek(now)
+	rotationEnds := abyssWeeklyCosmeticReset(now).Format("2006-01-02 15:04 UTC")
 	out := make([]abyssShopItemView, 0, len(abyssShopCatalog))
 	for _, item := range abyssShopCatalog {
 		insanity := strings.HasPrefix(item.Key, "insanity_")
@@ -104,6 +125,7 @@ func (b *Bot) abyssShopViewsWithOwned(uid string, now time.Time, ownedCosmetics 
 		out = append(out, abyssShopItemView{
 			abyssShopItem: item, EffectiveCost: cost, DiscountPct: map[bool]int{true: 40}[deal],
 			HappyAccident: deal, Insanity: insanity, Owned: ownedCosmetics[item.Key],
+			RotationWeek: rotationWeek, RotationEnds: rotationEnds,
 		})
 	}
 	return out

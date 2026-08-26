@@ -655,14 +655,14 @@
     <p class="muted small">Spend Abyss Tokens on consumables, gear and relics. Prices show the exact charged amount; there is no hidden shop fee.</p>
     <div class="ab-shop-tabs" role="tablist" aria-label="Token Shop category">
       <button class="ghost xs active" role="tab" aria-selected="true" onclick="abyssShopCategory('supplies',this)">Supplies</button>
-      <button class="ghost xs" role="tab" aria-selected="false" onclick="abyssShopCategory('insanity',this)">🌀 Insanity cosmetic</button>
+      <button class="ghost xs" role="tab" aria-selected="false" onclick="abyssShopCategory('insanity',this)">🌀 Weekly cosmetic</button>
     </div>
     <div class="ab-shop">
       {{range .Shop}}
       <div class="ab-shop-item{{if .HappyAccident}} ab-shop-deal{{end}}{{if .Insanity}} ab-shop-insanity{{end}}" data-shop-category="{{if .Insanity}}insanity{{else}}supplies{{end}}" {{if .Insanity}}hidden{{end}}>
         <div>
           <b>{{if .HappyAccident}}🎉 {{end}}{{if .Insanity}}🌀 {{end}}{{.Name}}</b>{{if .Owned}} <span class="ab-up-lv">owned</span>{{end}}
-          <div class="muted small">{{.Desc}}</div>
+          <div class="muted small">{{.Desc}}{{if .Insanity}} · {{.RotationWeek}} · refreshes {{.RotationEnds}}{{end}}</div>
         </div>
         <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', this)" title="{{if .Owned}}Re-equip this permanent cosmetic at no charge{{else}}Item {{if .CostGold}}{{.CostGold}} gold{{else}}{{.EffectiveCost}} tokens{{end}} · fee 0{{end}}">{{if .Owned}}Equip · free{{else if .CostGold}}🪙 {{gold .CostGold}}{{else}}🜲 {{.EffectiveCost}}{{if .HappyAccident}} <s>{{.Cost}}</s> −40%{{end}}{{end}}</button>
       </div>
