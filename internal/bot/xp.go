@@ -144,6 +144,8 @@ type activeUser struct {
 	defRuneLogged     bool                  // AB-84 one-time defensive-rune resist log
 	petNervousLogged  map[*content.Mob]bool // AB-73 low-loyalty foreshadowing, once per pet per fight
 	defendingRound    int                   // live combat: DEF boost remains through one enemy phase
+	shield            int                   // Abyss opening Aegis remaining before HP damage
+	maxShield         int                   // immutable opening Aegis capacity for presentation
 	potionCooldown    int                   // shared cooldown for powerful live consumables
 	relicCharges      int                   // run-bound active relic uses remaining
 }
@@ -657,6 +659,9 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 			activeUsers[i].holdMana = b.abyssHoldMana(users[i].UID)
 			activeUsers[i].petFocus = b.abyssPetFocus(users[i].UID)
 			activeUsers[i].relicCharges = int(b.loadRunFlags(users[i].UID)[abyssRunFlagRelicCharges])
+			if shieldLog := initializeAbyssShield(&activeUsers[i]); shieldLog != "" {
+				logs = append(logs, shieldLog)
+			}
 		}
 	}
 	totalRounds := 0
@@ -2573,7 +2578,15 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			dmg = dmg * 7 / 10
 		}
 
-		target.DamageTaken += max(dmg, 0)
+		impactDamage := max(dmg, 0)
+		dmg, absorbed := absorbAbyssShield(targetAU, impactDamage)
+		if absorbed > 0 {
+			if track != nil {
+				track.shields += absorbed
+			}
+			*logs = append(*logs, abyssShieldAbsorbLog(target.Nickname, absorbed, targetAU.shield))
+		}
+		target.DamageTaken += dmg
 		target.CurrentHP -= dmg
 		*totalMobDamage += dmg
 
@@ -2598,10 +2611,10 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			hasSpikes = true
 		}
 		for _, eff := range targetAU.effects {
-			if eff == content.EffectThorns && dmg > 0 {
-				reflect := dmg / 10
+			if eff == content.EffectThorns && impactDamage > 0 {
+				reflect := impactDamage / 10
 				if hasSpikes {
-					reflect = dmg * 3 / 10 // Thorns boosted to 30% with Spikes/shield!
+					reflect = impactDamage * 3 / 10 // Thorns boosted to 30% with Spikes/shield!
 				}
 				if reflect < 1 {
 					reflect = 1

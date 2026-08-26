@@ -234,10 +234,11 @@ function renderLiveTargets(hostID, combatants, hostile){
     }).join('');
     var breakBar=unit.max_break?'<span class="ab-break" title="'+consEsc(unit.pattern||'Break this enemy to cancel its next action')+'"><b style="width:'+livePct(unit.break,unit.max_break)+'%"></b><i>BREAK '+fmtNum(unit.break)+' / '+fmtNum(unit.max_break)+'</i></span>':'';
     var dotActive=(unit.effects||[]).some(function(effect){return /poison|bleed|burn|damage over time/i.test(effect.name||'');});
+    var shieldBar=hostile?'':liveShieldBar(unit,'combatant');
     var hpBar=hpHidden?'<span class="ab-combatant-hp concealed"><b></b></span>':'<span class="ab-combatant-hp'+(hostile?' execute-track':'')+(dotActive?' dot-active':'')+'"><b style="width:'+livePct(unit.hp,unit.max_hp)+'%"></b></span>';
-    var hpText=hpHidden?'HP CONCEALED':fmtNum(unit.hp)+' / '+fmtNum(unit.max_hp)+(executeReady?' · EXECUTE':'');
+    var hpText=hpHidden?'HP CONCEALED':fmtNum(unit.hp)+' / '+fmtNum(unit.max_hp)+(unit.max_shield?' · 🛡 '+fmtNum(unit.shield):'')+(executeReady?' · EXECUTE':'');
     button.innerHTML='<span class="ab-combatant-name">'+(unit.revenge?'◎ ':'')+consEsc(unit.name)+(unit.ready?' <i>READY</i>':'')+'</span>'+
-      hpBar+
+      shieldBar+hpBar+
       '<span class="ab-combatant-stat">'+hpText+(unit.max_mana?' · 🔵 '+fmtNum(unit.mana):'')+'</span>'+
       (traits.length?'<span class="ab-combatant-traits">'+traits.map(consEsc).join(' · ')+'</span>':'')+
       (unit.pattern?'<span class="ab-enemy-pattern">'+consEsc(unit.pattern)+'</span>':'')+

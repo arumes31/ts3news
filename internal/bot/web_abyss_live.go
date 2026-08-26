@@ -71,6 +71,8 @@ type abyssLiveCombatantView struct {
 	HP         int                  `json:"hp"`
 	MaxHP      int                  `json:"max_hp"`
 	HPHidden   bool                 `json:"hp_hidden,omitempty"`
+	Shield     int                  `json:"shield,omitempty"`
+	MaxShield  int                  `json:"max_shield,omitempty"`
 	Mana       int                  `json:"mana,omitempty"`
 	MaxMana    int                  `json:"max_mana,omitempty"`
 	Ready      bool                 `json:"ready,omitempty"`
@@ -364,20 +366,22 @@ func (c *abyssLiveCombat) publishRound(
 			critical = true
 		}
 		allies = append(allies, abyssLiveCombatantView{
-			ID:       "ally:" + au.u.UID,
-			Name:     au.u.Nickname,
-			HP:       max(0, au.u.CurrentHP),
-			MaxHP:    max(1, au.u.Stats.HP),
-			Mana:     max(0, au.CurrentMana),
-			MaxMana:  max(0, au.MaxMana),
-			Ready:    false,
-			IsPlayer: true,
-			Element:  string(liveUserElement(au.u)),
-			Position: string(au.u.Position),
-			Speed:    au.u.Stats.SPD,
-			Threat:   liveThreat(au.u),
-			Role:     c.social.preferences[au.u.UID].Role,
-			Effects:  liveAllyEffects(au),
+			ID:        "ally:" + au.u.UID,
+			Name:      au.u.Nickname,
+			HP:        max(0, au.u.CurrentHP),
+			MaxHP:     max(1, au.u.Stats.HP),
+			Shield:    max(0, au.shield),
+			MaxShield: max(0, au.maxShield),
+			Mana:      max(0, au.CurrentMana),
+			MaxMana:   max(0, au.MaxMana),
+			Ready:     false,
+			IsPlayer:  true,
+			Element:   string(liveUserElement(au.u)),
+			Position:  string(au.u.Position),
+			Speed:     au.u.Stats.SPD,
+			Threat:    liveThreat(au.u),
+			Role:      c.social.preferences[au.u.UID].Role,
+			Effects:   liveAllyEffects(au),
 		})
 		for petIndex, pet := range au.u.Pets {
 			if pet == nil || pet.Stats.HP <= 0 {

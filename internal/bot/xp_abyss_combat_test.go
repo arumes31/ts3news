@@ -15,9 +15,9 @@ func TestAppendAbyssFightBreakdown(t *testing.T) {
 		t.Fatalf("non-Abyss breakdown added %d lines, want none", len(got)-1)
 	}
 
-	got := appendAbyssFightBreakdown(base, &abyssFightTrack{thorns: 125, counters: 80})
+	got := appendAbyssFightBreakdown(base, &abyssFightTrack{thorns: 125, counters: 80, shields: 240})
 	joined := strings.Join(got, "\n")
-	for _, want := range []string{"Thorns reflected: 125 damage", "Parry counter-attacks: 80 damage"} {
+	for _, want := range []string{"Thorns reflected: 125 damage", "Parry counter-attacks: 80 damage", "Aegis absorbed: 240 damage"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("breakdown %q does not contain %q", joined, want)
 		}
@@ -90,8 +90,8 @@ func TestAbyssTerminalOverkillRequiresClearedWave(t *testing.T) {
 	}
 
 	summoner := &content.Mob{
-		Name: "Brood host",
-		Stats: content.Stats{HP: -40},
+		Name:        "Brood host",
+		Stats:       content.Stats{HP: -40},
 		DeathEffect: &content.MobDeathEffect{Type: content.DeathSummon},
 	}
 	if got := abyssTerminalOverkillDamage([]*content.Mob{summoner}, summoner, 140, 100); got != 0 {

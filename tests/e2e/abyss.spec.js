@@ -704,6 +704,9 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
     }
     return { ok: false, error: 'unexpected e2e request' };
   });
+  const shieldStyles = await page.request.get('/static/abyss_shield.css');
+  expect(shieldStyles.status()).toBe(200);
+  expect(await shieldStyles.text()).toContain('.ab-overhead-shield');
   await page.goto('/abyss?active=1');
   await page.evaluate(() => {
     window.reduceMotion = true;
@@ -716,7 +719,7 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
     window.renderLiveCombat({
       ok: true, session_id: 'e2e-live', phase: 'planning', round: 1,
       deadline: new Date(Date.now() + 60000).toISOString(), tactic: 'balanced',
-      policy: {}, allies: [{ id: 'ally:e2e', name: 'Tester', hp: 900, max_hp: 1000, mana: 100, max_mana: 100, is_self: true, is_player: true }],
+      policy: {}, allies: [{ id: 'ally:e2e', name: 'Tester', hp: 900, max_hp: 1000, shield: 150, max_shield: 200, mana: 100, max_mana: 100, is_self: true, is_player: true }],
       enemies, options: [
         { kind: 'attack', id: '', name: 'Basic Attack', target: 'enemy', cooldown: 0 },
         { kind: 'skill', id: 'S_E2E_A', name: 'Fiery Blast', target: 'enemy', mana: 5, cooldown: 0 },
@@ -735,6 +738,13 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   });
   const ordinary = page.locator('#livePixelEnemies [data-target="enemy:5"]');
   await expect(ordinary).toBeVisible();
+  const tacticalShield = page.locator('#liveAllies [data-target="ally:e2e"] .ab-combatant-shield');
+  const pixelAlly = page.locator('#livePixelAllies [data-target="ally:e2e"]');
+  await expect(tacticalShield).toContainText('150 / 200');
+  await expect(tacticalShield).toHaveClass(/active/);
+  await expect(pixelAlly).toHaveClass(/shielded/);
+  await expect(pixelAlly.locator('.ab-overhead-shield')).toContainText('150 / 200');
+  await expect(pixelAlly).toHaveAttribute('aria-label', /150 of 200 shield/);
   const closedThreshold = page.locator('#liveEnemies [data-target="enemy:4"]');
   const openThreshold = page.locator('#liveEnemies [data-target="enemy:5"]');
   const concealedThreshold = page.locator('#liveEnemies [data-target="enemy:6"]');
@@ -788,6 +798,17 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   });
   await page.locator('#liveActionBar .kind-attack').click();
   await expect.poll(() => submittedTarget).toBe('enemy:5');
+  await page.evaluate(() => {
+    const next = structuredClone(window.liveCombatState);
+    next.version = Number(next.version || 0) + 1;
+    delete next.allies[0].shield;
+    next.recent_logs = ['🛡️ AEGIS · Tester absorbs 150 damage — barrier broken.'];
+    window.renderLiveCombat(next);
+  });
+  await expect(tacticalShield).toHaveClass(/broken/);
+  await expect(tacticalShield).toContainText('BROKEN');
+  await expect(pixelAlly).toHaveClass(/shield-break/);
+  await expect(pixelAlly.locator('.ab-pixel-float.shield')).toContainText('🛡 -150');
 });
 
 test('live combat exposes and enforces the remaining action-change budget', async ({ page }) => {
