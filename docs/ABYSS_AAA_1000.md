@@ -204,8 +204,13 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0159 / 159** — the talent interface is a connected, keyboard-accessible branched tree rather than a flat upgrade list.
 - [x] **AAA-0160 / 160** — expansion talent nodes enforce authoritative best-depth milestones and expose the same gates to the talent tree (`web_abyss_econ.go`, `web_abyss_tree.go`, `web_abyss_progression_evidence_test.go`).
 - [x] **AAA-0161 / 161** — Delver, Plunderer, and Warden are mutually exclusive specializations with distinct live bonuses.
+- [x] **AAA-0162 / 162** — each cleared Weekly Expedition floor grants ten ISO-week-scoped talent XP; every hundred XP becomes one visible skill-web point, with a five-point weekly cap (`web_abyss_progression_rewards.go`, `web_abyss_progression.go`, `abysstree_progression.html`, `web_abyss_progression_rewards_test.go`).
 - [x] **AAA-0163 / 163** — prestige grants a dedicated Paragon point budget spendable only on post-prestige nodes.
+- [x] **AAA-0164 / 164** — each recorded Abyss achievement grants one skill-web point up to a disclosed fifty-point cap (`web_abyss_progression_rewards.go`, `web_abyss_tree.go`, `web_abyss_progression_rewards_test.go`).
+- [x] **AAA-0165 / 165** — Normal, Nightmare, Hell, and Insanity expose authoritative hundred-floor mastery bars, each awarding five skill-web points exactly once through immutable completed-run history (`web_abyss_progression_rewards.go`, `abysstree_progression.html`, `web_abyss_progression_rewards_test.go`, `abyss-tree-atlas.spec.js`).
 - [x] **AAA-0168 / 168** — accumulated boss-family kills buy bounded +1% damage mastery ranks against chosen bestiary families.
+- [x] **AAA-0171 / 171** — a quarterly rotating highlighted discipline grants a temporary five-percent material-yield talent after five allocated sector nodes and automatically changes without rewriting allocations (`web_abyss_tree_batch.go`, `web_abyss_tree.go`, `abysstree.html`, `web_abyss_progression_test.go`).
+- [x] **AAA-0172 / 172** — the first ten authoritative lifetime floor clears receive a logged +100% floor-XP boost, which stops immediately at the tenth persisted clear (`web_abyss.go`, `web_abyss_progression_rewards.go`, `web_abyss_progression_rewards_test.go`).
 - [x] **AAA-0173 / 173** — returning after fourteen days seeds exactly ten authoritative +25% XP and +10% cache catch-up charges.
 - [x] **AAA-0175 / 175** — the post-prestige Paragon board grants bounded +0.1% ranks across seven permanent effects.
 

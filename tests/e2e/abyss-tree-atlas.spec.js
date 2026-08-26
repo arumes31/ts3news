@@ -20,6 +20,10 @@ test('every live Skill Web node uses its unique discipline atlas icon', async ({
   });
   await expect(page.locator('#treeTip')).toContainText('Level 6/10');
   await expect(page.locator('#treeTip')).toContainText('Soft cap active');
+  await expect(page.locator('#treePointSources')).toContainText('Achievement talent points');
+  await expect(page.locator('#treePointSources')).toContainText('Weekly challenge talent XP');
+  await expect(page.locator('#treePointSources')).toContainText('Normal tier mastery');
+  await expect(page.locator('#treeSeason')).toContainText('this season');
 
   const nodeCount = await page.evaluate(() => NODES.length);
   expect(nodeCount).toBeGreaterThan(5000);

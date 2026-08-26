@@ -1269,6 +1269,10 @@ func (b *Bot) fightAbyssFloorMode(
 		if v := treePct["xp_gain"]; v > 0 {
 			rewardXP = int(float64(rewardXP) * (1 + v))
 		}
+		if newcomerPct := abyssNewPlayerXPPercent(st.LifetimeFloors); newcomerPct > 0 {
+			rewardXP = rewardXP * (100 + newcomerPct) / 100
+			logs = append(logs, fmt.Sprintf("[color=#6ce5b2]🌱 First Descent: +%d%% floor XP for the first 10 lifetime clears.[/color]", newcomerPct))
+		}
 		if progressPct := abyssProgressionXPPercent(flags); progressPct > 0 {
 			rewardXP = rewardXP * (100 + progressPct) / 100
 			logs = append(logs, fmt.Sprintf("[color=#41c97a]🌙 Progression reserve: +%d%% floor XP.[/color]", progressPct))
@@ -5761,10 +5765,17 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 			if v := s.bot.treeBonusFor(uid).Pct["xp_gain"]; v > 0 {
 				xpGain = int(float64(xpGain) * (1 + v))
 			}
+			newcomerPct := abyssNewPlayerXPPercent(st.LifetimeFloors)
+			if newcomerPct > 0 {
+				xpGain = xpGain * (100 + newcomerPct) / 100
+			}
 			if lr, _ := s.bot.awardXP(uid, "", xpGain); lr != nil && lr.NewLevel >= PrestigeThreshold {
 				s.bot.doPrestige(uid)
 			}
 			focusReward = fmt.Sprintf("✨ +%d XP", xpGain)
+			if newcomerPct > 0 {
+				focusReward += fmt.Sprintf(" · First Descent +%d%%", newcomerPct)
+			}
 		case "materials":
 			bonus = 0
 			mat, n := "shard", 2+rand.IntN(3) // #nosec G404 -- non-cryptographic reward roll

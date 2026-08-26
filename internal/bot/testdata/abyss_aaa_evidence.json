@@ -1771,5 +1771,24 @@
       "internal/content/abyss_talents_test.go",
       "tests/e2e/abyss-tree-atlas.spec.js"
     ]
+  },
+  {
+    "ids": [162, 164, 165, 171, 172],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_progression.go",
+      "internal/bot/web_abyss_progression_rewards.go",
+      "internal/bot/web_abyss_tree.go",
+      "internal/bot/web_abyss_tree_batch.go",
+      "internal/bot/web_abyss_tree_progression.go",
+      "internal/bot/webassets/abysstree.html",
+      "internal/bot/webassets/abysstree_progression.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_progression_rewards_test.go",
+      "internal/bot/web_abyss_progression_test.go",
+      "internal/bot/web_abyss_tree_progression_test.go",
+      "tests/e2e/abyss-tree-atlas.spec.js"
+    ]
   }
 ]

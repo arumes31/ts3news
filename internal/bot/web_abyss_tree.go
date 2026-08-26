@@ -168,7 +168,7 @@ func (b *Bot) treePointsTotal(uid string) int {
 	if pts > 1000 {
 		pts = 1000 // base skill-web cap
 	}
-	return pts + b.deepDelverPointBonus(uid)
+	return pts + b.deepDelverPointBonus(uid) + b.abyssProgressionPointRewards(uid, time.Now()).Points
 }
 
 // deepDelverPointBonus scales linearly from 0 to 500 with how much of the Deep-Delver

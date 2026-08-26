@@ -15,6 +15,9 @@ func registerAbyssTreeE2EFixture(mux *http.ServeMux, server *WebServer) {
 	edges := abyssTreeE2EEdges(tree)
 	mux.HandleFunc("/abyss/tree", func(w http.ResponseWriter, _ *http.Request) {
 		progression := buildAbyssTreeProgression(tree, nil, 100, 50, 0, 500, 0)
+		rewards := buildAbyssProgressionPointRewards(4, 150, map[string]int64{"normal": 64})
+		progression.PointSources = append(progression.PointSources, rewards.Sources...)
+		progression.TotalPoints += rewards.Points
 		fixture := map[string]any{
 			"Title": "Abyss Skill Web", "Nav": "abyss", "U": abyssGoldenFixture(false)["U"],
 			"Nodes": tree.Nodes, "Edges": edges, "Catalog": tree.CatalogSummary(),
