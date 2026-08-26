@@ -174,6 +174,8 @@ func ValidateAbyssTree(tree *AbyssTreeData) error {
 	}
 	errs := []error{}
 	seen := make(map[int]bool, len(tree.Nodes))
+	seenArt := make(map[string]int, len(tree.Nodes))
+	artCounts := [treeSectors]int{}
 	for i := range tree.Nodes {
 		node := &tree.Nodes[i]
 		switch {
@@ -195,6 +197,21 @@ func ValidateAbyssTree(tree *AbyssTreeData) error {
 		}
 		if node.Sector < 0 || node.Sector >= treeSectors || node.Ring < 0 || node.Slot < 0 || node.Slot >= treeSlots {
 			errs = append(errs, fmt.Errorf("node %d has invalid position metadata", node.ID))
+		} else {
+			if node.ArtSheet != AbyssTreeArtSheets[node.Sector] {
+				errs = append(errs, fmt.Errorf("node %d has invalid art sheet %q", node.ID, node.ArtSheet))
+			}
+			if node.ArtCell != artCounts[node.Sector] || node.ArtCell < 0 || node.ArtCell >= AbyssTreeArtCapacity {
+				errs = append(errs, fmt.Errorf("node %d has invalid art cell %d", node.ID, node.ArtCell))
+			}
+			artCounts[node.Sector]++
+		}
+		if node.ArtSignature == "" {
+			errs = append(errs, fmt.Errorf("node %d has no art signature", node.ID))
+		} else if previous, duplicate := seenArt[node.ArtSignature]; duplicate {
+			errs = append(errs, fmt.Errorf("nodes %d and %d share art signature %q", previous, node.ID, node.ArtSignature))
+		} else {
+			seenArt[node.ArtSignature] = node.ID
 		}
 		if math.IsNaN(node.X) || math.IsInf(node.X, 0) || math.IsNaN(node.Y) || math.IsInf(node.Y, 0) {
 			errs = append(errs, fmt.Errorf("node %d has non-finite coordinates", node.ID))

@@ -3,6 +3,10 @@
   top: 2.8rem;
   z-index: 35;
 }
+.abyss-command-page .ab-tab:focus-visible {
+  outline: 2px solid #f0c45f;
+  outline-offset: 2px;
+}
 .ab-library-tools {
   align-items: center;
   backdrop-filter: blur(12px);
@@ -54,7 +58,21 @@ body.ab-compact .abyss-command-page .ab-tabs { margin-top: .5rem; padding: 3px; 
 body.ab-compact .abyss-command-page .ab-tab { min-height: 32px; }
 .ab-shortcut-flash { outline: 2px solid #d7a93b !important; outline-offset: 3px; }
 @media (max-width: 900px) {
-  .abyss-command-page .ab-tabs { top: 2.55rem; }
+  .abyss-command-page .ab-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-padding-inline: .35rem;
+    scroll-snap-type: x proximity;
+    scrollbar-color: #49606d #091118;
+    scrollbar-width: thin;
+    top: 2.55rem;
+  }
+  .abyss-command-page .ab-tab {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    white-space: nowrap;
+  }
   .ab-library-tools { top: 6.5rem; }
   .abyss-stage-row.ab-loot-first .abyss-side-right { order: 2; }
   .abyss-stage-row.ab-loot-first .abyss-side-left { order: 3; }
@@ -67,6 +85,7 @@ body.ab-compact .abyss-command-page .ab-tab { min-height: 32px; }
   .ab-shortcut-flash { transition: none; }
 }
 @media (forced-colors: active) {
+  .abyss-command-page .ab-tab:focus-visible,
   .ab-library-tools,
   .ab-overflow,
   .ab-shortcut-help span { border: 1px solid CanvasText; }

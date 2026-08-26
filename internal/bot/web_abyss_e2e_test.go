@@ -129,6 +129,10 @@ func TestAbyssE2EServer(t *testing.T) {
 			},
 		}
 		fixture["InsuranceCharms"] = 2
+		fixture["Social"] = abyssSocialHubView{
+			WeeklyBoss:  abyssWeeklyBossView{Name: "The Fixture Colossus", HP: 750_000, MaxHP: 1_000_000, Percent: 75, Multiplier: 1},
+			PetFeedCost: 250,
+		}
 		wishlistMu.Lock()
 		fixture["Wishlist"] = abyssWishlistViewFor(wishlistState, "")
 		wishlistMu.Unlock()
@@ -178,6 +182,7 @@ func TestAbyssE2EServer(t *testing.T) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
+	registerAbyssTreeE2EFixture(mux, server)
 	mux.HandleFunc("/abyss/ops", func(w http.ResponseWriter, _ *http.Request) {
 		if err := server.tmpl.ExecuteTemplate(w, "abyssOps", map[string]any{"Title": "Abyss Operations", "Nav": "ops"}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -21,6 +21,21 @@
   color: #ffffff;
   opacity: 1;
 }
+.tn-pixel-icon {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  opacity: .42;
+  filter: saturate(.62) brightness(.76);
+}
+.tn-pixel-icon.can {
+  opacity: .82;
+  filter: saturate(.9) brightness(1.08) drop-shadow(0 0 2px currentColor);
+}
+.tn-pixel-icon.on,
+.tn-pixel-icon.hit {
+  opacity: 1;
+  filter: saturate(1.18) brightness(1.2) drop-shadow(0 0 3px currentColor);
+}
 
 /* Animated edge flows */
 @keyframes flowPulse {
@@ -505,6 +520,23 @@ var TREE_CATALOG = {{jsonJS .Catalog}};
 var TREE_EFFECTS = {{jsonJS .TreeEffects}};
 var TREE_SKILLS = {{jsonJS .SkillDetails}};
 var TREE_PROGRESSION = {{jsonJS .Progression}};
+var TREE_ATLAS_CELL_SIZE = 16, TREE_ATLAS_COLUMNS = 32, TREE_ATLAS_SIZE = 512;
+var TREE_ATLAS_URLS = {
+  tree_war: '{{asset "/static/abyss_atlas_tree_war.png"}}',
+  tree_vitality: '{{asset "/static/abyss_atlas_tree_vitality.png"}}',
+  tree_shadow: '{{asset "/static/abyss_atlas_tree_shadow.png"}}',
+  tree_arcane: '{{asset "/static/abyss_atlas_tree_arcane.png"}}',
+  tree_fortune: '{{asset "/static/abyss_atlas_tree_fortune.png"}}',
+  tree_void: '{{asset "/static/abyss_atlas_tree_void.png"}}'
+};
+var treeAtlasImages = {};
+Object.keys(TREE_ATLAS_URLS).forEach(function(sheet){
+  var atlas = new Image();
+  atlas.decoding = 'async';
+  atlas.onload = queueTreeCanvasDraw;
+  atlas.src = TREE_ATLAS_URLS[sheet];
+  treeAtlasImages[sheet] = atlas;
+});
 // Only the real cross-sector portal edges get the distinct animated style; every
 // other long edge is a plain skill path. Keyed "min-max" for O(1) lookup.
 var PORTAL_SET = {};
@@ -798,6 +830,34 @@ function applyView(){
   queueTreeCanvasDraw();
 }
 
+function loadPassiveNodeIcon(g, node, size) {
+  var url = TREE_ATLAS_URLS[node.art_sheet];
+  if (!url || node.art_cell < 0) return;
+  var cellX = (node.art_cell % TREE_ATLAS_COLUMNS) * TREE_ATLAS_CELL_SIZE;
+  var cellY = Math.floor(node.art_cell / TREE_ATLAS_COLUMNS) * TREE_ATLAS_CELL_SIZE;
+  var icon = document.createElementNS(NS, 'svg');
+  icon.setAttribute('class', 'tn-icon tn-pixel-icon');
+  icon.setAttribute('x', node.x-size/2);
+  icon.setAttribute('y', node.y-size/2);
+  icon.setAttribute('width', size);
+  icon.setAttribute('height', size);
+  icon.setAttribute('viewBox', cellX+' '+cellY+' '+TREE_ATLAS_CELL_SIZE+' '+TREE_ATLAS_CELL_SIZE);
+  icon.setAttribute('overflow', 'hidden');
+  icon.setAttribute('data-art-sheet', node.art_sheet);
+  icon.setAttribute('data-art-cell', node.art_cell);
+  icon.setAttribute('data-art-signature', node.art_signature);
+  var image = document.createElementNS(NS, 'image');
+  image.setAttribute('href', url);
+  image.setAttribute('width', TREE_ATLAS_SIZE);
+  image.setAttribute('height', TREE_ATLAS_SIZE);
+  image.setAttribute('preserveAspectRatio', 'none');
+  image.style.imageRendering = 'pixelated';
+  icon.appendChild(image);
+  g.appendChild(icon);
+  iconEls[node.id] = icon;
+  paintDecor(node.id);
+}
+
 function queueTreeCanvasDraw(){
   if (!canvasModeOn || canvasDrawPending) return;
   canvasDrawPending = true;
@@ -841,6 +901,16 @@ function drawTreeCanvas(){
     ctx.strokeStyle=n.id===NODE_OF_DAY?'#ffd85b':on?'#fff0a8':can?'#5bc0ff':'#52607c';
     ctx.lineWidth=on||can?1.7:1;
     ctx.beginPath(); ctx.arc(p.x,p.y,radius,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    var atlas=treeAtlasImages[n.art_sheet];
+    if(atlas&&atlas.complete&&atlas.naturalWidth){
+      var cellX=(n.art_cell%TREE_ATLAS_COLUMNS)*TREE_ATLAS_CELL_SIZE;
+      var cellY=Math.floor(n.art_cell/TREE_ATLAS_COLUMNS)*TREE_ATLAS_CELL_SIZE;
+      var iconSize=Math.max(7,radius*2.4);
+      ctx.globalAlpha=on?1:(can ? 0.82 : 0.46);
+      ctx.imageSmoothingEnabled=false;
+      ctx.drawImage(atlas,cellX,cellY,TREE_ATLAS_CELL_SIZE,TREE_ATLAS_CELL_SIZE,p.x-iconSize/2,p.y-iconSize/2,iconSize,iconSize);
+      ctx.globalAlpha=1;
+    }
   });
 }
 
@@ -956,7 +1026,8 @@ function paintDecor(id){
   var st = alloc[id] ? ' on' : (isAllocatable(id) ? ' can' : '');
   if(iconEls[id]){
     var keep = iconEls[id].classList.contains('dim') ? ' dim' : iconEls[id].classList.contains('hit') ? ' hit' : '';
-    iconEls[id].setAttribute('class', 'tn-icon' + st + keep);
+    var pixel = iconEls[id].classList.contains('tn-pixel-icon') ? ' tn-pixel-icon' : '';
+    iconEls[id].setAttribute('class', 'tn-icon' + pixel + st + keep);
   }
   if(swirlEls[id]) swirlEls[id].setAttribute('class', 'portal-swirl' + st);
 }
@@ -1200,11 +1271,8 @@ function build(){
       gN.appendChild(c);
       nodeEls[n.id] = c;
 
-      var iconName = getNodeIcon(n);
-      if (iconName) {
-        var iconSize = n.type==='aura' ? 20 : n.type==='keystone' ? 16 : n.type==='notable'||n.type==='bridge'||n.type==='socket' ? 12 : 8;
-        loadNodeIcon(gN, iconName, iconSize, n.x, n.y, n.id);
-      }
+      var iconSize = n.type==='aura' ? 20 : n.type==='keystone' ? 16 : n.type==='notable'||n.type==='bridge'||n.type==='socket' ? 12 : 8;
+      loadPassiveNodeIcon(gN, n, iconSize);
     });
     svg.appendChild(gN);
     renderKeystoneTimer();

@@ -22,6 +22,8 @@ func TestAbyssNavigationContracts(t *testing.T) {
 		"{key:'shop',label:'🜲 Shop'}",
 		"{key:'forge',label:'⚒️ Forge'}",
 		"panel.hidden=candidate.key!==group.key",
+		"function revealTab(button)",
+		"scrollTo({left:Math.max(0,left)",
 		"function activateDeepLink",
 		"forge:'#abyssForgePanel'",
 		"workshop:'#abyssWorkshop'",
@@ -87,6 +89,9 @@ func TestAbyssNavigationAssetsAndIntegration(t *testing.T) {
 		".ab-shortcut-help",
 		"@media (prefers-reduced-motion: reduce)",
 		"@media (forced-colors: active)",
+		"scroll-snap-type: x proximity",
+		"overscroll-behavior-x: contain",
+		"flex-wrap: nowrap",
 	} {
 		if !strings.Contains(string(css), required) {
 			t.Errorf("navigation CSS is missing %q", required)

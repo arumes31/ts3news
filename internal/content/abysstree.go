@@ -1,9 +1,9 @@
 package content
 
-// The Abyss Skill Web: a Path-of-Exile-style passive tree with exactly 1000
+// The Abyss Skill Web is a Path-of-Exile-style passive tree with thousands of
 // allocatable nodes arranged as a radial web around a free root. Six archetype
 // sectors (War, Vitality, Shadow, Arcane, Fortune, Void) each span six angular
-// lanes across 27 rings; sparse lateral links inside every ring and bridge
+// lanes across 137 rings; sparse lateral links inside every ring and bridge
 // notables between sectors create many alternative paths to any node.
 //
 // The web is generated deterministically (fixed-seed PCG) so node IDs, layout
@@ -21,17 +21,20 @@ import (
 
 // TreeNode is one allocatable node of the Abyss skill web.
 type TreeNode struct {
-	ID     int                `json:"id"`
-	Ring   int                `json:"ring"`
-	Slot   int                `json:"slot"`
-	Sector int                `json:"sector"`
-	Type   string             `json:"type"` // small | notable | keystone | bridge
-	Name   string             `json:"name"`
-	Desc   string             `json:"desc"`
-	Stats  Stats              `json:"stats"`
-	Pct    map[string]float64 `json:"pct,omitempty"`
-	X      float64            `json:"x"`
-	Y      float64            `json:"y"`
+	ID           int                `json:"id"`
+	Ring         int                `json:"ring"`
+	Slot         int                `json:"slot"`
+	Sector       int                `json:"sector"`
+	Type         string             `json:"type"` // small | notable | keystone | bridge
+	Name         string             `json:"name"`
+	Desc         string             `json:"desc"`
+	Stats        Stats              `json:"stats"`
+	Pct          map[string]float64 `json:"pct,omitempty"`
+	X            float64            `json:"x"`
+	Y            float64            `json:"y"`
+	ArtSheet     string             `json:"art_sheet"`
+	ArtCell      int                `json:"art_cell"`
+	ArtSignature string             `json:"art_signature"`
 }
 
 // TreeBonus is the summed effect of a set of allocated nodes.
@@ -107,7 +110,7 @@ func (tb TreeBonus) ApplyCombatPct(s Stats) Stats {
 // AbyssTreeData is the whole generated web: nodes plus adjacency. Node 0 is
 // the virtual root: never allocatable, always counted as allocated.
 type AbyssTreeData struct {
-	Nodes   []TreeNode    // 1000 nodes, IDs 1..1000
+	Nodes   []TreeNode    // append-only catalog; IDs remain stable across releases
 	Adj     map[int][]int // undirected adjacency, includes root (0) edges
 	Portals [][2]int      // just the chaotic cross-sector shortcut edges (for distinct rendering)
 	byID    map[int]*TreeNode
@@ -169,7 +172,7 @@ const (
 
 	// The web grew far past its original 26 rings: 137 rings × 36 slots = 4932
 	// grid nodes, then 40 keystones + 24 bridges + 100 signature + 12 auras on
-	// top (~5108 nodes total). IDs are assigned in that order.
+	// top. IDs are assigned in that order, followed by later append-only clusters.
 	treeGridNodes  = treeRings * treeSlots // 4932, IDs 1..4932
 	treeKeystoneN  = 40                    // IDs treeFirstKeyID..+39
 	treeFirstKeyID = treeGridNodes + 1
@@ -966,6 +969,7 @@ func buildAbyssTree() *AbyssTreeData {
 		addSpecial(skillNode.name, "notable", skillNode.pct)
 	}
 
+	assignAbyssTreeArt(t.Nodes)
 	normalizeTreeAdjacency(t.Adj)
 	for i := range t.Nodes {
 		t.byID[t.Nodes[i].ID] = &t.Nodes[i]
