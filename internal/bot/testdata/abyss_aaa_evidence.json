@@ -1706,5 +1706,52 @@
       "internal/bot/web_abyss_longterm_test.go",
       "tests/e2e/abyss.spec.js"
     ]
+  },
+  {
+    "ids": [78, 79, 80, 87, 90, 93, 94, 95, 96, 97],
+    "production": [
+      "internal/bot/abyss_weekly_featured_drops.go",
+      "internal/bot/abyss_wishlist.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_insurance_charm.go",
+      "internal/bot/web_abyss_inventory_ui.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_ring_sockets.go",
+      "internal/bot/web_abyss_set_pity.go",
+      "internal/bot/web_abyss_transmog.go",
+      "internal/bot/web_abyss_wishlist.go",
+      "internal/bot/web_pages.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_featured_drops.css",
+      "internal/bot/webassets/abyss_featured_drops.html",
+      "internal/bot/webassets/abyss_inventory_ui.html",
+      "internal/bot/webassets/abyss_item_numbers.html",
+      "internal/bot/webassets/abyss_loot_presentation.css",
+      "internal/bot/webassets/abyss_ring_sockets.html",
+      "internal/bot/webassets/abyss_set_pity.css",
+      "internal/bot/webassets/abyss_set_pity.html",
+      "internal/bot/webassets/abyss_transmog.css",
+      "internal/bot/webassets/abyss_transmog.html",
+      "internal/bot/webassets/abyss_wishlist.css",
+      "internal/bot/webassets/abyss_wishlist.html",
+      "internal/content/artifacts.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_weekly_featured_drops_test.go",
+      "internal/bot/abyss_wishlist_test.go",
+      "internal/bot/web_abyss_insurance_charm_test.go",
+      "internal/bot/web_abyss_item_numbers_test.go",
+      "internal/bot/web_abyss_loot_settings_test.go",
+      "internal/bot/web_abyss_provenance_test.go",
+      "internal/bot/web_abyss_ring_sockets_test.go",
+      "internal/bot/web_abyss_ring_sockets_ui_test.go",
+      "internal/bot/web_abyss_set_pity_test.go",
+      "internal/bot/web_abyss_transmog_test.go",
+      "internal/content/artifacts_test.go",
+      "tests/e2e/abyss-loot-rotation.spec.js",
+      "tests/e2e/abyss-ring-sockets.spec.js",
+      "tests/e2e/abyss-wishlist.spec.js",
+      "tests/e2e/abyss.spec.js"
+    ]
   }
 ]
