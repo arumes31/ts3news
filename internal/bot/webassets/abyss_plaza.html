@@ -34,7 +34,7 @@
         </div>
         <div class="plaza-commission">
           <strong>🪙 {{gold .Cost}}</strong>
-          <button type="button" {{if .Owned}}disabled{{end}} data-key="{{.Key}}" data-name="{{.Name}}" data-cost="{{.Cost}}" onclick="buyPlazaMonument(this)">{{if .Owned}}✓ Standing{{else}}Commission{{end}}</button>
+          <button type="button" {{if .Owned}}disabled{{end}} data-key="{{.Key}}" data-cost="{{.Cost}}" onclick="buyPlazaMonument(this)">{{if .Owned}}✓ Standing{{else}}Commission{{end}}</button>
         </div>
       </article>
       {{end}}
@@ -63,8 +63,8 @@
 function plazaToast(message,ok){var node=document.getElementById('plazaToast');node.textContent=message;node.className='plaza-toast show '+(ok?'good':'bad');window.setTimeout(function(){node.className='plaza-toast';},3200);}
 async function buyPlazaMonument(button){
   if(!button||button.disabled)return;
-  var name=button.dataset.name,cost=Number(button.dataset.cost||0).toLocaleString();
-  var confirmed=await confirmModal('Commission <b>'+name+'</b> for 🪙 '+cost+'?<br><span class="muted small">Permanent vanity only · no stats · no resale.</span>',{title:'Raise a public monument',okLabel:'Commission · '+cost+'g'});
+  var cost=Number(button.dataset.cost||0).toLocaleString();
+  var confirmed=await confirmModal('Commission this monument for 🪙 '+cost+'?<br><span class="muted small">Permanent vanity only · no stats · no resale.</span>',{title:'Raise a public monument',okLabel:'Commission · '+cost+'g'});
   if(!confirmed)return;
   button.disabled=true;
   try{
