@@ -7,7 +7,7 @@
 {{if .Items}}
 <div class="inv-grid">
   {{range .Items}}
-  <div class="inv-card" data-id="{{.InvID}}" data-slot="{{.Slot}}" data-unidentified="{{.Unidentified}}">
+  <div class="inv-card" data-id="{{.InvID}}" data-slot="{{.Slot}}" data-unidentified="{{.Unidentified}}"{{if .Provenance}} title="{{.Provenance}}"{{end}}>
     <div class="inv-head">
       <span class="gi slot-gi" style="--gi:url({{iconURL .IconName}});color:{{.RarityColor}}"></span>
       {{if .RarityIcon}}<span class="gi slot-gi{{if .Unidentified}} rarity-silhouette{{end}}"{{if .Unidentified}} aria-label="Unknown rarity silhouette" role="img"{{end}}

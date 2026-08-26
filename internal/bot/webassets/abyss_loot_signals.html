@@ -1,0 +1,68 @@
+{{define "abyssLootSignals"}}
+<div class="abyss-hero">
+  <div class="abyss-intro" id="abyssIntro">
+    <h1>{{T "web.abyss.title"}}</h1>
+    <p class="muted">{{T "web.abyss.hero_desc"}}</p>
+  </div>
+  {{if .DailyMod}}
+    <div class="ab-weekly-alert" style="background: rgba(255,193,7,0.1); border: 1px solid #ffc107; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
+      📅 <strong>{{T "web.abyss.weekly_title"}}</strong>
+      {{if eq .DailyMod "double_hazards"}}{{T "web.abyss.weekly.double_hazards"}}{{end}}
+      {{if eq .DailyMod "zero_durability_loss"}}{{T "web.abyss.weekly.zero_durability_loss"}}{{end}}
+      {{if eq .DailyMod "enraged_mobs"}}{{T "web.abyss.weekly.enraged_mobs"}}{{end}}
+      {{if eq .DailyMod "glass_cannon"}}{{T "web.abyss.weekly.glass_cannon"}}{{end}}
+      {{if eq .DailyMod "gold_rush"}}{{T "web.abyss.weekly.gold_rush"}}{{end}}
+      {{if eq .DailyMod "iron_skin"}}{{T "web.abyss.weekly.iron_skin"}}{{end}}
+      {{if eq .DailyMod "bloodlust"}}{{T "web.abyss.weekly.bloodlust"}}{{end}}
+      {{if eq .DailyMod "execute"}}{{T "web.abyss.weekly.execute"}}{{end}}
+      {{if eq .DailyMod "vampiric_mobs"}}{{T "web.abyss.weekly.vampiric_mobs"}}{{end}}
+    </div>
+  {{end}}
+  {{with .Bounty}}
+    <div class="ab-bounty-alert" id="bountyCard" style="background: rgba(76,175,80,0.1); border: 1px solid #4caf50; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
+      🎯 <strong>Daily Bounty:</strong> {{.Desc}}
+      <span class="muted small" style="margin-left:8px;">Progress: <b id="bountyProg">{{comma .Progress}}</b> / {{comma .Target}}</span>
+      <span class="muted small" style="margin-left:8px;">Reward: 🜲 {{.RewardTk}} + {{gold .RewardGd}}</span>
+      {{if gt .Streak 0}}<span class="small" style="margin-left:8px; color:#ff9800;">🔥 {{.Streak}}-day streak</span>{{end}}
+      <span id="bountyAction" style="margin-left:10px;">
+        {{if .Claimed}}<b style="color:#7ee787">✅ Claimed today</b>
+        {{else if .Met}}<button class="primary xs" onclick="abyssBountyClaim()">Claim Reward</button>
+        {{else}}<span class="muted small">In progress…</span>{{end}}
+      </span>
+    </div>
+  {{end}}
+  {{with .DeferredEvent}}
+    {{if .Available}}
+    <div class="ab-panel ab-deferred-event" id="deferredEventCard">
+      <span>⏳ <strong>{{.Label}}</strong> waits from floor {{.OriginDepth}}. Return by floor {{.ExpiresDepth}} · {{.FloorsLeft}} floor(s) left.</span>
+      <button class="ghost" type="button" onclick="abyssDeferredEventClaim()">Return to Event</button>
+    </div>
+    {{else if .Expired}}
+    <div class="ab-panel ab-deferred-event ab-deferred-expired">⌛ The deferred <strong>{{.Label}}</strong> expired after floor {{.ExpiresDepth}} — the moment passed.</div>
+    {{end}}
+  {{end}}
+
+  <section class="abyss-pity-hud ab-loot-pity" aria-labelledby="abyssPityTitle">
+    <div class="ab-pity-head">
+      <span id="abyssPityTitle">🔮 <b>Loot Pity Meter</b></span>
+      <span class="muted small"><span id="pityCount">{{.LegendaryPity}}</span> / 40 to Guaranteed Legendary</span>
+    </div>
+    <div class="ab-pity-track" aria-hidden="true">
+      <div id="pityFill" class="ab-pity-fill ab-pity-fill-legendary" style="width: {{mulpct .LegendaryPity 40}}%;"></div>
+    </div>
+    <div class="ab-pity-secondary muted small">✦ Celestial drought: <b>{{.CelestialPity}}</b> gear drops <span title="Display-only counter; Celestial drops have no guaranteed cap.">(no cap)</span></div>
+  </section>
+
+  {{template "abyss-featured-drops" .FeaturedDrops}}
+
+  <section class="abyss-pity-hud ab-drop-streak" aria-labelledby="abyssDropStreakTitle">
+    <div class="ab-pity-head">
+      <span id="abyssDropStreakTitle">🍀 <b>Drop Streak</b></span>
+      <span class="muted small"><span id="dropStreakCount">{{.DropStreak}}</span> {{if eq .DropStreak 1}}floor{{else}}floors{{end}} since last gear (+{{.DropStreakBonusPct}}% loot find, capped)</span>
+    </div>
+    <div class="ab-pity-track" aria-hidden="true">
+      <div id="dropStreakFill" class="ab-pity-fill ab-pity-fill-streak" style="width: {{mulpct .DropStreak 15}}%;"></div>
+    </div>
+  </section>
+</div>
+{{end}}

@@ -53,6 +53,7 @@ type runLootRow struct {
 	SetPityLabel    string        `json:"set_pity_label,omitempty"`
 	Wishlist        bool          `json:"wishlist,omitempty"`
 	WishlistLabel   string        `json:"wishlist_label,omitempty"`
+	Provenance      string        `json:"provenance,omitempty"`
 }
 
 func abyssSetDisplayMax(setID string) int {
@@ -168,6 +169,7 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 				out = append(out, row)
 				continue
 			}
+			row.Provenance = gearProvenance(gear)
 			row.GearID = gear.ID
 			row.Score = gear.Stats.Score()
 			row.CR = gear.CombatRating()

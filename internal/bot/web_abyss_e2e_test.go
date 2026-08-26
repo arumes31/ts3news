@@ -72,6 +72,7 @@ func TestAbyssE2EServer(t *testing.T) {
 		charm := content.Gear{
 			ID: "TEST_CHARM", Name: "Lucky Test Charm", Slot: content.SlotCharm,
 			Rarity: content.RarityEpic, MaxDurability: 60, Stats: content.Stats{HP: 80, LCK: 35},
+			FoundAt: "2026-08-20T14:15:16Z", FoundDepth: 18, FoundBoss: "Gorgoroth the Firelord",
 		}
 		mystery := content.Gear{
 			ID: "SECRET_CELESTIAL", Name: "Secret Celestial Ring", Slot: content.SlotFinger1,
@@ -86,6 +87,34 @@ func TestAbyssE2EServer(t *testing.T) {
 		if err := server.tmpl.ExecuteTemplate(w, "inventory", map[string]any{
 			"Title": "Inventory", "Nav": "inventory", "EnableAbyss": true,
 			"Items": []gearView{charmView, mysteryView}, "Consumables": []consumableView{},
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+	mux.HandleFunc("/armory-fixture", func(w http.ResponseWriter, _ *http.Request) {
+		u := &webUser{
+			UID: "e2e-armory", Nickname: "Armoury Tester", Level: 100,
+			LevelName: "Eternal", CurrentHP: 123456, MaxHP: 234567, MaxMana: 4567,
+			GearScore: 123456, Stats: content.Stats{HP: 234567, STR: 123456, DEF: 65432},
+		}
+		weapon := content.Gear{
+			ID: "TEST_WEAPON", Name: "Measured Test Blade", Slot: content.SlotMainHand,
+			Rarity: content.RarityLegendary, MaxDurability: 100,
+			Stats: content.Stats{STR: 123456, CRT: 2345}, FoundAt: "2026-08-21T09:10:11Z",
+			FoundDepth: 25, FoundBoss: "Malakor the Voidweaver",
+		}
+		weaponView := toGearView(weapon.Slot, weapon)
+		weaponView.BrokenIn = true
+		mystery := content.Gear{
+			ID: "SECRET_ARMORY_CELESTIAL", Name: "Secret Armory Crown", Slot: content.SlotHead,
+			Rarity: content.RarityCelestial, MaxDurability: 90,
+			Stats: content.Stats{INT: 987654}, Unidentified: true,
+		}
+		if err := server.tmpl.ExecuteTemplate(w, "armory", map[string]any{
+			"Title": "Armoury", "Nav": "armory", "EnableAbyss": true, "U": u,
+			"Slots":  []gearView{weaponView, toGearView(mystery.Slot, mystery)},
+			"Skills": []any{}, "Ultimates": []any{}, "Artifact": nil,
+			"PlayerTitle": nil, "Pets": []any{},
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

@@ -426,6 +426,11 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	pityProc := false
 	legendaryDrop := false
 	add := func(label string, g abyssLootGrant) bool {
+		boss := ""
+		if mob.Type == content.MobBoss {
+			boss = mob.Name
+		}
+		stampAbyssGearProvenance(g.Gear, run.Depth, boss, time.Now())
 		if b.escrowAbyssLoot(uid, run.Depth, label, g) {
 			labels = append(labels, label)
 			legendaryDrop = legendaryDrop || abyssLootGrantIsLegendary(g)
@@ -569,10 +574,6 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			g.Stats.STA += 10 + run.Depth/5
 			g.Name += " of the Deep"
 		}
-
-		// Acquisition timestamp for the sentimental-value "broken in" bonus
-		// (AB-91; the +1% stats are applied by the stat aggregation in xp.go).
-		g.FoundAt = time.Now().UTC().Format(time.RFC3339)
 
 		label := abyssGearLabel(g)
 		label += abyssSetPityLabel(setPityID)
@@ -884,6 +885,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 
 // escrowAbyssLoot persists one rolled drop into the run's loot escrow.
 func (b *Bot) escrowAbyssLoot(uid string, depth int, label string, g abyssLootGrant) bool {
+	stampAbyssGearProvenance(g.Gear, depth, "", time.Now())
 	data, err := json.Marshal(g)
 	if err != nil {
 		log.Printf("abyss escrow marshal failed for %s: %v", uid, err)
@@ -925,6 +927,21 @@ func (b *Bot) escrowAbyssLoot(uid string, depth int, label string, g abyssLootGr
 		b.queueAbyssHighRarityDrop(uid, itemName, rarity)
 	}
 	return true
+}
+
+func stampAbyssGearProvenance(gear *content.Gear, depth int, boss string, now time.Time) {
+	if gear == nil {
+		return
+	}
+	if gear.FoundAt == "" {
+		gear.FoundAt = now.UTC().Format(time.RFC3339)
+	}
+	if gear.FoundDepth <= 0 && depth > 0 {
+		gear.FoundDepth = depth
+	}
+	if gear.FoundBoss == "" {
+		gear.FoundBoss = strings.TrimSpace(boss)
+	}
 }
 
 func abyssDepthLootFindBonus(bestDepth int) float64 {

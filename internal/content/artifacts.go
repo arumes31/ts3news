@@ -397,6 +397,10 @@ type Gear struct {
 	// sentimental-value "broken in" bonus (30+ days old → +1% stats, applied by
 	// the stat aggregation in xp.go).
 	FoundAt string `json:"found_at,omitempty"`
+	// FoundDepth and FoundBoss retain the authoritative Abyss encounter that
+	// produced the item. Zero/empty values cover legacy and non-Abyss gear.
+	FoundDepth int    `json:"found_depth,omitempty"`
+	FoundBoss  string `json:"found_boss,omitempty"`
 }
 
 // EffectiveSetID returns the item's set for set-bonus purposes: its explicit

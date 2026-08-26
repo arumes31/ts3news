@@ -348,8 +348,8 @@ func forgeQuoteOutcome(operation string, gear *content.Gear, chance float64) aby
 	if setID := gear.EffectiveSetID(); setID != "" {
 		result.Consequences = append(result.Consequences, "Set membership remains "+setID+"; set resonance is recalculated after commit.")
 	}
-	if gear.FoundAt != "" || gear.Lore != "" {
-		result.Consequences = append(result.Consequences, "The item's discovery date and lore provenance remain attached to its receipt.")
+	if gear.FoundAt != "" || gear.FoundDepth > 0 || gear.FoundBoss != "" || gear.Lore != "" {
+		result.Consequences = append(result.Consequences, "The item's discovery provenance and lore remain attached to its receipt.")
 	}
 	return result
 }

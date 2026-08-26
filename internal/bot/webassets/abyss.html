@@ -61,75 +61,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_season.css"}}">
 <div class="abyss-command-page" data-ab-campaign="{{.SeasonJourney.Palette}}" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-expanded-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas_expanded.png"}}');--ab-expanded-icon-atlas:url('{{asset "/static/abyss_icon_atlas_expanded.png"}}');--ab-atlas-items:url('{{asset "/static/abyss_atlas_items.png"}}');--ab-atlas-skills:url('{{asset "/static/abyss_atlas_skills.png"}}');--ab-atlas-creatures:url('{{asset "/static/abyss_atlas_creatures.png"}}');--ab-atlas-bosses:url('{{asset "/static/abyss_atlas_bosses.png"}}');--ab-atlas-artifacts:url('{{asset "/static/abyss_atlas_artifacts.png"}}');--ab-atlas-companions:url('{{asset "/static/abyss_atlas_companions.png"}}');--ab-atlas-relics:url('{{asset "/static/abyss_atlas_relics.png"}}');--ab-atlas-ranged:url('{{asset "/static/abyss_atlas_ranged.png"}}');--ab-atlas-souls:url('{{asset "/static/abyss_atlas_souls.png"}}');--ab-atlas-auras:url('{{asset "/static/abyss_atlas_auras.png"}}');--ab-atlas-charms:url('{{asset "/static/abyss_atlas_charms.png"}}');--ab-atlas-mounts:url('{{asset "/static/abyss_atlas_mounts.png"}}');--ab-atlas-pets:url('{{asset "/static/abyss_atlas_pets.png"}}');--ab-atlas-emblems:url('{{asset "/static/abyss_atlas_emblems.png"}}');--ab-atlas-banners:url('{{asset "/static/abyss_atlas_banners.png"}}');--ab-atlas-totems:url('{{asset "/static/abyss_atlas_totems.png"}}');--ab-atlas-offhands:url('{{asset "/static/abyss_atlas_offhands.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Season, Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
-<div class="abyss-hero">
-  <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
-  <div class="abyss-intro" id="abyssIntro">
-    <h1>{{T "web.abyss.title"}}</h1>
-    <p class="muted">{{T "web.abyss.hero_desc"}}</p>
-  </div>
-  {{if .DailyMod}}
-    <div class="ab-weekly-alert" style="background: rgba(255,193,7,0.1); border: 1px solid #ffc107; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
-      📅 <strong>{{T "web.abyss.weekly_title"}}</strong> 
-      {{if eq .DailyMod "double_hazards"}}{{T "web.abyss.weekly.double_hazards"}}{{end}}
-      {{if eq .DailyMod "zero_durability_loss"}}{{T "web.abyss.weekly.zero_durability_loss"}}{{end}}
-      {{if eq .DailyMod "enraged_mobs"}}{{T "web.abyss.weekly.enraged_mobs"}}{{end}}
-      {{if eq .DailyMod "glass_cannon"}}{{T "web.abyss.weekly.glass_cannon"}}{{end}}
-      {{if eq .DailyMod "gold_rush"}}{{T "web.abyss.weekly.gold_rush"}}{{end}}
-      {{if eq .DailyMod "iron_skin"}}{{T "web.abyss.weekly.iron_skin"}}{{end}}
-      {{if eq .DailyMod "bloodlust"}}{{T "web.abyss.weekly.bloodlust"}}{{end}}
-      {{if eq .DailyMod "execute"}}{{T "web.abyss.weekly.execute"}}{{end}}
-      {{if eq .DailyMod "vampiric_mobs"}}{{T "web.abyss.weekly.vampiric_mobs"}}{{end}}
-    </div>
-  {{end}}
-  {{with .Bounty}}
-    <div class="ab-bounty-alert" id="bountyCard" style="background: rgba(76,175,80,0.1); border: 1px solid #4caf50; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
-      🎯 <strong>Daily Bounty:</strong> {{.Desc}}
-      <span class="muted small" style="margin-left:8px;">Progress: <b id="bountyProg">{{comma .Progress}}</b> / {{comma .Target}}</span>
-      <span class="muted small" style="margin-left:8px;">Reward: 🜲 {{.RewardTk}} + {{gold .RewardGd}}</span>
-      {{if gt .Streak 0}}<span class="small" style="margin-left:8px; color:#ff9800;">🔥 {{.Streak}}-day streak</span>{{end}}
-      <span id="bountyAction" style="margin-left:10px;">
-        {{if .Claimed}}<b style="color:#7ee787">✅ Claimed today</b>
-        {{else if .Met}}<button class="primary xs" onclick="abyssBountyClaim()">Claim Reward</button>
-        {{else}}<span class="muted small">In progress…</span>{{end}}
-      </span>
-    </div>
-  {{end}}
-  {{with .DeferredEvent}}
-    {{if .Available}}
-    <div class="ab-panel ab-deferred-event" id="deferredEventCard">
-      <span>⏳ <strong>{{.Label}}</strong> waits from floor {{.OriginDepth}}. Return by floor {{.ExpiresDepth}} · {{.FloorsLeft}} floor(s) left.</span>
-      <button class="ghost" type="button" onclick="abyssDeferredEventClaim()">Return to Event</button>
-    </div>
-    {{else if .Expired}}
-    <div class="ab-panel ab-deferred-event ab-deferred-expired">⌛ The deferred <strong>{{.Label}}</strong> expired after floor {{.ExpiresDepth}} — the moment passed.</div>
-    {{end}}
-  {{end}}
-  
-  <!-- Loot Pity Counter HUD -->
-  <section class="abyss-pity-hud ab-loot-pity" aria-labelledby="abyssPityTitle">
-    <div class="ab-pity-head">
-      <span id="abyssPityTitle">🔮 <b>Loot Pity Meter</b></span>
-      <span class="muted small"><span id="pityCount">{{.LegendaryPity}}</span> / 40 to Guaranteed Legendary</span>
-    </div>
-    <div class="ab-pity-track" aria-hidden="true">
-      <div id="pityFill" class="ab-pity-fill ab-pity-fill-legendary" style="width: {{mulpct .LegendaryPity 40}}%;"></div>
-    </div>
-    <div class="ab-pity-secondary muted small">✦ Celestial drought: <b>{{.CelestialPity}}</b> gear drops <span title="Display-only counter; Celestial drops have no guaranteed cap.">(no cap)</span></div>
-  </section>
-
-  {{template "abyss-featured-drops" .FeaturedDrops}}
-
-  <!-- Loot drop streak HUD: floors in a row with no gear item, boosts loot find -->
-  <section class="abyss-pity-hud ab-drop-streak" aria-labelledby="abyssDropStreakTitle">
-    <div class="ab-pity-head">
-      <span id="abyssDropStreakTitle">🍀 <b>Drop Streak</b></span>
-      <span class="muted small"><span id="dropStreakCount">{{.DropStreak}}</span> {{if eq .DropStreak 1}}floor{{else}}floors{{end}} since last gear (+{{.DropStreakBonusPct}}% loot find, capped)</span>
-    </div>
-    <div class="ab-pity-track" aria-hidden="true">
-      <div id="dropStreakFill" class="ab-pity-fill ab-pity-fill-streak" style="width: {{mulpct .DropStreak 15}}%;"></div>
-    </div>
-  </section>
-</div>
+{{template "abyssLootSignals" .}}
 
 <div class="abyss-stats">
   <div class="ab-chip">
@@ -160,7 +92,7 @@
     <h3>⚔️ Armoury</h3>
     <div class="abyss-side-list">
       {{range .Equipped}}
-      <div class="abyss-side-gear" tabindex="0" {{if .Damage.Available}}role="button" aria-expanded="false" aria-controls="abGearDamage-{{.Slot}}" onclick="if(event.detail!==0)toggleAbyssGearDamage(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();toggleAbyssGearDamage(this)}"{{end}} data-slot="{{.Slot}}" data-art-key="{{if .AppearanceID}}appearance:{{.AppearanceID}}{{else}}item:{{.InvID}}:{{.ID}}:{{.Name}}{{end}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-stats="{{.StatsJSON}}" data-broken-in="{{.BrokenIn}}" data-tip="{{.Name}}{{if .AppearanceName}}&#10;Appearance: {{.AppearanceName}} (cosmetic only){{end}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .BrokenIn}}&#10;Broken in · +1% positive stats{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}{{if .Damage.Available}}&#10;Damage contribution: {{if .Damage.HasDirect}}{{if ne .Damage.BasePower 0}}{{printf "%+d" .Damage.BasePower}} STR{{if gt .Damage.BaseSharePct 0}} ({{.Damage.BaseSharePct}}%){{end}}{{end}}{{if and (ne .Damage.BasePower 0) (ne .Damage.SpellPower 0)}} · {{end}}{{if ne .Damage.SpellPower 0}}{{printf "%+d" .Damage.SpellPower}} INT{{if gt .Damage.SpellSharePct 0}} ({{.Damage.SpellSharePct}}%){{end}}{{end}}{{if .Damage.AttackType}} · {{.Damage.AttackType}}{{end}}{{else}}no direct STR or INT{{end}}&#10;Click or press Enter to expand damage channels.{{end}}">
+      <div class="abyss-side-gear" tabindex="0" {{if .Damage.Available}}role="button" aria-expanded="false" aria-controls="abGearDamage-{{.Slot}}" onclick="if(event.detail!==0)toggleAbyssGearDamage(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();toggleAbyssGearDamage(this)}"{{end}} data-slot="{{.Slot}}" data-art-key="{{if .AppearanceID}}appearance:{{.AppearanceID}}{{else}}item:{{.InvID}}:{{.ID}}:{{.Name}}{{end}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-stats="{{.StatsJSON}}" data-broken-in="{{.BrokenIn}}" data-tip="{{.Name}}{{if .AppearanceName}}&#10;Appearance: {{.AppearanceName}} (cosmetic only){{end}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .BrokenIn}}&#10;Broken in · +1% positive stats{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}{{if .Provenance}}&#10;{{.Provenance}}{{end}}{{if .Damage.Available}}&#10;Damage contribution: {{if .Damage.HasDirect}}{{if ne .Damage.BasePower 0}}{{printf "%+d" .Damage.BasePower}} STR{{if gt .Damage.BaseSharePct 0}} ({{.Damage.BaseSharePct}}%){{end}}{{end}}{{if and (ne .Damage.BasePower 0) (ne .Damage.SpellPower 0)}} · {{end}}{{if ne .Damage.SpellPower 0}}{{printf "%+d" .Damage.SpellPower}} INT{{if gt .Damage.SpellSharePct 0}} ({{.Damage.SpellSharePct}}%){{end}}{{end}}{{if .Damage.AttackType}} · {{.Damage.AttackType}}{{end}}{{else}}no direct STR or INT{{end}}&#10;Click or press Enter to expand damage channels.{{end}}">
         <span class="ab-pixel-icon ab-gear-pixel" aria-hidden="true"></span>
         <span class="ab-side-gear-name" style="color:{{.RarityColor}}">{{.Name}}</span>
         {{if .BrokenIn}}<span class="ab-broken-in-tag" title="Broken in: +1% positive stats" aria-label="Broken in: plus one percent positive stats">🧡</span>{{end}}
@@ -856,7 +788,7 @@
                 data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}" data-appearance-id="{{.AppearanceID}}"
                 data-rune="{{.HasRune}}" data-prismatic="{{.Prismatic}}" data-cr="{{printf "%.1f" .CR}}" data-gs="{{.Score}}"
                 data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}"
-                data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+                data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}{{if .Provenance}}&#10;{{.Provenance}}{{end}}">
                 {{.Icon}} [Equipped] {{.Name}} ({{.Rarity}}) · CR {{printf "%.0f" .CR}}
               </option>
             {{end}}
@@ -870,7 +802,7 @@
                 data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}" data-appearance-id="{{.AppearanceID}}"
                 data-rune="{{.HasRune}}" data-prismatic="{{.Prismatic}}" data-cr="{{printf "%.1f" .CR}}" data-gs="{{.Score}}"
                 data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-ah="{{.AHPrice}}" data-vendor="{{.VendorPrice}}" data-locked="{{.Locked}}" data-recent="{{.RecentlyLooted}}"
-                data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+                data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}{{if .Provenance}}&#10;{{.Provenance}}{{end}}">
                 {{.Icon}} [Inv] {{.Name}} ({{.Rarity}}) · CR {{printf "%.0f" .CR}}
               </option>
             {{end}}

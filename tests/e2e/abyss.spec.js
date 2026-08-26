@@ -55,6 +55,7 @@ test('authoritative smart loot remains visible in the manifest', async ({ page }
       rarity_rank: 4, beam_class: 'beam-epic', cr: 420, cr_delta: 120,
       title: 'Smart Test Boots', label: 'Smart Test Boots', smart_loot: true,
       smart_loot_reason: 'empty_slot', smart_loot_label: 'SMART · EMPTY SLOT',
+      provenance: 'Provenance · Abyss depth 14 · 2026-08-26 UTC',
     };
     const manifest = document.querySelector('#lootManifest');
     manifest.replaceChildren(window.buildAuthoritativeRunLootRow(item));
@@ -65,8 +66,10 @@ test('authoritative smart loot remains visible in the manifest', async ({ page }
   await expect(row).toHaveAttribute('data-smart-loot', 'true');
   await expect(row).toHaveAttribute('data-smart-loot-reason', 'empty_slot');
   await expect(row.locator('.ab-smart-loot-tag')).toHaveText('🎯 SMART · EMPTY SLOT');
+  await expect(row).toHaveAttribute('data-tip', /Provenance · Abyss depth 14/);
   await row.click();
   await expect(row.locator('.ab-loot-detail')).toContainText('SMART · EMPTY SLOT');
+  await expect(row.locator('.ab-loot-detail')).toContainText('Provenance · Abyss depth 14');
   await expect(row).toHaveCSS('border-left-color', 'rgb(103, 232, 212)');
   expect(pageErrors).toEqual([]);
 });

@@ -71,7 +71,32 @@ type gearView struct {
 	Locked         bool // protected from sale, salvage, dismantle, and sacrifice
 	RecentlyLooted bool
 	BrokenIn       bool // held for 30+ days; grants the sentimental +1% stat bonus
+	Provenance     string
 	Damage         abyssGearDamageView
+}
+
+func gearProvenance(g content.Gear) string {
+	if g.Unidentified {
+		return ""
+	}
+	parts := make([]string, 0, 3)
+	if g.FoundDepth > 0 {
+		parts = append(parts, fmt.Sprintf("Abyss depth %d", g.FoundDepth))
+	}
+	if boss := strings.TrimSpace(g.FoundBoss); boss != "" {
+		runes := []rune(boss)
+		if len(runes) > 80 {
+			boss = string(runes[:80]) + "…"
+		}
+		parts = append(parts, "Boss: "+boss)
+	}
+	if found, err := time.Parse(time.RFC3339, g.FoundAt); err == nil {
+		parts = append(parts, found.UTC().Format("2006-01-02 UTC"))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "Provenance · " + strings.Join(parts, " · ")
 }
 
 // gearStatList returns the gear's non-zero combat stats, largest first.
@@ -241,6 +266,7 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		HasRune:        g.Rune != "",
 		Prismatic:      g.Prismatic,
 		BrokenIn:       !g.Unidentified && g.BrokenIn(time.Now()),
+		Provenance:     gearProvenance(g),
 	}
 	if g.Unidentified {
 		v.Corrupted = false
