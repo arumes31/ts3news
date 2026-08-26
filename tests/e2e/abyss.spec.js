@@ -185,6 +185,37 @@ test('known boss preview shows exact elemental matchup and advances with depth',
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
+test('next combat signal renders safely and refreshes after a floor', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 900 });
+  const styles = await page.request.get('/static/abyss_enemy_forecast.css');
+  expect(styles.status()).toBe(200);
+  expect(await styles.text()).toContain('.ab-enemy-forecast');
+  await page.goto('/abyss?active=1');
+
+  const forecast = page.locator('#abyssEnemyForecast');
+  await expect(forecast).toBeVisible();
+  await expect(page.locator('#abEnemyForecastKicker')).toContainText('F13');
+  await expect(page.locator('#abEnemyForecastCounter')).not.toBeEmpty();
+
+  await page.evaluate(() => window.renderAbyssEnemyForecast({
+    active: true,
+    depth: 14,
+    key: 'summoner',
+    icon: '🔮',
+    name: '<img src=x onerror=alert(1)>',
+    signal: 'On defeat, calls reinforcements.',
+    counter: 'Leave it for last.',
+  }));
+  await expect(page.locator('#abEnemyForecastKicker')).toHaveText('NEXT COMBAT SIGNAL · F14');
+  await expect(page.locator('#abEnemyForecastName')).toHaveText('<img src=x onerror=alert(1)>');
+  await expect(forecast.locator('img')).toHaveCount(0);
+
+  await page.evaluate(() => window.renderAbyssEnemyForecast({active: true, concealed: true, depth: 15}));
+  await expect(forecast).toHaveClass(/is-concealed/);
+  await expect(page.locator('#abEnemyForecastKicker')).toHaveText('SIGNAL JAMMED · F15');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
 test('skill priority reorders by drag and keyboard then persists to the server', async ({ page }) => {
   let savedOrder = null;
   await fulfillAbyssAPI(page, (path, body) => {

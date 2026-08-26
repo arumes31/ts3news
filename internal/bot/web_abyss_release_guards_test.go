@@ -71,8 +71,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "65c8d8c8a6c41a0d7c1989bf682d3d1df548c2d8f94bd68c0cd07e9f78379e68"},
-		{name: "active_run", active: true, want: "2bb3d641bf5278716212b370e1ac68d2dc353bdca2d650db43480fb88fbb765d"},
+		{name: "threshold", want: "412300e68d38b08132d8a2f86451c3940876cbb6d1edb34308a9674f7d35ca33"},
+		{name: "active_run", active: true, want: "0110181594793643a41be7824498ced0e2e1f3352b2b9ef2cb2e19615746261d"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -179,6 +179,7 @@ func abyssGoldenFixture(active bool) map[string]any {
 		"History": []any{}, "Achievements": []abyssAchievementView{}, "BadgeOptions": []any{},
 		"RunInsights": abyssRunInsightsView{}, "LongTerm": abyssLongTermView{},
 		"CartographerRoute": abyssCartographerRouteView{Floors: []abyssCartographerFloorView{}},
+		"EnemyForecast":     abyssEnemyForecast("golden-player", run, nil),
 		"BossAffinity":      bossAffinity, "ElementalPreview": elementalPreview, "SkillPriority": skillPriority,
 		"ActiveBadge": "", "ActiveBadgeName": "", "LoreList": []any{}, "LoreTotal": len(abyssLoreFragments),
 		"Bestiary": []any{}, "Consumables": []any{}, "DailyMod": "",

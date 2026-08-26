@@ -1007,6 +1007,11 @@ func (b *Bot) fightAbyssFloorLive(
 			logs = append(logs, "[color=#9c27b0]☠️ Cursed Horde: every enemy manifests an additional affix.[/color]")
 		}
 	}
+	if forecastLog := applyAbyssEnemyForecast(b.abyssEnemyForecast(uid, abyssRun{
+		Active: true, Depth: depth - 1, StartedAt: frun.StartedAt,
+	}), mobs); forecastLog != "" {
+		logs = append(logs, forecastLog)
+	}
 	if weeklyRule.Key == "iron_trial" {
 		for i := range mobs {
 			mobs[i].Stats.DEF += mobs[i].Stats.DEF * 15 / 100
@@ -1575,6 +1580,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"CartographerRoute":   cartographerRoute,
 		"Watcher":             watcherPressure,
 		"BossContract":        bossContract,
+		"EnemyForecast":       s.bot.abyssEnemyForecast(uid, run),
 		"BossAffinity":        bossAffinity,
 		"ElementalPreview":    elementalPreview,
 		"SkillPriority":       s.bot.abyssSkillPriorityView(uid),
@@ -2318,6 +2324,7 @@ func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, 
 		"gold": gold, "tokens": s.bot.abyssTokens(uid),
 		"risk":             s.bot.abyssRunRiskPct(uid, runFinal.Depth+1, tier),
 		"explorer_support": s.bot.abyssRescueSupportView(uid),
+		"enemy_forecast":   s.bot.abyssEnemyForecast(uid, runFinal),
 	}
 }
 
@@ -2535,6 +2542,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				"run_floors_cleared": abyssRunFloorsCleared(runFinal),
 				"jackpot":            s.bot.getJackpot("abyss"),
 				"explorer_support":   s.bot.abyssRescueSupportView(uid),
+				"enemy_forecast":     s.bot.abyssEnemyForecast(uid, runFinal),
 				"event_chain":        eventChain,
 				"map_route":          mapRoute,
 			})
@@ -2734,6 +2742,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		"escrow_efficiency_pct": escrowEfficiencyPct,
 		"run_floors_cleared":    abyssRunFloorsCleared(finalRun),
 		"explorer_support":      s.bot.abyssRescueSupportView(uid),
+		"enemy_forecast":        s.bot.abyssEnemyForecast(uid, finalRun),
 		"event_chain":           eventChain,
 		"map_route":             mapRoute,
 	}
@@ -3507,6 +3516,7 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 	out["run_floors_cleared"] = abyssRunFloorsCleared(runFinal)
 	out["map_route"] = s.bot.abyssCartographerRouteView(uid, runFinal.Depth)
 	out["explorer_support"] = s.bot.abyssRescueSupportView(uid)
+	out["enemy_forecast"] = s.bot.abyssEnemyForecast(uid, runFinal)
 	s.abyssOps.funnel.observeFloor(uid, depth)
 	s.abyssOps.observeFloor(depth, escrowBefore, res, out)
 	s.bot.addAbyssLegendaryPity(out, uid)

@@ -36,6 +36,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_world_boss.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_contracts.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_affinity.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_enemy_forecast.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_adaptation.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_toll.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_best_kill.css"}}">
@@ -425,6 +426,7 @@
       <label class="ab-cursed" data-tip="Cursed bank: +20% payout when you bank, but a hex saps your combat stats (−15%) for your next 3 fights."><input type="checkbox" id="cursedBank"> {{T "web.abyss.cursed_bank"}}</label>
     </div>
     {{template "abyssCoreRiskConsole" .}}
+    {{template "abyssEnemyForecast" .}}
     {{template "abyssBossAffinity" .}}
     {{template "abyssBossAdaptation" .}}
     {{template "abyssBossToll" .}}
@@ -3609,6 +3611,7 @@ function showAbyssBossKillCam(){
   openModal('<h3>🎬 Final five · '+consEsc(data.name)+'</h3><ol class="ab-killcam">'+frames+'</ol><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close replay</button></div>');
 }
 async function processDescendResult(d, hp, max){
+	if(d.enemy_forecast&&typeof renderAbyssEnemyForecast==='function')renderAbyssEnemyForecast(d.enemy_forecast);
 	if(d.boss_tokens!==undefined&&typeof setBossTokens==='function')setBossTokens(d.boss_tokens);
   if(d.explorer_support!==undefined)renderExplorerSupport(d.explorer_support);
   if(d.map_route)renderAbyssCartographerRoute(d.map_route);
