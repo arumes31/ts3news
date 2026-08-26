@@ -1559,5 +1559,115 @@
       "tests/e2e/abyss-ah-price-history.spec.js",
       "tests/e2e/abyss-shop-demand.spec.js"
     ]
+  },
+  {
+    "ids": [17, 22, 23, 25],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_bank_incentives.go",
+      "internal/bot/web_abyss_core_rewards.go",
+      "internal/bot/web_abyss_stakes.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_core_risk.css",
+      "internal/bot/webassets/abyss_core_risk.html",
+      "internal/bot/webassets/abyss_entry_planner.css",
+      "internal/bot/webassets/abyss_entry_planner.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_bank_incentives_test.go",
+      "internal/bot/web_abyss_stakes_test.go",
+      "tests/e2e/abyss.spec.js"
+    ]
+  },
+  {
+    "ids": [52, 57, 58, 61, 74],
+    "production": [
+      "internal/bot/abyss_boss_affinity.go",
+      "internal/bot/abyss_elemental_preview.go",
+      "internal/bot/abyss_enemy_forecast.go",
+      "internal/bot/abyss_gear_damage.go",
+      "internal/content/mob_effects.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_enemies.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_tactics.go",
+      "internal/bot/web_abyss_mob_affixes.go",
+      "internal/bot/web_abyss_stage_effects.go",
+      "internal/bot/web_pages.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_affinity.css",
+      "internal/bot/webassets/abyss_boss_affinity.html",
+      "internal/bot/webassets/abyss_enemy_forecast.css",
+      "internal/bot/webassets/abyss_enemy_forecast.html",
+      "internal/bot/webassets/abyss_gear_damage.css",
+      "internal/bot/webassets/abyss_gear_damage.html",
+      "internal/bot/webassets/abyss_live.css",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/webassets/abyss_mob_affixes.css",
+      "internal/bot/webassets/abyss_pixel.html",
+      "internal/bot/xp.go",
+      "internal/bot/xp_abyss_combat.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_boss_affinity_test.go",
+      "internal/bot/abyss_elemental_preview_test.go",
+      "internal/bot/abyss_enemy_forecast_test.go",
+      "internal/bot/abyss_gear_damage_test.go",
+      "internal/bot/web_abyss_combat_log_ui_test.go",
+      "internal/bot/web_abyss_live_actions_test.go",
+      "internal/bot/web_abyss_mob_affixes_test.go",
+      "internal/bot/xp_abyss_combat_test.go",
+      "tests/e2e/abyss.spec.js"
+    ]
+  },
+  {
+    "ids": [56, 59, 60, 62, 65, 66, 67, 75],
+    "production": [
+      "internal/bot/abyss_critical_fumble.go",
+      "internal/bot/abyss_first_strike.go",
+      "internal/bot/abyss_position.go",
+      "internal/bot/abyss_shield.go",
+      "internal/bot/abyss_skill_variety.go",
+      "internal/bot/abyss_weakness_window.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_combat_settings.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_actions.go",
+      "internal/bot/web_abyss_live_tactics.go",
+      "internal/bot/web_abyss_risk_rewards.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_critical_fumble.css",
+      "internal/bot/webassets/abyss_entry_planner.html",
+      "internal/bot/webassets/abyss_first_strike.css",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/webassets/abyss_pet_commands.css",
+      "internal/bot/webassets/abyss_pixel.html",
+      "internal/bot/webassets/abyss_shield.css",
+      "internal/bot/webassets/abyss_shield.html",
+      "internal/bot/webassets/abyss_skill_variety.css",
+      "internal/bot/webassets/abyss_skill_variety.html",
+      "internal/bot/webassets/abyss_weakness_window.css",
+      "internal/bot/webassets/abyss_weakness_window.html",
+      "internal/bot/xp.go",
+      "internal/bot/xp_abyss_combat.go",
+      "internal/bot/xp_abyss_pet_commands.go",
+      "internal/content/mobs.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_critical_fumble_presentation_test.go",
+      "internal/bot/abyss_critical_fumble_test.go",
+      "internal/bot/abyss_first_strike_test.go",
+      "internal/bot/abyss_position_test.go",
+      "internal/bot/abyss_shield_test.go",
+      "internal/bot/abyss_skill_variety_test.go",
+      "internal/bot/abyss_weakness_window_test.go",
+      "internal/bot/web_abyss_combat_settings_test.go",
+      "internal/bot/web_abyss_live_actions_test.go",
+      "internal/bot/web_abyss_risk_rewards_test.go",
+      "internal/bot/web_abyss_stage_effects_test.go",
+      "internal/bot/xp_abyss_combat_test.go",
+      "internal/bot/xp_abyss_pet_commands_test.go",
+      "tests/e2e/abyss.spec.js"
+    ]
   }
 ]
