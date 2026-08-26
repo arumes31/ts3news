@@ -1,0 +1,86 @@
+.abyss-command-page .abyss-pity-hud {
+  margin-block: 12px 0 !important;
+  padding: 12px 14px !important;
+  border: 1px solid #2a3a50 !important;
+  border-radius: 10px !important;
+  background: #0b121c !important;
+  box-shadow: inset 3px 0 #5bd6d047, 0 10px 24px #02060c66;
+  color: #edf4ff;
+}
+
+.abyss-command-page .ab-loot-pity {
+  box-shadow: inset 3px 0 #d857ff99, 0 10px 24px #02060c66;
+}
+
+.abyss-command-page .ab-drop-streak {
+  box-shadow: inset 3px 0 #41c97a99, 0 10px 24px #02060c66;
+}
+
+.abyss-command-page .ab-pity-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.abyss-command-page .ab-pity-head > :last-child {
+  text-align: right;
+}
+
+.abyss-command-page .ab-pity-track {
+  height: 10px;
+  overflow: hidden;
+  border: 1px solid #304158;
+  border-radius: 999px;
+  background: #03070d;
+}
+
+.abyss-command-page .ab-pity-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 220ms ease;
+}
+
+.abyss-command-page .ab-pity-fill-legendary {
+  background: linear-gradient(90deg, #ff7b72, #d857ff);
+}
+
+.abyss-command-page .ab-pity-fill-streak {
+  background: linear-gradient(90deg, #41c97a, #5bc0ff);
+}
+
+.abyss-command-page .ab-pity-secondary {
+  margin-top: 8px;
+}
+
+@media (max-width: 560px) {
+  .abyss-command-page .ab-pity-head {
+    display: grid;
+  }
+
+  .abyss-command-page .ab-pity-head > :last-child {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .abyss-command-page .ab-pity-fill {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .abyss-command-page .abyss-pity-hud,
+  .abyss-command-page .ab-pity-track {
+    border-color: CanvasText !important;
+    background: Canvas !important;
+    box-shadow: none;
+    color: CanvasText;
+  }
+
+  .abyss-command-page .ab-pity-fill {
+    background: Highlight;
+  }
+}

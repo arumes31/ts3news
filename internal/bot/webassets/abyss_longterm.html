@@ -98,6 +98,7 @@
     {key:'ab_lootsort',label:'Run loot sort',type:'select',def:'floor',opts:[['floor','Floor'],['rarity','Rarity'],['cr','CR Δ']],apply:function(v){lootSort=v;var select=document.getElementById('lootSort');if(select)select.value=v;applyLootSort();}},
     {key:'ab_sidebar_order',label:'Run Loot before Armoury',type:'bool',def:false,apply:applySidebarOrder},
     {key:'ab_compact',label:'Compact veteran layout',type:'bool',def:false,apply:function(v){document.body.classList.toggle('ab-compact',v);}},
+    {key:'ab_item_numbers',label:'Item stat numbers',type:'select',def:'exact',opts:[['exact','Exact (123,456)'],['compact','Compact (123.5K)']],apply:function(v){if(window.AbyssItemNumbers)window.AbyssItemNumbers.setMode(v);}},
     {key:'ab_contrast',label:'High-contrast solid panels',type:'bool',def:false,apply:applyAbyssContrast},
     {key:'ab_colorblind',label:'Colorblind rarity shapes',type:'bool',def:false,apply:applyAbyssColorblind},
     {key:'ab_logsize',label:'Combat log text size',type:'select',def:'m',opts:[['s','Small'],['m','Medium'],['l','Large']],apply:applyAbyssLogSize},

@@ -94,6 +94,9 @@ func TestUnidentifiedForgeViewHidesMetadata(t *testing.T) {
 	if view.Name != "Unidentified Head" || view.Rarity != "Unknown" || view.CR != 0 || view.Score != 0 {
 		t.Fatalf("unidentified identity leaked: %#v", view)
 	}
+	if view.RarityIcon != "crystal-ball" || view.RarityColor != "#8c96aa" {
+		t.Fatalf("unidentified silhouette = %q %q", view.RarityIcon, view.RarityColor)
+	}
 	if view.StatsJSON != "{}" || view.GemstonesJSON != "[]" || view.Sockets != 0 || len(view.Gemstones) != 0 {
 		t.Fatalf("unidentified payload leaked: %#v", view)
 	}

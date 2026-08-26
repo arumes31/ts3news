@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_recorder.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_run_awareness.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_loot_presentation.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_pity.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_featured_drops.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_wishlist.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_forge_experience.css"}}">
@@ -105,29 +106,29 @@
   {{end}}
   
   <!-- Loot Pity Counter HUD -->
-  <div class="abyss-pity-hud" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; margin: 15px 0;">
-    <div style="display:flex; justify-content:space-between; margin-bottom: 6px; font-size:13px;">
-      <span>🔮 <b>Loot Pity Meter</b></span>
+  <section class="abyss-pity-hud ab-loot-pity" aria-labelledby="abyssPityTitle">
+    <div class="ab-pity-head">
+      <span id="abyssPityTitle">🔮 <b>Loot Pity Meter</b></span>
       <span class="muted small"><span id="pityCount">{{.LegendaryPity}}</span> / 40 to Guaranteed Legendary</span>
     </div>
-    <div style="background: rgba(0,0,0,0.3); height: 10px; border-radius: 5px; overflow:hidden;">
-      <div id="pityFill" style="background: linear-gradient(90deg, #ff7b72, #d857ff); height: 100%; width: {{mulpct .LegendaryPity 40}}%;"></div>
+    <div class="ab-pity-track" aria-hidden="true">
+      <div id="pityFill" class="ab-pity-fill ab-pity-fill-legendary" style="width: {{mulpct .LegendaryPity 40}}%;"></div>
     </div>
-    <div class="muted small" style="margin-top:7px;">✦ Celestial drought: <b>{{.CelestialPity}}</b> gear drops <span title="Display-only counter; Celestial drops have no guaranteed cap.">(no cap)</span></div>
-  </div>
+    <div class="ab-pity-secondary muted small">✦ Celestial drought: <b>{{.CelestialPity}}</b> gear drops <span title="Display-only counter; Celestial drops have no guaranteed cap.">(no cap)</span></div>
+  </section>
 
   {{template "abyss-featured-drops" .FeaturedDrops}}
 
   <!-- Loot drop streak HUD: floors in a row with no gear item, boosts loot find -->
-  <div class="abyss-pity-hud" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; margin: 15px 0;">
-    <div style="display:flex; justify-content:space-between; margin-bottom: 6px; font-size:13px;">
-      <span>🍀 <b>Drop Streak</b></span>
+  <section class="abyss-pity-hud ab-drop-streak" aria-labelledby="abyssDropStreakTitle">
+    <div class="ab-pity-head">
+      <span id="abyssDropStreakTitle">🍀 <b>Drop Streak</b></span>
       <span class="muted small"><span id="dropStreakCount">{{.DropStreak}}</span> {{if eq .DropStreak 1}}floor{{else}}floors{{end}} since last gear (+{{.DropStreakBonusPct}}% loot find, capped)</span>
     </div>
-    <div style="background: rgba(0,0,0,0.3); height: 10px; border-radius: 5px; overflow:hidden;">
-      <div id="dropStreakFill" style="background: linear-gradient(90deg, #41c97a, #5bc0ff); height: 100%; width: {{mulpct .DropStreak 15}}%;"></div>
+    <div class="ab-pity-track" aria-hidden="true">
+      <div id="dropStreakFill" class="ab-pity-fill ab-pity-fill-streak" style="width: {{mulpct .DropStreak 15}}%;"></div>
     </div>
-  </div>
+  </section>
 </div>
 
 <div class="abyss-stats">
@@ -163,7 +164,7 @@
         <span class="ab-pixel-icon ab-gear-pixel" aria-hidden="true"></span>
         <span class="ab-side-gear-name" style="color:{{.RarityColor}}">{{.Name}}</span>
         {{if .BrokenIn}}<span class="ab-broken-in-tag" title="Broken in: +1% positive stats" aria-label="Broken in: plus one percent positive stats">🧡</span>{{end}}
-        <span class="cr">CR {{printf "%.0f" .CR}}{{if .Damage.Available}} <i class="ab-gear-damage-indicator" aria-hidden="true"></i>{{end}}</span>
+        <span class="cr">CR <span data-item-number="{{printf "%.0f" .CR}}">{{printf "%.0f" .CR}}</span>{{if .Damage.Available}} <i class="ab-gear-damage-indicator" aria-hidden="true"></i>{{end}}</span>
       </div>
       {{template "abyssGearDamageBreakdown" .}}
       {{else}}
@@ -4598,7 +4599,9 @@ async function forgeReforge() {
   if (busy) return; setBusy(true);
   // UI-86: show the item's current stat block inside the confirm modal.
   var sb=selForgeStatBlock();
-  if (!(await confirmModal((sb?'<span class="ab-statblock">'+sb+'</span><br><br>':'')+'Reforge this item for '+abForgeGold(300,selForgeRarity())+'? Every combat stat is rerolled within ±10% — it can get worse.', {title:'Reforge Stats', okLabel:'Reforge ('+abForgeGold(300,selForgeRarity())+')'}))) { setBusy(false); return; } // UI-134
+  var decision=confirmModal((sb?'<span class="ab-statblock">'+sb+'</span><br><br>':'')+'Reforge this item for '+abForgeGold(300,selForgeRarity())+'? Every combat stat is rerolled within ±10% — it can get worse.', {title:'Reforge Stats', okLabel:'Reforge ('+abForgeGold(300,selForgeRarity())+')'}); // UI-134
+  if(window.AbyssItemNumbers)window.AbyssItemNumbers.render(document.getElementById('sharedModalCard'));
+  if (!(await decision)) { setBusy(false); return; }
   forgePost('/api/abyss/reforge', params);
 }
 
@@ -5387,7 +5390,7 @@ function selForgeStatBlock(){
   var st=forgeOptionStats(opt);
   if(!st.length)return '';
   return st.map(function(s){
-    return '<span class="'+(s.v<0?'ab-neg':'')+'">'+consEsc(s.k)+' '+(s.v>0?'+':'')+s.v+'</span>';
+    return '<span class="'+(s.v<0?'ab-neg':'')+'">'+consEsc(s.k)+' <b data-item-number="'+s.v+'" data-item-number-sign="always">'+(s.v>0?'+':'')+s.v+'</b></span>';
   }).join(' · ');
 }
 
@@ -5762,8 +5765,10 @@ function buildBackpackPanel(){
     if(o.getAttribute('data-attuned')==='true')html+='<span class="ab-bp-attuned" title="Attuned — bound to you, cannot be fused/sold">🔗</span>';
     var set=o.getAttribute('data-set-id')||'';
     if(set)html+='<span class="ab-set-tag ab-set-'+set+'">🧩 '+set+'</span>'; // UI-78
-    html+='<span class="ab-bp-cr">CR '+(parseFloat(o.getAttribute('data-cr'))||0).toFixed(0)+'</span>';
+    var cr=(parseFloat(o.getAttribute('data-cr'))||0).toFixed(0);
+    html+='<span class="ab-bp-cr">CR <span data-item-number="'+cr+'">'+cr+'</span></span>';
     row.innerHTML=html;
+    if(window.AbyssItemNumbers)window.AbyssItemNumbers.render(row);
     var invID=parseInt(o.value.slice(4),10)||0;
     row.dataset.invId=String(invID);
     if(invID){
@@ -6652,6 +6657,7 @@ function initNewDots(){
 {{template "abyss-accessibility" .}}
 {{template "abyss-mobile" .}}
 {{template "abyss-insights" .}}
+{{template "abyssItemNumbersJS" .}}
 {{template "abyss-longterm" .}}
 {{template "abyss-events" .}}
 <script data-cfasync="false">{{template "abyssSocialHubJS" .}}</script>

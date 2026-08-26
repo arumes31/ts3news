@@ -71,6 +71,34 @@ test('authoritative smart loot remains visible in the manifest', async ({ page }
   expect(pageErrors).toEqual([]);
 });
 
+test('item numbers toggle between exact and compact without losing exact values', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.goto('/abyss');
+  await page.evaluate(() => {
+    const value = document.createElement('span');
+    value.id = 'e2eItemNumber';
+    value.dataset.itemNumber = '123456';
+    value.dataset.itemNumberSign = 'always';
+    document.body.appendChild(value);
+    window.AbyssItemNumbers.render(value);
+  });
+
+  const value = page.locator('#e2eItemNumber');
+  await expect(value).toHaveText('+123,456');
+  await page.locator('#abSettingsBtn').click();
+  const setting = page.locator('#abSettingsRows .ab-set-row').filter({ hasText: 'Item stat numbers' });
+  await setting.locator('select').selectOption('compact');
+  await expect(value).toHaveText('+123.5K');
+  await expect(value).toHaveAttribute('title', 'Exact value: +123,456');
+  await expect(value).toHaveAttribute('aria-label', '+123.5K, exact value +123,456');
+  expect(await page.evaluate(() => localStorage.getItem('ab_item_numbers'))).toBe('compact');
+
+  await page.reload();
+  expect(await page.evaluate(() => window.AbyssItemNumbers.getMode())).toBe('compact');
+  expect(pageErrors).toEqual([]);
+});
+
 test('set pity remains visible without revealing unidentified gear', async ({ page }) => {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));

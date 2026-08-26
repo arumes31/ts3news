@@ -85,7 +85,7 @@ async function main() {
     });
     fixture.on('error', error => console.error('Abyss fixture error:', error));
     await waitForFixture(fixture, port);
-    await command(process.execPath, [require.resolve('@playwright/test/cli'), 'test'], {
+    await command(process.execPath, [require.resolve('@playwright/test/cli'), 'test', ...process.argv.slice(2)], {
       env: { ...fixtureEnv, ABYSS_E2E_EXTERNAL_SERVER: '1' },
     });
   } finally {

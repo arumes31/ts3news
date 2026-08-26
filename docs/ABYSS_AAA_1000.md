@@ -125,6 +125,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0090 / 90** — players can mark up to three Abyss-exclusive catalog items in a searchable, accessible Shop wishlist; each successfully escrowed eligible Abyss gear roll advances a transactionally persisted 30-roll guarantee, target changes reset progress, set-completion pity retains priority, and guaranteed drops preserve the rolled category and rarity ceiling (`abyss_wishlist.go`, `web_abyss_wishlist.go`, `web_abyss_loot.go`, `webassets/abyss_wishlist.html`, `webassets/abyss_wishlist.css`, `tests/e2e/abyss-wishlist.spec.js`).
 - [x] **AAA-0091 / 91** — identified gear held for at least 30 days gains exactly +1% of each positive integer stat, with missing or malformed acquisition timestamps safely ineligible; Armoury, Inventory, and the Abyss equipment rail expose an authoritative “Broken in” marker without revealing unidentified metadata (`artifacts.go`, `web_abyss_itemization.go`, `web_pages.go`, `webassets/armory.html`, `webassets/inventory.html`, `webassets/abyss.html`).
 - [x] **AAA-0092 / 92** — three compatible same-slot Legendary ingredients fuse through server-validated preview and commit paths.
+- [x] **AAA-0093 / 93** — exact or compact item-stat rendering persists as a portable display preference across the Abyss, Armoury, Inventory, backpack, and forge surfaces; compact labels retain exact tooltips and accessible values and never alter authoritative numbers (`webassets/abyss_item_numbers.html`, `webassets/abyss_longterm.html`, `webassets/armory.html`, `webassets/inventory.html`, `tests/e2e/abyss.spec.js`).
 - [x] **AAA-0099 / 99** — Identify All quotes one combined cost and mutates the reviewed unidentified inventory atomically.
 - [x] **AAA-0100 / 100** — keyboard and pointer expansion reveals complete escrow gear stats before the bank decision.
 
@@ -737,13 +738,13 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0786 / AB-86** — deep-floor gear can gain an “of the Deep” identity and an additional Stamina roll after floor 40.
 - [x] **AAA-0787 / AB-87** — an account-persisted opt-in converts third-and-later duplicate Legendary drops into five Umbral Cores.
 - [x] **AAA-0788 / AB-88** — loot rows receive rarity-scaled beams from Common through Eternal with reduced-motion support.
-- [x] **AAA-0789 / AB-89** — Charm icons use a restrained hanging animation with an explicit reduced-motion fallback.
+- [x] **AAA-0789 / AB-89** — Inventory Charm icons use a restrained hanging animation with a top-edge pivot and an explicit reduced-motion fallback (`webassets/gear_inventory_motion.css`, `webassets/inventory.html`, `tests/e2e/abyss-inventory-polish.spec.js`).
 - [x] **AAA-0790 / AB-90** — run loot can sort by the selected build's authoritative main stat, including Survival's combined HP and DEF value.
 - [x] **AAA-0791 / AB-91** — equipped gear held for 30 days gains a derived one-percent positive-stat bonus without mutating its stored roll.
-- [x] **AAA-0792 / AB-92** — unidentified drops expose only slot and rarity silhouette information until identification.
+- [x] **AAA-0792 / AB-92** — unidentified inventory gear exposes its slot plus one fixed, non-tier-revealing rarity silhouette while identity, true rarity, stats, score, effects, and progression stay redacted (`web_pages.go`, `webassets/inventory.html`, `web_abyss_forge_ui_state_test.go`, `tests/e2e/abyss-inventory-polish.spec.js`).
 - [x] **AAA-0793 / AB-93** — committed Eternal drops and successful Celestial ascensions trigger the sanitized TS3-wide fanfare only after persistence succeeds.
 - [x] **AAA-0794 / AB-94** — the run-loot manifest defaults to upgrades-first ordering with deterministic CR and acquisition tie-breaks.
-- [x] **AAA-0795 / AB-95** — the HUD separates Legendary guarantee progress from the independent Celestial drop counter.
+- [x] **AAA-0795 / AB-95** — an opaque responsive HUD separates Legendary guarantee progress from the independent uncapped Celestial drought counter, with forced-colors and reduced-motion support (`webassets/abyss_pity.css`, `webassets/abyss.html`, `tests/e2e/abyss-inventory-polish.spec.js`).
 - [x] **AAA-0796 / AB-96** — Treasure Goblins escrow collectible tokens, and five banked tokens unlock the timed Goblin King title.
 - [x] **AAA-0797 / AB-97** — named boss-relic drops display unique lore tied to the defeated boss instead of a generic reward line.
 - [x] **AAA-0798 / AB-98** — identical escrowed consumables merge into bounded five-charge stacks instead of overwriting or multiplying rows.

@@ -68,6 +68,28 @@ func TestAbyssE2EServer(t *testing.T) {
 			"wishlist": abyssWishlistViewFor(wishlistState, r.URL.Query().Get("q")),
 		})
 	})
+	mux.HandleFunc("/inventory", func(w http.ResponseWriter, _ *http.Request) {
+		charm := content.Gear{
+			ID: "TEST_CHARM", Name: "Lucky Test Charm", Slot: content.SlotCharm,
+			Rarity: content.RarityEpic, MaxDurability: 60, Stats: content.Stats{HP: 80, LCK: 35},
+		}
+		mystery := content.Gear{
+			ID: "SECRET_CELESTIAL", Name: "Secret Celestial Ring", Slot: content.SlotFinger1,
+			Rarity: content.RarityCelestial, MaxDurability: 90, Stats: content.Stats{INT: 900},
+			Unidentified: true,
+		}
+		charmView := toGearView(charm.Slot, charm)
+		charmView.InvID = 1
+		charmView.Durability = charm.MaxDurability
+		mysteryView := toGearView(mystery.Slot, mystery)
+		mysteryView.InvID = 2
+		if err := server.tmpl.ExecuteTemplate(w, "inventory", map[string]any{
+			"Title": "Inventory", "Nav": "inventory", "EnableAbyss": true,
+			"Items": []gearView{charmView, mysteryView}, "Consumables": []consumableView{},
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
 	mux.HandleFunc("/abyss", func(w http.ResponseWriter, r *http.Request) {
 		fixture := abyssGoldenFixture(r.URL.Query().Get("active") == "1")
 		wishlistMu.Lock()

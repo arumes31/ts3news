@@ -132,7 +132,8 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		effDesc = "Identify this item to reveal its stats and effects."
 		rarityName = "Unknown"
 		rarityColor = "#8c96aa"
-		rarityIcon = ""
+		// One fixed silhouette communicates hidden rarity without leaking its tier.
+		rarityIcon = "crystal-ball"
 		rarityValue = 0
 		combatRating = 0
 		score = 0
