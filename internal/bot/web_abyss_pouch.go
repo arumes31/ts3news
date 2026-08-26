@@ -11,7 +11,7 @@ const abyssPouchMaxLevel = 3
 
 var (
 	errAbyssPouchMissing = errors.New("own a Consumable Pouch before tailoring it")
-	errAbyssPouchMaxed   = errors.New("Consumable Pouch is already fully tailored")
+	errAbyssPouchMaxed   = errors.New("consumable pouch is already fully tailored")
 	errAbyssPouchFunds   = errors.New("not enough gold")
 )
 
