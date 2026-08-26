@@ -207,6 +207,28 @@ func TestAbyssE2EServer(t *testing.T) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
+	mux.HandleFunc("/abyss/plaza", func(w http.ResponseWriter, _ *http.Request) {
+		plaza := abyssPlazaView{
+			Catalog: make([]abyssPlazaCatalogView, 0, len(abyssPlazaCatalog)),
+			Exhibits: []abyssPlazaExhibit{
+				{
+					Key: "obsidian_runestone", Name: "Obsidian Runestone", Tier: "Echo Court", Icon: "◆",
+					Nickname: `<img src=x onerror="window.plazaInjected=true">`, GoldSpent: 2_500_000,
+					AcquiredAt: "21 Aug 2026", Order: 2,
+				},
+			},
+			Patrons: 12, Monuments: 18, GoldRetired: 42_750_000,
+		}
+		for _, monument := range abyssPlazaCatalog {
+			plaza.Catalog = append(plaza.Catalog, abyssPlazaCatalogView{abyssPlazaMonument: monument})
+		}
+		if err := server.tmpl.ExecuteTemplate(w, "abyss-plaza", map[string]any{
+			"Title": "Hall of Delvers", "Nav": "plaza", "EnableAbyss": true,
+			"U": &webUser{UID: "plaza-e2e", Nickname: "Plaza Tester", Gold: 5_000_000}, "Plaza": plaza,
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
 	registerAbyssTreeE2EFixture(mux, server)
 	mux.HandleFunc("/abyss/ops", func(w http.ResponseWriter, _ *http.Request) {
 		if err := server.tmpl.ExecuteTemplate(w, "abyssOps", map[string]any{"Title": "Abyss Operations", "Nav": "ops"}); err != nil {

@@ -466,6 +466,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	if s.bot.Cfg.EnableAbyss {
 		mux.HandleFunc("/api/abyss/public/stats", s.handleAbyssPublicStats)
 		mux.HandleFunc("/abyss", s.auth(s.handleAbyssPage))
+		mux.HandleFunc("/abyss/plaza", s.auth(s.handleAbyssPlazaPage))
 		mux.HandleFunc("/abyss/spectate", s.auth(s.handleAbyssSpectatePage))
 		mux.HandleFunc("/abyss/ops", s.auth(s.handleAbyssOpsPage))
 		mux.HandleFunc("/api/abyss/enter", s.authAPI(s.handleAbyssEnter))
@@ -537,6 +538,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/season/premium/claim", s.authAPI(s.handleAbyssSeasonPremiumClaim))
 		mux.HandleFunc("/api/abyss/set_badge", s.authAPI(s.handleAbyssSetBadge))
 		mux.HandleFunc("/api/abyss/shop/buy", s.authAPI(s.handleAbyssShopBuy))
+		mux.HandleFunc("/api/abyss/plaza/buy", s.authAPI(s.handleAbyssPlazaBuy))
 		mux.HandleFunc("/api/abyss/shop/token_bundle", s.authAPI(s.handleAbyssTokenBundle))
 		mux.HandleFunc("/api/abyss/shop/potion_subscription", s.authAPI(s.handleAbyssPotionSubscription))
 		mux.HandleFunc("/api/abyss/shop/auto_insure", s.authAPI(s.handleAbyssAutoInsure))

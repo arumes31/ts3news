@@ -1,0 +1,81 @@
+{{define "abyss-plaza"}}{{template "head" .}}
+<link rel="stylesheet" href="{{asset "/static/abyss_plaza.css"}}">
+<div class="plaza-shell">
+  <header class="plaza-hero">
+    <div class="plaza-hero-copy">
+      <span class="plaza-kicker">PUBLIC RECORD · COSMETIC PATRONAGE</span>
+      <h1>Hall of Delvers</h1>
+      <p>Gold leaves the economy. Names remain in stone. Every monument is permanent, public, and grants no combat advantage.</p>
+      <div class="plaza-actions"><a class="plaza-back" href="/abyss#social">← Return to Fellowship</a></div>
+    </div>
+    <div class="plaza-seal" aria-hidden="true"><span>♛</span><i></i></div>
+    <dl class="plaza-census" aria-label="Plaza census">
+      <div><dt>Patrons</dt><dd>{{comma .Plaza.Patrons}}</dd></div>
+      <div><dt>Monuments</dt><dd>{{comma .Plaza.Monuments}}</dd></div>
+      <div><dt>Gold retired</dt><dd>🪙 {{gold .Plaza.GoldRetired}}</dd></div>
+    </dl>
+  </header>
+
+  <div class="plaza-toast" id="plazaToast" role="status" aria-live="polite"></div>
+
+  <section class="plaza-patronage" aria-labelledby="plazaPatronageTitle">
+    <header class="plaza-section-head">
+      <div><span class="plaza-kicker">YOUR PATRONAGE</span><h2 id="plazaPatronageTitle">Commission a permanent work</h2></div>
+      <p>One of each design per delver · exact price · no resale · no stats</p>
+    </header>
+    <div class="plaza-catalog">
+      {{range .Plaza.Catalog}}
+      <article class="plaza-catalog-card tier-{{.Order}}{{if .Owned}} is-owned{{end}}" data-monument="{{.Key}}">
+        <div class="plaza-monument-mark" aria-hidden="true"><span>{{.Icon}}</span></div>
+        <div class="plaza-card-copy">
+          <span class="plaza-tier">{{.Tier}}</span>
+          <h3>{{.Name}}</h3>
+          <p>{{.Desc}}</p>
+        </div>
+        <div class="plaza-commission">
+          <strong>🪙 {{gold .Cost}}</strong>
+          <button type="button" {{if .Owned}}disabled{{end}} data-key="{{.Key}}" data-name="{{.Name}}" data-cost="{{.Cost}}" onclick="buyPlazaMonument(this)">{{if .Owned}}✓ Standing{{else}}Commission{{end}}</button>
+        </div>
+      </article>
+      {{end}}
+    </div>
+  </section>
+
+  <section class="plaza-gallery" aria-labelledby="plazaGalleryTitle">
+    <header class="plaza-section-head">
+      <div><span class="plaza-kicker">THE PUBLIC WALK</span><h2 id="plazaGalleryTitle">Recently raised monuments</h2></div>
+      <p>Display nicknames and dates only. Newest dedications enter from the eastern gate.</p>
+    </header>
+    <div class="plaza-walk" id="plazaWalk">
+      {{range .Plaza.Exhibits}}
+      <article class="plaza-exhibit tier-{{.Order}}" data-monument="{{.Key}}">
+        <div class="plaza-exhibit-plinth"><span aria-hidden="true">{{.Icon}}</span><i></i></div>
+        <div><span class="plaza-tier">{{.Tier}}</span><h3>{{.Name}}</h3><strong>{{.Nickname}}</strong><time>Raised {{.AcquiredAt}}</time><small>🪙 {{gold .GoldSpent}} retired</small></div>
+      </article>
+      {{else}}
+      <div class="plaza-empty"><span aria-hidden="true">◇</span><h3>The stones are waiting.</h3><p>The first patron will open the public walk.</p></div>
+      {{end}}
+    </div>
+  </section>
+</div>
+
+<script data-cfasync="false">
+function plazaToast(message,ok){var node=document.getElementById('plazaToast');node.textContent=message;node.className='plaza-toast show '+(ok?'good':'bad');window.setTimeout(function(){node.className='plaza-toast';},3200);}
+async function buyPlazaMonument(button){
+  if(!button||button.disabled)return;
+  var name=button.dataset.name,cost=Number(button.dataset.cost||0).toLocaleString();
+  var confirmed=await confirmModal('Commission <b>'+name+'</b> for 🪙 '+cost+'?<br><span class="muted small">Permanent vanity only · no stats · no resale.</span>',{title:'Raise a public monument',okLabel:'Commission · '+cost+'g'});
+  if(!confirmed)return;
+  button.disabled=true;
+  try{
+    var response=await fetch('/api/abyss/plaza/buy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:button.dataset.key})});
+    var data=await response.json();
+    if(!data.ok)throw new Error(data.error||'Commission failed');
+    button.textContent='✓ Standing';
+    var card=button.closest('.plaza-catalog-card');if(card)card.classList.add('is-owned');
+    var gold=document.getElementById('goldPill');if(gold){gold.dataset.value=String(data.gold);gold.textContent='🪙 '+Number(data.gold||0).toLocaleString();}
+    plazaToast(data.msg||'Monument commissioned.',true);
+  }catch(error){button.disabled=false;plazaToast(error.message||'Commission failed',false);}
+}
+</script>
+{{template "foot" .}}{{end}}
