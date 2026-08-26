@@ -7,6 +7,9 @@ test('inventory charm motion and unidentified silhouette remain accessible and s
   expect(css).toContain('@keyframes gear-charm-dangle');
   expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)/);
   expect(css).toMatch(/@media\s*\(forced-colors:\s*active\)/);
+  const receiptStyles = await request.get('/static/gear_provenance.css');
+  expect(receiptStyles.status()).toBe(200);
+  expect(await receiptStyles.text()).toMatch(/@media\s*\(forced-colors:\s*active\)/);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/inventory');
@@ -14,6 +17,12 @@ test('inventory charm motion and unidentified silhouette remain accessible and s
   const charm = page.locator('.inv-card[data-slot="Charm"]');
   await expect(charm).toContainText('Lucky Test Charm');
   await expect(charm).toHaveAttribute('title', 'Provenance · Abyss depth 18 · Boss: Gorgoroth the Firelord · 2026-08-20 UTC');
+  const charmReceipt = charm.locator('.gear-provenance');
+  await expect(charmReceipt).not.toHaveAttribute('open');
+  await charmReceipt.locator('summary').click();
+  await expect(charmReceipt).toHaveAttribute('open', '');
+  await expect(charmReceipt.locator('.gear-provenance-receipt')).toHaveText('Provenance · Abyss depth 18 · Boss: Gorgoroth the Firelord · 2026-08-20 UTC');
+  await expect(charmReceipt).toHaveCSS('background-color', 'rgb(11, 18, 28)');
   await expect(charm.locator('.slot-gi').first()).toHaveCSS('animation-name', 'gear-charm-dangle');
 
   const mystery = page.locator('.inv-card[data-unidentified="true"]');
@@ -22,6 +31,7 @@ test('inventory charm motion and unidentified silhouette remain accessible and s
   await expect(mystery).not.toContainText('Secret Celestial Ring');
   await expect(mystery).not.toContainText('Celestial');
   await expect(mystery.locator('.rarity-silhouette')).toHaveAccessibleName('Unknown rarity silhouette');
+  await expect(mystery.locator('.gear-provenance')).toHaveCount(0);
   await expect(mystery).not.toHaveAttribute('title');
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 
@@ -38,6 +48,9 @@ test('Armoury preserves exact values and unidentified secrecy in compact mode', 
   await expect(page.getByText(/Broken in/)).toBeVisible();
   await expect(page.locator('.gear-cell').filter({ hasText: 'Measured Test Blade' }).locator('.gear-meta').first())
     .toHaveAttribute('title', 'Provenance · Abyss depth 25 · Boss: Malakor the Voidweaver · 2026-08-21 UTC');
+  const weaponReceipt = page.locator('.gear-cell').filter({ hasText: 'Measured Test Blade' }).locator('.gear-provenance');
+  await weaponReceipt.locator('summary').click();
+  await expect(weaponReceipt.locator('.gear-provenance-receipt')).toHaveText('Provenance · Abyss depth 25 · Boss: Malakor the Voidweaver · 2026-08-21 UTC');
 
   const mystery = page.locator('.gear-cell').filter({ hasText: 'Unidentified Head' });
   await expect(mystery).toContainText('Unknown');
@@ -45,6 +58,7 @@ test('Armoury preserves exact values and unidentified secrecy in compact mode', 
   await expect(mystery).not.toContainText('Celestial');
   await expect(mystery).not.toContainText('987654');
   await expect(mystery.locator('.gear-meta').first()).not.toHaveAttribute('title');
+  await expect(mystery.locator('.gear-provenance')).toHaveCount(0);
 
   await page.locator('[data-item-number-toggle]').click();
   await expect(strength).toHaveText('123.5K');

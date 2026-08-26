@@ -1,0 +1,44 @@
+.gear-provenance {
+  margin: 8px 0 2px;
+  border: 1px solid #33445b;
+  border-left: 3px solid #d8aa4c;
+  border-radius: 5px;
+  background: #0b121c;
+  color: #aebbd0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.gear-provenance summary {
+  padding: 7px 9px;
+  color: #e4c16c;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: .04em;
+  list-style-position: inside;
+}
+
+.gear-provenance[open] summary {
+  border-bottom: 1px solid #27374b;
+}
+
+.gear-provenance-receipt {
+  display: block;
+  padding: 8px 10px 9px;
+  color: #aebbd0;
+  font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+  overflow-wrap: anywhere;
+}
+
+@media (forced-colors: active) {
+  .gear-provenance {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .gear-provenance summary,
+  .gear-provenance-receipt {
+    color: CanvasText;
+  }
+}

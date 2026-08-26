@@ -7,6 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="{{asset "/static/favicon.svg"}}">
 <link rel="stylesheet" href="/static/style.css?v={{cssver}}">
 {{if eq .Nav "inventory"}}<link rel="stylesheet" href="{{asset "/static/gear_inventory_motion.css"}}">{{end}}
+{{if or (eq .Nav "inventory") (eq .Nav "armory")}}<link rel="stylesheet" href="{{asset "/static/gear_provenance.css"}}">{{end}}
 <script>window.__ASSET_VER__ = "{{appver}}";</script>
 </head>
 <body>

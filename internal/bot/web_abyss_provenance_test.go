@@ -49,8 +49,8 @@ func TestAbyssProvenancePresentationContracts(t *testing.T) {
 
 	for name, tokens := range map[string][]string{
 		"webassets/abyss.html":              {".Provenance", "data-tip="},
-		"webassets/armory.html":             {`title="{{.Provenance}}"`},
-		"webassets/inventory.html":          {`title="{{.Provenance}}"`},
+		"webassets/armory.html":             {`title="{{.Provenance}}"`, `class="gear-provenance"`},
+		"webassets/inventory.html":          {`title="{{.Provenance}}"`, `class="gear-provenance"`},
 		"webassets/abyss_inventory_ui.html": {"item.provenance", "data-tip"},
 	} {
 		body, err := webAssets.ReadFile(name)
