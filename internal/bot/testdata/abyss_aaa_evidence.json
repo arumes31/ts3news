@@ -1669,5 +1669,42 @@
       "internal/bot/xp_abyss_pet_commands_test.go",
       "tests/e2e/abyss.spec.js"
     ]
+  },
+  {
+    "ids": [12, 18, 29, 33, 39, 40, 73],
+    "production": [
+      "internal/bot/abyss_cartographer.go",
+      "internal/bot/abyss_event_chain.go",
+      "internal/bot/abyss_forge_floor.go",
+      "internal/bot/abyss_rescue_support.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_auto_descend.go",
+      "internal/bot/web_abyss_cartographer.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_forge2.go",
+      "internal/bot/web_abyss_forge_quotes.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_longterm.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_rooms.go",
+      "internal/bot/web_abyss_victory_state.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_auto_descend.css",
+      "internal/bot/webassets/abyss_events.css",
+      "internal/bot/webassets/abyss_longterm.html",
+      "internal/bot/webassets/abyss_ui200.css",
+      "internal/bot/xp.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_cartographer_test.go",
+      "internal/bot/abyss_event_chain_test.go",
+      "internal/bot/abyss_forge_floor_test.go",
+      "internal/bot/abyss_rescue_support_test.go",
+      "internal/bot/web_abyss_auto_descend_test.go",
+      "internal/bot/web_abyss_cartographer_test.go",
+      "internal/bot/web_abyss_live_layout_test.go",
+      "internal/bot/web_abyss_longterm_test.go",
+      "tests/e2e/abyss.spec.js"
+    ]
   }
 ]
