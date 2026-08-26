@@ -78,30 +78,31 @@ type MobDeathEffect struct {
 // Mob is a spawned combat opponent: a monster instance with resolved stats,
 // effects, and (for elites/bosses) equipped gear and spells.
 type Mob struct {
-	Name        string
-	Type        MobType
-	Level       int
-	Stats       Stats
-	CurrentHP   int
-	MaxHP       int
-	Break       int
-	MaxBreak    int
-	RewardXP    int
-	Element     Element
-	Effects     []MobEffect
-	Spells      []Skill
-	Equipped    []Gear
-	DeathEffect *MobDeathEffect
-	STRMod      float64
-	DEFMod      float64
-	SPDMod      float64
-	StunRounds  int
-	PreStunSPD  int
-	Loyalty     int
-	PetClass    string
-	PetShiny    bool
-	PetBoss     bool
-	PetBark     string
+	Name           string
+	Type           MobType
+	Level          int
+	Stats          Stats
+	CurrentHP      int
+	MaxHP          int
+	Break          int
+	MaxBreak       int
+	RewardXP       int
+	Element        Element
+	Effects        []MobEffect
+	Spells         []Skill
+	Equipped       []Gear
+	DeathEffect    *MobDeathEffect
+	STRMod         float64
+	DEFMod         float64
+	SPDMod         float64
+	StunRounds     int
+	PreStunSPD     int
+	WeaknessWindow bool
+	Loyalty        int
+	PetClass       string
+	PetShiny       bool
+	PetBoss        bool
+	PetBark        string
 }
 
 // Clone returns a deep copy of m, so mutating the copy's slices never affects

@@ -207,6 +207,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_shield.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_shield.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_weakness_window.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_weakness_window.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_pixel.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_pixel.css", "text/css; charset=utf-8")
 	})

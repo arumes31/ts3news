@@ -417,8 +417,8 @@ func liveMobEffects(mob *content.Mob) []abyssLiveEffect {
 	if mob == nil {
 		return nil
 	}
-	effects := make([]abyssLiveEffect, 0, len(mob.Effects)+1)
-	seen := make(map[string]bool, len(mob.Effects)+1)
+	effects := make([]abyssLiveEffect, 0, len(mob.Effects)+2)
+	seen := make(map[string]bool, len(mob.Effects)+2)
 	for _, effect := range mob.Effects {
 		name := string(effect)
 		if name == "" || seen[name] {
@@ -432,6 +432,11 @@ func liveMobEffects(mob *content.Mob) []abyssLiveEffect {
 	}
 	if mob.Stats.SPD == 0 && !seen["Stunned"] {
 		effects = append(effects, abyssLiveEffect{Name: "Stunned", RemainingRounds: max(1, mob.StunRounds)})
+	}
+	if mob.WeaknessWindow && !seen["Weakness Window"] {
+		effects = append(effects, abyssLiveEffect{
+			Name: "Weakness Window", Duration: "Next player hit · guaranteed critical",
+		})
 	}
 	return effects
 }

@@ -107,6 +107,7 @@ function livePixelCue(unit,newLogs,previous){
   }
   if(!unit.hp_hidden&&previous&&(unit.hp<previous.hp||shieldNow<shieldBefore))cue+=' taking-hit';
   if(previous&&shieldBefore>0&&shieldNow===0)cue+=' shield-break';
+  if(unit.weakness_ready&&!(previous&&previous.weaknessReady))cue+=' weakness-open';
   if(!unit.hp_hidden&&previous&&unit.hp>previous.hp)cue+=' healing';
   if(unit.hp<=0)cue+=' defeated';
   return cue;
@@ -126,9 +127,9 @@ function renderLivePixelStage(state){
       var hpHidden=hostile&&!!unit.hp_hidden;
       var dotActive=hostile&&(unit.effects||[]).some(function(effect){return /poison|bleed|burn|damage over time/i.test(effect.name||'');});
       var tier=hostile&&String(unit.role||'').toLowerCase()==='boss'?' boss-tier':hostile&&(/^nemesis:|behemoth|gatekeeper|lich|knight|invader/i.test(unit.name||''))?' elite-tier':'';
-      button.type='button';button.className='ab-pixel-unit'+(hostile?' hostile':'')+(!hostile&&!unit.is_player?' ally-converted':'')+tier+(hpHidden?' hp-concealed':'')+(!hostile&&unit.shield>0?' shielded':'')+(hostile?liveEnemyAffinity(unit):'')+(liveSelectedTarget===unit.id?' selected':'')+livePixelCue(unit,newLogs,previous);
+      button.type='button';button.className='ab-pixel-unit'+(hostile?' hostile':'')+(!hostile&&!unit.is_player?' ally-converted':'')+tier+(hpHidden?' hp-concealed':'')+(!hostile&&unit.shield>0?' shielded':'')+(unit.weakness_ready?' weakness-ready':'')+(hostile?liveEnemyAffinity(unit):'')+(liveSelectedTarget===unit.id?' selected':'')+livePixelCue(unit,newLogs,previous);
 	  button.disabled=unit.hp===0||(!hostile&&!unit.is_player);button.dataset.target=unit.id;button.style.setProperty('--unit-delay',(index*45)+'ms');
-      button.setAttribute('aria-label',(hostile?'Target ':'Inspect ')+unit.name+', '+(hpHidden?'health concealed':livePct(unit.hp,unit.max_hp)+' percent health'+liveShieldAria(unit)));
+      button.setAttribute('aria-label',(hostile?'Target ':'Inspect ')+unit.name+', '+(hpHidden?'health concealed':livePct(unit.hp,unit.max_hp)+' percent health'+liveShieldAria(unit))+liveWeaknessAria(unit));
       button.setAttribute('aria-pressed',liveSelectedTarget===unit.id?'true':'false');
       var delta=!hpHidden&&previous?unit.hp-previous.hp:0,deltaHTML=delta?'<span class="ab-pixel-float '+(delta>0?'heal':'damage')+'">'+(delta>0?'+':'')+fmtNum(delta)+'</span>':'';
       var shieldDelta=!hostile&&previous?Number(unit.shield||0)-Number(previous.shield||0):0;
@@ -140,12 +141,13 @@ function renderLivePixelStage(state){
       var artIdentity=liveArtIdentity(artKey);
       var rank=tier?'<span class="ab-pixel-rank">'+(tier===' boss-tier'?'BOSS':'ELITE')+'</span>':'';
       button.innerHTML='<span class="ab-pixel-name"><b>'+(unit.revenge?'◎ ':'')+consEsc(unit.name)+'</b><span>'+consEsc(unit.revenge?'REVENGE TARGET':unit.role||unit.element||'')+'</span></span>'+deltaHTML+
+        (hostile?liveWeaknessWindowMark(unit,'pixel'):'')+
         (!hostile?liveShieldBar(unit,'overhead'):'')+
         (hpHidden?'<span class="ab-overhead-hp concealed"><i></i><em>??</em></span>':'<span class="ab-overhead-hp'+(dotActive?' dot-active':'')+'"><i style="width:'+livePct(unit.hp,unit.max_hp)+'%"></i><em>'+livePct(unit.hp,unit.max_hp)+'%</em></span>')+
         rank+'<span class="'+spriteClass+'" data-art-sheet="'+artFamily+'" style="background-position:'+spritePosition+';'+liveUniqueArtStyle(artKey,artFamily)+'" aria-hidden="true"></span><span class="ab-actor-sigil" data-art-signature="'+artIdentity.signature+'" style="--ab-art-sigil:'+artIdentity.sigil+'" aria-hidden="true"></span>'+
         '<span class="ab-pixel-shadow" aria-hidden="true"></span><span class="ab-pixel-effects">'+effects+'</span>';
       button.onclick=function(){selectLiveTarget(unit.id);};host.appendChild(button);
-      livePixelPrevious.units[unit.id]={hp:unit.hp,maxHP:unit.max_hp,shield:Number(unit.shield)||0,maxShield:Number(unit.max_shield)||0};
+      livePixelPrevious.units[unit.id]={hp:unit.hp,maxHP:unit.max_hp,shield:Number(unit.shield)||0,maxShield:Number(unit.max_shield)||0,weaknessReady:!!unit.weakness_ready};
     });
   }
   renderSide('livePixelAllies',state.allies,false);renderSide('livePixelEnemies',state.enemies,true);

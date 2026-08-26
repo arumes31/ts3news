@@ -213,10 +213,11 @@ function renderLiveTargets(hostID, combatants, hostile){
     var button=document.createElement('button');
     var hpHidden=hostile&&!!unit.hp_hidden;
 	var executeReady=hostile&&!hpHidden&&Number(unit.hp)>0&&Number(unit.max_hp)>0&&Number(unit.max_hp)*3>Number(unit.hp)*10;
-    button.type='button'; button.className='ab-combatant'+(hostile?' hostile':'')+(!hostile&&!unit.is_player?' ally-converted':'')+(hostile&&String(unit.role||'').toLowerCase()==='boss'?' boss-tier':'')+(hpHidden?' hp-concealed':'')+(executeReady?' execute-ready':'')+(liveSelectedTarget===unit.id?' selected':'');
+    button.type='button'; button.className='ab-combatant'+(hostile?' hostile':'')+(!hostile&&!unit.is_player?' ally-converted':'')+(hostile&&String(unit.role||'').toLowerCase()==='boss'?' boss-tier':'')+(hpHidden?' hp-concealed':'')+(executeReady?' execute-ready':'')+(unit.weakness_ready?' weakness-ready':'')+(liveSelectedTarget===unit.id?' selected':'');
 	button.disabled=unit.hp===0||(!hostile&&!unit.is_player);
     button.setAttribute('data-target',unit.id);
     button.setAttribute('aria-pressed',liveSelectedTarget===unit.id?'true':'false');
+	button.setAttribute('aria-label',(hostile?'Target ':'Inspect ')+unit.name+liveWeaknessAria(unit));
 	if(hostile&&!hpHidden)button.title='Execute effects activate below 30% HP.';
     var traits=[];
     if(unit.element)traits.push(unit.element);
@@ -235,10 +236,11 @@ function renderLiveTargets(hostID, combatants, hostile){
     var breakBar=unit.max_break?'<span class="ab-break" title="'+consEsc(unit.pattern||'Break this enemy to cancel its next action')+'"><b style="width:'+livePct(unit.break,unit.max_break)+'%"></b><i>BREAK '+fmtNum(unit.break)+' / '+fmtNum(unit.max_break)+'</i></span>':'';
     var dotActive=(unit.effects||[]).some(function(effect){return /poison|bleed|burn|damage over time/i.test(effect.name||'');});
     var shieldBar=hostile?'':liveShieldBar(unit,'combatant');
+    var weaknessMark=hostile?liveWeaknessWindowMark(unit,'combatant'):'';
     var hpBar=hpHidden?'<span class="ab-combatant-hp concealed"><b></b></span>':'<span class="ab-combatant-hp'+(hostile?' execute-track':'')+(dotActive?' dot-active':'')+'"><b style="width:'+livePct(unit.hp,unit.max_hp)+'%"></b></span>';
     var hpText=hpHidden?'HP CONCEALED':fmtNum(unit.hp)+' / '+fmtNum(unit.max_hp)+(unit.max_shield?' · 🛡 '+fmtNum(unit.shield):'')+(executeReady?' · EXECUTE':'');
     button.innerHTML='<span class="ab-combatant-name">'+(unit.revenge?'◎ ':'')+consEsc(unit.name)+(unit.ready?' <i>READY</i>':'')+'</span>'+
-      shieldBar+hpBar+
+      weaknessMark+shieldBar+hpBar+
       '<span class="ab-combatant-stat">'+hpText+(unit.max_mana?' · 🔵 '+fmtNum(unit.mana):'')+'</span>'+
       (traits.length?'<span class="ab-combatant-traits">'+traits.map(consEsc).join(' · ')+'</span>':'')+
       (unit.pattern?'<span class="ab-enemy-pattern">'+consEsc(unit.pattern)+'</span>':'')+

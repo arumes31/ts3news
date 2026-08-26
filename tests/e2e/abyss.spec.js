@@ -707,6 +707,11 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   const shieldStyles = await page.request.get('/static/abyss_shield.css');
   expect(shieldStyles.status()).toBe(200);
   expect(await shieldStyles.text()).toContain('.ab-overhead-shield');
+  const weaknessStyles = await page.request.get('/static/abyss_weakness_window.css');
+  expect(weaknessStyles.status()).toBe(200);
+  const weaknessCSS = await weaknessStyles.text();
+  expect(weaknessCSS).toContain('.ab-pixel-weakness');
+  expect(weaknessCSS).toContain('prefers-reduced-motion');
   await page.goto('/abyss?active=1');
   await page.evaluate(() => {
     window.reduceMotion = true;
@@ -716,6 +721,8 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
       max_hp: 100, hp_hidden: index === 6,
       role: 'common', speed: 10 + index, effects: [],
     }));
+    enemies[5].weakness_ready = true;
+    enemies[5].effects = [{ name: 'Weakness Window', duration: 'Next player hit · guaranteed critical' }];
     window.renderLiveCombat({
       ok: true, session_id: 'e2e-live', phase: 'planning', round: 1,
       deadline: new Date(Date.now() + 60000).toISOString(), tactic: 'balanced',
@@ -751,6 +758,9 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   await expect(closedThreshold).not.toHaveClass(/execute-ready/);
   await expect(closedThreshold.locator('.execute-track')).toHaveCount(1);
   await expect(openThreshold).toHaveClass(/execute-ready/);
+  await expect(openThreshold).toHaveClass(/weakness-ready/);
+  await expect(openThreshold.locator('.ab-combatant-weakness')).toContainText('NEXT PLAYER HIT CRITS');
+  await expect(openThreshold).toHaveAttribute('aria-label', /next direct player hit is a guaranteed critical/);
   await expect(openThreshold).toContainText('EXECUTE');
   await expect(concealedThreshold).not.toHaveClass(/execute-ready/);
   await expect(concealedThreshold).toContainText('HP CONCEALED');
@@ -759,6 +769,10 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   const allySide = await page.locator('#livePixelAllies').boundingBox();
   expect(enemySide.x).toBeLessThan(allySide.x);
   await expect(ordinary.locator('.ab-catalog-actor')).toHaveCSS('background-image', /abyss_atlas_creatures/);
+  await expect(ordinary).toHaveClass(/weakness-ready/);
+  await expect(ordinary).toHaveClass(/weakness-open/);
+  await expect(ordinary.locator('.ab-pixel-weakness')).toContainText('EXPOSED');
+  await expect(ordinary).toHaveAttribute('aria-label', /next direct player hit is a guaranteed critical/);
   await expect(ordinary.locator('.ab-catalog-actor')).toHaveAttribute('data-art-sheet', 'creatures');
   const monsterSignatures = await page.locator('#livePixelEnemies .ab-actor-sigil').evaluateAll(nodes => nodes.map(node => node.dataset.artSignature));
   expect(new Set(monsterSignatures).size).toBe(7);
@@ -802,13 +816,22 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
     const next = structuredClone(window.liveCombatState);
     next.version = Number(next.version || 0) + 1;
     delete next.allies[0].shield;
-    next.recent_logs = ['🛡️ AEGIS · Tester absorbs 150 damage — barrier broken.'];
+    delete next.enemies[5].weakness_ready;
+    next.enemies[5].effects = [];
+    next.recent_logs = [
+      '💥 WEAKNESS CRITICAL! Tester exploits Raider 5\'s opening for 2× damage.',
+      '🛡️ AEGIS · Tester absorbs 150 damage — barrier broken.',
+    ];
     window.renderLiveCombat(next);
   });
   await expect(tacticalShield).toHaveClass(/broken/);
   await expect(tacticalShield).toContainText('BROKEN');
   await expect(pixelAlly).toHaveClass(/shield-break/);
   await expect(pixelAlly.locator('.ab-pixel-float.shield')).toContainText('🛡 -150');
+  await expect(openThreshold).not.toHaveClass(/weakness-ready/);
+  await expect(openThreshold.locator('.ab-combatant-weakness')).toHaveCount(0);
+  await expect(ordinary).not.toHaveClass(/weakness-ready/);
+  await expect(ordinary.locator('.ab-pixel-weakness')).toHaveCount(0);
 });
 
 test('live combat exposes and enforces the remaining action-change budget', async ({ page }) => {

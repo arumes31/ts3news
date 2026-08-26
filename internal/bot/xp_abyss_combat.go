@@ -17,10 +17,11 @@ import (
 // abyssFightTrack accumulates per-fight damage totals that the end-of-fight
 // summary reports (AB-57 thorns total, AB-66 counter-attack line).
 type abyssFightTrack struct {
-	thorns   int // total reflected (thorns) damage dealt to mobs
-	counters int // total parry counter-attack damage dealt to mobs
-	shields  int // enemy attack damage absorbed before HP loss
-	overkill int // excess damage on the final enemy of the final cleared wave
+	thorns        int // total reflected (thorns) damage dealt to mobs
+	counters      int // total parry counter-attack damage dealt to mobs
+	shields       int // enemy attack damage absorbed before HP loss
+	weaknessCrits int // guaranteed criticals consumed from stunned enemies
+	overkill      int // excess damage on the final enemy of the final cleared wave
 }
 
 func abyssOverkillDamage(damage, remainingHP int) int {
@@ -80,6 +81,9 @@ func appendAbyssFightBreakdown(logs []string, track *abyssFightTrack) []string {
 	}
 	if track.shields > 0 {
 		logs = append(logs, fmt.Sprintf("🛡️ Aegis absorbed: %d damage", track.shields))
+	}
+	if track.weaknessCrits > 0 {
+		logs = append(logs, fmt.Sprintf("🎯 Weakness criticals: %d guaranteed", track.weaknessCrits))
 	}
 	return logs
 }

@@ -66,32 +66,33 @@ type abyssLiveEffect struct {
 }
 
 type abyssLiveCombatantView struct {
-	ID         string               `json:"id"`
-	Name       string               `json:"name"`
-	HP         int                  `json:"hp"`
-	MaxHP      int                  `json:"max_hp"`
-	HPHidden   bool                 `json:"hp_hidden,omitempty"`
-	Shield     int                  `json:"shield,omitempty"`
-	MaxShield  int                  `json:"max_shield,omitempty"`
-	Mana       int                  `json:"mana,omitempty"`
-	MaxMana    int                  `json:"max_mana,omitempty"`
-	Ready      bool                 `json:"ready,omitempty"`
-	IsPlayer   bool                 `json:"is_player,omitempty"`
-	IsSelf     bool                 `json:"is_self,omitempty"`
-	Element    string               `json:"element,omitempty"`
-	WeakTo     string               `json:"weak_to,omitempty"`
-	Position   string               `json:"position,omitempty"`
-	Speed      int                  `json:"speed,omitempty"`
-	Threat     int                  `json:"threat,omitempty"`
-	Role       string               `json:"role,omitempty"`
-	Faction    string               `json:"faction,omitempty"`
-	Pattern    string               `json:"pattern,omitempty"`
-	Break      int                  `json:"break,omitempty"`
-	MaxBreak   int                  `json:"max_break,omitempty"`
-	Hazard     bool                 `json:"hazard,omitempty"`
-	Revenge    bool                 `json:"revenge,omitempty"`
-	Effects    []abyssLiveEffect    `json:"effects,omitempty"`
-	Weakpoints []abyssLiveWeakpoint `json:"weakpoints,omitempty"`
+	ID            string               `json:"id"`
+	Name          string               `json:"name"`
+	HP            int                  `json:"hp"`
+	MaxHP         int                  `json:"max_hp"`
+	HPHidden      bool                 `json:"hp_hidden,omitempty"`
+	Shield        int                  `json:"shield,omitempty"`
+	MaxShield     int                  `json:"max_shield,omitempty"`
+	Mana          int                  `json:"mana,omitempty"`
+	MaxMana       int                  `json:"max_mana,omitempty"`
+	Ready         bool                 `json:"ready,omitempty"`
+	IsPlayer      bool                 `json:"is_player,omitempty"`
+	IsSelf        bool                 `json:"is_self,omitempty"`
+	Element       string               `json:"element,omitempty"`
+	WeakTo        string               `json:"weak_to,omitempty"`
+	Position      string               `json:"position,omitempty"`
+	Speed         int                  `json:"speed,omitempty"`
+	Threat        int                  `json:"threat,omitempty"`
+	Role          string               `json:"role,omitempty"`
+	Faction       string               `json:"faction,omitempty"`
+	Pattern       string               `json:"pattern,omitempty"`
+	Break         int                  `json:"break,omitempty"`
+	MaxBreak      int                  `json:"max_break,omitempty"`
+	Hazard        bool                 `json:"hazard,omitempty"`
+	Revenge       bool                 `json:"revenge,omitempty"`
+	WeaknessReady bool                 `json:"weakness_ready,omitempty"`
+	Effects       []abyssLiveEffect    `json:"effects,omitempty"`
+	Weakpoints    []abyssLiveWeakpoint `json:"weakpoints,omitempty"`
 }
 
 type abyssLiveRecommendation struct {
@@ -425,21 +426,22 @@ func (c *abyssLiveCombat) publishRound(
 		}
 		boss = boss || mob.Type == content.MobBoss
 		enemies = append(enemies, abyssLiveCombatantView{
-			ID:       fmt.Sprintf("enemy:%d", i),
-			Name:     mob.Name,
-			HP:       max(0, mob.Stats.HP),
-			MaxHP:    max(1, mob.MaxHP),
-			Element:  string(mob.Element),
-			WeakTo:   string(liveElementWeakness(mob.Element)),
-			Speed:    mob.Stats.SPD,
-			Role:     abyssEnemyRole(mob),
-			Faction:  abyssEnemyFaction(mob),
-			Pattern:  abyssEnemyPattern(mob),
-			Break:    max(0, mob.Break),
-			MaxBreak: max(0, mob.MaxBreak),
-			Hazard:   abyssEnemyHazard(mob),
-			Revenge:  abyssIsRevengeTarget(c.revengeFamily, mob),
-			Effects:  liveMobEffects(mob),
+			ID:            fmt.Sprintf("enemy:%d", i),
+			Name:          mob.Name,
+			HP:            max(0, mob.Stats.HP),
+			MaxHP:         max(1, mob.MaxHP),
+			Element:       string(mob.Element),
+			WeakTo:        string(liveElementWeakness(mob.Element)),
+			Speed:         mob.Stats.SPD,
+			Role:          abyssEnemyRole(mob),
+			Faction:       abyssEnemyFaction(mob),
+			Pattern:       abyssEnemyPattern(mob),
+			Break:         max(0, mob.Break),
+			MaxBreak:      max(0, mob.MaxBreak),
+			Hazard:        abyssEnemyHazard(mob),
+			Revenge:       abyssIsRevengeTarget(c.revengeFamily, mob),
+			WeaknessReady: mob.WeaknessWindow,
+			Effects:       liveMobEffects(mob),
 		})
 	}
 

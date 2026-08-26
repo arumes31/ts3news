@@ -1,0 +1,49 @@
+.abyss-command-page .ab-combatant.hostile.weakness-ready {
+  border-color: #f0b84b;
+  box-shadow: inset 3px 0 #f0b84b, 0 0 14px rgba(240, 184, 75, .2);
+}
+.abyss-command-page .ab-combatant-weakness,
+.abyss-command-page .ab-pixel-weakness {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  margin: 5px 0 2px;
+  padding: 2px 5px;
+  color: #ffe5a1;
+  border: 1px solid rgba(240, 184, 75, .66);
+  background: repeating-linear-gradient(135deg, #2b1b0b 0 7px, #3a2410 7px 12px);
+  font: 800 .48rem/1.25 var(--cmd-mono, ui-monospace, monospace);
+  letter-spacing: .04em;
+}
+.abyss-command-page .ab-combatant-weakness i,
+.abyss-command-page .ab-pixel-weakness i { color: #f0b84b; font-style: normal; }
+.abyss-command-page .ab-pixel-weakness {
+  position: relative;
+  z-index: 7;
+  display: block;
+  margin: 2px auto;
+  padding: 1px 2px;
+  text-align: center;
+  font-size: .4rem;
+  line-height: 1.15;
+}
+.abyss-command-page .ab-pixel-weakness i { display: block; font-size: .34rem; }
+.abyss-command-page .ab-pixel-unit.weakness-ready .ab-pixel-weakness {
+  box-shadow: 0 0 8px rgba(240, 184, 75, .42);
+}
+.abyss-command-page .ab-pixel-unit.weakness-open { animation: ab-weakness-open .38s steps(4); }
+
+@keyframes ab-weakness-open {
+  45% { box-shadow: 0 0 0 2px #f0b84b, 0 0 18px rgba(240, 184, 75, .62); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .abyss-command-page .ab-pixel-unit.weakness-open { animation: none; }
+}
+
+@media (forced-colors: active) {
+  .abyss-command-page .ab-combatant.hostile.weakness-ready,
+  .abyss-command-page .ab-combatant-weakness,
+  .abyss-command-page .ab-pixel-weakness { border: 2px solid Highlight; }
+}

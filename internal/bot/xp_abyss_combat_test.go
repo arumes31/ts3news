@@ -15,9 +15,14 @@ func TestAppendAbyssFightBreakdown(t *testing.T) {
 		t.Fatalf("non-Abyss breakdown added %d lines, want none", len(got)-1)
 	}
 
-	got := appendAbyssFightBreakdown(base, &abyssFightTrack{thorns: 125, counters: 80, shields: 240})
+	got := appendAbyssFightBreakdown(base, &abyssFightTrack{
+		thorns: 125, counters: 80, shields: 240, weaknessCrits: 2,
+	})
 	joined := strings.Join(got, "\n")
-	for _, want := range []string{"Thorns reflected: 125 damage", "Parry counter-attacks: 80 damage", "Aegis absorbed: 240 damage"} {
+	for _, want := range []string{
+		"Thorns reflected: 125 damage", "Parry counter-attacks: 80 damage",
+		"Aegis absorbed: 240 damage", "Weakness criticals: 2 guaranteed",
+	} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("breakdown %q does not contain %q", joined, want)
 		}

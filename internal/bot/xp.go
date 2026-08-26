@@ -1655,6 +1655,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			)
 
 			dmgMult := focusDmg
+			stunnedThisHit := false
 			if comboFollowup {
 				dmgMult *= 1.15
 				*logs = append(*logs, fmt.Sprintf("🔗 %s follows the party's skill order on the same target — combo +15%%!", u.Nickname))
@@ -1822,6 +1823,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					}
 					target.Stats.SPD = 0
 					target.StunRounds = max(target.StunRounds, max(1, skillModifiers.EffectRounds))
+					stunnedThisHit = abyssCombatant(u)
 				}
 			} else {
 				au.lastSkillID = "" // Reset combo if no skill used
@@ -1832,6 +1834,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			// Pure support cast (e.g. Arcane Shield): the heal already applied
 			// above, so skip the rest of the attack resolution — no mob damage.
 			if skipDamage {
+				armAbyssWeaknessWindow(target, stunnedThisHit, logs)
 				continue
 			}
 
@@ -1950,41 +1953,58 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				dmg = applyAbyssFirstStrike(dmg, firstStrike)
 				*logs = append(*logs, abyssFirstStrikeLog(u.Nickname, target.Name, firstStrike))
 			}
+			secondaryBaseDamage := dmg
+			weaknessCritical := false
 
 			// Abyss crit & fumble (AB-72 fumble recovery, AB-62 focus crit bonus).
 			// The CRT stat is displayed as "Crit %" in the armory but was never
 			// rolled in combat — the Abyss path now rolls it (×2 damage, capped).
 			if abyssCombatant(u) {
-				// #nosec G404 -- non-cryptographic combat roll
-				if rand.Float64() < 0.03 {
-					// Fumble: half damage, but the next hit gets +10% crit.
-					dmg = dmg / 2
-					if dmg < 1 {
-						dmg = 1
-					}
-					au.fumbled = true
-					*logs = append(*logs, fmt.Sprintf("😳 %s fumbles their attack! (Half damage — the next hit is fueled by embarrassed rage)", u.Nickname))
-				} else {
-					critPct := u.Stats.CRT + focusCrit
-					if au.fumbled {
-						critPct += 10 // AB-72 embarrassed rage
-						au.fumbled = false
-					}
-					if critPct > 50 {
-						critPct = 50
-					}
+				dmg, weaknessCritical = resolveAbyssWeaknessCritical(
+					abyssWeaknessCriticalContext{
+						target: target,
+						user:   au,
+						track:  track,
+						logs:   logs,
+					},
+					dmg,
+				)
+				if !weaknessCritical {
 					// #nosec G404 -- non-cryptographic combat roll
-					if critPct > 0 && rand.IntN(100) < critPct {
-						dmg *= 2
-						*logs = append(*logs, fmt.Sprintf("💥 CRITICAL HIT! %s lands a devastating blow on %s!", u.Nickname, target.Name))
+					if rand.Float64() < 0.03 {
+						// Fumble: half damage, but the next hit gets +10% crit.
+						dmg = dmg / 2
+						if dmg < 1 {
+							dmg = 1
+						}
+						au.fumbled = true
+						*logs = append(*logs, fmt.Sprintf("😳 %s fumbles their attack! (Half damage — the next hit is fueled by embarrassed rage)", u.Nickname))
+					} else {
+						critPct := u.Stats.CRT + focusCrit
+						if au.fumbled {
+							critPct += 10 // AB-72 embarrassed rage
+							au.fumbled = false
+						}
+						if critPct > 50 {
+							critPct = 50
+						}
+						// #nosec G404 -- non-cryptographic combat roll
+						if critPct > 0 && rand.IntN(100) < critPct {
+							dmg *= 2
+							*logs = append(*logs, fmt.Sprintf("💥 CRITICAL HIT! %s lands a devastating blow on %s!", u.Nickname, target.Name))
+						}
 					}
 				}
+			}
+			if !weaknessCritical {
+				secondaryBaseDamage = dmg
 			}
 
 			// Daily affix: Execute — strikes land 50% harder on targets below 30% HP.
 			executeAffix := strings.Contains(u.FloorModifier, "execute") && target.MaxHP > 0 && target.Stats.HP*10 < target.MaxHP*3
 			if executeAffix {
 				dmg = dmg * 3 / 2
+				secondaryBaseDamage = secondaryBaseDamage * 3 / 2
 			}
 
 			// Executioner affix: +25% damage to targets below 30% HP (stacks with
@@ -1994,6 +2014,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				for _, eff := range au.effects {
 					if eff == content.EffectExecutioner {
 						dmg = dmg * 5 / 4
+						secondaryBaseDamage = secondaryBaseDamage * 5 / 4
 						executioner = true
 						break
 					}
@@ -2004,6 +2025,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			// flourish and an extra +5%.
 			if executeAffix && executioner {
 				dmg = dmg * 21 / 20
+				secondaryBaseDamage = secondaryBaseDamage * 21 / 20
 				if !au.execFlourished {
 					au.execFlourished = true
 					*logs = append(*logs, fmt.Sprintf("⚔️ EXECUTIONER'S FLOURISH! %s's blade sings on Execute day — both bonuses stack with an extra +5%%!", u.Nickname))
@@ -2013,11 +2035,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			killerBaseDamage := dmg
 			dmg = abyssKillerDamage(killerBaseDamage, u, target)
 			remainingHP := target.Stats.HP
-			overkill := max(0, dmg-remainingHP)
 			massiveOverkill := abyssOverkillHit(dmg, remainingHP)
 			target.Stats.HP -= dmg
 			appendAbyssExecuteThresholdLog(logs, target, remainingHP, abyssCombatant(u))
 			applyAbyssBreakDamage(target, dmg, logs)
+			armAbyssWeaknessWindow(target, stunnedThisHit, logs)
 			*totalUserDamage += dmg
 
 			// #nosec G404 -- non-cryptographic flavour-text roll
@@ -2044,7 +2066,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 						}
 					}
 					if chainTarget != nil {
-						chainDmg := killerBaseDamage / 2
+						chainDmg := secondaryBaseDamage / 2
 						if chainDmg < 1 {
 							chainDmg = 1
 						}
@@ -2145,10 +2167,15 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					}
 				}
 			}
-			if isLiveAction && overkill > 1 && liveHitKind != "item" {
+			cleaveTriggerDamage := dmg
+			if weaknessCritical {
+				cleaveTriggerDamage = abyssKillerDamage(secondaryBaseDamage, u, target)
+			}
+			secondaryOverkill := max(0, secondaryBaseDamage-remainingHP)
+			if isLiveAction && cleaveTriggerDamage-remainingHP > 1 && liveHitKind != "item" {
 				cleaveTarget := lowestHealthMobExcept(*mobs, target)
 				if cleaveTarget != nil {
-					cleaveDamage := max(1, max(0, killerBaseDamage-remainingHP)/2)
+					cleaveDamage := max(1, secondaryOverkill/2)
 					cleaveDamage = abyssKillerDamage(cleaveDamage, u, cleaveTarget)
 					cleaveRemainingHP := cleaveTarget.Stats.HP
 					cleaveOverkill := abyssOverkillHit(cleaveDamage, cleaveRemainingHP)
