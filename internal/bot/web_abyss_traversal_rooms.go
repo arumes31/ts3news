@@ -199,18 +199,6 @@ func (s *WebServer) handleAbyssTraversalRoom(w http.ResponseWriter, uid string, 
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return true
 	}
-	if reload {
-		flags, err := loadAbyssRunFlagsInTx(tx, uid)
-		if err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "db"})
-			return true
-		}
-		flags[abyssRunFlagEventSigils]++
-		if err := saveAbyssRunFlagsInTx(tx, uid, flags); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "db"})
-			return true
-		}
-	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return true

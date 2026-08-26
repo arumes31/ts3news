@@ -66,6 +66,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0036 / 36** — Storm combat telegraphs its next target side before applying bounded environmental damage.
 - [x] **AAA-0037 / 37** — Darkness combat redacts enemy health from snapshots and timelines without mutating authoritative combat state.
 - [x] **AAA-0038 / 38** — Sanctuary improvements persist token-funded upgrades to healing, repair, rerolls, maps, and crafting.
+- [x] **AAA-0039 / 39** — the Triune Sigil Hunt binds a server-authoritative ten-floor event chain, marks three scheduled combat victories, expires without rollover, and atomically opens a depth-scaled cache chest on the third sigil (`abyss_event_chain.go`, `abyss_event_chain_test.go`, `web_abyss_victory_state.go`, `web_abyss_rooms.go`, `webassets/abyss.html`, `tests/e2e/abyss.spec.js`).
 - [x] **AAA-0041 / 41** — Blood Altars consume an owned item for a timed buff, with explicit corrupted-item amplification.
 - [x] **AAA-0042 / 42** — Echo Floors recover a bounded share of the last credited reward without rerolling it.
 - [x] **AAA-0043 / 43** — Alchemy Labs atomically combine two owned consumables into a stronger result.

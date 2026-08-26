@@ -128,7 +128,7 @@ func abyssSpecialRoomForRoll(roll float64) string {
 		"challenge_room", "cursed_door", "story_crossroads", "lost_explorer",
 		"locked_vault", "collapsed_passage", "abyssal_garden", "cursed_elevator",
 		"trap_chamber", "unstable_portal", "graveyard", "echo_floor", "bounty_board",
-		abyssForgeFloorType,
+		abyssForgeFloorType, abyssEventChainType,
 	}
 	index := int(roll / (0.20 / float64(len(rooms))))
 	if index >= len(rooms) {
@@ -278,7 +278,7 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 		return false
 	}
 	switch state.Type {
-	case "challenge_room", "cursed_door", "story_crossroads", "lost_explorer", "locked_vault", "collapsed_passage", "abyssal_garden", abyssForgeFloorType:
+	case "challenge_room", "cursed_door", "story_crossroads", "lost_explorer", "locked_vault", "collapsed_passage", "abyssal_garden", abyssForgeFloorType, abyssEventChainType:
 	default:
 		return false
 	}
@@ -469,6 +469,30 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 			return true
 		}
 		msg = "⚒️ You leave the Silent Anvil unused."
+	case abyssEventChainType:
+		switch action {
+		case "sigil_chain_accept":
+			chain, started := startAbyssEventChain(flags, run.Depth)
+			if started {
+				msg = fmt.Sprintf(
+					"✦ Triune Hunt bound: recover 3 sigils by floor %d. The first trace awakens on floor %d.",
+					chain.Deadline,
+					chain.NextDepth,
+				)
+			} else {
+				msg = fmt.Sprintf(
+					"✦ Your existing hunt remains bound at %d/%d sigils through floor %d.",
+					chain.Sigils,
+					chain.Required,
+					chain.Deadline,
+				)
+			}
+		case "sigil_chain_leave":
+			msg = "The three runes dim. No new hunt is bound."
+		default:
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid sigil hunt choice"})
+			return true
+		}
 	}
 
 	if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
@@ -498,6 +522,7 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 		"tokens":           s.bot.abyssTokens(uid),
 		"keepsake":         keepsake,
 		"green_thumb":      greenThumb,
+		"event_chain":      abyssEventChainFromFlags(flags, run.Depth),
 		"materials":        s.bot.loadMaterials(uid),
 		"explorer_support": abyssRescueSupportViewFromFlags(flags),
 	})

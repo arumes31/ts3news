@@ -197,7 +197,13 @@
     <div class="ab-restarts" id="restArc" aria-hidden="true"></div>
     {{if .Run.Active}}
     <div class="ab-event-intel" id="eventIntel" aria-label="Event chain and map forecast">
-      <span class="ab-sigil-ribbon">✦ Sigils {{.EventIntel.Sigils}}/3{{if .EventIntel.Chains}} · chain {{.EventIntel.Chains}}{{end}}</span>
+      <span class="ab-sigil-ribbon {{if .EventIntel.Chain.Active}}is-active{{end}}" id="eventChainRibbon" aria-label="{{if .EventIntel.Chain.Active}}Sigil Hunt {{.EventIntel.Chain.Sigils}} of {{.EventIntel.Chain.Required}}, {{.EventIntel.Chain.FloorsLeft}} floors left{{else}}Sigil Hunt dormant{{end}}">
+        <span class="ab-sigil-title">✦ HUNT</span>
+        <span class="ab-sigil-marks" aria-hidden="true">
+          <i class="{{if .EventIntel.Chain.FoundFirst}}is-found{{end}}"></i><i class="{{if .EventIntel.Chain.FoundSecond}}is-found{{end}}"></i><i class="{{if .EventIntel.Chain.FoundThird}}is-found{{end}}"></i>
+        </span>
+        <span id="eventChainStatus">{{if .EventIntel.Chain.Active}}{{.EventIntel.Chain.Sigils}}/{{.EventIntel.Chain.Required}} · next F{{.EventIntel.Chain.NextDepth}} · {{.EventIntel.Chain.FloorsLeft}} left{{else}}dormant{{if .EventIntel.Chain.Chains}} · {{.EventIntel.Chain.Chains}} cleared{{end}}{{end}}</span>
+      </span>
       {{if and .EventIntel.MapOwned (le .EventIntel.NextIn 2) (gt .EventIntel.NextDepth 0)}}
       <span class="ab-map-forecast">🗺️ F{{.EventIntel.NextDepth}} · {{if .EventIntel.EventLabel}}{{.EventIntel.EventLabel}}{{else}}charted anomaly{{end}}</span>
       {{end}}
@@ -1322,6 +1328,7 @@ var interestRatePct = Number('{{printf "%.3f" .HUD.InterestRatePct}}') || 0; // 
 var interestTotalPct = {{printf "%.3f" .HUD.InterestTotalPct}};
 var escrowSoftCap = {{.HUD.EscrowSoftCap}}, escrowEfficiencyPct = {{.HUD.EscrowEfficiencyPct}};
 var forgeUIState = null, forgeUIStateReceivedAt = 0, abyssSetupState = null, forgeFloorActive = false;
+var eventChainState = {{jsonJS .EventIntel.Chain}} || {active:false,sigils:0,required:3,chains:0};
 var abyssJackpot = {{.HUD.Jackpot}}; // UI-57
 var jackpotPulse = false, jackpotPulseTimer = 0;
 var activeRunPacts = {{jsonJS .HUD.Pacts}} || []; // UI-52
@@ -1997,6 +2004,15 @@ function renderNonCombat(floorType, stateStr){
       title.textContent = '⚒️ The Silent Anvil';
       desc.textContent = 'An ancient forge wakes for one committed action. Choose a free temper attempt, punch one socket, or repair every equipped item. Eligibility and temper odds remain unchanged.';
       options.innerHTML = `<button class="primary" onclick="openAbyssForgeFloor('temper')">⚒️ Choose Gear · Free Temper</button> <button class="ghost" onclick="openAbyssForgeFloor('punch_socket')">💎 Choose Gear · Free Socket</button> <button class="ghost" onclick="openAbyssForgeFloor('repair_all')">🛠️ Free Full Repair</button> <button class="ghost" onclick="abyssNCAction('forge_floor_leave')">🚶 Leave the Anvil</button>`;
+    } else if(state.type === 'sigil_chain'){
+      title.textContent = '✦ The Triune Sigil Hunt';
+      if(eventChainState&&eventChainState.active){
+        desc.textContent = 'A second cartouche answers the hunt already bound to you. Your current progress and deadline remain unchanged.';
+        options.innerHTML = `<button class="ghost" onclick="abyssNCAction('sigil_chain_leave')">✦ Keep Current Hunt · Leave</button>`;
+      } else {
+        desc.textContent = 'Bind three rune traces hidden among combat victories over the next ten floors. The first trace awakens two floors from here; complete the cartouche to open its exact cache chest.';
+        options.innerHTML = `<button class="primary" onclick="abyssNCAction('sigil_chain_accept')">✦ Bind the 10-floor Hunt</button> <button class="ghost" onclick="abyssNCAction('sigil_chain_leave')">Leave the Runes Dormant</button>`;
+      }
     } else {
       desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
     }
@@ -2028,6 +2044,37 @@ function openAbyssForgeFloor(operation){
   var focus=select||target;
   if(focus){focus.scrollIntoView({block:'center',behavior:reduceMotion?'auto':'smooth'});focus.focus({preventScroll:true});}
   abToast(operation==='temper'?'Select eligible gear, then use the glowing Temper action.':'Select gear below four sockets, then use the glowing Punch Socket action.',true);
+}
+
+function renderAbyssEventChain(chain){
+  if(!chain)return;
+  eventChainState=chain;
+  var ribbon=document.getElementById('eventChainRibbon');
+  var status=document.getElementById('eventChainStatus');
+  if(!ribbon||!status)return;
+  var required=Math.max(1,Number(chain.required)||3),sigils=Math.max(0,Math.min(required,Number(chain.sigils)||0));
+  ribbon.classList.toggle('is-active',!!chain.active);
+  ribbon.classList.toggle('is-complete',!!chain.completed);
+  ribbon.classList.toggle('is-expired',!!chain.expired);
+  ribbon.querySelectorAll('.ab-sigil-marks i').forEach(function(mark,index){mark.classList.toggle('is-found',index<sigils);});
+  if(chain.completed){
+    status.textContent=required+'/'+required+' · chest opened · '+fmtGold(chain.chest_reward);
+  }else if(chain.expired){
+    status.textContent='expired · seek another cartouche';
+  }else if(chain.active){
+    status.textContent=sigils+'/'+required+' · next F'+Number(chain.next_depth||0)+' · '+Number(chain.floors_left||0)+' left';
+  }else{
+    status.textContent='dormant'+(Number(chain.chains)>0?' · '+Number(chain.chains)+' cleared':'');
+  }
+  ribbon.setAttribute('aria-label',chain.active?'Sigil Hunt '+sigils+' of '+required+', '+Number(chain.floors_left||0)+' floors left':status.textContent);
+}
+
+function abyssEventChainNotice(chain){
+  if(!chain)return '';
+  if(chain.completed)return '✦ Triune chest opened: +'+fmtGold(chain.chest_reward)+' cache.';
+  if(chain.collected)return '✦ Sigil recovered: '+Number(chain.sigils||0)+'/'+Number(chain.required||3)+' · '+Number(chain.floors_left||0)+' floors left.';
+  if(chain.expired)return '✦ The Sigil Hunt expired before the cartouche was completed.';
+  return '';
 }
 
 // animateNumber (#335/#336): count a numeric change up/down over ~400ms.
@@ -2588,7 +2635,7 @@ function updateStageScene(){
   if(isEvent){
     var t='';
     try{ t=(JSON.parse(eventState||'{}').type)||''; }catch(e){}
-    icon.textContent = t==='cursed_library' ? '📚' : (t==='den'||t==='imp'||t==='gambler' ? '🎰' : '❔');
+    icon.textContent = t==='cursed_library' ? '📚' : (t==='sigil_chain' ? '✦' : (t==='den'||t==='imp'||t==='gambler' ? '🎰' : '❔'));
   }
 }
 
@@ -3397,6 +3444,11 @@ async function playAbyssMultiFloorResults(data) {
       if (stage) stage.dataset.batchFloor = String(depth);
       document.dispatchEvent(new CustomEvent('abyss:batch-floor', {detail: {depth: depth, index: i, total: floors.length}}));
       await playLog(floor.logs || [], floor.loot || [], floor.dura || [], floor.timeline || [], floor);
+      if(floor.event_chain){
+        renderAbyssEventChain(floor.event_chain);
+        var chainNotice=abyssEventChainNotice(floor.event_chain);
+        if(chainNotice)setBanner(chainNotice,floor.event_chain.expired?'warn':'good');
+      }
       resetMana();
     }
   } finally {
@@ -3536,6 +3588,7 @@ async function processDescendResult(d, hp, max){
     if(d.lore_unlocked)msg+=' 📖 Found Lore Codex fragment!';
     if(d.recipe_unlocked)msg+=' 📖 Recipe discovered: '+d.recipe_unlocked+'!';
     if(d.gear_milestone)msg+=' '+d.gear_milestone;
+    if(d.event_chain){renderAbyssEventChain(d.event_chain);var chainNotice=abyssEventChainNotice(d.event_chain);if(chainNotice)msg+=' '+chainNotice;}
     if(d.boss_name){abyssLastBossFinale={name:d.boss_name,frames:d.boss_finale||[]};msg+=' 💥 '+consEsc(d.boss_name)+' executed · estimated '+fmtNum(d.boss_dps)+' DPS. <button class="ghost xs" onclick="showAbyssBossKillCam()">🎬 Final 5 rounds</button>';}
     setBanner(msg,'good');
     document.getElementById('abStatus').textContent='Floor '+d.depth+' survived. The next floor is deadlier.';
@@ -3919,6 +3972,7 @@ async function abyssNCAction(action, payload){
   if(d.escrow !== undefined) setEscrow(d.escrow);
   if(d.consumables !== undefined) renderConsumables(d.consumables);
   if(d.explorer_support !== undefined) renderExplorerSupport(d.explorer_support);
+  if(d.event_chain)renderAbyssEventChain(d.event_chain);
   // UI-18: compatibility fallback for a committed response without a list.
   var eventBuffDuration=Number(d.buff_duration)||0;
   if(d.consumables===undefined && eventBuffDuration>0){

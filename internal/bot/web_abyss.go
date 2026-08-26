@@ -2267,14 +2267,15 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 // their logs/loot plus a fresh run snapshot ride along with the error and the
 // client can reconcile depth, escrow, HP and wallet instead of drifting.
 type abyssMultiFloorResult struct {
-	Depth    int                   `json:"depth"`
-	Victory  bool                  `json:"victory"`
-	HP       int                   `json:"hp"`
-	MaxHP    int                   `json:"max_hp"`
-	Logs     []string              `json:"logs"`
-	Loot     []string              `json:"loot"`
-	Dura     []string              `json:"dura"`
-	Timeline []combatTimelineFrame `json:"timeline"`
+	Depth      int                   `json:"depth"`
+	Victory    bool                  `json:"victory"`
+	HP         int                   `json:"hp"`
+	MaxHP      int                   `json:"max_hp"`
+	Logs       []string              `json:"logs"`
+	Loot       []string              `json:"loot"`
+	Dura       []string              `json:"dura"`
+	Timeline   []combatTimelineFrame `json:"timeline"`
+	EventChain *abyssEventChainView  `json:"event_chain,omitempty"`
 }
 
 func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, loot, dura []string, timeline []combatTimelineFrame, floorResults []abyssMultiFloorResult, rewardXP int) map[string]any {
@@ -2357,6 +2358,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 	var escrowEfficiencyPct int
 	var bossContractPayout int64
 	var bossTokenAwarded bool
+	var eventChain *abyssEventChainView
 	abort := func(errKey string, tier abyssTier) map[string]any {
 		out := s.descendMultiAbort(uid, errKey, tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP)
 		if cursedElevator {
@@ -2494,6 +2496,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				"run_floors_cleared": abyssRunFloorsCleared(runFinal),
 				"jackpot":            s.bot.getJackpot("abyss"),
 				"explorer_support":   s.bot.abyssRescueSupportView(uid),
+				"event_chain":        eventChain,
 			})
 			return
 		}
@@ -2566,6 +2569,11 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 			if o.AffixReward != "" {
 				affixReward = o.AffixReward
 			}
+			if o.EventChain.relevant() {
+				chain := o.EventChain
+				eventChain = &chain
+				floorResults[len(floorResults)-1].EventChain = &chain
+			}
 			escrowSoftCap = o.EscrowSoftCap
 			escrowEfficiencyPct = o.EscrowEfficiencyPct
 			run.Escrow = o.NewEscrow
@@ -2614,6 +2622,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				"run_floors_cleared":  abyssRunFloorsCleared(runFinal),
 				"pity_proc":           pityProc,
 				"explorer_support":    s.bot.abyssRescueSupportView(uid),
+				"event_chain":         eventChain,
 			}
 			if cursedElevator {
 				out["cursed_elevator"] = true
@@ -2665,6 +2674,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		"escrow_efficiency_pct": escrowEfficiencyPct,
 		"run_floors_cleared":    abyssRunFloorsCleared(finalRun),
 		"explorer_support":      s.bot.abyssRescueSupportView(uid),
+		"event_chain":           eventChain,
 	}
 	if cursedElevator {
 		out["cursed_elevator"] = true
@@ -3022,6 +3032,7 @@ type abyssFloorOutcome struct {
 	RecipeUnlocked      string
 	AffixReward         string
 	RewardExperiment    abyssRewardAssignment
+	EventChain          abyssEventChainView
 	DBErr               bool
 }
 
@@ -3124,11 +3135,15 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 	withInterest := int64(float64(escrowBefore) * (1.0 + interestRate))
 	growth := applyAbyssEscrowSoftCap(escrowBefore, withInterest-escrowBefore, bonus, depth)
 	bonus = growth.Bonus + bountyReward
-	newEscrow := growth.Escrow + bountyReward // [56] soft cap applies to floor growth; signed bounties pay their exact posted value
-	if _, err := s.bot.DB.Exec("UPDATE abyss_active SET escrow=$1, floor_type='combat', modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2", newEscrow, uid); err != nil {
-		o.DBErr = true
-		return o
-	}
+	// [56] The soft cap applies only to ordinary floor growth. Signed bounties
+	// and a completed event-chain chest pay their exact posted values.
+	newEscrow, eventChain := applyAbyssEventChainVictory(
+		runFlags,
+		depth,
+		run.depthLevelHint(),
+		growth.Escrow+bountyReward,
+	)
+	o.EventChain = eventChain
 	runFlags[abyssRunFlagDeathWish] = 0
 	if runFlags[abyssRunFlagColdMuscles] > 0 {
 		runFlags[abyssRunFlagColdMuscles]--
@@ -3138,7 +3153,10 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 	if !untouched {
 		runFlags[abyssRunFlagPerfect] = 0
 	}
-	_ = s.bot.saveRunFlags(uid, runFlags)
+	if err := commitAbyssVictoryRunState(s.bot.DB, uid, newEscrow, runFlags); err != nil {
+		o.DBErr = true
+		return o
+	}
 	if o.SecondaryGoal != "" {
 		s.bot.grantAbyssTokens(uid, 1)
 	}
@@ -3343,6 +3361,9 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		}
 		if o.AffixReward != "" {
 			out["affix_reward"] = o.AffixReward
+		}
+		if o.EventChain.relevant() {
+			out["event_chain"] = o.EventChain
 		}
 	} else {
 		// Downed: hold the cache; the player must revive (if available) or concede.
@@ -5486,9 +5507,6 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	}
 	if runFlags[abyssRunFlagColdMuscles] > 0 {
 		runFlags[abyssRunFlagColdMuscles]--
-	}
-	if run.FloorType == "event" && !deferredReturn {
-		runFlags[abyssRunFlagEventSigils]++
 	}
 	if deferredReturn {
 		runFlags[abyssRunFlagDeferredReturn] = 0

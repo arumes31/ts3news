@@ -97,6 +97,38 @@ test('Silent Anvil guides a free action through the dedicated Forge tab', async 
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
+test('Triune Sigil Hunt binds a ten-floor quest and renders its chest completion', async ({ page }) => {
+  let acceptedAction = '';
+  await fulfillAbyssAPI(page, (path, body) => {
+    if (path.endsWith('/noncombat/action')) {
+      acceptedAction = body.action;
+      return {
+        ok: true, resolved: true, msg: 'Triune Hunt bound.',
+        event_chain: { active: true, sigils: 0, required: 3, deadline: 22, floors_left: 10, next_depth: 14, chains: 0 },
+      };
+    }
+    return { ok: false, error: 'unexpected e2e request' };
+  });
+  await page.setViewportSize({ width: 480, height: 900 });
+  await page.goto('/abyss?active=1&room=sigil_chain');
+  await page.evaluate(() => { window.reduceMotion = true; });
+
+  const room = page.locator('#nonCombatPanel');
+  await expect(room).toContainText('The Triune Sigil Hunt');
+  await room.getByRole('button', { name: /Bind the 10-floor Hunt/ }).click();
+  await expect.poll(() => acceptedAction).toBe('sigil_chain_accept');
+  await expect(page.locator('#eventChainRibbon')).toHaveClass(/is-active/);
+  await expect(page.locator('#eventChainStatus')).toHaveText('0/3 · next F14 · 10 left');
+
+  await page.evaluate(() => window.renderAbyssEventChain({
+    active: false, sigils: 3, required: 3, chains: 1, collected: true, completed: true, chest_reward: 9000,
+  }));
+  await expect(page.locator('#eventChainRibbon')).toHaveClass(/is-complete/);
+  await expect(page.locator('#eventChainRibbon .ab-sigil-marks .is-found')).toHaveCount(3);
+  await expect(page.locator('#eventChainStatus')).toContainText('chest opened');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
 test('desktop Abyss keeps its dark canvas and aligned stage in light system mode', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
@@ -399,12 +431,16 @@ test('a fatal descend exposes the revive and concede decision', async ({ page })
 test('planned multi-floor descent presents every combat floor in order', async ({ page }) => {
   await fulfillAbyssAPI(page, path => path.endsWith('/descend_multi') ? {
     ok: true, victory: true, depth: 15, risk: 20, hp: 760, max_hp: 1000,
-    gold: 5000, tokens: 12, bonus: 900, escrow: 4650, logs: [], loot: [],
+    gold: 5000, tokens: 12, bonus: 900, escrow: 13650, logs: [], loot: [],
     dura: [], timeline: [], consumables: [], run_floors_cleared: 5,
     floor_results: [13, 14, 15].map((depth, index) => ({
       depth, victory: true, hp: 920 - index * 80, max_hp: 1000,
       logs: [`Floor ${depth} test combat`], loot: [], dura: [], timeline: [],
+      event_chain: index < 2
+        ? { active: true, sigils: index + 1, required: 3, floors_left: 8 - index, next_depth: depth + 1, collected: true }
+        : { active: false, sigils: 3, required: 3, chains: 1, collected: true, completed: true, chest_reward: 9000 },
     })),
+    event_chain: { active: false, sigils: 3, required: 3, chains: 1, collected: true, completed: true, chest_reward: 9000 },
   } : { ok: false, error: 'unexpected e2e request' });
   await page.goto('/abyss?active=1');
   await page.evaluate(() => {
@@ -415,6 +451,8 @@ test('planned multi-floor descent presents every combat floor in order', async (
   await page.locator('#btnDescendMulti').click();
   await expect.poll(() => page.evaluate(() => window.__batchFloors)).toEqual([13, 14, 15]);
   await expect(page.locator('#abStatus')).toContainText('survived');
+  await expect(page.locator('#eventChainRibbon')).toHaveClass(/is-complete/);
+  await expect(page.locator('#eventChainRibbon .ab-sigil-marks .is-found')).toHaveCount(3);
 });
 
 test('crowded live combat can target an ordinary enemy', async ({ page }) => {

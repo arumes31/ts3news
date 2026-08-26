@@ -39,10 +39,11 @@ func TestAbyssE2EServer(t *testing.T) {
 	})
 	mux.HandleFunc("/abyss", func(w http.ResponseWriter, r *http.Request) {
 		fixture := abyssGoldenFixture(r.URL.Query().Get("active") == "1")
-		if r.URL.Query().Get("room") == abyssForgeFloorType {
+		room := r.URL.Query().Get("room")
+		if room == abyssForgeFloorType || room == abyssEventChainType {
 			run := fixture["Run"].(abyssRun)
 			run.FloorType = "event"
-			run.EventState = `{"type":"forge_floor"}`
+			run.EventState = `{"type":"` + room + `"}`
 			fixture["Run"] = run
 		}
 		if err := server.tmpl.ExecuteTemplate(w, "abyss", fixture); err != nil {
