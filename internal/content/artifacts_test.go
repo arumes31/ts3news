@@ -193,6 +193,40 @@ func TestGearAppearanceCatalogIsCompleteAndDetached(t *testing.T) {
 	}
 }
 
+func TestAbyssGearCatalogIsExclusiveAndDetached(t *testing.T) {
+	t.Parallel()
+
+	catalog := AbyssGearCatalog()
+	if len(catalog) == 0 {
+		t.Fatal("Abyss gear catalog is empty")
+	}
+	seen := make(map[string]bool, len(catalog))
+	for _, gear := range catalog {
+		if !IsAbyssGearID(gear.ID) || IsInsanityGearID(gear.ID) {
+			t.Fatalf("non-Abyss gear %q leaked into catalog", gear.ID)
+		}
+		if seen[gear.ID] {
+			t.Fatalf("duplicate Abyss gear ID %q", gear.ID)
+		}
+		seen[gear.ID] = true
+	}
+
+	original := AbyssGearCatalog()[0]
+	catalog[0].Name = "mutated"
+	catalog[0].BonusEffects = append(catalog[0].BonusEffects, EffectThorns)
+	catalog[0].Gemstones = append(catalog[0].Gemstones, "mutated")
+	if current := AbyssGearCatalog()[0]; current.Name != original.Name {
+		t.Fatal("Abyss gear catalog mutation changed canonical content")
+	}
+	current := AbyssGearCatalog()[0]
+	if len(current.BonusEffects) != len(original.BonusEffects) {
+		t.Fatal("Abyss gear bonus-effect mutation changed canonical content")
+	}
+	if len(current.Gemstones) != len(original.Gemstones) {
+		t.Fatal("Abyss gear gemstone mutation changed canonical content")
+	}
+}
+
 func TestRandomGearDropForSlotsExcludingKeepsPoolAndSlot(t *testing.T) {
 	tests := []struct {
 		name  string

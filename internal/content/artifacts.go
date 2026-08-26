@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"math"
 	"math/rand/v2"
+	"slices"
 	"strings"
 	"time"
+
 	"ts3news/internal/i18n"
 )
 
@@ -1419,6 +1421,17 @@ func RandomAbyssGearDrop() Gear {
 		g.Special = RandomItemEffect()
 	}
 	return g
+}
+
+// AbyssGearCatalog returns a detached copy of the Abyss-exclusive drop catalog.
+// Callers may sort or filter it without mutating the canonical content data.
+func AbyssGearCatalog() []Gear {
+	catalog := slices.Clone(abyssExclusiveGear)
+	for index := range catalog {
+		catalog[index].BonusEffects = slices.Clone(catalog[index].BonusEffects)
+		catalog[index].Gemstones = slices.Clone(catalog[index].Gemstones)
+	}
+	return catalog
 }
 
 // abyssDupRerollAttempts caps how many times the *Excluding rollers retry to

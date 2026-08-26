@@ -1697,6 +1697,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Inventory":           inventory,
 		"LegendaryPity":       pity,
 		"CelestialPity":       celestialPity,
+		"FeaturedDrops":       abyssWeeklyFeaturedDrops(time.Now()),
 		"TreeUnspent":         treeUnspent,
 		"DropStreak":          dropStreak,
 		"DropStreakBonusPct":  dropStreakBonusPct,

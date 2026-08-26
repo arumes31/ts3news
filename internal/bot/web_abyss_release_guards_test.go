@@ -71,8 +71,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "2aace1be1e55794572e69eb37c6f8e55de8c57633c7a49c83806a3d17a782c80"},
-		{name: "active_run", active: true, want: "c146df310f5d1df27597be0a1646565a11cc329db051eb926916edc411a4f569"},
+		{name: "threshold", want: "6add38fd82f0ee47bbda2a8137aeb7d37183ba6f5dd8fcac0878d9a665cea574"},
+		{name: "active_run", active: true, want: "3c7d37c70cb2a1ba2e3ac5cef810d9d2024d52cbd87f967c023aaf99cca38e20"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -189,7 +189,8 @@ func abyssGoldenFixture(active bool) map[string]any {
 		"HarvesterPieces": 0, "HarvesterTier": 0, "Bounty": nil, "Shop": []any{},
 		"Pacts": []any{}, "PactProgram": abyssPactProgramStateFromAt(nil, nil, time.Date(2026, time.August, 25, 0, 0, 0, 0, time.UTC)),
 		"Equipped": []gearView{}, "Inventory": []gearView{},
-		"LegendaryPity": 0, "DropStreak": 0, "DropStreakBonusPct": 0, "Risk": 0,
+		"LegendaryPity": 0, "FeaturedDrops": abyssWeeklyFeaturedDrops(time.Date(2026, time.August, 26, 12, 0, 0, 0, time.UTC)),
+		"DropStreak": 0, "DropStreakBonusPct": 0, "Risk": 0,
 		"RunLoot": []runLootRow{}, "CanLastStand": false, "Materials": map[string]int{},
 		"MaterialDefs": []any{}, "Recipes": []any{},
 		"CraftQuest": map[string]int{"Done": 0, "Target": 5},

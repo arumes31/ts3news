@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_recorder.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_run_awareness.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_loot_presentation.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_featured_drops.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_forge_experience.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_transmog.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_navigation.css"}}">
@@ -112,6 +113,8 @@
     </div>
     <div class="muted small" style="margin-top:7px;">✦ Celestial drought: <b>{{.CelestialPity}}</b> gear drops <span title="Display-only counter; Celestial drops have no guaranteed cap.">(no cap)</span></div>
   </div>
+
+  {{template "abyss-featured-drops" .FeaturedDrops}}
 
   <!-- Loot drop streak HUD: floors in a row with no gear item, boosts loot find -->
   <div class="abyss-pity-hud" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; margin: 15px 0;">

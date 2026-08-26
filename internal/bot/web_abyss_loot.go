@@ -359,6 +359,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	// Dynamic Scaling: load active run depth
 	run := b.loadAbyssRun(uid)
 	lootSettings := b.loadAbyssLootSettings(uid)
+	featuredDrops := abyssWeeklyFeaturedDrops(time.Now())
 	scale := 1.0
 	if run.Active && run.Depth > 0 {
 		scale = 1.0 + float64(run.Depth)*0.02 // +2% stats per floor depth
@@ -454,7 +455,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		smartCategory := ""
 		if lootSettings.TargetCategory != "" && mob.Type != content.MobBoss && g.Rarity >= content.RarityRare {
 			rolledRarity := g.Rarity
-			g = content.RandomAbyssGearDropForCategoryExcluding(lootSettings.TargetCategory, ownedGear)
+			g = rollAbyssWeeklyFeaturedGear(lootSettings.TargetCategory, ownedGear, featuredDrops, abyssWeeklyGameplayRandom{})
 			pool = content.GearDropPoolAbyss
 			smartCategory = lootSettings.TargetCategory
 			if g.Rarity < rolledRarity {
@@ -636,7 +637,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		// nothing can skip the pity payout. Pity is only reset once the drop is
 		// actually escrowed.
 		if legendaryPity >= abyssLegendaryPityCap {
-			pg := content.RandomAbyssGearDropExcluding(ownedGear)
+			pg := rollAbyssWeeklyFeaturedGear("", ownedGear, featuredDrops, abyssWeeklyGameplayRandom{})
 			pg.Rarity = content.RarityLegendary
 			label, g, smartReason, setPityID := processGear(pg, content.GearDropPoolAbyss)
 			// Escrow it like any other run drop — even an empty slot — so it stays
@@ -756,7 +757,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			pool := content.GearDropPoolStandard
 			// #nosec G404 -- non-cryptographic loot roll
 			if rand.Float64() < 0.20 {
-				g = content.RandomAbyssGearDropExcluding(ownedGear)
+				g = rollAbyssWeeklyFeaturedGear("", ownedGear, featuredDrops, abyssWeeklyGameplayRandom{})
 				pool = content.GearDropPoolAbyss
 			}
 			// Insanity-tier exclusives: 25% of gear drops in an Insanity run come
