@@ -79,6 +79,34 @@ test('authoritative smart loot remains visible in the manifest', async ({ page }
   expect(pageErrors).toEqual([]);
 });
 
+test('set pity remains visible without revealing unidentified gear', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.goto('/abyss');
+  await page.evaluate(() => {
+    const item = {
+      id: 7901, depth: 19, source: 'Dropped floor 19', item_type: 'gear',
+      slot: 'Head', slot_icon: '⛑', rarity: 'Legendary', rarity_rank: 5,
+      beam_class: 'beam-legendary', title: 'Unidentified Head',
+      label: 'Unidentified Head', unidentified: true, set_pity: true,
+      set_pity_label: 'SET PITY · 3→4',
+    };
+    const manifest = document.querySelector('#lootManifest');
+    manifest.replaceChildren(window.buildAuthoritativeRunLootRow(item));
+  });
+
+  const row = page.locator('#lootManifest .abyss-side-loot');
+  await expect(row).toHaveClass(/ab-set-pity/);
+  await expect(row).toHaveAttribute('data-set-pity', 'true');
+  await expect(row).toHaveAttribute('data-set-id', '');
+  await expect(row.locator('.ab-set-pity-tag')).toHaveText('🧩 SET PITY · 3→4');
+  await row.click();
+  await expect(row.locator('.ab-loot-detail')).toContainText('SET PITY · 3→4');
+  await expect(row.locator('.ab-loot-detail')).not.toContainText('predator');
+  await expect(row).toHaveCSS('border-left-color', 'rgb(246, 196, 83)');
+  expect(pageErrors).toEqual([]);
+});
+
 test('custom stakes preview, submit, and remain adjustable between floors', async ({ page }) => {
   let enteredBody = null;
   let dialBody = null;

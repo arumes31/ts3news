@@ -107,3 +107,110 @@ func TestApplyAbyssSmartLootRespectsChanceAndRarityOutcome(t *testing.T) {
 		t.Fatalf("biased drop = %#v (%q), want empty-slot reason and unchanged Eternal rarity", biased, reason)
 	}
 }
+
+func TestAbyssSetPityCandidatesRequireExactlyThreeDistinctPieces(t *testing.T) {
+	t.Parallel()
+	owned := map[string]bool{
+		"ABYSS_BERSERKER_RING":  true,
+		"ABYSS_FIREBRAND_SWORD": true,
+		"ABYSS_ZEPHYR_DAGGER":   true,
+	}
+
+	candidates := abyssSetPityCandidates(owned, "")
+	if len(candidates) != 3 {
+		t.Fatalf("candidate count = %d, want 3 missing Predator pieces", len(candidates))
+	}
+	for _, gear := range candidates {
+		if gear.SetID != "predator" || owned[gear.ID] {
+			t.Fatalf("invalid completion candidate: %#v", gear)
+		}
+	}
+
+	owned["ABYSS_ASSASSIN_HOOD"] = true
+	if got := abyssSetPityCandidates(owned, ""); len(got) != 0 {
+		t.Fatalf("four owned pieces still produced candidates: %#v", got)
+	}
+
+	harvester := map[string]bool{
+		"ABYSS_HARVESTER_HOOK": true,
+		"ABYSS_HARVESTER_EYE":  true,
+		"ABYSS_HARVESTER_BAND": true,
+	}
+	if got := abyssSetPityCandidates(harvester, ""); len(got) != 0 {
+		t.Fatalf("three-piece set produced fourth-piece candidates: %#v", got)
+	}
+}
+
+func TestMarkAbyssEscrowedGearOwnedUsesStructuredGrant(t *testing.T) {
+	t.Parallel()
+	owned := map[string]bool{}
+	data := []byte(`{"type":"gear","gear":{"ID":"ABYSS_ASSASSIN_HOOD"}}`)
+	if !markAbyssEscrowedGearOwned(owned, data) || !owned["ABYSS_ASSASSIN_HOOD"] {
+		t.Fatalf("escrowed gear was not included in ownership: %#v", owned)
+	}
+	if markAbyssEscrowedGearOwned(owned, []byte(`{"type":"gold","gold":10}`)) {
+		t.Fatal("non-gear grant changed ownership")
+	}
+	if markAbyssEscrowedGearOwned(owned, []byte(`not-json`)) {
+		t.Fatal("invalid grant changed ownership")
+	}
+}
+
+func TestApplyAbyssSetPityPreservesBoundariesAndRarity(t *testing.T) {
+	t.Parallel()
+	owned := map[string]bool{
+		"ABYSS_BERSERKER_RING":  true,
+		"ABYSS_FIREBRAND_SWORD": true,
+		"ABYSS_ZEPHYR_DAGGER":   true,
+	}
+	original := content.Gear{ID: "original", Slot: content.SlotChest, Rarity: content.RarityEternal}
+
+	unchanged, setID := applyAbyssSetPity(
+		original,
+		content.GearDropPoolAbyss,
+		owned,
+		"",
+		abyssSetPityChance,
+	)
+	if unchanged.ID != original.ID || setID != "" {
+		t.Fatalf("failed chance gate changed drop: %#v (%q)", unchanged, setID)
+	}
+
+	biased, setID := applyAbyssSetPity(
+		original,
+		content.GearDropPoolAbyss,
+		owned,
+		"",
+		0,
+	)
+	if setID != "predator" || biased.ID == original.ID || biased.Rarity != content.RarityEternal {
+		t.Fatalf("biased drop = %#v (%q), want missing Predator piece with Eternal rarity", biased, setID)
+	}
+
+	standard, setID := applyAbyssSetPity(
+		original,
+		content.GearDropPoolStandard,
+		owned,
+		"",
+		0,
+	)
+	if standard.ID != original.ID || setID != "" {
+		t.Fatalf("standard pool changed drop: %#v (%q)", standard, setID)
+	}
+
+	categoryOwned := map[string]bool{
+		"ABYSS_BERSERKER_RING":  true,
+		"ABYSS_HELLFIRE_RING":   true,
+		"ABYSS_FIREBRAND_SWORD": true,
+	}
+	categoryDrop, setID := applyAbyssSetPity(
+		original,
+		content.GearDropPoolAbyss,
+		categoryOwned,
+		"jewelry",
+		0,
+	)
+	if categoryDrop.ID != original.ID || setID != "" {
+		t.Fatalf("category chase was overridden: %#v (%q)", categoryDrop, setID)
+	}
+}
