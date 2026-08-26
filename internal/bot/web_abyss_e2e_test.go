@@ -128,6 +128,7 @@ func TestAbyssE2EServer(t *testing.T) {
 				{ID: "warden", Name: "Warden", Icon: "🛡️", Owned: 1, Required: 4, Percent: 25, Remaining: 3},
 			},
 		}
+		fixture["InsuranceCharms"] = 2
 		wishlistMu.Lock()
 		fixture["Wishlist"] = abyssWishlistViewFor(wishlistState, "")
 		wishlistMu.Unlock()

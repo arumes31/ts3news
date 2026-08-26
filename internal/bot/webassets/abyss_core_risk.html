@@ -4,6 +4,7 @@
   <input id="insurancePct" type="range" min="{{.CoreLoop.InsuranceMin}}" max="{{.CoreLoop.InsuranceMax}}" step="{{.CoreLoop.InsuranceStep}}" value="{{if .CoreLoop.Insured}}{{.CoreLoop.Insured}}{{else}}25{{end}}" aria-label="Cache insurance percentage">
   <button class="ghost xs" id="btnInsureSelected" type="button" onclick="abyssInsureSelected()">{{if .CoreLoop.FreeInsuranceReady}}Use free cover{{else}}Buy cover{{end}}</button>
 </span>
+<span class="ab-insurance-charm" id="insuranceCharmStatus" data-count="{{.InsuranceCharms}}"{{if not .InsuranceCharms}} hidden{{end}} title="Passive stash protection. One charm returns 50% of an otherwise uninsured cache on defeat, then is consumed. Disabled by grace, paid cover, Anchor Rune, Hardcore, Uninsured, and Abstinence.">🧿 <b id="insuranceCharmCount">{{.InsuranceCharms}}</b> charm<span id="insuranceCharmPlural">{{if ne .InsuranceCharms 1}}s{{end}}</span> · 50% fallback</span>
 {{end}}
 
 {{define "abyssCoreRiskConsole"}}
@@ -84,6 +85,8 @@
 
   window.abyssInsureSelected=function(){var input=document.getElementById('insurancePct');if(input)abyssInsure(Number(input.value));};
 	window.updateAbyssReviveRisk=function(streak,chance){state.revive_streak=Math.max(0,Number(streak)||0);state.revive_chance_pct=Math.max(0,Number(chance)||0);render();};
+	window.abyssInsuranceCharmCount=function(){var node=document.getElementById('insuranceCharmStatus');return node?Math.max(0,Number(node.dataset.count)||0):0;};
+	window.updateAbyssInsuranceCharms=function(count){var node=document.getElementById('insuranceCharmStatus'),value=document.getElementById('insuranceCharmCount'),plural=document.getElementById('insuranceCharmPlural');count=Math.max(0,Number(count)||0);if(!node)return;node.dataset.count=String(count);node.hidden=count===0;if(value)value.textContent=String(count);if(plural)plural.textContent=count===1?'':'s';};
   var insurance=document.getElementById('insurancePct'),insuranceOut=document.getElementById('insurancePctOut');
   if(insurance)insurance.addEventListener('input',function(){if(insuranceOut)insuranceOut.value=insurance.value+'%';});
 

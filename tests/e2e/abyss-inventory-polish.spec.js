@@ -99,3 +99,23 @@ test('Shop set safeguard shows identified progress without revealing hidden gear
   await expect(panel).not.toContainText('SECRET_CELESTIAL');
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
+
+test('passive insurance charm stays visible without crowding mobile risk controls', async ({ page, request }) => {
+  const styles = await request.get('/static/abyss_core_risk.css');
+  expect(styles.status()).toBe(200);
+  expect(await styles.text()).toMatch(/@media\s*\(forced-colors:\s*active\)/);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/abyss?active=1');
+
+  const charm = page.locator('#insuranceCharmStatus');
+  await expect(charm).toBeVisible();
+  await expect(charm).toHaveAttribute('data-count', '2');
+  await expect(charm).toContainText('50% fallback');
+  await expect(charm).toHaveCSS('background-color', 'rgb(17, 16, 32)');
+  await page.evaluate(() => window.updateAbyssInsuranceCharms(1));
+  await expect(charm).toContainText('1 charm · 50% fallback');
+  await page.evaluate(() => window.updateAbyssInsuranceCharms(0));
+  await expect(charm).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});

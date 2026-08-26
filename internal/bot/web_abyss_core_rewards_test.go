@@ -193,6 +193,8 @@ func TestAbyssCoreRiskAssetsAndTabs(t *testing.T) {
 		`anchorRuneBtn`,
 		`abyssInterestMarker`,
 		`updateAbyssReviveRisk`,
+		`id="insuranceCharmStatus"`,
+		`updateAbyssInsuranceCharms`,
 		`id="hybridMode"`,
 		`state.cold_muscles_floors`,
 		`state.defensive_momentum`,

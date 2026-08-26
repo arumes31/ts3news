@@ -3854,19 +3854,20 @@ async function abyssRevive(){
     setBanner('🎲✨ REVIVED — and the cache DOUBLED to '+fmtGold(d.escrow)+'! Press on or bank.','good');
     document.getElementById('abStatus').textContent='Back from the brink. Descend or bank.';
     renderConsumables(d.consumables);
-  } else {
+	} else {
 	 pendingDoubleBonus=0;
     var finishedDepth=curDepth;
     recordSessionRun(false, finishedDepth, 0, 'Failed revival'); // UI-108: the run ends here, cache lost
     inRun=false; downed=false; setEscrow(0); setDepth('—');
     updateFavicon(); // UI-190: back to the idle icon
-    setBanner('💀 The gamble failed. Cache lost'+(d.insured_refund>0?' ('+fmtGold(d.insured_refund)+' insured back)':'')+'.','bad');
+    if(typeof updateAbyssInsuranceCharms==='function'&&d.insurance_charms!==undefined)updateAbyssInsuranceCharms(d.insurance_charms);
+    setBanner('💀 The gamble failed. Cache lost'+(d.insured_refund>0?' ('+fmtGold(d.insured_refund)+(d.insurance_charm_used?' returned by insurance charm':' insured back')+')':'')+'.','bad');
     document.getElementById('abStatus').textContent='Defeated. Enter again when ready.';
     showRunSummary('💀 Run over', [
       ['Deepest floor', finishedDepth],
       ['Floors cleared this session', runFloorsCleared],
       ['Loot escrowed (lost)', runLootGained],
-      ['Insurance returned', fmtGold(d.insured_refund||0)]
+      [d.insurance_charm_used?'Charm returned':'Insurance returned', fmtGold(d.insured_refund||0)]
     ], 'bad');
   }
   renderState(); setBusy(false);
@@ -3876,14 +3877,18 @@ async function abyssConcede(){
   if(busy)return;
   var grace=!hardcoreRun&&curDepth>=1&&curDepth<=3;
   var insuredRefund=grace?curEscrow:Math.floor(curEscrow*Math.max(0,Math.min(100,curInsured))/100),forfeited=curEscrow-insuredRefund;
+  var charmCount=typeof abyssInsuranceCharmCount==='function'?abyssInsuranceCharmCount():0;
   var protection=grace?'Grace floors return the full cache and preserve its loot.':'Insurance returns '+fmtGold(insuredRefund)+'; '+fmtGold(forfeited)+' is forfeited.';
+  if(!grace&&curInsured===0&&charmCount>0){var charmRefund=Math.floor(curEscrow*.5);protection='If this run is eligible, one insurance charm will return '+fmtGold(charmRefund)+' and '+fmtGold(curEscrow-charmRefund)+' is forfeited; otherwise no cache returns.';}
   if(!(await confirmModalDangerous('Concede on floor '+curDepth+'? Cache at stake: '+fmtGold(curEscrow)+'. '+protection+' The run ends.',{title:'Concede',okLabel:'Concede'})))return; // UI-135: 3s arm delay
   setBusy(true); markBusyBtn('btnConcede'); clearBanner();
   var d=await abPost('/api/abyss/concede');
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  if(typeof updateAbyssInsuranceCharms==='function'&&d.insurance_charms!==undefined)updateAbyssInsuranceCharms(d.insurance_charms);
+  if(d.insurance_charm_used)abToast('🧿 Insurance charm consumed · '+fmtGold(d.insured_refund||0)+' returned.',true,{ms:900});
   recordSessionRun(false, curDepth, 0, 'Conceded'); // UI-108
   try{ sessionStorage.removeItem('ab_trail'); }catch(e){}
-  window.location.reload();
+  setTimeout(function(){window.location.reload();},d.insurance_charm_used?650:0);
 }
 
 // Bank flow (UX-49): fetch a server-computed preview first and show an
@@ -4814,6 +4819,7 @@ async function abyssCraft(id, btn){
   if(btn)btn.disabled=false;
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setMaterials(d.materials); setTokens(d.tokens); renderConsumables(d.consumables);
+  if(typeof updateAbyssInsuranceCharms==='function'&&d.insurance_charms!==undefined)updateAbyssInsuranceCharms(d.insurance_charms);
   abToast(d.msg,true);
 }
 

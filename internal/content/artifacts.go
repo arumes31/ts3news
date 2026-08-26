@@ -422,10 +422,11 @@ type ConsumableType string
 
 // Consumable effect kinds.
 const (
-	ConsumableHealing ConsumableType = "Healing"
-	ConsumableRevive  ConsumableType = "Revive"
-	ConsumableBuff    ConsumableType = "Buff"
-	ConsumableRepair  ConsumableType = "Repair"
+	ConsumableHealing   ConsumableType = "Healing"
+	ConsumableRevive    ConsumableType = "Revive"
+	ConsumableBuff      ConsumableType = "Buff"
+	ConsumableRepair    ConsumableType = "Repair"
+	ConsumableInsurance ConsumableType = "Insurance"
 )
 
 // Consumable is a single-use or stacking item: a potion, elixir, or repair kit.
@@ -501,6 +502,7 @@ func buildConsumables() []Consumable {
 var abyssExclusiveConsumables = []Consumable{
 	{"abyss_emergency_revive", "Emergency Revive Potion", ConsumableRevive, 1.0, 0, "Single-use: instantly heals you to full HP if you fall in the Abyss, beyond your normal one-per-run revival."},
 	{"abyss_affix_suppressor", "Affix Suppressor", ConsumableBuff, 0, 0, "Consume at entry to ignore the daily affix for one entire Abyss run."},
+	{"abyss_insurance_charm", "Abyss Insurance Charm", ConsumableInsurance, 0.5, 0, "Passive: returns 50% of an uninsured Abyss cache on defeat, then is consumed. Disabled by Hardcore, Uninsured, and Abstinence."},
 	{"repair_kit_ii", "Repair Kit II", ConsumableRepair, 50, 0, "Restores 50 durability to every equipped item."},
 	// Corrupted consumables (AB-85): stronger effect plus self-damage on use.
 	// They only enter the pool via CorruptedConsumableVariant at drop time; the

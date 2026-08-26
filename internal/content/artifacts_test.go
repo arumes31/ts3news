@@ -151,6 +151,16 @@ func TestRepairKitIIExceedsDefaultKit(t *testing.T) {
 	}
 }
 
+func TestAbyssInsuranceCharmCatalogContract(t *testing.T) {
+	charm, ok := GetConsumableByID("abyss_insurance_charm")
+	if !ok {
+		t.Fatal("Abyss Insurance Charm missing")
+	}
+	if charm.Type != ConsumableInsurance || charm.EffectValue != 0.5 || charm.Duration != 0 {
+		t.Fatalf("Abyss Insurance Charm = %#v", charm)
+	}
+}
+
 func TestRandomAbyssGearDropForCategoryExcluding(t *testing.T) {
 	for _, category := range []string{"weapon", "armor", "jewelry"} {
 		for range 20 {

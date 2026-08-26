@@ -157,6 +157,7 @@ var craftRecipes = []craftRecipe{
 	{ID: "brew_master_repair", Name: "Master Repair Kit", Desc: "Restores gear completely.", ConsID: "master_repair_kit", Cost: map[string]int{"shard": 4}, Secret: true},
 	{ID: "brew_rejuv", Name: "Rejuvenation Potion", Desc: "Restores 60% of max HP.", ConsID: "rejuvenation_potion", Cost: map[string]int{"shard": 3, "core": 1}, Secret: true},
 	{ID: "brew_phoenix", Name: "Phoenix Feather", Desc: "One free return from death.", ConsID: "phoenix_feather", Cost: map[string]int{"core": 3}, Secret: true},
+	{ID: "forge_insurance_charm", Name: "Abyss Insurance Charm", Desc: "Passive: consumes on an eligible uninsured defeat to return 50% of the cache. Does not occupy a combat carry slot.", ConsID: abyssInsuranceCharmID, Cost: map[string]int{"shard": 5, "core": 2}},
 	{ID: "brew_life", Name: "Elixir of Life", Desc: "Full heal in a bottle.", ConsID: "elixir_of_life", Cost: map[string]int{"core": 2, "shard": 4}, Secret: true},
 }
 
@@ -335,7 +336,8 @@ func (s *WebServer) handleAbyssCraft(w http.ResponseWriter, r *http.Request, uid
 		"craft_crit":        craftCrit,
 		"output":            output,
 		"materials":         s.bot.loadMaterials(uid), "tokens": s.bot.abyssTokens(uid),
-		"consumables": s.bot.getConsumables(uid),
+		"consumables":      s.bot.getConsumables(uid),
+		"insurance_charms": s.bot.abyssInsuranceCharmCount(uid),
 	})
 }
 

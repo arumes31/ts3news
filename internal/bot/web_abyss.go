@@ -516,6 +516,9 @@ func (b *Bot) abyssOwnedConsumables(uid string) ([]consumableOwned, int) {
 		if err := rows.Scan(&id, &n); err != nil {
 			continue
 		}
+		if !abyssConsumableCountsTowardCarryCap(id) {
+			continue
+		}
 		name := id
 		if c, ok := content.GetConsumableByID(id); ok {
 			name = c.Name
@@ -1678,6 +1681,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"LoreTotal":           len(abyssLoreFragments),
 		"Bestiary":            bestiary,
 		"Consumables":         s.bot.getConsumables(uid),
+		"InsuranceCharms":     s.bot.abyssInsuranceCharmCount(uid),
 		"DailyMod":            dailyMod,
 		"CommunityExpedition": s.bot.communityExpeditionStatus(),
 		"Helpers":             helpers,
@@ -3745,7 +3749,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 	s.bot.setAbyssReviveStreak(uid, min(s.bot.abyssReviveStreak(uid)+1, 5))
 	graceProtected := abyssGraceProtected(run.Depth, false)
 	mysteryReveal := abyssMysteryRevealFromFlags(s.bot.loadRunFlags(uid))
-	payout, ferr := s.bot.forfeitAbyss(uid, run, "revive_failed")
+	forfeit, ferr := s.bot.forfeitAbyss(uid, run, "revive_failed")
 	if ferr != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -3755,10 +3759,12 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 		"ok": true, "revived": true, "victory": false, "depth": run.Depth,
 		"hp": 0, "logs": res.LogsHTML, "loot": res.LootHTML, "dura": res.DuraHTML,
 		"timeline":  res.Timeline,
-		"forfeited": true, "insured_refund": payout, "escrow": 0,
-		"grace_protected": graceProtected,
-		"mystery_reveal":  mysteryReveal,
-		"reward_xp":       res.RewardXP, "risk": s.bot.abyssRunRiskPct(uid, run.Depth+1, tier),
+		"forfeited": true, "insured_refund": forfeit.Refund, "escrow": 0,
+		"insurance_charm_used": forfeit.InsuranceCharmUsed,
+		"insurance_charms":     s.bot.abyssInsuranceCharmCount(uid),
+		"grace_protected":      graceProtected,
+		"mystery_reveal":       mysteryReveal,
+		"reward_xp":            res.RewardXP, "risk": s.bot.abyssRunRiskPct(uid, run.Depth+1, tier),
 		"skill_variety":    res.SkillVariety,
 		"variety_bonus_xp": res.VarietyBonusXP,
 	}
@@ -3794,7 +3800,7 @@ func (s *WebServer) handleAbyssConcede(w http.ResponseWriter, r *http.Request, u
 	hardcore := abyssHardcoreRun(runFlags)
 	graceProtected := abyssGraceProtected(run.Depth, hardcore)
 	mysteryReveal := abyssMysteryRevealFromFlags(runFlags)
-	payout, ferr := s.bot.forfeitAbyss(uid, run, "conceded")
+	forfeit, ferr := s.bot.forfeitAbyss(uid, run, "conceded")
 	if ferr != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -3804,8 +3810,10 @@ func (s *WebServer) handleAbyssConcede(w http.ResponseWriter, r *http.Request, u
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	out := map[string]any{
 		"ok": true, "conceded": true, "depth": run.Depth,
-		"insured_refund": payout, "gold": gold, "tokens": s.bot.abyssTokens(uid),
-		"grace_protected": graceProtected, "hardcore": hardcore,
+		"insured_refund": forfeit.Refund, "gold": gold, "tokens": s.bot.abyssTokens(uid),
+		"insurance_charm_used": forfeit.InsuranceCharmUsed,
+		"insurance_charms":     s.bot.abyssInsuranceCharmCount(uid),
+		"grace_protected":      graceProtected, "hardcore": hardcore,
 		"mystery_reveal": mysteryReveal,
 	}
 	writeJSON(w, out)
