@@ -212,6 +212,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0171 / 171** — a quarterly rotating highlighted discipline grants a temporary five-percent material-yield talent after five allocated sector nodes and automatically changes without rewriting allocations (`web_abyss_tree_batch.go`, `web_abyss_tree.go`, `abysstree.html`, `web_abyss_progression_test.go`).
 - [x] **AAA-0172 / 172** — the first ten authoritative lifetime floor clears receive a logged +100% floor-XP boost, which stops immediately at the tenth persisted clear (`web_abyss.go`, `web_abyss_progression_rewards.go`, `web_abyss_progression_rewards_test.go`).
 - [x] **AAA-0173 / 173** — returning after fourteen days seeds exactly ten authoritative +25% XP and +10% cache catch-up charges.
+- [x] **AAA-0174 / 174** — every learned Armoury skill displays its authoritative rank on an accessible rank-nine progress bar with responsive and forced-color-safe styling (`armory.html`, `style.css`, `web_armory_skill_rank_test.go`, `abyss-inventory-polish.spec.js`).
 - [x] **AAA-0175 / 175** — the post-prestige Paragon board grants bounded +0.1% ranks across seven permanent effects.
 
 ## Delivered tranche: pact program

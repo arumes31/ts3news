@@ -145,6 +145,11 @@
     <div class="sk-head"><span class="sk-name" style="color:{{.Rarity.Color}}">✨ {{.Name}}</span><span
         class="sk-type">{{.Type}}</span></div>
     {{if .Description}}<div class="sk-desc">{{.Description}}</div>{{end}}
+    <div class="sk-rank" role="progressbar" aria-label="{{.Name}} skill rank {{.UpgradeRank}} of 9"
+      aria-valuemin="1" aria-valuemax="9" aria-valuenow="{{.UpgradeRank}}">
+      <div class="sk-rank-head"><span>Skill rank</span><b>{{.UpgradeRank}} / 9</b></div>
+      <span class="sk-rank-track"><i style="width:{{mulpct .UpgradeRank 9}}%"></i></span>
+    </div>
   </div>
   {{end}}
 </div>

@@ -1790,5 +1790,18 @@
       "internal/bot/web_abyss_tree_progression_test.go",
       "tests/e2e/abyss-tree-atlas.spec.js"
     ]
+  },
+  {
+    "ids": [174],
+    "production": [
+      "internal/bot/webassets/armory.html",
+      "internal/bot/webassets/style.css",
+      "internal/content/skills.go",
+      "internal/content/skills_metadata.go"
+    ],
+    "verification": [
+      "internal/bot/web_armory_skill_rank_test.go",
+      "tests/e2e/abyss-inventory-polish.spec.js"
+    ]
   }
 ]

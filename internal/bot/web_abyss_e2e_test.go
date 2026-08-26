@@ -123,10 +123,11 @@ func TestAbyssE2EServer(t *testing.T) {
 			Rarity: content.RarityCelestial, MaxDurability: 90,
 			Stats: content.Stats{INT: 987654}, Unidentified: true,
 		}
+		skill, _ := content.GetSkillByID("S_EQ")
 		if err := server.tmpl.ExecuteTemplate(w, "armory", map[string]any{
 			"Title": "Armoury", "Nav": "armory", "EnableAbyss": true, "U": u,
 			"Slots":  []gearView{weaponView, toGearView(mystery.Slot, mystery)},
-			"Skills": []any{}, "Ultimates": []any{}, "Artifact": nil,
+			"Skills": []content.Skill{skill}, "Ultimates": []any{}, "Artifact": nil,
 			"PlayerTitle": nil, "Pets": []any{},
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

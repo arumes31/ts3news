@@ -46,6 +46,17 @@ test('Armoury preserves exact values and unidentified secrecy in compact mode', 
   await expect(mystery).not.toContainText('987654');
   await expect(mystery.locator('.gear-meta').first()).not.toHaveAttribute('title');
 
+  const skillRank = page.locator('.skill-card').filter({ hasText: 'Earthquake' }).locator('.sk-rank');
+  await expect(skillRank).toBeVisible();
+  await expect(skillRank).toHaveAttribute('aria-valuemin', '1');
+  await expect(skillRank).toHaveAttribute('aria-valuemax', '9');
+  await expect(skillRank).toHaveAttribute('aria-valuenow', '3');
+  await expect(skillRank).toContainText('3 / 9');
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(skillRank).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+
   await page.locator('[data-item-number-toggle]').click();
   await expect(strength).toHaveText('123.5K');
   await expect(strength).toHaveAttribute('title', 'Exact value: 123,456');
