@@ -367,6 +367,11 @@ type Gear struct {
 	// belongs to. Empty for gear predating the multi-set system.
 	SetID string `json:"set_id,omitempty"`
 
+	// AppearanceID is an optional catalog gear ID used only for presentation.
+	// Combat, rarity, effects, set bonuses, and slot compatibility continue to
+	// use this item's own fields.
+	AppearanceID string `json:"appearance_id,omitempty"`
+
 	// RegenAmount / RegenIntervalSec are a Rare+ life-regen affix: the item heals
 	// RegenAmount HP every RegenIntervalSec seconds in real time on the Abyss web
 	// dashboard (both values rolled at drop time). Zero means no regen affix.
@@ -1725,6 +1730,25 @@ func GetGearByID(id string) (Gear, bool) {
 		}
 	}
 	return Gear{}, false
+}
+
+// GearAppearanceCatalog returns a detached, de-duplicated copy of every gear
+// item accepted by GetGearByID. Callers may safely sort or decorate the result.
+func GearAppearanceCatalog() []Gear {
+	seen := make(map[string]bool, len(allGear)+len(uniqueLegendaries))
+	out := make([]Gear, 0, len(allGear)+len(uniqueLegendaries))
+	for _, catalog := range [][]Gear{allGear, uniqueLegendaries} {
+		for _, gear := range catalog {
+			if gear.ID == "" || seen[gear.ID] {
+				continue
+			}
+			seen[gear.ID] = true
+			gear.BonusEffects = append([]ItemEffect(nil), gear.BonusEffects...)
+			gear.Gemstones = append([]string(nil), gear.Gemstones...)
+			out = append(out, gear)
+		}
+	}
+	return out
 }
 
 // LegendaryCatalog returns every Legendary-rarity catalog item (unique

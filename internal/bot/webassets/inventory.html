@@ -15,6 +15,7 @@
       <span class="inv-name" style="color:{{.RarityColor}}">{{.Name}}</span>
     </div>
     <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
+    {{if .AppearanceName}}<div class="inv-meta" title="Cosmetic only">◈ Appearance: {{.AppearanceName}}</div>{{end}}
     <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}} · {{.Durability}} dur</div>
     <div class="inv-actions">
       <button onclick="equip({{.InvID}})">Equip</button>

@@ -180,6 +180,64 @@ test('Silent Anvil guides a free action through the dedicated Forge tab', async 
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
+test('wardrobe filters unlocked skins and applies or clears them without losing Forge focus', async ({ page }) => {
+  const mutations = [];
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await fulfillAbyssAPI(page, (path, body) => {
+    if (path.endsWith('/transmog')) {
+      return {
+        ok: true, owned: 3, total: 240, new_unlocks: 1, gold: 900000,
+        appearances: [
+          { id: 'SKIN_CINDER', name: 'Cinder Archive Blade', slot: 'MainHand', rarity: 'Epic', rank: 3, cost: 80000 },
+          { id: 'SKIN_TIDE', name: 'Tide Archive Blade', slot: 'MainHand', rarity: 'Rare', rank: 2, cost: 40000 },
+          { id: 'SKIN_HELM', name: 'Watcher Helm', slot: 'Head', rarity: 'Legendary', rank: 4, cost: 160000 },
+        ],
+      };
+    }
+    if (path.endsWith('/transmog/apply')) {
+      mutations.push(body);
+      return {
+        ok: true, appearance_id: body.appearance_id, cost: body.appearance_id ? 80000 : 0,
+        gold: body.appearance_id ? 820000 : 820000,
+        msg: body.appearance_id ? 'Cinder Archive Blade applied. Combat power is unchanged.' : 'Original appearance restored.',
+      };
+    }
+    return { ok: false, error: 'unexpected e2e request' };
+  });
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/abyss?gear=1');
+  await page.locator('.ab-tab[data-tab-key="forge"]').click();
+  await page.locator('#forgeItemSelect').selectOption('equipped:MainHand');
+  await expect(page.locator('#abyssWardrobeCount')).toHaveText('3 / 240');
+  await expect(page.locator('#abyssWardrobeGrid [role="option"]')).toHaveCount(3);
+  await expect(page.locator('#abyssWardrobeGrid')).not.toContainText('Watcher Helm');
+  const equippedIcon = page.locator('.abyss-side-gear[data-slot="MainHand"] .ab-gear-pixel');
+  const originalSignature = await equippedIcon.getAttribute('data-art-signature');
+
+  await page.getByRole('option', { name: /Cinder Archive Blade/ }).click();
+  await expect(page.locator('#abyssWardrobeCost')).toContainText('80');
+  await page.locator('#abyssWardrobeApply').click();
+  await expect.poll(() => mutations.length).toBe(1);
+  expect(mutations[0]).toEqual({ slot: 'MainHand', appearance_id: 'SKIN_CINDER' });
+  await expect(page.locator('#forgeItemSelect option:checked')).toHaveAttribute('data-appearance-id', 'SKIN_CINDER');
+  await expect(equippedIcon).not.toHaveAttribute('data-art-signature', originalSignature);
+  await expect(page.locator('#abToastHost')).toContainText('Combat power is unchanged');
+
+  await page.locator('#abyssWardrobeClear').click();
+  await expect.poll(() => mutations.length).toBe(2);
+  expect(mutations[1]).toEqual({ slot: 'MainHand', appearance_id: '' });
+  await expect(page.locator('#forgeItemSelect option:checked')).toHaveAttribute('data-appearance-id', '');
+  await expect(equippedIcon).toHaveAttribute('data-art-signature', originalSignature);
+  await expect(page.locator('#forgeItemSelect')).toHaveValue('equipped:MainHand');
+  expect(pageErrors).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  const css = await page.request.get('/static/abyss_transmog.css');
+  expect(css.status()).toBe(200);
+  expect(await css.text()).toContain('.ab-wardrobe-grid');
+});
+
 test('Triune Sigil Hunt binds a ten-floor quest and renders its chest completion', async ({ page }) => {
   let acceptedAction = '';
   await fulfillAbyssAPI(page, (path, body) => {

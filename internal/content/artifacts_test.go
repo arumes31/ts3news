@@ -165,6 +165,34 @@ func TestRandomAbyssGearDropForCategoryExcluding(t *testing.T) {
 	}
 }
 
+func TestGearAppearanceCatalogIsCompleteAndDetached(t *testing.T) {
+	t.Parallel()
+
+	catalog := GearAppearanceCatalog()
+	if len(catalog) == 0 {
+		t.Fatal("appearance catalog is empty")
+	}
+	seen := make(map[string]bool, len(catalog))
+	for _, gear := range catalog {
+		if seen[gear.ID] {
+			t.Fatalf("duplicate appearance ID %q", gear.ID)
+		}
+		seen[gear.ID] = true
+		if _, ok := GetGearByID(gear.ID); !ok {
+			t.Fatalf("appearance %q is not accepted by GetGearByID", gear.ID)
+		}
+	}
+
+	original, ok := GetGearByID(catalog[0].ID)
+	if !ok {
+		t.Fatalf("catalog item %q disappeared", catalog[0].ID)
+	}
+	catalog[0].Name = "mutated"
+	if current, _ := GetGearByID(original.ID); current.Name != original.Name {
+		t.Fatal("appearance catalog mutation changed global content")
+	}
+}
+
 func TestRandomGearDropForSlotsExcludingKeepsPoolAndSlot(t *testing.T) {
 	tests := []struct {
 		name  string

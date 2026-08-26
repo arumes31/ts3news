@@ -59,6 +59,8 @@ type gearView struct {
 	Temper         int  // forge temper level (#106)
 	Quality        int  // masterwork quality tier (0-5)
 	SetID          string
+	AppearanceID   string
+	AppearanceName string
 	HasSpecial     bool // carries a Special effect (drives the forge awaken action)
 	Imbued         bool // already imbued via the forge
 	Attuned        bool // bound to its owner via the forge
@@ -106,6 +108,12 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	sockets := g.Sockets
 	gemstones := g.Gemstones
 	insured := g.Insured
+	appearanceID := ""
+	appearanceName := ""
+	if appearance, ok := content.GetGearByID(g.AppearanceID); ok && appearance.Slot == g.Slot {
+		appearanceID = appearance.ID
+		appearanceName = appearance.Name
+	}
 	if !g.Unidentified {
 		if encoded, err := json.Marshal(g.Stats); err == nil {
 			statsJSON = string(encoded)
@@ -133,6 +141,8 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		sockets = 0
 		gemstones = nil
 		insured = false
+		appearanceID = ""
+		appearanceName = ""
 	} else {
 		if g.GearLevel > 0 {
 			name = fmt.Sprintf("%s +%d", name, g.GearLevel)
@@ -193,39 +203,41 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	}
 
 	v := gearView{
-		Slot:          string(slot),
-		Icon:          content.SlotIcon(slot),
-		IconName:      content.SlotIconName(slot),
-		ID:            gearID,
-		Name:          name,
-		Rarity:        rarityName,
-		RarityColor:   rarityColor,
-		RarityIcon:    rarityIcon,
-		CR:            combatRating,
-		Score:         score,
-		MaxDurability: maxDurability,
-		StatsJSON:     statsJSON,
-		GemstonesJSON: gemstonesJSON,
-		KillCount:     killCount,
-		MilestoneTier: milestoneTier,
-		Stats:         stats,
-		XPBonusPct:    xpBonusPct,
-		Unidentified:  g.Unidentified,
-		Sockets:       sockets,
-		Gemstones:     gemstones,
-		RarityVal:     rarityValue,
-		Insured:       insured,
-		Corrupted:     g.Corrupted,
-		Temper:        g.Temper,
-		Quality:       g.Quality,
-		SetID:         g.SetID,
-		HasSpecial:    g.Special != content.EffectNone,
-		Imbued:        g.Imbued != "",
-		Attuned:       g.Attuned,
-		Cursed:        g.Cursed,
-		Eldritch:      g.Eldritch,
-		HasRune:       g.Rune != "",
-		Prismatic:     g.Prismatic,
+		Slot:           string(slot),
+		Icon:           content.SlotIcon(slot),
+		IconName:       content.SlotIconName(slot),
+		ID:             gearID,
+		Name:           name,
+		Rarity:         rarityName,
+		RarityColor:    rarityColor,
+		RarityIcon:     rarityIcon,
+		CR:             combatRating,
+		Score:          score,
+		MaxDurability:  maxDurability,
+		StatsJSON:      statsJSON,
+		GemstonesJSON:  gemstonesJSON,
+		KillCount:      killCount,
+		MilestoneTier:  milestoneTier,
+		Stats:          stats,
+		XPBonusPct:     xpBonusPct,
+		Unidentified:   g.Unidentified,
+		Sockets:        sockets,
+		Gemstones:      gemstones,
+		RarityVal:      rarityValue,
+		Insured:        insured,
+		Corrupted:      g.Corrupted,
+		Temper:         g.Temper,
+		Quality:        g.Quality,
+		SetID:          g.SetID,
+		AppearanceID:   appearanceID,
+		AppearanceName: appearanceName,
+		HasSpecial:     g.Special != content.EffectNone,
+		Imbued:         g.Imbued != "",
+		Attuned:        g.Attuned,
+		Cursed:         g.Cursed,
+		Eldritch:       g.Eldritch,
+		HasRune:        g.Rune != "",
+		Prismatic:      g.Prismatic,
 	}
 	if g.Unidentified {
 		v.Corrupted = false

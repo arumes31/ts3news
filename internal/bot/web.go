@@ -255,6 +255,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_forge_experience.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_forge_experience.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_transmog.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_transmog.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_navigation.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_navigation.css", "text/css; charset=utf-8")
 	})
@@ -553,6 +556,8 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/setup/state", s.authAPI(s.handleAbyssSetupState))
 		mux.HandleFunc("/api/abyss/forge/workbench", s.authAPI(s.handleAbyssForgeWorkbench))
 		mux.HandleFunc("/api/abyss/forge/receipts", s.authAPI(s.handleAbyssForgeReceipts))
+		mux.HandleFunc("/api/abyss/transmog", s.authAPI(s.handleAbyssTransmogState))
+		mux.HandleFunc("/api/abyss/transmog/apply", s.authAPI(s.handleAbyssTransmogApply))
 		mux.HandleFunc("/api/abyss/forge/target_craft", s.authAPI(s.forgeMutation("target_craft", s.handleAbyssTargetCraft)))
 		mux.HandleFunc("/api/abyss/rift_peek", s.authAPI(s.handleAbyssRiftPeek))
 		mux.HandleFunc("/api/abyss/unequip", s.authAPI(s.handleAbyssUnequip))

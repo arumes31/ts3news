@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_run_awareness.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_loot_presentation.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_forge_experience.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_transmog.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_navigation.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_accessibility.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_mobile.css"}}">
@@ -153,7 +154,7 @@
     <h3>⚔️ Armoury</h3>
     <div class="abyss-side-list">
       {{range .Equipped}}
-      <div class="abyss-side-gear" tabindex="0" {{if .Damage.Available}}role="button" aria-expanded="false" aria-controls="abGearDamage-{{.Slot}}" onclick="if(event.detail!==0)toggleAbyssGearDamage(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();toggleAbyssGearDamage(this)}"{{end}} data-slot="{{.Slot}}" data-art-key="item:{{.InvID}}:{{.ID}}:{{.Name}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-stats="{{.StatsJSON}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}{{if .Damage.Available}}&#10;Damage contribution: {{if .Damage.HasDirect}}{{if ne .Damage.BasePower 0}}{{printf "%+d" .Damage.BasePower}} STR{{if gt .Damage.BaseSharePct 0}} ({{.Damage.BaseSharePct}}%){{end}}{{end}}{{if and (ne .Damage.BasePower 0) (ne .Damage.SpellPower 0)}} · {{end}}{{if ne .Damage.SpellPower 0}}{{printf "%+d" .Damage.SpellPower}} INT{{if gt .Damage.SpellSharePct 0}} ({{.Damage.SpellSharePct}}%){{end}}{{end}}{{if .Damage.AttackType}} · {{.Damage.AttackType}}{{end}}{{else}}no direct STR or INT{{end}}&#10;Click or press Enter to expand damage channels.{{end}}">
+      <div class="abyss-side-gear" tabindex="0" {{if .Damage.Available}}role="button" aria-expanded="false" aria-controls="abGearDamage-{{.Slot}}" onclick="if(event.detail!==0)toggleAbyssGearDamage(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();toggleAbyssGearDamage(this)}"{{end}} data-slot="{{.Slot}}" data-art-key="{{if .AppearanceID}}appearance:{{.AppearanceID}}{{else}}item:{{.InvID}}:{{.ID}}:{{.Name}}{{end}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-stats="{{.StatsJSON}}" data-tip="{{.Name}}{{if .AppearanceName}}&#10;Appearance: {{.AppearanceName}} (cosmetic only){{end}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}{{if .Damage.Available}}&#10;Damage contribution: {{if .Damage.HasDirect}}{{if ne .Damage.BasePower 0}}{{printf "%+d" .Damage.BasePower}} STR{{if gt .Damage.BaseSharePct 0}} ({{.Damage.BaseSharePct}}%){{end}}{{end}}{{if and (ne .Damage.BasePower 0) (ne .Damage.SpellPower 0)}} · {{end}}{{if ne .Damage.SpellPower 0}}{{printf "%+d" .Damage.SpellPower}} INT{{if gt .Damage.SpellSharePct 0}} ({{.Damage.SpellSharePct}}%){{end}}{{end}}{{if .Damage.AttackType}} · {{.Damage.AttackType}}{{end}}{{else}}no direct STR or INT{{end}}&#10;Click or press Enter to expand damage channels.{{end}}">
         <span class="ab-pixel-icon ab-gear-pixel" aria-hidden="true"></span>
         <span class="ab-side-gear-name" style="color:{{.RarityColor}}">{{.Name}}</span>
         <span class="cr">CR {{printf "%.0f" .CR}}{{if .Damage.Available}} <i class="ab-gear-damage-indicator" aria-hidden="true"></i>{{end}}</span>
@@ -843,7 +844,7 @@
                 data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}"
                 data-stats="{{.StatsJSON}}" data-gemstones="{{.GemstonesJSON}}" data-kill-count="{{.KillCount}}" data-milestone-tier="{{.MilestoneTier}}"
                 data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}" data-special="{{.HasSpecial}}" data-imbued="{{.Imbued}}" data-attuned="{{.Attuned}}"
-                data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}"
+                data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}" data-appearance-id="{{.AppearanceID}}"
                 data-rune="{{.HasRune}}" data-prismatic="{{.Prismatic}}" data-cr="{{printf "%.1f" .CR}}" data-gs="{{.Score}}"
                 data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}"
                 data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
@@ -857,7 +858,7 @@
                 data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}"
                 data-stats="{{.StatsJSON}}" data-gemstones="{{.GemstonesJSON}}" data-kill-count="{{.KillCount}}" data-milestone-tier="{{.MilestoneTier}}"
                 data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}" data-special="{{.HasSpecial}}" data-imbued="{{.Imbued}}" data-attuned="{{.Attuned}}"
-                data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}"
+                data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}" data-appearance-id="{{.AppearanceID}}"
                 data-rune="{{.HasRune}}" data-prismatic="{{.Prismatic}}" data-cr="{{printf "%.1f" .CR}}" data-gs="{{.Score}}"
                 data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-ah="{{.AHPrice}}" data-vendor="{{.VendorPrice}}" data-locked="{{.Locked}}" data-recent="{{.RecentlyLooted}}"
                 data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
@@ -893,6 +894,8 @@
           <button class="ghost xs" onclick="abyssPreset('gems','apply')">▶ Gems</button>
         </div>
       </div>
+
+      {{template "abyssTransmogPanel" .}}
 
       <div id="forgeActions" style="display:none; flex-direction:column; gap:8px;">
         <!-- Identify Button -->
@@ -6040,6 +6043,7 @@ function updateGemTransmuteDiff(){
   if(!sel||!el)return;
   var option=selForgeOption(),gems=[];
   try{gems=JSON.parse(option&&option.getAttribute('data-gemstones')||'[]');}catch(_){}
+  if(!Array.isArray(gems))gems=[];
   var before=forgeGemPreview(gems[0]);
   if(!before){el.textContent='Select an item with a socketed gem.';return;}
   var suffix=before.tier===2?' II':(before.tier===3?' III':''),after=forgeGemPreview(sel.value+suffix);
@@ -6635,6 +6639,7 @@ function initNewDots(){
 {{template "abyss-forge-workstation" .}}
 {{if .ForgeWorkbenchEnabled}}{{template "abyss-forge-planner" .}}{{end}}
 {{template "abyss-forge-experience" .}}
+{{template "abyssTransmogJS" .}}
 {{template "abyss-navigation" .}}
 {{template "abyss-accessibility" .}}
 {{template "abyss-mobile" .}}

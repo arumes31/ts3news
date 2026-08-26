@@ -63,6 +63,7 @@
     <div class="gear-name muted">— empty —</div>
     {{else}}
     <div class="gear-name" style="color:{{.RarityColor}}">{{.Name}}</div>
+    {{if .AppearanceName}}<div class="gear-meta" title="Cosmetic only">◈ Appearance: {{.AppearanceName}}</div>{{end}}
     <div class="gear-meta">{{.Rarity}} · CR {{printf "%.0f" .CR}} · GS {{.Score}}{{if .Durability}} · {{.Durability}}
       dur{{end}}</div>
     {{if .Stats}}<div class="gear-stats">{{range .Stats}}<span class="gstat">{{.Label}} <b>{{if gt .Value

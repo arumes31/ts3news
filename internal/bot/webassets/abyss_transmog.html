@@ -1,0 +1,116 @@
+{{define "abyssTransmogPanel"}}
+<section class="ab-wardrobe" id="abyssWardrobe" aria-labelledby="abyssWardrobeTitle">
+  <header class="ab-wardrobe-head">
+    <div>
+      <span class="ab-wardrobe-kicker">Appearance archive</span>
+      <h3 id="abyssWardrobeTitle">◈ Wardrobe Station</h3>
+      <p>Apply an unlocked skin to the selected workpiece. Stats, rarity, effects, and set bonuses stay unchanged.</p>
+    </div>
+    <div class="ab-wardrobe-progress" aria-live="polite">
+      <strong id="abyssWardrobeCount">—</strong><span>discovered</span>
+    </div>
+  </header>
+  <div class="ab-wardrobe-toolbar">
+    <label for="abyssWardrobeSearch">Filter this slot</label>
+    <input id="abyssWardrobeSearch" type="search" placeholder="Search unlocked appearances…" autocomplete="off">
+    <span id="abyssWardrobeTarget" class="ab-wardrobe-target">Choose a workpiece above</span>
+  </div>
+  <div class="ab-wardrobe-grid" id="abyssWardrobeGrid" role="listbox" aria-label="Unlocked appearances">
+    <div class="ab-wardrobe-empty">Select identified gear to inspect compatible skins.</div>
+  </div>
+  <footer class="ab-wardrobe-footer">
+    <div><span>Selected skin</span><strong id="abyssWardrobeSelection">Original appearance</strong></div>
+    <div><span>Application cost</span><strong id="abyssWardrobeCost">Free</strong></div>
+    <button class="ghost xs" id="abyssWardrobeClear" type="button" disabled>Restore original</button>
+    <button class="primary xs" id="abyssWardrobeApply" type="button" disabled>Apply appearance</button>
+  </footer>
+</section>
+{{end}}
+
+{{define "abyssTransmogJS"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var root=document.getElementById('abyssWardrobe'),picker=document.getElementById('forgeItemSelect');
+  if(!root||!picker)return;
+  var state={loaded:false,loading:false,appearances:[],selected:'',gold:0,total:0,owned:0};
+  var grid=document.getElementById('abyssWardrobeGrid'),search=document.getElementById('abyssWardrobeSearch');
+  var apply=document.getElementById('abyssWardrobeApply'),clear=document.getElementById('abyssWardrobeClear');
+
+  function option(){return picker.options[picker.selectedIndex];}
+  function targetRequest(){
+    var value=(option()&&option().value)||'';
+    if(value.indexOf('inv:')===0)return{inv_id:Number(value.slice(4))};
+    if(value.indexOf('equipped:')===0)return{slot:value.slice(9)};
+    return null;
+  }
+  function gold(value){return typeof fmtGold==='function'?fmtGold(value):Number(value||0).toLocaleString()+'g';}
+  function icon(appearance){
+    if(typeof abUniquePixelIconHTML==='function')return abUniquePixelIconHTML(0,appearance.id,'',abGearArtFamily(appearance.slot));
+    return '<span class="ab-wardrobe-fallback" aria-hidden="true">◇</span>';
+  }
+  function currentID(){return (option()&&option().dataset.appearanceId)||'';}
+  function setSummary(appearance){
+    document.getElementById('abyssWardrobeSelection').textContent=appearance?appearance.name:'Original appearance';
+    document.getElementById('abyssWardrobeCost').textContent=appearance?gold(appearance.cost):'Free';
+    var hasTarget=!!targetRequest(),changed=state.selected!==currentID();
+    apply.disabled=!hasTarget||!changed;
+    clear.disabled=!hasTarget||!currentID();
+  }
+  function choose(id){
+    state.selected=id;
+    var selected=state.appearances.find(function(item){return item.id===id;});
+    grid.querySelectorAll('[role="option"]').forEach(function(tile){
+      var active=tile.dataset.id===id;tile.classList.toggle('selected',active);tile.setAttribute('aria-selected',String(active));
+    });
+    setSummary(selected);
+  }
+  function render(){
+    var item=option(),slot=item&&item.dataset.slot||'',unidentified=item&&item.dataset.unidentified==='true';
+    document.getElementById('abyssWardrobeCount').textContent=state.loaded?state.owned+' / '+state.total:'—';
+    document.getElementById('abyssWardrobeTarget').textContent=item&&item.value?(item.textContent||'Selected gear').trim():'Choose a workpiece above';
+    if(!state.loaded){grid.innerHTML='<div class="ab-wardrobe-empty">Synchronizing the appearance archive…</div>';return;}
+    if(!item||!item.value||unidentified){
+      grid.innerHTML='<div class="ab-wardrobe-empty">'+(unidentified?'Identify this item before changing its appearance.':'Select identified gear to inspect compatible skins.')+'</div>';
+      state.selected='';setSummary(null);return;
+    }
+    var query=search.value.trim().toLowerCase();
+    var matches=state.appearances.filter(function(a){return a.slot===slot&&(!query||a.name.toLowerCase().indexOf(query)>=0);});
+    var original='<button type="button" class="ab-wardrobe-tile original" role="option" aria-selected="false" data-id=""><span class="ab-wardrobe-original" aria-hidden="true">↺</span><span><b>Original form</b><small>No cosmetic override</small></span><em>FREE</em></button>';
+    grid.innerHTML=original+matches.map(function(a){return '<button type="button" class="ab-wardrobe-tile rar-'+a.rank+'" role="option" aria-selected="false" data-id="'+consEsc(a.id)+'">'+icon(a)+'<span><b>'+consEsc(a.name)+'</b><small>'+consEsc(a.rarity)+' · '+consEsc(a.slot)+'</small></span><em>'+gold(a.cost)+'</em></button>';}).join('');
+    grid.querySelectorAll('[role="option"]').forEach(function(tile){tile.addEventListener('click',function(){choose(tile.dataset.id);});});
+    choose(currentID());
+  }
+  async function load(){
+    if(state.loading)return;state.loading=true;render();
+    try{
+      var response=await fetch('/api/abyss/transmog',{headers:{Accept:'application/json'}}),data=await response.json();
+      if(!data.ok)throw new Error(data.error||'Wardrobe unavailable');
+      state.loaded=true;state.appearances=data.appearances||[];state.gold=Number(data.gold||0);state.total=Number(data.total||0);state.owned=Number(data.owned||0);
+      if(data.new_unlocks)abToast(data.new_unlocks+' new appearance'+(data.new_unlocks===1?'':'s')+' archived',true);
+    }catch(error){grid.innerHTML='<div class="ab-wardrobe-empty error">'+consEsc(error.message||'Wardrobe unavailable')+'</div>';}
+    state.loading=false;render();
+  }
+  async function mutate(appearanceID){
+    var target=targetRequest();if(!target||busy)return;
+    target.appearance_id=appearanceID;setBusy(true);
+    var result=await abPost('/api/abyss/transmog/apply',target);setBusy(false);
+    if(!result.ok){abToast(result.error||'Appearance change failed',false);return;}
+    option().dataset.appearanceId=result.appearance_id||'';state.selected=result.appearance_id||'';
+    if(target.slot){
+      var card=Array.prototype.find.call(document.querySelectorAll('.abyss-side-gear'),function(item){return item.dataset.slot===target.slot;});
+      if(card){
+        card.dataset.baseArtKey=card.dataset.baseArtKey||card.dataset.artKey;
+        card.dataset.artKey=result.appearance_id?'appearance:'+result.appearance_id:card.dataset.baseArtKey;
+        applyAbUniquePixelIcon(card.querySelector('.ab-gear-pixel'),abExpandedGearIconCell(target.slot),card.dataset.artKey,abGearArtFamily(target.slot));
+      }
+    }
+    if(typeof setGold==='function')setGold(result.gold);abToast(result.msg||'Appearance updated',true);render();
+  }
+  picker.addEventListener('change',render);search.addEventListener('input',render);
+  apply.addEventListener('click',function(){mutate(state.selected);});
+  clear.addEventListener('click',function(){mutate('');});
+  load();
+})();
+</script>
+{{end}}
