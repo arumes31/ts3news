@@ -87,7 +87,7 @@ func buildAbyssForgeCatalog() []abyssForgeOperation {
 		}},
 		{forgeDisciplineGemcraft, []string{
 			"socket_gem", "punch_socket", "socket_relocate", "upgrade_gem", "gem_upgrade_all",
-			"extract_gem", "transmute_gem",
+			"extract_gem", "transmute_gem", "reroll_ring_sockets",
 		}},
 		{forgeDisciplineTransmutation, []string{
 			"craft", "craft_legendary", "target_craft", "transmute", "convert_mats", "craft_repair_kit2",
@@ -107,7 +107,7 @@ func buildAbyssForgeCatalog() []abyssForgeOperation {
 		"rebalance_all": true, "masterwork": true, "masterwork_transfer": true, "forge_queue": true,
 		"scrape_rune": true, "prismatic_rune": true, "imbue": true, "imbue_remove": true,
 		"attune": true, "unattune": true, "brand": true, "unbrand": true, "special_reroll": true,
-		"swap_special": true, "punch_socket": true, "socket_relocate": true, "upgrade_gem": true,
+		"swap_special": true, "punch_socket": true, "socket_relocate": true, "reroll_ring_sockets": true, "upgrade_gem": true,
 		"gem_upgrade_all": true, "extract_gem": true, "transmute_gem": true, "awaken": true,
 		"awaken_guided": true, "corrupt": true, "embrace": true, "infuse_curse": true,
 		"infuse_eldritch": true, "infuse_xp": true, "cleanse": true,
@@ -146,6 +146,9 @@ func buildAbyssForgeCatalog() []abyssForgeOperation {
 			}
 			if requiresGear {
 				op.CompatibleSlots = append([]content.GearSlot(nil), content.AllSlots...)
+			}
+			if id == "reroll_ring_sockets" {
+				op.CompatibleSlots = []content.GearSlot{content.SlotFinger1, content.SlotFinger2}
 			}
 			if randomized[id] {
 				op.Success = abyssForgeSuccessModel{Kind: "bounded_chance", Min: 0.01, Max: 1}

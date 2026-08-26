@@ -297,6 +297,7 @@ func (s *WebServer) forgeQuoteBaseCost(uid, operation string, gear *content.Gear
 		"prismatic_rune": {"prism": 2}, "brand": {"core": 10}, "special_reroll": {"core": 6},
 		"temper_guard": {"core": 2}, "craft_repair_kit2": {"dust": 8}, "unbrand": {"core": 2},
 		"awaken_guided": {"core": 6}, "imbue_remove": {"prism": 1}, "swap_special": {"core": 8},
+		"reroll_ring_sockets": {"shard": abyssRingSocketCost},
 	}
 	if value := materials[operation]; value != nil {
 		cost.Materials = value
@@ -342,6 +343,9 @@ func forgeQuoteOutcome(operation string, gear *content.Gear, chance float64) aby
 	case "extract_gem":
 		result.Lost = append(result.Lost, "socketed gem")
 		result.Consequences = append(result.Consequences, "The socket remains, but the extracted gem is converted to recovery materials.")
+	case "reroll_ring_sockets":
+		result.Gained = append(result.Gained, "a new 1–3 socket ring layout")
+		result.Consequences = append(result.Consequences, "Every fitted gem is preserved; the new socket count cannot be lower than the fitted gem count.")
 	case "scrape_rune":
 		result.Lost = append(result.Lost, "etched rune")
 	}

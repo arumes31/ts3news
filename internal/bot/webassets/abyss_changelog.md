@@ -5,6 +5,7 @@
 - Every live Skill Web node now has a unique pixel-art cell drawn from one of six discipline atlases, with recognizable silhouettes, high-contrast support, and crisp canvas rendering at every zoom level.
 - Atlas generation is deterministic and validated against the complete node catalog, so new nodes cannot silently ship with missing or duplicate artwork.
 - The seven Abyss workspaces remain on one keyboard-accessible navigation rail that scrolls cleanly on narrow screens and restores the selected workspace.
+- Identified rings can reroll a one-to-three-socket layout for five Void Shards without losing or downgrading fitted gems.
 
 ## 2026-08-25 — Combat clarity and reliability
 

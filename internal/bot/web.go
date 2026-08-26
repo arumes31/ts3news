@@ -625,6 +625,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/polish_all", s.authAPI(s.forgeMutation("polish_all", s.handleAbyssPolishAll)))
 		mux.HandleFunc("/api/abyss/craft_repair_kit2", s.authAPI(s.forgeMutation("craft_repair_kit2", s.handleAbyssCraftRepairKit2)))
 		mux.HandleFunc("/api/abyss/socket_relocate", s.authAPI(s.forgeMutation("socket_relocate", s.handleAbyssSocketRelocate)))
+		mux.HandleFunc("/api/abyss/reroll_ring_sockets", s.authAPI(s.forgeMutation("reroll_ring_sockets", s.handleAbyssRerollRingSockets)))
 		mux.HandleFunc("/api/abyss/fuse_preview", s.authAPI(s.handleAbyssFusePreview))
 		mux.HandleFunc("/api/abyss/celestial_fuse_boosted", s.authAPI(s.forgeMutation("celestial_fuse_boosted", s.handleAbyssCelestialFuseBoosted)))
 		mux.HandleFunc("/api/abyss/recipe_fav", s.authAPI(s.handleAbyssRecipeFav))

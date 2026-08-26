@@ -1,0 +1,19 @@
+{{define "abyssRingSocketControl"}}
+<style>
+.forge-ring-sockets{display:none;padding:8px;border:1px solid rgba(244,197,66,.2);border-radius:7px;background:linear-gradient(135deg,rgba(244,197,66,.06),rgba(91,192,255,.04))}.forge-ring-sockets button{width:100%}.forge-ring-sockets-note{display:block;margin-top:5px}
+</style>
+<div id="forgeRingSocketRow" class="forge-ring-sockets">
+  <button id="btnForgeRingSocketReroll" class="ghost xs" type="button" onclick="forgeRingSocketReroll()" title="Reroll this ring to 1–3 sockets while preserving every fitted gem">💍 Reroll ring sockets (5🔷)</button>
+  <span class="muted small forge-ring-sockets-note">Ring only · 1–3 sockets · fitted gems and their tiers are preserved.</span>
+</div>
+{{end}}
+
+{{define "abyssRingSocketJS"}}
+<script data-cfasync="false">
+function forgeRingSocketReroll(){
+  var params=getSelectedForgeParams();
+  if(!params){abToast('Pick a ring first.',false);return;}
+  forge4QuotedAction('/api/abyss/reroll_ring_sockets','reroll_ring_sockets',params,'Reroll this ring to 1–3 sockets? Every fitted gem is preserved, but its socket position may change.');
+}
+</script>
+{{end}}

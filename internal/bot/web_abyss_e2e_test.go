@@ -149,10 +149,15 @@ func TestAbyssE2EServer(t *testing.T) {
 					Rarity: content.RarityEpic, MaxDurability: 80,
 					Stats: content.Stats{STR: 40, INT: 60},
 				},
+				content.SlotFinger1: {
+					ID: "TEST_RING", Name: "Prism Test Band", Slot: content.SlotFinger1,
+					Rarity: content.RarityLegendary, MaxDurability: 70, Sockets: 2,
+					Gemstones: []string{"Ruby", "Topaz II"}, Stats: content.Stats{DEF: 35, LCK: 12},
+				},
 			}
 			contributions := abyssGearDamageContributions(equipped)
 			views := make([]gearView, 0, len(equipped))
-			for _, slot := range []content.GearSlot{content.SlotMainHand, content.SlotOffHand} {
+			for _, slot := range []content.GearSlot{content.SlotMainHand, content.SlotOffHand, content.SlotFinger1} {
 				view := toGearView(slot, equipped[slot])
 				view.Damage = contributions[slot]
 				view.Durability = view.MaxDurability

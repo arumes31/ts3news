@@ -971,6 +971,7 @@
         <details class="ab-acc" open><summary>💎 Gems &amp; Runes</summary><div class="ab-acc-body">
         <!-- Punch Socket: add an empty gemstone socket (max 4) -->
         <button id="btnForgePunchSocket" class="ghost xs" onclick="forgePunchSocket()" style="display:none; width:100%;" title="Adds one empty gemstone socket (max 4)">🔨 Punch Socket (10🔷)</button>
+        {{template "abyssRingSocketControl" .}}
 
         <!-- Gem Transmute: change the first socketed gem's type, keeping its tier -->
         <div id="forgeGemTransmuteRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
@@ -1630,7 +1631,7 @@ var abyssForgeCommitOperations={
   '/api/abyss/dismantle':'dismantle','/api/abyss/identify':'identify','/api/abyss/socket_gem':'socket_gem','/api/abyss/etch_rune':'etch_rune','/api/abyss/recalibrate':'recalibrate','/api/abyss/upgrade_gear':'upgrade_gear','/api/abyss/transmute':'transmute','/api/abyss/insure_item':'insure_item',
   '/api/abyss/craft':'craft','/api/abyss/craft_legendary':'craft_legendary','/api/abyss/temper':'temper','/api/abyss/upgrade_gem':'upgrade_gem','/api/abyss/extract_gem':'extract_gem','/api/abyss/transfer_enchant':'transfer_enchant','/api/abyss/fuse':'fuse','/api/abyss/mythic_fuse':'mythic_fuse','/api/abyss/celestial_fuse':'celestial_fuse','/api/abyss/cleanse':'cleanse','/api/abyss/repair_all':'repair_all','/api/abyss/auto_repair':'auto_repair','/api/abyss/identify_all':'identify_all','/api/abyss/forge/target_craft':'target_craft',
   '/api/abyss/polish':'polish','/api/abyss/reinforce':'reinforce','/api/abyss/sharpen':'sharpen','/api/abyss/awaken':'awaken','/api/abyss/imbue':'imbue','/api/abyss/punch_socket':'punch_socket','/api/abyss/attune':'attune','/api/abyss/reforge':'reforge','/api/abyss/embrace':'embrace','/api/abyss/masterwork':'masterwork','/api/abyss/corrupt':'corrupt','/api/abyss/infuse_curse':'infuse_curse','/api/abyss/infuse_eldritch':'infuse_eldritch','/api/abyss/rebalance':'rebalance','/api/abyss/transmute_gem':'transmute_gem','/api/abyss/brand':'brand','/api/abyss/temper_surge':'temper_surge','/api/abyss/swap_special':'swap_special','/api/abyss/infuse_xp':'infuse_xp','/api/abyss/prismatic_rune':'prismatic_rune',
-  '/api/abyss/batch_temper':'batch_temper','/api/abyss/temper_guard':'temper_guard','/api/abyss/forge_queue':'forge_queue','/api/abyss/gem_upgrade_all':'gem_upgrade_all','/api/abyss/scrape_rune':'scrape_rune','/api/abyss/unattune':'unattune','/api/abyss/masterwork_transfer':'masterwork_transfer','/api/abyss/reforge_lock':'reforge_lock','/api/abyss/rebalance_all':'rebalance_all','/api/abyss/unbrand':'unbrand','/api/abyss/special_reroll':'special_reroll','/api/abyss/awaken_guided':'awaken_guided','/api/abyss/imbue_remove':'imbue_remove','/api/abyss/polish_all':'polish_all','/api/abyss/craft_repair_kit2':'craft_repair_kit2','/api/abyss/socket_relocate':'socket_relocate','/api/abyss/celestial_fuse_boosted':'celestial_fuse_boosted','/api/abyss/convert_mats':'convert_mats'
+  '/api/abyss/batch_temper':'batch_temper','/api/abyss/temper_guard':'temper_guard','/api/abyss/forge_queue':'forge_queue','/api/abyss/gem_upgrade_all':'gem_upgrade_all','/api/abyss/scrape_rune':'scrape_rune','/api/abyss/unattune':'unattune','/api/abyss/masterwork_transfer':'masterwork_transfer','/api/abyss/reforge_lock':'reforge_lock','/api/abyss/rebalance_all':'rebalance_all','/api/abyss/unbrand':'unbrand','/api/abyss/special_reroll':'special_reroll','/api/abyss/awaken_guided':'awaken_guided','/api/abyss/imbue_remove':'imbue_remove','/api/abyss/polish_all':'polish_all','/api/abyss/craft_repair_kit2':'craft_repair_kit2','/api/abyss/socket_relocate':'socket_relocate','/api/abyss/reroll_ring_sockets':'reroll_ring_sockets','/api/abyss/celestial_fuse_boosted':'celestial_fuse_boosted','/api/abyss/convert_mats':'convert_mats'
 };
 async function abyssForgeCommit(url,body,operation){
   var commitBody=Object.assign({},body||{}),parameters=Object.assign({},commitBody);
@@ -4330,6 +4331,12 @@ function updateForgeOptions() {
   var sockets = parseInt(opt.getAttribute('data-sockets')) || 0;
   var gems = parseInt(opt.getAttribute('data-gems')) || 0;
   var slot = opt.getAttribute('data-slot') || '';
+  var ringSocketRow = document.getElementById('forgeRingSocketRow');
+  var ringSocketButton = document.getElementById('btnForgeRingSocketReroll');
+  var isRing = slot === 'Finger1' || slot === 'Finger2';
+  ringSocketRow.style.display = (!unid && isRing) ? 'block' : 'none';
+  ringSocketButton.disabled = gems > 3;
+  ringSocketButton.title = gems > 3 ? 'Extract gems until at most three remain before rerolling' : 'Reroll this ring to 1–3 sockets while preserving every fitted gem';
   
   // Show Identify button if unidentified
   document.getElementById('btnForgeIdentify').style.display = unid ? 'block' : 'none';
@@ -6592,6 +6599,7 @@ function initNewDots(){
 {{template "abyss-forge-workstation" .}}
 {{if .ForgeWorkbenchEnabled}}{{template "abyss-forge-planner" .}}{{end}}
 {{template "abyss-forge-experience" .}}
+{{template "abyssRingSocketJS" .}}
 {{template "abyssTransmogJS" .}}
 {{template "abyss-navigation" .}}
 {{template "abyss-accessibility" .}}
