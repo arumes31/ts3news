@@ -73,7 +73,8 @@ func (s *WebServer) handleAbyssShopBuy(w http.ResponseWriter, r *http.Request, u
 	defer unlock()
 
 	var req struct {
-		Item string `json:"item"`
+		Item       string `json:"item"`
+		QuotedCost *int64 `json:"quoted_cost"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
@@ -84,11 +85,17 @@ func (s *WebServer) handleAbyssShopBuy(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown item"})
 		return
 	}
-	if strings.HasPrefix(item.Key, "insanity_") && item.Key != abyssWeeklyInsanityCosmetic(time.Now()) {
+	now := time.Now()
+	if strings.HasPrefix(item.Key, "insanity_") && item.Key != abyssWeeklyInsanityCosmetic(now) {
 		writeJSON(w, map[string]any{"ok": false, "error": "that Insanity cosmetic is not in this week's rotation"})
 		return
 	}
-	tokenCost, _ := abyssShopEffectiveCost(item, time.Now())
+	market := s.bot.abyssShopDemand(now)[item.Key]
+	tokenCost, _ := abyssShopPricedCost(item, now, market.Percent)
+	if item.Cost > 0 && req.QuotedCost != nil && *req.QuotedCost != tokenCost {
+		writeJSON(w, map[string]any{"ok": false, "error": "shop price changed; refresh and review the new total", "current_cost": tokenCost})
+		return
+	}
 	if strings.HasPrefix(item.Key, "insanity_") {
 		s.buyAbyssShopCosmetic(w, uid, item, tokenCost)
 		return
@@ -179,6 +186,9 @@ func (s *WebServer) handleAbyssShopBuy(w http.ResponseWriter, r *http.Request, u
 		msg = "Relic acquired: " + ui.Name + " [" + ui.Rarity.String() + "]!"
 	case "emergency_revive":
 		s.bot.grantConsumable(uid, "abyss_emergency_revive", 1)
+	}
+	if abyssShopDemandEligible(item) {
+		s.bot.recordAbyssShopDemand(item.Key, now)
 	}
 
 	var gold int64

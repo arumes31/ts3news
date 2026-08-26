@@ -8,6 +8,9 @@ function resetLivePixelState(sessionID){
 }
 
 function liveSpritePosition(cell){return (cell[0]*100/3)+'% '+(cell[1]*100/2)+'%';}
+function liveEnemySpritePosition(cell){return (cell[0]*100/5)+'% '+(cell[1]*100/5)+'%';}
+function liveExpandedSpritePosition(cell){return (cell[0]*100/7)+'% '+(cell[1]*100/7)+'%';}
+function liveActionIconPosition(cell){return (cell[0]*100/7)+'% '+(cell[1]*100/5)+'%';}
 
 var AB_CATALOG_GRIDS={
   artifacts:[14,11],auras:[12,12],banners:[13,10],charms:[14,11],
@@ -68,6 +71,30 @@ function liveActionArtFamily(option){
   return 'skills';
 }
 
+function liveActionIconCell(option){
+  var name=String(option.name||'').toLowerCase();
+  if(option.kind==='attack')return [0,2];
+  if(option.kind==='defend')return [3,2];
+  if(option.kind==='item')return /repair/.test(name)?[4,4]:/mana/.test(name)?[2,4]:/poison|toxic/.test(name)?[6,4]:[0,4];
+  if(option.kind==='ultimate')return /heal|holy|light|radiant/.test(name)?[4,5]:/defend|shield|barrier/.test(name)?[7,5]:[0,5];
+  if(option.kind==='companion')return [6,5];
+  if(/heal|mend|restor|rejuven/.test(name)||option.target==='ally')return [2,3];
+  if(/shield|barrier|ward|guard/.test(name))return [3,2];
+  if(/focus|mark|target/.test(name))return [4,2];
+  if(/fire|flame|burn|inciner/.test(name))return [5,2];
+  if(/frost|ice|freez/.test(name))return [6,2];
+  if(/storm|lightning|electr|thunder/.test(name))return [7,2];
+  if(/wind|gale|zephyr/.test(name))return [2,2];
+  if(/shadow|dark|void/.test(name))return [4,3];
+  if(/holy|light|radiant|divine/.test(name))return [6,3];
+  if(/toxic|poison|venom|acid/.test(name))return [5,3];
+  if(/curse|necrot|death/.test(name))return [3,3];
+  if(/drain|leech|vamp/.test(name))return [1,3];
+  if(/sunder|quake|earth/.test(name))return [0,3];
+  if(/bash|onslaught|strike|pierc|arrow|bolt/.test(name))return [1,2];
+  return [liveNameHash(name)%8,2+Math.floor(liveNameHash(name)%16/8)];
+}
+
 function livePlayerCell(unit){
   var name=String(unit.name||'').toLowerCase(),role=String(unit.role||'').toLowerCase(),element=String(unit.element||'').toLowerCase();
   if(role==='tank')return [0,0];
@@ -78,10 +105,18 @@ function livePlayerCell(unit){
 
 // Regular enemies and boss-tier encounters use separate authored sheets.
 function liveEnemyArt(unit){
-  var name=String(unit.name||unit.id||'unknown'),role=String(unit.role||'').toLowerCase();
-  var family=role==='boss'||unit.hazard||/^nemesis:/i.test(name)?'bosses':'creatures';
-  var art=liveCatalogArt('monster:'+String(unit.art_key||name||unit.id),family);
-  return {atlas:'catalog',family:family,cell:art.cell};
+  var name=String(unit.name||unit.id||'unknown').toLowerCase(),role=String(unit.role||'').toLowerCase();
+  var legacy=[[/ancient dragon|\bdragon\b/,[0,1]],[/\borc\b/,[1,1]],[/shadow assassin|\bassassin\b/,[2,1]],[/\brat\b/,[3,1]],[/frost lich|\blich\b/,[0,2]],[/gatekeeper|dread knight|corrupted guard/,[1,2]],[/slime|ooze|blob/,[2,2]]];
+  for(var i=0;i<legacy.length;i++)if(legacy[i][0].test(name))return {atlas:'legacy',cell:legacy[i][1]};
+  var bosses=[[/kraken|leviathan|tentacl/,[1,7]],[/gorgoroth|demon lord|infernal king/,[2,7]],[/frost colossus|ice colossus/,[3,7]],[/death queen|abyss queen|dark queen/,[4,7]],[/void lord|malakor|void titan|azazoth/,[5,7]],[/chronos|fallen celestial|corrupted celestial|seraph/,[6,7]],[/the watcher|watcher prime/,[7,7]]];
+  for(var j=0;j<bosses.length;j++)if(bosses[j][0].test(name))return {atlas:'expanded',cell:bosses[j][1]};
+  if(role==='boss')return {atlas:'expanded',cell:[liveNameHash(name)%8,7]};
+  var bestiary=[[/wolf|hound/,[0,0]],[/spider|arachnid/,[1,0]],[/boar|tusk/,[3,0]],[/serpent|cobra/,[4,0]],[/crocodile|alligator/,[5,0]],[/scorpion/,[2,0]],[/goblin|gremlin/,[0,1]],[/troll|ogre/,[1,1]],[/minotaur|behemoth/,[2,1]],[/cultist|warlock/,[3,1]],[/witch|hag/,[4,1]],[/fishman|deep one|drowned/,[5,1]],[/skeleton|bone warrior/,[0,2]],[/zombie|undead/,[1,2]],[/vampire|blood lord/,[2,2]],[/banshee|wraith|ghost|spect/,[3,2]],[/mummy|wrapped/,[4,2]],[/bone golem|bone colossus/,[5,2]],[/fire elemental|flame elemental/,[0,3]],[/ice golem|frost golem/,[1,3]],[/storm djinn|tempest|djinn/,[2,3]],[/mushroom|fungal|spore/,[3,3]],[/mimic|living chest/,[4,3]],[/beholder|many-eyed/,[5,3]],[/demon|devil/,[0,4]],[/phoenix|firebird/,[3,4]]];
+  for(var k=0;k<bestiary.length;k++)if(bestiary[k][0].test(name))return {atlas:'bestiary',cell:bestiary[k][1]};
+  var expanded=[[/stone golem/,[0,5]],[/iron golem/,[1,5]],[/clockwork/,[2,5]],[/living armor/,[3,5]],[/\bimp\b/,[4,5]],[/hellhound/,[5,5]],[/demon brute|pit demon/,[6,5]],[/infernal mage/,[7,5]],[/ogre champion|ogre lord/,[0,6]],[/frost giant|ice giant/,[1,6]],[/hydra|three-headed/,[2,6]],[/gatekeeper|armored gatekeeper/,[3,6]],[/plague doctor|alchemist/,[4,6]],[/crimson witch|blood witch/,[5,6]],[/abyssal knight|abyssal invader|void knight|eldritch knight/,[6,6]],[/ancient treant|elder treant/,[7,6]]];
+  for(var l=0;l<expanded.length;l++)if(expanded[l][0].test(name))return {atlas:'expanded',cell:expanded[l][1]};
+  var fallback=liveNameHash(name)%48;
+  return {atlas:'expanded',cell:[fallback%8,Math.floor(fallback/8)]};
 }
 
 function liveEnemyAffinity(unit){
@@ -123,7 +158,7 @@ function renderLivePixelStage(state){
     (units||[]).forEach(function(unit,index){
       var previous=livePixelPrevious.units[unit.id],button=document.createElement('button');
       var artKey=(hostile?'monster:':'ally:')+String(unit.art_key||unit.name||unit.id);
-      var art=hostile?liveEnemyArt(unit):!unit.is_player?liveCatalogArt(artKey,'companions'):null;
+      var art=hostile||!unit.is_player?liveEnemyArt(unit):null;
       var hpHidden=hostile&&!!unit.hp_hidden;
       var dotActive=hostile&&(unit.effects||[]).some(function(effect){return /poison|bleed|burn|damage over time/i.test(effect.name||'');});
       var tier=hostile&&String(unit.role||'').toLowerCase()==='boss'?' boss-tier':hostile&&(/^nemesis:|behemoth|gatekeeper|lich|knight|invader/i.test(unit.name||''))?' elite-tier':'';
@@ -135,16 +170,16 @@ function renderLivePixelStage(state){
       var shieldDelta=!hostile&&previous?Number(unit.shield||0)-Number(previous.shield||0):0;
       if(!delta&&shieldDelta<0)deltaHTML='<span class="ab-pixel-float shield">🛡 '+fmtNum(shieldDelta)+'</span>';
       var effects=(unit.effects||[]).slice(0,4).map(function(effect){return liveEffectChip(effect,true);}).join('');
-      var artFamily=art&&art.family?art.family:'skills';
-      var cell=art?art.cell:livePlayerCell(unit),spriteClass='ab-actor-sprite'+(art?' ab-catalog-actor':'');
-      var spritePosition=art?liveCatalogSpritePosition(cell,artFamily):liveSpritePosition(cell);
+      var artFamily=art?art.atlas:'player';
+      var cell=art?art.cell:livePlayerCell(unit),spriteClass='ab-actor-sprite'+(art&&art.atlas==='bestiary'?' ab-enemy-sprite':art&&art.atlas==='expanded'?' ab-expanded-enemy-sprite':'');
+      var spritePosition=art&&art.atlas==='bestiary'?liveEnemySpritePosition(cell):art&&art.atlas==='expanded'?liveExpandedSpritePosition(cell):liveSpritePosition(cell);
       var artIdentity=liveArtIdentity(artKey);
       var rank=tier?'<span class="ab-pixel-rank">'+(tier===' boss-tier'?'BOSS':'ELITE')+'</span>':'';
       button.innerHTML='<span class="ab-pixel-name"><b>'+(unit.revenge?'◎ ':'')+consEsc(unit.name)+'</b><span>'+consEsc(unit.revenge?'REVENGE TARGET':unit.role||unit.element||'')+'</span></span>'+deltaHTML+
         (hostile?liveWeaknessWindowMark(unit,'pixel'):'')+
         (!hostile?liveShieldBar(unit,'overhead'):'')+
         (hpHidden?'<span class="ab-overhead-hp concealed"><i></i><em>??</em></span>':'<span class="ab-overhead-hp'+(dotActive?' dot-active':'')+'"><i style="width:'+livePct(unit.hp,unit.max_hp)+'%"></i><em>'+livePct(unit.hp,unit.max_hp)+'%</em></span>')+
-        rank+'<span class="'+spriteClass+'" data-art-sheet="'+artFamily+'" style="background-position:'+spritePosition+';'+liveUniqueArtStyle(artKey,artFamily)+'" aria-hidden="true"></span><span class="ab-actor-sigil" data-art-signature="'+artIdentity.signature+'" style="--ab-art-sigil:'+artIdentity.sigil+'" aria-hidden="true"></span>'+
+        rank+'<span class="'+spriteClass+'" data-art-sheet="'+artFamily+'" style="background-position:'+spritePosition+'" aria-hidden="true"></span><span class="ab-actor-sigil" data-art-signature="'+artIdentity.signature+'" style="--ab-art-sigil:'+artIdentity.sigil+'" aria-hidden="true"></span>'+
         '<span class="ab-pixel-shadow" aria-hidden="true"></span><span class="ab-pixel-effects">'+effects+'</span>';
       button.onclick=function(){selectLiveTarget(unit.id);};host.appendChild(button);
       livePixelPrevious.units[unit.id]={hp:unit.hp,maxHP:unit.max_hp,shield:Number(unit.shield)||0,maxShield:Number(unit.max_shield)||0,weaknessReady:!!unit.weakness_ready};

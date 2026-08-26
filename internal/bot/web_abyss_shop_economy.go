@@ -29,6 +29,8 @@ type abyssShopItemView struct {
 	abyssShopItem
 	EffectiveCost int64
 	DiscountPct   int
+	DemandPct     int
+	DemandSales   int64
 	HappyAccident bool
 	Insanity      bool
 	Owned         bool
@@ -115,6 +117,7 @@ func abyssShopEffectiveCost(item abyssShopItem, now time.Time) (int64, bool) {
 
 func (b *Bot) abyssShopViewsWithOwned(uid string, now time.Time, ownedCosmetics map[string]bool) []abyssShopItemView {
 	b.maybeDeliverAbyssPotionSubscription(uid, now)
+	demand := b.abyssShopDemand(now)
 	activeCosmetic := abyssWeeklyInsanityCosmetic(now)
 	rotationWeek := abyssEconomyWeek(now)
 	rotationEnds := abyssWeeklyCosmeticReset(now).Format("2006-01-02 15:04 UTC")
@@ -124,9 +127,11 @@ func (b *Bot) abyssShopViewsWithOwned(uid string, now time.Time, ownedCosmetics 
 		if insanity && item.Key != activeCosmetic {
 			continue
 		}
-		cost, deal := abyssShopEffectiveCost(item, now)
+		market := demand[item.Key]
+		cost, deal := abyssShopPricedCost(item, now, market.Percent)
 		out = append(out, abyssShopItemView{
 			abyssShopItem: item, EffectiveCost: cost, DiscountPct: map[bool]int{true: 40}[deal],
+			DemandPct: market.Percent, DemandSales: market.Purchases,
 			HappyAccident: deal, Insanity: insanity, Owned: ownedCosmetics[item.Key],
 			RotationWeek: rotationWeek, RotationEnds: rotationEnds,
 		})

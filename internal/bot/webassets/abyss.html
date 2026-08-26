@@ -25,6 +25,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_loot_presentation.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_pity.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_featured_drops.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_shop_demand.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_wishlist.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_set_pity.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_forge_experience.css"}}">
@@ -660,12 +661,13 @@
     </div>
     <div class="ab-shop">
       {{range .Shop}}
-      <div class="ab-shop-item{{if .HappyAccident}} ab-shop-deal{{end}}{{if .Insanity}} ab-shop-insanity{{end}}" data-shop-category="{{if .Insanity}}insanity{{else}}supplies{{end}}" {{if .Insanity}}hidden{{end}}>
+      <div class="ab-shop-item{{if .HappyAccident}} ab-shop-deal{{end}}{{if gt .DemandPct 0}} ab-shop-hot{{else if lt .DemandPct 0}} ab-shop-cool{{end}}{{if .Insanity}} ab-shop-insanity{{end}}" data-shop-category="{{if .Insanity}}insanity{{else}}supplies{{end}}" {{if .Insanity}}hidden{{end}}>
         <div>
           <b>{{if .HappyAccident}}🎉 {{end}}{{if .Insanity}}🌀 {{end}}{{.Name}}</b>{{if .Owned}} <span class="ab-up-lv">owned</span>{{end}}
           <div class="muted small">{{.Desc}}{{if .Insanity}} · {{.RotationWeek}} · refreshes {{.RotationEnds}}{{end}}</div>
+          {{if gt .Cost 0}}<div class="ab-shop-market" title="Server-wide purchases during the previous seven completed UTC days; prices refresh at 00:00 UTC."><span>7-day market</span><b>{{if gt .DemandPct 0}}hot · +{{.DemandPct}}%{{else if lt .DemandPct 0}}cool · {{.DemandPct}}%{{else}}steady{{end}}</b><span>{{.DemandSales}} bought</span></div>{{end}}
         </div>
-        <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', this)" title="{{if .Owned}}Re-equip this permanent cosmetic at no charge{{else}}Item {{if .CostGold}}{{.CostGold}} gold{{else}}{{.EffectiveCost}} tokens{{end}} · fee 0{{end}}">{{if .Owned}}Equip · free{{else if .CostGold}}🪙 {{gold .CostGold}}{{else}}🜲 {{.EffectiveCost}}{{if .HappyAccident}} <s>{{.Cost}}</s> −40%{{end}}{{end}}</button>
+        <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', {{.EffectiveCost}}, this)" title="{{if .Owned}}Re-equip this permanent cosmetic at no charge{{else if .CostGold}}Exact total {{.CostGold}} gold · fee 0{{else}}Base {{.Cost}} tokens · market {{if gt .DemandPct 0}}+{{end}}{{.DemandPct}}% from {{.DemandSales}} prior-window purchases{{if .HappyAccident}} · daily deal −40%{{end}} · exact total {{.EffectiveCost}} tokens · fee 0{{end}}">{{if .Owned}}Equip · free{{else if .CostGold}}🪙 {{gold .CostGold}}{{else}}🜲 {{.EffectiveCost}}{{if ne .EffectiveCost .Cost}} <s>{{.Cost}}</s>{{end}}{{if .DemandPct}} <span class="ab-market-price">{{if gt .DemandPct 0}}+{{end}}{{.DemandPct}}% market</span>{{end}}{{if .HappyAccident}} <span class="ab-daily-price">−40% deal</span>{{end}}{{end}}</button>
       </div>
       {{end}}
     </div>
@@ -1710,6 +1712,7 @@ function setBusy(b){
 function updateFloatingDescend(label){var button=document.getElementById('abyssFloatingDescend');if(!button)return;button.hidden=!abyssDescendInFlight;if(label)button.textContent='↓ '+label;else if(abyssDescendInFlight)button.textContent='↓ Descending…';}
 function focusAbyssDescend(){var controls=document.getElementById('abyssControls'),button=document.getElementById('btnDescend');if(!controls||!inRun)return;controls.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'center'});setTimeout(function(){if(button&&button.offsetParent!==null)button.focus({preventScroll:true});},reduceMotion?0:350);}
 function show(id, on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none';}
+function setAbyssEventStage(active){var stage=document.getElementById('abyssStage');if(stage)stage.classList.toggle('ab-event-stage',!!active);}
 
 function renderState(){
   updateStageScene(); // UI-9/10: rest embers / event icon follow the floor type
@@ -1723,6 +1726,7 @@ function renderState(){
 
   show('abyssControls', true);
   show('nonCombatPanel', false);
+  setAbyssEventStage(false);
 
   // idle / alive / downed
   show('btnEnter', !inRun);
@@ -1826,10 +1830,12 @@ function renderNonCombat(floorType, stateStr){
   
   if(!floorType || floorType === 'combat'){
     panel.style.display = 'none';
+    setAbyssEventStage(false);
     return;
   }
   
   panel.style.display = '';
+  setAbyssEventStage(true);
   
   if(floorType === 'rest'){
     title.innerHTML = '🕊️ Sanctuary (Rest Floor)';
@@ -4249,9 +4255,9 @@ async function abyssBountyClaim(){
   setBanner(bmsg,'good');
 }
 
-async function abyssShopBuy(item, btn){
+async function abyssShopBuy(item, quotedCost, btn){
   if(busy)return; setBusy(true);
-  var d = await abPost('/api/abyss/shop/buy', {item: item});
+  var d = await abPost('/api/abyss/shop/buy', {item: item, quoted_cost: quotedCost});
   setBusy(false);
   if(!d.ok){ abToast(d.error||'failed',false); return; }
   setTokens(d.tokens); setGold(d.gold);

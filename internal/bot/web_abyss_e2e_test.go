@@ -139,7 +139,10 @@ func TestAbyssE2EServer(t *testing.T) {
 		weeklyKey := abyssWeeklyInsanityCosmetic(shopNow)
 		weeklyItem := abyssShopIndex[weeklyKey]
 		fixture["Shop"] = []abyssShopItemView{
-			{abyssShopItem: abyssShopCatalog[0], EffectiveCost: abyssShopCatalog[0].Cost},
+			{
+				abyssShopItem: abyssShopCatalog[0], EffectiveCost: abyssShopDemandCost(abyssShopCatalog[0].Cost, 10),
+				DemandPct: 10, DemandSales: 24,
+			},
 			{
 				abyssShopItem: weeklyItem, EffectiveCost: weeklyItem.Cost, Insanity: true,
 				RotationWeek: abyssEconomyWeek(shopNow),
@@ -154,6 +157,14 @@ func TestAbyssE2EServer(t *testing.T) {
 			},
 		}
 		fixture["InsuranceCharms"] = 2
+		fixture["BestKill"] = abyssBestKillView{
+			Available: true, Boss: "The Fixture Colossus", Depth: 57,
+			KillTimeMS: 12_300, KillTime: "12.3s", Tier: "normal", TierName: "Normal", KilledAt: "2026-08-25",
+		}
+		fixture["BossCosmetics"] = abyssBossCosmeticCollectionView{
+			Items: []abyssBossCosmeticView{{abyssBossCosmetic: abyssBossCosmeticCatalog[0], Owned: true}},
+			Owned: 1, Total: len(abyssBossCosmeticCatalog), Rates: "Normal 2% · Nightmare 4% · Hell 7% · Insanity 12%",
+		}
 		fixture["Social"] = abyssSocialHubView{
 			WeeklyBoss:  abyssWeeklyBossView{Name: "The Fixture Colossus", HP: 750_000, MaxHP: 1_000_000, Percent: 75, Multiplier: 1},
 			PetFeedCost: 250,

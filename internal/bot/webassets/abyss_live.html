@@ -70,15 +70,15 @@
   <div class="ab-pixel-stage" id="livePixelStage" aria-label="Animated combat battlefield">
     <div class="ab-ultimate-charge" id="liveUltimateCharge" role="status" aria-label="Ultimate readiness"><b>ULT</b><span>—</span></div>
     <div class="ab-pixel-backdrop" aria-hidden="true"><i></i><i></i><i></i></div>
-    <div class="ab-pixel-party hostile" id="livePixelEnemies" aria-label="Enemy combatants"></div>
     <div class="ab-pixel-party" id="livePixelAllies" aria-label="Allied combatants"></div>
-    <div class="ab-pixel-stage-label" aria-hidden="true"><span>HOSTILES</span><span>PARTY</span></div>
+    <div class="ab-pixel-party hostile" id="livePixelEnemies" aria-label="Enemy combatants"></div>
+    <div class="ab-pixel-stage-label" aria-hidden="true"><span>PARTY</span><span>HOSTILES</span></div>
   </div>
   <details class="ab-live-details">
     <summary>TACTICAL DETAILS <span>exact HP · traits · effects · break bars</span></summary>
     <div class="ab-live-field">
-      <div><span class="ab-live-label hostile">ENEMIES</span><div class="ab-live-targets" id="liveEnemies"></div></div>
       <div><span class="ab-live-label">ALLIES</span><div class="ab-live-targets" id="liveAllies"></div></div>
+      <div><span class="ab-live-label hostile">ENEMIES</span><div class="ab-live-targets" id="liveEnemies"></div></div>
     </div>
   </details>
   <div class="ab-live-command">
@@ -311,8 +311,8 @@ function renderLiveActionBar(state){
 	button.draggable=true;button.dataset.actionKey=actionKey;button.dataset.shortcut=shortcut.toLowerCase();
 	button.title=(option.description||option.name)+(option.tags&&option.tags.length?' — Combo tags: '+option.tags.join(', '):'')+(option.effect_rounds?' — Effect: '+option.effect_rounds+' round'+(option.effect_rounds===1?'':'s'):'')+(option.modifiers&&option.modifiers.length?' — Active modifiers: '+option.modifiers.join(', '):'')+(option.mana?' — Mana after: '+Math.max(0,(own.mana||0)-option.mana):'')+(recommended&&state.recommended.reason?' — Recommended: '+state.recommended.reason:'');
 	if(option.cooldown)button.style.setProperty('--cooldown-angle',Math.min(360,option.cooldown*36)+'deg');
-	var artKey=liveActionArtKey(option),artFamily=liveActionArtFamily(option),art=liveCatalogArt(artKey,artFamily);
-	button.innerHTML='<span class="ab-action-key">'+consEsc(shortcut)+'</span><span class="ab-action-pin">'+(livePinnedActions[actionKey]?'★':'☆')+'</span><span class="ab-action-icon"><span class="ab-pixel-icon ab-catalog-icon ab-art-unique" data-art-signature="'+liveArtIdentity(artKey).signature+'" data-art-sheet="'+art.family+'" style="'+liveUniqueArtStyle(artKey,artFamily)+'"></span></span>'+
+	var artKey=liveActionArtKey(option),iconCell=liveActionIconCell(option),identity=liveArtIdentity(artKey);
+	button.innerHTML='<span class="ab-action-key">'+consEsc(shortcut)+'</span><span class="ab-action-pin">'+(livePinnedActions[actionKey]?'★':'☆')+'</span><span class="ab-action-icon"><span class="ab-pixel-icon ab-semantic-action-icon" data-art-signature="'+identity.signature+'" data-art-sheet="actions" style="background-position:'+liveActionIconPosition(iconCell)+';--ab-art-sigil:'+identity.sigil+'"></span></span>'+
       '<span class="ab-action-name">'+consEsc(option.name)+'</span>'+
       '<span class="ab-action-estimate">'+liveEffectEstimate(option)+'</span>'+
 	  '<span class="ab-action-cost">'+(option.mana?'🔵 '+option.mana+' → '+Math.max(0,(own.mana||0)-option.mana):option.cooldown?'⏳ '+option.cooldown:(option.kind==='item'||option.kind==='relic')?'×'+option.count:'')+'</span>';
