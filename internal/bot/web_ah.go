@@ -490,17 +490,24 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 		return
 	}
-	// Mark sold, pay seller.
+	// Mark sold, pay the seller net of the disclosed 5% community tax, and
+	// route that tax to the shared Abyss jackpot in the same transaction.
+	salesTax := abyssAuctionSalesTax(price)
+	sellerNet := price - salesTax
 	if _, err := tx.Exec("UPDATE auction_house SET buyer_uid=$1, sold_at=NOW(), current_bid=0, bidder_uid=NULL WHERE id=$2", uid, req.ID); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "sold"})
 		return
 	}
-	if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", price, sellerUID); err != nil {
+	if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", sellerNet, sellerUID); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "pay"})
 		return
 	}
+	if _, err := tx.Exec("UPDATE arcade_jackpots SET amount=amount+$1,updated_at=NOW() WHERE game_key='abyss'", salesTax); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "tax"})
+		return
+	}
 	if _, err := tx.Exec(`INSERT INTO abyss_economy_events (client_uid,kind,message,amount)
-		VALUES ($1,'sale',$2,$3)`, sellerUID, fmt.Sprintf("Sale proceeds: %s sold for %dg · listing 0g · seller 0g · net %dg.", name, price, price), price); err != nil {
+		VALUES ($1,'sale',$2,$3)`, sellerUID, fmt.Sprintf("Sale proceeds: %s sold for %dg · community tax %dg · net %dg.", name, price, salesTax, sellerNet), sellerNet); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "notice"})
 		return
 	}
@@ -556,6 +563,13 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 	}
 
 	writeJSON(w, map[string]any{"ok": true, "bought": name + equippedMsg, "gold": gold})
+}
+
+func abyssAuctionSalesTax(price int64) int64 {
+	if price <= 0 {
+		return 0
+	}
+	return max(int64(1), (price*5+99)/100)
 }
 
 // handleAHListAPI lists an inventory gear piece on the auction house.

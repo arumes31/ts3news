@@ -785,6 +785,10 @@ func (b *Bot) fightAbyssFloorMode(
 			logs = append(logs, "[color=#f44336]🩸 Anemic: maximum HP is halved for this fight.[/color]")
 		}
 	}
+	if abyssHasPact(pacts, "tithe") {
+		u.Stats.LCK = abyssPactLuck(pacts, u.Stats.LCK)
+		logs = append(logs, "[color=#f1c75b]🪙 Escrow Tithe: +10% Luck; every bank donates 10% to the community jackpot.[/color]")
+	}
 	if b.abyssSpec(uid) == "warden" {
 		u.Stats = u.Stats.Scaled(1.05)
 	}
@@ -1633,6 +1637,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	ownedCosmetics := s.bot.abyssOwnedShopCosmetics(uid)
 	bossCosmetics := s.bot.abyssBossCosmeticCollectionWithOwned(uid, ownedCosmetics)
 	shopViews := s.bot.abyssShopViewsWithOwned(uid, time.Now(), ownedCosmetics)
+	shopProgram := s.bot.abyssShopProgram(uid, time.Now(), shopViews, materials, ownedCosmetics)
 	seasonJourney, seasonJourneyErr := s.bot.abyssSeasonJourney(r.Context(), uid, time.Now(), ownedCosmetics)
 	if seasonJourneyErr != nil {
 		log.Printf("abyss season journey read failed: uid=%q err=%v", uid, seasonJourneyErr)
@@ -1699,6 +1704,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"HarvesterTier":       harvesterTier,
 		"Bounty":              s.bot.abyssBountyStatus(uid),
 		"Shop":                shopViews,
+		"ShopProgram":         shopProgram,
 		"BossVendor":          abyssBossVendorCatalog,
 		"Pacts":               abyssPactCatalog,
 		"PactProgram":         s.bot.abyssPactProgramState(uid),
@@ -2513,6 +2519,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 	var achs []string
 	var loreUnlocked bool
 	var loreFragment string
+	var loreDuplicateTokens int
 	var recipeUnlocked string
 	var affixReward string
 	var dailyFirst bool
@@ -2768,6 +2775,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				loreUnlocked = true
 				loreFragment = o.LoreFragment
 			}
+			loreDuplicateTokens += o.LoreDuplicateTokens
 			if o.RecipeUnlocked != "" {
 				recipeUnlocked = o.RecipeUnlocked
 			}
@@ -2873,6 +2881,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		"gear_milestone":        gearMilestone,
 		"lore_unlocked":         loreUnlocked,
 		"lore_fragment":         loreFragment,
+		"lore_duplicate_tokens": loreDuplicateTokens,
 		"recipe_unlocked":       recipeUnlocked,
 		"affix_reward":          affixReward,
 		"daily":                 dailyFirst,
@@ -3248,6 +3257,7 @@ type abyssFloorOutcome struct {
 	Achievements        []string
 	LoreUnlocked        bool
 	LoreFragment        string
+	LoreDuplicateTokens int
 	RecipeUnlocked      string
 	AffixReward         string
 	RewardExperiment    abyssRewardAssignment
@@ -3456,16 +3466,15 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 		if fragID < 1 {
 			fragID = 1
 		}
-		res, err := s.bot.DB.Exec(
-			"INSERT INTO abyss_lore_unlocked (client_uid, lore_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", uid, fragID,
-		)
+		unlocked, duplicateTokens, err := grantAbyssLoreFragment(s.bot.DB, uid, fragID)
 		if err == nil {
-			if n, _ := res.RowsAffected(); n > 0 {
+			if unlocked {
 				o.LoreUnlocked = true
 				o.LoreFragment = abyssLoreFragments[fragID]
 				// Recipe discovery (#104): fresh lore can carry a crafting secret.
 				o.RecipeUnlocked = s.bot.discoverRandomRecipe(uid)
 			}
+			o.LoreDuplicateTokens = duplicateTokens
 		}
 	}
 
@@ -3615,6 +3624,9 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		if o.LoreUnlocked {
 			out["lore_unlocked"] = true
 			out["lore_fragment"] = o.LoreFragment
+		}
+		if o.LoreDuplicateTokens > 0 {
+			out["lore_duplicate_tokens"] = o.LoreDuplicateTokens
 		}
 		if o.RecipeUnlocked != "" {
 			out["recipe_unlocked"] = o.RecipeUnlocked
@@ -3993,6 +4005,8 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	loanFee := s.bot.currentAbyssLoanFee(uid)
 	loanFeeCharged := min(max(int64(0), payout), loanFee)
 	payout -= loanFeeCharged
+	tithe := abyssPactTithe(runPacts, payout)
+	payout -= tithe
 	checkpointRefund := 0
 	if !continuing && run.Depth > 0 && run.Depth%10 == 0 {
 		checkpointRefund = int(runFlags[abyssRunFlagCheckpointTokenCost])
@@ -4060,7 +4074,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			"streak_bonus": streakBonus, "streak_bonus_pct": streakBonusPct, "cursed_bonus": cursedBonus,
 			"partial": partial, "percent": req.Percent, "partial_fee": partialFee,
 			"transport": transport, "transport_fee": transportFee, "continue_run": continuing, "frantic_fee": franticFee,
-			"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee, "loan_fee": loanFeeCharged,
+			"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee, "loan_fee": loanFeeCharged, "pact_tithe": tithe,
 			"contract": abyssContractViewFromFlags(runFlags, run.Depth), "contract_forfeit": contractForfeit,
 			"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
 			"remaining_escrow": remainingEscrow, "requires_safe_word": requiresSafeWord,
@@ -4090,6 +4104,12 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	defer func() { _ = tx.Rollback() }()
 	if contractForfeit > 0 {
 		if _, err := tx.Exec("UPDATE arcade_jackpots SET amount=amount+$1, updated_at=NOW() WHERE game_key='abyss'", contractForfeit); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
+	if tithe > 0 {
+		if _, err := tx.Exec("UPDATE arcade_jackpots SET amount=amount+$1,updated_at=NOW() WHERE game_key='abyss'", tithe); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -4275,7 +4295,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		"mult_bonus": depthBonus + streakBonus + cursedBonus,
 		"partial":    partial, "percent": req.Percent, "partial_fee": partialFee,
 		"transport": transport, "transport_fee": transportFee, "continue_run": continuing, "frantic_fee": franticFee,
-		"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee, "loan_fee": loanFeeCharged,
+		"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee, "loan_fee": loanFeeCharged, "pact_tithe": tithe,
 		"contract": abyssContractViewFromFlags(runFlags, run.Depth), "contract_forfeit": contractForfeit,
 		"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
 		"base_tokens_grant": baseTokens, "pact_tokens_grant": pactTokens, "ante_return": anteReturn, "tokens_grant": tokensGrant,
@@ -5375,7 +5395,11 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			}
 			// #nosec G404 -- non-cryptographic lore roll
 			fragID := 1 + rand.IntN(10)
-			_, _ = tx.Exec("INSERT INTO abyss_lore_unlocked (client_uid, lore_id) VALUES ($1,$2) ON CONFLICT DO NOTHING", uid, fragID)
+			loreUnlocked, loreTokens, err := grantAbyssLoreFragment(tx, uid, fragID)
+			if err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
 			if _, err := tx.Exec("UPDATE abyss_active SET event_state=NULL, last_action_at=NOW() WHERE client_uid=$1", uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
@@ -5391,6 +5415,9 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			elixirFights = int(math.Ceil(float64(elixirFights) * parseAbyssEventEnvelope(run.EventState).MemoryMultiplier))
 			s.bot.grantConsumable(uid, "intellect_elixir", elixirFights)
 			msg := "📚 The pages drink your blood and whisper a lore fragment. An Intellect Elixir slips from the shelf."
+			if !loreUnlocked && loreTokens > 0 {
+				msg = fmt.Sprintf("📚 Familiar pages dissolve into %d Abyss Tokens. An Intellect Elixir slips from the shelf.", loreTokens)
+			}
 			if recipe := s.bot.discoverRandomRecipe(uid); recipe != "" {
 				msg += " 📖 Recipe discovered: " + recipe + "!"
 			}

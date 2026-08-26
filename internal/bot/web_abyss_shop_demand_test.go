@@ -91,7 +91,7 @@ func TestAbyssShopDemandTemplateContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, token := range []string{"abyssShopDemand(now)", "abyssShopPricedCost(item, now, market.Percent)", "*req.QuotedCost != tokenCost", "recordAbyssShopDemand(item.Key, now)"} {
+	for _, token := range []string{"abyssShopDemand(now)", "abyssShopPricedCost(item, now, market.Percent)", "*req.QuotedCost != tokenCost", "recordAbyssShopDemandWith(tx, item.Key, now)"} {
 		if !strings.Contains(string(handler), token) {
 			t.Fatalf("shop checkout missing authoritative demand contract %q", token)
 		}

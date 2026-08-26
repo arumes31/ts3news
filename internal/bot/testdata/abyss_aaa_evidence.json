@@ -1530,5 +1530,34 @@
       "internal/content/artifacts_test.go",
       "tests/e2e/abyss-duplicate-guard.spec.js"
     ]
+  },
+  {
+    "ids": [135, 136, 137, 138, 139, 143, 144, 145, 146, 147, 148, 150],
+    "production": [
+      "internal/bot/web_ah.go",
+      "internal/bot/web_ah_bids.go",
+      "internal/bot/web_ah_price_history.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_events.go",
+      "internal/bot/web_abyss_lore_grant.go",
+      "internal/bot/web_abyss_pact.go",
+      "internal/bot/web_abyss_shop.go",
+      "internal/bot/web_abyss_shop_demand.go",
+      "internal/bot/web_abyss_shop_economy.go",
+      "internal/bot/web_abyss_shop_gifts.go",
+      "internal/bot/web_abyss_shop_program.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_shop_demand.css",
+      "internal/bot/webassets/abyss_shop_program.css",
+      "internal/bot/webassets/abyss_shop_program.html"
+    ],
+    "verification": [
+      "internal/bot/web_ah_price_history_test.go",
+      "internal/bot/web_abyss_shop_demand_test.go",
+      "internal/bot/web_abyss_shop_program_test.go",
+      "internal/bot/web_abyss_test.go",
+      "tests/e2e/abyss-ah-price-history.spec.js",
+      "tests/e2e/abyss-shop-demand.spec.js"
+    ]
   }
 ]

@@ -169,8 +169,15 @@ func (s *WebServer) buyAbyssShopCosmetic(w http.ResponseWriter, uid string, item
 		return
 	}
 	newlyOwned, _ := res.RowsAffected()
+	punches, loyaltyFree := 0, false
 	if newlyOwned > 0 {
-		res, err = tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens >= $1", tokenCost, uid)
+		var charged int64
+		charged, punches, loyaltyFree, err = applyAbyssShopLoyalty(tx, uid, tokenCost)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		res, err = tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens >= $1", charged, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
@@ -196,7 +203,11 @@ func (s *WebServer) buyAbyssShopCosmetic(w http.ResponseWriter, uid string, item
 	if newlyOwned > 0 {
 		message = "Permanent cosmetic unlocked and equipped: " + title + "."
 	}
-	writeJSON(w, map[string]any{"ok": true, "owned": true, "newly_owned": newlyOwned > 0, "tokens": s.bot.abyssTokens(uid), "msg": message})
+	if loyaltyFree {
+		message += " Loyalty reward: no tokens charged."
+	}
+	writeJSON(w, map[string]any{"ok": true, "owned": true, "newly_owned": newlyOwned > 0, "tokens": s.bot.abyssTokens(uid),
+		"loyalty_punches": punches, "loyalty_free": loyaltyFree, "msg": message})
 }
 
 func (b *Bot) maybeDeliverAbyssPotionSubscription(uid string, now time.Time) {

@@ -317,6 +317,12 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 // awardAbyssBonusGear grants a guaranteed gear reward on a deep bank, with a
 // rarity floor that rises with depth (re-rolling until the floor is met). [55][57]
 func (b *Bot) awardAbyssBonusGear(uid string, depth int) string {
+	g := rollAbyssBonusGear(depth)
+	res := b.awardGearDrop(uid, g)
+	return res.Prefix + res.ItemName
+}
+
+func rollAbyssBonusGear(depth int) content.Gear {
 	floor := content.RarityCommon
 	switch {
 	case depth >= 50:
@@ -339,8 +345,7 @@ func (b *Bot) awardAbyssBonusGear(uid string, depth int) string {
 			g = candidates[rand.IntN(len(candidates))]
 		}
 	}
-	res := b.awardGearDrop(uid, g)
-	return res.Prefix + res.ItemName
+	return g
 }
 
 // tryAbyssJackpot gives a deep bank a small chance at the shared deep-cache pot. [62]

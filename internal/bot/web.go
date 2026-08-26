@@ -246,6 +246,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_pact_program.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_pact_program.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_shop_program.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_shop_program.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_combat_recorder.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_combat_recorder.css", "text/css; charset=utf-8")
 	})
@@ -547,6 +550,8 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/shop/scratch", s.authAPI(s.handleAbyssScratch))
 		mux.HandleFunc("/api/abyss/shop/gift_create", s.authAPI(s.handleAbyssGiftCreate))
 		mux.HandleFunc("/api/abyss/shop/gift_redeem", s.authAPI(s.handleAbyssGiftRedeem))
+		mux.HandleFunc("/api/abyss/shop/bundle", s.authAPI(s.handleAbyssShopBundleBuy))
+		mux.HandleFunc("/api/abyss/season/exchange", s.authAPI(s.handleAbyssSeasonExchange))
 		mux.HandleFunc("/api/abyss/economy/loan", s.authAPI(s.handleAbyssEconomyLoan))
 		mux.HandleFunc("/api/abyss/economy/tax_rebate", s.authAPI(s.handleAbyssTaxRebate))
 		mux.HandleFunc("/api/abyss/set_trade", s.authAPI(s.handleAbyssSetTrade))

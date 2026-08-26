@@ -138,7 +138,7 @@ func TestAbyssE2EServer(t *testing.T) {
 		shopNow := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
 		weeklyKey := abyssWeeklyInsanityCosmetic(shopNow)
 		weeklyItem := abyssShopIndex[weeklyKey]
-		fixture["Shop"] = []abyssShopItemView{
+		shopItems := []abyssShopItemView{
 			{
 				abyssShopItem: abyssShopCatalog[0], EffectiveCost: abyssShopDemandCost(abyssShopCatalog[0].Cost, 10),
 				DemandPct: 10, DemandSales: 24,
@@ -147,6 +147,21 @@ func TestAbyssE2EServer(t *testing.T) {
 				abyssShopItem: weeklyItem, EffectiveCost: weeklyItem.Cost, Insanity: true,
 				RotationWeek: abyssEconomyWeek(shopNow),
 				RotationEnds: abyssWeeklyCosmeticReset(shopNow).Format("2006-01-02 15:04 UTC"),
+			},
+		}
+		fixture["Shop"] = shopItems
+		flashItem := shopItems[0]
+		flashItem.HappyAccident = true
+		fixture["ShopProgram"] = abyssShopProgramView{
+			Gold: 123_500, Tokens: 572, LoyaltyPunches: 0, LoyaltyTarget: abyssShopLoyaltyPurchases,
+			GiftFeeGold: abyssShopGiftFeeGold, Bundles: abyssShopBundles, Flash: &flashItem,
+			FlashEnds: "22 Aug 00:00 UTC", SeasonExchangeCost: abyssSeasonExchangeCost,
+			SeasonExchangeName: "Ember Legacy Cache",
+			Materials: []abyssShopCurrencyMaterial{
+				{ID: "dust", Name: "Abyssal Dust", Icon: "🌫️", Count: 40},
+				{ID: "shard", Name: "Void Shard", Icon: "🔷", Count: 12},
+				{ID: "core", Name: "Umbral Core", Icon: "🟣", Count: 4},
+				{ID: "prism", Name: "Eldritch Prism", Icon: "💠", Count: 1},
 			},
 		}
 		fixture["SetPityPanel"] = abyssSetPityPanelView{

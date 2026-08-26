@@ -26,6 +26,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_pity.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_featured_drops.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_shop_demand.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_shop_program.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_run_loot_sell.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_duplicate_guard.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_wishlist.css"}}">
@@ -662,6 +663,7 @@
   <section class="abyss-panel" id="abyssTokenShop" data-abyss-section="shop">
     <h2>🜲 Token Shop</h2>
     <p class="muted small">Spend Abyss Tokens on consumables, gear and relics. Prices show the exact charged amount; there is no hidden shop fee.</p>
+    {{template "abyssShopProgram" .}}
     <div class="ab-shop-tabs" role="tablist" aria-label="Token Shop category">
       <button class="ghost xs active" role="tab" aria-selected="true" onclick="abyssShopCategory('supplies',this)">Supplies</button>
       <button class="ghost xs" role="tab" aria-selected="false" onclick="abyssShopCategory('insanity',this)">🌀 Weekly cosmetic</button>
@@ -750,7 +752,7 @@
         <button class="ghost xs" id="autoInsureToggle" data-enabled="{{.AutoInsure}}" onclick="abyssAutoInsure(this.dataset.enabled!=='true')" title="No recurring fee · each compatible run buys ordinary 25% cache cover atomically">🛡️ Auto-insure: {{if .AutoInsure}}on{{else}}off{{end}}</button>
         <button class="ghost xs" onclick="abyssRepairSubscription()" title="Exact fee 70,000g prepaid · 7 days · repairs and durability loss cost 0g while active">7-day repair plan</button>
         <button class="ghost xs" onclick="abyssScratch()" title="Exact price 50 tokens · fee 0 · once/day · 70%:0, 20%:75, 9%:150, 1%:1000">Daily scratch card</button>
-        <button class="ghost xs" onclick="abyssGiftCreate()" title="Gift item price equals its posted token-shop price · gift fee 0">Create gift code</button>
+        <button class="ghost xs" onclick="document.getElementById('abyssGiftRecipient').focus()" title="Gift item price equals its current posted token-shop price · 2,500g delivery fee">Create gift code</button>
         <button class="ghost xs" onclick="abyssGiftRedeem()" title="Redemption fee 0g / 0 tokens">Redeem gift code</button>
         <button class="ghost xs" onclick="abyssTaxRebate()" title="Claim fee 0g · bank-free today · refunds exactly 10% of this week's recorded Abyss tax">Claim tax rebate</button>
         {{if .Run.Active}}<button class="ghost xs" onclick="abyssEconomyLoan()" title="Principal leaves escrow · exact fee 10%, ceiling-rounded, due at bank · no setup fee">Borrow from cache</button>{{end}}
@@ -3760,6 +3762,7 @@ async function processDescendResult(d, hp, max){
     if(d.affix_reward)msg+=' 🎁 Affix reward: '+d.affix_reward+'!';
     if(d.secondary_objective)msg+=' 🎯 '+d.secondary_objective+'.';
     if(d.lore_unlocked)msg+=' 📖 Found Lore Codex fragment!';
+    if(Number(d.lore_duplicate_tokens)>0)msg+=' 📖 Familiar lore converted into 🜲 '+d.lore_duplicate_tokens+'.';
     if(d.recipe_unlocked)msg+=' 📖 Recipe discovered: '+d.recipe_unlocked+'!';
     if(d.gear_milestone)msg+=' '+d.gear_milestone;
     if(d.event_chain){renderAbyssEventChain(d.event_chain);var chainNotice=abyssEventChainNotice(d.event_chain);if(chainNotice)msg+=' '+chainNotice;}
@@ -3961,6 +3964,7 @@ async function abyssBank(percent,transport){
 	(p.perfect_bonus?row('✨ Perfect-run bonus +25%','+'+fmtGold(p.perfect_bonus)):'')+
 	(p.contract_forfeit?row('📜 Failed contract forfeiture −25%','−'+fmtGold(p.contract_forfeit)):'')+
 	(p.raffle_fee?row('🎟️ Bankers’ raffle contribution −1%','−'+fmtGold(p.raffle_fee)):'')+
+	(p.pact_tithe?row('🪙 Escrow Tithe · community jackpot','−'+fmtGold(p.pact_tithe)):'')+
     pactMath(p.pact_breakdown)+
     row('Estimated payout', '<span style="color:var(--gold)">'+fmtGold(p.payout)+'</span>')+
     (p.continue_run?row('Cache left in run',fmtGold(p.remaining_escrow))+row('Sealed items','Remain at stake'):row('Base tokens on bank', '🜲 '+p.base_tokens_grant)+row('Pact-risk tokens', '🜲 +'+p.pact_tokens_grant)+(p.overcap_tokens_grant?row('Over-cap tokens','🜲 +'+p.overcap_tokens_grant):'')+(p.ante_return?row('Token ante returned','🜲 +'+p.ante_return):'')+row('Total tokens on bank', '🜲 '+p.tokens_grant)+row('Bank streak after cash-out',p.next_bank_streak)+(p.free_insurance_earned?row('🛡️ Streak reward','Next insurance is free'):p.free_insurance_ready?row('🛡️ Streak reward','Free insurance already ready'):'')+row('Sealed loot to recover', p.loot_count))+
@@ -4027,7 +4031,7 @@ async function abyssBankCommit(cursed,percent,safeWord,doubleBank,transport){
 // up in stages — cache, then the multiplier bonus, then any jackpot.
 function showBankSummary(d){
   var base=Number(d.base)||0, depthBonus=Number(d.depth_bonus)||0, streakBonus=Number(d.streak_bonus)||0;
-  var cursedBonus=Number(d.cursed_bonus)||0,perfect=Number(d.perfect_bonus)||0,raffle=Number(d.raffle_fee)||0;
+	var cursedBonus=Number(d.cursed_bonus)||0,perfect=Number(d.perfect_bonus)||0,raffle=Number(d.raffle_fee)||0,tithe=Number(d.pact_tithe)||0;
 	var jp=Number(d.jackpot_win)||0,raffleWin=Number(d.raffle_win)||0,tax=Number(d.cap_tax)||0,frantic=Number(d.frantic_fee)||0,overcap=Number(d.overcap_gold_converted)||0;
   var html='<h3>🏦 Run banked!</h3><div class="modal-body ab-runsummary good">'+
     '<div class="ab-rs-row"><span>Depth reached</span><b>'+d.depth+'</b></div>'+
@@ -4039,6 +4043,7 @@ function showBankSummary(d){
     (frantic?'<div class="ab-rs-row"><span>🫀 Frantic fee</span><b>−'+fmtGold(frantic)+'</b></div>':'')+
 	(perfect?'<div class="ab-rs-row"><span>✨ Perfect-run bonus</span><b>+'+fmtGold(perfect)+'</b></div>':'')+
 	(raffle?'<div class="ab-rs-row"><span>🎟️ Raffle contribution</span><b>−'+fmtGold(raffle)+'</b></div>':'')+
+	(tithe?'<div class="ab-rs-row"><span>🪙 Escrow Tithe · community jackpot</span><b>−'+fmtGold(tithe)+'</b></div>':'')+
     (jp?'<div class="ab-rs-row"><span>🔥 Deep-cache jackpot</span><b>+'+fmtGold(jp)+'</b></div>':'')+
 	(raffleWin?'<div class="ab-rs-row"><span>🎟️ Bankers’ raffle win</span><b>+'+fmtGold(raffleWin)+'</b></div>':'')+
     (tax?'<div class="ab-rs-row"><span>💸 Abyss tax (80% over daily cap)</span><b>−'+fmtGold(tax)+'</b></div>':'')+
@@ -4049,8 +4054,8 @@ function showBankSummary(d){
   openModal(html);
   var el=document.getElementById('bankTotalTick');
   if(!el)return;
-  var raw=base+depthBonus+streakBonus+cursedBonus-frantic-overcap+perfect-raffle;
-  var steps=[base,base-overcap,base-overcap+depthBonus,base-overcap+depthBonus+streakBonus,raw,raw-tax,raw-tax+jp,raw-tax+jp+raffleWin].filter(function(v,i,a){return i===0||v!==a[i-1];});
+	var raw=base+depthBonus+streakBonus+cursedBonus-frantic-overcap+perfect-raffle-tithe,authoritative=Number(d.banked)||0;
+	var steps=[base,base-overcap,base-overcap+depthBonus,base-overcap+depthBonus+streakBonus,raw,authoritative,authoritative+jp,authoritative+jp+raffleWin].filter(function(v,i,a){return i===0||v!==a[i-1];});
   // UI-138: skip button jumps straight to the final total.
   var skipped=false;
   var skipBtn=document.getElementById('bankSkipBtn');
@@ -4269,7 +4274,9 @@ async function abyssShopBuy(item, quotedCost, btn){
   var d = await abPost('/api/abyss/shop/buy', {item: item, quoted_cost: quotedCost});
   setBusy(false);
   if(!d.ok){ abToast(d.error||'failed',false); return; }
-  setTokens(d.tokens); setGold(d.gold);
+  if(d.tokens!==undefined)setTokens(d.tokens);
+  if(d.gold!==undefined)setGold(d.gold);
+  if(typeof updateAbyssShopProgram==='function')updateAbyssShopProgram(d);
   if(d.consumables)renderConsumables(d.consumables);
   abToast(d.msg||'Purchased!', true);
 }
@@ -4285,6 +4292,7 @@ async function abyssEconomyPost(url, body){
   if(d.ok && d.gold !== undefined)setGold(d.gold);
   if(d.ok && d.tokens !== undefined)setTokens(d.tokens);
   if(d.ok && d.consumables)renderConsumables(d.consumables);
+  if(typeof updateAbyssShopProgram==='function')updateAbyssShopProgram(d);
   return d;
 }
 
@@ -4846,7 +4854,10 @@ function forge4ConvertMats(){
 
 function setMaterials(mats){
   if(!mats)return;
-  Object.keys(mats).forEach(function(k){var el=document.getElementById('mat-'+k);if(el)el.textContent=fmtNum(mats[k]);});
+  Object.keys(mats).forEach(function(k){
+    var el=document.getElementById('mat-'+k);if(el)el.textContent=fmtNum(mats[k]);
+    var shopEl=document.getElementById('shopMat-'+k);if(shopEl)shopEl.textContent=fmtNum(mats[k]);
+  });
 }
 
 async function abyssCraft(id, btn){
@@ -6642,6 +6653,7 @@ function initNewDots(){
 <script data-cfasync="false">{{template "abyssReplayViewerJS" .}}</script>
 <script data-cfasync="false">{{template "abyssBossCosmeticsJS" .}}</script>
 <script data-cfasync="false">{{template "abyssSeasonJourneyJS" .}}</script>
+<script data-cfasync="false">{{template "abyssShopProgramJS" .}}</script>
 <script data-cfasync="false">{{template "abyssStageHUDJS" .}}</script>
 <script data-cfasync="false">{{template "abyssCodexExplorerJS" .}}</script>
 <script data-cfasync="false">{{template "abyssPanelToolsJS" .}}</script>

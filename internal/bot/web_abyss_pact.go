@@ -34,6 +34,7 @@ var abyssPactCatalog = []abyssPact{
 	{"blind", "Blind", "Floor choices, route forecasts, and the threat meter are concealed.", 0.10, "", 1.0, false},
 	{"brittle", "Brittle", "Equipped gear suffers a second durability-loss pass after combat.", 0.10, "", 1.0, false},
 	{"famine", "Famine", "Sanctuary rest floors never appear.", 0.20, "", 1.0, false},
+	{"tithe", "Escrow Tithe", "Every bank donates 10% to the community jackpot; gain +10% Luck during the run.", 0.15, "", 1.0, false},
 }
 
 // abyssPactIndex maps pact key → catalog entry once for constant-time lookups.
@@ -79,6 +80,20 @@ func abyssPactDurabilityPasses(pacts []string) int {
 		return 2
 	}
 	return 1
+}
+
+func abyssPactLuck(pacts []string, luck int) int {
+	if !abyssHasPact(pacts, "tithe") {
+		return luck
+	}
+	return luck + max(1, luck/10)
+}
+
+func abyssPactTithe(pacts []string, payout int64) int64 {
+	if payout <= 0 || !abyssHasPact(pacts, "tithe") {
+		return 0
+	}
+	return max(int64(1), payout/10)
 }
 
 func abyssPactEquipmentError(pacts []string, equipped map[content.GearSlot]content.Gear) string {

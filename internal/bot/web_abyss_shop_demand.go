@@ -96,12 +96,16 @@ func (b *Bot) abyssShopDemand(now time.Time) map[string]abyssShopDemand {
 }
 
 func (b *Bot) recordAbyssShopDemand(itemKey string, now time.Time) {
-	_, err := b.DB.Exec(`WITH recorded AS (
+	if err := recordAbyssShopDemandWith(b.DB, itemKey, now); err != nil {
+		log.Printf("recording Abyss shop demand for %s: %v", itemKey, err)
+	}
+}
+
+func recordAbyssShopDemandWith(db dbOrTx, itemKey string, now time.Time) error {
+	_, err := db.Exec(`WITH recorded AS (
 		INSERT INTO abyss_shop_demand (demand_day,item_key,purchases) VALUES ($1::date,$2,1)
 		ON CONFLICT (demand_day,item_key) DO UPDATE SET purchases=abyss_shop_demand.purchases+1 RETURNING 1
 	) DELETE FROM abyss_shop_demand WHERE demand_day < $1::date - $3::int`,
 		now.UTC().Truncate(24*time.Hour), itemKey, abyssShopDemandRetention)
-	if err != nil {
-		log.Printf("recording Abyss shop demand for %s: %v", itemKey, err)
-	}
+	return err
 }

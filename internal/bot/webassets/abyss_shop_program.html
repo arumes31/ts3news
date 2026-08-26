@@ -1,0 +1,71 @@
+{{define "abyssShopProgram"}}{{with .ShopProgram}}
+<div class="ab-shop-program" aria-label="Token Shop program">
+  <div class="ab-shop-wallet" aria-label="Shop wallet">
+    <span><small>Gold</small><b id="shopWalletGold">{{gold .Gold}}</b></span>
+    <span><small>Tokens</small><b id="shopWalletTokens">🜲 {{comma .Tokens}}</b></span>
+    <span class="ab-shop-loyalty"><small>Loyalty card</small><b id="shopLoyaltyValue">{{.LoyaltyPunches}} / {{.LoyaltyTarget}}</b><i style="--p:{{.LoyaltyPunches}}"></i></span>
+  </div>
+  <div class="ab-shop-materials" aria-label="Crafting materials">{{range .Materials}}<span title="{{.Name}}" data-shop-material="{{.ID}}">{{.Icon}} <b id="shopMat-{{.ID}}">{{comma .Count}}</b></span>{{end}}</div>
+  {{with .Flash}}<div class="ab-shop-flash" role="status">
+    <span>⚡ DAILY MARKET FLASH</span><b>{{.Name}}</b><span>🜲 {{.EffectiveCost}} · ends {{$.ShopProgram.FlashEnds}}</span>
+  </div>{{end}}
+  {{if .NextTokenPurchaseFree}}<p class="ab-shop-free" id="shopLoyaltyNotice">Punch card complete: your next token-priced catalog item, bundle, or gift is free.</p>{{else}}<p class="muted small" id="shopLoyaltyNotice">The 10th token-priced purchase is free. Gold services do not consume punches.</p>{{end}}
+  <details class="ab-shop-program-details">
+    <summary>Bundles, gifting &amp; season exchange</summary>
+    <div class="ab-shop-program-grid">
+      <div class="ab-shop-bundles">
+        <h3>Curated bundles</h3>
+        {{range .Bundles}}<article><div><b>{{.Name}}</b><p>{{.Desc}}</p></div><button class="ghost xs" onclick="abyssShopBundleBuy('{{.Key}}',{{.Cost}},this)">🜲 {{.Cost}}</button></article>{{end}}
+      </div>
+      <form class="ab-shop-gift" onsubmit="abyssGiftCreateForm(event)">
+        <h3>Send a bound gift</h3>
+        <label>Recipient<input id="abyssGiftRecipient" required maxlength="96" autocomplete="off" placeholder="Nickname or client UID"></label>
+        <label>Supply<select id="abyssGiftItem"><option value="great_potions">Great Health Potions ×3</option><option value="repair_kits">Master Repair Kits ×2</option><option value="phoenix">Phoenix Feather</option><option value="elixir_of_life">Elixir of Life</option></select></label>
+        <button class="ghost xs" type="submit">Create gift · +{{gold .GiftFeeGold}}g fee</button>
+        <label>Redeem code<div class="ab-shop-inline"><input id="abyssGiftCode" maxlength="24" autocomplete="off"><button class="ghost xs" type="button" onclick="abyssGiftRedeemForm()">Redeem</button></div></label>
+        <output id="abyssGiftOutput" aria-live="polite"></output>
+      </form>
+      <div class="ab-shop-season">
+        <h3>Legacy exchange</h3>
+        <p>{{.SeasonExchangeName}} · convert tokens into a permanent previous-season cosmetic. Tokens never hard reset.</p>
+        <button class="ghost xs" onclick="abyssSeasonExchange(this)" {{if .SeasonExchangeOwned}}disabled{{end}}>{{if .SeasonExchangeOwned}}Owned{{else}}Convert 🜲 {{.SeasonExchangeCost}}{{end}}</button>
+      </div>
+    </div>
+  </details>
+</div>
+{{end}}{{end}}
+
+{{define "abyssShopProgramJS"}}
+function updateAbyssShopProgram(d){
+  if(!d)return;
+  var gold=document.getElementById('shopWalletGold'),tokens=document.getElementById('shopWalletTokens'),loyalty=document.getElementById('shopLoyaltyValue');
+  if(gold&&d.gold!==undefined)gold.textContent=fmtGold(d.gold);
+  if(tokens&&d.tokens!==undefined)tokens.textContent='🜲 '+Number(d.tokens||0).toLocaleString();
+  if(loyalty&&d.loyalty_punches!==undefined)loyalty.textContent=d.loyalty_punches+' / 10';
+  if(d.loyalty_free){var note=document.getElementById('shopLoyaltyNotice');if(note)note.textContent='Loyalty reward used: this purchase was free. The card has restarted.';}
+}
+async function abyssShopBundleBuy(bundle,cost,button){
+  if(button)button.disabled=true;
+  var d=await abyssEconomyPost('/api/abyss/shop/bundle',{bundle:bundle,quoted_cost:cost});
+  if(button)button.disabled=false;
+  updateAbyssShopProgram(d);
+}
+async function abyssGiftCreateForm(event){
+  event.preventDefault();
+  var recipient=document.getElementById('abyssGiftRecipient').value.trim(),item=document.getElementById('abyssGiftItem').value;
+  var d=await abyssEconomyPost('/api/abyss/shop/gift_create',{recipient:recipient,item:item});
+  updateAbyssShopProgram(d);
+  var output=document.getElementById('abyssGiftOutput');if(output)output.textContent=d.ok?'Gift code: '+d.code:(d.error||'Gift failed.');
+}
+async function abyssGiftRedeemForm(){
+  var code=document.getElementById('abyssGiftCode').value.trim();if(!code)return;
+  var d=await abyssEconomyPost('/api/abyss/shop/gift_redeem',{code:code});
+  var output=document.getElementById('abyssGiftOutput');if(output)output.textContent=d.msg||d.error||'';
+}
+async function abyssSeasonExchange(button){
+  if(button)button.disabled=true;
+  var d=await abyssEconomyPost('/api/abyss/season/exchange',{});
+  if(d.ok&&button)button.textContent='Owned';else if(button)button.disabled=false;
+  updateAbyssShopProgram(d);
+}
+{{end}}
