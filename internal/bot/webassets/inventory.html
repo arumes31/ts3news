@@ -18,7 +18,6 @@
     {{if .AppearanceName}}<div class="inv-meta" title="Cosmetic only">◈ Appearance: {{.AppearanceName}}</div>{{end}}
     <div class="inv-meta">CR <span data-item-number="{{printf "%.0f" .CR}}">{{printf "%.0f" .CR}}</span> · GS <span data-item-number="{{.Score}}">{{comma .Score}}</span> · {{.Durability}} dur</div>
     {{if .BrokenIn}}<div class="inv-meta" title="Held for at least 30 days">🧡 Broken in · +1% positive stats</div>{{end}}
-    {{if .Provenance}}<details class="gear-provenance"><summary>⌖ Acquisition receipt</summary><span class="gear-provenance-receipt">{{.Provenance}}</span></details>{{end}}
     <div class="inv-actions">
       <button onclick="equip({{.InvID}})">Equip</button>
       <button class="ghost" onclick="sell({{.InvID}})">Vendor</button>

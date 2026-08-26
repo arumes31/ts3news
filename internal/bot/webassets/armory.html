@@ -57,7 +57,6 @@
     {{if .AppearanceName}}<div class="gear-meta" title="Cosmetic only">◈ Appearance: {{.AppearanceName}}</div>{{end}}
     <div class="gear-meta"{{if .Provenance}} title="{{.Provenance}}"{{end}}>{{.Rarity}} · CR <span data-item-number="{{printf "%.0f" .CR}}">{{printf "%.0f" .CR}}</span> · GS <span data-item-number="{{.Score}}">{{comma .Score}}</span>{{if .Durability}} · {{.Durability}}
       dur{{end}}</div>
-    {{if .Provenance}}<details class="gear-provenance"><summary>⌖ Acquisition receipt</summary><span class="gear-provenance-receipt">{{.Provenance}}</span></details>{{end}}
     {{if .Stats}}<div class="gear-stats">{{range .Stats}}<span class="gstat">{{.Label}} <b data-item-number="{{.Value}}" data-item-number-sign="always">{{if gt .Value 0}}+{{end}}{{.Value}}</b></span>{{end}}</div>{{end}}
     <div class="gear-tags">
       {{if .Element}}<span class="gtag elem">{{.Element}}</span>{{end}}
