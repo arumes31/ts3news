@@ -219,6 +219,23 @@ func TestAbyssE2EServer(t *testing.T) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
+	mux.HandleFunc("/ah", func(w http.ResponseWriter, _ *http.Request) {
+		listing := ahListingView{
+			ID: "listing-history", ItemType: "gear", ItemID: "TEST_BLADE", Icon: "⚔", Name: "Cinder Test Blade",
+			Price: 1600, Seller: "Market Tester", Listed: "Aug 25", Rarity: "Epic", RarityColor: "#b56cff",
+			PriceHistory: buildAHPriceHistory([]int64{900, 1200, 1000, 1600}),
+		}
+		if err := server.tmpl.ExecuteTemplate(w, "ah", map[string]any{
+			"Title": "Auction House", "Nav": "ah", "EnableAbyss": true,
+			"U":      &webUser{UID: "ah-e2e", Nickname: "Market Tester", Gold: 25_000},
+			"Active": []ahListingView{listing}, "Mine": []ahListingView{}, "History": []ahHistoryView{},
+			"Sellable": []gearView{}, "Economy": abyssAHEconomyView{},
+			"SearchQuery": "", "UpgradesOnly": false, "InsanityOnly": false,
+			"CurrentPage": 1, "TotalPages": 1, "TotalCount": 1, "PrevPage": 1, "NextPage": 1,
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
 	mux.HandleFunc("/abyss/plaza", func(w http.ResponseWriter, _ *http.Request) {
 		plaza := abyssPlazaView{
 			Catalog: make([]abyssPlazaCatalogView, 0, len(abyssPlazaCatalog)),
