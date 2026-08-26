@@ -106,7 +106,7 @@ func TestAbyssCoreRiskUIAndAuthorityContracts(t *testing.T) {
 	page, module, server, econ := string(pageBytes), string(moduleBytes), string(serverBytes), string(econBytes)
 	for _, required := range []string{
 		`template "abyssCoreInsurance"`, `template "abyssCoreRiskConsole"`,
-		`/static/abyss_core_risk.css`, `abyssBankCommit(cursed,percent,safeWord,doubleBank)`,
+		`/static/abyss_core_risk.css`, `abyssBankCommit(cursed,percent,safeWord,doubleBank,transport)`,
 	} {
 		if !strings.Contains(page, required) {
 			t.Errorf("Abyss page missing %q", required)

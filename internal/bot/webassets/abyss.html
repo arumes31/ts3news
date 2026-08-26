@@ -416,6 +416,7 @@
       <span class="ab-sub-label">Secure &amp; continue:</span>
       <button class="ghost xs" id="btnBank25" onclick="abyssBank(25)">25%</button>
       <button class="ghost xs" id="btnBank50" onclick="abyssBank(50)">50%</button>
+      <button class="ghost xs" id="btnTransport" onclick="abyssBank(0,true)" title="Secure the full gold cache, pay a 15% transport fee, and continue. Sealed items remain at stake.">🚚 Armored transport · keep 85%</button>
       <label class="ab-cursed" data-tip="Cursed bank: +20% payout when you bank, but a hex saps your combat stats (−15%) for your next 3 fights."><input type="checkbox" id="cursedBank"> {{T "web.abyss.cursed_bank"}}</label>
     </div>
     {{template "abyssCoreRiskConsole" .}}
@@ -1700,7 +1701,7 @@ async function abyssSimulateNextFloor(){
 }
 
 function setBusy(b){
-  busy=b;['btnEnter','btnDescend','btnBank','btnBank25','btnBank50','btnDoubleBonus','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore','btnSimulate'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
+  busy=b;['btnEnter','btnDescend','btnBank','btnBank25','btnBank50','btnTransport','btnDoubleBonus','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore','btnSimulate'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
   if(b&&!lastActionBtn&&document.activeElement&&document.activeElement.tagName==='BUTTON')markBusyElement(document.activeElement);
   if(!b){if(lastActionBtnTimer){clearTimeout(lastActionBtnTimer);lastActionBtnTimer=null;}if(lastActionBtn){lastActionBtn.classList.remove('btn-busy');lastActionBtn=null;}abyssDescendInFlight=false;updateFloatingDescend();}
   if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
@@ -1767,7 +1768,7 @@ function renderState(){
     bb.disabled = busy || bankLocked > 0;
     bb.innerHTML = bankLocked > 0 ? '🔒 Sealed (' + bankLocked + ' floors)' : '🏦 Bank &amp; Leave';
   }
-  ['btnBank25','btnBank50'].forEach(function(id){
+  ['btnBank25','btnBank50','btnTransport'].forEach(function(id){
     var partial=document.getElementById(id);if(partial)partial.disabled=busy||bankLocked>0;
   });
   var mv = document.getElementById('momVal');
@@ -3905,15 +3906,16 @@ async function abyssDoubleBonus(){
   renderState();setBusy(false);
 }
 
-async function abyssBank(percent){
+async function abyssBank(percent,transport){
   if(busy)return;
   percent=Number(percent)||0;
-  var cursed=percent?false:document.getElementById('cursedBank').checked;
+  transport=!!transport;
+  var cursed=percent||transport?false:document.getElementById('cursedBank').checked;
   // Lock every action while the preview request is in flight so a descend or
   // second bank click can't race it; unlocked again before the confirm modal
   // (its own buttons drive the commit, which re-locks).
-  setBusy(true); markBusyBtn('btnBank');
-  var p=await abPost('/api/abyss/bank',{cursed:cursed,preview:true,percent:percent});
+  setBusy(true); markBusyBtn(transport?'btnTransport':'btnBank');
+  var p=await abPost('/api/abyss/bank',{cursed:cursed,preview:true,percent:percent,transport:transport});
   setBusy(false);
   if(!p.ok){abToast(p.error||'failed',false);return;}
   function row(k,v){return '<div class="ab-rs-row"><span>'+k+'</span><b>'+v+'</b></div>';}
@@ -3929,44 +3931,46 @@ async function abyssBank(percent){
     (b.synergies||[]).forEach(function(synergy){lines+=row('⚡ '+consEsc(synergy.label),'+'+Math.round(Number(synergy.bonus||0)*100)+'%');});
     return lines+row('Total pact multiplier','×'+Number(b.multiplier||1).toFixed(3))+'</details>';
   }
-  var html='<h3>'+(p.partial?'🔐 Secure '+p.percent+'% and continue?':'🏦 Bank this run?')+'</h3><div class="modal-body ab-runsummary">'+
+  var html='<h3>'+(p.transport?'🚚 Send armored transport and continue?':p.partial?'🔐 Secure '+p.percent+'% and continue?':'🏦 Bank this run?')+'</h3><div class="modal-body ab-runsummary">'+
     row(p.partial?'Cache share':'Cache (floor interest included)', fmtGold(p.partial||p.source_escrow===undefined?p.escrow:p.source_escrow))+
 	(p.overcap_gold_converted?row('🜲 Over-cap conversion · '+p.overcap_tokens_grant+' token'+(p.overcap_tokens_grant===1?'':'s'),'−'+fmtGold(p.overcap_gold_converted)):'')+
     row('Depth bonus +'+p.depth_bonus_pct+'%', '+'+fmtGold(p.depth_bonus))+
     (p.streak_bonus_pct?row('Bank-streak bonus +'+p.streak_bonus_pct+'%', '+'+fmtGold(p.streak_bonus)):'')+
     (p.cursed?row('☠️ Cursed bonus +20%','+'+fmtGold(p.cursed_bonus)):'')+
     (p.partial?row('Partial-bank fee −10%','−'+fmtGold(p.partial_fee)):'')+
+    (p.transport?row('Armored transport fee −15%','−'+fmtGold(p.transport_fee)):'')+
     (p.frantic_fee?row('🫀 Frantic fee below 15% HP','−'+fmtGold(p.frantic_fee)):'')+
 	(p.perfect_bonus?row('✨ Perfect-run bonus +25%','+'+fmtGold(p.perfect_bonus)):'')+
 	(p.contract_forfeit?row('📜 Failed contract forfeiture −25%','−'+fmtGold(p.contract_forfeit)):'')+
 	(p.raffle_fee?row('🎟️ Bankers’ raffle contribution −1%','−'+fmtGold(p.raffle_fee)):'')+
     pactMath(p.pact_breakdown)+
     row('Estimated payout', '<span style="color:var(--gold)">'+fmtGold(p.payout)+'</span>')+
-    (p.partial?row('Cache left in run',fmtGold(p.remaining_escrow)):row('Base tokens on bank', '🜲 '+p.base_tokens_grant)+row('Pact-risk tokens', '🜲 +'+p.pact_tokens_grant)+(p.overcap_tokens_grant?row('Over-cap tokens','🜲 +'+p.overcap_tokens_grant):'')+(p.ante_return?row('Token ante returned','🜲 +'+p.ante_return):'')+row('Total tokens on bank', '🜲 '+p.tokens_grant)+row('Bank streak after cash-out',p.next_bank_streak)+(p.free_insurance_earned?row('🛡️ Streak reward','Next insurance is free'):p.free_insurance_ready?row('🛡️ Streak reward','Free insurance already ready'):'')+row('Sealed loot to recover', p.loot_count))+
+    (p.continue_run?row('Cache left in run',fmtGold(p.remaining_escrow))+row('Sealed items','Remain at stake'):row('Base tokens on bank', '🜲 '+p.base_tokens_grant)+row('Pact-risk tokens', '🜲 +'+p.pact_tokens_grant)+(p.overcap_tokens_grant?row('Over-cap tokens','🜲 +'+p.overcap_tokens_grant):'')+(p.ante_return?row('Token ante returned','🜲 +'+p.ante_return):'')+row('Total tokens on bank', '🜲 '+p.tokens_grant)+row('Bank streak after cash-out',p.next_bank_streak)+(p.free_insurance_earned?row('🛡️ Streak reward','Next insurance is free'):p.free_insurance_ready?row('🛡️ Streak reward','Free insurance already ready'):'')+row('Sealed loot to recover', p.loot_count))+
 	(p.checkpoint_refund?row('Checkpoint token refund','🜲 +'+p.checkpoint_refund):'')+
-    (!p.partial&&p.bonus_gear_eligible?row('Depth gear reward','🎁 guaranteed'):'')+
+    (!p.continue_run&&p.bonus_gear_eligible?row('Depth gear reward','🎁 guaranteed'):'')+
     (p.capped?'<div class="ab-hc-cmp">⚠️ Daily gold cap: the Abyss levies an 80% tax on the excess (−'+fmtGold(p.cap_tax)+', fed to the deep-cache jackpot).</div>':'')+
-    (!p.partial&&typeof renderBankPreviewLoot==='function'?renderBankPreviewLoot(p.loot_preview,p.loot_count):'')+
+    (!p.continue_run&&typeof renderBankPreviewLoot==='function'?renderBankPreviewLoot(p.loot_preview,p.loot_count):'')+
 	(p.requires_safe_word?'<label class="ab-bank-safe-word">Type <b>BANK</b> to confirm this high-value withdrawal<input id="bankSafeWord" autocomplete="off" maxlength="16" spellcheck="false" aria-label="Type BANK to confirm"></label>':'')+
-	(!p.partial?'<label class="ab-bank-double"><input id="bankDoubleSeed" type="checkbox"> Seed the next run with 10% instead of 5%</label>':'')+
-  '</div><div class="modal-actions"><button class="ghost" id="modalCancelBtn">Keep descending</button><button id="modalOkBtn">'+(p.partial?'🔐 Secure share':'🏦 Bank it')+'</button></div>';
+	(!p.continue_run?'<label class="ab-bank-double"><input id="bankDoubleSeed" type="checkbox"> Seed the next run with 10% instead of 5%</label>':'')+
+  '</div><div class="modal-actions"><button class="ghost" id="modalCancelBtn">Keep descending</button><button id="modalOkBtn">'+(p.transport?'🚚 Send transport':p.partial?'🔐 Secure share':'🏦 Bank it')+'</button></div>';
   openModal(html);
   document.getElementById('modalCancelBtn').onclick=closeModal;
   document.getElementById('modalOkBtn').onclick=function(){
 	var safeWord=(document.getElementById('bankSafeWord')||{}).value||'';
 	var doubleBank=!!((document.getElementById('bankDoubleSeed')||{}).checked);
 	if(p.requires_safe_word&&safeWord.trim().toUpperCase()!=='BANK'){abToast('Type BANK to confirm this withdrawal.',false);return;}
-	closeModal();abyssBankCommit(cursed,percent,safeWord,doubleBank);
+	closeModal();abyssBankCommit(cursed,percent,safeWord,doubleBank,transport);
   };
 }
 
-async function abyssBankCommit(cursed,percent,safeWord,doubleBank){
-  if(busy)return; setBusy(true); markBusyBtn('btnBank'); clearBanner();
-  var d=await abPost('/api/abyss/bank',{cursed:cursed,percent:Number(percent)||0,safe_word:safeWord||'',double_bank:!!doubleBank});
+async function abyssBankCommit(cursed,percent,safeWord,doubleBank,transport){
+  if(busy)return; setBusy(true); markBusyBtn(transport?'btnTransport':'btnBank'); clearBanner();
+  var d=await abPost('/api/abyss/bank',{cursed:cursed,percent:Number(percent)||0,safe_word:safeWord||'',double_bank:!!doubleBank,transport:!!transport});
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
-  if(d.partial){
+  if(d.continue_run){
     setGold(d.gold);setEscrow(d.remaining_escrow);
-    setBanner('🔐 Secured '+fmtGold(d.banked)+' with '+fmtGold((d.partial_fee||0)+(d.frantic_fee||0))+' total fees. '+fmtGold(d.remaining_escrow)+' remains at stake.','good');
+    var continuingFee=(d.partial_fee||0)+(d.transport_fee||0)+(d.frantic_fee||0);
+    setBanner((d.transport?'🚚 Armored transport secured ':'🔐 Secured ')+fmtGold(d.banked)+' with '+fmtGold(continuingFee)+' total fees. '+fmtGold(d.remaining_escrow)+' remains at stake; sealed items stay in the run.','good');
     coinArc();renderState();setBusy(false);return;
   }
   recordSessionRun(true, d.depth, d.banked); // UI-108

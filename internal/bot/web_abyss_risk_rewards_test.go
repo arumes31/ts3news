@@ -26,6 +26,38 @@ func TestQuoteAbyssPartialBankAppliesExactShareMultiplierAndFee(t *testing.T) {
 	}
 }
 
+func TestQuoteAbyssTransportBankKeepsEightyFivePercentAndClearsCache(t *testing.T) {
+	t.Parallel()
+
+	quote, ok := quoteAbyssTransportBank(1_001, 1.5)
+	if !ok {
+		t.Fatal("valid armored transport was rejected")
+	}
+	want := abyssPartialBankQuote{Escrow: 1_001, Gross: 1_501, Fee: 225, Payout: 1_276}
+	if quote != want {
+		t.Fatalf("transport quote = %#v, want %#v", quote, want)
+	}
+	if _, ok := quoteAbyssTransportBank(0, 2); ok {
+		t.Fatal("empty cache accepted armored transport")
+	}
+}
+
+func TestQuoteAbyssBankModeKeepsPartialAndTransportFeesExclusive(t *testing.T) {
+	t.Parallel()
+
+	partial, ok := quoteAbyssBankMode(1_000, 1.5, 25, false)
+	if !ok || partial.PartialFee != 37 || partial.TransportFee != 0 || partial.Remaining != 750 {
+		t.Fatalf("partial mode quote = %#v, %t", partial, ok)
+	}
+	transport, ok := quoteAbyssBankMode(1_000, 1.5, 0, true)
+	if !ok || transport.PartialFee != 0 || transport.TransportFee != 225 || transport.Remaining != 0 {
+		t.Fatalf("transport mode quote = %#v, %t", transport, ok)
+	}
+	if _, ok := quoteAbyssBankMode(1_000, 1.5, 25, true); ok {
+		t.Fatal("combined partial and transport mode was accepted")
+	}
+}
+
 func TestResolveAbyssDoubleBonusAddsOrRemovesOnlyTheFloorBonus(t *testing.T) {
 	t.Parallel()
 
@@ -177,10 +209,12 @@ func TestAbyssRiskRewardControlsExposeOnlySupportedActions(t *testing.T) {
 		"Enter Hardcore",
 		`id="btnBank25" onclick="abyssBank(25)"`,
 		`id="btnBank50" onclick="abyssBank(50)"`,
+		`id="btnTransport" onclick="abyssBank(0,true)"`,
 		`id="btnDoubleBonus"`,
 		`/api/abyss/double_bonus`,
 		`percent:Number(percent)||0`,
 		`Partial-bank fee −10%`,
+		`Armored transport fee −15%`,
 		`pendingDoubleBonus=0`,
 		`id="hardcoreMode"`,
 		`hardcore:!!(hardcore&&hardcore.checked)`,
@@ -198,8 +232,9 @@ func TestAbyssRiskRewardControlsExposeOnlySupportedActions(t *testing.T) {
 	for _, required := range []string{
 		"partial bank must be 25% or 50%",
 		"resolve the floor-bonus gamble or descend before partial banking",
-		"if !partial && run.Depth > 0",
-		"if !partial {\n\t\ts.abyssOps.funnel.observeBank(uid)",
+		"armored transport requires a non-empty cache",
+		"if !continuing && run.Depth > 0",
+		"if !continuing {\n\t\ts.abyssOps.funnel.observeBank(uid)",
 	} {
 		if !strings.Contains(serverSource, required) {
 			t.Errorf("Abyss risk/reward handlers are missing %q", required)

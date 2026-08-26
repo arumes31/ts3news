@@ -3856,6 +3856,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		Cursed     bool   `json:"cursed"`
 		Preview    bool   `json:"preview"`
 		Percent    int    `json:"percent"`
+		Transport  bool   `json:"transport"`
 		SafeWord   string `json:"safe_word"`
 		DoubleBank bool   `json:"double_bank"`
 	}
@@ -3885,6 +3886,12 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 	partial := req.Percent != 0
+	transport := req.Transport
+	continuing := partial || transport
+	if partial && transport {
+		writeJSON(w, map[string]any{"ok": false, "error": "choose either a partial bank or armored transport"})
+		return
+	}
 	if partial && req.Cursed {
 		writeJSON(w, map[string]any{"ok": false, "error": "cursed banking cannot be combined with a partial bank"})
 		return
@@ -3897,30 +3904,42 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		writeJSON(w, map[string]any{"ok": false, "error": "resolve the floor-bonus gamble or descend before partial banking"})
 		return
 	}
+	if transport && req.Cursed {
+		writeJSON(w, map[string]any{"ok": false, "error": "cursed banking cannot be combined with armored transport"})
+		return
+	}
+	if transport && req.DoubleBank {
+		writeJSON(w, map[string]any{"ok": false, "error": "echo doubling cannot be combined with armored transport"})
+		return
+	}
+	if transport && pendingAbyssDoubleBonus(runFlags, run.Depth) > 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "resolve the floor-bonus gamble or descend before armored transport"})
+		return
+	}
 
 	st := s.bot.loadAbyssStats(uid)
 	mult := s.bot.abyssBankMultiplier(run.Depth, st.Streak) // [2][12] depth + streak
-	bankEscrow := run.Escrow
-	remainingEscrow := int64(0)
-	partialFee := int64(0)
-	if partial {
-		quote, valid := quoteAbyssPartialBank(run.Escrow, mult, req.Percent)
-		if !valid {
+	bankQuote, valid := quoteAbyssBankMode(run.Escrow, mult, req.Percent, transport)
+	if !valid {
+		if transport {
+			writeJSON(w, map[string]any{"ok": false, "error": "armored transport requires a non-empty cache"})
+		} else {
 			writeJSON(w, map[string]any{"ok": false, "error": "partial bank must be 25% or 50% of a non-empty cache"})
-			return
 		}
-		bankEscrow = quote.Escrow
-		remainingEscrow = quote.Remaining
-		partialFee = quote.Fee
+		return
 	}
+	bankEscrow := bankQuote.Escrow
+	remainingEscrow := bankQuote.Remaining
+	partialFee := bankQuote.PartialFee
+	transportFee := bankQuote.TransportFee
 	overcapConversion := abyssOvercapConversion{}
-	if !partial {
+	if !continuing {
 		overcapConversion = abyssOvercapBankConversion(run.Escrow, run.Depth)
 	}
 	grossPayout := int64(float64(bankEscrow) * mult)
 	maxHP := s.bot.abyssCombatStats(uid).HP
 	franticFee := abyssFranticBankFee(bankEscrow, run.CurHP, maxHP)
-	payout := max(grossPayout-partialFee-franticFee-overcapConversion.Gold, int64(0))
+	payout := max(grossPayout-partialFee-transportFee-franticFee-overcapConversion.Gold, int64(0))
 	depthBonusPct := min(max(run.Depth, 0), 100)
 	streakBonusPct := min(max(st.Streak, 0), 25) * 2
 	depthBonus := int64(float64(bankEscrow) * float64(depthBonusPct) / 100)
@@ -3931,16 +3950,16 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		cursedBonus = cursedPayout - payout
 		payout = cursedPayout
 	}
-	perfectRun := !partial && abyssRunFloorsCleared(run) > 0 && runFlags[abyssRunFlagPerfect] == 1
+	perfectRun := !continuing && abyssRunFloorsCleared(run) > 0 && runFlags[abyssRunFlagPerfect] == 1
 	perfectBonus := int64(0)
 	if perfectRun {
 		perfectBonus = payout / 4
 		payout += perfectBonus
 	}
-	contractForfeit := abyssContractForfeit(payout, runFlags, run.Depth, partial)
+	contractForfeit := abyssContractForfeit(payout, runFlags, run.Depth, continuing)
 	payout -= contractForfeit
 	raffleFee := int64(0)
-	if !partial && payout > 0 {
+	if !continuing && payout > 0 {
 		raffleFee = payout / 100
 		payout -= raffleFee
 	}
@@ -3948,7 +3967,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	loanFeeCharged := min(max(int64(0), payout), loanFee)
 	payout -= loanFeeCharged
 	checkpointRefund := 0
-	if !partial && run.Depth > 0 && run.Depth%10 == 0 {
+	if !continuing && run.Depth > 0 && run.Depth%10 == 0 {
 		checkpointRefund = int(runFlags[abyssRunFlagCheckpointTokenCost])
 	}
 	requiresSafeWord := abyssBankNeedsSafeWord(payout, !s.bot.abyssBankConfirmDisabled(uid))
@@ -3964,7 +3983,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	baseTokens := s.bot.abyssBankTokenGrant(uid, run.Depth, st.UpTribute)
 	pactTokens := abyssPactBankTokenGrant(abyssRunFloorsCleared(run), abyssPactTokenRiskPct(runPacts, runFlags))
 	anteReturn := int(runFlags[abyssRunFlagTokenAnte])
-	if partial {
+	if continuing {
 		baseTokens = 0
 		pactTokens = 0
 		anteReturn = 0
@@ -3972,10 +3991,10 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	tokensGrant := baseTokens + pactTokens + anteReturn + overcapConversion.Tokens
 	freeInsuranceReady := s.bot.abyssFreeInsuranceReady(uid)
 	nextBankStreak := st.Streak
-	if !partial && run.Depth > 0 {
+	if !continuing && run.Depth > 0 {
 		nextBankStreak++
 	}
-	freeInsuranceEarned := !partial && run.Depth > 0 && nextBankStreak%abyssBankStreakInsuranceEvery == 0
+	freeInsuranceEarned := !continuing && run.Depth > 0 && nextBankStreak%abyssBankStreakInsuranceEvery == 0
 
 	// Preview mode (UX-49): report the itemized payout without committing
 	// anything, so the client can show a bank-confirmation breakdown first.
@@ -3995,7 +4014,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		estPayout, estTax := abyssCapTax(payout, capRemaining)
 		var lootCount int
 		var lootPreview []abyssBankPreviewLoot
-		if !partial {
+		if !continuing {
 			if err := s.bot.DB.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1", uid).Scan(&lootCount); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
@@ -4012,7 +4031,8 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			"escrow": bankEscrow, "source_escrow": run.Escrow, "mult": mult, "cursed": req.Cursed,
 			"depth_bonus": depthBonus, "depth_bonus_pct": depthBonusPct,
 			"streak_bonus": streakBonus, "streak_bonus_pct": streakBonusPct, "cursed_bonus": cursedBonus,
-			"partial": partial, "percent": req.Percent, "partial_fee": partialFee, "frantic_fee": franticFee,
+			"partial": partial, "percent": req.Percent, "partial_fee": partialFee,
+			"transport": transport, "transport_fee": transportFee, "continue_run": continuing, "frantic_fee": franticFee,
 			"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee, "loan_fee": loanFeeCharged,
 			"contract": abyssContractViewFromFlags(runFlags, run.Depth), "contract_forfeit": contractForfeit,
 			"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
@@ -4024,7 +4044,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			"tokens_grant":         tokensGrant, "loot_count": lootCount,
 			"pact_breakdown": redactAbyssMysteryPactBreakdown(pactBreakdown, runFlags),
 			"loot_preview":   lootPreview, "loot_preview_truncated": lootCount > len(lootPreview),
-			"bonus_gear_eligible": !partial && run.Depth >= 10,
+			"bonus_gear_eligible": !continuing && run.Depth >= 10,
 			"depth":               run.Depth, "streak": st.Streak, "next_bank_streak": nextBankStreak,
 			"free_insurance_ready": freeInsuranceReady, "free_insurance_earned": freeInsuranceEarned,
 		})
@@ -4052,14 +4072,14 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	// the jackpot feed are only consumed if the gold credit and the rest of the
 	// bank commit succeed. [59]
 	payout, capTax := s.bot.taxAbyssDayGold(tx, uid, payout)
-	if loanFeeCharged > 0 && partial {
+	if loanFeeCharged > 0 && continuing {
 		if _, err := tx.Exec("UPDATE abyss_active SET economy_loan_fee=GREATEST(0,economy_loan_fee-$1) WHERE client_uid=$2", loanFeeCharged, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
 	}
 	nextEchoSeed := int64(0)
-	if !partial {
+	if !continuing {
 		nextEchoSeed = abyssEchoBankSeed(payout, req.DoubleBank)
 		if err := saveAbyssEchoSeed(tx, uid, nextEchoSeed); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -4099,7 +4119,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	isRecord := false
 	newBankStreak := st.Streak
 
-	if run.Depth > 0 && !partial {
+	if run.Depth > 0 && !continuing {
 		// Record breaker check (Item #82) — compare against the true global max
 		var maxDepth int
 		_ = tx.QueryRow("SELECT COALESCE(MAX(depth), 0) FROM abyss_runs").Scan(&maxDepth)
@@ -4140,10 +4160,10 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			return
 		}
 	}
-	if req.Cursed && !partial {
+	if req.Cursed && !continuing {
 		_, _ = tx.Exec("UPDATE users SET abyss_curse_fights = 3 WHERE client_uid=$1", uid)
 	}
-	if partial {
+	if continuing {
 		if _, err := tx.Exec("UPDATE abyss_active SET escrow=$1, last_action_at=NOW() WHERE client_uid=$2", remainingEscrow, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
@@ -4173,17 +4193,17 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if !partial {
+	if !continuing {
 		s.abyssOps.funnel.observeBank(uid)
 	}
 	// Post-commit side effects
-	if !partial && run.Depth >= 10 {
+	if !continuing && run.Depth >= 10 {
 		// Awarded only after the bank transaction commits so a rolled-back commit
 		// can't hand out duplicate gear on retry. [55][57]
 		bonusGear = s.bot.awardAbyssBonusGear(uid, run.Depth)
 	}
 	jackpotHelperSplit := int64(0)
-	if !partial && run.Depth > 0 {
+	if !continuing && run.Depth > 0 {
 		s.bot.recordGameResult(uid, "abyss", true, payout)
 		jackpotWin = s.bot.tryAbyssJackpot(uid, run.Depth) // [62]
 		if jackpotWin > 0 {
@@ -4199,7 +4219,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	// Escrowed loot is now safely the player's — apply it and surface what they kept.
 	// Done post-commit so a rolled-back bank can't hand out items for free.
 	var escrowLoot []string
-	if !partial {
+	if !continuing {
 		for _, label := range s.bot.applyAbyssEscrowLoot(uid) {
 			escrowLoot = append(escrowLoot, bbToHTML(label))
 		}
@@ -4209,7 +4229,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		}
 	}
 	hardcoreBadge := ""
-	if !partial && hardcore && run.Depth >= 10 && s.bot.awardAchievement(uid, "hardcore_depth_10") {
+	if !continuing && hardcore && run.Depth >= 10 && s.bot.awardAchievement(uid, "hardcore_depth_10") {
 		hardcoreBadge = abyssAchievementName("hardcore_depth_10")
 	}
 	perfectBadge := ""
@@ -4226,7 +4246,8 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		// final step always matches the committed payout.
 		"base": bankEscrow, "depth_bonus": depthBonus, "streak_bonus": streakBonus, "cursed_bonus": cursedBonus,
 		"mult_bonus": depthBonus + streakBonus + cursedBonus,
-		"partial":    partial, "percent": req.Percent, "partial_fee": partialFee, "frantic_fee": franticFee,
+		"partial":    partial, "percent": req.Percent, "partial_fee": partialFee,
+		"transport": transport, "transport_fee": transportFee, "continue_run": continuing, "frantic_fee": franticFee,
 		"perfect_run": perfectRun, "perfect_bonus": perfectBonus, "raffle_fee": raffleFee, "loan_fee": loanFeeCharged,
 		"contract": abyssContractViewFromFlags(runFlags, run.Depth), "contract_forfeit": contractForfeit,
 		"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
@@ -4235,7 +4256,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		"bank_streak": newBankStreak, "free_insurance_earned": freeInsuranceEarned,
 		"remaining_escrow": remainingEscrow, "next_echo_seed": nextEchoSeed,
 	}
-	if !partial {
+	if !continuing {
 		out["mystery_reveal"] = abyssMysteryRevealFromFlags(runFlags)
 	}
 	if capTax > 0 {

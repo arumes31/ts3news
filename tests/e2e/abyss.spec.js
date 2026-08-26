@@ -855,6 +855,41 @@ test('a victorious descend can preview and commit bank', async ({ page }) => {
   await expect.poll(() => committed).toBe(true);
 });
 
+test('armored transport secures the full gold cache at 85 percent and keeps the run active', async ({ page }) => {
+  let previewBody = null;
+  let commitBody = null;
+  await fulfillAbyssAPI(page, (path, body) => {
+    if (!path.endsWith('/bank')) return { ok: false, error: 'unexpected e2e request' };
+    if (body.preview) {
+      previewBody = body;
+      return {
+        ok: true, preview: true, transport: true, continue_run: true,
+        escrow: 5000, source_escrow: 5000, remaining_escrow: 0,
+        depth_bonus_pct: 20, depth_bonus: 1000, streak_bonus_pct: 0, streak_bonus: 0,
+        transport_fee: 900, frantic_fee: 0, payout: 5100, capped: false,
+        base_tokens_grant: 0, pact_tokens_grant: 0, tokens_grant: 0,
+      };
+    }
+    commitBody = body;
+    return {
+      ok: true, transport: true, continue_run: true, banked: 5100,
+      remaining_escrow: 0, transport_fee: 900, frantic_fee: 0,
+      gold: 10100, tokens: 12, depth: 20, mult: 1.2,
+    };
+  });
+
+  await page.goto('/abyss?active=1');
+  await page.evaluate(() => { window.reduceMotion = true; });
+  await page.locator('#btnTransport').click();
+  await expect.poll(() => previewBody).toEqual({ cursed: false, preview: true, percent: 0, transport: true });
+  await expect(page.locator('#sharedModalCard')).toContainText('Armored transport fee −15%');
+  await expect(page.locator('#sharedModalCard')).toContainText('Sealed items');
+  await page.locator('#modalOkBtn').click();
+  await expect.poll(() => commitBody).toEqual({ cursed: false, percent: 0, safe_word: '', double_bank: false, transport: true });
+  await expect(page.locator('#abyssBanner')).toContainText('Armored transport secured 5.1k');
+  await expect(page.locator('#btnDescend')).toBeVisible();
+});
+
 test('bank-streak insurance is presented and consumed as free cover', async ({ page }) => {
   let insuredBody = null;
   await fulfillAbyssAPI(page, (path, body) => {

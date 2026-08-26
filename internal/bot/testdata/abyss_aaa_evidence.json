@@ -879,9 +879,11 @@
     ]
   },
   {
-    "ids": [126, 127, 130, 140, 142, 149],
+    "ids": [126, 127, 128, 130, 140, 142, 149],
     "production": [
       "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_risk_rewards.go",
       "internal/bot/web_abyss_shop.go",
       "internal/bot/web_abyss_shop_economy.go",
       "internal/bot/web_ah_economy.go",
@@ -893,6 +895,7 @@
     ],
     "verification": [
       "internal/bot/web_abyss_economy4_test.go",
+      "internal/bot/web_abyss_risk_rewards_test.go",
       "internal/bot/web_abyss_hud_test.go",
       "tests/e2e/abyss.spec.js"
     ]

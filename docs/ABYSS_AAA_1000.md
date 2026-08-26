@@ -167,6 +167,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 
 - [x] **AAA-0126 / 126** — the token exchange posts distinct server-authoritative buy and sell rates before either transaction.
 - [x] **AAA-0127 / 127** — one permanent, cosmetic-only Insanity title rotates through the Token Shop on a deterministic ISO-week schedule; the Shop posts the active week and Monday 00:00 UTC refresh, rejects stale off-rotation purchases under the existing per-player lock, and reuses atomic token debit plus duplicate-safe ownership (`web_abyss_shop.go`, `web_abyss_shop_economy.go`, `webassets/abyss.html`, `tests/e2e/abyss.spec.js`).
+- [x] **AAA-0128 / 128** — Armored Transport atomically secures the run's full gold cache at 85% of its normal multiplied value while the run continues with zero gold escrow; sealed items stay at risk, end-of-run tokens/rewards/streaks do not fire, incompatible bank modifiers are rejected, and preview plus commit disclose the exact 15% fee (`web_abyss.go`, `web_abyss_risk_rewards.go`, `webassets/abyss.html`, `tests/e2e/abyss.spec.js`).
 - [x] **AAA-0130 / 130** — the Auction House exposes material listings and escrow-backed material buy orders.
 - [x] **AAA-0140 / 140** — the live deep-cache jackpot balance is visible before entry and refreshes after authoritative economy responses.
 - [x] **AAA-0142 / 142** — a bid placed during an auction's final minute extends its expiry by exactly sixty seconds.

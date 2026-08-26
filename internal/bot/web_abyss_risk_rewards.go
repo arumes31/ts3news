@@ -12,6 +12,7 @@ const (
 	abyssRunFlagDoubleBonusDepth = "double_bonus_depth"
 	abyssRunFlagHardcore         = "hardcore"
 	abyssPartialBankFeePct       = 10
+	abyssTransportBankFeePct     = 15
 	abyssRestFloorGap            = 7
 	abyssOverkillDamagePerGold   = 10
 	abyssOverkillRewardCapPct    = 25
@@ -143,6 +144,13 @@ type abyssPartialBankQuote struct {
 	Remaining int64
 }
 
+type abyssBankModeQuote struct {
+	Escrow       int64
+	Remaining    int64
+	PartialFee   int64
+	TransportFee int64
+}
+
 func quoteAbyssPartialBank(escrow int64, multiplier float64, percent int) (abyssPartialBankQuote, bool) {
 	if escrow <= 0 || (percent != 25 && percent != 50) {
 		return abyssPartialBankQuote{}, false
@@ -160,6 +168,30 @@ func quoteAbyssPartialBank(escrow int64, multiplier float64, percent int) (abyss
 		Payout:    gross - fee,
 		Remaining: escrow - share,
 	}, true
+}
+
+func quoteAbyssTransportBank(escrow int64, multiplier float64) (abyssPartialBankQuote, bool) {
+	if escrow <= 0 {
+		return abyssPartialBankQuote{}, false
+	}
+	gross := int64(float64(escrow) * multiplier)
+	fee := gross * abyssTransportBankFeePct / 100
+	return abyssPartialBankQuote{Escrow: escrow, Gross: gross, Fee: fee, Payout: gross - fee}, true
+}
+
+func quoteAbyssBankMode(escrow int64, multiplier float64, percent int, transport bool) (abyssBankModeQuote, bool) {
+	if percent != 0 {
+		if transport {
+			return abyssBankModeQuote{}, false
+		}
+		quote, ok := quoteAbyssPartialBank(escrow, multiplier, percent)
+		return abyssBankModeQuote{Escrow: quote.Escrow, Remaining: quote.Remaining, PartialFee: quote.Fee}, ok
+	}
+	if transport {
+		quote, ok := quoteAbyssTransportBank(escrow, multiplier)
+		return abyssBankModeQuote{Escrow: quote.Escrow, TransportFee: quote.Fee}, ok
+	}
+	return abyssBankModeQuote{Escrow: escrow}, true
 }
 
 func resolveAbyssDoubleBonus(escrow, bonus int64, won bool) int64 {
