@@ -585,7 +585,9 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   await page.evaluate(() => {
     window.reduceMotion = true;
     const enemies = Array.from({ length: 7 }, (_, index) => ({
-      id: `enemy:${index}`, name: `Raider ${index}`, hp: 100, max_hp: 100,
+      id: `enemy:${index}`, name: `Raider ${index}`,
+      hp: index === 4 ? 31 : index === 5 ? 29 : index === 6 ? 10 : 100,
+      max_hp: 100, hp_hidden: index === 6,
       role: 'common', speed: 10 + index, effects: [],
     }));
     window.renderLiveCombat({
@@ -610,6 +612,16 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   });
   const ordinary = page.locator('#livePixelEnemies [data-target="enemy:5"]');
   await expect(ordinary).toBeVisible();
+  const closedThreshold = page.locator('#liveEnemies [data-target="enemy:4"]');
+  const openThreshold = page.locator('#liveEnemies [data-target="enemy:5"]');
+  const concealedThreshold = page.locator('#liveEnemies [data-target="enemy:6"]');
+  await expect(closedThreshold).not.toHaveClass(/execute-ready/);
+  await expect(closedThreshold.locator('.execute-track')).toHaveCount(1);
+  await expect(openThreshold).toHaveClass(/execute-ready/);
+  await expect(openThreshold).toContainText('EXECUTE');
+  await expect(concealedThreshold).not.toHaveClass(/execute-ready/);
+  await expect(concealedThreshold).toContainText('HP CONCEALED');
+  await expect(concealedThreshold.locator('.execute-track')).toHaveCount(0);
   const enemySide = await page.locator('#livePixelEnemies').boundingBox();
   const allySide = await page.locator('#livePixelAllies').boundingBox();
   expect(enemySide.x).toBeLessThan(allySide.x);

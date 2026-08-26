@@ -2589,6 +2589,7 @@ function decorateLogLine(d, txt){
   if(/ENRAGED/.test(txt)) setStageEnraged(true);
   // UI-23: crit lines get heavier weight, not just color.
   if(/CRITICAL/i.test(txt)) d.classList.add('ab-log-crit');
+  if(d.querySelector('.ab-execute-signal')) d.classList.add('ab-log-execute');
   if(/CRITICAL|Phoenix|🌀 Captive|Legendary|Mythic|Celestial/i.test(txt)) d.classList.add('ab-log-critical-event');
   // UI-24: dodge lines in italic.
   if(/slipped into the shadows|missed\.|dodges/i.test(txt)) d.classList.add('ab-log-dodge');

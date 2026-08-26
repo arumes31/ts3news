@@ -45,6 +45,8 @@ func TestAbyssCombatLogUIContracts(t *testing.T) {
 		"font-variant-ligatures: none",
 		"function srSummary",
 		"d.querySelector('.ab-dot-signal')",
+		"d.querySelector('.ab-execute-signal')",
+		"ab-log-execute",
 	} {
 		if !strings.Contains(source, required) {
 			t.Errorf("Abyss combat log is missing %q", required)
@@ -52,6 +54,25 @@ func TestAbyssCombatLogUIContracts(t *testing.T) {
 	}
 	if strings.Contains(source, "pity counter approximation — gear drops move it") {
 		t.Error("legendary pity must not be inferred from rendered loot")
+	}
+}
+
+func TestAbyssExecuteMarkerBecomesSafePresentationSignal(t *testing.T) {
+	t.Parallel()
+
+	line := markAbyssExecuteLog(`⚔️ EXECUTE RANGE — <img src=x onerror=alert(1)> is below 30% HP.`, true)
+	html := abyssCombatLogHTML(line)
+	if !strings.Contains(html, `class="ab-execute-signal" hidden`) {
+		t.Fatalf("execute log lacks presentation signal: %q", html)
+	}
+	if strings.Contains(html, abyssExecuteMarker) {
+		t.Fatalf("internal execute marker leaked into rendered combat log: %q", html)
+	}
+	if strings.Contains(html, "<img") || !strings.Contains(html, "&lt;img") {
+		t.Fatalf("execute target name was not escaped: %q", html)
+	}
+	if plain := abyssCombatLogHTML("ordinary hit"); strings.Contains(plain, "ab-execute-signal") {
+		t.Fatalf("ordinary hit received execute signal: %q", plain)
 	}
 }
 

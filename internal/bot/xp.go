@@ -791,10 +791,19 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 			// combat RNG one full planning round before the strike lands.
 			if hasAbyssFloorModifier(floorMod, "storm_floor") {
 				if stormSide != "" {
+					stormEnemyHP := make([]int, len(currentMobs))
+					for i, mob := range currentMobs {
+						if mob != nil {
+							stormEnemyHP[i] = mob.Stats.HP
+						}
+					}
 					partyDamage, enemyDamage := strikeAbyssStorm(stormSide, activeUsers, currentMobs)
 					totalMobDamage += partyDamage
 					totalUserDamage += enemyDamage
 					logs = append(logs, abyssStormImpactLog(stormSide, partyDamage+enemyDamage))
+					for i, mob := range currentMobs {
+						appendAbyssExecuteThresholdLog(&logs, mob, stormEnemyHP[i], true)
+					}
 					for i := range activeUsers {
 						if activeUsers[i].u != nil && activeUsers[i].u.CurrentHP <= 0 {
 							_ = b.checkUserRevive(activeUsers[i].u, &logs)
@@ -1088,8 +1097,10 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 						continue
 					}
 					damage := min(abyssFatigueDamage(mob.MaxHP, r), mob.Stats.HP)
+					previousHP := mob.Stats.HP
 					mob.Stats.HP -= damage
 					mobFatigue += damage
+					appendAbyssExecuteThresholdLog(&logs, mob, previousHP, true)
 				}
 				totalMobDamage += userFatigue
 				totalUserDamage += mobFatigue
@@ -1238,7 +1249,9 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 				}
 			}
 			for _, m := range mobs {
+				previousHP := m.Stats.HP
 				m.Stats.HP -= dmg
+				appendAbyssExecuteThresholdLog(logs, m, previousHP, isAbyss)
 			}
 			if round == 1 {
 				*logs = append(*logs, i18n.T("bot.combat.hazard_active", eff.Name))
@@ -1268,7 +1281,9 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 			if delta < 1 {
 				delta = 1
 			}
+			previousHP := m.Stats.HP
 			m.Stats.HP -= delta
+			appendAbyssExecuteThresholdLog(logs, m, previousHP, isAbyss)
 			if round%3 == 0 {
 				line := i18n.T("bot.combat.poison_damage", m.Name, delta, poisonStacks)
 				*logs = append(*logs, markAbyssDoTLog(line, isAbyss))
@@ -1968,6 +1983,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			overkill := max(0, dmg-remainingHP)
 			massiveOverkill := abyssOverkillHit(dmg, remainingHP)
 			target.Stats.HP -= dmg
+			appendAbyssExecuteThresholdLog(logs, target, remainingHP, abyssCombatant(u))
 			applyAbyssBreakDamage(target, dmg, logs)
 			*totalUserDamage += dmg
 
@@ -2000,7 +2016,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 							chainDmg = 1
 						}
 						chainDmg = abyssKillerDamage(chainDmg, u, chainTarget)
+						chainRemainingHP := chainTarget.Stats.HP
 						chainTarget.Stats.HP -= chainDmg
+						appendAbyssExecuteThresholdLog(logs, chainTarget, chainRemainingHP, abyssCombatant(u))
 						applyAbyssBreakDamage(chainTarget, chainDmg, logs)
 						*totalUserDamage += chainDmg
 					}
@@ -2102,6 +2120,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					cleaveRemainingHP := cleaveTarget.Stats.HP
 					cleaveOverkill := abyssOverkillHit(cleaveDamage, cleaveRemainingHP)
 					cleaveTarget.Stats.HP -= cleaveDamage
+					appendAbyssExecuteThresholdLog(logs, cleaveTarget, cleaveRemainingHP, abyssCombatant(u))
 					applyAbyssBreakDamage(cleaveTarget, cleaveDamage, logs)
 					*totalUserDamage += cleaveDamage
 					*logs = append(*logs, fmt.Sprintf("🪓 %s's overkill cleaves %s for %d damage!", u.Nickname, cleaveTarget.Name, cleaveDamage))
@@ -2227,6 +2246,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			petRemainingHP := ptarget.Stats.HP
 			petOverkill := abyssOverkillHit(pdmg, petRemainingHP)
 			ptarget.Stats.HP -= pdmg
+			appendAbyssExecuteThresholdLog(logs, ptarget, petRemainingHP, abyssCombatant(u))
 			applyAbyssBreakDamage(ptarget, pdmg, logs)
 			*totalUserDamage += pdmg
 			if usesAttackAbility {
@@ -2364,6 +2384,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			counterDmg = abyssKillerDamage(counterDmg, target, m)
 			remainingHP := m.Stats.HP
 			m.Stats.HP -= counterDmg
+			appendAbyssExecuteThresholdLog(logs, m, remainingHP, abyssCombatant(target))
 			*totalUserDamage += counterDmg
 			if track != nil {
 				track.counters += counterDmg
@@ -2560,6 +2581,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 				reflect = abyssKillerDamage(reflect, target, m)
 				remainingHP := m.Stats.HP
 				m.Stats.HP -= reflect
+				appendAbyssExecuteThresholdLog(logs, m, remainingHP, abyssCombatant(target))
 				*totalUserDamage += reflect
 				if track != nil {
 					track.thorns += reflect

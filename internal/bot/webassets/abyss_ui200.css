@@ -319,6 +319,15 @@
 .ab-log-line.ab-log-dodge { font-style: italic; color: var(--muted); } /* UI-24 */
 .ab-log-line.ab-log-heal { color: var(--good); } /* UI-25 */
 
+.ab-log-line.ab-log-execute {
+  background: linear-gradient(90deg, rgba(240, 106, 95, .14), transparent 72%);
+  border-left: 3px solid #f06a5f;
+  color: #ffc26f;
+  font-weight: 800;
+  letter-spacing: .025em;
+  padding-left: .45rem;
+}
+
 .ab-log-line.ab-log-momentum { /* UI-32 */
   color: #ff9d3c;
   font-weight: 600;

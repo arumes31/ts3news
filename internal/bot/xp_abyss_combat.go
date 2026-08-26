@@ -29,6 +29,32 @@ func abyssOverkillDamage(damage, remainingHP int) int {
 	return damage - remainingHP
 }
 
+func abyssExecuteRange(hp, maxHP int) bool {
+	if hp <= 0 || maxHP <= 0 {
+		return false
+	}
+	limit := maxHP / 10 * 3
+	remainder := maxHP % 10
+	if remainder == 0 {
+		limit--
+	} else {
+		limit += (remainder*3 - 1) / 10
+	}
+	return hp <= limit
+}
+
+func abyssExecuteThresholdCrossed(previousHP, currentHP, maxHP int) bool {
+	return !abyssExecuteRange(previousHP, maxHP) && abyssExecuteRange(currentHP, maxHP)
+}
+
+func appendAbyssExecuteThresholdLog(logs *[]string, mob *content.Mob, previousHP int, abyss bool) {
+	if !abyss || mob == nil || !abyssExecuteThresholdCrossed(previousHP, mob.Stats.HP, mob.MaxHP) {
+		return
+	}
+	line := fmt.Sprintf("⚔️ EXECUTE RANGE — %s is below 30%% HP.", mob.Name)
+	*logs = append(*logs, markAbyssExecuteLog(line, true))
+}
+
 func abyssTerminalOverkillDamage(mobs []*content.Mob, finishingMob *content.Mob, damage, remainingHP int) int {
 	for _, mob := range mobs {
 		if mob != nil && mob.Stats.HP > 0 {
