@@ -146,7 +146,6 @@ type activeUser struct {
 	stunbrokenRound   int                   // AB-59 round the stunbreak fired (acts at 50%)
 	parryCount        int                   // AB-56 parries this fight (3 grant Stealth)
 	stealthUntilRound int                   // AB-56 granted stealth: mobs skip up to this round
-	fumbled           bool                  // AB-72 next hit gets +10% crit (embarrassed rage)
 	weaponSwapped     bool                  // AB-53 once-per-fight mid-boss weapon swap
 	petFocus          string                // AB-58 pet focus-fire target (mob name)
 	petFocusLogged    bool                  // AB-58 one-time focus-fire log
@@ -2054,7 +2053,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			secondaryBaseDamage := dmg
 			weaknessCritical := false
 
-			// Abyss crit & fumble (AB-72 fumble recovery, AB-62 focus crit bonus).
+			// Abyss criticals (AB-62 focus crit bonus).
 			// The CRT stat is displayed as "Crit %" in the armory but was never
 			// rolled in combat — the Abyss path now rolls it (×2 damage, capped).
 			if abyssCombatant(u) {
@@ -2068,30 +2067,18 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					dmg,
 				)
 				if !weaknessCritical {
-					// #nosec G404 -- non-cryptographic combat roll
-					if rand.Float64() < 0.03 {
-						// Fumble: half damage, but the next hit gets +10% crit.
-						dmg = dmg / 2
-						if dmg < 1 {
-							dmg = 1
-						}
-						au.fumbled = true
-						*logs = append(*logs, fmt.Sprintf("😳 %s fumbles their attack! (Half damage — the next hit is fueled by embarrassed rage)", u.Nickname))
-					} else {
-						critPct := u.Stats.CRT + focusCrit
-						if au.fumbled {
-							critPct += 10 // AB-72 embarrassed rage
-							au.fumbled = false
-						}
-						if critPct > 50 {
-							critPct = 50
-						}
-						// #nosec G404 -- non-cryptographic combat roll
-						if critPct > 0 && rand.IntN(100) < critPct {
-							dmg *= 2
-							*logs = append(*logs, fmt.Sprintf("💥 CRITICAL HIT! %s lands a devastating blow on %s!", u.Nickname, target.Name))
-						}
+					critPct := u.Stats.CRT + focusCrit
+					if critPct > 50 {
+						critPct = 50
 					}
+					// #nosec G404 -- non-cryptographic combat roll
+					if critPct > 0 && rand.IntN(100) < critPct {
+						dmg *= 2
+						*logs = append(*logs, fmt.Sprintf("💥 CRITICAL HIT! %s lands a devastating blow on %s!", u.Nickname, target.Name))
+					}
+				}
+				if line := abyssCriticalFumbleLog(u.Nickname, target.Name, true, defaultAbyssDramaRandom{}); line != "" {
+					*logs = append(*logs, line)
 				}
 			}
 			if !weaknessCritical {

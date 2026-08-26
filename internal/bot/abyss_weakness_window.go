@@ -62,7 +62,6 @@ func resolveAbyssWeaknessCritical(
 	if !critical {
 		return damage, false
 	}
-	ctx.user.fumbled = false
 	if ctx.track != nil {
 		ctx.track.weaknessCrits++
 	}

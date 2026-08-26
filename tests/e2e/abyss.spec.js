@@ -847,6 +847,30 @@ test('mob affixes explain mechanics safely in tactical and pixel combat views', 
   expect(css.status()).toBe(200);
 });
 
+test('critical fumble drama stays escaped, legible, and explicitly cosmetic', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/abyss?active=1');
+  await page.evaluate(() => {
+    const feed = document.getElementById('liveFeed');
+    feed.innerHTML = '';
+    appendLiveLogLine(
+      feed,
+      '🎭 CRITICAL FUMBLE · <img src=x onerror=alert(1)> trips, recovers, and hits Warden anyway. (No combat effect)',
+    );
+  });
+  const line = page.locator('#liveFeed .ab-live-critical-fumble');
+  await expect(line).toHaveCount(1);
+  await expect(line).toContainText('<img src=x onerror=alert(1)>');
+  await expect(line).toContainText('No combat effect');
+  await expect(page.locator('#liveFeed img')).toHaveCount(0);
+  expect(await line.evaluate((node) => getComputedStyle(node).animationName)).toBe('none');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  const css = await page.request.get('/static/abyss_critical_fumble.css');
+  expect(css.status()).toBe(200);
+  expect(await css.text()).toContain('DAMAGE INTACT');
+});
+
 test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   let submittedTarget = '';
   await fulfillAbyssAPI(page, (path, body) => {

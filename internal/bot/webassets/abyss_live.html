@@ -644,6 +644,7 @@ function dismissFinishedLiveCombat(){
 function appendLiveLogLine(feed,line){
 	var category=liveLogCategory(line),entry=document.createElement('div');
 	entry.dataset.category=category;entry.title=category+' event';entry.textContent=line;
+	if(/🎭 CRITICAL FUMBLE ·/.test(line))entry.classList.add('ab-live-critical-fumble');
 	if(/⚡ FIRST STRIKE ·/.test(line))entry.classList.add('ab-live-first-strike');
 	feed.appendChild(entry);
 }

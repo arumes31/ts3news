@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="/static/abyss_live.css?v={{livecssver}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_skill_variety.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_first_strike.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_critical_fumble.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_pixel.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_gear_damage.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_shield.css"}}">
@@ -2678,6 +2679,7 @@ function decorateLogLine(d, txt){
   if(/ENRAGED/.test(txt)) setStageEnraged(true);
   // UI-23: crit lines get heavier weight, not just color.
   if(/CRITICAL/i.test(txt)) d.classList.add('ab-log-crit');
+  if(/🎭 CRITICAL FUMBLE ·/.test(txt)) d.classList.add('ab-log-critical-fumble');
   if(/⚡ FIRST STRIKE ·/.test(txt)) d.classList.add('ab-log-first-strike');
   if(d.querySelector('.ab-execute-signal')) d.classList.add('ab-log-execute');
   if(/CRITICAL|Phoenix|🌀 Captive|Legendary|Mythic|Celestial/i.test(txt)) d.classList.add('ab-log-critical-event');

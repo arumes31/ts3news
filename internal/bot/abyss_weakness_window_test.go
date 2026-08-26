@@ -38,11 +38,11 @@ func TestAbyssWeaknessWindowArmsAfterStunningHit(t *testing.T) {
 	}
 }
 
-func TestResolveAbyssWeaknessCriticalClearsFumbleAndTracksUse(t *testing.T) {
+func TestResolveAbyssWeaknessCriticalTracksUse(t *testing.T) {
 	t.Parallel()
 
 	target := &content.Mob{Name: "Warden", Stats: content.Stats{HP: 100}, WeaknessWindow: true}
-	user := &activeUser{u: &UserInCombat{Nickname: "Hero", EscrowLoot: true}, fumbled: true}
+	user := &activeUser{u: &UserInCombat{Nickname: "Hero", EscrowLoot: true}}
 	track := &abyssFightTrack{}
 	logs := []string{}
 
@@ -50,9 +50,9 @@ func TestResolveAbyssWeaknessCriticalClearsFumbleAndTracksUse(t *testing.T) {
 		abyssWeaknessCriticalContext{target: target, user: user, track: track, logs: &logs},
 		40,
 	)
-	if damage != 80 || !critical || user.fumbled || track.weaknessCrits != 1 {
-		t.Fatalf("resolved critical = damage %d, critical %t, fumbled %t, tracked %d",
-			damage, critical, user.fumbled, track.weaknessCrits)
+	if damage != 80 || !critical || track.weaknessCrits != 1 {
+		t.Fatalf("resolved critical = damage %d, critical %t, tracked %d",
+			damage, critical, track.weaknessCrits)
 	}
 	if len(logs) != 1 || !strings.Contains(logs[0], "WEAKNESS CRITICAL") {
 		t.Fatalf("critical logs = %q", logs)

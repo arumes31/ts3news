@@ -1,0 +1,52 @@
+.ab-log-line.ab-log-critical-fumble,
+.ab-live-feed > .ab-live-critical-fumble {
+  position: relative;
+  overflow: hidden;
+  border-left-color: #f5ba4a;
+  background:
+    repeating-linear-gradient(135deg, rgba(245, 186, 74, .08) 0 7px, transparent 7px 14px),
+    linear-gradient(90deg, rgba(79, 214, 207, .13), transparent 78%);
+  color: #ffe3a3;
+  font-weight: 750;
+  letter-spacing: .018em;
+  animation: ab-critical-fumble-recover 420ms cubic-bezier(.2, .85, .25, 1);
+}
+
+.ab-log-line.ab-log-critical-fumble::after,
+.ab-live-feed > .ab-live-critical-fumble::after {
+  margin-left: .45rem;
+  color: #75e0d8;
+  content: ' DAMAGE INTACT';
+  font: 700 .56rem/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: .09em;
+  white-space: nowrap;
+}
+
+@keyframes ab-critical-fumble-recover {
+  0% { opacity: .35; transform: translateX(-8px) rotate(-.25deg); }
+  58% { transform: translateX(3px) rotate(.15deg); }
+  100% { opacity: 1; transform: none; }
+}
+
+@media (max-width: 520px) {
+  .ab-log-line.ab-log-critical-fumble::after,
+  .ab-live-feed > .ab-live-critical-fumble::after {
+    display: block;
+    margin: .3rem 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-log-line.ab-log-critical-fumble,
+  .ab-live-feed > .ab-live-critical-fumble { animation: none; }
+}
+
+@media (forced-colors: active) {
+  .ab-log-line.ab-log-critical-fumble,
+  .ab-live-feed > .ab-live-critical-fumble {
+    border-left: 3px solid Highlight;
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: auto;
+  }
+}
