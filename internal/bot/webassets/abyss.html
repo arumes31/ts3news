@@ -2,6 +2,7 @@
 <!-- UI-200 additions stylesheet (served at /static/abyss_ui200.css, hash-busted via uicssver). -->
 <link rel="stylesheet" href="/static/abyss_ui200.css?v={{uicssver}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_command.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_auto_descend.css"}}">
 <link rel="stylesheet" href="/static/abyss_live.css?v={{livecssver}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_skill_variety.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_first_strike.css"}}">
@@ -426,6 +427,14 @@
         <div id="pathQueueContainer"></div>
         <button class="ghost xs" id="btnQueueMore" onclick="addPathToQueue()" aria-label="Add one floor to the planned queue">+</button>
       </div>
+      <fieldset class="ab-auto-stop" id="autoDescendRules">
+        <legend><span aria-hidden="true">⛔</span> Auto-stop safeguards</legend>
+        <label class="ab-auto-stop-master"><input id="autoDescendEnabled" type="checkbox" checked onchange="updateAutoDescendRulesUI()"> Armed</label>
+        <label>HP below <span class="ab-number-unit"><input id="autoStopHP" type="number" min="1" max="99" value="50" inputmode="numeric" oninput="updateAutoDescendRulesUI()"><span>%</span></span></label>
+        <label>At depth <input id="autoStopDepth" type="number" min="1" inputmode="numeric" oninput="this.dataset.manual='true';updateAutoDescendRulesUI()"></label>
+        <label><input id="autoStopLegendary" type="checkbox" checked onchange="updateAutoDescendRulesUI()"> Legendary+ secured</label>
+        <output id="autoStopSummary" aria-live="polite"></output>
+      </fieldset>
       <button class="primary xs" id="btnDescendMulti" onclick="abyssDescendMulti()" style="margin-top:10px;" aria-label="Descend through all planned floors in sequence">⚡ Plan &amp; Descend Queue</button>
     </div>
 
@@ -3580,6 +3589,38 @@ function updateQueueUI() {
   var btnMore = document.getElementById('btnQueueMore');
   if (btnLess) btnLess.disabled = busy || wraps.length <= 3;
   if (btnMore) btnMore.disabled = busy || wraps.length >= 20;
+  var target = document.getElementById('autoStopDepth');
+  if (target && (target.dataset.manual !== 'true' || Number(target.value) <= curDepth)) {
+    delete target.dataset.manual;
+    target.value = curDepth + wraps.length;
+  }
+  updateAutoDescendRulesUI();
+}
+
+function updateAutoDescendRulesUI() {
+  var armed = document.getElementById('autoDescendEnabled');
+  var rules = document.getElementById('autoDescendRules');
+  var hp = document.getElementById('autoStopHP');
+  var depth = document.getElementById('autoStopDepth');
+  var legendary = document.getElementById('autoStopLegendary');
+  var summary = document.getElementById('autoStopSummary');
+  if (!armed || !rules || !hp || !depth || !legendary || !summary) return;
+  var enabled = armed.checked;
+  hp.disabled = depth.disabled = legendary.disabled = !enabled;
+  rules.classList.toggle('is-disarmed', !enabled);
+  summary.textContent = enabled
+    ? 'Brake: <' + Math.max(1, Math.min(99, Number(hp.value) || 50)) + '% HP · F' + (Number(depth.value) || curDepth + 1) + (legendary.checked ? ' · Legendary+' : '')
+    : 'Safeguards disarmed';
+}
+
+function getAutoDescendRules() {
+  var enabled = document.getElementById('autoDescendEnabled');
+  if (!enabled || !enabled.checked) return {hp_below_pct:0,target_depth:0,stop_on_legendary:false};
+  return {
+    hp_below_pct: Math.max(1, Math.min(99, Number(document.getElementById('autoStopHP').value) || 50)),
+    target_depth: Math.max(1, Number(document.getElementById('autoStopDepth').value) || curDepth + 1),
+    stop_on_legendary: document.getElementById('autoStopLegendary').checked
+  };
 }
 
 async function playAbyssMultiFloorResults(data) {
@@ -3630,7 +3671,7 @@ async function abyssDescendMulti() {
   setBusy(true); markBusyBtn('btnDescendMulti'); clearBanner();
   document.getElementById('abStatus').textContent = 'Descending queue (' + paths.length + ' floors)…';
 
-  var d = await abPost('/api/abyss/descend_multi', {paths: paths});
+  var d = await abPost('/api/abyss/descend_multi', {paths: paths, stop_rules: getAutoDescendRules()});
   if (!d.ok) {
     // Floors cleared before the failure are already persisted — show their
     // logs/loot and apply the returned run snapshot so depth, escrow, HP and
@@ -3649,6 +3690,13 @@ async function abyssDescendMulti() {
 
   d.batch_floors_played = await playAbyssMultiFloorResults(d);
   await processDescendResult(d, hp, max);
+  if (d.auto_stopped) {
+    var stopLabels = {hp:'HP safety threshold reached',depth:'Target depth reached',legendary:'Legendary+ drop secured'};
+    var stopLabel = stopLabels[d.stop_reason] || 'Auto-stop rule reached';
+    setBanner('⛔ AUTO-DESCEND STOPPED · ' + stopLabel, 'warn');
+    document.getElementById('abStatus').textContent = stopLabel + '. Review the run before continuing.';
+    abToast(stopLabel, true);
+  }
 }
 
 // Floor-choice modal: shown when abyssDescend rolls 2 candidate paths instead

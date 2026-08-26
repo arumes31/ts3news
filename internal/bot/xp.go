@@ -533,10 +533,11 @@ func getElementMult(attacker, defender content.Element) float64 {
 // LootResult is one item/gold grant from a resolved fight, ready to log and
 // (optionally) poke the recipient about.
 type LootResult struct {
-	UID      string
-	Note     string
-	Poke     string
-	PityProc bool
+	UID           string
+	Note          string
+	Poke          string
+	PityProc      bool
+	LegendaryDrop bool
 }
 
 // combatTimelineFrame is an authoritative snapshot taken by the combat engine

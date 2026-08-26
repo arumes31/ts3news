@@ -784,6 +784,38 @@ test('planned multi-floor descent presents every combat floor in order', async (
   await expect(page.locator('#cartographerRouteFloors')).toContainText('F17');
 });
 
+test('auto-descend submits safeguards and stops after settled floor playback', async ({ page }) => {
+  let submittedRules = null;
+  await fulfillAbyssAPI(page, (path, body) => {
+    if (!path.endsWith('/descend_multi')) return { ok: false, error: 'unexpected e2e request' };
+    submittedRules = body.stop_rules;
+    return {
+      ok: true, victory: true, auto_stopped: true, stop_reason: 'legendary',
+      depth: 14, risk: 24, hp: 720, max_hp: 1000, gold: 5000, tokens: 12,
+      bonus: 800, escrow: 12800, logs: [], loot: [], dura: [], timeline: [],
+      consumables: [], run_floors_cleared: 4,
+      floor_results: [13, 14].map((depth, index) => ({
+        depth, victory: true, hp: 860 - index * 140, max_hp: 1000,
+        legendary_drop: index === 1,
+        logs: [`Floor ${depth} safety test`], loot: [], dura: [], timeline: [],
+      })),
+    };
+  });
+  await page.setViewportSize({ width: 480, height: 900 });
+  await page.goto('/abyss?active=1');
+  await page.evaluate(() => { window.reduceMotion = true; window.__batchFloors = []; document.addEventListener('abyss:batch-floor', event => window.__batchFloors.push(event.detail.depth)); });
+  await expect(page.locator('#autoDescendRules')).toBeVisible();
+  await page.locator('#autoStopDepth').fill('14');
+  await page.locator('#btnDescendMulti').click();
+  await expect.poll(() => submittedRules).toEqual({ hp_below_pct: 50, target_depth: 14, stop_on_legendary: true });
+  await expect.poll(() => page.evaluate(() => window.__batchFloors)).toEqual([13, 14]);
+  await expect(page.locator('#abStatus')).toContainText('Legendary+ drop secured');
+  await expect(page.locator('#abyssBanner')).toContainText('AUTO-DESCEND STOPPED');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  const css = await page.request.get('/static/abyss_auto_descend.css');
+  expect(css.status()).toBe(200);
+});
+
 test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   let submittedTarget = '';
   await fulfillAbyssAPI(page, (path, body) => {

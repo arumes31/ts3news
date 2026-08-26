@@ -606,6 +606,7 @@ type abyssFloorResult struct {
 	CurrentHP          int
 	MaxHP              int
 	PityProc           bool
+	LegendaryDrop      bool
 	DamageTaken        int
 	OverkillDamage     int
 	BossExecution      bool
@@ -1342,6 +1343,9 @@ func (b *Bot) fightAbyssFloorMode(
 		}
 		if lt.UID == uid && lt.PityProc {
 			res.PityProc = true
+		}
+		if lt.UID == uid && lt.LegendaryDrop {
+			res.LegendaryDrop = true
 		}
 	}
 	for _, d := range duraWarnings {
@@ -2280,7 +2284,7 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	focus := s.selectedAbyssFocus(uid, run)
 	runPacts := s.bot.abyssRunPacts(uid)
 	if abyssCursedElevatorTriggered(rand.Float64()) {
-		s.descendFloors(w, uid, []string{"combat", "combat"}, true)
+		s.descendFloors(w, uid, []string{"combat", "combat"}, true, abyssAutoDescendRules{})
 		return
 	}
 
@@ -2382,6 +2386,7 @@ type abyssMultiFloorResult struct {
 	OverkillGold   int64                       `json:"overkill_gold,omitempty"`
 	SkillVariety   abyssSkillVarietyView       `json:"skill_variety"`
 	VarietyBonusXP int                         `json:"variety_bonus_xp,omitempty"`
+	LegendaryDrop  bool                        `json:"legendary_drop,omitempty"`
 	Logs           []string                    `json:"logs"`
 	Loot           []string                    `json:"loot"`
 	Dura           []string                    `json:"dura"`
@@ -2429,7 +2434,8 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 	}
 
 	var req struct {
-		Paths []string `json:"paths"`
+		Paths     []string              `json:"paths"`
+		StopRules abyssAutoDescendRules `json:"stop_rules"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
@@ -2448,10 +2454,15 @@ func (s *WebServer) handleAbyssDescendMulti(w http.ResponseWriter, r *http.Reque
 			return
 		}
 	}
-	s.descendFloors(w, uid, req.Paths, false)
+	run := s.bot.loadAbyssRun(uid)
+	if err := req.StopRules.validate(run.Depth, len(req.Paths)); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	s.descendFloors(w, uid, req.Paths, false, req.StopRules)
 }
 
-func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []string, cursedElevator bool) {
+func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []string, cursedElevator bool, stopRules abyssAutoDescendRules) {
 	var combinedLogs []string
 	var combinedLoot []string
 	var combinedDura []string
@@ -2493,8 +2504,12 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 	}
 	tier, _ := abyssTierByKey(runInit.Tier)
 	runPacts := s.bot.abyssRunPacts(uid)
+	autoStopReason := stopRules.stopReason(runInit.Depth, runInit.CurHP, runInit.MaxHP, false)
 
 	for _, pt := range paths {
+		if autoStopReason != "" {
+			break
+		}
 		run := s.bot.loadAbyssRun(uid)
 		if !run.Active {
 			writeJSON(w, abort("not in a run", tier))
@@ -2673,6 +2688,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 			OverkillDamage: res.OverkillDamage,
 			SkillVariety:   res.SkillVariety,
 			VarietyBonusXP: res.VarietyBonusXP,
+			LegendaryDrop:  res.LegendaryDrop,
 			Logs:           append([]string(nil), res.LogsHTML...),
 			Loot:           append([]string(nil), res.LootHTML...),
 			Dura:           append([]string(nil), res.DuraHTML...),
@@ -2729,6 +2745,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 			floorResults[len(floorResults)-1].OverkillGold = o.OverkillGold
 			run.Escrow = o.NewEscrow
 			_ = s.bot.setPendingAbyssDoubleBonus(uid, newDepth, o.Bonus)
+			autoStopReason = stopRules.stopReason(newDepth, res.CurrentHP, res.MaxHP, res.LegendaryDrop)
 		} else {
 			// Defeat: stop batch run
 			canRevive := s.applyFloorDefeat(uid, run)
@@ -2835,6 +2852,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 	if cursedElevator {
 		out["cursed_elevator"] = true
 	}
+	addAbyssAutoStopResponse(out, autoStopReason)
 	if len(achs) > 0 {
 		out["achievement"] = strings.Join(achs, " · ")
 	}

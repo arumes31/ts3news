@@ -66,7 +66,7 @@ func (b *Bot) awardCombatLoot(winner *UserInCombat, mob content.Mob, zone conten
 		roll := b.rollAbyssLootToEscrow(winner.UID, mob, zone.Difficulty, winner.LootFocus)
 		for index, label := range roll.Labels {
 			*logs = append(*logs, fmt.Sprintf("[color=#b9a36b]🔒 %s — sealed into the cache (lost if you fall): %s[/color]", winner.Nickname, label))
-			*loots = append(*loots, LootResult{UID: winner.UID, Note: label, PityProc: roll.PityProc && index == 0})
+			*loots = append(*loots, LootResult{UID: winner.UID, Note: label, PityProc: roll.PityProc && index == 0, LegendaryDrop: roll.LegendaryDrop && index == 0})
 		}
 		return
 	}
@@ -120,8 +120,27 @@ func lootRarityScale(level int) float64 {
 }
 
 type abyssLootRoll struct {
-	Labels   []string
-	PityProc bool
+	Labels        []string
+	PityProc      bool
+	LegendaryDrop bool
+}
+
+func abyssLootGrantIsLegendary(g abyssLootGrant) bool {
+	switch {
+	case g.Gear != nil:
+		return g.Gear.Rarity >= content.RarityLegendary
+	case g.Skill != nil:
+		return g.Skill.Rarity >= content.RarityLegendary
+	case g.Ench != nil:
+		return g.Ench.Rarity >= content.RarityLegendary
+	case g.UniqName != "":
+		return g.UniqRar >= content.RarityLegendary
+	case g.UltID != "":
+		ultimate, ok := content.GetUltimateSkillByID(g.UltID)
+		return ok && ultimate.Rarity >= content.RarityLegendary
+	default:
+		return false
+	}
 }
 
 // rollAbyssLootToEscrow rolls the drops for one defeated mob and writes them to the
@@ -217,9 +236,11 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 
 	var labels []string
 	pityProc := false
+	legendaryDrop := false
 	add := func(label string, g abyssLootGrant) bool {
 		if b.escrowAbyssLoot(uid, run.Depth, label, g) {
 			labels = append(labels, label)
+			legendaryDrop = legendaryDrop || abyssLootGrantIsLegendary(g)
 			return true
 		}
 		return false
@@ -555,6 +576,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			case g.Rarity >= content.RarityLegendary && b.abyssDupLegendConvert(uid) && ownedGearCount[g.ID] >= 2:
 				cvLabel := fmt.Sprintf("♻ Duplicate converted: %s → %s ×5", g.Name, abyssMaterialName("core"))
 				if add(cvLabel, abyssLootGrant{Type: "mat", MatID: "core", MatN: 5}) {
+					legendaryDrop = true
 					legendaryPity = 0
 					celestialPity++
 					gotGearThisCall = true
@@ -614,7 +636,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		log.Printf("abyss pity/streak persist failed for %s: %v", uid, err)
 	}
 	b.abyssSetCelestialPity(uid, celestialPity)
-	return abyssLootRoll{Labels: labels, PityProc: pityProc}
+	return abyssLootRoll{Labels: labels, PityProc: pityProc, LegendaryDrop: legendaryDrop}
 }
 
 // escrowAbyssLoot persists one rolled drop into the run's loot escrow.
