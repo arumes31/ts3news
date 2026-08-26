@@ -14,6 +14,7 @@ func TestAbyssEventTypeLabels(t *testing.T) {
 		`{"type":"collapsed_passage"}`: "Collapsed Passage",
 		`{"type":"abyssal_garden"}`:    "Abyssal Garden",
 		`{"type":"sigil_chain"}`:       "Triune Sigil Hunt",
+		`{"type":"lost_cartographer"}`: "Lost Cartographer",
 		`{"type":"unknown"}`:           "Unknown anomaly",
 		`not-json`:                     "Unknown anomaly",
 	}

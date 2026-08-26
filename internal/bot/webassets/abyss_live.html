@@ -110,6 +110,7 @@ function liveEventCursor(state){
 }
 
 function startLiveCombat(payload, hp, max){
+  if(payload&&payload.map_route&&typeof renderAbyssCartographerRoute==='function')renderAbyssCartographerRoute(payload.map_route);
   liveStartHP=hp||Number(document.getElementById('hpBar').getAttribute('aria-valuenow'))||0;
   liveStartMaxHP=max||Number(document.getElementById('hpBar').getAttribute('aria-valuemax'))||1;
   liveFinishHandled=false;

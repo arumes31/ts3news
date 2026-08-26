@@ -70,8 +70,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "bcf7f12c413b94ebc82e709de485c6c427d691192d36295cbbff6f0def22e371"},
-		{name: "active_run", active: true, want: "50823a1f0c90f0ed355cd9eb57b331355b14ffbd58d22be93e1d0adbd3e50a0f"},
+		{name: "threshold", want: "1b7d98644492b0ea46527e194274f1755c40edc58e2ade1a623424327368607f"},
+		{name: "active_run", active: true, want: "03ebeea6b3a5c5fc39aae3c4b0efb9d7dd5bdae24b25cb4ed28d86b2b2030171"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -164,7 +164,8 @@ func abyssGoldenFixture(active bool) map[string]any {
 		"Tiers": abyssTierList(stats.BestDepth), "Leaders": abyssBoards{}, "Season": "S1", "SeasonJourney": seasonJourney,
 		"History": []any{}, "Achievements": []abyssAchievementView{}, "BadgeOptions": []any{},
 		"RunInsights": abyssRunInsightsView{}, "LongTerm": abyssLongTermView{},
-		"ActiveBadge": "", "ActiveBadgeName": "", "LoreList": []any{}, "LoreTotal": len(abyssLoreFragments),
+		"CartographerRoute": abyssCartographerRouteView{Floors: []abyssCartographerFloorView{}},
+		"ActiveBadge":       "", "ActiveBadgeName": "", "LoreList": []any{}, "LoreTotal": len(abyssLoreFragments),
 		"Bestiary": []any{}, "Consumables": []any{}, "DailyMod": "",
 		"CommunityExpedition": map[string]any{"Week": "2026-W35", "Floors": 0, "Target": 1000},
 		"Helpers":             []any{}, "NextIsBoss": false, "AbyssSetPieces": 0, "AbyssSetTier": 0,

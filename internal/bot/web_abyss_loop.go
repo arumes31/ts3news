@@ -297,7 +297,7 @@ func (b *Bot) saveAbyssMirrorMemory(uid string, m abyssMirrorMemory) {
 // (0 when unknown). Shown to delvers owning the sanctuary Map Table upgrade.
 func (b *Bot) abyssNextEventIn(uid string, depth int) int {
 	var s string
-	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_next_event_depth_"+uid).Scan(&s)
+	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssNextEventDepthKey(uid)).Scan(&s)
 	next, err := strconv.Atoi(s)
 	if err != nil {
 		return 0

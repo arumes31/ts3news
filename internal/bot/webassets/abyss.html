@@ -207,6 +207,12 @@
       {{if and .EventIntel.MapOwned (le .EventIntel.NextIn 2) (gt .EventIntel.NextDepth 0)}}
       <span class="ab-map-forecast">🗺️ F{{.EventIntel.NextDepth}} · {{if .EventIntel.EventLabel}}{{.EventIntel.EventLabel}}{{else}}charted anomaly{{end}}</span>
       {{end}}
+      <div class="ab-cartographer-route" id="cartographerRoute" {{if not .CartographerRoute.Active}}hidden{{end}} aria-label="Cartographer route, {{.CartographerRoute.Remaining}} floors remaining">
+        <span class="ab-cartographer-route-title">🗺 CHART</span>
+        <ol id="cartographerRouteFloors">
+          {{range .CartographerRoute.Floors}}<li data-floor-type="{{.Type}}"><b>F{{.Depth}}</b><span>{{.Icon}} {{.Label}}</span></li>{{end}}
+        </ol>
+      </div>
     </div>
     {{if .Watcher.Active}}
     <div class="ab-watcher-pressure {{if ge .Watcher.Percent 100}}is-armed{{end}}" id="abyssWatcherPressure" data-deadline="{{.Watcher.DeadlineUnixMilli}}" data-now="{{.Watcher.NowUnixMilli}}" data-threshold="{{.Watcher.ThresholdSeconds}}" aria-label="The Watcher stalking pressure">
@@ -1329,6 +1335,7 @@ var interestTotalPct = {{printf "%.3f" .HUD.InterestTotalPct}};
 var escrowSoftCap = {{.HUD.EscrowSoftCap}}, escrowEfficiencyPct = {{.HUD.EscrowEfficiencyPct}};
 var forgeUIState = null, forgeUIStateReceivedAt = 0, abyssSetupState = null, forgeFloorActive = false;
 var eventChainState = {{jsonJS .EventIntel.Chain}} || {active:false,sigils:0,required:3,chains:0};
+var cartographerRouteState = {{jsonJS .CartographerRoute}} || {active:false,remaining:0,floors:[]};
 var abyssJackpot = {{.HUD.Jackpot}}; // UI-57
 var jackpotPulse = false, jackpotPulseTimer = 0;
 var activeRunPacts = {{jsonJS .HUD.Pacts}} || []; // UI-52
@@ -2013,6 +2020,15 @@ function renderNonCombat(floorType, stateStr){
         desc.textContent = 'Bind three rune traces hidden among combat victories over the next ten floors. The first trace awakens two floors from here; complete the cartouche to open its exact cache chest.';
         options.innerHTML = `<button class="primary" onclick="abyssNCAction('sigil_chain_accept')">✦ Bind the 10-floor Hunt</button> <button class="ghost" onclick="abyssNCAction('sigil_chain_leave')">Leave the Runes Dormant</button>`;
       }
+    } else if(state.type === 'lost_cartographer'){
+      title.textContent = '🗺 The Lost Cartographer';
+      if(cartographerRouteState&&cartographerRouteState.active){
+        desc.textContent = 'His ink recognizes the chart already bound to your run. Finish the remaining route before another map can be purchased.';
+        options.innerHTML = `<button class="ghost" onclick="abyssNCAction('cartographer_leave')">Keep Existing Chart · Leave</button>`;
+      } else {
+        desc.textContent = 'A soot-stained surveyor offers one exact chart of the next five floor types. Bosses, sanctuaries, pacts, and scheduled anomalies are already inked; a Watcher ambush can still defy the map.';
+        options.innerHTML = `<button class="primary" onclick="abyssNCAction('cartographer_buy')">🗺 Buy Five-Floor Chart · ${fmtGold(Number(state.price)||250)}</button> <button class="ghost" onclick="abyssNCAction('cartographer_leave')">Decline the Map</button>`;
+      }
     } else {
       desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
     }
@@ -2075,6 +2091,31 @@ function abyssEventChainNotice(chain){
   if(chain.collected)return '✦ Sigil recovered: '+Number(chain.sigils||0)+'/'+Number(chain.required||3)+' · '+Number(chain.floors_left||0)+' floors left.';
   if(chain.expired)return '✦ The Sigil Hunt expired before the cartouche was completed.';
   return '';
+}
+
+function renderAbyssCartographerRoute(route){
+  if(!route)return;
+  cartographerRouteState=route;
+  var host=document.getElementById('cartographerRoute');
+  var list=document.getElementById('cartographerRouteFloors');
+  if(!host||!list)return;
+  var floors=Array.isArray(route.floors)?route.floors:[];
+  host.hidden=!route.active||floors.length===0;
+  list.replaceChildren();
+  floors.forEach(function(floor){
+    var item=document.createElement('li');
+    item.dataset.floorType=String(floor.type||'combat');
+    var depth=document.createElement('b');
+    depth.textContent='F'+Number(floor.depth||0);
+    var label=document.createElement('span');
+    label.textContent=String(floor.icon||'⚔️')+' '+String(floor.label||'Press onward');
+    item.append(depth,label);
+    list.appendChild(item);
+  });
+  host.setAttribute('aria-label','Cartographer route, '+floors.length+' floor'+(floors.length===1?'':'s')+' remaining');
+  host.classList.remove('is-updated');
+  void host.offsetWidth;
+  host.classList.add('is-updated');
 }
 
 // animateNumber (#335/#336): count a numeric change up/down over ~400ms.
@@ -2635,7 +2676,7 @@ function updateStageScene(){
   if(isEvent){
     var t='';
     try{ t=(JSON.parse(eventState||'{}').type)||''; }catch(e){}
-    icon.textContent = t==='cursed_library' ? '📚' : (t==='sigil_chain' ? '✦' : (t==='den'||t==='imp'||t==='gambler' ? '🎰' : '❔'));
+    icon.textContent = t==='cursed_library' ? '📚' : (t==='lost_cartographer' ? '🗺' : (t==='sigil_chain' ? '✦' : (t==='den'||t==='imp'||t==='gambler' ? '🎰' : '❔')));
   }
 }
 
@@ -3449,6 +3490,7 @@ async function playAbyssMultiFloorResults(data) {
         var chainNotice=abyssEventChainNotice(floor.event_chain);
         if(chainNotice)setBanner(chainNotice,floor.event_chain.expired?'warn':'good');
       }
+      if(floor.map_route)renderAbyssCartographerRoute(floor.map_route);
       resetMana();
     }
   } finally {
@@ -3537,6 +3579,7 @@ function showAbyssBossKillCam(){
 async function processDescendResult(d, hp, max){
 	if(d.boss_tokens!==undefined&&typeof setBossTokens==='function')setBossTokens(d.boss_tokens);
   if(d.explorer_support!==undefined)renderExplorerSupport(d.explorer_support);
+  if(d.map_route)renderAbyssCartographerRoute(d.map_route);
   if(d.escrow_soft_cap!==undefined) escrowSoftCap=Number(d.escrow_soft_cap)||escrowSoftCap;
   if(d.escrow_efficiency_pct!==undefined) escrowEfficiencyPct=Number(d.escrow_efficiency_pct)||100;
   var hasExactRunFloors=d.run_floors_cleared!==undefined;
@@ -3973,6 +4016,7 @@ async function abyssNCAction(action, payload){
   if(d.consumables !== undefined) renderConsumables(d.consumables);
   if(d.explorer_support !== undefined) renderExplorerSupport(d.explorer_support);
   if(d.event_chain)renderAbyssEventChain(d.event_chain);
+  if(d.map_route)renderAbyssCartographerRoute(d.map_route);
   // UI-18: compatibility fallback for a committed response without a list.
   var eventBuffDuration=Number(d.buff_duration)||0;
   if(d.consumables===undefined && eventBuffDuration>0){

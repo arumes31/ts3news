@@ -1530,6 +1530,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	longTerm := s.bot.abyssLongTermStatus(r.Context(), uid, run, history, st.BestDepth, pity)
 	coreLoop := s.bot.abyssCoreLoopStatus(uid, run)
 	eventIntel := s.bot.abyssEventIntel(uid, run)
+	cartographerRoute := s.bot.abyssCartographerRouteView(uid, run.Depth)
 	watcherPressure := abyssWatcherPressure(run, time.Now())
 	bossContract := s.bot.abyssBossContract(uid, run)
 	bossAffinity := abyssBossAffinityForecastForSecret(run, time.Now(), secretChain)
@@ -1569,6 +1570,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Social":              s.bot.abyssSocialHub(uid, st.AbyssPrestige),
 		"CoreLoop":            coreLoop,
 		"EventIntel":          eventIntel,
+		"CartographerRoute":   cartographerRoute,
 		"Watcher":             watcherPressure,
 		"BossContract":        bossContract,
 		"BossAffinity":        bossAffinity,
@@ -2075,6 +2077,10 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	if err := clearAbyssCartographerForecastInTx(r.Context(), tx, uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	if echoSeed > 0 {
 		if _, err := tx.Exec("DELETE FROM app_meta WHERE key=$1", abyssEchoSeedKey(uid)); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -2194,6 +2200,7 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 
 	newDepth := run.Depth + 1
 	tier, _ := abyssTierByKey(run.Tier)
+	mappedType, mapped := s.bot.abyssCartographerFloor(uid, newDepth)
 
 	// Forced floors bypass the choice picker entirely: the Watcher Stalker
 	// ambush trigger (Item #67) and boss floors are never optional.
@@ -2207,6 +2214,20 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	}
 	if abyssRestFloorDue(run.LastRestDepth, newDepth) && abyssPactAllowsRest(runPacts) {
 		s.commitFloor(w, uid, run, newDepth, "rest", "", "", tier, focus, req.Interactive)
+		return
+	}
+	if mapped {
+		modifier, eventState := "", ""
+		if mappedType == "event" {
+			if preview, ok := s.bot.takeAbyssEventPreview(uid, newDepth); ok {
+				eventState = preview
+			} else {
+				modifier, eventState = rollFloorDetail(mappedType)
+			}
+		} else {
+			modifier, eventState = rollFloorDetail(mappedType)
+		}
+		s.commitFloor(w, uid, run, newDepth, mappedType, modifier, eventState, tier, focus, req.Interactive)
 		return
 	}
 
@@ -2267,15 +2288,16 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 // their logs/loot plus a fresh run snapshot ride along with the error and the
 // client can reconcile depth, escrow, HP and wallet instead of drifting.
 type abyssMultiFloorResult struct {
-	Depth      int                   `json:"depth"`
-	Victory    bool                  `json:"victory"`
-	HP         int                   `json:"hp"`
-	MaxHP      int                   `json:"max_hp"`
-	Logs       []string              `json:"logs"`
-	Loot       []string              `json:"loot"`
-	Dura       []string              `json:"dura"`
-	Timeline   []combatTimelineFrame `json:"timeline"`
-	EventChain *abyssEventChainView  `json:"event_chain,omitempty"`
+	Depth      int                         `json:"depth"`
+	Victory    bool                        `json:"victory"`
+	HP         int                         `json:"hp"`
+	MaxHP      int                         `json:"max_hp"`
+	Logs       []string                    `json:"logs"`
+	Loot       []string                    `json:"loot"`
+	Dura       []string                    `json:"dura"`
+	Timeline   []combatTimelineFrame       `json:"timeline"`
+	EventChain *abyssEventChainView        `json:"event_chain,omitempty"`
+	MapRoute   *abyssCartographerRouteView `json:"map_route,omitempty"`
 }
 
 func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, loot, dura []string, timeline []combatTimelineFrame, floorResults []abyssMultiFloorResult, rewardXP int) map[string]any {
@@ -2359,8 +2381,12 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 	var bossContractPayout int64
 	var bossTokenAwarded bool
 	var eventChain *abyssEventChainView
+	var mapRoute *abyssCartographerRouteView
 	abort := func(errKey string, tier abyssTier) map[string]any {
 		out := s.descendMultiAbort(uid, errKey, tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP)
+		if mapRoute != nil {
+			out["map_route"] = mapRoute
+		}
 		if cursedElevator {
 			out["cursed_elevator"] = true
 		}
@@ -2392,10 +2418,11 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		focus := s.selectedAbyssFocus(uid, run)
 
 		newDepth := run.Depth + 1
+		mappedType, mapped := s.bot.abyssCartographerFloor(uid, newDepth)
 
 		// The server owns the floor roll, mirroring a single descend: forced
-		// watcher/boss floors first, then any rift-peek sealed floor (#35), then a
-		// weighted 2-candidate roll where the planned path is honored only if the
+		// watcher/boss/rest floors first, then a Cartographer chart (#40), then any
+		// rift-peek sealed floor (#35), then a weighted 2-candidate roll where the
 		// roll actually offers it. The client's plan is a preference, never an
 		// override — so batch requests can't force rest floors at will.
 		actualType := "combat"
@@ -2414,7 +2441,9 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		} else if abyssRestFloorDue(run.LastRestDepth, newDepth) && abyssPactAllowsRest(runPacts) {
 			actualType = "rest"
 		} else {
-			if ft, ok := s.bot.popFloorQueue(uid); ok {
+			if mapped {
+				actualType = mappedType
+			} else if ft, ok := s.bot.popFloorQueue(uid); ok {
 				actualType = ft
 			} else if s.bot.abyssEventDue(uid, newDepth) {
 				actualType = "event" // cadence: force the due event (every 2-6 floors)
@@ -2470,6 +2499,10 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 			if actualType == "rest" {
 				_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
 			}
+			if mapped {
+				view := s.bot.advanceAbyssCartographerRoute(uid, newDepth)
+				mapRoute = &view
+			}
 
 			var gold int64
 			_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
@@ -2497,6 +2530,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				"jackpot":            s.bot.getJackpot("abyss"),
 				"explorer_support":   s.bot.abyssRescueSupportView(uid),
 				"event_chain":        eventChain,
+				"map_route":          mapRoute,
 			})
 			return
 		}
@@ -2514,6 +2548,12 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 			// their logs/loot alongside the error so they aren't lost client-side.
 			writeJSON(w, abort("combat", tier))
 			return
+		}
+		var floorMapRoute *abyssCartographerRouteView
+		if mapped {
+			view := s.bot.advanceAbyssCartographerRoute(uid, newDepth)
+			floorMapRoute = &view
+			mapRoute = &view
 		}
 
 		timelineOffset := len(combinedLogs)
@@ -2538,6 +2578,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 			Loot:     append([]string(nil), res.LootHTML...),
 			Dura:     append([]string(nil), res.DuraHTML...),
 			Timeline: append([]combatTimelineFrame(nil), res.Timeline...),
+			MapRoute: floorMapRoute,
 		})
 		pityProc = pityProc || res.PityProc
 		bossContractPayout += res.BossContractPayout
@@ -2623,6 +2664,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				"pity_proc":           pityProc,
 				"explorer_support":    s.bot.abyssRescueSupportView(uid),
 				"event_chain":         eventChain,
+				"map_route":           mapRoute,
 			}
 			if cursedElevator {
 				out["cursed_elevator"] = true
@@ -2675,6 +2717,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		"run_floors_cleared":    abyssRunFloorsCleared(finalRun),
 		"explorer_support":      s.bot.abyssRescueSupportView(uid),
 		"event_chain":           eventChain,
+		"map_route":             mapRoute,
 	}
 	if cursedElevator {
 		out["cursed_elevator"] = true
@@ -2727,7 +2770,7 @@ const (
 // returns false, so the opening floors aren't events.
 func (b *Bot) abyssEventDue(uid string, depth int) bool {
 	var s string
-	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_next_event_depth_"+uid).Scan(&s)
+	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssNextEventDepthKey(uid)).Scan(&s)
 	next, err := strconv.Atoi(s)
 	if s == "" || err != nil {
 		b.abyssScheduleNextEvent(uid, depth)
@@ -2741,7 +2784,7 @@ func (b *Bot) abyssScheduleNextEvent(uid string, depth int) {
 	// #nosec G404 -- non-cryptographic cadence roll
 	next := depth + abyssEventGapMin + rand.IntN(abyssEventGapMax-abyssEventGapMin+1)
 	_, _ = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, "abyss_next_event_depth_"+uid, strconv.Itoa(next))
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssNextEventDepthKey(uid), strconv.Itoa(next))
 	b.ensureAbyssEventPreview(uid, next)
 }
 
@@ -2970,6 +3013,7 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 		if floorType == "rest" {
 			_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
 		}
+		mapRoute := s.bot.advanceAbyssCartographerRoute(uid, newDepth)
 		writeJSON(w, map[string]any{
 			"ok":          true,
 			"noncombat":   true,
@@ -2978,6 +3022,7 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 			"event_state": eventState,
 			"escrow":      run.Escrow,
 			"risk":        s.bot.abyssRunRiskPct(uid, newDepth+1, tier),
+			"map_route":   mapRoute,
 		})
 		return
 	}
@@ -2999,6 +3044,7 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 		writeJSON(w, map[string]any{
 			"ok": true, "live_combat": true, "session_id": combat.id,
 			"depth": newDepth, "state": combat.snapshotFor(uid),
+			"map_route": s.bot.advanceAbyssCartographerRoute(uid, newDepth),
 		})
 		return
 	}
@@ -3009,6 +3055,7 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 		writeJSON(w, map[string]any{"ok": false, "error": "combat"})
 		return
 	}
+	s.bot.advanceAbyssCartographerRoute(uid, newDepth)
 
 	s.finishDescend(w, uid, run, newDepth, run.Escrow, tier, res, modifier, focus)
 }
@@ -3398,6 +3445,7 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 	runFinal := s.bot.loadAbyssRun(uid)
 	out["auto_focus"] = s.selectedAbyssFocus(uid, runFinal)
 	out["run_floors_cleared"] = abyssRunFloorsCleared(runFinal)
+	out["map_route"] = s.bot.abyssCartographerRouteView(uid, runFinal.Depth)
 	out["explorer_support"] = s.bot.abyssRescueSupportView(uid)
 	s.abyssOps.funnel.observeFloor(uid, depth)
 	s.abyssOps.observeFloor(depth, escrowBefore, res, out)
@@ -4447,6 +4495,9 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			return
 		}
 		if s.handleAbyssTraversalRoom(w, uid, run, req.Action) {
+			return
+		}
+		if s.handleAbyssCartographerRoom(w, r.Context(), uid, run, req.Action) {
 			return
 		}
 		if s.handleAbyssSpecialRoom(w, uid, run, req.Action) {

@@ -129,6 +129,44 @@ test('Triune Sigil Hunt binds a ten-floor quest and renders its chest completion
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
+test('Lost Cartographer sells and advances an authoritative five-floor chart', async ({ page }) => {
+  let acceptedAction = '';
+  const chart = [13, 14, 15, 16, 17].map((depth, index) => ({
+    depth,
+    type: index === 1 ? 'event' : (index === 3 ? 'rest' : 'combat'),
+    label: index === 1 ? 'Investigate a strange presence' : (index === 3 ? 'Rest at a sanctuary' : 'Press onward'),
+    icon: index === 1 ? '❔' : (index === 3 ? '🕊️' : '⚔️'),
+  }));
+  await fulfillAbyssAPI(page, (path, body) => {
+    if (path.endsWith('/noncombat/action')) {
+      acceptedAction = body.action;
+      return {
+        ok: true, resolved: true, msg: 'Route purchased.', gold: 121881,
+        map_route: { active: true, remaining: 5, floors: chart },
+      };
+    }
+    return { ok: false, error: 'unexpected e2e request' };
+  });
+  await page.setViewportSize({ width: 480, height: 900 });
+  await page.goto('/abyss?active=1&room=lost_cartographer');
+  await page.evaluate(() => { window.reduceMotion = true; });
+
+  const room = page.locator('#nonCombatPanel');
+  await expect(room).toContainText('The Lost Cartographer');
+  await room.getByRole('button', { name: /Buy Five-Floor Chart/ }).click();
+  await expect.poll(() => acceptedAction).toBe('cartographer_buy');
+  await expect(page.locator('#cartographerRoute')).toBeVisible();
+  await expect(page.locator('#cartographerRouteFloors li')).toHaveCount(5);
+  await expect(page.locator('#cartographerRouteFloors')).toContainText('F17');
+
+  await page.evaluate(() => window.renderAbyssCartographerRoute({
+    active: true, remaining: 4, floors: window.cartographerRouteState.floors.slice(1),
+  }));
+  await expect(page.locator('#cartographerRouteFloors li')).toHaveCount(4);
+  await expect(page.locator('#cartographerRouteFloors')).not.toContainText('F13');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
 test('desktop Abyss keeps its dark canvas and aligned stage in light system mode', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
@@ -439,8 +477,18 @@ test('planned multi-floor descent presents every combat floor in order', async (
       event_chain: index < 2
         ? { active: true, sigils: index + 1, required: 3, floors_left: 8 - index, next_depth: depth + 1, collected: true }
         : { active: false, sigils: 3, required: 3, chains: 1, collected: true, completed: true, chest_reward: 9000 },
+      map_route: {
+        active: true, remaining: 4 - index,
+        floors: Array.from({ length: 4 - index }, (_, offset) => ({
+          depth: depth + 1 + offset, type: 'combat', label: 'Press onward', icon: '⚔️',
+        })),
+      },
     })),
     event_chain: { active: false, sigils: 3, required: 3, chains: 1, collected: true, completed: true, chest_reward: 9000 },
+    map_route: { active: true, remaining: 2, floors: [
+      { depth: 16, type: 'combat', label: 'Press onward', icon: '⚔️' },
+      { depth: 17, type: 'combat', label: 'Press onward', icon: '⚔️' },
+    ] },
   } : { ok: false, error: 'unexpected e2e request' });
   await page.goto('/abyss?active=1');
   await page.evaluate(() => {
@@ -453,6 +501,8 @@ test('planned multi-floor descent presents every combat floor in order', async (
   await expect(page.locator('#abStatus')).toContainText('survived');
   await expect(page.locator('#eventChainRibbon')).toHaveClass(/is-complete/);
   await expect(page.locator('#eventChainRibbon .ab-sigil-marks .is-found')).toHaveCount(3);
+  await expect(page.locator('#cartographerRouteFloors li')).toHaveCount(2);
+  await expect(page.locator('#cartographerRouteFloors')).toContainText('F17');
 });
 
 test('crowded live combat can target an ordinary enemy', async ({ page }) => {

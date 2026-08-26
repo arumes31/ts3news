@@ -44,8 +44,9 @@ func abyssEventTypeLabel(raw string) string {
 		"cursed_elevator": "Cursed Elevator", "trap_chamber": "Trap Chamber",
 		"unstable_portal": "Unstable Portal", "graveyard": "Delver Graveyard",
 		"echo_floor": "Echo Floor", "bounty_board": "Bounty Board",
-		abyssForgeFloorType: "Silent Anvil",
-		abyssEventChainType: "Triune Sigil Hunt",
+		abyssForgeFloorType:        "Silent Anvil",
+		abyssEventChainType:        "Triune Sigil Hunt",
+		abyssCartographerEventType: "Lost Cartographer",
 	}
 	if label := labels[state.Type]; label != "" {
 		return label
@@ -96,7 +97,7 @@ func (b *Bot) abyssEventIntel(uid string, run abyssRun) abyssEventIntelView {
 		return view
 	}
 	var rawDepth string
-	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_next_event_depth_"+uid).Scan(&rawDepth)
+	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssNextEventDepthKey(uid)).Scan(&rawDepth)
 	view.NextDepth, _ = strconv.Atoi(rawDepth)
 	view.NextIn = view.NextDepth - run.Depth
 	if view.NextIn < 0 {

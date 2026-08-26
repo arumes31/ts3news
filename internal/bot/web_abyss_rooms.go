@@ -128,7 +128,7 @@ func abyssSpecialRoomForRoll(roll float64) string {
 		"challenge_room", "cursed_door", "story_crossroads", "lost_explorer",
 		"locked_vault", "collapsed_passage", "abyssal_garden", "cursed_elevator",
 		"trap_chamber", "unstable_portal", "graveyard", "echo_floor", "bounty_board",
-		abyssForgeFloorType, abyssEventChainType,
+		abyssForgeFloorType, abyssEventChainType, abyssCartographerEventType,
 	}
 	index := int(roll / (0.20 / float64(len(rooms))))
 	if index >= len(rooms) {
@@ -159,6 +159,9 @@ func prepareAbyssEventForDepth(raw string, depth int) string {
 	case "abyssal_garden":
 		nodes := []string{"dust", "shard", "core"}
 		state["node"] = nodes[depth%len(nodes)]
+	case abyssCartographerEventType:
+		state["price"] = abyssCartographerMapCost(depth)
+		state["route_length"] = abyssCartographerRouteLength
 	}
 	if state["type"] != "merchant" {
 		encoded, err := json.Marshal(state)
