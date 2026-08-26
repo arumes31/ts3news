@@ -23,5 +23,5 @@ test('weekly featured drops disclose exact weighting and UTC reset responsively'
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   const css = await page.request.get('/static/abyss_featured_drops.css');
   expect(css.status()).toBe(200);
-  expect(await css.text()).toContain('@media(forced-colors:active)');
+  expect(await css.text()).toMatch(/@media\s*\(forced-colors:\s*active\)/);
 });
