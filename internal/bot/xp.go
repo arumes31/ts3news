@@ -1036,7 +1036,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 
 			if playerStarts {
 				userLogStart := len(logs)
-				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track, liveActions, rand)
+				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track, liveActions, w == 1 && r == 1, rand)
 				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
 				markCombatTimelineExchange(&timeline, "player", len(logs)-userLogStart)
 				if len(b.getAliveMobs(currentMobs)) == 0 {
@@ -1067,7 +1067,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 					break
 				}
 				userLogStart := len(logs)
-				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track, liveActions, rand)
+				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track, liveActions, false, rand)
 				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
 				markCombatTimelineExchange(&timeline, "player", len(logs)-userLogStart)
 				observeLiveResolution()
@@ -1364,8 +1364,17 @@ func canUseHeldManaAbility(holdMana, bossPresent, manuallySelected bool) bool {
 	return !holdMana || bossPresent || manuallySelected
 }
 
-func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone content.Zone, intensify, healPenalty float64, logs *[]string, totalUserDamage, totalMobDamage *int, avgLvl int, diffFactor float64, originalUsers []UserInCombat, loots *[]LootResult, round int, track *abyssFightTrack, liveActions map[string]abyssLiveAction, rand combatRandomSource) {
+func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone content.Zone, intensify, healPenalty float64, logs *[]string, totalUserDamage, totalMobDamage *int, avgLvl int, diffFactor float64, originalUsers []UserInCombat, loots *[]LootResult, round int, track *abyssFightTrack, liveActions map[string]abyssLiveAction, openingPlayerPhase bool, rand combatRandomSource) {
 	previousLiveSkillTarget := ""
+	var openingMobSPD map[*content.Mob]int
+	if openingPlayerPhase {
+		openingMobSPD = make(map[*content.Mob]int, len(*mobs))
+		for _, mob := range *mobs {
+			if mob != nil {
+				openingMobSPD[mob] = abyssEffectiveSpeed(mob.Stats.SPD, mob.SPDMod)
+			}
+		}
+	}
 	for i := range activeUsers {
 		au := &activeUsers[i]
 		u := au.u
@@ -1628,6 +1637,17 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					target = aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
 				}
 			}
+			targetSPD, targetSPDModifier := target.Stats.SPD, target.SPDMod
+			if openingSPD, ok := openingMobSPD[target]; ok {
+				targetSPD, targetSPDModifier = openingSPD, 1
+			}
+			firstStrike := calculateAbyssFirstStrike(
+				abyssCombatant(u) && openingPlayerPhase && h == 0,
+				u.Stats.SPD,
+				u.SPDMod,
+				targetSPD,
+				targetSPDModifier,
+			)
 
 			dmgMult := focusDmg
 			if comboFollowup {
@@ -1920,6 +1940,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 			if dmg < 1 {
 				dmg = 1
+			}
+			if firstStrike.BonusPct > 0 {
+				dmg = applyAbyssFirstStrike(dmg, firstStrike)
+				*logs = append(*logs, abyssFirstStrikeLog(u.Nickname, target.Name, firstStrike))
 			}
 
 			// Abyss crit & fumble (AB-72 fumble recovery, AB-62 focus crit bonus).

@@ -606,7 +606,7 @@ function renderLiveCombat(state,preserveFeed){
   else queue.textContent='Resolving synchronized actions…';
 	if(!preserveFeed){
     var feed=document.getElementById('liveFeed');
-	feed.innerHTML='';(state.recent_logs||[]).forEach(function(line){var category=liveLogCategory(line),entry=document.createElement('div');entry.dataset.category=category;entry.title=category+' event';entry.textContent=line;feed.appendChild(entry);});
+	feed.innerHTML='';(state.recent_logs||[]).forEach(function(line){appendLiveLogLine(feed,line);});
 	setLiveLogFilter(liveLogFilter);
     feed.scrollTop=feed.scrollHeight;
   }
@@ -618,6 +618,12 @@ function dismissFinishedLiveCombat(){
   var combat=document.getElementById('liveCombat');
   if(combat)combat.style.display='none';
   liveCombatState=null;
+}
+function appendLiveLogLine(feed,line){
+	var category=liveLogCategory(line),entry=document.createElement('div');
+	entry.dataset.category=category;entry.title=category+' event';entry.textContent=line;
+	if(/⚡ FIRST STRIKE ·/.test(line))entry.classList.add('ab-live-first-strike');
+	feed.appendChild(entry);
 }
 
 async function finishLiveCombat(state){

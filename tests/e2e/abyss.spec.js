@@ -240,6 +240,29 @@ test('live skill variety meter tracks distinct casts and unlocks its XP bonus', 
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
+test('SPD-scaled first strike is prominent and safely rendered in both combat logs', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 900 });
+  const styles = await page.request.get('/static/abyss_first_strike.css');
+  expect(styles.status()).toBe(200);
+  expect(await styles.text()).toContain('.ab-log-line.ab-log-first-strike');
+  await page.goto('/abyss?active=1');
+
+  await page.evaluate(() => {
+    const log = document.getElementById('abyssLog');
+    window.appendLogLine(log, '⚡ FIRST STRIKE · &lt;img src=x onerror=alert(1)&gt; outruns Rat (SPD 150 vs 100) — opener +10%.', 1);
+    const live = document.getElementById('liveCombat');
+    live.style.display = 'block';
+    window.appendLiveLogLine(document.getElementById('liveFeed'), '⚡ FIRST STRIKE · Runner outruns Rat (SPD 150 vs 100) — opener +10%.');
+  });
+
+  const mainLine = page.locator('#abyssLog .ab-log-first-strike').last();
+  await expect(mainLine).toContainText('SPD 150 vs 100');
+  await expect(mainLine.locator('img')).toHaveCount(0);
+  const liveLine = page.locator('#liveFeed .ab-live-first-strike');
+  await expect(liveLine).toContainText('opener +10%');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
 test('skill priority reorders by drag and keyboard then persists to the server', async ({ page }) => {
   let savedOrder = null;
   await fulfillAbyssAPI(page, (path, body) => {

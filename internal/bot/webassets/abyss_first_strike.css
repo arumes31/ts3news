@@ -1,0 +1,20 @@
+.ab-log-line.ab-log-first-strike,
+.ab-live-feed > .ab-live-first-strike {
+  background: linear-gradient(90deg, rgba(97, 217, 197, .16), transparent 76%);
+  border-left-color: #61d9c5;
+  color: #bff8eb;
+  font-weight: 800;
+  letter-spacing: .025em;
+}
+
+.ab-log-line.ab-log-first-strike::after {
+  color: #61d9c5;
+  content: ' SPD EDGE';
+  font: 600 .58rem/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: .1em;
+  margin-left: .45rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-log-line.ab-log-first-strike { animation: none; }
+}
