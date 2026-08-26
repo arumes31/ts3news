@@ -1523,6 +1523,45 @@ func RandomGearDropForSlotsExcluding(pool GearDropPool, slots []GearSlot, owned 
 	return RandomGearDropForSlotsExcludingWithRandom(pool, slots, owned, gameplayRandom)
 }
 
+// RandomGearDropForSlotsStrictlyExcluding returns false instead of falling back
+// to an excluded catalog ID when every matching item is blocked.
+func RandomGearDropForSlotsStrictlyExcluding(pool GearDropPool, slots []GearSlot, excluded map[string]bool) (Gear, bool) {
+	return RandomGearDropForSlotsStrictlyExcludingWithRandom(pool, slots, excluded, gameplayRandom)
+}
+
+// RandomGearDropForSlotsStrictlyExcludingWithRandom is the reproducible variant
+// of RandomGearDropForSlotsStrictlyExcluding.
+func RandomGearDropForSlotsStrictlyExcludingWithRandom(pool GearDropPool, slots []GearSlot, excluded map[string]bool, source RandomSource) (Gear, bool) {
+	wanted := make(map[GearSlot]bool, len(slots))
+	for _, slot := range slots {
+		wanted[slot] = true
+	}
+	if len(wanted) == 0 {
+		return Gear{}, false
+	}
+	catalog := gearDropCatalog(pool)
+	if pool == GearDropPoolStandard && source.Float64() < 0.05 {
+		catalog = uniqueLegendaries
+	}
+	candidates := matchingGearCandidates(catalog, pool, wanted, excluded, true)
+	if len(candidates) == 0 && pool == GearDropPoolStandard {
+		candidates = matchingGearCandidates(gearDropCatalog(pool), pool, wanted, excluded, true)
+	}
+	if len(candidates) == 0 {
+		return Gear{}, false
+	}
+	gear := candidates[source.IntN(len(candidates))] // #nosec G404 -- gameplay loot roll
+	switch pool {
+	case GearDropPoolStandard:
+		gear.Special = RandomItemEffectWithRandom(source)
+	case GearDropPoolAbyss, GearDropPoolInsanity:
+		if gear.Special == EffectNone {
+			gear.Special = RandomItemEffectWithRandom(source)
+		}
+	}
+	return gear, true
+}
+
 // RandomGearDropForSlotsExcludingWithRandom is the reproducible variant of
 // RandomGearDropForSlotsExcluding.
 func RandomGearDropForSlotsExcludingWithRandom(pool GearDropPool, slots []GearSlot, owned map[string]bool, source RandomSource) (Gear, bool) {

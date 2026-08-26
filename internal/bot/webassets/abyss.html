@@ -27,6 +27,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_featured_drops.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_shop_demand.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_run_loot_sell.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_duplicate_guard.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_wishlist.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_set_pity.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_forge_experience.css"}}">
@@ -477,6 +478,10 @@
   <aside class="abyss-side-panel abyss-side-right">
     <h3>🎒 Run Loot <span class="muted small" id="lootSummary"></span></h3>
     <div class="ab-rar-dots" id="lootRarityDots" title="Escrowed items by rarity"></div>
+    <div class="ab-duplicate-guard" id="lootDuplicateGuard" role="status" aria-live="polite" data-count="{{.RecentGearProtected}}" data-window="20" title="Random gear catalog IDs remain blocked even after banking, selling, dismantling, losing, or moving the item.">
+      <span class="ab-duplicate-guard-icon" aria-hidden="true">🛡</span>
+      <span><b>Recent-drop guard</b><small><strong id="lootDuplicateGuardCount">{{.RecentGearProtected}}</strong> catalog IDs · previous 20 cleared floors</small></span>
+    </div>
     {{template "abyssLootPresentationPin" .}}
     <!-- Loot filters (UX-46): rarity chips + upgrades-only, persisted -->
     <div class="ab-loot-filters" id="lootFilters">

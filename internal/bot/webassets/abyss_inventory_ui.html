@@ -102,11 +102,20 @@ function buildAuthoritativeRunLootRow(item){
 }
 
 var runLootManifestRevision=0;
+function updateRunLootDuplicateGuard(count,windowSize){
+  var guard=document.getElementById('lootDuplicateGuard');if(!guard)return;
+  var safeCount=Math.max(0,Math.floor(Number(count)||0)),safeWindow=Math.max(1,Math.floor(Number(windowSize)||20));
+  guard.dataset.count=String(safeCount);guard.dataset.window=String(safeWindow);
+  var detail=guard.querySelector('small');if(!detail)return;
+  var strong=document.createElement('strong');strong.id='lootDuplicateGuardCount';strong.textContent=fmtNum(safeCount);
+  detail.replaceChildren(strong,document.createTextNode(' catalog IDs · previous '+safeWindow+' cleared floors'));
+}
 async function refreshRunLootManifest(){
   var revision=++runLootManifestRevision;
   try{
     var response=await fetch('/api/abyss/loot/manifest'),data=await response.json();
     if(revision!==runLootManifestRevision||!data.ok)return;
+    updateRunLootDuplicateGuard(data.recent_gear_protected,data.duplicate_floor_window);
     var manifest=document.getElementById('lootManifest');if(!manifest)return;
     manifest.replaceChildren();lastLootDepth=null;
     (data.items||[]).forEach(function(item){

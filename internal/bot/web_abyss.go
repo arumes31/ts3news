@@ -1638,6 +1638,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		log.Printf("abyss season journey read failed: uid=%q err=%v", uid, seasonJourneyErr)
 	}
 	runLoot := s.bot.currentRunLootManifest(uid, equipped, abyssOwnedGearSet(equipped, inventory))
+	recentGearProtected, _ := s.bot.abyssRecentGearProtection(uid)
 	setPityPanel := abyssSetPityPanel(equipped, inventory, runLoot)
 
 	s.render(w, "abyss", map[string]any{
@@ -1716,6 +1717,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"FreeEntryAvailable":  freeEntryAvailable,
 		"FreeID":              freeIdentifyAvailable,
 		"RunLoot":             runLoot,
+		"RecentGearProtected": len(recentGearProtected),
 		"CanLastStand":        run.Active && !abyssHardcoreRun(runFlags) && lastStandAvailable && s.bot.abyssTokens(uid) >= lastStandCost,
 		"Hardcore":            abyssHardcoreRun(runFlags),
 		"ExplorerSupport":     abyssRescueSupportViewFromFlags(runFlags),

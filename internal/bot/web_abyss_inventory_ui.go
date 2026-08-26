@@ -349,9 +349,12 @@ func (s *WebServer) handleAbyssLootManifest(w http.ResponseWriter, r *http.Reque
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 	equipped := s.bot.getEquippedItems(uid)
+	recentGear, _ := s.bot.abyssRecentGearProtection(uid)
 	writeJSON(w, map[string]any{
-		"ok":    true,
-		"items": s.bot.currentRunLootManifest(uid, equipped, abyssOwnedGearIDs(s.bot, uid)),
+		"ok":                     true,
+		"items":                  s.bot.currentRunLootManifest(uid, equipped, abyssOwnedGearIDs(s.bot, uid)),
+		"recent_gear_protected":  len(recentGear),
+		"duplicate_floor_window": abyssRecentGearFloorWindow,
 	})
 }
 

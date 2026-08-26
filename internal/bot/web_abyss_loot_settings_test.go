@@ -156,6 +156,26 @@ func TestMarkAbyssEscrowedGearOwnedUsesStructuredGrant(t *testing.T) {
 	}
 }
 
+func TestAvoidAbyssRecentGearDuplicateUsesStrictReplacement(t *testing.T) {
+	catalog := content.AbyssGearCatalog()
+	if len(catalog) < 2 {
+		t.Fatal("Abyss catalog is too small")
+	}
+	protected := make(map[string]bool, len(catalog)-1)
+	for _, gear := range catalog[1:] {
+		protected[gear.ID] = true
+	}
+	original := catalog[1]
+	replacement, ok := avoidAbyssRecentGearDuplicate(original, content.GearDropPoolAbyss, protected, "")
+	if !ok || replacement.ID != catalog[0].ID || replacement.Rarity != original.Rarity {
+		t.Fatalf("replacement = %#v, %t; want %q at rarity %s", replacement, ok, catalog[0].ID, original.Rarity)
+	}
+	protected[catalog[0].ID] = true
+	if replacement, ok := avoidAbyssRecentGearDuplicate(original, content.GearDropPoolAbyss, protected, ""); ok {
+		t.Fatalf("fully protected pool returned %#v", replacement)
+	}
+}
+
 func TestApplyAbyssSetPityPreservesBoundariesAndRarity(t *testing.T) {
 	t.Parallel()
 	owned := map[string]bool{

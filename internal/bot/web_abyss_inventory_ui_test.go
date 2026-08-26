@@ -281,6 +281,7 @@ func TestAbyssInventoryPresentationContracts(t *testing.T) {
 		"web_abyss_inventory_ui.go",
 		"webassets/abyss.html",
 		"webassets/abyss_inventory_ui.html",
+		"webassets/abyss_duplicate_guard.css",
 		"webassets/abyss_run_loot_sell.css",
 		"webassets/abyss_ui200.css",
 		"../db/migrations/0074_abyss_loot_presentation.up.sql",
@@ -322,6 +323,10 @@ func TestAbyssInventoryPresentationContracts(t *testing.T) {
 		"ab-smart-loot-tag",
 		"data-set-pity",
 		"ab-set-pity-tag",
+		"lootDuplicateGuard",
+		"recent_gear_protected",
+		"duplicate_floor_window",
+		"Recent-drop guard",
 	} {
 		if !strings.Contains(source.String(), required) {
 			t.Errorf("inventory presentation contract missing %q", required)

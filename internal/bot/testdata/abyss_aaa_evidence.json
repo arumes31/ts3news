@@ -1510,5 +1510,25 @@
       "internal/bot/web_abyss_inventory_ui_test.go",
       "tests/e2e/abyss-run-loot-sell.spec.js"
     ]
+  },
+  {
+    "ids": [91],
+    "production": [
+      "internal/bot/abyss_recent_gear.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_inventory_ui.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_inventory_ui.html",
+      "internal/bot/webassets/abyss_duplicate_guard.css",
+      "internal/content/artifacts.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_recent_gear_test.go",
+      "internal/bot/abyss_wishlist_test.go",
+      "internal/bot/web_abyss_loot_settings_test.go",
+      "internal/content/artifacts_test.go",
+      "tests/e2e/abyss-duplicate-guard.spec.js"
+    ]
   }
 ]
