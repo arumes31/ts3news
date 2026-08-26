@@ -129,12 +129,12 @@ function renderLivePixelStage(state){
       var tier=hostile&&String(unit.role||'').toLowerCase()==='boss'?' boss-tier':hostile&&(/^nemesis:|behemoth|gatekeeper|lich|knight|invader/i.test(unit.name||''))?' elite-tier':'';
       button.type='button';button.className='ab-pixel-unit'+(hostile?' hostile':'')+(!hostile&&!unit.is_player?' ally-converted':'')+tier+(hpHidden?' hp-concealed':'')+(!hostile&&unit.shield>0?' shielded':'')+(unit.weakness_ready?' weakness-ready':'')+(hostile?liveEnemyAffinity(unit):'')+(liveSelectedTarget===unit.id?' selected':'')+livePixelCue(unit,newLogs,previous);
 	  button.disabled=unit.hp===0||(!hostile&&!unit.is_player);button.dataset.target=unit.id;button.style.setProperty('--unit-delay',(index*45)+'ms');
-      button.setAttribute('aria-label',(hostile?'Target ':'Inspect ')+unit.name+', '+(hpHidden?'health concealed':livePct(unit.hp,unit.max_hp)+' percent health'+liveShieldAria(unit))+liveWeaknessAria(unit));
+      button.setAttribute('aria-label',(hostile?'Target ':'Inspect ')+unit.name+', '+(hpHidden?'health concealed':livePct(unit.hp,unit.max_hp)+' percent health'+liveShieldAria(unit))+liveWeaknessAria(unit)+liveAffixAria(unit));
       button.setAttribute('aria-pressed',liveSelectedTarget===unit.id?'true':'false');
       var delta=!hpHidden&&previous?unit.hp-previous.hp:0,deltaHTML=delta?'<span class="ab-pixel-float '+(delta>0?'heal':'damage')+'">'+(delta>0?'+':'')+fmtNum(delta)+'</span>':'';
       var shieldDelta=!hostile&&previous?Number(unit.shield||0)-Number(previous.shield||0):0;
       if(!delta&&shieldDelta<0)deltaHTML='<span class="ab-pixel-float shield">🛡 '+fmtNum(shieldDelta)+'</span>';
-      var effects=(unit.effects||[]).slice(0,4).map(function(effect){return '<i title="'+consEsc(effect.name)+'"></i>';}).join('');
+      var effects=(unit.effects||[]).slice(0,4).map(function(effect){return liveEffectChip(effect,true);}).join('');
       var artFamily=art&&art.family?art.family:'skills';
       var cell=art?art.cell:livePlayerCell(unit),spriteClass='ab-actor-sprite'+(art?' ab-catalog-actor':'');
       var spritePosition=art?liveCatalogSpritePosition(cell,artFamily):liveSpritePosition(cell);

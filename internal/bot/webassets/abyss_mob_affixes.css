@@ -1,0 +1,41 @@
+.abyss-command-page .ab-effect.ab-mob-affix {
+  position: relative;
+  border-color: color-mix(in srgb, var(--affix-color, #7ed8d2) 58%, #273142);
+  border-radius: 2px 7px 2px 7px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--affix-color, #7ed8d2) 18%, #111823), #0c1119 70%);
+  color: color-mix(in srgb, var(--affix-color, #7ed8d2) 82%, white);
+  cursor: help;
+  letter-spacing: .025em;
+}
+
+.abyss-command-page .ab-mob-affix.tone-offense { --affix-color: #ff6860; }
+.abyss-command-page .ab-mob-affix.tone-defense { --affix-color: #72a9ff; }
+.abyss-command-page .ab-mob-affix.tone-speed { --affix-color: #f2c45c; }
+.abyss-command-page .ab-mob-affix.tone-damage-over-time { --affix-color: #b67cff; }
+.abyss-command-page .ab-mob-affix.tone-debuff { --affix-color: #9eb16a; }
+.abyss-command-page .ab-mob-affix.tone-control { --affix-color: #79cfd5; }
+.abyss-command-page .ab-mob-affix.tone-sustain { --affix-color: #ef6f9f; }
+
+.abyss-command-page .ab-pixel-effects i.ab-mob-affix {
+  display: grid;
+  width: 15px;
+  height: 15px;
+  place-items: center;
+  border-color: var(--affix-color, #78e2dc);
+  border-radius: 2px 5px 2px 5px;
+  background: color-mix(in srgb, var(--affix-color, #78e2dc) 24%, #101721);
+  box-shadow: 0 0 7px color-mix(in srgb, var(--affix-color, #78e2dc) 55%, transparent);
+  color: #fff;
+  font: normal 9px/1 sans-serif;
+  cursor: help;
+}
+
+@media (max-width: 520px) {
+  .abyss-command-page .ab-effects { gap: 4px; }
+  .abyss-command-page .ab-effect.ab-mob-affix { padding: 3px 5px; font-size: .56rem; }
+}
+
+@media (forced-colors: active) {
+  .abyss-command-page .ab-effect.ab-mob-affix,
+  .abyss-command-page .ab-pixel-effects i.ab-mob-affix { border: 1px solid ButtonText; box-shadow: none; forced-color-adjust: auto; }
+}

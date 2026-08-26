@@ -14,7 +14,7 @@ import (
 const (
 	abyssLiveRoundTime                  = 4 * time.Second
 	abyssLiveHybridTime                 = 9 * time.Second
-	abyssLiveSnapshotSchemaVersion      = 1
+	abyssLiveSnapshotSchemaVersion      = 2
 	abyssLiveMaxIdempotencyKeyLength    = 128
 	abyssLiveMaxIdempotencyKeysPerRound = 64
 	abyssLiveInitialTimeBank            = 6 * time.Second
@@ -61,6 +61,11 @@ type abyssLiveOption struct {
 
 type abyssLiveEffect struct {
 	Name            string `json:"name"`
+	Key             string `json:"key,omitempty"`
+	Icon            string `json:"icon,omitempty"`
+	Description     string `json:"description,omitempty"`
+	Tone            string `json:"tone,omitempty"`
+	Affix           bool   `json:"affix,omitempty"`
 	RemainingRounds int    `json:"remaining_rounds,omitempty"`
 	Duration        string `json:"duration,omitempty"`
 }
@@ -357,6 +362,13 @@ func (c *abyssLiveCombat) publishRound(
 	}
 
 	allies := make([]abyssLiveCombatantView, 0, len(users)+1)
+	effectiveFloorModifier := ""
+	for i := range users {
+		if users[i].u != nil {
+			effectiveFloorModifier = users[i].u.FloorModifier
+			break
+		}
+	}
 	critical := false
 	for i := range users {
 		au := &users[i]
@@ -441,7 +453,7 @@ func (c *abyssLiveCombat) publishRound(
 			Hazard:        abyssEnemyHazard(mob),
 			Revenge:       abyssIsRevengeTarget(c.revengeFamily, mob),
 			WeaknessReady: mob.WeaknessWindow,
-			Effects:       liveMobEffects(mob),
+			Effects:       liveMobEffectsForModifier(mob, effectiveFloorModifier),
 		})
 	}
 

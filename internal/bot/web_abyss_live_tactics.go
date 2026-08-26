@@ -420,6 +420,10 @@ func liveAllyEffects(au *activeUser) []abyssLiveEffect {
 }
 
 func liveMobEffects(mob *content.Mob) []abyssLiveEffect {
+	return liveMobEffectsForModifier(mob, "")
+}
+
+func liveMobEffectsForModifier(mob *content.Mob, modifier string) []abyssLiveEffect {
 	if mob == nil {
 		return nil
 	}
@@ -431,10 +435,11 @@ func liveMobEffects(mob *content.Mob) []abyssLiveEffect {
 			continue
 		}
 		seen[name] = true
-		effects = append(effects, abyssLiveEffect{
-			Name:     name,
-			Duration: abyssLiveEncounterDuration,
-		})
+		effects = append(effects, liveMobAffix(effect))
+	}
+	if hasAbyssFloorModifier(modifier, "vampiric_mobs") && !seen[abyssLiveEffectVampiric] {
+		seen[abyssLiveEffectVampiric] = true
+		effects = append(effects, liveVampiricMobAffix())
 	}
 	if mob.Stats.SPD == 0 && !seen["Stunned"] {
 		effects = append(effects, abyssLiveEffect{Name: "Stunned", RemainingRounds: max(1, mob.StunRounds)})

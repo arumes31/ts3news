@@ -288,6 +288,17 @@ func TestLiveEffectViews(t *testing.T) {
 	if len(mobEffects) != 2 || mobEffects[0].Duration != abyssLiveEncounterDuration || mobEffects[1].RemainingRounds != 1 {
 		t.Fatalf("mob effects = %+v, want deduplicated encounter effect and one-round stun", mobEffects)
 	}
+	if !mobEffects[0].Affix || mobEffects[0].Key != "enraged" || mobEffects[0].Description == "" || mobEffects[0].Icon == "" {
+		t.Fatalf("mob affix metadata = %+v, want authoritative enriched view", mobEffects[0])
+	}
+
+	vampiric := liveMobEffectsForModifier(mob, "storm_floor vampiric_mobs")
+	if len(vampiric) != 3 {
+		t.Fatalf("vampiric effects = %+v, want base affix, Vampiric, and stun", vampiric)
+	}
+	if got := vampiric[1]; got.Key != abyssLiveEffectVampiric || got.Name != "Vampiric" || !got.Affix || got.Description == "" {
+		t.Fatalf("vampiric affix = %+v", got)
+	}
 }
 
 func TestAbyssLiveDefendShowsReactiveGuard(t *testing.T) {

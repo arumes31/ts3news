@@ -816,6 +816,37 @@ test('auto-descend submits safeguards and stops after settled floor playback', a
   expect(css.status()).toBe(200);
 });
 
+test('mob affixes explain mechanics safely in tactical and pixel combat views', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 900 });
+  await page.goto('/abyss?active=1');
+  await page.evaluate(() => {
+    window.reduceMotion = true;
+    document.getElementById('liveCombat').style.display = 'block';
+    document.querySelector('.ab-live-details').open = true;
+    const enemy = {
+      id: 'enemy:0', name: '<img src=x onerror=alert(1)>', hp: 700, max_hp: 1000,
+      role: 'elite', element: 'Fire', weak_to: 'Water', speed: 80,
+      effects: [
+        { name: 'Armored', key: 'armored', icon: '🛡️', description: 'Carries reinforced defenses.', tone: 'defense', affix: true, duration: 'encounter' },
+        { name: 'Fleet-foot', key: 'fleet', icon: '💨', description: 'Carries heightened Speed.', tone: 'speed', affix: true, duration: 'encounter' },
+        { name: 'Vampiric', key: 'vampiric', icon: '🩸', description: '<b>Heals 15%</b>', tone: 'sustain', affix: true, duration: 'encounter' },
+      ],
+    };
+    renderLiveTargets('liveEnemies', [enemy], true);
+    resetLivePixelState('affix-test');
+    renderLivePixelStage({ session_id: 'affix-test', version: 1, recent_logs: [], allies: [], enemies: [enemy] });
+  });
+  await expect(page.locator('#liveEnemies .ab-mob-affix')).toHaveCount(3);
+  await expect(page.locator('#liveEnemies .ab-mob-affix').first()).toContainText('Armored');
+  await expect(page.locator('#livePixelEnemies .ab-mob-affix')).toHaveCount(3);
+  await expect(page.locator('#liveEnemies button')).toHaveAttribute('aria-label', /Affixes: Armored.*Vampiric/);
+  await expect(page.locator('#liveEnemies .ab-mob-affix').last()).toHaveAttribute('title', 'Vampiric — <b>Heals 15%</b>');
+  await expect(page.locator('#liveEnemies img')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  const css = await page.request.get('/static/abyss_mob_affixes.css');
+  expect(css.status()).toBe(200);
+});
+
 test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   let submittedTarget = '';
   await fulfillAbyssAPI(page, (path, body) => {

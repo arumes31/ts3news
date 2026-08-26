@@ -207,6 +207,28 @@ function renderLiveForecast(state){
   });
 }
 
+function liveEffectToneClass(effect){
+  var tone=String(effect&&effect.tone||'');
+  return ['offense','defense','speed','damage-over-time','debuff','control','sustain'].indexOf(tone)>=0?' tone-'+tone:'';
+}
+function liveEffectTip(effect){
+  var name=String(effect&&effect.name||'Effect'),description=String(effect&&effect.description||'');
+  return description?name+' — '+description:name;
+}
+function liveAffixAria(unit){
+  var affixes=(unit&&unit.effects||[]).filter(function(effect){return !!effect.affix;});
+  if(!affixes.length)return '';
+  return '; Affixes: '+affixes.map(liveEffectTip).join('; ');
+}
+function liveEffectChip(effect,pixel){
+  var tip=liveEffectTip(effect),affix=!!effect.affix;
+  if(pixel){
+    return '<i class="'+(affix?'ab-mob-affix'+liveEffectToneClass(effect):'')+'" title="'+consEsc(tip)+'" aria-hidden="true">'+(affix?consEsc(effect.icon||'◆'):'')+'</i>';
+  }
+  var duration=effect.remaining_rounds?effect.remaining_rounds+'R':effect.duration||'';
+  return '<span class="ab-effect'+(affix?' ab-mob-affix'+liveEffectToneClass(effect):'')+'" title="'+consEsc(tip)+'">'+
+    (affix?'<b aria-hidden="true">'+consEsc(effect.icon||'◆')+'</b> ':'')+consEsc(effect.name)+(duration?' · '+consEsc(duration):'')+'</span>';
+}
 function renderLiveTargets(hostID, combatants, hostile){
   var host=document.getElementById(hostID); host.innerHTML='';
   (combatants||[]).forEach(function(unit){
@@ -217,7 +239,7 @@ function renderLiveTargets(hostID, combatants, hostile){
 	button.disabled=unit.hp===0||(!hostile&&!unit.is_player);
     button.setAttribute('data-target',unit.id);
     button.setAttribute('aria-pressed',liveSelectedTarget===unit.id?'true':'false');
-	button.setAttribute('aria-label',(hostile?'Target ':'Inspect ')+unit.name+liveWeaknessAria(unit));
+	button.setAttribute('aria-label',(hostile?'Target ':'Inspect ')+unit.name+liveWeaknessAria(unit)+liveAffixAria(unit));
 	if(hostile&&!hpHidden)button.title='Execute effects activate below 30% HP.';
     var traits=[];
     if(unit.element)traits.push(unit.element);
@@ -229,10 +251,7 @@ function renderLiveTargets(hostID, combatants, hostile){
     if(unit.position)traits.push(unit.position);
     if(unit.speed)traits.push('SPD '+fmtNum(unit.speed));
     if(unit.threat)traits.push('THREAT '+fmtNum(unit.threat));
-    var effects=(unit.effects||[]).map(function(effect){
-      var duration=effect.remaining_rounds?effect.remaining_rounds+'R':effect.duration||'';
-      return '<span class="ab-effect">'+consEsc(effect.name)+(duration?' · '+consEsc(duration):'')+'</span>';
-    }).join('');
+    var effects=(unit.effects||[]).map(function(effect){return liveEffectChip(effect,false);}).join('');
     var breakBar=unit.max_break?'<span class="ab-break" title="'+consEsc(unit.pattern||'Break this enemy to cancel its next action')+'"><b style="width:'+livePct(unit.break,unit.max_break)+'%"></b><i>BREAK '+fmtNum(unit.break)+' / '+fmtNum(unit.max_break)+'</i></span>':'';
     var dotActive=(unit.effects||[]).some(function(effect){return /poison|bleed|burn|damage over time/i.test(effect.name||'');});
     var shieldBar=hostile?'':liveShieldBar(unit,'combatant');
