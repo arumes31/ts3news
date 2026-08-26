@@ -1632,6 +1632,8 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	if seasonJourneyErr != nil {
 		log.Printf("abyss season journey read failed: uid=%q err=%v", uid, seasonJourneyErr)
 	}
+	runLoot := s.bot.currentRunLootManifest(uid, equipped, abyssOwnedGearSet(equipped, inventory))
+	setPityPanel := abyssSetPityPanel(equipped, inventory, runLoot)
 
 	s.render(w, "abyss", map[string]any{
 		"Title":               "The Abyss",
@@ -1699,13 +1701,14 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"CelestialPity":       celestialPity,
 		"FeaturedDrops":       abyssWeeklyFeaturedDrops(time.Now()),
 		"Wishlist":            abyssWishlistViewFor(s.bot.loadAbyssWishlist(uid), ""),
+		"SetPityPanel":        setPityPanel,
 		"TreeUnspent":         treeUnspent,
 		"DropStreak":          dropStreak,
 		"DropStreakBonusPct":  dropStreakBonusPct,
 		"Risk":                risk,
 		"FloorOneRiskByTier":  floorOneRiskByTier,
 		"FreeEntryAvailable":  freeEntryAvailable,
-		"RunLoot":             s.bot.currentRunLootManifest(uid, equipped, abyssOwnedGearSet(equipped, inventory)),
+		"RunLoot":             runLoot,
 		"CanLastStand":        run.Active && !abyssHardcoreRun(runFlags) && lastStandAvailable && s.bot.abyssTokens(uid) >= lastStandCost,
 		"Hardcore":            abyssHardcoreRun(runFlags),
 		"ExplorerSupport":     abyssRescueSupportViewFromFlags(runFlags),

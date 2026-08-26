@@ -71,8 +71,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "680a55722ed4b9a0558c5b84384978e6b4338a07d44decbf4adb0ab0a931d363"},
-		{name: "active_run", active: true, want: "8788308d0bf4e385b6ea84215e43027638d8976e9a85bb9366cc689a25555b9f"},
+		{name: "threshold", want: "7d6f92b4760ea0ac0171f8c9fc2f6fc0613e98b9de49a94afac4d1ae4d137541"},
+		{name: "active_run", active: true, want: "5808f9437e167afe32cff57a18f1cf0e0b38d06ee0f10fb3813a7ee5704fe51c"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -190,8 +190,9 @@ func abyssGoldenFixture(active bool) map[string]any {
 		"Pacts": []any{}, "PactProgram": abyssPactProgramStateFromAt(nil, nil, time.Date(2026, time.August, 25, 0, 0, 0, 0, time.UTC)),
 		"Equipped": []gearView{}, "Inventory": []gearView{},
 		"LegendaryPity": 0, "FeaturedDrops": abyssWeeklyFeaturedDrops(time.Date(2026, time.August, 26, 12, 0, 0, 0, time.UTC)),
-		"Wishlist":   abyssWishlistViewFor(abyssWishlistState{}, ""),
-		"DropStreak": 0, "DropStreakBonusPct": 0, "Risk": 0,
+		"Wishlist":     abyssWishlistViewFor(abyssWishlistState{}, ""),
+		"SetPityPanel": abyssSetPityPanel(nil, nil, nil),
+		"DropStreak":   0, "DropStreakBonusPct": 0, "Risk": 0,
 		"RunLoot": []runLootRow{}, "CanLastStand": false, "Materials": map[string]int{},
 		"MaterialDefs": []any{}, "Recipes": []any{},
 		"CraftQuest": map[string]int{"Done": 0, "Target": 5},

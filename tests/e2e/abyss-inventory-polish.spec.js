@@ -77,3 +77,25 @@ test('pity and drop-streak cards use opaque responsive surfaces', async ({ page,
   expect(transitionSeconds).toBeLessThanOrEqual(0.001);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
+
+test('Shop set safeguard shows identified progress without revealing hidden gear', async ({ page, request }) => {
+  const styles = await request.get('/static/abyss_set_pity.css');
+  expect(styles.status()).toBe(200);
+  expect(await styles.text()).toMatch(/@media\s*\(forced-colors:\s*active\)/);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/abyss');
+  await page.locator('.ab-tab[data-tab-key="shop"]').click();
+
+  const panel = page.locator('#abyssSetPity');
+  await expect(panel).toBeVisible();
+  await expect(panel).toHaveCSS('background-color', 'rgb(11, 18, 32)');
+  await expect(panel).toContainText('25% at 3/4');
+  await expect(panel).toContainText('not a hidden roll counter');
+  await expect(panel.locator('[role="progressbar"]')).toHaveCount(2);
+  await expect(panel.locator('.ab-set-pity-card.is-active')).toContainText('Predator');
+  await expect(panel.locator('.ab-set-pity-card.is-active [role="progressbar"]')).toHaveAttribute('aria-valuenow', '3');
+  await expect(panel.locator('.ab-set-pity-hidden')).toContainText('1 unidentified gear item');
+  await expect(panel).not.toContainText('SECRET_CELESTIAL');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});

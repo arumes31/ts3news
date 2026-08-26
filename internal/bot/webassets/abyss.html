@@ -26,6 +26,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_pity.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_featured_drops.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_wishlist.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_set_pity.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_forge_experience.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_transmog.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_navigation.css"}}">
@@ -670,6 +671,7 @@
   </section>
 
   {{template "abyss-wishlist" .Wishlist}}
+  {{template "abyss-set-pity" .SetPityPanel}}
 
   {{template "abyssBossVendor" .}}
   {{template "abyssBossContracts" .}}

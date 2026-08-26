@@ -121,6 +121,13 @@ func TestAbyssE2EServer(t *testing.T) {
 	})
 	mux.HandleFunc("/abyss", func(w http.ResponseWriter, r *http.Request) {
 		fixture := abyssGoldenFixture(r.URL.Query().Get("active") == "1")
+		fixture["SetPityPanel"] = abyssSetPityPanelView{
+			ChancePct: 25, HiddenItems: 1,
+			Sets: []abyssSetPityProgressView{
+				{ID: "predator", Name: "Predator", Icon: "🐺", Owned: 3, Required: 4, Percent: 75, Remaining: 1, Active: true},
+				{ID: "warden", Name: "Warden", Icon: "🛡️", Owned: 1, Required: 4, Percent: 25, Remaining: 3},
+			},
+		}
 		wishlistMu.Lock()
 		fixture["Wishlist"] = abyssWishlistViewFor(wishlistState, "")
 		wishlistMu.Unlock()
