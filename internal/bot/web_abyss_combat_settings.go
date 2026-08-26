@@ -25,7 +25,7 @@ func (s *WebServer) handleAbyssCombatSettings(w http.ResponseWriter, r *http.Req
 	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
-	command := abyssPetCommandFree
+	var command abyssPetCommand
 	if req.PetCommand == nil {
 		command = s.bot.loadAbyssPetCommand(uid)
 	} else {
