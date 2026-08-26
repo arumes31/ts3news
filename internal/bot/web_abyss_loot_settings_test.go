@@ -66,3 +66,44 @@ func TestAbyssPresetValidationAndNames(t *testing.T) {
 		t.Fatalf("long preset name length = %d", len(got))
 	}
 }
+
+func TestAbyssSmartLootTargetSlotsPrefersEmptyThenWeakest(t *testing.T) {
+	t.Parallel()
+	equipped := map[content.GearSlot]content.Gear{
+		content.SlotHead:  {Slot: content.SlotHead, Rarity: content.RarityCommon, Stats: content.Stats{DEF: 10}},
+		content.SlotChest: {Slot: content.SlotChest, Rarity: content.RarityCommon, Stats: content.Stats{DEF: 30}},
+	}
+
+	targets, reason := abyssSmartLootTargetSlots(equipped, []content.GearSlot{content.SlotHead, content.SlotChest, content.SlotFeet}, "armor")
+	if reason != abyssSmartLootEmpty || len(targets) != 1 || targets[0] != content.SlotFeet {
+		t.Fatalf("empty targets = %v (%q), want Feet", targets, reason)
+	}
+
+	equipped[content.SlotFeet] = content.Gear{Slot: content.SlotFeet, Rarity: content.RarityCommon, Stats: content.Stats{DEF: 10}}
+	targets, reason = abyssSmartLootTargetSlots(equipped, []content.GearSlot{content.SlotHead, content.SlotChest, content.SlotFeet}, "armor")
+	if reason != abyssSmartLootWeakest || len(targets) != 2 || targets[0] != content.SlotHead || targets[1] != content.SlotFeet {
+		t.Fatalf("weakest targets = %v (%q), want Head and Feet", targets, reason)
+	}
+}
+
+func TestAbyssSmartLootTargetSlotsHonorsCategory(t *testing.T) {
+	t.Parallel()
+	targets, reason := abyssSmartLootTargetSlots(nil, []content.GearSlot{content.SlotHead, content.SlotMainHand, content.SlotFinger1}, "jewelry")
+	if reason != abyssSmartLootEmpty || len(targets) != 1 || targets[0] != content.SlotFinger1 {
+		t.Fatalf("category targets = %v (%q), want Finger1", targets, reason)
+	}
+}
+
+func TestApplyAbyssSmartLootRespectsChanceAndRarityOutcome(t *testing.T) {
+	t.Parallel()
+	original := content.Gear{ID: "original", Slot: content.SlotHead, Rarity: content.RarityEternal}
+	unchanged, reason := applyAbyssSmartLoot(original, content.GearDropPoolStarter, nil, nil, "", abyssSmartLootChance)
+	if unchanged.ID != original.ID || reason != "" {
+		t.Fatalf("failed chance gate changed drop: %#v (%q)", unchanged, reason)
+	}
+
+	biased, reason := applyAbyssSmartLoot(original, content.GearDropPoolStarter, nil, nil, "", 0)
+	if reason != abyssSmartLootEmpty || biased.Rarity != content.RarityEternal {
+		t.Fatalf("biased drop = %#v (%q), want empty-slot reason and unchanged Eternal rarity", biased, reason)
+	}
+}

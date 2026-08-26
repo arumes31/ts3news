@@ -567,10 +567,10 @@
     </div>
     <div class="abyss-side-list" id="lootManifest">
       {{range .RunLoot}}
-      <div class="abyss-side-loot {{.BeamClass}} {{if .Foil}}ab-loot-foil{{end}} {{if .Doomed}}ab-loot-doomed{{end}} {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-tip="{{.Title}}&#10;{{.Source}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
+      <div class="abyss-side-loot {{.BeamClass}} {{if .Foil}}ab-loot-foil{{end}} {{if .Doomed}}ab-loot-doomed{{end}} {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}} {{if .SmartLoot}}ab-smart-loot{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-smart-loot="{{.SmartLoot}}" data-smart-loot-reason="{{.SmartLootReason}}" data-tip="{{.Title}}&#10;{{.Source}}{{if .SmartLoot}}&#10;{{.SmartLootLabel}}{{end}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
         <span class="ab-loot-main">{{if .SlotIcon}}<span class="ab-loot-slot" aria-hidden="true">{{.SlotIcon}}</span>{{end}}<span>{{.Label}}</span></span>
-        <span class="ab-loot-tags">{{if .Unidentified}}<b class="ab-loot-question">?</b>{{end}}{{if .AlreadyOwned}}<b class="ab-owned-tag">owned</b>{{end}}{{if .SetID}}<b class="ab-set-tag ab-set-{{.SetID}}">🧩 {{.SetID}} {{.SetCount}}/{{.SetMax}}</b>{{end}}{{if .Corrupted}}<b class="ab-corrupt-tag">🩸 corrupted</b>{{end}}</span>
-        <span class="ab-loot-detail" hidden>{{.Source}}{{if .Slot}} · {{.Slot}}{{end}}{{if gt .CR 0.0}} · CR {{printf "%.0f" .CR}} ({{if ge .CRDelta 0.0}}+{{end}}{{printf "%.0f" .CRDelta}}){{end}}{{if gt .Quality 0}} · {{.Quality}}★ quality{{end}}</span>
+        <span class="ab-loot-tags">{{if .SmartLoot}}<b class="ab-smart-loot-tag">🎯 {{.SmartLootLabel}}</b>{{end}}{{if .Unidentified}}<b class="ab-loot-question">?</b>{{end}}{{if .AlreadyOwned}}<b class="ab-owned-tag">owned</b>{{end}}{{if .SetID}}<b class="ab-set-tag ab-set-{{.SetID}}">🧩 {{.SetID}} {{.SetCount}}/{{.SetMax}}</b>{{end}}{{if .Corrupted}}<b class="ab-corrupt-tag">🩸 corrupted</b>{{end}}</span>
+        <span class="ab-loot-detail" hidden>{{.Source}}{{if .SmartLoot}} · 🎯 {{.SmartLootLabel}}{{end}}{{if .Slot}} · {{.Slot}}{{end}}{{if gt .CR 0.0}} · CR {{printf "%.0f" .CR}} ({{if ge .CRDelta 0.0}}+{{end}}{{printf "%.0f" .CRDelta}}){{end}}{{if gt .Quality 0}} · {{.Quality}}★ quality{{end}}</span>
         {{if .CanEquipBest}}<button type="button" class="ghost xs ab-equip-best {{if .EquipOnBank}}selected{{end}}" onclick="abyssEquipBestLoot({{.EscrowID}},event)">{{if .EquipOnBank}}✓ Equip on bank{{else}}Equip best on bank{{end}}</button>{{end}}
       </div>
       {{else}}
@@ -6261,7 +6261,8 @@ function renderTierRisk(){
   }
 
   decorateEquippedCards();
-  decorateAbyssPetCards();
+  if(typeof decorateAbyssPetCards==='function')decorateAbyssPetCards();
+  else window.addEventListener('load',function(){if(typeof decorateAbyssPetCards==='function')decorateAbyssPetCards();},{once:true});
   updateOptgroupCounts();
 
   // Forge picker change → affordability + all the selection-driven previews.

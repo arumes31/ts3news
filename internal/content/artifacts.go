@@ -451,6 +451,17 @@ var insanityExclusiveGear []Gear
 var legendaryCatalog []Gear
 var allConsumables []Consumable
 
+// GearDropPool identifies a catalog whose normal drop restrictions must remain
+// intact when another system (such as Abyss smart loot) narrows the target slots.
+type GearDropPool uint8
+
+const (
+	GearDropPoolStandard GearDropPool = iota
+	GearDropPoolAbyss
+	GearDropPoolInsanity
+	GearDropPoolStarter
+)
+
 // buildConsumables (re)builds the consumable table. Names are intentionally
 // literal English: the matching logic in hazards.go keys off English substrings
 // (e.g. "antidote", "warmth"), and the content.consumable.* translation keys do
@@ -1464,6 +1475,101 @@ func RandomAbyssGearDropForCategoryExcluding(category string, owned map[string]b
 		return RandomAbyssGearDropExcluding(owned)
 	}
 	return eligible[rand.IntN(len(eligible))] // #nosec G404 -- gameplay loot roll
+}
+
+// GearDropSlots returns the distinct equipment slots available in pool. The
+// returned slice is detached from the content catalogs.
+func GearDropSlots(pool GearDropPool) []GearSlot {
+	seen := make(map[GearSlot]bool)
+	var slots []GearSlot
+	for _, gear := range gearDropCatalog(pool) {
+		if gear.Slot == "" || seen[gear.Slot] {
+			continue
+		}
+		seen[gear.Slot] = true
+		slots = append(slots, gear.Slot)
+	}
+	return slots
+}
+
+// RandomGearDropForSlotsExcluding returns a duplicate-aware item from pool in
+// one of slots. The bool is false only when the pool has no matching catalog
+// item; callers can then retain their original unrestricted roll.
+func RandomGearDropForSlotsExcluding(pool GearDropPool, slots []GearSlot, owned map[string]bool) (Gear, bool) {
+	return RandomGearDropForSlotsExcludingWithRandom(pool, slots, owned, gameplayRandom)
+}
+
+// RandomGearDropForSlotsExcludingWithRandom is the reproducible variant of
+// RandomGearDropForSlotsExcluding.
+func RandomGearDropForSlotsExcludingWithRandom(pool GearDropPool, slots []GearSlot, owned map[string]bool, source RandomSource) (Gear, bool) {
+	wanted := make(map[GearSlot]bool, len(slots))
+	for _, slot := range slots {
+		wanted[slot] = true
+	}
+	if len(wanted) == 0 {
+		return Gear{}, false
+	}
+
+	catalog := gearDropCatalog(pool)
+	if pool == GearDropPoolStandard {
+		// Preserve the ordinary roller's 5% legendary-catalog branch. If that
+		// branch has no requested slot, fall back to the standard catalog.
+		if source.Float64() < 0.05 {
+			catalog = uniqueLegendaries
+		} else {
+			catalog = allGear
+		}
+	}
+	candidates := matchingGearCandidates(catalog, pool, wanted, owned, true)
+	if len(candidates) == 0 && pool == GearDropPoolStandard {
+		candidates = matchingGearCandidates(gearDropCatalog(pool), pool, wanted, owned, true)
+	}
+	if len(candidates) == 0 {
+		candidates = matchingGearCandidates(gearDropCatalog(pool), pool, wanted, owned, false)
+	}
+	if len(candidates) == 0 {
+		return Gear{}, false
+	}
+	g := candidates[source.IntN(len(candidates))] // #nosec G404 -- gameplay loot roll
+	switch pool {
+	case GearDropPoolStandard:
+		g.Special = RandomItemEffectWithRandom(source)
+	case GearDropPoolAbyss, GearDropPoolInsanity:
+		if g.Special == EffectNone {
+			g.Special = RandomItemEffectWithRandom(source)
+		}
+	}
+	return g, true
+}
+
+func gearDropCatalog(pool GearDropPool) []Gear {
+	switch pool {
+	case GearDropPoolAbyss:
+		return abyssExclusiveGear
+	case GearDropPoolInsanity:
+		return insanityExclusiveGear
+	case GearDropPoolStarter:
+		return starterGear
+	default:
+		catalog := make([]Gear, 0, len(uniqueLegendaries)+len(allGear))
+		catalog = append(catalog, uniqueLegendaries...)
+		catalog = append(catalog, allGear...)
+		return catalog
+	}
+}
+
+func matchingGearCandidates(catalog []Gear, pool GearDropPool, wanted map[GearSlot]bool, owned map[string]bool, excludeOwned bool) []Gear {
+	candidates := make([]Gear, 0)
+	for _, gear := range catalog {
+		if pool == GearDropPoolStandard && (IsAbyssGearID(gear.ID) || IsInsanityGearID(gear.ID)) {
+			continue
+		}
+		if !wanted[gear.Slot] || excludeOwned && owned[gear.ID] {
+			continue
+		}
+		candidates = append(candidates, gear)
+	}
+	return candidates
 }
 
 // RandomStarterGear returns a uniformly random low-tier starter gear item.

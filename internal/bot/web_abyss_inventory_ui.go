@@ -18,34 +18,37 @@ var bbTagRe = regexp.MustCompile(`\[[^\]]*\]`)
 // Label is safe HTML produced by bbToHTML, which escapes input before restoring
 // the small BBCode allowlist.
 type runLootRow struct {
-	EscrowID     int64         `json:"id"`
-	Label        template.HTML `json:"label"`
-	Depth        int           `json:"depth"`
-	Title        string        `json:"title"`
-	Source       string        `json:"source"`
-	ItemType     string        `json:"item_type"`
-	GearID       string        `json:"gear_id,omitempty"`
-	Slot         string        `json:"slot,omitempty"`
-	SlotIcon     string        `json:"slot_icon,omitempty"`
-	Rarity       string        `json:"rarity,omitempty"`
-	RarityRank   int           `json:"rarity_rank,omitempty"`
-	Score        int           `json:"score,omitempty"`
-	CR           float64       `json:"cr,omitempty"`
-	CRDelta      float64       `json:"cr_delta,omitempty"`
-	MainStat     int           `json:"main_stat,omitempty"`
-	BeamClass    string        `json:"beam_class,omitempty"`
-	Quality      int           `json:"quality,omitempty"`
-	Foil         bool          `json:"foil,omitempty"`
-	Doomed       bool          `json:"doomed,omitempty"`
-	Unidentified bool          `json:"unidentified,omitempty"`
-	AlreadyOwned bool          `json:"already_owned,omitempty"`
-	SetID        string        `json:"set_id,omitempty"`
-	SetCount     int           `json:"set_count,omitempty"`
-	SetMax       int           `json:"set_max,omitempty"`
-	Corrupted    bool          `json:"corrupted,omitempty"`
-	EmptySlot    bool          `json:"empty_slot,omitempty"`
-	CanEquipBest bool          `json:"can_equip_best,omitempty"`
-	EquipOnBank  bool          `json:"equip_on_bank,omitempty"`
+	EscrowID        int64         `json:"id"`
+	Label           template.HTML `json:"label"`
+	Depth           int           `json:"depth"`
+	Title           string        `json:"title"`
+	Source          string        `json:"source"`
+	ItemType        string        `json:"item_type"`
+	GearID          string        `json:"gear_id,omitempty"`
+	Slot            string        `json:"slot,omitempty"`
+	SlotIcon        string        `json:"slot_icon,omitempty"`
+	Rarity          string        `json:"rarity,omitempty"`
+	RarityRank      int           `json:"rarity_rank,omitempty"`
+	Score           int           `json:"score,omitempty"`
+	CR              float64       `json:"cr,omitempty"`
+	CRDelta         float64       `json:"cr_delta,omitempty"`
+	MainStat        int           `json:"main_stat,omitempty"`
+	BeamClass       string        `json:"beam_class,omitempty"`
+	Quality         int           `json:"quality,omitempty"`
+	Foil            bool          `json:"foil,omitempty"`
+	Doomed          bool          `json:"doomed,omitempty"`
+	Unidentified    bool          `json:"unidentified,omitempty"`
+	AlreadyOwned    bool          `json:"already_owned,omitempty"`
+	SetID           string        `json:"set_id,omitempty"`
+	SetCount        int           `json:"set_count,omitempty"`
+	SetMax          int           `json:"set_max,omitempty"`
+	Corrupted       bool          `json:"corrupted,omitempty"`
+	EmptySlot       bool          `json:"empty_slot,omitempty"`
+	CanEquipBest    bool          `json:"can_equip_best,omitempty"`
+	EquipOnBank     bool          `json:"equip_on_bank,omitempty"`
+	SmartLoot       bool          `json:"smart_loot,omitempty"`
+	SmartLootReason string        `json:"smart_loot_reason,omitempty"`
+	SmartLootLabel  string        `json:"smart_loot_label,omitempty"`
 }
 
 func abyssSetDisplayMax(setID string) int {
@@ -139,6 +142,11 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 		var grant abyssLootGrant
 		if json.Unmarshal(data, &grant) == nil && grant.Gear != nil {
 			gear := *grant.Gear
+			row.SmartLootLabel = abyssSmartLootTag(grant.SmartLootReason)
+			row.SmartLoot = grant.SmartLoot && row.SmartLootLabel != ""
+			if row.SmartLoot {
+				row.SmartLootReason = grant.SmartLootReason
+			}
 			row.Slot = string(gear.Slot)
 			row.SlotIcon = content.SlotIcon(gear.Slot)
 			row.Rarity = gear.Rarity.String()

@@ -111,6 +111,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 
 - [x] **AAA-0076 / 76** — run-loot gear exposes exact combat-rating delta against the equipped slot on focus, hover, and expansion.
 - [x] **AAA-0077 / 77** — account loot rules auto-salvage only Common or Uncommon gear and preserve an authoritative recap.
+- [x] **AAA-0078 / 78** — each server-owned gear roll has a 35% same-catalog smart-loot chance that prioritizes eligible empty slots, then every tied weakest equipped slot; category chase, the original rarity outcome, pity, duplicate protection, Insanity/Starter boundaries, and escrow custody remain intact, while persisted reason codes drive accessible initial and live-refresh manifest badges (`artifacts.go`, `web_abyss_loot.go`, `web_abyss_inventory_ui.go`, `webassets/abyss.html`, `webassets/abyss_inventory_ui.html`, `webassets/abyss_loot_presentation.css`, `tests/e2e/abyss.spec.js`).
 - [x] **AAA-0081 / 81** — persistent owner-scoped item locks prevent sale, salvage, dismantle, listing, fusion, and sacrifice accidents.
 - [x] **AAA-0082 / 82** — Legendary-or-better recalibration rerolls one chosen stat line for a fixed five-token cost.
 - [x] **AAA-0083 / 83** — corrupted gear carries oversized trade-off stats and supports explicit cleanse or embrace forge paths.

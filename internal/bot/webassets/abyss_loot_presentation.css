@@ -83,6 +83,19 @@
   right: .48rem;
   top: .42rem;
 }
+.abyss-command-page .abyss-side-loot.ab-smart-loot {
+  border-left-color: #67e8d4;
+  box-shadow: inset 7px 0 16px rgba(103, 232, 212, .14);
+}
+.ab-smart-loot-tag {
+  background: rgba(17, 94, 89, .36);
+  border: 1px solid rgba(103, 232, 212, .48);
+  color: #9ff5e8;
+  font: 800 .5rem/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: .055em;
+  padding: .18rem .28rem;
+  text-transform: uppercase;
+}
 .abyss-side-loot.ab-loot-released { animation: ab-loot-release .7s ease-out both; }
 .abyss-side-loot.beam-common { border-left-color: rgba(143, 161, 170, .28); }
 .abyss-side-loot.beam-rare { border-left-color: #5bc0ff; box-shadow: inset 5px 0 10px rgba(91, 192, 255, .08); }
@@ -113,5 +126,7 @@
 @media (forced-colors: active) {
   .ab-loot-custody,
   .ab-best-loot-card,
-  .abyss-side-loot.ab-escrowed { border: 1px solid CanvasText; filter: none; }
+  .abyss-side-loot.ab-escrowed,
+  .abyss-command-page .abyss-side-loot.ab-smart-loot,
+  .ab-smart-loot-tag { border: 1px solid CanvasText; filter: none; }
 }

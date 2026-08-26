@@ -1,6 +1,7 @@
 package content
 
 import (
+	"math/rand/v2"
 	"strings"
 	"testing"
 )
@@ -161,5 +162,68 @@ func TestRandomAbyssGearDropForCategoryExcluding(t *testing.T) {
 				t.Fatalf("category %q returned %s in slot %s", category, gear.Name, gear.Slot)
 			}
 		}
+	}
+}
+
+func TestRandomGearDropForSlotsExcludingKeepsPoolAndSlot(t *testing.T) {
+	tests := []struct {
+		name  string
+		pool  GearDropPool
+		valid func(Gear) bool
+	}{
+		{name: "standard", pool: GearDropPoolStandard, valid: func(gear Gear) bool { return !IsAbyssGearID(gear.ID) && !IsInsanityGearID(gear.ID) }},
+		{name: "abyss", pool: GearDropPoolAbyss, valid: func(gear Gear) bool { return IsAbyssGearID(gear.ID) }},
+		{name: "insanity", pool: GearDropPoolInsanity, valid: func(gear Gear) bool { return IsInsanityGearID(gear.ID) }},
+		{name: "starter", pool: GearDropPoolStarter, valid: func(gear Gear) bool {
+			for _, candidate := range starterGear {
+				if candidate.ID == gear.ID {
+					return true
+				}
+			}
+			return false
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			slots := GearDropSlots(test.pool)
+			if len(slots) == 0 {
+				t.Fatal("pool has no eligible slots")
+			}
+			wantSlot := slots[0]
+			gear, ok := RandomGearDropForSlotsExcludingWithRandom(test.pool, []GearSlot{wantSlot}, nil, rand.New(rand.NewPCG(78, 1)))
+			if !ok {
+				t.Fatal("targeted roll failed")
+			}
+			if gear.Slot != wantSlot || !test.valid(gear) {
+				t.Fatalf("targeted roll = %#v, want slot %s in %s pool", gear, wantSlot, test.name)
+			}
+		})
+	}
+}
+
+func TestRandomGearDropForSlotsExcludingPrefersUnownedCandidate(t *testing.T) {
+	slots := GearDropSlots(GearDropPoolAbyss)
+	if len(slots) == 0 {
+		t.Fatal("Abyss pool has no slots")
+	}
+	wantSlot := slots[0]
+	owned := make(map[string]bool)
+	var unownedID string
+	for _, gear := range abyssExclusiveGear {
+		if gear.Slot != wantSlot {
+			continue
+		}
+		if unownedID == "" {
+			unownedID = gear.ID
+			continue
+		}
+		owned[gear.ID] = true
+	}
+	if unownedID == "" {
+		t.Fatal("Abyss pool has no matching candidate")
+	}
+	gear, ok := RandomGearDropForSlotsExcludingWithRandom(GearDropPoolAbyss, []GearSlot{wantSlot}, owned, rand.New(rand.NewPCG(78, 2)))
+	if !ok || owned[gear.ID] {
+		t.Fatalf("targeted roll = %#v, want an unowned candidate", gear)
 	}
 }

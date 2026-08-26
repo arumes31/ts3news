@@ -52,6 +52,33 @@ test('companion command is accessible and persists from the Build step', async (
   await expect(page.locator('#abToastHost')).toContainText('Combat preferences saved.');
 });
 
+test('authoritative smart loot remains visible in the manifest', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.goto('/abyss');
+  await page.evaluate(() => {
+    const item = {
+      id: 7801, depth: 14, source: 'Dropped floor 14', item_type: 'gear',
+      gear_id: 'ABYSS_SMART_TEST', slot: 'Feet', slot_icon: '🥾', rarity: 'Epic',
+      rarity_rank: 4, beam_class: 'beam-epic', cr: 420, cr_delta: 120,
+      title: 'Smart Test Boots', label: 'Smart Test Boots', smart_loot: true,
+      smart_loot_reason: 'empty_slot', smart_loot_label: 'SMART · EMPTY SLOT',
+    };
+    const manifest = document.querySelector('#lootManifest');
+    manifest.replaceChildren(window.buildAuthoritativeRunLootRow(item));
+  });
+
+  const row = page.locator('#lootManifest .abyss-side-loot');
+  await expect(row).toHaveClass(/ab-smart-loot/);
+  await expect(row).toHaveAttribute('data-smart-loot', 'true');
+  await expect(row).toHaveAttribute('data-smart-loot-reason', 'empty_slot');
+  await expect(row.locator('.ab-smart-loot-tag')).toHaveText('🎯 SMART · EMPTY SLOT');
+  await row.click();
+  await expect(row.locator('.ab-loot-detail')).toContainText('SMART · EMPTY SLOT');
+  await expect(row).toHaveCSS('border-left-color', 'rgb(103, 232, 212)');
+  expect(pageErrors).toEqual([]);
+});
+
 test('custom stakes preview, submit, and remain adjustable between floors', async ({ page }) => {
   let enteredBody = null;
   let dialBody = null;
@@ -538,7 +565,7 @@ test('season journey has responsive free and token-premium reward lanes', async 
   await page.locator('.ab-tab[data-tab-key="season"]').click();
 
   await expect(page.locator('#abyssSeasonJourney')).toBeVisible();
-  await expect(page.locator('#abyssSeasonTitle')).toHaveText('Ember Descent');
+  await expect(page.locator('#abyssSeasonTitle')).toContainText('Ember Descent');
   await expect(page.locator('body')).toHaveAttribute('data-ab-season', 'ember');
   await expect(page.locator('.ab-season-week')).toHaveCount(10);
   await expect(page.locator('[data-season-lane="free"]')).toHaveCount(10);

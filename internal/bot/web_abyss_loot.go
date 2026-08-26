@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"math/rand/v2"
 	"strings"
 	"time"
@@ -33,6 +34,12 @@ const abyssLegendaryPityCap = 40
 const (
 	abyssDropStreakBonusPerFloor = 0.02
 	abyssDropStreakBonusCap      = 0.30
+	abyssSmartLootChance         = 0.35
+)
+
+const (
+	abyssSmartLootEmpty   = "empty_slot"
+	abyssSmartLootWeakest = "weakest_slot"
 )
 
 // abyssGearLabel builds the display label for an Abyss gear drop; unidentified
@@ -58,6 +65,91 @@ func abyssGearLabel(g content.Gear) string {
 	return label
 }
 
+func abyssSmartLootLabel(reason string) string {
+	switch reason {
+	case abyssSmartLootEmpty, abyssSmartLootWeakest:
+		return " [color=#67e8d4]🎯[/color]"
+	default:
+		return ""
+	}
+}
+
+func abyssSmartLootTag(reason string) string {
+	switch reason {
+	case abyssSmartLootEmpty:
+		return "SMART · EMPTY SLOT"
+	case abyssSmartLootWeakest:
+		return "SMART · WEAKEST SLOT"
+	default:
+		return ""
+	}
+}
+
+func abyssGearMatchesLootCategory(slot content.GearSlot, category string) bool {
+	switch category {
+	case "weapon":
+		return slot == content.SlotMainHand || slot == content.SlotOffHand || slot == content.SlotRanged
+	case "armor":
+		return slot == content.SlotHead || slot == content.SlotChest || slot == content.SlotLegs || slot == content.SlotFeet || slot == content.SlotHands || slot == content.SlotWaist || slot == content.SlotBack
+	case "jewelry":
+		return slot == content.SlotNeck || slot == content.SlotFinger1 || slot == content.SlotFinger2 || slot == content.SlotTrinket1 || slot == content.SlotTrinket2
+	default:
+		return true
+	}
+}
+
+func abyssSmartLootTargetSlots(equipped map[content.GearSlot]content.Gear, eligible []content.GearSlot, category string) ([]content.GearSlot, string) {
+	seen := make(map[content.GearSlot]bool, len(eligible))
+	empty := make([]content.GearSlot, 0)
+	filtered := make([]content.GearSlot, 0, len(eligible))
+	for _, slot := range eligible {
+		if seen[slot] || !abyssGearMatchesLootCategory(slot, category) {
+			continue
+		}
+		seen[slot] = true
+		filtered = append(filtered, slot)
+		if _, occupied := equipped[slot]; !occupied {
+			empty = append(empty, slot)
+		}
+	}
+	if len(empty) > 0 {
+		return empty, abyssSmartLootEmpty
+	}
+	if len(filtered) == 0 {
+		return nil, ""
+	}
+
+	weakestRating := math.Inf(1)
+	weakest := make([]content.GearSlot, 0, len(filtered))
+	for _, slot := range filtered {
+		rating := equipped[slot].CombatRating()
+		switch {
+		case rating < weakestRating-0.0001:
+			weakestRating = rating
+			weakest = []content.GearSlot{slot}
+		case math.Abs(rating-weakestRating) <= 0.0001:
+			weakest = append(weakest, slot)
+		}
+	}
+	return weakest, abyssSmartLootWeakest
+}
+
+func applyAbyssSmartLoot(g content.Gear, pool content.GearDropPool, equipped map[content.GearSlot]content.Gear, owned map[string]bool, category string, chanceRoll float64) (content.Gear, string) {
+	if chanceRoll >= abyssSmartLootChance {
+		return g, ""
+	}
+	targets, reason := abyssSmartLootTargetSlots(equipped, content.GearDropSlots(pool), category)
+	if len(targets) == 0 {
+		return g, ""
+	}
+	replacement, ok := content.RandomGearDropForSlotsExcluding(pool, targets, owned)
+	if !ok {
+		return g, ""
+	}
+	replacement.Rarity = g.Rarity
+	return replacement, reason
+}
+
 // awardCombatLoot routes a defeated mob's drops either to the normal inline loot
 // path or, for Abyss combatants, into the run's loot escrow. It is the single
 // loot entry point used by the combat engine.
@@ -81,25 +173,27 @@ func (b *Bot) awardCombatLoot(winner *UserInCombat, mob content.Mob, zone conten
 // fields relevant to its Type are populated; the whole struct is stored as JSONB
 // and replayed through the live granters when the run is banked.
 type abyssLootGrant struct {
-	Type      string               `json:"type"` // gear|cons|skill|ultimate|artifact|title|unique|ench|gold
-	Gear      *content.Gear        `json:"gear,omitempty"`
-	ConsID    string               `json:"cons_id,omitempty"`
-	ConsDur   int                  `json:"cons_dur,omitempty"`
-	Skill     *content.Skill       `json:"skill,omitempty"`
-	Ench      *content.Enchantment `json:"ench,omitempty"`
-	ArtName   string               `json:"art_name,omitempty"`
-	ArtMult   float64              `json:"art_mult,omitempty"`
-	ArtDura   int                  `json:"art_dura,omitempty"`
-	UltID     string               `json:"ult_id,omitempty"`
-	TitleName string               `json:"title_name,omitempty"`
-	TitleMult float64              `json:"title_mult,omitempty"`
-	UniqName  string               `json:"uniq_name,omitempty"`
-	UniqRar   content.Rarity       `json:"uniq_rar,omitempty"`
-	UniqPow   float64              `json:"uniq_pow,omitempty"`
-	Gold      int64                `json:"gold,omitempty"`
-	MatID     string               `json:"mat_id,omitempty"` // crafting material (#101/#119)
-	MatN      int                  `json:"mat_n,omitempty"`
-	Tokens    int64                `json:"tokens,omitempty"`
+	Type            string               `json:"type"` // gear|cons|skill|ultimate|artifact|title|unique|ench|gold
+	Gear            *content.Gear        `json:"gear,omitempty"`
+	ConsID          string               `json:"cons_id,omitempty"`
+	ConsDur         int                  `json:"cons_dur,omitempty"`
+	Skill           *content.Skill       `json:"skill,omitempty"`
+	Ench            *content.Enchantment `json:"ench,omitempty"`
+	ArtName         string               `json:"art_name,omitempty"`
+	ArtMult         float64              `json:"art_mult,omitempty"`
+	ArtDura         int                  `json:"art_dura,omitempty"`
+	UltID           string               `json:"ult_id,omitempty"`
+	TitleName       string               `json:"title_name,omitempty"`
+	TitleMult       float64              `json:"title_mult,omitempty"`
+	UniqName        string               `json:"uniq_name,omitempty"`
+	UniqRar         content.Rarity       `json:"uniq_rar,omitempty"`
+	UniqPow         float64              `json:"uniq_pow,omitempty"`
+	Gold            int64                `json:"gold,omitempty"`
+	MatID           string               `json:"mat_id,omitempty"` // crafting material (#101/#119)
+	MatN            int                  `json:"mat_n,omitempty"`
+	Tokens          int64                `json:"tokens,omitempty"`
+	SmartLoot       bool                 `json:"smart_loot,omitempty"`
+	SmartLootReason string               `json:"smart_loot_reason,omitempty"`
 	// GoblinTokens is a treasure-goblin collectible grant (AB-96); 5 banked
 	// tokens unlock the "Goblin King" title.
 	GoblinTokens int `json:"goblin_tokens,omitempty"`
@@ -266,14 +360,19 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	// stat scaling (all stats, MNA included), unidentified chance, sockets and the
 	// eldritch/cursed affix rolls — and returns its display label. Shared by the
 	// forced-legendary pity path and the ordinary gear roll so they stay in sync.
-	processGear := func(g content.Gear) (string, content.Gear) {
+	processGear := func(g content.Gear, pool content.GearDropPool) (string, content.Gear, string) {
+		smartCategory := ""
 		if lootSettings.TargetCategory != "" && mob.Type != content.MobBoss && g.Rarity >= content.RarityRare {
 			rolledRarity := g.Rarity
 			g = content.RandomAbyssGearDropForCategoryExcluding(lootSettings.TargetCategory, ownedGear)
+			pool = content.GearDropPoolAbyss
+			smartCategory = lootSettings.TargetCategory
 			if g.Rarity < rolledRarity {
 				g.Rarity = rolledRarity
 			}
 		}
+		// #nosec G404 -- non-cryptographic loot targeting roll
+		g, smartReason := applyAbyssSmartLoot(g, pool, equipped, ownedGear, smartCategory, rand.Float64())
 		g.Stats = g.Stats.Scaled(zoneDifficulty * scale)
 
 		// 20% chance to drop Unidentified
@@ -360,6 +459,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		g.FoundAt = time.Now().UTC().Format(time.RFC3339)
 
 		label := abyssGearLabel(g)
+		label += abyssSmartLootLabel(smartReason)
 		if !g.Unidentified && g.RegenAmount > 0 {
 			label += fmt.Sprintf(" [color=#63b3ff]♻ +%d HP/%ds[/color]", g.RegenAmount, g.RegenIntervalSec)
 		}
@@ -379,7 +479,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				label += fmt.Sprintf(" [color=#8a93a8]⚒ ~%s ×%d[/color]", abyssMaterialName(mat), n)
 			}
 		}
-		return label, g
+		return label, g, smartReason
 	}
 
 	// Bosses and legendaries always seal a guaranteed consumable.
@@ -436,11 +536,11 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		if legendaryPity >= abyssLegendaryPityCap {
 			pg := content.RandomAbyssGearDropExcluding(ownedGear)
 			pg.Rarity = content.RarityLegendary
-			label, g := processGear(pg)
+			label, g, smartReason := processGear(pg, content.GearDropPoolAbyss)
 			// Escrow it like any other run drop — even an empty slot — so it stays
 			// forfeitable on death. Equipping straight to user_gear here would let the
 			// player keep a guaranteed Legendary for free by dying (escrow bypass).
-			if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
+			if add(label, abyssLootGrant{Type: "gear", Gear: &g, SmartLoot: smartReason != "", SmartLootReason: smartReason}) {
 				pityProc = true
 				legendaryPity = 0
 				if g.Rarity >= content.RarityCelestial {
@@ -547,9 +647,11 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			add(cl, abyssLootGrant{Type: "cons", ConsID: c.ID, ConsDur: c.Duration})
 		case r < cGear:
 			g := content.RandomGearDropExcluding(ownedGear)
+			pool := content.GearDropPoolStandard
 			// #nosec G404 -- non-cryptographic loot roll
 			if rand.Float64() < 0.20 {
 				g = content.RandomAbyssGearDropExcluding(ownedGear)
+				pool = content.GearDropPoolAbyss
 			}
 			// Insanity-tier exclusives: 25% of gear drops in an Insanity run come
 			// from the Insanity-only catalog (huge stats, harsh trade-offs).
@@ -557,6 +659,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			// #nosec G404 -- non-cryptographic loot roll
 			if run.Tier == "insanity" && rand.Float64() < 0.25 {
 				g = content.RandomInsanityGearDropExcluding(ownedGear)
+				pool = content.GearDropPoolInsanity
 				insanityDrop = true
 			}
 			// Lucid variants (AB-81): 10% of Insanity drops lose the negative
@@ -565,7 +668,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			if insanityDrop && rand.Float64() < 0.10 {
 				g = lucidInsanityVariant(g)
 			}
-			label, g := processGear(g)
+			label, g, smartReason := processGear(g, pool)
 			// Escrow every drop (empty slots included) so it stays forfeitable on death.
 			// Only touch pity once the drop is actually escrowed, so a failed save
 			// can't reset (or skip incrementing) the counter.
@@ -583,7 +686,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 					ownedGear[g.ID] = true
 				}
 			default:
-				if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
+				if add(label, abyssLootGrant{Type: "gear", Gear: &g, SmartLoot: smartReason != "", SmartLootReason: smartReason}) {
 					if g.Rarity >= content.RarityLegendary {
 						legendaryPity = 0
 					} else {
@@ -609,14 +712,17 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			// #nosec G404 -- non-cryptographic loot roll
 			if rand.Float64() < 0.7 {
 				g := content.RandomStarterGear()
+				// #nosec G404 -- non-cryptographic loot targeting roll
+				g, smartReason := applyAbyssSmartLoot(g, content.GearDropPoolStarter, equipped, ownedGear, "", rand.Float64())
 				// Sockets / unidentified checks on common starter gear too
 				// #nosec G404 -- non-cryptographic loot roll
 				if rand.Float64() < 0.20 {
 					g.Unidentified = true
 				}
 				label := abyssGearLabel(g)
+				label += abyssSmartLootLabel(smartReason)
 				// Escrow it (empty slots included) so it stays forfeitable on death.
-				if add(label, abyssLootGrant{Type: "gear", Gear: &g}) {
+				if add(label, abyssLootGrant{Type: "gear", Gear: &g, SmartLoot: smartReason != "", SmartLootReason: smartReason}) {
 					legendaryPity++
 					gotGearThisCall = true
 					ownedGear[g.ID] = true // don't re-award this exact item on a later roll

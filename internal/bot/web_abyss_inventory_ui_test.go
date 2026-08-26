@@ -57,7 +57,7 @@ func TestCurrentRunLootManifestUsesStructuredGrantData(t *testing.T) {
 		Rarity: content.RarityEpic, MaxDurability: 70, Stats: content.Stats{STR: 120},
 		Quality: 3, SetID: "predator", Corrupted: true,
 	}
-	grant, err := json.Marshal(abyssLootGrant{Type: "gear", Gear: &gear})
+	grant, err := json.Marshal(abyssLootGrant{Type: "gear", Gear: &gear, SmartLoot: true, SmartLootReason: abyssSmartLootEmpty})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestCurrentRunLootManifestUsesStructuredGrantData(t *testing.T) {
 		WithArgs("player").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "label", "depth", "item_type", "item_data", "equip_on_bank"}).
 			AddRow(17, "<script>alert(1)</script> [s:Finger1]", 23, "gear", grant, true).
-			AddRow(18, "Unidentified Finger1", 23, "gear", mustAbyssLootGrantJSON(t, abyssLootGrant{Type: "gear", Gear: &content.Gear{
+			AddRow(18, "Unidentified Finger1", 23, "gear", mustAbyssLootGrantJSON(t, abyssLootGrant{Type: "gear", SmartLoot: true, SmartLootReason: abyssSmartLootWeakest, Gear: &content.Gear{
 				ID: "SECRET", Slot: content.SlotFinger1, Rarity: content.RarityLegendary,
 				Stats: content.Stats{STR: 9_999}, Quality: 5, SetID: "predator", Unidentified: true,
 			}}), false))
@@ -85,6 +85,9 @@ func TestCurrentRunLootManifestUsesStructuredGrantData(t *testing.T) {
 	if !row.AlreadyOwned || !row.Corrupted || row.SetID != "predator" || row.SetMax != 6 || row.Quality != 3 {
 		t.Fatalf("manifest metadata = %#v", row)
 	}
+	if !row.SmartLoot || row.SmartLootReason != abyssSmartLootEmpty || row.SmartLootLabel != "SMART · EMPTY SLOT" {
+		t.Fatalf("manifest smart-loot metadata = %#v", row)
+	}
 	if !row.CanEquipBest || !row.EquipOnBank || row.CRDelta <= 0 {
 		t.Fatalf("manifest comparison = %#v", row)
 	}
@@ -94,6 +97,9 @@ func TestCurrentRunLootManifestUsesStructuredGrantData(t *testing.T) {
 	hidden := manifest[1]
 	if !hidden.Unidentified || hidden.GearID != "" || hidden.CR != 0 || hidden.Score != 0 || hidden.Quality != 0 || hidden.SetID != "" || hidden.CanEquipBest {
 		t.Fatalf("unidentified gear leaked metadata: %#v", hidden)
+	}
+	if !hidden.SmartLoot || hidden.SmartLootReason != abyssSmartLootWeakest || hidden.SmartLootLabel != "SMART · WEAKEST SLOT" {
+		t.Fatalf("unidentified smart-loot metadata was hidden: %#v", hidden)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
@@ -173,6 +179,8 @@ func TestAbyssInventoryPresentationContracts(t *testing.T) {
 		"ab-neg",
 		"ab-new",
 		"Dropped floor",
+		"data-smart-loot",
+		"ab-smart-loot-tag",
 	} {
 		if !strings.Contains(source.String(), required) {
 			t.Errorf("inventory presentation contract missing %q", required)
