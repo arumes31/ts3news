@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_gear_damage.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_shield.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_pet_commands.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_shadow_simulation.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_weakness_window.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_onboarding.css"}}">
@@ -432,12 +433,29 @@
       <button class="primary ab-enter" id="btnEnter" onclick="abyssEnter()">{{if .FreeEntryAvailable}}Enter — FREE today{{else}}Enter the Abyss{{end}}</button>
       <button class="primary ab-descend" id="btnDescend" onclick="abyssDescend()" style="display:none">⬇️ Descend</button>
       <button class="ghost ab-bank" id="btnBank" onclick="abyssBank()" style="display:none">🏦 Bank &amp; Leave</button>
+      <button class="ghost ab-simulate" id="btnSimulate" onclick="abyssSimulateNextFloor()" style="display:none">◫ Scout 100 fights <span>🜲 2</span></button>
       <button class="ghost" id="btnDoubleBonus" onclick="abyssDoubleBonus()" {{with .PendingDoubleBonus}}{{else}}style="display:none"{{end}}>🪙 Double floor bonus</button>
       <button class="ghost" id="btnBuildRespec" onclick="abyssBuildRespec()" style="display:none">🧬 Respec Mutation</button>
       <button class="primary ab-revive" id="btnRevive" onclick="abyssRevive()" style="display:none">🎲 Revive (double-or-nothing)</button>
       <button class="primary ab-laststand" id="btnLastStand" onclick="abyssLastStand()" style="display:none">🛡️ Last Stand (🜲 <span id="lsCost">{{.LastStandCost}}</span>)</button>
       <button class="ghost ab-concede" id="btnConcede" onclick="abyssConcede()" style="display:none">🏳️ Concede</button>
     </div>
+    <section class="ab-shadow-report" id="abyssShadowReport" hidden tabindex="-1" aria-live="polite" aria-labelledby="abyssShadowTitle">
+      <header>
+        <span class="ab-shadow-kicker">SHADOW PROJECTION · 100 TRIALS</span>
+        <h3 id="abyssShadowTitle">Next combat survival scan</h3>
+        <span class="ab-shadow-depth" id="abyssShadowDepth">F0</span>
+      </header>
+      <div class="ab-shadow-grid">
+        <div class="ab-shadow-primary"><strong id="abyssShadowWinPct">0%</strong><span>observed wins</span></div>
+        <div><strong id="abyssShadowRecord">0 W · 0 L</strong><span>trial record</span></div>
+        <div><strong id="abyssShadowInterval">0–0%</strong><span>95% interval</span></div>
+        <div><strong id="abyssShadowHP">0%</strong><span>median HP after wins</span></div>
+      </div>
+      <div class="ab-shadow-meter" aria-hidden="true"><i id="abyssShadowMeter"></i></div>
+      <p class="ab-shadow-encounter"><span>SNAPSHOT</span> <b id="abyssShadowEncounter">Unknown encounter</b></p>
+      <p class="muted small">Projection only. The real floor keeps independent randomness; no HP, consumables, cooldowns, loot, pity, or run progress changed.</p>
+    </section>
     <button class="ab-floating-descend" id="abyssFloatingDescend" type="button" hidden onclick="focusAbyssDescend()" aria-live="polite">↓ Descending…</button>
     {{template "abyssRunAwarenessBelt" .}}
 
@@ -1699,8 +1717,33 @@ async function abyssPractice(name,tactic){
 	  openModal('<h3>🎯 Sanctuary practice · '+consEsc(result.boss)+'</h3><p>'+consEsc(result.faction)+' · '+consEsc(result.pattern)+'</p><label>Simulation tactic <select onchange="abyssPractice(practiceBossName,this.value)">'+tactics+'</select></label><div class="ab-practice-dps"><b>'+outcome+'</b> · '+fmtNum(result.rounds)+' rounds · estimated DPS <b>'+fmtNum(result.estimated_dps)+'</b><br>You '+fmtNum(result.player_hp)+' / '+fmtNum(result.player_max_hp)+' HP · Boss '+fmtNum(result.boss_hp)+' / '+fmtNum(result.boss_max_hp)+' HP</div><ol class="ab-practice-log">'+lines+'</ol><p class="muted small">Deterministic sandbox only: no health, consumables, cooldowns, loot, achievements, or run state changed.</p><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close drill</button></div>');
 }
 
+async function abyssSimulateNextFloor(){
+  if(busy)return;
+  var approved=await confirmModal('Run 100 isolated fights against one server-prepared next-combat snapshot for 🜲 2? This is a projection, not a guaranteed outcome.',{title:'Scout the next combat',okLabel:'Run 100 fights (🜲 2)'});
+  if(!approved)return;
+  setBusy(true);markBusyBtn('btnSimulate');
+  try{
+    var data=await abPost('/api/abyss/simulate',{});
+    if(!data.ok)throw new Error(data.error||'Shadow fights unavailable.');
+    var sim=data.simulation||{},report=document.getElementById('abyssShadowReport');
+    document.getElementById('abyssShadowDepth').textContent='F'+(Number(sim.depth)||0);
+    document.getElementById('abyssShadowWinPct').textContent=(Number(sim.win_pct)||0)+'%';
+    document.getElementById('abyssShadowRecord').textContent=(Number(sim.wins)||0)+' W · '+(Number(sim.losses)||0)+' L';
+    document.getElementById('abyssShadowInterval').textContent=(Number(sim.confidence_low_pct)||0)+'–'+(Number(sim.confidence_high_pct)||0)+'%';
+    document.getElementById('abyssShadowHP').textContent=(Number(sim.median_win_hp_pct)||0)+'%';
+    document.getElementById('abyssShadowEncounter').textContent=sim.encounter||'Unknown encounter';
+    document.getElementById('abyssShadowMeter').style.width=Math.max(0,Math.min(100,Number(sim.win_pct)||0))+'%';
+    report.hidden=false;setTokens(sim.tokens);report.focus({preventScroll:true});report.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'nearest'});
+    abToast(data.message||'Shadow fights complete.',true);
+  }catch(error){
+    abToast(error.message||'Shadow fights unavailable.',false);
+  }finally{
+    setBusy(false);
+  }
+}
+
 function setBusy(b){
-  busy=b;['btnEnter','btnDescend','btnBank','btnBank25','btnBank50','btnDoubleBonus','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
+  busy=b;['btnEnter','btnDescend','btnBank','btnBank25','btnBank50','btnDoubleBonus','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore','btnSimulate'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
   if(b&&!lastActionBtn&&document.activeElement&&document.activeElement.tagName==='BUTTON')markBusyElement(document.activeElement);
   if(!b){if(lastActionBtnTimer){clearTimeout(lastActionBtnTimer);lastActionBtnTimer=null;}if(lastActionBtn){lastActionBtn.classList.remove('btn-busy');lastActionBtn=null;}abyssDescendInFlight=false;updateFloatingDescend();}
   if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
@@ -1731,6 +1774,7 @@ function renderState(){
   show('buildPicker', !inRun);
   show('btnDescend', inRun && !downed);
   show('btnBank', inRun && !downed);
+  show('btnSimulate', inRun && !downed);
   show('btnDoubleBonus', inRun && !downed && pendingDoubleBonus > 0);
   show('btnBuildRespec', inRun && !downed);
   show('liveRow', inRun && !downed);
@@ -2310,6 +2354,10 @@ function renderDepthRail(){
 function setDepth(d){
   var el=document.getElementById('depthNum');
   var nd=Number(d);
+  if(!isNaN(nd) && nd!==Number(curDepth)){
+    var shadowReport=document.getElementById('abyssShadowReport');
+    if(shadowReport)shadowReport.hidden=true;
+  }
   // UI-16: roll the floor number between floors (instant on reduced-motion / non-numeric).
   if(el && !isNaN(nd) && !reduceMotion && String(curDepth)!==String(d) && curDepth>0){
     animateNumber(el, curDepth, nd, function(v){return v;});

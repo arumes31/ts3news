@@ -72,6 +72,21 @@ type UserInCombat struct {
 	// sets this so drops are not granted mid-run; instead they are rolled into the
 	// run's loot escrow (locked until banked, lost on death). See web_abyss_loot.go.
 	EscrowLoot bool
+	// shadow marks an isolated combat projection. Shadow combat uses cloned
+	// character state and local consumable counts and must never persist rewards,
+	// health, cooldowns, pets, loot, or progression.
+	shadow            bool
+	shadowConsumables []content.Consumable
+	shadowEffects     []content.ItemEffect
+	shadowHoldMana    bool
+	shadowPetCommand  abyssPetCommand
+	shadowPetFocus    string
+	shadowRunFlags    map[string]int64
+	shadowLifesteal   int
+	shadowMultiStrike int
+	shadowMindControl int
+	shadowUpInsight   int
+	shadowBackups     []content.Gear
 	// treeBonus carries the Abyss skill-web bonus into combat. Only buildAbyssUser
 	// populates it; regular channel fights leave it zero so the Abyss tree never
 	// leaks into non-Abyss combat (and treeBonusFor's DB cost stays off that path).
@@ -407,17 +422,17 @@ func (b *Bot) checkUserRevive(u *UserInCombat, logs *[]string) bool {
 	}
 
 	// 1. Check Consumables
-	cons := b.getConsumables(u.UID)
+	cons := b.combatConsumables(u)
 	for _, c := range cons {
 		if c.Type == content.ConsumableRevive {
 			u.CurrentHP = u.Stats.HP / 2
 			*logs = append(*logs, i18n.T("bot.combat.revived_item", u.Nickname, c.ID))
-			_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2", u.UID, c.ID)
+			b.consumeCombatConsumable(u, c.ID, true)
 			return true
 		}
 	}
 	// 2. Check Item Effects (Phoenix)
-	_, _, _, _, effects := b.activeLootMult(u.UID, time.Now())
+	effects := b.combatItemEffects(u)
 	for _, eff := range effects {
 		if eff == content.EffectPhoenix {
 			u.CurrentHP = u.Stats.HP / 2
@@ -426,6 +441,58 @@ func (b *Bot) checkUserRevive(u *UserInCombat, logs *[]string) bool {
 		}
 	}
 	return false
+}
+
+func (b *Bot) combatItemEffects(u *UserInCombat) []content.ItemEffect {
+	if u != nil && u.shadow {
+		return u.shadowEffects
+	}
+	if u == nil {
+		return []content.ItemEffect{}
+	}
+	_, _, _, _, effects := b.activeLootMult(u.UID, time.Now())
+	return effects
+}
+
+func (b *Bot) combatConsumables(u *UserInCombat) []content.Consumable {
+	if u != nil && u.shadow {
+		return u.shadowConsumables
+	}
+	if u == nil {
+		return []content.Consumable{}
+	}
+	return b.getConsumables(u.UID)
+}
+
+func (b *Bot) consumeCombatConsumable(u *UserInCombat, id string, consumeAll bool) {
+	if u == nil {
+		return
+	}
+	if !u.shadow {
+		query := "DELETE FROM user_consumables WHERE ctid IN (SELECT ctid FROM user_consumables WHERE client_uid = $1 AND cons_id = $2 LIMIT 1)"
+		if consumeAll {
+			query = "DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2"
+		}
+		_, _ = b.DB.Exec(
+			query,
+			u.UID,
+			id,
+		)
+		return
+	}
+	for i := 0; i < len(u.shadowConsumables); i++ {
+		if u.shadowConsumables[i].ID != id {
+			continue
+		}
+		u.shadowConsumables = append(
+			u.shadowConsumables[:i],
+			u.shadowConsumables[i+1:]...,
+		)
+		if !consumeAll {
+			return
+		}
+		i--
+	}
 }
 
 func getElementMult(attacker, defender content.Element) float64 {
@@ -644,7 +711,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 	}
 	activeUsers := make([]activeUser, len(users))
 	for i := range users {
-		_, _, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
+		effects := b.combatItemEffects(&users[i])
 		activeUsers[i] = activeUser{
 			u: &users[i], effects: effects, treeBonus: users[i].treeBonus,
 			skillCooldowns: map[string]int{}, petCooldowns: map[int]int{},
@@ -658,10 +725,17 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 		// Abyss-only combat options (AAA-0066 pet command, AB-64 hold mana),
 		// persisted in app_meta so no schema change is needed.
 		if abyssCombatant(&users[i]) {
-			activeUsers[i].holdMana = b.abyssHoldMana(users[i].UID)
-			activeUsers[i].petCommand = b.loadAbyssPetCommand(users[i].UID)
-			activeUsers[i].petFocus = b.abyssPetFocus(users[i].UID)
-			activeUsers[i].relicCharges = int(b.loadRunFlags(users[i].UID)[abyssRunFlagRelicCharges])
+			if users[i].shadow {
+				activeUsers[i].holdMana = users[i].shadowHoldMana
+				activeUsers[i].petCommand = users[i].shadowPetCommand
+				activeUsers[i].petFocus = users[i].shadowPetFocus
+				activeUsers[i].relicCharges = int(users[i].shadowRunFlags[abyssRunFlagRelicCharges])
+			} else {
+				activeUsers[i].holdMana = b.abyssHoldMana(users[i].UID)
+				activeUsers[i].petCommand = b.loadAbyssPetCommand(users[i].UID)
+				activeUsers[i].petFocus = b.abyssPetFocus(users[i].UID)
+				activeUsers[i].relicCharges = int(b.loadRunFlags(users[i].UID)[abyssRunFlagRelicCharges])
+			}
 			if commandLog := abyssPetCommandOpeningLog(&users[i], activeUsers[i].petCommand); commandLog != "" {
 				logs = append(logs, commandLog)
 			}
@@ -1321,7 +1395,7 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 		// Interactive fights let the submitted action/tactic engine decide whether
 		// a potion is worth spending; the legacy engine retains its automatic use.
 		if u.live == nil && u.CurrentHP < u.Stats.HP/2 && healPenalty > 0 {
-			cons := b.getConsumables(u.UID)
+			cons := b.combatConsumables(u)
 			for _, c := range cons {
 				if c.Type == content.ConsumableHealing {
 					healAmt := int(float64(u.Stats.HP) * c.EffectValue)
@@ -1330,8 +1404,7 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 						u.CurrentHP = u.Stats.HP
 					}
 					*logs = append(*logs, i18n.T("bot.combat.consumable_used", u.Nickname, c.Name, healAmt, c.EffectValue*100))
-					// Consume the item
-					_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE ctid IN (SELECT ctid FROM user_consumables WHERE client_uid = $1 AND cons_id = $2 LIMIT 1)", u.UID, c.ID)
+					b.consumeCombatConsumable(u, c.ID, false)
 					break // Only use one potion per round
 				}
 			}
@@ -1564,27 +1637,33 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 		var mindControlLevel int
 		var extraHits = 1
 
-		var tName sql.NullString
-		_ = b.DB.QueryRow("SELECT title FROM users WHERE client_uid=$1", u.UID).Scan(&tName)
-		if tName.Valid {
-			if t, ok := content.GetTitleByName(tName.String); ok {
-				lifesteal = t.Lifesteal
-				multiStrike = t.MultiStrike
-			}
-		}
-
-		// Calculate Mind Control Level
-		rows, _ := b.DB.Query("SELECT gear_id FROM user_gear WHERE client_uid = $1", u.UID)
-		if rows != nil {
-			for rows.Next() {
-				var gid string
-				if err := rows.Scan(&gid); err == nil {
-					if g, ok := content.GetGearByID(gid); ok && g.Special == content.EffectMindControl {
-						mindControlLevel += int(g.Rarity) + 1
-					}
+		if u.shadow {
+			lifesteal = u.shadowLifesteal
+			multiStrike = u.shadowMultiStrike
+			mindControlLevel = u.shadowMindControl
+		} else {
+			var tName sql.NullString
+			_ = b.DB.QueryRow("SELECT title FROM users WHERE client_uid=$1", u.UID).Scan(&tName)
+			if tName.Valid {
+				if t, ok := content.GetTitleByName(tName.String); ok {
+					lifesteal = t.Lifesteal
+					multiStrike = t.MultiStrike
 				}
 			}
-			_ = rows.Close()
+
+			// Calculate Mind Control Level.
+			rows, _ := b.DB.Query("SELECT gear_id FROM user_gear WHERE client_uid = $1", u.UID)
+			if rows != nil {
+				for rows.Next() {
+					var gid string
+					if err := rows.Scan(&gid); err == nil {
+						if g, ok := content.GetGearByID(gid); ok && g.Special == content.EffectMindControl {
+							mindControlLevel += int(g.Rarity) + 1
+						}
+					}
+				}
+				_ = rows.Close()
+			}
 		}
 		for _, s := range u.Skills {
 			if s.Special == content.EffectMindControl {
@@ -1689,7 +1768,12 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 
 			// Spell cost and cast check
-			st := b.loadAbyssStats(u.UID)
+			st := abyssStats{}
+			if u.shadow {
+				st.UpInsight = u.shadowUpInsight
+			} else {
+				st = b.loadAbyssStats(u.UID)
+			}
 			spellCostFor := func(base int) int {
 				if base <= 0 {
 					base = 20
@@ -1858,7 +1942,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			// endpoint is web-layer work (noted in the group-C report).
 			if abyssCombatant(u) && !au.weaponSwapped && (target.Type == content.MobBoss || target.Type == content.MobLegendary) {
 				if mh, ok := u.Equipped[content.SlotMainHand]; ok && getElementMult(mh.Element, target.Element) < 1.0 {
-					if backup, found := b.findBackupWeapon(u.UID, target.Element, mh.ID); found {
+					if backup, found := b.findCombatBackupWeapon(u, target.Element, mh.ID); found {
 						u.Equipped[content.SlotMainHand] = backup
 						au.weaponSwapped = true
 						au.Stunned = true // 1-round penalty: the swap costs the next action
@@ -2106,7 +2190,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					candidate.PetBoss = target.Type == content.MobBoss
 					candidate.PetShiny = rand.Float64() < 0.01 // #nosec G404 -- cosmetic rarity roll
 					abyssMindControlCapture(&candidate)
-					result, err := b.persistAbyssPetCapture(u.UID, &candidate, captureLimit)
+					result := abyssPetCaptureRecruited
+					var err error
+					if !u.shadow {
+						result, err = b.persistAbyssPetCapture(u.UID, &candidate, captureLimit)
+					}
 					switch {
 					case err != nil:
 						au.petCaptureAttempted = true
@@ -2562,6 +2650,16 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 	logs = append(logs, i18n.T("bot.combat.summary_party", colorHeal(totalUserDamage), damageBar(totalUserDamage, totalDamage)))
 	logs = append(logs, i18n.T("bot.combat.summary_mobs", colorDmg(totalMobDamage), damageBar(totalMobDamage, totalDamage)))
 	logs = appendAbyssFightBreakdown(logs, track)
+	allShadow := len(users) > 0
+	for i := range users {
+		allShadow = allShadow && users[i].shadow
+	}
+	if allShadow {
+		if victory {
+			logs = append(logs, i18n.T("bot.combat.victory", len(initialMobs), zone.Name))
+		}
+		return logs, 0, victory
+	}
 
 	// Update pity, quests, consumables AND persistent stats
 	for i := range users {

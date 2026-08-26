@@ -244,6 +244,67 @@ test('next combat signal renders safely and refreshes after a floor', async ({ p
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
+test('shadow scout confirms its token price and renders an isolated 100-fight report', async ({ page }) => {
+  let simulationBody = null;
+  await fulfillAbyssAPI(page, (path, body) => {
+    if (path.endsWith('/simulate')) {
+      simulationBody = body;
+      return {
+        ok: true,
+        message: '100 shadow fights complete: 73% observed wins.',
+        simulation: {
+          depth: 13,
+          encounter: '<img src=x onerror=alert(1)> · Ancient Dragon',
+          trials: 100,
+          wins: 73,
+          losses: 27,
+          win_pct: 73,
+          confidence_low_pct: 64,
+          confidence_high_pct: 81,
+          median_win_hp_pct: 42,
+          cost: 2,
+          tokens: 38,
+        },
+      };
+    }
+    return { ok: false, error: 'unexpected e2e request' };
+  });
+
+  await page.setViewportSize({ width: 480, height: 900 });
+  const styles = await page.request.get('/static/abyss_shadow_simulation.css');
+  expect(styles.status()).toBe(200);
+  expect(await styles.text()).toContain('.ab-shadow-report');
+  await page.goto('/abyss?active=1');
+  await page.evaluate(() => {
+    window.reduceMotion = true;
+    window.lastTokens = 40;
+    const tokenPill = document.createElement('span');
+    tokenPill.id = 'tokenPill';
+    tokenPill.textContent = '🜲 40';
+    document.body.appendChild(tokenPill);
+  });
+
+  await page.locator('#btnSimulate').click();
+  await expect(page.locator('#sharedModalCard')).toContainText('Run 100 fights (🜲 2)');
+  await page.locator('#modalOkBtn').click();
+  await expect.poll(() => simulationBody).toEqual({});
+
+  const report = page.locator('#abyssShadowReport');
+  await expect(report).toBeVisible();
+  await expect(page.locator('#abyssShadowWinPct')).toHaveText('73%');
+  await expect(page.locator('#abyssShadowRecord')).toHaveText('73 W · 27 L');
+  await expect(page.locator('#abyssShadowInterval')).toHaveText('64–81%');
+  await expect(page.locator('#abyssShadowHP')).toHaveText('42%');
+  await expect(page.locator('#abyssShadowEncounter')).toHaveText('<img src=x onerror=alert(1)> · Ancient Dragon');
+  await expect(report.locator('img')).toHaveCount(0);
+  await expect(page.locator('#tokenPill')).toContainText('38');
+  await expect(report).toContainText('no HP, consumables, cooldowns, loot, pity, or run progress changed');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+
+  await page.evaluate(() => window.setDepth(13));
+  await expect(report).toBeHidden();
+});
+
 test('live skill variety meter tracks distinct casts and unlocks its XP bonus', async ({ page }) => {
   await page.setViewportSize({ width: 480, height: 900 });
   const styles = await page.request.get('/static/abyss_skill_variety.css');

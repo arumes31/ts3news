@@ -102,6 +102,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0069 / 69** — persisted 1×, 2×, and 4× combat playback rates support instant, fast, and dramatic viewing preferences.
 - [x] **AAA-0070 / 70** — Skip to Result drains only presentation while retaining authoritative reward, loot, and summary lines.
 - [x] **AAA-0071 / 71** — round-thirty overtime warns before unavoidable bounded fatigue begins damaging both sides.
+- [x] **AAA-0072 / 72** — between combat floors, a confirmed two-token Shadow Scout purchase resolves one server-built next-encounter snapshot through 100 independently seeded, cancellable combat trials and reports observed wins, a Wilson 95% interval, and median surviving HP; cloned combat state, cached modifiers, local consumables, non-persistent captures, guarded atomic debit, escaped output, stale-report clearing, responsive styling, and backend/browser regressions keep the projection advisory and mutation-free (`web_abyss_shadow_simulation.go`, `web_abyss_shadow_simulation_test.go`, `web_abyss.go`, `xp.go`, `xp_abyss_combat.go`, `webassets/abyss.html`, `webassets/abyss_shadow_simulation.css`, `tests/e2e/abyss.spec.js`).
 
 ## Delivered tranche: loot and itemization audit
 

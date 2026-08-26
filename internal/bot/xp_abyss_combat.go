@@ -201,11 +201,16 @@ func (b *Bot) abyssPetFocus(uid string) string {
 // not weak against the boss. The swap itself happens in-memory for the current
 // fight only; persisting it (or a manual trigger endpoint) is web-layer work.
 func (b *Bot) findBackupWeapon(uid string, bossElement content.Element, currentID string) (content.Gear, bool) {
+	return findBackupWeaponFrom(b.loadBackupWeapons(uid), bossElement, currentID)
+}
+
+func (b *Bot) loadBackupWeapons(uid string) []content.Gear {
 	rows, err := b.DB.Query("SELECT gear_id, item_data FROM user_inventory WHERE client_uid=$1", uid)
 	if err != nil {
-		return content.Gear{}, false
+		return nil
 	}
 	defer func() { _ = rows.Close() }()
+	weapons := make([]content.Gear, 0)
 	for rows.Next() {
 		var gearID string
 		var itemData sql.NullString
@@ -213,14 +218,30 @@ func (b *Bot) findBackupWeapon(uid string, bossElement content.Element, currentI
 			continue
 		}
 		g, ok := b.makeGear(gearID, itemData)
-		if !ok || g.Slot != content.SlotMainHand || g.ID == currentID {
-			continue
+		if ok && g.Slot == content.SlotMainHand {
+			weapons = append(weapons, g)
 		}
-		if getElementMult(g.Element, bossElement) >= 1.0 {
-			return g, true
+	}
+	return weapons
+}
+
+func findBackupWeaponFrom(weapons []content.Gear, bossElement content.Element, currentID string) (content.Gear, bool) {
+	for _, gear := range weapons {
+		if gear.ID != currentID && getElementMult(gear.Element, bossElement) >= 1.0 {
+			return gear, true
 		}
 	}
 	return content.Gear{}, false
+}
+
+func (b *Bot) findCombatBackupWeapon(u *UserInCombat, bossElement content.Element, currentID string) (content.Gear, bool) {
+	if u != nil && u.shadow {
+		return findBackupWeaponFrom(u.shadowBackups, bossElement, currentID)
+	}
+	if u == nil {
+		return content.Gear{}, false
+	}
+	return b.findBackupWeapon(u.UID, bossElement, currentID)
 }
 
 // AB-69 Kill-chain: a floor cleared in ≤2 rounds grants +5% speed next floor,

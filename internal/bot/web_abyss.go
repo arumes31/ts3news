@@ -661,7 +661,15 @@ func (b *Bot) spawnEchoMob(uid string, avgLvl int) ([]content.Mob, string, int) 
 // same post-fight processing the bot cycle applies (reward XP with auto-prestige,
 // durability). The engine already persists HP, combat gold and loot drops.
 func (b *Bot) fightAbyssFloor(uid string, depth int, tier abyssTier, modifier string, focus string) (abyssFloorResult, error) {
-	return b.fightAbyssFloorLive(uid, depth, tier, modifier, focus, nil)
+	execution, err := b.fightAbyssFloorMode(
+		uid,
+		depth,
+		tier,
+		modifier,
+		focus,
+		abyssFightMode{},
+	)
+	return execution.floor, err
 }
 
 func (b *Bot) fightAbyssFloorLive(
@@ -672,17 +680,45 @@ func (b *Bot) fightAbyssFloorLive(
 	focus string,
 	live *abyssLiveCombat,
 ) (abyssFloorResult, error) {
+	execution, err := b.fightAbyssFloorMode(
+		uid,
+		depth,
+		tier,
+		modifier,
+		focus,
+		abyssFightMode{live: live},
+	)
+	return execution.floor, err
+}
+
+func (b *Bot) fightAbyssFloorMode(
+	uid string,
+	depth int,
+	tier abyssTier,
+	modifier string,
+	focus string,
+	mode abyssFightMode,
+) (abyssFightExecution, error) {
 	encounterRandom := combatRandomSource(defaultCombatRandomSource{})
-	if live != nil {
-		encounterRandom = live
+	if mode.encounterSeed != [2]uint64{} {
+		encounterRandom = rand.New(rand.NewPCG(
+			mode.encounterSeed[0],
+			mode.encounterSeed[1],
+		))
+	}
+	if mode.live != nil {
+		encounterRandom = mode.live
 	}
 	u, prestige, err := b.buildAbyssUser(uid)
 	if err != nil {
-		return abyssFloorResult{}, err
+		return abyssFightExecution{}, err
+	}
+	if mode.shadowTrials > 0 {
+		b.prepareAbyssShadowUser(&u)
 	}
 	u.LootFocus = focus
 	u.FloorModifier = modifier
-	u.live = live
+	u.live = mode.live
 
 	// Fold the active daily affix into the combat modifier so it actually bites in
 	// the engine (previously the daily mod only touched durability + the UI banner).
@@ -1052,6 +1088,9 @@ func (b *Bot) fightAbyssFloorLive(
 	if coopUID.Valid && coopUID.String != "" {
 		partner, _, err := b.buildAbyssUser(coopUID.String)
 		if err == nil {
+			if mode.shadowTrials > 0 {
+				b.prepareAbyssShadowUser(&partner)
+			}
 			partner.killerExp = b.loadKillerExp(coopUID.String)
 			if partner.Level > u.Level {
 				partner.Stats = mentorScaledStats(partner.Stats, u.Stats)
@@ -1063,7 +1102,7 @@ func (b *Bot) fightAbyssFloorLive(
 			// bloodlust / double_hazards effects with the lead delver.
 			partner.FloorModifier = u.FloorModifier
 			partner.IsClone = true
-			partner.live = live
+			partner.live = mode.live
 			combatUsers = append(combatUsers, partner)
 			logs = append(logs, fmt.Sprintf("[color=#4a6fa5]🔔 Co-op Ally %s has entered the fray to assist you![/color]", partner.Nickname))
 		}
@@ -1077,6 +1116,23 @@ func (b *Bot) fightAbyssFloorLive(
 	}
 	if synergyLog, active := applyAbyssPartyBuildSynergy(combatUsers, flagsByUID); active {
 		logs = append(logs, "[color=#41c97a]"+synergyLog+"[/color]")
+	}
+	if mode.shadowTrials > 0 {
+		simulation, err := b.simulatePreparedAbyssCombat(
+			mode.ctx,
+			combatUsers,
+			mobPtrs,
+			u.Level,
+			diff,
+			zone,
+			mode.shadowTrials,
+			mode.trialSeed,
+		)
+		if err != nil {
+			return abyssFightExecution{}, err
+		}
+		simulation.Depth = depth
+		return abyssFightExecution{simulation: &simulation}, nil
 	}
 
 	hpBefore := u.CurrentHP
@@ -1291,7 +1347,7 @@ func (b *Bot) fightAbyssFloorLive(
 	for _, d := range duraWarnings {
 		res.DuraHTML = append(res.DuraHTML, bbToHTML(d)) // [11-review] surface gear damage
 	}
-	return res, nil
+	return abyssFightExecution{floor: res}, nil
 }
 
 // ---- BBCode → safe HTML --------------------------------------------------
