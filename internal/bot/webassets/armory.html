@@ -71,6 +71,7 @@
     <div class="gear-tags">
       {{if .Element}}<span class="gtag elem">{{.Element}}</span>{{end}}
       {{if gt .XPBonusPct 0}}<span class="gtag xp">+{{.XPBonusPct}}% XP</span>{{end}}
+      {{if .BrokenIn}}<span class="gtag fx" title="Held for at least 30 days">🧡 Broken in · +1% stats</span>{{end}}
       {{if .Effect}}<span class="gtag fx" title="{{.EffectDesc}}"><span class="gi"
           style="--gi:url({{iconURL .EffectIcon}})"></span> {{.Effect}}</span>{{end}}
     </div>

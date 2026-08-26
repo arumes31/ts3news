@@ -79,7 +79,7 @@ func TestAbyssE2EServer(t *testing.T) {
 					ID: "TEST_BLADE", Name: "Cinder Test Blade", Slot: content.SlotMainHand,
 					Element: content.ElementFire, Rune: string(content.ElementFire),
 					Rarity: content.RarityEpic, MaxDurability: 100,
-					Stats: content.Stats{STR: 60, INT: 20},
+					Stats: content.Stats{STR: 60, INT: 20}, FoundAt: "2000-01-01T00:00:00Z",
 				},
 				content.SlotOffHand: {
 					ID: "TEST_FOCUS", Name: "Tideglass Focus", Slot: content.SlotOffHand,

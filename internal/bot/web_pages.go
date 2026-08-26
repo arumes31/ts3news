@@ -70,6 +70,7 @@ type gearView struct {
 	Prismatic      bool // rune already elevated to prismatic
 	Locked         bool // protected from sale, salvage, dismantle, and sacrifice
 	RecentlyLooted bool
+	BrokenIn       bool // held for 30+ days; grants the sentimental +1% stat bonus
 	Damage         abyssGearDamageView
 }
 
@@ -238,6 +239,7 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		Eldritch:       g.Eldritch,
 		HasRune:        g.Rune != "",
 		Prismatic:      g.Prismatic,
+		BrokenIn:       !g.Unidentified && g.BrokenIn(time.Now()),
 	}
 	if g.Unidentified {
 		v.Corrupted = false

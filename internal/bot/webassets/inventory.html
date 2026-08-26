@@ -17,6 +17,7 @@
     <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
     {{if .AppearanceName}}<div class="inv-meta" title="Cosmetic only">◈ Appearance: {{.AppearanceName}}</div>{{end}}
     <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}} · {{.Durability}} dur</div>
+    {{if .BrokenIn}}<div class="inv-meta" title="Held for at least 30 days">🧡 Broken in · +1% positive stats</div>{{end}}
     <div class="inv-actions">
       <button onclick="equip({{.InvID}})">Equip</button>
       <button class="ghost" onclick="sell({{.InvID}})">Vendor</button>

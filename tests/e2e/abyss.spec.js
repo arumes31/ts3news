@@ -462,6 +462,8 @@ test('gear damage channels explain contribution and support keyboard disclosure'
   const styles = await page.request.get('/static/abyss_gear_damage.css');
   expect(styles.status()).toBe(200);
   expect(await styles.text()).toContain('.ab-gear-damage[hidden]');
+  const sentimentalStyles = await page.request.get('/static/abyss_sentimental.css');
+  expect(sentimentalStyles.status()).toBe(200);
   await page.goto('/abyss?active=1&gear=1');
 
   const mainHand = page.locator('.abyss-side-gear[data-slot="MainHand"]');
@@ -471,12 +473,15 @@ test('gear damage channels explain contribution and support keyboard disclosure'
 
   await expect(mainHand).toHaveAttribute('role', 'button');
   await expect(mainHand).toHaveAttribute('aria-expanded', 'false');
+  await expect(mainHand).toHaveAttribute('data-broken-in', 'true');
+  await expect(mainHand.locator('.ab-broken-in-tag')).toHaveAccessibleName('Broken in: plus one percent positive stats');
   await expect(mainPanel).toHaveCount(1);
   await expect(offPanel).toHaveCount(1);
   await expect(mainPanel).toBeHidden();
   await mainHand.hover();
   await expect(page.locator('.ab-hovertip.show')).toContainText('Damage contribution: +60 STR (60%) · +20 INT (25%) · Fire');
   await expect(page.locator('.ab-hovertip.show')).toContainText('press Enter to expand');
+  await expect(page.locator('.ab-hovertip.show')).toContainText('Broken in · +1% positive stats');
 
   await mainHand.focus();
   await mainHand.press('Enter');
