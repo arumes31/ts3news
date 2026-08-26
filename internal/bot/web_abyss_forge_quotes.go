@@ -106,6 +106,7 @@ type abyssForgeQuoteClaims struct {
 	Gear        string          `json:"gear"`
 	Inventory   string          `json:"inventory"`
 	ForgeFloor  bool            `json:"forge_floor,omitempty"`
+	QuotedGold  *int64          `json:"quoted_gold,omitempty"`
 	ExpiresUnix int64           `json:"expires_unix"`
 }
 
@@ -562,7 +563,7 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 	expires := time.Now().Add(abyssForgeQuoteTTL).UTC()
 	claims := abyssForgeQuoteClaims{
 		UID: uid, Operation: operation.ID, InvID: request.InvID, Slot: request.Slot, Parameters: parameters,
-		Gear: fingerprint, Inventory: revision, ForgeFloor: forgeFloorFree, ExpiresUnix: expires.Unix(),
+		Gear: fingerprint, Inventory: revision, ForgeFloor: forgeFloorFree, QuotedGold: &cost.Gold, ExpiresUnix: expires.Unix(),
 	}
 	token, err := s.signForgeClaims(claims)
 	if err != nil {
@@ -748,6 +749,12 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 		quote.CostExplanation = "Plain reforge uses the base rarity-scaled price."
 	case "reforge_lock":
 		quote.CostExplanation = "Locking one stat doubles the 300g base to 600g before rarity, reputation, happy-hour, and mastery modifiers."
+	case "identify", "identify_all":
+		if quote.Cost.Gold == 0 {
+			quote.CostExplanation = "Your first identification of the UTC day is free and is consumed only when the item change commits."
+		} else {
+			quote.CostExplanation = "One identification is free each UTC day; this quote includes any remaining paid identifications."
+		}
 	default:
 		quote.CostExplanation = operation.Cost.Formula
 	}

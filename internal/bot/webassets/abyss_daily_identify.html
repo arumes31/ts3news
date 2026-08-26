@@ -1,0 +1,15 @@
+{{define "abyssDailyIdentifyButton"}}
+<style>.ab-daily-identify{display:flex;flex-direction:column;align-items:flex-start;gap:4px}.ab-daily-identify>button{width:100%}</style>
+<button id="btnForgeIdentify" class="primary xs" type="button" onclick="forgeIdentify()" style="display:none;width:100%;" data-daily-free="{{.FreeID}}">
+  {{if .FreeID}}🔍 Identify Item · Daily free{{else}}🔍 Identify Item{{end}}
+</button>
+{{end}}
+
+{{define "abyssDailyIdentifyAll"}}
+<div class="ab-daily-identify">
+  <button id="btnForgeIdentifyAll" class="ghost xs" type="button" onclick="abyssIdentifyAll(this)" data-daily-free="{{.FreeID}}">
+    🔍 Identify All{{if .FreeID}} · first free{{else}} · 1,000g each{{end}}
+  </button>
+  <span class="muted small">One successful identification is free each UTC day.</span>
+</div>
+{{end}}

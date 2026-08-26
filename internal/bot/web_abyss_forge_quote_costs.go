@@ -76,6 +76,14 @@ func (s *WebServer) resolveAbyssForgeQuoteCost(
 	}
 
 	switch operation {
+	case "identify":
+		available, err := abyssDailyIdentifyAvailable(ctx, s.bot.DB, uid)
+		if err != nil {
+			return cost, minimum, maximum, err
+		}
+		if available {
+			setExact(abyssForgeQuoteCost{Materials: map[string]int{}})
+		}
 	case "temper":
 		if gear != nil {
 			setExact(abyssForgeQuoteCost{Gold: s.forge4GoldCost(uid, int64(400*(gear.Temper+1)), gear.Rarity), Materials: map[string]int{}})
@@ -213,7 +221,15 @@ func (s *WebServer) resolveAbyssForgeQuoteCost(
 		if err != nil {
 			return cost, minimum, maximum, err
 		}
-		setExact(abyssForgeQuoteCost{Gold: int64(abyssIdentifyCost * count), Materials: map[string]int{}})
+		payable := count
+		available, err := abyssDailyIdentifyAvailable(ctx, s.bot.DB, uid)
+		if err != nil {
+			return cost, minimum, maximum, err
+		}
+		if available && payable > 0 {
+			payable--
+		}
+		setExact(abyssForgeQuoteCost{Gold: int64(abyssIdentifyCost * payable), Materials: map[string]int{}})
 	case "forge_queue":
 		if gear != nil {
 			resolvedCost, resolvedMinimum, resolvedMaximum, resolveErr := s.forgeQueueQuoteCost(uid, *gear, parameters)

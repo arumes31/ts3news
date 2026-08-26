@@ -1632,8 +1632,12 @@ func (s *WebServer) handleAbyssIdentifyAll(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing to identify"})
 		return
 	}
-	cost := int64(abyssIdentifyCost * len(items))
-	if !deductGold(w, tx, uid, cost) {
+	normalCost := int64(abyssIdentifyCost * len(items))
+	cost, dailyFree, chargeOK := s.dailyIdentifyCharge(w, r, tx, uid, normalCost, abyssIdentifyCost)
+	if !chargeOK {
+		return
+	}
+	if cost > 0 && !deductGold(w, tx, uid, cost) {
 		return
 	}
 	for _, it := range items {
@@ -1649,7 +1653,11 @@ func (s *WebServer) handleAbyssIdentifyAll(w http.ResponseWriter, r *http.Reques
 	}
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
-	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("🔍 Identified %d item(s) for %dg.", len(items), cost), "gold": gold})
+	msg := fmt.Sprintf("🔍 Identified %d item(s) for %dg.", len(items), cost)
+	if dailyFree {
+		msg = fmt.Sprintf("🔍 Identified %d item(s) for %dg; today's first was free.", len(items), cost)
+	}
+	writeJSON(w, map[string]any{"ok": true, "msg": msg, "gold": gold, "cost": cost, "daily_free": dailyFree})
 }
 
 // ---- Last Stand (#15) ---------------------------------------------------------

@@ -1548,11 +1548,13 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	var forgeRep int
 	var autoRepair bool
 	var freeEntryAvailable bool
+	var freeIdentifyAvailable bool
 	_ = s.bot.DB.QueryRow(
 		`SELECT abyss_active_badge, abyss_drop_streak, legendary_pity, craft_quest_week, craft_quest_done, forge_rep, abyss_auto_repair,
 		        abyss_free_entry_date IS NULL OR abyss_free_entry_date < CURRENT_DATE
 		   FROM users WHERE client_uid=$1`, uid,
 	).Scan(&badgeCode, &dropStreak, &pity, &craftWeek, &craftDone, &forgeRep, &autoRepair, &freeEntryAvailable)
+	freeIdentifyAvailable, _ = abyssDailyIdentifyAvailable(r.Context(), s.bot.DB, uid)
 
 	activeBadge := ""
 	activeBadgeName := ""
@@ -1712,6 +1714,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Risk":                risk,
 		"FloorOneRiskByTier":  floorOneRiskByTier,
 		"FreeEntryAvailable":  freeEntryAvailable,
+		"FreeID":              freeIdentifyAvailable,
 		"RunLoot":             runLoot,
 		"CanLastStand":        run.Active && !abyssHardcoreRun(runFlags) && lastStandAvailable && s.bot.abyssTokens(uid) >= lastStandCost,
 		"Hardcore":            abyssHardcoreRun(runFlags),

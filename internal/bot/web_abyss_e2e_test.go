@@ -121,6 +121,7 @@ func TestAbyssE2EServer(t *testing.T) {
 	})
 	mux.HandleFunc("/abyss", func(w http.ResponseWriter, r *http.Request) {
 		fixture := abyssGoldenFixture(r.URL.Query().Get("active") == "1")
+		fixture["FreeID"] = true
 		fixture["SetPityPanel"] = abyssSetPityPanelView{
 			ChancePct: 25, HiddenItems: 1,
 			Sets: []abyssSetPityProgressView{
@@ -164,6 +165,13 @@ func TestAbyssE2EServer(t *testing.T) {
 				views = append(views, view)
 			}
 			fixture["Equipped"] = views
+			mystery := content.Gear{
+				ID: "TEST_MYSTERY", Name: "Veiled Test Relic", Slot: content.SlotCharm,
+				Rarity: content.RarityEpic, MaxDurability: 60, Unidentified: true,
+			}
+			mysteryView := toGearView(mystery.Slot, mystery)
+			mysteryView.InvID = 98
+			fixture["Inventory"] = []gearView{mysteryView}
 			fixture["ForgeWorkbenchEnabled"] = true
 			fixture["ForgeOperations"] = abyssForgeOperations()
 			fixture["ForgeWorkbench"] = abyssForgeWorkbenchData{

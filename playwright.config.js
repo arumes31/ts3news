@@ -5,7 +5,10 @@ const abyssE2EBaseURL = `http://127.0.0.1:${abyssE2EPort}`;
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
-  timeout: 30_000,
+  // The Abyss fixture renders a deliberately large, asset-rich page. Keep the
+  // journey bounded while allowing slower Windows and shared CI runners to
+  // finish navigation plus their final accessibility/CSS assertions.
+  timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
   reporter: process.env.CI ? [['line'], ['html', { open: 'never' }]] : 'list',
