@@ -92,6 +92,8 @@ func (s *WebServer) startAbyssLiveCombat(
 		queued:        make(map[string]abyssLiveAction, len(participants)),
 		idempotency:   make(map[string]abyssLiveIdempotency),
 		actionCounts:  make(map[string]int),
+		varietySkills: make(map[string]struct{}, abyssSkillVarietyTarget),
+		skillVariety:  newAbyssSkillVarietyView(0),
 		previousDepth: run.Depth,
 		modifier:      modifier,
 		warning:       abyssEncounterWarning(modifier),

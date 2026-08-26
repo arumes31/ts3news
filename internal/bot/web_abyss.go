@@ -596,6 +596,8 @@ func (b *Bot) abyssSpendLoadout(uid, consID string) {
 type abyssFloorResult struct {
 	Victory            bool
 	RewardXP           int
+	SkillVariety       abyssSkillVarietyView
+	VarietyBonusXP     int
 	LogsHTML           []string
 	LootHTML           []string
 	DuraHTML           []string
@@ -1182,6 +1184,8 @@ func (b *Bot) fightAbyssFloorLive(
 	// engine also applies its own level-XP death penalty on a loss. Prestige fires
 	// immediately at the cap like the cycle does.
 	var rewardXP int
+	var skillVariety abyssSkillVarietyView
+	var varietyBonusXP int
 	{
 		// #nosec G404 -- non-cryptographic reward roll
 		rewardXP = 1 + encounterRandom.IntN(20)
@@ -1213,6 +1217,16 @@ func (b *Bot) fightAbyssFloorLive(
 		if conv := treePct["xp_to_gold"]; conv > 0 {
 			convertedXP = int(float64(rewardXP) * conv)
 			rewardXP -= convertedXP
+		}
+		skillVariety = abyssSkillVarietyForCombatants(combatUsers)
+		rewardXP, varietyBonusXP = applyAbyssSkillVarietyXP(rewardXP, skillVariety)
+		if varietyBonusXP > 0 {
+			logs = append(logs, fmt.Sprintf(
+				"[color=#61d9c5]🎨 Skill variety: %d distinct casts · +%d XP (%d%%, rounded up).[/color]",
+				skillVariety.Distinct,
+				varietyBonusXP,
+				skillVariety.BonusPct,
+			))
 		}
 		lr, xpErr := b.awardXP(uid, "", rewardXP)
 		if xpErr == nil && convertedXP > 0 {
@@ -1250,7 +1264,7 @@ func (b *Bot) fightAbyssFloorLive(
 	logs = append(logs, fmt.Sprintf("[hr][color=#8a93a8]📊 %s · %d foe(s) · fight time %d ms · HP %s → %s (%+d)[/color]",
 		outcome, len(mobs), duration.Milliseconds(), FormatGoldPlain(int64(hpBefore)), FormatGoldPlain(int64(curHP)), curHP-hpBefore))
 
-	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, OverkillDamage: overkillDamage, BossToken: bossTokenAwarded, BossContractPayout: bossContractPayout, BossCosmetic: bossCosmetic, SecretBossStage: secretBossResultStage, SecretBossComplete: secretBossComplete, SecretAchievement: secretAchievement}
+	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, SkillVariety: skillVariety, VarietyBonusXP: varietyBonusXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, OverkillDamage: overkillDamage, BossToken: bossTokenAwarded, BossContractPayout: bossContractPayout, BossCosmetic: bossCosmetic, SecretBossStage: secretBossResultStage, SecretBossComplete: secretBossComplete, SecretAchievement: secretAchievement}
 	if isBossFloor && len(mobs) > 0 {
 		res.BossName = mobs[0].Name
 		res.BossExecution = victory
@@ -2304,6 +2318,8 @@ type abyssMultiFloorResult struct {
 	MaxHP          int                         `json:"max_hp"`
 	OverkillDamage int                         `json:"overkill_damage,omitempty"`
 	OverkillGold   int64                       `json:"overkill_gold,omitempty"`
+	SkillVariety   abyssSkillVarietyView       `json:"skill_variety"`
+	VarietyBonusXP int                         `json:"variety_bonus_xp,omitempty"`
 	Logs           []string                    `json:"logs"`
 	Loot           []string                    `json:"loot"`
 	Dura           []string                    `json:"dura"`
@@ -2380,6 +2396,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 	var combinedTimeline []combatTimelineFrame
 	var floorResults []abyssMultiFloorResult
 	var totalRewardXP int
+	var totalVarietyBonusXP int
 	var gearMilestone string
 	var achs []string
 	var loreUnlocked bool
@@ -2397,6 +2414,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 	var mapRoute *abyssCartographerRouteView
 	abort := func(errKey string, tier abyssTier) map[string]any {
 		out := s.descendMultiAbort(uid, errKey, tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP)
+		out["variety_bonus_xp"] = totalVarietyBonusXP
 		if mapRoute != nil {
 			out["map_route"] = mapRoute
 		}
@@ -2538,6 +2556,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				"timeline":           combinedTimeline,
 				"floor_results":      floorResults,
 				"reward_xp":          totalRewardXP,
+				"variety_bonus_xp":   totalVarietyBonusXP,
 				"auto_focus":         s.selectedAbyssFocus(uid, runFinal),
 				"run_floors_cleared": abyssRunFloorsCleared(runFinal),
 				"jackpot":            s.bot.getJackpot("abyss"),
@@ -2583,12 +2602,15 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		combinedLoot = append(combinedLoot, res.LootHTML...)
 		combinedDura = append(combinedDura, res.DuraHTML...)
 		totalRewardXP += res.RewardXP
+		totalVarietyBonusXP += res.VarietyBonusXP
 		floorResults = append(floorResults, abyssMultiFloorResult{
 			Depth:          newDepth,
 			Victory:        res.Victory,
 			HP:             res.CurrentHP,
 			MaxHP:          res.MaxHP,
 			OverkillDamage: res.OverkillDamage,
+			SkillVariety:   res.SkillVariety,
+			VarietyBonusXP: res.VarietyBonusXP,
 			Logs:           append([]string(nil), res.LogsHTML...),
 			Loot:           append([]string(nil), res.LootHTML...),
 			Dura:           append([]string(nil), res.DuraHTML...),
@@ -2670,6 +2692,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				"timeline":            combinedTimeline,
 				"floor_results":       floorResults,
 				"reward_xp":           totalRewardXP,
+				"variety_bonus_xp":    totalVarietyBonusXP,
 				"risk":                s.bot.abyssRunRiskPct(uid, newDepth+1, tier),
 				"survival_chance_pct": s.bot.abyssRunSurvivalChance(uid, newDepth, tier),
 				"downed":              true,
@@ -2723,6 +2746,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		"timeline":              combinedTimeline,
 		"floor_results":         floorResults,
 		"reward_xp":             totalRewardXP,
+		"variety_bonus_xp":      totalVarietyBonusXP,
 		"risk":                  s.bot.abyssRunRiskPct(uid, finalRun.Depth+1, tier),
 		"escrow":                finalRun.Escrow,
 		"gold":                  finalGold,
@@ -3394,6 +3418,7 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		"hp": res.CurrentHP, "max_hp": res.MaxHP,
 		"logs": res.LogsHTML, "loot": res.LootHTML, "dura": res.DuraHTML,
 		"timeline": res.Timeline, "reward_xp": res.RewardXP, "modifier": modifier,
+		"skill_variety": res.SkillVariety, "variety_bonus_xp": res.VarietyBonusXP,
 		"risk": s.bot.abyssRunRiskPct(uid, depth+1, tier),
 	}
 	if res.BossName != "" {
@@ -3611,6 +3636,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 			"loot": res.LootHTML, "dura": res.DuraHTML, "timeline": res.Timeline,
 			"escrow": newEscrow, "doubled": true,
 			"reward_xp": res.RewardXP, "risk": s.bot.abyssRunRiskPct(uid, run.Depth+1, tier),
+			"skill_variety": res.SkillVariety, "variety_bonus_xp": res.VarietyBonusXP,
 		}
 		if res.BossName != "" {
 			out["boss_name"], out["boss_execution"], out["boss_dps"], out["boss_finale"] = res.BossName, res.BossExecution, res.BossDPS, res.BossFinale
@@ -3648,6 +3674,8 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 		"grace_protected": graceProtected,
 		"mystery_reveal":  mysteryReveal,
 		"reward_xp":       res.RewardXP, "risk": s.bot.abyssRunRiskPct(uid, run.Depth+1, tier),
+		"skill_variety":    res.SkillVariety,
+		"variety_bonus_xp": res.VarietyBonusXP,
 	}
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)

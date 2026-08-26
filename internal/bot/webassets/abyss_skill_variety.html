@@ -1,0 +1,17 @@
+{{define "abyssSkillVarietyLive"}}
+<span class="ab-skill-variety" id="liveSkillVariety" role="status" aria-label="Distinct skill variety progress" hidden>
+  <span>VARIETY</span><b id="liveSkillVarietyCount">0/3</b><i aria-hidden="true"></i>
+</span>
+{{end}}
+
+{{define "abyssSkillVarietyJS"}}
+function renderLiveSkillVariety(view){
+  var chip=document.getElementById('liveSkillVariety');if(!chip)return;
+  var target=Math.max(1,Number(view&&view.target)||3),distinct=Math.max(0,Number(view&&view.distinct)||0);
+  chip.hidden=false;
+  chip.classList.toggle('unlocked',!!(view&&view.unlocked));
+  chip.style.setProperty('--variety-progress',Math.min(100,Math.round(distinct*100/target))+'%');
+  document.getElementById('liveSkillVarietyCount').textContent=Math.min(distinct,target)+'/'+target;
+  chip.title=view&&view.unlocked?'Variety bonus unlocked: +'+Number(view.bonus_pct||5)+'% floor XP.':Math.max(0,target-distinct)+' more distinct skill'+(target-distinct===1?'':'s')+' to unlock +'+Number(view&&view.bonus_pct||5)+'% floor XP.';
+}
+{{end}}

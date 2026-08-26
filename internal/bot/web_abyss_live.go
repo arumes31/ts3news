@@ -149,6 +149,7 @@ type abyssLiveSnapshot struct {
 	Recommended   *abyssLiveRecommendation   `json:"recommended,omitempty"`
 	TimeBankMS    int64                      `json:"time_bank_ms,omitempty"`
 	ActionBudget  abyssLiveActionBudget      `json:"action_budget"`
+	SkillVariety  abyssSkillVarietyView      `json:"skill_variety"`
 	EnemyIntents  []abyssLiveEnemyIntent     `json:"enemy_intents,omitempty"`
 	Initiative    []abyssLiveInitiativeEntry `json:"initiative,omitempty"`
 	RecentLogs    []string                   `json:"recent_logs"`
@@ -196,6 +197,8 @@ type abyssLiveCombat struct {
 	history        []abyssLiveEvent
 	enemyPlans     map[int]abyssLiveEnemyPlan
 	actionCounts   map[string]int
+	varietySkills  map[string]struct{}
+	skillVariety   abyssSkillVarietyView
 	bossAdaptation string
 	revengeFamily  string
 	initiative     []abyssLiveInitiativeEntry
@@ -315,6 +318,7 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 			Remaining: actionAttemptsRemaining,
 			Limit:     abyssLiveMaxIdempotencyKeysPerRound,
 		},
+		SkillVariety:  c.skillVariety,
 		EnemyIntents:  enemyIntents,
 		Initiative:    initiative,
 		RecentLogs:    recentLogs,

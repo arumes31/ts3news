@@ -90,6 +90,9 @@ type UserInCombat struct {
 	// UserInCombat or persisted pet: it can assist and appear in the live ally
 	// roster without receiving player actions, loot, HP writes, or pet progression.
 	abyssSupport *abyssRescueSupport
+	// abyssSkillsUsed tracks successful regular casts for the run-scoped variety
+	// reward. The map is bounded by the combatant's equipped skill set.
+	abyssSkillsUsed map[string]struct{}
 }
 
 func abyssKillerDamage(base int, user *UserInCombat, mob *content.Mob) int {
@@ -1698,6 +1701,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				overcharged := abyssCombatant(u) && au.CurrentMana >= au.MaxMana
 				au.CurrentMana -= spellCost
 				if abyssCombatant(u) {
+					recordAbyssSkillVariety(u, s, activeUsers, logs)
 					if mastery := b.recordAbyssSkillUse(u.UID, s.ID); mastery > 0 && mastery%25 == 0 && mastery <= 100 {
 						*logs = append(*logs, fmt.Sprintf("🏅 %s mastery reached %d casts — its future runs gain +5%% power.", s.Name, mastery))
 					}

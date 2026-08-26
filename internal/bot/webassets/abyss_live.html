@@ -9,6 +9,7 @@
     </div>
     <div class="ab-live-clock" id="liveClock" role="timer" aria-live="off">—</div>
     <span class="ab-enrage-chip" id="liveEnrage" hidden></span>
+    {{template "abyssSkillVarietyLive" .}}
     <span class="ab-live-connection" id="liveConnection" data-state="connecting">CONNECTING</span>
     <label class="ab-live-tactic">Tactic
       <select id="liveTactic" onchange="setLiveTactic(this.value)">
@@ -579,6 +580,7 @@ function renderLiveCombat(state,preserveFeed){
 	renderLiveRoundTimeline(state);
   renderLiveUltimateCharge(state);
   renderLiveEnrageWarning(state);
+	renderLiveSkillVariety(state.skill_variety);
 	renderLiveActionBudget(state);
   renderLiveForecast(state);
   renderLiveTargets('liveAllies',state.allies,false);

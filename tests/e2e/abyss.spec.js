@@ -216,6 +216,30 @@ test('next combat signal renders safely and refreshes after a floor', async ({ p
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
+test('live skill variety meter tracks distinct casts and unlocks its XP bonus', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 900 });
+  const styles = await page.request.get('/static/abyss_skill_variety.css');
+  expect(styles.status()).toBe(200);
+  expect(await styles.text()).toContain('.ab-skill-variety');
+  await page.goto('/abyss?active=1');
+
+  await page.evaluate(() => {
+    document.getElementById('liveCombat').style.display = 'block';
+    window.renderLiveSkillVariety({distinct: 2, target: 3, bonus_pct: 5, unlocked: false});
+  });
+  const meter = page.locator('#liveSkillVariety');
+  await expect(meter).toBeVisible();
+  await expect(page.locator('#liveSkillVarietyCount')).toHaveText('2/3');
+  await expect(meter).not.toHaveClass(/unlocked/);
+  await expect(meter).toHaveAttribute('title', /1 more distinct skill/);
+
+  await page.evaluate(() => window.renderLiveSkillVariety({distinct: 3, target: 3, bonus_pct: 5, unlocked: true}));
+  await expect(page.locator('#liveSkillVarietyCount')).toHaveText('3/3');
+  await expect(meter).toHaveClass(/unlocked/);
+  await expect(meter).toHaveAttribute('title', /\+5% floor XP/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
 test('skill priority reorders by drag and keyboard then persists to the server', async ({ page }) => {
   let savedOrder = null;
   await fulfillAbyssAPI(page, (path, body) => {

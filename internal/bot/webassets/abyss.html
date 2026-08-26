@@ -3,6 +3,7 @@
 <link rel="stylesheet" href="/static/abyss_ui200.css?v={{uicssver}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_command.css"}}">
 <link rel="stylesheet" href="/static/abyss_live.css?v={{livecssver}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_skill_variety.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_pixel.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_onboarding.css"}}">
@@ -3659,6 +3660,7 @@ async function processDescendResult(d, hp, max){
     if(d.new_record) recordBurst(d.depth); // UI-141: server-confirmed personal record
     var msg='✅ Floor '+d.depth+' cleared! +'+fmtGold(d.bonus)+' to your cache (now '+fmtGold(d.escrow)+').';
     if(Number(d.overkill_gold)>0)msg+=' 💰 Final overkill: '+fmtNum(d.overkill_damage)+' excess damage → +'+fmtGold(d.overkill_gold)+' cache.';
+    if(Number(d.variety_bonus_xp)>0)msg+=' 🎨 Skill variety: +'+fmtNum(d.variety_bonus_xp)+' XP.';
     if(d.express_skip)msg+=' ⚡ Express floor — no bonus until you pass your record.';
     if(d.daily)msg+=' 🎁 Daily first-descent bonus!';
     if(d.achievement){ msg+=' 🏅 '+d.achievement; achievementBanner(d.achievement); } // UI-140
@@ -3710,6 +3712,7 @@ async function processDescendResult(d, hp, max){
 {{template "abyssCombatFeedbackJS" .}}
 {{template "abyssPixelCombatJS" .}}
 {{template "abyssLiveActionBarJS" .}}
+{{template "abyssSkillVarietyJS" .}}
 {{template "abyssOnboardingJS" .}}
 {{template "abyssEntryPlannerJS" .}}
 {{template "abyssSkillPriorityJS" .}}
