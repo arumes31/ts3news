@@ -29,6 +29,29 @@ test('enter sends the selected run setup', async ({ page }) => {
   expect(enteredBody.position).toBe('backline');
 });
 
+test('companion command is accessible and persists from the Build step', async ({ page }) => {
+  let savedBody = null;
+  await fulfillAbyssAPI(page, (path, body) => {
+    if (path.endsWith('/combat/settings') && Object.keys(body).length === 0) {
+      return { ok: true, hold_mana: false, pet_command: 'free' };
+    }
+    if (path.endsWith('/combat/settings')) {
+      savedBody = body;
+      return { ok: true, hold_mana: body.hold_mana, pet_command: body.pet_command };
+    }
+    return { ok: false, error: 'unexpected e2e request' };
+  });
+
+  await page.goto('/abyss');
+  await page.locator('[data-entry-step="build"]').click();
+  const command = page.locator('#petCommandSetting');
+  await expect(command).toHaveAccessibleDescription('Free-for-All · companions choose independent targets.');
+  await command.selectOption('guard');
+  await expect.poll(() => savedBody).toEqual({ hold_mana: false, pet_command: 'guard' });
+  await expect(page.locator('#petCommandHint')).toContainText('intercepts 15%');
+  await expect(page.locator('#abToastHost')).toContainText('Combat preferences saved.');
+});
+
 test('custom stakes preview, submit, and remain adjustable between floors', async ({ page }) => {
   let enteredBody = null;
   let dialBody = null;

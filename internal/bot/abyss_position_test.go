@@ -21,6 +21,22 @@ func TestNormalizeAbyssCombatPosition(t *testing.T) {
 	}
 }
 
+func TestAbyssCombatTargetIndicesPrioritizesFrontline(t *testing.T) {
+	front := UserInCombat{Nickname: "front", CurrentHP: 10, Position: content.PositionFrontline}
+	back := UserInCombat{Nickname: "back", CurrentHP: 10, Position: content.PositionBackline}
+	deadFront := UserInCombat{Nickname: "dead", Position: content.PositionFrontline}
+
+	got := abyssCombatTargetIndices([]activeUser{{u: &back}, {u: &deadFront}, {u: &front}})
+	if len(got) != 1 || got[0] != 2 {
+		t.Fatalf("frontline targets = %v, want [2]", got)
+	}
+	front.CurrentHP = 0
+	got = abyssCombatTargetIndices([]activeUser{{u: &back}, {u: &front}})
+	if len(got) != 1 || got[0] != 0 {
+		t.Fatalf("fallback targets = %v, want [0]", got)
+	}
+}
+
 func TestApplyAbyssCombatPositionUsesRunChoice(t *testing.T) {
 	t.Parallel()
 

@@ -157,16 +157,29 @@ func (c *abyssLiveCombat) optionsFor(
 			Modifiers: actionModifierLabels("active relic power", relicMultiplier),
 		})
 	}
-	if len(au.u.Pets) > 0 && au.u.Pets[0] != nil {
-		pet := au.u.Pets[0]
+	if pet := abyssLivingPet(au); pet != nil {
 		companionMultiplier := abyssTreeActionMultiplier(au.treeBonus, "companion_skill_power")
-		options = append(options, abyssLiveOption{
-			Kind: "companion", ID: pet.Name, Name: "Command " + pet.Name,
-			Description: "Spend your action to order this companion to focus the selected enemy.",
-			Target:      "enemy", Power: float64(pet.Stats.STR) * companionMultiplier, EffectLabel: "FOCUS",
-			Tags:      []string{"companion", "focus", "combo"},
-			Modifiers: actionModifierLabels("companion command power", companionMultiplier),
-		})
+		options = append(options,
+			abyssLiveOption{
+				Kind: "companion", ID: string(abyssPetCommandFocus), Name: "Focus Target",
+				Description: "Spend your action; companions immediately attack the selected enemy and follow your later direct targets.",
+				Target:      "enemy", Power: float64(pet.Stats.STR) * companionMultiplier, EffectLabel: "FOCUS",
+				Tags:      []string{"companion", "focus", "combo"},
+				Modifiers: actionModifierLabels("companion command power", companionMultiplier),
+			},
+			abyssLiveOption{
+				Kind: "companion", ID: string(abyssPetCommandGuard), Name: "Guard Me",
+				Description: "Spend your action; companions act immediately, intercept 15% of direct-hit damage, and retaliate against your latest attacker.",
+				Target:      "self", EffectLabel: "GUARD", MinEffect: abyssPetGuardPercent, MaxEffect: abyssPetGuardPercent,
+				Tags: []string{"companion", "guard", "defense"},
+			},
+			abyssLiveOption{
+				Kind: "companion", ID: string(abyssPetCommandFree), Name: "Free-for-All",
+				Description: "Spend your action; companions act immediately and independently choose living enemies.",
+				Target:      "self", EffectLabel: "FREE",
+				Tags: []string{"companion", "free", "multi-target"},
+			},
+		)
 	}
 	return options
 }

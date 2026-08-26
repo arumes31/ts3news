@@ -20,6 +20,7 @@ type abyssFightTrack struct {
 	thorns        int // total reflected (thorns) damage dealt to mobs
 	counters      int // total parry counter-attack damage dealt to mobs
 	shields       int // enemy attack damage absorbed before HP loss
+	petGuards     int // direct enemy damage intercepted by guarding companions
 	weaknessCrits int // guaranteed criticals consumed from stunned enemies
 	overkill      int // excess damage on the final enemy of the final cleared wave
 }
@@ -81,6 +82,9 @@ func appendAbyssFightBreakdown(logs []string, track *abyssFightTrack) []string {
 	}
 	if track.shields > 0 {
 		logs = append(logs, fmt.Sprintf("🛡️ Aegis absorbed: %d damage", track.shields))
+	}
+	if track.petGuards > 0 {
+		logs = append(logs, fmt.Sprintf("🐾 Companion guard intercepted: %d damage", track.petGuards))
 	}
 	if track.weaknessCrits > 0 {
 		logs = append(logs, fmt.Sprintf("🎯 Weakness criticals: %d guaranteed", track.weaknessCrits))
@@ -168,12 +172,16 @@ func (b *Bot) abyssCombatOption(uid, name string) string {
 }
 
 func (b *Bot) setAbyssCombatOption(uid, name, value string) error {
+	return setAbyssCombatOption(b.DB, uid, name, value)
+}
+
+func setAbyssCombatOption(exec dbExecQuerier, uid, name, value string) error {
 	key := "abyss_" + name + ":" + uid
 	if value == "" {
-		_, err := b.DB.Exec("DELETE FROM app_meta WHERE key=$1", key)
+		_, err := exec.Exec("DELETE FROM app_meta WHERE key=$1", key)
 		return err
 	}
-	_, err := b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+	_, err := exec.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 	                     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, key, value)
 	return err
 }

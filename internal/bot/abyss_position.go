@@ -31,3 +31,22 @@ func applyAbyssCombatPosition(u *UserInCombat, flags map[string]int64) {
 	}
 	u.Position = content.PositionFrontline
 }
+
+func abyssCombatTargetIndices(activeUsers []activeUser) []int {
+	alive := make([]int, 0, len(activeUsers))
+	frontline := make([]int, 0, len(activeUsers))
+	for i := range activeUsers {
+		u := activeUsers[i].u
+		if u == nil || u.CurrentHP <= 0 {
+			continue
+		}
+		alive = append(alive, i)
+		if u.Position == content.PositionFrontline {
+			frontline = append(frontline, i)
+		}
+	}
+	if len(frontline) > 0 {
+		return frontline
+	}
+	return alive
+}

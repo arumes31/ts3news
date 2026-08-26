@@ -118,6 +118,7 @@ type activeUser struct {
 	MaxMana             int
 	petCooldowns        map[int]int // Independent active-pet ability cooldowns by formation index.
 	petCaptureAttempted bool        // Avoid repeated full-stable capture offers or failure spam per fight.
+	petCommand          abyssPetCommand
 	// Skill-web bonus, loaded once per fight: treeBonusFor hits the DB and
 	// scans the full 1000-node tree, so per-turn lookups must use this cache.
 	treeBonus content.TreeBonus
@@ -134,6 +135,7 @@ type activeUser struct {
 	weaponSwapped     bool                  // AB-53 once-per-fight mid-boss weapon swap
 	petFocus          string                // AB-58 pet focus-fire target (mob name)
 	petFocusLogged    bool                  // AB-58 one-time focus-fire log
+	petGuardLogged    bool                  // AAA-0066 one-time direct-hit interception log
 	holdMana          bool                  // AB-64 hold-mana toggle (save casts for bosses)
 	holdManaLogged    bool                  // AB-64 one-time hold-mana log
 	lastAttackers     map[*content.Mob]bool // AB-68 mobs that targeted this user last mobTurn
@@ -653,12 +655,16 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 		activeUsers[i].u.SPDMod = 1.0
 		activeUsers[i].MaxMana = 100 + users[i].Stats.MNA
 		activeUsers[i].CurrentMana = activeUsers[i].MaxMana
-		// Abyss-only combat options (AB-58 pet focus-fire, AB-64 hold mana),
+		// Abyss-only combat options (AAA-0066 pet command, AB-64 hold mana),
 		// persisted in app_meta so no schema change is needed.
 		if abyssCombatant(&users[i]) {
 			activeUsers[i].holdMana = b.abyssHoldMana(users[i].UID)
+			activeUsers[i].petCommand = b.loadAbyssPetCommand(users[i].UID)
 			activeUsers[i].petFocus = b.abyssPetFocus(users[i].UID)
 			activeUsers[i].relicCharges = int(b.loadRunFlags(users[i].UID)[abyssRunFlagRelicCharges])
+			if commandLog := abyssPetCommandOpeningLog(&users[i], activeUsers[i].petCommand); commandLog != "" {
+				logs = append(logs, commandLog)
+			}
 			if shieldLog := initializeAbyssShield(&activeUsers[i]); shieldLog != "" {
 				logs = append(logs, shieldLog)
 			}
@@ -1371,6 +1377,12 @@ func canUseHeldManaAbility(holdMana, bossPresent, manuallySelected bool) bool {
 
 func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone content.Zone, intensify, healPenalty float64, logs *[]string, totalUserDamage, totalMobDamage *int, avgLvl int, diffFactor float64, originalUsers []UserInCombat, loots *[]LootResult, round int, track *abyssFightTrack, liveActions map[string]abyssLiveAction, openingPlayerPhase bool, rand combatRandomSource) {
 	previousLiveSkillTarget := ""
+	petTurns := abyssPetTurnContext{
+		activeUsers: activeUsers, mobs: mobs, zone: zone, intensify: intensify,
+		logs: logs, totalUserDamage: totalUserDamage, totalMobDamage: totalMobDamage,
+		avgLevel: avgLvl, difficulty: diffFactor, originalUsers: originalUsers,
+		loots: loots, track: track, random: rand,
+	}
 	var openingMobSPD map[*content.Mob]int
 	if openingPlayerPhase {
 		openingMobSPD = make(map[*content.Mob]int, len(*mobs))
@@ -1507,14 +1519,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			continue
 		}
 		if isLiveAction && liveAction.Kind == "companion" {
-			target := liveMobFromTarget(liveAction.TargetID, *mobs)
-			if target == nil || len(u.Pets) == 0 {
+			if !applyAbyssLivePetCommand(au, liveAction, *mobs, logs) {
 				*logs = append(*logs, fmt.Sprintf("⚠️ %s's companion command has no valid target.", u.Nickname))
-				continue
+			} else {
+				b.runAbyssPetTurns(au, petTurns)
 			}
-			au.petFocus = target.Name
-			au.petFocusLogged = false
-			*logs = append(*logs, fmt.Sprintf("🐾 %s commands their companion to focus %s.", u.Nickname, target.Name))
 			continue
 		}
 
@@ -1626,9 +1635,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				liveHitKind = "attack"
 			}
 			var target *content.Mob
+			isAllySkill := false
 			if isLiveAction {
 				target = liveMobFromTarget(liveAction.TargetID, *mobs)
-				isAllySkill := liveHitKind == "skill" && strings.HasPrefix(liveAction.TargetID, "ally:")
+				isAllySkill = liveHitKind == "skill" && strings.HasPrefix(liveAction.TargetID, "ally:")
 				if target == nil && !isAllySkill && liveHitKind != "attack" {
 					*logs = append(*logs, fmt.Sprintf("⚠️ %s's target is no longer valid; the action fizzles.", u.Nickname))
 					break
@@ -1641,6 +1651,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					// #nosec G404 -- legacy combat target selection
 					target = aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
 				}
+			}
+			if !isAllySkill {
+				recordAbyssPetFocus(au, target)
 			}
 			targetSPD, targetSPDModifier := target.Stats.SPD, target.SPDMod
 			if openingSPD, ok := openingMobSPD[target]; ok {
@@ -2204,134 +2217,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 		}
 
-		// Pet actions: each active formation slot carries one visible ability with
-		// an independent cooldown, then falls back to its normal attack.
-		for petIdx, p := range u.Pets {
-			if p.Stats.HP <= 0 {
-				continue
-			}
-			if abyssCombatant(u) && abyssPetNervous(p.Loyalty) && !au.petNervousLogged[p] {
-				au.petNervousLogged[p] = true
-				*logs = append(*logs, fmt.Sprintf("🐾 %s hangs back, eyes darting toward the exit. (Loyalty %d%% — betrayal risk)", p.Name, p.Loyalty))
-			}
-
-			// Loyalty steadily suppresses the base betrayal risk; the skill-web
-			// reduction remains additive on top of that bond.
-			betrayalChance := abyssPetBetrayalChance(p.Loyalty, au.treeBonus.Pct["pet_betrayal_reduce"])
-			if rand.Float64() < betrayalChance { // #nosec G404
-				p.Loyalty = max(0, p.Loyalty-5)
-				// #nosec G404
-				targetAU := activeUsers[rand.IntN(len(activeUsers))] // #nosec G404
-				target := targetAU.u
-				if target.CurrentHP > 0 {
-					pdmg := int(float64(p.Stats.STR-target.Stats.DEF) * intensify)
-					if pdmg < 1 {
-						pdmg = 1
-					}
-					target.DamageTaken += pdmg
-					target.CurrentHP -= pdmg
-					*logs = append(*logs, i18n.T("bot.combat.rogue_pet_bite", p.Name, target.Nickname, pdmg))
-					*totalMobDamage += pdmg
-					if target.CurrentHP <= 0 {
-						target.CurrentHP = 0
-						if !b.checkUserRevive(target, logs) {
-							*logs = append(*logs, i18n.T("bot.combat.slain_by_pet", target.Nickname, p.Name))
-						}
-					}
-					continue
-				}
-			}
-
-			ability, hasAbility := abyssPetAbilityForClass(petIdx+1, p.PetClass)
-			abilityReady := hasAbility && au.petCooldowns[petIdx] == 0
-			if abilityReady && ability.Kind == "heal" && abyssPetAutoskillEnabled(u.petHealEnabled, p.Name) {
-				var bestTarget *UserInCombat
-				lowestHPPct := 1.0
-				for k := range activeUsers {
-					targetU := activeUsers[k].u
-					if targetU.CurrentHP > 0 && targetU.CurrentHP < targetU.Stats.HP {
-						pct := float64(targetU.CurrentHP) / float64(targetU.Stats.HP)
-						if pct < lowestHPPct {
-							lowestHPPct = pct
-							bestTarget = targetU
-						}
-					}
-				}
-				if bestTarget != nil {
-					healAmt := int(float64(bestTarget.Stats.HP)*ability.PowerScale) + p.Level*3
-					if healAmt < 10 {
-						healAmt = 10
-					}
-					bestTarget.CurrentHP += healAmt
-					if bestTarget.CurrentHP > bestTarget.Stats.HP {
-						healAmt -= (bestTarget.CurrentHP - bestTarget.Stats.HP)
-						bestTarget.CurrentHP = bestTarget.Stats.HP
-					}
-					setAbyssPetAbilityCooldown(au, petIdx, ability.Cooldown)
-					*logs = append(*logs, fmt.Sprintf("✨ [color=#4caf50]%s's Pet %s casts %s on %s, restoring %d HP! (Cooldown: %d rounds)[/color]", u.Nickname, p.Name, ability.Name, bestTarget.Nickname, healAmt, ability.Cooldown))
-					if bark := abyssPetBark(p.PetBark, p.Name, "heal"); bark != "" {
-						*logs = append(*logs, bark)
-					}
-					continue
-				}
-			}
-
-			aliveMobs := b.getAliveMobs(*mobs)
-			if len(aliveMobs) == 0 {
-				break
-			}
-			ptarget := petFocusTarget(aliveMobs, au.petFocus)
-			if ptarget != nil && !au.petFocusLogged {
-				au.petFocusLogged = true
-				*logs = append(*logs, fmt.Sprintf("🎯 %s focuses %s on %s.", u.Nickname, p.Name, ptarget.Name))
-			}
-			if ptarget == nil {
-				// #nosec G404 -- legacy random pet targeting fallback
-				ptarget = aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
-			}
-			petDmgMult := 1.0
-			if bonus := au.treeBonus.Pct["pet_damage_pct"]; bonus > 0 {
-				petDmgMult += bonus
-			}
-			petDmgMult *= abyssTreeActionMultiplier(au.treeBonus, "companion_skill_power")
-			usesAttackAbility := abilityReady && ability.Kind == "attack"
-			if usesAttackAbility {
-				petDmgMult *= ability.PowerScale
-			}
-			pdmg := int(float64(p.Stats.STR-ptarget.Stats.DEF) * petDmgMult * intensify)
-			if pdmg < 1 {
-				pdmg = 1
-			}
-			pdmg = abyssKillerDamage(pdmg, u, ptarget)
-			petRemainingHP := ptarget.Stats.HP
-			petOverkill := abyssOverkillHit(pdmg, petRemainingHP)
-			ptarget.Stats.HP -= pdmg
-			appendAbyssExecuteThresholdLog(logs, ptarget, petRemainingHP, abyssCombatant(u))
-			applyAbyssBreakDamage(ptarget, pdmg, logs)
-			*totalUserDamage += pdmg
-			if usesAttackAbility {
-				setAbyssPetAbilityCooldown(au, petIdx, ability.Cooldown)
-				*logs = append(*logs, fmt.Sprintf("🦷 %s uses %s on %s for %d damage! (Cooldown: %d rounds)", p.Name, ability.Name, ptarget.Name, pdmg, ability.Cooldown))
-			}
-			if ptarget.Stats.HP <= 0 {
-				killLog := i18n.T("bot.combat.killed_by_pet", ptarget.Name, p.Name)
-				*logs = append(*logs, markAbyssOverkillLog(killLog, abyssCombatant(u) && petOverkill))
-				if bark := abyssPetBark(p.PetBark, p.Name, "kill"); bark != "" {
-					*logs = append(*logs, bark)
-				}
-				// Clones (co-op helpers) are excluded so loot never persists for them.
-				if winner := randomLootEligibleUser(originalUsers, rand); winner != nil {
-					b.awardCombatLoot(winner, *ptarget, zone, logs, loots)
-				}
-				b.handleDeathEffects(ptarget, mobs, logs, avgLvl, diffFactor, activeUsers, rand)
-				if track != nil {
-					if overkill := abyssTerminalOverkillDamage(*mobs, ptarget, pdmg, petRemainingHP); overkill > 0 {
-						track.overkill = overkill
-					}
-				}
-			}
-		}
-
+		b.runAbyssPetTurns(au, petTurns)
 		if len(b.getAliveMobs(*mobs)) == 0 {
 			break
 		}
@@ -2390,12 +2276,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			}
 		}
 		if targetAU == nil {
-			potentialTargets := make([]int, 0, len(activeUsers))
-			for i := range activeUsers {
-				if activeUsers[i].u != nil && activeUsers[i].u.CurrentHP > 0 {
-					potentialTargets = append(potentialTargets, i)
-				}
-			}
+			potentialTargets := abyssCombatTargetIndices(activeUsers)
 			if len(potentialTargets) == 0 {
 				continue
 			}
@@ -2603,6 +2484,17 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 		// Daily affix: Iron Skin shaves 30% off every hit a delver takes.
 		if strings.Contains(target.FloorModifier, "iron_skin") {
 			dmg = dmg * 7 / 10
+		}
+		dmg, guarded := mitigateAbyssPetGuard(targetAU, dmg)
+		if guarded > 0 {
+			if track != nil {
+				track.petGuards += guarded
+			}
+			if !targetAU.petGuardLogged {
+				targetAU.petGuardLogged = true
+				pet := abyssGuardingPet(targetAU)
+				*logs = append(*logs, fmt.Sprintf("🐾 %s guards %s, intercepting %d%% of direct-hit damage.", pet.Name, target.Nickname, abyssPetGuardPercent))
+			}
 		}
 
 		impactDamage := max(dmg, 0)

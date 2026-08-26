@@ -410,6 +410,12 @@ func liveAllyEffects(au *activeUser) []abyssLiveEffect {
 	if au.defendingRound > 0 && !seen["Guarded"] {
 		effects = append(effects, abyssLiveEffect{Name: "Guarded", Duration: "next enemy phase"})
 	}
+	if au.u != nil && len(au.u.Pets) > 0 {
+		effects = append(effects, abyssLiveEffect{
+			Name:     "Companion: " + abyssPetCommandLabel(au.petCommand),
+			Duration: abyssLiveEncounterDuration,
+		})
+	}
 	return effects
 }
 

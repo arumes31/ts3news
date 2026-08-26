@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_pixel.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_gear_damage.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_shield.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_pet_commands.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_weakness_window.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_onboarding.css"}}">
@@ -331,6 +332,15 @@
       </label>
       <label class="ab-combat-pref" title="Automatic combat saves skills and ultimates for bosses. Manual live actions always override this setting.">
         <input type="checkbox" id="holdManaSetting" onchange="saveAbyssCombatSettings()"> Hold mana for bosses
+      </label>
+      <label class="ab-pet-command-setting" for="petCommandSetting">
+        <span>🐾 Companion order</span>
+        <select id="petCommandSetting" class="ab-select" aria-describedby="petCommandHint" onchange="saveAbyssCombatSettings()">
+          <option value="focus">🎯 Focus Target</option>
+          <option value="guard">🛡️ Guard Me</option>
+          <option value="free">🐾 Free-for-All</option>
+        </select>
+        <span class="muted small" id="petCommandHint" role="status" aria-live="polite">Free-for-All · companions choose independent targets.</span>
       </label>
       {{template "abyssSkillPriorityPanel" .SkillPriority}}
       {{if ge .Stats.BestDepth 50}}<label>Veteran track
@@ -1373,14 +1383,20 @@ var liveActionOrder=[], livePinnedActions={}, liveShortcutMap={attack:'a',defend
 var currentBossNoteName='';
 
 async function initAbyssCombatSettings(){
-  var input=document.getElementById('holdManaSetting');if(!input)return;
-  try{var response=await fetch('/api/abyss/combat/settings',{cache:'no-store'}),data=await response.json();if(data.ok)input.checked=!!data.hold_mana;}catch(e){}
+  var input=document.getElementById('holdManaSetting'),command=document.getElementById('petCommandSetting');if(!input||!command)return;
+  try{var response=await fetch('/api/abyss/combat/settings',{cache:'no-store'}),data=await response.json();if(data.ok){input.checked=!!data.hold_mana;command.value=data.pet_command||'free';input.dataset.saved=String(input.checked);command.dataset.saved=command.value;renderAbyssPetCommandSetting();}}catch(e){}
+}
+
+function renderAbyssPetCommandSetting(){
+  var command=document.getElementById('petCommandSetting'),hint=document.getElementById('petCommandHint');if(!command||!hint)return;
+  var copy={focus:'Focus Target · companions follow your latest direct enemy target.',guard:'Guard Me · a living companion intercepts 15% of direct-hit damage and retaliates.',free:'Free-for-All · companions choose independent targets.'};
+  hint.textContent=copy[command.value]||copy.free;
 }
 
 async function saveAbyssCombatSettings(){
-  var input=document.getElementById('holdManaSetting');if(!input)return;
-  var wanted=input.checked;input.disabled=true;
-  try{var response=await fetch('/api/abyss/combat/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hold_mana:wanted})}),data=await response.json();if(!data.ok)throw new Error(data.error||'save failed');input.checked=!!data.hold_mana;abToast(input.checked?'Mana hold enabled for automatic combat.':'Mana hold disabled.',true);}catch(e){input.checked=!wanted;abToast(e.message||'Could not save combat setting.',false);}finally{input.disabled=false;}
+  var input=document.getElementById('holdManaSetting'),command=document.getElementById('petCommandSetting');if(!input||!command)return;
+  var savedHold=input.dataset.saved==='true',savedCommand=command.dataset.saved||'free';input.disabled=true;command.disabled=true;renderAbyssPetCommandSetting();
+  try{var response=await fetch('/api/abyss/combat/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hold_mana:input.checked,pet_command:command.value})}),data=await response.json();if(!data.ok)throw new Error(data.error||'save failed');input.checked=!!data.hold_mana;command.value=data.pet_command||'free';input.dataset.saved=String(input.checked);command.dataset.saved=command.value;renderAbyssPetCommandSetting();abToast('Combat preferences saved.',true);}catch(e){input.checked=savedHold;command.value=savedCommand;renderAbyssPetCommandSetting();abToast(e.message||'Could not save combat settings.',false);}finally{input.disabled=false;command.disabled=false;}
 }
 
 async function abyssDeferredEventClaim(){
