@@ -2291,7 +2291,29 @@ function setDepth(d){
   updateThreat();updateElevator();
   var mh=document.getElementById('mhDepth'); if(mh)mh.textContent=d;
   renderHudChips(); renderRestArc();
+  updateAbyssElementalPreview(curDepth);
   if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
+}
+function updateAbyssElementalPreview(depth){
+  var preview=document.getElementById('abyssElementalPreview');
+  var forecast=document.getElementById('abyssAffinityForecast');
+  if(!preview||!forecast)return;
+  var current=Math.max(0,Number(depth)||0);
+  var target=Math.max(0,Number(preview.dataset.targetDepth)||0);
+  if(preview.dataset.secret==='true'){
+    if(current>=target)forecast.hidden=true;
+    return;
+  }
+  target=(Math.floor(current/5)+1)*5;
+  preview.dataset.targetDepth=String(target);
+  forecast.hidden=false;
+  var twin=target>Math.max(0,Number(preview.dataset.twinDepth)||0);
+  var affinityTarget=document.getElementById('abAffinityTarget');
+  var affinityKind=document.getElementById('abAffinityKind');
+  var elementTarget=document.getElementById('abElementTarget');
+  if(affinityTarget)affinityTarget.textContent='F'+target;
+  if(elementTarget)elementTarget.textContent='F'+target;
+  if(affinityKind)affinityKind.textContent=twin?'⚔ Twin Tyrants':'single boss';
 }
 // Greed Meter: server-computed risk (next floor's difficulty vs. current gear
 // combat rating) when available, falling back to a depth-only heuristic.

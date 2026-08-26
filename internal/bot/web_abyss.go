@@ -1534,6 +1534,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	watcherPressure := abyssWatcherPressure(run, time.Now())
 	bossContract := s.bot.abyssBossContract(uid, run)
 	bossAffinity := abyssBossAffinityForecastForSecret(run, time.Now(), secretChain)
+	elementalPreview := abyssElementalPreview(bossAffinity, equipped)
 	bossAdaptation := s.bot.abyssBossAdaptationForecast(uid, run, secretChain)
 	bossToll := s.bot.abyssBossToll(uid, run, u.Level, secretChain)
 	dropForecast, dropForecastOK := s.bot.abyssNextFloorForecast(uid)
@@ -1574,6 +1575,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Watcher":             watcherPressure,
 		"BossContract":        bossContract,
 		"BossAffinity":        bossAffinity,
+		"ElementalPreview":    elementalPreview,
 		"BossAdaptation":      bossAdaptation,
 		"BossToll":            bossToll,
 		"BestKill":            s.bot.abyssBestKill(uid),

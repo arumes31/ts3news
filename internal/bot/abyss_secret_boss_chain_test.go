@@ -95,11 +95,11 @@ func TestAbyssSecretBossesEscalateAcrossTheChain(t *testing.T) {
 func TestAbyssSecretBossForecastUsesItsRealAffinity(t *testing.T) {
 	run := abyssRun{Depth: 4}
 	first := abyssBossAffinityForecastForSecret(run, time.Time{}, abyssSecretBossChainView{Unlocked: true, Stage: 0, NextDepth: 5})
-	if first.Element != "Air" || first.WeakTo != "Fire" || first.StrongAgainst != "Earth" || first.TwinBosses || first.Neutral {
+	if first.Element != "Air" || first.WeakTo != "Fire" || first.StrongAgainst != "Earth" || first.TwinBosses || first.Neutral || !first.Secret {
 		t.Fatalf("first secret affinity = %+v", first)
 	}
 	final := abyssBossAffinityForecastForSecret(run, time.Time{}, abyssSecretBossChainView{Unlocked: true, Stage: 2, NextDepth: 5})
-	if final.Element != "Physical" || !final.Neutral || final.WeakTo != "" || final.StrongAgainst != "" {
+	if final.Element != "Physical" || !final.Neutral || final.WeakTo != "" || final.StrongAgainst != "" || !final.Secret {
 		t.Fatalf("final secret affinity = %+v", final)
 	}
 }

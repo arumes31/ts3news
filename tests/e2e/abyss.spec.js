@@ -167,6 +167,24 @@ test('Lost Cartographer sells and advances an authoritative five-floor chart', a
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
+test('known boss preview shows exact elemental matchup and advances with depth', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/abyss?active=1');
+
+  const preview = page.locator('#abyssElementalPreview');
+  await expect(preview).toBeVisible();
+  await expect(page.locator('#abElementOutcome')).toContainText('ADVANTAGE');
+  await expect(page.locator('.ab-element-rule.is-strong')).toContainText('2×');
+  await expect(page.locator('.ab-element-rule.is-resisted')).toContainText('½×');
+  await expect(page.locator('#abElementTarget')).toHaveText('F15');
+
+  await page.evaluate(() => window.setDepth(15));
+  await expect(page.locator('#abElementTarget')).toHaveText('F20');
+  await expect(page.locator('#abAffinityTarget')).toHaveText('F20');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
 test('desktop Abyss keeps its dark canvas and aligned stage in light system mode', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });

@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"ts3news/internal/content"
 	"ts3news/internal/i18n"
 )
 
@@ -70,8 +71,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "1b7d98644492b0ea46527e194274f1755c40edc58e2ade1a623424327368607f"},
-		{name: "active_run", active: true, want: "03ebeea6b3a5c5fc39aae3c4b0efb9d7dd5bdae24b25cb4ed28d86b2b2030171"},
+		{name: "threshold", want: "496a73c79ea438fc0bb6876b94358f45eb9aaa17f2a63ddc277076a2fa4ffa75"},
+		{name: "active_run", active: true, want: "ac5669ed3986e2f41abb8d97b2bf667271b75046bbe778dfe4af70d3f84c38ad"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -154,6 +155,13 @@ func abyssGoldenFixture(active bool) map[string]any {
 		run.CurHP = 750
 		run.MaxHP = 1000
 	}
+	bossAffinity := abyssBossAffinityForecast(run, time.Date(2026, time.August, 25, 12, 0, 0, 0, time.UTC))
+	elementalPreview := abyssElementalPreview(
+		bossAffinity,
+		map[content.GearSlot]content.Gear{
+			content.SlotMainHand: {Element: content.Element(bossAffinity.WeakTo)},
+		},
+	)
 	return map[string]any{
 		"Title": "The Abyss", "Nav": "abyss",
 		"U": &webUser{
@@ -165,7 +173,8 @@ func abyssGoldenFixture(active bool) map[string]any {
 		"History": []any{}, "Achievements": []abyssAchievementView{}, "BadgeOptions": []any{},
 		"RunInsights": abyssRunInsightsView{}, "LongTerm": abyssLongTermView{},
 		"CartographerRoute": abyssCartographerRouteView{Floors: []abyssCartographerFloorView{}},
-		"ActiveBadge":       "", "ActiveBadgeName": "", "LoreList": []any{}, "LoreTotal": len(abyssLoreFragments),
+		"BossAffinity":      bossAffinity, "ElementalPreview": elementalPreview,
+		"ActiveBadge": "", "ActiveBadgeName": "", "LoreList": []any{}, "LoreTotal": len(abyssLoreFragments),
 		"Bestiary": []any{}, "Consumables": []any{}, "DailyMod": "",
 		"CommunityExpedition": map[string]any{"Week": "2026-W35", "Floors": 0, "Target": 1000},
 		"Helpers":             []any{}, "NextIsBoss": false, "AbyssSetPieces": 0, "AbyssSetTier": 0,
