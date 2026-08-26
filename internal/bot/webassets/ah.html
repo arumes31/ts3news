@@ -1,4 +1,5 @@
 {{define "ah"}}{{template "head" .}}
+<link rel="stylesheet" href="{{asset "/static/ah_price_history.css"}}">
 <h1>Auction House</h1>
 <div id="ahMsg" class="toast"></div>
 <div class="ah-ticker" aria-live="polite">📈 Cheapest active Legendary: {{if .Economy.CheapestLegendary}}🪙 {{.Economy.CheapestLegendary}}{{else}}none listed{{end}} · ✉ <span id="ahNoticeCount">{{.Economy.UnseenNotices}}</span> new market notices</div>
@@ -42,7 +43,7 @@
         <td>{{if .GS}}{{.GS}}{{else}}<span class="muted">—</span>{{end}}</td>
         <td>{{.Seller}} <span class="muted small" title="Completed auction sales">★{{.SellerRep}}</span></td>
         <td>{{.Listed}}</td>
-        <td class="goldcell" title="{{.FeeSummary}}">🪙 {{.Price}}{{if .CurrentBid}}<div class="muted small">bid {{.CurrentBid}}</div>{{end}}</td>
+        <td class="goldcell" title="{{.FeeSummary}}">🪙 {{.Price}}{{if .CurrentBid}}<div class="muted small">bid {{.CurrentBid}}</div>{{end}}{{if ge .PriceHistory.Count 2}}<div class="ah-spark trend-{{.PriceHistory.Direction}}" title="Last {{.PriceHistory.Count}} sales · min {{.PriceHistory.Min}}g · latest {{.PriceHistory.Latest}}g · max {{.PriceHistory.Max}}g"><svg viewBox="0 0 100 30" role="img" aria-label="Price history: minimum {{.PriceHistory.Min}} gold, latest {{.PriceHistory.Latest}} gold, maximum {{.PriceHistory.Max}} gold"><polyline points="{{.PriceHistory.Points}}"></polyline></svg><small>{{.PriceHistory.Count}} sales</small></div>{{end}}</td>
         <td>{{if .Mine}}<span class="muted">yours</span>{{else}}<button class="buybtn" onclick="buyAH('{{.ID}}',this)" title="Buy now · buyer fee 0g · exact total {{.Price}}g">Buy</button> <button class="ghost xs" onclick="bidAH('{{.ID}}',{{.Price}},this)" title="Bid reservation fee 0g · winning bid is the exact total">Bid</button>{{end}} <button class="ghost xs" aria-pressed="{{.Watched}}" onclick="watchAH('{{.ItemID}}',this)" title="Watchlist fee 0g · toggle listing and 20% price alerts">{{if .Watched}}★{{else}}☆{{end}}</button></td>
       </tr>
       {{end}}

@@ -74,6 +74,22 @@ func abyssEnemyPattern(mob *content.Mob) string {
 	if abyssEnemyHazard(mob) {
 		return "Destroy before it detonates"
 	}
+	if mob.DeathEffect != nil {
+		switch mob.DeathEffect.Type {
+		case content.DeathSummon:
+			return "On defeat, calls reinforcements"
+		case content.DeathExplosion:
+			return "On defeat, damages the whole party"
+		}
+	}
+	for _, effect := range mob.Effects {
+		switch effect {
+		case content.EffectRegen:
+			return "Restores health at the end of each round"
+		case content.EffectEnraged:
+			return "Enraged attacks deal 50% more damage"
+		}
+	}
 	switch mob.Type {
 	case content.MobTreasureGoblin:
 		return "Attempts to flee from round 3"

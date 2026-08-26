@@ -1,0 +1,2 @@
+ALTER TABLE abyss_economy_profiles
+    ADD COLUMN IF NOT EXISTS auto_insure BOOLEAN NOT NULL DEFAULT FALSE;

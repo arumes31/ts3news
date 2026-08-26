@@ -61,12 +61,12 @@ func TestCanonicalAbyssEntrySetup(t *testing.T) {
 	setup := canonicalAbyssEntrySetup(abyssEntrySetup{
 		Tier: "forged", Pacts: []string{"glass_cannon", "forged", "glass_cannon"},
 		Start: "checkpoint", Checkpoint: 13, Kit: "forged", Mutation: "forged",
-		LootRule: "forged", VeteranTrack: "forged", Focus: "forged",
+		Position: "forged", LootRule: "forged", VeteranTrack: "forged", Focus: "forged",
 	})
 	if setup.Tier != "normal" || setup.Start != "" || setup.Checkpoint != 0 {
 		t.Fatalf("canonical route = %#v", setup)
 	}
-	if setup.Kit != "vanguard" || setup.Mutation != "empowered" || setup.LootRule != "owner" || setup.VeteranTrack != "" || setup.Focus != "auto" {
+	if setup.Kit != "vanguard" || setup.Position != "frontline" || setup.Mutation != "empowered" || setup.LootRule != "owner" || setup.VeteranTrack != "" || setup.Focus != "auto" {
 		t.Fatalf("canonical options = %#v", setup)
 	}
 	if len(setup.Pacts) != 1 || setup.Pacts[0] != "glass_cannon" {

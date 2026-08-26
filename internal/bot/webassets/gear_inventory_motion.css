@@ -1,0 +1,30 @@
+.inv-card[data-slot="Charm"] .inv-head > .slot-gi:first-child {
+  transform-origin: 50% 4%;
+  animation: gear-charm-dangle 3.4s ease-in-out infinite;
+}
+
+.inv-card .rarity-silhouette {
+  color: #8995aa !important;
+  opacity: .7;
+  filter: grayscale(1) contrast(1.2) drop-shadow(0 0 4px #71809b66);
+}
+
+@keyframes gear-charm-dangle {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inv-card[data-slot="Charm"] .inv-head > .slot-gi:first-child {
+    animation: none;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .inv-card .rarity-silhouette {
+    color: CanvasText !important;
+    filter: none;
+    opacity: 1;
+  }
+}

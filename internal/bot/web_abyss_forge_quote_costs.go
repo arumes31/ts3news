@@ -25,7 +25,7 @@ var forgeQuoteCostCoverage = map[string]string{
 	"infuse_xp": "none", "insure_item": "fixed", "masterwork": "item", "masterwork_transfer": "target",
 	"mythic_fuse": "fusion", "polish": "fixed", "polish_all": "inventory", "prismatic_rune": "fixed",
 	"punch_socket": "fixed", "rebalance": "fixed", "rebalance_all": "fixed", "recalibrate": "fixed",
-	"reforge": "fixed", "reforge_lock": "fixed", "reinforce": "fixed", "repair_all": "inventory",
+	"reforge": "fixed", "reforge_lock": "fixed", "reinforce": "fixed", "repair_all": "inventory", "reroll_ring_sockets": "fixed",
 	"scrape_rune": "recovery", "sharpen": "fixed", "socket_gem": "fixed", "socket_relocate": "fixed",
 	"special_reroll": "fixed", "swap_special": "fixed", "target_craft": "parameters", "temper": "item",
 	"temper_guard": "fixed", "temper_surge": "fixed", "transfer_enchant": "fixed", "transmute": "fixed",
@@ -76,6 +76,14 @@ func (s *WebServer) resolveAbyssForgeQuoteCost(
 	}
 
 	switch operation {
+	case "identify":
+		available, err := abyssDailyIdentifyAvailable(ctx, s.bot.DB, uid)
+		if err != nil {
+			return cost, minimum, maximum, err
+		}
+		if available {
+			setExact(abyssForgeQuoteCost{Materials: map[string]int{}})
+		}
 	case "temper":
 		if gear != nil {
 			setExact(abyssForgeQuoteCost{Gold: s.forge4GoldCost(uid, int64(400*(gear.Temper+1)), gear.Rarity), Materials: map[string]int{}})
@@ -91,6 +99,16 @@ func (s *WebServer) resolveAbyssForgeQuoteCost(
 	case "socket_relocate":
 		if gear != nil {
 			setExact(abyssForgeQuoteCost{Gold: s.forge4GoldCost(uid, 50, gear.Rarity), Materials: map[string]int{}})
+		}
+	case "reroll_ring_sockets":
+		if gear == nil || !isAbyssRingSlot(gear.Slot) {
+			return cost, minimum, maximum, errors.New("socket rerolling is limited to rings")
+		}
+		if gear.Unidentified {
+			return cost, minimum, maximum, errors.New("identify this ring before rerolling its sockets")
+		}
+		if len(gear.Gemstones) > abyssRingSocketMaximum {
+			return cost, minimum, maximum, fmt.Errorf("extract gems until at most %d remain before rerolling", abyssRingSocketMaximum)
 		}
 	case "masterwork":
 		if gear == nil || gear.Quality >= masterworkMax {
@@ -203,7 +221,15 @@ func (s *WebServer) resolveAbyssForgeQuoteCost(
 		if err != nil {
 			return cost, minimum, maximum, err
 		}
-		setExact(abyssForgeQuoteCost{Gold: int64(abyssIdentifyCost * count), Materials: map[string]int{}})
+		payable := count
+		available, err := abyssDailyIdentifyAvailable(ctx, s.bot.DB, uid)
+		if err != nil {
+			return cost, minimum, maximum, err
+		}
+		if available && payable > 0 {
+			payable--
+		}
+		setExact(abyssForgeQuoteCost{Gold: int64(abyssIdentifyCost * payable), Materials: map[string]int{}})
 	case "forge_queue":
 		if gear != nil {
 			resolvedCost, resolvedMinimum, resolvedMaximum, resolveErr := s.forgeQueueQuoteCost(uid, *gear, parameters)

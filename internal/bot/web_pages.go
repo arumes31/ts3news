@@ -59,6 +59,8 @@ type gearView struct {
 	Temper         int  // forge temper level (#106)
 	Quality        int  // masterwork quality tier (0-5)
 	SetID          string
+	AppearanceID   string
+	AppearanceName string
 	HasSpecial     bool // carries a Special effect (drives the forge awaken action)
 	Imbued         bool // already imbued via the forge
 	Attuned        bool // bound to its owner via the forge
@@ -68,6 +70,33 @@ type gearView struct {
 	Prismatic      bool // rune already elevated to prismatic
 	Locked         bool // protected from sale, salvage, dismantle, and sacrifice
 	RecentlyLooted bool
+	BrokenIn       bool // held for 30+ days; grants the sentimental +1% stat bonus
+	Provenance     string
+	Damage         abyssGearDamageView
+}
+
+func gearProvenance(g content.Gear) string {
+	if g.Unidentified {
+		return ""
+	}
+	parts := make([]string, 0, 3)
+	if g.FoundDepth > 0 {
+		parts = append(parts, fmt.Sprintf("Abyss depth %d", g.FoundDepth))
+	}
+	if boss := strings.TrimSpace(g.FoundBoss); boss != "" {
+		runes := []rune(boss)
+		if len(runes) > 80 {
+			boss = string(runes[:80]) + "…"
+		}
+		parts = append(parts, "Boss: "+boss)
+	}
+	if found, err := time.Parse(time.RFC3339, g.FoundAt); err == nil {
+		parts = append(parts, found.UTC().Format("2006-01-02 UTC"))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "Provenance · " + strings.Join(parts, " · ")
 }
 
 // gearStatList returns the gear's non-zero combat stats, largest first.
@@ -105,6 +134,12 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	sockets := g.Sockets
 	gemstones := g.Gemstones
 	insured := g.Insured
+	appearanceID := ""
+	appearanceName := ""
+	if appearance, ok := content.GetGearByID(g.AppearanceID); ok && appearance.Slot == g.Slot {
+		appearanceID = appearance.ID
+		appearanceName = appearance.Name
+	}
 	if !g.Unidentified {
 		if encoded, err := json.Marshal(g.Stats); err == nil {
 			statsJSON = string(encoded)
@@ -122,7 +157,8 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		effDesc = "Identify this item to reveal its stats and effects."
 		rarityName = "Unknown"
 		rarityColor = "#8c96aa"
-		rarityIcon = ""
+		// One fixed silhouette communicates hidden rarity without leaking its tier.
+		rarityIcon = "crystal-ball"
 		rarityValue = 0
 		combatRating = 0
 		score = 0
@@ -132,6 +168,8 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		sockets = 0
 		gemstones = nil
 		insured = false
+		appearanceID = ""
+		appearanceName = ""
 	} else {
 		if g.GearLevel > 0 {
 			name = fmt.Sprintf("%s +%d", name, g.GearLevel)
@@ -192,39 +230,43 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	}
 
 	v := gearView{
-		Slot:          string(slot),
-		Icon:          content.SlotIcon(slot),
-		IconName:      content.SlotIconName(slot),
-		ID:            gearID,
-		Name:          name,
-		Rarity:        rarityName,
-		RarityColor:   rarityColor,
-		RarityIcon:    rarityIcon,
-		CR:            combatRating,
-		Score:         score,
-		MaxDurability: maxDurability,
-		StatsJSON:     statsJSON,
-		GemstonesJSON: gemstonesJSON,
-		KillCount:     killCount,
-		MilestoneTier: milestoneTier,
-		Stats:         stats,
-		XPBonusPct:    xpBonusPct,
-		Unidentified:  g.Unidentified,
-		Sockets:       sockets,
-		Gemstones:     gemstones,
-		RarityVal:     rarityValue,
-		Insured:       insured,
-		Corrupted:     g.Corrupted,
-		Temper:        g.Temper,
-		Quality:       g.Quality,
-		SetID:         g.SetID,
-		HasSpecial:    g.Special != content.EffectNone,
-		Imbued:        g.Imbued != "",
-		Attuned:       g.Attuned,
-		Cursed:        g.Cursed,
-		Eldritch:      g.Eldritch,
-		HasRune:       g.Rune != "",
-		Prismatic:     g.Prismatic,
+		Slot:           string(slot),
+		Icon:           content.SlotIcon(slot),
+		IconName:       content.SlotIconName(slot),
+		ID:             gearID,
+		Name:           name,
+		Rarity:         rarityName,
+		RarityColor:    rarityColor,
+		RarityIcon:     rarityIcon,
+		CR:             combatRating,
+		Score:          score,
+		MaxDurability:  maxDurability,
+		StatsJSON:      statsJSON,
+		GemstonesJSON:  gemstonesJSON,
+		KillCount:      killCount,
+		MilestoneTier:  milestoneTier,
+		Stats:          stats,
+		XPBonusPct:     xpBonusPct,
+		Unidentified:   g.Unidentified,
+		Sockets:        sockets,
+		Gemstones:      gemstones,
+		RarityVal:      rarityValue,
+		Insured:        insured,
+		Corrupted:      g.Corrupted,
+		Temper:         g.Temper,
+		Quality:        g.Quality,
+		SetID:          g.SetID,
+		AppearanceID:   appearanceID,
+		AppearanceName: appearanceName,
+		HasSpecial:     g.Special != content.EffectNone,
+		Imbued:         g.Imbued != "",
+		Attuned:        g.Attuned,
+		Cursed:         g.Cursed,
+		Eldritch:       g.Eldritch,
+		HasRune:        g.Rune != "",
+		Prismatic:      g.Prismatic,
+		BrokenIn:       !g.Unidentified && g.BrokenIn(time.Now()),
+		Provenance:     gearProvenance(g),
 	}
 	if g.Unidentified {
 		v.Corrupted = false
@@ -446,6 +488,8 @@ func (s *WebServer) handleInventory(w http.ResponseWriter, r *http.Request, uid 
 		"U":           u,
 		"Items":       items,
 		"Consumables": cons,
+		"Buybacks":    s.bot.vendorBuybacks(uid),
+		"Pouch":       s.bot.abyssPouchProgress(uid),
 	})
 }
 
@@ -598,8 +642,12 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 	// Load and price the exact instance under the same row lock as deletion so a
 	// concurrent equip, forge, or sale cannot change what the vendor receives.
 	var gid string
+	var durability int
 	var itemData sql.NullString
-	if err := tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE FOR UPDATE", req.InvID, uid).Scan(&gid, &itemData); err != nil {
+	var acquiredAt time.Time
+	if err := tx.QueryRow(`SELECT gear_id,durability,item_data,acquired_at FROM user_inventory
+		WHERE id=$1 AND client_uid=$2 AND locked=FALSE FOR UPDATE`, req.InvID, uid).
+		Scan(&gid, &durability, &itemData, &acquiredAt); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
 		return
 	}
@@ -637,6 +685,10 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 	}
 	if _, err := tx.Exec(`INSERT INTO abyss_vendor_sales (client_uid,item_type,sold_count) VALUES ($1,$2,1)
 		ON CONFLICT (client_uid,item_type) DO UPDATE SET sold_count=abyss_vendor_sales.sold_count+1`, uid, itemType); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := recordVendorBuyback(tx, uid, gid, durability, itemData, acquiredAt, value); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

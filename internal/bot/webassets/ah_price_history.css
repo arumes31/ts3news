@@ -1,0 +1,7 @@
+.ah-spark { display: flex; align-items: center; gap: .35rem; margin-top: .25rem; }
+.ah-spark svg { width: 76px; height: 24px; overflow: visible; }
+.ah-spark polyline { fill: none; stroke: #9aa9bd; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.ah-spark.trend-up polyline { stroke: #e2b95c; }
+.ah-spark.trend-down polyline { stroke: #59c98a; }
+.ah-spark small { color: #71829b; font: 9px ui-monospace, monospace; white-space: nowrap; }
+@media (max-width: 720px) { .ah-spark small { display: none; } .ah-spark svg { width: 58px; } }

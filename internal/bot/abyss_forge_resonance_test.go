@@ -26,7 +26,8 @@ func TestAbyssGemResonanceBonusUsesTierContribution(t *testing.T) {
 
 func TestForgeRuneImpactPublishesExactMatchups(t *testing.T) {
 	offense := forgeRuneImpact("offensive", "Fire")
-	if !strings.Contains(offense, "2.0× against Air") || !strings.Contains(offense, "0.5× against Water") {
+	if !strings.Contains(offense, "+5% resonance to matching Fire attacks") ||
+		!strings.Contains(offense, "2.0× against Air") || !strings.Contains(offense, "0.5× against Water") {
 		t.Fatalf("offensive impact = %q", offense)
 	}
 	defense := forgeRuneImpact("defensive", "Water")

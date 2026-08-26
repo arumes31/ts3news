@@ -3,6 +3,8 @@ package bot
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"hash/fnv"
 	"image"
 	_ "image/png"
 	"net/http"
@@ -241,8 +243,17 @@ func TestAbyssPixelCombatTemplates(t *testing.T) {
 		{name: "bestiary classifier", source: string(pixel), want: "function liveEnemyArt(unit)"},
 		{name: "deterministic fallback", source: string(pixel), want: "function liveNameHash(name)"},
 		{name: "enemy atlas", source: string(page), want: `{{asset "/static/abyss_enemy_atlas.png"}}`},
+		{name: "expanded enemy atlas", source: string(page), want: `{{asset "/static/abyss_enemy_atlas_expanded.png"}}`},
+		{name: "catalog enemy selection", source: string(pixel), want: "function liveEnemyArt(unit)"},
+		{name: "creature atlas", source: string(page), want: `{{asset "/static/abyss_atlas_creatures.png"}}`},
+		{name: "boss atlas", source: string(page), want: `{{asset "/static/abyss_atlas_bosses.png"}}`},
 		{name: "boss tier", source: string(css), want: ".ab-pixel-unit.boss-tier"},
-		{name: "icon classifier", source: string(pixel), want: "function liveActionIconCell(option)"},
+		{name: "action atlas family", source: string(pixel), want: "function liveActionArtFamily(option)"},
+		{name: "expanded icon atlas", source: string(page), want: `{{asset "/static/abyss_icon_atlas_expanded.png"}}`},
+		{name: "catalog art selector", source: string(pixel), want: "function liveCatalogArt(key,family)"},
+		{name: "catalog action icon", source: string(live), want: "ab-pixel-icon ab-catalog-icon"},
+		{name: "catalog icon styling", source: string(css), want: ".ab-pixel-icon.ab-catalog-icon"},
+		{name: "catalog actor styling", source: string(css), want: ".ab-actor-sprite.ab-catalog-actor"},
 		{name: "reduced motion", source: string(css), want: "@media (prefers-reduced-motion: reduce)"},
 		{name: "feedback stylesheet", source: string(page), want: `{{asset "/static/abyss_combat_feedback.css"}}`},
 		{name: "feedback controls", source: string(live), want: `{{template "abyssCombatFeedbackControls" .}}`},
@@ -257,6 +268,138 @@ func TestAbyssPixelCombatTemplates(t *testing.T) {
 		if !strings.Contains(marker.source, marker.want) {
 			t.Errorf("%s marker is missing", marker.name)
 		}
+	}
+}
+
+func TestAbyssExpandedPixelAtlasesAreSquare(t *testing.T) {
+	atlases := []struct {
+		name    string
+		columns int
+		rows    int
+	}{
+		{name: "webassets/abyss_icon_atlas_expanded.png", columns: 8, rows: 8},
+		{name: "webassets/abyss_enemy_atlas_expanded.png", columns: 8, rows: 8},
+		{name: "webassets/abyss_atlas_items.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_skills.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_creatures.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_bosses.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_artifacts.png", columns: 14, rows: 11},
+		{name: "webassets/abyss_atlas_companions.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_relics.png", columns: 13, rows: 12},
+		{name: "webassets/abyss_atlas_ranged.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_souls.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_auras.png", columns: 12, rows: 12},
+		{name: "webassets/abyss_atlas_charms.png", columns: 14, rows: 11},
+		{name: "webassets/abyss_atlas_mounts.png", columns: 12, rows: 12},
+		{name: "webassets/abyss_atlas_pets.png", columns: 14, rows: 12},
+		{name: "webassets/abyss_atlas_emblems.png", columns: 12, rows: 12},
+		{name: "webassets/abyss_atlas_banners.png", columns: 13, rows: 10},
+		{name: "webassets/abyss_atlas_totems.png", columns: 14, rows: 10},
+		{name: "webassets/abyss_atlas_offhands.png", columns: 14, rows: 12},
+	}
+	artworkCount := 0
+	seenArtwork := make(map[uint64]string, 2_806)
+	for _, atlas := range atlases {
+		t.Run(atlas.name, func(t *testing.T) {
+			asset, err := webAssets.ReadFile(atlas.name)
+			if err != nil {
+				t.Fatalf("read %s: %v", atlas.name, err)
+			}
+			decoded, _, err := image.Decode(bytes.NewReader(asset))
+			if err != nil {
+				t.Fatalf("decode %s: %v", atlas.name, err)
+			}
+			bounds := decoded.Bounds()
+			width, height := bounds.Dx(), bounds.Dy()
+			if width != height || width < 512 {
+				t.Errorf(
+					"%s dimensions = %dx%d, want square atlas of at least 512px",
+					atlas.name,
+					width,
+					height,
+				)
+			}
+			for row := range atlas.rows {
+				for column := range atlas.columns {
+					digest := fnv.New64a()
+					for y := row * height / atlas.rows; y < (row+1)*height/atlas.rows; y++ {
+						for x := column * width / atlas.columns; x < (column+1)*width/atlas.columns; x++ {
+							red, green, blue, alpha := decoded.At(bounds.Min.X+x, bounds.Min.Y+y).RGBA()
+							pixel := [4]byte{byte(red >> 8), byte(green >> 8), byte(blue >> 8), byte(alpha >> 8)}
+							_, _ = digest.Write(pixel[:])
+						}
+					}
+					cell := fmt.Sprintf("%s[%d,%d]", atlas.name, column, row)
+					sum := digest.Sum64()
+					if previous, exists := seenArtwork[sum]; exists {
+						t.Errorf("pixel artwork %s duplicates %s", cell, previous)
+					}
+					seenArtwork[sum] = cell
+				}
+			}
+			if version := AssetVer(atlas.name); len(version) != 12 {
+				t.Errorf("%s asset version = %q, want 12 characters", atlas.name, version)
+			}
+		})
+		artworkCount += atlas.columns * atlas.rows
+	}
+	if artworkCount < 2_800 {
+		t.Errorf("authored pixel artwork count = %d, want at least 2800", artworkCount)
+	}
+}
+
+func TestAbyssSpecialGearAtlasRouting(t *testing.T) {
+	page, err := webAssets.ReadFile("webassets/abyss.html")
+	if err != nil {
+		t.Fatalf("read Abyss page: %v", err)
+	}
+	social, err := webAssets.ReadFile("webassets/abyss_social.html")
+	if err != nil {
+		t.Fatalf("read Abyss social hub: %v", err)
+	}
+	source := string(page)
+	families := map[string][]string{
+		"relics":     {"relic"},
+		"ranged":     {"ranged"},
+		"artifacts":  {"artifact"},
+		"souls":      {"soul"},
+		"auras":      {"aura"},
+		"charms":     {"charm"},
+		"mounts":     {"mount"},
+		"companions": {"companion"},
+		"pets":       {"pet1", "pet2"},
+		"emblems":    {"emblem1", "emblem2"},
+		"banners":    {"banner"},
+		"totems":     {"totem"},
+		"offhands":   {"offhand"},
+	}
+	for family, slots := range families {
+		if !strings.Contains(source, `{{asset "/static/abyss_atlas_`+family+`.png"}}`) {
+			t.Errorf("%s atlas is not attached to the Abyss page", family)
+		}
+		for _, slot := range slots {
+			if !strings.Contains(source, slot+`:'`+family+`'`) {
+				t.Errorf("slot %s is not routed to the %s atlas", slot, family)
+			}
+		}
+	}
+	gridOverrides := map[string]string{
+		"artifacts": "[14,11]", "auras": "[12,12]", "banners": "[13,10]",
+		"charms": "[14,11]", "emblems": "[12,12]", "mounts": "[12,12]",
+		"relics": "[13,12]", "totems": "[14,10]",
+	}
+	pixel, err := webAssets.ReadFile("webassets/abyss_pixel.html")
+	if err != nil {
+		t.Fatalf("read pixel renderer: %v", err)
+	}
+	for family, grid := range gridOverrides {
+		if !strings.Contains(string(pixel), family+":"+grid) {
+			t.Errorf("%s atlas grid %s is not registered", family, grid)
+		}
+	}
+	if !strings.Contains(string(social), `data-pet-art-key="pet:{{.ID}}:{{.Type}}"`) ||
+		!strings.Contains(string(social), `card.dataset.petArtKey,'pets'`) {
+		t.Error("captured pets must render from the pets atlas")
 	}
 }
 

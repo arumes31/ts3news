@@ -13,25 +13,14 @@ func TestAbyssEventTypeLabels(t *testing.T) {
 		`{"type":"merchant"}`:          "Abyssal Market",
 		`{"type":"collapsed_passage"}`: "Collapsed Passage",
 		`{"type":"abyssal_garden"}`:    "Abyssal Garden",
+		`{"type":"sigil_chain"}`:       "Triune Sigil Hunt",
+		`{"type":"lost_cartographer"}`: "Lost Cartographer",
 		`{"type":"unknown"}`:           "Unknown anomaly",
 		`not-json`:                     "Unknown anomaly",
 	}
 	for raw, want := range tests {
 		if got := abyssEventTypeLabel(raw); got != want {
 			t.Errorf("abyssEventTypeLabel(%q) = %q, want %q", raw, got, want)
-		}
-	}
-}
-
-func TestAbyssSigilProgress(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		total, sigils, chains int64
-	}{{0, 0, 0}, {2, 2, 0}, {3, 3, 1}, {4, 1, 1}} {
-		sigils, chains := abyssSigilProgress(tc.total)
-		if sigils != tc.sigils || chains != tc.chains {
-			t.Fatalf("sigil progress %d = %d/%d, want %d/%d", tc.total, sigils, chains, tc.sigils, tc.chains)
 		}
 	}
 }

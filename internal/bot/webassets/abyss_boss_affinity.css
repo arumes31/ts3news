@@ -43,7 +43,92 @@
 .ab-affinity-target > b { color: var(--affinity); font-size: 1.2rem; }
 .ab-affinity-target > small { white-space: nowrap; }
 
+.ab-element-matchup {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(7rem, 1fr) auto minmax(7rem, 1fr);
+  align-items: center;
+  gap: .45rem .75rem;
+  min-width: 0;
+  padding-top: .55rem;
+  border-top: 1px solid color-mix(in srgb, var(--affinity) 28%, var(--border));
+  font-family: var(--font-mono, monospace);
+}
+
+.ab-element-combatant {
+  display: grid;
+  gap: .1rem;
+  min-width: 0;
+}
+
+.ab-element-combatant > span {
+  color: var(--muted);
+  font-size: .58rem;
+  letter-spacing: .1em;
+}
+
+.ab-element-combatant > strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: .78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ab-element-combatant.is-enemy { justify-items: end; text-align: right; }
+.ab-element-combatant.is-enemy > span b { color: var(--affinity); }
+
+.ab-element-outcome {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .3rem .5rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 9%, #080d16);
+  font-size: .62rem;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+
+.ab-element-outcome b { font-size: .8rem; }
+.ab-element-matchup.is-strong .ab-element-outcome { color: #59e6aa; }
+.ab-element-matchup.is-resisted .ab-element-outcome { color: #ff8178; }
+.ab-element-matchup.is-neutral .ab-element-outcome { color: #b7c1d4; }
+
+.ab-element-rules {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  gap: .4rem;
+  min-width: 0;
+}
+
+.ab-element-rule {
+  padding: .16rem .42rem;
+  border: 1px solid var(--border);
+  border-radius: .3rem;
+  background: #080d16;
+  color: var(--muted);
+  font-size: .6rem;
+  white-space: nowrap;
+}
+
+.ab-element-rule b { color: inherit; }
+.ab-element-rule.is-strong { border-color: color-mix(in srgb, #59e6aa 42%, var(--border)); color: #8df0c5; }
+.ab-element-rule.is-resisted { border-color: color-mix(in srgb, #ff8178 42%, var(--border)); color: #ffaaa3; }
+.ab-element-rule.is-neutral { white-space: normal; }
+
 @media (max-width: 620px) {
   .ab-affinity-forecast { grid-template-columns: auto 1fr; }
   .ab-affinity-target { grid-column: 2; justify-items: start; }
+  .ab-element-matchup { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+  .ab-element-rules { flex-wrap: wrap; }
+  .ab-element-rule { white-space: normal; }
+}
+
+@media (max-width: 420px) {
+  .ab-element-matchup { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ab-element-outcome { grid-column: 1 / -1; grid-row: 2; justify-self: center; }
+  .ab-element-combatant.is-enemy { grid-column: 2; grid-row: 1; }
 }

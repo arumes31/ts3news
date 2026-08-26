@@ -36,12 +36,18 @@ func TestAbyssBossAffinityForecastUIContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, token := range []string{"TODAY'S BOSS AFFINITY · UTC", "for 2× damage", "at ½ damage", "Twin Tyrants", "TargetDepth"} {
+	for _, token := range []string{
+		"TODAY'S BOSS AFFINITY · UTC", "for 2× damage", "at ½ damage", "Twin Tyrants", "TargetDepth",
+		"abyssElementalPreview", "abElementOutcome", "Strong ·", "Resisted ·", "data-target-depth",
+	} {
 		if !strings.Contains(string(page), token) {
 			t.Errorf("affinity forecast is missing %q", token)
 		}
 	}
-	for _, token := range []string{".is-fire", ".is-water", ".is-earth", ".is-air", "@media (max-width: 620px)"} {
+	for _, token := range []string{
+		".is-fire", ".is-water", ".is-earth", ".is-air", "@media (max-width: 620px)",
+		".ab-element-matchup", ".ab-element-rule.is-strong", ".ab-element-rule.is-resisted",
+	} {
 		if !strings.Contains(string(styles), token) {
 			t.Errorf("affinity styles are missing %q", token)
 		}

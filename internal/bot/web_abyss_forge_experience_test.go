@@ -85,6 +85,17 @@ func TestAbyssForgeExperienceAssetsAndHooks(t *testing.T) {
 	}
 }
 
+func TestAbyssForgeGemPreviewHandlesNullGemJSON(t *testing.T) {
+	t.Parallel()
+	page, err := webAssets.ReadFile("webassets/abyss.html")
+	if err != nil {
+		t.Fatalf("read Abyss page: %v", err)
+	}
+	if !strings.Contains(string(page), "if(!Array.isArray(gems))gems=[];") {
+		t.Fatal("gem transmute preview does not normalize persisted null gemstone arrays")
+	}
+}
+
 func TestAbyssDismantleSelectionIsExactAndBounded(t *testing.T) {
 	t.Parallel()
 

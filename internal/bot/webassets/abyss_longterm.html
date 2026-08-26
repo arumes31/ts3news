@@ -10,12 +10,13 @@
     var rail=document.getElementById('depthRail'); if(!rail)return;
     var host=document.getElementById('paceMarker');
     if(!host){host=document.createElement('div');host.id='paceMarker';host.className='ab-pace muted small';rail.parentNode.insertBefore(host,rail.nextSibling);}
-    var ghost=Number(state.pace.last_floors_per_minute)||0;
+    var ghost=Number(state.pace.best_floors_per_minute)||0;
     if(!inRun || ghost<=0){host.hidden=true;return;}
     var current=state.pace.current_floors_per_minute;
     if(paceStartedAt>0)current=paceFloors/Math.max((Date.now()-paceStartedAt)/60000,0.01);
+    var bestDepth=Number(state.pace.best_depth)||0,last=Number(state.pace.last_floors_per_minute)||0;
     host.hidden=false;
-    host.textContent='⏱ pace '+current.toFixed(1)+' f/min · last run ghost '+ghost.toFixed(1)+' f/min';
+    host.textContent='⏱ pace '+current.toFixed(1)+' f/min · best ghost '+ghost.toFixed(1)+' f/min'+(bestDepth>0?' at depth '+bestDepth:'')+(last>0?' · last '+last.toFixed(1):'');
     host.classList.toggle('ahead',current>=ghost);
   }
   window.trackPaceFloor=function(){paceFloors++;renderPaceMarker();};
@@ -97,6 +98,7 @@
     {key:'ab_lootsort',label:'Run loot sort',type:'select',def:'floor',opts:[['floor','Floor'],['rarity','Rarity'],['cr','CR Δ']],apply:function(v){lootSort=v;var select=document.getElementById('lootSort');if(select)select.value=v;applyLootSort();}},
     {key:'ab_sidebar_order',label:'Run Loot before Armoury',type:'bool',def:false,apply:applySidebarOrder},
     {key:'ab_compact',label:'Compact veteran layout',type:'bool',def:false,apply:function(v){document.body.classList.toggle('ab-compact',v);}},
+    {key:'ab_item_numbers',label:'Item stat numbers',type:'select',def:'exact',opts:[['exact','Exact (123,456)'],['compact','Compact (123.5K)']],apply:function(v){if(window.AbyssItemNumbers)window.AbyssItemNumbers.setMode(v);}},
     {key:'ab_contrast',label:'High-contrast solid panels',type:'bool',def:false,apply:applyAbyssContrast},
     {key:'ab_colorblind',label:'Colorblind rarity shapes',type:'bool',def:false,apply:applyAbyssColorblind},
     {key:'ab_logsize',label:'Combat log text size',type:'select',def:'m',opts:[['s','Small'],['m','Medium'],['l','Large']],apply:applyAbyssLogSize},

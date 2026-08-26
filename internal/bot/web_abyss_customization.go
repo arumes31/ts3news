@@ -61,7 +61,8 @@ func deductTokens(w http.ResponseWriter, tx *sql.Tx, uid string, cost int64) boo
 	return true
 }
 
-// handleAbyssIdentify spends 100 gold to identify an item in inventory or equipped.
+// handleAbyssIdentify identifies an inventory or equipped item. The first
+// successful identification each UTC day is free.
 func (s *WebServer) handleAbyssIdentify(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -123,10 +124,15 @@ func (s *WebServer) handleAbyssIdentify(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
+	normalCost := s.bot.forgeGoldCost(uid, 100, g.Rarity)
+	cost, dailyFree, chargeOK := s.dailyIdentifyCharge(w, r, tx, uid, normalCost, normalCost)
+	if !chargeOK {
+		return
+	}
 	if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
 		return
 	}
-	if !deductGold(w, tx, uid, s.bot.forgeGoldCost(uid, 100, g.Rarity)) {
+	if cost > 0 && !deductGold(w, tx, uid, cost) {
 		return
 	}
 
@@ -137,7 +143,11 @@ func (s *WebServer) handleAbyssIdentify(w http.ResponseWriter, r *http.Request, 
 
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
-	writeJSON(w, map[string]any{"ok": true, "msg": "Item successfully identified!", "gold": gold})
+	msg := "Item successfully identified!"
+	if dailyFree {
+		msg = "Daily free identification used — item successfully identified!"
+	}
+	writeJSON(w, map[string]any{"ok": true, "msg": msg, "gold": gold, "cost": cost, "daily_free": dailyFree})
 }
 
 // handleAbyssSocketGem spends 50 gold to socket a gemstone.

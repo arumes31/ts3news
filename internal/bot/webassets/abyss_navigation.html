@@ -3,6 +3,7 @@
 (function(){
   'use strict';
   var sectionGroups=[
+    {key:'season',label:'🔥 Season'},
     {key:'progression',label:'🛠️ Progression'},
     {key:'shop',label:'🜲 Shop'},
     {key:'forge',label:'⚒️ Forge'},
@@ -23,19 +24,25 @@
     if(!groups.some(function(group){return group.key===initial;}))initial='progression';
     bar.className='ab-tabs';bar.setAttribute('aria-label','Abyss sections');bar.setAttribute('role','tablist');
     groups.forEach(function(group){group.els.forEach(function(panel,index){if(!panel.id)panel.id='abyss-section-'+group.key+'-'+index;panel.setAttribute('role','tabpanel');});});
+    function revealTab(button){
+      if(!button||bar.scrollWidth<=bar.clientWidth)return;
+      var left=button.offsetLeft-(bar.clientWidth-button.offsetWidth)/2,reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      bar.scrollTo({left:Math.max(0,left),behavior:reduce?'auto':'smooth'});
+    }
     groups.forEach(function(group){
       var button=document.createElement('button'),active=group.key===initial;
       button.type='button';button.id='abyss-tab-'+group.key;button.dataset.tabKey=group.key;button.className='ab-tab'+(active?' active':'');button.setAttribute('role','tab');button.setAttribute('aria-selected',active?'true':'false');button.tabIndex=active?0:-1;button.setAttribute('aria-controls',group.els.map(function(panel){return panel.id;}).join(' '));button.textContent=group.label;
       group.els.forEach(function(panel){panel.setAttribute('aria-labelledby',button.id);panel.hidden=!active;});
-      button.onclick=function(){bar.querySelectorAll('[data-tab-key]').forEach(function(tab){tab.classList.remove('active');tab.setAttribute('aria-selected','false');tab.tabIndex=-1;});button.classList.add('active');button.setAttribute('aria-selected','true');button.tabIndex=0;groups.forEach(function(candidate){candidate.els.forEach(function(panel){panel.hidden=candidate.key!==group.key;});});try{localStorage.setItem('abyss_section_tab',group.key);}catch(_){}};
+      button.onclick=function(){bar.querySelectorAll('[data-tab-key]').forEach(function(tab){tab.classList.remove('active');tab.setAttribute('aria-selected','false');tab.tabIndex=-1;});button.classList.add('active');button.setAttribute('aria-selected','true');button.tabIndex=0;groups.forEach(function(candidate){candidate.els.forEach(function(panel){panel.hidden=candidate.key!==group.key;});});revealTab(button);try{localStorage.setItem('abyss_section_tab',group.key);}catch(_){}};
       button.addEventListener('keydown',function(event){if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight'&&event.key!=='Home'&&event.key!=='End')return;event.preventDefault();var tabs=Array.prototype.slice.call(bar.querySelectorAll('[data-tab-key]')),current=tabs.indexOf(button),next=current;if(event.key==='Home')next=0;else if(event.key==='End')next=tabs.length-1;else next=(current+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;tabs[next].focus();tabs[next].click();});
       bar.appendChild(button);
     });
-    var skillWeb=document.createElement('button');skillWeb.className='ab-tab';skillWeb.type='button';skillWeb.setAttribute('role','tab');skillWeb.setAttribute('aria-selected','false');skillWeb.textContent='🌳 Skill Web';skillWeb.title='1000 nodes · six disciplines · opens the skill web';skillWeb.onclick=function(){window.location.href='/abyss/tree';};bar.appendChild(skillWeb);
+    var skillWeb=document.createElement('button');skillWeb.className='ab-tab';skillWeb.type='button';skillWeb.setAttribute('role','tab');skillWeb.setAttribute('aria-selected','false');skillWeb.textContent='🌳 Skill Web';skillWeb.title='Every live node · six disciplines · opens the skill web';skillWeb.onclick=function(){window.location.href='/abyss/tree';};bar.appendChild(skillWeb);
     first.parentNode.insertBefore(bar,first);
+    requestAnimationFrame(function(){revealTab(bar.querySelector('.ab-tab.active'));});
   }
   window.buildAbyssTabs=buildAbyssTabs;
-  var aliases={progression:'#abyssSetBonuses',shop:'#abyssTokenShop',forge:'#abyssForgePanel',workshop:'#abyssWorkshop',lore:'.abyss-lore-bestiary',bestiary:'.ab-bestiary-table',leaderboards:'#lb'};
+  var aliases={season:'#abyssSeasonJourney',progression:'#abyssSetBonuses',shop:'#abyssTokenShop',forge:'#abyssForgePanel',workshop:'#abyssWorkshop',lore:'.abyss-lore-bestiary',bestiary:'.ab-bestiary-table',leaderboards:'#lb'};
   function targetForHash(){var key=location.hash.slice(1).toLowerCase();if(key==='talents'){location.assign('/abyss/tree#talents');return null;}var selector=aliases[key]||location.hash;if(!selector)return null;try{return document.querySelector(selector);}catch(_){return null;}}
   function activateDeepLink(){var target=targetForHash();if(!target)return;var panel=target.closest?target.closest('[data-abyss-section]'):null,key=panel&&panel.dataset.abyssSection,tab=key&&document.querySelector('.ab-tab[data-tab-key="'+key+'"]'),collapsible=target.closest?target.closest('.ab-nav-collapsible'):null;if(tab&&!tab.classList.contains('active'))tab.click();if(collapsible){var collapseButton=collapsible.querySelector('.ab-panel-collapse');collapsible.classList.remove('ab-panel-collapsed');if(collapseButton){collapseButton.setAttribute('aria-expanded','true');collapseButton.textContent=collapseButton.textContent.replace(/^Expand/,'Collapse');}try{localStorage.setItem(collapsible.dataset.collapseKey,'1');}catch(_){}}setTimeout(function(){target.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});},0);}
   function persistTabs(){document.querySelectorAll('.ab-tab[data-tab-key]').forEach(function(tab){tab.addEventListener('click',function(){var key=tab.dataset.tabKey,current=location.hash.slice(1).toLowerCase();try{localStorage.setItem('abyss_section_tab',key);}catch(_){}if(current!==key){try{history.replaceState(null,'','#'+key);}catch(_){}}});});}

@@ -1,0 +1,22 @@
+{{define "abyss-set-pity"}}
+<section class="abyss-panel ab-set-pity-panel" id="abyssSetPity" data-abyss-section="shop" aria-labelledby="abyssSetPityTitle">
+  <div class="ab-set-pity-heading">
+    <div>
+      <span class="ab-sub-label">SET COLLECTION</span>
+      <h2 id="abyssSetPityTitle">🧩 Completion safeguard</h2>
+    </div>
+    <span class="ab-up-lv">{{.ChancePct}}% at 3/4</span>
+  </div>
+  <p class="muted small">At exactly three distinct pieces, each compatible Abyss-set gear roll has a {{.ChancePct}}% server-owned bias toward a missing fourth piece. The meter is collection progress, not a hidden roll counter.</p>
+  <div class="ab-set-pity-grid">
+    {{range .Sets}}
+    <article class="ab-set-pity-card{{if .Active}} is-active{{else if .Complete}} is-complete{{end}}">
+      <div class="ab-set-pity-row"><b>{{.Icon}} {{.Name}}</b><span>{{.Owned}} / {{.Required}} known</span></div>
+      <div class="ab-set-pity-meter" role="progressbar" aria-label="{{.Name}} known pieces toward completion safeguard" aria-valuemin="0" aria-valuemax="{{.Required}}" aria-valuenow="{{if gt .Owned .Required}}{{.Required}}{{else}}{{.Owned}}{{end}}"><i style="width:{{.Percent}}%"></i></div>
+      <small>{{if .Active}}Safeguard armed for compatible rolls.{{else if .Complete}}Four-piece milestone reached.{{else}}{{.Remaining}} distinct piece(s) until the safeguard arms.{{end}}</small>
+    </article>
+    {{end}}
+  </div>
+  {{if .HiddenItems}}<p class="ab-set-pity-hidden muted small">🔒 {{.HiddenItems}} unidentified gear item(s) are intentionally excluded from these named meters; the server can still account for their hidden identities when resolving a drop.</p>{{end}}
+</section>
+{{end}}

@@ -5,9 +5,7 @@ import (
 	"log"
 	"math/rand/v2"
 	"strconv"
-	"time"
 
-	"ts3news/internal/clientquery"
 	"ts3news/internal/content"
 )
 
@@ -15,7 +13,7 @@ import (
 // -----------------------------------------------------------------------------
 // Companion to web_abyss_loot.go: drop-quality forecasts, the rest-floor loot
 // vacuum, per-user loot toggles and collectible counters in app_meta, beam
-// intensity classes, the Eternal-drop TS3 fanfare, boss relic lore, stacked
+// intensity classes, the Mythic+-drop TS3 fanfare, boss relic lore, stacked
 // consumable grants and the corrupted/lucid drop-variant helpers.
 
 // abyssBeamClass maps a drop's rarity to its loot-beam intensity class
@@ -231,55 +229,6 @@ func (b *Bot) abyssRestFloorVacuum(uid string, depth int) []string {
 	return labels
 }
 
-// ---- Eternal drop TS3 fanfare (AB-93) ----------------------------------------
-
-// broadcastAbyssEternalDrop pushes a TS3 channel-wide announcement for an
-// Eternal drop, mirroring BroadcastAbyssRecord's nickname+poke fanfare.
-// Eternal gear never drops from the roller today (forge ascension/fusion
-// only) — the ascension path should call this as well.
-func (b *Bot) broadcastAbyssEternalDrop(uid, itemName string) {
-	var nick string
-	if err := b.DB.QueryRow("SELECT nickname FROM users WHERE client_uid=$1", uid).Scan(&nick); err != nil || nick == "" {
-		return
-	}
-	addr := b.Cfg.ClientQueryAddr
-	if addr == "" {
-		addr = "127.0.0.1:25639"
-	}
-	c, err := clientquery.Dial(addr, 2*time.Second)
-	if err != nil {
-		return
-	}
-	defer func() { _ = c.Close() }()
-	if apiKey := b.getAPIKey(); apiKey != "" {
-		_ = c.Auth(apiKey)
-	}
-	_ = c.Use(1)
-
-	// Nickname and the item label can both originate in persisted player-facing
-	// data; neutralize BBCode so the broadcast cannot inject formatting or links.
-	nick = sanitizeBBCode(nick)
-	itemName = sanitizeBBCode(itemName)
-
-	oldNick := b.Cfg.TS3Nickname
-	_ = c.SetNickname("Eternal Drop!")
-
-	clients, err := c.ClientList()
-	if err == nil {
-		msg := fmt.Sprintf("🌟 ETERNAL! %s has obtained %s — the rarest treasure of the Abyss!", nick, itemName)
-		for _, cl := range clients {
-			if cl.Type == 0 { // normal user
-				_ = c.Poke(cl.CLID, msg)
-				// Respect the configured anti-flood poke delay, like the main cycle.
-				time.Sleep(time.Duration(b.Cfg.PokeDelayMS) * time.Millisecond)
-			}
-		}
-	}
-
-	time.Sleep(3 * time.Second)
-	_ = c.SetNickname(oldNick)
-}
-
 // ---- Boss relic flavor text (AB-97) ------------------------------------------
 
 // abyssBossRelicLore maps each named Abyss boss to the flavour inspect text
@@ -301,22 +250,24 @@ func abyssBossRelicLore(bossName string) string {
 
 // ---- Consumable stacking (AB-98) ---------------------------------------------
 
-// abyssConsumableStackCap is the maximum stack size for identical consumables
-// granted from the Abyss escrow (merged stacks render as "x5" count badges).
-const abyssConsumableStackCap = 5
+// abyssConsumableStackCapBase is the maximum stack size for identical
+// consumables granted from Abyss escrow before permanent pouch tailoring.
+const abyssConsumableStackCapBase = 5
 
 // grantConsumableStacked merges an escrowed consumable into the player's
-// stack (remaining_fights add), capped at abyssConsumableStackCap charges.
+// stack (remaining_fights add), capped by their permanent pouch tailoring.
 func (b *Bot) grantConsumableStacked(uid, consID string, fights int) error {
 	if fights <= 0 {
 		fights = 1
 	}
+	stackLimit := b.abyssConsumableStackLimit(uid)
 	if _, err := b.DB.Exec(
 		`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
 		 VALUES ($1, $2, LEAST($3, $4))
 		 ON CONFLICT (client_uid, cons_id)
-		 DO UPDATE SET remaining_fights = LEAST(user_consumables.remaining_fights + EXCLUDED.remaining_fights, $4)`,
-		uid, consID, fights, abyssConsumableStackCap); err != nil {
+		 DO UPDATE SET remaining_fights = GREATEST(user_consumables.remaining_fights,
+			LEAST(user_consumables.remaining_fights + EXCLUDED.remaining_fights, $4))`,
+		uid, consID, fights, stackLimit); err != nil {
 		return err
 	}
 	b.autoCombineConsumable(uid, consID)

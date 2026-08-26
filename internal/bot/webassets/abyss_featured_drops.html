@@ -1,0 +1,16 @@
+{{define "abyss-featured-drops"}}{{if .Items}}
+<section class="ab-featured-drops" id="abyssFeaturedDrops" aria-labelledby="abyssFeaturedDropsTitle">
+  <header>
+    <div><span class="ab-featured-kicker">WEEKLY LOOT SIGNAL · {{.Week}}</span><h2 id="abyssFeaturedDropsTitle">✦ Featured Abyss drops</h2></div>
+    <span class="ab-featured-reset">Resets {{.ResetText}}</span>
+  </header>
+  <p>These catalog items have <strong>2× selection weight</strong> whenever an eligible Abyss-exclusive gear roll occurs. Rarity odds and pity are unchanged.</p>
+  <div class="ab-featured-grid" role="list">
+    {{range .Items}}<article class="ab-featured-item rarity-{{.Rarity}}" role="listitem" data-gear-id="{{.ID}}">
+      <span class="ab-featured-mark" aria-hidden="true">✦</span>
+      <span><b>{{.Name}}</b><small>{{.Slot}} · {{.Rarity}}</small></span>
+      <strong class="ab-featured-weight" aria-label="two times selection weight">2×</strong>
+    </article>{{end}}
+  </div>
+</section>
+{{end}}{{end}}

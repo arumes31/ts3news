@@ -1,14 +1,58 @@
 /* Dark 16-bit presentation layer for live combat and inventory iconography. */
 .abyss-command-page .ab-pixel-icon {
+  position: relative;
   display: inline-block;
   width: 28px;
   height: 28px;
   flex: 0 0 auto;
-  background-image: var(--ab-icon-atlas);
+  background-image: var(--ab-expanded-icon-atlas);
   background-repeat: no-repeat;
-  background-size: 800% 600%;
+  background-size: 800% 800%;
   image-rendering: pixelated;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .7));
+}
+
+.abyss-command-page .ab-pixel-icon.ab-expanded-icon {
+  background-image: var(--ab-expanded-icon-atlas);
+  background-size: 800% 800%;
+}
+.abyss-command-page .ab-pixel-icon.ab-catalog-icon {
+  overflow: hidden;
+  border-radius: 3px;
+  background-color: #07101c;
+  background-image: var(--ab-catalog-atlas);
+  background-position: var(--ab-catalog-position);
+  background-size: var(--ab-catalog-size-x, 1400%) var(--ab-catalog-size-y, 1200%);
+}
+.abyss-command-page .ab-pixel-icon.ab-art-unique {
+  filter: hue-rotate(var(--ab-art-hue, 0deg)) drop-shadow(0 2px 2px rgba(0, 0, 0, .72));
+}
+.abyss-command-page .ab-pixel-icon.ab-art-unique::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  content: '';
+  opacity: .18;
+  background-color: transparent;
+  background-image: var(--ab-art-motif-atlas);
+  background-position: var(--ab-art-motif-position);
+  background-repeat: no-repeat;
+  background-size: var(--ab-catalog-size-x, 1400%) var(--ab-catalog-size-y, 1200%);
+  clip-path: polygon(72% 0, 100% 0, 100% 100%, 58% 100%);
+  mix-blend-mode: screen;
+  image-rendering: pixelated;
+}
+.abyss-command-page .ab-pixel-icon.ab-art-unique::after {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 10px;
+  height: 10px;
+  content: '';
+  border: 1px solid rgba(242, 189, 91, .72);
+  background: #080d18 var(--ab-art-sigil) center / 8px 8px no-repeat;
+  box-shadow: 0 1px 3px #000;
+  image-rendering: pixelated;
 }
 
 .abyss-command-page .ab-pixel-stage {
@@ -59,9 +103,16 @@
   align-items: end;
   justify-content: flex-start;
   gap: clamp(2px, .8vw, 12px);
-  min-width: 0;
+	flex-wrap: wrap;
+	align-content: end;
+	min-width: 0;
 }
-.abyss-command-page .ab-pixel-party.hostile { justify-content: flex-end; }
+.abyss-command-page #livePixelEnemies { grid-column: 1; justify-content: flex-start; }
+.abyss-command-page #livePixelAllies { grid-column: 2; justify-content: flex-end; }
+.abyss-command-page .ab-pixel-party.crowded { gap: 2px 5px; }
+.abyss-command-page .ab-pixel-party.crowded .ab-pixel-unit { width: clamp(54px, 5vw, 76px); }
+.abyss-command-page .ab-pixel-party.crowded .ab-pixel-name { min-height: 23px; }
+.abyss-command-page .ab-pixel-party.crowded .ab-pixel-name b { font-size: .52rem; }
 
 .abyss-command-page .ab-pixel-unit {
   position: relative;
@@ -102,11 +153,53 @@
   animation: ab-pixel-idle 1.5s steps(2) infinite alternate;
   transform-origin: 50% 86%;
 }
-.abyss-command-page .ab-pixel-unit.hostile .ab-actor-sprite { --ab-facing: -1; }
+.abyss-command-page .ab-pixel-unit:not(.hostile) .ab-actor-sprite { --ab-facing: -1; }
+.abyss-command-page .ab-pixel-unit.hostile .ab-actor-sprite { --ab-facing: 1; }
 .abyss-command-page .ab-actor-sprite.ab-enemy-sprite {
   aspect-ratio: 1;
   background-image: var(--ab-enemy-atlas);
   background-size: 600% 600%;
+}
+.abyss-command-page .ab-actor-sprite.ab-expanded-enemy-sprite {
+  aspect-ratio: 1;
+  background-image: var(--ab-expanded-enemy-atlas);
+  background-size: 800% 800%;
+  filter: hue-rotate(var(--ab-art-hue, 0deg)) drop-shadow(0 5px 3px rgba(0, 0, 0, .72));
+}
+.abyss-command-page .ab-actor-sprite.ab-catalog-actor {
+  overflow: hidden;
+  aspect-ratio: 1;
+  background-color: #07101c;
+  background-image: var(--ab-catalog-atlas);
+  background-position: var(--ab-catalog-position);
+  background-size: var(--ab-catalog-size-x, 1400%) var(--ab-catalog-size-y, 1200%);
+  filter: hue-rotate(var(--ab-art-hue, 0deg)) drop-shadow(0 5px 3px rgba(0, 0, 0, .72));
+}
+.abyss-command-page .ab-actor-sprite.ab-catalog-actor::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  opacity: .1;
+  background-image: var(--ab-art-motif-atlas);
+  background-position: var(--ab-art-motif-position);
+  background-repeat: no-repeat;
+  background-size: var(--ab-catalog-size-x, 1400%) var(--ab-catalog-size-y, 1200%);
+  clip-path: polygon(76% 0, 100% 0, 100% 100%, 62% 100%);
+  mix-blend-mode: screen;
+  image-rendering: pixelated;
+}
+.abyss-command-page .ab-actor-sigil {
+  position: absolute;
+  z-index: 5;
+  right: 3px;
+  bottom: 5px;
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(242, 189, 91, .66);
+  border-radius: 2px;
+  background: #080d18 var(--ab-art-sigil) center / 10px 10px no-repeat;
+  box-shadow: 0 1px 4px #000;
+  image-rendering: pixelated;
 }
 .abyss-command-page .ab-pixel-unit.elite-tier { width: clamp(88px, 9vw, 132px); }
 .abyss-command-page .ab-pixel-unit.boss-tier { z-index: 3; width: clamp(112px, 12vw, 168px); }
@@ -130,12 +223,12 @@
   letter-spacing: .12em;
   transform: translateX(-50%);
 }
-.abyss-command-page .ab-pixel-unit.affinity-fire .ab-enemy-sprite { filter: drop-shadow(0 0 7px #e55c43) saturate(1.14); }
-.abyss-command-page .ab-pixel-unit.affinity-frost .ab-enemy-sprite { filter: drop-shadow(0 0 7px #62c8ef) saturate(.9) brightness(1.08); }
-.abyss-command-page .ab-pixel-unit.affinity-toxic .ab-enemy-sprite { filter: drop-shadow(0 0 7px #78cc56) hue-rotate(28deg); }
-.abyss-command-page .ab-pixel-unit.affinity-void .ab-enemy-sprite { filter: drop-shadow(0 0 8px #9d55d8) saturate(1.18); }
-.abyss-command-page .ab-pixel-unit.affinity-metal .ab-enemy-sprite { filter: drop-shadow(0 0 6px #b5c3d1) saturate(.55) contrast(1.08); }
-.abyss-command-page .ab-pixel-unit.affinity-giant .ab-enemy-sprite { transform-origin: 50% 86%; }
+.abyss-command-page .ab-pixel-unit.affinity-fire .ab-catalog-actor { filter: hue-rotate(var(--ab-art-hue, 0deg)) drop-shadow(0 0 7px #e55c43) saturate(1.14); }
+.abyss-command-page .ab-pixel-unit.affinity-frost .ab-catalog-actor { filter: hue-rotate(var(--ab-art-hue, 0deg)) drop-shadow(0 0 7px #62c8ef) saturate(.9) brightness(1.08); }
+.abyss-command-page .ab-pixel-unit.affinity-toxic .ab-catalog-actor { filter: hue-rotate(var(--ab-art-hue, 0deg)) hue-rotate(28deg) drop-shadow(0 0 7px #78cc56); }
+.abyss-command-page .ab-pixel-unit.affinity-void .ab-catalog-actor { filter: hue-rotate(var(--ab-art-hue, 0deg)) drop-shadow(0 0 8px #9d55d8) saturate(1.18); }
+.abyss-command-page .ab-pixel-unit.affinity-metal .ab-catalog-actor { filter: hue-rotate(var(--ab-art-hue, 0deg)) drop-shadow(0 0 6px #b5c3d1) saturate(.55) contrast(1.08); }
+.abyss-command-page .ab-pixel-unit.affinity-giant .ab-catalog-actor { transform-origin: 50% 86%; }
 .abyss-command-page .ab-pixel-shadow {
   position: absolute;
   z-index: 1;
@@ -181,12 +274,12 @@
 .abyss-command-page .ab-live-details > summary span { margin-left: 8px; color: #606b7c; font-weight: 400; letter-spacing: .02em; text-transform: none; }
 .abyss-command-page .ab-live-details[open] > summary { color: var(--live-gold); border-bottom: 1px solid rgba(242, 189, 91, .14); }
 
-.abyss-command-page .ab-pixel-unit.attacking:not(.hostile) .ab-actor-sprite { animation: ab-pixel-lunge-right .42s steps(4); }
-.abyss-command-page .ab-pixel-unit.attacking.hostile .ab-actor-sprite { animation: ab-pixel-lunge-left .42s steps(4); }
-.abyss-command-page .ab-pixel-unit.casting .ab-actor-sprite { animation: ab-pixel-cast .62s steps(4); filter: drop-shadow(0 0 9px #5bd6d0); }
-.abyss-command-page .ab-pixel-unit.taking-hit .ab-actor-sprite { animation: ab-pixel-hit .4s steps(4); }
-.abyss-command-page .ab-pixel-unit.healing .ab-actor-sprite { animation: ab-pixel-heal .65s steps(4); }
-.abyss-command-page .ab-pixel-unit.defeated .ab-actor-sprite { animation: ab-pixel-defeat .7s steps(5) both; }
+.abyss-command-page .ab-pixel-unit.attacking:not(.hostile) .ab-actor-sprite { animation: ab-pixel-lunge-left .72s steps(6); }
+.abyss-command-page .ab-pixel-unit.attacking.hostile .ab-actor-sprite { animation: ab-pixel-lunge-right .72s steps(6); }
+.abyss-command-page .ab-pixel-unit.casting .ab-actor-sprite { animation: ab-pixel-cast .88s steps(6); filter: drop-shadow(0 0 9px #5bd6d0); }
+.abyss-command-page .ab-pixel-unit.taking-hit .ab-actor-sprite { animation: ab-pixel-hit .62s steps(5); }
+.abyss-command-page .ab-pixel-unit.healing .ab-actor-sprite { animation: ab-pixel-heal .88s steps(6); }
+.abyss-command-page .ab-pixel-unit.defeated .ab-actor-sprite { animation: ab-pixel-defeat .9s steps(6) both; }
 .abyss-command-page .ab-pixel-unit.attacking::before,
 .abyss-command-page .ab-pixel-unit.casting::before {
   position: absolute;
@@ -198,10 +291,11 @@
   content: '';
   pointer-events: none;
 }
-.abyss-command-page .ab-pixel-unit.attacking::before { background: #fff4c8; box-shadow: 0 0 0 2px #e55c43, 0 0 9px #ff8b56; transform: rotate(-25deg); animation: ab-pixel-slash .38s steps(4) both; }
-.abyss-command-page .ab-pixel-unit.attacking.hostile::before { left: 12%; transform: rotate(205deg); }
-.abyss-command-page .ab-pixel-unit.casting::before { width: 15px; height: 15px; border-radius: 50%; background: #b8ffff; box-shadow: 0 0 0 3px #237c93, 0 0 15px #5bd6d0; animation: ab-pixel-orb .62s steps(4) both; }
-.abyss-command-page .ab-pixel-unit.casting.hostile::before { left: 12%; background: #e8b7ff; box-shadow: 0 0 0 3px #743188, 0 0 15px #bf64e6; }
+.abyss-command-page .ab-pixel-unit.attacking::before { left:12%;background: #fff4c8; box-shadow: 0 0 0 2px #e55c43, 0 0 9px #ff8b56; transform: rotate(205deg); animation: ab-pixel-slash .62s steps(5) both; }
+.abyss-command-page .ab-pixel-unit.attacking.hostile::before { left: 68%; transform: rotate(-25deg); }
+.abyss-command-page .ab-pixel-unit.casting::before { width: 15px; height: 15px; border-radius: 50%; background: #b8ffff; box-shadow: 0 0 0 3px #237c93, 0 0 15px #5bd6d0; animation: ab-pixel-orb .88s steps(6) both; }
+.abyss-command-page .ab-pixel-unit.casting::before { left:12%; }
+.abyss-command-page .ab-pixel-unit.casting.hostile::before { left: 68%; background: #e8b7ff; box-shadow: 0 0 0 3px #743188, 0 0 15px #bf64e6; }
 
 .abyss-command-page .ab-action-icon { height: 34px; }
 .abyss-command-page .ab-action-icon .ab-pixel-icon { width: 34px; height: 34px; }

@@ -78,26 +78,31 @@ type MobDeathEffect struct {
 // Mob is a spawned combat opponent: a monster instance with resolved stats,
 // effects, and (for elites/bosses) equipped gear and spells.
 type Mob struct {
-	Name        string
-	Type        MobType
-	Level       int
-	Stats       Stats
-	CurrentHP   int
-	MaxHP       int
-	Break       int
-	MaxBreak    int
-	RewardXP    int
-	Element     Element
-	Effects     []MobEffect
-	Spells      []Skill
-	Equipped    []Gear
-	DeathEffect *MobDeathEffect
-	STRMod      float64
-	DEFMod      float64
-	SPDMod      float64
-	StunRounds  int
-	PreStunSPD  int
-	Loyalty     int
+	Name           string
+	Type           MobType
+	Level          int
+	Stats          Stats
+	CurrentHP      int
+	MaxHP          int
+	Break          int
+	MaxBreak       int
+	RewardXP       int
+	Element        Element
+	Effects        []MobEffect
+	Spells         []Skill
+	Equipped       []Gear
+	DeathEffect    *MobDeathEffect
+	STRMod         float64
+	DEFMod         float64
+	SPDMod         float64
+	StunRounds     int
+	PreStunSPD     int
+	WeaknessWindow bool
+	Loyalty        int
+	PetClass       string
+	PetShiny       bool
+	PetBoss        bool
+	PetBark        string
 }
 
 // Clone returns a deep copy of m, so mutating the copy's slices never affects
@@ -185,27 +190,27 @@ func initMobs() {
 				})
 			}
 		}
+
+		// EliteMinions (stronger common)
+		baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.corrupted_guard"), Type: MobEliteMinion, Stats: Stats{HP: 60, STR: 25, DEF: 10, SPD: 7, LCK: 2}, RewardXP: 12})
+		baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.shadow_assassin"), Type: MobEliteMinion, Stats: Stats{HP: 50, STR: 35, DEF: 5, SPD: 15, LCK: 5}, RewardXP: 15})
+
+		// Elites
+		baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.dread_knight"), Type: MobElite, Stats: Stats{HP: 150, STR: 45, DEF: 20, SPD: 10, LCK: 5}, RewardXP: 25})
+		baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.frost_lich"), Type: MobElite, Stats: Stats{HP: 120, STR: 60, DEF: 15, SPD: 12, LCK: 8}, RewardXP: 30})
+
+		// Minibosses (between Elite and Boss)
+		baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.gatekeeper"), Type: MobMiniboss, Stats: Stats{HP: 400, STR: 80, DEF: 35, SPD: 15, LCK: 7}, RewardXP: 60})
+		baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.raging_behemoth"), Type: MobMiniboss, Stats: Stats{HP: 600, STR: 100, DEF: 20, SPD: 5, LCK: 3}, RewardXP: 70})
+
+		// Bosses
+		baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.ancient_dragon"), Type: MobBoss, Stats: Stats{HP: 1000, STR: 150, DEF: 50, SPD: 20, LCK: 10}, RewardXP: 100})
+		baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.kraken"), Type: MobBoss, Stats: Stats{HP: 1200, STR: 130, DEF: 40, SPD: 15, LCK: 12}, RewardXP: 120})
+
+		// Legendaries
+		baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.void_lord"), Type: MobLegendary, Stats: Stats{HP: 5000, STR: 450, DEF: 100, SPD: 50, LCK: 25}, RewardXP: 500})
+		baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.chronos"), Type: MobLegendary, Stats: Stats{HP: 4500, STR: 500, DEF: 80, SPD: 100, LCK: 50}, RewardXP: 600})
 	})
-
-	// EliteMinions (stronger common)
-	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.corrupted_guard"), Type: MobEliteMinion, Stats: Stats{HP: 60, STR: 25, DEF: 10, SPD: 7, LCK: 2}, RewardXP: 12})
-	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.shadow_assassin"), Type: MobEliteMinion, Stats: Stats{HP: 50, STR: 35, DEF: 5, SPD: 15, LCK: 5}, RewardXP: 15})
-
-	// Elites
-	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.dread_knight"), Type: MobElite, Stats: Stats{HP: 150, STR: 45, DEF: 20, SPD: 10, LCK: 5}, RewardXP: 25})
-	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.frost_lich"), Type: MobElite, Stats: Stats{HP: 120, STR: 60, DEF: 15, SPD: 12, LCK: 8}, RewardXP: 30})
-
-	// Minibosses (between Elite and Boss)
-	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.gatekeeper"), Type: MobMiniboss, Stats: Stats{HP: 400, STR: 80, DEF: 35, SPD: 15, LCK: 7}, RewardXP: 60})
-	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.raging_behemoth"), Type: MobMiniboss, Stats: Stats{HP: 600, STR: 100, DEF: 20, SPD: 5, LCK: 3}, RewardXP: 70})
-
-	// Bosses
-	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.ancient_dragon"), Type: MobBoss, Stats: Stats{HP: 1000, STR: 150, DEF: 50, SPD: 20, LCK: 10}, RewardXP: 100})
-	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.kraken"), Type: MobBoss, Stats: Stats{HP: 1200, STR: 130, DEF: 40, SPD: 15, LCK: 12}, RewardXP: 120})
-
-	// Legendaries
-	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.void_lord"), Type: MobLegendary, Stats: Stats{HP: 5000, STR: 450, DEF: 100, SPD: 50, LCK: 25}, RewardXP: 500})
-	baseMobs = append(baseMobs, Mob{Name: i18n.T("mob.chronos"), Type: MobLegendary, Stats: Stats{HP: 4500, STR: 500, DEF: 80, SPD: 100, LCK: 50}, RewardXP: 600})
 }
 
 // SpawnMob scales a mob to the given level and difficulty factor (0.1 to 1.0+)

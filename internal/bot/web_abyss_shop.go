@@ -84,8 +84,8 @@ func (s *WebServer) handleAbyssShopBuy(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown item"})
 		return
 	}
-	if strings.HasPrefix(item.Key, "insanity_") && item.Key != abyssActiveInsanityCosmetic(time.Now()) {
-		writeJSON(w, map[string]any{"ok": false, "error": "that Insanity cosmetic is not in today's rotation"})
+	if strings.HasPrefix(item.Key, "insanity_") && item.Key != abyssWeeklyInsanityCosmetic(time.Now()) {
+		writeJSON(w, map[string]any{"ok": false, "error": "that Insanity cosmetic is not in this week's rotation"})
 		return
 	}
 	tokenCost, _ := abyssShopEffectiveCost(item, time.Now())

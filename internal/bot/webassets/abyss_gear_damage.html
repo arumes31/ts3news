@@ -1,0 +1,33 @@
+{{define "abyssGearDamageBreakdown"}}
+{{if .Damage.Available}}
+<div class="ab-gear-damage" id="abGearDamage-{{.Slot}}" role="region" aria-label="{{.Name}} damage contribution" hidden>
+  <header><span>DAMAGE CHANNELS</span><small>equipped stats only</small></header>
+  {{if ne .Damage.BasePower 0}}
+  <div class="ab-gear-damage-row physical">
+    <span>⚔ Base power</span><b>{{printf "%+d" .Damage.BasePower}} STR</b>
+    {{if gt .Damage.BaseSharePct 0}}<i style="--damage-share:{{.Damage.BaseSharePct}}%"></i><small>{{.Damage.BaseSharePct}}% of gear STR</small>{{else}}<small>direct penalty</small>{{end}}
+  </div>
+  {{end}}
+  {{if ne .Damage.SpellPower 0}}
+  <div class="ab-gear-damage-row magic">
+    <span>✦ Spell scaling</span><b>{{printf "%+d" .Damage.SpellPower}} INT</b>
+    {{if gt .Damage.SpellSharePct 0}}<i style="--damage-share:{{.Damage.SpellSharePct}}%"></i><small>{{.Damage.SpellSharePct}}% of gear INT</small>{{else}}<small>direct penalty</small>{{end}}
+  </div>
+  {{end}}
+  {{if .Damage.AttackType}}<div class="ab-gear-damage-type"><span>MAIN-HAND TYPE</span><b>{{.Damage.AttackType}}</b></div>{{end}}
+  {{if not .Damage.HasDirect}}<p>No direct STR or INT contribution. Defensive and utility stats still affect combat.</p>{{end}}
+  <footer>Final damage also depends on skills, buffs, crits, talents, target defense, and elemental matchup.</footer>
+</div>
+{{end}}
+{{end}}
+
+{{define "abyssGearDamageJS"}}
+function toggleAbyssGearDamage(card,force){
+  var panel=document.getElementById(card.getAttribute('aria-controls')||'');if(!panel)return;
+  var open=force===undefined?card.getAttribute('aria-expanded')!=='true':!!force;
+  document.querySelectorAll('.abyss-side-gear[aria-expanded="true"]').forEach(function(other){
+    if(other===card)return;other.setAttribute('aria-expanded','false');var otherPanel=document.getElementById(other.getAttribute('aria-controls')||'');if(otherPanel)otherPanel.hidden=true;
+  });
+  card.setAttribute('aria-expanded',open?'true':'false');panel.hidden=!open;
+}
+{{end}}

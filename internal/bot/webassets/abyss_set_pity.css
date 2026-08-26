@@ -1,0 +1,62 @@
+.abyss-command-page .ab-set-pity-panel {
+  background: #0b1220 !important;
+  border-color: #35445d !important;
+}
+
+.ab-set-pity-heading,
+.ab-set-pity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ab-set-pity-heading h2 { margin: 2px 0 0; }
+
+.ab-set-pity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.ab-set-pity-card {
+  padding: 10px;
+  border: 1px solid #2b3b53;
+  border-radius: 9px;
+  background: #0d1726;
+}
+
+.ab-set-pity-card.is-active { border-color: #f6c453; box-shadow: inset 3px 0 #f6c453; }
+.ab-set-pity-card.is-complete { border-color: #48c78e; }
+.ab-set-pity-row span, .ab-set-pity-card small { color: #9fb1ca; }
+
+.ab-set-pity-meter {
+  height: 9px;
+  margin: 8px 0;
+  overflow: hidden;
+  border: 1px solid #34465f;
+  border-radius: 999px;
+  background: #03070d;
+}
+
+.ab-set-pity-meter i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5bd6d0, #f6c453);
+}
+
+.ab-set-pity-hidden { margin: 10px 0 0; }
+
+@media (max-width: 640px) {
+  .ab-set-pity-grid { grid-template-columns: 1fr; }
+  .ab-set-pity-heading { align-items: flex-start; }
+}
+
+@media (forced-colors: active) {
+  .abyss-command-page .ab-set-pity-panel,
+  .ab-set-pity-card,
+  .ab-set-pity-meter { border-color: CanvasText !important; background: Canvas !important; box-shadow: none; }
+  .ab-set-pity-meter i { background: Highlight; }
+}

@@ -25,6 +25,7 @@ type abyssBossAffinityForecastView struct {
 	TargetDepth   int
 	TwinBosses    bool
 	Neutral       bool
+	Secret        bool
 }
 
 func abyssBossAffinityForecastForSecret(run abyssRun, now time.Time, chain abyssSecretBossChainView) abyssBossAffinityForecastView {
@@ -33,6 +34,7 @@ func abyssBossAffinityForecastForSecret(run abyssRun, now time.Time, chain abyss
 		return view
 	}
 	def := abyssSecretBosses[chain.Stage]
+	view.Secret = true
 	view.Name, view.Icon, view.Element = "Forbidden Signature", "⌬", string(def.Element)
 	view.TargetDepth, view.TwinBosses = chain.NextDepth, false
 	view.WeakTo = string(liveElementWeakness(def.Element))

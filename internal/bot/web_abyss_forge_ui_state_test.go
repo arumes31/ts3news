@@ -88,11 +88,14 @@ func TestUnidentifiedForgeViewHidesMetadata(t *testing.T) {
 		ID: "secret", Name: "Secret Crown", Slot: content.SlotHead,
 		Rarity: content.RarityLegendary, Stats: content.Stats{STR: 999},
 		Sockets: 2, Gemstones: []string{"Ruby III"}, Quality: 5,
-		KillCount: 400, MilestoneTier: 2, Unidentified: true,
+		KillCount: 400, MilestoneTier: 2, Unidentified: true, FoundAt: "2000-01-01T00:00:00Z",
 	}
 	view := toGearView(gear.Slot, gear)
 	if view.Name != "Unidentified Head" || view.Rarity != "Unknown" || view.CR != 0 || view.Score != 0 {
 		t.Fatalf("unidentified identity leaked: %#v", view)
+	}
+	if view.RarityIcon != "crystal-ball" || view.RarityColor != "#8c96aa" {
+		t.Fatalf("unidentified silhouette = %q %q", view.RarityIcon, view.RarityColor)
 	}
 	if view.StatsJSON != "{}" || view.GemstonesJSON != "[]" || view.Sockets != 0 || len(view.Gemstones) != 0 {
 		t.Fatalf("unidentified payload leaked: %#v", view)
@@ -100,7 +103,7 @@ func TestUnidentifiedForgeViewHidesMetadata(t *testing.T) {
 	if view.Quality != 0 || view.SetID != "" || view.Temper != 0 || view.HasSpecial || view.HasRune {
 		t.Fatalf("unidentified progression leaked: %#v", view)
 	}
-	if view.ID != "" || view.MaxDurability != 0 || view.Durability != 0 || view.AHPrice != 0 || view.VendorPrice != 0 || view.Insured || view.XPBonusPct != 0 {
+	if view.ID != "" || view.MaxDurability != 0 || view.Durability != 0 || view.AHPrice != 0 || view.VendorPrice != 0 || view.Insured || view.XPBonusPct != 0 || view.BrokenIn {
 		t.Fatalf("unidentified economy metadata leaked: %#v", view)
 	}
 }

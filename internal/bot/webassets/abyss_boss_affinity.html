@@ -1,11 +1,32 @@
-{{define "abyssBossAffinity"}}{{with .BossAffinity}}
-<aside class="ab-affinity-forecast is-{{.Color}}" aria-label="Daily boss elemental affinity">
+{{define "abyssBossAffinity"}}{{$root := .}}{{with .BossAffinity}}
+<aside class="ab-affinity-forecast is-{{.Color}}" id="abyssAffinityForecast" aria-label="Daily boss elemental affinity">
   <div class="ab-affinity-sigil" aria-hidden="true">{{.Icon}}</div>
   <div class="ab-affinity-copy">
     <span class="ab-kicker">TODAY'S BOSS AFFINITY · UTC</span>
     <strong>{{.Name}} · {{.Element}}</strong>
     {{if .Neutral}}<small>Physical signature · no elemental weakness or resistance</small>{{else}}<small>Counter with <b>{{.WeakTo}}</b> for 2× damage · avoid {{.StrongAgainst}} attacks at ½ damage</small>{{end}}
   </div>
-  <div class="ab-affinity-target"><span>NATURAL BOSS</span><b>F{{.TargetDepth}}</b>{{if .TwinBosses}}<small>⚔ Twin Tyrants</small>{{else}}<small>single boss</small>{{end}}</div>
+  <div class="ab-affinity-target"><span>NATURAL BOSS</span><b id="abAffinityTarget">F{{.TargetDepth}}</b>{{if .TwinBosses}}<small id="abAffinityKind">⚔ Twin Tyrants</small>{{else}}<small id="abAffinityKind">single boss</small>{{end}}</div>
+  {{with $root.ElementalPreview}}{{if .Active}}
+  <div class="ab-element-matchup is-{{.OutcomeClass}}" id="abyssElementalPreview"
+       data-target-depth="{{.TargetDepth}}" data-twin-depth="{{.TwinBossDepth}}" data-secret="{{.SecretEncounter}}"
+       aria-label="Elemental matchup: {{.PlayerElement}} attacks deal {{.Multiplier}} damage to {{.EnemyElement}} enemies">
+    <div class="ab-element-combatant">
+      <span>YOUR MAIN HAND</span><strong>{{.PlayerIcon}} {{.PlayerElement}}</strong>
+    </div>
+    <div class="ab-element-outcome" id="abElementOutcome"><span>{{.OutcomeIcon}} {{.Outcome}}</span><b>{{.Multiplier}}</b></div>
+    <div class="ab-element-combatant is-enemy">
+      <span>SCOUTED · <b id="abElementTarget">F{{.TargetDepth}}</b></span><strong>{{.EnemyIcon}} {{.EnemyElement}}</strong>
+    </div>
+    <div class="ab-element-rules" aria-label="Elemental combat rules">
+      {{if .NeutralEncounter}}
+      <span class="ab-element-rule is-neutral">◆ Physical signature · all elements deal 1×</span>
+      {{else}}
+      <span class="ab-element-rule is-strong">▲ Strong · {{.StrongIcon}} {{.StrongElement}} <b>2×</b></span>
+      <span class="ab-element-rule is-resisted">▼ Resisted · {{.ResistedIcon}} {{.ResistedElement}} <b>½×</b></span>
+      {{end}}
+    </div>
+  </div>
+  {{end}}{{end}}
 </aside>
 {{end}}{{end}}

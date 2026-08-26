@@ -1,0 +1,10 @@
+{{define "abyssWeaknessWindowJS"}}
+function liveWeaknessWindowMark(unit,mode){
+  if(!unit||!unit.weakness_ready)return '';
+  var css=mode==='pixel'?'ab-pixel-weakness':'ab-combatant-weakness';
+  return '<span class="'+css+'" title="The next direct player hit is a guaranteed critical"><b>◎ EXPOSED</b><i>NEXT PLAYER HIT CRITS</i></span>';
+}
+function liveWeaknessAria(unit){
+  return unit&&unit.weakness_ready?', weakness window ready; next direct player hit is a guaranteed critical':'';
+}
+{{end}}

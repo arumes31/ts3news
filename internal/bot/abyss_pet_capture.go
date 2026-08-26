@@ -3,11 +3,12 @@ package bot
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"ts3news/internal/content"
 )
 
-const abyssPetCaptureCap = 3
+const abyssPetCaptureCap = abyssPetBaseCap
 
 type abyssPetCaptureResult string
 
@@ -35,8 +36,11 @@ func abyssPetCaptureLimit(mindControlLevel int) int {
 }
 
 func abyssCanAttemptPetCapture(owned, mindControlLevel int, pendingAttempted bool) bool {
-	limit := abyssPetCaptureLimit(mindControlLevel)
-	if limit < abyssPetCaptureCap {
+	return abyssCanAttemptPetCaptureAtLimit(owned, abyssPetCaptureLimit(mindControlLevel), pendingAttempted)
+}
+
+func abyssCanAttemptPetCaptureAtLimit(owned, limit int, pendingAttempted bool) bool {
+	if limit < abyssPetBaseCap {
 		return owned < limit
 	}
 	return !pendingAttempted
@@ -46,7 +50,7 @@ func (b *Bot) persistAbyssPetCapture(uid string, pet *content.Mob, limit int) (a
 	if pet == nil || uid == "" {
 		return "", fmt.Errorf("invalid pet capture")
 	}
-	limit = min(abyssPetCaptureCap, max(0, limit))
+	limit = min(abyssPetMaxCap, max(0, limit))
 	if limit == 0 {
 		return abyssPetCaptureFull, nil
 	}
@@ -65,18 +69,28 @@ func (b *Bot) persistAbyssPetCapture(uid string, pet *content.Mob, limit int) (a
 	}
 	result := abyssPetCaptureRecruited
 	if owned < limit {
+		profile, encodeErr := encodeAbyssPetProfile(abyssPetProfile{
+			Shiny: pet.PetShiny, BossVariant: pet.PetBoss, BarkStyle: "gentle",
+		})
+		if encodeErr != nil {
+			return "", encodeErr
+		}
 		if _, err := tx.Exec(`INSERT INTO user_pets
-			(client_uid,name,mob_type,level,hp,max_hp,str,def,spd,loyalty)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, uid, pet.Name, string(pet.Type), pet.Level,
+			(client_uid,name,mob_type,level,hp,max_hp,str,def,spd,loyalty,autoskills)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, uid, pet.Name, string(pet.Type), pet.Level,
 			max(1, pet.Stats.HP), max(1, pet.MaxHP), pet.Stats.STR, pet.Stats.DEF, pet.Stats.SPD,
-			min(100, max(1, pet.Loyalty))); err != nil {
+			min(100, max(1, pet.Loyalty)), profile); err != nil {
 			return "", err
 		}
-	} else if limit == abyssPetCaptureCap {
+	} else if limit >= abyssPetCaptureCap {
+		pendingName := pet.Name
+		if pet.PetShiny {
+			pendingName = "✦ " + pendingName
+		}
 		inserted, err := tx.Exec(`INSERT INTO abyss_pending_pet_captures
 			(client_uid,name,mob_type,level,hp,max_hp,str,def,spd,loyalty)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-			ON CONFLICT (client_uid) DO NOTHING`, uid, pet.Name, string(pet.Type), pet.Level,
+			ON CONFLICT (client_uid) DO NOTHING`, uid, pendingName, string(pet.Type), pet.Level,
 			max(1, pet.Stats.HP), max(1, pet.MaxHP), pet.Stats.STR, pet.Stats.DEF, pet.Stats.SPD,
 			min(100, max(1, pet.Loyalty)))
 		if err != nil {
@@ -164,8 +178,33 @@ func (s *WebServer) handleAbyssPetCaptureResolve(w http.ResponseWriter, r *http.
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	stableLimit := abyssPetBaseCap
+	if owned > abyssPetBaseCap {
+		rows, err := tx.Query("SELECT node_id FROM user_abyss_tree WHERE client_uid=$1", uid)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		var allocated []int
+		for rows.Next() {
+			var nodeID int
+			if err := rows.Scan(&nodeID); err != nil {
+				_ = rows.Close()
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			allocated = append(allocated, nodeID)
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		_ = rows.Close()
+		stableLimit = min(abyssPetMaxCap, abyssPetBaseCap+max(0, int(content.AbyssTree().BonusFor(allocated).Pct["pet_cap"])))
+	}
 	activeSlot := 0
-	if owned >= abyssPetCaptureCap {
+	if owned >= stableLimit {
 		if req.ReleasePetID <= 0 {
 			writeJSON(w, map[string]any{"ok": false, "error": "choose a companion to release"})
 			return
@@ -181,7 +220,7 @@ func (s *WebServer) handleAbyssPetCaptureResolve(w http.ResponseWriter, r *http.
 			return
 		}
 		owned--
-		if owned >= abyssPetCaptureCap {
+		if owned >= stableLimit {
 			if err := tx.Commit(); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
@@ -191,11 +230,18 @@ func (s *WebServer) handleAbyssPetCaptureResolve(w http.ResponseWriter, r *http.
 			return
 		}
 	}
+	pendingProfile, err := encodeAbyssPetProfile(abyssPetProfile{
+		Shiny: strings.HasPrefix(pending.Name, "✦ "), BossVariant: pending.Type == string(content.MobBoss), BarkStyle: "gentle",
+	})
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "capture profile"})
+		return
+	}
 	if _, err := tx.Exec(`INSERT INTO user_pets
-		(client_uid,name,mob_type,level,hp,max_hp,str,def,spd,loyalty,active_slot)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, uid, pending.Name, pending.Type,
+		(client_uid,name,mob_type,level,hp,max_hp,str,def,spd,loyalty,active_slot,autoskills)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, uid, strings.TrimPrefix(pending.Name, "✦ "), pending.Type,
 		pending.Level, pending.HP, pending.MaxHP, pending.STR, pending.DEF, pending.SPD,
-		pending.Loyalty, activeSlot); err != nil {
+		pending.Loyalty, activeSlot, pendingProfile); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

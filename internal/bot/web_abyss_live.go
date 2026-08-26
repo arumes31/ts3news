@@ -14,7 +14,7 @@ import (
 const (
 	abyssLiveRoundTime                  = 4 * time.Second
 	abyssLiveHybridTime                 = 9 * time.Second
-	abyssLiveSnapshotSchemaVersion      = 1
+	abyssLiveSnapshotSchemaVersion      = 2
 	abyssLiveMaxIdempotencyKeyLength    = 128
 	abyssLiveMaxIdempotencyKeysPerRound = 64
 	abyssLiveInitialTimeBank            = 6 * time.Second
@@ -61,35 +61,43 @@ type abyssLiveOption struct {
 
 type abyssLiveEffect struct {
 	Name            string `json:"name"`
+	Key             string `json:"key,omitempty"`
+	Icon            string `json:"icon,omitempty"`
+	Description     string `json:"description,omitempty"`
+	Tone            string `json:"tone,omitempty"`
+	Affix           bool   `json:"affix,omitempty"`
 	RemainingRounds int    `json:"remaining_rounds,omitempty"`
 	Duration        string `json:"duration,omitempty"`
 }
 
 type abyssLiveCombatantView struct {
-	ID         string               `json:"id"`
-	Name       string               `json:"name"`
-	HP         int                  `json:"hp"`
-	MaxHP      int                  `json:"max_hp"`
-	HPHidden   bool                 `json:"hp_hidden,omitempty"`
-	Mana       int                  `json:"mana,omitempty"`
-	MaxMana    int                  `json:"max_mana,omitempty"`
-	Ready      bool                 `json:"ready,omitempty"`
-	IsPlayer   bool                 `json:"is_player,omitempty"`
-	IsSelf     bool                 `json:"is_self,omitempty"`
-	Element    string               `json:"element,omitempty"`
-	WeakTo     string               `json:"weak_to,omitempty"`
-	Position   string               `json:"position,omitempty"`
-	Speed      int                  `json:"speed,omitempty"`
-	Threat     int                  `json:"threat,omitempty"`
-	Role       string               `json:"role,omitempty"`
-	Faction    string               `json:"faction,omitempty"`
-	Pattern    string               `json:"pattern,omitempty"`
-	Break      int                  `json:"break,omitempty"`
-	MaxBreak   int                  `json:"max_break,omitempty"`
-	Hazard     bool                 `json:"hazard,omitempty"`
-	Revenge    bool                 `json:"revenge,omitempty"`
-	Effects    []abyssLiveEffect    `json:"effects,omitempty"`
-	Weakpoints []abyssLiveWeakpoint `json:"weakpoints,omitempty"`
+	ID            string               `json:"id"`
+	Name          string               `json:"name"`
+	HP            int                  `json:"hp"`
+	MaxHP         int                  `json:"max_hp"`
+	HPHidden      bool                 `json:"hp_hidden,omitempty"`
+	Shield        int                  `json:"shield,omitempty"`
+	MaxShield     int                  `json:"max_shield,omitempty"`
+	Mana          int                  `json:"mana,omitempty"`
+	MaxMana       int                  `json:"max_mana,omitempty"`
+	Ready         bool                 `json:"ready,omitempty"`
+	IsPlayer      bool                 `json:"is_player,omitempty"`
+	IsSelf        bool                 `json:"is_self,omitempty"`
+	Element       string               `json:"element,omitempty"`
+	WeakTo        string               `json:"weak_to,omitempty"`
+	Position      string               `json:"position,omitempty"`
+	Speed         int                  `json:"speed,omitempty"`
+	Threat        int                  `json:"threat,omitempty"`
+	Role          string               `json:"role,omitempty"`
+	Faction       string               `json:"faction,omitempty"`
+	Pattern       string               `json:"pattern,omitempty"`
+	Break         int                  `json:"break,omitempty"`
+	MaxBreak      int                  `json:"max_break,omitempty"`
+	Hazard        bool                 `json:"hazard,omitempty"`
+	Revenge       bool                 `json:"revenge,omitempty"`
+	WeaknessReady bool                 `json:"weakness_ready,omitempty"`
+	Effects       []abyssLiveEffect    `json:"effects,omitempty"`
+	Weakpoints    []abyssLiveWeakpoint `json:"weakpoints,omitempty"`
 }
 
 type abyssLiveRecommendation struct {
@@ -120,6 +128,11 @@ type abyssLiveInitiativeEntry struct {
 	Speed int    `json:"speed"`
 }
 
+type abyssLiveActionBudget struct {
+	Remaining int `json:"remaining"`
+	Limit     int `json:"limit"`
+}
+
 type abyssLiveSnapshot struct {
 	OK            bool                       `json:"ok"`
 	SchemaVersion int                        `json:"schema_version"`
@@ -143,6 +156,8 @@ type abyssLiveSnapshot struct {
 	Queued        *abyssLiveAction           `json:"queued,omitempty"`
 	Recommended   *abyssLiveRecommendation   `json:"recommended,omitempty"`
 	TimeBankMS    int64                      `json:"time_bank_ms,omitempty"`
+	ActionBudget  abyssLiveActionBudget      `json:"action_budget"`
+	SkillVariety  abyssSkillVarietyView      `json:"skill_variety"`
 	EnemyIntents  []abyssLiveEnemyIntent     `json:"enemy_intents,omitempty"`
 	Initiative    []abyssLiveInitiativeEntry `json:"initiative,omitempty"`
 	RecentLogs    []string                   `json:"recent_logs"`
@@ -190,6 +205,8 @@ type abyssLiveCombat struct {
 	history        []abyssLiveEvent
 	enemyPlans     map[int]abyssLiveEnemyPlan
 	actionCounts   map[string]int
+	varietySkills  map[string]struct{}
+	skillVariety   abyssSkillVarietyView
 	bossAdaptation string
 	revengeFamily  string
 	initiative     []abyssLiveInitiativeEntry
@@ -268,6 +285,10 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 	}
 	initiative := append([]abyssLiveInitiativeEntry{}, c.initiative...)
 	timeBankMS := c.timeBank[uid].Milliseconds()
+	actionAttemptsRemaining := max(
+		0,
+		abyssLiveMaxIdempotencyKeysPerRound-c.idempotencyCountLocked(uid),
+	)
 	var queued *abyssLiveAction
 	if action, ok := c.queued[uid]; ok {
 		copyAction := action
@@ -301,6 +322,11 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 		Queued:        queued,
 		Recommended:   recommended,
 		TimeBankMS:    timeBankMS,
+		ActionBudget: abyssLiveActionBudget{
+			Remaining: actionAttemptsRemaining,
+			Limit:     abyssLiveMaxIdempotencyKeysPerRound,
+		},
+		SkillVariety:  c.skillVariety,
 		EnemyIntents:  enemyIntents,
 		Initiative:    initiative,
 		RecentLogs:    recentLogs,
@@ -335,7 +361,14 @@ func (c *abyssLiveCombat) publishRound(
 		options[users[i].u.UID] = c.optionsFor(&users[i], users, mobs)
 	}
 
-	allies := make([]abyssLiveCombatantView, 0, len(users))
+	allies := make([]abyssLiveCombatantView, 0, len(users)+1)
+	effectiveFloorModifier := ""
+	for i := range users {
+		if users[i].u != nil {
+			effectiveFloorModifier = users[i].u.FloorModifier
+			break
+		}
+	}
 	critical := false
 	for i := range users {
 		au := &users[i]
@@ -346,20 +379,22 @@ func (c *abyssLiveCombat) publishRound(
 			critical = true
 		}
 		allies = append(allies, abyssLiveCombatantView{
-			ID:       "ally:" + au.u.UID,
-			Name:     au.u.Nickname,
-			HP:       max(0, au.u.CurrentHP),
-			MaxHP:    max(1, au.u.Stats.HP),
-			Mana:     max(0, au.CurrentMana),
-			MaxMana:  max(0, au.MaxMana),
-			Ready:    false,
-			IsPlayer: true,
-			Element:  string(liveUserElement(au.u)),
-			Position: string(au.u.Position),
-			Speed:    au.u.Stats.SPD,
-			Threat:   liveThreat(au.u),
-			Role:     c.social.preferences[au.u.UID].Role,
-			Effects:  liveAllyEffects(au),
+			ID:        "ally:" + au.u.UID,
+			Name:      au.u.Nickname,
+			HP:        max(0, au.u.CurrentHP),
+			MaxHP:     max(1, au.u.Stats.HP),
+			Shield:    max(0, au.shield),
+			MaxShield: max(0, au.maxShield),
+			Mana:      max(0, au.CurrentMana),
+			MaxMana:   max(0, au.MaxMana),
+			Ready:     false,
+			IsPlayer:  true,
+			Element:   string(liveUserElement(au.u)),
+			Position:  string(au.u.Position),
+			Speed:     au.u.Stats.SPD,
+			Threat:    liveThreat(au.u),
+			Role:      c.social.preferences[au.u.UID].Role,
+			Effects:   liveAllyEffects(au),
 		})
 		for petIndex, pet := range au.u.Pets {
 			if pet == nil || pet.Stats.HP <= 0 {
@@ -378,6 +413,22 @@ func (c *abyssLiveCombat) publishRound(
 			})
 		}
 	}
+	if _, support := abyssRescueSupportForUsers(users); support != nil {
+		allies = append(allies, abyssLiveCombatantView{
+			ID:       "support:explorer",
+			Name:     support.Name,
+			HP:       1,
+			MaxHP:    1,
+			HPHidden: true,
+			Element:  string(content.ElementPhysical),
+			Speed:    support.Speed,
+			Role:     fmt.Sprintf("Rescued support · %d fights", support.Remaining),
+			Faction:  "Delver",
+			Effects: []abyssLiveEffect{{
+				Name: "Fights beside you", Duration: fmt.Sprintf("%d fights remain", support.Remaining),
+			}},
+		})
+	}
 
 	enemies := make([]abyssLiveCombatantView, 0, len(mobs))
 	boss := false
@@ -387,21 +438,22 @@ func (c *abyssLiveCombat) publishRound(
 		}
 		boss = boss || mob.Type == content.MobBoss
 		enemies = append(enemies, abyssLiveCombatantView{
-			ID:       fmt.Sprintf("enemy:%d", i),
-			Name:     mob.Name,
-			HP:       max(0, mob.Stats.HP),
-			MaxHP:    max(1, mob.MaxHP),
-			Element:  string(mob.Element),
-			WeakTo:   string(liveElementWeakness(mob.Element)),
-			Speed:    mob.Stats.SPD,
-			Role:     abyssEnemyRole(mob),
-			Faction:  abyssEnemyFaction(mob),
-			Pattern:  abyssEnemyPattern(mob),
-			Break:    max(0, mob.Break),
-			MaxBreak: max(0, mob.MaxBreak),
-			Hazard:   abyssEnemyHazard(mob),
-			Revenge:  c.revengeFamily != "" && string(mob.Type) == c.revengeFamily,
-			Effects:  liveMobEffects(mob),
+			ID:            fmt.Sprintf("enemy:%d", i),
+			Name:          mob.Name,
+			HP:            max(0, mob.Stats.HP),
+			MaxHP:         max(1, mob.MaxHP),
+			Element:       string(mob.Element),
+			WeakTo:        string(liveElementWeakness(mob.Element)),
+			Speed:         mob.Stats.SPD,
+			Role:          abyssEnemyRole(mob),
+			Faction:       abyssEnemyFaction(mob),
+			Pattern:       abyssEnemyPattern(mob),
+			Break:         max(0, mob.Break),
+			MaxBreak:      max(0, mob.MaxBreak),
+			Hazard:        abyssEnemyHazard(mob),
+			Revenge:       abyssIsRevengeTarget(c.revengeFamily, mob),
+			WeaknessReady: mob.WeaknessWindow,
+			Effects:       liveMobEffectsForModifier(mob, effectiveFloorModifier),
 		})
 	}
 

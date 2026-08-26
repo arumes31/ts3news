@@ -1,0 +1,80 @@
+.ab-featured-drops {
+  background-color: #0a101b;
+  background-image: linear-gradient(120deg, rgba(246, 196, 83, .08), rgba(9, 15, 27, 0) 48%, rgba(91, 192, 255, .06));
+  border: 1px solid rgba(246, 196, 83, .42);
+  border-radius: 10px;
+  box-shadow: inset 3px 0 0 #f6c453;
+  color: var(--text);
+  margin: 15px 0;
+  padding: 14px;
+}
+.ab-featured-drops header {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+.ab-featured-drops h2 { font-size: 16px; margin: 2px 0 0; }
+.ab-featured-drops p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 8px 0 11px;
+}
+.ab-featured-kicker {
+  color: #f6c453;
+  font: 700 9px/1.2 var(--mono);
+  letter-spacing: .12em;
+}
+.ab-featured-reset {
+  color: var(--muted);
+  font: 600 10px/1.3 var(--mono);
+  white-space: nowrap;
+}
+.ab-featured-grid {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.ab-featured-item {
+  align-items: center;
+  background: #080f1b;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: 9px;
+}
+.ab-featured-item b,
+.ab-featured-item small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ab-featured-item b { font-size: 12px; }
+.ab-featured-item small {
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 2px;
+}
+.ab-featured-mark,
+.ab-featured-weight { color: #f6c453; }
+.ab-featured-weight { font: 800 15px/1 var(--mono); }
+
+@media (max-width: 760px) {
+  .ab-featured-drops header { display: block; }
+  .ab-featured-reset { display: block; margin-top: 5px; }
+  .ab-featured-grid { grid-template-columns: 1fr; }
+  .ab-featured-item { min-height: 44px; }
+}
+
+@media (forced-colors: active) {
+  .ab-featured-drops,
+  .ab-featured-item { border: 1px solid CanvasText; }
+  .ab-featured-drops { box-shadow: none; }
+  .ab-featured-mark,
+  .ab-featured-weight,
+  .ab-featured-kicker { color: LinkText; }
+}

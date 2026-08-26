@@ -1,9 +1,9 @@
 package content
 
-// The Abyss Skill Web: a Path-of-Exile-style passive tree with exactly 1000
+// The Abyss Skill Web is a Path-of-Exile-style passive tree with thousands of
 // allocatable nodes arranged as a radial web around a free root. Six archetype
 // sectors (War, Vitality, Shadow, Arcane, Fortune, Void) each span six angular
-// lanes across 27 rings; sparse lateral links inside every ring and bridge
+// lanes across 137 rings; sparse lateral links inside every ring and bridge
 // notables between sectors create many alternative paths to any node.
 //
 // The web is generated deterministically (fixed-seed PCG) so node IDs, layout
@@ -21,17 +21,20 @@ import (
 
 // TreeNode is one allocatable node of the Abyss skill web.
 type TreeNode struct {
-	ID     int                `json:"id"`
-	Ring   int                `json:"ring"`
-	Slot   int                `json:"slot"`
-	Sector int                `json:"sector"`
-	Type   string             `json:"type"` // small | notable | keystone | bridge
-	Name   string             `json:"name"`
-	Desc   string             `json:"desc"`
-	Stats  Stats              `json:"stats"`
-	Pct    map[string]float64 `json:"pct,omitempty"`
-	X      float64            `json:"x"`
-	Y      float64            `json:"y"`
+	ID           int                `json:"id"`
+	Ring         int                `json:"ring"`
+	Slot         int                `json:"slot"`
+	Sector       int                `json:"sector"`
+	Type         string             `json:"type"` // small | notable | keystone | bridge
+	Name         string             `json:"name"`
+	Desc         string             `json:"desc"`
+	Stats        Stats              `json:"stats"`
+	Pct          map[string]float64 `json:"pct,omitempty"`
+	X            float64            `json:"x"`
+	Y            float64            `json:"y"`
+	ArtSheet     string             `json:"art_sheet"`
+	ArtCell      int                `json:"art_cell"`
+	ArtSignature string             `json:"art_signature"`
 }
 
 // TreeBonus is the summed effect of a set of allocated nodes.
@@ -107,7 +110,7 @@ func (tb TreeBonus) ApplyCombatPct(s Stats) Stats {
 // AbyssTreeData is the whole generated web: nodes plus adjacency. Node 0 is
 // the virtual root: never allocatable, always counted as allocated.
 type AbyssTreeData struct {
-	Nodes   []TreeNode    // 1000 nodes, IDs 1..1000
+	Nodes   []TreeNode    // append-only catalog; IDs remain stable across releases
 	Adj     map[int][]int // undirected adjacency, includes root (0) edges
 	Portals [][2]int      // just the chaotic cross-sector shortcut edges (for distinct rendering)
 	byID    map[int]*TreeNode
@@ -169,7 +172,7 @@ const (
 
 	// The web grew far past its original 26 rings: 137 rings × 36 slots = 4932
 	// grid nodes, then 40 keystones + 24 bridges + 100 signature + 12 auras on
-	// top (~5108 nodes total). IDs are assigned in that order.
+	// top. IDs are assigned in that order, followed by later append-only clusters.
 	treeGridNodes  = treeRings * treeSlots // 4932, IDs 1..4932
 	treeKeystoneN  = 40                    // IDs treeFirstKeyID..+39
 	treeFirstKeyID = treeGridNodes + 1
@@ -883,13 +886,13 @@ func buildAbyssTree() *AbyssTreeData {
 			{"Time Dilation", map[string]float64{"ult_cooldown": 0.08}}, {"Haste Field", map[string]float64{"spd_pct": 0.06}}, {"Temporal Study", map[string]float64{"xp_gain": 0.05}}, {"Rewind", map[string]float64{"ult_cooldown": 0.10}}, {"Quicken", map[string]float64{"spd_pct": 0.08}}, {"Foresight", map[string]float64{"loot_find": 0.05}}, {"Stasis Ward", map[string]float64{"hp_pct": 0.06}}, {"Eternity's Edge", map[string]float64{"ult_cooldown": 0.12}},
 		}},
 		{"💀 Necromancy", []mechSpec{
-			{"Raise Thrall", map[string]float64{"pet_damage_pct": 0.12}}, {"Life Siphon", map[string]float64{"def_to_lifesteal": 0.006}}, {"Bone Armor", map[string]float64{"def_pct": 0.10}}, {"Soul Harvest", map[string]float64{"hp_pct": 0.06}}, {"Undying Servant", map[string]float64{"pet_betrayal_reduce": 0.03}}, {"Grave Bond", map[string]float64{"pet_damage_pct": 0.15}}, {"Death's Embrace", map[string]float64{"def_to_lifesteal": 0.008}}, {"Lich's Ascension", map[string]float64{"hp_pct": 0.08}},
+			{"Raise Thrall", map[string]float64{"pet_damage_pct": 0.12}}, {"Life Siphon", map[string]float64{"def_to_lifesteal": 0.006}}, {"Bone Armor", map[string]float64{"def_pct": 0.10}}, {"Soul Harvest", map[string]float64{"hp_pct": 0.06}}, {"Undying Servant", map[string]float64{"pet_betrayal_reduce": 0.03, "pet_cap": 1}}, {"Grave Bond", map[string]float64{"pet_damage_pct": 0.15}}, {"Death's Embrace", map[string]float64{"def_to_lifesteal": 0.008}}, {"Lich's Ascension", map[string]float64{"hp_pct": 0.08}},
 		}},
 		{"🧪 Alchemy", []mechSpec{
 			{"Transmute", map[string]float64{"gold_find": 0.06}}, {"Distillation", map[string]float64{"material_yield": 0.06}}, {"Philosopher's Stone", map[string]float64{"gold_find": 0.08}}, {"Elixir Craft", map[string]float64{"hp_regen": 0.05}}, {"Reagent Cache", map[string]float64{"material_yield": 0.08}}, {"Alchemical Insight", map[string]float64{"xp_gain": 0.05}}, {"Golden Formula", map[string]float64{"gold_find": 0.10}}, {"Panacea", map[string]float64{"hp_regen": 0.08}},
 		}},
 		{"🐾 Beastmastery", []mechSpec{
-			{"Wild Empathy", map[string]float64{"pet_damage_pct": 0.12}}, {"Tame Beast", map[string]float64{"pet_betrayal_reduce": 0.04}}, {"Pack Tactics", map[string]float64{"pet_damage_pct": 0.15}}, {"Feral Strength", map[string]float64{"str_pct": 0.06}}, {"Primal Bond", map[string]float64{"pet_damage_pct": 0.18}}, {"Beast Within", map[string]float64{"str_pct": 0.08}}, {"Alpha Instinct", map[string]float64{"pet_betrayal_reduce": 0.05}}, {"Kingdom of Beasts", map[string]float64{"pet_damage_pct": 0.20}},
+			{"Wild Empathy", map[string]float64{"pet_damage_pct": 0.12}}, {"Tame Beast", map[string]float64{"pet_betrayal_reduce": 0.04}}, {"Pack Tactics", map[string]float64{"pet_damage_pct": 0.15}}, {"Feral Strength", map[string]float64{"str_pct": 0.06}}, {"Primal Bond", map[string]float64{"pet_damage_pct": 0.18}}, {"Beast Within", map[string]float64{"str_pct": 0.08}}, {"Alpha Instinct", map[string]float64{"pet_betrayal_reduce": 0.05}}, {"Kingdom of Beasts", map[string]float64{"pet_damage_pct": 0.20, "pet_cap": 1}},
 		}},
 		{"📜 Runecraft", []mechSpec{
 			{"Rune of Power", map[string]float64{"skill_damage": 0.06}}, {"Glyph of Focus", map[string]float64{"int_pct": 0.06}}, {"Sigil of Ruin", map[string]float64{"ult_damage": 0.06}}, {"Runic Overflow", map[string]float64{"skill_damage": 0.08}}, {"Arcane Etching", map[string]float64{"int_pct": 0.08}}, {"Warding Rune", map[string]float64{"def_pct": 0.10}}, {"Cataclysm Glyph", map[string]float64{"ult_damage": 0.08}}, {"Master Runesmith", map[string]float64{"skill_damage": 0.10}},
@@ -966,6 +969,7 @@ func buildAbyssTree() *AbyssTreeData {
 		addSpecial(skillNode.name, "notable", skillNode.pct)
 	}
 
+	assignAbyssTreeArt(t.Nodes)
 	normalizeTreeAdjacency(t.Adj)
 	for i := range t.Nodes {
 		t.byID[t.Nodes[i].ID] = &t.Nodes[i]
@@ -1384,6 +1388,8 @@ func treePctLabel(k string) string {
 		return "pet betrayal reduction"
 	case "pet_damage_pct":
 		return "pet attack damage"
+	case "pet_cap":
+		return "companion stable capacity"
 	case "stun_immunity":
 		return "Stun Immunity"
 	case "limit_break":

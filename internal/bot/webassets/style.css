@@ -3497,6 +3497,7 @@ tr.bought-flash {
   gap: 8px;
   padding: 6px 0;
 }
+.ab-shop-item[hidden] { display: none; }
 
 .ab-shop-item.ab-shop-deal {
   margin-inline: -6px;

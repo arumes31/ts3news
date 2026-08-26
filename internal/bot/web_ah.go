@@ -28,21 +28,22 @@ func isAuctionUpgrade(itemID string, equippedGear map[string]content.Gear) bool 
 }
 
 type ahListingView struct {
-	ID         string
-	ItemType   string
-	ItemID     string
-	Icon       string
-	Name       string
-	Price      int64
-	Seller     string
-	Listed     string
-	Mine       bool
-	IsUpgrade  bool
-	Insanity   bool
-	Watched    bool
-	SellerRep  int
-	CurrentBid int64
-	FeeSummary string
+	ID           string
+	ItemType     string
+	ItemID       string
+	Icon         string
+	Name         string
+	Price        int64
+	Seller       string
+	Listed       string
+	Mine         bool
+	IsUpgrade    bool
+	Insanity     bool
+	Watched      bool
+	SellerRep    int
+	CurrentBid   int64
+	FeeSummary   string
+	PriceHistory ahPriceHistoryView
 
 	// Display metadata resolved from the listed instance's item_data (falling
 	// back to the catalog): gear score and rarity.
@@ -159,9 +160,11 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 	}
 
 	activeListings := s.bot.ahActiveListings(uid, equippedGear, searchQuery, upgradesOnly, insanityOnly, limit, offset)
+	priceHistories := s.bot.ahPriceHistories(activeListings)
 	totalCount := s.bot.ahActiveListingsCount(searchQuery, equippedGear, upgradesOnly, insanityOnly)
 	watched := s.bot.abyssAHWatchlist(uid)
 	for i := range activeListings {
+		activeListings[i].PriceHistory = priceHistories[activeListings[i].ItemID]
 		activeListings[i].Watched = watched[activeListings[i].ItemID]
 		activeListings[i].FeeSummary = "Buyer fee 0g · seller receives the exact buy-now price"
 	}

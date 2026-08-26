@@ -2,16 +2,33 @@
 <!-- UI-200 additions stylesheet (served at /static/abyss_ui200.css, hash-busted via uicssver). -->
 <link rel="stylesheet" href="/static/abyss_ui200.css?v={{uicssver}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_command.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_auto_descend.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_mob_affixes.css"}}">
 <link rel="stylesheet" href="/static/abyss_live.css?v={{livecssver}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_skill_variety.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_first_strike.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_critical_fumble.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_pixel.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_gear_damage.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_sentimental.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_shield.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_pet_commands.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_shadow_simulation.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_weakness_window.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_onboarding.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_entry_planner.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_skill_priority.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_pact_program.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_recorder.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_run_awareness.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_loot_presentation.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_pity.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_featured_drops.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_wishlist.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_set_pity.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_forge_experience.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_transmog.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_navigation.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_accessibility.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_mobile.css"}}">
@@ -22,10 +39,12 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_core_risk.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_events.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_social.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_replay.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_stage_hud.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_codex_explorer.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_panel_tools.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_player_experience.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_command_palette.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_leaderboards.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_practice.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_vendor.css"}}">
@@ -33,81 +52,17 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_world_boss.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_contracts.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_affinity.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_enemy_forecast.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_adaptation.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_toll.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_best_kill.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_secret_boss_chain.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_cosmetics.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_watcher_pressure.css"}}">
-<div class="abyss-command-page" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-icon-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')">
-<p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
-<div class="abyss-hero">
-  <!-- Intro title + flavour text; auto-hides a minute after load to free space -->
-  <div class="abyss-intro" id="abyssIntro">
-    <h1>{{T "web.abyss.title"}}</h1>
-    <p class="muted">{{T "web.abyss.hero_desc"}}</p>
-  </div>
-  {{if .DailyMod}}
-    <div class="ab-weekly-alert" style="background: rgba(255,193,7,0.1); border: 1px solid #ffc107; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
-      📅 <strong>{{T "web.abyss.weekly_title"}}</strong> 
-      {{if eq .DailyMod "double_hazards"}}{{T "web.abyss.weekly.double_hazards"}}{{end}}
-      {{if eq .DailyMod "zero_durability_loss"}}{{T "web.abyss.weekly.zero_durability_loss"}}{{end}}
-      {{if eq .DailyMod "enraged_mobs"}}{{T "web.abyss.weekly.enraged_mobs"}}{{end}}
-      {{if eq .DailyMod "glass_cannon"}}{{T "web.abyss.weekly.glass_cannon"}}{{end}}
-      {{if eq .DailyMod "gold_rush"}}{{T "web.abyss.weekly.gold_rush"}}{{end}}
-      {{if eq .DailyMod "iron_skin"}}{{T "web.abyss.weekly.iron_skin"}}{{end}}
-      {{if eq .DailyMod "bloodlust"}}{{T "web.abyss.weekly.bloodlust"}}{{end}}
-      {{if eq .DailyMod "execute"}}{{T "web.abyss.weekly.execute"}}{{end}}
-      {{if eq .DailyMod "vampiric_mobs"}}{{T "web.abyss.weekly.vampiric_mobs"}}{{end}}
-    </div>
-  {{end}}
-  {{with .Bounty}}
-    <div class="ab-bounty-alert" id="bountyCard" style="background: rgba(76,175,80,0.1); border: 1px solid #4caf50; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
-      🎯 <strong>Daily Bounty:</strong> {{.Desc}}
-      <span class="muted small" style="margin-left:8px;">Progress: <b id="bountyProg">{{comma .Progress}}</b> / {{comma .Target}}</span>
-      <span class="muted small" style="margin-left:8px;">Reward: 🜲 {{.RewardTk}} + {{gold .RewardGd}}</span>
-      {{if gt .Streak 0}}<span class="small" style="margin-left:8px; color:#ff9800;">🔥 {{.Streak}}-day streak</span>{{end}}
-      <span id="bountyAction" style="margin-left:10px;">
-        {{if .Claimed}}<b style="color:#7ee787">✅ Claimed today</b>
-        {{else if .Met}}<button class="primary xs" onclick="abyssBountyClaim()">Claim Reward</button>
-        {{else}}<span class="muted small">In progress…</span>{{end}}
-      </span>
-    </div>
-  {{end}}
-  {{with .DeferredEvent}}
-    {{if .Available}}
-    <div class="ab-panel ab-deferred-event" id="deferredEventCard">
-      <span>⏳ <strong>{{.Label}}</strong> waits from floor {{.OriginDepth}}. Return by floor {{.ExpiresDepth}} · {{.FloorsLeft}} floor(s) left.</span>
-      <button class="ghost" type="button" onclick="abyssDeferredEventClaim()">Return to Event</button>
-    </div>
-    {{else if .Expired}}
-    <div class="ab-panel ab-deferred-event ab-deferred-expired">⌛ The deferred <strong>{{.Label}}</strong> expired after floor {{.ExpiresDepth}} — the moment passed.</div>
-    {{end}}
-  {{end}}
-  
-  <!-- Loot Pity Counter HUD -->
-  <div class="abyss-pity-hud" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; margin: 15px 0;">
-    <div style="display:flex; justify-content:space-between; margin-bottom: 6px; font-size:13px;">
-      <span>🔮 <b>Loot Pity Meter</b></span>
-      <span class="muted small"><span id="pityCount">{{.LegendaryPity}}</span> / 40 to Guaranteed Legendary</span>
-    </div>
-    <div style="background: rgba(0,0,0,0.3); height: 10px; border-radius: 5px; overflow:hidden;">
-      <div id="pityFill" style="background: linear-gradient(90deg, #ff7b72, #d857ff); height: 100%; width: {{mulpct .LegendaryPity 40}}%;"></div>
-    </div>
-    <div class="muted small" style="margin-top:7px;">✦ Celestial drought: <b>{{.CelestialPity}}</b> gear drops <span title="Display-only counter; Celestial drops have no guaranteed cap.">(no cap)</span></div>
-  </div>
-
-  <!-- Loot drop streak HUD: floors in a row with no gear item, boosts loot find -->
-  <div class="abyss-pity-hud" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; margin: 15px 0;">
-    <div style="display:flex; justify-content:space-between; margin-bottom: 6px; font-size:13px;">
-      <span>🍀 <b>Drop Streak</b></span>
-      <span class="muted small"><span id="dropStreakCount">{{.DropStreak}}</span> {{if eq .DropStreak 1}}floor{{else}}floors{{end}} since last gear (+{{.DropStreakBonusPct}}% loot find, capped)</span>
-    </div>
-    <div style="background: rgba(0,0,0,0.3); height: 10px; border-radius: 5px; overflow:hidden;">
-      <div id="dropStreakFill" style="background: linear-gradient(90deg, #41c97a, #5bc0ff); height: 100%; width: {{mulpct .DropStreak 15}}%;"></div>
-    </div>
-  </div>
-</div>
+<link rel="stylesheet" href="{{asset "/static/abyss_season.css"}}">
+<div class="abyss-command-page" data-ab-campaign="{{.SeasonJourney.Palette}}" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-expanded-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas_expanded.png"}}');--ab-expanded-icon-atlas:url('{{asset "/static/abyss_icon_atlas_expanded.png"}}');--ab-atlas-items:url('{{asset "/static/abyss_atlas_items.png"}}');--ab-atlas-skills:url('{{asset "/static/abyss_atlas_skills.png"}}');--ab-atlas-creatures:url('{{asset "/static/abyss_atlas_creatures.png"}}');--ab-atlas-bosses:url('{{asset "/static/abyss_atlas_bosses.png"}}');--ab-atlas-artifacts:url('{{asset "/static/abyss_atlas_artifacts.png"}}');--ab-atlas-companions:url('{{asset "/static/abyss_atlas_companions.png"}}');--ab-atlas-relics:url('{{asset "/static/abyss_atlas_relics.png"}}');--ab-atlas-ranged:url('{{asset "/static/abyss_atlas_ranged.png"}}');--ab-atlas-souls:url('{{asset "/static/abyss_atlas_souls.png"}}');--ab-atlas-auras:url('{{asset "/static/abyss_atlas_auras.png"}}');--ab-atlas-charms:url('{{asset "/static/abyss_atlas_charms.png"}}');--ab-atlas-mounts:url('{{asset "/static/abyss_atlas_mounts.png"}}');--ab-atlas-pets:url('{{asset "/static/abyss_atlas_pets.png"}}');--ab-atlas-emblems:url('{{asset "/static/abyss_atlas_emblems.png"}}');--ab-atlas-banners:url('{{asset "/static/abyss_atlas_banners.png"}}');--ab-atlas-totems:url('{{asset "/static/abyss_atlas_totems.png"}}');--ab-atlas-offhands:url('{{asset "/static/abyss_atlas_offhands.png"}}')">
+<p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Season, Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
+{{template "abyssLootSignals" .}}
 
 <div class="abyss-stats">
   <div class="ab-chip">
@@ -127,6 +82,7 @@
   <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.best_depth"}}</span><span class="ab-chip-val" id="bestDepth">🕳️ {{.Stats.BestDepth}}</span></div>
   {{if .PrestigeTier.Name}}<div class="ab-chip ab-prestige-chip"><span class="ab-chip-label">Prestige Tier</span><span class="ab-chip-val">{{.PrestigeTier.Aura}} {{.PrestigeTier.Name}}</span></div>{{end}}
   {{if .Run.Active}}<div class="ab-chip"><span class="ab-chip-label">Momentum</span><span class="ab-chip-val" id="momVal" title="+2% STR per floor cleared without consumables (max +20%)">🔥 ×{{.Run.Momentum}}</span></div>{{end}}
+  <div class="ab-chip" id="explorerSupportChip" {{if not .ExplorerSupport.Active}}hidden{{end}}><span class="ab-chip-label">Rescued ally</span><span class="ab-chip-val" id="explorerSupportValue">🤝 {{.ExplorerSupport.Name}} · {{.ExplorerSupport.Remaining}} fights</span></div>
 </div>
 
 {{if .Run.Comeback}}<div class="ab-comeback-note">💪 <b>Comeback:</b> the Abyss pities your losses today — +10% to all stats this run.</div>{{end}}
@@ -137,11 +93,13 @@
     <h3>⚔️ Armoury</h3>
     <div class="abyss-side-list">
       {{range .Equipped}}
-      <div class="abyss-side-gear" tabindex="0" data-slot="{{.Slot}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-stats="{{.StatsJSON}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+      <div class="abyss-side-gear" tabindex="0" {{if .Damage.Available}}role="button" aria-expanded="false" aria-controls="abGearDamage-{{.Slot}}" onclick="if(event.detail!==0)toggleAbyssGearDamage(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();toggleAbyssGearDamage(this)}"{{end}} data-slot="{{.Slot}}" data-art-key="{{if .AppearanceID}}appearance:{{.AppearanceID}}{{else}}item:{{.InvID}}:{{.ID}}:{{.Name}}{{end}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-stats="{{.StatsJSON}}" data-broken-in="{{.BrokenIn}}" data-tip="{{.Name}}{{if .AppearanceName}}&#10;Appearance: {{.AppearanceName}} (cosmetic only){{end}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .BrokenIn}}&#10;Broken in · +1% positive stats{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}{{if .Provenance}}&#10;{{.Provenance}}{{end}}{{if .Damage.Available}}&#10;Damage contribution: {{if .Damage.HasDirect}}{{if ne .Damage.BasePower 0}}{{printf "%+d" .Damage.BasePower}} STR{{if gt .Damage.BaseSharePct 0}} ({{.Damage.BaseSharePct}}%){{end}}{{end}}{{if and (ne .Damage.BasePower 0) (ne .Damage.SpellPower 0)}} · {{end}}{{if ne .Damage.SpellPower 0}}{{printf "%+d" .Damage.SpellPower}} INT{{if gt .Damage.SpellSharePct 0}} ({{.Damage.SpellSharePct}}%){{end}}{{end}}{{if .Damage.AttackType}} · {{.Damage.AttackType}}{{end}}{{else}}no direct STR or INT{{end}}&#10;Click or press Enter to expand damage channels.{{end}}">
         <span class="ab-pixel-icon ab-gear-pixel" aria-hidden="true"></span>
         <span class="ab-side-gear-name" style="color:{{.RarityColor}}">{{.Name}}</span>
-        <span class="cr">CR {{printf "%.0f" .CR}}</span>
+        {{if .BrokenIn}}<span class="ab-broken-in-tag" title="Broken in: +1% positive stats" aria-label="Broken in: plus one percent positive stats">🧡</span>{{end}}
+        <span class="cr">CR <span data-item-number="{{printf "%.0f" .CR}}">{{printf "%.0f" .CR}}</span>{{if .Damage.Available}} <i class="ab-gear-damage-indicator" aria-hidden="true"></i>{{end}}</span>
       </div>
+      {{template "abyssGearDamageBreakdown" .}}
       {{else}}
       <div class="abyss-side-empty">No gear equipped.</div>
       {{end}}
@@ -162,6 +120,7 @@
     <div class="ab-rest-embers" id="restEmbers" style="display:none"><i></i><i></i><i></i><i></i><i></i></div>
     <div class="ab-buffstrip" id="buffStrip"></div>
     <div class="ab-petbar" id="petBar" style="display:none">🐾 <span id="petName"></span><span class="ab-petbar-track" id="petHPBar" role="progressbar" aria-label="Pet health" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><span class="ab-petbar-fill" id="petFill"></span></span></div>
+    <div class="ab-combat-exchange" id="combatExchange" hidden aria-live="polite"><span class="enemy">HOSTILES</span><i>⚔</i><span class="player">DELVER</span><b id="combatExchangeLabel"></b></div>
   </div>
   <!-- Elevator shaft visual [85] -->
   <div class="ab-elevator" aria-hidden="true">
@@ -192,10 +151,22 @@
     <div class="ab-restarts" id="restArc" aria-hidden="true"></div>
     {{if .Run.Active}}
     <div class="ab-event-intel" id="eventIntel" aria-label="Event chain and map forecast">
-      <span class="ab-sigil-ribbon">✦ Sigils {{.EventIntel.Sigils}}/3{{if .EventIntel.Chains}} · chain {{.EventIntel.Chains}}{{end}}</span>
+      <span class="ab-sigil-ribbon {{if .EventIntel.Chain.Active}}is-active{{end}}" id="eventChainRibbon" aria-label="{{if .EventIntel.Chain.Active}}Sigil Hunt {{.EventIntel.Chain.Sigils}} of {{.EventIntel.Chain.Required}}, {{.EventIntel.Chain.FloorsLeft}} floors left{{else}}Sigil Hunt dormant{{end}}">
+        <span class="ab-sigil-title">✦ HUNT</span>
+        <span class="ab-sigil-marks" aria-hidden="true">
+          <i class="{{if .EventIntel.Chain.FoundFirst}}is-found{{end}}"></i><i class="{{if .EventIntel.Chain.FoundSecond}}is-found{{end}}"></i><i class="{{if .EventIntel.Chain.FoundThird}}is-found{{end}}"></i>
+        </span>
+        <span id="eventChainStatus">{{if .EventIntel.Chain.Active}}{{.EventIntel.Chain.Sigils}}/{{.EventIntel.Chain.Required}} · next F{{.EventIntel.Chain.NextDepth}} · {{.EventIntel.Chain.FloorsLeft}} left{{else}}dormant{{if .EventIntel.Chain.Chains}} · {{.EventIntel.Chain.Chains}} cleared{{end}}{{end}}</span>
+      </span>
       {{if and .EventIntel.MapOwned (le .EventIntel.NextIn 2) (gt .EventIntel.NextDepth 0)}}
       <span class="ab-map-forecast">🗺️ F{{.EventIntel.NextDepth}} · {{if .EventIntel.EventLabel}}{{.EventIntel.EventLabel}}{{else}}charted anomaly{{end}}</span>
       {{end}}
+      <div class="ab-cartographer-route" id="cartographerRoute" {{if not .CartographerRoute.Active}}hidden{{end}} aria-label="Cartographer route, {{.CartographerRoute.Remaining}} floors remaining">
+        <span class="ab-cartographer-route-title">🗺 CHART</span>
+        <ol id="cartographerRouteFloors">
+          {{range .CartographerRoute.Floors}}<li data-floor-type="{{.Type}}"><b>F{{.Depth}}</b><span>{{.Icon}} {{.Label}}</span></li>{{end}}
+        </ol>
+      </div>
     </div>
     {{if .Watcher.Active}}
     <div class="ab-watcher-pressure {{if ge .Watcher.Percent 100}}is-armed{{end}}" id="abyssWatcherPressure" data-deadline="{{.Watcher.DeadlineUnixMilli}}" data-now="{{.Watcher.NowUnixMilli}}" data-threshold="{{.Watcher.ThresholdSeconds}}" aria-label="The Watcher stalking pressure">
@@ -279,6 +250,13 @@
           <option value="restorative">Restorative · every skill heals 5% max HP</option>
         </select>
       </label>
+      <label>Formation
+        <select id="combatPosition" class="ab-select" aria-describedby="combatPositionHint">
+          <option value="frontline">🛡️ Frontline · −10% incoming damage, draws enemy intent</option>
+          <option value="backline">🏹 Backline · +10% damage, +50% physical miss chance</option>
+        </select>
+        <span class="muted small" id="combatPositionHint">Locked for this run · shown on every live combatant card.</span>
+      </label>
       <label>Party loot
         <select id="partyLootRule" class="ab-select">
           <option value="owner">Host cache · helper 🜲5</option>
@@ -300,6 +278,16 @@
       <label class="ab-combat-pref" title="Automatic combat saves skills and ultimates for bosses. Manual live actions always override this setting.">
         <input type="checkbox" id="holdManaSetting" onchange="saveAbyssCombatSettings()"> Hold mana for bosses
       </label>
+      <label class="ab-pet-command-setting" for="petCommandSetting">
+        <span>🐾 Companion order</span>
+        <select id="petCommandSetting" class="ab-select" aria-describedby="petCommandHint" onchange="saveAbyssCombatSettings()">
+          <option value="focus">🎯 Focus Target</option>
+          <option value="guard">🛡️ Guard Me</option>
+          <option value="free">🐾 Free-for-All</option>
+        </select>
+        <span class="muted small" id="petCommandHint" role="status" aria-live="polite">Free-for-All · companions choose independent targets.</span>
+      </label>
+      {{template "abyssSkillPriorityPanel" .SkillPriority}}
       {{if ge .Stats.BestDepth 50}}<label>Veteran track
         <select id="veteranTrack" class="ab-select">
           <option value="">Off · standard run</option>
@@ -348,6 +336,19 @@
           <option value="checkpoint">Checkpoint Clause · reach the next checkpoint</option>
         </select>
       </label>
+      <div class="ab-entry-stakes" aria-label="Custom run stakes">
+        <label>🜲 Token ante
+          <select id="tokenAnte" class="ab-select" title="The stake is returned only after a successful full bank. Each token also adds 1% to every floor's cache reward.">
+            <option value="0">No ante</option>
+            <option value="5">5 tokens · +5% cache</option>
+            <option value="10">10 tokens · +10% cache</option>
+            <option value="20">20 tokens · +20% cache</option>
+          </select>
+        </label>
+        <label for="entryRiskDial">⚖️ Floor risk <output id="entryRiskDialOut">+0%</output></label>
+        <input id="entryRiskDial" type="range" min="-20" max="50" step="10" value="0" oninput="updateAbyssEntryRiskDial()" aria-label="Initial floor danger and reward adjustment">
+        <span class="muted small">Danger and cache move together · adjustable between floors</span>
+      </div>
       <div class="muted small ab-community-expedition" title="Every cleared weekly-expedition floor contributes to this shared weekly objective.">
         <span>🌐 Community expedition {{index .CommunityExpedition "Week"}}: {{index .CommunityExpedition "Floors"}} / {{index .CommunityExpedition "Target"}} floors</span>
         <progress value="{{index .CommunityExpedition "Percent"}}" max="100" aria-label="Community expedition progress"></progress>
@@ -363,12 +364,20 @@
 
     <!-- Multi-floor queue planner (active run only) -->
     <div class="ab-focus-row" id="multiQueuePlanner" style="display:none; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
-      <span class="ab-sub-label">Plan next floors (3-10 paths):</span>
-      <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+      <span class="ab-sub-label">Plan next floors (3-20 paths):</span>
+      <div class="ab-path-queue-editor">
         <button class="ghost xs" id="btnQueueLess" onclick="removePathFromQueue()" aria-label="Remove one floor from the planned queue">−</button>
-        <div id="pathQueueContainer" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;"></div>
+        <div id="pathQueueContainer"></div>
         <button class="ghost xs" id="btnQueueMore" onclick="addPathToQueue()" aria-label="Add one floor to the planned queue">+</button>
       </div>
+      <fieldset class="ab-auto-stop" id="autoDescendRules">
+        <legend><span aria-hidden="true">⛔</span> Auto-stop safeguards</legend>
+        <label class="ab-auto-stop-master"><input id="autoDescendEnabled" type="checkbox" checked onchange="updateAutoDescendRulesUI()"> Armed</label>
+        <label>HP below <span class="ab-number-unit"><input id="autoStopHP" type="number" min="1" max="99" value="50" inputmode="numeric" oninput="updateAutoDescendRulesUI()"><span>%</span></span></label>
+        <label>At depth <input id="autoStopDepth" type="number" min="1" inputmode="numeric" oninput="this.dataset.manual='true';updateAutoDescendRulesUI()"></label>
+        <label><input id="autoStopLegendary" type="checkbox" checked onchange="updateAutoDescendRulesUI()"> Legendary+ secured</label>
+        <output id="autoStopSummary" aria-live="polite"></output>
+      </fieldset>
       <button class="primary xs" id="btnDescendMulti" onclick="abyssDescendMulti()" style="margin-top:10px;" aria-label="Descend through all planned floors in sequence">⚡ Plan &amp; Descend Queue</button>
     </div>
 
@@ -376,12 +385,30 @@
       <button class="primary ab-enter" id="btnEnter" onclick="abyssEnter()">{{if .FreeEntryAvailable}}Enter — FREE today{{else}}Enter the Abyss{{end}}</button>
       <button class="primary ab-descend" id="btnDescend" onclick="abyssDescend()" style="display:none">⬇️ Descend</button>
       <button class="ghost ab-bank" id="btnBank" onclick="abyssBank()" style="display:none">🏦 Bank &amp; Leave</button>
+      <button class="ghost ab-simulate" id="btnSimulate" onclick="abyssSimulateNextFloor()" style="display:none">◫ Scout 100 fights <span>🜲 2</span></button>
       <button class="ghost" id="btnDoubleBonus" onclick="abyssDoubleBonus()" {{with .PendingDoubleBonus}}{{else}}style="display:none"{{end}}>🪙 Double floor bonus</button>
       <button class="ghost" id="btnBuildRespec" onclick="abyssBuildRespec()" style="display:none">🧬 Respec Mutation</button>
       <button class="primary ab-revive" id="btnRevive" onclick="abyssRevive()" style="display:none">🎲 Revive (double-or-nothing)</button>
       <button class="primary ab-laststand" id="btnLastStand" onclick="abyssLastStand()" style="display:none">🛡️ Last Stand (🜲 <span id="lsCost">{{.LastStandCost}}</span>)</button>
       <button class="ghost ab-concede" id="btnConcede" onclick="abyssConcede()" style="display:none">🏳️ Concede</button>
     </div>
+    <section class="ab-shadow-report" id="abyssShadowReport" hidden tabindex="-1" aria-live="polite" aria-labelledby="abyssShadowTitle">
+      <header>
+        <span class="ab-shadow-kicker">SHADOW PROJECTION · 100 TRIALS</span>
+        <h3 id="abyssShadowTitle">Next combat survival scan</h3>
+        <span class="ab-shadow-depth" id="abyssShadowDepth">F0</span>
+      </header>
+      <div class="ab-shadow-grid">
+        <div class="ab-shadow-primary"><strong id="abyssShadowWinPct">0%</strong><span>observed wins</span></div>
+        <div><strong id="abyssShadowRecord">0 W · 0 L</strong><span>trial record</span></div>
+        <div><strong id="abyssShadowInterval">0–0%</strong><span>95% interval</span></div>
+        <div><strong id="abyssShadowHP">0%</strong><span>median HP after wins</span></div>
+      </div>
+      <div class="ab-shadow-meter" aria-hidden="true"><i id="abyssShadowMeter"></i></div>
+      <p class="ab-shadow-encounter"><span>SNAPSHOT</span> <b id="abyssShadowEncounter">Unknown encounter</b></p>
+      <p class="muted small">Projection only. The real floor keeps independent randomness; no HP, consumables, cooldowns, loot, pity, or run progress changed.</p>
+    </section>
+    <button class="ab-floating-descend" id="abyssFloatingDescend" type="button" hidden onclick="focusAbyssDescend()" aria-live="polite">↓ Descending…</button>
     {{template "abyssRunAwarenessBelt" .}}
 
     <div class="ab-subrow" id="liveRow" style="display:none">
@@ -389,9 +416,11 @@
       <span class="ab-sub-label">Secure &amp; continue:</span>
       <button class="ghost xs" id="btnBank25" onclick="abyssBank(25)">25%</button>
       <button class="ghost xs" id="btnBank50" onclick="abyssBank(50)">50%</button>
+      <button class="ghost xs" id="btnTransport" onclick="abyssBank(0,true)" title="Secure the full gold cache, pay a 15% transport fee, and continue. Sealed items remain at stake.">🚚 Armored transport · keep 85%</button>
       <label class="ab-cursed" data-tip="Cursed bank: +20% payout when you bank, but a hex saps your combat stats (−15%) for your next 3 fights."><input type="checkbox" id="cursedBank"> {{T "web.abyss.cursed_bank"}}</label>
     </div>
     {{template "abyssCoreRiskConsole" .}}
+    {{template "abyssEnemyForecast" .}}
     {{template "abyssBossAffinity" .}}
     {{template "abyssBossAdaptation" .}}
     {{template "abyssBossToll" .}}
@@ -480,10 +509,10 @@
     </div>
     <div class="abyss-side-list" id="lootManifest">
       {{range .RunLoot}}
-      <div class="abyss-side-loot {{.BeamClass}} {{if .Foil}}ab-loot-foil{{end}} {{if .Doomed}}ab-loot-doomed{{end}} {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-tip="{{.Title}}&#10;{{.Source}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
+      <div class="abyss-side-loot {{.BeamClass}} {{if .Foil}}ab-loot-foil{{end}} {{if .Doomed}}ab-loot-doomed{{end}} {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}} {{if .SmartLoot}}ab-smart-loot{{end}} {{if .SetPity}}ab-set-pity{{end}} {{if .Wishlist}}ab-wishlist-drop{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-smart-loot="{{.SmartLoot}}" data-smart-loot-reason="{{.SmartLootReason}}" data-set-pity="{{.SetPity}}" data-wishlist="{{.Wishlist}}" data-tip="{{.Title}}&#10;{{.Source}}{{if .Wishlist}}&#10;{{.WishlistLabel}}{{end}}{{if .SetPity}}&#10;{{.SetPityLabel}}{{end}}{{if .SmartLoot}}&#10;{{.SmartLootLabel}}{{end}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
         <span class="ab-loot-main">{{if .SlotIcon}}<span class="ab-loot-slot" aria-hidden="true">{{.SlotIcon}}</span>{{end}}<span>{{.Label}}</span></span>
-        <span class="ab-loot-tags">{{if .Unidentified}}<b class="ab-loot-question">?</b>{{end}}{{if .AlreadyOwned}}<b class="ab-owned-tag">owned</b>{{end}}{{if .SetID}}<b class="ab-set-tag ab-set-{{.SetID}}">🧩 {{.SetID}} {{.SetCount}}/{{.SetMax}}</b>{{end}}{{if .Corrupted}}<b class="ab-corrupt-tag">🩸 corrupted</b>{{end}}</span>
-        <span class="ab-loot-detail" hidden>{{.Source}}{{if .Slot}} · {{.Slot}}{{end}}{{if gt .CR 0.0}} · CR {{printf "%.0f" .CR}} ({{if ge .CRDelta 0.0}}+{{end}}{{printf "%.0f" .CRDelta}}){{end}}{{if gt .Quality 0}} · {{.Quality}}★ quality{{end}}</span>
+        <span class="ab-loot-tags">{{if .Wishlist}}<b class="ab-wishlist-tag">★ {{.WishlistLabel}}</b>{{end}}{{if .SetPity}}<b class="ab-set-pity-tag">🧩 {{.SetPityLabel}}</b>{{end}}{{if .SmartLoot}}<b class="ab-smart-loot-tag">🎯 {{.SmartLootLabel}}</b>{{end}}{{if .Unidentified}}<b class="ab-loot-question">?</b>{{end}}{{if .AlreadyOwned}}<b class="ab-owned-tag">owned</b>{{end}}{{if .SetID}}<b class="ab-set-tag ab-set-{{.SetID}}">🧩 {{.SetID}} {{.SetCount}}/{{.SetMax}}</b>{{end}}{{if .Corrupted}}<b class="ab-corrupt-tag">🩸 corrupted</b>{{end}}</span>
+        <span class="ab-loot-detail" hidden>{{.Source}}{{if .Wishlist}} · ★ {{.WishlistLabel}}{{end}}{{if .SetPity}} · 🧩 {{.SetPityLabel}}{{end}}{{if .SmartLoot}} · 🎯 {{.SmartLootLabel}}{{end}}{{if .Slot}} · {{.Slot}}{{end}}{{if gt .CR 0.0}} · CR {{printf "%.0f" .CR}} ({{if ge .CRDelta 0.0}}+{{end}}{{printf "%.0f" .CRDelta}}){{end}}{{if gt .Quality 0}} · {{.Quality}}★ quality{{end}}</span>
         {{if .CanEquipBest}}<button type="button" class="ghost xs ab-equip-best {{if .EquipOnBank}}selected{{end}}" onclick="abyssEquipBestLoot({{.EscrowID}},event)">{{if .EquipOnBank}}✓ Equip on bank{{else}}Equip best on bank{{end}}</button>{{end}}
       </div>
       {{else}}
@@ -627,20 +656,23 @@
     <p class="muted small">Spend Abyss Tokens on consumables, gear and relics. Prices show the exact charged amount; there is no hidden shop fee.</p>
     <div class="ab-shop-tabs" role="tablist" aria-label="Token Shop category">
       <button class="ghost xs active" role="tab" aria-selected="true" onclick="abyssShopCategory('supplies',this)">Supplies</button>
-      <button class="ghost xs" role="tab" aria-selected="false" onclick="abyssShopCategory('insanity',this)">🌀 Insanity cosmetic</button>
+      <button class="ghost xs" role="tab" aria-selected="false" onclick="abyssShopCategory('insanity',this)">🌀 Weekly cosmetic</button>
     </div>
     <div class="ab-shop">
       {{range .Shop}}
       <div class="ab-shop-item{{if .HappyAccident}} ab-shop-deal{{end}}{{if .Insanity}} ab-shop-insanity{{end}}" data-shop-category="{{if .Insanity}}insanity{{else}}supplies{{end}}" {{if .Insanity}}hidden{{end}}>
         <div>
           <b>{{if .HappyAccident}}🎉 {{end}}{{if .Insanity}}🌀 {{end}}{{.Name}}</b>{{if .Owned}} <span class="ab-up-lv">owned</span>{{end}}
-          <div class="muted small">{{.Desc}}</div>
+          <div class="muted small">{{.Desc}}{{if .Insanity}} · {{.RotationWeek}} · refreshes {{.RotationEnds}}{{end}}</div>
         </div>
         <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', this)" title="{{if .Owned}}Re-equip this permanent cosmetic at no charge{{else}}Item {{if .CostGold}}{{.CostGold}} gold{{else}}{{.EffectiveCost}} tokens{{end}} · fee 0{{end}}">{{if .Owned}}Equip · free{{else if .CostGold}}🪙 {{gold .CostGold}}{{else}}🜲 {{.EffectiveCost}}{{if .HappyAccident}} <s>{{.Cost}}</s> −40%{{end}}{{end}}</button>
       </div>
       {{end}}
     </div>
   </section>
+
+  {{template "abyss-wishlist" .Wishlist}}
+  {{template "abyss-set-pity" .SetPityPanel}}
 
   {{template "abyssBossVendor" .}}
   {{template "abyssBossContracts" .}}
@@ -706,6 +738,7 @@
         <button class="ghost xs" onclick="abyssTokenBundle()" title="First token 100,000g today; +20,000g per additional daily token · fee 0g">Gold → token bundle</button>
         <button class="ghost xs" onclick="abyssPotionSubscription(true)" title="Subscription fee 25,000g per delivered UTC day · two Great Health Potions">Enable potion plan</button>
         <button class="ghost xs" onclick="abyssPotionSubscription(false)" title="Pause fee 0g · no delivery charge while paused">Pause potion plan</button>
+        <button class="ghost xs" id="autoInsureToggle" data-enabled="{{.AutoInsure}}" onclick="abyssAutoInsure(this.dataset.enabled!=='true')" title="No recurring fee · each compatible run buys ordinary 25% cache cover atomically">🛡️ Auto-insure: {{if .AutoInsure}}on{{else}}off{{end}}</button>
         <button class="ghost xs" onclick="abyssRepairSubscription()" title="Exact fee 70,000g prepaid · 7 days · repairs and durability loss cost 0g while active">7-day repair plan</button>
         <button class="ghost xs" onclick="abyssScratch()" title="Exact price 50 tokens · fee 0 · once/day · 70%:0, 20%:75, 9%:150, 1%:1000">Daily scratch card</button>
         <button class="ghost xs" onclick="abyssGiftCreate()" title="Gift item price equals its posted token-shop price · gift fee 0">Create gift code</button>
@@ -739,6 +772,10 @@
     <div class="ab-rep-track" id="repTrack"><i id="repFill"></i><span class="ab-rep-lbl" id="repLbl"></span></div>
     <!-- UI-99: banner variant of the happy-hour chip while 18:00–18:59 UTC (toggled by JS) -->
     <div class="ab-hh-banner" id="hhBanner" style="display:none">🔥 Forge Happy Hour — gold costs −20% · <b id="hhMins"></b> left</div>
+    <div class="ab-forge-floor-banner" id="forgeFloorBanner" hidden role="status">
+      <b>⚒️ Silent Anvil charge ready</b>
+      <span>One temper attempt, socket punch, or full repair is free. A failed temper still spends the charge.</span>
+    </div>
     <p class="muted small">Upgrade, socket, identify, transmute, or recalibrate your gear.</p>
     
     <div class="ab-forge" style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
@@ -752,10 +789,10 @@
                 data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}"
                 data-stats="{{.StatsJSON}}" data-gemstones="{{.GemstonesJSON}}" data-kill-count="{{.KillCount}}" data-milestone-tier="{{.MilestoneTier}}"
                 data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}" data-special="{{.HasSpecial}}" data-imbued="{{.Imbued}}" data-attuned="{{.Attuned}}"
-                data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}"
+                data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}" data-appearance-id="{{.AppearanceID}}"
                 data-rune="{{.HasRune}}" data-prismatic="{{.Prismatic}}" data-cr="{{printf "%.1f" .CR}}" data-gs="{{.Score}}"
                 data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}"
-                data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+                data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}{{if .Provenance}}&#10;{{.Provenance}}{{end}}">
                 {{.Icon}} [Equipped] {{.Name}} ({{.Rarity}}) · CR {{printf "%.0f" .CR}}
               </option>
             {{end}}
@@ -766,10 +803,10 @@
                 data-unidentified="{{.Unidentified}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}"
                 data-stats="{{.StatsJSON}}" data-gemstones="{{.GemstonesJSON}}" data-kill-count="{{.KillCount}}" data-milestone-tier="{{.MilestoneTier}}"
                 data-insured="{{.Insured}}" data-corrupted="{{.Corrupted}}" data-special="{{.HasSpecial}}" data-imbued="{{.Imbued}}" data-attuned="{{.Attuned}}"
-                data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}"
+                data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-cursed="{{.Cursed}}" data-eldritch="{{.Eldritch}}" data-appearance-id="{{.AppearanceID}}"
                 data-rune="{{.HasRune}}" data-prismatic="{{.Prismatic}}" data-cr="{{printf "%.1f" .CR}}" data-gs="{{.Score}}"
                 data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-ah="{{.AHPrice}}" data-vendor="{{.VendorPrice}}" data-locked="{{.Locked}}" data-recent="{{.RecentlyLooted}}"
-                data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+                data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.1f" .CR}} · GS {{.Score}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}{{if .Provenance}}&#10;{{.Provenance}}{{end}}">
                 {{.Icon}} [Inv] {{.Name}} ({{.Rarity}}) · CR {{printf "%.0f" .CR}}
               </option>
             {{end}}
@@ -803,9 +840,10 @@
         </div>
       </div>
 
+      {{template "abyssTransmogPanel" .}}
+
       <div id="forgeActions" style="display:none; flex-direction:column; gap:8px;">
-        <!-- Identify Button -->
-        <button id="btnForgeIdentify" class="primary xs" onclick="forgeIdentify()" style="display:none; width:100%;">🔍 Identify Item (Cost: 100g)</button>
+        {{template "abyssDailyIdentifyButton" .}}
 
         <!-- Grouped forge actions (UX-55): Improve / Gems & Runes / Recovery -->
         <details class="ab-acc" open><summary>🛠️ Improve</summary><div class="ab-acc-body">
@@ -934,6 +972,7 @@
         <details class="ab-acc" open><summary>💎 Gems &amp; Runes</summary><div class="ab-acc-body">
         <!-- Punch Socket: add an empty gemstone socket (max 4) -->
         <button id="btnForgePunchSocket" class="ghost xs" onclick="forgePunchSocket()" style="display:none; width:100%;" title="Adds one empty gemstone socket (max 4)">🔨 Punch Socket (10🔷)</button>
+        {{template "abyssRingSocketControl" .}}
 
         <!-- Gem Transmute: change the first socketed gem's type, keeping its tier -->
         <div id="forgeGemTransmuteRow" style="display:none; border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
@@ -1025,8 +1064,8 @@
 
       <!-- Panel-wide forge tools, grouped (UX-55) -->
       <details class="ab-acc" style="margin-top:8px;"><summary>🧰 Maintenance</summary><div class="ab-acc-body">
-        <button class="ghost xs" onclick="abyssIdentifyAll(this)">🔍 Identify All (1,000g each)</button>
-        <button class="ghost xs" onclick="abyssRepairAll(this)">🛠️ Repair All Gear (200g / missing point)</button>
+        {{template "abyssDailyIdentifyAll" .}}
+        <button class="ghost xs" id="btnForgeRepairAll" onclick="abyssRepairAll(this)" title="Linear repair curve: each missing durability point costs exactly 200g. Current full-repair total: {{gold .RepairAllCost}}.">🛠️ Repair All Gear (200g / missing point)</button>
         <label class="small"><input type="checkbox" id="autoRepairToggle" {{if .AutoRepair}}checked{{end}} onchange="abyssAutoRepairToggle(this.checked)"> Auto-repair before every descent</label>
         <div id="forgeStatConversionRow" style="border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
           <label class="muted small" style="display:block; margin-bottom:4px;">Stat Conversion (Convert 100 Mana to +50 Max HP):</label>
@@ -1100,6 +1139,7 @@
     <button class="ghost xs" onclick="abyssSalvage()">🧹 Salvage junk for gold</button>
     <button class="ghost xs" onclick="abyssDismantle()">⚒️ Dismantle rare+ spares for 🜲</button>
     <button class="ghost xs" onclick="shareLastAbyssReplay()">🎬 Share last replay</button>
+    <button class="ghost xs" onclick="viewLastAbyssReplay()">📽️ View last replay</button>
     <button class="ghost xs" onclick="armAbyssGhostReplay()">👻 Challenge replay code</button>
     {{if .Achievements}}<details class="ab-achievements"><summary>🏅 Achievements</summary><div class="ab-achievement-grid">{{range .Achievements}}<span class="ab-ach {{if not .Earned}}locked{{end}}" data-code="{{.Code}}" title="{{if .Earned}}Earned ✓{{else}}Unlock: {{.Condition}}{{end}}">{{if not .Earned}}🔒 {{end}}{{.Name}}</span>{{end}}</div></details>{{end}}
     <div class="ab-progression-clarity">
@@ -1157,6 +1197,7 @@
   </section>
 </div>
 
+{{template "abyssSeasonJourney" .}}
 {{template "abyssSocialHub" .}}
 {{template "abyssBestKill" .}}
 {{template "abyssBossCosmetics" .}}
@@ -1285,7 +1326,7 @@ var curEscrow = {{.Run.Escrow}};
 var curRisk = {{.Risk}};
 var floorType = {{if .Run.Active}}{{.Run.FloorType}}{{else}}"combat"{{end}};
 var eventState = {{if .Run.Active}}{{.Run.EventState}}{{else}}""{{end}};
-var busy = false;
+var busy = false, abyssDescendInFlight = false;
 var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 // Expansion 2 state
 var canLastStand = {{if .CanLastStand}}true{{else}}false{{end}};
@@ -1296,7 +1337,9 @@ var dailyAffix = '{{if .DailyMod}}{{.DailyMod}}{{end}}'; // UI-34
 var interestRatePct = Number('{{printf "%.3f" .HUD.InterestRatePct}}') || 0; // UI-60 authoritative rate
 var interestTotalPct = {{printf "%.3f" .HUD.InterestTotalPct}};
 var escrowSoftCap = {{.HUD.EscrowSoftCap}}, escrowEfficiencyPct = {{.HUD.EscrowEfficiencyPct}};
-var forgeUIState = null, forgeUIStateReceivedAt = 0, abyssSetupState = null;
+var forgeUIState = null, forgeUIStateReceivedAt = 0, abyssSetupState = null, forgeFloorActive = false;
+var eventChainState = {{jsonJS .EventIntel.Chain}} || {active:false,sigils:0,required:3,chains:0};
+var cartographerRouteState = {{jsonJS .CartographerRoute}} || {active:false,remaining:0,floors:[]};
 var abyssJackpot = {{.HUD.Jackpot}}; // UI-57
 var jackpotPulse = false, jackpotPulseTimer = 0;
 var activeRunPacts = {{jsonJS .HUD.Pacts}} || []; // UI-52
@@ -1305,7 +1348,7 @@ var abyssIntelConcealed = {{.HUD.IntelConcealed}};
 if(abyssIntelConcealed)document.body.classList.add('ab-pact-blind');
 var focusPreference = '{{.FocusPreference}}', currentFocus = '{{.AutoFocus}}'; // UI-51
 var curInsured = {{.Run.Insured}}; // UI-43
-var logDelay = Math.max(30, 90 - 12 * {{.Stats.UpSwiftness}}); // Swiftness node (#154)
+var logDelay = Math.max(70, 150 - 10 * {{.Stats.UpSwiftness}}); // readable exchange cadence; Swiftness still accelerates it
 var pageConsumables = {{jsonJS .Consumables}} || [];
 var runFloorsCleared = {{.HUD.FloorsCleared}}, runLootGained = 0; // run summary card (#341)
 var liveCombatSource=null, liveCombatPoll=null, liveCombatState=null, liveLastEventID=-1;
@@ -1317,14 +1360,20 @@ var liveActionOrder=[], livePinnedActions={}, liveShortcutMap={attack:'a',defend
 var currentBossNoteName='';
 
 async function initAbyssCombatSettings(){
-  var input=document.getElementById('holdManaSetting');if(!input)return;
-  try{var response=await fetch('/api/abyss/combat/settings',{cache:'no-store'}),data=await response.json();if(data.ok)input.checked=!!data.hold_mana;}catch(e){}
+  var input=document.getElementById('holdManaSetting'),command=document.getElementById('petCommandSetting');if(!input||!command)return;
+  try{var response=await fetch('/api/abyss/combat/settings',{cache:'no-store'}),data=await response.json();if(data.ok){input.checked=!!data.hold_mana;command.value=data.pet_command||'free';input.dataset.saved=String(input.checked);command.dataset.saved=command.value;renderAbyssPetCommandSetting();}}catch(e){}
+}
+
+function renderAbyssPetCommandSetting(){
+  var command=document.getElementById('petCommandSetting'),hint=document.getElementById('petCommandHint');if(!command||!hint)return;
+  var copy={focus:'Focus Target · companions follow your latest direct enemy target.',guard:'Guard Me · a living companion intercepts 15% of direct-hit damage and retaliates.',free:'Free-for-All · companions choose independent targets.'};
+  hint.textContent=copy[command.value]||copy.free;
 }
 
 async function saveAbyssCombatSettings(){
-  var input=document.getElementById('holdManaSetting');if(!input)return;
-  var wanted=input.checked;input.disabled=true;
-  try{var response=await fetch('/api/abyss/combat/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hold_mana:wanted})}),data=await response.json();if(!data.ok)throw new Error(data.error||'save failed');input.checked=!!data.hold_mana;abToast(input.checked?'Mana hold enabled for automatic combat.':'Mana hold disabled.',true);}catch(e){input.checked=!wanted;abToast(e.message||'Could not save combat setting.',false);}finally{input.disabled=false;}
+  var input=document.getElementById('holdManaSetting'),command=document.getElementById('petCommandSetting');if(!input||!command)return;
+  var savedHold=input.dataset.saved==='true',savedCommand=command.dataset.saved||'free';input.disabled=true;command.disabled=true;renderAbyssPetCommandSetting();
+  try{var response=await fetch('/api/abyss/combat/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hold_mana:input.checked,pet_command:command.value})}),data=await response.json();if(!data.ok)throw new Error(data.error||'save failed');input.checked=!!data.hold_mana;command.value=data.pet_command||'free';input.dataset.saved=String(input.checked);command.dataset.saved=command.value;renderAbyssPetCommandSetting();abToast('Combat preferences saved.',true);}catch(e){input.checked=savedHold;command.value=savedCommand;renderAbyssPetCommandSetting();abToast(e.message||'Could not save combat settings.',false);}finally{input.disabled=false;command.disabled=false;}
 }
 
 async function abyssDeferredEventClaim(){
@@ -1335,27 +1384,40 @@ async function abyssDeferredEventClaim(){
 }
 try{liveActionOrder=JSON.parse(localStorage.getItem('abyssLiveActionOrder')||'[]')||[];livePinnedActions=JSON.parse(localStorage.getItem('abyssLivePinnedActions')||'{}')||{};Object.assign(liveShortcutMap,JSON.parse(localStorage.getItem('abyssLiveShortcuts')||'{}')||{});}catch(e){}
 
-function abAtlasPosition(cell){
-  return (cell[0]*100/7)+'% '+(cell[1]*100/5)+'%';
-}
-function applyAbPixelIcon(element,cell){
-  if(element)element.style.backgroundPosition=abAtlasPosition(cell);
-}
-function abGearIconCell(slot){
+function abExpandedGearIconCell(slot){
   slot=String(slot||'').toLowerCase();
-  if(slot==='mainhand'||slot==='ranged')return [0,2];
-  if(slot==='offhand')return [1,2];
-  if(slot==='head')return [2,2];
-  if(slot==='chest'||slot==='shoulders')return [3,2];
-  if(slot==='hands'||slot==='wrists')return [4,2];
-  if(slot==='waist')return [5,2];
-  if(slot==='legs')return [6,2];
-  if(slot==='feet')return [7,2];
-  if(slot==='back')return [0,3];
-  if(slot.indexOf('finger')===0)return [1,3];
-  if(slot==='neck')return [2,3];
-  if(slot.indexOf('trinket')===0)return [3,3];
-  return [7,5];
+  if(slot==='mainhand')return [0,0];
+  if(slot==='ranged')return [3,0];
+  if(slot==='offhand')return [6,0];
+  if(slot==='head')return [0,1];
+  if(slot==='chest'||slot==='shoulders')return [1,1];
+  if(slot==='hands'||slot==='wrists')return [2,1];
+  if(slot==='feet'||slot==='legs')return [3,1];
+  if(slot==='waist')return [4,1];
+  if(slot==='back')return [5,1];
+  if(slot.indexOf('finger')===0)return [6,1];
+  if(slot==='neck'||slot.indexOf('trinket')===0)return [7,1];
+  return [7,6];
+}
+var AB_GEAR_ART_FAMILIES={
+  offhand:'offhands',ranged:'ranged',relic:'relics',artifact:'artifacts',
+  soul:'souls',aura:'auras',charm:'charms',mount:'mounts',companion:'companions',
+  pet1:'pets',pet2:'pets',emblem1:'emblems',emblem2:'emblems',banner:'banners',totem:'totems'
+};
+function abGearArtFamily(slot){
+  return AB_GEAR_ART_FAMILIES[String(slot||'').toLowerCase()]||'items';
+}
+function applyAbUniquePixelIcon(element,cell,key,family){
+  if(!element)return;
+  var art=liveCatalogArt(key,family||'items');
+  element.classList.add('ab-catalog-icon','ab-art-unique');
+  element.style.cssText+=';'+liveUniqueArtStyle(key,art.family);
+  element.dataset.artSignature=liveArtIdentity(key).signature;
+  element.dataset.artSheet=art.family;
+}
+function abUniquePixelIconHTML(cell,key,extraClass,family){
+  var identity=liveArtIdentity(key),art=liveCatalogArt(key,family||'items');
+  return '<span class="ab-pixel-icon ab-catalog-icon ab-art-unique '+(extraClass||'')+'" data-art-signature="'+identity.signature+'" data-art-sheet="'+art.family+'" style="'+liveUniqueArtStyle(key,art.family)+'" aria-hidden="true"></span>';
 }
 
 // Modern hover tooltip for the Armoury + run-loot panels. A single viewport-fixed
@@ -1379,7 +1441,7 @@ function abGearIconCell(slot){
   }
   function fill(host,txt){
     var lines=txt.split('\n'), card=ensure(), icon='';
-    if(host.classList.contains('abyss-side-gear'))icon='<span class="ab-pixel-icon ab-hovertip-icon" style="background-position:'+abAtlasPosition(abGearIconCell(host.dataset.slot))+'"></span>';
+    if(host.classList.contains('abyss-side-gear'))icon=abUniquePixelIconHTML(abExpandedGearIconCell(host.dataset.slot),host.dataset.artKey||host.dataset.tip,'ab-hovertip-icon',abGearArtFamily(host.dataset.slot));
     card.innerHTML='<div class="ab-hovertip-title">'+icon+'<strong>'+consEsc(lines.shift()||'')+'</strong></div>'+lines.map(function(line){
       return '<div>'+consEsc(line).replace(/(-\d+)/g,'<span class="ab-neg">$1</span>')+'</div>';
     }).join('');
@@ -1485,8 +1547,8 @@ function abToast(m, ok, opts){
 function lootToast(labelHTML, rarCls){
   var burst = (rarCls === 'rar-celestial' || rarCls === 'rar-eternal') ? ' ab-starburst' : '';
   var slot=/\[s:([A-Za-z0-9]+)\]/.exec((labelHTML||'').replace(/<[^>]*>/g,''));
-  var cell=abGearIconCell(slot?slot[1]:'');
-  var icon='<span class="ab-pixel-icon ab-loot-toast-icon" style="background-position:'+abAtlasPosition(cell)+'" aria-hidden="true"></span>';
+  var key='loot-toast:'+(labelHTML||'').replace(/<[^>]*>/g,'');
+  var icon=abUniquePixelIconHTML(abExpandedGearIconCell(slot?slot[1]:''),key,'ab-loot-toast-icon',abGearArtFamily(slot?slot[1]:''));
   abToast(labelHTML, true, {html: true, icon: icon, cls: 'loot ' + rarCls + burst, ms: 3600});
 }
 
@@ -1570,7 +1632,7 @@ var abyssForgeCommitOperations={
   '/api/abyss/dismantle':'dismantle','/api/abyss/identify':'identify','/api/abyss/socket_gem':'socket_gem','/api/abyss/etch_rune':'etch_rune','/api/abyss/recalibrate':'recalibrate','/api/abyss/upgrade_gear':'upgrade_gear','/api/abyss/transmute':'transmute','/api/abyss/insure_item':'insure_item',
   '/api/abyss/craft':'craft','/api/abyss/craft_legendary':'craft_legendary','/api/abyss/temper':'temper','/api/abyss/upgrade_gem':'upgrade_gem','/api/abyss/extract_gem':'extract_gem','/api/abyss/transfer_enchant':'transfer_enchant','/api/abyss/fuse':'fuse','/api/abyss/mythic_fuse':'mythic_fuse','/api/abyss/celestial_fuse':'celestial_fuse','/api/abyss/cleanse':'cleanse','/api/abyss/repair_all':'repair_all','/api/abyss/auto_repair':'auto_repair','/api/abyss/identify_all':'identify_all','/api/abyss/forge/target_craft':'target_craft',
   '/api/abyss/polish':'polish','/api/abyss/reinforce':'reinforce','/api/abyss/sharpen':'sharpen','/api/abyss/awaken':'awaken','/api/abyss/imbue':'imbue','/api/abyss/punch_socket':'punch_socket','/api/abyss/attune':'attune','/api/abyss/reforge':'reforge','/api/abyss/embrace':'embrace','/api/abyss/masterwork':'masterwork','/api/abyss/corrupt':'corrupt','/api/abyss/infuse_curse':'infuse_curse','/api/abyss/infuse_eldritch':'infuse_eldritch','/api/abyss/rebalance':'rebalance','/api/abyss/transmute_gem':'transmute_gem','/api/abyss/brand':'brand','/api/abyss/temper_surge':'temper_surge','/api/abyss/swap_special':'swap_special','/api/abyss/infuse_xp':'infuse_xp','/api/abyss/prismatic_rune':'prismatic_rune',
-  '/api/abyss/batch_temper':'batch_temper','/api/abyss/temper_guard':'temper_guard','/api/abyss/forge_queue':'forge_queue','/api/abyss/gem_upgrade_all':'gem_upgrade_all','/api/abyss/scrape_rune':'scrape_rune','/api/abyss/unattune':'unattune','/api/abyss/masterwork_transfer':'masterwork_transfer','/api/abyss/reforge_lock':'reforge_lock','/api/abyss/rebalance_all':'rebalance_all','/api/abyss/unbrand':'unbrand','/api/abyss/special_reroll':'special_reroll','/api/abyss/awaken_guided':'awaken_guided','/api/abyss/imbue_remove':'imbue_remove','/api/abyss/polish_all':'polish_all','/api/abyss/craft_repair_kit2':'craft_repair_kit2','/api/abyss/socket_relocate':'socket_relocate','/api/abyss/celestial_fuse_boosted':'celestial_fuse_boosted','/api/abyss/convert_mats':'convert_mats'
+  '/api/abyss/batch_temper':'batch_temper','/api/abyss/temper_guard':'temper_guard','/api/abyss/forge_queue':'forge_queue','/api/abyss/gem_upgrade_all':'gem_upgrade_all','/api/abyss/scrape_rune':'scrape_rune','/api/abyss/unattune':'unattune','/api/abyss/masterwork_transfer':'masterwork_transfer','/api/abyss/reforge_lock':'reforge_lock','/api/abyss/rebalance_all':'rebalance_all','/api/abyss/unbrand':'unbrand','/api/abyss/special_reroll':'special_reroll','/api/abyss/awaken_guided':'awaken_guided','/api/abyss/imbue_remove':'imbue_remove','/api/abyss/polish_all':'polish_all','/api/abyss/craft_repair_kit2':'craft_repair_kit2','/api/abyss/socket_relocate':'socket_relocate','/api/abyss/reroll_ring_sockets':'reroll_ring_sockets','/api/abyss/celestial_fuse_boosted':'celestial_fuse_boosted','/api/abyss/convert_mats':'convert_mats'
 };
 async function abyssForgeCommit(url,body,operation){
   var commitBody=Object.assign({},body||{}),parameters=Object.assign({},commitBody);
@@ -1595,7 +1657,11 @@ async function abyssForgeCommit(url,body,operation){
 window.abyssForgeCommit=abyssForgeCommit;
 async function abPost(url,body){
   var operation=abyssForgeCommitOperations[url];
-  return operation?abyssForgeCommit(url,body,operation):abRawPost(url,body);
+  var actionElement=(lastActionBtn&&lastActionBtn.isConnected)?lastActionBtn:document.activeElement;
+  var returnAfterAction=!!(actionElement&&actionElement.closest&&actionElement.closest('[data-abyss-section="shop"],[data-abyss-section="forge"]'));
+  var result=operation?await abyssForgeCommit(url,body,operation):await abRawPost(url,body);
+  if(result&&result.ok&&returnAfterAction)setTimeout(function(){focusAbyssDescend();},180);
+  return result;
 }
 
 var practiceBossName='';
@@ -1610,12 +1676,39 @@ async function abyssPractice(name,tactic){
 	  openModal('<h3>🎯 Sanctuary practice · '+consEsc(result.boss)+'</h3><p>'+consEsc(result.faction)+' · '+consEsc(result.pattern)+'</p><label>Simulation tactic <select onchange="abyssPractice(practiceBossName,this.value)">'+tactics+'</select></label><div class="ab-practice-dps"><b>'+outcome+'</b> · '+fmtNum(result.rounds)+' rounds · estimated DPS <b>'+fmtNum(result.estimated_dps)+'</b><br>You '+fmtNum(result.player_hp)+' / '+fmtNum(result.player_max_hp)+' HP · Boss '+fmtNum(result.boss_hp)+' / '+fmtNum(result.boss_max_hp)+' HP</div><ol class="ab-practice-log">'+lines+'</ol><p class="muted small">Deterministic sandbox only: no health, consumables, cooldowns, loot, achievements, or run state changed.</p><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close drill</button></div>');
 }
 
+async function abyssSimulateNextFloor(){
+  if(busy)return;
+  var approved=await confirmModal('Run 100 isolated fights against one server-prepared next-combat snapshot for 🜲 2? This is a projection, not a guaranteed outcome.',{title:'Scout the next combat',okLabel:'Run 100 fights (🜲 2)'});
+  if(!approved)return;
+  setBusy(true);markBusyBtn('btnSimulate');
+  try{
+    var data=await abPost('/api/abyss/simulate',{});
+    if(!data.ok)throw new Error(data.error||'Shadow fights unavailable.');
+    var sim=data.simulation||{},report=document.getElementById('abyssShadowReport');
+    document.getElementById('abyssShadowDepth').textContent='F'+(Number(sim.depth)||0);
+    document.getElementById('abyssShadowWinPct').textContent=(Number(sim.win_pct)||0)+'%';
+    document.getElementById('abyssShadowRecord').textContent=(Number(sim.wins)||0)+' W · '+(Number(sim.losses)||0)+' L';
+    document.getElementById('abyssShadowInterval').textContent=(Number(sim.confidence_low_pct)||0)+'–'+(Number(sim.confidence_high_pct)||0)+'%';
+    document.getElementById('abyssShadowHP').textContent=(Number(sim.median_win_hp_pct)||0)+'%';
+    document.getElementById('abyssShadowEncounter').textContent=sim.encounter||'Unknown encounter';
+    document.getElementById('abyssShadowMeter').style.width=Math.max(0,Math.min(100,Number(sim.win_pct)||0))+'%';
+    report.hidden=false;setTokens(sim.tokens);report.focus({preventScroll:true});report.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'nearest'});
+    abToast(data.message||'Shadow fights complete.',true);
+  }catch(error){
+    abToast(error.message||'Shadow fights unavailable.',false);
+  }finally{
+    setBusy(false);
+  }
+}
+
 function setBusy(b){
-  busy=b;['btnEnter','btnDescend','btnBank','btnBank25','btnBank50','btnDoubleBonus','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
+  busy=b;['btnEnter','btnDescend','btnBank','btnBank25','btnBank50','btnTransport','btnDoubleBonus','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore','btnSimulate'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
   if(b&&!lastActionBtn&&document.activeElement&&document.activeElement.tagName==='BUTTON')markBusyElement(document.activeElement);
-  if(!b){if(lastActionBtnTimer){clearTimeout(lastActionBtnTimer);lastActionBtnTimer=null;}if(lastActionBtn){lastActionBtn.classList.remove('btn-busy');lastActionBtn=null;}}
+  if(!b){if(lastActionBtnTimer){clearTimeout(lastActionBtnTimer);lastActionBtnTimer=null;}if(lastActionBtn){lastActionBtn.classList.remove('btn-busy');lastActionBtn=null;}abyssDescendInFlight=false;updateFloatingDescend();}
   if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
 }
+function updateFloatingDescend(label){var button=document.getElementById('abyssFloatingDescend');if(!button)return;button.hidden=!abyssDescendInFlight;if(label)button.textContent='↓ '+label;else if(abyssDescendInFlight)button.textContent='↓ Descending…';}
+function focusAbyssDescend(){var controls=document.getElementById('abyssControls'),button=document.getElementById('btnDescend');if(!controls||!inRun)return;controls.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'center'});setTimeout(function(){if(button&&button.offsetParent!==null)button.focus({preventScroll:true});},reduceMotion?0:350);}
 function show(id, on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none';}
 
 function renderState(){
@@ -1640,6 +1733,7 @@ function renderState(){
   show('buildPicker', !inRun);
   show('btnDescend', inRun && !downed);
   show('btnBank', inRun && !downed);
+  show('btnSimulate', inRun && !downed);
   show('btnDoubleBonus', inRun && !downed && pendingDoubleBonus > 0);
   show('btnBuildRespec', inRun && !downed);
   show('liveRow', inRun && !downed);
@@ -1675,7 +1769,7 @@ function renderState(){
     bb.disabled = busy || bankLocked > 0;
     bb.innerHTML = bankLocked > 0 ? '🔒 Sealed (' + bankLocked + ' floors)' : '🏦 Bank &amp; Leave';
   }
-  ['btnBank25','btnBank50'].forEach(function(id){
+  ['btnBank25','btnBank50','btnTransport'].forEach(function(id){
     var partial=document.getElementById(id);if(partial)partial.disabled=busy||bankLocked>0;
   });
   var mv = document.getElementById('momVal');
@@ -1728,6 +1822,7 @@ function renderNonCombat(floorType, stateStr){
   var desc = document.getElementById('ncDesc');
   var options = document.getElementById('ncOptions');
   options.innerHTML = '';
+  setAbyssForgeFloor(false);
   
   if(!floorType || floorType === 'combat'){
     panel.style.display = 'none';
@@ -1892,7 +1987,7 @@ function renderNonCombat(floorType, stateStr){
       `;
     } else if(state.type === 'lost_explorer'){
       title.textContent = '🧗 Lost Explorer · '+(state.name||'Unknown Delver');
-      desc.textContent = (state.name||'An injured delver')+' is pinned under stone. Spend 10% maximum health to rescue them and receive a vault key plus a 3-fight defensive map. Rescue the same explorer twice and they will entrust you with a keepsake.';
+      desc.textContent = (state.name||'An injured delver')+' is pinned under stone. Spend 10% maximum health to rescue them: they join your ally formation for 3 fights, attack once per round, grant +10% DEF, and bring a vault key. Rescue the same explorer twice and they will entrust you with a keepsake.';
       options.innerHTML = `
         <button class="ghost" onclick="abyssNCAction('explorer_rescue')">🤝 Rescue the Explorer</button>
         <button class="ghost" onclick="abyssNCAction('explorer_leave')">🚶 Preserve Your Strength</button>
@@ -1947,6 +2042,29 @@ function renderNonCombat(floorType, stateStr){
       var bountyReward=Math.max(0,Number(state.bounty_reward)||0),bountyDone=Math.max(0,Number(state.bounties_completed)||0);
       desc.textContent = state.bounty_active?'A signed contract is already active: win your next combat to collect it.':'Sign a contract to defeat your next combat floor. Completed this run: '+bountyDone+(state.double_reward?' — this fourth payout is doubled.':'.');
       options.innerHTML = (state.bounty_active?'':'<button class="ghost" onclick="abyssNCAction(\'bounty_accept\')">🎯 Accept · next combat pays '+fmtGold(bountyReward)+(state.double_reward?' ×2':'')+'</button> ')+'<button class="ghost" onclick="abyssNCAction(\'bounty_leave\')">Leave Board</button>';
+    } else if(state.type === 'forge_floor'){
+      setAbyssForgeFloor(true);
+      title.textContent = '⚒️ The Silent Anvil';
+      desc.textContent = 'An ancient forge wakes for one committed action. Choose a free temper attempt, punch one socket, or repair every equipped item. Eligibility and temper odds remain unchanged.';
+      options.innerHTML = `<button class="primary" onclick="openAbyssForgeFloor('temper')">⚒️ Choose Gear · Free Temper</button> <button class="ghost" onclick="openAbyssForgeFloor('punch_socket')">💎 Choose Gear · Free Socket</button> <button class="ghost" onclick="openAbyssForgeFloor('repair_all')">🛠️ Free Full Repair</button> <button class="ghost" onclick="abyssNCAction('forge_floor_leave')">🚶 Leave the Anvil</button>`;
+    } else if(state.type === 'sigil_chain'){
+      title.textContent = '✦ The Triune Sigil Hunt';
+      if(eventChainState&&eventChainState.active){
+        desc.textContent = 'A second cartouche answers the hunt already bound to you. Your current progress and deadline remain unchanged.';
+        options.innerHTML = `<button class="ghost" onclick="abyssNCAction('sigil_chain_leave')">✦ Keep Current Hunt · Leave</button>`;
+      } else {
+        desc.textContent = 'Bind three rune traces hidden among combat victories over the next ten floors. The first trace awakens two floors from here; complete the cartouche to open its exact cache chest.';
+        options.innerHTML = `<button class="primary" onclick="abyssNCAction('sigil_chain_accept')">✦ Bind the 10-floor Hunt</button> <button class="ghost" onclick="abyssNCAction('sigil_chain_leave')">Leave the Runes Dormant</button>`;
+      }
+    } else if(state.type === 'lost_cartographer'){
+      title.textContent = '🗺 The Lost Cartographer';
+      if(cartographerRouteState&&cartographerRouteState.active){
+        desc.textContent = 'His ink recognizes the chart already bound to your run. Finish the remaining route before another map can be purchased.';
+        options.innerHTML = `<button class="ghost" onclick="abyssNCAction('cartographer_leave')">Keep Existing Chart · Leave</button>`;
+      } else {
+        desc.textContent = 'A soot-stained surveyor offers one exact chart of the next five floor types. Bosses, sanctuaries, pacts, and scheduled anomalies are already inked; a Watcher ambush can still defy the map.';
+        options.innerHTML = `<button class="primary" onclick="abyssNCAction('cartographer_buy')">🗺 Buy Five-Floor Chart · ${fmtGold(Number(state.price)||250)}</button> <button class="ghost" onclick="abyssNCAction('cartographer_leave')">Decline the Map</button>`;
+      }
     } else {
       desc.innerHTML = 'A strange anomaly thrums in the dark. It has dissipated.';
     }
@@ -1955,6 +2073,85 @@ function renderNonCombat(floorType, stateStr){
     }
     if(typeof renderAbyssEventMemory==='function')renderAbyssEventMemory(options,state);
   }
+}
+
+function setAbyssForgeFloor(active){
+  forgeFloorActive=!!active;
+  var banner=document.getElementById('forgeFloorBanner');
+  if(banner)banner.hidden=!forgeFloorActive;
+  ['btnForgeTemper','btnForgePunchSocket','btnForgeRepairAll'].forEach(function(id){
+    var button=document.getElementById(id);if(button)button.classList.toggle('ab-forge-floor-free',forgeFloorActive);
+  });
+}
+
+function openAbyssForgeFloor(operation){
+  var tab=document.querySelector('.ab-tab[data-tab-key="forge"]');
+  if(tab)tab.click();
+  if(operation==='repair_all'){
+    abyssRepairAll(document.getElementById('btnForgeRepairAll'));
+    return;
+  }
+  var select=document.getElementById('forgeItemSelect');
+  var target=document.getElementById(operation==='temper'?'btnForgeTemper':'btnForgePunchSocket');
+  var focus=select||target;
+  if(focus){focus.scrollIntoView({block:'center',behavior:reduceMotion?'auto':'smooth'});focus.focus({preventScroll:true});}
+  abToast(operation==='temper'?'Select eligible gear, then use the glowing Temper action.':'Select gear below four sockets, then use the glowing Punch Socket action.',true);
+}
+
+function renderAbyssEventChain(chain){
+  if(!chain)return;
+  eventChainState=chain;
+  var ribbon=document.getElementById('eventChainRibbon');
+  var status=document.getElementById('eventChainStatus');
+  if(!ribbon||!status)return;
+  var required=Math.max(1,Number(chain.required)||3),sigils=Math.max(0,Math.min(required,Number(chain.sigils)||0));
+  ribbon.classList.toggle('is-active',!!chain.active);
+  ribbon.classList.toggle('is-complete',!!chain.completed);
+  ribbon.classList.toggle('is-expired',!!chain.expired);
+  ribbon.querySelectorAll('.ab-sigil-marks i').forEach(function(mark,index){mark.classList.toggle('is-found',index<sigils);});
+  if(chain.completed){
+    status.textContent=required+'/'+required+' · chest opened · '+fmtGold(chain.chest_reward);
+  }else if(chain.expired){
+    status.textContent='expired · seek another cartouche';
+  }else if(chain.active){
+    status.textContent=sigils+'/'+required+' · next F'+Number(chain.next_depth||0)+' · '+Number(chain.floors_left||0)+' left';
+  }else{
+    status.textContent='dormant'+(Number(chain.chains)>0?' · '+Number(chain.chains)+' cleared':'');
+  }
+  ribbon.setAttribute('aria-label',chain.active?'Sigil Hunt '+sigils+' of '+required+', '+Number(chain.floors_left||0)+' floors left':status.textContent);
+}
+
+function abyssEventChainNotice(chain){
+  if(!chain)return '';
+  if(chain.completed)return '✦ Triune chest opened: +'+fmtGold(chain.chest_reward)+' cache.';
+  if(chain.collected)return '✦ Sigil recovered: '+Number(chain.sigils||0)+'/'+Number(chain.required||3)+' · '+Number(chain.floors_left||0)+' floors left.';
+  if(chain.expired)return '✦ The Sigil Hunt expired before the cartouche was completed.';
+  return '';
+}
+
+function renderAbyssCartographerRoute(route){
+  if(!route)return;
+  cartographerRouteState=route;
+  var host=document.getElementById('cartographerRoute');
+  var list=document.getElementById('cartographerRouteFloors');
+  if(!host||!list)return;
+  var floors=Array.isArray(route.floors)?route.floors:[];
+  host.hidden=!route.active||floors.length===0;
+  list.replaceChildren();
+  floors.forEach(function(floor){
+    var item=document.createElement('li');
+    item.dataset.floorType=String(floor.type||'combat');
+    var depth=document.createElement('b');
+    depth.textContent='F'+Number(floor.depth||0);
+    var label=document.createElement('span');
+    label.textContent=String(floor.icon||'⚔️')+' '+String(floor.label||'Press onward');
+    item.append(depth,label);
+    list.appendChild(item);
+  });
+  host.setAttribute('aria-label','Cartographer route, '+floors.length+' floor'+(floors.length===1?'':'s')+' remaining');
+  host.classList.remove('is-updated');
+  void host.offsetWidth;
+  host.classList.add('is-updated');
 }
 
 // animateNumber (#335/#336): count a numeric change up/down over ~400ms.
@@ -1981,6 +2178,13 @@ function setHP(hp,max){
   if(typeof updateProjectedHP==='function')updateProjectedHP(hp,max);
   var mh=document.getElementById('mhHP'); if(mh)mh.textContent=fmtNum(hp)+' ('+pct+'%)';
 }
+function renderExplorerSupport(support){
+  var chip=document.getElementById('explorerSupportChip'),value=document.getElementById('explorerSupportValue');
+  if(!chip||!value)return;
+  var active=!!(support&&support.active&&Number(support.remaining)>0);
+  chip.hidden=!active;
+  if(active)value.textContent='🤝 '+String(support.name||'Rescued delver')+' · '+Number(support.remaining)+' fights';
+}
 function setMana(mana,max){
   mana=Number(mana)||0; max=Number(max)||0;
   var pct=max>0?Math.max(0,Math.min(100,Math.round(mana*100/max))):0;
@@ -2001,6 +2205,15 @@ function flashCombatDamage(amount,max){
   el.style.setProperty('--damage-alpha',String(Math.max(.22,Math.min(.9,amount/max*2.4))));
   el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
 }
+var combatExchangeTimer=0;
+function animateCombatExchange(f){
+  var side=String(f&&f.side||''),exchange=document.getElementById('combatExchange'),label=document.getElementById('combatExchangeLabel');
+  if(!exchange||!side||reduceMotion)return;
+  clearTimeout(combatExchangeTimer);exchange.hidden=false;exchange.classList.remove('player-turn','enemy-turn');void exchange.offsetWidth;
+  exchange.classList.add(side==='enemy'?'enemy-turn':'player-turn');
+  var actions=Math.max(1,Number(f.actions)||1);label.textContent=(side==='enemy'?'HOSTILE':'PLAYER')+' EXCHANGE'+(actions>1?' · ×'+actions:'');
+  combatExchangeTimer=setTimeout(function(){exchange.classList.remove('player-turn','enemy-turn');exchange.hidden=true;},760);
+}
 function applyCombatFrame(f){
   var hp=Number(f.hp)||0,max=Number(f.max_hp)||0;
   if(combatLastHP!==null&&hp<combatLastHP)flashCombatDamage(combatLastHP-hp,max);
@@ -2013,6 +2226,7 @@ function applyCombatFrame(f){
     if(enemyMax>0)boss.textContent='💀 '+fmtNum(enemy)+' / '+fmtNum(enemyMax)+' HP';
   }
   if(typeof updatePetCombatFrame==='function')updatePetCombatFrame(f);
+  animateCombatExchange(f);
   updateCombatRecorderFrame(f);
 }
 
@@ -2099,6 +2313,10 @@ function renderDepthRail(){
 function setDepth(d){
   var el=document.getElementById('depthNum');
   var nd=Number(d);
+  if(!isNaN(nd) && nd!==Number(curDepth)){
+    var shadowReport=document.getElementById('abyssShadowReport');
+    if(shadowReport)shadowReport.hidden=true;
+  }
   // UI-16: roll the floor number between floors (instant on reduced-motion / non-numeric).
   if(el && !isNaN(nd) && !reduceMotion && String(curDepth)!==String(d) && curDepth>0){
     animateNumber(el, curDepth, nd, function(v){return v;});
@@ -2113,7 +2331,29 @@ function setDepth(d){
   updateThreat();updateElevator();
   var mh=document.getElementById('mhDepth'); if(mh)mh.textContent=d;
   renderHudChips(); renderRestArc();
+  updateAbyssElementalPreview(curDepth);
   if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
+}
+function updateAbyssElementalPreview(depth){
+  var preview=document.getElementById('abyssElementalPreview');
+  var forecast=document.getElementById('abyssAffinityForecast');
+  if(!preview||!forecast)return;
+  var current=Math.max(0,Number(depth)||0);
+  var target=Math.max(0,Number(preview.dataset.targetDepth)||0);
+  if(preview.dataset.secret==='true'){
+    if(current>=target)forecast.hidden=true;
+    return;
+  }
+  target=(Math.floor(current/5)+1)*5;
+  preview.dataset.targetDepth=String(target);
+  forecast.hidden=false;
+  var twin=target>Math.max(0,Number(preview.dataset.twinDepth)||0);
+  var affinityTarget=document.getElementById('abAffinityTarget');
+  var affinityKind=document.getElementById('abAffinityKind');
+  var elementTarget=document.getElementById('abElementTarget');
+  if(affinityTarget)affinityTarget.textContent='F'+target;
+  if(elementTarget)elementTarget.textContent='F'+target;
+  if(affinityKind)affinityKind.textContent=twin?'⚔ Twin Tyrants':'single boss';
 }
 // Greed Meter: server-computed risk (next floor's difficulty vs. current gear
 // combat rating) when available, falling back to a depth-only heuristic.
@@ -2196,6 +2436,7 @@ function playLog(lines, loot, dura, timeline, result){
       (loot||[]).forEach(function(l){var d=document.createElement('div');d.className='ab-loot-line '+rarityClass(l);d.innerHTML='🎁 '+l;lootEl.appendChild(d);});
       // UI-31: durability-loss lines carry a 🔧 prefix.
       (dura||[]).forEach(function(l){var d=document.createElement('div');d.className='ab-dura-line';d.innerHTML='🔧 '+l;duraEl.appendChild(d);});
+      appendAbyssOverkillReceipt(log,result);
       appendRunLoot(loot);
       collapseLongFight(log); // UI-27
       applyLogFilter(); // UI-36: re-apply an active filter to the new lines
@@ -2216,7 +2457,9 @@ function playLog(lines, loot, dura, timeline, result){
       updateCombatRecorderProgress(i,lines.length);
       applyFrames(i);
       followCombatLog();
-      setTimeout(step,combatRecorderDelay(logDelay)); // Swiftness baseline divided by the player's playback preference
+      var lineText=String(lines[i-1]||'').replace(/<[^>]*>/g,' ');
+      var exchangePause=/attack|strike|cast|skill|ultimate|potion|heal|damage|defeat|slain|round/i.test(lineText)?110:0;
+      setTimeout(step,combatRecorderDelay(logDelay+exchangePause)); // action beats stay legible; playback preference still applies
     })();
   });
 }
@@ -2281,6 +2524,12 @@ try{ logNumbered=localStorage.getItem('ab_lognum')==='1'; logMono=localStorage.g
 
 function addLogHead(log, cls, txt){
   var d=document.createElement('div'); d.className='ab-log-line '+cls; d.textContent=txt; log.appendChild(d); recordCombatLogLine(d,txt);
+}
+function appendAbyssOverkillReceipt(log,result){
+  var damage=Math.max(0,Number(result&&result.overkill_damage)||0);
+  var gold=Math.max(0,Number(result&&result.overkill_gold)||0);
+  if(!damage||!gold)return;
+  addLogHead(log,'ab-log-overkill-reward','💰 FINAL OVERKILL · '+fmtNum(damage)+' excess damage → +'+fmtGold(gold)+' cache');
 }
 function combatRoundAt(timeline, logIndex){
   for(var i=0;i<timeline.length;i++){
@@ -2378,6 +2627,9 @@ function decorateLogLine(d, txt){
   if(/ENRAGED/.test(txt)) setStageEnraged(true);
   // UI-23: crit lines get heavier weight, not just color.
   if(/CRITICAL/i.test(txt)) d.classList.add('ab-log-crit');
+  if(/🎭 CRITICAL FUMBLE ·/.test(txt)) d.classList.add('ab-log-critical-fumble');
+  if(/⚡ FIRST STRIKE ·/.test(txt)) d.classList.add('ab-log-first-strike');
+  if(d.querySelector('.ab-execute-signal')) d.classList.add('ab-log-execute');
   if(/CRITICAL|Phoenix|🌀 Captive|Legendary|Mythic|Celestial/i.test(txt)) d.classList.add('ab-log-critical-event');
   // UI-24: dodge lines in italic.
   if(/slipped into the shadows|missed\.|dodges/i.test(txt)) d.classList.add('ab-log-dodge');
@@ -2480,6 +2732,7 @@ function setStageEnraged(on){ var st=document.getElementById('abyssStage'); if(s
 function clearStageFx(){
   var st=document.getElementById('abyssStage'); if(!st) return;
   st.classList.remove('ab-enraged','ab-boss-fire','ab-boss-void','ab-boss-eye','ab-boss-heart','ab-fs-you','ab-fs-mob');
+  clearTimeout(combatExchangeTimer);var exchange=document.getElementById('combatExchange');if(exchange){exchange.hidden=true;exchange.classList.remove('player-turn','enemy-turn');}
   combatLastHP=null;
   var boss=document.getElementById('bossHPOverlay'); if(boss)boss.style.display='none';
 }
@@ -2495,7 +2748,7 @@ function updateStageScene(){
   if(isEvent){
     var t='';
     try{ t=(JSON.parse(eventState||'{}').type)||''; }catch(e){}
-    icon.textContent = t==='cursed_library' ? '📚' : (t==='den'||t==='imp'||t==='gambler' ? '🎰' : '❔');
+    icon.textContent = t==='cursed_library' ? '📚' : (t==='lost_cartographer' ? '🗺' : (t==='sigil_chain' ? '✦' : (t==='den'||t==='imp'||t==='gambler' ? '🎰' : '❔')));
   }
 }
 
@@ -2987,14 +3240,16 @@ async function abyssEnter(consumables){
   setBusy(true); markBusyBtn('btnEnter');
   var expedition=document.getElementById('weeklyExpedition');
 	var hardcore=document.getElementById('hardcoreMode'),hybrid=document.getElementById('hybridMode');
-  var kit=document.getElementById('buildKit'), mutation=document.getElementById('buildMutation'), entryFocus=document.getElementById('entryFocus');
+  var kit=document.getElementById('buildKit'), mutation=document.getElementById('buildMutation'), position=document.getElementById('combatPosition'), entryFocus=document.getElementById('entryFocus');
   var veteran=document.getElementById('veteranTrack');
   var lootRule=document.getElementById('partyLootRule');
   var suppressAffix=document.getElementById('suppressDailyAffix');
   var contractPact=document.getElementById('contractPact');
+  var tokenAnte=document.getElementById('tokenAnte'),entryRiskDial=document.getElementById('entryRiskDial');
   var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),hardcore:!!(hardcore&&hardcore.checked),hybrid:!!(hybrid&&hybrid.checked),
-    kit:kit?kit.value:'vanguard', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
-    loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto', suppress_affix:!!(suppressAffix&&suppressAffix.checked), contract:contractPact?contractPact.value:''};
+    kit:kit?kit.value:'vanguard', position:position?position.value:'frontline', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
+    loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto', suppress_affix:!!(suppressAffix&&suppressAffix.checked), contract:contractPact?contractPact.value:'',
+    token_ante:tokenAnte?(Number(tokenAnte.value)||0):0,risk_dial_pct:entryRiskDial?(Number(entryRiskDial.value)||0):0};
   if(body.hardcore && !(await confirmModalDangerous('Begin a Hardcore run? Grace floors, insurance, revival items, Last Stand, and revival gambles are disabled. Cleared-floor cache rewards are doubled and the run enters the Hardcore leaderboard.',{title:'Begin Hardcore',okLabel:'Enter Hardcore'}))){
     setBusy(false);
     return;
@@ -3013,6 +3268,7 @@ async function abyssEnter(consumables){
   if(te>0){goldCost+=te;lines.push('Tier entry: '+fmtGold(te)+' <span class="muted small">(waived if your daily free entry is unused)</span>');}
   if(sm&&sm.value==='express'){var xc=Number(sm.getAttribute('data-cost'))||0;goldCost+=xc;lines.push('Express elevator: '+fmtGold(xc));}
   if(sm&&sm.value==='checkpoint'){var ck=Math.floor((cs?(parseInt(cs.value,10)||0):0)/2);tokenCost+=ck;lines.push('Checkpoint drop: 🜲 '+ck);}
+  if(body.token_ante>0){tokenCost+=body.token_ante;lines.push('Token ante: 🜲 '+body.token_ante+' · returned on a successful full bank');}
   if(goldCost>1000||tokenCost>0){
     var total=(goldCost>0?fmtGold(goldCost):'')+(goldCost>0&&tokenCost>0?' + ':'')+(tokenCost>0?'🜲 '+tokenCost:'');
     if(!(await confirmModal(lines.join('<br>')+'<br><b>Total: '+total+'</b>',{title:'Confirm descent costs',okLabel:'Pay '+total+' & Enter'}))){ setBusy(false); return; } // UI-134: cost on the primary button
@@ -3048,9 +3304,13 @@ async function abyssEnter(consumables){
   try{ sessionStorage.setItem('ab_run_tier', selectedTier()); }catch(e){}
   if(d.comeback) notes.push('💪 Comeback buff active: +10% stats this run.');
   if(d.auto_repaired) notes.push('🛠️ Auto-repaired all gear for '+fmtGold(d.auto_repaired)+'.');
+  if(d.auto_insured) notes.push('🛡️ Auto-insured 25% of this run'+(d.auto_insurance_free?' with free cover':' for '+fmtGold(d.auto_insurance_cost))+'.');
+  else if(d.auto_insurance_skip) notes.push('🛡️ Auto-insure skipped: '+d.auto_insurance_skip+'.');
   if(d.weekly_expedition) notes.push('📅 '+d.weekly_expedition+' · +25% cache rewards.');
 	if(d.hardcore) notes.push('💀 Hardcore active: ×2 cache, no grace, insurance, or revival.');
 	if(d.hybrid) notes.push('🌀 Hybrid active: every fifth floor surges to next-tier danger for half its extra reward.');
+  if(d.token_ante) notes.push('🜲 '+d.token_ante+'-token ante active: +'+d.token_ante+'% cache, returned on a successful full bank.');
+  if(d.risk_dial_pct) notes.push('⚖️ Risk dial '+(d.risk_dial_pct>0?'+':'')+d.risk_dial_pct+'% danger and cache.');
   if(d.build_summary) notes.push('🧬 '+d.build_summary+'.');
   if(d.rested_charges) notes.push('🌙 Rested reserve: +20% XP for '+d.rested_charges+' cleared floor'+(d.rested_charges===1?'':'s')+'.');
   if(d.returning_bonus) notes.push('🧭 Welcome back: +25% XP and +10% cache for 10 cleared floors.');
@@ -3171,11 +3431,24 @@ async function abyssDescend(){
   var bar=document.getElementById('hpBar');
   var hp=Number(bar.getAttribute('aria-valuenow')), max=Number(bar.getAttribute('aria-valuemax'));
   if(!(await confirmLowHP()))return;
+  abyssDescendInFlight=true;updateFloatingDescend('Descending to floor '+(curDepth+1)+'…');
   setBusy(true); markBusyBtn('btnDescend'); clearBanner();
   document.getElementById('abStatus').textContent='Descending…';
 
   var d=await abPost('/api/abyss/descend',{interactive:true});
-  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  if(!d.ok){
+    if(d.cursed_elevator){
+      await playAbyssMultiFloorResults(d);
+      if(typeof d.depth==='number')setDepth(d.depth);
+      if(typeof d.escrow==='number')setEscrow(d.escrow);
+      if(typeof d.hp==='number')setHP(d.hp,d.max_hp);
+      if(typeof d.gold==='number')setGold(d.gold);
+      if(typeof d.tokens==='number')setTokens(d.tokens);
+      if(typeof d.risk==='number')setRisk(d.risk);
+      renderState();
+    }
+    abToast(d.error||'failed',false);setBusy(false);return;
+  }
 
   if(d.choose_floor){
     setBusy(false);
@@ -3188,6 +3461,11 @@ async function abyssDescend(){
     return;
   }
 
+  if(d.cursed_elevator){
+    updateFloatingDescend('Cursed elevator · 0/2');
+    abToast('🛗 Cursed elevator! Two dangerous floors, two reward rolls.', true);
+    d.batch_floors_played=await playAbyssMultiFloorResults(d);
+  }
   await processDescendResult(d, hp, max);
 }
 
@@ -3205,7 +3483,7 @@ function addPathToQueue() {
   var container = document.getElementById('pathQueueContainer');
   if (!container) return;
   var count = container.querySelectorAll('.ab-path-select').length;
-  if (count >= 10) return;
+  if (count >= 20) return;
   
   var wrap = document.createElement('div');
   wrap.style.display = 'flex';
@@ -3263,7 +3541,68 @@ function updateQueueUI() {
   var btnLess = document.getElementById('btnQueueLess');
   var btnMore = document.getElementById('btnQueueMore');
   if (btnLess) btnLess.disabled = busy || wraps.length <= 3;
-  if (btnMore) btnMore.disabled = busy || wraps.length >= 10;
+  if (btnMore) btnMore.disabled = busy || wraps.length >= 20;
+  var target = document.getElementById('autoStopDepth');
+  if (target && (target.dataset.manual !== 'true' || Number(target.value) <= curDepth)) {
+    delete target.dataset.manual;
+    target.value = curDepth + wraps.length;
+  }
+  updateAutoDescendRulesUI();
+}
+
+function updateAutoDescendRulesUI() {
+  var armed = document.getElementById('autoDescendEnabled');
+  var rules = document.getElementById('autoDescendRules');
+  var hp = document.getElementById('autoStopHP');
+  var depth = document.getElementById('autoStopDepth');
+  var legendary = document.getElementById('autoStopLegendary');
+  var summary = document.getElementById('autoStopSummary');
+  if (!armed || !rules || !hp || !depth || !legendary || !summary) return;
+  var enabled = armed.checked;
+  hp.disabled = depth.disabled = legendary.disabled = !enabled;
+  rules.classList.toggle('is-disarmed', !enabled);
+  summary.textContent = enabled
+    ? 'Brake: <' + Math.max(1, Math.min(99, Number(hp.value) || 50)) + '% HP · F' + (Number(depth.value) || curDepth + 1) + (legendary.checked ? ' · Legendary+' : '')
+    : 'Safeguards disarmed';
+}
+
+function getAutoDescendRules() {
+  var enabled = document.getElementById('autoDescendEnabled');
+  if (!enabled || !enabled.checked) return {hp_below_pct:0,target_depth:0,stop_on_legendary:false};
+  return {
+    hp_below_pct: Math.max(1, Math.min(99, Number(document.getElementById('autoStopHP').value) || 50)),
+    target_depth: Math.max(1, Number(document.getElementById('autoStopDepth').value) || curDepth + 1),
+    stop_on_legendary: document.getElementById('autoStopLegendary').checked
+  };
+}
+
+async function playAbyssMultiFloorResults(data) {
+  var floors = Array.isArray(data && data.floor_results) ? data.floor_results : [];
+  if (!floors.length) return false;
+  var stage = document.getElementById('abyssStage');
+  try {
+    for (var i = 0; i < floors.length; i++) {
+      var floor = floors[i] || {};
+      var depth = Number(floor.depth) || curDepth;
+      updateFloatingDescend('Floor ' + depth + ' combat · ' + (i + 1) + '/' + floors.length);
+      setDepth(depth);
+      if (typeof floor.hp === 'number') setHP(floor.hp, floor.max_hp);
+      document.getElementById('abStatus').textContent = 'Floor ' + depth + ' combat (' + (i + 1) + '/' + floors.length + ')…';
+      if (stage) stage.dataset.batchFloor = String(depth);
+      document.dispatchEvent(new CustomEvent('abyss:batch-floor', {detail: {depth: depth, index: i, total: floors.length}}));
+      await playLog(floor.logs || [], floor.loot || [], floor.dura || [], floor.timeline || [], floor);
+      if(floor.event_chain){
+        renderAbyssEventChain(floor.event_chain);
+        var chainNotice=abyssEventChainNotice(floor.event_chain);
+        if(chainNotice)setBanner(chainNotice,floor.event_chain.expired?'warn':'good');
+      }
+      if(floor.map_route)renderAbyssCartographerRoute(floor.map_route);
+      resetMana();
+    }
+  } finally {
+    if (stage) delete stage.dataset.batchFloor;
+  }
+  return true;
 }
 
 async function abyssDescendMulti() {
@@ -3272,8 +3611,8 @@ async function abyssDescendMulti() {
   document.querySelectorAll('.ab-path-select').forEach(function(el) {
     paths.push(el.value);
   });
-  if (paths.length < 3 || paths.length > 10) {
-    abToast('Queue must have 3 to 10 floors.', false);
+  if (paths.length < 3 || paths.length > 20) {
+    abToast('Queue must have 3 to 20 floors.', false);
     return;
   }
 
@@ -3281,15 +3620,17 @@ async function abyssDescendMulti() {
   var hp = Number(bar.getAttribute('aria-valuenow')), max = Number(bar.getAttribute('aria-valuemax'));
   if (!(await confirmLowHP())) return;
 
+  abyssDescendInFlight=true;updateFloatingDescend('Planned descent · 0/'+paths.length);
   setBusy(true); markBusyBtn('btnDescendMulti'); clearBanner();
   document.getElementById('abStatus').textContent = 'Descending queue (' + paths.length + ' floors)…';
 
-  var d = await abPost('/api/abyss/descend_multi', {paths: paths});
+  var d = await abPost('/api/abyss/descend_multi', {paths: paths, stop_rules: getAutoDescendRules()});
   if (!d.ok) {
     // Floors cleared before the failure are already persisted — show their
     // logs/loot and apply the returned run snapshot so depth, escrow, HP and
     // the queue planner stay in sync with the server instead of drifting.
-    if(d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline, d); resetMana(); }
+    var partialFloorsPlayed = await playAbyssMultiFloorResults(d);
+    if(!partialFloorsPlayed && d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline, d); resetMana(); }
     if(typeof d.depth === 'number') setDepth(d.depth);
     if(typeof d.escrow === 'number') setEscrow(d.escrow);
     if(typeof d.hp === 'number') setHP(d.hp, d.max_hp);
@@ -3300,7 +3641,15 @@ async function abyssDescendMulti() {
     abToast(d.error || 'failed', false); setBusy(false); return;
   }
 
+  d.batch_floors_played = await playAbyssMultiFloorResults(d);
   await processDescendResult(d, hp, max);
+  if (d.auto_stopped) {
+    var stopLabels = {hp:'HP safety threshold reached',depth:'Target depth reached',legendary:'Legendary+ drop secured'};
+    var stopLabel = stopLabels[d.stop_reason] || 'Auto-stop rule reached';
+    setBanner('⛔ AUTO-DESCEND STOPPED · ' + stopLabel, 'warn');
+    document.getElementById('abStatus').textContent = stopLabel + '. Review the run before continuing.';
+    abToast(stopLabel, true);
+  }
 }
 
 // Floor-choice modal: shown when abyssDescend rolls 2 candidate paths instead
@@ -3341,7 +3690,10 @@ function showAbyssBossKillCam(){
   openModal('<h3>🎬 Final five · '+consEsc(data.name)+'</h3><ol class="ab-killcam">'+frames+'</ol><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close replay</button></div>');
 }
 async function processDescendResult(d, hp, max){
+	if(d.enemy_forecast&&typeof renderAbyssEnemyForecast==='function')renderAbyssEnemyForecast(d.enemy_forecast);
 	if(d.boss_tokens!==undefined&&typeof setBossTokens==='function')setBossTokens(d.boss_tokens);
+  if(d.explorer_support!==undefined)renderExplorerSupport(d.explorer_support);
+  if(d.map_route)renderAbyssCartographerRoute(d.map_route);
   if(d.escrow_soft_cap!==undefined) escrowSoftCap=Number(d.escrow_soft_cap)||escrowSoftCap;
   if(d.escrow_efficiency_pct!==undefined) escrowEfficiencyPct=Number(d.escrow_efficiency_pct)||100;
   var hasExactRunFloors=d.run_floors_cleared!==undefined;
@@ -3361,7 +3713,7 @@ async function processDescendResult(d, hp, max){
     setHP(hp, max);
     trailPush(d.depth, floorType); // UX-34
     // A batch descend may have fought floors before stopping here — show them.
-    if(d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline, d); resetMana(); }
+    if(!d.batch_floors_played && d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline, d); resetMana(); }
     document.getElementById('abStatus').textContent='Approaching non-combat floor: ' + floorType;
     renderState();
     setBusy(false);
@@ -3371,7 +3723,7 @@ async function processDescendResult(d, hp, max){
   setDepth(d.depth);
   setRisk(d.risk);
   trailPush(d.depth, d.depth % 5 === 0 ? 'boss' : 'combat'); // UX-34
-  await playLog(d.logs, d.loot, d.dura, d.timeline, d);
+  if(!d.batch_floors_played) await playLog(d.logs, d.loot, d.dura, d.timeline, d);
   playAbyssBossExecution(d);
   resetMana();
   setHP(d.hp,d.max_hp); setGold(d.gold); setTokens(d.tokens);
@@ -3385,6 +3737,8 @@ async function processDescendResult(d, hp, max){
     document.getElementById('bestDepth').textContent='🕳️ '+Math.max(best,d.depth);
     if(d.new_record) recordBurst(d.depth); // UI-141: server-confirmed personal record
     var msg='✅ Floor '+d.depth+' cleared! +'+fmtGold(d.bonus)+' to your cache (now '+fmtGold(d.escrow)+').';
+    if(Number(d.overkill_gold)>0)msg+=' 💰 Final overkill: '+fmtNum(d.overkill_damage)+' excess damage → +'+fmtGold(d.overkill_gold)+' cache.';
+    if(Number(d.variety_bonus_xp)>0)msg+=' 🎨 Skill variety: +'+fmtNum(d.variety_bonus_xp)+' XP.';
     if(d.express_skip)msg+=' ⚡ Express floor — no bonus until you pass your record.';
     if(d.daily)msg+=' 🎁 Daily first-descent bonus!';
     if(d.achievement){ msg+=' 🏅 '+d.achievement; achievementBanner(d.achievement); } // UI-140
@@ -3393,6 +3747,7 @@ async function processDescendResult(d, hp, max){
     if(d.lore_unlocked)msg+=' 📖 Found Lore Codex fragment!';
     if(d.recipe_unlocked)msg+=' 📖 Recipe discovered: '+d.recipe_unlocked+'!';
     if(d.gear_milestone)msg+=' '+d.gear_milestone;
+    if(d.event_chain){renderAbyssEventChain(d.event_chain);var chainNotice=abyssEventChainNotice(d.event_chain);if(chainNotice)msg+=' '+chainNotice;}
     if(d.boss_name){abyssLastBossFinale={name:d.boss_name,frames:d.boss_finale||[]};msg+=' 💥 '+consEsc(d.boss_name)+' executed · estimated '+fmtNum(d.boss_dps)+' DPS. <button class="ghost xs" onclick="showAbyssBossKillCam()">🎬 Final 5 rounds</button>';}
     setBanner(msg,'good');
     document.getElementById('abStatus').textContent='Floor '+d.depth+' survived. The next floor is deadlier.';
@@ -3410,7 +3765,7 @@ async function processDescendResult(d, hp, max){
       if(hasGear) addLogHead(document.getElementById('abyssLog'), 'ab-log-pity', '✨ pity '+p+'/40');
     }
     // UI-39: sr-only fight summary for screen readers.
-    srSummary('Floor '+d.depth+' cleared. HP now '+fmtNum(d.hp)+' of '+fmtNum(d.max_hp)+'. '+plural((d.loot||[]).length,'item')+' escrowed.');
+    srSummary('Floor '+d.depth+' cleared. HP now '+fmtNum(d.hp)+' of '+fmtNum(d.max_hp)+'. '+plural((d.loot||[]).length,'item')+' escrowed.'+(Number(d.overkill_gold)>0?' Final overkill credited '+fmtGold(d.overkill_gold)+' cache.':''));
   } else {
     downed=true; canRev=d.can_revive; canLastStand=d.can_last_stand;
 	if(typeof updateAbyssReviveRisk==='function')updateAbyssReviveRisk(d.revive_streak,d.revive_chance_pct);
@@ -3435,8 +3790,13 @@ async function processDescendResult(d, hp, max){
 {{template "abyssCombatFeedbackJS" .}}
 {{template "abyssPixelCombatJS" .}}
 {{template "abyssLiveActionBarJS" .}}
+{{template "abyssSkillVarietyJS" .}}
+{{template "abyssGearDamageJS" .}}
+{{template "abyssShieldJS" .}}
+{{template "abyssWeaknessWindowJS" .}}
 {{template "abyssOnboardingJS" .}}
 {{template "abyssEntryPlannerJS" .}}
+{{template "abyssSkillPriorityJS" .}}
 {{template "abyssCombatRecorderJS" .}}
 {{template "abyssRunAwarenessJS" .}}
 {{template "abyssLootPresentationJS" .}}
@@ -3498,19 +3858,20 @@ async function abyssRevive(){
     setBanner('🎲✨ REVIVED — and the cache DOUBLED to '+fmtGold(d.escrow)+'! Press on or bank.','good');
     document.getElementById('abStatus').textContent='Back from the brink. Descend or bank.';
     renderConsumables(d.consumables);
-  } else {
+	} else {
 	 pendingDoubleBonus=0;
     var finishedDepth=curDepth;
     recordSessionRun(false, finishedDepth, 0, 'Failed revival'); // UI-108: the run ends here, cache lost
     inRun=false; downed=false; setEscrow(0); setDepth('—');
     updateFavicon(); // UI-190: back to the idle icon
-    setBanner('💀 The gamble failed. Cache lost'+(d.insured_refund>0?' ('+fmtGold(d.insured_refund)+' insured back)':'')+'.','bad');
+    if(typeof updateAbyssInsuranceCharms==='function'&&d.insurance_charms!==undefined)updateAbyssInsuranceCharms(d.insurance_charms);
+    setBanner('💀 The gamble failed. Cache lost'+(d.insured_refund>0?' ('+fmtGold(d.insured_refund)+(d.insurance_charm_used?' returned by insurance charm':' insured back')+')':'')+'.','bad');
     document.getElementById('abStatus').textContent='Defeated. Enter again when ready.';
     showRunSummary('💀 Run over', [
       ['Deepest floor', finishedDepth],
       ['Floors cleared this session', runFloorsCleared],
       ['Loot escrowed (lost)', runLootGained],
-      ['Insurance returned', fmtGold(d.insured_refund||0)]
+      [d.insurance_charm_used?'Charm returned':'Insurance returned', fmtGold(d.insured_refund||0)]
     ], 'bad');
   }
   renderState(); setBusy(false);
@@ -3520,14 +3881,18 @@ async function abyssConcede(){
   if(busy)return;
   var grace=!hardcoreRun&&curDepth>=1&&curDepth<=3;
   var insuredRefund=grace?curEscrow:Math.floor(curEscrow*Math.max(0,Math.min(100,curInsured))/100),forfeited=curEscrow-insuredRefund;
+  var charmCount=typeof abyssInsuranceCharmCount==='function'?abyssInsuranceCharmCount():0;
   var protection=grace?'Grace floors return the full cache and preserve its loot.':'Insurance returns '+fmtGold(insuredRefund)+'; '+fmtGold(forfeited)+' is forfeited.';
+  if(!grace&&curInsured===0&&charmCount>0){var charmRefund=Math.floor(curEscrow*.5);protection='If this run is eligible, one insurance charm will return '+fmtGold(charmRefund)+' and '+fmtGold(curEscrow-charmRefund)+' is forfeited; otherwise no cache returns.';}
   if(!(await confirmModalDangerous('Concede on floor '+curDepth+'? Cache at stake: '+fmtGold(curEscrow)+'. '+protection+' The run ends.',{title:'Concede',okLabel:'Concede'})))return; // UI-135: 3s arm delay
   setBusy(true); markBusyBtn('btnConcede'); clearBanner();
   var d=await abPost('/api/abyss/concede');
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  if(typeof updateAbyssInsuranceCharms==='function'&&d.insurance_charms!==undefined)updateAbyssInsuranceCharms(d.insurance_charms);
+  if(d.insurance_charm_used)abToast('🧿 Insurance charm consumed · '+fmtGold(d.insured_refund||0)+' returned.',true,{ms:900});
   recordSessionRun(false, curDepth, 0, 'Conceded'); // UI-108
   try{ sessionStorage.removeItem('ab_trail'); }catch(e){}
-  window.location.reload();
+  setTimeout(function(){window.location.reload();},d.insurance_charm_used?650:0);
 }
 
 // Bank flow (UX-49): fetch a server-computed preview first and show an
@@ -3544,15 +3909,16 @@ async function abyssDoubleBonus(){
   renderState();setBusy(false);
 }
 
-async function abyssBank(percent){
+async function abyssBank(percent,transport){
   if(busy)return;
   percent=Number(percent)||0;
-  var cursed=percent?false:document.getElementById('cursedBank').checked;
+  transport=!!transport;
+  var cursed=percent||transport?false:document.getElementById('cursedBank').checked;
   // Lock every action while the preview request is in flight so a descend or
   // second bank click can't race it; unlocked again before the confirm modal
   // (its own buttons drive the commit, which re-locks).
-  setBusy(true); markBusyBtn('btnBank');
-  var p=await abPost('/api/abyss/bank',{cursed:cursed,preview:true,percent:percent});
+  setBusy(true); markBusyBtn(transport?'btnTransport':'btnBank');
+  var p=await abPost('/api/abyss/bank',{cursed:cursed,preview:true,percent:percent,transport:transport});
   setBusy(false);
   if(!p.ok){abToast(p.error||'failed',false);return;}
   function row(k,v){return '<div class="ab-rs-row"><span>'+k+'</span><b>'+v+'</b></div>';}
@@ -3568,43 +3934,46 @@ async function abyssBank(percent){
     (b.synergies||[]).forEach(function(synergy){lines+=row('⚡ '+consEsc(synergy.label),'+'+Math.round(Number(synergy.bonus||0)*100)+'%');});
     return lines+row('Total pact multiplier','×'+Number(b.multiplier||1).toFixed(3))+'</details>';
   }
-  var html='<h3>'+(p.partial?'🔐 Secure '+p.percent+'% and continue?':'🏦 Bank this run?')+'</h3><div class="modal-body ab-runsummary">'+
-    row(p.partial?'Cache share':'Cache (floor interest included)', fmtGold(p.escrow))+
+  var html='<h3>'+(p.transport?'🚚 Send armored transport and continue?':p.partial?'🔐 Secure '+p.percent+'% and continue?':'🏦 Bank this run?')+'</h3><div class="modal-body ab-runsummary">'+
+    row(p.partial?'Cache share':'Cache (floor interest included)', fmtGold(p.partial||p.source_escrow===undefined?p.escrow:p.source_escrow))+
+	(p.overcap_gold_converted?row('🜲 Over-cap conversion · '+p.overcap_tokens_grant+' token'+(p.overcap_tokens_grant===1?'':'s'),'−'+fmtGold(p.overcap_gold_converted)):'')+
     row('Depth bonus +'+p.depth_bonus_pct+'%', '+'+fmtGold(p.depth_bonus))+
     (p.streak_bonus_pct?row('Bank-streak bonus +'+p.streak_bonus_pct+'%', '+'+fmtGold(p.streak_bonus)):'')+
     (p.cursed?row('☠️ Cursed bonus +20%','+'+fmtGold(p.cursed_bonus)):'')+
     (p.partial?row('Partial-bank fee −10%','−'+fmtGold(p.partial_fee)):'')+
+    (p.transport?row('Armored transport fee −15%','−'+fmtGold(p.transport_fee)):'')+
     (p.frantic_fee?row('🫀 Frantic fee below 15% HP','−'+fmtGold(p.frantic_fee)):'')+
 	(p.perfect_bonus?row('✨ Perfect-run bonus +25%','+'+fmtGold(p.perfect_bonus)):'')+
 	(p.contract_forfeit?row('📜 Failed contract forfeiture −25%','−'+fmtGold(p.contract_forfeit)):'')+
 	(p.raffle_fee?row('🎟️ Bankers’ raffle contribution −1%','−'+fmtGold(p.raffle_fee)):'')+
     pactMath(p.pact_breakdown)+
     row('Estimated payout', '<span style="color:var(--gold)">'+fmtGold(p.payout)+'</span>')+
-    (p.partial?row('Cache left in run',fmtGold(p.remaining_escrow)):row('Base tokens on bank', '🜲 '+p.base_tokens_grant)+row('Pact-risk tokens', '🜲 +'+p.pact_tokens_grant)+row('Total tokens on bank', '🜲 '+p.tokens_grant)+row('Sealed loot to recover', p.loot_count))+
+    (p.continue_run?row('Cache left in run',fmtGold(p.remaining_escrow))+row('Sealed items','Remain at stake'):row('Base tokens on bank', '🜲 '+p.base_tokens_grant)+row('Pact-risk tokens', '🜲 +'+p.pact_tokens_grant)+(p.overcap_tokens_grant?row('Over-cap tokens','🜲 +'+p.overcap_tokens_grant):'')+(p.ante_return?row('Token ante returned','🜲 +'+p.ante_return):'')+row('Total tokens on bank', '🜲 '+p.tokens_grant)+row('Bank streak after cash-out',p.next_bank_streak)+(p.free_insurance_earned?row('🛡️ Streak reward','Next insurance is free'):p.free_insurance_ready?row('🛡️ Streak reward','Free insurance already ready'):'')+row('Sealed loot to recover', p.loot_count))+
 	(p.checkpoint_refund?row('Checkpoint token refund','🜲 +'+p.checkpoint_refund):'')+
-    (!p.partial&&p.bonus_gear_eligible?row('Depth gear reward','🎁 guaranteed'):'')+
+    (!p.continue_run&&p.bonus_gear_eligible?row('Depth gear reward','🎁 guaranteed'):'')+
     (p.capped?'<div class="ab-hc-cmp">⚠️ Daily gold cap: the Abyss levies an 80% tax on the excess (−'+fmtGold(p.cap_tax)+', fed to the deep-cache jackpot).</div>':'')+
-    (!p.partial&&typeof renderBankPreviewLoot==='function'?renderBankPreviewLoot(p.loot_preview,p.loot_count):'')+
+    (!p.continue_run&&typeof renderBankPreviewLoot==='function'?renderBankPreviewLoot(p.loot_preview,p.loot_count):'')+
 	(p.requires_safe_word?'<label class="ab-bank-safe-word">Type <b>BANK</b> to confirm this high-value withdrawal<input id="bankSafeWord" autocomplete="off" maxlength="16" spellcheck="false" aria-label="Type BANK to confirm"></label>':'')+
-	(!p.partial?'<label class="ab-bank-double"><input id="bankDoubleSeed" type="checkbox"> Seed the next run with 10% instead of 5%</label>':'')+
-  '</div><div class="modal-actions"><button class="ghost" id="modalCancelBtn">Keep descending</button><button id="modalOkBtn">'+(p.partial?'🔐 Secure share':'🏦 Bank it')+'</button></div>';
+	(!p.continue_run?'<label class="ab-bank-double"><input id="bankDoubleSeed" type="checkbox"> Seed the next run with 10% instead of 5%</label>':'')+
+  '</div><div class="modal-actions"><button class="ghost" id="modalCancelBtn">Keep descending</button><button id="modalOkBtn">'+(p.transport?'🚚 Send transport':p.partial?'🔐 Secure share':'🏦 Bank it')+'</button></div>';
   openModal(html);
   document.getElementById('modalCancelBtn').onclick=closeModal;
   document.getElementById('modalOkBtn').onclick=function(){
 	var safeWord=(document.getElementById('bankSafeWord')||{}).value||'';
 	var doubleBank=!!((document.getElementById('bankDoubleSeed')||{}).checked);
 	if(p.requires_safe_word&&safeWord.trim().toUpperCase()!=='BANK'){abToast('Type BANK to confirm this withdrawal.',false);return;}
-	closeModal();abyssBankCommit(cursed,percent,safeWord,doubleBank);
+	closeModal();abyssBankCommit(cursed,percent,safeWord,doubleBank,transport);
   };
 }
 
-async function abyssBankCommit(cursed,percent,safeWord,doubleBank){
-  if(busy)return; setBusy(true); markBusyBtn('btnBank'); clearBanner();
-  var d=await abPost('/api/abyss/bank',{cursed:cursed,percent:Number(percent)||0,safe_word:safeWord||'',double_bank:!!doubleBank});
+async function abyssBankCommit(cursed,percent,safeWord,doubleBank,transport){
+  if(busy)return; setBusy(true); markBusyBtn(transport?'btnTransport':'btnBank'); clearBanner();
+  var d=await abPost('/api/abyss/bank',{cursed:cursed,percent:Number(percent)||0,safe_word:safeWord||'',double_bank:!!doubleBank,transport:!!transport});
   if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
-  if(d.partial){
+  if(d.continue_run){
     setGold(d.gold);setEscrow(d.remaining_escrow);
-    setBanner('🔐 Secured '+fmtGold(d.banked)+' with '+fmtGold((d.partial_fee||0)+(d.frantic_fee||0))+' total fees. '+fmtGold(d.remaining_escrow)+' remains at stake.','good');
+    var continuingFee=(d.partial_fee||0)+(d.transport_fee||0)+(d.frantic_fee||0);
+    setBanner((d.transport?'🚚 Armored transport secured ':'🔐 Secured ')+fmtGold(d.banked)+' with '+fmtGold(continuingFee)+' total fees. '+fmtGold(d.remaining_escrow)+' remains at stake; sealed items stay in the run.','good');
     coinArc();renderState();setBusy(false);return;
   }
   recordSessionRun(true, d.depth, d.banked); // UI-108
@@ -3618,6 +3987,8 @@ async function abyssBankCommit(cursed,percent,safeWord,doubleBank){
 	if(d.raffle_win)msg+=' 🎟️ BANKERS’ RAFFLE +'+fmtGold(d.raffle_win)+'!';
 	if(d.checkpoint_refund)msg+=' 🜲 Checkpoint refund +'+d.checkpoint_refund+'.';
 	if(d.pact_tokens_grant)msg+=' ⚔️ Pact-risk tokens +'+d.pact_tokens_grant+'.';
+	if(d.overcap_tokens_grant)msg+=' 🜲 Over-cap conversion: '+fmtGold(d.overcap_gold_converted)+' → '+d.overcap_tokens_grant+' token'+(d.overcap_tokens_grant===1?'':'s')+'.';
+	if(d.free_insurance_earned)msg+=' 🛡️ Bank streak '+d.bank_streak+': your next insurance is free.';
 	if(d.mystery_reveal)msg+=' 🎭 Mystery revealed: '+d.mystery_reveal.label+'.';
 	if(d.contract_forfeit)msg+=' 📜 Failed contract forfeiture −'+fmtGold(d.contract_forfeit)+'.';
 	if(d.cap_tax)msg+=' 💸 Abyss tax −'+fmtGold(d.cap_tax)+' (fed the deep-cache jackpot).';
@@ -3642,10 +4013,11 @@ async function abyssBankCommit(cursed,percent,safeWord,doubleBank){
 function showBankSummary(d){
   var base=Number(d.base)||0, depthBonus=Number(d.depth_bonus)||0, streakBonus=Number(d.streak_bonus)||0;
   var cursedBonus=Number(d.cursed_bonus)||0,perfect=Number(d.perfect_bonus)||0,raffle=Number(d.raffle_fee)||0;
-	var jp=Number(d.jackpot_win)||0,raffleWin=Number(d.raffle_win)||0,tax=Number(d.cap_tax)||0,frantic=Number(d.frantic_fee)||0;
+	var jp=Number(d.jackpot_win)||0,raffleWin=Number(d.raffle_win)||0,tax=Number(d.cap_tax)||0,frantic=Number(d.frantic_fee)||0,overcap=Number(d.overcap_gold_converted)||0;
   var html='<h3>🏦 Run banked!</h3><div class="modal-body ab-runsummary good">'+
     '<div class="ab-rs-row"><span>Depth reached</span><b>'+d.depth+'</b></div>'+
     '<div class="ab-rs-row"><span>Cache (floor interest included)</span><b>'+fmtGold(base)+'</b></div>'+
+	(overcap?'<div class="ab-rs-row"><span>🜲 Over-cap conversion · '+d.overcap_tokens_grant+' token'+(d.overcap_tokens_grant===1?'':'s')+'</span><b>−'+fmtGold(overcap)+'</b></div>':'')+
     '<div class="ab-rs-row"><span>Depth bonus</span><b>+'+fmtGold(depthBonus)+'</b></div>'+
     (streakBonus?'<div class="ab-rs-row"><span>Bank-streak bonus</span><b>+'+fmtGold(streakBonus)+'</b></div>':'')+
     (cursedBonus?'<div class="ab-rs-row"><span>☠️ Cursed bonus</span><b>+'+fmtGold(cursedBonus)+'</b></div>':'')+
@@ -3662,8 +4034,8 @@ function showBankSummary(d){
   openModal(html);
   var el=document.getElementById('bankTotalTick');
   if(!el)return;
-  var raw=base+depthBonus+streakBonus+cursedBonus-frantic+perfect-raffle;
-  var steps=[base,base+depthBonus,base+depthBonus+streakBonus,raw,raw-tax,raw-tax+jp,raw-tax+jp+raffleWin].filter(function(v,i,a){return i===0||v!==a[i-1];});
+  var raw=base+depthBonus+streakBonus+cursedBonus-frantic-overcap+perfect-raffle;
+  var steps=[base,base-overcap,base-overcap+depthBonus,base-overcap+depthBonus+streakBonus,raw,raw-tax,raw-tax+jp,raw-tax+jp+raffleWin].filter(function(v,i,a){return i===0||v!==a[i-1];});
   // UI-138: skip button jumps straight to the final total.
   var skipped=false;
   var skipBtn=document.getElementById('bankSkipBtn');
@@ -3684,17 +4056,20 @@ function showBankSummary(d){
 
 async function abyssInsure(pct){
   if(busy)return; setBusy(true);
+	var riskState=window.__abyssCoreRisk&&window.__abyssCoreRisk.state||{},freeInsurance=!!riskState.free_insurance_ready;
   var loyaltyPct=Math.min(15,Math.floor(Math.max(0,lifetimeBanked)/1000000));
   var rate=Math.max(0.25,0.5-wardLv*0.05-loyaltyPct/100);
   var cost=Math.floor(curEscrow*pct/100*rate);
   if(curEscrow<=0){abToast('No cache to insure yet',false);setBusy(false);return;}
   var loyaltyNote=loyaltyPct?' Your banking loyalty reduces the premium rate by '+loyaltyPct+' points.':'';
-  if(!(await confirmModal('Insure '+pct+'% of your '+fmtGold(curEscrow)+' cache for '+fmtGold(cost)+' gold?'+loyaltyNote, {title:'Insure Cache', okLabel:'Insure ('+fmtGold(cost)+')'}))){setBusy(false);return;} // UI-134
+	var prompt=freeInsurance?'Use your bank-streak reward to insure '+pct+'% of your '+fmtGold(curEscrow)+' cache for free?':'Insure '+pct+'% of your '+fmtGold(curEscrow)+' cache for '+fmtGold(cost)+' gold?'+loyaltyNote;
+  if(!(await confirmModal(prompt, {title:'Insure Cache', okLabel:freeInsurance?'Use free cover':'Insure ('+fmtGold(cost)+')'}))){setBusy(false);return;} // UI-134
   var d=await abPost('/api/abyss/insure',{pct:pct});
   setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setInsured(d.insured); setGold(d.gold);
-  abToast('Insured '+d.insured+'% for '+fmtGold(d.cost)+(d.loyalty_discount_pct?' · loyalty −'+d.loyalty_discount_pct+' points':''),true);
+	if(d.free_insurance_used){riskState.free_insurance_ready=false;if(window.__abyssCoreRisk)window.__abyssCoreRisk.render();}
+  abToast('Insured '+d.insured+'% '+(d.free_insurance_used?'with free bank-streak cover':'for '+fmtGold(d.cost)+(d.loyalty_discount_pct?' · loyalty −'+d.loyalty_discount_pct+' points':'')),true);
 	if(d.cheapskate_title)achievementBanner('The Cheapskate · 7-day title earned');
 }
 
@@ -3768,6 +4143,9 @@ async function abyssNCAction(action, payload){
   }
   if(d.escrow !== undefined) setEscrow(d.escrow);
   if(d.consumables !== undefined) renderConsumables(d.consumables);
+  if(d.explorer_support !== undefined) renderExplorerSupport(d.explorer_support);
+  if(d.event_chain)renderAbyssEventChain(d.event_chain);
+  if(d.map_route)renderAbyssCartographerRoute(d.map_route);
   // UI-18: compatibility fallback for a committed response without a list.
   var eventBuffDuration=Number(d.buff_duration)||0;
   if(d.consumables===undefined && eventBuffDuration>0){
@@ -3782,6 +4160,7 @@ async function abyssNCAction(action, payload){
   }
   
   if(d.resolved){
+    setAbyssForgeFloor(false);
     document.getElementById('ncOptions').innerHTML = '';
     document.getElementById('ncDesc').textContent = d.msg;
   }
@@ -3904,6 +4283,13 @@ async function abyssPotionSubscription(enabled){
   await abyssEconomyPost('/api/abyss/shop/potion_subscription',{enabled:!!enabled});
 }
 
+async function abyssAutoInsure(enabled){
+  var d=await abyssEconomyPost('/api/abyss/shop/auto_insure',{enabled:!!enabled});
+  if(!d.ok)return;
+  var button=document.getElementById('autoInsureToggle');
+  if(button){button.dataset.enabled=String(!!d.enabled);button.textContent='🛡️ Auto-insure: '+(d.enabled?'on':'off');}
+}
+
 async function abyssRepairSubscription(){
   if(!confirm('Prepay 70,000 gold for seven days of complete durability-loss protection?'))return;
   await abyssEconomyPost('/api/abyss/shop/repair_subscription',{});
@@ -3958,6 +4344,12 @@ function updateForgeOptions() {
   var sockets = parseInt(opt.getAttribute('data-sockets')) || 0;
   var gems = parseInt(opt.getAttribute('data-gems')) || 0;
   var slot = opt.getAttribute('data-slot') || '';
+  var ringSocketRow = document.getElementById('forgeRingSocketRow');
+  var ringSocketButton = document.getElementById('btnForgeRingSocketReroll');
+  var isRing = slot === 'Finger1' || slot === 'Finger2';
+  ringSocketRow.style.display = (!unid && isRing) ? 'block' : 'none';
+  ringSocketButton.disabled = gems > 3;
+  ringSocketButton.title = gems > 3 ? 'Extract gems until at most three remain before rerolling' : 'Reroll this ring to 1–3 sockets while preserving every fitted gem';
   
   // Show Identify button if unidentified
   document.getElementById('btnForgeIdentify').style.display = unid ? 'block' : 'none';
@@ -4025,7 +4417,8 @@ function updateForgeOptions() {
   // Gold price labels scale with the item's rarity (mirrors forgeGoldCost).
   var fg=function(b){return '≈'+abForgeGold(b,rarity);};
   var setTxt=function(id,txt){var el=document.getElementById(id);if(el)el.textContent=txt;};
-  setTxt('btnForgeIdentify','🔍 Identify Item ('+fg(100)+')');
+  var identifyButton=document.getElementById('btnForgeIdentify');
+  setTxt('btnForgeIdentify',identifyButton&&identifyButton.dataset.dailyFree==='true'?'🔍 Identify Item · Daily free':'🔍 Identify Item ('+fg(100)+')');
   setTxt('btnForgeSocketGemGo','Socket Gem ('+fg(50)+')');
   setTxt('btnForgeEtchGo','Etch ('+fg(150)+')');
   setTxt('btnForgeTransmute','⚒️ Transmute Weapon ('+fg(100)+')');
@@ -4166,7 +4559,9 @@ async function forgeReforge() {
   if (busy) return; setBusy(true);
   // UI-86: show the item's current stat block inside the confirm modal.
   var sb=selForgeStatBlock();
-  if (!(await confirmModal((sb?'<span class="ab-statblock">'+sb+'</span><br><br>':'')+'Reforge this item for '+abForgeGold(300,selForgeRarity())+'? Every combat stat is rerolled within ±10% — it can get worse.', {title:'Reforge Stats', okLabel:'Reforge ('+abForgeGold(300,selForgeRarity())+')'}))) { setBusy(false); return; } // UI-134
+  var decision=confirmModal((sb?'<span class="ab-statblock">'+sb+'</span><br><br>':'')+'Reforge this item for '+abForgeGold(300,selForgeRarity())+'? Every combat stat is rerolled within ±10% — it can get worse.', {title:'Reforge Stats', okLabel:'Reforge ('+abForgeGold(300,selForgeRarity())+')'}); // UI-134
+  if(window.AbyssItemNumbers)window.AbyssItemNumbers.render(document.getElementById('sharedModalCard'));
+  if (!(await decision)) { setBusy(false); return; }
   forgePost('/api/abyss/reforge', params);
 }
 
@@ -4445,6 +4840,7 @@ async function abyssCraft(id, btn){
   if(btn)btn.disabled=false;
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setMaterials(d.materials); setTokens(d.tokens); renderConsumables(d.consumables);
+  if(typeof updateAbyssInsuranceCharms==='function'&&d.insurance_charms!==undefined)updateAbyssInsuranceCharms(d.insurance_charms);
   abToast(d.msg,true);
 }
 
@@ -4491,7 +4887,7 @@ async function forgeTemper(){
   var stacks=d.success?0:(parseInt(d.fail_stacks,10)||0);
   renderTemperPity(stacks);
   void refreshForgeUIState();
-  if(d.success)setTimeout(function(){window.location.reload();},900);
+  if(d.success||d.forge_floor_used)setTimeout(function(){window.location.reload();},900);
 }
 
 async function forgeCleanse(){
@@ -4528,12 +4924,15 @@ async function abyssRepairAll(btn){
   if(busy)return; setBusy(true);
   var p=await abPost('/api/abyss/repair_all',{preview:true});
   if(!p.ok){abToast(p.error||'failed',false);setBusy(false);return;}
-  if(p.cost<=0){abToast('Nothing to repair.',true);setBusy(false);return;}
-  if(!(await confirmModal('Repair all gear for '+fmtGold(p.cost)+'?', {title:'Repair All', okLabel:'Repair ('+fmtGold(p.cost)+')'}))){setBusy(false);return;} // UI-134
+  if(p.repairable===false){abToast('Nothing to repair.',true);setBusy(false);return;}
+  var repairPrompt=p.forge_floor?'Spend the Silent Anvil charge to repair all equipped gear for free?':'Repair all gear for '+fmtGold(p.cost)+'?';
+  var repairLabel=p.forge_floor?'Repair Free':'Repair ('+fmtGold(p.cost)+')';
+  if(!(await confirmModal(repairPrompt, {title:p.forge_floor?'Silent Anvil Repair':'Repair All', okLabel:repairLabel}))){setBusy(false);return;} // UI-134
   var d=await abPost('/api/abyss/repair_all',{});
   setBusy(false);
   if(!d.ok){abToast(d.error||'failed',false);return;}
   setGold(d.gold); abToast(d.msg,true);
+  if(d.forge_floor_used)setTimeout(function(){window.location.reload();},700);
 }
 
 async function abyssAutoRepairToggle(on){
@@ -4952,7 +5351,7 @@ function selForgeStatBlock(){
   var st=forgeOptionStats(opt);
   if(!st.length)return '';
   return st.map(function(s){
-    return '<span class="'+(s.v<0?'ab-neg':'')+'">'+consEsc(s.k)+' '+(s.v>0?'+':'')+s.v+'</span>';
+    return '<span class="'+(s.v<0?'ab-neg':'')+'">'+consEsc(s.k)+' <b data-item-number="'+s.v+'" data-item-number-sign="always">'+(s.v>0?'+':'')+s.v+'</b></span>';
   }).join(' · ');
 }
 
@@ -5327,8 +5726,10 @@ function buildBackpackPanel(){
     if(o.getAttribute('data-attuned')==='true')html+='<span class="ab-bp-attuned" title="Attuned — bound to you, cannot be fused/sold">🔗</span>';
     var set=o.getAttribute('data-set-id')||'';
     if(set)html+='<span class="ab-set-tag ab-set-'+set+'">🧩 '+set+'</span>'; // UI-78
-    html+='<span class="ab-bp-cr">CR '+(parseFloat(o.getAttribute('data-cr'))||0).toFixed(0)+'</span>';
+    var cr=(parseFloat(o.getAttribute('data-cr'))||0).toFixed(0);
+    html+='<span class="ab-bp-cr">CR <span data-item-number="'+cr+'">'+cr+'</span></span>';
     row.innerHTML=html;
+    if(window.AbyssItemNumbers)window.AbyssItemNumbers.render(row);
     var invID=parseInt(o.value.slice(4),10)||0;
     row.dataset.invId=String(invID);
     if(invID){
@@ -5375,7 +5776,7 @@ function decorateEquippedCards(){
   document.querySelectorAll('.abyss-side-gear').forEach(function(card){
     if(card.dataset.ab2)return;
     card.dataset.ab2='1';
-    applyAbPixelIcon(card.querySelector('.ab-gear-pixel'),abGearIconCell(card.dataset.slot));
+    applyAbUniquePixelIcon(card.querySelector('.ab-gear-pixel'),abExpandedGearIconCell(card.dataset.slot),card.dataset.artKey,abGearArtFamily(card.dataset.slot));
     var temper=parseInt(card.getAttribute('data-temper'),10)||0;
     if(temper>0){ // UI-74
       var pips=document.createElement('span');
@@ -5499,7 +5900,8 @@ function updateForgeAffordability(){
     if(!btn.dataset.origTitle&&btn.title)btn.dataset.origTitle=btn.title;
     var c=AB_FORGE_COSTS[id];
     var goldNeed=0, tkNeed=0, mats={};
-    if(id==='btnForgeTemper')goldNeed=abForgeGoldRaw(400*(temper+1),rarity);
+    if(id==='btnForgeIdentify'&&btn.dataset.dailyFree==='true')goldNeed=0;
+    else if(id==='btnForgeTemper')goldNeed=abForgeGoldRaw(400*(temper+1),rarity);
     else if(id==='btnForgeUpgradeGear'){
       var m=/🜲 (\d+)/.exec(btn.textContent||'');
       tkNeed=m?parseInt(m[1],10):0;
@@ -5616,6 +6018,7 @@ function updateGemTransmuteDiff(){
   if(!sel||!el)return;
   var option=selForgeOption(),gems=[];
   try{gems=JSON.parse(option&&option.getAttribute('data-gemstones')||'[]');}catch(_){}
+  if(!Array.isArray(gems))gems=[];
   var before=forgeGemPreview(gems[0]);
   if(!before){el.textContent='Select an item with a socketed gem.';return;}
   var suffix=before.tier===2?' II':(before.tier===3?' III':''),after=forgeGemPreview(sel.value+suffix);
@@ -5837,6 +6240,8 @@ function renderTierRisk(){
   }
 
   decorateEquippedCards();
+  if(typeof decorateAbyssPetCards==='function')decorateAbyssPetCards();
+  else window.addEventListener('load',function(){if(typeof decorateAbyssPetCards==='function')decorateAbyssPetCards();},{once:true});
   updateOptgroupCounts();
 
   // Forge picker change → affordability + all the selection-driven previews.
@@ -6209,18 +6614,24 @@ function initNewDots(){
 {{template "abyss-forge-workstation" .}}
 {{if .ForgeWorkbenchEnabled}}{{template "abyss-forge-planner" .}}{{end}}
 {{template "abyss-forge-experience" .}}
+{{template "abyssRingSocketJS" .}}
+{{template "abyssTransmogJS" .}}
 {{template "abyss-navigation" .}}
 {{template "abyss-accessibility" .}}
 {{template "abyss-mobile" .}}
 {{template "abyss-insights" .}}
+{{template "abyssItemNumbersJS" .}}
 {{template "abyss-longterm" .}}
 {{template "abyss-events" .}}
 <script data-cfasync="false">{{template "abyssSocialHubJS" .}}</script>
+<script data-cfasync="false">{{template "abyssReplayViewerJS" .}}</script>
 <script data-cfasync="false">{{template "abyssBossCosmeticsJS" .}}</script>
+<script data-cfasync="false">{{template "abyssSeasonJourneyJS" .}}</script>
 <script data-cfasync="false">{{template "abyssStageHUDJS" .}}</script>
 <script data-cfasync="false">{{template "abyssCodexExplorerJS" .}}</script>
 <script data-cfasync="false">{{template "abyssPanelToolsJS" .}}</script>
 <script data-cfasync="false">{{template "abyssPlayerExperienceJS" .}}</script>
+<script data-cfasync="false">{{template "abyssCommandPaletteJS" .}}</script>
 <script data-cfasync="false">{{template "abyssPactProgramJS" .}}</script>
 {{template "abyssCoreRiskJS" .}}
 {{template "abyss-feedback" .}}

@@ -68,7 +68,7 @@ func TestAbyssTreeOpsMetricsAreAnonymousAndSeparated(t *testing.T) {
 }
 
 func TestRequireAbyssTreeEnhancementsKillSwitch(t *testing.T) {
-	server := &WebServer{abyssFeatures: abyssFeatureConfig{tree: false}}
+	server := &WebServer{abyssFeatures: &abyssFeatureConfig{tree: false}}
 	called := false
 	handler := server.requireAbyssTreeEnhancements(func(http.ResponseWriter, *http.Request, string) { called = true })
 	recorder := httptest.NewRecorder()

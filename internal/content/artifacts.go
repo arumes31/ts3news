@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"math"
 	"math/rand/v2"
+	"slices"
 	"strings"
 	"time"
+
 	"ts3news/internal/i18n"
 )
 
@@ -367,6 +369,11 @@ type Gear struct {
 	// belongs to. Empty for gear predating the multi-set system.
 	SetID string `json:"set_id,omitempty"`
 
+	// AppearanceID is an optional catalog gear ID used only for presentation.
+	// Combat, rarity, effects, set bonuses, and slot compatibility continue to
+	// use this item's own fields.
+	AppearanceID string `json:"appearance_id,omitempty"`
+
 	// RegenAmount / RegenIntervalSec are a Rare+ life-regen affix: the item heals
 	// RegenAmount HP every RegenIntervalSec seconds in real time on the Abyss web
 	// dashboard (both values rolled at drop time). Zero means no regen affix.
@@ -390,6 +397,10 @@ type Gear struct {
 	// sentimental-value "broken in" bonus (30+ days old → +1% stats, applied by
 	// the stat aggregation in xp.go).
 	FoundAt string `json:"found_at,omitempty"`
+	// FoundDepth and FoundBoss retain the authoritative Abyss encounter that
+	// produced the item. Zero/empty values cover legacy and non-Abyss gear.
+	FoundDepth int    `json:"found_depth,omitempty"`
+	FoundBoss  string `json:"found_boss,omitempty"`
 }
 
 // EffectiveSetID returns the item's set for set-bonus purposes: its explicit
@@ -411,10 +422,11 @@ type ConsumableType string
 
 // Consumable effect kinds.
 const (
-	ConsumableHealing ConsumableType = "Healing"
-	ConsumableRevive  ConsumableType = "Revive"
-	ConsumableBuff    ConsumableType = "Buff"
-	ConsumableRepair  ConsumableType = "Repair"
+	ConsumableHealing   ConsumableType = "Healing"
+	ConsumableRevive    ConsumableType = "Revive"
+	ConsumableBuff      ConsumableType = "Buff"
+	ConsumableRepair    ConsumableType = "Repair"
+	ConsumableInsurance ConsumableType = "Insurance"
 )
 
 // Consumable is a single-use or stacking item: a potion, elixir, or repair kit.
@@ -451,6 +463,17 @@ var insanityExclusiveGear []Gear
 var legendaryCatalog []Gear
 var allConsumables []Consumable
 
+// GearDropPool identifies a catalog whose normal drop restrictions must remain
+// intact when another system (such as Abyss smart loot) narrows the target slots.
+type GearDropPool uint8
+
+const (
+	GearDropPoolStandard GearDropPool = iota
+	GearDropPoolAbyss
+	GearDropPoolInsanity
+	GearDropPoolStarter
+)
+
 // buildConsumables (re)builds the consumable table. Names are intentionally
 // literal English: the matching logic in hazards.go keys off English substrings
 // (e.g. "antidote", "warmth"), and the content.consumable.* translation keys do
@@ -479,6 +502,7 @@ func buildConsumables() []Consumable {
 var abyssExclusiveConsumables = []Consumable{
 	{"abyss_emergency_revive", "Emergency Revive Potion", ConsumableRevive, 1.0, 0, "Single-use: instantly heals you to full HP if you fall in the Abyss, beyond your normal one-per-run revival."},
 	{"abyss_affix_suppressor", "Affix Suppressor", ConsumableBuff, 0, 0, "Consume at entry to ignore the daily affix for one entire Abyss run."},
+	{"abyss_insurance_charm", "Abyss Insurance Charm", ConsumableInsurance, 0.5, 0, "Passive: returns 50% of an uninsured Abyss cache on defeat, then is consumed. Disabled by Hardcore, Uninsured, and Abstinence."},
 	{"repair_kit_ii", "Repair Kit II", ConsumableRepair, 50, 0, "Restores 50 durability to every equipped item."},
 	// Corrupted consumables (AB-85): stronger effect plus self-damage on use.
 	// They only enter the pool via CorruptedConsumableVariant at drop time; the
@@ -1405,6 +1429,17 @@ func RandomAbyssGearDrop() Gear {
 	return g
 }
 
+// AbyssGearCatalog returns a detached copy of the Abyss-exclusive drop catalog.
+// Callers may sort or filter it without mutating the canonical content data.
+func AbyssGearCatalog() []Gear {
+	catalog := slices.Clone(abyssExclusiveGear)
+	for index := range catalog {
+		catalog[index].BonusEffects = slices.Clone(catalog[index].BonusEffects)
+		catalog[index].Gemstones = slices.Clone(catalog[index].Gemstones)
+	}
+	return catalog
+}
+
 // abyssDupRerollAttempts caps how many times the *Excluding rollers retry to
 // avoid a duplicate before giving up and returning whatever they last rolled.
 const abyssDupRerollAttempts = 8
@@ -1464,6 +1499,101 @@ func RandomAbyssGearDropForCategoryExcluding(category string, owned map[string]b
 		return RandomAbyssGearDropExcluding(owned)
 	}
 	return eligible[rand.IntN(len(eligible))] // #nosec G404 -- gameplay loot roll
+}
+
+// GearDropSlots returns the distinct equipment slots available in pool. The
+// returned slice is detached from the content catalogs.
+func GearDropSlots(pool GearDropPool) []GearSlot {
+	seen := make(map[GearSlot]bool)
+	var slots []GearSlot
+	for _, gear := range gearDropCatalog(pool) {
+		if gear.Slot == "" || seen[gear.Slot] {
+			continue
+		}
+		seen[gear.Slot] = true
+		slots = append(slots, gear.Slot)
+	}
+	return slots
+}
+
+// RandomGearDropForSlotsExcluding returns a duplicate-aware item from pool in
+// one of slots. The bool is false only when the pool has no matching catalog
+// item; callers can then retain their original unrestricted roll.
+func RandomGearDropForSlotsExcluding(pool GearDropPool, slots []GearSlot, owned map[string]bool) (Gear, bool) {
+	return RandomGearDropForSlotsExcludingWithRandom(pool, slots, owned, gameplayRandom)
+}
+
+// RandomGearDropForSlotsExcludingWithRandom is the reproducible variant of
+// RandomGearDropForSlotsExcluding.
+func RandomGearDropForSlotsExcludingWithRandom(pool GearDropPool, slots []GearSlot, owned map[string]bool, source RandomSource) (Gear, bool) {
+	wanted := make(map[GearSlot]bool, len(slots))
+	for _, slot := range slots {
+		wanted[slot] = true
+	}
+	if len(wanted) == 0 {
+		return Gear{}, false
+	}
+
+	catalog := gearDropCatalog(pool)
+	if pool == GearDropPoolStandard {
+		// Preserve the ordinary roller's 5% legendary-catalog branch. If that
+		// branch has no requested slot, fall back to the standard catalog.
+		if source.Float64() < 0.05 {
+			catalog = uniqueLegendaries
+		} else {
+			catalog = allGear
+		}
+	}
+	candidates := matchingGearCandidates(catalog, pool, wanted, owned, true)
+	if len(candidates) == 0 && pool == GearDropPoolStandard {
+		candidates = matchingGearCandidates(gearDropCatalog(pool), pool, wanted, owned, true)
+	}
+	if len(candidates) == 0 {
+		candidates = matchingGearCandidates(gearDropCatalog(pool), pool, wanted, owned, false)
+	}
+	if len(candidates) == 0 {
+		return Gear{}, false
+	}
+	g := candidates[source.IntN(len(candidates))] // #nosec G404 -- gameplay loot roll
+	switch pool {
+	case GearDropPoolStandard:
+		g.Special = RandomItemEffectWithRandom(source)
+	case GearDropPoolAbyss, GearDropPoolInsanity:
+		if g.Special == EffectNone {
+			g.Special = RandomItemEffectWithRandom(source)
+		}
+	}
+	return g, true
+}
+
+func gearDropCatalog(pool GearDropPool) []Gear {
+	switch pool {
+	case GearDropPoolAbyss:
+		return abyssExclusiveGear
+	case GearDropPoolInsanity:
+		return insanityExclusiveGear
+	case GearDropPoolStarter:
+		return starterGear
+	default:
+		catalog := make([]Gear, 0, len(uniqueLegendaries)+len(allGear))
+		catalog = append(catalog, uniqueLegendaries...)
+		catalog = append(catalog, allGear...)
+		return catalog
+	}
+}
+
+func matchingGearCandidates(catalog []Gear, pool GearDropPool, wanted map[GearSlot]bool, owned map[string]bool, excludeOwned bool) []Gear {
+	candidates := make([]Gear, 0)
+	for _, gear := range catalog {
+		if pool == GearDropPoolStandard && (IsAbyssGearID(gear.ID) || IsInsanityGearID(gear.ID)) {
+			continue
+		}
+		if !wanted[gear.Slot] || excludeOwned && owned[gear.ID] {
+			continue
+		}
+		candidates = append(candidates, gear)
+	}
+	return candidates
 }
 
 // RandomStarterGear returns a uniformly random low-tier starter gear item.
@@ -1619,6 +1749,25 @@ func GetGearByID(id string) (Gear, bool) {
 		}
 	}
 	return Gear{}, false
+}
+
+// GearAppearanceCatalog returns a detached, de-duplicated copy of every gear
+// item accepted by GetGearByID. Callers may safely sort or decorate the result.
+func GearAppearanceCatalog() []Gear {
+	seen := make(map[string]bool, len(allGear)+len(uniqueLegendaries))
+	out := make([]Gear, 0, len(allGear)+len(uniqueLegendaries))
+	for _, catalog := range [][]Gear{allGear, uniqueLegendaries} {
+		for _, gear := range catalog {
+			if gear.ID == "" || seen[gear.ID] {
+				continue
+			}
+			seen[gear.ID] = true
+			gear.BonusEffects = append([]ItemEffect(nil), gear.BonusEffects...)
+			gear.Gemstones = append([]string(nil), gear.Gemstones...)
+			out = append(out, gear)
+		}
+	}
+	return out
 }
 
 // LegendaryCatalog returns every Legendary-rarity catalog item (unique

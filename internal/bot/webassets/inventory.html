@@ -1,21 +1,60 @@
 {{define "inventory"}}{{template "head" .}}
+<link rel="stylesheet" href="{{asset "/static/inventory_buyback.css"}}">
+<link rel="stylesheet" href="{{asset "/static/inventory_pouch.css"}}">
 <h1>Inventory</h1>
 <p class="muted">Owned gear you haven't equipped. Equip it, vendor it for gold, or list it on the Auction House.</p>
 
 <div id="invMsg" class="toast"></div>
 
+<section class="pouch-panel{{if .Pouch.Equipped}} is-equipped{{end}}" id="pouchTailoring" aria-labelledby="pouchTitle">
+  <div class="pouch-emblem" aria-hidden="true">🧰</div>
+  <div class="pouch-copy">
+    <span class="pouch-kicker">PERMANENT STORAGE TAILORING</span>
+    <h2 id="pouchTitle">Consumable Pouch · Rank <span id="pouchRank">{{.Pouch.Level}}</span>/{{.Pouch.MaxLevel}}</h2>
+    <p>{{.Pouch.StatusLabel}}</p>
+    <div class="pouch-ranks" aria-label="Pouch tailoring rank">{{range seq 1 .Pouch.MaxLevel}}<i class="{{if le . $.Pouch.Level}}filled{{end}}"></i>{{end}}</div>
+  </div>
+  <dl class="pouch-caps">
+    <div><dt>Abyss loot stack</dt><dd id="pouchStackCap">{{.Pouch.StackCap}}</dd>{{if .Pouch.CanUpgrade}}<small>next {{.Pouch.NextStack}}</small>{{end}}</div>
+    <div><dt>Equipped carry</dt><dd id="pouchCarryCap">{{.Pouch.CarryCap}}</dd>{{if .Pouch.CanUpgrade}}<small>next {{.Pouch.NextCarry}}</small>{{end}}</div>
+  </dl>
+  {{if .Pouch.CanUpgrade}}<button type="button" id="pouchUpgradeButton" data-cost="{{.Pouch.NextCost}}" onclick="upgradePouch(this)">Tailor rank {{.Pouch.NextLevel}} · 🪙 {{gold .Pouch.NextCost}}</button>
+  {{else if eq .Pouch.Level .Pouch.MaxLevel}}<button type="button" disabled>✓ Masterwork</button>
+  {{else}}<button type="button" disabled>Requires Consumable Pouch</button>{{end}}
+</section>
+
+<section class="buyback-panel" id="vendorBuybacks" aria-labelledby="vendorBuybackTitle">
+  <header class="buyback-head">
+    <div><span class="buyback-kicker">VENDOR LEDGER · LAST 10 SALES</span><h2 id="vendorBuybackTitle">Buy back recently sold gear</h2></div>
+    <p>Exact item restored · sale price + 10% handling · oldest entries expire first</p>
+  </header>
+  <div class="buyback-list" id="vendorBuybackList">
+    {{range .Buybacks}}
+    <article class="buyback-card" data-buyback-id="{{.BuybackID}}">
+      <span class="gi buyback-icon" style="--gi:url({{iconURL .IconName}});color:{{.RarityColor}}"></span>
+      <div class="buyback-copy"><strong style="color:{{.RarityColor}}">{{.Name}}</strong><span>{{.Rarity}} · {{.Slot}} · {{.Durability}} durability</span><small>Sold {{.SoldAt}} · received 🪙 {{gold .SaleValue}}</small></div>
+      <button type="button" data-id="{{.BuybackID}}" data-cost="{{.BuybackCost}}" onclick="buyback(this)">Buy back · 🪙 {{gold .BuybackCost}}</button>
+    </article>
+    {{else}}
+    <p class="buyback-empty">No recent vendor sales. Your next ten eligible sales will appear here.</p>
+    {{end}}
+  </div>
+</section>
+
 {{if .Items}}
 <div class="inv-grid">
   {{range .Items}}
-  <div class="inv-card" data-id="{{.InvID}}">
+  <div class="inv-card" data-id="{{.InvID}}" data-slot="{{.Slot}}" data-unidentified="{{.Unidentified}}"{{if .Provenance}} title="{{.Provenance}}"{{end}}>
     <div class="inv-head">
       <span class="gi slot-gi" style="--gi:url({{iconURL .IconName}});color:{{.RarityColor}}"></span>
-      {{if .RarityIcon}}<span class="gi slot-gi"
+      {{if .RarityIcon}}<span class="gi slot-gi{{if .Unidentified}} rarity-silhouette{{end}}"{{if .Unidentified}} aria-label="Unknown rarity silhouette" role="img"{{end}}
         style="--gi:url({{iconURL .RarityIcon}});color:{{.RarityColor}}"></span>{{end}}
       <span class="inv-name" style="color:{{.RarityColor}}">{{.Name}}</span>
     </div>
     <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
-    <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}} · {{.Durability}} dur</div>
+    {{if .AppearanceName}}<div class="inv-meta" title="Cosmetic only">◈ Appearance: {{.AppearanceName}}</div>{{end}}
+    <div class="inv-meta">CR <span data-item-number="{{printf "%.0f" .CR}}">{{printf "%.0f" .CR}}</span> · GS <span data-item-number="{{.Score}}">{{comma .Score}}</span> · {{.Durability}} dur</div>
+    {{if .BrokenIn}}<div class="inv-meta" title="Held for at least 30 days">🧡 Broken in · +1% positive stats</div>{{end}}
     <div class="inv-actions">
       <button onclick="equip({{.InvID}})">Equip</button>
       <button class="ghost" onclick="sell({{.InvID}})">Vendor</button>
@@ -39,5 +78,37 @@
   async function post(url, body) { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return r.json(); }
   async function equip(id) { const d = await post('/api/inventory/equip', { inv_id: id }); if (d.ok) { toast('Equipped ' + d.equipped, true); setTimeout(() => location.reload(), 700); } else toast(d.error, false); }
   async function sell(id) { const d = await post('/api/inventory/sell', { inv_id: id }); if (d.ok) { toast('Vendored for ' + d.value + ' gold', true); setTimeout(() => location.reload(), 700); } else toast(d.error, false); }
+  async function buyback(button) {
+    if (!button || button.disabled) return;
+    var cost = Number(button.dataset.cost || 0);
+    var approved = await confirmModal('Restore this exact item for 🪙 ' + cost.toLocaleString() + '?<br><span class="muted small">Includes the disclosed 10% vendor handling fee.</span>', { title: 'Confirm vendor buyback', okLabel: 'Buy back · ' + cost.toLocaleString() + 'g' });
+    if (!approved) return;
+    button.disabled = true;
+    var data = await post('/api/inventory/buyback', { id: Number(button.dataset.id) });
+    if (!data.ok) { button.disabled = false; toast(data.error || 'Buyback failed', false); return; }
+    var card = button.closest('.buyback-card'); if (card) card.remove();
+    var list = document.getElementById('vendorBuybackList');
+    if (list && !list.querySelector('.buyback-card')) { var empty = document.createElement('p'); empty.className = 'buyback-empty'; empty.textContent = 'No recent vendor sales. Your next ten eligible sales will appear here.'; list.appendChild(empty); }
+    var gold = document.getElementById('goldPill'); if (gold) { gold.dataset.value = String(data.gold); gold.textContent = '🪙 ' + Number(data.gold || 0).toLocaleString(); }
+    toast(data.msg || 'Item returned to your inventory.', true);
+  }
+  async function upgradePouch(button) {
+    if (!button || button.disabled) return;
+    var cost = Number(button.dataset.cost || 0);
+    var approved = await confirmModal('Permanently raise both pouch limits for 🪙 ' + cost.toLocaleString() + '?<br><span class="muted small">+1 Abyss loot stack · +1 equipped run carry.</span>', { title: 'Tailor Consumable Pouch', okLabel: 'Tailor · ' + cost.toLocaleString() + 'g' });
+    if (!approved) return;
+    button.disabled = true;
+    var data = await post('/api/inventory/pouch/upgrade', {});
+    if (!data.ok) { button.disabled = false; toast(data.error || 'Tailoring failed', false); return; }
+    document.getElementById('pouchRank').textContent = String(data.level);
+    document.getElementById('pouchStackCap').textContent = String(data.stack_cap);
+    document.getElementById('pouchCarryCap').textContent = String(data.carry_cap);
+    var ranks = document.querySelectorAll('.pouch-ranks i'); ranks.forEach(function(rank, index) { rank.classList.toggle('filled', index < data.level); });
+    if (data.next_cost > 0) { button.dataset.cost = String(data.next_cost); button.textContent = 'Tailor rank ' + (data.level + 1) + ' · 🪙 ' + Number(data.next_cost).toLocaleString(); button.disabled = false; }
+    else { button.textContent = '✓ Masterwork'; }
+    var gold = document.getElementById('goldPill'); if (gold) { gold.dataset.value = String(data.gold); gold.textContent = '🪙 ' + Number(data.gold || 0).toLocaleString(); }
+    toast(data.msg || 'Consumable Pouch tailored.', true);
+  }
 </script>
+{{template "abyssItemNumbersJS" .}}
 {{template "foot" .}}{{end}}

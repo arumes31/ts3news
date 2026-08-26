@@ -218,7 +218,7 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 
-		logs, xp, victory, loots, timeline := b.resolveChannelCombatDetailedWithRandom(
+		logs, xp, victory, loots, timeline, _ := b.resolveChannelCombatDetailedWithRandom(
 			users,
 			mobs,
 			10,

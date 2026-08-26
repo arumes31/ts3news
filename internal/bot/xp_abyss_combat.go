@@ -17,8 +17,57 @@ import (
 // abyssFightTrack accumulates per-fight damage totals that the end-of-fight
 // summary reports (AB-57 thorns total, AB-66 counter-attack line).
 type abyssFightTrack struct {
-	thorns   int // total reflected (thorns) damage dealt to mobs
-	counters int // total parry counter-attack damage dealt to mobs
+	thorns        int // total reflected (thorns) damage dealt to mobs
+	counters      int // total parry counter-attack damage dealt to mobs
+	shields       int // enemy attack damage absorbed before HP loss
+	petGuards     int // direct enemy damage intercepted by guarding companions
+	weaknessCrits int // guaranteed criticals consumed from stunned enemies
+	overkill      int // excess damage on the final enemy of the final cleared wave
+}
+
+func abyssOverkillDamage(damage, remainingHP int) int {
+	if remainingHP <= 0 || damage <= remainingHP {
+		return 0
+	}
+	return damage - remainingHP
+}
+
+func abyssExecuteRange(hp, maxHP int) bool {
+	if hp <= 0 || maxHP <= 0 {
+		return false
+	}
+	limit := maxHP / 10 * 3
+	remainder := maxHP % 10
+	if remainder == 0 {
+		limit--
+	} else {
+		limit += (remainder*3 - 1) / 10
+	}
+	return hp <= limit
+}
+
+func abyssExecuteThresholdCrossed(previousHP, currentHP, maxHP int) bool {
+	return !abyssExecuteRange(previousHP, maxHP) && abyssExecuteRange(currentHP, maxHP)
+}
+
+func appendAbyssExecuteThresholdLog(logs *[]string, mob *content.Mob, previousHP int, abyss bool) {
+	if !abyss || mob == nil || !abyssExecuteThresholdCrossed(previousHP, mob.Stats.HP, mob.MaxHP) {
+		return
+	}
+	line := fmt.Sprintf("⚔️ EXECUTE RANGE — %s is below 30%% HP.", mob.Name)
+	*logs = append(*logs, markAbyssExecuteLog(line, true))
+}
+
+func abyssTerminalOverkillDamage(mobs []*content.Mob, finishingMob *content.Mob, damage, remainingHP int) int {
+	for _, mob := range mobs {
+		if mob != nil && mob.Stats.HP > 0 {
+			return 0
+		}
+	}
+	if finishingMob != nil && finishingMob.DeathEffect != nil && finishingMob.DeathEffect.Type == content.DeathSummon {
+		return 0
+	}
+	return abyssOverkillDamage(damage, remainingHP)
 }
 
 func appendAbyssFightBreakdown(logs []string, track *abyssFightTrack) []string {
@@ -30,6 +79,15 @@ func appendAbyssFightBreakdown(logs []string, track *abyssFightTrack) []string {
 	}
 	if track.counters > 0 {
 		logs = append(logs, fmt.Sprintf("🤺 Parry counter-attacks: %d damage", track.counters))
+	}
+	if track.shields > 0 {
+		logs = append(logs, fmt.Sprintf("🛡️ Aegis absorbed: %d damage", track.shields))
+	}
+	if track.petGuards > 0 {
+		logs = append(logs, fmt.Sprintf("🐾 Companion guard intercepted: %d damage", track.petGuards))
+	}
+	if track.weaknessCrits > 0 {
+		logs = append(logs, fmt.Sprintf("🎯 Weakness criticals: %d guaranteed", track.weaknessCrits))
 	}
 	return logs
 }
@@ -114,12 +172,16 @@ func (b *Bot) abyssCombatOption(uid, name string) string {
 }
 
 func (b *Bot) setAbyssCombatOption(uid, name, value string) error {
+	return setAbyssCombatOption(b.DB, uid, name, value)
+}
+
+func setAbyssCombatOption(exec dbExecQuerier, uid, name, value string) error {
 	key := "abyss_" + name + ":" + uid
 	if value == "" {
-		_, err := b.DB.Exec("DELETE FROM app_meta WHERE key=$1", key)
+		_, err := exec.Exec("DELETE FROM app_meta WHERE key=$1", key)
 		return err
 	}
-	_, err := b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+	_, err := exec.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 	                     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, key, value)
 	return err
 }
@@ -139,11 +201,16 @@ func (b *Bot) abyssPetFocus(uid string) string {
 // not weak against the boss. The swap itself happens in-memory for the current
 // fight only; persisting it (or a manual trigger endpoint) is web-layer work.
 func (b *Bot) findBackupWeapon(uid string, bossElement content.Element, currentID string) (content.Gear, bool) {
+	return findBackupWeaponFrom(b.loadBackupWeapons(uid), bossElement, currentID)
+}
+
+func (b *Bot) loadBackupWeapons(uid string) []content.Gear {
 	rows, err := b.DB.Query("SELECT gear_id, item_data FROM user_inventory WHERE client_uid=$1", uid)
 	if err != nil {
-		return content.Gear{}, false
+		return nil
 	}
 	defer func() { _ = rows.Close() }()
+	weapons := make([]content.Gear, 0)
 	for rows.Next() {
 		var gearID string
 		var itemData sql.NullString
@@ -151,14 +218,30 @@ func (b *Bot) findBackupWeapon(uid string, bossElement content.Element, currentI
 			continue
 		}
 		g, ok := b.makeGear(gearID, itemData)
-		if !ok || g.Slot != content.SlotMainHand || g.ID == currentID {
-			continue
+		if ok && g.Slot == content.SlotMainHand {
+			weapons = append(weapons, g)
 		}
-		if getElementMult(g.Element, bossElement) >= 1.0 {
-			return g, true
+	}
+	return weapons
+}
+
+func findBackupWeaponFrom(weapons []content.Gear, bossElement content.Element, currentID string) (content.Gear, bool) {
+	for _, gear := range weapons {
+		if gear.ID != currentID && getElementMult(gear.Element, bossElement) >= 1.0 {
+			return gear, true
 		}
 	}
 	return content.Gear{}, false
+}
+
+func (b *Bot) findCombatBackupWeapon(u *UserInCombat, bossElement content.Element, currentID string) (content.Gear, bool) {
+	if u != nil && u.shadow {
+		return findBackupWeaponFrom(u.shadowBackups, bossElement, currentID)
+	}
+	if u == nil {
+		return content.Gear{}, false
+	}
+	return b.findBackupWeapon(u.UID, bossElement, currentID)
 }
 
 // AB-69 Kill-chain: a floor cleared in ≤2 rounds grants +5% speed next floor,

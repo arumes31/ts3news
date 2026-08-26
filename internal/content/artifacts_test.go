@@ -1,6 +1,7 @@
 package content
 
 import (
+	"math/rand/v2"
 	"strings"
 	"testing"
 )
@@ -150,6 +151,16 @@ func TestRepairKitIIExceedsDefaultKit(t *testing.T) {
 	}
 }
 
+func TestAbyssInsuranceCharmCatalogContract(t *testing.T) {
+	charm, ok := GetConsumableByID("abyss_insurance_charm")
+	if !ok {
+		t.Fatal("Abyss Insurance Charm missing")
+	}
+	if charm.Type != ConsumableInsurance || charm.EffectValue != 0.5 || charm.Duration != 0 {
+		t.Fatalf("Abyss Insurance Charm = %#v", charm)
+	}
+}
+
 func TestRandomAbyssGearDropForCategoryExcluding(t *testing.T) {
 	for _, category := range []string{"weapon", "armor", "jewelry"} {
 		for range 20 {
@@ -161,5 +172,130 @@ func TestRandomAbyssGearDropForCategoryExcluding(t *testing.T) {
 				t.Fatalf("category %q returned %s in slot %s", category, gear.Name, gear.Slot)
 			}
 		}
+	}
+}
+
+func TestGearAppearanceCatalogIsCompleteAndDetached(t *testing.T) {
+	t.Parallel()
+
+	catalog := GearAppearanceCatalog()
+	if len(catalog) == 0 {
+		t.Fatal("appearance catalog is empty")
+	}
+	seen := make(map[string]bool, len(catalog))
+	for _, gear := range catalog {
+		if seen[gear.ID] {
+			t.Fatalf("duplicate appearance ID %q", gear.ID)
+		}
+		seen[gear.ID] = true
+		if _, ok := GetGearByID(gear.ID); !ok {
+			t.Fatalf("appearance %q is not accepted by GetGearByID", gear.ID)
+		}
+	}
+
+	original, ok := GetGearByID(catalog[0].ID)
+	if !ok {
+		t.Fatalf("catalog item %q disappeared", catalog[0].ID)
+	}
+	catalog[0].Name = "mutated"
+	if current, _ := GetGearByID(original.ID); current.Name != original.Name {
+		t.Fatal("appearance catalog mutation changed global content")
+	}
+}
+
+func TestAbyssGearCatalogIsExclusiveAndDetached(t *testing.T) {
+	t.Parallel()
+
+	catalog := AbyssGearCatalog()
+	if len(catalog) == 0 {
+		t.Fatal("Abyss gear catalog is empty")
+	}
+	seen := make(map[string]bool, len(catalog))
+	for _, gear := range catalog {
+		if !IsAbyssGearID(gear.ID) || IsInsanityGearID(gear.ID) {
+			t.Fatalf("non-Abyss gear %q leaked into catalog", gear.ID)
+		}
+		if seen[gear.ID] {
+			t.Fatalf("duplicate Abyss gear ID %q", gear.ID)
+		}
+		seen[gear.ID] = true
+	}
+
+	original := AbyssGearCatalog()[0]
+	catalog[0].Name = "mutated"
+	catalog[0].BonusEffects = append(catalog[0].BonusEffects, EffectThorns)
+	catalog[0].Gemstones = append(catalog[0].Gemstones, "mutated")
+	if current := AbyssGearCatalog()[0]; current.Name != original.Name {
+		t.Fatal("Abyss gear catalog mutation changed canonical content")
+	}
+	current := AbyssGearCatalog()[0]
+	if len(current.BonusEffects) != len(original.BonusEffects) {
+		t.Fatal("Abyss gear bonus-effect mutation changed canonical content")
+	}
+	if len(current.Gemstones) != len(original.Gemstones) {
+		t.Fatal("Abyss gear gemstone mutation changed canonical content")
+	}
+}
+
+func TestRandomGearDropForSlotsExcludingKeepsPoolAndSlot(t *testing.T) {
+	tests := []struct {
+		name  string
+		pool  GearDropPool
+		valid func(Gear) bool
+	}{
+		{name: "standard", pool: GearDropPoolStandard, valid: func(gear Gear) bool { return !IsAbyssGearID(gear.ID) && !IsInsanityGearID(gear.ID) }},
+		{name: "abyss", pool: GearDropPoolAbyss, valid: func(gear Gear) bool { return IsAbyssGearID(gear.ID) }},
+		{name: "insanity", pool: GearDropPoolInsanity, valid: func(gear Gear) bool { return IsInsanityGearID(gear.ID) }},
+		{name: "starter", pool: GearDropPoolStarter, valid: func(gear Gear) bool {
+			for _, candidate := range starterGear {
+				if candidate.ID == gear.ID {
+					return true
+				}
+			}
+			return false
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			slots := GearDropSlots(test.pool)
+			if len(slots) == 0 {
+				t.Fatal("pool has no eligible slots")
+			}
+			wantSlot := slots[0]
+			gear, ok := RandomGearDropForSlotsExcludingWithRandom(test.pool, []GearSlot{wantSlot}, nil, rand.New(rand.NewPCG(78, 1)))
+			if !ok {
+				t.Fatal("targeted roll failed")
+			}
+			if gear.Slot != wantSlot || !test.valid(gear) {
+				t.Fatalf("targeted roll = %#v, want slot %s in %s pool", gear, wantSlot, test.name)
+			}
+		})
+	}
+}
+
+func TestRandomGearDropForSlotsExcludingPrefersUnownedCandidate(t *testing.T) {
+	slots := GearDropSlots(GearDropPoolAbyss)
+	if len(slots) == 0 {
+		t.Fatal("Abyss pool has no slots")
+	}
+	wantSlot := slots[0]
+	owned := make(map[string]bool)
+	var unownedID string
+	for _, gear := range abyssExclusiveGear {
+		if gear.Slot != wantSlot {
+			continue
+		}
+		if unownedID == "" {
+			unownedID = gear.ID
+			continue
+		}
+		owned[gear.ID] = true
+	}
+	if unownedID == "" {
+		t.Fatal("Abyss pool has no matching candidate")
+	}
+	gear, ok := RandomGearDropForSlotsExcludingWithRandom(GearDropPoolAbyss, []GearSlot{wantSlot}, owned, rand.New(rand.NewPCG(78, 2)))
+	if !ok || owned[gear.ID] {
+		t.Fatalf("targeted roll = %#v, want an unowned candidate", gear)
 	}
 }

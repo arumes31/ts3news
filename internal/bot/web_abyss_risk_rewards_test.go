@@ -26,6 +26,38 @@ func TestQuoteAbyssPartialBankAppliesExactShareMultiplierAndFee(t *testing.T) {
 	}
 }
 
+func TestQuoteAbyssTransportBankKeepsEightyFivePercentAndClearsCache(t *testing.T) {
+	t.Parallel()
+
+	quote, ok := quoteAbyssTransportBank(1_001, 1.5)
+	if !ok {
+		t.Fatal("valid armored transport was rejected")
+	}
+	want := abyssPartialBankQuote{Escrow: 1_001, Gross: 1_501, Fee: 225, Payout: 1_276}
+	if quote != want {
+		t.Fatalf("transport quote = %#v, want %#v", quote, want)
+	}
+	if _, ok := quoteAbyssTransportBank(0, 2); ok {
+		t.Fatal("empty cache accepted armored transport")
+	}
+}
+
+func TestQuoteAbyssBankModeKeepsPartialAndTransportFeesExclusive(t *testing.T) {
+	t.Parallel()
+
+	partial, ok := quoteAbyssBankMode(1_000, 1.5, 25, false)
+	if !ok || partial.PartialFee != 37 || partial.TransportFee != 0 || partial.Remaining != 750 {
+		t.Fatalf("partial mode quote = %#v, %t", partial, ok)
+	}
+	transport, ok := quoteAbyssBankMode(1_000, 1.5, 0, true)
+	if !ok || transport.PartialFee != 0 || transport.TransportFee != 225 || transport.Remaining != 0 {
+		t.Fatalf("transport mode quote = %#v, %t", transport, ok)
+	}
+	if _, ok := quoteAbyssBankMode(1_000, 1.5, 25, true); ok {
+		t.Fatal("combined partial and transport mode was accepted")
+	}
+}
+
 func TestResolveAbyssDoubleBonusAddsOrRemovesOnlyTheFloorBonus(t *testing.T) {
 	t.Parallel()
 
@@ -64,6 +96,77 @@ func TestAbyssGraceAndHardcoreForfeitPoliciesAreMutuallyExclusive(t *testing.T) 
 	}
 	if got := abyssHardcoreFloorReward(250, true); got != 500 {
 		t.Fatalf("hardcore floor reward = %d, want 500", got)
+	}
+}
+
+func TestPlanAbyssAutoInsuranceAppliesOrdinaryCoverOnlyToCompatibleRuns(t *testing.T) {
+	t.Parallel()
+
+	plan := planAbyssAutoInsurance(true, false, nil, 1_000, 0, 0)
+	if plan != (abyssAutoInsurancePlan{Applied: true, Percent: 25, Cost: 125}) {
+		t.Fatalf("auto-insurance plan = %#v", plan)
+	}
+	empty := planAbyssAutoInsurance(true, false, nil, 0, 0, 0)
+	if !empty.Applied || empty.Percent != 25 || empty.Cost != 1 {
+		t.Fatalf("empty-cache auto-insurance plan = %#v", empty)
+	}
+	for _, test := range []struct {
+		name     string
+		enabled  bool
+		hardcore bool
+		pacts    []string
+	}{
+		{name: "disabled"},
+		{name: "hardcore", enabled: true, hardcore: true},
+		{name: "uninsured", enabled: true, pacts: []string{"uninsured"}},
+	} {
+		got := planAbyssAutoInsurance(test.enabled, test.hardcore, test.pacts, 1_000, 0, 0)
+		if got.Applied || got.Percent != 0 || got.Cost != 0 {
+			t.Errorf("%s plan = %#v", test.name, got)
+		}
+	}
+}
+
+func TestAbyssOverkillGoldConversionAndCap(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		damage     int
+		floorBonus int64
+		want       int64
+	}{
+		{name: "no excess", floorBonus: 1_000},
+		{name: "reward-free floor", damage: 500},
+		{name: "partial gold rounds up", damage: 1, floorBonus: 1_000, want: 1},
+		{name: "ten damage per gold", damage: 100, floorBonus: 1_000, want: 10},
+		{name: "quarter-floor cap", damage: 100_000, floorBonus: 1_000, want: 250},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if got := abyssOverkillGold(test.damage, test.floorBonus); got != test.want {
+				t.Errorf("abyssOverkillGold(%d, %d) = %d, want %d", test.damage, test.floorBonus, got, test.want)
+			}
+		})
+	}
+}
+
+func TestApplyAbyssEscrowRewardIncludesOverkillInSoftCap(t *testing.T) {
+	t.Parallel()
+
+	input := abyssEscrowRewardInput{
+		Escrow:         200_000,
+		FloorBonus:     1_000,
+		Depth:          10,
+		OverkillDamage: 100_000,
+	}
+	growth, credited := applyAbyssEscrowReward(input)
+	if credited != 62 {
+		t.Fatalf("soft-capped overkill credit = %d, want 62", credited)
+	}
+	if growth.Escrow != 200_312 || growth.Bonus != 312 {
+		t.Fatalf("growth with overkill = %#v, want escrow 200312 and bonus 312", growth)
 	}
 }
 
@@ -134,10 +237,12 @@ func TestAbyssRiskRewardControlsExposeOnlySupportedActions(t *testing.T) {
 		"Enter Hardcore",
 		`id="btnBank25" onclick="abyssBank(25)"`,
 		`id="btnBank50" onclick="abyssBank(50)"`,
+		`id="btnTransport" onclick="abyssBank(0,true)"`,
 		`id="btnDoubleBonus"`,
 		`/api/abyss/double_bonus`,
 		`percent:Number(percent)||0`,
 		`Partial-bank fee −10%`,
+		`Armored transport fee −15%`,
 		`pendingDoubleBonus=0`,
 		`id="hardcoreMode"`,
 		`hardcore:!!(hardcore&&hardcore.checked)`,
@@ -155,8 +260,9 @@ func TestAbyssRiskRewardControlsExposeOnlySupportedActions(t *testing.T) {
 	for _, required := range []string{
 		"partial bank must be 25% or 50%",
 		"resolve the floor-bonus gamble or descend before partial banking",
-		"if !partial && run.Depth > 0",
-		"if !partial {\n\t\ts.abyssOps.funnel.observeBank(uid)",
+		"armored transport requires a non-empty cache",
+		"if !continuing && run.Depth > 0",
+		"if !continuing {\n\t\ts.abyssOps.funnel.observeBank(uid)",
 	} {
 		if !strings.Contains(serverSource, required) {
 			t.Errorf("Abyss risk/reward handlers are missing %q", required)

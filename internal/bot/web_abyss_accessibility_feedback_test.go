@@ -101,9 +101,9 @@ func TestAbyssRecordAndPitySignalsAreServerAuthoritative(t *testing.T) {
 			`"pity_proc"`, `"global_record": isRecord`,
 		},
 		"internal/bot/web_abyss_loot.go": {
-			`PityProc bool`, `pityProc = true`, `PityProc: pityProc`,
+			`PityProc`, `pityProc = true`, `PityProc: pityProc`,
 		},
-		"internal/bot/xp.go": {`PityProc bool`},
+		"internal/bot/xp.go": {`PityProc`},
 	}
 	for name, required := range contracts {
 		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))

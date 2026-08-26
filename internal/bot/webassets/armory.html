@@ -7,7 +7,7 @@
       <span class="rank">{{.U.LevelName}}</span>
       <span class="lvl">Level {{.U.Level}}</span>
       {{if gt .U.Prestige 0}}<span class="prestige">★ Prestige {{.U.Prestige}}</span>{{end}}
-      <span class="gs">Gear Score {{.U.GearScore}}</span>
+      <span class="gs">Gear Score <span data-item-number="{{.U.GearScore}}">{{comma .U.GearScore}}</span></span>
     </div>
     <div class="bars">
       <div class="bar hp" role="progressbar" aria-valuenow="{{.U.CurrentHP}}" aria-valuemin="0"
@@ -28,24 +28,15 @@
 
 <h2>Attributes</h2>
 <div class="stats-grid">
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "biceps"}})"></span><b>{{comma
-      .U.Stats.STR}}</b><span>Strength</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "checked-shield"}})"></span><b>{{comma
-      .U.Stats.DEF}}</b><span>Defense</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "run"}})"></span><b>{{comma
-      .U.Stats.SPD}}</b><span>Speed</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "health-normal"}})"></span><b>{{comma
-      .U.Stats.HP}}</b><span>Max HP</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "bullseye"}})"></span><b>{{comma
-      .U.Stats.CRT}}</b><span>Crit %</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "dodging"}})"></span><b>{{comma
-      .U.Stats.DGE}}</b><span>Dodge %</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "clover"}})"></span><b>{{comma
-      .U.Stats.LCK}}</b><span>Luck</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "brain"}})"></span><b>{{comma
-      .U.Stats.INT}}</b><span>Intellect</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "lungs"}})"></span><b>{{comma
-      .U.Stats.STA}}</b><span>Stamina</span></div>
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "biceps"}})"></span><b data-item-number="{{.U.Stats.STR}}">{{comma .U.Stats.STR}}</b><span>Strength</span></div>
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "checked-shield"}})"></span><b data-item-number="{{.U.Stats.DEF}}">{{comma .U.Stats.DEF}}</b><span>Defense</span></div>
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "run"}})"></span><b data-item-number="{{.U.Stats.SPD}}">{{comma .U.Stats.SPD}}</b><span>Speed</span></div>
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "health-normal"}})"></span><b data-item-number="{{.U.Stats.HP}}">{{comma .U.Stats.HP}}</b><span>Max HP</span></div>
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "bullseye"}})"></span><b data-item-number="{{.U.Stats.CRT}}">{{comma .U.Stats.CRT}}</b><span>Crit %</span></div>
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "dodging"}})"></span><b data-item-number="{{.U.Stats.DGE}}">{{comma .U.Stats.DGE}}</b><span>Dodge %</span></div>
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "clover"}})"></span><b data-item-number="{{.U.Stats.LCK}}">{{comma .U.Stats.LCK}}</b><span>Luck</span></div>
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "brain"}})"></span><b data-item-number="{{.U.Stats.INT}}">{{comma .U.Stats.INT}}</b><span>Intellect</span></div>
+  <div class="stat"><span class="gi" style="--gi:url({{iconURL "lungs"}})"></span><b data-item-number="{{.U.Stats.STA}}">{{comma .U.Stats.STA}}</b><span>Stamina</span></div>
 </div>
 
 <h2>Equipment</h2>
@@ -63,13 +54,14 @@
     <div class="gear-name muted">— empty —</div>
     {{else}}
     <div class="gear-name" style="color:{{.RarityColor}}">{{.Name}}</div>
-    <div class="gear-meta">{{.Rarity}} · CR {{printf "%.0f" .CR}} · GS {{.Score}}{{if .Durability}} · {{.Durability}}
+    {{if .AppearanceName}}<div class="gear-meta" title="Cosmetic only">◈ Appearance: {{.AppearanceName}}</div>{{end}}
+    <div class="gear-meta"{{if .Provenance}} title="{{.Provenance}}"{{end}}>{{.Rarity}} · CR <span data-item-number="{{printf "%.0f" .CR}}">{{printf "%.0f" .CR}}</span> · GS <span data-item-number="{{.Score}}">{{comma .Score}}</span>{{if .Durability}} · {{.Durability}}
       dur{{end}}</div>
-    {{if .Stats}}<div class="gear-stats">{{range .Stats}}<span class="gstat">{{.Label}} <b>{{if gt .Value
-          0}}+{{end}}{{.Value}}</b></span>{{end}}</div>{{end}}
+    {{if .Stats}}<div class="gear-stats">{{range .Stats}}<span class="gstat">{{.Label}} <b data-item-number="{{.Value}}" data-item-number-sign="always">{{if gt .Value 0}}+{{end}}{{.Value}}</b></span>{{end}}</div>{{end}}
     <div class="gear-tags">
       {{if .Element}}<span class="gtag elem">{{.Element}}</span>{{end}}
       {{if gt .XPBonusPct 0}}<span class="gtag xp">+{{.XPBonusPct}}% XP</span>{{end}}
+      {{if .BrokenIn}}<span class="gtag fx" title="Held for at least 30 days">🧡 Broken in · +1% stats</span>{{end}}
       {{if .Effect}}<span class="gtag fx" title="{{.EffectDesc}}"><span class="gi"
           style="--gi:url({{iconURL .EffectIcon}})"></span> {{.Effect}}</span>{{end}}
     </div>
@@ -168,4 +160,5 @@ async function identifyGear(slot, btn){
   }catch(e){if(btn){btn.disabled=false;btn.textContent='🔍 Identify (100g)';}}
 }
 </script>
+{{template "abyssItemNumbersJS" .}}
 {{template "foot" .}}{{end}}

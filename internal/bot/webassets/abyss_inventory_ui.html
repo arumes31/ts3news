@@ -28,7 +28,9 @@ function applyRunLootData(row,item){
     'beam-class':item.beam_class,'foil':item.foil,'doomed':item.doomed,
     'unidentified':item.unidentified,'owned':item.already_owned,'set-id':item.set_id,
     'set-count':item.set_count,'set-max':item.set_max,'corrupted':item.corrupted,
-    'empty-slot':item.empty_slot,'can-equip-best':item.can_equip_best,'equip-on-bank':item.equip_on_bank
+    'empty-slot':item.empty_slot,'can-equip-best':item.can_equip_best,'equip-on-bank':item.equip_on_bank,
+    'smart-loot':item.smart_loot,'smart-loot-reason':item.smart_loot_reason,
+    'set-pity':item.set_pity,'wishlist':item.wishlist,'provenance':item.provenance
   };
   Object.keys(fields).forEach(function(key){
     var value=fields[key];
@@ -40,15 +42,18 @@ function buildAuthoritativeRunLootRow(item){
   var row=document.createElement('div');
   var beams=['beam-common','beam-rare','beam-epic','beam-legendary','beam-high','beam-celestial','beam-eternal','beam-doomed'];
   var beam=beams.indexOf(item.beam_class)>=0?' '+item.beam_class:'';
-  row.className='abyss-side-loot'+beam+(item.foil?' ab-loot-foil':'')+(item.doomed?' ab-loot-doomed':'')+(item.unidentified?' ab-loot-unidentified':'')+(item.corrupted?' ab-loot-corrupted':'');
+  row.className='abyss-side-loot'+beam+(item.foil?' ab-loot-foil':'')+(item.doomed?' ab-loot-doomed':'')+(item.unidentified?' ab-loot-unidentified':'')+(item.corrupted?' ab-loot-corrupted':'')+(item.smart_loot?' ab-smart-loot':'')+(item.set_pity?' ab-set-pity':'')+(item.wishlist?' ab-wishlist-drop':'');
   row.tabIndex=0;row.setAttribute('role','button');row.setAttribute('aria-expanded','false');
-  row.setAttribute('data-tip',(item.title||'')+'\n'+(item.source||'Run cache'));
+  row.setAttribute('data-tip',(item.title||'')+'\n'+(item.source||'Run cache')+(item.provenance?'\n'+item.provenance:'')+(item.wishlist?'\n'+(item.wishlist_label||'Wishlist guarantee'):'')+(item.set_pity?'\n'+(item.set_pity_label||'Set pity'):'')+(item.smart_loot?'\n'+(item.smart_loot_label||'Smart loot') : ''));
   applyRunLootData(row,item);
   var main=document.createElement('span');main.className='ab-loot-main';
   if(item.slot_icon){var icon=document.createElement('span');icon.className='ab-loot-slot';icon.setAttribute('aria-hidden','true');icon.textContent=item.slot_icon;main.appendChild(icon);}
   var label=document.createElement('span');label.innerHTML=item.label||'';main.appendChild(label);row.appendChild(main);
   var tags=document.createElement('span');tags.className='ab-loot-tags';
   function tag(text,className){var el=document.createElement('b');if(className)el.className=className;el.textContent=text;tags.appendChild(el);}
+  if(item.wishlist)tag('★ '+(item.wishlist_label||'WISHLIST GUARANTEE'),'ab-wishlist-tag');
+  if(item.set_pity)tag('🧩 '+(item.set_pity_label||'SET PITY · 3→4'),'ab-set-pity-tag');
+  if(item.smart_loot)tag('🎯 '+(item.smart_loot_label||'SMART DROP'),'ab-smart-loot-tag');
   if(item.unidentified)tag('?','ab-loot-question');
   if(item.already_owned)tag('owned','ab-owned-tag');
   if(item.set_id)tag('🧩 '+item.set_id+' '+item.set_count+'/'+item.set_max,'ab-set-tag ab-set-'+item.set_id);
@@ -56,6 +61,10 @@ function buildAuthoritativeRunLootRow(item){
   row.appendChild(tags);
   var detail=document.createElement('span');detail.className='ab-loot-detail';detail.hidden=true;
   var detailText=item.source||'Run cache';
+  if(item.provenance)detailText+=' · '+item.provenance;
+  if(item.wishlist)detailText+=' · ★ '+(item.wishlist_label||'Wishlist guarantee');
+  if(item.set_pity)detailText+=' · 🧩 '+(item.set_pity_label||'Set pity · 3→4');
+  if(item.smart_loot)detailText+=' · 🎯 '+(item.smart_loot_label||'Smart drop');
   if(item.slot)detailText+=' · '+item.slot;
   if(Number(item.cr)>0)detailText+=' · CR '+Math.round(Number(item.cr))+' ('+(Number(item.cr_delta)>=0?'+':'')+Math.round(Number(item.cr_delta))+')';
   if(Number(item.quality)>0)detailText+=' · '+item.quality+'★ quality';

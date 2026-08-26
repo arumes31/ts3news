@@ -38,6 +38,13 @@ type abyssSocialPetView struct {
 	HealEnabled bool
 	Equipment   string
 	Ability     string
+	Class       string
+	XP          int
+	XPNext      int
+	Favorite    bool
+	Shiny       bool
+	BossVariant bool
+	LoyaltyPct  int
 }
 
 type abyssDeathView struct {
@@ -112,6 +119,7 @@ type abyssSocialHubView struct {
 	WeeklyBoss        abyssWeeklyBossView
 	Notifications     []abyssNotificationView
 	FriendEcho        abyssFriendEchoView
+	PetFeedCost       int64
 }
 
 func abyssPetMood(currentHP, maxHP, loyalty int) (string, string, int) {
@@ -213,8 +221,7 @@ func abyssPetEquipmentLabel(equipped map[content.GearSlot]content.Gear) string {
 
 func (b *Bot) abyssSocialPets(uid string) []abyssSocialPetView {
 	rows, err := b.DB.Query(`SELECT pet_id,name,mob_type,level,hp,max_hp,str,def,spd,loyalty,active_slot,
-		CASE WHEN trained_on=CURRENT_DATE THEN training_count ELSE 0 END,
-		COALESCE((autoskills->>'heal')::boolean,TRUE)
+		CASE WHEN trained_on=CURRENT_DATE THEN training_count ELSE 0 END,autoskills::text
 		FROM user_pets WHERE client_uid=$1 ORDER BY active_slot DESC,captured_at,pet_id`, uid)
 	if err != nil {
 		return nil
@@ -224,13 +231,23 @@ func (b *Bot) abyssSocialPets(uid string) []abyssSocialPetView {
 	views := make([]abyssSocialPetView, 0)
 	for rows.Next() {
 		var view abyssSocialPetView
+		var rawProfile string
 		if rows.Scan(&view.ID, &view.Name, &view.Type, &view.Level, &view.HP, &view.MaxHP,
-			&view.STR, &view.DEF, &view.SPD, &view.Loyalty, &view.ActiveSlot, &view.Training, &view.HealEnabled) != nil {
+			&view.STR, &view.DEF, &view.SPD, &view.Loyalty, &view.ActiveSlot, &view.Training, &rawProfile) != nil {
 			return nil
 		}
+		profile := decodeAbyssPetProfile(rawProfile)
+		view.HealEnabled = profile.healEnabled()
+		view.Class = abyssPetClass(content.MobType(view.Type))
+		view.XP = profile.XP
+		view.XPNext = abyssPetXPThreshold(view.Level)
+		view.Favorite = profile.Favorite
+		view.Shiny = profile.Shiny
+		view.BossVariant = profile.BossVariant
+		view.LoyaltyPct = abyssPetLoyaltyBonusPct(view.Loyalty)
 		view.Mood, view.MoodIcon, view.MoodPct = abyssPetMood(view.HP, view.MaxHP, view.Loyalty)
 		view.Equipment = abyssPetEquipmentLabel(equipped)
-		view.Ability = abyssPetAbilityLabel(view.ActiveSlot)
+		view.Ability = abyssPetAbilityLabelForClass(view.ActiveSlot, view.Class)
 		views = append(views, view)
 	}
 	if rows.Err() != nil {
@@ -423,5 +440,6 @@ func (b *Bot) abyssSocialHub(uid string, prestige int) abyssSocialHubView {
 		RevengeFamily: b.abyssRevengeFamily(uid), Rival: b.ensureAbyssWeeklyRival(uid), BankFeedEnabled: bankEnabled,
 		BankFeed: bankFeed, WeeklyBoss: b.abyssWeeklyBossStatus(uid), Notifications: b.abyssSocialNotifications(uid),
 		FriendEcho: b.abyssFriendEchoSettings(uid),
+		PetFeedCost: abyssPetFeedCost,
 	}
 }

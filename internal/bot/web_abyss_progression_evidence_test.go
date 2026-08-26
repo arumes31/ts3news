@@ -33,7 +33,7 @@ func TestAbyssProgressionImprovementEvidence(t *testing.T) {
 		{
 			name:   "swiftness presentation timing",
 			path:   filepath.Join("webassets", "abyss.html"),
-			tokens: []string{"90 - 12 * {{.Stats.UpSwiftness}}"},
+			tokens: []string{"150 - 10 * {{.Stats.UpSwiftness}}", "combatRecorderDelay(logDelay+exchangePause)"},
 		},
 		{
 			name:   "scavenger material yield",

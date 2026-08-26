@@ -57,6 +57,8 @@ func TestAbyssStageEffectsContracts(t *testing.T) {
 		"function updateKillChip",
 		"d.querySelector('.ab-overkill-signal')",
 		"function stampOverkill",
+		"function appendAbyssOverkillReceipt",
+		"addLogHead(log,'ab-log-overkill-reward'",
 		"d.classList.add('ab-log-kill')",
 		"function markCrackedGear",
 		"dur/maxDur<0.20",
@@ -85,6 +87,7 @@ func TestAbyssStageEffectsContracts(t *testing.T) {
 	styles := string(uiCSS) + string(baseCSS)
 	for _, required := range []string{
 		".ab-overkill",
+		".ab-log-line.ab-log-overkill-reward",
 		"@keyframes ab-kill-zoom",
 		".ab-depth-ring.milestone",
 		".abyss-side-gear.ab-cracked::after",

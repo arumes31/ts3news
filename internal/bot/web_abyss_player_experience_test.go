@@ -15,6 +15,9 @@ func TestAbyssPlayerExperienceContracts(t *testing.T) {
 	if server.tmpl.Lookup("abyssPlayerExperienceJS") == nil {
 		t.Fatal("player experience script template is missing")
 	}
+	if server.tmpl.Lookup("abyssCommandPaletteJS") == nil {
+		t.Fatal("command palette script template is missing")
+	}
 	page, err := webAssets.ReadFile("webassets/abyss.html")
 	if err != nil {
 		t.Fatal(err)
@@ -27,11 +30,19 @@ func TestAbyssPlayerExperienceContracts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	paletteModule, err := webAssets.ReadFile("webassets/abyss_command_palette.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	paletteCSS, err := webAssets.ReadFile("webassets/abyss_command_palette.css")
+	if err != nil {
+		t.Fatal(err)
+	}
 	navigation, err := webAssets.ReadFile("webassets/abyss_navigation.html")
 	if err != nil {
 		t.Fatal(err)
 	}
-	source := string(page) + string(module) + string(css) + string(navigation)
+	source := string(page) + string(module) + string(css) + string(paletteModule) + string(paletteCSS) + string(navigation)
 	for _, required := range []string{
 		"Abyss command palette", "Ctrl/⌘ K", "abCommandResults", "resumeRun",
 		"abCurrentObjective", "abConnectionState", "abUTCClock", "abPageFreshness",
@@ -45,6 +56,7 @@ func TestAbyssPlayerExperienceContracts(t *testing.T) {
 		"excludes names, user IDs, combat logs, and random state",
 		"{key:'shop',label:'🜲 Shop'}", "{key:'forge',label:'⚒️ Forge'}",
 		`{{asset "/static/abyss_player_experience.css"}}`, `{{template "abyssPlayerExperienceJS" .}}`,
+		`{{asset "/static/abyss_command_palette.css"}}`, `{{template "abyssCommandPaletteJS" .}}`,
 	} {
 		if !strings.Contains(source, required) {
 			t.Errorf("player experience layer is missing %q", required)
@@ -61,6 +73,9 @@ func TestAbyssPlayerExperienceContracts(t *testing.T) {
 	}
 	if !strings.Contains(string(webSource), "/static/abyss_player_experience.css") {
 		t.Error("player experience stylesheet is not served")
+	}
+	if !strings.Contains(string(webSource), "/static/abyss_command_palette.css") {
+		t.Error("command palette stylesheet is not served")
 	}
 }
 

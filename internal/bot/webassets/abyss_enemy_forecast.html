@@ -1,0 +1,30 @@
+{{define "abyssEnemyForecast"}}{{with .EnemyForecast}}
+<aside class="ab-enemy-forecast{{if .Concealed}} is-concealed{{end}}" id="abyssEnemyForecast"{{if not .Active}} hidden{{end}} aria-label="Next combat enemy ability forecast">
+  <div class="ab-enemy-forecast-icon" id="abEnemyForecastIcon" aria-hidden="true">{{if .Concealed}}📵{{else}}{{.Icon}}{{end}}</div>
+  <div class="ab-enemy-forecast-copy">
+    <span class="ab-kicker" id="abEnemyForecastKicker">{{if .Concealed}}SIGNAL JAMMED · F{{.Depth}}{{else}}NEXT COMBAT SIGNAL · F{{.Depth}}{{end}}</span>
+    <strong id="abEnemyForecastName">{{if .Concealed}}Blind Pact{{else}}{{.Name}}{{end}}</strong>
+    <small id="abEnemyForecastSignal">{{if .Concealed}}Enemy ability intel is concealed for this run.{{else}}{{.Signal}}{{end}}</small>
+  </div>
+  <div class="ab-enemy-forecast-counter">
+    <span>COUNTERMEASURE</span>
+    <b id="abEnemyForecastCounter">{{if .Concealed}}Trust your loadout.{{else}}{{.Counter}}{{end}}</b>
+  </div>
+</aside>
+{{end}}
+<script>
+function renderAbyssEnemyForecast(view){
+  var root=document.getElementById('abyssEnemyForecast');
+  if(!root)return;
+  if(!view||!view.active){root.hidden=true;return;}
+  root.hidden=false;
+  var concealed=!!view.concealed;
+  root.classList.toggle('is-concealed',concealed);
+  document.getElementById('abEnemyForecastIcon').textContent=concealed?'📵':(view.icon||'📡');
+  document.getElementById('abEnemyForecastKicker').textContent=(concealed?'SIGNAL JAMMED':'NEXT COMBAT SIGNAL')+' · F'+Number(view.depth||0);
+  document.getElementById('abEnemyForecastName').textContent=concealed?'Blind Pact':(view.name||'Unknown contact');
+  document.getElementById('abEnemyForecastSignal').textContent=concealed?'Enemy ability intel is concealed for this run.':(view.signal||'No readable pattern.');
+  document.getElementById('abEnemyForecastCounter').textContent=concealed?'Trust your loadout.':(view.counter||'Adapt after contact.');
+}
+</script>
+{{end}}

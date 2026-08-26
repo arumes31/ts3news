@@ -34,6 +34,11 @@ type abyssCoreLoopView struct {
 	InsuranceMax           int   `json:"insurance_max"`
 	InsuranceStep          int   `json:"insurance_step"`
 	Insured                int   `json:"insured"`
+	FreeInsuranceReady     bool  `json:"free_insurance_ready"`
+	BankStreak             int   `json:"bank_streak"`
+	BanksToFreeInsurance   int   `json:"banks_to_free_insurance"`
+	OvercapGold            int64 `json:"overcap_gold"`
+	OvercapTokens          int   `json:"overcap_tokens"`
 	RestShrinkReady        bool  `json:"rest_shrink_ready"`
 	RestShrinkCache        int64 `json:"rest_shrink_cache"`
 	RestShrinkTokens       int64 `json:"rest_shrink_tokens"`
@@ -42,6 +47,8 @@ type abyssCoreLoopView struct {
 	ReviveStreak           int   `json:"revive_streak"`
 	ReviveChancePct        int   `json:"revive_chance_pct"`
 	Hybrid                 bool  `json:"hybrid"`
+	TokenAnte              int   `json:"token_ante"`
+	RiskDialPct            int   `json:"risk_dial_pct"`
 	ColdMusclesFloors      int64 `json:"cold_muscles_floors"`
 	DefensiveMomentum      int64 `json:"defensive_momentum"`
 }
@@ -50,6 +57,8 @@ func (b *Bot) abyssCoreLoopStatus(uid string, run abyssRun) abyssCoreLoopView {
 	flags := b.loadRunFlags(uid)
 	cache, tokens := abyssRestCacheConversion(run.Escrow)
 	stats := b.loadAbyssStats(uid)
+	freeInsuranceReady := b.abyssFreeInsuranceReady(uid)
+	overcap := abyssOvercapBankConversion(run.Escrow, run.Depth)
 	maxHP := b.abyssCombatStats(uid).HP
 	status := abyssCoreLoopView{
 		GreedyGripStacks:       abyssGreedyGripStacks(run.Depth),
@@ -66,10 +75,17 @@ func (b *Bot) abyssCoreLoopStatus(uid string, run abyssRun) abyssCoreLoopView {
 		InsuranceMax:           90,
 		InsuranceStep:          5,
 		Insured:                run.Insured,
+		FreeInsuranceReady:     freeInsuranceReady,
+		BankStreak:             stats.Streak,
+		BanksToFreeInsurance:   abyssBanksUntilFreeInsurance(stats.Streak, freeInsuranceReady),
+		OvercapGold:            overcap.Gold,
+		OvercapTokens:          overcap.Tokens,
 		RestShrinkCache:        cache,
 		RestShrinkTokens:       tokens,
 		RafflePot:              b.abyssRafflePot(),
 		Hybrid:                 flags[abyssRunFlagHybrid] == 1,
+		TokenAnte:              int(flags[abyssRunFlagTokenAnte]),
+		RiskDialPct:            int(flags[abyssRunFlagRiskDialPct]),
 		ColdMusclesFloors:      flags[abyssRunFlagColdMuscles],
 		DefensiveMomentum:      flags[abyssRunFlagDefensiveMomentum],
 	}

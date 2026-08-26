@@ -1,0 +1,65 @@
+{{define "abyssItemNumbersJS"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var storageKey='ab_item_numbers',mode='exact';
+
+  function readMode(){
+    try{return localStorage.getItem(storageKey)==='compact'?'compact':'exact';}catch(_){return'exact';}
+  }
+  function exact(value,alwaysSign,digits){
+    var number=Number(value);
+    if(!Number.isFinite(number))return String(value==null?'':value);
+    var places=Math.max(0,Math.min(3,Number(digits)||0));
+    return(alwaysSign&&number>0?'+':'')+number.toLocaleString('en-US',{minimumFractionDigits:places,maximumFractionDigits:places});
+  }
+  function compact(value,alwaysSign,digits){
+    var number=Number(value);
+    if(!Number.isFinite(number))return String(value==null?'':value);
+    if(Math.abs(number)<1000)return exact(number,alwaysSign,digits);
+    var text=new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(number);
+    return(alwaysSign&&number>0?'+':'')+text;
+  }
+  function format(value,options){
+    options=options||{};
+    return mode==='compact'?compact(value,options.sign===true,options.digits):exact(value,options.sign===true,options.digits);
+  }
+  function render(root){
+    root=root||document;
+    var nodes=[];
+    if(root.nodeType===1&&root.matches('[data-item-number]'))nodes.push(root);
+    if(root.querySelectorAll)nodes=nodes.concat(Array.prototype.slice.call(root.querySelectorAll('[data-item-number]')));
+    nodes.forEach(function(node){
+      var raw=node.dataset.itemNumber,sign=node.dataset.itemNumberSign==='always',digits=node.dataset.itemNumberDigits;
+      var exactText=exact(raw,sign,digits),display=format(raw,{sign:sign,digits:digits});
+      node.textContent=display;
+      node.title='Exact value: '+exactText;
+      node.setAttribute('aria-label',mode==='compact'?display+', exact value '+exactText:exactText);
+    });
+    document.documentElement.dataset.itemNumbers=mode;
+    document.querySelectorAll('[data-item-number-toggle]').forEach(function(button){
+      button.textContent=mode==='compact'?'Numbers: compact':'Numbers: exact';
+      button.setAttribute('aria-pressed',mode==='compact'?'true':'false');
+      button.title=mode==='compact'?'Show exact item values':'Use compact item values such as 12.3K';
+    });
+  }
+  function setMode(value,persist){
+    mode=value==='compact'?'compact':'exact';
+    if(persist!==false){try{localStorage.setItem(storageKey,mode);}catch(_){}}
+    render(document);
+    document.dispatchEvent(new CustomEvent('abyssitemnumberschange',{detail:{mode:mode}}));
+  }
+  function installPageToggle(){
+    if(document.querySelector('.abyss-command-page')||document.querySelector('[data-item-number-toggle]'))return;
+    var heading=document.querySelector('main h1, body > h1');if(!heading)return;
+    var button=document.createElement('button');button.type='button';button.className='ghost xs';button.dataset.itemNumberToggle='';
+    button.addEventListener('click',function(){setMode(mode==='compact'?'exact':'compact');});
+    heading.appendChild(document.createTextNode(' '));heading.appendChild(button);
+  }
+
+  mode=readMode();
+  window.AbyssItemNumbers={format:format,exact:exact,render:render,setMode:setMode,getMode:function(){return mode;}};
+  installPageToggle();render(document);
+})();
+</script>
+{{end}}

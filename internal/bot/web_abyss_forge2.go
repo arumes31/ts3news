@@ -418,7 +418,16 @@ func (s *WebServer) handleAbyssPunchSocket(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "already at the socket limit (4)"})
 		return
 	}
-	if !spendMaterials(tx, uid, map[string]int{"shard": 10}) {
+	forgeFloorUsed, err := claimAbyssForgeFloorInTx(tx, uid, "punch_socket")
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if s.forgeQuoteRequiresFloor(r, "punch_socket") && !forgeFloorUsed {
+		writeJSON(w, map[string]any{"ok": false, "error": "Silent Anvil changed; refresh the forge quote"})
+		return
+	}
+	if !forgeFloorUsed && !spendMaterials(tx, uid, map[string]int{"shard": 10}) {
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough Void Shards (need 10)"})
 		return
 	}
@@ -428,15 +437,22 @@ func (s *WebServer) handleAbyssPunchSocket(w http.ResponseWriter, r *http.Reques
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	if !s.finishForge(w, tx, uid, "punch socket", fmt.Sprintf("%s → %d sockets", g.Name, g.Sockets), "10🔷") {
+	costLabel := "10🔷"
+	if forgeFloorUsed {
+		costLabel = "Silent Anvil"
+	}
+	if !s.finishForge(w, tx, uid, "punch socket", fmt.Sprintf("%s → %d sockets", g.Name, g.Sockets), costLabel) {
 		return
 	}
 	message := fmt.Sprintf("🔨 Punched a new socket into %s (%d/%d).", g.Name, g.Sockets, maxPunchedSockets)
 	if perfect {
 		message = fmt.Sprintf("💎 Perfect punch! %s gained two sockets at once (%d total).", g.Name, g.Sockets)
 	}
+	if forgeFloorUsed {
+		message = "⚒️ Silent Anvil: " + message
+	}
 	writeJSON(w, map[string]any{"ok": true, "materials": s.bot.loadMaterials(uid),
-		"perfect": perfect, "sockets": g.Sockets, "msg": message})
+		"perfect": perfect, "sockets": g.Sockets, "forge_floor_used": forgeFloorUsed, "msg": message})
 }
 
 // ---- Attune ---------------------------------------------------------------------

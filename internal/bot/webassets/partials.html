@@ -6,6 +6,7 @@
 <title>{{.Title}} · TS3 RPG</title>
 <link rel="icon" type="image/svg+xml" href="{{asset "/static/favicon.svg"}}">
 <link rel="stylesheet" href="/static/style.css?v={{cssver}}">
+{{if eq .Nav "inventory"}}<link rel="stylesheet" href="{{asset "/static/gear_inventory_motion.css"}}">{{end}}
 <script>window.__ASSET_VER__ = "{{appver}}";</script>
 </head>
 <body>
@@ -16,7 +17,7 @@
   <nav class="nav">
     <a href="/" class="{{if eq .Nav "armory"}}active{{end}}">Armoury</a>
     <a href="/inventory" class="{{if eq .Nav "inventory"}}active{{end}}">Inventory</a>
-    {{if .EnableAbyss}}<a href="/abyss" class="{{if eq .Nav "abyss"}}active{{end}}">The Abyss</a>{{end}}
+    {{if .EnableAbyss}}<a href="/abyss" class="{{if or (eq .Nav "abyss") (eq .Nav "plaza")}}active{{end}}">The Abyss</a>{{end}}
     <a href="/arcade" class="{{if eq .Nav "arcade"}}active{{end}}">Arcade</a>
     <a href="/leaderboards" class="{{if eq .Nav "leaderboards"}}active{{end}}">Leaderboards</a>
     <a href="/shop" class="{{if eq .Nav "shop"}}active{{end}}">Shop</a>
@@ -30,7 +31,7 @@
   </div>
   {{end}}
 </header>
-<main class="wrap{{if or (eq .Nav "abyss") (eq .Nav "armory")}} wrap-wide{{end}}">{{end}}
+<main class="wrap{{if or (eq .Nav "abyss") (eq .Nav "armory") (eq .Nav "plaza")}} wrap-wide{{end}}">{{end}}
 
 {{define "leaderboards"}}
 <div class="lb-grid">

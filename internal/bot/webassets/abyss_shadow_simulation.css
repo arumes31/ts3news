@@ -1,0 +1,171 @@
+.ab-simulate {
+  border-color: #4a6673;
+  color: #bfeaf0;
+  background: #0d171c;
+}
+
+.ab-simulate > span {
+  margin-left: .35rem;
+  color: #efbd54;
+  font-variant-numeric: tabular-nums;
+}
+
+.ab-shadow-report {
+  position: relative;
+  margin-top: .8rem;
+  padding: .9rem 1rem;
+  overflow: hidden;
+  border: 1px solid #355965;
+  border-left: 4px solid #66d1dc;
+  border-radius: 7px;
+  color: #dce9e9;
+  background: #0a1217;
+  box-shadow: 0 12px 28px #02070a66, inset 0 1px #ffffff0a;
+}
+
+.ab-shadow-report::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  opacity: .22;
+  background: repeating-linear-gradient(0deg, transparent 0 3px, #8be5eb0b 3px 4px);
+}
+
+.ab-shadow-report > * {
+  position: relative;
+  z-index: 1;
+}
+
+.ab-shadow-report header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: .1rem 1rem;
+  padding-bottom: .65rem;
+  border-bottom: 1px solid #243b45;
+}
+
+.ab-shadow-report h3 {
+  grid-column: 1;
+  margin: 0;
+  color: #f2f7f6;
+  font-family: var(--font-display, system-ui, sans-serif);
+  font-size: 1.08rem;
+  letter-spacing: .025em;
+  text-transform: uppercase;
+}
+
+.ab-shadow-kicker,
+.ab-shadow-encounter > span {
+  color: #75c6cf;
+  font-size: .63rem;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+
+.ab-shadow-depth {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  color: #efbd54;
+  font: 800 1.45rem/1 ui-monospace, "Cascadia Mono", monospace;
+}
+
+.ab-shadow-grid {
+  display: grid;
+  grid-template-columns: 1.25fr repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: .75rem 0;
+  background: #243b45;
+  border: 1px solid #243b45;
+}
+
+.ab-shadow-grid > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: .18rem;
+  padding: .65rem;
+  background: #0e1820;
+}
+
+.ab-shadow-grid strong {
+  overflow: hidden;
+  color: #ecf4f3;
+  font: 750 1rem/1.1 ui-monospace, "Cascadia Mono", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ab-shadow-grid span {
+  color: #8ba7ad;
+  font-size: .66rem;
+  text-transform: uppercase;
+}
+
+.ab-shadow-primary strong {
+  color: #7de5c1;
+  font-size: 1.3rem;
+}
+
+.ab-shadow-meter {
+  height: .38rem;
+  overflow: hidden;
+  border: 1px solid #29424c;
+  background: #050a0d;
+}
+
+.ab-shadow-meter i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #d65c58, #efbd54 48%, #63d8b3);
+  transition: width 420ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.ab-shadow-encounter {
+  margin: .7rem 0 .35rem;
+  color: #bacdce;
+}
+
+.ab-shadow-encounter b {
+  margin-left: .45rem;
+  color: #f0d18b;
+  font-weight: 650;
+}
+
+@media (max-width: 760px) {
+  .ab-shadow-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 430px) {
+  .ab-shadow-report {
+    padding: .75rem;
+  }
+
+  .ab-shadow-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-shadow-meter i {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .ab-simulate,
+  .ab-shadow-report,
+  .ab-shadow-grid,
+  .ab-shadow-meter {
+    border: 2px solid CanvasText;
+    background: Canvas;
+  }
+
+  .ab-shadow-meter i {
+    background: Highlight;
+  }
+}

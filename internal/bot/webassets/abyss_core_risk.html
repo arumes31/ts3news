@@ -2,8 +2,9 @@
 <span class="ab-insurance-slider" id="insuranceControls">
   <label for="insurancePct">🛡️ Insure <output id="insurancePctOut">{{if .CoreLoop.Insured}}{{.CoreLoop.Insured}}{{else}}25{{end}}%</output></label>
   <input id="insurancePct" type="range" min="{{.CoreLoop.InsuranceMin}}" max="{{.CoreLoop.InsuranceMax}}" step="{{.CoreLoop.InsuranceStep}}" value="{{if .CoreLoop.Insured}}{{.CoreLoop.Insured}}{{else}}25{{end}}" aria-label="Cache insurance percentage">
-  <button class="ghost xs" id="btnInsureSelected" type="button" onclick="abyssInsureSelected()">Buy cover</button>
+  <button class="ghost xs" id="btnInsureSelected" type="button" onclick="abyssInsureSelected()">{{if .CoreLoop.FreeInsuranceReady}}Use free cover{{else}}Buy cover{{end}}</button>
 </span>
+<span class="ab-insurance-charm" id="insuranceCharmStatus" data-count="{{.InsuranceCharms}}"{{if not .InsuranceCharms}} hidden{{end}} title="Passive stash protection. One charm returns 50% of an otherwise uninsured cache on defeat, then is consumed. Disabled by grace, paid cover, Anchor Rune, Hardcore, Uninsured, and Abstinence.">🧿 <b id="insuranceCharmCount">{{.InsuranceCharms}}</b> charm<span id="insuranceCharmPlural">{{if ne .InsuranceCharms 1}}s{{end}}</span> · 50% fallback</span>
 {{end}}
 
 {{define "abyssCoreRiskConsole"}}
@@ -18,6 +19,12 @@
     <label class="ab-risk-switch"><input id="bankSafeWordToggle" type="checkbox" {{if .CoreLoop.BankConfirm}}checked{{end}}> Type BANK above 1M</label>
     <label class="ab-risk-switch ab-risk-danger"><input id="deathWishToggle" type="checkbox" {{if .CoreLoop.DeathWish}}checked{{end}}> Death Wish: 3× danger / 2× reward</label>
     <button class="ghost xs" id="anchorRuneBtn" type="button" onclick="abyssBuyAnchorRune()" {{if .CoreLoop.AnchorRune}}disabled{{end}}>⚓ {{if .CoreLoop.AnchorRune}}Anchor armed{{else}}Buy anchor · 🜲20{{end}}</button>
+  </div>
+  <div class="ab-risk-dial">
+    <label for="runRiskDial">Next floor <output id="runRiskDialOut">{{with .CoreLoop}}{{.RiskDialPct}}{{else}}0{{end}}%</output></label>
+    <input id="runRiskDial" type="range" min="-20" max="50" step="10" value="{{with .CoreLoop}}{{.RiskDialPct}}{{else}}0{{end}}" aria-label="Next floor danger and cache reward adjustment">
+    <button class="ghost xs" id="saveRunRiskDial" type="button">Apply risk</button>
+    <span class="muted small">Danger and cache reward move together.</span>
   </div>
 </details>
 {{end}}
@@ -51,9 +58,15 @@
     if(state.raffle_pot){host.appendChild(chip('🎟️','Daily raffle '+fmtGold(state.raffle_pot),'good'));active++;}
     if(state.revive_streak){host.appendChild(chip('🎲','Revive '+state.revive_chance_pct+'% · pity ×'+state.revive_streak,'good'));active++;}
     if(state.hybrid){host.appendChild(chip('🌀','Hybrid · '+((Number(curDepth)||0)%5===4?'next floor surges':'surge every 5th floor'),'warn'));active++;}
+    if(state.token_ante){host.appendChild(chip('🜲','Ante '+state.token_ante+' · +'+state.token_ante+'% cache','good'));active++;}
+    if(state.risk_dial_pct){host.appendChild(chip('⚖️','Risk dial '+(state.risk_dial_pct>0?'+':'')+state.risk_dial_pct+'%','warn'));active++;}
+	if(state.free_insurance_ready){host.appendChild(chip('🛡️','Bank-streak cover ready','good'));active++;}
+	else if(state.banks_to_free_insurance){host.appendChild(chip('🏦',state.banks_to_free_insurance+' bank'+(state.banks_to_free_insurance===1?'':'s')+' to free cover',''));active++;}
+	if(state.overcap_tokens){host.appendChild(chip('🜲','Bank converts '+fmtGold(state.overcap_gold)+' into '+state.overcap_tokens+' token'+(state.overcap_tokens===1?'':'s'),'good'));active++;}
     if(state.perfect_run){host.appendChild(chip('✨','Perfect run intact','good'));active++;}
     if(!active)host.appendChild(chip('✓','No active penalties','good'));
     if(summary)summary.textContent=active?active+' active':'Clear';
+	var insureButton=document.getElementById('btnInsureSelected');if(insureButton)insureButton.textContent=state.free_insurance_ready?'Use free cover':'Buy cover';
     renderInterestCurve();
     var revive=document.getElementById('btnRevive');
     if(revive&&state.revive_chance_pct)revive.textContent='🎲 Revive · '+state.revive_chance_pct+'% offer (double-or-nothing)';
@@ -72,6 +85,8 @@
 
   window.abyssInsureSelected=function(){var input=document.getElementById('insurancePct');if(input)abyssInsure(Number(input.value));};
 	window.updateAbyssReviveRisk=function(streak,chance){state.revive_streak=Math.max(0,Number(streak)||0);state.revive_chance_pct=Math.max(0,Number(chance)||0);render();};
+	window.abyssInsuranceCharmCount=function(){var node=document.getElementById('insuranceCharmStatus');return node?Math.max(0,Number(node.dataset.count)||0):0;};
+	window.updateAbyssInsuranceCharms=function(count){var node=document.getElementById('insuranceCharmStatus'),value=document.getElementById('insuranceCharmCount'),plural=document.getElementById('insuranceCharmPlural');count=Math.max(0,Number(count)||0);if(!node)return;node.dataset.count=String(count);node.hidden=count===0;if(value)value.textContent=String(count);if(plural)plural.textContent=count===1?'':'s';};
   var insurance=document.getElementById('insurancePct'),insuranceOut=document.getElementById('insurancePctOut');
   if(insurance)insurance.addEventListener('input',function(){if(insuranceOut)insuranceOut.value=insurance.value+'%';});
 
@@ -86,6 +101,14 @@
     var requested=wish.checked,d=await abPost('/api/abyss/death_wish',{on:requested});
     if(!d.ok){wish.checked=!requested;abToast(d.error||'Death Wish failed',false);return;}
     state.death_wish=!!d.death_wish;render();abToast(d.msg,true);
+  });
+  var dial=document.getElementById('runRiskDial'),dialOut=document.getElementById('runRiskDialOut'),saveDial=document.getElementById('saveRunRiskDial');
+  if(dial)dial.addEventListener('input',function(){var value=Number(dial.value)||0;if(dialOut)dialOut.value=(value>=0?'+':'')+value+'%';});
+  if(saveDial)saveDial.addEventListener('click',async function(){
+    var requested=Number(dial&&dial.value)||0;saveDial.disabled=true;
+    var d=await abPost('/api/abyss/risk_dial',{percent:requested});saveDial.disabled=false;
+    if(!d.ok){if(dial)dial.value=String(state.risk_dial_pct||0);if(dialOut)dialOut.value=((state.risk_dial_pct||0)>=0?'+':'')+(state.risk_dial_pct||0)+'%';abToast(d.error||'Risk change failed',false);return;}
+    state.risk_dial_pct=Number(d.percent)||0;if(d.risk!==undefined){curRisk=Number(d.risk)||0;updateThreat();}render();abToast(d.msg,true);
   });
   window.abyssBuyAnchorRune=async function(){
     if(!(await confirmModal('Spend 20 Abyss Tokens to preserve half the cache on your next death?',{title:'Arm Anchor Rune',okLabel:'Arm rune · 🜲20'})))return;

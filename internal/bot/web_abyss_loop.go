@@ -297,7 +297,7 @@ func (b *Bot) saveAbyssMirrorMemory(uid string, m abyssMirrorMemory) {
 // (0 when unknown). Shown to delvers owning the sanctuary Map Table upgrade.
 func (b *Bot) abyssNextEventIn(uid string, depth int) int {
 	var s string
-	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_next_event_depth_"+uid).Scan(&s)
+	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssNextEventDepthKey(uid)).Scan(&s)
 	next, err := strconv.Atoi(s)
 	if err != nil {
 		return 0
@@ -382,7 +382,7 @@ func (s *WebServer) autoConcedeIfTimedOut(w http.ResponseWriter, uid string, run
 		run.Insured = 10 // the pity cache
 	}
 	mysteryReveal := abyssMysteryRevealFromFlags(s.bot.loadRunFlags(uid))
-	payout, err := s.bot.forfeitAbyss(uid, run, "timeout")
+	forfeit, err := s.bot.forfeitAbyss(uid, run, "timeout")
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return true
@@ -391,8 +391,10 @@ func (s *WebServer) autoConcedeIfTimedOut(w http.ResponseWriter, uid string, run
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	writeJSON(w, map[string]any{
-		"ok": true, "auto_conceded": true, "insured_refund": payout,
-		"gold": gold, "tokens": s.bot.abyssTokens(uid),
+		"ok": true, "auto_conceded": true, "insured_refund": forfeit.Refund,
+		"insurance_charm_used": forfeit.InsuranceCharmUsed,
+		"insurance_charms":     s.bot.abyssInsuranceCharmCount(uid),
+		"gold":                 gold, "tokens": s.bot.abyssTokens(uid),
 		"mystery_reveal": mysteryReveal,
 		"msg":            "⏳ Five minutes in the dirt — the Abyss loses patience and drags you out. A 10% pity cache is paid.",
 	})

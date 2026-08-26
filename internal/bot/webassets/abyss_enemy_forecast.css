@@ -1,0 +1,28 @@
+.ab-enemy-forecast {
+  --signal: #61d9c5;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(12rem, .7fr);
+  align-items: center;
+  gap: .75rem;
+  margin: .7rem 0;
+  padding: .65rem .75rem;
+  border: 1px solid color-mix(in srgb, var(--signal) 45%, var(--border));
+  border-radius: .65rem;
+  background: linear-gradient(105deg, color-mix(in srgb, var(--signal) 12%, #080d16), #080d16 66%);
+  box-shadow: inset .2rem 0 0 var(--signal);
+}
+
+.ab-enemy-forecast[hidden] { display: none; }
+.ab-enemy-forecast.is-concealed { --signal: #7d8798; }
+.ab-enemy-forecast-icon { filter: drop-shadow(0 0 .5rem var(--signal)); font-size: 1.65rem; }
+.ab-enemy-forecast-copy { display: grid; gap: .12rem; min-width: 0; }
+.ab-enemy-forecast-copy strong { color: var(--signal); }
+.ab-enemy-forecast-copy small { color: var(--muted); }
+.ab-enemy-forecast-counter { display: grid; gap: .12rem; padding-left: .75rem; border-left: 1px solid var(--border); }
+.ab-enemy-forecast-counter span { color: var(--muted); font: .58rem var(--font-mono, monospace); letter-spacing: .1em; }
+.ab-enemy-forecast-counter b { color: var(--text); font-size: .72rem; }
+
+@media (max-width: 680px) {
+  .ab-enemy-forecast { grid-template-columns: auto minmax(0, 1fr); }
+  .ab-enemy-forecast-counter { grid-column: 2; padding: .45rem 0 0; border-top: 1px solid var(--border); border-left: 0; }
+}

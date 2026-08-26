@@ -193,36 +193,49 @@ func (b *Bot) taxAbyssDayGold(q dbExecQuerier, uid string, payout int64) (int64,
 	return after, tax
 }
 
-// forfeitAbyss ends a downed run atomically: pays insurance back to gold, feeds
-// the rest of the cache to the shared deep-cache jackpot, records the death and
-// resets the streak. Returns the insured refund and an error if the transaction
-// could not be committed (so callers don't report a successful concede/revive on
-// a refund that never landed). [1][62]
-func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund int64, err error) {
+// abyssForfeitResult reports the committed protection outcome.
+type abyssForfeitResult struct {
+	Refund             int64
+	InsuranceCharmUsed bool
+}
+
+// forfeitAbyss ends a downed run atomically: pays protected cache back to gold,
+// feeds the rest to the jackpot, records the death, and resets the streak.
+func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssForfeitResult, error) {
 	flags := b.loadRunFlags(uid)
 	pacts := b.abyssRunPacts(uid)
 	hardcore := abyssHardcoreRun(flags)
 	policy := planAbyssForfeit(run.Escrow, run.Insured, run.Depth, hardcore)
 	anchorActive := flags[abyssRunFlagAnchorRune] == 1
-	policy.Refund = abyssAnchorRefund(policy.Refund, run.Escrow, anchorActive)
-	refund = policy.Refund
-	remainder := run.Escrow - refund
 
 	tx, err := b.DB.Begin()
 	if err != nil {
-		return 0, err
+		return abyssForfeitResult{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	insuranceCharmUsed := false
+	if abyssInsuranceCharmEligible(run, pacts, hardcore, anchorActive) {
+		insuranceCharmUsed, err = consumeAbyssInsuranceCharm(tx, uid)
+		if err != nil {
+			return abyssForfeitResult{}, err
+		}
+		if insuranceCharmUsed {
+			policy = planAbyssForfeit(run.Escrow, abyssInsuranceCharmPct, run.Depth, false)
+		}
+	}
+	policy.Refund = abyssAnchorRefund(policy.Refund, run.Escrow, anchorActive)
+	refund := policy.Refund
+	remainder := run.Escrow - refund
 	if anchorActive {
 		flags[abyssRunFlagAnchorRune] = 0
 		if err := saveRunFlags(tx, uid, flags); err != nil {
-			return 0, err
+			return abyssForfeitResult{}, err
 		}
 	}
 
 	if refund > 0 {
 		if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", refund, uid); err != nil {
-			return 0, err
+			return abyssForfeitResult{}, err
 		}
 	}
 	// Feed the rest of the cache to the shared deep-cache jackpot inside the same
@@ -233,7 +246,7 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund i
 			inc = 1
 		}
 		if _, err := tx.Exec("UPDATE arcade_jackpots SET amount = amount + $1, updated_at = NOW() WHERE game_key='abyss'", inc); err != nil {
-			return 0, err
+			return abyssForfeitResult{}, err
 		}
 	}
 	if run.Depth > 0 {
@@ -244,24 +257,24 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund i
 			   COALESCE((SELECT jsonb_agg(label ORDER BY id) FROM
 			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), $6, $7, $8`,
 			uid, run.Depth, refund, run.Tier, hardcore, endReason, abyssRunDurationMS(run), abyssRunFloorsCleared(run)); err != nil {
-			return 0, err
+			return abyssForfeitResult{}, err
 		}
 		if err := recordAbyssAffixRun(tx, uid, abyssDailyAffixFromFlags(flags), run.Depth, false); err != nil {
-			return 0, err
+			return abyssForfeitResult{}, err
 		}
 		if err := incrementAbyssPactMastery(tx, uid, pacts); err != nil {
-			return 0, err
+			return abyssForfeitResult{}, err
 		}
 		if !policy.CountDeath {
 			if _, err := tx.Exec("UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1) WHERE client_uid=$2", run.Depth, uid); err != nil {
-				return 0, err
+				return abyssForfeitResult{}, err
 			}
 		} else {
 			if _, err := tx.Exec(
 				`UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1),
 				        abyss_deaths = abyss_deaths + 1, abyss_bank_streak = 0 WHERE client_uid=$2`,
 				run.Depth, uid); err != nil {
-				return 0, err
+				return abyssForfeitResult{}, err
 			}
 		}
 		// Daily death counter feeds the comeback buff (#24): 3 deaths in one day
@@ -269,27 +282,27 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund i
 		if policy.CountDeath {
 			if _, err := tx.Exec(
 				`UPDATE users SET abyss_deaths_today = CASE WHEN abyss_deaths_date = CURRENT_DATE THEN abyss_deaths_today + 1 ELSE 1 END,
-			        abyss_deaths_date = CURRENT_DATE WHERE client_uid=$1`, uid); err != nil {
-				return 0, err
+				        abyss_deaths_date = CURRENT_DATE WHERE client_uid=$1`, uid); err != nil {
+				return abyssForfeitResult{}, err
 			}
 		}
 	}
 	// End of run: clear the per-run win streak so its combat buff can't leak into
 	// regular cycle combat (which reads abyss_win_streak too).
 	if _, err := tx.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid); err != nil {
-		return 0, err
+		return abyssForfeitResult{}, err
 	}
 	if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
-		return 0, err
+		return abyssForfeitResult{}, err
 	}
 	// Death forfeits the locked loot cache along with the gold.
 	if !policy.PreserveLoot {
 		if _, err := tx.Exec("DELETE FROM abyss_escrow_loot WHERE client_uid=$1", uid); err != nil {
-			return 0, err
+			return abyssForfeitResult{}, err
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return 0, err
+		return abyssForfeitResult{}, err
 	}
 	if run.Depth > 0 {
 		if policy.PreserveLoot {
@@ -298,7 +311,7 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (refund i
 		b.grantAbyssTokens(uid, run.Depth/10) // small consolation
 		b.recordGameResult(uid, "abyss", false, refund)
 	}
-	return refund, nil
+	return abyssForfeitResult{Refund: refund, InsuranceCharmUsed: insuranceCharmUsed}, nil
 }
 
 // awardAbyssBonusGear grants a guaranteed gear reward on a deep bank, with a
@@ -1252,21 +1265,37 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
+	// Match the bank transaction's users -> app_meta lock order so a bank and an
+	// insurance request on different server instances cannot deadlock each other.
+	var lockedGold int64
+	if err := tx.QueryRow("SELECT gold FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&lockedGold); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	freeInsuranceUsed, err := consumeAbyssFreeInsurance(tx, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
-		return
+	if freeInsuranceUsed {
+		cost = 0
+	} else {
+		res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
+			return
+		}
 	}
 	if _, err := tx.Exec("UPDATE abyss_active SET insured=$1 WHERE client_uid=$2", req.Pct, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	cheapskateTitle := false
-	if abyssCheapskateEligible(cost, run.Escrow) {
+	if !freeInsuranceUsed && abyssCheapskateEligible(cost, run.Escrow) {
 		res, err := tx.Exec(`UPDATE users SET title='The Cheapskate', title_mult=1,
 			title_expires=NOW() + INTERVAL '7 days', title_source='abyss'
 			WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())
@@ -1293,6 +1322,7 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 		"ok": true, "insured": req.Pct, "cost": cost, "gold": gold,
 		"loyalty_discount_pct": loyaltyPct,
 		"cheapskate_title":     cheapskateTitle,
+		"free_insurance_used":  freeInsuranceUsed,
 	})
 }
 

@@ -1,0 +1,48 @@
+.pouch-panel {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 1.1rem;
+  margin: 1.25rem 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid #4a405f;
+  border-radius: 12px;
+  background: linear-gradient(115deg, #151323, #101925);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .25);
+}
+.pouch-panel.is-equipped { border-color: #6a5c91; }
+.pouch-emblem {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border: 1px solid #665582;
+  border-radius: 14px;
+  background: #1b1729;
+  font-size: 2rem;
+}
+.pouch-kicker { color: #b89ae8; font: 700 10px ui-monospace, monospace; letter-spacing: .14em; }
+.pouch-copy h2 { margin: .2rem 0; font-size: 1.08rem; }
+.pouch-copy p { margin: 0; color: #8f9eb5; font-size: .75rem; }
+.pouch-ranks { display: flex; gap: .3rem; margin-top: .55rem; }
+.pouch-ranks i { width: 28px; height: 5px; border-radius: 9px; background: #30384a; }
+.pouch-ranks i.filled { background: linear-gradient(90deg, #8a6de1, #d7b75d); box-shadow: 0 0 8px rgba(138, 109, 225, .45); }
+.pouch-caps { display: flex; gap: .5rem; margin: 0; }
+.pouch-caps div { min-width: 104px; padding: .55rem .7rem; border: 1px solid #303a4e; border-radius: 8px; background: #0d1420; }
+.pouch-caps dt { color: #7f8da3; font-size: .62rem; text-transform: uppercase; }
+.pouch-caps dd { margin: .15rem 0 0; color: #edf1f8; font: bold 1.15rem ui-monospace, monospace; }
+.pouch-caps small { color: #87cda7; font-size: .64rem; }
+.pouch-panel > button { white-space: nowrap; }
+.pouch-panel > button:disabled { opacity: .62; }
+
+@media (max-width: 850px) {
+  .pouch-panel { grid-template-columns: 58px 1fr; }
+  .pouch-emblem { width: 52px; height: 52px; }
+  .pouch-caps,
+  .pouch-panel > button { grid-column: 1 / -1; }
+  .pouch-panel > button { min-height: 44px; }
+}
+@media (max-width: 480px) {
+  .pouch-caps { display: grid; grid-template-columns: 1fr 1fr; }
+  .pouch-caps div { min-width: 0; }
+}

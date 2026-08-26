@@ -105,6 +105,8 @@ type abyssForgeQuoteClaims struct {
 	Parameters  json.RawMessage `json:"parameters"`
 	Gear        string          `json:"gear"`
 	Inventory   string          `json:"inventory"`
+	ForgeFloor  bool            `json:"forge_floor,omitempty"`
+	QuotedGold  *int64          `json:"quoted_gold,omitempty"`
 	ExpiresUnix int64           `json:"expires_unix"`
 }
 
@@ -171,6 +173,11 @@ func (s *WebServer) verifyForgeClaims(token string) (abyssForgeQuoteClaims, erro
 		return claims, errors.New("forge quote expired")
 	}
 	return claims, nil
+}
+
+func (s *WebServer) forgeQuoteRequiresFloor(r *http.Request, operation string) bool {
+	claims, err := s.verifyForgeClaims(r.Header.Get(abyssForgeQuoteHeader))
+	return err == nil && claims.Operation == operation && claims.ForgeFloor
 }
 
 func forgeGearFingerprint(g content.Gear, raw string, invID int64, slot string) string {
@@ -291,6 +298,7 @@ func (s *WebServer) forgeQuoteBaseCost(uid, operation string, gear *content.Gear
 		"prismatic_rune": {"prism": 2}, "brand": {"core": 10}, "special_reroll": {"core": 6},
 		"temper_guard": {"core": 2}, "craft_repair_kit2": {"dust": 8}, "unbrand": {"core": 2},
 		"awaken_guided": {"core": 6}, "imbue_remove": {"prism": 1}, "swap_special": {"core": 8},
+		"reroll_ring_sockets": {"shard": abyssRingSocketCost},
 	}
 	if value := materials[operation]; value != nil {
 		cost.Materials = value
@@ -336,14 +344,17 @@ func forgeQuoteOutcome(operation string, gear *content.Gear, chance float64) aby
 	case "extract_gem":
 		result.Lost = append(result.Lost, "socketed gem")
 		result.Consequences = append(result.Consequences, "The socket remains, but the extracted gem is converted to recovery materials.")
+	case "reroll_ring_sockets":
+		result.Gained = append(result.Gained, "a new 1–3 socket ring layout")
+		result.Consequences = append(result.Consequences, "Every fitted gem is preserved; the new socket count cannot be lower than the fitted gem count.")
 	case "scrape_rune":
 		result.Lost = append(result.Lost, "etched rune")
 	}
 	if setID := gear.EffectiveSetID(); setID != "" {
 		result.Consequences = append(result.Consequences, "Set membership remains "+setID+"; set resonance is recalculated after commit.")
 	}
-	if gear.FoundAt != "" || gear.Lore != "" {
-		result.Consequences = append(result.Consequences, "The item's discovery date and lore provenance remain attached to its receipt.")
+	if gear.FoundAt != "" || gear.FoundDepth > 0 || gear.FoundBoss != "" || gear.Lore != "" {
+		result.Consequences = append(result.Consequences, "The item's discovery provenance and lore remain attached to its receipt.")
 	}
 	return result
 }
@@ -538,6 +549,13 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 		cost = abyssForgeQuoteCost{Gold: s.forge4GoldCost(uid, 300, target.Rarity), Materials: map[string]int{"core": 2}}
 		minimumCost, maximumCost = cost, cost
 	}
+	forgeFloorFree := s.bot.abyssForgeFloorAvailable(ctx, uid, operation.ID)
+	cost, minimumCost, maximumCost = applyAbyssForgeFloorQuoteCost(
+		forgeFloorFree,
+		cost,
+		minimumCost,
+		maximumCost,
+	)
 	before, err := s.loadForgeBalance(ctx, uid)
 	if err != nil {
 		return abyssForgeQuote{}, fmt.Errorf("forge balance: %w", err)
@@ -545,7 +563,7 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 	expires := time.Now().Add(abyssForgeQuoteTTL).UTC()
 	claims := abyssForgeQuoteClaims{
 		UID: uid, Operation: operation.ID, InvID: request.InvID, Slot: request.Slot, Parameters: parameters,
-		Gear: fingerprint, Inventory: revision, ExpiresUnix: expires.Unix(),
+		Gear: fingerprint, Inventory: revision, ForgeFloor: forgeFloorFree, QuotedGold: &cost.Gold, ExpiresUnix: expires.Unix(),
 	}
 	token, err := s.signForgeClaims(claims)
 	if err != nil {
@@ -731,8 +749,17 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 		quote.CostExplanation = "Plain reforge uses the base rarity-scaled price."
 	case "reforge_lock":
 		quote.CostExplanation = "Locking one stat doubles the 300g base to 600g before rarity, reputation, happy-hour, and mastery modifiers."
+	case "identify", "identify_all":
+		if quote.Cost.Gold == 0 {
+			quote.CostExplanation = "Your first identification of the UTC day is free and is consumed only when the item change commits."
+		} else {
+			quote.CostExplanation = "One identification is free each UTC day; this quote includes any remaining paid identifications."
+		}
 	default:
 		quote.CostExplanation = operation.Cost.Formula
+	}
+	if forgeFloorFree {
+		quote.CostExplanation = "The active Silent Anvil makes one temper, socket punch, or full repair free and is consumed only when that mutation commits."
 	}
 	if quote.Irreversible {
 		quote.Confirmation = "FORGE " + strings.ToUpper(operation.ID)

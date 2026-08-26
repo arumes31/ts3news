@@ -1,0 +1,53 @@
+.ab-pet-command-setting {
+  display: grid;
+  grid-template-columns: max-content minmax(12rem, 1fr);
+  gap: .35rem .65rem;
+  align-items: center;
+  padding: .65rem .75rem;
+  border: 1px solid #344258;
+  border-left: 3px solid #7c69e8;
+  border-radius: 8px;
+  background: #101722;
+}
+
+.ab-pet-command-setting > span:first-child {
+  color: #f2f5fb;
+  font-weight: 700;
+}
+
+.ab-pet-command-setting select {
+  min-width: 12rem;
+  color: #f7f8fc;
+  background: #0b111a;
+  border-color: #4b5d78;
+}
+
+.ab-pet-command-setting #petCommandHint {
+  grid-column: 1 / -1;
+  color: #aebbd0;
+  line-height: 1.4;
+}
+
+.ab-pet-command-setting:focus-within {
+  border-color: #a99bff;
+  box-shadow: 0 0 0 2px #a99bff44;
+}
+
+@media (max-width: 700px) {
+  .ab-pet-command-setting {
+    grid-template-columns: 1fr;
+  }
+
+  .ab-pet-command-setting select,
+  .ab-pet-command-setting #petCommandHint {
+    grid-column: 1;
+    width: 100%;
+  }
+}
+
+@media (forced-colors: active) {
+  .ab-pet-command-setting {
+    border: 2px solid CanvasText;
+    background: Canvas;
+  }
+}

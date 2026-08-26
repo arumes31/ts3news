@@ -72,6 +72,21 @@ type UserInCombat struct {
 	// sets this so drops are not granted mid-run; instead they are rolled into the
 	// run's loot escrow (locked until banked, lost on death). See web_abyss_loot.go.
 	EscrowLoot bool
+	// shadow marks an isolated combat projection. Shadow combat uses cloned
+	// character state and local consumable counts and must never persist rewards,
+	// health, cooldowns, pets, loot, or progression.
+	shadow            bool
+	shadowConsumables []content.Consumable
+	shadowEffects     []content.ItemEffect
+	shadowHoldMana    bool
+	shadowPetCommand  abyssPetCommand
+	shadowPetFocus    string
+	shadowRunFlags    map[string]int64
+	shadowLifesteal   int
+	shadowMultiStrike int
+	shadowMindControl int
+	shadowUpInsight   int
+	shadowBackups     []content.Gear
 	// treeBonus carries the Abyss skill-web bonus into combat. Only buildAbyssUser
 	// populates it; regular channel fights leave it zero so the Abyss tree never
 	// leaks into non-Abyss combat (and treeBonusFor's DB cost stays off that path).
@@ -86,6 +101,13 @@ type UserInCombat struct {
 	// petHealEnabled carries the owner's per-companion autoskill preference into
 	// the fight snapshot. Missing entries preserve the legacy enabled behavior.
 	petHealEnabled map[string]bool
+	// abyssSupport is a run-scoped rescued delver. It is deliberately not a
+	// UserInCombat or persisted pet: it can assist and appear in the live ally
+	// roster without receiving player actions, loot, HP writes, or pet progression.
+	abyssSupport *abyssRescueSupport
+	// abyssSkillsUsed tracks successful regular casts for the run-scoped variety
+	// reward. The map is bounded by the combatant's equipped skill set.
+	abyssSkillsUsed map[string]struct{}
 }
 
 func abyssKillerDamage(base int, user *UserInCombat, mob *content.Mob) int {
@@ -111,6 +133,7 @@ type activeUser struct {
 	MaxMana             int
 	petCooldowns        map[int]int // Independent active-pet ability cooldowns by formation index.
 	petCaptureAttempted bool        // Avoid repeated full-stable capture offers or failure spam per fight.
+	petCommand          abyssPetCommand
 	// Skill-web bonus, loaded once per fight: treeBonusFor hits the DB and
 	// scans the full 1000-node tree, so per-turn lookups must use this cache.
 	treeBonus content.TreeBonus
@@ -123,10 +146,10 @@ type activeUser struct {
 	stunbrokenRound   int                   // AB-59 round the stunbreak fired (acts at 50%)
 	parryCount        int                   // AB-56 parries this fight (3 grant Stealth)
 	stealthUntilRound int                   // AB-56 granted stealth: mobs skip up to this round
-	fumbled           bool                  // AB-72 next hit gets +10% crit (embarrassed rage)
 	weaponSwapped     bool                  // AB-53 once-per-fight mid-boss weapon swap
 	petFocus          string                // AB-58 pet focus-fire target (mob name)
 	petFocusLogged    bool                  // AB-58 one-time focus-fire log
+	petGuardLogged    bool                  // AAA-0066 one-time direct-hit interception log
 	holdMana          bool                  // AB-64 hold-mana toggle (save casts for bosses)
 	holdManaLogged    bool                  // AB-64 one-time hold-mana log
 	lastAttackers     map[*content.Mob]bool // AB-68 mobs that targeted this user last mobTurn
@@ -137,6 +160,8 @@ type activeUser struct {
 	defRuneLogged     bool                  // AB-84 one-time defensive-rune resist log
 	petNervousLogged  map[*content.Mob]bool // AB-73 low-loyalty foreshadowing, once per pet per fight
 	defendingRound    int                   // live combat: DEF boost remains through one enemy phase
+	shield            int                   // Abyss opening Aegis remaining before HP damage
+	maxShield         int                   // immutable opening Aegis capacity for presentation
 	potionCooldown    int                   // shared cooldown for powerful live consumables
 	relicCharges      int                   // run-bound active relic uses remaining
 }
@@ -301,7 +326,7 @@ func (b *Bot) computeMiscMult(uid, _ string, cid int, ctx cycleContext) float64 
 }
 
 func (b *Bot) getPets(uid string) []*content.Mob {
-	rows, err := b.DB.Query(`SELECT p.name,p.mob_type,p.level,p.hp,p.max_hp,p.str,p.def,p.spd,p.loyalty
+	rows, err := b.DB.Query(`SELECT p.name,p.mob_type,p.level,p.hp,p.max_hp,p.str,p.def,p.spd,p.loyalty,p.autoskills::text
 		FROM user_pets p JOIN users u ON u.client_uid=p.client_uid
 		WHERE p.client_uid=$1 AND (p.active_slot=1 OR (p.active_slot=2 AND u.abyss_prestige>=2))
 		ORDER BY p.active_slot`, uid)
@@ -314,9 +339,17 @@ func (b *Bot) getPets(uid string) []*content.Mob {
 		var m content.Mob
 		var mType string
 		var maxHP int
-		if err := rows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &maxHP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD, &m.Loyalty); err == nil {
+		var rawProfile string
+		if err := rows.Scan(&m.Name, &mType, &m.Level, &m.Stats.HP, &maxHP, &m.Stats.STR, &m.Stats.DEF, &m.Stats.SPD, &m.Loyalty, &rawProfile); err == nil {
+			profile := decodeAbyssPetProfile(rawProfile)
+			if profile.busy(time.Now()) {
+				continue
+			}
 			m.Type = content.MobType(mType)
 			m.MaxHP = maxHP
+			m.PetShiny = profile.Shiny
+			m.PetBoss = profile.BossVariant
+			m.PetBark = profile.BarkStyle
 			out = append(out, &m)
 		}
 	}
@@ -327,10 +360,12 @@ func (b *Bot) getPets(uid string) []*content.Mob {
 	petGearStats := abyssPetGearStats(b.getEquippedItems(uid))
 	for _, pet := range out {
 		applyAbyssPetGear(pet, petGearStats)
+		applyAbyssPetClass(pet)
 		_, _, moodPct := abyssPetMood(pet.Stats.HP, pet.MaxHP, pet.Loyalty)
-		pet.Stats.STR = abyssPetMoodScale(pet.Stats.STR, moodPct)
-		pet.Stats.DEF = abyssPetMoodScale(pet.Stats.DEF, moodPct)
-		pet.Stats.SPD = abyssPetMoodScale(pet.Stats.SPD, moodPct)
+		combatPct := moodPct + abyssPetLoyaltyBonusPct(pet.Loyalty)
+		pet.Stats.STR = abyssPetMoodScale(pet.Stats.STR, combatPct)
+		pet.Stats.DEF = abyssPetMoodScale(pet.Stats.DEF, combatPct)
+		pet.Stats.SPD = abyssPetMoodScale(pet.Stats.SPD, combatPct)
 	}
 	return out
 }
@@ -386,17 +421,17 @@ func (b *Bot) checkUserRevive(u *UserInCombat, logs *[]string) bool {
 	}
 
 	// 1. Check Consumables
-	cons := b.getConsumables(u.UID)
+	cons := b.combatConsumables(u)
 	for _, c := range cons {
 		if c.Type == content.ConsumableRevive {
 			u.CurrentHP = u.Stats.HP / 2
 			*logs = append(*logs, i18n.T("bot.combat.revived_item", u.Nickname, c.ID))
-			_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2", u.UID, c.ID)
+			b.consumeCombatConsumable(u, c.ID, true)
 			return true
 		}
 	}
 	// 2. Check Item Effects (Phoenix)
-	_, _, _, _, effects := b.activeLootMult(u.UID, time.Now())
+	effects := b.combatItemEffects(u)
 	for _, eff := range effects {
 		if eff == content.EffectPhoenix {
 			u.CurrentHP = u.Stats.HP / 2
@@ -405,6 +440,58 @@ func (b *Bot) checkUserRevive(u *UserInCombat, logs *[]string) bool {
 		}
 	}
 	return false
+}
+
+func (b *Bot) combatItemEffects(u *UserInCombat) []content.ItemEffect {
+	if u != nil && u.shadow {
+		return u.shadowEffects
+	}
+	if u == nil {
+		return []content.ItemEffect{}
+	}
+	_, _, _, _, effects := b.activeLootMult(u.UID, time.Now())
+	return effects
+}
+
+func (b *Bot) combatConsumables(u *UserInCombat) []content.Consumable {
+	if u != nil && u.shadow {
+		return u.shadowConsumables
+	}
+	if u == nil {
+		return []content.Consumable{}
+	}
+	return b.getConsumables(u.UID)
+}
+
+func (b *Bot) consumeCombatConsumable(u *UserInCombat, id string, consumeAll bool) {
+	if u == nil {
+		return
+	}
+	if !u.shadow {
+		query := "DELETE FROM user_consumables WHERE ctid IN (SELECT ctid FROM user_consumables WHERE client_uid = $1 AND cons_id = $2 LIMIT 1)"
+		if consumeAll {
+			query = "DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2"
+		}
+		_, _ = b.DB.Exec(
+			query,
+			u.UID,
+			id,
+		)
+		return
+	}
+	for i := 0; i < len(u.shadowConsumables); i++ {
+		if u.shadowConsumables[i].ID != id {
+			continue
+		}
+		u.shadowConsumables = append(
+			u.shadowConsumables[:i],
+			u.shadowConsumables[i+1:]...,
+		)
+		if !consumeAll {
+			return
+		}
+		i--
+	}
 }
 
 func getElementMult(attacker, defender content.Element) float64 {
@@ -445,10 +532,11 @@ func getElementMult(attacker, defender content.Element) float64 {
 // LootResult is one item/gold grant from a resolved fight, ready to log and
 // (optionally) poke the recipient about.
 type LootResult struct {
-	UID      string
-	Note     string
-	Poke     string
-	PityProc bool
+	UID           string
+	Note          string
+	Poke          string
+	PityProc      bool
+	LegendaryDrop bool
 }
 
 // combatTimelineFrame is an authoritative snapshot taken by the combat engine
@@ -466,6 +554,8 @@ type combatTimelineFrame struct {
 	PetName  string `json:"pet_name,omitempty"`
 	PetHP    int    `json:"pet_hp,omitempty"`
 	PetMax   int    `json:"pet_max,omitempty"`
+	Side     string `json:"side,omitempty"`
+	Actions  int    `json:"actions,omitempty"`
 }
 
 func appendCombatTimelineFrame(frames *[]combatTimelineFrame, afterLog, round int, users []activeUser, mobs []*content.Mob) {
@@ -506,6 +596,15 @@ func appendCombatTimelineFrame(frames *[]combatTimelineFrame, afterLog, round in
 	*frames = append(*frames, frame)
 }
 
+func markCombatTimelineExchange(frames *[]combatTimelineFrame, side string, actionLogs int) {
+	if len(*frames) == 0 {
+		return
+	}
+	frame := &(*frames)[len(*frames)-1]
+	frame.Side = side
+	frame.Actions = min(6, max(1, actionLogs))
+}
+
 // ambushDamageCapPct bounds how much of a player's max HP a surprise round (mobs
 // acting before any player has moved) may strip. An ambush can wound but must
 // never be a guaranteed kill — combined with the "never below 1 HP during the
@@ -534,7 +633,7 @@ func bossResist(level, gearScore int) float64 {
 	return r
 }
 
-func (b *Bot) resolveChannelCombatDetailed(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool, []LootResult, []combatTimelineFrame) {
+func (b *Bot) resolveChannelCombatDetailed(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool, []LootResult, []combatTimelineFrame, int) {
 	return b.resolveChannelCombatDetailedWithRandom(
 		users,
 		initialMobs,
@@ -552,7 +651,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 	diffFactor float64,
 	zone content.Zone,
 	random combatRandomSource,
-) ([]string, int, bool, []LootResult, []combatTimelineFrame) {
+) ([]string, int, bool, []LootResult, []combatTimelineFrame, int) {
 	rand := random
 	var logs []string
 	var loots []LootResult
@@ -612,7 +711,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 	}
 	activeUsers := make([]activeUser, len(users))
 	for i := range users {
-		_, _, _, _, effects := b.activeLootMult(users[i].UID, time.Now())
+		effects := b.combatItemEffects(&users[i])
 		activeUsers[i] = activeUser{
 			u: &users[i], effects: effects, treeBonus: users[i].treeBonus,
 			skillCooldowns: map[string]int{}, petCooldowns: map[int]int{},
@@ -623,17 +722,34 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 		activeUsers[i].u.SPDMod = 1.0
 		activeUsers[i].MaxMana = 100 + users[i].Stats.MNA
 		activeUsers[i].CurrentMana = activeUsers[i].MaxMana
-		// Abyss-only combat options (AB-58 pet focus-fire, AB-64 hold mana),
+		// Abyss-only combat options (AAA-0066 pet command, AB-64 hold mana),
 		// persisted in app_meta so no schema change is needed.
 		if abyssCombatant(&users[i]) {
-			activeUsers[i].holdMana = b.abyssHoldMana(users[i].UID)
-			activeUsers[i].petFocus = b.abyssPetFocus(users[i].UID)
-			activeUsers[i].relicCharges = int(b.loadRunFlags(users[i].UID)[abyssRunFlagRelicCharges])
+			if users[i].shadow {
+				activeUsers[i].holdMana = users[i].shadowHoldMana
+				activeUsers[i].petCommand = users[i].shadowPetCommand
+				activeUsers[i].petFocus = users[i].shadowPetFocus
+				activeUsers[i].relicCharges = int(users[i].shadowRunFlags[abyssRunFlagRelicCharges])
+			} else {
+				activeUsers[i].holdMana = b.abyssHoldMana(users[i].UID)
+				activeUsers[i].petCommand = b.loadAbyssPetCommand(users[i].UID)
+				activeUsers[i].petFocus = b.abyssPetFocus(users[i].UID)
+				activeUsers[i].relicCharges = int(b.loadRunFlags(users[i].UID)[abyssRunFlagRelicCharges])
+			}
+			if commandLog := abyssPetCommandOpeningLog(&users[i], activeUsers[i].petCommand); commandLog != "" {
+				logs = append(logs, commandLog)
+			}
+			if shieldLog := initializeAbyssShield(&activeUsers[i]); shieldLog != "" {
+				logs = append(logs, shieldLog)
+			}
 		}
 	}
 	totalRounds := 0
 
 	for w := 1; w <= waves; w++ {
+		if track != nil {
+			track.overkill = 0
+		}
 		var currentMobs []*content.Mob
 		if w == 1 {
 			// Deep copy initial mobs
@@ -763,10 +879,19 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 			// combat RNG one full planning round before the strike lands.
 			if hasAbyssFloorModifier(floorMod, "storm_floor") {
 				if stormSide != "" {
+					stormEnemyHP := make([]int, len(currentMobs))
+					for i, mob := range currentMobs {
+						if mob != nil {
+							stormEnemyHP[i] = mob.Stats.HP
+						}
+					}
 					partyDamage, enemyDamage := strikeAbyssStorm(stormSide, activeUsers, currentMobs)
 					totalMobDamage += partyDamage
 					totalUserDamage += enemyDamage
 					logs = append(logs, abyssStormImpactLog(stormSide, partyDamage+enemyDamage))
+					for i, mob := range currentMobs {
+						appendAbyssExecuteThresholdLog(&logs, mob, stormEnemyHP[i], true)
+					}
 					for i := range activeUsers {
 						if activeUsers[i].u != nil && activeUsers[i].u.CurrentHP <= 0 {
 							_ = b.checkUserRevive(activeUsers[i].u, &logs)
@@ -995,21 +1120,27 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 			}
 
 			if playerStarts {
-				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track, liveActions, rand)
+				userLogStart := len(logs)
+				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track, liveActions, w == 1 && r == 1, rand)
 				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
+				markCombatTimelineExchange(&timeline, "player", len(logs)-userLogStart)
 				if len(b.getAliveMobs(currentMobs)) == 0 {
 					observeLiveResolution()
 					waveVictory = true
 					break
 				}
+				mobLogStart := len(logs)
 				b.mobTurn(activeUsers, currentMobs, zone, intensify*despMult, &logs, &totalMobDamage, &totalUserDamage, r, false, track, rand)
 				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
+				markCombatTimelineExchange(&timeline, "enemy", len(logs)-mobLogStart)
 				observeLiveResolution()
 			} else {
 				// The opening round of an enemy-first wave is the ambush: soften it so
 				// it can't one-shot a player before they ever act.
+				mobLogStart := len(logs)
 				b.mobTurn(activeUsers, currentMobs, zone, intensify*despMult, &logs, &totalMobDamage, &totalUserDamage, r, r == 1, track, rand)
 				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
+				markCombatTimelineExchange(&timeline, "enemy", len(logs)-mobLogStart)
 				aliveUsers := 0
 				for _, u := range users {
 					if u.CurrentHP > 0 {
@@ -1020,8 +1151,10 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 					observeLiveResolution()
 					break
 				}
-				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track, liveActions, rand)
+				userLogStart := len(logs)
+				b.userTurn(activeUsers, &currentMobs, zone, intensify*fatigueMult*despMult, healPenalty, &logs, &totalUserDamage, &totalMobDamage, avgLvl, diffFactor, users, &loots, r, track, liveActions, false, rand)
 				appendCombatTimelineFrame(&timeline, len(logs), r, activeUsers, currentMobs)
+				markCombatTimelineExchange(&timeline, "player", len(logs)-userLogStart)
 				observeLiveResolution()
 				if len(b.getAliveMobs(currentMobs)) == 0 {
 					waveVictory = true
@@ -1052,8 +1185,10 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 						continue
 					}
 					damage := min(abyssFatigueDamage(mob.MaxHP, r), mob.Stats.HP)
+					previousHP := mob.Stats.HP
 					mob.Stats.HP -= damage
 					mobFatigue += damage
+					appendAbyssExecuteThresholdLog(&logs, mob, previousHP, true)
 				}
 				totalMobDamage += userFatigue
 				totalUserDamage += mobFatigue
@@ -1147,11 +1282,15 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 			}
 		}
 	}
-	return logs, finalAwardedXP, victory, loots, timeline
+	terminalOverkill := 0
+	if victory && track != nil {
+		terminalOverkill = track.overkill
+	}
+	return logs, finalAwardedXP, victory, loots, timeline, terminalOverkill
 }
 
 func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool, []LootResult) {
-	logs, xp, victory, loots, _ := b.resolveChannelCombatDetailed(users, initialMobs, avgLvl, diffFactor, zone)
+	logs, xp, victory, loots, _, _ := b.resolveChannelCombatDetailed(users, initialMobs, avgLvl, diffFactor, zone)
 	return logs, xp, victory, loots
 }
 
@@ -1198,7 +1337,9 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 				}
 			}
 			for _, m := range mobs {
+				previousHP := m.Stats.HP
 				m.Stats.HP -= dmg
+				appendAbyssExecuteThresholdLog(logs, m, previousHP, isAbyss)
 			}
 			if round == 1 {
 				*logs = append(*logs, i18n.T("bot.combat.hazard_active", eff.Name))
@@ -1228,7 +1369,9 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 			if delta < 1 {
 				delta = 1
 			}
+			previousHP := m.Stats.HP
 			m.Stats.HP -= delta
+			appendAbyssExecuteThresholdLog(logs, m, previousHP, isAbyss)
 			if round%3 == 0 {
 				line := i18n.T("bot.combat.poison_damage", m.Name, delta, poisonStacks)
 				*logs = append(*logs, markAbyssDoTLog(line, isAbyss))
@@ -1252,7 +1395,7 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 		// Interactive fights let the submitted action/tactic engine decide whether
 		// a potion is worth spending; the legacy engine retains its automatic use.
 		if u.live == nil && u.CurrentHP < u.Stats.HP/2 && healPenalty > 0 {
-			cons := b.getConsumables(u.UID)
+			cons := b.combatConsumables(u)
 			for _, c := range cons {
 				if c.Type == content.ConsumableHealing {
 					healAmt := int(float64(u.Stats.HP) * c.EffectValue)
@@ -1261,8 +1404,7 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 						u.CurrentHP = u.Stats.HP
 					}
 					*logs = append(*logs, i18n.T("bot.combat.consumable_used", u.Nickname, c.Name, healAmt, c.EffectValue*100))
-					// Consume the item
-					_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE ctid IN (SELECT ctid FROM user_consumables WHERE client_uid = $1 AND cons_id = $2 LIMIT 1)", u.UID, c.ID)
+					b.consumeCombatConsumable(u, c.ID, false)
 					break // Only use one potion per round
 				}
 			}
@@ -1306,8 +1448,23 @@ func canUseHeldManaAbility(holdMana, bossPresent, manuallySelected bool) bool {
 	return !holdMana || bossPresent || manuallySelected
 }
 
-func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone content.Zone, intensify, healPenalty float64, logs *[]string, totalUserDamage, totalMobDamage *int, avgLvl int, diffFactor float64, originalUsers []UserInCombat, loots *[]LootResult, round int, track *abyssFightTrack, liveActions map[string]abyssLiveAction, rand combatRandomSource) {
+func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone content.Zone, intensify, healPenalty float64, logs *[]string, totalUserDamage, totalMobDamage *int, avgLvl int, diffFactor float64, originalUsers []UserInCombat, loots *[]LootResult, round int, track *abyssFightTrack, liveActions map[string]abyssLiveAction, openingPlayerPhase bool, rand combatRandomSource) {
 	previousLiveSkillTarget := ""
+	petTurns := abyssPetTurnContext{
+		activeUsers: activeUsers, mobs: mobs, zone: zone, intensify: intensify,
+		logs: logs, totalUserDamage: totalUserDamage, totalMobDamage: totalMobDamage,
+		avgLevel: avgLvl, difficulty: diffFactor, originalUsers: originalUsers,
+		loots: loots, track: track, random: rand,
+	}
+	var openingMobSPD map[*content.Mob]int
+	if openingPlayerPhase {
+		openingMobSPD = make(map[*content.Mob]int, len(*mobs))
+		for _, mob := range *mobs {
+			if mob != nil {
+				openingMobSPD[mob] = abyssEffectiveSpeed(mob.Stats.SPD, mob.SPDMod)
+			}
+		}
+	}
 	for i := range activeUsers {
 		au := &activeUsers[i]
 		u := au.u
@@ -1435,14 +1592,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			continue
 		}
 		if isLiveAction && liveAction.Kind == "companion" {
-			target := liveMobFromTarget(liveAction.TargetID, *mobs)
-			if target == nil || len(u.Pets) == 0 {
+			if !applyAbyssLivePetCommand(au, liveAction, *mobs, logs) {
 				*logs = append(*logs, fmt.Sprintf("⚠️ %s's companion command has no valid target.", u.Nickname))
-				continue
+			} else {
+				b.runAbyssPetTurns(au, petTurns)
 			}
-			au.petFocus = target.Name
-			au.petFocusLogged = false
-			*logs = append(*logs, fmt.Sprintf("🐾 %s commands their companion to focus %s.", u.Nickname, target.Name))
 			continue
 		}
 
@@ -1483,27 +1637,33 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 		var mindControlLevel int
 		var extraHits = 1
 
-		var tName sql.NullString
-		_ = b.DB.QueryRow("SELECT title FROM users WHERE client_uid=$1", u.UID).Scan(&tName)
-		if tName.Valid {
-			if t, ok := content.GetTitleByName(tName.String); ok {
-				lifesteal = t.Lifesteal
-				multiStrike = t.MultiStrike
-			}
-		}
-
-		// Calculate Mind Control Level
-		rows, _ := b.DB.Query("SELECT gear_id FROM user_gear WHERE client_uid = $1", u.UID)
-		if rows != nil {
-			for rows.Next() {
-				var gid string
-				if err := rows.Scan(&gid); err == nil {
-					if g, ok := content.GetGearByID(gid); ok && g.Special == content.EffectMindControl {
-						mindControlLevel += int(g.Rarity) + 1
-					}
+		if u.shadow {
+			lifesteal = u.shadowLifesteal
+			multiStrike = u.shadowMultiStrike
+			mindControlLevel = u.shadowMindControl
+		} else {
+			var tName sql.NullString
+			_ = b.DB.QueryRow("SELECT title FROM users WHERE client_uid=$1", u.UID).Scan(&tName)
+			if tName.Valid {
+				if t, ok := content.GetTitleByName(tName.String); ok {
+					lifesteal = t.Lifesteal
+					multiStrike = t.MultiStrike
 				}
 			}
-			_ = rows.Close()
+
+			// Calculate Mind Control Level.
+			rows, _ := b.DB.Query("SELECT gear_id FROM user_gear WHERE client_uid = $1", u.UID)
+			if rows != nil {
+				for rows.Next() {
+					var gid string
+					if err := rows.Scan(&gid); err == nil {
+						if g, ok := content.GetGearByID(gid); ok && g.Special == content.EffectMindControl {
+							mindControlLevel += int(g.Rarity) + 1
+						}
+					}
+				}
+				_ = rows.Close()
+			}
 		}
 		for _, s := range u.Skills {
 			if s.Special == content.EffectMindControl {
@@ -1554,9 +1714,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				liveHitKind = "attack"
 			}
 			var target *content.Mob
+			isAllySkill := false
 			if isLiveAction {
 				target = liveMobFromTarget(liveAction.TargetID, *mobs)
-				isAllySkill := liveHitKind == "skill" && strings.HasPrefix(liveAction.TargetID, "ally:")
+				isAllySkill = liveHitKind == "skill" && strings.HasPrefix(liveAction.TargetID, "ally:")
 				if target == nil && !isAllySkill && liveHitKind != "attack" {
 					*logs = append(*logs, fmt.Sprintf("⚠️ %s's target is no longer valid; the action fizzles.", u.Nickname))
 					break
@@ -1570,8 +1731,24 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					target = aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
 				}
 			}
+			if !isAllySkill {
+				recordAbyssPetFocus(au, target)
+			}
+			targetSPD, targetSPDModifier := target.Stats.SPD, target.SPDMod
+			if openingSPD, ok := openingMobSPD[target]; ok {
+				targetSPD, targetSPDModifier = openingSPD, 1
+			}
+			firstStrike := calculateAbyssFirstStrike(
+				abyssCombatant(u) && openingPlayerPhase && h == 0,
+				u.Stats.SPD,
+				u.SPDMod,
+				targetSPD,
+				targetSPDModifier,
+			)
 
 			dmgMult := focusDmg
+			attackElement := abyssEquippedAttackElement(u.Equipped)
+			stunnedThisHit := false
 			if comboFollowup {
 				dmgMult *= 1.15
 				*logs = append(*logs, fmt.Sprintf("🔗 %s follows the party's skill order on the same target — combo +15%%!", u.Nickname))
@@ -1592,7 +1769,12 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 
 			// Spell cost and cast check
-			st := b.loadAbyssStats(u.UID)
+			st := abyssStats{}
+			if u.shadow {
+				st.UpInsight = u.shadowUpInsight
+			} else {
+				st = b.loadAbyssStats(u.UID)
+			}
 			spellCostFor := func(base int) int {
 				if base <= 0 {
 					base = 20
@@ -1626,17 +1808,13 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					selectedSkill = findLiveSkill(u, liveAction.AbilityID)
 				}
 				manuallySelectedSkill = selectedSkill != nil
-			} else if !isLiveAction && !holdCast && len(u.Skills) > 0 && au.CurrentMana >= spellCost && rand.Float64() < 0.3 { // #nosec G404
-				available := make([]int, 0, len(u.Skills))
-				for skillIndex := range u.Skills {
-					if au.skillCooldowns[u.Skills[skillIndex].ID] == 0 {
-						available = append(available, skillIndex)
-					}
-				}
-				if len(available) > 0 {
-					// #nosec G404 -- legacy automatic skill selection
-					selectedSkill = &u.Skills[available[rand.IntN(len(available))]] // #nosec G404
-				}
+			} else if !isLiveAction && !holdCast && len(u.Skills) > 0 && rand.Float64() < 0.3 { // #nosec G404
+				selectedSkill = firstReadyAffordableSkill(
+					u.Skills,
+					au.skillCooldowns,
+					au.CurrentMana,
+					spellCostFor,
+				)
 			}
 			if selectedSkill != nil {
 				spellCost = spellCostFor(selectedSkill.ManaCost)
@@ -1647,6 +1825,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				overcharged := abyssCombatant(u) && au.CurrentMana >= au.MaxMana
 				au.CurrentMana -= spellCost
 				if abyssCombatant(u) {
+					recordAbyssSkillVariety(u, s, activeUsers, logs)
 					if mastery := b.recordAbyssSkillUse(u.UID, s.ID); mastery > 0 && mastery%25 == 0 && mastery <= 100 {
 						*logs = append(*logs, fmt.Sprintf("🏅 %s mastery reached %d casts — its future runs gain +5%% power.", s.Name, mastery))
 					}
@@ -1664,6 +1843,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 
 				castElement := abyssSkillElement(s, u.Equipped)
+				attackElement = castElement
 				repeatCount := 0
 				if au.lastSkillID == s.ID {
 					repeatCount = au.skillRepeatCount + 1
@@ -1742,6 +1922,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					}
 					target.Stats.SPD = 0
 					target.StunRounds = max(target.StunRounds, max(1, skillModifiers.EffectRounds))
+					stunnedThisHit = abyssCombatant(u)
 				}
 			} else {
 				au.lastSkillID = "" // Reset combo if no skill used
@@ -1752,6 +1933,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			// Pure support cast (e.g. Arcane Shield): the heal already applied
 			// above, so skip the rest of the attack resolution — no mob damage.
 			if skipDamage {
+				armAbyssWeaknessWindow(target, stunnedThisHit, logs)
 				continue
 			}
 
@@ -1762,7 +1944,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			// endpoint is web-layer work (noted in the group-C report).
 			if abyssCombatant(u) && !au.weaponSwapped && (target.Type == content.MobBoss || target.Type == content.MobLegendary) {
 				if mh, ok := u.Equipped[content.SlotMainHand]; ok && getElementMult(mh.Element, target.Element) < 1.0 {
-					if backup, found := b.findBackupWeapon(u.UID, target.Element, mh.ID); found {
+					if backup, found := b.findCombatBackupWeapon(u, target.Element, mh.ID); found {
 						u.Equipped[content.SlotMainHand] = backup
 						au.weaponSwapped = true
 						au.Stunned = true // 1-round penalty: the swap costs the next action
@@ -1771,19 +1953,19 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			}
 
-			// Elemental System (Improvement 1)
-			// Determine user's active element from MainHand
-			userElement := content.ElementPhysical
-			if mh, ok := u.Equipped[content.SlotMainHand]; ok {
-				userElement = mh.Element
-			}
-			elementMult := getElementMult(userElement, target.Element)
+			// Elemental System (Improvement 1). Skills use their authoritative
+			// cast element; basic attacks and ultimates use the equipped element.
+			elementMult := getElementMult(attackElement, target.Element)
 			if elementMult > 1.0 {
-				*logs = append(*logs, i18n.T("bot.combat.element_effective", userElement, target.Element))
+				*logs = append(*logs, i18n.T("bot.combat.element_effective", attackElement, target.Element))
 			} else if elementMult < 1.0 {
-				*logs = append(*logs, i18n.T("bot.combat.element_weak", userElement, target.Element))
+				*logs = append(*logs, i18n.T("bot.combat.element_weak", attackElement, target.Element))
 			}
 			dmgMult *= elementMult
+			if abyssCombatant(u) && abyssRuneResonates(u.Equipped, attackElement) {
+				dmgMult = applyAbyssRuneResonance(dmgMult, u.Equipped, attackElement)
+				*logs = append(*logs, fmt.Sprintf("🧿 Rune resonance! %s's %s rune matches the attack — +5%% damage.", u.Nickname, attackElement))
+			}
 
 			// Position Bonus (Improvement 2)
 			if u.Position == content.PositionBackline {
@@ -1866,26 +2048,28 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if dmg < 1 {
 				dmg = 1
 			}
+			if firstStrike.BonusPct > 0 {
+				dmg = applyAbyssFirstStrike(dmg, firstStrike)
+				*logs = append(*logs, abyssFirstStrikeLog(u.Nickname, target.Name, firstStrike))
+			}
+			secondaryBaseDamage := dmg
+			weaknessCritical := false
 
-			// Abyss crit & fumble (AB-72 fumble recovery, AB-62 focus crit bonus).
+			// Abyss criticals (AB-62 focus crit bonus).
 			// The CRT stat is displayed as "Crit %" in the armory but was never
 			// rolled in combat — the Abyss path now rolls it (×2 damage, capped).
 			if abyssCombatant(u) {
-				// #nosec G404 -- non-cryptographic combat roll
-				if rand.Float64() < 0.03 {
-					// Fumble: half damage, but the next hit gets +10% crit.
-					dmg = dmg / 2
-					if dmg < 1 {
-						dmg = 1
-					}
-					au.fumbled = true
-					*logs = append(*logs, fmt.Sprintf("😳 %s fumbles their attack! (Half damage — the next hit is fueled by embarrassed rage)", u.Nickname))
-				} else {
+				dmg, weaknessCritical = resolveAbyssWeaknessCritical(
+					abyssWeaknessCriticalContext{
+						target: target,
+						user:   au,
+						track:  track,
+						logs:   logs,
+					},
+					dmg,
+				)
+				if !weaknessCritical {
 					critPct := u.Stats.CRT + focusCrit
-					if au.fumbled {
-						critPct += 10 // AB-72 embarrassed rage
-						au.fumbled = false
-					}
 					if critPct > 50 {
 						critPct = 50
 					}
@@ -1895,12 +2079,19 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 						*logs = append(*logs, fmt.Sprintf("💥 CRITICAL HIT! %s lands a devastating blow on %s!", u.Nickname, target.Name))
 					}
 				}
+				if line := abyssCriticalFumbleLog(u.Nickname, target.Name, true, defaultAbyssDramaRandom{}); line != "" {
+					*logs = append(*logs, line)
+				}
+			}
+			if !weaknessCritical {
+				secondaryBaseDamage = dmg
 			}
 
 			// Daily affix: Execute — strikes land 50% harder on targets below 30% HP.
 			executeAffix := strings.Contains(u.FloorModifier, "execute") && target.MaxHP > 0 && target.Stats.HP*10 < target.MaxHP*3
 			if executeAffix {
 				dmg = dmg * 3 / 2
+				secondaryBaseDamage = secondaryBaseDamage * 3 / 2
 			}
 
 			// Executioner affix: +25% damage to targets below 30% HP (stacks with
@@ -1910,6 +2101,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				for _, eff := range au.effects {
 					if eff == content.EffectExecutioner {
 						dmg = dmg * 5 / 4
+						secondaryBaseDamage = secondaryBaseDamage * 5 / 4
 						executioner = true
 						break
 					}
@@ -1920,6 +2112,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			// flourish and an extra +5%.
 			if executeAffix && executioner {
 				dmg = dmg * 21 / 20
+				secondaryBaseDamage = secondaryBaseDamage * 21 / 20
 				if !au.execFlourished {
 					au.execFlourished = true
 					*logs = append(*logs, fmt.Sprintf("⚔️ EXECUTIONER'S FLOURISH! %s's blade sings on Execute day — both bonuses stack with an extra +5%%!", u.Nickname))
@@ -1929,10 +2122,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			killerBaseDamage := dmg
 			dmg = abyssKillerDamage(killerBaseDamage, u, target)
 			remainingHP := target.Stats.HP
-			overkill := max(0, dmg-remainingHP)
 			massiveOverkill := abyssOverkillHit(dmg, remainingHP)
 			target.Stats.HP -= dmg
+			appendAbyssExecuteThresholdLog(logs, target, remainingHP, abyssCombatant(u))
 			applyAbyssBreakDamage(target, dmg, logs)
+			armAbyssWeaknessWindow(target, stunnedThisHit, logs)
 			*totalUserDamage += dmg
 
 			// #nosec G404 -- non-cryptographic flavour-text roll
@@ -1959,12 +2153,14 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 						}
 					}
 					if chainTarget != nil {
-						chainDmg := killerBaseDamage / 2
+						chainDmg := secondaryBaseDamage / 2
 						if chainDmg < 1 {
 							chainDmg = 1
 						}
 						chainDmg = abyssKillerDamage(chainDmg, u, chainTarget)
+						chainRemainingHP := chainTarget.Stats.HP
 						chainTarget.Stats.HP -= chainDmg
+						appendAbyssExecuteThresholdLog(logs, chainTarget, chainRemainingHP, abyssCombatant(u))
 						applyAbyssBreakDamage(chainTarget, chainDmg, logs)
 						*totalUserDamage += chainDmg
 					}
@@ -1974,14 +2170,21 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			// Mind Control Logic (Scale with level). At the three-pet cap, preserve
 			// a successful capture as a restart-safe decision instead of silently
 			// discarding it or overwriting an existing companion.
-			if abyssCanAttemptPetCapture(len(u.Pets), mindControlLevel, au.petCaptureAttempted) &&
+			captureLimit := abyssPetCaptureLimitWithBonus(mindControlLevel, int(au.treeBonus.Pct["pet_cap"]))
+			if abyssCanAttemptPetCaptureAtLimit(len(u.Pets), captureLimit, au.petCaptureAttempted) &&
 				target.Stats.HP > 0 && float64(target.Stats.HP) < float64(target.Level*20)*0.2 {
 				// #nosec G404
-				if rand.Float64() < 0.5 { // #nosec G404
+				if rand.Float64() < abyssPetCaptureChance(target.Type) { // #nosec G404
 					captured := false
 					candidate := *target
+					candidate.PetBoss = target.Type == content.MobBoss
+					candidate.PetShiny = rand.Float64() < 0.01 // #nosec G404 -- cosmetic rarity roll
 					abyssMindControlCapture(&candidate)
-					result, err := b.persistAbyssPetCapture(u.UID, &candidate, abyssPetCaptureLimit(mindControlLevel))
+					result := abyssPetCaptureRecruited
+					var err error
+					if !u.shadow {
+						result, err = b.persistAbyssPetCapture(u.UID, &candidate, captureLimit)
+					}
 					switch {
 					case err != nil:
 						au.petCaptureAttempted = true
@@ -2049,14 +2252,26 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					b.awardCombatLoot(winner, *target, zone, logs, loots)
 				}
 				b.handleDeathEffects(target, mobs, logs, avgLvl, diffFactor, activeUsers, rand)
+				if track != nil {
+					if overkill := abyssTerminalOverkillDamage(*mobs, target, dmg, remainingHP); overkill > 0 {
+						track.overkill = overkill
+					}
+				}
 			}
-			if isLiveAction && overkill > 1 && liveHitKind != "item" {
+			cleaveTriggerDamage := dmg
+			if weaknessCritical {
+				cleaveTriggerDamage = abyssKillerDamage(secondaryBaseDamage, u, target)
+			}
+			secondaryOverkill := max(0, secondaryBaseDamage-remainingHP)
+			if isLiveAction && cleaveTriggerDamage-remainingHP > 1 && liveHitKind != "item" {
 				cleaveTarget := lowestHealthMobExcept(*mobs, target)
 				if cleaveTarget != nil {
-					cleaveDamage := max(1, max(0, killerBaseDamage-remainingHP)/2)
+					cleaveDamage := max(1, secondaryOverkill/2)
 					cleaveDamage = abyssKillerDamage(cleaveDamage, u, cleaveTarget)
-					cleaveOverkill := abyssOverkillHit(cleaveDamage, cleaveTarget.Stats.HP)
+					cleaveRemainingHP := cleaveTarget.Stats.HP
+					cleaveOverkill := abyssOverkillHit(cleaveDamage, cleaveRemainingHP)
 					cleaveTarget.Stats.HP -= cleaveDamage
+					appendAbyssExecuteThresholdLog(logs, cleaveTarget, cleaveRemainingHP, abyssCombatant(u))
 					applyAbyssBreakDamage(cleaveTarget, cleaveDamage, logs)
 					*totalUserDamage += cleaveDamage
 					*logs = append(*logs, fmt.Sprintf("🪓 %s's overkill cleaves %s for %d damage!", u.Nickname, cleaveTarget.Name, cleaveDamage))
@@ -2067,6 +2282,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 							b.awardCombatLoot(winner, *cleaveTarget, zone, logs, loots)
 						}
 						b.handleDeathEffects(cleaveTarget, mobs, logs, avgLvl, diffFactor, activeUsers, rand)
+						if track != nil {
+							if overkill := abyssTerminalOverkillDamage(*mobs, cleaveTarget, cleaveDamage, cleaveRemainingHP); overkill > 0 {
+								track.overkill = overkill
+							}
+						}
 					}
 				}
 			}
@@ -2075,129 +2295,16 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 		}
 
-		// Pet actions: each active formation slot carries one visible ability with
-		// an independent cooldown, then falls back to its normal attack.
-		for petIdx, p := range u.Pets {
-			if p.Stats.HP <= 0 {
-				continue
-			}
-			if abyssCombatant(u) && abyssPetNervous(p.Loyalty) && !au.petNervousLogged[p] {
-				au.petNervousLogged[p] = true
-				*logs = append(*logs, fmt.Sprintf("🐾 %s hangs back, eyes darting toward the exit. (Loyalty %d%% — betrayal risk)", p.Name, p.Loyalty))
-			}
-
-			// Betrayal check (3% chance)
-			betrayalChance := 0.03
-			if red := au.treeBonus.Pct["pet_betrayal_reduce"]; red > 0 {
-				betrayalChance -= red
-				if betrayalChance < 0 {
-					betrayalChance = 0
-				}
-			}
-			if rand.Float64() < betrayalChance { // #nosec G404
-				p.Loyalty = max(0, p.Loyalty-5)
-				// #nosec G404
-				targetAU := activeUsers[rand.IntN(len(activeUsers))] // #nosec G404
-				target := targetAU.u
-				if target.CurrentHP > 0 {
-					pdmg := int(float64(p.Stats.STR-target.Stats.DEF) * intensify)
-					if pdmg < 1 {
-						pdmg = 1
-					}
-					target.DamageTaken += pdmg
-					target.CurrentHP -= pdmg
-					*logs = append(*logs, i18n.T("bot.combat.rogue_pet_bite", p.Name, target.Nickname, pdmg))
-					*totalMobDamage += pdmg
-					if target.CurrentHP <= 0 {
-						target.CurrentHP = 0
-						if !b.checkUserRevive(target, logs) {
-							*logs = append(*logs, i18n.T("bot.combat.slain_by_pet", target.Nickname, p.Name))
-						}
-					}
-					continue
-				}
-			}
-
-			ability, hasAbility := abyssPetAbilityForSlot(petIdx + 1)
-			abilityReady := hasAbility && au.petCooldowns[petIdx] == 0
-			if abilityReady && ability.Kind == "heal" && abyssPetAutoskillEnabled(u.petHealEnabled, p.Name) {
-				var bestTarget *UserInCombat
-				lowestHPPct := 1.0
-				for k := range activeUsers {
-					targetU := activeUsers[k].u
-					if targetU.CurrentHP > 0 && targetU.CurrentHP < targetU.Stats.HP {
-						pct := float64(targetU.CurrentHP) / float64(targetU.Stats.HP)
-						if pct < lowestHPPct {
-							lowestHPPct = pct
-							bestTarget = targetU
-						}
-					}
-				}
-				if bestTarget != nil {
-					healAmt := int(float64(bestTarget.Stats.HP)*ability.PowerScale) + p.Level*3
-					if healAmt < 10 {
-						healAmt = 10
-					}
-					bestTarget.CurrentHP += healAmt
-					if bestTarget.CurrentHP > bestTarget.Stats.HP {
-						healAmt -= (bestTarget.CurrentHP - bestTarget.Stats.HP)
-						bestTarget.CurrentHP = bestTarget.Stats.HP
-					}
-					setAbyssPetAbilityCooldown(au, petIdx, ability.Cooldown)
-					*logs = append(*logs, fmt.Sprintf("✨ [color=#4caf50]%s's Pet %s casts %s on %s, restoring %d HP! (Cooldown: %d rounds)[/color]", u.Nickname, p.Name, ability.Name, bestTarget.Nickname, healAmt, ability.Cooldown))
-					continue
-				}
-			}
-
-			aliveMobs := b.getAliveMobs(*mobs)
-			if len(aliveMobs) == 0 {
-				break
-			}
-			ptarget := petFocusTarget(aliveMobs, au.petFocus)
-			if ptarget != nil && !au.petFocusLogged {
-				au.petFocusLogged = true
-				*logs = append(*logs, fmt.Sprintf("🎯 %s focuses %s on %s.", u.Nickname, p.Name, ptarget.Name))
-			}
-			if ptarget == nil {
-				// #nosec G404 -- legacy random pet targeting fallback
-				ptarget = aliveMobs[rand.IntN(len(aliveMobs))] // #nosec G404
-			}
-			petDmgMult := 1.0
-			if bonus := au.treeBonus.Pct["pet_damage_pct"]; bonus > 0 {
-				petDmgMult += bonus
-			}
-			petDmgMult *= abyssTreeActionMultiplier(au.treeBonus, "companion_skill_power")
-			usesAttackAbility := abilityReady && ability.Kind == "attack"
-			if usesAttackAbility {
-				petDmgMult *= ability.PowerScale
-			}
-			pdmg := int(float64(p.Stats.STR-ptarget.Stats.DEF) * petDmgMult * intensify)
-			if pdmg < 1 {
-				pdmg = 1
-			}
-			pdmg = abyssKillerDamage(pdmg, u, ptarget)
-			petOverkill := abyssOverkillHit(pdmg, ptarget.Stats.HP)
-			ptarget.Stats.HP -= pdmg
-			applyAbyssBreakDamage(ptarget, pdmg, logs)
-			*totalUserDamage += pdmg
-			if usesAttackAbility {
-				setAbyssPetAbilityCooldown(au, petIdx, ability.Cooldown)
-				*logs = append(*logs, fmt.Sprintf("🦷 %s uses %s on %s for %d damage! (Cooldown: %d rounds)", p.Name, ability.Name, ptarget.Name, pdmg, ability.Cooldown))
-			}
-			if ptarget.Stats.HP <= 0 {
-				killLog := i18n.T("bot.combat.killed_by_pet", ptarget.Name, p.Name)
-				*logs = append(*logs, markAbyssOverkillLog(killLog, abyssCombatant(u) && petOverkill))
-				// Clones (co-op helpers) are excluded so loot never persists for them.
-				if winner := randomLootEligibleUser(originalUsers, rand); winner != nil {
-					b.awardCombatLoot(winner, *ptarget, zone, logs, loots)
-				}
-				b.handleDeathEffects(ptarget, mobs, logs, avgLvl, diffFactor, activeUsers, rand)
-			}
-		}
-
+		b.runAbyssPetTurns(au, petTurns)
 		if len(b.getAliveMobs(*mobs)) == 0 {
 			break
 		}
+	}
+
+	// A rescued delver is one server-owned party action per round, not one
+	// action per player. Resolve it after every real player and pet has acted.
+	if overkill := b.applyAbyssRescueSupportTurn(activeUsers, mobs, zone, intensify, logs, totalUserDamage, avgLvl, diffFactor, originalUsers, loots, rand); track != nil && overkill > 0 {
+		track.overkill = overkill
 	}
 }
 
@@ -2247,12 +2354,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			}
 		}
 		if targetAU == nil {
-			potentialTargets := make([]int, 0, len(activeUsers))
-			for i := range activeUsers {
-				if activeUsers[i].u != nil && activeUsers[i].u.CurrentHP > 0 {
-					potentialTargets = append(potentialTargets, i)
-				}
-			}
+			potentialTargets := abyssCombatTargetIndices(activeUsers)
 			if len(potentialTargets) == 0 {
 				continue
 			}
@@ -2299,10 +2401,15 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 				counterDmg = 1
 			}
 			counterDmg = abyssKillerDamage(counterDmg, target, m)
+			remainingHP := m.Stats.HP
 			m.Stats.HP -= counterDmg
+			appendAbyssExecuteThresholdLog(logs, m, remainingHP, abyssCombatant(target))
 			*totalUserDamage += counterDmg
 			if track != nil {
 				track.counters += counterDmg
+				if overkill := abyssTerminalOverkillDamage(mobs, m, counterDmg, remainingHP); overkill > 0 {
+					track.overkill = overkill
+				}
 			}
 			if abyssCombatant(target) {
 				targetAU.parryCount++
@@ -2456,8 +2563,27 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 		if strings.Contains(target.FloorModifier, "iron_skin") {
 			dmg = dmg * 7 / 10
 		}
+		dmg, guarded := mitigateAbyssPetGuard(targetAU, dmg)
+		if guarded > 0 {
+			if track != nil {
+				track.petGuards += guarded
+			}
+			if !targetAU.petGuardLogged {
+				targetAU.petGuardLogged = true
+				pet := abyssGuardingPet(targetAU)
+				*logs = append(*logs, fmt.Sprintf("🐾 %s guards %s, intercepting %d%% of direct-hit damage.", pet.Name, target.Nickname, abyssPetGuardPercent))
+			}
+		}
 
-		target.DamageTaken += max(dmg, 0)
+		impactDamage := max(dmg, 0)
+		dmg, absorbed := absorbAbyssShield(targetAU, impactDamage)
+		if absorbed > 0 {
+			if track != nil {
+				track.shields += absorbed
+			}
+			*logs = append(*logs, abyssShieldAbsorbLog(target.Nickname, absorbed, targetAU.shield))
+		}
+		target.DamageTaken += dmg
 		target.CurrentHP -= dmg
 		*totalMobDamage += dmg
 
@@ -2482,19 +2608,24 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			hasSpikes = true
 		}
 		for _, eff := range targetAU.effects {
-			if eff == content.EffectThorns && dmg > 0 {
-				reflect := dmg / 10
+			if eff == content.EffectThorns && impactDamage > 0 {
+				reflect := impactDamage / 10
 				if hasSpikes {
-					reflect = dmg * 3 / 10 // Thorns boosted to 30% with Spikes/shield!
+					reflect = impactDamage * 3 / 10 // Thorns boosted to 30% with Spikes/shield!
 				}
 				if reflect < 1 {
 					reflect = 1
 				}
 				reflect = abyssKillerDamage(reflect, target, m)
+				remainingHP := m.Stats.HP
 				m.Stats.HP -= reflect
+				appendAbyssExecuteThresholdLog(logs, m, remainingHP, abyssCombatant(target))
 				*totalUserDamage += reflect
 				if track != nil {
 					track.thorns += reflect
+					if overkill := abyssTerminalOverkillDamage(mobs, m, reflect, remainingHP); overkill > 0 {
+						track.overkill = overkill
+					}
 				}
 			}
 		}
@@ -2509,6 +2640,16 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 	logs = append(logs, i18n.T("bot.combat.summary_party", colorHeal(totalUserDamage), damageBar(totalUserDamage, totalDamage)))
 	logs = append(logs, i18n.T("bot.combat.summary_mobs", colorDmg(totalMobDamage), damageBar(totalMobDamage, totalDamage)))
 	logs = appendAbyssFightBreakdown(logs, track)
+	allShadow := len(users) > 0
+	for i := range users {
+		allShadow = allShadow && users[i].shadow
+	}
+	if allShadow {
+		if victory {
+			logs = append(logs, i18n.T("bot.combat.victory", len(initialMobs), zone.Name))
+		}
+		return logs, 0, victory
+	}
 
 	// Update pity, quests, consumables AND persistent stats
 	for i := range users {
@@ -3667,7 +3808,7 @@ func (b *Bot) equipSkill(uid string, newSkill content.Skill) (int, bool) {
 }
 
 func (b *Bot) getSkills(uid string) []content.Skill {
-	rows, err := b.DB.Query("SELECT skill_id FROM user_skills WHERE client_uid = $1", uid)
+	rows, err := b.DB.Query("SELECT skill_id FROM user_skills WHERE client_uid = $1 ORDER BY slot", uid)
 	if err != nil {
 		return nil
 	}

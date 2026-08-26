@@ -2,7 +2,7 @@
 <section class="abyss-social-hub" id="abyssSocialHub" data-abyss-section="social">
   <header class="ab-social-title">
     <div><span class="ab-kicker">FELLOWSHIP NETWORK</span><h2>Companions, rivals &amp; world threats</h2></div>
-    <p>Persistent relationships and server-wide challenges. Every reward is settled by the server.</p>
+    <p>Persistent relationships and server-wide challenges. Every reward is settled by the server. <a class="ghost xs" href="/abyss/plaza">🏛 Visit the Hall of Delvers</a></p>
   </header>
   <div class="ab-social-grid">
     <article class="ab-social-card ab-pet-command">
@@ -22,9 +22,11 @@
       {{end}}
       <div class="ab-pet-list">
       {{range .Pets}}
-        <div class="ab-pet-card" data-pet-id="{{.ID}}">
-          <div class="ab-pet-head"><strong>{{.MoodIcon}} {{.Name}}</strong><span class="ab-mood {{.Mood}}">{{.Mood}} {{if gt .MoodPct 0}}+{{end}}{{.MoodPct}}%</span></div>
-          <div class="ab-pet-stats"><span>Lv {{.Level}} {{.Type}}</span><span>♥ {{comma .HP}}/{{comma .MaxHP}}</span><span>⚔ {{comma .STR}}</span><span>🛡 {{comma .DEF}}</span><span>➤ {{comma .SPD}}</span></div>
+        <div class="ab-pet-card {{if .Favorite}}favorite{{end}} {{if .Shiny}}shiny{{end}}" data-pet-id="{{.ID}}" data-pet-art-key="pet:{{.ID}}:{{.Type}}">
+          <span class="ab-pixel-icon ab-pet-pixel" aria-hidden="true"></span>
+          <div class="ab-pet-head"><strong>{{if .Favorite}}★ {{end}}{{if .Shiny}}✦ {{end}}{{.MoodIcon}} <span data-pet-name>{{.Name}}</span></strong><span class="ab-mood {{.Mood}}">{{.Mood}} {{if gt .MoodPct 0}}+{{end}}{{.MoodPct}}%</span></div>
+          <div class="ab-pet-stats"><span>Lv {{.Level}} {{.Type}}{{if .BossVariant}} · boss variant{{end}}</span><span class="ab-pet-class">{{.Class}}</span><span>♥ {{comma .HP}}/{{comma .MaxHP}}</span><span>⚔ {{comma .STR}}</span><span>🛡 {{comma .DEF}}</span><span>➤ {{comma .SPD}}</span></div>
+          <div class="ab-pet-growth"><span>Bond XP {{comma .XP}} / {{comma .XPNext}}</span><progress max="{{.XPNext}}" value="{{.XP}}"></progress><span>Loyalty {{.Loyalty}}% · +{{.LoyaltyPct}}% combat stats</span></div>
           <div class="ab-pet-equipment" title="Pet-only equipment; these stats do not affect your delver.">🔗 {{.Equipment}}</div>
           <div class="ab-pet-equipment" title="Ability cooldowns tick once after every combat round.">⚡ {{.Ability}}</div>
           <div class="ab-pet-actions">
@@ -35,6 +37,10 @@
             </select></label>
             <label class="ab-toggle"><input type="checkbox" {{if .HealEnabled}}checked{{end}} onchange="abyssPetAutoskill({{.ID}},this.checked)"> auto-heal</label>
             <button class="ghost xs" onclick="abyssPetTrain({{.ID}},this)" {{if ge .Training 3}}disabled{{end}}>Train 1000g · {{.Training}}/3</button>
+            <button class="ghost xs" onclick="abyssPetFeed({{.ID}},this)">Feed {{$.Social.PetFeedCost}}g</button>
+            <button class="ghost xs" onclick="abyssPetRename({{.ID}},this)">Rename</button>
+            <button class="ghost xs" onclick="abyssPetManage({{.ID}},'favorite',{},this)">{{if .Favorite}}Unfavorite{{else}}Favorite{{end}}</button>
+            <button class="danger xs" onclick="abyssPetRelease({{.ID}},{{if .Favorite}}true{{else}}false{{end}},this)">Release</button>
           </div>
         </div>
       {{else}}<div class="ab-social-empty">Capture an enemy with Mind Control to recruit your first companion.</div>{{end}}
@@ -89,9 +95,18 @@
 {{end}}{{end}}
 
 {{define "abyssSocialHubJS"}}
+function decorateAbyssPetCards(){
+  document.querySelectorAll('.ab-pet-card[data-pet-art-key]').forEach(function(card){
+    applyAbUniquePixelIcon(card.querySelector('.ab-pet-pixel'),[0,0],card.dataset.petArtKey,'pets');
+  });
+}
 async function abyssPetTrain(id,button){if(button)button.disabled=true;var d=await abPost('/api/abyss/social/pet/train',{pet_id:id});abToast(d.msg||d.error,!!d.ok);if(d.ok){setGold(d.gold);setTimeout(function(){location.reload();},450);}else if(button)button.disabled=false;}
 async function abyssPetSlot(id,slot){var d=await abPost('/api/abyss/social/pet/slot',{pet_id:id,slot:Number(slot)});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);}
 async function abyssPetAutoskill(id,enabled){var d=await abPost('/api/abyss/social/pet/autoskill',{pet_id:id,ability:'heal',enabled:enabled});abToast(d.msg||d.error,!!d.ok);}
+async function abyssPetManage(id,action,extra,button){if(button)button.disabled=true;var body=Object.assign({pet_id:id,action:action},extra||{}),d=await abPost('/api/abyss/social/pet/manage',body);abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},300);else if(button)button.disabled=false;return d;}
+function abyssPetRename(id,button){var card=button&&button.closest('.ab-pet-card'),nameNode=card&&card.querySelector('[data-pet-name]'),current=nameNode?nameNode.textContent.trim():'';var name=window.prompt('Companion name (1–24 characters):',current);if(name!==null)abyssPetManage(id,'rename',{name:name},button);}
+function abyssPetRelease(id,favorite,button){var card=button&&button.closest('.ab-pet-card'),nameNode=card&&card.querySelector('[data-pet-name]'),name=nameNode?nameNode.textContent.trim():'this companion';var warning=favorite?'This is a favorite. Permanently release '+name+'?':'Permanently release '+name+'?';if(!window.confirm(warning))return;abyssPetManage(id,'release',{confirm_favorite:!!favorite},button);}
+async function abyssPetFeed(id,button){if(button)button.disabled=true;var d=await abPost('/api/abyss/social/pet/feed',{pet_id:id});abToast(d.msg||d.error,!!d.ok);if(d.ok){setGold(d.gold);setTimeout(function(){location.reload();},300);}else if(button)button.disabled=false;}
 async function abyssResolvePetCapture(id,button){var name=button&&button.dataset?String(button.dataset.name||''):'';if(name&&!confirm('Release '+name+' and recruit the pending capture?'))return;var d=await abPost('/api/abyss/social/pet/capture/resolve',{release_pet_id:Number(id),decline:false});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);}
 async function abyssDeclinePetCapture(){if(!confirm('Release the newly captured companion?'))return;var d=await abPost('/api/abyss/social/pet/capture/resolve',{release_pet_id:0,decline:true});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);}
 async function abyssBankFeedToggle(enabled){var d=await abPost('/api/abyss/social/bank_feed',{enabled:enabled});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},300);}

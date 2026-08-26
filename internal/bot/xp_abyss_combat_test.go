@@ -15,12 +15,92 @@ func TestAppendAbyssFightBreakdown(t *testing.T) {
 		t.Fatalf("non-Abyss breakdown added %d lines, want none", len(got)-1)
 	}
 
-	got := appendAbyssFightBreakdown(base, &abyssFightTrack{thorns: 125, counters: 80})
+	got := appendAbyssFightBreakdown(base, &abyssFightTrack{
+		thorns: 125, counters: 80, shields: 240, weaknessCrits: 2,
+	})
 	joined := strings.Join(got, "\n")
-	for _, want := range []string{"Thorns reflected: 125 damage", "Parry counter-attacks: 80 damage"} {
+	for _, want := range []string{
+		"Thorns reflected: 125 damage", "Parry counter-attacks: 80 damage",
+		"Aegis absorbed: 240 damage", "Weakness criticals: 2 guaranteed",
+	} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("breakdown %q does not contain %q", joined, want)
 		}
+	}
+}
+
+func TestAbyssOverkillDamage(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		damage      int
+		remainingHP int
+		want        int
+	}{
+		{name: "surviving hit", damage: 99, remainingHP: 100},
+		{name: "exact lethal hit", damage: 100, remainingHP: 100},
+		{name: "finishing excess", damage: 145, remainingHP: 100, want: 45},
+		{name: "already defeated", damage: 145, remainingHP: 0},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if got := abyssOverkillDamage(test.damage, test.remainingHP); got != test.want {
+				t.Errorf("abyssOverkillDamage(%d, %d) = %d, want %d", test.damage, test.remainingHP, got, test.want)
+			}
+		})
+	}
+}
+
+func TestAbyssExecuteThresholdCrossed(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		previousHP int
+		currentHP  int
+		maxHP      int
+		want       bool
+	}{
+		{name: "crosses below thirty percent", previousHP: 31, currentHP: 29, maxHP: 100, want: true},
+		{name: "exactly thirty percent is closed", previousHP: 31, currentHP: 30, maxHP: 100},
+		{name: "integer health preserves fractional boundary", previousHP: 31, currentHP: 30, maxHP: 101, want: true},
+		{name: "already in execute range", previousHP: 29, currentHP: 20, maxHP: 100},
+		{name: "lethal hit", previousHP: 31, currentHP: 0, maxHP: 100},
+		{name: "missing maximum health", previousHP: 31, currentHP: 29},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			got := abyssExecuteThresholdCrossed(test.previousHP, test.currentHP, test.maxHP)
+			if got != test.want {
+				t.Errorf("abyssExecuteThresholdCrossed(%d, %d, %d) = %v, want %v", test.previousHP, test.currentHP, test.maxHP, got, test.want)
+			}
+		})
+	}
+}
+
+func TestAbyssTerminalOverkillRequiresClearedWave(t *testing.T) {
+	t.Parallel()
+
+	defeated := &content.Mob{Name: "Defeated", Stats: content.Stats{HP: -40}}
+	if got := abyssTerminalOverkillDamage([]*content.Mob{defeated}, defeated, 140, 100); got != 40 {
+		t.Fatalf("cleared-wave overkill = %d, want 40", got)
+	}
+
+	reinforcement := &content.Mob{Name: "Death summon", Stats: content.Stats{HP: 1}}
+	if got := abyssTerminalOverkillDamage([]*content.Mob{defeated, reinforcement}, defeated, 140, 100); got != 0 {
+		t.Fatalf("overkill with a living reinforcement = %d, want 0", got)
+	}
+
+	summoner := &content.Mob{
+		Name:        "Brood host",
+		Stats:       content.Stats{HP: -40},
+		DeathEffect: &content.MobDeathEffect{Type: content.DeathSummon},
+	}
+	if got := abyssTerminalOverkillDamage([]*content.Mob{summoner}, summoner, 140, 100); got != 0 {
+		t.Fatalf("unresolved death-summon overkill = %d, want 0", got)
 	}
 }
 
@@ -134,6 +214,8 @@ func TestAbyssCombatHUDContracts(t *testing.T) {
 		"liveUltimateCharge", "renderLiveUltimateCharge", "ab-cooldown-pips",
 		"cooldown_max", "dot-active", "ab-dot-stripes", "ENRAGE in 2 rounds", "enrage-imminent",
 		"liveEnrage", "enrage_round", "ENRAGE NOW", "ab-enrage-chip",
+		"liveActionBudget", "action_budget", "ab-action-budget", "LIMIT REACHED",
+		"execute-track", "execute-ready", "Execute effects activate below 30% HP.",
 	} {
 		if !strings.Contains(source, required) {
 			t.Errorf("Abyss combat HUD is missing %q", required)

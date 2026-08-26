@@ -12,7 +12,10 @@ const (
 	abyssRunFlagDoubleBonusDepth = "double_bonus_depth"
 	abyssRunFlagHardcore         = "hardcore"
 	abyssPartialBankFeePct       = 10
+	abyssTransportBankFeePct     = 15
 	abyssRestFloorGap            = 7
+	abyssOverkillDamagePerGold   = 10
+	abyssOverkillRewardCapPct    = 25
 )
 
 func abyssRestFloorDue(lastRestDepth, nextDepth int) bool {
@@ -58,6 +61,14 @@ type abyssEscrowGrowth struct {
 	EfficiencyPct int
 }
 
+type abyssEscrowRewardInput struct {
+	Escrow         int64
+	InterestGain   int64
+	FloorBonus     int64
+	Depth          int
+	OverkillDamage int
+}
+
 func abyssEscrowSoftCap(depth int) int64 {
 	return 50_000 + int64(max(depth, 1))*10_000
 }
@@ -90,6 +101,30 @@ func applyAbyssEscrowSoftCap(escrow, interestGain, bonus int64, depth int) abyss
 	}
 }
 
+func abyssOverkillGold(overkillDamage int, floorBonus int64) int64 {
+	if overkillDamage <= 0 || floorBonus <= 0 {
+		return 0
+	}
+	converted := (int64(overkillDamage)-1)/abyssOverkillDamagePerGold + 1
+	cap := max(floorBonus*abyssOverkillRewardCapPct/100, 1)
+	return min(converted, cap)
+}
+
+func applyAbyssEscrowReward(input abyssEscrowRewardInput) (abyssEscrowGrowth, int64) {
+	base := applyAbyssEscrowSoftCap(input.Escrow, input.InterestGain, input.FloorBonus, input.Depth)
+	overkillGold := abyssOverkillGold(input.OverkillDamage, input.FloorBonus)
+	if overkillGold == 0 {
+		return base, 0
+	}
+	growth := applyAbyssEscrowSoftCap(
+		input.Escrow,
+		input.InterestGain,
+		input.FloorBonus+overkillGold,
+		input.Depth,
+	)
+	return growth, growth.Escrow - base.Escrow
+}
+
 func planAbyssForfeit(escrow int64, insured, depth int, hardcore bool) abyssForfeitPolicy {
 	if abyssGraceProtected(depth, hardcore) {
 		return abyssForfeitPolicy{Refund: escrow, PreserveLoot: true}
@@ -101,12 +136,44 @@ func planAbyssForfeit(escrow int64, insured, depth int, hardcore bool) abyssForf
 	return abyssForfeitPolicy{Refund: refund, CountDeath: true}
 }
 
+type abyssAutoInsurancePlan struct {
+	Applied    bool
+	Percent    int
+	Cost       int64
+	SkipReason string
+}
+
+func planAbyssAutoInsurance(enabled, hardcore bool, pacts []string, escrow int64, ward int, lifetimeBanked int64) abyssAutoInsurancePlan {
+	if !enabled {
+		return abyssAutoInsurancePlan{}
+	}
+	if hardcore {
+		return abyssAutoInsurancePlan{SkipReason: "hardcore runs forbid insurance"}
+	}
+	if abyssHasPact(pacts, "uninsured") {
+		return abyssAutoInsurancePlan{SkipReason: "the Uninsured pact forbids insurance"}
+	}
+	const percent = 25
+	return abyssAutoInsurancePlan{
+		Applied: true,
+		Percent: percent,
+		Cost:    max(int64(1), abyssInsuranceCost(escrow, percent, ward, lifetimeBanked)),
+	}
+}
+
 type abyssPartialBankQuote struct {
 	Escrow    int64
 	Gross     int64
 	Fee       int64
 	Payout    int64
 	Remaining int64
+}
+
+type abyssBankModeQuote struct {
+	Escrow       int64
+	Remaining    int64
+	PartialFee   int64
+	TransportFee int64
 }
 
 func quoteAbyssPartialBank(escrow int64, multiplier float64, percent int) (abyssPartialBankQuote, bool) {
@@ -126,6 +193,30 @@ func quoteAbyssPartialBank(escrow int64, multiplier float64, percent int) (abyss
 		Payout:    gross - fee,
 		Remaining: escrow - share,
 	}, true
+}
+
+func quoteAbyssTransportBank(escrow int64, multiplier float64) (abyssPartialBankQuote, bool) {
+	if escrow <= 0 {
+		return abyssPartialBankQuote{}, false
+	}
+	gross := int64(float64(escrow) * multiplier)
+	fee := gross * abyssTransportBankFeePct / 100
+	return abyssPartialBankQuote{Escrow: escrow, Gross: gross, Fee: fee, Payout: gross - fee}, true
+}
+
+func quoteAbyssBankMode(escrow int64, multiplier float64, percent int, transport bool) (abyssBankModeQuote, bool) {
+	if percent != 0 {
+		if transport {
+			return abyssBankModeQuote{}, false
+		}
+		quote, ok := quoteAbyssPartialBank(escrow, multiplier, percent)
+		return abyssBankModeQuote{Escrow: quote.Escrow, Remaining: quote.Remaining, PartialFee: quote.Fee}, ok
+	}
+	if transport {
+		quote, ok := quoteAbyssTransportBank(escrow, multiplier)
+		return abyssBankModeQuote{Escrow: quote.Escrow, TransportFee: quote.Fee}, ok
+	}
+	return abyssBankModeQuote{Escrow: escrow}, true
 }
 
 func resolveAbyssDoubleBonus(escrow, bonus int64, won bool) int64 {

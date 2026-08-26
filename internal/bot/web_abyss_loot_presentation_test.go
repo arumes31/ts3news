@@ -84,6 +84,8 @@ func TestAbyssLootPresentationAssetsAndHooks(t *testing.T) {
 		".ab-best-loot-card",
 		".abyss-side-loot.ab-escrowed",
 		".abyss-side-loot.ab-loot-released",
+		".abyss-side-loot.ab-smart-loot",
+		".ab-smart-loot-tag",
 		".ab-bank-loot-preview",
 		"@media (prefers-reduced-motion: reduce)",
 		"@media (forced-colors: active)",
@@ -204,7 +206,7 @@ func TestAbyssBankPreviewRemainsReadOnly(t *testing.T) {
 			t.Errorf("bank preview block is missing %q", required)
 		}
 	}
-	if !strings.Contains(string(source), "abyssBankCommit(cursed,percent,safeWord,doubleBank)") {
+	if !strings.Contains(string(source), "abyssBankCommit(cursed,percent,safeWord,doubleBank,transport)") {
 		t.Error("bank preview UI does not separate confirmation from commit")
 	}
 }

@@ -128,6 +128,7 @@ func abyssSpecialRoomForRoll(roll float64) string {
 		"challenge_room", "cursed_door", "story_crossroads", "lost_explorer",
 		"locked_vault", "collapsed_passage", "abyssal_garden", "cursed_elevator",
 		"trap_chamber", "unstable_portal", "graveyard", "echo_floor", "bounty_board",
+		abyssForgeFloorType, abyssEventChainType, abyssCartographerEventType,
 	}
 	index := int(roll / (0.20 / float64(len(rooms))))
 	if index >= len(rooms) {
@@ -152,13 +153,15 @@ func prepareAbyssEventForDepth(raw string, depth int) string {
 	prepareAbyssTraversalEvent(state, depth)
 	switch state["type"] {
 	case "lost_explorer":
-		names := []string{"Mara Flint", "Orin Vale", "Tessa Quill", "Bram Hollow"}
-		index := depth % len(names)
+		index := depth % len(abyssExplorerNames)
 		state["npc_id"] = index
-		state["name"] = names[index]
+		state["name"] = abyssExplorerName(index)
 	case "abyssal_garden":
 		nodes := []string{"dust", "shard", "core"}
 		state["node"] = nodes[depth%len(nodes)]
+	case abyssCartographerEventType:
+		state["price"] = abyssCartographerMapCost(depth)
+		state["route_length"] = abyssCartographerRouteLength
 	}
 	if state["type"] != "merchant" {
 		encoded, err := json.Marshal(state)
@@ -278,7 +281,7 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 		return false
 	}
 	switch state.Type {
-	case "challenge_room", "cursed_door", "story_crossroads", "lost_explorer", "locked_vault", "collapsed_passage", "abyssal_garden":
+	case "challenge_room", "cursed_door", "story_crossroads", "lost_explorer", "locked_vault", "collapsed_passage", "abyssal_garden", abyssForgeFloorType, abyssEventChainType:
 	default:
 		return false
 	}
@@ -338,7 +341,7 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 		switch action {
 		case "story_guide":
 			flags[abyssRunFlagVaultKeys]++
-			flags["explorer_guard_floors"] = 2
+			flags[abyssRunFlagExplorerGuardFloors] = 2
 			msg = "🧭 You guide the shades home. They leave a vault key and a protective map."
 		case "story_plunder":
 			newEscrow += int64(1400 + run.Depth*30)
@@ -351,10 +354,11 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 	case "lost_explorer":
 		switch action {
 		case "explorer_rescue":
-			explorerName := state.Name
-			if explorerName == "" {
-				explorerName = "the stranded explorer"
+			if state.NPCID < 0 || state.NPCID >= len(abyssExplorerNames) {
+				writeJSON(w, map[string]any{"ok": false, "error": "invalid explorer identity"})
+				return true
 			}
+			explorerName := abyssExplorerName(state.NPCID)
 			cost := run.MaxHP / 10
 			if cost < 1 {
 				cost = 1
@@ -364,13 +368,14 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 				newHP = 1
 			}
 			flags[abyssRunFlagVaultKeys]++
-			flags["explorer_guard_floors"] = 3
+			flags[abyssRunFlagExplorerGuardFloors] = abyssExplorerSupportFloors
+			flags[abyssRunFlagExplorerSupportID] = int64(state.NPCID + 1)
 			rescueCount, err := incrementAbyssMetaCounter(tx, fmt.Sprintf("abyss_explorer_rescues_%s_%d", uid, state.NPCID))
 			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return true
 			}
-			msg = fmt.Sprintf("🧗 %s rescued: gain a vault key and +10%% DEF for 3 fights.", explorerName)
+			msg = fmt.Sprintf("🧗 %s rescued: they fight beside you and grant +10%% DEF for the next 3 fights.", explorerName)
 			if abyssExplorerKeepsakeDue(rescueCount) {
 				if err := escrowExplorerKeepsake(tx, uid, run.Depth); err != nil {
 					writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -461,6 +466,36 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 		if count == 3 {
 			msg += " Green Thumb mastered: every future node of this type yields +1 material."
 		}
+	case abyssForgeFloorType:
+		if action != "forge_floor_leave" {
+			writeJSON(w, map[string]any{"ok": false, "error": "choose a free forge action or leave the anvil"})
+			return true
+		}
+		msg = "⚒️ You leave the Silent Anvil unused."
+	case abyssEventChainType:
+		switch action {
+		case "sigil_chain_accept":
+			chain, started := startAbyssEventChain(flags, run.Depth)
+			if started {
+				msg = fmt.Sprintf(
+					"✦ Triune Hunt bound: recover 3 sigils by floor %d. The first trace awakens on floor %d.",
+					chain.Deadline,
+					chain.NextDepth,
+				)
+			} else {
+				msg = fmt.Sprintf(
+					"✦ Your existing hunt remains bound at %d/%d sigils through floor %d.",
+					chain.Sigils,
+					chain.Required,
+					chain.Deadline,
+				)
+			}
+		case "sigil_chain_leave":
+			msg = "The three runes dim. No new hunt is bound."
+		default:
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid sigil hunt choice"})
+			return true
+		}
 	}
 
 	if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
@@ -486,11 +521,13 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 	writeJSON(w, map[string]any{
 		"ok": true, "resolved": true, "msg": msg,
 		"hp": newHP, "escrow": newEscrow,
-		"vault_keys":  flags[abyssRunFlagVaultKeys],
-		"tokens":      s.bot.abyssTokens(uid),
-		"keepsake":    keepsake,
-		"green_thumb": greenThumb,
-		"materials":   s.bot.loadMaterials(uid),
+		"vault_keys":       flags[abyssRunFlagVaultKeys],
+		"tokens":           s.bot.abyssTokens(uid),
+		"keepsake":         keepsake,
+		"green_thumb":      greenThumb,
+		"event_chain":      abyssEventChainFromFlags(flags, run.Depth),
+		"materials":        s.bot.loadMaterials(uid),
+		"explorer_support": abyssRescueSupportViewFromFlags(flags),
 	})
 	return true
 }
@@ -498,12 +535,13 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 func (b *Bot) tickAbyssRoomEffects(uid string) {
 	flags := b.loadRunFlags(uid)
 	changed := false
-	for _, key := range []string{"cursed_door_floors", "explorer_guard_floors", "spd_curse"} {
+	for _, key := range []string{"cursed_door_floors", "spd_curse"} {
 		if flags[key] > 0 {
 			flags[key]--
 			changed = true
 		}
 	}
+	changed = tickAbyssRescueSupport(flags) || changed
 	if changed {
 		_ = b.saveRunFlags(uid, flags)
 	}

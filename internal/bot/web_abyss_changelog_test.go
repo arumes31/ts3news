@@ -17,7 +17,7 @@ func TestLoadAbyssChangelog(t *testing.T) {
 		t.Fatal("changelog has no releases")
 	}
 	latest := changelog[0]
-	if latest.Date != "2026-08-25" || latest.Title == "" {
+	if latest.Date != "2026-08-26" || latest.Title == "" {
 		t.Fatalf("latest release = %+v", latest)
 	}
 	if len(latest.Items) < 3 {

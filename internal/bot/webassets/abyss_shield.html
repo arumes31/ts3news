@@ -1,0 +1,13 @@
+{{define "abyssShieldJS"}}
+function liveShieldBar(unit,mode){
+  var maximum=Math.max(0,Number(unit&&unit.max_shield)||0);if(!maximum)return '';
+  var current=Math.max(0,Math.min(maximum,Number(unit&&unit.shield)||0));
+  var css=mode==='overhead'?'ab-overhead-shield':'ab-combatant-shield';
+  var label=current?fmtNum(current)+' / '+fmtNum(maximum):'BROKEN';
+  return '<span class="'+css+(current?' active':' broken')+'" title="Aegis absorbs enemy attacks before HP"><b style="width:'+livePct(current,maximum)+'%"></b><i>🛡 '+label+'</i></span>';
+}
+function liveShieldAria(unit){
+  var maximum=Math.max(0,Number(unit&&unit.max_shield)||0);if(!maximum)return '';
+  return ', '+Math.max(0,Number(unit.shield)||0)+' of '+maximum+' shield';
+}
+{{end}}

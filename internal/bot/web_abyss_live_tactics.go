@@ -237,6 +237,11 @@ func liveInitiative(
 			ID: "ally:" + au.u.UID, Name: au.u.Nickname, Side: "ally", Speed: au.u.Stats.SPD,
 		})
 	}
+	if _, support := abyssRescueSupportForUsers(users); support != nil {
+		allies = append(allies, abyssLiveInitiativeEntry{
+			ID: "support:explorer", Name: support.Name, Side: "ally", Speed: support.Speed,
+		})
+	}
 	enemies := make([]abyssLiveInitiativeEntry, 0, len(mobs))
 	for i, mob := range mobs {
 		if mob == nil || mob.Stats.HP <= 0 {
@@ -405,28 +410,44 @@ func liveAllyEffects(au *activeUser) []abyssLiveEffect {
 	if au.defendingRound > 0 && !seen["Guarded"] {
 		effects = append(effects, abyssLiveEffect{Name: "Guarded", Duration: "next enemy phase"})
 	}
+	if au.u != nil && len(au.u.Pets) > 0 {
+		effects = append(effects, abyssLiveEffect{
+			Name:     "Companion: " + abyssPetCommandLabel(au.petCommand),
+			Duration: abyssLiveEncounterDuration,
+		})
+	}
 	return effects
 }
 
 func liveMobEffects(mob *content.Mob) []abyssLiveEffect {
+	return liveMobEffectsForModifier(mob, "")
+}
+
+func liveMobEffectsForModifier(mob *content.Mob, modifier string) []abyssLiveEffect {
 	if mob == nil {
 		return nil
 	}
-	effects := make([]abyssLiveEffect, 0, len(mob.Effects)+1)
-	seen := make(map[string]bool, len(mob.Effects)+1)
+	effects := make([]abyssLiveEffect, 0, len(mob.Effects)+2)
+	seen := make(map[string]bool, len(mob.Effects)+2)
 	for _, effect := range mob.Effects {
 		name := string(effect)
 		if name == "" || seen[name] {
 			continue
 		}
 		seen[name] = true
-		effects = append(effects, abyssLiveEffect{
-			Name:     name,
-			Duration: abyssLiveEncounterDuration,
-		})
+		effects = append(effects, liveMobAffix(effect))
+	}
+	if hasAbyssFloorModifier(modifier, "vampiric_mobs") && !seen[abyssLiveEffectVampiric] {
+		seen[abyssLiveEffectVampiric] = true
+		effects = append(effects, liveVampiricMobAffix())
 	}
 	if mob.Stats.SPD == 0 && !seen["Stunned"] {
 		effects = append(effects, abyssLiveEffect{Name: "Stunned", RemainingRounds: max(1, mob.StunRounds)})
+	}
+	if mob.WeaknessWindow && !seen["Weakness Window"] {
+		effects = append(effects, abyssLiveEffect{
+			Name: "Weakness Window", Duration: "Next player hit · guaranteed critical",
+		})
 	}
 	return effects
 }
@@ -435,6 +456,7 @@ func estimateLiveDamageRange(
 	u *UserInCombat,
 	power float64,
 	ignoreDef float64,
+	attackElement content.Element,
 	mobs []*content.Mob,
 ) (int, int) {
 	if u == nil || power <= 0 {
@@ -445,7 +467,7 @@ func estimateLiveDamageRange(
 		if mob == nil || mob.Stats.HP <= 0 {
 			continue
 		}
-		low, high := estimateLiveDamageAgainst(u, power, ignoreDef, mob)
+		low, high := estimateLiveDamageAgainst(u, power, ignoreDef, attackElement, mob)
 		if minDamage == 0 || low < minDamage {
 			minDamage = low
 		}
@@ -454,7 +476,7 @@ func estimateLiveDamageRange(
 		}
 	}
 	if minDamage == 0 {
-		return estimateLiveDamageAgainst(u, power, ignoreDef, &content.Mob{})
+		return estimateLiveDamageAgainst(u, power, ignoreDef, attackElement, &content.Mob{})
 	}
 	return minDamage, maxDamage
 }
@@ -463,6 +485,7 @@ func estimateLiveDamageAgainst(
 	u *UserInCombat,
 	power float64,
 	ignoreDef float64,
+	attackElement content.Element,
 	mob *content.Mob,
 ) (int, int) {
 	strengthMod := u.STRMod
@@ -470,7 +493,8 @@ func estimateLiveDamageAgainst(
 		strengthMod = 1
 	}
 	strength := float64(max(1, u.Stats.STR)) * strengthMod
-	damageMult := power * getElementMult(liveUserElement(u), mob.Element)
+	damageMult := power * getElementMult(attackElement, mob.Element)
+	damageMult = applyAbyssRuneResonance(damageMult, u.Equipped, attackElement)
 	if u.Position == content.PositionBackline {
 		damageMult *= 1.10
 	}

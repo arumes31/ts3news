@@ -10,8 +10,6 @@ import (
 	"strconv"
 )
 
-const abyssRunFlagEventSigils = "event_sigils"
-
 type abyssEventPreview struct {
 	Depth int    `json:"depth"`
 	State string `json:"state"`
@@ -22,19 +20,7 @@ type abyssEventIntelView struct {
 	NextDepth  int
 	NextIn     int
 	EventLabel string
-	Sigils     int64
-	Chains     int64
-}
-
-func abyssSigilProgress(total int64) (sigils, chains int64) {
-	if total <= 0 {
-		return 0, 0
-	}
-	sigils = total % 3
-	if sigils == 0 {
-		sigils = 3
-	}
-	return sigils, total / 3
+	Chain      abyssEventChainView
 }
 
 func abyssEventPreviewKey(uid string) string { return "abyss_event_preview_" + uid }
@@ -58,6 +44,9 @@ func abyssEventTypeLabel(raw string) string {
 		"cursed_elevator": "Cursed Elevator", "trap_chamber": "Trap Chamber",
 		"unstable_portal": "Unstable Portal", "graveyard": "Delver Graveyard",
 		"echo_floor": "Echo Floor", "bounty_board": "Bounty Board",
+		abyssForgeFloorType:        "Silent Anvil",
+		abyssEventChainType:        "Triune Sigil Hunt",
+		abyssCartographerEventType: "Lost Cartographer",
 	}
 	if label := labels[state.Type]; label != "" {
 		return label
@@ -103,12 +92,12 @@ func (b *Bot) takeAbyssEventPreview(uid string, depth int) (string, bool) {
 func (b *Bot) abyssEventIntel(uid string, run abyssRun) abyssEventIntelView {
 	view := abyssEventIntelView{MapOwned: b.loadSanctuary(uid)["map"] > 0}
 	flags := b.loadRunFlags(uid)
-	view.Sigils, view.Chains = abyssSigilProgress(flags[abyssRunFlagEventSigils])
+	view.Chain = abyssEventChainFromFlags(flags, run.Depth)
 	if !view.MapOwned || !run.Active {
 		return view
 	}
 	var rawDepth string
-	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", "abyss_next_event_depth_"+uid).Scan(&rawDepth)
+	_ = b.DB.QueryRow("SELECT value FROM app_meta WHERE key=$1", abyssNextEventDepthKey(uid)).Scan(&rawDepth)
 	view.NextDepth, _ = strconv.Atoi(rawDepth)
 	view.NextIn = view.NextDepth - run.Depth
 	if view.NextIn < 0 {

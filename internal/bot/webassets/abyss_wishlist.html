@@ -1,0 +1,121 @@
+{{define "abyss-wishlist"}}
+<section class="abyss-panel ab-wishlist" id="abyssWishlist" data-abyss-section="shop" aria-labelledby="abyssWishlistTitle">
+  <header class="ab-wishlist-head">
+    <div>
+      <p class="ab-wishlist-kicker">TARGETED LOOT</p>
+      <h2 id="abyssWishlistTitle">★ Abyss Wishlist</h2>
+      <p class="muted small">Choose up to {{.Limit}} Abyss-exclusive items. Every eligible Abyss gear roll advances the shared guarantee.</p>
+    </div>
+    <output class="ab-wishlist-count" id="abyssWishlistCount" aria-live="polite">{{.Count}} / {{.Limit}} selected</output>
+  </header>
+
+  <div class="ab-wishlist-meter">
+    <div class="ab-wishlist-meter-copy">
+      <span>Guarantee progress</span>
+      <b><span id="abyssWishlistPity">{{.Pity}}</span> / <span id="abyssWishlistCap">{{.PityCap}}</span></b>
+    </div>
+    <div class="ab-wishlist-track" id="abyssWishlistProgress" role="progressbar" aria-label="Wishlist guarantee progress" aria-valuemin="0" aria-valuemax="{{.PityCap}}" aria-valuenow="{{.Pity}}">
+      <span id="abyssWishlistFill" style="width:{{.PityPct}}%"></span>
+    </div>
+    <p class="muted small">Changing the list resets progress. Set-completion pity resolves first; an eligible wishlist guarantee waits instead of being lost.</p>
+  </div>
+
+  <div class="ab-wishlist-layout">
+    <div class="ab-wishlist-column">
+      <h3>Your targets</h3>
+      <div class="ab-wishlist-selected" id="abyssWishlistSelected">
+        {{range .Selected}}
+        <article class="ab-wishlist-item is-selected">
+          <span><b>{{.Name}}</b><small>{{.Rarity}} · {{.Slot}}</small></span>
+          <button type="button" class="ghost ab-wishlist-toggle" data-wishlist-id="{{.ID}}" aria-label="Remove {{.Name}} from wishlist">Remove</button>
+        </article>
+        {{else}}
+        <p class="ab-wishlist-empty">No targets yet. Search the catalog to begin.</p>
+        {{end}}
+      </div>
+    </div>
+
+    <div class="ab-wishlist-column">
+      <label class="ab-wishlist-search-label" for="abyssWishlistSearch">Find Abyss gear</label>
+      <input id="abyssWishlistSearch" class="ab-wishlist-search" type="search" autocomplete="off" placeholder="Name, slot, rarity, or item ID" aria-controls="abyssWishlistCandidates">
+      <div class="ab-wishlist-candidates" id="abyssWishlistCandidates">
+        {{range .Candidates}}
+        <button type="button" class="ab-wishlist-candidate ab-wishlist-toggle" data-wishlist-id="{{.ID}}"{{if ge $.Count $.Limit}} disabled{{end}}>
+          <span><b>{{.Name}}</b><small>{{.Rarity}} · {{.Slot}}</small></span><strong aria-hidden="true">＋</strong>
+        </button>
+        {{end}}
+      </div>
+    </div>
+  </div>
+  <p class="ab-wishlist-status muted small" id="abyssWishlistStatus" aria-live="polite">Only drops from the Abyss-exclusive gear pool count. A target cannot exceed the rarity of the original roll.</p>
+</section>
+<script>
+(function(){
+  var root=document.getElementById('abyssWishlist');
+  if(!root)return;
+  var selected=document.getElementById('abyssWishlistSelected');
+  var candidates=document.getElementById('abyssWishlistCandidates');
+  var search=document.getElementById('abyssWishlistSearch');
+  var status=document.getElementById('abyssWishlistStatus');
+  var requestSerial=0,mutationSerial=0,searchTimer=0;
+
+  function itemCopy(item){
+    var copy=document.createElement('span');
+    var name=document.createElement('b');name.textContent=item.name||item.id||'Unknown item';copy.appendChild(name);
+    var meta=document.createElement('small');meta.textContent=(item.rarity||'')+' · '+(item.slot||'');copy.appendChild(meta);
+    return copy;
+  }
+  function toggleButton(item,label,className,disabled){
+    var button=document.createElement('button');button.type='button';button.className=className;
+    button.dataset.wishlistId=item.id;button.disabled=!!disabled;button.appendChild(itemCopy(item));
+    if(label==='Remove'){
+      button.setAttribute('aria-label','Remove '+(item.name||item.id)+' from wishlist');
+      var text=document.createElement('strong');text.textContent=label;button.appendChild(text);
+    }else{
+      var plus=document.createElement('strong');plus.setAttribute('aria-hidden','true');plus.textContent='＋';button.appendChild(plus);
+    }
+    button.addEventListener('click',mutate);
+    return button;
+  }
+  function render(view){
+    if(!view)return;
+    document.getElementById('abyssWishlistCount').textContent=view.count+' / '+view.limit+' selected';
+    document.getElementById('abyssWishlistPity').textContent=String(view.pity);
+    document.getElementById('abyssWishlistCap').textContent=String(view.pity_cap);
+    var progress=document.getElementById('abyssWishlistProgress');progress.setAttribute('aria-valuenow',String(view.pity));progress.setAttribute('aria-valuemax',String(view.pity_cap));
+    document.getElementById('abyssWishlistFill').style.width=String(view.pity_pct)+'%';
+    selected.replaceChildren();
+    (view.selected||[]).forEach(function(item){
+      var row=document.createElement('article');row.className='ab-wishlist-item is-selected';row.appendChild(itemCopy(item));
+      var remove=document.createElement('button');remove.type='button';remove.className='ghost ab-wishlist-remove';remove.textContent='Remove';remove.dataset.wishlistId=item.id;remove.setAttribute('aria-label','Remove '+(item.name||item.id)+' from wishlist');remove.addEventListener('click',mutate);row.appendChild(remove);selected.appendChild(row);
+    });
+    if(!(view.selected||[]).length){var empty=document.createElement('p');empty.className='ab-wishlist-empty';empty.textContent='No targets yet. Search the catalog to begin.';selected.appendChild(empty);}
+    candidates.replaceChildren();
+    (view.candidates||[]).forEach(function(item){candidates.appendChild(toggleButton(item,'Add','ab-wishlist-candidate',view.count>=view.limit));});
+    if(!(view.candidates||[]).length){var none=document.createElement('p');none.className='ab-wishlist-empty';none.textContent='No matching Abyss gear.';candidates.appendChild(none);}
+  }
+  async function load(query){
+    var serial=++requestSerial;
+    try{
+      var response=await fetch('/api/abyss/loot/wishlist?q='+encodeURIComponent(query||''),{credentials:'same-origin'});
+      var data=await response.json();if(serial!==requestSerial)return;
+      if(!data.ok){status.textContent=data.error||'Could not load wishlist.';return;}
+      render(data.wishlist);
+    }catch(_){if(serial===requestSerial)status.textContent='Wishlist is temporarily unavailable.';}
+  }
+  async function mutate(event){
+    var button=event.currentTarget,id=button.dataset.wishlistId;if(!id)return;
+    var serial=++mutationSerial;requestSerial++;
+    button.disabled=true;root.setAttribute('aria-busy','true');status.textContent='Saving wishlist…';
+    var data=await abPost('/api/abyss/loot/wishlist?q='+encodeURIComponent(search.value||''),{gear_id:id});
+    if(serial!==mutationSerial)return;
+    root.removeAttribute('aria-busy');
+    if(!data.ok){button.disabled=false;status.textContent=data.error||'Could not update wishlist.';return;}
+    render(data.wishlist);status.textContent='Wishlist saved. Guarantee progress reset.';
+  }
+  root.querySelectorAll('.ab-wishlist-toggle').forEach(function(button){button.addEventListener('click',mutate);});
+  search.addEventListener('input',function(){clearTimeout(searchTimer);searchTimer=setTimeout(function(){load(search.value);},220);});
+  load('');
+})();
+</script>
+{{end}}

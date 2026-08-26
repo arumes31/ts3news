@@ -288,6 +288,17 @@ func TestLiveEffectViews(t *testing.T) {
 	if len(mobEffects) != 2 || mobEffects[0].Duration != abyssLiveEncounterDuration || mobEffects[1].RemainingRounds != 1 {
 		t.Fatalf("mob effects = %+v, want deduplicated encounter effect and one-round stun", mobEffects)
 	}
+	if !mobEffects[0].Affix || mobEffects[0].Key != "enraged" || mobEffects[0].Description == "" || mobEffects[0].Icon == "" {
+		t.Fatalf("mob affix metadata = %+v, want authoritative enriched view", mobEffects[0])
+	}
+
+	vampiric := liveMobEffectsForModifier(mob, "storm_floor vampiric_mobs")
+	if len(vampiric) != 3 {
+		t.Fatalf("vampiric effects = %+v, want base affix, Vampiric, and stun", vampiric)
+	}
+	if got := vampiric[1]; got.Key != abyssLiveEffectVampiric || got.Name != "Vampiric" || !got.Affix || got.Description == "" {
+		t.Fatalf("vampiric affix = %+v", got)
+	}
 }
 
 func TestAbyssLiveDefendShowsReactiveGuard(t *testing.T) {
@@ -320,14 +331,30 @@ func TestEstimateLiveDamageRange(t *testing.T) {
 		DEFMod:  1,
 	}
 
-	neutralMin, neutralMax := estimateLiveDamageRange(user, 1, 0, []*content.Mob{mob})
+	neutralMin, neutralMax := estimateLiveDamageRange(user, 1, 0, content.ElementPhysical, []*content.Mob{mob})
 	if neutralMin <= 0 || neutralMax < neutralMin {
 		t.Fatalf("neutral damage range = %d-%d", neutralMin, neutralMax)
 	}
 	user.Equipped[content.SlotMainHand] = content.Gear{Element: content.ElementWater}
-	strongMin, strongMax := estimateLiveDamageRange(user, 1, 0, []*content.Mob{mob})
+	strongMin, strongMax := estimateLiveDamageRange(user, 1, 0, content.ElementWater, []*content.Mob{mob})
 	if strongMin <= neutralMin || strongMax <= neutralMax {
 		t.Fatalf("advantaged range = %d-%d, want greater than neutral %d-%d", strongMin, strongMax, neutralMin, neutralMax)
+	}
+}
+
+func TestEstimateLiveDamageRangeIncludesRuneResonance(t *testing.T) {
+	user := &UserInCombat{
+		Stats: content.Stats{STR: 100},
+		Equipped: map[content.GearSlot]content.Gear{
+			content.SlotMainHand: {Element: content.ElementFire},
+		},
+	}
+	mob := &content.Mob{Element: content.ElementPhysical, Stats: content.Stats{HP: 100}, MaxHP: 100, DEFMod: 1}
+	plainMin, plainMax := estimateLiveDamageRange(user, 1, 0, content.ElementFire, []*content.Mob{mob})
+	user.Equipped[content.SlotMainHand] = content.Gear{Element: content.ElementFire, Rune: string(content.ElementFire)}
+	resonantMin, resonantMax := estimateLiveDamageRange(user, 1, 0, content.ElementFire, []*content.Mob{mob})
+	if resonantMin <= plainMin || resonantMax <= plainMax {
+		t.Fatalf("resonant range = %d-%d, want greater than plain %d-%d", resonantMin, resonantMax, plainMin, plainMax)
 	}
 }
 
@@ -604,6 +631,16 @@ func TestAbyssLiveCombatIdempotencyExpiresByRound(t *testing.T) {
 		if err := combat.submit("user", action); err != nil {
 			t.Fatalf("submit key %d: %v", i, err)
 		}
+	}
+	snapshot := combat.snapshotFor("user")
+	if snapshot.ActionBudget.Remaining != 0 ||
+		snapshot.ActionBudget.Limit != abyssLiveMaxIdempotencyKeysPerRound {
+		t.Fatalf(
+			"action budget = %d/%d, want 0/%d",
+			snapshot.ActionBudget.Remaining,
+			snapshot.ActionBudget.Limit,
+			abyssLiveMaxIdempotencyKeysPerRound,
+		)
 	}
 	overflow := abyssLiveAction{
 		SessionID:      "session",

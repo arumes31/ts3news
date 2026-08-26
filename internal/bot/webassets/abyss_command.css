@@ -183,6 +183,10 @@ body:has(.abyss-command-page) .foot {
   box-shadow: inset 0 1px rgba(255, 255, 255, .035);
 }
 
+.abyss-command-page #explorerSupportChip[hidden] {
+  display: none;
+}
+
 .abyss-command-page .abyss-stats > .ab-chip:first-child {
   border-color: rgba(91, 214, 208, .34);
 }
@@ -330,6 +334,29 @@ body:has(.abyss-command-page) .foot {
 .abyss-command-page .abyss-controls {
   padding: 4px;
 }
+
+.abyss-command-page .ab-floating-descend {
+  position: fixed;
+  z-index: 96;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  max-width: min(340px, calc(100vw - 32px));
+  padding: 11px 16px;
+  border: 1px solid #f2bd5b;
+  border-radius: 4px 12px 4px 12px;
+  color: #161006;
+  background: linear-gradient(135deg, #f5cb72, #d99c36);
+  box-shadow: 0 12px 34px rgba(0,0,0,.55),0 0 0 3px rgba(242,189,91,.12);
+  font: 800 .72rem var(--cmd-mono);
+  letter-spacing: .04em;
+}
+.abyss-command-page .ab-floating-descend[hidden] { display: none; }
+.abyss-command-page .ab-floating-descend:focus-visible { outline: 2px solid #6ee7e0; outline-offset: 3px; }
+.abyss-command-page .ab-path-queue-editor { display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:10px;margin-top:6px; }
+.abyss-command-page #pathQueueContainer { display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0; }
+.abyss-command-page #btnQueueMore { position:sticky;right:0;z-index:2;box-shadow:-10px 0 16px #0a0f17; }
+.abyss-command-page .ab-combat-exchange{position:absolute;z-index:18;inset:34% 13% auto;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;pointer-events:none}.abyss-command-page .ab-combat-exchange[hidden]{display:none}.abyss-command-page .ab-combat-exchange span{display:grid;min-height:54px;place-items:center;border:1px solid #334159;border-radius:3px 12px 3px 12px;background:#0c1420;color:#d8e4f4;font:800 .7rem var(--cmd-mono);box-shadow:0 8px 24px rgba(0,0,0,.38)}.abyss-command-page .ab-combat-exchange .enemy{border-color:#753940;background:#211117;color:#ff9c9c}.abyss-command-page .ab-combat-exchange .player{border-color:#2d7076;background:#0d2024;color:#7ce2df}.abyss-command-page .ab-combat-exchange i{color:#f2bd5b;font-style:normal;font-size:1.3rem;filter:drop-shadow(0 0 8px rgba(242,189,91,.6))}.abyss-command-page .ab-combat-exchange b{grid-column:1/-1;justify-self:center;padding:3px 8px;color:#e7c87e;background:#090d14;font:800 .58rem var(--cmd-mono);letter-spacing:.12em}.abyss-command-page .ab-combat-exchange.player-turn .player{animation:ab-exchange-player .72s cubic-bezier(.2,.8,.2,1)}.abyss-command-page .ab-combat-exchange.enemy-turn .enemy{animation:ab-exchange-enemy .72s cubic-bezier(.2,.8,.2,1)}.abyss-command-page .ab-combat-exchange:is(.player-turn,.enemy-turn) i{animation:ab-exchange-impact .72s steps(4)}@keyframes ab-exchange-player{0%,100%{transform:none}42%{transform:translateX(-38px) scale(1.05)}58%{transform:translateX(-28px) scale(.98)}}@keyframes ab-exchange-enemy{0%,100%{transform:none}42%{transform:translateX(38px) scale(1.05)}58%{transform:translateX(28px) scale(.98)}}@keyframes ab-exchange-impact{0%,30%,100%{opacity:.35;transform:scale(.75)}45%{opacity:1;transform:scale(1.45) rotate(-12deg)}}
+@media(prefers-reduced-motion:reduce){.abyss-command-page .ab-combat-exchange *{animation:none!important}}
 
 .abyss-command-page .ab-status {
   padding: 8px 10px;
