@@ -13,7 +13,8 @@ func (c *abyssLiveCombat) optionsFor(
 	users []activeUser,
 	mobs []*content.Mob,
 ) []abyssLiveOption {
-	attackMin, attackMax := estimateLiveDamageRange(au.u, 1, 0, mobs)
+	attackElement := liveUserElement(au.u)
+	attackMin, attackMax := estimateLiveDamageRange(au.u, 1, 0, attackElement, mobs)
 	options := []abyssLiveOption{
 		{
 			Kind: "attack", Name: "Basic Attack", Target: "enemy", Power: 1,
@@ -59,7 +60,7 @@ func (c *abyssLiveCombat) optionsFor(
 		}
 		effectLabel := "DMG"
 		effectivePower := skill.Power * modifiers.DamageMultiplier
-		minEffect, maxEffect := estimateLiveDamageRange(au.u, effectivePower, modifiers.IgnoreDefense, mobs)
+		minEffect, maxEffect := estimateLiveDamageRange(au.u, effectivePower, modifiers.IgnoreDefense, element, mobs)
 		if skill.HealPercent > 0 && skill.Power == 0 {
 			target = "ally"
 			effectLabel = "HEAL"
@@ -97,7 +98,7 @@ func (c *abyssLiveCombat) optionsFor(
 			ultimateCooldown = max(2, int(float64(ultimateCooldown)*(1-ultimateRecovery)))
 		}
 		ultimateModifiers := actionModifierLabels("ultimate recovery", 1+ultimateRecovery)
-		minEffect, maxEffect := estimateLiveDamageRange(au.u, ultimate.Power, 0, mobs)
+		minEffect, maxEffect := estimateLiveDamageRange(au.u, ultimate.Power, 0, attackElement, mobs)
 		options = append(options, abyssLiveOption{
 			Kind:        "ultimate",
 			ID:          ultimate.ID,

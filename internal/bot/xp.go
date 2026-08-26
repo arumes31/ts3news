@@ -1747,6 +1747,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			)
 
 			dmgMult := focusDmg
+			attackElement := abyssEquippedAttackElement(u.Equipped)
 			stunnedThisHit := false
 			if comboFollowup {
 				dmgMult *= 1.15
@@ -1842,6 +1843,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 
 				castElement := abyssSkillElement(s, u.Equipped)
+				attackElement = castElement
 				repeatCount := 0
 				if au.lastSkillID == s.ID {
 					repeatCount = au.skillRepeatCount + 1
@@ -1951,19 +1953,19 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				}
 			}
 
-			// Elemental System (Improvement 1)
-			// Determine user's active element from MainHand
-			userElement := content.ElementPhysical
-			if mh, ok := u.Equipped[content.SlotMainHand]; ok {
-				userElement = mh.Element
-			}
-			elementMult := getElementMult(userElement, target.Element)
+			// Elemental System (Improvement 1). Skills use their authoritative
+			// cast element; basic attacks and ultimates use the equipped element.
+			elementMult := getElementMult(attackElement, target.Element)
 			if elementMult > 1.0 {
-				*logs = append(*logs, i18n.T("bot.combat.element_effective", userElement, target.Element))
+				*logs = append(*logs, i18n.T("bot.combat.element_effective", attackElement, target.Element))
 			} else if elementMult < 1.0 {
-				*logs = append(*logs, i18n.T("bot.combat.element_weak", userElement, target.Element))
+				*logs = append(*logs, i18n.T("bot.combat.element_weak", attackElement, target.Element))
 			}
 			dmgMult *= elementMult
+			if abyssCombatant(u) && abyssRuneResonates(u.Equipped, attackElement) {
+				dmgMult = applyAbyssRuneResonance(dmgMult, u.Equipped, attackElement)
+				*logs = append(*logs, fmt.Sprintf("🧿 Rune resonance! %s's %s rune matches the attack — +5%% damage.", u.Nickname, attackElement))
+			}
 
 			// Position Bonus (Improvement 2)
 			if u.Position == content.PositionBackline {

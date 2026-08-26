@@ -44,7 +44,8 @@ func TestAbyssE2EServer(t *testing.T) {
 			equipped := map[content.GearSlot]content.Gear{
 				content.SlotMainHand: {
 					ID: "TEST_BLADE", Name: "Cinder Test Blade", Slot: content.SlotMainHand,
-					Element: content.ElementFire, Rarity: content.RarityEpic, MaxDurability: 100,
+					Element: content.ElementFire, Rune: string(content.ElementFire),
+					Rarity: content.RarityEpic, MaxDurability: 100,
 					Stats: content.Stats{STR: 60, INT: 20},
 				},
 				content.SlotOffHand: {
@@ -62,6 +63,17 @@ func TestAbyssE2EServer(t *testing.T) {
 				views = append(views, view)
 			}
 			fixture["Equipped"] = views
+			fixture["ForgeWorkbenchEnabled"] = true
+			fixture["ForgeOperations"] = abyssForgeOperations()
+			fixture["ForgeWorkbench"] = abyssForgeWorkbenchData{
+				SchemaVersion: 1,
+				StatPresets:   map[string]map[string]int{"balanced": {"STR": 100, "INT": 100}},
+				QueuePolicies: []string{"stop"},
+				MaterialFlow:  map[string][]int64{},
+				CraftCap:      10,
+				PresetSlots:   1,
+				CosmeticTheme: "apprentice",
+			}
 		}
 		room := r.URL.Query().Get("room")
 		if room == abyssForgeFloorType || room == abyssEventChainType || room == abyssCartographerEventType {

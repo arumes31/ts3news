@@ -91,7 +91,7 @@ func forgeRuneImpact(family, rune string) string {
 		return fmt.Sprintf("%s Ward grants %d%% resistance against %s damage.", element, content.DefensiveRuneResistPct, element)
 	default:
 		if element == content.ElementPhysical {
-			return "Physical rune deals neutral 1.0× damage against every element."
+			return "Physical rune grants +5% resonance to matching Physical attacks and deals neutral 1.0× damage against every element."
 		}
 		var effective, weak []string
 		for _, defender := range []content.Element{content.ElementFire, content.ElementWater, content.ElementEarth, content.ElementAir} {
@@ -102,8 +102,8 @@ func forgeRuneImpact(family, rune string) string {
 				weak = append(weak, string(defender))
 			}
 		}
-		return fmt.Sprintf("%s rune deals 2.0× against %s, 0.5× against %s, and 1.0× otherwise.",
-			element, strings.Join(effective, ", "), strings.Join(weak, ", "))
+		return fmt.Sprintf("%s rune grants +5%% resonance to matching %s attacks; it deals 2.0× against %s, 0.5× against %s, and 1.0× otherwise.",
+			element, element, strings.Join(effective, ", "), strings.Join(weak, ", "))
 	}
 }
 

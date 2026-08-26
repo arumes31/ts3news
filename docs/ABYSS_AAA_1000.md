@@ -118,6 +118,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0082 / 82** — Legendary-or-better recalibration rerolls one chosen stat line for a fixed five-token cost.
 - [x] **AAA-0083 / 83** — corrupted gear carries oversized trade-off stats and supports explicit cleanse or embrace forge paths.
 - [x] **AAA-0084 / 84** — gems have bounded tiers I–III and deterministic three-into-one upgrades.
+- [x] **AAA-0085 / 85** — an offensive etched rune grants one server-authoritative +5% damage resonance when it matches the current basic-attack or skill element; live action estimates and Forge quotes expose the same non-stacking rule while defensive wards and pet gear remain isolated (`abyss_rune_resonance.go`, `xp.go`, `web_abyss_live_actions.go`, `abyss_forge_resonance.go`, `tests/e2e/abyss-forge-runes.spec.js`).
 - [x] **AAA-0086 / 86** — the catalog includes validated build-changing unique gear with described special effects.
 - [x] **AAA-0088 / 88** — loot presentation assigns distinct reduced-motion-safe rarity beams through Eternal quality.
 - [x] **AAA-0092 / 92** — three compatible same-slot Legendary ingredients fuse through server-validated preview and commit paths.

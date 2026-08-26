@@ -456,6 +456,7 @@ func estimateLiveDamageRange(
 	u *UserInCombat,
 	power float64,
 	ignoreDef float64,
+	attackElement content.Element,
 	mobs []*content.Mob,
 ) (int, int) {
 	if u == nil || power <= 0 {
@@ -466,7 +467,7 @@ func estimateLiveDamageRange(
 		if mob == nil || mob.Stats.HP <= 0 {
 			continue
 		}
-		low, high := estimateLiveDamageAgainst(u, power, ignoreDef, mob)
+		low, high := estimateLiveDamageAgainst(u, power, ignoreDef, attackElement, mob)
 		if minDamage == 0 || low < minDamage {
 			minDamage = low
 		}
@@ -475,7 +476,7 @@ func estimateLiveDamageRange(
 		}
 	}
 	if minDamage == 0 {
-		return estimateLiveDamageAgainst(u, power, ignoreDef, &content.Mob{})
+		return estimateLiveDamageAgainst(u, power, ignoreDef, attackElement, &content.Mob{})
 	}
 	return minDamage, maxDamage
 }
@@ -484,6 +485,7 @@ func estimateLiveDamageAgainst(
 	u *UserInCombat,
 	power float64,
 	ignoreDef float64,
+	attackElement content.Element,
 	mob *content.Mob,
 ) (int, int) {
 	strengthMod := u.STRMod
@@ -491,7 +493,8 @@ func estimateLiveDamageAgainst(
 		strengthMod = 1
 	}
 	strength := float64(max(1, u.Stats.STR)) * strengthMod
-	damageMult := power * getElementMult(liveUserElement(u), mob.Element)
+	damageMult := power * getElementMult(attackElement, mob.Element)
+	damageMult = applyAbyssRuneResonance(damageMult, u.Equipped, attackElement)
 	if u.Position == content.PositionBackline {
 		damageMult *= 1.10
 	}

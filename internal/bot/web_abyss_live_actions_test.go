@@ -331,14 +331,30 @@ func TestEstimateLiveDamageRange(t *testing.T) {
 		DEFMod:  1,
 	}
 
-	neutralMin, neutralMax := estimateLiveDamageRange(user, 1, 0, []*content.Mob{mob})
+	neutralMin, neutralMax := estimateLiveDamageRange(user, 1, 0, content.ElementPhysical, []*content.Mob{mob})
 	if neutralMin <= 0 || neutralMax < neutralMin {
 		t.Fatalf("neutral damage range = %d-%d", neutralMin, neutralMax)
 	}
 	user.Equipped[content.SlotMainHand] = content.Gear{Element: content.ElementWater}
-	strongMin, strongMax := estimateLiveDamageRange(user, 1, 0, []*content.Mob{mob})
+	strongMin, strongMax := estimateLiveDamageRange(user, 1, 0, content.ElementWater, []*content.Mob{mob})
 	if strongMin <= neutralMin || strongMax <= neutralMax {
 		t.Fatalf("advantaged range = %d-%d, want greater than neutral %d-%d", strongMin, strongMax, neutralMin, neutralMax)
+	}
+}
+
+func TestEstimateLiveDamageRangeIncludesRuneResonance(t *testing.T) {
+	user := &UserInCombat{
+		Stats: content.Stats{STR: 100},
+		Equipped: map[content.GearSlot]content.Gear{
+			content.SlotMainHand: {Element: content.ElementFire},
+		},
+	}
+	mob := &content.Mob{Element: content.ElementPhysical, Stats: content.Stats{HP: 100}, MaxHP: 100, DEFMod: 1}
+	plainMin, plainMax := estimateLiveDamageRange(user, 1, 0, content.ElementFire, []*content.Mob{mob})
+	user.Equipped[content.SlotMainHand] = content.Gear{Element: content.ElementFire, Rune: string(content.ElementFire)}
+	resonantMin, resonantMax := estimateLiveDamageRange(user, 1, 0, content.ElementFire, []*content.Mob{mob})
+	if resonantMin <= plainMin || resonantMax <= plainMax {
+		t.Fatalf("resonant range = %d-%d, want greater than plain %d-%d", resonantMin, resonantMax, plainMin, plainMax)
 	}
 }
 
