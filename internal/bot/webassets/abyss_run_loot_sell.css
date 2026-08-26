@@ -1,0 +1,13 @@
+.abyss-command-page .ab-sell-junk {
+  border-color: color-mix(in srgb, #d9a441 45%, var(--line));
+  color: #f1c96f;
+  white-space: normal;
+}
+.abyss-command-page .ab-sell-junk:hover,
+.abyss-command-page .ab-sell-junk:focus-visible {
+  border-color: #e8bd5b;
+  background: rgba(217, 164, 65, .12);
+}
+@media (forced-colors: active) {
+  .abyss-command-page .ab-sell-junk { border: 1px solid ButtonText; }
+}

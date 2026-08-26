@@ -523,6 +523,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/loot/reserve", s.authAPI(s.handleAbyssLootReserve))
 		mux.HandleFunc("/api/abyss/loot/manifest", s.authAPI(s.handleAbyssLootManifest))
 		mux.HandleFunc("/api/abyss/loot/equip_best", s.authAPI(s.handleAbyssEquipBestLoot))
+		mux.HandleFunc("/api/abyss/loot/sell_junk", s.authAPI(s.handleAbyssSellJunkLoot))
 		mux.HandleFunc("/api/abyss/economy/material_flow", s.authAPI(s.handleAbyssMaterialFlow))
 		mux.HandleFunc("/api/abyss/loadout/equipment", s.authAPI(s.handleAbyssEquipmentLoadout))
 		mux.HandleFunc("/api/abyss/loadout/gems", s.authAPI(s.handleAbyssGemPreset))

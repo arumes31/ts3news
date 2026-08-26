@@ -26,6 +26,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_pity.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_featured_drops.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_shop_demand.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_run_loot_sell.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_wishlist.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_set_pity.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_forge_experience.css"}}">
@@ -510,11 +511,12 @@
     </div>
     <div class="abyss-side-list" id="lootManifest">
       {{range .RunLoot}}
-      <div class="abyss-side-loot {{.BeamClass}} {{if .Foil}}ab-loot-foil{{end}} {{if .Doomed}}ab-loot-doomed{{end}} {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}} {{if .SmartLoot}}ab-smart-loot{{end}} {{if .SetPity}}ab-set-pity{{end}} {{if .Wishlist}}ab-wishlist-drop{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-smart-loot="{{.SmartLoot}}" data-smart-loot-reason="{{.SmartLootReason}}" data-set-pity="{{.SetPity}}" data-wishlist="{{.Wishlist}}" data-tip="{{.Title}}&#10;{{.Source}}{{if .Wishlist}}&#10;{{.WishlistLabel}}{{end}}{{if .SetPity}}&#10;{{.SetPityLabel}}{{end}}{{if .SmartLoot}}&#10;{{.SmartLootLabel}}{{end}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
+      <div class="abyss-side-loot {{.BeamClass}} {{if .Foil}}ab-loot-foil{{end}} {{if .Doomed}}ab-loot-doomed{{end}} {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}} {{if .SmartLoot}}ab-smart-loot{{end}} {{if .SetPity}}ab-set-pity{{end}} {{if .Wishlist}}ab-wishlist-drop{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-smart-loot="{{.SmartLoot}}" data-smart-loot-reason="{{.SmartLootReason}}" data-set-pity="{{.SetPity}}" data-wishlist="{{.Wishlist}}" data-can-sell-junk="{{.CanSellJunk}}" data-sell-value="{{.SellValue}}" data-tip="{{.Title}}&#10;{{.Source}}{{if .Wishlist}}&#10;{{.WishlistLabel}}{{end}}{{if .SetPity}}&#10;{{.SetPityLabel}}{{end}}{{if .SmartLoot}}&#10;{{.SmartLootLabel}}{{end}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
         <span class="ab-loot-main">{{if .SlotIcon}}<span class="ab-loot-slot" aria-hidden="true">{{.SlotIcon}}</span>{{end}}<span>{{.Label}}</span></span>
         <span class="ab-loot-tags">{{if .Wishlist}}<b class="ab-wishlist-tag">★ {{.WishlistLabel}}</b>{{end}}{{if .SetPity}}<b class="ab-set-pity-tag">🧩 {{.SetPityLabel}}</b>{{end}}{{if .SmartLoot}}<b class="ab-smart-loot-tag">🎯 {{.SmartLootLabel}}</b>{{end}}{{if .Unidentified}}<b class="ab-loot-question">?</b>{{end}}{{if .AlreadyOwned}}<b class="ab-owned-tag">owned</b>{{end}}{{if .SetID}}<b class="ab-set-tag ab-set-{{.SetID}}">🧩 {{.SetID}} {{.SetCount}}/{{.SetMax}}</b>{{end}}{{if .Corrupted}}<b class="ab-corrupt-tag">🩸 corrupted</b>{{end}}</span>
         <span class="ab-loot-detail" hidden>{{.Source}}{{if .Wishlist}} · ★ {{.WishlistLabel}}{{end}}{{if .SetPity}} · 🧩 {{.SetPityLabel}}{{end}}{{if .SmartLoot}} · 🎯 {{.SmartLootLabel}}{{end}}{{if .Slot}} · {{.Slot}}{{end}}{{if gt .CR 0.0}} · CR {{printf "%.0f" .CR}} ({{if ge .CRDelta 0.0}}+{{end}}{{printf "%.0f" .CRDelta}}){{end}}{{if gt .Quality 0}} · {{.Quality}}★ quality{{end}}</span>
         {{if .CanEquipBest}}<button type="button" class="ghost xs ab-equip-best {{if .EquipOnBank}}selected{{end}}" onclick="abyssEquipBestLoot({{.EscrowID}},event)">{{if .EquipOnBank}}✓ Equip on bank{{else}}Equip best on bank{{end}}</button>{{end}}
+        {{if .CanSellJunk}}<button type="button" class="ghost xs ab-sell-junk" title="Destroy this ordinary escrow item and add exactly {{.SellValue}} gold to the still-at-risk run cache." onclick="abyssSellJunkLoot({{.EscrowID}},{{.SellValue}},event)">Sell junk · +{{.SellValue}}g cache</button>{{end}}
       </div>
       {{else}}
       <div class="abyss-side-empty">No loot escrowed yet this run.</div>
@@ -2283,7 +2285,9 @@ function setEscrow(v){
       setTimeout(function(){f.remove();},1400);
     }
   }
-  document.getElementById('escrowVal').textContent=fmtGold(curEscrow);
+  var escrowEl=document.getElementById('escrowVal');
+  escrowEl.textContent=fmtGold(curEscrow);
+  escrowEl.setAttribute('data-raw',String(curEscrow));
   var mh=document.getElementById('mhEscrow'); if(mh)mh.textContent=fmtGold(curEscrow);
   // Coin pile (#350): the hoard visibly grows with the cache.
   var pile=document.getElementById('coinPile');

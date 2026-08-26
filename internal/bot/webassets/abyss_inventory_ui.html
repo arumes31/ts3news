@@ -19,6 +19,21 @@ async function abyssEquipBestLoot(id,event){
   await refreshRunLootManifest();
 }
 
+async function abyssSellJunkLoot(id,quotedGold,event){
+  if(event){event.preventDefault();event.stopPropagation();}
+  var value=Math.max(1,Math.floor(Number(quotedGold)||0));
+  var confirmed=await confirmModal('Convert this ordinary gear into +'+fmtNum(value)+'g of at-risk run cache? The item is destroyed immediately and cannot be recovered.',{title:'Sell escrow junk',okLabel:'Sell · +'+fmtNum(value)+'g cache',cancelLabel:'Keep item'});
+  if(!confirmed)return;
+  var button=event&&event.currentTarget;if(button)button.disabled=true;
+  var data=await abPost('/api/abyss/loot/sell_junk',{id:Number(id)||0,quoted_gold:value});
+  if(button)button.disabled=false;
+  if(!data.ok){abToast(data.error||'Could not sell that escrow item.',false);return;}
+  if(typeof setEscrow==='function')setEscrow(Number(data.escrow)||0);
+  var row=button&&button.closest?button.closest('.abyss-side-loot'):null;if(row)row.remove();
+  abToast(data.msg||('Junk sold for '+fmtNum(data.value)+'g cache.'),true);
+  await refreshRunLootManifest();
+}
+
 function applyRunLootData(row,item){
   var fields={
     'loot-id':item.id,'depth':item.depth,'source':item.source,'item-type':item.item_type,
@@ -30,7 +45,8 @@ function applyRunLootData(row,item){
     'set-count':item.set_count,'set-max':item.set_max,'corrupted':item.corrupted,
     'empty-slot':item.empty_slot,'can-equip-best':item.can_equip_best,'equip-on-bank':item.equip_on_bank,
     'smart-loot':item.smart_loot,'smart-loot-reason':item.smart_loot_reason,
-    'set-pity':item.set_pity,'wishlist':item.wishlist,'provenance':item.provenance
+    'set-pity':item.set_pity,'wishlist':item.wishlist,'provenance':item.provenance,
+    'can-sell-junk':item.can_sell_junk,'sell-value':item.sell_value
   };
   Object.keys(fields).forEach(function(key){
     var value=fields[key];
@@ -73,6 +89,12 @@ function buildAuthoritativeRunLootRow(item){
     var button=document.createElement('button');button.type='button';button.className='ghost xs ab-equip-best'+(item.equip_on_bank?' selected':'');
     button.textContent=item.equip_on_bank?'✓ Equip on bank':'Equip best on bank';
     button.onclick=function(event){abyssEquipBestLoot(item.id,event);};row.appendChild(button);
+  }
+  if(item.can_sell_junk){
+    var sell=document.createElement('button');sell.type='button';sell.className='ghost xs ab-sell-junk';
+    sell.textContent='Sell junk · +'+fmtNum(item.sell_value)+'g cache';
+    sell.title='Destroy this ordinary escrow item and add exactly '+fmtNum(item.sell_value)+' gold to the still-at-risk run cache.';
+    sell.onclick=function(event){abyssSellJunkLoot(item.id,item.sell_value,event);};row.appendChild(sell);
   }
   row.onclick=function(event){toggleRunLootDetail(row,event);};
   row.onkeydown=function(event){if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(row,event);}};
