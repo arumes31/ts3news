@@ -454,6 +454,7 @@ test('a victorious descend can preview and commit bank', async ({ page }) => {
       ok: true, victory: true, depth: 13, risk: 18, hp: 900, max_hp: 1000,
       gold: 5000, tokens: 12, bonus: 750, escrow: 3750, logs: [], loot: [],
       dura: [], timeline: [], consumables: [], run_floors_cleared: 3,
+      overkill_damage: 240, overkill_gold: 24,
     };
     if (path.endsWith('/bank') && body.preview) return {
       ok: true, escrow: 3750, source_escrow: 13750, depth_bonus_pct: 13, depth_bonus: 488,
@@ -472,6 +473,8 @@ test('a victorious descend can preview and commit bank', async ({ page }) => {
   await page.evaluate(() => { window.reduceMotion = true; });
   await page.locator('#btnDescend').click();
   await expect(page.locator('#abStatus')).toContainText('survived');
+  await expect(page.locator('.ab-log-overkill-reward')).toContainText('240 excess damage → +24g cache');
+  await expect(page.locator('#abyssBanner')).toContainText('Final overkill');
   await page.locator('#btnBank').click();
   await expect(page.locator('#sharedModalCard')).toContainText('Over-cap conversion');
   await expect(page.locator('#sharedModalCard')).toContainText('Next insurance is free');
@@ -527,6 +530,7 @@ test('planned multi-floor descent presents every combat floor in order', async (
     floor_results: [13, 14, 15].map((depth, index) => ({
       depth, victory: true, hp: 920 - index * 80, max_hp: 1000,
       logs: [`Floor ${depth} test combat`], loot: [], dura: [], timeline: [],
+      overkill_damage: 100 + index * 10, overkill_gold: 10 + index,
       event_chain: index < 2
         ? { active: true, sigils: index + 1, required: 3, floors_left: 8 - index, next_depth: depth + 1, collected: true }
         : { active: false, sigils: 3, required: 3, chains: 1, collected: true, completed: true, chest_reward: 9000 },
@@ -547,10 +551,20 @@ test('planned multi-floor descent presents every combat floor in order', async (
   await page.evaluate(() => {
     window.reduceMotion = true;
     window.__batchFloors = [];
-    document.addEventListener('abyss:batch-floor', event => window.__batchFloors.push(event.detail.depth));
+    window.__batchOverkillReceipts = [];
+    document.addEventListener('abyss:batch-floor', event => {
+      window.__batchFloors.push(event.detail.depth);
+      const receipt = document.querySelector('.ab-log-overkill-reward');
+      if (receipt) window.__batchOverkillReceipts.push(receipt.textContent);
+    });
   });
   await page.locator('#btnDescendMulti').click();
   await expect.poll(() => page.evaluate(() => window.__batchFloors)).toEqual([13, 14, 15]);
+  await expect.poll(() => page.evaluate(() => window.__batchOverkillReceipts)).toEqual([
+    '💰 FINAL OVERKILL · 100 excess damage → +10g cache',
+    '💰 FINAL OVERKILL · 110 excess damage → +11g cache',
+  ]);
+  await expect(page.locator('.ab-log-overkill-reward')).toContainText('120 excess damage → +12g cache');
   await expect(page.locator('#abStatus')).toContainText('survived');
   await expect(page.locator('#eventChainRibbon')).toHaveClass(/is-complete/);
   await expect(page.locator('#eventChainRibbon .ab-sigil-marks .is-found')).toHaveCount(3);

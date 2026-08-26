@@ -104,17 +104,18 @@ func (b *Bot) applyAbyssRescueSupportTurn(
 	originalUsers []UserInCombat,
 	loots *[]LootResult,
 	rand combatRandomSource,
-) {
+) int {
 	owner, support := abyssRescueSupportForUsers(activeUsers)
 	if owner == nil || support == nil {
-		return
+		return 0
 	}
 	target := lowestHealthMobExcept(*mobs, nil)
 	if target == nil {
-		return
+		return 0
 	}
 	damage := abyssRescueSupportDamage(support.Power, target.Stats.DEF, intensify)
 	damage = abyssKillerDamage(damage, owner, target)
+	remainingHP := target.Stats.HP
 	target.Stats.HP -= damage
 	applyAbyssBreakDamage(target, damage, logs)
 	*totalUserDamage += damage
@@ -123,11 +124,12 @@ func (b *Bot) applyAbyssRescueSupportTurn(
 		support.Name, owner.Nickname, target.Name, damage,
 	))
 	if target.Stats.HP > 0 {
-		return
+		return 0
 	}
 	*logs = append(*logs, fmt.Sprintf("☠️ %s was defeated by rescued delver %s.", target.Name, support.Name))
 	if winner := randomLootEligibleUser(originalUsers, rand); winner != nil {
 		b.awardCombatLoot(winner, *target, zone, logs, loots)
 	}
 	b.handleDeathEffects(target, mobs, logs, avgLvl, diffFactor, activeUsers, rand)
+	return abyssTerminalOverkillDamage(*mobs, target, damage, remainingHP)
 }

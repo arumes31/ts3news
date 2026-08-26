@@ -605,6 +605,7 @@ type abyssFloorResult struct {
 	MaxHP              int
 	PityProc           bool
 	DamageTaken        int
+	OverkillDamage     int
 	BossExecution      bool
 	BossName           string
 	BossDPS            int64
@@ -1076,7 +1077,7 @@ func (b *Bot) fightAbyssFloorLive(
 	// The engine's per-kill reward is ignored here: Abyss uses its own small
 	// per-floor XP payout below. We only need the win/loss outcome from combat.
 	combatLogOffset := len(logs)
-	resLogs, _, victory, loots, timeline := b.resolveChannelCombatDetailed(combatUsers, mobPtrs, u.Level, diff, zone)
+	resLogs, _, victory, loots, timeline, overkillDamage := b.resolveChannelCombatDetailed(combatUsers, mobPtrs, u.Level, diff, zone)
 	b.updateAbyssNemesis(uid, mobPtrs, victory)
 	if !victory {
 		families := make([]string, 0, len(mobs))
@@ -1244,7 +1245,7 @@ func (b *Bot) fightAbyssFloorLive(
 	logs = append(logs, fmt.Sprintf("[hr][color=#8a93a8]📊 %s · %d foe(s) · fight time %d ms · HP %s → %s (%+d)[/color]",
 		outcome, len(mobs), duration.Milliseconds(), FormatGoldPlain(int64(hpBefore)), FormatGoldPlain(int64(curHP)), curHP-hpBefore))
 
-	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, BossToken: bossTokenAwarded, BossContractPayout: bossContractPayout, BossCosmetic: bossCosmetic, SecretBossStage: secretBossResultStage, SecretBossComplete: secretBossComplete, SecretAchievement: secretAchievement}
+	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, OverkillDamage: overkillDamage, BossToken: bossTokenAwarded, BossContractPayout: bossContractPayout, BossCosmetic: bossCosmetic, SecretBossStage: secretBossResultStage, SecretBossComplete: secretBossComplete, SecretAchievement: secretAchievement}
 	if isBossFloor && len(mobs) > 0 {
 		res.BossName = mobs[0].Name
 		res.BossExecution = victory
@@ -2291,16 +2292,18 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 // their logs/loot plus a fresh run snapshot ride along with the error and the
 // client can reconcile depth, escrow, HP and wallet instead of drifting.
 type abyssMultiFloorResult struct {
-	Depth      int                         `json:"depth"`
-	Victory    bool                        `json:"victory"`
-	HP         int                         `json:"hp"`
-	MaxHP      int                         `json:"max_hp"`
-	Logs       []string                    `json:"logs"`
-	Loot       []string                    `json:"loot"`
-	Dura       []string                    `json:"dura"`
-	Timeline   []combatTimelineFrame       `json:"timeline"`
-	EventChain *abyssEventChainView        `json:"event_chain,omitempty"`
-	MapRoute   *abyssCartographerRouteView `json:"map_route,omitempty"`
+	Depth          int                         `json:"depth"`
+	Victory        bool                        `json:"victory"`
+	HP             int                         `json:"hp"`
+	MaxHP          int                         `json:"max_hp"`
+	OverkillDamage int                         `json:"overkill_damage,omitempty"`
+	OverkillGold   int64                       `json:"overkill_gold,omitempty"`
+	Logs           []string                    `json:"logs"`
+	Loot           []string                    `json:"loot"`
+	Dura           []string                    `json:"dura"`
+	Timeline       []combatTimelineFrame       `json:"timeline"`
+	EventChain     *abyssEventChainView        `json:"event_chain,omitempty"`
+	MapRoute       *abyssCartographerRouteView `json:"map_route,omitempty"`
 }
 
 func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, loot, dura []string, timeline []combatTimelineFrame, floorResults []abyssMultiFloorResult, rewardXP int) map[string]any {
@@ -2573,15 +2576,16 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		combinedDura = append(combinedDura, res.DuraHTML...)
 		totalRewardXP += res.RewardXP
 		floorResults = append(floorResults, abyssMultiFloorResult{
-			Depth:    newDepth,
-			Victory:  res.Victory,
-			HP:       res.CurrentHP,
-			MaxHP:    res.MaxHP,
-			Logs:     append([]string(nil), res.LogsHTML...),
-			Loot:     append([]string(nil), res.LootHTML...),
-			Dura:     append([]string(nil), res.DuraHTML...),
-			Timeline: append([]combatTimelineFrame(nil), res.Timeline...),
-			MapRoute: floorMapRoute,
+			Depth:          newDepth,
+			Victory:        res.Victory,
+			HP:             res.CurrentHP,
+			MaxHP:          res.MaxHP,
+			OverkillDamage: res.OverkillDamage,
+			Logs:           append([]string(nil), res.LogsHTML...),
+			Loot:           append([]string(nil), res.LootHTML...),
+			Dura:           append([]string(nil), res.DuraHTML...),
+			Timeline:       append([]combatTimelineFrame(nil), res.Timeline...),
+			MapRoute:       floorMapRoute,
 		})
 		pityProc = pityProc || res.PityProc
 		bossContractPayout += res.BossContractPayout
@@ -2590,7 +2594,17 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_lifetime_floors = abyss_lifetime_floors + 1 WHERE client_uid=$1", uid)
 
 		if res.Victory {
-			o := s.applyFloorVictory(uid, run, newDepth, run.Escrow, tier, modifier, focus, res.DamageTaken == 0)
+			o := s.applyFloorVictory(abyssFloorVictoryInput{
+				UID:            uid,
+				Run:            run,
+				Depth:          newDepth,
+				EscrowBefore:   run.Escrow,
+				Tier:           tier,
+				Modifier:       modifier,
+				Focus:          focus,
+				Untouched:      res.DamageTaken == 0,
+				OverkillDamage: res.OverkillDamage,
+			})
 			if o.DBErr {
 				writeJSON(w, abort("db", tier))
 				return
@@ -2620,6 +2634,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 			}
 			escrowSoftCap = o.EscrowSoftCap
 			escrowEfficiencyPct = o.EscrowEfficiencyPct
+			floorResults[len(floorResults)-1].OverkillGold = o.OverkillGold
 			run.Escrow = o.NewEscrow
 			_ = s.bot.setPendingAbyssDoubleBonus(uid, newDepth, o.Bonus)
 		} else {
@@ -3071,6 +3086,8 @@ type abyssFloorOutcome struct {
 	NewEscrow           int64
 	EscrowSoftCap       int64
 	EscrowEfficiencyPct int
+	OverkillDamage      int
+	OverkillGold        int64
 	ExpressSkip         bool
 	SecondaryGoal       string
 	GearMilestone       string
@@ -3086,14 +3103,35 @@ type abyssFloorOutcome struct {
 	DBErr               bool
 }
 
+type abyssFloorVictoryInput struct {
+	UID            string
+	Run            abyssRun
+	Depth          int
+	EscrowBefore   int64
+	Tier           abyssTier
+	Modifier       string
+	Focus          string
+	Untouched      bool
+	OverkillDamage int
+}
+
 // applyFloorVictory performs all victory bookkeeping for one cleared floor:
 // the escrow bonus with every multiplier, interest, momentum/bank-lock ticks,
 // gear XP, the daily first-descent bonus, best-depth/win-streak updates,
 // artifact leveling, achievements, lore/recipe discovery and the affix
 // consumable reward. Used by finishDescend and handleAbyssDescendMulti.
-func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escrowBefore int64, tier abyssTier, modifier, focus string, untouched bool) abyssFloorOutcome {
+func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOutcome {
+	uid := input.UID
+	run := input.Run
+	depth := input.Depth
+	escrowBefore := input.EscrowBefore
+	tier := input.Tier
+	modifier := input.Modifier
+	focus := input.Focus
+	untouched := input.Untouched
 	st := s.bot.loadAbyssStats(uid)
 	o := abyssFloorOutcome{NewRecord: depth > st.BestDepth}
+	o.OverkillDamage = input.OverkillDamage
 
 	bonus := abyssFloorBonus(depth, run.depthLevelHint())
 	bonus = int64(float64(bonus) * tier.RewardMult * (1.0 + float64(st.UpGreed)*0.05) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50))
@@ -3183,7 +3221,14 @@ func (s *WebServer) applyFloorVictory(uid string, run abyssRun, depth int, escro
 	}
 	interestRate := abyssGreedyInterestRate(abyssEffectiveInterest(st.UpInterest, hasLuckyCoin), depth)
 	withInterest := int64(float64(escrowBefore) * (1.0 + interestRate))
-	growth := applyAbyssEscrowSoftCap(escrowBefore, withInterest-escrowBefore, bonus, depth)
+	growth, overkillGold := applyAbyssEscrowReward(abyssEscrowRewardInput{
+		Escrow:         escrowBefore,
+		InterestGain:   withInterest - escrowBefore,
+		FloorBonus:     bonus,
+		Depth:          depth,
+		OverkillDamage: input.OverkillDamage,
+	})
+	o.OverkillGold = overkillGold
 	bonus = growth.Bonus + bountyReward
 	// [56] The soft cap applies only to ordinary floor growth. Signed bounties
 	// and a completed event-chain chest pay their exact posted values.
@@ -3366,11 +3411,23 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 	}
 
 	if res.Victory {
-		o := s.applyFloorVictory(uid, run, depth, escrowBefore, tier, modifier, focus, res.DamageTaken == 0)
+		o := s.applyFloorVictory(abyssFloorVictoryInput{
+			UID:            uid,
+			Run:            run,
+			Depth:          depth,
+			EscrowBefore:   escrowBefore,
+			Tier:           tier,
+			Modifier:       modifier,
+			Focus:          focus,
+			Untouched:      res.DamageTaken == 0,
+			OverkillDamage: res.OverkillDamage,
+		})
 		if o.DBErr {
 			return map[string]any{"ok": false, "error": "db"}
 		}
 		out["bonus"] = o.Bonus
+		out["overkill_damage"] = o.OverkillDamage
+		out["overkill_gold"] = o.OverkillGold
 		if o.RewardExperiment.Cohort != "off" {
 			out["reward_experiment"] = o.RewardExperiment
 		}

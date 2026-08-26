@@ -559,7 +559,7 @@ func bossResist(level, gearScore int) float64 {
 	return r
 }
 
-func (b *Bot) resolveChannelCombatDetailed(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool, []LootResult, []combatTimelineFrame) {
+func (b *Bot) resolveChannelCombatDetailed(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool, []LootResult, []combatTimelineFrame, int) {
 	return b.resolveChannelCombatDetailedWithRandom(
 		users,
 		initialMobs,
@@ -577,7 +577,7 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 	diffFactor float64,
 	zone content.Zone,
 	random combatRandomSource,
-) ([]string, int, bool, []LootResult, []combatTimelineFrame) {
+) ([]string, int, bool, []LootResult, []combatTimelineFrame, int) {
 	rand := random
 	var logs []string
 	var loots []LootResult
@@ -659,6 +659,9 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 	totalRounds := 0
 
 	for w := 1; w <= waves; w++ {
+		if track != nil {
+			track.overkill = 0
+		}
 		var currentMobs []*content.Mob
 		if w == 1 {
 			// Deep copy initial mobs
@@ -1180,11 +1183,15 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 			}
 		}
 	}
-	return logs, finalAwardedXP, victory, loots, timeline
+	terminalOverkill := 0
+	if victory && track != nil {
+		terminalOverkill = track.overkill
+	}
+	return logs, finalAwardedXP, victory, loots, timeline, terminalOverkill
 }
 
 func (b *Bot) resolveChannelCombat(users []UserInCombat, initialMobs []*content.Mob, avgLvl int, diffFactor float64, zone content.Zone) ([]string, int, bool, []LootResult) {
-	logs, xp, victory, loots, _ := b.resolveChannelCombatDetailed(users, initialMobs, avgLvl, diffFactor, zone)
+	logs, xp, victory, loots, _, _ := b.resolveChannelCombatDetailed(users, initialMobs, avgLvl, diffFactor, zone)
 	return logs, xp, victory, loots
 }
 
@@ -2081,13 +2088,19 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					b.awardCombatLoot(winner, *target, zone, logs, loots)
 				}
 				b.handleDeathEffects(target, mobs, logs, avgLvl, diffFactor, activeUsers, rand)
+				if track != nil {
+					if overkill := abyssTerminalOverkillDamage(*mobs, target, dmg, remainingHP); overkill > 0 {
+						track.overkill = overkill
+					}
+				}
 			}
 			if isLiveAction && overkill > 1 && liveHitKind != "item" {
 				cleaveTarget := lowestHealthMobExcept(*mobs, target)
 				if cleaveTarget != nil {
 					cleaveDamage := max(1, max(0, killerBaseDamage-remainingHP)/2)
 					cleaveDamage = abyssKillerDamage(cleaveDamage, u, cleaveTarget)
-					cleaveOverkill := abyssOverkillHit(cleaveDamage, cleaveTarget.Stats.HP)
+					cleaveRemainingHP := cleaveTarget.Stats.HP
+					cleaveOverkill := abyssOverkillHit(cleaveDamage, cleaveRemainingHP)
 					cleaveTarget.Stats.HP -= cleaveDamage
 					applyAbyssBreakDamage(cleaveTarget, cleaveDamage, logs)
 					*totalUserDamage += cleaveDamage
@@ -2099,6 +2112,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 							b.awardCombatLoot(winner, *cleaveTarget, zone, logs, loots)
 						}
 						b.handleDeathEffects(cleaveTarget, mobs, logs, avgLvl, diffFactor, activeUsers, rand)
+						if track != nil {
+							if overkill := abyssTerminalOverkillDamage(*mobs, cleaveTarget, cleaveDamage, cleaveRemainingHP); overkill > 0 {
+								track.overkill = overkill
+							}
+						}
 					}
 				}
 			}
@@ -2206,7 +2224,8 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				pdmg = 1
 			}
 			pdmg = abyssKillerDamage(pdmg, u, ptarget)
-			petOverkill := abyssOverkillHit(pdmg, ptarget.Stats.HP)
+			petRemainingHP := ptarget.Stats.HP
+			petOverkill := abyssOverkillHit(pdmg, petRemainingHP)
 			ptarget.Stats.HP -= pdmg
 			applyAbyssBreakDamage(ptarget, pdmg, logs)
 			*totalUserDamage += pdmg
@@ -2225,6 +2244,11 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					b.awardCombatLoot(winner, *ptarget, zone, logs, loots)
 				}
 				b.handleDeathEffects(ptarget, mobs, logs, avgLvl, diffFactor, activeUsers, rand)
+				if track != nil {
+					if overkill := abyssTerminalOverkillDamage(*mobs, ptarget, pdmg, petRemainingHP); overkill > 0 {
+						track.overkill = overkill
+					}
+				}
 			}
 		}
 
@@ -2235,7 +2259,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 
 	// A rescued delver is one server-owned party action per round, not one
 	// action per player. Resolve it after every real player and pet has acted.
-	b.applyAbyssRescueSupportTurn(activeUsers, mobs, zone, intensify, logs, totalUserDamage, avgLvl, diffFactor, originalUsers, loots, rand)
+	if overkill := b.applyAbyssRescueSupportTurn(activeUsers, mobs, zone, intensify, logs, totalUserDamage, avgLvl, diffFactor, originalUsers, loots, rand); track != nil && overkill > 0 {
+		track.overkill = overkill
+	}
 }
 
 func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone content.Zone, intensify float64, logs *[]string, totalMobDamage, totalUserDamage *int, round int, ambush bool, track *abyssFightTrack, rand combatRandomSource) {
@@ -2336,10 +2362,14 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 				counterDmg = 1
 			}
 			counterDmg = abyssKillerDamage(counterDmg, target, m)
+			remainingHP := m.Stats.HP
 			m.Stats.HP -= counterDmg
 			*totalUserDamage += counterDmg
 			if track != nil {
 				track.counters += counterDmg
+				if overkill := abyssTerminalOverkillDamage(mobs, m, counterDmg, remainingHP); overkill > 0 {
+					track.overkill = overkill
+				}
 			}
 			if abyssCombatant(target) {
 				targetAU.parryCount++
@@ -2528,10 +2558,14 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 					reflect = 1
 				}
 				reflect = abyssKillerDamage(reflect, target, m)
+				remainingHP := m.Stats.HP
 				m.Stats.HP -= reflect
 				*totalUserDamage += reflect
 				if track != nil {
 					track.thorns += reflect
+					if overkill := abyssTerminalOverkillDamage(mobs, m, reflect, remainingHP); overkill > 0 {
+						track.overkill = overkill
+					}
 				}
 			}
 		}

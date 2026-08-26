@@ -345,6 +345,18 @@
 
 .ab-log-line.ab-log-pity { color: #d857ff; } /* UI-33 */
 
+.ab-log-line.ab-log-overkill-reward {
+  background:
+    repeating-linear-gradient(135deg, rgba(244, 197, 66, .08) 0 7px, transparent 7px 14px),
+    #111722;
+  border-left: 3px solid var(--gold);
+  color: var(--gold);
+  font-weight: 800;
+  letter-spacing: .035em;
+  margin-top: .35rem;
+  padding: .35rem .55rem;
+}
+
 /* UI-22/34/35: floor dividers + run headers */
 .ab-log-line.ab-log-divider {
   text-align: center;

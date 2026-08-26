@@ -19,6 +19,26 @@ import (
 type abyssFightTrack struct {
 	thorns   int // total reflected (thorns) damage dealt to mobs
 	counters int // total parry counter-attack damage dealt to mobs
+	overkill int // excess damage on the final enemy of the final cleared wave
+}
+
+func abyssOverkillDamage(damage, remainingHP int) int {
+	if remainingHP <= 0 || damage <= remainingHP {
+		return 0
+	}
+	return damage - remainingHP
+}
+
+func abyssTerminalOverkillDamage(mobs []*content.Mob, finishingMob *content.Mob, damage, remainingHP int) int {
+	for _, mob := range mobs {
+		if mob != nil && mob.Stats.HP > 0 {
+			return 0
+		}
+	}
+	if finishingMob != nil && finishingMob.DeathEffect != nil && finishingMob.DeathEffect.Type == content.DeathSummon {
+		return 0
+	}
+	return abyssOverkillDamage(damage, remainingHP)
 }
 
 func appendAbyssFightBreakdown(logs []string, track *abyssFightTrack) []string {

@@ -67,6 +67,49 @@ func TestAbyssGraceAndHardcoreForfeitPoliciesAreMutuallyExclusive(t *testing.T) 
 	}
 }
 
+func TestAbyssOverkillGoldConversionAndCap(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		damage     int
+		floorBonus int64
+		want       int64
+	}{
+		{name: "no excess", floorBonus: 1_000},
+		{name: "reward-free floor", damage: 500},
+		{name: "partial gold rounds up", damage: 1, floorBonus: 1_000, want: 1},
+		{name: "ten damage per gold", damage: 100, floorBonus: 1_000, want: 10},
+		{name: "quarter-floor cap", damage: 100_000, floorBonus: 1_000, want: 250},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if got := abyssOverkillGold(test.damage, test.floorBonus); got != test.want {
+				t.Errorf("abyssOverkillGold(%d, %d) = %d, want %d", test.damage, test.floorBonus, got, test.want)
+			}
+		})
+	}
+}
+
+func TestApplyAbyssEscrowRewardIncludesOverkillInSoftCap(t *testing.T) {
+	t.Parallel()
+
+	input := abyssEscrowRewardInput{
+		Escrow:         200_000,
+		FloorBonus:     1_000,
+		Depth:          10,
+		OverkillDamage: 100_000,
+	}
+	growth, credited := applyAbyssEscrowReward(input)
+	if credited != 62 {
+		t.Fatalf("soft-capped overkill credit = %d, want 62", credited)
+	}
+	if growth.Escrow != 200_312 || growth.Bonus != 312 {
+		t.Fatalf("growth with overkill = %#v, want escrow 200312 and bonus 312", growth)
+	}
+}
+
 func TestAbyssHardcoreLeaderboardUsesDedicatedRuns(t *testing.T) {
 	t.Parallel()
 

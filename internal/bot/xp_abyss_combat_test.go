@@ -24,6 +24,53 @@ func TestAppendAbyssFightBreakdown(t *testing.T) {
 	}
 }
 
+func TestAbyssOverkillDamage(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		damage      int
+		remainingHP int
+		want        int
+	}{
+		{name: "surviving hit", damage: 99, remainingHP: 100},
+		{name: "exact lethal hit", damage: 100, remainingHP: 100},
+		{name: "finishing excess", damage: 145, remainingHP: 100, want: 45},
+		{name: "already defeated", damage: 145, remainingHP: 0},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if got := abyssOverkillDamage(test.damage, test.remainingHP); got != test.want {
+				t.Errorf("abyssOverkillDamage(%d, %d) = %d, want %d", test.damage, test.remainingHP, got, test.want)
+			}
+		})
+	}
+}
+
+func TestAbyssTerminalOverkillRequiresClearedWave(t *testing.T) {
+	t.Parallel()
+
+	defeated := &content.Mob{Name: "Defeated", Stats: content.Stats{HP: -40}}
+	if got := abyssTerminalOverkillDamage([]*content.Mob{defeated}, defeated, 140, 100); got != 40 {
+		t.Fatalf("cleared-wave overkill = %d, want 40", got)
+	}
+
+	reinforcement := &content.Mob{Name: "Death summon", Stats: content.Stats{HP: 1}}
+	if got := abyssTerminalOverkillDamage([]*content.Mob{defeated, reinforcement}, defeated, 140, 100); got != 0 {
+		t.Fatalf("overkill with a living reinforcement = %d, want 0", got)
+	}
+
+	summoner := &content.Mob{
+		Name: "Brood host",
+		Stats: content.Stats{HP: -40},
+		DeathEffect: &content.MobDeathEffect{Type: content.DeathSummon},
+	}
+	if got := abyssTerminalOverkillDamage([]*content.Mob{summoner}, summoner, 140, 100); got != 0 {
+		t.Fatalf("unresolved death-summon overkill = %d, want 0", got)
+	}
+}
+
 func TestAbyssCombatTargetingAndBuildBonuses(t *testing.T) {
 	t.Parallel()
 

@@ -13,6 +13,8 @@ const (
 	abyssRunFlagHardcore         = "hardcore"
 	abyssPartialBankFeePct       = 10
 	abyssRestFloorGap            = 7
+	abyssOverkillDamagePerGold   = 10
+	abyssOverkillRewardCapPct    = 25
 )
 
 func abyssRestFloorDue(lastRestDepth, nextDepth int) bool {
@@ -58,6 +60,14 @@ type abyssEscrowGrowth struct {
 	EfficiencyPct int
 }
 
+type abyssEscrowRewardInput struct {
+	Escrow         int64
+	InterestGain   int64
+	FloorBonus     int64
+	Depth          int
+	OverkillDamage int
+}
+
 func abyssEscrowSoftCap(depth int) int64 {
 	return 50_000 + int64(max(depth, 1))*10_000
 }
@@ -88,6 +98,30 @@ func applyAbyssEscrowSoftCap(escrow, interestGain, bonus int64, depth int) abyss
 		SoftCap:       cap,
 		EfficiencyPct: efficiency,
 	}
+}
+
+func abyssOverkillGold(overkillDamage int, floorBonus int64) int64 {
+	if overkillDamage <= 0 || floorBonus <= 0 {
+		return 0
+	}
+	converted := (int64(overkillDamage)-1)/abyssOverkillDamagePerGold + 1
+	cap := max(floorBonus*abyssOverkillRewardCapPct/100, 1)
+	return min(converted, cap)
+}
+
+func applyAbyssEscrowReward(input abyssEscrowRewardInput) (abyssEscrowGrowth, int64) {
+	base := applyAbyssEscrowSoftCap(input.Escrow, input.InterestGain, input.FloorBonus, input.Depth)
+	overkillGold := abyssOverkillGold(input.OverkillDamage, input.FloorBonus)
+	if overkillGold == 0 {
+		return base, 0
+	}
+	growth := applyAbyssEscrowSoftCap(
+		input.Escrow,
+		input.InterestGain,
+		input.FloorBonus+overkillGold,
+		input.Depth,
+	)
+	return growth, growth.Escrow - base.Escrow
 }
 
 func planAbyssForfeit(escrow int64, insured, depth int, hardcore bool) abyssForfeitPolicy {

@@ -2398,6 +2398,7 @@ function playLog(lines, loot, dura, timeline, result){
       (loot||[]).forEach(function(l){var d=document.createElement('div');d.className='ab-loot-line '+rarityClass(l);d.innerHTML='🎁 '+l;lootEl.appendChild(d);});
       // UI-31: durability-loss lines carry a 🔧 prefix.
       (dura||[]).forEach(function(l){var d=document.createElement('div');d.className='ab-dura-line';d.innerHTML='🔧 '+l;duraEl.appendChild(d);});
+      appendAbyssOverkillReceipt(log,result);
       appendRunLoot(loot);
       collapseLongFight(log); // UI-27
       applyLogFilter(); // UI-36: re-apply an active filter to the new lines
@@ -2485,6 +2486,12 @@ try{ logNumbered=localStorage.getItem('ab_lognum')==='1'; logMono=localStorage.g
 
 function addLogHead(log, cls, txt){
   var d=document.createElement('div'); d.className='ab-log-line '+cls; d.textContent=txt; log.appendChild(d); recordCombatLogLine(d,txt);
+}
+function appendAbyssOverkillReceipt(log,result){
+  var damage=Math.max(0,Number(result&&result.overkill_damage)||0);
+  var gold=Math.max(0,Number(result&&result.overkill_gold)||0);
+  if(!damage||!gold)return;
+  addLogHead(log,'ab-log-overkill-reward','💰 FINAL OVERKILL · '+fmtNum(damage)+' excess damage → +'+fmtGold(gold)+' cache');
 }
 function combatRoundAt(timeline, logIndex){
   for(var i=0;i<timeline.length;i++){
@@ -3647,6 +3654,7 @@ async function processDescendResult(d, hp, max){
     document.getElementById('bestDepth').textContent='🕳️ '+Math.max(best,d.depth);
     if(d.new_record) recordBurst(d.depth); // UI-141: server-confirmed personal record
     var msg='✅ Floor '+d.depth+' cleared! +'+fmtGold(d.bonus)+' to your cache (now '+fmtGold(d.escrow)+').';
+    if(Number(d.overkill_gold)>0)msg+=' 💰 Final overkill: '+fmtNum(d.overkill_damage)+' excess damage → +'+fmtGold(d.overkill_gold)+' cache.';
     if(d.express_skip)msg+=' ⚡ Express floor — no bonus until you pass your record.';
     if(d.daily)msg+=' 🎁 Daily first-descent bonus!';
     if(d.achievement){ msg+=' 🏅 '+d.achievement; achievementBanner(d.achievement); } // UI-140
@@ -3673,7 +3681,7 @@ async function processDescendResult(d, hp, max){
       if(hasGear) addLogHead(document.getElementById('abyssLog'), 'ab-log-pity', '✨ pity '+p+'/40');
     }
     // UI-39: sr-only fight summary for screen readers.
-    srSummary('Floor '+d.depth+' cleared. HP now '+fmtNum(d.hp)+' of '+fmtNum(d.max_hp)+'. '+plural((d.loot||[]).length,'item')+' escrowed.');
+    srSummary('Floor '+d.depth+' cleared. HP now '+fmtNum(d.hp)+' of '+fmtNum(d.max_hp)+'. '+plural((d.loot||[]).length,'item')+' escrowed.'+(Number(d.overkill_gold)>0?' Final overkill credited '+fmtGold(d.overkill_gold)+' cache.':''));
   } else {
     downed=true; canRev=d.can_revive; canLastStand=d.can_last_stand;
 	if(typeof updateAbyssReviveRisk==='function')updateAbyssReviveRisk(d.revive_streak,d.revive_chance_pct);
