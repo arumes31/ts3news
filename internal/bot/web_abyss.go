@@ -1463,6 +1463,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	newHP, regenPerSec := s.bot.applyAbyssRegen(uid, equipped, u.CurrentHP, u.MaxHP)
 	u.CurrentHP = newHP
 	var slots []gearView
+	damageContributions := abyssGearDamageContributions(equipped)
 	durabilityBySlot := s.bot.abyssEquippedDurability(uid)
 	for _, slot := range content.AllSlots {
 		if g, ok := equipped[slot]; ok {
@@ -1470,6 +1471,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 			if !g.Unidentified {
 				view.Durability = durabilityBySlot[slot]
 			}
+			view.Damage = damageContributions[slot]
 			slots = append(slots, view)
 		}
 	}

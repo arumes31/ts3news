@@ -6,6 +6,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_skill_variety.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_first_strike.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_pixel.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_gear_damage.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_onboarding.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_entry_planner.css"}}">
@@ -145,11 +146,12 @@
     <h3>⚔️ Armoury</h3>
     <div class="abyss-side-list">
       {{range .Equipped}}
-      <div class="abyss-side-gear" tabindex="0" data-slot="{{.Slot}}" data-art-key="item:{{.InvID}}:{{.ID}}:{{.Name}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-stats="{{.StatsJSON}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}">
+      <div class="abyss-side-gear" tabindex="0" {{if .Damage.Available}}role="button" aria-expanded="false" aria-controls="abGearDamage-{{.Slot}}" onclick="if(event.detail!==0)toggleAbyssGearDamage(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();toggleAbyssGearDamage(this)}"{{end}} data-slot="{{.Slot}}" data-art-key="item:{{.InvID}}:{{.ID}}:{{.Name}}" data-rarity="{{.RarityVal}}" data-temper="{{.Temper}}" data-quality="{{.Quality}}" data-set-id="{{.SetID}}" data-sockets="{{.Sockets}}" data-gems="{{len .Gemstones}}" data-dur="{{.Durability}}" data-max-dur="{{.MaxDurability}}" data-stats="{{.StatsJSON}}" data-tip="{{.Name}}&#10;{{.Slot}} · {{.Rarity}} · CR {{printf "%.0f" .CR}}{{if gt .Score 0}} · Score {{.Score}}{{end}}{{if gt .MaxDurability 0}} · Dur {{.Durability}}/{{.MaxDurability}}{{end}}{{if .Stats}}&#10;{{range .Stats}}{{.Label}} {{.Value}}  {{end}}{{end}}{{if gt .XPBonusPct 0}}&#10;+{{.XPBonusPct}}% XP{{end}}{{if .EffectDesc}}&#10;{{.EffectDesc}}{{end}}{{if .Damage.Available}}&#10;Damage contribution: {{if .Damage.HasDirect}}{{if ne .Damage.BasePower 0}}{{printf "%+d" .Damage.BasePower}} STR{{if gt .Damage.BaseSharePct 0}} ({{.Damage.BaseSharePct}}%){{end}}{{end}}{{if and (ne .Damage.BasePower 0) (ne .Damage.SpellPower 0)}} · {{end}}{{if ne .Damage.SpellPower 0}}{{printf "%+d" .Damage.SpellPower}} INT{{if gt .Damage.SpellSharePct 0}} ({{.Damage.SpellSharePct}}%){{end}}{{end}}{{if .Damage.AttackType}} · {{.Damage.AttackType}}{{end}}{{else}}no direct STR or INT{{end}}&#10;Click or press Enter to expand damage channels.{{end}}">
         <span class="ab-pixel-icon ab-gear-pixel" aria-hidden="true"></span>
         <span class="ab-side-gear-name" style="color:{{.RarityColor}}">{{.Name}}</span>
-        <span class="cr">CR {{printf "%.0f" .CR}}</span>
+        <span class="cr">CR {{printf "%.0f" .CR}}{{if .Damage.Available}} <i class="ab-gear-damage-indicator" aria-hidden="true"></i>{{end}}</span>
       </div>
+      {{template "abyssGearDamageBreakdown" .}}
       {{else}}
       <div class="abyss-side-empty">No gear equipped.</div>
       {{end}}
@@ -3715,6 +3717,7 @@ async function processDescendResult(d, hp, max){
 {{template "abyssPixelCombatJS" .}}
 {{template "abyssLiveActionBarJS" .}}
 {{template "abyssSkillVarietyJS" .}}
+{{template "abyssGearDamageJS" .}}
 {{template "abyssOnboardingJS" .}}
 {{template "abyssEntryPlannerJS" .}}
 {{template "abyssSkillPriorityJS" .}}

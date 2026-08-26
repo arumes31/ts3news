@@ -68,6 +68,7 @@ type gearView struct {
 	Prismatic      bool // rune already elevated to prismatic
 	Locked         bool // protected from sale, salvage, dismantle, and sacrifice
 	RecentlyLooted bool
+	Damage         abyssGearDamageView
 }
 
 // gearStatList returns the gear's non-zero combat stats, largest first.

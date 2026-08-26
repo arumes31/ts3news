@@ -263,6 +263,51 @@ test('SPD-scaled first strike is prominent and safely rendered in both combat lo
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
+test('gear damage channels explain contribution and support keyboard disclosure', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 900 });
+  const styles = await page.request.get('/static/abyss_gear_damage.css');
+  expect(styles.status()).toBe(200);
+  expect(await styles.text()).toContain('.ab-gear-damage[hidden]');
+  await page.goto('/abyss?active=1&gear=1');
+
+  const mainHand = page.locator('.abyss-side-gear[data-slot="MainHand"]');
+  const offHand = page.locator('.abyss-side-gear[data-slot="OffHand"]');
+  const mainPanel = page.locator('#abGearDamage-MainHand');
+  const offPanel = page.locator('#abGearDamage-OffHand');
+
+  await expect(mainHand).toHaveAttribute('role', 'button');
+  await expect(mainHand).toHaveAttribute('aria-expanded', 'false');
+  await expect(mainPanel).toHaveCount(1);
+  await expect(offPanel).toHaveCount(1);
+  await expect(mainPanel).toBeHidden();
+  await mainHand.hover();
+  await expect(page.locator('.ab-hovertip.show')).toContainText('Damage contribution: +60 STR (60%) · +20 INT (25%) · Fire');
+  await expect(page.locator('.ab-hovertip.show')).toContainText('press Enter to expand');
+
+  await mainHand.focus();
+  await mainHand.press('Enter');
+  await expect(mainHand).toHaveAttribute('aria-expanded', 'true');
+  await expect(mainPanel).toBeVisible();
+  await expect(mainPanel).toContainText('Base power');
+  await expect(mainPanel).toContainText('+60 STR');
+  await expect(mainPanel).toContainText('60% of gear STR');
+  await expect(mainPanel).toContainText('Spell scaling');
+  await expect(mainPanel).toContainText('+20 INT');
+  await expect(mainPanel).toContainText('25% of gear INT');
+  await expect(mainPanel).toContainText('Fire');
+  await expect(mainPanel).toContainText('Final damage also depends on skills');
+
+  await offHand.click();
+  await expect(mainHand).toHaveAttribute('aria-expanded', 'false');
+  await expect(mainPanel).toBeHidden();
+  await expect(offHand).toHaveAttribute('aria-expanded', 'true');
+  await expect(offPanel).toBeVisible();
+  await offHand.focus();
+  await offHand.press(' ');
+  await expect(offPanel).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
 test('skill priority reorders by drag and keyboard then persists to the server', async ({ page }) => {
   let savedOrder = null;
   await fulfillAbyssAPI(page, (path, body) => {

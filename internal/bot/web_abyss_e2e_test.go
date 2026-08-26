@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"ts3news/internal/content"
 	"ts3news/internal/i18n"
 )
 
@@ -39,6 +40,29 @@ func TestAbyssE2EServer(t *testing.T) {
 	})
 	mux.HandleFunc("/abyss", func(w http.ResponseWriter, r *http.Request) {
 		fixture := abyssGoldenFixture(r.URL.Query().Get("active") == "1")
+		if r.URL.Query().Get("gear") == "1" {
+			equipped := map[content.GearSlot]content.Gear{
+				content.SlotMainHand: {
+					ID: "TEST_BLADE", Name: "Cinder Test Blade", Slot: content.SlotMainHand,
+					Element: content.ElementFire, Rarity: content.RarityEpic, MaxDurability: 100,
+					Stats: content.Stats{STR: 60, INT: 20},
+				},
+				content.SlotOffHand: {
+					ID: "TEST_FOCUS", Name: "Tideglass Focus", Slot: content.SlotOffHand,
+					Rarity: content.RarityEpic, MaxDurability: 80,
+					Stats: content.Stats{STR: 40, INT: 60},
+				},
+			}
+			contributions := abyssGearDamageContributions(equipped)
+			views := make([]gearView, 0, len(equipped))
+			for _, slot := range []content.GearSlot{content.SlotMainHand, content.SlotOffHand} {
+				view := toGearView(slot, equipped[slot])
+				view.Damage = contributions[slot]
+				view.Durability = view.MaxDurability
+				views = append(views, view)
+			}
+			fixture["Equipped"] = views
+		}
 		room := r.URL.Query().Get("room")
 		if room == abyssForgeFloorType || room == abyssEventChainType || room == abyssCartographerEventType {
 			run := fixture["Run"].(abyssRun)
