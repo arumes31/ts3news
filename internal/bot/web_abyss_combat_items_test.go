@@ -115,8 +115,10 @@ func TestAbyssConsumableEscrowGrantStacksToCap(t *testing.T) {
 	}
 	defer func() { _ = db.Close() }()
 
+	mock.ExpectQuery("SELECT level FROM abyss_consumable_pouches").WithArgs("user1").
+		WillReturnRows(sqlmock.NewRows([]string{"level"}).AddRow(0))
 	mock.ExpectExec("INSERT INTO user_consumables").
-		WithArgs("user1", "rejuvenation_potion", 9, abyssConsumableStackCap).
+		WithArgs("user1", "rejuvenation_potion", 9, abyssConsumableStackCapBase).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	bot := &Bot{DB: db}
 	if err := bot.applyAbyssLootGrant("user1", abyssLootGrant{Type: "cons", ConsID: "rejuvenation_potion", ConsDur: 9}); err != nil {
@@ -126,8 +128,10 @@ func TestAbyssConsumableEscrowGrantStacksToCap(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	mock.ExpectQuery("SELECT level FROM abyss_consumable_pouches").WithArgs("user1").
+		WillReturnRows(sqlmock.NewRows([]string{"level"}).AddRow(0))
 	mock.ExpectExec("INSERT INTO user_consumables").
-		WithArgs("user1", "rejuvenation_potion", 1, abyssConsumableStackCap).
+		WithArgs("user1", "rejuvenation_potion", 1, abyssConsumableStackCapBase).
 		WillReturnError(errors.New("write failed"))
 	if err := bot.applyAbyssLootGrant("user1", abyssLootGrant{Type: "cons", ConsID: "rejuvenation_potion"}); err == nil {
 		t.Fatal("failed stacked grant reported success")

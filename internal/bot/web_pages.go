@@ -489,6 +489,7 @@ func (s *WebServer) handleInventory(w http.ResponseWriter, r *http.Request, uid 
 		"Items":       items,
 		"Consumables": cons,
 		"Buybacks":    s.bot.vendorBuybacks(uid),
+		"Pouch":       s.bot.abyssPouchProgress(uid),
 	})
 }
 

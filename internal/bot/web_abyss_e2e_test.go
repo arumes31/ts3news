@@ -95,6 +95,11 @@ func TestAbyssE2EServer(t *testing.T) {
 				gearView: buybackView, BuybackID: 77, BuybackCost: 11_000,
 				SaleValue: 10_000, SoldAt: "25 Aug · 18:30 UTC",
 			}},
+			"Pouch": abyssPouchView{
+				Owned: true, Equipped: true, Level: 1, MaxLevel: 3, StackCap: 6, CarryCap: 9,
+				NextStack: 7, NextCarry: 10, NextLevel: 2, NextCost: 1_000_000, CanUpgrade: true,
+				StatusLabel: "Equipped · carry expansion active.",
+			},
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

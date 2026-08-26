@@ -1873,7 +1873,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	maxAllowedConsumables := abyssCarryCapBase
 	for _, g := range equipped {
 		if g.ID == "ABYSS_POUCH" {
-			maxAllowedConsumables = abyssCarryCapPouch
+			_, maxAllowedConsumables = abyssPouchCaps(s.bot.abyssPouchLevel(uid))
 			break
 		}
 	}

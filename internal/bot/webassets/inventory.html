@@ -1,9 +1,27 @@
 {{define "inventory"}}{{template "head" .}}
 <link rel="stylesheet" href="{{asset "/static/inventory_buyback.css"}}">
+<link rel="stylesheet" href="{{asset "/static/inventory_pouch.css"}}">
 <h1>Inventory</h1>
 <p class="muted">Owned gear you haven't equipped. Equip it, vendor it for gold, or list it on the Auction House.</p>
 
 <div id="invMsg" class="toast"></div>
+
+<section class="pouch-panel{{if .Pouch.Equipped}} is-equipped{{end}}" id="pouchTailoring" aria-labelledby="pouchTitle">
+  <div class="pouch-emblem" aria-hidden="true">🧰</div>
+  <div class="pouch-copy">
+    <span class="pouch-kicker">PERMANENT STORAGE TAILORING</span>
+    <h2 id="pouchTitle">Consumable Pouch · Rank <span id="pouchRank">{{.Pouch.Level}}</span>/{{.Pouch.MaxLevel}}</h2>
+    <p>{{.Pouch.StatusLabel}}</p>
+    <div class="pouch-ranks" aria-label="Pouch tailoring rank">{{range seq 1 .Pouch.MaxLevel}}<i class="{{if le . $.Pouch.Level}}filled{{end}}"></i>{{end}}</div>
+  </div>
+  <dl class="pouch-caps">
+    <div><dt>Abyss loot stack</dt><dd id="pouchStackCap">{{.Pouch.StackCap}}</dd>{{if .Pouch.CanUpgrade}}<small>next {{.Pouch.NextStack}}</small>{{end}}</div>
+    <div><dt>Equipped carry</dt><dd id="pouchCarryCap">{{.Pouch.CarryCap}}</dd>{{if .Pouch.CanUpgrade}}<small>next {{.Pouch.NextCarry}}</small>{{end}}</div>
+  </dl>
+  {{if .Pouch.CanUpgrade}}<button type="button" id="pouchUpgradeButton" data-cost="{{.Pouch.NextCost}}" onclick="upgradePouch(this)">Tailor rank {{.Pouch.NextLevel}} · 🪙 {{gold .Pouch.NextCost}}</button>
+  {{else if eq .Pouch.Level .Pouch.MaxLevel}}<button type="button" disabled>✓ Masterwork</button>
+  {{else}}<button type="button" disabled>Requires Consumable Pouch</button>{{end}}
+</section>
 
 <section class="buyback-panel" id="vendorBuybacks" aria-labelledby="vendorBuybackTitle">
   <header class="buyback-head">
@@ -73,6 +91,23 @@
     if (list && !list.querySelector('.buyback-card')) { var empty = document.createElement('p'); empty.className = 'buyback-empty'; empty.textContent = 'No recent vendor sales. Your next ten eligible sales will appear here.'; list.appendChild(empty); }
     var gold = document.getElementById('goldPill'); if (gold) { gold.dataset.value = String(data.gold); gold.textContent = '🪙 ' + Number(data.gold || 0).toLocaleString(); }
     toast(data.msg || 'Item returned to your inventory.', true);
+  }
+  async function upgradePouch(button) {
+    if (!button || button.disabled) return;
+    var cost = Number(button.dataset.cost || 0);
+    var approved = await confirmModal('Permanently raise both pouch limits for 🪙 ' + cost.toLocaleString() + '?<br><span class="muted small">+1 Abyss loot stack · +1 equipped run carry.</span>', { title: 'Tailor Consumable Pouch', okLabel: 'Tailor · ' + cost.toLocaleString() + 'g' });
+    if (!approved) return;
+    button.disabled = true;
+    var data = await post('/api/inventory/pouch/upgrade', {});
+    if (!data.ok) { button.disabled = false; toast(data.error || 'Tailoring failed', false); return; }
+    document.getElementById('pouchRank').textContent = String(data.level);
+    document.getElementById('pouchStackCap').textContent = String(data.stack_cap);
+    document.getElementById('pouchCarryCap').textContent = String(data.carry_cap);
+    var ranks = document.querySelectorAll('.pouch-ranks i'); ranks.forEach(function(rank, index) { rank.classList.toggle('filled', index < data.level); });
+    if (data.next_cost > 0) { button.dataset.cost = String(data.next_cost); button.textContent = 'Tailor rank ' + (data.level + 1) + ' · 🪙 ' + Number(data.next_cost).toLocaleString(); button.disabled = false; }
+    else { button.textContent = '✓ Masterwork'; }
+    var gold = document.getElementById('goldPill'); if (gold) { gold.dataset.value = String(data.gold); gold.textContent = '🪙 ' + Number(data.gold || 0).toLocaleString(); }
+    toast(data.msg || 'Consumable Pouch tailored.', true);
   }
 </script>
 {{template "abyssItemNumbersJS" .}}

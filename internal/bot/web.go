@@ -674,6 +674,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/api/inventory/equip", s.auth(s.handleEquipAPI))
 	mux.HandleFunc("/api/inventory/sell", s.auth(s.handleSellAPI))
 	mux.HandleFunc("/api/inventory/buyback", s.auth(s.handleInventoryBuyback))
+	mux.HandleFunc("/api/inventory/pouch/upgrade", s.auth(s.handleAbyssPouchUpgrade))
 	mux.HandleFunc("/api/ah/buy", s.auth(s.handleAHBuyAPI))
 	mux.HandleFunc("/api/ah/list", s.auth(s.handleAHListAPI))
 	mux.HandleFunc("/api/ah/watch", s.authAPI(s.handleAHWatch))

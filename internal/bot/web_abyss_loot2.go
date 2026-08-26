@@ -250,22 +250,24 @@ func abyssBossRelicLore(bossName string) string {
 
 // ---- Consumable stacking (AB-98) ---------------------------------------------
 
-// abyssConsumableStackCap is the maximum stack size for identical consumables
-// granted from the Abyss escrow (merged stacks render as "x5" count badges).
-const abyssConsumableStackCap = 5
+// abyssConsumableStackCapBase is the maximum stack size for identical
+// consumables granted from Abyss escrow before permanent pouch tailoring.
+const abyssConsumableStackCapBase = 5
 
 // grantConsumableStacked merges an escrowed consumable into the player's
-// stack (remaining_fights add), capped at abyssConsumableStackCap charges.
+// stack (remaining_fights add), capped by their permanent pouch tailoring.
 func (b *Bot) grantConsumableStacked(uid, consID string, fights int) error {
 	if fights <= 0 {
 		fights = 1
 	}
+	stackLimit := b.abyssConsumableStackLimit(uid)
 	if _, err := b.DB.Exec(
 		`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
 		 VALUES ($1, $2, LEAST($3, $4))
 		 ON CONFLICT (client_uid, cons_id)
-		 DO UPDATE SET remaining_fights = LEAST(user_consumables.remaining_fights + EXCLUDED.remaining_fights, $4)`,
-		uid, consID, fights, abyssConsumableStackCap); err != nil {
+		 DO UPDATE SET remaining_fights = GREATEST(user_consumables.remaining_fights,
+			LEAST(user_consumables.remaining_fights + EXCLUDED.remaining_fights, $4))`,
+		uid, consID, fights, stackLimit); err != nil {
 		return err
 	}
 	b.autoCombineConsumable(uid, consID)

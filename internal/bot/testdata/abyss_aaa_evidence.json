@@ -879,7 +879,7 @@
     ]
   },
   {
-    "ids": [126, 127, 128, 129, 130, 131, 132, 133, 140, 142, 149],
+    "ids": [126, 127, 128, 129, 130, 131, 132, 133, 134, 140, 142, 149],
     "production": [
       "internal/bot/web_abyss_features.go",
       "internal/bot/web_abyss.go",
@@ -888,6 +888,7 @@
       "internal/bot/web_abyss_shop_economy.go",
       "internal/bot/web_abyss_plaza.go",
       "internal/bot/web_inventory_buyback.go",
+      "internal/bot/web_abyss_pouch.go",
       "internal/bot/web_ah_economy.go",
       "internal/bot/web_ah_bids.go",
       "internal/bot/webassets/abyss.html",
@@ -895,22 +896,26 @@
       "internal/bot/webassets/abyss_plaza.css",
       "internal/bot/webassets/inventory.html",
       "internal/bot/webassets/inventory_buyback.css",
+      "internal/bot/webassets/inventory_pouch.css",
       "internal/bot/webassets/style.css",
       "internal/bot/webassets/ah.html",
       "internal/db/migrations/0080_abyss_economy.up.sql",
       "internal/db/migrations/0094_abyss_auto_insure.up.sql",
       "internal/db/migrations/0095_abyss_plaza.up.sql",
-      "internal/db/migrations/0096_abyss_vendor_buyback.up.sql"
+      "internal/db/migrations/0096_abyss_vendor_buyback.up.sql",
+      "internal/db/migrations/0097_abyss_pouch_upgrades.up.sql"
     ],
     "verification": [
       "internal/bot/web_abyss_economy4_test.go",
       "internal/bot/web_abyss_plaza_test.go",
       "internal/bot/web_inventory_buyback_test.go",
+      "internal/bot/web_abyss_pouch_test.go",
       "internal/bot/web_abyss_risk_rewards_test.go",
       "internal/bot/web_abyss_hud_test.go",
       "tests/e2e/abyss.spec.js",
       "tests/e2e/abyss-plaza.spec.js",
-      "tests/e2e/abyss-inventory-buyback.spec.js"
+      "tests/e2e/abyss-inventory-buyback.spec.js",
+      "tests/e2e/abyss-inventory-pouch.spec.js"
     ]
   },
   {
