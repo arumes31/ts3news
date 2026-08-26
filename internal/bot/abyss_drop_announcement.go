@@ -15,28 +15,28 @@ const abyssDropAnnouncementConcurrency = 4
 var abyssDropAnnouncementSlots = make(chan struct{}, abyssDropAnnouncementConcurrency)
 
 func abyssHighRarityEscrowDrop(grant abyssLootGrant) (string, content.Rarity, bool) {
-	if grant.Type != "gear" || grant.Gear == nil || grant.Gear.Rarity < content.RarityMythic {
+	if grant.Type != "gear" || grant.Gear == nil || grant.Gear.Rarity < content.RarityEternal {
 		return "", 0, false
 	}
 	return grant.Gear.Name, grant.Gear.Rarity, true
 }
 
 func abyssHighRarityDropFanfare(nickname, itemName string, rarity content.Rarity) (string, string, bool) {
-	if rarity < content.RarityMythic {
+	if rarity < content.RarityEternal {
 		return "", "", false
 	}
 	nickname = sanitizeBBCode(nickname)
 	itemName = sanitizeBBCode(itemName)
 	rank := strings.ToUpper(rarity.String())
 	return rarity.String() + " Drop!",
-		fmt.Sprintf("🌟 %s! %s has obtained %s — a Mythic+ treasure of the Abyss!", rank, nickname, itemName),
+		fmt.Sprintf("🌟 %s! %s has obtained %s — the rarest treasure of the Abyss!", rank, nickname, itemName),
 		true
 }
 
 // broadcastAbyssHighRarityDrop sends presentation-only fanfare after a
-// Mythic+ gear award has persisted. Failures never roll back or delay loot.
+// Eternal gear award has persisted. Failures never roll back or delay loot.
 func (b *Bot) broadcastAbyssHighRarityDrop(uid, itemName string, rarity content.Rarity) {
-	if rarity < content.RarityMythic {
+	if rarity < content.RarityEternal {
 		return
 	}
 	var nickname string
@@ -79,7 +79,7 @@ func (b *Bot) broadcastAbyssHighRarityDrop(uid, itemName string, rarity content.
 }
 
 func (b *Bot) queueAbyssHighRarityDrop(uid, itemName string, rarity content.Rarity) {
-	if rarity < content.RarityMythic {
+	if rarity < content.RarityEternal {
 		return
 	}
 	select {
@@ -89,6 +89,6 @@ func (b *Bot) queueAbyssHighRarityDrop(uid, itemName string, rarity content.Rari
 			b.broadcastAbyssHighRarityDrop(uid, itemName, rarity)
 		}()
 	default:
-		log.Printf("abyss Mythic+ announcement capacity reached for %s", uid)
+		log.Printf("abyss Eternal announcement capacity reached for %s", uid)
 	}
 }
