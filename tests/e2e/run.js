@@ -1,5 +1,6 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
+const net = require('net');
 const os = require('os');
 const path = require('path');
 
@@ -24,12 +25,24 @@ function command(name, args, options = {}) {
   });
 }
 
-async function waitForFixture(child) {
+function reserveFixturePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      server.close(error => error ? reject(error) : resolve(port));
+    });
+  });
+}
+
+async function waitForFixture(child, port) {
   const deadline = Date.now() + 120_000;
   while (Date.now() < deadline) {
     if (child.exitCode !== null) throw new Error(`Abyss fixture exited with ${child.exitCode}`);
     try {
-      const response = await fetch('http://127.0.0.1:18082/healthz', {
+      const response = await fetch(`http://127.0.0.1:${port}/healthz`, {
         signal: AbortSignal.timeout(1_000),
       });
       if (response.status === 204) return;
@@ -57,6 +70,8 @@ async function stopFixture(child) {
 async function main() {
   let fixture;
   try {
+    const port = await reserveFixturePort();
+    const fixtureEnv = { ...process.env, ABYSS_E2E_PORT: String(port) };
     await command('go', ['test', '-c', '-tags=e2e', '-o', fixtureBinary, './internal/bot']);
     fixture = spawn(fixtureBinary, [
       '-test.run=^TestAbyssE2EServer$',
@@ -66,11 +81,12 @@ async function main() {
       cwd: path.resolve(__dirname, '..', '..'),
       stdio: 'inherit',
       windowsHide: true,
+      env: fixtureEnv,
     });
     fixture.on('error', error => console.error('Abyss fixture error:', error));
-    await waitForFixture(fixture);
+    await waitForFixture(fixture, port);
     await command(process.execPath, [require.resolve('@playwright/test/cli'), 'test'], {
-      env: { ...process.env, ABYSS_E2E_EXTERNAL_SERVER: '1' },
+      env: { ...fixtureEnv, ABYSS_E2E_EXTERNAL_SERVER: '1' },
     });
   } finally {
     await stopFixture(fixture);

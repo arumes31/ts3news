@@ -255,6 +255,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_featured_drops.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_featured_drops.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_wishlist.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_wishlist.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_forge_experience.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_forge_experience.css", "text/css; charset=utf-8")
 	})
@@ -497,6 +500,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/inventory/lock", s.authAPI(s.handleAbyssInventoryLock))
 		mux.HandleFunc("/api/abyss/build/respec", s.authAPI(s.handleAbyssBuildRespec))
 		mux.HandleFunc("/api/abyss/loot/settings", s.authAPI(s.handleAbyssLootSettings))
+		mux.HandleFunc("/api/abyss/loot/wishlist", s.authAPI(s.handleAbyssWishlist))
 		mux.HandleFunc("/api/abyss/loot/reserve", s.authAPI(s.handleAbyssLootReserve))
 		mux.HandleFunc("/api/abyss/loot/manifest", s.authAPI(s.handleAbyssLootManifest))
 		mux.HandleFunc("/api/abyss/loot/equip_best", s.authAPI(s.handleAbyssEquipBestLoot))

@@ -1698,6 +1698,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"LegendaryPity":       pity,
 		"CelestialPity":       celestialPity,
 		"FeaturedDrops":       abyssWeeklyFeaturedDrops(time.Now()),
+		"Wishlist":            abyssWishlistViewFor(s.bot.loadAbyssWishlist(uid), ""),
 		"TreeUnspent":         treeUnspent,
 		"DropStreak":          dropStreak,
 		"DropStreakBonusPct":  dropStreakBonusPct,

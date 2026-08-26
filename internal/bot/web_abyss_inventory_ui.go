@@ -51,6 +51,8 @@ type runLootRow struct {
 	SmartLootLabel  string        `json:"smart_loot_label,omitempty"`
 	SetPity         bool          `json:"set_pity,omitempty"`
 	SetPityLabel    string        `json:"set_pity_label,omitempty"`
+	Wishlist        bool          `json:"wishlist,omitempty"`
+	WishlistLabel   string        `json:"wishlist_label,omitempty"`
 }
 
 func abyssSetDisplayMax(setID string) int {
@@ -144,6 +146,10 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 		var grant abyssLootGrant
 		if json.Unmarshal(data, &grant) == nil && grant.Gear != nil {
 			gear := *grant.Gear
+			row.Wishlist = grant.Wishlist
+			if row.Wishlist {
+				row.WishlistLabel = "Wishlist guarantee"
+			}
 			row.SetPityLabel = abyssSetPityTag(grant.SetPitySetID)
 			row.SetPity = grant.SetPity && row.SetPityLabel != ""
 			row.SmartLootLabel = abyssSmartLootTag(grant.SmartLootReason)

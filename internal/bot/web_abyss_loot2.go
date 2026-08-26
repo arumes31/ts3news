@@ -5,9 +5,7 @@ import (
 	"log"
 	"math/rand/v2"
 	"strconv"
-	"time"
 
-	"ts3news/internal/clientquery"
 	"ts3news/internal/content"
 )
 
@@ -229,55 +227,6 @@ func (b *Bot) abyssRestFloorVacuum(uid string, depth int) []string {
 		}
 	}
 	return labels
-}
-
-// ---- Eternal drop TS3 fanfare (AB-93) ----------------------------------------
-
-// broadcastAbyssEternalDrop pushes a TS3 channel-wide announcement for an
-// Eternal drop, mirroring BroadcastAbyssRecord's nickname+poke fanfare.
-// Eternal gear never drops from the roller today (forge ascension/fusion
-// only) — the ascension path should call this as well.
-func (b *Bot) broadcastAbyssEternalDrop(uid, itemName string) {
-	var nick string
-	if err := b.DB.QueryRow("SELECT nickname FROM users WHERE client_uid=$1", uid).Scan(&nick); err != nil || nick == "" {
-		return
-	}
-	addr := b.Cfg.ClientQueryAddr
-	if addr == "" {
-		addr = "127.0.0.1:25639"
-	}
-	c, err := clientquery.Dial(addr, 2*time.Second)
-	if err != nil {
-		return
-	}
-	defer func() { _ = c.Close() }()
-	if apiKey := b.getAPIKey(); apiKey != "" {
-		_ = c.Auth(apiKey)
-	}
-	_ = c.Use(1)
-
-	// Nickname and the item label can both originate in persisted player-facing
-	// data; neutralize BBCode so the broadcast cannot inject formatting or links.
-	nick = sanitizeBBCode(nick)
-	itemName = sanitizeBBCode(itemName)
-
-	oldNick := b.Cfg.TS3Nickname
-	_ = c.SetNickname("Eternal Drop!")
-
-	clients, err := c.ClientList()
-	if err == nil {
-		msg := fmt.Sprintf("🌟 ETERNAL! %s has obtained %s — the rarest treasure of the Abyss!", nick, itemName)
-		for _, cl := range clients {
-			if cl.Type == 0 { // normal user
-				_ = c.Poke(cl.CLID, msg)
-				// Respect the configured anti-flood poke delay, like the main cycle.
-				time.Sleep(time.Duration(b.Cfg.PokeDelayMS) * time.Millisecond)
-			}
-		}
-	}
-
-	time.Sleep(3 * time.Second)
-	_ = c.SetNickname(oldNick)
 }
 
 // ---- Boss relic flavor text (AB-97) ------------------------------------------

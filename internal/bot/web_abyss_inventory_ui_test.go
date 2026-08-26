@@ -74,7 +74,7 @@ func TestCurrentRunLootManifestUsesStructuredGrantData(t *testing.T) {
 				23,
 				"gear",
 				mustAbyssLootGrantJSON(t, abyssLootGrant{
-					Type: "gear", SetPity: true, SetPitySetID: "predator",
+					Type: "gear", SetPity: true, SetPitySetID: "predator", Wishlist: true,
 					Gear: &content.Gear{
 						ID: "SECRET", Slot: content.SlotFinger1, Rarity: content.RarityLegendary,
 						Stats: content.Stats{STR: 9_999}, Quality: 5,
@@ -114,6 +114,9 @@ func TestCurrentRunLootManifestUsesStructuredGrantData(t *testing.T) {
 	}
 	if !hidden.SetPity || hidden.SetPityLabel != "SET PITY · 3→4" {
 		t.Fatalf("unidentified set-pity reason was hidden: %#v", hidden)
+	}
+	if !hidden.Wishlist || hidden.WishlistLabel != "Wishlist guarantee" {
+		t.Fatalf("unidentified wishlist reason was hidden: %#v", hidden)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

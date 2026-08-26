@@ -5,8 +5,10 @@ package bot
 import (
 	"mime"
 	"net/http"
+	"os"
 	"path"
 	"strings"
+	"sync"
 	"testing"
 
 	"ts3news/internal/content"
@@ -22,6 +24,8 @@ func TestAbyssE2EServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
+	var wishlistMu sync.Mutex
+	wishlistState := abyssWishlistState{}
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
@@ -38,8 +42,37 @@ func TestAbyssE2EServer(t *testing.T) {
 			mime.TypeByExtension(path.Ext(name)),
 		)
 	})
+	mux.HandleFunc("/api/abyss/loot/wishlist", func(w http.ResponseWriter, r *http.Request) {
+		wishlistMu.Lock()
+		defer wishlistMu.Unlock()
+		if r.Method == http.MethodPost {
+			var request struct {
+				GearID string `json:"gear_id"`
+			}
+			if readJSON(r, &request) != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+				return
+			}
+			var toggleErr error
+			wishlistState, toggleErr = toggleAbyssWishlist(wishlistState, request.GearID)
+			if toggleErr != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": toggleErr.Error()})
+				return
+			}
+		} else if r.Method != http.MethodGet {
+			http.Error(w, "GET or POST only", http.StatusMethodNotAllowed)
+			return
+		}
+		writeJSON(w, map[string]any{
+			"ok":       true,
+			"wishlist": abyssWishlistViewFor(wishlistState, r.URL.Query().Get("q")),
+		})
+	})
 	mux.HandleFunc("/abyss", func(w http.ResponseWriter, r *http.Request) {
 		fixture := abyssGoldenFixture(r.URL.Query().Get("active") == "1")
+		wishlistMu.Lock()
+		fixture["Wishlist"] = abyssWishlistViewFor(wishlistState, "")
+		wishlistMu.Unlock()
 		if r.URL.Query().Get("gear") == "1" {
 			equipped := map[content.GearSlot]content.Gear{
 				content.SlotMainHand: {
@@ -91,8 +124,13 @@ func TestAbyssE2EServer(t *testing.T) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
-	t.Log("Abyss E2E fixture listening on http://127.0.0.1:18082")
-	if err := http.ListenAndServe("127.0.0.1:18082", mux); err != nil {
+	port := strings.TrimSpace(os.Getenv("ABYSS_E2E_PORT"))
+	if port == "" {
+		port = "18082"
+	}
+	addr := "127.0.0.1:" + port
+	t.Logf("Abyss E2E fixture listening on http://%s", addr)
+	if err := http.ListenAndServe(addr, mux); err != nil {
 		t.Fatal(err)
 	}
 }
