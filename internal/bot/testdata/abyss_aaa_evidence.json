@@ -812,9 +812,10 @@
     ]
   },
   {
-    "ids": [76, 77, 81, 82, 83, 84, 86, 88, 92, 98, 99, 100],
+    "ids": [76, 77, 81, 82, 83, 84, 86, 88, 89, 92, 98, 99, 100],
     "production": [
       "internal/content/artifacts.go",
+      "internal/bot/abyss_drop_announcement.go",
       "internal/bot/web_abyss_customization.go",
       "internal/bot/web_abyss_daily_identify.go",
       "internal/bot/web_abyss_econ.go",
@@ -836,6 +837,7 @@
     "verification": [
       "internal/content/artifacts_validation_test.go",
       "internal/content/unique_items_test.go",
+      "internal/bot/abyss_drop_announcement_test.go",
       "internal/bot/web_abyss_forge2_test.go",
       "internal/bot/web_abyss_daily_identify_test.go",
       "internal/bot/web_abyss_forge3_test.go",

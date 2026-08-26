@@ -13,7 +13,7 @@ import (
 // -----------------------------------------------------------------------------
 // Companion to web_abyss_loot.go: drop-quality forecasts, the rest-floor loot
 // vacuum, per-user loot toggles and collectible counters in app_meta, beam
-// intensity classes, the Eternal-drop TS3 fanfare, boss relic lore, stacked
+// intensity classes, the Mythic+-drop TS3 fanfare, boss relic lore, stacked
 // consumable grants and the corrupted/lucid drop-variant helpers.
 
 // abyssBeamClass maps a drop's rarity to its loot-beam intensity class
