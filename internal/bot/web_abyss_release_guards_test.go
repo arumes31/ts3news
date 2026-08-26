@@ -71,8 +71,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "1ffaca284a2806b8494577ca01366babe9b918e0c39b6a72bacac41e904b7f42"},
-		{name: "active_run", active: true, want: "bcbdbac53598343c8416db438a1d30e4172c820f8ca212b81741fe9e7791d65e"},
+		{name: "threshold", want: "30383a793e84897c22d9d683be866596486a4cb9f6bfbe946cf322980d099eec"},
+		{name: "active_run", active: true, want: "094633735a6c3d5ea24d263333e8c51bf0fe3743f5f90374681b0b81512395f1"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -202,7 +202,8 @@ func abyssGoldenFixture(active bool) map[string]any {
 		"ForgeRep": map[string]int{"Rep": 0, "DiscountPct": 0}, "ForgeHappyHour": false,
 		"ForgeCatalog": map[string]any{}, "ForgeOperations": []any{},
 		"ForgeWorkbenchEnabled": false, "ForgeWorkbench": map[string]any{}, "AutoRepair": false, "FreeID": false,
-		"TokenBuyGold": int64(100), "TokenSellGold": int64(50),
+		"RepairAllCost": int64(0),
+		"TokenBuyGold":  int64(100), "TokenSellGold": int64(50),
 		"PrestigeTier":     map[string]string{"Name": "", "Aura": ""},
 		"CraftLegendaries": []any{}, "LBTier": "normal", "LBTiers": abyssTierList(999),
 		"LastStandCost": int64(10), "NodeGates": map[string]int{}, "Checkpoints": []int{10, 20, 30, 40, 50},

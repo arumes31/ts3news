@@ -42,6 +42,16 @@ test('auto-insure can be enabled from the Shop and reports its exact run-start c
   await expect(page.locator('#abToastHost')).toContainText('compatible runs start with 25% cache cover');
 });
 
+test('Forge repair control explains its authoritative durability cost curve', async ({ page }) => {
+  await page.goto('/abyss');
+  await page.locator('#abyss-tab-forge').click();
+  const repair = page.locator('#btnForgeRepairAll');
+  await repair.locator('xpath=ancestor::details[1]').locator('summary').click();
+  await expect(repair).toBeVisible();
+  await expect(repair).toHaveAttribute('title', /each missing durability point costs exactly 200g/);
+  await expect(repair).toHaveAttribute('title', /Current full-repair total: [\d,.]+g/);
+});
+
 test('enter sends the selected run setup', async ({ page }) => {
   let enteredBody = null;
   await fulfillAbyssAPI(page, (path, body) => {

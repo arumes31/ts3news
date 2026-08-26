@@ -1065,7 +1065,7 @@
       <!-- Panel-wide forge tools, grouped (UX-55) -->
       <details class="ab-acc" style="margin-top:8px;"><summary>🧰 Maintenance</summary><div class="ab-acc-body">
         {{template "abyssDailyIdentifyAll" .}}
-        <button class="ghost xs" id="btnForgeRepairAll" onclick="abyssRepairAll(this)">🛠️ Repair All Gear (200g / missing point)</button>
+        <button class="ghost xs" id="btnForgeRepairAll" onclick="abyssRepairAll(this)" title="Linear repair curve: each missing durability point costs exactly 200g. Current full-repair total: {{gold .RepairAllCost}}.">🛠️ Repair All Gear (200g / missing point)</button>
         <label class="small"><input type="checkbox" id="autoRepairToggle" {{if .AutoRepair}}checked{{end}} onchange="abyssAutoRepairToggle(this.checked)"> Auto-repair before every descent</label>
         <div id="forgeStatConversionRow" style="border: 1px solid rgba(255,255,255,0.06); padding:8px; border-radius:6px; background:rgba(255,255,255,0.01);">
           <label class="muted small" style="display:block; margin-bottom:4px;">Stat Conversion (Convert 100 Mana to +50 Max HP):</label>

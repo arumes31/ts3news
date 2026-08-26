@@ -1750,6 +1750,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"ForgeWorkbench":        s.abyssForgeWorkbench(uid),
 		"AutoRepair":            autoRepair,
 		"AutoInsure":            s.bot.abyssAutoInsureEnabled(uid),
+		"RepairAllCost":         s.bot.abyssRepairAllCost(uid),
 		"TokenBuyGold":          int64(abyssTokenBuyGold),
 		"TokenSellGold":         int64(abyssTokenSellGold),
 		"PrestigeTier": func() map[string]string {
