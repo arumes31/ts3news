@@ -90,7 +90,7 @@ func (b *Bot) abyssCoreLoopStatus(uid string, run abyssRun) abyssCoreLoopView {
 		DefensiveMomentum:      flags[abyssRunFlagDefensiveMomentum],
 	}
 	status.ReviveStreak = b.abyssReviveStreak(uid)
-	status.ReviveChancePct = abyssReviveOfferChancePct(status.ReviveStreak, stats.UpMercy)
+	status.ReviveChancePct = abyssReviveOfferChancePct(status.ReviveStreak, abyssTalentEffectiveInt(stats.UpMercy))
 	status.GreedyInterestPct = status.GreedyGripStacks * 2
 	status.GreedyDEFPct = status.GreedyGripStacks * 2
 	status.RestShrinkReady = run.Active && !run.Downed && run.FloorType == "rest" && tokens > 0 && flags["cache_shrink_depth"] != int64(run.Depth)

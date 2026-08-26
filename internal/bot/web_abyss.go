@@ -1256,7 +1256,7 @@ func (b *Bot) fightAbyssFloorMode(
 		if !victory {
 			rewardXP = (rewardXP + 3) / 4 // ~25% on death, rounds up so a death still pays >=1
 		}
-		rewardXP = int(float64(rewardXP) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50) * (1.0 + float64(st.UpInsight)*0.05)) // prestige + Insight node
+		rewardXP = int(float64(rewardXP) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50) * (1.0 + content.TalentEffectiveLevel(st.UpInsight)*0.05)) // prestige + Insight node
 		if b.abyssSpec(uid) == "delver" {
 			rewardXP = rewardXP * 11 / 10 // Delver specialization (#161): +10% floor XP
 		}
@@ -1769,6 +1769,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"LBTier":             lbTier,
 		"LBTiers":            abyssTierList(math.MaxInt32), // full list for the board tabs: a huge depth unlocks every tier
 		"LastStandCost":      lastStandCost,
+		"TalentMaxLevel":     content.TalentMaxLevel,
 		"NodeGates":          abyssUpgradeMinDepth,
 		"Checkpoints":        checkpoints,
 		"ExpressStart":       expressStart,
@@ -1887,7 +1888,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	// Quartermaster node (#158): +1 carry slot per level on top of the base/pouch cap.
 	stPre := s.bot.loadAbyssStats(uid)
-	maxAllowedConsumables += stPre.UpQuartermaster
+	maxAllowedConsumables += abyssTalentEffectiveInt(stPre.UpQuartermaster)
 	owned, totalConsumables := s.bot.abyssOwnedConsumables(uid)
 	var loadoutJSON any // nil => stored as SQL NULL (unrestricted)
 	if abyssHasPact(pactKeys, "abstinence") {
@@ -2129,7 +2130,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	startUser := UserInCombat{Stats: abyssFoldStats(baseStats, s.bot.treeBonusFor(uid)), Equipped: equipped}
 	applyAbyssRunBuild(&startUser, startBuildFlags, nil)
 	stats := startUser.Stats
-	startHP := stats.HP + stats.HP*st.UpVigor*5/100
+	startHP := stats.HP + int(float64(stats.HP)*content.TalentEffectiveLevel(st.UpVigor)*0.05)
 	if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", startHP, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -2140,7 +2141,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	autoInsurance := planAbyssAutoInsurance(autoInsureEnabled, req.Hardcore, pactKeys, echoSeed, st.UpWard, st.LifetimeBanked)
+	autoInsurance := planAbyssAutoInsurance(autoInsureEnabled, req.Hardcore, pactKeys, echoSeed, abyssTalentEffectiveInt(st.UpWard), st.LifetimeBanked)
 	autoInsuranceCost := int64(0)
 	autoInsuranceFree := false
 	if autoInsurance.Applied {
@@ -2804,7 +2805,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 			flags := s.bot.loadRunFlags(uid)
 			hardcore := abyssHardcoreRun(flags)
 			reviveStreak := s.bot.abyssReviveStreak(uid)
-			reviveChance := abyssReviveOfferChancePct(reviveStreak, s.bot.loadAbyssStats(uid).UpMercy)
+			reviveChance := abyssReviveOfferChancePct(reviveStreak, abyssTalentEffectiveInt(s.bot.loadAbyssStats(uid).UpMercy))
 			lastStandCost, lastStandAvailable := abyssLastStandOffer(run, flags)
 			out := map[string]any{
 				"ok":                  true,
@@ -3296,7 +3297,7 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 	o.OverkillDamage = input.OverkillDamage
 
 	bonus := abyssFloorBonus(depth, run.depthLevelHint())
-	bonus = int64(float64(bonus) * tier.RewardMult * (1.0 + float64(st.UpGreed)*0.05) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50))
+	bonus = int64(float64(bonus) * tier.RewardMult * (1.0 + content.TalentEffectiveLevel(st.UpGreed)*0.05) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50))
 	_, dailyMod := s.bot.abyssRunDailyChallenge(uid)
 	bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
 	bonus = int64(float64(bonus) * s.bot.abyssCommunityWeekendRewardMult(time.Now().UTC()))
@@ -3381,7 +3382,7 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 	if _, hasCoin := equipped[content.SlotTrinket1]; hasCoin && equipped[content.SlotTrinket1].ID == "ABYSS_LUCKY_COIN" {
 		hasLuckyCoin = true
 	}
-	interestRate := abyssGreedyInterestRate(abyssEffectiveInterest(st.UpInterest, hasLuckyCoin), depth)
+	interestRate := abyssGreedyInterestRate(abyssEffectiveInterest(abyssTalentEffectiveInt(st.UpInterest), hasLuckyCoin), depth)
 	withInterest := int64(float64(escrowBefore) * (1.0 + interestRate))
 	growth, overkillGold := applyAbyssEscrowReward(abyssEscrowRewardInput{
 		Escrow:         escrowBefore,
@@ -3520,7 +3521,7 @@ func (s *WebServer) applyFloorDefeat(uid string, run abyssRun) (canRevive bool) 
 	st := s.bot.loadAbyssStats(uid)
 	canRevive = !run.Revived
 	if canRevive && !run.ReviveLocked {
-		offerChance := float64(abyssReviveOfferChancePct(streak, st.UpMercy)) / 100
+		offerChance := float64(abyssReviveOfferChancePct(streak, abyssTalentEffectiveInt(st.UpMercy))) / 100
 		// #nosec G404 -- non-cryptographic offer roll
 		if rand.Float64() >= offerChance {
 			canRevive = false
@@ -3645,7 +3646,7 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		out["downed"] = true
 		out["can_revive"] = canRevive
 		out["revive_streak"] = reviveStreak
-		out["revive_chance_pct"] = abyssReviveOfferChancePct(reviveStreak, s.bot.loadAbyssStats(uid).UpMercy)
+		out["revive_chance_pct"] = abyssReviveOfferChancePct(reviveStreak, abyssTalentEffectiveInt(s.bot.loadAbyssStats(uid).UpMercy))
 		lastStandCost, lastStandAvailable := abyssLastStandOffer(run, s.bot.loadRunFlags(uid))
 		out["can_last_stand"] = !hardcore && lastStandAvailable && s.bot.abyssTokens(uid) >= lastStandCost
 		out["last_stand_cost"] = lastStandCost
@@ -4021,7 +4022,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	pactBreakdown := abyssPactRewardBreakdownForRunAt(
 		runPacts, mastery, dailyAffix, time.Now().UTC(), runFlags[abyssRunFlagMysteryPact] > 0,
 	)
-	baseTokens := s.bot.abyssBankTokenGrant(uid, run.Depth, st.UpTribute)
+	baseTokens := s.bot.abyssBankTokenGrant(uid, run.Depth, abyssTalentEffectiveInt(st.UpTribute))
 	pactTokens := abyssPactBankTokenGrant(abyssRunFloorsCleared(run), abyssPactTokenRiskPct(runPacts, runFlags))
 	anteReturn := int(runFlags[abyssRunFlagTokenAnte])
 	if continuing {
@@ -5783,7 +5784,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	}
 	// Apply tier reward multiplier to match combat floor scaling
 	bonus = int64(float64(bonus) * tier.RewardMult)
-	bonus = int64(float64(bonus) * (1.0 + float64(st.UpGreed)*0.05) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50))
+	bonus = int64(float64(bonus) * (1.0 + content.TalentEffectiveLevel(st.UpGreed)*0.05) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50))
 	_, dailyMod := s.bot.abyssRunDailyChallenge(uid)
 	bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
 	bonus = int64(float64(bonus) * s.bot.abyssCommunityWeekendRewardMult(time.Now().UTC()))
@@ -5810,7 +5811,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	if _, hasCoin := equipped[content.SlotTrinket1]; hasCoin && equipped[content.SlotTrinket1].ID == "ABYSS_LUCKY_COIN" {
 		hasLuckyCoin = true
 	}
-	interestRate := abyssGreedyInterestRate(abyssEffectiveInterest(st.UpInterest, hasLuckyCoin), run.Depth)
+	interestRate := abyssGreedyInterestRate(abyssEffectiveInterest(abyssTalentEffectiveInt(st.UpInterest), hasLuckyCoin), run.Depth)
 	newEscrow := int64(float64(run.Escrow)*(1.0+interestRate)) + bonus
 
 	_, err = s.bot.DB.Exec(

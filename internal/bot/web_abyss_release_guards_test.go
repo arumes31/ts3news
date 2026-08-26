@@ -71,8 +71,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "81cd9a8c17329e23e80837e802078013aea53ab569a8d7548d22c6212e91681f"},
-		{name: "active_run", active: true, want: "27081d031768eeedbc1f11760fb1746ce152d2cbed2cdeda762225738dac5809"},
+		{name: "threshold", want: "4a6e8b3faae4284e3c407f835008feb4683e17df02615f60a1220bbf9d98ab22"},
+		{name: "active_run", active: true, want: "552a9280684756ae79e425adf70d00c0853122b85c2e1ff42451e26ec688e2a0"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -206,7 +206,8 @@ func abyssGoldenFixture(active bool) map[string]any {
 		"TokenBuyGold":  int64(100), "TokenSellGold": int64(50),
 		"PrestigeTier":     map[string]string{"Name": "", "Aura": ""},
 		"CraftLegendaries": []any{}, "LBTier": "normal", "LBTiers": abyssTierList(999),
-		"LastStandCost": int64(10), "NodeGates": map[string]int{}, "Checkpoints": []int{10, 20, 30, 40, 50},
+		"LastStandCost": int64(10), "TalentMaxLevel": content.TalentMaxLevel,
+		"NodeGates": map[string]int{}, "Checkpoints": []int{10, 20, 30, 40, 50},
 		"ExpressStart": 52, "ExpressCost": int64(5200),
 	}
 }

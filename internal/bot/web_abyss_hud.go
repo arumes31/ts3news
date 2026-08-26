@@ -33,7 +33,7 @@ func (b *Bot) abyssHUDPageState(uid string, run abyssRun, st abyssStats, equippe
 	if trinket, ok := equipped[content.SlotTrinket1]; ok && trinket.ID == "ABYSS_LUCKY_COIN" {
 		hasLuckyCoin = true
 	}
-	rate := abyssGreedyInterestRate(abyssEffectiveInterest(st.UpInterest, hasLuckyCoin), run.Depth)
+	rate := abyssGreedyInterestRate(abyssEffectiveInterest(abyssTalentEffectiveInt(st.UpInterest), hasLuckyCoin), run.Depth)
 	state := abyssHUDPageState{
 		FloorsCleared:       floors,
 		InterestRatePct:     rate * 100,

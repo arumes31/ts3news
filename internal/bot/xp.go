@@ -1782,7 +1782,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				if chest, ok := u.Equipped[content.SlotChest]; ok && chest.ID == "ABYSS_ARCHMAGE_ROBES" {
 					base -= 5
 				}
-				base -= st.UpInsight * 2
+				base -= abyssTalentEffectiveInt(st.UpInsight) * 2
 				if v := au.treeBonus.Pct["skill_mana_cost"]; v > 0 {
 					base = int(float64(base) * (1 - v))
 				}

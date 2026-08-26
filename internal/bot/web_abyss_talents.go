@@ -7,6 +7,7 @@ package bot
 // internal/content/abyss_talents.go for the node definitions.
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -21,6 +22,29 @@ func abyssTalentKey(uid string) string { return "abyss_talents_" + uid }
 // level+1 (level is 0-based, so the first level costs 10). Shared by the spend,
 // the generic refund and the legacy talent reset so the pricing can't drift.
 func talentTokenCost(level int) int64 { return int64(level+1) * 10 }
+
+func abyssTalentEffectiveInt(level int) int {
+	return int(content.TalentEffectiveLevel(level) + 0.5)
+}
+
+func persistAbyssTalentUpgrade(tx *sql.Tx, uid string, cost int64, levels map[string]int) (bool, error) {
+	res, err := tx.Exec(
+		"UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1", cost, uid)
+	if err != nil {
+		return false, err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil || rows == 0 {
+		return false, err
+	}
+	data, err := json.Marshal(levels)
+	if err != nil {
+		return false, err
+	}
+	_, err = tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssTalentKey(uid), string(data))
+	return err == nil, err
+}
 
 // loadAbyssTalentLevels returns the player's allocated generic-talent levels.
 func (b *Bot) loadAbyssTalentLevels(uid string) map[string]int {
@@ -95,22 +119,23 @@ func (s *WebServer) handleAbyssTalentUpgrade(w http.ResponseWriter, uid string, 
 	cost := talentTokenCost(level)
 	// Guarded debit: only proceeds if the player still has the tokens (matches the
 	// legacy Deep-Delver spend). RowsAffected==0 means someone else spent first.
-	res, err := s.bot.DB.Exec(
-		"UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1", cost, uid)
+	tx, err := s.bot.DB.Begin()
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
+	defer func() { _ = tx.Rollback() }()
+	levels[t.Key] = level + 1
+	spent, err := persistAbyssTalentUpgrade(tx, uid, cost, levels)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if !spent {
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough tokens"})
 		return
 	}
-	levels[t.Key] = level + 1
-	if err := s.bot.saveAbyssTalentLevels(uid, levels); err != nil {
-		// Refund on persistence failure so tokens are never lost silently.
-		if _, err := s.bot.DB.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", cost, uid); err != nil {
-			log.Printf("abyss talent refund failed for %s (%d tokens): %v", uid, cost, err)
-		}
+	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

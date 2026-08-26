@@ -1753,5 +1753,23 @@
       "tests/e2e/abyss-wishlist.spec.js",
       "tests/e2e/abyss.spec.js"
     ]
+  },
+  {
+    "ids": [153, 160],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_talents.go",
+      "internal/bot/web_abyss_tree.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abysstree.html",
+      "internal/content/abyss_talents.go"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_progression_evidence_test.go",
+      "internal/bot/web_abyss_talents_test.go",
+      "internal/content/abyss_talents_test.go",
+      "tests/e2e/abyss-tree-atlas.spec.js"
+    ]
   }
 ]

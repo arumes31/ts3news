@@ -794,7 +794,7 @@ func abyssZoneName(depth int) string {
 // boostedMaterials returns m with each count boosted by the Scavenger node
 // (#155) and the skill web's material_yield notables.
 func (b *Bot) boostedMaterials(uid string, m map[string]int) map[string]int {
-	scav := b.loadAbyssStats(uid).UpScavenger
+	scav := abyssTalentEffectiveInt(b.loadAbyssStats(uid).UpScavenger)
 	matMult := 1 + b.treeBonusFor(uid).Pct["material_yield"]
 	out := make(map[string]int, len(m))
 	for mat, n := range m {
@@ -1259,7 +1259,7 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 
 	st := s.bot.loadAbyssStats(uid)
 	loyaltyPct := abyssInsuranceLoyaltyPct(st.LifetimeBanked)
-	cost := abyssInsuranceCost(run.Escrow, req.Pct, st.UpWard, st.LifetimeBanked)
+	cost := abyssInsuranceCost(run.Escrow, req.Pct, abyssTalentEffectiveInt(st.UpWard), st.LifetimeBanked)
 	if cost < 1 {
 		cost = 1
 	}
@@ -1382,7 +1382,7 @@ var abyssUpgradeParents = map[string]string{
 	"quartermaster": "cartographer",
 }
 
-const abyssUpgradeMaxLevel = 5
+const abyssUpgradeMaxLevel = content.TalentMaxLevel
 
 // handleAbyssUpgrade spends tokens on a permanent Deep-Delver upgrade. [44][45]
 func (s *WebServer) handleAbyssUpgrade(w http.ResponseWriter, r *http.Request, uid string) {

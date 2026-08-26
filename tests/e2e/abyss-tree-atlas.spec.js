@@ -10,6 +10,17 @@ test('every live Skill Web node uses its unique discipline atlas icon', async ({
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/abyss/tree');
 
+  expect(await page.evaluate(() => TALENT_MAX_LEVEL)).toBe(10);
+  await page.evaluate(() => {
+    const talent = TALENTS.find(node => node.key === 'dd_0_0');
+    bestDepth = 100;
+    talentLevels.scavenger = 1;
+    talentLevels[talent.key] = 6;
+    showTalentTip(talent, { clientX: 120, clientY: 120 });
+  });
+  await expect(page.locator('#treeTip')).toContainText('Level 6/10');
+  await expect(page.locator('#treeTip')).toContainText('Soft cap active');
+
   const nodeCount = await page.evaluate(() => NODES.length);
   expect(nodeCount).toBeGreaterThan(5000);
   await expect(page.locator('.tn-pixel-icon')).toHaveCount(nodeCount);

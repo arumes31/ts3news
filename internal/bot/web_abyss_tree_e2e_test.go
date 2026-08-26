@@ -25,6 +25,7 @@ func registerAbyssTreeE2EFixture(mux *http.ServeMux, server *WebServer) {
 			"BestDepth": 50, "RespecTk": abyssTreeRespecTokens, "Stats": abyssStats{BestDepth: 50},
 			"Spec": "", "DelverTalentDefs": content.DeepDelverTalents, "DelverTalentLevels": map[string]int{},
 			"SpecTalentDefs": content.SpecTalents, "Tokens": int64(1_000), "NodeGates": abyssUpgradeMinDepth,
+			"TalentMaxLevel": content.TalentMaxLevel,
 			"LimitBreakID": content.NodeLimitBreak, "SanctuaryID": content.NodeSecretSanctuary,
 			"Sockets": "{}", "ActiveKeystoneExpiry": "", "ActiveKeystoneCooldown": "",
 			"Jewels": map[string]int{}, "Loadouts": map[string]int{}, "LoadoutNames": map[string]string{},

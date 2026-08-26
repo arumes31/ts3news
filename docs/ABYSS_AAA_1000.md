@@ -195,12 +195,14 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 
 - [x] **AAA-0151 / 151** — three named Deep Delver loadout slots save and atomically reapply validated talent-tree allocations.
 - [x] **AAA-0152 / 152** — a selected talent node can be refunded with an explicit quote, cascading only when allocated dependents require it.
+- [x] **AAA-0153 / 153** — legacy and generic talent nodes share a ten-rank cap; ranks six through ten have a disclosed half-rank soft cap, and generic token spending plus level persistence commit atomically (`abyss_talents.go`, `web_abyss_talents.go`, `web_abyss_econ.go`, `abysstree.html`, `abyss_talents_test.go`, `web_abyss_talents_test.go`, `abyss-tree-atlas.spec.js`).
 - [x] **AAA-0154 / 154** — Swiftness shortens combat presentation delay at each purchased rank.
 - [x] **AAA-0155 / 155** — Scavenger increases authoritative crafting-material yields by rank.
 - [x] **AAA-0156 / 156** — Mercy raises both revive-offer odds and Last Stand healing through server calculations.
 - [x] **AAA-0157 / 157** — Cartographer extends paid route visions and lowers their posted cost.
 - [x] **AAA-0158 / 158** — Quartermaster adds one server-enforced consumable carry slot per rank.
 - [x] **AAA-0159 / 159** — the talent interface is a connected, keyboard-accessible branched tree rather than a flat upgrade list.
+- [x] **AAA-0160 / 160** — expansion talent nodes enforce authoritative best-depth milestones and expose the same gates to the talent tree (`web_abyss_econ.go`, `web_abyss_tree.go`, `web_abyss_progression_evidence_test.go`).
 - [x] **AAA-0161 / 161** — Delver, Plunderer, and Warden are mutually exclusive specializations with distinct live bonuses.
 - [x] **AAA-0163 / 163** — prestige grants a dedicated Paragon point budget spendable only on post-prestige nodes.
 - [x] **AAA-0168 / 168** — accumulated boss-family kills buy bounded +1% damage mastery ranks against chosen bestiary families.

@@ -575,6 +575,7 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		// concatenated into the client TALENTS array (single source of truth in Go).
 		"DelverTalentDefs":   content.DeepDelverTalents,
 		"DelverTalentLevels": s.bot.loadAbyssTalentLevels(uid),
+		"TalentMaxLevel":     content.TalentMaxLevel,
 		// Per-spec allocatable sub-trees (50 nodes each); the active spec's tree is
 		// drawn in the Specializations tab. Levels reuse DelverTalentLevels above
 		// (loadAbyssTalentLevels returns every generic key, spec nodes included).

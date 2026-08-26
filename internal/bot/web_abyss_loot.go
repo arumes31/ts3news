@@ -357,8 +357,8 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	}
 	st := b.loadAbyssStats(uid)
 	if st.UpFortune > 0 {
-		qualityMult *= 1.0 + float64(st.UpFortune)*0.06
-		lootFindBonus += float64(st.UpFortune) * 0.04
+		qualityMult *= 1.0 + content.TalentEffectiveLevel(st.UpFortune)*0.06
+		lootFindBonus += content.TalentEffectiveLevel(st.UpFortune) * 0.04
 	}
 	// Depth milestones (#16): +1% permanent loot find per 25 best depth, cap +4%.
 	lootFindBonus += abyssDepthLootFindBonus(st.BestDepth)

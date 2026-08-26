@@ -1704,7 +1704,7 @@ func (s *WebServer) handleAbyssLastStand(w http.ResponseWriter, r *http.Request,
 	// Revive against the true combat max (base+gear+skill-web), matching handleAbyssRevive
 	// and every other Abyss HP surface — calculateTotalStats alone omits the tree bonus.
 	stats := s.bot.abyssCombatStats(uid)
-	revivePct := 25 + 5*st.UpMercy
+	revivePct := 25 + 5*abyssTalentEffectiveInt(st.UpMercy)
 	reviveHP := stats.HP * revivePct / 100
 	if reviveHP < 1 {
 		reviveHP = 1
@@ -2025,7 +2025,7 @@ func (s *WebServer) handleAbyssRiftPeek(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	st := s.bot.loadAbyssStats(uid)
-	n := 3 + st.UpCartographer
+	n := 3 + abyssTalentEffectiveInt(st.UpCartographer)
 
 	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -2046,7 +2046,7 @@ func (s *WebServer) handleAbyssRiftPeek(w http.ResponseWriter, r *http.Request, 
 	cost := int64(0)
 	if peekNumber > 1 {
 		cost = int64(50*(run.Depth+1)) * (peekNumber - 1)
-		cost -= cost * int64(st.UpCartographer) / 10
+		cost -= cost * int64(abyssTalentEffectiveInt(st.UpCartographer)) / 10
 		if cost < 10 {
 			cost = 10
 		}
@@ -2089,7 +2089,7 @@ func (s *WebServer) handleAbyssRiftPeek(w http.ResponseWriter, r *http.Request, 
 	nextCost := int64(0)
 	if peekNumber < 3 {
 		nextCost = int64(50*(run.Depth+1)) * peekNumber
-		nextCost -= nextCost * int64(st.UpCartographer) / 10
+		nextCost -= nextCost * int64(abyssTalentEffectiveInt(st.UpCartographer)) / 10
 		if nextCost < 10 {
 			nextCost = 10
 		}
