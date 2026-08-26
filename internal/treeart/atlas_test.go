@@ -53,7 +53,7 @@ func TestCheckedInAtlasesMatchGenerator(t *testing.T) {
 			if err != nil {
 				t.Fatalf("open generated atlas: %v", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 			checkedIn, err := png.Decode(file)
 			if err != nil {
 				t.Fatalf("decode generated atlas: %v", err)
