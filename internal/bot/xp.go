@@ -1659,17 +1659,13 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					selectedSkill = findLiveSkill(u, liveAction.AbilityID)
 				}
 				manuallySelectedSkill = selectedSkill != nil
-			} else if !isLiveAction && !holdCast && len(u.Skills) > 0 && au.CurrentMana >= spellCost && rand.Float64() < 0.3 { // #nosec G404
-				available := make([]int, 0, len(u.Skills))
-				for skillIndex := range u.Skills {
-					if au.skillCooldowns[u.Skills[skillIndex].ID] == 0 {
-						available = append(available, skillIndex)
-					}
-				}
-				if len(available) > 0 {
-					// #nosec G404 -- legacy automatic skill selection
-					selectedSkill = &u.Skills[available[rand.IntN(len(available))]] // #nosec G404
-				}
+			} else if !isLiveAction && !holdCast && len(u.Skills) > 0 && rand.Float64() < 0.3 { // #nosec G404
+				selectedSkill = firstReadyAffordableSkill(
+					u.Skills,
+					au.skillCooldowns,
+					au.CurrentMana,
+					spellCostFor,
+				)
 			}
 			if selectedSkill != nil {
 				spellCost = spellCostFor(selectedSkill.ManaCost)
@@ -3708,7 +3704,7 @@ func (b *Bot) equipSkill(uid string, newSkill content.Skill) (int, bool) {
 }
 
 func (b *Bot) getSkills(uid string) []content.Skill {
-	rows, err := b.DB.Query("SELECT skill_id FROM user_skills WHERE client_uid = $1", uid)
+	rows, err := b.DB.Query("SELECT skill_id FROM user_skills WHERE client_uid = $1 ORDER BY slot", uid)
 	if err != nil {
 		return nil
 	}

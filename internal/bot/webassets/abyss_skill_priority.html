@@ -1,0 +1,88 @@
+{{define "abyssSkillPriorityPanel"}}{{with .}}{{if .Items}}
+<details class="ab-skill-priority" id="abyssSkillPriority" data-customized="{{.Customized}}">
+  <summary>
+    <span><b>✦ Skill casting order</b><small>Automatic combat tries the first ready, affordable skill.</small></span>
+    <span class="ab-skill-priority-state" id="abyssSkillPriorityState">{{if .Customized}}CUSTOM{{else}}DEFAULT{{end}}</span>
+  </summary>
+  <p class="muted small" id="abyssSkillPriorityHelp">Drag skills, use the arrow buttons, or press Alt + ↑/↓. Manual live actions still override this order.</p>
+  <ol class="ab-skill-priority-list" id="abyssSkillPriorityList" aria-describedby="abyssSkillPriorityHelp">
+    {{range .Items}}
+    <li draggable="true" tabindex="0" data-skill-id="{{.ID}}" data-default-priority="{{.DefaultPriority}}" style="--skill-rarity:{{.Color}}">
+      <span class="ab-skill-priority-rank" aria-hidden="true">{{.Priority}}</span>
+      <span class="ab-skill-priority-icon" aria-hidden="true">{{.Icon}}</span>
+      <span class="ab-skill-priority-copy"><b>{{.Name}}</b><small>{{.Type}} · {{.ManaCost}} mana · {{.CooldownRounds}} round CD</small></span>
+      <span class="ab-skill-priority-controls">
+        <button type="button" class="ghost xs" data-priority-move="-1" aria-label="Move {{.Name}} earlier">↑</button>
+        <button type="button" class="ghost xs" data-priority-move="1" aria-label="Move {{.Name}} later">↓</button>
+      </span>
+    </li>
+    {{end}}
+  </ol>
+  <div class="ab-skill-priority-actions">
+    <button type="button" class="primary xs" id="abyssSkillPrioritySave" disabled>Save casting order</button>
+    <button type="button" class="ghost xs" id="abyssSkillPriorityReset">Reset slot order</button>
+    <span class="muted small" id="abyssSkillPriorityReceipt" role="status" aria-live="polite"></span>
+  </div>
+</details>
+{{end}}{{end}}{{end}}
+
+{{define "abyssSkillPriorityJS"}}
+var abyssSkillPriorityDragged='';
+
+function abyssSkillPriorityItems(){
+  return Array.prototype.slice.call(document.querySelectorAll('#abyssSkillPriorityList > li'));
+}
+function refreshAbyssSkillPriority(dirty){
+  var items=abyssSkillPriorityItems(),save=document.getElementById('abyssSkillPrioritySave');
+  items.forEach(function(item,index){
+    var rank=item.querySelector('.ab-skill-priority-rank');if(rank)rank.textContent=String(index+1);
+    var buttons=item.querySelectorAll('[data-priority-move]');
+    if(buttons[0])buttons[0].disabled=index===0;
+    if(buttons[1])buttons[1].disabled=index===items.length-1;
+  });
+  if(save)save.disabled=!dirty;
+  if(dirty){
+    var state=document.getElementById('abyssSkillPriorityState');if(state)state.textContent='UNSAVED';
+    var receipt=document.getElementById('abyssSkillPriorityReceipt');if(receipt)receipt.textContent='Order changed locally.';
+  }
+}
+function moveAbyssSkillPriority(item,direction){
+  if(!item)return;
+  var sibling=direction<0?item.previousElementSibling:item.nextElementSibling;
+  if(!sibling)return;
+  if(direction<0)item.parentElement.insertBefore(item,sibling);else item.parentElement.insertBefore(sibling,item);
+  refreshAbyssSkillPriority(true);item.focus();
+}
+function resetAbyssSkillPriority(){
+  var list=document.getElementById('abyssSkillPriorityList');if(!list)return;
+  abyssSkillPriorityItems().sort(function(left,right){return Number(left.dataset.defaultPriority)-Number(right.dataset.defaultPriority);}).forEach(function(item){list.appendChild(item);});
+  refreshAbyssSkillPriority(true);
+}
+async function saveAbyssSkillPriority(){
+  var save=document.getElementById('abyssSkillPrioritySave'),receipt=document.getElementById('abyssSkillPriorityReceipt');
+  if(save)save.disabled=true;if(receipt)receipt.textContent='Saving…';
+  var order=abyssSkillPriorityItems().map(function(item){return item.dataset.skillId;});
+  var result=await abPost('/api/abyss/combat/skill_priority',{skill_priority:order});
+  if(!result.ok){if(save)save.disabled=false;if(receipt)receipt.textContent=result.error||'Could not save casting order.';abToast(result.error||'Could not save casting order.',false);return;}
+  var state=document.getElementById('abyssSkillPriorityState');if(state)state.textContent='SAVED';
+  if(receipt)receipt.textContent='Server order saved for automatic combat.';
+  abToast(result.msg||'Automatic skill priority saved.',true);
+}
+function initAbyssSkillPriority(){
+  var list=document.getElementById('abyssSkillPriorityList');if(!list)return;
+  abyssSkillPriorityItems().forEach(function(item){
+    item.querySelectorAll('[data-priority-move]').forEach(function(button){button.addEventListener('click',function(){moveAbyssSkillPriority(item,Number(button.dataset.priorityMove));});});
+    item.addEventListener('keydown',function(event){if(!event.altKey||(event.key!=='ArrowUp'&&event.key!=='ArrowDown'))return;event.preventDefault();moveAbyssSkillPriority(item,event.key==='ArrowUp'?-1:1);});
+    item.addEventListener('dragstart',function(event){abyssSkillPriorityDragged=item.dataset.skillId;item.classList.add('is-dragging');event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',abyssSkillPriorityDragged);});
+    item.addEventListener('dragend',function(){item.classList.remove('is-dragging');abyssSkillPriorityDragged='';document.querySelectorAll('.ab-skill-priority-drop').forEach(function(node){node.classList.remove('ab-skill-priority-drop');});});
+    item.addEventListener('dragover',function(event){event.preventDefault();item.classList.add('ab-skill-priority-drop');});
+    item.addEventListener('dragleave',function(){item.classList.remove('ab-skill-priority-drop');});
+    item.addEventListener('drop',function(event){event.preventDefault();item.classList.remove('ab-skill-priority-drop');var sourceID=event.dataTransfer.getData('text/plain')||abyssSkillPriorityDragged;var source=abyssSkillPriorityItems().find(function(node){return node.dataset.skillId===sourceID;});if(!source||source===item)return;list.insertBefore(source,item);refreshAbyssSkillPriority(true);source.focus();});
+  });
+  var save=document.getElementById('abyssSkillPrioritySave'),reset=document.getElementById('abyssSkillPriorityReset');
+  if(save)save.addEventListener('click',saveAbyssSkillPriority);
+  if(reset)reset.addEventListener('click',resetAbyssSkillPriority);
+  refreshAbyssSkillPriority(false);
+}
+initAbyssSkillPriority();
+{{end}}

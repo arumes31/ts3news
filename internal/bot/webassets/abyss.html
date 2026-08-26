@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_onboarding.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_entry_planner.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_skill_priority.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_pact_program.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_recorder.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_run_awareness.css"}}">
@@ -317,6 +318,7 @@
       <label class="ab-combat-pref" title="Automatic combat saves skills and ultimates for bosses. Manual live actions always override this setting.">
         <input type="checkbox" id="holdManaSetting" onchange="saveAbyssCombatSettings()"> Hold mana for bosses
       </label>
+      {{template "abyssSkillPriorityPanel" .SkillPriority}}
       {{if ge .Stats.BestDepth 50}}<label>Veteran track
         <select id="veteranTrack" class="ab-select">
           <option value="">Off · standard run</option>
@@ -3698,6 +3700,7 @@ async function processDescendResult(d, hp, max){
 {{template "abyssLiveActionBarJS" .}}
 {{template "abyssOnboardingJS" .}}
 {{template "abyssEntryPlannerJS" .}}
+{{template "abyssSkillPriorityJS" .}}
 {{template "abyssCombatRecorderJS" .}}
 {{template "abyssRunAwarenessJS" .}}
 {{template "abyssLootPresentationJS" .}}

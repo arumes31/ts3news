@@ -185,6 +185,41 @@ test('known boss preview shows exact elemental matchup and advances with depth',
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
+test('skill priority reorders by drag and keyboard then persists to the server', async ({ page }) => {
+  let savedOrder = null;
+  await fulfillAbyssAPI(page, (path, body) => {
+    if (path.endsWith('/combat/skill_priority')) {
+      savedOrder = body.skill_priority;
+      return { ok: true, skill_priority: body.skill_priority, msg: 'Automatic skill priority saved.' };
+    }
+    return { ok: false, error: 'unexpected e2e request' };
+  });
+
+  await page.setViewportSize({ width: 480, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/abyss');
+  await page.locator('[data-entry-step="build"]').click();
+  const panel = page.locator('#abyssSkillPriority');
+  await panel.evaluate(element => { element.open = true; });
+  const items = page.locator('#abyssSkillPriorityList > li');
+  await expect(items).toHaveCount(3);
+  const originalOrder = await items.evaluateAll(nodes => nodes.map(node => node.dataset.skillId));
+
+  await items.nth(2).dragTo(items.nth(0));
+  await expect(items.first()).toHaveAttribute('data-skill-id', originalOrder[2]);
+  await items.nth(2).focus();
+  await page.keyboard.press('Alt+ArrowUp');
+  const editedOrder = await items.evaluateAll(nodes => nodes.map(node => node.dataset.skillId));
+  expect(editedOrder).not.toEqual(originalOrder);
+  await page.locator('#abyssSkillPrioritySave').click();
+  await expect.poll(() => savedOrder).toEqual(editedOrder);
+  await expect(page.locator('#abyssSkillPriorityReceipt')).toContainText('Server order saved');
+
+  await page.locator('#abyssSkillPriorityReset').click();
+  await expect.poll(() => items.evaluateAll(nodes => nodes.map(node => node.dataset.skillId))).toEqual(originalOrder);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
 test('desktop Abyss keeps its dark canvas and aligned stage in light system mode', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });

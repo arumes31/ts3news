@@ -207,6 +207,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_entry_planner.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_entry_planner.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_skill_priority.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_skill_priority.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_pact_program.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_pact_program.css", "text/css; charset=utf-8")
 	})
@@ -429,6 +432,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/combat/policy", s.authAPI(s.handleAbyssCombatPolicy))
 		mux.HandleFunc("/api/abyss/combat/tactics", s.authAPI(s.handleAbyssCombatTactics))
 		mux.HandleFunc("/api/abyss/combat/settings", s.authAPI(s.handleAbyssCombatSettings))
+		mux.HandleFunc("/api/abyss/combat/skill_priority", s.authAPI(s.handleAbyssSkillPriority))
 		mux.HandleFunc("/api/abyss/combat/social", s.authAPI(s.handleAbyssCombatSocial))
 		mux.HandleFunc("/api/abyss/combat/events", s.authAPI(s.handleAbyssCombatEvents))
 		mux.HandleFunc("/api/abyss/replay/code", s.authAPI(s.handleAbyssReplayCode))

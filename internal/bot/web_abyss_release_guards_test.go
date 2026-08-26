@@ -71,8 +71,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "496a73c79ea438fc0bb6876b94358f45eb9aaa17f2a63ddc277076a2fa4ffa75"},
-		{name: "active_run", active: true, want: "ac5669ed3986e2f41abb8d97b2bf667271b75046bbe778dfe4af70d3f84c38ad"},
+		{name: "threshold", want: "a0dfdf706518fdd4c41ada2b8abd6593de99fa2bf1dc31252cf6be669a150492"},
+		{name: "active_run", active: true, want: "222e767e5d1569f252004f2eb7bc4334ab95ba568ecc390ee50e010eaa1d7443"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -162,6 +162,12 @@ func abyssGoldenFixture(active bool) map[string]any {
 			content.SlotMainHand: {Element: content.Element(bossAffinity.WeakTo)},
 		},
 	)
+	fixtureSkills := []content.Skill{
+		{ID: "S0_1", Name: "Storm Blast", Type: content.SkillMagic, Rarity: content.RarityCommon, ManaCost: 20, CooldownRounds: 1},
+		{ID: "S0_2", Name: "Wind Curse", Type: content.SkillDebuff, Rarity: content.RarityRare, ManaCost: 25, CooldownRounds: 2},
+		{ID: "S0_3", Name: "Icy Heal", Type: content.SkillBuff, Rarity: content.RarityEpic, ManaCost: 30, CooldownRounds: 3},
+	}
+	skillPriority := abyssSkillPriorityViewForSkills(fixtureSkills, fixtureSkills)
 	return map[string]any{
 		"Title": "The Abyss", "Nav": "abyss",
 		"U": &webUser{
@@ -173,7 +179,7 @@ func abyssGoldenFixture(active bool) map[string]any {
 		"History": []any{}, "Achievements": []abyssAchievementView{}, "BadgeOptions": []any{},
 		"RunInsights": abyssRunInsightsView{}, "LongTerm": abyssLongTermView{},
 		"CartographerRoute": abyssCartographerRouteView{Floors: []abyssCartographerFloorView{}},
-		"BossAffinity":      bossAffinity, "ElementalPreview": elementalPreview,
+		"BossAffinity":      bossAffinity, "ElementalPreview": elementalPreview, "SkillPriority": skillPriority,
 		"ActiveBadge": "", "ActiveBadgeName": "", "LoreList": []any{}, "LoreTotal": len(abyssLoreFragments),
 		"Bestiary": []any{}, "Consumables": []any{}, "DailyMod": "",
 		"CommunityExpedition": map[string]any{"Week": "2026-W35", "Floors": 0, "Target": 1000},
