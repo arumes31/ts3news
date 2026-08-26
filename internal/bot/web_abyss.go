@@ -1767,6 +1767,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		Hardcore      bool           `json:"hardcore"`       // no protection or revival, ×2 floor cache
 		Hybrid        bool           `json:"hybrid"`         // every fifth floor borrows the next tier's danger
 		Kit           string         `json:"kit"`            // starting combat identity
+		Position      string         `json:"position"`       // frontline | backline
 		Mutation      string         `json:"mutation"`       // temporary in-run skill mutation
 		Focus         string         `json:"focus"`          // auto | balanced | gold | loot | xp | materials | tokens
 		LootRule      string         `json:"loot_rule"`      // party reward settlement selected before entry
@@ -2040,6 +2041,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	baseStats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
 	startBuildFlags := map[string]int64{
 		abyssRunFlagBuildKit:      abyssBuildKits[normalizeAbyssBuildKit(req.Kit)],
+		abyssRunFlagPosition:      abyssCombatPositions[normalizeAbyssCombatPosition(req.Position)],
 		abyssRunFlagSkillMutation: abyssSkillMutations[normalizeAbyssSkillMutation(req.Mutation)],
 	}
 	startUser := UserInCombat{Stats: abyssFoldStats(baseStats, s.bot.treeBonusFor(uid)), Equipped: equipped}
@@ -2086,6 +2088,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	flags[abyssRunFlagTokenAnte] = int64(req.TokenAnte)
 	flags[abyssRunFlagRiskDialPct] = int64(req.RiskDialPct)
+	flags[abyssRunFlagPosition] = abyssCombatPositions[normalizeAbyssCombatPosition(req.Position)]
 	if coldMuscles := abyssColdMusclesOnEntry(startDepth); coldMuscles > 0 {
 		flags[abyssRunFlagColdMuscles] = coldMuscles
 	}
@@ -2128,6 +2131,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		Start:        req.Start,
 		Checkpoint:   req.Checkpoint,
 		Kit:          req.Kit,
+		Position:     req.Position,
 		Mutation:     req.Mutation,
 		LootRule:     req.LootRule,
 		VeteranTrack: req.VeteranTrack,

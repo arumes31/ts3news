@@ -10,18 +10,23 @@ async function fulfillAbyssAPI(page, handler) {
 }
 
 test('enter sends the selected run setup', async ({ page }) => {
-  let entered = false;
-  await fulfillAbyssAPI(page, path => {
+  let enteredBody = null;
+  await fulfillAbyssAPI(page, (path, body) => {
     if (path.endsWith('/enter')) {
-      entered = true;
+      enteredBody = body;
       return { ok: true, free_entry: true };
     }
     return { ok: false, error: 'unexpected e2e request' };
   });
   await page.goto('/abyss');
   await page.evaluate(() => { window.reduceMotion = true; });
+  await page.locator('[data-entry-step="build"]').click();
+  await expect(page.locator('#combatPosition')).toHaveAccessibleDescription('Locked for this run · shown on every live combatant card.');
+  await page.locator('#combatPosition').selectOption('backline');
+  await expect(page.locator('#abyssEntrySummaryLine')).toContainText('Backline');
   await page.locator('#btnEnter').click();
-  await expect.poll(() => entered).toBe(true);
+  await expect.poll(() => enteredBody).not.toBeNull();
+  expect(enteredBody.position).toBe('backline');
 });
 
 test('custom stakes preview, submit, and remain adjustable between floors', async ({ page }) => {

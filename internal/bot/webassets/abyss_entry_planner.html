@@ -57,13 +57,13 @@ function abyssSelectedLabel(selector,fallback){
 function captureAbyssEntrySetup(){
   var start=document.querySelector('input[name=abstart]:checked');
   var checkpoint=document.getElementById('checkpointSel');
-  var kit=document.getElementById('buildKit'),mutation=document.getElementById('buildMutation'),loot=document.getElementById('partyLootRule');
+  var kit=document.getElementById('buildKit'),mutation=document.getElementById('buildMutation'),position=document.getElementById('combatPosition'),loot=document.getElementById('partyLootRule');
   var focus=document.getElementById('entryFocus');
   var veteran=document.getElementById('veteranTrack');
   var contract=document.getElementById('contractPact');
   var ante=document.getElementById('tokenAnte'),riskDial=document.getElementById('entryRiskDial');
   return {tier:selectedTier(),pacts:selectedPacts(),start:start?start.value:'',checkpoint:checkpoint?(Number(checkpoint.value)||0):0,
-    kit:kit?kit.value:'vanguard',mutation:mutation?mutation.value:'empowered',loot_rule:loot?loot.value:'owner',veteran_track:veteran?veteran.value:'',
+    kit:kit?kit.value:'vanguard',position:position?position.value:'frontline',mutation:mutation?mutation.value:'empowered',loot_rule:loot?loot.value:'owner',veteran_track:veteran?veteran.value:'',
     focus:focus?focus.value:'auto',contract:contract?contract.value:'',token_ante:ante?(Number(ante.value)||0):0,risk_dial_pct:riskDial?(Number(riskDial.value)||0):0,
     expedition:!!(document.getElementById('weeklyExpedition')&&document.getElementById('weeklyExpedition').checked),
     hardcore:!!(document.getElementById('hardcoreMode')&&document.getElementById('hardcoreMode').checked),
@@ -86,7 +86,7 @@ function restoreAbyssEntrySetup(){
   if(start&&!start.disabled)start.checked=true;
   var checkpoint=document.getElementById('checkpointSel');
   if(checkpoint&&saved.checkpoint&&Array.prototype.some.call(checkpoint.options,function(option){return option.value===String(saved.checkpoint)&&!option.disabled;}))checkpoint.value=String(saved.checkpoint);
-  [['buildKit','kit'],['buildMutation','mutation'],['partyLootRule','loot_rule'],['veteranTrack','veteran_track'],['entryFocus','focus'],['contractPact','contract'],['tokenAnte','token_ante']].forEach(function(pair){
+  [['buildKit','kit'],['combatPosition','position'],['buildMutation','mutation'],['partyLootRule','loot_rule'],['veteranTrack','veteran_track'],['entryFocus','focus'],['contractPact','contract'],['tokenAnte','token_ante']].forEach(function(pair){
     var select=document.getElementById(pair[0]);if(!select||saved[pair[1]]===undefined)return;
     if(Array.prototype.some.call(select.options,function(option){return option.value===String(saved[pair[1]]);}))select.value=String(saved[pair[1]]);
   });
@@ -119,6 +119,8 @@ function renderAbyssEntrySummary(){
   var route=!startInput||!startInput.value?'Surface':startInput.value==='checkpoint'?'Checkpoint '+(checkpoint?checkpoint.value:''):'Express to '+(startInput.dataset.depth||'record');
   var kit=document.getElementById('buildKit');
   var kitLabel=kit&&kit.options[kit.selectedIndex]?kit.options[kit.selectedIndex].text.split('·')[0].trim():'Vanguard';
+  var position=document.getElementById('combatPosition');
+  var positionLabel=position&&position.options[position.selectedIndex]?position.options[position.selectedIndex].text.split('·')[0].trim():'🛡️ Frontline';
   var focus=document.getElementById('entryFocus');
   var focusLabel=focus&&focus.options[focus.selectedIndex]?focus.options[focus.selectedIndex].text.split('·')[0].trim():'🧭 Auto';
   var pacts=selectedPacts();
@@ -128,7 +130,7 @@ function renderAbyssEntrySummary(){
   var tiers=Array.prototype.slice.call(document.querySelectorAll('input[name=abtier]')),tierIndex=tiers.indexOf(tierInput);
   if(hybrid){hybrid.disabled=tierIndex<0||tierIndex===tiers.length-1;if(hybrid.disabled)hybrid.checked=false;}
   var anteValue=ante?(Number(ante.value)||0):0,dialValue=riskDial?(Number(riskDial.value)||0):0;
-  line.textContent=[tier,route,kitLabel,focusLabel,pacts.length?pacts.length+' pact'+(pacts.length===1?'':'s'):'no pacts',anteValue?'🜲'+anteValue+' ante':'no ante',(dialValue>=0?'+':'')+dialValue+'% risk',hardcore&&hardcore.checked?'Hardcore':'Standard',hybrid&&hybrid.checked?'Hybrid':'Steady tier'].join(' · ');
+  line.textContent=[tier,route,kitLabel,positionLabel,focusLabel,pacts.length?pacts.length+' pact'+(pacts.length===1?'':'s'):'no pacts',anteValue?'🜲'+anteValue+' ante':'no ante',(dialValue>=0?'+':'')+dialValue+'% risk',hardcore&&hardcore.checked?'Hardcore':'Standard',hybrid&&hybrid.checked?'Hybrid':'Steady tier'].join(' · ');
   var reward=0,danger=1;
   document.querySelectorAll('input[name=abpact]:checked').forEach(function(input){reward+=Number(input.dataset.reward)||0;danger*=Number(input.dataset.danger)||1;});
   var pactPreview=document.getElementById('pactNetPreview');

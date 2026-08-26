@@ -15,6 +15,7 @@ type abyssEntrySetup struct {
 	Start        string   `json:"start"`
 	Checkpoint   int      `json:"checkpoint"`
 	Kit          string   `json:"kit"`
+	Position     string   `json:"position"`
 	Mutation     string   `json:"mutation"`
 	LootRule     string   `json:"loot_rule"`
 	VeteranTrack string   `json:"veteran_track"`
@@ -83,6 +84,7 @@ func canonicalAbyssEntrySetup(setup abyssEntrySetup) abyssEntrySetup {
 		setup.Checkpoint = 0
 	}
 	setup.Kit = normalizeAbyssBuildKit(setup.Kit)
+	setup.Position = normalizeAbyssCombatPosition(setup.Position)
 	setup.Mutation = normalizeAbyssSkillMutation(setup.Mutation)
 	setup.LootRule = normalizeAbyssPartyLootRule(setup.LootRule)
 	setup.VeteranTrack, _ = normalizeAbyssVeteranTrack(setup.VeteranTrack)

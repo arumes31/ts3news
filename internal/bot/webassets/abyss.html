@@ -304,6 +304,13 @@
           <option value="restorative">Restorative · every skill heals 5% max HP</option>
         </select>
       </label>
+      <label>Formation
+        <select id="combatPosition" class="ab-select" aria-describedby="combatPositionHint">
+          <option value="frontline">🛡️ Frontline · −10% incoming damage, draws enemy intent</option>
+          <option value="backline">🏹 Backline · +10% damage, +50% physical miss chance</option>
+        </select>
+        <span class="muted small" id="combatPositionHint">Locked for this run · shown on every live combatant card.</span>
+      </label>
       <label>Party loot
         <select id="partyLootRule" class="ab-select">
           <option value="owner">Host cache · helper 🜲5</option>
@@ -3209,14 +3216,14 @@ async function abyssEnter(consumables){
   setBusy(true); markBusyBtn('btnEnter');
   var expedition=document.getElementById('weeklyExpedition');
 	var hardcore=document.getElementById('hardcoreMode'),hybrid=document.getElementById('hybridMode');
-  var kit=document.getElementById('buildKit'), mutation=document.getElementById('buildMutation'), entryFocus=document.getElementById('entryFocus');
+  var kit=document.getElementById('buildKit'), mutation=document.getElementById('buildMutation'), position=document.getElementById('combatPosition'), entryFocus=document.getElementById('entryFocus');
   var veteran=document.getElementById('veteranTrack');
   var lootRule=document.getElementById('partyLootRule');
   var suppressAffix=document.getElementById('suppressDailyAffix');
   var contractPact=document.getElementById('contractPact');
   var tokenAnte=document.getElementById('tokenAnte'),entryRiskDial=document.getElementById('entryRiskDial');
   var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),hardcore:!!(hardcore&&hardcore.checked),hybrid:!!(hybrid&&hybrid.checked),
-    kit:kit?kit.value:'vanguard', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
+    kit:kit?kit.value:'vanguard', position:position?position.value:'frontline', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
     loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto', suppress_affix:!!(suppressAffix&&suppressAffix.checked), contract:contractPact?contractPact.value:'',
     token_ante:tokenAnte?(Number(tokenAnte.value)||0):0,risk_dial_pct:entryRiskDial?(Number(entryRiskDial.value)||0):0};
   if(body.hardcore && !(await confirmModalDangerous('Begin a Hardcore run? Grace floors, insurance, revival items, Last Stand, and revival gambles are disabled. Cleared-floor cache rewards are doubled and the run enters the Hardcore leaderboard.',{title:'Begin Hardcore',okLabel:'Enter Hardcore'}))){
