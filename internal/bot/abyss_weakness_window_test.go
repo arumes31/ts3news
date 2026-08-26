@@ -98,7 +98,7 @@ func TestAbyssWeaknessWindowCombatIntegrationContract(t *testing.T) {
 	consume := strings.Index(combat, "resolveAbyssWeaknessCritical(")
 	damage := strings.Index(combat, "target.Stats.HP -= dmg")
 	arm := strings.LastIndex(combat, "armAbyssWeaknessWindow(target, stunnedThisHit, logs)")
-	if consume < 0 || damage < 0 || arm < 0 || !(consume < damage && damage < arm) {
+	if consume < 0 || damage < 0 || arm < 0 || consume >= damage || damage >= arm {
 		t.Fatalf("weakness ordering = consume %d, damage %d, arm %d; want consume < damage < arm", consume, damage, arm)
 	}
 	if strings.Count(combat, "resolveAbyssWeaknessCritical(") != 1 {
