@@ -879,7 +879,7 @@
     ]
   },
   {
-    "ids": [126, 127, 128, 130, 140, 142, 149],
+    "ids": [126, 127, 128, 129, 130, 140, 142, 149],
     "production": [
       "internal/bot/web_abyss_features.go",
       "internal/bot/web_abyss.go",
@@ -891,7 +891,8 @@
       "internal/bot/webassets/abyss.html",
       "internal/bot/webassets/style.css",
       "internal/bot/webassets/ah.html",
-      "internal/db/migrations/0080_abyss_economy.up.sql"
+      "internal/db/migrations/0080_abyss_economy.up.sql",
+      "internal/db/migrations/0094_abyss_auto_insure.up.sql"
     ],
     "verification": [
       "internal/bot/web_abyss_economy4_test.go",

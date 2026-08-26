@@ -136,6 +136,31 @@ func planAbyssForfeit(escrow int64, insured, depth int, hardcore bool) abyssForf
 	return abyssForfeitPolicy{Refund: refund, CountDeath: true}
 }
 
+type abyssAutoInsurancePlan struct {
+	Applied    bool
+	Percent    int
+	Cost       int64
+	SkipReason string
+}
+
+func planAbyssAutoInsurance(enabled, hardcore bool, pacts []string, escrow int64, ward int, lifetimeBanked int64) abyssAutoInsurancePlan {
+	if !enabled {
+		return abyssAutoInsurancePlan{}
+	}
+	if hardcore {
+		return abyssAutoInsurancePlan{SkipReason: "hardcore runs forbid insurance"}
+	}
+	if abyssHasPact(pacts, "uninsured") {
+		return abyssAutoInsurancePlan{SkipReason: "the Uninsured pact forbids insurance"}
+	}
+	const percent = 25
+	return abyssAutoInsurancePlan{
+		Applied: true,
+		Percent: percent,
+		Cost:    max(int64(1), abyssInsuranceCost(escrow, percent, ward, lifetimeBanked)),
+	}
+}
+
 type abyssPartialBankQuote struct {
 	Escrow    int64
 	Gross     int64

@@ -99,6 +99,34 @@ func TestAbyssGraceAndHardcoreForfeitPoliciesAreMutuallyExclusive(t *testing.T) 
 	}
 }
 
+func TestPlanAbyssAutoInsuranceAppliesOrdinaryCoverOnlyToCompatibleRuns(t *testing.T) {
+	t.Parallel()
+
+	plan := planAbyssAutoInsurance(true, false, nil, 1_000, 0, 0)
+	if plan != (abyssAutoInsurancePlan{Applied: true, Percent: 25, Cost: 125}) {
+		t.Fatalf("auto-insurance plan = %#v", plan)
+	}
+	empty := planAbyssAutoInsurance(true, false, nil, 0, 0, 0)
+	if !empty.Applied || empty.Percent != 25 || empty.Cost != 1 {
+		t.Fatalf("empty-cache auto-insurance plan = %#v", empty)
+	}
+	for _, test := range []struct {
+		name     string
+		enabled  bool
+		hardcore bool
+		pacts    []string
+	}{
+		{name: "disabled"},
+		{name: "hardcore", enabled: true, hardcore: true},
+		{name: "uninsured", enabled: true, pacts: []string{"uninsured"}},
+	} {
+		got := planAbyssAutoInsurance(test.enabled, test.hardcore, test.pacts, 1_000, 0, 0)
+		if got.Applied || got.Percent != 0 || got.Cost != 0 {
+			t.Errorf("%s plan = %#v", test.name, got)
+		}
+	}
+}
+
 func TestAbyssOverkillGoldConversionAndCap(t *testing.T) {
 	t.Parallel()
 

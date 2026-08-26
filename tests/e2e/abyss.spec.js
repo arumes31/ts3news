@@ -21,6 +21,27 @@ test('weekly cosmetic stock is focused, dated, and accessible from the Shop tab'
   expect(pageErrors).toEqual([]);
 });
 
+test('auto-insure can be enabled from the Shop and reports its exact run-start cover', async ({ page }) => {
+  let savedBody = null;
+  await fulfillAbyssAPI(page, (path, body) => {
+    if (path.endsWith('/shop/auto_insure')) {
+      savedBody = body;
+      return { ok: true, enabled: body.enabled, msg: 'Auto-insure enabled · compatible runs start with 25% cache cover.' };
+    }
+    return { ok: false, error: 'unexpected e2e request' };
+  });
+  await page.goto('/abyss');
+  await page.locator('#abyss-tab-shop').click();
+  await page.locator('#abyssTokenExchange summary').click();
+  const toggle = page.locator('#autoInsureToggle');
+  await expect(toggle).toHaveText(/Auto-insure: off/);
+  await toggle.click();
+  await expect.poll(() => savedBody).toEqual({ enabled: true });
+  await expect(toggle).toHaveAttribute('data-enabled', 'true');
+  await expect(toggle).toHaveText(/Auto-insure: on/);
+  await expect(page.locator('#abToastHost')).toContainText('compatible runs start with 25% cache cover');
+});
+
 test('enter sends the selected run setup', async ({ page }) => {
   let enteredBody = null;
   await fulfillAbyssAPI(page, (path, body) => {

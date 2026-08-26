@@ -539,6 +539,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/shop/buy", s.authAPI(s.handleAbyssShopBuy))
 		mux.HandleFunc("/api/abyss/shop/token_bundle", s.authAPI(s.handleAbyssTokenBundle))
 		mux.HandleFunc("/api/abyss/shop/potion_subscription", s.authAPI(s.handleAbyssPotionSubscription))
+		mux.HandleFunc("/api/abyss/shop/auto_insure", s.authAPI(s.handleAbyssAutoInsure))
 		mux.HandleFunc("/api/abyss/shop/repair_subscription", s.authAPI(s.handleAbyssRepairSubscription))
 		mux.HandleFunc("/api/abyss/shop/scratch", s.authAPI(s.handleAbyssScratch))
 		mux.HandleFunc("/api/abyss/shop/gift_create", s.authAPI(s.handleAbyssGiftCreate))

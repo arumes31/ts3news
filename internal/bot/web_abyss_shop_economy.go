@@ -2,12 +2,15 @@ package bot
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
 	"strings"
 	"time"
 )
+
+var errAbyssAutoInsuranceFunds = errors.New("not enough gold for automatic insurance")
 
 const (
 	abyssPotionSubscriptionDailyGold = int64(25_000)
@@ -236,6 +239,37 @@ func (b *Bot) abyssRepairSubscriptionActive(uid string, now time.Time) bool {
 	return active
 }
 
+func (b *Bot) abyssAutoInsureEnabled(uid string) bool {
+	var enabled bool
+	_ = b.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM abyss_economy_profiles
+		WHERE client_uid=$1 AND auto_insure=TRUE)`, uid).Scan(&enabled)
+	return enabled
+}
+
+func applyAbyssAutoInsurance(tx *sql.Tx, uid string, plan abyssAutoInsurancePlan) (cost int64, free bool, err error) {
+	if !plan.Applied {
+		return 0, false, nil
+	}
+	var availableGold int64
+	if err := tx.QueryRow("SELECT gold FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&availableGold); err != nil {
+		return 0, false, err
+	}
+	free, err = consumeAbyssFreeInsurance(tx, uid)
+	if err != nil {
+		return 0, false, err
+	}
+	if free {
+		return 0, true, nil
+	}
+	if availableGold < plan.Cost {
+		return 0, false, errAbyssAutoInsuranceFunds
+	}
+	if _, err := tx.Exec("UPDATE users SET gold=gold-$1 WHERE client_uid=$2", plan.Cost, uid); err != nil {
+		return 0, false, err
+	}
+	return plan.Cost, false, nil
+}
+
 func abyssRepairSubscriptionCharge(cost int64, covered bool) int64 {
 	if covered {
 		return 0
@@ -269,6 +303,31 @@ func (s *WebServer) handleAbyssPotionSubscription(w http.ResponseWriter, r *http
 	writeJSON(w, map[string]any{"ok": true, "enabled": req.Enabled,
 		"gold": s.bot.abyssGold(uid), "tokens": s.bot.abyssTokens(uid), "consumables": s.bot.getConsumables(uid),
 		"msg": fmt.Sprintf("Potion subscription %s · %dg per delivered day.", map[bool]string{true: "enabled", false: "paused"}[req.Enabled], abyssPotionSubscriptionDailyGold)})
+}
+
+func (s *WebServer) handleAbyssAutoInsure(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+	_, err := s.bot.DB.Exec(`INSERT INTO abyss_economy_profiles (client_uid,auto_insure)
+		VALUES ($1,$2) ON CONFLICT (client_uid) DO UPDATE SET auto_insure=$2`, uid, req.Enabled)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	state := map[bool]string{true: "enabled", false: "paused"}[req.Enabled]
+	writeJSON(w, map[string]any{"ok": true, "enabled": req.Enabled,
+		"msg": "Auto-insure " + state + " · compatible runs start with 25% cache cover."})
 }
 
 func (s *WebServer) handleAbyssRepairSubscription(w http.ResponseWriter, r *http.Request, uid string) {

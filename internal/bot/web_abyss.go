@@ -1749,6 +1749,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"ForgeWorkbenchEnabled": s.abyssFeatures.enabled("forge", uid),
 		"ForgeWorkbench":        s.abyssForgeWorkbench(uid),
 		"AutoRepair":            autoRepair,
+		"AutoInsure":            s.bot.abyssAutoInsureEnabled(uid),
 		"TokenBuyGold":          int64(abyssTokenBuyGold),
 		"TokenSellGold":         int64(abyssTokenSellGold),
 		"PrestigeTier": func() map[string]string {
@@ -2124,11 +2125,31 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	autoInsureEnabled := false
+	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM abyss_economy_profiles
+		WHERE client_uid=$1 AND auto_insure=TRUE)`, uid).Scan(&autoInsureEnabled); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	autoInsurance := planAbyssAutoInsurance(autoInsureEnabled, req.Hardcore, pactKeys, echoSeed, st.UpWard, st.LifetimeBanked)
+	autoInsuranceCost := int64(0)
+	autoInsuranceFree := false
+	if autoInsurance.Applied {
+		autoInsuranceCost, autoInsuranceFree, err = applyAbyssAutoInsurance(tx, uid, autoInsurance)
+		if errors.Is(err, errAbyssAutoInsuranceFunds) {
+			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
 	if _, err := tx.Exec(
 		`INSERT INTO abyss_active (client_uid, depth, escrow, tier, insured, revived, pacts, consumables, started_at, last_action_at,
 		                           checkpoint_start, express_until, comeback, last_rest_depth)
-		 VALUES ($1, $5, $9, $2, 0, FALSE, $3, $4, NOW(), NOW(), $6, $7, $8, $5)`,
-		uid, tier.Key, pacts, loadoutJSON, startDepth, route.CheckpointStart, route.ExpressUntil, comeback, echoSeed); err != nil {
+		 VALUES ($1, $5, $9, $2, $10, FALSE, $3, $4, NOW(), NOW(), $6, $7, $8, $5)`,
+		uid, tier.Key, pacts, loadoutJSON, startDepth, route.CheckpointStart, route.ExpressUntil, comeback, echoSeed, autoInsurance.Percent); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -2241,19 +2262,22 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		"ok": true, "depth": startDepth, "escrow": echoSeed, "tier": tier.Key,
 		"hp": startHP, "max_hp": stats.HP, "gold": gold,
 		"free_entry": freeEntry, "comeback": comeback, "auto_repaired": autoRepaired,
-		"weekly_expedition": weeklyRule.Label,
-		"hardcore":          req.Hardcore,
-		"hybrid":            req.Hybrid,
-		"token_ante":        req.TokenAnte,
-		"risk_dial_pct":     req.RiskDialPct,
-		"active_pacts":      abyssVisiblePacts(pactKeys, flags),
-		"build_summary":     abyssBuildSummary(startUser, startBuildFlags),
-		"rested_charges":    entryProgression.RestedCharges,
-		"returning_bonus":   entryProgression.Returning,
-		"veteran_track":     entryProgression.VeteranTrack,
-		"loot_rule":         normalizeAbyssPartyLootRule(req.LootRule),
-		"tokens":            s.bot.abyssTokens(uid),
-		"echo_seed":         echoSeed,
+		"auto_insure_enabled": autoInsureEnabled, "auto_insured": autoInsurance.Applied,
+		"auto_insurance_cost": autoInsuranceCost, "auto_insurance_free": autoInsuranceFree,
+		"auto_insurance_skip": autoInsurance.SkipReason,
+		"weekly_expedition":   weeklyRule.Label,
+		"hardcore":            req.Hardcore,
+		"hybrid":              req.Hybrid,
+		"token_ante":          req.TokenAnte,
+		"risk_dial_pct":       req.RiskDialPct,
+		"active_pacts":        abyssVisiblePacts(pactKeys, flags),
+		"build_summary":       abyssBuildSummary(startUser, startBuildFlags),
+		"rested_charges":      entryProgression.RestedCharges,
+		"returning_bonus":     entryProgression.Returning,
+		"veteran_track":       entryProgression.VeteranTrack,
+		"loot_rule":           normalizeAbyssPartyLootRule(req.LootRule),
+		"tokens":              s.bot.abyssTokens(uid),
+		"echo_seed":           echoSeed,
 	})
 }
 

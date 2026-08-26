@@ -738,6 +738,7 @@
         <button class="ghost xs" onclick="abyssTokenBundle()" title="First token 100,000g today; +20,000g per additional daily token · fee 0g">Gold → token bundle</button>
         <button class="ghost xs" onclick="abyssPotionSubscription(true)" title="Subscription fee 25,000g per delivered UTC day · two Great Health Potions">Enable potion plan</button>
         <button class="ghost xs" onclick="abyssPotionSubscription(false)" title="Pause fee 0g · no delivery charge while paused">Pause potion plan</button>
+        <button class="ghost xs" id="autoInsureToggle" data-enabled="{{.AutoInsure}}" onclick="abyssAutoInsure(this.dataset.enabled!=='true')" title="No recurring fee · each compatible run buys ordinary 25% cache cover atomically">🛡️ Auto-insure: {{if .AutoInsure}}on{{else}}off{{end}}</button>
         <button class="ghost xs" onclick="abyssRepairSubscription()" title="Exact fee 70,000g prepaid · 7 days · repairs and durability loss cost 0g while active">7-day repair plan</button>
         <button class="ghost xs" onclick="abyssScratch()" title="Exact price 50 tokens · fee 0 · once/day · 70%:0, 20%:75, 9%:150, 1%:1000">Daily scratch card</button>
         <button class="ghost xs" onclick="abyssGiftCreate()" title="Gift item price equals its posted token-shop price · gift fee 0">Create gift code</button>
@@ -3303,6 +3304,8 @@ async function abyssEnter(consumables){
   try{ sessionStorage.setItem('ab_run_tier', selectedTier()); }catch(e){}
   if(d.comeback) notes.push('💪 Comeback buff active: +10% stats this run.');
   if(d.auto_repaired) notes.push('🛠️ Auto-repaired all gear for '+fmtGold(d.auto_repaired)+'.');
+  if(d.auto_insured) notes.push('🛡️ Auto-insured 25% of this run'+(d.auto_insurance_free?' with free cover':' for '+fmtGold(d.auto_insurance_cost))+'.');
+  else if(d.auto_insurance_skip) notes.push('🛡️ Auto-insure skipped: '+d.auto_insurance_skip+'.');
   if(d.weekly_expedition) notes.push('📅 '+d.weekly_expedition+' · +25% cache rewards.');
 	if(d.hardcore) notes.push('💀 Hardcore active: ×2 cache, no grace, insurance, or revival.');
 	if(d.hybrid) notes.push('🌀 Hybrid active: every fifth floor surges to next-tier danger for half its extra reward.');
@@ -4278,6 +4281,13 @@ async function abyssTokenBundle(){
 
 async function abyssPotionSubscription(enabled){
   await abyssEconomyPost('/api/abyss/shop/potion_subscription',{enabled:!!enabled});
+}
+
+async function abyssAutoInsure(enabled){
+  var d=await abyssEconomyPost('/api/abyss/shop/auto_insure',{enabled:!!enabled});
+  if(!d.ok)return;
+  var button=document.getElementById('autoInsureToggle');
+  if(button){button.dataset.enabled=String(!!d.enabled);button.textContent='🛡️ Auto-insure: '+(d.enabled?'on':'off');}
 }
 
 async function abyssRepairSubscription(){

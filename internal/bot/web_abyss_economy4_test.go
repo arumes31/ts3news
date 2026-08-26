@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"errors"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -157,6 +158,7 @@ func TestAbyssEconomyPlayerControlsAndRoutes(t *testing.T) {
 	combined := string(abyssPage) + string(ahPage) + string(routes) + string(ahServer)
 	for _, required := range []string{
 		"/api/abyss/shop/token_bundle", "/api/abyss/shop/potion_subscription", "/api/abyss/shop/repair_subscription",
+		"/api/abyss/shop/auto_insure", "Auto-insure:",
 		"/api/abyss/shop/scratch", "/api/abyss/shop/gift_create", "/api/abyss/shop/gift_redeem",
 		"/api/abyss/economy/loan", "/api/abyss/economy/tax_rebate", "/api/ah/watch", "/api/ah/notices",
 		"/api/ah/bulk_relist", "/api/ah/material_order", "/api/ah/material_fill", "/api/ah/material_cancel", "/api/ah/bid",
@@ -188,6 +190,106 @@ func TestAbyssEconomyMigrationContract(t *testing.T) {
 		if !strings.Contains(source, required) {
 			t.Errorf("economy migration is missing %q", required)
 		}
+	}
+}
+
+func TestAbyssAutoInsurePreferencePersists(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+
+	uid := "insured-player"
+	mock.ExpectExec("INSERT INTO abyss_economy_profiles \\(client_uid,auto_insure\\)").
+		WithArgs(uid, true).WillReturnResult(sqlmock.NewResult(1, 1))
+	server := &WebServer{bot: &Bot{DB: database}}
+	request := httptest.NewRequest(http.MethodPost, "/api/abyss/shop/auto_insure", strings.NewReader(`{"enabled":true}`))
+	response := httptest.NewRecorder()
+	server.handleAbyssAutoInsure(response, request, uid)
+	if body := response.Body.String(); !strings.Contains(body, `"ok":true`) || !strings.Contains(body, `"enabled":true`) {
+		t.Fatalf("preference response = %s", body)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestApplyAbyssAutoInsuranceChargesOrUsesVoucherInCallerTransaction(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		gold      int64
+		voucher   string
+		wantCost  int64
+		wantFree  bool
+		wantErr   error
+		wantDebit bool
+	}{
+		{name: "premium", gold: 500, voucher: "0", wantCost: 125, wantDebit: true},
+		{name: "voucher", gold: 0, voucher: "1", wantFree: true},
+		{name: "unaffordable", gold: 124, voucher: "0", wantErr: errAbyssAutoInsuranceFunds},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			database, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = database.Close() }()
+			mock.ExpectBegin()
+			tx, err := database.Begin()
+			if err != nil {
+				t.Fatal(err)
+			}
+			uid := "auto-insured-player"
+			mock.ExpectQuery("SELECT gold FROM users").WithArgs(uid).
+				WillReturnRows(sqlmock.NewRows([]string{"gold"}).AddRow(test.gold))
+			key := abyssFreeInsuranceKey(uid)
+			mock.ExpectExec("INSERT INTO app_meta").WithArgs(key).WillReturnResult(sqlmock.NewResult(0, 0))
+			mock.ExpectQuery("SELECT value FROM app_meta").WithArgs(key).
+				WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(test.voucher))
+			if test.wantFree {
+				mock.ExpectExec("UPDATE app_meta SET value='0'").WithArgs(key).WillReturnResult(sqlmock.NewResult(0, 1))
+			}
+			if test.wantDebit {
+				mock.ExpectExec("UPDATE users SET gold=gold-\\$1").WithArgs(int64(125), uid).
+					WillReturnResult(sqlmock.NewResult(0, 1))
+			}
+			cost, free, gotErr := applyAbyssAutoInsurance(tx, uid, abyssAutoInsurancePlan{Applied: true, Percent: 25, Cost: 125})
+			if cost != test.wantCost || free != test.wantFree || !errors.Is(gotErr, test.wantErr) {
+				t.Fatalf("apply = (%d, %t, %v), want (%d, %t, %v)", cost, free, gotErr, test.wantCost, test.wantFree, test.wantErr)
+			}
+			if test.wantErr != nil {
+				mock.ExpectRollback()
+				_ = tx.Rollback()
+			} else {
+				mock.ExpectCommit()
+				if err := tx.Commit(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestAbyssAutoInsureMigrationContract(t *testing.T) {
+	t.Parallel()
+
+	up, err := os.ReadFile("../db/migrations/0094_abyss_auto_insure.up.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	down, err := os.ReadFile("../db/migrations/0094_abyss_auto_insure.down.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(up), "auto_insure BOOLEAN NOT NULL DEFAULT FALSE") {
+		t.Fatal("auto-insure migration does not add a safe opt-in default")
+	}
+	if !strings.Contains(string(down), "DROP COLUMN IF EXISTS auto_insure") {
+		t.Fatal("auto-insure rollback does not remove the preference")
 	}
 }
 
