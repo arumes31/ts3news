@@ -85,9 +85,16 @@ func TestAbyssE2EServer(t *testing.T) {
 		charmView.Durability = charm.MaxDurability
 		mysteryView := toGearView(mystery.Slot, mystery)
 		mysteryView.InvID = 2
+		buybackView := toGearView(charm.Slot, charm)
+		buybackView.Durability = 41
 		if err := server.tmpl.ExecuteTemplate(w, "inventory", map[string]any{
 			"Title": "Inventory", "Nav": "inventory", "EnableAbyss": true,
+			"U":     &webUser{UID: "inventory-e2e", Nickname: "Inventory Tester", Gold: 25_000},
 			"Items": []gearView{charmView, mysteryView}, "Consumables": []consumableView{},
+			"Buybacks": []vendorBuybackView{{
+				gearView: buybackView, BuybackID: 77, BuybackCost: 11_000,
+				SaleValue: 10_000, SoldAt: "25 Aug · 18:30 UTC",
+			}},
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

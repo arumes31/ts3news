@@ -488,6 +488,7 @@ func (s *WebServer) handleInventory(w http.ResponseWriter, r *http.Request, uid 
 		"U":           u,
 		"Items":       items,
 		"Consumables": cons,
+		"Buybacks":    s.bot.vendorBuybacks(uid),
 	})
 }
 
@@ -640,8 +641,12 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 	// Load and price the exact instance under the same row lock as deletion so a
 	// concurrent equip, forge, or sale cannot change what the vendor receives.
 	var gid string
+	var durability int
 	var itemData sql.NullString
-	if err := tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 AND locked=FALSE FOR UPDATE", req.InvID, uid).Scan(&gid, &itemData); err != nil {
+	var acquiredAt time.Time
+	if err := tx.QueryRow(`SELECT gear_id,durability,item_data,acquired_at FROM user_inventory
+		WHERE id=$1 AND client_uid=$2 AND locked=FALSE FOR UPDATE`, req.InvID, uid).
+		Scan(&gid, &durability, &itemData, &acquiredAt); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
 		return
 	}
@@ -679,6 +684,10 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 	}
 	if _, err := tx.Exec(`INSERT INTO abyss_vendor_sales (client_uid,item_type,sold_count) VALUES ($1,$2,1)
 		ON CONFLICT (client_uid,item_type) DO UPDATE SET sold_count=abyss_vendor_sales.sold_count+1`, uid, itemType); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := recordVendorBuyback(tx, uid, gid, durability, itemData, acquiredAt, value); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
