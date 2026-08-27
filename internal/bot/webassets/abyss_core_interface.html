@@ -1,0 +1,45 @@
+{{define "abyssCoreInterface"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var rarityNames=['Common','Uncommon','Rare','Epic','Legendary','Mythic','Divine','Celestial','Eternal'];
+  var rarityGlyphs=['●','■','▲','◆','✦','⬟','★','✹','✺'];
+
+  function openRarityGuide(){
+    var rows=rarityNames.map(function(name,index){return '<li class="rar-'+name.toLowerCase()+'"><span aria-hidden="true">'+rarityGlyphs[index]+'</span><b>'+name+'</b></li>';}).join('');
+    openModal('<h3>Loot rarity guide</h3><div class="modal-body"><ol class="ab-rarity-guide">'+rows+'</ol><p class="muted small">Color and shape are both used, so rarity remains readable in colorblind and high-contrast modes.</p></div><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Done</button></div>');
+  }
+  function renderInsuranceNudge(){
+    var controls=document.getElementById('insuranceControls');if(!controls)return;
+    var nudge=document.getElementById('insuranceNudge');if(!nudge){nudge=document.createElement('span');nudge.id='insuranceNudge';nudge.className='ab-insurance-nudge';nudge.setAttribute('role','status');controls.appendChild(nudge);}
+    var cache=Math.max(0,Number(window.curEscrow)||0),insured=Math.max(0,Number(window.curInsured)||0),cap=Math.max(0,Number(window.escrowSoftCap)||0),threshold=Math.max(50000,Math.round(cap*.5));
+    var show=!!window.inRun&&insured===0&&cache>=threshold;
+    nudge.hidden=!show;nudge.textContent=show?'⚠ '+fmtGold(cache)+' is uninsured':'';
+    controls.classList.toggle('ab-insurance-attention',show);
+  }
+  function renderDropStreakFlame(){var flame=document.getElementById('dropStreakFlame');if(!flame)return;var streak=Math.max(0,Number(flame.dataset.streak)||0),tier=streak>=15?4:streak>=10?3:streak>=5?2:1;flame.dataset.tier=String(tier);flame.title=streak+' floors since the last gear drop';}
+  function renderDepthPresentation(){
+    var stage=document.getElementById('abyssStage');if(!stage)return;
+    var depth=Math.max(0,Number(window.curDepth)||0),backdrop=document.getElementById('abyssDepthBackdrop');
+    if(!backdrop){backdrop=document.createElement('div');backdrop.id='abyssDepthBackdrop';backdrop.className='ab-depth-backdrop';backdrop.setAttribute('aria-hidden','true');stage.insertBefore(backdrop,stage.firstChild);}
+    stage.style.setProperty('--ab-depth-darkness',String(Math.min(.46,depth*.006)));
+    stage.dataset.depthBand=depth>=75?'abyssal':depth>=40?'deep':depth>=15?'mid':'shallow';
+  }
+  var milestoneDepth=Math.max(0,Number(window.curDepth)||0);
+  function milestoneToast(depth){
+    depth=Math.max(0,Number(depth)||0);if(!window.inRun||depth===0){milestoneDepth=0;return;}if(depth<=milestoneDepth||depth%10!==0){milestoneDepth=Math.max(milestoneDepth,depth);return;}milestoneDepth=depth;
+    var host=document.getElementById('abToastHost');if(!host)return;var toast=document.createElement('div');toast.className='toast2 show ab-milestone-toast '+(depth%50===0?'major':'standard');toast.setAttribute('role','status');toast.textContent=(depth%50===0?'👑 DEEP MILESTONE':'✦ DEPTH MILESTONE')+' · Floor '+depth;host.appendChild(toast);setTimeout(function(){toast.classList.remove('show');setTimeout(function(){toast.remove();},300);},3600);
+  }
+  function updateParallax(){var stage=document.getElementById('abyssStage');if(!stage)return;var offset=Math.max(-12,Math.min(12,-stage.getBoundingClientRect().top*.018));stage.style.setProperty('--ab-depth-parallax',offset.toFixed(1)+'px');}
+  function wrap(name){var original=window[name];if(typeof original!=='function'||original._abCoreInterface)return;var wrapped=function(){var result=original.apply(this,arguments);renderInsuranceNudge();return result;};wrapped._abCoreInterface=true;window[name]=wrapped;}
+  function wrapDepth(){var original=window.setDepth;if(typeof original!=='function'||original._abDepthPresentation)return;var wrapped=function(depth){var result=original.apply(this,arguments);renderDepthPresentation();milestoneToast(depth);return result;};wrapped._abDepthPresentation=true;window.setDepth=wrapped;}
+  function init(){
+    var rarity=document.getElementById('lootRarityHelp');if(rarity)rarity.addEventListener('click',openRarityGuide);
+    var keys=document.getElementById('abyssShortcutHelp');if(keys)keys.addEventListener('click',function(){if(window.showAbyssShortcuts)window.showAbyssShortcuts();});
+    wrap('setEscrow');wrap('setInsured');wrap('renderState');wrapDepth();renderInsuranceNudge();renderDropStreakFlame();renderDepthPresentation();updateParallax();window.addEventListener('scroll',updateParallax,{passive:true});
+  }
+  setTimeout(init,0);
+  window.__abyssCoreInterface={openRarityGuide:openRarityGuide,renderInsuranceNudge:renderInsuranceNudge,renderDropStreakFlame:renderDropStreakFlame,renderDepthPresentation:renderDepthPresentation,milestoneToast:milestoneToast};
+})();
+</script>
+{{end}}

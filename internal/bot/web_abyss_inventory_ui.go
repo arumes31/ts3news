@@ -54,6 +54,48 @@ type runLootRow struct {
 	Wishlist        bool          `json:"wishlist,omitempty"`
 	WishlistLabel   string        `json:"wishlist_label,omitempty"`
 	Provenance      string        `json:"provenance,omitempty"`
+	CanSellJunk     bool          `json:"can_sell_junk,omitempty"`
+	SellValue       int64         `json:"sell_value,omitempty"`
+	EstimatedValue  int64         `json:"estimated_value,omitempty"`
+}
+
+// abyssRunLootEstimatedValue gives the sidebar one consistent, display-only
+// gold estimate. Liquid rewards use their exact exchange value; materials use
+// the forge's authoritative 10:1, 10:1, 5:1 conversion ladder. Bound gear uses
+// its normal vendor quote. Non-tradeable unlocks intentionally contribute zero.
+func abyssRunLootEstimatedValue(grant abyssLootGrant) int64 {
+	switch grant.Type {
+	case "gear":
+		if grant.Gear != nil {
+			return max(gearPrice(*grant.Gear)/2, int64(1))
+		}
+	case "gold":
+		return max(grant.Gold, int64(0))
+	case "tokens":
+		return max(grant.Tokens, int64(0)) * int64(abyssTokenBuyGold)
+	case "mat":
+		unit := map[string]int64{"dust": 1_000, "shard": 10_000, "core": 100_000, "prism": 500_000}[grant.MatID]
+		return unit * int64(max(grant.MatN, 0))
+	}
+	return 0
+}
+
+func abyssRunLootJunkQuote(grant abyssLootGrant) (int64, bool) {
+	if grant.Type != "gear" || grant.Gear == nil || grant.Gear.Unidentified ||
+		grant.Wishlist || grant.SetPity || grant.SmartLoot {
+		return 0, false
+	}
+	gear := grant.Gear
+	if gear.Rarity > content.RarityUncommon || gear.SetID != "" || gear.Foil ||
+		gear.Special != content.EffectNone || len(gear.BonusEffects) > 0 || gear.Attuned ||
+		gear.Sockets > 0 || len(gear.Gemstones) > 0 || gear.Rune != "" ||
+		gear.Temper > 0 || gear.Quality > 0 || gear.Awakened || gear.Imbued != "" ||
+		gear.Cursed || gear.Eldritch || gear.Insured || gear.Corrupted || gear.Embraced ||
+		gear.Prismatic || gear.Reinforced > 0 || gear.Sharpened > 0 || gear.Doomed ||
+		gear.Lucid || gear.AppearanceID != "" || gear.RegenAmount > 0 || gear.RegenIntervalSec > 0 {
+		return 0, false
+	}
+	return max(gearPrice(*gear)/2, int64(1)), true
 }
 
 func abyssSetDisplayMax(setID string) int {
@@ -145,7 +187,10 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 			row.Source = "Run cache"
 		}
 		var grant abyssLootGrant
-		if json.Unmarshal(data, &grant) == nil && grant.Gear != nil {
+		if json.Unmarshal(data, &grant) == nil {
+			row.EstimatedValue = abyssRunLootEstimatedValue(grant)
+		}
+		if grant.Gear != nil {
 			gear := *grant.Gear
 			row.Wishlist = grant.Wishlist
 			if row.Wishlist {
@@ -181,6 +226,8 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 			row.SetMax = abyssSetDisplayMax(gear.SetID)
 			row.Corrupted = gear.Corrupted
 			row.Doomed = gear.Doomed
+			row.SellValue, row.CanSellJunk = abyssRunLootJunkQuote(grant)
+			row.CanSellJunk = row.CanSellJunk && !row.EquipOnBank
 			current, occupied := equipped[gear.Slot]
 			row.EmptySlot = !occupied
 			if occupied {
@@ -197,6 +244,84 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 	}
 	markAbyssBestRunLoot(out)
 	return out
+}
+
+func (s *WebServer) handleAbyssSellJunkLoot(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	unlock := s.lockAbyss(uid)
+	defer unlock()
+	if s.rejectDuringLiveCombat(w, uid) {
+		return
+	}
+	var req struct {
+		EscrowID   int64 `json:"id"`
+		QuotedGold int64 `json:"quoted_gold"`
+	}
+	if err := readJSON(r, &req); err != nil || req.EscrowID <= 0 || req.QuotedGold <= 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "invalid junk-sale quote"})
+		return
+	}
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	var downed bool
+	if err := tx.QueryRowContext(r.Context(), `SELECT downed FROM abyss_active
+		WHERE client_uid=$1 FOR UPDATE`, uid).Scan(&downed); err != nil || downed {
+		writeJSON(w, map[string]any{"ok": false, "error": "an active, standing run is required"})
+		return
+	}
+	var itemType string
+	var itemData []byte
+	var equipOnBank bool
+	if err := tx.QueryRowContext(r.Context(), `SELECT item_type,item_data,equip_on_bank
+		FROM abyss_escrow_loot WHERE id=$1 AND client_uid=$2 FOR UPDATE`, req.EscrowID, uid).
+		Scan(&itemType, &itemData, &equipOnBank); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "loot item not found"})
+		return
+	}
+	var grant abyssLootGrant
+	if itemType != "gear" || json.Unmarshal(itemData, &grant) != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "only ordinary gear can be sold as junk"})
+		return
+	}
+	value, eligible := abyssRunLootJunkQuote(grant)
+	if !eligible || equipOnBank {
+		writeJSON(w, map[string]any{"ok": false, "error": "protected or special loot cannot be sold as junk"})
+		return
+	}
+	if req.QuotedGold != value {
+		writeJSON(w, map[string]any{"ok": false, "error": "junk value changed; review the current quote", "current_value": value})
+		return
+	}
+	result, err := tx.ExecContext(r.Context(), "DELETE FROM abyss_escrow_loot WHERE id=$1 AND client_uid=$2", req.EscrowID, uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if affected, err := result.RowsAffected(); err != nil || affected != 1 {
+		writeJSON(w, map[string]any{"ok": false, "error": "loot item changed before sale"})
+		return
+	}
+	var escrow int64
+	if err := tx.QueryRowContext(r.Context(), `UPDATE abyss_active SET escrow=escrow+$1,last_action_at=NOW()
+		WHERE client_uid=$2 RETURNING escrow`, value, uid).Scan(&escrow); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	writeJSON(w, map[string]any{
+		"ok": true, "value": value, "escrow": escrow,
+		"msg": fmt.Sprintf("Junk converted into %dg of at-risk run cache.", value),
+	})
 }
 
 func markAbyssBestRunLoot(rows []runLootRow) {
@@ -249,9 +374,12 @@ func (s *WebServer) handleAbyssLootManifest(w http.ResponseWriter, r *http.Reque
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 	equipped := s.bot.getEquippedItems(uid)
+	recentGear, _ := s.bot.abyssRecentGearProtection(uid)
 	writeJSON(w, map[string]any{
-		"ok":    true,
-		"items": s.bot.currentRunLootManifest(uid, equipped, abyssOwnedGearIDs(s.bot, uid)),
+		"ok":                     true,
+		"items":                  s.bot.currentRunLootManifest(uid, equipped, abyssOwnedGearIDs(s.bot, uid)),
+		"recent_gear_protected":  len(recentGear),
+		"duplicate_floor_window": abyssRecentGearFloorWindow,
 	})
 }
 

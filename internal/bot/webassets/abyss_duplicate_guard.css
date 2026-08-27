@@ -1,0 +1,41 @@
+.abyss-command-page .ab-duplicate-guard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+  margin: 7px 0 9px;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, #5cc8bd 42%, var(--line));
+  border-left-width: 3px;
+  border-radius: 7px;
+  background: color-mix(in srgb, #102421 76%, var(--panel));
+  color: #d7f8f2;
+  line-height: 1.15;
+}
+.abyss-command-page .ab-duplicate-guard-icon {
+  filter: drop-shadow(0 0 5px rgba(92, 200, 189, .45));
+}
+.abyss-command-page .ab-duplicate-guard b,
+.abyss-command-page .ab-duplicate-guard small {
+  display: block;
+}
+.abyss-command-page .ab-duplicate-guard b {
+  color: #82ded3;
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.abyss-command-page .ab-duplicate-guard small {
+  margin-top: 3px;
+  color: #9ebdb9;
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+.abyss-command-page .ab-duplicate-guard strong { color: #f1c96f; }
+@media (max-width: 760px) {
+  .abyss-command-page .ab-duplicate-guard { padding: 6px 8px; }
+}
+@media (forced-colors: active) {
+  .abyss-command-page .ab-duplicate-guard { border: 2px solid CanvasText; }
+  .abyss-command-page .ab-duplicate-guard-icon { filter: none; }
+}

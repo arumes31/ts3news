@@ -29,6 +29,11 @@ func TestAbyssAccessibilityContracts(t *testing.T) {
 		"!card.contains(document.activeElement)",
 		"function enhanceRarityGlyphs",
 		"var rarityGlyphs=['●','■','▲','◆'",
+		"function enhanceEmojiIcons",
+		"control.dataset.emojiEnhanced='true'",
+		"control.dataset.emojiGeneratedLabel='true'",
+		"icon.setAttribute('aria-hidden','true')",
+		"MutationObserver(function(records)",
 		"function abyssHaptic",
 		"localStorage.getItem(key)",
 		"'(pointer: coarse)'",
@@ -37,6 +42,65 @@ func TestAbyssAccessibilityContracts(t *testing.T) {
 	} {
 		if !strings.Contains(source, required) {
 			t.Errorf("accessibility module is missing %q", required)
+		}
+	}
+}
+
+func TestAbyssDisplayLocalizationContracts(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewWebServer(nil)
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	partial := server.tmpl.Lookup("abyss-display-locale")
+	if partial == nil {
+		t.Fatal("Abyss display locale template is missing")
+	}
+	source := partial.Tree.Root.String()
+	for _, required := range []string{
+		"document.documentElement.lang",
+		"new Intl.NumberFormat(locale(),options)",
+		"notation:'compact'",
+		"style:'percent'",
+		"window.AbyssLocale=",
+	} {
+		if !strings.Contains(source, required) {
+			t.Errorf("display locale module is missing %q", required)
+		}
+	}
+
+	partials, err := webAssets.ReadFile("webassets/partials.html")
+	if err != nil {
+		t.Fatalf("read shared partials: %v", err)
+	}
+	partialSource := string(partials)
+	for _, required := range []string{
+		`<html lang="{{localeTag}}" dir="{{localeDir}}">`,
+		`{{template "abyss-display-locale" .}}`,
+	} {
+		if !strings.Contains(partialSource, required) {
+			t.Errorf("shared page locale contract is missing %q", required)
+		}
+	}
+
+	page, err := webAssets.ReadFile("webassets/abyss.html")
+	if err != nil {
+		t.Fatalf("read Abyss page: %v", err)
+	}
+	itemNumbers, err := webAssets.ReadFile("webassets/abyss_item_numbers.html")
+	if err != nil {
+		t.Fatalf("read item numbers: %v", err)
+	}
+	combined := string(page) + string(itemNumbers)
+	for _, required := range []string{
+		"AbyssLocale.gold(v)",
+		"AbyssLocale.integer(v)",
+		"AbyssLocale.number(number",
+		"AbyssLocale.compact(number,1)",
+	} {
+		if !strings.Contains(combined, required) {
+			t.Errorf("Abyss numeric rendering is missing %q", required)
 		}
 	}
 }

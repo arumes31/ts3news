@@ -523,6 +523,59 @@ h3 {
   margin-top: .2rem
 }
 
+.sk-rank {
+  display: grid;
+  gap: .28rem;
+  margin-top: .55rem
+}
+
+.sk-rank-head {
+  display: flex;
+  justify-content: space-between;
+  gap: .5rem;
+  color: var(--muted);
+  font-size: .68rem;
+  letter-spacing: .04em;
+  text-transform: uppercase
+}
+
+.sk-rank-head b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums
+}
+
+.sk-rank-track {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #0b111b
+}
+
+.sk-rank-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5f7dff, #62e6c4)
+}
+
+@media (forced-colors: active) {
+  .sk-rank-track,
+  .sk-rank-track i {
+    forced-color-adjust: none
+  }
+
+  .sk-rank-track {
+    border-color: CanvasText;
+    background: Canvas
+  }
+
+  .sk-rank-track i {
+    background: Highlight
+  }
+}
+
 /* Leaderboards */
 .lb-grid {
   display: grid;

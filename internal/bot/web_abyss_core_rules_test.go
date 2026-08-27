@@ -52,7 +52,7 @@ func TestAbyssEstablishedCoreRules(t *testing.T) {
 	}
 	source := string(goSource) + string(page)
 	for _, required := range []string{
-		"last_stand_used=TRUE", "bank_locked_floors=2", "revivePct := 25 + 5*st.UpMercy",
+		"last_stand_used=TRUE", "bank_locked_floors=2", "revivePct := 25 + 5*abyssTalentEffectiveInt(st.UpMercy)",
 		"escrowSoftCap", "escrowEfficiencyPct", "curRisk + '% risk",
 	} {
 		if !strings.Contains(source, required) {

@@ -45,8 +45,29 @@ var mobEffectInfo = map[MobEffect]MobEffectInfo{
 	},
 }
 
+var mobEffectOrder = []MobEffect{
+	EffectEnraged,
+	EffectArmored,
+	EffectFleet,
+	EffectPoisoned,
+	EffectWeakened,
+	EffectBlinded,
+	EffectRegen,
+	EffectSilenced,
+}
+
 // MobEffectDetails returns presentation metadata for a declared effect.
 func MobEffectDetails(effect MobEffect) (MobEffectInfo, bool) {
 	info, ok := mobEffectInfo[effect]
 	return info, ok
+}
+
+// MobEffectCatalog returns all documented monster affixes in stable display
+// order. Values are copied, so callers cannot mutate the canonical table.
+func MobEffectCatalog() []MobEffectInfo {
+	catalog := make([]MobEffectInfo, 0, len(mobEffectOrder))
+	for _, effect := range mobEffectOrder {
+		catalog = append(catalog, mobEffectInfo[effect])
+	}
+	return catalog
 }

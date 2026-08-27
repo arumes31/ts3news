@@ -29,9 +29,14 @@ func (s *WebServer) handleAbyssPetTrain(w http.ResponseWriter, r *http.Request, 
 	}
 	defer func() { _ = tx.Rollback() }()
 	var strength, defense, speed, count int
-	if tx.QueryRow(`SELECT str,def,spd,CASE WHEN trained_on=CURRENT_DATE THEN training_count ELSE 0 END FROM user_pets
-		WHERE pet_id=$1 AND client_uid=$2 FOR UPDATE`, req.PetID, uid).Scan(&strength, &defense, &speed, &count) != nil {
+	var rawProfile string
+	if tx.QueryRow(`SELECT str,def,spd,CASE WHEN trained_on=CURRENT_DATE THEN training_count ELSE 0 END,autoskills::text FROM user_pets
+		WHERE pet_id=$1 AND client_uid=$2 FOR UPDATE`, req.PetID, uid).Scan(&strength, &defense, &speed, &count, &rawProfile) != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "pet not found"})
+		return
+	}
+	if decodeAbyssPetProfile(rawProfile).busy(timeNowUTC()) {
+		writeJSON(w, map[string]any{"ok": false, "error": "companion is committed to a stable activity"})
 		return
 	}
 	if count >= abyssPetTrainingCap {
@@ -92,9 +97,13 @@ func (s *WebServer) handleAbyssPetSlot(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "second companion slot unlocks at Abyss prestige 2"})
 		return
 	}
-	var exists bool
-	if tx.QueryRow("SELECT EXISTS(SELECT 1 FROM user_pets WHERE pet_id=$1 AND client_uid=$2)", req.PetID, uid).Scan(&exists) != nil || !exists {
+	var rawProfile string
+	if tx.QueryRow("SELECT autoskills::text FROM user_pets WHERE pet_id=$1 AND client_uid=$2 FOR UPDATE", req.PetID, uid).Scan(&rawProfile) != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "pet not found"})
+		return
+	}
+	if decodeAbyssPetProfile(rawProfile).busy(timeNowUTC()) {
+		writeJSON(w, map[string]any{"ok": false, "error": "companion is committed to a stable activity"})
 		return
 	}
 	if req.Slot > 0 {

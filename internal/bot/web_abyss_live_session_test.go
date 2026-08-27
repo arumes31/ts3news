@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -175,6 +176,18 @@ func TestStartAbyssLiveCombatKeepsRegistryOnTransactionFailure(t *testing.T) {
 	server.liveCombats.Store("old-session", oldCombat)
 	server.liveCombatByUID.Store("user", "old-session")
 
+	provenance, err := json.Marshal(abyssRunProvenance{
+		Version: abyssRunProvenanceVersion,
+		Seed:    [2]uint64{11, 22},
+		Choices: []abyssRunChoice{},
+		Floors:  []abyssRunFloorRecord{},
+	})
+	if err != nil {
+		t.Fatalf("marshal provenance: %v", err)
+	}
+	mock.ExpectQuery("SELECT value FROM app_meta WHERE key=\\$1").
+		WithArgs(abyssRunProvenanceKey("user")).
+		WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(string(provenance)))
 	mock.ExpectQuery("SELECT COALESCE\\(coop_uid, ''\\) FROM abyss_active").
 		WithArgs("user").
 		WillReturnRows(sqlmock.NewRows([]string{"coop_uid"}).AddRow(""))

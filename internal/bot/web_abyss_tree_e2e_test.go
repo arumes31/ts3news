@@ -15,6 +15,9 @@ func registerAbyssTreeE2EFixture(mux *http.ServeMux, server *WebServer) {
 	edges := abyssTreeE2EEdges(tree)
 	mux.HandleFunc("/abyss/tree", func(w http.ResponseWriter, _ *http.Request) {
 		progression := buildAbyssTreeProgression(tree, nil, 100, 50, 0, 500, 0)
+		rewards := buildAbyssProgressionPointRewards(4, 150, map[string]int64{"normal": 64})
+		progression.PointSources = append(progression.PointSources, rewards.Sources...)
+		progression.TotalPoints += rewards.Points
 		fixture := map[string]any{
 			"Title": "Abyss Skill Web", "Nav": "abyss", "U": abyssGoldenFixture(false)["U"],
 			"Nodes": tree.Nodes, "Edges": edges, "Catalog": tree.CatalogSummary(),
@@ -25,6 +28,7 @@ func registerAbyssTreeE2EFixture(mux *http.ServeMux, server *WebServer) {
 			"BestDepth": 50, "RespecTk": abyssTreeRespecTokens, "Stats": abyssStats{BestDepth: 50},
 			"Spec": "", "DelverTalentDefs": content.DeepDelverTalents, "DelverTalentLevels": map[string]int{},
 			"SpecTalentDefs": content.SpecTalents, "Tokens": int64(1_000), "NodeGates": abyssUpgradeMinDepth,
+			"TalentMaxLevel": content.TalentMaxLevel,
 			"LimitBreakID": content.NodeLimitBreak, "SanctuaryID": content.NodeSecretSanctuary,
 			"Sockets": "{}", "ActiveKeystoneExpiry": "", "ActiveKeystoneCooldown": "",
 			"Jewels": map[string]int{}, "Loadouts": map[string]int{}, "LoadoutNames": map[string]string{},

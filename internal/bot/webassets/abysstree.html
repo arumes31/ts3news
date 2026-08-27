@@ -569,6 +569,7 @@ var talentLevels = {
   quartermaster: {{.Stats.UpQuartermaster}}
 };
 var tokenBalance = {{.Tokens}};
+var TALENT_MAX_LEVEL = {{.TalentMaxLevel}};
 var minDepths = {{jsonJS .NodeGates}};
 var activeSpec = '{{.Spec}}';
 var activeTab = 'passive';
@@ -1323,7 +1324,7 @@ function build(){
     var gN = document.createElementNS(NS, 'g');
     TALENTS.forEach(function(t) {
       var level = talentLevels[t.key] || 0;
-      var maxLevel = 5;
+      var maxLevel = TALENT_MAX_LEVEL;
       
       var parentNode = t.parent ? TALENTS.find(p => p.key === t.parent) : null;
       var parentLvl = parentNode ? (talentLevels[parentNode.key] || 0) : 1;
@@ -1474,7 +1475,7 @@ function build(){
         c.setAttribute('cx', t.x); c.setAttribute('cy', t.y); c.setAttribute('r', 14);
         var cls = 'tn t-notable';
         if (level > 0) cls += ' on';
-        else if (isUnlocked && level < 5 && tokenBalance >= (level + 1) * 10) cls += ' can';
+        else if (isUnlocked && level < TALENT_MAX_LEVEL && tokenBalance >= (level + 1) * 10) cls += ' can';
         c.setAttribute('class', cls);
         c.setAttribute('tabindex', '0');
         c.addEventListener('click', function(ev){ ev.stopPropagation(); tryUpgradeTalent(t.key); });
@@ -1488,7 +1489,7 @@ function build(){
         txt2.setAttribute('fill', '#ffffff'); txt2.setAttribute('font-size', '9');
         txt2.setAttribute('font-weight', 'bold'); txt2.setAttribute('text-anchor', 'middle');
         txt2.setAttribute('style', 'pointer-events: none; font-family: system-ui, sans-serif;');
-        txt2.textContent = t.label + ' (' + level + '/5)';
+        txt2.textContent = t.label + ' (' + level + '/' + TALENT_MAX_LEVEL + ')';
         gSN.appendChild(txt2);
       });
       svg.appendChild(gSN);
@@ -1581,7 +1582,7 @@ function switchTab(tab) {
 
 async function tryUpgradeTalent(key) {
   var level = talentLevels[key] || 0;
-  if (level >= 5) {
+  if (level >= TALENT_MAX_LEVEL) {
     abToast('Already at maximum level.', false);
     return;
   }
@@ -1668,7 +1669,7 @@ function showTalentTip(t, ev) {
   tip.style.pointerEvents = 'none';
   
   var level = talentLevels[t.key] || 0;
-  var maxLevel = 5;
+  var maxLevel = TALENT_MAX_LEVEL;
   var cost = (level < maxLevel) ? (level + 1) * 10 : 0;
   
   var parentNode = t.parent ? findTalent(t.parent) : null;
@@ -1680,7 +1681,7 @@ function showTalentTip(t, ev) {
   var statusHtml = '';
   
   if (level >= maxLevel) {
-    statusHtml = '<br><span class="tt-on" style="color: #41c97a; margin-top:4px; display:inline-block;">● Max Level reached (5/5)</span>';
+    statusHtml = '<br><span class="tt-on" style="color: #41c97a; margin-top:4px; display:inline-block;">● Max Level reached (' + TALENT_MAX_LEVEL + '/' + TALENT_MAX_LEVEL + ')</span>';
   } else if (!isUnlocked) {
     if (parentNode && parentLvl < 1) {
       statusHtml = '<br><span class="muted small" style="color: #da3737; margin-top:4px; display:inline-block;">🔒 Locked — Requires ' + parentNode.label + ' level 1+</span>';
@@ -1688,7 +1689,8 @@ function showTalentTip(t, ev) {
       statusHtml = '<br><span class="muted small" style="color: #da3737; margin-top:4px; display:inline-block;">🔒 Locked — Requires depth ' + t.gateDepth + ' (record: ' + bestDepth + ')</span>';
     }
   } else {
-    statusHtml = '<br><span class="tt-can" style="color: #f4c542; margin-top:4px; display:inline-block;">○ Level ' + level + '/5 — Click node to upgrade (Cost: 🜲 ' + cost + ')</span>';
+    statusHtml = '<br><span class="tt-can" style="color: #f4c542; margin-top:4px; display:inline-block;">○ Level ' + level + '/' + TALENT_MAX_LEVEL + ' — Click node to upgrade (Cost: 🜲 ' + cost + ')</span>';
+	if (level >= 5) statusHtml += '<br><span class="muted small">Soft cap active · ranks 6–10 grant 50% effect.</span>';
   }
   
   tip.innerHTML = nameHtml + '<br><span class="muted small" style="margin-top:4px; display:inline-block;">' + escHtml(t.desc) + '</span>' + statusHtml;

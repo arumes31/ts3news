@@ -198,7 +198,8 @@ func (s *WebServer) handleAbyssExpandedEventAction(
 			return true
 		}
 		fragID := 1 + rand.IntN(10) // #nosec G404 -- non-cryptographic lore roll
-		if _, err := tx.Exec("INSERT INTO abyss_lore_unlocked (client_uid, lore_id) VALUES ($1,$2) ON CONFLICT DO NOTHING", uid, fragID); err != nil {
+		loreUnlocked, loreTokens, err := grantAbyssLoreFragment(tx, uid, fragID)
+		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return true
 		}
@@ -216,6 +217,9 @@ func (s *WebServer) handleAbyssExpandedEventAction(
 		}
 		s.bot.grantConsumable(uid, "intellect_elixir", elixirFights)
 		msg := fmt.Sprintf("📚 The library takes your speed for %d fights and yields lore plus an Intellect Elixir for %d fight(s).", curseFights, elixirFights)
+		if !loreUnlocked && loreTokens > 0 {
+			msg = fmt.Sprintf("📚 Familiar pages become %d Abyss Tokens; the speed curse lasts %d fights and the elixir %d.", loreTokens, curseFights, elixirFights)
+		}
 		if recipe := s.bot.discoverRandomRecipe(uid); recipe != "" {
 			msg += " 📖 Recipe discovered: " + recipe + "!"
 		}

@@ -148,7 +148,12 @@ func (b *Bot) settleAbyssAuctionBid(id string) {
 	if _, err := tx.Exec("INSERT INTO user_inventory (client_uid,gear_id,durability,item_data) VALUES ($1,$2,$3,$4)", bidder, itemID, dur, data); err != nil {
 		return
 	}
-	if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", bid, seller); err != nil {
+	salesTax := abyssAuctionSalesTax(bid)
+	sellerNet := bid - salesTax
+	if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", sellerNet, seller); err != nil {
+		return
+	}
+	if _, err := tx.Exec("UPDATE arcade_jackpots SET amount=amount+$1,updated_at=NOW() WHERE game_key='abyss'", salesTax); err != nil {
 		return
 	}
 	if _, err := tx.Exec("UPDATE auction_house SET buyer_uid=$1,sold_at=NOW() WHERE id=$2", bidder, id); err != nil {
@@ -156,7 +161,7 @@ func (b *Bot) settleAbyssAuctionBid(id string) {
 	}
 	if _, err := tx.Exec(`INSERT INTO abyss_economy_events (client_uid,kind,message,amount) VALUES
 		($1,'sale',$3,$4),($2,'bid_win',$5,$6)`, seller, bidder,
-		fmt.Sprintf("Auction sold by bid: %s · %dg proceeds (0g fee).", name, bid), bid,
+		fmt.Sprintf("Auction sold by bid: %s · %dg gross · %dg community tax · %dg net.", name, bid, salesTax, sellerNet), sellerNet,
 		fmt.Sprintf("Winning bid delivered: %s · %dg reserved.", name, bid), -bid); err != nil {
 		return
 	}

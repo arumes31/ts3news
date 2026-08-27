@@ -112,7 +112,7 @@
     <button class="ghost" role="tab" aria-selected="false" aria-controls="ahHistListed" onclick="showAHHistory('listed',this)">Listed · {{.Economy.ListedTotal}}</button>
     <button class="ghost" role="tab" aria-selected="false" aria-controls="ahHistExpired" onclick="showAHHistory('expired',this)">Expired · {{.Economy.ExpiredTotal}}</button>
   </div>
-  <div id="ahHistSold" data-ah-history="sold" role="tabpanel"><ul>{{range .History}}{{if eq .Role "Sold"}}<li>{{.When}} · {{.Name}} · 🪙 {{.Price}} to {{.Other}}</li>{{end}}{{end}}</ul></div>
+  <div id="ahHistSold" data-ah-history="sold" data-sold-total="{{.Economy.SoldTotal}}" role="tabpanel"><ul>{{range .History}}{{if eq .Role "Sold"}}<li>{{.When}} · {{.Name}} · 🪙 {{.Price}} to {{.Other}}</li>{{end}}{{end}}</ul></div>
   <div id="ahHistListed" data-ah-history="listed" role="tabpanel" hidden>{{if .Mine}}<ul>{{range .Mine}}<li>{{.Icon}} {{.Name}} · 🪙 {{.Price}}</li>{{end}}</ul>{{else}}<p class="muted">No active listings.</p>{{end}}</div>
   <div id="ahHistExpired" data-ah-history="expired" role="tabpanel" hidden>
     <div class="ab-btn-row"><button class="ghost" onclick="bulkRelistAH(this)" title="Fee 0g · each expired unbid price is reduced by exactly 1% before relisting">Relist all expired −1%</button></div>

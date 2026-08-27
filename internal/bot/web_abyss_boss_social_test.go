@@ -202,7 +202,13 @@ func TestAbyssSocialPersistenceAndUIContracts(t *testing.T) {
 			"Rotating drops:", "/api/abyss/social/pet/train", "/api/abyss/social/weekly_boss",
 		},
 		filepath.Join(root, "internal", "bot", "webassets", "abyss_spectate.html"): {
-			"READ-ONLY LIVE FEED", "textContent", "replaceChildren", "/api/abyss/spectate",
+			"READ-ONLY LIVE FEED", "spectateConnection", "role=\"log\"", "abyss_spectate.css", "abyss_spectate.js",
+		},
+		filepath.Join(root, "internal", "bot", "webassets", "abyss_spectate.js"): {
+			"textContent", "replaceChildren", "/api/abyss/spectate", "role", "meter",
+		},
+		filepath.Join(root, "internal", "bot", "webassets", "abyss_spectate.css"): {
+			"background: #05080d", ".ab-spectator-sides", "grid-template-columns", "prefers-reduced-motion",
 		},
 	}
 	for path, required := range checks {
@@ -230,7 +236,7 @@ func TestAbyssPetTrainingCommitsGoldAndLowestStatAtomically(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT str,def,spd,CASE WHEN trained_on=CURRENT_DATE").
 		WithArgs(int64(7), uid).
-		WillReturnRows(sqlmock.NewRows([]string{"str", "def", "spd", "training_count"}).AddRow(200, 100, 150, 1))
+		WillReturnRows(sqlmock.NewRows([]string{"str", "def", "spd", "training_count", "autoskills"}).AddRow(200, 100, 150, 1, `{}`))
 	mock.ExpectExec("UPDATE users SET gold=gold-\\$1").
 		WithArgs(abyssPetTrainingCost, uid).
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -265,7 +271,7 @@ func TestAbyssPetTrainingRollsBackWhenGoldIsInsufficient(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT str,def,spd,CASE WHEN trained_on=CURRENT_DATE").
 		WithArgs(int64(7), uid).
-		WillReturnRows(sqlmock.NewRows([]string{"str", "def", "spd", "training_count"}).AddRow(200, 100, 150, 1))
+		WillReturnRows(sqlmock.NewRows([]string{"str", "def", "spd", "training_count", "autoskills"}).AddRow(200, 100, 150, 1, `{}`))
 	mock.ExpectExec("UPDATE users SET gold=gold-\\$1").
 		WithArgs(abyssPetTrainingCost, uid).
 		WillReturnResult(sqlmock.NewResult(0, 0))

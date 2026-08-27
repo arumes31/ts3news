@@ -1,0 +1,317 @@
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: #05080d;
+}
+
+body {
+  color: #dce8f5;
+}
+
+.ab-spectator {
+  --spectator-line: #2b3d54;
+  --spectator-muted: #87a0bc;
+  --spectator-cyan: #58d8d1;
+  --spectator-red: #ef6f7e;
+  width: min(1180px, calc(100% - 32px));
+  min-height: calc(100vh - 112px);
+  margin: 28px auto;
+}
+
+.ab-spectator-masthead,
+.ab-spectator-stage {
+  border: 1px solid var(--spectator-line);
+  background: #0a111b;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 42%);
+}
+
+.ab-spectator-masthead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 26px;
+  border-radius: 14px 14px 5px 5px;
+}
+
+.ab-spectator-kicker,
+.ab-spectator-toolbar small,
+.ab-spectator-sides section > header span {
+  color: #e9b84a;
+  font: 700 11px/1.2 ui-monospace, "Cascadia Mono", monospace;
+  letter-spacing: .14em;
+}
+
+.ab-spectator h1 {
+  margin: 7px 0 4px;
+  color: #f7fbff;
+  font-size: clamp(28px, 4vw, 48px);
+  letter-spacing: -.035em;
+}
+
+.ab-spectator-masthead p {
+  max-width: 700px;
+  margin: 0;
+  color: var(--spectator-muted);
+}
+
+.ab-spectator-connection {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #37516d;
+  border-radius: 999px;
+  background: #101b28;
+  color: #b9cde2;
+  font: 700 12px/1 ui-monospace, "Cascadia Mono", monospace;
+}
+
+.ab-spectator-connection i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e9b84a;
+  box-shadow: 0 0 12px currentColor;
+}
+
+.ab-spectator-connection.is-live i {
+  background: #4ad99b;
+}
+
+.ab-spectator-connection.is-ended i,
+.ab-spectator-connection.is-error i {
+  background: var(--spectator-red);
+}
+
+.ab-spectator-stage {
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 5px 5px 14px 14px;
+}
+
+.ab-spectator-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--spectator-line);
+  background: #0d1723;
+}
+
+.ab-spectator-toolbar div {
+  display: grid;
+  gap: 3px;
+}
+
+.ab-spectator-toolbar strong {
+  padding: 6px 12px;
+  border: 1px solid #536a83;
+  border-radius: 4px;
+  color: #f7fbff;
+  font: 800 12px/1 ui-monospace, "Cascadia Mono", monospace;
+  letter-spacing: .1em;
+}
+
+.ab-spectator-privacy {
+  justify-self: end;
+  color: var(--spectator-muted);
+  font: 700 10px/1.2 ui-monospace, "Cascadia Mono", monospace;
+  letter-spacing: .08em;
+}
+
+.ab-spectator-sides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1px;
+  background: var(--spectator-line);
+}
+
+.ab-spectator-sides > section {
+  min-width: 0;
+  padding: 18px;
+  background: #080e17;
+}
+
+.ab-spectator-sides section > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #1c2a3b;
+}
+
+.ab-spectator-sides h2,
+.ab-spectator-recorder h2 {
+  margin: 0;
+  color: #f1f7fd;
+  font-size: 16px;
+}
+
+.ab-spectator-hostiles > header span {
+  color: var(--spectator-red);
+}
+
+.ab-spectator-unit {
+  position: relative;
+  margin-top: 10px;
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid #293c53;
+  border-radius: 7px;
+  background: #0d1723;
+}
+
+.ab-spectator-unit > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ab-spectator-unit b {
+  min-width: 0;
+  overflow: hidden;
+  color: #f7fbff;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ab-spectator-unit span {
+  flex: 0 0 auto;
+  color: #a8bdd2;
+  font: 700 11px/1.4 ui-monospace, "Cascadia Mono", monospace;
+}
+
+.ab-spectator-meter {
+  height: 6px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #02050a;
+}
+
+.ab-spectator-meter i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3da9d2, var(--spectator-cyan));
+  box-shadow: 0 0 14px rgb(88 216 209 / 34%);
+}
+
+.ab-spectator-hostiles .ab-spectator-meter i {
+  background: linear-gradient(90deg, #a73d53, var(--spectator-red));
+  box-shadow: 0 0 14px rgb(239 111 126 / 30%);
+}
+
+.ab-spectator-recorder {
+  border-top: 1px solid var(--spectator-line);
+  background: #060b12;
+}
+
+.ab-spectator-recorder > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 18px;
+  border-bottom: 1px solid #1c2a3b;
+}
+
+.ab-spectator-log {
+  min-height: 96px;
+  max-height: 340px;
+  overflow: auto;
+  padding: 10px 18px 16px;
+  background: #03070c;
+  color: #b9c9db;
+  font: 12px/1.55 ui-monospace, "Cascadia Mono", monospace;
+  scrollbar-color: #3c526d #070c13;
+}
+
+.ab-spectator-log div {
+  padding: 7px 0;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid #141e2b;
+}
+
+.ab-spectator-empty {
+  margin: 14px 0 0;
+  color: #6f879f;
+  font-style: italic;
+}
+
+.ab-spectator-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 4px;
+  color: #6f879f;
+  font-size: 12px;
+}
+
+.ab-spectator-footer a {
+  color: #e9b84a;
+}
+
+@media (max-width: 700px) {
+  .ab-spectator {
+    width: min(100% - 16px, 1180px);
+    margin: 10px auto;
+  }
+
+  .ab-spectator-masthead {
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+  }
+
+  .ab-spectator-connection {
+    justify-self: start;
+  }
+
+  .ab-spectator-toolbar {
+    grid-template-columns: 1fr auto;
+  }
+
+  .ab-spectator-privacy {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .ab-spectator-sides {
+    grid-template-columns: 1fr;
+  }
+
+  .ab-spectator-footer {
+    display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ab-spectator-connection.is-connecting i {
+    animation: ab-spectator-pulse 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes ab-spectator-pulse {
+  50% {
+    opacity: .35;
+    transform: scale(.75);
+  }
+}
+
+@media (forced-colors: active) {
+  .ab-spectator-masthead,
+  .ab-spectator-stage,
+  .ab-spectator-unit,
+  .ab-spectator-connection {
+    border-color: CanvasText;
+  }
+}

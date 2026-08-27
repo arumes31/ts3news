@@ -36,6 +36,14 @@
     </article>
   </section>
 
+  <section class="ops-grid ops-funnel">
+    <article class="ops-panel">
+      <header><div><p class="ops-kicker">DESCENT FUNNEL</p><h2>Terminal depth and reason</h2></div><span id="opsFunnelScope">process lifetime</span></header>
+      <p class="ops-note" id="opsFunnelSummary">Connect to load run progression telemetry.</p>
+      <div class="ops-table-wrap"><table><thead><tr><th>Depth</th><th>Banked</th><th>Conceded</th><th>Timeout</th><th>Revive failed</th><th>Other</th></tr></thead><tbody id="opsFunnelRows"><tr><td colspan="6">No completed runs sampled.</td></tr></tbody></table></div>
+    </article>
+  </section>
+
   <section class="ops-grid ops-controls">
     <article class="ops-panel">
       <header><div><p class="ops-kicker">KILL SWITCHES</p><h2>Runtime feature flags</h2></div><span id="opsRevision">revision —</span></header>
@@ -46,15 +54,20 @@
         <label><span><b>Skill tree</b><small>Enhanced skill-tree API and UI</small></span><input type="checkbox" data-ops-feature="tree_enhancements"></label>
         <label><span><b>Forge workbench</b><small>Authoritative quotes and mutations</small></span><input type="checkbox" data-ops-feature="forge_workbench"></label>
       </div>
-      <label class="ops-range"><span><b>Live rollout</b><output id="liveRolloutValue">—</output></span><input id="liveRollout" type="range" min="0" max="100" step="1" data-ops-percent="live_rollout"></label>
+      <div class="ops-rollouts">
+        <label class="ops-range"><span><b>Live actions rollout</b><output id="liveRolloutValue">—</output></span><input id="liveRollout" type="range" min="0" max="100" step="1" aria-label="Live actions rollout percentage" data-ops-percent="live_rollout"></label>
+        <label class="ops-range"><span><b>Social rollout</b><output id="socialRolloutValue">—</output></span><input id="socialRollout" type="range" min="0" max="100" step="1" aria-label="Social rollout percentage" data-ops-percent="social_rollout"></label>
+        <label class="ops-range"><span><b>Skill tree rollout</b><output id="treeRolloutValue">—</output></span><input id="treeRollout" type="range" min="0" max="100" step="1" aria-label="Skill tree rollout percentage" data-ops-percent="tree_rollout"></label>
+        <label class="ops-range"><span><b>Forge rollout</b><output id="forgeRolloutValue">—</output></span><input id="forgeRollout" type="range" min="0" max="100" step="1" aria-label="Forge rollout percentage" data-ops-percent="forge_rollout"></label>
+      </div>
     </article>
 
     <article class="ops-panel ops-experiment">
       <header><div><p class="ops-kicker">REWARD LAB</p><h2>A/B multiplier harness</h2></div><span class="ops-badge" id="opsExperimentStatus">disabled</span></header>
-      <p class="ops-note">Stable player cohorts. Control remains at 1.00×; treatment uplift is capped at +25%.</p>
+      <p class="ops-note">Stable player cohorts. Control remains at 1.00×; treatment uplift is capped at +25% and automatically stops when death or anomaly guardrails trip.</p>
       <label class="ops-master"><span><b>Experiment enabled</b><small>50/50 control and treatment inside rollout</small></span><input type="checkbox" data-ops-feature="reward_experiment"></label>
-      <label class="ops-range"><span><b>Enrollment</b><output id="rewardRolloutValue">—</output></span><input id="rewardRollout" type="range" min="0" max="100" step="1" data-ops-percent="reward_experiment_rollout"></label>
-      <label class="ops-range"><span><b>Treatment uplift</b><output id="rewardBonusValue">—</output></span><input id="rewardBonus" type="range" min="0" max="2500" step="25" data-ops-bonus="reward_treatment_bonus"></label>
+      <label class="ops-range"><span><b>Enrollment</b><output id="rewardRolloutValue">—</output></span><input id="rewardRollout" type="range" min="0" max="100" step="1" aria-label="Reward experiment enrollment percentage" data-ops-percent="reward_experiment_rollout"></label>
+      <label class="ops-range"><span><b>Treatment uplift</b><output id="rewardBonusValue">—</output></span><input id="rewardBonus" type="range" min="0" max="2500" step="25" aria-label="Treatment uplift basis points" data-ops-bonus="reward_treatment_bonus"></label>
       <div class="ops-table-wrap"><table><thead><tr><th>Cohort</th><th>Floors</th><th>Avg reward</th><th>Deaths</th><th>Anomalies</th></tr></thead><tbody id="opsCohorts"><tr><td colspan="5">No experiment samples.</td></tr></tbody></table></div>
     </article>
   </section>

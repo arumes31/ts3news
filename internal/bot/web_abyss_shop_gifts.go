@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 var abyssGiftableShopItems = map[string]string{
@@ -40,8 +41,9 @@ func (s *WebServer) handleAbyssGiftCreate(w http.ResponseWriter, r *http.Request
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 	var req struct {
-		Item      string `json:"item"`
-		Recipient string `json:"recipient"`
+		Item       string `json:"item"`
+		Recipient  string `json:"recipient"`
+		QuotedCost *int64 `json:"quoted_cost"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
@@ -52,6 +54,12 @@ func (s *WebServer) handleAbyssGiftCreate(w http.ResponseWriter, r *http.Request
 		return
 	}
 	item, _ := abyssShopByKey(req.Item)
+	market := s.bot.abyssShopDemand(time.Now())[item.Key]
+	tokenCost, _ := abyssShopPricedCost(item, time.Now(), market.Percent)
+	if req.QuotedCost != nil && *req.QuotedCost != tokenCost {
+		writeJSON(w, map[string]any{"ok": false, "error": "shop price changed; refresh and review the new total", "current_cost": tokenCost})
+		return
+	}
 	var recipientUID string
 	if err := s.bot.DB.QueryRow(`SELECT client_uid FROM users WHERE client_uid=$1 OR LOWER(nickname)=LOWER($1) LIMIT 1`, strings.TrimSpace(req.Recipient)).Scan(&recipientUID); err != nil || recipientUID == uid {
 		writeJSON(w, map[string]any{"ok": false, "error": "recipient not found or invalid"})
@@ -68,24 +76,38 @@ func (s *WebServer) handleAbyssGiftCreate(w http.ResponseWriter, r *http.Request
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	res, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens >= $1", item.Cost, uid)
+	charged, punches, free, err := applyAbyssShopLoyalty(tx, uid, tokenCost)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	res, err := tx.Exec(`UPDATE users SET abyss_tokens=abyss_tokens-$1,gold=gold-$2
+		WHERE client_uid=$3 AND abyss_tokens >= $1 AND gold >= $2`, charged, abyssShopGiftFeeGold, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		writeJSON(w, map[string]any{"ok": false, "error": "not enough tokens"})
+		writeJSON(w, map[string]any{"ok": false, "error": "not enough tokens or gold for the gift fee"})
 		return
 	}
 	if _, err := tx.Exec(`INSERT INTO abyss_shop_gifts (code,sender_uid,recipient_uid,item_key) VALUES ($1,$2,$3,$4)`, code, uid, recipientUID, req.Item); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	if abyssShopDemandEligible(item) {
+		if err := recordAbyssShopDemandWith(tx, item.Key, time.Now()); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "code": code, "tokens": s.bot.abyssTokens(uid), "msg": "Gift code created: " + code})
+	writeJSON(w, map[string]any{"ok": true, "code": code, "tokens": s.bot.abyssTokens(uid), "gold": s.bot.abyssGold(uid),
+		"loyalty_punches": punches, "loyalty_free": free,
+		"msg": fmt.Sprintf("Gift code created: %s · %d tokens + %dg delivery fee.", code, charged, abyssShopGiftFeeGold)})
 }
 
 func (s *WebServer) handleAbyssGiftRedeem(w http.ResponseWriter, r *http.Request, uid string) {

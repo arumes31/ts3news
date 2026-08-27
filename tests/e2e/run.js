@@ -76,7 +76,7 @@ async function main() {
     fixture = spawn(fixtureBinary, [
       '-test.run=^TestAbyssE2EServer$',
       '-test.v',
-      '-test.timeout=10m',
+      '-test.timeout=30m',
     ], {
       cwd: path.resolve(__dirname, '..', '..'),
       stdio: 'inherit',

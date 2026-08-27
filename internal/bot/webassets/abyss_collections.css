@@ -1,0 +1,21 @@
+.ab-collections{container-type:inline-size;margin:10px 0;border:1px solid var(--border,#334155);border-radius:10px;background:rgba(8,14,24,.72)}
+.ab-collections>summary{display:flex;justify-content:space-between;gap:12px;padding:11px 13px;cursor:pointer;font-weight:800}
+.ab-collections>summary b{color:#8fa5c9;font-size:.78rem}
+.ab-collection-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 10px 10px}
+.ab-collection-grid article{min-width:0;padding:12px;border:1px solid #29364b;border-radius:9px;background:#0d1522}
+.ab-collection-grid h3{margin:0 0 5px;font-size:.92rem}
+.ab-biome-list,.ab-set-book{display:grid;gap:5px;max-height:250px;overflow:auto}
+.ab-biome-list>div,.ab-set-book>div{display:grid;grid-template-columns:minmax(115px,1fr) minmax(80px,1fr) auto;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:#121d2c}
+.ab-biome-list span,.ab-set-book span{display:grid;min-width:0}
+.ab-biome-list small,.ab-set-book small{color:#8397b5;font-size:.68rem}
+.ab-biome-list strong,.ab-set-book strong{font-size:.72rem;color:#aebed6}
+.ab-biome-list .mastered{box-shadow:inset 3px 0 #5ad7a2}
+.ab-collections progress{width:100%;height:7px;accent-color:#61d4ae}
+.ab-collection-rewards{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.ab-collection-rewards span{padding:4px 7px;border:1px solid #37445a;border-radius:999px;color:#7889a4;font-size:.68rem}
+.ab-collection-rewards .earned{border-color:#3c9d78;color:#69e0ae;background:#10271f}
+.ab-lore-title{margin:0 10px 10px;padding:9px 11px;border-left:3px solid #bd83ff;background:#1c1428;color:#d9c4f5}
+.ab-badge-picker{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
+@media(max-width:800px){.ab-collection-grid{grid-template-columns:1fr}.ab-collections>summary{align-items:flex-start;flex-direction:column}.ab-biome-list>div,.ab-set-book>div{grid-template-columns:minmax(100px,1fr) minmax(65px,1fr) auto}}
+@container(max-width:700px){.ab-collection-grid{grid-template-columns:1fr}.ab-collections>summary{align-items:flex-start;flex-direction:column}.ab-biome-list>div,.ab-set-book>div{grid-template-columns:minmax(100px,1fr) minmax(65px,1fr) auto}}
+@media(forced-colors:active){.ab-collections,.ab-collection-grid article,.ab-lore-title{forced-color-adjust:auto;border:1px solid CanvasText}}

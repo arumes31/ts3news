@@ -1,0 +1,97 @@
+{{define "abyssWiki"}}
+<section class="abyss-panel ab-wiki" id="abyssWiki" aria-labelledby="abyssWikiTitle">
+  <header class="ab-wiki-head">
+    <div>
+      <span class="ab-kicker">GENERATED FROM LIVE CONTENT TABLES</span>
+      <h2 id="abyssWikiTitle">⌁ Delver's Field Archive</h2>
+      <p>Authoritative gear, encounter, pact, and affix reference. Catalog changes appear here automatically.</p>
+    </div>
+    <div class="ab-wiki-total"><strong>{{len .Wiki.Categories}}</strong><span>catalogs</span><strong>{{.Wiki.Total}}</strong><span>records</span></div>
+  </header>
+  <div class="ab-wiki-tools">
+    <label for="abyssWikiSearch"><span>SEARCH THE ARCHIVE</span><input id="abyssWikiSearch" type="search" autocomplete="off" placeholder="Name, slot, rarity, stat, effect…"></label>
+    <div class="ab-wiki-tabs" role="tablist" aria-label="Archive catalog">
+      {{range $index, $category := .Wiki.Categories}}
+      <button type="button" role="tab" id="abyssWikiTab-{{$category.Key}}" aria-controls="abyssWikiPanel-{{$category.Key}}" aria-selected="{{if eq $index 0}}true{{else}}false{{end}}" data-wiki-tab="{{$category.Key}}" data-wiki-label="{{$category.Label}}">
+        <span aria-hidden="true">{{$category.Icon}}</span> {{$category.Label}} <b>{{len $category.Entries}}</b>
+      </button>
+      {{end}}
+    </div>
+  </div>
+  <p class="ab-wiki-status" id="abyssWikiStatus" role="status" aria-live="polite"></p>
+  <div class="ab-wiki-catalogs">
+    {{range $index, $category := .Wiki.Categories}}
+    <div class="ab-wiki-panel" id="abyssWikiPanel-{{$category.Key}}" role="tabpanel" aria-labelledby="abyssWikiTab-{{$category.Key}}" data-wiki-panel="{{$category.Key}}" {{if ne $index 0}}hidden{{end}}>
+      <div class="ab-wiki-ledger">
+        {{range $category.Entries}}
+        <article class="ab-wiki-entry" data-wiki-search="{{.Search}}">
+          <span class="ab-wiki-sigil" aria-hidden="true">{{.Icon}}</span>
+          <div class="ab-wiki-entry-copy">
+            <div class="ab-wiki-entry-title"><h3>{{.Name}}</h3><span>{{.Kind}}</span></div>
+            <p>{{.Description}}</p>
+            <small>{{.Meta}}</small>
+          </div>
+          <code>{{.ID}}</code>
+        </article>
+        {{else}}
+        <div class="ab-wiki-empty">No authored records in this catalog.</div>
+        {{end}}
+      </div>
+      <div class="ab-wiki-empty" data-wiki-empty hidden>No archive records match this search.</div>
+    </div>
+    {{end}}
+  </div>
+</section>
+<script data-cfasync="false">
+(function(){
+  var root=document.getElementById('abyssWiki');
+  if(!root)return;
+  var input=root.querySelector('#abyssWikiSearch');
+  var status=root.querySelector('#abyssWikiStatus');
+  var active=(root.querySelector('[data-wiki-tab][aria-selected="true"]')||{}).dataset;
+  active=active&&active.wikiTab?active.wikiTab:'gear';
+  function currentPanel(){return root.querySelector('[data-wiki-panel="'+active+'"]');}
+  function filter(){
+    var panel=currentPanel();
+    if(!panel)return;
+    var query=(input.value||'').trim().toLowerCase();
+    var entries=Array.prototype.slice.call(panel.querySelectorAll('.ab-wiki-entry'));
+    var visible=0;
+    entries.forEach(function(entry){
+      var match=!query||(entry.dataset.wikiSearch||'').indexOf(query)>=0;
+      entry.hidden=!match;
+      if(match)visible++;
+    });
+    var empty=panel.querySelector('[data-wiki-empty]');
+    if(empty)empty.hidden=visible!==0;
+    var tab=root.querySelector('[data-wiki-tab="'+active+'"]');
+    var label=tab&&tab.dataset.wikiLabel?tab.dataset.wikiLabel.toLowerCase():'archive';
+    status.textContent=visible+' '+label+' record'+(visible===1?'':'s')+(query?' match “'+query+'”':'');
+  }
+  function select(key,focus){
+    active=key;
+    root.querySelectorAll('[data-wiki-tab]').forEach(function(tab){
+      var selected=tab.dataset.wikiTab===key;
+      tab.setAttribute('aria-selected',selected?'true':'false');
+      tab.tabIndex=selected?0:-1;
+      if(selected&&focus)tab.focus();
+    });
+    root.querySelectorAll('[data-wiki-panel]').forEach(function(panel){panel.hidden=panel.dataset.wikiPanel!==key;});
+    filter();
+  }
+  root.querySelectorAll('[data-wiki-tab]').forEach(function(tab,index,tabs){
+    tab.tabIndex=tab.getAttribute('aria-selected')==='true'?0:-1;
+    tab.addEventListener('click',function(){select(tab.dataset.wikiTab,false);});
+    tab.addEventListener('keydown',function(event){
+      if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;
+      event.preventDefault();
+      var step=event.key==='ArrowRight'?1:-1;
+      var next=(index+step+tabs.length)%tabs.length;
+      select(tabs[next].dataset.wikiTab,true);
+    });
+  });
+  input.addEventListener('input',filter);
+  select(active,false);
+})();
+</script>
+{{end}}

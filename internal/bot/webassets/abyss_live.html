@@ -70,15 +70,15 @@
   <div class="ab-pixel-stage" id="livePixelStage" aria-label="Animated combat battlefield">
     <div class="ab-ultimate-charge" id="liveUltimateCharge" role="status" aria-label="Ultimate readiness"><b>ULT</b><span>—</span></div>
     <div class="ab-pixel-backdrop" aria-hidden="true"><i></i><i></i><i></i></div>
-    <div class="ab-pixel-party hostile" id="livePixelEnemies" aria-label="Enemy combatants"></div>
     <div class="ab-pixel-party" id="livePixelAllies" aria-label="Allied combatants"></div>
-    <div class="ab-pixel-stage-label" aria-hidden="true"><span>HOSTILES</span><span>PARTY</span></div>
+    <div class="ab-pixel-party hostile" id="livePixelEnemies" aria-label="Enemy combatants"></div>
+    <div class="ab-pixel-stage-label" aria-hidden="true"><span>PARTY</span><span>HOSTILES</span></div>
   </div>
   <details class="ab-live-details">
     <summary>TACTICAL DETAILS <span>exact HP · traits · effects · break bars</span></summary>
     <div class="ab-live-field">
-      <div><span class="ab-live-label hostile">ENEMIES</span><div class="ab-live-targets" id="liveEnemies"></div></div>
       <div><span class="ab-live-label">ALLIES</span><div class="ab-live-targets" id="liveAllies"></div></div>
+      <div><span class="ab-live-label hostile">ENEMIES</span><div class="ab-live-targets" id="liveEnemies"></div></div>
     </div>
   </details>
   <div class="ab-live-command">
@@ -115,6 +115,8 @@ function startLiveCombat(payload, hp, max){
   liveStartHP=hp||Number(document.getElementById('hpBar').getAttribute('aria-valuenow'))||0;
   liveStartMaxHP=max||Number(document.getElementById('hpBar').getAttribute('aria-valuemax'))||1;
   liveFinishHandled=false;
+	var nextSession=payload&&payload.state&&payload.state.session_id||'';
+	if(!liveCombatState||liveCombatState.session_id!==nextSession){liveRenderedLogCursor=0;liveLogRestoreApplied=false;var initialFeed=document.getElementById('liveFeed');if(initialFeed)initialFeed.replaceChildren();}
 	liveLastEventID=liveEventCursor(payload&&payload.state);
 	liveSelectedTarget=''; liveSelectedWeakpoint=''; livePendingOption=null; liveTargetLocked=false; liveRoundHistory=[];
 	if(payload&&payload.state)resetLivePixelState(payload.state.session_id||'');
@@ -311,8 +313,8 @@ function renderLiveActionBar(state){
 	button.draggable=true;button.dataset.actionKey=actionKey;button.dataset.shortcut=shortcut.toLowerCase();
 	button.title=(option.description||option.name)+(option.tags&&option.tags.length?' — Combo tags: '+option.tags.join(', '):'')+(option.effect_rounds?' — Effect: '+option.effect_rounds+' round'+(option.effect_rounds===1?'':'s'):'')+(option.modifiers&&option.modifiers.length?' — Active modifiers: '+option.modifiers.join(', '):'')+(option.mana?' — Mana after: '+Math.max(0,(own.mana||0)-option.mana):'')+(recommended&&state.recommended.reason?' — Recommended: '+state.recommended.reason:'');
 	if(option.cooldown)button.style.setProperty('--cooldown-angle',Math.min(360,option.cooldown*36)+'deg');
-	var artKey=liveActionArtKey(option),artFamily=liveActionArtFamily(option),art=liveCatalogArt(artKey,artFamily);
-	button.innerHTML='<span class="ab-action-key">'+consEsc(shortcut)+'</span><span class="ab-action-pin">'+(livePinnedActions[actionKey]?'★':'☆')+'</span><span class="ab-action-icon"><span class="ab-pixel-icon ab-catalog-icon ab-art-unique" data-art-signature="'+liveArtIdentity(artKey).signature+'" data-art-sheet="'+art.family+'" style="'+liveUniqueArtStyle(artKey,artFamily)+'"></span></span>'+
+	var artKey=liveActionArtKey(option),iconCell=liveActionIconCell(option),identity=liveArtIdentity(artKey);
+	button.innerHTML='<span class="ab-action-key">'+consEsc(shortcut)+'</span><span class="ab-action-pin">'+(livePinnedActions[actionKey]?'★':'☆')+'</span><span class="ab-action-icon"><span class="ab-pixel-icon ab-semantic-action-icon" data-art-signature="'+identity.signature+'" data-art-sheet="actions" style="background-position:'+liveActionIconPosition(iconCell)+';--ab-art-sigil:'+identity.sigil+'"></span></span>'+
       '<span class="ab-action-name">'+consEsc(option.name)+'</span>'+
       '<span class="ab-action-estimate">'+liveEffectEstimate(option)+'</span>'+
 	  '<span class="ab-action-cost">'+(option.mana?'🔵 '+option.mana+' → '+Math.max(0,(own.mana||0)-option.mana):option.cooldown?'⏳ '+option.cooldown:(option.kind==='item'||option.kind==='relic')?'×'+option.count:'')+'</span>';
@@ -532,7 +534,7 @@ function configureLiveShortcuts(){
 	localStorage.setItem('abyssLiveShortcuts',JSON.stringify(liveShortcutMap));if(liveCombatState)renderLiveActionBar(liveCombatState);
 }
 function liveLogCategory(line){line=String(line||'').toLowerCase();if(/heal|potion|restor|reviv/.test(line))return 'healing';if(/damage|strike|attack|hit|crit|defeat|cleav/.test(line))return 'damage';return 'system';}
-function setLiveLogFilter(filter){liveLogFilter=filter;document.querySelectorAll('#liveFeed [data-category]').forEach(function(line){line.hidden=filter!=='all'&&line.dataset.category!==filter;});}
+function setLiveLogFilter(filter){liveLogFilter=filter;document.querySelectorAll('#liveFeed [data-category]').forEach(function(line){var summaryOnly=window.AbyssQoL&&window.AbyssQoL.logVerbosity()==='summary';line.hidden=(summaryOnly&&line.dataset.summary!=='true')||(filter!=='all'&&line.dataset.category!==filter);});}
 function toggleLiveLog(){document.getElementById('liveFeed').classList.toggle('expanded');}
 function renderLiveRoundTimeline(state){
 	if(state.round&&(!liveRoundHistory.length||liveRoundHistory[liveRoundHistory.length-1].round!==state.round))liveRoundHistory.push({round:state.round,phase:state.phase,recap:state.round_recap||'Planning'});
@@ -626,12 +628,7 @@ function renderLiveCombat(state,preserveFeed){
 	queue.textContent=livePendingOption?'Select a valid target for '+livePendingOption.name+'.':selectedUnit?'TARGET · '+selectedUnit.name+' — choose an action.':state.recommended?'RECOMMENDED · '+state.recommended.reason:'Choose an action, then select a target. Timeout uses '+String(state.tactic||'balanced').replace('_',' ')+'.';
   }
   else queue.textContent='Resolving synchronized actions…';
-	if(!preserveFeed){
-    var feed=document.getElementById('liveFeed');
-	feed.innerHTML='';(state.recent_logs||[]).forEach(function(line){appendLiveLogLine(feed,line);});
-	setLiveLogFilter(liveLogFilter);
-    feed.scrollTop=feed.scrollHeight;
-  }
+	syncLiveLogFeed(state,preserveFeed);
   clearInterval(liveClockTimer); liveClockTimer=setInterval(updateLiveClock,100); updateLiveClock();
   if(state.phase==='complete'||state.phase==='failed')finishLiveCombat(state);
 }
@@ -643,11 +640,54 @@ function dismissFinishedLiveCombat(){
 }
 function appendLiveLogLine(feed,line){
 	var category=liveLogCategory(line),entry=document.createElement('div');
-	entry.dataset.category=category;entry.title=category+' event';entry.textContent=line;
+	entry.dataset.category=category;entry.dataset.summary=String(!window.AbyssQoL||window.AbyssQoL.summaryLine(line));entry.title=category+' event';entry.textContent=line;
 	if(/🎭 CRITICAL FUMBLE ·/.test(line))entry.classList.add('ab-live-critical-fumble');
 	if(/⚡ FIRST STRIKE ·/.test(line))entry.classList.add('ab-live-first-strike');
 	feed.appendChild(entry);
 }
+
+function saveLiveLogPosition(){
+	liveLogScrollTimer=null;
+	var feed=document.getElementById('liveFeed'),state=liveCombatState;if(!feed||!state||!state.session_id)return;
+	try{sessionStorage.setItem('abyss_live_log_position_v1',JSON.stringify({session_id:state.session_id,cursor:liveRenderedLogCursor,top:feed.scrollTop,at_bottom:feed.scrollHeight-feed.scrollTop-feed.clientHeight<=12}));}catch(e){}
+}
+function scheduleLiveLogPositionSave(){if(liveLogScrollTimer)clearTimeout(liveLogScrollTimer);liveLogScrollTimer=setTimeout(saveLiveLogPosition,80);}
+function restoreLiveLogPosition(feed,state){
+	if(liveLogRestoreApplied)return false;liveLogRestoreApplied=true;
+	var saved=null;try{saved=JSON.parse(sessionStorage.getItem('abyss_live_log_position_v1')||'null');}catch(e){}
+	if(!saved||saved.session_id!==state.session_id||Number(saved.cursor)>Number(state.log_cursor||0))return false;
+	if(saved.at_bottom)feed.scrollTop=feed.scrollHeight;else feed.scrollTop=Math.max(0,Number(saved.top)||0);
+	return true;
+}
+function syncLiveLogFeed(state,preserveFeed){
+	var feed=document.getElementById('liveFeed'),recent=Array.isArray(state.recent_logs)?state.recent_logs:[];
+	if(!feed)return;
+	var cursor=Number(state.log_cursor)||0,start=Math.max(0,Number(state.log_start)||0),history=Array.isArray(state.log_history)?state.log_history:null;
+	var wasAtBottom=!feed.children.length||feed.scrollHeight-feed.scrollTop-feed.clientHeight<=12,previousTop=feed.scrollTop,firstRestore=!liveLogRestoreApplied;
+	if(history){
+		feed.replaceChildren();history.forEach(function(line){appendLiveLogLine(feed,line);});
+		liveRenderedLogCursor=cursor||history.length;setLiveLogFilter(liveLogFilter);
+		requestAnimationFrame(function(){
+			if(firstRestore){if(!restoreLiveLogPosition(feed,state))feed.scrollTop=feed.scrollHeight;}
+			else if(wasAtBottom)feed.scrollTop=feed.scrollHeight;
+			else feed.scrollTop=Math.max(0,previousTop);
+			saveLiveLogPosition();
+		});
+		return;
+	}
+	if(cursor<=0){
+		if(!preserveFeed){feed.replaceChildren();recent.forEach(function(line){appendLiveLogLine(feed,line);});setLiveLogFilter(liveLogFilter);feed.scrollTop=feed.scrollHeight;}
+		return;
+	}
+	if(liveRenderedLogCursor>cursor){feed.replaceChildren();liveRenderedLogCursor=0;}
+	var offset=Math.max(0,liveRenderedLogCursor-start);
+	for(var index=offset;recent.length>index;index++)appendLiveLogLine(feed,recent[index]);
+	liveRenderedLogCursor=Math.max(liveRenderedLogCursor,cursor);setLiveLogFilter(liveLogFilter);
+	if(wasAtBottom)feed.scrollTop=feed.scrollHeight;
+	saveLiveLogPosition();
+}
+
+document.getElementById('liveFeed').addEventListener('scroll',scheduleLiveLogPositionSave,{passive:true});
 
 async function finishLiveCombat(state){
   if(liveFinishHandled)return; liveFinishHandled=true;

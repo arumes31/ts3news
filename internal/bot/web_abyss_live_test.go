@@ -39,6 +39,44 @@ func TestAbyssLiveSnapshotIncludesSchemaVersion(t *testing.T) {
 	}
 }
 
+func TestAbyssLiveSnapshotRestoresCompleteLogHistory(t *testing.T) {
+	t.Parallel()
+
+	first := abyssLiveSnapshot{LogStart: 0, LogCursor: 2, RecentLogs: []string{"round one", "round two"}}
+	second := abyssLiveSnapshot{LogStart: 2, LogCursor: 4, RecentLogs: []string{"round three", "round four"}}
+	combat := &abyssLiveCombat{
+		id:           "resume-session",
+		ownerUID:     "user",
+		participants: map[string]bool{"user": true},
+		tactics:      map[string]string{"user": "balanced"},
+		options:      map[string][]abyssLiveOption{},
+		queued:       map[string]abyssLiveAction{},
+		recentLogs:   append([]string(nil), second.RecentLogs...),
+		lastLogCount: 4,
+		history: []abyssLiveEvent{
+			{ID: 1, Snapshots: map[string]abyssLiveSnapshot{"user": first}},
+			// Multiple state versions in one round carry the same cursor. They
+			// overwrite their positions rather than duplicating feed entries.
+			{ID: 2, Snapshots: map[string]abyssLiveSnapshot{"user": first}},
+			{ID: 3, Snapshots: map[string]abyssLiveSnapshot{"user": second}},
+		},
+	}
+
+	snapshot := combat.snapshotWithLogHistory("user")
+	want := []string{"round one", "round two", "round three", "round four"}
+	if len(snapshot.LogHistory) != len(want) {
+		t.Fatalf("log history = %q, want %q", snapshot.LogHistory, want)
+	}
+	for index := range want {
+		if snapshot.LogHistory[index] != want[index] {
+			t.Fatalf("log history[%d] = %q, want %q", index, snapshot.LogHistory[index], want[index])
+		}
+	}
+	if snapshot.LogStart != 2 || snapshot.LogCursor != 4 {
+		t.Fatalf("current log range = [%d,%d), want [2,4)", snapshot.LogStart, snapshot.LogCursor)
+	}
+}
+
 func TestAbyssLiveSnapshotAdvertisesBossEnrageRound(t *testing.T) {
 	t.Parallel()
 

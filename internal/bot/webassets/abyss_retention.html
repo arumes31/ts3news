@@ -1,0 +1,106 @@
+{{define "abyssRetention"}}
+{{with .Retention}}
+<section class="abyss-panel ab-retention" id="abyssRetentionWorkspace" data-abyss-section="season" aria-labelledby="abyssRetentionTitle">
+  <header class="ab-retention-head">
+    <div>
+      <span class="ab-retention-kicker">DEEP DELVER'S ALMANAC</span>
+      <h2 id="abyssRetentionTitle">Return, remember, go farther</h2>
+    </div>
+    <p>Account-owned progress from the authoritative run ledger. Calendar rewards are bounded; endless rewards are cosmetic only.</p>
+  </header>
+
+  <div class="ab-retention-grid">
+    <article class="ab-retention-card ab-login-calendar" id="abyssLoginCalendar">
+      <header><div><small>28-DAY WATCH</small><h3>Daily descent calendar</h3></div><span><b id="loginClaimedCount">{{.Login.Claimed}}</b> / 28</span></header>
+      <p class="muted small">{{.Login.CycleLabel}} · one server-time claim per UTC day.</p>
+      {{if .Login.LoadError}}<p class="ab-retention-error" role="status">{{.Login.LoadError}}</p>{{end}}
+      <ol class="ab-login-days" aria-label="Daily Abyss login rewards">
+        {{range .Login.Days}}
+        <li class="{{if .Claimed}}claimed{{else if .Current}}current{{else if .Future}}future{{end}}" data-login-day="{{.Day}}" title="{{.Date}} · {{.Reward}}">
+          <small>{{.Weekday}}</small><b>{{.Day}}</b><span>{{if .Claimed}}✓{{else}}{{.Reward}}{{end}}</span>
+        </li>
+        {{end}}
+      </ol>
+      <div class="ab-retention-action">
+        <span>Today · <b>{{.Login.TodayReward}}</b></span>
+        {{if .Login.TodayClaimed}}
+          <button type="button" class="ghost" id="abyssLoginClaim" disabled>✓ Claimed</button>
+        {{else if .Login.LoadError}}
+          <button type="button" class="ghost" id="abyssLoginClaim" disabled>Calendar unavailable</button>
+        {{else}}
+          <button type="button" class="primary" id="abyssLoginClaim" onclick="abyssClaimLogin(this)">Open today's cache</button>
+        {{end}}
+      </div>
+    </article>
+
+    <article class="ab-retention-card ab-weekly-digest" id="abyssWeeklyDigest">
+      <header><div><small>PERSONAL SIGNAL</small><h3>Seven-day run digest</h3></div><span class="ab-digest-trend {{if gt .Digest.DepthTrend 0}}up{{else if lt .Digest.DepthTrend 0}}down{{end}}">{{if gt .Digest.DepthTrend 0}}+{{end}}{{.Digest.DepthTrend}} depth</span></header>
+      {{if .Digest.LoadError}}<p class="ab-retention-error" role="status">{{.Digest.LoadError}}</p>{{end}}
+      <div class="ab-digest-metrics">
+        <div><small>DEEPEST</small><strong>{{.Digest.Depth}}</strong><span>previous {{.Digest.PreviousDepth}}</span></div>
+        <div><small>GOLD / DAY</small><strong>{{gold .Digest.GoldPerDay}}</strong><span>{{gold .Digest.Gold}} · prev {{gold .Digest.PreviousGold}}</span></div>
+        <div><small>RUNS</small><strong>{{.Digest.Runs}}</strong><span>{{if gt .Digest.RunsTrend 0}}+{{end}}{{.Digest.RunsTrend}} vs prior</span></div>
+        <div><small>FLOORS</small><strong>{{.Digest.Floors}}</strong><span>{{if gt .Digest.FloorsTrend 0}}+{{end}}{{.Digest.FloorsTrend}} vs prior</span></div>
+      </div>
+      <p class="ab-digest-callout">◎ {{.Digest.NearRecord}}</p>
+    </article>
+
+    <article class="ab-retention-card ab-endless {{if .Endless.Unlocked}}unlocked{{end}}" id="abyssEndlessMode">
+      <header><div><small>BEYOND DEPTH 100</small><h3>Endless renown</h3></div><span>Renown <b>{{.Endless.Renown}}</b></span></header>
+      {{if .Endless.Unlocked}}
+        <p>Endless mode is active. Every 25 depths adds a collection-only rank; enemy and cache rules remain server-authoritative.</p>
+      {{else}}
+        <p>Reach depth 100 to open the endless ledger. No power is sold or granted here.</p>
+      {{end}}
+      <div class="ab-endless-rail" aria-label="Endless cosmetic milestones">
+        {{range .Endless.Rewards}}
+        <article class="{{if .Owned}}owned{{else if .Available}}available{{end}}" data-endless-depth="{{.Depth}}">
+          <span class="ab-endless-depth">{{.Depth}}</span>
+          <small>RANK {{.Rank}}</small>
+          <b>{{.Name}}</b>
+          {{if .Owned}}
+            <button type="button" class="ghost xs" disabled>✓ Owned</button>
+          {{else if .Available}}
+            <button type="button" class="primary xs" onclick="abyssClaimEndless({{.Depth}},this)">Claim cosmetic</button>
+          {{else}}
+            <button type="button" class="ghost xs" disabled>Locked</button>
+          {{end}}
+        </article>
+        {{end}}
+      </div>
+      <footer><span>Best depth · {{.Endless.BestDepth}}</span>{{if gt .Endless.NextDepth 0}}<span>Next cosmetic · {{.Endless.NextDepth}}</span>{{end}}<span>Combat power · +0%</span></footer>
+    </article>
+  </div>
+</section>
+{{end}}
+{{end}}
+
+{{define "abyssRetentionJS"}}
+async function abyssClaimLogin(button){
+  if(!button||button.disabled)return;
+  button.disabled=true;var oldText=button.textContent;button.textContent='Opening…';
+  try{
+    var data=await abPost('/api/abyss/retention/login',{});
+    if(!data.ok)throw new Error(data.error||'daily claim failed');
+    if(data.gold!==undefined)setGold(data.gold);if(data.tokens!==undefined)setTokens(data.tokens);
+    var current=document.querySelector('#abyssLoginCalendar .ab-login-days .current');
+    if(current){current.classList.add('claimed');var reward=current.querySelector('span');if(reward)reward.textContent='✓';}
+    if(!data.already_claimed){var count=document.getElementById('loginClaimedCount');if(count)count.textContent=String((Number(count.textContent)||0)+1);}
+    button.className='ghost';button.textContent='✓ Claimed';button.disabled=true;
+    var rewardText=data.reward_tokens?data.reward_tokens+(Number(data.reward_tokens)===1?' token':' tokens'):data.reward_gold+'g';
+    abToast(data.already_claimed?'Today\'s cache was already claimed.':'Daily descent cache opened: '+rewardText,true);
+  }catch(error){button.disabled=false;button.textContent=oldText;abToast(error.message||'Could not open today\'s cache.',false);}
+}
+
+async function abyssClaimEndless(depth,button){
+  if(!button||button.disabled)return;
+  button.disabled=true;var oldText=button.textContent;button.textContent='Inscribing…';
+  try{
+    var data=await abPost('/api/abyss/retention/endless',{depth:depth});
+    if(!data.ok)throw new Error(data.error||'endless claim failed');
+    var card=button.closest('[data-endless-depth]');if(card)card.classList.add('owned');
+    button.className='ghost xs';button.textContent='✓ Owned';button.disabled=true;
+    abToast((data.already_owned?'Already in collection: ':'Endless cosmetic claimed: ')+data.name,true);
+  }catch(error){button.disabled=false;button.textContent=oldText;abToast(error.message||'Could not claim the endless cosmetic.',false);}
+}
+{{end}}

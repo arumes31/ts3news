@@ -1,8 +1,10 @@
 package bot
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -42,6 +44,122 @@ func TestMarkAbyssBestRunLoot(t *testing.T) {
 		if rows[i].CanEquipBest != want {
 			t.Errorf("row %d CanEquipBest = %t, want %t", rows[i].EscrowID, rows[i].CanEquipBest, want)
 		}
+	}
+}
+
+func TestAbyssRunLootJunkQuoteProtectsSpecialDrops(t *testing.T) {
+	ordinary := content.Gear{
+		ID: "ordinary", Name: "Ordinary Blade", Slot: content.SlotMainHand,
+		Rarity: content.RarityCommon, MaxDurability: 20, Stats: content.Stats{STR: 12},
+	}
+	wantValue := max(gearPrice(ordinary)/2, int64(1))
+	tests := []struct {
+		name  string
+		grant abyssLootGrant
+		ok    bool
+	}{
+		{name: "common ordinary", grant: abyssLootGrant{Type: "gear", Gear: &ordinary}, ok: true},
+		{name: "uncommon ordinary", grant: abyssLootGrant{Type: "gear", Gear: func() *content.Gear { g := ordinary; g.Rarity = content.RarityUncommon; return &g }()}, ok: true},
+		{name: "rare", grant: abyssLootGrant{Type: "gear", Gear: func() *content.Gear { g := ordinary; g.Rarity = content.RarityRare; return &g }()}},
+		{name: "unidentified", grant: abyssLootGrant{Type: "gear", Gear: func() *content.Gear { g := ordinary; g.Unidentified = true; return &g }()}},
+		{name: "wishlist", grant: abyssLootGrant{Type: "gear", Gear: &ordinary, Wishlist: true}},
+		{name: "set pity", grant: abyssLootGrant{Type: "gear", Gear: &ordinary, SetPity: true}},
+		{name: "smart loot", grant: abyssLootGrant{Type: "gear", Gear: &ordinary, SmartLoot: true}},
+		{name: "set piece", grant: abyssLootGrant{Type: "gear", Gear: func() *content.Gear { g := ordinary; g.SetID = "warden"; return &g }()}},
+		{name: "affixed", grant: abyssLootGrant{Type: "gear", Gear: func() *content.Gear { g := ordinary; g.Special = content.EffectLucky; return &g }()}},
+		{name: "socketed", grant: abyssLootGrant{Type: "gear", Gear: func() *content.Gear { g := ordinary; g.Sockets = 1; return &g }()}},
+		{name: "tempered", grant: abyssLootGrant{Type: "gear", Gear: func() *content.Gear { g := ordinary; g.Temper = 1; return &g }()}},
+		{name: "corrupted", grant: abyssLootGrant{Type: "gear", Gear: func() *content.Gear { g := ordinary; g.Corrupted = true; return &g }()}},
+		{name: "appearance", grant: abyssLootGrant{Type: "gear", Gear: func() *content.Gear { g := ordinary; g.AppearanceID = "skin"; return &g }()}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			value, ok := abyssRunLootJunkQuote(tt.grant)
+			if ok != tt.ok {
+				t.Fatalf("eligible = %t, want %t (value %d)", ok, tt.ok, value)
+			}
+			if tt.ok && value < wantValue {
+				t.Fatalf("value = %d, want at least common quote %d", value, wantValue)
+			}
+			if !tt.ok && value != 0 {
+				t.Fatalf("protected item value = %d, want 0", value)
+			}
+		})
+	}
+}
+
+func TestHandleAbyssSellJunkLootCommitsDeleteAndCacheCredit(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	gear := content.Gear{ID: "junk", Slot: content.SlotMainHand, Rarity: content.RarityCommon, Stats: content.Stats{STR: 10}}
+	grant := mustAbyssLootGrantJSON(t, abyssLootGrant{Type: "gear", Gear: &gear})
+	value, ok := abyssRunLootJunkQuote(abyssLootGrant{Type: "gear", Gear: &gear})
+	if !ok {
+		t.Fatal("ordinary test gear was not eligible")
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT downed FROM abyss_active").WithArgs("player").
+		WillReturnRows(sqlmock.NewRows([]string{"downed"}).AddRow(false))
+	mock.ExpectQuery("SELECT item_type,item_data,equip_on_bank").WithArgs(int64(31), "player").
+		WillReturnRows(sqlmock.NewRows([]string{"item_type", "item_data", "equip_on_bank"}).AddRow("gear", grant, false))
+	mock.ExpectExec("DELETE FROM abyss_escrow_loot").WithArgs(int64(31), "player").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("UPDATE abyss_active SET escrow=escrow").WithArgs(value, "player").
+		WillReturnRows(sqlmock.NewRows([]string{"escrow"}).AddRow(777))
+	mock.ExpectCommit()
+	body, err := json.Marshal(map[string]any{"id": 31, "quoted_gold": value})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest("POST", "/api/abyss/loot/sell_junk", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	(&WebServer{bot: &Bot{DB: db}}).handleAbyssSellJunkLoot(rec, req, "player")
+	var response struct {
+		OK     bool  `json:"ok"`
+		Value  int64 `json:"value"`
+		Escrow int64 `json:"escrow"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if !response.OK || response.Value != value || response.Escrow != 777 {
+		t.Fatalf("response = %+v", response)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestHandleAbyssSellJunkLootRejectsStaleQuoteWithoutMutation(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	gear := content.Gear{ID: "junk", Slot: content.SlotMainHand, Rarity: content.RarityCommon, Stats: content.Stats{STR: 10}}
+	grant := mustAbyssLootGrantJSON(t, abyssLootGrant{Type: "gear", Gear: &gear})
+	value, _ := abyssRunLootJunkQuote(abyssLootGrant{Type: "gear", Gear: &gear})
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT downed FROM abyss_active").WithArgs("player").
+		WillReturnRows(sqlmock.NewRows([]string{"downed"}).AddRow(false))
+	mock.ExpectQuery("SELECT item_type,item_data,equip_on_bank").WithArgs(int64(31), "player").
+		WillReturnRows(sqlmock.NewRows([]string{"item_type", "item_data", "equip_on_bank"}).AddRow("gear", grant, false))
+	mock.ExpectRollback()
+	body, err := json.Marshal(map[string]any{"id": 31, "quoted_gold": value + 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest("POST", "/api/abyss/loot/sell_junk", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	(&WebServer{bot: &Bot{DB: db}}).handleAbyssSellJunkLoot(rec, req, "player")
+	if !strings.Contains(rec.Body.String(), "junk value changed") {
+		t.Fatalf("response = %s", rec.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -163,6 +281,8 @@ func TestAbyssInventoryPresentationContracts(t *testing.T) {
 		"web_abyss_inventory_ui.go",
 		"webassets/abyss.html",
 		"webassets/abyss_inventory_ui.html",
+		"webassets/abyss_duplicate_guard.css",
+		"webassets/abyss_run_loot_sell.css",
 		"webassets/abyss_ui200.css",
 		"../db/migrations/0074_abyss_loot_presentation.up.sql",
 	}
@@ -182,6 +302,9 @@ func TestAbyssInventoryPresentationContracts(t *testing.T) {
 		"ab-loot-corrupted",
 		"toggleRunLootDetail",
 		"/api/abyss/loot/equip_best",
+		"/api/abyss/loot/sell_junk",
+		"ab-sell-junk",
+		"quoted_gold",
 		"lootSort",
 		"already_owned",
 		"equip_on_bank",
@@ -200,6 +323,10 @@ func TestAbyssInventoryPresentationContracts(t *testing.T) {
 		"ab-smart-loot-tag",
 		"data-set-pity",
 		"ab-set-pity-tag",
+		"lootDuplicateGuard",
+		"recent_gear_protected",
+		"duplicate_floor_window",
+		"Recent-drop guard",
 	} {
 		if !strings.Contains(source.String(), required) {
 			t.Errorf("inventory presentation contract missing %q", required)

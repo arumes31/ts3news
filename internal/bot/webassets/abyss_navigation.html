@@ -5,6 +5,7 @@
   var sectionGroups=[
     {key:'season',label:'🔥 Season'},
     {key:'progression',label:'🛠️ Progression'},
+    {key:'observatory',label:'📡 Observatory'},
     {key:'shop',label:'🜲 Shop'},
     {key:'forge',label:'⚒️ Forge'},
     {key:'social',label:'🤝 Fellowship'},
@@ -14,7 +15,7 @@
   function sectionPanels(group){return Array.prototype.slice.call(document.querySelectorAll('[data-abyss-section="'+group.key+'"]'));}
   function initialSection(groups){
     if(location.hash==='#lb'||location.search.indexOf('lbtier=')>=0)return 'leaderboards';
-    if(location.hash.length>1){var linked=document.getElementById(location.hash.slice(1)),panel=linked&&linked.closest?linked.closest('[data-abyss-section]'):null;if(panel)return panel.getAttribute('data-abyss-section')||'';}
+    if(location.hash.length>1){var hashKey=location.hash.slice(1).toLowerCase();if(groups.some(function(group){return group.key===hashKey;}))return hashKey;var linked=document.getElementById(location.hash.slice(1)),panel=linked&&linked.closest?linked.closest('[data-abyss-section]'):null;if(panel)return panel.getAttribute('data-abyss-section')||'';}
     try{var stored=localStorage.getItem('abyss_section_tab')||'',legacy=['progression','lore','leaderboards'];return /^\d+$/.test(stored)?(legacy[parseInt(stored,10)]||'progression'):stored;}catch(_){return 'progression';}
   }
   function buildAbyssTabs(){
@@ -42,7 +43,7 @@
     requestAnimationFrame(function(){revealTab(bar.querySelector('.ab-tab.active'));});
   }
   window.buildAbyssTabs=buildAbyssTabs;
-  var aliases={season:'#abyssSeasonJourney',progression:'#abyssSetBonuses',shop:'#abyssTokenShop',forge:'#abyssForgePanel',workshop:'#abyssWorkshop',lore:'.abyss-lore-bestiary',bestiary:'.ab-bestiary-table',leaderboards:'#lb'};
+  var aliases={season:'#abyssSeasonJourney',progression:'#abyssSetBonuses',observatory:'#abyssObservatory',shop:'#abyssTokenShop',forge:'#abyssForgePanel',workshop:'#abyssWorkshop',lore:'.abyss-lore-bestiary',bestiary:'.ab-bestiary-table',leaderboards:'#lb'};
   function targetForHash(){var key=location.hash.slice(1).toLowerCase();if(key==='talents'){location.assign('/abyss/tree#talents');return null;}var selector=aliases[key]||location.hash;if(!selector)return null;try{return document.querySelector(selector);}catch(_){return null;}}
   function activateDeepLink(){var target=targetForHash();if(!target)return;var panel=target.closest?target.closest('[data-abyss-section]'):null,key=panel&&panel.dataset.abyssSection,tab=key&&document.querySelector('.ab-tab[data-tab-key="'+key+'"]'),collapsible=target.closest?target.closest('.ab-nav-collapsible'):null;if(tab&&!tab.classList.contains('active'))tab.click();if(collapsible){var collapseButton=collapsible.querySelector('.ab-panel-collapse');collapsible.classList.remove('ab-panel-collapsed');if(collapseButton){collapseButton.setAttribute('aria-expanded','true');collapseButton.textContent=collapseButton.textContent.replace(/^Expand/,'Collapse');}try{localStorage.setItem(collapsible.dataset.collapseKey,'1');}catch(_){}}setTimeout(function(){target.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});},0);}
   function persistTabs(){document.querySelectorAll('.ab-tab[data-tab-key]').forEach(function(tab){tab.addEventListener('click',function(){var key=tab.dataset.tabKey,current=location.hash.slice(1).toLowerCase();try{localStorage.setItem('abyss_section_tab',key);}catch(_){}if(current!==key){try{history.replaceState(null,'','#'+key);}catch(_){}}});});}
@@ -55,11 +56,12 @@
   function wrapTitleSetter(name){var original=window[name];if(typeof original!=='function'||original._abNavigation)return;var wrapped=function(){var result=original.apply(this,arguments);updateAbyssTitle();return result;};wrapped._abNavigation=true;window[name]=wrapped;}
   function visibleButton(id){var button=document.getElementById(id);return button&&button.offsetParent!==null&&!button.disabled?button:null;}
   function flash(button){button.classList.add('ab-shortcut-flash');setTimeout(function(){button.classList.remove('ab-shortcut-flash');},350);button.click();}
-  function showShortcuts(){openModal('<h3>⌨️ Abyss shortcuts</h3><div class="ab-shortcut-help"><span><kbd>D</kbd> Descend</span><span><kbd>B</kbd> Bank</span><span><kbd>R</kbd> Revive / Last Stand</span><span><kbd>L</kbd> Focus combat log</span><span><kbd>?</kbd> Open this guide</span></div><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Done</button></div>');}
-  function initShortcuts(){document.addEventListener('keydown',function(event){var target=event.target,tag=target&&target.tagName;if(event.defaultPrevented||event.repeat||event.ctrlKey||event.metaKey||event.altKey||/INPUT|SELECT|TEXTAREA/.test(tag)||target&&target.isContentEditable)return;var key=event.key.toLowerCase(),button=null;if(key==='d')button=visibleButton('btnDescend');else if(key==='b')button=visibleButton('btnBank');else if(key==='r')button=visibleButton('btnRevive')||visibleButton('btnLastStand');else if(key==='l'){var log=document.getElementById('logSearch');if(log){event.preventDefault();log.focus();log.scrollIntoView({block:'center'});}return;}else if(event.key==='?'){event.preventDefault();showShortcuts();return;}if(button){event.preventDefault();flash(button);}});}
+  function showShortcuts(){openModal('<h3>⌨️ Abyss shortcuts</h3><div class="ab-shortcut-help"><span><kbd>D</kbd> Descend when available</span><span><kbd>B</kbd> Bank when available</span><span><kbd>I</kbd> Focus consumable preparation</span><span><kbd>R</kbd> Revive / Last Stand</span><span><kbd>L</kbd> Focus combat log</span><span><kbd>?</kbd> Open this guide</span></div><p class="muted small">Shortcuts pause while typing, while a dialog is open, or during live combat planning.</p><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Done</button></div>');}
+  function initShortcuts(){document.addEventListener('keydown',function(event){var target=event.target,tag=target&&target.tagName,modal=document.getElementById('sharedModal'),live=document.querySelector('.ab-live-combat:not([hidden]),.ab-livecombat:not([hidden])');if(event.defaultPrevented||event.repeat||event.ctrlKey||event.metaKey||event.altKey||/INPUT|SELECT|TEXTAREA/.test(tag)||target&&target.isContentEditable||modal&&modal.classList.contains('open')||live&&live.offsetParent!==null)return;var key=event.key.toLowerCase(),button=null;if(key==='d')button=visibleButton('btnDescend');else if(key==='b')button=visibleButton('btnBank');else if(key==='r')button=visibleButton('btnRevive')||visibleButton('btnLastStand');else if(key==='i'){var prep=document.getElementById('prepPanel');if(prep&&prep.offsetParent!==null){event.preventDefault();prep.scrollIntoView({block:'center',behavior:window.reduceMotion?'auto':'smooth'});var item=prep.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled)');if(item)item.focus();}return;}else if(key==='l'){var log=document.getElementById('logSearch');if(log){event.preventDefault();log.focus();log.scrollIntoView({block:'center'});}return;}else if(event.key==='?'){event.preventDefault();showShortcuts();return;}if(button){event.preventDefault();flash(button);}});}
   function init(){try{document.body.classList.toggle('ab-compact',localStorage.getItem('ab_compact')==='1');}catch(_){}persistTabs();initCollapsiblePanels();initLibrarySearch();initOverflow();wrapTitleSetter('setDepth');wrapTitleSetter('setEscrow');updateAbyssTitle();initShortcuts();activateDeepLink();window.addEventListener('hashchange',activateDeepLink);}
   setTimeout(init,0);
-  window.__abyssNavigation={activateDeepLink:activateDeepLink,updateTitle:updateAbyssTitle};
+  window.showAbyssShortcuts=showShortcuts;
+  window.__abyssNavigation={activateDeepLink:activateDeepLink,updateTitle:updateAbyssTitle,showShortcuts:showShortcuts};
 })();
 </script>
 {{end}}

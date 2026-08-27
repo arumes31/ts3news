@@ -223,6 +223,25 @@ func applyAbyssSmartLoot(g content.Gear, pool content.GearDropPool, equipped map
 	return replacement, reason
 }
 
+func avoidAbyssRecentGearDuplicate(g content.Gear, pool content.GearDropPool, recent map[string]bool, category string) (content.Gear, bool) {
+	if g.ID == "" || !recent[g.ID] {
+		return g, g.ID != ""
+	}
+	slots := content.GearDropSlots(pool)
+	filtered := slots[:0]
+	for _, slot := range slots {
+		if abyssGearMatchesLootCategory(slot, category) {
+			filtered = append(filtered, slot)
+		}
+	}
+	replacement, ok := content.RandomGearDropForSlotsStrictlyExcluding(pool, filtered, recent)
+	if !ok {
+		return content.Gear{}, false
+	}
+	replacement.Rarity = g.Rarity
+	return replacement, true
+}
+
 // awardCombatLoot routes a defeated mob's drops either to the normal inline loot
 // path or, for Abyss combatants, into the run's loot escrow. It is the single
 // loot entry point used by the combat engine.
@@ -338,8 +357,8 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	}
 	st := b.loadAbyssStats(uid)
 	if st.UpFortune > 0 {
-		qualityMult *= 1.0 + float64(st.UpFortune)*0.06
-		lootFindBonus += float64(st.UpFortune) * 0.04
+		qualityMult *= 1.0 + content.TalentEffectiveLevel(st.UpFortune)*0.06
+		lootFindBonus += content.TalentEffectiveLevel(st.UpFortune) * 0.04
 	}
 	// Depth milestones (#16): +1% permanent loot find per 25 best depth, cap +4%.
 	lootFindBonus += abyssDepthLootFindBonus(st.BestDepth)
@@ -421,11 +440,18 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		}
 		_ = escrowRows.Close()
 	}
+	recentGear, _ := b.abyssRecentGearProtection(uid)
+	for gearID := range recentGear {
+		ownedGear[gearID] = true
+	}
 
 	var labels []string
 	pityProc := false
 	legendaryDrop := false
 	add := func(label string, g abyssLootGrant) bool {
+		if g.Gear != nil && recentGear[g.Gear.ID] {
+			return false
+		}
 		boss := ""
 		if mob.Type == content.MobBoss {
 			boss = mob.Name
@@ -437,14 +463,31 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			if g.WishlistState != nil {
 				wishlistState = *g.WishlistState
 			}
+			if g.Gear != nil && g.Gear.ID != "" {
+				recentGear[g.Gear.ID] = true
+				ownedGear[g.Gear.ID] = true
+			}
 			return true
 		}
 		return false
 	}
+	addSignature := func(label string, grant abyssLootGrant) bool {
+		if grant.Gear == nil || !recentGear[grant.Gear.ID] {
+			return add(label, grant)
+		}
+		material, count := materialYieldForRarity(grant.Gear.Rarity)
+		if count <= 0 {
+			material, count = "dust", 1
+		}
+		return add(
+			fmt.Sprintf("🛡 Recent duplicate converted: %s → %s ×%d", grant.Gear.Name, abyssMaterialName(material), count),
+			abyssLootGrant{Type: "mat", MatID: material, MatN: count},
+		)
+	}
 	// Named rares always seal their catalogued signature relic before ordinary
 	// focus and rarity rolls, so even XP focus cannot erase the promised drop.
 	if label, grant, ok := abyssNamedRareDrop(mob.Name); ok {
-		add(label, grant)
+		addSignature(label, grant)
 	}
 	if reward, ok := abyssTreasureGoblinSignature(mob.Name); ok {
 		if reward.RunKey {
@@ -454,7 +497,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				labels = append(labels, reward.Label)
 			}
 		} else {
-			add(reward.Label, reward.Grant)
+			addSignature(reward.Label, reward.Grant)
 		}
 	}
 
@@ -462,7 +505,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	// stat scaling (all stats, MNA included), unidentified chance, sockets and the
 	// eldritch/cursed affix rolls — and returns its display label. Shared by the
 	// forced-legendary pity path and the ordinary gear roll so they stay in sync.
-	processGear := func(g content.Gear, pool content.GearDropPool, currentWishlist abyssWishlistState) abyssProcessedGear {
+	processGear := func(g content.Gear, pool content.GearDropPool, currentWishlist abyssWishlistState) (abyssProcessedGear, bool) {
 		smartCategory := ""
 		if lootSettings.TargetCategory != "" && mob.Type != content.MobBoss && g.Rarity >= content.RarityRare {
 			rolledRarity := g.Rarity
@@ -493,6 +536,17 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		if setPityID == "" && !wishlistHit {
 			// #nosec G404 -- non-cryptographic loot targeting roll
 			g, smartReason = applyAbyssSmartLoot(g, pool, equipped, ownedGear, smartCategory, rand.Float64())
+		}
+		if recentGear[g.ID] {
+			var ok bool
+			g, ok = avoidAbyssRecentGearDuplicate(g, pool, recentGear, smartCategory)
+			if !ok {
+				return abyssProcessedGear{}, false
+			}
+			setPityID, smartReason = "", ""
+			if wishlistHit {
+				nextWishlist, wishlistHit = currentWishlist, false
+			}
 		}
 		g.Stats = g.Stats.Scaled(zoneDifficulty * scale)
 
@@ -603,7 +657,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			WishlistState:   nextWishlist,
 			WishlistChanged: !abyssWishlistStatesEqual(currentWishlist, nextWishlist),
 			WishlistHit:     wishlistHit,
-		}
+		}, true
 	}
 
 	// Bosses and legendaries always seal a guaranteed consumable.
@@ -660,7 +714,10 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		if legendaryPity >= abyssLegendaryPityCap {
 			pg := rollAbyssWeeklyFeaturedGear("", ownedGear, featuredDrops, abyssWeeklyGameplayRandom{})
 			pg.Rarity = content.RarityLegendary
-			processed := processGear(pg, content.GearDropPoolAbyss, wishlistState)
+			processed, ok := processGear(pg, content.GearDropPoolAbyss, wishlistState)
+			if !ok {
+				continue
+			}
 			grant := abyssLootGrant{
 				Type: "gear", Gear: &processed.Gear,
 				SmartLoot: processed.SmartLootReason != "", SmartLootReason: processed.SmartLootReason,
@@ -801,7 +858,11 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 			if insanityDrop && rand.Float64() < 0.10 {
 				g = lucidInsanityVariant(g)
 			}
-			processed := processGear(g, pool, wishlistState)
+			processed, ok := processGear(g, pool, wishlistState)
+			if !ok {
+				add(i18n.T("bot.loot.small_health_potion"), abyssLootGrant{Type: "cons", ConsID: "small_health_potion", ConsDur: 0})
+				break
+			}
 			g = processed.Gear
 			grant := abyssLootGrant{
 				Type: "gear", Gear: &g,
@@ -852,6 +913,11 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 				g := content.RandomStarterGear()
 				// #nosec G404 -- non-cryptographic loot targeting roll
 				g, smartReason := applyAbyssSmartLoot(g, content.GearDropPoolStarter, equipped, ownedGear, "", rand.Float64())
+				g, unique := avoidAbyssRecentGearDuplicate(g, content.GearDropPoolStarter, recentGear, "")
+				if !unique {
+					add(i18n.T("bot.loot.small_health_potion"), abyssLootGrant{Type: "cons", ConsID: "small_health_potion", ConsDur: 0})
+					continue
+				}
 				// Sockets / unidentified checks on common starter gear too
 				// #nosec G404 -- non-cryptographic loot roll
 				if rand.Float64() < 0.20 {
@@ -897,7 +963,8 @@ func (b *Bot) escrowAbyssLoot(uid string, depth int, label string, g abyssLootGr
 			uid, g.Type, label, data, max(depth, 0))
 		return err
 	}
-	if g.WishlistState == nil {
+	transactional := g.WishlistState != nil || g.Gear != nil && g.Gear.ID != ""
+	if !transactional {
 		if err := insert(b.DB); err != nil {
 			log.Printf("abyss escrow insert failed for %s: %v", uid, err)
 			return false
@@ -913,10 +980,19 @@ func (b *Bot) escrowAbyssLoot(uid string, depth int, label string, g abyssLootGr
 			log.Printf("abyss escrow insert failed for %s: %v", uid, err)
 			return false
 		}
-		if err := saveAbyssWishlist(tx, uid, *g.WishlistState); err != nil {
-			_ = tx.Rollback()
-			log.Printf("abyss wishlist escrow update failed for %s: %v", uid, err)
-			return false
+		if g.WishlistState != nil {
+			if err := saveAbyssWishlist(tx, uid, *g.WishlistState); err != nil {
+				_ = tx.Rollback()
+				log.Printf("abyss wishlist escrow update failed for %s: %v", uid, err)
+				return false
+			}
+		}
+		if g.Gear != nil && g.Gear.ID != "" {
+			if err := recordAbyssRecentGearDrop(tx, uid, g.Gear.ID); err != nil {
+				_ = tx.Rollback()
+				log.Printf("abyss recent-gear update failed for %s: %v", uid, err)
+				return false
+			}
 		}
 		if err := tx.Commit(); err != nil {
 			log.Printf("abyss escrow commit failed for %s: %v", uid, err)
@@ -925,6 +1001,9 @@ func (b *Bot) escrowAbyssLoot(uid string, depth int, label string, g abyssLootGr
 	}
 	if itemName, rarity, announce := abyssHighRarityEscrowDrop(g); announce {
 		b.queueAbyssHighRarityDrop(uid, itemName, rarity)
+	}
+	if alert, notify := abyssDiscordEscrowDrop(g, depth); notify {
+		b.queueAbyssDiscordAlert(alert)
 	}
 	return true
 }
@@ -1014,7 +1093,8 @@ func (b *Bot) currentAbyssBankPreviewLoot(ctx context.Context, uid string, limit
 // applyAbyssEscrowLoot grants every escrowed item to the character and clears the
 // escrow, returning the display labels of what was awarded. Called on bank.
 func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
-	rows, err := b.DB.Query("SELECT id, label, item_data, equip_on_bank FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id", uid)
+	rows, err := b.DB.Query(`SELECT id,label,item_data,equip_on_bank,
+		COALESCE(party_recipient_uid,client_uid) FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id`, uid)
 	if err != nil {
 		return nil
 	}
@@ -1023,13 +1103,14 @@ func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
 		label       string
 		data        []byte
 		equipOnBank bool
+		recipient   string
 	}
 	// Drain the cursor before issuing the per-item grant writes (which use the same
 	// connection pool) to avoid an in-flight query conflict.
 	var items []pending
 	for rows.Next() {
 		var p pending
-		if err := rows.Scan(&p.id, &p.label, &p.data, &p.equipOnBank); err == nil {
+		if err := rows.Scan(&p.id, &p.label, &p.data, &p.equipOnBank, &p.recipient); err == nil {
 			items = append(items, p)
 		}
 	}
@@ -1047,16 +1128,19 @@ func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
 			continue
 		}
 		var applyErr error
-		preferredGear := p.equipOnBank && g.Gear != nil
+		preferredGear := p.equipOnBank && g.Gear != nil && p.recipient == uid
 		if preferredGear {
-			applyErr = b.consumeAndEquipAbyssEscrowGear(uid, p.id, *g.Gear)
+			applyErr = b.consumeAndEquipAbyssEscrowGear(p.recipient, p.id, *g.Gear)
 		} else {
-			applyErr = b.applyAbyssLootGrant(uid, g)
+			applyErr = b.applyAbyssLootGrant(p.recipient, g)
 		}
 		if applyErr != nil {
 			// Transient write failure — keep the escrow row so a later bank can
 			// retry the grant instead of silently losing it.
 			continue
+		}
+		if g.Gear != nil {
+			b.recordAbyssSetBookGear(p.recipient, *g.Gear)
 		}
 		// Preferred gear is consumed in the same transaction as its equip. Other
 		// grants retain the existing post-apply row deletion path.

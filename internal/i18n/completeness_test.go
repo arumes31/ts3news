@@ -138,5 +138,14 @@ func TestMessageCoverageReportsAbyssKeysForEveryLocale(t *testing.T) {
 				row.Total,
 			)
 		}
+		if !row.Complete || len(row.Missing) != 0 || row.Present != row.Total {
+			t.Errorf(
+				"locale %s has incomplete Abyss coverage: present=%d missing=%v total=%d",
+				row.Locale,
+				row.Present,
+				row.Missing,
+				row.Total,
+			)
+		}
 	}
 }

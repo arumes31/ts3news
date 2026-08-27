@@ -1,0 +1,61 @@
+{{define "abyssFeedbackJuice"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var storageKey='abyss_run_feedback_v1',telemetry={dealt:0,taken:0,biggest:0,lostCache:0,recordDepth:0,lastHP:null,lastHPMax:null,lastEnemyHP:null,lastEnemyMax:null};
+  try{if(inRun)telemetry=Object.assign(telemetry,JSON.parse(sessionStorage.getItem(storageKey)||'{}')||{});else sessionStorage.removeItem(storageKey);}catch(_){}
+
+  function save(){try{sessionStorage.setItem(storageKey,JSON.stringify(telemetry));}catch(_){}}
+  function reset(){Object.assign(telemetry,{dealt:0,taken:0,biggest:0,lostCache:0,recordDepth:0,lastHP:null,lastHPMax:null,lastEnemyHP:null,lastEnemyMax:null});save();}
+  function wrap(name,handler){var original=window[name];if(typeof original!=='function'||original._abFeedbackJuice)return;var wrapped=function(){return handler.call(this,original,arguments);};wrapped._abFeedbackJuice=true;window[name]=wrapped;}
+
+  function trackFrame(frame){
+    if(!frame)return;
+    var hp=Number(frame.hp),hpMax=Number(frame.max_hp),enemy=Number(frame.enemy_hp),enemyMax=Number(frame.enemy_max);
+    if(Number.isFinite(hp)&&Number.isFinite(hpMax)&&hpMax>0&&telemetry.lastHP!==null&&telemetry.lastHPMax===hpMax&&hp<telemetry.lastHP)telemetry.taken+=telemetry.lastHP-hp;
+    if(Number.isFinite(enemy)&&Number.isFinite(enemyMax)&&enemyMax>0&&telemetry.lastEnemyHP!==null&&telemetry.lastEnemyMax===enemyMax&&enemy<telemetry.lastEnemyHP){var hit=telemetry.lastEnemyHP-enemy;telemetry.dealt+=hit;telemetry.biggest=Math.max(telemetry.biggest,hit);}
+    telemetry.lastHP=Number.isFinite(hp)?hp:null;telemetry.lastHPMax=Number.isFinite(hpMax)?hpMax:null;telemetry.lastEnemyHP=Number.isFinite(enemy)?enemy:null;telemetry.lastEnemyMax=Number.isFinite(enemyMax)?enemyMax:null;save();
+  }
+
+  function lesson(){
+    if(telemetry.lostCache>0&&Number(curInsured||0)<=0)return 'Insure a valuable cache before the next boss or bank one floor earlier.';
+    if(telemetry.taken>telemetry.dealt)return 'Incoming damage outpaced your offense; reinforce DEF or step down one tier.';
+    if(telemetry.biggest>0)return 'Your burst was strong; preserve the run by banking before the next risk spike.';
+    return 'Review the final combat log, adjust one safeguard, and descend again.';
+  }
+
+  function appendDeathRows(rows){
+    var output=Array.isArray(rows)?rows.slice():[];
+    output.push(['Damage dealt',fmtNum(telemetry.dealt)],['Damage taken',fmtNum(telemetry.taken)],['Biggest hit',fmtNum(telemetry.biggest)],['Cache lost',fmtGold(telemetry.lostCache)],['Lesson from the deep',lesson()]);
+    return output;
+  }
+
+  function decorateDeathSummary(){
+    var rows=document.querySelectorAll('#sharedModalCard .ab-rs-row');
+    rows.forEach(function(row){var label=row.querySelector('span');if(label&&label.textContent.indexOf('Lesson from the deep')>=0)row.classList.add('ab-run-lesson');});
+  }
+
+  function decorateBankSummary(result){
+    var summary=document.querySelector('#sharedModalCard .ab-runsummary'),total=summary&&summary.querySelector('.ab-rs-total');if(!summary||!total)return;
+    var record=telemetry.recordDepth>0?'New record · floor '+telemetry.recordDepth:'No new record';
+    [['Damage dealt',fmtNum(telemetry.dealt)],['Biggest hit',fmtNum(telemetry.biggest)],['Record',record]].forEach(function(item){var row=document.createElement('div'),label=document.createElement('span'),value=document.createElement('b');row.className='ab-rs-row ab-run-telemetry';label.textContent=item[0];value.textContent=item[1];row.append(label,value);summary.insertBefore(row,total);});
+    if(result&&result.depth)summary.setAttribute('aria-label','Banked run summary for floor '+Number(result.depth));
+  }
+
+  function syncCoinPile(initial){
+    var pile=document.getElementById('coinPile');if(!pile)return;
+    var tier=curEscrow<=0?0:Math.min(8,Math.floor(Math.log10(curEscrow))+1),previous=Number(pile.dataset.tier)||0;pile.dataset.tier=String(tier);
+    if(!initial&&tier>previous&&!reduceMotion){pile.classList.remove('growing');void pile.offsetWidth;pile.classList.add('growing');setTimeout(function(){pile.classList.remove('growing');},700);}
+  }
+
+  wrap('applyCombatFrame',function(original,args){var result=original.apply(this,args);trackFrame(args[0]);return result;});
+  wrap('setDepth',function(original,args){var previous=Number(curDepth)||0,result=original.apply(this,args),next=Number(curDepth)||0;if(previous<=0&&next>0)reset();return result;});
+  wrap('setEscrow',function(original,args){var previous=Number(curEscrow)||0,next=Math.max(0,Number(args[0])||0);if(previous>0&&next===0&&!inRun)telemetry.lostCache=previous;var result=original.apply(this,args);syncCoinPile(false);save();return result;});
+  wrap('recordBurst',function(original,args){telemetry.recordDepth=Math.max(telemetry.recordDepth,Number(args[0])||0);save();return original.apply(this,args);});
+  wrap('showRunSummary',function(original,args){var result=original.call(this,args[0],appendDeathRows(args[1]),args[2]);decorateDeathSummary();return result;});
+  wrap('showBankSummary',function(original,args){var result=original.apply(this,args);decorateBankSummary(args[0]);return result;});
+  syncCoinPile(true);
+  window.__abyssFeedbackJuice={telemetry:telemetry,trackFrame:trackFrame,lesson:lesson,syncCoinPile:syncCoinPile};
+})();
+</script>
+{{end}}

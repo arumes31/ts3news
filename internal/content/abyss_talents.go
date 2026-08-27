@@ -12,9 +12,22 @@ import "fmt"
 // exact same live effect pipeline as the skill web (folded into Bot.treeBonusFor),
 // so every node has a real, distinct in-game effect rather than a dead stub.
 
-// TalentMaxLevel is the shared per-node cap. The web UI hardcodes 5 and the token
-// cost formula is (level+1)*10, matching the legacy Deep-Delver nodes.
-const TalentMaxLevel = 5
+const (
+	// TalentFullStrengthLevels preserves the original five full-value ranks.
+	TalentFullStrengthLevels = 5
+	// TalentMaxLevel is the shared per-node cap for legacy and generic talents.
+	TalentMaxLevel = 10
+)
+
+// TalentEffectiveLevel applies the shared soft cap: ranks one through five are
+// full value and ranks six through ten contribute half a rank each.
+func TalentEffectiveLevel(level int) float64 {
+	level = min(max(level, 0), TalentMaxLevel)
+	if level <= TalentFullStrengthLevels {
+		return float64(level)
+	}
+	return float64(TalentFullStrengthLevels) + float64(level-TalentFullStrengthLevels)/2
+}
 
 // Talent is one node of a generic talent tree. Only the fields the web renderer
 // needs are serialized; Stats/Pct/Spec/Parent stay server-side.
@@ -437,9 +450,10 @@ func TalentBonus(levels map[string]int, spec string) TreeBonus {
 		if t.Spec != "" && t.Spec != spec {
 			continue
 		}
-		tb.Stats = tb.Stats.Add(t.Stats.Scaled(float64(lvl)))
+		effectiveLevel := TalentEffectiveLevel(lvl)
+		tb.Stats = tb.Stats.Add(t.Stats.Scaled(effectiveLevel))
 		for k, v := range t.Pct {
-			tb.Pct[k] += v * float64(lvl)
+			tb.Pct[k] += v * effectiveLevel
 		}
 	}
 	return tb

@@ -273,6 +273,34 @@ func TestRandomGearDropForSlotsExcludingKeepsPoolAndSlot(t *testing.T) {
 	}
 }
 
+func TestRandomGearDropForSlotsStrictlyExcludingNeverFallsBackToBlockedID(t *testing.T) {
+	slot := starterGear[0].Slot
+	blocked := make(map[string]bool)
+	for _, gear := range starterGear {
+		if gear.Slot == slot {
+			blocked[gear.ID] = true
+		}
+	}
+	if gear, ok := RandomGearDropForSlotsStrictlyExcludingWithRandom(
+		GearDropPoolStarter,
+		[]GearSlot{slot},
+		blocked,
+		rand.New(rand.NewPCG(91, 20)),
+	); ok {
+		t.Fatalf("strict roll returned blocked gear %#v", gear)
+	}
+	delete(blocked, starterGear[0].ID)
+	gear, ok := RandomGearDropForSlotsStrictlyExcludingWithRandom(
+		GearDropPoolStarter,
+		[]GearSlot{slot},
+		blocked,
+		rand.New(rand.NewPCG(91, 21)),
+	)
+	if !ok || gear.ID != starterGear[0].ID {
+		t.Fatalf("strict roll = %#v, %t; want only unblocked ID %q", gear, ok, starterGear[0].ID)
+	}
+}
+
 func TestRandomGearDropForSlotsExcludingPrefersUnownedCandidate(t *testing.T) {
 	slots := GearDropSlots(GearDropPoolAbyss)
 	if len(slots) == 0 {

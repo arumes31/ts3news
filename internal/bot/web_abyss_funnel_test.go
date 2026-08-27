@@ -16,7 +16,7 @@ func TestAbyssFunnelMetricsDeduplicateAndCloseRuns(t *testing.T) {
 
 	var metrics abyssFunnelMetrics
 	now := time.Date(2026, time.August, 25, 12, 0, 0, 0, time.UTC)
-	metrics.observeEnter("player-1", now)
+	metrics.observeEnter("player-1", now, 0)
 	metrics.observeFloor("player-1", 4)
 	metrics.observeFloor("player-1", 5)
 	metrics.observeFloor("player-1", 12)
@@ -35,6 +35,27 @@ func TestAbyssFunnelMetricsDeduplicateAndCloseRuns(t *testing.T) {
 	if got := snapshot["active_tracked"]; got != 0 {
 		t.Errorf("active_tracked = %v, want 0", got)
 	}
+	stops := snapshot["stops_by_depth"].(map[string]map[string]int64)
+	if got := stops["10-24"]["banked"]; got != 1 {
+		t.Errorf("floor 10-24 bank stops = %d, want 1", got)
+	}
+}
+
+func TestAbyssFunnelMetricsRetainTerminalReasonsAndCheckpointDepth(t *testing.T) {
+	t.Parallel()
+
+	var metrics abyssFunnelMetrics
+	now := time.Date(2026, time.August, 25, 12, 0, 0, 0, time.UTC)
+	metrics.observeEnter("checkpoint", now, 20)
+	metrics.observeEnd("checkpoint", "timeout")
+	metrics.observeEnter("revive", now, 0)
+	metrics.observeFloor("revive", 7)
+	metrics.observeEnd("revive", "revive_failed")
+
+	stops := metrics.snapshot()["stops_by_depth"].(map[string]map[string]int64)
+	if stops["10-24"]["timeout"] != 1 || stops["5-9"]["revive_failed"] != 1 {
+		t.Fatalf("terminal depth telemetry = %#v", stops)
+	}
 }
 
 func TestAbyssFunnelOpsSnapshotContainsNoPlayerIdentifiers(t *testing.T) {
@@ -42,7 +63,7 @@ func TestAbyssFunnelOpsSnapshotContainsNoPlayerIdentifiers(t *testing.T) {
 
 	const privateUID = "private-player-identity"
 	server := &WebServer{abyssFeatures: &abyssFeatureConfig{opsToken: "operator-secret"}}
-	server.abyssOps.funnel.observeEnter(privateUID, time.Now())
+	server.abyssOps.funnel.observeEnter(privateUID, time.Now(), 0)
 	server.abyssOps.funnel.observeFloor(privateUID, 5)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/abyss/ops", nil)
@@ -75,7 +96,7 @@ func TestAbyssFunnelMetricsRemainBounded(t *testing.T) {
 	metrics := abyssFunnelMetrics{maxActive: 3}
 	now := time.Date(2026, time.August, 25, 12, 0, 0, 0, time.UTC)
 	for index := range 5 {
-		metrics.observeEnter(fmt.Sprintf("player-%d", index), now.Add(time.Duration(index)*time.Second))
+		metrics.observeEnter(fmt.Sprintf("player-%d", index), now.Add(time.Duration(index)*time.Second), 0)
 	}
 	snapshot := metrics.snapshot()
 	if got := snapshot["active_tracked"]; got != 3 {
@@ -95,7 +116,7 @@ func TestAbyssFunnelMetricsAreConcurrencySafe(t *testing.T) {
 	for index := range delvers {
 		wait.Go(func() {
 			uid := fmt.Sprintf("delver-%d", index)
-			metrics.observeEnter(uid, time.Now())
+			metrics.observeEnter(uid, time.Now(), 0)
 			metrics.observeFloor(uid, 5)
 			metrics.observeBank(uid)
 		})

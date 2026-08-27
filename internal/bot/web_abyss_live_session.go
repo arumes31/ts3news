@@ -3,7 +3,6 @@ package bot
 import (
 	"context"
 	"crypto/rand"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -31,17 +30,6 @@ func newAbyssLiveSessionID() (string, error) {
 	return hex.EncodeToString(buf), nil
 }
 
-func abyssLiveRandomSeed(sessionID string) ([2]uint64, error) {
-	decoded, err := hex.DecodeString(sessionID)
-	if err != nil || len(decoded) != 16 {
-		return [2]uint64{}, fmt.Errorf("invalid live combat id")
-	}
-	return [2]uint64{
-		binary.BigEndian.Uint64(decoded[:8]),
-		binary.BigEndian.Uint64(decoded[8:]),
-	}, nil
-}
-
 func (s *WebServer) loadAbyssTactic(uid string) string {
 	var tactic string
 	err := s.bot.DB.QueryRow(
@@ -66,7 +54,7 @@ func (s *WebServer) startAbyssLiveCombat(
 	if err != nil {
 		return nil, err
 	}
-	randomSeed, err := abyssLiveRandomSeed(id)
+	randomSeed, err := s.bot.abyssRunSeedForFloor(uid, depth)
 	if err != nil {
 		return nil, err
 	}

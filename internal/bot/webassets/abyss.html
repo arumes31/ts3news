@@ -25,6 +25,10 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_loot_presentation.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_pity.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_featured_drops.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_shop_demand.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_shop_program.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_run_loot_sell.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_duplicate_guard.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_wishlist.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_set_pity.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_forge_experience.css"}}">
@@ -33,12 +37,18 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_accessibility.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_mobile.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_insights.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_observatory.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_wiki.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_polish.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_longterm.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_core_risk.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_core_interface.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_events.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_social.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_competition.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_layout_readability.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_feedback_juice.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_replay.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_stage_hud.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_codex_explorer.css"}}">
@@ -49,6 +59,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_practice.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_vendor.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_lore.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_collections.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_world_boss.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_contracts.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_affinity.css"}}">
@@ -60,6 +71,8 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_cosmetics.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_watcher_pressure.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_season.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_retention.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_run_identity.css"}}">
 <div class="abyss-command-page" data-ab-campaign="{{.SeasonJourney.Palette}}" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-expanded-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas_expanded.png"}}');--ab-expanded-icon-atlas:url('{{asset "/static/abyss_icon_atlas_expanded.png"}}');--ab-atlas-items:url('{{asset "/static/abyss_atlas_items.png"}}');--ab-atlas-skills:url('{{asset "/static/abyss_atlas_skills.png"}}');--ab-atlas-creatures:url('{{asset "/static/abyss_atlas_creatures.png"}}');--ab-atlas-bosses:url('{{asset "/static/abyss_atlas_bosses.png"}}');--ab-atlas-artifacts:url('{{asset "/static/abyss_atlas_artifacts.png"}}');--ab-atlas-companions:url('{{asset "/static/abyss_atlas_companions.png"}}');--ab-atlas-relics:url('{{asset "/static/abyss_atlas_relics.png"}}');--ab-atlas-ranged:url('{{asset "/static/abyss_atlas_ranged.png"}}');--ab-atlas-souls:url('{{asset "/static/abyss_atlas_souls.png"}}');--ab-atlas-auras:url('{{asset "/static/abyss_atlas_auras.png"}}');--ab-atlas-charms:url('{{asset "/static/abyss_atlas_charms.png"}}');--ab-atlas-mounts:url('{{asset "/static/abyss_atlas_mounts.png"}}');--ab-atlas-pets:url('{{asset "/static/abyss_atlas_pets.png"}}');--ab-atlas-emblems:url('{{asset "/static/abyss_atlas_emblems.png"}}');--ab-atlas-banners:url('{{asset "/static/abyss_atlas_banners.png"}}');--ab-atlas-totems:url('{{asset "/static/abyss_atlas_totems.png"}}');--ab-atlas-offhands:url('{{asset "/static/abyss_atlas_offhands.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Season, Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 {{template "abyssLootSignals" .}}
@@ -83,6 +96,7 @@
   {{if .PrestigeTier.Name}}<div class="ab-chip ab-prestige-chip"><span class="ab-chip-label">Prestige Tier</span><span class="ab-chip-val">{{.PrestigeTier.Aura}} {{.PrestigeTier.Name}}</span></div>{{end}}
   {{if .Run.Active}}<div class="ab-chip"><span class="ab-chip-label">Momentum</span><span class="ab-chip-val" id="momVal" title="+2% STR per floor cleared without consumables (max +20%)">🔥 ×{{.Run.Momentum}}</span></div>{{end}}
   <div class="ab-chip" id="explorerSupportChip" {{if not .ExplorerSupport.Active}}hidden{{end}}><span class="ab-chip-label">Rescued ally</span><span class="ab-chip-val" id="explorerSupportValue">🤝 {{.ExplorerSupport.Name}} · {{.ExplorerSupport.Remaining}} fights</span></div>
+  <output class="ab-api-latency" id="abyssAPILatency" aria-label="Abyss API latency: waiting for the first request" data-state="idle"><i aria-hidden="true"></i><span>API · idle</span></output>
 </div>
 
 {{if .Run.Comeback}}<div class="ab-comeback-note">💪 <b>Comeback:</b> the Abyss pities your losses today — +10% to all stats this run.</div>{{end}}
@@ -104,6 +118,10 @@
       <div class="abyss-side-empty">No gear equipped.</div>
       {{end}}
     </div>
+    {{with .Social.Pets}}<section class="ab-side-pets" aria-label="Active companions">
+      <h4>🐾 Active companions</h4>
+      {{range .}}{{if gt .ActiveSlot 0}}<div class="ab-side-pet"><span>{{.Name}} · {{.Class}}</span><span>♥ {{comma .HP}}/{{comma .MaxHP}}</span><progress max="{{.MaxHP}}" value="{{.HP}}" aria-label="{{.Name}} health"></progress></div>{{end}}{{end}}
+    </section>{{end}}
   </aside>
 
 <div class="abyss-stage" id="abyssStage">
@@ -131,6 +149,7 @@
     <div class="ab-depth-ring">
       <span class="ab-depth-label ab-glossary-term" tabindex="0" data-tip="Depth&#10;The floor you currently occupy. Deeper floors raise danger and rewards.">Depth</span>
       <span class="ab-depth-num" id="depthNum">{{if .Run.Active}}{{.Run.Depth}}{{else}}—{{end}}</span>
+      <span class="ab-boss-distance" id="bossDistance" aria-hidden="true"></span>
     </div>
     <div class="ab-escrow">
       <span class="ab-escrow-label ab-glossary-term" tabindex="0" data-tip="Cache at stake&#10;Run gold held in escrow. Bank it to make it permanent; defeat risks the uninsured share.">💰 Cache at stake</span>
@@ -141,7 +160,7 @@
     </div>
     <!-- Threat / danger meter [91] -->
     <div class="ab-threat">
-      <span class="ab-threat-label ab-glossary-term" tabindex="0" data-tip="Threat&#10;Current floor danger from depth, tier, pacts, and special encounters.{{if .DropForecastOK}}{{with .DropForecast}}&#10;&#10;Next-floor drop forecast&#10;Gear {{printf "%.1f" (mulf .Gear 100.0)}}% · Consumable {{printf "%.1f" (mulf .Consumable 100.0)}}% · Skill {{printf "%.1f" (mulf .Skill 100.0)}}%&#10;Enchant {{printf "%.1f" (mulf .Enchant 100.0)}}% · Artifact {{printf "%.1f" (mulf .Artifact 100.0)}}% · Unique {{printf "%.1f" (mulf .Unique 100.0)}}% · Ultimate {{printf "%.2f" (mulf .Ultimate 100.0)}}%{{end}}{{end}}">Threat</span>
+      <span class="ab-threat-label ab-glossary-term" tabindex="0" data-tip="Threat&#10;Current floor danger from depth, tier, pacts, and special encounters.{{if .DropForecastOK}}{{with .DropForecast}}&#10;&#10;Next-floor drop forecast&#10;Gear {{printf "%.1f" (mulf .Gear 100.0)}}% · Consumable {{printf "%.1f" (mulf .Consumable 100.0)}}% · Skill {{printf "%.1f" (mulf .Skill 100.0)}}%&#10;Enchant {{printf "%.1f" (mulf .Enchant 100.0)}}% · Artifact {{printf "%.1f" (mulf .Artifact 100.0)}}% · Unique {{printf "%.1f" (mulf .Unique 100.0)}}% · Ultimate {{printf "%.2f" (mulf .Ultimate 100.0)}}%{{end}}{{end}}">Threat <b id="threatPct">0%</b></span>
       <div class="ab-threat-bar"><div class="ab-threat-fill" id="threatFill" style="width:0%"></div></div>
     </div>
     <!-- Run-awareness chips (UI-41/43/44/49/50/54/55/56/58/59/60), filled by renderHudChips() -->
@@ -197,15 +216,16 @@
       {{$tierKey := .Key}}
       <label class="ab-tier {{if not .Unlocked}}locked{{end}}">
         <input type="radio" name="abtier" value="{{.Key}}" data-entry="{{.EntryGold}}" data-diff="{{.DiffMult}}" data-risk="{{with $.FloorOneRiskByTier}}{{index . $tierKey}}{{end}}" {{if and (eq .Key "normal") .Unlocked}}checked{{end}} {{if not .Unlocked}}disabled{{end}}>
-        <span class="ab-tier-name">{{.Name}}</span>
+        <span class="ab-tier-name"><span class="ab-tier-icon" aria-hidden="true">{{.Icon}}</span> {{.Name}}</span>
         <span class="ab-tier-meta">×{{printf "%.1f" .RewardMult}} reward · ×{{printf "%.1f" .DiffMult}} danger</span>
+        <span class="ab-tier-rate">{{if .WinRateHint}}{{.WinRateHint}}{{else}}No completed runs yet{{end}}</span>
         <!-- UI-101: entry fee + unlock requirement line; UI-113: .ab-entry-cost is
              struck through by JS while the daily free entry applies -->
-        <span class="ab-tier-meta">{{if gt .EntryGold 0}}entry <span class="ab-entry-cost {{if $.FreeEntryAvailable}}ab-free{{end}}">{{gold .EntryGold}}</span>{{else}}free{{end}}{{if not .Unlocked}} · 🔒 depth {{.MinBest}}{{end}}</span>
+        <span class="ab-tier-meta">{{if gt .EntryGold 0}}entry <span class="ab-entry-cost {{if $.FreeEntryAvailable}}ab-free{{end}}">{{gold .EntryGold}}</span>{{else}}free{{end}}{{if not .Unlocked}} · 🔒 {{.UnlockQuest}}{{end}}</span>
         <!-- UI-102: per-tier account best, filled from authoritative run history -->
         <span class="ab-tier-best muted small" data-tier="{{.Key}}" style="display:none"></span>
         <!-- UI-115: progress toward the unlock depth while locked -->
-        {{if not .Unlocked}}<span class="ab-tier-unlockbar" title="Best depth {{$.Stats.BestDepth}} / {{.MinBest}}"><i style="width:{{mulpct $.Stats.BestDepth .MinBest}}%"></i></span>{{end}}
+        {{if not .Unlocked}}<span class="ab-tier-rate">{{.QuestProgress}}</span>{{end}}
       </label>
       {{end}}
     </div>
@@ -259,9 +279,9 @@
       </label>
       <label>Party loot
         <select id="partyLootRule" class="ab-select">
-          <option value="owner">Host cache · helper 🜲5</option>
-          <option value="round_robin">Round robin · helper 🜲8</option>
-          <option value="need_before_greed">Need before greed · helper 🜲6</option>
+          <option value="owner">Host cache · depth-scaled helper tokens</option>
+          <option value="round_robin">Round robin · +3 helper tokens</option>
+          <option value="need_before_greed">Need before greed · +1 helper token</option>
         </select>
       </label>
       <label>Reward focus
@@ -314,8 +334,12 @@
         🎭 Mystery Pact <span class="muted small">(+40% · hidden server-selected danger)</span>
       </label>
       <label class="ab-pact" data-tip="One seed and one rule remain fixed for the ISO week. Enemies are tougher and every cleared floor pays +25% cache.">
-        <input type="checkbox" id="weeklyExpedition"> 📅 Weekly Expedition
+        <input type="checkbox" id="weeklyExpedition" onchange="updateAbyssStoryCampaignMode('weekly')"> 📅 Weekly Expedition
         <span class="muted small">(+25% rewards · fixed weekly rule)</span>
+      </label>
+      <label class="ab-pact ab-story-campaign" data-tip="A fixed ten-floor introductory expedition with authored encounters, bosses, and a Chronicle finale. Checkpoint and Express starts are disabled.">
+        <input type="checkbox" id="storyCampaign" onchange="updateAbyssStoryCampaignMode('story')"> 📜 Chronicle Campaign
+        <span class="muted small">(10 authored floors · surface start)</span>
       </label>
       <label class="ab-pact ab-hardcore-choice" data-tip="No insurance, revival, Last Stand, or grace protection. Every cleared floor pays twice its final cache bonus and the run enters a separate leaderboard.">
         <input type="checkbox" id="hardcoreMode"> 💀 Hardcore
@@ -425,9 +449,7 @@
     {{template "abyssBossAdaptation" .}}
     {{template "abyssBossToll" .}}
 
-    <!-- Co-op invite row. Always rendered so renderState() can show/hide it as the
-         floor preview changes; visibility is driven client-side, not by the initial
-         NextIsBoss server flag. -->
+    <!-- Persistent run party: invite up to two helpers, then descend together. -->
     <div class="ab-subrow" id="coopRow" style="display:none">
       <span class="ab-sub-label">{{T "web.abyss.invite_ally"}}</span>
       <select id="coopSelect" onchange="abyssInviteCoop()">
@@ -447,9 +469,10 @@
       <div class="ab-consumables-list" id="consList">
         {{range .Consumables}}
           {{if or (eq .Type "Healing") (eq .Type "Repair") (eq .Type "Buff")}}
-            <div class="ab-cons-item" id="cons-{{.ID}}">
+            <div class="ab-cons-item" id="cons-{{.ID}}" data-cons-id="{{.ID}}">
               <b>{{.Name}}</b>
               <span class="muted small">{{.Description}}</span>
+              <span class="ab-cons-state" title="Charges remaining. Combat item cooldown begins after use.">×{{.Duration}} · ready</span>
               <button class="ghost xs" onclick="abyssUseConsumable('{{.ID}}')">Use</button>
             </div>
           {{end}}
@@ -475,6 +498,11 @@
   <aside class="abyss-side-panel abyss-side-right">
     <h3>🎒 Run Loot <span class="muted small" id="lootSummary"></span></h3>
     <div class="ab-rar-dots" id="lootRarityDots" title="Escrowed items by rarity"></div>
+    <button class="ghost xs ab-rarity-help" id="lootRarityHelp" type="button" aria-haspopup="dialog">Rarity guide</button>
+    <div class="ab-duplicate-guard" id="lootDuplicateGuard" role="status" aria-live="polite" data-count="{{.RecentGearProtected}}" data-window="20" title="Random gear catalog IDs remain blocked even after banking, selling, dismantling, losing, or moving the item.">
+      <span class="ab-duplicate-guard-icon" aria-hidden="true">🛡</span>
+      <span><b>Recent-drop guard</b><small><strong id="lootDuplicateGuardCount">{{.RecentGearProtected}}</strong> catalog IDs · previous 20 cleared floors</small></span>
+    </div>
     {{template "abyssLootPresentationPin" .}}
     <!-- Loot filters (UX-46): rarity chips + upgrades-only, persisted -->
     <div class="ab-loot-filters" id="lootFilters">
@@ -495,6 +523,13 @@
         <option value="build">Build stat</option>
       </select>
     </div>
+    <div class="ab-loot-filters ab-loot-type-filters" id="lootTypeFilters" aria-label="Loot type filters">
+      <button class="ab-chip active" data-type="all" aria-pressed="true">All types</button>
+      <button class="ab-chip" data-type="gear" aria-pressed="false">Gear</button>
+      <button class="ab-chip" data-type="cons" aria-pressed="false">Items</button>
+      <button class="ab-chip" data-type="mat" aria-pressed="false">Materials</button>
+      <button class="ab-chip" data-type="gold" aria-pressed="false">Currency</button>
+    </div>
     <div class="ab-loot-sort" title="Targeting applies to Rare+ non-boss gear. Auto-salvage is capped below Rare; reserved backpack items are always protected.">
       <label class="muted small" for="lootTarget">Chase:</label>
       <select id="lootTarget" class="ab-select" onchange="saveAbyssLootSettings()">
@@ -509,18 +544,21 @@
     </div>
     <div class="abyss-side-list" id="lootManifest">
       {{range .RunLoot}}
-      <div class="abyss-side-loot {{.BeamClass}} {{if .Foil}}ab-loot-foil{{end}} {{if .Doomed}}ab-loot-doomed{{end}} {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}} {{if .SmartLoot}}ab-smart-loot{{end}} {{if .SetPity}}ab-set-pity{{end}} {{if .Wishlist}}ab-wishlist-drop{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-smart-loot="{{.SmartLoot}}" data-smart-loot-reason="{{.SmartLootReason}}" data-set-pity="{{.SetPity}}" data-wishlist="{{.Wishlist}}" data-tip="{{.Title}}&#10;{{.Source}}{{if .Wishlist}}&#10;{{.WishlistLabel}}{{end}}{{if .SetPity}}&#10;{{.SetPityLabel}}{{end}}{{if .SmartLoot}}&#10;{{.SmartLootLabel}}{{end}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
+      <div class="abyss-side-loot {{.BeamClass}} {{if .Foil}}ab-loot-foil{{end}} {{if .Doomed}}ab-loot-doomed{{end}} {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}} {{if .SmartLoot}}ab-smart-loot{{end}} {{if .SetPity}}ab-set-pity{{end}} {{if .Wishlist}}ab-wishlist-drop{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-estimated-value="{{.EstimatedValue}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-smart-loot="{{.SmartLoot}}" data-smart-loot-reason="{{.SmartLootReason}}" data-set-pity="{{.SetPity}}" data-wishlist="{{.Wishlist}}" data-can-sell-junk="{{.CanSellJunk}}" data-sell-value="{{.SellValue}}" data-tip="{{.Title}}&#10;{{.Source}}{{if .Wishlist}}&#10;{{.WishlistLabel}}{{end}}{{if .SetPity}}&#10;{{.SetPityLabel}}{{end}}{{if .SmartLoot}}&#10;{{.SmartLootLabel}}{{end}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
         <span class="ab-loot-main">{{if .SlotIcon}}<span class="ab-loot-slot" aria-hidden="true">{{.SlotIcon}}</span>{{end}}<span>{{.Label}}</span></span>
         <span class="ab-loot-tags">{{if .Wishlist}}<b class="ab-wishlist-tag">★ {{.WishlistLabel}}</b>{{end}}{{if .SetPity}}<b class="ab-set-pity-tag">🧩 {{.SetPityLabel}}</b>{{end}}{{if .SmartLoot}}<b class="ab-smart-loot-tag">🎯 {{.SmartLootLabel}}</b>{{end}}{{if .Unidentified}}<b class="ab-loot-question">?</b>{{end}}{{if .AlreadyOwned}}<b class="ab-owned-tag">owned</b>{{end}}{{if .SetID}}<b class="ab-set-tag ab-set-{{.SetID}}">🧩 {{.SetID}} {{.SetCount}}/{{.SetMax}}</b>{{end}}{{if .Corrupted}}<b class="ab-corrupt-tag">🩸 corrupted</b>{{end}}</span>
         <span class="ab-loot-detail" hidden>{{.Source}}{{if .Wishlist}} · ★ {{.WishlistLabel}}{{end}}{{if .SetPity}} · 🧩 {{.SetPityLabel}}{{end}}{{if .SmartLoot}} · 🎯 {{.SmartLootLabel}}{{end}}{{if .Slot}} · {{.Slot}}{{end}}{{if gt .CR 0.0}} · CR {{printf "%.0f" .CR}} ({{if ge .CRDelta 0.0}}+{{end}}{{printf "%.0f" .CRDelta}}){{end}}{{if gt .Quality 0}} · {{.Quality}}★ quality{{end}}</span>
         {{if .CanEquipBest}}<button type="button" class="ghost xs ab-equip-best {{if .EquipOnBank}}selected{{end}}" onclick="abyssEquipBestLoot({{.EscrowID}},event)">{{if .EquipOnBank}}✓ Equip on bank{{else}}Equip best on bank{{end}}</button>{{end}}
+        {{if .CanSellJunk}}<button type="button" class="ghost xs ab-sell-junk" title="Destroy this ordinary escrow item and add exactly {{.SellValue}} gold to the still-at-risk run cache." onclick="abyssSellJunkLoot({{.EscrowID}},{{.SellValue}},event)">Sell junk · +{{.SellValue}}g cache</button>{{end}}
       </div>
       {{else}}
-      <div class="abyss-side-empty">No loot escrowed yet this run.</div>
+      <div class="abyss-side-empty ab-empty-state"><span aria-hidden="true">🎒</span><b>The cache is empty</b><small>Clear a floor to escrow loot here. Bank before defeat to keep it.</small></div>
       {{end}}
     </div>
   </aside>
 </div>
+
+{{template "abyssRunIdentity" .}}
 
 <div class="abyss-banner" id="abyssBanner" role="status" aria-live="polite" aria-atomic="true"></div>
 
@@ -557,6 +595,7 @@
 
 <!-- Connectivity banner (UX-93) -->
 <div class="ab-netbanner" id="netBanner" style="display:none" role="alert">📡 Connection lost — waiting for the network to return…</div>
+<div class="ab-session-warning" id="abyssSessionWarning" role="status" hidden></div>
 
 <!-- Consumable carry-cap picker: shown when the player holds more consumables than
      they may bring into one descent. Unbrought consumables stay in their stash. -->
@@ -654,18 +693,20 @@
   <section class="abyss-panel" id="abyssTokenShop" data-abyss-section="shop">
     <h2>🜲 Token Shop</h2>
     <p class="muted small">Spend Abyss Tokens on consumables, gear and relics. Prices show the exact charged amount; there is no hidden shop fee.</p>
+    {{template "abyssShopProgram" .}}
     <div class="ab-shop-tabs" role="tablist" aria-label="Token Shop category">
       <button class="ghost xs active" role="tab" aria-selected="true" onclick="abyssShopCategory('supplies',this)">Supplies</button>
       <button class="ghost xs" role="tab" aria-selected="false" onclick="abyssShopCategory('insanity',this)">🌀 Weekly cosmetic</button>
     </div>
     <div class="ab-shop">
       {{range .Shop}}
-      <div class="ab-shop-item{{if .HappyAccident}} ab-shop-deal{{end}}{{if .Insanity}} ab-shop-insanity{{end}}" data-shop-category="{{if .Insanity}}insanity{{else}}supplies{{end}}" {{if .Insanity}}hidden{{end}}>
+      <div class="ab-shop-item{{if .HappyAccident}} ab-shop-deal{{end}}{{if gt .DemandPct 0}} ab-shop-hot{{else if lt .DemandPct 0}} ab-shop-cool{{end}}{{if .Insanity}} ab-shop-insanity{{end}}" data-shop-category="{{if .Insanity}}insanity{{else}}supplies{{end}}" {{if .Insanity}}hidden{{end}}>
         <div>
           <b>{{if .HappyAccident}}🎉 {{end}}{{if .Insanity}}🌀 {{end}}{{.Name}}</b>{{if .Owned}} <span class="ab-up-lv">owned</span>{{end}}
           <div class="muted small">{{.Desc}}{{if .Insanity}} · {{.RotationWeek}} · refreshes {{.RotationEnds}}{{end}}</div>
+          {{if gt .Cost 0}}<div class="ab-shop-market" title="Server-wide purchases during the previous seven completed UTC days; prices refresh at 00:00 UTC."><span>7-day market</span><b>{{if gt .DemandPct 0}}hot · +{{.DemandPct}}%{{else if lt .DemandPct 0}}cool · {{.DemandPct}}%{{else}}steady{{end}}</b><span>{{.DemandSales}} bought</span></div>{{end}}
         </div>
-        <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', this)" title="{{if .Owned}}Re-equip this permanent cosmetic at no charge{{else}}Item {{if .CostGold}}{{.CostGold}} gold{{else}}{{.EffectiveCost}} tokens{{end}} · fee 0{{end}}">{{if .Owned}}Equip · free{{else if .CostGold}}🪙 {{gold .CostGold}}{{else}}🜲 {{.EffectiveCost}}{{if .HappyAccident}} <s>{{.Cost}}</s> −40%{{end}}{{end}}</button>
+        <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', {{.EffectiveCost}}, this)" title="{{if .Owned}}Re-equip this permanent cosmetic at no charge{{else if .CostGold}}Exact total {{.CostGold}} gold · fee 0{{else}}Base {{.Cost}} tokens · market {{if gt .DemandPct 0}}+{{end}}{{.DemandPct}}% from {{.DemandSales}} prior-window purchases{{if .HappyAccident}} · daily deal −40%{{end}} · exact total {{.EffectiveCost}} tokens · fee 0{{end}}">{{if .Owned}}Equip · free{{else if .CostGold}}🪙 {{gold .CostGold}}{{else}}🜲 {{.EffectiveCost}}{{if ne .EffectiveCost .Cost}} <s>{{.Cost}}</s>{{end}}{{if .DemandPct}} <span class="ab-market-price">{{if gt .DemandPct 0}}+{{end}}{{.DemandPct}}% market</span>{{end}}{{if .HappyAccident}} <span class="ab-daily-price">−40% deal</span>{{end}}{{end}}</button>
       </div>
       {{end}}
     </div>
@@ -712,10 +753,10 @@
     <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
       <h3 style="margin:0 0 6px;">⭐ Forge a Legendary <span class="ab-up-lv">500🌫️ 50🔷 10🟣</span></h3>
       <div style="display:flex; gap:6px;">
-        <select id="craftLegSel" class="ab-select" style="flex:1;">
-          {{range .CraftLegendaries}}<option value="{{.ID}}">{{.Name}} ({{.Slot}})</option>{{end}}
+        <select id="craftLegSel" class="ab-select" aria-label="Legendary craft target" style="flex:1;" {{if not .CraftLegendaries}}disabled{{end}}>
+          {{range .CraftLegendaries}}<option value="{{.ID}}">{{.Name}} ({{.Slot}})</option>{{else}}<option value="">No legendary blueprints available</option>{{end}}
         </select>
-        <button class="ghost xs" onclick="abyssCraftLegendary()">Forge</button>
+        <button class="ghost xs" onclick="abyssCraftLegendary()" {{if not .CraftLegendaries}}disabled{{end}}>Forge</button>
       </div>
     </div>
 
@@ -741,7 +782,7 @@
         <button class="ghost xs" id="autoInsureToggle" data-enabled="{{.AutoInsure}}" onclick="abyssAutoInsure(this.dataset.enabled!=='true')" title="No recurring fee · each compatible run buys ordinary 25% cache cover atomically">🛡️ Auto-insure: {{if .AutoInsure}}on{{else}}off{{end}}</button>
         <button class="ghost xs" onclick="abyssRepairSubscription()" title="Exact fee 70,000g prepaid · 7 days · repairs and durability loss cost 0g while active">7-day repair plan</button>
         <button class="ghost xs" onclick="abyssScratch()" title="Exact price 50 tokens · fee 0 · once/day · 70%:0, 20%:75, 9%:150, 1%:1000">Daily scratch card</button>
-        <button class="ghost xs" onclick="abyssGiftCreate()" title="Gift item price equals its posted token-shop price · gift fee 0">Create gift code</button>
+        <button class="ghost xs" onclick="document.getElementById('abyssGiftRecipient').focus()" title="Gift item price equals its current posted token-shop price · 2,500g delivery fee">Create gift code</button>
         <button class="ghost xs" onclick="abyssGiftRedeem()" title="Redemption fee 0g / 0 tokens">Redeem gift code</button>
         <button class="ghost xs" onclick="abyssTaxRebate()" title="Claim fee 0g · bank-free today · refunds exactly 10% of this week's recorded Abyss tax">Claim tax rebate</button>
         {{if .Run.Active}}<button class="ghost xs" onclick="abyssEconomyLoan()" title="Principal leaves escrow · exact fee 10%, ceiling-rounded, due at bank · no setup fee">Borrow from cache</button>{{end}}
@@ -781,7 +822,7 @@
     <div class="ab-forge" style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
       <div>
         <label class="muted small" style="display:block; margin-bottom:4px;">Select Gear Piece:</label>
-        <select id="forgeItemSelect" onchange="updateForgeOptions()" class="ab-select" style="width:100%;">
+        <select id="forgeItemSelect" onchange="updateForgeOptions()" class="ab-select" aria-label="Forge gear piece" style="width:100%;">
           <option value="">-- Choose Item --</option>
           <optgroup label="Equipped Items">
             {{range .Equipped}}
@@ -1081,11 +1122,11 @@
 
       <details class="ab-acc"><summary>⚗️ Fusion &amp; Transfer</summary><div class="ab-acc-body">
         <div style="display:flex; gap:6px; align-items:center;">
-          <select id="enchFromSel" class="ab-select" style="flex:1;">
+          <select id="enchFromSel" class="ab-select" aria-label="Enchant source gear" style="flex:1;">
             <option value="">Enchant from…</option>
             {{range .Equipped}}<option value="{{.Slot}}">{{.Slot}}: {{.Name}}</option>{{end}}
           </select>
-          <select id="enchToSel" class="ab-select" style="flex:1;">
+          <select id="enchToSel" class="ab-select" aria-label="Enchant destination gear" style="flex:1;">
             <option value="">…to slot</option>
             {{range .Equipped}}<option value="{{.Slot}}">{{.Slot}}: {{.Name}}</option>{{end}}
           </select>
@@ -1153,10 +1194,29 @@
       {{range .ProgressionTracks}}<div class="ab-progress-row"><span><b>{{.Name}}</b><small>{{.Desc}}</small></span><strong>{{.Value}}{{if .Next}} / {{.Next}}{{else}} · mastered{{end}}</strong></div>{{end}}
       <p class="muted small">Tiers unlock at 10, 50, and 200 clears. Veteran rewards are badges only and never add combat power.</p>
     </details>
+    <details class="ab-collections">
+      <summary>📚 Collection &amp; biome mastery <b>{{.Collections.SetCollected}}/{{.Collections.SetTotal}} gear · {{.Collections.BiomeMastered}}/{{.Collections.BiomeTotal}} biomes</b></summary>
+      <div class="ab-collection-grid">
+        <article>
+          <h3>🧭 Biome mastery</h3>
+          <p class="muted small">Clear a biome 50 times to gain +2% combat stats whenever you return there.</p>
+          <div class="ab-biome-list">{{range .Collections.Biomes}}<div class="{{if .Mastered}}mastered{{end}}"><span><b>{{.Name}}</b><small>{{.Affinity}}</small></span><progress max="{{.Goal}}" value="{{.Clears}}">{{.Percent}}%</progress><strong>{{.Clears}}/{{.Goal}}</strong></div>{{end}}</div>
+        </article>
+        <article>
+          <h3>🛡️ Set collection book</h3>
+          <p class="muted small">Bank unique named-set pieces. Milestones permanently improve account rewards.</p>
+          <div class="ab-set-book">{{range .Collections.Sets}}<div><span><b>{{.Name}}</b><small>{{.Collected}} of {{.Total}} discovered</small></span><progress max="100" value="{{.Percent}}">{{.Percent}}%</progress><strong>{{.Percent}}%</strong></div>{{end}}</div>
+          <div class="ab-collection-rewards"><span class="{{if .Collections.SetReward25}}earned{{end}}">25% · +2% loot find</span><span class="{{if .Collections.SetReward50}}earned{{end}}">50% · +3% gold find</span><span class="{{if .Collections.SetReward100}}earned{{end}}">100% · +5% materials</span></div>
+        </article>
+      </div>
+      {{if .Collections.LoreComplete}}<div class="ab-lore-title">📜 Exclusive title unlocked: <b>{{.Collections.LoreTitle}}</b> · badge earned</div>{{end}}
+    </details>
     {{if .BadgeOptions}}
     <div class="ab-badge-picker">
-      <span class="small muted">Badge: <b id="activeBadgeName">{{if .ActiveBadgeName}}{{.ActiveBadgeName}}{{else}}none{{end}}</b></span>
-      <button class="ghost xs" onclick="openBadgePicker()" style="margin-left:8px;">Choose badge</button>
+      <span class="small muted">Badge combination: <b id="badgeCombination">{{.BadgeCombination}}</b></span>
+      <button class="ghost xs" onclick="openBadgePicker('prefix')">Choose prefix</button>
+      <button class="ghost xs" onclick="openBadgePicker('suffix')">Choose suffix</button>
+      <span id="activeBadgeName" hidden>{{.ActiveBadgeName}}</span><span id="activeBadgeSuffixName" hidden>{{.BadgeSuffixName}}</span>
     </div>
     <div id="badgeOptionsData" style="display:none">
       {{range .BadgeOptions}}<span data-code="{{.Code}}" data-name="{{.Name}}"></span>{{end}}
@@ -1181,8 +1241,9 @@
           <td>{{gold .Gold}}</td>
           <td class="muted small">{{.When}}</td>
         </tr>
-        <tr class="ab-hist-detail" hidden><td colspan="3"><div class="ab-hist-detail-in">
-          <b>{{if .Victory}}🏦 Banked{{else}}💀 Fell{{end}}</b> · {{.Tier}}{{if .Hardcore}} · Hardcore{{end}} · depth {{.Depth}} · {{gold .Gold}}
+		<tr class="ab-hist-detail" hidden><td colspan="3"><div class="ab-hist-detail-in">
+		  <b>{{if .Victory}}🏦 Banked{{else}}💀 Fell{{end}}</b> · {{.Tier}}{{if .Hardcore}} · Hardcore{{end}} · depth {{.Depth}} · {{gold .Gold}}
+		  {{if .ReplayReady}}<button class="ghost xs" type="button" onclick="viewArchivedAbyssRunReplay({{.RunID}})">▶ Replay audited log</button>{{end}}
           {{if .Loot}}<ul class="ab-history-loot">{{range .Loot}}<li>{{.}}</li>{{end}}{{if gt .LootTruncated 0}}<li class="muted">+{{.LootTruncated}} more sealed item(s)</li>{{end}}</ul>{{else}}<div class="muted small">No loot was sealed in this run.</div>{{end}}
         </div></td></tr>
       {{else}}
@@ -1197,12 +1258,15 @@
   </section>
 </div>
 
+{{template "abyssObservatory" .}}
 {{template "abyssSeasonJourney" .}}
+{{template "abyssRetention" .}}
 {{template "abyssSocialHub" .}}
 {{template "abyssBestKill" .}}
 {{template "abyssBossCosmetics" .}}
 
 <div class="abyss-lore-bestiary" data-abyss-section="lore">
+  {{template "abyssWiki" .}}
   <section class="abyss-panel">
     <h2>{{T "web.abyss.lore_codex"}} <span class="ab-lore-ring" id="loreRing" data-total="{{.LoreTotal}}" title="Lore fragments collected"></span></h2>
     <p class="muted small">{{T "web.abyss.lore_codex_desc"}}</p>
@@ -1252,7 +1316,7 @@
         </thead>
         <tbody>
           {{range .Bestiary}}
-		  <tr data-name="{{.MobName}}" data-family="{{.Family}}" data-kills="{{.Kills}}" data-first-kill="{{.FirstKillISO}}" data-last-kill="{{.LastKillISO}}" data-milestone="{{.Milestone}}" data-next-milestone="{{.NextMilestone}}" data-kills-to-next="{{.KillsToNext}}" data-mastered="{{.Mastered}}"><td>{{.MobName}}</td><td>⚔️ {{comma .Kills}}</td><td><button type="button" class="btn small" onclick="abyssPractice({{printf "%q" .MobName}})">Practice</button></td></tr>
+		  <tr data-name="{{.MobName}}" data-family="{{.Family}}" data-kills="{{.Kills}}" data-first-kill="{{.FirstKillISO}}" data-last-kill="{{.LastKillISO}}" data-milestone="{{.Milestone}}" data-next-milestone="{{.NextMilestone}}" data-kills-to-next="{{.KillsToNext}}" data-mastered="{{.Mastered}}" data-capture-pct="{{.CapturePct}}"><td>{{.MobName}}</td><td>⚔️ {{comma .Kills}} · 🌀 {{.CapturePct}}%</td><td><button type="button" class="btn small" onclick="abyssPractice({{printf "%q" .MobName}})">Practice</button></td></tr>
           {{else}}
           <!-- UI-192: friendly empty state -->
 		  <tr><td colspan="3"><div class="ab-empty-state">
@@ -1266,45 +1330,7 @@
   </section>
 </div>
 
-<section class="abyss-lb" id="lb" data-abyss-section="leaderboards">
-  <h2>🏆 Deepest Descents · {{.Season}}</h2>
-  <!-- Per-tier board tabs (#276) -->
-  <div class="ab-lb-tabs">
-    {{range .LBTiers}}<a class="ab-lb-tab {{if eq .Key $.LBTier}}active{{end}}" href="/abyss?lbtier={{.Key}}#lb">{{.Name}}</a>{{end}}
-  </div>
-  {{template "abyssboards" .Leaders}}
-</section>
-
-<section class="abyss-lb" id="abyssBossLeaderboards" data-abyss-section="leaderboards" style="margin-top: 30px;">
-  <h2>{{T "web.abyss.boss_kills_title"}}</h2>
-  <table class="lbtable">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Player</th>
-        <th>Boss Name</th>
-        <th>Floor</th>
-        <th>Kill Duration</th>
-        <th>Date</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{range .Leaders.BossKills}}
-      <tr{{if .IsCurrent}} class="ab-me" aria-current="true"{{end}}>
-        <td class="lb-rank lb-rank-{{.Rank}}">{{.Rank}}</td>
-        <td class="lb-name">{{.Nickname}}</td>
-        <td>{{.BossName}}</td>
-        <td>🕳️ {{.Depth}}</td>
-        <td class="win">{{dur .KillTimeMs}}</td>
-        <td class="muted small">{{.KilledAt}}</td>
-      </tr>
-      {{else}}
-      <tr><td colspan="6" class="muted text-center">No boss kills recorded yet.</td></tr>
-      {{end}}
-    </tbody>
-  </table>
-</section>
-{{template "abyssBossSpeedBoards" .Leaders}}
+{{template "abyssCompetition" .}}
 
 <!-- data-cfasync="false" keeps Cloudflare Rocket Loader from deferring/rewriting
      this inline script; without it the functions below aren't defined when the
@@ -1314,7 +1340,13 @@ var inRun   = {{if .Run.Active}}true{{else}}false{{end}};
 var downed  = {{if .Run.Downed}}true{{else}}false{{end}};
 var canRev  = {{if or .Hardcore .Run.Revived .Run.ReviveLocked}}false{{else}}true{{end}};
 var hardcoreRun = {{if .Hardcore}}true{{else}}false{{end}};
-var wardLv  = {{.Stats.UpWard}};
+var abyssTalentMaxLevel = {{.TalentMaxLevel}};
+function abyssTalentEffectiveLevel(level){
+  level=Math.max(0,Math.min(abyssTalentMaxLevel,Number(level)||0));
+  return level<=5?level:5+(level-5)/2;
+}
+function abyssTalentEffectiveInt(level){return Math.floor(abyssTalentEffectiveLevel(level)+0.5);}
+var wardLv  = abyssTalentEffectiveInt({{.Stats.UpWard}});
 var lifetimeBanked = {{.Stats.LifetimeBanked}};
 var curDepth = {{if .Run.Active}}{{.Run.Depth}}{{else}}0{{end}};
 var lastRestDepth = {{.Run.LastRestDepth}}; // UI-48 authoritative sanctuary cadence
@@ -1348,7 +1380,7 @@ var abyssIntelConcealed = {{.HUD.IntelConcealed}};
 if(abyssIntelConcealed)document.body.classList.add('ab-pact-blind');
 var focusPreference = '{{.FocusPreference}}', currentFocus = '{{.AutoFocus}}'; // UI-51
 var curInsured = {{.Run.Insured}}; // UI-43
-var logDelay = Math.max(70, 150 - 10 * {{.Stats.UpSwiftness}}); // readable exchange cadence; Swiftness still accelerates it
+var logDelay = Math.max(70, 150 - 10 * abyssTalentEffectiveLevel({{.Stats.UpSwiftness}})); // readable exchange cadence; Swiftness still accelerates it
 var pageConsumables = {{jsonJS .Consumables}} || [];
 var runFloorsCleared = {{.HUD.FloorsCleared}}, runLootGained = 0; // run summary card (#341)
 var liveCombatSource=null, liveCombatPoll=null, liveCombatState=null, liveLastEventID=-1;
@@ -1356,6 +1388,7 @@ var liveReconnectTicker=null, liveActionReceipt=null;
 var liveSelectedTarget='', liveSelectedWeakpoint='', livePendingOption=null, liveFinishHandled=false, liveLoadoutPage=0;
 var liveStartHP=0, liveStartMaxHP=0, liveClockTimer=null;
 var liveTargetLocked=false, liveRoundHistory=[], liveLogFilter='all', liveGamepadIndex=-1;
+var liveRenderedLogCursor=0, liveLogRestoreApplied=false, liveLogScrollTimer=null;
 var liveActionOrder=[], livePinnedActions={}, liveShortcutMap={attack:'a',defend:'d',skill1:'1',skill2:'2',skill3:'3',skill4:'4',skill5:'5',item1:'q',item2:'e',item3:'r',ultimate1:'u',ultimate2:'i',ultimate3:'o'};
 var currentBossNoteName='';
 
@@ -1480,16 +1513,10 @@ var buffNames = {giant_strength_elixir:'💪 Giant Strength (+40 STR, 3 fights)'
   speed_elixir:'💨 Speed (+25 SPD, 3 fights)', lucky_draught:'🍀 Luck (+20 LCK, 3 fights)',
   intellect_elixir:'🧠 Intellect (+20 INT, 3 fights)', strength_elixir:'⚔️ Strength (+15 STR, 3 fights)'};
 
-// Mirror Go's FormatGoldPlain so server-rendered and JS-updated values match. [#6/#7/#12]
 function fmtGold(v){
-  v = Number(v)||0;
-  var s=v<0?'-':''; v=Math.abs(v);
-  if(v>=1e9) return s+(v/1e9).toFixed(1)+'B';
-  if(v>=1e6) return s+(v/1e6).toFixed(1)+'M';
-  if(v>=1e3) return s+(v/1e3).toFixed(1)+'k';
-  return s+v+'g';
+  return window.AbyssLocale?AbyssLocale.gold(v):(Number(v)||0).toLocaleString()+'g';
 }
-function fmtNum(v){return (Number(v)||0).toLocaleString('en-US');}
+function fmtNum(v){return window.AbyssLocale?AbyssLocale.integer(v):(Number(v)||0).toLocaleString();}
 // UI-195: tiny pluralizer — plural(3,'floor') → "3 floors".
 function plural(n, word){ n=Number(n)||0; return fmtNum(n)+' '+word+(n===1?'':'s'); }
 
@@ -1527,6 +1554,18 @@ function abToast(m, ok, opts){
       } else { cp.textContent = '❌'; }
     };
     t.appendChild(cp);
+    if(typeof opts.retry==='function'){
+      var retry=document.createElement('button');
+      retry.type='button';
+      retry.className='ab-toast-retry';
+      retry.textContent=opts.retryLabel||'↻ Retry';
+      retry.onclick=function(ev){
+        ev.stopPropagation();retry.disabled=true;retry.textContent='Retrying…';
+        Promise.resolve().then(opts.retry).catch(function(error){abToast(error&&error.message||'Retry failed',false);});
+        t.classList.remove('show');setTimeout(function(){t.remove();},300);
+      };
+      t.appendChild(retry);
+    }
   }
   host.appendChild(t);
   var kids = Array.prototype.slice.call(host.children);
@@ -1538,7 +1577,7 @@ function abToast(m, ok, opts){
     (victim || kids[0]).remove();
   }
   requestAnimationFrame(function(){ t.classList.add('show'); });
-  var life = opts.ms || (ok ? 2600 : 4200);
+  var life = opts.ms || (ok ? 2600 : opts.retry ? 10000 : 4200);
   setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 300); }, life);
 }
 
@@ -1611,9 +1650,11 @@ async function abRawPost(url, body, extraHeaders){
   // network errors or non-JSON error responses instead of hanging.
   var headers={'Content-Type':'application/json'};
   Object.keys(extraHeaders||{}).forEach(function(key){headers[key]=extraHeaders[key];});
-  if(navigator.onLine===false){netFailed++;setNetDown(true);return {ok:false,error:'offline — action was not submitted'};}
+  var started=Date.now();
+  if(navigator.onLine===false){netFailed++;setNetDown(true);if(typeof recordAbyssAPILatency==='function')recordAbyssAPILatency(0,false);return {ok:false,error:'offline — action was not submitted'};}
   try{
     const r=await fetch(url,{method:'POST',headers:headers,body:JSON.stringify(body||{})});
+    if(typeof recordAbyssAPILatency==='function')recordAbyssAPILatency(Date.now()-started,true);
     try{
       var data=await r.json();
       if(netFailed>0){netFailed=0;updateNetBanner();}
@@ -1624,6 +1665,7 @@ async function abRawPost(url, body, extraHeaders){
   }catch(e){
     netFailed++; // UI-145
     setNetDown(true);
+    if(typeof recordAbyssAPILatency==='function')recordAbyssAPILatency(Date.now()-started,false);
     return {ok:false, error:'network error'};
   }
 }
@@ -1634,6 +1676,42 @@ var abyssForgeCommitOperations={
   '/api/abyss/polish':'polish','/api/abyss/reinforce':'reinforce','/api/abyss/sharpen':'sharpen','/api/abyss/awaken':'awaken','/api/abyss/imbue':'imbue','/api/abyss/punch_socket':'punch_socket','/api/abyss/attune':'attune','/api/abyss/reforge':'reforge','/api/abyss/embrace':'embrace','/api/abyss/masterwork':'masterwork','/api/abyss/corrupt':'corrupt','/api/abyss/infuse_curse':'infuse_curse','/api/abyss/infuse_eldritch':'infuse_eldritch','/api/abyss/rebalance':'rebalance','/api/abyss/transmute_gem':'transmute_gem','/api/abyss/brand':'brand','/api/abyss/temper_surge':'temper_surge','/api/abyss/swap_special':'swap_special','/api/abyss/infuse_xp':'infuse_xp','/api/abyss/prismatic_rune':'prismatic_rune',
   '/api/abyss/batch_temper':'batch_temper','/api/abyss/temper_guard':'temper_guard','/api/abyss/forge_queue':'forge_queue','/api/abyss/gem_upgrade_all':'gem_upgrade_all','/api/abyss/scrape_rune':'scrape_rune','/api/abyss/unattune':'unattune','/api/abyss/masterwork_transfer':'masterwork_transfer','/api/abyss/reforge_lock':'reforge_lock','/api/abyss/rebalance_all':'rebalance_all','/api/abyss/unbrand':'unbrand','/api/abyss/special_reroll':'special_reroll','/api/abyss/awaken_guided':'awaken_guided','/api/abyss/imbue_remove':'imbue_remove','/api/abyss/polish_all':'polish_all','/api/abyss/craft_repair_kit2':'craft_repair_kit2','/api/abyss/socket_relocate':'socket_relocate','/api/abyss/reroll_ring_sockets':'reroll_ring_sockets','/api/abyss/celestial_fuse_boosted':'celestial_fuse_boosted','/api/abyss/convert_mats':'convert_mats'
 };
+var abyssCoreActionOperations={
+  '/api/abyss/descend':true,
+  '/api/abyss/descend_multi':true,
+  '/api/abyss/choose_floor':true,
+  '/api/abyss/revive':true,
+  '/api/abyss/bank':true
+};
+var abyssPendingCoreRetries={};
+function abyssRequestKey(){
+  return (window.crypto&&typeof window.crypto.randomUUID==='function')
+    ? window.crypto.randomUUID()
+    : 'abyss-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+}
+async function abyssCoreActionPost(url,body){
+  var payload=JSON.stringify(body||{}),requestID=url+'\n'+payload,now=Date.now();
+  Object.keys(abyssPendingCoreRetries).forEach(function(id){if(now-abyssPendingCoreRetries[id].at>10*60*1000)delete abyssPendingCoreRetries[id];});
+  var pending=abyssPendingCoreRetries[requestID];
+  var requestKey=pending&&pending.payload===payload?pending.key:abyssRequestKey(),headers={'Idempotency-Key':requestKey};
+  var result=await abRawPost(url,body,headers);
+  if(result&&result.ok===false&&result.error==='network error'){
+    netFailed=Math.max(0,netFailed-1);updateNetBanner();
+    await new Promise(function(resolve){setTimeout(resolve,250);});
+    result=await abRawPost(url,body,headers);
+  }
+  if(result&&result.ok===false&&result.error==='network error'){
+    abyssPendingCoreRetries[requestID]={payload:payload,key:requestKey,at:now};
+    result.retry_safe=true;
+  }else delete abyssPendingCoreRetries[requestID];
+  return result;
+}
+function abyssRetryOptions(result,retry){
+  var error=String(result&&result.error||'');
+  return typeof retry==='function'&&(error==='network error'||error.indexOf('offline')===0)
+    ? {retry:retry,retryLabel:result&&result.retry_safe?'↻ Retry safely':'↻ Retry'}
+    : {};
+}
 async function abyssForgeCommit(url,body,operation){
   var commitBody=Object.assign({},body||{}),parameters=Object.assign({},commitBody);
   var invID=Number(parameters.inv_id||0),slot=String(parameters.slot||'');
@@ -1659,7 +1737,11 @@ async function abPost(url,body){
   var operation=abyssForgeCommitOperations[url];
   var actionElement=(lastActionBtn&&lastActionBtn.isConnected)?lastActionBtn:document.activeElement;
   var returnAfterAction=!!(actionElement&&actionElement.closest&&actionElement.closest('[data-abyss-section="shop"],[data-abyss-section="forge"]'));
-  var result=operation?await abyssForgeCommit(url,body,operation):await abRawPost(url,body);
+  var result=operation
+    ? await abyssForgeCommit(url,body,operation)
+    : abyssCoreActionOperations[url]
+      ? await abyssCoreActionPost(url,body)
+      : await abRawPost(url,body);
   if(result&&result.ok&&returnAfterAction)setTimeout(function(){focusAbyssDescend();},180);
   return result;
 }
@@ -1703,6 +1785,7 @@ async function abyssSimulateNextFloor(){
 
 function setBusy(b){
   busy=b;['btnEnter','btnDescend','btnBank','btnBank25','btnBank50','btnTransport','btnDoubleBonus','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore','btnSimulate'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
+  ['abyssControls','abyssStage'].forEach(function(id){var el=document.getElementById(id);if(el)el.setAttribute('aria-busy',b?'true':'false');});
   if(b&&!lastActionBtn&&document.activeElement&&document.activeElement.tagName==='BUTTON')markBusyElement(document.activeElement);
   if(!b){if(lastActionBtnTimer){clearTimeout(lastActionBtnTimer);lastActionBtnTimer=null;}if(lastActionBtn){lastActionBtn.classList.remove('btn-busy');lastActionBtn=null;}abyssDescendInFlight=false;updateFloatingDescend();}
   if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
@@ -1710,6 +1793,7 @@ function setBusy(b){
 function updateFloatingDescend(label){var button=document.getElementById('abyssFloatingDescend');if(!button)return;button.hidden=!abyssDescendInFlight;if(label)button.textContent='↓ '+label;else if(abyssDescendInFlight)button.textContent='↓ Descending…';}
 function focusAbyssDescend(){var controls=document.getElementById('abyssControls'),button=document.getElementById('btnDescend');if(!controls||!inRun)return;controls.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'center'});setTimeout(function(){if(button&&button.offsetParent!==null)button.focus({preventScroll:true});},reduceMotion?0:350);}
 function show(id, on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none';}
+function setAbyssEventStage(active){var stage=document.getElementById('abyssStage');if(stage)stage.classList.toggle('ab-event-stage',!!active);}
 
 function renderState(){
   updateStageScene(); // UI-9/10: rest embers / event icon follow the floor type
@@ -1723,6 +1807,7 @@ function renderState(){
 
   show('abyssControls', true);
   show('nonCombatPanel', false);
+  setAbyssEventStage(false);
 
   // idle / alive / downed
   show('btnEnter', !inRun);
@@ -1738,10 +1823,7 @@ function renderState(){
   show('btnBuildRespec', inRun && !downed);
   show('liveRow', inRun && !downed);
   show('insuranceControls', inRun && !downed && !hardcoreRun);
-  // Co-op summons are only for boss floors, so the row follows the *next* floor
-  // preview (every 5th floor) rather than the initial server render.
-  var nextIsBoss = inRun && !downed && ((curDepth + 1) % 5 === 0);
-  show('coopRow', nextIsBoss);
+  show('coopRow', inRun && !downed);
   show('btnRevive', inRun && downed && canRev);
   show('btnLastStand', inRun && downed && canLastStand);
   show('btnConcede', inRun && downed);
@@ -1811,7 +1893,8 @@ function renderConsumables(list){
     var div = document.createElement('div');
     div.className = 'ab-cons-item';
     div.id = 'cons-'+c.ID;
-    div.innerHTML = '<b>' + c.Name + '</b> <span class="muted small">' + c.Description + '</span> <button class="ghost xs" onclick="abyssUseConsumable(\''+c.ID+'\')">Use</button>';
+    div.dataset.consId = c.ID;
+    div.innerHTML = '<b>' + consEsc(c.Name) + '</b> <span class="muted small">' + consEsc(c.Description) + '</span> <span class="ab-cons-state" title="Charges remaining. Combat item cooldown begins after use.">×'+Math.max(0,Number(c.Duration)||0)+' · ready</span> <button class="ghost xs" onclick="abyssUseConsumable(\''+consEsc(c.ID)+'\')">Use</button>';
     container.appendChild(div);
   });
 }
@@ -1826,10 +1909,12 @@ function renderNonCombat(floorType, stateStr){
   
   if(!floorType || floorType === 'combat'){
     panel.style.display = 'none';
+    setAbyssEventStage(false);
     return;
   }
   
   panel.style.display = '';
+  setAbyssEventStage(true);
   
   if(floorType === 'rest'){
     title.innerHTML = '🕊️ Sanctuary (Rest Floor)';
@@ -1842,6 +1927,7 @@ function renderNonCombat(floorType, stateStr){
       <button class="ghost" onclick="abyssNCAction('reroll_highest_skill')">🌀 Re-roll Highest Skill (150g)</button>
       <button class="ghost" onclick="abyssNCAction('reroll_highest_skill_same_tier')">🌀 Re-roll Highest Skill on Same Tier (200g)</button>
     `;
+    if(typeof renderAbyssBiomeContractChoices==='function')renderAbyssBiomeContractChoices(options);
   } else if(floorType === 'event'){
     title.innerHTML = '❓ Mysterious Encounter';
     var state = {};
@@ -2277,7 +2363,9 @@ function setEscrow(v){
       setTimeout(function(){f.remove();},1400);
     }
   }
-  document.getElementById('escrowVal').textContent=fmtGold(curEscrow);
+  var escrowEl=document.getElementById('escrowVal');
+  escrowEl.textContent=fmtGold(curEscrow);
+  escrowEl.setAttribute('data-raw',String(curEscrow));
   var mh=document.getElementById('mhEscrow'); if(mh)mh.textContent=fmtGold(curEscrow);
   // Coin pile (#350): the hoard visibly grows with the cache.
   var pile=document.getElementById('coinPile');
@@ -2360,6 +2448,9 @@ function updateAbyssElementalPreview(depth){
 function setRisk(v){ if(v!==undefined && v!==null){ curRisk=Number(v)||0; } updateThreat(); renderState(); }
 function updateThreat(){
   var pct=Math.min(100,curRisk||curDepth*4);document.getElementById('threatFill').style.width=pct+'%';
+  var threatPct=document.getElementById('threatPct');if(threatPct)threatPct.textContent=Math.round(pct)+'%';
+  var bossDistance=document.getElementById('bossDistance'),depth=Number(curDepth)||0;
+  if(bossDistance){var nextBoss=(Math.floor(depth/5)+1)*5,distance=Math.max(1,nextBoss-depth);bossDistance.textContent=inRun?'👑 '+distance:'';bossDistance.title=inRun?'Boss in '+distance+' '+(distance===1?'floor':'floors'):'';}
   var mh=document.getElementById('mhRisk'); if(mh)mh.textContent=pct+'%';
   updateDepthA11y();
 }
@@ -2370,11 +2461,14 @@ function updateDepthA11y(){
   var nextBoss=(Math.floor(depth/5)+1)*5, distance=Math.max(1,nextBoss-depth);
   dial.setAttribute('aria-label','Depth '+depth+'. Boss in '+distance+' '+(distance===1?'floor':'floors')+'. Threat '+Math.round(threat)+' percent. Cache '+fmtGold(curEscrow)+'.');
 }
+var lastElevatorDepth=null;
 function updateElevator(){
   var cage=document.getElementById('elevCage');
-  cage.style.top=((curDepth%20)/20*100)+'%';
-  // Elevator descent flash (#326)
-  if(!reduceMotion){var shaft=cage.parentElement;shaft.classList.remove('descending');void shaft.offsetWidth;shaft.classList.add('descending');}
+  var depth=Number(curDepth)||0,changed=lastElevatorDepth!==null&&depth!==lastElevatorDepth;
+  cage.style.top=((depth%20)/20*100)+'%';
+  lastElevatorDepth=depth;
+  // Elevator descent flash (#326) only when the floor actually changes.
+  if(changed&&!reduceMotion){var shaft=cage.parentElement;shaft.classList.remove('descending');void shaft.offsetWidth;shaft.classList.add('descending');setTimeout(function(){shaft.classList.remove('descending');},720);}
 }
 function setInsured(p){curInsured=Number(p)||0;var el=document.getElementById('insuredTag');if(p>0){el.textContent='🛡️ '+p+'% insured';el.style.display='';el.classList.add('glow');}else{el.style.display='none';el.classList.remove('glow');}renderHudChips();}
 function setBanner(html,cls){
@@ -2474,7 +2568,10 @@ function maybeBossCard(html){
   // UI-7: the stage frame takes the boss's element color (not an animation,
   // so it applies under reduced motion too).
   var st=document.getElementById('abyssStage');
-  if(st){st.classList.remove('ab-boss-fire','ab-boss-void','ab-boss-eye','ab-boss-heart');st.classList.add(bossFrameClass(name));}
+  if(st){
+    st.classList.remove('ab-boss-fire','ab-boss-void','ab-boss-eye','ab-boss-heart');st.classList.add(bossFrameClass(name));
+    if(!reduceMotion){st.classList.remove('ab-boss-spawn-shake');void st.offsetWidth;st.classList.add('ab-boss-spawn-shake');setTimeout(function(){st.classList.remove('ab-boss-spawn-shake');},650);}
+  }
   if(reduceMotion) return;
   var card=document.getElementById('bossCard');
   if(!card) return;
@@ -2523,7 +2620,7 @@ var logNumbered=false, logMono=false; // UI-26 / UI-38 (persisted below)
 try{ logNumbered=localStorage.getItem('ab_lognum')==='1'; logMono=localStorage.getItem('ab_logmono')==='1'; }catch(e){}
 
 function addLogHead(log, cls, txt){
-  var d=document.createElement('div'); d.className='ab-log-line '+cls; d.textContent=txt; log.appendChild(d); recordCombatLogLine(d,txt);
+  var d=document.createElement('div'); d.className='ab-log-line '+cls; d.dataset.logTime=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});d.textContent=txt; log.appendChild(d); recordCombatLogLine(d,txt);
 }
 function appendAbyssOverkillReceipt(log,result){
   var damage=Math.max(0,Number(result&&result.overkill_damage)||0);
@@ -2547,7 +2644,7 @@ function dailyAffixLabel(){
 // appendLogLine: one log line in, decorated (UI-3/4/6/11..13/20/23..25/28/30/32),
 // with consecutive identical DoT ticks collapsed behind a ×N suffix (UI-40).
 function appendLogLine(log, html, round){
-  var d=document.createElement('div'); d.className='ab-log-line'; d.innerHTML=html;
+  var d=document.createElement('div'); d.className='ab-log-line'; d.dataset.logTime=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});d.innerHTML=html;
   if(round>0) d.setAttribute('data-round',String(round));
   var txt=d.textContent||'';
   lastFightText+=txt+'\n';
@@ -2889,12 +2986,12 @@ function renderRestArc(){
 // UI-49: floors to the leaderboard's #10 depth (today board), when within 5.
 function leaderDistance(){
   if(!inRun||curDepth<=0) return 0;
-  var rows=document.querySelectorAll('#lb .lb-col:first-child .lbtable tbody tr');
+  var rows=document.querySelectorAll('#lb [data-comp-panel="depth"] [data-comp-row], #lb .lb-col:first-child .lbtable tbody tr');
   var d10=0;
   rows.forEach(function(tr){
-    var rank=tr.querySelector('.lb-rank');
-    if(rank && parseInt(rank.textContent,10)===10){
-      var cell=tr.querySelector('.lb-wins');
+    var rank=tr.querySelector('.ab-comp-rank, .lb-rank');
+    if(rank && parseInt((rank.textContent||'').replace(/\D/g,''),10)===10){
+      var cell=tr.querySelector('td:nth-child(3) b, .lb-wins');
       var m=cell?/(\d+)/.exec(cell.textContent||''):null;
       if(m) d10=parseInt(m[1],10);
     }
@@ -3023,9 +3120,10 @@ function updateLootSummary(){
   // Apply the active rarity filter first so the count below only includes
   // rows the player can actually see.
   applyLootFilter();
-  var n = 0;
-  manifest.querySelectorAll('.abyss-side-loot').forEach(function(row){ if(row.style.display!=='none') n++; });
-  el.textContent = n > 0 ? ('· ' + plural(n,'item') + ' · cache ' + fmtGold(curEscrow)) : '';
+  var n = 0, estimate = 0;
+  manifest.querySelectorAll('.abyss-side-loot').forEach(function(row){ if(row.style.display!=='none'){n++;estimate+=Math.max(0,Number(row.dataset.estimatedValue)||0);} });
+  el.textContent = n > 0 ? ('· ' + plural(n,'item') + (estimate?' · ≈'+fmtGold(estimate):'') + ' · cache ' + fmtGold(curEscrow)) : '';
+  el.title=estimate?'Estimated liquid value of visible loot: '+fmtGold(estimate)+'. Bound unlocks are excluded.':'';
   // Rarity dot counters in the header (UX-48).
   var dots = document.getElementById('lootRarityDots');
   if(dots){
@@ -3045,8 +3143,9 @@ function updateLootSummary(){
 // Loot filter chips (UX-46): rarity floor or upgrades-only, persisted.
 // Guarded read: blocked storage (private mode, embedded webview) must fall
 // back to 'all' instead of throwing and killing the whole page script.
-var lootFilter = 'all';
+var lootFilter = 'all', lootTypeFilter = 'all';
 try{ lootFilter = localStorage.getItem('ab_lootf') || 'all'; }catch(e){}
+try{ lootTypeFilter = localStorage.getItem('ab_loottype') || 'all'; }catch(e){}
 function applyLootFilter(){
   var manifest = document.getElementById('lootManifest');
   if(!manifest) return;
@@ -3062,6 +3161,13 @@ function applyLootFilter(){
       var r = 0;
       row.classList.forEach(function(c){ if(AB_RARITY_RANKS[c]) r = AB_RARITY_RANKS[c]; });
       ok = r >= min;
+    }
+    if(ok && lootTypeFilter!=='all'){
+      var type=(row.dataset.itemType||'').toLowerCase();
+      if(lootTypeFilter==='gear')ok=type==='gear';
+      else if(lootTypeFilter==='cons')ok=['cons','skill','ultimate','artifact','title','unique','ench'].indexOf(type)>=0;
+      else if(lootTypeFilter==='mat')ok=type==='mat';
+      else if(lootTypeFilter==='gold')ok=type==='gold'||type==='tokens';
     }
     row.style.display = ok ? '' : 'none';
   });
@@ -3079,6 +3185,13 @@ function setLootFilter(f){
   lootFilter = f;
   try{ localStorage.setItem('ab_lootf', f); }catch(e){}
   applyLootFilter();
+  updateLootSummary();
+}
+function setLootTypeFilter(f){
+  lootTypeFilter=['all','gear','cons','mat','gold'].indexOf(f)>=0?f:'all';
+  try{ localStorage.setItem('ab_loottype', lootTypeFilter); }catch(e){}
+  applyLootFilter();
+  updateLootSummary();
 }
 
 // 10-second undo on auto-equip notices (UX-53). gearId pins the undo to the
@@ -3189,6 +3302,10 @@ function appendRunLoot(loot){
   document.addEventListener('mouseover', function(e){
     showTip(e.target.closest ? e.target.closest('.abyss-side-loot') : null);
   });
+  document.querySelectorAll('#lootTypeFilters .ab-chip').forEach(function(c){
+    c.classList.toggle('active', c.getAttribute('data-type') === lootTypeFilter);
+    c.setAttribute('aria-pressed', c.getAttribute('data-type')===lootTypeFilter ? 'true' : 'false');
+  });
   document.addEventListener('focusin',function(e){showTip(e.target.closest?e.target.closest('.abyss-side-loot'):null);});
   document.addEventListener('focusout',function(e){if(!e.relatedTarget||!e.relatedTarget.closest||!e.relatedTarget.closest('.abyss-side-loot'))hideTip();});
   document.addEventListener('keydown',function(e){if(e.key==='Escape'&&tip){var row=tip._row;hideTip();if(row&&row.blur)row.blur();}});
@@ -3239,6 +3356,7 @@ async function abyssEnter(consumables){
   // multiple confirmations (and duplicate enter requests).
   setBusy(true); markBusyBtn('btnEnter');
   var expedition=document.getElementById('weeklyExpedition');
+	var storyCampaign=document.getElementById('storyCampaign');
 	var hardcore=document.getElementById('hardcoreMode'),hybrid=document.getElementById('hybridMode');
   var kit=document.getElementById('buildKit'), mutation=document.getElementById('buildMutation'), position=document.getElementById('combatPosition'), entryFocus=document.getElementById('entryFocus');
   var veteran=document.getElementById('veteranTrack');
@@ -3246,7 +3364,7 @@ async function abyssEnter(consumables){
   var suppressAffix=document.getElementById('suppressDailyAffix');
   var contractPact=document.getElementById('contractPact');
   var tokenAnte=document.getElementById('tokenAnte'),entryRiskDial=document.getElementById('entryRiskDial');
-  var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),hardcore:!!(hardcore&&hardcore.checked),hybrid:!!(hybrid&&hybrid.checked),
+  var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),story_campaign:!!(storyCampaign&&storyCampaign.checked),hardcore:!!(hardcore&&hardcore.checked),hybrid:!!(hybrid&&hybrid.checked),
     kit:kit?kit.value:'vanguard', position:position?position.value:'frontline', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
     loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto', suppress_affix:!!(suppressAffix&&suppressAffix.checked), contract:contractPact?contractPact.value:'',
     token_ante:tokenAnte?(Number(tokenAnte.value)||0):0,risk_dial_pct:entryRiskDial?(Number(entryRiskDial.value)||0):0};
@@ -3307,6 +3425,7 @@ async function abyssEnter(consumables){
   if(d.auto_insured) notes.push('🛡️ Auto-insured 25% of this run'+(d.auto_insurance_free?' with free cover':' for '+fmtGold(d.auto_insurance_cost))+'.');
   else if(d.auto_insurance_skip) notes.push('🛡️ Auto-insure skipped: '+d.auto_insurance_skip+'.');
   if(d.weekly_expedition) notes.push('📅 '+d.weekly_expedition+' · +25% cache rewards.');
+	if(d.story_campaign) notes.push('📜 Chronicle Campaign active: ten authored floors await.');
 	if(d.hardcore) notes.push('💀 Hardcore active: ×2 cache, no grace, insurance, or revival.');
 	if(d.hybrid) notes.push('🌀 Hybrid active: every fifth floor surges to next-tier danger for half its extra reward.');
   if(d.token_ante) notes.push('🜲 '+d.token_ante+'-token ante active: +'+d.token_ante+'% cache, returned on a successful full bank.');
@@ -3427,12 +3546,13 @@ async function confirmLowHP(){
 
 async function abyssDescend(){
   if(busy)return;
+  setBusy(true);
   // Low-HP confirm [87]
   var bar=document.getElementById('hpBar');
   var hp=Number(bar.getAttribute('aria-valuenow')), max=Number(bar.getAttribute('aria-valuemax'));
-  if(!(await confirmLowHP()))return;
+  if(!(await confirmLowHP())){setBusy(false);return;}
   abyssDescendInFlight=true;updateFloatingDescend('Descending to floor '+(curDepth+1)+'…');
-  setBusy(true); markBusyBtn('btnDescend'); clearBanner();
+  markBusyBtn('btnDescend'); clearBanner();
   document.getElementById('abStatus').textContent='Descending…';
 
   var d=await abPost('/api/abyss/descend',{interactive:true});
@@ -3447,7 +3567,7 @@ async function abyssDescend(){
       if(typeof d.risk==='number')setRisk(d.risk);
       renderState();
     }
-    abToast(d.error||'failed',false);setBusy(false);return;
+    abToast(d.error||'failed',false,abyssRetryOptions(d,abyssDescend));setBusy(false);return;
   }
 
   if(d.choose_floor){
@@ -3605,12 +3725,11 @@ async function playAbyssMultiFloorResults(data) {
   return true;
 }
 
-async function abyssDescendMulti() {
+async function abyssDescendMulti(retryPlan) {
   if (busy) return;
-  var paths = [];
-  document.querySelectorAll('.ab-path-select').forEach(function(el) {
-    paths.push(el.value);
-  });
+  retryPlan=retryPlan&&Array.isArray(retryPlan.paths)?retryPlan:null;
+  var paths=retryPlan?retryPlan.paths.slice():[];
+  if(!retryPlan)document.querySelectorAll('.ab-path-select').forEach(function(el) { paths.push(el.value); });
   if (paths.length < 3 || paths.length > 20) {
     abToast('Queue must have 3 to 20 floors.', false);
     return;
@@ -3618,13 +3737,15 @@ async function abyssDescendMulti() {
 
   var bar = document.getElementById('hpBar');
   var hp = Number(bar.getAttribute('aria-valuenow')), max = Number(bar.getAttribute('aria-valuemax'));
-  if (!(await confirmLowHP())) return;
+  setBusy(true);
+  if (!(await confirmLowHP())) { setBusy(false); return; }
 
   abyssDescendInFlight=true;updateFloatingDescend('Planned descent · 0/'+paths.length);
-  setBusy(true); markBusyBtn('btnDescendMulti'); clearBanner();
+  markBusyBtn('btnDescendMulti'); clearBanner();
   document.getElementById('abStatus').textContent = 'Descending queue (' + paths.length + ' floors)…';
 
-  var d = await abPost('/api/abyss/descend_multi', {paths: paths, stop_rules: getAutoDescendRules()});
+  var request={paths:paths,stop_rules:retryPlan&&retryPlan.stop_rules?retryPlan.stop_rules:getAutoDescendRules()};
+  var d = await abPost('/api/abyss/descend_multi', request);
   if (!d.ok) {
     // Floors cleared before the failure are already persisted — show their
     // logs/loot and apply the returned run snapshot so depth, escrow, HP and
@@ -3638,7 +3759,7 @@ async function abyssDescendMulti() {
     if(typeof d.tokens === 'number') setTokens(d.tokens);
     if(typeof d.risk === 'number') setRisk(d.risk);
     renderState();
-    abToast(d.error || 'failed', false); setBusy(false); return;
+    abToast(d.error || 'failed', false, abyssRetryOptions(d, function(){abyssDescendMulti(request);})); setBusy(false); return;
   }
 
   d.batch_floors_played = await playAbyssMultiFloorResults(d);
@@ -3670,7 +3791,7 @@ async function abyssChooseFloor(i, hp, max){
   setBusy(true); clearBanner();
   document.getElementById('abStatus').textContent='Descending…';
   var d=await abPost('/api/abyss/choose_floor',{index:i});
-  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  if(!d.ok){abToast(d.error||'failed',false,abyssRetryOptions(d,function(){abyssChooseFloor(i,hp,max);}));setBusy(false);return;}
   if(d.live_combat){ startLiveCombat(d, hp, max); return; }
   await processDescendResult(d, hp, max);
 }
@@ -3690,6 +3811,7 @@ function showAbyssBossKillCam(){
   openModal('<h3>🎬 Final five · '+consEsc(data.name)+'</h3><ol class="ab-killcam">'+frames+'</ol><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close replay</button></div>');
 }
 async function processDescendResult(d, hp, max){
+	if(d.run_identity&&typeof renderAbyssRunIdentity==='function')renderAbyssRunIdentity(d.run_identity);
 	if(d.enemy_forecast&&typeof renderAbyssEnemyForecast==='function')renderAbyssEnemyForecast(d.enemy_forecast);
 	if(d.boss_tokens!==undefined&&typeof setBossTokens==='function')setBossTokens(d.boss_tokens);
   if(d.explorer_support!==undefined)renderExplorerSupport(d.explorer_support);
@@ -3745,6 +3867,7 @@ async function processDescendResult(d, hp, max){
     if(d.affix_reward)msg+=' 🎁 Affix reward: '+d.affix_reward+'!';
     if(d.secondary_objective)msg+=' 🎯 '+d.secondary_objective+'.';
     if(d.lore_unlocked)msg+=' 📖 Found Lore Codex fragment!';
+    if(Number(d.lore_duplicate_tokens)>0)msg+=' 📖 Familiar lore converted into 🜲 '+d.lore_duplicate_tokens+'.';
     if(d.recipe_unlocked)msg+=' 📖 Recipe discovered: '+d.recipe_unlocked+'!';
     if(d.gear_milestone)msg+=' '+d.gear_milestone;
     if(d.event_chain){renderAbyssEventChain(d.event_chain);var chainNotice=abyssEventChainNotice(d.event_chain);if(chainNotice)msg+=' '+chainNotice;}
@@ -3766,6 +3889,7 @@ async function processDescendResult(d, hp, max){
     }
     // UI-39: sr-only fight summary for screen readers.
     srSummary('Floor '+d.depth+' cleared. HP now '+fmtNum(d.hp)+' of '+fmtNum(d.max_hp)+'. '+plural((d.loot||[]).length,'item')+' escrowed.'+(Number(d.overkill_gold)>0?' Final overkill credited '+fmtGold(d.overkill_gold)+' cache.':''));
+		if(d.boon_draft&&d.boon_draft.pending&&typeof presentAbyssBoonDraft==='function')presentAbyssBoonDraft(d.boon_draft);
   } else {
     downed=true; canRev=d.can_revive; canLastStand=d.can_last_stand;
 	if(typeof updateAbyssReviveRisk==='function')updateAbyssReviveRisk(d.revive_streak,d.revive_chance_pct);
@@ -3781,6 +3905,7 @@ async function processDescendResult(d, hp, max){
     document.getElementById('abStatus').textContent=(canRev?'':'The dark offers no gamble this time. ')+'Choose: '+opts.join(', ')+'.';
     // UI-39: sr-only summary; UI-29: the fatal blow stays pinned until the choice.
     srSummary('Defeated on floor '+d.depth+'. Cache of '+fmtGold(d.escrow)+' in peril. Choose: '+opts.join(', ')+'.');
+    if(window.AbyssQoL&&(canRev||canLastStand))window.AbyssQoL.notify('revive','Revival decision ready','You fell on floor '+d.depth+'. Return to revive, use Last Stand, or concede.','floor-'+d.depth+'-'+d.escrow);
     pinFatalBlow();
     drainEscrow(); // UI-148: the cache counter visually crumbles toward zero
   }
@@ -3811,30 +3936,32 @@ function showRunSummary(title, rows, cls){
 
 // Badge picker: choose one earned achievement to display next to your name.
 // UI-127: hovering/tapping an option previews it inline next to your nickname.
-function openBadgePicker(){
+function openBadgePicker(slot){
+  slot=slot==='suffix'?'suffix':'prefix';
   var opts = document.querySelectorAll('#badgeOptionsData span');
-  var html = '<h3>🏅 Choose a badge</h3><p>Pick one earned achievement to display next to your name.</p>'+
-    '<div class="muted small" id="badgePreview" style="margin-bottom:8px;">Preview: <b>'+consEsc(pageNick||'you')+'</b> <span id="badgePreviewName">🏅 '+(document.getElementById('activeBadgeName')||{}).textContent+'</span></div>'+
+  var current=(document.getElementById(slot==='prefix'?'activeBadgeName':'activeBadgeSuffixName')||{}).textContent||'';
+  var html = '<h3>🏅 Choose '+slot+' badge</h3><p>Combine two different earned achievements around your name.</p>'+
+    '<div class="muted small" id="badgePreview" style="margin-bottom:8px;">Preview: <span id="badgePreviewName">'+(slot==='prefix'&&current?('🏅 '+consEsc(current)+' '):'')+'</span><b>'+consEsc(pageNick||'you')+'</b><span id="badgePreviewSuffix">'+(slot==='suffix'&&current?(' · '+consEsc(current)):'')+'</span></div>'+
     '<div class="modal-body">';
-  html += '<button class="modal-option" data-badge="" onclick="abyssSetBadge(\'\')">None</button>';
+  html += '<button class="modal-option" data-badge="" onclick="abyssSetBadge(\'\',\''+slot+'\')">None</button>';
   opts.forEach(function(o){
-    html += '<button class="modal-option" data-badge="'+consEsc(o.getAttribute('data-name'))+'" onclick="abyssSetBadge(\''+o.getAttribute('data-code')+'\')">'+o.getAttribute('data-name')+'</button>';
+    html += '<button class="modal-option" data-badge="'+consEsc(o.getAttribute('data-name'))+'" onclick="abyssSetBadge(\''+o.getAttribute('data-code')+'\',\''+slot+'\')">'+consEsc(o.getAttribute('data-name'))+'</button>';
   });
   html += '</div>';
   openModal(html);
   document.querySelectorAll('#sharedModalCard .modal-option').forEach(function(b){
-    var show=function(){ var el=document.getElementById('badgePreviewName'); if(el) el.textContent=b.getAttribute('data-badge')?('🏅 '+b.getAttribute('data-badge')):''; };
+    var show=function(){ var el=document.getElementById(slot==='prefix'?'badgePreviewName':'badgePreviewSuffix'); if(el) el.textContent=b.getAttribute('data-badge')?(slot==='prefix'?('🏅 '+b.getAttribute('data-badge')+' '):(' · '+b.getAttribute('data-badge'))):''; };
     b.addEventListener('mouseenter', show);
     b.addEventListener('focus', show);
   });
 }
-async function abyssSetBadge(code){
+async function abyssSetBadge(code,slot){
   closeModal();
-  var d = await abPost('/api/abyss/set_badge', {code: code});
+  var d = await abPost('/api/abyss/set_badge', {code: code, slot: slot});
   if(!d.ok){abToast(d.error||'failed', false); return;}
   abToast(code ? ('Badge set: '+d.badge_name) : 'Badge cleared', true);
   // UI-127: update the inline badge label immediately (the reload follows).
-  var bn=document.getElementById('activeBadgeName');
+  var bn=document.getElementById(slot==='suffix'?'activeBadgeSuffixName':'activeBadgeName');
   if(bn) bn.textContent=code ? d.badge_name : 'none';
   setTimeout(function(){ window.location.reload(); }, 700);
 }
@@ -3848,7 +3975,7 @@ async function abyssRevive(){
   st.textContent='Clawing back from the dark…';
   var d=await abPost('/api/abyss/revive');
   if(spin)clearInterval(spin);
-  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  if(!d.ok){abToast(d.error||'failed',false,abyssRetryOptions(d,abyssRevive));setBusy(false);return;}
   await playLog(d.logs, d.loot, d.dura, d.timeline, d);
   resetMana();
   setGold(d.gold); setTokens(d.tokens);
@@ -3909,18 +4036,18 @@ async function abyssDoubleBonus(){
   renderState();setBusy(false);
 }
 
-async function abyssBank(percent,transport){
+async function abyssBank(percent,transport,retryCursed){
   if(busy)return;
   percent=Number(percent)||0;
   transport=!!transport;
-  var cursed=percent||transport?false:document.getElementById('cursedBank').checked;
+  var cursed=arguments.length>=3?!!retryCursed:(percent||transport?false:document.getElementById('cursedBank').checked);
   // Lock every action while the preview request is in flight so a descend or
   // second bank click can't race it; unlocked again before the confirm modal
   // (its own buttons drive the commit, which re-locks).
   setBusy(true); markBusyBtn(transport?'btnTransport':'btnBank');
   var p=await abPost('/api/abyss/bank',{cursed:cursed,preview:true,percent:percent,transport:transport});
   setBusy(false);
-  if(!p.ok){abToast(p.error||'failed',false);return;}
+  if(!p.ok){abToast(p.error||'failed',false,abyssRetryOptions(p,function(){abyssBank(percent,transport,cursed);}));return;}
   function row(k,v){return '<div class="ab-rs-row"><span>'+k+'</span><b>'+v+'</b></div>';}
   function pactMath(b){
     if(!b||!Array.isArray(b.lines)||!b.lines.length)return '';
@@ -3946,6 +4073,7 @@ async function abyssBank(percent,transport){
 	(p.perfect_bonus?row('✨ Perfect-run bonus +25%','+'+fmtGold(p.perfect_bonus)):'')+
 	(p.contract_forfeit?row('📜 Failed contract forfeiture −25%','−'+fmtGold(p.contract_forfeit)):'')+
 	(p.raffle_fee?row('🎟️ Bankers’ raffle contribution −1%','−'+fmtGold(p.raffle_fee)):'')+
+	(p.pact_tithe?row('🪙 Escrow Tithe · community jackpot','−'+fmtGold(p.pact_tithe)):'')+
     pactMath(p.pact_breakdown)+
     row('Estimated payout', '<span style="color:var(--gold)">'+fmtGold(p.payout)+'</span>')+
     (p.continue_run?row('Cache left in run',fmtGold(p.remaining_escrow))+row('Sealed items','Remain at stake'):row('Base tokens on bank', '🜲 '+p.base_tokens_grant)+row('Pact-risk tokens', '🜲 +'+p.pact_tokens_grant)+(p.overcap_tokens_grant?row('Over-cap tokens','🜲 +'+p.overcap_tokens_grant):'')+(p.ante_return?row('Token ante returned','🜲 +'+p.ante_return):'')+row('Total tokens on bank', '🜲 '+p.tokens_grant)+row('Bank streak after cash-out',p.next_bank_streak)+(p.free_insurance_earned?row('🛡️ Streak reward','Next insurance is free'):p.free_insurance_ready?row('🛡️ Streak reward','Free insurance already ready'):'')+row('Sealed loot to recover', p.loot_count))+
@@ -3969,7 +4097,7 @@ async function abyssBank(percent,transport){
 async function abyssBankCommit(cursed,percent,safeWord,doubleBank,transport){
   if(busy)return; setBusy(true); markBusyBtn(transport?'btnTransport':'btnBank'); clearBanner();
   var d=await abPost('/api/abyss/bank',{cursed:cursed,percent:Number(percent)||0,safe_word:safeWord||'',double_bank:!!doubleBank,transport:!!transport});
-  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  if(!d.ok){abToast(d.error||'failed',false,abyssRetryOptions(d,function(){abyssBankCommit(cursed,percent,safeWord,doubleBank,transport);}));setBusy(false);return;}
   if(d.continue_run){
     setGold(d.gold);setEscrow(d.remaining_escrow);
     var continuingFee=(d.partial_fee||0)+(d.transport_fee||0)+(d.frantic_fee||0);
@@ -4012,7 +4140,7 @@ async function abyssBankCommit(cursed,percent,safeWord,doubleBank,transport){
 // up in stages — cache, then the multiplier bonus, then any jackpot.
 function showBankSummary(d){
   var base=Number(d.base)||0, depthBonus=Number(d.depth_bonus)||0, streakBonus=Number(d.streak_bonus)||0;
-  var cursedBonus=Number(d.cursed_bonus)||0,perfect=Number(d.perfect_bonus)||0,raffle=Number(d.raffle_fee)||0;
+	var cursedBonus=Number(d.cursed_bonus)||0,perfect=Number(d.perfect_bonus)||0,raffle=Number(d.raffle_fee)||0,tithe=Number(d.pact_tithe)||0;
 	var jp=Number(d.jackpot_win)||0,raffleWin=Number(d.raffle_win)||0,tax=Number(d.cap_tax)||0,frantic=Number(d.frantic_fee)||0,overcap=Number(d.overcap_gold_converted)||0;
   var html='<h3>🏦 Run banked!</h3><div class="modal-body ab-runsummary good">'+
     '<div class="ab-rs-row"><span>Depth reached</span><b>'+d.depth+'</b></div>'+
@@ -4024,6 +4152,7 @@ function showBankSummary(d){
     (frantic?'<div class="ab-rs-row"><span>🫀 Frantic fee</span><b>−'+fmtGold(frantic)+'</b></div>':'')+
 	(perfect?'<div class="ab-rs-row"><span>✨ Perfect-run bonus</span><b>+'+fmtGold(perfect)+'</b></div>':'')+
 	(raffle?'<div class="ab-rs-row"><span>🎟️ Raffle contribution</span><b>−'+fmtGold(raffle)+'</b></div>':'')+
+	(tithe?'<div class="ab-rs-row"><span>🪙 Escrow Tithe · community jackpot</span><b>−'+fmtGold(tithe)+'</b></div>':'')+
     (jp?'<div class="ab-rs-row"><span>🔥 Deep-cache jackpot</span><b>+'+fmtGold(jp)+'</b></div>':'')+
 	(raffleWin?'<div class="ab-rs-row"><span>🎟️ Bankers’ raffle win</span><b>+'+fmtGold(raffleWin)+'</b></div>':'')+
     (tax?'<div class="ab-rs-row"><span>💸 Abyss tax (80% over daily cap)</span><b>−'+fmtGold(tax)+'</b></div>':'')+
@@ -4034,8 +4163,8 @@ function showBankSummary(d){
   openModal(html);
   var el=document.getElementById('bankTotalTick');
   if(!el)return;
-  var raw=base+depthBonus+streakBonus+cursedBonus-frantic-overcap+perfect-raffle;
-  var steps=[base,base-overcap,base-overcap+depthBonus,base-overcap+depthBonus+streakBonus,raw,raw-tax,raw-tax+jp,raw-tax+jp+raffleWin].filter(function(v,i,a){return i===0||v!==a[i-1];});
+	var raw=base+depthBonus+streakBonus+cursedBonus-frantic-overcap+perfect-raffle-tithe,authoritative=Number(d.banked)||0;
+	var steps=[base,base-overcap,base-overcap+depthBonus,base-overcap+depthBonus+streakBonus,raw,authoritative,authoritative+jp,authoritative+jp+raffleWin].filter(function(v,i,a){return i===0||v!==a[i-1];});
   // UI-138: skip button jumps straight to the final total.
   var skipped=false;
   var skipBtn=document.getElementById('bankSkipBtn');
@@ -4105,7 +4234,8 @@ async function abyssUpgrade(node, btn){
   setTokens(d.tokens);
   var lv=document.getElementById('ablv-'+node); if(lv)lv.textContent='Lv '+d.level;
   abToast(node+' upgraded to Lv '+d.level,true);
-  if(node==='ward')wardLv=d.level;
+  if(node==='ward')wardLv=abyssTalentEffectiveInt(d.level);
+  if(node==='swiftness')logDelay=Math.max(70,150-10*abyssTalentEffectiveLevel(d.level));
 }
 
 async function abyssUseConsumable(cid){
@@ -4202,8 +4332,9 @@ async function abyssInviteCoop(){
     abToast(d.error || 'Failed to invite ally', false);
     return;
   }
-  document.getElementById('coopStatus').textContent = 'Ally invited!';
-  abToast('Ally invited for the upcoming boss fight!', true);
+  document.getElementById('coopStatus').textContent = 'Party size '+Number(d.party_size||2)+' / 3';
+  document.getElementById('coopSelect').value = '';
+  abToast('Ally joined your persistent run party.', true);
 }
 
 async function shareLastAbyssReplay(){
@@ -4247,14 +4378,17 @@ async function abyssBountyClaim(){
   var bmsg='🎯 Daily Bounty complete! +🜲'+d.reward_tokens+' tokens and +'+fmtGold(d.reward_gold)+'.';
   if(d.streak>1)bmsg+=' 🔥 '+d.streak+'-day streak (+🜲 '+d.streak_bonus+' bonus)!';
   setBanner(bmsg,'good');
+  if(window.AbyssQoL)window.AbyssQoL.notify('bounty','Abyss bounty complete',bmsg,new Date().toISOString().slice(0,10));
 }
 
-async function abyssShopBuy(item, btn){
+async function abyssShopBuy(item, quotedCost, btn){
   if(busy)return; setBusy(true);
-  var d = await abPost('/api/abyss/shop/buy', {item: item});
+  var d = await abPost('/api/abyss/shop/buy', {item: item, quoted_cost: quotedCost});
   setBusy(false);
   if(!d.ok){ abToast(d.error||'failed',false); return; }
-  setTokens(d.tokens); setGold(d.gold);
+  if(d.tokens!==undefined)setTokens(d.tokens);
+  if(d.gold!==undefined)setGold(d.gold);
+  if(typeof updateAbyssShopProgram==='function')updateAbyssShopProgram(d);
   if(d.consumables)renderConsumables(d.consumables);
   abToast(d.msg||'Purchased!', true);
 }
@@ -4270,6 +4404,7 @@ async function abyssEconomyPost(url, body){
   if(d.ok && d.gold !== undefined)setGold(d.gold);
   if(d.ok && d.tokens !== undefined)setTokens(d.tokens);
   if(d.ok && d.consumables)renderConsumables(d.consumables);
+  if(typeof updateAbyssShopProgram==='function')updateAbyssShopProgram(d);
   return d;
 }
 
@@ -4291,12 +4426,12 @@ async function abyssAutoInsure(enabled){
 }
 
 async function abyssRepairSubscription(){
-  if(!confirm('Prepay 70,000 gold for seven days of complete durability-loss protection?'))return;
+  if(!(await confirmModal('Prepay 70,000 gold for seven days of complete durability-loss protection?',{title:'Buy gear protection',okLabel:'Prepay 70,000g'})))return;
   await abyssEconomyPost('/api/abyss/shop/repair_subscription',{});
 }
 
 async function abyssScratch(){
-  if(!confirm('Spend 50 Abyss Tokens on today\'s scratch card?'))return;
+  if(!(await confirmModal('Spend 50 Abyss Tokens on today\'s scratch card?',{title:'Buy daily scratch card',okLabel:'Spend 50 tokens'})))return;
   await abyssEconomyPost('/api/abyss/shop/scratch',{});
 }
 
@@ -4831,7 +4966,10 @@ function forge4ConvertMats(){
 
 function setMaterials(mats){
   if(!mats)return;
-  Object.keys(mats).forEach(function(k){var el=document.getElementById('mat-'+k);if(el)el.textContent=fmtNum(mats[k]);});
+  Object.keys(mats).forEach(function(k){
+    var el=document.getElementById('mat-'+k);if(el)el.textContent=fmtNum(mats[k]);
+    var shopEl=document.getElementById('shopMat-'+k);if(shopEl)shopEl.textContent=fmtNum(mats[k]);
+  });
 }
 
 async function abyssCraft(id, btn){
@@ -5208,6 +5346,9 @@ async function abyssSetFocus(focus){
   // Loot filter chips (UX-46).
   document.querySelectorAll('#lootFilters .ab-chip').forEach(function(c){
     c.onclick = function(){ setLootFilter(c.getAttribute('data-f')); };
+  });
+  document.querySelectorAll('#lootTypeFilters .ab-chip').forEach(function(c){
+    c.onclick = function(){ setLootTypeFilter(c.getAttribute('data-type')); };
   });
   applyLootFilter();
 
@@ -6338,15 +6479,18 @@ async function confirmModalDangerous(message, opts){
 }
 
 // UI-140: achievement unlock — top slide-down banner with the badge icon.
-function achievementBanner(name){
-  var old=document.getElementById('achBanner'); if(old)old.remove();
+var achievementBannerQueue=[],achievementBannerActive=false;
+function achievementBanner(name){achievementBannerQueue.push(String(name||'Achievement'));showNextAchievementBanner();}
+function showNextAchievementBanner(){
+  if(achievementBannerActive||!achievementBannerQueue.length)return;
+  achievementBannerActive=true;var name=achievementBannerQueue.shift();
   var b=document.createElement('div');
   b.id='achBanner'; b.className='ab-ach-banner';
   b.setAttribute('role','status');
   b.innerHTML='🏅 <b>Achievement unlocked</b> — '+consEsc(name);
   document.body.appendChild(b);
   requestAnimationFrame(function(){ b.classList.add('show'); });
-  setTimeout(function(){ b.classList.remove('show'); setTimeout(function(){ b.remove(); },400); },4200);
+  setTimeout(function(){ b.classList.remove('show'); setTimeout(function(){b.remove();achievementBannerActive=false;showNextAchievementBanner();},400); },4200);
 }
 
 // UI-141: one-time ring burst on the depth dial for a new personal record.
@@ -6420,7 +6564,7 @@ function abTabSigs(){
   var forgeHistory=document.querySelector('#forgeHistoryBox .muted.small');
   sigs.forge=document.querySelectorAll('#abyssWorkshop .ab-shop-item').length+'|'+(forgeHistory?forgeHistory.textContent.replace(/\s+/g,' ').trim():'');
   sigs.lore=document.querySelectorAll('.ab-codex-item.unlocked').length+'|'+document.querySelectorAll('.ab-bestiary-table tbody tr').length;
-  var top=document.querySelector('#lb .lb-col:first-child .lbtable tbody tr .lb-name');
+  var top=document.querySelector('#lb [data-comp-panel="depth"] [data-comp-row] td:nth-child(2) strong, #lb .lb-col:first-child .lbtable tbody tr .lb-name');
   sigs.leaderboards=top?top.textContent.trim():'';
   return sigs;
 }
@@ -6620,13 +6764,18 @@ function initNewDots(){
 {{template "abyss-accessibility" .}}
 {{template "abyss-mobile" .}}
 {{template "abyss-insights" .}}
+{{template "abyssObservatoryJS" .}}
 {{template "abyssItemNumbersJS" .}}
 {{template "abyss-longterm" .}}
+{{template "abyssLayoutReadability" .}}
 {{template "abyss-events" .}}
 <script data-cfasync="false">{{template "abyssSocialHubJS" .}}</script>
 <script data-cfasync="false">{{template "abyssReplayViewerJS" .}}</script>
 <script data-cfasync="false">{{template "abyssBossCosmeticsJS" .}}</script>
 <script data-cfasync="false">{{template "abyssSeasonJourneyJS" .}}</script>
+<script data-cfasync="false">{{template "abyssRetentionJS" .}}</script>
+<script data-cfasync="false">{{template "abyssRunIdentityJS" .}}</script>
+<script data-cfasync="false">{{template "abyssShopProgramJS" .}}</script>
 <script data-cfasync="false">{{template "abyssStageHUDJS" .}}</script>
 <script data-cfasync="false">{{template "abyssCodexExplorerJS" .}}</script>
 <script data-cfasync="false">{{template "abyssPanelToolsJS" .}}</script>
@@ -6634,8 +6783,10 @@ function initNewDots(){
 <script data-cfasync="false">{{template "abyssCommandPaletteJS" .}}</script>
 <script data-cfasync="false">{{template "abyssPactProgramJS" .}}</script>
 {{template "abyssCoreRiskJS" .}}
+{{template "abyssCoreInterface" .}}
 {{template "abyss-feedback" .}}
 {{template "abyss-polish" .}}
+{{template "abyssFeedbackJuice" .}}
 {{template "abyss-stage-presentation" .}}
 {{template "abyssAAARuntime" .}}
 <script data-cfasync="false">

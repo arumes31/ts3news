@@ -1,5 +1,5 @@
 {{define "head"}}<!DOCTYPE html>
-<html lang="en">
+<html lang="{{localeTag}}" dir="{{localeDir}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,6 +8,8 @@
 <link rel="stylesheet" href="/static/style.css?v={{cssver}}">
 {{if eq .Nav "inventory"}}<link rel="stylesheet" href="{{asset "/static/gear_inventory_motion.css"}}">{{end}}
 <script>window.__ASSET_VER__ = "{{appver}}";</script>
+{{template "abyss-display-locale" .}}
+{{template "abyss-quality-of-life" .}}
 </head>
 <body>
 {{if eq .Nav "abyss"}}<a class="ab-skip-link" href="#abyssControls">Skip to run controls</a>{{end}}
@@ -92,7 +94,7 @@
 <!-- Shared modal shell: openModal/closeModal/confirmModal/promptModal are available
      on every page and replace ad-hoc overlays + native confirm()/prompt(). -->
 <div id="sharedModal" class="modal-overlay" aria-hidden="true" onclick="if(event.target===this)closeModal()">
-  <div class="modal-card" id="sharedModalCard" role="dialog" aria-modal="true" aria-labelledby="sharedModalTitle" tabindex="-1"></div>
+  <div class="modal-card" id="sharedModalCard" role="dialog" aria-modal="true" tabindex="-1"></div>
 </div>
 <script>
 // pendingModalResolve settles the promise of the currently-open confirm/prompt

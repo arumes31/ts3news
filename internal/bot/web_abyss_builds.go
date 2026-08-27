@@ -56,6 +56,7 @@ func abyssBuildNameByValue(values map[string]int64, value int64) string {
 
 func applyAbyssRunBuild(u *UserInCombat, flags map[string]int64, mastery map[string]int) {
 	applyAbyssCombatPosition(u, flags)
+	applyAbyssRunIdentityBuild(u, flags)
 
 	switch abyssBuildNameByValue(abyssBuildKits, flags[abyssRunFlagBuildKit]) {
 	case "arcanist":

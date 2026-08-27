@@ -20,16 +20,55 @@ func TestAbyssCombatSidesAndCrowdedTargetingContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	source := string(live)
-	if strings.Index(source, `id="livePixelEnemies"`) > strings.Index(source, `id="livePixelAllies"`) {
-		t.Fatal("battlefield must render hostiles left of allies")
+	if strings.Index(source, `id="livePixelAllies"`) > strings.Index(source, `id="livePixelEnemies"`) {
+		t.Fatal("battlefield must render the party left of hostiles")
 	}
-	if strings.Index(source, `id="liveEnemies"`) > strings.Index(source, `id="liveAllies"`) {
-		t.Fatal("tactical targets must render enemies before allies")
+	if strings.Index(source, `id="liveAllies"`) > strings.Index(source, `id="liveEnemies"`) {
+		t.Fatal("tactical targets must render allies before enemies")
 	}
-	for _, token := range []string{"host.classList.toggle('crowded'", "selectLiveTarget(unit.id)", ".ab-pixel-party.crowded", "flex-wrap: wrap", "#livePixelEnemies { grid-column: 1", "#livePixelAllies { grid-column: 2"} {
+	for _, token := range []string{"host.classList.toggle('crowded'", "selectLiveTarget(unit.id)", ".ab-pixel-party.crowded", "flex-wrap: wrap", "#livePixelAllies { grid-column: 1", "#livePixelEnemies { grid-column: 2", "align-content: start"} {
 		if !strings.Contains(string(pixel)+string(styles), token) {
 			t.Errorf("crowded targeting contract is missing %q", token)
 		}
+	}
+	for _, token := range []string{"/ancient dragon|\\bdragon\\b/,[0,1]", "/frost lich|\\blich\\b/,[0,2]", "ab-semantic-action-icon", "liveActionIconCell(option)", "data-art-sheet=\"actions\""} {
+		if !strings.Contains(string(pixel)+source+string(styles), token) {
+			t.Errorf("semantic combat art contract is missing %q", token)
+		}
+	}
+}
+
+func TestAbyssEventStageAndBossPanelsStayScoped(t *testing.T) {
+	page, err := webAssets.ReadFile("webassets/abyss.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	events, err := webAssets.ReadFile("webassets/abyss_events.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	styles, err := webAssets.ReadFile("webassets/abyss_command.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := webAssets.ReadFile("webassets/abyss_best_kill.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cosmetics, err := webAssets.ReadFile("webassets/abyss_boss_cosmetics.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, token := range []string{"setAbyssEventStage(true)", "setAbyssEventStage(false)", ".abyss-stage.ab-event-stage", ".ab-event-stage .ab-elevator { display: none", "Number.isFinite(multiplier)"} {
+		if !strings.Contains(string(page)+string(events)+string(styles), token) {
+			t.Errorf("compact event-stage contract is missing %q", token)
+		}
+	}
+	if !strings.Contains(string(record), `data-abyss-section="leaderboards"`) {
+		t.Error("personal boss record must be scoped to Leaderboards")
+	}
+	if !strings.Contains(string(cosmetics), `data-abyss-section="progression"`) {
+		t.Error("boss cosmetics must be scoped to Progression")
 	}
 }
 

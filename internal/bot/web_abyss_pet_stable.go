@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-const abyssPetFeedCost = int64(500)
-
 // handleAbyssPetManage owns the low-frequency stable mutations. Keeping them
 // behind one transaction prevents the profile JSON and the pet row from
 // drifting apart when a request fails midway through an update.
@@ -26,6 +24,7 @@ func (s *WebServer) handleAbyssPetManage(w http.ResponseWriter, r *http.Request,
 		PetID           int64  `json:"pet_id"`
 		Action          string `json:"action"`
 		Name            string `json:"name"`
+		Style           string `json:"style"`
 		ConfirmFavorite bool   `json:"confirm_favorite"`
 	}
 	if readJSON(r, &req) != nil || req.PetID <= 0 {
@@ -75,7 +74,27 @@ func (s *WebServer) handleAbyssPetManage(w http.ResponseWriter, r *http.Request,
 		} else {
 			message = name + " removed from favorites."
 		}
+	case "bark":
+		if req.Style != "quiet" && req.Style != "gentle" && req.Style != "bold" {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid companion voice"})
+			return
+		}
+		profile.BarkStyle = req.Style
+		encoded, err := encodeAbyssPetProfile(profile)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "profile"})
+			return
+		}
+		if _, err := tx.Exec("UPDATE user_pets SET autoskills=$1::jsonb WHERE pet_id=$2 AND client_uid=$3", encoded, req.PetID, uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		message = name + " voice set to " + req.Style + "."
 	case "release":
+		if profile.busy(timeNowUTC()) {
+			writeJSON(w, map[string]any{"ok": false, "error": "companion is committed to a stable activity"})
+			return
+		}
 		if profile.Favorite && !req.ConfirmFavorite {
 			writeJSON(w, map[string]any{"ok": false, "error": "favorite confirmation required", "confirm_required": true})
 			return
@@ -107,9 +126,15 @@ func (s *WebServer) handleAbyssPetFeed(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 	var req struct {
-		PetID int64 `json:"pet_id"`
+		PetID  int64  `json:"pet_id"`
+		ConsID string `json:"cons_id"`
 	}
-	if readJSON(r, &req) != nil || req.PetID <= 0 {
+	if readJSON(r, &req) != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "invalid companion"})
+		return
+	}
+	req.ConsID = strings.TrimSpace(req.ConsID)
+	if req.PetID <= 0 || req.ConsID == "" {
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid companion"})
 		return
 	}
@@ -137,13 +162,20 @@ func (s *WebServer) handleAbyssPetFeed(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "companion is away from the stable"})
 		return
 	}
-	spent, err := tx.Exec("UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold>=$1", abyssPetFeedCost, uid)
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+	var charges int
+	if err := tx.QueryRow(`SELECT remaining_fights FROM user_consumables
+		WHERE client_uid=$1 AND cons_id=$2 FOR UPDATE`, uid, req.ConsID).Scan(&charges); err != nil || charges <= 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "selected consumable is unavailable"})
 		return
 	}
-	if changed, err := spent.RowsAffected(); err != nil || changed != 1 {
-		writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
+	if charges == 1 {
+		_, err = tx.Exec("DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2", uid, req.ConsID)
+	} else {
+		_, err = tx.Exec(`UPDATE user_consumables SET remaining_fights=remaining_fights-1
+			WHERE client_uid=$1 AND cons_id=$2`, uid, req.ConsID)
+	}
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	profile.XP += max(25, level*10)
@@ -174,9 +206,9 @@ func (s *WebServer) handleAbyssPetFeed(w http.ResponseWriter, r *http.Request, u
 	if levelled {
 		message = fmt.Sprintf("%s reached level %d!", name, level)
 	}
-	writeJSON(w, map[string]any{"ok": true, "gold": s.bot.abyssGold(uid), "level": level,
+	writeJSON(w, map[string]any{"ok": true, "level": level,
 		"hp": maxHP, "max_hp": maxHP, "loyalty": loyalty, "xp": profile.XP,
-		"xp_next": abyssPetXPThreshold(level), "msg": message})
+		"xp_next": abyssPetXPThreshold(level), "consumables": s.bot.getConsumables(uid), "msg": message})
 }
 
 func timeNowUTC() time.Time {

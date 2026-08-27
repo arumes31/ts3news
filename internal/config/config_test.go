@@ -39,6 +39,21 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
+func TestLoadConfigDisablesAbyssDiscordAlertsByDefault(t *testing.T) {
+	t.Setenv("ABYSS_DISCORD_ALERTS_ENABLED", "")
+	t.Setenv("ABYSS_WEBHOOK_URL", "")
+	if cfg := LoadConfig(); cfg.AbyssDiscordAlerts || cfg.AbyssWebhookURL != "" {
+		t.Fatalf("Discord alerts enabled by default: enabled=%v URL=%q", cfg.AbyssDiscordAlerts, cfg.AbyssWebhookURL)
+	}
+
+	t.Setenv("ABYSS_DISCORD_ALERTS_ENABLED", "true")
+	t.Setenv("ABYSS_WEBHOOK_URL", " https://discord.com/api/webhooks/123456/token ")
+	cfg := LoadConfig()
+	if !cfg.AbyssDiscordAlerts || cfg.AbyssWebhookURL != "https://discord.com/api/webhooks/123456/token" {
+		t.Fatalf("Discord alert config not loaded: enabled=%v URL=%q", cfg.AbyssDiscordAlerts, cfg.AbyssWebhookURL)
+	}
+}
+
 func TestEnvBool(t *testing.T) {
 	tests := []struct {
 		key, val string

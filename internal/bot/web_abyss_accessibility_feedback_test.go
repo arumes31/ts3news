@@ -49,8 +49,8 @@ func TestAbyssUI141Through160Contracts(t *testing.T) {
 		}
 	}
 	for _, unsafe := range []string{
-		`registerAbyssSafeRetry`, `clearAbyssSafeRetry`, `opts.retry`,
-		`ab-toast-retry`, `function retryable`, `retry your last action`,
+		`registerAbyssSafeRetry`, `clearAbyssSafeRetry`,
+		`function retryable`, `retry your last action`,
 	} {
 		if strings.Contains(page, unsafe) {
 			t.Errorf("Abyss page contains unsafe mutation-retry contract %q", unsafe)

@@ -214,9 +214,9 @@ test('custom stakes preview, submit, and remain adjustable between floors', asyn
   expect(enteredBody.token_ante).toBe(10);
   expect(enteredBody.risk_dial_pct).toBe(30);
   await enteredNavigation;
-  await page.waitForLoadState('load');
+  await page.waitForLoadState('domcontentloaded');
 
-  await page.goto('/abyss?active=1');
+  await page.goto('/abyss?active=1', { waitUntil: 'domcontentloaded' });
   await page.locator('#runRiskDial').fill('40');
   await expect(page.locator('#runRiskDialOut')).toHaveText('+40%');
   await page.locator('#saveRunRiskDial').click();
@@ -769,6 +769,7 @@ test('dedicated special-item pixel atlases are served', async ({ request }) => {
 
 test('operator dashboard charts balance data and applies runtime flags', async ({ page }) => {
   let socialEnabled = true;
+  let socialRollout = 75;
   const snapshot = () => ({
     ok: true,
     registry: { active: 3, stale: 0, orphan: 0 },
@@ -778,12 +779,18 @@ test('operator dashboard charts balance data and applies runtime flags', async (
     features: {
       live_actions: true, social: socialEnabled, tree_enhancements: true,
       forge_workbench: true, rollout_percent: 100,
+      social_rollout_percent: socialRollout, tree_rollout_percent: 60, forge_rollout_percent: 40,
       reward_experiment_enabled: true, reward_experiment_rollout_percent: 50,
       reward_treatment_bonus_bps: 500, revision: 4, reward_experiment_revision: 2,
     },
     reward_experiment: {
       enabled: true, revision: 2, status: 'collecting',
       cohorts: { control: { floors: 8, average_reward: 1200, death_rate: 0.125, anomaly_rate: 0 } },
+    },
+    funnel: {
+      scope: 'process_lifetime', entered: 12, reached_floor_5: 9, banked: 5,
+      conceded: 4, active_tracked: 3,
+      stops_by_depth: { '5-9': { banked: 2, conceded: 1, timeout: 1, revive_failed: 1 } },
     },
     balance: {
       available: true, window_days: 30,
@@ -799,6 +806,7 @@ test('operator dashboard charts balance data and applies runtime flags', async (
     if (request.method() === 'POST') {
       const body = request.postDataJSON();
       if (body.feature === 'social') socialEnabled = body.enabled;
+      if (body.feature === 'social_rollout') socialRollout = body.percent;
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, features: snapshot().features, reward_experiment: snapshot().reward_experiment }) });
       return;
     }
@@ -810,8 +818,12 @@ test('operator dashboard charts balance data and applies runtime flags', async (
   await expect(page.locator('#opsActive')).toHaveText('3');
   await expect(page.locator('#opsDeathChart path.line')).toHaveCount(1);
   await expect(page.locator('#opsDropChart circle')).toHaveCount(2);
+  await expect(page.locator('#opsFunnelSummary')).toContainText('12 entered');
+  await expect(page.locator('#opsFunnelRows')).toContainText('5-9');
   await page.locator('[data-ops-feature="social"]').uncheck();
   await expect.poll(() => socialEnabled).toBe(false);
+  await page.locator('#socialRollout').fill('35');
+  await expect.poll(() => socialRollout).toBe(35);
   await expect(page.locator('#opsStatus')).toContainText('updated');
 });
 
@@ -1170,26 +1182,29 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   await expect(concealedThreshold.locator('.execute-track')).toHaveCount(0);
   const enemySide = await page.locator('#livePixelEnemies').boundingBox();
   const allySide = await page.locator('#livePixelAllies').boundingBox();
-  expect(enemySide.x).toBeLessThan(allySide.x);
-  await expect(ordinary.locator('.ab-catalog-actor')).toHaveCSS('background-image', /abyss_atlas_creatures/);
+  expect(allySide.x).toBeLessThan(enemySide.x);
+  const enemyUnit = await ordinary.boundingBox();
+  const allyUnit = await pixelAlly.boundingBox();
+  expect(enemyUnit.y).toBeLessThan(allyUnit.y);
+  await expect(ordinary.locator('.ab-expanded-enemy-sprite')).toHaveCSS('background-image', /abyss_enemy_atlas_expanded/);
   await expect(ordinary).toHaveClass(/weakness-ready/);
   await expect(ordinary).toHaveClass(/weakness-open/);
   await expect(ordinary.locator('.ab-pixel-weakness')).toContainText('EXPOSED');
   await expect(ordinary).toHaveAttribute('aria-label', /next direct player hit is a guaranteed critical/);
-  await expect(ordinary.locator('.ab-catalog-actor')).toHaveAttribute('data-art-sheet', 'creatures');
+  await expect(ordinary.locator('.ab-expanded-enemy-sprite')).toHaveAttribute('data-art-sheet', 'expanded');
   const monsterSignatures = await page.locator('#livePixelEnemies .ab-actor-sigil').evaluateAll(nodes => nodes.map(node => node.dataset.artSignature));
   expect(new Set(monsterSignatures).size).toBe(7);
   await ordinary.click();
   await expect(page.locator('#liveQueue')).toContainText('TARGET · Raider 5');
-  const attackIcon = page.locator('#liveActionBar .kind-attack .ab-catalog-icon');
-  await expect(attackIcon).toHaveCSS('background-image', /abyss_atlas_skills/);
-  await expect(attackIcon).toHaveAttribute('data-art-sheet', 'skills');
-  const skillSignatures = await page.locator('#liveActionBar .kind-skill .ab-art-unique').evaluateAll(nodes => nodes.map(node => node.dataset.artSignature));
+  const attackIcon = page.locator('#liveActionBar .kind-attack .ab-semantic-action-icon');
+  await expect(attackIcon).toHaveCSS('background-image', /abyss_icon_atlas/);
+  await expect(attackIcon).toHaveAttribute('data-art-sheet', 'actions');
+  const skillSignatures = await page.locator('#liveActionBar .kind-skill .ab-semantic-action-icon').evaluateAll(nodes => nodes.map(node => node.dataset.artSignature));
   expect(new Set(skillSignatures).size).toBe(2);
-  const skillComposites = await page.locator('#liveActionBar .kind-skill .ab-art-unique').evaluateAll(nodes => nodes.map(node => node.getAttribute('style')));
+  const skillComposites = await page.locator('#liveActionBar .kind-skill .ab-semantic-action-icon').evaluateAll(nodes => nodes.map(node => node.getAttribute('style')));
   expect(new Set(skillComposites).size).toBe(2);
-  const skillMotif = await page.locator('#liveActionBar .kind-skill .ab-art-unique').first().evaluate(node => getComputedStyle(node, '::before').backgroundImage);
-  expect(skillMotif).toContain('abyss_atlas_skills');
+  const skillPositions = await page.locator('#liveActionBar .kind-skill .ab-semantic-action-icon').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).backgroundPosition));
+  expect(new Set(skillPositions).size).toBe(1);
   const lootIcons = page.locator('#lootManifest .ab-loot-pixel.ab-art-unique');
   await expect(lootIcons).toHaveCount(2);
   await expect(lootIcons.nth(0)).toHaveCSS('background-image', /abyss_atlas_items/);

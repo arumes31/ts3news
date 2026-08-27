@@ -19,6 +19,21 @@ async function abyssEquipBestLoot(id,event){
   await refreshRunLootManifest();
 }
 
+async function abyssSellJunkLoot(id,quotedGold,event){
+  if(event){event.preventDefault();event.stopPropagation();}
+  var value=Math.max(1,Math.floor(Number(quotedGold)||0));
+  var confirmed=await confirmModal('Convert this ordinary gear into +'+fmtNum(value)+'g of at-risk run cache? The item is destroyed immediately and cannot be recovered.',{title:'Sell escrow junk',okLabel:'Sell · +'+fmtNum(value)+'g cache',cancelLabel:'Keep item'});
+  if(!confirmed)return;
+  var button=event&&event.currentTarget;if(button)button.disabled=true;
+  var data=await abPost('/api/abyss/loot/sell_junk',{id:Number(id)||0,quoted_gold:value});
+  if(button)button.disabled=false;
+  if(!data.ok){abToast(data.error||'Could not sell that escrow item.',false);return;}
+  if(typeof setEscrow==='function')setEscrow(Number(data.escrow)||0);
+  var row=button&&button.closest?button.closest('.abyss-side-loot'):null;if(row)row.remove();
+  abToast(data.msg||('Junk sold for '+fmtNum(data.value)+'g cache.'),true);
+  await refreshRunLootManifest();
+}
+
 function applyRunLootData(row,item){
   var fields={
     'loot-id':item.id,'depth':item.depth,'source':item.source,'item-type':item.item_type,
@@ -30,7 +45,8 @@ function applyRunLootData(row,item){
     'set-count':item.set_count,'set-max':item.set_max,'corrupted':item.corrupted,
     'empty-slot':item.empty_slot,'can-equip-best':item.can_equip_best,'equip-on-bank':item.equip_on_bank,
     'smart-loot':item.smart_loot,'smart-loot-reason':item.smart_loot_reason,
-    'set-pity':item.set_pity,'wishlist':item.wishlist,'provenance':item.provenance
+    'set-pity':item.set_pity,'wishlist':item.wishlist,'provenance':item.provenance,
+    'can-sell-junk':item.can_sell_junk,'sell-value':item.sell_value,'estimated-value':item.estimated_value
   };
   Object.keys(fields).forEach(function(key){
     var value=fields[key];
@@ -74,17 +90,34 @@ function buildAuthoritativeRunLootRow(item){
     button.textContent=item.equip_on_bank?'✓ Equip on bank':'Equip best on bank';
     button.onclick=function(event){abyssEquipBestLoot(item.id,event);};row.appendChild(button);
   }
+  if(item.can_sell_junk){
+    var sell=document.createElement('button');sell.type='button';sell.className='ghost xs ab-sell-junk';
+    sell.textContent='Sell junk · +'+fmtNum(item.sell_value)+'g cache';
+    sell.title='Destroy this ordinary escrow item and add exactly '+fmtNum(item.sell_value)+' gold to the still-at-risk run cache.';
+    sell.onclick=function(event){abyssSellJunkLoot(item.id,item.sell_value,event);};row.appendChild(sell);
+  }
   row.onclick=function(event){toggleRunLootDetail(row,event);};
   row.onkeydown=function(event){if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(row,event);}};
   return row;
 }
 
 var runLootManifestRevision=0;
+function setRunLootManifestLoading(loading){var manifest=document.getElementById('lootManifest');if(!manifest)return;manifest.setAttribute('aria-busy',loading?'true':'false');var skeleton=manifest.querySelector('.ab-manifest-skeleton');if(loading&&!skeleton){skeleton=document.createElement('div');skeleton.className='ab-manifest-skeleton';skeleton.setAttribute('aria-hidden','true');skeleton.innerHTML='<i></i><i></i><i></i>';manifest.prepend(skeleton);}else if(!loading&&skeleton)skeleton.remove();}
+function updateRunLootDuplicateGuard(count,windowSize){
+  var guard=document.getElementById('lootDuplicateGuard');if(!guard)return;
+  var safeCount=Math.max(0,Math.floor(Number(count)||0)),safeWindow=Math.max(1,Math.floor(Number(windowSize)||20));
+  guard.dataset.count=String(safeCount);guard.dataset.window=String(safeWindow);
+  var detail=guard.querySelector('small');if(!detail)return;
+  var strong=document.createElement('strong');strong.id='lootDuplicateGuardCount';strong.textContent=fmtNum(safeCount);
+  detail.replaceChildren(strong,document.createTextNode(' catalog IDs · previous '+safeWindow+' cleared floors'));
+}
 async function refreshRunLootManifest(){
   var revision=++runLootManifestRevision;
+  var loadingTimer=setTimeout(function(){if(revision===runLootManifestRevision)setRunLootManifestLoading(true);},140);
   try{
     var response=await fetch('/api/abyss/loot/manifest'),data=await response.json();
     if(revision!==runLootManifestRevision||!data.ok)return;
+    updateRunLootDuplicateGuard(data.recent_gear_protected,data.duplicate_floor_window);
     var manifest=document.getElementById('lootManifest');if(!manifest)return;
     manifest.replaceChildren();lastLootDepth=null;
     (data.items||[]).forEach(function(item){
@@ -94,8 +127,9 @@ async function refreshRunLootManifest(){
       if(rarity)row.classList.add(rarity);
       manifest.appendChild(row);decorateLootRow(row);
     });
-    if(!(data.items||[]).length){var empty=document.createElement('div');empty.className='abyss-side-empty';empty.textContent='No loot escrowed yet this run.';manifest.appendChild(empty);}
+    if(!(data.items||[]).length){var empty=document.createElement('div');empty.className='abyss-side-empty ab-empty-state';empty.innerHTML='<span aria-hidden="true">🎒</span><b>The cache is empty</b><small>Clear a floor to escrow loot here. Bank before defeat to keep it.</small>';manifest.appendChild(empty);}
     updateLootSummary();applyLootFilter();if(lootSort!=='floor')applyLootSort();
   }catch(_){/* Keep the already-rendered manifest on transient read failure. */}
+  finally{clearTimeout(loadingTimer);if(revision===runLootManifestRevision)setRunLootManifestLoading(false);}
 }
 {{end}}

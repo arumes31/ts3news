@@ -11,13 +11,14 @@
     var number=Number(value);
     if(!Number.isFinite(number))return String(value==null?'':value);
     var places=Math.max(0,Math.min(3,Number(digits)||0));
-    return(alwaysSign&&number>0?'+':'')+number.toLocaleString('en-US',{minimumFractionDigits:places,maximumFractionDigits:places});
+    var formatted=window.AbyssLocale?AbyssLocale.number(number,{minimumFractionDigits:places,maximumFractionDigits:places}):number.toLocaleString(undefined,{minimumFractionDigits:places,maximumFractionDigits:places});
+    return(alwaysSign&&number>0?'+':'')+formatted;
   }
   function compact(value,alwaysSign,digits){
     var number=Number(value);
     if(!Number.isFinite(number))return String(value==null?'':value);
     if(Math.abs(number)<1000)return exact(number,alwaysSign,digits);
-    var text=new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(number);
+    var text=window.AbyssLocale?AbyssLocale.compact(number,1):new Intl.NumberFormat(undefined,{notation:'compact',maximumFractionDigits:1}).format(number);
     return(alwaysSign&&number>0?'+':'')+text;
   }
   function format(value,options){

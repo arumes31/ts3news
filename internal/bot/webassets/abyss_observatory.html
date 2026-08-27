@@ -1,0 +1,63 @@
+{{define "abyssObservatory"}}
+<section class="abyss-panel ab-observatory" id="abyssObservatory" data-abyss-section="observatory" aria-labelledby="abyssObservatoryTitle">
+  <header class="ab-observatory-head">
+    <div><span class="ab-kicker">AUTHORITATIVE RUN TELEMETRY</span><h2 id="abyssObservatoryTitle">📡 Run Observatory</h2></div>
+    <p>Private player analytics, signed run evidence, deterministic seeds, and a read-only integration key in one place.</p>
+  </header>
+  <div class="ab-observatory-metrics" aria-label="Lifetime Abyss analytics">
+    <article><span>DEEPEST SIGNAL</span><strong>{{comma .Stats.BestDepth}}</strong><small>floors reached</small></article>
+    <article><span>CLEARED</span><strong>{{comma .Stats.LifetimeFloors}}</strong><small>authoritative floors</small></article>
+    <article><span>SECURED</span><strong>{{gold .Stats.LifetimeBanked}}</strong><small>lifetime banked</small></article>
+    <article><span>RUN SAMPLE</span><strong>{{len .History}}</strong><small>recent signed outcomes</small></article>
+  </div>
+  <div class="ab-observatory-grid">
+    <article class="ab-observatory-card ab-observatory-analytics">
+      <header><span>01</span><div><h3>Performance matrix</h3><p>Outcome rates and failure pressure from server-owned history.</p></div></header>
+      <div class="ab-observatory-splits">
+        <section><h4>Tier conversion</h4>{{range .RunInsights.TierRates}}<div class="ab-observatory-rate"><span>{{.Tier}}</span><progress max="100" value="{{.Percent}}">{{.Percent}}%</progress><b>{{.Percent}}%</b></div>{{else}}<p class="muted small">Complete a run to establish a tier baseline.</p>{{end}}</section>
+        <section><h4>Failure signatures</h4>{{range .RunInsights.DeathCauses}}<div class="ab-observatory-cause"><span>{{.Label}}</span><b>{{.Count}}</b></div>{{else}}<p class="muted small">No defeats recorded.</p>{{end}}</section>
+      </div>
+    </article>
+    <article class="ab-observatory-card ab-observatory-api">
+      <header><span>02</span><div><h3>Read-only stats key</h3><p>Identifies integrations calling the public aggregate endpoint. It never exposes your private run history.</p></div></header>
+      <div class="ab-api-status" id="abyssAPIStatus" role="status">Checking credential status…</div>
+      <div class="ab-api-secret" id="abyssAPISecret" hidden><span>ONE-TIME TOKEN</span><code></code><button class="ghost xs" type="button" onclick="copyAbyssAPIToken()">Copy</button></div>
+      <div class="ab-observatory-actions">
+        <button class="primary xs" type="button" onclick="rotateAbyssAPIToken()">Generate / rotate</button>
+        <button class="ghost xs" type="button" onclick="revokeAbyssAPIToken()">Revoke</button>
+      </div>
+      <code class="ab-api-example">GET /api/abyss/stats<br>Authorization: Bearer &lt;token&gt;</code>
+    </article>
+    <article class="ab-observatory-card ab-observatory-ledger">
+      <header><span>03</span><div><h3>Signed run ledger</h3><p>Every new run records one secure seed; each floor derives a reproducible seed and retains a bounded combat tail.</p></div></header>
+      <div class="ab-run-ledger-list">
+      {{range .History}}
+        <div class="ab-run-ledger-row {{if .Victory}}verified{{else}}failed{{end}}">
+          <span><b>F{{.Depth}}</b><small>{{.Tier}} · {{.When}}</small></span>
+          <code>{{if .AuditHash}}{{printf "%.12s" .AuditHash}}{{else}}legacy{{end}}</code>
+          {{if .ReplayReady}}<button class="ghost xs" type="button" onclick="viewArchivedAbyssRunReplay({{.RunID}})">Inspect</button>{{else}}<em>summary only</em>{{end}}
+        </div>
+      {{else}}<p class="muted small">No completed runs are available yet.</p>{{end}}
+      </div>
+    </article>
+  </div>
+</section>
+{{end}}
+
+{{define "abyssObservatoryJS"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  function statusText(data){var token=data&&data.token||{};return token.configured?'Active key · '+String(token.prefix||'')+'… · created '+String(token.created_at||''):'No integration key configured.';}
+  async function loadStatus(){var el=document.getElementById('abyssAPIStatus');if(!el)return;try{var response=await fetch('/api/abyss/api-token',{credentials:'same-origin'}),data=await response.json();el.textContent=data.ok?statusText(data):(data.error||'Credential status unavailable.');}catch(_){el.textContent='Credential status unavailable.';}}
+  window.rotateAbyssAPIToken=async function(){var approved=typeof confirmModal!=='function'||await confirmModal('Generate a new read-only stats key? Any existing key stops working immediately.',{title:'Rotate integration key',okLabel:'Generate key'});if(!approved)return;var data=await abPost('/api/abyss/api-token',{});if(!data.ok){abToast(data.error||'Could not generate key.',false);return;}var box=document.getElementById('abyssAPISecret'),code=box&&box.querySelector('code');if(box&&code){code.textContent=String(data.token||'');box.hidden=false;}var status=document.getElementById('abyssAPIStatus');if(status)status.textContent='Active key · '+String(data.prefix||'')+'…';abToast('Read-only stats key generated. Copy it now.',true);};
+  window.copyAbyssAPIToken=async function(){var code=document.querySelector('#abyssAPISecret code'),value=code&&code.textContent||'';if(!value)return;try{await navigator.clipboard.writeText(value);abToast('Stats key copied.',true);}catch(_){window.prompt('Copy your stats key:',value);}};
+  window.revokeAbyssAPIToken=async function(){var approved=typeof confirmModal!=='function'||await confirmModal('Revoke the current stats key?',{title:'Revoke integration key',okLabel:'Revoke'});if(!approved)return;try{var response=await fetch('/api/abyss/api-token',{method:'DELETE',credentials:'same-origin'}),data=await response.json();if(!data.ok){abToast(data.error||'Could not revoke key.',false);return;}var box=document.getElementById('abyssAPISecret');if(box)box.hidden=true;await loadStatus();abToast('Stats key revoked.',true);}catch(_){abToast('Could not revoke key.',false);}};
+  function seed(values){return (values||[]).map(function(value){return consEsc(String(value));}).join(' · ')||'legacy / unavailable';}
+  function renderFloor(floor){var logs=(floor.logs||[]).map(function(line){return '<li>'+consEsc(String(line))+'</li>';}).join('');return '<article class="ab-archive-floor '+(floor.victory?'won':'lost')+'"><header><b>F'+Number(floor.depth||0)+' · '+consEsc(floor.biome||'Unknown biome')+'</b><span>'+consEsc(floor.victory?'CLEARED':'DEFEAT')+'</span></header><div><code>seed '+seed(floor.seed)+'</code><strong>'+Number(floor.hp||0)+' / '+Number(floor.max_hp||0)+' HP</strong></div>'+(logs?'<ol>'+logs+'</ol>':'<p class="muted small">No bounded combat tail was retained.</p>')+'</article>';}
+  function renderChoice(choice){return '<li><b>F'+Number(choice.depth||0)+'</b><span>'+consEsc(choice.kind||'choice')+'</span><code>'+consEsc(choice.value||'')+'</code></li>';}
+  window.viewArchivedAbyssRunReplay=async function(runID){try{var response=await fetch('/api/abyss/run/replay?id='+encodeURIComponent(String(runID)),{credentials:'same-origin'}),data=await response.json();if(!data.ok){abToast(data.error||'Run replay unavailable.',false);return;}var replay=data.replay||{},floors=(replay.floors||[]).map(renderFloor).join(''),choices=(replay.choices||[]).map(renderChoice).join('');openModal('<section class="ab-archive-modal"><header class="ab-archive-title"><div><span>SIGNED RUN ARCHIVE</span><h3>Floor '+Number(replay.depth||0)+' · '+consEsc(replay.tier||'normal')+'</h3></div><b class="'+(replay.victory?'won':'lost')+'">'+consEsc(replay.victory?'BANKED':'ENDED')+'</b></header><div class="ab-archive-proof"><span><small>AUDIT SHA-256</small><code>'+consEsc(replay.audit_hash||'')+'</code></span><span><small>RUN SEED</small><code>'+seed(replay.run_seed)+'</code></span></div><details class="ab-archive-choices"><summary>Decision ledger · '+Number((replay.choices||[]).length)+'</summary><ol>'+(choices||'<li>No explicit choices retained.</li>')+'</ol></details><div class="ab-archive-floors">'+(floors||'<p class="ab-replay-empty">No floor frames retained.</p>')+'</div><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close archive</button></div></section>');}catch(_){abToast('Run replay unavailable.',false);}};
+  loadStatus();
+})();
+</script>
+{{end}}

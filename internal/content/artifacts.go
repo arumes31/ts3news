@@ -485,6 +485,7 @@ func buildConsumables() []Consumable {
 		{"strength_elixir", "Strength Elixir", ConsumableBuff, 15, 3, "Boosts Strength for several fights."},
 		{"iron_skin_brew", "Iron Skin Brew", ConsumableBuff, 10, 3, "Boosts Defense for several fights."},
 		{"phoenix_feather", "Phoenix Feather", ConsumableRevive, 50, 0, "Revives you once when you fall in battle."},
+		{"pet_revival_scroll", "Companion Revival Scroll", ConsumableRevive, 1, 0, "Returns one fallen companion from the memorial to your reserve stable."},
 		{"repair_kit", "Repair Kit", ConsumableRepair, 30, 0, "Restores durability to your equipment."},
 		{"master_repair_kit", "Master Repair Kit", ConsumableRepair, 75, 0, "Fully restores durability to your equipment."},
 		{"speed_elixir", "Speed Elixir", ConsumableBuff, 25, 3, "Boosts Speed by +25 for several fights."},
@@ -1222,6 +1223,11 @@ func AbyssSetCatalog(setID string) []Gear {
 	return out
 }
 
+// AbyssNamedSetIDs returns the curated collection-book sets in display order.
+func AbyssNamedSetIDs() []string {
+	return []string{"predator", "warden", "harvester"}
+}
+
 // RandomItemEffectWithRandom rolls a combat affix using source.
 func RandomItemEffectWithRandom(source RandomSource) ItemEffect {
 	effects := []ItemEffect{
@@ -1440,6 +1446,13 @@ func AbyssGearCatalog() []Gear {
 	return catalog
 }
 
+// ItemEffectCatalog returns the complete documented item-affix catalog in its
+// stable presentation order. The returned slice is detached from the canonical
+// content table so callers may sort it safely.
+func ItemEffectCatalog() []ItemEffect {
+	return slices.Clone(allItemEffects)
+}
+
 // abyssDupRerollAttempts caps how many times the *Excluding rollers retry to
 // avoid a duplicate before giving up and returning whatever they last rolled.
 const abyssDupRerollAttempts = 8
@@ -1521,6 +1534,45 @@ func GearDropSlots(pool GearDropPool) []GearSlot {
 // item; callers can then retain their original unrestricted roll.
 func RandomGearDropForSlotsExcluding(pool GearDropPool, slots []GearSlot, owned map[string]bool) (Gear, bool) {
 	return RandomGearDropForSlotsExcludingWithRandom(pool, slots, owned, gameplayRandom)
+}
+
+// RandomGearDropForSlotsStrictlyExcluding returns false instead of falling back
+// to an excluded catalog ID when every matching item is blocked.
+func RandomGearDropForSlotsStrictlyExcluding(pool GearDropPool, slots []GearSlot, excluded map[string]bool) (Gear, bool) {
+	return RandomGearDropForSlotsStrictlyExcludingWithRandom(pool, slots, excluded, gameplayRandom)
+}
+
+// RandomGearDropForSlotsStrictlyExcludingWithRandom is the reproducible variant
+// of RandomGearDropForSlotsStrictlyExcluding.
+func RandomGearDropForSlotsStrictlyExcludingWithRandom(pool GearDropPool, slots []GearSlot, excluded map[string]bool, source RandomSource) (Gear, bool) {
+	wanted := make(map[GearSlot]bool, len(slots))
+	for _, slot := range slots {
+		wanted[slot] = true
+	}
+	if len(wanted) == 0 {
+		return Gear{}, false
+	}
+	catalog := gearDropCatalog(pool)
+	if pool == GearDropPoolStandard && source.Float64() < 0.05 {
+		catalog = uniqueLegendaries
+	}
+	candidates := matchingGearCandidates(catalog, pool, wanted, excluded, true)
+	if len(candidates) == 0 && pool == GearDropPoolStandard {
+		candidates = matchingGearCandidates(gearDropCatalog(pool), pool, wanted, excluded, true)
+	}
+	if len(candidates) == 0 {
+		return Gear{}, false
+	}
+	gear := candidates[source.IntN(len(candidates))] // #nosec G404 -- gameplay loot roll
+	switch pool {
+	case GearDropPoolStandard:
+		gear.Special = RandomItemEffectWithRandom(source)
+	case GearDropPoolAbyss, GearDropPoolInsanity:
+		if gear.Special == EffectNone {
+			gear.Special = RandomItemEffectWithRandom(source)
+		}
+	}
+	return gear, true
 }
 
 // RandomGearDropForSlotsExcludingWithRandom is the reproducible variant of

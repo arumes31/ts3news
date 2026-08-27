@@ -3,6 +3,7 @@ package bot
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -45,6 +46,26 @@ type abyssSocialPetView struct {
 	Shiny       bool
 	BossVariant bool
 	LoyaltyPct  int
+	FusionRank  int
+	Cosmetic    string
+	Cosmetics   []abyssPetCosmeticView
+	Activity    string
+	ActivityDue string
+	DaycareXP   int
+	BarkStyle   string
+}
+
+type abyssPetCosmeticView struct {
+	abyssPetCosmetic
+	Owned    bool
+	Selected bool
+}
+
+type abyssPetPowerView struct {
+	Rank  int
+	Nick  string
+	Name  string
+	Power int
 }
 
 type abyssDeathView struct {
@@ -55,6 +76,7 @@ type abyssDeathView struct {
 }
 
 type abyssMemorialView struct {
+	ID      int64
 	Name    string
 	Type    string
 	Level   int
@@ -105,6 +127,7 @@ type abyssNotificationView struct {
 }
 
 type abyssSocialHubView struct {
+	Program           abyssSocialProgramView
 	Pets              []abyssSocialPetView
 	PendingCapture    *abyssPendingPetCaptureView
 	SecondPetUnlocked bool
@@ -119,7 +142,8 @@ type abyssSocialHubView struct {
 	WeeklyBoss        abyssWeeklyBossView
 	Notifications     []abyssNotificationView
 	FriendEcho        abyssFriendEchoView
-	PetFeedCost       int64
+	PetFeedOptions    []consumableOwned
+	PetPowerLeaders   []abyssPetPowerView
 }
 
 func abyssPetMood(currentHP, maxHP, loyalty int) (string, string, int) {
@@ -244,6 +268,35 @@ func (b *Bot) abyssSocialPets(uid string) []abyssSocialPetView {
 		view.Favorite = profile.Favorite
 		view.Shiny = profile.Shiny
 		view.BossVariant = profile.BossVariant
+		view.FusionRank = profile.FusionRank
+		view.Cosmetic = profile.Cosmetic
+		view.BarkStyle = profile.BarkStyle
+		if view.BarkStyle == "" {
+			view.BarkStyle = "gentle"
+		}
+		view.DaycareXP = abyssPetDaycareXP(profile, timeNowUTC())
+		if profile.DaycareSince != "" {
+			view.Activity = "daycare"
+		} else if profile.ExpeditionKind != "" {
+			view.Activity = profile.ExpeditionKind + " expedition"
+			if due, err := time.Parse(time.RFC3339, profile.ExpeditionUntil); err == nil {
+				if due.After(timeNowUTC()) {
+					view.ActivityDue = due.Local().Format("Jan 2 15:04")
+				} else {
+					view.ActivityDue = "ready"
+				}
+			}
+		} else if due, err := time.Parse(time.RFC3339, profile.GiftUntil); err == nil && due.After(timeNowUTC()) {
+			view.Activity = "gift reserved"
+			view.ActivityDue = due.Local().Format("Jan 2 15:04")
+		}
+		for _, cosmetic := range abyssPetCosmetics {
+			view.Cosmetics = append(view.Cosmetics, abyssPetCosmeticView{
+				abyssPetCosmetic: cosmetic,
+				Owned:            slices.Contains(profile.OwnedCosmetics, cosmetic.Key),
+				Selected:         profile.Cosmetic == cosmetic.Key,
+			})
+		}
 		view.LoyaltyPct = abyssPetLoyaltyBonusPct(view.Loyalty)
 		view.Mood, view.MoodIcon, view.MoodPct = abyssPetMood(view.HP, view.MaxHP, view.Loyalty)
 		view.Equipment = abyssPetEquipmentLabel(equipped)
@@ -284,7 +337,7 @@ func (b *Bot) abyssRevengeFamily(uid string) string {
 }
 
 func (b *Bot) abyssPetMemorials(uid string) []abyssMemorialView {
-	rows, err := b.DB.Query(`SELECT name,mob_type,level,loyalty,fallen_at FROM abyss_pet_memorials
+	rows, err := b.DB.Query(`SELECT id,name,mob_type,level,loyalty,fallen_at FROM abyss_pet_memorials
 		WHERE client_uid=$1 ORDER BY fallen_at DESC LIMIT 20`, uid)
 	if err != nil {
 		return nil
@@ -294,13 +347,34 @@ func (b *Bot) abyssPetMemorials(uid string) []abyssMemorialView {
 	for rows.Next() {
 		var view abyssMemorialView
 		var at time.Time
-		if rows.Scan(&view.Name, &view.Type, &view.Level, &view.Loyalty, &at) != nil {
+		if rows.Scan(&view.ID, &view.Name, &view.Type, &view.Level, &view.Loyalty, &at) != nil {
 			return nil
 		}
 		view.When = at.Format("2006-01-02")
 		views = append(views, view)
 	}
 	return views
+}
+
+func (b *Bot) abyssPetPowerLeaders() []abyssPetPowerView {
+	rows, err := b.DB.Query(`SELECT COALESCE(NULLIF(u.nickname,''),'Adventurer'),p.name,
+		(p.max_hp+p.str+p.def+p.spd+p.level*10) AS power
+		FROM user_pets p JOIN users u ON u.client_uid=p.client_uid
+		ORDER BY power DESC,p.level DESC,p.pet_id LIMIT 5`)
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = rows.Close() }()
+	leaders := make([]abyssPetPowerView, 0, 5)
+	for rows.Next() {
+		var leader abyssPetPowerView
+		if err := rows.Scan(&leader.Nick, &leader.Name, &leader.Power); err != nil {
+			return nil
+		}
+		leader.Rank = len(leaders) + 1
+		leaders = append(leaders, leader)
+	}
+	return leaders
 }
 
 func (b *Bot) abyssBossTrophies(uid string) []abyssTrophyView {
@@ -433,13 +507,16 @@ func (b *Bot) abyssSocialHub(uid string, prestige int) abyssSocialHubView {
 	deaths := b.abyssDeathWall(uid)
 	bankEnabled, bankFeed := b.abyssBankFeed(uid)
 	trophies := b.abyssBossTrophies(uid)
+	feedOptions, _ := b.abyssOwnedConsumables(uid)
 	return abyssSocialHubView{
-		Pets: b.abyssSocialPets(uid), SecondPetUnlocked: prestige >= 2,
+		Program:           b.abyssSocialProgram(uid),
+		Pets:              b.abyssSocialPets(uid),
+		SecondPetUnlocked: prestige >= 2,
 		PendingCapture: b.abyssPendingPetCapture(uid),
 		Deaths:         deaths, Memorials: b.abyssPetMemorials(uid), Trophies: trophies, BossLore: abyssBossLoreViews(trophies),
 		RevengeFamily: b.abyssRevengeFamily(uid), Rival: b.ensureAbyssWeeklyRival(uid), BankFeedEnabled: bankEnabled,
 		BankFeed: bankFeed, WeeklyBoss: b.abyssWeeklyBossStatus(uid), Notifications: b.abyssSocialNotifications(uid),
-		FriendEcho: b.abyssFriendEchoSettings(uid),
-		PetFeedCost: abyssPetFeedCost,
+		FriendEcho: b.abyssFriendEchoSettings(uid), PetFeedOptions: feedOptions,
+		PetPowerLeaders: b.abyssPetPowerLeaders(),
 	}
 }

@@ -48,14 +48,31 @@ func abyssTierByKey(k string) (abyssTier, bool) {
 // abyssTierView is the template-facing tier with its unlock state.
 type abyssTierView struct {
 	abyssTier
-	Unlocked bool
+	Unlocked      bool
+	Icon          string
+	WinRateHint   string
+	UnlockQuest   string
+	QuestProgress string
 }
 
 func abyssTierList(bestDepth int) []abyssTierView {
+	return abyssTierListWithRates(bestDepth, nil)
+}
+
+func abyssTierListWithRates(bestDepth int, rates []abyssTierRateView) []abyssTierView {
+	rateByTier := make(map[string]abyssTierRateView, len(rates))
+	for _, rate := range rates {
+		rateByTier[rate.Tier] = rate
+	}
+	icons := map[string]string{"normal": "🛡️", "nightmare": "🌘", "hell": "🔥", "insanity": "🌀"}
 	out := make([]abyssTierView, 0, len(abyssTierOrder))
 	for _, k := range abyssTierOrder {
 		t := abyssTiers[k]
-		out = append(out, abyssTierView{abyssTier: t, Unlocked: bestDepth >= t.MinBest})
+		view := abyssTierView{abyssTier: t, Unlocked: bestDepth >= t.MinBest, Icon: icons[k]}
+		if rate, ok := rateByTier[k]; ok && rate.Runs > 0 {
+			view.WinRateHint = fmt.Sprintf("%d%% bank rate · %d runs", rate.Percent, rate.Runs)
+		}
+		out = append(out, view)
 	}
 	return out
 }
@@ -226,6 +243,12 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 	policy.Refund = abyssAnchorRefund(policy.Refund, run.Escrow, anchorActive)
 	refund := policy.Refund
 	remainder := run.Escrow - refund
+	competitionRecord, err := b.newAbyssCompetitionRunRecord(
+		uid, run, refund, false, hardcore, endReason, b.abyssCompetitionPactMultiplier(uid, pacts, flags),
+	)
+	if err != nil {
+		return abyssForfeitResult{}, err
+	}
 	if anchorActive {
 		flags[abyssRunFlagAnchorRune] = 0
 		if err := saveRunFlags(tx, uid, flags); err != nil {
@@ -251,12 +274,16 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 	}
 	if run.Depth > 0 {
 		if _, err := tx.Exec(
-			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary, end_reason, duration_ms, floors_cleared)
+			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary, end_reason, duration_ms, floors_cleared,
+			 build_key,pact_multiplier,ts3_channel_id,audit_hash,audit_data)
 			 SELECT $1,$2,$3,FALSE,$4,$5,
 			   (SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1),
 			   COALESCE((SELECT jsonb_agg(label ORDER BY id) FROM
-			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), $6, $7, $8`,
-			uid, run.Depth, refund, run.Tier, hardcore, endReason, abyssRunDurationMS(run), abyssRunFloorsCleared(run)); err != nil {
+			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), $6, $7, $8,
+			   $9,$10,$11,$12,$13::jsonb`,
+			uid, run.Depth, refund, run.Tier, hardcore, endReason, abyssRunDurationMS(run), abyssRunFloorsCleared(run),
+			competitionRecord.Build, competitionRecord.PactMultiplier, competitionRecord.ChannelID,
+			competitionRecord.AuditHash, competitionRecord.AuditJSON); err != nil {
 			return abyssForfeitResult{}, err
 		}
 		if err := recordAbyssAffixRun(tx, uid, abyssDailyAffixFromFlags(flags), run.Depth, false); err != nil {
@@ -280,6 +307,10 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 		// Daily death counter feeds the comeback buff (#24): 3 deaths in one day
 		// grant +10% stats on the next run.
 		if policy.CountDeath {
+			if _, err := tx.Exec(`UPDATE abyss_deaths SET lost_cache=$1 WHERE id=(SELECT id FROM abyss_deaths
+				WHERE client_uid=$2 AND rescued_at IS NULL ORDER BY died_at DESC LIMIT 1)`, remainder, uid); err != nil {
+				return abyssForfeitResult{}, err
+			}
 			if _, err := tx.Exec(
 				`UPDATE users SET abyss_deaths_today = CASE WHEN abyss_deaths_date = CURRENT_DATE THEN abyss_deaths_today + 1 ELSE 1 END,
 				        abyss_deaths_date = CURRENT_DATE WHERE client_uid=$1`, uid); err != nil {
@@ -292,7 +323,18 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 	if _, err := tx.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid); err != nil {
 		return abyssForfeitResult{}, err
 	}
+	if clearAbyssRunIdentityFlags(flags) {
+		if err := saveRunFlags(tx, uid, flags); err != nil {
+			return abyssForfeitResult{}, err
+		}
+	}
 	if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
+		return abyssForfeitResult{}, err
+	}
+	if _, err := tx.Exec("DELETE FROM abyss_party_members WHERE owner_uid=$1", uid); err != nil {
+		return abyssForfeitResult{}, err
+	}
+	if err := deleteAbyssRunProvenance(tx, uid); err != nil {
 		return abyssForfeitResult{}, err
 	}
 	// Death forfeits the locked loot cache along with the gold.
@@ -317,6 +359,12 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 // awardAbyssBonusGear grants a guaranteed gear reward on a deep bank, with a
 // rarity floor that rises with depth (re-rolling until the floor is met). [55][57]
 func (b *Bot) awardAbyssBonusGear(uid string, depth int) string {
+	g := rollAbyssBonusGear(depth)
+	res := b.awardGearDrop(uid, g)
+	return res.Prefix + res.ItemName
+}
+
+func rollAbyssBonusGear(depth int) content.Gear {
 	floor := content.RarityCommon
 	switch {
 	case depth >= 50:
@@ -339,8 +387,7 @@ func (b *Bot) awardAbyssBonusGear(uid string, depth int) string {
 			g = candidates[rand.IntN(len(candidates))]
 		}
 	}
-	res := b.awardGearDrop(uid, g)
-	return res.Prefix + res.ItemName
+	return g
 }
 
 // tryAbyssJackpot gives a deep bank a small chance at the shared deep-cache pot. [62]
@@ -398,6 +445,7 @@ var abyssAchievementNames = map[string]string{
 	"prestige_1":        "Reborn (First Abyss Prestige)",
 	"hardcore_depth_10": "Iron Delver (Hardcore Depth 10)",
 	"perfect_run":       "Untouchable (Perfect Run)",
+	"lore_complete":     "Abyss Chronicler (Lore Complete)",
 	"lore_secret_chain": "Abyss Unmasked (Secret Sovereigns)",
 }
 
@@ -509,8 +557,8 @@ func (b *Bot) checkBankAchievements(uid string, lifetimeBanked int64) string {
 	return b.checkThresholdAchievements(uid, lifetimeBanked, abyssBankTiers)
 }
 
-// handleAbyssSetBadge lets a player display one earned achievement as a
-// persistent cosmetic badge next to their name. An empty code clears it.
+// handleAbyssSetBadge lets a player combine earned achievements in persistent
+// prefix and suffix cosmetic slots. The legacy badge column remains the prefix.
 func (s *WebServer) handleAbyssSetBadge(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -518,8 +566,16 @@ func (s *WebServer) handleAbyssSetBadge(w http.ResponseWriter, r *http.Request, 
 	}
 	var req struct {
 		Code string `json:"code"`
+		Slot string `json:"slot"`
 	}
 	_ = readJSON(r, &req)
+	if req.Slot == "" {
+		req.Slot = "prefix"
+	}
+	if req.Slot != "prefix" && req.Slot != "suffix" {
+		writeJSON(w, map[string]any{"ok": false, "error": "invalid badge slot"})
+		return
+	}
 
 	if req.Code != "" {
 		var has bool
@@ -530,11 +586,25 @@ func (s *WebServer) handleAbyssSetBadge(w http.ResponseWriter, r *http.Request, 
 			return
 		}
 	}
-	if _, err := s.bot.DB.Exec("UPDATE users SET abyss_active_badge=$1 WHERE client_uid=$2", req.Code, uid); err != nil {
+	other := s.bot.abyssBadgeSuffix(uid)
+	if req.Slot == "suffix" {
+		other = s.bot.abyssActiveBadgePrefix(uid)
+	}
+	if req.Code != "" && req.Code == other {
+		writeJSON(w, map[string]any{"ok": false, "error": "choose a different badge for each slot"})
+		return
+	}
+	var err error
+	if req.Slot == "suffix" {
+		err = s.bot.setAbyssBadgeSuffix(uid, req.Code)
+	} else {
+		_, err = s.bot.DB.Exec("UPDATE users SET abyss_active_badge=$1 WHERE client_uid=$2", req.Code, uid)
+	}
+	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "badge": req.Code, "badge_name": abyssAchievementName(req.Code)})
+	writeJSON(w, map[string]any{"ok": true, "badge": req.Code, "badge_name": abyssAchievementName(req.Code), "slot": req.Slot})
 }
 
 // ---- Leaderboards (per tier) ---------------------------------------------
@@ -789,7 +859,7 @@ func abyssZoneName(depth int) string {
 // boostedMaterials returns m with each count boosted by the Scavenger node
 // (#155) and the skill web's material_yield notables.
 func (b *Bot) boostedMaterials(uid string, m map[string]int) map[string]int {
-	scav := b.loadAbyssStats(uid).UpScavenger
+	scav := abyssTalentEffectiveInt(b.loadAbyssStats(uid).UpScavenger)
 	matMult := 1 + b.treeBonusFor(uid).Pct["material_yield"]
 	out := make(map[string]int, len(m))
 	for mat, n := range m {
@@ -1254,7 +1324,7 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 
 	st := s.bot.loadAbyssStats(uid)
 	loyaltyPct := abyssInsuranceLoyaltyPct(st.LifetimeBanked)
-	cost := abyssInsuranceCost(run.Escrow, req.Pct, st.UpWard, st.LifetimeBanked)
+	cost := abyssInsuranceCost(run.Escrow, req.Pct, abyssTalentEffectiveInt(st.UpWard), st.LifetimeBanked)
 	if cost < 1 {
 		cost = 1
 	}
@@ -1377,7 +1447,7 @@ var abyssUpgradeParents = map[string]string{
 	"quartermaster": "cartographer",
 }
 
-const abyssUpgradeMaxLevel = 5
+const abyssUpgradeMaxLevel = content.TalentMaxLevel
 
 // handleAbyssUpgrade spends tokens on a permanent Deep-Delver upgrade. [44][45]
 func (s *WebServer) handleAbyssUpgrade(w http.ResponseWriter, r *http.Request, uid string) {

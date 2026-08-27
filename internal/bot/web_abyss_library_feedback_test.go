@@ -21,12 +21,13 @@ func TestAbyssHistoryLoadsBoundedAuthoritativeLootSummary(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	when := time.Date(2026, time.August, 25, 4, 30, 0, 0, time.UTC)
-	mock.ExpectQuery("SELECT depth, gold_banked, victory").
+	mock.ExpectQuery("SELECT id, depth, gold_banked, victory").
 		WithArgs("player", 50).
 		WillReturnRows(sqlmock.NewRows([]string{
-			"depth", "gold_banked", "victory", "tier", "hardcore",
+			"id", "depth", "gold_banked", "victory", "tier", "hardcore",
 			"end_reason", "loot_count", "loot_summary", "created_at", "duration_ms", "floors_cleared",
-		}).AddRow(17, int64(4200), true, "hell", true, "banked", 3, []byte(`["Crown","Ward"]`), when, int64(90_000), 12))
+			"audit_hash", "audit_data",
+		}).AddRow(9, 17, int64(4200), true, "hell", true, "banked", 3, []byte(`["Crown","Ward"]`), when, int64(90_000), 12, "", []byte(`{}`)))
 
 	rows := (&Bot{DB: database}).abyssHistory("player", 500)
 	if len(rows) != 1 {

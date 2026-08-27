@@ -12,6 +12,7 @@ const abyssFunnelMaxActive = 10_000
 type abyssFunnelRun struct {
 	startedAt time.Time
 	reached5  bool
+	maxDepth  int
 }
 
 // abyssFunnelMetrics tracks process-lifetime transitions without exposing or
@@ -27,6 +28,7 @@ type abyssFunnelMetrics struct {
 	banked5   int64
 	conceded  int64
 	evicted   int64
+	stops     map[string]map[string]int64
 }
 
 func abyssAnonymousPlayerRef(value string) string {
@@ -34,7 +36,7 @@ func abyssAnonymousPlayerRef(value string) string {
 	return hex.EncodeToString(sum[:8])
 }
 
-func (m *abyssFunnelMetrics) observeEnter(uid string, now time.Time) {
+func (m *abyssFunnelMetrics) observeEnter(uid string, now time.Time, startDepth int) {
 	ref := abyssAnonymousPlayerRef(uid)
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -44,27 +46,11 @@ func (m *abyssFunnelMetrics) observeEnter(uid string, now time.Time) {
 	if _, exists := m.active[ref]; !exists && len(m.active) >= m.activeLimit() {
 		m.evictOldestLocked()
 	}
-	m.active[ref] = abyssFunnelRun{startedAt: now.UTC()}
+	m.active[ref] = abyssFunnelRun{startedAt: now.UTC(), maxDepth: max(0, startDepth)}
 	m.entered++
 }
 
 func (m *abyssFunnelMetrics) observeFloor(uid string, depth int) {
-	if depth < 5 {
-		return
-	}
-	ref := abyssAnonymousPlayerRef(uid)
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	run, exists := m.active[ref]
-	if !exists || run.reached5 {
-		return
-	}
-	run.reached5 = true
-	m.active[ref] = run
-	m.reached5++
-}
-
-func (m *abyssFunnelMetrics) observeBank(uid string) {
 	ref := abyssAnonymousPlayerRef(uid)
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -72,27 +58,77 @@ func (m *abyssFunnelMetrics) observeBank(uid string) {
 	if !exists {
 		return
 	}
-	m.banked++
-	if run.reached5 {
-		m.banked5++
+	run.maxDepth = max(run.maxDepth, depth)
+	if depth >= 5 && !run.reached5 {
+		run.reached5 = true
+		m.reached5++
 	}
-	delete(m.active, ref)
+	m.active[ref] = run
 }
 
-func (m *abyssFunnelMetrics) observeConcede(uid string) {
+func (m *abyssFunnelMetrics) observeBank(uid string) {
+	m.observeEnd(uid, "banked")
+}
+
+func (m *abyssFunnelMetrics) observeEnd(uid, reason string) {
 	ref := abyssAnonymousPlayerRef(uid)
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if _, exists := m.active[ref]; !exists {
+	run, exists := m.active[ref]
+	if !exists {
 		return
 	}
-	m.conceded++
+	switch reason {
+	case "banked":
+		m.banked++
+		if run.reached5 {
+			m.banked5++
+		}
+	case "conceded", "timeout", "revive_failed":
+		m.conceded++
+	default:
+		reason = "other"
+	}
+	if m.stops == nil {
+		m.stops = make(map[string]map[string]int64)
+	}
+	band := abyssFunnelDepthBand(run.maxDepth)
+	if m.stops[band] == nil {
+		m.stops[band] = make(map[string]int64)
+	}
+	m.stops[band][reason]++
 	delete(m.active, ref)
+}
+
+func abyssFunnelDepthBand(depth int) string {
+	switch {
+	case depth <= 0:
+		return "entry"
+	case depth < 5:
+		return "1-4"
+	case depth < 10:
+		return "5-9"
+	case depth < 25:
+		return "10-24"
+	case depth < 50:
+		return "25-49"
+	case depth < 100:
+		return "50-99"
+	default:
+		return "100+"
+	}
 }
 
 func (m *abyssFunnelMetrics) snapshot() map[string]any {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	stops := make(map[string]map[string]int64, len(m.stops))
+	for band, reasons := range m.stops {
+		stops[band] = make(map[string]int64, len(reasons))
+		for reason, count := range reasons {
+			stops[band][reason] = count
+		}
+	}
 	return map[string]any{
 		"scope":                  "process_lifetime",
 		"entered":                m.entered,
@@ -102,6 +138,7 @@ func (m *abyssFunnelMetrics) snapshot() map[string]any {
 		"conceded":               m.conceded,
 		"active_tracked":         len(m.active),
 		"evicted":                m.evicted,
+		"stops_by_depth":         stops,
 		"floor_5_rate":           ratio(m.reached5, m.entered),
 		"bank_rate":              ratio(m.banked, m.entered),
 		"post_floor_5_bank_rate": ratio(m.banked5, m.reached5),

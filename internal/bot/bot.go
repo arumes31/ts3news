@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand/v2"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -29,10 +30,11 @@ import (
 // Bot is the top-level RPG bot instance: its config and database handle, plus
 // caches of TS3 server-group IDs already created for level/XP progression.
 type Bot struct {
-	Cfg         *config.Config
-	DB          *sql.DB
-	levelGroups map[int]int
-	xpGroups    map[int]int
+	Cfg                    *config.Config
+	DB                     *sql.DB
+	abyssDiscordHTTPClient *http.Client
+	levelGroups            map[int]int
+	xpGroups               map[int]int
 }
 
 type levelResult struct {
@@ -108,6 +110,12 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 	clients, err := c.ClientList()
 	if err != nil {
 		return fmt.Errorf("failed to list clients: %w", err)
+	}
+	if b.Cfg.EnableAbyss {
+		b.flushAbyssShoutbox(c, clients)
+		if err := b.settleAbyssCompetition(time.Now().UTC()); err != nil {
+			log.Printf("abyss competition settlement failed: %v", err)
+		}
 	}
 
 	targetNick := strings.TrimSpace(b.Cfg.TargetNick)
@@ -654,17 +662,7 @@ func FormatGold(v int64) string {
 // FormatGoldPlain is FormatGold without TS3 BBCode, for HTML/web rendering where
 // the markup would otherwise be shown literally.
 func FormatGoldPlain(v int64) string {
-	f := float64(v)
-	switch {
-	case v >= 1_000_000_000:
-		return fmt.Sprintf("%.1fB", f/1_000_000_000.0)
-	case v >= 1_000_000:
-		return fmt.Sprintf("%.1fM", f/1_000_000.0)
-	case v >= 1_000:
-		return fmt.Sprintf("%.1fk", f/1_000.0)
-	default:
-		return fmt.Sprintf("%dg", v)
-	}
+	return i18n.FormatGoldPlain(v)
 }
 
 func (b *Bot) makeGear(gearID string, itemData sql.NullString) (content.Gear, bool) {
@@ -736,6 +734,9 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 		return fmt.Errorf("failed to list clients: %w", err)
 	}
 	log.Printf("Found %d clients", len(clients))
+	if b.Cfg.EnableAbyss {
+		b.updateAbyssCompetitionPresence(clients)
+	}
 
 	// Group clients by channel
 	chanUsers := make(map[int][]struct {
@@ -817,6 +818,9 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 
 			sb.WriteString(i18n.T("channel.player_line", u.Nick, prestige, level, float64(gearScore), 0.0, hpColor, actualCurrentHP, stats.HP, FormatGold(gold)) + "\n")
 			sb.WriteString(i18n.T("channel.stats_line", stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE) + "\n")
+		}
+		if b.Cfg.EnableAbyss {
+			sb.WriteString(b.abyssCompetitionChannelEmbed(cid, time.Now().UTC()))
 		}
 
 		// Truncate if too long (TeamSpeak channel description limit is ~8000 chars)

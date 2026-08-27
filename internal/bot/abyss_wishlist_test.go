@@ -217,6 +217,12 @@ func TestEscrowAbyssLootCommitsWishlistStateAtomically(t *testing.T) {
 	mock.ExpectExec("INSERT INTO app_meta").
 		WithArgs(abyssWishlistKey("player"), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery("SELECT abyss_lifetime_floors FROM users").WithArgs("player").
+		WillReturnRows(sqlmock.NewRows([]string{"abyss_lifetime_floors"}).AddRow(30))
+	mock.ExpectQuery("SELECT value FROM app_meta.*FOR UPDATE").WithArgs(abyssRecentGearKey("player")).
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectExec("INSERT INTO app_meta").WithArgs(abyssRecentGearKey("player"), sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 	grant := abyssLootGrant{Type: "gear", Gear: &target, WishlistState: &state}
 	if !(&Bot{DB: database}).escrowAbyssLoot("player", 12, "drop", grant) {
@@ -244,6 +250,28 @@ func TestEscrowAbyssLootRollsBackWhenWishlistSaveFails(t *testing.T) {
 	grant := abyssLootGrant{Type: "gear", Gear: &target, WishlistState: &state}
 	if (&Bot{DB: database}).escrowAbyssLoot("player", 12, "drop", grant) {
 		t.Fatal("escrow succeeded after wishlist write failure")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEscrowAbyssLootRollsBackWhenRecentGearSaveFails(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	target := wishlistTestGear(t, func(content.Gear) bool { return true })
+	mock.ExpectBegin()
+	mock.ExpectExec("INSERT INTO abyss_escrow_loot").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery("SELECT abyss_lifetime_floors FROM users").WithArgs("player").
+		WillReturnError(errors.New("history unavailable"))
+	mock.ExpectRollback()
+	grant := abyssLootGrant{Type: "gear", Gear: &target}
+	if (&Bot{DB: database}).escrowAbyssLoot("player", 12, "drop", grant) {
+		t.Fatal("escrow succeeded after recent-gear write failure")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

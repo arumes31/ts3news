@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-const sections = ['season', 'progression', 'shop', 'forge', 'social', 'lore', 'leaderboards'];
+const sections = ['season', 'progression', 'observatory', 'shop', 'forge', 'social', 'lore', 'leaderboards'];
 
 test('workspace navigation reaches every Abyss section without losing context', async ({ page }) => {
   const pageErrors = [];

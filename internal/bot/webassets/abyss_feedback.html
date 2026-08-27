@@ -2,11 +2,11 @@
 <script data-cfasync="false">
 (function(){
   'use strict';
-  var sessionExpiryOpen=false,resumeKey='abyss_session_resume_v1';
+  var sessionExpiryOpen=false,sessionWarningShown='',resumeKey='abyss_session_resume_v1',latencySamples=[];
   function humanError(message){
     var raw=String(message||'failed'),key=raw.toLowerCase(),messages={
       db:"Couldn't save a confirmed result. Refresh state before trying again.",
-      'network error':'Connection interrupted — the action was not retried automatically.',
+      'network error':'Connection interrupted — confirmation was not received. Review current state before retrying.',
       unauthenticated:'Your portal session expired. Sign in again to continue.',
       combat:'Combat could not be resolved. Your run state was preserved.',
       failed:'The action could not be completed.'
@@ -33,6 +33,35 @@
   }
   window.handleAbyssSessionExpiry=showSessionExpiry;
 
+  function cookieValue(name){
+    var prefix=name+'=',parts=document.cookie?document.cookie.split('; '):[];
+    for(var i=0;i<parts.length;i++)if(parts[i].indexOf(prefix)===0)return parts[i].slice(prefix.length);
+    return '';
+  }
+  function checkSessionExpiry(){
+    var warning=document.getElementById('abyssSessionWarning');if(!warning)return;
+    var expiry=Number(cookieValue('ts3session_exp'))*1000;
+    if(!expiry){warning.hidden=true;return;}
+    var remaining=expiry-Date.now();
+    if(remaining<=0){warning.hidden=true;showSessionExpiry();return;}
+    if(remaining>10*60*1000){warning.hidden=true;return;}
+    var minutes=Math.max(1,Math.ceil(remaining/60000)),key=String(expiry);
+    warning.textContent='🔒 Portal session expires in '+minutes+' minute'+(minutes===1?'':'s')+'. Open a fresh personal bot login link before your next action.';
+    warning.hidden=false;
+    if(sessionWarningShown!==key){sessionWarningShown=key;abToast('Portal session expires soon. Your server-side run remains safe.',true,{icon:'🔒 ',ms:8000});}
+  }
+
+  function recordLatency(milliseconds,reachable){
+    var output=document.getElementById('abyssAPILatency');if(!output)return;
+    if(!reachable){output.dataset.state='down';output.querySelector('span').textContent='API · offline';output.setAttribute('aria-label','Abyss API is unreachable');return;}
+    latencySamples.push(Math.max(0,Number(milliseconds)||0));if(latencySamples.length>5)latencySamples.shift();
+    var average=Math.round(latencySamples.reduce(function(sum,value){return sum+value;},0)/latencySamples.length);
+    var state=average<300?'fast':average<1000?'slow':'very-slow';
+    output.dataset.state=state;output.querySelector('span').textContent='API · '+average+' ms';
+    output.setAttribute('aria-label','Abyss API latency: '+average+' milliseconds, '+(state==='fast'?'responsive':state==='slow'?'delayed':'very slow'));
+  }
+  window.recordAbyssAPILatency=recordLatency;
+
   function enhanceNetworkBanner(){
     var original=window.updateNetBanner;if(typeof original!=='function'||original._abFeedback)return;
     var wrapped=function(){original.apply(this,arguments);var banner=document.getElementById('netBanner');if(!banner||!netDown)return;var check=document.createElement('button');check.type='button';check.className='ghost xs ab-network-check';check.textContent='Check now';check.onclick=function(){check.disabled=true;check.textContent='Checking…';fetch(location.pathname,{method:'HEAD',cache:'no-store'}).then(function(){setNetDown(false);abToast('📡 Connection restored. Your page state is intact.',true);},function(){check.disabled=false;check.textContent='Still offline · check again';});};banner.appendChild(check);};
@@ -47,8 +76,9 @@
       hiddenAt=0;
     });
   }
-  restoreSessionView();initResumeReminder();enhanceNetworkBanner();
-  window.__abyssFeedback={humanError:humanError,snapshotSession:snapshotSession};
+  restoreSessionView();initResumeReminder();enhanceNetworkBanner();checkSessionExpiry();
+  setInterval(checkSessionExpiry,60000);document.addEventListener('visibilitychange',function(){if(!document.hidden)checkSessionExpiry();});
+  window.__abyssFeedback={humanError:humanError,snapshotSession:snapshotSession,checkSessionExpiry:checkSessionExpiry,recordLatency:recordLatency};
 })();
 </script>
 {{end}}

@@ -178,30 +178,10 @@ func (s *WebServer) handleAbyssPetCaptureResolve(w http.ResponseWriter, r *http.
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	stableLimit := abyssPetBaseCap
-	if owned > abyssPetBaseCap {
-		rows, err := tx.Query("SELECT node_id FROM user_abyss_tree WHERE client_uid=$1", uid)
-		if err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "db"})
-			return
-		}
-		var allocated []int
-		for rows.Next() {
-			var nodeID int
-			if err := rows.Scan(&nodeID); err != nil {
-				_ = rows.Close()
-				writeJSON(w, map[string]any{"ok": false, "error": "db"})
-				return
-			}
-			allocated = append(allocated, nodeID)
-		}
-		if err := rows.Err(); err != nil {
-			_ = rows.Close()
-			writeJSON(w, map[string]any{"ok": false, "error": "db"})
-			return
-		}
-		_ = rows.Close()
-		stableLimit = min(abyssPetMaxCap, abyssPetBaseCap+max(0, int(content.AbyssTree().BonusFor(allocated).Pct["pet_cap"])))
+	stableLimit, err := abyssPetStableLimitTx(tx, uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
 	}
 	activeSlot := 0
 	if owned >= stableLimit {
@@ -209,10 +189,14 @@ func (s *WebServer) handleAbyssPetCaptureResolve(w http.ResponseWriter, r *http.
 			writeJSON(w, map[string]any{"ok": false, "error": "choose a companion to release"})
 			return
 		}
-		var releasedName string
-		if err := tx.QueryRow(`SELECT name,active_slot FROM user_pets
-			WHERE pet_id=$1 AND client_uid=$2 FOR UPDATE`, req.ReleasePetID, uid).Scan(&releasedName, &activeSlot); err != nil {
+		var releasedName, rawProfile string
+		if err := tx.QueryRow(`SELECT name,active_slot,autoskills::text FROM user_pets
+			WHERE pet_id=$1 AND client_uid=$2 FOR UPDATE`, req.ReleasePetID, uid).Scan(&releasedName, &activeSlot, &rawProfile); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "companion not found"})
+			return
+		}
+		if decodeAbyssPetProfile(rawProfile).busy(timeNowUTC()) {
+			writeJSON(w, map[string]any{"ok": false, "error": "companion is committed to a stable activity"})
 			return
 		}
 		if _, err := tx.Exec("DELETE FROM user_pets WHERE pet_id=$1 AND client_uid=$2", req.ReleasePetID, uid); err != nil {

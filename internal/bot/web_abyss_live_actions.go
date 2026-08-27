@@ -45,7 +45,7 @@ func (c *abyssLiveCombat) optionsFor(
 		if chest, ok := au.u.Equipped[content.SlotChest]; ok && chest.ID == "ABYSS_ARCHMAGE_ROBES" {
 			spellCost -= 5
 		}
-		spellCost -= c.server.bot.loadAbyssStats(au.u.UID).UpInsight * 2
+		spellCost -= abyssTalentEffectiveInt(c.server.bot.loadAbyssStats(au.u.UID).UpInsight) * 2
 		if value := au.treeBonus.Pct["skill_mana_cost"]; value > 0 {
 			spellCost = int(float64(spellCost) * (1 - value))
 		}

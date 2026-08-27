@@ -168,7 +168,7 @@ func (b *Bot) treePointsTotal(uid string) int {
 	if pts > 1000 {
 		pts = 1000 // base skill-web cap
 	}
-	return pts + b.deepDelverPointBonus(uid)
+	return pts + b.deepDelverPointBonus(uid) + b.abyssProgressionPointRewards(uid, time.Now()).Points
 }
 
 // deepDelverPointBonus scales linearly from 0 to 500 with how much of the Deep-Delver
@@ -425,6 +425,9 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 	// Post-prestige Paragon ranks and family-specific Bestiary talents share the
 	// cached tree-bonus payload used by the live Abyss combat engine.
 	b.applyAbyssMasteryBonuses(uid, &tb)
+	// Collection-book milestones are permanent account rewards. They share the
+	// canonical bonus payload so loot, gold and material consumers cannot drift.
+	b.applyAbyssSetBookBonuses(uid, &tb)
 
 	// Apply Prestige Reset Bonus Multipliers (Item 61): +1% flat tree stats per Abyss
 	// prestige. Keyed off abyss_prestige (like treePointsTotal and applyAbyssRegen),
@@ -575,6 +578,7 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		// concatenated into the client TALENTS array (single source of truth in Go).
 		"DelverTalentDefs":   content.DeepDelverTalents,
 		"DelverTalentLevels": s.bot.loadAbyssTalentLevels(uid),
+		"TalentMaxLevel":     content.TalentMaxLevel,
 		// Per-spec allocatable sub-trees (50 nodes each); the active spec's tree is
 		// drawn in the Specializations tab. Levels reuse DelverTalentLevels above
 		// (loadAbyssTalentLevels returns every generic key, spec nodes included).

@@ -124,7 +124,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0088 / 88** — loot presentation assigns distinct reduced-motion-safe rarity beams through Eternal quality.
 - [x] **AAA-0089 / 89** — each successfully persisted Mythic-or-higher gear award queues bounded, best-effort fanfare to every connected normal TeamSpeak client; Legendary and lower tiers remain quiet, player and item text is BBCode-sanitized, and unidentified drops never reveal their hidden name (`abyss_drop_announcement.go`, `web_abyss_loot.go`).
 - [x] **AAA-0090 / 90** — players can mark up to three Abyss-exclusive catalog items in a searchable, accessible Shop wishlist; each successfully escrowed eligible Abyss gear roll advances a transactionally persisted 30-roll guarantee, target changes reset progress, set-completion pity retains priority, and guaranteed drops preserve the rolled category and rarity ceiling (`abyss_wishlist.go`, `web_abyss_wishlist.go`, `web_abyss_loot.go`, `webassets/abyss_wishlist.html`, `webassets/abyss_wishlist.css`, `tests/e2e/abyss-wishlist.spec.js`).
-- [x] **AAA-0091 / 91** — identified gear held for at least 30 days gains exactly +1% of each positive integer stat, with missing or malformed acquisition timestamps safely ineligible; Armoury, Inventory, and the Abyss equipment rail expose an authoritative “Broken in” marker without revealing unidentified metadata (`artifacts.go`, `web_abyss_itemization.go`, `web_pages.go`, `webassets/armory.html`, `webassets/inventory.html`, `webassets/abyss.html`).
+- [x] **AAA-0091 / 91** — every successfully escrowed gear catalog ID enters a server-authoritative 20-cleared-floor exclusion window, including after banking, selling, dismantling, losing, or moving the item; history and escrow commit atomically, exhausted pools yield a safe non-gear substitute, fixed signature repeats convert to materials, and the Run Loot rail reports the live protected count (`abyss_recent_gear.go`, `web_abyss_loot.go`, `artifacts.go`, `web_abyss_inventory_ui.go`, `webassets/abyss.html`, `webassets/abyss_inventory_ui.html`, `webassets/abyss_duplicate_guard.css`).
 - [x] **AAA-0092 / 92** — three compatible same-slot Legendary ingredients fuse through server-validated preview and commit paths.
 - [x] **AAA-0093 / 93** — exact or compact item-stat rendering persists as a portable display preference across the Abyss, Armoury, Inventory, backpack, and forge surfaces; compact labels retain exact tooltips and accessible values and never alter authoritative numbers (`webassets/abyss_item_numbers.html`, `webassets/abyss_longterm.html`, `webassets/armory.html`, `webassets/inventory.html`, `tests/e2e/abyss.spec.js`).
 - [x] **AAA-0094 / 94** — every newly escrowed Abyss gear drop retains its authoritative UTC discovery date and depth, boss kills also retain the defeated boss, forge operations preserve the receipt, and identified-item tooltips expose bounded provenance across the Abyss, Armoury, Inventory, backpack, forge, and run-loot manifest without revealing unidentified-item metadata (`artifacts.go`, `web_abyss_loot.go`, `web_pages.go`, `web_abyss_inventory_ui.go`).
@@ -175,24 +175,48 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0133 / 133** — Inventory retains a bounded ledger of the last ten vendored gear instances and can atomically restore the exact serialized item, durability, and acquisition time for the posted sale value plus a 10% anti-loop handling fee (`web_inventory_buyback.go`, `webassets/inventory.html`, `0096_abyss_vendor_buyback.up.sql`, `web_inventory_buyback_test.go`, `tests/e2e/abyss-inventory-buyback.spec.js`).
 - [x] **AAA-0134 / 134** — three permanent, gold-priced Consumable Pouch tailoring ranks each raise the authoritative Abyss-loot merge cap and equipped run carry cap by one; upgrades require a row-locked owned pouch and commit their debit plus rank atomically (`web_abyss_pouch.go`, `web_abyss_loot2.go`, `web_abyss.go`, `webassets/inventory.html`, `0097_abyss_pouch_upgrades.up.sql`, `web_abyss_pouch_test.go`, `tests/e2e/abyss-inventory-pouch.spec.js`).
 - [x] **AAA-0135 / 135** — each visible Auction House item can show a compact, accessible sparkline built from its latest twelve completed sales, with exact sample count, minimum, latest, and maximum prices; one bounded server query supplies the current page without N+1 requests, while items with fewer than two sales retain the original price cell (`web_ah_price_history.go`, `web_ah.go`, `webassets/ah.html`, `webassets/ah_price_history.css`, `web_ah_price_history_test.go`, `tests/e2e/abyss-ah-price-history.spec.js`).
+- [x] **AAA-0136 / 136** — token-priced non-cosmetic Shop goods receive a bounded ±10% server-wide demand nudge derived from the previous seven completed UTC days; retained daily aggregates avoid an unbounded purchase ledger, sparse markets remain at base price, existing daily deals layer over the demand price, and checkout rejects stale browser quotes before charging the recomputed authoritative total (`web_abyss_shop_demand.go`, `web_abyss_shop.go`, `web_abyss_shop_economy.go`, `webassets/abyss.html`, `webassets/abyss_shop_demand.css`, `0098_abyss_shop_demand.up.sql`, `web_abyss_shop_demand_test.go`, `tests/e2e/abyss-shop-demand.spec.js`).
+- [x] **AAA-0137 / 137** — one bounded, row-locked loyalty card advances only for successful token-priced purchases and makes every tenth catalog item, cosmetic unlock, supply bundle, or bound gift free; a failed debit or reward delivery rolls the punch back with the rest of checkout (`web_abyss_shop_program.go`, `web_abyss_shop.go`, `web_abyss_shop_economy.go`, `web_abyss_shop_gifts.go`, `webassets/abyss_shop_program.html`, `web_abyss_shop_program_test.go`).
+- [x] **AAA-0138 / 138** — two server-catalogued discounted supply bundles cover potion/elixir packs and the requested repair-kit plus passive-insurance combination; debit, all grants, and loyalty state commit atomically (`web_abyss_shop_program.go`, `webassets/abyss_shop_program.html`, `web_abyss_shop_program_test.go`).
+- [x] **AAA-0139 / 139** — consumable gifts use cryptographically random recipient-bound codes, current authoritative demand/deal pricing, a disclosed 2,500g delivery fee, guarded currency debit, and atomic redeem semantics; the Shop exposes real fields instead of prompt-only entry (`web_abyss_shop_gifts.go`, `webassets/abyss_shop_program.html`, `web_abyss_shop_program_test.go`).
 - [x] **AAA-0140 / 140** — the live deep-cache jackpot balance is visible before entry and refreshes after authoritative economy responses.
+- [x] **AAA-0141 / 141** — identified ordinary Common/Uncommon escrow gear can be destroyed between fights for exactly half its fair value, credited atomically to the still-at-risk run cache; server-side revalidation protects reserved, wishlist, set-pity, smart-loot, set, foil, affixed, socketed, runed, tempered, quality, awakened, imbued, and attuned items, while stale quotes and live combat are rejected (`web_abyss_inventory_ui.go`, `webassets/abyss_inventory_ui.html`, `webassets/abyss_run_loot_sell.css`, `web_abyss_inventory_ui_test.go`, `tests/e2e/abyss-run-loot-sell.spec.js`).
 - [x] **AAA-0142 / 142** — a bid placed during an auction's final minute extends its expiry by exactly sixty seconds.
+- [x] **AAA-0143 / 143** — Buy Now and expired winning bids levy the same ceiling-rounded 5% seller tax, credit only net proceeds, disclose gross/tax/net in the receipt, and feed the community Abyss jackpot inside the sale transaction (`web_ah.go`, `web_ah_bids.go`, `web_abyss_shop_program_test.go`).
+- [x] **AAA-0144 / 144** — the Token Shop has one responsive wallet and loyalty rail for authoritative gold and token balances, updated after every Shop economy response without duplicating global navigation controls (`web_abyss_shop_program.go`, `webassets/abyss_shop_program.html`, `webassets/abyss_shop_program.css`, `web_abyss_shop_program_test.go`).
+- [x] **AAA-0145 / 145** — the deterministic daily market deal is promoted in a dedicated Shop header with the exact demand-adjusted discounted price and next UTC reset, while checkout still recomputes and rejects stale quotes (`web_abyss_shop_economy.go`, `web_abyss_shop_program.go`, `webassets/abyss_shop_program.html`, `web_abyss_shop_demand_test.go`).
+- [x] **AAA-0146 / 146** — every Abyss lore grant now uses one duplicate-aware helper: first copies unlock normally and duplicate fragments become two tokens in the same database scope instead of disappearing behind conflict handling (`web_abyss_lore_grant.go`, `web_abyss.go`, `web_abyss_events.go`, `web_abyss_shop_program_test.go`).
+- [x] **AAA-0147 / 147** — daily bounty claims pay bounded token interest for the active streak, surface the exact bonus in the claim receipt, and retain the established atomic claim guard (`web_abyss.go`, `webassets/abyss.html`, `web_abyss_test.go`).
+- [x] **AAA-0148 / 148** — Escrow Tithe is a selectable server-authoritative pact granting +10% combat Luck while diverting 10% of every bank to the community jackpot; previews and commits use the same deduction and jackpot mutation (`web_abyss_pact.go`, `web_abyss.go`, `web_abyss_shop_program_test.go`).
 - [x] **AAA-0149 / 149** — material buy orders reserve the maximum spend, fill at or below the posted unit price, and refund unused escrow.
+- [x] **AAA-0150 / 150** — the Shop offers a one-time, duplicate-safe previous-season token-to-cosmetic Legacy Cache while explicitly preserving balances; this supplies an end-of-season cosmetic sink without a destructive token hard reset (`web_abyss_shop_program.go`, `webassets/abyss_shop_program.html`, `web_abyss_shop_program_test.go`).
 
 ## Delivered tranche: progression and talents audit
 
 - [x] **AAA-0151 / 151** — three named Deep Delver loadout slots save and atomically reapply validated talent-tree allocations.
 - [x] **AAA-0152 / 152** — a selected talent node can be refunded with an explicit quote, cascading only when allocated dependents require it.
+- [x] **AAA-0153 / 153** — legacy and generic talent nodes share a ten-rank cap; ranks six through ten have a disclosed half-rank soft cap, and generic token spending plus level persistence commit atomically (`abyss_talents.go`, `web_abyss_talents.go`, `web_abyss_econ.go`, `abysstree.html`, `abyss_talents_test.go`, `web_abyss_talents_test.go`, `abyss-tree-atlas.spec.js`).
 - [x] **AAA-0154 / 154** — Swiftness shortens combat presentation delay at each purchased rank.
 - [x] **AAA-0155 / 155** — Scavenger increases authoritative crafting-material yields by rank.
 - [x] **AAA-0156 / 156** — Mercy raises both revive-offer odds and Last Stand healing through server calculations.
 - [x] **AAA-0157 / 157** — Cartographer extends paid route visions and lowers their posted cost.
 - [x] **AAA-0158 / 158** — Quartermaster adds one server-enforced consumable carry slot per rank.
 - [x] **AAA-0159 / 159** — the talent interface is a connected, keyboard-accessible branched tree rather than a flat upgrade list.
+- [x] **AAA-0160 / 160** — expansion talent nodes enforce authoritative best-depth milestones and expose the same gates to the talent tree (`web_abyss_econ.go`, `web_abyss_tree.go`, `web_abyss_progression_evidence_test.go`).
 - [x] **AAA-0161 / 161** — Delver, Plunderer, and Warden are mutually exclusive specializations with distinct live bonuses.
+- [x] **AAA-0162 / 162** — each cleared Weekly Expedition floor grants ten ISO-week-scoped talent XP; every hundred XP becomes one visible skill-web point, with a five-point weekly cap (`web_abyss_progression_rewards.go`, `web_abyss_progression.go`, `abysstree_progression.html`, `web_abyss_progression_rewards_test.go`).
 - [x] **AAA-0163 / 163** — prestige grants a dedicated Paragon point budget spendable only on post-prestige nodes.
+- [x] **AAA-0164 / 164** — each recorded Abyss achievement grants one skill-web point up to a disclosed fifty-point cap (`web_abyss_progression_rewards.go`, `web_abyss_tree.go`, `web_abyss_progression_rewards_test.go`).
+- [x] **AAA-0165 / 165** — Normal, Nightmare, Hell, and Insanity expose authoritative hundred-floor mastery bars, each awarding five skill-web points exactly once through immutable completed-run history (`web_abyss_progression_rewards.go`, `abysstree_progression.html`, `web_abyss_progression_rewards_test.go`, `abyss-tree-atlas.spec.js`).
+- [x] **AAA-0166 / 166** — each biome records successful clears atomically after victory bookkeeping; fifty clears unlock a visible permanent +2% combat-stat bonus in that biome (`web_abyss_collections.go`, `web_abyss.go`, `abyss_collections.css`, `web_abyss_collections_test.go`).
+- [x] **AAA-0167 / 167** — banked named-set gear enters an append-only collection book; 25%, 50%, and 100% completion grant +2% loot find, +3% gold find, and +5% material yield through the canonical bonus pipeline (`web_abyss_collections.go`, `web_abyss_loot.go`, `web_abyss_tree.go`, `abyss-ui-layout.spec.js`).
 - [x] **AAA-0168 / 168** — accumulated boss-family kills buy bounded +1% damage mastery ranks against chosen bestiary families.
+- [x] **AAA-0169 / 169** — collecting every lore fragment idempotently awards the exclusive Abyss Chronicler title and achievement badge, including lazy recovery for already-complete accounts (`web_abyss_collections.go`, `web_abyss_lore_grant.go`, `web_abyss_codex.go`, `web_abyss_collections_test.go`).
+- [x] **AAA-0170 / 170** — earned achievements can be combined in independently validated prefix and suffix badge slots while the legacy badge column remains backward-compatible (`web_abyss_econ.go`, `abyss.html`, `abyss_collections.css`, `abyss-ui-layout.spec.js`).
+- [x] **AAA-0171 / 171** — a quarterly rotating highlighted discipline grants a temporary five-percent material-yield talent after five allocated sector nodes and automatically changes without rewriting allocations (`web_abyss_tree_batch.go`, `web_abyss_tree.go`, `abysstree.html`, `web_abyss_progression_test.go`).
+- [x] **AAA-0172 / 172** — the first ten authoritative lifetime floor clears receive a logged +100% floor-XP boost, which stops immediately at the tenth persisted clear (`web_abyss.go`, `web_abyss_progression_rewards.go`, `web_abyss_progression_rewards_test.go`).
 - [x] **AAA-0173 / 173** — returning after fourteen days seeds exactly ten authoritative +25% XP and +10% cache catch-up charges.
+- [x] **AAA-0174 / 174** — every learned Armoury skill displays its authoritative rank on an accessible rank-nine progress bar with responsive and forced-color-safe styling (`armory.html`, `style.css`, `web_armory_skill_rank_test.go`, `abyss-inventory-polish.spec.js`).
 - [x] **AAA-0175 / 175** — the post-prestige Paragon board grants bounded +0.1% ranks across seven permanent effects.
 
 ## Delivered tranche: pact program
@@ -260,6 +284,145 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0227 / 227** — formation slots grant independent Pounce and Healing Spell abilities whose cast logs expose exact cooldowns and announce when each companion ability becomes ready again.
 - [x] **AAA-0228 / 228** — a successful Mind Control at the three-pet cap creates one restart-safe stable decision, where the owner explicitly recruits, declines, or replaces a chosen companion in a single transaction.
 
+## Delivered tranche: companion stable lifecycle
+
+- [x] **AAA-0229 / 229** — stable companions can be renamed, favorited, assigned to formations, or explicitly released through owner-scoped transactions (`web_abyss_pet_stable.go`, `webassets/abyss_social.html`).
+- [x] **AAA-0230 / 230** — feeding consumes one selected owned consumable atomically and restores bounded companion health and loyalty (`web_abyss_pet_stable.go`, `web_abyss_pet_program_test.go`).
+- [x] **AAA-0231 / 231** — surviving companions earn persistent bond XP and loyalty whose exact bounded combat bonus is visible in the Stable (`xp.go`, `abyss_pet_stable.go`, `web_abyss_social_hub.go`).
+- [x] **AAA-0232 / 232** — loyalty and companion talents reduce betrayal risk while the combat command policy remains explicit and persisted (`abyss_pet_stable.go`, `abyss_pet_commands.go`, `xp.go`).
+- [x] **AAA-0233 / 233** — every companion receives a deterministic tank, damage, or support class with class-specific behavior and presentation (`abyss_pet_commands.go`, `web_abyss_social_hub.go`).
+- [x] **AAA-0234 / 234** — support companions can cast their independently cooled-down healing ability during authoritative combat (`abyss_pet_abilities.go`, `xp.go`).
+- [x] **AAA-0235 / 235** — two idle companions of the same family can be fused transactionally, consuming the chosen donor for bounded permanent growth (`web_abyss_pet_growth.go`, `abyss_pet_program.go`).
+- [x] **AAA-0236 / 236** — captures can roll a persistent shiny variant with distinct Stable presentation (`xp.go`, `abyss_pet_stable.go`, `web_abyss_social_hub.go`).
+- [x] **AAA-0237 / 237** — the companion boutique sells three persistent cosmetic treatments for Abyss Tokens without changing combat power (`web_abyss_pet_cosmetics.go`, `webassets/abyss_social.html`).
+- [x] **AAA-0238 / 238** — the Fellowship ranks the server's five strongest living companions from authoritative stats (`web_abyss_social_hub.go`, `webassets/abyss_social.html`).
+- [x] **AAA-0239 / 239** — idle reserve companions can enter daycare and claim elapsed, capped bond XP without blocking or duplicating rewards (`web_abyss_pet_activity.go`, `abyss_pet_program.go`).
+- [x] **AAA-0240 / 240** — reserve companions can run timed Dust, Crystal, or Prism expeditions whose bounded material reward remains claimable after completion (`web_abyss_pet_activity.go`, `abyss_pet_program.go`).
+- [x] **AAA-0241 / 241** — live Mind Control uses the manually selected ordinary enemy ID, not only a boss target, and resolves capture against that authoritative combatant (`abyss_live.html`, `xp.go`).
+- [x] **AAA-0242 / 242** — the Beastmaster talent expands the server-enforced stable capacity from three to five across capture, revival, and gift transfer paths (`abyss_pet_program.go`, `abyss_pet_capture.go`).
+- [x] **AAA-0243 / 243** — Companion Revival Scrolls are token-shop consumables that restore a selected memorial companion into an available stable slot (`artifacts.go`, `web_abyss_shop.go`, `web_abyss_pet_growth.go`).
+- [x] **AAA-0244 / 244** — idle reserve companions can be transferred through expiring cryptographically random recipient-bound gift codes with ownership and capacity checks (`0099_abyss_pet_gifts.up.sql`, `web_abyss_pet_gifts.go`).
+- [x] **AAA-0245 / 245** — every known Bestiary family exposes its actual capture percentage while unknown legacy rows explicitly report zero (`web_abyss_codex.go`, `abyss_codex_explorer.html`).
+- [x] **AAA-0246 / 246** — the dedicated Pet1 and Pet2 slots provide collar-and-charm stats to active companions without modifying the delver (`abyss_pet_gear.go`, `web_abyss_social_hub.go`).
+- [x] **AAA-0247 / 247** — each companion has a persisted quiet, gentle, or bold bark style that controls its combat-log voice (`web_abyss_pet_stable.go`, `abyss_pet_commands.go`).
+- [x] **AAA-0248 / 248** — companion names are length-bounded, restricted to safe characters, and rejected by the shared profanity filter before storage (`web_abyss_pet_stable.go`).
+- [x] **AAA-0249 / 249** — active companions and exact health bars remain visible in the Armoury sidebar outside the Fellowship tab (`webassets/abyss.html`, `webassets/abyss_social.css`).
+- [x] **AAA-0250 / 250** — eligible boss captures persist a distinct boss-variant identity in the Stable and combat profile (`xp.go`, `abyss_pet_stable.go`, `web_abyss_social_hub.go`).
+
+## Delivered tranche: social and co-op program
+
+- [x] **AAA-0251 / 251** — authenticated parties of two or three share a co-op descent and split banked escrow through server-authoritative settlement.
+- [x] **AAA-0252 / 252** — friends can spectate a live run through a read-only participant-safe snapshot and combat feed.
+- [x] **AAA-0253 / 253** — one bounded daily cheer can grant an eligible friend a persisted mid-run buff.
+- [x] **AAA-0254 / 254** — rescue missions recreate a friend's recorded defeat floor and reward both players with a bounded cache recovery.
+- [x] **AAA-0255 / 255** — guild members contribute authoritative clears toward shared weekly depth goals.
+- [x] **AAA-0256 / 256** — guild standings and persistent cosmetic banner choices are exposed in the Fellowship workspace.
+- [x] **AAA-0257 / 257** — the Abyss shoutbox uses the existing TS3-backed channel bridge with bounded, escaped messages.
+- [x] **AAA-0258 / 258** — a confirmed consumable exchange transfers only owned inventory in one transaction.
+- [x] **AAA-0259 / 259** — mentor pairings grant bounded token progress to an eligible veteran and newcomer.
+- [x] **AAA-0260 / 260** — server-wide daily floor progress activates a time-bounded happy-hour reward when the shared goal is met.
+- [x] **AAA-0261 / 261** — opt-in duels use persisted Abyss builds, posted wagers, and authoritative settlement.
+- [x] **AAA-0262 / 262** — one bounded floor message per run can be discovered later without exposing private account data.
+- [x] **AAA-0263 / 263** — post-run kudos are rate-limited, persisted, and ranked on a weekly board.
+- [x] **AAA-0264 / 264** — referral codes grant idempotent rewards only after an eligible recruited delver progresses.
+- [x] **AAA-0265 / 265** — scheduled team tournaments expose server-owned brackets and settled results.
+- [x] **AAA-0266 / 266** — five-player raid lobbies resolve a shared mega-boss and ownership-safe loot rolls.
+- [x] **AAA-0267 / 267** — the web friend list reports bounded online and in-run presence.
+- [x] **AAA-0268 / 268** — the activity feed publishes privacy-bounded banking, depth, and capture milestones.
+- [x] **AAA-0269 / 269** — completed runs produce a locally generated, shareable summary card.
+- [x] **AAA-0270 / 270** — co-op boss drops use authoritative need, greed, or pass rolls before assignment.
+- [x] **AAA-0271 / 271** — helper rewards scale within a bounded range from the assisted boss depth.
+- [x] **AAA-0272 / 272** — expiring invite codes deep-link authenticated players into the intended co-op lobby.
+- [x] **AAA-0273 / 273** — social achievements track authoritative ally assistance and duel victories.
+- [x] **AAA-0274 / 274** — a persisted rival near the player's depth exposes a record target and bounded victory reward.
+- [x] **AAA-0275 / 275** — bounded emote-wheel choices appear as escaped live combat flavor lines.
+
+## Delivered tranche: competition program
+
+- [x] **AAA-0276 / 276** — leaderboard navigation exposes a distinct board for every unlocked difficulty tier.
+- [x] **AAA-0277 / 277** — board queries support authoritative build and specialization filters.
+- [x] **AAA-0278 / 278** — weekly and seasonal standings settle idempotent automatic rewards.
+- [x] **AAA-0279 / 279** — personal standings report an aggregate percentile within the selected board cohort.
+- [x] **AAA-0280 / 280** — bounded pagination and jump-to-me locate the player's row without unbounded result sets.
+- [x] **AAA-0281 / 281** — speed boards rank the fastest authoritative run to the target depth.
+- [x] **AAA-0282 / 282** — economy boards rank weekly banked gold.
+- [x] **AAA-0283 / 283** — pact boards rank the highest survived aggregate pact multiplier.
+- [x] **AAA-0284 / 284** — Bestiary boards rank authoritative kills by monster family.
+- [x] **AAA-0285 / 285** — the opt-in Hall of Shame displays sanitized defeat excerpts.
+- [x] **AAA-0286 / 286** — bank-streak boards rank consecutive successful full banks.
+- [x] **AAA-0287 / 287** — companion boards rank server-derived pet power.
+- [x] **AAA-0288 / 288** — immutable archived season snapshots remain browsable by season.
+- [x] **AAA-0289 / 289** — season settlement grants cosmetic, token, and participation rewards at explicit ranks.
+- [x] **AAA-0290 / 290** — record runs retain a server-side audit trail for anti-cheat review.
+- [x] **AAA-0291 / 291** — the profile compares personal bests with the prior week's values.
+- [x] **AAA-0292 / 292** — rank-change notifications report when another player passes the current player.
+- [x] **AAA-0293 / 293** — channel-scoped boards provide local standings for TS3 groups.
+- [x] **AAA-0294 / 294** — season trophies render as collection-only profile cosmetics.
+- [x] **AAA-0295 / 295** — wager ladders use posted entry fees and transactionally settled prize pools.
+- [x] **AAA-0296 / 296** — every board displays its deterministic tie-break rule.
+- [x] **AAA-0297 / 297** — compact, escaped board summaries can be rendered into configured TS3 channel descriptions.
+- [x] **AAA-0298 / 298** — a close-to-record notice appears within two floors of a qualifying board position.
+- [x] **AAA-0299 / 299** — the player profile charts authoritative depth history over time.
+- [x] **AAA-0300 / 300** — the Hall of Fame retains past season champions.
+
+## Delivered tranche: core interface organization and control
+
+- [x] **AAA-0301 / 301** — a scroll-triggered mini-HUD keeps authoritative health, depth, cache, threat, lock, and token state available below the stage (`webassets/abyss.html`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0302 / 302** — collapsible library and history panels persist their individual open state (`webassets/abyss_navigation.html`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0303 / 303** — the lower workspace is split into keyboard-accessible remembered tabs (`webassets/abyss_navigation.html`, `tests/e2e/abyss-workspace.spec.js`).
+- [x] **AAA-0304 / 304** — mobile run actions mirror Descend, Bank, and consumable preparation with responsive focus recovery (`webassets/abyss_accessibility.html`, `webassets/abyss_mobile.css`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0305 / 305** — Small, Medium, and Large interface font sizes persist through a validated account preference with immediate local rendering and failed-save rollback (`web_abyss_preferences.go`, `webassets/abyss_player_experience.html`, `web_abyss_preferences_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0306 / 306** — compact mode reduces detached armoury and run-loot row density without removing their controls (`webassets/abyss_accessibility.css`, `webassets/abyss_longterm.html`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0307 / 307** — the run-loot sidebar opens a nine-tier color-and-shape rarity guide (`webassets/abyss_core_interface.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0308 / 308** — tier cards pair distinct icons with authoritative per-account bank rates and sample counts (`web_abyss_econ.go`, `webassets/abyss.html`, `web_abyss_core_interface_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0309 / 309** — the stage shows numeric threat and retains a formula/drop-forecast tooltip plus accessible percentage (`webassets/abyss.html`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0310 / 310** — the depth ring visibly reports floors to the next boss and mirrors the detail in its accessible label (`webassets/abyss.html`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0311 / 311** — exact and abbreviated item-number modes preserve exact values in titles and accessible labels (`webassets/abyss_item_numbers.html`, `tests/e2e/abyss.spec.js`).
+- [x] **AAA-0312 / 312** — the forge item picker supports search, eligibility filters, and keyboard result navigation (`webassets/abyss_forge_workstation.html`, `web_abyss_core_interface_test.go`).
+- [x] **AAA-0313 / 313** — authoritative run loot remains grouped under floor headers after initial render and refresh (`webassets/abyss.html`, `webassets/abyss_inventory_ui.html`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0314 / 314** — independent persisted type chips filter gear, items/unlocks, materials, and currency while preserving rarity filters (`webassets/abyss.html`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0315 / 315** — the sidebar totals the server-derived liquid estimate of visible loot and explicitly excludes bound unlocks (`web_abyss_inventory_ui.go`, `web_abyss_core_interface_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0316 / 316** — combat lines receive local playback timestamps controlled by the consolidated persisted settings dialog (`webassets/abyss.html`, `webassets/abyss_longterm.html`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0317 / 317** — persisted Follow ownership disables on manual log scrolling and exposes jump-to-latest recovery (`webassets/abyss_combat_recorder.html`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0318 / 318** — guarded D/B/I shortcuts and a discoverable cheat sheet pause during editing, dialogs, and live planning (`webassets/abyss_navigation.html`, `webassets/abyss_combat_recorder.html`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0319 / 319** — active pacts render as compact stage HUD chips with their exact effects (`webassets/abyss.html`, `web_abyss_aaa_runtime_test.go`).
+- [x] **AAA-0320 / 320** — a non-modal warning highlights insurance when a live uninsured cache crosses a soft-cap-aware threshold (`webassets/abyss_core_interface.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0321 / 321** — consumable preparation shows remaining charges and readiness/cooldown context, while live action slots retain exact active cooldowns (`webassets/abyss.html`, `webassets/abyss_live.html`, `web_abyss_core_interface_test.go`).
+- [x] **AAA-0322 / 322** — costly shop purchases and irreversible companion releases use the shared accessible confirmation dialog (`webassets/abyss.html`, `webassets/abyss_social.html`, `web_abyss_core_interface_test.go`).
+- [x] **AAA-0323 / 323** — the run-loot empty state explains how to obtain and secure the first reward (`webassets/abyss.html`, `webassets/abyss_inventory_ui.html`, `web_abyss_core_interface_test.go`).
+- [x] **AAA-0324 / 324** — delayed loot refreshes retain current content under an accessible, reduced-motion-safe skeleton instead of blanking the manifest (`webassets/abyss_inventory_ui.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0325 / 325** — a searchable settings dialog consolidates layout, number, log, accessibility, ambience, and loot preferences (`webassets/abyss_longterm.html`, `tests/e2e/abyss.spec.js`, `tests/e2e/abyss-core-interface.spec.js`).
+
+## Delivered tranche: stage motion and reward feedback
+
+- [x] **AAA-0326 / 326** — each descent drives the reduced-motion-safe elevator transition (`webassets/abyss.html`, `webassets/style.css`, `web_abyss_stage_effects_test.go`).
+- [x] **AAA-0327 / 327** — boss introductions trigger a bounded stage shake while reduced-motion retains the static elemental frame (`webassets/abyss.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0328 / 328** — large combat hits emit bounded floating damage values synchronized to recorder playback (`webassets/abyss_combat_recorder.html`, `webassets/abyss_combat_recorder.css`, `web_abyss_combat_log_ui_test.go`).
+- [x] **AAA-0329 / 329** — high-rarity loot lines project rarity-specific light beams without obscuring their text (`webassets/abyss_loot_presentation.css`, `tests/e2e/abyss.spec.js`).
+- [x] **AAA-0330 / 330** — drop, bank, and defeat cues obey the persisted Sound effects switch (`webassets/abyss_combat_feedback.html`, `webassets/abyss_polish.html`, `web_abyss_polish_test.go`).
+- [x] **AAA-0331 / 331** — Abyss action buttons use consistent tactile press feedback (`webassets/abyss_ui200.css`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0332 / 332** — a reduced-motion-safe confetti burst celebrates a new personal depth record (`webassets/abyss_polish.html`, `webassets/abyss_polish.css`, `web_abyss_polish_test.go`).
+- [x] **AAA-0333 / 333** — the Legendary pity meter pulses only at 90% or more and remains static under reduced motion (`webassets/abyss.html`, `webassets/abyss_ui200.css`, `web_abyss_feedback_clarity_test.go`).
+- [x] **AAA-0334 / 334** — the drop-streak flame grows through four bounded visual tiers (`webassets/abyss_loot_signals.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0335 / 335** — token changes count smoothly to the authoritative total with an immediate reduced-motion fallback (`webassets/abyss.html`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0336 / 336** — banking counts the gold pill to the authoritative result with an immediate reduced-motion fallback (`webassets/abyss.html`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0337 / 337** — the boss health overlay marks its 50% and 25% phase thresholds (`webassets/abyss_stage_hud.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0338 / 338** — revive-gamble resolution uses a bounded slot-style dice cycle with a static reduced-motion state (`webassets/abyss.html`, `tests/e2e/abyss.spec.js`).
+- [x] **AAA-0339 / 339** — successful banking opens the inert, reduced-motion-safe vault transition (`webassets/abyss.html`, `webassets/style.css`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0340 / 340** — defeat presents floors, combat result, lost cache, and a contextual lesson in the run recap (`webassets/abyss.html`, `tests/e2e/abyss.spec.js`).
+- [x] **AAA-0341 / 341** — terminal runs expose a summary card for floors, loot, records, and the biggest hit (`webassets/abyss.html`, `web_abyss_feedback_clarity_test.go`).
+- [x] **AAA-0342 / 342** — every tenth depth receives a distinct milestone toast, with major styling every fiftieth (`webassets/abyss_core_interface.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0343 / 343** — a bounded stage backdrop parallax darkens progressively with authoritative depth (`webassets/abyss_core_interface.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0344 / 344** — the stage backdrop and biome chip inherit the current biome's presentation class (`webassets/abyss.html`, `webassets/abyss_ui200.css`, `web_abyss_stage_presentation_test.go`).
+- [x] **AAA-0345 / 345** — the depth vignette is controlled by a persisted accessibility setting (`webassets/abyss_longterm.html`, `webassets/abyss_ui200.css`, `web_abyss_longterm_test.go`).
+- [x] **AAA-0346 / 346** — achievement banners drain a FIFO queue instead of replacing active announcements (`webassets/abyss.html`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0347 / 347** — active insurance gives the shield badge a reduced-motion-safe glow (`webassets/abyss.html`, `webassets/style.css`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0348 / 348** — a downed run makes the exposed escrow value red and pulses it unless motion is reduced (`webassets/abyss.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0349 / 349** — the depth dial uses a subtle idle shimmer between milestone and record bursts (`webassets/style.css`, `web_abyss_stage_effects_test.go`).
+- [x] **AAA-0350 / 350** — the cache coin pile grows in bounded steps with authoritative escrow size (`webassets/abyss.html`, `webassets/style.css`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0351 / 351** — all Abyss controls participate in keyboard navigation with visible focus treatment (`webassets/abyss_accessibility.html`, `webassets/abyss_accessibility.css`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0352 / 352** — dynamic status, combat, modal, and transaction surfaces expose audited ARIA labels and live-region ownership (`webassets/abyss_accessibility.html`, `web_abyss_accessibility_feedback_test.go`, `tests/e2e/abyss.spec.js`).
+
 ## Delivered tranche: operational quality and client performance
 
 - [x] **AAA-0976 / AB-276** — deterministic ten-week campaigns now apply a visible seasonal palette and triple-weight their matching biome affinity through the replay-safe encounter RNG.
@@ -269,6 +432,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0980 / AB-280** — stable control, treatment, and holdout cohorts apply an integer-exact bounded reward multiplier and expose revision-isolated death and anomaly guardrails.
 - [x] **AAA-0981 / AB-281** — terminal live combats transactionally archive their deterministic seed and participant-visible event log, with an owner-authorized bounded portal viewer.
 - [x] **AAA-0982 / AB-282** — a versioned anonymous public endpoint exposes only cached global and per-tier aggregates, with CORS, ETag, HEAD, and generic failure handling.
+- [x] **AAA-0983 / AB-283** — opt-in, anonymous Discord-only webhook delivery reports persisted Eternal drops and post-commit world-first depth records through a bounded queue; HTTPS host/path validation, redirect blocking, disabled mentions, concealed unidentified gear, and a default-off kill switch keep delivery isolated from gameplay (`abyss_discord_alert.go`, `abyss_discord_alert_test.go`, `web_abyss.go`, `web_abyss_loot.go`, `web_abyss_features.go`, `web_abyss_forge_crafting.go`, `config.go`).
 - [x] **AAA-0984 / AB-284** — live snapshots expose the authoritative per-round action-change budget, with proactive warnings and client lockout that preserves the queued or automatic fallback action.
 - [x] **AAA-0985 / AB-285** — persisted killer-family counts select the player's most lethal family and mark every matching live enemy as a revenge target.
 - [x] **AAA-0986 / AB-286** — compare tier catalog values with the latest database constraints.
@@ -966,3 +1130,75 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0353 / 353** — persisted semantic color profiles combine colorblind-safe hues with the existing non-color rarity glyphs.
 - [x] **AAA-0354 / 354** — a persisted motion policy can suppress every descendant animation and transition while honoring the system preference.
 - [x] **AAA-0372 / 372** — the dynamic page title marks downed and decision-floor states while retaining the existing live depth title.
+
+## Delivered tranche: accessibility and quality-of-life controls
+
+- [x] **AAA-0355 / 355** — the searchable settings panel persists a high-contrast solid-panel profile with forced-color-safe controls (`webassets/abyss_accessibility.html`, `webassets/abyss_accessibility.css`, `web_abyss_accessibility_test.go`).
+- [x] **AAA-0361 / 361** — every canonical Abyss message has a direct translation in all 20 shipped locale catalogs, with strict completeness metadata and a failing coverage gate (`internal/i18n/i18n.go`, `internal/i18n/completeness_test.go`, `web_abyss_accessibility_program_test.go`).
+- [x] **AAA-0357 / 357** — a persisted full-or-summary combat-log preference filters both completed and live combat feeds without discarding their authoritative history (`webassets/abyss_quality_of_life.html`, `webassets/abyss_combat_recorder.html`, `webassets/abyss_live.html`, `web_abyss_quality_of_life_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0363 / 363** — the keyboard-focusable field glossary explains CR, GS, STR, DEF, STA, SPD, DGE, and CRT alongside the existing run terms (`webassets/abyss_onboarding.html`, `web_abyss_onboarding_test.go`).
+- [x] **AAA-0364 / 364** — first-time delvers receive a reduced-motion-safe, keyboard-operable five-step guided tour with persistent completion state (`webassets/abyss_onboarding.html`, `web_abyss_onboarding_test.go`).
+- [x] **AAA-0365 / 365** — the field manual provides an in-page mechanics glossary with focusable tooltip definitions (`webassets/abyss_onboarding.html`, `web_abyss_onboarding_test.go`).
+- [x] **AAA-0366 / 366** — the progression workspace renders player-facing release notes from the canonical Abyss changelog (`webassets/abyss_aaa_runtime.html`, `web_templates_test.go`).
+- [x] **AAA-0369 / 369** — the last validated tier, pact, kit, mutation, loot rule, and focus are restored from account-owned setup state (`web_abyss_setup_state.go`, `web_abyss_setup_state_test.go`).
+- [x] **AAA-0370 / 370** — a persisted setting switches the combat log to a monospace presentation (`webassets/abyss.html`, `webassets/abyss_longterm.html`, `web_abyss_quality_of_life_test.go`).
+- [x] **AAA-0371 / 371** — coarse-pointer layouts enforce at least 44-pixel interactive targets and a 48-pixel mobile action rail (`webassets/abyss_accessibility.css`, `web_abyss_accessibility_test.go`).
+- [x] **AAA-0373 / 373** — active runs replace the favicon with a bounded numeric depth badge and restore the site icon after the run (`webassets/abyss_quality_of_life.html`, `webassets/abyss_longterm.html`, `web_abyss_quality_of_life_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0374 / 374** — an explicit permission-gated setting emits session-deduplicated browser notifications for claimed bounties, available revival decisions, and newly observed auction sales (`webassets/abyss_quality_of_life.html`, `webassets/abyss.html`, `webassets/ah.html`, `web_abyss_quality_of_life_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0375 / 375** — filtered authoritative run history downloads as CSV and remains available as structured JSON (`webassets/abyss_insights.html`, `web_abyss_quality_of_life_test.go`).
+
+## Delivered tranche: core action submission safety
+
+- [x] **AAA-0358 / 358** — single- and multi-floor descents lock every run action before low-health confirmation and expose their busy state to assistive technology.
+- [x] **AAA-0391 / 391** — descend, floor-choice, revive, and bank mutations share an authenticated token-bucket guard that detects and security-logs repeated throttled bursts.
+- [x] **AAA-0399 / 399** — core run mutations accept bounded idempotency keys, replay successful responses safely, reject payload reuse, and retry one lost browser response with the same key.
+
+## Delivered tranche: request resilience feedback
+
+- [x] **AAA-0360 / 360** — login issues a token-free expiry companion cookie so active Abyss pages warn ten minutes before the private session cookie expires and preserve the current view for re-login.
+- [x] **AAA-0367 / 367** — uncertain core-action errors offer a ten-second touch-safe retry control that replays the exact original payload with its original idempotency key.
+- [x] **AAA-0368 / 368** — a compact, accessible five-request latency indicator distinguishes responsive, delayed, very-slow, and unreachable API states.
+
+## Delivered tranche: live recovery and lifecycle verification
+
+- [x] **AAA-0359 / 359** — live snapshots carry monotonic log ranges; refresh rebuilds the complete deduplicated combat feed and restores the exact saved scroll position without breaking follow-at-bottom behavior.
+- [x] **AAA-0392 / 392** — a bounded 128-player concurrency test verifies guarded descend requests retain independent per-player mutation locks without global serialization.
+- [x] **AAA-0393 / 393** — Playwright covers successful descend-to-bank, fatal descend-to-revive/concede, planned multi-floor combat, and mid-fight refresh recovery paths.
+
+## Delivered tranche: controlled rollout and balance telemetry
+
+- [x] **AAA-0394 / 394** — live actions, social combat, the enhanced skill tree, and the forge workbench each have an independently reversible kill switch and deterministic 0–100% rollout controlled through the token-protected operator plane (`web_abyss_ops_config.go`, `web_abyss_ops_test.go`, `webassets/abyss_ops.html`, `tests/e2e/abyss.spec.js`).
+- [x] **AAA-0395 / 395** — bounded, aggregate-only funnel telemetry records the highest attempted depth band and authoritative bank, concede, timeout, or failed-revive terminal reason without retaining or exposing player identifiers (`web_abyss_funnel.go`, `web_abyss_funnel_test.go`, `webassets/abyss_ops.js`, `tests/e2e/abyss.spec.js`).
+- [x] **AAA-0396 / 396** — the token-protected balance dashboard charts authoritative thirty-day death rates and loot drops per cleared floor from completed run history (`web_abyss_ops_admin.go`, `web_abyss_ops_test.go`, `webassets/abyss_ops.html`, `webassets/abyss_ops.js`, `tests/e2e/abyss.spec.js`).
+- [x] **AAA-0397 / 397** — deterministic reward cohorts enforce bounded uplift, revision-isolated samples, operator kill switches, and an automatic zero-uplift holdout once minimum-sample death or anomaly guardrails trip (`web_abyss_ops_config.go`, `web_abyss_ops_experiment.go`, `web_abyss_ops_test.go`, `webassets/abyss_ops.html`).
+- [x] **AAA-0398 / 398** — versioned checksummed escrow snapshots, live relational integrity checks, bounded offline verification, and rollback-only schema restore drills protect active runs and combat ownership without exposing a live restore endpoint (`internal/db/abyss_escrow_snapshot.go`, `internal/db/abyss_escrow_drill.go`, `internal/db/abyss_escrow_io.go`, `cmd/abyss-escrow`, `docs/ABYSS_ESCROW_RECOVERY.md`).
+
+## Delivered tranche: localized accessible display semantics
+
+- [x] **AAA-0356 / 356** — dynamically replaced Abyss controls retain semantic accessible names and ownership across live rerenders (`webassets/abyss_accessibility.html`, `web_abyss_accessibility_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0362 / 362** — the page adopts the negotiated locale and text direction while player-facing counts, ratings, percentages, and gold use locale-aware display formatters (`internal/i18n/i18n.go`, `webassets/abyss_display_locale.html`, `webassets/abyss_item_numbers.html`, `web_abyss_accessibility_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
+
+## Delivered tranche: season retention and endless cosmetics
+
+- [x] **AAA-0376 / 376** — ten-week campaigns rotate a named affinity, palette, encounter influence, and weighted biome surge from one authoritative season clock (`web_abyss_season.go`, `web_abyss.go`, `webassets/abyss_season.css`).
+- [x] **AAA-0377 / 377** — the season ledger exposes five escalating marks per week, tracks all 50 objectives from authoritative run history, and grants one idempotent finale cosmetic only after full completion (`web_abyss_season.go`, `web_abyss_retention.go`, `webassets/abyss_season.html`).
+- [x] **AAA-0378 / 378** — a 28-day UTC login calendar atomically records one daily claim and grants bounded gold or weekly token caches without duplicate rewards (`web_abyss_retention.go`, `webassets/abyss_retention.html`).
+- [x] **AAA-0379 / 379** — the personal seven-day digest compares current and prior depth, run, floor, and banked-gold performance and calls out near-record attempts (`web_abyss_retention.go`, `webassets/abyss_retention.html`).
+- [x] **AAA-0380 / 380** — reaching depth 100 opens an endless ledger whose repeatable 25-depth ranks grant collection-only banners, trails, auras, and portraits with an explicit zero-power contract (`web_abyss_retention.go`, `webassets/abyss_retention.html`).
+
+## Delivered tranche: expedition chronicle and run identity
+
+- [x] **AAA-0381 / 381** — every Sanctuary requires a server-authoritative biome contract that guides the next five floors, with the selected route shown in combat and the Chronicle workspace (`web_abyss_biome_story.go`, `web_abyss_run_identity.go`, `webassets/abyss_run_identity.html`).
+- [x] **AAA-0382 / 382** — Nightmare, Hell, and Insanity now unlock through successful banked-run quests in the preceding tier rather than the account's global best-depth number (`web_abyss_tier_quests.go`, `webassets/abyss.html`).
+- [x] **AAA-0383 / 383** — the optional First Chronicle begins at the surface and authors ten fixed floor titles, affinities, and setpiece modifiers while remaining compatible with single, planned, and live combat (`web_abyss_biome_story.go`, `web_abyss.go`).
+- [x] **AAA-0384 / 384** — unique run relics arrive every four cleared floors, feed the shared Abyss combat build, and remain scoped to the active run flags (`web_abyss_relic_boons.go`, `web_abyss_builds.go`).
+- [x] **AAA-0385 / 385** — every fifth clear opens a mandatory one-of-three boon draft; capped choices are skipped, planned descent pauses at the draft, and fully capped runs cannot deadlock (`web_abyss_relic_boons.go`, `web_abyss_run_identity.go`, `webassets/abyss_run_identity.html`).
+
+## Delivered tranche: signed run observatory
+
+- [x] **AAA-0386 / 386** — the Run Observatory charts the owner's authoritative depth, duration, rewards, combat totals, and choices for each archived run (`web_abyss_provenance.go`, `webassets/abyss_observatory.html`, `tests/e2e/abyss-observatory.spec.js`).
+- [x] **AAA-0387 / 387** — owner-created personal tokens expose a bounded read-only stats API with hashed storage, explicit scopes, expiry, revocation, and generic authentication failures (`web_abyss_api_tokens.go`, `web_abyss_api_tokens_test.go`).
+- [x] **AAA-0388 / 388** — newly persisted milestones and Legendary-or-better gear awards can emit anonymous, mention-safe Discord alerts without player identifiers; delivery requires both the default-off feature flag and an exact authorized Discord webhook URL, and failures never delay or roll back rewards (`abyss_discord_alert.go`, `abyss_discord_alert_test.go`, `web_abyss.go`, `web_abyss_loot.go`, `config.go`, `config_test.go`).
+- [x] **AAA-0389 / 389** — archived runs replay their persisted choices and participant-visible event log through an owner-authorized bounded viewer (`web_abyss_run_replay.go`, `web_abyss_run_replay_test.go`).
+- [x] **AAA-0390 / 390** — every run retains a deterministic seed and signed provenance digest for restart-safe dispute verification (`web_abyss_provenance.go`, `web_abyss_provenance_test.go`).
+- [x] **AAA-0400 / 400** — the searchable Lore Archive renders detached authoritative gear, monster, pact, daily-affix, item-affix, and monster-affix catalogs with keyboard tabs and responsive bounded lists (`web_abyss_wiki.go`, `webassets/abyss_wiki.html`, `tests/e2e/abyss-wiki.spec.js`).

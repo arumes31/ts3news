@@ -26,7 +26,7 @@ func TestLoadAbyssSetupState(t *testing.T) {
 		sqlmock.NewRows([]string{"free"}).AddRow(true),
 	)
 	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("abyss_entry_setup_player").WillReturnRows(
-		sqlmock.NewRows([]string{"value"}).AddRow(`{"tier":"hell","kit":"arcanist","mutation":"piercing","loot_rule":"owner","focus":"loot"}`),
+		sqlmock.NewRows([]string{"value"}).AddRow(`{"tier":"hell","pacts":["glass_cannon"],"kit":"arcanist","mutation":"piercing","loot_rule":"owner","focus":"loot"}`),
 	)
 
 	state, err := (&Bot{DB: db}).loadAbyssSetupState("player", 2_500)
@@ -41,6 +41,9 @@ func TestLoadAbyssSetupState(t *testing.T) {
 	}
 	if state.LastSetup == nil || state.LastSetup.Tier != "hell" || state.LastSetup.Focus != "loot" {
 		t.Fatalf("last setup = %#v", state.LastSetup)
+	}
+	if len(state.LastSetup.Pacts) != 1 || state.LastSetup.Pacts[0] != "glass_cannon" {
+		t.Fatalf("last setup pacts = %#v", state.LastSetup.Pacts)
 	}
 	if !state.FreeEntryAvailable {
 		t.Fatal("free entry should be available")
@@ -71,6 +74,16 @@ func TestCanonicalAbyssEntrySetup(t *testing.T) {
 	}
 	if len(setup.Pacts) != 1 || setup.Pacts[0] != "glass_cannon" {
 		t.Fatalf("canonical pacts = %#v", setup.Pacts)
+	}
+}
+
+func TestCanonicalAbyssStorySetupOwnsTheRoute(t *testing.T) {
+	setup := canonicalAbyssEntrySetup(abyssEntrySetup{
+		Tier: "normal", StoryCampaign: true, Expedition: true,
+		Start: "checkpoint", Checkpoint: 20,
+	})
+	if !setup.StoryCampaign || setup.Expedition || setup.Start != "" || setup.Checkpoint != 0 {
+		t.Fatalf("story setup = %#v", setup)
 	}
 }
 

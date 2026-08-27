@@ -120,6 +120,8 @@ The bot is configured via environment variables or a `config.env` file.
 | | `ABYSS_LIVE_ROLLOUT_PERCENT` | Stable per-player live-combat rollout cohort (`0` immediately rolls back to automatic combat). | `100` |
 | | `TS3NEWS_ABYSS_TIERS_FILE` | Optional path to a strict JSON override for the four tier values, loaded and validated at startup. | *Embedded catalog* |
 | | `ABYSS_OPS_TOKEN` | Separate bearer token for the private `/api/abyss/ops` telemetry snapshot; the endpoint is hidden when unset. | *None* |
+| | `ABYSS_DISCORD_ALERTS_ENABLED` | Opt in to anonymous milestone, Legendary/Eternal drop, and world-first alerts. Requires a valid Discord-only webhook URL. | `false` |
+| | `ABYSS_WEBHOOK_URL` | Secret `https://discord.com/api/webhooks/...` destination. Other hosts, redirects, queries, and plaintext HTTP are rejected. | *None* |
 | **System** | `ENABLE_GAME_NEWS` | Master switch for the free game notification feature. | `true` |
 | | `POKE_DELAY_MS` | Delay between individual pokes (anti-flood). | `1200` |
 | | `RESEND_AFTER_DAYS` | Allow re-sending a game after N days. | `60` |

@@ -38,7 +38,7 @@
   function downloadRecap(blob,plain){var link=document.createElement('a');link.download='abyss-run-recap.png';link.href=URL.createObjectURL(blob);link.click();setTimeout(function(){URL.revokeObjectURL(link.href);},1000);if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(plain).catch(function(){});abToast('Run recap downloaded as PNG.',true);}
   function installRecapButton(title,details){setTimeout(function(){var actions=document.querySelector('#sharedModalCard .modal-actions');if(!actions||actions.querySelector('.ab-share-recap'))return;lastSummary={title:String(title||'Abyss run recap').replace(/<[^>]*>/g,''),rows:recapRows(title,details)};var button=document.createElement('button');button.type='button';button.className='ghost ab-share-recap';button.textContent='🖼 Copy recap';button.addEventListener('click',exportRecap);actions.insertBefore(button,actions.firstChild);},0);}
   wrapAfter('showRunSummary',function(title){installRecapButton(title,{banked:0,died:true});});
-  wrapAfter('showBankSummary',function(result){installRecapButton('🏦 Run banked',{depth:result&&result.depth,banked:result&&result.banked,died:false});});
+  wrapAfter('showBankSummary',function(result){installRecapButton('🏦 Run banked',{depth:result&&result.depth,banked:result&&result.banked,died:false});playLiveCombatCue('bank',.5);});
 
   function depthBand(depth){depth=Number(depth)||0;return depth>=75?'abyssal':depth>=40?'deep':depth>=15?'mid':'shallow';}
   function applyDepthTheme(){document.body.dataset.abDepthBand=depthBand(inRun?curDepth:0);}
@@ -53,7 +53,7 @@
   function applySound(on){liveCombatAudioEnabled=!!on;saveLiveCombatPreference('abyssCombatAudio',on?'on':'off');updateLiveCombatFeedbackControls();if(on)primeLiveCombatAudio();}
   function installSoundSetting(){var enabled=readLiveCombatPreference('abyssCombatAudio','off')==='on',stored=null;try{stored=localStorage.getItem('ab_sound');}catch(_){}if(stored!==null)enabled=stored==='1';applySound(enabled);if(Array.isArray(window.AB_SETTINGS)&&!AB_SETTINGS.some(function(setting){return setting.key==='ab_sound';}))AB_SETTINGS.push({key:'ab_sound',label:'Abyss sound cues',type:'bool',def:enabled,apply:applySound});wrapAfter('enableLiveCombatAudio',function(){try{localStorage.setItem('ab_sound',liveCombatAudioEnabled?'1':'0');}catch(_){}});}
   wrapAfter('renderState',function(){var now=!!downed;if(now&&!wasDowned)playLiveCombatCue('defeat',.35);wasDowned=now;});
-  wrapAfter('lootToast',function(_,rarity){if(rarity)playLiveCombatCue('cast',.28);});
+  wrapAfter('lootToast',function(_,rarity){if(rarity)playLiveCombatCue('loot',rarity.indexOf('eternal')>=0||rarity.indexOf('celestial')>=0?.7:.35);});
 
   installSoundSetting();
   window.__abyssPolish={exportRecap:exportRecap,applyDepthTheme:applyDepthTheme,celebrate:celebrate};

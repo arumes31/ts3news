@@ -41,7 +41,8 @@ func TestAbyssPolishContracts(t *testing.T) {
 		"readLiveCombatPreference('abyssCombatAudio','off')",
 		"playLiveCombatCue('ready'",
 		"playLiveCombatCue('defeat'",
-		"if(rarity)playLiveCombatCue('cast'",
+		"playLiveCombatCue('bank'",
+		"if(rarity)playLiveCombatCue('loot'",
 	} {
 		if !strings.Contains(source, required) {
 			t.Errorf("polish module is missing %q", required)

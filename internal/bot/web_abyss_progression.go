@@ -191,6 +191,7 @@ func (b *Bot) advanceAbyssProgression(uid string, depth, currentHP, maxHP int, m
 	}
 	if weekly {
 		b.recordAbyssProgression(uid, "expeditioner")
+		b.awardAbyssWeeklyTalentXP(uid, time.Now().UTC())
 		b.incrementCommunityExpedition()
 	}
 	if track := abyssVeteranTrackKey(flags[abyssRunFlagVeteranTrack]); abyssVeteranQualifies(track, depth, currentHP, maxHP) {

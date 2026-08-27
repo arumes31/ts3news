@@ -1,0 +1,25 @@
+{{define "abyss-display-locale"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var fallback='en-US';
+  function locale(){return document.documentElement.lang||fallback;}
+  function formatter(options){try{return new Intl.NumberFormat(locale(),options);}catch(_){return new Intl.NumberFormat(fallback,options);}}
+  function number(value,options){var n=Number(value);return Number.isFinite(n)?formatter(options).format(n):String(value==null?'':value);}
+  function integer(value){return number(value,{maximumFractionDigits:0});}
+  function compact(value,digits){return number(value,{notation:'compact',maximumFractionDigits:digits==null?1:digits});}
+  function percent(value,digits){return number(value,{style:'percent',maximumFractionDigits:digits==null?1:digits});}
+  function suffix(value){return String(value).replace(/[\p{Number}\s.,+-]/gu,'');}
+  var goldSuffix=suffix('{{gold 0}}')||'g',suffixK=suffix('{{gold 1000}}')||'k',suffixM=suffix('{{gold 1000000}}')||'M',suffixB=suffix('{{gold 1000000000}}')||'B';
+  function gold(value){
+    var n=Number(value);if(!Number.isFinite(n))return String(value==null?'':value);
+    var sign=n<0?'-':'';n=Math.abs(n);
+    if(n>=1000000000)return sign+number(n/1000000000,{minimumFractionDigits:1,maximumFractionDigits:1})+suffixB;
+    if(n>=1000000)return sign+number(n/1000000,{minimumFractionDigits:1,maximumFractionDigits:1})+suffixM;
+    if(n>=1000)return sign+number(n/1000,{minimumFractionDigits:1,maximumFractionDigits:1})+suffixK;
+    return sign+integer(n)+goldSuffix;
+  }
+  window.AbyssLocale={compact:compact,gold:gold,integer:integer,locale:locale,number:number,percent:percent};
+})();
+</script>
+{{end}}

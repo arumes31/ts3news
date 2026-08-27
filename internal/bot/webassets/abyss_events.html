@@ -2,10 +2,11 @@
 <script data-cfasync="false">
 (function(){
   window.renderAbyssEventMemory=function(host,state){
-    if(!host||!state||Number(state.mem_mult)<=1)return;
+    var multiplier=Number(state&&state.mem_mult);
+    if(!host||!Number.isFinite(multiplier)||multiplier<=1)return;
     var note=document.createElement('div');
     note.className='ab-event-memory';
-    note.textContent='🜁 Familiar encounter · offer +'+Math.round((Number(state.mem_mult)-1)*100)+'%';
+    note.textContent='🜁 Familiar encounter · offer +'+Math.round((multiplier-1)*100)+'%';
     host.prepend(note);
   };
 

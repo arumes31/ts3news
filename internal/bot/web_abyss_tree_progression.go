@@ -2,6 +2,7 @@ package bot
 
 import (
 	"sort"
+	"time"
 
 	"ts3news/internal/content"
 )
@@ -66,6 +67,9 @@ func (b *Bot) abyssTreeProgressionFor(uid string, allocated []int) abyssTreeProg
 	progression := buildAbyssTreeProgression(
 		content.AbyssTree(), allocated, level, bestDepth, prestige, lifetimeFloors, deepPoints,
 	)
+	rewards := b.abyssProgressionPointRewards(uid, time.Now())
+	progression.PointSources = append(progression.PointSources, rewards.Sources...)
+	progression.TotalPoints += rewards.Points
 	return progression
 }
 

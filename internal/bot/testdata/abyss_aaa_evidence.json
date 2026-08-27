@@ -793,7 +793,7 @@
     ]
   },
   {
-    "ids": [353, 354, 372, 518, 976, 977, 978, 979, 980, 981, 982, 983, 984, 985, 991, 997],
+    "ids": [353, 354, 372, 518, 976, 977, 978, 979, 980, 981, 982, 984, 985, 991, 997],
     "production": [
       "internal/bot/web.go",
       "internal/bot/web_abyss_live.go",
@@ -1495,6 +1495,711 @@
       "internal/bot/abyss_pet_capture_test.go",
       "internal/bot/abyss_pet_gear_test.go",
       "tests/e2e/abyss.spec.js"
+    ]
+  },
+  {
+    "ids": [141],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss_inventory_ui.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_inventory_ui.html",
+      "internal/bot/webassets/abyss_run_loot_sell.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_inventory_ui_test.go",
+      "tests/e2e/abyss-run-loot-sell.spec.js"
+    ]
+  },
+  {
+    "ids": [91],
+    "production": [
+      "internal/bot/abyss_recent_gear.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_inventory_ui.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_inventory_ui.html",
+      "internal/bot/webassets/abyss_duplicate_guard.css",
+      "internal/content/artifacts.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_recent_gear_test.go",
+      "internal/bot/abyss_wishlist_test.go",
+      "internal/bot/web_abyss_loot_settings_test.go",
+      "internal/content/artifacts_test.go",
+      "tests/e2e/abyss-duplicate-guard.spec.js"
+    ]
+  },
+  {
+    "ids": [135, 136, 137, 138, 139, 143, 144, 145, 146, 147, 148, 150],
+    "production": [
+      "internal/bot/web_ah.go",
+      "internal/bot/web_ah_bids.go",
+      "internal/bot/web_ah_price_history.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_events.go",
+      "internal/bot/web_abyss_lore_grant.go",
+      "internal/bot/web_abyss_pact.go",
+      "internal/bot/web_abyss_shop.go",
+      "internal/bot/web_abyss_shop_demand.go",
+      "internal/bot/web_abyss_shop_economy.go",
+      "internal/bot/web_abyss_shop_gifts.go",
+      "internal/bot/web_abyss_shop_program.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_shop_demand.css",
+      "internal/bot/webassets/abyss_shop_program.css",
+      "internal/bot/webassets/abyss_shop_program.html"
+    ],
+    "verification": [
+      "internal/bot/web_ah_price_history_test.go",
+      "internal/bot/web_abyss_shop_demand_test.go",
+      "internal/bot/web_abyss_shop_program_test.go",
+      "internal/bot/web_abyss_test.go",
+      "tests/e2e/abyss-ah-price-history.spec.js",
+      "tests/e2e/abyss-shop-demand.spec.js"
+    ]
+  },
+  {
+    "ids": [17, 22, 23, 25],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_bank_incentives.go",
+      "internal/bot/web_abyss_core_rewards.go",
+      "internal/bot/web_abyss_stakes.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_core_risk.css",
+      "internal/bot/webassets/abyss_core_risk.html",
+      "internal/bot/webassets/abyss_entry_planner.css",
+      "internal/bot/webassets/abyss_entry_planner.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_bank_incentives_test.go",
+      "internal/bot/web_abyss_stakes_test.go",
+      "tests/e2e/abyss.spec.js"
+    ]
+  },
+  {
+    "ids": [52, 57, 58, 61, 74],
+    "production": [
+      "internal/bot/abyss_boss_affinity.go",
+      "internal/bot/abyss_elemental_preview.go",
+      "internal/bot/abyss_enemy_forecast.go",
+      "internal/bot/abyss_gear_damage.go",
+      "internal/content/mob_effects.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_enemies.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_tactics.go",
+      "internal/bot/web_abyss_mob_affixes.go",
+      "internal/bot/web_abyss_stage_effects.go",
+      "internal/bot/web_pages.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_boss_affinity.css",
+      "internal/bot/webassets/abyss_boss_affinity.html",
+      "internal/bot/webassets/abyss_enemy_forecast.css",
+      "internal/bot/webassets/abyss_enemy_forecast.html",
+      "internal/bot/webassets/abyss_gear_damage.css",
+      "internal/bot/webassets/abyss_gear_damage.html",
+      "internal/bot/webassets/abyss_live.css",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/webassets/abyss_mob_affixes.css",
+      "internal/bot/webassets/abyss_pixel.html",
+      "internal/bot/xp.go",
+      "internal/bot/xp_abyss_combat.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_boss_affinity_test.go",
+      "internal/bot/abyss_elemental_preview_test.go",
+      "internal/bot/abyss_enemy_forecast_test.go",
+      "internal/bot/abyss_gear_damage_test.go",
+      "internal/bot/web_abyss_combat_log_ui_test.go",
+      "internal/bot/web_abyss_live_actions_test.go",
+      "internal/bot/web_abyss_mob_affixes_test.go",
+      "internal/bot/xp_abyss_combat_test.go",
+      "tests/e2e/abyss.spec.js"
+    ]
+  },
+  {
+    "ids": [56, 59, 60, 62, 65, 66, 67, 75],
+    "production": [
+      "internal/bot/abyss_critical_fumble.go",
+      "internal/bot/abyss_first_strike.go",
+      "internal/bot/abyss_position.go",
+      "internal/bot/abyss_shield.go",
+      "internal/bot/abyss_skill_variety.go",
+      "internal/bot/abyss_weakness_window.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_combat_settings.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_actions.go",
+      "internal/bot/web_abyss_live_tactics.go",
+      "internal/bot/web_abyss_risk_rewards.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_critical_fumble.css",
+      "internal/bot/webassets/abyss_entry_planner.html",
+      "internal/bot/webassets/abyss_first_strike.css",
+      "internal/bot/webassets/abyss_live.html",
+      "internal/bot/webassets/abyss_pet_commands.css",
+      "internal/bot/webassets/abyss_pixel.html",
+      "internal/bot/webassets/abyss_shield.css",
+      "internal/bot/webassets/abyss_shield.html",
+      "internal/bot/webassets/abyss_skill_variety.css",
+      "internal/bot/webassets/abyss_skill_variety.html",
+      "internal/bot/webassets/abyss_weakness_window.css",
+      "internal/bot/webassets/abyss_weakness_window.html",
+      "internal/bot/xp.go",
+      "internal/bot/xp_abyss_combat.go",
+      "internal/bot/xp_abyss_pet_commands.go",
+      "internal/content/mobs.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_critical_fumble_presentation_test.go",
+      "internal/bot/abyss_critical_fumble_test.go",
+      "internal/bot/abyss_first_strike_test.go",
+      "internal/bot/abyss_position_test.go",
+      "internal/bot/abyss_shield_test.go",
+      "internal/bot/abyss_skill_variety_test.go",
+      "internal/bot/abyss_weakness_window_test.go",
+      "internal/bot/web_abyss_combat_settings_test.go",
+      "internal/bot/web_abyss_live_actions_test.go",
+      "internal/bot/web_abyss_risk_rewards_test.go",
+      "internal/bot/web_abyss_stage_effects_test.go",
+      "internal/bot/xp_abyss_combat_test.go",
+      "internal/bot/xp_abyss_pet_commands_test.go",
+      "tests/e2e/abyss.spec.js"
+    ]
+  },
+  {
+    "ids": [12, 18, 29, 33, 39, 40, 73],
+    "production": [
+      "internal/bot/abyss_cartographer.go",
+      "internal/bot/abyss_event_chain.go",
+      "internal/bot/abyss_forge_floor.go",
+      "internal/bot/abyss_rescue_support.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_auto_descend.go",
+      "internal/bot/web_abyss_cartographer.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_forge2.go",
+      "internal/bot/web_abyss_forge_quotes.go",
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_longterm.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_rooms.go",
+      "internal/bot/web_abyss_victory_state.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_auto_descend.css",
+      "internal/bot/webassets/abyss_events.css",
+      "internal/bot/webassets/abyss_longterm.html",
+      "internal/bot/webassets/abyss_ui200.css",
+      "internal/bot/xp.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_cartographer_test.go",
+      "internal/bot/abyss_event_chain_test.go",
+      "internal/bot/abyss_forge_floor_test.go",
+      "internal/bot/abyss_rescue_support_test.go",
+      "internal/bot/web_abyss_auto_descend_test.go",
+      "internal/bot/web_abyss_cartographer_test.go",
+      "internal/bot/web_abyss_live_layout_test.go",
+      "internal/bot/web_abyss_longterm_test.go",
+      "tests/e2e/abyss.spec.js"
+    ]
+  },
+  {
+    "ids": [78, 79, 80, 87, 90, 93, 94, 95, 96, 97],
+    "production": [
+      "internal/bot/abyss_weekly_featured_drops.go",
+      "internal/bot/abyss_wishlist.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_insurance_charm.go",
+      "internal/bot/web_abyss_inventory_ui.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_ring_sockets.go",
+      "internal/bot/web_abyss_set_pity.go",
+      "internal/bot/web_abyss_transmog.go",
+      "internal/bot/web_abyss_wishlist.go",
+      "internal/bot/web_pages.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_featured_drops.css",
+      "internal/bot/webassets/abyss_featured_drops.html",
+      "internal/bot/webassets/abyss_inventory_ui.html",
+      "internal/bot/webassets/abyss_item_numbers.html",
+      "internal/bot/webassets/abyss_loot_presentation.css",
+      "internal/bot/webassets/abyss_ring_sockets.html",
+      "internal/bot/webassets/abyss_set_pity.css",
+      "internal/bot/webassets/abyss_set_pity.html",
+      "internal/bot/webassets/abyss_transmog.css",
+      "internal/bot/webassets/abyss_transmog.html",
+      "internal/bot/webassets/abyss_wishlist.css",
+      "internal/bot/webassets/abyss_wishlist.html",
+      "internal/content/artifacts.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_weekly_featured_drops_test.go",
+      "internal/bot/abyss_wishlist_test.go",
+      "internal/bot/web_abyss_insurance_charm_test.go",
+      "internal/bot/web_abyss_item_numbers_test.go",
+      "internal/bot/web_abyss_loot_settings_test.go",
+      "internal/bot/web_abyss_provenance_test.go",
+      "internal/bot/web_abyss_ring_sockets_test.go",
+      "internal/bot/web_abyss_ring_sockets_ui_test.go",
+      "internal/bot/web_abyss_set_pity_test.go",
+      "internal/bot/web_abyss_transmog_test.go",
+      "internal/content/artifacts_test.go",
+      "tests/e2e/abyss-loot-rotation.spec.js",
+      "tests/e2e/abyss-ring-sockets.spec.js",
+      "tests/e2e/abyss-wishlist.spec.js",
+      "tests/e2e/abyss.spec.js"
+    ]
+  },
+  {
+    "ids": [153, 160],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_talents.go",
+      "internal/bot/web_abyss_tree.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abysstree.html",
+      "internal/content/abyss_talents.go"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_progression_evidence_test.go",
+      "internal/bot/web_abyss_talents_test.go",
+      "internal/content/abyss_talents_test.go",
+      "tests/e2e/abyss-tree-atlas.spec.js"
+    ]
+  },
+  {
+    "ids": [162, 164, 165, 171, 172],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_progression.go",
+      "internal/bot/web_abyss_progression_rewards.go",
+      "internal/bot/web_abyss_tree.go",
+      "internal/bot/web_abyss_tree_batch.go",
+      "internal/bot/web_abyss_tree_progression.go",
+      "internal/bot/webassets/abysstree.html",
+      "internal/bot/webassets/abysstree_progression.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_progression_rewards_test.go",
+      "internal/bot/web_abyss_progression_test.go",
+      "internal/bot/web_abyss_tree_progression_test.go",
+      "tests/e2e/abyss-tree-atlas.spec.js"
+    ]
+  },
+  {
+    "ids": [174],
+    "production": [
+      "internal/bot/webassets/armory.html",
+      "internal/bot/webassets/style.css",
+      "internal/content/skills.go",
+      "internal/content/skills_metadata.go"
+    ],
+    "verification": [
+      "internal/bot/web_armory_skill_rank_test.go",
+      "tests/e2e/abyss-inventory-polish.spec.js"
+    ]
+  },
+  {
+    "ids": [166, 167, 169, 170],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_codex.go",
+      "internal/bot/web_abyss_collections.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_lore_grant.go",
+      "internal/bot/web_abyss_tree.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_collections.css",
+      "internal/content/abyss_biomes.go",
+      "internal/content/artifacts.go"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_collections_test.go",
+      "internal/bot/web_abyss_release_guards_test.go",
+      "tests/e2e/abyss-ui-layout.spec.js"
+    ]
+  },
+  {
+    "ids": [358, 391, 399],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss_action_guard.go",
+      "internal/bot/webassets/abyss.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_action_guard_test.go",
+      "tests/e2e/abyss-ui-layout.spec.js"
+    ]
+  },
+  {
+    "ids": [360, 367, 368],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_feedback.css",
+      "internal/bot/webassets/abyss_feedback.html"
+    ],
+    "verification": [
+      "internal/bot/web_session_expiry_test.go",
+      "tests/e2e/abyss-ui-layout.spec.js"
+    ]
+  },
+  {
+    "ids": [359, 392, 393],
+    "production": [
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_history.go",
+      "internal/bot/web_abyss_live_http.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_live.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_action_guard_test.go",
+      "internal/bot/web_abyss_live_test.go",
+      "tests/e2e/abyss-live-resume.spec.js",
+      "tests/e2e/abyss.spec.js"
+    ]
+  },
+  {
+    "ids": [251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275],
+    "production": [
+      "internal/db/migrations/0100_abyss_social_program.up.sql",
+      "internal/bot/abyss_social_program.go",
+      "internal/bot/abyss_social_descent.go",
+      "internal/bot/abyss_social_shoutbox.go",
+      "internal/bot/web_abyss_social_network.go",
+      "internal/bot/web_abyss_social_exchange.go",
+      "internal/bot/web_abyss_social_guild.go",
+      "internal/bot/web_abyss_social_competition.go",
+      "internal/bot/web_abyss_social_rescue.go",
+      "internal/bot/web_abyss_social_program_view.go",
+      "internal/bot/web_abyss_live_social.go",
+      "internal/bot/web_abyss_friend_echoes.go",
+      "internal/bot/webassets/abyss_social.html",
+      "internal/bot/webassets/abyss_social.css",
+      "internal/bot/webassets/abyss_polish.html"
+    ],
+    "verification": [
+      "internal/bot/abyss_social_program_test.go",
+      "internal/bot/web_abyss_live_social_test.go",
+      "internal/bot/web_abyss_friend_echoes_test.go",
+      "tests/e2e/abyss-social-program.spec.js",
+      "tests/e2e/abyss-ui-layout.spec.js"
+    ]
+  },
+  {
+    "ids": [276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300],
+    "production": [
+      "internal/db/migrations/0101_abyss_competition_program.up.sql",
+      "internal/bot/abyss_competition.go",
+      "internal/bot/abyss_competition_channel.go",
+      "internal/bot/abyss_competition_settlement.go",
+      "internal/bot/web_abyss_competition.go",
+      "internal/bot/web_abyss_competition_boards.go",
+      "internal/bot/web_abyss_competition_profile.go",
+      "internal/bot/web_abyss_competition_ladder.go",
+      "internal/bot/webassets/abyss_competition.html",
+      "internal/bot/webassets/abyss_competition.css"
+    ],
+    "verification": [
+      "internal/bot/abyss_competition_test.go",
+      "internal/bot/web_abyss_boss_leaderboards_test.go",
+      "tests/e2e/abyss-competition-program.spec.js"
+    ]
+  },
+  {
+    "ids": [301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325],
+    "production": [
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_navigation.html",
+      "internal/bot/webassets/abyss_mobile.html",
+      "internal/bot/webassets/abyss_accessibility.html",
+      "internal/bot/webassets/abyss_core_interface.html",
+      "internal/bot/webassets/abyss_core_interface.css",
+      "internal/bot/webassets/abyss_item_numbers.html",
+      "internal/bot/webassets/abyss_longterm.html",
+      "internal/bot/webassets/abyss_forge_workstation.html",
+      "internal/bot/webassets/abyss_layout_readability.html",
+      "internal/bot/webassets/abyss_layout_readability.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_layout_readability_test.go",
+      "internal/bot/web_abyss_core_interface_test.go",
+      "internal/bot/web_abyss_navigation_test.go",
+      "tests/e2e/abyss-core-interface.spec.js",
+      "tests/e2e/abyss-layout-readability.spec.js",
+      "tests/e2e/abyss-workspace.spec.js"
+    ]
+  },
+  {
+    "ids": [326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350],
+    "production": [
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/style.css",
+      "internal/bot/webassets/abyss_combat_recorder.html",
+      "internal/bot/webassets/abyss_combat_recorder.css",
+      "internal/bot/webassets/abyss_combat_feedback.html",
+      "internal/bot/webassets/abyss_combat_feedback.css",
+      "internal/bot/webassets/abyss_loot_presentation.css",
+      "internal/bot/webassets/abyss_core_interface.html",
+      "internal/bot/webassets/abyss_core_interface.css",
+      "internal/bot/webassets/abyss_longterm.html",
+      "internal/bot/webassets/abyss_polish.html",
+      "internal/bot/webassets/abyss_polish.css",
+      "internal/bot/webassets/abyss_ui200.css",
+      "internal/bot/webassets/abyss_feedback_juice.html",
+      "internal/bot/webassets/abyss_feedback_juice.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_feedback_juice_test.go",
+      "internal/bot/web_abyss_combat_recorder_test.go",
+      "internal/bot/web_abyss_core_interface_test.go",
+      "internal/bot/web_abyss_polish_test.go",
+      "tests/e2e/abyss-feedback-juice.spec.js",
+      "tests/e2e/abyss-core-interface.spec.js"
+    ]
+  },
+  {
+    "ids": [351, 352, 355, 356, 357, 361, 362, 363, 364, 365, 366, 369, 370, 371, 373, 374, 375],
+    "production": [
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_accessibility.html",
+      "internal/bot/webassets/abyss_accessibility.css",
+      "internal/bot/webassets/abyss_quality_of_life.html",
+      "internal/bot/webassets/abyss_player_experience.html",
+      "internal/bot/webassets/abyss_player_experience.css",
+      "internal/bot/webassets/abyss_longterm.html",
+      "internal/bot/webassets/abyss_onboarding.html",
+      "internal/bot/webassets/abyss_display_locale.html",
+      "internal/bot/webassets/abyss_insights.html",
+      "internal/bot/webassets/abyss_aaa_runtime.html",
+      "internal/bot/web_abyss_setup_state.go",
+      "internal/i18n/i18n.go",
+      "internal/i18n/locales/en_US.yaml"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_accessibility_program_test.go",
+      "internal/bot/web_abyss_accessibility_test.go",
+      "internal/bot/web_abyss_quality_of_life_test.go",
+      "internal/bot/web_abyss_onboarding_test.go",
+      "internal/bot/web_abyss_setup_state_test.go",
+      "internal/i18n/completeness_test.go",
+      "tests/e2e/abyss-accessibility-qol.spec.js",
+      "tests/e2e/abyss-core-interface.spec.js",
+      "tests/e2e/abyss-ui-layout.spec.js",
+      "tests/e2e/abyss-live-resume.spec.js"
+    ]
+  },
+  {
+    "ids": [376, 377, 378, 379, 380],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_season.go",
+      "internal/bot/web_abyss_retention.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_season.html",
+      "internal/bot/webassets/abyss_season.css",
+      "internal/bot/webassets/abyss_retention.html",
+      "internal/bot/webassets/abyss_retention.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_season_test.go",
+      "internal/bot/web_abyss_retention_test.go",
+      "internal/bot/web_abyss_release_guards_test.go",
+      "tests/e2e/abyss-retention-program.spec.js",
+      "tests/e2e/abyss.spec.js",
+      "tests/e2e/abyss-workspace.spec.js"
+    ]
+  },
+  {
+    "ids": [381, 382, 383, 384, 385],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_builds.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_biome_story.go",
+      "internal/bot/web_abyss_relic_boons.go",
+      "internal/bot/web_abyss_run_identity.go",
+      "internal/bot/web_abyss_tier_quests.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_entry_planner.html",
+      "internal/bot/webassets/abyss_run_identity.html",
+      "internal/bot/webassets/abyss_run_identity.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_biome_story_test.go",
+      "internal/bot/web_abyss_relic_boons_test.go",
+      "internal/bot/web_abyss_run_identity_test.go",
+      "internal/bot/web_abyss_tier_quests_test.go",
+      "internal/bot/web_abyss_release_guards_test.go",
+      "tests/e2e/abyss-run-identity.spec.js"
+    ]
+  },
+  {
+    "ids": [20],
+    "production": [
+      "internal/bot/web_abyss_season.go",
+      "internal/bot/web_abyss_season_premium.go",
+      "internal/bot/webassets/abyss_season.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_season_test.go",
+      "tests/e2e/abyss.spec.js"
+    ]
+  },
+  {
+    "ids": [54],
+    "production": [
+      "internal/bot/abyss_skill_priority.go",
+      "internal/bot/web_abyss_skill_priority.go",
+      "internal/bot/webassets/abyss_skill_priority.html",
+      "internal/bot/webassets/abyss_skill_priority.css"
+    ],
+    "verification": [
+      "internal/bot/abyss_skill_priority_test.go",
+      "internal/bot/web_abyss_skill_priority_test.go",
+      "tests/e2e/abyss.spec.js"
+    ]
+  },
+  {
+    "ids": [72],
+    "production": [
+      "internal/bot/web_abyss_shadow_simulation.go",
+      "internal/bot/xp.go",
+      "internal/bot/xp_abyss_combat.go",
+      "internal/bot/webassets/abyss_shadow_simulation.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_shadow_simulation_test.go",
+      "tests/e2e/abyss.spec.js"
+    ]
+  },
+  {
+    "ids": [85],
+    "production": [
+      "internal/bot/abyss_rune_resonance.go",
+      "internal/bot/abyss_forge_resonance.go",
+      "internal/bot/web_abyss_live_actions.go",
+      "internal/bot/xp.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_rune_resonance_test.go",
+      "internal/bot/abyss_forge_resonance_test.go",
+      "tests/e2e/abyss-forge-runes.spec.js"
+    ]
+  },
+  {
+    "ids": [235, 236, 237, 238, 239, 240, 241, 243, 244, 245, 246, 250],
+    "production": [
+      "internal/bot/abyss_pet_program.go",
+      "internal/bot/abyss_pet_capture.go",
+      "internal/bot/abyss_pet_gear.go",
+      "internal/bot/abyss_pet_stable.go",
+      "internal/bot/web_abyss_pet_activity.go",
+      "internal/bot/web_abyss_pet_cosmetics.go",
+      "internal/bot/web_abyss_pet_gifts.go",
+      "internal/bot/web_abyss_pet_growth.go",
+      "internal/bot/web_abyss_social_hub.go",
+      "internal/bot/webassets/abyss_social.html",
+      "internal/bot/webassets/abyss_social.css",
+      "internal/db/migrations/0099_abyss_pet_gifts.up.sql"
+    ],
+    "verification": [
+      "internal/bot/abyss_pet_program_test.go",
+      "internal/bot/web_abyss_pet_program_test.go",
+      "internal/bot/abyss_pet_capture_test.go",
+      "internal/bot/abyss_pet_gear_test.go",
+      "tests/e2e/abyss-pet-program.spec.js"
+    ]
+  },
+  {
+    "ids": [386, 387, 389, 390],
+    "production": [
+      "internal/bot/web_abyss_provenance.go",
+      "internal/bot/web_abyss_run_replay.go",
+      "internal/bot/web_abyss_api_tokens.go",
+      "internal/bot/abyss_competition.go",
+      "internal/bot/webassets/abyss_observatory.html",
+      "internal/bot/webassets/abyss_observatory.css",
+      "internal/db/migrations/0102_abyss_observatory.up.sql"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_provenance_test.go",
+      "internal/bot/web_abyss_run_replay_test.go",
+      "internal/bot/web_abyss_api_tokens_test.go",
+      "internal/bot/web_abyss_observatory_test.go",
+      "tests/e2e/abyss-observatory.spec.js"
+    ]
+  },
+  {
+    "ids": [394, 395, 396, 397],
+    "production": [
+      "internal/bot/web_abyss_ops_config.go",
+      "internal/bot/web_abyss_ops_admin.go",
+      "internal/bot/web_abyss_ops_experiment.go",
+      "internal/bot/web_abyss_funnel.go",
+      "internal/bot/webassets/abyss_ops.html",
+      "internal/bot/webassets/abyss_ops.js"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_ops_test.go",
+      "internal/bot/web_abyss_funnel_test.go",
+      "tests/e2e/abyss.spec.js"
+    ]
+  },
+  {
+    "ids": [398],
+    "production": [
+      "internal/db/abyss_escrow_snapshot.go",
+      "internal/db/abyss_escrow_drill.go",
+      "internal/db/abyss_escrow_io.go",
+      "cmd/abyss-escrow/main.go",
+      "docs/ABYSS_ESCROW_RECOVERY.md"
+    ],
+    "verification": [
+      "internal/db/abyss_escrow_snapshot_test.go",
+      "internal/db/abyss_escrow_drill_test.go"
+    ]
+  },
+  {
+    "ids": [400],
+    "production": [
+      "internal/content/artifacts.go",
+      "internal/content/mobs.go",
+      "internal/content/mob_effects.go",
+      "internal/bot/web_abyss_wiki.go",
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_wiki.html",
+      "internal/bot/webassets/abyss_wiki.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_wiki_test.go",
+      "tests/e2e/abyss-wiki.spec.js"
+    ]
+  },
+  {
+    "ids": [388, 983],
+    "production": [
+      "internal/bot/abyss_discord_alert.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_forge_crafting.go",
+      "internal/config/config.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_discord_alert_test.go",
+      "internal/config/config_test.go"
     ]
   }
 ]
