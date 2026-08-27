@@ -46,6 +46,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_social.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_competition.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_layout_readability.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_feedback_juice.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_replay.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_stage_hud.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_codex_explorer.css"}}">
@@ -2445,11 +2446,14 @@ function updateDepthA11y(){
   var nextBoss=(Math.floor(depth/5)+1)*5, distance=Math.max(1,nextBoss-depth);
   dial.setAttribute('aria-label','Depth '+depth+'. Boss in '+distance+' '+(distance===1?'floor':'floors')+'. Threat '+Math.round(threat)+' percent. Cache '+fmtGold(curEscrow)+'.');
 }
+var lastElevatorDepth=null;
 function updateElevator(){
   var cage=document.getElementById('elevCage');
-  cage.style.top=((curDepth%20)/20*100)+'%';
-  // Elevator descent flash (#326)
-  if(!reduceMotion){var shaft=cage.parentElement;shaft.classList.remove('descending');void shaft.offsetWidth;shaft.classList.add('descending');}
+  var depth=Number(curDepth)||0,changed=lastElevatorDepth!==null&&depth!==lastElevatorDepth;
+  cage.style.top=((depth%20)/20*100)+'%';
+  lastElevatorDepth=depth;
+  // Elevator descent flash (#326) only when the floor actually changes.
+  if(changed&&!reduceMotion){var shaft=cage.parentElement;shaft.classList.remove('descending');void shaft.offsetWidth;shaft.classList.add('descending');setTimeout(function(){shaft.classList.remove('descending');},720);}
 }
 function setInsured(p){curInsured=Number(p)||0;var el=document.getElementById('insuredTag');if(p>0){el.textContent='🛡️ '+p+'% insured';el.style.display='';el.classList.add('glow');}else{el.style.display='none';el.classList.remove('glow');}renderHudChips();}
 function setBanner(html,cls){
@@ -6760,6 +6764,7 @@ function initNewDots(){
 {{template "abyssCoreInterface" .}}
 {{template "abyss-feedback" .}}
 {{template "abyss-polish" .}}
+{{template "abyssFeedbackJuice" .}}
 {{template "abyss-stage-presentation" .}}
 {{template "abyssAAARuntime" .}}
 <script data-cfasync="false">

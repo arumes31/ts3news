@@ -102,6 +102,13 @@ function playLiveCombatCue(kind,intensity){
     liveCombatTone(context,330,.28,'square',gain*.55,.1,990);
   }else if(kind==='defeat'){
     liveCombatTone(context,210,.35,'sawtooth',gain,0,58);
+  }else if(kind==='bank'){
+    liveCombatTone(context,330,.16,'triangle',gain*.7,0,440);
+    liveCombatTone(context,494,.2,'sine',gain*.82,.1,660);
+    liveCombatTone(context,660,.24,'sine',gain,.22,880);
+  }else if(kind==='loot'){
+    liveCombatTone(context,740,.12,'sine',gain*.65,0,980);
+    liveCombatTone(context,1110,.18,'triangle',gain,.07,1480);
   }else if(kind==='heavy'){
     liveCombatTone(context,92,.17,'square',gain,0,48);
     liveCombatTone(context,180,.09,'sawtooth',gain*.7,.025,70);

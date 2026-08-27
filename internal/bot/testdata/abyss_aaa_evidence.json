@@ -1936,5 +1936,33 @@
       "tests/e2e/abyss-layout-readability.spec.js",
       "tests/e2e/abyss-workspace.spec.js"
     ]
+  },
+  {
+    "ids": [326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350],
+    "production": [
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/style.css",
+      "internal/bot/webassets/abyss_combat_recorder.html",
+      "internal/bot/webassets/abyss_combat_recorder.css",
+      "internal/bot/webassets/abyss_combat_feedback.html",
+      "internal/bot/webassets/abyss_combat_feedback.css",
+      "internal/bot/webassets/abyss_loot_presentation.css",
+      "internal/bot/webassets/abyss_core_interface.html",
+      "internal/bot/webassets/abyss_core_interface.css",
+      "internal/bot/webassets/abyss_longterm.html",
+      "internal/bot/webassets/abyss_polish.html",
+      "internal/bot/webassets/abyss_polish.css",
+      "internal/bot/webassets/abyss_ui200.css",
+      "internal/bot/webassets/abyss_feedback_juice.html",
+      "internal/bot/webassets/abyss_feedback_juice.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_feedback_juice_test.go",
+      "internal/bot/web_abyss_combat_recorder_test.go",
+      "internal/bot/web_abyss_core_interface_test.go",
+      "internal/bot/web_abyss_polish_test.go",
+      "tests/e2e/abyss-feedback-juice.spec.js",
+      "tests/e2e/abyss-core-interface.spec.js"
+    ]
   }
 ]

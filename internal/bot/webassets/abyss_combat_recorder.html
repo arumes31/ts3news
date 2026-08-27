@@ -129,15 +129,15 @@ function updateCombatRecorderStatus(mode,detail){
 }
 function updateCombatRecorderFrame(frame){
   if(!frame||!combatRecorderState.playing)return;
-  var hp=Number(frame.hp)||0,enemy=Number(frame.enemy_hp)||0;
+  var hp=Number(frame.hp)||0,enemy=Number(frame.enemy_hp)||0,playerMax=Math.max(1,Number(frame.max_hp)||1),enemyMax=Math.max(1,Number(frame.enemy_max)||1);
   if(combatRecorderState.lastHP!==null){
     var playerDelta=hp-combatRecorderState.lastHP;
-    if(playerDelta<0)spawnCombatDamageFloat('enemy',playerDelta);
-    else if(playerDelta>0)spawnCombatDamageFloat('heal',playerDelta);
+    if(playerDelta<0&&Math.abs(playerDelta)>=playerMax*.04)spawnCombatDamageFloat('enemy',playerDelta);
+    else if(playerDelta>0&&playerDelta>=playerMax*.04)spawnCombatDamageFloat('heal',playerDelta);
   }
   if(combatRecorderState.lastEnemyHP!==null){
     var enemyDelta=enemy-combatRecorderState.lastEnemyHP;
-    if(enemyDelta<0)spawnCombatDamageFloat('you',enemyDelta);
+    if(enemyDelta<0&&Math.abs(enemyDelta)>=enemyMax*.04)spawnCombatDamageFloat('you',enemyDelta);
   }
   combatRecorderState.lastHP=hp;combatRecorderState.lastEnemyHP=enemy;
   updateCombatRecorderProgress(combatRecorderState.index,combatRecorderState.total);
