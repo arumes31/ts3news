@@ -1395,6 +1395,7 @@ var liveReconnectTicker=null, liveActionReceipt=null;
 var liveSelectedTarget='', liveSelectedWeakpoint='', livePendingOption=null, liveFinishHandled=false, liveLoadoutPage=0;
 var liveStartHP=0, liveStartMaxHP=0, liveClockTimer=null;
 var liveTargetLocked=false, liveRoundHistory=[], liveLogFilter='all', liveGamepadIndex=-1;
+var liveRenderedLogCursor=0, liveLogRestoreApplied=false, liveLogScrollTimer=null;
 var liveActionOrder=[], livePinnedActions={}, liveShortcutMap={attack:'a',defend:'d',skill1:'1',skill2:'2',skill3:'3',skill4:'4',skill5:'5',item1:'q',item2:'e',item3:'r',ultimate1:'u',ultimate2:'i',ultimate3:'o'};
 var currentBossNoteName='';
 

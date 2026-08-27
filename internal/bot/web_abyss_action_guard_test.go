@@ -3,8 +3,10 @@ package bot
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -159,6 +161,53 @@ func TestAbyssCoreActionGuardDetectsRepeatedThrottledBurst(t *testing.T) {
 		if macro != (denied == 3) {
 			t.Fatalf("denial %d macro = %t, want %t", denied, macro, denied == 3)
 		}
+	}
+}
+
+func TestAbyssDescendGuardPeakConcurrency(t *testing.T) {
+	t.Parallel()
+
+	const clients = 128
+	server := &WebServer{}
+	entered := make(chan struct{}, clients)
+	release := make(chan struct{})
+	handler := server.guardAbyssCoreAction(func(w http.ResponseWriter, _ *http.Request, uid string) {
+		unlock := server.lockAbyss(uid)
+		defer unlock()
+		entered <- struct{}{}
+		<-release
+		writeJSON(w, map[string]any{"ok": true})
+	})
+
+	var wait sync.WaitGroup
+	errors := make(chan string, clients)
+	for index := 0; index < clients; index++ {
+		wait.Add(1)
+		go func(index int) {
+			defer wait.Done()
+			request := newAbyssCoreActionRequest(fmt.Sprintf("load-key-%04d", index), []byte(`{"interactive":true}`))
+			response := httptest.NewRecorder()
+			handler(response, request, fmt.Sprintf("player-%04d", index))
+			if response.Code != http.StatusOK {
+				errors <- fmt.Sprintf("client %d status = %d", index, response.Code)
+			}
+		}(index)
+	}
+
+	deadline := time.After(10 * time.Second)
+	for count := 0; count < clients; count++ {
+		select {
+		case <-entered:
+		case <-deadline:
+			close(release)
+			t.Fatalf("only %d/%d concurrent descend requests reached the handler", count, clients)
+		}
+	}
+	close(release)
+	wait.Wait()
+	close(errors)
+	for message := range errors {
+		t.Error(message)
 	}
 }
 

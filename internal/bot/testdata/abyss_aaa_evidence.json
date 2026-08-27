@@ -1849,5 +1849,21 @@
       "internal/bot/web_session_expiry_test.go",
       "tests/e2e/abyss-ui-layout.spec.js"
     ]
+  },
+  {
+    "ids": [359, 392, 393],
+    "production": [
+      "internal/bot/web_abyss_live.go",
+      "internal/bot/web_abyss_live_history.go",
+      "internal/bot/web_abyss_live_http.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_live.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_action_guard_test.go",
+      "internal/bot/web_abyss_live_test.go",
+      "tests/e2e/abyss-live-resume.spec.js",
+      "tests/e2e/abyss.spec.js"
+    ]
   }
 ]

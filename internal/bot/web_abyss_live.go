@@ -161,6 +161,9 @@ type abyssLiveSnapshot struct {
 	EnemyIntents  []abyssLiveEnemyIntent     `json:"enemy_intents,omitempty"`
 	Initiative    []abyssLiveInitiativeEntry `json:"initiative,omitempty"`
 	RecentLogs    []string                   `json:"recent_logs"`
+	LogStart      int                        `json:"log_start,omitempty"`
+	LogCursor     int                        `json:"log_cursor,omitempty"`
+	LogHistory    []string                   `json:"log_history,omitempty"`
 	RoundRecap    string                     `json:"round_recap,omitempty"`
 	RandomSeed    [2]uint64                  `json:"random_seed"`
 	RandomDraws   uint64                     `json:"random_draws"`
@@ -251,6 +254,48 @@ func (c *abyssLiveCombat) snapshotFor(uid string) abyssLiveSnapshot {
 	return c.snapshotForLocked(uid)
 }
 
+func (c *abyssLiveCombat) snapshotWithLogHistory(uid string) abyssLiveSnapshot {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	snapshot := c.snapshotForLocked(uid)
+	snapshot.LogHistory = c.logHistoryForLocked(uid, snapshot)
+	return snapshot
+}
+
+func (c *abyssLiveCombat) logHistoryForLocked(uid string, current abyssLiveSnapshot) []string {
+	logs := make([]string, 0, current.LogCursor)
+	apply := func(snapshot abyssLiveSnapshot) {
+		if snapshot.LogCursor <= 0 {
+			if len(logs) == 0 {
+				logs = append(logs, snapshot.RecentLogs...)
+			}
+			return
+		}
+		if len(logs) < snapshot.LogCursor {
+			logs = append(logs, make([]string, snapshot.LogCursor-len(logs))...)
+		}
+		start := max(0, min(snapshot.LogStart, snapshot.LogCursor))
+		for index, line := range snapshot.RecentLogs {
+			position := start + index
+			if position >= snapshot.LogCursor {
+				break
+			}
+			logs[position] = line
+		}
+	}
+	for _, event := range c.history {
+		if snapshot, ok := event.Snapshots[uid]; ok {
+			apply(snapshot)
+		}
+	}
+	apply(current)
+	if current.LogCursor > 0 && len(logs) > current.LogCursor {
+		logs = logs[:current.LogCursor]
+	}
+	return logs
+}
+
 func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 	allies := append([]abyssLiveCombatantView{}, c.allies...)
 	for i := range allies {
@@ -330,6 +375,8 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 		EnemyIntents:  enemyIntents,
 		Initiative:    initiative,
 		RecentLogs:    recentLogs,
+		LogStart:      max(0, c.lastLogCount-len(recentLogs)),
+		LogCursor:     c.lastLogCount,
 		RoundRecap:    c.roundRecap,
 		RandomSeed:    c.randomSeed,
 		RandomDraws:   c.randomDrawCount(),

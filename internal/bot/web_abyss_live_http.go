@@ -38,7 +38,7 @@ func (s *WebServer) handleAbyssCombatState(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	c.touchMember(uid)
-	writeJSON(w, c.snapshotFor(uid))
+	writeJSON(w, c.snapshotWithLogHistory(uid))
 }
 
 func (s *WebServer) handleAbyssCombatAction(w http.ResponseWriter, r *http.Request, uid string) {

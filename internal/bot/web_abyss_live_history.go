@@ -56,6 +56,7 @@ func cloneAbyssLiveSnapshot(snapshot abyssLiveSnapshot) abyssLiveSnapshot {
 	snapshot.Enemies = append([]abyssLiveCombatantView{}, snapshot.Enemies...)
 	snapshot.Options = append([]abyssLiveOption{}, snapshot.Options...)
 	snapshot.RecentLogs = append([]string{}, snapshot.RecentLogs...)
+	snapshot.LogHistory = append([]string{}, snapshot.LogHistory...)
 	if snapshot.Queued != nil {
 		queued := *snapshot.Queued
 		snapshot.Queued = &queued

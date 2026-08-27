@@ -115,6 +115,8 @@ function startLiveCombat(payload, hp, max){
   liveStartHP=hp||Number(document.getElementById('hpBar').getAttribute('aria-valuenow'))||0;
   liveStartMaxHP=max||Number(document.getElementById('hpBar').getAttribute('aria-valuemax'))||1;
   liveFinishHandled=false;
+	var nextSession=payload&&payload.state&&payload.state.session_id||'';
+	if(!liveCombatState||liveCombatState.session_id!==nextSession){liveRenderedLogCursor=0;liveLogRestoreApplied=false;var initialFeed=document.getElementById('liveFeed');if(initialFeed)initialFeed.replaceChildren();}
 	liveLastEventID=liveEventCursor(payload&&payload.state);
 	liveSelectedTarget=''; liveSelectedWeakpoint=''; livePendingOption=null; liveTargetLocked=false; liveRoundHistory=[];
 	if(payload&&payload.state)resetLivePixelState(payload.state.session_id||'');
@@ -626,12 +628,7 @@ function renderLiveCombat(state,preserveFeed){
 	queue.textContent=livePendingOption?'Select a valid target for '+livePendingOption.name+'.':selectedUnit?'TARGET · '+selectedUnit.name+' — choose an action.':state.recommended?'RECOMMENDED · '+state.recommended.reason:'Choose an action, then select a target. Timeout uses '+String(state.tactic||'balanced').replace('_',' ')+'.';
   }
   else queue.textContent='Resolving synchronized actions…';
-	if(!preserveFeed){
-    var feed=document.getElementById('liveFeed');
-	feed.innerHTML='';(state.recent_logs||[]).forEach(function(line){appendLiveLogLine(feed,line);});
-	setLiveLogFilter(liveLogFilter);
-    feed.scrollTop=feed.scrollHeight;
-  }
+	syncLiveLogFeed(state,preserveFeed);
   clearInterval(liveClockTimer); liveClockTimer=setInterval(updateLiveClock,100); updateLiveClock();
   if(state.phase==='complete'||state.phase==='failed')finishLiveCombat(state);
 }
@@ -648,6 +645,49 @@ function appendLiveLogLine(feed,line){
 	if(/⚡ FIRST STRIKE ·/.test(line))entry.classList.add('ab-live-first-strike');
 	feed.appendChild(entry);
 }
+
+function saveLiveLogPosition(){
+	liveLogScrollTimer=null;
+	var feed=document.getElementById('liveFeed'),state=liveCombatState;if(!feed||!state||!state.session_id)return;
+	try{sessionStorage.setItem('abyss_live_log_position_v1',JSON.stringify({session_id:state.session_id,cursor:liveRenderedLogCursor,top:feed.scrollTop,at_bottom:feed.scrollHeight-feed.scrollTop-feed.clientHeight<=12}));}catch(e){}
+}
+function scheduleLiveLogPositionSave(){if(liveLogScrollTimer)clearTimeout(liveLogScrollTimer);liveLogScrollTimer=setTimeout(saveLiveLogPosition,80);}
+function restoreLiveLogPosition(feed,state){
+	if(liveLogRestoreApplied)return false;liveLogRestoreApplied=true;
+	var saved=null;try{saved=JSON.parse(sessionStorage.getItem('abyss_live_log_position_v1')||'null');}catch(e){}
+	if(!saved||saved.session_id!==state.session_id||Number(saved.cursor)>Number(state.log_cursor||0))return false;
+	if(saved.at_bottom)feed.scrollTop=feed.scrollHeight;else feed.scrollTop=Math.max(0,Number(saved.top)||0);
+	return true;
+}
+function syncLiveLogFeed(state,preserveFeed){
+	var feed=document.getElementById('liveFeed'),recent=Array.isArray(state.recent_logs)?state.recent_logs:[];
+	if(!feed)return;
+	var cursor=Number(state.log_cursor)||0,start=Math.max(0,Number(state.log_start)||0),history=Array.isArray(state.log_history)?state.log_history:null;
+	var wasAtBottom=!feed.children.length||feed.scrollHeight-feed.scrollTop-feed.clientHeight<=12,previousTop=feed.scrollTop,firstRestore=!liveLogRestoreApplied;
+	if(history){
+		feed.replaceChildren();history.forEach(function(line){appendLiveLogLine(feed,line);});
+		liveRenderedLogCursor=cursor||history.length;setLiveLogFilter(liveLogFilter);
+		requestAnimationFrame(function(){
+			if(firstRestore){if(!restoreLiveLogPosition(feed,state))feed.scrollTop=feed.scrollHeight;}
+			else if(wasAtBottom)feed.scrollTop=feed.scrollHeight;
+			else feed.scrollTop=Math.max(0,previousTop);
+			saveLiveLogPosition();
+		});
+		return;
+	}
+	if(cursor<=0){
+		if(!preserveFeed){feed.replaceChildren();recent.forEach(function(line){appendLiveLogLine(feed,line);});setLiveLogFilter(liveLogFilter);feed.scrollTop=feed.scrollHeight;}
+		return;
+	}
+	if(liveRenderedLogCursor>cursor){feed.replaceChildren();liveRenderedLogCursor=0;}
+	var offset=Math.max(0,liveRenderedLogCursor-start);
+	for(var index=offset;recent.length>index;index++)appendLiveLogLine(feed,recent[index]);
+	liveRenderedLogCursor=Math.max(liveRenderedLogCursor,cursor);setLiveLogFilter(liveLogFilter);
+	if(wasAtBottom)feed.scrollTop=feed.scrollHeight;
+	saveLiveLogPosition();
+}
+
+document.getElementById('liveFeed').addEventListener('scroll',scheduleLiveLogPositionSave,{passive:true});
 
 async function finishLiveCombat(state){
   if(liveFinishHandled)return; liveFinishHandled=true;

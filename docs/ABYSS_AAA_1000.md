@@ -1002,3 +1002,9 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0360 / 360** — login issues a token-free expiry companion cookie so active Abyss pages warn ten minutes before the private session cookie expires and preserve the current view for re-login.
 - [x] **AAA-0367 / 367** — uncertain core-action errors offer a ten-second touch-safe retry control that replays the exact original payload with its original idempotency key.
 - [x] **AAA-0368 / 368** — a compact, accessible five-request latency indicator distinguishes responsive, delayed, very-slow, and unreachable API states.
+
+## Delivered tranche: live recovery and lifecycle verification
+
+- [x] **AAA-0359 / 359** — live snapshots carry monotonic log ranges; refresh rebuilds the complete deduplicated combat feed and restores the exact saved scroll position without breaking follow-at-bottom behavior.
+- [x] **AAA-0392 / 392** — a bounded 128-player concurrency test verifies guarded descend requests retain independent per-player mutation locks without global serialization.
+- [x] **AAA-0393 / 393** — Playwright covers successful descend-to-bank, fatal descend-to-revive/concede, planned multi-floor combat, and mid-fight refresh recovery paths.
