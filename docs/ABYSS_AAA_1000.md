@@ -290,8 +290,10 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0302 / 302** — collapsible library and history panels persist their individual open state (`webassets/abyss_navigation.html`, `web_abyss_accessibility_feedback_test.go`).
 - [x] **AAA-0303 / 303** — the lower workspace is split into keyboard-accessible remembered tabs (`webassets/abyss_navigation.html`, `tests/e2e/abyss-workspace.spec.js`).
 - [x] **AAA-0304 / 304** — mobile run actions mirror Descend, Bank, and consumable preparation with responsive focus recovery (`webassets/abyss_accessibility.html`, `webassets/abyss_mobile.css`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0305 / 305** — Small, Medium, and Large interface font sizes persist through a validated account preference with immediate local rendering and failed-save rollback (`web_abyss_preferences.go`, `webassets/abyss_player_experience.html`, `web_abyss_preferences_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
 - [x] **AAA-0306 / 306** — compact mode reduces detached armoury and run-loot row density without removing their controls (`webassets/abyss_accessibility.css`, `webassets/abyss_longterm.html`, `web_abyss_accessibility_feedback_test.go`).
 - [x] **AAA-0307 / 307** — the run-loot sidebar opens a nine-tier color-and-shape rarity guide (`webassets/abyss_core_interface.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0308 / 308** — tier cards pair distinct icons with authoritative per-account bank rates and sample counts (`web_abyss_econ.go`, `webassets/abyss.html`, `web_abyss_core_interface_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
 - [x] **AAA-0309 / 309** — the stage shows numeric threat and retains a formula/drop-forecast tooltip plus accessible percentage (`webassets/abyss.html`, `tests/e2e/abyss-core-interface.spec.js`).
 - [x] **AAA-0310 / 310** — the depth ring visibly reports floors to the next boss and mirrors the detail in its accessible label (`webassets/abyss.html`, `tests/e2e/abyss-core-interface.spec.js`).
 - [x] **AAA-0311 / 311** — exact and abbreviated item-number modes preserve exact values in titles and accessible labels (`webassets/abyss_item_numbers.html`, `tests/e2e/abyss.spec.js`).
@@ -304,8 +306,10 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0318 / 318** — guarded D/B/I shortcuts and a discoverable cheat sheet pause during editing, dialogs, and live planning (`webassets/abyss_navigation.html`, `webassets/abyss_combat_recorder.html`, `tests/e2e/abyss-core-interface.spec.js`).
 - [x] **AAA-0319 / 319** — active pacts render as compact stage HUD chips with their exact effects (`webassets/abyss.html`, `web_abyss_aaa_runtime_test.go`).
 - [x] **AAA-0320 / 320** — a non-modal warning highlights insurance when a live uninsured cache crosses a soft-cap-aware threshold (`webassets/abyss_core_interface.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0321 / 321** — consumable preparation shows remaining charges and readiness/cooldown context, while live action slots retain exact active cooldowns (`webassets/abyss.html`, `webassets/abyss_live.html`, `web_abyss_core_interface_test.go`).
 - [x] **AAA-0322 / 322** — costly shop purchases and irreversible companion releases use the shared accessible confirmation dialog (`webassets/abyss.html`, `webassets/abyss_social.html`, `web_abyss_core_interface_test.go`).
 - [x] **AAA-0323 / 323** — the run-loot empty state explains how to obtain and secure the first reward (`webassets/abyss.html`, `webassets/abyss_inventory_ui.html`, `web_abyss_core_interface_test.go`).
+- [x] **AAA-0324 / 324** — delayed loot refreshes retain current content under an accessible, reduced-motion-safe skeleton instead of blanking the manifest (`webassets/abyss_inventory_ui.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
 - [x] **AAA-0325 / 325** — a searchable settings dialog consolidates layout, number, log, accessibility, ambience, and loot preferences (`webassets/abyss_longterm.html`, `tests/e2e/abyss.spec.js`, `tests/e2e/abyss-core-interface.spec.js`).
 
 ## Delivered tranche: stage motion and reward feedback

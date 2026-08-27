@@ -27,6 +27,7 @@ func TestAbyssE2EServer(t *testing.T) {
 	mux := http.NewServeMux()
 	var wishlistMu sync.Mutex
 	wishlistState := abyssWishlistState{}
+	fontSize := "m"
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
@@ -68,6 +69,24 @@ func TestAbyssE2EServer(t *testing.T) {
 			"ok":       true,
 			"wishlist": abyssWishlistViewFor(wishlistState, r.URL.Query().Get("q")),
 		})
+	})
+	mux.HandleFunc("/api/abyss/preferences/font-size", func(w http.ResponseWriter, r *http.Request) {
+		wishlistMu.Lock()
+		defer wishlistMu.Unlock()
+		if r.Method == http.MethodPost {
+			var request struct {
+				FontSize string `json:"font_size"`
+			}
+			if readJSON(r, &request) != nil || normalizeAbyssFontSize(request.FontSize) != request.FontSize {
+				writeJSON(w, map[string]any{"ok": false, "error": "invalid font size"})
+				return
+			}
+			fontSize = request.FontSize
+		} else if r.Method != http.MethodGet {
+			http.Error(w, "GET or POST only", http.StatusMethodNotAllowed)
+			return
+		}
+		writeJSON(w, map[string]any{"ok": true, "font_size": fontSize})
 	})
 	mux.HandleFunc("/inventory", func(w http.ResponseWriter, _ *http.Request) {
 		charm := content.Gear{
@@ -135,6 +154,7 @@ func TestAbyssE2EServer(t *testing.T) {
 	})
 	mux.HandleFunc("/abyss", func(w http.ResponseWriter, r *http.Request) {
 		fixture := abyssGoldenFixture(r.URL.Query().Get("active") == "1")
+		fixture["Tiers"] = abyssTierListWithRates(999, []abyssTierRateView{{Tier: "normal", Wins: 7, Runs: 10, Percent: 70}})
 		fixture["FreeID"] = true
 		shopNow := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
 		weeklyKey := abyssWeeklyInsanityCosmetic(shopNow)

@@ -1666,7 +1666,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"AutoFocus":           s.selectedAbyssFocus(uid, run),
 		"FocusPreference":     abyssFocusPreference(runFlags),
 		"HUD":                 hudState,
-		"Tiers":               abyssTierList(st.BestDepth),
+		"Tiers":               abyssTierListWithRates(st.BestDepth, insights.TierRates),
 		"Leaders":             s.bot.abyssLeaderboardsForUID(lbTier, uid),
 		"Season":              abyssSeasonLabel(),
 		"SeasonJourney":       seasonJourney,

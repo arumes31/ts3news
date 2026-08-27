@@ -33,25 +33,42 @@ func TestAbyssRunLootEstimatedValue(t *testing.T) {
 }
 
 func TestAbyssCoreInterfaceAssets(t *testing.T) {
-	for _, asset := range []string{"webassets/abyss.html", "webassets/abyss_core_interface.html", "webassets/abyss_core_interface.css", "webassets/abyss_combat_recorder.html", "webassets/abyss_forge_workstation.html", "webassets/abyss_longterm.html", "webassets/abyss_loot_signals.html", "webassets/abyss_stage_hud.html"} {
+	for _, asset := range []string{"webassets/abyss.html", "webassets/abyss_core_interface.html", "webassets/abyss_core_interface.css", "webassets/abyss_combat_recorder.html", "webassets/abyss_forge_workstation.html", "webassets/abyss_inventory_ui.html", "webassets/abyss_longterm.html", "webassets/abyss_loot_signals.html", "webassets/abyss_player_experience.html", "webassets/abyss_stage_hud.html"} {
 		body, err := webAssets.ReadFile(asset)
 		if err != nil {
 			t.Fatal(err)
 		}
 		text := string(body)
 		for _, marker := range map[string][]string{
-			"webassets/abyss.html":                   {`id="threatPct"`, `id="bossDistance"`, `id="lootTypeFilters"`, `data-estimated-value=`, `achievementBannerQueue`, `ab-boss-spawn-shake`},
+			"webassets/abyss.html":                   {`id="threatPct"`, `id="bossDistance"`, `id="lootTypeFilters"`, `data-estimated-value=`, `achievementBannerQueue`, `ab-boss-spawn-shake`, `ab-tier-icon`, `ab-tier-rate`, `ab-cons-state`},
 			"webassets/abyss_core_interface.html":    {`function openRarityGuide()`, `function renderInsuranceNudge()`, `window.showAbyssShortcuts`, `function milestoneToast`, `function updateParallax`},
-			"webassets/abyss_core_interface.css":     {`.ab-log-timestamps`, `.ab-insurance-attention`, `.ab-loot-type-filters`, `.ab-drop-streak-flame`, `.ab-boss-hp.has-phases`, `.ab-depth-backdrop`, `.ab-milestone-toast`, `.ab-boss-spawn-shake`, `.abyss-stage.ab-downed .ab-escrow-val`},
+			"webassets/abyss_core_interface.css":     {`.ab-log-timestamps`, `.ab-insurance-attention`, `.ab-loot-type-filters`, `.ab-drop-streak-flame`, `.ab-boss-hp.has-phases`, `.ab-depth-backdrop`, `.ab-milestone-toast`, `.ab-boss-spawn-shake`, `.abyss-stage.ab-downed .ab-escrow-val`, `.ab-manifest-skeleton`},
 			"webassets/abyss_combat_recorder.html":   {`id="abyssShortcutHelp"`, `id="logAutoScroll"`},
 			"webassets/abyss_forge_workstation.html": {`id="forgeItemSearch"`, `forgeSlotFilter`, `event.key==='ArrowDown'`},
+			"webassets/abyss_inventory_ui.html":      {`function setRunLootManifestLoading`, `aria-busy`, `loadingTimer`},
 			"webassets/abyss_longterm.html":          {`key:'ab_logtime'`, `key:'ab_loottype'`},
 			"webassets/abyss_loot_signals.html":      {`id="dropStreakFlame"`, `data-streak=`},
+			"webassets/abyss_player_experience.html": {`key==='ab_fontsize'`, `/api/abyss/preferences/font-size`, `Account font size`},
 			"webassets/abyss_stage_hud.html":         {`--boss-hp`, `boss.dataset.phase`, `Phase markers at 50% and 25%`},
 		}[asset] {
 			if !strings.Contains(text, marker) {
 				t.Fatalf("%s missing %q", asset, marker)
 			}
+		}
+	}
+}
+
+func TestAbyssTierListIncludesIconsAndAccountRates(t *testing.T) {
+	tiers := abyssTierListWithRates(999, []abyssTierRateView{{Tier: "hell", Runs: 8, Wins: 3, Percent: 38}})
+	if len(tiers) != len(abyssTierOrder) {
+		t.Fatalf("tiers = %d, want %d", len(tiers), len(abyssTierOrder))
+	}
+	for _, tier := range tiers {
+		if tier.Icon == "" {
+			t.Errorf("tier %q has no icon", tier.Key)
+		}
+		if tier.Key == "hell" && tier.WinRateHint != "38% bank rate · 8 runs" {
+			t.Errorf("Hell rate = %q", tier.WinRateHint)
 		}
 	}
 }

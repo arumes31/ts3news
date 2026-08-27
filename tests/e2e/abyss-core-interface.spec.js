@@ -56,6 +56,8 @@ test('core interface groups risk, loot, log, shortcut, and insurance feedback', 
   await expect(page.locator('#insuranceNudge')).not.toHaveAttribute('hidden', '');
   await expect(page.locator('#insuranceControls')).toHaveClass(/ab-insurance-attention/);
   await expect(page.locator('#insuranceNudge')).toContainText('uninsured');
+  await expect(page.locator('#tierPicker .ab-tier-icon')).toHaveCount(4);
+  await expect(page.locator('#tierPicker .ab-tier').first().locator('.ab-tier-rate')).toContainText('70% bank rate');
 
   await page.evaluate(() => {
     const flame = document.querySelector('#dropStreakFlame');
@@ -84,5 +86,22 @@ test('core interface groups risk, loot, log, shortcut, and insurance feedback', 
   await expect(page.locator('body')).toHaveAttribute('data-boss-shake-started', 'true');
   await expect(page.locator('#abyssStage')).toHaveClass(/ab-downed/);
   await expect(page.locator('#escrowVal')).toHaveCSS('color', 'rgb(255, 107, 114)');
+
+  await page.locator('#abCommandCenter').getByRole('button', { name: 'Experience' }).click();
+  const fontSize = page.locator('#abExperienceGrid label').filter({ hasText: 'Account font size' }).locator('select');
+  await fontSize.selectOption('l');
+  await expect(page.locator('body')).toHaveAttribute('data-ab-font-size', 'l');
+  expect(await page.evaluate(() => localStorage.getItem('ab_fontsize'))).toBe('l');
+  await page.locator('#modalOkBtn').click();
+
+  await page.route('**/api/abyss/loot/manifest', async route => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await route.continue();
+  });
+  await page.evaluate(() => { window.__manifestRefresh = window.refreshRunLootManifest(); });
+  await expect(page.locator('#lootManifest')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.locator('#lootManifest .ab-manifest-skeleton i')).toHaveCount(3);
+  await page.evaluate(() => window.__manifestRefresh);
+  await expect(page.locator('#lootManifest')).toHaveAttribute('aria-busy', 'false');
   expect(pageErrors).toEqual([]);
 });

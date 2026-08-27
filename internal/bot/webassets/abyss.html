@@ -205,8 +205,9 @@
       {{$tierKey := .Key}}
       <label class="ab-tier {{if not .Unlocked}}locked{{end}}">
         <input type="radio" name="abtier" value="{{.Key}}" data-entry="{{.EntryGold}}" data-diff="{{.DiffMult}}" data-risk="{{with $.FloorOneRiskByTier}}{{index . $tierKey}}{{end}}" {{if and (eq .Key "normal") .Unlocked}}checked{{end}} {{if not .Unlocked}}disabled{{end}}>
-        <span class="ab-tier-name">{{.Name}}</span>
+        <span class="ab-tier-name"><span class="ab-tier-icon" aria-hidden="true">{{.Icon}}</span> {{.Name}}</span>
         <span class="ab-tier-meta">×{{printf "%.1f" .RewardMult}} reward · ×{{printf "%.1f" .DiffMult}} danger</span>
+        <span class="ab-tier-rate">{{if .WinRateHint}}{{.WinRateHint}}{{else}}No completed runs yet{{end}}</span>
         <!-- UI-101: entry fee + unlock requirement line; UI-113: .ab-entry-cost is
              struck through by JS while the daily free entry applies -->
         <span class="ab-tier-meta">{{if gt .EntryGold 0}}entry <span class="ab-entry-cost {{if $.FreeEntryAvailable}}ab-free{{end}}">{{gold .EntryGold}}</span>{{else}}free{{end}}{{if not .Unlocked}} · 🔒 depth {{.MinBest}}{{end}}</span>
@@ -458,6 +459,7 @@
             <div class="ab-cons-item" id="cons-{{.ID}}">
               <b>{{.Name}}</b>
               <span class="muted small">{{.Description}}</span>
+              <span class="ab-cons-state" title="Charges remaining. Combat item cooldown begins after use.">×{{.Duration}} · ready</span>
               <button class="ghost xs" onclick="abyssUseConsumable('{{.ID}}')">Use</button>
             </div>
           {{end}}
@@ -1919,7 +1921,7 @@ function renderConsumables(list){
     var div = document.createElement('div');
     div.className = 'ab-cons-item';
     div.id = 'cons-'+c.ID;
-    div.innerHTML = '<b>' + c.Name + '</b> <span class="muted small">' + c.Description + '</span> <button class="ghost xs" onclick="abyssUseConsumable(\''+c.ID+'\')">Use</button>';
+    div.innerHTML = '<b>' + consEsc(c.Name) + '</b> <span class="muted small">' + consEsc(c.Description) + '</span> <span class="ab-cons-state" title="Charges remaining. Combat item cooldown begins after use.">×'+Math.max(0,Number(c.Duration)||0)+' · ready</span> <button class="ghost xs" onclick="abyssUseConsumable(\''+consEsc(c.ID)+'\')">Use</button>';
     container.appendChild(div);
   });
 }

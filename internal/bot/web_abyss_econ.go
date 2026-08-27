@@ -48,14 +48,29 @@ func abyssTierByKey(k string) (abyssTier, bool) {
 // abyssTierView is the template-facing tier with its unlock state.
 type abyssTierView struct {
 	abyssTier
-	Unlocked bool
+	Unlocked    bool
+	Icon        string
+	WinRateHint string
 }
 
 func abyssTierList(bestDepth int) []abyssTierView {
+	return abyssTierListWithRates(bestDepth, nil)
+}
+
+func abyssTierListWithRates(bestDepth int, rates []abyssTierRateView) []abyssTierView {
+	rateByTier := make(map[string]abyssTierRateView, len(rates))
+	for _, rate := range rates {
+		rateByTier[rate.Tier] = rate
+	}
+	icons := map[string]string{"normal": "🛡️", "nightmare": "🌘", "hell": "🔥", "insanity": "🌀"}
 	out := make([]abyssTierView, 0, len(abyssTierOrder))
 	for _, k := range abyssTierOrder {
 		t := abyssTiers[k]
-		out = append(out, abyssTierView{abyssTier: t, Unlocked: bestDepth >= t.MinBest})
+		view := abyssTierView{abyssTier: t, Unlocked: bestDepth >= t.MinBest, Icon: icons[k]}
+		if rate, ok := rateByTier[k]; ok && rate.Runs > 0 {
+			view.WinRateHint = fmt.Sprintf("%d%% bank rate · %d runs", rate.Percent, rate.Runs)
+		}
+		out = append(out, view)
 	}
 	return out
 }

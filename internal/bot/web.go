@@ -514,6 +514,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/replay/code", s.authAPI(s.handleAbyssReplayCode))
 		mux.HandleFunc("/api/abyss/ops", s.authAPI(s.handleAbyssOps))
 		mux.HandleFunc("/api/abyss/client-error", s.authAPI(s.handleAbyssClientError))
+		mux.HandleFunc("/api/abyss/preferences/font-size", s.authAPI(s.handleAbyssFontSize))
 		mux.HandleFunc("/api/abyss/practice", s.authAPI(s.handleAbyssBossPractice))
 		mux.HandleFunc("/api/abyss/boss_vendor/buy", s.authAPI(s.handleAbyssBossVendorBuy))
 		mux.HandleFunc("/api/abyss/boss_contract", s.authAPI(s.handleAbyssBossContract))
