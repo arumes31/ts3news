@@ -249,6 +249,142 @@ body:has(.abyss-command-page) .foot {
   border-color: rgba(242, 189, 91, .32);
 }
 
+/* Active-run cockpit: the battlefield, command surface and recorder share one
+   viewport so primary combat work never requires page scrolling. */
+.abyss-command-page .ab-combat-cockpit {
+  position: relative;
+  min-width: 0;
+  scroll-margin-top: 64px;
+}
+
+@media (min-width: 901px) and (min-height: 900px) {
+  .abyss-command-page .ab-combat-cockpit.is-active {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) minmax(150px, 26%);
+    gap: 8px;
+    height: calc(100dvh - 74px);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat {
+    grid-template-rows: minmax(150px, 22%) minmax(360px, 1fr) minmax(120px, 18%);
+  }
+
+  .abyss-command-page .ab-combat-cockpit > .abyss-stage-row {
+    grid-row: 1;
+    grid-template-columns: minmax(170px, 210px) minmax(0, 1fr) minmax(190px, 230px);
+    align-items: stretch;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.is-active > .abyss-stage-row > .abyss-side-left {
+    position: static;
+    grid-column: auto;
+    max-height: none;
+  }
+
+  .abyss-command-page .ab-combat-cockpit :is(.abyss-stage, .abyss-side-panel) {
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+  }
+
+  .abyss-command-page .ab-combat-cockpit .abyss-stage {
+    grid-template-columns: 44px minmax(170px, 230px) minmax(0, 1fr);
+    gap: 9px;
+    overflow: hidden;
+    padding: 10px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit :is(.abyss-dial, .abyss-controls, .abyss-side-list) {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .abyss-command-page .ab-combat-cockpit .abyss-dial {
+    justify-content: flex-start;
+    gap: 7px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit .ab-depth-ring {
+    flex: 0 0 auto;
+    width: 108px;
+    height: 108px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit .ab-depth-num { font-size: 2.2rem; }
+  .abyss-command-page .ab-combat-cockpit .abyss-controls { gap: 6px; justify-content: flex-start; }
+  .abyss-command-page .ab-combat-cockpit .ab-status { min-height: 0; margin: 0; padding-block: 6px; }
+  .abyss-command-page .ab-combat-cockpit .ab-btn-row { position: sticky; z-index: 8; top: 0; padding: 4px; background: rgba(8, 12, 18, .96); }
+  .abyss-command-page .ab-combat-cockpit .ab-btn-row button { min-width: 118px; padding: 7px 9px; font-size: .82rem; }
+
+  .abyss-command-page .ab-combat-cockpit > #liveCombat {
+    position: relative;
+    grid-row: 2;
+    bottom: auto;
+    width: 100%;
+    max-height: 100%;
+    margin: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .abyss-command-page .ab-combat-cockpit > #logWrap {
+    grid-row: 2;
+    display: grid;
+    grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto;
+    min-height: 0;
+    margin: 0;
+    padding: 8px 10px;
+    overflow: hidden;
+    border: 1px solid var(--cmd-line);
+    border-radius: var(--cmd-cut-small);
+    background: rgba(7, 11, 17, .96);
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > #logWrap { grid-row: 3; }
+  .abyss-command-page .ab-combat-cockpit > #logWrap > h3 { margin: 0 0 4px; font-size: .8rem; }
+  .abyss-command-page .ab-combat-cockpit > #logWrap .ab-combat-recorder { margin: 0 0 4px; }
+  .abyss-command-page .ab-combat-cockpit > #logWrap .ab-log-tools { margin-bottom: 4px; }
+  .abyss-command-page .ab-combat-cockpit > #logWrap .abyss-log { min-height: 0; max-height: none; padding: 6px 9px; }
+  .abyss-command-page .ab-combat-cockpit > #logWrap :is(.abyss-loot, .abyss-dura) { max-height: 42px; margin-top: 3px; overflow: auto; }
+
+  .abyss-command-page .ab-combat-cockpit > .abyss-banner.show {
+    position: absolute;
+    z-index: 30;
+    inset: 6px 50% auto 50%;
+    width: min(760px, calc(100% - 24px));
+    margin: 0;
+    transform: translateX(-50%);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .55);
+  }
+
+  .abyss-command-page .ab-combat-cockpit.is-playing .ab-btn-row {
+    box-shadow: inset 3px 0 var(--cmd-cyan), 0 8px 20px rgba(0, 0, 0, .34);
+  }
+}
+
+@media (max-width: 900px), (max-height: 899px) {
+  .abyss-command-page .ab-combat-cockpit.is-active {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.is-active .ab-btn-row {
+    position: sticky;
+    z-index: 72;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    padding: 6px;
+    border: 1px solid var(--cmd-line);
+    background: rgba(8, 12, 18, .96);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .46);
+  }
+}
+
 .abyss-command-page .abyss-stage > :is(.ab-current-objective, .ab-noncombat-panel) {
   grid-column: 1 / -1;
   min-width: 0;
