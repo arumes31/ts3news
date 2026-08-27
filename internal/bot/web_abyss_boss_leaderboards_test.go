@@ -51,7 +51,10 @@ func TestAbyssBossSpeedBoardPersistenceAndUIContracts(t *testing.T) {
 			"Fastest Kills by Boss", "one personal best per player", "BossSpeed", "KillTimeMs",
 		},
 		filepath.Join(root, "internal", "bot", "webassets", "abyss.html"): {
-			"abyss_boss_leaderboards.css", `template "abyssBossSpeedBoards" .Leaders`,
+			"abyss_boss_leaderboards.css", `template "abyssCompetition" .`,
+		},
+		filepath.Join(root, "internal", "bot", "webassets", "abyss_competition.html"): {
+			`template "abyssBossSpeedBoards" $.Leaders`,
 		},
 	}
 	for path, required := range checks {

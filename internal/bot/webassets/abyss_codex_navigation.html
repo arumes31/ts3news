@@ -57,7 +57,7 @@ function renderLoreRing(){
 // cannot highlight another player. Scroll the first owned row into view.
 function initMyLbRow(){
   var sec=document.getElementById('lb'); if(!sec)return;
-  var mine=document.querySelector('#lb .lbtable tr.ab-me, #abyssBossLeaderboards tr.ab-me');
+  var mine=document.querySelector('#lb [data-comp-row].ab-me, #lb .lbtable tr.ab-me, #abyssBossLeaderboards tr.ab-me');
   if(mine && (location.hash==='#lb' || sec.offsetParent!==null)){
     setTimeout(function(){ mine.scrollIntoView({block:'center',behavior:reduceMotion?'auto':'smooth'}); },300);
   }

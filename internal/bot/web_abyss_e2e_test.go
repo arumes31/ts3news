@@ -154,6 +154,21 @@ func TestAbyssE2EServer(t *testing.T) {
 	})
 	mux.HandleFunc("/abyss", func(w http.ResponseWriter, r *http.Request) {
 		fixture := abyssGoldenFixture(r.URL.Query().Get("active") == "1")
+		fixture["Competition"] = abyssCompetitionView{
+			Tier: "normal", Period: "season", PeriodLabel: "2026-S3",
+			Builds: []string{"initiate", "delver", "plunderer", "warden"},
+			Boards: []abyssCompetitionBoard{
+				{Key: "depth", Title: "Deepest descents", TieBreak: "Depth, then banked gold."},
+				{Key: "speed", Title: "Depth 20 speedruns", TieBreak: "Duration, then depth."},
+				{Key: "economy", Title: "Weekly vault", TieBreak: "Gold, then depth."},
+				{Key: "pact", Title: "Pact survival", TieBreak: "Multiplier, then depth."},
+				{Key: "bestiary", Title: "Bestiary families", TieBreak: "Kills, then family."},
+				{Key: "shame", Title: "Hall of shame", TieBreak: "Depth, then date."},
+				{Key: "streak", Title: "Bank streaks", TieBreak: "Streak, then gold."},
+				{Key: "pets", Title: "Companion power", TieBreak: "Power, then level."},
+			},
+			Wagers: []abyssCompetitionWagerView{{Bracket: 1_000, Fee: 1_000, Entrants: 7, Pool: 7_000}},
+		}
 		fixture["Tiers"] = abyssTierListWithRates(999, []abyssTierRateView{{Tier: "normal", Wins: 7, Runs: 10, Percent: 70}})
 		fixture["FreeID"] = true
 		shopNow := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)

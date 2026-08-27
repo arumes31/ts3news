@@ -241,6 +241,12 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 	policy.Refund = abyssAnchorRefund(policy.Refund, run.Escrow, anchorActive)
 	refund := policy.Refund
 	remainder := run.Escrow - refund
+	competitionRecord, err := b.newAbyssCompetitionRunRecord(
+		uid, run, refund, false, hardcore, endReason, b.abyssCompetitionPactMultiplier(uid, pacts, flags),
+	)
+	if err != nil {
+		return abyssForfeitResult{}, err
+	}
 	if anchorActive {
 		flags[abyssRunFlagAnchorRune] = 0
 		if err := saveRunFlags(tx, uid, flags); err != nil {
@@ -266,12 +272,16 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 	}
 	if run.Depth > 0 {
 		if _, err := tx.Exec(
-			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary, end_reason, duration_ms, floors_cleared)
+			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary, end_reason, duration_ms, floors_cleared,
+			 build_key,pact_multiplier,ts3_channel_id,audit_hash,audit_data)
 			 SELECT $1,$2,$3,FALSE,$4,$5,
 			   (SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1),
 			   COALESCE((SELECT jsonb_agg(label ORDER BY id) FROM
-			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), $6, $7, $8`,
-			uid, run.Depth, refund, run.Tier, hardcore, endReason, abyssRunDurationMS(run), abyssRunFloorsCleared(run)); err != nil {
+			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), $6, $7, $8,
+			   $9,$10,$11,$12,$13::jsonb`,
+			uid, run.Depth, refund, run.Tier, hardcore, endReason, abyssRunDurationMS(run), abyssRunFloorsCleared(run),
+			competitionRecord.Build, competitionRecord.PactMultiplier, competitionRecord.ChannelID,
+			competitionRecord.AuditHash, competitionRecord.AuditJSON); err != nil {
 			return abyssForfeitResult{}, err
 		}
 		if err := recordAbyssAffixRun(tx, uid, abyssDailyAffixFromFlags(flags), run.Depth, false); err != nil {

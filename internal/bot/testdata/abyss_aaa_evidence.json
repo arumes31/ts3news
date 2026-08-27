@@ -1892,5 +1892,25 @@
       "tests/e2e/abyss-social-program.spec.js",
       "tests/e2e/abyss-ui-layout.spec.js"
     ]
+  },
+  {
+    "ids": [276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300],
+    "production": [
+      "internal/db/migrations/0101_abyss_competition_program.up.sql",
+      "internal/bot/abyss_competition.go",
+      "internal/bot/abyss_competition_channel.go",
+      "internal/bot/abyss_competition_settlement.go",
+      "internal/bot/web_abyss_competition.go",
+      "internal/bot/web_abyss_competition_boards.go",
+      "internal/bot/web_abyss_competition_profile.go",
+      "internal/bot/web_abyss_competition_ladder.go",
+      "internal/bot/webassets/abyss_competition.html",
+      "internal/bot/webassets/abyss_competition.css"
+    ],
+    "verification": [
+      "internal/bot/abyss_competition_test.go",
+      "internal/bot/web_abyss_boss_leaderboards_test.go",
+      "tests/e2e/abyss-competition-program.spec.js"
+    ]
   }
 ]

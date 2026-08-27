@@ -1632,6 +1632,11 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	if _, ok := abyssTierByKey(lbTier); !ok {
 		lbTier = "normal"
 	}
+	lbBuild := canonicalAbyssCompetitionBuild(r.URL.Query().Get("lbbuild"))
+	lbPeriod := canonicalAbyssCompetitionPeriod(r.URL.Query().Get("lbperiod"))
+	if err := s.bot.settleAbyssCompetition(time.Now().UTC()); err != nil {
+		log.Printf("abyss competition settlement failed: uid=%q err=%v", uid, err)
+	}
 
 	// Checkpoint depths (#2) and express start (#3) for the entry picker.
 	var checkpoints []int
@@ -1692,6 +1697,8 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"HUD":                 hudState,
 		"Tiers":               abyssTierListWithRates(st.BestDepth, insights.TierRates),
 		"Leaders":             s.bot.abyssLeaderboardsForUID(lbTier, uid),
+		"Competition":         s.bot.abyssCompetition(uid, lbTier, lbBuild, lbPeriod, time.Now().UTC()),
+		"CompetitionPageSize": abyssCompetitionPageSize,
 		"Season":              abyssSeasonLabel(),
 		"SeasonJourney":       seasonJourney,
 		"History":             history,
@@ -4162,6 +4169,16 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		writeJSON(w, map[string]any{"ok": false, "error": "safe word required: type BANK to confirm this payout"})
 		return
 	}
+	var competitionRecord abyssCompetitionRunRecord
+	if !continuing && run.Depth > 0 {
+		competitionRecord, err = s.bot.newAbyssCompetitionRunRecord(
+			uid, run, payout, true, hardcore, "banked", pactBreakdown.Multiplier,
+		)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
 
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
@@ -4259,12 +4276,16 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		}
 
 		if _, err := tx.Exec(
-			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary, end_reason, duration_ms, floors_cleared)
+			`INSERT INTO abyss_runs (client_uid, depth, gold_banked, victory, tier, hardcore, loot_count, loot_summary, end_reason, duration_ms, floors_cleared,
+			 build_key,pact_multiplier,ts3_channel_id,audit_hash,audit_data)
 			 SELECT $1,$2,$3,TRUE,$4,$5,
 			   (SELECT COUNT(*) FROM abyss_escrow_loot WHERE client_uid=$1),
 			   COALESCE((SELECT jsonb_agg(label ORDER BY id) FROM
-			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), 'banked', $6, $7`,
-			uid, run.Depth, payout, run.Tier, hardcore, abyssRunDurationMS(run), abyssRunFloorsCleared(run)); err != nil {
+			     (SELECT id, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT 24) summary), '[]'::jsonb), 'banked', $6, $7,
+			   $8,$9,$10,$11,$12::jsonb`,
+			uid, run.Depth, payout, run.Tier, hardcore, abyssRunDurationMS(run), abyssRunFloorsCleared(run),
+			competitionRecord.Build, competitionRecord.PactMultiplier, competitionRecord.ChannelID,
+			competitionRecord.AuditHash, competitionRecord.AuditJSON); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}

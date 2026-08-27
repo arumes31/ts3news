@@ -111,6 +111,9 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 	}
 	if b.Cfg.EnableAbyss {
 		b.flushAbyssShoutbox(c, clients)
+		if err := b.settleAbyssCompetition(time.Now().UTC()); err != nil {
+			log.Printf("abyss competition settlement failed: %v", err)
+		}
 	}
 
 	targetNick := strings.TrimSpace(b.Cfg.TargetNick)
@@ -729,6 +732,9 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 		return fmt.Errorf("failed to list clients: %w", err)
 	}
 	log.Printf("Found %d clients", len(clients))
+	if b.Cfg.EnableAbyss {
+		b.updateAbyssCompetitionPresence(clients)
+	}
 
 	// Group clients by channel
 	chanUsers := make(map[int][]struct {
@@ -810,6 +816,9 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 
 			sb.WriteString(i18n.T("channel.player_line", u.Nick, prestige, level, float64(gearScore), 0.0, hpColor, actualCurrentHP, stats.HP, FormatGold(gold)) + "\n")
 			sb.WriteString(i18n.T("channel.stats_line", stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE) + "\n")
+		}
+		if b.Cfg.EnableAbyss {
+			sb.WriteString(b.abyssCompetitionChannelEmbed(cid, time.Now().UTC()))
 		}
 
 		// Truncate if too long (TeamSpeak channel description limit is ~8000 chars)

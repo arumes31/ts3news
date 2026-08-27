@@ -322,6 +322,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_social.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_social.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_competition.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_competition.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_replay.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_replay.css", "text/css; charset=utf-8")
 	})
@@ -552,6 +555,8 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/social/duel", s.authAPI(s.handleAbyssDuel))
 		mux.HandleFunc("/api/abyss/social/raid", s.authAPI(s.handleAbyssRaidLobby))
 		mux.HandleFunc("/api/abyss/social/rescue", s.authAPI(s.handleAbyssRescueMission))
+		mux.HandleFunc("/api/abyss/competition/wager/join", s.authAPI(s.handleAbyssWagerJoin))
+		mux.HandleFunc("/api/abyss/competition/shame", s.authAPI(s.handleAbyssShameOptIn))
 		mux.HandleFunc("/api/abyss/inventory/lock", s.authAPI(s.handleAbyssInventoryLock))
 		mux.HandleFunc("/api/abyss/build/respec", s.authAPI(s.handleAbyssBuildRespec))
 		mux.HandleFunc("/api/abyss/loot/settings", s.authAPI(s.handleAbyssLootSettings))

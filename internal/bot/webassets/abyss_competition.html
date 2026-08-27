@@ -1,0 +1,99 @@
+{{define "abyssCompetition"}}{{with .Competition}}
+<section class="ab-competition" id="lb" data-abyss-section="leaderboards" aria-labelledby="competitionTitle">
+  <header class="ab-comp-head">
+    <div><span class="ab-comp-kicker">Verified record room</span><h2 id="competitionTitle">🏆 Abyss Competition</h2>
+      <p>Audited runs, seasonal history, local rivals and wager brackets in one workspace.</p></div>
+    <div class="ab-comp-rank-seal" aria-label="Your current rank">
+      <small>YOUR RANK</small><strong>{{if gt $.Competition.CurrentRank 0}}#{{$.Competition.CurrentRank}}{{else}}—{{end}}</strong>
+      <span>{{if gt $.Competition.TopPercent 0}}top {{$.Competition.TopPercent}}%{{else}}unranked{{end}}</span>
+    </div>
+  </header>
+
+  <form class="ab-comp-filters" method="get" action="/abyss#lb" aria-label="Leaderboard filters">
+    <label>Difficulty<select name="lbtier" onchange="this.form.submit()">{{range $.LBTiers}}<option value="{{.Key}}"{{if eq .Key $.Competition.Tier}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+    <label>Build<select name="lbbuild" onchange="this.form.submit()"><option value="">All builds</option>{{range $.Competition.Builds}}<option value="{{.}}"{{if eq . $.Competition.Build}} selected{{end}}>{{.}}</option>{{end}}</select></label>
+    <label>Split<select name="lbperiod" onchange="this.form.submit()"><option value="weekly"{{if eq $.Competition.Period "weekly"}} selected{{end}}>Weekly</option><option value="season"{{if eq $.Competition.Period "season"}} selected{{end}}>Season</option><option value="all_time"{{if eq $.Competition.Period "all_time"}} selected{{end}}>All time</option></select></label>
+    <noscript><button type="submit">Apply</button></noscript>
+  </form>
+
+  <div class="ab-comp-summary">
+    <article><small>PERSONAL BEST</small><b>F{{$.Competition.BestDepth}}</b><span>{{if ge $.Competition.DepthDelta 0}}+{{end}}{{$.Competition.DepthDelta}} vs last week</span></article>
+    <article><small>FIELD</small><b>{{$.Competition.TotalPlayers}}</b><span>ranked delvers</span></article>
+    <article class="{{if $.Competition.CloseToRecord}}is-close{{end}}"><small>RECORD LINE</small><b>{{if $.Competition.CloseToRecord}}{{$.Competition.CloseGap}}F{{else}}—{{end}}</b><span>{{if $.Competition.CloseToRecord}}from a board spot{{else}}keep descending{{end}}</span></article>
+    <article><small>AUDIT CHAIN</small><b>{{len $.Competition.Audits}}</b><span>recent proofs</span></article>
+  </div>
+
+  <nav class="ab-comp-tabs" aria-label="Competition boards" role="tablist">
+    {{range $index,$board := $.Competition.Boards}}<button type="button" role="tab" aria-selected="{{if eq $index 0}}true{{else}}false{{end}}" data-comp-board="{{$board.Key}}">{{$board.Title}}</button>{{end}}
+    <button type="button" role="tab" aria-selected="false" data-comp-board="bosses">Boss records</button>
+    <button type="button" role="tab" aria-selected="false" data-comp-board="wagers">Wagers & archive</button>
+  </nav>
+
+  <div class="ab-comp-board-stack">
+    {{range $index,$board := $.Competition.Boards}}
+    <section class="ab-comp-board" data-comp-panel="{{$board.Key}}"{{if ne $index 0}} hidden{{end}} role="tabpanel">
+      <header><div><h3>{{$board.Title}}</h3><p>{{$board.Subtitle}}</p></div><span class="ab-comp-rule">Tie-break · {{$board.TieBreak}}</span></header>
+      <div class="ab-comp-table-wrap"><table><thead><tr><th>Rank</th><th>Delver / build</th><th>Score</th><th>Run evidence</th></tr></thead><tbody>
+      {{range $board.Rows}}<tr data-comp-row tabindex="-1"{{if .IsCurrent}} class="ab-me" aria-current="true"{{end}}>
+        <td><b class="ab-comp-rank">#{{.Rank}}</b></td><td><strong>{{.Nickname}}</strong><small>{{.Build}}</small></td>
+        <td><b>{{comma .Depth}}</b><small>{{if gt .Gold 0}}{{gold .Gold}}{{end}}{{if gt .PactMultiplier 1}} · ×{{printf "%.2f" .PactMultiplier}}{{end}}</small></td>
+        <td><span>{{.Extra}}</span><small>{{if gt .DurationMS 0}}{{dur .DurationMS}} · {{end}}{{if .AuditHash}}✓ {{.AuditHash}}{{else}}legacy record{{end}}</small></td>
+      </tr>{{else}}<tr data-comp-empty><td colspan="4">No qualifying records in this split yet.</td></tr>{{end}}
+      </tbody></table></div>
+      <footer class="ab-comp-pager"><button type="button" data-page-prev>← Previous</button><output data-page-label>Page 1</output><button type="button" data-page-next>Next →</button><button type="button" data-jump-me>Jump to me</button></footer>
+    </section>
+    {{end}}
+
+    <section class="ab-comp-board" data-comp-panel="bosses" hidden role="tabpanel">
+      <header><div><h3>Boss records</h3><p>Deepest kills and one personal speed record per boss.</p></div><span class="ab-comp-rule">Tie-break · Depth, then kill duration, then date.</span></header>
+      <div class="ab-comp-table-wrap"><table><thead><tr><th>#</th><th>Player</th><th>Boss</th><th>Floor</th><th>Duration</th><th>Date</th></tr></thead><tbody>
+      {{range $.Leaders.BossKills}}<tr{{if .IsCurrent}} class="ab-me" aria-current="true"{{end}}><td>#{{.Rank}}</td><td>{{.Nickname}}</td><td>{{.BossName}}</td><td>F{{.Depth}}</td><td>{{dur .KillTimeMs}}</td><td>{{.KilledAt}}</td></tr>{{else}}<tr><td colspan="6">No boss kills recorded.</td></tr>{{end}}
+      </tbody></table></div>
+      {{template "abyssBossSpeedBoards" $.Leaders}}
+    </section>
+
+    <section class="ab-comp-board ab-comp-meta" data-comp-panel="wagers" hidden role="tabpanel">
+      <header><div><h3>Wager ladders & hall of fame</h3><p>Weekly entry-fee brackets settle automatically: 50% / 30% / 20% to the top three.</p></div><span class="ab-comp-rule">Tie-break · Depth, F20 speed, then player ID.</span></header>
+      <div class="ab-wager-grid">{{range $.Competition.Wagers}}<article><small>{{.Entrants}} entrants · pool {{gold .Pool}}</small><h4>{{gold .Fee}} bracket</h4><button type="button" data-wager="{{.Bracket}}"{{if .Joined}} disabled{{end}}>{{if .Joined}}Entered{{else}}Join ladder{{end}}</button></article>{{end}}</div>
+      <div class="ab-comp-meta-grid">
+        <article><h4>Past season snapshots</h4><ol>{{range $.Competition.Archives}}<li><b>{{.Season}} · {{.Tier}}</b><span>#{{.Rank}} {{.Nick}} · F{{.Depth}}</span></li>{{else}}<li>No settled season yet.</li>{{end}}</ol></article>
+        <article><h4>Season trophies</h4><ul>{{range $.Competition.Trophies}}<li>🏆 {{.}}</li>{{else}}<li>Top-ten season cosmetics will appear here.</li>{{end}}</ul><p>Top 10 earn cosmetics, top 100 earn tokens, and every participant receives a season badge.</p></article>
+        <article><h4>Audit trail</h4><ol>{{range $.Competition.Audits}}<li><b>F{{.Depth}} · {{.When}}</b><code>{{.Hash}}</code><span>{{if .Valid}}✓ chain verified{{else}}⚠ invalid proof{{end}}</span></li>{{else}}<li>Your next completed run starts the audit chain.</li>{{end}}</ol></article>
+      </div>
+      <article class="ab-depth-chart"><h4>Personal depth · last 30 days</h4><div>{{range $.Competition.DepthHistory}}<i style="--depth:{{.Pct}}%" title="{{.Date}} · F{{.Depth}}"><span>{{.Depth}}</span></i>{{else}}<p>No completed runs in this window.</p>{{end}}</div></article>
+      <button type="button" class="ab-shame-opt ghost" data-shame-opt="{{if $.Competition.ShameOptIn}}false{{else}}true{{end}}">{{if $.Competition.ShameOptIn}}Leave Hall of Shame{{else}}Opt into Hall of Shame{{end}}</button>
+    </section>
+  </div>
+</section>
+
+<script data-cfasync="false">
+(function(){
+  var root=document.getElementById('lb'); if(!root)return;
+  var tabs=Array.prototype.slice.call(root.querySelectorAll('[data-comp-board]'));
+  var panels=Array.prototype.slice.call(root.querySelectorAll('[data-comp-panel]'));
+  function selectBoard(key){
+    tabs.forEach(function(tab){var active=tab.dataset.compBoard===key;tab.setAttribute('aria-selected',active?'true':'false');tab.tabIndex=active?0:-1;});
+    panels.forEach(function(panel){panel.hidden=panel.dataset.compPanel!==key;});
+    try{sessionStorage.setItem('abyss_comp_board',key);}catch(_){ }
+  }
+  tabs.forEach(function(tab){tab.addEventListener('click',function(){selectBoard(tab.dataset.compBoard);});});
+  var remembered='';try{remembered=sessionStorage.getItem('abyss_comp_board')||'';}catch(_){ }
+  if(remembered&&root.querySelector('[data-comp-panel="'+remembered+'"]'))selectBoard(remembered);
+  root.querySelectorAll('.ab-comp-board').forEach(function(panel){
+    var rows=Array.prototype.slice.call(panel.querySelectorAll('[data-comp-row]')); if(!rows.length)return;
+    var page=0,size={{$.CompetitionPageSize}}||10,total=Math.ceil(rows.length/size);
+    function render(){rows.forEach(function(row,index){row.hidden=Math.floor(index/size)!==page;});var label=panel.querySelector('[data-page-label]');if(label)label.textContent='Page '+(page+1)+' / '+total;var prev=panel.querySelector('[data-page-prev]'),next=panel.querySelector('[data-page-next]');if(prev)prev.disabled=page===0;if(next)next.disabled=page>=total-1;}
+    var prev=panel.querySelector('[data-page-prev]'),next=panel.querySelector('[data-page-next]'),jump=panel.querySelector('[data-jump-me]');
+    if(prev)prev.onclick=function(){page=Math.max(0,page-1);render();}; if(next)next.onclick=function(){page=Math.min(total-1,page+1);render();};
+    if(jump)jump.onclick=function(){var mine=rows.findIndex(function(row){return row.classList.contains('ab-me');});if(mine<0){abToast('You are not ranked in this board yet.',false);return;}page=Math.floor(mine/size);render();rows[mine].scrollIntoView({block:'center',behavior:'smooth'});rows[mine].focus&&rows[mine].focus();};
+    render();
+  });
+  root.querySelectorAll('[data-wager]').forEach(function(button){button.addEventListener('click',async function(){
+    var bracket=Number(button.dataset.wager)||0;
+    if(!(await confirmModal('Enter the '+bracket+' gold weekly wager ladder?',{title:'Join wager ladder',okLabel:'Pay entry'})))return;
+    button.disabled=true;try{var response=await fetch('/api/abyss/competition/wager/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bracket:bracket})});var data=await response.json();if(!data.ok)throw new Error(data.error||'Could not join ladder');button.textContent='Entered';abToast('Wager entry confirmed.',true);}catch(error){button.disabled=false;abToast(error.message||'Could not join ladder.',false);}
+  });});
+  var shame=root.querySelector('[data-shame-opt]');if(shame)shame.addEventListener('click',async function(){var enabled=shame.dataset.shameOpt==='true';shame.disabled=true;try{var response=await fetch('/api/abyss/competition/shame',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:enabled})});var data=await response.json();if(!data.ok)throw new Error(data.error||'Could not update preference');location.reload();}catch(error){shame.disabled=false;abToast(error.message||'Could not update preference.',false);}});
+})();
+</script>
+{{end}}{{end}}

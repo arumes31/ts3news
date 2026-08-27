@@ -44,6 +44,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_core_interface.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_events.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_social.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_competition.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_replay.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_stage_hud.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_codex_explorer.css"}}">
@@ -1313,45 +1314,7 @@
   </section>
 </div>
 
-<section class="abyss-lb" id="lb" data-abyss-section="leaderboards">
-  <h2>🏆 Deepest Descents · {{.Season}}</h2>
-  <!-- Per-tier board tabs (#276) -->
-  <div class="ab-lb-tabs">
-    {{range .LBTiers}}<a class="ab-lb-tab {{if eq .Key $.LBTier}}active{{end}}" href="/abyss?lbtier={{.Key}}#lb">{{.Name}}</a>{{end}}
-  </div>
-  {{template "abyssboards" .Leaders}}
-</section>
-
-<section class="abyss-lb" id="abyssBossLeaderboards" data-abyss-section="leaderboards" style="margin-top: 30px;">
-  <h2>{{T "web.abyss.boss_kills_title"}}</h2>
-  <table class="lbtable">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Player</th>
-        <th>Boss Name</th>
-        <th>Floor</th>
-        <th>Kill Duration</th>
-        <th>Date</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{range .Leaders.BossKills}}
-      <tr{{if .IsCurrent}} class="ab-me" aria-current="true"{{end}}>
-        <td class="lb-rank lb-rank-{{.Rank}}">{{.Rank}}</td>
-        <td class="lb-name">{{.Nickname}}</td>
-        <td>{{.BossName}}</td>
-        <td>🕳️ {{.Depth}}</td>
-        <td class="win">{{dur .KillTimeMs}}</td>
-        <td class="muted small">{{.KilledAt}}</td>
-      </tr>
-      {{else}}
-      <tr><td colspan="6" class="muted text-center">No boss kills recorded yet.</td></tr>
-      {{end}}
-    </tbody>
-  </table>
-</section>
-{{template "abyssBossSpeedBoards" .Leaders}}
+{{template "abyssCompetition" .}}
 
 <!-- data-cfasync="false" keeps Cloudflare Rocket Loader from deferring/rewriting
      this inline script; without it the functions below aren't defined when the
@@ -3002,12 +2965,12 @@ function renderRestArc(){
 // UI-49: floors to the leaderboard's #10 depth (today board), when within 5.
 function leaderDistance(){
   if(!inRun||curDepth<=0) return 0;
-  var rows=document.querySelectorAll('#lb .lb-col:first-child .lbtable tbody tr');
+  var rows=document.querySelectorAll('#lb [data-comp-panel="depth"] [data-comp-row], #lb .lb-col:first-child .lbtable tbody tr');
   var d10=0;
   rows.forEach(function(tr){
-    var rank=tr.querySelector('.lb-rank');
-    if(rank && parseInt(rank.textContent,10)===10){
-      var cell=tr.querySelector('.lb-wins');
+    var rank=tr.querySelector('.ab-comp-rank, .lb-rank');
+    if(rank && parseInt((rank.textContent||'').replace(/\D/g,''),10)===10){
+      var cell=tr.querySelector('td:nth-child(3) b, .lb-wins');
       var m=cell?/(\d+)/.exec(cell.textContent||''):null;
       if(m) d10=parseInt(m[1],10);
     }
@@ -6576,7 +6539,7 @@ function abTabSigs(){
   var forgeHistory=document.querySelector('#forgeHistoryBox .muted.small');
   sigs.forge=document.querySelectorAll('#abyssWorkshop .ab-shop-item').length+'|'+(forgeHistory?forgeHistory.textContent.replace(/\s+/g,' ').trim():'');
   sigs.lore=document.querySelectorAll('.ab-codex-item.unlocked').length+'|'+document.querySelectorAll('.ab-bestiary-table tbody tr').length;
-  var top=document.querySelector('#lb .lb-col:first-child .lbtable tbody tr .lb-name');
+  var top=document.querySelector('#lb [data-comp-panel="depth"] [data-comp-row] td:nth-child(2) strong, #lb .lb-col:first-child .lbtable tbody tr .lb-name');
   sigs.leaderboards=top?top.textContent.trim():'';
   return sigs;
 }

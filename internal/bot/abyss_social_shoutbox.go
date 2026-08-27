@@ -10,6 +10,7 @@ func (b *Bot) flushAbyssShoutbox(client *clientquery.Client, clients []clientque
 	if b == nil || b.DB == nil || client == nil {
 		return
 	}
+	b.updateAbyssCompetitionPresence(clients)
 	channels := make(map[string]int, len(clients))
 	for _, member := range clients {
 		if member.Type == 0 && member.UID != "" && member.CID >= 0 {
