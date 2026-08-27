@@ -106,6 +106,54 @@ func TestAbyssPlannedDescentControlsContract(t *testing.T) {
 	}
 }
 
+func TestAbyssCombatCockpitContract(t *testing.T) {
+	page, err := webAssets.ReadFile("webassets/abyss.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	live, err := webAssets.ReadFile("webassets/abyss_live.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	styles, err := webAssets.ReadFile("webassets/abyss_command.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, token := range []string{
+		`id="abyssCombatCockpit"`,
+		"function focusAbyssCockpit",
+		"function scheduleAbyssCockpitFocus",
+		"ab_focus_cockpit",
+		"cockpit.classList.add('is-playing')",
+		"scheduleAbyssCockpitFocus('btnDescend')",
+	} {
+		if !strings.Contains(string(page), token) {
+			t.Errorf("combat cockpit page contract is missing %q", token)
+		}
+	}
+	for _, token := range []string{
+		"updateAbyssCombatCockpit(true)",
+		"scheduleAbyssCockpitFocus('liveReady')",
+		"updateAbyssCombatCockpit(false)",
+	} {
+		if !strings.Contains(string(live), token) {
+			t.Errorf("live combat cockpit contract is missing %q", token)
+		}
+	}
+	for _, token := range []string{
+		".ab-combat-cockpit.is-active",
+		"height: calc(100dvh",
+		"grid-template-rows:",
+		".ab-combat-cockpit.has-live-combat",
+		"@media (max-width: 900px), (max-height: 899px)",
+	} {
+		if !strings.Contains(string(styles), token) {
+			t.Errorf("combat cockpit CSS contract is missing %q", token)
+		}
+	}
+}
+
 func TestAbyssCursedElevatorContract(t *testing.T) {
 	t.Parallel()
 

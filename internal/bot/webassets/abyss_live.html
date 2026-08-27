@@ -120,14 +120,15 @@ function startLiveCombat(payload, hp, max){
 	liveLastEventID=liveEventCursor(payload&&payload.state);
 	liveSelectedTarget=''; liveSelectedWeakpoint=''; livePendingOption=null; liveTargetLocked=false; liveRoundHistory=[];
 	if(payload&&payload.state)resetLivePixelState(payload.state.session_id||'');
-	var targetLock=document.getElementById('liveTargetLock');targetLock.setAttribute('aria-pressed','false');targetLock.textContent='TARGET LOCK';
+  var targetLock=document.getElementById('liveTargetLock');targetLock.setAttribute('aria-pressed','false');targetLock.textContent='TARGET LOCK';
   document.getElementById('liveCombat').style.display='block';
+  updateAbyssCombatCockpit(true);
   document.getElementById('abStatus').textContent='Combat synchronized — choose an action before the round expires.';
   setBusy(true);
   if(payload && payload.state) renderLiveCombat(payload.state);
   if(liveFinishHandled)return;
   connectLiveCombat();
-  setTimeout(function(){document.getElementById('liveCombat').scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'center'});},50);
+  scheduleAbyssCockpitFocus('liveReady');
 }
 
 function connectLiveCombat(){
@@ -637,6 +638,8 @@ function dismissFinishedLiveCombat(){
   var combat=document.getElementById('liveCombat');
   if(combat)combat.style.display='none';
   liveCombatState=null;
+  updateAbyssCombatCockpit(false);
+  scheduleAbyssCockpitFocus('btnDescend');
 }
 function appendLiveLogLine(feed,line){
 	var category=liveLogCategory(line),entry=document.createElement('div');

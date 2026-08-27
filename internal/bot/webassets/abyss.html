@@ -101,6 +101,7 @@
 
 {{if .Run.Comeback}}<div class="ab-comeback-note">💪 <b>Comeback:</b> the Abyss pities your losses today — +10% to all stats this run.</div>{{end}}
 
+<section class="ab-combat-cockpit {{if .Run.Active}}is-active{{end}}" id="abyssCombatCockpit" aria-label="Abyss combat cockpit">
 <div class="abyss-stage-row">
   <!-- Detached left sidebar: compact read-only Armoury quick-view of currently equipped gear -->
   <aside class="abyss-side-panel abyss-side-left">
@@ -558,11 +559,30 @@
   </aside>
 </div>
 
-{{template "abyssRunIdentity" .}}
-
 <div class="abyss-banner" id="abyssBanner" role="status" aria-live="polite" aria-atomic="true"></div>
 
 {{template "abyssLiveControls" .}}
+
+<div class="abyss-log-wrap" id="logWrap" {{if not .Run.Active}}style="display:none"{{end}}>
+  <h3>{{T "web.abyss.combat_log"}}</h3>
+  {{template "abyssCombatRecorderPanel" .}}
+  <!-- Log tools (UI-26/36/37/38): substring filter, round numbers, mono font, copy -->
+  <div class="ab-log-tools">
+    <input type="search" id="logSearch" placeholder="Filter log…" aria-label="Filter combat log lines">
+    <button type="button" class="ghost xs" id="logRoundsBtn" aria-pressed="false" title="Toggle round numbers">№</button>
+    <button type="button" class="ghost xs" id="logMonoBtn" aria-pressed="false" title="Toggle monospace log font">Aa</button>
+    <button type="button" class="ghost xs" id="logCopyBtn" title="Copy the last fight as plain text">📋 Copy</button>
+    <button type="button" class="ghost xs" id="logHtmlBtn" title="Export the visible fight log as styled HTML">&lt;/&gt; HTML</button>
+  </div>
+  <!-- Fatal blow stays pinned until the revive choice is made (UI-29) -->
+  <div class="ab-fatal-pin" id="fatalPin" style="display:none"></div>
+  <div class="abyss-log" id="abyssLog" aria-live="off"></div>
+  <div class="abyss-loot" id="abyssLoot"></div>
+  <div class="abyss-dura" id="abyssDura"></div>
+</div>
+</section>
+
+{{template "abyssRunIdentity" .}}
 
 <!-- Sticky mini-HUD (#301): mirrors HP / depth / escrow / threat once the stage scrolls away -->
 <div class="ab-minihud" id="miniHud" aria-hidden="true" inert>
@@ -612,24 +632,6 @@
       </div>
     </div>
   </div>
-</div>
-
-<div class="abyss-log-wrap" id="logWrap" {{if not .Run.Active}}style="display:none"{{end}}>
-  <h3>{{T "web.abyss.combat_log"}}</h3>
-  {{template "abyssCombatRecorderPanel" .}}
-  <!-- Log tools (UI-26/36/37/38): substring filter, round numbers, mono font, copy -->
-  <div class="ab-log-tools">
-    <input type="search" id="logSearch" placeholder="Filter log…" aria-label="Filter combat log lines">
-    <button type="button" class="ghost xs" id="logRoundsBtn" aria-pressed="false" title="Toggle round numbers">№</button>
-    <button type="button" class="ghost xs" id="logMonoBtn" aria-pressed="false" title="Toggle monospace log font">Aa</button>
-    <button type="button" class="ghost xs" id="logCopyBtn" title="Copy the last fight as plain text">📋 Copy</button>
-    <button type="button" class="ghost xs" id="logHtmlBtn" title="Export the visible fight log as styled HTML">&lt;/&gt; HTML</button>
-  </div>
-  <!-- Fatal blow stays pinned until the revive choice is made (UI-29) -->
-  <div class="ab-fatal-pin" id="fatalPin" style="display:none"></div>
-  <div class="abyss-log" id="abyssLog" aria-live="off"></div>
-  <div class="abyss-loot" id="abyssLoot"></div>
-  <div class="abyss-dura" id="abyssDura"></div>
 </div>
 
 <div class="abyss-cols">
@@ -1742,7 +1744,7 @@ async function abPost(url,body){
     : abyssCoreActionOperations[url]
       ? await abyssCoreActionPost(url,body)
       : await abRawPost(url,body);
-  if(result&&result.ok&&returnAfterAction)setTimeout(function(){focusAbyssDescend();},180);
+  if(result&&result.ok&&returnAfterAction)scheduleAbyssCockpitFocus('btnDescend');
   return result;
 }
 
@@ -1791,11 +1793,40 @@ function setBusy(b){
   if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
 }
 function updateFloatingDescend(label){var button=document.getElementById('abyssFloatingDescend');if(!button)return;button.hidden=!abyssDescendInFlight;if(label)button.textContent='↓ '+label;else if(abyssDescendInFlight)button.textContent='↓ Descending…';}
-function focusAbyssDescend(){var controls=document.getElementById('abyssControls'),button=document.getElementById('btnDescend');if(!controls||!inRun)return;controls.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'center'});setTimeout(function(){if(button&&button.offsetParent!==null)button.focus({preventScroll:true});},reduceMotion?0:350);}
+var abyssCockpitFocusTimer=0;
+function updateAbyssCombatCockpit(live){
+  var cockpit=document.getElementById('abyssCombatCockpit'),combat=document.getElementById('liveCombat');
+  if(!cockpit)return;
+  cockpit.classList.toggle('is-active',!!inRun);
+  var hasLive=live===undefined?!!(combat&&combat.style.display!=='none'&&combat.offsetParent!==null):!!live;
+  cockpit.classList.toggle('has-live-combat',hasLive);
+}
+function abyssCockpitAction(id){
+  var element=document.getElementById(id);
+  return element&&element.offsetParent!==null&&!element.disabled?element:null;
+}
+function focusAbyssCockpit(preferred){
+  var cockpit=document.getElementById('abyssCombatCockpit');
+  if(!cockpit)return;
+  var modal=document.getElementById('sharedModal'),active=document.activeElement,tag=active&&active.tagName;
+  if(modal&&modal.classList.contains('open')||/INPUT|SELECT|TEXTAREA/.test(tag)||active&&active.isContentEditable)return;
+  updateAbyssCombatCockpit();
+  cockpit.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'start'});
+  var order=[preferred,'liveReady','btnDescend','btnProceed','btnRevive','btnLastStand','btnConcede','btnEnter'];
+  var action=null;
+  order.some(function(id){if(!id)return false;action=abyssCockpitAction(id);return !!action;});
+  setTimeout(function(){if(action&&action.isConnected)action.focus({preventScroll:true});},reduceMotion?0:320);
+}
+function scheduleAbyssCockpitFocus(preferred){
+  if(abyssCockpitFocusTimer)clearTimeout(abyssCockpitFocusTimer);
+  abyssCockpitFocusTimer=setTimeout(function(){abyssCockpitFocusTimer=0;focusAbyssCockpit(preferred);},180);
+}
+function focusAbyssDescend(){focusAbyssCockpit('btnDescend');}
 function show(id, on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none';}
 function setAbyssEventStage(active){var stage=document.getElementById('abyssStage');if(stage)stage.classList.toggle('ab-event-stage',!!active);}
 
 function renderState(){
+  updateAbyssCombatCockpit();
   updateStageScene(); // UI-9/10: rest embers / event icon follow the floor type
   if(inRun && floorType && floorType !== 'combat'){
     show('abyssControls', false);
@@ -2496,8 +2527,8 @@ var killsThisFloor=0; // UI-11
 var AB_LOG_VIRTUAL_THRESHOLD=500,AB_LOG_VIRTUAL_HEAD=8,AB_LOG_VIRTUAL_TAIL=300,AB_LOG_RESTORE_BATCH=200;
 function playLog(lines, loot, dura, timeline, result){
   return new Promise(function(resolve){
-    var log=document.getElementById('abyssLog'), lootEl=document.getElementById('abyssLoot'), duraEl=document.getElementById('abyssDura');
-    show('abyssControls', false);
+    var log=document.getElementById('abyssLog'), lootEl=document.getElementById('abyssLoot'), duraEl=document.getElementById('abyssDura'),cockpit=document.getElementById('abyssCombatCockpit');
+    if(cockpit)cockpit.classList.add('is-playing');
     show('nonCombatPanel', false);
     document.getElementById('logWrap').style.display='';
     log.innerHTML=''; lootEl.innerHTML=''; duraEl.innerHTML='';
@@ -2535,6 +2566,7 @@ function playLog(lines, loot, dura, timeline, result){
       collapseLongFight(log); // UI-27
       applyLogFilter(); // UI-36: re-apply an active filter to the new lines
       finishCombatRecorder();
+      if(cockpit)cockpit.classList.remove('is-playing');
       resolve();
     }
     if(reduceMotion){(lines||[]).forEach(function(l,idx){appendLogLine(log,l,combatRoundAt(roundTimeline,idx));maybeBossCard(l);updateCombatRecorderProgress(idx+1,lines.length);applyFrames(idx+1);});finish();return;}
@@ -3441,8 +3473,10 @@ async function abyssEnter(consumables){
   if(!reduceMotion){
     var g=document.getElementById('gateOverlay');
     if(g) g.classList.add('closing');
+    try{sessionStorage.setItem('ab_focus_cockpit','1');}catch(e){}
     setTimeout(function(){window.location.reload();}, 650);
   } else {
+    try{sessionStorage.setItem('ab_focus_cockpit','1');}catch(e){}
     window.location.reload();
   }
 }
@@ -3838,6 +3872,7 @@ async function processDescendResult(d, hp, max){
     if(!d.batch_floors_played && d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline, d); resetMana(); }
     document.getElementById('abStatus').textContent='Approaching non-combat floor: ' + floorType;
     renderState();
+    scheduleAbyssCockpitFocus('btnProceed');
     setBusy(false);
     return;
   }
@@ -3910,6 +3945,7 @@ async function processDescendResult(d, hp, max){
     drainEscrow(); // UI-148: the cache counter visually crumbles toward zero
   }
   renderState(); setBusy(false);
+  scheduleAbyssCockpitFocus(d.victory?'btnDescend':(canRev?'btnRevive':canLastStand?'btnLastStand':'btnConcede'));
 }
 
 {{template "abyssCombatFeedbackJS" .}}
@@ -5426,6 +5462,9 @@ async function abyssSetFocus(focus){
 
   renderRestArc(); // UI-48
   renderState();
+  var shouldFocusCockpit=false;
+  try{shouldFocusCockpit=sessionStorage.getItem('ab_focus_cockpit')==='1';sessionStorage.removeItem('ab_focus_cockpit');}catch(e){}
+  if(shouldFocusCockpit)scheduleAbyssCockpitFocus(inRun?'btnDescend':'btnEnter');
 })();
 
 // ======================= UI-200 batch 2 (UI-61 .. UI-115) =======================
