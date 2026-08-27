@@ -111,6 +111,10 @@
       <div class="abyss-side-empty">No gear equipped.</div>
       {{end}}
     </div>
+    {{with .Social.Pets}}<section class="ab-side-pets" aria-label="Active companions">
+      <h4>🐾 Active companions</h4>
+      {{range .}}{{if gt .ActiveSlot 0}}<div class="ab-side-pet"><span>{{.Name}} · {{.Class}}</span><span>♥ {{comma .HP}}/{{comma .MaxHP}}</span><progress max="{{.MaxHP}}" value="{{.HP}}" aria-label="{{.Name}} health"></progress></div>{{end}}{{end}}
+    </section>{{end}}
   </aside>
 
 <div class="abyss-stage" id="abyssStage">
@@ -1297,7 +1301,7 @@
         </thead>
         <tbody>
           {{range .Bestiary}}
-		  <tr data-name="{{.MobName}}" data-family="{{.Family}}" data-kills="{{.Kills}}" data-first-kill="{{.FirstKillISO}}" data-last-kill="{{.LastKillISO}}" data-milestone="{{.Milestone}}" data-next-milestone="{{.NextMilestone}}" data-kills-to-next="{{.KillsToNext}}" data-mastered="{{.Mastered}}"><td>{{.MobName}}</td><td>⚔️ {{comma .Kills}}</td><td><button type="button" class="btn small" onclick="abyssPractice({{printf "%q" .MobName}})">Practice</button></td></tr>
+		  <tr data-name="{{.MobName}}" data-family="{{.Family}}" data-kills="{{.Kills}}" data-first-kill="{{.FirstKillISO}}" data-last-kill="{{.LastKillISO}}" data-milestone="{{.Milestone}}" data-next-milestone="{{.NextMilestone}}" data-kills-to-next="{{.KillsToNext}}" data-mastered="{{.Mastered}}" data-capture-pct="{{.CapturePct}}"><td>{{.MobName}}</td><td>⚔️ {{comma .Kills}} · 🌀 {{.CapturePct}}%</td><td><button type="button" class="btn small" onclick="abyssPractice({{printf "%q" .MobName}})">Practice</button></td></tr>
           {{else}}
           <!-- UI-192: friendly empty state -->
 		  <tr><td colspan="3"><div class="ab-empty-state">

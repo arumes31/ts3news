@@ -284,6 +284,31 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0227 / 227** — formation slots grant independent Pounce and Healing Spell abilities whose cast logs expose exact cooldowns and announce when each companion ability becomes ready again.
 - [x] **AAA-0228 / 228** — a successful Mind Control at the three-pet cap creates one restart-safe stable decision, where the owner explicitly recruits, declines, or replaces a chosen companion in a single transaction.
 
+## Delivered tranche: companion stable lifecycle
+
+- [x] **AAA-0229 / 229** — stable companions can be renamed, favorited, assigned to formations, or explicitly released through owner-scoped transactions (`web_abyss_pet_stable.go`, `webassets/abyss_social.html`).
+- [x] **AAA-0230 / 230** — feeding consumes one selected owned consumable atomically and restores bounded companion health and loyalty (`web_abyss_pet_stable.go`, `web_abyss_pet_program_test.go`).
+- [x] **AAA-0231 / 231** — surviving companions earn persistent bond XP and loyalty whose exact bounded combat bonus is visible in the Stable (`xp.go`, `abyss_pet_stable.go`, `web_abyss_social_hub.go`).
+- [x] **AAA-0232 / 232** — loyalty and companion talents reduce betrayal risk while the combat command policy remains explicit and persisted (`abyss_pet_stable.go`, `abyss_pet_commands.go`, `xp.go`).
+- [x] **AAA-0233 / 233** — every companion receives a deterministic tank, damage, or support class with class-specific behavior and presentation (`abyss_pet_commands.go`, `web_abyss_social_hub.go`).
+- [x] **AAA-0234 / 234** — support companions can cast their independently cooled-down healing ability during authoritative combat (`abyss_pet_abilities.go`, `xp.go`).
+- [x] **AAA-0235 / 235** — two idle companions of the same family can be fused transactionally, consuming the chosen donor for bounded permanent growth (`web_abyss_pet_growth.go`, `abyss_pet_program.go`).
+- [x] **AAA-0236 / 236** — captures can roll a persistent shiny variant with distinct Stable presentation (`xp.go`, `abyss_pet_stable.go`, `web_abyss_social_hub.go`).
+- [x] **AAA-0237 / 237** — the companion boutique sells three persistent cosmetic treatments for Abyss Tokens without changing combat power (`web_abyss_pet_cosmetics.go`, `webassets/abyss_social.html`).
+- [x] **AAA-0238 / 238** — the Fellowship ranks the server's five strongest living companions from authoritative stats (`web_abyss_social_hub.go`, `webassets/abyss_social.html`).
+- [x] **AAA-0239 / 239** — idle reserve companions can enter daycare and claim elapsed, capped bond XP without blocking or duplicating rewards (`web_abyss_pet_activity.go`, `abyss_pet_program.go`).
+- [x] **AAA-0240 / 240** — reserve companions can run timed Dust, Crystal, or Prism expeditions whose bounded material reward remains claimable after completion (`web_abyss_pet_activity.go`, `abyss_pet_program.go`).
+- [x] **AAA-0241 / 241** — live Mind Control uses the manually selected ordinary enemy ID, not only a boss target, and resolves capture against that authoritative combatant (`abyss_live.html`, `xp.go`).
+- [x] **AAA-0242 / 242** — the Beastmaster talent expands the server-enforced stable capacity from three to five across capture, revival, and gift transfer paths (`abyss_pet_program.go`, `abyss_pet_capture.go`).
+- [x] **AAA-0243 / 243** — Companion Revival Scrolls are token-shop consumables that restore a selected memorial companion into an available stable slot (`artifacts.go`, `web_abyss_shop.go`, `web_abyss_pet_growth.go`).
+- [x] **AAA-0244 / 244** — idle reserve companions can be transferred through expiring cryptographically random recipient-bound gift codes with ownership and capacity checks (`0099_abyss_pet_gifts.up.sql`, `web_abyss_pet_gifts.go`).
+- [x] **AAA-0245 / 245** — every known Bestiary family exposes its actual capture percentage while unknown legacy rows explicitly report zero (`web_abyss_codex.go`, `abyss_codex_explorer.html`).
+- [x] **AAA-0246 / 246** — the dedicated Pet1 and Pet2 slots provide collar-and-charm stats to active companions without modifying the delver (`abyss_pet_gear.go`, `web_abyss_social_hub.go`).
+- [x] **AAA-0247 / 247** — each companion has a persisted quiet, gentle, or bold bark style that controls its combat-log voice (`web_abyss_pet_stable.go`, `abyss_pet_commands.go`).
+- [x] **AAA-0248 / 248** — companion names are length-bounded, restricted to safe characters, and rejected by the shared profanity filter before storage (`web_abyss_pet_stable.go`).
+- [x] **AAA-0249 / 249** — active companions and exact health bars remain visible in the Armoury sidebar outside the Fellowship tab (`webassets/abyss.html`, `webassets/abyss_social.css`).
+- [x] **AAA-0250 / 250** — eligible boss captures persist a distinct boss-variant identity in the Stable and combat profile (`xp.go`, `abyss_pet_stable.go`, `web_abyss_social_hub.go`).
+
 ## Delivered tranche: core interface organization and control
 
 - [x] **AAA-0301 / 301** — a scroll-triggered mini-HUD keeps authoritative health, depth, cache, threat, lock, and token state available below the stage (`webassets/abyss.html`, `tests/e2e/abyss-core-interface.spec.js`).

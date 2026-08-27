@@ -202,9 +202,47 @@ func TestAbyssE2EServer(t *testing.T) {
 			Owned: 1, Total: len(abyssBossCosmeticCatalog), Rates: "Normal 2% · Nightmare 4% · Hell 7% · Insanity 12%",
 		}
 		fixture["Social"] = abyssSocialHubView{
-			WeeklyBoss:  abyssWeeklyBossView{Name: "The Fixture Colossus", HP: 750_000, MaxHP: 1_000_000, Percent: 75, Multiplier: 1},
-			PetFeedCost: 250,
+			SecondPetUnlocked: true,
+			Pets: []abyssSocialPetView{
+				{
+					ID: 101, Name: "Ember", Type: string(content.MobElite), Level: 18,
+					HP: 4200, MaxHP: 5000, STR: 860, DEF: 620, SPD: 740, Loyalty: 82,
+					ActiveSlot: 1, Mood: "content", MoodIcon: "😊", MoodPct: 2,
+					Equipment: "Collar: Ember Chain · +20 STR · Charm: empty", Ability: "Predator's Rush", Class: "damage",
+					XP: 640, XPNext: 1000, LoyaltyPct: 8, FusionRank: 1, BarkStyle: "gentle",
+					Cosmetics: []abyssPetCosmeticView{
+						{abyssPetCosmetic: abyssPetCosmetics[0], Owned: true, Selected: true},
+						{abyssPetCosmetic: abyssPetCosmetics[1]},
+					},
+				},
+				{
+					ID: 102, Name: "Cinder", Type: string(content.MobElite), Level: 12,
+					HP: 3100, MaxHP: 3100, STR: 580, DEF: 440, SPD: 510, Loyalty: 70,
+					Mood: "content", MoodIcon: "😊", MoodPct: 2, Equipment: "Collar: empty · Charm: empty",
+					Ability: "Reserve", Class: "damage", XP: 220, XPNext: 700, LoyaltyPct: 7, BarkStyle: "bold",
+					Cosmetics: []abyssPetCosmeticView{
+						{abyssPetCosmetic: abyssPetCosmetics[0]},
+						{abyssPetCosmetic: abyssPetCosmetics[1]},
+					},
+				},
+				{
+					ID: 103, Name: "Spark", Type: string(content.MobElite), Level: 7,
+					HP: 1800, MaxHP: 1800, STR: 320, DEF: 260, SPD: 300, Loyalty: 61,
+					Mood: "content", MoodIcon: "😊", MoodPct: 2, Equipment: "Collar: empty · Charm: empty",
+					Ability: "Reserve", Class: "damage", XPNext: 400, LoyaltyPct: 1, BarkStyle: "quiet",
+					Cosmetics: []abyssPetCosmeticView{{abyssPetCosmetic: abyssPetCosmetics[0]}},
+				},
+			},
+			Memorials:       []abyssMemorialView{{ID: 91, Name: "Ash", Type: string(content.MobMiniboss), Level: 9, Loyalty: 66, When: "Aug 20 12:00"}},
+			WeeklyBoss:      abyssWeeklyBossView{Name: "The Fixture Colossus", HP: 750_000, MaxHP: 1_000_000, Percent: 75, Multiplier: 1},
+			PetFeedOptions:  []consumableOwned{{ID: "small_health_potion", Name: "Small Health Potion", Count: 2}},
+			PetPowerLeaders: []abyssPetPowerView{{Rank: 1, Nick: "Fixture Delver", Name: "Ember", Power: 7220}},
 		}
+		fixture["Bestiary"] = []abyssBestiaryRow{{
+			MobName: "Fixture Stalker", Family: string(content.MobElite), Kills: 25,
+			Milestone: "Studied", NextMilestone: 50, KillsToNext: 25,
+			CapturePct: abyssBestiaryCapturePercent(string(content.MobElite)),
+		}}
 		wishlistMu.Lock()
 		fixture["Wishlist"] = abyssWishlistViewFor(wishlistState, "")
 		wishlistMu.Unlock()

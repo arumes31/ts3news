@@ -485,6 +485,7 @@ func buildConsumables() []Consumable {
 		{"strength_elixir", "Strength Elixir", ConsumableBuff, 15, 3, "Boosts Strength for several fights."},
 		{"iron_skin_brew", "Iron Skin Brew", ConsumableBuff, 10, 3, "Boosts Defense for several fights."},
 		{"phoenix_feather", "Phoenix Feather", ConsumableRevive, 50, 0, "Revives you once when you fall in battle."},
+		{"pet_revival_scroll", "Companion Revival Scroll", ConsumableRevive, 1, 0, "Returns one fallen companion from the memorial to your reserve stable."},
 		{"repair_kit", "Repair Kit", ConsumableRepair, 30, 0, "Restores durability to your equipment."},
 		{"master_repair_kit", "Master Repair Kit", ConsumableRepair, 75, 0, "Fully restores durability to your equipment."},
 		{"speed_elixir", "Speed Elixir", ConsumableBuff, 25, 3, "Boosts Speed by +25 for several fights."},

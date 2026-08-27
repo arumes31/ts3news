@@ -27,6 +27,7 @@ type abyssPetProfile struct {
 	DaycareSince    string   `json:"daycare_since,omitempty"`
 	ExpeditionUntil string   `json:"expedition_until,omitempty"`
 	ExpeditionKind  string   `json:"expedition_kind,omitempty"`
+	GiftUntil       string   `json:"gift_until,omitempty"`
 }
 
 func decodeAbyssPetProfile(raw string) abyssPetProfile {
@@ -51,7 +52,10 @@ func (profile abyssPetProfile) healEnabled() bool {
 }
 
 func (profile abyssPetProfile) busy(now time.Time) bool {
-	if profile.DaycareSince != "" {
+	if profile.DaycareSince != "" || profile.ExpeditionKind != "" {
+		return true
+	}
+	if until, err := time.Parse(time.RFC3339, profile.GiftUntil); err == nil && until.After(now) {
 		return true
 	}
 	until, err := time.Parse(time.RFC3339, profile.ExpeditionUntil)

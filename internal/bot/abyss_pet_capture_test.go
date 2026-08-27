@@ -99,8 +99,10 @@ func TestResolveAbyssPetCaptureReplacesChosenOwnedPetAtomically(t *testing.T) {
 			AddRow("Mossling", "Elite", 8, 1, 80, 12, 9, 11, 25))
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM user_pets WHERE client_uid=$1")).WithArgs(uid).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
-	mock.ExpectQuery("SELECT name,active_slot FROM user_pets").WithArgs(int64(7), uid).
-		WillReturnRows(sqlmock.NewRows([]string{"name", "active_slot"}).AddRow("Old Fang", 1))
+	mock.ExpectQuery("SELECT node_id FROM user_abyss_tree").WithArgs(uid).
+		WillReturnRows(sqlmock.NewRows([]string{"node_id"}))
+	mock.ExpectQuery("SELECT name,active_slot,autoskills::text FROM user_pets").WithArgs(int64(7), uid).
+		WillReturnRows(sqlmock.NewRows([]string{"name", "active_slot", "autoskills"}).AddRow("Old Fang", 1, `{}`))
 	mock.ExpectExec("DELETE FROM user_pets").WithArgs(int64(7), uid).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("INSERT INTO user_pets").
 		WithArgs(uid, "Mossling", "Elite", 8, 1, 80, 12, 9, 11, 25, 1, sqlmock.AnyArg()).
@@ -137,8 +139,8 @@ func TestResolveAbyssPetCaptureKeepsDecisionWhileOwnerExplicitlyReducesLegacyOve
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(4))
 	mock.ExpectQuery("SELECT node_id FROM user_abyss_tree").WithArgs(uid).
 		WillReturnRows(sqlmock.NewRows([]string{"node_id"}))
-	mock.ExpectQuery("SELECT name,active_slot FROM user_pets").WithArgs(int64(9), uid).
-		WillReturnRows(sqlmock.NewRows([]string{"name", "active_slot"}).AddRow("Legacy Fang", 0))
+	mock.ExpectQuery("SELECT name,active_slot,autoskills::text FROM user_pets").WithArgs(int64(9), uid).
+		WillReturnRows(sqlmock.NewRows([]string{"name", "active_slot", "autoskills"}).AddRow("Legacy Fang", 0, `{}`))
 	mock.ExpectExec("DELETE FROM user_pets").WithArgs(int64(9), uid).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 

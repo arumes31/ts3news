@@ -32,6 +32,7 @@ var abyssShopCatalog = []abyssShopItem{
 	{"great_potions", "Great Health Potions ×3", "Three large in-combat heals.", 6, 0},
 	{"repair_kits", "Master Repair Kits ×2", "Fully restore gear durability, twice.", 5, 0},
 	{"phoenix", "Phoenix Feather", "Revives you once when you fall in battle.", 9, 0},
+	{"pet_revival_scroll", "Companion Revival Scroll", "Returns one fallen companion to your reserve stable.", 10, 0},
 	{"elixir_of_life", "Elixir of Life", "Fully restores your health (100%).", 8, 0},
 	{"giant_strength", "Giant Strength Elixirs ×2", "Massively boost Strength for 3 fights.", 7, 0},
 	{"speed_elixir_pack", "Speed Elixirs ×2", "Boost Speed by +25 for 3 fights.", 5, 0},
@@ -136,6 +137,8 @@ func (s *WebServer) handleAbyssShopBuy(w http.ResponseWriter, r *http.Request, u
 		err = grantAbyssShopConsumable(tx, uid, "master_repair_kit", 2)
 	case "phoenix":
 		err = grantAbyssShopConsumable(tx, uid, "phoenix_feather", 1)
+	case "pet_revival_scroll":
+		err = grantAbyssShopConsumable(tx, uid, "pet_revival_scroll", 1)
 	case "elixir_of_life":
 		err = grantAbyssShopConsumable(tx, uid, "elixir_of_life", 1)
 	case "giant_strength":

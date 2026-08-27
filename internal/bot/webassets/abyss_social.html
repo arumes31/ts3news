@@ -26,25 +26,43 @@
           <span class="ab-pixel-icon ab-pet-pixel" aria-hidden="true"></span>
           <div class="ab-pet-head"><strong>{{if .Favorite}}★ {{end}}{{if .Shiny}}✦ {{end}}{{.MoodIcon}} <span data-pet-name>{{.Name}}</span></strong><span class="ab-mood {{.Mood}}">{{.Mood}} {{if gt .MoodPct 0}}+{{end}}{{.MoodPct}}%</span></div>
           <div class="ab-pet-stats"><span>Lv {{.Level}} {{.Type}}{{if .BossVariant}} · boss variant{{end}}</span><span class="ab-pet-class">{{.Class}}</span><span>♥ {{comma .HP}}/{{comma .MaxHP}}</span><span>⚔ {{comma .STR}}</span><span>🛡 {{comma .DEF}}</span><span>➤ {{comma .SPD}}</span></div>
-          <div class="ab-pet-growth"><span>Bond XP {{comma .XP}} / {{comma .XPNext}}</span><progress max="{{.XPNext}}" value="{{.XP}}"></progress><span>Loyalty {{.Loyalty}}% · +{{.LoyaltyPct}}% combat stats</span></div>
+          <div class="ab-pet-growth"><span>Bond XP {{comma .XP}} / {{comma .XPNext}}</span><progress max="{{.XPNext}}" value="{{.XP}}"></progress><span>Loyalty {{.Loyalty}}% · +{{.LoyaltyPct}}% combat stats · fusion {{.FusionRank}}</span></div>
+          {{if .Activity}}<div class="ab-pet-activity"><b>{{.Activity}}</b>{{if eq .Activity "daycare"}} · {{.DaycareXP}} XP ready{{else}} · {{.ActivityDue}}{{end}}</div>{{end}}
           <div class="ab-pet-equipment" title="Pet-only equipment; these stats do not affect your delver.">🔗 {{.Equipment}}</div>
           <div class="ab-pet-equipment" title="Ability cooldowns tick once after every combat round.">⚡ {{.Ability}}</div>
           <div class="ab-pet-actions">
-            <label>Formation <select onchange="abyssPetSlot({{.ID}},this.value)">
+            <label>Formation <select onchange="abyssPetSlot({{.ID}},this.value)" {{if .Activity}}disabled{{end}}>
               <option value="0" {{if eq .ActiveSlot 0}}selected{{end}}>Reserve</option>
               <option value="1" {{if eq .ActiveSlot 1}}selected{{end}}>Active I</option>
               <option value="2" {{if eq .ActiveSlot 2}}selected{{end}} {{if not $.Social.SecondPetUnlocked}}disabled{{end}}>Active II{{if not $.Social.SecondPetUnlocked}} · P2{{end}}</option>
             </select></label>
             <label class="ab-toggle"><input type="checkbox" {{if .HealEnabled}}checked{{end}} onchange="abyssPetAutoskill({{.ID}},this.checked)"> auto-heal</label>
-            <button class="ghost xs" onclick="abyssPetTrain({{.ID}},this)" {{if ge .Training 3}}disabled{{end}}>Train 1000g · {{.Training}}/3</button>
-            <button class="ghost xs" onclick="abyssPetFeed({{.ID}},this)">Feed {{$.Social.PetFeedCost}}g</button>
+            <button class="ghost xs" onclick="abyssPetTrain({{.ID}},this)" {{if or (ge .Training 3) .Activity}}disabled{{end}}>Train 1000g · {{.Training}}/3</button>
+            {{if $.Social.PetFeedOptions}}<label>Feed <select onchange="if(this.value){abyssPetFeed({{.ID}},this.value,this);this.value=''}"><option value="">Choose consumable</option>{{range $.Social.PetFeedOptions}}<option value="{{.ID}}">{{.Name}} ×{{.Count}}</option>{{end}}</select></label>{{end}}
+            {{if .Activity}}
+              {{if eq .Activity "daycare"}}<button class="ghost xs" onclick="abyssPetActivity({{.ID}},'daycare_claim','',this)">Claim daycare</button>{{else if eq .ActivityDue "ready"}}<button class="ghost xs" onclick="abyssPetActivity({{.ID}},'expedition_claim','',this)">Claim expedition</button>{{end}}
+            {{else if eq .ActiveSlot 0}}
+              <button class="ghost xs" onclick="abyssPetActivity({{.ID}},'daycare_start','',this)">Daycare</button>
+              <label>Expedition <select onchange="if(this.value){abyssPetActivity({{.ID}},'expedition_start',this.value,this);this.value=''}"><option value="">Choose</option><option value="dust">Dust</option><option value="crystal">Crystal</option><option value="prism">Prism</option></select></label>
+            {{end}}
+            <label>Cosmetic <select onchange="abyssPetCosmetic({{.ID}},this.value,this)"><option value="" {{if not .Cosmetic}}selected{{end}}>Natural</option>{{range .Cosmetics}}<option value="{{.Key}}" {{if .Selected}}selected{{end}}>{{.Icon}} {{.Name}}{{if not .Owned}} · 20 🜲{{end}}</option>{{end}}</select></label>
+            <label>Voice <select onchange="abyssPetManage({{.ID}},'bark',{style:this.value},this)"><option value="quiet" {{if eq .BarkStyle "quiet"}}selected{{end}}>Quiet</option><option value="gentle" {{if eq .BarkStyle "gentle"}}selected{{end}}>Gentle</option><option value="bold" {{if eq .BarkStyle "bold"}}selected{{end}}>Bold</option></select></label>
+            {{$pet := .}}{{if eq .ActiveSlot 0}}<label>Fuse donor <select onchange="if(this.value){abyssPetFusion({{$pet.ID}},Number(this.value),this);this.value=''}"><option value="">Choose same family</option>{{range $.Social.Pets}}{{if and (ne .ID $pet.ID) (eq .Type $pet.Type) (eq .ActiveSlot 0)}}<option value="{{.ID}}">{{.Name}}</option>{{end}}{{end}}</select></label>{{end}}
             <button class="ghost xs" onclick="abyssPetRename({{.ID}},this)">Rename</button>
             <button class="ghost xs" onclick="abyssPetManage({{.ID}},'favorite',{},this)">{{if .Favorite}}Unfavorite{{else}}Favorite{{end}}</button>
-            <button class="danger xs" onclick="abyssPetRelease({{.ID}},{{if .Favorite}}true{{else}}false{{end}},this)">Release</button>
+            {{if and (eq .ActiveSlot 0) (not .Favorite) (not .Activity)}}<button class="ghost xs" onclick="abyssPetGiftCreate({{.ID}},this)">Gift</button>{{end}}
+            <button class="danger xs" onclick="abyssPetRelease({{.ID}},{{if .Favorite}}true{{else}}false{{end}},this)" {{if .Activity}}disabled{{end}}>Release</button>
           </div>
         </div>
       {{else}}<div class="ab-social-empty">Capture an enemy with Mind Control to recruit your first companion.</div>{{end}}
       </div>
+    </article>
+
+    <article class="ab-social-card">
+      <h3>🏅 Companion power board</h3>
+      <ol class="ab-pet-power-board">{{range .PetPowerLeaders}}<li><b>#{{.Rank}} {{.Name}}</b><span>{{.Nick}}</span><strong>{{comma .Power}}</strong></li>{{else}}<li class="muted">No ranked companions yet.</li>{{end}}</ol>
+      <h3 class="ab-social-sub">🎁 Bound companion gift</h3>
+      <div class="ab-pet-gift-claim"><input id="abyssPetGiftCode" maxlength="15" placeholder="Gift code" aria-label="Companion gift code"><button class="ghost xs" onclick="abyssPetGiftClaim(this)">Claim</button></div>
     </article>
 
     <article class="ab-social-card">
@@ -87,7 +105,7 @@
     <article class="ab-social-card">
       <h3>🏆 First-kill trophies</h3>
       <div class="ab-trophy-grid">{{range .Trophies}}<div><span>♛</span><b>{{.Boss}}</b><time>First slain {{.Date}}</time></div>{{else}}<p class="muted small">Boss trophies appear after a first kill.</p>{{end}}</div>
-      <details><summary>🕯 Pet memorials · {{len .Memorials}}</summary><div class="ab-memorials">{{range .Memorials}}<div><span>🕯 <b>{{.Name}}</b> · Lv {{.Level}} {{.Type}}</span><time>{{.When}}</time></div>{{else}}<p class="muted small">No companions have fallen.</p>{{end}}</div></details>
+      <details><summary>🕯 Pet memorials · {{len .Memorials}}</summary><div class="ab-memorials">{{range .Memorials}}<div><span>🕯 <b>{{.Name}}</b> · Lv {{.Level}} {{.Type}}</span><time>{{.When}}</time><button class="ghost xs" onclick="abyssPetRevive({{.ID}},this)">Revive · Companion Scroll</button></div>{{else}}<p class="muted small">No companions have fallen.</p>{{end}}</div></details>
       {{if .Notifications}}<h3 class="ab-social-sub">🔔 Fellowship feed</h3><div class="ab-notifications">{{range .Notifications}}<div><span>{{.Message}}</span><time>{{.When}}</time></div>{{end}}</div>{{end}}
     </article>
   </div>
@@ -106,7 +124,13 @@ async function abyssPetAutoskill(id,enabled){var d=await abPost('/api/abyss/soci
 async function abyssPetManage(id,action,extra,button){if(button)button.disabled=true;var body=Object.assign({pet_id:id,action:action},extra||{}),d=await abPost('/api/abyss/social/pet/manage',body);abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},300);else if(button)button.disabled=false;return d;}
 function abyssPetRename(id,button){var card=button&&button.closest('.ab-pet-card'),nameNode=card&&card.querySelector('[data-pet-name]'),current=nameNode?nameNode.textContent.trim():'';var name=window.prompt('Companion name (1–24 characters):',current);if(name!==null)abyssPetManage(id,'rename',{name:name},button);}
 async function abyssPetRelease(id,favorite,button){var card=button&&button.closest('.ab-pet-card'),nameNode=card&&card.querySelector('[data-pet-name]'),name=nameNode?nameNode.textContent.trim():'this companion';var warning=favorite?'This is a favorite. Permanently release '+name+'?':'Permanently release '+name+'?';if(!(await confirmModal(warning,{title:'Release companion',okLabel:'Release permanently'})))return;await abyssPetManage(id,'release',{confirm_favorite:!!favorite},button);}
-async function abyssPetFeed(id,button){if(button)button.disabled=true;var d=await abPost('/api/abyss/social/pet/feed',{pet_id:id});abToast(d.msg||d.error,!!d.ok);if(d.ok){setGold(d.gold);setTimeout(function(){location.reload();},300);}else if(button)button.disabled=false;}
+async function abyssPetFeed(id,consID,control){if(control)control.disabled=true;var d=await abPost('/api/abyss/social/pet/feed',{pet_id:id,cons_id:consID});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},300);else if(control)control.disabled=false;}
+async function abyssPetActivity(id,action,kind,control){if(control)control.disabled=true;var d=await abPost('/api/abyss/social/pet/activity',{pet_id:id,action:action,kind:kind});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);else if(control)control.disabled=false;}
+async function abyssPetFusion(keepID,donorID,control){if(!(await confirmModal('Permanently fuse the selected reserve companion into this one? The donor will be consumed.',{title:'Companion fusion',okLabel:'Fuse companions'})))return;if(control)control.disabled=true;var d=await abPost('/api/abyss/social/pet/fusion',{keep_pet_id:keepID,donor_pet_id:donorID});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},400);else if(control)control.disabled=false;}
+async function abyssPetCosmetic(id,key,control){if(control)control.disabled=true;var d=await abPost('/api/abyss/social/pet/cosmetic',{pet_id:id,key:key});abToast(d.msg||d.error,!!d.ok);if(d.ok){setTokens(d.tokens);setTimeout(function(){location.reload();},300);}else if(control)control.disabled=false;}
+async function abyssPetRevive(memorialID,button){if(!(await confirmModal('Consume one Companion Revival Scroll to return this companion as a reserve?',{title:'Revive companion',okLabel:'Consume scroll'})))return;if(button)button.disabled=true;var d=await abPost('/api/abyss/social/pet/revive',{memorial_id:memorialID});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},400);else if(button)button.disabled=false;}
+async function abyssPetGiftCreate(id,button){var recipient=window.prompt('Exact recipient user ID:','');if(!recipient)return;if(!(await confirmModal('Reserve this companion for '+recipient+' for seven days?',{title:'Gift companion',okLabel:'Create gift'})))return;if(button)button.disabled=true;var d=await abPost('/api/abyss/social/pet/gift/create',{pet_id:id,recipient_uid:recipient.trim()});abToast(d.msg||d.error,!!d.ok);if(d.ok)window.prompt('Private companion gift code:',d.code);else if(button)button.disabled=false;}
+async function abyssPetGiftClaim(button){var input=document.getElementById('abyssPetGiftCode'),code=input?input.value.trim():'';if(!code)return;if(button)button.disabled=true;var d=await abPost('/api/abyss/social/pet/gift/claim',{code:code});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},400);else button.disabled=false;}
 async function abyssResolvePetCapture(id,button){var name=button&&button.dataset?String(button.dataset.name||''):'';if(name&&!(await confirmModal('Release '+name+' and recruit the pending capture?',{title:'Replace companion',okLabel:'Release and recruit'})))return;var d=await abPost('/api/abyss/social/pet/capture/resolve',{release_pet_id:Number(id),decline:false});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);}
 async function abyssDeclinePetCapture(){if(!(await confirmModal('Release the newly captured companion?',{title:'Decline capture',okLabel:'Release companion'})))return;var d=await abPost('/api/abyss/social/pet/capture/resolve',{release_pet_id:0,decline:true});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},350);}
 async function abyssBankFeedToggle(enabled){var d=await abPost('/api/abyss/social/bank_feed',{enabled:enabled});abToast(d.msg||d.error,!!d.ok);if(d.ok)setTimeout(function(){location.reload();},300);}
