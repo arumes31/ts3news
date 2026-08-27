@@ -1964,5 +1964,36 @@
       "tests/e2e/abyss-feedback-juice.spec.js",
       "tests/e2e/abyss-core-interface.spec.js"
     ]
+  },
+  {
+    "ids": [351, 352, 355, 356, 357, 361, 362, 363, 364, 365, 366, 369, 370, 371, 373, 374, 375],
+    "production": [
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_accessibility.html",
+      "internal/bot/webassets/abyss_accessibility.css",
+      "internal/bot/webassets/abyss_quality_of_life.html",
+      "internal/bot/webassets/abyss_player_experience.html",
+      "internal/bot/webassets/abyss_player_experience.css",
+      "internal/bot/webassets/abyss_longterm.html",
+      "internal/bot/webassets/abyss_onboarding.html",
+      "internal/bot/webassets/abyss_display_locale.html",
+      "internal/bot/webassets/abyss_insights.html",
+      "internal/bot/webassets/abyss_aaa_runtime.html",
+      "internal/bot/web_abyss_setup_state.go",
+      "internal/i18n/i18n.go",
+      "internal/i18n/locales/en_US.yaml"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_accessibility_program_test.go",
+      "internal/bot/web_abyss_accessibility_test.go",
+      "internal/bot/web_abyss_quality_of_life_test.go",
+      "internal/bot/web_abyss_onboarding_test.go",
+      "internal/bot/web_abyss_setup_state_test.go",
+      "internal/i18n/completeness_test.go",
+      "tests/e2e/abyss-accessibility-qol.spec.js",
+      "tests/e2e/abyss-core-interface.spec.js",
+      "tests/e2e/abyss-ui-layout.spec.js",
+      "tests/e2e/abyss-live-resume.spec.js"
+    ]
   }
 ]

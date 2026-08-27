@@ -78,7 +78,7 @@
   function initRarityGlyphs(){enhanceRarityGlyphs(document);var page=document.querySelector('.abyss-command-page');if(page)new MutationObserver(function(records){records.forEach(function(record){record.addedNodes.forEach(function(node){if(node.nodeType===1)enhanceRarityGlyphs(node);});});}).observe(page,{childList:true,subtree:true});}
 
   var emojiPattern=/((?:\p{Regional_Indicator}{2})|(?:[#*0-9]\uFE0F?\u20E3)|(?:\p{Extended_Pictographic}(?:\uFE0E|\uFE0F)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0E|\uFE0F)?)*))/gu;
-  var emojiNames={'⬇':'Descend','🏦':'Bank','🧪':'Items','📋':'Copy','🎲':'Revive','🛡':'Last Stand','🏳':'Concede','🚚':'Transport','⚡':'Plan and descend'};
+  var emojiNames={'⬇':'Descend','🏦':'Bank','🧪':'Items','📋':'Copy','🎲':'Revive','🛡':'Shield','🏳':'Concede','🚚':'Transport','⚡':'Plan and descend','⚠':'Warning','✅':'Success','❌':'Error','❤️':'Health','💀':'Defeat','🏆':'Achievement','⭐':'Level','🔥':'Momentum','🪙':'Gold','🔔':'Notification','📜':'Log','📖':'Lore','⚙':'Settings','✨':'Highlight'};
   function withoutEmoji(value){return String(value||'').replace(emojiPattern,' ').replace(/\s+/g,' ').trim();}
   function emojiName(value){var match=String(value||'').match(emojiPattern),key=match&&match[0]?match[0].replace(/[\uFE0E\uFE0F]/g,''):'';return emojiNames[key]||'';}
   function hideEmojiText(root){
@@ -92,10 +92,26 @@
     if(root&&root.querySelectorAll)nodes=nodes.concat(Array.prototype.slice.call(root.querySelectorAll(selector)));
     nodes.forEach(function(control){if(control.dataset.emojiEnhanced==='true'||!emojiPattern.test(control.textContent||'')){emojiPattern.lastIndex=0;return;}emojiPattern.lastIndex=0;var visible=withoutEmoji(control.textContent),hadLabel=control.hasAttribute('aria-label'),current=withoutEmoji(control.getAttribute('aria-label')),title=withoutEmoji(control.title),label=current||visible||title||emojiName(control.textContent)||'Action';control.setAttribute('aria-label',label);if(!hadLabel)control.dataset.emojiGeneratedLabel='true';hideEmojiText(control);control.dataset.emojiEnhanced='true';});
   }
+  var staticEmojiSelector='.abyss-command-page h1,.abyss-command-page h2,.abyss-command-page h3,.abyss-command-page h4,.ab-chip-label,.ab-sub-label,[data-emoji-icon]';
+  function enhanceStaticEmoji(root){
+    var nodes=[];if(root&&root.matches&&root.matches(staticEmojiSelector))nodes.push(root);if(root&&root.querySelectorAll)nodes=nodes.concat(Array.prototype.slice.call(root.querySelectorAll(staticEmojiSelector)));
+    nodes.forEach(function(node){if(node.dataset.emojiStaticEnhanced==='true'||!emojiPattern.test(node.textContent||'')){emojiPattern.lastIndex=0;return;}emojiPattern.lastIndex=0;var visible=withoutEmoji(node.textContent),name=emojiName(node.textContent);if(!visible&&!node.hasAttribute('aria-label'))node.setAttribute('aria-label',name||'Status');hideEmojiText(node);node.dataset.emojiStaticEnhanced='true';});
+  }
+  function accessibleName(node){
+    var direct=withoutEmoji(node.getAttribute('aria-label')),labelled=node.getAttribute('aria-labelledby'),title=withoutEmoji(node.title),text=withoutEmoji(node.textContent),labels=node.labels&&Array.prototype.slice.call(node.labels).map(function(label){return withoutEmoji(label.textContent);}).filter(Boolean).join(' ');
+    if(direct)return direct;if(labelled){var linked=labelled.split(/\s+/).map(function(id){var label=document.getElementById(id);return label?withoutEmoji(label.textContent):'';}).filter(Boolean).join(' ');if(linked)return linked;}return labels||text||title||withoutEmoji(node.getAttribute('alt'));
+  }
+  function auditAccessibility(root){
+    var scope=root||document,issues=[],selector='button,a[href],input:not([type="hidden"]),select,textarea,summary,[role="button"],[role="tab"]',controls=[];
+    if(scope.matches&&scope.matches(selector))controls.push(scope);if(scope.querySelectorAll)controls=controls.concat(Array.prototype.slice.call(scope.querySelectorAll(selector)));
+    controls.forEach(function(control){if(control.closest('[hidden],[aria-hidden="true"]'))return;if(!accessibleName(control))issues.push({kind:'missing-name',id:control.id||control.tagName.toLowerCase()});});
+    if(scope.querySelectorAll)scope.querySelectorAll('img').forEach(function(img){if(!img.hasAttribute('alt')&&!img.hasAttribute('aria-label'))issues.push({kind:'missing-image-alt',id:img.id||img.getAttribute('src')||'img'});});
+    var page=document.querySelector('.abyss-command-page');if(page)page.dataset.abA11yIssues=String(issues.length);return issues;
+  }
   function initEmojiIcons(){
-    enhanceEmojiIcons(document);
+    enhanceEmojiIcons(document);enhanceStaticEmoji(document);
     var page=document.querySelector('.abyss-command-page');if(!page)return;
-    new MutationObserver(function(records){records.forEach(function(record){if(record.type==='characterData'){var control=record.target.parentElement&&record.target.parentElement.closest('button,a,summary,[role="button"],[role="tab"],[data-emoji-icon]');if(control){if(control.dataset.emojiGeneratedLabel==='true'){control.removeAttribute('aria-label');delete control.dataset.emojiGeneratedLabel;}delete control.dataset.emojiEnhanced;enhanceEmojiIcons(control);}}else record.addedNodes.forEach(function(node){var target=node.nodeType===1?node:node.parentElement;if(!target)return;var control=target.closest&&target.closest('button,a,summary,[role="button"],[role="tab"],[data-emoji-icon]');if(control){if(control.dataset.emojiGeneratedLabel==='true'){control.removeAttribute('aria-label');delete control.dataset.emojiGeneratedLabel;}delete control.dataset.emojiEnhanced;}enhanceEmojiIcons(control||target);});});}).observe(page,{childList:true,characterData:true,subtree:true});
+    new MutationObserver(function(records){records.forEach(function(record){if(record.type==='characterData'){var control=record.target.parentElement&&record.target.parentElement.closest('button,a,summary,[role="button"],[role="tab"],[data-emoji-icon]');if(control){if(control.dataset.emojiGeneratedLabel==='true'){control.removeAttribute('aria-label');delete control.dataset.emojiGeneratedLabel;}delete control.dataset.emojiEnhanced;enhanceEmojiIcons(control);}var staticNode=record.target.parentElement&&record.target.parentElement.closest(staticEmojiSelector);if(staticNode){delete staticNode.dataset.emojiStaticEnhanced;enhanceStaticEmoji(staticNode);}}else record.addedNodes.forEach(function(node){var target=node.nodeType===1?node:node.parentElement;if(!target)return;var control=target.closest&&target.closest('button,a,summary,[role="button"],[role="tab"],[data-emoji-icon]');if(control){if(control.dataset.emojiGeneratedLabel==='true'){control.removeAttribute('aria-label');delete control.dataset.emojiGeneratedLabel;}delete control.dataset.emojiEnhanced;}enhanceEmojiIcons(control||target);enhanceStaticEmoji(target);});});}).observe(page,{childList:true,characterData:true,subtree:true});
   }
 
   function hapticsEnabled(){return preference('ab_haptic','0')==='1';}
@@ -108,10 +124,10 @@
     applyAbyssColorblind(preference('ab_colorblind','0')==='1');
     applyAbyssLogSize(preference('ab_logsize','m'));
     var host=document.getElementById('abToastHost');if(host){host.setAttribute('aria-relevant','additions text');host.setAttribute('aria-atomic','false');}
-    initMobileActions();initTabSwipe();initStageSwipe();initLongPressDetails();initConsumableDialogFocus();initRarityGlyphs();initEmojiIcons();initHaptics();
+    initMobileActions();initTabSwipe();initStageSwipe();initLongPressDetails();initConsumableDialogFocus();initRarityGlyphs();initEmojiIcons();initHaptics();auditAccessibility(document.querySelector('.abyss-command-page'));
   }
   setTimeout(init,0);
-  window.__abyssAccessibility={announce:announce,syncMobileActions:syncMobileActions,enhanceEmojiIcons:enhanceEmojiIcons,enhanceRarityGlyphs:enhanceRarityGlyphs};
+  window.__abyssAccessibility={announce:announce,audit:auditAccessibility,syncMobileActions:syncMobileActions,enhanceEmojiIcons:enhanceEmojiIcons,enhanceStaticEmoji:enhanceStaticEmoji,enhanceRarityGlyphs:enhanceRarityGlyphs};
 })();
 </script>
 {{end}}

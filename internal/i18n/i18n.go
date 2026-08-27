@@ -142,10 +142,11 @@ func MessageCoverage(prefix string) []LocaleCoverage {
 			}
 		}
 		rows = append(rows, LocaleCoverage{
-			Locale:  id,
-			Total:   len(keys),
-			Present: len(keys) - len(missing),
-			Missing: missing,
+			Locale:   id,
+			Total:    len(keys),
+			Present:  len(keys) - len(missing),
+			Missing:  missing,
+			Complete: len(missing) == 0,
 		})
 	}
 	return rows
@@ -153,10 +154,11 @@ func MessageCoverage(prefix string) []LocaleCoverage {
 
 // LocaleCoverage is one locale's direct coverage of a message-key prefix.
 type LocaleCoverage struct {
-	Locale  LocaleID `json:"locale"`
-	Total   int      `json:"total"`
-	Present int      `json:"present"`
-	Missing []string `json:"missing"`
+	Locale   LocaleID `json:"locale"`
+	Total    int      `json:"total"`
+	Present  int      `json:"present"`
+	Missing  []string `json:"missing"`
+	Complete bool     `json:"complete"`
 }
 
 // T translates a message key with the given arguments.

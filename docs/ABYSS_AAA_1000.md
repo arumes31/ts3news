@@ -1077,6 +1077,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 ## Delivered tranche: accessibility and quality-of-life controls
 
 - [x] **AAA-0355 / 355** — the searchable settings panel persists a high-contrast solid-panel profile with forced-color-safe controls (`webassets/abyss_accessibility.html`, `webassets/abyss_accessibility.css`, `web_abyss_accessibility_test.go`).
+- [x] **AAA-0361 / 361** — every canonical Abyss message has a direct translation in all 20 shipped locale catalogs, with strict completeness metadata and a failing coverage gate (`internal/i18n/i18n.go`, `internal/i18n/completeness_test.go`, `web_abyss_accessibility_program_test.go`).
 - [x] **AAA-0357 / 357** — a persisted full-or-summary combat-log preference filters both completed and live combat feeds without discarding their authoritative history (`webassets/abyss_quality_of_life.html`, `webassets/abyss_combat_recorder.html`, `webassets/abyss_live.html`, `web_abyss_quality_of_life_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
 - [x] **AAA-0363 / 363** — the keyboard-focusable field glossary explains CR, GS, STR, DEF, STA, SPD, DGE, and CRT alongside the existing run terms (`webassets/abyss_onboarding.html`, `web_abyss_onboarding_test.go`).
 - [x] **AAA-0364 / 364** — first-time delvers receive a reduced-motion-safe, keyboard-operable five-step guided tour with persistent completion state (`webassets/abyss_onboarding.html`, `web_abyss_onboarding_test.go`).

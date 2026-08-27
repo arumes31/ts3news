@@ -13,7 +13,7 @@ for (const viewport of [
 
     const competition = page.locator('#lb.ab-competition');
     await expect(competition).toBeVisible();
-    await expect(competition.getByRole('heading', { name: '🏆 Abyss Competition' })).toBeVisible();
+    await expect(competition.getByRole('heading', { name: 'Abyss Competition' })).toBeVisible();
     await expect(competition.locator('select[name="lbtier"]')).toBeVisible();
     await expect(competition.locator('select[name="lbbuild"]')).toBeVisible();
     await expect(competition.locator('select[name="lbperiod"]')).toBeVisible();
