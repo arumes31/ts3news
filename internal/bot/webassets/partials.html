@@ -136,7 +136,7 @@ function closeModal(){
     pendingModalDismissValue = null;
     resolve(dismissValue);
   }
-  if (modalReturnFocus && document.contains(modalReturnFocus)) modalReturnFocus.focus();
+  if (modalReturnFocus && document.contains(modalReturnFocus)) modalReturnFocus.focus({preventScroll:true});
   modalReturnFocus = null;
 }
 function trapSharedModalFocus(e){

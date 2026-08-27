@@ -24,7 +24,7 @@ test('floor planner caps at 20 while its add control stays pinned', async ({ pag
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
-test('successful shop and forge actions return focus to Descend', async ({ page }) => {
+test('successful shop and forge actions return focus without changing scroll position', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/abyss?active=1');
 
@@ -35,6 +35,8 @@ test('successful shop and forge actions return focus to Descend', async ({ page 
     const cockpit = document.getElementById('abyssCombatCockpit');
     const descend = document.getElementById('btnDescend');
     descend.style.display = '';
+    window.scrollTo(0, 320);
+    const scrollBefore = window.scrollY;
     let scrollCalls = 0;
     cockpit.scrollIntoView = () => { scrollCalls += 1; };
 
@@ -53,17 +55,22 @@ test('successful shop and forge actions return focus to Descend', async ({ page 
       shopFocused: await run('shop'),
       forgeFocused: await run('forge'),
       scrollCalls,
+      scrollBefore,
+      scrollAfter: window.scrollY,
     };
   });
 
-  expect(result).toEqual({ shopFocused: true, forgeFocused: true, scrollCalls: 2 });
+  expect(result.shopFocused).toBe(true);
+  expect(result.forgeFocused).toBe(true);
+  expect(result.scrollCalls).toBe(0);
+  expect(result.scrollAfter).toBe(result.scrollBefore);
 });
 
 test('active combat cockpit keeps stage, actions, and log inside one desktop viewport', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/abyss?active=1');
-  await page.evaluate(() => focusAbyssCockpit('btnDescend'));
+  await page.evaluate(() => focusAbyssDescend());
 
   const initial = await page.evaluate(() => {
     const box = id => document.getElementById(id).getBoundingClientRect();
@@ -94,5 +101,19 @@ test('entry reload marker returns keyboard focus to Descend', async ({ page }) =
   await page.addInitScript(() => sessionStorage.setItem('ab_focus_cockpit', '1'));
   await page.goto('/abyss?active=1');
   await expect(page.locator('#btnDescend')).toBeFocused();
-  await expect(page.locator('#abyssCombatCockpit')).toBeInViewport();
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+});
+
+test('wide cockpit keeps the Armoury fixed in the left viewport gutter', async ({ page }) => {
+  await page.setViewportSize({ width: 1900, height: 1100 });
+  await page.goto('/abyss?active=1');
+
+  const layout = await page.evaluate(() => {
+    const armoury = document.querySelector('.abyss-side-left').getBoundingClientRect();
+    const stage = document.getElementById('abyssStage').getBoundingClientRect();
+    return { position: getComputedStyle(document.querySelector('.abyss-side-left')).position, armoury, stage };
+  });
+  expect(layout.position).toBe('fixed');
+  expect(layout.armoury.left).toBeLessThanOrEqual(12);
+  expect(layout.armoury.right).toBeLessThan(layout.stage.left);
 });

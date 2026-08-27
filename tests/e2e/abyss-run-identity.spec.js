@@ -58,10 +58,13 @@ for (const viewport of [
     await expect(chronicle).toBeVisible();
     await expect(chronicle.locator('.ab-story-track li')).toHaveCount(10);
     await expect(chronicle.locator('#abyssBoonCard')).toHaveClass(/needs-choice/);
-    await expect(chronicle.locator('.ab-boon-draft button')).toHaveCount(3);
-    await chronicle.locator('.ab-boon-draft button').first().click();
+    await expect(chronicle.locator('.ab-boon-draft-trigger')).toBeVisible();
+    await expect(page.locator('#sharedModal')).toHaveClass(/open/);
+    await expect(page.locator('#sharedModalCard .ab-boon-draft button')).toHaveCount(3);
+    await page.locator('#sharedModalCard .ab-boon-draft button').first().click();
     await expect(chronicle.locator('#abyssRunBoons')).toContainText("Giant's Favor ×1");
-    await expect(chronicle.locator('.ab-boon-draft')).toHaveCount(0);
+    await expect(chronicle.locator('.ab-boon-draft-trigger')).toHaveCount(0);
+    await expect(page.locator('#sharedModal')).not.toHaveClass(/open/);
 
     await page.goto('/abyss?active=1&chronicle=rest');
     await expect(page.locator('#nonCombatPanel')).toBeVisible();
