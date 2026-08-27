@@ -308,6 +308,36 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0323 / 323** — the run-loot empty state explains how to obtain and secure the first reward (`webassets/abyss.html`, `webassets/abyss_inventory_ui.html`, `web_abyss_core_interface_test.go`).
 - [x] **AAA-0325 / 325** — a searchable settings dialog consolidates layout, number, log, accessibility, ambience, and loot preferences (`webassets/abyss_longterm.html`, `tests/e2e/abyss.spec.js`, `tests/e2e/abyss-core-interface.spec.js`).
 
+## Delivered tranche: stage motion and reward feedback
+
+- [x] **AAA-0326 / 326** — each descent drives the reduced-motion-safe elevator transition (`webassets/abyss.html`, `webassets/style.css`, `web_abyss_stage_effects_test.go`).
+- [x] **AAA-0327 / 327** — boss introductions trigger a bounded stage shake while reduced-motion retains the static elemental frame (`webassets/abyss.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0328 / 328** — large combat hits emit bounded floating damage values synchronized to recorder playback (`webassets/abyss_combat_recorder.html`, `webassets/abyss_combat_recorder.css`, `web_abyss_combat_log_ui_test.go`).
+- [x] **AAA-0329 / 329** — high-rarity loot lines project rarity-specific light beams without obscuring their text (`webassets/abyss_loot_presentation.css`, `tests/e2e/abyss.spec.js`).
+- [x] **AAA-0330 / 330** — drop, bank, and defeat cues obey the persisted Sound effects switch (`webassets/abyss_combat_feedback.html`, `webassets/abyss_polish.html`, `web_abyss_polish_test.go`).
+- [x] **AAA-0331 / 331** — Abyss action buttons use consistent tactile press feedback (`webassets/abyss_ui200.css`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0332 / 332** — a reduced-motion-safe confetti burst celebrates a new personal depth record (`webassets/abyss_polish.html`, `webassets/abyss_polish.css`, `web_abyss_polish_test.go`).
+- [x] **AAA-0333 / 333** — the Legendary pity meter pulses only at 90% or more and remains static under reduced motion (`webassets/abyss.html`, `webassets/abyss_ui200.css`, `web_abyss_feedback_clarity_test.go`).
+- [x] **AAA-0334 / 334** — the drop-streak flame grows through four bounded visual tiers (`webassets/abyss_loot_signals.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0335 / 335** — token changes count smoothly to the authoritative total with an immediate reduced-motion fallback (`webassets/abyss.html`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0336 / 336** — banking counts the gold pill to the authoritative result with an immediate reduced-motion fallback (`webassets/abyss.html`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0337 / 337** — the boss health overlay marks its 50% and 25% phase thresholds (`webassets/abyss_stage_hud.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0338 / 338** — revive-gamble resolution uses a bounded slot-style dice cycle with a static reduced-motion state (`webassets/abyss.html`, `tests/e2e/abyss.spec.js`).
+- [x] **AAA-0339 / 339** — successful banking opens the inert, reduced-motion-safe vault transition (`webassets/abyss.html`, `webassets/style.css`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0340 / 340** — defeat presents floors, combat result, lost cache, and a contextual lesson in the run recap (`webassets/abyss.html`, `tests/e2e/abyss.spec.js`).
+- [x] **AAA-0341 / 341** — terminal runs expose a summary card for floors, loot, records, and the biggest hit (`webassets/abyss.html`, `web_abyss_feedback_clarity_test.go`).
+- [x] **AAA-0342 / 342** — every tenth depth receives a distinct milestone toast, with major styling every fiftieth (`webassets/abyss_core_interface.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0343 / 343** — a bounded stage backdrop parallax darkens progressively with authoritative depth (`webassets/abyss_core_interface.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0344 / 344** — the stage backdrop and biome chip inherit the current biome's presentation class (`webassets/abyss.html`, `webassets/abyss_ui200.css`, `web_abyss_stage_presentation_test.go`).
+- [x] **AAA-0345 / 345** — the depth vignette is controlled by a persisted accessibility setting (`webassets/abyss_longterm.html`, `webassets/abyss_ui200.css`, `web_abyss_longterm_test.go`).
+- [x] **AAA-0346 / 346** — achievement banners drain a FIFO queue instead of replacing active announcements (`webassets/abyss.html`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0347 / 347** — active insurance gives the shield badge a reduced-motion-safe glow (`webassets/abyss.html`, `webassets/style.css`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0348 / 348** — a downed run makes the exposed escrow value red and pulses it unless motion is reduced (`webassets/abyss.html`, `webassets/abyss_core_interface.css`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0349 / 349** — the depth dial uses a subtle idle shimmer between milestone and record bursts (`webassets/style.css`, `web_abyss_stage_effects_test.go`).
+- [x] **AAA-0350 / 350** — the cache coin pile grows in bounded steps with authoritative escrow size (`webassets/abyss.html`, `webassets/style.css`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0351 / 351** — all Abyss controls participate in keyboard navigation with visible focus treatment (`webassets/abyss_accessibility.html`, `webassets/abyss_accessibility.css`, `web_abyss_accessibility_feedback_test.go`).
+- [x] **AAA-0352 / 352** — dynamic status, combat, modal, and transaction surfaces expose audited ARIA labels and live-region ownership (`webassets/abyss_accessibility.html`, `web_abyss_accessibility_feedback_test.go`, `tests/e2e/abyss.spec.js`).
+
 ## Delivered tranche: operational quality and client performance
 
 - [x] **AAA-0976 / AB-276** — deterministic ten-week campaigns now apply a visible seasonal palette and triple-weight their matching biome affinity through the replay-safe encounter RNG.

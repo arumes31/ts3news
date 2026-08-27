@@ -56,5 +56,33 @@ test('core interface groups risk, loot, log, shortcut, and insurance feedback', 
   await expect(page.locator('#insuranceNudge')).not.toHaveAttribute('hidden', '');
   await expect(page.locator('#insuranceControls')).toHaveClass(/ab-insurance-attention/);
   await expect(page.locator('#insuranceNudge')).toContainText('uninsured');
+
+  await page.evaluate(() => {
+    const flame = document.querySelector('#dropStreakFlame');
+    flame.dataset.streak = '12';
+    window.__abyssCoreInterface.renderDropStreakFlame();
+    window.applyCombatFrame({ hp: 100, max_hp: 100, mana: 0, max_mana: 0, enemy_hp: 24, enemy_max: 100 });
+    window.curDepth = 9;
+    window.__abyssCoreInterface.milestoneToast(9);
+    window.curDepth = 10;
+    window.__abyssCoreInterface.renderDepthPresentation();
+    window.__abyssCoreInterface.milestoneToast(10);
+    window.achievementBanner('First queued achievement');
+    window.achievementBanner('Second queued achievement');
+    window.maybeBossCard('💀 BOSS — Gorgoroth');
+    document.body.dataset.bossShakeStarted = String(document.querySelector('#abyssStage').classList.contains('ab-boss-spawn-shake'));
+    document.querySelector('#abyssStage').classList.add('ab-downed');
+  });
+  await expect(page.locator('#dropStreakFlame')).toHaveAttribute('data-tier', '3');
+  await expect(page.locator('#bossHPOverlay')).toHaveAttribute('data-phase', 'critical');
+  await expect(page.locator('#bossHPOverlay')).toHaveCSS('--boss-hp', '24%');
+  await expect(page.locator('#abyssStage')).toHaveAttribute('data-depth-band', 'shallow');
+  await expect(page.locator('#abyssDepthBackdrop')).toHaveCount(1);
+  await expect(page.locator('.ab-milestone-toast')).toContainText('Floor 10');
+  await expect(page.locator('#achBanner')).toContainText('First queued achievement');
+  await expect(page.locator('#achBanner')).not.toContainText('Second queued achievement');
+  await expect(page.locator('body')).toHaveAttribute('data-boss-shake-started', 'true');
+  await expect(page.locator('#abyssStage')).toHaveClass(/ab-downed/);
+  await expect(page.locator('#escrowVal')).toHaveCSS('color', 'rgb(255, 107, 114)');
   expect(pageErrors).toEqual([]);
 });

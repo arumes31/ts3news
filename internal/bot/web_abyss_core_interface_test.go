@@ -33,19 +33,21 @@ func TestAbyssRunLootEstimatedValue(t *testing.T) {
 }
 
 func TestAbyssCoreInterfaceAssets(t *testing.T) {
-	for _, asset := range []string{"webassets/abyss.html", "webassets/abyss_core_interface.html", "webassets/abyss_core_interface.css", "webassets/abyss_combat_recorder.html", "webassets/abyss_forge_workstation.html", "webassets/abyss_longterm.html"} {
+	for _, asset := range []string{"webassets/abyss.html", "webassets/abyss_core_interface.html", "webassets/abyss_core_interface.css", "webassets/abyss_combat_recorder.html", "webassets/abyss_forge_workstation.html", "webassets/abyss_longterm.html", "webassets/abyss_loot_signals.html", "webassets/abyss_stage_hud.html"} {
 		body, err := webAssets.ReadFile(asset)
 		if err != nil {
 			t.Fatal(err)
 		}
 		text := string(body)
 		for _, marker := range map[string][]string{
-			"webassets/abyss.html":                   {`id="threatPct"`, `id="bossDistance"`, `id="lootTypeFilters"`, `data-estimated-value=`},
-			"webassets/abyss_core_interface.html":    {`function openRarityGuide()`, `function renderInsuranceNudge()`, `window.showAbyssShortcuts`},
-			"webassets/abyss_core_interface.css":     {`.ab-log-timestamps`, `.ab-insurance-attention`, `.ab-loot-type-filters`},
+			"webassets/abyss.html":                   {`id="threatPct"`, `id="bossDistance"`, `id="lootTypeFilters"`, `data-estimated-value=`, `achievementBannerQueue`, `ab-boss-spawn-shake`},
+			"webassets/abyss_core_interface.html":    {`function openRarityGuide()`, `function renderInsuranceNudge()`, `window.showAbyssShortcuts`, `function milestoneToast`, `function updateParallax`},
+			"webassets/abyss_core_interface.css":     {`.ab-log-timestamps`, `.ab-insurance-attention`, `.ab-loot-type-filters`, `.ab-drop-streak-flame`, `.ab-boss-hp.has-phases`, `.ab-depth-backdrop`, `.ab-milestone-toast`, `.ab-boss-spawn-shake`, `.abyss-stage.ab-downed .ab-escrow-val`},
 			"webassets/abyss_combat_recorder.html":   {`id="abyssShortcutHelp"`, `id="logAutoScroll"`},
 			"webassets/abyss_forge_workstation.html": {`id="forgeItemSearch"`, `forgeSlotFilter`, `event.key==='ArrowDown'`},
 			"webassets/abyss_longterm.html":          {`key:'ab_logtime'`, `key:'ab_loottype'`},
+			"webassets/abyss_loot_signals.html":      {`id="dropStreakFlame"`, `data-streak=`},
+			"webassets/abyss_stage_hud.html":         {`--boss-hp`, `boss.dataset.phase`, `Phase markers at 50% and 25%`},
 		}[asset] {
 			if !strings.Contains(text, marker) {
 				t.Fatalf("%s missing %q", asset, marker)

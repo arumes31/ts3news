@@ -2589,7 +2589,10 @@ function maybeBossCard(html){
   // UI-7: the stage frame takes the boss's element color (not an animation,
   // so it applies under reduced motion too).
   var st=document.getElementById('abyssStage');
-  if(st){st.classList.remove('ab-boss-fire','ab-boss-void','ab-boss-eye','ab-boss-heart');st.classList.add(bossFrameClass(name));}
+  if(st){
+    st.classList.remove('ab-boss-fire','ab-boss-void','ab-boss-eye','ab-boss-heart');st.classList.add(bossFrameClass(name));
+    if(!reduceMotion){st.classList.remove('ab-boss-spawn-shake');void st.offsetWidth;st.classList.add('ab-boss-spawn-shake');setTimeout(function(){st.classList.remove('ab-boss-spawn-shake');},650);}
+  }
   if(reduceMotion) return;
   var card=document.getElementById('bossCard');
   if(!card) return;
@@ -6490,15 +6493,18 @@ async function confirmModalDangerous(message, opts){
 }
 
 // UI-140: achievement unlock — top slide-down banner with the badge icon.
-function achievementBanner(name){
-  var old=document.getElementById('achBanner'); if(old)old.remove();
+var achievementBannerQueue=[],achievementBannerActive=false;
+function achievementBanner(name){achievementBannerQueue.push(String(name||'Achievement'));showNextAchievementBanner();}
+function showNextAchievementBanner(){
+  if(achievementBannerActive||!achievementBannerQueue.length)return;
+  achievementBannerActive=true;var name=achievementBannerQueue.shift();
   var b=document.createElement('div');
   b.id='achBanner'; b.className='ab-ach-banner';
   b.setAttribute('role','status');
   b.innerHTML='🏅 <b>Achievement unlocked</b> — '+consEsc(name);
   document.body.appendChild(b);
   requestAnimationFrame(function(){ b.classList.add('show'); });
-  setTimeout(function(){ b.classList.remove('show'); setTimeout(function(){ b.remove(); },400); },4200);
+  setTimeout(function(){ b.classList.remove('show'); setTimeout(function(){b.remove();achievementBannerActive=false;showNextAchievementBanner();},400); },4200);
 }
 
 // UI-141: one-time ring burst on the depth dial for a new personal record.

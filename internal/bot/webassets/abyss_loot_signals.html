@@ -57,7 +57,7 @@
 
   <section class="abyss-pity-hud ab-drop-streak" aria-labelledby="abyssDropStreakTitle">
     <div class="ab-pity-head">
-      <span id="abyssDropStreakTitle">🍀 <b>Drop Streak</b></span>
+      <span id="abyssDropStreakTitle"><span class="ab-drop-streak-flame" id="dropStreakFlame" data-streak="{{.DropStreak}}" aria-hidden="true">🔥</span> <b>Drop Streak</b></span>
       <span class="muted small"><span id="dropStreakCount">{{.DropStreak}}</span> {{if eq .DropStreak 1}}floor{{else}}floors{{end}} since last gear (+{{.DropStreakBonusPct}}% loot find, capped)</span>
     </div>
     <div class="ab-pity-track" aria-hidden="true">
