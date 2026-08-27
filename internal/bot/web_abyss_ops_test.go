@@ -18,15 +18,20 @@ import (
 
 func TestAbyssFeatureRolloutIsStableAndBounded(t *testing.T) {
 	for _, percent := range []int{0, 1, 50, 99, 100} {
-		cfg := &abyssFeatureConfig{liveActions: true, social: true, rollout: percent}
-		for i := range 500 {
-			uid := "player-" + strconv.Itoa(i)
-			first := cfg.enabled("live_actions", uid)
-			if first != cfg.enabled("live_actions", uid) {
-				t.Fatalf("rollout assignment changed for %q", uid)
-			}
-			if percent == 0 && first || percent == 100 && !first {
-				t.Fatalf("rollout %d produced invalid assignment for %q", percent, uid)
+		cfg := &abyssFeatureConfig{
+			liveActions: true, social: true, tree: true, forge: true,
+			liveRollout: percent, socialRollout: percent, treeRollout: percent, forgeRollout: percent,
+		}
+		for _, feature := range []string{"live_actions", "social", "tree", "forge"} {
+			for i := range 500 {
+				uid := "player-" + strconv.Itoa(i)
+				first := cfg.enabled(feature, uid)
+				if first != cfg.enabled(feature, uid) {
+					t.Fatalf("%s rollout assignment changed for %q", feature, uid)
+				}
+				if percent == 0 && first || percent == 100 && !first {
+					t.Fatalf("%s rollout %d produced invalid assignment for %q", feature, percent, uid)
+				}
 			}
 		}
 	}
@@ -217,7 +222,9 @@ func TestAbyssFeatureConfigIsConcurrencySafe(t *testing.T) {
 
 func TestAbyssRewardExperimentGuardrails(t *testing.T) {
 	features := abyssFeatureSnapshot{RewardExperimentEnabled: true, RewardExperimentRevision: 3}
-	var metrics abyssOpsMetrics
+	cfg := &abyssFeatureConfig{rewardExperiment: true, rewardRollout: 100, rewardBonusBPS: 500, experimentRev: 3}
+	server := &WebServer{abyssFeatures: cfg}
+	metrics := &server.abyssOps
 	metrics.resetRewardExperiment(3)
 	control := abyssRewardAssignment{Cohort: "control", MultiplierBPS: abyssRewardBaseBPS, Revision: 3}
 	treatment := abyssRewardAssignment{Cohort: "treatment", MultiplierBPS: 10_500, Revision: 3}
@@ -226,12 +233,24 @@ func TestAbyssRewardExperimentGuardrails(t *testing.T) {
 		metrics.observeRewardExperiment(treatment, 105, true, index < 15, false)
 	}
 	snapshot := metrics.rewardExperimentSnapshot(features)
-	if snapshot.Status != "halt_recommended" {
-		t.Fatalf("guardrail status = %q, want halt_recommended", snapshot.Status)
+	if snapshot.Status != "halted" {
+		t.Fatalf("guardrail status = %q, want halted", snapshot.Status)
 	}
 	if snapshot.Cohorts["treatment"].DeathRate != 0.25 {
 		t.Fatalf("treatment death rate = %v, want 0.25", snapshot.Cohorts["treatment"].DeathRate)
 	}
+	for index := 0; index < 1_000; index++ {
+		uid := "treatment-" + strconv.Itoa(index)
+		if cfg.rewardAssignment(uid).Cohort != "treatment" {
+			continue
+		}
+		assignment := server.abyssRewardAssignment(uid)
+		if assignment.Cohort != "holdout" || assignment.MultiplierBPS != abyssRewardBaseBPS {
+			t.Fatalf("guarded assignment = %#v, want zero-uplift holdout", assignment)
+		}
+		return
+	}
+	t.Fatal("test could not find a deterministic treatment assignment")
 }
 
 func TestAbyssBalanceSnapshotUsesAuthoritativeRunHistory(t *testing.T) {
@@ -257,7 +276,7 @@ func TestAbyssBalanceSnapshotUsesAuthoritativeRunHistory(t *testing.T) {
 }
 
 func TestAbyssOpsRuntimeUpdateRequiresTokenAndStrictJSON(t *testing.T) {
-	server := &WebServer{abyssFeatures: &abyssFeatureConfig{opsToken: "operator-secret", rollout: 100}}
+	server := &WebServer{abyssFeatures: &abyssFeatureConfig{opsToken: "operator-secret", liveRollout: 100}}
 	request := httptest.NewRequest(http.MethodPost, "/api/abyss/ops", bytes.NewBufferString(`{"feature":"social","enabled":false}`))
 	recorder := httptest.NewRecorder()
 	server.handleAbyssOps(recorder, request, "player")

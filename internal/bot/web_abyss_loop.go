@@ -387,7 +387,7 @@ func (s *WebServer) autoConcedeIfTimedOut(w http.ResponseWriter, uid string, run
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return true
 	}
-	s.abyssOps.funnel.observeConcede(uid)
+	s.abyssOps.funnel.observeEnd(uid, "timeout")
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	writeJSON(w, map[string]any{

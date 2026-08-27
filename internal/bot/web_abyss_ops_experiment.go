@@ -64,8 +64,36 @@ func (m *abyssOpsMetrics) observeRewardExperiment(assignment abyssRewardAssignme
 	m.rewardCohorts[assignment.Cohort] = cohort
 }
 
+func abyssRewardGuardrailTripped(control, treatment abyssRewardCohortMetrics) bool {
+	if control.CombatFloors < abyssExperimentGuardrailSample || treatment.CombatFloors < abyssExperimentGuardrailSample {
+		return false
+	}
+	return ratio(treatment.Deaths, treatment.CombatFloors) > ratio(control.Deaths, control.CombatFloors)+0.05 ||
+		ratio(treatment.Anomalies, treatment.Floors) > 0.01
+}
+
+func (m *abyssOpsMetrics) rewardGuardrailHalted(revision uint64) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if revision != m.rewardExperimentRevision {
+		return false
+	}
+	return abyssRewardGuardrailTripped(m.rewardCohorts["control"], m.rewardCohorts["treatment"])
+}
+
+func (s *WebServer) abyssRewardAssignment(uid string) abyssRewardAssignment {
+	assignment := s.abyssFeatures.rewardAssignment(uid)
+	if assignment.Cohort == "treatment" && s.abyssOps.rewardGuardrailHalted(assignment.Revision) {
+		assignment.Cohort = "holdout"
+		assignment.MultiplierBPS = abyssRewardBaseBPS
+	}
+	return assignment
+}
+
 func (m *abyssOpsMetrics) rewardExperimentSnapshot(features abyssFeatureSnapshot) abyssRewardExperimentSnapshot {
 	m.mu.Lock()
+	controlMetrics := m.rewardCohorts["control"]
+	treatmentMetrics := m.rewardCohorts["treatment"]
 	cohorts := make(map[string]abyssRewardCohortSnapshot, len(m.rewardCohorts))
 	for name, metrics := range m.rewardCohorts {
 		cohorts[name] = abyssRewardCohortSnapshot{
@@ -83,8 +111,8 @@ func (m *abyssOpsMetrics) rewardExperimentSnapshot(features abyssFeatureSnapshot
 		treatment, treatmentOK := cohorts["treatment"]
 		if controlOK && treatmentOK && control.CombatFloors >= abyssExperimentGuardrailSample && treatment.CombatFloors >= abyssExperimentGuardrailSample {
 			status = "healthy"
-			if treatment.DeathRate > control.DeathRate+0.05 || treatment.AnomalyRate > 0.01 {
-				status = "halt_recommended"
+			if abyssRewardGuardrailTripped(controlMetrics, treatmentMetrics) {
+				status = "halted"
 			}
 		}
 	}

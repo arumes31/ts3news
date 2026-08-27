@@ -1008,3 +1008,9 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0359 / 359** — live snapshots carry monotonic log ranges; refresh rebuilds the complete deduplicated combat feed and restores the exact saved scroll position without breaking follow-at-bottom behavior.
 - [x] **AAA-0392 / 392** — a bounded 128-player concurrency test verifies guarded descend requests retain independent per-player mutation locks without global serialization.
 - [x] **AAA-0393 / 393** — Playwright covers successful descend-to-bank, fatal descend-to-revive/concede, planned multi-floor combat, and mid-fight refresh recovery paths.
+
+## Delivered tranche: controlled rollout and balance telemetry
+
+- [x] **AAA-0394 / 394** — live actions, social combat, the enhanced skill tree, and the forge workbench each have an independently reversible kill switch and deterministic 0–100% rollout controlled through the token-protected operator plane (`web_abyss_ops_config.go`, `web_abyss_ops_test.go`, `webassets/abyss_ops.html`, `tests/e2e/abyss.spec.js`).
+- [x] **AAA-0395 / 395** — bounded, aggregate-only funnel telemetry records the highest attempted depth band and authoritative bank, concede, timeout, or failed-revive terminal reason without retaining or exposing player identifiers (`web_abyss_funnel.go`, `web_abyss_funnel_test.go`, `webassets/abyss_ops.js`, `tests/e2e/abyss.spec.js`).
+- [x] **AAA-0397 / 397** — deterministic reward cohorts enforce bounded uplift, revision-isolated samples, operator kill switches, and an automatic zero-uplift holdout once minimum-sample death or anomaly guardrails trip (`web_abyss_ops_config.go`, `web_abyss_ops_experiment.go`, `web_abyss_ops_test.go`, `webassets/abyss_ops.html`).

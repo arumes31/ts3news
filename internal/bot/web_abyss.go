@@ -2278,7 +2278,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	s.abyssOps.funnel.observeEnter(uid, time.Now())
+	s.abyssOps.funnel.observeEnter(uid, time.Now(), startDepth)
 
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
@@ -3383,7 +3383,7 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 		o.DailyFirst = true
 	}
 	bonus = abyssHardcoreFloorReward(bonus, abyssHardcoreRun(runFlags))
-	o.RewardExperiment = s.abyssFeatures.rewardAssignment(uid)
+	o.RewardExperiment = s.abyssRewardAssignment(uid)
 	bonus = applyAbyssRewardAssignment(bonus, o.RewardExperiment)
 	bountyReward, bountyDoubled := settleAbyssRunBounty(runFlags)
 	if bountyReward > 0 {
@@ -3676,7 +3676,7 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		out["hardcore"] = hardcore
 		out["grace_protected"] = abyssGraceProtected(depth, hardcore)
 		out["survival_chance_pct"] = s.bot.abyssRunSurvivalChance(uid, depth, tier)
-		assignment := s.abyssFeatures.rewardAssignment(uid)
+		assignment := s.abyssRewardAssignment(uid)
 		if assignment.Cohort != "off" {
 			out["reward_experiment"] = assignment
 		}
@@ -3818,7 +3818,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	s.abyssOps.funnel.observeConcede(uid)
+	s.abyssOps.funnel.observeEnd(uid, "revive_failed")
 	out := map[string]any{
 		"ok": true, "revived": true, "victory": false, "depth": run.Depth,
 		"hp": 0, "logs": res.LogsHTML, "loot": res.LootHTML, "dura": res.DuraHTML,
@@ -3869,7 +3869,7 @@ func (s *WebServer) handleAbyssConcede(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	s.abyssOps.funnel.observeConcede(uid)
+	s.abyssOps.funnel.observeEnd(uid, "conceded")
 	var gold int64
 	_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
 	out := map[string]any{
@@ -5831,7 +5831,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 		bonus = bonus * 5 / 4
 	}
 	bonus = abyssRecordPushReward(bonus, run.Depth, st.BestDepth)
-	rewardExperiment := s.abyssFeatures.rewardAssignment(uid)
+	rewardExperiment := s.abyssRewardAssignment(uid)
 	bonus = applyAbyssRewardAssignment(bonus, rewardExperiment)
 
 	hasLuckyCoin := false

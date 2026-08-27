@@ -769,6 +769,7 @@ test('dedicated special-item pixel atlases are served', async ({ request }) => {
 
 test('operator dashboard charts balance data and applies runtime flags', async ({ page }) => {
   let socialEnabled = true;
+  let socialRollout = 75;
   const snapshot = () => ({
     ok: true,
     registry: { active: 3, stale: 0, orphan: 0 },
@@ -778,12 +779,18 @@ test('operator dashboard charts balance data and applies runtime flags', async (
     features: {
       live_actions: true, social: socialEnabled, tree_enhancements: true,
       forge_workbench: true, rollout_percent: 100,
+      social_rollout_percent: socialRollout, tree_rollout_percent: 60, forge_rollout_percent: 40,
       reward_experiment_enabled: true, reward_experiment_rollout_percent: 50,
       reward_treatment_bonus_bps: 500, revision: 4, reward_experiment_revision: 2,
     },
     reward_experiment: {
       enabled: true, revision: 2, status: 'collecting',
       cohorts: { control: { floors: 8, average_reward: 1200, death_rate: 0.125, anomaly_rate: 0 } },
+    },
+    funnel: {
+      scope: 'process_lifetime', entered: 12, reached_floor_5: 9, banked: 5,
+      conceded: 4, active_tracked: 3,
+      stops_by_depth: { '5-9': { banked: 2, conceded: 1, timeout: 1, revive_failed: 1 } },
     },
     balance: {
       available: true, window_days: 30,
@@ -799,6 +806,7 @@ test('operator dashboard charts balance data and applies runtime flags', async (
     if (request.method() === 'POST') {
       const body = request.postDataJSON();
       if (body.feature === 'social') socialEnabled = body.enabled;
+      if (body.feature === 'social_rollout') socialRollout = body.percent;
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, features: snapshot().features, reward_experiment: snapshot().reward_experiment }) });
       return;
     }
@@ -810,8 +818,12 @@ test('operator dashboard charts balance data and applies runtime flags', async (
   await expect(page.locator('#opsActive')).toHaveText('3');
   await expect(page.locator('#opsDeathChart path.line')).toHaveCount(1);
   await expect(page.locator('#opsDropChart circle')).toHaveCount(2);
+  await expect(page.locator('#opsFunnelSummary')).toContainText('12 entered');
+  await expect(page.locator('#opsFunnelRows')).toContainText('5-9');
   await page.locator('[data-ops-feature="social"]').uncheck();
   await expect.poll(() => socialEnabled).toBe(false);
+  await page.locator('#socialRollout').fill('35');
+  await expect.poll(() => socialRollout).toBe(35);
   await expect(page.locator('#opsStatus')).toContainText('updated');
 });
 

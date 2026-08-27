@@ -18,12 +18,15 @@ const (
 type abyssFeatureConfig struct {
 	mu sync.RWMutex
 
-	liveActions bool
-	social      bool
-	tree        bool
-	forge       bool
-	rollout     int
-	opsToken    string
+	liveActions   bool
+	social        bool
+	tree          bool
+	forge         bool
+	liveRollout   int
+	socialRollout int
+	treeRollout   int
+	forgeRollout  int
+	opsToken      string
 
 	rewardExperiment bool
 	rewardRollout    int
@@ -38,6 +41,9 @@ type abyssFeatureSnapshot struct {
 	TreeEnhancements         bool   `json:"tree_enhancements"`
 	ForgeWorkbench           bool   `json:"forge_workbench"`
 	RolloutPercent           int    `json:"rollout_percent"`
+	SocialRolloutPercent     int    `json:"social_rollout_percent"`
+	TreeRolloutPercent       int    `json:"tree_rollout_percent"`
+	ForgeRolloutPercent      int    `json:"forge_rollout_percent"`
 	RewardExperimentEnabled  bool   `json:"reward_experiment_enabled"`
 	RewardExperimentRollout  int    `json:"reward_experiment_rollout_percent"`
 	RewardTreatmentBonusBPS  int    `json:"reward_treatment_bonus_bps"`
@@ -64,7 +70,10 @@ func newAbyssFeatureConfig(b *Bot) *abyssFeatureConfig {
 		social:         true,
 		tree:           true,
 		forge:          true,
-		rollout:        100,
+		liveRollout:    100,
+		socialRollout:  100,
+		treeRollout:    100,
+		forgeRollout:   100,
 		rewardRollout:  100,
 		rewardBonusBPS: 500,
 		revision:       1,
@@ -75,7 +84,11 @@ func newAbyssFeatureConfig(b *Bot) *abyssFeatureConfig {
 		cfg.social = b.Cfg.AbyssSocial
 		cfg.tree = b.Cfg.AbyssTreeEnhancements
 		cfg.forge = b.Cfg.AbyssForgeWorkbench
-		cfg.rollout = min(100, max(0, b.Cfg.AbyssLiveRolloutPercent))
+		rollout := min(100, max(0, b.Cfg.AbyssLiveRolloutPercent))
+		cfg.liveRollout = rollout
+		cfg.socialRollout = rollout
+		cfg.treeRollout = rollout
+		cfg.forgeRollout = rollout
 		cfg.opsToken = b.Cfg.AbyssOpsToken
 	}
 	return cfg
@@ -99,13 +112,13 @@ func (c *abyssFeatureConfig) enabled(feature, uid string) bool {
 	defer c.mu.RUnlock()
 	switch feature {
 	case "social":
-		return c.social && stableAbyssBucket(uid, "") < c.rollout
+		return c.social && stableAbyssBucket(uid, "") < c.socialRollout
 	case "live_actions":
-		return c.liveActions && stableAbyssBucket(uid, "") < c.rollout
+		return c.liveActions && stableAbyssBucket(uid, "") < c.liveRollout
 	case "tree":
-		return c.tree
+		return c.tree && stableAbyssBucket(uid, "tree") < c.treeRollout
 	case "forge":
-		return c.forge
+		return c.forge && stableAbyssBucket(uid, "forge") < c.forgeRollout
 	default:
 		return false
 	}
@@ -131,7 +144,10 @@ func (c *abyssFeatureConfig) snapshot() abyssFeatureSnapshot {
 		Social:                   c.social,
 		TreeEnhancements:         c.tree,
 		ForgeWorkbench:           c.forge,
-		RolloutPercent:           c.rollout,
+		RolloutPercent:           c.liveRollout,
+		SocialRolloutPercent:     c.socialRollout,
+		TreeRolloutPercent:       c.treeRollout,
+		ForgeRolloutPercent:      c.forgeRollout,
 		RewardExperimentEnabled:  c.rewardExperiment,
 		RewardExperimentRollout:  c.rewardRollout,
 		RewardTreatmentBonusBPS:  c.rewardBonusBPS,
@@ -165,14 +181,21 @@ func (c *abyssFeatureConfig) update(update abyssFeatureUpdate) (abyssFeatureSnap
 			c.rewardExperiment = *update.Enabled
 			experimentChanged = true
 		}
-	case "live_rollout", "reward_experiment_rollout":
+	case "live_rollout", "social_rollout", "tree_rollout", "forge_rollout", "reward_experiment_rollout":
 		if update.Percent == nil || update.Enabled != nil || update.BonusBPS != nil || *update.Percent < 0 || *update.Percent > 100 {
 			c.mu.Unlock()
 			return abyssFeatureSnapshot{}, false, errors.New("percent must be between 0 and 100")
 		}
-		if update.Feature == "live_rollout" {
-			c.rollout = *update.Percent
-		} else {
+		switch update.Feature {
+		case "live_rollout":
+			c.liveRollout = *update.Percent
+		case "social_rollout":
+			c.socialRollout = *update.Percent
+		case "tree_rollout":
+			c.treeRollout = *update.Percent
+		case "forge_rollout":
+			c.forgeRollout = *update.Percent
+		default:
 			c.rewardRollout = *update.Percent
 			experimentChanged = true
 		}
@@ -196,7 +219,10 @@ func (c *abyssFeatureConfig) update(update abyssFeatureUpdate) (abyssFeatureSnap
 		Social:                   c.social,
 		TreeEnhancements:         c.tree,
 		ForgeWorkbench:           c.forge,
-		RolloutPercent:           c.rollout,
+		RolloutPercent:           c.liveRollout,
+		SocialRolloutPercent:     c.socialRollout,
+		TreeRolloutPercent:       c.treeRollout,
+		ForgeRolloutPercent:      c.forgeRollout,
 		RewardExperimentEnabled:  c.rewardExperiment,
 		RewardExperimentRollout:  c.rewardRollout,
 		RewardTreatmentBonusBPS:  c.rewardBonusBPS,

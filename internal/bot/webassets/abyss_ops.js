@@ -63,10 +63,30 @@
 
   function renderFeatures(features) {
     root.querySelectorAll('[data-ops-feature]').forEach(input => { input.checked = Boolean(features[input.dataset.opsFeature]); input.disabled = false; });
-    $('liveRollout').value = features.rollout_percent; $('liveRolloutValue').textContent = features.rollout_percent + '%';
+    const rollout = (id, value) => { const percent = Number(value ?? features.rollout_percent ?? 0); $(id).value = percent; $(id + 'Value').textContent = percent + '%'; };
+    rollout('liveRollout', features.rollout_percent);
+    rollout('socialRollout', features.social_rollout_percent);
+    rollout('treeRollout', features.tree_rollout_percent);
+    rollout('forgeRollout', features.forge_rollout_percent);
     $('rewardRollout').value = features.reward_experiment_rollout_percent; $('rewardRolloutValue').textContent = features.reward_experiment_rollout_percent + '%';
     $('rewardBonus').value = features.reward_treatment_bonus_bps; $('rewardBonusValue').textContent = '+' + (features.reward_treatment_bonus_bps / 100).toFixed(2) + '%';
     $('opsRevision').textContent = 'revision ' + features.revision;
+  }
+
+  function renderFunnel(funnel) {
+    const stops = funnel.stops_by_depth || {}, order = ['entry', '1-4', '5-9', '10-24', '25-49', '50-99', '100+'];
+    const bands = order.filter(band => stops[band]);
+    Object.keys(stops).sort().forEach(band => { if (!bands.includes(band)) bands.push(band); });
+    const rows = $('opsFunnelRows'); rows.replaceChildren();
+    if (!bands.length) { const row = rows.insertRow(); const cell = row.insertCell(); cell.colSpan = 6; cell.textContent = 'No completed runs sampled.'; }
+    bands.forEach(band => {
+      const reasons = stops[band] || {}, row = rows.insertRow();
+      [band, reasons.banked, reasons.conceded, reasons.timeout, reasons.revive_failed, reasons.other].forEach((value, index) => {
+        const cell = row.insertCell(); cell.textContent = index ? number(value, 0) : value;
+      });
+    });
+    $('opsFunnelScope').textContent = String(funnel.scope || 'process lifetime').replace('_', ' ');
+    $('opsFunnelSummary').textContent = `${number(funnel.entered, 0)} entered · ${number(funnel.reached_floor_5, 0)} reached floor 5 · ${number(funnel.banked, 0)} banked · ${number(funnel.conceded, 0)} forfeited · ${number(funnel.active_tracked, 0)} active`;
   }
 
   function renderExperiment(experiment) {
@@ -88,7 +108,7 @@
     $('opsLatency').textContent = `${number(latency.request_avg, 0)} / ${number(latency.request_max, 0)} ms`;
     $('opsAutomation').textContent = pct(actions.automatic_rate, 1); $('opsActions').textContent = `${number(actions.automatic, 0)} auto · ${number(actions.manual, 0)} manual`;
     $('opsAnomalies').textContent = number(anomalies.total, 0); $('opsAnomalySplit').textContent = `${number(anomalies.reward, 0)} reward · ${number(anomalies.damage, 0)} damage · ${number(anomalies.economy, 0)} economy`;
-    renderFeatures(payload.features || {}); renderExperiment(payload.reward_experiment || {});
+    renderFeatures(payload.features || {}); renderExperiment(payload.reward_experiment || {}); renderFunnel(payload.funnel || {});
     const balance = payload.balance || {}, days = balance.available ? (balance.days || []) : [];
     renderChart('opsDeathChart', days, 'death_rate', value => pct(value, 0), 'opsDeathEmpty');
     renderChart('opsDropChart', days, 'drops_per_floor', value => number(value, 2), 'opsDropEmpty');
