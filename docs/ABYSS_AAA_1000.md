@@ -990,3 +990,9 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0353 / 353** — persisted semantic color profiles combine colorblind-safe hues with the existing non-color rarity glyphs.
 - [x] **AAA-0354 / 354** — a persisted motion policy can suppress every descendant animation and transition while honoring the system preference.
 - [x] **AAA-0372 / 372** — the dynamic page title marks downed and decision-floor states while retaining the existing live depth title.
+
+## Delivered tranche: core action submission safety
+
+- [x] **AAA-0358 / 358** — single- and multi-floor descents lock every run action before low-health confirmation and expose their busy state to assistive technology.
+- [x] **AAA-0391 / 391** — descend, floor-choice, revive, and bank mutations share an authenticated token-bucket guard that detects and security-logs repeated throttled bursts.
+- [x] **AAA-0399 / 399** — core run mutations accept bounded idempotency keys, replay successful responses safely, reject payload reuse, and retry one lost browser response with the same key.

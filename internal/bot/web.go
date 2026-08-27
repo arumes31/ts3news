@@ -64,6 +64,7 @@ type WebServer struct {
 	abyssOps           abyssOpsMetrics
 	abyssTreeOps       abyssTreeOpsMetrics
 	abyssForgeOps      abyssForgeOpsMetrics
+	abyssCoreActions   abyssCoreActionGuard
 	abyssClientReports abyssClientReportStore
 	abyssPublicStats   abyssPublicStatsCache
 	forgeQuoteKey      [32]byte
@@ -479,12 +480,12 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/pact/presets", s.authAPI(s.handleAbyssPactPresets))
 		mux.HandleFunc("/api/abyss/affix/weekend_vote", s.authAPI(s.handleAbyssWeekendAffixVote))
 		mux.HandleFunc("/api/abyss/affix/reroll", s.authAPI(s.handleAbyssPersonalAffixReroll))
-		mux.HandleFunc("/api/abyss/descend", s.authAPI(s.handleAbyssDescend))
-		mux.HandleFunc("/api/abyss/descend_multi", s.authAPI(s.handleAbyssDescendMulti))
-		mux.HandleFunc("/api/abyss/choose_floor", s.authAPI(s.handleAbyssChooseFloor))
-		mux.HandleFunc("/api/abyss/revive", s.authAPI(s.handleAbyssRevive))
+		mux.HandleFunc("/api/abyss/descend", s.authAPI(s.guardAbyssCoreAction(s.handleAbyssDescend)))
+		mux.HandleFunc("/api/abyss/descend_multi", s.authAPI(s.guardAbyssCoreAction(s.handleAbyssDescendMulti)))
+		mux.HandleFunc("/api/abyss/choose_floor", s.authAPI(s.guardAbyssCoreAction(s.handleAbyssChooseFloor)))
+		mux.HandleFunc("/api/abyss/revive", s.authAPI(s.guardAbyssCoreAction(s.handleAbyssRevive)))
 		mux.HandleFunc("/api/abyss/concede", s.authAPI(s.handleAbyssConcede))
-		mux.HandleFunc("/api/abyss/bank", s.authAPI(s.handleAbyssBank))
+		mux.HandleFunc("/api/abyss/bank", s.authAPI(s.guardAbyssCoreAction(s.handleAbyssBank)))
 		mux.HandleFunc("/api/abyss/double_bonus", s.authAPI(s.handleAbyssDoubleBonus))
 		mux.HandleFunc("/api/abyss/focus", s.authAPI(s.handleAbyssFocus))
 		mux.HandleFunc("/api/abyss/insure", s.authAPI(s.handleAbyssInsure))

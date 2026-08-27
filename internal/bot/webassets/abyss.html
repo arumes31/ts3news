@@ -1671,6 +1671,27 @@ var abyssForgeCommitOperations={
   '/api/abyss/polish':'polish','/api/abyss/reinforce':'reinforce','/api/abyss/sharpen':'sharpen','/api/abyss/awaken':'awaken','/api/abyss/imbue':'imbue','/api/abyss/punch_socket':'punch_socket','/api/abyss/attune':'attune','/api/abyss/reforge':'reforge','/api/abyss/embrace':'embrace','/api/abyss/masterwork':'masterwork','/api/abyss/corrupt':'corrupt','/api/abyss/infuse_curse':'infuse_curse','/api/abyss/infuse_eldritch':'infuse_eldritch','/api/abyss/rebalance':'rebalance','/api/abyss/transmute_gem':'transmute_gem','/api/abyss/brand':'brand','/api/abyss/temper_surge':'temper_surge','/api/abyss/swap_special':'swap_special','/api/abyss/infuse_xp':'infuse_xp','/api/abyss/prismatic_rune':'prismatic_rune',
   '/api/abyss/batch_temper':'batch_temper','/api/abyss/temper_guard':'temper_guard','/api/abyss/forge_queue':'forge_queue','/api/abyss/gem_upgrade_all':'gem_upgrade_all','/api/abyss/scrape_rune':'scrape_rune','/api/abyss/unattune':'unattune','/api/abyss/masterwork_transfer':'masterwork_transfer','/api/abyss/reforge_lock':'reforge_lock','/api/abyss/rebalance_all':'rebalance_all','/api/abyss/unbrand':'unbrand','/api/abyss/special_reroll':'special_reroll','/api/abyss/awaken_guided':'awaken_guided','/api/abyss/imbue_remove':'imbue_remove','/api/abyss/polish_all':'polish_all','/api/abyss/craft_repair_kit2':'craft_repair_kit2','/api/abyss/socket_relocate':'socket_relocate','/api/abyss/reroll_ring_sockets':'reroll_ring_sockets','/api/abyss/celestial_fuse_boosted':'celestial_fuse_boosted','/api/abyss/convert_mats':'convert_mats'
 };
+var abyssCoreActionOperations={
+  '/api/abyss/descend':true,
+  '/api/abyss/descend_multi':true,
+  '/api/abyss/choose_floor':true,
+  '/api/abyss/revive':true,
+  '/api/abyss/bank':true
+};
+function abyssRequestKey(){
+  return (window.crypto&&typeof window.crypto.randomUUID==='function')
+    ? window.crypto.randomUUID()
+    : 'abyss-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+}
+async function abyssCoreActionPost(url,body){
+  var requestKey=abyssRequestKey(),headers={'Idempotency-Key':requestKey};
+  var result=await abRawPost(url,body,headers);
+  if(result&&result.ok===false&&result.error==='network error'){
+    await new Promise(function(resolve){setTimeout(resolve,250);});
+    result=await abRawPost(url,body,headers);
+  }
+  return result;
+}
 async function abyssForgeCommit(url,body,operation){
   var commitBody=Object.assign({},body||{}),parameters=Object.assign({},commitBody);
   var invID=Number(parameters.inv_id||0),slot=String(parameters.slot||'');
@@ -1696,7 +1717,11 @@ async function abPost(url,body){
   var operation=abyssForgeCommitOperations[url];
   var actionElement=(lastActionBtn&&lastActionBtn.isConnected)?lastActionBtn:document.activeElement;
   var returnAfterAction=!!(actionElement&&actionElement.closest&&actionElement.closest('[data-abyss-section="shop"],[data-abyss-section="forge"]'));
-  var result=operation?await abyssForgeCommit(url,body,operation):await abRawPost(url,body);
+  var result=operation
+    ? await abyssForgeCommit(url,body,operation)
+    : abyssCoreActionOperations[url]
+      ? await abyssCoreActionPost(url,body)
+      : await abRawPost(url,body);
   if(result&&result.ok&&returnAfterAction)setTimeout(function(){focusAbyssDescend();},180);
   return result;
 }
@@ -1740,6 +1765,7 @@ async function abyssSimulateNextFloor(){
 
 function setBusy(b){
   busy=b;['btnEnter','btnDescend','btnBank','btnBank25','btnBank50','btnTransport','btnDoubleBonus','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore','btnSimulate'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
+  ['abyssControls','abyssStage'].forEach(function(id){var el=document.getElementById(id);if(el)el.setAttribute('aria-busy',b?'true':'false');});
   if(b&&!lastActionBtn&&document.activeElement&&document.activeElement.tagName==='BUTTON')markBusyElement(document.activeElement);
   if(!b){if(lastActionBtnTimer){clearTimeout(lastActionBtnTimer);lastActionBtnTimer=null;}if(lastActionBtn){lastActionBtn.classList.remove('btn-busy');lastActionBtn=null;}abyssDescendInFlight=false;updateFloatingDescend();}
   if(typeof updateAbyssRunAwareness==='function')updateAbyssRunAwareness();
@@ -3470,12 +3496,13 @@ async function confirmLowHP(){
 
 async function abyssDescend(){
   if(busy)return;
+  setBusy(true);
   // Low-HP confirm [87]
   var bar=document.getElementById('hpBar');
   var hp=Number(bar.getAttribute('aria-valuenow')), max=Number(bar.getAttribute('aria-valuemax'));
-  if(!(await confirmLowHP()))return;
+  if(!(await confirmLowHP())){setBusy(false);return;}
   abyssDescendInFlight=true;updateFloatingDescend('Descending to floor '+(curDepth+1)+'…');
-  setBusy(true); markBusyBtn('btnDescend'); clearBanner();
+  markBusyBtn('btnDescend'); clearBanner();
   document.getElementById('abStatus').textContent='Descending…';
 
   var d=await abPost('/api/abyss/descend',{interactive:true});
@@ -3661,10 +3688,11 @@ async function abyssDescendMulti() {
 
   var bar = document.getElementById('hpBar');
   var hp = Number(bar.getAttribute('aria-valuenow')), max = Number(bar.getAttribute('aria-valuemax'));
-  if (!(await confirmLowHP())) return;
+  setBusy(true);
+  if (!(await confirmLowHP())) { setBusy(false); return; }
 
   abyssDescendInFlight=true;updateFloatingDescend('Planned descent · 0/'+paths.length);
-  setBusy(true); markBusyBtn('btnDescendMulti'); clearBanner();
+  markBusyBtn('btnDescendMulti'); clearBanner();
   document.getElementById('abStatus').textContent = 'Descending queue (' + paths.length + ' floors)…';
 
   var d = await abPost('/api/abyss/descend_multi', {paths: paths, stop_rules: getAutoDescendRules()});

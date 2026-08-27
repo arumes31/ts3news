@@ -56,3 +56,45 @@ test('collection mastery and two badge slots remain usable at desktop and mobile
   const widths = await page.evaluate(() => ({ body: document.body.scrollWidth, viewport: window.innerWidth }));
   expect(widths.body).toBeLessThanOrEqual(widths.viewport + 1);
 });
+
+test('low-health descent locks every run action while confirmation is open', async ({ page }) => {
+  await page.goto('/abyss?active=1');
+  await page.evaluate(() => {
+    const health = document.getElementById('hpBar');
+    health.setAttribute('aria-valuenow', '20');
+    health.setAttribute('aria-valuemax', '100');
+  });
+
+  await page.locator('#btnDescend').click();
+  await expect(page.locator('#sharedModalCard')).toContainText('Descend anyway?');
+  await expect(page.locator('#abyssControls')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.locator('#btnDescend')).toBeDisabled();
+  await expect(page.locator('#btnBank')).toBeDisabled();
+
+  await page.locator('#modalCancelBtn').click();
+  await expect(page.locator('#abyssControls')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.locator('#btnDescend')).toBeEnabled();
+});
+
+test('a lost core-action response retries once with the same idempotency key', async ({ page }) => {
+  const requestKeys = [];
+  await page.route('**/api/abyss/descend', async route => {
+    requestKeys.push(route.request().headers()['idempotency-key']);
+    if (requestKeys.length === 1) {
+      await route.abort('connectionreset');
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, depth: 2 }),
+    });
+  });
+  await page.goto('/abyss?active=1');
+
+  const result = await page.evaluate(() => window.abPost('/api/abyss/descend', { interactive: true }));
+  expect(result).toMatchObject({ ok: true, depth: 2 });
+  expect(requestKeys).toHaveLength(2);
+  expect(requestKeys[0]).toBeTruthy();
+  expect(requestKeys[1]).toBe(requestKeys[0]);
+});

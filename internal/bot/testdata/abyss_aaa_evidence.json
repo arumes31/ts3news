@@ -1824,5 +1824,17 @@
       "internal/bot/web_abyss_release_guards_test.go",
       "tests/e2e/abyss-ui-layout.spec.js"
     ]
+  },
+  {
+    "ids": [358, 391, 399],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss_action_guard.go",
+      "internal/bot/webassets/abyss.html"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_action_guard_test.go",
+      "tests/e2e/abyss-ui-layout.spec.js"
+    ]
   }
 ]
