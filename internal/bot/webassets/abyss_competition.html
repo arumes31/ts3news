@@ -36,7 +36,7 @@
       <div class="ab-comp-table-wrap"><table><thead><tr><th>Rank</th><th>Delver / build</th><th>Score</th><th>Run evidence</th></tr></thead><tbody>
       {{range $board.Rows}}<tr data-comp-row tabindex="-1"{{if .IsCurrent}} class="ab-me" aria-current="true"{{end}}>
         <td><b class="ab-comp-rank">#{{.Rank}}</b></td><td><strong>{{.Nickname}}</strong><small>{{.Build}}</small></td>
-        <td><b>{{comma .Depth}}</b><small>{{if gt .Gold 0}}{{gold .Gold}}{{end}}{{if gt .PactMultiplier 1}} · ×{{printf "%.2f" .PactMultiplier}}{{end}}</small></td>
+        <td><b>{{comma .Depth}}</b><small>{{if gt .Gold 0}}{{gold .Gold}}{{end}}{{if gt .PactMultiplier 1.0}} · ×{{printf "%.2f" .PactMultiplier}}{{end}}</small></td>
         <td><span>{{.Extra}}</span><small>{{if gt .DurationMS 0}}{{dur .DurationMS}} · {{end}}{{if .AuditHash}}✓ {{.AuditHash}}{{else}}legacy record{{end}}</small></td>
       </tr>{{else}}<tr data-comp-empty><td colspan="4">No qualifying records in this split yet.</td></tr>{{end}}
       </tbody></table></div>
