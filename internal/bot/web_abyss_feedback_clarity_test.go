@@ -58,7 +58,7 @@ func TestAbyssUI141Through150Contracts(t *testing.T) {
 		}
 	}
 	for _, forbidden := range []string{
-		`previousPity`, `bestNow`, `registerAbyssSafeRetry`, `opts.retry`, `ab-toast-retry`,
+		`previousPity`, `bestNow`, `registerAbyssSafeRetry`, `clearAbyssSafeRetry`, `function retryable`,
 	} {
 		if strings.Contains(page, forbidden) {
 			t.Errorf("Abyss feedback still contains unsafe or inferred state %q", forbidden)

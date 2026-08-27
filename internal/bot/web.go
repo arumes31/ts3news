@@ -37,7 +37,11 @@ func jsonJS(v any) template.JS {
 //go:embed webassets/*.html webassets/*.css webassets/*.js webassets/*.svg webassets/*.png webassets/*.md webassets/icons/*.svg
 var webAssets embed.FS
 
-const sessionCookie = "ts3session"
+const (
+	sessionCookie       = "ts3session"
+	sessionExpiryCookie = "ts3session_exp"
+	sessionLifetime     = 90 * 24 * time.Hour
+)
 
 // WebServer is the player-facing portal: armoury, inventory, auto-battler,
 // arcade and shop. It lives in the bot package so it can reuse the bot's stat,
@@ -843,6 +847,7 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	// session token never leaks over plain HTTP in production deployments while
 	// still working for local http:// development.
 	secure := strings.HasPrefix(strings.ToLower(s.bot.Cfg.WebBaseURL), "https://")
+	expires := time.Now().Add(sessionLifetime)
 	http.SetCookie(w, &http.Cookie{ // #nosec G124 - Secure flag is conditionally set based on HTTPS
 		Name:     sessionCookie,
 		Value:    token,
@@ -850,7 +855,18 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
-		Expires:  time.Now().Add(90 * 24 * time.Hour),
+		Expires:  expires,
+	})
+	// This companion cookie contains only the expiry timestamp, never the login
+	// token. JavaScript uses it to warn players before a long-running Abyss tab
+	// loses its HttpOnly authenticated session.
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 - Secure flag is conditionally set based on HTTPS
+		Name:     sessionExpiryCookie,
+		Value:    fmt.Sprintf("%d", expires.Unix()),
+		Path:     "/",
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  expires,
 	})
 	// Honor an optional post-login destination, but only same-origin relative
 	// paths to avoid an open redirect: must start with a single "/", must not be
@@ -873,6 +889,14 @@ func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 - Secure flag is conditionally set based on HTTPS
+		Name:     sessionExpiryCookie,
+		Value:    "",
+		Path:     "/",
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,

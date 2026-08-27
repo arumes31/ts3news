@@ -88,6 +88,7 @@
   {{if .PrestigeTier.Name}}<div class="ab-chip ab-prestige-chip"><span class="ab-chip-label">Prestige Tier</span><span class="ab-chip-val">{{.PrestigeTier.Aura}} {{.PrestigeTier.Name}}</span></div>{{end}}
   {{if .Run.Active}}<div class="ab-chip"><span class="ab-chip-label">Momentum</span><span class="ab-chip-val" id="momVal" title="+2% STR per floor cleared without consumables (max +20%)">🔥 ×{{.Run.Momentum}}</span></div>{{end}}
   <div class="ab-chip" id="explorerSupportChip" {{if not .ExplorerSupport.Active}}hidden{{end}}><span class="ab-chip-label">Rescued ally</span><span class="ab-chip-val" id="explorerSupportValue">🤝 {{.ExplorerSupport.Name}} · {{.ExplorerSupport.Remaining}} fights</span></div>
+  <output class="ab-api-latency" id="abyssAPILatency" aria-label="Abyss API latency: waiting for the first request" data-state="idle"><i aria-hidden="true"></i><span>API · idle</span></output>
 </div>
 
 {{if .Run.Comeback}}<div class="ab-comeback-note">💪 <b>Comeback:</b> the Abyss pities your losses today — +10% to all stats this run.</div>{{end}}
@@ -567,6 +568,7 @@
 
 <!-- Connectivity banner (UX-93) -->
 <div class="ab-netbanner" id="netBanner" style="display:none" role="alert">📡 Connection lost — waiting for the network to return…</div>
+<div class="ab-session-warning" id="abyssSessionWarning" role="status" hidden></div>
 
 <!-- Consumable carry-cap picker: shown when the player holds more consumables than
      they may bring into one descent. Unbrought consumables stay in their stash. -->
@@ -1564,6 +1566,18 @@ function abToast(m, ok, opts){
       } else { cp.textContent = '❌'; }
     };
     t.appendChild(cp);
+    if(typeof opts.retry==='function'){
+      var retry=document.createElement('button');
+      retry.type='button';
+      retry.className='ab-toast-retry';
+      retry.textContent=opts.retryLabel||'↻ Retry';
+      retry.onclick=function(ev){
+        ev.stopPropagation();retry.disabled=true;retry.textContent='Retrying…';
+        Promise.resolve().then(opts.retry).catch(function(error){abToast(error&&error.message||'Retry failed',false);});
+        t.classList.remove('show');setTimeout(function(){t.remove();},300);
+      };
+      t.appendChild(retry);
+    }
   }
   host.appendChild(t);
   var kids = Array.prototype.slice.call(host.children);
@@ -1575,7 +1589,7 @@ function abToast(m, ok, opts){
     (victim || kids[0]).remove();
   }
   requestAnimationFrame(function(){ t.classList.add('show'); });
-  var life = opts.ms || (ok ? 2600 : 4200);
+  var life = opts.ms || (ok ? 2600 : opts.retry ? 10000 : 4200);
   setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 300); }, life);
 }
 
@@ -1648,9 +1662,11 @@ async function abRawPost(url, body, extraHeaders){
   // network errors or non-JSON error responses instead of hanging.
   var headers={'Content-Type':'application/json'};
   Object.keys(extraHeaders||{}).forEach(function(key){headers[key]=extraHeaders[key];});
-  if(navigator.onLine===false){netFailed++;setNetDown(true);return {ok:false,error:'offline — action was not submitted'};}
+  var started=Date.now();
+  if(navigator.onLine===false){netFailed++;setNetDown(true);if(typeof recordAbyssAPILatency==='function')recordAbyssAPILatency(0,false);return {ok:false,error:'offline — action was not submitted'};}
   try{
     const r=await fetch(url,{method:'POST',headers:headers,body:JSON.stringify(body||{})});
+    if(typeof recordAbyssAPILatency==='function')recordAbyssAPILatency(Date.now()-started,true);
     try{
       var data=await r.json();
       if(netFailed>0){netFailed=0;updateNetBanner();}
@@ -1661,6 +1677,7 @@ async function abRawPost(url, body, extraHeaders){
   }catch(e){
     netFailed++; // UI-145
     setNetDown(true);
+    if(typeof recordAbyssAPILatency==='function')recordAbyssAPILatency(Date.now()-started,false);
     return {ok:false, error:'network error'};
   }
 }
@@ -1678,19 +1695,34 @@ var abyssCoreActionOperations={
   '/api/abyss/revive':true,
   '/api/abyss/bank':true
 };
+var abyssPendingCoreRetries={};
 function abyssRequestKey(){
   return (window.crypto&&typeof window.crypto.randomUUID==='function')
     ? window.crypto.randomUUID()
     : 'abyss-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
 }
 async function abyssCoreActionPost(url,body){
-  var requestKey=abyssRequestKey(),headers={'Idempotency-Key':requestKey};
+  var payload=JSON.stringify(body||{}),requestID=url+'\n'+payload,now=Date.now();
+  Object.keys(abyssPendingCoreRetries).forEach(function(id){if(now-abyssPendingCoreRetries[id].at>10*60*1000)delete abyssPendingCoreRetries[id];});
+  var pending=abyssPendingCoreRetries[requestID];
+  var requestKey=pending&&pending.payload===payload?pending.key:abyssRequestKey(),headers={'Idempotency-Key':requestKey};
   var result=await abRawPost(url,body,headers);
   if(result&&result.ok===false&&result.error==='network error'){
+    netFailed=Math.max(0,netFailed-1);updateNetBanner();
     await new Promise(function(resolve){setTimeout(resolve,250);});
     result=await abRawPost(url,body,headers);
   }
+  if(result&&result.ok===false&&result.error==='network error'){
+    abyssPendingCoreRetries[requestID]={payload:payload,key:requestKey,at:now};
+    result.retry_safe=true;
+  }else delete abyssPendingCoreRetries[requestID];
   return result;
+}
+function abyssRetryOptions(result,retry){
+  var error=String(result&&result.error||'');
+  return typeof retry==='function'&&(error==='network error'||error.indexOf('offline')===0)
+    ? {retry:retry,retryLabel:result&&result.retry_safe?'↻ Retry safely':'↻ Retry'}
+    : {};
 }
 async function abyssForgeCommit(url,body,operation){
   var commitBody=Object.assign({},body||{}),parameters=Object.assign({},commitBody);
@@ -3517,7 +3549,7 @@ async function abyssDescend(){
       if(typeof d.risk==='number')setRisk(d.risk);
       renderState();
     }
-    abToast(d.error||'failed',false);setBusy(false);return;
+    abToast(d.error||'failed',false,abyssRetryOptions(d,abyssDescend));setBusy(false);return;
   }
 
   if(d.choose_floor){
@@ -3675,12 +3707,11 @@ async function playAbyssMultiFloorResults(data) {
   return true;
 }
 
-async function abyssDescendMulti() {
+async function abyssDescendMulti(retryPlan) {
   if (busy) return;
-  var paths = [];
-  document.querySelectorAll('.ab-path-select').forEach(function(el) {
-    paths.push(el.value);
-  });
+  retryPlan=retryPlan&&Array.isArray(retryPlan.paths)?retryPlan:null;
+  var paths=retryPlan?retryPlan.paths.slice():[];
+  if(!retryPlan)document.querySelectorAll('.ab-path-select').forEach(function(el) { paths.push(el.value); });
   if (paths.length < 3 || paths.length > 20) {
     abToast('Queue must have 3 to 20 floors.', false);
     return;
@@ -3695,7 +3726,8 @@ async function abyssDescendMulti() {
   markBusyBtn('btnDescendMulti'); clearBanner();
   document.getElementById('abStatus').textContent = 'Descending queue (' + paths.length + ' floors)…';
 
-  var d = await abPost('/api/abyss/descend_multi', {paths: paths, stop_rules: getAutoDescendRules()});
+  var request={paths:paths,stop_rules:retryPlan&&retryPlan.stop_rules?retryPlan.stop_rules:getAutoDescendRules()};
+  var d = await abPost('/api/abyss/descend_multi', request);
   if (!d.ok) {
     // Floors cleared before the failure are already persisted — show their
     // logs/loot and apply the returned run snapshot so depth, escrow, HP and
@@ -3709,7 +3741,7 @@ async function abyssDescendMulti() {
     if(typeof d.tokens === 'number') setTokens(d.tokens);
     if(typeof d.risk === 'number') setRisk(d.risk);
     renderState();
-    abToast(d.error || 'failed', false); setBusy(false); return;
+    abToast(d.error || 'failed', false, abyssRetryOptions(d, function(){abyssDescendMulti(request);})); setBusy(false); return;
   }
 
   d.batch_floors_played = await playAbyssMultiFloorResults(d);
@@ -3741,7 +3773,7 @@ async function abyssChooseFloor(i, hp, max){
   setBusy(true); clearBanner();
   document.getElementById('abStatus').textContent='Descending…';
   var d=await abPost('/api/abyss/choose_floor',{index:i});
-  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  if(!d.ok){abToast(d.error||'failed',false,abyssRetryOptions(d,function(){abyssChooseFloor(i,hp,max);}));setBusy(false);return;}
   if(d.live_combat){ startLiveCombat(d, hp, max); return; }
   await processDescendResult(d, hp, max);
 }
@@ -3922,7 +3954,7 @@ async function abyssRevive(){
   st.textContent='Clawing back from the dark…';
   var d=await abPost('/api/abyss/revive');
   if(spin)clearInterval(spin);
-  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  if(!d.ok){abToast(d.error||'failed',false,abyssRetryOptions(d,abyssRevive));setBusy(false);return;}
   await playLog(d.logs, d.loot, d.dura, d.timeline, d);
   resetMana();
   setGold(d.gold); setTokens(d.tokens);
@@ -3983,18 +4015,18 @@ async function abyssDoubleBonus(){
   renderState();setBusy(false);
 }
 
-async function abyssBank(percent,transport){
+async function abyssBank(percent,transport,retryCursed){
   if(busy)return;
   percent=Number(percent)||0;
   transport=!!transport;
-  var cursed=percent||transport?false:document.getElementById('cursedBank').checked;
+  var cursed=arguments.length>=3?!!retryCursed:(percent||transport?false:document.getElementById('cursedBank').checked);
   // Lock every action while the preview request is in flight so a descend or
   // second bank click can't race it; unlocked again before the confirm modal
   // (its own buttons drive the commit, which re-locks).
   setBusy(true); markBusyBtn(transport?'btnTransport':'btnBank');
   var p=await abPost('/api/abyss/bank',{cursed:cursed,preview:true,percent:percent,transport:transport});
   setBusy(false);
-  if(!p.ok){abToast(p.error||'failed',false);return;}
+  if(!p.ok){abToast(p.error||'failed',false,abyssRetryOptions(p,function(){abyssBank(percent,transport,cursed);}));return;}
   function row(k,v){return '<div class="ab-rs-row"><span>'+k+'</span><b>'+v+'</b></div>';}
   function pactMath(b){
     if(!b||!Array.isArray(b.lines)||!b.lines.length)return '';
@@ -4044,7 +4076,7 @@ async function abyssBank(percent,transport){
 async function abyssBankCommit(cursed,percent,safeWord,doubleBank,transport){
   if(busy)return; setBusy(true); markBusyBtn(transport?'btnTransport':'btnBank'); clearBanner();
   var d=await abPost('/api/abyss/bank',{cursed:cursed,percent:Number(percent)||0,safe_word:safeWord||'',double_bank:!!doubleBank,transport:!!transport});
-  if(!d.ok){abToast(d.error||'failed',false);setBusy(false);return;}
+  if(!d.ok){abToast(d.error||'failed',false,abyssRetryOptions(d,function(){abyssBankCommit(cursed,percent,safeWord,doubleBank,transport);}));setBusy(false);return;}
   if(d.continue_run){
     setGold(d.gold);setEscrow(d.remaining_escrow);
     var continuingFee=(d.partial_fee||0)+(d.transport_fee||0)+(d.frantic_fee||0);

@@ -996,3 +996,9 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0358 / 358** — single- and multi-floor descents lock every run action before low-health confirmation and expose their busy state to assistive technology.
 - [x] **AAA-0391 / 391** — descend, floor-choice, revive, and bank mutations share an authenticated token-bucket guard that detects and security-logs repeated throttled bursts.
 - [x] **AAA-0399 / 399** — core run mutations accept bounded idempotency keys, replay successful responses safely, reject payload reuse, and retry one lost browser response with the same key.
+
+## Delivered tranche: request resilience feedback
+
+- [x] **AAA-0360 / 360** — login issues a token-free expiry companion cookie so active Abyss pages warn ten minutes before the private session cookie expires and preserve the current view for re-login.
+- [x] **AAA-0367 / 367** — uncertain core-action errors offer a ten-second touch-safe retry control that replays the exact original payload with its original idempotency key.
+- [x] **AAA-0368 / 368** — a compact, accessible five-request latency indicator distinguishes responsive, delayed, very-slow, and unreachable API states.

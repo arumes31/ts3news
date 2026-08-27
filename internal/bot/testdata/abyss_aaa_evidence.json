@@ -1836,5 +1836,18 @@
       "internal/bot/web_abyss_action_guard_test.go",
       "tests/e2e/abyss-ui-layout.spec.js"
     ]
+  },
+  {
+    "ids": [360, 367, 368],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_feedback.css",
+      "internal/bot/webassets/abyss_feedback.html"
+    ],
+    "verification": [
+      "internal/bot/web_session_expiry_test.go",
+      "tests/e2e/abyss-ui-layout.spec.js"
+    ]
   }
 ]

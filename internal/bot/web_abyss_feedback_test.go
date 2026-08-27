@@ -109,7 +109,7 @@ func TestAuthAPIReportsUnauthorizedStatus(t *testing.T) {
 	}
 }
 
-func TestAbyssFeedbackNeverReplaysMutations(t *testing.T) {
+func TestAbyssFeedbackRetriesOnlyGuardedCoreMutations(t *testing.T) {
 	t.Parallel()
 
 	page, err := webAssets.ReadFile("webassets/abyss.html")
@@ -121,9 +121,23 @@ func TestAbyssFeedbackNeverReplaysMutations(t *testing.T) {
 		t.Fatalf("read feedback module: %v", err)
 	}
 	combined := string(page) + string(partial)
-	for _, forbidden := range []string{"registerAbyssSafeRetry", "clearAbyssSafeRetry", "opts.retry", "ab-toast-retry"} {
+	for _, required := range []string{"abyssCoreActionOperations", "abyssPendingCoreRetries", "Idempotency-Key", "retry_safe", "abyssRetryOptions", "ab-toast-retry"} {
+		if !strings.Contains(combined, required) {
+			t.Errorf("guarded retry contract missing %q", required)
+		}
+	}
+	for _, forbidden := range []string{"registerAbyssSafeRetry", "clearAbyssSafeRetry", "function retryable", "retry your last action"} {
 		if strings.Contains(combined, forbidden) {
-			t.Errorf("feedback must not replay ambiguous mutations: found %q", forbidden)
+			t.Errorf("feedback must not replay ambiguous mutations: found legacy contract %q", forbidden)
+		}
+	}
+	serverSource, err := os.ReadFile("web.go")
+	if err != nil {
+		t.Fatalf("read web.go: %v", err)
+	}
+	for _, route := range []string{"handleAbyssDescend", "handleAbyssDescendMulti", "handleAbyssChooseFloor", "handleAbyssRevive", "handleAbyssBank"} {
+		if !strings.Contains(string(serverSource), "guardAbyssCoreAction(s."+route+")") {
+			t.Errorf("%s is not protected by the core idempotency/rate guard", route)
 		}
 	}
 }

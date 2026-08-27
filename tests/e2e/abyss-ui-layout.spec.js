@@ -76,11 +76,11 @@ test('low-health descent locks every run action while confirmation is open', asy
   await expect(page.locator('#btnDescend')).toBeEnabled();
 });
 
-test('a lost core-action response retries once with the same idempotency key', async ({ page }) => {
+test('a lost core-action response offers a safe manual retry with the same idempotency key', async ({ page }) => {
   const requestKeys = [];
   await page.route('**/api/abyss/descend', async route => {
     requestKeys.push(route.request().headers()['idempotency-key']);
-    if (requestKeys.length === 1) {
+    if (requestKeys.length <= 2) {
       await route.abort('connectionreset');
       return;
     }
@@ -92,9 +92,39 @@ test('a lost core-action response retries once with the same idempotency key', a
   });
   await page.goto('/abyss?active=1');
 
-  const result = await page.evaluate(() => window.abPost('/api/abyss/descend', { interactive: true }));
-  expect(result).toMatchObject({ ok: true, depth: 2 });
-  expect(requestKeys).toHaveLength(2);
+  const result = await page.evaluate(async () => {
+    const body = { interactive: true };
+    const failed = await window.abPost('/api/abyss/descend', body);
+    window.__abyssRetryResult = null;
+    window.abToast(failed.error, false, window.abyssRetryOptions(failed, async () => {
+      window.__abyssRetryResult = await window.abPost('/api/abyss/descend', body);
+    }));
+    return failed;
+  });
+  expect(result).toMatchObject({ ok: false, error: 'network error', retry_safe: true });
+  await expect(page.locator('.ab-toast-retry')).toHaveText('↻ Retry safely');
+  await page.locator('.ab-toast-retry').click();
+  await expect.poll(() => page.evaluate(() => window.__abyssRetryResult)).toMatchObject({ ok: true, depth: 2 });
+  expect(requestKeys).toHaveLength(3);
   expect(requestKeys[0]).toBeTruthy();
   expect(requestKeys[1]).toBe(requestKeys[0]);
+  expect(requestKeys[2]).toBe(requestKeys[0]);
+});
+
+test('session-expiry and API-latency feedback stay compact and readable', async ({ page }) => {
+  await page.goto('/abyss?active=1');
+  await page.evaluate(() => {
+    document.cookie = `ts3session_exp=${Math.floor(Date.now() / 1000) + 5 * 60}; path=/`;
+    window.__abyssFeedback.checkSessionExpiry();
+    window.__abyssFeedback.recordLatency(140, true);
+  });
+
+  await expect(page.locator('#abyssSessionWarning')).toBeVisible();
+  await expect(page.locator('#abyssSessionWarning')).toContainText('expires in 5 minutes');
+  await expect(page.locator('#abyssAPILatency')).toHaveAttribute('data-state', 'fast');
+  await expect(page.locator('#abyssAPILatency')).toContainText('API · 140 ms');
+  await expect(page.locator('#abyssAPILatency')).toHaveAttribute('aria-label', /140 milliseconds, responsive/);
+
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
 });
