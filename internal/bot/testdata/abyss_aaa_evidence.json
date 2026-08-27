@@ -2186,5 +2186,20 @@
       "internal/bot/web_abyss_wiki_test.go",
       "tests/e2e/abyss-wiki.spec.js"
     ]
+  },
+  {
+    "ids": [388, 983],
+    "production": [
+      "internal/bot/abyss_discord_alert.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_features.go",
+      "internal/bot/web_abyss_forge_crafting.go",
+      "internal/config/config.go"
+    ],
+    "verification": [
+      "internal/bot/abyss_discord_alert_test.go",
+      "internal/config/config_test.go"
+    ]
   }
 ]

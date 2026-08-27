@@ -482,6 +482,7 @@ func (s *WebServer) handleAbyssCelestialFuseBoosted(w http.ResponseWriter, r *ht
 	s.bot.recordForge(uid, "celestial fusion (blessed)", best.Name, fmt.Sprintf("%dg 10💠", cost))
 	if ascended {
 		s.bot.queueAbyssHighRarityDrop(uid, best.Name, best.Rarity)
+		s.bot.queueAbyssDiscordDrop(best.Name, best.Rarity, 0)
 	}
 	writeJSON(w, map[string]any{"ok": true, "ascended": ascended, "msg": msg,
 		"gold": s.bot.abyssGold(uid), "materials": s.bot.loadMaterials(uid), "mastery": s.bot.forge4MasteryInfo(uid)})

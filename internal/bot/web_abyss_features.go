@@ -1317,6 +1317,7 @@ func (s *WebServer) fuseCommon(w http.ResponseWriter, r *http.Request, uid, mode
 	s.bot.recordForge(uid, mode+" fusion", best.Name, fmt.Sprintf("%dg", cost))
 	if eternalAscended {
 		s.bot.queueAbyssHighRarityDrop(uid, best.Name, best.Rarity)
+		s.bot.queueAbyssDiscordDrop(best.Name, best.Rarity, 0)
 	}
 	writeJSON(w, map[string]any{"ok": true, "msg": msg, "milestone_progress": milestone,
 		"milestone_stage": abyssForgeMilestoneStage(milestone)})

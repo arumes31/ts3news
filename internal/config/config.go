@@ -91,6 +91,8 @@ type Config struct {
 	AbyssSocial             bool   // party coordination feature kill switch
 	AbyssLiveRolloutPercent int    // stable percentage of users receiving live combat, 0..100
 	AbyssOpsToken           string // bearer token for the private operations snapshot
+	AbyssDiscordAlerts      bool   // opt-in delivery of anonymous Abyss alerts to Discord
+	AbyssWebhookURL         string // secret Discord webhook URL; empty disables delivery
 	AbyssTreeEnhancements   bool   // enhanced skill-tree UI/API kill switch
 	AbyssForgeWorkbench     bool   // authoritative forge quotes and workbench UI kill switch
 
@@ -217,6 +219,8 @@ func LoadConfig() *Config {
 		AbyssSocial:             envBool("ABYSS_SOCIAL_ENABLED", true),
 		AbyssLiveRolloutPercent: min(100, max(0, envInt("ABYSS_LIVE_ROLLOUT_PERCENT", 100))),
 		AbyssOpsToken:           os.Getenv("ABYSS_OPS_TOKEN"),
+		AbyssDiscordAlerts:      envBool("ABYSS_DISCORD_ALERTS_ENABLED", false),
+		AbyssWebhookURL:         strings.TrimSpace(os.Getenv("ABYSS_WEBHOOK_URL")),
 		AbyssTreeEnhancements:   envBool("ABYSS_TREE_ENHANCEMENTS_ENABLED", true),
 		AbyssForgeWorkbench:     envBool("ABYSS_FORGE_WORKBENCH_ENABLED", true),
 

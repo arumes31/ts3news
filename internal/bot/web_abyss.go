@@ -3640,12 +3640,15 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 	// bestiary counts (both updated during the fight that just resolved).
 	if ach := s.bot.checkDepthAchievements(uid, depth); ach != "" {
 		o.Achievements = append(o.Achievements, ach)
+		s.bot.queueAbyssDiscordMilestone(ach, depth)
 	}
 	if ach := s.bot.checkBossKillAchievements(uid); ach != "" {
 		o.Achievements = append(o.Achievements, ach)
+		s.bot.queueAbyssDiscordMilestone(ach, depth)
 	}
 	if ach := s.bot.checkBestiaryAchievements(uid); ach != "" {
 		o.Achievements = append(o.Achievements, ach)
+		s.bot.queueAbyssDiscordMilestone(ach, depth)
 	}
 
 	// Lore fragment drop chance (15%)
@@ -4519,6 +4522,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		if isRecord {
 			uInfo, _ := s.loadWebUser(uid)
 			go s.bot.BroadcastAbyssRecord(uInfo.Nickname, run.Depth)
+			s.bot.queueAbyssDiscordWorldFirst(run.Depth)
 		}
 	}
 
@@ -4596,6 +4600,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		_ = s.bot.DB.QueryRow("SELECT abyss_lifetime_banked FROM users WHERE client_uid=$1", uid).Scan(&lifetime)
 		if ach := s.bot.checkBankAchievements(uid, lifetime); ach != "" {
 			out["achievement"] = ach
+			s.bot.queueAbyssDiscordMilestone(ach, run.Depth)
 		}
 	}
 	writeJSON(w, out)

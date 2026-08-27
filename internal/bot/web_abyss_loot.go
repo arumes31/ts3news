@@ -1002,6 +1002,9 @@ func (b *Bot) escrowAbyssLoot(uid string, depth int, label string, g abyssLootGr
 	if itemName, rarity, announce := abyssHighRarityEscrowDrop(g); announce {
 		b.queueAbyssHighRarityDrop(uid, itemName, rarity)
 	}
+	if alert, notify := abyssDiscordEscrowDrop(g, depth); notify {
+		b.queueAbyssDiscordAlert(alert)
+	}
 	return true
 }
 

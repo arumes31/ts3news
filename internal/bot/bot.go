@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand/v2"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -29,10 +30,11 @@ import (
 // Bot is the top-level RPG bot instance: its config and database handle, plus
 // caches of TS3 server-group IDs already created for level/XP progression.
 type Bot struct {
-	Cfg         *config.Config
-	DB          *sql.DB
-	levelGroups map[int]int
-	xpGroups    map[int]int
+	Cfg                    *config.Config
+	DB                     *sql.DB
+	abyssDiscordHTTPClient *http.Client
+	levelGroups            map[int]int
+	xpGroups               map[int]int
 }
 
 type levelResult struct {
