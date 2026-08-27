@@ -133,6 +133,33 @@ func TestAbyssHistoryLootEscapesMarkup(t *testing.T) {
 	}
 }
 
+func TestAbyssCompetitionRendersPactMultiplier(t *testing.T) {
+	if err := i18n.InitWithLocale(i18n.LocaleEnUS); err != nil {
+		t.Fatalf("initialize locale bundle: %v", err)
+	}
+	server, err := NewWebServer(nil)
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	fixture := abyssGoldenFixture(false)
+	fixture["Competition"] = abyssCompetitionView{
+		Boards: []abyssCompetitionBoard{{
+			Key:   "pact",
+			Title: "Pact survival",
+			Rows: []abyssCompetitionRow{{
+				Rank: 1, Nickname: "Pactkeeper", Depth: 42, PactMultiplier: 1.25,
+			}},
+		}},
+	}
+	var rendered bytes.Buffer
+	if err := server.tmpl.ExecuteTemplate(&rendered, "abyssCompetition", fixture); err != nil {
+		t.Fatalf("render Abyss competition: %v", err)
+	}
+	if !strings.Contains(rendered.String(), "×1.25") {
+		t.Fatal("rendered competition is missing the pact multiplier")
+	}
+}
+
 func abyssGoldenFixture(active bool) map[string]any {
 	stats := abyssStats{BestDepth: 57, Tokens: 42, LifetimeFloors: 321, LifetimeBanked: 654321}
 	run := abyssRun{Tier: "normal", FloorType: "combat"}
