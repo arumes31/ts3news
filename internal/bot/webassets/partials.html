@@ -1,5 +1,5 @@
 {{define "head"}}<!DOCTYPE html>
-<html lang="en">
+<html lang="{{localeTag}}" dir="{{localeDir}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/static/style.css?v={{cssver}}">
 {{if eq .Nav "inventory"}}<link rel="stylesheet" href="{{asset "/static/gear_inventory_motion.css"}}">{{end}}
 <script>window.__ASSET_VER__ = "{{appver}}";</script>
+{{template "abyss-display-locale" .}}
 {{template "abyss-quality-of-life" .}}
 </head>
 <body>

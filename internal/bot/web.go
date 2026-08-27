@@ -88,7 +88,9 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 		return nil, fmt.Errorf("validate Abyss forge catalog: %w", err)
 	}
 	tmpl, err := template.New("").Funcs(template.FuncMap{
-		"gold": func(v int64) string { return FormatGoldPlain(v) },
+		"gold":      func(v int64) string { return FormatGoldPlain(v) },
+		"localeTag": i18n.LanguageTag,
+		"localeDir": i18n.TextDirection,
 		"comma": func(v any) string {
 			var f float64
 			switch n := v.(type) {

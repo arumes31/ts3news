@@ -654,17 +654,7 @@ func FormatGold(v int64) string {
 // FormatGoldPlain is FormatGold without TS3 BBCode, for HTML/web rendering where
 // the markup would otherwise be shown literally.
 func FormatGoldPlain(v int64) string {
-	f := float64(v)
-	switch {
-	case v >= 1_000_000_000:
-		return fmt.Sprintf("%.1fB", f/1_000_000_000.0)
-	case v >= 1_000_000:
-		return fmt.Sprintf("%.1fM", f/1_000_000.0)
-	case v >= 1_000:
-		return fmt.Sprintf("%.1fk", f/1_000.0)
-	default:
-		return fmt.Sprintf("%dg", v)
-	}
+	return i18n.FormatGoldPlain(v)
 }
 
 func (b *Bot) makeGear(gearID string, itemData sql.NullString) (content.Gear, bool) {

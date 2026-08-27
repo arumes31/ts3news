@@ -14,6 +14,28 @@ test('core interface groups risk, loot, log, shortcut, and insurance feedback', 
   });
   await page.goto('/abyss');
 
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  expect(await page.evaluate(() => {
+    const original = document.documentElement.lang;
+    document.documentElement.lang = 'de-DE';
+    const values = {
+      integer: window.AbyssLocale.integer(1234567),
+      decimal: window.AbyssLocale.number(1234.5, { minimumFractionDigits: 1 }),
+      percent: window.AbyssLocale.percent(.125, 1),
+    };
+    document.documentElement.lang = original;
+    return values;
+  })).toEqual({ integer: '1.234.567', decimal: '1.234,5', percent: '12,5 %' });
+  await page.evaluate(() => {
+    const button = document.createElement('button');
+    button.id = 'dynamicEmojiAction';
+    button.textContent = '🏦 Secure cache';
+    document.querySelector('.abyss-command-page').appendChild(button);
+  });
+  await expect(page.locator('#dynamicEmojiAction')).toHaveAttribute('aria-label', 'Secure cache');
+  await expect(page.locator('#dynamicEmojiAction .ab-emoji-icon')).toHaveAttribute('aria-hidden', 'true');
+
   await page.evaluate(() => {
     window.inRun = true;
     window.curDepth = 3;

@@ -1532,16 +1532,10 @@ var buffNames = {giant_strength_elixir:'💪 Giant Strength (+40 STR, 3 fights)'
   speed_elixir:'💨 Speed (+25 SPD, 3 fights)', lucky_draught:'🍀 Luck (+20 LCK, 3 fights)',
   intellect_elixir:'🧠 Intellect (+20 INT, 3 fights)', strength_elixir:'⚔️ Strength (+15 STR, 3 fights)'};
 
-// Mirror Go's FormatGoldPlain so server-rendered and JS-updated values match. [#6/#7/#12]
 function fmtGold(v){
-  v = Number(v)||0;
-  var s=v<0?'-':''; v=Math.abs(v);
-  if(v>=1e9) return s+(v/1e9).toFixed(1)+'B';
-  if(v>=1e6) return s+(v/1e6).toFixed(1)+'M';
-  if(v>=1e3) return s+(v/1e3).toFixed(1)+'k';
-  return s+v+'g';
+  return window.AbyssLocale?AbyssLocale.gold(v):(Number(v)||0).toLocaleString()+'g';
 }
-function fmtNum(v){return (Number(v)||0).toLocaleString();}
+function fmtNum(v){return window.AbyssLocale?AbyssLocale.integer(v):(Number(v)||0).toLocaleString();}
 // UI-195: tiny pluralizer — plural(3,'floor') → "3 floors".
 function plural(n, word){ n=Number(n)||0; return fmtNum(n)+' '+word+(n===1?'':'s'); }
 

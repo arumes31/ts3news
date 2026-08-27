@@ -94,6 +94,20 @@ func CurrentLocale() LocaleID {
 	return global.current
 }
 
+// LanguageTag returns the active locale as a BCP 47 language tag for HTML and
+// browser internationalization APIs.
+func LanguageTag() string {
+	return strings.ReplaceAll(string(CurrentLocale()), "_", "-")
+}
+
+// TextDirection returns the natural document direction for the active locale.
+func TextDirection() string {
+	if CurrentLocale() == LocaleArSA {
+		return "rtl"
+	}
+	return "ltr"
+}
+
 // MessageCoverage reports direct translation coverage for keys under prefix.
 // Fallbacks are deliberately ignored so operators can see missing locale data.
 func MessageCoverage(prefix string) []LocaleCoverage {
@@ -234,6 +248,14 @@ func FormatGold(v int64) string {
 		return fmt.Sprintf("%d", v)
 	}
 	return global.formatGold(v)
+}
+
+// FormatGoldPlain formats a gold value for HTML without TS3 BBCode.
+func FormatGoldPlain(v int64) string {
+	if global == nil {
+		return fmt.Sprintf("%dg", v)
+	}
+	return global.formatGoldPlain(v)
 }
 
 // FormatLarge formats a large number with locale-appropriate suffixes (no BBCode).
@@ -434,20 +456,33 @@ func (b *Bundle) numberFormat() NumberFormat {
 
 // formatGold formats a gold value with locale suffixes and BBCode.
 func (b *Bundle) formatGold(v int64) string {
+	value, suffix := b.goldParts(v)
+	return fmt.Sprintf("[b]%s[/b][color=#9e9e9e]%s[/color]", value, suffix)
+}
+
+func (b *Bundle) formatGoldPlain(v int64) string {
+	value, suffix := b.goldParts(v)
+	return value + suffix
+}
+
+func (b *Bundle) goldParts(v int64) (string, string) {
 	nf := b.numberFormat()
-	if v < 1000 {
-		return fmt.Sprintf("[b]%s[/b][color=#9e9e9e]%s[/color]", applyDigitTransform(fmt.Sprintf("%d", v), nf.DigitTransform), nf.GoldSuffix)
+	sign := ""
+	magnitude := uint64(v)
+	if v < 0 {
+		sign = "-"
+		magnitude = uint64(-(v + 1)) + 1
 	}
-	if v < 1_000_000 {
-		return fmt.Sprintf("[b]%s[/b][color=#9e9e9e]%s[/color]",
-			applyDigitTransform(formatFloat(float64(v)/1000.0, 1, nf), nf.DigitTransform), nf.SuffixK)
+	if magnitude < 1000 {
+		return applyDigitTransform(sign+fmt.Sprintf("%d", magnitude), nf.DigitTransform), nf.GoldSuffix
 	}
-	if v < 1_000_000_000 {
-		return fmt.Sprintf("[b]%s[/b][color=#9e9e9e]%s[/color]",
-			applyDigitTransform(formatFloat(float64(v)/1_000_000.0, 1, nf), nf.DigitTransform), nf.SuffixM)
+	if magnitude < 1_000_000 {
+		return applyDigitTransform(sign+formatFloat(float64(magnitude)/1000.0, 1, nf), nf.DigitTransform), nf.SuffixK
 	}
-	return fmt.Sprintf("[b]%s[/b][color=#9e9e9e]%s[/color]",
-		applyDigitTransform(formatFloat(float64(v)/1_000_000_000.0, 1, nf), nf.DigitTransform), nf.SuffixB)
+	if magnitude < 1_000_000_000 {
+		return applyDigitTransform(sign+formatFloat(float64(magnitude)/1_000_000.0, 1, nf), nf.DigitTransform), nf.SuffixM
+	}
+	return applyDigitTransform(sign+formatFloat(float64(magnitude)/1_000_000_000.0, 1, nf), nf.DigitTransform), nf.SuffixB
 }
 
 // formatLarge formats a large number with locale suffixes (no BBCode).

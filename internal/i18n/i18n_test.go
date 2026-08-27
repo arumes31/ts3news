@@ -235,6 +235,34 @@ func TestFormatGold(t *testing.T) {
 	}
 }
 
+func TestDisplayLocaleMetadata(t *testing.T) {
+	if err := InitWithLocale(LocaleDeDE); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = SetLocale(LocaleEnUS) })
+	if got := LanguageTag(); got != "de-DE" {
+		t.Errorf("LanguageTag() = %q, want de-DE", got)
+	}
+	if got := TextDirection(); got != "ltr" {
+		t.Errorf("TextDirection() = %q, want ltr", got)
+	}
+	if got := FormatGoldPlain(1500); got != "1,5k" {
+		t.Errorf("FormatGoldPlain(1500) = %q, want 1,5k", got)
+	}
+	if got := FormatGoldPlain(-1500); got != "-1,5k" {
+		t.Errorf("FormatGoldPlain(-1500) = %q, want -1,5k", got)
+	}
+	if err := SetLocale(LocaleArSA); err != nil {
+		t.Fatal(err)
+	}
+	if got := LanguageTag(); got != "ar-SA" {
+		t.Errorf("LanguageTag() = %q, want ar-SA", got)
+	}
+	if got := TextDirection(); got != "rtl" {
+		t.Errorf("TextDirection() = %q, want rtl", got)
+	}
+}
+
 func TestFormatLarge(t *testing.T) {
 	if err := InitWithLocale(LocaleEnUS); err != nil {
 		t.Fatal(err)
