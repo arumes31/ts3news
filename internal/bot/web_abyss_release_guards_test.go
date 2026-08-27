@@ -71,8 +71,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "2409b97aff434ac56d733aa0c70070f58c575a7dca8fcdead54f70b5c469d80f"},
-		{name: "active_run", active: true, want: "48791877b242798b4a375b6b5c7e17b1f59d91a984b46cc70fc44815762f2654"},
+		{name: "threshold", want: "3f9c179f94c40a8295abd360c31e2f205d829418e50ef997aabbbe92c88c5073"},
+		{name: "active_run", active: true, want: "d62db1effce28c6dbb2779ec48a79766dfc5a642b31e113f36a710622fbac099"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -84,7 +84,12 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 			); err != nil {
 				t.Fatalf("render Abyss fixture: %v", err)
 			}
-			for _, required := range []string{"Collection &amp; biome mastery", "Choose prefix", "Choose suffix"} {
+			for _, required := range []string{
+				"Collection &amp; biome mastery",
+				"Choose prefix",
+				"Choose suffix",
+				"GENERATED FROM LIVE CONTENT TABLES",
+			} {
 				if !bytes.Contains(rendered.Bytes(), []byte(required)) {
 					t.Fatalf("rendered Abyss fixture missing %q", required)
 				}
@@ -219,7 +224,9 @@ func abyssGoldenFixture(active bool) map[string]any {
 		"ActiveBadge": "depth_10", "ActiveBadgeName": "Threshold Breaker (Depth 10)",
 		"BadgeSuffixName":  "Abyss Chronicler (Lore Complete)",
 		"BadgeCombination": "Threshold Breaker (Depth 10) · Abyss Chronicler (Lore Complete)",
-		"LoreList":         []any{}, "LoreTotal": len(abyssLoreFragments),
+		"LoreList":         []any{},
+		"LoreTotal":        len(abyssLoreFragments),
+		"Wiki":             abyssWikiCatalog(),
 		"Collections": abyssCollectionView{
 			Biomes: []abyssBiomeMasteryView{
 				{Name: "Mossbound", Affinity: "nature", Clears: 50, Goal: 50, Percent: 100, Mastered: true},

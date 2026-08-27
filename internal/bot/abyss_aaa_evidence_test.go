@@ -61,15 +61,7 @@ func TestAbyssAAAEvidenceReferencesUniqueItemsAndExistingFiles(t *testing.T) {
 	t.Parallel()
 
 	root := abyssAAARepositoryRoot(t)
-	path := filepath.Join(root, "internal", "bot", "testdata", "abyss_aaa_evidence.json")
-	content, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read Abyss AAA evidence: %v", err)
-	}
-	var entries []abyssAAAEvidence
-	if err := json.Unmarshal(content, &entries); err != nil {
-		t.Fatalf("decode Abyss AAA evidence: %v", err)
-	}
+	entries := abyssAAAEvidenceEntries(t, root)
 	if len(entries) == 0 {
 		t.Fatal("Abyss AAA evidence ledger is empty")
 	}
@@ -100,6 +92,34 @@ func TestAbyssAAAEvidenceReferencesUniqueItemsAndExistingFiles(t *testing.T) {
 			if info.IsDir() {
 				t.Fatalf("evidence entry %d references directory %q", entryIndex, evidencePath)
 			}
+		}
+	}
+}
+
+func TestAbyssAAACanonicalIndexMatchesEvidence(t *testing.T) {
+	t.Parallel()
+
+	root := abyssAAARepositoryRoot(t)
+	delivered := abyssAAACanonicalStatus(t, filepath.Join(root, "docs", "ABYSS_AAA_1000.md"))
+	if len(delivered) != 1000 {
+		t.Fatalf("canonical AAA item count = %d, want 1000", len(delivered))
+	}
+
+	evidenced := make(map[int]struct{})
+	for _, entry := range abyssAAAEvidenceEntries(t, root) {
+		for _, id := range entry.IDs {
+			evidenced[id] = struct{}{}
+		}
+	}
+	for id := 1; id <= 1000; id++ {
+		checked, exists := delivered[id]
+		if !exists {
+			t.Errorf("AAA-%04d is missing from the canonical index", id)
+			continue
+		}
+		_, hasEvidence := evidenced[id]
+		if checked != hasEvidence {
+			t.Errorf("AAA-%04d checked = %t, evidence = %t", id, checked, hasEvidence)
 		}
 	}
 }
@@ -138,4 +158,49 @@ func abyssAAALedgerNumbers(t *testing.T, path string, pattern *regexp.Regexp) []
 		t.Fatalf("scan suggestion ledger: %v", err)
 	}
 	return numbers
+}
+
+func abyssAAAEvidenceEntries(t *testing.T, root string) []abyssAAAEvidence {
+	t.Helper()
+	path := filepath.Join(root, "internal", "bot", "testdata", "abyss_aaa_evidence.json")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read Abyss AAA evidence: %v", err)
+	}
+	var entries []abyssAAAEvidence
+	if err := json.Unmarshal(content, &entries); err != nil {
+		t.Fatalf("decode Abyss AAA evidence: %v", err)
+	}
+	return entries
+}
+
+func abyssAAACanonicalStatus(t *testing.T, path string) map[int]bool {
+	t.Helper()
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("open canonical Abyss AAA index: %v", err)
+	}
+	defer func() { _ = file.Close() }()
+
+	pattern := regexp.MustCompile(`^- \[([ xX])\] \*\*AAA-([0-9]{4})`)
+	status := make(map[int]bool, 1000)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		match := pattern.FindStringSubmatch(scanner.Text())
+		if len(match) != 3 {
+			continue
+		}
+		id, err := strconv.Atoi(match[2])
+		if err != nil {
+			t.Fatalf("parse canonical AAA ID %q: %v", match[2], err)
+		}
+		if _, duplicate := status[id]; duplicate {
+			t.Fatalf("AAA-%04d appears more than once in the canonical index", id)
+		}
+		status[id] = strings.EqualFold(match[1], "x")
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("scan canonical Abyss AAA index: %v", err)
+	}
+	return status
 }

@@ -38,6 +38,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_mobile.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_insights.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_observatory.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_wiki.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_polish.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_longterm.css"}}">
@@ -1265,6 +1266,7 @@
 {{template "abyssBossCosmetics" .}}
 
 <div class="abyss-lore-bestiary" data-abyss-section="lore">
+  {{template "abyssWiki" .}}
   <section class="abyss-panel">
     <h2>{{T "web.abyss.lore_codex"}} <span class="ab-lore-ring" id="loreRing" data-total="{{.LoreTotal}}" title="Lore fragments collected"></span></h2>
     <p class="muted small">{{T "web.abyss.lore_codex_desc"}}</p>

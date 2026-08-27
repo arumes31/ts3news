@@ -1779,6 +1779,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Collections":         collectionStatus,
 		"LoreList":            loreList,
 		"LoreTotal":           len(abyssLoreFragments),
+		"Wiki":                abyssWikiCatalog(),
 		"Bestiary":            bestiary,
 		"Consumables":         s.bot.getConsumables(uid),
 		"InsuranceCharms":     s.bot.abyssInsuranceCharmCount(uid),

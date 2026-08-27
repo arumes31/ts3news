@@ -165,6 +165,15 @@ func RandomTreasureGoblinName(source RandomSource) string {
 	return TreasureGoblinNames[source.IntN(len(TreasureGoblinNames))]
 }
 
+func treasureGoblin(name string) Mob {
+	return Mob{
+		Name:     name,
+		Type:     MobTreasureGoblin,
+		Stats:    Stats{HP: 400, STR: 5, DEF: 20, SPD: 150},
+		RewardXP: 50,
+	}
+}
+
 func initMobs() {
 	mobsInitOnce.Do(func() {
 
@@ -236,12 +245,7 @@ func SpawnMobWithRandom(level int, isBoss bool, difficulty float64, source Rando
 			// #nosec G404
 			m = baseMobs[108+source.IntN(2)]
 		} else if r < 0.03 { // 2% chance for Treasure Goblin (0.01 to 0.03)
-			m = Mob{
-				Name:     RandomTreasureGoblinName(source),
-				Type:     MobTreasureGoblin,
-				Stats:    Stats{HP: 400, STR: 5, DEF: 20, SPD: 150},
-				RewardXP: 50,
-			}
+			m = treasureGoblin(RandomTreasureGoblinName(source))
 		} else if r < 0.05 && level >= 10 { // Bosses require level 10+
 			// #nosec G404
 			m = baseMobs[106+source.IntN(2)]
@@ -390,6 +394,20 @@ func SpawnMobWithRandom(level int, isBoss bool, difficulty float64, source Rando
 	}
 
 	return m
+}
+
+// AbyssMobCatalog returns detached copies of every authored encounter template,
+// including the named treasure-goblin variants created outside baseMobs.
+func AbyssMobCatalog() []Mob {
+	initMobs()
+	catalog := make([]Mob, 0, len(baseMobs)+len(TreasureGoblinNames))
+	for index := range baseMobs {
+		catalog = append(catalog, *baseMobs[index].Clone())
+	}
+	for _, name := range TreasureGoblinNames {
+		catalog = append(catalog, treasureGoblin(name))
+	}
+	return catalog
 }
 
 // SpawnMobGroup spawns groupSize mobs scaled to avgLevel and difficulty, with

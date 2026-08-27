@@ -1446,6 +1446,13 @@ func AbyssGearCatalog() []Gear {
 	return catalog
 }
 
+// ItemEffectCatalog returns the complete documented item-affix catalog in its
+// stable presentation order. The returned slice is detached from the canonical
+// content table so callers may sort it safely.
+func ItemEffectCatalog() []ItemEffect {
+	return slices.Clone(allItemEffects)
+}
+
 // abyssDupRerollAttempts caps how many times the *Excluding rollers retry to
 // avoid a duplicate before giving up and returning whatever they last rolled.
 const abyssDupRerollAttempts = 8

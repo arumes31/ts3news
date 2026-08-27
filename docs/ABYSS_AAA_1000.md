@@ -309,6 +309,62 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0249 / 249** — active companions and exact health bars remain visible in the Armoury sidebar outside the Fellowship tab (`webassets/abyss.html`, `webassets/abyss_social.css`).
 - [x] **AAA-0250 / 250** — eligible boss captures persist a distinct boss-variant identity in the Stable and combat profile (`xp.go`, `abyss_pet_stable.go`, `web_abyss_social_hub.go`).
 
+## Delivered tranche: social and co-op program
+
+- [x] **AAA-0251 / 251** — authenticated parties of two or three share a co-op descent and split banked escrow through server-authoritative settlement.
+- [x] **AAA-0252 / 252** — friends can spectate a live run through a read-only participant-safe snapshot and combat feed.
+- [x] **AAA-0253 / 253** — one bounded daily cheer can grant an eligible friend a persisted mid-run buff.
+- [x] **AAA-0254 / 254** — rescue missions recreate a friend's recorded defeat floor and reward both players with a bounded cache recovery.
+- [x] **AAA-0255 / 255** — guild members contribute authoritative clears toward shared weekly depth goals.
+- [x] **AAA-0256 / 256** — guild standings and persistent cosmetic banner choices are exposed in the Fellowship workspace.
+- [x] **AAA-0257 / 257** — the Abyss shoutbox uses the existing TS3-backed channel bridge with bounded, escaped messages.
+- [x] **AAA-0258 / 258** — a confirmed consumable exchange transfers only owned inventory in one transaction.
+- [x] **AAA-0259 / 259** — mentor pairings grant bounded token progress to an eligible veteran and newcomer.
+- [x] **AAA-0260 / 260** — server-wide daily floor progress activates a time-bounded happy-hour reward when the shared goal is met.
+- [x] **AAA-0261 / 261** — opt-in duels use persisted Abyss builds, posted wagers, and authoritative settlement.
+- [x] **AAA-0262 / 262** — one bounded floor message per run can be discovered later without exposing private account data.
+- [x] **AAA-0263 / 263** — post-run kudos are rate-limited, persisted, and ranked on a weekly board.
+- [x] **AAA-0264 / 264** — referral codes grant idempotent rewards only after an eligible recruited delver progresses.
+- [x] **AAA-0265 / 265** — scheduled team tournaments expose server-owned brackets and settled results.
+- [x] **AAA-0266 / 266** — five-player raid lobbies resolve a shared mega-boss and ownership-safe loot rolls.
+- [x] **AAA-0267 / 267** — the web friend list reports bounded online and in-run presence.
+- [x] **AAA-0268 / 268** — the activity feed publishes privacy-bounded banking, depth, and capture milestones.
+- [x] **AAA-0269 / 269** — completed runs produce a locally generated, shareable summary card.
+- [x] **AAA-0270 / 270** — co-op boss drops use authoritative need, greed, or pass rolls before assignment.
+- [x] **AAA-0271 / 271** — helper rewards scale within a bounded range from the assisted boss depth.
+- [x] **AAA-0272 / 272** — expiring invite codes deep-link authenticated players into the intended co-op lobby.
+- [x] **AAA-0273 / 273** — social achievements track authoritative ally assistance and duel victories.
+- [x] **AAA-0274 / 274** — a persisted rival near the player's depth exposes a record target and bounded victory reward.
+- [x] **AAA-0275 / 275** — bounded emote-wheel choices appear as escaped live combat flavor lines.
+
+## Delivered tranche: competition program
+
+- [x] **AAA-0276 / 276** — leaderboard navigation exposes a distinct board for every unlocked difficulty tier.
+- [x] **AAA-0277 / 277** — board queries support authoritative build and specialization filters.
+- [x] **AAA-0278 / 278** — weekly and seasonal standings settle idempotent automatic rewards.
+- [x] **AAA-0279 / 279** — personal standings report an aggregate percentile within the selected board cohort.
+- [x] **AAA-0280 / 280** — bounded pagination and jump-to-me locate the player's row without unbounded result sets.
+- [x] **AAA-0281 / 281** — speed boards rank the fastest authoritative run to the target depth.
+- [x] **AAA-0282 / 282** — economy boards rank weekly banked gold.
+- [x] **AAA-0283 / 283** — pact boards rank the highest survived aggregate pact multiplier.
+- [x] **AAA-0284 / 284** — Bestiary boards rank authoritative kills by monster family.
+- [x] **AAA-0285 / 285** — the opt-in Hall of Shame displays sanitized defeat excerpts.
+- [x] **AAA-0286 / 286** — bank-streak boards rank consecutive successful full banks.
+- [x] **AAA-0287 / 287** — companion boards rank server-derived pet power.
+- [x] **AAA-0288 / 288** — immutable archived season snapshots remain browsable by season.
+- [x] **AAA-0289 / 289** — season settlement grants cosmetic, token, and participation rewards at explicit ranks.
+- [x] **AAA-0290 / 290** — record runs retain a server-side audit trail for anti-cheat review.
+- [x] **AAA-0291 / 291** — the profile compares personal bests with the prior week's values.
+- [x] **AAA-0292 / 292** — rank-change notifications report when another player passes the current player.
+- [x] **AAA-0293 / 293** — channel-scoped boards provide local standings for TS3 groups.
+- [x] **AAA-0294 / 294** — season trophies render as collection-only profile cosmetics.
+- [x] **AAA-0295 / 295** — wager ladders use posted entry fees and transactionally settled prize pools.
+- [x] **AAA-0296 / 296** — every board displays its deterministic tie-break rule.
+- [x] **AAA-0297 / 297** — compact, escaped board summaries can be rendered into configured TS3 channel descriptions.
+- [x] **AAA-0298 / 298** — a close-to-record notice appears within two floors of a qualifying board position.
+- [x] **AAA-0299 / 299** — the player profile charts authoritative depth history over time.
+- [x] **AAA-0300 / 300** — the Hall of Fame retains past season champions.
+
 ## Delivered tranche: core interface organization and control
 
 - [x] **AAA-0301 / 301** — a scroll-triggered mini-HUD keeps authoritative health, depth, cache, threat, lock, and token state available below the stage (`webassets/abyss.html`, `tests/e2e/abyss-core-interface.spec.js`).
@@ -376,6 +432,7 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0980 / AB-280** — stable control, treatment, and holdout cohorts apply an integer-exact bounded reward multiplier and expose revision-isolated death and anomaly guardrails.
 - [x] **AAA-0981 / AB-281** — terminal live combats transactionally archive their deterministic seed and participant-visible event log, with an owner-authorized bounded portal viewer.
 - [x] **AAA-0982 / AB-282** — a versioned anonymous public endpoint exposes only cached global and per-tier aggregates, with CORS, ETag, HEAD, and generic failure handling.
+- [ ] **AAA-0983 / AB-283** — Discord webhook delivery for Eternal drops and world-first depth records remains pending explicit destination and payload authorization.
 - [x] **AAA-0984 / AB-284** — live snapshots expose the authoritative per-round action-change budget, with proactive warnings and client lockout that preserves the queued or automatic fallback action.
 - [x] **AAA-0985 / AB-285** — persisted killer-family counts select the player's most lethal family and mark every matching live enemy as a revenge target.
 - [x] **AAA-0986 / AB-286** — compare tier catalog values with the latest database constraints.
@@ -1136,3 +1193,12 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0383 / 383** — the optional First Chronicle begins at the surface and authors ten fixed floor titles, affinities, and setpiece modifiers while remaining compatible with single, planned, and live combat (`web_abyss_biome_story.go`, `web_abyss.go`).
 - [x] **AAA-0384 / 384** — unique run relics arrive every four cleared floors, feed the shared Abyss combat build, and remain scoped to the active run flags (`web_abyss_relic_boons.go`, `web_abyss_builds.go`).
 - [x] **AAA-0385 / 385** — every fifth clear opens a mandatory one-of-three boon draft; capped choices are skipped, planned descent pauses at the draft, and fully capped runs cannot deadlock (`web_abyss_relic_boons.go`, `web_abyss_run_identity.go`, `webassets/abyss_run_identity.html`).
+
+## Delivered tranche: signed run observatory
+
+- [x] **AAA-0386 / 386** — the Run Observatory charts the owner's authoritative depth, duration, rewards, combat totals, and choices for each archived run (`web_abyss_provenance.go`, `webassets/abyss_observatory.html`, `tests/e2e/abyss-observatory.spec.js`).
+- [x] **AAA-0387 / 387** — owner-created personal tokens expose a bounded read-only stats API with hashed storage, explicit scopes, expiry, revocation, and generic authentication failures (`web_abyss_api_tokens.go`, `web_abyss_api_tokens_test.go`).
+- [ ] **AAA-0388 / 388** — Discord or generic webhook delivery for milestones and legendary drops remains pending explicit destination and payload authorization.
+- [x] **AAA-0389 / 389** — archived runs replay their persisted choices and participant-visible event log through an owner-authorized bounded viewer (`web_abyss_run_replay.go`, `web_abyss_run_replay_test.go`).
+- [x] **AAA-0390 / 390** — every run retains a deterministic seed and signed provenance digest for restart-safe dispute verification (`web_abyss_provenance.go`, `web_abyss_provenance_test.go`).
+- [x] **AAA-0400 / 400** — the searchable Lore Archive renders detached authoritative gear, monster, pact, daily-affix, item-affix, and monster-affix catalogs with keyboard tabs and responsive bounded lists (`web_abyss_wiki.go`, `webassets/abyss_wiki.html`, `tests/e2e/abyss-wiki.spec.js`).
