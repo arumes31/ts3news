@@ -66,6 +66,7 @@ function captureAbyssEntrySetup(){
     kit:kit?kit.value:'vanguard',position:position?position.value:'frontline',mutation:mutation?mutation.value:'empowered',loot_rule:loot?loot.value:'owner',veteran_track:veteran?veteran.value:'',
     focus:focus?focus.value:'auto',contract:contract?contract.value:'',token_ante:ante?(Number(ante.value)||0):0,risk_dial_pct:riskDial?(Number(riskDial.value)||0):0,
     expedition:!!(document.getElementById('weeklyExpedition')&&document.getElementById('weeklyExpedition').checked),
+    story_campaign:!!(document.getElementById('storyCampaign')&&document.getElementById('storyCampaign').checked),
     hardcore:!!(document.getElementById('hardcoreMode')&&document.getElementById('hardcoreMode').checked),
     hybrid:!!(document.getElementById('hybridMode')&&document.getElementById('hybridMode').checked)};
 }
@@ -76,6 +77,15 @@ function saveAbyssEntrySetup(setup){
 }
 function findAbyssSetupRadio(name,value){
   return Array.prototype.find.call(document.querySelectorAll('input[name="'+name+'"]'),function(input){return input.value===String(value||'');})||null;
+}
+function updateAbyssStoryCampaignMode(source){
+  var story=document.getElementById('storyCampaign'),weekly=document.getElementById('weeklyExpedition');
+  if(source==='story'&&story&&story.checked&&weekly)weekly.checked=false;
+  if(source==='weekly'&&weekly&&weekly.checked&&story)story.checked=false;
+  var authored=!!(story&&story.checked);
+  document.querySelectorAll('input[name=abstart]').forEach(function(input){input.disabled=authored&&input.value!=='';});
+  if(authored){var surface=findAbyssSetupRadio('abstart','');if(surface)surface.checked=true;}
+  renderAbyssEntrySummary();
 }
 function restoreAbyssEntrySetup(){
   var saved=abyssSetupState&&abyssSetupState.last_setup;
@@ -92,9 +102,11 @@ function restoreAbyssEntrySetup(){
   });
   document.querySelectorAll('input[name=abpact]').forEach(function(input){input.checked=(saved.pacts||[]).indexOf(input.value)>=0;});
   var expedition=document.getElementById('weeklyExpedition');if(expedition)expedition.checked=!!saved.expedition;
+  var storyCampaign=document.getElementById('storyCampaign');if(storyCampaign)storyCampaign.checked=!!saved.story_campaign;
   var hardcore=document.getElementById('hardcoreMode');if(hardcore)hardcore.checked=!!saved.hardcore;
   var hybrid=document.getElementById('hybridMode');if(hybrid)hybrid.checked=!!saved.hybrid;
   var riskDial=document.getElementById('entryRiskDial');if(riskDial){riskDial.value=String(Number(saved.risk_dial_pct)||0);updateAbyssEntryRiskDial();}
+  updateAbyssStoryCampaignMode(saved.story_campaign?'story':'');
   updatePactBonus();renderTierRisk();recommendAbyssTier();renderAbyssEntrySummary();
   abToast('Previous account setup restored, including reward focus.',true);
 }

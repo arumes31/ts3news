@@ -1,0 +1,76 @@
+{{define "abyssRunIdentity"}}
+<section class="ab-chronicle" id="abyssRunIdentity" {{if not .RunIdentity.Active}}hidden{{end}} aria-labelledby="abyssChronicleTitle">
+  <header class="ab-chronicle-head">
+    <div><span class="ab-chronicle-kicker">EXPEDITION CHRONICLE</span><h2 id="abyssChronicleTitle">Route, relics &amp; boons</h2></div>
+    <span class="ab-chronicle-runonly">Run-only power · expires when the expedition ends</span>
+  </header>
+  <div id="abyssChronicleBody">
+    {{if .RunIdentity.Story}}
+    <div class="ab-chronicle-story">
+      <div class="ab-chronicle-label"><b>📜 The First Chronicle</b><span>{{.RunIdentity.StoryProgress}} / 10 chapters</span></div>
+      <ol class="ab-story-track">
+        {{range .RunIdentity.StoryBeats}}<li class="{{if .Complete}}complete{{else if .Current}}current{{end}}" title="{{.Subtitle}}"><span>{{.Depth}}</span><b>{{.Title}}</b></li>{{end}}
+      </ol>
+    </div>
+    {{end}}
+    <div class="ab-chronicle-grid">
+      <article class="ab-chronicle-card" id="abyssBiomeCard">
+        <span class="ab-chronicle-label">🧭 BIOME CONTRACT</span>
+        {{with .RunIdentity.Biome}}<b>{{.Icon}} {{.Name}}</b><small>{{.Promise}} · {{.Warning}} · through floor {{$.RunIdentity.BiomeUntil}}</small>{{else}}<b>No route bound</b><small>Choose the next five-floor route at a Sanctuary.</small>{{end}}
+        {{if .RunIdentity.BiomeChoiceRequired}}<div class="ab-biome-choice-list">{{range .RunIdentity.BiomeChoices}}<button type="button" class="ghost" onclick="chooseAbyssBiome({{.ID}},this)"><b>{{.Icon}} {{.Name}}</b><span>{{.Promise}} · {{.Warning}}</span></button>{{end}}</div>{{end}}
+      </article>
+      <article class="ab-chronicle-card">
+        <span class="ab-chronicle-label">◈ RUN RELICS</span>
+        <div class="ab-chronicle-items" id="abyssRunRelics">{{range .RunIdentity.Relics}}<span><b>{{.Icon}} {{.Name}}</b><small>{{.Effect}}</small></span>{{else}}<em>Next discovery at floor {{.RunIdentity.NextRelicDepth}}.</em>{{end}}</div>
+      </article>
+      <article class="ab-chronicle-card {{if .RunIdentity.Draft.Pending}}needs-choice{{end}}" id="abyssBoonCard">
+        <span class="ab-chronicle-label">✦ DRAFTED BOONS</span>
+        <div class="ab-chronicle-items" id="abyssRunBoons">{{range .RunIdentity.Boons}}<span><b>{{.Icon}} {{.Name}} ×{{.Stacks}}</b><small>{{.Effect}}</small></span>{{else}}<em>Boons are drafted every fifth floor.</em>{{end}}</div>
+        {{if .RunIdentity.Draft.Pending}}<div class="ab-boon-draft"><strong>Choose one boon from floor {{.RunIdentity.Draft.Depth}}</strong>{{range .RunIdentity.Draft.Options}}<button type="button" onclick="chooseAbyssBoon({{.ID}},this)"><b>{{.Icon}} {{.Name}}</b><span>{{.Effect}}{{if .Stacks}} · current ×{{.Stacks}}{{end}}</span></button>{{end}}</div>{{end}}
+      </article>
+    </div>
+  </div>
+</section>
+{{end}}
+
+{{define "abyssRunIdentityJS"}}
+var abyssBiomeContracts=[{{range $index,$choice := .RunIdentity.BiomeChoices}}{{if $index}},{{end}}{id:{{$choice.ID}},icon:{{printf "%q" $choice.Icon}},name:{{printf "%q" $choice.Name}},promise:{{printf "%q" $choice.Promise}},warning:{{printf "%q" $choice.Warning}}}{{end}}];
+var abyssRunIdentityState=null;
+function abyssIdentityCardItems(items,empty){
+  if(!items||!items.length)return '<em>'+consEsc(empty)+'</em>';
+  return items.map(function(item){return '<span><b>'+consEsc(item.icon||'')+' '+consEsc(item.name||'')+(item.stacks?' ×'+Number(item.stacks):'')+'</b><small>'+consEsc(item.effect||'')+'</small></span>';}).join('');
+}
+function renderAbyssRunIdentity(view){
+  abyssRunIdentityState=view||abyssRunIdentityState;
+  view=abyssRunIdentityState;if(!view)return;
+  var panel=document.getElementById('abyssRunIdentity');if(!panel)return;
+  panel.hidden=!view.active;
+  var relics=document.getElementById('abyssRunRelics');if(relics)relics.innerHTML=abyssIdentityCardItems(view.relics,'Next discovery at floor '+Number(view.next_relic_depth||4)+'.');
+  var boons=document.getElementById('abyssRunBoons');if(boons)boons.innerHTML=abyssIdentityCardItems(view.boons,'Boons are drafted every fifth floor.');
+  var boonCard=document.getElementById('abyssBoonCard');if(boonCard){boonCard.classList.toggle('needs-choice',!!(view.draft&&view.draft.pending));var old=boonCard.querySelector('.ab-boon-draft');if(old)old.remove();if(view.draft&&view.draft.pending)boonCard.insertAdjacentHTML('beforeend',abyssBoonDraftHTML(view.draft));}
+  var biome=document.getElementById('abyssBiomeCard');if(biome&&view.biome){var oldChoices=biome.querySelector('.ab-biome-choice-list');if(oldChoices)oldChoices.remove();biome.querySelectorAll(':scope > b,:scope > small').forEach(function(el){el.remove();});var title=document.createElement('b');title.textContent=(view.biome.icon||'🧭')+' '+view.biome.name;var detail=document.createElement('small');detail.textContent=view.biome.promise+' · '+view.biome.warning+' · through floor '+Number(view.biome_until||0);biome.append(title,detail);}
+}
+function abyssBoonDraftHTML(draft){
+  return '<div class="ab-boon-draft"><strong>Choose one boon from floor '+Number(draft.depth||0)+'</strong>'+(draft.options||[]).map(function(item){return '<button type="button" onclick="chooseAbyssBoon('+Number(item.id)+',this)"><b>'+consEsc(item.icon||'')+' '+consEsc(item.name||'')+'</b><span>'+consEsc(item.effect||'')+(item.stacks?' · current ×'+Number(item.stacks):'')+'</span></button>';}).join('')+'</div>';
+}
+function renderAbyssBiomeContractChoices(container){
+  if(!container||container.querySelector('.ab-biome-choice-list'))return;
+  var block=document.createElement('div');block.className='ab-biome-choice-list ab-biome-choice-rest';
+  var heading=document.createElement('strong');heading.textContent='Bind the next five-floor biome contract';block.appendChild(heading);
+  abyssBiomeContracts.forEach(function(item){var button=document.createElement('button');button.type='button';button.className='ghost';button.innerHTML='<b>'+consEsc(item.icon)+' '+consEsc(item.name)+'</b><span>'+consEsc(item.promise)+' · '+consEsc(item.warning)+'</span>';button.onclick=function(){chooseAbyssBiome(item.id,button);};block.appendChild(button);});container.appendChild(block);
+}
+async function chooseAbyssBiome(id,button){
+  if(button)button.disabled=true;var data=await abPost('/api/abyss/run/biome',{id:Number(id)});if(button)button.disabled=false;
+  if(!data.ok){abToast(data.error||'Could not bind biome contract.',false);return;}renderAbyssRunIdentity(data.run_identity);document.querySelectorAll('.ab-biome-choice-list').forEach(function(el){el.remove();});abToast('🧭 '+data.name+' bound through floor '+data.until+'.',true);
+}
+async function chooseAbyssBoon(id,button){
+  if(button)button.disabled=true;var data=await abPost('/api/abyss/run/boon',{id:Number(id)});if(button)button.disabled=false;
+  if(!data.ok){abToast(data.error||'Could not draft boon.',false);return;}renderAbyssRunIdentity(data.run_identity);abToast('✦ '+data.name+' drafted · stack '+data.stacks+'.',true);
+}
+function presentAbyssBoonDraft(draft){
+  var view=abyssRunIdentityState||{active:true,relics:[],boons:[],next_relic_depth:4};view.draft=draft;renderAbyssRunIdentity(view);var panel=document.getElementById('abyssRunIdentity');if(panel){panel.hidden=false;panel.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'center'});}
+}
+(function initAbyssRunIdentity(){
+  if(typeof floorType==='string'&&floorType==='rest')renderAbyssBiomeContractChoices(document.getElementById('ncOptions'));
+})();
+{{end}}

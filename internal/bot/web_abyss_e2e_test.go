@@ -154,6 +154,24 @@ func TestAbyssE2EServer(t *testing.T) {
 	})
 	mux.HandleFunc("/abyss", func(w http.ResponseWriter, r *http.Request) {
 		fixture := abyssGoldenFixture(r.URL.Query().Get("active") == "1")
+		if chronicle := r.URL.Query().Get("chronicle"); chronicle != "" {
+			run := fixture["Run"].(abyssRun)
+			flags := map[string]int64{
+				abyssRunFlagStoryCampaign: 1,
+				abyssRunRelicFlag(1):      1,
+				abyssRunBoonFlag(2):       2,
+			}
+			if chronicle == "draft" {
+				run.Depth = 5
+				run.FloorType = "combat"
+				flags[abyssRunFlagBoonDraftDepth] = 5
+			} else if chronicle == "rest" {
+				run.Depth = 6
+				run.FloorType = "rest"
+			}
+			fixture["Run"] = run
+			fixture["RunIdentity"] = abyssRunIdentityViewFrom(run, flags)
+		}
 		if r.URL.Query().Get("endless") == "1" {
 			retention := fixture["Retention"].(abyssRetentionView)
 			retention.Endless = abyssEndlessProgram(175, map[string]bool{})

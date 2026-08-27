@@ -59,7 +59,7 @@ func TestAbyssEntryPlannerAssetsAndContracts(t *testing.T) {
 		`id="entryFocus"`,
 		`id="entryJackpot"`,
 		`{{if not .Unlocked}}disabled{{end}}`,
-		`🔒 depth {{.MinBest}}`,
+		`🔒 {{.UnlockQuest}}`,
 		`Confirm descent costs`,
 		`goldCost>1000||tokenCost>0`,
 		`{{if .DailyMod}}`,
@@ -103,12 +103,12 @@ func TestAbyssConsumableEntryLoadoutValidation(t *testing.T) {
 			name: "valid selection",
 			picked: map[string]int{
 				"small_health_potion": 2,
-				"repair_kit":           1,
+				"repair_kit":          1,
 			},
 			maxCarry: 3,
 			want: map[string]int{
 				"small_health_potion": 2,
-				"repair_kit":           1,
+				"repair_kit":          1,
 			},
 		},
 		{
@@ -127,7 +127,7 @@ func TestAbyssConsumableEntryLoadoutValidation(t *testing.T) {
 			name: "over carry capacity",
 			picked: map[string]int{
 				"small_health_potion": 3,
-				"repair_kit":           2,
+				"repair_kit":          2,
 			},
 			maxCarry:  4,
 			wantError: "at most 4",

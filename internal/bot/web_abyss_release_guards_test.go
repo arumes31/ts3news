@@ -71,8 +71,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "9b0be0d59a25cefaa1ced32ae696fb714f6295d3d7db3fadefc859970d903a66"},
-		{name: "active_run", active: true, want: "074e038f9d02d0619abab948f3904ec8514da46bdac580d28952a7d869f79fd7"},
+		{name: "threshold", want: "240fa2abaceaa7578207ebf63f9e02c7a4776ff3fa9b15db98f960daccde04cc"},
+		{name: "active_run", active: true, want: "077a073b3e12442dfd3ab2ee222da3329917551c8b2cc27e328e9cb05477a060"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -177,6 +177,13 @@ func abyssGoldenFixture(active bool) map[string]any {
 		run.CurHP = 750
 		run.MaxHP = 1000
 	}
+	runIdentityFlags := map[string]int64{}
+	if active {
+		runIdentityFlags[abyssRunFlagStoryCampaign] = 1
+		runIdentityFlags[abyssRunRelicFlag(1)] = 1
+		runIdentityFlags[abyssRunBoonFlag(2)] = 2
+	}
+	runIdentity := abyssRunIdentityViewFrom(run, runIdentityFlags)
 	bossAffinity := abyssBossAffinityForecast(run, time.Date(2026, time.August, 25, 12, 0, 0, 0, time.UTC))
 	elementalPreview := abyssElementalPreview(
 		bossAffinity,
@@ -196,7 +203,7 @@ func abyssGoldenFixture(active bool) map[string]any {
 			UID: "golden-player", Nickname: "Golden Delver", Level: 100,
 			Gold: 123456, AbyssTokens: 42, CurrentHP: 750, MaxHP: 1000,
 		},
-		"Stats": stats, "Run": run, "RegenPerSec": 0.0, "AutoFocus": "balanced",
+		"Stats": stats, "Run": run, "RunIdentity": runIdentity, "RegenPerSec": 0.0, "AutoFocus": "balanced",
 		"Tiers": abyssTierList(stats.BestDepth), "Leaders": abyssBoards{}, "Season": "S1", "SeasonJourney": seasonJourney,
 		"Retention":   retention,
 		"Competition": abyssCompetitionView{}, "CompetitionPageSize": abyssCompetitionPageSize,

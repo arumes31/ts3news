@@ -10,22 +10,23 @@ import (
 const abyssEntrySetupKeyPrefix = "abyss_entry_setup_"
 
 type abyssEntrySetup struct {
-	Tier         string   `json:"tier"`
-	Pacts        []string `json:"pacts"`
-	Start        string   `json:"start"`
-	Checkpoint   int      `json:"checkpoint"`
-	Kit          string   `json:"kit"`
-	Position     string   `json:"position"`
-	Mutation     string   `json:"mutation"`
-	LootRule     string   `json:"loot_rule"`
-	VeteranTrack string   `json:"veteran_track"`
-	Focus        string   `json:"focus"`
-	Expedition   bool     `json:"expedition"`
-	Hardcore     bool     `json:"hardcore"`
-	Hybrid       bool     `json:"hybrid"`
-	Contract     string   `json:"contract"`
-	TokenAnte    int      `json:"token_ante"`
-	RiskDialPct  int      `json:"risk_dial_pct"`
+	Tier          string   `json:"tier"`
+	Pacts         []string `json:"pacts"`
+	Start         string   `json:"start"`
+	Checkpoint    int      `json:"checkpoint"`
+	Kit           string   `json:"kit"`
+	Position      string   `json:"position"`
+	Mutation      string   `json:"mutation"`
+	LootRule      string   `json:"loot_rule"`
+	VeteranTrack  string   `json:"veteran_track"`
+	Focus         string   `json:"focus"`
+	Expedition    bool     `json:"expedition"`
+	StoryCampaign bool     `json:"story_campaign"`
+	Hardcore      bool     `json:"hardcore"`
+	Hybrid        bool     `json:"hybrid"`
+	Contract      string   `json:"contract"`
+	TokenAnte     int      `json:"token_ante"`
+	RiskDialPct   int      `json:"risk_dial_pct"`
 }
 
 type abyssSetupYesterday struct {
@@ -62,6 +63,11 @@ func canonicalAbyssEntrySetup(setup abyssEntrySetup) abyssEntrySetup {
 	}
 	if _, hasNextTier := abyssNextTier(setup.Tier); !hasNextTier {
 		setup.Hybrid = false
+	}
+	if setup.StoryCampaign {
+		setup.Expedition = false
+		setup.Start = ""
+		setup.Checkpoint = 0
 	}
 	setup.Pacts = canonicalAbyssPactRequest(setup.Pacts)
 	setup.Contract, _ = normalizeAbyssContractPact(setup.Contract)

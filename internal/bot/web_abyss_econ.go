@@ -48,9 +48,11 @@ func abyssTierByKey(k string) (abyssTier, bool) {
 // abyssTierView is the template-facing tier with its unlock state.
 type abyssTierView struct {
 	abyssTier
-	Unlocked    bool
-	Icon        string
-	WinRateHint string
+	Unlocked      bool
+	Icon          string
+	WinRateHint   string
+	UnlockQuest   string
+	QuestProgress string
 }
 
 func abyssTierList(bestDepth int) []abyssTierView {
@@ -320,6 +322,11 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 	// regular cycle combat (which reads abyss_win_streak too).
 	if _, err := tx.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid); err != nil {
 		return abyssForfeitResult{}, err
+	}
+	if clearAbyssRunIdentityFlags(flags) {
+		if err := saveRunFlags(tx, uid, flags); err != nil {
+			return abyssForfeitResult{}, err
+		}
 	}
 	if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
 		return abyssForfeitResult{}, err

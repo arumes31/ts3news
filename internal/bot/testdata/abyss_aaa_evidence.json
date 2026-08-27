@@ -2017,5 +2017,30 @@
       "tests/e2e/abyss.spec.js",
       "tests/e2e/abyss-workspace.spec.js"
     ]
+  },
+  {
+    "ids": [381, 382, 383, 384, 385],
+    "production": [
+      "internal/bot/web.go",
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_builds.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_biome_story.go",
+      "internal/bot/web_abyss_relic_boons.go",
+      "internal/bot/web_abyss_run_identity.go",
+      "internal/bot/web_abyss_tier_quests.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_entry_planner.html",
+      "internal/bot/webassets/abyss_run_identity.html",
+      "internal/bot/webassets/abyss_run_identity.css"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_biome_story_test.go",
+      "internal/bot/web_abyss_relic_boons_test.go",
+      "internal/bot/web_abyss_run_identity_test.go",
+      "internal/bot/web_abyss_tier_quests_test.go",
+      "internal/bot/web_abyss_release_guards_test.go",
+      "tests/e2e/abyss-run-identity.spec.js"
+    ]
   }
 ]

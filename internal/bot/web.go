@@ -397,6 +397,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_retention.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_retention.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_run_identity.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_run_identity.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_ops.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_ops.css", "text/css; charset=utf-8")
 	})
@@ -591,6 +594,8 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/season/journal/finale", s.authAPI(s.handleAbyssSeasonJournalFinale))
 		mux.HandleFunc("/api/abyss/retention/login", s.authAPI(s.handleAbyssLoginClaim))
 		mux.HandleFunc("/api/abyss/retention/endless", s.authAPI(s.handleAbyssEndlessClaim))
+		mux.HandleFunc("/api/abyss/run/biome", s.authAPI(s.handleAbyssBiomeContract))
+		mux.HandleFunc("/api/abyss/run/boon", s.authAPI(s.handleAbyssBoonDraft))
 		mux.HandleFunc("/api/abyss/set_badge", s.authAPI(s.handleAbyssSetBadge))
 		mux.HandleFunc("/api/abyss/shop/buy", s.authAPI(s.handleAbyssShopBuy))
 		mux.HandleFunc("/api/abyss/plaza/buy", s.authAPI(s.handleAbyssPlazaBuy))

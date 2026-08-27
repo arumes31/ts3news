@@ -1128,3 +1128,11 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0378 / 378** — a 28-day UTC login calendar atomically records one daily claim and grants bounded gold or weekly token caches without duplicate rewards (`web_abyss_retention.go`, `webassets/abyss_retention.html`).
 - [x] **AAA-0379 / 379** — the personal seven-day digest compares current and prior depth, run, floor, and banked-gold performance and calls out near-record attempts (`web_abyss_retention.go`, `webassets/abyss_retention.html`).
 - [x] **AAA-0380 / 380** — reaching depth 100 opens an endless ledger whose repeatable 25-depth ranks grant collection-only banners, trails, auras, and portraits with an explicit zero-power contract (`web_abyss_retention.go`, `webassets/abyss_retention.html`).
+
+## Delivered tranche: expedition chronicle and run identity
+
+- [x] **AAA-0381 / 381** — every Sanctuary requires a server-authoritative biome contract that guides the next five floors, with the selected route shown in combat and the Chronicle workspace (`web_abyss_biome_story.go`, `web_abyss_run_identity.go`, `webassets/abyss_run_identity.html`).
+- [x] **AAA-0382 / 382** — Nightmare, Hell, and Insanity now unlock through successful banked-run quests in the preceding tier rather than the account's global best-depth number (`web_abyss_tier_quests.go`, `webassets/abyss.html`).
+- [x] **AAA-0383 / 383** — the optional First Chronicle begins at the surface and authors ten fixed floor titles, affinities, and setpiece modifiers while remaining compatible with single, planned, and live combat (`web_abyss_biome_story.go`, `web_abyss.go`).
+- [x] **AAA-0384 / 384** — unique run relics arrive every four cleared floors, feed the shared Abyss combat build, and remain scoped to the active run flags (`web_abyss_relic_boons.go`, `web_abyss_builds.go`).
+- [x] **AAA-0385 / 385** — every fifth clear opens a mandatory one-of-three boon draft; capped choices are skipped, planned descent pauses at the draft, and fully capped runs cannot deadlock (`web_abyss_relic_boons.go`, `web_abyss_run_identity.go`, `webassets/abyss_run_identity.html`).

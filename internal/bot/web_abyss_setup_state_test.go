@@ -77,6 +77,16 @@ func TestCanonicalAbyssEntrySetup(t *testing.T) {
 	}
 }
 
+func TestCanonicalAbyssStorySetupOwnsTheRoute(t *testing.T) {
+	setup := canonicalAbyssEntrySetup(abyssEntrySetup{
+		Tier: "normal", StoryCampaign: true, Expedition: true,
+		Start: "checkpoint", Checkpoint: 20,
+	})
+	if !setup.StoryCampaign || setup.Expedition || setup.Start != "" || setup.Checkpoint != 0 {
+		t.Fatalf("story setup = %#v", setup)
+	}
+}
+
 func TestSaveAbyssEntrySetup(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {

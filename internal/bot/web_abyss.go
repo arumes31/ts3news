@@ -896,9 +896,26 @@ func (b *Bot) fightAbyssFloorMode(
 	theme := content.CurrentTheme(encounterTime)
 	seasonCampaign := abyssSeasonCampaignAt(encounterTime)
 	biomeWeight := content.AbyssBiomeWeight(depth, seasonCampaign.Affinity)
-	biome := content.AbyssBiomeForAffinity(depth, seasonCampaign.Affinity, encounterRandom.IntN(biomeWeight))
+	biome, routeLabel := abyssBiomeForRun(
+		depth,
+		seasonCampaign.Affinity,
+		encounterRandom.IntN(max(biomeWeight, 1)),
+		flags,
+	)
 	zoneName := biome.Name + " " + abyssZoneName(depth)
 	diff *= biome.DiffMod
+	if story, ok := abyssStoryFloorFromFlags(flags, depth); ok {
+		logs = append(logs, fmt.Sprintf(
+			"[color=#efbd59]📜 Chronicle %d/10 — %s: %s[/color]",
+			story.Depth, story.Title, story.Subtitle,
+		))
+	} else if routeLabel != "" {
+		logs = append(logs, fmt.Sprintf(
+			"[color=#62d6c5]🧭 Biome contract — %s guides this encounter.[/color]",
+			routeLabel,
+		))
+	}
+	logs = append(logs, abyssRunIdentityCombatLog(flags)...)
 	var biomeMastered bool
 	u.Stats, biomeMastered = b.applyAbyssBiomeMastery(uid, biome, u.Stats)
 	if biomeMastered {
@@ -1657,6 +1674,12 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	history := s.bot.abyssHistory(uid, 30)
 	bestiary := s.bot.loadAbyssBestiary(uid)
 	insights := s.bot.abyssRunInsights(uid, run, history, bestiary, st.AbyssPrestige)
+	tierQuests, tierQuestErr := s.bot.abyssTierQuests(r.Context(), uid)
+	if tierQuestErr != nil {
+		log.Printf("abyss tier quest read failed: uid=%q err=%v", uid, tierQuestErr)
+	}
+	tierViews := abyssTierViewsWithQuests(tierQuests, insights.TierRates)
+	runIdentity := abyssRunIdentityViewFrom(run, runFlags)
 	longTerm := s.bot.abyssLongTermStatus(r.Context(), uid, run, history, st.BestDepth, pity)
 	coreLoop := s.bot.abyssCoreLoopStatus(uid, run)
 	eventIntel := s.bot.abyssEventIntel(uid, run)
@@ -1696,7 +1719,8 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"AutoFocus":           s.selectedAbyssFocus(uid, run),
 		"FocusPreference":     abyssFocusPreference(runFlags),
 		"HUD":                 hudState,
-		"Tiers":               abyssTierListWithRates(st.BestDepth, insights.TierRates),
+		"Tiers":               tierViews,
+		"RunIdentity":         runIdentity,
 		"Leaders":             s.bot.abyssLeaderboardsForUID(lbTier, uid),
 		"Competition":         s.bot.abyssCompetition(uid, lbTier, lbBuild, lbPeriod, time.Now().UTC()),
 		"CompetitionPageSize": abyssCompetitionPageSize,
@@ -1899,6 +1923,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		Start         string         `json:"start"`          // "" | "checkpoint" | "express" (#2/#3)
 		Checkpoint    int            `json:"checkpoint"`     // requested checkpoint depth (multiple of 10)
 		Expedition    bool           `json:"expedition"`     // weekly fixed-seed rules
+		StoryCampaign bool           `json:"story_campaign"` // authored ten-floor route
 		Hardcore      bool           `json:"hardcore"`       // no protection or revival, ×2 floor cache
 		Hybrid        bool           `json:"hybrid"`         // every fifth floor borrows the next tier's danger
 		Kit           string         `json:"kit"`            // starting combat identity
@@ -1974,6 +1999,10 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 			return
 		}
 	}
+	if req.StoryCampaign && req.Expedition {
+		writeJSON(w, map[string]any{"ok": false, "error": "choose either the story campaign or weekly expedition"})
+		return
+	}
 	focus, focusID, focusOK := normalizeAbyssEntryFocus(req.Focus)
 	if !focusOK {
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown focus"})
@@ -1981,8 +2010,18 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 
 	st := stPre
-	if st.BestDepth < tier.MinBest {
-		writeJSON(w, map[string]any{"ok": false, "error": "tier locked — reach depth " + itoa(tier.MinBest) + " first"})
+	tierQuests, tierQuestErr := s.bot.abyssTierQuests(r.Context(), uid)
+	if tierQuestErr != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "tier quest progress is unavailable"})
+		return
+	}
+	tierQuest, tierQuestOK := abyssTierQuestByKey(tierQuests, tier.Key)
+	if !tierQuestOK || !tierQuest.Complete {
+		requirement := "complete the preceding tier quest"
+		if tierQuestOK {
+			requirement = tierQuest.requirement()
+		}
+		writeJSON(w, map[string]any{"ok": false, "error": "tier locked — " + requirement})
 		return
 	}
 	if req.VeteranTrack != "" && st.BestDepth < 50 {
@@ -2021,6 +2060,10 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	route, routeErr := planAbyssEntryRoute(req.Start, req.Checkpoint, st.BestDepth)
 	if routeErr != "" {
 		writeJSON(w, map[string]any{"ok": false, "error": routeErr})
+		return
+	}
+	if req.StoryCampaign && route.Depth > 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "the story campaign begins at floor 1"})
 		return
 	}
 	startDepth := route.Depth
@@ -2245,6 +2288,9 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	if req.Hybrid {
 		flags[abyssRunFlagHybrid] = 1
 	}
+	if req.StoryCampaign {
+		flags[abyssRunFlagStoryCampaign] = 1
+	}
 	flags[abyssRunFlagTokenAnte] = int64(req.TokenAnte)
 	flags[abyssRunFlagRiskDialPct] = int64(req.RiskDialPct)
 	flags[abyssRunFlagPosition] = abyssCombatPositions[normalizeAbyssCombatPosition(req.Position)]
@@ -2285,22 +2331,23 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		return
 	}
 	if err := saveAbyssEntrySetup(tx, uid, abyssEntrySetup{
-		Tier:         tier.Key,
-		Pacts:        canonicalAbyssPactRequest(req.Pacts),
-		Start:        req.Start,
-		Checkpoint:   req.Checkpoint,
-		Kit:          req.Kit,
-		Position:     req.Position,
-		Mutation:     req.Mutation,
-		LootRule:     req.LootRule,
-		VeteranTrack: req.VeteranTrack,
-		Focus:        focus,
-		Expedition:   req.Expedition,
-		Hardcore:     req.Hardcore,
-		Hybrid:       req.Hybrid,
-		Contract:     req.Contract,
-		TokenAnte:    req.TokenAnte,
-		RiskDialPct:  req.RiskDialPct,
+		Tier:          tier.Key,
+		Pacts:         canonicalAbyssPactRequest(req.Pacts),
+		Start:         req.Start,
+		Checkpoint:    req.Checkpoint,
+		Kit:           req.Kit,
+		Position:      req.Position,
+		Mutation:      req.Mutation,
+		LootRule:      req.LootRule,
+		VeteranTrack:  req.VeteranTrack,
+		Focus:         focus,
+		Expedition:    req.Expedition,
+		StoryCampaign: req.StoryCampaign,
+		Hardcore:      req.Hardcore,
+		Hybrid:        req.Hybrid,
+		Contract:      req.Contract,
+		TokenAnte:     req.TokenAnte,
+		RiskDialPct:   req.RiskDialPct,
 	}); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -2332,6 +2379,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		"auto_insurance_cost": autoInsuranceCost, "auto_insurance_free": autoInsuranceFree,
 		"auto_insurance_skip": autoInsurance.SkipReason,
 		"weekly_expedition":   weeklyRule.Label,
+		"story_campaign":      req.StoryCampaign,
 		"hardcore":            req.Hardcore,
 		"hybrid":              req.Hybrid,
 		"token_ante":          req.TokenAnte,
@@ -2382,6 +2430,14 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "you must resolve the current floor action first"})
 		return
 	}
+	runFlags := s.bot.loadRunFlags(uid)
+	if abyssRunChoicePending(runFlags) {
+		writeJSON(w, map[string]any{
+			"ok": false, "error": "choose a boon before descending",
+			"boon_draft": abyssBoonDraftFromFlags(runFlags),
+		})
+		return
+	}
 
 	focus := s.selectedAbyssFocus(uid, run)
 	runPacts := s.bot.abyssRunPacts(uid)
@@ -2393,6 +2449,10 @@ func (s *WebServer) handleAbyssDescend(w http.ResponseWriter, r *http.Request, u
 	newDepth := run.Depth + 1
 	tier, _ := abyssTierByKey(run.Tier)
 	mappedType, mapped := s.bot.abyssCartographerFloor(uid, newDepth)
+	if story, ok := abyssStoryFloorFromFlags(runFlags, newDepth); ok {
+		s.commitFloor(w, uid, run, newDepth, "combat", story.Modifier, "", tier, focus, req.Interactive)
+		return
+	}
 
 	// Forced floors bypass the choice picker entirely: the Watcher Stalker
 	// ambush trigger (Item #67) and boss floors are never optional.
@@ -2495,6 +2555,8 @@ type abyssMultiFloorResult struct {
 	Timeline       []combatTimelineFrame       `json:"timeline"`
 	EventChain     *abyssEventChainView        `json:"event_chain,omitempty"`
 	MapRoute       *abyssCartographerRouteView `json:"map_route,omitempty"`
+	RunRelic       *abyssRunRelic              `json:"run_relic,omitempty"`
+	BoonDraft      *abyssBoonDraftView         `json:"boon_draft,omitempty"`
 }
 
 func (s *WebServer) descendMultiAbort(uid, errKey string, tier abyssTier, logs, loot, dura []string, timeline []combatTimelineFrame, floorResults []abyssMultiFloorResult, rewardXP int) map[string]any {
@@ -2588,6 +2650,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 	var bossTokenAwarded bool
 	var eventChain *abyssEventChainView
 	var mapRoute *abyssCartographerRouteView
+	var lastRunAdvance abyssRunAdvance
 	abort := func(errKey string, tier abyssTier) map[string]any {
 		out := s.descendMultiAbort(uid, errKey, tier, combinedLogs, combinedLoot, combinedDura, combinedTimeline, floorResults, totalRewardXP)
 		out["variety_bonus_xp"] = totalVarietyBonusXP
@@ -2603,6 +2666,14 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 	runInit := s.bot.loadAbyssRun(uid)
 	if !runInit.Active {
 		writeJSON(w, map[string]any{"ok": false, "error": "not in a run"})
+		return
+	}
+	initialFlags := s.bot.loadRunFlags(uid)
+	if abyssRunChoicePending(initialFlags) {
+		writeJSON(w, map[string]any{
+			"ok": false, "error": "choose a boon before descending",
+			"boon_draft": abyssBoonDraftFromFlags(initialFlags),
+		})
 		return
 	}
 	tier, _ := abyssTierByKey(runInit.Tier)
@@ -2629,6 +2700,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		focus := s.selectedAbyssFocus(uid, run)
 
 		newDepth := run.Depth + 1
+		runFlags := s.bot.loadRunFlags(uid)
 		mappedType, mapped := s.bot.abyssCartographerFloor(uid, newDepth)
 
 		// The server owns the floor roll, mirroring a single descend: forced
@@ -2640,7 +2712,10 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		modifier := ""
 		eventState := ""
 
-		if cursedElevator {
+		if story, ok := abyssStoryFloorFromFlags(runFlags, newDepth); ok {
+			actualType = "combat"
+			modifier = story.Modifier
+		} else if cursedElevator {
 			// The cursed elevator always opens onto danger. Boss rules still apply
 			// inside fightAbyssFloor, while rest/event floors are bypassed so both
 			// dropped floors grant a combat reward and carry combat risk.
@@ -2744,6 +2819,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				"enemy_forecast":     s.bot.abyssEnemyForecast(uid, runFinal),
 				"event_chain":        eventChain,
 				"map_route":          mapRoute,
+				"run_identity":       s.bot.abyssRunIdentity(uid, runFinal),
 			})
 			return
 		}
@@ -2845,12 +2921,21 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				eventChain = &chain
 				floorResults[len(floorResults)-1].EventChain = &chain
 			}
+			lastRunAdvance = o.RunAdvance
+			floorResults[len(floorResults)-1].RunRelic = o.RunAdvance.Relic
+			if o.RunAdvance.Draft.Pending {
+				draft := o.RunAdvance.Draft
+				floorResults[len(floorResults)-1].BoonDraft = &draft
+			}
 			escrowSoftCap = o.EscrowSoftCap
 			escrowEfficiencyPct = o.EscrowEfficiencyPct
 			floorResults[len(floorResults)-1].OverkillGold = o.OverkillGold
 			run.Escrow = o.NewEscrow
 			_ = s.bot.setPendingAbyssDoubleBonus(uid, newDepth, o.Bonus)
 			autoStopReason = stopRules.stopReason(newDepth, res.CurrentHP, res.MaxHP, res.LegendaryDrop)
+			if o.RunAdvance.Draft.Pending {
+				break
+			}
 		} else {
 			// Defeat: stop batch run
 			canRevive := s.applyFloorDefeat(uid, run)
@@ -2954,9 +3039,19 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		"enemy_forecast":        s.bot.abyssEnemyForecast(uid, finalRun),
 		"event_chain":           eventChain,
 		"map_route":             mapRoute,
+		"run_identity":          abyssRunIdentityViewFrom(finalRun, s.bot.loadRunFlags(uid)),
 	}
 	if cursedElevator {
 		out["cursed_elevator"] = true
+	}
+	if lastRunAdvance.Relic != nil {
+		out["run_relic"] = lastRunAdvance.Relic
+	}
+	if lastRunAdvance.Draft.Pending {
+		out["boon_draft"] = lastRunAdvance.Draft
+	}
+	if lastRunAdvance.StoryComplete {
+		out["story_complete"] = true
 	}
 	addAbyssAutoStopResponse(out, autoStopReason)
 	if len(achs) > 0 {
@@ -3320,6 +3415,7 @@ type abyssFloorOutcome struct {
 	AffixReward         string
 	RewardExperiment    abyssRewardAssignment
 	EventChain          abyssEventChainView
+	RunAdvance          abyssRunAdvance
 	DBErr               bool
 }
 
@@ -3473,6 +3569,7 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 	if !untouched {
 		runFlags[abyssRunFlagPerfect] = 0
 	}
+	o.RunAdvance = advanceAbyssRunIdentity(runFlags, depth)
 	if err := commitAbyssVictoryRunState(s.bot.DB, uid, newEscrow, runFlags); err != nil {
 		o.DBErr = true
 		return o
@@ -3704,6 +3801,16 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 		}
 		if o.EventChain.relevant() {
 			out["event_chain"] = o.EventChain
+		}
+		out["run_identity"] = abyssRunIdentityViewFrom(s.bot.loadAbyssRun(uid), s.bot.loadRunFlags(uid))
+		if o.RunAdvance.Relic != nil {
+			out["run_relic"] = o.RunAdvance.Relic
+		}
+		if o.RunAdvance.Draft.Pending {
+			out["boon_draft"] = o.RunAdvance.Draft
+		}
+		if o.RunAdvance.StoryComplete {
+			out["story_complete"] = true
 		}
 	} else {
 		// Downed: hold the cache; the player must revive (if available) or concede.
@@ -4334,6 +4441,12 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		// End of run: clear the per-run win streak so its combat buff (abyssStreakBuff)
 		// can't leak into regular TeamSpeak-cycle fights, which read abyss_win_streak too.
 		_, _ = tx.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
+		if clearAbyssRunIdentityFlags(runFlags) {
+			if err := saveRunFlags(tx, uid, runFlags); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+		}
 		if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
@@ -5850,6 +5963,13 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	tier, _ := abyssTierByKey(run.Tier)
 	bonus := abyssFloorBonus(run.Depth, run.depthLevelHint())
 	runFlags := s.bot.loadRunFlags(uid)
+	if run.FloorType == "rest" && runFlags[abyssRunFlagBiomeSelectedAt] != int64(run.Depth) {
+		writeJSON(w, map[string]any{
+			"ok": false, "error": "choose a biome contract before leaving the rest floor",
+			"run_identity": abyssRunIdentityViewFrom(run, runFlags),
+		})
+		return
+	}
 	deferredReturn := runFlags[abyssRunFlagDeferredReturn] == 1
 
 	focus := s.selectedAbyssFocus(uid, run)
@@ -5973,6 +6093,8 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 	var curHP int
 	_ = s.bot.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&curHP)
 
+	resolvedRun := run
+	resolvedRun.FloorType = "combat"
 	writeJSON(w, map[string]any{
 		"ok":                true,
 		"resolved":          true,
@@ -5985,6 +6107,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 		"focus_reward":      focusReward,
 		"vacuum_loot":       vacuumLoot,
 		"reward_experiment": rewardExperiment,
+		"run_identity":      abyssRunIdentityViewFrom(resolvedRun, runFlags),
 	})
 }
 

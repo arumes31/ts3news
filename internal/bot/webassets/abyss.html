@@ -70,6 +70,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_watcher_pressure.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_season.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_retention.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_run_identity.css"}}">
 <div class="abyss-command-page" data-ab-campaign="{{.SeasonJourney.Palette}}" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-expanded-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas_expanded.png"}}');--ab-expanded-icon-atlas:url('{{asset "/static/abyss_icon_atlas_expanded.png"}}');--ab-atlas-items:url('{{asset "/static/abyss_atlas_items.png"}}');--ab-atlas-skills:url('{{asset "/static/abyss_atlas_skills.png"}}');--ab-atlas-creatures:url('{{asset "/static/abyss_atlas_creatures.png"}}');--ab-atlas-bosses:url('{{asset "/static/abyss_atlas_bosses.png"}}');--ab-atlas-artifacts:url('{{asset "/static/abyss_atlas_artifacts.png"}}');--ab-atlas-companions:url('{{asset "/static/abyss_atlas_companions.png"}}');--ab-atlas-relics:url('{{asset "/static/abyss_atlas_relics.png"}}');--ab-atlas-ranged:url('{{asset "/static/abyss_atlas_ranged.png"}}');--ab-atlas-souls:url('{{asset "/static/abyss_atlas_souls.png"}}');--ab-atlas-auras:url('{{asset "/static/abyss_atlas_auras.png"}}');--ab-atlas-charms:url('{{asset "/static/abyss_atlas_charms.png"}}');--ab-atlas-mounts:url('{{asset "/static/abyss_atlas_mounts.png"}}');--ab-atlas-pets:url('{{asset "/static/abyss_atlas_pets.png"}}');--ab-atlas-emblems:url('{{asset "/static/abyss_atlas_emblems.png"}}');--ab-atlas-banners:url('{{asset "/static/abyss_atlas_banners.png"}}');--ab-atlas-totems:url('{{asset "/static/abyss_atlas_totems.png"}}');--ab-atlas-offhands:url('{{asset "/static/abyss_atlas_offhands.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Season, Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 {{template "abyssLootSignals" .}}
@@ -218,11 +219,11 @@
         <span class="ab-tier-rate">{{if .WinRateHint}}{{.WinRateHint}}{{else}}No completed runs yet{{end}}</span>
         <!-- UI-101: entry fee + unlock requirement line; UI-113: .ab-entry-cost is
              struck through by JS while the daily free entry applies -->
-        <span class="ab-tier-meta">{{if gt .EntryGold 0}}entry <span class="ab-entry-cost {{if $.FreeEntryAvailable}}ab-free{{end}}">{{gold .EntryGold}}</span>{{else}}free{{end}}{{if not .Unlocked}} · 🔒 depth {{.MinBest}}{{end}}</span>
+        <span class="ab-tier-meta">{{if gt .EntryGold 0}}entry <span class="ab-entry-cost {{if $.FreeEntryAvailable}}ab-free{{end}}">{{gold .EntryGold}}</span>{{else}}free{{end}}{{if not .Unlocked}} · 🔒 {{.UnlockQuest}}{{end}}</span>
         <!-- UI-102: per-tier account best, filled from authoritative run history -->
         <span class="ab-tier-best muted small" data-tier="{{.Key}}" style="display:none"></span>
         <!-- UI-115: progress toward the unlock depth while locked -->
-        {{if not .Unlocked}}<span class="ab-tier-unlockbar" title="Best depth {{$.Stats.BestDepth}} / {{.MinBest}}"><i style="width:{{mulpct $.Stats.BestDepth .MinBest}}%"></i></span>{{end}}
+        {{if not .Unlocked}}<span class="ab-tier-rate">{{.QuestProgress}}</span>{{end}}
       </label>
       {{end}}
     </div>
@@ -331,8 +332,12 @@
         🎭 Mystery Pact <span class="muted small">(+40% · hidden server-selected danger)</span>
       </label>
       <label class="ab-pact" data-tip="One seed and one rule remain fixed for the ISO week. Enemies are tougher and every cleared floor pays +25% cache.">
-        <input type="checkbox" id="weeklyExpedition"> 📅 Weekly Expedition
+        <input type="checkbox" id="weeklyExpedition" onchange="updateAbyssStoryCampaignMode('weekly')"> 📅 Weekly Expedition
         <span class="muted small">(+25% rewards · fixed weekly rule)</span>
+      </label>
+      <label class="ab-pact ab-story-campaign" data-tip="A fixed ten-floor introductory expedition with authored encounters, bosses, and a Chronicle finale. Checkpoint and Express starts are disabled.">
+        <input type="checkbox" id="storyCampaign" onchange="updateAbyssStoryCampaignMode('story')"> 📜 Chronicle Campaign
+        <span class="muted small">(10 authored floors · surface start)</span>
       </label>
       <label class="ab-pact ab-hardcore-choice" data-tip="No insurance, revival, Last Stand, or grace protection. Every cleared floor pays twice its final cache bonus and the run enters a separate leaderboard.">
         <input type="checkbox" id="hardcoreMode"> 💀 Hardcore
@@ -550,6 +555,8 @@
     </div>
   </aside>
 </div>
+
+{{template "abyssRunIdentity" .}}
 
 <div class="abyss-banner" id="abyssBanner" role="status" aria-live="polite" aria-atomic="true"></div>
 
@@ -1915,6 +1922,7 @@ function renderNonCombat(floorType, stateStr){
       <button class="ghost" onclick="abyssNCAction('reroll_highest_skill')">🌀 Re-roll Highest Skill (150g)</button>
       <button class="ghost" onclick="abyssNCAction('reroll_highest_skill_same_tier')">🌀 Re-roll Highest Skill on Same Tier (200g)</button>
     `;
+    if(typeof renderAbyssBiomeContractChoices==='function')renderAbyssBiomeContractChoices(options);
   } else if(floorType === 'event'){
     title.innerHTML = '❓ Mysterious Encounter';
     var state = {};
@@ -3343,6 +3351,7 @@ async function abyssEnter(consumables){
   // multiple confirmations (and duplicate enter requests).
   setBusy(true); markBusyBtn('btnEnter');
   var expedition=document.getElementById('weeklyExpedition');
+	var storyCampaign=document.getElementById('storyCampaign');
 	var hardcore=document.getElementById('hardcoreMode'),hybrid=document.getElementById('hybridMode');
   var kit=document.getElementById('buildKit'), mutation=document.getElementById('buildMutation'), position=document.getElementById('combatPosition'), entryFocus=document.getElementById('entryFocus');
   var veteran=document.getElementById('veteranTrack');
@@ -3350,7 +3359,7 @@ async function abyssEnter(consumables){
   var suppressAffix=document.getElementById('suppressDailyAffix');
   var contractPact=document.getElementById('contractPact');
   var tokenAnte=document.getElementById('tokenAnte'),entryRiskDial=document.getElementById('entryRiskDial');
-  var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),hardcore:!!(hardcore&&hardcore.checked),hybrid:!!(hybrid&&hybrid.checked),
+  var body={tier:selectedTier(), pacts:selectedPacts(), expedition:!!(expedition&&expedition.checked),story_campaign:!!(storyCampaign&&storyCampaign.checked),hardcore:!!(hardcore&&hardcore.checked),hybrid:!!(hybrid&&hybrid.checked),
     kit:kit?kit.value:'vanguard', position:position?position.value:'frontline', mutation:mutation?mutation.value:'empowered', veteran_track:veteran?veteran.value:'',
     loot_rule:lootRule?lootRule.value:'owner', focus:entryFocus?entryFocus.value:'auto', suppress_affix:!!(suppressAffix&&suppressAffix.checked), contract:contractPact?contractPact.value:'',
     token_ante:tokenAnte?(Number(tokenAnte.value)||0):0,risk_dial_pct:entryRiskDial?(Number(entryRiskDial.value)||0):0};
@@ -3411,6 +3420,7 @@ async function abyssEnter(consumables){
   if(d.auto_insured) notes.push('🛡️ Auto-insured 25% of this run'+(d.auto_insurance_free?' with free cover':' for '+fmtGold(d.auto_insurance_cost))+'.');
   else if(d.auto_insurance_skip) notes.push('🛡️ Auto-insure skipped: '+d.auto_insurance_skip+'.');
   if(d.weekly_expedition) notes.push('📅 '+d.weekly_expedition+' · +25% cache rewards.');
+	if(d.story_campaign) notes.push('📜 Chronicle Campaign active: ten authored floors await.');
 	if(d.hardcore) notes.push('💀 Hardcore active: ×2 cache, no grace, insurance, or revival.');
 	if(d.hybrid) notes.push('🌀 Hybrid active: every fifth floor surges to next-tier danger for half its extra reward.');
   if(d.token_ante) notes.push('🜲 '+d.token_ante+'-token ante active: +'+d.token_ante+'% cache, returned on a successful full bank.');
@@ -3796,6 +3806,7 @@ function showAbyssBossKillCam(){
   openModal('<h3>🎬 Final five · '+consEsc(data.name)+'</h3><ol class="ab-killcam">'+frames+'</ol><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Close replay</button></div>');
 }
 async function processDescendResult(d, hp, max){
+	if(d.run_identity&&typeof renderAbyssRunIdentity==='function')renderAbyssRunIdentity(d.run_identity);
 	if(d.enemy_forecast&&typeof renderAbyssEnemyForecast==='function')renderAbyssEnemyForecast(d.enemy_forecast);
 	if(d.boss_tokens!==undefined&&typeof setBossTokens==='function')setBossTokens(d.boss_tokens);
   if(d.explorer_support!==undefined)renderExplorerSupport(d.explorer_support);
@@ -3873,6 +3884,7 @@ async function processDescendResult(d, hp, max){
     }
     // UI-39: sr-only fight summary for screen readers.
     srSummary('Floor '+d.depth+' cleared. HP now '+fmtNum(d.hp)+' of '+fmtNum(d.max_hp)+'. '+plural((d.loot||[]).length,'item')+' escrowed.'+(Number(d.overkill_gold)>0?' Final overkill credited '+fmtGold(d.overkill_gold)+' cache.':''));
+		if(d.boon_draft&&d.boon_draft.pending&&typeof presentAbyssBoonDraft==='function')presentAbyssBoonDraft(d.boon_draft);
   } else {
     downed=true; canRev=d.can_revive; canLastStand=d.can_last_stand;
 	if(typeof updateAbyssReviveRisk==='function')updateAbyssReviveRisk(d.revive_streak,d.revive_chance_pct);
@@ -6756,6 +6768,7 @@ function initNewDots(){
 <script data-cfasync="false">{{template "abyssBossCosmeticsJS" .}}</script>
 <script data-cfasync="false">{{template "abyssSeasonJourneyJS" .}}</script>
 <script data-cfasync="false">{{template "abyssRetentionJS" .}}</script>
+<script data-cfasync="false">{{template "abyssRunIdentityJS" .}}</script>
 <script data-cfasync="false">{{template "abyssShopProgramJS" .}}</script>
 <script data-cfasync="false">{{template "abyssStageHUDJS" .}}</script>
 <script data-cfasync="false">{{template "abyssCodexExplorerJS" .}}</script>
