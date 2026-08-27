@@ -1,0 +1,57 @@
+{{define "abyss-quality-of-life"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var notificationKey='ab_notifications',verbosityKey='ab_logverbosity';
+
+  function read(key,fallback){try{var value=localStorage.getItem(key);return value===null?fallback:value;}catch(_){return fallback;}}
+  function write(key,value){try{localStorage.setItem(key,value);}catch(_){}}
+  function notificationsEnabled(){return read(notificationKey,'0')==='1'&&'Notification' in window&&Notification.permission==='granted';}
+  function setNotifications(enabled,interactive){
+    if(!enabled||!('Notification' in window)){write(notificationKey,'0');return Promise.resolve(false);}
+    if(Notification.permission==='granted'){write(notificationKey,'1');return Promise.resolve(true);}
+    if(!interactive||Notification.permission==='denied'){write(notificationKey,'0');return Promise.resolve(false);}
+    return Notification.requestPermission().then(function(permission){var granted=permission==='granted';write(notificationKey,granted?'1':'0');return granted;});
+  }
+  function notify(kind,title,body,identity){
+    if(!notificationsEnabled())return false;
+    var key='ab_notify_seen:'+kind+':'+String(identity||'current');
+    try{if(sessionStorage.getItem(key)==='1')return false;sessionStorage.setItem(key,'1');}catch(_){}
+    try{new Notification(title,{body:String(body||''),tag:'ts3-abyss-'+kind,renotify:false});return true;}catch(_){return false;}
+  }
+  function summaryLine(text){return /(?:floor \d+|round \d+ recap|victory|defeat|combat complete|party\s+[+-]?\d+|enemy\s+[+-]?\d+|fight time|survived|fell|slain this floor|timeout|revive|concede)/i.test(String(text||''));}
+  function logVerbosity(){return read(verbosityKey,'full')==='summary'?'summary':'full';}
+  function applyLogVerbosity(value){
+    value=value==='summary'?'summary':'full';write(verbosityKey,value);document.documentElement.dataset.abLogVerbosity=value;
+    if(typeof applyCombatCategoryFilter==='function')applyCombatCategoryFilter();
+    if(typeof setLiveLogFilter==='function'&&typeof liveLogFilter!=='undefined')setLiveLogFilter(liveLogFilter);
+  }
+  function updateFavicon(depth,active){
+    var link=document.querySelector('link[rel="icon"]');if(!link)return;
+    if(!link.dataset.orig)link.dataset.orig=link.getAttribute('href')||'/static/favicon.svg';
+    if(!active){link.href=link.dataset.orig;return;}
+    var value=Math.max(0,Math.floor(Number(depth)||0)),label=value<1000?String(value):(value<10000?(value/1000).toFixed(1).replace(/\.0$/,'')+'k':Math.round(value/1000)+'k'),font=label.length>3?10:label.length>2?12:label.length>1?15:18;
+    var svg="<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='#111827'/><path d='M2 7h28' stroke='#f4bd4f' stroke-width='3'/><text x='16' y='24' text-anchor='middle' font-family='monospace' font-weight='700' font-size='"+font+"' fill='#fff'>"+label+"</text></svg>";
+    link.href='data:image/svg+xml,'+encodeURIComponent(svg);
+  }
+  function checkAuctionSales(){
+    var panel=document.querySelector('[data-ah-history="sold"][data-sold-total]');if(!panel)return;
+    var current=Math.max(0,Number(panel.dataset.soldTotal)||0),previous=read('ab_ah_sold_total','');write('ab_ah_sold_total',String(current));
+    if(previous!==''&&current>Number(previous))notify('auction','Auction sold',current-Number(previous)+' auction '+(current-Number(previous)===1?'sale has':'sales have')+' completed.',current);
+  }
+
+  if(read(notificationKey,'0')==='1'&&(!('Notification' in window)||Notification.permission!=='granted'))write(notificationKey,'0');
+  applyLogVerbosity(logVerbosity());
+  document.addEventListener('DOMContentLoaded',checkAuctionSales);
+  window.AbyssQoL={
+    applyLogVerbosity:applyLogVerbosity,
+    logVerbosity:logVerbosity,
+    notificationsEnabled:notificationsEnabled,
+    notify:notify,
+    setNotifications:setNotifications,
+    summaryLine:summaryLine,
+    updateFavicon:updateFavicon
+  };
+})();
+</script>
+{{end}}

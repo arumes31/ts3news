@@ -1049,6 +1049,21 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 - [x] **AAA-0354 / 354** — a persisted motion policy can suppress every descendant animation and transition while honoring the system preference.
 - [x] **AAA-0372 / 372** — the dynamic page title marks downed and decision-floor states while retaining the existing live depth title.
 
+## Delivered tranche: accessibility and quality-of-life controls
+
+- [x] **AAA-0355 / 355** — the searchable settings panel persists a high-contrast solid-panel profile with forced-color-safe controls (`webassets/abyss_accessibility.html`, `webassets/abyss_accessibility.css`, `web_abyss_accessibility_test.go`).
+- [x] **AAA-0357 / 357** — a persisted full-or-summary combat-log preference filters both completed and live combat feeds without discarding their authoritative history (`webassets/abyss_quality_of_life.html`, `webassets/abyss_combat_recorder.html`, `webassets/abyss_live.html`, `web_abyss_quality_of_life_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0363 / 363** — the keyboard-focusable field glossary explains CR, GS, STR, DEF, STA, SPD, DGE, and CRT alongside the existing run terms (`webassets/abyss_onboarding.html`, `web_abyss_onboarding_test.go`).
+- [x] **AAA-0364 / 364** — first-time delvers receive a reduced-motion-safe, keyboard-operable five-step guided tour with persistent completion state (`webassets/abyss_onboarding.html`, `web_abyss_onboarding_test.go`).
+- [x] **AAA-0365 / 365** — the field manual provides an in-page mechanics glossary with focusable tooltip definitions (`webassets/abyss_onboarding.html`, `web_abyss_onboarding_test.go`).
+- [x] **AAA-0366 / 366** — the progression workspace renders player-facing release notes from the canonical Abyss changelog (`webassets/abyss_aaa_runtime.html`, `web_templates_test.go`).
+- [x] **AAA-0369 / 369** — the last validated tier, pact, kit, mutation, loot rule, and focus are restored from account-owned setup state (`web_abyss_setup_state.go`, `web_abyss_setup_state_test.go`).
+- [x] **AAA-0370 / 370** — a persisted setting switches the combat log to a monospace presentation (`webassets/abyss.html`, `webassets/abyss_longterm.html`, `web_abyss_quality_of_life_test.go`).
+- [x] **AAA-0371 / 371** — coarse-pointer layouts enforce at least 44-pixel interactive targets and a 48-pixel mobile action rail (`webassets/abyss_accessibility.css`, `web_abyss_accessibility_test.go`).
+- [x] **AAA-0373 / 373** — active runs replace the favicon with a bounded numeric depth badge and restore the site icon after the run (`webassets/abyss_quality_of_life.html`, `webassets/abyss_longterm.html`, `web_abyss_quality_of_life_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0374 / 374** — an explicit permission-gated setting emits session-deduplicated browser notifications for claimed bounties, available revival decisions, and newly observed auction sales (`webassets/abyss_quality_of_life.html`, `webassets/abyss.html`, `webassets/ah.html`, `web_abyss_quality_of_life_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
+- [x] **AAA-0375 / 375** — filtered authoritative run history downloads as CSV and remains available as structured JSON (`webassets/abyss_insights.html`, `web_abyss_quality_of_life_test.go`).
+
 ## Delivered tranche: core action submission safety
 
 - [x] **AAA-0358 / 358** — single- and multi-floor descents lock every run action before low-health confirmation and expose their busy state to assistive technology.

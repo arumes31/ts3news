@@ -82,18 +82,16 @@
   }
   function applyAmbience(){document.body.classList.toggle('ab-no-amb',!ambience);}
   function updateFavicon(){
-    var link=document.querySelector('link[rel="icon"]');if(!link)return;
-    if(!link.dataset.orig)link.dataset.orig=link.getAttribute('href')||'{{asset "/static/favicon.svg"}}';
-    var torch='data:image/svg+xml,'+encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='#1a1206'/><text x='5' y='24' font-size='20'>🔥</text></svg>");
-    link.href=inRun?torch:link.dataset.orig;
+    if(window.AbyssQoL)window.AbyssQoL.updateFavicon(curDepth,inRun);
   }
   var originalSetDepth=setDepth;
-  setDepth=function(depth){originalSetDepth(depth);updateVignette();renderPaceMarker();};
+  setDepth=function(depth){originalSetDepth(depth);updateVignette();renderPaceMarker();updateFavicon();};
   window.updateFavicon=updateFavicon;
 
   var settings=[
     {key:'ab_lognum',label:'Combat log round numbers',type:'bool',def:false,apply:function(v){logNumbered=v;applyLogView();}},
     {key:'ab_logmono',label:'Combat log monospace font',type:'bool',def:false,apply:function(v){logMono=v;applyLogView();}},
+    {key:'ab_logverbosity',label:'Combat log detail',type:'select',def:'full',opts:[['full','Full combat log'],['summary','Summary only']],apply:function(v){if(window.AbyssQoL)window.AbyssQoL.applyLogVerbosity(v);}},
     {key:'ab_logtime',label:'Combat log timestamps',type:'bool',def:false,apply:function(v){document.body.classList.toggle('ab-log-timestamps',v);}},
     {key:'ab_lootf',label:'Run loot filter',type:'select',def:'all',opts:[['all','All'],['up','Upgrades only'],['rare','Rare+'],['epic','Epic+'],['legendary','Legendary+']],apply:function(v){setLootFilter(v);}},
     {key:'ab_loottype',label:'Run loot type',type:'select',def:'all',opts:[['all','All types'],['gear','Gear'],['cons','Items and unlocks'],['mat','Materials'],['gold','Currency']],apply:function(v){setLootTypeFilter(v);}},
@@ -105,6 +103,7 @@
     {key:'ab_colorblind',label:'Colorblind rarity shapes',type:'bool',def:false,apply:applyAbyssColorblind},
     {key:'ab_logsize',label:'Combat log text size',type:'select',def:'m',opts:[['s','Small'],['m','Medium'],['l','Large']],apply:applyAbyssLogSize},
     {key:'ab_haptic',label:'Mobile haptics',type:'bool',def:false},
+    {key:'ab_notifications',label:'Browser notifications',type:'bool',def:false,apply:function(v,input){if(!window.AbyssQoL)return;window.AbyssQoL.setNotifications(v,true).then(function(enabled){input.checked=enabled;if(!enabled&&v)abToast('Browser notifications were not enabled.',false);});}},
     {key:'ab_vignette',label:'Depth vignette',type:'bool',def:true,apply:function(v){vignette=v;updateVignette();}},
     {key:'ab_amb',label:'Biome ambience',type:'bool',def:true,apply:function(v){ambience=v;applyAmbience();}}
   ];
@@ -116,10 +115,11 @@
     settings.forEach(function(setting,index){var value=valueOf(setting);html+='<label class="ab-set-row" data-search="'+consEsc(setting.label.toLowerCase())+'"><span>'+consEsc(setting.label)+'</span>'+(setting.type==='bool'?'<input type="checkbox" data-set="'+index+'"'+(value?' checked':'')+'>':'<select data-set="'+index+'" class="ab-select">'+setting.opts.map(function(option){return '<option value="'+option[0]+'"'+(value===option[0]?' selected':'')+'>'+option[1]+'</option>';}).join('')+'</select>')+'</label>';});
     html+='</div></div><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Done</button></div>';openModal(html);
     document.getElementById('abSettingsSearch').addEventListener('input',function(){var query=this.value.trim().toLowerCase();document.querySelectorAll('#abSettingsRows .ab-set-row').forEach(function(row){row.hidden=query && row.dataset.search.indexOf(query)<0;});});
-    document.querySelectorAll('#abSettingsRows [data-set]').forEach(function(input){input.addEventListener('change',function(){var setting=settings[parseInt(input.dataset.set,10)],value=setting.type==='bool'?input.checked:input.value;try{localStorage.setItem(setting.key,setting.type==='bool'?(value?'1':'0'):value);}catch(_){}if(setting.apply)setting.apply(value);abToast('Setting saved',true);});});
+    document.querySelectorAll('#abSettingsRows [data-set]').forEach(function(input){input.addEventListener('change',function(){var setting=settings[parseInt(input.dataset.set,10)],value=setting.type==='bool'?input.checked:input.value;try{localStorage.setItem(setting.key,setting.type==='bool'?(value?'1':'0'):value);}catch(_){}if(setting.apply)setting.apply(value,input);abToast('Setting saved',true);});});
   }
 
   renderPaceMarker();renderBountyDays();initPityCap();renderMaterialFlow();renderMilestones();updateVignette();applyAmbience();updateFavicon();
+  if(inRun&&downed&&(canRev||canLastStand)&&window.AbyssQoL)window.AbyssQoL.notify('revive','Revival decision ready','Return to the Abyss to revive, use Last Stand, or concede.','floor-'+curDepth);
   if(inRun && curTier==='insanity')document.body.classList.add('ab-insanity-run');
   var row=document.querySelector('.abyss-stats');if(row){var button=document.createElement('button');button.className='ab-chip ab-settings-btn';button.id='abSettingsBtn';button.type='button';button.textContent='⚙️';button.title='Search Abyss settings';button.onclick=openSettings;row.appendChild(button);}
   window.__abyssLongTerm={renderPace:renderPaceMarker,renderBounties:renderBountyDays,renderMaterials:renderMaterialFlow,openSettings:openSettings};

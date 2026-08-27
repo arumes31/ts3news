@@ -29,6 +29,14 @@ func TestAbyssOnboardingTemplates(t *testing.T) {
 		`id="abyssTour"`,
 		`aria-modal="true"`,
 		`data-lifetime-floors="0"`,
+		`<b>CR</b> combat rating`,
+		`<b>GS</b> gear score`,
+		`<b>STR</b> strength`,
+		`<b>DEF</b> defense`,
+		`<b>STA</b> stamina`,
+		`<b>SPD</b> speed`,
+		`<b>DGE</b> dodge`,
+		`<b>CRT</b> critical chance`,
 	} {
 		if !strings.Contains(panel.String(), required) {
 			t.Errorf("rendered onboarding panel is missing %q", required)

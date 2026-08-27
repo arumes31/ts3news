@@ -1541,7 +1541,7 @@ function fmtGold(v){
   if(v>=1e3) return s+(v/1e3).toFixed(1)+'k';
   return s+v+'g';
 }
-function fmtNum(v){return (Number(v)||0).toLocaleString('en-US');}
+function fmtNum(v){return (Number(v)||0).toLocaleString();}
 // UI-195: tiny pluralizer — plural(3,'floor') → "3 floors".
 function plural(n, word){ n=Number(n)||0; return fmtNum(n)+' '+word+(n===1?'':'s'); }
 
@@ -3924,6 +3924,7 @@ async function processDescendResult(d, hp, max){
     document.getElementById('abStatus').textContent=(canRev?'':'The dark offers no gamble this time. ')+'Choose: '+opts.join(', ')+'.';
     // UI-39: sr-only summary; UI-29: the fatal blow stays pinned until the choice.
     srSummary('Defeated on floor '+d.depth+'. Cache of '+fmtGold(d.escrow)+' in peril. Choose: '+opts.join(', ')+'.');
+    if(window.AbyssQoL&&(canRev||canLastStand))window.AbyssQoL.notify('revive','Revival decision ready','You fell on floor '+d.depth+'. Return to revive, use Last Stand, or concede.','floor-'+d.depth+'-'+d.escrow);
     pinFatalBlow();
     drainEscrow(); // UI-148: the cache counter visually crumbles toward zero
   }
@@ -4395,6 +4396,7 @@ async function abyssBountyClaim(){
   var bmsg='🎯 Daily Bounty complete! +🜲'+d.reward_tokens+' tokens and +'+fmtGold(d.reward_gold)+'.';
   if(d.streak>1)bmsg+=' 🔥 '+d.streak+'-day streak (+🜲 '+d.streak_bonus+' bonus)!';
   setBanner(bmsg,'good');
+  if(window.AbyssQoL)window.AbyssQoL.notify('bounty','Abyss bounty complete',bmsg,new Date().toISOString().slice(0,10));
 }
 
 async function abyssShopBuy(item, quotedCost, btn){

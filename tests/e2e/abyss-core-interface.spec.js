@@ -3,6 +3,15 @@ const { test, expect } = require('@playwright/test');
 test('core interface groups risk, loot, log, shortcut, and insurance feedback', async ({ page }) => {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));
+  await page.addInitScript(() => {
+    class TestNotification {
+      static permission = 'granted';
+      static requestPermission() { return Promise.resolve('granted'); }
+      constructor(title, options) { window.__testNotifications.push({ title, options }); }
+    }
+    window.__testNotifications = [];
+    Object.defineProperty(window, 'Notification', { configurable: true, value: TestNotification });
+  });
   await page.goto('/abyss');
 
   await page.evaluate(() => {
@@ -43,10 +52,31 @@ test('core interface groups risk, loot, log, shortcut, and insurance feedback', 
   await page.locator('#abSettingsBtn').click();
   const timestamps = page.locator('#abSettingsRows .ab-set-row').filter({ hasText: 'Combat log timestamps' });
   await timestamps.locator('input').check();
+  const detail = page.locator('#abSettingsRows .ab-set-row').filter({ hasText: 'Combat log detail' });
+  await detail.locator('select').selectOption('summary');
+  const notifications = page.locator('#abSettingsRows .ab-set-row').filter({ hasText: 'Browser notifications' });
+  await notifications.locator('input').check();
   await page.locator('#modalOkBtn').click();
-  await page.evaluate(() => window.addLogHead(document.querySelector('#abyssLog'), 'ab-log-divider', 'Timestamp test'));
+  await page.evaluate(() => {
+    const log = document.querySelector('#abyssLog');
+    window.addLogHead(log, 'ab-log-divider', 'Timestamp test');
+    window.addLogHead(log, '', 'You attack and deal 50 damage.');
+    window.addLogHead(log, '', 'Floor 3 survived.');
+    window.AbyssQoL.updateFavicon(21, true);
+    window.AbyssQoL.notify('bounty', 'Abyss bounty complete', 'Test reward', 'test-day');
+    window.AbyssQoL.notify('bounty', 'Abyss bounty complete', 'Duplicate reward', 'test-day');
+  });
   await expect(page.locator('body')).toHaveClass(/ab-log-timestamps/);
   await expect(page.locator('#abyssLog .ab-log-line').last()).toHaveAttribute('data-log-time', /\d/);
+  expect(await page.evaluate(() => {
+    const lines = Array.from(document.querySelectorAll('#abyssLog .ab-log-line'));
+    return {
+      damage: lines.find(line => line.textContent.includes('deal 50 damage')).style.display,
+      summary: lines.find(line => line.textContent.includes('Floor 3 survived')).style.display,
+    };
+  })).toEqual({ damage: 'none', summary: '' });
+  expect(await page.evaluate(() => decodeURIComponent(document.querySelector('link[rel="icon"]').href))).toContain('>21<');
+  expect(await page.evaluate(() => window.__testNotifications)).toHaveLength(1);
 
   await page.evaluate(() => {
     window.curEscrow = Math.max(50000, Math.round((Number(window.escrowSoftCap) || 0) * .5));
@@ -95,7 +125,7 @@ test('core interface groups risk, loot, log, shortcut, and insurance feedback', 
   await page.locator('#modalOkBtn').click();
 
   await page.route('**/api/abyss/loot/manifest', async route => {
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 1000));
     await route.continue();
   });
   await page.evaluate(() => { window.__manifestRefresh = window.refreshRunLootManifest(); });

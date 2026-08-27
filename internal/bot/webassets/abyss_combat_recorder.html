@@ -86,6 +86,7 @@ function recordCombatLogLine(line,text){
   line.style.display=(!query||(line.textContent||'').toLowerCase().indexOf(query)>=0)&&combatRecorderLineVisible(line)?'':'none';
 }
 function combatRecorderLineVisible(line){
+  if(window.AbyssQoL&&window.AbyssQoL.logVerbosity()==='summary')return line.dataset.logCategory==='summary'||line.classList.contains('ab-log-divider');
   return combatRecorderState.category==='all'||line.dataset.logCategory===combatRecorderState.category||line.classList.contains('ab-log-divider');
 }
 function applyCombatCategoryFilter(){
