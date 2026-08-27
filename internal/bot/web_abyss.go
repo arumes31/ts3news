@@ -598,6 +598,7 @@ func (b *Bot) abyssSpendLoadout(uid, consID string) {
 // abyssFloorResult is the outcome of fighting a single floor.
 type abyssFloorResult struct {
 	Victory            bool
+	Biome              string
 	RewardXP           int
 	SkillVariety       abyssSkillVarietyView
 	VarietyBonusXP     int
@@ -896,6 +897,11 @@ func (b *Bot) fightAbyssFloorMode(
 	biome := content.AbyssBiomeForAffinity(depth, seasonCampaign.Affinity, encounterRandom.IntN(biomeWeight))
 	zoneName := biome.Name + " " + abyssZoneName(depth)
 	diff *= biome.DiffMod
+	var biomeMastered bool
+	u.Stats, biomeMastered = b.applyAbyssBiomeMastery(uid, biome, u.Stats)
+	if biomeMastered {
+		logs = append(logs, fmt.Sprintf("[color=#63d5b3]🧭 %s mastery: +2%% combat stats in this biome.[/color]", biome.Name))
+	}
 	if biome.Affinity == seasonCampaign.Affinity {
 		logs = append(logs, fmt.Sprintf("%s %s influence: %s biomes are surging this season.", seasonCampaign.Icon, seasonCampaign.Name, seasonCampaign.Affinity))
 	}
@@ -1162,7 +1168,6 @@ func (b *Bot) fightAbyssFloorMode(
 	for i := range timeline {
 		timeline[i].AfterLog += combatLogOffset
 	}
-
 	if victory && coopUID.Valid && coopUID.String != "" {
 		helperTokens := 5
 		switch abyssPartyLootRuleFromID(flags["party_loot_rule"]) {
@@ -1332,7 +1337,7 @@ func (b *Bot) fightAbyssFloorMode(
 	logs = append(logs, fmt.Sprintf("[hr][color=#8a93a8]📊 %s · %d foe(s) · fight time %d ms · HP %s → %s (%+d)[/color]",
 		outcome, len(mobs), duration.Milliseconds(), FormatGoldPlain(int64(hpBefore)), FormatGoldPlain(int64(curHP)), curHP-hpBefore))
 
-	res := abyssFloorResult{Victory: victory, RewardXP: rewardXP, SkillVariety: skillVariety, VarietyBonusXP: varietyBonusXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, OverkillDamage: overkillDamage, BossToken: bossTokenAwarded, BossContractPayout: bossContractPayout, BossCosmetic: bossCosmetic, SecretBossStage: secretBossResultStage, SecretBossComplete: secretBossComplete, SecretAchievement: secretAchievement}
+	res := abyssFloorResult{Victory: victory, Biome: biome.Name, RewardXP: rewardXP, SkillVariety: skillVariety, VarietyBonusXP: varietyBonusXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, OverkillDamage: overkillDamage, BossToken: bossTokenAwarded, BossContractPayout: bossContractPayout, BossCosmetic: bossCosmetic, SecretBossStage: secretBossResultStage, SecretBossComplete: secretBossComplete, SecretAchievement: secretAchievement}
 	if isBossFloor && len(mobs) > 0 {
 		res.BossName = mobs[0].Name
 		res.BossExecution = victory
@@ -1512,6 +1517,9 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		})
 	}
 	secretChain := s.bot.abyssSecretBossChainWithLore(uid, run, loreFound)
+	if loreFound >= len(abyssLoreFragments) {
+		_ = grantAbyssLoreCompletion(s.bot.DB, uid)
+	}
 
 	var dailyMod string
 	if run.Active {
@@ -1570,13 +1578,11 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		activeBadge = badgeCode.String
 		activeBadgeName = abyssAchievementName(activeBadge)
 	}
-	badgeOptions := []map[string]string{}
 	achievementViews := s.bot.abyssAchievementViews(uid)
-	for _, achievement := range achievementViews {
-		if achievement.Earned {
-			badgeOptions = append(badgeOptions, map[string]string{"Code": achievement.Code, "Name": achievement.Name})
-		}
-	}
+	badgeOptions := abyssSortedBadgeOptions(achievementViews)
+	activeBadgeSuffix := s.bot.abyssBadgeSuffix(uid)
+	activeBadgeSuffixName := abyssAchievementName(activeBadgeSuffix)
+	collectionStatus := s.bot.abyssCollectionStatus(uid, loreFound)
 
 	dropStreakBonusPct := dropStreak * 2
 	if dropStreakBonusPct > 30 {
@@ -1689,6 +1695,10 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"BadgeOptions":        badgeOptions,
 		"ActiveBadge":         activeBadge,
 		"ActiveBadgeName":     activeBadgeName,
+		"ActiveBadgeSuffix":   activeBadgeSuffix,
+		"BadgeSuffixName":     activeBadgeSuffixName,
+		"BadgeCombination":    abyssBadgeCombination(activeBadge, activeBadgeSuffix),
+		"Collections":         collectionStatus,
 		"LoreList":            loreList,
 		"LoreTotal":           len(abyssLoreFragments),
 		"Bestiary":            bestiary,
@@ -2760,6 +2770,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				EscrowBefore:   run.Escrow,
 				Tier:           tier,
 				Modifier:       modifier,
+				Biome:          res.Biome,
 				Focus:          focus,
 				Untouched:      res.DamageTaken == 0,
 				OverkillDamage: res.OverkillDamage,
@@ -3277,6 +3288,7 @@ type abyssFloorVictoryInput struct {
 	EscrowBefore   int64
 	Tier           abyssTier
 	Modifier       string
+	Biome          string
 	Focus          string
 	Untouched      bool
 	OverkillDamage int
@@ -3294,6 +3306,7 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 	escrowBefore := input.EscrowBefore
 	tier := input.Tier
 	modifier := input.Modifier
+	biome := input.Biome
 	focus := input.Focus
 	untouched := input.Untouched
 	st := s.bot.loadAbyssStats(uid)
@@ -3496,6 +3509,9 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 		true,
 		abyssEconomyAnomaly(depth, o.Bonus),
 	)
+	if biome != "" {
+		s.bot.recordAbyssBiomeClear(uid, biome)
+	}
 	return o
 }
 
@@ -3585,6 +3601,7 @@ func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escro
 			EscrowBefore:   escrowBefore,
 			Tier:           tier,
 			Modifier:       modifier,
+			Biome:          res.Biome,
 			Focus:          focus,
 			Untouched:      res.DamageTaken == 0,
 			OverkillDamage: res.OverkillDamage,

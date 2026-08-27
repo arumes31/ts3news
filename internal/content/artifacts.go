@@ -1222,6 +1222,11 @@ func AbyssSetCatalog(setID string) []Gear {
 	return out
 }
 
+// AbyssNamedSetIDs returns the curated collection-book sets in display order.
+func AbyssNamedSetIDs() []string {
+	return []string{"predator", "warden", "harvester"}
+}
+
 // RandomItemEffectWithRandom rolls a combat affix using source.
 func RandomItemEffectWithRandom(source RandomSource) ItemEffect {
 	effects := []ItemEffect{

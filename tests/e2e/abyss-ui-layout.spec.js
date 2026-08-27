@@ -34,3 +34,25 @@ test('boss record and cosmetic collection stay in their assigned tabs', async ({
   await expect(record).toBeVisible();
   await expect(cosmetics).toBeHidden();
 });
+
+test('collection mastery and two badge slots remain usable at desktop and mobile widths', async ({ page }) => {
+  await page.goto('/abyss');
+
+  const collections = page.locator('.ab-collections');
+  await expect(collections).toBeVisible();
+  await collections.locator('summary').click();
+  await expect(collections).toContainText('Mossbound');
+  await expect(collections).toContainText('25% · +2% loot find');
+
+  await page.locator('#abyssRareActions summary').click();
+  await page.getByRole('button', { name: 'Choose prefix' }).click();
+  await expect(page.locator('#sharedModalCard')).toContainText('Choose prefix badge');
+  await page.evaluate(() => closeModal());
+  await page.getByRole('button', { name: 'Choose suffix' }).click();
+  await expect(page.locator('#sharedModalCard')).toContainText('Choose suffix badge');
+  await page.evaluate(() => closeModal());
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const widths = await page.evaluate(() => ({ body: document.body.scrollWidth, viewport: window.innerWidth }));
+  expect(widths.body).toBeLessThanOrEqual(widths.viewport + 1);
+});

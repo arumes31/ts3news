@@ -1803,5 +1803,26 @@
       "internal/bot/web_armory_skill_rank_test.go",
       "tests/e2e/abyss-inventory-polish.spec.js"
     ]
+  },
+  {
+    "ids": [166, 167, 169, 170],
+    "production": [
+      "internal/bot/web_abyss.go",
+      "internal/bot/web_abyss_codex.go",
+      "internal/bot/web_abyss_collections.go",
+      "internal/bot/web_abyss_econ.go",
+      "internal/bot/web_abyss_loot.go",
+      "internal/bot/web_abyss_lore_grant.go",
+      "internal/bot/web_abyss_tree.go",
+      "internal/bot/webassets/abyss.html",
+      "internal/bot/webassets/abyss_collections.css",
+      "internal/content/abyss_biomes.go",
+      "internal/content/artifacts.go"
+    ],
+    "verification": [
+      "internal/bot/web_abyss_collections_test.go",
+      "internal/bot/web_abyss_release_guards_test.go",
+      "tests/e2e/abyss-ui-layout.spec.js"
+    ]
   }
 ]

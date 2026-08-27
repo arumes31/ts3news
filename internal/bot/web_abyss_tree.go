@@ -425,6 +425,9 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 	// Post-prestige Paragon ranks and family-specific Bestiary talents share the
 	// cached tree-bonus payload used by the live Abyss combat engine.
 	b.applyAbyssMasteryBonuses(uid, &tb)
+	// Collection-book milestones are permanent account rewards. They share the
+	// canonical bonus payload so loot, gold and material consumers cannot drift.
+	b.applyAbyssSetBookBonuses(uid, &tb)
 
 	// Apply Prestige Reset Bonus Multipliers (Item 61): +1% flat tree stats per Abyss
 	// prestige. Keyed off abyss_prestige (like treePointsTotal and applyAbyssRegen),

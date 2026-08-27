@@ -16,6 +16,9 @@ func grantAbyssLoreFragment(db dbOrTx, uid string, loreID int) (unlocked bool, t
 		return false, 0, err
 	}
 	if inserted > 0 {
+		if err := grantAbyssLoreCompletion(db, uid); err != nil {
+			return false, 0, err
+		}
 		return true, 0, nil
 	}
 	if _, err := db.Exec("UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", abyssDuplicateLoreTokens, uid); err != nil {

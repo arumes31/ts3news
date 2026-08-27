@@ -71,8 +71,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "4a6e8b3faae4284e3c407f835008feb4683e17df02615f60a1220bbf9d98ab22"},
-		{name: "active_run", active: true, want: "552a9280684756ae79e425adf70d00c0853122b85c2e1ff42451e26ec688e2a0"},
+		{name: "threshold", want: "f79b717541be615c8b7cfa5586e92b3b0ab12fd393bf0efacfd8113792152b7b"},
+		{name: "active_run", active: true, want: "f1dad6d844006afaf654b832813d204b677fa3d38cc6969224496e5fb88fc2f7"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -83,6 +83,11 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 				abyssGoldenFixture(fixture.active),
 			); err != nil {
 				t.Fatalf("render Abyss fixture: %v", err)
+			}
+			for _, required := range []string{"Collection &amp; biome mastery", "Choose prefix", "Choose suffix"} {
+				if !bytes.Contains(rendered.Bytes(), []byte(required)) {
+					t.Fatalf("rendered Abyss fixture missing %q", required)
+				}
 			}
 			stable := regexp.MustCompile(`[0-9a-f]{12}`).ReplaceAll(
 				rendered.Bytes(),
@@ -176,12 +181,31 @@ func abyssGoldenFixture(active bool) map[string]any {
 		},
 		"Stats": stats, "Run": run, "RegenPerSec": 0.0, "AutoFocus": "balanced",
 		"Tiers": abyssTierList(stats.BestDepth), "Leaders": abyssBoards{}, "Season": "S1", "SeasonJourney": seasonJourney,
-		"History": []any{}, "Achievements": []abyssAchievementView{}, "BadgeOptions": []any{},
+		"History": []any{}, "Achievements": []abyssAchievementView{},
+		"BadgeOptions": []map[string]string{
+			{"Code": "depth_10", "Name": "Threshold Breaker (Depth 10)"},
+			{"Code": abyssLoreAchievement, "Name": "Abyss Chronicler (Lore Complete)"},
+		},
 		"RunInsights": abyssRunInsightsView{}, "LongTerm": abyssLongTermView{},
 		"CartographerRoute": abyssCartographerRouteView{Floors: []abyssCartographerFloorView{}},
 		"EnemyForecast":     abyssEnemyForecast("golden-player", run, nil),
 		"BossAffinity":      bossAffinity, "ElementalPreview": elementalPreview, "SkillPriority": skillPriority,
-		"ActiveBadge": "", "ActiveBadgeName": "", "LoreList": []any{}, "LoreTotal": len(abyssLoreFragments),
+		"ActiveBadge": "depth_10", "ActiveBadgeName": "Threshold Breaker (Depth 10)",
+		"BadgeSuffixName":  "Abyss Chronicler (Lore Complete)",
+		"BadgeCombination": "Threshold Breaker (Depth 10) · Abyss Chronicler (Lore Complete)",
+		"LoreList":         []any{}, "LoreTotal": len(abyssLoreFragments),
+		"Collections": abyssCollectionView{
+			Biomes: []abyssBiomeMasteryView{
+				{Name: "Mossbound", Affinity: "nature", Clears: 50, Goal: 50, Percent: 100, Mastered: true},
+				{Name: "Cinder-Choked", Affinity: "fire", Clears: 17, Goal: 50, Percent: 34},
+			},
+			BiomeMastered: 1, BiomeTotal: 13,
+			Sets: []abyssSetBookRow{
+				{ID: "predator", Name: "Predator Set", Collected: 3, Total: 6, Percent: 50},
+				{ID: "warden", Name: "Warden Set", Collected: 2, Total: 6, Percent: 33},
+			},
+			SetCollected: 5, SetTotal: 15, SetPercent: 33, SetReward25: true,
+		},
 		"Bestiary": []any{}, "Consumables": []any{}, "DailyMod": "",
 		"CommunityExpedition": map[string]any{"Week": "2026-W35", "Floors": 0, "Target": 1000},
 		"Helpers":             []any{}, "NextIsBoss": false, "AbyssSetPieces": 0, "AbyssSetTier": 0,

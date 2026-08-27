@@ -53,6 +53,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_practice.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_vendor.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_lore.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_collections.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_world_boss.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_contracts.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_boss_affinity.css"}}">
@@ -1164,10 +1165,29 @@
       {{range .ProgressionTracks}}<div class="ab-progress-row"><span><b>{{.Name}}</b><small>{{.Desc}}</small></span><strong>{{.Value}}{{if .Next}} / {{.Next}}{{else}} · mastered{{end}}</strong></div>{{end}}
       <p class="muted small">Tiers unlock at 10, 50, and 200 clears. Veteran rewards are badges only and never add combat power.</p>
     </details>
+    <details class="ab-collections">
+      <summary>📚 Collection &amp; biome mastery <b>{{.Collections.SetCollected}}/{{.Collections.SetTotal}} gear · {{.Collections.BiomeMastered}}/{{.Collections.BiomeTotal}} biomes</b></summary>
+      <div class="ab-collection-grid">
+        <article>
+          <h3>🧭 Biome mastery</h3>
+          <p class="muted small">Clear a biome 50 times to gain +2% combat stats whenever you return there.</p>
+          <div class="ab-biome-list">{{range .Collections.Biomes}}<div class="{{if .Mastered}}mastered{{end}}"><span><b>{{.Name}}</b><small>{{.Affinity}}</small></span><progress max="{{.Goal}}" value="{{.Clears}}">{{.Percent}}%</progress><strong>{{.Clears}}/{{.Goal}}</strong></div>{{end}}</div>
+        </article>
+        <article>
+          <h3>🛡️ Set collection book</h3>
+          <p class="muted small">Bank unique named-set pieces. Milestones permanently improve account rewards.</p>
+          <div class="ab-set-book">{{range .Collections.Sets}}<div><span><b>{{.Name}}</b><small>{{.Collected}} of {{.Total}} discovered</small></span><progress max="100" value="{{.Percent}}">{{.Percent}}%</progress><strong>{{.Percent}}%</strong></div>{{end}}</div>
+          <div class="ab-collection-rewards"><span class="{{if .Collections.SetReward25}}earned{{end}}">25% · +2% loot find</span><span class="{{if .Collections.SetReward50}}earned{{end}}">50% · +3% gold find</span><span class="{{if .Collections.SetReward100}}earned{{end}}">100% · +5% materials</span></div>
+        </article>
+      </div>
+      {{if .Collections.LoreComplete}}<div class="ab-lore-title">📜 Exclusive title unlocked: <b>{{.Collections.LoreTitle}}</b> · badge earned</div>{{end}}
+    </details>
     {{if .BadgeOptions}}
     <div class="ab-badge-picker">
-      <span class="small muted">Badge: <b id="activeBadgeName">{{if .ActiveBadgeName}}{{.ActiveBadgeName}}{{else}}none{{end}}</b></span>
-      <button class="ghost xs" onclick="openBadgePicker()" style="margin-left:8px;">Choose badge</button>
+      <span class="small muted">Badge combination: <b id="badgeCombination">{{.BadgeCombination}}</b></span>
+      <button class="ghost xs" onclick="openBadgePicker('prefix')">Choose prefix</button>
+      <button class="ghost xs" onclick="openBadgePicker('suffix')">Choose suffix</button>
+      <span id="activeBadgeName" hidden>{{.ActiveBadgeName}}</span><span id="activeBadgeSuffixName" hidden>{{.BadgeSuffixName}}</span>
     </div>
     <div id="badgeOptionsData" style="display:none">
       {{range .BadgeOptions}}<span data-code="{{.Code}}" data-name="{{.Name}}"></span>{{end}}
@@ -3835,30 +3855,32 @@ function showRunSummary(title, rows, cls){
 
 // Badge picker: choose one earned achievement to display next to your name.
 // UI-127: hovering/tapping an option previews it inline next to your nickname.
-function openBadgePicker(){
+function openBadgePicker(slot){
+  slot=slot==='suffix'?'suffix':'prefix';
   var opts = document.querySelectorAll('#badgeOptionsData span');
-  var html = '<h3>🏅 Choose a badge</h3><p>Pick one earned achievement to display next to your name.</p>'+
-    '<div class="muted small" id="badgePreview" style="margin-bottom:8px;">Preview: <b>'+consEsc(pageNick||'you')+'</b> <span id="badgePreviewName">🏅 '+(document.getElementById('activeBadgeName')||{}).textContent+'</span></div>'+
+  var current=(document.getElementById(slot==='prefix'?'activeBadgeName':'activeBadgeSuffixName')||{}).textContent||'';
+  var html = '<h3>🏅 Choose '+slot+' badge</h3><p>Combine two different earned achievements around your name.</p>'+
+    '<div class="muted small" id="badgePreview" style="margin-bottom:8px;">Preview: <span id="badgePreviewName">'+(slot==='prefix'&&current?('🏅 '+consEsc(current)+' '):'')+'</span><b>'+consEsc(pageNick||'you')+'</b><span id="badgePreviewSuffix">'+(slot==='suffix'&&current?(' · '+consEsc(current)):'')+'</span></div>'+
     '<div class="modal-body">';
-  html += '<button class="modal-option" data-badge="" onclick="abyssSetBadge(\'\')">None</button>';
+  html += '<button class="modal-option" data-badge="" onclick="abyssSetBadge(\'\',\''+slot+'\')">None</button>';
   opts.forEach(function(o){
-    html += '<button class="modal-option" data-badge="'+consEsc(o.getAttribute('data-name'))+'" onclick="abyssSetBadge(\''+o.getAttribute('data-code')+'\')">'+o.getAttribute('data-name')+'</button>';
+    html += '<button class="modal-option" data-badge="'+consEsc(o.getAttribute('data-name'))+'" onclick="abyssSetBadge(\''+o.getAttribute('data-code')+'\',\''+slot+'\')">'+consEsc(o.getAttribute('data-name'))+'</button>';
   });
   html += '</div>';
   openModal(html);
   document.querySelectorAll('#sharedModalCard .modal-option').forEach(function(b){
-    var show=function(){ var el=document.getElementById('badgePreviewName'); if(el) el.textContent=b.getAttribute('data-badge')?('🏅 '+b.getAttribute('data-badge')):''; };
+    var show=function(){ var el=document.getElementById(slot==='prefix'?'badgePreviewName':'badgePreviewSuffix'); if(el) el.textContent=b.getAttribute('data-badge')?(slot==='prefix'?('🏅 '+b.getAttribute('data-badge')+' '):(' · '+b.getAttribute('data-badge'))):''; };
     b.addEventListener('mouseenter', show);
     b.addEventListener('focus', show);
   });
 }
-async function abyssSetBadge(code){
+async function abyssSetBadge(code,slot){
   closeModal();
-  var d = await abPost('/api/abyss/set_badge', {code: code});
+  var d = await abPost('/api/abyss/set_badge', {code: code, slot: slot});
   if(!d.ok){abToast(d.error||'failed', false); return;}
   abToast(code ? ('Badge set: '+d.badge_name) : 'Badge cleared', true);
   // UI-127: update the inline badge label immediately (the reload follows).
-  var bn=document.getElementById('activeBadgeName');
+  var bn=document.getElementById(slot==='suffix'?'activeBadgeSuffixName':'activeBadgeName');
   if(bn) bn.textContent=code ? d.badge_name : 'none';
   setTimeout(function(){ window.location.reload(); }, 700);
 }

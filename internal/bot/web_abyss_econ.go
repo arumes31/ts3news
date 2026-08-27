@@ -403,6 +403,7 @@ var abyssAchievementNames = map[string]string{
 	"prestige_1":        "Reborn (First Abyss Prestige)",
 	"hardcore_depth_10": "Iron Delver (Hardcore Depth 10)",
 	"perfect_run":       "Untouchable (Perfect Run)",
+	"lore_complete":     "Abyss Chronicler (Lore Complete)",
 	"lore_secret_chain": "Abyss Unmasked (Secret Sovereigns)",
 }
 
@@ -514,8 +515,8 @@ func (b *Bot) checkBankAchievements(uid string, lifetimeBanked int64) string {
 	return b.checkThresholdAchievements(uid, lifetimeBanked, abyssBankTiers)
 }
 
-// handleAbyssSetBadge lets a player display one earned achievement as a
-// persistent cosmetic badge next to their name. An empty code clears it.
+// handleAbyssSetBadge lets a player combine earned achievements in persistent
+// prefix and suffix cosmetic slots. The legacy badge column remains the prefix.
 func (s *WebServer) handleAbyssSetBadge(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -523,8 +524,16 @@ func (s *WebServer) handleAbyssSetBadge(w http.ResponseWriter, r *http.Request, 
 	}
 	var req struct {
 		Code string `json:"code"`
+		Slot string `json:"slot"`
 	}
 	_ = readJSON(r, &req)
+	if req.Slot == "" {
+		req.Slot = "prefix"
+	}
+	if req.Slot != "prefix" && req.Slot != "suffix" {
+		writeJSON(w, map[string]any{"ok": false, "error": "invalid badge slot"})
+		return
+	}
 
 	if req.Code != "" {
 		var has bool
@@ -535,11 +544,25 @@ func (s *WebServer) handleAbyssSetBadge(w http.ResponseWriter, r *http.Request, 
 			return
 		}
 	}
-	if _, err := s.bot.DB.Exec("UPDATE users SET abyss_active_badge=$1 WHERE client_uid=$2", req.Code, uid); err != nil {
+	other := s.bot.abyssBadgeSuffix(uid)
+	if req.Slot == "suffix" {
+		other = s.bot.abyssActiveBadgePrefix(uid)
+	}
+	if req.Code != "" && req.Code == other {
+		writeJSON(w, map[string]any{"ok": false, "error": "choose a different badge for each slot"})
+		return
+	}
+	var err error
+	if req.Slot == "suffix" {
+		err = s.bot.setAbyssBadgeSuffix(uid, req.Code)
+	} else {
+		_, err = s.bot.DB.Exec("UPDATE users SET abyss_active_badge=$1 WHERE client_uid=$2", req.Code, uid)
+	}
+	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "badge": req.Code, "badge_name": abyssAchievementName(req.Code)})
+	writeJSON(w, map[string]any{"ok": true, "badge": req.Code, "badge_name": abyssAchievementName(req.Code), "slot": req.Slot})
 }
 
 // ---- Leaderboards (per tier) ---------------------------------------------

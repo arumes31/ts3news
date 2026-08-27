@@ -84,6 +84,16 @@ func AbyssBiomeWeight(depth int, affinity string) int {
 	return weight
 }
 
+// AbyssBiomes returns every biome in deterministic progression order. The
+// detached slice is suitable for account-wide mastery displays.
+func AbyssBiomes() []AbyssBiome {
+	out := make([]AbyssBiome, 0, len(abyssBiomesShallow)+len(abyssBiomesMid)+len(abyssBiomesDeep))
+	out = append(out, abyssBiomesShallow...)
+	out = append(out, abyssBiomesMid...)
+	out = append(out, abyssBiomesDeep...)
+	return out
+}
+
 func abyssBiomePool(depth int) []AbyssBiome {
 	var pool []AbyssBiome
 	switch {

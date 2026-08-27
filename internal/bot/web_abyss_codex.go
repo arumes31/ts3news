@@ -110,6 +110,7 @@ var abyssAchievementCatalog = []abyssAchievementView{
 	{Code: "prestige_1", Condition: "Prestige the Abyss once"},
 	{Code: "hardcore_depth_10", Condition: "Reach depth 10 in Hardcore mode"},
 	{Code: "perfect_run", Condition: "Bank a run after taking no damage"},
+	{Code: "lore_complete", Condition: "Collect every Abyss lore fragment"},
 	{Code: "lore_secret_chain", Condition: "Complete the hidden sovereign chain unlocked by all lore fragments"},
 }
 

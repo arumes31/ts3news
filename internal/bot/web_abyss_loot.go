@@ -1134,6 +1134,9 @@ func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
 			// retry the grant instead of silently losing it.
 			continue
 		}
+		if g.Gear != nil {
+			b.recordAbyssSetBookGear(uid, *g.Gear)
+		}
 		// Preferred gear is consumed in the same transaction as its equip. Other
 		// grants retain the existing post-apply row deletion path.
 		if !preferredGear {
