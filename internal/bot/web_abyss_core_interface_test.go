@@ -1,0 +1,55 @@
+package bot
+
+import (
+	"strings"
+	"testing"
+
+	"ts3news/internal/content"
+)
+
+func TestAbyssRunLootEstimatedValue(t *testing.T) {
+	gear := content.Gear{Rarity: content.RarityRare, Stats: content.Stats{STR: 10}}
+	tests := []struct {
+		name  string
+		grant abyssLootGrant
+		want  int64
+	}{
+		{name: "gold", grant: abyssLootGrant{Type: "gold", Gold: 1234}, want: 1234},
+		{name: "tokens", grant: abyssLootGrant{Type: "tokens", Tokens: 2}, want: 2 * int64(abyssTokenBuyGold)},
+		{name: "material conversion ladder", grant: abyssLootGrant{Type: "mat", MatID: "prism", MatN: 2}, want: 1_000_000},
+		{name: "negative reward", grant: abyssLootGrant{Type: "gold", Gold: -1}, want: 0},
+		{name: "bound unlock", grant: abyssLootGrant{Type: "title", TitleName: "Delver"}, want: 0},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := abyssRunLootEstimatedValue(test.grant); got != test.want {
+				t.Fatalf("abyssRunLootEstimatedValue() = %d, want %d", got, test.want)
+			}
+		})
+	}
+	if got := abyssRunLootEstimatedValue(abyssLootGrant{Type: "gear", Gear: &gear}); got != max(gearPrice(gear)/2, int64(1)) {
+		t.Fatalf("gear estimate = %d, want vendor quote", got)
+	}
+}
+
+func TestAbyssCoreInterfaceAssets(t *testing.T) {
+	for _, asset := range []string{"webassets/abyss.html", "webassets/abyss_core_interface.html", "webassets/abyss_core_interface.css", "webassets/abyss_combat_recorder.html", "webassets/abyss_forge_workstation.html", "webassets/abyss_longterm.html"} {
+		body, err := webAssets.ReadFile(asset)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := string(body)
+		for _, marker := range map[string][]string{
+			"webassets/abyss.html":                   {`id="threatPct"`, `id="bossDistance"`, `id="lootTypeFilters"`, `data-estimated-value=`},
+			"webassets/abyss_core_interface.html":    {`function openRarityGuide()`, `function renderInsuranceNudge()`, `window.showAbyssShortcuts`},
+			"webassets/abyss_core_interface.css":     {`.ab-log-timestamps`, `.ab-insurance-attention`, `.ab-loot-type-filters`},
+			"webassets/abyss_combat_recorder.html":   {`id="abyssShortcutHelp"`, `id="logAutoScroll"`},
+			"webassets/abyss_forge_workstation.html": {`id="forgeItemSearch"`, `forgeSlotFilter`, `event.key==='ArrowDown'`},
+			"webassets/abyss_longterm.html":          {`key:'ab_logtime'`, `key:'ab_loottype'`},
+		}[asset] {
+			if !strings.Contains(text, marker) {
+				t.Fatalf("%s missing %q", asset, marker)
+			}
+		}
+	}
+}

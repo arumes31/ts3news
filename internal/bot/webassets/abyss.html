@@ -41,6 +41,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_polish.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_longterm.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_core_risk.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_core_interface.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_events.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_social.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_replay.css"}}">
@@ -137,6 +138,7 @@
     <div class="ab-depth-ring">
       <span class="ab-depth-label ab-glossary-term" tabindex="0" data-tip="Depth&#10;The floor you currently occupy. Deeper floors raise danger and rewards.">Depth</span>
       <span class="ab-depth-num" id="depthNum">{{if .Run.Active}}{{.Run.Depth}}{{else}}—{{end}}</span>
+      <span class="ab-boss-distance" id="bossDistance" aria-hidden="true"></span>
     </div>
     <div class="ab-escrow">
       <span class="ab-escrow-label ab-glossary-term" tabindex="0" data-tip="Cache at stake&#10;Run gold held in escrow. Bank it to make it permanent; defeat risks the uninsured share.">💰 Cache at stake</span>
@@ -147,7 +149,7 @@
     </div>
     <!-- Threat / danger meter [91] -->
     <div class="ab-threat">
-      <span class="ab-threat-label ab-glossary-term" tabindex="0" data-tip="Threat&#10;Current floor danger from depth, tier, pacts, and special encounters.{{if .DropForecastOK}}{{with .DropForecast}}&#10;&#10;Next-floor drop forecast&#10;Gear {{printf "%.1f" (mulf .Gear 100.0)}}% · Consumable {{printf "%.1f" (mulf .Consumable 100.0)}}% · Skill {{printf "%.1f" (mulf .Skill 100.0)}}%&#10;Enchant {{printf "%.1f" (mulf .Enchant 100.0)}}% · Artifact {{printf "%.1f" (mulf .Artifact 100.0)}}% · Unique {{printf "%.1f" (mulf .Unique 100.0)}}% · Ultimate {{printf "%.2f" (mulf .Ultimate 100.0)}}%{{end}}{{end}}">Threat</span>
+      <span class="ab-threat-label ab-glossary-term" tabindex="0" data-tip="Threat&#10;Current floor danger from depth, tier, pacts, and special encounters.{{if .DropForecastOK}}{{with .DropForecast}}&#10;&#10;Next-floor drop forecast&#10;Gear {{printf "%.1f" (mulf .Gear 100.0)}}% · Consumable {{printf "%.1f" (mulf .Consumable 100.0)}}% · Skill {{printf "%.1f" (mulf .Skill 100.0)}}%&#10;Enchant {{printf "%.1f" (mulf .Enchant 100.0)}}% · Artifact {{printf "%.1f" (mulf .Artifact 100.0)}}% · Unique {{printf "%.1f" (mulf .Unique 100.0)}}% · Ultimate {{printf "%.2f" (mulf .Ultimate 100.0)}}%{{end}}{{end}}">Threat <b id="threatPct">0%</b></span>
       <div class="ab-threat-bar"><div class="ab-threat-fill" id="threatFill" style="width:0%"></div></div>
     </div>
     <!-- Run-awareness chips (UI-41/43/44/49/50/54/55/56/58/59/60), filled by renderHudChips() -->
@@ -481,6 +483,7 @@
   <aside class="abyss-side-panel abyss-side-right">
     <h3>🎒 Run Loot <span class="muted small" id="lootSummary"></span></h3>
     <div class="ab-rar-dots" id="lootRarityDots" title="Escrowed items by rarity"></div>
+    <button class="ghost xs ab-rarity-help" id="lootRarityHelp" type="button" aria-haspopup="dialog">Rarity guide</button>
     <div class="ab-duplicate-guard" id="lootDuplicateGuard" role="status" aria-live="polite" data-count="{{.RecentGearProtected}}" data-window="20" title="Random gear catalog IDs remain blocked even after banking, selling, dismantling, losing, or moving the item.">
       <span class="ab-duplicate-guard-icon" aria-hidden="true">🛡</span>
       <span><b>Recent-drop guard</b><small><strong id="lootDuplicateGuardCount">{{.RecentGearProtected}}</strong> catalog IDs · previous 20 cleared floors</small></span>
@@ -505,6 +508,13 @@
         <option value="build">Build stat</option>
       </select>
     </div>
+    <div class="ab-loot-filters ab-loot-type-filters" id="lootTypeFilters" aria-label="Loot type filters">
+      <button class="ab-chip active" data-type="all" aria-pressed="true">All types</button>
+      <button class="ab-chip" data-type="gear" aria-pressed="false">Gear</button>
+      <button class="ab-chip" data-type="cons" aria-pressed="false">Items</button>
+      <button class="ab-chip" data-type="mat" aria-pressed="false">Materials</button>
+      <button class="ab-chip" data-type="gold" aria-pressed="false">Currency</button>
+    </div>
     <div class="ab-loot-sort" title="Targeting applies to Rare+ non-boss gear. Auto-salvage is capped below Rare; reserved backpack items are always protected.">
       <label class="muted small" for="lootTarget">Chase:</label>
       <select id="lootTarget" class="ab-select" onchange="saveAbyssLootSettings()">
@@ -519,7 +529,7 @@
     </div>
     <div class="abyss-side-list" id="lootManifest">
       {{range .RunLoot}}
-      <div class="abyss-side-loot {{.BeamClass}} {{if .Foil}}ab-loot-foil{{end}} {{if .Doomed}}ab-loot-doomed{{end}} {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}} {{if .SmartLoot}}ab-smart-loot{{end}} {{if .SetPity}}ab-set-pity{{end}} {{if .Wishlist}}ab-wishlist-drop{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-smart-loot="{{.SmartLoot}}" data-smart-loot-reason="{{.SmartLootReason}}" data-set-pity="{{.SetPity}}" data-wishlist="{{.Wishlist}}" data-can-sell-junk="{{.CanSellJunk}}" data-sell-value="{{.SellValue}}" data-tip="{{.Title}}&#10;{{.Source}}{{if .Wishlist}}&#10;{{.WishlistLabel}}{{end}}{{if .SetPity}}&#10;{{.SetPityLabel}}{{end}}{{if .SmartLoot}}&#10;{{.SmartLootLabel}}{{end}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
+      <div class="abyss-side-loot {{.BeamClass}} {{if .Foil}}ab-loot-foil{{end}} {{if .Doomed}}ab-loot-doomed{{end}} {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}} {{if .SmartLoot}}ab-smart-loot{{end}} {{if .SetPity}}ab-set-pity{{end}} {{if .Wishlist}}ab-wishlist-drop{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-estimated-value="{{.EstimatedValue}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-smart-loot="{{.SmartLoot}}" data-smart-loot-reason="{{.SmartLootReason}}" data-set-pity="{{.SetPity}}" data-wishlist="{{.Wishlist}}" data-can-sell-junk="{{.CanSellJunk}}" data-sell-value="{{.SellValue}}" data-tip="{{.Title}}&#10;{{.Source}}{{if .Wishlist}}&#10;{{.WishlistLabel}}{{end}}{{if .SetPity}}&#10;{{.SetPityLabel}}{{end}}{{if .SmartLoot}}&#10;{{.SmartLootLabel}}{{end}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
         <span class="ab-loot-main">{{if .SlotIcon}}<span class="ab-loot-slot" aria-hidden="true">{{.SlotIcon}}</span>{{end}}<span>{{.Label}}</span></span>
         <span class="ab-loot-tags">{{if .Wishlist}}<b class="ab-wishlist-tag">★ {{.WishlistLabel}}</b>{{end}}{{if .SetPity}}<b class="ab-set-pity-tag">🧩 {{.SetPityLabel}}</b>{{end}}{{if .SmartLoot}}<b class="ab-smart-loot-tag">🎯 {{.SmartLootLabel}}</b>{{end}}{{if .Unidentified}}<b class="ab-loot-question">?</b>{{end}}{{if .AlreadyOwned}}<b class="ab-owned-tag">owned</b>{{end}}{{if .SetID}}<b class="ab-set-tag ab-set-{{.SetID}}">🧩 {{.SetID}} {{.SetCount}}/{{.SetMax}}</b>{{end}}{{if .Corrupted}}<b class="ab-corrupt-tag">🩸 corrupted</b>{{end}}</span>
         <span class="ab-loot-detail" hidden>{{.Source}}{{if .Wishlist}} · ★ {{.WishlistLabel}}{{end}}{{if .SetPity}} · 🧩 {{.SetPityLabel}}{{end}}{{if .SmartLoot}} · 🎯 {{.SmartLootLabel}}{{end}}{{if .Slot}} · {{.Slot}}{{end}}{{if gt .CR 0.0}} · CR {{printf "%.0f" .CR}} ({{if ge .CRDelta 0.0}}+{{end}}{{printf "%.0f" .CRDelta}}){{end}}{{if gt .Quality 0}} · {{.Quality}}★ quality{{end}}</span>
@@ -527,7 +537,7 @@
         {{if .CanSellJunk}}<button type="button" class="ghost xs ab-sell-junk" title="Destroy this ordinary escrow item and add exactly {{.SellValue}} gold to the still-at-risk run cache." onclick="abyssSellJunkLoot({{.EscrowID}},{{.SellValue}},event)">Sell junk · +{{.SellValue}}g cache</button>{{end}}
       </div>
       {{else}}
-      <div class="abyss-side-empty">No loot escrowed yet this run.</div>
+      <div class="abyss-side-empty ab-empty-state"><span aria-hidden="true">🎒</span><b>The cache is empty</b><small>Clear a floor to escrow loot here. Bank before defeat to keep it.</small></div>
       {{end}}
     </div>
   </aside>
@@ -2462,6 +2472,9 @@ function updateAbyssElementalPreview(depth){
 function setRisk(v){ if(v!==undefined && v!==null){ curRisk=Number(v)||0; } updateThreat(); renderState(); }
 function updateThreat(){
   var pct=Math.min(100,curRisk||curDepth*4);document.getElementById('threatFill').style.width=pct+'%';
+  var threatPct=document.getElementById('threatPct');if(threatPct)threatPct.textContent=Math.round(pct)+'%';
+  var bossDistance=document.getElementById('bossDistance'),depth=Number(curDepth)||0;
+  if(bossDistance){var nextBoss=(Math.floor(depth/5)+1)*5,distance=Math.max(1,nextBoss-depth);bossDistance.textContent=inRun?'👑 '+distance:'';bossDistance.title=inRun?'Boss in '+distance+' '+(distance===1?'floor':'floors'):'';}
   var mh=document.getElementById('mhRisk'); if(mh)mh.textContent=pct+'%';
   updateDepthA11y();
 }
@@ -2625,7 +2638,7 @@ var logNumbered=false, logMono=false; // UI-26 / UI-38 (persisted below)
 try{ logNumbered=localStorage.getItem('ab_lognum')==='1'; logMono=localStorage.getItem('ab_logmono')==='1'; }catch(e){}
 
 function addLogHead(log, cls, txt){
-  var d=document.createElement('div'); d.className='ab-log-line '+cls; d.textContent=txt; log.appendChild(d); recordCombatLogLine(d,txt);
+  var d=document.createElement('div'); d.className='ab-log-line '+cls; d.dataset.logTime=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});d.textContent=txt; log.appendChild(d); recordCombatLogLine(d,txt);
 }
 function appendAbyssOverkillReceipt(log,result){
   var damage=Math.max(0,Number(result&&result.overkill_damage)||0);
@@ -2649,7 +2662,7 @@ function dailyAffixLabel(){
 // appendLogLine: one log line in, decorated (UI-3/4/6/11..13/20/23..25/28/30/32),
 // with consecutive identical DoT ticks collapsed behind a ×N suffix (UI-40).
 function appendLogLine(log, html, round){
-  var d=document.createElement('div'); d.className='ab-log-line'; d.innerHTML=html;
+  var d=document.createElement('div'); d.className='ab-log-line'; d.dataset.logTime=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});d.innerHTML=html;
   if(round>0) d.setAttribute('data-round',String(round));
   var txt=d.textContent||'';
   lastFightText+=txt+'\n';
@@ -3125,9 +3138,10 @@ function updateLootSummary(){
   // Apply the active rarity filter first so the count below only includes
   // rows the player can actually see.
   applyLootFilter();
-  var n = 0;
-  manifest.querySelectorAll('.abyss-side-loot').forEach(function(row){ if(row.style.display!=='none') n++; });
-  el.textContent = n > 0 ? ('· ' + plural(n,'item') + ' · cache ' + fmtGold(curEscrow)) : '';
+  var n = 0, estimate = 0;
+  manifest.querySelectorAll('.abyss-side-loot').forEach(function(row){ if(row.style.display!=='none'){n++;estimate+=Math.max(0,Number(row.dataset.estimatedValue)||0);} });
+  el.textContent = n > 0 ? ('· ' + plural(n,'item') + (estimate?' · ≈'+fmtGold(estimate):'') + ' · cache ' + fmtGold(curEscrow)) : '';
+  el.title=estimate?'Estimated liquid value of visible loot: '+fmtGold(estimate)+'. Bound unlocks are excluded.':'';
   // Rarity dot counters in the header (UX-48).
   var dots = document.getElementById('lootRarityDots');
   if(dots){
@@ -3147,8 +3161,9 @@ function updateLootSummary(){
 // Loot filter chips (UX-46): rarity floor or upgrades-only, persisted.
 // Guarded read: blocked storage (private mode, embedded webview) must fall
 // back to 'all' instead of throwing and killing the whole page script.
-var lootFilter = 'all';
+var lootFilter = 'all', lootTypeFilter = 'all';
 try{ lootFilter = localStorage.getItem('ab_lootf') || 'all'; }catch(e){}
+try{ lootTypeFilter = localStorage.getItem('ab_loottype') || 'all'; }catch(e){}
 function applyLootFilter(){
   var manifest = document.getElementById('lootManifest');
   if(!manifest) return;
@@ -3164,6 +3179,13 @@ function applyLootFilter(){
       var r = 0;
       row.classList.forEach(function(c){ if(AB_RARITY_RANKS[c]) r = AB_RARITY_RANKS[c]; });
       ok = r >= min;
+    }
+    if(ok && lootTypeFilter!=='all'){
+      var type=(row.dataset.itemType||'').toLowerCase();
+      if(lootTypeFilter==='gear')ok=type==='gear';
+      else if(lootTypeFilter==='cons')ok=['cons','skill','ultimate','artifact','title','unique','ench'].indexOf(type)>=0;
+      else if(lootTypeFilter==='mat')ok=type==='mat';
+      else if(lootTypeFilter==='gold')ok=type==='gold'||type==='tokens';
     }
     row.style.display = ok ? '' : 'none';
   });
@@ -3181,6 +3203,13 @@ function setLootFilter(f){
   lootFilter = f;
   try{ localStorage.setItem('ab_lootf', f); }catch(e){}
   applyLootFilter();
+  updateLootSummary();
+}
+function setLootTypeFilter(f){
+  lootTypeFilter=['all','gear','cons','mat','gold'].indexOf(f)>=0?f:'all';
+  try{ localStorage.setItem('ab_loottype', lootTypeFilter); }catch(e){}
+  applyLootFilter();
+  updateLootSummary();
 }
 
 // 10-second undo on auto-equip notices (UX-53). gearId pins the undo to the
@@ -3290,6 +3319,10 @@ function appendRunLoot(loot){
   }
   document.addEventListener('mouseover', function(e){
     showTip(e.target.closest ? e.target.closest('.abyss-side-loot') : null);
+  });
+  document.querySelectorAll('#lootTypeFilters .ab-chip').forEach(function(c){
+    c.classList.toggle('active', c.getAttribute('data-type') === lootTypeFilter);
+    c.setAttribute('aria-pressed', c.getAttribute('data-type')===lootTypeFilter ? 'true' : 'false');
   });
   document.addEventListener('focusin',function(e){showTip(e.target.closest?e.target.closest('.abyss-side-loot'):null);});
   document.addEventListener('focusout',function(e){if(!e.relatedTarget||!e.relatedTarget.closest||!e.relatedTarget.closest('.abyss-side-loot'))hideTip();});
@@ -4404,12 +4437,12 @@ async function abyssAutoInsure(enabled){
 }
 
 async function abyssRepairSubscription(){
-  if(!confirm('Prepay 70,000 gold for seven days of complete durability-loss protection?'))return;
+  if(!(await confirmModal('Prepay 70,000 gold for seven days of complete durability-loss protection?',{title:'Buy gear protection',okLabel:'Prepay 70,000g'})))return;
   await abyssEconomyPost('/api/abyss/shop/repair_subscription',{});
 }
 
 async function abyssScratch(){
-  if(!confirm('Spend 50 Abyss Tokens on today\'s scratch card?'))return;
+  if(!(await confirmModal('Spend 50 Abyss Tokens on today\'s scratch card?',{title:'Buy daily scratch card',okLabel:'Spend 50 tokens'})))return;
   await abyssEconomyPost('/api/abyss/shop/scratch',{});
 }
 
@@ -5324,6 +5357,9 @@ async function abyssSetFocus(focus){
   // Loot filter chips (UX-46).
   document.querySelectorAll('#lootFilters .ab-chip').forEach(function(c){
     c.onclick = function(){ setLootFilter(c.getAttribute('data-f')); };
+  });
+  document.querySelectorAll('#lootTypeFilters .ab-chip').forEach(function(c){
+    c.onclick = function(){ setLootTypeFilter(c.getAttribute('data-type')); };
   });
   applyLootFilter();
 
@@ -6751,6 +6787,7 @@ function initNewDots(){
 <script data-cfasync="false">{{template "abyssCommandPaletteJS" .}}</script>
 <script data-cfasync="false">{{template "abyssPactProgramJS" .}}</script>
 {{template "abyssCoreRiskJS" .}}
+{{template "abyssCoreInterface" .}}
 {{template "abyss-feedback" .}}
 {{template "abyss-polish" .}}
 {{template "abyss-stage-presentation" .}}

@@ -56,6 +56,28 @@ type runLootRow struct {
 	Provenance      string        `json:"provenance,omitempty"`
 	CanSellJunk     bool          `json:"can_sell_junk,omitempty"`
 	SellValue       int64         `json:"sell_value,omitempty"`
+	EstimatedValue  int64         `json:"estimated_value,omitempty"`
+}
+
+// abyssRunLootEstimatedValue gives the sidebar one consistent, display-only
+// gold estimate. Liquid rewards use their exact exchange value; materials use
+// the forge's authoritative 10:1, 10:1, 5:1 conversion ladder. Bound gear uses
+// its normal vendor quote. Non-tradeable unlocks intentionally contribute zero.
+func abyssRunLootEstimatedValue(grant abyssLootGrant) int64 {
+	switch grant.Type {
+	case "gear":
+		if grant.Gear != nil {
+			return max(gearPrice(*grant.Gear)/2, int64(1))
+		}
+	case "gold":
+		return max(grant.Gold, int64(0))
+	case "tokens":
+		return max(grant.Tokens, int64(0)) * int64(abyssTokenBuyGold)
+	case "mat":
+		unit := map[string]int64{"dust": 1_000, "shard": 10_000, "core": 100_000, "prism": 500_000}[grant.MatID]
+		return unit * int64(max(grant.MatN, 0))
+	}
+	return 0
 }
 
 func abyssRunLootJunkQuote(grant abyssLootGrant) (int64, bool) {
@@ -165,7 +187,10 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 			row.Source = "Run cache"
 		}
 		var grant abyssLootGrant
-		if json.Unmarshal(data, &grant) == nil && grant.Gear != nil {
+		if json.Unmarshal(data, &grant) == nil {
+			row.EstimatedValue = abyssRunLootEstimatedValue(grant)
+		}
+		if grant.Gear != nil {
 			gear := *grant.Gear
 			row.Wishlist = grant.Wishlist
 			if row.Wishlist {

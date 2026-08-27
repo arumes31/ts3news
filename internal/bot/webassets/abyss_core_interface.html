@@ -1,0 +1,30 @@
+{{define "abyssCoreInterface"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var rarityNames=['Common','Uncommon','Rare','Epic','Legendary','Mythic','Divine','Celestial','Eternal'];
+  var rarityGlyphs=['●','■','▲','◆','✦','⬟','★','✹','✺'];
+
+  function openRarityGuide(){
+    var rows=rarityNames.map(function(name,index){return '<li class="rar-'+name.toLowerCase()+'"><span aria-hidden="true">'+rarityGlyphs[index]+'</span><b>'+name+'</b></li>';}).join('');
+    openModal('<h3>Loot rarity guide</h3><div class="modal-body"><ol class="ab-rarity-guide">'+rows+'</ol><p class="muted small">Color and shape are both used, so rarity remains readable in colorblind and high-contrast modes.</p></div><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Done</button></div>');
+  }
+  function renderInsuranceNudge(){
+    var controls=document.getElementById('insuranceControls');if(!controls)return;
+    var nudge=document.getElementById('insuranceNudge');if(!nudge){nudge=document.createElement('span');nudge.id='insuranceNudge';nudge.className='ab-insurance-nudge';nudge.setAttribute('role','status');controls.appendChild(nudge);}
+    var cache=Math.max(0,Number(window.curEscrow)||0),insured=Math.max(0,Number(window.curInsured)||0),cap=Math.max(0,Number(window.escrowSoftCap)||0),threshold=Math.max(50000,Math.round(cap*.5));
+    var show=!!window.inRun&&insured===0&&cache>=threshold;
+    nudge.hidden=!show;nudge.textContent=show?'⚠ '+fmtGold(cache)+' is uninsured':'';
+    controls.classList.toggle('ab-insurance-attention',show);
+  }
+  function wrap(name){var original=window[name];if(typeof original!=='function'||original._abCoreInterface)return;var wrapped=function(){var result=original.apply(this,arguments);renderInsuranceNudge();return result;};wrapped._abCoreInterface=true;window[name]=wrapped;}
+  function init(){
+    var rarity=document.getElementById('lootRarityHelp');if(rarity)rarity.addEventListener('click',openRarityGuide);
+    var keys=document.getElementById('abyssShortcutHelp');if(keys)keys.addEventListener('click',function(){if(window.showAbyssShortcuts)window.showAbyssShortcuts();});
+    wrap('setEscrow');wrap('setInsured');wrap('renderState');renderInsuranceNudge();
+  }
+  setTimeout(init,0);
+  window.__abyssCoreInterface={openRarityGuide:openRarityGuide,renderInsuranceNudge:renderInsuranceNudge};
+})();
+</script>
+{{end}}

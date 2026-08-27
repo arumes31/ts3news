@@ -94,7 +94,9 @@
   var settings=[
     {key:'ab_lognum',label:'Combat log round numbers',type:'bool',def:false,apply:function(v){logNumbered=v;applyLogView();}},
     {key:'ab_logmono',label:'Combat log monospace font',type:'bool',def:false,apply:function(v){logMono=v;applyLogView();}},
+    {key:'ab_logtime',label:'Combat log timestamps',type:'bool',def:false,apply:function(v){document.body.classList.toggle('ab-log-timestamps',v);}},
     {key:'ab_lootf',label:'Run loot filter',type:'select',def:'all',opts:[['all','All'],['up','Upgrades only'],['rare','Rare+'],['epic','Epic+'],['legendary','Legendary+']],apply:function(v){setLootFilter(v);}},
+    {key:'ab_loottype',label:'Run loot type',type:'select',def:'all',opts:[['all','All types'],['gear','Gear'],['cons','Items and unlocks'],['mat','Materials'],['gold','Currency']],apply:function(v){setLootTypeFilter(v);}},
     {key:'ab_lootsort',label:'Run loot sort',type:'select',def:'floor',opts:[['floor','Floor'],['rarity','Rarity'],['cr','CR Δ']],apply:function(v){lootSort=v;var select=document.getElementById('lootSort');if(select)select.value=v;applyLootSort();}},
     {key:'ab_sidebar_order',label:'Run Loot before Armoury',type:'bool',def:false,apply:applySidebarOrder},
     {key:'ab_compact',label:'Compact veteran layout',type:'bool',def:false,apply:function(v){document.body.classList.toggle('ab-compact',v);}},
@@ -107,6 +109,7 @@
     {key:'ab_amb',label:'Biome ambience',type:'bool',def:true,apply:function(v){ambience=v;applyAmbience();}}
   ];
   window.AB_SETTINGS=settings;
+  try{document.body.classList.toggle('ab-log-timestamps',localStorage.getItem('ab_logtime')==='1');}catch(_){}
   function valueOf(setting){var raw=null;try{raw=localStorage.getItem(setting.key);}catch(_){}return setting.type==='bool'?(raw===null?setting.def:raw==='1'):(raw===null?setting.def:raw);}
   function openSettings(){
     var html='<h3>⚙️ Abyss settings</h3><div class="modal-body ab-settings"><input id="abSettingsSearch" class="ab-settings-search" type="search" placeholder="Search settings…" aria-label="Search Abyss settings"><div id="abSettingsRows">';

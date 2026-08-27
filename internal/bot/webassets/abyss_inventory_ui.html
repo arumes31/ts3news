@@ -46,7 +46,7 @@ function applyRunLootData(row,item){
     'empty-slot':item.empty_slot,'can-equip-best':item.can_equip_best,'equip-on-bank':item.equip_on_bank,
     'smart-loot':item.smart_loot,'smart-loot-reason':item.smart_loot_reason,
     'set-pity':item.set_pity,'wishlist':item.wishlist,'provenance':item.provenance,
-    'can-sell-junk':item.can_sell_junk,'sell-value':item.sell_value
+    'can-sell-junk':item.can_sell_junk,'sell-value':item.sell_value,'estimated-value':item.estimated_value
   };
   Object.keys(fields).forEach(function(key){
     var value=fields[key];
@@ -125,7 +125,7 @@ async function refreshRunLootManifest(){
       if(rarity)row.classList.add(rarity);
       manifest.appendChild(row);decorateLootRow(row);
     });
-    if(!(data.items||[]).length){var empty=document.createElement('div');empty.className='abyss-side-empty';empty.textContent='No loot escrowed yet this run.';manifest.appendChild(empty);}
+    if(!(data.items||[]).length){var empty=document.createElement('div');empty.className='abyss-side-empty ab-empty-state';empty.innerHTML='<span aria-hidden="true">🎒</span><b>The cache is empty</b><small>Clear a floor to escrow loot here. Bank before defeat to keep it.</small>';manifest.appendChild(empty);}
     updateLootSummary();applyLootFilter();if(lootSort!=='floor')applyLootSort();
   }catch(_){/* Keep the already-rendered manifest on transient read failure. */}
 }
