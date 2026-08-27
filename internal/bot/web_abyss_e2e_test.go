@@ -320,6 +320,7 @@ func TestAbyssE2EServer(t *testing.T) {
 			mysteryView.InvID = 98
 			fixture["Inventory"] = []gearView{mysteryView}
 			fixture["ForgeWorkbenchEnabled"] = true
+			fixture["ForgeCatalog"] = currentAbyssForgeCatalogSummary()
 			fixture["ForgeOperations"] = abyssForgeOperations()
 			fixture["ForgeWorkbench"] = abyssForgeWorkbenchData{
 				SchemaVersion: 1,

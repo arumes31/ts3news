@@ -753,10 +753,10 @@
     <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
       <h3 style="margin:0 0 6px;">⭐ Forge a Legendary <span class="ab-up-lv">500🌫️ 50🔷 10🟣</span></h3>
       <div style="display:flex; gap:6px;">
-        <select id="craftLegSel" class="ab-select" style="flex:1;">
-          {{range .CraftLegendaries}}<option value="{{.ID}}">{{.Name}} ({{.Slot}})</option>{{end}}
+        <select id="craftLegSel" class="ab-select" aria-label="Legendary craft target" style="flex:1;" {{if not .CraftLegendaries}}disabled{{end}}>
+          {{range .CraftLegendaries}}<option value="{{.ID}}">{{.Name}} ({{.Slot}})</option>{{else}}<option value="">No legendary blueprints available</option>{{end}}
         </select>
-        <button class="ghost xs" onclick="abyssCraftLegendary()">Forge</button>
+        <button class="ghost xs" onclick="abyssCraftLegendary()" {{if not .CraftLegendaries}}disabled{{end}}>Forge</button>
       </div>
     </div>
 
@@ -822,7 +822,7 @@
     <div class="ab-forge" style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
       <div>
         <label class="muted small" style="display:block; margin-bottom:4px;">Select Gear Piece:</label>
-        <select id="forgeItemSelect" onchange="updateForgeOptions()" class="ab-select" style="width:100%;">
+        <select id="forgeItemSelect" onchange="updateForgeOptions()" class="ab-select" aria-label="Forge gear piece" style="width:100%;">
           <option value="">-- Choose Item --</option>
           <optgroup label="Equipped Items">
             {{range .Equipped}}
@@ -1122,11 +1122,11 @@
 
       <details class="ab-acc"><summary>⚗️ Fusion &amp; Transfer</summary><div class="ab-acc-body">
         <div style="display:flex; gap:6px; align-items:center;">
-          <select id="enchFromSel" class="ab-select" style="flex:1;">
+          <select id="enchFromSel" class="ab-select" aria-label="Enchant source gear" style="flex:1;">
             <option value="">Enchant from…</option>
             {{range .Equipped}}<option value="{{.Slot}}">{{.Slot}}: {{.Name}}</option>{{end}}
           </select>
-          <select id="enchToSel" class="ab-select" style="flex:1;">
+          <select id="enchToSel" class="ab-select" aria-label="Enchant destination gear" style="flex:1;">
             <option value="">…to slot</option>
             {{range .Equipped}}<option value="{{.Slot}}">{{.Slot}}: {{.Name}}</option>{{end}}
           </select>

@@ -17,9 +17,12 @@
   'use strict';
   var root=document.getElementById('abyssForgePanel'),nativeSelect=document.getElementById('forgeItemSelect');
   if(!root||!nativeSelect)return;
-  var catalog={{jsonJS .ForgeCatalog}},operations={{jsonJS .ForgeOperations}}||[];
+  var catalog={{jsonJS .ForgeCatalog}}||{},operations={{jsonJS .ForgeOperations}}||[];
+  var catalogVersion=Number(catalog.schema_version),operationCount=Number(catalog.operation_count);
+  var catalogLabel=Number.isFinite(catalogVersion)&&catalogVersion>0?'Catalog v'+catalogVersion:'Catalog';
+  if(!Number.isFinite(operationCount)||operationCount<0)operationCount=operations.length;
   var workstation=document.createElement('div');workstation.className='forge-workstation';workstation.setAttribute('aria-label','Forge workstation navigator');
-  workstation.innerHTML='<div class="forge-picker-meta"><b>Foundry navigator</b><span class="muted small">Catalog v'+catalog.schema_version+' · '+catalog.operation_count+' operations</span></div>'+
+  workstation.innerHTML='<div class="forge-picker-meta"><b>Foundry navigator</b><span class="muted small">'+catalogLabel+' · '+operationCount+' operations</span></div>'+
     '<div class="forge-discipline-tabs" role="tablist" aria-label="Forge disciplines"></div>'+
     '<div class="forge-picker-filters"><input id="forgeItemSearch" type="search" placeholder="Search items…" aria-label="Search forge items">'+
     '<select id="forgeSlotFilter" aria-label="Slot"><option value="">All slots</option></select><select id="forgeRarityFilter" aria-label="Rarity"><option value="">All rarities</option></select>'+
