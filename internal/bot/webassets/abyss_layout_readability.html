@@ -1,0 +1,57 @@
+{{define "abyssLayoutReadability"}}
+<script data-cfasync="false">
+(function(){
+  'use strict';
+
+  function stored(key,fallback){
+    try{var value=localStorage.getItem(key);return value===null?fallback:value;}catch(_){return fallback;}
+  }
+
+  function applyLootDensity(value){
+    var compact=value==='compact'||(value==='auto'&&document.body.classList.contains('ab-compact'));
+    document.body.classList.toggle('ab-loot-density-compact',compact);
+  }
+
+  function registerLootDensitySetting(){
+    if(!Array.isArray(window.AB_SETTINGS)||window.AB_SETTINGS.some(function(setting){return setting.key==='ab_loot_density';}))return;
+    window.AB_SETTINGS.push({
+      key:'ab_loot_density',label:'Run loot row density',type:'select',def:'auto',
+      opts:[['auto','Follow layout'],['comfortable','Comfortable'],['compact','Compact single line']],
+      apply:applyLootDensity
+    });
+    applyLootDensity(stored('ab_loot_density','auto'));
+    new MutationObserver(function(records){
+      if(records.some(function(record){return record.attributeName==='class';}))applyLootDensity(stored('ab_loot_density','auto'));
+    }).observe(document.body,{attributes:true,attributeFilter:['class']});
+  }
+
+  function consumableCount(id,option){
+    if(option&&Number.isFinite(Number(option.count)))return Math.max(0,Number(option.count));
+    var item=(window.pageConsumables||[]).find(function(entry){return entry.ID===id;});
+    return item?Math.max(0,Number(item.Duration)||0):0;
+  }
+
+  function syncPrepConsumables(state){
+    var options={};
+    ((state&&state.options)||[]).forEach(function(option){if(option.kind==='item')options[option.id]=option;});
+    document.querySelectorAll('#consList .ab-cons-item').forEach(function(row){
+      var id=row.dataset.consId||row.id.replace(/^cons-/,'');if(!id)return;
+      var option=options[id],count=consumableCount(id,option),cooldown=option?Math.max(0,Number(option.cooldown)||0):0,stateNode=row.querySelector('.ab-cons-state'),button=row.querySelector('button');
+      row.dataset.consId=id;row.classList.toggle('is-cooling',cooldown>0);
+      if(stateNode){stateNode.textContent='×'+count+' · '+(cooldown?cooldown+' round'+(cooldown===1?'':'s')+' cooldown':'ready');stateNode.title='Charges remaining: '+count+'. Powerful combat items share a two-round potion-belt cooldown.';}
+      if(button){button.disabled=count<=0||cooldown>0;button.title=cooldown?'Potion belt ready in '+cooldown+' round'+(cooldown===1?'':'s'):count+' charge'+(count===1?'':'s')+' remaining';}
+    });
+  }
+
+  function wrapRenderer(name,after){
+    var original=window[name];if(typeof original!=='function'||original._abLayoutReadability)return;
+    var wrapped=function(){var result=original.apply(this,arguments);after.apply(this,arguments);return result;};wrapped._abLayoutReadability=true;window[name]=wrapped;
+  }
+
+  registerLootDensitySetting();syncPrepConsumables(window.liveCombatState);
+  wrapRenderer('renderConsumables',function(){syncPrepConsumables(window.liveCombatState);});
+  wrapRenderer('renderLiveCombat',function(state){syncPrepConsumables(state);});
+  window.__abyssLayoutReadability={applyLootDensity:applyLootDensity,syncPrepConsumables:syncPrepConsumables};
+})();
+</script>
+{{end}}

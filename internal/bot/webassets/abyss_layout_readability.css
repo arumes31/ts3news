@@ -1,0 +1,42 @@
+body.ab-loot-density-compact #lootManifest .abyss-side-loot {
+  align-items: center;
+  display: flex;
+  gap: .35rem;
+  min-height: 1.8rem;
+  overflow: hidden;
+  padding-block: .2rem;
+  white-space: nowrap;
+}
+
+body.ab-loot-density-compact #lootManifest .ab-loot-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.ab-loot-density-compact #lootManifest .ab-loot-tags {
+  display: none;
+}
+
+body.ab-loot-density-compact #lootManifest :is(.ab-equip-best, .ab-sell-junk) {
+  flex: 0 0 auto;
+  min-height: 1.45rem;
+  padding: .15rem .35rem;
+}
+
+.ab-cons-item.is-cooling .ab-cons-state {
+  border-color: #8c6030;
+  color: #f0ad58;
+}
+
+.ab-cons-item.is-cooling button {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+@media (max-width: 620px) {
+  body.ab-loot-density-compact #lootManifest :is(.ab-equip-best, .ab-sell-junk) {
+    font-size: .55rem;
+  }
+}

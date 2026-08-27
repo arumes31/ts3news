@@ -45,6 +45,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_events.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_social.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_competition.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_layout_readability.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_replay.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_stage_hud.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_codex_explorer.css"}}">
@@ -459,7 +460,7 @@
       <div class="ab-consumables-list" id="consList">
         {{range .Consumables}}
           {{if or (eq .Type "Healing") (eq .Type "Repair") (eq .Type "Buff")}}
-            <div class="ab-cons-item" id="cons-{{.ID}}">
+            <div class="ab-cons-item" id="cons-{{.ID}}" data-cons-id="{{.ID}}">
               <b>{{.Name}}</b>
               <span class="muted small">{{.Description}}</span>
               <span class="ab-cons-state" title="Charges remaining. Combat item cooldown begins after use.">×{{.Duration}} · ready</span>
@@ -1877,6 +1878,7 @@ function renderConsumables(list){
     var div = document.createElement('div');
     div.className = 'ab-cons-item';
     div.id = 'cons-'+c.ID;
+    div.dataset.consId = c.ID;
     div.innerHTML = '<b>' + consEsc(c.Name) + '</b> <span class="muted small">' + consEsc(c.Description) + '</span> <span class="ab-cons-state" title="Charges remaining. Combat item cooldown begins after use.">×'+Math.max(0,Number(c.Duration)||0)+' · ready</span> <button class="ghost xs" onclick="abyssUseConsumable(\''+consEsc(c.ID)+'\')">Use</button>';
     container.appendChild(div);
   });
@@ -6741,6 +6743,7 @@ function initNewDots(){
 {{template "abyss-insights" .}}
 {{template "abyssItemNumbersJS" .}}
 {{template "abyss-longterm" .}}
+{{template "abyssLayoutReadability" .}}
 {{template "abyss-events" .}}
 <script data-cfasync="false">{{template "abyssSocialHubJS" .}}</script>
 <script data-cfasync="false">{{template "abyssReplayViewerJS" .}}</script>
