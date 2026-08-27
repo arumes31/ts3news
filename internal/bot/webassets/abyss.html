@@ -1805,23 +1805,23 @@ function abyssCockpitAction(id){
   var element=document.getElementById(id);
   return element&&element.offsetParent!==null&&!element.disabled?element:null;
 }
-function focusAbyssCockpit(preferred){
+function focusAbyssCockpit(preferred,reveal){
   var cockpit=document.getElementById('abyssCombatCockpit');
   if(!cockpit)return;
   var modal=document.getElementById('sharedModal'),active=document.activeElement,tag=active&&active.tagName;
   if(modal&&modal.classList.contains('open')||/INPUT|SELECT|TEXTAREA/.test(tag)||active&&active.isContentEditable)return;
   updateAbyssCombatCockpit();
-  cockpit.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'start'});
+  if(reveal)cockpit.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'start'});
   var order=[preferred,'liveReady','btnDescend','btnProceed','btnRevive','btnLastStand','btnConcede','btnEnter'];
   var action=null;
   order.some(function(id){if(!id)return false;action=abyssCockpitAction(id);return !!action;});
-  setTimeout(function(){if(action&&action.isConnected)action.focus({preventScroll:true});},reduceMotion?0:320);
+  setTimeout(function(){if(action&&action.isConnected)action.focus({preventScroll:true});},reveal&&!reduceMotion?320:0);
 }
 function scheduleAbyssCockpitFocus(preferred){
   if(abyssCockpitFocusTimer)clearTimeout(abyssCockpitFocusTimer);
   abyssCockpitFocusTimer=setTimeout(function(){abyssCockpitFocusTimer=0;focusAbyssCockpit(preferred);},180);
 }
-function focusAbyssDescend(){focusAbyssCockpit('btnDescend');}
+function focusAbyssDescend(){focusAbyssCockpit('btnDescend',true);}
 function show(id, on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none';}
 function setAbyssEventStage(active){var stage=document.getElementById('abyssStage');if(stage)stage.classList.toggle('ab-event-stage',!!active);}
 

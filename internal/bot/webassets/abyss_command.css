@@ -1039,6 +1039,30 @@ body:has(.abyss-command-page) .modal-overlay {
   }
 }
 
+/* On wide command displays, return the Armoury manifest to the unused viewport
+   gutter. The cockpit keeps its battlefield and loot manifest, while the fixed
+   loadout remains visible without consuming combat width. */
+@media (min-width: 1900px) and (min-height: 900px) {
+  .abyss-command-page .ab-combat-cockpit > .abyss-stage-row {
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 230px);
+  }
+
+  .abyss-command-page .ab-combat-cockpit > .abyss-stage-row > .abyss-side-left,
+  .abyss-command-page .ab-combat-cockpit.is-active > .abyss-stage-row > .abyss-side-left {
+    position: fixed;
+    z-index: 70;
+    top: 68px;
+    bottom: 12px;
+    left: 10px;
+    width: clamp(170px, calc((100vw - 1500px) / 2 - 20px), 230px);
+    height: auto;
+    max-height: none;
+  }
+
+  .abyss-command-page .ab-combat-cockpit > .abyss-stage-row > .abyss-stage { grid-column: 1; }
+  .abyss-command-page .ab-combat-cockpit > .abyss-stage-row > .abyss-side-right { grid-column: 2; }
+}
+
 @media (max-width: 900px) {
   body:has(.abyss-command-page) .topbar {
     position: relative;

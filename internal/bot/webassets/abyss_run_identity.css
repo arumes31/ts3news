@@ -30,6 +30,8 @@
 .ab-biome-choice-list,.ab-boon-draft{display:grid;gap:7px;margin-top:10px}.ab-biome-choice-list strong,.ab-boon-draft>strong{color:#f1c865;font-size:11px}
 .ab-biome-choice-list button,.ab-boon-draft button{display:grid;grid-template-columns:1fr;gap:2px;width:100%;padding:8px 10px;border:1px solid #334761;border-radius:6px;background:#151f2e;color:#edf4ff;text-align:left;cursor:pointer}
 .ab-biome-choice-list button:hover,.ab-boon-draft button:hover{border-color:#d7a83e;background:#1c2635}.ab-biome-choice-list button span,.ab-boon-draft button span{color:#9db0c8;font-size:10px}
+.ab-boon-draft-trigger{width:100%;margin-top:10px;border-color:#d7a83e;background:#2a2111;color:#ffd77b}
+.ab-boon-choice-dialog{width:min(520px,calc(100vw - 56px))}.ab-boon-choice-dialog>p{color:#9db0c8}.ab-boon-choice-dialog .ab-boon-draft{margin-top:14px}.ab-boon-choice-dialog .ab-boon-draft button{min-height:58px;padding:11px 13px}
 .ab-biome-choice-rest{grid-column:1/-1;padding:10px;border:1px solid #805f24;border-radius:8px;background:#17150e}.ab-biome-choice-rest button{min-height:48px}
 @media(max-width:900px){.ab-chronicle-grid{grid-template-columns:1fr}.ab-story-track{grid-template-columns:repeat(5,1fr)}.ab-chronicle-head{align-items:flex-start;flex-direction:column}.ab-chronicle-runonly{text-align:left}}
 @media(max-width:520px){.ab-chronicle{padding:12px}.ab-story-track{grid-template-columns:repeat(2,1fr)}.ab-story-track li b{font-size:10px}}

@@ -180,7 +180,7 @@ func TestSharedModalKeyboardContracts(t *testing.T) {
 		"function trapSharedModalFocus",
 		"!card.contains(document.activeElement)",
 		"e.key === 'Escape'",
-		"modalReturnFocus.focus()",
+		"modalReturnFocus.focus({preventScroll:true})",
 	} {
 		if !strings.Contains(source, required) {
 			t.Errorf("shared modal is missing keyboard contract %q", required)
