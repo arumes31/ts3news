@@ -1090,7 +1090,8 @@ func (b *Bot) currentAbyssBankPreviewLoot(ctx context.Context, uid string, limit
 // applyAbyssEscrowLoot grants every escrowed item to the character and clears the
 // escrow, returning the display labels of what was awarded. Called on bank.
 func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
-	rows, err := b.DB.Query("SELECT id, label, item_data, equip_on_bank FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id", uid)
+	rows, err := b.DB.Query(`SELECT id,label,item_data,equip_on_bank,
+		COALESCE(party_recipient_uid,client_uid) FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id`, uid)
 	if err != nil {
 		return nil
 	}
@@ -1099,13 +1100,14 @@ func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
 		label       string
 		data        []byte
 		equipOnBank bool
+		recipient   string
 	}
 	// Drain the cursor before issuing the per-item grant writes (which use the same
 	// connection pool) to avoid an in-flight query conflict.
 	var items []pending
 	for rows.Next() {
 		var p pending
-		if err := rows.Scan(&p.id, &p.label, &p.data, &p.equipOnBank); err == nil {
+		if err := rows.Scan(&p.id, &p.label, &p.data, &p.equipOnBank, &p.recipient); err == nil {
 			items = append(items, p)
 		}
 	}
@@ -1123,11 +1125,11 @@ func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
 			continue
 		}
 		var applyErr error
-		preferredGear := p.equipOnBank && g.Gear != nil
+		preferredGear := p.equipOnBank && g.Gear != nil && p.recipient == uid
 		if preferredGear {
-			applyErr = b.consumeAndEquipAbyssEscrowGear(uid, p.id, *g.Gear)
+			applyErr = b.consumeAndEquipAbyssEscrowGear(p.recipient, p.id, *g.Gear)
 		} else {
-			applyErr = b.applyAbyssLootGrant(uid, g)
+			applyErr = b.applyAbyssLootGrant(p.recipient, g)
 		}
 		if applyErr != nil {
 			// Transient write failure — keep the escrow row so a later bank can
@@ -1135,7 +1137,7 @@ func (b *Bot) applyAbyssEscrowLoot(uid string) []string {
 			continue
 		}
 		if g.Gear != nil {
-			b.recordAbyssSetBookGear(uid, *g.Gear)
+			b.recordAbyssSetBookGear(p.recipient, *g.Gear)
 		}
 		// Preferred gear is consumed in the same transaction as its equip. Other
 		// grants retain the existing post-apply row deletion path.

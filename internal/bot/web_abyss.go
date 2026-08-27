@@ -379,7 +379,9 @@ func (b *Bot) applyAbyssRegen(uid string, equipped map[content.GearSlot]content.
 	if errors.Is(err, sql.ErrNoRows) {
 		// Already full/dead: no HP to credit, but keep the advanced anchor (commit) so
 		// the idle span isn't re-credited later.
-		_ = tx.Commit()
+		if err := tx.Commit(); err != nil {
+			return curHP, perSec
+		}
 		return curHP, perSec
 	}
 	if err != nil {
@@ -1095,17 +1097,15 @@ func (b *Bot) fightAbyssFloorMode(
 		logs = append(logs, ml) // [38] depth-milestone flavour
 	}
 
-	var coopUID sql.NullString
-	_ = b.DB.QueryRow("SELECT coop_uid FROM abyss_active WHERE client_uid = $1", uid).Scan(&coopUID)
-
 	combatUsers := []UserInCombat{u}
-	if coopUID.Valid && coopUID.String != "" {
-		partner, _, err := b.buildAbyssUser(coopUID.String)
+	partyUIDs := b.abyssPartyMembers(uid)
+	for _, partyUID := range partyUIDs {
+		partner, _, err := b.buildAbyssUser(partyUID)
 		if err == nil {
 			if mode.shadowTrials > 0 {
 				b.prepareAbyssShadowUser(&partner)
 			}
-			partner.killerExp = b.loadKillerExp(coopUID.String)
+			partner.killerExp = b.loadKillerExp(partyUID)
 			if partner.Level > u.Level {
 				partner.Stats = mentorScaledStats(partner.Stats, u.Stats)
 				partner.CurrentHP = min(partner.CurrentHP, partner.Stats.HP)
@@ -1121,8 +1121,16 @@ func (b *Bot) fightAbyssFloorMode(
 			logs = append(logs, fmt.Sprintf("[color=#4a6fa5]🔔 Co-op Ally %s has entered the fray to assist you![/color]", partner.Nickname))
 		}
 	}
-	if coopUID.Valid && applyAbyssDuoBonus(combatUsers, b.abyssDuoAssists(uid, coopUID.String)) {
-		logs = append(logs, "[color=#41c97a]🤝 Trusted duo: five shared assists unlock +2% party combat stats.[/color]")
+	for _, partyUID := range partyUIDs {
+		if applyAbyssDuoBonus(combatUsers, b.abyssDuoAssists(uid, partyUID)) {
+			logs = append(logs, "[color=#41c97a]🤝 Trusted party: five shared assists unlock +2% party combat stats.[/color]")
+			break
+		}
+	}
+	for i := range combatUsers {
+		if b.applyAbyssCheer(&combatUsers[i]) {
+			logs = append(logs, fmt.Sprintf("[color=#41c97a]🎉 Daily cheer empowers %s with +5%% combat stats.[/color]", combatUsers[i].Nickname))
+		}
 	}
 	flagsByUID := make(map[string]map[string]int64, len(combatUsers))
 	for i := range combatUsers {
@@ -1150,11 +1158,19 @@ func (b *Bot) fightAbyssFloorMode(
 	}
 
 	hpBefore := u.CurrentHP
+	partyLootStarts := make(map[string]int64, len(combatUsers))
+	for i := range combatUsers {
+		partyLootStarts[combatUsers[i].UID] = b.abyssEscrowHighWater(combatUsers[i].UID)
+	}
 	startTime := time.Now()
 	// The engine's per-kill reward is ignored here: Abyss uses its own small
 	// per-floor XP payout below. We only need the win/loss outcome from combat.
 	combatLogOffset := len(logs)
 	resLogs, _, victory, loots, timeline, overkillDamage := b.resolveChannelCombatDetailed(combatUsers, mobPtrs, u.Level, diff, zone)
+	b.routeAbyssPartyLoot(uid, partyUIDs, partyLootStarts, abyssPartyLootRuleFromID(flags["party_loot_rule"]), isBossFloor)
+	for i := range combatUsers {
+		b.consumeAbyssCheer(combatUsers[i].UID)
+	}
 	b.updateAbyssNemesis(uid, mobPtrs, victory)
 	if !victory {
 		families := make([]string, 0, len(mobs))
@@ -1168,25 +1184,33 @@ func (b *Bot) fightAbyssFloorMode(
 	for i := range timeline {
 		timeline[i].AfterLog += combatLogOffset
 	}
-	if victory && coopUID.Valid && coopUID.String != "" {
-		helperTokens := 5
-		switch abyssPartyLootRuleFromID(flags["party_loot_rule"]) {
-		case "round_robin":
-			helperTokens = 8
-		case "need_before_greed":
-			helperTokens = 6
+	if victory {
+		for _, partyUID := range partyUIDs {
+			helperTokens := abyssHelperDepthReward(depth)
+			switch abyssPartyLootRuleFromID(flags["party_loot_rule"]) {
+			case "round_robin":
+				helperTokens += 3
+			case "need_before_greed":
+				helperTokens += 1
+			}
+			b.grantAbyssTokens(partyUID, helperTokens)
+			// Surface the helper's nickname, never their raw TS3 UID, in the public log.
+			coopNick := partyUID
+			_ = b.DB.QueryRow("SELECT COALESCE(NULLIF(nickname, ''), 'Adventurer') FROM users WHERE client_uid=$1", partyUID).Scan(&coopNick)
+			logs = append(logs, fmt.Sprintf("[color=#4a6fa5]🔔 Helper %s receives %d Abyss Tokens under the %s party rule; run gear remains with the host cache.[/color]", coopNick, helperTokens, strings.ReplaceAll(abyssPartyLootRuleFromID(flags["party_loot_rule"]), "_", " ")))
+			assists := b.recordAbyssDuoAssist(uid, partyUID)
+			notice := fmt.Sprintf("Your assist secured a floor clear with %s. Reliability: %d assist(s).", u.Nickname, assists)
+			_, _ = b.DB.Exec("INSERT INTO abyss_social_notifications (client_uid,kind,message) VALUES ($1,'helper_kill',$2)", partyUID, notice)
+			var mentorPair bool
+			_ = b.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM abyss_mentor_pairs WHERE completed_at IS NULL AND
+			((mentor_uid=$1 AND mentee_uid=$2) OR (mentor_uid=$2 AND mentee_uid=$1)))`, uid, partyUID).Scan(&mentorPair)
+			if mentorPair {
+				b.grantAbyssTokens(uid, abyssMentorRewardTokens)
+				b.grantAbyssTokens(partyUID, abyssMentorRewardTokens)
+				logs = append(logs, "[color=#41c97a]🎓 Mentor clear: both delvers receive 3 bonus tokens.[/color]")
+			}
 		}
-		b.grantAbyssTokens(coopUID.String, helperTokens)
-		// Surface the helper's nickname, never their raw TS3 UID, in the public log.
-		coopNick := coopUID.String
-		_ = b.DB.QueryRow("SELECT COALESCE(NULLIF(nickname, ''), 'Adventurer') FROM users WHERE client_uid=$1", coopUID.String).Scan(&coopNick)
-		logs = append(logs, fmt.Sprintf("[color=#4a6fa5]🔔 Helper %s receives %d Abyss Tokens under the %s party rule; run gear remains with the host cache.[/color]", coopNick, helperTokens, strings.ReplaceAll(abyssPartyLootRuleFromID(flags["party_loot_rule"]), "_", " ")))
-		assists := b.recordAbyssDuoAssist(uid, coopUID.String)
-		notice := fmt.Sprintf("Your assist secured a floor clear with %s. Reliability: %d assist(s).", u.Nickname, assists)
-		_, _ = b.DB.Exec("INSERT INTO abyss_social_notifications (client_uid,kind,message) VALUES ($1,'helper_kill',$2)", coopUID.String, notice)
 	}
-	// Clear co-op partner for next floor
-	_, _ = b.DB.Exec("UPDATE abyss_active SET coop_uid = NULL WHERE client_uid = $1", uid)
 
 	// Record boss kills using isBossFloor so mob escalation promoting mobs[0] to
 	// MobLegendary cannot affect the result.
@@ -1853,6 +1877,11 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
+	var partyOwner string
+	if s.bot.DB.QueryRow("SELECT owner_uid FROM abyss_party_members WHERE member_uid=$1", uid).Scan(&partyOwner) == nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "leave the shared run party before starting your own descent"})
+		return
+	}
 
 	var req struct {
 		Tier          string         `json:"tier"`
@@ -2168,6 +2197,10 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
+	}
+	if _, err := tx.Exec("DELETE FROM abyss_party_members WHERE owner_uid=$1", uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
 	}
 	if _, err := tx.Exec(
 		`INSERT INTO abyss_active (client_uid, depth, escrow, tier, insured, revived, pacts, consumables, started_at, last_action_at,
@@ -3318,6 +3351,9 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 	_, dailyMod := s.bot.abyssRunDailyChallenge(uid)
 	bonus = int64(float64(bonus) * abyssDailyRewardMult(dailyMod))
 	bonus = int64(float64(bonus) * s.bot.abyssCommunityWeekendRewardMult(time.Now().UTC()))
+	if s.bot.abyssSocialHappyHour() {
+		bonus = bonus * 11 / 10
+	}
 	pacts := s.bot.abyssRunPacts(uid)
 	mastery, err := s.bot.loadAbyssPactMastery(uid)
 	if err != nil {
@@ -3439,6 +3475,7 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 	s.bot.tickAbyssRoomEffects(uid)
 	_, _ = s.bot.DB.Exec("UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1) WHERE client_uid=$2", depth, uid)
 	_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = abyss_win_streak + 1 WHERE client_uid=$1", uid)
+	s.bot.settleAbyssSocialFloor(uid, depth)
 
 	// Evolving Artifacts: gains level/XP on clearing floor
 	if art, ok := equipped[content.SlotArtifact]; ok {
@@ -3939,6 +3976,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 	runFlags := s.bot.loadRunFlags(uid)
+	partyMembers := s.bot.abyssPartyMembers(uid)
 	runPacts := s.bot.abyssRunPacts(uid)
 	hardcore := abyssHardcoreRun(runFlags)
 	// Last Stand seal (#15): the exit stays shut for 2 floors after a token revive.
@@ -4075,6 +4113,12 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		}
 		capped := payout > capRemaining
 		estPayout, estTax := abyssCapTax(payout, capRemaining)
+		estPartyShare := int64(0)
+		estPartyTotal := estPayout
+		if len(partyMembers) > 0 {
+			estPartyShare = estPayout / int64(len(partyMembers)+1)
+			estPayout -= estPartyShare * int64(len(partyMembers))
+		}
 		var lootCount int
 		var lootPreview []abyssBankPreviewLoot
 		if !continuing {
@@ -4101,6 +4145,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			"checkpoint_refund": checkpointRefund, "double_bank": req.DoubleBank,
 			"remaining_escrow": remainingEscrow, "requires_safe_word": requiresSafeWord,
 			"payout": estPayout, "capped": capped, "cap_remaining": capRemaining, "cap_tax": estTax,
+			"party_members": len(partyMembers), "party_share": estPartyShare, "party_total": estPartyTotal,
 			"base_tokens_grant": baseTokens, "pact_tokens_grant": pactTokens,
 			"ante_return": anteReturn, "overcap_gold_converted": overcapConversion.Gold,
 			"overcap_tokens_grant": overcapConversion.Tokens,
@@ -4141,6 +4186,23 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	// the jackpot feed are only consumed if the gold credit and the rest of the
 	// bank commit succeed. [59]
 	payout, capTax := s.bot.taxAbyssDayGold(tx, uid, payout)
+	partyShare := int64(0)
+	partyTotal := payout
+	if len(partyMembers) > 0 && payout > 0 {
+		partyShare = payout / int64(len(partyMembers)+1)
+		for _, memberUID := range partyMembers {
+			if _, err := tx.Exec("UPDATE users SET gold=gold+$1,abyss_lifetime_banked=abyss_lifetime_banked+$1 WHERE client_uid=$2", partyShare, memberUID); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if _, err := tx.Exec(`INSERT INTO abyss_social_notifications (client_uid,kind,message)
+				VALUES ($1,'party_bank',$2)`, memberUID, fmt.Sprintf("Your run party banked %d gold for you.", partyShare)); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+		}
+		payout -= partyShare * int64(len(partyMembers))
+	}
 	if loanFeeCharged > 0 && continuing {
 		if _, err := tx.Exec("UPDATE abyss_active SET economy_loan_fee=GREATEST(0,economy_loan_fee-$1) WHERE client_uid=$2", loanFeeCharged, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -4253,6 +4315,10 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
+		if _, err := tx.Exec("DELETE FROM abyss_party_members WHERE owner_uid=$1", uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 	}
 	if err := recordAbyssTax(tx, uid, capTax); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -4308,6 +4374,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 
 	out := map[string]any{
 		"ok": true, "banked": payout, "mult": mult, "depth": run.Depth,
+		"party_members": len(partyMembers), "party_share": partyShare, "party_total": partyTotal,
 		"gold": gold, "tokens": s.bot.abyssTokens(uid), "cursed": req.Cursed,
 		"global_record": isRecord,
 		// Raw payout components for the vault subtotal animation (UX-54). The
@@ -6056,10 +6123,6 @@ func (s *WebServer) handleAbyssCoopInvite(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "not in a run"})
 		return
 	}
-	if (run.Depth+1)%abyssBossEvery != 0 {
-		writeJSON(w, map[string]any{"ok": false, "error": "co-op summons only available for boss floors"})
-		return
-	}
 	// Reject self-targeting.
 	if req.CoopUID == uid {
 		writeJSON(w, map[string]any{"ok": false, "error": "cannot invite yourself as a co-op helper"})
@@ -6073,13 +6136,84 @@ func (s *WebServer) handleAbyssCoopInvite(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "helper not found"})
 		return
 	}
+	var helperBusy bool
+	_ = s.bot.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM abyss_active WHERE client_uid=$1)
+		OR EXISTS(SELECT 1 FROM abyss_party_members WHERE owner_uid=$1)`, req.CoopUID).Scan(&helperBusy)
+	if helperBusy {
+		writeJSON(w, map[string]any{"ok": false, "error": "helper is already leading a descent"})
+		return
+	}
 
-	_, err := s.bot.DB.Exec("UPDATE abyss_active SET coop_uid = $1, last_action_at = NOW() WHERE client_uid = $2", req.CoopUID, uid)
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true})
+	defer func() { _ = tx.Rollback() }()
+	var active bool
+	if err := tx.QueryRow("SELECT TRUE FROM abyss_active WHERE client_uid=$1 FOR UPDATE", uid).Scan(&active); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "not in a run"})
+		return
+	}
+	var members int
+	if err := tx.QueryRow("SELECT COUNT(*) FROM abyss_party_members WHERE owner_uid=$1", uid).Scan(&members); err != nil || members >= abyssPartyMaxMembers-1 {
+		writeJSON(w, map[string]any{"ok": false, "error": "party is full"})
+		return
+	}
+	if _, err := tx.Exec(`INSERT INTO abyss_party_members (owner_uid,member_uid) VALUES ($1,$2)`, uid, req.CoopUID); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "helper already belongs to a run party"})
+		return
+	}
+	if members == 0 {
+		if _, err := tx.Exec("UPDATE abyss_active SET coop_uid=$1,last_action_at=NOW() WHERE client_uid=$2", req.CoopUID, uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "party_size": members + 2})
+}
+
+func (s *WebServer) handleAbyssCoopLeave(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	var ownerUID string
+	if s.bot.DB.QueryRow("SELECT owner_uid FROM abyss_party_members WHERE member_uid=$1", uid).Scan(&ownerUID) != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "you are not in a shared run party"})
+		return
+	}
+	unlock := s.lockAbyss(ownerUID)
+	defer unlock()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	result, err := tx.Exec("DELETE FROM abyss_party_members WHERE owner_uid=$1 AND member_uid=$2", ownerUID, uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		writeJSON(w, map[string]any{"ok": false, "error": "party membership changed; refresh and retry"})
+		return
+	}
+	if _, err := tx.Exec(`UPDATE abyss_active SET coop_uid=(SELECT member_uid FROM abyss_party_members
+		WHERE owner_uid=$1 ORDER BY joined_at LIMIT 1),last_action_at=NOW() WHERE client_uid=$1`, ownerUID); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "msg": "You left the shared run party."})
 }
 
 func (s *WebServer) handleAbyssPrestige(w http.ResponseWriter, r *http.Request, uid string) {
@@ -6116,6 +6250,10 @@ func (s *WebServer) handleAbyssPrestige(w http.ResponseWriter, r *http.Request, 
 	}
 	_, err = tx.Exec("DELETE FROM abyss_active WHERE client_uid = $1", uid)
 	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if _, err = tx.Exec("DELETE FROM abyss_party_members WHERE owner_uid=$1", uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

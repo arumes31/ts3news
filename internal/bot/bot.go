@@ -109,6 +109,9 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 	if err != nil {
 		return fmt.Errorf("failed to list clients: %w", err)
 	}
+	if b.Cfg.EnableAbyss {
+		b.flushAbyssShoutbox(c, clients)
+	}
 
 	targetNick := strings.TrimSpace(b.Cfg.TargetNick)
 	ctx := b.buildCycleContext(clients)

@@ -22,9 +22,9 @@ func TestCommands(t *testing.T) {
 			return
 		}
 		defer func() { _ = conn.Close() }()
-		
+
 		_, _ = fmt.Fprint(conn, "error id=0 msg=ok\n") // Greeting drain
-		
+
 		scanner := bufio.NewScanner(conn)
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -67,6 +67,7 @@ func TestCommands(t *testing.T) {
 
 	// SendPrivateMessage
 	_ = client.SendPrivateMessage(1, "hello")
+	_ = client.SendChannelMessage(1, "hello channel")
 
 	// Poke
 	_ = client.Poke(1, "wake up")

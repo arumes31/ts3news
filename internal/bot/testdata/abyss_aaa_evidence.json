@@ -1865,5 +1865,32 @@
       "tests/e2e/abyss-live-resume.spec.js",
       "tests/e2e/abyss.spec.js"
     ]
+  },
+  {
+    "ids": [251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275],
+    "production": [
+      "internal/db/migrations/0100_abyss_social_program.up.sql",
+      "internal/bot/abyss_social_program.go",
+      "internal/bot/abyss_social_descent.go",
+      "internal/bot/abyss_social_shoutbox.go",
+      "internal/bot/web_abyss_social_network.go",
+      "internal/bot/web_abyss_social_exchange.go",
+      "internal/bot/web_abyss_social_guild.go",
+      "internal/bot/web_abyss_social_competition.go",
+      "internal/bot/web_abyss_social_rescue.go",
+      "internal/bot/web_abyss_social_program_view.go",
+      "internal/bot/web_abyss_live_social.go",
+      "internal/bot/web_abyss_friend_echoes.go",
+      "internal/bot/webassets/abyss_social.html",
+      "internal/bot/webassets/abyss_social.css",
+      "internal/bot/webassets/abyss_polish.html"
+    ],
+    "verification": [
+      "internal/bot/abyss_social_program_test.go",
+      "internal/bot/web_abyss_live_social_test.go",
+      "internal/bot/web_abyss_friend_echoes_test.go",
+      "tests/e2e/abyss-social-program.spec.js",
+      "tests/e2e/abyss-ui-layout.spec.js"
+    ]
   }
 ]

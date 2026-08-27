@@ -295,6 +295,10 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 		// Daily death counter feeds the comeback buff (#24): 3 deaths in one day
 		// grant +10% stats on the next run.
 		if policy.CountDeath {
+			if _, err := tx.Exec(`UPDATE abyss_deaths SET lost_cache=$1 WHERE id=(SELECT id FROM abyss_deaths
+				WHERE client_uid=$2 AND rescued_at IS NULL ORDER BY died_at DESC LIMIT 1)`, remainder, uid); err != nil {
+				return abyssForfeitResult{}, err
+			}
 			if _, err := tx.Exec(
 				`UPDATE users SET abyss_deaths_today = CASE WHEN abyss_deaths_date = CURRENT_DATE THEN abyss_deaths_today + 1 ELSE 1 END,
 				        abyss_deaths_date = CURRENT_DATE WHERE client_uid=$1`, uid); err != nil {
@@ -308,6 +312,9 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 		return abyssForfeitResult{}, err
 	}
 	if _, err := tx.Exec("DELETE FROM abyss_active WHERE client_uid=$1", uid); err != nil {
+		return abyssForfeitResult{}, err
+	}
+	if _, err := tx.Exec("DELETE FROM abyss_party_members WHERE owner_uid=$1", uid); err != nil {
 		return abyssForfeitResult{}, err
 	}
 	// Death forfeits the locked loot cache along with the gold.

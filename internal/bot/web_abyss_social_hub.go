@@ -127,6 +127,7 @@ type abyssNotificationView struct {
 }
 
 type abyssSocialHubView struct {
+	Program           abyssSocialProgramView
 	Pets              []abyssSocialPetView
 	PendingCapture    *abyssPendingPetCaptureView
 	SecondPetUnlocked bool
@@ -508,7 +509,9 @@ func (b *Bot) abyssSocialHub(uid string, prestige int) abyssSocialHubView {
 	trophies := b.abyssBossTrophies(uid)
 	feedOptions, _ := b.abyssOwnedConsumables(uid)
 	return abyssSocialHubView{
-		Pets: b.abyssSocialPets(uid), SecondPetUnlocked: prestige >= 2,
+		Program:           b.abyssSocialProgram(uid),
+		Pets:              b.abyssSocialPets(uid),
+		SecondPetUnlocked: prestige >= 2,
 		PendingCapture: b.abyssPendingPetCapture(uid),
 		Deaths:         deaths, Memorials: b.abyssPetMemorials(uid), Trophies: trophies, BossLore: abyssBossLoreViews(trophies),
 		RevengeFamily: b.abyssRevengeFamily(uid), Rival: b.ensureAbyssWeeklyRival(uid), BankFeedEnabled: bankEnabled,

@@ -272,9 +272,9 @@
       </label>
       <label>Party loot
         <select id="partyLootRule" class="ab-select">
-          <option value="owner">Host cache · helper 🜲5</option>
-          <option value="round_robin">Round robin · helper 🜲8</option>
-          <option value="need_before_greed">Need before greed · helper 🜲6</option>
+          <option value="owner">Host cache · depth-scaled helper tokens</option>
+          <option value="round_robin">Round robin · +3 helper tokens</option>
+          <option value="need_before_greed">Need before greed · +1 helper token</option>
         </select>
       </label>
       <label>Reward focus
@@ -438,9 +438,7 @@
     {{template "abyssBossAdaptation" .}}
     {{template "abyssBossToll" .}}
 
-    <!-- Co-op invite row. Always rendered so renderState() can show/hide it as the
-         floor preview changes; visibility is driven client-side, not by the initial
-         NextIsBoss server flag. -->
+    <!-- Persistent run party: invite up to two helpers, then descend together. -->
     <div class="ab-subrow" id="coopRow" style="display:none">
       <span class="ab-sub-label">{{T "web.abyss.invite_ally"}}</span>
       <select id="coopSelect" onchange="abyssInviteCoop()">
@@ -1846,10 +1844,7 @@ function renderState(){
   show('btnBuildRespec', inRun && !downed);
   show('liveRow', inRun && !downed);
   show('insuranceControls', inRun && !downed && !hardcoreRun);
-  // Co-op summons are only for boss floors, so the row follows the *next* floor
-  // preview (every 5th floor) rather than the initial server render.
-  var nextIsBoss = inRun && !downed && ((curDepth + 1) % 5 === 0);
-  show('coopRow', nextIsBoss);
+  show('coopRow', inRun && !downed);
   show('btnRevive', inRun && downed && canRev);
   show('btnLastStand', inRun && downed && canLastStand);
   show('btnConcede', inRun && downed);
@@ -4349,8 +4344,9 @@ async function abyssInviteCoop(){
     abToast(d.error || 'Failed to invite ally', false);
     return;
   }
-  document.getElementById('coopStatus').textContent = 'Ally invited!';
-  abToast('Ally invited for the upcoming boss fight!', true);
+  document.getElementById('coopStatus').textContent = 'Party size '+Number(d.party_size||2)+' / 3';
+  document.getElementById('coopSelect').value = '';
+  abToast('Ally joined your persistent run party.', true);
 }
 
 async function shareLastAbyssReplay(){

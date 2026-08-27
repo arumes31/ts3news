@@ -170,6 +170,12 @@ func (c *Client) SendPrivateMessage(clid int, message string) error {
 	return err
 }
 
+// SendChannelMessage sends a text message to everyone in the target channel.
+func (c *Client) SendChannelMessage(cid int, message string) error {
+	_, err := c.Command("sendtextmessage targetmode=2 target=" + strconv.Itoa(cid) + " msg=" + Escape(message))
+	return err
+}
+
 // WhoAmI returns the raw whoami fields (useful to confirm we are connected).
 func (c *Client) WhoAmI() ([]string, error) {
 	return c.Command("whoami")
