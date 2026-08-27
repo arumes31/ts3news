@@ -46,7 +46,7 @@ test('mid-fight refresh restores the complete feed and exact scroll position', a
   });
   expect(savedTop).toBeGreaterThan(0);
   await page.waitForTimeout(150);
-  await page.reload();
+  await page.reload({ waitUntil: 'domcontentloaded' });
 
   await expect(feed.locator(':scope > div')).toHaveCount(40);
   await expect.poll(() => feed.evaluate(element => element.scrollTop)).toBeCloseTo(savedTop, 0);

@@ -154,6 +154,11 @@ func TestAbyssE2EServer(t *testing.T) {
 	})
 	mux.HandleFunc("/abyss", func(w http.ResponseWriter, r *http.Request) {
 		fixture := abyssGoldenFixture(r.URL.Query().Get("active") == "1")
+		if r.URL.Query().Get("endless") == "1" {
+			retention := fixture["Retention"].(abyssRetentionView)
+			retention.Endless = abyssEndlessProgram(175, map[string]bool{})
+			fixture["Retention"] = retention
+		}
 		fixture["Competition"] = abyssCompetitionView{
 			Tier: "normal", Period: "season", PeriodLabel: "2026-S3",
 			Builds: []string{"initiate", "delver", "plunderer", "warden"},

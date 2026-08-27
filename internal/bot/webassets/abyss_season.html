@@ -86,6 +86,35 @@
     </article>
     {{end}}
   </div>
+
+  <details class="ab-season-journal" id="abyssSeasonJournal">
+    <summary>
+      <span><small>EXPEDITION LEDGER</small><b>Season journal · 50 objectives</b></span>
+      <span class="ab-season-journal-count"><b id="seasonObjectivesDone">{{.ObjectivesDone}}</b> / {{.ObjectiveTotal}}</span>
+    </summary>
+    <div class="ab-season-journal-body">
+      <p>Five escalating field marks per week turn the ten-week route into a 50-objective journal. Progress is reconstructed from the authoritative run ledger.</p>
+      <ol class="ab-season-objectives" aria-label="Season journal objectives">
+        {{range .Objectives}}
+        <li class="{{if .Complete}}complete{{else if not .Available}}locked{{end}}" data-season-objective="{{.ID}}">
+          <span class="ab-season-objective-mark" aria-hidden="true">{{if .Complete}}✓{{else if .Available}}◆{{else}}◇{{end}}</span>
+          <span><small>W{{.Week}} · MARK {{.Stage}}</small><b>{{.Label}}</b></span>
+          <span>{{.Progress}} / {{.Goal}}</span>
+        </li>
+        {{end}}
+      </ol>
+      <div class="ab-season-finale {{if .FinaleUnlocked}}unlocked{{end}} {{if .FinaleClaimed}}claimed{{end}}" id="abyssSeasonFinale">
+        <div><small>FINAL COSMETIC</small><strong>{{.FinaleName}}</strong><p>Visual only · no combat power.</p></div>
+        {{if .FinaleClaimed}}
+          <button type="button" class="ghost" disabled>✓ In collection</button>
+        {{else if .FinaleUnlocked}}
+          <button type="button" class="primary" onclick="abyssSeasonJournalFinale(this)">Claim finale cosmetic</button>
+        {{else}}
+          <button type="button" class="ghost" disabled>Complete all 50 objectives</button>
+        {{end}}
+      </div>
+    </div>
+  </details>
   <footer class="ab-season-foot">
     <span>Progress resets each Monday at 00:00 UTC.</span>
     <span>Collectibles are visual only and grant no combat power.</span>
@@ -164,5 +193,17 @@ async function abyssSeasonPremiumClaim(week,button){
     button.className='ghost xs';button.textContent='✓ In collection';button.disabled=true;
     abToast((data.already_owned?'Already in collection: ':'Premium reward recovered: ')+data.name,true);
   }catch(error){button.disabled=false;button.textContent=oldText;abToast(error.message||'Could not claim the premium reward.',false);}
+}
+
+async function abyssSeasonJournalFinale(button){
+  if(!button||button.disabled)return;
+  button.disabled=true;var oldText=button.textContent;button.textContent='Recovering…';
+  try{
+    var data=await abPost('/api/abyss/season/journal/finale',{});
+    if(!data.ok)throw new Error(data.error||'finale claim failed');
+    var finale=document.getElementById('abyssSeasonFinale');if(finale)finale.classList.add('claimed');
+    button.className='ghost';button.textContent='✓ In collection';button.disabled=true;
+    abToast((data.already_owned?'Already in collection: ':'Finale cosmetic recovered: ')+data.name,true);
+  }catch(error){button.disabled=false;button.textContent=oldText;abToast(error.message||'Could not claim the finale cosmetic.',false);}
 }
 {{end}}

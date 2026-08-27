@@ -1120,3 +1120,11 @@ and vet gates. Performance claims require an enforceable bound or measurement.
 
 - [x] **AAA-0356 / 356** — dynamically replaced Abyss controls retain semantic accessible names and ownership across live rerenders (`webassets/abyss_accessibility.html`, `web_abyss_accessibility_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
 - [x] **AAA-0362 / 362** — the page adopts the negotiated locale and text direction while player-facing counts, ratings, percentages, and gold use locale-aware display formatters (`internal/i18n/i18n.go`, `webassets/abyss_display_locale.html`, `webassets/abyss_item_numbers.html`, `web_abyss_accessibility_test.go`, `tests/e2e/abyss-core-interface.spec.js`).
+
+## Delivered tranche: season retention and endless cosmetics
+
+- [x] **AAA-0376 / 376** — ten-week campaigns rotate a named affinity, palette, encounter influence, and weighted biome surge from one authoritative season clock (`web_abyss_season.go`, `web_abyss.go`, `webassets/abyss_season.css`).
+- [x] **AAA-0377 / 377** — the season ledger exposes five escalating marks per week, tracks all 50 objectives from authoritative run history, and grants one idempotent finale cosmetic only after full completion (`web_abyss_season.go`, `web_abyss_retention.go`, `webassets/abyss_season.html`).
+- [x] **AAA-0378 / 378** — a 28-day UTC login calendar atomically records one daily claim and grants bounded gold or weekly token caches without duplicate rewards (`web_abyss_retention.go`, `webassets/abyss_retention.html`).
+- [x] **AAA-0379 / 379** — the personal seven-day digest compares current and prior depth, run, floor, and banked-gold performance and calls out near-record attempts (`web_abyss_retention.go`, `webassets/abyss_retention.html`).
+- [x] **AAA-0380 / 380** — reaching depth 100 opens an endless ledger whose repeatable 25-depth ranks grant collection-only banners, trails, auras, and portraits with an explicit zero-power contract (`web_abyss_retention.go`, `webassets/abyss_retention.html`).

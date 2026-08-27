@@ -75,6 +75,18 @@ type abyssSeasonRewardView struct {
 	Current        bool
 }
 
+type abyssSeasonObjectiveView struct {
+	ID        string
+	Week      int
+	Stage     int
+	Label     string
+	Goal      int64
+	Progress  int64
+	Percent   int
+	Available bool
+	Complete  bool
+}
+
 type abyssSeasonJourneyView struct {
 	ID              string
 	Name            string
@@ -86,6 +98,12 @@ type abyssSeasonJourneyView struct {
 	EndLabel        string
 	CurrentWeek     int
 	Weeks           []abyssSeasonRewardView
+	Objectives      []abyssSeasonObjectiveView
+	ObjectiveTotal  int
+	ObjectivesDone  int
+	FinaleName      string
+	FinaleUnlocked  bool
+	FinaleClaimed   bool
 	Claimed         int
 	PremiumClaimed  int
 	PremiumUnlocked bool
@@ -188,6 +206,7 @@ func (b *Bot) abyssSeasonJourney(ctx context.Context, uid string, at time.Time, 
 			view.PremiumClaimed++
 		}
 	}
+	enrichAbyssSeasonJournal(&view, campaign, progress, owned)
 	return view, err
 }
 

@@ -71,8 +71,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "59649c69876414c8d5622d0d84610c64975e3c600a52b5e7c785ad72ba9e43e7"},
-		{name: "active_run", active: true, want: "5912649324bc12efaebfff896f70ed647c55eb1155f42cc734043aeeec8e4a7a"},
+		{name: "threshold", want: "9b0be0d59a25cefaa1ced32ae696fb714f6295d3d7db3fadefc859970d903a66"},
+		{name: "active_run", active: true, want: "074e038f9d02d0619abab948f3904ec8514da46bdac580d28952a7d869f79fd7"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -131,13 +131,15 @@ func TestAbyssHistoryLootEscapesMarkup(t *testing.T) {
 func abyssGoldenFixture(active bool) map[string]any {
 	stats := abyssStats{BestDepth: 57, Tokens: 42, LifetimeFloors: 321, LifetimeBanked: 654321}
 	run := abyssRun{Tier: "normal", FloorType: "combat"}
-	campaign := abyssSeasonCampaignAt(time.Date(2026, time.August, 25, 12, 0, 0, 0, time.UTC))
+	fixtureTime := time.Date(2026, time.August, 25, 12, 0, 0, 0, time.UTC)
+	campaign := abyssSeasonCampaignAt(fixtureTime)
 	seasonJourney := abyssSeasonJourneyView{
 		ID: campaign.ID, Name: campaign.Name, Icon: campaign.Icon,
 		Affinity: campaign.Affinity, Palette: campaign.Palette, Tagline: campaign.Tagline,
 		StartLabel: campaign.Start.Format("02 Jan 2006"), EndLabel: campaign.End.Add(-time.Second).Format("02 Jan 2006"),
 		CurrentWeek: campaign.CurrentWeek,
 	}
+	var seasonProgress [abyssSeasonWeeks]int64
 	for week := 1; week <= abyssSeasonWeeks; week++ {
 		progress := int64(0)
 		percent := 0
@@ -145,12 +147,27 @@ func abyssGoldenFixture(active bool) map[string]any {
 			progress = abyssSeasonWeekGoals[0]
 			percent = 100
 		}
+		seasonProgress[week-1] = progress
 		seasonJourney.Weeks = append(seasonJourney.Weeks, abyssSeasonRewardView{
 			Week: week, Name: campaign.RewardWord + " " + abyssSeasonRewardNames[week-1],
 			Kind: abyssSeasonRewardKinds[week-1], Goal: abyssSeasonWeekGoals[week-1],
 			Progress: progress, Percent: percent,
 			Available: week <= campaign.CurrentWeek, Complete: week == 1, Current: week == campaign.CurrentWeek,
 		})
+	}
+	enrichAbyssSeasonJournal(&seasonJourney, campaign, seasonProgress, map[string]bool{})
+	loginPreview := abyssLoginCalendarAt(fixtureTime, map[string]bool{})
+	claimedLoginDays := map[string]bool{
+		loginPreview.Days[0].Date: true,
+		loginPreview.Days[1].Date: true,
+	}
+	retention := abyssRetentionView{
+		Login: abyssLoginCalendarAt(fixtureTime, claimedLoginDays),
+		Digest: abyssWeeklyDigestFromMetrics(abyssDigestMetrics{
+			Depth: 56, Gold: 84_000, Runs: 7, Floors: 42, PreviousDepth: 51,
+			PreviousGold: 63_000, PreviousRuns: 5, PreviousFloors: 31,
+		}, stats.BestDepth, 2),
+		Endless: abyssEndlessProgram(stats.BestDepth, map[string]bool{}),
 	}
 	if active {
 		run.Active = true
@@ -181,6 +198,7 @@ func abyssGoldenFixture(active bool) map[string]any {
 		},
 		"Stats": stats, "Run": run, "RegenPerSec": 0.0, "AutoFocus": "balanced",
 		"Tiers": abyssTierList(stats.BestDepth), "Leaders": abyssBoards{}, "Season": "S1", "SeasonJourney": seasonJourney,
+		"Retention":   retention,
 		"Competition": abyssCompetitionView{}, "CompetitionPageSize": abyssCompetitionPageSize,
 		"History": []any{}, "Achievements": []abyssAchievementView{},
 		"BadgeOptions": []map[string]string{

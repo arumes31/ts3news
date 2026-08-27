@@ -1,0 +1,246 @@
+.ab-season-journal {
+  position: relative;
+  margin-top: 1rem;
+  border: 1px solid color-mix(in srgb, var(--ab-season-accent) 38%, #35435a);
+  border-radius: .75rem;
+  background: #0a1019;
+}
+
+.ab-season-journal > summary {
+  display: flex;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .8rem 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.ab-season-journal > summary::-webkit-details-marker { display: none; }
+.ab-season-journal > summary::after { content: "＋"; color: var(--ab-season-accent); font-size: 1.1rem; }
+.ab-season-journal[open] > summary::after { content: "—"; }
+.ab-season-journal > summary span:first-child { display: grid; gap: .15rem; }
+.ab-season-journal > summary small,
+.ab-season-finale small {
+  color: var(--ab-season-accent);
+  font: 700 .62rem/1.2 var(--font-mono, monospace);
+  letter-spacing: .14em;
+}
+
+.ab-season-journal-count {
+  margin-left: auto;
+  color: #9eb0ca;
+  font: 700 .75rem/1 var(--font-mono, monospace);
+}
+
+.ab-season-journal-count b { color: #f4f7fb; font-size: 1rem; }
+.ab-season-journal-body { padding: 0 1rem 1rem; border-top: 1px solid #253147; }
+.ab-season-journal-body > p { color: #91a4c0; font-size: .78rem; line-height: 1.5; }
+
+.ab-season-objectives {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .35rem;
+  max-height: 24rem;
+  margin: .8rem 0;
+  padding: .2rem;
+  overflow: auto;
+  list-style: none;
+  scrollbar-color: var(--ab-season-accent) #111925;
+}
+
+.ab-season-objectives li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .55rem;
+  min-height: 2.8rem;
+  padding: .45rem .6rem;
+  border: 1px solid #28364c;
+  border-radius: .45rem;
+  background: #101824;
+  color: #bdc9da;
+}
+
+.ab-season-objectives li.complete { border-color: #267b61; background: #0d211d; }
+.ab-season-objectives li.locked { opacity: .5; }
+.ab-season-objectives li > span:nth-child(2) { display: grid; gap: .08rem; min-width: 0; }
+.ab-season-objectives li small { color: #7185a1; font: 700 .56rem/1.2 var(--font-mono, monospace); letter-spacing: .09em; }
+.ab-season-objectives li b { overflow: hidden; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+.ab-season-objectives li > span:last-child { color: #8fa3bf; font: 700 .66rem/1 var(--font-mono, monospace); }
+.ab-season-objective-mark { color: var(--ab-season-accent); }
+
+.ab-season-finale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .85rem;
+  border: 1px dashed #49566a;
+  border-radius: .6rem;
+  background: #11141b;
+}
+
+.ab-season-finale.unlocked { border-style: solid; border-color: var(--ab-season-accent); box-shadow: inset .2rem 0 0 var(--ab-season-accent); }
+.ab-season-finale.claimed { border-color: #2f9875; }
+.ab-season-finale > div { display: grid; gap: .15rem; }
+.ab-season-finale strong { color: #f4f7fb; }
+.ab-season-finale p { margin: 0; color: #8193ae; font-size: .68rem; }
+
+.ab-retention {
+  --retention-gold: #efbd59;
+  --retention-teal: #65d7c4;
+  --retention-ink: #080e17;
+  position: relative;
+  overflow: hidden;
+  border-color: #34445c;
+  background: #0a1019;
+}
+
+.ab-retention::before {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(90deg, #172337 1px, transparent 1px),
+    linear-gradient(#172337 1px, transparent 1px);
+  background-size: 3.5rem 3.5rem;
+  content: "";
+  opacity: .16;
+  pointer-events: none;
+}
+
+.ab-retention-head,
+.ab-retention-grid { position: relative; }
+
+.ab-retention-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #27364d;
+}
+
+.ab-retention-head h2 { margin: .18rem 0 0; font-size: clamp(1.15rem, 2vw, 1.65rem); }
+.ab-retention-head p { max-width: 38rem; margin: 0; color: #8fa2bd; font-size: .76rem; line-height: 1.5; text-align: right; }
+.ab-retention-kicker,
+.ab-retention-card header small {
+  color: var(--retention-gold);
+  font: 700 .6rem/1.2 var(--font-mono, monospace);
+  letter-spacing: .15em;
+}
+
+.ab-retention-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(18rem, .75fr);
+  gap: .75rem;
+  margin-top: .85rem;
+}
+
+.ab-retention-card {
+  min-width: 0;
+  padding: .9rem;
+  border: 1px solid #2b3a50;
+  border-radius: .65rem;
+  background: #0c131f;
+}
+
+.ab-retention-card > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.ab-retention-card > header > div { display: grid; gap: .12rem; }
+.ab-retention-card h3 { margin: 0; color: #eef3fb; font-size: .95rem; }
+.ab-retention-card > header > span { color: #91a5c1; font: 700 .68rem/1.2 var(--font-mono, monospace); }
+.ab-retention-card p { color: #8fa2bd; font-size: .73rem; line-height: 1.5; }
+.ab-retention-error { padding: .5rem; border-left: 2px solid #ee6d7a; background: #25131a; color: #ff9da7 !important; }
+
+.ab-login-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: .25rem;
+  margin: .75rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ab-login-days li {
+  display: grid;
+  min-height: 3.5rem;
+  place-items: center;
+  padding: .25rem;
+  border: 1px solid #28374d;
+  border-radius: .35rem;
+  background: #101a29;
+  color: #b9c7da;
+}
+
+.ab-login-days li small { color: #647893; font: 600 .52rem/1 var(--font-mono, monospace); }
+.ab-login-days li b { font-size: .78rem; }
+.ab-login-days li span { color: #7f94b0; font: 600 .55rem/1 var(--font-mono, monospace); }
+.ab-login-days li.future { opacity: .48; }
+.ab-login-days li.current { border-color: var(--retention-gold); box-shadow: inset 0 0 0 1px #7a5520; }
+.ab-login-days li.claimed { border-color: #267b61; background: #0c241f; }
+.ab-login-days li.claimed span { color: #6fe0b0; font-size: .8rem; }
+
+.ab-retention-action {
+  display: flex;
+  min-height: 2.8rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding-top: .7rem;
+  border-top: 1px solid #26344a;
+  color: #a8b8cd;
+  font-size: .72rem;
+}
+
+.ab-digest-trend { padding: .3rem .45rem; border: 1px solid #425169; border-radius: 999px; }
+.ab-weekly-digest { min-height: 14rem; }
+.ab-digest-trend.up { border-color: #267b61; color: #68dbaa; }
+.ab-digest-trend.down { border-color: #7e3c4a; color: #ff8d9a; }
+.ab-digest-metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: .4rem; margin: .85rem 0; }
+.ab-digest-metrics > div { display: grid; gap: .12rem; padding: .65rem; border-left: 2px solid #3a4b65; background: #101a29; }
+.ab-digest-metrics small { color: #7388a5; font: 700 .54rem/1 var(--font-mono, monospace); letter-spacing: .1em; }
+.ab-digest-metrics strong { color: #f0f5fb; font-size: 1rem; }
+.ab-digest-metrics span { color: #7890af; font-size: .58rem; }
+.ab-digest-callout { margin: 0; padding: .65rem; border: 1px solid #31435d; border-radius: .4rem; color: var(--retention-teal) !important; }
+
+.ab-endless { grid-column: 1 / -1; }
+.ab-endless.unlocked { border-color: #3e6b78; box-shadow: inset .2rem 0 0 var(--retention-teal); }
+.ab-endless-rail { display: grid; grid-template-columns: repeat(6, minmax(8.5rem, 1fr)); gap: .4rem; margin: .8rem 0; overflow-x: auto; padding-bottom: .25rem; }
+.ab-endless-rail article { display: grid; gap: .32rem; min-height: 8rem; padding: .65rem; border: 1px solid #2c3c53; border-radius: .45rem; background: #101824; }
+.ab-endless-rail article.available { border-color: #8b672c; }
+.ab-endless-rail article.owned { border-color: #267b61; background: #0d211d; }
+.ab-endless-depth { color: var(--retention-gold); font: 800 1.2rem/1 var(--font-mono, monospace); }
+.ab-endless-rail small { color: #7186a3; font: 700 .55rem/1 var(--font-mono, monospace); letter-spacing: .1em; }
+.ab-endless-rail b { min-height: 2.1rem; color: #dce5f2; font-size: .7rem; line-height: 1.4; }
+.ab-endless-rail button { align-self: end; }
+.ab-endless > footer { display: flex; flex-wrap: wrap; gap: .5rem 1rem; color: #7f94b0; font: 600 .62rem/1.4 var(--font-mono, monospace); }
+
+@media (max-width: 850px) {
+  .ab-retention-head { display: grid; }
+  .ab-retention-head p { text-align: left; }
+  .ab-retention-grid { grid-template-columns: 1fr; }
+  .ab-endless { grid-column: auto; }
+  .ab-season-objectives { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) {
+  .ab-season-journal > summary { align-items: start; }
+  .ab-season-journal-count { white-space: nowrap; }
+  .ab-season-finale { align-items: stretch; flex-direction: column; }
+  .ab-login-days { gap: .18rem; }
+  .ab-login-days li { min-height: 3.1rem; padding: .18rem; }
+  .ab-login-days li span { font-size: .48rem; }
+  .ab-digest-metrics { grid-template-columns: 1fr; }
+  .ab-retention-action { align-items: stretch; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-season-journal *, .ab-retention * { scroll-behavior: auto !important; }
+}

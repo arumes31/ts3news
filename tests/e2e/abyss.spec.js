@@ -214,9 +214,9 @@ test('custom stakes preview, submit, and remain adjustable between floors', asyn
   expect(enteredBody.token_ante).toBe(10);
   expect(enteredBody.risk_dial_pct).toBe(30);
   await enteredNavigation;
-  await page.waitForLoadState('load');
+  await page.waitForLoadState('domcontentloaded');
 
-  await page.goto('/abyss?active=1');
+  await page.goto('/abyss?active=1', { waitUntil: 'domcontentloaded' });
   await page.locator('#runRiskDial').fill('40');
   await expect(page.locator('#runRiskDialOut')).toHaveText('+40%');
   await page.locator('#saveRunRiskDial').click();

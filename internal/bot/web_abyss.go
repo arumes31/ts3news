@@ -1681,6 +1681,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 	if seasonJourneyErr != nil {
 		log.Printf("abyss season journey read failed: uid=%q err=%v", uid, seasonJourneyErr)
 	}
+	retention := s.bot.abyssRetentionProgram(r.Context(), uid, time.Now(), st.BestDepth, ownedCosmetics)
 	runLoot := s.bot.currentRunLootManifest(uid, equipped, abyssOwnedGearSet(equipped, inventory))
 	recentGearProtected, _ := s.bot.abyssRecentGearProtection(uid)
 	setPityPanel := abyssSetPityPanel(equipped, inventory, runLoot)
@@ -1701,6 +1702,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"CompetitionPageSize": abyssCompetitionPageSize,
 		"Season":              abyssSeasonLabel(),
 		"SeasonJourney":       seasonJourney,
+		"Retention":           retention,
 		"History":             history,
 		"RunInsights":         insights,
 		"LongTerm":            longTerm,
