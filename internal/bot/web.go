@@ -301,6 +301,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_insights.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_insights.css", "text/css; charset=utf-8")
 	})
+	mux.HandleFunc("/static/abyss_observatory.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_observatory.css", "text/css; charset=utf-8")
+	})
 	mux.HandleFunc("/static/abyss_feedback.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_feedback.css", "text/css; charset=utf-8")
 	})
@@ -496,6 +499,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 
 	if s.bot.Cfg.EnableAbyss {
 		mux.HandleFunc("/api/abyss/public/stats", s.handleAbyssPublicStats)
+		mux.HandleFunc("/api/abyss/stats", s.handleAbyssTokenStats)
 		mux.HandleFunc("/abyss", s.auth(s.handleAbyssPage))
 		mux.HandleFunc("/abyss/plaza", s.auth(s.handleAbyssPlazaPage))
 		mux.HandleFunc("/abyss/spectate", s.auth(s.handleAbyssSpectatePage))
@@ -529,6 +533,8 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/combat/social", s.authAPI(s.handleAbyssCombatSocial))
 		mux.HandleFunc("/api/abyss/combat/events", s.authAPI(s.handleAbyssCombatEvents))
 		mux.HandleFunc("/api/abyss/replay/code", s.authAPI(s.handleAbyssReplayCode))
+		mux.HandleFunc("/api/abyss/run/replay", s.authAPI(s.handleAbyssRunReplay))
+		mux.HandleFunc("/api/abyss/api-token", s.authAPI(s.handleAbyssAPIToken))
 		mux.HandleFunc("/api/abyss/ops", s.authAPI(s.handleAbyssOps))
 		mux.HandleFunc("/api/abyss/client-error", s.authAPI(s.handleAbyssClientError))
 		mux.HandleFunc("/api/abyss/preferences/font-size", s.authAPI(s.handleAbyssFontSize))

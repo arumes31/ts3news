@@ -6,6 +6,7 @@ import (
 )
 
 type abyssHistoryRow struct {
+	RunID         int64    `json:"run_id"`
 	Depth         int      `json:"depth"`
 	Gold          int64    `json:"gold"`
 	Victory       bool     `json:"victory"`
@@ -19,6 +20,8 @@ type abyssHistoryRow struct {
 	AtUnix        int64    `json:"at_unix"`
 	DurationMS    int64    `json:"duration_ms"`
 	FloorsCleared int      `json:"floors_cleared"`
+	AuditHash     string   `json:"audit_hash,omitempty"`
+	ReplayReady   bool     `json:"replay_ready"`
 }
 
 func abyssRunDurationMS(run abyssRun) int64 {
@@ -31,8 +34,9 @@ func abyssRunDurationMS(run abyssRun) int64 {
 func (b *Bot) abyssHistory(uid string, limit int) []abyssHistoryRow {
 	limit = min(max(limit, 1), 50)
 	rows, err := b.DB.Query(
-		`SELECT depth, gold_banked, victory, COALESCE(tier, 'normal'), hardcore,
-		        end_reason, loot_count, loot_summary, created_at, duration_ms, floors_cleared
+		`SELECT id, depth, gold_banked, victory, COALESCE(tier, 'normal'), hardcore,
+		        end_reason, loot_count, loot_summary, created_at, duration_ms, floors_cleared,
+		        audit_hash, audit_data
 		   FROM abyss_runs WHERE client_uid=$1 ORDER BY id DESC LIMIT $2`,
 		uid, limit)
 	if err != nil {
@@ -43,14 +47,20 @@ func (b *Bot) abyssHistory(uid string, limit int) []abyssHistoryRow {
 	for rows.Next() {
 		var h abyssHistoryRow
 		var lootJSON []byte
+		var auditJSON []byte
 		var when time.Time
 		if err := rows.Scan(
-			&h.Depth, &h.Gold, &h.Victory, &h.Tier, &h.Hardcore, &h.EndReason,
+			&h.RunID, &h.Depth, &h.Gold, &h.Victory, &h.Tier, &h.Hardcore, &h.EndReason,
 			&h.LootCount, &lootJSON, &when, &h.DurationMS, &h.FloorsCleared,
+			&h.AuditHash, &auditJSON,
 		); err != nil {
 			continue
 		}
 		_ = json.Unmarshal(lootJSON, &h.Loot)
+		var audit abyssCompetitionAudit
+		if h.AuditHash != "" && json.Unmarshal(auditJSON, &audit) == nil {
+			h.ReplayReady = len(audit.Floors) > 0
+		}
 		h.LootTruncated = max(0, h.LootCount-len(h.Loot))
 		h.When = when.Format("Jan 2 15:04")
 		h.AtUnix = when.Unix()

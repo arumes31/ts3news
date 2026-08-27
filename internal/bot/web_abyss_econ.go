@@ -334,6 +334,9 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 	if _, err := tx.Exec("DELETE FROM abyss_party_members WHERE owner_uid=$1", uid); err != nil {
 		return abyssForfeitResult{}, err
 	}
+	if err := deleteAbyssRunProvenance(tx, uid); err != nil {
+		return abyssForfeitResult{}, err
+	}
 	// Death forfeits the locked loot cache along with the gold.
 	if !policy.PreserveLoot {
 		if _, err := tx.Exec("DELETE FROM abyss_escrow_loot WHERE client_uid=$1", uid); err != nil {

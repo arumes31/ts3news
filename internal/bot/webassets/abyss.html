@@ -37,6 +37,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_accessibility.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_mobile.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_insights.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_observatory.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_feedback.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_polish.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_longterm.css"}}">
@@ -1239,8 +1240,9 @@
           <td>{{gold .Gold}}</td>
           <td class="muted small">{{.When}}</td>
         </tr>
-        <tr class="ab-hist-detail" hidden><td colspan="3"><div class="ab-hist-detail-in">
-          <b>{{if .Victory}}🏦 Banked{{else}}💀 Fell{{end}}</b> · {{.Tier}}{{if .Hardcore}} · Hardcore{{end}} · depth {{.Depth}} · {{gold .Gold}}
+		<tr class="ab-hist-detail" hidden><td colspan="3"><div class="ab-hist-detail-in">
+		  <b>{{if .Victory}}🏦 Banked{{else}}💀 Fell{{end}}</b> · {{.Tier}}{{if .Hardcore}} · Hardcore{{end}} · depth {{.Depth}} · {{gold .Gold}}
+		  {{if .ReplayReady}}<button class="ghost xs" type="button" onclick="viewArchivedAbyssRunReplay({{.RunID}})">▶ Replay audited log</button>{{end}}
           {{if .Loot}}<ul class="ab-history-loot">{{range .Loot}}<li>{{.}}</li>{{end}}{{if gt .LootTruncated 0}}<li class="muted">+{{.LootTruncated}} more sealed item(s)</li>{{end}}</ul>{{else}}<div class="muted small">No loot was sealed in this run.</div>{{end}}
         </div></td></tr>
       {{else}}
@@ -1255,6 +1257,7 @@
   </section>
 </div>
 
+{{template "abyssObservatory" .}}
 {{template "abyssSeasonJourney" .}}
 {{template "abyssRetention" .}}
 {{template "abyssSocialHub" .}}
@@ -6759,6 +6762,7 @@ function initNewDots(){
 {{template "abyss-accessibility" .}}
 {{template "abyss-mobile" .}}
 {{template "abyss-insights" .}}
+{{template "abyssObservatoryJS" .}}
 {{template "abyssItemNumbersJS" .}}
 {{template "abyss-longterm" .}}
 {{template "abyssLayoutReadability" .}}

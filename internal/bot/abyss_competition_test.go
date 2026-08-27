@@ -58,6 +58,8 @@ func TestNewAbyssCompetitionRunRecordCreatesVerifiableChainHash(t *testing.T) {
 	mock.ExpectQuery("SELECT COALESCE").WithArgs("delver").WillReturnRows(sqlmock.NewRows([]string{"build"}).AddRow("warden"))
 	mock.ExpectQuery("SELECT channel_id").WithArgs("delver").WillReturnRows(sqlmock.NewRows([]string{"channel_id"}).AddRow(42))
 	mock.ExpectQuery("SELECT audit_hash").WithArgs("delver").WillReturnRows(sqlmock.NewRows([]string{"audit_hash"}).AddRow("previous"))
+	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs(abyssRunProvenanceKey("delver")).
+		WillReturnRows(sqlmock.NewRows([]string{"value"}))
 	run := abyssRun{Depth: 27, Tier: "hell", StartedAt: time.Date(2026, 8, 27, 10, 0, 0, 0, time.UTC)}
 	record, err := (&Bot{DB: database}).newAbyssCompetitionRunRecord("delver", run, 12345, true, false, "banked", 1.75)
 	if err != nil {

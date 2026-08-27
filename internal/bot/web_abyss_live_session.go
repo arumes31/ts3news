@@ -66,7 +66,7 @@ func (s *WebServer) startAbyssLiveCombat(
 	if err != nil {
 		return nil, err
 	}
-	randomSeed, err := abyssLiveRandomSeed(id)
+	randomSeed, err := s.bot.abyssRunSeedForFloor(uid, depth)
 	if err != nil {
 		return nil, err
 	}

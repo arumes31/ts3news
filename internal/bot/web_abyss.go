@@ -599,8 +599,10 @@ func (b *Bot) abyssSpendLoadout(uid, consID string) {
 
 // abyssFloorResult is the outcome of fighting a single floor.
 type abyssFloorResult struct {
+	Depth              int
 	Victory            bool
 	Biome              string
+	RandomSeed         [2]uint64
 	RewardXP           int
 	SkillVariety       abyssSkillVarietyView
 	VarietyBonusXP     int
@@ -706,6 +708,13 @@ func (b *Bot) fightAbyssFloorMode(
 	focus string,
 	mode abyssFightMode,
 ) (abyssFightExecution, error) {
+	if mode.shadowTrials == 0 && mode.live == nil && mode.encounterSeed == [2]uint64{} {
+		seed, err := b.abyssRunSeedForFloor(uid, depth)
+		if err != nil {
+			return abyssFightExecution{}, fmt.Errorf("loading deterministic floor seed: %w", err)
+		}
+		mode.encounterSeed = seed
+	}
 	encounterRandom := combatRandomSource(defaultCombatRandomSource{})
 	if mode.encounterSeed != [2]uint64{} {
 		encounterRandom = rand.New(rand.NewPCG(
@@ -1183,7 +1192,14 @@ func (b *Bot) fightAbyssFloorMode(
 	// The engine's per-kill reward is ignored here: Abyss uses its own small
 	// per-floor XP payout below. We only need the win/loss outcome from combat.
 	combatLogOffset := len(logs)
-	resLogs, _, victory, loots, timeline, overkillDamage := b.resolveChannelCombatDetailed(combatUsers, mobPtrs, u.Level, diff, zone)
+	resLogs, _, victory, loots, timeline, overkillDamage := b.resolveChannelCombatDetailedWithRandom(
+		combatUsers,
+		mobPtrs,
+		u.Level,
+		diff,
+		zone,
+		encounterRandom,
+	)
 	b.routeAbyssPartyLoot(uid, partyUIDs, partyLootStarts, abyssPartyLootRuleFromID(flags["party_loot_rule"]), isBossFloor)
 	for i := range combatUsers {
 		b.consumeAbyssCheer(combatUsers[i].UID)
@@ -1378,7 +1394,11 @@ func (b *Bot) fightAbyssFloorMode(
 	logs = append(logs, fmt.Sprintf("[hr][color=#8a93a8]📊 %s · %d foe(s) · fight time %d ms · HP %s → %s (%+d)[/color]",
 		outcome, len(mobs), duration.Milliseconds(), FormatGoldPlain(int64(hpBefore)), FormatGoldPlain(int64(curHP)), curHP-hpBefore))
 
-	res := abyssFloorResult{Victory: victory, Biome: biome.Name, RewardXP: rewardXP, SkillVariety: skillVariety, VarietyBonusXP: varietyBonusXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, OverkillDamage: overkillDamage, BossToken: bossTokenAwarded, BossContractPayout: bossContractPayout, BossCosmetic: bossCosmetic, SecretBossStage: secretBossResultStage, SecretBossComplete: secretBossComplete, SecretAchievement: secretAchievement}
+	randomSeed := mode.encounterSeed
+	if mode.live != nil {
+		randomSeed = mode.live.randomSeed
+	}
+	res := abyssFloorResult{Depth: depth, Victory: victory, Biome: biome.Name, RandomSeed: randomSeed, RewardXP: rewardXP, SkillVariety: skillVariety, VarietyBonusXP: varietyBonusXP, Timeline: timeline, CurrentHP: curHP, MaxHP: stats.HP, DamageTaken: combatUsers[0].DamageTaken, OverkillDamage: overkillDamage, BossToken: bossTokenAwarded, BossContractPayout: bossContractPayout, BossCosmetic: bossCosmetic, SecretBossStage: secretBossResultStage, SecretBossComplete: secretBossComplete, SecretAchievement: secretAchievement}
 	if isBossFloor && len(mobs) > 0 {
 		res.BossName = mobs[0].Name
 		res.BossExecution = victory
@@ -1408,6 +1428,7 @@ func (b *Bot) fightAbyssFloorMode(
 	for _, d := range duraWarnings {
 		res.DuraHTML = append(res.DuraHTML, bbToHTML(d)) // [11-review] surface gear damage
 	}
+	b.recordAbyssRunFloor(uid, res)
 	return abyssFightExecution{floor: res}, nil
 }
 
@@ -2301,6 +2322,10 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	if err := initAbyssRunProvenance(tx, uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "run seed unavailable"})
+		return
+	}
 	// Event familiarity is run-scoped. Reset it in the same entry transaction
 	// as the run flags so a failed entry cannot partially erase the old run.
 	if _, err := tx.Exec("DELETE FROM app_meta WHERE key=$1", abyssEventVisitsKey(uid)); err != nil {
@@ -2367,6 +2392,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	s.bot.recordAbyssRunChoice(uid, startDepth, "entry", tier.Key)
 	s.abyssOps.funnel.observeEnter(uid, time.Now(), startDepth)
 
 	var gold int64
@@ -2779,6 +2805,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				writeJSON(w, abort("db", tier))
 				return
 			}
+			s.bot.recordAbyssRunChoice(uid, newDepth, "planned_floor", actualType)
 			if actualType == "event" {
 				s.bot.abyssScheduleNextEvent(uid, newDepth) // re-anchor the 2-6 floor cadence
 			}
@@ -3342,6 +3369,7 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
+		s.bot.recordAbyssRunChoice(uid, newDepth, "resolved_floor", floorType)
 		if floorType == "rest" {
 			_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
 		}
@@ -3373,6 +3401,7 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 			writeJSON(w, map[string]any{"ok": false, "error": "could not start live combat"})
 			return
 		}
+		s.bot.recordAbyssRunChoice(uid, newDepth, "resolved_floor", floorType)
 		writeJSON(w, map[string]any{
 			"ok": true, "live_combat": true, "session_id": combat.id,
 			"depth": newDepth, "state": combat.snapshotFor(uid),
@@ -3387,6 +3416,7 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 		writeJSON(w, map[string]any{"ok": false, "error": "combat"})
 		return
 	}
+	s.bot.recordAbyssRunChoice(uid, newDepth, "resolved_floor", floorType)
 	s.bot.advanceAbyssCartographerRoute(uid, newDepth)
 
 	s.finishDescend(w, uid, run, newDepth, run.Escrow, tier, res, modifier, focus)
@@ -4452,6 +4482,10 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			return
 		}
 		if _, err := tx.Exec("DELETE FROM abyss_party_members WHERE owner_uid=$1", uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if err := deleteAbyssRunProvenance(tx, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
