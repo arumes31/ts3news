@@ -104,8 +104,9 @@ func TestAbyssWikiAssetsAndPageWiring(t *testing.T) {
 			t.Errorf("wiki partial is missing %q", token)
 		}
 	}
+	compactStyles := strings.NewReplacer(" ", "", "\t", "", "\r", "", "\n", "").Replace(string(styles))
 	for _, token := range []string{".ab-wiki-ledger", "grid-column:1/-1", "@media(max-width:820px)"} {
-		if !strings.Contains(string(styles), token) {
+		if !strings.Contains(compactStyles, token) {
 			t.Errorf("wiki styles are missing %q", token)
 		}
 	}

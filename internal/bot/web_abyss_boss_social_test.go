@@ -202,7 +202,13 @@ func TestAbyssSocialPersistenceAndUIContracts(t *testing.T) {
 			"Rotating drops:", "/api/abyss/social/pet/train", "/api/abyss/social/weekly_boss",
 		},
 		filepath.Join(root, "internal", "bot", "webassets", "abyss_spectate.html"): {
-			"READ-ONLY LIVE FEED", "textContent", "replaceChildren", "/api/abyss/spectate",
+			"READ-ONLY LIVE FEED", "spectateConnection", "role=\"log\"", "abyss_spectate.css", "abyss_spectate.js",
+		},
+		filepath.Join(root, "internal", "bot", "webassets", "abyss_spectate.js"): {
+			"textContent", "replaceChildren", "/api/abyss/spectate", "role", "meter",
+		},
+		filepath.Join(root, "internal", "bot", "webassets", "abyss_spectate.css"): {
+			"background: #05080d", ".ab-spectator-sides", "grid-template-columns", "prefers-reduced-motion",
 		},
 	}
 	for path, required := range checks {

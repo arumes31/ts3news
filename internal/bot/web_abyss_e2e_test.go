@@ -359,6 +359,39 @@ func TestAbyssE2EServer(t *testing.T) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
+	const spectatorSession = "0123456789abcdef0123456789abcdef"
+	mux.HandleFunc("/abyss/spectate", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("session") != spectatorSession {
+			http.Error(w, "invalid spectator link", http.StatusBadRequest)
+			return
+		}
+		if err := server.tmpl.ExecuteTemplate(w, "abyssSpectate", map[string]any{
+			"Title": "Abyss Spectator", "Nav": "abyss", "SessionID": spectatorSession,
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+	mux.HandleFunc("/api/abyss/spectate", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Query().Get("session") != spectatorSession {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid spectator link"})
+			return
+		}
+		writeJSON(w, map[string]any{
+			"ok": true, "phase": "active", "round": 7,
+			"allies": []map[string]any{
+				{"id": "ally:1", "name": "Fixture Delver", "hp": 72_500, "max_hp": 100_000},
+				{"id": "ally:2", "name": "Summoned Frost Lich", "hp": 18_400, "max_hp": 22_000},
+			},
+			"enemies": []map[string]any{
+				{"id": "enemy:1", "name": `<img src=x onerror="window.spectatorInjected=true">`, "hp": 31_250, "max_hp": 125_000},
+				{"id": "enemy:2", "name": "Ashen Gatekeeper", "hp": 48_000, "max_hp": 60_000},
+			},
+			"recent_logs": []string{
+				"Fixture Delver strikes for 12,500.",
+				`<svg onload="window.spectatorLogInjected=true"> hostile log payload`,
+			},
+		})
+	})
 	mux.HandleFunc("/abyss/plaza", func(w http.ResponseWriter, _ *http.Request) {
 		plaza := abyssPlazaView{
 			Catalog: make([]abyssPlazaCatalogView, 0, len(abyssPlazaCatalog)),
