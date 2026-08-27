@@ -140,7 +140,7 @@ func DrillAbyssEscrowRestore(ctx context.Context, database *sql.DB, snapshot Aby
 		return AbyssEscrowSnapshotCounts{}, fmt.Errorf("normalizing Abyss escrow restore drill result: %w", err)
 	}
 	if abyssEscrowSnapshotChecksum(roundTrip) != snapshot.Checksum {
-		return AbyssEscrowSnapshotCounts{}, errors.New("Abyss escrow restore drill round-trip checksum mismatch")
+		return AbyssEscrowSnapshotCounts{}, errors.New("abyss escrow restore drill round-trip checksum mismatch")
 	}
 	if err := tx.Rollback(); err != nil {
 		return AbyssEscrowSnapshotCounts{}, fmt.Errorf("rolling back Abyss escrow restore drill: %w", err)

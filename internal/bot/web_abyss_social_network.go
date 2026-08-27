@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"database/sql"
 	"net/http"
 	"strings"
 )
@@ -196,17 +195,4 @@ func (s *WebServer) handleAbyssReferral(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "msg": "Referral linked. Both delvers earn 20 tokens when you reach depth 5."})
-}
-
-func acceptedAbyssFriendsQ(queryer interface {
-	QueryRow(string, ...any) *sql.Row
-}, uid, other string) bool {
-	low, high, ok := abyssPair(uid, other)
-	if !ok {
-		return false
-	}
-	var accepted bool
-	_ = queryer.QueryRow(`SELECT EXISTS(SELECT 1 FROM abyss_friendships
-		WHERE uid_low=$1 AND uid_high=$2 AND accepted_at IS NOT NULL)`, low, high).Scan(&accepted)
-	return accepted
 }

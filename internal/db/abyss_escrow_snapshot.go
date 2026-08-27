@@ -185,7 +185,7 @@ func validateAbyssEscrowSnapshotEnvelope(snapshot *AbyssEscrowSnapshot) error {
 		return fmt.Errorf("unsupported Abyss escrow snapshot version %d", snapshot.Version)
 	}
 	if snapshot.CreatedAt.IsZero() {
-		return errors.New("Abyss escrow snapshot has no creation time")
+		return errors.New("abyss escrow snapshot has no creation time")
 	}
 	providedChecksum := snapshot.Checksum
 	if err := normalizeAbyssSnapshotTables(snapshot); err != nil {
@@ -193,7 +193,7 @@ func validateAbyssEscrowSnapshotEnvelope(snapshot *AbyssEscrowSnapshot) error {
 	}
 	checksum := abyssEscrowSnapshotChecksum(*snapshot)
 	if providedChecksum == "" || providedChecksum != checksum {
-		return errors.New("Abyss escrow snapshot checksum mismatch")
+		return errors.New("abyss escrow snapshot checksum mismatch")
 	}
 
 	actualCounts, err := countAbyssSnapshotRows(*snapshot)
@@ -201,7 +201,7 @@ func validateAbyssEscrowSnapshotEnvelope(snapshot *AbyssEscrowSnapshot) error {
 		return err
 	}
 	if snapshot.Counts != actualCounts {
-		return fmt.Errorf("Abyss escrow snapshot row counts do not match payload: recorded=%+v actual=%+v", snapshot.Counts, actualCounts)
+		return fmt.Errorf("abyss escrow snapshot row counts do not match payload: recorded=%+v actual=%+v", snapshot.Counts, actualCounts)
 	}
 	return nil
 }

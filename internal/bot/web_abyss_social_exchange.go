@@ -61,7 +61,7 @@ func (s *WebServer) handleAbyssConsumableTrade(w http.ResponseWriter, r *http.Re
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	message := "Trade updated."
+	var message string
 	switch req.Action {
 	case "create":
 		req.RecipientUID = strings.TrimSpace(req.RecipientUID)
@@ -109,7 +109,10 @@ func (s *WebServer) handleAbyssConsumableTrade(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			_, err = tx.Exec("UPDATE abyss_consumable_trades SET status='expired' WHERE trade_id=$1", req.TradeID)
+			if _, err := tx.Exec("UPDATE abyss_consumable_trades SET status='expired' WHERE trade_id=$1", req.TradeID); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
 			message = "Trade expired; reserved consumables returned."
 		} else if req.Action == "cancel" {
 			if sender != uid {
@@ -120,7 +123,10 @@ func (s *WebServer) handleAbyssConsumableTrade(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			_, err = tx.Exec("UPDATE abyss_consumable_trades SET status='cancelled' WHERE trade_id=$1", req.TradeID)
+			if _, err := tx.Exec("UPDATE abyss_consumable_trades SET status='cancelled' WHERE trade_id=$1", req.TradeID); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
 			message = "Trade cancelled; reserved consumables returned."
 		} else {
 			if recipient != uid {
@@ -139,14 +145,17 @@ func (s *WebServer) handleAbyssConsumableTrade(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			_, err = tx.Exec("UPDATE abyss_consumable_trades SET status='accepted' WHERE trade_id=$1", req.TradeID)
+			if _, err := tx.Exec("UPDATE abyss_consumable_trades SET status='accepted' WHERE trade_id=$1", req.TradeID); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
 			message = "Consumable trade settled atomically."
 		}
 	default:
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid trade action"})
 		return
 	}
-	if err != nil || tx.Commit() != nil {
+	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

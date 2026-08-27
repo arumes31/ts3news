@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"log"
 	"time"
 )
 
@@ -93,12 +92,6 @@ func (b *Bot) abyssShopDemand(now time.Time) map[string]abyssShopDemand {
 		return abyssShopDemandAdjustments(nil)
 	}
 	return abyssShopDemandAdjustments(counts)
-}
-
-func (b *Bot) recordAbyssShopDemand(itemKey string, now time.Time) {
-	if err := recordAbyssShopDemandWith(b.DB, itemKey, now); err != nil {
-		log.Printf("recording Abyss shop demand for %s: %v", itemKey, err)
-	}
 }
 
 func recordAbyssShopDemandWith(db dbOrTx, itemKey string, now time.Time) error {

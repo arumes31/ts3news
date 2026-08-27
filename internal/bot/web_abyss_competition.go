@@ -2,7 +2,6 @@ package bot
 
 import (
 	"database/sql"
-	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -184,8 +183,4 @@ func scanAbyssCompetitionRows(rows *sql.Rows, uid string) []abyssCompetitionRow 
 		return nil
 	}
 	return result
-}
-
-func abyssCompetitionExtra(format string, values ...any) string {
-	return fmt.Sprintf(format, values...)
 }

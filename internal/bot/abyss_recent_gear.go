@@ -80,7 +80,7 @@ func recordAbyssRecentGearDrop(db dbOrTx, uid, gearID string) error {
 		return fmt.Errorf("read Abyss lifetime floors: %w", err)
 	}
 	if lifetimeFloors == math.MaxInt64 {
-		return fmt.Errorf("Abyss lifetime floor counter exhausted")
+		return fmt.Errorf("abyss lifetime floor counter exhausted")
 	}
 	currentFloor := max(lifetimeFloors+1, int64(1))
 	var raw string

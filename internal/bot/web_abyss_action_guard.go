@@ -170,7 +170,7 @@ func readAbyssCoreActionBody(body io.Reader) ([]byte, error) {
 		return nil, fmt.Errorf("read Abyss action: %w", err)
 	}
 	if len(payload) > abyssCoreActionMaxBytes {
-		return nil, fmt.Errorf("Abyss action exceeds %d bytes", abyssCoreActionMaxBytes)
+		return nil, fmt.Errorf("abyss action exceeds %d bytes", abyssCoreActionMaxBytes)
 	}
 	return payload, nil
 }

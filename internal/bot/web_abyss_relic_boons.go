@@ -53,24 +53,6 @@ func abyssRunRelicFlag(id int64) string { return "run_relic_" + itoa(int(id)) }
 
 func abyssRunBoonFlag(id int64) string { return "run_boon_" + itoa(int(id)) }
 
-func abyssRunRelicByID(id int64) (abyssRunRelic, bool) {
-	for _, relic := range abyssRunRelics {
-		if relic.ID == id {
-			return relic, true
-		}
-	}
-	return abyssRunRelic{}, false
-}
-
-func abyssRunBoonByID(id int64) (abyssRunBoon, bool) {
-	for _, boon := range abyssRunBoons {
-		if boon.ID == id {
-			return boon, true
-		}
-	}
-	return abyssRunBoon{}, false
-}
-
 func abyssBoonDraftFromFlags(flags map[string]int64) abyssBoonDraftView {
 	depth := int(flags[abyssRunFlagBoonDraftDepth])
 	view := abyssBoonDraftView{

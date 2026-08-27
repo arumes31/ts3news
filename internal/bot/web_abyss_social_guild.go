@@ -28,7 +28,7 @@ func (s *WebServer) handleAbyssGuild(w http.ResponseWriter, r *http.Request, uid
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	message := "Guild updated."
+	var message string
 	switch req.Action {
 	case "create":
 		req.Name = strings.TrimSpace(req.Name)
@@ -85,16 +85,20 @@ func (s *WebServer) handleAbyssGuild(w http.ResponseWriter, r *http.Request, uid
 			writeJSON(w, map[string]any{"ok": false, "error": "guild owners must disband instead of leaving"})
 			return
 		}
-		_, err = tx.Exec("DELETE FROM abyss_guild_members WHERE client_uid=$1", uid)
+		if _, err := tx.Exec("DELETE FROM abyss_guild_members WHERE client_uid=$1", uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 		message = "Left guild."
 	case "disband":
-		result, deleteErr := tx.Exec("DELETE FROM abyss_guilds WHERE owner_uid=$1", uid)
-		err = deleteErr
-		if err == nil {
-			if changed, _ := result.RowsAffected(); changed != 1 {
-				writeJSON(w, map[string]any{"ok": false, "error": "only the guild owner can disband"})
-				return
-			}
+		result, err := tx.Exec("DELETE FROM abyss_guilds WHERE owner_uid=$1", uid)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if changed, _ := result.RowsAffected(); changed != 1 {
+			writeJSON(w, map[string]any{"ok": false, "error": "only the guild owner can disband"})
+			return
 		}
 		message = "Guild disbanded."
 	case "banner":
@@ -103,20 +107,21 @@ func (s *WebServer) handleAbyssGuild(w http.ResponseWriter, r *http.Request, uid
 			writeJSON(w, map[string]any{"ok": false, "error": "unknown guild banner"})
 			return
 		}
-		result, updateErr := tx.Exec("UPDATE abyss_guilds SET banner=$1 WHERE owner_uid=$2", req.Banner, uid)
-		err = updateErr
-		if err == nil {
-			if changed, _ := result.RowsAffected(); changed != 1 {
-				writeJSON(w, map[string]any{"ok": false, "error": "only the guild owner can change its banner"})
-				return
-			}
+		result, err := tx.Exec("UPDATE abyss_guilds SET banner=$1 WHERE owner_uid=$2", req.Banner, uid)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if changed, _ := result.RowsAffected(); changed != 1 {
+			writeJSON(w, map[string]any{"ok": false, "error": "only the guild owner can change its banner"})
+			return
 		}
 		message = "Guild banner updated. Cosmetic only."
 	default:
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid guild action"})
 		return
 	}
-	if err != nil || tx.Commit() != nil {
+	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -144,7 +149,7 @@ func (s *WebServer) handleAbyssTournamentTeam(w http.ResponseWriter, r *http.Req
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	message := "Tournament team updated."
+	var message string
 	switch strings.TrimSpace(req.Action) {
 	case "create":
 		req.Name = strings.TrimSpace(req.Name)
@@ -198,7 +203,7 @@ func (s *WebServer) handleAbyssTournamentTeam(w http.ResponseWriter, r *http.Req
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid tournament action"})
 		return
 	}
-	if tx.Commit() != nil {
+	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

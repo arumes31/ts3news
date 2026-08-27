@@ -60,7 +60,7 @@ func (s *WebServer) handleAbyssDuel(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	message := "Duel updated."
+	var message string
 	var duelLog []string
 	switch strings.TrimSpace(req.Action) {
 	case "create":
@@ -109,7 +109,10 @@ func (s *WebServer) handleAbyssDuel(w http.ResponseWriter, r *http.Request, uid 
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			_, err = tx.Exec("UPDATE abyss_duels SET status='declined',resolved_at=NOW() WHERE duel_id=$1", req.DuelID)
+			if _, err := tx.Exec("UPDATE abyss_duels SET status='declined',resolved_at=NOW() WHERE duel_id=$1", req.DuelID); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
 			message = "Duel closed; the reserved wager was returned."
 			break
 		}
@@ -152,7 +155,7 @@ func (s *WebServer) handleAbyssDuel(w http.ResponseWriter, r *http.Request, uid 
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid duel action"})
 		return
 	}
-	if err != nil || tx.Commit() != nil {
+	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -179,7 +182,7 @@ func (s *WebServer) handleAbyssRaidLobby(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	message := "Raid lobby updated."
+	var message string
 	code := strings.ToUpper(strings.TrimSpace(req.Code))
 	switch strings.TrimSpace(req.Action) {
 	case "create":
@@ -284,13 +287,16 @@ func (s *WebServer) handleAbyssRaidLobby(w http.ResponseWriter, r *http.Request,
 				return
 			}
 		}
-		_, err = tx.Exec("UPDATE abyss_raid_lobbies SET status='resolved',resolved_at=NOW() WHERE lobby_code=$1", code)
+		if _, err := tx.Exec("UPDATE abyss_raid_lobbies SET status='resolved',resolved_at=NOW() WHERE lobby_code=$1", code); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 		message = fmt.Sprintf("Raid dealt %d shared damage; every member received an individual loot roll.", totalDamage)
 	default:
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid raid action"})
 		return
 	}
-	if err != nil || tx.Commit() != nil {
+	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

@@ -65,17 +65,6 @@ func (b *Bot) loadAbyssTalentLevels(uid string) map[string]int {
 	return out
 }
 
-// saveAbyssTalentLevels persists the whole level map (upsert).
-func (b *Bot) saveAbyssTalentLevels(uid string, m map[string]int) error {
-	data, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	_, err = b.DB.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssTalentKey(uid), string(data))
-	return err
-}
-
 // abyssTalentBonus sums the player's allocated generic talents into one bonus
 // block (Deep-Delver + the active spec's sub-tree). Folded into treeBonusFor.
 func (b *Bot) abyssTalentBonus(uid string) content.TreeBonus {

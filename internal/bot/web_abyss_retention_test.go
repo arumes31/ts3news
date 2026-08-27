@@ -15,9 +15,7 @@ func TestEnrichAbyssSeasonJournalBuildsFiftyObjectivesAndFinale(t *testing.T) {
 	t.Parallel()
 	campaign := abyssSeasonCampaignAt(abyssSeasonAnchor.Add(10*abyssSeasonWeek - time.Second))
 	var progress [abyssSeasonWeeks]int64
-	for index, goal := range abyssSeasonWeekGoals {
-		progress[index] = goal
-	}
+	copy(progress[:], abyssSeasonWeekGoals)
 	owned := map[string]bool{abyssSeasonJournalFinaleKey(campaign): true}
 	view := abyssSeasonJourneyView{}
 

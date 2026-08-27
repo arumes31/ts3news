@@ -40,7 +40,7 @@ func DecodeAbyssEscrowSnapshot(reader io.Reader, maxBytes int64) (AbyssEscrowSna
 		return AbyssEscrowSnapshot{}, fmt.Errorf("reading Abyss escrow snapshot: %w", err)
 	}
 	if int64(len(encoded)) > maxBytes {
-		return AbyssEscrowSnapshot{}, fmt.Errorf("Abyss escrow snapshot exceeds %d-byte limit", maxBytes)
+		return AbyssEscrowSnapshot{}, fmt.Errorf("abyss escrow snapshot exceeds %d-byte limit", maxBytes)
 	}
 	var snapshot AbyssEscrowSnapshot
 	if err := json.Unmarshal(encoded, &snapshot); err != nil {

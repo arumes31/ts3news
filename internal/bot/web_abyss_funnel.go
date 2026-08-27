@@ -100,10 +100,6 @@ func (m *abyssFunnelMetrics) observeEnd(uid, reason string) {
 	delete(m.active, ref)
 }
 
-func (m *abyssFunnelMetrics) observeConcede(uid string) {
-	m.observeEnd(uid, "conceded")
-}
-
 func abyssFunnelDepthBand(depth int) string {
 	switch {
 	case depth <= 0:
