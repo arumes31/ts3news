@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"embed"
-	"encoding/hex"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -17,7 +18,6 @@ import (
 	"time"
 
 	"ts3news/internal/content"
-	"ts3news/internal/games"
 	"ts3news/internal/i18n"
 	"ts3news/internal/leveling"
 )
@@ -40,7 +40,9 @@ var webAssets embed.FS
 const (
 	sessionCookie       = "ts3session"
 	sessionExpiryCookie = "ts3session_exp"
-	sessionLifetime     = 90 * 24 * time.Hour
+	loginGrantLifetime  = 10 * time.Minute
+	sessionLifetime     = 24 * time.Hour
+	authTokenBytes      = 32
 )
 
 // WebServer is the player-facing portal: armoury, inventory, auto-battler,
@@ -758,8 +760,12 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           securityHeaders(mux),
+		ReadTimeout:       30 * time.Second,
 		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
 	}
 	s.mu.Lock()
 	s.srv = srv
@@ -780,6 +786,16 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	return nil
 }
 
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "same-origin")
+		w.Header().Set("Permissions-Policy", "camera=(), geolocation=(), microphone=()")
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Shutdown gracefully stops the HTTP server if it is running.
 func (s *WebServer) Shutdown(ctx context.Context) error {
 	s.mu.Lock()
@@ -793,65 +809,83 @@ func (s *WebServer) Shutdown(ctx context.Context) error {
 
 // ---- Auth ----------------------------------------------------------------
 
-// ensureWebToken returns the user's persistent login token, generating and
-// storing one on first use.
-func (b *Bot) ensureWebToken(uid string) (string, error) {
-	var tok *string
-	err := b.DB.QueryRow("SELECT web_token FROM users WHERE client_uid=$1", uid).Scan(&tok)
-	if err == nil && tok != nil && *tok != "" {
-		return *tok, nil
-	}
-	raw := make([]byte, 16)
+func newAuthToken() (string, []byte, error) {
+	raw := make([]byte, authTokenBytes)
 	if _, err := rand.Read(raw); err != nil {
-		return "", err
+		return "", nil, err
 	}
-	newTok := hex.EncodeToString(raw)
-	if _, err := b.DB.Exec("UPDATE users SET web_token=$1 WHERE client_uid=$2", newTok, uid); err != nil {
-		return "", err
-	}
-	return newTok, nil
+	token := base64.RawURLEncoding.EncodeToString(raw)
+	return token, authTokenDigest(token), nil
 }
 
-// loginURL builds the public login link for a token.
-func (b *Bot) loginURL(token string) string {
-	return fmt.Sprintf("%s/login?token=%s", b.Cfg.WebBaseURL, token)
+func authTokenDigest(token string) []byte {
+	digest := sha256.Sum256([]byte(token))
+	return digest[:]
 }
 
-// composeLoginPM builds the per-cycle private message containing the user's
-// personal (shortened) web-portal login link. Returns "" on failure so the
-// caller can simply skip it.
+// newLoginGrant creates a short-lived one-time bearer. Only its digest is
+// stored; the raw value exists only in the private TeamSpeak message.
+func (b *Bot) newLoginGrant(uid string) (string, error) {
+	token, digest, err := newAuthToken()
+	if err != nil {
+		return "", err
+	}
+	if _, err := b.DB.Exec(
+		`WITH expired_grants AS (
+			DELETE FROM web_login_grants WHERE expires_at <= NOW()
+		), expired_sessions AS (
+			DELETE FROM web_sessions WHERE expires_at <= NOW()
+		)
+		INSERT INTO web_login_grants (token_hash, client_uid, expires_at) VALUES ($1, $2, $3)`,
+		digest, uid, time.Now().Add(loginGrantLifetime),
+	); err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+// loginURL builds a one-time login link. The grant remains in the query string
+// only until redemption; the response immediately redirects to a clean path.
+func (b *Bot) loginURL(grant, next string) string {
+	values := url.Values{"grant": []string{grant}}
+	if next != "" {
+		values.Set("next", next)
+	}
+	return fmt.Sprintf("%s/login?%s", strings.TrimRight(b.Cfg.WebBaseURL, "/"), values.Encode())
+}
+
+// composeLoginPM builds the per-cycle private message containing short-lived,
+// one-time portal links. Authentication links are never sent to a shortener.
 func (b *Bot) composeLoginPM(uid string) string {
-	token, err := b.ensureWebToken(uid)
-	if err != nil || token == "" {
+	grant, err := b.newLoginGrant(uid)
+	if err != nil || grant == "" {
 		return ""
 	}
-	url := b.loginURL(token)
-	if short, err := games.ShortenURL(url); err == nil && short != "" {
-		url = short
-	}
-	msg := i18n.T("web.login_pm", url)
+	msg := i18n.T("web.login_pm", b.loginURL(grant, ""))
 	if b.Cfg.EnableAbyss {
 		var bestDepth int
 		_ = b.DB.QueryRow("SELECT abyss_best_depth FROM users WHERE client_uid=$1", uid).Scan(&bestDepth)
-		// Point at the tokenized login link (which authenticates) with a post-login
-		// redirect to /abyss, instead of the bare protected route which would just
-		// bounce a signed-out user to /denied.
-		abyssURL := b.loginURL(token) + "&next=%2Fabyss"
-		if short, err := games.ShortenURL(abyssURL); err == nil && short != "" {
-			abyssURL = short
+		abyssGrant, grantErr := b.newLoginGrant(uid)
+		if grantErr == nil {
+			msg += fmt.Sprintf(
+				"\n⚔️ [b]The Abyss awaits![/b] Your best: floor %d.\nEnter the depths: %s",
+				bestDepth, b.loginURL(abyssGrant, "/abyss"),
+			)
 		}
-		msg += fmt.Sprintf("\n⚔️ [b]The Abyss awaits![/b] Your best: floor %d.\nEnter the depths: %s", bestDepth, abyssURL)
 	}
 	return msg
 }
 
-// uidForToken resolves a login token to a user UID.
-func (s *WebServer) uidForToken(token string) (string, bool) {
+// uidForSession resolves an unexpired session digest to a user UID.
+func (s *WebServer) uidForSession(token string) (string, bool) {
 	if token == "" {
 		return "", false
 	}
 	var uid string
-	err := s.bot.DB.QueryRow("SELECT client_uid FROM users WHERE web_token=$1", token).Scan(&uid)
+	err := s.bot.DB.QueryRow(
+		"SELECT client_uid FROM web_sessions WHERE token_hash=$1 AND expires_at > NOW()",
+		authTokenDigest(token),
+	).Scan(&uid)
 	if err != nil {
 		return "", false
 	}
@@ -867,7 +901,7 @@ func (s *WebServer) auth(h func(http.ResponseWriter, *http.Request, string)) htt
 			http.Redirect(w, r, "/denied", http.StatusSeeOther)
 			return
 		}
-		uid, ok := s.uidForToken(c.Value)
+		uid, ok := s.uidForSession(c.Value)
 		if !ok {
 			http.Redirect(w, r, "/denied", http.StatusSeeOther)
 			return
@@ -885,7 +919,7 @@ func (s *WebServer) authAPI(h func(http.ResponseWriter, *http.Request, string)) 
 			writeJSONStatus(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "unauthenticated"})
 			return
 		}
-		uid, ok := s.uidForToken(c.Value)
+		uid, ok := s.uidForSession(c.Value)
 		if !ok {
 			writeJSONStatus(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "unauthenticated"})
 			return
@@ -895,24 +929,64 @@ func (s *WebServer) authAPI(h func(http.ResponseWriter, *http.Request, string)) 
 }
 
 func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("token")
-	if _, ok := s.uidForToken(token); !ok {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	grant := r.URL.Query().Get("grant")
+	session, sessionDigest, err := newAuthToken()
+	if err != nil {
+		http.Error(w, "login unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	expires := time.Now().Add(sessionLifetime)
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
+	if err != nil {
+		http.Error(w, "login unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var uid string
+	err = tx.QueryRowContext(
+		r.Context(),
+		"DELETE FROM web_login_grants WHERE token_hash=$1 AND expires_at > NOW() RETURNING client_uid",
+		authTokenDigest(grant),
+	).Scan(&uid)
+	if err != nil {
 		http.Redirect(w, r, "/denied", http.StatusSeeOther)
 		return
 	}
+	if _, err = tx.ExecContext(
+		r.Context(),
+		"INSERT INTO web_sessions (token_hash, client_uid, expires_at) VALUES ($1, $2, $3)",
+		sessionDigest, uid, expires,
+	); err != nil {
+		http.Error(w, "login unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if err = tx.Commit(); err != nil {
+		http.Error(w, "login unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
 	// Only flag the cookie Secure when the portal is served over HTTPS, so the
 	// session token never leaks over plain HTTP in production deployments while
 	// still working for local http:// development.
 	secure := strings.HasPrefix(strings.ToLower(s.bot.Cfg.WebBaseURL), "https://")
-	expires := time.Now().Add(sessionLifetime)
 	http.SetCookie(w, &http.Cookie{ // #nosec G124 - Secure flag is conditionally set based on HTTPS
 		Name:     sessionCookie,
-		Value:    token,
+		Value:    session,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 		Expires:  expires,
+		MaxAge:   int(sessionLifetime.Seconds()),
 	})
 	// This companion cookie contains only the expiry timestamp, never the login
 	// token. JavaScript uses it to warn players before a long-running Abyss tab
@@ -922,8 +996,9 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Value:    fmt.Sprintf("%d", expires.Unix()),
 		Path:     "/",
 		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 		Expires:  expires,
+		MaxAge:   int(sessionLifetime.Seconds()),
 	})
 	// Honor an optional post-login destination, but only same-origin relative
 	// paths to avoid an open redirect: must start with a single "/", must not be
@@ -941,13 +1016,22 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 	secure := strings.HasPrefix(strings.ToLower(s.bot.Cfg.WebBaseURL), "https://")
+	if cookie, err := r.Cookie(sessionCookie); err == nil && cookie.Value != "" {
+		if _, err := s.bot.DB.ExecContext(
+			r.Context(),
+			"DELETE FROM web_sessions WHERE token_hash=$1",
+			authTokenDigest(cookie.Value),
+		); err != nil {
+			log.Printf("web: revoke session: %v", err)
+		}
+	}
 	http.SetCookie(w, &http.Cookie{ // #nosec G124 - Secure flag is conditionally set based on HTTPS
 		Name:     sessionCookie,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 		MaxAge:   -1,
 	})
 	http.SetCookie(w, &http.Cookie{ // #nosec G124 - Secure flag is conditionally set based on HTTPS
@@ -955,7 +1039,7 @@ func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 		MaxAge:   -1,
 	})
 	http.Redirect(w, r, "/denied", http.StatusSeeOther)

@@ -270,11 +270,16 @@ func (s *WebServer) handleAbyssCombatEvents(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache, no-transform")
 	w.Header().Set("X-Accel-Buffering", "no")
+	// The portal has a bounded global WriteTimeout. SSE is deliberately long
+	// lived, so clear that request-level deadline and apply a fresh, bounded
+	// deadline only while each event is written.
+	controller := http.NewResponseController(w)
+	_ = controller.SetWriteDeadline(time.Time{})
 
 	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
 	if !resume {
-		if err := writeAbyssLiveEvent(w, flusher, currentSnapshot); err != nil {
+		if err := writeAbyssLiveEvent(w, flusher, controller, currentSnapshot); err != nil {
 			return
 		}
 		lastEventID = currentSnapshot.Version
@@ -285,7 +290,7 @@ func (s *WebServer) handleAbyssCombatEvents(w http.ResponseWriter, r *http.Reque
 	for {
 		c.touchMember(uid)
 		for _, snapshot := range c.eventsAfter(uid, lastEventID) {
-			if err := writeAbyssLiveEvent(w, flusher, snapshot); err != nil {
+			if err := writeAbyssLiveEvent(w, flusher, controller, snapshot); err != nil {
 				return
 			}
 			lastEventID = snapshot.Version
@@ -316,7 +321,14 @@ func abyssLiveLastEventID(r *http.Request) (int64, bool, error) {
 	return eventID, true, nil
 }
 
-func writeAbyssLiveEvent(w http.ResponseWriter, flusher http.Flusher, snapshot abyssLiveSnapshot) error {
+func writeAbyssLiveEvent(
+	w http.ResponseWriter,
+	flusher http.Flusher,
+	controller *http.ResponseController,
+	snapshot abyssLiveSnapshot,
+) error {
+	_ = controller.SetWriteDeadline(time.Now().Add(15 * time.Second))
+	defer func() { _ = controller.SetWriteDeadline(time.Time{}) }()
 	data, err := json.Marshal(snapshot)
 	if err != nil {
 		return fmt.Errorf("encoding live combat event: %w", err)
