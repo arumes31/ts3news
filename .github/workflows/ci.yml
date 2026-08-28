@@ -135,7 +135,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Scan image for known vulnerabilities
-        uses: aquasecurity/trivy-action@ed142fd9a7c05f6955214f6d77e70ba923b183ba # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ts3news-ci:${{ github.sha }}
           format: table
@@ -186,7 +186,7 @@ jobs:
           cache-from: type=gha
 
       - name: Scan the exact published digest
-        uses: aquasecurity/trivy-action@ed142fd9a7c05f6955214f6d77e70ba923b183ba # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.publish.outputs.digest }}
           format: table
