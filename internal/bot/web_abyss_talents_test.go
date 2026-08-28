@@ -118,3 +118,36 @@ func TestAbyssTalentTreeShowsSharedCap(t *testing.T) {
 		}
 	}
 }
+
+func TestPartitionAbyssTalentLevelsKeepsOtherScopes(t *testing.T) {
+	t.Parallel()
+
+	levels := map[string]int{
+		"dd_0_0":              3,
+		"sp_delver_0_0":       2,
+		"sp_berserker_0_0":    1,
+		"removed_catalog_node": 4,
+	}
+	tests := []struct {
+		name      string
+		scope     string
+		wantReset int
+		wantKeep  int
+	}{
+		{name: "deep delver only", scope: "deep_delver", wantReset: 1, wantKeep: 3},
+		{name: "all specialization skills", scope: "specializations", wantReset: 2, wantKeep: 2},
+		{name: "all known talents", scope: "all", wantReset: 3, wantKeep: 1},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			reset, remaining := partitionAbyssTalentLevels(levels, test.scope)
+			if len(reset) != test.wantReset || len(remaining) != test.wantKeep {
+				t.Fatalf("partition = %d reset, %d remaining; want %d, %d", len(reset), len(remaining), test.wantReset, test.wantKeep)
+			}
+			if remaining["removed_catalog_node"] != 4 {
+				t.Fatal("unknown historical allocation was not preserved")
+			}
+		})
+	}
+}

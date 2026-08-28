@@ -89,7 +89,7 @@ func (b *Bot) talentLevelOf(uid, key string) int {
 func (s *WebServer) handleAbyssTalentUpgrade(w http.ResponseWriter, uid string, t content.Talent) {
 	levels := s.bot.loadAbyssTalentLevels(uid)
 	level := levels[t.Key]
-	if level >= content.TalentMaxLevel {
+	if level >= content.TalentLevelCap(t) {
 		writeJSON(w, map[string]any{"ok": false, "error": "maxed"})
 		return
 	}
@@ -136,15 +136,37 @@ func (s *WebServer) handleAbyssTalentUpgrade(w http.ResponseWriter, uid string, 
 func abyssTalentRefund(levels map[string]int) int64 {
 	var refund int64
 	for key, lvl := range levels {
-		if _, ok := content.TalentByKey(key); !ok {
+		talent, ok := content.TalentByKey(key)
+		if !ok {
 			continue // ignore stale keys from a removed node
 		}
-		if lvl > content.TalentMaxLevel {
-			lvl = content.TalentMaxLevel
+		if lvl > content.TalentLevelCap(talent) {
+			lvl = content.TalentLevelCap(talent)
 		}
 		for l := 1; l <= lvl; l++ {
 			refund += talentTokenCost(l - 1)
 		}
 	}
 	return refund
+}
+
+func partitionAbyssTalentLevels(levels map[string]int, scope string) (map[string]int, map[string]int) {
+	reset := map[string]int{}
+	remaining := map[string]int{}
+	for key, level := range levels {
+		talent, ok := content.TalentByKey(key)
+		if !ok {
+			remaining[key] = level
+			continue
+		}
+		matches := scope == "all" ||
+			scope == "deep_delver" && talent.Spec == "" ||
+			scope == "specializations" && talent.Spec != ""
+		if matches {
+			reset[key] = level
+		} else {
+			remaining[key] = level
+		}
+	}
+	return reset, remaining
 }

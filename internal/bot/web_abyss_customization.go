@@ -3,7 +3,9 @@ package bot
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"math/rand/v2"
 	"net/http"
@@ -825,7 +827,13 @@ func (s *WebServer) handleAbyssConvertMana(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Converted %d mana into +%d Max HP!", req.Amount, hpGain)})
 }
 
-// handleAbyssResetTalents resets all Deep-Delver upgrades and refunds their tokens.
+const abyssTalentRespecFee int64 = 10
+
+// handleAbyssResetTalents refunds one progression scope. The legacy request
+// without a body keeps its old "all" behavior; the tree UI sends an explicit
+// scope so Deep Delver and specialization allocations can be retuned without
+// erasing each other. The small fee is deducted from the refund, so a player is
+// never trapped because every token is currently allocated.
 func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -833,6 +841,21 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
+
+	var req struct {
+		Scope string `json:"scope"`
+	}
+	if err := readJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+	if req.Scope == "" {
+		req.Scope = "all"
+	}
+	if req.Scope != "all" && req.Scope != "deep_delver" && req.Scope != "specializations" {
+		writeJSON(w, map[string]any{"ok": false, "error": "unknown respec scope"})
+		return
+	}
 
 	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -843,14 +866,13 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 
 	var upVigor, upGreed, upFortune, upWard, upInterest, upTribute, upInsight int
 	var upSwift, upScav, upMercy, upCarto, upQuarter int
-	var tokens int64
 	err = tx.QueryRow(`SELECT abyss_up_vigor, abyss_up_greed, abyss_up_fortune, abyss_up_ward,
 	                          abyss_up_interest, abyss_up_tribute, abyss_up_insight,
 	                          abyss_up_swiftness, abyss_up_scavenger, abyss_up_mercy,
-	                          abyss_up_cartographer, abyss_up_quartermaster, abyss_tokens
+	                          abyss_up_cartographer, abyss_up_quartermaster
 	                     FROM users WHERE client_uid=$1`, uid).Scan(
 		&upVigor, &upGreed, &upFortune, &upWard, &upInterest, &upTribute, &upInsight,
-		&upSwift, &upScav, &upMercy, &upCarto, &upQuarter, &tokens,
+		&upSwift, &upScav, &upMercy, &upCarto, &upQuarter,
 	)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "user not found"})
@@ -859,6 +881,7 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 
 	// Spend sum calculation
 	calcRefund := func(level int) int64 {
+		level = min(max(level, 0), content.TalentMaxLevel)
 		sum := int64(0)
 		for l := 1; l <= level; l++ {
 			sum += talentTokenCost(l - 1)
@@ -866,69 +889,87 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 		return sum
 	}
 
-	refund := calcRefund(upVigor) + calcRefund(upGreed) + calcRefund(upFortune) + calcRefund(upWard) +
-		calcRefund(upInterest) + calcRefund(upTribute) + calcRefund(upInsight) +
-		calcRefund(upSwift) + calcRefund(upScav) + calcRefund(upMercy) +
-		calcRefund(upCarto) + calcRefund(upQuarter)
-
-	// Generic talents (Deep-Delver extension + spec sub-trees) are stored in
-	// app_meta and refund alongside the legacy columns.
-	genLevels := s.bot.loadAbyssTalentLevels(uid)
-	genRefund := abyssTalentRefund(genLevels)
-	totalRefund := refund + genRefund
-
-	if totalRefund <= 0 {
-		writeJSON(w, map[string]any{"ok": false, "error": "no talent points to reset"})
-		return
+	resetDeepDelver := req.Scope == "all" || req.Scope == "deep_delver"
+	legacyRefund := int64(0)
+	if resetDeepDelver {
+		legacyRefund = calcRefund(upVigor) + calcRefund(upGreed) + calcRefund(upFortune) + calcRefund(upWard) +
+			calcRefund(upInterest) + calcRefund(upTribute) + calcRefund(upInsight) +
+			calcRefund(upSwift) + calcRefund(upScav) + calcRefund(upMercy) +
+			calcRefund(upCarto) + calcRefund(upQuarter)
 	}
 
-	// Mana-conversion state (converted_hp / converted_mana_reduction) lives in
-	// abyss_upgrades but is not a Deep-Delver talent, so a talent reset must not wipe
-	// it. Rebuild the JSON from just those keys instead of blanking the whole column.
-	var upgradesJSON sql.NullString
-	_ = tx.QueryRow("SELECT abyss_upgrades FROM users WHERE client_uid=$1", uid).Scan(&upgradesJSON)
-	upgrades := map[string]int{}
-	if upgradesJSON.Valid && upgradesJSON.String != "" {
-		// Fail closed (same as handleAbyssConvertMana): continuing with an empty
-		// map would wipe the player's converted HP/mana state below.
-		if err := json.Unmarshal([]byte(upgradesJSON.String), &upgrades); err != nil {
-			log.Printf("abyss upgrades blob corrupt for %s during talent reset: %v", uid, err)
+	var levelsJSON string
+	_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1 FOR UPDATE", abyssTalentKey(uid)).Scan(&levelsJSON)
+	allLevels := map[string]int{}
+	if levelsJSON != "" {
+		if err := json.Unmarshal([]byte(levelsJSON), &allLevels); err != nil {
+			log.Printf("abyss talent levels corrupt for %s during scoped reset: %v", uid, err)
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
 	}
-	preserved := map[string]int{}
-	for _, k := range []string{"converted_hp", "converted_mana_reduction"} {
-		if v, ok := upgrades[k]; ok {
-			preserved[k] = v
-		}
-	}
-	preservedBytes, err := json.Marshal(preserved)
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+	resetLevels, remainingLevels := partitionAbyssTalentLevels(allLevels, req.Scope)
+	grossRefund := legacyRefund + abyssTalentRefund(resetLevels)
+	if grossRefund <= 0 {
+		writeJSON(w, map[string]any{"ok": false, "error": "no talent points to reset"})
 		return
 	}
+	netRefund := max(int64(0), grossRefund-abyssTalentRespecFee)
 
-	// Reset columns
-	_, err = tx.Exec(`UPDATE users
-	                     SET abyss_up_vigor=0, abyss_up_greed=0, abyss_up_fortune=0, abyss_up_ward=0,
-	                         abyss_up_interest=0, abyss_up_tribute=0, abyss_up_insight=0,
-	                         abyss_up_swiftness=0, abyss_up_scavenger=0, abyss_up_mercy=0,
-	                         abyss_up_cartographer=0, abyss_up_quartermaster=0,
-	                         abyss_tokens = abyss_tokens + $1, abyss_upgrades = $3::jsonb
-	                   WHERE client_uid=$2`, totalRefund, uid, string(preservedBytes))
+	// Mana-conversion state (converted_hp / converted_mana_reduction) lives in
+	// abyss_upgrades but is not a Deep-Delver talent, so a talent reset must not wipe
+	// it. Rebuild the JSON from just those keys instead of blanking the whole column.
+	if resetDeepDelver {
+		var upgradesJSON sql.NullString
+		_ = tx.QueryRow("SELECT abyss_upgrades FROM users WHERE client_uid=$1", uid).Scan(&upgradesJSON)
+		upgrades := map[string]int{}
+		if upgradesJSON.Valid && upgradesJSON.String != "" {
+			if err := json.Unmarshal([]byte(upgradesJSON.String), &upgrades); err != nil {
+				log.Printf("abyss upgrades blob corrupt for %s during talent reset: %v", uid, err)
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+		}
+		preserved := map[string]int{}
+		for _, key := range []string{"converted_hp", "converted_mana_reduction"} {
+			if value, ok := upgrades[key]; ok {
+				preserved[key] = value
+			}
+		}
+		preservedBytes, marshalErr := json.Marshal(preserved)
+		if marshalErr != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		_, err = tx.Exec(`UPDATE users
+		                     SET abyss_up_vigor=0, abyss_up_greed=0, abyss_up_fortune=0, abyss_up_ward=0,
+		                         abyss_up_interest=0, abyss_up_tribute=0, abyss_up_insight=0,
+		                         abyss_up_swiftness=0, abyss_up_scavenger=0, abyss_up_mercy=0,
+		                         abyss_up_cartographer=0, abyss_up_quartermaster=0,
+		                         abyss_tokens = abyss_tokens + $1, abyss_upgrades = $3::jsonb
+		                   WHERE client_uid=$2`, netRefund, uid, string(preservedBytes))
+	} else {
+		_, err = tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", netRefund, uid)
+	}
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db update"})
 		return
 	}
 
-	// Clear the generic talent allocation in the same transaction so the refund and
-	// the wipe commit together (never one without the other).
-	if genRefund > 0 {
-		if _, err = tx.Exec("DELETE FROM app_meta WHERE key=$1", abyssTalentKey(uid)); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "db update"})
+	if len(remainingLevels) == 0 {
+		_, err = tx.Exec("DELETE FROM app_meta WHERE key=$1", abyssTalentKey(uid))
+	} else {
+		remainingBytes, marshalErr := json.Marshal(remainingLevels)
+		if marshalErr != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
+		_, err = tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
+			ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, abyssTalentKey(uid), string(remainingBytes))
+	}
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db update"})
+		return
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -936,7 +977,11 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Talents reset successfully! Refunded %d tokens.", totalRefund), "tokens": s.bot.abyssTokens(uid)})
+	writeJSON(w, map[string]any{
+		"ok": true, "scope": req.Scope, "gross_refund": grossRefund,
+		"fee": abyssTalentRespecFee, "refund": netRefund, "tokens": s.bot.abyssTokens(uid),
+		"msg": fmt.Sprintf("Respec complete — %d tokens refunded after the %d-token fee.", netRefund, abyssTalentRespecFee),
+	})
 }
 
 // handleAbyssInsureItem spends 200 gold to permanently mark a gear piece as insured.

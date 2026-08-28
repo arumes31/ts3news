@@ -657,27 +657,18 @@ var TALENTS = [
   { key: 'quartermaster', label: 'Quartermaster', desc: '+1 consumable carry slot / level', x: 740, y: 500, parent: 'cartographer', icon: 'visored-helm', gateDepth: 30 }
 ];
 
-// Deep-Delver extension: 50 generic talent nodes authored in Go
+// Deep-Delver extension: 100 generic talent nodes authored in Go
 // (internal/content/abyss_talents.go), concatenated here so the existing talents
 // renderer/allocation flow handles them with no per-node UI code.
 TALENTS = TALENTS.concat({{jsonJS .DelverTalentDefs}});
 Object.assign(talentLevels, {{jsonJS .DelverTalentLevels}});
 
-var SPECIALIZATIONS = [
-  { key: 'initiate', label: 'Initiate', desc: 'Starting rank. Swapping specializations costs 🜲 25 tokens.', x: 0, y: -100, parent: null, icon: 'laurel-crown', targetSpec: '' },
-  
-  { key: 'novice_delver', label: 'Novice Delver', desc: 'The path of experience and progression.', x: -160, y: 20, parent: 'initiate', icon: 'progression', targetSpec: 'delver' },
-  { key: 'delver', label: 'Delver Spec', desc: 'Active Perk: +10% floor reward XP inside the Abyss.', x: -280, y: 140, parent: 'novice_delver', icon: 'spell-book', targetSpec: 'delver' },
-  
-  { key: 'novice_plunderer', label: 'Novice Plunderer', desc: 'The path of accumulation and wealth.', x: 0, y: 40, parent: 'initiate', icon: 'clover', targetSpec: 'plunderer' },
-  { key: 'plunderer', label: 'Plunderer Spec', desc: 'Active Perk: +10% escrow floor bonus inside the Abyss.', x: 0, y: 180, parent: 'novice_plunderer', icon: 'open-treasure-chest', targetSpec: 'plunderer' },
-  
-  { key: 'novice_warden', label: 'Novice Warden', desc: 'The path of fortitude and resilience.', x: 160, y: 20, parent: 'initiate', icon: 'checked-shield', targetSpec: 'warden' },
-  { key: 'warden', label: 'Warden Spec', desc: 'Active Perk: +5% all stats inside the Abyss.', x: 280, y: 140, parent: 'novice_warden', icon: 'visored-helm', targetSpec: 'warden' }
-];
+// The specialization constellation is server-authored so adding a class cannot
+// leave validation, perks, labels and the visible picker out of sync.
+var SPECIALIZATIONS = {{jsonJS .SpecializationNodes}};
 
-// Per-spec allocatable sub-trees (50 nodes each), authored in Go. Only the active
-// spec's tree is rendered/allocatable in the Specializations tab.
+// Per-spec allocatable sub-trees, authored in Go. The original three retain
+// their 50-node trees; each added specialization has 25 one-rank skills.
 var SPEC_TALENTS = {{jsonJS .SpecTalentDefs}};
 
 // findTalent resolves a talent key across the Deep-Delver tree and every spec
@@ -1324,7 +1315,7 @@ function build(){
     var gN = document.createElementNS(NS, 'g');
     TALENTS.forEach(function(t) {
       var level = talentLevels[t.key] || 0;
-      var maxLevel = TALENT_MAX_LEVEL;
+      var maxLevel = t.maxLevel || TALENT_MAX_LEVEL;
       
       var parentNode = t.parent ? TALENTS.find(p => p.key === t.parent) : null;
       var parentLvl = parentNode ? (talentLevels[parentNode.key] || 0) : 1;
@@ -1440,7 +1431,7 @@ function build(){
     });
     svg.appendChild(gN);
 
-    // Active spec's allocatable sub-tree (50 nodes). Only the chosen spec's tree
+    // Active spec's allocatable sub-tree. Only the chosen spec's tree
     // is drawn; each node gates on the spec being active + its prerequisite + depth
     // record. Uses the shared talent upgrade/tooltip helpers.
     if (activeSpec && SPEC_TALENTS[activeSpec]) {
@@ -1469,13 +1460,14 @@ function build(){
       var gSN = document.createElementNS(NS, 'g');
       specList.forEach(function(t){
         var level = talentLevels[t.key] || 0;
+        var maxLevel = t.maxLevel || TALENT_MAX_LEVEL;
         var pLvl = (t.parent && t.parent.indexOf('sp_') === 0) ? (talentLevels[t.parent] || 0) : 1;
         var isUnlocked = pLvl > 0 && bestDepth >= (t.gateDepth || 0);
         var c = document.createElementNS(NS, 'circle');
         c.setAttribute('cx', t.x); c.setAttribute('cy', t.y); c.setAttribute('r', 14);
         var cls = 'tn t-notable';
         if (level > 0) cls += ' on';
-        else if (isUnlocked && level < TALENT_MAX_LEVEL && tokenBalance >= (level + 1) * 10) cls += ' can';
+        else if (isUnlocked && level < maxLevel && tokenBalance >= (level + 1) * 10) cls += ' can';
         c.setAttribute('class', cls);
         c.setAttribute('tabindex', '0');
         c.addEventListener('click', function(ev){ ev.stopPropagation(); tryUpgradeTalent(t.key); });
@@ -1489,7 +1481,7 @@ function build(){
         txt2.setAttribute('fill', '#ffffff'); txt2.setAttribute('font-size', '9');
         txt2.setAttribute('font-weight', 'bold'); txt2.setAttribute('text-anchor', 'middle');
         txt2.setAttribute('style', 'pointer-events: none; font-family: system-ui, sans-serif;');
-        txt2.textContent = t.label + ' (' + level + '/' + TALENT_MAX_LEVEL + ')';
+        txt2.textContent = t.label + ' (' + level + '/' + maxLevel + ')';
         gSN.appendChild(txt2);
       });
       svg.appendChild(gSN);
@@ -1543,10 +1535,10 @@ function switchTab(tab) {
     if (legendText) legendText.textContent = 'Drag to pan · wheel to zoom · click a highlighted node to allocate';
   } else if (tab === 'talents') {
     title.textContent = '🜲 Deep Delver Upgrades';
-    sub.textContent = 'Upgrade your permanent Deep Delver attributes using Abyss Tokens. Upgrades require prerequisite levels in the tree branch and are gated by your depth record.';
+    sub.textContent = 'Upgrade 10 permanent Deep Delver disciplines using Abyss Tokens. Upgrades require prerequisite levels in the branch and are gated by your depth record.';
     respecBtn.style.display = '';
-    respecBtn.setAttribute('onclick', 'resetTalents()');
-    respecBtn.innerHTML = '♻️ Refund All (🜲 10)';
+    respecBtn.setAttribute('onclick', "resetTalents('deep_delver','Deep Delver upgrades')");
+    respecBtn.innerHTML = '♻️ Refund Deep Delver (🜲 10 fee)';
     document.getElementById('treePointsPill').style.display = 'none';
     document.getElementById('treeAvailPill').style.display = 'none';
     if (tokensPill) tokensPill.style.display = '';
@@ -1555,8 +1547,10 @@ function switchTab(tab) {
     if (legendText) legendText.textContent = 'Drag to pan · wheel to zoom · click a talent node to upgrade';
   } else if (tab === 'specializations') {
     title.textContent = '🎓 Specializations';
-    sub.textContent = 'Choose one active specialization for its perk, then spend 🜲 tokens on its 50-node sub-tree below. Swapping specializations costs 🜲 25 tokens; the other trees\' points stay allocated and re-activate if you switch back.';
-    respecBtn.style.display = 'none';
+    sub.textContent = 'Choose one of 13 active specializations, then invest in its skill tree. The 10 added paths each hold exactly 25 one-rank skill points. Other trees stay allocated and re-activate when selected.';
+    respecBtn.style.display = '';
+    respecBtn.setAttribute('onclick', "resetTalents('specializations','all specialization skills')");
+    respecBtn.innerHTML = '♻️ Refund Spec Skills (🜲 10 fee)';
     document.getElementById('treePointsPill').style.display = 'none';
     document.getElementById('treeAvailPill').style.display = 'none';
     if (tokensPill) tokensPill.style.display = '';
@@ -1566,8 +1560,8 @@ function switchTab(tab) {
   }
   
   view = (tab === 'passive')  ? {x:-1800, y:-1800, w:3600, h:3600}
-       : (tab === 'talents')  ? {x:-780, y:-220, w:1560, h:1560}
-       : {x:-560, y:-170, w:1120, h:1120};
+       : (tab === 'talents')  ? {x:-1250, y:-220, w:2500, h:1560}
+       : {x:-620, y:-560, w:1240, h:1240};
 
   // Group G widgets belong to the passive web only.
   var tb2 = document.getElementById('treeToolbar2');
@@ -1582,12 +1576,13 @@ function switchTab(tab) {
 
 async function tryUpgradeTalent(key) {
   var level = talentLevels[key] || 0;
-  if (level >= TALENT_MAX_LEVEL) {
+  var t = findTalent(key);
+  if (!t) return;
+  var maxLevel = t.maxLevel || TALENT_MAX_LEVEL;
+  if (level >= maxLevel) {
     abToast('Already at maximum level.', false);
     return;
   }
-  var t = findTalent(key);
-  if (!t) return;
   var parentNode = t.parent ? findTalent(t.parent) : null;
   var parentLvl = parentNode ? (talentLevels[parentNode.key] || 0) : 1;
   if (parentLvl < 1) {
@@ -1669,7 +1664,7 @@ function showTalentTip(t, ev) {
   tip.style.pointerEvents = 'none';
   
   var level = talentLevels[t.key] || 0;
-  var maxLevel = TALENT_MAX_LEVEL;
+  var maxLevel = t.maxLevel || TALENT_MAX_LEVEL;
   var cost = (level < maxLevel) ? (level + 1) * 10 : 0;
   
   var parentNode = t.parent ? findTalent(t.parent) : null;
@@ -1681,7 +1676,7 @@ function showTalentTip(t, ev) {
   var statusHtml = '';
   
   if (level >= maxLevel) {
-    statusHtml = '<br><span class="tt-on" style="color: #41c97a; margin-top:4px; display:inline-block;">● Max Level reached (' + TALENT_MAX_LEVEL + '/' + TALENT_MAX_LEVEL + ')</span>';
+    statusHtml = '<br><span class="tt-on" style="color: #41c97a; margin-top:4px; display:inline-block;">● Max Level reached (' + maxLevel + '/' + maxLevel + ')</span>';
   } else if (!isUnlocked) {
     if (parentNode && parentLvl < 1) {
       statusHtml = '<br><span class="muted small" style="color: #da3737; margin-top:4px; display:inline-block;">🔒 Locked — Requires ' + parentNode.label + ' level 1+</span>';
@@ -1689,8 +1684,8 @@ function showTalentTip(t, ev) {
       statusHtml = '<br><span class="muted small" style="color: #da3737; margin-top:4px; display:inline-block;">🔒 Locked — Requires depth ' + t.gateDepth + ' (record: ' + bestDepth + ')</span>';
     }
   } else {
-    statusHtml = '<br><span class="tt-can" style="color: #f4c542; margin-top:4px; display:inline-block;">○ Level ' + level + '/' + TALENT_MAX_LEVEL + ' — Click node to upgrade (Cost: 🜲 ' + cost + ')</span>';
-	if (level >= 5) statusHtml += '<br><span class="muted small">Soft cap active · ranks 6–10 grant 50% effect.</span>';
+    statusHtml = '<br><span class="tt-can" style="color: #f4c542; margin-top:4px; display:inline-block;">○ Level ' + level + '/' + maxLevel + ' — Click node to upgrade (Cost: 🜲 ' + cost + ')</span>';
+	if (maxLevel > 5 && level >= 5) statusHtml += '<br><span class="muted small">Soft cap active · ranks 6–10 grant 50% effect.</span>';
   }
   
   tip.innerHTML = nameHtml + '<br><span class="muted small" style="margin-top:4px; display:inline-block;">' + escHtml(t.desc) + '</span>' + statusHtml;
