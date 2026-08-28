@@ -66,5 +66,5 @@ WORKDIR /app
 ENV HOME=/home/ts3bot
 USER 10001:10001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD pgrep -x bot >/dev/null || exit 1
+  CMD ["pgrep", "-x", "bot"]
 ENTRYPOINT ["/entrypoint.sh"]

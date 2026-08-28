@@ -79,6 +79,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   source-lint:
     name: Container Source Lint
