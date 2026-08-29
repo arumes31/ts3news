@@ -422,6 +422,10 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 	for k, v := range talentBonus.Pct {
 		tb.Pct[k] += v
 	}
+	// The ten added specialization perks share the canonical tree bonus payload,
+	// so combat, skills, XP, loot and material consumers all see one source of
+	// truth. The original three perks retain their established dedicated hooks.
+	applyAbyssSpecializationPassive(b.abyssSpec(uid), &tb)
 	// Post-prestige Paragon ranks and family-specific Bestiary talents share the
 	// cached tree-bonus payload used by the live Abyss combat engine.
 	b.applyAbyssMasteryBonuses(uid, &tb)
@@ -572,14 +576,16 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		"RespecTk":  abyssTreeRespecTokens,
 		// Talent/Spec updates
 		"Stats":    st,
-		"Spec":     s.bot.abyssSpec(uid),
-		"SpecDefs": abyssSpecs,
-		// Deep-Delver extension: 50 generic talent nodes + their allocated levels,
+		"Spec":                s.bot.abyssSpec(uid),
+		"SpecDefs":            abyssSpecs,
+		"SpecializationNodes": abyssSpecializationNodes(),
+		// Deep-Delver extension: 100 generic talent nodes + their allocated levels,
 		// concatenated into the client TALENTS array (single source of truth in Go).
 		"DelverTalentDefs":   content.DeepDelverTalents,
 		"DelverTalentLevels": s.bot.loadAbyssTalentLevels(uid),
 		"TalentMaxLevel":     content.TalentMaxLevel,
-		// Per-spec allocatable sub-trees (50 nodes each); the active spec's tree is
+		// Per-spec allocatable sub-trees (the original three have 50 nodes; each
+		// added specialization has exactly 25 one-rank skills). The active tree is
 		// drawn in the Specializations tab. Levels reuse DelverTalentLevels above
 		// (loadAbyssTalentLevels returns every generic key, spec nodes included).
 		"SpecTalentDefs": content.SpecTalents,

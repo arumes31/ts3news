@@ -159,7 +159,8 @@ func TestAbyssEconomyPlayerControlsAndRoutes(t *testing.T) {
 	for _, required := range []string{
 		"/api/abyss/shop/token_bundle", "/api/abyss/shop/potion_subscription", "/api/abyss/shop/repair_subscription",
 		"/api/abyss/shop/auto_insure", "Auto-insure:",
-		"Linear repair curve: each missing durability point costs exactly 200g", "Current full-repair total: {{gold .RepairAllCost}}",
+		"Depth pressure: 200g × (1 + floor(depth/10)²)", "Legendary / Mythic / Divine / Celestial / Eternal",
+		"Current full-repair total: {{gold .RepairAllCost}}",
 		"/api/abyss/shop/scratch", "/api/abyss/shop/gift_create", "/api/abyss/shop/gift_redeem",
 		"/api/abyss/economy/loan", "/api/abyss/economy/tax_rebate", "/api/ah/watch", "/api/ah/notices",
 		"/api/ah/bulk_relist", "/api/ah/material_order", "/api/ah/material_fill", "/api/ah/material_cancel", "/api/ah/bid",

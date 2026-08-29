@@ -209,15 +209,17 @@ function promptModal(message, defaultValue){
 // Shared Abyss talent reset, callable from any page that includes this foot.
 // Every helper is guarded: pages that never call resetTalents may not define
 // busy/setBusy/abPost/abToast at all.
-async function resetTalents() {
+async function resetTalents(scope, label) {
   if (typeof confirmModal !== 'function' || typeof abPost !== 'function') return;
   if (typeof busy !== 'undefined' && busy) return;
+  scope = scope || 'all';
+  label = label || 'all talent and specialization skills';
   if (typeof setBusy === 'function') setBusy(true);
-  if (!(await confirmModal('Reset all Deep-Delver talent upgrades and refund all spent tokens for 🜲 10 tokens?', {title:'Reset Talents', okLabel:'Reset'}))) {
+  if (!(await confirmModal('Refund ' + label + '? A 🜲 10 fee is deducted from the returned tokens; other progression scopes stay intact.', {title:'Scoped Respec', okLabel:'Refund skills'}))) {
     if (typeof setBusy === 'function') setBusy(false);
     return;
   }
-  var d = await abPost('/api/abyss/reset_talents');
+  var d = await abPost('/api/abyss/reset_talents', {scope:scope});
   if (typeof setBusy === 'function') setBusy(false);
   if (!d.ok) { if (typeof abToast === 'function') abToast(d.error || 'Failed', false); return; }
   if (typeof setTokens === 'function') setTokens(d.tokens);

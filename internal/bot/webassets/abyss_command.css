@@ -1044,6 +1044,8 @@ body:has(.abyss-command-page) .modal-overlay {
    loadout remains visible without consuming combat width. */
 @media (min-width: 1900px) and (min-height: 900px) {
   .abyss-command-page .ab-combat-cockpit > .abyss-stage-row {
+    width: 100%;
+    min-width: 0;
     grid-template-columns: minmax(0, 1fr) minmax(190px, 230px);
   }
 
@@ -1059,8 +1061,17 @@ body:has(.abyss-command-page) .modal-overlay {
     max-height: none;
   }
 
-  .abyss-command-page .ab-combat-cockpit > .abyss-stage-row > .abyss-stage { grid-column: 1; }
+  .abyss-command-page .ab-combat-cockpit > .abyss-stage-row > .abyss-stage {
+    grid-column: 1;
+    width: 100%;
+    min-width: 0;
+  }
   .abyss-command-page .ab-combat-cockpit > .abyss-stage-row > .abyss-side-right { grid-column: 2; }
+
+  .abyss-command-page .ab-combat-cockpit > .abyss-stage-row .abyss-controls,
+  .abyss-command-page .ab-combat-cockpit > .abyss-stage-row .ab-current-objective {
+    min-width: 0;
+  }
 }
 
 @media (max-width: 900px) {

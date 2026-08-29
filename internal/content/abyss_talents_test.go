@@ -53,3 +53,36 @@ func TestTalentBonusUsesDiminishingRanks(t *testing.T) {
 		}
 	}
 }
+
+func TestExpandedTalentCatalog(t *testing.T) {
+	t.Parallel()
+
+	if got := len(DeepDelverTalents); got != 100 {
+		t.Fatalf("DeepDelverTalents has %d nodes, want 100", got)
+	}
+	if got := len(SpecTalents); got != 13 {
+		t.Fatalf("SpecTalents has %d specializations, want 13", got)
+	}
+	for spec := range compactSpecProfiles {
+		talents := SpecTalents[spec]
+		if len(talents) != 25 {
+			t.Errorf("%s has %d skills, want 25", spec, len(talents))
+		}
+		for _, talent := range talents {
+			if TalentLevelCap(talent) != 1 {
+				t.Errorf("%s skill %s cap = %d, want 1", spec, talent.Key, TalentLevelCap(talent))
+			}
+		}
+	}
+}
+
+func TestCompactSpecializationBonusHonorsOnePointCap(t *testing.T) {
+	t.Parallel()
+
+	talent := SpecTalents["berserker"][0]
+	onePoint := TalentBonus(map[string]int{talent.Key: 1}, "berserker")
+	overfilled := TalentBonus(map[string]int{talent.Key: 10}, "berserker")
+	if onePoint.Pct["str_pct"] != overfilled.Pct["str_pct"] {
+		t.Fatalf("one-point skill overfilled: one=%v overfilled=%v", onePoint.Pct, overfilled.Pct)
+	}
+}

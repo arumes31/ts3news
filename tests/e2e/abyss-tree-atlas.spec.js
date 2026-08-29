@@ -11,6 +11,10 @@ test('every live Skill Web node uses its unique discipline atlas icon', async ({
   await page.goto('/abyss/tree');
 
   expect(await page.evaluate(() => TALENT_MAX_LEVEL)).toBe(10);
+  expect(await page.evaluate(() => TALENTS.filter(node => node.key.startsWith('dd_')).length)).toBe(100);
+  expect(await page.evaluate(() => Object.keys(SPEC_TALENTS).length)).toBe(13);
+  expect(await page.evaluate(() => SPEC_TALENTS.berserker.length)).toBe(25);
+  expect(await page.evaluate(() => SPEC_TALENTS.berserker.every(node => node.maxLevel === 1))).toBe(true);
   await page.evaluate(() => {
     const talent = TALENTS.find(node => node.key === 'dd_0_0');
     bestDepth = 100;
@@ -70,6 +74,15 @@ test('every live Skill Web node uses its unique discipline atlas icon', async ({
     const y = Math.max(0, Math.floor((canvas.height - height) / 2));
     return context.getImageData(x, y, width, height).data.some((value, index) => index % 4 === 3 && value > 0);
   })).toBe(true);
+
+  await page.evaluate(() => {
+    activeSpec = 'berserker';
+    switchTab('specializations');
+  });
+  expect(await page.evaluate(() => SPECIALIZATIONS.filter(node => node.key === node.targetSpec).length)).toBe(13);
+  await expect(page.locator('#treeSubtitle')).toContainText('13 active specializations');
+  await expect(page.locator('#treeRespecBtn')).toContainText('Refund Spec Skills');
+  await expect(page.locator('#treeSvg circle.t-notable')).toHaveCount(25);
 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);

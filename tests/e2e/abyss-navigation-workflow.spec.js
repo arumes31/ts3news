@@ -117,3 +117,29 @@ test('wide cockpit keeps the Armoury fixed in the left viewport gutter', async (
   expect(layout.armoury.left).toBeLessThanOrEqual(12);
   expect(layout.armoury.right).toBeLessThan(layout.stage.left);
 });
+
+test('ultrawide lobby gives the command deck the available center lane', async ({ page }) => {
+  await page.setViewportSize({ width: 2048, height: 1048 });
+  await page.goto('/abyss');
+
+  const layout = await page.evaluate(() => {
+    const box = selector => document.querySelector(selector).getBoundingClientRect();
+    return {
+      cockpit: box('#abyssCombatCockpit'),
+      row: box('.abyss-stage-row'),
+      stage: box('#abyssStage'),
+      controls: box('#abyssControls'),
+      objective: box('#abCurrentObjective'),
+      enter: box('#btnEnter'),
+      loot: box('.abyss-side-right'),
+    };
+  });
+
+  expect(layout.row.width).toBeGreaterThanOrEqual(layout.cockpit.width - 1);
+  expect(layout.stage.width).toBeGreaterThan(700);
+  expect(layout.controls.width).toBeGreaterThan(420);
+  expect(layout.objective.width).toBeGreaterThan(600);
+  expect(layout.enter.width).toBeGreaterThan(110);
+  expect(layout.enter.right).toBeLessThanOrEqual(layout.stage.right);
+  expect(layout.stage.right).toBeLessThanOrEqual(layout.loot.left - 8);
+});

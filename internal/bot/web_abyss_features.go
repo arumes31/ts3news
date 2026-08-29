@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/rand/v2"
 	"net/http"
 	"sort"
@@ -1435,29 +1436,103 @@ func (s *WebServer) handleAbyssCleanse(w http.ResponseWriter, r *http.Request, u
 
 // ---- Repair all (#124) & auto-repair (#125) ---------------------------------
 
-// abyssRepairAllCost prices a full repair: 200 gold per missing durability point.
-func (b *Bot) abyssRepairAllCost(uid string) int64 {
-	b.ensureGearMaxDurability(uid)
-	var missing int64
-	_ = b.DB.QueryRow("SELECT COALESCE(SUM(GREATEST("+gearMaxDurExpr+" - durability, 0)),0) FROM user_gear WHERE client_uid=$1", uid).Scan(&missing)
-	return missing * 200
+const abyssRepairBaseGold int64 = 200
+
+type abyssRepairQuote struct {
+	Cost             int64
+	RunDepth         int
+	DeepestItem      int
+	HighestRarity    content.Rarity
+	HighestPointCost int64
 }
 
-func abyssRepairAllCostTx(tx *sql.Tx, uid string) (int64, error) {
-	rows, err := tx.Query("SELECT durability, "+gearMaxDurExpr+" FROM user_gear WHERE client_uid=$1 FOR UPDATE", uid)
+func abyssRepairDepthMultiplier(depth int) int64 {
+	// Every ten layers adds a squared pressure tier. Depth 10 remains ×2,
+	// depth 50 reaches ×26 and depth 100 reaches ×101: deliberately drastic,
+	// but deterministic and easy to explain in the quote.
+	tier := min(max(depth, 0)/10, 100)
+	return 1 + int64(tier*tier)
+}
+
+func abyssRepairRarityMultiplier(rarity content.Rarity) int64 {
+	switch {
+	case rarity >= content.RarityEternal:
+		return 12
+	case rarity >= content.RarityCelestial:
+		return 8
+	case rarity >= content.RarityDivine:
+		return 5
+	case rarity >= content.RarityMythic:
+		return 3
+	case rarity >= content.RarityLegendary:
+		return 2
+	default:
+		return 1
+	}
+}
+
+func abyssRepairItemCost(missing int64, rarity content.Rarity, depth int) int64 {
+	if missing <= 0 {
+		return 0
+	}
+	return missing * abyssRepairBaseGold * abyssRepairDepthMultiplier(depth) * abyssRepairRarityMultiplier(rarity)
+}
+
+func (b *Bot) scanAbyssRepairQuote(rows *sql.Rows, runDepth int) (abyssRepairQuote, error) {
+	quote := abyssRepairQuote{RunDepth: runDepth}
+	for rows.Next() {
+		var gearID string
+		var itemData sql.NullString
+		var durability, maximum int64
+		if err := rows.Scan(&gearID, &itemData, &durability, &maximum); err != nil {
+			return quote, err
+		}
+		gear, ok := b.makeGear(gearID, itemData)
+		if !ok {
+			gear = content.Gear{ID: gearID}
+		}
+		depth := max(runDepth, gear.FoundDepth)
+		pointCost := abyssRepairItemCost(1, gear.Rarity, depth)
+		quote.Cost += abyssRepairItemCost(max(int64(0), maximum-durability), gear.Rarity, depth)
+		quote.DeepestItem = max(quote.DeepestItem, gear.FoundDepth)
+		quote.HighestRarity = max(quote.HighestRarity, gear.Rarity)
+		quote.HighestPointCost = max(quote.HighestPointCost, pointCost)
+	}
+	return quote, rows.Err()
+}
+
+func (b *Bot) abyssRepairAllQuote(uid string) (abyssRepairQuote, error) {
+	b.ensureGearMaxDurability(uid)
+	var runDepth int
+	_ = b.DB.QueryRow("SELECT depth FROM abyss_active WHERE client_uid=$1", uid).Scan(&runDepth)
+	rows, err := b.DB.Query(
+		"SELECT gear_id, item_data, durability, "+gearMaxDurExpr+" FROM user_gear WHERE client_uid=$1",
+		uid,
+	)
 	if err != nil {
-		return 0, err
+		return abyssRepairQuote{}, err
 	}
 	defer func() { _ = rows.Close() }()
-	var missing int64
-	for rows.Next() {
-		var durability, maximum int64
-		if err := rows.Scan(&durability, &maximum); err != nil {
-			return 0, err
-		}
-		missing += max(0, maximum-durability)
+	return b.scanAbyssRepairQuote(rows, runDepth)
+}
+
+func (b *Bot) abyssRepairAllCost(uid string) int64 {
+	quote, _ := b.abyssRepairAllQuote(uid)
+	return quote.Cost
+}
+
+func abyssRepairAllQuoteTx(b *Bot, tx *sql.Tx, uid string) (abyssRepairQuote, error) {
+	var runDepth int
+	_ = tx.QueryRow("SELECT depth FROM abyss_active WHERE client_uid=$1", uid).Scan(&runDepth)
+	rows, err := tx.Query(
+		"SELECT gear_id, item_data, durability, "+gearMaxDurExpr+" FROM user_gear WHERE client_uid=$1 FOR UPDATE",
+		uid,
+	)
+	if err != nil {
+		return abyssRepairQuote{}, err
 	}
-	return missing * 200, rows.Err()
+	defer func() { _ = rows.Close() }()
+	return b.scanAbyssRepairQuote(rows, runDepth)
 }
 
 func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request, uid string) {
@@ -1480,15 +1555,22 @@ func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request,
 	}
 
 	if req.Preview {
-		cost := s.bot.abyssRepairAllCost(uid)
+		quote, err := s.bot.abyssRepairAllQuote(uid)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
 		covered := s.bot.abyssRepairSubscriptionActive(uid, time.Now())
 		forgeFloor := s.bot.abyssForgeFloorAvailable(r.Context(), uid, "repair_all")
-		charged := abyssRepairSubscriptionCharge(cost, covered)
+		charged := abyssRepairSubscriptionCharge(quote.Cost, covered)
 		if forgeFloor {
 			charged = 0
 		}
 		writeJSON(w, map[string]any{
-			"ok": true, "cost": charged, "covered": covered, "forge_floor": forgeFloor, "repairable": cost > 0,
+			"ok": true, "cost": charged, "covered": covered, "forge_floor": forgeFloor,
+			"repairable": quote.Cost > 0, "run_depth": quote.RunDepth, "deepest_item": quote.DeepestItem,
+			"highest_rarity": quote.HighestRarity.String(), "highest_point_cost": quote.HighestPointCost,
+			"curve": "Base 200g × (1 + floor(depth/10)²) × rarity (Legendary 2, Mythic 3, Divine 5, Celestial 8, Eternal 12)",
 		})
 		return
 	}
@@ -1498,12 +1580,12 @@ func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	cost, err := abyssRepairAllCostTx(tx, uid)
+	quote, err := abyssRepairAllQuoteTx(s.bot, tx, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if cost <= 0 {
+	if quote.Cost <= 0 {
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing to repair"})
 		return
 	}
@@ -1517,7 +1599,7 @@ func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	covered := s.bot.abyssRepairSubscriptionActive(uid, time.Now())
-	charged := abyssRepairSubscriptionCharge(cost, covered)
+	charged := abyssRepairSubscriptionCharge(quote.Cost, covered)
 	if forgeFloorUsed {
 		charged = 0
 	}
@@ -1542,7 +1624,8 @@ func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request,
 	}
 	writeJSON(w, map[string]any{
 		"ok": true, "msg": msg, "gold": gold, "cost": charged, "covered": covered,
-		"forge_floor_used": forgeFloorUsed,
+		"forge_floor_used": forgeFloorUsed, "run_depth": quote.RunDepth,
+		"deepest_item": quote.DeepestItem, "highest_rarity": quote.HighestRarity.String(),
 	})
 }
 
@@ -1748,10 +1831,89 @@ func (s *WebServer) handleAbyssLastStand(w http.ResponseWriter, r *http.Request,
 
 // ---- Specializations (#161) ----------------------------------------------------
 
-var abyssSpecs = map[string]string{
-	"delver":    "Delver — +10% floor reward XP",
-	"plunderer": "Plunderer — +10% escrow floor bonus",
-	"warden":    "Warden — +5% all stats inside the Abyss",
+type abyssSpecialization struct {
+	Key   string
+	Label string
+	Path  string
+	Perk  string
+	Icon  string
+}
+
+var abyssSpecializations = []abyssSpecialization{
+	{Key: "delver", Label: "Delver", Path: "experience and progression", Perk: "+10% floor reward XP", Icon: "spell-book"},
+	{Key: "plunderer", Label: "Plunderer", Path: "accumulation and wealth", Perk: "+10% escrow floor bonus", Icon: "open-treasure-chest"},
+	{Key: "warden", Label: "Warden", Path: "fortitude and resilience", Perk: "+5% all combat stats", Icon: "visored-helm"},
+	{Key: "berserker", Label: "Berserker", Path: "rage and decisive force", Perk: "+8% Abyss STR", Icon: "dragon-head"},
+	{Key: "arcanist", Label: "Arcanist", Path: "spellcraft and forbidden study", Perk: "+8% Abyss INT", Icon: "crystal-ball"},
+	{Key: "ranger", Label: "Ranger", Path: "speed and precision", Perk: "+8% Abyss SPD", Icon: "eagle-emblem"},
+	{Key: "vanguard", Label: "Vanguard", Path: "unyielding frontline defense", Perk: "+12% max HP", Icon: "checked-shield"},
+	{Key: "reaver", Label: "Reaver", Path: "sustain through aggression", Perk: "+1.5% DEF as Lifesteal", Icon: "fangs"},
+	{Key: "chronomancer", Label: "Chronomancer", Path: "tempo and impossible timing", Perk: "+10% Ultimate recovery", Icon: "psychic-waves"},
+	{Key: "artificer", Label: "Artificer", Path: "salvage and runic invention", Perk: "+20% crafting materials", Icon: "unique-gem"},
+	{Key: "oracle", Label: "Oracle", Path: "foresight and revelation", Perk: "+12% floor XP", Icon: "sunbeams"},
+	{Key: "geomancer", Label: "Geomancer", Path: "stone and deep pressure", Perk: "+10% DEF", Icon: "totem"},
+	{Key: "voidwalker", Label: "Voidwalker", Path: "risk beyond the veil", Perk: "+12% skill damage", Icon: "spectre"},
+}
+
+var abyssSpecs = func() map[string]string {
+	out := make(map[string]string, len(abyssSpecializations))
+	for _, spec := range abyssSpecializations {
+		out[spec.Key] = spec.Label + " — " + spec.Perk
+	}
+	return out
+}()
+
+func abyssSpecializationNodes() []map[string]any {
+	nodes := make([]map[string]any, 0, 1+len(abyssSpecializations)*2)
+	nodes = append(nodes, map[string]any{
+		"key": "initiate", "label": "Initiate", "desc": "Starting rank. Swapping specializations costs 🜲 25 tokens.",
+		"x": 0, "y": 0, "parent": nil, "icon": "laurel-crown", "targetSpec": "",
+	})
+	for index, spec := range abyssSpecializations {
+		angle := -math.Pi/2 + 2*math.Pi*float64(index)/float64(len(abyssSpecializations))
+		noviceKey := "novice_" + spec.Key
+		nodes = append(nodes,
+			map[string]any{
+				"key": noviceKey, "label": "Path of the " + spec.Label,
+				"desc": "The path of " + spec.Path + ".", "x": int(math.Round(math.Cos(angle) * 235)),
+				"y": int(math.Round(math.Sin(angle) * 235)), "parent": "initiate", "icon": spec.Icon, "targetSpec": spec.Key,
+			},
+			map[string]any{
+				"key": spec.Key, "label": spec.Label + " Spec", "desc": "Active Perk: " + spec.Perk + " inside the Abyss.",
+				"x": int(math.Round(math.Cos(angle) * 410)), "y": int(math.Round(math.Sin(angle) * 410)),
+				"parent": noviceKey, "icon": spec.Icon, "targetSpec": spec.Key,
+			},
+		)
+	}
+	return nodes
+}
+
+func applyAbyssSpecializationPassive(spec string, bonus *content.TreeBonus) {
+	if bonus.Pct == nil {
+		bonus.Pct = map[string]float64{}
+	}
+	switch spec {
+	case "berserker":
+		bonus.Pct["str_pct"] += 0.08
+	case "arcanist":
+		bonus.Pct["int_pct"] += 0.08
+	case "ranger":
+		bonus.Pct["spd_pct"] += 0.08
+	case "vanguard":
+		bonus.Pct["hp_pct"] += 0.12
+	case "reaver":
+		bonus.Pct["def_to_lifesteal"] += 0.015
+	case "chronomancer":
+		bonus.Pct["ult_cooldown"] += 0.10
+	case "artificer":
+		bonus.Pct["material_yield"] += 0.20
+	case "oracle":
+		bonus.Pct["xp_gain"] += 0.12
+	case "geomancer":
+		bonus.Pct["def_pct"] += 0.10
+	case "voidwalker":
+		bonus.Pct["skill_damage"] += 0.12
+	}
 }
 
 func (b *Bot) abyssSpec(uid string) string {
