@@ -31,7 +31,7 @@ func TestAbyssCombatSidesAndCrowdedTargetingContract(t *testing.T) {
 			t.Errorf("crowded targeting contract is missing %q", token)
 		}
 	}
-	for _, token := range []string{"/ancient dragon|\\bdragon\\b/,[0,1]", "/frost lich|\\blich\\b/,[0,2]", "ab-semantic-action-icon", "liveActionIconCell(option)", "data-art-sheet=\"actions\""} {
+	for _, token := range []string{"window.AB_EXACT_ICON_MANIFEST", "exact.atlas='catalog'", "ab-semantic-action-icon", "liveActionIconCell(option)", "exactArt?exactArt.family:'actions'"} {
 		if !strings.Contains(string(pixel)+source+string(styles), token) {
 			t.Errorf("semantic combat art contract is missing %q", token)
 		}

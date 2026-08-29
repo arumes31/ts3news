@@ -1032,9 +1032,31 @@ const abyssBankPreviewLootLimit = 24
 const abyssBankPreviewLabelLimit = 240
 
 type abyssBankPreviewLoot struct {
-	Label string `json:"label"`
-	Type  string `json:"type"`
-	Slot  string `json:"slot,omitempty"`
+	Label  string `json:"label"`
+	Type   string `json:"type"`
+	Slot   string `json:"slot,omitempty"`
+	ArtKey string `json:"art_key,omitempty"`
+}
+
+func abyssLootGrantArtKey(grant abyssLootGrant) string {
+	switch {
+	case grant.Gear != nil && grant.Gear.ID != "":
+		id := grant.Gear.ID
+		if grant.Gear.AppearanceID != "" {
+			id = grant.Gear.AppearanceID
+		}
+		return "item:" + id
+	case grant.ConsID != "":
+		return "item:" + grant.ConsID
+	case grant.Skill != nil && grant.Skill.ID != "":
+		return "skill:" + grant.Skill.ID
+	case grant.UltID != "":
+		return "ultimate:" + grant.UltID
+	case grant.ArtName != "":
+		return content.PixelArtKeyByName("artifact", grant.ArtName)
+	default:
+		return ""
+	}
 }
 
 func abyssLootSlotFromLabel(label string) string {
@@ -1063,7 +1085,7 @@ func abyssLootSlotFromLabel(label string) string {
 func (b *Bot) currentAbyssBankPreviewLoot(ctx context.Context, uid string, limit int) ([]abyssBankPreviewLoot, error) {
 	limit = min(max(limit, 1), abyssBankPreviewLootLimit)
 	rows, err := b.DB.QueryContext(ctx,
-		"SELECT item_type, label FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT $2",
+		"SELECT item_type, label, item_data FROM abyss_escrow_loot WHERE client_uid=$1 ORDER BY id LIMIT $2",
 		uid, limit)
 	if err != nil {
 		return nil, fmt.Errorf("querying Abyss bank preview loot: %w", err)
@@ -1074,8 +1096,13 @@ func (b *Bot) currentAbyssBankPreviewLoot(ctx context.Context, uid string, limit
 	for rows.Next() {
 		var item abyssBankPreviewLoot
 		var label string
-		if err := rows.Scan(&item.Type, &label); err != nil {
+		var rawGrant []byte
+		if err := rows.Scan(&item.Type, &label, &rawGrant); err != nil {
 			return nil, fmt.Errorf("scanning Abyss bank preview loot: %w", err)
+		}
+		var grant abyssLootGrant
+		if json.Unmarshal(rawGrant, &grant) == nil {
+			item.ArtKey = abyssLootGrantArtKey(grant)
 		}
 		item.Slot = abyssLootSlotFromLabel(label)
 		item.Label = strings.TrimSpace(bbTagRe.ReplaceAllString(label, ""))

@@ -20,6 +20,7 @@ func TestAbyssE2EServer(t *testing.T) {
 	if err := i18n.InitWithLocale(i18n.LocaleEnUS); err != nil {
 		t.Fatal(err)
 	}
+	content.InitLocalized()
 	server, err := NewWebServer(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -90,12 +91,13 @@ func TestAbyssE2EServer(t *testing.T) {
 	})
 	mux.HandleFunc("/inventory", func(w http.ResponseWriter, _ *http.Request) {
 		charm := content.Gear{
-			ID: "TEST_CHARM", Name: "Lucky Test Charm", Slot: content.SlotCharm,
+			ID: "U_LEG_85", Name: "Lucky Test Charm", Slot: content.SlotCharm,
 			Rarity: content.RarityEpic, MaxDurability: 60, Stats: content.Stats{HP: 80, LCK: 35},
+			Special: content.EffectLucky, BonusEffects: []content.ItemEffect{content.EffectTreasureHunter},
 			FoundAt: "2026-08-20T14:15:16Z", FoundDepth: 18, FoundBoss: "Gorgoroth the Firelord",
 		}
 		mystery := content.Gear{
-			ID: "SECRET_CELESTIAL", Name: "Secret Celestial Ring", Slot: content.SlotFinger1,
+			ID: "U_LEG_79", Name: "Secret Celestial Ring", Slot: content.SlotFinger1,
 			Rarity: content.RarityCelestial, MaxDurability: 90, Stats: content.Stats{INT: 900},
 			Unidentified: true,
 		}
@@ -130,15 +132,16 @@ func TestAbyssE2EServer(t *testing.T) {
 			GearScore: 123456, Stats: content.Stats{HP: 234567, STR: 123456, DEF: 65432},
 		}
 		weapon := content.Gear{
-			ID: "TEST_WEAPON", Name: "Measured Test Blade", Slot: content.SlotMainHand,
+			ID: "U_LEG_6", Name: "Measured Test Blade", Slot: content.SlotMainHand,
 			Rarity: content.RarityLegendary, MaxDurability: 100,
 			Stats: content.Stats{STR: 123456, CRT: 2345}, FoundAt: "2026-08-21T09:10:11Z",
+			Special: content.EffectVampiric, BonusEffects: []content.ItemEffect{content.EffectBerserk},
 			FoundDepth: 25, FoundBoss: "Malakor the Voidweaver",
 		}
 		weaponView := toGearView(weapon.Slot, weapon)
 		weaponView.BrokenIn = true
 		mystery := content.Gear{
-			ID: "SECRET_ARMORY_CELESTIAL", Name: "Secret Armory Crown", Slot: content.SlotHead,
+			ID: "U_LEG_4", Name: "Secret Armory Crown", Slot: content.SlotHead,
 			Rarity: content.RarityCelestial, MaxDurability: 90,
 			Stats: content.Stats{INT: 987654}, Unidentified: true,
 		}
@@ -148,6 +151,33 @@ func TestAbyssE2EServer(t *testing.T) {
 			"Slots":  []gearView{weaponView, toGearView(mystery.Slot, mystery)},
 			"Skills": []content.Skill{skill}, "Ultimates": []any{}, "Artifact": nil,
 			"PlayerTitle": nil, "Pets": []any{},
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+	mux.HandleFunc("/shop", func(w http.ResponseWriter, _ *http.Request) {
+		if err := server.tmpl.ExecuteTemplate(w, "shop", map[string]any{
+			"Title": "Shop", "Nav": "shop", "EnableAbyss": true,
+			"U": &webUser{
+				UID: "shop-e2e", Nickname: "Shop Tester", Gold: 25_000_000,
+				XP: 10_000, Level: 100, LevelName: "Eternal",
+			},
+			"Stock":     stockForSeed(42, map[string]content.Gear{}),
+			"GoldPerXP": goldPerXP, "XPPerGold": xpPerGold, "RefreshIn": int64(3600),
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+	mux.HandleFunc("/leaderboards", func(w http.ResponseWriter, _ *http.Request) {
+		leaders := leaderboards{
+			Day:     []leaderRow{{Rank: 1, Nickname: "Fixture Delver", Wins: 8, NetGold: 12_000}},
+			Month:   []leaderRow{{Rank: 1, Nickname: "Fixture Delver", Wins: 55, NetGold: 98_000}},
+			AllTime: []leaderRow{{Rank: 1, Nickname: "Fixture Delver", Wins: 240, NetGold: 540_000}},
+		}
+		if err := server.tmpl.ExecuteTemplate(w, "leaderboards-page", map[string]any{
+			"Title": "Leaderboards", "Nav": "leaderboards", "EnableAbyss": true,
+			"U":             &webUser{UID: "leaders-e2e", Nickname: "Fixture Delver", Level: 100},
+			"ArcadeLeaders": leaders,
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -287,18 +317,18 @@ func TestAbyssE2EServer(t *testing.T) {
 		if r.URL.Query().Get("gear") == "1" {
 			equipped := map[content.GearSlot]content.Gear{
 				content.SlotMainHand: {
-					ID: "TEST_BLADE", Name: "Cinder Test Blade", Slot: content.SlotMainHand,
+					ID: "U_LEG_2", Name: "Cinder Test Blade", Slot: content.SlotMainHand,
 					Element: content.ElementFire, Rune: string(content.ElementFire),
 					Rarity: content.RarityEpic, MaxDurability: 100,
 					Stats: content.Stats{STR: 60, INT: 20}, FoundAt: "2000-01-01T00:00:00Z",
 				},
 				content.SlotOffHand: {
-					ID: "TEST_FOCUS", Name: "Tideglass Focus", Slot: content.SlotOffHand,
+					ID: "U_LEG_7", Name: "Tideglass Focus", Slot: content.SlotOffHand,
 					Rarity: content.RarityEpic, MaxDurability: 80,
 					Stats: content.Stats{STR: 40, INT: 60},
 				},
 				content.SlotFinger1: {
-					ID: "TEST_RING", Name: "Prism Test Band", Slot: content.SlotFinger1,
+					ID: "U_LEG_75", Name: "Prism Test Band", Slot: content.SlotFinger1,
 					Rarity: content.RarityLegendary, MaxDurability: 70, Sockets: 2,
 					Gemstones: []string{"Ruby", "Topaz II"}, Stats: content.Stats{DEF: 35, LCK: 12},
 				},
@@ -313,7 +343,7 @@ func TestAbyssE2EServer(t *testing.T) {
 			}
 			fixture["Equipped"] = views
 			mystery := content.Gear{
-				ID: "TEST_MYSTERY", Name: "Veiled Test Relic", Slot: content.SlotCharm,
+				ID: "U_LEG_86", Name: "Veiled Test Relic", Slot: content.SlotCharm,
 				Rarity: content.RarityEpic, MaxDurability: 60, Unidentified: true,
 			}
 			mysteryView := toGearView(mystery.Slot, mystery)
@@ -344,9 +374,17 @@ func TestAbyssE2EServer(t *testing.T) {
 		}
 	})
 	mux.HandleFunc("/ah", func(w http.ResponseWriter, _ *http.Request) {
+		gear := content.Gear{
+			ID: "U_LEG_2", Name: "Cinder Test Blade", Slot: content.SlotMainHand,
+			Rarity: content.RarityEpic, MaxDurability: 80, Stats: content.Stats{STR: 320, CRT: 22},
+			Special: content.EffectExecutioner, BonusEffects: []content.ItemEffect{content.EffectFocused},
+		}
+		listingGearView := toGearView(gear.Slot, gear)
 		listing := ahListingView{
-			ID: "listing-history", ItemType: "gear", ItemID: "TEST_BLADE", Icon: "⚔", Name: "Cinder Test Blade",
+			itemAtlasView: listingGearView.itemAtlasView,
+			ID:            "listing-history", ItemType: "gear", ItemID: "TEST_BLADE", Icon: "⚔", Name: "Cinder Test Blade",
 			Price: 1600, Seller: "Market Tester", Listed: "Aug 25", Rarity: "Epic", RarityColor: "#b56cff",
+			GS: gear.Stats.Score(), InspectJSON: listingGearView.InspectJSON,
 			PriceHistory: buildAHPriceHistory([]int64{900, 1200, 1000, 1600}),
 		}
 		if err := server.tmpl.ExecuteTemplate(w, "ah", map[string]any{
@@ -359,6 +397,9 @@ func TestAbyssE2EServer(t *testing.T) {
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
+	})
+	mux.HandleFunc("/api/ah/notices", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{"ok": true, "notices": []any{}})
 	})
 	const spectatorSession = "0123456789abcdef0123456789abcdef"
 	mux.HandleFunc("/abyss/spectate", func(w http.ResponseWriter, r *http.Request) {

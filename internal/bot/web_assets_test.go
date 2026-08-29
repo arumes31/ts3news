@@ -2,6 +2,7 @@ package bot
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
@@ -11,6 +12,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"ts3news/internal/content"
 )
 
 func TestAssetVerAndURL(t *testing.T) {
@@ -273,80 +276,227 @@ func TestAbyssPixelCombatTemplates(t *testing.T) {
 	}
 }
 
-func TestAbyssExpandedPixelAtlasesAreSquare(t *testing.T) {
-	atlases := []struct {
-		name    string
-		columns int
-		rows    int
-	}{
-		{name: "webassets/abyss_icon_atlas_expanded.png", columns: 8, rows: 8},
-		{name: "webassets/abyss_enemy_atlas_expanded.png", columns: 8, rows: 8},
-		{name: "webassets/abyss_atlas_items.png", columns: 14, rows: 12},
-		{name: "webassets/abyss_atlas_skills.png", columns: 14, rows: 12},
-		{name: "webassets/abyss_atlas_creatures.png", columns: 14, rows: 12},
-		{name: "webassets/abyss_atlas_bosses.png", columns: 14, rows: 12},
-		{name: "webassets/abyss_atlas_artifacts.png", columns: 14, rows: 11},
-		{name: "webassets/abyss_atlas_companions.png", columns: 14, rows: 12},
-		{name: "webassets/abyss_atlas_relics.png", columns: 13, rows: 12},
-		{name: "webassets/abyss_atlas_ranged.png", columns: 14, rows: 12},
-		{name: "webassets/abyss_atlas_souls.png", columns: 14, rows: 12},
-		{name: "webassets/abyss_atlas_auras.png", columns: 12, rows: 12},
-		{name: "webassets/abyss_atlas_charms.png", columns: 14, rows: 11},
-		{name: "webassets/abyss_atlas_mounts.png", columns: 12, rows: 12},
-		{name: "webassets/abyss_atlas_pets.png", columns: 14, rows: 12},
-		{name: "webassets/abyss_atlas_emblems.png", columns: 12, rows: 12},
-		{name: "webassets/abyss_atlas_banners.png", columns: 13, rows: 10},
-		{name: "webassets/abyss_atlas_totems.png", columns: 14, rows: 10},
-		{name: "webassets/abyss_atlas_offhands.png", columns: 14, rows: 12},
+func TestAbyssCatalogAtlasesShareTransparentGrid(t *testing.T) {
+	atlases := map[string]int{
+		"webassets/abyss_atlas_items.png": 168, "webassets/abyss_atlas_skills.png": 168,
+		"webassets/abyss_atlas_creatures.png": 168, "webassets/abyss_atlas_bosses.png": 168,
+		"webassets/abyss_atlas_artifacts.png": 154, "webassets/abyss_atlas_companions.png": 168,
+		"webassets/abyss_atlas_relics.png": 156, "webassets/abyss_atlas_ranged.png": 168,
+		"webassets/abyss_atlas_souls.png": 168, "webassets/abyss_atlas_auras.png": 144,
+		"webassets/abyss_atlas_charms.png": 154, "webassets/abyss_atlas_mounts.png": 144,
+		"webassets/abyss_atlas_pets.png": 168, "webassets/abyss_atlas_emblems.png": 144,
+		"webassets/abyss_atlas_banners.png": 130, "webassets/abyss_atlas_totems.png": 140,
+		"webassets/abyss_atlas_offhands.png": 168,
 	}
+	const columns = 14
+	const rows = 12
+	const cellSize = 96
 	artworkCount := 0
 	seenArtwork := make(map[uint64]string, 2_806)
-	for _, atlas := range atlases {
-		t.Run(atlas.name, func(t *testing.T) {
-			asset, err := webAssets.ReadFile(atlas.name)
+	for name, occupiedCells := range atlases {
+		t.Run(name, func(t *testing.T) {
+			asset, err := webAssets.ReadFile(name)
 			if err != nil {
-				t.Fatalf("read %s: %v", atlas.name, err)
+				t.Fatalf("read %s: %v", name, err)
 			}
 			decoded, _, err := image.Decode(bytes.NewReader(asset))
 			if err != nil {
-				t.Fatalf("decode %s: %v", atlas.name, err)
+				t.Fatalf("decode %s: %v", name, err)
 			}
 			bounds := decoded.Bounds()
 			width, height := bounds.Dx(), bounds.Dy()
-			if width != height || width < 512 {
+			if width != columns*cellSize || height != rows*cellSize {
 				t.Errorf(
-					"%s dimensions = %dx%d, want square atlas of at least 512px",
-					atlas.name,
+					"%s dimensions = %dx%d, want %dx%d",
+					name,
 					width,
 					height,
+					columns*cellSize,
+					rows*cellSize,
 				)
 			}
-			for row := range atlas.rows {
-				for column := range atlas.columns {
-					digest := fnv.New64a()
-					for y := row * height / atlas.rows; y < (row+1)*height/atlas.rows; y++ {
-						for x := column * width / atlas.columns; x < (column+1)*width/atlas.columns; x++ {
-							red, green, blue, alpha := decoded.At(bounds.Min.X+x, bounds.Min.Y+y).RGBA()
-							pixel := [4]byte{byte(red >> 8), byte(green >> 8), byte(blue >> 8), byte(alpha >> 8)}
-							_, _ = digest.Write(pixel[:])
-						}
+			transparentPixels := 0
+			for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+				for x := bounds.Min.X; x < bounds.Max.X; x++ {
+					_, _, _, alpha := decoded.At(x, y).RGBA()
+					if alpha == 0 {
+						transparentPixels++
 					}
-					cell := fmt.Sprintf("%s[%d,%d]", atlas.name, column, row)
-					sum := digest.Sum64()
-					if previous, exists := seenArtwork[sum]; exists {
-						t.Errorf("pixel artwork %s duplicates %s", cell, previous)
-					}
-					seenArtwork[sum] = cell
 				}
 			}
-			if version := AssetVer(atlas.name); len(version) != 12 {
-				t.Errorf("%s asset version = %q, want 12 characters", atlas.name, version)
+			transparentRatio := float64(transparentPixels) / float64(width*height)
+			if transparentRatio < 0.30 {
+				t.Errorf("%s transparent pixel ratio = %.2f, want at least 0.30", name, transparentRatio)
+			}
+			for index := range occupiedCells {
+				row := index / columns
+				column := index % columns
+				_, _, _, cornerAlpha := decoded.At(bounds.Min.X+column*cellSize, bounds.Min.Y+row*cellSize).RGBA()
+				if cornerAlpha != 0 {
+					t.Errorf("%s cell [%d,%d] corner alpha = %d, want transparent", name, column, row, cornerAlpha)
+				}
+				digest := fnv.New64a()
+				for y := row * cellSize; y < (row+1)*cellSize; y++ {
+					for x := column * cellSize; x < (column+1)*cellSize; x++ {
+						red, green, blue, alpha := decoded.At(bounds.Min.X+x, bounds.Min.Y+y).RGBA()
+						pixel := [4]byte{byte(red >> 8), byte(green >> 8), byte(blue >> 8), byte(alpha >> 8)}
+						_, _ = digest.Write(pixel[:])
+					}
+				}
+				cell := fmt.Sprintf("%s[%d,%d]", name, column, row)
+				sum := digest.Sum64()
+				if previous, exists := seenArtwork[sum]; exists {
+					t.Errorf("pixel artwork %s duplicates %s", cell, previous)
+				}
+				seenArtwork[sum] = cell
+			}
+			for index := occupiedCells; index < columns*rows; index++ {
+				row := index / columns
+				column := index % columns
+				for y := row * cellSize; y < (row+1)*cellSize; y++ {
+					for x := column * cellSize; x < (column+1)*cellSize; x++ {
+						_, _, _, alpha := decoded.At(bounds.Min.X+x, bounds.Min.Y+y).RGBA()
+						if alpha != 0 {
+							t.Errorf("%s padded cell [%d,%d] is not transparent", name, column, row)
+							y = (row + 1) * cellSize
+							break
+						}
+					}
+				}
+			}
+			if version := AssetVer(name); len(version) != 12 {
+				t.Errorf("%s asset version = %q, want 12 characters", name, version)
 			}
 		})
-		artworkCount += atlas.columns * atlas.rows
+		artworkCount += occupiedCells
 	}
-	if artworkCount < 2_800 {
-		t.Errorf("authored pixel artwork count = %d, want at least 2800", artworkCount)
+	if artworkCount < 2_600 {
+		t.Errorf("authored catalog artwork count = %d, want at least 2600", artworkCount)
+	}
+}
+
+func TestExactCatalogManifestHasOneUniqueTransparentCellPerEntry(t *testing.T) {
+	manifestAsset, err := webAssets.ReadFile("webassets/abyss_catalog_icons.js")
+	if err != nil {
+		t.Fatalf("read exact icon manifest: %v", err)
+	}
+	manifestJSON := strings.TrimSuffix(strings.TrimPrefix(string(manifestAsset), "window.AB_EXACT_ICON_MANIFEST="), ";\n")
+	var manifest map[string]struct {
+		Family string `json:"family"`
+		Page   int    `json:"page"`
+		Column int    `json:"column"`
+		Row    int    `json:"row"`
+		Asset  string `json:"asset"`
+	}
+	if err := json.Unmarshal([]byte(manifestJSON), &manifest); err != nil {
+		t.Fatalf("decode exact icon manifest: %v", err)
+	}
+	entries := content.PixelArtCatalog()
+	if len(manifest) != len(entries) {
+		t.Fatalf("manifest entries = %d, want catalog size %d", len(manifest), len(entries))
+	}
+
+	decodedAssets := make(map[string]image.Image)
+	assigned := make(map[string]map[[2]int]bool)
+	seenDigests := make(map[[sha256.Size]byte]string, len(entries))
+	for _, entry := range entries {
+		cell, exists := manifest[entry.Key]
+		if !exists {
+			t.Fatalf("manifest is missing %q", entry.Key)
+		}
+		if cell.Family != entry.Family || cell.Page != entry.Page || cell.Column != entry.Column || cell.Row != entry.Row || cell.Asset != entry.Asset {
+			t.Fatalf("manifest coordinate for %q does not match the content registry", entry.Key)
+		}
+		assetName := "webassets/" + strings.TrimPrefix(entry.Asset, "/static/")
+		decoded := decodedAssets[assetName]
+		if decoded == nil {
+			encoded, err := webAssets.ReadFile(assetName)
+			if err != nil {
+				t.Fatalf("read %s: %v", assetName, err)
+			}
+			decoded, _, err = image.Decode(bytes.NewReader(encoded))
+			if err != nil {
+				t.Fatalf("decode %s: %v", assetName, err)
+			}
+			if decoded.Bounds().Dx() != content.PixelArtColumns*96 || decoded.Bounds().Dy() != content.PixelArtRows*96 {
+				t.Fatalf("%s dimensions = %dx%d", assetName, decoded.Bounds().Dx(), decoded.Bounds().Dy())
+			}
+			decodedAssets[assetName] = decoded
+			assigned[assetName] = make(map[[2]int]bool)
+		}
+		coordinate := [2]int{entry.Column, entry.Row}
+		if assigned[assetName][coordinate] {
+			t.Fatalf("duplicate assigned cell %s[%d,%d]", assetName, entry.Column, entry.Row)
+		}
+		assigned[assetName][coordinate] = true
+		_, _, _, cornerAlpha := decoded.At(entry.Column*96, entry.Row*96).RGBA()
+		if cornerAlpha != 0 {
+			t.Fatalf("exact icon %q has an opaque tile corner", entry.Key)
+		}
+		digest := sha256.New()
+		opaque := false
+		for y := entry.Row * 96; y < (entry.Row+1)*96; y++ {
+			for x := entry.Column * 96; x < (entry.Column+1)*96; x++ {
+				red, green, blue, alpha := decoded.At(x, y).RGBA()
+				pixel := [4]byte{byte(red >> 8), byte(green >> 8), byte(blue >> 8), byte(alpha >> 8)}
+				_, _ = digest.Write(pixel[:])
+				opaque = opaque || alpha != 0
+			}
+		}
+		if !opaque {
+			t.Fatalf("exact icon %q is transparent", entry.Key)
+		}
+		var sum [sha256.Size]byte
+		copy(sum[:], digest.Sum(nil))
+		if previous, exists := seenDigests[sum]; exists {
+			t.Fatalf("exact icon %q duplicates the pixels for %q", entry.Key, previous)
+		}
+		seenDigests[sum] = entry.Key
+	}
+
+	for assetName, decoded := range decodedAssets {
+		for row := 0; row < content.PixelArtRows; row++ {
+			for column := 0; column < content.PixelArtColumns; column++ {
+				if assigned[assetName][[2]int{column, row}] {
+					continue
+				}
+				for y := row * 96; y < (row+1)*96; y++ {
+					for x := column * 96; x < (column+1)*96; x++ {
+						_, _, _, alpha := decoded.At(x, y).RGBA()
+						if alpha != 0 {
+							t.Fatalf("unassigned cell %s[%d,%d] is not transparent", assetName, column, row)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestExactCatalogRuntimeHasNoHashedCellSelectorOrBoxedBadge(t *testing.T) {
+	pixel, err := webAssets.ReadFile("webassets/abyss_pixel.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	styles, err := webAssets.ReadFile("webassets/abyss_pixel.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	head, err := webAssets.ReadFile("webassets/partials.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(pixel)
+	if !strings.Contains(source, "window.AB_EXACT_ICON_MANIFEST") || !strings.Contains(string(head), "/static/abyss_catalog_icons.js") {
+		t.Fatal("exact icon manifest is not loaded and used by the runtime")
+	}
+	for _, forbidden := range []string{"abyss-primary:", "abyss-motif:", "primary%grid", "motif%grid", "fallback=liveNameHash"} {
+		if strings.Contains(source, forbidden) {
+			t.Errorf("runtime still contains hashed cell selector %q", forbidden)
+		}
+	}
+	if !strings.Contains(string(styles), ".ab-actor-sigil,") || !strings.Contains(string(styles), "display: none;") {
+		t.Fatal("boxed catalog badge overlays are not retired")
 	}
 }
 
@@ -385,21 +535,14 @@ func TestAbyssSpecialGearAtlasRouting(t *testing.T) {
 			}
 		}
 	}
-	gridOverrides := map[string]string{
-		"artifacts": "[14,11]", "auras": "[12,12]", "banners": "[13,10]",
-		"charms": "[14,11]", "emblems": "[12,12]", "mounts": "[12,12]",
-		"relics": "[13,12]", "totems": "[14,10]",
-	}
 	pixel, err := webAssets.ReadFile("webassets/abyss_pixel.html")
 	if err != nil {
 		t.Fatalf("read pixel renderer: %v", err)
 	}
-	for family, grid := range gridOverrides {
-		if !strings.Contains(string(pixel), family+":"+grid) {
-			t.Errorf("%s atlas grid %s is not registered", family, grid)
-		}
+	if !strings.Contains(string(pixel), "var AB_CATALOG_GRID=[14,12]") {
+		t.Error("catalog renderer does not use the shared 14x12 grid")
 	}
-	if !strings.Contains(string(social), `data-pet-art-key="pet:{{.ID}}:{{.Type}}"`) ||
+	if !strings.Contains(string(social), `data-pet-art-key="pet-type:{{.Type}}"`) ||
 		!strings.Contains(string(social), `card.dataset.petArtKey,'pets'`) {
 		t.Error("captured pets must render from the pets atlas")
 	}

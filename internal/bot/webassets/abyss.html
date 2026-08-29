@@ -1445,6 +1445,7 @@ function abGearArtFamily(slot){
 function applyAbUniquePixelIcon(element,cell,key,family){
   if(!element)return;
   var art=liveCatalogArt(key,family||'items');
+  if(!art)return;
   element.classList.add('ab-catalog-icon','ab-art-unique');
   element.style.cssText+=';'+liveUniqueArtStyle(key,art.family);
   element.dataset.artSignature=liveArtIdentity(key).signature;
@@ -1452,6 +1453,7 @@ function applyAbUniquePixelIcon(element,cell,key,family){
 }
 function abUniquePixelIconHTML(cell,key,extraClass,family){
   var identity=liveArtIdentity(key),art=liveCatalogArt(key,family||'items');
+  if(!art)return '';
   return '<span class="ab-pixel-icon ab-catalog-icon ab-art-unique '+(extraClass||'')+'" data-art-signature="'+identity.signature+'" data-art-sheet="'+art.family+'" style="'+liveUniqueArtStyle(key,art.family)+'" aria-hidden="true"></span>';
 }
 

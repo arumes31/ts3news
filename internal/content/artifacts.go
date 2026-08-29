@@ -1771,20 +1771,32 @@ func FeaturedShopItem(seed int64) Gear {
 // always offers a meaningful upgrade path. Used by the web shop.
 func ShopStock(seed int64, count int) []Gear {
 	r := rand.New(rand.NewPCG(uint64(seed), uint64(seed)+1)) // #nosec G404 G115 -- deterministic shop rotation, seed always non-negative
-	var pool []Gear
+	regularPool := make([]Gear, 0, len(allGear))
+	abyssPool := make([]Gear, 0, len(abyssExclusiveGear))
 	for _, g := range allGear {
 		if strings.HasPrefix(g.ID, "B_") || IsInsanityGearID(g.ID) { // skip Novice/starter junk and tier-exclusive gear
 			continue
 		}
-		pool = append(pool, g)
+		if IsAbyssGearID(g.ID) {
+			abyssPool = append(abyssPool, g)
+			continue
+		}
+		regularPool = append(regularPool, g)
 	}
 	out := make([]Gear, 0, count)
-	if len(pool) == 0 {
+	if count <= 0 || len(regularPool)+len(abyssPool) == 0 {
 		return out
 	}
-	for i := 0; i < count; i++ {
-		out = append(out, pool[r.IntN(len(pool))])
+	abyssCount := min(len(abyssPool), max(1, count/4))
+	r.Shuffle(len(abyssPool), func(i, j int) { abyssPool[i], abyssPool[j] = abyssPool[j], abyssPool[i] })
+	out = append(out, abyssPool[:abyssCount]...)
+	for len(out) < count && len(regularPool) > 0 {
+		out = append(out, regularPool[r.IntN(len(regularPool))])
 	}
+	for len(out) < count && len(abyssPool) > 0 {
+		out = append(out, abyssPool[r.IntN(len(abyssPool))])
+	}
+	r.Shuffle(len(out), func(i, j int) { out[i], out[j] = out[j], out[i] })
 	return out
 }
 

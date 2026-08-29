@@ -22,7 +22,7 @@
       {{end}}
       <div class="ab-pet-list">
       {{range .Pets}}
-        <div class="ab-pet-card {{if .Favorite}}favorite{{end}} {{if .Shiny}}shiny{{end}}" data-pet-id="{{.ID}}" data-pet-art-key="pet:{{.ID}}:{{.Type}}">
+        <div class="ab-pet-card {{if .Favorite}}favorite{{end}} {{if .Shiny}}shiny{{end}}" data-pet-id="{{.ID}}" data-pet-art-key="pet-type:{{.Type}}">
           <span class="ab-pixel-icon ab-pet-pixel" aria-hidden="true"></span>
           <div class="ab-pet-head"><strong>{{if .Favorite}}★ {{end}}{{if .Shiny}}✦ {{end}}{{.MoodIcon}} <span data-pet-name>{{.Name}}</span></strong><span class="ab-mood {{.Mood}}">{{.Mood}} {{if gt .MoodPct 0}}+{{end}}{{.MoodPct}}%</span></div>
           <div class="ab-pet-stats"><span>Lv {{.Level}} {{.Type}}{{if .BossVariant}} · boss variant{{end}}</span><span class="ab-pet-class">{{.Class}}</span><span>♥ {{comma .HP}}/{{comma .MaxHP}}</span><span>⚔ {{comma .STR}}</span><span>🛡 {{comma .DEF}}</span><span>➤ {{comma .SPD}}</span></div>

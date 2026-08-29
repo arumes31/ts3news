@@ -28,6 +28,8 @@ func isAuctionUpgrade(itemID string, equippedGear map[string]content.Gear) bool 
 }
 
 type ahListingView struct {
+	itemAtlasView
+
 	ID           string
 	ItemType     string
 	ItemID       string
@@ -50,6 +52,7 @@ type ahListingView struct {
 	GS          int
 	Rarity      string
 	RarityColor string
+	InspectJSON string
 }
 
 // ahEnrichListing fills GS / rarity from the listing's item_data JSON — the
@@ -88,6 +91,19 @@ func ahEnrichListing(v *ahListingView, dataJSON []byte) {
 	}
 	if probe.Stats != nil {
 		v.GS = probe.Stats.Score()
+	}
+	if v.ItemType == "gear" {
+		gear, ok := content.GetGearByID(v.ItemID)
+		if len(dataJSON) > 0 {
+			if err := json.Unmarshal(dataJSON, &gear); err == nil && gear.Slot != "" {
+				ok = true
+			}
+		}
+		if ok {
+			gearView := toGearView(gear.Slot, gear)
+			v.itemAtlasView = gearView.itemAtlasView
+			v.InspectJSON = gearView.InspectJSON
+		}
 	}
 }
 

@@ -9,7 +9,7 @@
     {{range .Items}}
     <li draggable="true" tabindex="0" data-skill-id="{{.ID}}" data-default-priority="{{.DefaultPriority}}" style="--skill-rarity:{{.Color}}">
       <span class="ab-skill-priority-rank" aria-hidden="true">{{.Priority}}</span>
-      <span class="ab-skill-priority-icon" aria-hidden="true">{{.Icon}}</span>
+      <span class="ab-pixel-icon ab-skill-priority-icon" data-skill-art-key="skill:{{.ID}}" aria-hidden="true"></span>
       <span class="ab-skill-priority-copy"><b>{{.Name}}</b><small>{{.Type}} · {{.ManaCost}} mana · {{.CooldownRounds}} round CD</small></span>
       <span class="ab-skill-priority-controls">
         <button type="button" class="ghost xs" data-priority-move="-1" aria-label="Move {{.Name}} earlier">↑</button>
@@ -71,6 +71,7 @@ async function saveAbyssSkillPriority(){
 function initAbyssSkillPriority(){
   var list=document.getElementById('abyssSkillPriorityList');if(!list)return;
   abyssSkillPriorityItems().forEach(function(item){
+    var icon=item.querySelector('[data-skill-art-key]');if(icon)applyAbUniquePixelIcon(icon,[0,0],icon.dataset.skillArtKey,'skills');
     item.querySelectorAll('[data-priority-move]').forEach(function(button){button.addEventListener('click',function(){moveAbyssSkillPriority(item,Number(button.dataset.priorityMove));});});
     item.addEventListener('keydown',function(event){if(!event.altKey||(event.key!=='ArrowUp'&&event.key!=='ArrowDown'))return;event.preventDefault();moveAbyssSkillPriority(item,event.key==='ArrowUp'?-1:1);});
     item.addEventListener('dragstart',function(event){abyssSkillPriorityDragged=item.dataset.skillId;item.classList.add('is-dragging');event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',abyssSkillPriorityDragged);});

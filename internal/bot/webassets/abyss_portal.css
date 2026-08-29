@@ -1,0 +1,136 @@
+/* Shared Abyss delver-console skin and catalog item renderer. */
+.delver-shell {
+  --cmd-void: #070a0f;
+  --cmd-base: #0b1018;
+  --cmd-panel: #101722;
+  --cmd-panel-raised: #182230;
+  --cmd-line: #303a4b;
+  --cmd-text: #e7edf6;
+  --cmd-muted: #8d99ac;
+  --cmd-gold: #f2bd5b;
+  --cmd-cyan: #5bd6d0;
+  --cmd-red: #ed6a65;
+  --cmd-green: #69d59b;
+  --cmd-display: "Bahnschrift SemiCondensed", "Aptos Display", sans-serif;
+  --cmd-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  color-scheme: dark;
+  overflow-x: clip;
+  color: var(--cmd-text);
+  background:
+    radial-gradient(circle at 50% -20%, rgba(91, 214, 208, .1), transparent 36rem),
+    radial-gradient(circle at 100% 30%, rgba(242, 189, 91, .055), transparent 30rem),
+    linear-gradient(180deg, #080b11, #0c1119 45%, #080b11);
+  background-color: #080b11;
+}
+
+.delver-shell .topbar {
+  border-bottom-color: rgba(242, 189, 91, .26);
+  background: linear-gradient(90deg, rgba(242, 189, 91, .06), transparent 28%, rgba(91, 214, 208, .045)), rgba(7, 10, 15, .96);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .3);
+  backdrop-filter: blur(14px) saturate(1.2);
+}
+
+.delver-shell .brand,
+.delver-shell h1,
+.delver-shell h2,
+.delver-shell h3 { font-family: var(--cmd-display); }
+.delver-shell .brand { letter-spacing: .1em; text-transform: uppercase; }
+.delver-shell .nav a { border: 1px solid transparent; border-radius: 2px 8px; font-size: .8rem; letter-spacing: .035em; }
+.delver-shell .nav a:hover { border-color: var(--cmd-line); background: rgba(255, 255, 255, .035); text-decoration: none; }
+.delver-shell .nav a.active { color: #11151d; border-color: #f6ce7f; background: linear-gradient(180deg, #f6ce7f, #bd8433); box-shadow: 0 0 18px rgba(242, 189, 91, .18); }
+.delver-shell .pill { border-color: var(--cmd-line); border-radius: 2px 9px; background: #101722; font-family: var(--cmd-mono); font-size: .7rem; }
+.delver-shell .wrap { width: min(1760px, calc(100% - 24px)); max-width: none; }
+.delver-shell h1 { color: #f4f7fb; letter-spacing: .035em; }
+.delver-shell h2 { color: #dfe8f5; border-color: rgba(242, 189, 91, .18); letter-spacing: .025em; }
+.delver-shell section,
+.delver-shell .hero,
+.delver-shell .lb-section,
+.delver-shell .pouch-panel,
+.delver-shell .buyback-panel {
+  border-color: var(--cmd-line);
+  background: linear-gradient(145deg, rgba(16, 23, 34, .96), rgba(8, 13, 21, .96));
+  box-shadow: inset 0 1px rgba(255, 255, 255, .025), 0 16px 42px rgba(0, 0, 0, .22);
+}
+.delver-shell button,
+.delver-shell .btn { border-radius: 2px 9px; font-family: var(--cmd-display); letter-spacing: .025em; }
+.delver-shell input,
+.delver-shell select { border-color: var(--cmd-line); background: #0a1019; }
+.delver-shell :is(.gear-cell,.inv-card,.shop-card,.loadout-card,.buyback-card) {
+  border-color: #2b394c;
+  border-radius: 3px 13px;
+  background: linear-gradient(145deg, #111925, #0a1018);
+  box-shadow: inset 0 1px rgba(255,255,255,.025), 0 9px 24px rgba(0,0,0,.2);
+}
+.delver-shell :is(.gear-cell,.inv-card,.shop-card,.buyback-card):hover { border-color: #53657b; transform: translateY(-1px); }
+.delver-shell .histtable th { color: #96a8bf; background: #0b121c; font-family: var(--cmd-mono); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; }
+.delver-shell .histtable td { border-color: #263347; }
+.delver-shell .foot { border-top: 1px solid rgba(242, 189, 91, .12); background: rgba(7, 10, 15, .72); font-family: var(--cmd-mono); letter-spacing: .08em; text-transform: uppercase; }
+
+.item-art {
+  --item-atlas: var(--ab-atlas-items);
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.item-art::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background-image: var(--item-atlas);
+  background-position: calc(var(--art-col, 0) * 100% / 13) calc(var(--art-row, 0) * 100% / 11);
+  background-repeat: no-repeat;
+  background-size: 1400% 1200%;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.72));
+  image-rendering: pixelated;
+}
+.item-art[data-art-family="artifacts"] { --item-atlas: var(--ab-atlas-artifacts); }
+.item-art[data-art-family="auras"] { --item-atlas: var(--ab-atlas-auras); }
+.item-art[data-art-family="banners"] { --item-atlas: var(--ab-atlas-banners); }
+.item-art[data-art-family="charms"] { --item-atlas: var(--ab-atlas-charms); }
+.item-art[data-art-family="companions"] { --item-atlas: var(--ab-atlas-companions); }
+.item-art[data-art-family="emblems"] { --item-atlas: var(--ab-atlas-emblems); }
+.item-art[data-art-family="mounts"] { --item-atlas: var(--ab-atlas-mounts); }
+.item-art[data-art-family="offhands"] { --item-atlas: var(--ab-atlas-offhands); }
+.item-art[data-art-family="pets"] { --item-atlas: var(--ab-atlas-pets); }
+.item-art[data-art-family="ranged"] { --item-atlas: var(--ab-atlas-ranged); }
+.item-art[data-art-family="relics"] { --item-atlas: var(--ab-atlas-relics); }
+.item-art[data-art-family="souls"] { --item-atlas: var(--ab-atlas-souls); }
+.item-art[data-art-family="totems"] { --item-atlas: var(--ab-atlas-totems); }
+.item-art-lg { width: 64px; height: 64px; flex-basis: 64px; }
+.item-art-sm { width: 32px; height: 32px; flex-basis: 32px; }
+
+.item-inspect-trigger { cursor: pointer; transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease; }
+.item-inspect-trigger:focus-visible { outline: 2px solid var(--cmd-cyan); outline-offset: 3px; }
+.item-inspect-hint { color: #70849d; font: 600 .62rem var(--cmd-mono); letter-spacing: .04em; }
+.item-inspector { width: min(720px, 92vw); }
+.item-inspector-head { display: grid; grid-template-columns: 68px minmax(0,1fr) auto; align-items: center; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid #2d3b4f; }
+.item-inspector-head h2 { margin: 0; padding: 0; border: 0; color: var(--inspect-rarity, #e7edf6); }
+.item-inspector-head p { margin: 4px 0 0; color: #91a2b8; font: .72rem var(--cmd-mono); }
+.item-inspector-score { text-align: right; color: #d9e2ef; font: 700 .72rem var(--cmd-mono); }
+.item-inspector-section { margin-top: 14px; }
+.item-inspector-section h3 { margin: 0 0 7px; color: #f0c36b; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; }
+.item-inspector-stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(88px,1fr)); gap: 6px; }
+.item-inspector-stats span { display: flex; justify-content: space-between; padding: 7px 9px; border: 1px solid #26364a; border-radius: 3px 8px; background: #0a111b; font: .72rem var(--cmd-mono); }
+.item-inspector-specials { display: grid; gap: 7px; }
+.item-inspector-special { padding: 9px 11px; border-left: 3px solid var(--inspect-rarity,#f2bd5b); background: #0b131e; }
+.item-inspector-special b,.item-inspector-special span { display: block; }
+.item-inspector-special span { margin-top: 3px; color: #9cabc0; font-size: .76rem; }
+.item-inspector-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.item-inspector-tags span { padding: 4px 8px; border: 1px solid #34465d; border-radius: 999px; background: #111b29; color: #b9c7d9; font: .66rem var(--cmd-mono); }
+
+@media (max-width: 760px) {
+  .delver-shell .wrap { width: min(100% - 12px, 1760px); }
+  .item-inspector-head { grid-template-columns: 56px minmax(0,1fr); }
+  .item-inspector-score { grid-column: 1 / -1; text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item-inspect-trigger { transition: none; }
+}

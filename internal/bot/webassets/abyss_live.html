@@ -314,8 +314,10 @@ function renderLiveActionBar(state){
 	button.draggable=true;button.dataset.actionKey=actionKey;button.dataset.shortcut=shortcut.toLowerCase();
 	button.title=(option.description||option.name)+(option.tags&&option.tags.length?' — Combo tags: '+option.tags.join(', '):'')+(option.effect_rounds?' — Effect: '+option.effect_rounds+' round'+(option.effect_rounds===1?'':'s'):'')+(option.modifiers&&option.modifiers.length?' — Active modifiers: '+option.modifiers.join(', '):'')+(option.mana?' — Mana after: '+Math.max(0,(own.mana||0)-option.mana):'')+(recommended&&state.recommended.reason?' — Recommended: '+state.recommended.reason:'');
 	if(option.cooldown)button.style.setProperty('--cooldown-angle',Math.min(360,option.cooldown*36)+'deg');
-	var artKey=liveActionArtKey(option),iconCell=liveActionIconCell(option),identity=liveArtIdentity(artKey);
-	button.innerHTML='<span class="ab-action-key">'+consEsc(shortcut)+'</span><span class="ab-action-pin">'+(livePinnedActions[actionKey]?'★':'☆')+'</span><span class="ab-action-icon"><span class="ab-pixel-icon ab-semantic-action-icon" data-art-signature="'+identity.signature+'" data-art-sheet="actions" style="background-position:'+liveActionIconPosition(iconCell)+';--ab-art-sigil:'+identity.sigil+'"></span></span>'+
+	var artKey=liveActionArtKey(option),iconCell=liveActionIconCell(option),identity=liveArtIdentity(artKey),exactArt=liveCatalogArt(artKey,liveActionArtFamily(option));
+	var iconClass=exactArt?'ab-pixel-icon ab-catalog-icon':'ab-pixel-icon ab-semantic-action-icon';
+	var iconStyle=exactArt?liveUniqueArtStyle(artKey,exactArt.family):'background-position:'+liveActionIconPosition(iconCell);
+	button.innerHTML='<span class="ab-action-key">'+consEsc(shortcut)+'</span><span class="ab-action-pin">'+(livePinnedActions[actionKey]?'★':'☆')+'</span><span class="ab-action-icon"><span class="'+iconClass+'" data-art-signature="'+identity.signature+'" data-art-sheet="'+(exactArt?exactArt.family:'actions')+'" style="'+iconStyle+'"></span></span>'+
       '<span class="ab-action-name">'+consEsc(option.name)+'</span>'+
       '<span class="ab-action-estimate">'+liveEffectEstimate(option)+'</span>'+
 	  '<span class="ab-action-cost">'+(option.mana?'🔵 '+option.mana+' → '+Math.max(0,(own.mana||0)-option.mana):option.cooldown?'⏳ '+option.cooldown:(option.kind==='item'||option.kind==='relic')?'×'+option.count:'')+'</span>';

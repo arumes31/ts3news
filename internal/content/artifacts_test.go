@@ -327,3 +327,28 @@ func TestRandomGearDropForSlotsExcludingPrefersUnownedCandidate(t *testing.T) {
 		t.Fatalf("targeted roll = %#v, want an unowned candidate", gear)
 	}
 }
+
+func TestShopStockIncludesBoundedAbyssSelection(t *testing.T) {
+	t.Parallel()
+
+	first := ShopStock(42, 48)
+	second := ShopStock(42, 48)
+	if len(first) != 48 || len(second) != 48 {
+		t.Fatalf("ShopStock lengths = %d and %d, want 48", len(first), len(second))
+	}
+	abyssItems := 0
+	for index, gear := range first {
+		if gear.ID != second[index].ID {
+			t.Fatalf("ShopStock is not deterministic at %d: %q != %q", index, gear.ID, second[index].ID)
+		}
+		if strings.HasPrefix(gear.ID, "B_") || IsInsanityGearID(gear.ID) {
+			t.Errorf("shop leaked excluded item %q", gear.ID)
+		}
+		if IsAbyssGearID(gear.ID) {
+			abyssItems++
+		}
+	}
+	if abyssItems < 12 {
+		t.Errorf("Abyss shop offers = %d, want at least 12 of 48", abyssItems)
+	}
+}

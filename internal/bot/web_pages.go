@@ -15,12 +15,50 @@ import (
 
 // statKV is a single non-zero gear stat for display.
 type statKV struct {
-	Label string
-	Value int
+	Label string `json:"label"`
+	Value int    `json:"value"`
+}
+
+type itemSpecialView struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type itemAtlasView struct {
+	Family string
+	Asset  string
+	Page   int
+	Column int
+	Row    int
+}
+
+type itemInspectView struct {
+	Name          string            `json:"name"`
+	Rarity        string            `json:"rarity"`
+	RarityColor   string            `json:"rarity_color"`
+	Slot          string            `json:"slot"`
+	Element       string            `json:"element,omitempty"`
+	CR            float64           `json:"cr"`
+	Score         int               `json:"score"`
+	Stats         []statKV          `json:"stats"`
+	Specials      []itemSpecialView `json:"specials"`
+	Modifiers     []string          `json:"modifiers"`
+	Gemstones     []string          `json:"gemstones,omitempty"`
+	SetID         string            `json:"set_id,omitempty"`
+	Provenance    string            `json:"provenance,omitempty"`
+	MaxDurability int               `json:"max_durability,omitempty"`
+	XPBonusPct    int               `json:"xp_bonus_pct,omitempty"`
+	ArtFamily     string            `json:"art_family"`
+	ArtAsset      string            `json:"art_asset"`
+	ArtPage       int               `json:"art_page"`
+	ArtColumn     int               `json:"art_column"`
+	ArtRow        int               `json:"art_row"`
 }
 
 // gearView is a template-friendly view of a gear piece.
 type gearView struct {
+	itemAtlasView
+
 	InvID         int64
 	Slot          string
 	Icon          string
@@ -73,6 +111,91 @@ type gearView struct {
 	BrokenIn       bool // held for 30+ days; grants the sentimental +1% stat bonus
 	Provenance     string
 	Damage         abyssGearDamageView
+	InspectJSON    string
+}
+
+func gearAtlasFamily(slot content.GearSlot) string {
+	return content.GearPixelArtFamily(slot)
+}
+
+func gearAtlasView(g content.Gear) itemAtlasView {
+	key := g.ID
+	if g.AppearanceID != "" {
+		key = g.AppearanceID
+	}
+	key = strings.TrimPrefix(key, content.FeaturedShopItemID)
+	if entry, ok := content.PixelArtByKey("item:" + key); ok {
+		return itemAtlasView{
+			Family: entry.Family, Asset: entry.Asset, Page: entry.Page,
+			Column: entry.Column, Row: entry.Row,
+		}
+	}
+	return itemAtlasView{Family: gearAtlasFamily(g.Slot)}
+}
+
+func gearSpecialViews(g content.Gear) []itemSpecialView {
+	effects := make([]content.ItemEffect, 0, len(g.BonusEffects)+1)
+	if g.Special != content.EffectNone {
+		effects = append(effects, g.Special)
+	}
+	effects = append(effects, g.BonusEffects...)
+	seen := make(map[content.ItemEffect]bool, len(effects))
+	out := make([]itemSpecialView, 0, len(effects))
+	for _, effect := range effects {
+		if effect == content.EffectNone || seen[effect] {
+			continue
+		}
+		seen[effect] = true
+		out = append(out, itemSpecialView{
+			Name:        string(effect),
+			Description: content.ItemEffectDescription(effect),
+		})
+	}
+	return out
+}
+
+func gearModifierViews(g content.Gear) []string {
+	modifiers := make([]string, 0, 16)
+	if g.GearLevel > 0 {
+		modifiers = append(modifiers, fmt.Sprintf("Ascended +%d", g.GearLevel))
+	}
+	if g.Temper > 0 {
+		modifiers = append(modifiers, fmt.Sprintf("Tempered +%d", g.Temper))
+	}
+	if g.Quality > 0 && g.Quality < len(qualityNames) {
+		modifiers = append(modifiers, qualityNames[g.Quality]+" quality")
+	}
+	if g.Reinforced > 0 {
+		modifiers = append(modifiers, fmt.Sprintf("Reinforced +%d", g.Reinforced))
+	}
+	if g.Sharpened > 0 {
+		modifiers = append(modifiers, fmt.Sprintf("Sharpened +%d", g.Sharpened))
+	}
+	flags := []struct {
+		enabled bool
+		label   string
+	}{
+		{g.Insured, "Death insured"}, {g.Corrupted, "Corrupted"},
+		{g.Embraced, "Corruption embraced"}, {g.Cursed, "Cursed"},
+		{g.Eldritch, "Eldritch"}, {g.Prismatic, "Prismatic rune"},
+		{g.Attuned, "Attuned / soulbound"}, {g.Awakened, "Awakened"},
+		{g.Foil, "Foil"}, {g.Doomed, "Doomed"},
+	}
+	for _, flag := range flags {
+		if flag.enabled {
+			modifiers = append(modifiers, flag.label)
+		}
+	}
+	if g.Rune != "" {
+		modifiers = append(modifiers, g.Rune+" rune")
+	}
+	if g.Imbued != "" {
+		modifiers = append(modifiers, "Imbued: "+g.Imbued)
+	}
+	if g.RegenAmount > 0 && g.RegenIntervalSec > 0 {
+		modifiers = append(modifiers, fmt.Sprintf("Regenerates %d HP every %ds", g.RegenAmount, g.RegenIntervalSec))
+	}
+	return modifiers
 }
 
 func gearProvenance(g content.Gear) string {
@@ -105,7 +228,7 @@ func gearStatList(s content.Stats) []statKV {
 		{"HP", s.HP}, {"MNA", s.MNA}, {"STR", s.STR}, {"DEF", s.DEF}, {"SPD", s.SPD},
 		{"CRT%", s.CRT}, {"DGE%", s.DGE}, {"LCK", s.LCK}, {"INT", s.INT}, {"STA", s.STA},
 	}
-	var out []statKV
+	out := make([]statKV, 0, len(pairs))
 	for _, p := range pairs {
 		if p.Value != 0 {
 			out = append(out, p)
@@ -230,6 +353,7 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	}
 
 	v := gearView{
+		itemAtlasView:  gearAtlasView(g),
 		Slot:           string(slot),
 		Icon:           content.SlotIcon(slot),
 		IconName:       content.SlotIconName(slot),
@@ -299,6 +423,33 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		// Identified gear with no base Special but with cursed/eldritch/socket affixes
 		// still has an assembled description; surface it so those affixes render.
 		v.EffectDesc = effDesc
+	}
+	if !g.Unidentified {
+		inspection := itemInspectView{
+			Name:          v.Name,
+			Rarity:        v.Rarity,
+			RarityColor:   v.RarityColor,
+			Slot:          v.Slot,
+			Element:       v.Element,
+			CR:            v.CR,
+			Score:         v.Score,
+			Stats:         append([]statKV(nil), v.Stats...),
+			Specials:      gearSpecialViews(g),
+			Modifiers:     gearModifierViews(g),
+			Gemstones:     append([]string(nil), g.Gemstones...),
+			SetID:         v.SetID,
+			Provenance:    v.Provenance,
+			MaxDurability: v.MaxDurability,
+			XPBonusPct:    v.XPBonusPct,
+			ArtFamily:     v.Family,
+			ArtAsset:      v.Asset,
+			ArtPage:       v.Page,
+			ArtColumn:     v.Column,
+			ArtRow:        v.Row,
+		}
+		if encoded, err := json.Marshal(inspection); err == nil {
+			v.InspectJSON = string(encoded)
+		}
 	}
 	return v
 }

@@ -8,6 +8,26 @@ import (
 	"ts3news/internal/content"
 )
 
+func TestAbyssFoldStatsUsesFlatThenPercentageComposition(t *testing.T) {
+	t.Parallel()
+
+	base := content.Stats{HP: 100, STR: 20, DEF: 10, SPD: 8}
+	bonus := content.TreeBonus{
+		Stats: content.Stats{HP: 50, STR: 5, DEF: 10},
+		Pct: map[string]float64{
+			"hp_pct":  0.20,
+			"str_pct": 0.12,
+			"def_pct": 0.25,
+		},
+	}
+
+	got := abyssFoldStats(base, bonus)
+	want := content.Stats{HP: 180, STR: 28, DEF: 25, SPD: 8}
+	if got != want {
+		t.Fatalf("abyssFoldStats() = %#v, want %#v", got, want)
+	}
+}
+
 // TestBBToHTMLEscapesThenConverts verifies the combat-log converter turns the
 // known BBCode tokens into safe HTML while neutralising any injected markup.
 func TestBBToHTMLConversions(t *testing.T) {

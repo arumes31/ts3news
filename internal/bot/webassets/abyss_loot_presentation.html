@@ -27,7 +27,7 @@ function updateLootRewardPresentation(){
     row.setAttribute('aria-label','Escrowed loot: '+(row.textContent||'').replace(/\s+/g,' ').trim());
     var main=row.querySelector('.ab-loot-main');
     if(main&&!main.querySelector('.ab-loot-pixel')){
-      var icon=document.createElement('span'),key='loot:'+String(row.dataset.lootId||'')+':'+String(row.dataset.gearId||'')+':'+String(row.dataset.tip||'');
+      var icon=document.createElement('span'),key='item:'+String(row.dataset.gearId||'');
       icon.className='ab-pixel-icon ab-loot-pixel';
       applyAbUniquePixelIcon(icon,abExpandedGearIconCell(row.dataset.slot),key,abGearArtFamily(row.dataset.slot));
       main.prepend(icon);
@@ -44,7 +44,7 @@ function updateLootRewardPresentation(){
 }
 function abyssLootPreviewIcon(item){
   var cell=item&&item.slot?abExpandedGearIconCell(item.slot):item&&item.type==='cons'?[0,4]:[7,6];
-  var key='bank-preview:'+String(item&&item.id||item&&item.label||'unknown');
+  var key=String(item&&item.art_key||'');
   return abUniquePixelIconHTML(cell,key,'ab-loot-preview-icon',item&&item.slot?abGearArtFamily(item.slot):'items');
 }
 function renderBankPreviewLoot(items,total){

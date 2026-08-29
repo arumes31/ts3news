@@ -218,10 +218,9 @@ func abyssMobScalars(mobLevel int, diff float64) (lvlScale, effDiff float64) {
 func (b *Bot) buildAbyssUser(uid string) (UserInCombat, int, error) {
 	stats, _, _, _ := b.calculateTotalStats(uid, time.Now())
 
-	// Skill web: allocated nodes add flat stats plus the combat %-multipliers
-	// (economy keys are consumed by their own hooks in loot/bank/XP paths).
+	// The canonical global stats already include permanent Abyss progression.
+	// Keep the payload for live economy hooks without applying its stats twice.
 	tb := b.treeBonusFor(uid)
-	stats = abyssFoldStats(stats, tb)
 
 	var nick sql.NullString
 	var lvl, prestige, curHP, regen int
@@ -260,21 +259,19 @@ func (b *Bot) buildAbyssUser(uid string) (UserInCombat, int, error) {
 	return u, prestige, nil
 }
 
-// abyssFoldStats folds the skill-web bonus into base+gear stats the way Abyss combat
-// does — flat adds first, then the combat %-multipliers. Single source of truth for
-// buildAbyssUser (the live combatant) and abyssCombatStats (out-of-combat readouts),
-// so the two can never drift on how the tree bonus composes.
+// abyssFoldStats folds permanent Abyss progression into core character stats:
+// flat additions first, then combat percentage multipliers. calculateTotalStats
+// owns this composition so every game mode receives the same character model.
 func abyssFoldStats(base content.Stats, tb content.TreeBonus) content.Stats {
 	return tb.ApplyCombatPct(base.Add(tb.Stats))
 }
 
-// abyssCombatStats returns the player's Abyss combat stats: base+gear folded with the
-// skill-web bonus. Every out-of-combat HP write and max-HP readout goes through this
-// so the dashboard, revives, rests and event heals agree with the max HP the descent
-// actually fights at (calculateTotalStats alone omits the tree).
+// abyssCombatStats adds run-scoped build modifiers to the canonical global stats.
+// Every out-of-combat Abyss HP write and max-HP readout goes through this function
+// so the dashboard, revives, rests and event heals agree with live combat.
 func (b *Bot) abyssCombatStats(uid string) content.Stats {
 	stats, _, _, _ := b.calculateTotalStats(uid, time.Now())
-	u := UserInCombat{Stats: abyssFoldStats(stats, b.treeBonusFor(uid))}
+	u := UserInCombat{Stats: stats}
 	applyAbyssRunBuild(&u, b.loadRunFlags(uid), nil)
 	return u.Stats
 }
@@ -2238,13 +2235,13 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 
 	// Vigor upgrade lets a run start above the normal max (banked as current HP).
-	baseStats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+	globalStats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
 	startBuildFlags := map[string]int64{
 		abyssRunFlagBuildKit:      abyssBuildKits[normalizeAbyssBuildKit(req.Kit)],
 		abyssRunFlagPosition:      abyssCombatPositions[normalizeAbyssCombatPosition(req.Position)],
 		abyssRunFlagSkillMutation: abyssSkillMutations[normalizeAbyssSkillMutation(req.Mutation)],
 	}
-	startUser := UserInCombat{Stats: abyssFoldStats(baseStats, s.bot.treeBonusFor(uid)), Equipped: equipped}
+	startUser := UserInCombat{Stats: globalStats, Equipped: equipped}
 	applyAbyssRunBuild(&startUser, startBuildFlags, nil)
 	stats := startUser.Stats
 	startHP := stats.HP + int(float64(stats.HP)*content.TalentEffectiveLevel(st.UpVigor)*0.05)

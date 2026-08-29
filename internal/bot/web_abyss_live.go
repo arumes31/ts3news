@@ -73,6 +73,7 @@ type abyssLiveEffect struct {
 type abyssLiveCombatantView struct {
 	ID            string               `json:"id"`
 	Name          string               `json:"name"`
+	ArtKey        string               `json:"art_key,omitempty"`
 	HP            int                  `json:"hp"`
 	MaxHP         int                  `json:"max_hp"`
 	HPHidden      bool                 `json:"hp_hidden,omitempty"`
@@ -487,6 +488,7 @@ func (c *abyssLiveCombat) publishRound(
 		enemies = append(enemies, abyssLiveCombatantView{
 			ID:            fmt.Sprintf("enemy:%d", i),
 			Name:          mob.Name,
+			ArtKey:        content.MonsterPixelArtKey(mob.Name),
 			HP:            max(0, mob.Stats.HP),
 			MaxHP:         max(1, mob.MaxHP),
 			Element:       string(mob.Element),

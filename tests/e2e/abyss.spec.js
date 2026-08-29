@@ -264,9 +264,9 @@ test('wardrobe filters unlocked skins and applies or clears them without losing 
       return {
         ok: true, owned: 3, total: 240, new_unlocks: 1, gold: 900000,
         appearances: [
-          { id: 'SKIN_CINDER', name: 'Cinder Archive Blade', slot: 'MainHand', rarity: 'Epic', rank: 3, cost: 80000 },
-          { id: 'SKIN_TIDE', name: 'Tide Archive Blade', slot: 'MainHand', rarity: 'Rare', rank: 2, cost: 40000 },
-          { id: 'SKIN_HELM', name: 'Watcher Helm', slot: 'Head', rarity: 'Legendary', rank: 4, cost: 160000 },
+          { id: 'U_LEG_6', name: 'Cinder Archive Blade', slot: 'MainHand', rarity: 'Epic', rank: 3, cost: 80000 },
+          { id: 'U_LEG_10', name: 'Tide Archive Blade', slot: 'MainHand', rarity: 'Rare', rank: 2, cost: 40000 },
+          { id: 'U_LEG_4', name: 'Watcher Helm', slot: 'Head', rarity: 'Legendary', rank: 4, cost: 160000 },
         ],
       };
     }
@@ -295,8 +295,8 @@ test('wardrobe filters unlocked skins and applies or clears them without losing 
   await expect(page.locator('#abyssWardrobeCost')).toContainText('80');
   await page.locator('#abyssWardrobeApply').click();
   await expect.poll(() => mutations.length).toBe(1);
-  expect(mutations[0]).toEqual({ slot: 'MainHand', appearance_id: 'SKIN_CINDER' });
-  await expect(page.locator('#forgeItemSelect option:checked')).toHaveAttribute('data-appearance-id', 'SKIN_CINDER');
+  expect(mutations[0]).toEqual({ slot: 'MainHand', appearance_id: 'U_LEG_6' });
+  await expect(page.locator('#forgeItemSelect option:checked')).toHaveAttribute('data-appearance-id', 'U_LEG_6');
   await expect(equippedIcon).not.toHaveAttribute('data-art-signature', originalSignature);
   await expect(page.locator('#abToastHost')).toContainText('Combat power is unchanged');
 
@@ -1131,8 +1131,13 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   await page.goto('/abyss?active=1');
   await page.evaluate(() => {
     window.reduceMotion = true;
+    const manifest = window.AB_EXACT_ICON_MANIFEST;
+    const monsterKeys = Object.keys(manifest).filter(key => manifest[key].kind === 'monster').slice(0, 7);
+    const skillKeys = Object.keys(manifest).filter(key => manifest[key].kind === 'skill').slice(0, 2);
+    const itemKey = Object.keys(manifest).find(key => manifest[key].kind === 'gear' && manifest[key].family === 'items');
+    const relicKey = Object.keys(manifest).find(key => manifest[key].kind === 'gear' && manifest[key].family === 'relics');
     const enemies = Array.from({ length: 7 }, (_, index) => ({
-      id: `enemy:${index}`, name: `Raider ${index}`,
+      id: `enemy:${index}`, name: manifest[monsterKeys[index]].name, art_key: monsterKeys[index],
       hp: index === 4 ? 31 : index === 5 ? 29 : index === 6 ? 10 : 100,
       max_hp: 100, hp_hidden: index === 6,
       role: 'common', speed: 10 + index, effects: [],
@@ -1145,16 +1150,16 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
       policy: {}, allies: [{ id: 'ally:e2e', name: 'Tester', hp: 900, max_hp: 1000, shield: 150, max_shield: 200, mana: 100, max_mana: 100, is_self: true, is_player: true }],
       enemies, options: [
         { kind: 'attack', id: '', name: 'Basic Attack', target: 'enemy', cooldown: 0 },
-        { kind: 'skill', id: 'S_E2E_A', name: 'Fiery Blast', target: 'enemy', mana: 5, cooldown: 0 },
-        { kind: 'skill', id: 'S_E2E_B', name: 'Fiery Blast', target: 'enemy', mana: 5, cooldown: 0 },
+        { kind: 'skill', id: skillKeys[0].slice(6), name: manifest[skillKeys[0]].name, target: 'enemy', mana: 5, cooldown: 0 },
+        { kind: 'skill', id: skillKeys[1].slice(6), name: manifest[skillKeys[1]].name, target: 'enemy', mana: 5, cooldown: 0 },
       ],
       recent_logs: [], initiative: [], enemy_intents: [], social: {},
     });
-    document.querySelector('#lootManifest').innerHTML = '<div class="abyss-side-loot" data-loot-id="42" data-gear-id="ABYSS_TEST" data-slot="MainHand" data-tip="Test Blade"><span class="ab-loot-main"><span>Test Blade</span></span></div><div class="abyss-side-loot" data-loot-id="43" data-gear-id="ABYSS_RELIC" data-slot="Relic" data-tip="Test Relic"><span class="ab-loot-main"><span>Test Relic</span></span></div>';
+    document.querySelector('#lootManifest').innerHTML = '<div class="abyss-side-loot" data-loot-id="42" data-gear-id="'+itemKey.slice(5)+'" data-slot="MainHand" data-tip="Test Blade"><span class="ab-loot-main"><span>Test Blade</span></span></div><div class="abyss-side-loot" data-loot-id="43" data-gear-id="'+relicKey.slice(5)+'" data-slot="Relic" data-tip="Test Relic"><span class="ab-loot-main"><span>Test Relic</span></span></div>';
     window.updateLootRewardPresentation();
     const petCard = document.createElement('div');
     petCard.className = 'ab-pet-card';
-    petCard.dataset.petArtKey = 'pet:e2e:frost-lich';
+    petCard.dataset.petArtKey = 'pet-type:Common';
     petCard.innerHTML = '<span class="ab-pixel-icon ab-pet-pixel"></span>';
     document.querySelector('.abyss-command-page').appendChild(petCard);
     window.decorateAbyssPetCards();
@@ -1187,33 +1192,33 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   const enemyUnit = await ordinary.boundingBox();
   const allyUnit = await pixelAlly.boundingBox();
   expect(enemyUnit.y).toBeLessThan(allyUnit.y);
-  await expect(ordinary.locator('.ab-expanded-enemy-sprite')).toHaveCSS('background-image', /abyss_enemy_atlas_expanded/);
+  await expect(ordinary.locator('.ab-catalog-actor')).toHaveCSS('background-image', /abyss_catalog_(creatures|bosses)_p\d+/);
   await expect(ordinary).toHaveClass(/weakness-ready/);
   await expect(ordinary).toHaveClass(/weakness-open/);
   await expect(ordinary.locator('.ab-pixel-weakness')).toContainText('EXPOSED');
   await expect(ordinary).toHaveAttribute('aria-label', /next direct player hit is a guaranteed critical/);
-  await expect(ordinary.locator('.ab-expanded-enemy-sprite')).toHaveAttribute('data-art-sheet', 'expanded');
-  const monsterSignatures = await page.locator('#livePixelEnemies .ab-actor-sigil').evaluateAll(nodes => nodes.map(node => node.dataset.artSignature));
+  await expect(ordinary.locator('.ab-catalog-actor')).toHaveAttribute('data-art-sheet', /creatures|bosses/);
+  const monsterSignatures = await page.locator('#livePixelEnemies .ab-catalog-actor').evaluateAll(nodes => nodes.map(node => node.dataset.artSignature));
   expect(new Set(monsterSignatures).size).toBe(7);
   await ordinary.click();
-  await expect(page.locator('#liveQueue')).toContainText('TARGET · Raider 5');
+  await expect(page.locator('#liveQueue')).toContainText('TARGET ·');
   const attackIcon = page.locator('#liveActionBar .kind-attack .ab-semantic-action-icon');
   await expect(attackIcon).toHaveCSS('background-image', /abyss_icon_atlas/);
   await expect(attackIcon).toHaveAttribute('data-art-sheet', 'actions');
-  const skillSignatures = await page.locator('#liveActionBar .kind-skill .ab-semantic-action-icon').evaluateAll(nodes => nodes.map(node => node.dataset.artSignature));
+  const skillSignatures = await page.locator('#liveActionBar .kind-skill .ab-catalog-icon').evaluateAll(nodes => nodes.map(node => node.dataset.artSignature));
   expect(new Set(skillSignatures).size).toBe(2);
-  const skillComposites = await page.locator('#liveActionBar .kind-skill .ab-semantic-action-icon').evaluateAll(nodes => nodes.map(node => node.getAttribute('style')));
+  const skillComposites = await page.locator('#liveActionBar .kind-skill .ab-catalog-icon').evaluateAll(nodes => nodes.map(node => node.getAttribute('style')));
   expect(new Set(skillComposites).size).toBe(2);
-  const skillPositions = await page.locator('#liveActionBar .kind-skill .ab-semantic-action-icon').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).backgroundPosition));
-  expect(new Set(skillPositions).size).toBe(1);
+  const skillPositions = await page.locator('#liveActionBar .kind-skill .ab-catalog-icon').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).backgroundPosition));
+  expect(new Set(skillPositions).size).toBe(2);
   const lootIcons = page.locator('#lootManifest .ab-loot-pixel.ab-art-unique');
   await expect(lootIcons).toHaveCount(2);
-  await expect(lootIcons.nth(0)).toHaveCSS('background-image', /abyss_atlas_items/);
-  await expect(lootIcons.nth(1)).toHaveCSS('background-image', /abyss_atlas_relics/);
-  await expect(lootIcons.nth(1)).toHaveCSS('background-size', '1300% 1200%');
+  await expect(lootIcons.nth(0)).toHaveCSS('background-image', /abyss_catalog_items_p\d+/);
+  await expect(lootIcons.nth(1)).toHaveCSS('background-image', /abyss_catalog_relics_p\d+/);
+  await expect(lootIcons.nth(1)).toHaveCSS('background-size', '1400% 1200%');
   await expect(lootIcons.nth(1)).toHaveAttribute('data-art-sheet', 'relics');
-  const petIcon = page.locator('.ab-pet-card[data-pet-art-key="pet:e2e:frost-lich"] .ab-pet-pixel');
-  await expect(petIcon).toHaveCSS('background-image', /abyss_atlas_pets/);
+  const petIcon = page.locator('.ab-pet-card[data-pet-art-key="pet-type:Common"] .ab-pet-pixel');
+  await expect(petIcon).toHaveCSS('background-image', /abyss_catalog_pets_p\d+/);
   await expect(petIcon).toHaveCSS('width', '48px');
   await expect(petIcon).toHaveCSS('height', '48px');
   await expect(petIcon).toHaveAttribute('data-art-sheet', 'pets');

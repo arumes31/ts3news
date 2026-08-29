@@ -36,8 +36,8 @@
     </thead>
     <tbody>
       {{range .Active}}
-      <tr class="ah-row {{if .IsUpgrade}}upgrade-item{{end}}">
-        <td><span class="item-ico">{{.Icon}}</span> <span {{if .RarityColor}}style="color:{{.RarityColor}}"{{end}}>{{.Name}}</span> {{if .IsUpgrade}}<span class="upgrade-badge" title="Upgrade for equipped gear">⬆</span>{{end}}</td>
+      <tr class="ah-row {{if .IsUpgrade}}upgrade-item{{end}}{{if .InspectJSON}} item-inspect-trigger{{end}}"{{if .InspectJSON}} data-item-inspect="{{.InspectJSON}}" tabindex="0" aria-label="Inspect {{.Name}}"{{end}}>
+        <td>{{if .Family}}<span class="item-art item-art-sm" data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span>{{else}}<span class="item-ico">{{.Icon}}</span>{{end}} <span {{if .RarityColor}}style="color:{{.RarityColor}}"{{end}}>{{.Name}}</span> {{if .IsUpgrade}}<span class="upgrade-badge" title="Upgrade for equipped gear">⬆</span>{{end}}</td>
         <td>{{.ItemType}}</td>
         <td>{{if .Rarity}}<span style="color:{{.RarityColor}}">{{.Rarity}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
         <td>{{if .GS}}{{.GS}}{{else}}<span class="muted">—</span>{{end}}</td>
@@ -89,8 +89,8 @@
     </thead>
     <tbody>
       {{range .Sellable}}
-      <tr class="ah-row">
-        <td><span class="item-ico">{{.Icon}}</span> <span style="color:{{.RarityColor}}">{{.Name}}</span></td>
+      <tr class="ah-row{{if .InspectJSON}} item-inspect-trigger{{end}}"{{if .InspectJSON}} data-item-inspect="{{.InspectJSON}}" tabindex="0" aria-label="Inspect {{.Name}}"{{end}}>
+        <td><span class="item-art item-art-sm" data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span> <span style="color:{{.RarityColor}}">{{.Name}}</span></td>
         <td>{{.Slot}}</td>
         <td><span style="color:{{.RarityColor}}">{{.Rarity}}</span></td>
         <td>{{printf "%.0f" .CR}}</td>
