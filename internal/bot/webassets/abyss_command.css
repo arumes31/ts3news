@@ -260,7 +260,7 @@ body:has(.abyss-command-page) .foot {
 @media (min-width: 901px) and (min-height: 900px) {
   .abyss-command-page .ab-combat-cockpit.is-active {
     display: grid;
-    grid-template-rows: minmax(0, 1fr) minmax(150px, 26%);
+    grid-template-rows: minmax(340px, 3fr) minmax(280px, 2fr);
     gap: 8px;
     height: calc(100dvh - 74px);
     min-height: 0;
@@ -268,7 +268,7 @@ body:has(.abyss-command-page) .foot {
   }
 
   .abyss-command-page .ab-combat-cockpit.has-live-combat {
-    grid-template-rows: minmax(150px, 22%) minmax(360px, 1fr) minmax(120px, 18%);
+    grid-template-rows: minmax(140px, 16%) minmax(300px, 1fr) minmax(290px, 34%);
   }
 
   .abyss-command-page .ab-combat-cockpit > .abyss-stage-row {
@@ -289,6 +289,10 @@ body:has(.abyss-command-page) .foot {
     min-height: 0;
     height: 100%;
     max-height: none;
+  }
+
+  .abyss-command-page .ab-combat-cockpit .abyss-side-panel {
+    overflow: hidden;
   }
 
   .abyss-command-page .ab-combat-cockpit .abyss-stage {
@@ -335,7 +339,8 @@ body:has(.abyss-command-page) .foot {
   .abyss-command-page .ab-combat-cockpit > #logWrap {
     grid-row: 2;
     display: grid;
-    grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
     min-height: 0;
     margin: 0;
     padding: 8px 10px;
@@ -346,11 +351,66 @@ body:has(.abyss-command-page) .foot {
   }
 
   .abyss-command-page .ab-combat-cockpit.has-live-combat > #logWrap { grid-row: 3; }
-  .abyss-command-page .ab-combat-cockpit > #logWrap > h3 { margin: 0 0 4px; font-size: .8rem; }
-  .abyss-command-page .ab-combat-cockpit > #logWrap .ab-combat-recorder { margin: 0 0 4px; }
-  .abyss-command-page .ab-combat-cockpit > #logWrap .ab-log-tools { margin-bottom: 4px; }
-  .abyss-command-page .ab-combat-cockpit > #logWrap .abyss-log { min-height: 0; max-height: none; padding: 6px 9px; }
-  .abyss-command-page .ab-combat-cockpit > #logWrap :is(.abyss-loot, .abyss-dura) { max-height: 42px; margin-top: 3px; overflow: auto; }
+  .abyss-command-page .ab-combat-cockpit > #logWrap > h3 {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    margin: 0;
+    font-size: .8rem;
+  }
+  .abyss-command-page .ab-combat-cockpit > #logWrap .ab-log-tools {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    margin: 0;
+  }
+  .abyss-command-page .ab-combat-cockpit > #logWrap .ab-combat-recorder {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: minmax(180px, .7fr) minmax(0, 1.3fr);
+    align-items: center;
+    gap: 4px 10px;
+    margin: 4px 0;
+    padding: 4px 6px;
+  }
+  .abyss-command-page .ab-combat-cockpit > #logWrap .ab-recorder-controls {
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+  }
+  .abyss-command-page .ab-combat-cockpit > #logWrap .ab-recorder-legend {
+    display: none;
+  }
+  .abyss-command-page .ab-combat-cockpit > #logWrap .ab-fight-delta {
+    grid-column: 1 / -1;
+    margin-top: 2px;
+  }
+  .abyss-command-page .ab-combat-cockpit > #logWrap .ab-fatal-pin {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+  .abyss-command-page .ab-combat-cockpit > #logWrap .abyss-log {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    min-height: 150px;
+    max-height: none;
+    padding: 6px 9px;
+    line-height: 1.35;
+  }
+  .abyss-command-page .ab-combat-cockpit > #logWrap .abyss-loot {
+    grid-column: 1 / -1;
+    grid-row: 5;
+  }
+  .abyss-command-page .ab-combat-cockpit > #logWrap .abyss-dura {
+    grid-column: 1 / -1;
+    grid-row: 6;
+  }
+  .abyss-command-page .ab-combat-cockpit > #logWrap :is(.abyss-loot, .abyss-dura) {
+    max-height: 42px;
+    margin-top: 3px;
+    overflow: auto;
+  }
 
   .abyss-command-page .ab-combat-cockpit > .abyss-banner.show {
     position: absolute;
@@ -1173,6 +1233,12 @@ body:has(.abyss-command-page) .modal-overlay {
   .abyss-command-page .ab-btn-row button,
   .abyss-command-page .forge-plan-tools > :is(button, select, input) {
     min-height: 44px;
+  }
+
+  .abyss-command-page :is(#combatPosition, #entryFocus) {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .abyss-command-page .ab-tabs {

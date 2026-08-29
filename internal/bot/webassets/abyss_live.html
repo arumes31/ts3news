@@ -67,20 +67,6 @@
   <aside class="ab-hazard-telegraph" id="liveHazardTelegraph" hidden>
     <strong>NEXT ROUND</strong><span id="liveHazardTelegraphText"></span>
   </aside>
-  <div class="ab-pixel-stage" id="livePixelStage" aria-label="Animated combat battlefield">
-    <div class="ab-ultimate-charge" id="liveUltimateCharge" role="status" aria-label="Ultimate readiness"><b>ULT</b><span>—</span></div>
-    <div class="ab-pixel-backdrop" aria-hidden="true"><i></i><i></i><i></i></div>
-    <div class="ab-pixel-party" id="livePixelAllies" aria-label="Allied combatants"></div>
-    <div class="ab-pixel-party hostile" id="livePixelEnemies" aria-label="Enemy combatants"></div>
-    <div class="ab-pixel-stage-label" aria-hidden="true"><span>PARTY</span><span>HOSTILES</span></div>
-  </div>
-  <details class="ab-live-details">
-    <summary>TACTICAL DETAILS <span>exact HP · traits · effects · break bars</span></summary>
-    <div class="ab-live-field">
-      <div><span class="ab-live-label">ALLIES</span><div class="ab-live-targets" id="liveAllies"></div></div>
-      <div><span class="ab-live-label hostile">ENEMIES</span><div class="ab-live-targets" id="liveEnemies"></div></div>
-    </div>
-  </details>
   <div class="ab-live-command">
     <div class="ab-live-command-head">
       <div class="ab-live-queue" id="liveQueue" role="status" aria-live="polite">Choose an action, then select a target.</div>
@@ -97,6 +83,20 @@
     <div class="ab-loadouts" id="liveLoadouts" aria-label="Action bar loadouts"></div>
     <div class="ab-actionbar" id="liveActionBar"></div>
   </div>
+  <div class="ab-pixel-stage" id="livePixelStage" aria-label="Animated combat battlefield">
+    <div class="ab-ultimate-charge" id="liveUltimateCharge" role="status" aria-label="Ultimate readiness"><b>ULT</b><span>—</span></div>
+    <div class="ab-pixel-backdrop" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="ab-pixel-party" id="livePixelAllies" aria-label="Allied combatants"></div>
+    <div class="ab-pixel-party hostile" id="livePixelEnemies" aria-label="Enemy combatants"></div>
+    <div class="ab-pixel-stage-label" aria-hidden="true"><span>PARTY</span><span>HOSTILES</span></div>
+  </div>
+  <details class="ab-live-details">
+    <summary>TACTICAL DETAILS <span>exact HP · traits · effects · break bars</span></summary>
+    <div class="ab-live-field">
+      <div><span class="ab-live-label">ALLIES</span><div class="ab-live-targets" id="liveAllies"></div></div>
+      <div><span class="ab-live-label hostile">ENEMIES</span><div class="ab-live-targets" id="liveEnemies"></div></div>
+    </div>
+  </details>
 	<div class="ab-round-timeline" id="liveRoundTimeline" aria-label="Combat round timeline"></div>
 	<div class="ab-live-logtools"><label>Log <select id="liveLogFilter" onchange="setLiveLogFilter(this.value)"><option value="all">All</option><option value="damage">Damage</option><option value="healing">Healing</option><option value="system">System</option></select></label><button type="button" onclick="toggleLiveLog()">EXPAND LOG</button></div>
 	<div class="ab-live-feed" id="liveFeed" aria-live="off"></div>
