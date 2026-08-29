@@ -344,6 +344,17 @@
 .ab-livecombat.compact .ab-live-forecast,.ab-livecombat.compact .ab-live-policy,.ab-livecombat.compact .ab-round-timeline,.ab-livecombat.compact .ab-enemy-pattern { display: none; }
 .ab-livecombat.compact .ab-actionslot { min-height: 48px; max-width: 96px; }
 
+@media (min-width: 901px) and (min-height: 900px) {
+  .ab-live-command {
+    position: sticky;
+    z-index: 12;
+    top: 0;
+    border-block: 1px solid rgba(242, 189, 91, .2);
+    background: rgba(8, 12, 18, .98);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .34);
+  }
+}
+
 @media (max-width: 760px) {
   .ab-livecombat { position: relative; bottom: auto; width: 100%; border-radius: 3px 12px; }
   .ab-live-head { grid-template-columns: 1fr auto; gap: 8px; }

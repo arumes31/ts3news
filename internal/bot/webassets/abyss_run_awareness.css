@@ -55,6 +55,7 @@
 @media (max-width: 880px) {
   .ab-minihud { gap: .55rem; max-width: calc(100vw - 1rem); overflow-x: auto; }
   .ab-minihud > span:not(.ab-mh-actions) { white-space: nowrap; }
+  .ab-minihud .ab-mh-actions { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .abyss-stage.ab-critical-hp { transition: none; }

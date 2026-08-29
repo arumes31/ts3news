@@ -208,6 +208,18 @@
       {{if .Run.Downed}}You fell. Gamble a revival or concede the cache.{{else if .Run.Active}}You are {{.Run.Depth}} {{if eq .Run.Depth 1}}floor{{else}}floors{{end}} deep. Descend deeper, insure, or bank.{{else}}Rest at the threshold. Choose a tier and descend.{{end}}
     </p>
 
+    <div class="ab-btn-row" id="abyssPrimaryActions" aria-label="Primary run actions">
+      <button class="primary ab-enter" id="btnEnter" onclick="abyssEnter()">{{if .FreeEntryAvailable}}Enter — FREE today{{else}}Enter the Abyss{{end}}</button>
+      <button class="primary ab-descend" id="btnDescend" onclick="abyssDescend()" style="display:none">⬇️ Descend</button>
+      <button class="ghost ab-bank" id="btnBank" onclick="abyssBank()" style="display:none">🏦 Bank &amp; Leave</button>
+      <button class="ghost ab-simulate" id="btnSimulate" onclick="abyssSimulateNextFloor()" style="display:none">◫ Scout 100 fights <span>🜲 2</span></button>
+      <button class="ghost" id="btnDoubleBonus" onclick="abyssDoubleBonus()" {{with .PendingDoubleBonus}}{{else}}style="display:none"{{end}}>🪙 Double floor bonus</button>
+      <button class="ghost" id="btnBuildRespec" onclick="abyssBuildRespec()" style="display:none">🧬 Respec Mutation</button>
+      <button class="primary ab-revive" id="btnRevive" onclick="abyssRevive()" style="display:none">🎲 Revive (double-or-nothing)</button>
+      <button class="primary ab-laststand" id="btnLastStand" onclick="abyssLastStand()" style="display:none">🛡️ Last Stand (🜲 <span id="lsCost">{{.LastStandCost}}</span>)</button>
+      <button class="ghost ab-concede" id="btnConcede" onclick="abyssConcede()" style="display:none">🏳️ Concede</button>
+    </div>
+
     {{template "abyssOnboardingPanel" .}}
     {{template "abyssEntryPlannerPanel" .}}
 
@@ -406,17 +418,6 @@
       <button class="primary xs" id="btnDescendMulti" onclick="abyssDescendMulti()" style="margin-top:10px;" aria-label="Descend through all planned floors in sequence">⚡ Plan &amp; Descend Queue</button>
     </div>
 
-    <div class="ab-btn-row">
-      <button class="primary ab-enter" id="btnEnter" onclick="abyssEnter()">{{if .FreeEntryAvailable}}Enter — FREE today{{else}}Enter the Abyss{{end}}</button>
-      <button class="primary ab-descend" id="btnDescend" onclick="abyssDescend()" style="display:none">⬇️ Descend</button>
-      <button class="ghost ab-bank" id="btnBank" onclick="abyssBank()" style="display:none">🏦 Bank &amp; Leave</button>
-      <button class="ghost ab-simulate" id="btnSimulate" onclick="abyssSimulateNextFloor()" style="display:none">◫ Scout 100 fights <span>🜲 2</span></button>
-      <button class="ghost" id="btnDoubleBonus" onclick="abyssDoubleBonus()" {{with .PendingDoubleBonus}}{{else}}style="display:none"{{end}}>🪙 Double floor bonus</button>
-      <button class="ghost" id="btnBuildRespec" onclick="abyssBuildRespec()" style="display:none">🧬 Respec Mutation</button>
-      <button class="primary ab-revive" id="btnRevive" onclick="abyssRevive()" style="display:none">🎲 Revive (double-or-nothing)</button>
-      <button class="primary ab-laststand" id="btnLastStand" onclick="abyssLastStand()" style="display:none">🛡️ Last Stand (🜲 <span id="lsCost">{{.LastStandCost}}</span>)</button>
-      <button class="ghost ab-concede" id="btnConcede" onclick="abyssConcede()" style="display:none">🏳️ Concede</button>
-    </div>
     <section class="ab-shadow-report" id="abyssShadowReport" hidden tabindex="-1" aria-live="polite" aria-labelledby="abyssShadowTitle">
       <header>
         <span class="ab-shadow-kicker">SHADOW PROJECTION · 100 TRIALS</span>
