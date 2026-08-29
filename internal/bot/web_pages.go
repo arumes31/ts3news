@@ -55,12 +55,6 @@ type itemInspectView struct {
 	ArtRow        int               `json:"art_row"`
 }
 
-type atlasRegion struct {
-	row         int
-	firstColumn int
-	count       int
-}
-
 // gearView is a template-friendly view of a gear piece.
 type gearView struct {
 	itemAtlasView
@@ -122,29 +116,6 @@ type gearView struct {
 
 func gearAtlasFamily(slot content.GearSlot) string {
 	return content.GearPixelArtFamily(slot)
-}
-
-func itemSheetRegion(slot content.GearSlot) atlasRegion {
-	switch slot {
-	case content.SlotMainHand:
-		return atlasRegion{row: 0, firstColumn: 0, count: 14}
-	case content.SlotHead:
-		return atlasRegion{row: 1, firstColumn: 4, count: 10}
-	case content.SlotChest, content.SlotShoulders, content.SlotBack, content.SlotLegs:
-		return atlasRegion{row: 2, firstColumn: 0, count: 14}
-	case content.SlotHands, content.SlotWrists:
-		return atlasRegion{row: 3, firstColumn: 0, count: 5}
-	case content.SlotFeet:
-		return atlasRegion{row: 3, firstColumn: 5, count: 7}
-	case content.SlotWaist:
-		return atlasRegion{row: 3, firstColumn: 12, count: 2}
-	case content.SlotFinger1, content.SlotFinger2:
-		return atlasRegion{row: 4, firstColumn: 0, count: 8}
-	case content.SlotNeck:
-		return atlasRegion{row: 4, firstColumn: 8, count: 6}
-	default:
-		return atlasRegion{row: 5, firstColumn: 0, count: 14}
-	}
 }
 
 func gearAtlasView(g content.Gear) itemAtlasView {
