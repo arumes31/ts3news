@@ -3256,6 +3256,11 @@ func (b *Bot) calculateTotalStats(uid string, today time.Time) (content.Stats, f
 		}
 	}
 
+	// Permanent Abyss progression is the canonical global character model. Keep
+	// run-scoped build flags out of this layer; live Abyss combat adds those after
+	// loading the global result.
+	totalStats = abyssFoldStats(totalStats, b.treeBonusFor(uid))
+
 	return totalStats, mult, gearScore, notes
 }
 

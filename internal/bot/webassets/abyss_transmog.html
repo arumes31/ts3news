@@ -46,7 +46,7 @@
   }
   function gold(value){return typeof fmtGold==='function'?fmtGold(value):Number(value||0).toLocaleString()+'g';}
   function icon(appearance){
-    if(typeof abUniquePixelIconHTML==='function')return abUniquePixelIconHTML(0,appearance.id,'',abGearArtFamily(appearance.slot));
+    if(typeof abUniquePixelIconHTML==='function')return abUniquePixelIconHTML(0,'item:'+appearance.id,'',abGearArtFamily(appearance.slot));
     return '<span class="ab-wardrobe-fallback" aria-hidden="true">◇</span>';
   }
   function currentID(){return (option()&&option().dataset.appearanceId)||'';}
@@ -101,7 +101,7 @@
       var card=Array.prototype.find.call(document.querySelectorAll('.abyss-side-gear'),function(item){return item.dataset.slot===target.slot;});
       if(card){
         card.dataset.baseArtKey=card.dataset.baseArtKey||card.dataset.artKey;
-        card.dataset.artKey=result.appearance_id?'appearance:'+result.appearance_id:card.dataset.baseArtKey;
+        card.dataset.artKey=result.appearance_id?'item:'+result.appearance_id:card.dataset.baseArtKey;
         applyAbUniquePixelIcon(card.querySelector('.ab-gear-pixel'),abExpandedGearIconCell(target.slot),card.dataset.artKey,abGearArtFamily(target.slot));
       }
     }

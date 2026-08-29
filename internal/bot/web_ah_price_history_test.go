@@ -1,12 +1,34 @@
 package bot
 
 import (
+	"encoding/json"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+
+	"ts3news/internal/content"
 )
+
+func TestAHEnrichListingUsesSerializedCustomGear(t *testing.T) {
+	gear := content.Gear{
+		ID: "CUSTOM_FORGED_ITEM", Name: "Forged Test Relic", Slot: content.SlotRelic,
+		Rarity: content.RarityLegendary, Stats: content.Stats{INT: 180}, Special: content.EffectFocused,
+	}
+	encoded, err := json.Marshal(gear)
+	if err != nil {
+		t.Fatal(err)
+	}
+	view := ahListingView{ItemType: "gear", ItemID: gear.ID}
+	ahEnrichListing(&view, encoded)
+	if view.Family != "relics" || view.InspectJSON == "" {
+		t.Fatalf("custom listing atlas/inspection = family %q, inspect %q", view.Family, view.InspectJSON)
+	}
+	if !strings.Contains(view.InspectJSON, "Focused") {
+		t.Fatalf("custom listing inspection omitted its special: %s", view.InspectJSON)
+	}
+}
 
 func TestBuildAHPriceHistory(t *testing.T) {
 	tests := []struct {

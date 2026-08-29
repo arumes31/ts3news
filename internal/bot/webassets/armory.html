@@ -42,10 +42,12 @@
 <h2>Equipment</h2>
 <div class="gear-grid">
   {{range .Slots}}
-  <div class="gear-cell {{if .Empty}}empty{{end}}">
+  <div class="gear-cell {{if .Empty}}empty{{else}}item-inspect-trigger{{end}}"{{if .InspectJSON}} data-item-inspect="{{.InspectJSON}}" tabindex="0" role="button" aria-label="Inspect {{.Name}}"{{end}}>
     <div class="gear-slot">
+      {{if .Empty}}
       <span class="gi slot-gi"
         style="--gi:url({{iconURL .IconName}}){{if not .Empty}};color:{{.RarityColor}}{{end}}"></span>
+      {{else}}<span class="item-art item-art-sm" data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span>{{end}}
       {{if and (not .Empty) .RarityIcon}}<span class="gi slot-gi"
         style="--gi:url({{iconURL .RarityIcon}});color:{{.RarityColor}}"></span>{{end}}
       {{.Slot}}
@@ -66,6 +68,7 @@
           style="--gi:url({{iconURL .EffectIcon}})"></span> {{.Effect}}</span>{{end}}
     </div>
     {{if .EffectDesc}}<div class="gear-fxdesc">{{.EffectDesc}}</div>{{end}}
+    {{if .InspectJSON}}<div class="item-inspect-hint">Click for complete item record</div>{{end}}
     {{if .Unidentified}}<button class="primary xs identify-btn" onclick="identifyGear('{{.Slot}}', this)">🔍 Identify (100g)</button>{{end}}
     {{end}}
   </div>

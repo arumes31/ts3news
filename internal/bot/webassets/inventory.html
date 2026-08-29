@@ -44,9 +44,9 @@
 {{if .Items}}
 <div class="inv-grid">
   {{range .Items}}
-  <div class="inv-card" data-id="{{.InvID}}" data-slot="{{.Slot}}" data-unidentified="{{.Unidentified}}"{{if .Provenance}} title="{{.Provenance}}"{{end}}>
+  <div class="inv-card{{if .InspectJSON}} item-inspect-trigger{{end}}" data-id="{{.InvID}}" data-slot="{{.Slot}}" data-unidentified="{{.Unidentified}}"{{if .InspectJSON}} data-item-inspect="{{.InspectJSON}}" tabindex="0" role="button" aria-label="Inspect {{.Name}}"{{end}}{{if .Provenance}} title="{{.Provenance}}"{{end}}>
     <div class="inv-head">
-      <span class="gi slot-gi" style="--gi:url({{iconURL .IconName}});color:{{.RarityColor}}"></span>
+      <span class="item-art slot-gi" data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span>
       {{if .RarityIcon}}<span class="gi slot-gi{{if .Unidentified}} rarity-silhouette{{end}}"{{if .Unidentified}} aria-label="Unknown rarity silhouette" role="img"{{end}}
         style="--gi:url({{iconURL .RarityIcon}});color:{{.RarityColor}}"></span>{{end}}
       <span class="inv-name" style="color:{{.RarityColor}}">{{.Name}}</span>
@@ -54,6 +54,7 @@
     <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
     {{if .AppearanceName}}<div class="inv-meta" title="Cosmetic only">◈ Appearance: {{.AppearanceName}}</div>{{end}}
     <div class="inv-meta">CR <span data-item-number="{{printf "%.0f" .CR}}">{{printf "%.0f" .CR}}</span> · GS <span data-item-number="{{.Score}}">{{comma .Score}}</span> · {{.Durability}} dur</div>
+    {{if .InspectJSON}}<div class="item-inspect-hint">Click for stats, specials, and provenance</div>{{end}}
     {{if .BrokenIn}}<div class="inv-meta" title="Held for at least 30 days">🧡 Broken in · +1% positive stats</div>{{end}}
     <div class="inv-actions">
       <button onclick="equip({{.InvID}})">Equip</button>

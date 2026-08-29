@@ -16,7 +16,7 @@ import (
 const (
 	goldPerXP     = 10 // gold spent to gain 1 XP
 	xpPerGold     = 2  // XP spent to gain 1 gold (10 XP → 5 gold)
-	shopStockSize = 24
+	shopStockSize = 48
 )
 
 // gearPrice is the fair buy price of a gear piece, scaled by combat power and
@@ -71,6 +71,8 @@ func shopWindow(now time.Time) (seed int64, endsAt time.Time) {
 }
 
 type shopItemView struct {
+	itemAtlasView
+
 	ID          string
 	Name        string
 	Slot        string
@@ -83,6 +85,7 @@ type shopItemView struct {
 	IsUpgrade   bool
 	Featured    bool // the Mythic/Divine showcase relic (priced in the millions)
 	Effects     []string
+	InspectJSON string
 }
 
 // featuredShopPrice is the (millions-scale) price of the shop's Mythic/Divine
@@ -98,6 +101,7 @@ func featuredShopPrice(g content.Gear) int64 {
 // featuredShopView builds the shop card for the seed's showcase relic.
 func featuredShopView(seed int64) shopItemView {
 	g := content.FeaturedShopItem(seed)
+	gearView := toGearView(g.Slot, g)
 	effs := make([]string, 0, len(g.BonusEffects)+1)
 	if g.Special != content.EffectNone {
 		effs = append(effs, string(g.Special))
@@ -106,6 +110,7 @@ func featuredShopView(seed int64) shopItemView {
 		effs = append(effs, string(e))
 	}
 	return shopItemView{
+		itemAtlasView: gearView.itemAtlasView,
 		ID:          g.ID,
 		Name:        g.Name,
 		Slot:        string(g.Slot),
@@ -117,6 +122,7 @@ func featuredShopView(seed int64) shopItemView {
 		Price:       featuredShopPrice(g),
 		Featured:    true,
 		Effects:     effs,
+		InspectJSON: gearView.InspectJSON,
 	}
 }
 
@@ -127,6 +133,7 @@ func stockForSeed(seed int64, equippedGear map[string]content.Gear) []shopItemVi
 	// millions, pinned to the top of the list.
 	out = append(out, featuredShopView(seed))
 	for _, g := range stock {
+		gearView := toGearView(g.Slot, g)
 		isUpgrade := false
 		if curr, ok := equippedGear[string(g.Slot)]; !ok {
 			isUpgrade = true
@@ -135,6 +142,7 @@ func stockForSeed(seed int64, equippedGear map[string]content.Gear) []shopItemVi
 		}
 
 		out = append(out, shopItemView{
+			itemAtlasView: gearView.itemAtlasView,
 			ID:          g.ID,
 			Name:        g.Name,
 			Slot:        string(g.Slot),
@@ -145,7 +153,18 @@ func stockForSeed(seed int64, equippedGear map[string]content.Gear) []shopItemVi
 			Score:       g.Stats.Score(),
 			Price:       gearPrice(g),
 			IsUpgrade:   isUpgrade,
+			Effects:     append([]string(nil), gearViewEffectNames(g)...),
+			InspectJSON: gearView.InspectJSON,
 		})
+	}
+	return out
+}
+
+func gearViewEffectNames(g content.Gear) []string {
+	specials := gearSpecialViews(g)
+	out := make([]string, 0, len(specials))
+	for _, special := range specials {
+		out = append(out, special.Name)
 	}
 	return out
 }

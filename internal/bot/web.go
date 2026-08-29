@@ -459,6 +459,21 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 			ServeAsset(w, r, asset, "image/png")
 		})
 	}
+	mux.HandleFunc("/static/abyss_catalog_icons.js", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_catalog_icons.js", "application/javascript; charset=utf-8")
+	})
+	seenCatalogAssets := make(map[string]struct{})
+	for _, entry := range content.PixelArtCatalog() {
+		if _, exists := seenCatalogAssets[entry.Asset]; exists {
+			continue
+		}
+		seenCatalogAssets[entry.Asset] = struct{}{}
+		path := entry.Asset
+		asset := "webassets/" + strings.TrimPrefix(entry.Asset, "/static/")
+		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			ServeAsset(w, r, asset, "image/png")
+		})
+	}
 	mux.HandleFunc("/static/favicon.svg", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/favicon.svg", "image/svg+xml")
 	})

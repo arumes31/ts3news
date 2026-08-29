@@ -18,8 +18,8 @@
 }
 .abyss-command-page .ab-pixel-icon.ab-catalog-icon {
   overflow: hidden;
-  border-radius: 3px;
-  background-color: #07101c;
+  border-radius: 0;
+  background-color: transparent;
   background-image: var(--ab-catalog-atlas);
   background-position: var(--ab-catalog-position);
   background-size: var(--ab-catalog-size-x, 1400%) var(--ab-catalog-size-y, 1200%);
@@ -185,7 +185,7 @@
 .abyss-command-page .ab-actor-sprite.ab-catalog-actor {
   overflow: hidden;
   aspect-ratio: 1;
-  background-color: #07101c;
+  background-color: transparent;
   background-image: var(--ab-catalog-atlas);
   background-position: var(--ab-catalog-position);
   background-size: var(--ab-catalog-size-x, 1400%) var(--ab-catalog-size-y, 1200%);
@@ -216,6 +216,16 @@
   background: #080d18 var(--ab-art-sigil) center / 10px 10px no-repeat;
   box-shadow: 0 1px 4px #000;
   image-rendering: pixelated;
+}
+
+/* Exact catalog sprites carry their identity in transparent pixel art. The old
+   boxed sigil overlays obscured the artwork and are intentionally retired. */
+.abyss-command-page .ab-pixel-icon.ab-art-unique::before,
+.abyss-command-page .ab-pixel-icon.ab-art-unique::after,
+.abyss-command-page .ab-semantic-action-icon::after,
+.abyss-command-page .ab-actor-sigil,
+.abyss-command-page .ab-actor-sprite.ab-catalog-actor::after {
+  display: none;
 }
 .abyss-command-page .ab-pixel-unit.elite-tier { width: clamp(88px, 9vw, 132px); }
 .abyss-command-page .ab-pixel-unit.boss-tier { z-index: 3; width: clamp(112px, 12vw, 168px); }

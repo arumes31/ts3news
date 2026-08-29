@@ -6,12 +6,17 @@
 <title>{{.Title}} · TS3 RPG</title>
 <link rel="icon" type="image/svg+xml" href="{{asset "/static/favicon.svg"}}">
 <link rel="stylesheet" href="/static/style.css?v={{cssver}}">
+{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards")}}<link rel="stylesheet" href="{{asset "/static/abyss_portal.css"}}">
+<style id="abyssCatalogAtlasAssets">.delver-shell{
+--ab-atlas-artifacts:url({{asset "/static/abyss_atlas_artifacts.png"}});--ab-atlas-auras:url({{asset "/static/abyss_atlas_auras.png"}});--ab-atlas-banners:url({{asset "/static/abyss_atlas_banners.png"}});--ab-atlas-charms:url({{asset "/static/abyss_atlas_charms.png"}});--ab-atlas-companions:url({{asset "/static/abyss_atlas_companions.png"}});--ab-atlas-emblems:url({{asset "/static/abyss_atlas_emblems.png"}});--ab-atlas-items:url({{asset "/static/abyss_atlas_items.png"}});--ab-atlas-mounts:url({{asset "/static/abyss_atlas_mounts.png"}});--ab-atlas-offhands:url({{asset "/static/abyss_atlas_offhands.png"}});--ab-atlas-pets:url({{asset "/static/abyss_atlas_pets.png"}});--ab-atlas-ranged:url({{asset "/static/abyss_atlas_ranged.png"}});--ab-atlas-relics:url({{asset "/static/abyss_atlas_relics.png"}});--ab-atlas-souls:url({{asset "/static/abyss_atlas_souls.png"}});--ab-atlas-totems:url({{asset "/static/abyss_atlas_totems.png"}})
+}</style>{{end}}
 {{if eq .Nav "inventory"}}<link rel="stylesheet" href="{{asset "/static/gear_inventory_motion.css"}}">{{end}}
 <script>window.__ASSET_VER__ = "{{appver}}";</script>
+<script src="{{asset "/static/abyss_catalog_icons.js"}}"></script>
 {{template "abyss-display-locale" .}}
 {{template "abyss-quality-of-life" .}}
 </head>
-<body>
+<body{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards")}} class="delver-shell"{{end}}>
 {{if eq .Nav "abyss"}}<a class="ab-skip-link" href="#abyssControls">Skip to run controls</a>{{end}}
 <header class="topbar">
   <div class="brand"><img src="{{asset "/static/favicon.svg"}}" alt="" style="width:24px;height:24px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">TS3 RPG</div>
@@ -33,7 +38,7 @@
   </div>
   {{end}}
 </header>
-<main class="wrap{{if or (eq .Nav "abyss") (eq .Nav "armory") (eq .Nav "plaza")}} wrap-wide{{end}}">{{end}}
+<main class="wrap{{if or (eq .Nav "abyss") (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards") (eq .Nav "plaza")}} wrap-wide{{end}}">{{end}}
 
 {{define "leaderboards"}}
 <div class="lb-grid">
@@ -226,6 +231,56 @@ async function resetTalents(scope, label) {
   if (typeof abToast === 'function') abToast(d.msg || 'Talents reset!', true);
   setTimeout(function(){ window.location.reload(); }, 1000);
 }
+
+function itemInspectEsc(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, function(character) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character];
+  });
+}
+function itemInspectList(items, render) {
+  return (items || []).map(render).join('');
+}
+function openItemInspector(trigger) {
+  if (!trigger || !trigger.dataset.itemInspect) return;
+  var item;
+  try { item = JSON.parse(trigger.dataset.itemInspect); } catch (_) { return; }
+  var stats = itemInspectList(item.stats, function(stat) {
+    var value = Number(stat.value || 0);
+    return '<span><i>' + itemInspectEsc(stat.label) + '</i><b>' + (value > 0 ? '+' : '') + value.toLocaleString() + '</b></span>';
+  });
+  var specials = itemInspectList(item.specials, function(special) {
+    return '<div class="item-inspector-special"><b>' + itemInspectEsc(special.name) + '</b><span>' + itemInspectEsc(special.description || 'Special combat effect') + '</span></div>';
+  });
+  var tags = [];
+  if (item.element) tags.push('Element · ' + item.element);
+  if (item.set_id) tags.push('Set · ' + item.set_id);
+  if (item.xp_bonus_pct) tags.push((item.xp_bonus_pct > 0 ? '+' : '') + item.xp_bonus_pct + '% XP');
+  if (item.max_durability) tags.push(item.max_durability + ' max durability');
+  (item.modifiers || []).forEach(function(modifier) { tags.push(modifier); });
+  (item.gemstones || []).forEach(function(gemstone) { tags.push('Gem · ' + gemstone); });
+  var tagHTML = itemInspectList(tags, function(tag) { return '<span>' + itemInspectEsc(tag) + '</span>'; });
+  var artAsset=String(item.art_asset||'')+(window.__ASSET_VER__?'?v='+encodeURIComponent(window.__ASSET_VER__):'');
+  var art = '<span class="item-art item-art-lg" data-art-family="' + itemInspectEsc(item.art_family || 'items') + '" data-art-page="' + Number(item.art_page || 0) + '" style="--item-atlas:url(&quot;' + itemInspectEsc(artAsset) + '&quot;);--art-col:' + Number(item.art_column || 0) + ';--art-row:' + Number(item.art_row || 0) + '"></span>';
+  openModal('<article class="item-inspector" style="--inspect-rarity:' + itemInspectEsc(item.rarity_color || '#e7edf6') + '">' +
+    '<header class="item-inspector-head">' + art + '<div><h2>' + itemInspectEsc(item.name) + '</h2><p>' + itemInspectEsc(item.rarity) + ' · ' + itemInspectEsc(item.slot) + '</p></div><div class="item-inspector-score">CR ' + Number(item.cr || 0).toLocaleString() + '<br>GS ' + Number(item.score || 0).toLocaleString() + '</div></header>' +
+    (stats ? '<section class="item-inspector-section"><h3>Global stats</h3><div class="item-inspector-stats">' + stats + '</div></section>' : '') +
+    (specials ? '<section class="item-inspector-section"><h3>All specials</h3><div class="item-inspector-specials">' + specials + '</div></section>' : '<section class="item-inspector-section"><h3>All specials</h3><p class="muted small">No special combat effects.</p></section>') +
+    (tagHTML ? '<section class="item-inspector-section"><h3>Properties</h3><div class="item-inspector-tags">' + tagHTML + '</div></section>' : '') +
+    (item.provenance ? '<section class="item-inspector-section"><h3>Provenance</h3><p class="muted small">' + itemInspectEsc(item.provenance) + '</p></section>' : '') +
+    '<div class="modal-actions"><button type="button" onclick="closeModal()">Close</button></div></article>');
+}
+document.addEventListener('click', function(event) {
+  var trigger = event.target.closest('[data-item-inspect]');
+  if (!trigger || event.target.closest('button,a,input,select,textarea')) return;
+  openItemInspector(trigger);
+});
+document.addEventListener('keydown', function(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  var trigger = event.target.closest('[data-item-inspect]');
+  if (!trigger || event.target.closest('button,a,input,select,textarea')) return;
+  event.preventDefault();
+  openItemInspector(trigger);
+});
 
 // Expose the current page in the nav for assistive tech.
 var na = document.querySelector('.nav a.active');

@@ -105,12 +105,12 @@ func TestCurrentAbyssBankPreviewLootIsBoundedAndPlainText(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = database.Close() })
 	bot := &Bot{DB: database}
-	mock.ExpectQuery("SELECT item_type, label FROM abyss_escrow_loot").
+	mock.ExpectQuery("SELECT item_type, label, item_data FROM abyss_escrow_loot").
 		WithArgs("user", abyssBankPreviewLootLimit).
-		WillReturnRows(sqlmock.NewRows([]string{"item_type", "label"}).
-			AddRow("gear", "[color=#ff9d3c]Crown[/color] [s:Head]").
-			AddRow("cons", "[b]Lucky Draught[/b]").
-			AddRow("unique", strings.Repeat("x", abyssBankPreviewLabelLimit+10))).
+		WillReturnRows(sqlmock.NewRows([]string{"item_type", "label", "item_data"}).
+			AddRow("gear", "[color=#ff9d3c]Crown[/color] [s:Head]", `{"type":"gear","gear":{"ID":"B_Head"}}`).
+			AddRow("cons", "[b]Lucky Draught[/b]", `{"type":"cons","cons_id":"small_health_potion"}`).
+			AddRow("unique", strings.Repeat("x", abyssBankPreviewLabelLimit+10), `{}`)).
 		RowsWillBeClosed()
 
 	items, err := bot.currentAbyssBankPreviewLoot(context.Background(), "user", 999)
@@ -122,6 +122,9 @@ func TestCurrentAbyssBankPreviewLootIsBoundedAndPlainText(t *testing.T) {
 	}
 	if items[0].Label != "Crown" || items[0].Slot != "Head" {
 		t.Fatalf("first preview item = %#v", items[0])
+	}
+	if items[0].ArtKey != "item:B_Head" || items[1].ArtKey != "item:small_health_potion" {
+		t.Fatalf("preview exact art keys = %q, %q", items[0].ArtKey, items[1].ArtKey)
 	}
 	if strings.Contains(items[0].Label, "[") || strings.Contains(items[0].Label, "<") {
 		t.Fatalf("preview label was not reduced to plain text: %q", items[0].Label)
@@ -142,7 +145,7 @@ func TestCurrentAbyssBankPreviewLootReturnsQueryErrors(t *testing.T) {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
 	t.Cleanup(func() { _ = database.Close() })
-	mock.ExpectQuery("SELECT item_type, label FROM abyss_escrow_loot").
+	mock.ExpectQuery("SELECT item_type, label, item_data FROM abyss_escrow_loot").
 		WithArgs("user", 1).
 		WillReturnError(errors.New("query failed"))
 
@@ -163,10 +166,10 @@ func TestCurrentAbyssBankPreviewLootReturnsRowErrors(t *testing.T) {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
 	t.Cleanup(func() { _ = database.Close() })
-	mock.ExpectQuery("SELECT item_type, label FROM abyss_escrow_loot").
+	mock.ExpectQuery("SELECT item_type, label, item_data FROM abyss_escrow_loot").
 		WithArgs("user", 1).
-		WillReturnRows(sqlmock.NewRows([]string{"item_type", "label"}).
-			AddRow("gear", "Crown").
+		WillReturnRows(sqlmock.NewRows([]string{"item_type", "label", "item_data"}).
+			AddRow("gear", "Crown", `{}`).
 			RowError(0, errors.New("read interrupted")))
 
 	_, err = (&Bot{DB: database}).currentAbyssBankPreviewLoot(context.Background(), "user", 1)
