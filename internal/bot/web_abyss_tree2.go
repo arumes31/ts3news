@@ -1,8 +1,8 @@
 package bot
 
-// Abyss Skill Web — progression & talent features (AB-151 … AB-175, group G of
-// docs/ABYSS_IMPROVEMENTS_300.md). All new state lives in app_meta JSON (no DB
-// migrations): loadouts, loose jewels, weekly free-respec marker, last
+// Abyss Skill Web progression and talent features. All related state lives in
+// app_meta JSON (no database migrations): loadouts, loose jewels, the weekly
+// free-respec marker, the last
 // allocation (undo), prestige memory, mastery shards.
 
 import (

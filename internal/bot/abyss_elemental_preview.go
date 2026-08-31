@@ -65,7 +65,7 @@ func abyssElementalPreview(
 
 func abyssEquippedAttackElement(equipped map[content.GearSlot]content.Gear) content.Element {
 	weapon, ok := equipped[content.SlotMainHand]
-	if !ok {
+	if !ok || !abyssGearActiveForCombat(weapon) {
 		return content.ElementPhysical
 	}
 	element, _ := abyssElementDisplay(weapon.Element)

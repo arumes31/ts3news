@@ -126,7 +126,7 @@ func (s *WebServer) handleAbyssIdentify(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	normalCost := s.bot.forgeGoldCost(uid, 100, g.Rarity)
+	normalCost := int64(abyssIdentifyCost)
 	cost, dailyFree, chargeOK := s.dailyIdentifyCharge(w, r, tx, uid, normalCost, normalCost)
 	if !chargeOK {
 		return
@@ -405,7 +405,7 @@ func (s *WebServer) handleAbyssRecalibrate(w http.ResponseWriter, r *http.Reques
 		InvID     int64  `json:"inv_id"`
 		Slot      string `json:"slot"`
 		Stat      string `json:"stat"` // HP, MNA, STR, DEF, SPD, LCK, INT, STA, CRT, DGE
-		MaxTokens int64 `json:"max_tokens"`
+		MaxTokens int64  `json:"max_tokens"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
@@ -701,7 +701,7 @@ func (s *WebServer) handleAbyssTransmute(w http.ResponseWriter, r *http.Request,
 
 	// Load user stats to select suitable class weapon
 	userStats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
-	
+
 	// Determine weapon pool based on highest stat
 	var selected content.Gear
 	var weaponPool []string

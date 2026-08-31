@@ -8,7 +8,7 @@ import (
 	"ts3news/internal/content"
 )
 
-// Abyss combat mechanics (docs/ABYSS_IMPROVEMENTS_300.md, group C / AB-51..75).
+// Abyss combat mechanics.
 // Everything here is gated on the Abyss run markers (EscrowLoot / FloorModifier)
 // so regular TS3 channel combat is never affected. State that must survive a
 // single fight (toggles, targets) lives in app_meta so no schema change is

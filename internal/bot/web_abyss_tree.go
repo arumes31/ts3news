@@ -387,10 +387,7 @@ func (b *Bot) treeBonusFor(uid string) content.TreeBonus {
 	// `user_gears` table (with no such columns) and silently granted nothing.
 	if allocatedMap[treeNodeSetResonance] {
 		setCount := map[string]int{}
-		for slot, g := range b.getEquippedItems(uid) {
-			if content.IsPetGearSlot(slot) {
-				continue
-			}
+		for _, g := range abyssPlayerEquipment(b.getEquippedItems(uid)) {
 			if sid := g.EffectiveSetID(); sid != "" {
 				setCount[sid]++
 			}
@@ -575,7 +572,7 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		"BestDepth": st.BestDepth,
 		"RespecTk":  abyssTreeRespecTokens,
 		// Talent/Spec updates
-		"Stats":    st,
+		"Stats":               st,
 		"Spec":                s.bot.abyssSpec(uid),
 		"SpecDefs":            abyssSpecs,
 		"SpecializationNodes": abyssSpecializationNodes(),

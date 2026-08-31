@@ -11,22 +11,6 @@ import (
 	"ts3news/internal/content"
 )
 
-// isAuctionUpgrade reports whether the gear item itemID is an upgrade over what the
-// viewer currently has equipped in that gear's slot. An empty slot always counts as
-// an upgrade; a non-gear or unknown item never does. Shared by the listing and count
-// paths so the upgrades-only filter and its total stay in sync.
-func isAuctionUpgrade(itemID string, equippedGear map[string]content.Gear) bool {
-	cg, ok := content.GetGearByID(itemID)
-	if !ok {
-		return false
-	}
-	curr, ok := equippedGear[string(cg.Slot)]
-	if !ok {
-		return true
-	}
-	return cg.CombatRating() > curr.CombatRating() && cg.Stats.Score() > curr.Stats.Score()
-}
-
 type ahListingView struct {
 	itemAtlasView
 
@@ -38,21 +22,47 @@ type ahListingView struct {
 	Price        int64
 	Seller       string
 	Listed       string
+	Expires      string
+	ExpiresISO   string
+	ExpiresIn    string
 	Mine         bool
 	IsUpgrade    bool
 	Insanity     bool
 	Watched      bool
 	SellerRep    int
 	CurrentBid   int64
+	LeadingBid   bool
 	FeeSummary   string
 	PriceHistory ahPriceHistoryView
 
 	// Display metadata resolved from the listed instance's item_data (falling
 	// back to the catalog): gear score and rarity.
-	GS          int
-	Rarity      string
-	RarityColor string
-	InspectJSON string
+	GS           int
+	Rarity       string
+	RarityColor  string
+	InspectJSON  string
+	Unidentified bool
+	gear         content.Gear
+	gearOK       bool
+}
+
+func ahExpiryLabels(expiresAt, now time.Time) (string, string) {
+	expiresAt = expiresAt.UTC()
+	remaining := expiresAt.Sub(now)
+	exact := expiresAt.Format("02 Jan 2006 · 15:04 UTC")
+	if remaining <= 0 {
+		return exact, "ending now"
+	}
+	if remaining < time.Minute {
+		return exact, "in under 1m"
+	}
+	if remaining < time.Hour {
+		return exact, fmt.Sprintf("in %dm", int(remaining/time.Minute))
+	}
+	if remaining < 24*time.Hour {
+		return exact, fmt.Sprintf("in %dh %dm", int(remaining/time.Hour), int(remaining%time.Hour/time.Minute))
+	}
+	return exact, fmt.Sprintf("in %dd %dh", int(remaining/(24*time.Hour)), int(remaining%(24*time.Hour)/time.Hour))
 }
 
 // ahEnrichListing fills GS / rarity from the listing's item_data JSON — the
@@ -61,6 +71,34 @@ type ahListingView struct {
 // ultimates, uniques, enchantments) marshal Rarity, and gear/enchantments
 // marshal Stats, so one probe covers them all.
 func ahEnrichListing(v *ahListingView, dataJSON []byte) {
+	var listedGear content.Gear
+	listedGearOK := false
+	if v.ItemType == "gear" {
+		listedGear, listedGearOK = content.GetGearByID(v.ItemID)
+		if len(dataJSON) > 0 {
+			candidate := listedGear
+			if err := json.Unmarshal(dataJSON, &candidate); err == nil && candidate.Slot != "" {
+				listedGear = candidate
+				listedGearOK = true
+			} else {
+				listedGearOK = false
+			}
+		}
+		v.gear = listedGear
+		v.gearOK = listedGearOK
+		if listedGearOK && listedGear.Unidentified {
+			gearView := toGearView(listedGear.Slot, listedGear)
+			v.itemAtlasView = gearView.itemAtlasView
+			v.Name = gearView.Name
+			v.Rarity = gearView.Rarity
+			v.RarityColor = gearView.RarityColor
+			v.GS = 0
+			v.InspectJSON = ""
+			v.Unidentified = true
+			return
+		}
+	}
+
 	var probe struct {
 		Rarity *content.Rarity
 		Stats  *content.Stats
@@ -93,14 +131,8 @@ func ahEnrichListing(v *ahListingView, dataJSON []byte) {
 		v.GS = probe.Stats.Score()
 	}
 	if v.ItemType == "gear" {
-		gear, ok := content.GetGearByID(v.ItemID)
-		if len(dataJSON) > 0 {
-			if err := json.Unmarshal(dataJSON, &gear); err == nil && gear.Slot != "" {
-				ok = true
-			}
-		}
-		if ok {
-			gearView := toGearView(gear.Slot, gear)
+		if listedGearOK {
+			gearView := toGearView(listedGear.Slot, listedGear)
 			v.itemAtlasView = gearView.itemAtlasView
 			v.InspectJSON = gearView.InspectJSON
 		}
@@ -158,35 +190,38 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 		}
 	}
 	limit := 20
-	offset := (page - 1) * limit
 
-	// Load player's equipped gear to determine upgrades
-	equippedGear := make(map[string]content.Gear)
-	rows, err := s.bot.DB.Query("SELECT slot, gear_id FROM user_gear WHERE client_uid=$1", uid)
-	if err == nil {
-		defer func() { _ = rows.Close() }()
-		for rows.Next() {
-			var slot, gearID string
-			if err := rows.Scan(&slot, &gearID); err == nil {
-				if cg, ok := content.GetGearByID(gearID); ok {
-					equippedGear[slot] = cg
-				}
-			}
-		}
+	// Upgrade badges use the exact equipped instances, including forge/custom data.
+	equippedGear := s.bot.equippedGearUpgradeIndex(uid)
+
+	totalCount := s.bot.ahActiveListingsCount(searchQuery, equippedGear, upgradesOnly, insanityOnly)
+	totalPages := (totalCount + limit - 1) / limit
+	if totalPages < 1 {
+		totalPages = 1
 	}
-
+	if page > totalPages {
+		page = totalPages
+	}
+	offset := (page - 1) * limit
 	activeListings := s.bot.ahActiveListings(uid, equippedGear, searchQuery, upgradesOnly, insanityOnly, limit, offset)
 	priceHistories := s.bot.ahPriceHistories(activeListings)
-	totalCount := s.bot.ahActiveListingsCount(searchQuery, equippedGear, upgradesOnly, insanityOnly)
 	watched := s.bot.abyssAHWatchlist(uid)
 	for i := range activeListings {
 		activeListings[i].PriceHistory = priceHistories[activeListings[i].ItemID]
 		activeListings[i].Watched = watched[activeListings[i].ItemID]
-		activeListings[i].FeeSummary = "Buyer fee 0g · seller receives the exact buy-now price"
+		salesTax := abyssAuctionSalesTax(activeListings[i].Price)
+		activeListings[i].FeeSummary = fmt.Sprintf(
+			"Buyer fee 0g · seller community tax %dg · seller receives %dg",
+			salesTax,
+			activeListings[i].Price-salesTax,
+		)
 	}
-	totalPages := (totalCount + limit - 1) / limit
-	if totalPages < 1 {
-		totalPages = 1
+	history := s.bot.ahHistory(uid, 20)
+	soldHistory := make([]ahHistoryView, 0, len(history))
+	for _, row := range history {
+		if row.Role == "Sold" {
+			soldHistory = append(soldHistory, row)
+		}
 	}
 
 	s.render(w, "ah", map[string]any{
@@ -195,7 +230,8 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 		"U":            u,
 		"Active":       activeListings,
 		"Mine":         s.bot.ahMyListings(uid),
-		"History":      s.bot.ahHistory(uid, 20),
+		"History":      history,
+		"SoldHistory":  soldHistory,
 		"Sellable":     s.bot.inventoryItems(uid),
 		"SearchQuery":  searchQuery,
 		"UpgradesOnly": upgradesOnly,
@@ -212,9 +248,11 @@ func (s *WebServer) handleAHPage(w http.ResponseWriter, r *http.Request, uid str
 func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear, search string, upgradesOnly, insanityOnly bool, limit, offset int) []ahListingView {
 	query := `
 		SELECT a.id, a.item_type, a.item_id, a.item_name, a.item_data, a.price, a.listed_at, COALESCE(u.nickname,'?'), a.seller_uid,
-		       a.current_bid, (SELECT COUNT(*) FROM auction_house sold WHERE sold.seller_uid=a.seller_uid AND sold.sold_at IS NOT NULL)
+		       a.current_bid, a.bidder_uid, a.expires_at,
+		       (SELECT COUNT(*) FROM auction_house sold WHERE sold.seller_uid=a.seller_uid AND sold.sold_at IS NOT NULL)
 		FROM auction_house a LEFT JOIN users u ON u.client_uid = a.seller_uid
-		WHERE a.sold_at IS NULL AND a.expires_at > NOW()`
+		WHERE a.sold_at IS NULL AND a.expires_at > NOW()
+		  AND (a.item_type <> 'gear' OR LOWER(COALESCE(a.item_data->>'unidentified','false')) <> 'true')`
 	var args []any
 	if search != "" {
 		query += ` AND a.item_name ILIKE $1`
@@ -239,22 +277,27 @@ func (b *Bot) ahActiveListings(uid string, equippedGear map[string]content.Gear,
 	}
 	defer func() { _ = rows.Close() }()
 	var all []ahListingView
+	now := time.Now()
 	for rows.Next() {
 		var v ahListingView
-		var t time.Time
+		var listedAt, expiresAt time.Time
 		var seller string
+		var bidder sql.NullString
 		var dataJSON []byte
-		if err := rows.Scan(&v.ID, &v.ItemType, &v.ItemID, &v.Name, &dataJSON, &v.Price, &t, &v.Seller, &seller, &v.CurrentBid, &v.SellerRep); err != nil {
+		if err := rows.Scan(&v.ID, &v.ItemType, &v.ItemID, &v.Name, &dataJSON, &v.Price, &listedAt, &v.Seller, &seller, &v.CurrentBid, &bidder, &expiresAt, &v.SellerRep); err != nil {
 			continue
 		}
 		v.Icon = ahIcon(v.ItemType, v.ItemID)
-		v.Listed = t.Format("Jan 02")
+		v.Listed = listedAt.UTC().Format("02 Jan 2006 · 15:04 UTC")
+		v.Expires, v.ExpiresIn = ahExpiryLabels(expiresAt, now)
+		v.ExpiresISO = expiresAt.UTC().Format(time.RFC3339)
 		v.Mine = seller == uid
+		v.LeadingBid = bidder.Valid && bidder.String == uid
 		v.Insanity = content.IsInsanityGearID(v.ItemID)
 		ahEnrichListing(&v, dataJSON)
 
-		if v.ItemType == "gear" {
-			v.IsUpgrade = isAuctionUpgrade(v.ItemID, equippedGear)
+		if v.ItemType == "gear" && v.gearOK {
+			v.IsUpgrade = isGearUpgrade(v.gear, equippedGear)
 		}
 
 		if upgradesOnly && !v.IsUpgrade {
@@ -284,15 +327,17 @@ func (b *Bot) ahActiveListingsCount(search string, equippedGear map[string]conte
 		var err error
 		if search != "" {
 			rows, err = b.DB.Query(`
-				SELECT a.item_type, a.item_id
+				SELECT a.item_type, a.item_id, a.item_data
 				FROM auction_house a
 				WHERE a.sold_at IS NULL AND a.expires_at > NOW() AND a.item_name ILIKE $1
+				  AND (a.item_type <> 'gear' OR LOWER(COALESCE(a.item_data->>'unidentified','false')) <> 'true')
 				  AND ($2=FALSE OR a.item_id LIKE 'INSANITY_%')`, "%"+search+"%", insanityOnly)
 		} else {
 			rows, err = b.DB.Query(`
-				SELECT item_type, item_id
+				SELECT item_type, item_id, item_data
 				FROM auction_house
 				WHERE sold_at IS NULL AND expires_at > NOW()
+				  AND (item_type <> 'gear' OR LOWER(COALESCE(item_data->>'unidentified','false')) <> 'true')
 				  AND ($1=FALSE OR item_id LIKE 'INSANITY_%')`, insanityOnly)
 		}
 		if err != nil {
@@ -302,11 +347,15 @@ func (b *Bot) ahActiveListingsCount(search string, equippedGear map[string]conte
 		count := 0
 		for rows.Next() {
 			var itemType, itemID string
-			if err := rows.Scan(&itemType, &itemID); err != nil {
+			var itemData sql.NullString
+			if err := rows.Scan(&itemType, &itemID, &itemData); err != nil {
 				continue
 			}
-			if itemType == "gear" && isAuctionUpgrade(itemID, equippedGear) {
-				count++
+			if itemType == "gear" {
+				gear, ok := b.makeGear(itemID, itemData)
+				if ok && isGearUpgrade(gear, equippedGear) {
+					count++
+				}
 			}
 		}
 		return count
@@ -319,12 +368,14 @@ func (b *Bot) ahActiveListingsCount(search string, equippedGear map[string]conte
 			SELECT COUNT(*)
 			FROM auction_house
 			WHERE sold_at IS NULL AND expires_at > NOW() AND item_name ILIKE $1
+			  AND (item_type <> 'gear' OR LOWER(COALESCE(item_data->>'unidentified','false')) <> 'true')
 			  AND ($2=FALSE OR item_id LIKE 'INSANITY_%')`, "%"+search+"%", insanityOnly).Scan(&count)
 	} else {
 		err = b.DB.QueryRow(`
 			SELECT COUNT(*)
 			FROM auction_house
 			WHERE sold_at IS NULL AND expires_at > NOW()
+			  AND (item_type <> 'gear' OR LOWER(COALESCE(item_data->>'unidentified','false')) <> 'true')
 			  AND ($1=FALSE OR item_id LIKE 'INSANITY_%')`, insanityOnly).Scan(&count)
 	}
 	if err != nil {
@@ -335,24 +386,28 @@ func (b *Bot) ahActiveListingsCount(search string, equippedGear map[string]conte
 
 func (b *Bot) ahMyListings(uid string) []ahListingView {
 	rows, err := b.DB.Query(`
-		SELECT id, item_type, item_id, item_name, item_data, price, listed_at
+		SELECT id, item_type, item_id, item_name, item_data, price, listed_at, expires_at
 		FROM auction_house
 		WHERE seller_uid=$1 AND sold_at IS NULL AND expires_at > NOW()
+		  AND (item_type <> 'gear' OR LOWER(COALESCE(item_data->>'unidentified','false')) <> 'true')
 		ORDER BY listed_at DESC`, uid)
 	if err != nil {
 		return nil
 	}
 	defer func() { _ = rows.Close() }()
 	var out []ahListingView
+	now := time.Now()
 	for rows.Next() {
 		var v ahListingView
-		var t time.Time
+		var listedAt, expiresAt time.Time
 		var dataJSON []byte
-		if err := rows.Scan(&v.ID, &v.ItemType, &v.ItemID, &v.Name, &dataJSON, &v.Price, &t); err != nil {
+		if err := rows.Scan(&v.ID, &v.ItemType, &v.ItemID, &v.Name, &dataJSON, &v.Price, &listedAt, &expiresAt); err != nil {
 			continue
 		}
 		v.Icon = ahIcon(v.ItemType, v.ItemID)
-		v.Listed = t.Format("Jan 02")
+		v.Listed = listedAt.UTC().Format("02 Jan 2006 · 15:04 UTC")
+		v.Expires, v.ExpiresIn = ahExpiryLabels(expiresAt, now)
+		v.ExpiresISO = expiresAt.UTC().Format(time.RFC3339)
 		v.Mine = true
 		ahEnrichListing(&v, dataJSON)
 		out = append(out, v)
@@ -368,6 +423,7 @@ func (b *Bot) ahHistory(uid string, limit int) []ahHistoryView {
 		LEFT JOIN users sb ON sb.client_uid = a.seller_uid
 		LEFT JOIN users bu ON bu.client_uid = a.buyer_uid
 		WHERE a.sold_at IS NOT NULL AND (a.seller_uid=$1 OR a.buyer_uid=$1)
+		  AND (a.item_type <> 'gear' OR LOWER(COALESCE(a.item_data->>'unidentified','false')) <> 'true')
 		ORDER BY a.sold_at DESC LIMIT $2`, uid, limit)
 	if err != nil {
 		return nil
@@ -446,6 +502,10 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 		var value content.Gear
 		if err := json.Unmarshal(dataJSON, &value); err != nil || value.ID == "" || value.ID != itemID {
 			writeJSON(w, map[string]any{"ok": false, "error": "listing has invalid gear data"})
+			return
+		}
+		if value.Unidentified || value.Attuned {
+			writeJSON(w, map[string]any{"ok": false, "error": "listing unavailable"})
 			return
 		}
 		gear = &value
@@ -585,7 +645,11 @@ func abyssAuctionSalesTax(price int64) int64 {
 	if price <= 0 {
 		return 0
 	}
-	return max(int64(1), (price*5+99)/100)
+	// Compute ceil(price*5/100) without multiplying the full int64 price,
+	// which could overflow before division for corrupted or legacy rows.
+	whole := (price / 100) * 5
+	remainder := ((price%100)*5 + 99) / 100
+	return max(int64(1), whole+remainder)
 }
 
 // handleAHListAPI lists an inventory gear piece on the auction house.
@@ -624,6 +688,10 @@ func (s *WebServer) handleAHListAPI(w http.ResponseWriter, r *http.Request, uid 
 	g, ok := s.bot.makeGear(gid, itemData)
 	if !ok {
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown gear"})
+		return
+	}
+	if g.Unidentified {
+		writeJSON(w, map[string]any{"ok": false, "error": "identify the item before listing it"})
 		return
 	}
 	if g.Attuned {

@@ -85,6 +85,24 @@ func TestAbyssElementalPreviewUsesPhysicalForMissingWeapon(t *testing.T) {
 	}
 }
 
+func TestAbyssElementalPreviewUsesPhysicalForUnidentifiedWeapon(t *testing.T) {
+	t.Parallel()
+
+	view := abyssElementalPreview(
+		abyssBossAffinityForecastView{
+			Name: "Cinder Crown", Element: string(content.ElementFire),
+			WeakTo: string(content.ElementWater), StrongAgainst: string(content.ElementAir),
+			TargetDepth: 15,
+		},
+		map[content.GearSlot]content.Gear{
+			content.SlotMainHand: {Element: content.ElementWater, Unidentified: true},
+		},
+	)
+	if view.PlayerElement != string(content.ElementPhysical) || view.Outcome != "NEUTRAL" {
+		t.Fatalf("unidentified weapon preview = %+v", view)
+	}
+}
+
 func TestAbyssElementalPreviewNormalizesUnknownElements(t *testing.T) {
 	t.Parallel()
 

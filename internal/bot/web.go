@@ -89,6 +89,7 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 	}
 	tmpl, err := template.New("").Funcs(template.FuncMap{
 		"gold":      func(v int64) string { return FormatGoldPlain(v) },
+		"integer":   func(v int64) string { return i18n.FormatInt(v) },
 		"localeTag": i18n.LanguageTag,
 		"localeDir": i18n.TextDirection,
 		"comma": func(v any) string {
@@ -645,7 +646,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/convert_mana", s.authAPI(s.handleAbyssConvertMana))
 		mux.HandleFunc("/api/abyss/reset_talents", s.authAPI(s.handleAbyssResetTalents))
 		mux.HandleFunc("/api/abyss/insure_item", s.authAPI(s.forgeMutation("insure_item", s.handleAbyssInsureItem)))
-		// Expansion 2 (docs/ABYSS_IDEAS.md)
+		// Crafting, economy, recovery, and forge expansion routes.
 		mux.HandleFunc("/api/abyss/craft", s.authAPI(s.forgeMutation("craft", s.handleAbyssCraft)))
 		mux.HandleFunc("/api/abyss/craft_legendary", s.authAPI(s.forgeMutation("craft_legendary", s.handleAbyssCraftLegendary)))
 		mux.HandleFunc("/api/abyss/exchange", s.authAPI(s.handleAbyssExchange))
@@ -697,7 +698,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/swap_special", s.authAPI(s.forgeMutation("swap_special", s.handleAbyssSwapSpecial)))
 		mux.HandleFunc("/api/abyss/infuse_xp", s.authAPI(s.forgeMutation("infuse_xp", s.handleAbyssInfuseXP)))
 		mux.HandleFunc("/api/abyss/prismatic_rune", s.authAPI(s.forgeMutation("prismatic_rune", s.handleAbyssPrismaticRune)))
-		// Forge round 5 (docs/ABYSS_IMPROVEMENTS_300.md group E; web_abyss_forge4.go)
+		// Advanced forge routes implemented in web_abyss_forge4.go.
 		mux.HandleFunc("/api/abyss/batch_temper", s.authAPI(s.forgeMutation("batch_temper", s.handleAbyssBatchTemper)))
 		mux.HandleFunc("/api/abyss/temper_guard", s.authAPI(s.forgeMutation("temper_guard", s.handleAbyssTemperGuard)))
 		mux.HandleFunc("/api/abyss/forge_queue", s.authAPI(s.forgeMutation("forge_queue", s.handleAbyssForgeQueue)))
@@ -720,7 +721,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/recipe_fav", s.authAPI(s.handleAbyssRecipeFav))
 		mux.HandleFunc("/api/abyss/convert_mats", s.authAPI(s.forgeMutation("convert_mats", s.handleAbyssConvertMats)))
 		mux.HandleFunc("/api/abyss/sanctuary_undo2", s.authAPI(s.handleAbyssSanctuaryUndo2))
-		// Run-loop quick wins (docs/ABYSS_IMPROVEMENTS_300.md groups A-B).
+		// Run-loop safety and convenience routes.
 		mux.HandleFunc("/api/abyss/bank_confirm_toggle", s.authAPI(s.handleAbyssBankConfirmToggle))
 		mux.HandleFunc("/api/abyss/death_wish", s.authAPI(s.handleAbyssDeathWish))
 		mux.HandleFunc("/api/abyss/risk_dial", s.authAPI(s.handleAbyssRiskDial))
@@ -761,15 +762,15 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/api/inventory/sell", s.auth(s.handleSellAPI))
 	mux.HandleFunc("/api/inventory/buyback", s.auth(s.handleInventoryBuyback))
 	mux.HandleFunc("/api/inventory/pouch/upgrade", s.auth(s.handleAbyssPouchUpgrade))
-	mux.HandleFunc("/api/ah/buy", s.auth(s.handleAHBuyAPI))
-	mux.HandleFunc("/api/ah/list", s.auth(s.handleAHListAPI))
-	mux.HandleFunc("/api/ah/watch", s.authAPI(s.handleAHWatch))
+	mux.HandleFunc("/api/ah/buy", s.auth(s.guardAbyssCoreAction(s.handleAHBuyAPI)))
+	mux.HandleFunc("/api/ah/list", s.auth(s.guardAbyssCoreAction(s.handleAHListAPI)))
+	mux.HandleFunc("/api/ah/watch", s.authAPI(s.guardAbyssCoreAction(s.handleAHWatch)))
 	mux.HandleFunc("/api/ah/notices", s.authAPI(s.handleAHNotices))
-	mux.HandleFunc("/api/ah/bulk_relist", s.authAPI(s.handleAHBulkRelist))
-	mux.HandleFunc("/api/ah/material_order", s.authAPI(s.handleAHMaterialOrder))
-	mux.HandleFunc("/api/ah/material_fill", s.authAPI(s.handleAHMaterialFill))
-	mux.HandleFunc("/api/ah/material_cancel", s.authAPI(s.handleAHMaterialCancel))
-	mux.HandleFunc("/api/ah/bid", s.authAPI(s.handleAHBid))
+	mux.HandleFunc("/api/ah/bulk_relist", s.authAPI(s.guardAbyssCoreAction(s.handleAHBulkRelist)))
+	mux.HandleFunc("/api/ah/material_order", s.authAPI(s.guardAbyssCoreAction(s.handleAHMaterialOrder)))
+	mux.HandleFunc("/api/ah/material_fill", s.authAPI(s.guardAbyssCoreAction(s.handleAHMaterialFill)))
+	mux.HandleFunc("/api/ah/material_cancel", s.authAPI(s.guardAbyssCoreAction(s.handleAHMaterialCancel)))
+	mux.HandleFunc("/api/ah/bid", s.authAPI(s.guardAbyssCoreAction(s.handleAHBid)))
 
 	srv := &http.Server{
 		Addr:              addr,

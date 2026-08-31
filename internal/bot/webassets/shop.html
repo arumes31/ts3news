@@ -1,70 +1,406 @@
 {{define "shop"}}{{template "head" .}}
-<h1>Shop</h1>
-<div id="shopMsg" class="toast"></div>
-
-<section class="exchange">
-  <h2>Currency Exchange</h2>
-  <div class="exchange-grid">
-    <div class="ex-card">
-      <h3>🪙 Gold → ✨ XP</h3>
-      <p class="muted small">{{.GoldPerXP}} gold = 1 XP</p>
-      <label>Gold <input type="number" id="g2xAmount" value="100" min="1"></label>
-      <button onclick="exchange('gold_to_xp','g2xAmount')">Convert</button>
-    </div>
-    <div class="ex-card">
-      <h3>✨ XP → 🪙 Gold</h3>
-      <p class="muted small">{{.XPPerGold}} XP = 1 gold</p>
-      <label>XP <input type="number" id="x2gAmount" value="100" min="1"></label>
-      <button onclick="exchange('xp_to_gold','x2gAmount')">Convert</button>
-    </div>
+<header class="portal-masthead shop-masthead">
+  <div>
+    <h1>Shop</h1>
+    <p class="muted">Compare the live rotation, inspect every stat, and buy with your current balance in view.</p>
+    <a class="shop-exchange-jump" href="#currencyExchangeTitle" aria-label="Jump to currency exchange">Currency exchange ↓</a>
   </div>
-  <p class="muted small" id="exState">Balance: 🪙 {{gold .U.Gold}} · ✨ {{comma .U.XP}} XP · {{.U.LevelName}} (Lvl {{.U.Level}})</p>
-</section>
-
-<section>
-  <h2>Item Shop <span class="muted small">— fair prices · refreshes in <span id="shopTimer" class="shop-timer">…</span></span></h2>
-  <div class="shop-grid">
-    {{range .Stock}}
-    <div class="shop-card item-inspect-trigger {{if .Featured}}featured-item{{else if .IsUpgrade}}upgrade-item{{end}}" data-id="{{.ID}}" data-item-inspect="{{.InspectJSON}}" tabindex="0" role="button" aria-label="Inspect {{.Name}}"{{if .Featured}} style="border-color:{{.RarityColor}}"{{end}}>
-      <div class="shop-ico"><span class="item-art item-art-lg" data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span></div>
-      <div class="inv-name" style="color:{{.RarityColor}}">{{.Name}} {{if .Featured}}<span class="upgrade-badge" title="Featured {{.Rarity}} relic">✦</span>{{else if .IsUpgrade}}<span class="upgrade-badge" title="Upgrade for equipped gear">⬆</span>{{end}}</div>
-      <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
-      <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}}</div>
-      {{if .Effects}}<div class="inv-meta" style="color:{{.RarityColor}}">✨ {{range $i, $e := .Effects}}{{if $i}}, {{end}}{{$e}}{{end}}</div>{{end}}
-      <div class="item-inspect-hint">Click for all stats and specials</div>
-      <div class="price">🪙 {{gold .Price}}</div>
-      <button onclick="buy('{{.ID}}')">Buy</button>
-    </div>
-    {{end}}
+  <div class="shop-wallet" aria-label="Available shop balance">
+    <span class="shop-wallet-label">Available</span>
+    <strong id="shopAvailableGold" data-value="{{.U.Gold}}">🪙 {{gold .U.Gold}}</strong>
   </div>
-</section>
+</header>
+
+<div id="shopMsg" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<div class="shop-console">
+  <section class="shop-market" role="region" aria-labelledby="shopMarketTitle">
+    <div class="shop-market-head">
+      <div>
+        <h2 id="shopMarketTitle">Rotating item stock</h2>
+        <p class="muted small"><strong>Fixed server prices</strong> <span>Stock refreshes in <span id="shopTimer" class="shop-timer">...</span></span></p>
+      </div>
+    </div>
+
+    <div class="shop-toolbar" role="search">
+      <label for="shopSearch">Search rotating stock</label>
+      <input type="search" id="shopSearch" aria-label="Search rotating stock" placeholder="Name, rarity, or slot" autocomplete="off">
+      <span id="shopResultCount" class="muted small" role="status" aria-live="polite" aria-atomic="true">{{len .Stock}} items</span>
+    </div>
+
+    <div class="shop-grid" id="shopGrid" role="list">
+      {{range $index, $item := .Stock}}
+      <article class="shop-card {{if .Featured}}featured-item{{end}} {{if .IsUpgrade}}upgrade-item{{end}}" role="listitem" data-id="{{.ID}}" data-search="{{.Name}} {{.Rarity}} {{.Slot}}" data-name="{{.Name}}" data-slot="{{.Slot}}" data-price="{{.Price}}" data-upgrade="{{.IsUpgrade}}"{{if .Featured}} style="border-color:{{.RarityColor}}"{{end}}>
+        <div class="shop-card-inspect item-inspect-trigger" data-item-inspect="{{.InspectJSON}}">
+          <div class="shop-ico"><span class="item-art item-art-lg" data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span></div>
+          <div class="shop-card-copy">
+            <div class="inv-name" style="color:{{.RarityColor}}">{{.Name}} {{if .Featured}}<span class="upgrade-badge" title="Featured {{.Rarity}} relic">Featured</span>{{end}} {{if .IsUpgrade}}<span class="upgrade-badge" title="Upgrade for equipped gear">Upgrade</span>{{end}}</div>
+            <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
+            <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}}</div>
+            {{if .Effects}}<div class="inv-meta" style="color:{{.RarityColor}}">{{range $i, $e := .Effects}}{{if $i}}, {{end}}{{$e}}{{end}}</div>{{end}}
+            <div class="item-inspect-hint">Inspect all stats and specials</div>
+          </div>
+        </div>
+        <div class="shop-card-footer">
+          <div class="shop-price-stack">
+            <strong class="price" id="shopPrice{{$index}}">🪙 {{integer .Price}}</strong>
+            <span class="shop-price-note muted small">Fixed price</span>
+            <span class="shop-affordability muted small" id="shopAffordability{{$index}}">{{if ge $.U.Gold .Price}}Within current balance{{else}}Exceeds current balance{{end}}</span>
+            <span class="shop-delivery-note muted small">{{if .IsUpgrade}}Will auto-equip into {{.Slot}}; any current item moves to inventory{{else}}Delivered to inventory{{end}}</span>
+          </div>
+          <div class="shop-card-actions">
+            <button type="button" class="ghost shop-inspect-action" onclick="inspectShopItem(this)" aria-label="Inspect {{.Name}}">Inspect</button>
+            <button type="button" class="shop-buy-action" data-price="{{.Price}}" data-item-name="{{.Name}}" data-slot="{{.Slot}}" data-upgrade="{{.IsUpgrade}}" onclick="buy('{{.ID}}',this)" aria-label="Buy {{.Name}} for {{integer .Price}} gold" aria-describedby="shopPrice{{$index}} shopAffordability{{$index}}">Buy</button>
+          </div>
+        </div>
+      </article>
+      {{end}}
+    </div>
+    <div class="shop-more-row"><button type="button" class="ghost" id="shopMore" hidden>Show 12 more</button></div>
+    <p class="empty-state shop-empty" id="shopEmpty" role="status" hidden>No rotating items match this search.</p>
+  </section>
+
+  <section class="exchange shop-exchange" aria-labelledby="currencyExchangeTitle">
+    <div class="shop-exchange-head">
+      <h2 id="currencyExchangeTitle">Currency exchange</h2>
+      <p class="muted small">Preview the exact spend before converting.</p>
+    </div>
+    <div class="exchange-grid">
+      <div class="ex-card">
+        <h3>Gold to XP</h3>
+        <p class="muted small">{{.GoldPerXP}} gold = 1 XP</p>
+        <label for="g2xAmount">Gold</label>
+        <input type="number" id="g2xAmount" value="100" min="{{.GoldPerXP}}" step="{{.GoldPerXP}}" inputmode="numeric">
+        <output id="g2xPreview" class="exchange-preview muted small" for="g2xAmount" aria-live="polite"></output>
+        <button type="button" onclick="exchange('gold_to_xp','g2xAmount',this)" aria-describedby="g2xPreview">Convert to XP</button>
+      </div>
+      <div class="ex-card">
+        <h3>XP to gold</h3>
+        <p class="muted small">{{.XPPerGold}} XP = 1 gold</p>
+        <label for="x2gAmount">XP</label>
+        <input type="number" id="x2gAmount" value="100" min="{{.XPPerGold}}" step="{{.XPPerGold}}" inputmode="numeric">
+        <output id="x2gPreview" class="exchange-preview muted small" for="x2gAmount" aria-live="polite"></output>
+        <button type="button" onclick="exchange('xp_to_gold','x2gAmount',this)" aria-describedby="x2gPreview">Convert to gold</button>
+      </div>
+    </div>
+    <p class="muted small shop-balance-status" id="exState" role="status" aria-live="polite" aria-atomic="true" data-gold="{{.U.Gold}}" data-xp="{{.U.XP}}" data-level="{{.U.Level}}" data-level-name="{{.U.LevelName}}">Balance: 🪙 {{gold .U.Gold}} / ✨ {{comma .U.XP}} XP / {{.U.LevelName}} (Lvl {{.U.Level}})</p>
+  </section>
+</div>
 
 <script data-cfasync="false">
-function toast(m, ok){var t=document.getElementById('shopMsg');t.textContent=m;t.className='toast show '+(ok?'good':'bad');setTimeout(function(){t.className='toast';},2600);}
-async function post(url, body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json();}
-async function exchange(dir, inputId){
-  const amount=parseInt(document.getElementById(inputId).value,10);
-  if(!amount||amount<1){toast('Enter an amount',false);return;}
-  const d=await post('/api/shop/exchange',{direction:dir,amount:amount});
-  if(d.ok){toast(d.detail,true);document.getElementById('goldPill').textContent='🪙 '+d.gold;document.getElementById('xpPill').textContent='✨ Lvl '+d.level;
-    document.getElementById('exState').textContent='Balance: 🪙 '+d.gold+' · ✨ '+d.xp+' XP · '+d.level_name+' (Lvl '+d.level+')';}
-  else toast(d.error,false);
-}
-async function buy(id){
-  const d=await post('/api/shop/buy',{id:id});
-  if(d.ok){toast('Bought '+d.bought+' → inventory',true);document.getElementById('goldPill').textContent='🪙 '+d.gold;}
-  else toast(d.error,false);
+var shopToastTimer = null;
+var shopBalanceState = document.getElementById('exState');
+var shopCurrentGold = Number(shopBalanceState.dataset.gold || 0);
+var shopCurrentXP = Number(shopBalanceState.dataset.xp || 0);
+var shopCurrentLevel = Number(shopBalanceState.dataset.level || 0);
+var shopCurrentLevelName = shopBalanceState.dataset.levelName || '';
+var goldPerXP = {{.GoldPerXP}};
+var xpPerGold = {{.XPPerGold}};
+var shopPurchasePending = false;
+var shopRefreshPending = false;
+
+function shopLocaleNumber(value){
+  var number = Number(value);
+  return Number.isFinite(number) ? new Intl.NumberFormat(document.documentElement.lang || 'en').format(number) : String(value);
 }
 
+function shopCompactGold(value){
+  var number = Number(value);
+  if(!Number.isFinite(number))return String(value);
+  return new Intl.NumberFormat(document.documentElement.lang || 'en',{notation:'compact',maximumFractionDigits:1}).format(number);
+}
+
+function shopEscapeHTML(value){
+  var holder=document.createElement('div');
+  holder.textContent=String(value==null?'':value);
+  return holder.innerHTML;
+}
+
+async function confirmShop(message, options){
+  if(typeof window.confirmModal==='function')return window.confirmModal(message,options||{});
+  var holder=document.createElement('div');
+  holder.innerHTML=message;
+  return window.confirm(holder.textContent||'');
+}
+
+function toast(message, ok){
+  var target = document.getElementById('shopMsg');
+  if(shopToastTimer)clearTimeout(shopToastTimer);
+  target.textContent = '';
+  target.textContent = message;
+  target.className = 'toast show '+(ok?'good':'bad');
+  shopToastTimer = setTimeout(function(){target.className='toast';},3200);
+}
+
+async function post(url, body){
+  var response;
+  try{
+    response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  }catch(_){
+    var networkError=new Error('Connection interrupted. The result is unconfirmed; refresh before trying again.');
+    networkError.unconfirmed=true;
+    throw networkError;
+  }
+  var data;
+  try{data=await response.json();}catch(_){
+    var responseError=new Error('The shop response was unreadable. The result is unconfirmed; refresh before trying again.');
+    responseError.unconfirmed=true;
+    throw responseError;
+  }
+  if(!response.ok)throw new Error(data.error||('Request failed with status '+response.status+'.'));
+  return data;
+}
+
+function setButtonPending(button, pending, label){
+  if(!button)return;
+  if(pending){
+    button.dataset.defaultLabel=button.textContent;
+    button.dataset.pending='true';
+    button.disabled=true;
+    button.setAttribute('aria-busy','true');
+    button.textContent=label;
+    return;
+  }
+  button.disabled=false;
+  button.removeAttribute('aria-busy');
+  button.dataset.pending='false';
+  button.textContent=button.dataset.defaultLabel||button.textContent;
+}
+
+function setShopPurchasePending(pending, activeButton){
+  shopPurchasePending=pending;
+  document.querySelectorAll('.shop-buy-action').forEach(function(action){
+    if(pending){
+      if(!action.dataset.defaultLabel)action.dataset.defaultLabel=action.textContent;
+      action.disabled=true;
+      action.dataset.pending='true';
+      action.setAttribute('aria-busy','true');
+      if(action===activeButton)action.textContent='Buying...';
+      return;
+    }
+    if(shopRefreshPending)return;
+    action.disabled=false;
+    action.dataset.pending='false';
+    action.removeAttribute('aria-busy');
+    action.textContent=action.dataset.defaultLabel||action.textContent;
+  });
+}
+
+function lockShopForVerification(button){
+  if(!button)return null;
+  button.disabled=true;
+  button.removeAttribute('aria-busy');
+  button.dataset.pending='true';
+  button.textContent='Locked';
+  var recovery=button.parentElement&&button.parentElement.querySelector('.shop-mutation-recovery');
+  if(!recovery){
+    recovery=document.createElement('button');
+    recovery.type='button';
+    recovery.className='ghost shop-mutation-recovery';
+    recovery.textContent='Refresh to verify';
+    recovery.setAttribute('aria-label','Refresh to verify the unconfirmed shop action');
+    recovery.addEventListener('click',function(){location.reload();});
+    button.insertAdjacentElement('afterend',recovery);
+  }
+  recovery.focus({preventScroll:true});
+  return recovery;
+}
+
+function lockShopPurchaseForVerification(button){
+  shopPurchasePending=false;
+  shopRefreshPending=true;
+  document.querySelectorAll('.shop-buy-action').forEach(function(action){
+    action.disabled=true;
+    action.dataset.pending='true';
+    action.removeAttribute('aria-busy');
+  });
+  return lockShopForVerification(button);
+}
+
+function refreshShopAfterEquip(button){
+  shopPurchasePending=false;
+  shopRefreshPending=true;
+  document.querySelectorAll('.shop-buy-action').forEach(function(action){
+    action.disabled=true;
+    action.dataset.pending='true';
+    action.setAttribute('aria-busy','true');
+  });
+  if(button)button.textContent='Equipped';
+  setTimeout(function(){location.reload();},900);
+}
+
+function renderShopBalances(){
+  var goldPill=document.getElementById('goldPill');
+  var xpPill=document.getElementById('xpPill');
+  var available=document.getElementById('shopAvailableGold');
+  if(goldPill){goldPill.dataset.value=String(shopCurrentGold);goldPill.textContent='🪙 '+shopCompactGold(shopCurrentGold);}
+  if(xpPill)xpPill.textContent='✨ Lvl '+shopCurrentLevel;
+  if(available){available.dataset.value=String(shopCurrentGold);available.textContent='🪙 '+shopCompactGold(shopCurrentGold);}
+  shopBalanceState.dataset.gold=String(shopCurrentGold);
+  shopBalanceState.dataset.xp=String(shopCurrentXP);
+  shopBalanceState.dataset.level=String(shopCurrentLevel);
+  shopBalanceState.dataset.levelName=shopCurrentLevelName;
+  shopBalanceState.textContent='Balance: 🪙 '+shopCompactGold(shopCurrentGold)+' / ✨ '+shopLocaleNumber(shopCurrentXP)+' XP / '+shopCurrentLevelName+' (Lvl '+shopCurrentLevel+')';
+  updateShopAffordability();
+}
+
+function applyBalanceResponse(data){
+  if(data.gold!==undefined)shopCurrentGold=Number(data.gold);
+  if(data.xp!==undefined)shopCurrentXP=Number(data.xp);
+  if(data.level!==undefined)shopCurrentLevel=Number(data.level);
+  if(data.level_name!==undefined)shopCurrentLevelName=String(data.level_name);
+  renderShopBalances();
+}
+
+function updateShopAffordability(){
+  document.querySelectorAll('.shop-card').forEach(function(card){
+    var price=Number(card.dataset.price||0);
+    var note=card.querySelector('.shop-affordability');
+    if(!note)return;
+    var affordable=Number.isFinite(price)&&price<=shopCurrentGold;
+    note.textContent=affordable?'Within current balance':'Exceeds current balance';
+    card.classList.toggle('is-unaffordable',!affordable);
+  });
+}
+
+function inspectShopItem(button){
+  var card=button.closest('.shop-card');
+  var trigger=card&&card.querySelector('[data-item-inspect]');
+  if(trigger)openItemInspector(trigger);
+}
+
+var shopPageSize=12;
+var shopMobileMedia=window.matchMedia('(max-width: 760px)');
+var shopVisibleLimit=shopMobileMedia.matches?shopPageSize:Number.POSITIVE_INFINITY;
+
+function filterShopStock(){
+  var query=document.getElementById('shopSearch').value.trim().toLocaleLowerCase();
+  var cards=Array.from(document.querySelectorAll('#shopGrid .shop-card'));
+  var matched=0;
+  var visible=0;
+  cards.forEach(function(card){
+    var matches=!query||String(card.dataset.search||'').toLocaleLowerCase().includes(query);
+    if(matches)matched++;
+    var withinLimit=!!query||!Number.isFinite(shopVisibleLimit)||matched<=shopVisibleLimit;
+    card.hidden=!(matches&&withinLimit);
+    if(matches&&withinLimit)visible++;
+  });
+  document.getElementById('shopResultCount').textContent=visible<matched
+    ? 'Showing '+visible+' of '+matched+' items'
+    : matched+' '+(matched===1?'item':'items');
+  document.getElementById('shopEmpty').hidden=matched!==0;
+  var more=document.getElementById('shopMore');
+  var remaining=Math.max(0,matched-visible);
+  more.hidden=!!query||!shopMobileMedia.matches||remaining===0;
+  if(remaining)more.textContent='Show '+Math.min(shopPageSize,remaining)+' more';
+}
+
+function updateExchangePreview(direction, inputId, outputId){
+  var amount=parseInt(document.getElementById(inputId).value,10);
+  var output=document.getElementById(outputId);
+  var rate=direction==='gold_to_xp'?goldPerXP:xpPerGold;
+  var unit=direction==='gold_to_xp'?'gold':'XP';
+  var gainUnit=direction==='gold_to_xp'?'XP':'gold';
+  if(!amount||amount<rate){output.textContent='Enter at least '+rate+' '+unit+'.';return;}
+  var spend=amount-(amount%rate);
+  var gain=Math.floor(spend/rate);
+  output.textContent='Exact exchange: '+shopLocaleNumber(spend)+' '+unit+' for '+shopLocaleNumber(gain)+' '+gainUnit+'.';
+}
+
+async function exchange(direction, inputId, button){
+  if(button&&button.dataset.pending==='true')return;
+  var input=document.getElementById(inputId);
+  var amount=parseInt(input.value,10);
+  var minimum=direction==='gold_to_xp'?goldPerXP:xpPerGold;
+  var unit=direction==='gold_to_xp'?'gold':'XP';
+  if(!amount||amount<minimum){toast('Enter at least '+minimum+' '+unit+'.',false);input.focus();return;}
+  setButtonPending(button,true,'Converting...');
+  var unconfirmed=false;
+  try{
+    var data=await post('/api/shop/exchange',{direction:direction,amount:amount});
+    if(!data.ok){toast(data.error||'The exchange could not be completed.',false);return;}
+    applyBalanceResponse(data);
+    toast(data.detail||'Exchange complete.',true);
+  }catch(error){
+    unconfirmed=error&&error.unconfirmed===true;
+    toast(error.message||'The exchange could not be completed. Try again.',false);
+  }finally{
+    if(unconfirmed)lockShopForVerification(button);
+    else setButtonPending(button,false);
+  }
+}
+
+async function buy(id, button){
+  if(shopPurchasePending||shopRefreshPending||(button&&button.dataset.pending==='true'))return;
+  var itemName=button&&button.dataset.itemName||'this item';
+  var slot=button&&button.dataset.slot||'slot';
+  var price=Number(button&&button.dataset.price||0);
+  if(!Number.isSafeInteger(price)||price<0){toast('This price is too large to review safely.',false);return;}
+  var willEquip=button&&button.dataset.upgrade==='true';
+  var delivery=willEquip
+    ? 'This will auto-equip into your '+shopEscapeHTML(slot)+' slot; any current item will move to inventory.'
+    : 'This item will be delivered to inventory.';
+  var approved=await confirmShop(
+    '<strong>'+shopEscapeHTML(itemName)+'</strong><br>Exact total: '+price.toLocaleString()+' gold · buyer fee: 0 gold.<br>'+delivery,
+    {title:'Confirm purchase',okLabel:'Buy for '+price.toLocaleString()+' gold',cancelLabel:'Keep browsing',returnFocus:button}
+  );
+  if(!approved)return;
+  if(shopPurchasePending||shopRefreshPending)return;
+  setShopPurchasePending(true,button);
+  var unconfirmed=false;
+  var refreshAfterEquip=false;
+  try{
+    var data=await post('/api/shop/buy',{id:id});
+    if(!data.ok){toast(data.error||'The purchase could not be completed.',false);return;}
+    applyBalanceResponse(data);
+    var message='Bought '+String(data.bought||'item');
+    if(!/[.!?]$/.test(message))message+='.';
+    refreshAfterEquip=data.equipped===true;
+    if(refreshAfterEquip){
+      message+=' Refreshing equipment comparisons.';
+      refreshShopAfterEquip(button);
+    }
+    toast(message,true);
+  }catch(error){
+    unconfirmed=error&&error.unconfirmed===true;
+    toast(error.message||'The purchase could not be completed. Try again.',false);
+  }finally{
+    if(unconfirmed)lockShopPurchaseForVerification(button);
+    else if(!refreshAfterEquip)setShopPurchasePending(false);
+  }
+}
+
+document.getElementById('shopSearch').addEventListener('input',filterShopStock);
+document.getElementById('shopMore').addEventListener('click',function(){
+  var before=Array.from(document.querySelectorAll('#shopGrid .shop-card')).filter(function(card){return !card.hidden;}).length;
+  shopVisibleLimit+=shopPageSize;
+  filterShopStock();
+  var visible=Array.from(document.querySelectorAll('#shopGrid .shop-card')).filter(function(card){return !card.hidden;});
+  var firstRevealed=visible[before];
+  var inspect=firstRevealed&&firstRevealed.querySelector('.shop-inspect-action');
+  if(inspect)inspect.focus({preventScroll:true});
+});
+if(typeof shopMobileMedia.addEventListener==='function')shopMobileMedia.addEventListener('change',function(event){shopVisibleLimit=event.matches?shopPageSize:Number.POSITIVE_INFINITY;filterShopStock();});
+document.getElementById('g2xAmount').addEventListener('input',function(){updateExchangePreview('gold_to_xp','g2xAmount','g2xPreview');});
+document.getElementById('x2gAmount').addEventListener('input',function(){updateExchangePreview('xp_to_gold','x2gAmount','x2gPreview');});
+updateExchangePreview('gold_to_xp','g2xAmount','g2xPreview');
+updateExchangePreview('xp_to_gold','x2gAmount','x2gPreview');
+updateShopAffordability();
+filterShopStock();
+
 /* Live countdown to the next stock refresh; reloads to pull fresh items. */
-let shopLeft={{.RefreshIn}};
+var shopLeft={{.RefreshIn}};
 (function shopCountdown(){
-  const el=document.getElementById('shopTimer');
-  function fmt(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
-    return (h>0?h+'h ':'')+(h>0||m>0?m+'m ':'')+sec+'s';}
+  var element=document.getElementById('shopTimer');
+  function formatTime(seconds){
+    var hours=Math.floor(seconds/3600),minutes=Math.floor((seconds%3600)/60),remaining=seconds%60;
+    return (hours>0?hours+'h ':'')+(hours>0||minutes>0?minutes+'m ':'')+remaining+'s';
+  }
   function tick(){
-    if(shopLeft<=0){el.textContent='refreshing…';setTimeout(()=>location.reload(),1200);return;}
-    el.textContent=fmt(shopLeft);shopLeft--;setTimeout(tick,1000);
+    if(shopLeft<=0){element.textContent='refreshing...';setTimeout(function(){location.reload();},1200);return;}
+    element.textContent=formatTime(shopLeft);
+    shopLeft--;
+    setTimeout(tick,1000);
   }
   tick();
 })();

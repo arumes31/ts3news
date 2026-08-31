@@ -101,6 +101,9 @@ func abyssPactEquipmentError(pacts []string, equipped map[content.GearSlot]conte
 		return ""
 	}
 	for _, gear := range equipped {
+		if !abyssGearActiveForCombat(gear) {
+			continue
+		}
 		if gear.Rarity > content.RarityRare {
 			return "Pauper allows only Rare-or-lower equipped gear"
 		}

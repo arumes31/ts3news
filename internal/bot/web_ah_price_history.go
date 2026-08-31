@@ -70,6 +70,7 @@ func (b *Bot) ahPriceHistories(listings []ahListingView) map[string]ahPriceHisto
 		SELECT item_id,price,sold_at,
 			ROW_NUMBER() OVER (PARTITION BY item_id ORDER BY sold_at DESC) AS sale_rank
 		FROM auction_house WHERE sold_at IS NOT NULL AND item_id=ANY($1)
+		  AND (item_type <> 'gear' OR LOWER(COALESCE(item_data->>'unidentified','false')) <> 'true')
 	) sales WHERE sale_rank <= $2 ORDER BY item_id,sold_at ASC`, pq.Array(ids), ahPriceHistoryLimit)
 	if err != nil {
 		return nil

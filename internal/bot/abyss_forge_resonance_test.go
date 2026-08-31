@@ -12,6 +12,8 @@ func TestAbyssGemResonanceBonusUsesTierContribution(t *testing.T) {
 		content.SlotHead:     {Slot: content.SlotHead, Gemstones: []string{"Ruby"}},
 		content.SlotChest:    {Slot: content.SlotChest, Gemstones: []string{"Ruby II"}},
 		content.SlotMainHand: {Slot: content.SlotMainHand, Gemstones: []string{"Ruby III"}},
+		content.SlotLegs:     {Slot: content.SlotLegs, Gemstones: []string{"Ruby III"}, Unidentified: true},
+		content.SlotPet1:     {Slot: content.SlotPet1, Gemstones: []string{"Ruby III"}},
 	}
 	bonus, counts := abyssGemResonanceBonus(equipped)
 	if counts["Ruby"] != 3 {
@@ -21,6 +23,17 @@ func TestAbyssGemResonanceBonusUsesTierContribution(t *testing.T) {
 	// percent of 700 rounds to 35 with Stats.Scaled.
 	if bonus.HP != 35 {
 		t.Fatalf("Ruby resonance HP = %d, want 35", bonus.HP)
+	}
+}
+
+func TestForgeSetCountsIgnoresUnidentifiedAndPetGear(t *testing.T) {
+	equipped := map[content.GearSlot]content.Gear{
+		content.SlotHead:  {Slot: content.SlotHead, SetID: "predator"},
+		content.SlotChest: {Slot: content.SlotChest, SetID: "predator", Unidentified: true},
+		content.SlotPet1:  {Slot: content.SlotPet1, SetID: "predator"},
+	}
+	if counts := forgeSetCounts(equipped); counts["predator"] != 1 {
+		t.Fatalf("forge set counts = %#v, want one active predator piece", counts)
 	}
 }
 

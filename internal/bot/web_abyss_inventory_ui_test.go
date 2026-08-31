@@ -195,7 +195,7 @@ func TestCurrentRunLootManifestUsesStructuredGrantData(t *testing.T) {
 					Type: "gear", SetPity: true, SetPitySetID: "predator", Wishlist: true,
 					Gear: &content.Gear{
 						ID: "SECRET", Slot: content.SlotFinger1, Rarity: content.RarityLegendary,
-						Stats: content.Stats{STR: 9_999}, Quality: 5,
+						Stats: content.Stats{STR: 9_999}, Quality: 5, Foil: true,
 						SetID: "predator", Unidentified: true,
 					},
 				}),
@@ -203,7 +203,7 @@ func TestCurrentRunLootManifestUsesStructuredGrantData(t *testing.T) {
 			))
 
 	equipped := map[content.GearSlot]content.Gear{
-		content.SlotFinger1: {ID: "OLD_RING", Slot: content.SlotFinger1, Stats: content.Stats{STR: 10}},
+		content.SlotFinger1: {ID: "HIDDEN_RING", Slot: content.SlotFinger1, Stats: content.Stats{STR: 9_999}, Unidentified: true},
 		content.SlotWaist:   {ID: "ABYSS_TITAN_BELT", Slot: content.SlotWaist, SetID: "warden"},
 	}
 	manifest := (&Bot{DB: db}).currentRunLootManifest("player", equipped, map[string]bool{gear.ID: true})
@@ -220,15 +220,18 @@ func TestCurrentRunLootManifestUsesStructuredGrantData(t *testing.T) {
 	if !row.SmartLoot || row.SmartLootReason != abyssSmartLootEmpty || row.SmartLootLabel != "SMART · EMPTY SLOT" {
 		t.Fatalf("manifest smart-loot metadata = %#v", row)
 	}
-	if !row.CanEquipBest || !row.EquipOnBank || row.CRDelta <= 0 {
+	if !row.CanEquipBest || !row.EquipOnBank || !row.EmptySlot || row.CRDelta != row.CR {
 		t.Fatalf("manifest comparison = %#v", row)
 	}
 	if strings.Contains(string(row.Label), "<script>") || !strings.Contains(string(row.Label), "&lt;script&gt;") {
 		t.Fatalf("unsafe label = %q", row.Label)
 	}
 	hidden := manifest[1]
-	if !hidden.Unidentified || hidden.GearID != "" || hidden.CR != 0 || hidden.Score != 0 || hidden.Quality != 0 || hidden.SetID != "" || hidden.CanEquipBest {
+	if !hidden.Unidentified || hidden.GearID != "" || hidden.CR != 0 || hidden.Score != 0 || hidden.Quality != 0 || hidden.SetID != "" || hidden.CanEquipBest || hidden.EstimatedValue != 0 {
 		t.Fatalf("unidentified gear leaked metadata: %#v", hidden)
+	}
+	if hidden.Rarity != "Unknown" || hidden.RarityRank != 0 || hidden.BeamClass != "" || hidden.Foil {
+		t.Fatalf("unidentified gear leaked rarity presentation: %#v", hidden)
 	}
 	if !hidden.SetPity || hidden.SetPityLabel != "SET PITY · 3→4" {
 		t.Fatalf("unidentified set-pity reason was hidden: %#v", hidden)

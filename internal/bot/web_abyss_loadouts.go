@@ -201,7 +201,7 @@ func (s *WebServer) handleAbyssGemPreset(w http.ResponseWriter, r *http.Request,
 	if req.Action == "save" {
 		preset := abyssGemPreset{Name: normalizeAbyssPresetName(req.Name, req.Slot), Gems: map[string][]string{}}
 		for gearSlot, gear := range s.bot.getEquippedItems(uid) {
-			if len(gear.Gemstones) > 0 {
+			if abyssGearActiveForCombat(gear) && len(gear.Gemstones) > 0 {
 				preset.Gems[string(gearSlot)] = append([]string{}, gear.Gemstones...)
 			}
 		}

@@ -258,16 +258,16 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			// permanent stat bonus) and grant the prestige rank group. Future leveling
 			// then resumes from level 1 at the new prestige.
 			if lr != nil && lr.NewLevel >= PrestigeThreshold {
-					newP := b.doPrestige(user.UID)
-					notes = append(notes, i18n.T("bot.prestige.announce", newP, int(prestigeStatBonus*100)))
-					if extraPoke != "" {
-							extraPoke += " "
-					}
-					extraPoke += i18n.T("bot.prestige.poke", newP)
-					lr.OldLevel, lr.NewLevel, lr.TotalXP = 1, 1, 0
-					if b.Cfg.XPServerGroups {
-							b.applyPrestigeGroup(c, user.CLID, user.UID, user.Nickname, newP)
-					}
+				newP := b.doPrestige(user.UID)
+				notes = append(notes, i18n.T("bot.prestige.announce", newP, int(prestigeStatBonus*100)))
+				if extraPoke != "" {
+					extraPoke += " "
+				}
+				extraPoke += i18n.T("bot.prestige.poke", newP)
+				lr.OldLevel, lr.NewLevel, lr.TotalXP = 1, 1, 0
+				if b.Cfg.XPServerGroups {
+					b.applyPrestigeGroup(c, user.CLID, user.UID, user.Nickname, newP)
+				}
 			}
 
 			// Durability & Loot Drops
@@ -301,11 +301,11 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			// Messaging
 			notes = append(notes, battleLogs...)
 			if lr != nil {
-					outcome := i18n.T("xp.battle")
-					if lr.Awarded < 0 {
-							outcome = i18n.T("xp.lost")
-					}
-					notes = append(notes, i18n.T("xp.outcome", outcome, lr.Awarded, leveling.LevelName(lr.NewLevel), lr.NewLevel))
+				outcome := i18n.T("xp.battle")
+				if lr.Awarded < 0 {
+					outcome = i18n.T("xp.lost")
+				}
+				notes = append(notes, i18n.T("xp.outcome", outcome, lr.Awarded, leveling.LevelName(lr.NewLevel), lr.NewLevel))
 			}
 			pokeMsg := composePoke(game, shortURL, theme, lr)
 			pmMsg := b.composePM(game, shortURL, theme, lr, notes, user.Stats.Score())
@@ -994,6 +994,9 @@ type dbOrTx interface {
 
 // equipGear equips a gear piece, displacing any previously equipped item in that slot to inventory.
 func (b *Bot) equipGear(db dbOrTx, uid string, g content.Gear, dur int, itemData any) error {
+	if g.Unidentified {
+		return fmt.Errorf("cannot equip unidentified gear")
+	}
 	// 1. Displace old gear to inventory
 	var oldGID string
 	var oldDur int
@@ -1011,4 +1014,3 @@ func (b *Bot) equipGear(db dbOrTx, uid string, g content.Gear, dur int, itemData
 		uid, string(g.Slot), g.ID, dur, itemData)
 	return err
 }
-

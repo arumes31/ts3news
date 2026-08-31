@@ -46,6 +46,10 @@ func TestAbyssPauperRejectsHighRarityGear(t *testing.T) {
 	if got := abyssPactEquipmentError([]string{"pauper"}, gear); got != "" {
 		t.Fatalf("Rare gear rejected: %q", got)
 	}
+	gear[content.SlotRelic] = content.Gear{Name: "Hidden relic", Rarity: content.RarityCelestial, Unidentified: true}
+	if got := abyssPactEquipmentError([]string{"pauper"}, gear); got != "" {
+		t.Fatalf("inert unidentified gear rejected: %q", got)
+	}
 	gear[content.SlotRelic] = content.Gear{Name: "Epic relic", Rarity: content.RarityEpic}
 	if got := abyssPactEquipmentError([]string{"pauper"}, gear); !strings.Contains(got, "Rare-or-lower") {
 		t.Fatalf("Epic gear error = %q", got)

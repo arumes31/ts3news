@@ -167,10 +167,7 @@ func abyssRiskPct(depth int, tier abyssTier, playerCR float64) int {
 // same per-item metric already shown on the Armoury page.
 func (b *Bot) abyssPlayerCR(uid string) float64 {
 	var total float64
-	for slot, g := range b.getEquippedItems(uid) {
-		if content.IsPetGearSlot(slot) {
-			continue
-		}
+	for _, g := range abyssPlayerEquipment(b.getEquippedItems(uid)) {
 		total += g.CombatRating()
 	}
 	return total
@@ -290,10 +287,7 @@ func nullStr(s sql.NullString) string {
 // ticker. Regen accrues between page loads / out of combat.
 func (b *Bot) applyAbyssRegen(uid string, equipped map[content.GearSlot]content.Gear, curHP, maxHP int) (int, float64) {
 	perSec := 0.0
-	for slot, g := range equipped {
-		if content.IsPetGearSlot(slot) {
-			continue
-		}
+	for _, g := range abyssPlayerEquipment(equipped) {
 		if g.RegenAmount > 0 && g.RegenIntervalSec > 0 {
 			perSec += float64(g.RegenAmount) / float64(g.RegenIntervalSec)
 		}
@@ -808,7 +802,7 @@ func (b *Bot) fightAbyssFloorMode(
 		u.Stats.STR += u.Stats.STR * fams / 100
 	}
 
-	// 300-improvements run modifiers (docs/ABYSS_IMPROVEMENTS_300.md group A/B).
+	// Run modifiers and weekly expedition state.
 	weeklyRule, weeklyExpedition := abyssWeeklyRuleFromFlags(flags)
 	if weeklyExpedition {
 		diff *= weeklyRule.DangerMult
@@ -1475,7 +1469,7 @@ type abyssRun struct {
 	LastActionAt time.Time
 	CoopUID      string
 
-	// Expansion-2 run state (docs/ABYSS_IDEAS.md)
+	// Extended run state.
 	Momentum         int  // #7 consecutive floors without consumable use
 	BankLockedFloors int  // #15 floors left before banking unlocks after a Last Stand
 	LastStandUsed    bool // #15 one Last Stand per run
@@ -1818,7 +1812,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"Hardcore":            abyssHardcoreRun(runFlags),
 		"ExplorerSupport":     abyssRescueSupportViewFromFlags(runFlags),
 
-		// Expansion 2 (docs/ABYSS_IDEAS.md)
+		// Extended crafting and progression data.
 		"Materials":    materials,
 		"MaterialDefs": abyssMaterials,
 		"Recipes":      abyssRecipeViews(s.bot, uid, materials),
@@ -1977,7 +1971,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	// meaning "no restriction") when they're already under the cap.
 	maxAllowedConsumables := abyssCarryCapBase
 	for _, g := range equipped {
-		if g.ID == "ABYSS_POUCH" {
+		if abyssGearActiveForCombat(g) && g.ID == "ABYSS_POUCH" {
 			_, maxAllowedConsumables = abyssPouchCaps(s.bot.abyssPouchLevel(uid))
 			break
 		}
@@ -2281,7 +2275,8 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	_, hasActiveRelic := equipped[content.SlotRelic]
+	relic, hasActiveRelic := equipped[content.SlotRelic]
+	hasActiveRelic = hasActiveRelic && abyssGearActiveForCombat(relic)
 	weeklyRule, err := resetAbyssRunFlagsInTx(
 		tx, uid, req.Expedition, req.Kit, req.Mutation, focusID, hasActiveRelic, req.Hardcore, time.Now(),
 	)
@@ -3565,7 +3560,7 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 
 	hasLuckyCoin := false
 	equipped := s.bot.getEquippedItems(uid)
-	if _, hasCoin := equipped[content.SlotTrinket1]; hasCoin && equipped[content.SlotTrinket1].ID == "ABYSS_LUCKY_COIN" {
+	if coin, hasCoin := equipped[content.SlotTrinket1]; hasCoin && abyssGearActiveForCombat(coin) && coin.ID == "ABYSS_LUCKY_COIN" {
 		hasLuckyCoin = true
 	}
 	interestRate := abyssGreedyInterestRate(abyssEffectiveInterest(abyssTalentEffectiveInt(st.UpInterest), hasLuckyCoin), depth)
@@ -3612,7 +3607,7 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 	s.bot.settleAbyssSocialFloor(uid, depth)
 
 	// Evolving Artifacts: gains level/XP on clearing floor
-	if art, ok := equipped[content.SlotArtifact]; ok {
+	if art, ok := equipped[content.SlotArtifact]; ok && abyssGearActiveForCombat(art) {
 		art.GearLevel++
 		switch art.GearLevel {
 		case 3:
@@ -6083,7 +6078,7 @@ func (s *WebServer) handleAbyssNonCombatProceed(w http.ResponseWriter, r *http.R
 
 	hasLuckyCoin := false
 	equipped := s.bot.getEquippedItems(uid)
-	if _, hasCoin := equipped[content.SlotTrinket1]; hasCoin && equipped[content.SlotTrinket1].ID == "ABYSS_LUCKY_COIN" {
+	if coin, hasCoin := equipped[content.SlotTrinket1]; hasCoin && abyssGearActiveForCombat(coin) && coin.ID == "ABYSS_LUCKY_COIN" {
 		hasLuckyCoin = true
 	}
 	interestRate := abyssGreedyInterestRate(abyssEffectiveInterest(abyssTalentEffectiveInt(st.UpInterest), hasLuckyCoin), run.Depth)
@@ -6224,7 +6219,7 @@ func (b *Bot) countEquippedAbyssGearBySet(uid string) map[string]int {
 		if err := rows.Scan(&gearID, &itemData); err != nil {
 			continue
 		}
-		if g, ok := b.makeGear(gearID, itemData); ok {
+		if g, ok := b.makeGear(gearID, itemData); ok && abyssGearActiveForCombat(g) && !content.IsPetGearSlot(g.Slot) {
 			counts[g.EffectiveSetID()]++
 		}
 	}

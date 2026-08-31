@@ -12,17 +12,104 @@ import (
 
 func TestAbyssPetGearIsSeparatedFromPlayerEquipment(t *testing.T) {
 	equipped := map[content.GearSlot]content.Gear{
-		content.SlotHead: {Name: "Helm", Stats: content.Stats{DEF: 5}},
-		content.SlotPet1: {Name: "Collar", Stats: content.Stats{STR: 7}},
-		content.SlotPet2: {Name: "Charm", Stats: content.Stats{HP: 20, SPD: 3}},
+		content.SlotHead:  {Name: "Helm", Stats: content.Stats{DEF: 5}},
+		content.SlotChest: {Name: "Hidden Plate", Stats: content.Stats{DEF: 500}, Unidentified: true},
+		content.SlotPet1:  {Name: "Collar", Stats: content.Stats{STR: 7}},
+		content.SlotPet2:  {Name: "Hidden Charm", Stats: content.Stats{HP: 2000, SPD: 300}, Unidentified: true},
 	}
 	player := abyssPlayerEquipment(equipped)
 	if len(player) != 1 || player[content.SlotHead].Name != "Helm" {
 		t.Fatalf("player equipment = %#v", player)
 	}
 	bonus := abyssPetGearStats(equipped)
-	if bonus.STR != 7 || bonus.HP != 20 || bonus.SPD != 3 || bonus.DEF != 0 {
+	if bonus.STR != 7 || bonus.HP != 0 || bonus.SPD != 0 || bonus.DEF != 0 {
 		t.Fatalf("pet gear bonus = %#v", bonus)
+	}
+}
+
+func TestAbyssPlayerCRIgnoresUnidentifiedAndPetGear(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	encode := func(gear content.Gear) string {
+		data, marshalErr := json.Marshal(gear)
+		if marshalErr != nil {
+			t.Fatal(marshalErr)
+		}
+		return string(data)
+	}
+	identified := content.Gear{ID: "KNOWN_HEAD", Slot: content.SlotHead, Rarity: content.RarityRare, Stats: content.Stats{DEF: 12}}
+	hidden := content.Gear{ID: "HIDDEN_CHEST", Slot: content.SlotChest, Rarity: content.RarityCelestial, Stats: content.Stats{STR: 999}, Unidentified: true}
+	pet := content.Gear{ID: "KNOWN_COLLAR", Slot: content.SlotPet1, Rarity: content.RarityRare, Stats: content.Stats{STR: 80}}
+	mock.ExpectQuery("SELECT slot, gear_id, item_data FROM user_gear").WithArgs("keeper").WillReturnRows(
+		sqlmock.NewRows([]string{"slot", "gear_id", "item_data"}).
+			AddRow(string(identified.Slot), identified.ID, encode(identified)).
+			AddRow(string(hidden.Slot), hidden.ID, encode(hidden)).
+			AddRow(string(pet.Slot), pet.ID, encode(pet)),
+	)
+	if got := (&Bot{DB: database}).abyssPlayerCR("keeper"); got != identified.CombatRating() {
+		t.Fatalf("player CR = %v, want %v", got, identified.CombatRating())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCountEquippedAbyssGearBySetIgnoresUnidentifiedAndPetGear(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	encode := func(gear content.Gear) string {
+		data, marshalErr := json.Marshal(gear)
+		if marshalErr != nil {
+			t.Fatal(marshalErr)
+		}
+		return string(data)
+	}
+	identified := content.Gear{ID: "ABYSS_PREDATOR_HEAD", Slot: content.SlotHead, SetID: "predator"}
+	hidden := content.Gear{ID: "ABYSS_PREDATOR_CHEST", Slot: content.SlotChest, SetID: "predator", Unidentified: true}
+	pet := content.Gear{ID: "ABYSS_PREDATOR_COLLAR", Slot: content.SlotPet1, SetID: "predator"}
+	mock.ExpectQuery("SELECT gear_id, item_data FROM user_gear").WithArgs("keeper").WillReturnRows(
+		sqlmock.NewRows([]string{"gear_id", "item_data"}).
+			AddRow(identified.ID, encode(identified)).
+			AddRow(hidden.ID, encode(hidden)).
+			AddRow(pet.ID, encode(pet)),
+	)
+	counts := (&Bot{DB: database}).countEquippedAbyssGearBySet("keeper")
+	if counts["predator"] != 1 {
+		t.Fatalf("set counts = %#v, want one active predator piece", counts)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTickGearXPIgnoresUnidentifiedWeapon(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	hidden := content.Gear{
+		ID: "HIDDEN_BLADE", Name: "Secret Blade", Slot: content.SlotMainHand,
+		Stats: content.Stats{STR: 999}, KillCount: 99, Unidentified: true,
+	}
+	data, err := json.Marshal(hidden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("SELECT gear_id, item_data FROM user_gear").WithArgs("keeper").WillReturnRows(
+		sqlmock.NewRows([]string{"gear_id", "item_data"}).AddRow(hidden.ID, string(data)),
+	)
+	if got := (&Bot{DB: database}).tickGearXP("keeper"); got != "" {
+		t.Fatalf("unidentified weapon advanced a milestone: %q", got)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -72,12 +159,17 @@ func TestGetPetsAppliesBothPetGearSlots(t *testing.T) {
 func TestAbyssPetGearLabelsBothSlotsAndUIExplainsScope(t *testing.T) {
 	equipped := map[content.GearSlot]content.Gear{
 		content.SlotPet1: {Name: "War Collar", Stats: content.Stats{STR: 7}},
-		content.SlotPet2: {Name: "Fleet Charm", Stats: content.Stats{SPD: 4}},
+		content.SlotPet2: {Name: "Secret Fleet Charm", Stats: content.Stats{SPD: 400}, Unidentified: true},
 	}
 	label := abyssPetEquipmentLabel(equipped)
-	for _, token := range []string{"Collar: War Collar", "+7 STR", "Charm: Fleet Charm", "+4 SPD"} {
+	for _, token := range []string{"Collar: War Collar", "+7 STR", "Charm: Unidentified gear", "stats inactive"} {
 		if !strings.Contains(label, token) {
 			t.Errorf("pet gear label %q is missing %q", label, token)
+		}
+	}
+	for _, hidden := range []string{"Secret Fleet Charm", "+400 SPD"} {
+		if strings.Contains(label, hidden) {
+			t.Errorf("pet gear label %q leaks %q", label, hidden)
 		}
 	}
 	page, err := webAssets.ReadFile("webassets/abyss_social.html")

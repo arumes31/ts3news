@@ -17,7 +17,7 @@
 {{template "abyss-quality-of-life" .}}
 </head>
 <body{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards")}} class="delver-shell"{{end}}>
-{{if eq .Nav "abyss"}}<a class="ab-skip-link" href="#abyssControls">Skip to run controls</a>{{end}}
+{{if eq .Nav "abyss"}}<a class="ab-skip-link" href="#abyssControls">Skip to run controls</a>{{end}}{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards")}}<a class="portal-skip" href="#portalMain">Skip to main content</a>{{end}}
 <header class="topbar">
   <div class="brand"><img src="{{asset "/static/favicon.svg"}}" alt="" style="width:24px;height:24px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">TS3 RPG</div>
   {{if .U}}
@@ -38,7 +38,7 @@
   </div>
   {{end}}
 </header>
-<main class="wrap{{if or (eq .Nav "abyss") (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards") (eq .Nav "plaza")}} wrap-wide{{end}}">{{end}}
+<main{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards")}} id="portalMain" tabindex="-1"{{end}} class="wrap{{if or (eq .Nav "abyss") (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards") (eq .Nav "plaza")}} wrap-wide{{end}}">{{end}}
 
 {{define "leaderboards"}}
 <div class="lb-grid">
@@ -109,10 +109,13 @@ var pendingModalResolve = null;
 var pendingModalDismissValue = null;
 var modalReturnFocus = null;
 var modalArmTimer = null;
-function openModal(html){
+function openModal(html, opts){
+  opts = opts || {};
   var card = document.getElementById('sharedModalCard');
-  if (!document.getElementById('sharedModal').classList.contains('open')) modalReturnFocus = document.activeElement;
+  if (!document.getElementById('sharedModal').classList.contains('open')) modalReturnFocus = opts.returnFocus || document.activeElement;
   card.innerHTML = html;
+  card.classList.toggle('modal-card-wide', !!opts.wide);
+  card.scrollTop = 0;
   var heading = card.querySelector('h1,h2,h3,h4');
   if (heading) {
     heading.id = 'sharedModalTitle';
@@ -122,9 +125,17 @@ function openModal(html){
     card.removeAttribute('aria-labelledby');
     card.setAttribute('aria-label', 'Dialog');
   }
+  var description = card.querySelector('[data-modal-description]');
+  if (description) {
+    description.id = 'sharedModalDescription';
+    card.setAttribute('aria-describedby', 'sharedModalDescription');
+  } else {
+    card.removeAttribute('aria-describedby');
+  }
   document.getElementById('sharedModal').classList.add('open');
   document.getElementById('sharedModal').setAttribute('aria-hidden', 'false');
   window.setTimeout(function(){
+    if (opts.initialFocus === 'dialog') { card.focus({preventScroll:true}); return; }
     var first = card.querySelector('input:not(:disabled),select:not(:disabled),textarea:not(:disabled),button:not(:disabled),[href],[tabindex]:not([tabindex="-1"])');
     (first || card).focus();
   }, 0);
@@ -151,7 +162,7 @@ function trapSharedModalFocus(e){
   var focusable = Array.prototype.slice.call(card.querySelectorAll('input:not(:disabled),select:not(:disabled),textarea:not(:disabled),button:not(:disabled),[href],[tabindex]:not([tabindex="-1"])')).filter(function(el){ return el.offsetParent !== null; });
   if (!focusable.length) { e.preventDefault(); card.focus(); return; }
   var first = focusable[0], last = focusable[focusable.length - 1];
-  if (!card.contains(document.activeElement)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); return; }
+  if (!card.contains(document.activeElement) || document.activeElement === card) { e.preventDefault(); (e.shiftKey ? last : first).focus(); return; }
   if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
   else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 }
@@ -168,12 +179,12 @@ function confirmModal(message, opts){
     pendingModalDismissValue = false; // Escape / backdrop = "not confirmed"
     openModal(
       '<h3>' + (opts.title || 'Confirm') + '</h3>' +
-      '<p>' + message + '</p>' +
+      '<p data-modal-description>' + message + '</p>' +
       '<div class="modal-actions">' +
         '<button class="ghost" id="modalCancelBtn">' + (opts.cancelLabel || 'Cancel') + '</button>' +
         '<button id="modalOkBtn"' + (armSeconds ? ' disabled' : '') + '>' + okLabel + (armSeconds ? ' (' + armSeconds + '…)' : '') + '</button>' +
       '</div>'
-    );
+    , opts);
     var okButton = document.getElementById('modalOkBtn');
     if (armSeconds) {
       var remaining = armSeconds;
@@ -195,8 +206,8 @@ function promptModal(message, defaultValue){
     pendingModalDismissValue = null; // Escape / backdrop = "cancelled"
     openModal(
       '<h3>Input needed</h3>' +
-      '<p>' + message + '</p>' +
-      '<div class="modal-body"><input type="text" id="modalPromptInput" aria-label="Input" value="' + (defaultValue || '') + '" style="width:100%; background:#0c0f16; border:1px solid var(--line); color:var(--text); border-radius:7px; padding:.5rem .6rem;"></div>' +
+      '<label class="modal-prompt-label" data-modal-description for="modalPromptInput">' + message + '</label>' +
+      '<div class="modal-body"><input type="text" id="modalPromptInput" value="' + (defaultValue || '') + '" style="width:100%; background:#0c0f16; border:1px solid var(--line); color:var(--text); border-radius:7px; padding:.5rem .6rem;"></div>' +
       '<div class="modal-actions">' +
         '<button class="ghost" id="modalCancelBtn">Cancel</button>' +
         '<button id="modalOkBtn">OK</button>' +
@@ -267,7 +278,7 @@ function openItemInspector(trigger) {
     (specials ? '<section class="item-inspector-section"><h3>All specials</h3><div class="item-inspector-specials">' + specials + '</div></section>' : '<section class="item-inspector-section"><h3>All specials</h3><p class="muted small">No special combat effects.</p></section>') +
     (tagHTML ? '<section class="item-inspector-section"><h3>Properties</h3><div class="item-inspector-tags">' + tagHTML + '</div></section>' : '') +
     (item.provenance ? '<section class="item-inspector-section"><h3>Provenance</h3><p class="muted small">' + itemInspectEsc(item.provenance) + '</p></section>' : '') +
-    '<div class="modal-actions"><button type="button" onclick="closeModal()">Close</button></div></article>');
+    '<div class="modal-actions"><button type="button" onclick="closeModal()">Close</button></div></article>', {wide:true, initialFocus:'dialog'});
 }
 document.addEventListener('click', function(event) {
   var trigger = event.target.closest('[data-item-inspect]');
@@ -285,6 +296,10 @@ document.addEventListener('keydown', function(event) {
 // Expose the current page in the nav for assistive tech.
 var na = document.querySelector('.nav a.active');
 if (na) na.setAttribute('aria-current', 'page');
-</script>
+</script>{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards")}}<script data-cfasync="false">
+if (na && window.matchMedia('(max-width: 760px)').matches) {
+  window.requestAnimationFrame(function(){ na.scrollIntoView({block:'nearest',inline:'center'}); });
+}
+</script>{{end}}
 </body>
 </html>{{end}}

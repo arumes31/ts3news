@@ -180,13 +180,14 @@ func (s *WebServer) forgeQuoteRequiresFloor(r *http.Request, operation string) b
 	return err == nil && claims.Operation == operation && claims.ForgeFloor
 }
 
-func forgeGearFingerprint(g content.Gear, raw string, invID int64, slot string) string {
-	hash := sha256.Sum256([]byte(fmt.Sprintf("%d\x00%s\x00%s\x00%s\x00%d", invID, slot, g.ID, raw, g.MaxDurability)))
-	return hex.EncodeToString(hash[:16])
+func (s *WebServer) forgeGearFingerprint(g content.Gear, raw string, invID int64, slot string) string {
+	mac := hmac.New(sha256.New, s.forgeQuoteKey[:])
+	_, _ = fmt.Fprintf(mac, "%d\x00%s\x00%s\x00%s\x00%d", invID, slot, g.ID, raw, g.MaxDurability)
+	return hex.EncodeToString(mac.Sum(nil)[:16])
 }
 
 func (s *WebServer) forgeInventoryRevision(ctx context.Context, uid string) (string, error) {
-	hash := sha256.New()
+	hash := hmac.New(sha256.New, s.forgeQuoteKey[:])
 	queries := []string{
 		"SELECT id::text, gear_id, COALESCE(item_data::text,''), durability FROM user_inventory WHERE client_uid=$1 ORDER BY id",
 		"SELECT slot, gear_id, COALESCE(item_data::text,''), durability FROM user_gear WHERE client_uid=$1 ORDER BY slot",
@@ -277,7 +278,7 @@ func (s *WebServer) loadForgeQuoteItem(ctx context.Context, uid string, invID in
 func (s *WebServer) forgeQuoteBaseCost(uid, operation string, gear *content.Gear) abyssForgeQuoteCost {
 	cost := abyssForgeQuoteCost{Materials: map[string]int{}}
 	baseGold := map[string]int64{
-		"identify": 100, "polish": 150, "reinforce": 100, "sharpen": 100,
+		"identify": abyssIdentifyCost, "polish": 150, "reinforce": 100, "sharpen": 100,
 		"reforge": 300, "reforge_lock": 600, "rebalance": 200, "rebalance_all": 500,
 		"transmute_gem": 150, "socket_gem": 50,
 		"extract_gem": 100, "etch_rune": 150, "cleanse": 800, "insure_item": 200,
@@ -286,7 +287,9 @@ func (s *WebServer) forgeQuoteBaseCost(uid, operation string, gear *content.Gear
 	if operation == "temper" && gear != nil {
 		baseGold = int64(400 * (gear.Temper + 1))
 	}
-	if baseGold > 0 && gear != nil {
+	if operation == "identify" {
+		cost.Gold = int64(abyssIdentifyCost)
+	} else if baseGold > 0 && gear != nil {
 		cost.Gold = s.bot.forgeGoldCost(uid, baseGold, gear.Rarity)
 	} else {
 		cost.Gold = baseGold
@@ -359,6 +362,24 @@ func forgeQuoteOutcome(operation string, gear *content.Gear, chance float64) aby
 	return result
 }
 
+func redactUnidentifiedIdentifyQuote(operation string, gear *content.Gear, quote *abyssForgeQuote) {
+	if operation != "identify" || gear == nil || !gear.Unidentified || quote == nil {
+		return
+	}
+	quote.Current = nil
+	quote.Outcome = abyssForgeOutcome{
+		Consequences: []string{"Hidden rarity, stats, effects, and provenance are revealed only after identification commits."},
+	}
+	quote.DurabilityBefore = 0
+	quote.DurabilityAfter = 0
+	quote.SocketsBefore = 0
+	quote.SocketsAfter = 0
+	quote.SetBefore = ""
+	quote.SetAfter = ""
+	quote.BoundAfter = false
+	quote.TradeableAfter = true
+}
+
 func forgeQuoteChance(operation abyssForgeOperation, gear *content.Gear) (float64, string, string) {
 	chance := operation.Success.Max
 	pity := "No hidden mastery modifier changes these published odds."
@@ -426,7 +447,7 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 			return abyssForgeQuote{}, errors.New("operation is incompatible with this gear slot")
 		}
 		gear = &loaded
-		fingerprint = forgeGearFingerprint(loaded, raw, request.InvID, request.Slot)
+		fingerprint = s.forgeGearFingerprint(loaded, raw, request.InvID, request.Slot)
 	}
 	var parameterValues map[string]any
 	_ = json.Unmarshal(parameters, &parameterValues)
@@ -749,11 +770,17 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 		quote.CostExplanation = "Plain reforge uses the base rarity-scaled price."
 	case "reforge_lock":
 		quote.CostExplanation = "Locking one stat doubles the 300g base to 600g before rarity, reputation, happy-hour, and mastery modifiers."
-	case "identify", "identify_all":
+	case "identify":
 		if quote.Cost.Gold == 0 {
 			quote.CostExplanation = "Your first identification of the UTC day is free and is consumed only when the item change commits."
 		} else {
-			quote.CostExplanation = "One identification is free each UTC day; this quote includes any remaining paid identifications."
+			quote.CostExplanation = "Identification has a fixed 1,000g price independent of hidden rarity; one identification is free each UTC day."
+		}
+	case "identify_all":
+		if quote.Cost.Gold == 0 {
+			quote.CostExplanation = "Your first identification of the UTC day covers this batch and is consumed only when the item changes commit."
+		} else {
+			quote.CostExplanation = "Each identification has a fixed 1,000g price independent of hidden rarity; this quote includes the daily free allowance."
 		}
 	default:
 		quote.CostExplanation = operation.Cost.Formula
@@ -773,6 +800,7 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 			quote.Warnings = append(quote.Warnings, "Insufficient "+abyssMaterialName(id)+".")
 		}
 	}
+	redactUnidentifiedIdentifyQuote(operation.ID, gear, &quote)
 	return quote, nil
 }
 

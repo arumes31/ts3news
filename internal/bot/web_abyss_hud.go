@@ -30,7 +30,7 @@ func abyssRunFloorsCleared(run abyssRun) int {
 func (b *Bot) abyssHUDPageState(uid string, run abyssRun, st abyssStats, equipped map[content.GearSlot]content.Gear) abyssHUDPageState {
 	floors := abyssRunFloorsCleared(run)
 	hasLuckyCoin := false
-	if trinket, ok := equipped[content.SlotTrinket1]; ok && trinket.ID == "ABYSS_LUCKY_COIN" {
+	if trinket, ok := equipped[content.SlotTrinket1]; ok && abyssGearActiveForCombat(trinket) && trinket.ID == "ABYSS_LUCKY_COIN" {
 		hasLuckyCoin = true
 	}
 	rate := abyssGreedyInterestRate(abyssEffectiveInterest(abyssTalentEffectiveInt(st.UpInterest), hasLuckyCoin), run.Depth)

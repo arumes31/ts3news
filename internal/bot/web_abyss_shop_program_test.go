@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -67,8 +68,19 @@ func TestAbyssShopBundlePurchaseIsAtomic(t *testing.T) {
 }
 
 func TestAbyssEconomyProgramHelpers(t *testing.T) {
-	if got := abyssAuctionSalesTax(100); got != 5 {
-		t.Fatalf("auction tax = %d, want 5", got)
+	taxCases := []struct {
+		price int64
+		want  int64
+	}{
+		{price: 1, want: 1},
+		{price: 100, want: 5},
+		{price: 101, want: 6},
+		{price: math.MaxInt64, want: 461_168_601_842_738_791},
+	}
+	for _, test := range taxCases {
+		if got := abyssAuctionSalesTax(test.price); got != test.want {
+			t.Fatalf("auction tax for %d = %d, want %d", test.price, got, test.want)
+		}
 	}
 	if got := abyssPactTithe([]string{"tithe"}, 999); got != 99 {
 		t.Fatalf("pact tithe = %d, want 99", got)

@@ -2,7 +2,6 @@ package bot
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -138,7 +137,7 @@ type activeUser struct {
 	// scans the full 1000-node tree, so per-turn lookups must use this cache.
 	treeBonus content.TreeBonus
 
-	// --- Abyss combat mechanics (docs/ABYSS_IMPROVEMENTS_300.md, group C) ---
+	// --- Abyss combat mechanics ---
 	// All of these are only consulted on paths gated by abyssCombatant(u), so
 	// regular TS3 channel combat never sees them.
 	lastCastElement   content.Element       // AB-51 element of the previous cast (elemental combo)
@@ -3320,6 +3319,11 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 					if content.IsPetGearSlot(equippedSlot) {
 						continue
 					}
+					if gear.Unidentified {
+						// Hidden gear is inert until identification. This prevents its
+						// exact roll leaking through aggregate combat/XP deltas.
+						continue
+					}
 					equippedGear[equippedSlot] = gear
 					if content.IsAbyssGearID(gearID) {
 						abyssSetCounts[gear.EffectiveSetID()]++
@@ -3944,35 +3948,51 @@ func (b *Bot) applyEnchantment(uid string, ench content.Enchantment) (string, bo
 	return target.slot, true
 }
 
+// gearShouldReplace is the single replacement rule used by automatic equips and
+// the Shop/Auction upgrade badges. It compares the exact persisted instances so
+// forge rolls and other custom item data are never flattened to catalog defaults.
+func gearShouldReplace(candidate, current content.Gear) bool {
+	if candidate.Unidentified {
+		return false
+	}
+	if current.Unidentified {
+		return true
+	}
+	if candidate.XPMultiplier > current.XPMultiplier {
+		return true
+	}
+	return candidate.Rarity > current.Rarity || candidate.CombatRating() > current.CombatRating()
+}
+
+func isGearUpgrade(candidate content.Gear, equippedGear map[string]content.Gear) bool {
+	if candidate.Unidentified || candidate.Slot == "" {
+		return false
+	}
+	current, ok := equippedGear[string(candidate.Slot)]
+	return !ok || gearShouldReplace(candidate, current)
+}
+
+func (b *Bot) equippedGearUpgradeIndex(uid string) map[string]content.Gear {
+	equipped := b.getEquippedItems(uid)
+	out := make(map[string]content.Gear, len(equipped))
+	for slot, gear := range equipped {
+		out[string(slot)] = gear
+	}
+	return out
+}
+
 func (b *Bot) shouldEquip(uid string, newGear content.Gear) bool {
 	var currentID string
 	var itemData sql.NullString
 	err := b.DB.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(newGear.Slot)).Scan(&currentID, &itemData)
 	if err == sql.ErrNoRows {
-		return true
+		return isGearUpgrade(newGear, nil)
 	}
-	var cur content.Gear
-	hasGear := false
-	if itemData.Valid && itemData.String != "" {
-		if err := json.Unmarshal([]byte(itemData.String), &cur); err == nil {
-			hasGear = true
-		}
+	current, ok := b.makeGear(currentID, itemData)
+	if !ok {
+		return isGearUpgrade(newGear, nil)
 	}
-	if !hasGear {
-		if c, ok := content.GetGearByID(currentID); ok {
-			cur = c
-			hasGear = true
-		}
-	}
-	if hasGear {
-		// Prioritize XP Multiplier first for faster progression
-		if newGear.XPMultiplier > cur.XPMultiplier {
-			return true
-		}
-		// Equip if higher rarity OR if CombatRating is better (replaces stale gear with fresh durability)
-		return newGear.Rarity > cur.Rarity || newGear.CombatRating() > cur.CombatRating()
-	}
-	return true
+	return gearShouldReplace(newGear, current)
 }
 
 func (b *Bot) awardXP(uid, nickname string, awarded int) (*levelResult, error) {

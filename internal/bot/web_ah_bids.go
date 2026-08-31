@@ -10,6 +10,8 @@ import (
 	"ts3news/internal/content"
 )
 
+const abyssHiddenAuctionRefundMessage = "Bid refunded: a hidden auction item could not be delivered safely."
+
 func abyssAntiSnipeExpiry(now, expiry time.Time) time.Time {
 	if expiry.After(now) && !expiry.After(now.Add(time.Minute)) {
 		return expiry.Add(time.Minute)
@@ -54,6 +56,10 @@ func (s *WebServer) handleAHBid(w http.ResponseWriter, r *http.Request, uid stri
 	var gear content.Gear
 	if err := json.Unmarshal(itemData, &gear); err != nil || gear.ID == "" || gear.ID != itemID {
 		writeJSON(w, map[string]any{"ok": false, "error": "listing has invalid gear data"})
+		return
+	}
+	if gear.Unidentified || gear.Attuned {
+		writeJSON(w, map[string]any{"ok": false, "error": "listing unavailable"})
 		return
 	}
 	minimum := (buyNow + 1) / 2
@@ -127,7 +133,7 @@ func (b *Bot) settleAbyssAuctionBid(id string) {
 		return
 	}
 	var gear content.Gear
-	if err := json.Unmarshal(data, &gear); err != nil || gear.ID == "" || gear.ID != itemID {
+	if err := json.Unmarshal(data, &gear); err != nil || gear.ID == "" || gear.ID != itemID || gear.Unidentified || gear.Attuned {
 		if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", bid, bidder); err != nil {
 			return
 		}
@@ -135,7 +141,7 @@ func (b *Bot) settleAbyssAuctionBid(id string) {
 			return
 		}
 		if _, err := tx.Exec(`INSERT INTO abyss_economy_events (client_uid,kind,message,amount)
-			VALUES ($1,'bid_refund',$2,$3)`, bidder, fmt.Sprintf("Bid refunded: %s could not be delivered safely.", name), bid); err != nil {
+			VALUES ($1,'bid_refund',$2,$3)`, bidder, abyssHiddenAuctionRefundMessage, bid); err != nil {
 			return
 		}
 		_ = tx.Commit()
@@ -156,7 +162,7 @@ func (b *Bot) settleAbyssAuctionBid(id string) {
 	if _, err := tx.Exec("UPDATE arcade_jackpots SET amount=amount+$1,updated_at=NOW() WHERE game_key='abyss'", salesTax); err != nil {
 		return
 	}
-	if _, err := tx.Exec("UPDATE auction_house SET buyer_uid=$1,sold_at=NOW() WHERE id=$2", bidder, id); err != nil {
+	if _, err := tx.Exec("UPDATE auction_house SET buyer_uid=$1,sold_at=NOW(),price=$2,current_bid=0,bidder_uid=NULL WHERE id=$3", bidder, bid, id); err != nil {
 		return
 	}
 	if _, err := tx.Exec(`INSERT INTO abyss_economy_events (client_uid,kind,message,amount) VALUES

@@ -219,6 +219,9 @@ func applyAbyssDuoBonus(users []UserInCombat, assists int) bool {
 }
 
 func abyssPetGearItemLabel(gear content.Gear) string {
+	if !abyssGearActiveForCombat(gear) {
+		return "Unidentified gear · stats inactive"
+	}
 	if gear.Name == "" {
 		return "empty"
 	}
@@ -512,8 +515,8 @@ func (b *Bot) abyssSocialHub(uid string, prestige int) abyssSocialHubView {
 		Program:           b.abyssSocialProgram(uid),
 		Pets:              b.abyssSocialPets(uid),
 		SecondPetUnlocked: prestige >= 2,
-		PendingCapture: b.abyssPendingPetCapture(uid),
-		Deaths:         deaths, Memorials: b.abyssPetMemorials(uid), Trophies: trophies, BossLore: abyssBossLoreViews(trophies),
+		PendingCapture:    b.abyssPendingPetCapture(uid),
+		Deaths:            deaths, Memorials: b.abyssPetMemorials(uid), Trophies: trophies, BossLore: abyssBossLoreViews(trophies),
 		RevengeFamily: b.abyssRevengeFamily(uid), Rival: b.ensureAbyssWeeklyRival(uid), BankFeedEnabled: bankEnabled,
 		BankFeed: bankFeed, WeeklyBoss: b.abyssWeeklyBossStatus(uid), Notifications: b.abyssSocialNotifications(uid),
 		FriendEcho: b.abyssFriendEchoSettings(uid), PetFeedOptions: feedOptions,

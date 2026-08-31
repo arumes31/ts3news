@@ -1,6 +1,6 @@
 package bot
 
-// Abyss expansion 2 (docs/ABYSS_IDEAS.md): crafting materials & recipes, the
+// Abyss crafting and progression features: crafting materials & recipes, the
 // token⇄gold exchange, forge systems (temper, fusions, gem tiers, enchant
 // transfer, extraction, deterministic crafting, history/undo/reputation),
 // Last Stand revives, specializations, sanctuary upgrades and the new
@@ -2277,7 +2277,7 @@ func (b *Bot) tickGearXP(uid string) string {
 		return ""
 	}
 	g, ok := b.makeGear(gearID, itemData)
-	if !ok {
+	if !ok || !abyssGearActiveForCombat(g) {
 		return ""
 	}
 	g.KillCount++

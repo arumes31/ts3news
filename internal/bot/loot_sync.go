@@ -8,11 +8,11 @@ import (
 	"ts3news/internal/clientquery"
 	"ts3news/internal/content"
 	"ts3news/internal/i18n"
-	)
+)
 
-	// syncLootGroups ensures the user is in the correct TS3 server groups for their
-	// currently equipped gear, artifacts, skills, and pets.
-	func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
+// syncLootGroups ensures the user is in the correct TS3 server groups for their
+// currently equipped gear, artifacts, skills, and pets.
+func (b *Bot) syncLootGroups(c *clientquery.Client, clid int, uid string) {
 	cldbid, err := c.ClientDBID(clid)
 	if err != nil {
 		return
@@ -72,11 +72,9 @@ import (
 			var itemData sql.NullString
 			if err := grows.Scan(&id, &slot, &itemData); err == nil {
 				if g, ok := b.makeGear(id, itemData); ok {
-					name := g.Name
-					if g.GearLevel > 0 {
-						name = fmt.Sprintf("%s +%d", name, g.GearLevel)
+					if groupName, active := lootSyncGearGroupName(g, slot, formatGSName); active {
+						activeItemNames[groupName] = true
 					}
-					activeItemNames[formatGSName(g.Stats.Score(), name, g.Special, "slot:"+slot)] = true
 				}
 			}
 		}

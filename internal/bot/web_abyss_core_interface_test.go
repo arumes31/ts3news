@@ -30,6 +30,10 @@ func TestAbyssRunLootEstimatedValue(t *testing.T) {
 	if got := abyssRunLootEstimatedValue(abyssLootGrant{Type: "gear", Gear: &gear}); got != max(gearPrice(gear)/2, int64(1)) {
 		t.Fatalf("gear estimate = %d, want vendor quote", got)
 	}
+	gear.Unidentified = true
+	if got := abyssRunLootEstimatedValue(abyssLootGrant{Type: "gear", Gear: &gear}); got != 0 {
+		t.Fatalf("unidentified gear estimate = %d, want hidden", got)
+	}
 }
 
 func TestAbyssCoreInterfaceAssets(t *testing.T) {

@@ -4508,6 +4508,7 @@ async function abyssEconomyLoan(){
   await abyssEconomyPost('/api/abyss/economy/loan',{amount:amount});
 }
 
+var AB_IDENTIFY_COST=1000;
 function updateForgeOptions() {
   var sel = document.getElementById('forgeItemSelect');
   var opt = sel.options[sel.selectedIndex];
@@ -4597,11 +4598,12 @@ function updateForgeOptions() {
   document.getElementById('btnForgeInfuseXP').style.display = isWeapon ? '' : 'none';
   document.getElementById('forgeGemTransmuteRow').style.display = (!unid && gems > 0) ? 'block' : 'none';
 
-  // Gold price labels scale with the item's rarity (mirrors forgeGoldCost).
+  // Gold price labels scale with the item's rarity except identification,
+  // whose fixed price cannot disclose the unidentified item's hidden tier.
   var fg=function(b){return '≈'+abForgeGold(b,rarity);};
   var setTxt=function(id,txt){var el=document.getElementById(id);if(el)el.textContent=txt;};
   var identifyButton=document.getElementById('btnForgeIdentify');
-  setTxt('btnForgeIdentify',identifyButton&&identifyButton.dataset.dailyFree==='true'?'🔍 Identify Item · Daily free':'🔍 Identify Item ('+fg(100)+')');
+  setTxt('btnForgeIdentify',identifyButton&&identifyButton.dataset.dailyFree==='true'?'🔍 Identify Item · Daily free':'🔍 Identify Item ('+fmtNum(AB_IDENTIFY_COST)+'g)');
   setTxt('btnForgeSocketGemGo','Socket Gem ('+fg(50)+')');
   setTxt('btnForgeEtchGo','Etch ('+fg(150)+')');
   setTxt('btnForgeTransmute','⚒️ Transmute Weapon ('+fg(100)+')');
@@ -6052,7 +6054,7 @@ function parseGoldText(s){
 }
 function abForgeGoldRaw(base,r){ var raw=base*abForgeGoldMult(r||0); return raw<10000?10000:raw; }
 var AB_FORGE_COSTS={ // button id → [gold base, tokens, {material: n}]; null = special-cased
-  btnForgeIdentify:[100,0,{}],
+  btnForgeIdentify:[0,0,{}],
   btnForgeTemper:null,            // 400 × (temper+1)
   btnForgeSharpen:[100,0,{dust:2}],
   btnForgeReinforce:[100,0,{dust:2}],
@@ -6092,7 +6094,7 @@ function updateForgeAffordability(){
     if(!btn.dataset.origTitle&&btn.title)btn.dataset.origTitle=btn.title;
     var c=AB_FORGE_COSTS[id];
     var goldNeed=0, tkNeed=0, mats={};
-    if(id==='btnForgeIdentify'&&btn.dataset.dailyFree==='true')goldNeed=0;
+    if(id==='btnForgeIdentify')goldNeed=btn.dataset.dailyFree==='true'?0:AB_IDENTIFY_COST;
     else if(id==='btnForgeTemper')goldNeed=abForgeGoldRaw(400*(temper+1),rarity);
     else if(id==='btnForgeUpgradeGear'){
       var m=/🜲 (\d+)/.exec(btn.textContent||'');
