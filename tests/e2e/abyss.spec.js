@@ -1144,7 +1144,7 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
     }));
     enemies[5].weakness_ready = true;
     enemies[5].effects = [{ name: 'Weakness Window', duration: 'Next player hit · guaranteed critical' }];
-    window.renderLiveCombat({
+    const state = {
       ok: true, session_id: 'e2e-live', phase: 'planning', round: 1,
       deadline: new Date(Date.now() + 60000).toISOString(), tactic: 'balanced',
       policy: {}, allies: [{ id: 'ally:e2e', name: 'Tester', hp: 900, max_hp: 1000, shield: 150, max_shield: 200, mana: 100, max_mana: 100, is_self: true, is_player: true }],
@@ -1154,7 +1154,9 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
         { kind: 'skill', id: skillKeys[1].slice(6), name: manifest[skillKeys[1]].name, target: 'enemy', mana: 5, cooldown: 0 },
       ],
       recent_logs: [], initiative: [], enemy_intents: [], social: {},
-    });
+    };
+    window.connectLiveCombat = function noopLiveConnectionForTest() {};
+    window.startLiveCombat({ state }, 900, 1000);
     document.querySelector('#lootManifest').innerHTML = '<div class="abyss-side-loot" data-loot-id="42" data-gear-id="'+itemKey.slice(5)+'" data-slot="MainHand" data-tip="Test Blade"><span class="ab-loot-main"><span>Test Blade</span></span></div><div class="abyss-side-loot" data-loot-id="43" data-gear-id="'+relicKey.slice(5)+'" data-slot="Relic" data-tip="Test Relic"><span class="ab-loot-main"><span>Test Relic</span></span></div>';
     window.updateLootRewardPresentation();
     const petCard = document.createElement('div');
@@ -1262,7 +1264,7 @@ test('live combat exposes and enforces the remaining action-change budget', asyn
   await page.goto('/abyss?active=1');
   await page.evaluate(() => {
     window.reduceMotion = true;
-    window.renderLiveCombat({
+    const state = {
       ok: true, session_id: 'e2e-budget', phase: 'planning', round: 4,
       deadline: new Date(Date.now() + 60000).toISOString(), tactic: 'balanced',
       policy: {}, action_budget: { limit: 64, remaining: 0 },
@@ -1271,7 +1273,9 @@ test('live combat exposes and enforces the remaining action-change budget', asyn
       enemies: [{ id: 'enemy:0', name: 'Rate Warden', hp: 100, max_hp: 100 }],
       options: [{ kind: 'attack', id: '', name: 'Basic Attack', target: 'enemy', cooldown: 0 }],
       recent_logs: [], initiative: [], enemy_intents: [], social: {},
-    });
+    };
+    window.connectLiveCombat = function noopLiveConnectionForTest() {};
+    window.startLiveCombat({ state }, 900, 1000);
   });
 
   await expect(page.locator('#liveActionBudget')).toHaveText('0 / 64 CHANGES');

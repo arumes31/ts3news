@@ -65,6 +65,21 @@ body.ab-high-contrast .ab-rarity-glyph { background: #000; border: 1px solid cur
 
 @media (max-width: 700px) {
   body.ab-mobile-run { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  body.ab-mobile-actions-visible #abyssPrimaryActions {
+    position: static !important;
+  }
+  body.ab-mobile-actions-visible #abyssPrimaryActions > :is(#btnDescend, #btnBank) {
+    position: absolute !important;
+    width: 1px;
+    min-width: 0 !important;
+    height: 1px;
+    min-height: 0 !important;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    visibility: hidden;
+    clip-path: inset(50%);
+  }
   .ab-mobile-actions:not([hidden]) {
     align-items: stretch;
     background: #080d13;

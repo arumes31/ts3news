@@ -96,6 +96,72 @@ test('active combat cockpit keeps stage, actions, and log inside one desktop vie
   expect(live.log.bottom).toBeLessThanOrEqual(live.viewport + 1);
 });
 
+test('lobby keeps the primary entry decision in the first desktop and mobile view', async ({ page }) => {
+  for (const viewport of [
+    { width: 1440, height: 1000 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/abyss');
+
+    const layout = await page.evaluate(() => {
+      const entry = document.getElementById('btnEnter').getBoundingClientRect();
+      const cockpit = document.getElementById('abyssCombatCockpit').getBoundingClientRect();
+      return {
+        entry,
+        cockpit,
+        entryVisible: entry.width > 0 && entry.height > 0,
+        cockpitVisible: cockpit.width > 0 && cockpit.height > 0,
+        viewport: innerHeight,
+      };
+    });
+
+    expect(layout.entryVisible).toBe(true);
+    expect(layout.cockpitVisible).toBe(true);
+    expect(layout.cockpit.top).toBeLessThan(layout.viewport * 0.62);
+    expect(layout.entry.bottom).toBeLessThan(layout.viewport * 0.8);
+  }
+});
+
+test('active mobile run connects the battlefield context to its fixed actions', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/abyss?active=1');
+
+  const layout = await page.evaluate(() => {
+    const cockpit = document.getElementById('abyssCombatCockpit').getBoundingClientRect();
+    const stage = document.getElementById('abyssStage').getBoundingClientRect();
+    const featured = document.getElementById('abyssFeaturedDrops').getBoundingClientRect();
+    const actions = document.getElementById('abyssMobileActions').getBoundingClientRect();
+    return {
+      cockpit,
+      stage,
+      featured,
+      actions,
+      mobileActionsVisible: actions.width > 0 && actions.height > 0,
+      viewport: innerHeight,
+    };
+  });
+
+  expect(layout.mobileActionsVisible).toBe(true);
+  expect(layout.cockpit.top).toBeLessThan(layout.viewport * 0.5);
+  expect(layout.stage.top).toBeLessThan(layout.actions.top);
+  expect(layout.featured.top).toBeGreaterThanOrEqual(layout.cockpit.bottom - 1);
+});
+
+test('active mobile run keeps non-docked Scout and Respec actions reachable', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/abyss?active=1');
+
+  await expect(page.locator('#abyssMobileActions')).toBeVisible();
+  await expect(page.locator('#btnSimulate')).toBeVisible();
+  await expect(page.locator('#btnBuildRespec')).toBeVisible();
+  await expect(page.locator('#btnDescend')).toBeHidden();
+  await expect(page.locator('#btnBank')).toBeHidden();
+});
+
 test('desktop cockpit shows a useful combat-log window before scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 2048, height: 1048 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
