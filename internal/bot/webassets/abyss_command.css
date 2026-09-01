@@ -1448,6 +1448,7 @@ body:has(.abyss-command-page) .modal-overlay {
 
   .abyss-command-page:has(.ab-combat-cockpit.is-active) #abCommandCenter {
     grid-template-columns: auto minmax(0, 1fr) auto;
+    margin-bottom: 6px;
   }
 
   .abyss-command-page:has(.ab-combat-cockpit.is-active) #abCommandCenter button:last-of-type {

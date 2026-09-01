@@ -398,7 +398,7 @@
   .shop-grid { grid-template-columns: 1fr; }
   .shop-card { min-height: 214px; gap: .55rem; }
   .shop-card-footer { gap: .45rem; }
-  .shop-card-actions { align-self: stretch; }
+  .shop-card-actions { align-self: start; }
   .delver-shell .shop-card-actions button { min-width: 68px; }
   .shop-exchange .exchange-grid { grid-template-columns: 1fr; }
   .delver-shell button,
