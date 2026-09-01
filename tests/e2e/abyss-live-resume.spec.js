@@ -34,10 +34,14 @@ test('mid-fight refresh restores the complete feed and exact scroll position', a
   await page.goto('/abyss?active=1');
 
   const feed = page.locator('#liveFeed');
+  const mirror = page.locator('#abyssLog');
   await expect(page.locator('#liveCombat')).toBeVisible();
   await expect(feed.locator(':scope > div')).toHaveCount(40);
   await expect(feed.locator(':scope > div').first()).toHaveText('Combat event 1');
   await expect(feed.locator(':scope > div').last()).toHaveText('Combat event 40');
+  await expect(mirror.locator(':scope > .ab-live-mirror')).toHaveCount(40);
+  await expect(mirror.locator(':scope > .ab-live-mirror').first()).toHaveText('Combat event 1');
+  await expect(mirror.locator(':scope > .ab-live-mirror').last()).toHaveText('Combat event 40');
 
   const savedTop = await feed.evaluate(element => {
     element.scrollTop = Math.min(72, element.scrollHeight - element.clientHeight - 20);
@@ -50,6 +54,11 @@ test('mid-fight refresh restores the complete feed and exact scroll position', a
 
   await expect(feed.locator(':scope > div')).toHaveCount(40);
   await expect.poll(() => feed.evaluate(element => element.scrollTop)).toBeCloseTo(savedTop, 0);
+  const mirrorTop = await mirror.evaluate(element => {
+    element.scrollTop = Math.min(72, element.scrollHeight - element.clientHeight - 20);
+    return element.scrollTop;
+  });
+  expect(mirrorTop).toBeGreaterThan(0);
   const position = await page.evaluate(() => JSON.parse(sessionStorage.getItem('abyss_live_log_position_v1')));
   expect(position).toMatchObject({ session_id: 'resume-e2e', cursor: 40, at_bottom: false });
 
@@ -57,6 +66,7 @@ test('mid-fight refresh restores the complete feed and exact scroll position', a
   // not snap a reader away from the position restored above.
   await page.evaluate(() => window.renderLiveCombat(structuredClone(window.liveCombatState)));
   await expect.poll(() => feed.evaluate(element => element.scrollTop)).toBeCloseTo(savedTop, 0);
+  await expect.poll(() => mirror.evaluate(element => element.scrollTop)).toBeCloseTo(mirrorTop, 0);
 
   await page.evaluate(() => {
     const next = structuredClone(window.liveCombatState);
@@ -71,4 +81,10 @@ test('mid-fight refresh restores the complete feed and exact scroll position', a
   await expect(feed.locator(':scope > div')).toHaveCount(42);
   await expect(feed.locator(':scope > div').last()).toHaveText('Combat event 42');
   await expect.poll(() => feed.evaluate(element => element.scrollTop)).toBeCloseTo(savedTop, 0);
+  await expect(mirror.locator(':scope > .ab-live-mirror')).toHaveCount(42);
+  await expect(mirror.locator(':scope > .ab-live-mirror').first()).toHaveText('Combat event 1');
+  await expect(mirror.locator(':scope > .ab-live-mirror').last()).toHaveText('Combat event 42');
+  await expect.poll(() => mirror.evaluate(element => element.scrollTop)).toBeCloseTo(mirrorTop, 0);
+  expect(await page.evaluate(() => window.lastFightText)).toContain('Combat event 1');
+  expect(await page.evaluate(() => window.lastFightText)).toContain('Combat event 42');
 });

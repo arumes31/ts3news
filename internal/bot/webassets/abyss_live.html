@@ -30,7 +30,7 @@
   </div>
   <div class="ab-live-command">
     <div class="ab-live-command-head">
-      <div class="ab-live-queue" id="liveQueue" role="status" aria-live="polite">Choose an action, then select a target.</div>
+      <div class="ab-live-queue" id="liveQueue" role="status" aria-live="polite" aria-label="Queued combat action" data-state="idle">Choose an action, then select a target.</div>
       <span class="ab-action-budget" id="liveActionBudget" role="status" title="Server-authoritative action changes remaining this round" hidden></span>
       <button class="ab-timebank" id="liveTimeBank" type="button" onclick="spendLiveTimeBank()" disabled>+2s</button>
       <button class="ab-ready" id="liveReady" type="button" onclick="setLiveReady()" disabled>READY</button>
@@ -98,7 +98,7 @@
     </div>
   </details>
 	<div class="ab-round-timeline" id="liveRoundTimeline" aria-label="Combat round timeline"></div>
-	<div class="ab-live-logtools"><label>Log <select id="liveLogFilter" onchange="setLiveLogFilter(this.value)"><option value="all">All</option><option value="damage">Damage</option><option value="healing">Healing</option><option value="system">System</option></select></label><button type="button" onclick="toggleLiveLog()">EXPAND LOG</button></div>
+	<div class="ab-live-logtools"><label>Log <select id="liveLogFilter" onchange="setLiveLogFilter(this.value)"><option value="all">All</option><option value="damage">Damage</option><option value="healing">Healing</option><option value="system">System</option></select></label><button type="button" id="liveLogToggle" aria-controls="liveFeed" aria-expanded="false" onclick="toggleLiveLog()">EXPAND LOG</button></div>
 	<div class="ab-live-feed" id="liveFeed" aria-live="off"></div>
 </section>{{end}}
 
@@ -593,7 +593,7 @@ function configureLiveShortcuts(){
 }
 function liveLogCategory(line){line=String(line||'').toLowerCase();if(/heal|potion|restor|reviv/.test(line))return 'healing';if(/damage|strike|attack|hit|crit|defeat|cleav/.test(line))return 'damage';return 'system';}
 function setLiveLogFilter(filter){liveLogFilter=filter;document.querySelectorAll('#liveFeed [data-category]').forEach(function(line){var summaryOnly=window.AbyssQoL&&window.AbyssQoL.logVerbosity()==='summary';line.hidden=(summaryOnly&&line.dataset.summary!=='true')||(filter!=='all'&&line.dataset.category!==filter);});}
-function toggleLiveLog(){document.getElementById('liveFeed').classList.toggle('expanded');}
+function toggleLiveLog(){var feed=document.getElementById('liveFeed'),button=document.getElementById('liveLogToggle'),expanded=feed.classList.toggle('expanded');button.setAttribute('aria-expanded',expanded?'true':'false');button.textContent=expanded?'COLLAPSE LOG':'EXPAND LOG';}
 function renderLiveRoundTimeline(state){
 	if(state.round&&(!liveRoundHistory.length||liveRoundHistory[liveRoundHistory.length-1].round!==state.round))liveRoundHistory.push({round:state.round,phase:state.phase,recap:state.round_recap||'Planning'});
 	if(liveRoundHistory.length>12)liveRoundHistory.shift();
@@ -671,10 +671,14 @@ function renderLiveCombat(state,preserveFeed){
   document.getElementById('liveRecap').textContent=state.round_recap||'';
 	var encounterWarning=document.getElementById('liveEncounterWarning');
 	encounterWarning.hidden=!state.encounter_warning;
-	document.getElementById('liveEncounterWarningText').textContent=state.encounter_warning||'';
+	var encounterWarningText=document.getElementById('liveEncounterWarningText');
+	encounterWarningText.textContent=state.encounter_warning||'';
+	encounterWarningText.title=state.encounter_warning||'';
 	var hazardTelegraph=document.getElementById('liveHazardTelegraph');
 	hazardTelegraph.hidden=!state.hazard_telegraph;
-	document.getElementById('liveHazardTelegraphText').textContent=state.hazard_telegraph||'';
+	var hazardTelegraphText=document.getElementById('liveHazardTelegraphText');
+	hazardTelegraphText.textContent=state.hazard_telegraph||'';
+	hazardTelegraphText.title=state.hazard_telegraph||'';
 	var autoPreview=document.getElementById('liveAutoPreview');
 	var recommendedAction=state.recommended&&state.recommended.action;
 	var recommendedTarget=liveActionTargetName(state,recommendedAction);
@@ -691,6 +695,8 @@ function renderLiveCombat(state,preserveFeed){
   renderLivePixelStage(state);
   renderLiveActionBar(state);
   var own=(state.allies||[]).find(function(ally){return ally.is_self;})||{};
+  if(typeof own.hp==='number'&&typeof own.max_hp==='number')setHP(own.hp,own.max_hp);
+  if(typeof own.mana==='number'&&typeof own.max_mana==='number')setMana(own.mana,own.max_mana);
   var ready=document.getElementById('liveReady');
   ready.disabled=state.phase!=='planning'||!state.queued||!!own.ready||!!liveReadyInFlight;
   ready.setAttribute('aria-busy',liveReadyInFlight?'true':'false');
@@ -701,13 +707,14 @@ function renderLiveCombat(state,preserveFeed){
   timeBank.setAttribute('aria-busy',liveTimeBankInFlight?'true':'false');
   timeBank.textContent='+2s · '+bankSeconds+'s bank';
   var queue=document.getElementById('liveQueue');
-  if(liveActionReceipt&&liveActionReceipt.until>Date.now())queue.textContent=liveActionReceipt.text;
-	else if(state.queued)queue.textContent=liveQueuedSummary(state);
+  if(liveActionReceipt&&liveActionReceipt.until>Date.now()){queue.dataset.state='confirmed';queue.textContent=liveActionReceipt.text;}
+	else if(state.queued){queue.dataset.state='queued';queue.textContent=liveQueuedSummary(state);}
   else if(state.phase==='planning'){
 	var selectedUnit=(state.allies||[]).concat(state.enemies||[]).find(function(unit){return unit.id===liveSelectedTarget;});
+	queue.dataset.state=livePendingOption||selectedUnit?'targeting':state.recommended?'recommended':'idle';
 	queue.textContent=livePendingOption?'Select a valid target for '+livePendingOption.name+'.':selectedUnit?'TARGET · '+selectedUnit.name+' — choose an action.':state.recommended?'RECOMMENDED · '+state.recommended.reason:'Choose an action, then select a target. Timeout uses '+String(state.tactic||'balanced').replace('_',' ')+'.';
   }
-  else queue.textContent='Resolving synchronized actions…';
+  else {queue.dataset.state='resolving';queue.textContent='Resolving synchronized actions…';}
 	syncLiveLogFeed(state,preserveFeed);
   clearInterval(liveClockTimer); liveClockTimer=setInterval(updateLiveClock,100); updateLiveClock();
   if(state.phase==='complete'||state.phase==='failed')finishLiveCombat(state);
@@ -723,11 +730,44 @@ function dismissFinishedLiveCombat(sessionID){
   scheduleAbyssCockpitFocus('btnDescend');
 }
 function appendLiveLogLine(feed,line){
-	var category=liveLogCategory(line),entry=document.createElement('div');
-	entry.dataset.category=category;entry.dataset.summary=String(!window.AbyssQoL||window.AbyssQoL.summaryLine(line));entry.title=category+' event';entry.textContent=line;
-	if(/🎭 CRITICAL FUMBLE ·/.test(line))entry.classList.add('ab-live-critical-fumble');
-	if(/⚡ FIRST STRIKE ·/.test(line))entry.classList.add('ab-live-first-strike');
+	var text=String(line||'').replace(/<\/?(?:span|b|i)(?:\s+[^>]*)?>/gi,' ').replace(/&nbsp;/gi,' ').replace(/(?:&quot;|&#34;)/gi,'"').replace(/&#39;/gi,"'").replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&amp;/gi,'&').replace(/\s+/g,' ').trim();
+	var category=liveLogCategory(text),entry=document.createElement('div');
+	if(feed.id==='abyssLog'){
+		entry.className='ab-log-line ab-live-mirror';
+		entry.dataset.logTime=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+		entry.dataset.logCategory=typeof classifyCombatLogLine==='function'?classifyCombatLogLine(text):category;
+		entry.dataset.logSource=typeof combatLogSource==='function'?combatLogSource(text):'system';
+		entry.classList.add('ab-source-'+entry.dataset.logSource);
+	}
+	entry.dataset.category=category;entry.dataset.summary=String(!window.AbyssQoL||window.AbyssQoL.summaryLine(text));entry.title=category+' event';entry.textContent=text;
+	if(/🎭 CRITICAL FUMBLE ·/.test(text))entry.classList.add('ab-live-critical-fumble');
+	if(/⚡ FIRST STRIKE ·/.test(text))entry.classList.add('ab-live-first-strike');
 	feed.appendChild(entry);
+}
+
+function syncLiveCombatLog(state,recent,history){
+	var log=document.getElementById('abyssLog');if(!log)return;
+	var session=String(state.session_id||''),cursor=Number(state.log_cursor)||0,start=Math.max(0,Number(state.log_start)||0);
+	var rendered=Number(log.dataset.liveLogCursor)||0,sessionChanged=log.dataset.liveLogSession!==session;
+	var atBottom=!log.children.length||log.scrollHeight-log.scrollTop-log.clientHeight<=12,previousTop=log.scrollTop,changed=false;
+	if(sessionChanged||rendered>cursor){log.replaceChildren();rendered=0;changed=true;}
+	log.dataset.liveLogSession=session;
+	if(history){
+		var historyCursor=cursor||history.length;
+		if(changed||rendered!==historyCursor||log.querySelectorAll(':scope > .ab-live-mirror').length!==history.length){
+			log.replaceChildren();history.forEach(function(line){appendLiveLogLine(log,line);});changed=true;
+		}
+		rendered=historyCursor;
+	}else if(cursor<=0){
+		log.replaceChildren();recent.forEach(function(line){appendLiveLogLine(log,line);});rendered=0;changed=true;
+	}else{
+		var offset=Math.max(0,rendered-start);
+		for(var index=offset;recent.length>index;index++){appendLiveLogLine(log,recent[index]);changed=true;}
+		rendered=Math.max(rendered,cursor);
+	}
+	log.dataset.liveLogCursor=String(rendered);
+	if(changed)lastFightText=Array.prototype.map.call(log.querySelectorAll(':scope > .ab-live-mirror'),function(line){return line.textContent||'';}).filter(Boolean).join('\n');
+	applyLogFilter();if(atBottom)log.scrollTop=log.scrollHeight;else log.scrollTop=Math.max(0,previousTop);
 }
 
 function saveLiveLogPosition(){
@@ -747,6 +787,7 @@ function syncLiveLogFeed(state,preserveFeed){
 	var feed=document.getElementById('liveFeed'),recent=Array.isArray(state.recent_logs)?state.recent_logs:[];
 	if(!feed)return;
 	var cursor=Number(state.log_cursor)||0,start=Math.max(0,Number(state.log_start)||0),history=Array.isArray(state.log_history)?state.log_history:null;
+	syncLiveCombatLog(state,recent,history);
 	var wasAtBottom=!feed.children.length||feed.scrollHeight-feed.scrollTop-feed.clientHeight<=12,previousTop=feed.scrollTop,firstRestore=!liveLogRestoreApplied;
 	if(history){
 		feed.replaceChildren();history.forEach(function(line){appendLiveLogLine(feed,line);});
@@ -788,7 +829,7 @@ async function finishLiveCombat(state){
     abToast(result.error||'Combat failed',false); setBusy(false); return;
   }
   document.getElementById('liveRound').textContent='COMBAT COMPLETE';
-  document.getElementById('liveQueue').textContent=result.victory?'Victory confirmed.':'Defeat confirmed.';
+  var queue=document.getElementById('liveQueue');queue.dataset.state='confirmed';queue.textContent=result.victory?'Victory confirmed.':'Defeat confirmed.';
   var priorReduce=reduceMotion; reduceMotion=true;
   await processDescendResult(result,liveStartHP,liveStartMaxHP);
   reduceMotion=priorReduce;

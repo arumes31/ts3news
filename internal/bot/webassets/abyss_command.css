@@ -526,6 +526,345 @@ body:has(.abyss-command-page) .foot {
   }
 }
 
+/* Synchronized desktop combat is a viewport workspace. The run overview yields
+   to the fight while the resource strip, animation, queue and recorder remain
+   simultaneously visible; secondary detail panels keep their own scroll. */
+@media (min-width: 901px) {
+  body:has(.abyss-command-page .ab-combat-cockpit.has-live-combat) .topbar {
+    flex-wrap: nowrap;
+  }
+
+  body:has(.abyss-command-page .ab-combat-cockpit.has-live-combat) .brand {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  body:has(.abyss-command-page .ab-combat-cockpit.has-live-combat) .nav {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  body:has(.abyss-command-page .ab-combat-cockpit.has-live-combat) .nav a {
+    flex: 0 0 auto;
+  }
+
+  main.wrap:has(> .abyss-command-page .ab-combat-cockpit.has-live-combat) {
+    padding-block: 8px;
+  }
+
+  .abyss-command-page:has(.ab-combat-cockpit.has-live-combat) :is(.abyss-hero, #abCommandCenter, .ab-comeback-note) {
+    display: none;
+  }
+
+  .abyss-command-page:has(.ab-combat-cockpit.has-live-combat) .abyss-stats {
+    position: sticky;
+    z-index: 90;
+    top: var(--cmd-topbar-offset);
+    grid-template-columns: minmax(0, 1fr);
+    margin-bottom: 6px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 255, 255, .04);
+  }
+
+  .abyss-command-page:has(.ab-combat-cockpit.has-live-combat) .abyss-stats > :not(.ab-stat-vitals) {
+    display: none;
+  }
+
+  .abyss-command-page:has(.ab-combat-cockpit.has-live-combat) .abyss-stats > .ab-stat-vitals {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1.1fr) minmax(0, .9fr);
+    grid-column: 1;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 6px 9px;
+  }
+
+  .abyss-command-page:has(.ab-combat-cockpit.has-live-combat) .ab-stat-vitals .ab-mpbar {
+    height: 20px;
+    margin-top: 0;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat {
+    position: sticky;
+    top: calc(var(--cmd-topbar-offset) + 54px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 36%);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 8px;
+    height: calc(100dvh - var(--cmd-topbar-offset) - 70px);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > .abyss-stage-row {
+    display: none;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > #liveCombat {
+    position: relative;
+    bottom: auto;
+    grid-column: 1;
+    grid-row: 1;
+    display: flex !important;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-head {
+    grid-template-columns: minmax(0, 1fr) repeat(6, auto);
+    gap: clamp(8px, .8vw, 14px);
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-head > :first-child {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat :is(#liveRound, .ab-live-pause) {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat #liveCombat > .ab-pixel-stage {
+    flex: 1 1 220px;
+    min-height: 160px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat #liveCombat > .ab-live-feed {
+    flex: 0 1 52px;
+    min-height: 28px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat #liveCombat > .ab-live-feed.expanded {
+    flex-basis: clamp(120px, 20vh, 200px);
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-pixel-party.crowded {
+    flex-wrap: nowrap;
+    gap: 2px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-pixel-party.crowded .ab-pixel-unit {
+    flex: 1 1 0;
+    width: auto;
+    max-width: 76px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-queue {
+    position: relative;
+    min-height: 30px;
+    padding: 6px 8px 6px 92px;
+    border: 1px solid rgba(91, 214, 208, .28);
+    border-left: 3px solid var(--live-cyan);
+    background: rgba(18, 44, 51, .34);
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-queue::before {
+    position: absolute;
+    left: 8px;
+    color: var(--cmd-cyan);
+    content: "Action queue";
+    font: 800 .52rem/1.4 var(--cmd-mono);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-queue[data-state="queued"] {
+    color: #f8e2ad;
+    border-color: rgba(242, 189, 91, .48);
+    border-left-color: var(--cmd-gold);
+    background: rgba(75, 53, 18, .3);
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-command-head > :is(.ab-ready, .ab-timebank, .ab-live-tool) {
+    min-height: 32px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > #logWrap {
+    grid-column: 2;
+    grid-row: 1;
+    display: grid;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
+    min-height: 0;
+    margin: 0;
+    padding: 8px 10px;
+    overflow: hidden;
+    border: 1px solid var(--cmd-line);
+    border-radius: var(--cmd-cut-small);
+    background: rgba(7, 11, 17, .96);
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > #logWrap > h3 { grid-row: 1; margin: 0; }
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > #logWrap .ab-combat-recorder { display: none; }
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > #logWrap .ab-log-tools { grid-row: 2; flex-wrap: wrap; margin: 4px 0; }
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > #logWrap .ab-fatal-pin { grid-row: 3; }
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > #logWrap .abyss-log {
+    grid-row: 4;
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+  }
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > #logWrap .abyss-log:empty::before {
+    display: grid;
+    min-height: 100%;
+    place-items: center;
+    color: var(--cmd-muted);
+    content: "Awaiting the first synchronized combat event…";
+    font: 700 .68rem/1.5 var(--cmd-mono);
+    letter-spacing: .04em;
+    text-align: center;
+  }
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > #logWrap .abyss-loot { grid-row: 5; }
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > #logWrap .abyss-dura { grid-row: 6; }
+}
+
+@media (min-width: 901px) and (max-height: 999px),
+       (min-width: 901px) and (max-width: 1439px) {
+  .abyss-command-page .ab-combat-cockpit.has-live-combat #liveCombat > :is(.ab-live-social-shell, .ab-live-details, .ab-live-forecast, .ab-round-recap, .ab-round-timeline) {
+    display: none;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-head {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 5px 8px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-head > :first-child {
+    flex: 1 1 120px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat #liveSkillVariety {
+    display: none;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-clock {
+    min-width: 54px;
+    font-size: 1.1rem;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-connection {
+    min-width: 72px;
+    padding-inline: 4px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-tactic {
+    flex: 0 1 92px;
+    min-width: 78px;
+    font-size: .5rem;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-tactic select {
+    width: 100%;
+    min-width: 0;
+    margin-top: 1px;
+    padding: 3px 4px;
+    font-size: .58rem;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-command {
+    padding: 4px 8px 6px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat #liveCombat > .ab-pixel-stage {
+    min-height: 136px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-command-head {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-queue {
+    flex-basis: 100%;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-auto-preview {
+    min-height: 14px;
+    margin-block: 2px 0;
+    overflow: hidden;
+    font-size: .5rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-weakpoints {
+    flex-wrap: nowrap;
+    gap: 3px;
+    padding: 3px 0;
+    overflow-x: auto;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-weakpoints button {
+    min-height: 26px;
+    padding: 3px 6px;
+    white-space: nowrap;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat #liveCombat:not(.compact) > .ab-live-policy {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 3px 8px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-policy label {
+    min-width: 0;
+    overflow: hidden;
+    font-size: .48rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-policy select {
+    display: block;
+    min-width: 0;
+    margin-top: 1px;
+    padding: 2px;
+    font-size: .55rem;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat :is(.ab-encounter-warning, .ab-hazard-telegraph) {
+    min-height: 24px;
+    gap: 6px;
+    margin: 2px 8px;
+    padding: 3px 6px;
+    overflow: hidden;
+    font-size: .54rem;
+    white-space: nowrap;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat :is(.ab-encounter-warning, .ab-hazard-telegraph) span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-logtools {
+    flex: 0 0 auto;
+    padding: 2px 8px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-logtools label {
+    display: none;
+  }
+}
+
+@media (min-width: 901px) and (max-height: 799px) {
+  .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-live-logtools {
+    display: none;
+  }
+}
+
 .abyss-command-page .abyss-stage > :is(.ab-current-objective, .ab-noncombat-panel) {
   grid-column: 1 / -1;
   min-width: 0;

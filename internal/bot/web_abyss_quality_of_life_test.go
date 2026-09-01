@@ -60,7 +60,7 @@ func TestAbyssQualityOfLifeIntegrationHooks(t *testing.T) {
 		"key:'ab_logmono'",
 		"key:'ab_notifications'",
 		"AbyssQoL.logVerbosity()==='summary'",
-		"AbyssQoL.summaryLine(line)",
+		"AbyssQoL.summaryLine(text)",
 		"AbyssQoL.notify('bounty'",
 		"AbyssQoL.notify('revive'",
 		`data-sold-total="{{.Economy.SoldTotal}}"`,
