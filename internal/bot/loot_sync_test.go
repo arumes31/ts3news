@@ -22,6 +22,20 @@ func TestLootSyncGearGroupOmitsUnidentifiedGear(t *testing.T) {
 	}
 }
 
+func TestLootSyncGearGroupOmitsPetGear(t *testing.T) {
+	petGear := content.Gear{
+		Name: "Companion Harness", Slot: content.SlotPet1, Stats: content.Stats{DEF: 12},
+	}
+	formatterCalled := false
+	groupName, ok := lootSyncGearGroupName(petGear, string(content.SlotPet1), func(score int, name string, effect content.ItemEffect, itemType string) string {
+		formatterCalled = true
+		return fmt.Sprintf("%d|%s|%s|%s", score, name, effect, itemType)
+	})
+	if ok || formatterCalled || groupName != "" {
+		t.Fatalf("pet gear produced group %q (ok=%t, formatter called=%t)", groupName, ok, formatterCalled)
+	}
+}
+
 func TestLootSyncGearGroupUsesIdentifiedInstance(t *testing.T) {
 	gear := content.Gear{
 		Name: "Iron Crown", Stats: content.Stats{STR: 12},

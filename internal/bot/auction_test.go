@@ -1,9 +1,12 @@
 package bot
 
 import (
+	"bytes"
 	"encoding/json"
+	"log"
 	"strings"
 	"testing"
+
 	"ts3news/internal/config"
 	"ts3news/internal/content"
 
@@ -122,5 +125,54 @@ func TestEquipGearRejectsUnidentifiedGear(t *testing.T) {
 	err = (&Bot{DB: database}).equipGear(database, "user1", content.Gear{ID: "SECRET_HEAD", Slot: content.SlotHead, Unidentified: true}, 80, `{}`)
 	if err == nil || !strings.Contains(err.Error(), "unidentified") {
 		t.Fatalf("equipGear error = %v, want unidentified rejection", err)
+	}
+}
+
+func TestAutoPurchaseUpgradesLogsOnlyDecodeFailures(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+
+	unidentified, err := json.Marshal(content.Gear{ID: "hidden", Unidentified: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	attuned, err := json.Marshal(content.Gear{ID: "bound", Attuned: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("SELECT id, item_type, item_id, item_name, item_data, price, seller_uid").
+		WithArgs(int64(1_000)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "item_type", "item_id", "item_name", "item_data", "price", "seller_uid"}).
+			AddRow("bad-json", "gear", "bad", "Broken", []byte(`{`), int64(10), "seller").
+			AddRow("hidden", "gear", "hidden", "Hidden", unidentified, int64(9), "seller").
+			AddRow("attuned", "gear", "bound", "Bound", attuned, int64(8), "seller"))
+
+	var logs bytes.Buffer
+	previousOutput := log.Writer()
+	previousFlags := log.Flags()
+	previousPrefix := log.Prefix()
+	log.SetOutput(&logs)
+	log.SetFlags(0)
+	log.SetPrefix("")
+	t.Cleanup(func() {
+		log.SetOutput(previousOutput)
+		log.SetFlags(previousFlags)
+		log.SetPrefix(previousPrefix)
+	})
+
+	if got := (&Bot{DB: database}).autoPurchaseUpgrades("buyer", 1_000); got != "" {
+		t.Fatalf("autoPurchaseUpgrades() = %q, want no purchase", got)
+	}
+	if count := strings.Count(logs.String(), "Failed to unmarshal AH item:"); count != 1 {
+		t.Fatalf("decode failure log count = %d, want 1; logs: %q", count, logs.String())
+	}
+	if strings.Contains(logs.String(), "<nil>") {
+		t.Fatalf("valid skipped gear was logged as a decode failure: %q", logs.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }

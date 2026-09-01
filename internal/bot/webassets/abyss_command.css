@@ -21,7 +21,7 @@ body:has(.abyss-command-page),
   --cmd-cut-small: 3px 10px 3px 10px;
   --cmd-ui: "Aptos", "Segoe UI Variable", "Segoe UI", sans-serif;
   --cmd-display: "Bahnschrift SemiCondensed", "Aptos Display", sans-serif;
-  --cmd-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  --cmd-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", "Consolas", monospace;
   --cmd-topbar-offset: 54px;
 }
 

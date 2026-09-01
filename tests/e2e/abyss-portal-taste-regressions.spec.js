@@ -320,6 +320,21 @@ test('auction requires an exact non-cancellable bid review before reserving gold
   await expect.poll(() => bidRequest && bidRequest.postDataJSON()).toEqual({ id: 'listing-history', amount: 800 });
 });
 
+test('auction rejects an unavailable bid range before opening the amount prompt', async ({ page }) => {
+  await page.route('**/api/ah/notices', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ ok: true, notices: [] }),
+  }));
+  await page.goto('/ah');
+
+  const bidButton = page.getByRole('button', { name: 'Bid on Cinder Test Blade' });
+  await bidButton.evaluate(button => { button.dataset.currentBid = '1599'; });
+  await bidButton.click();
+
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('#ahMsg')).toContainText('bid range is unavailable');
+});
+
 test('auction material-order cancellation stops before later prompts or a request', async ({ page }) => {
   let orderRequests = 0;
   await page.route('**/api/ah/notices', route => route.fulfill({

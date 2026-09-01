@@ -400,8 +400,11 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 		if err := rows.Scan(&ahID, &itype, &itemID, &name, &dataJSON, &price, &sellerUID); err == nil {
 			if itype == "gear" {
 				var g content.Gear
-				if err := json.Unmarshal(dataJSON, &g); err != nil || g.Unidentified || g.Attuned {
+				if err := json.Unmarshal(dataJSON, &g); err != nil {
 					log.Printf("Failed to unmarshal AH item: %v", err)
+					continue
+				}
+				if g.Unidentified || g.Attuned {
 					continue
 				}
 				if b.shouldEquip(uid, g) {

@@ -377,6 +377,7 @@
     var currentBid = Math.max(0, Number(btn && btn.dataset.currentBid) || 0);
     if (!Number.isSafeInteger(buyNow) || buyNow < 2 || !Number.isSafeInteger(currentBid)) { toast('This bid range is too large to review safely.', false); return; }
     var minimum = currentBid > 0 ? currentBid + Math.max(1, Math.floor(currentBid / 20)) : Math.floor((buyNow + 1) / 2);
+    if (minimum > buyNow - 1) { toast('This bid range is unavailable; use Buy Now instead.', false); return; }
     var itemName = btn && btn.dataset.itemName || 'this item';
     var expires = btn && btn.dataset.expires || 'the displayed auction deadline';
     var rawAmount = await promptAH(

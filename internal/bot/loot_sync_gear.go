@@ -14,6 +14,9 @@ func lootSyncGearGroupName(
 	if !abyssGearActiveForCombat(gear) {
 		return "", false
 	}
+	if content.IsPetGearSlot(content.GearSlot(slot)) {
+		return "", false
+	}
 	name := gear.Name
 	if gear.GearLevel > 0 {
 		name = fmt.Sprintf("%s +%d", name, gear.GearLevel)
