@@ -102,6 +102,7 @@ test('desktop live combat keeps vitals, battlefield, spell queue, actions, and l
     { width: 1440, height: 900 },
     { width: 1439, height: 1000 },
     { width: 1440, height: 1000 },
+    { width: 1440, height: 1080 },
     { width: 1920, height: 1080 },
   ];
 
@@ -148,6 +149,9 @@ test('desktop live combat keeps vitals, battlefield, spell queue, actions, and l
     await expect(page.locator('#liveWeakpoints button')).toHaveCount(2);
     await expect(page.locator('#liveEncounterWarningText')).toHaveAttribute('title', state.encounter_warning);
     await expect(page.locator('#liveHazardTelegraphText')).toHaveAttribute('title', state.hazard_telegraph);
+    const compactExpected = viewport.width <= 1439 || viewport.height <= 1050;
+    if (compactExpected) await expect(page.locator('#liveCombat > .ab-live-details')).toBeHidden();
+    else await expect(page.locator('#liveCombat > .ab-live-details')).toBeVisible();
     await page.waitForTimeout(250);
     expect(await page.evaluate(() => scrollY), `combat focus should not scroll at ${viewport.width}x${viewport.height}`).toBeLessThanOrEqual(1);
 
