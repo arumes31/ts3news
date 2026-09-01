@@ -66,7 +66,7 @@ type runLootRow struct {
 func abyssRunLootEstimatedValue(grant abyssLootGrant) int64 {
 	switch grant.Type {
 	case "gear":
-		if grant.Gear != nil {
+		if grant.Gear != nil && !grant.Gear.Unidentified {
 			return max(gearPrice(*grant.Gear)/2, int64(1))
 		}
 	case "gold":
@@ -158,7 +158,7 @@ func abyssLootMainStat(gear content.Gear, buildKit int64) int {
 func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]content.Gear, owned map[string]bool) []runLootRow {
 	buildKit := b.loadRunFlags(uid)[abyssRunFlagBuildKit]
 	setCounts := map[string]int{}
-	for _, gear := range equipped {
+	for _, gear := range abyssPlayerEquipment(equipped) {
 		if gear.SetID != "" {
 			setCounts[gear.SetID]++
 		}
@@ -205,15 +205,16 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 			}
 			row.Slot = string(gear.Slot)
 			row.SlotIcon = content.SlotIcon(gear.Slot)
-			row.Rarity = gear.Rarity.String()
-			row.RarityRank = int(gear.Rarity)
-			row.BeamClass = abyssBeamClass(gear.Rarity, gear.Doomed && !gear.Unidentified)
-			row.Foil = gear.Foil
 			row.Unidentified = gear.Unidentified
 			if gear.Unidentified {
+				row.Rarity = "Unknown"
 				out = append(out, row)
 				continue
 			}
+			row.Rarity = gear.Rarity.String()
+			row.RarityRank = int(gear.Rarity)
+			row.BeamClass = abyssBeamClass(gear.Rarity, gear.Doomed)
+			row.Foil = gear.Foil
 			row.Provenance = gearProvenance(gear)
 			row.GearID = gear.ID
 			row.Score = gear.Stats.Score()
@@ -229,6 +230,7 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 			row.SellValue, row.CanSellJunk = abyssRunLootJunkQuote(grant)
 			row.CanSellJunk = row.CanSellJunk && !row.EquipOnBank
 			current, occupied := equipped[gear.Slot]
+			occupied = occupied && abyssGearActiveForCombat(current)
 			row.EmptySlot = !occupied
 			if occupied {
 				row.CRDelta = row.CR - current.CombatRating()
@@ -459,7 +461,7 @@ func (s *WebServer) handleAbyssEquipBestLoot(w http.ResponseWriter, r *http.Requ
 	}
 	equipped := s.bot.getEquippedItems(uid)
 	currentCR := 0.0
-	if current, ok := equipped[requested.gear.Slot]; ok {
+	if current, ok := equipped[requested.gear.Slot]; ok && abyssGearActiveForCombat(current) {
 		currentCR = current.CombatRating()
 	}
 	bestID, bestCR := int64(0), currentCR

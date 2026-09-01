@@ -1,48 +1,69 @@
 {{define "armory"}}{{template "head" .}}
-<section class="hero">
-  <div class="hero-portrait">🛡️</div>
-  <div class="hero-info">
-    <h1>{{.U.Nickname}}</h1>
-    <div class="hero-sub">
-      <span class="rank">{{.U.LevelName}}</span>
-      <span class="lvl">Level {{.U.Level}}</span>
-      {{if gt .U.Prestige 0}}<span class="prestige">★ Prestige {{.U.Prestige}}</span>{{end}}
-      <span class="gs">Gear Score <span data-item-number="{{.U.GearScore}}">{{comma .U.GearScore}}</span></span>
-    </div>
-    <div class="bars">
-      <div class="bar hp" role="progressbar" aria-valuenow="{{.U.CurrentHP}}" aria-valuemin="0"
-        aria-valuemax="{{.U.MaxHP}}"><span
-          style="width:{{if .U.MaxHP}}{{mulpct .U.CurrentHP .U.MaxHP}}{{else}}0{{end}}%"></span><span
-          class="bar-label">HP {{comma
-          .U.CurrentHP}} / {{comma .U.MaxHP}}</span></div>
-      <div class="bar xp" role="progressbar" aria-valuenow="{{.U.XPIntoLevel}}" aria-valuemin="0"
-        aria-valuemax="{{.U.XPForNext}}"><span
-          style="width:{{mulpct .U.XPIntoLevel .U.XPForNext}}%"></span><span class="bar-label">XP {{comma
-          .U.XPIntoLevel}} / {{comma .U.XPForNext}}</span></div>
+<article class="portal-page armory-console" aria-labelledby="armoryTitle">
+<header class="portal-masthead armory-masthead">
+  <div class="portal-masthead-copy">
+    <p class="portal-kicker">Loadout / pre-fight readiness</p>
+    <h1 id="armoryTitle">Armoury</h1>
+    <button type="button" class="ghost xs armory-number-toggle" data-item-number-toggle onclick="AbyssItemNumbers.setMode(AbyssItemNumbers.getMode()==='compact'?'exact':'compact')">Numbers: exact</button>
+    <p class="portal-lede">Read the build, catch maintenance risks, and inspect every equipped combat effect before descending.</p>
+  </div>
+  <dl class="portal-facts" aria-label="Delver identity">
+    <div><dt>Delver</dt><dd>{{.U.Nickname}}</dd></div>
+    <div><dt>Rank</dt><dd>{{.U.LevelName}} · Lvl {{.U.Level}}</dd></div>
+    {{if gt .U.Prestige 0}}<div><dt>Prestige</dt><dd>★ {{.U.Prestige}}</dd></div>{{end}}
+    <div><dt>Gear score</dt><dd data-item-number="{{.U.GearScore}}">{{comma .U.GearScore}}</dd></div>
+  </dl>
+</header>
+
+<section class="armory-readiness" role="region" aria-labelledby="readinessTitle">
+  <div class="armory-identity" aria-label="Current delver">
+    <div class="hero-portrait" aria-hidden="true"><span class="gi" style="--gi:url({{iconURL "checked-shield"}})"></span></div>
+    <div>
+      <p class="portal-kicker">Active loadout</p>
+      <h2>{{.U.Nickname}}</h2>
+      <div class="hero-sub">
+        <span class="rank">{{.U.LevelName}}</span>
+        <span class="lvl">Level {{.U.Level}}</span>
+        {{if gt .U.Prestige 0}}<span class="prestige">Prestige {{.U.Prestige}}</span>{{end}}
+      </div>
     </div>
   </div>
-  <div class="hero-purse">
-    <div class="big gold">🪙 {{gold .U.Gold}}</div>
+  <div class="readiness-vitals">
+    <div class="portal-section-heading">
+      <p class="portal-kicker">Live resources</p>
+      <h2 id="readinessTitle">Combat readiness</h2>
+    </div>
+    <div class="bar hp" role="progressbar" aria-label="Current health" aria-valuetext="{{comma .U.CurrentHP}} of {{comma .U.MaxHP}} health" aria-valuenow="{{.U.CurrentHP}}" aria-valuemin="0" aria-valuemax="{{.U.MaxHP}}">
+      <span style="width:{{if .U.MaxHP}}{{mulpct .U.CurrentHP .U.MaxHP}}{{else}}0{{end}}%"></span>
+      <span class="bar-label">HP {{comma .U.CurrentHP}} / {{comma .U.MaxHP}}</span>
+    </div>
+    <div class="readiness-capacity">
+      <span>Mana capacity</span>
+      <strong data-item-number="{{.U.MaxMana}}">{{comma .U.MaxMana}}</strong>
+    </div>
+    <div class="bar xp" role="progressbar" aria-label="Level progress" aria-valuetext="{{comma .U.XPIntoLevel}} of {{comma .U.XPForNext}} experience" aria-valuenow="{{.U.XPIntoLevel}}" aria-valuemin="0" aria-valuemax="{{.U.XPForNext}}">
+      <span style="width:{{mulpct .U.XPIntoLevel .U.XPForNext}}%"></span>
+      <span class="bar-label">XP {{comma .U.XPIntoLevel}} / {{comma .U.XPForNext}}</span>
+    </div>
   </div>
+  <dl class="readiness-facts" aria-label="Core combat facts">
+    <div><dt>Power</dt><dd><b data-item-number="{{.U.Stats.STR}}">{{comma .U.Stats.STR}}</b><span>Strength</span></dd></div>
+    <div><dt>Guard</dt><dd><b data-item-number="{{.U.Stats.DEF}}">{{comma .U.Stats.DEF}}</b><span>Defense</span></dd></div>
+    <div><dt>Vitality</dt><dd><b data-item-number="{{.U.Stats.HP}}">{{comma .U.Stats.HP}}</b><span>Max HP</span></dd></div>
+  </dl>
 </section>
 
-<h2>Attributes</h2>
-<div class="stats-grid">
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "biceps"}})"></span><b data-item-number="{{.U.Stats.STR}}">{{comma .U.Stats.STR}}</b><span>Strength</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "checked-shield"}})"></span><b data-item-number="{{.U.Stats.DEF}}">{{comma .U.Stats.DEF}}</b><span>Defense</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "run"}})"></span><b data-item-number="{{.U.Stats.SPD}}">{{comma .U.Stats.SPD}}</b><span>Speed</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "health-normal"}})"></span><b data-item-number="{{.U.Stats.HP}}">{{comma .U.Stats.HP}}</b><span>Max HP</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "bullseye"}})"></span><b data-item-number="{{.U.Stats.CRT}}">{{comma .U.Stats.CRT}}</b><span>Crit %</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "dodging"}})"></span><b data-item-number="{{.U.Stats.DGE}}">{{comma .U.Stats.DGE}}</b><span>Dodge %</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "clover"}})"></span><b data-item-number="{{.U.Stats.LCK}}">{{comma .U.Stats.LCK}}</b><span>Luck</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "brain"}})"></span><b data-item-number="{{.U.Stats.INT}}">{{comma .U.Stats.INT}}</b><span>Intellect</span></div>
-  <div class="stat"><span class="gi" style="--gi:url({{iconURL "lungs"}})"></span><b data-item-number="{{.U.Stats.STA}}">{{comma .U.Stats.STA}}</b><span>Stamina</span></div>
-</div>
+<div id="armoryStatus" class="portal-status" role="status" aria-live="polite"></div>
 
-<h2>Equipment</h2>
+<div class="armory-layout">
+<section class="armory-equipment" role="region" aria-labelledby="loadoutTitle">
+  <header class="portal-section-head">
+    <div><p class="portal-kicker">Primary workspace</p><h2 id="loadoutTitle">Equipped loadout</h2></div>
+    <p>Inspect gear for exact stats, combat specials, provenance, and maintenance state.</p>
+  </header>
 <div class="gear-grid">
   {{range .Slots}}
-  <div class="gear-cell {{if .Empty}}empty{{else}}item-inspect-trigger{{end}}"{{if .InspectJSON}} data-item-inspect="{{.InspectJSON}}" tabindex="0" role="button" aria-label="Inspect {{.Name}}"{{end}}>
+  <div class="gear-cell {{if .Empty}}empty{{else if .InspectJSON}}item-inspect-trigger{{end}}"{{if .InspectJSON}} data-item-inspect="{{.InspectJSON}}" tabindex="0" role="button" aria-label="Inspect {{.Name}}"{{end}}>
     <div class="gear-slot">
       {{if .Empty}}
       <span class="gi slot-gi"
@@ -57,9 +78,12 @@
     {{else}}
     <div class="gear-name" style="color:{{.RarityColor}}">{{.Name}}</div>
     {{if .AppearanceName}}<div class="gear-meta" title="Cosmetic only">◈ Appearance: {{.AppearanceName}}</div>{{end}}
-    <div class="gear-meta"{{if .Provenance}} title="{{.Provenance}}"{{end}}>{{.Rarity}} · CR <span data-item-number="{{printf "%.0f" .CR}}">{{printf "%.0f" .CR}}</span> · GS <span data-item-number="{{.Score}}">{{comma .Score}}</span>{{if .Durability}} · {{.Durability}}
-      dur{{end}}</div>
-    {{if .Stats}}<div class="gear-stats">{{range .Stats}}<span class="gstat">{{.Label}} <b data-item-number="{{.Value}}" data-item-number-sign="always">{{if gt .Value 0}}+{{end}}{{.Value}}</b></span>{{end}}</div>{{end}}
+    {{if .Unidentified}}<div class="gear-meta">Unknown · combat stats hidden and inactive</div>{{else}}<div class="gear-meta"{{if .Provenance}} title="{{.Provenance}}"{{end}}>{{.Rarity}} · CR <span data-item-number="{{printf "%.0f" .CR}}">{{printf "%.0f" .CR}}</span> · GS <span data-item-number="{{.Score}}">{{comma .Score}}</span></div>{{end}}
+    {{if gt .MaxDurability 0}}<div class="gear-durability{{if eq .Durability 0}} is-broken{{end}}">
+      <span>{{if eq .Durability 0}}Broken{{else}}Durability{{end}}</span>
+      <strong>{{.Durability}} / {{.MaxDurability}} durability</strong>
+    </div>{{end}}
+    {{if and (not .Unidentified) .Stats}}<div class="gear-stats">{{range .Stats}}<span class="gstat">{{.Label}} <b data-item-number="{{.Value}}" data-item-number-sign="always">{{if gt .Value 0}}+{{end}}{{.Value}}</b></span>{{end}}</div>{{end}}
     <div class="gear-tags">
       {{if .Element}}<span class="gtag elem">{{.Element}}</span>{{end}}
       {{if gt .XPBonusPct 0}}<span class="gtag xp">+{{.XPBonusPct}}% XP</span>{{end}}
@@ -68,15 +92,38 @@
           style="--gi:url({{iconURL .EffectIcon}})"></span> {{.Effect}}</span>{{end}}
     </div>
     {{if .EffectDesc}}<div class="gear-fxdesc">{{.EffectDesc}}</div>{{end}}
-    {{if .InspectJSON}}<div class="item-inspect-hint">Click for complete item record</div>{{end}}
-    {{if .Unidentified}}<button class="primary xs identify-btn" onclick="identifyGear('{{.Slot}}', this)">🔍 Identify (100g)</button>{{end}}
+    {{if .InspectJSON}}<div class="item-inspect-hint">Inspect complete item record</div>{{end}}
+    {{if .Unidentified}}<button type="button" class="primary identify-btn" aria-label="Review identification cost for {{.Slot}}" onclick="identifyGear('{{.Slot}}', this)">Review identify cost</button>{{end}}
     {{end}}
   </div>
   {{end}}
 </div>
+</section>
 
+<section class="armory-telemetry" aria-labelledby="attributesTitle">
+  <header class="portal-section-head">
+    <div><p class="portal-kicker">Build telemetry</p><h2 id="attributesTitle">Attributes</h2></div>
+    <p>Exact combat inputs, grouped by the decisions they inform.</p>
+  </header>
+  <div class="stats-grid">
+    <div class="stat armory-stat-primary"><span class="gi" style="--gi:url({{iconURL "biceps"}})"></span><b data-item-number="{{.U.Stats.STR}}">{{comma .U.Stats.STR}}</b><span>Strength</span></div>
+    <div class="stat armory-stat-primary"><span class="gi" style="--gi:url({{iconURL "checked-shield"}})"></span><b data-item-number="{{.U.Stats.DEF}}">{{comma .U.Stats.DEF}}</b><span>Defense</span></div>
+    <div class="stat armory-stat-primary"><span class="gi" style="--gi:url({{iconURL "health-normal"}})"></span><b data-item-number="{{.U.Stats.HP}}">{{comma .U.Stats.HP}}</b><span>Max HP</span></div>
+    <div class="stat"><span class="gi" style="--gi:url({{iconURL "run"}})"></span><b data-item-number="{{.U.Stats.SPD}}">{{comma .U.Stats.SPD}}</b><span>Speed</span></div>
+    <div class="stat"><span class="gi" style="--gi:url({{iconURL "bullseye"}})"></span><b data-item-number="{{.U.Stats.CRT}}">{{comma .U.Stats.CRT}}</b><span>Crit %</span></div>
+    <div class="stat"><span class="gi" style="--gi:url({{iconURL "dodging"}})"></span><b data-item-number="{{.U.Stats.DGE}}">{{comma .U.Stats.DGE}}</b><span>Dodge %</span></div>
+    <div class="stat"><span class="gi" style="--gi:url({{iconURL "clover"}})"></span><b data-item-number="{{.U.Stats.LCK}}">{{comma .U.Stats.LCK}}</b><span>Luck</span></div>
+    <div class="stat"><span class="gi" style="--gi:url({{iconURL "brain"}})"></span><b data-item-number="{{.U.Stats.INT}}">{{comma .U.Stats.INT}}</b><span>Intellect</span></div>
+    <div class="stat"><span class="gi" style="--gi:url({{iconURL "lungs"}})"></span><b data-item-number="{{.U.Stats.STA}}">{{comma .U.Stats.STA}}</b><span>Stamina</span></div>
+  </div>
+</section>
+</div>
+
+{{if or .Pets .PlayerTitle .Artifact .Ultimates}}
+<section class="armory-support" aria-labelledby="supportTitle">
+<header class="portal-section-head"><div><p class="portal-kicker">Battle support</p><h2 id="supportTitle">Tactical kit</h2></div><p>Automatic companions, persistent modifiers, and turn-triggered finishers.</p></header>
 {{if .Pets}}
-<h2>Combat Pets <span class="muted small">— {{len .Pets}} captured via Mind Control, fighting at your side</span></h2>
+<h3>Combat Pets <span class="muted small">— {{len .Pets}} captured via Mind Control, fighting at your side</span></h3>
 <div class="loadout-grid">
   {{range .Pets}}
   <div class="loadout-card pet">
@@ -95,7 +142,7 @@
 {{end}}
 
 {{if or .PlayerTitle .Artifact}}
-<h2>Boons &amp; Banes</h2>
+<h3>Boons &amp; Banes</h3>
 <div class="loadout-grid">
   {{with .PlayerTitle}}
   <div class="loadout-card title">
@@ -122,7 +169,7 @@
 {{end}}
 
 {{if .Ultimates}}
-<h2>Ultimates <span class="muted small">— {{len .Ultimates}} / 3 active, strongest ready one fires each turn</span></h2>
+<h3>Ultimates <span class="muted small">— {{len .Ultimates}} / 3 active, strongest ready one fires each turn</span></h3>
 <div class="loadout-grid">
   {{range .Ultimates}}
   <div class="loadout-card ultimate" style="border-color:{{.Rarity.Color}}">
@@ -139,9 +186,12 @@
   {{end}}
 </div>
 {{end}}
+</section>
+{{end}}
 
 {{if .Skills}}
-<h2>Skills <span class="muted small">— {{len .Skills}} learned</span></h2>
+<section class="armory-skills" aria-labelledby="skillsTitle">
+<header class="portal-section-head"><div><p class="portal-kicker">Ability record</p><h2 id="skillsTitle">Skills <span class="muted small">— {{len .Skills}} learned</span></h2></div><p>Rank progress and the exact effects available to this build.</p></header>
 <div class="skill-grid">
   {{range .Skills}}
   <div class="skill-card" style="border-color:{{.Rarity.Color}}">
@@ -156,16 +206,82 @@
   </div>
   {{end}}
 </div>
+</section>
 {{end}}
+</article>
 <script data-cfasync="false">
+const armoryForgeQuotesEnabled={{if .ForgeWorkbenchEnabled}}true{{else}}false{{end}};
+function lockArmoryForVerification(btn){
+  btn.disabled=true;
+  btn.textContent='Locked';
+  let recovery=btn.parentElement&&btn.parentElement.querySelector('.armory-mutation-recovery');
+  if(!recovery){
+    recovery=document.createElement('button');
+    recovery.type='button';
+    recovery.className='ghost armory-mutation-recovery';
+    recovery.textContent='Refresh to verify';
+    recovery.setAttribute('aria-label','Refresh to verify the unconfirmed identification');
+    recovery.addEventListener('click',function(){location.reload();});
+    btn.insertAdjacentElement('afterend',recovery);
+  }
+  return recovery;
+}
 async function identifyGear(slot, btn){
-  if(btn){btn.disabled=true;btn.textContent='Identifying…';}
+  if(!btn||btn.disabled)return;
+  const label=btn.textContent;
+  const status=document.getElementById('armoryStatus');
+  btn.disabled=true;
+  btn.textContent=armoryForgeQuotesEnabled?'Checking exact cost…':'Preparing identification…';
+  status.textContent=armoryForgeQuotesEnabled?'Requesting a signed identification quote.':'Using Forge rollback mode.';
+  let commitUnconfirmed=false;
   try{
-    const r=await fetch('/api/abyss/identify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot:slot})});
-    const d=await r.json();
-    if(d.ok){location.reload();}
-    else{var p=document.createElement('p');p.textContent=d.error||'Could not identify item';openModal('<h3>Identify failed</h3>'+p.outerHTML+'<div class="modal-actions"><button onclick="closeModal()">OK</button></div>');if(btn){btn.disabled=false;btn.textContent='🔍 Identify (100g)';}}
-  }catch(e){if(btn){btn.disabled=false;btn.textContent='🔍 Identify (100g)';}}
+    let quote={};
+    let prompt='Exact-price review is temporarily unavailable while Forge is in rollback mode. Identification costs at most 1,000 gold and is free if today’s allowance remains. No charge is made until you confirm.';
+    let cost=null;
+    if(armoryForgeQuotesEnabled){
+      const quoteResponse=await fetch('/api/abyss/forge/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'identify',slot:slot,parameters:{}})});
+      const quoted=await quoteResponse.json();
+      if(!quoteResponse.ok||!quoted.ok)throw new Error(quoted.error||'Identification quote unavailable');
+      quote=quoted.quote||{};
+      cost=Number(quote.cost&&quote.cost.gold||0);
+      prompt=cost===0
+        ? 'Your daily free identification is available. Reveal this item now?'
+        : 'Identify this item for exactly '+cost.toLocaleString()+' gold? Its hidden rarity and stats will be revealed only after confirmation.';
+    }
+    const approved=await confirmModal(prompt,{title:'Review identification',okLabel:cost===0?'Use daily free identify':'Identify item',cancelLabel:'Keep unidentified',returnFocus:btn});
+    if(!approved){status.textContent='Identification cancelled. No gold was spent.';return;}
+    btn.textContent='Identifying…';
+    const headers={'Content-Type':'application/json'};
+    if(quote.token)headers['X-Abyss-Forge-Quote']=quote.token;
+    headers['Idempotency-Key']='armory-identify-'+(window.crypto&&typeof window.crypto.randomUUID==='function'?window.crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2));
+    let response;
+    try{
+      response=await fetch('/api/abyss/identify',{method:'POST',headers:headers,body:JSON.stringify({slot:slot,confirmation:quote.confirmation_phrase||'FORGE IDENTIFY'})});
+    }catch(_){
+      commitUnconfirmed=true;
+      throw new Error('Connection interrupted after confirmation. The result is unconfirmed; refresh the Armoury before trying again.');
+    }
+    let result;
+    try{result=await response.json();}catch(_){
+      commitUnconfirmed=true;
+      throw new Error('The identification response was unreadable. The result is unconfirmed; refresh the Armoury before trying again.');
+    }
+    if(!response.ok||!result.ok)throw new Error(result.error||'Could not identify item');
+    status.textContent=result.msg||'Item identified.';
+    if(document.getElementById('goldPill'))document.getElementById('goldPill').textContent='🪙 '+result.gold;
+    setTimeout(function(){location.reload();},450);
+  }catch(error){
+    status.textContent=error&&error.message?error.message:'Identification failed. Try again.';
+    const returnTarget=commitUnconfirmed?lockArmoryForVerification(btn):btn;
+    var p=document.createElement('p');p.textContent=status.textContent;
+    openModal('<h3>Identification unavailable</h3>'+p.outerHTML+'<div class="modal-actions"><button type="button" onclick="closeModal()">Close</button></div>',{returnFocus:returnTarget});
+  }finally{
+    if(!commitUnconfirmed){
+      btn.disabled=false;
+      btn.textContent=label;
+      if(!document.getElementById('sharedModal').classList.contains('open'))btn.focus({preventScroll:true});
+    }
+  }
 }
 </script>
 {{template "abyssItemNumbersJS" .}}

@@ -44,6 +44,22 @@ func TestAbyssForgeQuoteTokenRoundTripAndTamperRejection(t *testing.T) {
 	}
 }
 
+func TestForgeGearFingerprintIsServerKeyed(t *testing.T) {
+	gear := content.Gear{ID: "HIDDEN_CELESTIAL", Rarity: content.RarityCelestial, Unidentified: true, MaxDurability: 125}
+	first := &WebServer{}
+	second := &WebServer{}
+	copy(first.forgeQuoteKey[:], []byte("first-server-key-material-000000"))
+	copy(second.forgeQuoteKey[:], []byte("second-server-key-material-00000"))
+
+	fingerprint := first.forgeGearFingerprint(gear, `{"secret":"roll"}`, 41, "Head")
+	if fingerprint == second.forgeGearFingerprint(gear, `{"secret":"roll"}`, 41, "Head") {
+		t.Fatal("gear fingerprint is not bound to the server quote key")
+	}
+	if fingerprint != first.forgeGearFingerprint(gear, `{"secret":"roll"}`, 41, "Head") {
+		t.Fatal("gear fingerprint is not stable for one server and item state")
+	}
+}
+
 func TestCanonicalForgeParameters(t *testing.T) {
 	first, err := canonicalForgeParameters(json.RawMessage(`{"b":2,"a":1}`))
 	if err != nil {
@@ -187,6 +203,36 @@ func TestForgeQuoteOutcomeBoundsAndBalanceConservation(t *testing.T) {
 		if outcome.ExpectedCR < outcome.MinimumCR-0.001 || outcome.ExpectedCR > outcome.MaximumCR+0.001 {
 			t.Fatalf("%s expected CR outside outcome bounds: %+v", operation.ID, outcome)
 		}
+	}
+}
+
+func TestIdentifyQuoteDoesNotRevealHiddenItemRoll(t *testing.T) {
+	gear := content.Gear{
+		ID: "SECRET_CELESTIAL", Name: "Secret Crown", Slot: content.SlotHead,
+		Rarity: content.RarityCelestial, MaxDurability: 987, Unidentified: true,
+		Stats: content.Stats{HP: 123456, INT: 654321}, Special: content.ItemEffect("Vampiric"),
+		FoundBoss: "Hidden Boss",
+	}
+	quote := abyssForgeQuote{
+		Current:          &gear,
+		Outcome:          forgeQuoteOutcome("identify", &gear, 1),
+		DurabilityBefore: gear.MaxDurability, DurabilityAfter: gear.MaxDurability,
+		SocketsBefore: 3, SocketsAfter: 3, SetBefore: "SECRET_SET", SetAfter: "SECRET_SET",
+		BoundAfter: true, TradeableAfter: false,
+	}
+	redactUnidentifiedIdentifyQuote("identify", &gear, &quote)
+
+	encoded, err := json.Marshal(quote)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{"SECRET_CELESTIAL", "Secret Crown", "654321", "Hidden Boss", "SECRET_SET", "Vampiric"} {
+		if bytes.Contains(encoded, []byte(secret)) {
+			t.Fatalf("identify quote leaked %q: %s", secret, encoded)
+		}
+	}
+	if quote.Current != nil || len(quote.Outcome.Consequences) == 0 || quote.TradeableAfter != true {
+		t.Fatalf("redacted identify quote = %+v", quote)
 	}
 }
 

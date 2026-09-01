@@ -373,7 +373,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	// see its definition in internal/content/artifacts.go).
 	equipped := b.getEquippedItems(uid)
 	hasLuckyCoin := false
-	if it, ok := equipped[content.SlotTrinket1]; ok && it.ID == "ABYSS_LUCKY_COIN" {
+	if it, ok := equipped[content.SlotTrinket1]; ok && abyssGearActiveForCombat(it) && it.ID == "ABYSS_LUCKY_COIN" {
 		hasLuckyCoin = true
 	}
 

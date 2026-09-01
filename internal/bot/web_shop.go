@@ -99,7 +99,7 @@ func featuredShopPrice(g content.Gear) int64 {
 }
 
 // featuredShopView builds the shop card for the seed's showcase relic.
-func featuredShopView(seed int64) shopItemView {
+func featuredShopView(seed int64, equippedGear map[string]content.Gear) shopItemView {
 	g := content.FeaturedShopItem(seed)
 	gearView := toGearView(g.Slot, g)
 	effs := make([]string, 0, len(g.BonusEffects)+1)
@@ -111,18 +111,19 @@ func featuredShopView(seed int64) shopItemView {
 	}
 	return shopItemView{
 		itemAtlasView: gearView.itemAtlasView,
-		ID:          g.ID,
-		Name:        g.Name,
-		Slot:        string(g.Slot),
-		Icon:        content.SlotIcon(g.Slot),
-		Rarity:      g.Rarity.String(),
-		RarityColor: g.Rarity.Color(),
-		CR:          g.CombatRating(),
-		Score:       g.Stats.Score(),
-		Price:       featuredShopPrice(g),
-		Featured:    true,
-		Effects:     effs,
-		InspectJSON: gearView.InspectJSON,
+		ID:            g.ID,
+		Name:          g.Name,
+		Slot:          string(g.Slot),
+		Icon:          content.SlotIcon(g.Slot),
+		Rarity:        g.Rarity.String(),
+		RarityColor:   g.Rarity.Color(),
+		CR:            g.CombatRating(),
+		Score:         g.Stats.Score(),
+		Price:         featuredShopPrice(g),
+		IsUpgrade:     isGearUpgrade(g, equippedGear),
+		Featured:      true,
+		Effects:       effs,
+		InspectJSON:   gearView.InspectJSON,
 	}
 }
 
@@ -131,30 +132,24 @@ func stockForSeed(seed int64, equippedGear map[string]content.Gear) []shopItemVi
 	out := make([]shopItemView, 0, len(stock)+1)
 	// Every rotation showcases at least one Mythic-or-higher relic, priced in the
 	// millions, pinned to the top of the list.
-	out = append(out, featuredShopView(seed))
+	out = append(out, featuredShopView(seed, equippedGear))
 	for _, g := range stock {
 		gearView := toGearView(g.Slot, g)
-		isUpgrade := false
-		if curr, ok := equippedGear[string(g.Slot)]; !ok {
-			isUpgrade = true
-		} else if g.CombatRating() > curr.CombatRating() && g.Stats.Score() > curr.Stats.Score() {
-			isUpgrade = true
-		}
 
 		out = append(out, shopItemView{
 			itemAtlasView: gearView.itemAtlasView,
-			ID:          g.ID,
-			Name:        g.Name,
-			Slot:        string(g.Slot),
-			Icon:        content.SlotIcon(g.Slot),
-			Rarity:      g.Rarity.String(),
-			RarityColor: g.Rarity.Color(),
-			CR:          g.CombatRating(),
-			Score:       g.Stats.Score(),
-			Price:       gearPrice(g),
-			IsUpgrade:   isUpgrade,
-			Effects:     append([]string(nil), gearViewEffectNames(g)...),
-			InspectJSON: gearView.InspectJSON,
+			ID:            g.ID,
+			Name:          g.Name,
+			Slot:          string(g.Slot),
+			Icon:          content.SlotIcon(g.Slot),
+			Rarity:        g.Rarity.String(),
+			RarityColor:   g.Rarity.Color(),
+			CR:            g.CombatRating(),
+			Score:         g.Stats.Score(),
+			Price:         gearPrice(g),
+			IsUpgrade:     isGearUpgrade(g, equippedGear),
+			Effects:       append([]string(nil), gearViewEffectNames(g)...),
+			InspectJSON:   gearView.InspectJSON,
 		})
 	}
 	return out
@@ -175,21 +170,9 @@ func (s *WebServer) handleShopPage(w http.ResponseWriter, r *http.Request, uid s
 		http.Redirect(w, r, "/denied", http.StatusSeeOther)
 		return
 	}
-	
-	// Load player's equipped gear to determine upgrades
-	equippedGear := make(map[string]content.Gear)
-	rows, err := s.bot.DB.Query("SELECT slot, gear_id FROM user_gear WHERE client_uid=$1", uid)
-	if err == nil {
-		defer func() { _ = rows.Close() }()
-		for rows.Next() {
-			var slot, gearID string
-			if err := rows.Scan(&slot, &gearID); err == nil {
-				if cg, ok := content.GetGearByID(gearID); ok {
-					equippedGear[slot] = cg
-				}
-			}
-		}
-	}
+
+	// Upgrade badges use the exact equipped instances, including forge/custom data.
+	equippedGear := s.bot.equippedGearUpgradeIndex(uid)
 
 	seed, endsAt := shopWindow(time.Now())
 	refreshIn := int(time.Until(endsAt).Seconds())
@@ -205,7 +188,7 @@ func (s *WebServer) handleShopPage(w http.ResponseWriter, r *http.Request, uid s
 		"GoldPerXP": goldPerXP,
 		"XPPerGold": xpPerGold,
 	})
-	}
+}
 
 // handleExchangeAPI converts between gold and XP at the fixed rates.
 func (s *WebServer) handleExchangeAPI(w http.ResponseWriter, r *http.Request, uid string) {
@@ -231,7 +214,10 @@ func (s *WebServer) handleExchangeAPI(w http.ResponseWriter, r *http.Request, ui
 
 	var gold int64
 	var xp int
-	if err := tx.QueryRow("SELECT gold, xp FROM users WHERE client_uid=$1", uid).Scan(&gold, &xp); err != nil {
+	// Lock the wallet row before calculating either side of the exchange. Other
+	// purchases and rewards update this same row, so the lock prevents this
+	// transaction's absolute gold/XP write from erasing a concurrent change.
+	if err := tx.QueryRow("SELECT gold, xp FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&gold, &xp); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "no character"})
 		return
 	}
@@ -344,6 +330,7 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 	}
 	var gold int64
 	var equippedMsg = ""
+	equipped := false
 	itemDataBytes, _ := json.Marshal(g)
 
 	if s.bot.shouldEquip(uid, g) {
@@ -353,6 +340,7 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 			return
 		}
 		equippedMsg = " and equipped!"
+		equipped = true
 	} else {
 		// Deliver to inventory
 		if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1, $2, $3, $4)", uid, g.ID, g.MaxDurability, string(itemDataBytes)); err != nil {
@@ -372,5 +360,5 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 		return
 	}
 
-	writeJSON(w, map[string]any{"ok": true, "bought": g.Name + equippedMsg, "gold": gold})
+	writeJSON(w, map[string]any{"ok": true, "bought": g.Name + equippedMsg, "gold": gold, "equipped": equipped})
 }

@@ -201,7 +201,7 @@ func (s *WebServer) handleAbyssGemPreset(w http.ResponseWriter, r *http.Request,
 	if req.Action == "save" {
 		preset := abyssGemPreset{Name: normalizeAbyssPresetName(req.Name, req.Slot), Gems: map[string][]string{}}
 		for gearSlot, gear := range s.bot.getEquippedItems(uid) {
-			if len(gear.Gemstones) > 0 {
+			if abyssGearActiveForCombat(gear) && len(gear.Gemstones) > 0 {
 				preset.Gems[string(gearSlot)] = append([]string{}, gear.Gemstones...)
 			}
 		}
@@ -237,7 +237,15 @@ func (s *WebServer) handleAbyssGemPreset(w http.ResponseWriter, r *http.Request,
 			return
 		}
 		gear, known := s.bot.makeGear(gearID, itemData)
-		if !known || len(gear.Gemstones) != len(desired) {
+		if !known {
+			writeJSON(w, map[string]any{"ok": false, "error": "socket counts changed since this preset was saved"})
+			return
+		}
+		if !abyssGearActiveForCombat(gear) {
+			writeJSON(w, map[string]any{"ok": false, "error": "inactive gear cannot use gem presets"})
+			return
+		}
+		if len(gear.Gemstones) != len(desired) {
 			writeJSON(w, map[string]any{"ok": false, "error": "socket counts changed since this preset was saved"})
 			return
 		}

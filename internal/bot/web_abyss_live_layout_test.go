@@ -134,7 +134,7 @@ func TestAbyssCombatCockpitContract(t *testing.T) {
 	}
 	for _, token := range []string{
 		"updateAbyssCombatCockpit(true)",
-		"scheduleAbyssCockpitFocus('liveReady')",
+		"scheduleAbyssCockpitFocus('liveAction',true)",
 		"updateAbyssCombatCockpit(false)",
 	} {
 		if !strings.Contains(string(live), token) {

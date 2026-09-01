@@ -15,13 +15,6 @@ import (
 	"ts3news/internal/content"
 )
 
-func expectIdentifyPriceReads(mock sqlmock.Sqlmock, uid string) {
-	mock.ExpectQuery("SELECT forge_rep FROM users").WithArgs(uid).
-		WillReturnRows(sqlmock.NewRows([]string{"forge_rep"}).AddRow(0))
-	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs(forge4MasteryKey(uid)).
-		WillReturnRows(sqlmock.NewRows([]string{"value"}))
-}
-
 func expectDailyIdentifyClaim(mock sqlmock.Sqlmock, uid string, claimed bool) {
 	rows := sqlmock.NewRows([]string{"claimed"})
 	if claimed {
@@ -49,11 +42,10 @@ func TestAbyssDailyIdentifyAvailableUsesUTCDate(t *testing.T) {
 	}
 }
 
-func TestAbyssDailyIdentifyQuoteWaivesRarityScaledCost(t *testing.T) {
+func TestAbyssDailyIdentifyQuoteWaivesFixedCost(t *testing.T) {
 	server, mock, done := newForge2TestServer(t)
 	defer done()
 	uid := "daily-identify-quote"
-	expectIdentifyPriceReads(mock, uid)
 	mock.ExpectQuery("SELECT NOT EXISTS.*app_meta").WithArgs(abyssDailyIdentifyKey(uid)).
 		WillReturnRows(sqlmock.NewRows([]string{"available"}).AddRow(true))
 
@@ -76,6 +68,31 @@ func TestAbyssDailyIdentifyQuoteWaivesRarityScaledCost(t *testing.T) {
 	}
 }
 
+func TestAbyssPaidIdentifyQuoteDoesNotRevealRarity(t *testing.T) {
+	for _, rarity := range []content.Rarity{content.RarityCommon, content.RarityCelestial} {
+		t.Run(rarity.String(), func(t *testing.T) {
+			server, mock, done := newForge2TestServer(t)
+			defer done()
+			uid := "paid-identify-" + rarity.String()
+			mock.ExpectQuery("SELECT NOT EXISTS.*app_meta").WithArgs(abyssDailyIdentifyKey(uid)).
+				WillReturnRows(sqlmock.NewRows([]string{"available"}).AddRow(false))
+
+			cost, minimum, maximum, err := server.resolveAbyssForgeQuoteCost(
+				context.Background(), uid, "identify", &content.Gear{Rarity: rarity, Unidentified: true}, nil,
+			)
+			if err != nil {
+				t.Fatalf("resolve identify quote: %v", err)
+			}
+			if cost.Gold != abyssIdentifyCost || minimum.Gold != abyssIdentifyCost || maximum.Gold != abyssIdentifyCost {
+				t.Fatalf("paid identify quote costs = %d/%d/%d, want fixed %d", cost.Gold, minimum.Gold, maximum.Gold, abyssIdentifyCost)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatalf("database expectations: %v", err)
+			}
+		})
+	}
+}
+
 func TestHandleAbyssIdentifyClaimsFreeUseWithItemCommit(t *testing.T) {
 	server, mock, done := newForge2TestServer(t)
 	defer done()
@@ -84,7 +101,6 @@ func TestHandleAbyssIdentifyClaimsFreeUseWithItemCommit(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT gear_id, item_data FROM user_inventory").WithArgs(int64(98), uid).
 		WillReturnRows(sqlmock.NewRows([]string{"gear_id", "item_data"}).AddRow("U_LEG_2", `{"unidentified":true}`))
-	expectIdentifyPriceReads(mock, uid)
 	expectDailyIdentifyClaim(mock, uid, true)
 	mock.ExpectExec("UPDATE user_inventory SET item_data=").WithArgs(sqlmock.AnyArg(), int64(98), uid).
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -110,11 +126,10 @@ func TestHandleAbyssIdentifyChargesAfterFreeUse(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT gear_id, item_data FROM user_inventory").WithArgs(int64(99), uid).
 		WillReturnRows(sqlmock.NewRows([]string{"gear_id", "item_data"}).AddRow("U_LEG_2", `{"unidentified":true}`))
-	expectIdentifyPriceReads(mock, uid)
 	expectDailyIdentifyClaim(mock, uid, false)
 	mock.ExpectExec("UPDATE user_inventory SET item_data=").WithArgs(sqlmock.AnyArg(), int64(99), uid).
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec("UPDATE users SET gold = gold -").WithArgs(sqlmock.AnyArg(), uid).
+	mock.ExpectExec("UPDATE users SET gold = gold -").WithArgs(int64(abyssIdentifyCost), uid).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	mock.ExpectQuery("SELECT gold FROM users").WithArgs(uid).
@@ -171,7 +186,6 @@ func TestHandleAbyssIdentifyRollsBackClaimWhenItemWriteFails(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT gear_id, item_data FROM user_inventory").WithArgs(int64(103), uid).
 		WillReturnRows(sqlmock.NewRows([]string{"gear_id", "item_data"}).AddRow("U_LEG_2", `{"unidentified":true}`))
-	expectIdentifyPriceReads(mock, uid)
 	expectDailyIdentifyClaim(mock, uid, true)
 	mock.ExpectExec("UPDATE user_inventory SET item_data=").WithArgs(sqlmock.AnyArg(), int64(103), uid).
 		WillReturnError(errors.New("write failed"))

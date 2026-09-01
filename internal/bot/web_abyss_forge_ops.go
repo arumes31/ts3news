@@ -177,7 +177,7 @@ func (s *WebServer) validateForgeCommitQuote(r *http.Request, uid, operation str
 	}
 	if claims.Gear != "none" {
 		gear, raw, ok := s.loadForgeQuoteItem(r.Context(), uid, invID, slot)
-		if !ok || forgeGearFingerprint(gear, raw, invID, slot) != claims.Gear {
+		if !ok || s.forgeGearFingerprint(gear, raw, invID, slot) != claims.Gear {
 			return errForgeQuoteStaleGear
 		}
 	}
@@ -336,7 +336,7 @@ func (s *WebServer) forgeAuditSnapshot(r *http.Request, uid, operation string, p
 		"gold": s.bot.abyssGold(uid), "tokens": s.bot.abyssTokens(uid), "materials": s.bot.loadMaterials(uid),
 	}
 	if ok {
-		snapshot["fingerprint"] = forgeGearFingerprint(gear, raw, invID, slot)
+		snapshot["fingerprint"] = s.forgeGearFingerprint(gear, raw, invID, slot)
 		snapshot["item"] = gear
 	}
 	encoded, _ := json.Marshal(snapshot)

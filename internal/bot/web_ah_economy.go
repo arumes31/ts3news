@@ -57,17 +57,22 @@ func (b *Bot) abyssAHWatchlist(uid string) map[string]bool {
 func (b *Bot) abyssAHEconomyPage(uid string) abyssAHEconomyView {
 	view := abyssAHEconomyView{Expired: b.ahExpiredListings(uid), Orders: b.abyssMaterialOrders(uid), TaxLeaders: b.abyssTaxLeaders(5)}
 	_ = b.DB.QueryRow(`SELECT COALESCE(MIN(price),0) FROM auction_house
-		WHERE sold_at IS NULL AND expires_at>NOW() AND (item_data->>'Rarity')::int=$1`, int(content.RarityLegendary)).Scan(&view.CheapestLegendary)
+		WHERE sold_at IS NULL AND expires_at>NOW() AND (item_data->>'Rarity')::int=$1
+		  AND (item_type <> 'gear' OR LOWER(COALESCE(item_data->>'unidentified','false')) <> 'true')`, int(content.RarityLegendary)).Scan(&view.CheapestLegendary)
 	_ = b.DB.QueryRow("SELECT COUNT(*) FROM abyss_economy_events WHERE client_uid=$1 AND seen=FALSE", uid).Scan(&view.UnseenNotices)
-	_ = b.DB.QueryRow("SELECT COUNT(*) FROM auction_house WHERE seller_uid=$1 AND sold_at IS NOT NULL", uid).Scan(&view.SoldTotal)
-	_ = b.DB.QueryRow("SELECT COUNT(*) FROM auction_house WHERE seller_uid=$1 AND sold_at IS NULL AND expires_at>NOW()", uid).Scan(&view.ListedTotal)
-	_ = b.DB.QueryRow("SELECT COUNT(*) FROM auction_house WHERE seller_uid=$1 AND sold_at IS NULL AND expires_at<=NOW()", uid).Scan(&view.ExpiredTotal)
+	_ = b.DB.QueryRow(`SELECT COUNT(*) FROM auction_house WHERE seller_uid=$1 AND sold_at IS NOT NULL
+		AND (item_type <> 'gear' OR LOWER(COALESCE(item_data->>'unidentified','false')) <> 'true')`, uid).Scan(&view.SoldTotal)
+	_ = b.DB.QueryRow(`SELECT COUNT(*) FROM auction_house WHERE seller_uid=$1 AND sold_at IS NULL AND expires_at>NOW()
+		AND (item_type <> 'gear' OR LOWER(COALESCE(item_data->>'unidentified','false')) <> 'true')`, uid).Scan(&view.ListedTotal)
+	_ = b.DB.QueryRow(`SELECT COUNT(*) FROM auction_house WHERE seller_uid=$1 AND sold_at IS NULL AND expires_at<=NOW()
+		AND (item_type <> 'gear' OR LOWER(COALESCE(item_data->>'unidentified','false')) <> 'true')`, uid).Scan(&view.ExpiredTotal)
 	return view
 }
 
 func (b *Bot) ahExpiredListings(uid string) []ahListingView {
 	rows, err := b.DB.Query(`SELECT id,item_type,item_id,item_name,item_data,price,listed_at,current_bid
 		FROM auction_house WHERE seller_uid=$1 AND sold_at IS NULL AND expires_at<=NOW()
+		  AND (item_type <> 'gear' OR LOWER(COALESCE(item_data->>'unidentified','false')) <> 'true')
 		ORDER BY expires_at DESC LIMIT 50`, uid)
 	if err != nil {
 		return nil
@@ -201,7 +206,8 @@ func (s *WebServer) handleAHBulkRelist(w http.ResponseWriter, r *http.Request, u
 	}
 	res, err := s.bot.DB.Exec(`UPDATE auction_house SET price=GREATEST(1,(price*99)/100),
 		listed_at=NOW(),expires_at=NOW()+INTERVAL '7 days'
-		WHERE seller_uid=$1 AND sold_at IS NULL AND expires_at<=NOW() AND bidder_uid IS NULL`, uid)
+		WHERE seller_uid=$1 AND sold_at IS NULL AND expires_at<=NOW() AND bidder_uid IS NULL
+		  AND (item_type <> 'gear' OR LOWER(COALESCE(item_data->>'unidentified','false')) <> 'true')`, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return

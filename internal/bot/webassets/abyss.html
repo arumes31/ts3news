@@ -75,10 +75,10 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_run_identity.css"}}">
 <div class="abyss-command-page" data-ab-campaign="{{.SeasonJourney.Palette}}" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-expanded-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas_expanded.png"}}');--ab-expanded-icon-atlas:url('{{asset "/static/abyss_icon_atlas_expanded.png"}}');--ab-atlas-items:url('{{asset "/static/abyss_atlas_items.png"}}');--ab-atlas-skills:url('{{asset "/static/abyss_atlas_skills.png"}}');--ab-atlas-creatures:url('{{asset "/static/abyss_atlas_creatures.png"}}');--ab-atlas-bosses:url('{{asset "/static/abyss_atlas_bosses.png"}}');--ab-atlas-artifacts:url('{{asset "/static/abyss_atlas_artifacts.png"}}');--ab-atlas-companions:url('{{asset "/static/abyss_atlas_companions.png"}}');--ab-atlas-relics:url('{{asset "/static/abyss_atlas_relics.png"}}');--ab-atlas-ranged:url('{{asset "/static/abyss_atlas_ranged.png"}}');--ab-atlas-souls:url('{{asset "/static/abyss_atlas_souls.png"}}');--ab-atlas-auras:url('{{asset "/static/abyss_atlas_auras.png"}}');--ab-atlas-charms:url('{{asset "/static/abyss_atlas_charms.png"}}');--ab-atlas-mounts:url('{{asset "/static/abyss_atlas_mounts.png"}}');--ab-atlas-pets:url('{{asset "/static/abyss_atlas_pets.png"}}');--ab-atlas-emblems:url('{{asset "/static/abyss_atlas_emblems.png"}}');--ab-atlas-banners:url('{{asset "/static/abyss_atlas_banners.png"}}');--ab-atlas-totems:url('{{asset "/static/abyss_atlas_totems.png"}}');--ab-atlas-offhands:url('{{asset "/static/abyss_atlas_offhands.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Season, Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
-{{template "abyssLootSignals" .}}
+{{template "abyssCommandHeader" .}}
 
 <div class="abyss-stats">
-  <div class="ab-chip">
+  <div class="ab-chip ab-stat-vitals">
     <span class="ab-chip-label">{{T "web.abyss.health"}}</span>
     <div class="ab-hpbar" role="progressbar" aria-label="Health" aria-valuemin="0" aria-valuemax="{{.U.MaxHP}}" aria-valuenow="{{.U.CurrentHP}}" id="hpBar">
       <div class="ab-hpfill" id="hpFill" style="width:{{mulpct .U.CurrentHP .U.MaxHP}}%"></div>
@@ -90,13 +90,13 @@
       <span class="ab-mptext" id="mpText">🔵 {{comma .U.MaxMana}} Mana</span>
     </div>
   </div>
-  <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.gear_score"}}</span><span class="ab-chip-val">{{comma .U.GearScore}}</span></div>
-  <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.level"}}</span><span class="ab-chip-val">{{.U.Level}}{{if gt .U.Prestige 0}} · P{{.U.Prestige}}{{end}}</span></div>
-  <div class="ab-chip"><span class="ab-chip-label">{{T "web.abyss.best_depth"}}</span><span class="ab-chip-val" id="bestDepth">🕳️ {{.Stats.BestDepth}}</span></div>
-  {{if .PrestigeTier.Name}}<div class="ab-chip ab-prestige-chip"><span class="ab-chip-label">Prestige Tier</span><span class="ab-chip-val">{{.PrestigeTier.Aura}} {{.PrestigeTier.Name}}</span></div>{{end}}
-  {{if .Run.Active}}<div class="ab-chip"><span class="ab-chip-label">Momentum</span><span class="ab-chip-val" id="momVal" title="+2% STR per floor cleared without consumables (max +20%)">🔥 ×{{.Run.Momentum}}</span></div>{{end}}
-  <div class="ab-chip" id="explorerSupportChip" {{if not .ExplorerSupport.Active}}hidden{{end}}><span class="ab-chip-label">Rescued ally</span><span class="ab-chip-val" id="explorerSupportValue">🤝 {{.ExplorerSupport.Name}} · {{.ExplorerSupport.Remaining}} fights</span></div>
-  <output class="ab-api-latency" id="abyssAPILatency" aria-label="Abyss API latency: waiting for the first request" data-state="idle"><i aria-hidden="true"></i><span>API · idle</span></output>
+  <div class="ab-chip ab-stat-progression"><span class="ab-chip-label">{{T "web.abyss.gear_score"}}</span><span class="ab-chip-val">{{comma .U.GearScore}}</span></div>
+  <div class="ab-chip ab-stat-progression"><span class="ab-chip-label">{{T "web.abyss.level"}}</span><span class="ab-chip-val">{{.U.Level}}{{if gt .U.Prestige 0}} · P{{.U.Prestige}}{{end}}</span></div>
+  <div class="ab-chip ab-stat-progression"><span class="ab-chip-label">{{T "web.abyss.best_depth"}}</span><span class="ab-chip-val" id="bestDepth">🕳️ {{.Stats.BestDepth}}</span></div>
+  {{if .PrestigeTier.Name}}<div class="ab-chip ab-prestige-chip ab-stat-progression"><span class="ab-chip-label">Prestige Tier</span><span class="ab-chip-val">{{.PrestigeTier.Aura}} {{.PrestigeTier.Name}}</span></div>{{end}}
+  {{if .Run.Active}}<div class="ab-chip ab-stat-combat"><span class="ab-chip-label">Momentum</span><span class="ab-chip-val" id="momVal" title="+2% STR per floor cleared without consumables (max +20%)">🔥 ×{{.Run.Momentum}}</span></div>{{end}}
+  <div class="ab-chip ab-stat-support" id="explorerSupportChip" {{if not .ExplorerSupport.Active}}hidden{{end}}><span class="ab-chip-label">Rescued ally</span><span class="ab-chip-val" id="explorerSupportValue">🤝 {{.ExplorerSupport.Name}} · {{.ExplorerSupport.Remaining}} fights</span></div>
+  <output class="ab-api-latency ab-stat-network" id="abyssAPILatency" aria-label="Abyss API latency: waiting for the first request" data-state="idle"><i aria-hidden="true"></i><span>API · idle</span></output>
 </div>
 
 {{if .Run.Comeback}}<div class="ab-comeback-note">💪 <b>Comeback:</b> the Abyss pities your losses today — +10% to all stats this run.</div>{{end}}
@@ -582,6 +582,9 @@
   <div class="abyss-dura" id="abyssDura"></div>
 </div>
 </section>
+
+<!-- Long-horizon loot telemetry follows the decision surface so it cannot bury combat. -->
+{{template "abyssLootSignals" .}}
 
 {{template "abyssRunIdentity" .}}
 
@@ -1386,9 +1389,10 @@ var curInsured = {{.Run.Insured}}; // UI-43
 var logDelay = Math.max(70, 150 - 10 * abyssTalentEffectiveLevel({{.Stats.UpSwiftness}})); // readable exchange cadence; Swiftness still accelerates it
 var pageConsumables = {{jsonJS .Consumables}} || [];
 var runFloorsCleared = {{.HUD.FloorsCleared}}, runLootGained = 0; // run summary card (#341)
-var liveCombatSource=null, liveCombatPoll=null, liveCombatState=null, liveLastEventID=-1;
+var liveCombatSource=null, liveCombatPoll=null, liveCombatState=null, liveCombatSessionID='', liveLastEventID=-1;
 var liveReconnectTicker=null, liveActionReceipt=null;
 var liveSelectedTarget='', liveSelectedWeakpoint='', livePendingOption=null, liveFinishHandled=false, liveLoadoutPage=0;
+var liveActionInFlight=null, liveReadyInFlight=null, liveTimeBankInFlight=null;
 var liveStartHP=0, liveStartMaxHP=0, liveClockTimer=null;
 var liveTargetLocked=false, liveRoundHistory=[], liveLogFilter='all', liveGamepadIndex=-1;
 var liveRenderedLogCursor=0, liveLogRestoreApplied=false, liveLogScrollTimer=null;
@@ -1805,6 +1809,11 @@ function updateAbyssCombatCockpit(live){
   cockpit.classList.toggle('has-live-combat',hasLive);
 }
 function abyssCockpitAction(id){
+  if(id==='liveAction'){
+    var recommended=document.querySelector('#liveActionBar .ab-actionslot.recommended:not(:disabled)');
+    if(recommended&&recommended.offsetParent!==null&&recommended.getClientRects().length>0)return recommended;
+    return Array.prototype.find.call(document.querySelectorAll('#liveActionBar .ab-actionslot:not(:disabled)'),function(element){return element.offsetParent!==null&&element.getClientRects().length>0;})||null;
+  }
   var element=document.getElementById(id);
   return element&&element.offsetParent!==null&&!element.disabled?element:null;
 }
@@ -1815,14 +1824,14 @@ function focusAbyssCockpit(preferred,reveal){
   if(modal&&modal.classList.contains('open')||/INPUT|SELECT|TEXTAREA/.test(tag)||active&&active.isContentEditable)return;
   updateAbyssCombatCockpit();
   if(reveal)cockpit.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'start'});
-  var order=[preferred,'liveReady','btnDescend','btnProceed','btnRevive','btnLastStand','btnConcede','btnEnter'];
+  var order=[preferred,'liveReady','liveAction','btnDescend','btnProceed','btnRevive','btnLastStand','btnConcede','btnEnter'];
   var action=null;
   order.some(function(id){if(!id)return false;action=abyssCockpitAction(id);return !!action;});
   setTimeout(function(){if(action&&action.isConnected)action.focus({preventScroll:true});},reveal&&!reduceMotion?320:0);
 }
-function scheduleAbyssCockpitFocus(preferred){
+function scheduleAbyssCockpitFocus(preferred,reveal){
   if(abyssCockpitFocusTimer)clearTimeout(abyssCockpitFocusTimer);
-  abyssCockpitFocusTimer=setTimeout(function(){abyssCockpitFocusTimer=0;focusAbyssCockpit(preferred);},180);
+  abyssCockpitFocusTimer=setTimeout(function(){abyssCockpitFocusTimer=0;focusAbyssCockpit(preferred,!!reveal);},180);
 }
 function focusAbyssDescend(){focusAbyssCockpit('btnDescend',true);}
 function show(id, on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none';}
@@ -4499,6 +4508,7 @@ async function abyssEconomyLoan(){
   await abyssEconomyPost('/api/abyss/economy/loan',{amount:amount});
 }
 
+var AB_IDENTIFY_COST=1000;
 function updateForgeOptions() {
   var sel = document.getElementById('forgeItemSelect');
   var opt = sel.options[sel.selectedIndex];
@@ -4588,11 +4598,12 @@ function updateForgeOptions() {
   document.getElementById('btnForgeInfuseXP').style.display = isWeapon ? '' : 'none';
   document.getElementById('forgeGemTransmuteRow').style.display = (!unid && gems > 0) ? 'block' : 'none';
 
-  // Gold price labels scale with the item's rarity (mirrors forgeGoldCost).
+  // Gold price labels scale with the item's rarity except identification,
+  // whose fixed price cannot disclose the unidentified item's hidden tier.
   var fg=function(b){return '≈'+abForgeGold(b,rarity);};
   var setTxt=function(id,txt){var el=document.getElementById(id);if(el)el.textContent=txt;};
   var identifyButton=document.getElementById('btnForgeIdentify');
-  setTxt('btnForgeIdentify',identifyButton&&identifyButton.dataset.dailyFree==='true'?'🔍 Identify Item · Daily free':'🔍 Identify Item ('+fg(100)+')');
+  setTxt('btnForgeIdentify',identifyButton&&identifyButton.dataset.dailyFree==='true'?'🔍 Identify Item · Daily free':'🔍 Identify Item ('+fmtNum(AB_IDENTIFY_COST)+'g)');
   setTxt('btnForgeSocketGemGo','Socket Gem ('+fg(50)+')');
   setTxt('btnForgeEtchGo','Etch ('+fg(150)+')');
   setTxt('btnForgeTransmute','⚒️ Transmute Weapon ('+fg(100)+')');
@@ -6043,7 +6054,7 @@ function parseGoldText(s){
 }
 function abForgeGoldRaw(base,r){ var raw=base*abForgeGoldMult(r||0); return raw<10000?10000:raw; }
 var AB_FORGE_COSTS={ // button id → [gold base, tokens, {material: n}]; null = special-cased
-  btnForgeIdentify:[100,0,{}],
+  btnForgeIdentify:[0,0,{}],
   btnForgeTemper:null,            // 400 × (temper+1)
   btnForgeSharpen:[100,0,{dust:2}],
   btnForgeReinforce:[100,0,{dust:2}],
@@ -6083,7 +6094,7 @@ function updateForgeAffordability(){
     if(!btn.dataset.origTitle&&btn.title)btn.dataset.origTitle=btn.title;
     var c=AB_FORGE_COSTS[id];
     var goldNeed=0, tkNeed=0, mats={};
-    if(id==='btnForgeIdentify'&&btn.dataset.dailyFree==='true')goldNeed=0;
+    if(id==='btnForgeIdentify')goldNeed=btn.dataset.dailyFree==='true'?0:AB_IDENTIFY_COST;
     else if(id==='btnForgeTemper')goldNeed=abForgeGoldRaw(400*(temper+1),rarity);
     else if(id==='btnForgeUpgradeGear'){
       var m=/🜲 (\d+)/.exec(btn.textContent||'');

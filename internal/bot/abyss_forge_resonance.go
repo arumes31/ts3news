@@ -12,9 +12,10 @@ import (
 // equipped gems share a base family. The bonus is five percent of that
 // family's socketed stat contribution, preserving each gem's tier scaling.
 func abyssGemResonanceBonus(equipped map[content.GearSlot]content.Gear) (content.Stats, map[string]int) {
-	counts := content.GemResonance(equipped)
+	active := abyssPlayerEquipment(equipped)
+	counts := content.GemResonance(active)
 	contributions := make(map[string]content.Stats)
-	for _, gear := range equipped {
+	for _, gear := range active {
 		for _, gem := range gear.Gemstones {
 			base, tier := parseGem(gem)
 			baseStats, valid := gemBaseStats(base)
@@ -76,7 +77,7 @@ func forgeSetResonancePreview(equipped map[content.GearSlot]content.Gear, gear c
 
 func forgeSetCounts(equipped map[content.GearSlot]content.Gear) map[string]int {
 	counts := make(map[string]int)
-	for _, gear := range equipped {
+	for _, gear := range abyssPlayerEquipment(equipped) {
 		if setID := gear.EffectiveSetID(); setID != "" {
 			counts[setID]++
 		}

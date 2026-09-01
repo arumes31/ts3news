@@ -1,11 +1,11 @@
-{{define "abyssLootSignals"}}
-<div class="abyss-hero">
+{{define "abyssCommandHeader"}}
+<header class="abyss-hero">
   <div class="abyss-intro" id="abyssIntro">
     <h1>{{T "web.abyss.title"}}</h1>
     <p class="muted">{{T "web.abyss.hero_desc"}}</p>
   </div>
   {{if .DailyMod}}
-    <div class="ab-weekly-alert" style="background: rgba(255,193,7,0.1); border: 1px solid #ffc107; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
+    <div class="ab-weekly-alert">
       📅 <strong>{{T "web.abyss.weekly_title"}}</strong>
       {{if eq .DailyMod "double_hazards"}}{{T "web.abyss.weekly.double_hazards"}}{{end}}
       {{if eq .DailyMod "zero_durability_loss"}}{{T "web.abyss.weekly.zero_durability_loss"}}{{end}}
@@ -19,13 +19,13 @@
     </div>
   {{end}}
   {{with .Bounty}}
-    <div class="ab-bounty-alert" id="bountyCard" style="background: rgba(76,175,80,0.1); border: 1px solid #4caf50; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
+    <div class="ab-bounty-alert" id="bountyCard">
       🎯 <strong>Daily Bounty:</strong> {{.Desc}}
-      <span class="muted small" style="margin-left:8px;">Progress: <b id="bountyProg">{{comma .Progress}}</b> / {{comma .Target}}</span>
-      <span class="muted small" style="margin-left:8px;">Reward: 🜲 {{.RewardTk}} + {{gold .RewardGd}}</span>
-      {{if gt .Streak 0}}<span class="small" style="margin-left:8px; color:#ff9800;">🔥 {{.Streak}}-day streak</span>{{end}}
-      <span id="bountyAction" style="margin-left:10px;">
-        {{if .Claimed}}<b style="color:#7ee787">✅ Claimed today</b>
+      <span class="muted small ab-bounty-progress">Progress: <b id="bountyProg">{{comma .Progress}}</b> / {{comma .Target}}</span>
+      <span class="muted small ab-bounty-reward">Reward: 🜲 {{.RewardTk}} + {{gold .RewardGd}}</span>
+      {{if gt .Streak 0}}<span class="small ab-bounty-streak">🔥 {{.Streak}}-day streak</span>{{end}}
+      <span class="ab-bounty-action" id="bountyAction">
+        {{if .Claimed}}<b class="ab-bounty-claimed">✅ Claimed today</b>
         {{else if .Met}}<button class="primary xs" onclick="abyssBountyClaim()">Claim Reward</button>
         {{else}}<span class="muted small">In progress…</span>{{end}}
       </span>
@@ -42,6 +42,11 @@
     {{end}}
   {{end}}
 
+</header>
+{{end}}
+
+{{define "abyssLootSignals"}}
+<section class="abyss-loot-signals" aria-label="Loot progression signals">
   <section class="abyss-pity-hud ab-loot-pity" aria-labelledby="abyssPityTitle">
     <div class="ab-pity-head">
       <span id="abyssPityTitle">🔮 <b>Loot Pity Meter</b></span>
@@ -64,5 +69,5 @@
       <div id="dropStreakFill" class="ab-pity-fill ab-pity-fill-streak" style="width: {{mulpct .DropStreak 15}}%;"></div>
     </div>
   </section>
-</div>
+</section>
 {{end}}

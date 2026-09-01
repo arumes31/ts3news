@@ -2,10 +2,33 @@ package bot
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"ts3news/internal/content"
 )
+
+func TestSharedItemInspectorModalIsAccessibleAndResponsive(t *testing.T) {
+	t.Parallel()
+
+	partials, err := webAssets.ReadFile("webassets/partials.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	portalCSS, err := webAssets.ReadFile("webassets/abyss_portal.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	combined := string(partials) + string(portalCSS)
+	for _, required := range []string{
+		"data-modal-description", "for=\"modalPromptInput\"", "initialFocus:'dialog'",
+		"document.activeElement === card", ".item-inspector { width: 100%; max-width: 100%; min-width: 0; }",
+	} {
+		if !strings.Contains(combined, required) {
+			t.Errorf("shared inspector contract missing %q", required)
+		}
+	}
+}
 
 func TestGearAtlasViewUsesSemanticSlotRegions(t *testing.T) {
 	t.Parallel()
@@ -57,6 +80,26 @@ func TestGearAtlasViewUsesSemanticSlotRegions(t *testing.T) {
 				t.Errorf("row = %d, want shared 14x12 grid coordinate", first.Row)
 			}
 		})
+	}
+}
+
+func TestUnidentifiedGearUsesGenericSlotArt(t *testing.T) {
+	t.Parallel()
+
+	var gear content.Gear
+	for _, candidate := range content.GearAppearanceCatalog() {
+		if candidate.Slot == content.SlotHead {
+			gear = candidate
+			break
+		}
+	}
+	if gear.ID == "" {
+		t.Fatal("no head gear fixture")
+	}
+	gear.Unidentified = true
+	view := toGearView(gear.Slot, gear)
+	if view.Asset != "" || view.Page != 0 || view.Column != 0 || view.Row != 0 || view.Family != gearAtlasFamily(gear.Slot) {
+		t.Fatalf("unidentified gear leaked exact atlas coordinates: %#v", view.itemAtlasView)
 	}
 }
 

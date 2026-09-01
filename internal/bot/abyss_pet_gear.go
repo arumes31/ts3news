@@ -2,10 +2,14 @@ package bot
 
 import "ts3news/internal/content"
 
+func abyssGearActiveForCombat(gear content.Gear) bool {
+	return !gear.Unidentified
+}
+
 func abyssPlayerEquipment(equipped map[content.GearSlot]content.Gear) map[content.GearSlot]content.Gear {
 	player := make(map[content.GearSlot]content.Gear, len(equipped))
 	for slot, gear := range equipped {
-		if !content.IsPetGearSlot(slot) {
+		if !content.IsPetGearSlot(slot) && abyssGearActiveForCombat(gear) {
 			player[slot] = gear
 		}
 	}
@@ -15,7 +19,7 @@ func abyssPlayerEquipment(equipped map[content.GearSlot]content.Gear) map[conten
 func abyssPetGearStats(equipped map[content.GearSlot]content.Gear) content.Stats {
 	var stats content.Stats
 	for slot, gear := range equipped {
-		if content.IsPetGearSlot(slot) {
+		if content.IsPetGearSlot(slot) && abyssGearActiveForCombat(gear) {
 			stats = stats.Add(gear.Stats)
 		}
 	}

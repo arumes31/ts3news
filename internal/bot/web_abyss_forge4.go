@@ -1,7 +1,7 @@
 package bot
 
-// Forge round 5 (AB-101..125, docs/ABYSS_IMPROVEMENTS_300.md group E): batch
-// temper with an insurance guard, the forge queue, bulk gem upgrade, rune
+// Advanced forge operations: batch temper with an insurance guard, the forge
+// queue, bulk gem upgrade, rune
 // scraping, un-attune, masterwork transfer, reforge lock (with the Eternal
 // double-reforge privilege), bulk rebalance, brand/special/imbue removal and
 // reroll, guided awaken, polish-all, Repair Kit II with crafting crit, socket

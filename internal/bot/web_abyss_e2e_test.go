@@ -125,7 +125,7 @@ func TestAbyssE2EServer(t *testing.T) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
-	mux.HandleFunc("/armory-fixture", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/armory-fixture", func(w http.ResponseWriter, r *http.Request) {
 		u := &webUser{
 			UID: "e2e-armory", Nickname: "Armoury Tester", Level: 100,
 			LevelName: "Eternal", CurrentHP: 123456, MaxHP: 234567, MaxMana: 4567,
@@ -140,17 +140,35 @@ func TestAbyssE2EServer(t *testing.T) {
 		}
 		weaponView := toGearView(weapon.Slot, weapon)
 		weaponView.BrokenIn = true
+		weaponView.Durability = 37
 		mystery := content.Gear{
 			ID: "U_LEG_4", Name: "Secret Armory Crown", Slot: content.SlotHead,
 			Rarity: content.RarityCelestial, MaxDurability: 90,
 			Stats: content.Stats{INT: 987654}, Unidentified: true,
 		}
+		mysteryView := toGearView(mystery.Slot, mystery)
+		slots := make([]gearView, 0, len(content.AllSlots))
+		for _, slot := range content.AllSlots {
+			switch slot {
+			case weapon.Slot:
+				slots = append(slots, weaponView)
+			case mystery.Slot:
+				slots = append(slots, mysteryView)
+			default:
+				slots = append(slots, gearView{
+					Slot:     string(slot),
+					Icon:     content.SlotIcon(slot),
+					IconName: content.SlotIconName(slot),
+					Empty:    true,
+				})
+			}
+		}
 		skill, _ := content.GetSkillByID("S_EQ")
 		if err := server.tmpl.ExecuteTemplate(w, "armory", map[string]any{
 			"Title": "Armoury", "Nav": "armory", "EnableAbyss": true, "U": u,
-			"Slots":  []gearView{weaponView, toGearView(mystery.Slot, mystery)},
+			"Slots":  slots,
 			"Skills": []content.Skill{skill}, "Ultimates": []any{}, "Artifact": nil,
-			"PlayerTitle": nil, "Pets": []any{},
+			"PlayerTitle": nil, "Pets": []any{}, "ForgeWorkbenchEnabled": r.URL.Query().Get("forge") != "0",
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -383,15 +401,16 @@ func TestAbyssE2EServer(t *testing.T) {
 		listing := ahListingView{
 			itemAtlasView: listingGearView.itemAtlasView,
 			ID:            "listing-history", ItemType: "gear", ItemID: "TEST_BLADE", Icon: "⚔", Name: "Cinder Test Blade",
-			Price: 1600, Seller: "Market Tester", Listed: "Aug 25", Rarity: "Epic", RarityColor: "#b56cff",
+			Price: 1600, Seller: "Market Tester", Listed: "31 Aug 2026 · 20:00 UTC", Expires: "01 Sep 2026 · 01:15 UTC", ExpiresISO: "2026-09-01T01:15:00Z", ExpiresIn: "in 2h 15m", Rarity: "Epic", RarityColor: "#b56cff",
 			GS: gear.Stats.Score(), InspectJSON: listingGearView.InspectJSON,
 			PriceHistory: buildAHPriceHistory([]int64{900, 1200, 1000, 1600}),
 		}
+		economy := abyssAHEconomyView{Orders: []abyssMaterialOrderView{{ID: 17, Material: "dust", UnitPrice: 125, Remaining: 8, Escrow: 1000, Buyer: "Crafter"}}}
 		if err := server.tmpl.ExecuteTemplate(w, "ah", map[string]any{
 			"Title": "Auction House", "Nav": "ah", "EnableAbyss": true,
 			"U":      &webUser{UID: "ah-e2e", Nickname: "Market Tester", Gold: 25_000},
-			"Active": []ahListingView{listing}, "Mine": []ahListingView{}, "History": []ahHistoryView{},
-			"Sellable": []gearView{}, "Economy": abyssAHEconomyView{},
+			"Active": []ahListingView{listing}, "Mine": []ahListingView{}, "History": []ahHistoryView{}, "SoldHistory": []ahHistoryView{},
+			"Sellable": []gearView{}, "Economy": economy,
 			"SearchQuery": "", "UpgradesOnly": false, "InsanityOnly": false,
 			"CurrentPage": 1, "TotalPages": 1, "TotalCount": 1, "PrevPage": 1, "NextPage": 1,
 		}); err != nil {

@@ -53,12 +53,12 @@
     </div>
     <div class="inv-meta">{{.Rarity}} · {{.Slot}}</div>
     {{if .AppearanceName}}<div class="inv-meta" title="Cosmetic only">◈ Appearance: {{.AppearanceName}}</div>{{end}}
-    <div class="inv-meta">CR <span data-item-number="{{printf "%.0f" .CR}}">{{printf "%.0f" .CR}}</span> · GS <span data-item-number="{{.Score}}">{{comma .Score}}</span> · {{.Durability}} dur</div>
+    {{if .Unidentified}}<div class="inv-meta">Combat stats hidden · identify before use</div>{{else}}<div class="inv-meta">CR <span data-item-number="{{printf "%.0f" .CR}}">{{printf "%.0f" .CR}}</span> · GS <span data-item-number="{{.Score}}">{{comma .Score}}</span> · {{.Durability}} dur</div>{{end}}
     {{if .InspectJSON}}<div class="item-inspect-hint">Click for stats, specials, and provenance</div>{{end}}
     {{if .BrokenIn}}<div class="inv-meta" title="Held for at least 30 days">🧡 Broken in · +1% positive stats</div>{{end}}
     <div class="inv-actions">
-      <button onclick="equip({{.InvID}})">Equip</button>
-      <button class="ghost" onclick="sell({{.InvID}})">Vendor</button>
+      {{if .Unidentified}}<a class="btn" href="/abyss#abyssForgePanel">Identify in Forge</a>{{else}}<button onclick="equip({{.InvID}})">Equip</button>
+      <button class="ghost" onclick="sell({{.InvID}})">Vendor</button>{{end}}
     </div>
   </div>
   {{end}}

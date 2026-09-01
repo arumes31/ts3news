@@ -19,8 +19,10 @@ body:has(.abyss-command-page),
   --cmd-shadow: 0 18px 48px rgba(0, 0, 0, .38);
   --cmd-cut: 4px 16px 4px 16px;
   --cmd-cut-small: 3px 10px 3px 10px;
+  --cmd-ui: "Aptos", "Segoe UI Variable", "Segoe UI", sans-serif;
   --cmd-display: "Bahnschrift SemiCondensed", "Aptos Display", sans-serif;
-  --cmd-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  --cmd-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", "Consolas", monospace;
+  --cmd-topbar-offset: 54px;
 }
 
 body:has(.abyss-command-page) {
@@ -90,6 +92,9 @@ body:has(.abyss-command-page) .foot {
   max-width: 100%;
   min-width: 0;
   color: var(--cmd-text);
+  font-family: var(--cmd-ui);
+  font-size: .94rem;
+  line-height: 1.45;
   isolation: isolate;
 }
 
@@ -109,8 +114,8 @@ body:has(.abyss-command-page) .foot {
 .abyss-command-page .abyss-hero {
   position: relative;
   overflow: hidden;
-  margin-block: 0 14px;
-  padding: clamp(14px, 2vw, 24px);
+  margin-block: 0 8px;
+  padding: clamp(11px, 1.4vw, 16px);
   text-align: left;
   border: 1px solid rgba(242, 189, 91, .28);
   border-radius: var(--cmd-cut);
@@ -118,7 +123,7 @@ body:has(.abyss-command-page) .foot {
     radial-gradient(circle at 88% 20%, rgba(91, 214, 208, .12), transparent 24rem),
     linear-gradient(115deg, rgba(242, 189, 91, .08), transparent 34%),
     rgba(8, 12, 19, .92);
-  box-shadow: var(--cmd-shadow), inset 0 1px rgba(255, 255, 255, .05);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .05);
 }
 
 .abyss-command-page .abyss-hero::before {
@@ -133,9 +138,9 @@ body:has(.abyss-command-page) .foot {
   margin: 0;
   color: #f3f6fb;
   font-family: var(--cmd-display);
-  font-size: clamp(1.8rem, 3vw, 3rem);
+  font-size: clamp(1.45rem, 2.4vw, 2.25rem);
   letter-spacing: .08em;
-  line-height: .95;
+  line-height: 1;
   text-shadow: 0 0 28px rgba(91, 214, 208, .2);
   text-transform: uppercase;
   text-wrap: balance;
@@ -143,15 +148,17 @@ body:has(.abyss-command-page) .foot {
 
 .abyss-command-page .abyss-intro p {
   margin: 8px 0 0;
+  max-width: 94ch;
   color: #9daabd;
   font-family: var(--cmd-mono);
-  font-size: .72rem;
-  letter-spacing: .035em;
+  font-size: .78rem;
+  letter-spacing: .02em;
+  line-height: 1.45;
 }
 
 .abyss-command-page :is(.ab-weekly-alert, .ab-bounty-alert, .abyss-pity-hud) {
   position: relative;
-  margin-block: 12px 0 !important;
+  margin-block: 8px 0 !important;
   padding: 10px 12px !important;
   border-color: var(--cmd-line) !important;
   border-radius: var(--cmd-cut-small) !important;
@@ -167,10 +174,62 @@ body:has(.abyss-command-page) .foot {
   box-shadow: inset 3px 0 rgba(105, 213, 155, .62);
 }
 
+.abyss-command-page :is(.ab-bounty-progress, .ab-bounty-reward, .ab-bounty-streak, .ab-bounty-action) {
+  margin-left: 8px;
+}
+
+.abyss-command-page .ab-bounty-streak { color: var(--cmd-gold); }
+.abyss-command-page .ab-bounty-claimed { color: var(--cmd-green); }
+
+/* Loot odds and streaks are useful planning telemetry, but they follow the
+   immediate run decision instead of pushing it below the fold. */
+.abyss-command-page .abyss-loot-signals {
+  display: grid;
+  grid-template-columns: minmax(240px, .75fr) minmax(0, 1.25fr);
+  align-items: stretch;
+  gap: 8px;
+  margin-block: 16px 4px;
+  padding: 9px;
+  border-block: 1px solid rgba(242, 189, 91, .18);
+  background: rgba(7, 11, 17, .52);
+}
+
+.abyss-command-page .abyss-loot-signals > :is(.abyss-pity-hud, .ab-featured-drops) {
+  margin: 0 !important;
+}
+
+.abyss-command-page .abyss-loot-signals > .ab-loot-pity { grid-column: 1; grid-row: 1; }
+.abyss-command-page .abyss-loot-signals > .ab-drop-streak { grid-column: 1; grid-row: 2; }
+.abyss-command-page .abyss-loot-signals > .ab-featured-drops { grid-column: 2; grid-row: 1 / span 2; }
+
+.abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-hero {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  padding-block: 8px;
+}
+
+.abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-intro { flex: 1 1 280px; }
+.abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-intro h1 { font-size: 1.25rem; }
+.abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-intro p { display: none; }
+.abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-hero > :not(.abyss-intro) {
+  flex: 0 1 auto;
+  margin: 0 !important;
+  padding-block: 7px !important;
+}
+
 /* Primary HUD. */
 .abyss-command-page .abyss-stats {
-  gap: 8px;
-  margin-bottom: 14px;
+  position: relative;
+  grid-template-columns: minmax(280px, 2fr) repeat(auto-fit, minmax(105px, 1fr));
+  gap: 0;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border: 1px solid var(--cmd-line);
+  border-radius: var(--cmd-cut-small);
+  background: rgba(8, 13, 20, .9);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .2), inset 0 1px rgba(255, 255, 255, .03);
 }
 
 .abyss-command-page .ab-chip {
@@ -191,13 +250,35 @@ body:has(.abyss-command-page) .foot {
   border-color: rgba(91, 214, 208, .34);
 }
 
+.abyss-command-page .abyss-stats > .ab-chip {
+  min-height: 62px;
+  padding: 8px 10px;
+  border: 0;
+  border-right: 1px solid var(--cmd-line-soft);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.abyss-command-page .abyss-stats > .ab-stat-vitals {
+  border-left: 3px solid rgba(91, 214, 208, .55);
+}
+
+.abyss-command-page .abyss-stats > .ab-api-latency {
+  min-width: 84px;
+  min-height: 62px;
+  padding: 8px 10px;
+  border-left: 0;
+  background: rgba(255, 255, 255, .018);
+}
+
 .abyss-command-page .ab-chip-label,
 .abyss-command-page :is(.ab-depth-label, .ab-escrow-label, .ab-threat-label, .ab-sub-label) {
   color: var(--cmd-muted);
   font-family: var(--cmd-mono);
-  font-size: .61rem;
+  font-size: .7rem;
   font-weight: 700;
-  letter-spacing: .12em;
+  letter-spacing: .08em;
   text-transform: uppercase;
 }
 
@@ -511,8 +592,8 @@ body:has(.abyss-command-page) .foot {
   color: var(--cmd-gold);
   border-bottom: 1px solid var(--cmd-line-soft);
   font-family: var(--cmd-mono);
-  font-size: .62rem;
-  letter-spacing: .14em;
+  font-size: .7rem;
+  letter-spacing: .1em;
 }
 
 .abyss-command-page :is(.abyss-side-gear, .abyss-side-loot) {
@@ -533,6 +614,7 @@ body:has(.abyss-command-page) .foot {
   border-color: transparent;
   border-radius: var(--cmd-cut-small);
   background: transparent;
+  animation: none;
 }
 
 .abyss-command-page .ab-depth-ring {
@@ -542,6 +624,8 @@ body:has(.abyss-command-page) .foot {
     conic-gradient(var(--cmd-gold), #805e28 38%, #263a48 62%, var(--cmd-cyan));
   box-shadow: 0 0 34px rgba(242, 189, 91, .18) inset, 0 0 24px rgba(91, 214, 208, .12);
 }
+
+.abyss-command-page .ab-depth-ring:not(.ab-recordburst) { animation: none; }
 
 .abyss-command-page .ab-depth-num {
   color: #f2f5f9;
@@ -595,7 +679,7 @@ body:has(.abyss-command-page) .foot {
   border-left: 2px solid var(--cmd-cyan);
   background: linear-gradient(90deg, rgba(91, 214, 208, .08), transparent 70%);
   font-family: var(--cmd-mono);
-  font-size: .74rem;
+  font-size: .78rem;
 }
 
 .abyss-command-page :is(.ab-subrow, .ab-prep-panel, .ab-noncombat-panel) {
@@ -639,6 +723,25 @@ body:has(.abyss-command-page) .modal-card button:not(.ghost) {
   background: linear-gradient(180deg, #f6ce7f, #bd8433);
   box-shadow: inset 0 1px rgba(255, 255, 255, .35), 0 8px 20px rgba(126, 86, 28, .18);
   font-weight: 800;
+}
+
+.abyss-command-page #abyssPrimaryActions > button {
+  min-height: 40px;
+}
+
+/* At critical health, make the safe exit the visually preferred decision while
+   retaining the player's authority to descend. */
+.abyss-command-page .abyss-stage.ab-critical-hp #btnDescend {
+  color: var(--cmd-red);
+  border-color: rgba(237, 106, 101, .72);
+  background: rgba(92, 27, 31, .32);
+  box-shadow: inset 0 0 0 1px rgba(237, 106, 101, .08);
+}
+
+.abyss-command-page .abyss-stage.ab-critical-hp #btnBank {
+  color: var(--cmd-gold);
+  border-color: var(--cmd-gold);
+  box-shadow: 0 0 0 2px rgba(242, 189, 91, .1);
 }
 
 .abyss-command-page button.primary:hover:not(:disabled),
@@ -686,7 +789,7 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
 }
 
 .abyss-command-page input::placeholder {
-  color: #6f7b8e;
+  color: #929eb0;
   opacity: 1;
 }
 
@@ -711,9 +814,10 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
 
 /* Navigation tabs, sections, and data surfaces. */
 .abyss-command-page .ab-tabs {
-  position: relative;
-  z-index: 2;
-  flex-wrap: wrap;
+  position: sticky;
+  z-index: 35;
+  top: var(--cmd-topbar-offset);
+  flex-wrap: nowrap;
   gap: 4px;
   margin: 18px 0 0;
   padding: 5px;
@@ -722,17 +826,18 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
   background:
     linear-gradient(90deg, rgba(242, 189, 91, .055), transparent 40%),
     rgba(7, 11, 17, .94);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, .2), inset 0 1px rgba(255, 255, 255, .025);
+  overflow-x: auto;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .2), inset 0 1px rgba(255, 255, 255, .025);
 }
 
 .abyss-command-page .ab-tab {
-  flex: 1 1 128px;
+  flex: 1 0 118px;
   min-height: 38px;
   border-color: transparent;
   border-radius: 2px 7px 2px 7px;
   background: transparent;
   font-family: var(--cmd-mono);
-  font-size: .66rem;
+  font-size: .72rem;
   letter-spacing: .08em;
   text-transform: uppercase;
 }
@@ -749,9 +854,10 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
 }
 
 .abyss-command-page .ab-tab.active {
-  color: #11151d;
+  color: var(--cmd-gold);
   border-color: var(--cmd-gold);
-  background: var(--cmd-gold);
+  background: rgba(242, 189, 91, .1);
+  box-shadow: inset 0 -2px var(--cmd-gold);
 }
 
 .abyss-command-page [data-abyss-section][hidden] {
@@ -787,7 +893,7 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
   background:
     linear-gradient(145deg, rgba(255, 255, 255, .028), transparent 45%),
     rgba(10, 15, 23, .92);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, .24), inset 0 1px rgba(255, 255, 255, .035);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .16), inset 0 1px rgba(255, 255, 255, .035);
 }
 
 .abyss-command-page :is(.abyss-panel, .abyss-lb) > h2,
@@ -805,6 +911,7 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
 
 .abyss-command-page .abyss-cols,
 .abyss-command-page .abyss-lore-bestiary {
+  align-items: start;
   gap: 12px;
 }
 
@@ -856,7 +963,7 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
 
 .abyss-command-page .ab-release time {
   color: var(--cmd-cyan);
-  font: .62rem/1.2 var(--cmd-mono);
+  font: .7rem/1.2 var(--cmd-mono);
   letter-spacing: .08em;
   text-transform: uppercase;
 }
@@ -888,7 +995,7 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
   border: 1px dashed rgba(91, 214, 208, .28);
   border-radius: var(--cmd-cut-small);
   background: rgba(91, 214, 208, .04);
-  font: .64rem/1.35 var(--cmd-mono);
+  font: .72rem/1.35 var(--cmd-mono);
 }
 
 .abyss-command-page .ab-log-virtual-gap button {
@@ -908,7 +1015,7 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
   border-left: 2px solid transparent;
   background: linear-gradient(90deg, rgba(255, 255, 255, .025), transparent);
   font-family: var(--cmd-mono);
-  font-size: .65rem;
+  font-size: .72rem;
   letter-spacing: .045em;
   text-transform: uppercase;
 }
@@ -940,7 +1047,7 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
   border-radius: 2px 7px 2px 7px;
   background: #111824;
   font-family: var(--cmd-mono);
-  font-size: .65rem;
+  font-size: .7rem;
 }
 
 .abyss-command-page :is(.ab-history, .ab-bestiary-table, .lbtable) {
@@ -957,7 +1064,7 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
   border-bottom: 1px solid #3a4558;
   background: #111925;
   font-family: var(--cmd-mono);
-  font-size: .61rem;
+  font-size: .7rem;
   letter-spacing: .09em;
   text-transform: uppercase;
 }
@@ -981,7 +1088,7 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
 .abyss-command-page .abyss-log {
   color: #aeb9c9;
   font-family: var(--cmd-mono);
-  font-size: .72rem;
+  font-size: .78rem;
 }
 
 .abyss-command-page .abyss-banner {
@@ -1139,6 +1246,19 @@ body:has(.abyss-command-page) .modal-overlay {
     position: relative;
   }
 
+  body:has(.abyss-command-page),
+  .abyss-command-page {
+    --cmd-topbar-offset: 0px;
+  }
+
+  .abyss-command-page .abyss-loot-signals {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .abyss-command-page .abyss-loot-signals > .ab-loot-pity { grid-column: 1; grid-row: 1; }
+  .abyss-command-page .abyss-loot-signals > .ab-featured-drops { grid-column: 1; grid-row: 2; }
+  .abyss-command-page .abyss-loot-signals > .ab-drop-streak { grid-column: 1; grid-row: 3; }
+
   .abyss-command-page .abyss-stage-row,
   .abyss-command-page .abyss-cols,
   .abyss-command-page .abyss-lore-bestiary {
@@ -1163,6 +1283,10 @@ body:has(.abyss-command-page) .modal-overlay {
   .abyss-command-page .abyss-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .abyss-command-page .abyss-stats > .ab-stat-vitals {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 680px) {
@@ -1171,15 +1295,25 @@ body:has(.abyss-command-page) .modal-overlay {
   }
 
   body:has(.abyss-command-page) .topbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
+    gap: 5px 8px;
+    padding: 7px 10px;
   }
 
-  body:has(.abyss-command-page) .brand { order: 1; }
+  body:has(.abyss-command-page) .brand {
+    grid-column: 1;
+    order: 1;
+    white-space: nowrap;
+  }
 
   body:has(.abyss-command-page) .purse {
+    grid-column: 2;
     order: 2;
-    max-width: calc(100% - 105px);
-    margin-left: auto;
+    justify-content: flex-end;
+    max-width: 100%;
+    margin: 0;
     overflow-x: auto;
     scrollbar-width: none;
   }
@@ -1187,16 +1321,17 @@ body:has(.abyss-command-page) .modal-overlay {
   body:has(.abyss-command-page) .purse::-webkit-scrollbar { display: none; }
 
   body:has(.abyss-command-page) .nav {
+    grid-column: 1 / -1;
     order: 3;
-    flex: 1 0 100%;
     flex-wrap: nowrap;
     padding-bottom: 3px;
     overflow-x: auto;
-    scrollbar-width: none;
+    scrollbar-color: rgba(242, 189, 91, .5) transparent;
+    scrollbar-width: thin;
   }
 
-  body:has(.abyss-command-page) .nav::-webkit-scrollbar { display: none; }
-  body:has(.abyss-command-page) .nav a { flex: 0 0 auto; }
+  body:has(.abyss-command-page) .nav::-webkit-scrollbar { display: block; height: 3px; }
+  body:has(.abyss-command-page) .nav a { flex: 0 0 auto; min-height: 40px; }
 
   main.wrap:has(> .abyss-command-page) {
     max-width: 100%;
@@ -1212,7 +1347,17 @@ body:has(.abyss-command-page) .modal-overlay {
   }
 
   .abyss-command-page .abyss-hero {
-    padding: 14px 12px;
+    padding: 11px 12px;
+  }
+
+  .abyss-command-page .abyss-intro h1 { font-size: 1.45rem; }
+  .abyss-command-page .abyss-intro p {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: .72rem;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   .abyss-command-page .abyss-stage {
@@ -1220,10 +1365,94 @@ body:has(.abyss-command-page) .modal-overlay {
     padding: 10px;
   }
 
+  /* The decision comes before the large depth instrument on narrow screens.
+     display:contents preserves the controls' DOM and event wiring while its
+     first three children participate in the stage's single-column grid. */
+  .abyss-command-page .abyss-stage > .ab-current-objective { order: -5; }
+  .abyss-command-page .abyss-stage > .ab-scene { order: -4; }
+  .abyss-command-page .abyss-stage > .abyss-controls { display: contents; }
+  .abyss-command-page .abyss-controls > #abyssMsg { order: -3; }
+  .abyss-command-page .abyss-controls > .ab-status { order: -2; }
+  .abyss-command-page .abyss-controls > #abyssPrimaryActions { order: -1; }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > #liveCombat {
+    order: -2;
+    margin-block: 0;
+    scroll-margin-top: 8px;
+  }
+
+  .abyss-command-page .ab-combat-cockpit.has-live-combat > .abyss-stage-row { order: -1; }
+
   .abyss-command-page .ab-elevator { display: none; }
 
   .abyss-command-page .abyss-stats {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .abyss-command-page .abyss-stats > .ab-chip,
+  .abyss-command-page .abyss-stats > .ab-api-latency {
+    min-height: 54px;
+    padding: 7px 9px;
+  }
+
+  .abyss-command-page .abyss-stats > .ab-settings-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 42px;
+    min-height: 42px;
+    border: 1px solid var(--cmd-line);
+    background: #101722;
+  }
+
+  .abyss-command-page .abyss-stats > .ab-stat-vitals {
+    padding-right: 56px;
+  }
+
+  .abyss-command-page .abyss-stats > :is(.ab-stat-progression, .ab-stat-network) {
+    display: none;
+  }
+
+  .abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-stats > .ab-settings-btn {
+    display: none;
+  }
+
+  .abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-stats > .ab-stat-vitals {
+    grid-column: 1 / -1;
+    padding-right: 9px;
+  }
+
+  .abyss-command-page #abCommandCenter {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: 6px;
+    margin-block: 5px 7px;
+    padding: 6px 8px;
+  }
+
+  .abyss-command-page #abCommandCenter :is(#abUTCClock, #abPageFreshness, #abFilterSummary, .spacer),
+  .abyss-command-page #abCommandCenter button:first-of-type {
+    display: none;
+  }
+
+  .abyss-command-page #abCommandCenter :is(button, .ab-hudchip) {
+    min-width: 0;
+    min-height: 40px;
+  }
+
+  .abyss-command-page:has(.ab-combat-cockpit.is-active) #abCommandCenter {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    margin-bottom: 6px;
+  }
+
+  .abyss-command-page:has(.ab-combat-cockpit.is-active) #abCommandCenter button:last-of-type {
+    display: none;
   }
 
   .abyss-command-page .abyss-side-left .abyss-side-list {
@@ -1271,7 +1500,7 @@ body:has(.abyss-command-page) .modal-overlay {
 }
 
 @media (forced-colors: active) {
-  .abyss-command-page :is(.abyss-hero, .abyss-stage, .abyss-side-panel, .abyss-panel, .abyss-lb, .ab-chip),
+  .abyss-command-page :is(.abyss-hero, .abyss-loot-signals, .abyss-stage, .abyss-side-panel, .abyss-panel, .abyss-lb, .ab-chip),
   body:has(.abyss-command-page) :is(.topbar, .modal-card) {
     border: 1px solid CanvasText;
     background: Canvas;

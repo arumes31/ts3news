@@ -351,9 +351,15 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 			effDesc += "Bonus Effects: " + strings.Join(names, ", ")
 		}
 	}
+	atlas := gearAtlasView(g)
+	if g.Unidentified {
+		// Unidentified gear gets one stable slot silhouette. Exact atlas coordinates
+		// would reveal the underlying item or cosmetic before identification.
+		atlas = itemAtlasView{Family: gearAtlasFamily(slot)}
+	}
 
 	v := gearView{
-		itemAtlasView:  gearAtlasView(g),
+		itemAtlasView:  atlas,
 		Slot:           string(slot),
 		Icon:           content.SlotIcon(slot),
 		IconName:       content.SlotIconName(slot),
@@ -583,6 +589,64 @@ func (b *Bot) loadTitleView(uid string) *titleView {
 	return tv
 }
 
+type armoryEquippedItem struct {
+	Gear       content.Gear
+	Durability int
+}
+
+// armoryEquippedItems reads each equipped item's instance data and durability
+// from the same row snapshot so the readiness view cannot pair an old item with
+// a newly-equipped item's maintenance state.
+func (b *Bot) armoryEquippedItems(uid string) (map[content.GearSlot]armoryEquippedItem, error) {
+	items := make(map[content.GearSlot]armoryEquippedItem)
+	rows, err := b.DB.Query(
+		"SELECT slot, gear_id, item_data, durability FROM user_gear WHERE client_uid=$1",
+		uid,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query equipped armoury items: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var slot content.GearSlot
+		var gearID string
+		var itemData sql.NullString
+		var durability int
+		if err := rows.Scan(&slot, &gearID, &itemData, &durability); err != nil {
+			return nil, fmt.Errorf("scan equipped armoury item: %w", err)
+		}
+		gear, ok := b.makeGear(gearID, itemData)
+		if ok {
+			items[slot] = armoryEquippedItem{Gear: gear, Durability: durability}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate equipped armoury items: %w", err)
+	}
+	return items, nil
+}
+
+func armorySlotViews(equipped map[content.GearSlot]armoryEquippedItem) []gearView {
+	slots := make([]gearView, 0, len(content.AllSlots))
+	for _, slot := range content.AllSlots {
+		if item, ok := equipped[slot]; ok {
+			view := toGearView(slot, item.Gear)
+			if !item.Gear.Unidentified {
+				view.Durability = item.Durability
+			}
+			slots = append(slots, view)
+			continue
+		}
+		slots = append(slots, gearView{
+			Slot:     string(slot),
+			Icon:     content.SlotIcon(slot),
+			IconName: content.SlotIconName(slot),
+			Empty:    true,
+		})
+	}
+	return slots
+}
+
 func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
@@ -594,15 +658,13 @@ func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid str
 		return
 	}
 
-	equipped := s.bot.getEquippedItems(uid)
-	var slots []gearView
-	for _, slot := range content.AllSlots {
-		if g, ok := equipped[slot]; ok {
-			slots = append(slots, toGearView(slot, g))
-		} else {
-			slots = append(slots, gearView{Slot: string(slot), Icon: content.SlotIcon(slot), IconName: content.SlotIconName(slot), Empty: true})
-		}
+	equipped, err := s.bot.armoryEquippedItems(uid)
+	if err != nil {
+		log.Printf("web: load armoury equipment for %q: %v", uid, err)
+		http.Error(w, "armoury unavailable", http.StatusInternalServerError)
+		return
 	}
+	slots := armorySlotViews(equipped)
 
 	skills := s.bot.getSkills(uid)
 	ultimates := s.bot.getActiveUltimates(uid)
@@ -611,15 +673,16 @@ func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid str
 	pets := s.bot.loadPetViews(uid)
 
 	s.render(w, "armory", map[string]any{
-		"Title":       "Armoury",
-		"Nav":         "armory",
-		"U":           u,
-		"Slots":       slots,
-		"Skills":      skills,
-		"Ultimates":   ultimates,
-		"Artifact":    artifact,
-		"PlayerTitle": title,
-		"Pets":        pets,
+		"Title":                 "Armoury",
+		"Nav":                   "armory",
+		"U":                     u,
+		"Slots":                 slots,
+		"Skills":                skills,
+		"Ultimates":             ultimates,
+		"Artifact":              artifact,
+		"PlayerTitle":           title,
+		"Pets":                  pets,
+		"ForgeWorkbenchEnabled": s.abyssFeatures.enabled("forge", uid),
 	})
 }
 
@@ -743,6 +806,10 @@ func (s *WebServer) handleEquipAPI(w http.ResponseWriter, r *http.Request, uid s
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown gear"})
 		return
 	}
+	if g.Unidentified {
+		writeJSON(w, map[string]any{"ok": false, "error": "identify the item before equipping it"})
+		return
+	}
 
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
@@ -805,6 +872,10 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 	g, ok := s.bot.makeGear(gid, itemData)
 	if !ok {
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown gear"})
+		return
+	}
+	if g.Unidentified {
+		writeJSON(w, map[string]any{"ok": false, "error": "identify the item before selling it"})
 		return
 	}
 	baseValue := max(gearPrice(g)/2, int64(1))

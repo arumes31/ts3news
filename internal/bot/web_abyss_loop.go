@@ -1,7 +1,6 @@
 package bot
 
-// The Abyss — 300 improvements (docs/ABYSS_IMPROVEMENTS_300.md), groups A
-// (AB-1..25, core loop & risk/reward) and B (AB-26..50, floors & events).
+// The Abyss core loop, risk/reward systems, floors, and events.
 // Small run-loop mechanics that hook into the handlers in web_abyss.go /
 // web_abyss_econ.go / web_abyss_features.go.
 //

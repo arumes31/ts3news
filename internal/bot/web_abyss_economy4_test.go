@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"encoding/json"
 	"errors"
 	"math"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"ts3news/internal/content"
 )
 
 func TestAbyssEconomyMechanics(t *testing.T) {
@@ -164,14 +166,24 @@ func TestAbyssEconomyPlayerControlsAndRoutes(t *testing.T) {
 		"/api/abyss/shop/scratch", "/api/abyss/shop/gift_create", "/api/abyss/shop/gift_redeem",
 		"/api/abyss/economy/loan", "/api/abyss/economy/tax_rebate", "/api/ah/watch", "/api/ah/notices",
 		"/api/ah/bulk_relist", "/api/ah/material_order", "/api/ah/material_fill", "/api/ah/material_cancel", "/api/ah/bid",
-		"Cheapest active Legendary", "Insanity", "seller receives the exact buy-now price", "Attuned items are soulbound",
+		"Cheapest active Legendary", "Insanity", "seller community tax", "Attuned items are soulbound",
 		"Most Taxed This Season", "Relist all expired", "Daily scratch card", "Gold → token bundle",
 		"role=\"tablist\" aria-label=\"Token Shop category\"", "role=\"tablist\" aria-label=\"Auction history\"",
 		"Weekly cosmetic", "refreshes {{.RotationEnds}}",
 		"Redemption fee 0g / 0 tokens", "winning bid is the exact total", "Cancellation fee 0g",
+		"Unavailable until identified", "Identify first", "Unlock in Abyss", "No sold listings yet.",
+		"Your leading bid", "Exact proceeds:", "Confirm material sale", "Exact end: {{.Expires}}",
 	} {
 		if !strings.Contains(combined, required) {
 			t.Errorf("economy contract is missing %q", required)
+		}
+	}
+	for _, handler := range []string{
+		"handleAHBuyAPI", "handleAHListAPI", "handleAHWatch", "handleAHBulkRelist",
+		"handleAHMaterialOrder", "handleAHMaterialFill", "handleAHMaterialCancel", "handleAHBid",
+	} {
+		if !strings.Contains(string(routes), "guardAbyssCoreAction(s."+handler+")") {
+			t.Errorf("auction mutation %s is missing idempotency and replay protection", handler)
 		}
 	}
 }
@@ -416,6 +428,185 @@ func TestAHBuyRejectsCorruptPayloadBeforeMovingGold(t *testing.T) {
 	}
 }
 
+func TestAHEnrichListingRedactsUnidentifiedGear(t *testing.T) {
+	gear := content.Gear{
+		ID:           "SECRET_HEAD",
+		Name:         "Crown of the Last Star",
+		Slot:         content.SlotHead,
+		Rarity:       content.RarityCelestial,
+		Stats:        content.Stats{STR: 999, DEF: 777},
+		Unidentified: true,
+	}
+	payload, err := json.Marshal(gear)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listing := ahListingView{ItemType: "gear", ItemID: gear.ID, Name: gear.Name}
+	ahEnrichListing(&listing, payload)
+
+	if listing.Name != "Unidentified Head" || listing.Rarity != "Unknown" || listing.GS != 0 || listing.InspectJSON != "" {
+		t.Fatalf("unidentified listing leaked metadata: %+v", listing)
+	}
+}
+
+func TestAHListRejectsUnidentifiedGearBeforeRemoval(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+
+	gear := content.Gear{ID: "SECRET_HEAD", Name: "Crown of the Last Star", Slot: content.SlotHead, Rarity: content.RarityCelestial, Unidentified: true}
+	payload, err := json.Marshal(gear)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT gear_id, durability, item_data FROM user_inventory").
+		WithArgs(int64(17), "seller").
+		WillReturnRows(sqlmock.NewRows([]string{"gear_id", "durability", "item_data"}).AddRow(gear.ID, 80, string(payload)))
+	mock.ExpectRollback()
+
+	server := &WebServer{bot: &Bot{DB: database}}
+	request := httptest.NewRequest(http.MethodPost, "/api/ah/list", strings.NewReader(`{"inv_id":17}`))
+	response := httptest.NewRecorder()
+	server.handleAHListAPI(response, request, "seller")
+	if body := response.Body.String(); !strings.Contains(body, `"ok":false`) || !strings.Contains(body, "identify the item before listing it") {
+		t.Fatalf("unidentified list response = %s", body)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAHBuyRejectsUnidentifiedGearBeforeMovingGold(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+
+	gear := content.Gear{ID: "SECRET_HEAD", Name: "Crown of the Last Star", Slot: content.SlotHead, Rarity: content.RarityCelestial, Unidentified: true}
+	payload, err := json.Marshal(gear)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT item_type, item_id, item_name, item_data").
+		WithArgs("listing-secret").
+		WillReturnRows(sqlmock.NewRows([]string{"item_type", "item_id", "item_name", "item_data", "price", "seller_uid", "durability", "current_bid", "bidder_uid"}).
+			AddRow("gear", gear.ID, gear.Name, payload, int64(999_999), "seller", 80, int64(0), nil))
+	mock.ExpectRollback()
+
+	server := &WebServer{bot: &Bot{DB: database}}
+	request := httptest.NewRequest(http.MethodPost, "/api/ah/buy", strings.NewReader(`{"id":"listing-secret"}`))
+	response := httptest.NewRecorder()
+	server.handleAHBuyAPI(response, request, "buyer")
+	if body := response.Body.String(); !strings.Contains(body, `"ok":false`) || !strings.Contains(body, "listing unavailable") {
+		t.Fatalf("unidentified buy response = %s", body)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAHBidRejectsUnidentifiedGearBeforeReservingGold(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+
+	gear := content.Gear{ID: "SECRET_HEAD", Name: "Crown of the Last Star", Slot: content.SlotHead, Rarity: content.RarityCelestial, Unidentified: true}
+	payload, err := json.Marshal(gear)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT seller_uid,item_type,item_id,item_data,price,current_bid,bidder_uid,expires_at").
+		WithArgs("listing-secret").
+		WillReturnRows(sqlmock.NewRows([]string{"seller_uid", "item_type", "item_id", "item_data", "price", "current_bid", "bidder_uid", "expires_at"}).
+			AddRow("seller", "gear", gear.ID, payload, int64(999_999), int64(0), nil, time.Now().Add(time.Hour)))
+	mock.ExpectRollback()
+
+	server := &WebServer{bot: &Bot{DB: database}}
+	request := httptest.NewRequest(http.MethodPost, "/api/ah/bid", strings.NewReader(`{"id":"listing-secret","amount":500000}`))
+	response := httptest.NewRecorder()
+	server.handleAHBid(response, request, "buyer")
+	if body := response.Body.String(); !strings.Contains(body, `"ok":false`) || !strings.Contains(body, "listing unavailable") {
+		t.Fatalf("unidentified bid response = %s", body)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAHExpiryLabelsShowRelativeAndExactTerms(t *testing.T) {
+	now := time.Date(2026, time.August, 31, 12, 0, 0, 0, time.UTC)
+	exact, relative := ahExpiryLabels(now.Add(26*time.Hour+15*time.Minute), now)
+	if exact != "01 Sep 2026 · 14:15 UTC" || relative != "in 1d 2h" {
+		t.Fatalf("expiry labels = %q, %q", exact, relative)
+	}
+}
+
+func TestInventoryEquipRejectsUnidentifiedGear(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+
+	gear := content.Gear{ID: "SECRET_HEAD", Name: "Crown of the Last Star", Slot: content.SlotHead, Unidentified: true}
+	payload, err := json.Marshal(gear)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("SELECT gear_id, durability, item_data FROM user_inventory").
+		WithArgs(int64(17), "delver").
+		WillReturnRows(sqlmock.NewRows([]string{"gear_id", "durability", "item_data"}).AddRow(gear.ID, 80, string(payload)))
+
+	server := &WebServer{bot: &Bot{DB: database}}
+	request := httptest.NewRequest(http.MethodPost, "/api/inventory/equip", strings.NewReader(`{"inv_id":17}`))
+	response := httptest.NewRecorder()
+	server.handleEquipAPI(response, request, "delver")
+	if body := response.Body.String(); !strings.Contains(body, `"ok":false`) || !strings.Contains(body, "identify the item before equipping it") {
+		t.Fatalf("unidentified equip response = %s", body)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInventoryVendorRejectsUnidentifiedGearBeforePricing(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+
+	gear := content.Gear{ID: "SECRET_HEAD", Name: "Crown of the Last Star", Slot: content.SlotHead, Rarity: content.RarityCelestial, Stats: content.Stats{STR: 999}, Unidentified: true}
+	payload, err := json.Marshal(gear)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT gear_id,durability,item_data,acquired_at FROM user_inventory").
+		WithArgs(int64(17), "delver").
+		WillReturnRows(sqlmock.NewRows([]string{"gear_id", "durability", "item_data", "acquired_at"}).AddRow(gear.ID, 80, string(payload), time.Now()))
+	mock.ExpectRollback()
+
+	server := &WebServer{bot: &Bot{DB: database}}
+	request := httptest.NewRequest(http.MethodPost, "/api/inventory/sell", strings.NewReader(`{"inv_id":17}`))
+	response := httptest.NewRecorder()
+	server.handleSellAPI(response, request, "delver")
+	if body := response.Body.String(); !strings.Contains(body, `"ok":false`) || !strings.Contains(body, "identify the item before selling it") {
+		t.Fatalf("unidentified vendor response = %s", body)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAbyssOwnedCosmeticReequipsWithoutSecondCharge(t *testing.T) {
 	database, mock, err := sqlmock.New()
 	if err != nil {
@@ -466,11 +657,57 @@ func TestAbyssInvalidWinningBidRefundsReservedGold(t *testing.T) {
 	mock.ExpectExec("UPDATE auction_house SET current_bid=0,bidder_uid=NULL").
 		WithArgs("broken-listing").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("INSERT INTO abyss_economy_events").
-		WithArgs("bidder", "Bid refunded: Broken Blade could not be delivered safely.", int64(500)).
+		WithArgs("bidder", "Bid refunded: a hidden auction item could not be delivered safely.", int64(500)).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
 	(&Bot{DB: database}).settleAbyssAuctionBid("broken-listing")
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAbyssWinningBidPersistsFinalSalePrice(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+
+	gear := content.Gear{ID: "G1", Name: "Honest Blade", MaxDurability: 80}
+	payload, err := json.Marshal(gear)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const bid = int64(625)
+	const salesTax = int64(32)
+	const sellerNet = bid - salesTax
+
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT seller_uid,bidder_uid,item_type,item_id,item_name,item_data,current_bid,durability").
+		WithArgs("won-listing").
+		WillReturnRows(sqlmock.NewRows([]string{"seller_uid", "bidder_uid", "item_type", "item_id", "item_name", "item_data", "current_bid", "durability"}).
+			AddRow("seller", "bidder", "gear", gear.ID, gear.Name, payload, bid, nil))
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO user_inventory (client_uid,gear_id,durability,item_data) VALUES ($1,$2,$3,$4)")).
+		WithArgs("bidder", gear.ID, gear.MaxDurability, payload).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE users SET gold=gold+$1 WHERE client_uid=$2")).
+		WithArgs(sellerNet, "seller").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`UPDATE arcade_jackpots SET amount=amount\+\$1`).
+		WithArgs(salesTax).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE auction_house SET buyer_uid=$1,sold_at=NOW(),price=$2,current_bid=0,bidder_uid=NULL WHERE id=$3")).
+		WithArgs("bidder", bid, "won-listing").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("INSERT INTO abyss_economy_events").
+		WithArgs("seller", "bidder",
+			"Auction sold by bid: Honest Blade · 625g gross · 32g community tax · 593g net.", sellerNet,
+			"Winning bid delivered: Honest Blade · 625g reserved.", -bid).
+		WillReturnResult(sqlmock.NewResult(0, 2))
+	mock.ExpectCommit()
+
+	(&Bot{DB: database}).settleAbyssAuctionBid("won-listing")
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
 	}

@@ -2161,8 +2161,7 @@
       "internal/db/abyss_escrow_snapshot.go",
       "internal/db/abyss_escrow_drill.go",
       "internal/db/abyss_escrow_io.go",
-      "cmd/abyss-escrow/main.go",
-      "docs/ABYSS_ESCROW_RECOVERY.md"
+      "cmd/abyss-escrow/main.go"
     ],
     "verification": [
       "internal/db/abyss_escrow_snapshot_test.go",

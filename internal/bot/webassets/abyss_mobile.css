@@ -76,7 +76,7 @@
     color-scheme: light;
   }
   body.ab-light-theme:not(.ab-high-contrast) .abyss-command-page::before { opacity: .16; }
-  body.ab-light-theme:not(.ab-high-contrast) .abyss-command-page :is(.abyss-hero, .abyss-stage, .abyss-side-panel, .abyss-panel, .abyss-lb, .ab-chip, .ab-tabs, .forge-card, .abyss-log-wrap) {
+  body.ab-light-theme:not(.ab-high-contrast) .abyss-command-page :is(.abyss-hero, .abyss-loot-signals, .abyss-stage, .abyss-side-panel, .abyss-panel, .abyss-lb, .ab-chip, .ab-tabs, .forge-card, .abyss-log-wrap) {
     background: rgba(255, 253, 248, .96);
     border-color: #7a8798;
     color: #17212b;
