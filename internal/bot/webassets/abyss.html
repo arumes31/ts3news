@@ -570,8 +570,8 @@
   <!-- Log tools (UI-26/36/37/38): substring filter, round numbers, mono font, copy -->
   <div class="ab-log-tools">
     <input type="search" id="logSearch" placeholder="Filter log…" aria-label="Filter combat log lines">
-    <button type="button" class="ghost xs" id="logRoundsBtn" aria-pressed="false" title="Toggle round numbers">№</button>
-    <button type="button" class="ghost xs" id="logMonoBtn" aria-pressed="false" title="Toggle monospace log font">Aa</button>
+    <button type="button" class="ghost xs" id="logRoundsBtn" aria-label="Toggle combat log round numbers" aria-pressed="false" title="Toggle round numbers">№</button>
+    <button type="button" class="ghost xs" id="logMonoBtn" aria-label="Toggle combat log monospace font" aria-pressed="false" title="Toggle monospace log font">Aa</button>
     <button type="button" class="ghost xs" id="logCopyBtn" title="Copy the last fight as plain text">📋 Copy</button>
     <button type="button" class="ghost xs" id="logHtmlBtn" title="Export the visible fight log as styled HTML">&lt;/&gt; HTML</button>
   </div>
@@ -1807,7 +1807,16 @@ function updateAbyssCombatCockpit(live){
   cockpit.classList.toggle('is-active',!!inRun);
   var hasLive=live===undefined?!!(combat&&combat.style.display!=='none'&&combat.offsetParent!==null):!!live;
   cockpit.classList.toggle('has-live-combat',hasLive);
+  var page=cockpit.closest('.abyss-command-page');
+  if(page){
+    var topbar=document.querySelector('.topbar');
+    if(hasLive&&topbar&&window.matchMedia('(min-width: 901px)').matches)page.style.setProperty('--cmd-topbar-offset',Math.ceil(topbar.getBoundingClientRect().height)+'px');
+    else page.style.removeProperty('--cmd-topbar-offset');
+  }
+  var roundsButton=document.getElementById('logRoundsBtn');
+  if(roundsButton){roundsButton.disabled=hasLive;roundsButton.title=hasLive?'Round numbers are available after combat.':'Toggle round numbers';}
 }
+window.addEventListener('resize',function(){var cockpit=document.getElementById('abyssCombatCockpit');if(cockpit&&cockpit.classList.contains('has-live-combat'))updateAbyssCombatCockpit(true);},{passive:true});
 function abyssCockpitAction(id){
   if(id==='liveAction'){
     var recommended=document.querySelector('#liveActionBar .ab-actionslot.recommended:not(:disabled)');
@@ -1823,7 +1832,11 @@ function focusAbyssCockpit(preferred,reveal){
   var modal=document.getElementById('sharedModal'),active=document.activeElement,tag=active&&active.tagName;
   if(modal&&modal.classList.contains('open')||/INPUT|SELECT|TEXTAREA/.test(tag)||active&&active.isContentEditable)return;
   updateAbyssCombatCockpit();
-  if(reveal)cockpit.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'start'});
+  if(reveal){
+    var cockpitRect=cockpit.getBoundingClientRect();
+    var cockpitVisible=cockpitRect.top>=0&&cockpitRect.bottom<=window.innerHeight+1;
+    if(!cockpitVisible)cockpit.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'start'});
+  }
   var order=[preferred,'liveReady','liveAction','btnDescend','btnProceed','btnRevive','btnLastStand','btnConcede','btnEnter'];
   var action=null;
   order.some(function(id){if(!id)return false;action=abyssCockpitAction(id);return !!action;});

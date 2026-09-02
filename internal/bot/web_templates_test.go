@@ -118,7 +118,7 @@ func TestAbyssLivePartials(t *testing.T) {
 		"liveLoadoutPage",
 		"liveRecap",
 		"THREAT ",
-		"entry.textContent=line",
+		"entry.textContent=text",
 		"if(sessionID!==liveCombatSessionID)return",
 		"setTimeout(function(){dismissFinishedLiveCombat(completedSession);},900)",
 		"!resumeLiveCombatPhase(state.phase)",
