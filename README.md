@@ -138,7 +138,7 @@ The bot is configured via environment variables or a `config.env` file.
 | **Sources** | `ENABLE_GAMERPOWER` | Fetch from GamerPower API. | `true` |
 | | `ENABLE_EPIC` | Fetch from Epic Games Store API. | `true` |
 | | `ENABLE_REDDIT` | Fetch from /r/FreeGameFindings RSS. | `true` |
-| | `REDRX_API_KEY` | API Key for [redrx.eu](https://redrx.eu/) link shortening. | *None* |
+| | `REDRX_API_KEY` | Optional API key for shortening public game links. Authentication links are never sent to a third party. | *None* |
 | **Database** | `DATABASE_URL` | PostgreSQL connection string. | *None* |
 | | `DEAD_USER_DAYS` | Purge users inactive for N days. | `180` |
 
@@ -169,7 +169,7 @@ LANG=de_DE
 
 ## 🌐 Web Portal
 
-Alongside the TeamSpeak bot, the binary serves a token-authenticated **player web portal**. Every cycle each user is PM'd a personal, [redrx.eu](https://redrx.eu/)-shortened **login link** (a persistent unique token per user — keep it private). No passwords; the link logs you in.
+Alongside the TeamSpeak bot, the binary serves a token-authenticated **player web portal**. Every cycle each user is PM'd an unshortened, one-time login link that expires after 10 minutes. Redeeming it creates a distinct 24-hour `HttpOnly`, `SameSite=Strict` session; only SHA-256 token digests are stored, grants cannot be replayed, and logout revokes the session. Treat an unused link as a short-lived password and serve `WEB_BASE_URL` over HTTPS in production.
 
 | Page | What it does |
 | :--- | :--- |
@@ -189,50 +189,18 @@ All gold/XP is the same economy used by the TS3 RPG, so farming the arcade or ba
 
 ### Option A: Using the Pre-built GHCR Image (Recommended)
 
-1.  **Create `docker-compose.yml`**:
-    ```yaml
-    services:
-      db:
-        image: postgres:15-alpine
-        container_name: ts3-news-db
-        restart: unless-stopped
-        environment:
-          POSTGRES_USER: ${DB_USER:-ts3bot}
-          POSTGRES_PASSWORD: ${DB_PASS:-ts3botpass}
-          POSTGRES_DB: ${DB_NAME:-ts3news}
-        volumes:
-          - postgres_data:/var/lib/postgresql/data
-        healthcheck:
-          test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ts3bot} -d ${DB_NAME:-ts3news}"]
-          interval: 5s
-          timeout: 5s
-          retries: 5
+1. **Configure**: Copy `example.env` to `config.env` and set the required values.
+2. **Resolve the published image digest** from the release or the successful publish workflow. The workflow publishes both a commit-SHA tag and an attested image digest.
+3. **Run the hardened Compose definition** with that immutable digest:
 
-      ts3-bot:
-        image: ghcr.io/arumes31/ts3news:latest
-        container_name: ts3-news-bot
-        restart: unless-stopped
-        ports:
-          - "18081:18081"
-        stop_grace_period: 30s
-        depends_on:
-          db:
-            condition: service_healthy
-        env_file:
-          - config.env
-        environment:
-          - DATABASE_URL=postgres://${DB_USER:-ts3bot}:${DB_PASS:-ts3botpass}@db:5432/${DB_NAME:-ts3news}?sslmode=disable
-        logging:
-          driver: "json-file"
-          options:
-            max-size: "10m"
-            max-file: "3"
-
-    volumes:
-      postgres_data:
+    ```bash
+    export TS3NEWS_IMAGE_DIGEST=sha256:<published-digest>
+    docker compose -f docker-compose.ghcr.yml up -d
     ```
-2.  **Configure**: Create `config.env` using `example.env` as a template.
-3.  **Run**: `docker compose up -d`
+
+The supplied definition also pins third-party images, runs the TeamSpeak client as UID 10001 with a read-only root filesystem and dropped capabilities, and persists the two client profiles in named volumes. To upgrade, review the new CI result, replace `TS3NEWS_IMAGE_DIGEST`, and recreate the services.
+
+> Upgrading from a deployment that bind-mounted `./data/idely-profile`: back up that directory and import it into the new `idely_profile` named volume (owned by UID/GID 10001), or set `IDELY_IDENTITY` to the dedicated identity before the first start. The hardened Compose files intentionally no longer run the client as root or write to `/root/.ts3client`.
 
 ### Option B: Building from Source
 

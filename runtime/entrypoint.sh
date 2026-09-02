@@ -6,8 +6,8 @@
 # directly (graceful shutdown).
 set -e
 
-export HOME=/root
-export XDG_RUNTIME_DIR=/tmp/runtime-root
+export HOME="${HOME:-/home/ts3bot}"
+export XDG_RUNTIME_DIR=/tmp/runtime-ts3bot
 mkdir -p "$XDG_RUNTIME_DIR"; chmod 700 "$XDG_RUNTIME_DIR"
 
 # Headless / software-rendering settings for the Qt + WebEngine client.
@@ -51,7 +51,7 @@ fi
 # but the poke bot should set TS3_IDENTITY to its own (ideally leveled) identity.
 if [ -n "${TS3_IDENTITY:-}" ]; then
   echo "[entrypoint] Injecting identity into settings.db..."
-  python3 /opt/inject_identity.py "$TS3_IDENTITY" /root/.ts3client/settings.db || echo "[entrypoint] WARNING: identity injection failed"
+  python3 /opt/inject_identity.py "$TS3_IDENTITY" "$HOME/.ts3client/settings.db" || echo "[entrypoint] WARNING: identity injection failed"
 else
   echo "[entrypoint] TS3_IDENTITY not set; using the profile's own identity."
 fi
@@ -70,7 +70,13 @@ echo "[entrypoint] Starting Xvfb + dbus..."
 Xvfb :99 -screen 0 1280x720x24 -ac >/tmp/xvfb.log 2>&1 &
 sleep 3
 export DISPLAY=:99
-eval "$(dbus-launch --sh-syntax)"
+mapfile -t dbus_info < <(dbus-daemon --session --fork --print-address=1 --print-pid=1)
+if [ "${#dbus_info[@]}" -lt 2 ]; then
+  echo "[entrypoint] ERROR: dbus-daemon did not return an address and PID" >&2
+  exit 1
+fi
+export DBUS_SESSION_BUS_ADDRESS="${dbus_info[0]}"
+export DBUS_SESSION_BUS_PID="${dbus_info[1]}"
 
 echo "[entrypoint] Handing off to the bot supervisor..."
 exec /usr/local/bin/bot

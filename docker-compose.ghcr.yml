@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:15-alpine@sha256:fe0737ba566a2c5b2a28f34433c0a423261900ec17b9bf7ad115e1aae7e57f1b
     container_name: ts3-news-db
     restart: unless-stopped
     environment:
@@ -18,7 +18,7 @@ services:
       retries: 5
 
   ts3-bot:
-    image: ghcr.io/arumes31/ts3news:latest
+    image: ghcr.io/arumes31/ts3news@${TS3NEWS_IMAGE_DIGEST:?Set TS3NEWS_IMAGE_DIGEST to the published sha256 digest}
     container_name: ts3-news-bot
     restart: unless-stopped
     ports:
@@ -26,6 +26,15 @@ services:
     # Give the Go supervisor time to finish an in-progress poke cycle on SIGTERM
     # (graceful shutdown) before Docker escalates to SIGKILL.
     stop_grace_period: 30s
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=1777
+      - /home/ts3bot/.cache:uid=10001,gid=10001,mode=0700
+      - /home/ts3bot/.config:uid=10001,gid=10001,mode=0700
     depends_on:
       db:
         condition: service_healthy
@@ -42,6 +51,9 @@ services:
       - DATABASE_URL=${DATABASE_URL:-postgres://${DB_USER:-ts3bot}:${DB_PASS:-ts3botpass}@db:5432/${DB_NAME:-ts3news}?sslmode=disable}
     env_file:
       - config.env
+    volumes:
+      - ts3_profile:/home/ts3bot/.ts3client
+      - ts3_data:/app/data
     logging:
       driver: "json-file"
       options:
@@ -55,10 +67,19 @@ services:
   # Enable by setting ENABLE_IDELY=true in config.env. IDELY_IDENTITY is optional:
   # when unset, Idely uses its own persistent client profile (see ./data/idely-profile).
   ts3-idely:
-    image: ghcr.io/arumes31/ts3news:latest
+    image: ghcr.io/arumes31/ts3news@${TS3NEWS_IMAGE_DIGEST:?Set TS3NEWS_IMAGE_DIGEST to the published sha256 digest}
     container_name: ts3-news-idely
     restart: unless-stopped
     stop_grace_period: 15s
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=1777
+      - /home/ts3bot/.cache:uid=10001,gid=10001,mode=0700
+      - /home/ts3bot/.config:uid=10001,gid=10001,mode=0700
     depends_on:
       db:
         condition: service_healthy
@@ -84,11 +105,8 @@ services:
       # Your own music library: drop audio files into runtime/music (mounted at
       # /audio). Idely scans this directory to build the audio bot's playlist.
       - ./runtime/music:/audio:ro
-      # Persist the Idely client's profile (host bind mount) so its identity is
-      # stable across restarts. This image runs as root, and the entrypoint seeds
-      # the baked golden profile into the empty directory on first run, so a fresh
-      # host path still starts a working, license-accepted client.
-      - ./data/idely-profile:/root/.ts3client
+      # Persist the non-root Idely client profile and identity across restarts.
+      - idely_profile:/home/ts3bot/.ts3client
     logging:
       driver: "json-file"
       options:
@@ -102,7 +120,7 @@ services:
   # /app/data to uid 9999 (the image's non-root "ts3bot" user), without which
   # TS3AudioBot cannot write NLog.config / its databases and crashes on startup.
   ts3audiobot-init:
-    image: busybox:stable
+    image: busybox:stable@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
     container_name: ts3-news-audiobot-init
     restart: "no"
     volumes:
@@ -133,7 +151,7 @@ services:
   # a permissive rights.toml are seeded automatically by ts3audiobot-init, so no
   # manual ts3audiobot.toml editing or `!api token` is needed for a standard setup.
   ts3audiobot:
-    image: ancieque/ts3audiobot:latest
+    image: ancieque/ts3audiobot:latest@sha256:3da81924dab980b3d2ec702cfa35c4c436dd7b5ba0b9d784d1a680a3b05a1cb1
     container_name: ts3-news-audiobot
     restart: unless-stopped
     depends_on:
@@ -153,3 +171,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  ts3_profile:
+  ts3_data:
+  idely_profile:

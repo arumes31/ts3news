@@ -123,7 +123,12 @@ func TestAbyssSSELoad(t *testing.T) {
 			recorder := &lockedResponseRecorder{ResponseRecorder: httptest.NewRecorder()}
 			for event := range eventsPerClient {
 				snapshot := abyssLiveSnapshot{OK: true, SessionID: strconv.Itoa(client), Version: int64(event)}
-				if err := writeAbyssLiveEvent(recorder, recorder, snapshot); err != nil {
+				if err := writeAbyssLiveEvent(
+					recorder,
+					recorder,
+					http.NewResponseController(recorder),
+					snapshot,
+				); err != nil {
 					t.Errorf("client %d event %d: %v", client, event, err)
 					return
 				}

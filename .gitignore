@@ -87,6 +87,7 @@ final_fix.py
 fix_script.py
 plans/
 *.md
+!SECURITY.md
 
 .claudeignore
 scripts/

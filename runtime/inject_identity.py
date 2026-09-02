@@ -102,7 +102,11 @@ items[target] = serialize(newtop)
 
 con.execute("UPDATE ProtobufItems SET value=? WHERE key=?", (sqlite3.Binary(items[target]), target))
 order = sorted([k for k in items if k != "Checksum"], key=lambda x: int(x))
-digest = hashlib.sha1(b"".join(items[k] for k in order)).digest()
+# TeamSpeak's on-disk profile format requires SHA-1 for compatibility. This is
+# a file-format checksum, not a cryptographic security decision.
+digest = hashlib.sha1(  # nosec B324
+    b"".join(items[k] for k in order), usedforsecurity=False
+).digest()
 con.execute("UPDATE ProtobufItems SET value=? WHERE key='Checksum'", (sqlite3.Binary(digest),))
 con.commit()
 print("Injected identity (item %s), recomputed checksum %s" % (target, digest.hex()))
