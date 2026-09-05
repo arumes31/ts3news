@@ -1955,6 +1955,18 @@ function renderConsumables(list){
   });
 }
 
+function abyssEventState(stateStr){
+  try {
+    var state = JSON.parse(stateStr || '{}');
+    return state && typeof state === 'object' && !Array.isArray(state) ? state : {};
+  } catch(e) { return {}; }
+}
+
+function abyssEventPending(){
+  var state = abyssEventState(eventState);
+  return typeof state.type === 'string' && !!state.type;
+}
+
 function renderNonCombat(floorType, stateStr){
   var panel = document.getElementById('nonCombatPanel');
   var title = document.getElementById('ncTitle');
@@ -1986,8 +1998,12 @@ function renderNonCombat(floorType, stateStr){
     if(typeof renderAbyssBiomeContractChoices==='function')renderAbyssBiomeContractChoices(options);
   } else if(floorType === 'event'){
     title.innerHTML = '❓ Mysterious Encounter';
-    var state = {};
-    try { state = JSON.parse(stateStr || '{}'); } catch(e){}
+    var state = abyssEventState(stateStr);
+    if(typeof state.type !== 'string' || !state.type){
+      title.textContent = 'Encounter complete';
+      desc.textContent = 'There is nothing left to resolve here. Leave this floor to continue your descent.';
+      return;
+    }
     
     if(state.type === 'merchant'){
       desc.innerHTML = 'You encounter a shady skeletal merchant willing to trade gear and consumables for immediate gold.';
@@ -4351,9 +4367,10 @@ async function abyssNCAction(action, payload){
   }
   
   if(d.resolved){
+    eventState = '';
     setAbyssForgeFloor(false);
     document.getElementById('ncOptions').innerHTML = '';
-    document.getElementById('ncDesc').textContent = d.msg;
+    document.getElementById('ncDesc').textContent = d.msg || 'Encounter complete. Leave this floor to continue your descent.';
   }
   if(d.reload){ setTimeout(function(){window.location.reload();}, 650); }
 }

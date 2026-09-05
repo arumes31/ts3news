@@ -68,8 +68,12 @@ func (b *Bot) claimJackpot(uid string, game string) int64 {
 		return 0
 	}
 	
-	_, _ = tx.Exec("UPDATE arcade_jackpots SET amount = 10000, updated_at = NOW() WHERE game_key=$1", game)
-	_, _ = tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", amt, uid)
+	if _, err := tx.Exec("UPDATE arcade_jackpots SET amount = 10000, updated_at = NOW() WHERE game_key=$1", game); err != nil {
+		return 0
+	}
+	if _, err := tx.Exec("UPDATE users SET gold = LEAST(9223372036854775807::numeric, gold::numeric + $1)::bigint WHERE client_uid=$2", amt, uid); err != nil {
+		return 0
+	}
 	
 	if err := tx.Commit(); err != nil { return 0 }
 	return amt

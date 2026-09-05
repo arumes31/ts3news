@@ -109,5 +109,5 @@ func abyssContractForfeit(payout int64, flags map[string]int64, depth int, parti
 	if !failed {
 		return 0
 	}
-	return payout * abyssContractForfeitPct / 100
+	return abyssGoldPercent(payout, abyssContractForfeitPct)
 }

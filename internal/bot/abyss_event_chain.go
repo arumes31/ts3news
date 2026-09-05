@@ -111,7 +111,7 @@ func applyAbyssEventChainVictory(
 	escrow int64,
 ) (int64, abyssEventChainView) {
 	view := advanceAbyssEventChain(flags, depth, level)
-	return escrow + view.ChestReward, view
+	return abyssGoldAdd(escrow, view.ChestReward), view
 }
 
 func (view abyssEventChainView) withCollected() abyssEventChainView {

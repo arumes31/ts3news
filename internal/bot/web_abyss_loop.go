@@ -460,7 +460,7 @@ func (b *Bot) abyssRaffleSettle(uid string) int64 {
 		return 0
 	}
 	winner := entrants[rand.IntN(len(entrants))] // #nosec G404 -- non-cryptographic raffle draw
-	if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", pot, winner); err != nil {
+	if _, err := tx.Exec("UPDATE users SET gold = LEAST(9223372036854775807::numeric, gold::numeric + $1)::bigint WHERE client_uid=$2", pot, winner); err != nil {
 		return 0
 	}
 	if err := tx.Commit(); err != nil {

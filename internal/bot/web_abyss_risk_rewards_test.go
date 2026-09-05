@@ -256,7 +256,7 @@ func TestAbyssRiskRewardControlsExposeOnlySupportedActions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read Abyss handlers: %v", err)
 	}
-	serverSource := string(server)
+	serverSource := strings.ReplaceAll(string(server), "\r\n", "\n")
 	for _, required := range []string{
 		"partial bank must be 25% or 50%",
 		"resolve the floor-bonus gamble or descend before partial banking",

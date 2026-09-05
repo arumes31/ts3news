@@ -867,7 +867,10 @@ func (s *WebServer) uidForToken(token string) (string, bool) {
 		return "", false
 	}
 	var uid string
-	err := s.bot.DB.QueryRow("SELECT client_uid FROM users WHERE web_token=$1", token).Scan(&uid)
+	err := s.bot.DB.QueryRow(
+		"SELECT client_uid FROM users WHERE web_token=$1 AND (web_token_expires IS NULL OR web_token_expires > NOW())",
+		token,
+	).Scan(&uid)
 	if err != nil {
 		return "", false
 	}
@@ -916,6 +919,14 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/denied", http.StatusSeeOther)
 		return
 	}
+	// Record the session expiry server-side so expired tokens are rejected even
+	// when the client never deletes its cookie. The 90-day limit only worked as
+	// a browser hint before this; the token itself was valid forever.
+	expiry := time.Now().Add(sessionLifetime)
+	if _, err := s.bot.DB.Exec("UPDATE users SET web_token_expires=$1 WHERE web_token=$2", expiry, token); err != nil {
+		writeJSONStatus(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "session error"})
+		return
+	}
 	// Only flag the cookie Secure when the portal is served over HTTPS, so the
 	// session token never leaks over plain HTTP in production deployments while
 	// still working for local http:// development.
@@ -956,6 +967,14 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
+	// Invalidate the server-side credential, not just the browser cookie: a
+	// token leaked before logout must not keep working after it.
+	if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {
+		_, _ = s.bot.DB.Exec(
+			"UPDATE users SET web_token=NULL, web_token_expires=NULL WHERE web_token=$1",
+			c.Value,
+		)
+	}
 	secure := strings.HasPrefix(strings.ToLower(s.bot.Cfg.WebBaseURL), "https://")
 	http.SetCookie(w, &http.Cookie{ // #nosec G124 - Secure flag is conditionally set based on HTTPS
 		Name:     sessionCookie,

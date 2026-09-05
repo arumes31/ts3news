@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"math"
 	"os"
 	"strings"
 	"testing"
@@ -68,5 +69,13 @@ func TestAbyssContractPactServerAndClientContract(t *testing.T) {
 		if !strings.Contains(string(page), required) {
 			t.Errorf("contract UI is missing %q", required)
 		}
+	}
+}
+
+func TestAbyssContractForfeitPreservesHighCache(t *testing.T) {
+	t.Parallel()
+	flags := map[string]int64{abyssRunFlagContract: 1, abyssRunFlagContractFailed: 1}
+	if got := abyssContractForfeit(math.MaxInt64, flags, 439, false); got != 2_305_843_009_213_693_951 {
+		t.Fatalf("contract forfeit = %d, want 2305843009213693951", got)
 	}
 }

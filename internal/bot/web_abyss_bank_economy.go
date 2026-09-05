@@ -210,7 +210,7 @@ func (b *Bot) splitAbyssJackpot(uid, helperUID string, jackpot int64) int64 {
 	if n, _ := res.RowsAffected(); n == 0 {
 		return 0
 	}
-	if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", split, helperUID); err != nil {
+	if _, err := tx.Exec("UPDATE users SET gold=LEAST(9223372036854775807::numeric, gold::numeric+$1)::bigint WHERE client_uid=$2", split, helperUID); err != nil {
 		return 0
 	}
 	if _, err := tx.Exec(`INSERT INTO abyss_economy_events (client_uid,kind,message,amount)

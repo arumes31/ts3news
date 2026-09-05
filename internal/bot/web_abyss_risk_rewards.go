@@ -3,6 +3,7 @@ package bot
 import (
 	"database/sql"
 	"encoding/json"
+	"math"
 	"math/rand/v2"
 	"net/http"
 )
@@ -84,14 +85,14 @@ func diminishAbyssEscrowGain(current, gain, cap int64) int64 {
 
 func applyAbyssEscrowSoftCap(escrow, interestGain, bonus int64, depth int) abyssEscrowGrowth {
 	cap := abyssEscrowSoftCap(depth)
-	adjustedInterest := diminishAbyssEscrowGain(escrow, interestGain, cap)
+	adjustedInterest := min(diminishAbyssEscrowGain(escrow, interestGain, cap), math.MaxInt64-escrow)
 	afterInterest := escrow + adjustedInterest
-	adjustedBonus := diminishAbyssEscrowGain(afterInterest, bonus, cap)
-	rawGain := max(interestGain, 0) + max(bonus, 0)
+	adjustedBonus := min(diminishAbyssEscrowGain(afterInterest, bonus, cap), math.MaxInt64-afterInterest)
+	rawGain := float64(max(interestGain, 0)) + float64(max(bonus, 0))
 	adjustedGain := adjustedInterest + adjustedBonus
 	efficiency := 100
 	if rawGain > 0 {
-		efficiency = int(adjustedGain * 100 / rawGain)
+		efficiency = int(float64(adjustedGain) / rawGain * 100)
 	}
 	return abyssEscrowGrowth{
 		Escrow:        afterInterest + adjustedBonus,
@@ -101,12 +102,20 @@ func applyAbyssEscrowSoftCap(escrow, interestGain, bonus int64, depth int) abyss
 	}
 }
 
+// A deferred encounter already paid for its floor on the first visit.
+func abyssNonCombatReward(escrow, bonus int64, interestRate float64, depth int, deferredReturn bool) abyssEscrowGrowth {
+	if deferredReturn {
+		return applyAbyssEscrowSoftCap(escrow, 0, 0, depth)
+	}
+	return applyAbyssEscrowSoftCap(escrow, abyssGoldScale(escrow, interestRate), bonus, depth)
+}
+
 func abyssOverkillGold(overkillDamage int, floorBonus int64) int64 {
 	if overkillDamage <= 0 || floorBonus <= 0 {
 		return 0
 	}
 	converted := (int64(overkillDamage)-1)/abyssOverkillDamagePerGold + 1
-	cap := max(floorBonus*abyssOverkillRewardCapPct/100, 1)
+	cap := max(abyssGoldPercent(floorBonus, abyssOverkillRewardCapPct), 1)
 	return min(converted, cap)
 }
 
@@ -119,7 +128,7 @@ func applyAbyssEscrowReward(input abyssEscrowRewardInput) (abyssEscrowGrowth, in
 	growth := applyAbyssEscrowSoftCap(
 		input.Escrow,
 		input.InterestGain,
-		input.FloorBonus+overkillGold,
+		abyssGoldAdd(input.FloorBonus, overkillGold),
 		input.Depth,
 	)
 	return growth, growth.Escrow - base.Escrow
@@ -131,7 +140,7 @@ func planAbyssForfeit(escrow int64, insured, depth int, hardcore bool) abyssForf
 	}
 	refund := int64(0)
 	if !hardcore && insured > 0 {
-		refund = escrow * int64(min(insured, 100)) / 100
+		refund = abyssGoldPercent(escrow, min(insured, 100))
 	}
 	return abyssForfeitPolicy{Refund: refund, CountDeath: true}
 }
@@ -180,12 +189,12 @@ func quoteAbyssPartialBank(escrow int64, multiplier float64, percent int) (abyss
 	if escrow <= 0 || (percent != 25 && percent != 50) {
 		return abyssPartialBankQuote{}, false
 	}
-	share := escrow * int64(percent) / 100
+	share := abyssGoldPercent(escrow, percent)
 	if share <= 0 {
 		return abyssPartialBankQuote{}, false
 	}
-	gross := int64(float64(share) * multiplier)
-	fee := gross * abyssPartialBankFeePct / 100
+	gross := abyssGoldScale(share, multiplier)
+	fee := abyssGoldPercent(gross, abyssPartialBankFeePct)
 	return abyssPartialBankQuote{
 		Escrow:    share,
 		Gross:     gross,
@@ -199,8 +208,8 @@ func quoteAbyssTransportBank(escrow int64, multiplier float64) (abyssPartialBank
 	if escrow <= 0 {
 		return abyssPartialBankQuote{}, false
 	}
-	gross := int64(float64(escrow) * multiplier)
-	fee := gross * abyssTransportBankFeePct / 100
+	gross := abyssGoldScale(escrow, multiplier)
+	fee := abyssGoldPercent(gross, abyssTransportBankFeePct)
 	return abyssPartialBankQuote{Escrow: escrow, Gross: gross, Fee: fee, Payout: gross - fee}, true
 }
 
@@ -224,7 +233,7 @@ func resolveAbyssDoubleBonus(escrow, bonus int64, won bool) int64 {
 		return escrow
 	}
 	if won {
-		return escrow + bonus
+		return abyssGoldAdd(escrow, bonus)
 	}
 	return max(escrow-bonus, 0)
 }

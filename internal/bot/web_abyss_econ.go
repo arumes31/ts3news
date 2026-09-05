@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/rand/v2"
 	"net/http"
 	"strings"
@@ -181,7 +180,7 @@ func abyssCapTax(payout, remaining int64) (after, tax int64) {
 	if payout <= remaining {
 		return payout, 0
 	}
-	tax = int64(float64(payout-remaining) * abyssDayTaxRate)
+	tax = abyssGoldPercent(payout-remaining, 80)
 	return payout - tax, tax
 }
 
@@ -191,23 +190,29 @@ func abyssCapTax(payout, remaining int64) (after, tax int64) {
 // the day counter, so everything banked past the cap today stays taxed. It runs
 // through the supplied querier so the day-counter consumption and jackpot feed
 // participate in the caller's payout transaction and roll back with it. [59]
-func (b *Bot) taxAbyssDayGold(q dbExecQuerier, uid string, payout int64) (int64, int64) {
+func (b *Bot) taxAbyssDayGold(q dbExecQuerier, uid string, payout int64) (int64, int64, error) {
 	if payout <= 0 {
-		return 0, 0
+		return 0, 0, nil
 	}
-	_, _ = q.Exec(
+	if _, err := q.Exec(
 		`UPDATE users SET abyss_day = CURRENT_DATE, abyss_day_gold = 0
-		  WHERE client_uid=$1 AND (abyss_day IS NULL OR abyss_day < CURRENT_DATE)`, uid)
+		  WHERE client_uid=$1 AND (abyss_day IS NULL OR abyss_day < CURRENT_DATE)`, uid); err != nil {
+		return 0, 0, err
+	}
 	var dayGold int64
-	_ = q.QueryRow("SELECT abyss_day_gold FROM users WHERE client_uid=$1", uid).Scan(&dayGold)
+	if err := q.QueryRow("SELECT abyss_day_gold FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&dayGold); err != nil {
+		return 0, 0, err
+	}
 	after, tax := abyssCapTax(payout, int64(abyssDayGoldCap)-dayGold)
-	_, _ = q.Exec("UPDATE users SET abyss_day_gold = abyss_day_gold + $1 WHERE client_uid=$2", payout, uid)
+	if _, err := q.Exec("UPDATE users SET abyss_day_gold = LEAST(9223372036854775807::numeric, abyss_day_gold::numeric + $1)::bigint WHERE client_uid=$2", payout, uid); err != nil {
+		return 0, 0, err
+	}
 	if tax > 0 {
-		if _, err := q.Exec("UPDATE arcade_jackpots SET amount = amount + $1, updated_at = NOW() WHERE game_key='abyss'", tax); err != nil {
-			log.Printf("abyss day-cap tax feed to jackpot failed for %s: %v", uid, err)
+		if _, err := q.Exec("UPDATE arcade_jackpots SET amount = LEAST(9223372036854775807::numeric, amount::numeric + $1)::bigint, updated_at = NOW() WHERE game_key='abyss'", tax); err != nil {
+			return 0, 0, err
 		}
 	}
-	return after, tax
+	return after, tax, nil
 }
 
 // abyssForfeitResult reports the committed protection outcome.
@@ -257,7 +262,7 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 	}
 
 	if refund > 0 {
-		if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", refund, uid); err != nil {
+		if _, err := tx.Exec("UPDATE users SET gold = LEAST(9223372036854775807::numeric, gold::numeric + $1)::bigint WHERE client_uid=$2", refund, uid); err != nil {
 			return abyssForfeitResult{}, err
 		}
 	}
@@ -268,7 +273,7 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 		if inc < 1 {
 			inc = 1
 		}
-		if _, err := tx.Exec("UPDATE arcade_jackpots SET amount = amount + $1, updated_at = NOW() WHERE game_key='abyss'", inc); err != nil {
+		if _, err := tx.Exec("UPDATE arcade_jackpots SET amount = LEAST(9223372036854775807::numeric, amount::numeric + $1)::bigint, updated_at = NOW() WHERE game_key='abyss'", inc); err != nil {
 			return abyssForfeitResult{}, err
 		}
 	}

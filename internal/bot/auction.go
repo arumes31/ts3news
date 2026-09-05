@@ -165,7 +165,9 @@ func (b *Bot) settleAbyssHouseAuctionListing(id string) error {
 		return fmt.Errorf("lock house auction listing: %w", err)
 	}
 
-	result, err := tx.Exec(`UPDATE auction_house SET buyer_uid = 'HOUSE', sold_at = NOW()
+	// The House is a vendor, not a users row. Record the sale without inventing
+	// a buyer UID that would violate the auction's foreign key.
+	result, err := tx.Exec(`UPDATE auction_house SET buyer_uid = NULL, sold_at = NOW()
 		WHERE id = $1 AND sold_at IS NULL AND bidder_uid IS NULL`, id)
 	if err != nil {
 		return fmt.Errorf("claim house auction listing: %w", err)
@@ -385,7 +387,7 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 	rows, err := b.DB.Query(`
 		SELECT id, item_type, item_id, item_name, item_data, price, seller_uid 
 		FROM auction_house 
-		WHERE buyer_uid IS NULL AND expires_at > NOW() AND price <= $1
+		WHERE sold_at IS NULL AND buyer_uid IS NULL AND expires_at > NOW() AND price <= $1
 		  AND (item_type <> 'gear' OR LOWER(COALESCE(item_data->>'unidentified','false')) <> 'true')
 		ORDER BY price DESC LIMIT 5`, gold)
 	if err != nil {
@@ -427,7 +429,7 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 					}
 
 					// 2. Mark sold (ensure it wasn't bought concurrently)
-					res, err = tx.Exec("UPDATE auction_house SET buyer_uid = $1, sold_at = NOW() WHERE id = $2 AND buyer_uid IS NULL", uid, ahID)
+					res, err = tx.Exec("UPDATE auction_house SET buyer_uid = $1, sold_at = NOW() WHERE id = $2 AND sold_at IS NULL AND buyer_uid IS NULL", uid, ahID)
 					if err != nil {
 						_ = tx.Rollback()
 						continue
