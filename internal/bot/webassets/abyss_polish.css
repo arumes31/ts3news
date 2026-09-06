@@ -174,6 +174,8 @@ body.ab-high-contrast:has(.abyss-command-page) { background-image: none; }
   .abyss-command-page .abyss-stage { row-gap: 8px; }
   .abyss-command-page .abyss-stage > .ab-current-objective { margin-block: 0; font-size: .875rem; padding: 8px; }
   .abyss-command-page #abyssPrimaryActions { margin-block: 4px; }
+  /* Show the chosen loadout and entry action before secondary setup guidance. */
+  body.ab-entry-mode .abyss-command-page .abyss-stage > .ab-current-objective { order: 0; }
   .abyss-command-page .abyss-stats > .ab-stat-vitals { gap: 4px; }
   .abyss-command-page .ab-stat-vitals .ab-chip-label { font-size: .75rem; line-height: 16px; }
   .abyss-command-page .ab-entry-summary { gap: 4px; margin-block: 0; line-height: 1.4; }
