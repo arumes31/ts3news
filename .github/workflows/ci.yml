@@ -258,6 +258,21 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+      - name: Promote verified image to latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: ${{ steps.image.outputs.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          main_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          if [ "$main_sha" != "$GITHUB_SHA" ]; then
+            echo "Skipped latest promotion: main has advanced beyond this run." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          docker buildx imagetools create --prefer-index=false \
+            --tag "$IMAGE:latest" "$IMAGE@$DIGEST"
+          echo "Updated \`$IMAGE:latest\` to verified digest \`$DIGEST\`." >> "$GITHUB_STEP_SUMMARY"
+
   abyss-browser-e2e:
     name: Abyss Browser Journey
     runs-on: ubuntu-latest
