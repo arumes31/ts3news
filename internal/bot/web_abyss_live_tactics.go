@@ -393,7 +393,7 @@ func liveAllyEffects(au *activeUser) []abyssLiveEffect {
 	}
 	effects := make([]abyssLiveEffect, 0, len(au.effects)+1)
 	if au.u != nil {
-		if sub, ok := content.AbyssSubclassByID(au.u.AbyssSubclass); ok {
+		if sub, ok := abyssUserStyle(au.u); ok {
 			effects = append(effects, abyssLiveEffect{Name: fmt.Sprintf("%s: %d/3 %s", sub.Name, au.classResource, sub.Resource), Description: sub.Sequence, Duration: "this encounter"})
 		}
 	}

@@ -272,7 +272,7 @@
       if (latest) { clear(); catchup = true; cursor = accepted; mark('catchup'); }
     }
   }
-  window.AbyssCombatAnimation = {reset: reset, register: register, ingest: ingest, connection: connection, dispose: function () { reset(''); }};
+  window.AbyssCombatAnimation = {isPlaying: function (id) { return session === id && active; }, reset: reset, register: register, ingest: ingest, connection: connection, dispose: function () { reset(''); }};
 })();
 
 // Keep actor buttons and formation slots stable while server routing IDs change.

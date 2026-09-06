@@ -445,7 +445,7 @@ func (c *abyssLiveCombat) publishRound(
 			critical = true
 		}
 		weaponType, weaponName := abyssPresentationWeapon(au.u)
-		subclass, _ := content.AbyssSubclassByID(au.u.AbyssSubclass)
+		subclass, _ := abyssUserStyle(au.u)
 		classArtKey := ""
 		if au.u.AbyssClass != "" {
 			classArtKey = "class:" + au.u.AbyssClass

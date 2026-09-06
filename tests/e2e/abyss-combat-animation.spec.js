@@ -403,10 +403,20 @@ test('fast playback stays bounded, preserves every outcome, and persists without
   next.version += 1;
   next.presentation_cursor = 8;
   next.presentation_events = Array.from({ length: 8 }, (_, index) => combatEvent(index + 1, [{ target_id: BOSS, damage: index + 10 }]));
-  const start = await page.evaluate(() => performance.now());
-  await render(page, next);
+  // Measure playback inside the page. Separate driver calls and locator polling
+  // otherwise count transport/screenshot overhead as animation time on slow hosts.
+  const elapsed = await page.evaluate(snapshot => new Promise((resolve, reject) => {
+    const stage = document.getElementById('livePixelStage');
+    const start = performance.now();
+    const timeout = setTimeout(() => { observer.disconnect(); reject(new Error('Playback did not finish')); }, 10_000);
+    const observer = new MutationObserver(() => {
+      if (stage.dataset.lastEventSeq !== '8' || !/^(idle|catchup)$/.test(stage.dataset.presentationState)) return;
+      observer.disconnect(); clearTimeout(timeout); resolve(performance.now() - start);
+    });
+    observer.observe(stage, { attributes: true, attributeFilter: ['data-last-event-seq', 'data-presentation-state'] });
+    window.renderLiveCombat(snapshot);
+  }), next);
   await consumed(page, 8);
-  const elapsed = await page.evaluate(() => performance.now()) - start;
   expect(elapsed).toBeLessThan(2500);
   const numbers = (await records(page)).filter(item => item.kind === 'number');
   expect([...new Set(numbers.map(item => item.seq))].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);

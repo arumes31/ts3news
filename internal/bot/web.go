@@ -34,7 +34,7 @@ func jsonJS(v any) template.JS {
 	return template.JS(b) // #nosec G203 - trusted JSON data from server, not user input
 }
 
-//go:embed webassets/*.html webassets/*.css webassets/*.js webassets/*.svg webassets/*.png webassets/*.md webassets/icons/*.svg
+//go:embed webassets/*.html webassets/*.css webassets/*.js webassets/*.svg webassets/*.png webassets/*.md webassets/icons/*.svg webassets/abyss_talents/*.svg
 var webAssets embed.FS
 
 const (
@@ -463,10 +463,22 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_catalog_icons.js", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_catalog_icons.js", "application/javascript; charset=utf-8")
 	})
-	for _, classAsset := range []struct{ name, mime string }{{"abyss_player_classes_v1.png", "image/png"}, {"abyss_subclasses_martial_v1.png", "image/png"}, {"abyss_subclasses_mystic_v1.png", "image/png"}, {"abyss_classes.js", "application/javascript; charset=utf-8"}, {"abyss_classes.css", "text/css; charset=utf-8"}} {
+	for _, classAsset := range []struct{ name, mime string }{{"abyss_player_classes_v1.png", "image/png"}, {"abyss_subclasses_martial_v1.png", "image/png"}, {"abyss_subclasses_mystic_v1.png", "image/png"}, {"abyss_classes.js", "application/javascript; charset=utf-8"}, {"abyss_classes.css", "text/css; charset=utf-8"}, {"abyss_class_talents.js", "application/javascript; charset=utf-8"}, {"abyss_class_talents.css", "text/css; charset=utf-8"}} {
 		mux.HandleFunc("/static/"+classAsset.name, func(w http.ResponseWriter, r *http.Request) {
 			ServeAsset(w, r, "webassets/"+classAsset.name, classAsset.mime)
 		})
+	}
+	for _, class := range content.AbyssClasses() {
+		ids := []string{class.ID}
+		for _, sub := range class.Subclasses {
+			ids = append(ids, sub.ID)
+		}
+		for _, id := range ids {
+			for _, node := range content.AbyssTalents(id).Nodes {
+				asset := "webassets/abyss_talents/" + node.ID + ".svg"
+				mux.HandleFunc(node.Art, func(w http.ResponseWriter, r *http.Request) { ServeAsset(w, r, asset, "image/svg+xml") })
+			}
+		}
 	}
 	mux.HandleFunc("/static/abyss_combat_art.js", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_combat_art.js", "application/javascript; charset=utf-8")

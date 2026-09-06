@@ -66,7 +66,7 @@ func AbyssSubclassByID(id string) (AbyssSubclass, bool) {
 
 // Signature actions are additive class actions, never random drops or purchased slots.
 func AbyssClassSkills(id string) []Skill {
-	sub, ok := AbyssSubclassByID(id)
+	sub, ok := AbyssCombatStyle(id)
 	if !ok {
 		return nil
 	}

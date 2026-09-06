@@ -1,5 +1,11 @@
 # The Abyss — What's New
 
+## 2026-09-06 — Choose your talent path
+- Earn permanent class XP from Abyss monster defeats. The first five points arrive quickly; later points take 500–5,000 additional qualifying floors, tracked separately for each class.
+- Choose five talents from a branching class foundation, then unlock one of two empowered subclasses. Each subclass has eighteen talents and a ten-point limit, including one exclusive final talent.
+- Every one of the 306 talent nodes has its own artwork. Inspect exact effects, competing choices and XP requirements in My Build; change paths freely between runs.
+- Existing subclass builds receive the early five points once. Saved skills, gear, purchases, Skill Web investments and earned XP are preserved. Replayed fights cannot duplicate class XP.
+
 ## 2026-09-06 — Classes and empowered subclasses
 - Choose six freely switchable classes and twelve subclasses in My Build, each with its own empowered animated character and signature spell effects.
 - Build and spend a visible class resource with two signature actions. Costs, scaling, target setup and payoff are shown before you cast.

@@ -41,6 +41,7 @@ func abyssClassSkillRole(s content.Skill) string {
 // previewAbyssClassSkill never mutates encounter state. Target-specific bonuses
 // are applied only to the marked enemy, with the same function at resolution.
 func previewAbyssClassSkill(au *activeUser, s content.Skill, target *content.Mob) content.Skill {
+	s = previewAbyssTalentSkill(au, s, target)
 	if au == nil || au.u == nil || abyssClassSkillRole(s) != "finisher" {
 		return s
 	}
@@ -99,7 +100,7 @@ func previewAbyssClassSkill(au *activeUser, s content.Skill, target *content.Mob
 	return s
 }
 
-func abyssClassShield(au *activeUser, s content.Skill) int {
+func abyssClassBaseShield(au *activeUser, s content.Skill) int {
 	if au == nil || au.u == nil {
 		return 0
 	}
@@ -130,7 +131,7 @@ func resolveAbyssClassCast(au *activeUser, s content.Skill, target *content.Mob,
 		*logs = append(*logs, fmt.Sprintf("%s grants %s a %d HP barrier.", s.Name, au.u.Nickname, gained))
 		au.u.live.present(round, "skill", "ally:"+au.u.UID, s.ID, s.Name, s.Element, abyssLivePresentationOutcome{TargetID: "ally:" + au.u.UID, Status: "barrier"})
 	}
-	sub, ok := content.AbyssSubclassByID(au.u.AbyssSubclass)
+	sub, ok := abyssUserStyle(au.u)
 	if !ok || abyssClassSkillRole(s) == "" {
 		return adjusted
 	}

@@ -102,7 +102,7 @@ services:
   # Idely when a real user is talking. It automatically seeds a working
   # ts3audiobot.toml and rights.toml on first run.
   ts3audiobot:
-    image: ancieque/ts3audiobot:latest
+    image: ancieque/ts3audiobot:latest@sha256:3da81924dab980b3d2ec702cfa35c4c436dd7b5ba0b9d784d1a680a3b05a1cb1
     container_name: ts3-news-audiobot
     restart: unless-stopped
     depends_on:

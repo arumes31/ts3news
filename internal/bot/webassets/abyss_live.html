@@ -971,7 +971,14 @@ async function finishLiveCombat(state){
   var priorReduce=reduceMotion; reduceMotion=true;
   await processDescendResult(result,liveStartHP,liveStartMaxHP);
   reduceMotion=priorReduce;
-  setTimeout(function(){dismissFinishedLiveCombat(completedSession);},900);
+  // Timer throttling can outlast the nominal animation budget. Keep the
+  // completed scene until its actual event queue has presented every outcome.
+  setTimeout(function dismissAfterPresentation(){
+    if(window.AbyssCombatAnimation&&window.AbyssCombatAnimation.isPlaying(completedSession)){
+      setTimeout(dismissAfterPresentation,50);return;
+    }
+    dismissFinishedLiveCombat(completedSession);
+  },900);
 }
 
 function resumeLiveCombatPhase(phase){

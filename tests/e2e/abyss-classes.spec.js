@@ -1,14 +1,17 @@
 const {test,expect}=require('@playwright/test');
 
-async function openBuild(page,{locked=false,fail=false}={}){
+async function openBuild(page,{locked=false,fail=false,fresh=false}={}){
  let payload;let posts=[];
  await page.route('**/api/abyss/classes',async route=>{
-  if(!payload){const response=await route.fetch();payload=await response.json();payload.locked=locked;}
+  if(!payload){const response=await route.fetch();payload=await response.json();payload.locked=locked;
+   if(fresh)for(const c of payload.catalog){payload.class_progress[c.id]={xp:75000,points:5,clears:75,next_xp:575000,foundation:[],subclass_unlocked:false,best_depth:75};payload.state.progress[c.id]={xp:75000,foundation:[]};}
+  }
   if(fail){await route.fulfill({status:500,json:{ok:false,error:'Build service unavailable. Reload to retry.'}});return;}
   if(route.request().method()==='POST'){
    const body=route.request().postDataJSON();posts.push(body);
    if(locked){await route.fulfill({json:{ok:false,error:'Bank your run first.'}});return;}
-   payload.state.selected=body.selected;payload.state.revision++;
+   payload.state.selected=body.selected;payload.state.class=body.class||'';payload.state.revision++;
+   if(body.foundation){payload.class_progress[body.class].foundation=body.foundation;payload.class_progress[body.class].subclass_unlocked=body.foundation.length===5;}
    if(body.profile)payload.state.profiles[body.selected]=body.profile;
   }
   await route.fulfill({json:payload});
@@ -59,6 +62,7 @@ for(const viewport of [{width:1440,height:900},{width:390,height:844}])test('bui
  await page.setViewportSize(viewport);await openBuild(page);await page.locator('[data-class="artificer"]').click();await page.locator('#abyssSubclass').selectOption('alchemist');
  await expect(page.locator('#abyssClassChoose')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
  await page.locator('#abyssMyBuild').screenshot({path:testInfo.outputPath('my-build-'+viewport.width+'.png')});
+ await page.locator('#abyssFoundationTree').screenshot({path:testInfo.outputPath('foundation-'+viewport.width+'.png')});await page.locator('#abyssSubclassTree').screenshot({path:testInfo.outputPath('subclass-'+viewport.width+'.png')});
 });
 
 
@@ -66,4 +70,36 @@ test('reloaded active builds can return to the original build without losing sav
  await openBuild(page);await page.locator('#abyssClassChoose').click();await expect(page.locator('#abyssClassStatus')).toContainText('Build saved');
  await page.locator('#abyssClassReload').click();await expect(page.locator('#abyssClassStatus')).toContainText('active.');await expect(page.locator('#abyssClassLegacy')).toBeEnabled();
  await page.locator('#abyssClassLegacy').click();await expect(page.locator('#abyssClassStatus')).toContainText('Your original build is active');await expect(page.locator('#abyssClassLegacy')).toBeDisabled();
+});
+
+
+test('foundation choices unlock a subclass and cannot select every competing talent',async({page})=>{
+ const posts=await openBuild(page,{fresh:true});
+ await page.locator('#abyssSubclass').selectOption('vanguard');await expect(page.locator('#abyssClassChoose')).toBeDisabled();
+ for(let tier=1;tier<=5;tier++)await page.locator('[data-talent="warrior_t'+tier+'_1"]').click();
+ await page.locator('[data-talent="warrior_t1_2"]').click();await expect(page.locator('[data-talent="warrior_t1_2"]')).toBeFocused();
+ await expect(page.locator('#abyssFoundationTree [aria-pressed=true]')).toHaveCount(5);
+ await expect(page.locator('[data-talent="warrior_t1_1"]')).toHaveAttribute('aria-pressed','false');
+ await page.locator('#abyssTalentSave').click();await expect(page.locator('#abyssClassStatus')).toContainText('Talent build saved');
+ expect(posts.at(-1).foundation).toHaveLength(5);expect(posts.at(-1).selected).toBe('vanguard');
+ await expect(page.locator('#abyssClassChoose')).toHaveText('Active subclass');
+ await expect(page.locator('[data-talent="vanguard_t1_1"]')).toHaveAttribute('aria-disabled','true');await expect(page.locator('[data-talent="vanguard_t1_1"]')).toHaveAttribute('aria-label',/Earn the next/);
+});
+
+test('subclass path enforces ten-point budget and a single capstone',async({page})=>{
+ const posts=await openBuild(page);await page.locator('#abyssSubclass').selectOption('vanguard');
+ await expect(page.locator('[data-talent="vanguard_t6_1"]')).toHaveAttribute('aria-disabled','true');await expect(page.locator('[data-talent="vanguard_t6_1"]')).toHaveAttribute('aria-label',/previous tier/);
+ for(let tier=1;tier<=4;tier++)for(const branch of [1,2])await page.locator('[data-talent="vanguard_t'+tier+'_'+branch+'"]').click();
+ await page.locator('[data-talent="vanguard_t5_1"]').click();await page.locator('[data-talent="vanguard_t6_1"]').click();
+ await page.locator('[data-talent="vanguard_t6_2"]').click();await expect(page.locator('#abyssSubclassTree [aria-pressed=true]')).toHaveCount(10);
+ await expect(page.locator('[data-talent="vanguard_t6_1"]')).toHaveAttribute('aria-pressed','false');
+ await page.locator('#abyssTalentSave').click();await expect(page.locator('#abyssClassStatus')).toContainText('Talent build saved');expect(posts.at(-1).profile.talents).toHaveLength(10);
+ await page.locator('#abyssSubclass').selectOption('berserker');await page.locator('#abyssSubclass').selectOption('vanguard');await expect(page.locator('#abyssSubclassTree [aria-pressed=true]')).toHaveCount(10);
+});
+
+test('every talent icon loads and artwork differs across all 306 nodes',async({page})=>{
+ await openBuild(page);const result=await page.evaluate(async()=>{
+  const data=await fetch('/api/abyss/classes').then(r=>r.json());const icons=Object.values(data.talent_catalog).flatMap(t=>t.nodes.map(n=>n.art));
+  const content=await Promise.all(icons.map(async path=>{const r=await fetch(path);if(!r.ok)throw Error(path);return (await r.text()).replace(/<title>.*?<\/title>/s,'');}));return {count:icons.length,unique:new Set(content).size};
+ });expect(result).toEqual({count:306,unique:306});
 });

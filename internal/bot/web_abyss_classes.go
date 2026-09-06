@@ -14,18 +14,21 @@ import (
 )
 
 type abyssClassProfile struct {
-	Skills []string `json:"skills"`
-	Pins   []string `json:"pins"`
+	Skills  []string `json:"skills"`
+	Pins    []string `json:"pins"`
+	Talents []string `json:"talents"`
 }
 type abyssClassState struct {
-	Version  int                          `json:"version"`
-	Revision int64                        `json:"revision"`
-	Selected string                       `json:"selected"`
-	Profiles map[string]abyssClassProfile `json:"profiles"`
+	Version  int                           `json:"version"`
+	Class    string                        `json:"class"`
+	Progress map[string]abyssClassProgress `json:"progress"`
+	Revision int64                         `json:"revision"`
+	Selected string                        `json:"selected"`
+	Profiles map[string]abyssClassProfile  `json:"profiles"`
 }
 
 func newAbyssClassState() abyssClassState {
-	return abyssClassState{Version: 1, Profiles: map[string]abyssClassProfile{}}
+	return abyssClassState{Version: 2, Progress: map[string]abyssClassProgress{}, Profiles: map[string]abyssClassProfile{}}
 }
 func abyssClassKey(uid string) string { return "abyss_class_build:" + uid }
 func decodeAbyssClassState(raw string) (abyssClassState, error) {
@@ -33,8 +36,8 @@ func decodeAbyssClassState(raw string) (abyssClassState, error) {
 	if err := json.Unmarshal([]byte(raw), &state); err != nil {
 		return state, err
 	}
-	if state.Version != 1 {
-		return state, errors.New("unsupported class build version")
+	if err := normalizeAbyssClassState(&state); err != nil {
+		return state, err
 	}
 	if state.Selected != "" {
 		if _, ok := content.AbyssSubclassByID(state.Selected); !ok {
@@ -119,13 +122,17 @@ func (b *Bot) abyssLearnedSkills(ctx context.Context, uid string) ([]content.Ski
 	return out, rows.Err()
 }
 func (b *Bot) applyAbyssClassBuild(u *UserInCombat, state abyssClassState) {
-	sub, ok := content.AbyssSubclassByID(state.Selected)
+	styleID := state.Selected
+	if styleID == "" {
+		styleID = state.Class
+	}
+	sub, ok := content.AbyssCombatStyle(styleID)
 	if !ok {
 		return
 	}
 	u.AbyssClass = sub.ClassID
-	u.AbyssSubclass = sub.ID
-	profile := state.Profiles[sub.ID]
+	u.AbyssSubclass = state.Selected
+	profile := state.Profiles[styleID]
 	if profile.Skills != nil {
 		skills := []content.Skill{}
 		for _, id := range profile.Skills {
@@ -149,7 +156,17 @@ func (b *Bot) applyAbyssClassBuild(u *UserInCombat, state abyssClassState) {
 		}
 		u.Skills = skills
 	}
-	u.Skills = append(u.Skills, content.AbyssClassSkills(sub.ID)...)
+	signatures := content.AbyssClassSkills(sub.ID)
+	if state.Selected == "" {
+		points := content.AbyssClassPoints(state.Progress[sub.ClassID].XP)
+		if points < 1 {
+			signatures = nil
+		} else if points < 3 {
+			signatures = signatures[:1]
+		}
+	}
+	u.Skills = append(u.Skills, signatures...)
+	applyAbyssTalentStats(u, state)
 }
 
 func (s *WebServer) handleAbyssClasses(w http.ResponseWriter, r *http.Request, uid string) {
@@ -173,9 +190,11 @@ func (s *WebServer) handleAbyssClasses(w http.ResponseWriter, r *http.Request, u
 			return
 		}
 		var req struct {
-			Selected string             `json:"selected"`
-			Revision int64              `json:"revision"`
-			Profile  *abyssClassProfile `json:"profile"`
+			Selected   string             `json:"selected"`
+			Class      string             `json:"class"`
+			Foundation *[]string          `json:"foundation"`
+			Revision   int64              `json:"revision"`
+			Profile    *abyssClassProfile `json:"profile"`
 		}
 		if readJSON(r, &req) != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "Invalid build request."})
@@ -233,10 +252,51 @@ func (s *WebServer) handleAbyssClasses(w http.ResponseWriter, r *http.Request, u
 			writeJSON(w, map[string]any{"ok": false, "error": "This build changed in another tab. Reload before saving."})
 			return
 		}
+		classID := req.Class
+		if sub, ok := content.AbyssSubclassByID(req.Selected); ok {
+			classID = sub.ClassID
+		}
+		if classID != "" {
+			if _, ok := content.AbyssClassByID(classID); !ok {
+				writeJSON(w, map[string]any{"ok": false, "error": "Unknown class."})
+				return
+			}
+		}
+		progress := state.Progress[classID]
+		if req.Foundation != nil {
+			if err := validateAbyssTalents(classID, *req.Foundation, min(5, content.AbyssClassPoints(progress.XP))); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+				return
+			}
+			progress.Foundation = *req.Foundation
+			state.Progress[classID] = progress
+		}
+		if req.Selected != "" && (len(progress.Foundation) != 5 || content.AbyssClassPoints(progress.XP) < 5) {
+			writeJSON(w, map[string]any{"ok": false, "error": "Spend five foundation talent points to unlock a subclass."})
+			return
+		}
+		state.Class = classID
 		state.Selected = req.Selected
 		state.Revision++
+		profileID := req.Selected
+		if profileID == "" {
+			profileID = classID
+		}
 		if req.Profile != nil {
-			state.Profiles[req.Selected] = *req.Profile
+			if req.Profile.Talents == nil {
+				req.Profile.Talents = state.Profiles[profileID].Talents
+			}
+			if len(req.Profile.Talents) > 0 {
+				if req.Selected == "" {
+					writeJSON(w, map[string]any{"ok": false, "error": "Choose a subclass before allocating its talents."})
+					return
+				}
+				if err := validateAbyssTalents(req.Selected, req.Profile.Talents, max(0, content.AbyssClassPoints(progress.XP)-5)); err != nil {
+					writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+					return
+				}
+			}
+			state.Profiles[profileID] = *req.Profile
 		}
 		for _, skill := range learned {
 			if err = archiveAbyssLearnedSkill(tx, uid, skill.ID); err != nil {
@@ -254,6 +314,7 @@ func (s *WebServer) handleAbyssClasses(w http.ResponseWriter, r *http.Request, u
 			return
 		}
 	}
+	s.bot.flushAbyssClassPending(r.Context(), uid)
 	state, err := s.bot.loadAbyssClassState(r.Context(), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "Could not read saved build. Retry."})
@@ -298,25 +359,43 @@ func abyssBuildSkillViews(u UserInCombat, skills []content.Skill) []map[string]a
 }
 func (b *Bot) abyssClassBuildView(uid string, state abyssClassState, u UserInCombat, learned []content.Skill, locked bool) map[string]any {
 	catalog := content.AbyssClasses()
+	trees := map[string]content.AbyssTalentTree{}
+	foundations := map[string]content.AbyssSubclass{}
+	progressViews := map[string]any{}
 	signatures := map[string]any{}
 	for _, class := range catalog {
+		trees[class.ID] = content.AbyssTalents(class.ID)
+		foundations[class.ID], _ = content.AbyssFoundationStyle(class.ID)
+		p := state.Progress[class.ID]
+		points := content.AbyssClassPoints(p.XP)
+		next := int64(0)
+		if points < 15 {
+			next = content.AbyssClassPointFloors[points] * 1000
+		}
+		progressViews[class.ID] = map[string]any{"xp": p.XP, "clears": p.Clears, "points": points, "next_xp": next, "foundation": p.Foundation, "legacy_credit": p.LegacyCredit, "best_depth": p.BestDepth, "subclass_unlocked": len(p.Foundation) == 5}
+		signatures[class.ID] = abyssBuildSkillViews(u, content.AbyssClassSkills(class.ID))
 		for _, sub := range class.Subclasses {
+			trees[sub.ID] = content.AbyssTalents(sub.ID)
 			signatures[sub.ID] = abyssBuildSkillViews(u, content.AbyssClassSkills(sub.ID))
 		}
 	}
-	sub, _ := content.AbyssSubclassByID(state.Selected)
+	styleID := state.Selected
+	if styleID == "" {
+		styleID = state.Class
+	}
+	sub, _ := content.AbyssCombatStyle(styleID)
 	advice := []string{"Choose a class to see your signature sequence and build priorities. Existing specializations and Skill Web investments remain active."}
 	if sub.ID != "" {
 		advice = []string{sub.Gear, sub.Buffs}
 	}
-	regen := 10 + u.Stats.MNA/20
+	regen := 10 + u.Stats.MNA/20 + int(u.classTalents["regen"])
 	weakness := fmt.Sprintf("Mana recovers %d per round. A signature pair costs 45 mana before reductions.", regen)
 	if regen < 23 {
 		weakness += " Alternate with basic attacks or add mana sustain for longer encounters."
 	} else {
-		weakness += " Your base recovery supports the two-action signature cycle."
+		weakness += " Your recovery supports the two-action signature cycle."
 	}
-	return map[string]any{"ok": true, "catalog": catalog, "state": state, "signatures": signatures, "skills": abyssBuildSkillViews(u, u.Skills), "learned": abyssBuildSkillViews(u, learned), "capacity": b.abyssSkillCapacity(uid), "stats": u.Stats, "advice": advice, "weakness": weakness, "locked": locked, "next_upgrade": b.abyssClassTreeUpgrade(uid, u, sub), "gear_comparisons": b.abyssClassGearComparisons(uid, u, sub)}
+	return map[string]any{"ok": true, "talent_catalog": trees, "foundation_styles": foundations, "class_progress": progressViews, "catalog": catalog, "state": state, "signatures": signatures, "skills": abyssBuildSkillViews(u, u.Skills), "learned": abyssBuildSkillViews(u, learned), "capacity": b.abyssSkillCapacity(uid), "stats": u.Stats, "advice": advice, "weakness": weakness, "locked": locked, "next_upgrade": b.abyssClassTreeUpgrade(uid, u, sub), "gear_comparisons": b.abyssClassGearComparisons(uid, u, sub)}
 }
 
 func abyssClassNextUpgrade(u UserInCombat, sub content.AbyssSubclass) map[string]any {

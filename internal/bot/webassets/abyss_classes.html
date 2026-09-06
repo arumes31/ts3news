@@ -13,6 +13,16 @@
     <button type="button" class="ghost" id="abyssClassLegacy">Use my original build</button>
    </div>
   </div>
+  <section class="ab-talent-workshop" aria-labelledby="abyssTalentTitle">
+   <div class="ab-talent-heading"><h3 id="abyssTalentTitle">Class talents</h3><span id="abyssTalentBudget"></span></div>
+   <p id="abyssTalentProgress"></p><progress id="abyssTalentXP" value="0" max="1" aria-label="Class XP toward the next point"></progress>
+   <p id="abyssTalentPacing"></p>
+   <div id="abyssFoundationTree"></div>
+   <div id="abyssSubclassGate" class="ab-talent-gate"></div>
+   <div id="abyssSubclassTree"></div>
+   <p id="abyssTalentInspect" role="status" aria-live="polite">Inspect a talent to see its effect and requirements.</p>
+   <div class="ab-talent-actions"><button type="button" id="abyssTalentSave">Save talent path</button><button type="button" class="ghost" id="abyssTalentReset">Reset this path</button></div>
+  </section>
   <div id="abyssClassSignatures" class="ab-class-signatures"></div>
   <div class="ab-class-guidance"><div><h3>Your next improvement</h3><p id="abyssClassNext"></p><a href="/abyss/tree">Plan the upgrade and check its cost</a></div><div><h3>Keep the sequence working</h3><p id="abyssClassWeakness"></p><p id="abyssClassBuffs"></p></div></div>
   <details class="ab-class-library" open><summary>Equipped skills and learned families</summary>
@@ -30,4 +40,6 @@
 </section>
 <link rel="stylesheet" href="/static/abyss_classes.css?v={{assetver "webassets/abyss_classes.css"}}">
 <script defer src="/static/abyss_classes.js?v={{assetver "webassets/abyss_classes.js"}}"></script>
+<script defer src="/static/abyss_class_talents.js?v={{assetver "webassets/abyss_class_talents.js"}}"></script>
+<link rel="stylesheet" href="/static/abyss_class_talents.css?v={{assetver "webassets/abyss_class_talents.css"}}">
 {{end}}

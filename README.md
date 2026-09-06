@@ -189,6 +189,15 @@ All gold/XP is the same economy used by the TS3 RPG, so farming the arcade or ba
 
 ### Option A: Using the Pre-built GHCR Image (Recommended)
 
+First select a successful CI run and verify its signed provenance and SBOM using
+the [GHCR deployment and migration guide](DEPLOYMENT.md). Set
+`TS3NEWS_IMAGE_DIGEST=sha256:<verified digest>` in `.env` beside your Compose file.
+CI publishes commit tags for discovery; deployment uses the immutable digest.
+Existing `latest` deployments must migrate because CI no longer updates that tag.
+
+Go builds require Go 1.27.1 or newer. PostgreSQL remains on the existing 15-alpine
+image and storage layout.
+
 1.  **Create `docker-compose.yml`**:
     ```yaml
     services:
@@ -209,7 +218,7 @@ All gold/XP is the same economy used by the TS3 RPG, so farming the arcade or ba
           retries: 5
 
       ts3-bot:
-        image: ghcr.io/arumes31/ts3news:latest
+        image: ghcr.io/arumes31/ts3news@${TS3NEWS_IMAGE_DIGEST:?Set a verified image digest}
         container_name: ts3-news-bot
         restart: unless-stopped
         ports:
@@ -232,7 +241,12 @@ All gold/XP is the same economy used by the TS3 RPG, so farming the arcade or ba
       postgres_data:
     ```
 2.  **Configure**: Create `config.env` using `example.env` as a template.
-3.  **Run**: `docker compose up -d`
+3.  **Run**: `docker compose up -d`. For the full checked-in stack with Idely, use
+    `docker compose -f docker-compose.ghcr.yml up -d` after following the migration
+    guide and preserving your database mounts.
+
+See [SECURITY.md](SECURITY.md) for private vulnerability reporting, automated
+scanning, and required repository protections.
 
 ### Option B: Building from Source
 
@@ -314,3 +328,7 @@ This project is licensed under the MIT License.
 <p align="center">
   <em>Made with ⚔️ and 🎲 for the TeamSpeak community.</em>
 </p>
+
+Developer dependency versions are recorded in `go.mod`, `package-lock.json`, and
+`requirements-dev.txt` (Pillow for `tests/combat-art-atlases.py`). Install the latter
+with `python -m pip install -r requirements-dev.txt`. CI uses Node 26.8.1.

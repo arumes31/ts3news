@@ -94,9 +94,8 @@ test('mobile live combat places actions below the battlefield and retires the ru
   expect(layout.focusedDecision).toBe(true);
 });
 
-test('desktop live combat keeps vitals, battlefield, spell queue, actions, and log fully visible', async ({ page }) => {
-  test.setTimeout(120_000);
-  const viewports = [
+// Each viewport is an independent layout contract with the normal per-test timeout.
+for (const viewport of [
     { width: 901, height: 768 },
     { width: 901, height: 1000 },
     { width: 1024, height: 768 },
@@ -107,9 +106,8 @@ test('desktop live combat keeps vitals, battlefield, spell queue, actions, and l
     { width: 1440, height: 1000 },
     { width: 1440, height: 1080 },
     { width: 1920, height: 1080 },
-  ];
-
-  for (const viewport of viewports) {
+  ]) {
+  test(`desktop live combat keeps vitals, battlefield, spell queue, actions, and log fully visible at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const state = planningState([
@@ -228,8 +226,8 @@ test('desktop live combat keeps vitals, battlefield, spell queue, actions, and l
       expect(rect.fullyUnclipped, `${name} should not be clipped by an ancestor at ${viewport.width}x${viewport.height}: ${JSON.stringify(rect)}`).toBe(true);
       expect(rect.uncovered, `${name} should not be covered at ${viewport.width}x${viewport.height}`).toBe(true);
     }
-  }
-});
+  });
+}
 
 test('live snapshots keep the visible health and mana bars synchronized', async ({ page }) => {
   const state = planningState();

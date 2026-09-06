@@ -37,7 +37,7 @@ func TestAbyssClassLoadPreservesReadFailures(t *testing.T) {
 		err       error
 		wantError bool
 	}{
-		{"missing", "", sql.ErrNoRows, false}, {"database failure", "", errors.New("unavailable"), true}, {"null", "null", nil, true}, {"missing version", "{}", nil, true}, {"corrupt", "bad", nil, true}, {"future version", `{"version":2}`, nil, true}, {"unknown subclass", `{"version":1,"selected":"bad"}`, nil, true}, {"valid", `{"version":1,"selected":"oracle"}`, nil, false},
+		{"missing", "", sql.ErrNoRows, false}, {"database failure", "", errors.New("unavailable"), true}, {"null", "null", nil, true}, {"missing version", "{}", nil, true}, {"corrupt", "bad", nil, true}, {"future version", `{"version":3}`, nil, true}, {"unknown subclass", `{"version":1,"selected":"bad"}`, nil, true}, {"valid", `{"version":1,"selected":"oracle"}`, nil, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database, mock, _ := sqlmock.New()

@@ -48,28 +48,31 @@ const (
 // UserInCombat is a character's resolved combat-ready state for one fight:
 // stats, equipped gear, skills, pets, and per-fight modifiers.
 type UserInCombat struct {
-	AbyssClass    string
-	AbyssSubclass string
-	UID           string
-	Nickname      string
-	CLID          int
-	Level         int
-	Stats         content.Stats
-	Skills        []content.Skill
-	Ultimates     []*content.UltimateSkill // up to maxActiveUltimates, no duplicates
-	CurrentHP     int
-	DamageTaken   int // per-fight incoming/self damage; used by authoritative Abyss perfect-run tracking
-	RegenStacks   int
-	Gold          int64
-	Pets          []*content.Mob
-	Equipped      map[content.GearSlot]content.Gear
-	Position      content.Position
-	STRMod        float64
-	DEFMod        float64
-	SPDMod        float64
-	LootFocus     string // Auto-selected per floor: "balanced", "gold", "loot", "xp", "materials" or "tokens"
-	FloorModifier string
-	IsClone       bool // If true, DB updates are skipped (for co-op)
+	AbyssClass      string
+	classTalents    map[string]float64
+	classKillCredit []abyssClassKill
+	classFled       map[*content.Mob]bool
+	AbyssSubclass   string
+	UID             string
+	Nickname        string
+	CLID            int
+	Level           int
+	Stats           content.Stats
+	Skills          []content.Skill
+	Ultimates       []*content.UltimateSkill // up to maxActiveUltimates, no duplicates
+	CurrentHP       int
+	DamageTaken     int // per-fight incoming/self damage; used by authoritative Abyss perfect-run tracking
+	RegenStacks     int
+	Gold            int64
+	Pets            []*content.Mob
+	Equipped        map[content.GearSlot]content.Gear
+	Position        content.Position
+	STRMod          float64
+	DEFMod          float64
+	SPDMod          float64
+	LootFocus       string // Auto-selected per floor: "balanced", "gold", "loot", "xp", "materials" or "tokens"
+	FloorModifier   string
+	IsClone         bool // If true, DB updates are skipped (for co-op)
 	// EscrowLoot suppresses inline loot application in the combat engine. The Abyss
 	// sets this so drops are not granted mid-run; instead they are rolled into the
 	// run's loot escrow (locked until banked, lost on death). See web_abyss_loot.go.
@@ -751,6 +754,10 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 		}
 	}
 	totalRounds := 0
+	for i := range users {
+		users[i].classKillCredit = nil
+		users[i].classFled = map[*content.Mob]bool{}
+	}
 
 	for w := 1; w <= waves; w++ {
 		if track != nil {
@@ -798,6 +805,8 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 				initialMobs = append(initialMobs, currentMobs[i]) // track for rewards
 			}
 		}
+
+		classOriginal := append([]*content.Mob(nil), currentMobs...)
 
 		// Initialize wave header (rarity-coloured enemy names + wave countdown)
 		mobCounts := make(map[string]int)
@@ -1322,6 +1331,18 @@ func (b *Bot) resolveChannelCombatDetailedWithRandom(
 			live.capturePresentationFinalState(activeUsers, currentMobs)
 		}
 
+		if isAbyss {
+			fled := map[*content.Mob]bool{}
+			for i := range users {
+				for m := range users[i].classFled {
+					fled[m] = true
+				}
+			}
+			credit := abyssWaveClassKills(classOriginal, currentMobs, w, waves, fled)
+			for i := range users {
+				users[i].classKillCredit = append(users[i].classKillCredit, credit...)
+			}
+		}
 		// Per-kill XP: bank the RewardXP of every mob that died this wave, so a
 		// wipe still credits the kills that landed (a lost fight keeps 25% below).
 		for _, m := range currentMobs {
@@ -1605,6 +1626,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 
 		// Mana regeneration: base 10 + 5% of flat MNA stat per round
 		regen := 10 + u.Stats.MNA/20
+		if abyssCombatant(u) {
+			regen += int(u.classTalents["regen"])
+		}
 		au.CurrentMana += regen
 		if au.CurrentMana > au.MaxMana {
 			au.CurrentMana = au.MaxMana
@@ -1903,7 +1927,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					selectedSkill = findLiveSkill(u, liveAction.AbilityID)
 				}
 				manuallySelectedSkill = selectedSkill != nil
-			} else if !isLiveAction && !holdCast && h == 0 && len(u.Skills) > 0 && (u.AbyssSubclass != "" || rand.Float64() < 0.3) { // #nosec G404
+			} else if !isLiveAction && !holdCast && h == 0 && len(u.Skills) > 0 && ((u.AbyssClass != "" || u.AbyssSubclass != "") || rand.Float64() < 0.3) { // #nosec G404
 				selectedSkill = firstReadyAffordableSkill(
 					u.Skills,
 					au.skillCooldowns,
@@ -1911,7 +1935,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					spellCostFor,
 				)
 			}
-			if !isLiveAction && !holdCast && h == 0 && u.AbyssSubclass != "" {
+			if !isLiveAction && !holdCast && h == 0 && (u.AbyssClass != "" || u.AbyssSubclass != "") {
 				selectedSkill = abyssClassAutoSkill(au, spellCostFor)
 			}
 			if selectedSkill != nil {
@@ -2099,7 +2123,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					readyUlt = candidate
 					manuallySelectedUltimate = true
 				}
-			} else if !isLiveAction && (u.AbyssSubclass == "" || selectedSkill == nil) {
+			} else if !isLiveAction && ((u.AbyssSubclass == "" && u.AbyssClass == "") || selectedSkill == nil) {
 				for _, us := range u.Ultimates {
 					if us.CurrentCooldown == 0 && (readyUlt == nil || us.Power > readyUlt.Power) {
 						readyUlt = us
@@ -2603,6 +2627,11 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 			if flee {
 				*logs = append(*logs, i18n.T("bot.combat.goblin_flee"))
 				live.present(round, "status", actorID, "flee", "Flee", m.Element, abyssLivePresentationOutcome{TargetID: actorID, Status: "flee"})
+				for i := range activeUsers {
+					if activeUsers[i].u.classFled != nil {
+						activeUsers[i].u.classFled[m] = true
+					}
+				}
 				m.Stats.HP = 0 // Remove from combat
 				continue
 			}

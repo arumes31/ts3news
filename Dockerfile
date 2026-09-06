@@ -5,17 +5,7 @@
 # 9987, and a small Go bot drives it through the ClientQuery plugin to poke users.
 
 # ---- Stage 1: build the Go bot (pure Go, no cgo) ----
-FROM golang:1.26-bookworm AS gobuilder
-# Fetch the official UPX release to compress the binary (smaller image). Entirely
-# best-effort: if the download fails the build continues without compression.
-ARG UPX_VERSION=4.2.4
-RUN (apt-get update && apt-get install -y --no-install-recommends xz-utils \
-     && curl -fsSL -o /tmp/upx.tar.xz \
-        "https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-amd64_linux.tar.xz" \
-     && tar -xJf /tmp/upx.tar.xz -C /tmp \
-     && install -m 0755 "/tmp/upx-${UPX_VERSION}-amd64_linux/upx" /usr/local/bin/upx \
-     && rm -rf /var/lib/apt/lists/*) \
-    || echo "upx unavailable; compression will be skipped"
+FROM golang:1.27.1-trixie@sha256:9baa6b4187bbb98d240372a8a235ac0bb6b5ddd52bba1431dc2f7c0705862728 AS gobuilder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
@@ -23,12 +13,11 @@ COPY cmd ./cmd
 COPY internal ./internal
 # -ldflags "-s -w" strips debug info; embedded migrations (internal/db/migrations)
 # are baked into the binary.
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o /bot ./cmd/bot \
- && (command -v upx >/dev/null 2>&1 && upx --best --lzma /bot >/dev/null 2>&1 \
-      && echo "upx: compressed" || echo "upx: skipped")
+# Leave Go build metadata readable for image scanning and SBOM cataloging.
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o /bot ./cmd/bot
 
 # ---- Stage 2: download + extract the official TeamSpeak 3 client ----
-FROM debian:bookworm-slim AS tsclient
+FROM debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132 AS tsclient
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 ARG TS3_VERSION=3.6.2
@@ -40,7 +29,7 @@ RUN curl -fsSL -o /tmp/ts3.run \
  && test -f /opt/ts3/ts3client_linux_amd64
 
 # ---- Stage 3: runtime ----
-FROM debian:bookworm-slim
+FROM debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     xvfb dbus dbus-x11 xdotool python3 sqlite3 ca-certificates fonts-dejavu-core procps \
@@ -48,9 +37,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-xfixes0 \
     libxcb-sync1 libxcb-xinerama0 libxcb-util1 libxcb-glx0 libxcb-xkb1 libxcb-cursor0 \
     libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libfreetype6 libdbus-1-3 \
-    libnss3 libglib2.0-0 libgl1 libegl1 libpulse0 libasound2 libxi6 libxtst6 \
+    libnss3 libglib2.0-0t64 libgl1 libegl1 libpulse0 libasound2t64 libxi6 libxtst6 \
     libxrender1 libxrandr2 libxcomposite1 libxdamage1 libxcursor1 \
-    libevent-2.1-7 libsm6 libice6 libxext6 libharfbuzz0b libpng16-16 \
+    libevent-2.1-7t64 libsm6 libice6 libxext6 libharfbuzz0b libpng16-16t64 \
     libpci3 libxslt1.1 liblcms2-2 libatomic1 \
     && rm -rf /var/lib/apt/lists/*
 

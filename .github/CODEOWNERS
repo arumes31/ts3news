@@ -1,0 +1,10 @@
+# Owners must have write access; enforce code-owner review in branch rules.
+* @arumes31
+/.github/ @arumes31
+/.gitleaksignore @arumes31
+/Dockerfile @arumes31
+/docker-compose*.yml @arumes31
+/runtime/ @arumes31
+/internal/db/migrations/ @arumes31
+/SECURITY.md @arumes31
+/DEPLOYMENT.md @arumes31

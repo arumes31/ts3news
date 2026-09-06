@@ -214,6 +214,7 @@ func abyssMobScalars(mobLevel int, diff float64) (lvlScale, effDiff float64) {
 // risk), and a fully-depleted character is handled by the "downed" state in the
 // descend handler, not silently revived.
 func (b *Bot) buildAbyssUser(uid string) (UserInCombat, int, error) {
+	b.flushAbyssClassPending(context.Background(), uid)
 	stats, _, _, _ := b.calculateTotalStats(uid, time.Now())
 
 	// The canonical global stats already include permanent Abyss progression.
@@ -275,6 +276,11 @@ func abyssFoldStats(base content.Stats, tb content.TreeBonus) content.Stats {
 func (b *Bot) abyssCombatStats(uid string) content.Stats {
 	stats, _, _, _ := b.calculateTotalStats(uid, time.Now())
 	u := UserInCombat{Stats: stats}
+	if state, err := b.loadAbyssClassState(context.Background(), uid); err == nil {
+		u.AbyssClass = abyssClassID(state)
+		u.AbyssSubclass = state.Selected
+		applyAbyssTalentStats(&u, state)
+	}
 	applyAbyssRunBuild(&u, b.loadRunFlags(uid), nil)
 	return u.Stats
 }
@@ -1197,6 +1203,13 @@ func (b *Bot) fightAbyssFloorMode(
 		zone,
 		encounterRandom,
 	)
+	classSeed := mode.encounterSeed
+	if mode.live != nil {
+		classSeed = mode.live.randomSeed
+	}
+	classCtx, classCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	resLogs = append(resLogs, b.awardAbyssClassCredits(classCtx, combatUsers, uid, classSeed, depth, victory)...)
+	classCancel()
 	b.routeAbyssPartyLoot(uid, partyUIDs, partyLootStarts, abyssPartyLootRuleFromID(flags["party_loot_rule"]), isBossFloor)
 	for i := range combatUsers {
 		b.consumeAbyssCheer(combatUsers[i].UID)
