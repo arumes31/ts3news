@@ -64,7 +64,8 @@ body.ab-high-contrast .abyss-command-page :is(.ab-threat-fill, .hp-fill, .mana-f
 body.ab-high-contrast .ab-rarity-glyph { background: #000; border: 1px solid currentColor; padding: 2px; }
 
 @media (max-width: 700px) {
-  body.ab-mobile-run { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  body.ab-mobile-run { padding-bottom: calc(var(--ab-mobile-dock-height, 160px) + 16px); }
+  body.ab-mobile-run #miniHud { display: none !important; }
   body.ab-mobile-actions-visible #abyssPrimaryActions {
     position: static !important;
   }
@@ -95,6 +96,12 @@ body.ab-high-contrast .ab-rarity-glyph { background: #000; border: 1px solid cur
     z-index: 1200;
   }
   .ab-mobile-actions button { min-height: 48px; padding: .55rem .35rem; }
+  .ab-mobile-context { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; padding: 2px 4px 6px; color: #becad7; font-size: .8125rem; }
+  .ab-mobile-context > span { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 3px 6px; min-width: 0; }
+  .ab-mobile-context strong { color: #edf2fa; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  #abMobileCache { color: #f2bd5b; }
+  .abyss-command-page :is(#insuranceControls, #multiQueuePlanner) button { min-height: 44px; min-width: 44px; }
+  .abyss-command-page :is(#btnBank25, #btnBank50, #btnTransport) { min-height: 44px; min-width: 44px; }
 }
 
 @media (pointer: coarse) {

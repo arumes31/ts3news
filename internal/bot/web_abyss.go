@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"crypto/hmac"
 	crand "crypto/rand"
 	"crypto/sha256"
@@ -252,6 +253,11 @@ func (b *Bot) buildAbyssUser(uid string) (UserInCombat, int, error) {
 		EscrowLoot: true,
 		treeBonus:  tb,
 	}
+	classState, classErr := b.loadAbyssClassState(context.Background(), uid)
+	if classErr != nil {
+		return UserInCombat{}, 0, fmt.Errorf("load class build: %w", classErr)
+	}
+	b.applyAbyssClassBuild(&u, classState)
 	applyAbyssRunBuild(&u, b.loadRunFlags(uid), b.loadAbyssSkillMastery(uid))
 	return u, prestige, nil
 }
@@ -1296,19 +1302,15 @@ func (b *Bot) fightAbyssFloorMode(
 		b.recordAbyssKills(uid, killedMobs)
 	}
 
-	// Abyss floor XP stays in its deliberate small band (per-kill "kept small"):
-	// a cleared floor pays the full 1-20 roll, a death still banks ~25% of it. The
-	// engine also applies its own level-XP death penalty on a loss. Prestige fires
-	// immediately at the cap like the cycle does.
+	// Victories add bounded depth and tier rewards to the entrance XP roll.
+	// Deaths retain only the small consolation roll, plus the engine's existing
+	// level-XP death penalty. Prestige fires at the cap like the cycle does.
 	var rewardXP int
 	var skillVariety abyssSkillVarietyView
 	var varietyBonusXP int
 	{
 		// #nosec G404 -- non-cryptographic reward roll
-		rewardXP = 1 + encounterRandom.IntN(20)
-		if !victory {
-			rewardXP = (rewardXP + 3) / 4 // ~25% on death, rounds up so a death still pays >=1
-		}
+		rewardXP = abyssCombatFloorXP(1+encounterRandom.IntN(20), depth, tier, victory)
 		rewardXP = int(float64(rewardXP) * abyssPermanentBonus(float64(st.AbyssPrestige)*0.05, 0.50) * (1.0 + content.TalentEffectiveLevel(st.UpInsight)*0.05)) // prestige + Insight node
 		if b.abyssSpec(uid) == "delver" {
 			rewardXP = rewardXP * 11 / 10 // Delver specialization (#161): +10% floor XP
@@ -3566,7 +3568,7 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 	interestRate := abyssGreedyInterestRate(abyssEffectiveInterest(abyssTalentEffectiveInt(st.UpInterest), hasLuckyCoin), depth)
 	growth, overkillGold := applyAbyssEscrowReward(abyssEscrowRewardInput{
 		Escrow:         escrowBefore,
-		InterestGain:   abyssGoldScale(escrowBefore, interestRate),
+		InterestGain:   abyssEscrowInterestGain(escrowBefore, interestRate, depth),
 		FloorBonus:     bonus,
 		Depth:          depth,
 		OverkillDamage: input.OverkillDamage,
@@ -5008,6 +5010,12 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 
+			for _, skillID := range []string{target.id, newSk.ID} {
+				if err := archiveAbyssLearnedSkill(tx, uid, skillID); err != nil {
+					writeJSON(w, map[string]any{"ok": false, "error": "Could not preserve learned skills; reroll was not charged."})
+					return
+				}
+			}
 			// Replace the single target skill
 			if _, err := tx.Exec("UPDATE user_skills SET skill_id = $1 WHERE client_uid = $2 AND slot = $3", newSk.ID, uid, target.slot); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -6346,6 +6354,12 @@ func (s *WebServer) handleAbyssCoopInvite(w http.ResponseWriter, r *http.Request
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
+	// Serialize helper enrollment with class changes, which lock this same user.
+	var helper string
+	if err := tx.QueryRow("SELECT client_uid FROM users WHERE client_uid=$1 FOR UPDATE", req.CoopUID).Scan(&helper); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "Could not lock helper. Retry."})
+		return
+	}
 	var active bool
 	if err := tx.QueryRow("SELECT TRUE FROM abyss_active WHERE client_uid=$1 FOR UPDATE", uid).Scan(&active); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "not in a run"})

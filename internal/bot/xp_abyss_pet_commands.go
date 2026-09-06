@@ -205,6 +205,7 @@ func (b *Bot) runAbyssPetTurns(au *activeUser, ctx abyssPetTurnContext) {
 		if pet == nil || pet.Stats.HP <= 0 {
 			continue
 		}
+		actorID := u.live.presentationEntity(pet, "pet:"+u.UID)
 		if abyssCombatant(u) && abyssPetNervous(pet.Loyalty) && !au.petNervousLogged[pet] {
 			au.petNervousLogged[pet] = true
 			*ctx.logs = append(*ctx.logs, fmt.Sprintf("🐾 %s hangs back, eyes darting toward the exit. (Loyalty %d%% — betrayal risk)", pet.Name, pet.Loyalty))
@@ -220,7 +221,9 @@ func (b *Bot) runAbyssPetTurns(au *activeUser, ctx abyssPetTurnContext) {
 					damage = 1
 				}
 				targetUser.DamageTaken += damage
+				previousHP := targetUser.CurrentHP
 				targetUser.CurrentHP -= damage
+				u.live.present(0, "pet", actorID, "betrayal", "Betrayal", pet.Element, abyssPresentationDamage("ally:"+targetUser.UID, damage, previousHP, targetUser.CurrentHP))
 				*ctx.logs = append(*ctx.logs, i18n.T("bot.combat.rogue_pet_bite", pet.Name, targetUser.Nickname, damage))
 				*ctx.totalMobDamage += damage
 				if targetUser.CurrentHP <= 0 {
@@ -260,6 +263,7 @@ func (b *Bot) runAbyssPetTurns(au *activeUser, ctx abyssPetTurnContext) {
 					heal -= bestTarget.CurrentHP - bestTarget.Stats.HP
 					bestTarget.CurrentHP = bestTarget.Stats.HP
 				}
+				u.live.present(0, "pet", actorID, abyssPresentationPetAbilityID(ability.Name), ability.Name, pet.Element, abyssLivePresentationOutcome{TargetID: "ally:" + bestTarget.UID, Healing: max(0, heal)})
 				setAbyssPetAbilityCooldown(au, petIndex, ability.Cooldown)
 				*ctx.logs = append(*ctx.logs, fmt.Sprintf("✨ [color=#4caf50]%s's Pet %s casts %s on %s, restoring %d HP! (Cooldown: %d rounds)[/color]", u.Nickname, pet.Name, ability.Name, bestTarget.Nickname, heal, ability.Cooldown))
 				if bark := abyssPetBark(pet.PetBark, pet.Name, "heal"); bark != "" {
@@ -299,6 +303,11 @@ func (b *Bot) runAbyssPetTurns(au *activeUser, ctx abyssPetTurnContext) {
 		remainingHP := target.Stats.HP
 		overkill := abyssOverkillHit(damage, remainingHP)
 		target.Stats.HP -= damage
+		abilityID, abilityName := "pet_attack", "Companion Attack"
+		if usesAttackAbility {
+			abilityID, abilityName = abyssPresentationPetAbilityID(ability.Name), ability.Name
+		}
+		u.live.presentMobDamage(0, "pet", actorID, abilityID, abilityName, pet.Element, target, damage, remainingHP)
 		appendAbyssExecuteThresholdLog(ctx.logs, target, remainingHP, abyssCombatant(u))
 		applyAbyssBreakDamage(target, damage, ctx.logs)
 		*ctx.totalUserDamage += damage

@@ -42,9 +42,9 @@ func TestAbyssNonCombatRewardUsesCombatCapAndNeverRepaysDeferredFloor(t *testing
 		want          int64
 	}{
 		{"ordinary floor", 10_000, 2_000, 0.05, false, 12_500},
-		{"over soft cap", 200_000, 8_000, 0.02, false, 203_000},
+		{"over soft cap", 200_000, 8_000, 0.02, false, 202_750},
 		{"deferred return", 200_000, 8_000, 0.02, true, 200_000},
-		{"screenshot cache", 9_123_939_416_000_000_000, 10_000, 0.87, false, math.MaxInt64},
+		{"screenshot cache", 9_123_939_416_000_000_000, 10_000, 0.87, false, 9_123_939_416_000_035_125},
 		{"full deferred cache", math.MaxInt64, 10_000, 0.87, true, math.MaxInt64},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

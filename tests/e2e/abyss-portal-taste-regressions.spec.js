@@ -138,6 +138,8 @@ test('shop makes the rotating stock immediately searchable and every purchase un
   const exactFirstPrice = new Intl.NumberFormat('en-US').format(Number(await firstCard.getAttribute('data-price')));
   await expect(firstCard.locator('.price')).toContainText(exactFirstPrice);
   await expect(firstBuy).toHaveAccessibleName(new RegExp(` for ${exactFirstPrice.replaceAll(',', '\\,')} gold$`));
+  // Full stats and special descriptions intentionally precede the purchase.
+  await firstBuy.scrollIntoViewIfNeeded();
   const firstBuyBox = await firstBuy.boundingBox();
   expect(firstBuyBox.y + firstBuyBox.height).toBeLessThanOrEqual(844);
   await expect(market.locator('.shop-card:visible')).toHaveCount(12);

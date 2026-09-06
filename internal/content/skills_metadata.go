@@ -81,6 +81,25 @@ func enrichSkillMetadata(skill *Skill) {
 			skill.Role = "support"
 		}
 	}
+
+	if skill.Power > 0 && skill.StunChance == 0 && skill.Type != SkillBuff && skill.Type != SkillDebuff {
+		if skill.Power < 1.5 {
+			skill.Role = "builder"
+			skill.ManaCost = 12
+		} else if skill.Power >= 2.4 {
+			skill.Role = "finisher"
+			skill.ManaCost = 30
+			skill.CooldownRounds = max(2, skill.CooldownRounds)
+		}
+	}
+	if skill.Power == 0 && skill.HealPercent > 0 {
+		skill.ScalingStat = "HP"
+		skill.ManaCost = 25
+	}
+	if strings.Contains(strings.ToLower(skill.Name), "shield") {
+		skill.ManaCost = 25
+		skill.CooldownRounds = max(3, skill.CooldownRounds)
+	}
 	skill.PreviewMin = skill.Power * 0.9
 	skill.PreviewMax = skill.Power * 1.1
 	if skill.HealPercent > 0 && skill.Power == 0 {
@@ -145,6 +164,9 @@ func skillMechanicalDescription(skill Skill) string {
 	}
 	if skill.StunChance > 0 {
 		parts = append(parts, fmt.Sprintf("%.0f%% stun chance", skill.StunChance*100))
+	}
+	if strings.Contains(strings.ToLower(skill.Name), "shield") {
+		parts = append(parts, "in the Abyss also grants the caster a barrier equal to 50% INT, capped at 50% max HP")
 	}
 	return strings.Join(parts, "; ") + "."
 }

@@ -92,6 +92,15 @@ func applyAbyssRunBuild(u *UserInCombat, flags map[string]int64, mastery map[str
 		if milestones > 4 {
 			milestones = 4
 		}
+
+		if milestones >= 2 && skill.Power > 0 {
+			skill.IgnoreDef = min(1, skill.IgnoreDef+.10)
+			skill.Description += " [Practiced: +10% armor penetration]"
+		}
+		if milestones >= 4 && skill.CooldownRounds > 1 {
+			skill.CooldownRounds--
+			skill.Description += " [Mastered: cooldown reduced by 1 round]"
+		}
 		if milestones > 0 {
 			skill.Power *= 1 + float64(milestones)*0.05
 			skill.Description = strings.TrimSpace(fmt.Sprintf("%s [Mastery %d: +%d%% power]", skill.Description, milestones, milestones*5))
@@ -100,6 +109,9 @@ func applyAbyssRunBuild(u *UserInCombat, flags map[string]int64, mastery map[str
 }
 
 func abyssBuildIdentity(u UserInCombat, flags map[string]int64) string {
+	if u.AbyssClass != "" {
+		return u.AbyssClass
+	}
 	if kit := abyssBuildNameByValue(abyssBuildKits, flags[abyssRunFlagBuildKit]); kit != "" {
 		return kit
 	}

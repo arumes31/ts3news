@@ -166,13 +166,8 @@ type dbExecQuerier interface {
 	QueryRow(query string, args ...any) *sql.Row
 }
 
-// abyssDayTaxRate is the levy the Abyss takes on the portion of a bank payout
-// above the daily gold cap: the excess is still paid out, but 80% of it feeds
-// the shared deep-cache jackpot instead of the player.
-const abyssDayTaxRate = 0.80
-
 // abyssCapTax splits a bank payout around the remaining daily-cap allowance:
-// the in-cap portion pays in full, only the excess is taxed at abyssDayTaxRate.
+// the in-cap portion pays in full, only the excess is taxed at an 80% levy.
 func abyssCapTax(payout, remaining int64) (after, tax int64) {
 	if remaining < 0 {
 		remaining = 0

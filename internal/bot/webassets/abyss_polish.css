@@ -15,3 +15,154 @@ body.ab-high-contrast:has(.abyss-command-page) { background-image: none; }
 .ab-share-recap { margin-right: auto; }
 @media (prefers-reduced-motion: reduce) { .ab-confetti { display: none !important; } }
 @media (forced-colors: active) { .abyss-command-page .abyss-stage,.ab-share-recap { border: 1px solid CanvasText; } }
+
+/* Shared finishing details use the existing command palette and spacing. */
+.abyss-command-page {
+  --ab-detail-size: .8125rem;
+  --ab-label-size: .75rem;
+  --ab-control-height: 36px;
+  --ab-control-gap: 8px;
+  accent-color: var(--cmd-gold);
+  caret-color: var(--cmd-gold);
+  scrollbar-color: var(--cmd-line) var(--cmd-base);
+}
+.abyss-command-page ::selection { background: var(--cmd-gold); color: var(--cmd-void); }
+.abyss-command-page :is(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--cmd-gold);
+  outline-offset: 3px;
+}
+.abyss-command-page :is(input, textarea)::placeholder { color: var(--cmd-muted); opacity: 1; }
+.abyss-command-page :is(.ab-chip-val, .ab-escrow-val, .ab-tier-meta, .ab-entry-cost, .ab-stat-table, .ab-history) { font-variant-numeric: tabular-nums; }
+.abyss-command-page .abyss-intro p {
+  max-width: 72ch;
+  font-family: var(--cmd-ui);
+  font-size: .875rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.6;
+}
+
+/* Utility controls share one rhythm without changing the primary action deck. */
+.abyss-command-page .ab-command-center {
+  gap: var(--ab-control-gap);
+  background: var(--cmd-panel);
+  border-color: var(--cmd-line);
+  border-radius: var(--cmd-cut-small);
+}
+.abyss-command-page .ab-command-center > button {
+  min-height: var(--ab-control-height);
+  padding-inline: 12px;
+  font: 600 var(--ab-detail-size)/1.4 var(--cmd-ui);
+}
+.abyss-command-page .ab-system-status { font-size: var(--ab-detail-size); }
+.abyss-command-page .ab-workspace-switcher select { font-family: var(--cmd-ui); letter-spacing: normal; }
+.abyss-command-page .ab-workspace-switcher button { font: 600 var(--ab-detail-size)/1.4 var(--cmd-ui); }
+.abyss-command-page :is(.ab-library-tools, .ab-log-tools) { gap: var(--ab-control-gap); }
+.abyss-command-page :is(.ab-library-tools, .ab-log-tools) :is(button, input, select) {
+  min-height: var(--ab-control-height);
+  font-size: var(--ab-detail-size);
+}
+.abyss-command-page :is(.ab-library-results, .ab-panel-collapse) { font-size: var(--ab-label-size); }
+.abyss-command-page :is(.ab-empty-state, .abyss-side-empty) { font-style: normal; }
+.abyss-command-page .ab-empty-state { gap: 8px; padding: 24px 12px; }
+.abyss-command-page .ab-empty-state b { font-size: .875rem; }
+.abyss-command-page .ab-empty-state small { max-width: 34ch; color: var(--cmd-muted); font-size: var(--ab-detail-size); line-height: 1.5; }
+
+/* Preparation stays readable when four tiers share the desktop control column. */
+.abyss-command-page .ab-entry-planner { padding: 14px; }
+.abyss-command-page .ab-entry-planner-head { gap: 12px; flex-wrap: wrap; }
+.abyss-command-page .ab-entry-planner-head strong { font-size: 1rem; }
+.abyss-command-page :is(.ab-entry-eyebrow, .ab-entry-summary-label) { color: var(--cmd-muted); font-size: var(--ab-label-size); letter-spacing: .06em; }
+.abyss-command-page .ab-entry-steps { gap: 4px; margin-block: 12px; }
+.abyss-command-page .ab-entry-steps button { min-height: 40px; padding: 8px 4px; gap: 6px; font: 600 var(--ab-detail-size)/1.4 var(--cmd-ui); }
+.abyss-command-page .ab-entry-steps button b { flex: 0 0 auto; }
+.abyss-command-page .ab-entry-steps button span { white-space: nowrap; }
+.abyss-command-page .ab-entry-summary { gap: 6px 12px; }
+.abyss-command-page .ab-entry-summary strong { font-size: .875rem; line-height: 1.5; }
+.abyss-command-page :is(.ab-entry-summary > span:last-child, .ab-pact-net, .ab-mobile-tier-summary) {
+  color: var(--cmd-muted);
+  font-size: var(--ab-detail-size);
+  line-height: 1.5;
+}
+.abyss-command-page .ab-pact-net { margin-top: 12px; padding-top: 10px; }
+.abyss-command-page .ab-tier { gap: 6px; padding: 12px; background: var(--cmd-panel); }
+.abyss-command-page .ab-tier-name { color: var(--cmd-text); font-size: .875rem; }
+.abyss-command-page :is(.ab-tier-meta, .ab-tier-rate) { color: var(--cmd-muted); font: 400 var(--ab-detail-size)/1.5 var(--cmd-ui); }
+.abyss-command-page .ab-tier:has(input:checked) { border-color: var(--cmd-gold); box-shadow: inset 0 0 0 1px var(--cmd-gold); }
+.abyss-command-page .ab-tier:has(input:focus-visible) { outline: 2px solid var(--cmd-gold); outline-offset: 3px; }
+.abyss-command-page .ab-recommended-tag {
+  position: static;
+  align-self: stretch;
+  order: 1;
+  margin-top: auto;
+  padding: 4px 6px;
+  background: var(--cmd-panel-raised);
+  color: var(--cmd-gold);
+  font: 600 var(--ab-label-size)/1.4 var(--cmd-ui);
+  letter-spacing: normal;
+  text-transform: none;
+}
+.abyss-command-page :is(#buildPicker, #startPicker, #pactPicker) { gap: 12px; }
+.abyss-command-page :is(#buildPicker, #startPicker, #pactPicker) select { min-height: 40px; }
+
+/* Rarity and type filters are peers; every chip has a complete hit target. */
+.abyss-command-page .ab-loot-filters { gap: 6px; align-items: stretch; }
+.abyss-command-page .ab-loot-filters .ab-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
+  gap: 4px;
+  min-height: var(--ab-control-height);
+  padding: 6px 9px;
+  border: 1px solid var(--cmd-line);
+  border-radius: 4px;
+  background: var(--cmd-base);
+  color: var(--cmd-text);
+  font: 600 var(--ab-label-size)/1.4 var(--cmd-ui);
+  white-space: nowrap;
+}
+.abyss-command-page .ab-loot-filters .ab-chip.active {
+  border-color: var(--cmd-gold);
+  background: var(--cmd-gold);
+  color: var(--cmd-void);
+}
+.abyss-command-page .ab-loot-type-filters { padding-top: 12px; }
+.abyss-command-page .ab-loot-sort { gap: 8px; }
+.abyss-command-page .ab-loot-sort :is(button, select),
+.abyss-command-page .ab-rarity-help { min-height: var(--ab-control-height); font-size: var(--ab-detail-size); }
+.abyss-command-page .ab-loot-sort label { font-size: var(--ab-detail-size); line-height: 1.5; }
+.abyss-command-page .ab-loot-sort label:has(input[type="checkbox"]) { display: flex; align-items: center; gap: 8px; min-height: var(--ab-control-height); }
+.abyss-command-page .ab-loot-sort input[type="checkbox"] { flex-shrink: 0; margin: 0; }
+
+@media (hover: hover) {
+  .abyss-command-page .ab-loot-filters .ab-chip:not(.active):hover,
+  .abyss-command-page .ab-tier:not(.locked):hover { border-color: var(--cmd-gold); background: var(--cmd-panel-raised); }
+}
+@media (max-width: 900px) {
+  .abyss-command-page { --ab-control-height: 44px; }
+  .abyss-command-page .ab-entry-steps button { min-height: 44px; flex-direction: column; gap: 4px; }
+  .abyss-command-page .ab-loot-filters { padding-block: 6px; }
+  .abyss-command-page :is(#buildPicker, #startPicker, #pactPicker, .ab-mobile-tier-select) select { min-height: 44px; font-size: 1rem; }
+  .abyss-command-page :is(.ab-library-tools, .ab-log-tools) input { font-size: 1rem; }
+}
+@media (max-width: 700px) {
+  .abyss-command-page .ab-mobile-tier-select { flex: 1 1 100%; min-width: 0; position: static; }
+  body.ab-mobile-run #abBackTop { bottom: calc(var(--ab-mobile-dock-height, 160px) + 12px); }
+}
+@media (prefers-color-scheme: light) {
+  body.ab-light-theme:not(.ab-high-contrast) .abyss-command-page {
+    --cmd-base: #f4f1e9;
+    --cmd-panel-raised: #e9e3d5;
+    --cmd-text: #17212b;
+    --cmd-muted: #526070;
+    --cmd-gold: #8b5a09;
+  }
+  body.ab-light-theme:not(.ab-high-contrast) .abyss-command-page .ab-loot-filters .ab-chip.active,
+  body.ab-light-theme:not(.ab-high-contrast) .abyss-command-page ::selection { color: #fff; }
+}
+@media (forced-colors: active) {
+  .abyss-command-page :is(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline-color: Highlight; }
+  .abyss-command-page .ab-loot-filters .ab-chip.active { background: Highlight; color: HighlightText; border-color: Highlight; }
+  .abyss-command-page .ab-tier:has(input:checked) { outline: 2px solid Highlight; outline-offset: -3px; }
+}

@@ -26,7 +26,16 @@ func (c *abyssLiveCombat) optionsFor(
 		},
 	}
 	for i := range au.u.Skills {
-		skill := au.u.Skills[i]
+		skill := previewAbyssClassSkill(au, au.u.Skills[i], au.classMarkedTarget)
+		buildPriority, buildReason := abyssClassRecommendation(au, skill)
+		preferredTarget := ""
+		if abyssClassSkillRole(skill) == "finisher" && au.classMarkedTarget != nil {
+			for j, mob := range mobs {
+				if mob == au.classMarkedTarget && mob.Stats.HP > 0 {
+					preferredTarget = fmt.Sprintf("enemy:%d", j)
+				}
+			}
+		}
 		element := abyssSkillElement(skill, au.u.Equipped)
 		repeatCount := 0
 		if au.lastSkillID == skill.ID {
@@ -59,18 +68,27 @@ func (c *abyssLiveCombat) optionsFor(
 			target = "ally"
 		}
 		effectLabel := "DMG"
-		effectivePower := skill.Power * modifiers.DamageMultiplier
-		minEffect, maxEffect := estimateLiveDamageRange(au.u, effectivePower, modifiers.IgnoreDefense, element, mobs)
+		effectivePower := skill.Power * modifiers.DamageMultiplier * abyssSkillEquipmentMultiplier(au.u, skill)
+		previewUser := *au.u
+		previewUser.Stats.STR = abyssSkillBase(au.u, skill)
+		previewUser.STRMod = 1
+		minEffect, maxEffect := estimateLiveDamageRange(&previewUser, effectivePower, modifiers.IgnoreDefense, element, mobs)
 		if skill.HealPercent > 0 && skill.Power == 0 {
 			target = "ally"
 			effectLabel = "HEAL"
 			minEffect, maxEffect = estimateLiveSkillHeal(skill.HealPercent*modifiers.HealingMultiplier, users)
 		}
-		description := skill.Description
+		if shield := abyssClassShield(au, skill); shield > 0 && skill.Power == 0 && skill.HealPercent == 0 {
+			effectLabel = "SHIELD"
+			minEffect = min(shield, max(0, au.u.Stats.HP/2-au.shield))
+			maxEffect = minEffect
+		}
+		description := skill.Description + " Scales with " + skill.ScalingStat + "."
 		if summary := abyssModifierSummary(modifiers.Active); summary != "" {
 			description += " " + summary + "."
 		}
 		options = append(options, abyssLiveOption{
+			BuildPriority: buildPriority, BuildReason: buildReason, PreferredTarget: preferredTarget,
 			Kind:         "skill",
 			ID:           skill.ID,
 			Name:         skill.Name,
@@ -243,9 +261,16 @@ func (c *abyssLiveCombat) bestActionWithReasonLocked(uid string) (abyssLiveActio
 		healThreshold, itemThreshold = 0.42, 0.12
 	}
 
+	currentMana := 0
+	for _, candidate := range c.allies {
+		if candidate.ID == "ally:"+uid {
+			currentMana = candidate.Mana
+			break
+		}
+	}
 	if ratio <= healThreshold {
 		for _, option := range c.options[uid] {
-			if option.Kind == "skill" && option.Target == "ally" {
+			if option.Kind == "skill" && option.Target == "ally" && option.Cooldown == 0 && option.Mana <= currentMana {
 				return abyssLiveAction{
 					Kind: option.Kind, AbilityID: option.ID, TargetID: ally.ID,
 					Round: c.round, Automatic: true,
@@ -264,14 +289,26 @@ func (c *abyssLiveCombat) bestActionWithReasonLocked(uid string) (abyssLiveActio
 		}
 	}
 
-	best := abyssLiveOption{}
-	currentMana := 0
-	for _, candidate := range c.allies {
-		if candidate.ID == "ally:"+uid {
-			currentMana = candidate.Mana
-			break
+	// Class setup/payoff outranks raw power when it is ready and affordable.
+	for _, option := range c.options[uid] {
+		if option.BuildPriority <= 0 || option.Cooldown > 0 || option.Mana > currentMana {
+			continue
+		}
+		targetID := action.TargetID
+		switch option.Target {
+		case "self":
+			targetID = "ally:" + uid
+		case "ally":
+			targetID = ally.ID
+		}
+		if option.PreferredTarget != "" {
+			targetID = option.PreferredTarget
+		}
+		if targetID != "" {
+			return abyssLiveAction{Kind: option.Kind, AbilityID: option.ID, TargetID: targetID, Round: c.round, Automatic: true}, option.BuildReason
 		}
 	}
+	best := abyssLiveOption{}
 	for _, option := range c.options[uid] {
 		if option.Target != "enemy" || option.Cooldown > 0 {
 			continue
@@ -597,7 +634,9 @@ func (b *Bot) useLiveConsumable(
 		if heal < 1 {
 			heal = 1
 		}
+		previousHP := target.CurrentHP
 		target.CurrentHP = min(target.Stats.HP, target.CurrentHP+heal)
+		actor.live.present(0, "item", "ally:"+actor.UID, consumable.ID, consumable.Name, content.ElementPhysical, abyssLivePresentationOutcome{TargetID: "ally:" + target.UID, Healing: max(0, target.CurrentHP-previousHP)})
 		*logs = append(*logs, fmt.Sprintf(
 			"🧪 %s uses %s on %s, restoring %d HP.",
 			actor.Nickname,
@@ -617,10 +656,13 @@ func (b *Bot) useLiveConsumable(
 		default:
 			actor.Stats.STR += amount
 		}
+		actor.live.present(0, "item", "ally:"+actor.UID, consumable.ID, consumable.Name, content.ElementPhysical, abyssLivePresentationOutcome{TargetID: "ally:" + actor.UID, Status: "buff"})
 		*logs = append(*logs, fmt.Sprintf("🧪 %s uses %s and surges with power.", actor.Nickname, consumable.Name))
 	}
 	if backlash := corruptedConsumableBacklash(consumableID, actor.Stats.HP); backlash > 0 {
+		previousHP := actor.CurrentHP
 		actor.CurrentHP = max(0, actor.CurrentHP-backlash)
+		actor.live.present(0, "status", "ally:"+actor.UID, "corruption_backlash", "Corruption Backlash", content.ElementPhysical, abyssPresentationDamage("ally:"+actor.UID, backlash, previousHP, actor.CurrentHP))
 		*logs = append(*logs, fmt.Sprintf("🩸 Corruption tears through %s for %d HP.", actor.Nickname, backlash))
 		b.checkUserRevive(actor, logs)
 	}

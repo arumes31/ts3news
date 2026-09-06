@@ -3,16 +3,31 @@
 <div class="auction-shell">
 <header class="portal-masthead auction-masthead">
   <div class="auction-masthead-copy">
-    <p class="auction-kicker">Player market / trade terminal</p>
     <h1>Auction House</h1>
     <p class="auction-deck">Inspect every roll and commit gold only when the terms are clear.</p>
   </div>
   <div class="ah-ticker auction-market-signal" aria-live="polite" aria-label="Auction market status">
     <span>Cheapest active Legendary: {{if .Economy.CheapestLegendary}}<span class="auction-gold">{{.Economy.CheapestLegendary}} gold</span>{{else}}none listed{{end}}</span>
     <span class="auction-signal-divider" aria-hidden="true"></span>
-    <span><span id="ahNoticeCount">{{.Economy.UnseenNotices}}</span> new market notices</span>
+    <button type="button" id="ahNoticeToggle" class="ghost auction-notice-toggle" aria-expanded="false" aria-controls="ahNotices" onclick="toggleAHNotices(this)">Market notices <span id="ahNoticeCount">{{.Economy.UnseenNotices}}</span> unread</button>
   </div>
 </header>
+<nav class="auction-shortcuts" aria-label="Auction sections">
+  <a href="#auctionListingsTitle">Browse listings</a>
+  <a href="#myTrading" onclick="showAHTrading('listings')">My trading</a>
+  <a href="#myTrading" onclick="showAHTrading('orders')">Material orders</a>
+</nav>
+<section id="ahNotices" class="auction-operations auction-notices" aria-labelledby="ahNoticesTitle" hidden>
+  <div class="auction-section-heading"><h2 id="ahNoticesTitle" tabindex="-1">Market notices</h2><span class="auction-section-note">Your saved market activity</span></div>
+  <p id="ahNoticeStatus" role="status" aria-live="polite"></p>
+  <ol id="ahNoticeList" class="auction-notice-list"></ol>
+  <div class="auction-notice-actions">
+    <button type="button" id="ahNoticeRead" class="ghost" onclick="markAHNoticesRead()" disabled>Mark shown as read</button>
+    <button type="button" id="ahNoticeRetry" class="ghost" onclick="retryAHNotices()" hidden>Retry</button>
+    <button type="button" id="ahNoticeNewest" class="ghost" onclick="loadAHNoticePage(0)" hidden>Latest notices</button>
+    <button type="button" id="ahNoticeOlder" class="ghost" onclick="loadOlderAHNotices()" hidden>Older notices</button>
+  </div>
+</section>
 <div id="ahMsg" class="toast auction-status" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <form method="GET" action="/ah" class="search-form auction-toolbar" role="search" aria-label="Search auction listings">
@@ -58,7 +73,7 @@
     </thead>
     <tbody>
       {{range .Active}}
-      <tr class="ah-row {{if .IsUpgrade}}upgrade-item{{end}}{{if .InspectJSON}} item-inspect-trigger{{end}}"{{if .InspectJSON}} data-item-inspect="{{.InspectJSON}}"{{end}}>
+      <tr data-ah-id="{{.ID}}" data-ah-price="{{.Price}}" class="ah-row {{if .IsUpgrade}}upgrade-item{{end}}{{if .InspectJSON}} item-inspect-trigger{{end}}"{{if .InspectJSON}} data-item-inspect="{{.InspectJSON}}"{{end}}>
         <td class="auction-item-cell" data-label="Item">
           {{if .InspectJSON}}<button type="button" class="ghost auction-item-inspect" data-item-inspect="{{.InspectJSON}}" onclick="openItemInspector(this)" aria-label="Inspect {{.Name}}">{{end}}
           {{if .Family}}<span class="item-art item-art-sm" data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span>{{else}}<span class="item-ico" aria-hidden="true">{{.Icon}}</span>{{end}}
@@ -69,7 +84,7 @@
         <td class="auction-type-cell" data-label="Type">{{.ItemType}}</td>
         <td class="auction-rarity-cell" data-label="Rarity">{{if .Rarity}}<span class="auction-rarity" style="--auction-rarity:{{.RarityColor}}">{{.Rarity}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
         <td class="auction-gs-cell" data-label="GS">{{if .GS}}{{.GS}}{{else}}<span class="muted">—</span>{{end}}</td>
-        <td class="auction-seller-cell" data-label="Seller">{{.Seller}} <span class="muted small auction-reputation" title="Completed auction sales" aria-label="{{.SellerRep}} completed auction sales">★{{.SellerRep}}</span></td>
+        <td class="auction-seller-cell" data-label="Seller">{{.Seller}} <span class="muted small auction-reputation" title="Completed auction sales" aria-label="{{.SellerRep}} completed auction sales">{{.SellerRep}} sales</span></td>
         <td class="auction-listed-cell" data-label="Ends">{{if .ExpiresIn}}<time datetime="{{.ExpiresISO}}" title="Exact end: {{.Expires}} · listed {{.Listed}}">{{.ExpiresIn}}</time><span class="muted small auction-expiry-exact">{{.Expires}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
         <td class="goldcell auction-price-cell" data-label="Buy now" title="{{.FeeSummary}}">
           <div class="auction-price"><span aria-hidden="true">🪙</span> {{.Price}}</div>
@@ -81,12 +96,24 @@
           <button class="ghost xs auction-watch-button" data-item-name="{{.Name}}" aria-pressed="{{.Watched}}" onclick="watchAH('{{.ItemID}}',this)" aria-label="{{if .Watched}}Remove {{.Name}} from watchlist{{else}}Watch {{.Name}}{{end}}" title="Watchlist fee 0g · toggle listing and 20% price alerts">{{if .Watched}}★{{else}}☆{{end}}</button>
           {{if not .Mine}}<span class="auction-action-note">Exact Buy Now total {{.Price}}g · buyer fee 0g{{if eq .ItemType "gear"}}{{if .IsUpgrade}} · Buy Now will auto-equip{{else}} · Buy Now goes to inventory{{end}} · bid wins go to inventory{{else}} · delivered to your collection{{end}}</span>{{end}}
         </td>
+        <td class="auction-compact-details" colspan="8">
+          <details>
+            <summary>Listing details</summary>
+            <dl>
+              <div><dt>Type</dt><dd>{{.ItemType}}</dd></div>
+              <div><dt>Rarity</dt><dd>{{if .Rarity}}{{.Rarity}}{{else}}—{{end}}</dd></div>
+              <div><dt>Gear score</dt><dd>{{if .GS}}{{.GS}}{{else}}—{{end}}</dd></div>
+              <div><dt>Seller</dt><dd>{{.Seller}} · {{.SellerRep}} sales</dd></div>
+              <div><dt>Ends</dt><dd>{{if .ExpiresIn}}<time datetime="{{.ExpiresISO}}">{{.ExpiresIn}}</time><span class="auction-expiry-exact">{{.Expires}}</span>{{else}}—{{end}}</dd></div>
+            </dl>
+          </details>
+        </td>
       </tr>
       {{end}}
     </tbody>
   </table>
   </div>
-  {{else}}<p class="muted">No active listings right now.</p>{{end}}
+  {{else}}{{if or .SearchQuery .UpgradesOnly .InsanityOnly}}<p class="muted">No matching listings. <a href="/ah">Clear filters</a> to see the market.</p>{{else}}<p class="muted">No active listings right now.</p>{{end}}{{end}}
 
   {{if gt .TotalPages 1}}
   <nav class="pagination auction-pagination" aria-label="Auction listing pages">
@@ -107,9 +134,17 @@
   {{end}}
 </section>
 
-<section class="auction-operations auction-sell" aria-labelledby="auctionSellTitle">
+<section id="myTrading" class="auction-operations auction-trading" aria-labelledby="auctionTradingTitle">
+  <div class="auction-section-heading"><h2 id="auctionTradingTitle">My trading</h2><span class="auction-section-note">Manage listings, transactions, and orders</span></div>
+  <div class="auction-trading-tabs" role="tablist" aria-label="My trading">
+    <button type="button" id="ahTradingListingsTab" role="tab" aria-selected="true" aria-controls="ahTradingListings" class="ghost active" onclick="showAHTrading('listings')">Listings</button>
+    <button type="button" id="ahTradingTransactionsTab" role="tab" aria-selected="false" aria-controls="ahTradingTransactions" tabindex="-1" class="ghost" onclick="showAHTrading('transactions')">Transactions</button>
+    <button type="button" id="ahTradingOrdersTab" role="tab" aria-selected="false" aria-controls="ahTradingOrders" tabindex="-1" class="ghost" onclick="showAHTrading('orders')">Orders</button>
+  </div>
+  <div id="ahTradingListings" role="tabpanel" aria-labelledby="ahTradingListingsTab" data-ah-trading="listings">
+<section class="auction-sell" aria-labelledby="auctionSellTitle">
   <div class="auction-section-heading">
-    <h2 id="auctionSellTitle">Sell from Inventory</h2>
+    <h3 id="auctionSellTitle">Sell from Inventory</h3>
     <span class="auction-section-note">Server-priced · listed for 7 days · 0g listing fee</span>
   </div>
   {{if .Sellable}}
@@ -154,9 +189,9 @@
   {{else}}<p class="muted">No inventory items to sell.</p>{{end}}
 </section>
 
-<section class="auction-operations auction-history" aria-labelledby="auctionHistoryTitle">
+<section class="auction-history" aria-labelledby="auctionHistoryTitle">
   <div class="auction-section-heading">
-    <h2 id="auctionHistoryTitle">My Auction History</h2>
+    <h3 id="auctionHistoryTitle">Listing activity</h3>
     <span class="auction-section-note">Active, settled, and expired listings</span>
   </div>
   <div class="ah-history-tabs" role="tablist" aria-label="Auction history">
@@ -171,31 +206,11 @@
     {{if .Economy.Expired}}<ul>{{range .Economy.Expired}}<li>{{.Icon}} {{.Name}} · 🪙 {{.Price}}</li>{{end}}</ul>{{else}}<p class="muted">No expired listings.</p>{{end}}
   </div>
 </section>
-
-<section class="auction-operations auction-orders" aria-labelledby="auctionOrdersTitle">
-  <div class="auction-section-heading">
-    <h2 id="auctionOrdersTitle">Material Buy Orders</h2>
-    <span class="auction-section-note">Buyer gold is held in exact escrow</span>
   </div>
-  <div class="ab-btn-row"><button class="ghost" onclick="createMaterialOrder(this)" title="Exact charge: quantity × unit price held in escrow · posting fee 0g">Post buy order</button></div>
-  {{if .Economy.Orders}}<div class="auction-table-wrap auction-operation-table-wrap"><table class="histtable auction-operation-table"><thead><tr><th scope="col">Buyer</th><th scope="col">Material</th><th scope="col">Wanted</th><th scope="col">Unit price</th><th scope="col"><span class="auction-visually-hidden">Actions</span></th></tr></thead><tbody>
-  {{range .Economy.Orders}}<tr>
-    <td data-label="Buyer">{{.Buyer}}</td>
-    <td data-label="Material">{{.Material}}</td>
-    <td data-label="Wanted">{{.Remaining}}</td>
-    <td data-label="Unit price" title="Seller fee 0g">🪙 {{.UnitPrice}}</td>
-    <td class="auction-operation-actions" data-label="Actions">{{if .Mine}}<button class="ghost xs" onclick="cancelMaterialOrder({{.ID}},{{.Escrow}},this)" title="Cancellation fee 0g · refund exact remaining escrow {{.Escrow}}g">Cancel · {{.Escrow}}g</button>{{else}}<button class="ghost xs" onclick="fillMaterialOrder({{.ID}},{{.Remaining}},{{.UnitPrice}},this)" title="Seller fee 0g · exact proceeds = filled quantity × {{.UnitPrice}}g">Fill</button>{{end}}</td>
-  </tr>{{end}}
-  </tbody></table></div>{{else}}<p class="muted">No open material orders.</p>{{end}}
-</section>
+  <div id="ahTradingTransactions" role="tabpanel" aria-labelledby="ahTradingTransactionsTab" data-ah-trading="transactions" hidden>
 
-<section class="auction-operations auction-tax" aria-labelledby="auctionTaxTitle">
-  <div class="auction-section-heading"><h2 id="auctionTaxTitle">Most Taxed This Season</h2></div>
-  {{if .Economy.TaxLeaders}}<ol>{{range .Economy.TaxLeaders}}<li>{{.Nickname}} · 🪙 {{.Tax}} {{if .Badge}}<span class="upgrade-badge">{{.Badge}}</span>{{end}}</li>{{end}}</ol>{{else}}<p class="muted">The tax office has no victims yet.</p>{{end}}
-</section>
-
-<section class="auction-operations auction-ledger" aria-labelledby="auctionLedgerTitle">
-  <div class="auction-section-heading"><h2 id="auctionLedgerTitle">My History</h2></div>
+<section class="auction-ledger" aria-labelledby="auctionLedgerTitle">
+  <div class="auction-section-heading"><h3 id="auctionLedgerTitle">Transactions</h3></div>
   {{if .History}}
   <div class="auction-table-wrap auction-operation-table-wrap">
   <table class="histtable auction-operation-table">
@@ -223,6 +238,54 @@
   </div>
   {{else}}<p class="muted">No auction history yet.</p>{{end}}
 </section>
+  </div>
+  <div id="ahTradingOrders" role="tabpanel" aria-labelledby="ahTradingOrdersTab" data-ah-trading="orders" hidden>
+
+<section class="auction-orders" aria-labelledby="auctionOrdersTitle">
+  <div class="auction-section-heading">
+    <h3 id="auctionOrdersTitle">Material Buy Orders</h3>
+    <span class="auction-section-note">Open market orders · includes your orders</span>
+  </div>
+  <div class="ab-btn-row"><button type="button" id="ahOrderStart" class="ghost" onclick="createMaterialOrder(this)" title="Exact charge: quantity × unit price held in escrow · posting fee 0g">Post buy order</button></div>
+  <form id="ahOrderForm" class="auction-order-form" hidden novalidate onsubmit="submitAHMaterialOrder(event)">
+    <h4>New material buy order</h4>
+    <fieldset id="ahOrderFields" class="auction-order-fields">
+      <legend class="auction-visually-hidden">Order details</legend>
+      <div class="auction-order-field"><label for="ahOrderMaterial">Material</label>
+        <select id="ahOrderMaterial" name="material"><option value="dust">Dust</option><option value="shard">Shard</option><option value="core">Core</option></select>
+      </div>
+      <div class="auction-order-field"><label for="ahOrderQuantity">Quantity</label>
+        <input id="ahOrderQuantity" name="count" type="text" inputmode="numeric" pattern="[0-9]+" value="10" aria-describedby="ahOrderQuantityHint ahOrderQuantityError">
+        <span id="ahOrderQuantityHint" class="auction-field-hint">1–10,000 units</span><span id="ahOrderQuantityError" class="auction-field-error"></span>
+      </div>
+      <div class="auction-order-field"><label for="ahOrderUnit">Gold per unit</label>
+        <input id="ahOrderUnit" name="unit_price" type="text" inputmode="numeric" pattern="[0-9]+" value="100" aria-describedby="ahOrderUnitError">
+        <span id="ahOrderUnitError" class="auction-field-error"></span>
+      </div>
+    </fieldset>
+    <p class="auction-escrow"><output id="ahOrderEscrow" for="ahOrderQuantity ahOrderUnit" aria-live="polite">Escrow: 1,000 gold</output><span>Posting fee: 0 gold. Your gold is reserved until filled or cancelled.</span></p>
+    <p id="ahOrderStatus" role="status" aria-live="polite"></p>
+    <div class="ab-btn-row auction-form-actions">
+      <button type="button" id="ahOrderClose" class="ghost" onclick="closeAHMaterialOrder()">Cancel</button>
+      <button type="submit" id="ahOrderReview">Review order</button>
+    </div>
+  </form>
+  {{if .Economy.Orders}}<div class="auction-table-wrap auction-operation-table-wrap"><table class="histtable auction-operation-table"><thead><tr><th scope="col">Buyer</th><th scope="col">Material</th><th scope="col">Wanted</th><th scope="col">Unit price</th><th scope="col"><span class="auction-visually-hidden">Actions</span></th></tr></thead><tbody>
+  {{range .Economy.Orders}}<tr>
+    <td data-label="Buyer">{{.Buyer}}</td>
+    <td data-label="Material">{{.Material}}</td>
+    <td data-label="Wanted">{{.Remaining}}</td>
+    <td data-label="Unit price" title="Seller fee 0g">🪙 {{.UnitPrice}}</td>
+    <td class="auction-operation-actions" data-label="Actions">{{if .Mine}}<button class="ghost xs" onclick="cancelMaterialOrder({{.ID}},{{.Escrow}},this)" title="Cancellation fee 0g · refund exact remaining escrow {{.Escrow}}g">Cancel · {{.Escrow}}g</button>{{else}}<button class="ghost xs" onclick="fillMaterialOrder({{.ID}},{{.Remaining}},{{.UnitPrice}},this)" title="Seller fee 0g · exact proceeds = filled quantity × {{.UnitPrice}}g">Fill</button>{{end}}</td>
+  </tr>{{end}}
+  </tbody></table></div>{{else}}<p class="muted">No open material orders.</p>{{end}}
+</section>
+  </div>
+</section>
+<details class="auction-operations auction-tax">
+  <summary>Most Taxed This Season</summary>
+  {{if .Economy.TaxLeaders}}<ol>{{range .Economy.TaxLeaders}}<li>{{.Nickname}} · 🪙 {{.Tax}} {{if .Badge}}<span class="upgrade-badge">{{.Badge}}</span>{{end}}</li>{{end}}</ol>{{else}}<p class="muted">The tax office has no victims yet.</p>{{end}}
+</details>
 </div>
 
 <script data-cfasync="false">
@@ -265,7 +328,7 @@
       var data;
       try { data = await response.json(); }
       catch (_) { return {ok:false, unconfirmed:true, error:'The market returned an unreadable response. Refresh to verify the result before acting again.'}; }
-      if (!response.ok) return {ok:false, error:(data && data.error) || 'The market rejected the request.'};
+      if (!response.ok) return {ok:false, unconfirmed:!!(data && data.unconfirmed), error:(data && data.error) || 'The market rejected the request.'};
       return data && typeof data === 'object' ? data : {ok:false, unconfirmed:true, error:'The market response was incomplete. Refresh to verify the result.'};
     } catch (_) {
       return {ok:false, unconfirmed:true, error:'The market connection was interrupted. The result is unconfirmed; refresh before acting again.'};
@@ -308,24 +371,24 @@
     }
     setAHBusy(button, false);
   }
-  async function buyAH(id, btn) {
+  function ahDeliveryDescription(btn) {
+    if (!btn || btn.dataset.itemType !== 'gear') return 'This purchase will be delivered to your collection.';
+    return btn.dataset.upgrade === 'true'
+      ? 'This exact gear instance will auto-equip in its slot; any current item will move to inventory.'
+      : 'This purchase will be delivered to inventory.';
+  }
+  async function buyAH(id, btn, inspectTrigger) {
     var itemName = btn && btn.dataset.itemName || 'this item';
-    var itemType = btn && btn.dataset.itemType || '';
     var price = Math.max(0, Number(btn && btn.dataset.price) || 0);
     if (!Number.isSafeInteger(price) || price < 1) { toast('This purchase total is too large to review safely.', false); return; }
-    var willEquip = btn && btn.dataset.upgrade === 'true';
-    var delivery = itemType !== 'gear'
-      ? 'This purchase will be delivered to your collection.'
-      : willEquip
-        ? 'This exact gear instance will auto-equip in its slot; any current item will move to inventory.'
-        : 'This purchase will be delivered to inventory.';
+    var delivery = ahDeliveryDescription(btn);
     var confirmed = await confirmAH(
       '<strong>' + ahEscapeHTML(itemName) + '</strong><br>' +
       'Exact total: ' + price.toLocaleString() + ' gold · buyer fee: 0 gold.<br>' +
       delivery,
-      {title:'Confirm purchase', okLabel:'Buy for ' + price.toLocaleString() + ' gold'}
+      {title:'Confirm purchase', okLabel:'Buy for ' + price.toLocaleString() + ' gold', returnFocus:inspectTrigger || btn}
     );
-    if (!confirmed) return;
+    if (!confirmed) { if (inspectTrigger) openItemInspector(inspectTrigger); return; }
     setAHBusy(btn, true);
     var d = await post('/api/ah/buy', { id: id });
     if (d.ok) {
@@ -417,27 +480,6 @@
     if (d.ok) { toast(d.msg, true); setTimeout(() => location.reload(), 600); }
     else failAHMutation(d, btn);
   }
-  async function createMaterialOrder(btn) {
-    var rawMaterial = await promptAH('Material: dust, shard, or core', 'dust');
-    if (rawMaterial == null || String(rawMaterial).trim() === '') return;
-    var material = String(rawMaterial).trim().toLowerCase();
-    if (!['dust','shard','core'].includes(material)) { toast('Material must be dust, shard, or core.', false); return; }
-    var rawCount = await promptAH('Quantity to buy', '10');
-    if (rawCount == null || String(rawCount).trim() === '') return;
-    var count = Number(String(rawCount).trim());
-    if (!Number.isSafeInteger(count) || count < 1) { toast('Quantity must be a positive whole number.', false); return; }
-    var rawUnit = await promptAH('Gold per unit', '100');
-    if (rawUnit == null || String(rawUnit).trim() === '') return;
-    var unit = Number(String(rawUnit).trim());
-    if (!Number.isSafeInteger(unit) || unit < 1) { toast('Unit price must be a positive whole number.', false); return; }
-    var escrow = count * unit;
-    if (!Number.isSafeInteger(escrow)) { toast('This escrow total is too large to review safely.', false); return; }
-    if (!await confirmAH('Post an order for ' + count + ' ' + ahEscapeHTML(material) + ' at ' + unit + ' gold each?<br>Exact escrow: ' + escrow.toLocaleString() + ' gold · posting fee: 0 gold.', {title:'Confirm buy order', okLabel:'Reserve ' + escrow.toLocaleString() + ' gold'})) return;
-    setAHBusy(btn, true);
-    var d = await post('/api/ah/material_order', {material:material, count:count, unit_price:unit});
-    if (d.ok) { toast(d.msg, true); setTimeout(() => location.reload(), 700); }
-    else failAHMutation(d, btn);
-  }
   async function fillMaterialOrder(id, remaining, unitPrice, btn) {
     var count = Number(await promptAH('How many units do you want to sell? Maximum ' + remaining + '.', remaining));
     if (!Number.isInteger(count) || count < 1 || count > remaining) { if (count) toast('Fill quantity must be a whole number from 1 to ' + remaining + '.', false); return; }
@@ -475,11 +517,7 @@
     tabs[next].focus();
     tabs[next].click();
   });
-  (async function loadAHNotices() {
-    var d = await post('/api/ah/notices', {});
-    if (!d.ok || !d.notices || !d.notices.length) return;
-    document.getElementById('ahNoticeCount').textContent = '0';
-    toast(d.notices.map(function(notice) { return notice.message; }).join(' · '), true);
-  })();
+
 </script>
+<script data-cfasync="false" src="{{asset "/static/ah_trading.js"}}"></script>
 {{template "foot" .}}{{end}}

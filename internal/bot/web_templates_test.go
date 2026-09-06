@@ -100,7 +100,7 @@ func TestAbyssLivePartials(t *testing.T) {
 		server.tmpl.Lookup("abyssCombatFeedbackJS").Tree.Root.String()
 	for _, required := range []string{
 		"scheduleLiveReconnect",
-		"RECEIVED · ",
+		"SENDING · ",
 		"REPLACED · ",
 		"liveEffectEstimate",
 		"state.recommended",

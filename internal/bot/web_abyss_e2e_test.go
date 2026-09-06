@@ -26,6 +26,8 @@ func TestAbyssE2EServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
+	registerAbyssClassFixture(mux)
+	registerArcadePlaytest(mux, server)
 	var wishlistMu sync.Mutex
 	wishlistState := abyssWishlistState{}
 	fontSize := "m"
@@ -173,19 +175,7 @@ func TestAbyssE2EServer(t *testing.T) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
-	mux.HandleFunc("/shop", func(w http.ResponseWriter, _ *http.Request) {
-		if err := server.tmpl.ExecuteTemplate(w, "shop", map[string]any{
-			"Title": "Shop", "Nav": "shop", "EnableAbyss": true,
-			"U": &webUser{
-				UID: "shop-e2e", Nickname: "Shop Tester", Gold: 25_000_000,
-				XP: 10_000, Level: 100, LevelName: "Eternal",
-			},
-			"Stock":     stockForSeed(42, map[string]content.Gear{}),
-			"GoldPerXP": goldPerXP, "XPPerGold": xpPerGold, "RefreshIn": int64(3600),
-		}); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	})
+	registerShopReviewE2EFixture(mux, server)
 	mux.HandleFunc("/leaderboards", func(w http.ResponseWriter, _ *http.Request) {
 		leaders := leaderboards{
 			Day:     []leaderRow{{Rank: 1, Nickname: "Fixture Delver", Wins: 8, NetGold: 12_000}},
@@ -418,7 +408,7 @@ func TestAbyssE2EServer(t *testing.T) {
 		}
 	})
 	mux.HandleFunc("/api/ah/notices", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, map[string]any{"ok": true, "notices": []any{}})
+		writeJSON(w, map[string]any{"ok": true, "notices": []any{}, "unseen_count": 0, "next_before": 0, "has_more": false})
 	})
 	const spectatorSession = "0123456789abcdef0123456789abcdef"
 	mux.HandleFunc("/abyss/spectate", func(w http.ResponseWriter, r *http.Request) {

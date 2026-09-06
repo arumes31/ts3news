@@ -157,23 +157,34 @@ type abyssDropForecast struct {
 // given quality multiplier and rarity scale — the same bands
 // rollAbyssLootToEscrow accumulates into its drop cascade.
 func abyssDropForecastData(qualityMult, rareScale float64) abyssDropForecast {
-	remaining := 1.0
-	claim := func(probability float64) float64 {
-		probability = max(0, min(probability, remaining))
-		remaining -= probability
-		return probability
-	}
+	qualityMult = max(qualityMult, 0)
+	rareScale = max(rareScale, 0)
 	f := abyssDropForecast{
-		Ultimate: claim(ultimateSkillChance * qualityMult * rareScale),
-		Title:    claim(titleChance * qualityMult * rareScale),
-		Unique:   claim(uniqueItemChance * qualityMult * rareScale),
-		Artifact: claim(artifactChance * qualityMult * rareScale),
-		Enchant:  claim(enchChance * qualityMult * rareScale),
-		Skill:    claim(skillChance * qualityMult),
+		Ultimate:   ultimateSkillChance * qualityMult * rareScale,
+		Title:      titleChance * qualityMult * rareScale,
+		Unique:     uniqueItemChance * qualityMult * rareScale,
+		Artifact:   artifactChance * qualityMult * rareScale,
+		Enchant:    enchChance * qualityMult * rareScale,
+		Skill:      skillChance * qualityMult,
+		Consumable: consChance * qualityMult,
+		Gear:       gearChance * qualityMult,
 	}
-	f.Consumable = claim(consChance * qualityMult)
-	f.Gear = claim(gearChance * qualityMult)
-	f.Common = remaining
+	// Share the available probability instead of letting early categories consume
+	// the table. Keep a 10% common band at saturation; Fortune cannot erase gear.
+	total := f.Ultimate + f.Title + f.Unique + f.Artifact + f.Enchant + f.Skill + f.Consumable + f.Gear
+	if total > 0.90 {
+		scale := 0.90 / total
+		f.Ultimate *= scale
+		f.Title *= scale
+		f.Unique *= scale
+		f.Artifact *= scale
+		f.Enchant *= scale
+		f.Skill *= scale
+		f.Consumable *= scale
+		f.Gear *= scale
+		total = 0.90
+	}
+	f.Common = 1 - total
 	return f
 }
 

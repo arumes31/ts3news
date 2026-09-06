@@ -392,6 +392,11 @@ func liveAllyEffects(au *activeUser) []abyssLiveEffect {
 		return nil
 	}
 	effects := make([]abyssLiveEffect, 0, len(au.effects)+1)
+	if au.u != nil {
+		if sub, ok := content.AbyssSubclassByID(au.u.AbyssSubclass); ok {
+			effects = append(effects, abyssLiveEffect{Name: fmt.Sprintf("%s: %d/3 %s", sub.Name, au.classResource, sub.Resource), Description: sub.Sequence, Duration: "this encounter"})
+		}
+	}
 	seen := make(map[string]bool, len(au.effects)+1)
 	for _, effect := range au.effects {
 		name := string(effect)

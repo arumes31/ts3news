@@ -107,7 +107,13 @@ func abyssNonCombatReward(escrow, bonus int64, interestRate float64, depth int, 
 	if deferredReturn {
 		return applyAbyssEscrowSoftCap(escrow, 0, 0, depth)
 	}
-	return applyAbyssEscrowSoftCap(escrow, abyssGoldScale(escrow, interestRate), bonus, depth)
+	return applyAbyssEscrowSoftCap(escrow, abyssEscrowInterestGain(escrow, interestRate, depth), bonus, depth)
+}
+
+// Only the depth's soft-cap principal earns interest. Reducing each interest
+// payment to 25% alone still compounds exponentially on long or legacy runs.
+func abyssEscrowInterestGain(escrow int64, rate float64, depth int) int64 {
+	return abyssGoldScale(min(max(escrow, 0), abyssEscrowSoftCap(depth)), rate)
 }
 
 func abyssOverkillGold(overkillDamage int, floorBonus int64) int64 {

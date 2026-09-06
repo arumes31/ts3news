@@ -23,7 +23,7 @@ func TestApplyAbyssRunBuildUsesOneKitAndMutation(t *testing.T) {
 	if u.Stats.INT != 110 || u.Stats.MNA != 50 || u.Stats.STR != 50 {
 		t.Fatalf("arcanist kit applied unexpected stats: %#v", u.Stats)
 	}
-	if got := u.Skills[0]; got.IgnoreDef != 0.25 || got.Power != 2.2 || got.HealPercent != 0 {
+	if got := u.Skills[0]; got.IgnoreDef != 0.35 || got.Power != 2.2 || got.HealPercent != 0 {
 		t.Fatalf("piercing mutation/mastery overlap incorrectly: %#v", got)
 	}
 }

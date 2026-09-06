@@ -463,6 +463,30 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/static/abyss_catalog_icons.js", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/abyss_catalog_icons.js", "application/javascript; charset=utf-8")
 	})
+	for _, classAsset := range []struct{ name, mime string }{{"abyss_player_classes_v1.png", "image/png"}, {"abyss_subclasses_martial_v1.png", "image/png"}, {"abyss_subclasses_mystic_v1.png", "image/png"}, {"abyss_classes.js", "application/javascript; charset=utf-8"}, {"abyss_classes.css", "text/css; charset=utf-8"}} {
+		mux.HandleFunc("/static/"+classAsset.name, func(w http.ResponseWriter, r *http.Request) {
+			ServeAsset(w, r, "webassets/"+classAsset.name, classAsset.mime)
+		})
+	}
+	mux.HandleFunc("/static/abyss_combat_art.js", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_combat_art.js", "application/javascript; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_combat_catalog.js", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_combat_catalog.js", "application/javascript; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_combat_animation.js", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_combat_animation.js", "application/javascript; charset=utf-8")
+	})
+	mux.HandleFunc("/static/abyss_combat_animation.css", func(w http.ResponseWriter, r *http.Request) {
+		ServeAsset(w, r, "webassets/abyss_combat_animation.css", "text/css; charset=utf-8")
+	})
+	for _, atlas := range []string{"roles", "creatures", "bestiary", "bosses"} {
+		path := "/static/abyss_combat_" + atlas + "_v2.png"
+		asset := "webassets/abyss_combat_" + atlas + "_v2.png"
+		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			ServeAsset(w, r, asset, "image/png")
+		})
+	}
 	seenCatalogAssets := make(map[string]struct{})
 	for _, entry := range content.PixelArtCatalog() {
 		if _, exists := seenCatalogAssets[entry.Asset]; exists {
@@ -595,6 +619,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		mux.HandleFunc("/api/abyss/competition/wager/join", s.authAPI(s.handleAbyssWagerJoin))
 		mux.HandleFunc("/api/abyss/competition/shame", s.authAPI(s.handleAbyssShameOptIn))
 		mux.HandleFunc("/api/abyss/inventory/lock", s.authAPI(s.handleAbyssInventoryLock))
+		mux.HandleFunc("/api/abyss/classes", s.authAPI(s.handleAbyssClasses))
 		mux.HandleFunc("/api/abyss/build/respec", s.authAPI(s.handleAbyssBuildRespec))
 		mux.HandleFunc("/api/abyss/loot/settings", s.authAPI(s.handleAbyssLootSettings))
 		mux.HandleFunc("/api/abyss/loot/wishlist", s.authAPI(s.handleAbyssWishlist))
@@ -758,6 +783,7 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/api/arcade/daily-spin", s.authAPI(s.handleDailySpinAPI))
 	mux.HandleFunc("/api/shop/exchange", s.auth(s.handleExchangeAPI))
 	mux.HandleFunc("/api/shop/buy", s.auth(s.handleBuyAPI))
+	mux.HandleFunc("/api/shop/buffs", s.authAPI(s.handleShopBuffAPI))
 	mux.HandleFunc("/api/inventory/equip", s.auth(s.handleEquipAPI))
 	mux.HandleFunc("/api/inventory/sell", s.auth(s.handleSellAPI))
 	mux.HandleFunc("/api/inventory/buyback", s.auth(s.handleInventoryBuyback))

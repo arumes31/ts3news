@@ -3,6 +3,33 @@
   top: 2.8rem;
   z-index: 35;
 }
+.abyss-command-page .ab-workspace-switcher {
+  align-items: center;
+  background: #0b1018;
+  border-bottom: 1px solid #303a4b;
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.ab-workspace-switcher label { color: #c0cbd9; font-size: .875rem; }
+.abyss-command-page .ab-workspace-switcher select { flex: 1; min-width: 0; max-width: 280px; min-height: 44px; font-size: 1rem; }
+.abyss-command-page .ab-workspace-switcher button { min-height: 44px; flex-shrink: 0; }
+.abyss-command-page #abCommandCenter.ab-has-workspace { position: sticky; top: 0; z-index: 100; }
+.abyss-command-page .ab-has-workspace .ab-workspace-switcher { position: static; padding: 0; border: 0; flex: 1; min-width: 0; }
+.abyss-command-page .ab-has-workspace :is(#abCurrentSection, #abFilterSummary, .spacer) { display: none; }
+.abyss-command-page .ab-has-workspace > button:first-of-type { display: none; }
+.ab-workspace-switcher label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.abyss-command-page :is([data-abyss-section], #abyssStage, #abyssEntryPlanner, [data-entry-panel]) { scroll-margin-top: calc(var(--ab-workspace-height, 76px) + 12px); }
+@media (max-width: 700px) {
+  .abyss-command-page #abCommandCenter.ab-has-workspace { row-gap: 4px; }
+  .abyss-command-page .ab-has-workspace .ab-workspace-switcher { grid-column: 1 / -1; order: -1; }
+  .abyss-command-page .ab-workspace-switcher { gap: 6px; }
+  .ab-workspace-switcher label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .abyss-command-page .ab-workspace-switcher select { max-width: none; }
+}
 .abyss-command-page .ab-tab:focus-visible {
   outline: 2px solid #f0c45f;
   outline-offset: 2px;
