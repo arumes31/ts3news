@@ -1104,7 +1104,8 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
     window.reduceMotion = true;
     const manifest = window.AB_EXACT_ICON_MANIFEST;
     const monsterKeys = Object.keys(manifest).filter(key => manifest[key].kind === 'monster').slice(0, 7);
-    const skillKeys = Object.keys(manifest).filter(key => manifest[key].kind === 'skill').slice(0, 2);
+    // Class signatures use animated SVGs; this fixture checks ordinary atlas skills.
+    const skillKeys = Object.keys(manifest).filter(key => manifest[key].kind === 'skill' && !key.startsWith('skill:CLASS_')).slice(0, 2);
     const itemKey = Object.keys(manifest).find(key => manifest[key].kind === 'gear' && manifest[key].family === 'items');
     const relicKey = Object.keys(manifest).find(key => manifest[key].kind === 'gear' && manifest[key].family === 'relics');
     const enemies = Array.from({ length: 7 }, (_, index) => ({
@@ -1176,9 +1177,11 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   expect(new Set(monsterSignatures).size).toBe(7);
   await ordinary.click();
   await expect(page.locator('#liveQueue')).toContainText('TARGET ·');
-  const attackIcon = page.locator('#liveActionBar .kind-attack .ab-semantic-action-icon');
-  await expect(attackIcon).toHaveCSS('background-image', /abyss_icon_atlas/);
-  await expect(attackIcon).toHaveAttribute('data-art-sheet', 'actions');
+  const attackIcon = page.locator('#liveActionBar .kind-attack .ab-catalog-icon');
+  await expect(attackIcon).toHaveCSS('background-image', /abyss_catalog_skills_p\d+/);
+  await expect(attackIcon).toHaveAttribute('data-art-sheet', 'skills');
+  const attackSignature = await page.evaluate(() => window.liveArtIdentity('attack:basic_attack').signature);
+  await expect(attackIcon).toHaveAttribute('data-art-signature', attackSignature);
   const skillSignatures = await page.locator('#liveActionBar .kind-skill .ab-catalog-icon').evaluateAll(nodes => nodes.map(node => node.dataset.artSignature));
   expect(new Set(skillSignatures).size).toBe(2);
   const skillComposites = await page.locator('#liveActionBar .kind-skill .ab-catalog-icon').evaluateAll(nodes => nodes.map(node => node.getAttribute('style')));

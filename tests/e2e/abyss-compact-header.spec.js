@@ -1,11 +1,15 @@
 const { test, expect } = require('@playwright/test');
 
-for (const viewport of [{ width: 2560, height: 1440 }, { width: 1440, height: 900 }, { width: 390, height: 844 }]) {
-  test(`run header leaves room for decisions at ${viewport.width}px`, async ({ page }) => {
-    await page.setViewportSize(viewport);
+for (const viewport of [{ width: 2560, height: 1440 }, { width: 1440, height: 900 }, { width: 1440, height: 900, wrappedMomentum: true }, { width: 390, height: 844 }]) {
+  test(`run header leaves room for decisions at ${viewport.width}px${viewport.wrappedMomentum ? ' with wrapped momentum' : ''}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/abyss?active=1&briefing=1');
     await expect(page.locator('#abyssWorkspaceSelect')).toBeVisible();
+    if (viewport.wrappedMomentum) {
+      // Linux fallback fonts wrap this value; exercise two lines on every OS.
+      await page.locator('#momVal').evaluate(node => { node.innerHTML = '🔥 ×4 (+8%<br>STR)'; });
+    }
     await page.evaluate(() => { window.scrollTo(0, 0); });
     const layout = await page.evaluate(() => {
       const hero = document.querySelector('.abyss-hero').getBoundingClientRect();
