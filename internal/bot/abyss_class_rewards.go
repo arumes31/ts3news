@@ -104,7 +104,11 @@ func (b *Bot) grantAbyssClassCredit(ctx context.Context, uid, classID, owner str
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			log.Printf("abyss class XP rollback failed: %v", err)
+		}
+	}()
 	var locked string
 	if err = tx.QueryRowContext(ctx, "SELECT client_uid FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&locked); err != nil {
 		return 0, err

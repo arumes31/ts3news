@@ -57,7 +57,12 @@ func TestAbyssClassRewardFarmingAndCap(t *testing.T) {
 }
 func TestAbyssClassRewardReceiptFailureRollsBackProgress(t *testing.T) {
 	db, mock, _ := sqlmock.New()
-	defer db.Close()
+	t.Cleanup(func() {
+		mock.ExpectClose()
+		if err := db.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	state := newAbyssClassState()
 	state.Class = "warrior"
 	raw, _ := json.Marshal(state)
@@ -147,7 +152,10 @@ func TestAbyssClassCorruptReceiptsCannotBeRecredited(t *testing.T) {
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatal(err)
 		}
-		db.Close()
+		mock.ExpectClose()
+		if err := db.Close(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -156,7 +164,12 @@ func TestAbyssClassPendingJournalSurvivesCreditFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	t.Cleanup(func() {
+		mock.ExpectClose()
+		if err := db.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	p := abyssClassPending{UID: "owner", Class: "warrior", Owner: "host", Seed: [2]uint64{1, 2}, Depth: 1, Kills: []abyssClassKill{{"1:0", 1000}}, Cleared: true}
 	raw, _ := json.Marshal(p)
 	key := abyssClassPendingKey(p, raw)

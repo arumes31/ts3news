@@ -61,8 +61,8 @@ func (b *Bot) flushAbyssClassPending(ctx context.Context, uid string) {
 		}
 	}
 	readErr := rows.Err()
-	rows.Close()
-	if readErr != nil {
+	closeErr := rows.Close()
+	if readErr != nil || closeErr != nil {
 		return
 	}
 	for _, p := range pending {

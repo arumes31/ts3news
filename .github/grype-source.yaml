@@ -1,0 +1,21 @@
+# Reviewed 2026-09-06. These daemon vulnerabilities occur only in the expanded
+# module graph through migrate/v4 -> postgres.test -> dhui/dktest -> Docker.
+# No Docker code is imported by this application's builds or tests. CI asserts
+# that before applying these version-specific exceptions. New CVEs still fail.
+# These exceptions are source-only: the runtime image scan uses no exceptions.
+ignore:
+  - vulnerability: GO-2026-4887
+    package:
+      name: github.com/docker/docker
+      version: v28.3.3+incompatible
+      type: go-module
+  - vulnerability: GHSA-x86f-5xw2-fm2r
+    package:
+      name: github.com/docker/docker
+      version: v28.3.3+incompatible
+      type: go-module
+  - vulnerability: GHSA-rg2x-37c3-w2rh
+    package:
+      name: github.com/docker/docker
+      version: v28.3.3+incompatible
+      type: go-module

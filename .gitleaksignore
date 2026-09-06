@@ -1,6 +1,8 @@
-# Reviewed false positives: Forge4Undo2Key = "abyss_forge_undo2" is a public
+# Reviewed false positives: the Forge4Undo2Key constant contains a public
 # app_meta database-key prefix for a game purchase, not an authentication secret.
 # These exact historical occurrences cover its original definition and file move.
 # Do not replace these fingerprints with a file-wide or generic-api-key exclusion.
 cec0723ceb0ac07c78aec5a83fa4a87dc30c7c7d:internal/bot/web_abyss_forge4.go:generic-api-key:1675
 12052164acd6a0d8928748515e17148a0977ad38:internal/bot/web_abyss_forge_crafting.go:generic-api-key:644
+# The original explanatory comment repeated the same public constant assignment.
+aed63462dcd06a13ae86b6eaef002a80a72fd783:.gitleaksignore:generic-api-key:1

@@ -53,6 +53,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: true
+      - name: Verify Docker scanner exceptions remain outside builds and tests
+        run: |
+          go list -deps -test ./... > go-test-imports.txt
+          if grep -q '^github.com/docker/docker/' go-test-imports.txt; then
+            echo 'Docker is now imported; review and remove the source scan exceptions.' >&2
+            exit 1
+          fi
       - name: Scan source dependency manifests
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
         with:
@@ -63,6 +74,7 @@ jobs:
           only-fixed: false
           output-format: sarif
           output-file: source-dependencies.sarif
+          config: .github/grype-source.yaml
       - name: Upload dependency scan
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -86,6 +98,12 @@ jobs:
           - language: go
             build-mode: autobuild
           - language: javascript-typescript
+            build-mode: none
+          - language: actions
+            build-mode: none
+          - language: python
+            build-mode: none
+          - language: csharp
             build-mode: none
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
