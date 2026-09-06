@@ -29,7 +29,7 @@ func TestAutoIdentifySkipsAlreadyIdentifiedItems(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	for range 2 {
 		mock.ExpectBegin()
 		mock.ExpectQuery("SELECT id, gear_id, item_data FROM user_inventory.*unidentified.*FOR UPDATE").WithArgs("player").
@@ -52,7 +52,7 @@ func TestAutoIdentifyRollsBackFailedExistingItemWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT id, gear_id, item_data FROM user_inventory").WithArgs("player").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "gear_id", "item_data"}).AddRow(1, "secret", `{"ID":"secret","Rarity":8,"unidentified":true}`))
@@ -98,7 +98,7 @@ func TestStoreAutoIdentifiedDrop(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer db.Close()
+			defer func() { _ = db.Close() }()
 			mock.ExpectBegin()
 			mock.ExpectQuery("SELECT gold FROM users.*FOR UPDATE").WithArgs("player").
 				WillReturnRows(sqlmock.NewRows([]string{"gold"}).AddRow(test.gold))
@@ -133,7 +133,7 @@ func TestAutoIdentifyExistingItems(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT id, gear_id, item_data FROM user_inventory.*ORDER BY id FOR UPDATE").WithArgs("player").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "gear_id", "item_data"}).

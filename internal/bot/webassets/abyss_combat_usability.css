@@ -15,6 +15,8 @@
   .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) .abyss-stats { margin-bottom: 6px; }
   .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) .abyss-stats > :is(.ab-chip, .ab-api-latency) { min-height: 52px; padding: 5px 10px; }
   .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) .abyss-stats > .ab-chip { gap: 3px; }
+  /* Momentum can wrap with platform fallback fonts without expanding the HUD. */
+  .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) .ab-stat-combat .ab-chip-val { font-size: 1rem; line-height: 1.35; }
   .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) .abyss-stats > .ab-stat-vitals { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: 20px 14px; align-content: center; column-gap: 8px; }
   .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) .ab-stat-vitals > .ab-chip-label { grid-row: 1 / 3; align-self: center; }
   .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) .ab-stat-vitals > :is(.ab-hpbar, .ab-mpbar) { grid-column: 2; margin: 0; height: 100%; }
