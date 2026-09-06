@@ -222,6 +222,7 @@
   margin-top: 14px;
   margin-bottom: 6px;
 }
+.tree-tab-short { display: none; }
 .tree-tab {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -452,7 +453,7 @@
   </div>
   <div class="tree-head-right">
     <span class="pill" id="treeAvailPill">✨ <b id="treeAvail">{{.Avail}}</b> available</span>
-    <span class="pill" id="treePointsPill" aria-label="Skill points spent and available">🔵 <b id="treeUsed">{{.Used}}</b> spent · <b id="treeAvailable">{{.Avail}}</b> available · <b id="treePoints">{{.Points}}</b> total</span>
+    <span class="pill" id="treePointsPill" aria-label="Skill points spent and available">🔵 <b id="treeUsed">{{.Used}}</b> spent · <b id="treeAvailable">{{.Avail}}</b> available<span class="tree-total"> · <b id="treePoints">{{.Points}}</b> total</span></span>
     <span class="pill" id="treeTokensPill" style="display:none; color:#f4c542;">🜲 <b id="treeTokens">{{.Tokens}}</b> tokens</span>
     <button class="ghost xs" id="treeRespecBtn" onclick="treeRespec()">{{if .FreeRespec}}♻️ Respec (free this week){{else}}♻️ Respec (🜲 {{.RespecTk}}){{end}}</button>
     <button class="ghost xs" id="treeUndoBtn" style="display:none;" onclick="tryUndoAlloc()">↩️ Undo</button>
@@ -480,14 +481,14 @@
 <div class="tree-season small" id="treeSeason">🌿 <b>{{.SeasonalTree.Label}}</b> · {{.SeasonalTree.Desc}} Ends {{.SeasonalTree.Ends}}.</div>
 
 <div class="tree-tabs">
-  <button class="tree-tab active" id="tab-passive" onclick="switchTab('passive')" aria-pressed="true">🌳 Passive Skill Web</button>
-  <button class="tree-tab" id="tab-talents" onclick="switchTab('talents')" aria-pressed="false">🜲 Deep Delver Upgrades</button>
-  <button class="tree-tab" id="tab-specs" onclick="switchTab('specializations')" aria-pressed="false">🎓 Specializations</button>
+  <button class="tree-tab active" id="tab-passive" onclick="switchTab('passive')" aria-pressed="true" aria-label="Passive Skill Web"><span class="tree-tab-full">🌳 Passive Skill Web</span><span class="tree-tab-short">Passive web</span></button>
+  <button class="tree-tab" id="tab-talents" onclick="switchTab('talents')" aria-pressed="false" aria-label="Deep Delver Upgrades"><span class="tree-tab-full">🜲 Deep Delver Upgrades</span><span class="tree-tab-short">Deep Delver</span></button>
+  <button class="tree-tab" id="tab-specs" onclick="switchTab('specializations')" aria-pressed="false" aria-label="Specializations"><span class="tree-tab-full">🎓 Specializations</span><span class="tree-tab-short">Specializations</span></button>
 </div>
 
 <div class="tree-toolbar">
   <input type="search" id="treeSearch" placeholder="🔍 Search nodes (e.g. 'loot find', 'Keystone', 'STR')" aria-label="Search skill nodes" oninput="treeSearchApply()">
-  <span class="muted small" id="treeLegendText">Drag to pan · wheel to zoom · click a highlighted node to allocate</span>
+  <span class="muted small" id="treeLegendText">Drag to pan · wheel to zoom · select a node to inspect</span>
   <div class="tree-legend" id="treeLegendPills">
     <span><i class="tl-dot tl-alloc"></i> allocated</span>
     <span><i class="tl-dot tl-avail"></i> allocatable</span>
@@ -530,6 +531,7 @@ var TREE_ATLAS_URLS = {
   tree_void: '{{asset "/static/abyss_atlas_tree_void.png"}}'
 };
 var treeAtlasImages = {};
+var treeAtlasClips = {}, treeAtlasClipDefs = null;
 Object.keys(TREE_ATLAS_URLS).forEach(function(sheet){
   var atlas = new Image();
   atlas.decoding = 'async';
@@ -810,7 +812,7 @@ async function abPost(url, body){
 // ---- SVG build -------------------------------------------------------------
 var svg = document.getElementById('treeSvg');
 var NS = 'http://www.w3.org/2000/svg';
-var view = {x:-1800, y:-1800, w:3600, h:3600};
+var view = {x:-300, y:-300, w:600, h:600};
 function applyView(){ 
   svg.setAttribute('viewBox', view.x+' '+view.y+' '+view.w+' '+view.h); 
   // Parallax shift for background stars (Item 1)
@@ -843,6 +845,27 @@ function loadPassiveNodeIcon(g, node, size) {
   image.setAttribute('width', TREE_ATLAS_SIZE);
   image.setAttribute('height', TREE_ATLAS_SIZE);
   image.setAttribute('preserveAspectRatio', 'none');
+  // Clip the image before CSS filters run; overflow on the nested SVG alone
+  // can expose the rest of the atlas in the filtered rendering layer.
+  var clipID = 'tree-atlas-cell-' + node.art_cell;
+  if (!treeAtlasClips[clipID]) {
+    if (!treeAtlasClipDefs) {
+      treeAtlasClipDefs = document.createElementNS(NS, 'defs');
+      svg.appendChild(treeAtlasClipDefs);
+    }
+    var clip = document.createElementNS(NS, 'clipPath');
+    clip.setAttribute('id', clipID);
+    clip.setAttribute('clipPathUnits', 'userSpaceOnUse');
+    var crop = document.createElementNS(NS, 'rect');
+    crop.setAttribute('x', cellX);
+    crop.setAttribute('y', cellY);
+    crop.setAttribute('width', TREE_ATLAS_CELL_SIZE);
+    crop.setAttribute('height', TREE_ATLAS_CELL_SIZE);
+    clip.appendChild(crop);
+    treeAtlasClipDefs.appendChild(clip);
+    treeAtlasClips[clipID] = true;
+  }
+  image.setAttribute('clip-path', 'url(#' + clipID + ')');
   image.style.imageRendering = 'pixelated';
   icon.appendChild(image);
   g.appendChild(icon);
@@ -869,6 +892,11 @@ function drawTreeCanvas(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,width,height);
   if (!canvasModeOn || activeTab !== 'passive') return;
+  var highContrast = document.documentElement.classList.contains('tree-high-contrast');
+  var theme = highContrast ? getComputedStyle(stage) : null;
+  var contrastInk = theme ? theme.getPropertyValue('--tree-contrast-ink').trim() : '';
+  var contrastSurface = theme ? theme.getPropertyValue('--tree-contrast-surface').trim() : '';
+  var contrastMuted = theme ? theme.getPropertyValue('--tree-contrast-muted').trim() : '';
   var sx = width/view.w, sy = height/view.h;
   function pos(id){
     var n = id===0 ? {x:0,y:0} : byId[id];
@@ -880,7 +908,7 @@ function drawTreeCanvas(){
     if(!a||!b)return;
     var on=(edge[0]===0||alloc[edge[0]])&&(edge[1]===0||alloc[edge[1]]);
     var half=!on&&((edge[0]===0||alloc[edge[0]])||(edge[1]===0||alloc[edge[1]]));
-    ctx.strokeStyle=on?'#f4c542':half?'rgba(91,192,255,.62)':'rgba(70,80,105,.38)';
+    ctx.strokeStyle=highContrast?(on||half?contrastInk:contrastMuted):on?'#f4c542':half?'rgba(91,192,255,.62)':'rgba(70,80,105,.38)';
     ctx.lineWidth=on?2.2:half?1.5:1;
     ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
   });
@@ -889,9 +917,10 @@ function drawTreeCanvas(){
     if(!p||p.x<-20||p.y<-20||p.x>width+20||p.y>height+20)return;
     var radius=n.type==='aura'?7:n.type==='keystone'?6:(n.type==='notable'||n.type==='bridge')?4.5:3;
     var on=!!alloc[n.id], can=isAllocatable(n.id);
-    ctx.fillStyle=on?'#f4c542':can?'#152e47':'#232a3d';
-    ctx.strokeStyle=n.id===NODE_OF_DAY?'#ffd85b':on?'#fff0a8':can?'#5bc0ff':'#52607c';
-    ctx.lineWidth=on||can?1.7:1;
+    ctx.fillStyle=highContrast?(on?contrastInk:contrastSurface):on?'#f4c542':can?'#152e47':'#232a3d';
+    ctx.strokeStyle=highContrast?(on||can?contrastInk:contrastMuted):n.id===NODE_OF_DAY?'#ffd85b':on?'#fff0a8':can?'#5bc0ff':'#52607c';
+    ctx.lineWidth=highContrast?2:on||can?1.7:1;
+    ctx.setLineDash(highContrast&&can&&!on?[3,2]:[]);
     ctx.beginPath(); ctx.arc(p.x,p.y,radius,0,Math.PI*2); ctx.fill(); ctx.stroke();
     var atlas=treeAtlasImages[n.art_sheet];
     if(atlas&&atlas.complete&&atlas.naturalWidth){
@@ -900,9 +929,13 @@ function drawTreeCanvas(){
       var iconSize=Math.max(7,radius*2.4);
       ctx.globalAlpha=on?1:(can ? 0.82 : 0.46);
       ctx.imageSmoothingEnabled=false;
+      ctx.filter=highContrast?'grayscale(1) contrast(1.8) brightness(1.35)':'none';
       ctx.drawImage(atlas,cellX,cellY,TREE_ATLAS_CELL_SIZE,TREE_ATLAS_CELL_SIZE,p.x-iconSize/2,p.y-iconSize/2,iconSize,iconSize);
+      ctx.filter='none';
       ctx.globalAlpha=1;
     }
+    if(highContrast){ctx.beginPath();ctx.arc(p.x,p.y,radius+2,0,Math.PI*2);ctx.stroke();}
+    ctx.setLineDash([]);
   });
 }
 
@@ -1060,6 +1093,7 @@ function makeNodeShape(n){
 var edgeEls = [], nodeEls = {};
 function build(){
   svg.innerHTML = '';
+  treeAtlasClips = {}; treeAtlasClipDefs = null;
   edgeEls = [];
   nodeEls = {};
   iconEls = {};
@@ -1223,20 +1257,22 @@ function build(){
 
       var c = makeNodeShape(n);
       c.setAttribute('data-id', n.id);
-      c.setAttribute('tabindex','0');
+      c.setAttribute('tabindex','-1');
       c.setAttribute('role','button');
       c.setAttribute('aria-label', n.name + (n.desc ? ' — ' + n.desc : ''));
       c.addEventListener('click', function(ev){
         ev.stopPropagation();
-        if (ev.shiftKey) { queueAdd(n.id); return; } // AB-164: queue for later
-        if (ev.altKey) { setPathfinder(n.id); return; } // AB-154: cheapest path
-        if ((ev.ctrlKey || ev.metaKey) && n.type === 'keystone' && !alloc[n.id]) { tryKeystoneSwap(n.id); return; } // AB-152
-        tryAllocate(n.id);
+        activateTreeNode(n.id, ev);
       });
       c.addEventListener('keydown', function(ev){
-        if(ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar'){ ev.preventDefault(); tryAllocate(n.id); }
-        // Keyboard refund (the tooltip's button is mouse-oriented).
-        if((ev.key === 'Delete' || ev.key === 'r') && alloc[n.id]){ ev.preventDefault(); tryRefund(ev, n.id); }
+        if(ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar'){
+          ev.preventDefault(); activateTreeNode(n.id, ev);
+        }
+        if(ev.key === 'Delete' || ev.key === 'r'){
+          ev.preventDefault();
+          if(window.treePlanner && treePlanner.isPlanning()) treePlanner.remove(n.id);
+          else if(alloc[n.id]) tryRefund(ev, n.id);
+        }
       });
       c.addEventListener('mouseenter', function(ev){
         showTip(n, ev);
@@ -1523,7 +1559,7 @@ function switchTab(tab) {
   
   if (tab === 'passive') {
     title.textContent = '🌳 Abyss Skill Web';
-    sub.textContent = 'Thousands of nodes across six disciplines out to the far rim — every path connects. Points scale with levels, depth records, lifetime floors and prestige. Small nodes cost 1, ★ notables & bridges 2, keystones 3, 🌟 auras 50.';
+    sub.textContent = 'Six disciplines. One connected build. Explore a node or plan your next path.';
     respecBtn.style.display = '';
     respecBtn.setAttribute('onclick', 'treeRespec()');
     respecBtn.innerHTML = FREE_RESPEC ? '♻️ Respec (free this week)' : '♻️ Respec (🜲 {{.RespecTk}})';
@@ -1532,7 +1568,7 @@ function switchTab(tab) {
     if (tokensPill) tokensPill.style.display = 'none';
     if (searchBar) searchBar.style.display = '';
     if (legendPills) legendPills.style.display = '';
-    if (legendText) legendText.textContent = 'Drag to pan · wheel to zoom · click a highlighted node to allocate';
+    if (legendText) legendText.textContent = 'Drag to pan · wheel to zoom · select a node to inspect';
   } else if (tab === 'talents') {
     title.textContent = '🜲 Deep Delver Upgrades';
     sub.textContent = 'Upgrade 10 permanent Deep Delver disciplines using Abyss Tokens. Upgrades require prerequisite levels in the branch and are gated by your depth record.';
@@ -1559,7 +1595,7 @@ function switchTab(tab) {
     if (legendText) legendText.textContent = 'Drag to pan · wheel to zoom · click a specialization node to activate';
   }
   
-  view = (tab === 'passive')  ? {x:-1800, y:-1800, w:3600, h:3600}
+  view = (tab === 'passive')  ? {x:-300, y:-300, w:600, h:600}
        : (tab === 'talents')  ? {x:-1250, y:-220, w:2500, h:1560}
        : {x:-620, y:-560, w:1240, h:1240};
 
@@ -1990,11 +2026,6 @@ function pathToAllocated(targetId){
   }
   return null;
 }
-function pathCost(chain){
-  var pc = 0;
-  (chain || []).forEach(function(id){ pc += effCost(byId[id]); });
-  return pc;
-}
 function pathGateBlock(chain){
   for(var i=0;i<(chain||[]).length;i++){
     var gf = gateFloor(byId[chain[i]]);
@@ -2078,7 +2109,6 @@ function queueAdd(id){
   saveAllocQueue();
   if (added) abToast('📋 Queued '+added+' node'+(added===1?'':'s')+'.', true);
   paint();
-  setTimeout(autoApplyAffordableQueue, 0);
 }
 function clearAllocQueue(){
   allocQueue = [];
@@ -2088,33 +2118,8 @@ function clearAllocQueue(){
 async function processAllocationQueue(){
   return confirmQueuedAllocations();
 }
-function affordableQueuePrefix(){
-  var have={0:true}, remaining=Math.max(0,points-used), prefix=[];
-  Object.keys(alloc).forEach(function(id){if(alloc[id])have[Number(id)]=true;});
-  for(var i=0;i<allocQueue.length;i++){
-    var id=allocQueue[i], n=byId[id];
-    if(!n||alloc[id])continue;
-    var connected=(adj[id]||[]).some(function(neighbor){return !!have[neighbor];});
-    var cost=effCost(n);
-    if(!connected||gateFloor(n)>bestDepth||cost>remaining)break;
-    prefix.push(id);have[id]=true;remaining-=cost;
-  }
-  return prefix;
-}
-async function autoApplyAffordableQueue(){
-  if(queueRunning||busy||!allocQueue.length)return;
-  var prefix=affordableQueuePrefix();
-  if(!prefix.length)return;
-  queueRunning=true;setBusy(true);
-  try{
-    var d=await abPost('/api/abyss/tree/batch_allocate',{ids:prefix});
-    if(!d.ok){abToast(d.error||'Queued allocation is waiting.',false);return;}
-    allocQueue=allocQueue.slice(prefix.length);saveAllocQueue();
-    abToast('📋 '+prefix.length+' queued node'+(prefix.length===1?'':'s')+' applied automatically.',true);
-    setTimeout(function(){location.reload();},450);
-  }finally{queueRunning=false;setBusy(false);}
-}
 async function confirmQueuedAllocations(){
+  if(window.treePlanner && treePlanner.isPlanning()){ abToast("Finish planning before applying the allocation queue.",false); return; }
   if(queueRunning||busy||!allocQueue.length)return;
   var cost=0, names=[];
   allocQueue.forEach(function(id){var n=byId[id];if(n){cost+=effCost(n);names.push(n.name);}});
@@ -2146,16 +2151,8 @@ async function loadoutSave(slot){
   } finally { setBusy(false); }
 }
 async function loadoutApply(slot){
-  var count = Number(LOADOUTS[String(slot)] || 0);
-  if (!count) { abToast('Loadout slot '+slot+' is empty.', false); return; }
-  var cost = FREE_RESPEC ? 'your free weekly respec' : 'the normal respec cost';
-  if (!(await confirmModal('Apply loadout '+slot+' ('+count+' nodes) using '+cost+'?'))) return;
-  if (busy) return;
-  setBusy(true);
-  var d = await abPost('/api/abyss/tree/loadout_apply', {slot:slot});
-  if (!d.ok) { setBusy(false); abToast(d.error||'Failed to apply loadout.', false); return; }
-  abToast(d.msg, true);
-  setTimeout(function(){ location.reload(); }, 700);
+  if(!Number(LOADOUTS[String(slot)] || 0)){ abToast('Loadout slot '+slot+' is empty.',false); return; }
+  await previewAndApplyTreeBuild({slot:slot}, 'Apply '+(LOADOUT_NAMES[String(slot)] || 'Preset '+slot));
 }
 function refreshLoadoutLabels(){
   for (var i=1;i<=3;i++) {
@@ -2177,16 +2174,39 @@ async function buildExport(){
   }
 }
 async function buildImport(){
-  var code = window.prompt('Paste an Abyss build code:');
-  if (!code) return;
-  var cost = FREE_RESPEC ? 'your free weekly respec' : 'the normal respec cost';
-  if (!(await confirmModal('Import this server-validated build using '+cost+'?'))) return;
-  if (busy) return;
+  var code=window.prompt('Paste an Abyss build code to preview:');
+  if(code) await previewAndApplyTreeBuild({code:code.trim()}, 'Import build');
+}
+function treeApplyPrice(quote){
+  return quote.free ? '0 tokens · uses your free weekly respec' : quote.token_total+' tokens';
+}
+async function confirmTreeBuild(preview, title){
+  var a=preview.analysis,q=preview.quote;
+  if(!a || !a.valid || !q || !Number.isFinite(q.token_total)){
+    abToast(a && a.warnings && a.warnings.length ? a.warnings.join(' · ') : 'A valid preview and current apply price are required.',false);
+    return false;
+  }
+  return confirmModal('<b>'+escHtml(treeApplyPrice(q))+'</b><br>'+
+    (a.added||[]).length+' node'+((a.added||[]).length===1?'':'s')+' added · '+(a.removed||[]).length+' removed<br>'+
+    'Point budget: '+a.planned_cost+' of '+a.available_points+' points.<br>Your active build will be replaced.',
+    {title:escHtml(title),okLabel:q.free?'Apply · free':'Apply · '+q.token_total+' tokens'});
+}
+async function applyConfirmedTreeBuild(preview){
+  var result=await abPost('/api/abyss/tree/build_import',{ids:preview.analysis.ids,max_tokens:preview.quote.token_total});
+  if(!result.ok){abToast(result.error||'Build could not be applied.',false);return false;}
+  abToast(result.msg||'Build applied.',true);
+  setTimeout(function(){location.reload();},700);
+  return true;
+}
+async function previewAndApplyTreeBuild(request,title){
+  if(busy) return;
+  if(window.treePlanner && treePlanner.isPlanning()){abToast('Finish planning before replacing the active build.',false);return;}
   setBusy(true);
-  var d = await abPost('/api/abyss/tree/build_import', {code:code.trim()});
-  if (!d.ok) { setBusy(false); abToast(d.error||'Import failed.', false); return; }
-  abToast(d.msg, true);
-  setTimeout(function(){ location.reload(); }, 700);
+  try{
+    var preview=await abPost('/api/abyss/tree/plan_preview',request);
+    if(!preview.ok){abToast(preview.error||'Build preview failed. Nothing was changed.',false);return;}
+    if(await confirmTreeBuild(preview,title)) await applyConfirmedTreeBuild(preview);
+  }finally{setBusy(false);}
 }
 
 function buildBeginnerPath(){
@@ -2220,6 +2240,7 @@ function toggleCanvasMode(){
 }
 
 async function tryKeystoneSwap(toID){
+  if(window.treePlanner && treePlanner.isPlanning()){ treePlanner.toggle(toID); return; }
   var choices = NODES.filter(function(n){ return n.type==='keystone' && alloc[n.id]; });
   if (!choices.length) { abToast('Allocate a keystone before swapping.', false); return; }
   var from = choices[0];
@@ -2296,15 +2317,16 @@ async function tryFuseJewel(jewel){
   } finally { setBusy(false); }
 }
 
-// Auto-allocate every node along the shortest route to id (Item: auto-skill
+// Auto-allocate every node along the cheapest eligible route to id (Item: auto-skill
 // path). Each step goes through the normal allocate API so the server stays
 // authoritative about connectivity, gates and cost.
 async function tryAutoPath(id){
-  var chain = pathToAllocated(id);
+  var route = cheapestPathToAllocated(id);
+  var chain = route ? route.chain : null;
   if(!chain){ abToast('No route to that node.', false); return; }
   var gf = pathGateBlock(chain);
   if(gf){ abToast('Path blocked — a node on it requires clearing Abyss floor ' + gf + ' (your record: ' + bestDepth + ').', false); return; }
-  var pc = pathCost(chain);
+  var pc = route.cost;
   if(used + pc > points){ abToast('Path costs ' + pc + ' points — you have ' + Math.max(0, points - used) + ' available.', false); return; }
   if(!(await confirmModal('Auto-allocate ' + chain.length + ' node' + (chain.length>1?'s':'') + ' along the path for ' + pc + ' points?'))) return;
   if(busy) return;
@@ -2328,7 +2350,16 @@ async function tryAutoPath(id){
   }
 }
 
+// Selection has one route for mouse, touch and keyboard. Spending is explicit.
+function activateTreeNode(id, event){
+  if(window.treeInspectNode) treeInspectNode(id, false, {source:event&&event.type==='keydown'?'keyboard':'graph'});
+  if(window.treePlanner && treePlanner.isPlanning()) { treePlanner.toggle(id); return; }
+  if(event && event.shiftKey){ queueAdd(id); return; }
+  if(event && event.altKey){ setPathfinder(id); return; }
+  if(!window.treeInspectNode) tryAllocate(id);
+}
 async function tryAllocate(id){
+  if(window.treePlanner && treePlanner.isPlanning()){ treePlanner.toggle(id); return; }
   if(alloc[id]){ abToast('Already allocated.', false); return; }
   if(!isAllocatable(id)){
     var gf = gateFloor(byId[id]);
@@ -2381,6 +2412,7 @@ function refundGold(id){
 // Node refund handler (Item 48). Refunds cost gold and cascade to dependents
 // ("refund until this node").
 async function tryRefund(ev, id){
+  if(window.treePlanner && treePlanner.isPlanning()){ treePlanner.remove(id); return; }
   ev.stopPropagation();
   var set = refundSet(id), gold = refundGold(id);
   var prompt = set.length > 1
@@ -2580,7 +2612,8 @@ function treeBranchSummary(n){
   return '<br><span class="muted small">Branch total · '+escHtml(names[n.sector]||'Cross-sector')+' · '+count+' allocated'+(parts.length?' · '+escHtml(parts.join(', ')):'')+'</span>';
 }
 function treeShiftDelta(n){
-  var ids=alloc[n.id]?refundSet(n.id):pathToAllocated(n.id),sign=alloc[n.id]?-1:1,stats={},pct={};
+  var route=alloc[n.id]?null:cheapestPathToAllocated(n.id);
+  var ids=alloc[n.id]?refundSet(n.id):route&&route.chain,sign=alloc[n.id]?-1:1,stats={},pct={};
   if(!ids||!ids.length)return '';
   ids.forEach(function(id){var node=byId[id];if(!node)return;Object.keys(node.stats||{}).forEach(function(key){stats[key]=(stats[key]||0)+sign*Number(node.stats[key]||0);});Object.keys(node.pct||{}).forEach(function(key){pct[key]=(pct[key]||0)+sign*Number(node.pct[key]||0);});});
   var parts=Object.keys(stats).filter(function(key){return stats[key];}).map(function(key){return key+' '+(stats[key]>0?'+':'')+stats[key];});
@@ -2696,16 +2729,17 @@ function showTip(n, ev){
                     '</div>';
     }
   } else if (isAllocatable(n.id)) {
-    actionHtml = '<br><span class="tt-can" style="margin-top:4px; display:inline-block;">○ click to allocate — costs ' + nodeCost(n) + ' pt' + (nodeCost(n)>1?'s':'') + '</span>';
+    actionHtml = '<br><span class="tt-can" style="margin-top:4px; display:inline-block;">○ inspect to allocate — costs ' + effCost(n) + ' pt' + (effCost(n)>1?'s':'') + '</span>';
   } else {
     var gf = gateFloor(n);
     if (gf > bestDepth) {
       actionHtml = '<br><span class="muted small" style="margin-top:4px; display:inline-block;">🔒 Requires clearing Abyss floor ' + gf + ' (your record: ' + bestDepth + ')</span>';
     } else {
-      var chain = pathToAllocated(n.id);
-      var pc = pathCost(chain);
+      var route = cheapestPathToAllocated(n.id);
+      var chain = route ? route.chain : null;
+      var pc = route ? route.cost : 0;
       if (chain && !pathGateBlock(chain) && used + pc <= points) {
-        actionHtml = '<br><span class="tt-can" style="margin-top:4px; display:inline-block;">○ click to auto-allocate the path — ' + chain.length + ' node' + (chain.length>1?'s':'') + ', ' + pc + ' pts</span>';
+        actionHtml = '<br><span class="tt-can" style="margin-top:4px; display:inline-block;">○ select to inspect the path — ' + chain.length + ' node' + (chain.length>1?'s':'') + ', ' + pc + ' pts</span>';
       } else if (chain && pathGateBlock(chain)) {
         actionHtml = '<br><span class="muted small" style="margin-top:4px; display:inline-block;">🔒 path passes a node gated behind Abyss floor ' + pathGateBlock(chain) + '</span>';
       } else if (chain) {
@@ -2793,7 +2827,6 @@ if (canvasModeOn) {
 }
 setInterval(renderKeystoneTimer, 1000);
 window.addEventListener('resize', queueTreeCanvasDraw);
-setTimeout(autoApplyAffordableQueue, 0);
 </script>
 {{if .TreeFeaturesEnabled}}
 {{template "abysstree-navigation" .}}
@@ -2802,5 +2835,6 @@ setTimeout(autoApplyAffordableQueue, 0);
 {{template "abysstree-progression" .}}
 {{template "abysstree-mastery" .}}
 {{template "abysstree-accessibility" .}}
+{{template "abysstree-workspace" .}}
 {{end}}
 {{template "foot" .}}{{end}}

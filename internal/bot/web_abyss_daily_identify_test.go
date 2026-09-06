@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http/httptest"
 	"regexp"
 	"strings"
@@ -14,6 +15,16 @@ import (
 
 	"ts3news/internal/content"
 )
+
+func expectDailyIdentifyCharge(mock sqlmock.Sqlmock, uid string, claimed bool) {
+	expectDailyIdentifyBalanceAndClaim(mock, uid, 500, claimed)
+}
+
+func expectDailyIdentifyBalanceAndClaim(mock sqlmock.Sqlmock, uid string, gold int64, claimed bool) {
+	mock.ExpectQuery("SELECT gold FROM users.*FOR UPDATE").WithArgs(uid).
+		WillReturnRows(sqlmock.NewRows([]string{"gold"}).AddRow(gold))
+	expectDailyIdentifyClaim(mock, uid, claimed)
+}
 
 func expectDailyIdentifyClaim(mock sqlmock.Sqlmock, uid string, claimed bool) {
 	rows := sqlmock.NewRows([]string{"claimed"})
@@ -42,7 +53,7 @@ func TestAbyssDailyIdentifyAvailableUsesUTCDate(t *testing.T) {
 	}
 }
 
-func TestAbyssDailyIdentifyQuoteWaivesFixedCost(t *testing.T) {
+func TestAbyssDailyIdentifyQuoteWaivesTierCost(t *testing.T) {
 	server, mock, done := newForge2TestServer(t)
 	defer done()
 	uid := "daily-identify-quote"
@@ -68,7 +79,7 @@ func TestAbyssDailyIdentifyQuoteWaivesFixedCost(t *testing.T) {
 	}
 }
 
-func TestAbyssPaidIdentifyQuoteDoesNotRevealRarity(t *testing.T) {
+func TestAbyssPaidIdentifyQuoteUsesTierCost(t *testing.T) {
 	for _, rarity := range []content.Rarity{content.RarityCommon, content.RarityCelestial} {
 		t.Run(rarity.String(), func(t *testing.T) {
 			server, mock, done := newForge2TestServer(t)
@@ -76,6 +87,8 @@ func TestAbyssPaidIdentifyQuoteDoesNotRevealRarity(t *testing.T) {
 			uid := "paid-identify-" + rarity.String()
 			mock.ExpectQuery("SELECT NOT EXISTS.*app_meta").WithArgs(abyssDailyIdentifyKey(uid)).
 				WillReturnRows(sqlmock.NewRows([]string{"available"}).AddRow(false))
+			mock.ExpectQuery("SELECT gold FROM users").WithArgs(uid).
+				WillReturnRows(sqlmock.NewRows([]string{"gold"}).AddRow(500))
 
 			cost, minimum, maximum, err := server.resolveAbyssForgeQuoteCost(
 				context.Background(), uid, "identify", &content.Gear{Rarity: rarity, Unidentified: true}, nil,
@@ -83,8 +96,9 @@ func TestAbyssPaidIdentifyQuoteDoesNotRevealRarity(t *testing.T) {
 			if err != nil {
 				t.Fatalf("resolve identify quote: %v", err)
 			}
-			if cost.Gold != abyssIdentifyCost || minimum.Gold != abyssIdentifyCost || maximum.Gold != abyssIdentifyCost {
-				t.Fatalf("paid identify quote costs = %d/%d/%d, want fixed %d", cost.Gold, minimum.Gold, maximum.Gold, abyssIdentifyCost)
+			want := identifyGearCost(rarity)
+			if cost.Gold != want || minimum.Gold != want || maximum.Gold != want {
+				t.Fatalf("paid identify quote costs = %d/%d/%d, want %d", cost.Gold, minimum.Gold, maximum.Gold, want)
 			}
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatalf("database expectations: %v", err)
@@ -101,7 +115,7 @@ func TestHandleAbyssIdentifyClaimsFreeUseWithItemCommit(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT gear_id, item_data FROM user_inventory").WithArgs(int64(98), uid).
 		WillReturnRows(sqlmock.NewRows([]string{"gear_id", "item_data"}).AddRow("U_LEG_2", `{"unidentified":true}`))
-	expectDailyIdentifyClaim(mock, uid, true)
+	expectDailyIdentifyCharge(mock, uid, true)
 	mock.ExpectExec("UPDATE user_inventory SET item_data=").WithArgs(sqlmock.AnyArg(), int64(98), uid).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
@@ -126,10 +140,10 @@ func TestHandleAbyssIdentifyChargesAfterFreeUse(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT gear_id, item_data FROM user_inventory").WithArgs(int64(99), uid).
 		WillReturnRows(sqlmock.NewRows([]string{"gear_id", "item_data"}).AddRow("U_LEG_2", `{"unidentified":true}`))
-	expectDailyIdentifyClaim(mock, uid, false)
+	expectDailyIdentifyCharge(mock, uid, false)
 	mock.ExpectExec("UPDATE user_inventory SET item_data=").WithArgs(sqlmock.AnyArg(), int64(99), uid).
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec("UPDATE users SET gold = gold -").WithArgs(int64(abyssIdentifyCost), uid).
+	mock.ExpectExec("UPDATE users SET gold = gold -").WithArgs(identifyGearCost(content.RarityLegendary), uid).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	mock.ExpectQuery("SELECT gold FROM users").WithArgs(uid).
@@ -157,8 +171,8 @@ func TestHandleAbyssIdentifyAllDiscountsExactlyOneItem(t *testing.T) {
 			AddRow(102, "U_LEG_2", `{"unidentified":true}`))
 	mock.ExpectQuery("SELECT slot, gear_id, item_data FROM user_gear").WithArgs(uid).
 		WillReturnRows(sqlmock.NewRows([]string{"slot", "gear_id", "item_data"}))
-	expectDailyIdentifyClaim(mock, uid, true)
-	mock.ExpectExec("UPDATE users SET gold = gold -").WithArgs(int64(abyssIdentifyCost), uid).
+	expectDailyIdentifyCharge(mock, uid, true)
+	mock.ExpectExec("UPDATE users SET gold = gold -").WithArgs(identifyGearCost(content.RarityLegendary), uid).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("UPDATE user_inventory SET item_data=").WithArgs(sqlmock.AnyArg(), int64(101), uid).
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -170,11 +184,65 @@ func TestHandleAbyssIdentifyAllDiscountsExactlyOneItem(t *testing.T) {
 
 	recorder := postForge2(t, server.handleAbyssIdentifyAll, `{}`, uid)
 	if body := recorder.Body.String(); !strings.Contains(body, `"daily_free":true`) ||
-		!strings.Contains(body, `"cost":1000`) {
+		!strings.Contains(body, `"cost":35`) {
 		t.Fatalf("identify-all response = %s", body)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("database expectations: %v", err)
+	}
+}
+
+func TestHandleAbyssIdentifyCapsChargeAtBalance(t *testing.T) {
+	for _, gold := range []int64{0, 7} {
+		t.Run(fmt.Sprintf("gold_%d", gold), func(t *testing.T) {
+			server, mock, done := newForge2TestServer(t)
+			defer done()
+			uid := "identify-low-gold"
+			mock.ExpectBegin()
+			mock.ExpectQuery("SELECT gear_id, item_data FROM user_inventory").WithArgs(int64(99), uid).
+				WillReturnRows(sqlmock.NewRows([]string{"gear_id", "item_data"}).AddRow("U_LEG_2", `{"unidentified":true}`))
+			expectDailyIdentifyBalanceAndClaim(mock, uid, gold, false)
+			mock.ExpectExec("UPDATE user_inventory SET item_data=").WithArgs(sqlmock.AnyArg(), int64(99), uid).
+				WillReturnResult(sqlmock.NewResult(0, 1))
+			if gold > 0 {
+				mock.ExpectExec("UPDATE users SET gold = gold -").WithArgs(gold, uid).
+					WillReturnResult(sqlmock.NewResult(0, 1))
+			}
+			mock.ExpectCommit()
+			mock.ExpectQuery("SELECT gold FROM users").WithArgs(uid).
+				WillReturnRows(sqlmock.NewRows([]string{"gold"}).AddRow(0))
+			recorder := postForge2(t, server.handleAbyssIdentify, `{"inv_id":99}`, uid)
+			if body := recorder.Body.String(); !strings.Contains(body, `"ok":true`) || !strings.Contains(body, fmt.Sprintf(`"cost":%d`, gold)) {
+				t.Fatalf("identify response = %s", body)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestAbyssIdentifyAllQuoteDiscountsFirstItemTierCost(t *testing.T) {
+	server, mock, done := newForge2TestServer(t)
+	defer done()
+	uid := "identify-batch-quote"
+	mock.ExpectQuery("SELECT gear_id, item_data FROM user_inventory.*ORDER BY id").WithArgs(uid).
+		WillReturnRows(sqlmock.NewRows([]string{"gear_id", "item_data"}).
+			AddRow("U_LEG_2", `{"unidentified":true,"rarity":0}`).
+			AddRow("U_LEG_2", `{"unidentified":true,"rarity":4}`))
+	mock.ExpectQuery("SELECT gear_id, item_data FROM user_gear.*ORDER BY slot").WithArgs(uid).
+		WillReturnRows(sqlmock.NewRows([]string{"gear_id", "item_data"}).
+			AddRow("U_LEG_2", `{"unidentified":true,"rarity":8}`))
+	mock.ExpectQuery("SELECT NOT EXISTS.*app_meta").WithArgs(abyssDailyIdentifyKey(uid)).
+		WillReturnRows(sqlmock.NewRows([]string{"available"}).AddRow(true))
+	mock.ExpectQuery("SELECT gold FROM users").WithArgs(uid).
+		WillReturnRows(sqlmock.NewRows([]string{"gold"}).AddRow(500))
+	cost, minimum, maximum, err := server.resolveAbyssForgeQuoteCost(context.Background(), uid, "identify_all", nil, nil)
+	if err != nil || cost.Gold != 135 || minimum.Gold != 135 || maximum.Gold != 135 {
+		t.Fatalf("quote = %+v/%+v/%+v, err = %v", cost, minimum, maximum, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -186,7 +254,7 @@ func TestHandleAbyssIdentifyRollsBackClaimWhenItemWriteFails(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT gear_id, item_data FROM user_inventory").WithArgs(int64(103), uid).
 		WillReturnRows(sqlmock.NewRows([]string{"gear_id", "item_data"}).AddRow("U_LEG_2", `{"unidentified":true}`))
-	expectDailyIdentifyClaim(mock, uid, true)
+	expectDailyIdentifyCharge(mock, uid, true)
 	mock.ExpectExec("UPDATE user_inventory SET item_data=").WithArgs(sqlmock.AnyArg(), int64(103), uid).
 		WillReturnError(errors.New("write failed"))
 	mock.ExpectRollback()
@@ -232,7 +300,7 @@ func TestDailyIdentifyRejectsQuoteAfterConcurrentClaim(t *testing.T) {
 	}
 
 	mock.ExpectBegin()
-	expectDailyIdentifyClaim(mock, uid, false)
+	expectDailyIdentifyCharge(mock, uid, false)
 	mock.ExpectRollback()
 	req := httptest.NewRequest("POST", "/api/abyss/identify", strings.NewReader(`{}`))
 	req.Header.Set(abyssForgeQuoteHeader, token)

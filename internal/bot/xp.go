@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -206,6 +207,11 @@ func (b *Bot) buildCycleContext(clients []clientquery.ClientInfo) cycleContext {
 func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, ctx cycleContext) (*levelResult, []string, string) {
 	var notes []string
 	delta := 0
+	if count, cost, err := b.autoIdentifyItems(context.Background(), uid); err != nil {
+		log.Printf("automatic inventory identification failed: %v", err)
+	} else if count > 0 {
+		notes = append(notes, fmt.Sprintf("🔍 Identified %d item(s) for %dg.", count, cost))
+	}
 
 	if b.Cfg.EnableXPModifiers {
 		b.ensureUserHasGear(uid)
@@ -1624,14 +1630,12 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 		}
 
-		// Mana regeneration: base 10 + 5% of flat MNA stat per round
-		regen := 10 + u.Stats.MNA/20
-		if abyssCombatant(u) {
-			regen += int(u.classTalents["regen"])
-		}
-		au.CurrentMana += regen
-		if au.CurrentMana > au.MaxMana {
-			au.CurrentMana = au.MaxMana
+		// Record recovery separately from spending, even when they cancel out.
+		beforeMana := au.CurrentMana
+		au.CurrentMana = min(au.MaxMana, au.CurrentMana+combatManaRegen(u))
+		if au.CurrentMana > beforeMana {
+			u.live.presentWithMana(round, "mana", "ally:"+u.UID, "mana_regen", "Mana recovery", "",
+				&combatManaChange{Before: beforeMana, After: au.CurrentMana, Max: au.MaxMana})
 		}
 
 		// Check for cursed gear
@@ -1894,22 +1898,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			} else {
 				st = b.loadAbyssStats(u.UID)
 			}
-			spellCostFor := func(base int) int {
-				if base <= 0 {
-					base = 20
-				}
-				if chest, ok := u.Equipped[content.SlotChest]; ok && chest.ID == "ABYSS_ARCHMAGE_ROBES" {
-					base -= 5
-				}
-				base -= abyssTalentEffectiveInt(st.UpInsight) * 2
-				if v := au.treeBonus.Pct["skill_mana_cost"]; v > 0 {
-					base = int(float64(base) * (1 - v))
-				}
-				if base < 5 {
-					base = 5
-				}
-				return base
-			}
+			spellCostFor := func(base int) int { return combatSkillManaCost(au, base, st.UpInsight) }
 			spellCost := spellCostFor(20)
 
 			// AB-64 Hold mana: with the toggle on, save casts for boss floors
@@ -1950,6 +1939,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				presentation.Kind, presentation.AbilityID, presentation.AbilityName = "skill", s.ID, s.Name
 				// AB-52 Mana overflow: casting at full mana overcharges the spell +15%.
 				overcharged := abyssCombatant(u) && au.CurrentMana >= au.MaxMana
+				presentation.Mana = &combatManaChange{Before: au.CurrentMana, After: au.CurrentMana - spellCost, Max: au.MaxMana}
 				au.CurrentMana -= spellCost
 				if abyssCombatant(u) {
 					recordAbyssSkillVariety(u, s, activeUsers, logs)
@@ -2067,7 +2057,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 				if stunnedThisHit {
 					presentation.Targets = append(presentation.Targets, abyssLivePresentationOutcome{TargetID: u.live.presentationEntity(target, "enemy"), Status: "stunned"})
 				}
-				u.live.present(round, presentation.Kind, presentation.ActorID, presentation.AbilityID, presentation.AbilityName, attackElement, presentation.Targets...)
+				u.live.presentWithMana(round, presentation.Kind, presentation.ActorID, presentation.AbilityID, presentation.AbilityName, attackElement, presentation.Mana, presentation.Targets...)
 				continue
 			}
 
@@ -2272,7 +2262,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					outcome.Status = "stunned"
 				}
 				presentation.Targets = append(presentation.Targets, outcome)
-				u.live.present(round, presentation.Kind, presentation.ActorID, presentation.AbilityID, presentation.AbilityName, attackElement, presentation.Targets...)
+				u.live.presentWithMana(round, presentation.Kind, presentation.ActorID, presentation.AbilityID, presentation.AbilityName, attackElement, presentation.Mana, presentation.Targets...)
 			}
 
 			// #nosec G404 -- non-cryptographic flavour-text roll

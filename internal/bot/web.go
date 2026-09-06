@@ -935,6 +935,9 @@ func (s *WebServer) auth(h func(http.ResponseWriter, *http.Request, string)) htt
 			http.Redirect(w, r, "/denied", http.StatusSeeOther)
 			return
 		}
+		if _, _, err := s.bot.autoIdentifyItems(r.Context(), uid); err != nil {
+			log.Printf("automatic portal identification failed: %v", err)
+		}
 		h(w, r, uid)
 	}
 }

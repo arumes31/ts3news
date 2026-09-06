@@ -41,6 +41,7 @@
     sprite.style.backgroundImage = 'url("' + asset + '")';
     sprite.style.backgroundSize = art.size || (art.columns * 100) + '% ' + (art.rows * 100) + '%';
     sprite.style.backgroundPosition = art.position || (art.column * 100 / (art.columns - 1)) + '% ' + (art.row * 100 / (art.rows - 1)) + '%';
+    sprite.style.transform = 'scaleX(var(--ab-facing, 1))' + (!reduced() && art.transform ? ' ' + art.transform : '');
     sprite.dataset.pose = pose;
     sprite.dataset.rig = art.rig;
     node.dataset.pose = pose;
@@ -198,6 +199,34 @@
     }
     if (target.defeated) { actor._pendingDefeat = false; actor._presentationDefeated = true; actor.disabled = true; setFrame(actor, 'defeat'); actor.classList.add('ab-defeated'); actor.classList.remove('ab-departed'); actor.removeAttribute('aria-hidden'); }
   }
+  function renderMana(state) {
+    var own = (state.allies || []).find(function (unit) { return unit.is_self; }) || {};
+    var panel = document.getElementById('liveMana'); if (!panel) return;
+    var max = Math.max(0, Number(own.max_mana) || 0), mana = Math.max(0, Math.min(max, Number(own.mana) || 0));
+    panel.hidden = !max;
+    var bar = document.getElementById('liveManaBar');
+    bar.setAttribute('aria-valuenow', mana); bar.setAttribute('aria-valuemax', max);
+    document.getElementById('liveManaValue').textContent = window.fmtNum(mana) + ' / ' + window.fmtNum(max);
+    document.getElementById('liveManaFill').style.width = (max ? mana / max * 100 : 0) + '%';
+    document.getElementById('liveManaRegen').textContent = own.mana_regen ? '+' + window.fmtNum(own.mana_regen) + ' / turn' : '';
+    var skills = (state.options || []).filter(function (option) { return option.kind === 'skill' && !option.cooldown; });
+    var blocked = skills.length > 0 && skills.every(function (option) { return option.mana > mana; });
+    panel.dataset.level = !mana ? 'empty' : blocked || mana < max * .2 ? 'low' : 'ready';
+    document.getElementById('liveManaStatus').textContent = !mana ? 'Empty · attack or defend to recover' : blocked ? 'Recover mana · attack or defend' : mana === max ? 'Full reserve' : 'Available to spend';
+  }
+  function manaOutcome(event, duration) {
+    if (!event.mana || !latest) return;
+    var own = (latest.allies || []).find(function (unit) { return unit.is_self; });
+    if (!own || event.actor_id !== String(own.entity_id || own.id)) return;
+    var change = event.mana, delta = change.after - change.before;
+    var panel = document.getElementById('liveMana'), fill = document.getElementById('liveManaFill');
+    if (!panel || !fill || !delta || !(change.max > 0)) return;
+    panel.dataset.flow = delta < 0 ? 'spend' : 'regen';
+    document.getElementById('liveManaFeedback').textContent = (delta < 0 ? '−' : '+') + window.fmtNum(Math.abs(delta)) + ' mana · ' + (delta < 0 ? event.ability_name || 'Cast' : 'Recovered') + ' · ' + window.fmtNum(change.before) + ' → ' + window.fmtNum(change.after);
+    var from = Math.max(0, Math.min(100, change.before / change.max * 100)) + '%';
+    var to = Math.max(0, Math.min(100, change.after / change.max * 100)) + '%';
+    animate(fill, [{width: from}, {width: to, offset: .65}, {width: to}], Math.max(100, duration));
+  }
   function playNext() {
     if (!queue.length) {
       active = false;
@@ -212,6 +241,11 @@
     var terminal = latest && (latest.phase === 'complete' || latest.phase === 'failed');
     var duration = Math.max(12, Math.min(fast ? 190 : 480, (batchDeadline - performance.now()) / Math.max(1, queue.length + 1)));
     if (reduced()) duration = Math.min(duration, 100);
+    manaOutcome(event, duration);
+    if (event.kind === 'mana') {
+      later(function () { cursor = Math.max(cursor, Number(event.seq) || 0); playNext(); }, duration);
+      return;
+    }
     var targets = (event.targets || []).slice(0, 24), pose = profile.pose || (event.kind === 'attack' || event.kind === 'pet' ? 'attack' : 'cast');
     if (actor) { actor._poseEvent = event.seq; actor.classList.add('ab-performing'); setFrame(actor, pose, 0); }
     if (event.kind === 'phase') label(event.ability_name || 'PHASE CHANGE', event, 'boss');
@@ -245,12 +279,14 @@
   }
   function ingest(state) {
     init(); reset(state.session_id);
+    renderMana(state);
     var first = !latest, previousVersion = latest && latest.version;
     latest = state;
     var events = Array.isArray(state.presentation_events) ? state.presentation_events : [];
     var nextCursor = Math.max(Number(state.presentation_cursor) || 0, ...events.map(function (event) { return Number(event.seq) || 0; }));
     if (first || catchup || document.hidden) {
       clear(); accepted = cursor = nextCursor; catchup = document.hidden;
+      var feedback = document.getElementById('liveManaFeedback'); if (feedback) feedback.textContent = 'Spend on skills · recover each turn';
       mark(first ? 'idle' : 'catchup');
       if (first) actors.forEach(function (node) { if (node._combatUnit.role === 'boss') { node.classList.add('ab-boss-arrival'); later(function () { node.classList.remove('ab-boss-arrival'); }, 650); } });
       return;

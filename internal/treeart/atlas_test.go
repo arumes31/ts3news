@@ -37,6 +37,31 @@ func TestGeneratedAtlasesCoverEveryNodeWithUniquePixels(t *testing.T) {
 	}
 }
 
+func TestStatNodeArtworkShowsItsBonus(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		stats content.Stats
+		want  motifKind
+	}{
+		{"Health", content.Stats{HP: 25}, motifHeart},
+		{"Armor", content.Stats{DEF: 4}, motifShield},
+		{"Strength", content.Stats{STR: 3}, motifBlade},
+		{"Intellect", content.Stats{INT: 3}, motifDiamond},
+		{"Luck", content.Stats{LCK: 2}, motifDice},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			// Different IDs and sectors may decorate the icon, but must not
+			// turn a health bonus into a random blade or hourglass.
+			for id := 1; id <= 20; id++ {
+				got, ok := nodeMotif(content.TreeNode{ID: id, Sector: id % 6, Stats: tt.stats})
+				if !ok || got != tt.want {
+					t.Fatalf("node %d motif=%v, want %v", id, got, tt.want)
+				}
+			}
+		})
+	}
+}
+
 func TestCheckedInAtlasesMatchGenerator(t *testing.T) {
 	t.Parallel()
 

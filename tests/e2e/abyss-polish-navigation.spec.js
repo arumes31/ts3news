@@ -6,9 +6,9 @@ for (const width of [390, 768, 1440]) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/abyss?active=1&gear=1');
     await page.getByLabel('Workspace', { exact: true }).selectOption('forge');
-    const panel = page.locator('#abyssWorkshop');
+    const panel = page.locator('#abyssForgePanel');
     await expect(panel).toBeInViewport();
-    const gap = await page.evaluate(() => document.getElementById('abyssWorkshop').getBoundingClientRect().top - document.getElementById('abCommandCenter').getBoundingClientRect().bottom);
+    const gap = await page.evaluate(() => document.getElementById('abyssForgePanel').getBoundingClientRect().top - document.getElementById('abCommandCenter').getBoundingClientRect().bottom);
     expect(gap).toBeGreaterThanOrEqual(8);
     await page.getByRole('button', { name: 'Back to run', exact: true }).click();
     const runGap = await page.evaluate(() => document.getElementById('abyssStage').getBoundingClientRect().top - document.getElementById('abCommandCenter').getBoundingClientRect().bottom);

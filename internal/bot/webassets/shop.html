@@ -41,9 +41,10 @@
     {{with .StockPagination}}{{if gt .Pages 1}}<p class="muted small shop-stock-page-note">Stock slots {{integer .Start}}–{{integer .End}} of {{integer .Total}} offers, including the featured relic. Search and filters apply to this page.</p>{{end}}{{end}}
     <div class="shop-grid" id="shopGrid" role="list" data-stock-revision="{{.StockRevision}}" data-stock-page="{{.StockPagination.Page}}">
       {{range $index, $item := .Stock}}
+      {{if ge $index 12}}<template class="shop-stock-offer">{{end}}
       <article class="shop-card {{if .Featured}}featured-item{{end}} {{if .IsUpgrade}}upgrade-item{{end}}" role="listitem" data-id="{{.ID}}" data-search="{{.Name}} {{.Rarity}} {{.Slot}} {{range .Specials}}{{.Name}} {{end}}" data-name="{{.Name}}" data-slot="{{.Slot}}" data-price="{{.Price}}" data-cr="{{.CR}}" data-gain="{{.Comparison.CRDelta}}" data-order="{{$index}}" data-upgrade="{{.IsUpgrade}}" style="--shop-rarity:{{.RarityColor}}">
         <div class="shop-card-inspect item-inspect-trigger" data-item-inspect="{{.InspectJSON}}">
-          <div class="shop-ico{{if .Featured}} shop-relic-stage{{end}}">{{if .Featured}}<div class="shop-relic-mount" aria-hidden="true">{{end}}<span class="item-art item-art-lg" data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span>{{if .Featured}}</div>{{end}}</div>
+          <div class="shop-ico{{if .Featured}} shop-relic-stage{{end}}">{{if .Featured}}<div class="shop-relic-mount" aria-hidden="true">{{end}}<span class="item-art item-art-lg"{{if not .Featured}} data-shop-art-pending{{end}} data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span>{{if .Featured}}</div>{{end}}</div>
           <div class="shop-card-copy">
             <h3 class="inv-name">{{.Name}}</h3>
             <div class="inv-meta">{{.Rarity}} · {{.Slot}}{{if .Element}} · {{.Element}}{{end}}</div>
@@ -84,6 +85,7 @@
           </div>
         </div>
       </article>
+      {{if ge $index 12}}</template>{{end}}
       {{end}}
     </div>
     <div class="shop-more-row"><button type="button" class="ghost" id="shopMore" hidden>Show 12 more</button></div>
@@ -241,7 +243,8 @@ function setButtonPending(button, pending, label){
 
 function setShopPurchasePending(pending, activeButton){
   shopPurchasePending=pending;
-  document.querySelectorAll('.shop-buy-action').forEach(function(action){
+  shopCards.forEach(function(card){
+    var action=card.querySelector('.shop-buy-action');
     if(pending){
       if(!action.dataset.defaultLabel)action.dataset.defaultLabel=action.textContent;
       action.disabled=true;
@@ -335,7 +338,7 @@ function updateShopAffordability(){
     var shortfall=Number(button.dataset.price)-shopCurrentGold;
     note.textContent=shortfall>0?'Need '+shopLocaleNumber(shortfall)+' more gold':'Affordable';
   });
-  document.querySelectorAll('.shop-card').forEach(function(card){
+  shopCards.forEach(function(card){
     var price=Number(card.dataset.price||0);
     var note=card.querySelector('.shop-affordability');
     if(!note)return;
@@ -349,35 +352,73 @@ function updateShopAffordability(){
 function inspectShopItem(button){
   var card=button.closest('.shop-card');
   var trigger=card&&card.querySelector('[data-item-inspect]');
-  if(trigger)openItemInspector(trigger);
+  if(trigger){revealShopArt(card);openItemInspector(trigger);}
 }
 
 var shopPageSize=12;
-var shopMobileMedia=window.matchMedia('(max-width: 760px)');
-var shopVisibleLimit=shopMobileMedia.matches?shopPageSize:Number.POSITIVE_INFINITY;
+var shopVisibleLimit=shopPageSize;
+var shopArtObserver=typeof IntersectionObserver==='function'?new IntersectionObserver(function(entries){
+  entries.forEach(function(entry){
+    if(!entry.isIntersecting)return;
+    revealShopArt(entry.target);
+  });
+}):null;
+
+function revealShopArt(card){
+  card.querySelectorAll('[data-shop-art-pending]').forEach(function(art){
+    art.removeAttribute('data-shop-art-pending');
+  });
+  if(shopArtObserver)shopArtObserver.unobserve(card);
+}
+
+function observeShopArt(card){
+  if(!card.querySelector('[data-shop-art-pending]'))return;
+  // Load when the offer enters view, before its smaller icon must be visible.
+  if(shopArtObserver)shopArtObserver.observe(card);
+  else revealShopArt(card);
+}
+document.getElementById('shopGrid').addEventListener('focusin',function(event){
+  var card=event.target.closest('.shop-card');
+  if(card)revealShopArt(card);
+});
+window.addEventListener('pagehide',function(){if(shopArtObserver)shopArtObserver.disconnect();});
+window.addEventListener('pageshow',function(){
+  document.querySelectorAll('#shopGrid .shop-card').forEach(observeShopArt);
+});
 
 function filterShopStock(){
   var query=document.getElementById('shopSearch').value.trim().toLocaleLowerCase();
   var slot=document.getElementById('shopSlot').value;
   var upgrades=document.getElementById('shopUpgrades').checked;
   var affordable=document.getElementById('shopAffordable').checked;
-  var cards=Array.from(document.querySelectorAll('#shopGrid .shop-card'));
+  var cards=shopSortedCards;
+  var grid=document.getElementById('shopGrid');
+  var shown=[];
   var matched=0;
   var visible=0;
   cards.forEach(function(card){
     var matches=(!query||String(card.dataset.search||'').toLocaleLowerCase().includes(query))&&(!slot||card.dataset.slot===slot)&&(!upgrades||card.dataset.upgrade==='true')&&(!affordable||Number(card.dataset.price)<=shopCurrentGold);
     if(matches)matched++;
-    var withinLimit=!!query||!Number.isFinite(shopVisibleLimit)||matched<=shopVisibleLimit;
+    var withinLimit=matched<=shopVisibleLimit;
     card.hidden=!(matches&&withinLimit);
-    if(matches&&withinLimit)visible++;
+    if(matches&&withinLimit){visible++;shown.push(card);}
+    else if(card.parentElement===grid){
+      if(shopArtObserver)shopArtObserver.unobserve(card);
+      card.remove();
+    }
   });
+  shown.forEach(function(card,index){
+    if(grid.children[index]!==card)grid.insertBefore(card,grid.children[index]||null);
+    observeShopArt(card);
+  });
+  syncShopMutationButtons();
   document.getElementById('shopResultCount').textContent=visible<matched
     ? 'Showing '+visible+' of '+matched+' items'
     : matched+' '+(matched===1?'item':'items');
   document.getElementById('shopEmpty').hidden=matched!==0;
   var more=document.getElementById('shopMore');
   var remaining=Math.max(0,matched-visible);
-  more.hidden=!!query||!shopMobileMedia.matches||remaining===0;
+  more.hidden=remaining===0;
   if(remaining)more.textContent='Show '+Math.min(shopPageSize,remaining)+' more';
 }
 
@@ -563,7 +604,15 @@ async function buyShopBuff(button){
   }
 }
 
-var shopCards=Array.from(document.querySelectorAll('#shopGrid .shop-card'));
+// Keep unshown offers inert: search and sort cover the whole server page,
+// while only the requested batch participates in document layout and focus.
+var shopCards=Array.from(document.getElementById('shopGrid').children).map(function(element){
+  if(element.tagName!=='TEMPLATE')return element;
+  var card=element.content.firstElementChild;
+  element.remove();
+  return card;
+});
+var shopSortedCards=shopCards.slice();
 var shopSlot=document.getElementById('shopSlot');
 Array.from(new Set(shopCards.map(function(card){return card.dataset.slot;}))).sort().forEach(function(slot){
   var option=document.createElement('option');option.value=slot;option.textContent=slot;shopSlot.appendChild(option);
@@ -571,14 +620,12 @@ Array.from(new Set(shopCards.map(function(card){return card.dataset.slot;}))).so
 
 function sortShopStock(){
   var sort=document.getElementById('shopSort').value;
-  var sorted=shopCards.slice().sort(function(a,b){
+  shopSortedCards=shopCards.slice().sort(function(a,b){
     var difference=sort==='price'?Number(a.dataset.price)-Number(b.dataset.price)
       :sort==='power'?Number(b.dataset.cr)-Number(a.dataset.cr)
       :sort==='gain'?Number(b.dataset.gain)-Number(a.dataset.gain):0;
     return difference||Number(a.dataset.order)-Number(b.dataset.order);
   });
-  var grid=document.getElementById('shopGrid');
-  sorted.forEach(function(card){grid.appendChild(card);});
 }
 
 function saveShopFilters(){
@@ -586,7 +633,7 @@ function saveShopFilters(){
 }
 
 function shopFiltersChanged(){
-  shopVisibleLimit=shopMobileMedia.matches?shopPageSize:Number.POSITIVE_INFINITY;
+  shopVisibleLimit=shopPageSize;
   sortShopStock();filterShopStock();saveShopFilters();
 }
 
@@ -598,7 +645,7 @@ try{
     document.getElementById('shopSort').value=typeof saved.sort==='string'?saved.sort:'rotation';
     document.getElementById('shopUpgrades').checked=saved.upgrades===true;
     document.getElementById('shopAffordable').checked=saved.affordable===true;
-    if(shopMobileMedia.matches&&Number.isSafeInteger(saved.limit))shopVisibleLimit=Math.max(shopPageSize,Math.min(saved.limit,shopCards.length));
+    if(Number.isSafeInteger(saved.limit))shopVisibleLimit=Math.max(shopPageSize,Math.min(saved.limit,shopCards.length));
   }
 }catch(_){}
 sortShopStock();
@@ -616,9 +663,8 @@ document.getElementById('shopMore').addEventListener('click',function(){
   var visible=Array.from(document.querySelectorAll('#shopGrid .shop-card')).filter(function(card){return !card.hidden;});
   var firstRevealed=visible[before];
   var inspect=firstRevealed&&firstRevealed.querySelector('.shop-inspect-action');
-  if(inspect)inspect.focus({preventScroll:true});
+  if(inspect)inspect.focus();
 });
-if(typeof shopMobileMedia.addEventListener==='function')shopMobileMedia.addEventListener('change',function(event){shopVisibleLimit=event.matches?shopPageSize:Number.POSITIVE_INFINITY;filterShopStock();});
 document.getElementById('g2xAmount').addEventListener('input',function(){updateExchangePreview('gold_to_xp','g2xAmount','g2xPreview');});
 document.getElementById('x2gAmount').addEventListener('input',function(){updateExchangePreview('xp_to_gold','x2gAmount','x2gPreview');});
 updateExchangePreview('gold_to_xp','g2xAmount','g2xPreview');

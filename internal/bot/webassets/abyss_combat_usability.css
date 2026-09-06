@@ -208,7 +208,7 @@ html:has(.abyss-command-page).ab-scroll-active::-webkit-scrollbar-thumb,
 }
 @media (min-width: 901px) and (max-height: 799px) {
   .abyss-command-page:has(.ab-combat-cockpit.has-live-combat) .abyss-stats > .ab-stat-vitals { min-height: 36px; }
-  .abyss-command-page .ab-combat-cockpit.has-live-combat { top: calc(var(--cmd-topbar-offset) + 42px); height: calc(100dvh - var(--cmd-topbar-offset) - 58px); }
+  .abyss-command-page .ab-combat-cockpit.has-live-combat { height: calc(100dvh - var(--cmd-topbar-offset) - 58px); }
   .abyss-command-page .ab-combat-cockpit.has-live-combat #liveCombat > .ab-pixel-stage { min-height: 100px; }
 }
 @media (max-width: 900px) {

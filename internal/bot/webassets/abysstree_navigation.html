@@ -2,8 +2,12 @@
 <style>
 .tree-nav-panel{margin:8px 0;padding:10px;border:1px solid rgba(91,192,255,.22);border-radius:10px;background:linear-gradient(135deg,rgba(18,25,47,.88),rgba(22,16,40,.88));display:grid;gap:8px}
 .tree-nav-filters,.tree-nav-actions,.tree-nav-trail{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.tree-nav-panel select,.tree-nav-panel input[type=number]{min-height:34px;border:1px solid rgba(255,255,255,.14);border-radius:7px;background:#11172a;color:var(--text);padding:5px 8px}
-.tree-nav-panel input[type=number]{width:78px}
+.tree-nav-panel select,.tree-nav-panel input[type=number]{min-height:44px;border:1px solid var(--line);border-radius:3px;background:#11172a;color:var(--text);padding:8px}
+.tree-nav-filters{align-items:end}
+.tree-cost-filter{display:grid;gap:4px;min-width:0;font-size:.875rem;color:var(--muted)}
+.tree-nav-panel input[type=number]{width:100%;min-width:0;box-sizing:border-box;font-size:16px;font-variant-numeric:tabular-nums}
+.tree-cost-range{display:flex;gap:8px;flex:0 1 300px;grid-column:1/-1;min-width:0}
+.tree-nav-panel .tree-cost-filter{flex:1 1 0}
 .tree-nav-trail{font-size:.78rem;color:var(--muted)}
 .tree-nav-trail button{padding:2px 6px}
 .tree-nav-hidden{opacity:.055!important;pointer-events:none!important}
@@ -30,8 +34,8 @@
     '<select id="treeStateFilter" aria-label="Allocation state"><option value="">All states</option><option value="allocated">Allocated</option><option value="available">Available</option><option value="locked">Locked</option></select>'+
     '<select id="treeEffectFilter" aria-label="Effect"><option value="">All effects</option></select>'+
     '<select id="treeDepthFilter" aria-label="Minimum depth gate"><option value="0">Any depth</option><option value="10">Depth 10+</option><option value="20">Depth 20+</option><option value="25">Depth 25+</option><option value="30">Depth 30+</option></select>'+
-    '<input id="treeMinCost" type="number" min="1" max="50" placeholder="Min cost" aria-label="Minimum point cost">'+
-    '<input id="treeMaxCost" type="number" min="1" max="50" placeholder="Max cost" aria-label="Maximum point cost">'+
+    '<div class="tree-cost-range"><label class="tree-cost-filter" for="treeMinCost">Minimum point cost<input id="treeMinCost" type="number" min="1" max="50"></label>'+
+    '<label class="tree-cost-filter" for="treeMaxCost">Maximum point cost<input id="treeMaxCost" type="number" min="1" max="50"></label></div>'+
     '</div><div class="tree-nav-actions">'+
     '<button class="ghost xs" id="treePrevResult" type="button">← Result</button><button class="ghost xs" id="treeNextResult" type="button">Result →</button>'+
     '<button class="ghost xs" id="treeJumpSector" type="button">Jump to sector</button><button class="ghost xs" id="treeFitResults" type="button">Fit results</button>'+
@@ -52,9 +56,31 @@
 
   var matches=[],resultIndex=-1,selectedID=0,recentIDs=[],bookmarkIDs=[];
   try{recentIDs=JSON.parse(localStorage.getItem('abyssTreeRecentNodes')||'[]');bookmarkIDs=JSON.parse(localStorage.getItem('abyssTreeBookmarks')||'[]');}catch(_){recentIDs=[];bookmarkIDs=[];}
+  if(!Array.isArray(recentIDs))recentIDs=[];
+  if(!Array.isArray(bookmarkIDs))bookmarkIDs=[];
   recentIDs=recentIDs.map(Number).filter(function(id,index,list){return !!byId[id]&&list.indexOf(id)===index;}).slice(0,8);
   bookmarkIDs=bookmarkIDs.map(Number).filter(function(id,index,list){return !!byId[id]&&list.indexOf(id)===index;});
 
+  var resultPage=0,pageSize=12,resultSignature='';
+  var listHost=document.createElement('section');listHost.setAttribute('aria-label','Matching nodes');
+  var list=document.createElement('ul');list.className='tree-result-list';list.id='treeResultList';
+  var pagination=document.createElement('div');pagination.className='tree-result-pagination';
+  var previousPage=document.createElement('button'),nextPage=document.createElement('button'),pageLabel=document.createElement('span');
+  previousPage.type=nextPage.type='button';previousPage.className=nextPage.className='ghost xs';previousPage.textContent='Previous page';nextPage.textContent='Next page';
+  pagination.append(previousPage,pageLabel,nextPage);listHost.append(list,pagination);panel.append(listHost);
+  previousPage.onclick=function(){resultPage--;renderResultList();};nextPage.onclick=function(){resultPage++;renderResultList();};
+  function renderResultList(){
+    var signature=matches.join(',');if(signature!==resultSignature){resultPage=0;resultSignature=signature;}
+    var pages=Math.max(1,Math.ceil(matches.length/pageSize));resultPage=Math.max(0,Math.min(resultPage,pages-1));
+    list.replaceChildren();
+    matches.slice(resultPage*pageSize,(resultPage+1)*pageSize).forEach(function(id){
+      var node=byId[id],item=document.createElement('li'),button=document.createElement('button'),meta=document.createElement('small');
+      button.type='button';button.className='ghost';button.textContent=node.name;meta.textContent=sectorNames[node.sector]+' · '+effCost(node)+' point'+(effCost(node)===1?'':'s')+' · '+nodeState(node);
+      button.append(meta);button.onclick=function(){focusNode(id);};item.append(button);list.append(item);
+    });
+    if(!matches.length){var empty=document.createElement('li');empty.textContent='No nodes match. Try fewer filters or another search.';list.append(empty);}
+    pageLabel.textContent='Page '+(resultPage+1)+' of '+pages;previousPage.disabled=!resultPage;nextPage.disabled=resultPage>=pages-1;
+  }
   function saveLists(){try{localStorage.setItem('abyssTreeRecentNodes',JSON.stringify(recentIDs));localStorage.setItem('abyssTreeBookmarks',JSON.stringify(bookmarkIDs));}catch(_){}}
   function parseSearch(query){
     var terms=[],matcher=/(-?)(?:"([^"]+)"|(\S+))/g,match;
@@ -81,11 +107,13 @@
     NODES.forEach(function(node){
       var hit=matchesFilters(node,terms);if(hit)matches.push(node.id);
       var element=nodeEls[node.id];if(!element)return;
-      element.classList.toggle('tree-nav-hidden',filtering&&!hit);element.classList.toggle('hit',filtering&&hit);
+      element.classList.toggle('tree-nav-hidden',filtering&&!hit);var touch=element.previousElementSibling;if(touch&&touch.classList.contains('tree-touch-hit'))touch.classList.toggle('tree-nav-hidden',filtering&&!hit);element.classList.toggle('hit',filtering&&hit);
       if(iconEls[node.id]){iconEls[node.id].classList.toggle('tree-nav-hidden',filtering&&!hit);iconEls[node.id].classList.toggle('hit',filtering&&hit);}
     });
     if(resultIndex>=matches.length)resultIndex=matches.length-1;
     document.getElementById('treeResultCount').textContent=matches.length+' result'+(matches.length===1?'':'s');
+    document.getElementById('treePrevResult').disabled=!matches.length;document.getElementById('treeNextResult').disabled=!matches.length;
+    renderResultList();document.dispatchEvent(new CustomEvent('tree-discovery-change'));
   }
   treeSearchApply=applyDiscovery;
   panel.querySelectorAll('select,input').forEach(function(control){control.addEventListener('input',applyDiscovery);control.addEventListener('change',applyDiscovery);});
@@ -96,16 +124,19 @@
     nodes.forEach(function(node){minX=Math.min(minX,node.x);maxX=Math.max(maxX,node.x);minY=Math.min(minY,node.y);maxY=Math.max(maxY,node.y);});
     var size=Math.max(320,maxX-minX+260,maxY-minY+260);view.x=(minX+maxX-size)/2;view.y=(minY+maxY-size)/2;view.w=size;view.h=size;applyView();
   }
-  function focusNode(id){var node=byId[id];if(!node)return;selectedID=id;fitNodes([id]);
-    NODES.forEach(function(item){if(nodeEls[item.id])nodeEls[item.id].classList.toggle('tree-nav-selected',item.id===id);});
-    recentIDs=[id].concat(recentIDs.filter(function(other){return other!==id;})).slice(0,8);saveLists();renderLists();renderBreadcrumb();updateBookmarkButton();
-    if(nodeEls[id])nodeEls[id].focus({preventScroll:true});
+  function focusNode(id){if(!byId[id]||activeTab!=='passive')return;
+    var origin=document.activeElement;fitNodes([id]);
+    if(window.treeInspectNode)treeInspectNode(id,false,{source:'results',origin:origin});
+    if(!window.matchMedia('(max-width:760px)').matches&&nodeEls[id]){
+      nodeEls[id].focus({preventScroll:true});
+      if(window.treeRevealElement)treeRevealElement(document.getElementById('treeStage'));
+    }
   }
   function cycleResult(direction){if(!matches.length)return;resultIndex=(resultIndex+direction+matches.length)%matches.length;focusNode(matches[resultIndex]);}
   document.getElementById('treePrevResult').addEventListener('click',function(){cycleResult(-1);});
   document.getElementById('treeNextResult').addEventListener('click',function(){cycleResult(1);});
   document.getElementById('treeFitResults').addEventListener('click',function(){fitNodes(matches);});
-  document.getElementById('treeResetView').addEventListener('click',function(){view={x:-1800,y:-1800,w:3600,h:3600};applyView();});
+  document.getElementById('treeResetView').addEventListener('click',function(){view={x:-300,y:-300,w:600,h:600};applyView();});
   document.getElementById('treeJumpSector').addEventListener('click',function(){var sector=sectorFilter.value;if(sector===''){abToast('Choose a sector first.',false);return;}fitNodes(NODES.filter(function(node){return node.sector===Number(sector);}).map(function(node){return node.id;}));});
 
   function shortestRootPath(target){var queue=[target],previous={},seen={};seen[target]=true;
@@ -117,7 +148,14 @@
   function renderLists(){renderNodeButtons('treeRecent',recentIDs,'No nodes yet.');renderNodeButtons('treeBookmarks',bookmarkIDs,'No bookmarks yet.');NODES.forEach(function(node){if(nodeEls[node.id])nodeEls[node.id].classList.toggle('tree-nav-bookmarked',bookmarkIDs.indexOf(node.id)>=0);});}
   function updateBookmarkButton(){var saved=bookmarkIDs.indexOf(selectedID)>=0;document.getElementById('treeBookmark').textContent=(saved?'★ Remove':'☆ Bookmark')+(selectedID?' '+byId[selectedID].name:' selected');}
   document.getElementById('treeBookmark').addEventListener('click',function(){if(!selectedID){abToast('Inspect a node first.',false);return;}var index=bookmarkIDs.indexOf(selectedID);if(index>=0)bookmarkIDs.splice(index,1);else bookmarkIDs.push(selectedID);saveLists();renderLists();updateBookmarkButton();});
-  svg.addEventListener('pointerover',function(event){var id=Number(event.target&&event.target.getAttribute('data-id'));if(id&&byId[id]){selectedID=id;recentIDs=[id].concat(recentIDs.filter(function(other){return other!==id;})).slice(0,8);saveLists();renderLists();renderBreadcrumb();updateBookmarkButton();}});
+  // The inspector owns selection. Hover only previews; every input shares this event.
+  document.addEventListener('tree-node-selected',function(event){
+    var id=event.detail.id;if(id===selectedID)return;
+    if(nodeEls[selectedID])nodeEls[selectedID].classList.remove('tree-nav-selected');
+    selectedID=id;if(nodeEls[id])nodeEls[id].classList.add('tree-nav-selected');
+    recentIDs=[id].concat(recentIDs.filter(function(other){return other!==id;})).slice(0,8);
+    saveLists();renderLists();renderBreadcrumb();updateBookmarkButton();
+  });
 
   var persistTimer=null,baseApplyView=applyView;
   applyView=function(){baseApplyView();clearTimeout(persistTimer);persistTimer=setTimeout(function(){try{localStorage.setItem('abyssTreeView',JSON.stringify(view));}catch(_){}},150);};
@@ -134,7 +172,7 @@
   mm.addEventListener('pointerdown',function(event){mmDrag=true;mmMoved=false;mm.setPointerCapture(event.pointerId);panFromMinimap(event);});
   mm.addEventListener('pointermove',function(event){if(mmDrag){mmMoved=true;panFromMinimap(event);}});mm.addEventListener('pointerup',function(){mmDrag=false;});
   mm.addEventListener('click',function(event){if(mmMoved){event.preventDefault();event.stopImmediatePropagation();mmMoved=false;}},true);
-  document.addEventListener('keydown',function(event){if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'||(event.key==='/'&&!/input|textarea|select/i.test(document.activeElement.tagName))){event.preventDefault();document.getElementById('treeSearch').focus();}else if(event.key==='F3'){event.preventDefault();cycleResult(event.shiftKey?-1:1);}});
+  document.addEventListener('keydown',function(event){if(activeTab!=='passive')return;if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'||(event.key==='/'&&!/input|textarea|select/i.test(document.activeElement.tagName))){event.preventDefault();var search=document.getElementById('treeSearch');search.focus({preventScroll:true});if(window.treeRevealElement)treeRevealElement(search);}else if(event.key==='F3'){event.preventDefault();cycleResult(event.shiftKey?-1:1);}});
   renderLists();renderBreadcrumb();updateBookmarkButton();applyDiscovery();
 })();
 </script>

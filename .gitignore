@@ -70,7 +70,10 @@ coverage.html
 # Browser-test dependencies and diagnostics
 /node_modules/
 /test-results/
+/test-results-*/
 /playwright-report/
+/shop-audit-evidence/
+/shop-audit-detector.json
 
 # OS files
 Thumbs.db

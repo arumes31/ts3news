@@ -126,7 +126,7 @@ func (s *WebServer) handleAbyssIdentify(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	normalCost := int64(abyssIdentifyCost)
+	normalCost := identifyGearCost(g.Rarity)
 	cost, dailyFree, chargeOK := s.dailyIdentifyCharge(w, r, tx, uid, normalCost, normalCost)
 	if !chargeOK {
 		return

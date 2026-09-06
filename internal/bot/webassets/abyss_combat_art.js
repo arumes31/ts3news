@@ -69,14 +69,17 @@
     return value;
   }
   function catalog() { return global.AB_COMBAT_CATALOG || global.AB_EXACT_ICON_MANIFEST || {}; }
-  function lookup(key) { return catalog()[key] || (global.AB_EXACT_ICON_MANIFEST || {})[key]; }
+  function canonicalKey(key) { return String(key).replace(/^(item:artifact:\d+):.*$/, '$1'); }
+  function lookup(key) { key = canonicalKey(key); return catalog()[key] || (global.AB_EXACT_ICON_MANIFEST || {})[key]; }
   function keyFor(option) {
     var kind = String(option.kind || 'skill').toLowerCase();
     var id = String(option.ability_id || option.id || option.name || option.ability_name || 'attack');
-    if (option.art_key) return String(option.art_key);
+    if (option.art_key) return canonicalKey(option.art_key);
+    if (kind === 'attack' && (!option.ability_id && !option.id || /^(basic_attack|attack)$/.test(id))) return 'attack:basic_attack';
+    if (kind === 'defend') return 'defend:defend';
     if (catalog()[id]) return id;
     if (/^(item|relic|artifact|potion)$/.test(kind)) kind = 'item';
-    return kind + ':' + id;
+    return canonicalKey(kind + ':' + id);
   }
   function elementFor(name, element) {
     var text = String(element || '').toLowerCase();
@@ -97,9 +100,20 @@
     if (/arcane|magic|mana|spark|transcend|summon|channel/.test(text)) return 'arcane';
     return 'physical';
   }
+  // Engine elements group frost into Water and lightning into Air, and many
+  // named skills deal Physical damage. Preserve that state; select artwork
+  // from the authored name when it explicitly describes a visual theme.
+  function visualElement(name, element) {
+    var theme = elementFor(name, '');
+    return theme === 'physical' ? elementFor('', element) : theme;
+  }
   function familyFor(name, kind, element) {
     var text = String(name || '').toLowerCase();
     if (kind === 'defend') return 'shield';
+    if (kind === 'relic') return 'restore';
+    if (kind === 'companion' && /free-for-all/.test(text)) return 'fang';
+    if (/reviv|resurrect|phoenix/.test(text)) return 'revive';
+    if (kind === 'item' && /repair/.test(text)) return 'repair';
     if (kind === 'heal' || /\b(heal|mend|revival|rejuvenation|restore|restoration)\b/.test(text)) return 'heal';
     if (kind === 'item' && /potion|elixir|tonic|draught/.test(text)) return 'potion';
     if (/shield|ward|barrier|aegis|guard/.test(text)) return 'shield';
@@ -128,15 +142,17 @@
     var cacheKey = [key, option.kind, option.element, option.name || option.ability_name, option.weapon_type, option.weapon_name].join('|');
     if (profiles.has(cacheKey)) return profiles.get(cacheKey);
     var name = (exact && exact.name) || option.name || option.ability_name || (builtin && builtin[0]) || key;
-    var signatureMatch=String(option.ability_id||option.id||'').match(/^CLASS_([a-z]+)_(build|finish)$/);
+    var signatureMatch=String(option.ability_id||option.id||key.split(':').pop()).match(/^CLASS_([a-z]+)_(build|finish)$/);
     if(signatureMatch){
       var signatureStyles={vanguard:['shield','strike','holy'],berserker:['slash','rage','blood'],marksman:['mark','arrow','frost'],beastmaster:['mark','summon','nature'],elementalist:['flare','nova','fire'],chronomancer:['bolt','pulse','arcane'],oracle:['heal','flare','holy'],geomancer:['shield','quake','nature'],bloodblade:['drain','slash','blood'],voidwalker:['curse','nova','void'],runesmith:['mark','burst','storm'],alchemist:['poison','burst','toxic']};
       var signatureStyle=signatureStyles[signatureMatch[1]];
+      if(signatureStyle && signatureMatch[2]==='finish' && signatureMatch[1]==='elementalist') signatureStyle=['flare','nova','frost'];
+      if(signatureStyle && signatureMatch[2]==='finish' && signatureMatch[1]==='alchemist') signatureStyle=['poison','burst','fire'];
       if(signatureStyle){builtin=[name,signatureStyle[signatureMatch[2]==='build'?0:1],signatureStyle[2]];exact=null;}
     }
 
     var kind = String(option.kind || key.split(':')[0]).toLowerCase();
-    var element = elementFor(name, (signatureStyle && signatureStyle[2]) || option.element || (exact && exact.element) || (builtin && builtin[2]));
+    var element = visualElement(name, (signatureStyle && signatureStyle[2]) || option.element || (exact && exact.element) || (builtin && builtin[2]));
     var family = builtin && !exact ? builtin[1] : familyFor(name, kind, element);
     var basic = /^(basic_attack|attack|support_strike)$/.test(String(option.ability_id || option.id || ''));
     var weapon = String(option.weapon_type || '').toLowerCase();
@@ -187,7 +203,7 @@
     var entry = lookup(identity);
     var name = String((entry && entry.name) || unit.name || '').toLowerCase();
     var role = String(unit.role || '').toLowerCase();
-    var element = elementFor(name, unit.element), rig = 'knight';
+    var element = visualElement(name, unit.element || (entry && entry.element)), rig = 'knight';
     // Affixes change identity/accent, never anatomy: a Giant Rat is still a rat.
     name = name.replace(/^(?:(?:snotty|angry|undead|shadow|fiery|ice-cold|toxic|ghostly|metallic|giant)\s+)+(?=rat|slime|goblin|spider|zombie|wolf|skeleton|bat|orc|troll)/, '');
     if (unit.is_player) {
@@ -234,15 +250,25 @@
     else if (/mage|wizard|sorcer|warlock|witch|cultist|caster/.test(name + ' ' + role)) rig = 'wizard';
     else if (entry && (entry.family === 'pets' || entry.family === 'mounts')) rig = 'wolf';
     var index = rigs.indexOf(rig), seed = hash(identity);
+    var portrait = (global.AB_EXACT_ICON_MANIFEST || {})[identity] || null;
+    var catalogPortrait = !unit.is_player && !!portrait && !!entry && /^(pets|mounts|companions)$/.test(entry.family);
     return boundedCache(actorProfiles, cacheKey, { identity: identity, exact: !!entry, rig: rig, row: index % 8, asset: atlasAssets[Math.floor(index / 8)],
       atlas: Math.floor(index / 8), element: element, palette: palettes[element], sigil: identityGraphic(identity, palettes[element]),
       accent: actorAccent(identity, String((entry && entry.name) || unit.name || '').toLowerCase(), palettes[element]),
       variant: seed, boss: role === 'boss' || !!(entry && entry.family === 'bosses'),
-      portrait: (global.AB_EXACT_ICON_MANIFEST || {})[identity] || null }, 512);
+      portrait: portrait, catalogPortrait: catalogPortrait }, 512);
   }
   function actorFrame(unit, pose, frame) {
     var actor = actorProfile(unit), columns = poses[pose] || poses.idle;
     frame = Number.isFinite(Number(frame)) ? Math.max(0, Math.floor(Number(frame))) : 0;
+    if (actor.catalogPortrait) {
+      var portrait = actor.portrait;
+      var transforms = {idle: 'translateY(' + (frame % 2 ? -1 : 0) + 'px)', attack: 'translateX(' + (frame % 2 ? 5 : 2) + 'px) rotate(-3deg)',
+        cast: 'translateY(-2px) scale(.98)', hurt: 'rotate(-6deg) scale(.96)', defeat: 'rotate(55deg) scale(.68)'};
+      return {asset: portrait.asset, columns: 14, rows: 12, column: portrait.column, row: portrait.row,
+        position: (portrait.column * 100 / 13) + '% ' + (portrait.row * 100 / 11) + '%', size: '1400% 1200%',
+        transform: transforms[pose] || transforms.idle, rig: 'portrait:' + portrait.family, identity: actor.identity, palette: actor.palette};
+    }
     var column = columns[frame % columns.length];
     if(actor.classAtlas) return {asset:actor.asset,columns:8,rows:6,column:column,row:actor.row,
       position:(column*100/7)+'% '+(actor.row*100/5)+'%',size:'800% 600%',
@@ -307,7 +333,18 @@
     if (phase === 'prepare') {
       body += ring(64, 78, 15 + frame * 4, c[1], 2);
       body += path('M48 76 L56 56 L64 64 L72 44 L80 76', c[0], 3);
-    } else if (family === 'heal' || family === 'potion') {
+    } else if (family === 'restore') {
+      body += path('M24 25 L64 12 L104 25 V65 Q95 96 64 116 Q33 96 24 65 Z', c[0], 4, c[1] + '44');
+      body += path('M64 38 V82 M42 60 H86', c[2], 7);
+      body += ring(64, 65, radius, c[0], 2);
+    } else if (family === 'repair') {
+      body += path('M30 22 L44 36 L39 49 L26 54 L12 40 Q7 66 32 72 L81 115 L97 99 L53 51 Q62 26 42 16 Z', c[0], 3, c[1] + '77');
+      body += path('M77 25 V49 M65 37 H89 M94 65 V81 M86 73 H102', c[2], 3);
+    } else if (family === 'potion') {
+      body += path('M51 16 H77 V43 Q100 57 100 81 Q100 110 64 110 Q28 110 28 81 Q28 57 51 43 Z', c[0], 4, c[1] + '55');
+      body += path('M49 23 H79 M34 78 Q49 68 64 78 T94 78', c[2], 3);
+      for (var drop = 0; drop < 3; drop++) body += ring(49 + drop * 15, 91 - frame * 5 - drop * 6, 3, c[2], 2);
+    } else if (family === 'heal') {
       body += ring(64, 96, 27 + frame * 3, c[1], 2);
       for (var h = 0; h < 3; h++) {
         var hx = 30 + h * 29, hy = 79 - frame * 9 - (h % 2) * 16;

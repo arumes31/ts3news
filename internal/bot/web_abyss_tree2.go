@@ -55,10 +55,21 @@ func (b *Bot) abyssFreeRespecAvailable(uid string) bool {
 // each ISO week is free (AB-157), later ones cost abyssTreeRespecTokens tokens.
 // Returns (wasFree, ok). On failure it has already written the error response.
 func chargeTreeRespec(w http.ResponseWriter, tx *sql.Tx, uid string) (bool, bool) {
+	return chargeTreeRespecQuoted(w, tx, uid, nil)
+}
+
+func chargeTreeRespecQuoted(w http.ResponseWriter, tx *sql.Tx, uid string, maxTokens *int) (bool, bool) {
 	week := abyssCurrentWeek(time.Now())
 	key := abyssFreeRespecKey(uid)
 	var stored string
-	_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1 FOR UPDATE", key).Scan(&stored)
+	if err := tx.QueryRow("SELECT value FROM app_meta WHERE key=$1 FOR UPDATE", key).Scan(&stored); err != nil && err != sql.ErrNoRows {
+		writeJSON(w, map[string]any{"ok": false, "error": "failed to verify respec price"})
+		return false, false
+	}
+	if maxTokens != nil && (*maxTokens < 0 || stored == week && *maxTokens < abyssTreeRespecTokens) {
+		writeJSON(w, map[string]any{"ok": false, "error": "respec price changed; preview the build again before applying"})
+		return false, false
+	}
 	if stored != week {
 		if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
 			ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, key, week); err != nil {
@@ -287,7 +298,7 @@ func (s *WebServer) validateTreeLoadout(ctx context.Context, uid string, ids []i
 // applyTreeLoadout atomically refunds everything and allocates the given set,
 // charging the normal respec cost (first of the week free, AB-157). Callers
 // must already hold the abyss lock.
-func (s *WebServer) applyTreeLoadout(ctx context.Context, w http.ResponseWriter, uid string, ids []int) {
+func (s *WebServer) applyTreeLoadout(ctx context.Context, w http.ResponseWriter, uid string, ids []int, maxTokens *int) {
 	clean, verr := s.validateTreeLoadout(ctx, uid, ids)
 	if verr != "" {
 		writeJSON(w, map[string]any{"ok": false, "error": verr})
@@ -301,7 +312,7 @@ func (s *WebServer) applyTreeLoadout(ctx context.Context, w http.ResponseWriter,
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	free, ok := chargeTreeRespec(w, tx, uid)
+	free, ok := chargeTreeRespecQuoted(w, tx, uid, maxTokens)
 	if !ok {
 		return
 	}
@@ -426,7 +437,7 @@ func (s *WebServer) handleAbyssTreeLoadoutApply(w http.ResponseWriter, r *http.R
 		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("loadout slot %d is empty", req.Slot)})
 		return
 	}
-	s.applyTreeLoadout(r.Context(), w, uid, ids)
+	s.applyTreeLoadout(r.Context(), w, uid, ids, nil)
 }
 
 // handleAbyssTreeBuildImport applies a decoded build code (AB-170): the client
@@ -441,8 +452,9 @@ func (s *WebServer) handleAbyssTreeBuildImport(w http.ResponseWriter, r *http.Re
 	defer unlock()
 
 	var req struct {
-		IDs  []int  `json:"ids"`
-		Code string `json:"code"`
+		IDs       []int  `json:"ids"`
+		Code      string `json:"code"`
+		MaxTokens *int   `json:"max_tokens"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
@@ -460,7 +472,7 @@ func (s *WebServer) handleAbyssTreeBuildImport(w http.ResponseWriter, r *http.Re
 		}
 		req.IDs = code.IDs
 	}
-	s.applyTreeLoadout(r.Context(), w, uid, req.IDs)
+	s.applyTreeLoadout(r.Context(), w, uid, req.IDs, req.MaxTokens)
 }
 
 // ---------------------------------------------------------------------------

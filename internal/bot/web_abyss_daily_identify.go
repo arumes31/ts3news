@@ -51,6 +51,11 @@ func (s *WebServer) dailyIdentifyCharge(
 	normalCost int64,
 	freeCredit int64,
 ) (int64, bool, bool) {
+	var gold int64
+	if err := tx.QueryRowContext(r.Context(), "SELECT gold FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&gold); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return 0, false, false
+	}
 	free, err := claimAbyssDailyIdentify(r.Context(), tx, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -60,6 +65,7 @@ func (s *WebServer) dailyIdentifyCharge(
 	if free {
 		cost = max(0, normalCost-freeCredit)
 	}
+	cost = capIdentifyCharge(cost, gold)
 	if quoted, present := s.quotedForgeGold(r, "identify", "identify_all"); present && quoted != cost {
 		writeJSON(w, map[string]any{"ok": false, "error": errAbyssDailyIdentifyQuoteStale.Error()})
 		return 0, false, false

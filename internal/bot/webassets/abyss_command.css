@@ -1,6 +1,5 @@
-/* Abyss command theme
-   Extends the live combat deck's obsidian-and-brass visual language across the
-   page without coupling normal panels to combat-specific selectors. */
+/* Abyss command theme. Keep the shell aligned with abyss_portal.css;
+   combat scenes and semantic status colors remain local to the run. */
 
 body:has(.abyss-command-page),
 .abyss-command-page {
@@ -16,10 +15,10 @@ body:has(.abyss-command-page),
   --cmd-cyan: #5bd6d0;
   --cmd-red: #ed6a65;
   --cmd-green: #69d59b;
-  --cmd-shadow: 0 18px 48px rgba(0, 0, 0, .38);
-  --cmd-cut: 4px 16px 4px 16px;
-  --cmd-cut-small: 3px 10px 3px 10px;
-  --cmd-ui: "Aptos", "Segoe UI Variable", "Segoe UI", sans-serif;
+  --cmd-shadow: 0 16px 42px rgba(0, 0, 0, .22);
+  --cmd-cut: 3px 15px;
+  --cmd-cut-small: 2px 9px;
+  --cmd-ui: "Segoe UI", Roboto, system-ui, sans-serif;
   --cmd-display: "Bahnschrift SemiCondensed", "Aptos Display", sans-serif;
   --cmd-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", "Consolas", monospace;
   --cmd-topbar-offset: 54px;
@@ -27,6 +26,7 @@ body:has(.abyss-command-page),
 
 body:has(.abyss-command-page) {
   color-scheme: dark;
+  color: var(--cmd-text);
   overflow-x: clip;
   background:
     radial-gradient(circle at 50% -20%, rgba(91, 214, 208, .1), transparent 36rem),
@@ -98,51 +98,27 @@ body:has(.abyss-command-page) .foot {
   isolation: isolate;
 }
 
-.abyss-command-page::before {
-  position: absolute;
-  z-index: -1;
-  inset: -18px -10px;
-  border-inline: 1px solid rgba(255, 255, 255, .025);
-  background:
-    repeating-linear-gradient(90deg, transparent 0 63px, rgba(255, 255, 255, .012) 64px),
-    repeating-linear-gradient(0deg, transparent 0 63px, rgba(255, 255, 255, .009) 64px);
-  content: "";
-  pointer-events: none;
-}
-
 /* Page masthead and operational alerts. */
 .abyss-command-page .abyss-hero {
   position: relative;
-  overflow: hidden;
-  margin-block: 0 8px;
-  padding: clamp(11px, 1.4vw, 16px);
+  margin-block: 0 16px;
+  padding: 0;
   text-align: left;
-  border: 1px solid rgba(242, 189, 91, .28);
-  border-radius: var(--cmd-cut);
-  background:
-    radial-gradient(circle at 88% 20%, rgba(91, 214, 208, .12), transparent 24rem),
-    linear-gradient(115deg, rgba(242, 189, 91, .08), transparent 34%),
-    rgba(8, 12, 19, .92);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .05);
-}
-
-.abyss-command-page .abyss-hero::before {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  background: linear-gradient(90deg, var(--cmd-gold), transparent 42%, var(--cmd-cyan));
-  content: "";
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
 }
 
 .abyss-command-page .abyss-intro h1 {
   margin: 0;
-  color: #f3f6fb;
+  color: #f4f7fb;
   font-family: var(--cmd-display);
-  font-size: clamp(1.45rem, 2.4vw, 2.25rem);
-  letter-spacing: .08em;
-  line-height: 1;
-  text-shadow: 0 0 28px rgba(91, 214, 208, .2);
-  text-transform: uppercase;
+  font-size: 1.7rem;
+  letter-spacing: .035em;
+  line-height: 1.25;
+  text-shadow: none;
+  text-transform: none;
   text-wrap: balance;
 }
 
@@ -275,11 +251,11 @@ body:has(.abyss-command-page) .foot {
 .abyss-command-page .ab-chip-label,
 .abyss-command-page :is(.ab-depth-label, .ab-escrow-label, .ab-threat-label, .ab-sub-label) {
   color: var(--cmd-muted);
-  font-family: var(--cmd-mono);
-  font-size: .7rem;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  font-family: var(--cmd-ui);
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .abyss-command-page .ab-chip-val {
@@ -588,8 +564,9 @@ body:has(.abyss-command-page) .foot {
   }
 
   .abyss-command-page .ab-combat-cockpit.has-live-combat {
-    position: sticky;
-    top: calc(var(--cmd-topbar-offset) + 54px);
+    /* Keep following loot panels below combat as the page scrolls. */
+    position: relative;
+    top: auto;
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(320px, 36%);
     grid-template-rows: minmax(0, 1fr);
@@ -1034,10 +1011,10 @@ body:has(.abyss-command-page) .foot {
 /* Buttons and form controls. */
 .abyss-command-page button,
 body:has(.abyss-command-page) .modal-card button {
-  border: 1px solid #435066;
-  border-radius: 2px 8px 2px 8px;
-  background: linear-gradient(180deg, #242f40, #121923 70%);
-  box-shadow: inset 0 1px rgba(255, 255, 255, .055);
+  border: 1px solid var(--cmd-line);
+  border-radius: 2px 9px;
+  background: var(--cmd-base);
+  box-shadow: none;
   color: var(--cmd-text);
   font-family: var(--cmd-display);
   letter-spacing: .025em;
@@ -1046,18 +1023,18 @@ body:has(.abyss-command-page) .modal-card button {
 
 .abyss-command-page button:hover:not(:disabled),
 body:has(.abyss-command-page) .modal-card button:hover:not(:disabled) {
-  border-color: var(--cmd-cyan);
-  box-shadow: 0 7px 18px rgba(0, 0, 0, .3), inset 0 1px rgba(255, 255, 255, .08);
+  border-color: #53657b;
+  box-shadow: none;
   filter: none;
-  transform: translateY(-1px);
+  transform: none;
 }
 
 .abyss-command-page button.primary,
 body:has(.abyss-command-page) .modal-card button:not(.ghost) {
-  color: #11151d;
-  border-color: #f2bd5b;
-  background: linear-gradient(180deg, #f6ce7f, #bd8433);
-  box-shadow: inset 0 1px rgba(255, 255, 255, .35), 0 8px 20px rgba(126, 86, 28, .18);
+  color: #141820;
+  border-color: #f7cf82;
+  background: linear-gradient(180deg, #f4c970, #c88d35);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .34), 0 6px 16px rgba(0, 0, 0, .22);
   font-weight: 800;
 }
 
@@ -1172,10 +1149,10 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
   border-color: transparent;
   border-radius: 2px 7px 2px 7px;
   background: transparent;
-  font-family: var(--cmd-mono);
-  font-size: .72rem;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  font-family: var(--cmd-ui);
+  font-size: .8125rem;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .abyss-command-page .ab-tab:hover {
@@ -1226,23 +1203,21 @@ body:has(.abyss-command-page) .modal-card :is(input, button):focus-visible {
   overflow: clip;
   border: 1px solid var(--cmd-line);
   border-radius: var(--cmd-cut);
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, .028), transparent 45%),
-    rgba(10, 15, 23, .92);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, .16), inset 0 1px rgba(255, 255, 255, .035);
+  background: linear-gradient(145deg, rgba(16, 23, 34, .96), rgba(8, 13, 21, .96));
+  box-shadow: inset 0 1px rgba(255, 255, 255, .025), var(--cmd-shadow);
 }
 
 .abyss-command-page :is(.abyss-panel, .abyss-lb) > h2,
 .abyss-command-page :is(.ab-prep-panel, .ab-noncombat-panel) > :is(h2, h3) {
   margin: -1px -1px 12px;
   padding: 10px 12px;
-  color: #eef2f8;
-  border-bottom: 1px solid var(--cmd-line-soft);
-  background: linear-gradient(90deg, rgba(242, 189, 91, .07), transparent 55%);
+  color: #dfe8f5;
+  border-bottom: 1px solid var(--cmd-line);
+  background: none;
   font-family: var(--cmd-display);
-  font-size: .95rem;
-  letter-spacing: .06em;
-  text-transform: uppercase;
+  font-size: 1.15rem;
+  letter-spacing: .025em;
+  text-transform: none;
 }
 
 .abyss-command-page .abyss-cols,

@@ -83,6 +83,8 @@ async function expectVisibleSurface(page, selector, label) {
   const overflow = await page.evaluate(() => {
     const root = document.documentElement;
     const amount = root.scrollWidth - root.clientWidth;
+    // Full-page geometry is only needed to explain a failing overflow check.
+    if (amount <= 1) return { amount, offenders: [] };
     const offenders = [...document.querySelectorAll('body *')].filter(node => {
       const style = getComputedStyle(node);
       if (style.display === 'none' || style.visibility === 'hidden') return false;

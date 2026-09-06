@@ -13,31 +13,90 @@
   var panel=document.createElement('section');panel.className='tree-plan-panel';panel.setAttribute('aria-label','Skill tree build planner');
   panel.innerHTML='<div class="tree-plan-actions"><button class="ghost xs" id="treePlanToggle" type="button">🧭 Start planning</button><button class="ghost xs" id="treePlanUndo" type="button">↶ Undo</button><button class="ghost xs" id="treePlanRedo" type="button">↷ Redo</button><button class="ghost xs" id="treePlanReset" type="button">Reset to active</button><button class="ghost xs" id="treePlanCommit" type="button">Commit plan</button><button class="ghost xs" id="treePlanExport" type="button">Copy plan code</button><button class="ghost xs" id="treePlanImport" type="button">Preview import</button><button class="ghost xs" id="treePlanPrint" type="button">Print summary</button></div>'+
     '<div class="tree-plan-drafts"><select id="treePlanSlot" aria-label="Server draft slot"><option value="1">Draft 1</option><option value="2">Draft 2</option><option value="3">Draft 3</option><option value="4">Draft 4</option><option value="5">Draft 5</option></select><input id="treePlanName" maxlength="40" placeholder="Draft name" aria-label="Draft name"><button class="ghost xs" id="treePlanSave" type="button">Save server draft</button><button class="ghost xs" id="treePlanLoad" type="button">Load draft</button><button class="ghost xs" id="treePlanDelete" type="button">Delete draft</button></div>'+
-    '<div class="tree-plan-counts"><span class="pill">Active <b id="treePlanActiveCount">0</b></span><span class="pill">Planned <b id="treePlanPlannedCount">0</b></span><span class="pill">Added <b id="treePlanAddedCount">0</b></span><span class="pill">Removed <b id="treePlanRemovedCount">0</b></span><span class="pill">Cost <b id="treePlanCost">0</b></span><span id="treePlanStatus" class="muted small" role="status" aria-live="polite">Planning is off.</span></div>'+
+    '<div class="tree-plan-counts"><span class="pill">Active <b id="treePlanActiveCount">0</b></span><span class="pill">Planned <b id="treePlanPlannedCount">0</b></span><span class="pill">Added <b id="treePlanAddedCount">0</b></span><span class="pill">Removed <b id="treePlanRemovedCount">0</b></span><span class="pill">Point budget <b id="treePlanCost">—</b></span><span class="pill">Apply <b id="treePlanApplyCost">Checking price…</b></span><span id="treePlanStatus" class="muted small" role="status" aria-live="polite">Planning is off.</span></div>'+
     '<div class="tree-plan-path muted small" id="treePlanPath">Click a node in planning mode to add its cheapest prerequisite path.</div><div class="tree-plan-summary" id="treePlanSummary"></div>';
   var nav=document.querySelector('.tree-nav-panel');nav.parentNode.insertBefore(panel,nav.nextSibling);
-  var activeIDs=Object.keys(alloc).filter(function(id){return alloc[id];}).map(Number),planned={},history=[],future=[],planning=false,drafts={},previewTimer=null,lastAnalysis=null;
+  var activeIDs=Object.keys(alloc).filter(function(id){return alloc[id];}).map(Number),planned={},history=[],future=[],planning=false,drafts={},previewTimer=null,lastAnalysis=null,lastPreview=null,previewVersion=0,committing=false,followsActive=true;
   activeIDs.forEach(function(id){planned[id]=true;});
-  try{var stored=JSON.parse(localStorage.getItem('abyssTreeDraft')||'null');if(stored&&stored.layout===TREE_CATALOG.layout_hash&&Array.isArray(stored.ids)){planned={};stored.ids.forEach(function(id){if(byId[id])planned[id]=true;});}}catch(_){}
+  try{var stored=JSON.parse(localStorage.getItem('abyssTreeDraft')||'null');if(stored&&stored.layout===TREE_CATALOG.layout_hash&&Array.isArray(stored.ids)){followsActive=false;planned={};stored.ids.forEach(function(id){if(byId[id])planned[id]=true;});}}catch(_){}
   function ids(){return Object.keys(planned).filter(function(id){return planned[id];}).map(Number).sort(function(a,b){return a-b;});}
   function snapshot(){return ids();}
-  function restore(list){planned={};list.forEach(function(id){if(byId[id])planned[id]=true;});persist();renderPlan();schedulePreview();}
-  function mutate(fn){history.push(snapshot());if(history.length>60)history.shift();future=[];fn();persist();renderPlan();schedulePreview();}
+  function restore(list){if(committing)return;followsActive=false;planned={};list.forEach(function(id){if(byId[id])planned[id]=true;});persist();renderPlan();schedulePreview();}
+  function mutate(fn){if(committing)return;followsActive=false;history.push(snapshot());if(history.length>60)history.shift();future=[];fn();persist();renderPlan();schedulePreview();}
   function persist(){try{localStorage.setItem('abyssTreeDraft',JSON.stringify({v:1,layout:TREE_CATALOG.layout_hash,ids:ids()}));}catch(_){}}
   function cheapestPlanPath(target){if(planned[target])return{chain:[target],cost:0,anchor:target};var dist={},prev={},open=[{id:target,cost:effCost(byId[target])}];dist[target]=effCost(byId[target]);prev[target]=-1;while(open.length){open.sort(function(a,b){return a.cost-b.cost;});var cur=open.shift(),u=cur.id;if(cur.cost!==dist[u])continue;var ns=adj[u]||[];for(var i=0;i<ns.length;i++){var v=ns[i];if(v===0||planned[v]){var chain=[];for(var c=u;c!==-1;c=prev[c])chain.push(c);return{chain:chain,anchor:v,cost:dist[u]};}if(!byId[v])continue;var next=dist[u]+effCost(byId[v]);if(!(v in dist)||next<dist[v]){dist[v]=next;prev[v]=u;open.push({id:v,cost:next});}}}return null;}
-  function handlePlanNode(nodeID){if(planned[nodeID]){mutate(function(){delete planned[nodeID];});document.getElementById('treePlanPath').textContent='Removed '+byId[nodeID].name+'. Connectivity will be checked by the server preview.';return;}var path=cheapestPlanPath(nodeID);if(!path){abToast('No path to this node.',false);return;}mutate(function(){path.chain.forEach(function(id){planned[id]=true;});});document.getElementById('treePlanPath').textContent='Cheapest path: '+path.chain.map(function(id){return byId[id].name;}).join(' → ')+' · '+path.cost+' points · '+path.chain.length+' prerequisite node'+(path.chain.length===1?'':'s')+'.';}
-  svg.addEventListener('click',function(event){if(!planning||activeTab!=='passive')return;var target=event.target.closest&&event.target.closest('[data-id]');if(!target)return;event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();handlePlanNode(Number(target.getAttribute('data-id')));},true);
-  function renderPlan(){var plannedIDs=ids(),activeSet={};activeIDs.forEach(function(id){activeSet[id]=true;});var added=plannedIDs.filter(function(id){return !activeSet[id];}),removed=activeIDs.filter(function(id){return !planned[id];});NODES.forEach(function(node){if(!nodeEls[node.id])return;nodeEls[node.id].classList.toggle('tree-plan-added',planning&&!!planned[node.id]&&!activeSet[node.id]);nodeEls[node.id].classList.toggle('tree-plan-removed',planning&&!planned[node.id]&&!!activeSet[node.id]);});document.getElementById('treePlanActiveCount').textContent=activeIDs.length;document.getElementById('treePlanPlannedCount').textContent=plannedIDs.length;document.getElementById('treePlanAddedCount').textContent=added.length;document.getElementById('treePlanRemovedCount').textContent=removed.length;document.getElementById('treePlanToggle').classList.toggle('active',planning);document.getElementById('treePlanToggle').textContent=planning?'🧭 Planning on':'🧭 Start planning';document.getElementById('treePlanUndo').disabled=!history.length;document.getElementById('treePlanRedo').disabled=!future.length;}
+  function handlePlanNode(nodeID){if(planned[nodeID]){mutate(function(){delete planned[nodeID];});document.getElementById('treePlanPath').textContent='Removed '+byId[nodeID].name+'. Connectivity will be checked by the server preview.';return;}var path=cheapestPlanPath(nodeID);if(!path){abToast('No path to this node.',false);return;}mutate(function(){path.chain.forEach(function(id){planned[id]=true;});});document.getElementById('treePlanPath').textContent='Cheapest path: '+path.chain.map(function(id){return byId[id].name;}).join(' → ')+' · '+path.cost+' point'+(path.cost===1?'':'s')+' · '+path.chain.length+' prerequisite node'+(path.chain.length===1?'':'s')+'.';}
+  window.treePlanner={
+    isPlanning:function(){return planning&&activeTab==='passive';},
+    has:function(id){return !!planned[id];},
+    path:cheapestPlanPath,
+    toggle:function(id){if(!committing&&!busy&&byId[id])handlePlanNode(id);},
+    remove:function(id){if(!committing&&!busy&&planned[id])handlePlanNode(id);}
+  };
+  // Guard every passive-tree write, including tooltip and refund shortcuts.
+  var basePost=abPost;
+  abPost=function(url,body){
+    var operation=url.split('/').pop();
+    if(treePlanner.isPlanning()&&url.indexOf('/api/abyss/tree/')===0&&
+      ['plan_preview','plan_draft','refund_preview','respec_quote'].indexOf(operation)<0&&
+      !(operation==='build_import'&&committing)){
+      abToast('Planning changes only your draft. Use Commit plan to apply it.',false);
+      return Promise.resolve({ok:false,error:'Finish planning before changing the active build.'});
+    }
+    return basePost(url,body);
+  };
+  function renderPlan(){
+    if(followsActive){planned={};Object.keys(alloc).forEach(function(id){if(alloc[id])planned[id]=true;});}
+    activeIDs=Object.keys(alloc).filter(function(id){return alloc[id];}).map(Number);
+    var plannedIDs=ids(),activeSet={};activeIDs.forEach(function(id){activeSet[id]=true;});var added=plannedIDs.filter(function(id){return !activeSet[id];}),removed=activeIDs.filter(function(id){return !planned[id];});NODES.forEach(function(node){if(!nodeEls[node.id])return;nodeEls[node.id].classList.toggle('tree-plan-added',planning&&!!planned[node.id]&&!activeSet[node.id]);nodeEls[node.id].classList.toggle('tree-plan-removed',planning&&!planned[node.id]&&!!activeSet[node.id]);});document.getElementById('treePlanActiveCount').textContent=activeIDs.length;document.getElementById('treePlanPlannedCount').textContent=plannedIDs.length;document.getElementById('treePlanAddedCount').textContent=added.length;document.getElementById('treePlanRemovedCount').textContent=removed.length;document.getElementById('treePlanToggle').classList.toggle('active',planning);document.getElementById('treePlanToggle').textContent=planning?'🧭 Planning on':'🧭 Start planning';document.getElementById('treePlanUndo').disabled=!history.length;document.getElementById('treePlanRedo').disabled=!future.length;
+    document.getElementById('treePlanToggle').setAttribute('aria-pressed',String(planning));
+    var bar=document.getElementById('treePlanBar');if(bar)bar.classList.toggle('planning',planning);
+    document.getElementById('treePlanCommit').disabled=committing;
+    document.dispatchEvent(new CustomEvent('tree-plan-change'));
+  }
   var basePaint=paint;paint=function(){basePaint();renderPlan();};
-  function schedulePreview(){clearTimeout(previewTimer);previewTimer=setTimeout(requestPreview,180);}
-  async function requestPreview(){var response=await abPost('/api/abyss/tree/plan_preview',{ids:ids()});if(!response.ok){document.getElementById('treePlanStatus').textContent=response.error||'Preview failed';return;}lastAnalysis=response.analysis;renderAnalysis(lastAnalysis);}
+  function schedulePreview(){
+    clearTimeout(previewTimer);previewVersion++;lastAnalysis=null;lastPreview=null;
+    document.getElementById('treePlanCost').textContent='Checking…';
+    document.getElementById('treePlanApplyCost').textContent='Checking price…';
+    document.getElementById('treePlanStatus').textContent=planning?'Draft only · validating changes…':'Inspect nodes freely. Start planning to draft a path.';
+    previewTimer=setTimeout(requestPreview,180);
+  }
+  async function requestPreview(){
+    clearTimeout(previewTimer);
+    var version=++previewVersion,requested=ids(),key=JSON.stringify(requested);
+    lastAnalysis=null;lastPreview=null;
+    var response=await abPost('/api/abyss/tree/plan_preview',{ids:requested});
+    if(version!==previewVersion||key!==JSON.stringify(ids()))return null;
+    if(!response.ok||!response.analysis||!response.quote){
+      document.getElementById('treePlanStatus').textContent=response.error||'Preview failed. Retry before applying.';
+      document.getElementById('treePlanCost').textContent='Unavailable';
+      document.getElementById('treePlanApplyCost').textContent='Unavailable';
+      document.getElementById('treePlanSummary').replaceChildren();return null;
+    }
+    ['ids','added','removed','missing','warnings'].forEach(function(key){if(!Array.isArray(response.analysis[key]))response.analysis[key]=[];});
+    lastPreview=response;lastAnalysis=response.analysis;renderAnalysis(lastAnalysis);return response;
+  }
   function nonZeroStats(stats){return Object.keys(stats||{}).filter(function(key){return stats[key]!==0;});}
-  function renderAnalysis(analysis){document.getElementById('treePlanCost').textContent=analysis.planned_cost+' / '+analysis.available_points;var status=document.getElementById('treePlanStatus');status.className=analysis.valid?'tree-plan-valid small':'tree-plan-warning small';status.textContent=analysis.valid?'✓ Plan is valid and ready to commit.':(analysis.warnings.join(' · ')||'Plan is incomplete.');var host=document.getElementById('treePlanSummary');host.replaceChildren();
+  function renderAnalysis(analysis){document.getElementById('treePlanApplyCost').textContent=treeApplyPrice(lastPreview.quote);document.getElementById('treePlanCost').textContent=analysis.planned_cost+' / '+analysis.available_points;var status=document.getElementById('treePlanStatus');status.className=!planning?'muted small':analysis.valid?'tree-plan-valid small':'tree-plan-warning small';status.textContent=!planning?'Inspect nodes freely. Start planning to draft a path.':analysis.valid?'Draft ready · '+analysis.planned_cost+'/'+analysis.available_points+' points · Apply: '+treeApplyPrice(lastPreview.quote):(analysis.warnings||[]).join(' · ')||'Add a node to begin your draft.';var host=document.getElementById('treePlanSummary');host.replaceChildren();
     function card(title,lines){var box=document.createElement('div');box.className='tree-plan-card';var heading=document.createElement('b');heading.textContent=title;box.appendChild(heading);lines.forEach(function(line){var row=document.createElement('div');row.textContent=line;box.appendChild(row);});host.appendChild(box);}
     card('Changes',['Added: '+analysis.added.length,'Removed: '+analysis.removed.length,'Depth gate: '+analysis.max_depth_gate,'Connected: '+(analysis.connected?'yes':'no')]);var statLines=nonZeroStats(analysis.stat_delta).map(function(key){var value=analysis.stat_delta[key];return key+': '+(value>0?'+':'')+value;});card('Exact stat delta',statLines.length?statLines:['No base-stat change']);var pctLines=Object.keys(analysis.pct_delta||{}).map(function(key){var value=analysis.pct_delta[key]*100;return key+': '+(value>0?'+':'')+value.toFixed(1)+'%';});card('Exact effect delta',pctLines.length?pctLines:['No percentage-effect change']);card('Compatibility',analysis.missing.length?['Missing nodes: '+analysis.missing.join(', ')]:['Layout '+analysis.layout_hash.slice(0,12)+'…','Schema v'+analysis.schema_version]);}
-  document.getElementById('treePlanToggle').addEventListener('click',function(){planning=!planning;renderPlan();document.getElementById('treePlanStatus').textContent=planning?'No points will be spent until Commit plan.':'Planning is off; draft remains saved locally.';});
+  document.getElementById('treePlanToggle').addEventListener('click',function(){
+    if(committing||busy)return;
+    planning=!planning;renderPlan();schedulePreview();
+  });
   document.getElementById('treePlanUndo').addEventListener('click',function(){if(!history.length)return;future.push(snapshot());restore(history.pop());});document.getElementById('treePlanRedo').addEventListener('click',function(){if(!future.length)return;history.push(snapshot());restore(future.pop());});document.getElementById('treePlanReset').addEventListener('click',function(){mutate(function(){planned={};activeIDs.forEach(function(id){planned[id]=true;});});});
-  document.getElementById('treePlanCommit').addEventListener('click',async function(){await requestPreview();if(!lastAnalysis||!lastAnalysis.valid){abToast('Resolve plan warnings before committing.',false);return;}if(!(await confirmModal('Apply this complete plan atomically? Your normal respec cost applies.')))return;var response=await abPost('/api/abyss/tree/build_import',{ids:lastAnalysis.ids});if(!response.ok){abToast(response.error||'Commit failed',false);return;}abToast(response.msg||'Plan committed.',true);setTimeout(function(){location.reload();},700);});
+  document.getElementById('treePlanCommit').addEventListener('click',async function(){
+    if(committing||busy||!planning)return;
+    committing=true;renderPlan();
+    try{
+      var preview=await requestPreview();
+      if(!preview||!preview.analysis.valid){abToast('Resolve plan warnings before committing.',false);return;}
+      if(!(await confirmTreeBuild(preview,'Apply this plan?')))return;
+      if(lastPreview!==preview){abToast('The draft changed. Review it again before applying.',false);return;}
+      await applyConfirmedTreeBuild(preview);
+    }finally{committing=false;renderPlan();}
+  });
   function encodePlan(){return btoa(JSON.stringify({v:1,schema:TREE_CATALOG.schema_version,layout:TREE_CATALOG.layout_hash,ids:ids()}));}
   function decodePlan(code){var value=JSON.parse(atob(code.trim()));if(value.v!==1||!Array.isArray(value.ids))throw new Error('unsupported plan code');return value;}
   document.getElementById('treePlanExport').addEventListener('click',async function(){var code=encodePlan();try{await navigator.clipboard.writeText(code);abToast('Versioned plan code copied.',true);}catch(_){window.prompt('Copy this plan code:',code);}});

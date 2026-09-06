@@ -64,3 +64,34 @@
 @media (forced-colors: active) {
   .abyss-command-page .ab-combat-number, .abyss-command-page .ab-combat-announcement { color: CanvasText; background: Canvas; border: 1px solid CanvasText; }
 }
+/* Keep the resource cycle in the command deck even when the outside HUD folds away. */
+.ab-live-mana { flex-shrink: 0; padding: 6px 12px; background: #101c2d; border-bottom: 1px solid #344762; color: #d9e9ff; }
+.ab-live-mana[hidden] { display: none; }
+.ab-live-mana-heading, .ab-live-mana-detail { display: flex; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; font-size: 12px; }
+.ab-live-mana-heading strong { letter-spacing: .06em; }
+#liveManaValue { margin-left: 10px; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+#liveManaRegen { color: #91d8db; }
+.ab-live-mana-track { height: 10px; margin: 7px 0; overflow: hidden; border-radius: 3px; background: #050e1b; border: 1px solid #486482; }
+#liveManaFill { height: 100%; width: 100%; background: linear-gradient(90deg, #4775d1, #8bbcff); }
+.ab-live-mana-detail { color: #b2c8e5; font-variant-numeric: tabular-nums; }
+.ab-live-mana[data-flow="spend"] #liveManaFeedback { color: #c6b4ff; }
+.ab-live-mana[data-flow="regen"] #liveManaFeedback { color: #93e6da; }
+.ab-live-mana[data-level="low"] #liveManaStatus, .ab-live-mana[data-level="empty"] #liveManaStatus { color: #ffcd8c; }
+.ab-live-mana[data-level="empty"] .ab-live-mana-track { border-color: #c39155; }
+@media (min-width: 901px) {
+  .ab-live-mana { display: grid; grid-template-columns: minmax(140px, .7fr) minmax(100px, 1fr) minmax(210px, 1.3fr); align-items: center; gap: 12px; }
+  .ab-live-mana-heading, .ab-live-mana-detail { flex-direction: column; gap: 2px; font-size: 11px; line-height: 1.3; }
+  .ab-live-mana-track { margin: 0; }
+}
+@media (max-width: 900px) {
+  .ab-live-mana { display: grid; grid-template-columns: minmax(115px, .8fr) minmax(0, 1fr); align-items: center; gap: 4px 8px; padding: 4px 10px; }
+  .ab-live-mana-heading { font-size: 11px; line-height: 1.2; gap: 2px; }
+  #liveManaRegen:empty { display: none; }
+  .ab-live-mana-track { height: 8px; margin: 0; }
+  .ab-live-mana-detail { grid-column: 1 / -1; font-size: 10px; line-height: 1.2; }
+}
+@media (min-width: 901px) and (max-height: 799px) {
+  .abyss-command-page .ab-combat-cockpit.has-live-combat #liveCombat > .ab-pixel-stage { padding-block: 12px; }
+  .abyss-command-page .ab-event-presentation .ab-pixel-party:not(.crowded) .ab-pixel-name { min-height: 20px; }
+  .abyss-command-page .ab-event-presentation .ab-pixel-party:not(.crowded) .ab-actor-sprite { width: 64px; max-width: 100%; margin-inline: auto; }
+}

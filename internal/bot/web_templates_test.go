@@ -211,12 +211,25 @@ func TestAbyssLivePartials(t *testing.T) {
 	accessibility := server.tmpl.Lookup("abysstree-accessibility").Tree.Root.String()
 	for _, required := range []string{
 		"treeContrastToggle", "treeAnimationToggle", "treeMutationLive",
-		"ArrowLeft", "tryAllocate(node.id)", "prefers-reduced-motion",
+		"ArrowLeft", "activateTouchTreeNode(event)", "activateTreeNode(nearest.id,event)", "prefers-reduced-motion",
 		"tree-touch-hit", "touchDistance", "parsedIconGeometry",
 		"virtualizeDecorations", "requestAnimationFrame", "treePerformanceMeter",
 	} {
 		if !strings.Contains(accessibility, required) {
 			t.Errorf("Abyss tree accessibility partial is missing %q", required)
+		}
+	}
+	if strings.Contains(accessibility, "tryAllocate(node.id)") {
+		t.Error("Abyss touch targets must inspect through the shared activation flow before spending")
+	}
+	for _, required := range []string{
+		"function activateTreeNode(id, event)",
+		"treeInspectNode(id, false",
+		"treePlanner.isPlanning()",
+		"treePlanner.toggle(id)",
+	} {
+		if !strings.Contains(abyssTree, required) {
+			t.Errorf("Abyss tree activation flow is missing %q", required)
 		}
 	}
 	progression := server.tmpl.Lookup("abysstree-progression").Tree.Root.String()

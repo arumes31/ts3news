@@ -71,8 +71,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "05ab646ca918438a4dc28d253b1bb61c4a268f81faac019afa6dd59102232a08"},
-		{name: "active_run", active: true, want: "8741f76533c47e79481c5e5c20d48a614df932ff70169fe18ef6efc7c1d7a83f"},
+		{name: "threshold", want: "b6825f3a4ed1e19f6cc77bf0e502f22fda37ef60538bd22e4c4b23b184e235c5"},
+		{name: "active_run", active: true, want: "785780e5a868f94272a58f1c403ea5926e466fed5a5966c6d80205ad3d47b0f5"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -160,6 +160,49 @@ func TestAbyssCompetitionRendersPactMultiplier(t *testing.T) {
 	}
 }
 
+func TestAbyssGoldenFixtureHUD(t *testing.T) {
+	if err := i18n.InitWithLocale(i18n.LocaleEnUS); err != nil {
+		t.Fatalf("initialize locale bundle: %v", err)
+	}
+	server, err := NewWebServer(nil)
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	for _, test := range []struct {
+		name   string
+		active bool
+	}{
+		{name: "lobby"},
+		{name: "active run", active: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := abyssGoldenFixture(test.active)
+			run := fixture["Run"].(abyssRun)
+			hud, ok := fixture["HUD"].(abyssHUDPageState)
+			if !ok {
+				t.Fatal("fixture must provide typed HUD state")
+			}
+			if hud.EscrowSoftCap <= 0 || hud.EscrowSoftCap != abyssEscrowSoftCap(run.Depth) {
+				t.Fatalf("fixture HUD soft cap = %d at depth %d", hud.EscrowSoftCap, run.Depth)
+			}
+			if hud.EscrowEfficiencyPct != 100 {
+				t.Fatalf("fixture below soft cap must have 100%% marginal value, got %d", hud.EscrowEfficiencyPct)
+			}
+			if hud.FloorsCleared != abyssRunFloorsCleared(run) {
+				t.Fatalf("fixture HUD cleared floors = %d, inconsistent with run", hud.FloorsCleared)
+			}
+			var rendered bytes.Buffer
+			if err := server.tmpl.ExecuteTemplate(&rendered, "abyss", fixture); err != nil {
+				t.Fatalf("render Abyss fixture: %v", err)
+			}
+			declaration := fmt.Sprintf(`var escrowSoftCap =\s*%d\s*, escrowEfficiencyPct =\s*100\s*;`, hud.EscrowSoftCap)
+			if !regexp.MustCompile(declaration).Match(rendered.Bytes()) {
+				t.Fatal("rendered fixture must initialize numeric cap and marginal-value HUD fields")
+			}
+		})
+	}
+}
+
 func abyssGoldenFixture(active bool) map[string]any {
 	stats := abyssStats{BestDepth: 57, Tokens: 42, LifetimeFloors: 321, LifetimeBanked: 654321}
 	run := abyssRun{Tier: "normal", FloorType: "combat"}
@@ -236,6 +279,7 @@ func abyssGoldenFixture(active bool) map[string]any {
 			Gold: 123456, AbyssTokens: 42, CurrentHP: 750, MaxHP: 1000,
 		},
 		"Stats": stats, "Run": run, "RunIdentity": runIdentity, "RegenPerSec": 0.0, "AutoFocus": "balanced",
+		"HUD": abyssRunHUDState(run, stats, nil),
 		"Tiers": abyssTierList(stats.BestDepth), "Leaders": abyssBoards{}, "Season": "S1", "SeasonJourney": seasonJourney,
 		"Retention":   retention,
 		"Competition": abyssCompetitionView{}, "CompetitionPageSize": abyssCompetitionPageSize,

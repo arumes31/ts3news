@@ -1654,9 +1654,6 @@ func (s *WebServer) handleAbyssAutoRepair(w http.ResponseWriter, r *http.Request
 
 // ---- Identify all (#99) ------------------------------------------------------
 
-// abyssIdentifyCost is the per-item gold cost of identify-all.
-const abyssIdentifyCost = 1000
-
 func (s *WebServer) handleAbyssIdentifyAll(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -1703,11 +1700,11 @@ func (s *WebServer) handleAbyssIdentifyAll(w http.ResponseWriter, r *http.Reques
 		}
 		return rows.Err()
 	}
-	if err := collect("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 FOR UPDATE", true); err != nil {
+	if err := collect("SELECT id, gear_id, item_data FROM user_inventory WHERE client_uid=$1 ORDER BY id FOR UPDATE", true); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if err := collect("SELECT slot, gear_id, item_data FROM user_gear WHERE client_uid=$1 FOR UPDATE", false); err != nil {
+	if err := collect("SELECT slot, gear_id, item_data FROM user_gear WHERE client_uid=$1 ORDER BY slot FOR UPDATE", false); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -1716,8 +1713,11 @@ func (s *WebServer) handleAbyssIdentifyAll(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "nothing to identify"})
 		return
 	}
-	normalCost := int64(abyssIdentifyCost * len(items))
-	cost, dailyFree, chargeOK := s.dailyIdentifyCharge(w, r, tx, uid, normalCost, abyssIdentifyCost)
+	var normalCost int64
+	for _, item := range items {
+		normalCost += identifyGearCost(item.g.Rarity)
+	}
+	cost, dailyFree, chargeOK := s.dailyIdentifyCharge(w, r, tx, uid, normalCost, identifyGearCost(items[0].g.Rarity))
 	if !chargeOK {
 		return
 	}

@@ -116,7 +116,11 @@ func TestAbyssPouchUpgradeRoutesMigrationAndUIContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	combined := string(routes) + string(entry) + string(loot) + string(migration) + string(page)
+	script, err := webAssets.ReadFile("webassets/inventory.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	combined := string(routes) + string(entry) + string(loot) + string(migration) + string(page) + string(script)
 	for _, required := range []string{
 		`/api/inventory/pouch/upgrade`, `abyssPouchCaps(s.bot.abyssPouchLevel(uid))`,
 		`stackLimit := b.abyssConsumableStackLimit(uid)`, `CHECK (level BETWEEN 0 AND 3)`,

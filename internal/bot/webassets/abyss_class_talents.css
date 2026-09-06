@@ -1,4 +1,134 @@
-.ab-talent-workshop{margin:32px 0;padding:24px 0;border-block:1px solid #465063}.ab-talent-heading{display:flex;align-items:baseline;justify-content:space-between;gap:16px}.ab-talent-heading h3{font-size:1.5rem;margin:0}.ab-talent-heading span{font-variant-numeric:tabular-nums;color:#e8c989}.ab-talent-workshop progress{width:100%;height:10px;accent-color:#dfbc73;border:0;background:#192434}.ab-talent-workshop progress::-webkit-progress-bar{background:#192434;border-radius:4px}.ab-talent-workshop progress::-webkit-progress-value{background:#dfbc73;border-radius:4px}.ab-talent-workshop h4{font-size:1.2rem;margin:28px 0 8px}.ab-talent-workshop p{max-width:75ch;line-height:1.65}.ab-talent-tier{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;padding:14px 0}.ab-talent-tier+.ab-talent-tier:before{content:"";position:absolute;top:-1px;left:16%;right:16%;height:1px;background:#465063}.ab-talent-node{scroll-margin-block:180px;position:relative;display:grid;grid-template-columns:64px 1fr;align-content:start;gap:8px 12px;min-height:126px;min-width:0;padding:14px;background:#131e2d;color:#e6edf6;border:1px solid #56677c;border-radius:12px;text-align:left;cursor:pointer;font:inherit}.ab-talent-node img{grid-row:1/3;width:64px;height:64px}.ab-talent-node strong{align-self:end}.ab-talent-node small{font-size:.83rem;line-height:1.45;color:#c6d3e3}.ab-talent-node[aria-disabled=true]{background:#101720;border-color:#354459}.ab-talent-node[aria-disabled=true] img{filter:saturate(.3);opacity:.65}.ab-talent-node[aria-pressed=true]{border:2px solid #e9c980;padding:13px;background:#2b2a28}.ab-talent-node[aria-pressed=true]:after{content:"Selected";position:absolute;right:8px;top:-9px;background:#e9c980;color:#171d28;padding:1px 5px;border-radius:3px;font-size:.7rem;font-weight:700}.ab-talent-node:hover{border-color:#dec17f}.ab-talent-node:focus-visible{outline:3px solid #f2d999;outline-offset:3px}.ab-talent-gate{margin:20px 0;padding:4px 0 24px;border-block:1px solid #63738a}.ab-talent-subclasses{display:flex;gap:12px}.ab-talent-subclasses button{min-height:48px;padding:10px 24px;font:inherit}.ab-talent-subclasses button[aria-pressed=true]{border-color:#e9c980;color:#f4d58e}.ab-talent-actions{display:flex;gap:12px;flex-wrap:wrap}.ab-talent-actions button{min-height:44px}.ab-talent-workshop [hidden]{display:none!important}
-@media(max-width:900px){.ab-talent-node{grid-template-columns:1fr;gap:8px;padding:12px}.ab-talent-node[aria-pressed=true]{padding:11px}.ab-talent-node img{grid-row:auto}.ab-talent-heading{display:block}.ab-talent-heading span{display:block;margin-top:8px}}
-@media(max-width:520px){.ab-talent-tier{gap:8px}.ab-talent-node{padding:10px 7px;border-radius:10px}.ab-talent-node[aria-pressed=true]{padding:9px 6px}.ab-talent-node img{width:48px;height:48px}.ab-talent-node strong{font-size:.82rem;overflow-wrap:anywhere}.ab-talent-node small{font-size:.72rem}.ab-talent-subclasses button{padding:10px 16px}.ab-talent-workshop h4{font-size:1.1rem}}
-@media(prefers-reduced-motion:no-preference){.ab-talent-node{transition:background-color .16s ease,border-color .16s ease}}
+.ab-talent-workshop {
+  margin:32px 0; padding:24px 0; border-block:1px solid #465063;
+  background:none; box-shadow:none; scroll-margin-top:180px;
+}
+.ab-talent-workshop [hidden] { display:none!important; }
+.ab-talent-heading { display:flex; align-items:baseline; justify-content:space-between; gap:16px; }
+.ab-talent-heading h3 { font-size:1.5rem; margin:0; }
+.ab-talent-heading span { font-variant-numeric:tabular-nums; color:#e8c989; font-size:.875rem; }
+.ab-talent-workshop p { max-width:75ch; line-height:1.6; }
+.ab-talent-workshop progress { width:100%; height:5px; accent-color:#dfbc73; border:0; background:#192434; }
+.ab-talent-workshop progress::-webkit-progress-bar { background:#192434; }
+.ab-talent-workshop progress::-webkit-progress-value { background:#dfbc73; }
+.ab-talent-pacing { margin:10px 0 18px; color:#b9c5d5; font-size:.8rem; }
+.ab-talent-pacing summary { display:flex; align-items:center; min-height:44px; width:fit-content; cursor:pointer; text-decoration:underline; text-underline-offset:4px; }
+.ab-talent-pacing p { margin:4px 0 18px; }
+.ab-talent-workspace { display:grid; grid-template-columns:minmax(0,1fr) 280px; min-width:0; border:1px solid #394657; background:#080c12; }
+.ab-talent-map { min-width:0; }
+.ab-talent-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 14px; background:#111923; border-bottom:1px solid #344050; }
+.ab-talent-toolbar p { margin:0; color:#ead29f; font-size:.82rem; font-weight:600; }
+.ab-talent-zoom { display:flex; align-items:center; gap:5px; flex-shrink:0; }
+.ab-talent-workshop .ab-talent-zoom button { display:grid; place-items:center; min-width:44px; min-height:44px; padding:5px 10px; border:1px solid #4a596c; border-radius:3px; background:#161f2c; color:#ead9b4; font:inherit; box-shadow:none; }
+.ab-talent-zoom output { min-width:40px; color:#c1ccdb; text-align:center; font-size:.75rem; font-variant-numeric:tabular-nums; }
+.ab-talent-workshop .ab-talent-zoom button:hover:not(:disabled) { border-color:#e7c47c; background:#252d37; }
+.ab-talent-viewport { position:relative; width:100%; height:720px; max-height:74svh; min-height:420px; overflow:auto; overscroll-behavior:contain; touch-action:pan-x pan-y; background:#080c12; cursor:grab; scrollbar-width:thin; scrollbar-color:#63738a #0e141d; }
+.ab-talent-viewport.is-panning { cursor:grabbing; user-select:none; }
+.ab-talent-viewport:focus-visible { outline:2px solid #e7c47c; outline-offset:-3px; }
+.ab-talent-sizer { position:relative; width:840px; height:1100px; margin-inline:auto; overflow:clip; }
+.ab-talent-canvas { position:absolute; top:0; left:0; width:840px; height:1100px; transform-origin:0 0; }
+.ab-talent-connections { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.ab-talent-edge { fill:none; stroke:#455268; stroke-width:1; opacity:.44; }
+.ab-talent-edge.is-available { stroke:#8b9daf; opacity:.7; }
+.ab-talent-edge.is-learned { stroke:#e7c47c; stroke-width:2; opacity:1; }
+.ab-talent-root { position:absolute; left:420px; top:12px; width:56px; height:56px; transform:translateX(-50%); color:#ead09a; }
+.ab-talent-root-art { display:block; width:56px; height:56px; background-image:url('/static/abyss_player_classes_v1.png'); background-size:800% 600%; image-rendering:pixelated; }
+.ab-talent-root strong { position:absolute; top:8px; left:68px; font-size:1rem; }
+.ab-talent-root small { position:absolute; top:32px; left:68px; width:170px; color:#b8c5d6; font-size:.72rem; }
+.ab-talent-foundation { position:absolute; top:92px; left:0; width:840px; height:382px; }
+.ab-talent-extensions { position:absolute; top:628px; left:0; width:840px; height:472px; }
+.ab-talent-branch { position:absolute; inset:0; pointer-events:none; }
+.ab-talent-branch .ab-talent-node { pointer-events:auto; }
+
+/* Icons and rank markers carry the tree; descriptions live in the inspector. */
+.ab-talent-workshop .ab-talent-node {
+  position:absolute; display:block; width:44px; height:44px; min-width:44px; min-height:44px;
+  padding:2px; border:1px solid #72879d; border-radius:50%; transform:translate(-50%,-50%);
+  background:#152334; color:#dbe5f1; box-shadow:none; cursor:pointer; font:inherit;
+  scroll-margin:70px; overflow:visible;
+}
+.ab-talent-workshop .ab-talent-node img { display:block; width:38px; height:38px; border-radius:50%; pointer-events:none; }
+.ab-talent-workshop .ab-talent-node.is-capstone { border-radius:4px; border-width:2px; padding:1px; }
+.ab-talent-workshop .ab-talent-node.is-capstone img { border-radius:2px; }
+.ab-talent-workshop .ab-talent-node[aria-disabled=true] { background:#10161f; border-color:#485567; border-style:dashed; color:#acb9cb; }
+.ab-talent-workshop .ab-talent-node[aria-disabled=true] img { filter:saturate(.3); opacity:.65; }
+.ab-talent-workshop .ab-talent-node[aria-pressed=true] { border:2px solid #edca80; padding:1px; background:#343024; color:#f0d49e; }
+.ab-talent-workshop .ab-talent-node[aria-pressed=true] img { filter:none; opacity:1; }
+.ab-talent-workshop .ab-talent-node:hover { border-color:#f5dda4; box-shadow:0 4px 12px #0009; }
+#abyssTalentCanvas .ab-talent-node:is(:hover,:active) { transform:translate(-50%,-50%); }
+.ab-talent-workshop .ab-talent-node:focus-visible { outline:3px solid #f2d999; outline-offset:4px; }
+.ab-talent-rank { position:absolute; left:50%; bottom:-7px; transform:translateX(-50%); min-width:26px; padding:0 3px; background:#10151d; border:1px solid #596c82; color:#dbe5f1; border-radius:2px; font:600 10px/14px "Segoe UI",sans-serif; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ab-talent-node[aria-pressed=true] .ab-talent-rank { background:#e7c47c; border-color:#e7c47c; color:#121820; }
+.ab-talent-name { position:absolute; top:calc(100% + 11px); left:50%; transform:translateX(-50%); width:104px; text-align:center; font:500 10.5px/14px "Segoe UI",sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ab-talent-branch.is-inactive .ab-talent-node[aria-pressed=true] { border-color:#9c8b6c; border-style:dashed; }
+.ab-talent-branch.is-inactive .ab-talent-node img { filter:saturate(.35); }
+
+/* Both specializations physically extend from the final shared class tier. */
+.ab-talent-gate { position:absolute; top:502px; left:0; width:840px; height:100px; }
+.ab-talent-gate .ab-talent-gate-status { position:absolute; top:-13px; left:50%; transform:translateX(-50%); max-width:none; margin:0; padding:2px 10px; background:#080c12; color:#c5d1e0; font-size:11px; white-space:nowrap; }
+.ab-talent-workshop .ab-talent-subclass-choice { position:absolute; top:24px; transform:translateX(-50%); display:flex; align-items:center; gap:9px; width:198px; min-height:66px; padding:5px 10px; border:1px solid #52657b; border-radius:4px; background:#121c28; color:#c5d5e8; text-align:left; font:inherit; box-shadow:none; }
+.ab-talent-workshop .ab-talent-subclass-choice[aria-pressed=true] { border-color:#e8c47c; background:#28261f; color:#f3d79f; }
+.ab-talent-workshop .ab-talent-subclass-choice:hover { border-color:#efdaab; }
+#abyssTalentCanvas .ab-talent-subclass-choice:is(:hover,:active) { transform:translateX(-50%); }
+.ab-talent-branch-art { width:46px; height:52px; flex:0 0 46px; background-size:800% 600%; image-rendering:pixelated; }
+.ab-talent-subclass-choice strong { display:block; font-size:.83rem; }
+.ab-talent-subclass-choice small { display:block; margin-top:3px; font:11px/1.4 "Segoe UI",sans-serif; color:#b7c6d9; }
+.ab-talent-legend { display:flex; flex-wrap:wrap; gap:8px 18px; padding:13px 16px 8px; border-top:1px solid #344050; color:#bac7d8; font-size:.7rem; }
+.ab-talent-legend > span:not(:last-child) { display:flex; align-items:center; gap:6px; }
+.ab-talent-legend > span:not(:last-child)::before { content:""; display:inline-block; width:10px; height:10px; border:1px solid #778ca4; border-radius:50%; }
+.ab-talent-legend .is-learned::before { background:#e7c47c; border-color:#e7c47c; }
+.ab-talent-legend .is-locked::before { border-style:dashed; opacity:.7; }
+.ab-talent-workshop #abyssTalentMapHelp { margin:0; padding:5px 16px 14px; font-size:.72rem; color:#aebcd0; }
+
+/* Persistent details remain available to touch and keyboard users. */
+.ab-talent-inspector { min-width:0; padding:20px 18px; border-left:1px solid #394657; background:#111923; }
+.ab-talent-detail-head { display:flex; align-items:center; gap:12px; min-height:58px; }
+.ab-talent-detail-head img { width:52px; height:52px; flex:0 0 52px; }
+.ab-talent-workshop .ab-talent-inspector h4 { margin:0; color:#ead3a0; font-size:1.05rem; line-height:1.35; }
+.ab-talent-workshop .ab-talent-detail-head p { margin:5px 0 0; font-size:.7rem; color:#c0cddd; }
+.ab-talent-workshop #abyssTalentDetailEffect { color:#e1eaf5; font-size:.9rem; margin:22px 0 12px; }
+.ab-talent-workshop #abyssTalentDetailRequirement { color:#c3d0e1; font-size:.8rem; margin:0 0 16px; min-height:76px; }
+.ab-talent-workshop #abyssTalentDetailAction { width:100%; min-height:44px; border:1px solid #a99161; border-radius:3px; background:#28271f; color:#f2daaa; padding:8px 12px; font:inherit; font-size:.82rem; }
+.ab-talent-rules { margin-top:26px; padding-top:22px; border-top:1px solid #394657; }
+.ab-talent-workshop .ab-talent-rules h4 { font-size:.85rem; color:#d4deec; }
+.ab-talent-workshop .ab-talent-rules p { font-size:.78rem; color:#b7c6d9; margin:12px 0; }
+.ab-talent-workshop #abyssTalentInspect { min-height:52px; margin:22px 0 14px; color:#ecd39e; font-size:.78rem; }
+.ab-talent-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.ab-talent-workshop .ab-talent-actions button { width:100%; min-height:44px; border-radius:3px; padding:8px 12px; font:inherit; font-size:.84rem; }
+.ab-talent-workshop button:disabled { opacity:.55; cursor:not-allowed; }
+.ab-talent-workshop ::selection { background:#e7c47c; color:#101722; }
+.ab-talent-workshop :is(button,summary):focus-visible { outline:2px solid #f0cd86; outline-offset:3px; }
+.ab-talent-tooltip { position:fixed; z-index:160; width:270px; max-width:calc(100vw - 16px); max-height:calc(100dvh - 16px); overflow:auto; padding:16px; border:1px solid #9b8967; border-radius:3px; background:#10151cf7; color:#d2ddec; box-shadow:0 12px 30px #0008; font:.78rem/1.5 "Segoe UI",sans-serif; overflow-wrap:anywhere; }
+.ab-talent-tooltip h4 { margin:0 0 10px; color:#edcf91; font-size:.9rem; }
+.ab-talent-tooltip p { margin:10px 0; }
+.ab-talent-tooltip .ab-talent-tooltip-effect { color:#e7eef7; }
+.ab-talent-tooltip small { color:#b2c2d8; }
+.ab-talent-tooltip[hidden] { display:none; }
+
+@media(max-width:1050px) {
+  .ab-talent-workspace { grid-template-columns:minmax(0,1fr) 248px; }
+  .ab-talent-toolbar { align-items:flex-start; flex-direction:column; gap:8px; }
+  .ab-talent-inspector { padding:18px 14px; }
+  .ab-talent-heading { align-items:flex-start; flex-direction:column; gap:8px; }
+}
+@media(max-width:760px) {
+  .ab-talent-workspace { grid-template-columns:minmax(0,1fr); }
+  .ab-talent-workshop { margin:24px 0; padding:20px 0; }
+  .ab-talent-viewport { height:560px; max-height:68svh; min-height:360px; }
+  .ab-talent-inspector { border-left:0; border-top:1px solid #394657; padding:20px 16px; }
+  .ab-talent-heading h3 { font-size:1.25rem; }
+  .ab-talent-heading span { font-size:.8rem; }
+  .ab-talent-workshop #abyssTalentProgress { font-size:.82rem; }
+  .ab-talent-workshop #abyssTalentDetailRequirement { min-height:0; }
+  .ab-talent-workshop .ab-talent-actions button { width:auto; flex:1 1 auto; }
+  .ab-talent-toolbar { padding:10px; }
+  .ab-talent-rules { margin-top:20px; padding-top:18px; }
+}
+@media(prefers-reduced-motion:no-preference) {
+  .ab-talent-workshop .ab-talent-node { transition:border-color .15s ease,background-color .15s ease; }
+}
+@media(forced-colors:active) {
+  .ab-talent-edge { stroke:CanvasText; opacity:1; }
+  .ab-talent-edge.is-learned { stroke:Highlight; stroke-width:3; }
+  .ab-talent-workshop .ab-talent-node[aria-pressed=true] { outline:2px solid Highlight; }
+  .ab-talent-workshop .ab-talent-node[aria-disabled=true] { border-style:dashed; }
+}

@@ -20,7 +20,7 @@ var forgeQuoteCostCoverage = map[string]string{
 	"cleanse": "fixed", "convert_mats": "parameters", "corrupt": "parameters", "craft": "recipe",
 	"craft_legendary": "fixed", "craft_repair_kit2": "fixed", "dismantle": "recovery", "embrace": "fixed",
 	"etch_rune": "library", "extract_gem": "fixed", "forge_queue": "range", "fuse": "fusion",
-	"fuse_preview": "none", "gem_upgrade_all": "item", "identify": "fixed", "identify_all": "inventory",
+	"fuse_preview": "none", "gem_upgrade_all": "item", "identify": "item", "identify_all": "inventory",
 	"imbue": "fixed", "imbue_remove": "fixed", "infuse_curse": "fixed", "infuse_eldritch": "fixed",
 	"infuse_xp": "none", "insure_item": "fixed", "masterwork": "item", "masterwork_transfer": "target",
 	"mythic_fuse": "fusion", "polish": "fixed", "polish_all": "inventory", "prismatic_rune": "fixed",
@@ -82,8 +82,13 @@ func (s *WebServer) resolveAbyssForgeQuoteCost(
 			return cost, minimum, maximum, err
 		}
 		if available {
-			setExact(abyssForgeQuoteCost{Materials: map[string]int{}})
+			cost.Gold = 0
 		}
+		gold, err := s.identifyQuoteCharge(ctx, uid, cost.Gold)
+		if err != nil {
+			return cost, minimum, maximum, err
+		}
+		setExact(abyssForgeQuoteCost{Gold: gold, Materials: map[string]int{}})
 	case "temper":
 		if gear != nil {
 			setExact(abyssForgeQuoteCost{Gold: s.forge4GoldCost(uid, int64(400*(gear.Temper+1)), gear.Rarity), Materials: map[string]int{}})
@@ -217,19 +222,22 @@ func (s *WebServer) resolveAbyssForgeQuoteCost(
 		cost := s.bot.abyssRepairAllCost(uid)
 		setExact(abyssForgeQuoteCost{Gold: abyssRepairSubscriptionCharge(cost, s.bot.abyssRepairSubscriptionActive(uid, time.Now())), Materials: map[string]int{}})
 	case "identify_all":
-		count, err := s.countUnidentifiedForgeItems(ctx, uid)
+		total, freeCredit, err := s.unidentifiedForgeItemCosts(ctx, uid)
 		if err != nil {
 			return cost, minimum, maximum, err
 		}
-		payable := count
 		available, err := abyssDailyIdentifyAvailable(ctx, s.bot.DB, uid)
 		if err != nil {
 			return cost, minimum, maximum, err
 		}
-		if available && payable > 0 {
-			payable--
+		if available {
+			total = max(0, total-freeCredit)
 		}
-		setExact(abyssForgeQuoteCost{Gold: int64(abyssIdentifyCost * payable), Materials: map[string]int{}})
+		gold, err := s.identifyQuoteCharge(ctx, uid, total)
+		if err != nil {
+			return cost, minimum, maximum, err
+		}
+		setExact(abyssForgeQuoteCost{Gold: gold, Materials: map[string]int{}})
 	case "forge_queue":
 		if gear != nil {
 			resolvedCost, resolvedMinimum, resolvedMaximum, resolveErr := s.forgeQueueQuoteCost(uid, *gear, parameters)
@@ -243,35 +251,50 @@ func (s *WebServer) resolveAbyssForgeQuoteCost(
 	return cost, minimum, maximum, nil
 }
 
-func (s *WebServer) countUnidentifiedForgeItems(ctx context.Context, uid string) (int, error) {
-	queries := []string{
-		"SELECT gear_id, item_data FROM user_inventory WHERE client_uid=$1",
-		"SELECT gear_id, item_data FROM user_gear WHERE client_uid=$1",
+func (s *WebServer) identifyQuoteCharge(ctx context.Context, uid string, cost int64) (int64, error) {
+	if cost <= 0 {
+		return 0, nil
 	}
-	count := 0
+	var gold int64
+	if err := s.bot.DB.QueryRowContext(ctx, "SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold); err != nil {
+		return 0, err
+	}
+	return capIdentifyCharge(cost, gold), nil
+}
+
+func (s *WebServer) unidentifiedForgeItemCosts(ctx context.Context, uid string) (int64, int64, error) {
+	queries := []string{
+		"SELECT gear_id, item_data FROM user_inventory WHERE client_uid=$1 ORDER BY id",
+		"SELECT gear_id, item_data FROM user_gear WHERE client_uid=$1 ORDER BY slot",
+	}
+	var total, freeCredit int64
 	for _, query := range queries {
 		rows, err := s.bot.DB.QueryContext(ctx, query, uid)
 		if err != nil {
-			return 0, err
+			return 0, 0, err
 		}
 		for rows.Next() {
 			var gearID string
 			var itemData sql.NullString
 			if err := rows.Scan(&gearID, &itemData); err != nil {
 				_ = rows.Close()
-				return 0, err
+				return 0, 0, err
 			}
 			if item, ok := s.bot.makeGear(gearID, itemData); ok && item.Unidentified {
-				count++
+				itemCost := identifyGearCost(item.Rarity)
+				if total == 0 {
+					freeCredit = itemCost
+				}
+				total += itemCost
 			}
 		}
 		if err := rows.Err(); err != nil {
 			_ = rows.Close()
-			return 0, err
+			return 0, 0, err
 		}
 		_ = rows.Close()
 	}
-	return count, nil
+	return total, freeCredit, nil
 }
 
 func (s *WebServer) forgeDismantleQuoteRecovery(

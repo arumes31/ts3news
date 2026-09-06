@@ -26,6 +26,10 @@ const (
 
 func drawMotif(atlas *image.NRGBA, bounds image.Rectangle, seed uint64, palette artPalette, choices [8]motifKind) {
 	kind := choices[seed%uint64(len(choices))]
+	drawSelectedMotif(atlas, bounds, kind, palette)
+}
+
+func drawSelectedMotif(atlas *image.NRGBA, bounds image.Rectangle, kind motifKind, palette artPalette) {
 	switch kind {
 	case motifBlade:
 		drawBlade(atlas, bounds, palette)

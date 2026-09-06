@@ -140,12 +140,25 @@ func TestAbyssProgressionTrancheControls(t *testing.T) {
 	for _, required := range []string{
 		"/api/abyss/tree/paragon", "/api/abyss/tree/bestiary_talent", "Paragon hex board",
 		"Bestiary talents", "boss-kill counts", "Branch total", "Build delta", "treeMinimap", "treeCanvasBtn",
-		"drawTreeCanvas()", "autoApplyAffordableQueue()", "abyssTreeCanvasMode",
+		"drawTreeCanvas()", "confirmQueuedAllocations()", "Apply queued tree changes?", "abyssTreeCanvasMode",
 		"loadoutSave(3)", "buildExport()", "schema:TREE_CATALOG.schema_version",
 		"{code:code.trim()}", "toggleBeginner()", "tryUndoAlloc()",
 	} {
 		if !strings.Contains(combined, required) {
 			t.Errorf("progression contract missing %q", required)
 		}
+	}
+	if strings.Contains(string(page), "autoApplyAffordableQueue()") {
+		t.Error("saved allocation queues must wait for an explicit review before spending")
+	}
+	queueStart := strings.Index(string(page), "async function confirmQueuedAllocations()")
+	if queueStart < 0 {
+		t.Fatal("allocation queue review function is missing")
+	}
+	queue := string(page)[queueStart:]
+	confirmation := strings.Index(queue, "await confirmModal(")
+	mutation := strings.Index(queue, "abPost('/api/abyss/tree/batch_allocate'")
+	if confirmation < 0 || mutation < 0 || confirmation >= mutation {
+		t.Error("allocation queue must confirm its quoted changes before submitting a batch allocation")
 	}
 }

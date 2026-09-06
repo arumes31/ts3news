@@ -672,7 +672,18 @@ func (s *WebServer) handleArmory(w http.ResponseWriter, r *http.Request, uid str
 	title := s.bot.loadTitleView(uid)
 	pets := s.bot.loadPetViews(uid)
 
+	scene := armorySceneForState(abyssClassState{})
+	if s.bot.Cfg != nil && s.bot.Cfg.EnableAbyss {
+		state, classErr := s.bot.loadAbyssClassState(r.Context(), uid)
+		if classErr != nil {
+			log.Printf("web: load armoury class for %q: %v", uid, classErr)
+		} else {
+			scene = armorySceneForState(state)
+		}
+	}
+
 	s.render(w, "armory", map[string]any{
+		"Scene":                 scene,
 		"Title":                 "Armoury",
 		"Nav":                   "armory",
 		"U":                     u,

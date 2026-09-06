@@ -278,7 +278,7 @@ func (s *WebServer) loadForgeQuoteItem(ctx context.Context, uid string, invID in
 func (s *WebServer) forgeQuoteBaseCost(uid, operation string, gear *content.Gear) abyssForgeQuoteCost {
 	cost := abyssForgeQuoteCost{Materials: map[string]int{}}
 	baseGold := map[string]int64{
-		"identify": abyssIdentifyCost, "polish": 150, "reinforce": 100, "sharpen": 100,
+		"polish": 150, "reinforce": 100, "sharpen": 100,
 		"reforge": 300, "reforge_lock": 600, "rebalance": 200, "rebalance_all": 500,
 		"transmute_gem": 150, "socket_gem": 50,
 		"extract_gem": 100, "etch_rune": 150, "cleanse": 800, "insure_item": 200,
@@ -287,8 +287,8 @@ func (s *WebServer) forgeQuoteBaseCost(uid, operation string, gear *content.Gear
 	if operation == "temper" && gear != nil {
 		baseGold = int64(400 * (gear.Temper + 1))
 	}
-	if operation == "identify" {
-		cost.Gold = int64(abyssIdentifyCost)
+	if operation == "identify" && gear != nil {
+		cost.Gold = identifyGearCost(gear.Rarity)
 	} else if baseGold > 0 && gear != nil {
 		cost.Gold = s.bot.forgeGoldCost(uid, baseGold, gear.Rarity)
 	} else {
@@ -772,15 +772,15 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 		quote.CostExplanation = "Locking one stat doubles the 300g base to 600g before rarity, reputation, happy-hour, and mastery modifiers."
 	case "identify":
 		if quote.Cost.Gold == 0 {
-			quote.CostExplanation = "Your first identification of the UTC day is free and is consumed only when the item change commits."
+			quote.CostExplanation = "Identification is free at zero gold or with your daily free allowance. Any daily allowance is consumed only when the item change commits."
 		} else {
-			quote.CostExplanation = "Identification has a fixed 1,000g price independent of hidden rarity; one identification is free each UTC day."
+			quote.CostExplanation = "Identification costs 1–100g by item tier, capped at your current gold balance; one identification is free each UTC day."
 		}
 	case "identify_all":
 		if quote.Cost.Gold == 0 {
-			quote.CostExplanation = "Your first identification of the UTC day covers this batch and is consumed only when the item changes commit."
+			quote.CostExplanation = "This batch is free at zero gold or when covered by your daily free allowance. Any daily allowance is consumed only when the item changes commit."
 		} else {
-			quote.CostExplanation = "Each identification has a fixed 1,000g price independent of hidden rarity; this quote includes the daily free allowance."
+			quote.CostExplanation = "Each identification costs 1–100g by item tier. The total is capped at your current gold balance and includes the daily free allowance."
 		}
 	default:
 		quote.CostExplanation = operation.Cost.Formula

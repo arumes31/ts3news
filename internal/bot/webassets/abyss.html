@@ -148,8 +148,11 @@
     <div class="ab-combat-exchange" id="combatExchange" hidden aria-live="polite"><span class="enemy">HOSTILES</span><i>⚔</i><span class="player">DELVER</span><b id="combatExchangeLabel"></b></div>
   </div>
   <!-- Elevator shaft visual [85] -->
-  <div class="ab-elevator" aria-hidden="true">
-    <div class="ab-shaft"><div class="ab-cage" id="elevCage" style="top:0%"></div></div>
+  <div class="ab-elevator ab-elevator--beacon" aria-hidden="true">
+    <div class="ab-shaft">
+      <span class="ab-shaft-thread"></span>
+      <div class="ab-cage" id="elevCage" style="top:0%"><span class="ab-cage-window"></span></div>
+    </div>
   </div>
 
   <div class="abyss-dial" id="abyssDepthDial" role="group" aria-label="Abyss run depth and risk">
@@ -238,23 +241,17 @@
     {{template "abyssEntryPlannerPanel" .}}
 
     <!-- Tier picker (idle only) [16] -->
-    <div class="ab-tiers" id="tierPicker">
-      {{range .Tiers}}
-      {{$tierKey := .Key}}
-      <label class="ab-tier {{if not .Unlocked}}locked{{end}}">
-        <input type="radio" name="abtier" value="{{.Key}}" data-entry="{{.EntryGold}}" data-diff="{{.DiffMult}}" data-risk="{{with $.FloorOneRiskByTier}}{{index . $tierKey}}{{end}}" {{if and (eq .Key "normal") .Unlocked}}checked{{end}} {{if not .Unlocked}}disabled{{end}}>
-        <span class="ab-tier-name"><span class="ab-tier-icon" aria-hidden="true">{{.Icon}}</span> {{.Name}}</span>
-        <span class="ab-tier-meta">×{{printf "%.1f" .RewardMult}} reward · ×{{printf "%.1f" .DiffMult}} danger</span>
-        <span class="ab-tier-rate">{{if .WinRateHint}}{{.WinRateHint}}{{else}}No completed runs yet{{end}}</span>
-        <!-- UI-101: entry fee + unlock requirement line; UI-113: .ab-entry-cost is
-             struck through by JS while the daily free entry applies -->
-        <span class="ab-tier-meta">{{if gt .EntryGold 0}}entry <span class="ab-entry-cost {{if $.FreeEntryAvailable}}ab-free{{end}}">{{gold .EntryGold}}</span>{{else}}free{{end}}{{if not .Unlocked}} · 🔒 {{.UnlockQuest}}{{end}}</span>
-        <!-- UI-102: per-tier account best, filled from authoritative run history -->
-        <span class="ab-tier-best muted small" data-tier="{{.Key}}" style="display:none"></span>
-        <!-- UI-115: progress toward the unlock depth while locked -->
-        {{if not .Unlocked}}<span class="ab-tier-rate">{{.QuestProgress}}</span>{{end}}
-      </label>
-      {{end}}
+    <div class="ab-tiers ab-tier-picker--compact" id="tierPicker" data-entry-panel="tier">
+    {{range .Tiers}}
+    {{$tierKey := .Key}}
+    <label class="ab-tier {{if not .Unlocked}}locked{{end}}">
+      <span class="ab-tier-heading"><input type="radio" name="abtier" value="{{.Key}}" data-entry="{{.EntryGold}}" data-diff="{{.DiffMult}}" data-risk="{{with $.FloorOneRiskByTier}}{{index . $tierKey}}{{end}}" {{if and (eq .Key "normal") .Unlocked}}checked{{end}} {{if not .Unlocked}}disabled{{end}}><span class="ab-tier-name"><span class="ab-tier-icon" aria-hidden="true">{{.Icon}}</span> <span class="ab-tier-label">{{.Name}}</span></span></span>
+      <span class="ab-tier-details"><span class="ab-tier-comparison"><span class="ab-tier-stat"><b>×{{printf "%.1f" .RewardMult}}</b><small>Reward</small></span><span class="ab-tier-stat"><b>×{{printf "%.1f" .DiffMult}}</b><small>Danger</small></span></span>
+      <span class="ab-tier-entry ab-tier-meta">{{if gt .EntryGold 0}}entry <span class="ab-entry-cost {{if $.FreeEntryAvailable}}ab-free{{end}}">{{gold .EntryGold}}</span>{{else}}free{{end}}{{if not .Unlocked}} · 🔒 {{.UnlockQuest}}{{end}}</span>
+      <span class="ab-tier-rate ab-tier-history">{{if .WinRateHint}}{{.WinRateHint}}{{else}}No completed runs yet{{end}}</span>
+      <span class="ab-tier-best muted small" data-tier="{{.Key}}" style="display:none"></span>{{if not .Unlocked}}<span class="ab-tier-rate ab-tier-quest">{{.QuestProgress}}</span>{{end}}
+    </span></label>
+    {{end}}
     </div>
     <!-- UI-114: exact server-computed floor-1 death-risk forecast;
          UI-108: authoritative previous-session summary -->
@@ -633,7 +630,7 @@
   </div>
 </div>
 
-<div class="abyss-cols">
+<div class="abyss-cols ab-forge-layout ab-forge-layout--focus">
   {{template "abyssClassesPanel" .}}
   <section class="abyss-panel" id="abyssSetBonuses" data-abyss-section="progression">
     <h2>🛡️ Set Bonuses</h2>
@@ -719,91 +716,6 @@
 
   {{template "abyssBossVendor" .}}
   {{template "abyssBossContracts" .}}
-
-  <!-- Materials, crafting & exchange (#101-#105, #126) -->
-  <section class="abyss-panel" id="abyssWorkshop" data-abyss-section="forge">
-    <h2>🧪 Workshop</h2>
-    <div class="ab-materials">
-      {{range .MaterialDefs}}
-      <span class="ab-mat" title="{{.Name}}" data-material="{{.ID}}" data-count="{{index $.Materials .ID}}">{{.Icon}} <b id="mat-{{.ID}}">{{comma (index $.Materials .ID)}}</b></span>
-      {{end}}
-    </div>
-    <p class="muted small">Materials come from salvaging, dismantling and deep floors (30+). Weekly quest: craft {{.CraftQuest.Target}} items → 🜲15 + Master Repair Kit ({{.CraftQuest.Done}}/{{.CraftQuest.Target}}).</p>
-    <div class="ab-shop">
-      {{range .Recipes}}
-      <div class="ab-shop-item{{if and (not .Locked) (not .Affordable)}} is-unaffordable{{end}}" data-recipe-state="{{if .Locked}}locked{{else}}known{{end}}">
-        <div>
-          <b>{{if .Locked}}🔒 ???{{else}}{{.Name}}{{end}}</b>
-          <div class="muted small">{{if .Locked}}Discovered through lore fragments{{else}}{{.Desc}} · can make ×{{.Craftable}}{{end}}</div>
-          {{if and (not .Locked) (not .Affordable)}}<div class="small ab-forge-missing">Missing: {{.Missing}}</div>{{end}}
-        </div>
-		<div class="ab-btn-row">
-		  {{if not .Locked}}<button class="ghost xs" aria-pressed="{{.Favorite}}" title="{{if .Favorite}}Unpin recipe{{else}}Pin recipe{{end}}" onclick="abyssRecipeFavorite('{{.ID}}',this)">{{if .Favorite}}★{{else}}☆{{end}}</button>{{end}}
-		  {{if .Locked}}<span class="muted small">{{.Cost}}</span>{{else}}<button class="ghost xs" onclick="abyssCraft('{{.ID}}', this)" {{if not .Affordable}}disabled{{end}}>{{.Cost}}</button>{{end}}
-		</div>
-      </div>
-      {{end}}
-    </div>
-
-	<div class="ab-set-trade" id="abyssSetTrade" aria-live="polite">
-	  <h3>🧩 Set Trading Post <span class="ab-up-lv">weekly offers</span></h3>
-	  <p class="muted small">Exchange two spare duplicate pieces from one set for its offered missing piece.</p>
-	  <div class="ab-shop" id="abyssSetTradeOffers"><span class="muted small">Loading offers…</span></div>
-	</div>
-
-    <!-- Deterministic legendary craft (#120) -->
-    <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
-      <h3 style="margin:0 0 6px;">⭐ Forge a Legendary <span class="ab-up-lv">500🌫️ 50🔷 10🟣</span></h3>
-      <div style="display:flex; gap:6px;">
-        <select id="craftLegSel" class="ab-select" aria-label="Legendary craft target" style="flex:1;" {{if not .CraftLegendaries}}disabled{{end}}>
-          {{range .CraftLegendaries}}<option value="{{.ID}}">{{.Name}} ({{.Slot}})</option>{{else}}<option value="">No legendary blueprints available</option>{{end}}
-        </select>
-        <button class="ghost xs" onclick="abyssCraftLegendary()" {{if not .CraftLegendaries}}disabled{{end}}>Forge</button>
-      </div>
-    </div>
-
-  </section>
-
-  <!-- Token exchange (#126): 1 token = 100K gold -->
-  <section class="abyss-panel" id="abyssTokenExchange" data-abyss-section="shop">
-    <h2>💱 Token Exchange</h2>
-    <p class="muted small">Convert gold and Abyss Tokens at the current fixed rate.</p>
-    <div class="ab-shop-item">
-      <div><b>Exchange rate</b><div class="muted small">1 🜲 = {{gold .TokenBuyGold}} to buy · {{gold .TokenSellGold}} when sold</div></div>
-      <input type="number" id="exchAmount" value="1" min="1" max="1000" aria-label="Token exchange amount" style="width:70px;">
-    </div>
-    <div class="ab-btn-row">
-      <button class="ghost xs" onclick="abyssExchange('buy')" title="Rate {{gold .TokenBuyGold}}g per token · exchange fee 0g">Buy 🜲 ({{gold .TokenBuyGold}} each)</button>
-      <button class="ghost xs" onclick="abyssExchange('sell')" title="Rate {{gold .TokenSellGold}}g per token · exchange fee 0g">Sell 🜲 ({{gold .TokenSellGold}} each)</button>
-    </div>
-    <details class="ab-acc"><summary>Economy services</summary><div class="ab-acc-body">
-      <div class="ab-btn-row">
-        <button class="ghost xs" onclick="abyssTokenBundle()" title="First token 100,000g today; +20,000g per additional daily token · fee 0g">Gold → token bundle</button>
-        <button class="ghost xs" onclick="abyssPotionSubscription(true)" title="Subscription fee 25,000g per delivered UTC day · two Great Health Potions">Enable potion plan</button>
-        <button class="ghost xs" onclick="abyssPotionSubscription(false)" title="Pause fee 0g · no delivery charge while paused">Pause potion plan</button>
-        <button class="ghost xs" id="autoInsureToggle" data-enabled="{{.AutoInsure}}" onclick="abyssAutoInsure(this.dataset.enabled!=='true')" title="No recurring fee · each compatible run buys ordinary 25% cache cover atomically">🛡️ Auto-insure: {{if .AutoInsure}}on{{else}}off{{end}}</button>
-        <button class="ghost xs" onclick="abyssRepairSubscription()" title="Exact fee 70,000g prepaid · 7 days · repairs and durability loss cost 0g while active">7-day repair plan</button>
-        <button class="ghost xs" onclick="abyssScratch()" title="Exact price 50 tokens · fee 0 · once/day · 70%:0, 20%:75, 9%:150, 1%:1000">Daily scratch card</button>
-        <button class="ghost xs" onclick="document.getElementById('abyssGiftRecipient').focus()" title="Gift item price equals its current posted token-shop price · 2,500g delivery fee">Create gift code</button>
-        <button class="ghost xs" onclick="abyssGiftRedeem()" title="Redemption fee 0g / 0 tokens">Redeem gift code</button>
-        <button class="ghost xs" onclick="abyssTaxRebate()" title="Claim fee 0g · bank-free today · refunds exactly 10% of this week's recorded Abyss tax">Claim tax rebate</button>
-        {{if .Run.Active}}<button class="ghost xs" onclick="abyssEconomyLoan()" title="Principal leaves escrow · exact fee 10%, ceiling-rounded, due at bank · no setup fee">Borrow from cache</button>{{end}}
-      </div>
-    </div></details>
-  </section>
-
-  <!-- Sanctuary upgrades (#38/#113) -->
-  <section class="abyss-panel ab-sanctuary ab-sanctuary-stage-{{.SanctuaryStage}}" id="abyssSanctuaryUpgrades" data-abyss-section="progression">
-    <div class="ab-sanctuary-scene" aria-hidden="true"><span>🕯️</span><span>🏕️</span><span>⚒️</span><span>✨</span></div>
-    <h2>🕊️ Sanctuary Upgrades <span class="ab-up-lv">{{.SanctuaryStageName}}</span></h2>
-    <p class="muted small">Permanent account upgrades for safer, stronger descents.</p>
-    {{range .SanctuaryDefs}}
-    <div class="ab-shop-item">
-      <div><b>{{.Name}}</b> <span class="ab-up-lv">Lv {{index $.Sanctuary .Key}}/{{.Max}}</span><div class="muted small">{{.Desc}}</div></div>
-      <button class="ghost xs" onclick="abyssSanctuaryBuy('{{.Key}}', this)">🜲 {{.CostTk}}</button>
-    </div>
-    {{end}}
-  </section>
 
   <!-- Forge & Customization Panel -->
   <section class="abyss-panel" id="abyssForgePanel" data-abyss-section="forge">
@@ -1160,6 +1072,92 @@
       </div></details>
     </div>
   </section>
+
+  <!-- Materials, crafting & exchange (#101-#105, #126) -->
+  <section class="abyss-panel" id="abyssWorkshop" data-abyss-section="forge">
+    <h2>🧪 Workshop</h2>
+    <div class="ab-materials">
+      {{range .MaterialDefs}}
+      <span class="ab-mat" title="{{.Name}}" data-material="{{.ID}}" data-count="{{index $.Materials .ID}}">{{.Icon}} <b id="mat-{{.ID}}">{{comma (index $.Materials .ID)}}</b></span>
+      {{end}}
+    </div>
+    <p class="muted small">Materials come from salvaging, dismantling and deep floors (30+). Weekly quest: craft {{.CraftQuest.Target}} items → 🜲15 + Master Repair Kit ({{.CraftQuest.Done}}/{{.CraftQuest.Target}}).</p>
+    <div class="ab-shop">
+      {{range .Recipes}}
+      <div class="ab-shop-item{{if and (not .Locked) (not .Affordable)}} is-unaffordable{{end}}" data-recipe-state="{{if .Locked}}locked{{else}}known{{end}}">
+        <div>
+          <b>{{if .Locked}}🔒 ???{{else}}{{.Name}}{{end}}</b>
+          <div class="muted small">{{if .Locked}}Discovered through lore fragments{{else}}{{.Desc}} · can make ×{{.Craftable}}{{end}}</div>
+          {{if and (not .Locked) (not .Affordable)}}<div class="small ab-forge-missing">Missing: {{.Missing}}</div>{{end}}
+        </div>
+		<div class="ab-btn-row">
+		  {{if not .Locked}}<button class="ghost xs" aria-pressed="{{.Favorite}}" title="{{if .Favorite}}Unpin recipe{{else}}Pin recipe{{end}}" onclick="abyssRecipeFavorite('{{.ID}}',this)">{{if .Favorite}}★{{else}}☆{{end}}</button>{{end}}
+		  {{if .Locked}}<span class="muted small">{{.Cost}}</span>{{else}}<button class="ghost xs" onclick="abyssCraft('{{.ID}}', this)" {{if not .Affordable}}disabled{{end}}>{{.Cost}}</button>{{end}}
+		</div>
+      </div>
+      {{end}}
+    </div>
+
+	<div class="ab-set-trade" id="abyssSetTrade" aria-live="polite">
+	  <h3>🧩 Set Trading Post <span class="ab-up-lv">weekly offers</span></h3>
+	  <p class="muted small">Exchange two spare duplicate pieces from one set for its offered missing piece.</p>
+	  <div class="ab-shop" id="abyssSetTradeOffers"><span class="muted small">Loading offers…</span></div>
+	</div>
+
+    <!-- Deterministic legendary craft (#120) -->
+    <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+      <h3 style="margin:0 0 6px;">⭐ Forge a Legendary <span class="ab-up-lv">500🌫️ 50🔷 10🟣</span></h3>
+      <div style="display:flex; gap:6px;">
+        <select id="craftLegSel" class="ab-select" aria-label="Legendary craft target" style="flex:1;" {{if not .CraftLegendaries}}disabled{{end}}>
+          {{range .CraftLegendaries}}<option value="{{.ID}}">{{.Name}} ({{.Slot}})</option>{{else}}<option value="">No legendary blueprints available</option>{{end}}
+        </select>
+        <button class="ghost xs" onclick="abyssCraftLegendary()" {{if not .CraftLegendaries}}disabled{{end}}>Forge</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Token exchange (#126): 1 token = 100K gold -->
+  <section class="abyss-panel" id="abyssTokenExchange" data-abyss-section="shop">
+    <h2>💱 Token Exchange</h2>
+    <p class="muted small">Convert gold and Abyss Tokens at the current fixed rate.</p>
+    <div class="ab-shop-item">
+      <div><b>Exchange rate</b><div class="muted small">1 🜲 = {{gold .TokenBuyGold}} to buy · {{gold .TokenSellGold}} when sold</div></div>
+      <input type="number" id="exchAmount" value="1" min="1" max="1000" aria-label="Token exchange amount" style="width:70px;">
+    </div>
+    <div class="ab-btn-row">
+      <button class="ghost xs" onclick="abyssExchange('buy')" title="Rate {{gold .TokenBuyGold}}g per token · exchange fee 0g">Buy 🜲 ({{gold .TokenBuyGold}} each)</button>
+      <button class="ghost xs" onclick="abyssExchange('sell')" title="Rate {{gold .TokenSellGold}}g per token · exchange fee 0g">Sell 🜲 ({{gold .TokenSellGold}} each)</button>
+    </div>
+    <details class="ab-acc"><summary>Economy services</summary><div class="ab-acc-body">
+      <div class="ab-btn-row">
+        <button class="ghost xs" onclick="abyssTokenBundle()" title="First token 100,000g today; +20,000g per additional daily token · fee 0g">Gold → token bundle</button>
+        <button class="ghost xs" onclick="abyssPotionSubscription(true)" title="Subscription fee 25,000g per delivered UTC day · two Great Health Potions">Enable potion plan</button>
+        <button class="ghost xs" onclick="abyssPotionSubscription(false)" title="Pause fee 0g · no delivery charge while paused">Pause potion plan</button>
+        <button class="ghost xs" id="autoInsureToggle" data-enabled="{{.AutoInsure}}" onclick="abyssAutoInsure(this.dataset.enabled!=='true')" title="No recurring fee · each compatible run buys ordinary 25% cache cover atomically">🛡️ Auto-insure: {{if .AutoInsure}}on{{else}}off{{end}}</button>
+        <button class="ghost xs" onclick="abyssRepairSubscription()" title="Exact fee 70,000g prepaid · 7 days · repairs and durability loss cost 0g while active">7-day repair plan</button>
+        <button class="ghost xs" onclick="abyssScratch()" title="Exact price 50 tokens · fee 0 · once/day · 70%:0, 20%:75, 9%:150, 1%:1000">Daily scratch card</button>
+        <button class="ghost xs" onclick="document.getElementById('abyssGiftRecipient').focus()" title="Gift item price equals its current posted token-shop price · 2,500g delivery fee">Create gift code</button>
+        <button class="ghost xs" onclick="abyssGiftRedeem()" title="Redemption fee 0g / 0 tokens">Redeem gift code</button>
+        <button class="ghost xs" onclick="abyssTaxRebate()" title="Claim fee 0g · bank-free today · refunds exactly 10% of this week's recorded Abyss tax">Claim tax rebate</button>
+        {{if .Run.Active}}<button class="ghost xs" onclick="abyssEconomyLoan()" title="Principal leaves escrow · exact fee 10%, ceiling-rounded, due at bank · no setup fee">Borrow from cache</button>{{end}}
+      </div>
+    </div></details>
+  </section>
+
+  <!-- Sanctuary upgrades (#38/#113) -->
+  <section class="abyss-panel ab-sanctuary ab-sanctuary-stage-{{.SanctuaryStage}}" id="abyssSanctuaryUpgrades" data-abyss-section="progression">
+    <div class="ab-sanctuary-scene" aria-hidden="true"><span>🕯️</span><span>🏕️</span><span>⚒️</span><span>✨</span></div>
+    <h2>🕊️ Sanctuary Upgrades <span class="ab-up-lv">{{.SanctuaryStageName}}</span></h2>
+    <p class="muted small">Permanent account upgrades for safer, stronger descents.</p>
+    {{range .SanctuaryDefs}}
+    <div class="ab-shop-item">
+      <div><b>{{.Name}}</b> <span class="ab-up-lv">Lv {{index $.Sanctuary .Key}}/{{.Max}}</span><div class="muted small">{{.Desc}}</div></div>
+      <button class="ghost xs" onclick="abyssSanctuaryBuy('{{.Key}}', this)">🜲 {{.CostTk}}</button>
+    </div>
+    {{end}}
+  </section>
+
 
   <!-- Lifetime stats [46] + salvage [60] -->
   <section class="abyss-panel" id="abyssRecord" data-abyss-section="progression" data-best-depth="{{.Stats.BestDepth}}" data-lifetime-banked="{{.Stats.LifetimeBanked}}" data-prestige="{{.Stats.AbyssPrestige}}">
@@ -4492,7 +4490,6 @@ async function abyssEconomyLoan(){
   await abyssEconomyPost('/api/abyss/economy/loan',{amount:amount});
 }
 
-var AB_IDENTIFY_COST=1000;
 function updateForgeOptions() {
   var sel = document.getElementById('forgeItemSelect');
   var opt = sel.options[sel.selectedIndex];
@@ -4582,12 +4579,11 @@ function updateForgeOptions() {
   document.getElementById('btnForgeInfuseXP').style.display = isWeapon ? '' : 'none';
   document.getElementById('forgeGemTransmuteRow').style.display = (!unid && gems > 0) ? 'block' : 'none';
 
-  // Gold price labels scale with the item's rarity except identification,
-  // whose fixed price cannot disclose the unidentified item's hidden tier.
+  // Identification quotes resolve the tier price and available balance.
   var fg=function(b){return '≈'+abForgeGold(b,rarity);};
   var setTxt=function(id,txt){var el=document.getElementById(id);if(el)el.textContent=txt;};
   var identifyButton=document.getElementById('btnForgeIdentify');
-  setTxt('btnForgeIdentify',identifyButton&&identifyButton.dataset.dailyFree==='true'?'🔍 Identify Item · Daily free':'🔍 Identify Item ('+fmtNum(AB_IDENTIFY_COST)+'g)');
+  setTxt('btnForgeIdentify',identifyButton&&identifyButton.dataset.dailyFree==='true'?'🔍 Identify Item · Daily free':'🔍 Identify Item (1–100g · free at 0g)');
   setTxt('btnForgeSocketGemGo','Socket Gem ('+fg(50)+')');
   setTxt('btnForgeEtchGo','Etch ('+fg(150)+')');
   setTxt('btnForgeTransmute','⚒️ Transmute Weapon ('+fg(100)+')');
@@ -5646,7 +5642,7 @@ function decorateLootRow(row){
     var b=document.createElement('span');
     b.className='ab-unid-badge';
     b.textContent='?';
-    b.title='Unidentified — identify it at the forge';
+    b.title='Identified automatically when received · 1–100g by tier, free at 0g';
     row.appendChild(b);
   }
   var nm=t.split('[s:')[0].replace('⬆️ Equipped:','').replace('🎁','').trim();
@@ -6078,7 +6074,7 @@ function updateForgeAffordability(){
     if(!btn.dataset.origTitle&&btn.title)btn.dataset.origTitle=btn.title;
     var c=AB_FORGE_COSTS[id];
     var goldNeed=0, tkNeed=0, mats={};
-    if(id==='btnForgeIdentify')goldNeed=btn.dataset.dailyFree==='true'?0:AB_IDENTIFY_COST;
+    if(id==='btnForgeIdentify')goldNeed=0; // Identification is capped at the available balance.
     else if(id==='btnForgeTemper')goldNeed=abForgeGoldRaw(400*(temper+1),rarity);
     else if(id==='btnForgeUpgradeGear'){
       var m=/🜲 (\d+)/.exec(btn.textContent||'');

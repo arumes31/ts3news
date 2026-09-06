@@ -60,6 +60,7 @@ test('every live Skill Web node uses its unique discipline atlas icon', async ({
   expect(await page.locator('.tn-pixel-icon.tree-nav-hidden').count()).toBe(nodeCount - 1);
   await search.fill('');
 
+  await page.locator('#treeSavedBuildsDetails > summary').click();
   await page.locator('#treeContrastToggle').click();
   const highContrastFilter = await page.locator('.tn-pixel-icon').first().evaluate(icon => getComputedStyle(icon).filter);
   expect(highContrastFilter).not.toBe('none');

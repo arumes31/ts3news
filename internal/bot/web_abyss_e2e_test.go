@@ -153,6 +153,7 @@ func TestAbyssE2EServer(t *testing.T) {
 		}
 		skill, _ := content.GetSkillByID("S_EQ")
 		if err := server.tmpl.ExecuteTemplate(w, "armory", map[string]any{
+			"Scene": armorySceneForState(abyssClassState{Class: r.URL.Query().Get("class"), Selected: r.URL.Query().Get("subclass")}),
 			"Title": "Armoury", "Nav": "armory", "EnableAbyss": true, "U": u,
 			"Slots":  slots,
 			"Skills": []content.Skill{skill}, "Ultimates": []any{}, "Artifact": nil,
@@ -370,6 +371,7 @@ func TestAbyssE2EServer(t *testing.T) {
 			run.EventState = prepareAbyssEventForDepth(`{"type":"`+room+`"}`, run.Depth)
 			fixture["Run"] = run
 		}
+		fixture["HUD"] = abyssRunHUDState(fixture["Run"].(abyssRun), fixture["Stats"].(abyssStats), nil)
 		if err := server.tmpl.ExecuteTemplate(w, "abyss", fixture); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

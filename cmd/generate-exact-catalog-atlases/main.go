@@ -18,6 +18,9 @@ import (
 	"strings"
 
 	"ts3news/internal/content"
+	"ts3news/internal/i18n"
+
+	xdraw "golang.org/x/image/draw"
 )
 
 const cellSize = 96
@@ -33,6 +36,10 @@ type manifestCell struct {
 }
 
 func main() {
+	if err := i18n.InitWithLocale(i18n.LocaleEnUS); err != nil {
+		log.Fatal(err)
+	}
+	content.InitLocalized()
 	root, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
@@ -40,6 +47,7 @@ func main() {
 	assetDir := filepath.Join(root, "internal", "bot", "webassets")
 	entries := content.PixelArtCatalog()
 	sources := loadSources(assetDir, entries)
+	extraSources := make(map[string]image.Image)
 	pages := make(map[string]*image.NRGBA)
 	manifest := make(map[string]manifestCell, len(entries))
 
@@ -53,7 +61,28 @@ func main() {
 		source := sources[entry.Family]
 		baseCell := chooseBaseCell(source, entry)
 		destination := image.Rect(entry.Column*cellSize, entry.Row*cellSize, (entry.Column+1)*cellSize, (entry.Row+1)*cellSize)
-		draw.Draw(page, destination, source, image.Pt(baseCell.X*cellSize, baseCell.Y*cellSize), draw.Over)
+		if special, ok := specialSource(entry); ok {
+			art := extraSources[special.asset]
+			if art == nil {
+				file, err := os.Open(filepath.Join(assetDir, special.asset))
+				if err != nil {
+					log.Fatal(err)
+				}
+				art, err = png.Decode(file)
+				_ = file.Close()
+				if err != nil {
+					log.Fatal(err)
+				}
+				extraSources[special.asset] = art
+			}
+			crop := special.bounds(art.Bounds())
+			if !crop.In(art.Bounds()) {
+				log.Fatalf("invalid icon source for %s", entry.Key)
+			}
+			xdraw.NearestNeighbor.Scale(page, destination.Inset(4), art, crop, draw.Over, nil)
+		} else {
+			draw.Draw(page, destination, source, image.Pt(baseCell.X*cellSize, baseCell.Y*cellSize), draw.Over)
+		}
 		removeBoxedBackdrop(page, destination)
 		embedIdentity(page, destination, entry)
 		manifest[entry.Key] = manifestCell{
@@ -138,12 +167,15 @@ func chooseBaseCell(source image.Image, entry content.PixelArtEntry) image.Point
 }
 
 func semanticCandidates(entry content.PixelArtEntry) []image.Point {
+	if cell, ok := semanticCell(entry); ok {
+		return []image.Point{cell}
+	}
 	if entry.Family != "items" {
-		result := make([]image.Point, 0, content.PixelArtColumns*content.PixelArtRows)
-		for row := 0; row < content.PixelArtRows; row++ {
-			for column := 0; column < content.PixelArtColumns; column++ {
-				result = append(result, image.Pt(column, row))
-			}
+		// Reviewed whole subjects in the first row. Later rows of several
+		// original sheets contain fragments crossing the normalized cell grid.
+		result := make([]image.Point, 0, content.PixelArtColumns)
+		for column := 0; column < content.PixelArtColumns; column++ {
+			result = append(result, image.Pt(column, 0))
 		}
 		return result
 	}
@@ -190,11 +222,42 @@ func embedIdentity(target *image.NRGBA, cell image.Rectangle, entry content.Pixe
 	digest := sha256.Sum256([]byte("abyss-exact-icon:" + entry.Key))
 	centerX := (cell.Min.X + cell.Max.X) / 2
 	centerY := (cell.Min.Y + cell.Max.Y) / 2
-	for index := 0; index < 4; index++ {
-		offset := index * 3
-		target.SetNRGBA(centerX-2+index, centerY-1+index%2, color.NRGBA{
-			R: digest[offset], G: digest[offset+1], B: digest[offset+2], A: 255,
-		})
+	// Give the object itself an individual finish, preserving its light/shadow
+	// and source color family. Identity must survive normal UI downsampling.
+	for y := cell.Min.Y; y < cell.Max.Y; y++ {
+		for x := cell.Min.X; x < cell.Max.X; x++ {
+			pixel := target.NRGBAAt(x, y)
+			if pixel.A == 0 {
+				continue
+			}
+			channels := []*uint8{&pixel.R, &pixel.G, &pixel.B}
+			for index, channel := range channels {
+				factor := 0.80 + float64(digest[index])/637.5
+				*channel = uint8(min(255, float64(*channel)*factor))
+			}
+			target.SetNRGBA(x, y, pixel)
+		}
+	}
+	// Eight separated rune shards encode the identity in visible geometry.
+	// They have no boxed badge/backdrop and leave the central subject legible.
+	for index := 0; index < 8; index++ {
+		angle := float64(index)*math.Pi/4 + float64(digest[3]%16)*math.Pi/128
+		radius := 34 + float64(digest[4+index]%7)
+		x := centerX + int(math.Cos(angle)*radius)
+		y := centerY + int(math.Sin(angle)*radius)
+		width, height := 2+int(digest[12+index]%3), 2+int(digest[20+index]%4)
+		ink := color.NRGBA{R: 160 + digest[index]%96, G: 140 + digest[index+8]%100, B: 110 + digest[index+16]%130, A: 235}
+		for dy := -height; dy <= height; dy++ {
+			for dx := -width; dx <= width; dx++ {
+				if math.Abs(float64(dx)/float64(width))+math.Abs(float64(dy)/float64(height)) > 1.25 {
+					continue
+				}
+				point := image.Pt(x+dx, y+dy)
+				if point.In(cell.Inset(3)) {
+					target.SetNRGBA(point.X, point.Y, ink)
+				}
+			}
+		}
 	}
 }
 
@@ -234,16 +297,25 @@ func removeBoxedBackdrop(target *image.NRGBA, cell image.Rectangle) {
 }
 
 func writePNG(path string, source image.Image) {
-	file, err := os.Create(path)
+	// The compiler and image previews may memory-map checked-in PNGs on
+	// Windows. Encode a sibling first, then replace the completed asset.
+	file, err := os.CreateTemp(filepath.Dir(path), ".catalog-*.png")
 	if err != nil {
 		log.Fatal(err)
 	}
+	temporary := file.Name()
 	encoder := png.Encoder{CompressionLevel: png.BestCompression}
 	if err := encoder.Encode(file, source); err != nil {
 		_ = file.Close()
+		_ = os.Remove(temporary)
 		log.Fatal(err)
 	}
 	if err := file.Close(); err != nil {
+		_ = os.Remove(temporary)
+		log.Fatal(err)
+	}
+	if err := os.Rename(temporary, path); err != nil {
+		_ = os.Remove(temporary)
 		log.Fatal(err)
 	}
 }

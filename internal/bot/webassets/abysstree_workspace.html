@@ -1,0 +1,214 @@
+{{define "abysstree-workspace"}}
+<style>
+.ab-skip-link{position:absolute;left:16px;top:-80px;z-index:2000;padding:12px;background:#111824;border:1px solid var(--gold)}
+.ab-skip-link:focus{top:8px}
+.tree-zoom-controls{position:absolute;left:12px;bottom:12px;z-index:6;display:flex;gap:4px}
+.tree-zoom-controls button{min-width:44px;min-height:44px;background:#111824;font-size:1.15rem}
+
+.tree-head{align-items:center;gap:12px;margin-bottom:12px}
+.tree-head h1{font-size:1.65rem;margin:0 0 4px}
+#treeSubtitle{max-width:65ch;margin:0;line-height:1.5}
+#treeAvailPill{display:none!important}
+.tree-head-right{gap:8px}
+.tree-head-right .ghost,.tree-workspace button,.tree-workspace select,.tree-workspace input,.tree-utilities button,.tree-utilities input,.tree-utilities select{min-height:44px}
+.tree-tabs{margin:12px 0;display:flex;gap:4px;overflow-x:auto}
+.tree-tabs .tree-tab{min-height:44px;white-space:nowrap;flex-shrink:0}
+.tree-workspace{display:grid;grid-template-columns:minmax(0,1fr) 320px;column-gap:16px;row-gap:0;align-items:start}
+.tree-workspace-main{min-width:0}
+.tree-workspace>.tree-toolbar,.tree-workspace>.tree-plan-bar{grid-column:1/-1}
+.tree-inspector [hidden],.tree-utilities[hidden]{display:none!important}
+.tree-workspace .tree-toolbar{display:flex!important;gap:8px;margin:0 0 8px;flex-wrap:wrap}
+.tree-workspace .tree-toolbar[hidden]{display:none!important}
+.tree-tab-short{display:none}
+.tree-workspace #treeSearch{flex:1 1 220px;width:auto;min-width:0;max-width:none;font-size:16px}
+.tree-result-tools{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.tree-result-tools button{min-width:44px}
+.tree-workspace #treeResultCount{font-variant-numeric:tabular-nums;min-width:70px;text-align:center}
+.tree-workspace #treeStage{height:clamp(460px,66vh,820px);min-height:460px;border-radius:8px}
+.tree-workspace #treeMinimap{width:116px;height:116px;background:rgba(10,12,24,.92)}
+.tree-canvas-caption{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;font-size:.78rem;color:var(--muted)}
+.tree-canvas-caption .tree-legend{flex-wrap:wrap}
+.tree-plan-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 0 10px;border-top:1px solid var(--line)}
+.tree-plan-bar #treePlanToggle{margin-right:4px}
+.tree-plan-bar #treePlanStatus{flex:1 1 220px;line-height:1.4;order:-1}
+.tree-plan-bar:not(.planning) #treePlanStatus{order:0}
+.tree-plan-bar #treeLegendText{flex-basis:100%;font-size:.78rem;line-height:1.5}
+.tree-plan-bar #treePlanCommit{background:var(--gold);color:#17130a;border:1px solid var(--gold);font-weight:700}
+.tree-plan-bar:not(.planning) #treePlanUndo,.tree-plan-bar:not(.planning) #treePlanRedo,.tree-plan-bar:not(.planning) #treePlanCommit{display:none}
+.tree-workspace .tree-inspector{display:flex;flex-direction:column;margin:0;padding:18px;background:#111824;border:1px solid var(--line);border-top:2px solid var(--gold);border-radius:8px;gap:14px;max-height:calc(66vh + 125px);overflow:auto;overscroll-behavior:contain}
+.tree-inspector-content{display:contents}
+.tree-workspace .tree-inspector-content>*{flex-shrink:0;min-width:0}
+.tree-workspace .tree-inspector-actions{flex-shrink:0}
+.tree-workspace .tree-inspector,.tree-inspector-content{scrollbar-color:var(--muted) #111824;scrollbar-width:thin}
+.tree-inspector-mobile-bar{display:none}
+#treeInspectorDescription{order:1}#treeInspectorActions{order:2}#treeInspectorEffects{order:3}#treeInspectorGrid{order:4}#treeInspectorLink{order:5}
+#treeInspectorDraftState{color:var(--muted);line-height:1.4}
+#treeInspectorEffects:empty{display:none}
+.tree-inspector-head{display:grid;gap:8px}
+.tree-inspector-head h2{font-size:1.2rem;line-height:1.3;overflow-wrap:anywhere}
+.tree-inspector #treeInspectorMeta{line-height:1.5}
+.tree-inspector-grid{display:flex;flex-direction:column;gap:12px}
+.tree-workspace .tree-inspector-card{background:none;padding:0;min-height:0;font-size:.875rem;line-height:1.5;overflow-wrap:anywhere}
+.tree-workspace .tree-inspector-card b{color:var(--text);font-size:.8rem;margin-bottom:6px}
+.tree-inspector-card details{border-top:1px solid var(--line);padding-top:8px}
+.tree-inspector-card summary{font-weight:600;color:var(--muted);cursor:pointer;min-height:44px;display:flex;align-items:center;gap:8px}
+.tree-inspector-card summary::before{content:'›';font-size:1.2rem}
+.tree-inspector-card details[open]>summary::before{transform:rotate(90deg)}
+.tree-inspector-actions{display:grid;gap:8px}
+#treeInspectorAllocate{font-weight:700;background:var(--gold);color:#17130a;border:1px solid var(--gold);padding:10px}
+#treeInspectorAllocate:disabled{opacity:.6}
+.tn.tree-inspector-selected{stroke:var(--gold)!important;stroke-width:5!important}
+.tree-inspector-description{line-height:1.5;margin:0}
+.tree-utilities{display:grid;gap:8px;margin:14px 0}
+.tree-disclosure{border:1px solid var(--line);border-radius:8px;background:#101621;min-width:0}
+.tree-disclosure>summary{cursor:pointer;min-height:44px;padding:10px 14px;font-weight:600;color:var(--text);line-height:24px}
+.tree-disclosure>summary:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.tree-disclosure>section,.tree-disclosure>div{margin:0;padding:12px;border:0;background:none;border-radius:0}
+.tree-disclosure .tree-plan-counts .pill{background:none;border:0;padding:2px 8px 2px 0}
+.tree-disclosure .tree-plan-summary{margin-top:12px}
+.tree-disclosure .tree-nav-panel{gap:12px}
+.tree-loadout-pair{display:flex;gap:4px;flex:1 1 220px;padding:6px;border:1px solid var(--line);border-radius:6px}
+.tree-loadout-pair button:last-child{flex:1;min-width:0;overflow-wrap:anywhere}
+.tree-result-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:0;list-style:none}
+.tree-result-list button{width:100%;text-align:left;padding:8px 10px;white-space:normal}
+.tree-result-list small{display:block;color:var(--muted);margin-top:3px}
+.tree-result-pagination{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tree-workspace.tree-workspace-other{grid-template-columns:1fr}
+.tree-workspace-other>.tree-inspector,.tree-workspace-other .tree-plan-bar{display:none}
+@media(max-width:1000px){.tree-workspace{grid-template-columns:minmax(0,1fr) 280px;gap:12px}}
+@media(max-width:760px){
+ .tree-head{gap:8px}.tree-head h1{font-size:1.4rem}.tree-head-right{gap:6px;font-size:.78rem}
+ .tree-head-right>a,.tree-head-right .tree-total{display:none}
+ .tree-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}.tree-tabs .tree-tab{font-size:.75rem;padding:8px 4px;white-space:normal;min-width:0}
+ .tree-tab-full{display:none}.tree-tab-short{display:inline}
+ .tree-workspace{grid-template-columns:1fr;gap:12px}.tree-workspace #treeStage{height:52svh;min-height:360px}
+ .tree-workspace .tree-inspector{display:none;position:fixed;left:8px;right:8px;bottom:8px;z-index:900;max-height:55svh;padding:10px 14px max(12px,env(safe-area-inset-bottom));gap:8px;border-radius:10px}
+ .tree-workspace .tree-inspector.tree-inspector-open{display:flex}
+ .tree-workspace .tree-inspector.tree-inspector-expanded{max-height:80svh}
+ .tree-inspector-mobile-bar{display:flex;justify-content:space-between;gap:8px;flex-shrink:0}
+ .tree-inspector-mobile-bar button{font-size:.78rem;padding:6px 8px}
+ .tree-inspector-content{display:flex;flex-direction:column;gap:8px;min-height:0;overflow:auto;overscroll-behavior:contain;order:1}
+ .tree-inspector .tree-inspector-head{gap:2px}.tree-inspector-head h2{font-size:1.1rem}
+ .tree-inspector:not(.tree-inspector-expanded) #treeInspectorGrid,.tree-inspector:not(.tree-inspector-expanded) #treeInspectorLink{display:none!important}
+ .tree-inspector-actions{flex-shrink:0;gap:6px}
+ html.tree-mobile-inspector-open #treeTip{display:none!important}
+ .tree-workspace #treeSearch{flex-basis:100%}.tree-result-tools{width:100%}.tree-result-tools #treeResultCount{margin-right:auto;text-align:left}
+ .tree-workspace #treeMinimap{width:84px;height:84px}.tree-canvas-caption #treeLegendText{line-height:1.5}
+ .tree-utilities .tree-toolbar2{display:flex!important}.tree-loadout-pair{width:100%;flex-basis:100%}
+ .tree-utilities input,.tree-utilities select{font-size:16px;max-width:100%;min-width:0}
+ .tree-plan-drafts{align-items:stretch}.tree-plan-drafts input{flex-basis:100%}
+ .tree-result-list{grid-template-columns:1fr}.tree-plan-bar{padding-bottom:8px}.tree-plan-bar:not(.planning) #treePlanStatus{flex:1 1 150px;font-size:.75rem}
+ .tree-plan-bar #treePlanToggle{margin-right:0}.tree-plan-bar #treePlanCommit{margin-left:auto}
+}
+</style>
+<script data-cfasync="false">
+(function(){
+  'use strict';
+  var stage=document.getElementById('treeStage'),inspector=document.querySelector('.tree-inspector');
+  var workspace=document.createElement('div');workspace.className='tree-workspace';workspace.id='treeWorkspace';
+  stage.before(workspace);
+  var skip=document.querySelector('.ab-skip-link');if(skip){skip.href='#treeWorkspace';skip.textContent='Skip to Skill Web';workspace.tabIndex=-1;}
+  var main=document.createElement('div');main.className='tree-workspace-main';workspace.append(main,inspector);
+  var toolbar=document.querySelector('.tree-toolbar'),caption=document.createElement('div');caption.className='tree-canvas-caption';
+  caption.append(document.getElementById('treeLegendText'),document.getElementById('treeLegendPills'));
+  var results=document.createElement('div');results.className='tree-result-tools';
+  results.append(document.getElementById('treeResultCount'),document.getElementById('treePrevResult'),document.getElementById('treeNextResult'),document.getElementById('treeFitResults'));
+  toolbar.append(results);
+  document.getElementById('treePrevResult').textContent='←';document.getElementById('treePrevResult').setAttribute('aria-label','Previous matching node');
+  document.getElementById('treeNextResult').textContent='→';document.getElementById('treeNextResult').setAttribute('aria-label','Next matching node');
+  var planBar=document.createElement('div');planBar.className='tree-plan-bar';planBar.id='treePlanBar';
+  ['treePlanToggle','treePlanUndo','treePlanRedo','treePlanCommit','treePlanStatus'].forEach(function(id){planBar.append(document.getElementById(id));});
+  workspace.prepend(toolbar,planBar);main.append(stage,caption);
+ inspector.append(document.getElementById('treeInspectorLink'));
+  var inspectorContent=document.createElement('div');inspectorContent.className='tree-inspector-content';
+  inspectorContent.append(inspector.querySelector('.tree-inspector-head'),document.getElementById('treeInspectorDescription'),document.getElementById('treeInspectorEffects'),document.getElementById('treeInspectorGrid'),document.getElementById('treeInspectorLink'));
+  inspector.prepend(inspectorContent);
+  var mobileBar=document.createElement('div');mobileBar.className='tree-inspector-mobile-bar';
+  var inspectorReturn=document.createElement('button'),inspectorExpand=document.createElement('button');
+  inspectorReturn.type=inspectorExpand.type='button';inspectorReturn.className=inspectorExpand.className='ghost xs';
+  inspectorReturn.id='treeInspectorReturn';inspectorReturn.textContent='Back to graph';
+  inspectorExpand.id='treeInspectorExpand';inspectorExpand.textContent='More details';inspectorExpand.setAttribute('aria-expanded','false');inspectorExpand.setAttribute('aria-controls','treeInspectorGrid');
+  mobileBar.append(inspectorReturn,inspectorExpand);inspector.prepend(mobileBar);
+  var mobile=window.matchMedia('(max-width:760px)'),returnOrigin=null,suppressReveal=false;
+  window.treeRevealElement=function(element){
+    if(!element)return;
+    var header=document.querySelector('header.topbar'),bottom=header?Math.max(0,header.getBoundingClientRect().bottom):0;
+    window.scrollTo({top:Math.max(0,window.scrollY+element.getBoundingClientRect().top-bottom-16),behavior:'instant'});
+  };
+  function graphFocus(){
+    var id=window.treeSelectedNodeID(),node=nodeEls[id];
+    if(!node||node.classList.contains('tree-nav-hidden'))node=svg.querySelector('.tn[tabindex="0"]');
+    suppressReveal=true;if(node)node.focus({preventScroll:true});else{workspace.focus({preventScroll:true});}suppressReveal=false;
+    treeRevealElement(stage);
+  }
+  function closeInspector(restoreFocus){
+    inspector.classList.remove('tree-inspector-open','tree-inspector-expanded');document.documentElement.classList.remove('tree-mobile-inspector-open');
+    inspectorExpand.textContent='More details';inspectorExpand.setAttribute('aria-expanded','false');
+    if(!restoreFocus)return;
+    if(returnOrigin&&returnOrigin.isConnected&&returnOrigin.getClientRects().length){returnOrigin.focus({preventScroll:true});treeRevealElement(returnOrigin);}else graphFocus();
+  }
+  function revealInspector(selection){
+    if(!mobile.matches||activeTab!=='passive'||suppressReveal||selection.source==='focus')return;
+    if(selection.source==='results')returnOrigin=selection.origin;
+    else if(selection.source!=='inspector')returnOrigin=null;
+    inspectorReturn.textContent=returnOrigin?'Back to results':'Back to graph';
+    inspector.classList.add('tree-inspector-open');document.documentElement.classList.add('tree-mobile-inspector-open');
+    if(selection.changed){inspectorContent.scrollTop=0;inspector.scrollTop=0;}
+    hideTip();treeRevealElement(stage);
+    requestAnimationFrame(function(){if(inspector.classList.contains('tree-inspector-open'))treeRevealElement(stage);});
+    if(selection.source==='results'||selection.source==='inspector')document.getElementById('treeInspectorTitle').focus({preventScroll:true});
+  }
+  document.addEventListener('tree-node-selected',function(event){revealInspector(event.detail);});
+  inspectorReturn.addEventListener('click',function(){closeInspector(true);});
+  inspectorExpand.addEventListener('click',function(){var expanded=inspector.classList.toggle('tree-inspector-expanded');inspectorExpand.textContent=expanded?'Less detail':'More details';inspectorExpand.setAttribute('aria-expanded',String(expanded));});
+  window.treeCloseMobileInspector=function(){if(!mobile.matches||!inspector.classList.contains('tree-inspector-open'))return false;closeInspector(true);return true;};
+  mobile.addEventListener('change',function(){
+    var focusWasMobile=mobileBar.contains(document.activeElement);closeInspector(false);
+    if(mobile.matches&&window.treeSelectedNodeID())revealInspector({source:'resize'});
+    else if(focusWasMobile)document.getElementById('treeInspectorTitle').focus({preventScroll:true});
+  });
+  var zoom=document.createElement('div');zoom.className='tree-zoom-controls';zoom.setAttribute('role','group');zoom.setAttribute('aria-label','Graph zoom');
+  [['−',1.5,'Zoom out'],['+',1/1.5,'Zoom in']].forEach(function(option){
+    var button=document.createElement('button');button.type='button';button.className='ghost';button.textContent=option[0];button.setAttribute('aria-label',option[2]);
+    button.addEventListener('click',function(){var width=Math.max(300,Math.min(13000,view.w*option[1]));view.x+=(view.w-width)/2;view.y+=(view.h-width)/2;view.w=view.h=width;applyView();});zoom.append(button);
+  });stage.append(zoom);
+  var utilities=document.createElement('div');utilities.className='tree-utilities';workspace.after(utilities);
+  function disclose(title,content,id){var details=document.createElement('details'),summary=document.createElement('summary');details.className='tree-disclosure';if(id)details.id=id;summary.textContent=title;details.append(summary,content);utilities.append(details);return details;}
+  disclose('Find nodes · filters, results & bookmarks',document.querySelector('.tree-nav-panel'),'treeDiscoveryDetails');
+  var tools=document.getElementById('treeToolbar2');
+  for(var i=1;i<=3;i++){
+    var save=tools.querySelector('[onclick="loadoutSave('+i+')"]'),apply=tools.querySelector('[onclick="loadoutApply('+i+')"]');
+    var pair=document.createElement('div');pair.className='tree-loadout-pair';pair.setAttribute('role','group');pair.setAttribute('aria-label','Preset '+i);
+    save.before(pair);pair.append(save,apply);save.textContent='Save';save.setAttribute('aria-label','Save preset '+i);apply.title='Preview preset '+i+' and its apply cost';
+  }
+  tools.querySelectorAll(':scope > .muted').forEach(function(el){el.remove();});
+  tools.append(document.querySelector('.tree-a11y-controls'));
+  disclose('Saved builds & display settings',tools,'treeSavedBuildsDetails');
+  disclose('Drafts & plan details',document.querySelector('.tree-plan-panel'),'treePlanDetails');
+  var season=document.getElementById('treeSeason');disclose('Seasonal bonuses',season,'treeSeasonDetails');
+  var filterButton=document.createElement('button');filterButton.type='button';filterButton.className='ghost xs';filterButton.textContent='Find & filter';
+  filterButton.addEventListener('click',function(){if(activeTab!=='passive')return;closeInspector(false);var details=document.getElementById('treeDiscoveryDetails');details.open=true;var sector=document.getElementById('treeSectorFilter');sector.focus({preventScroll:true});treeRevealElement(sector);});results.append(filterButton);
+  var returnToGraph=document.createElement('button');returnToGraph.type='button';returnToGraph.className='ghost xs';returnToGraph.textContent='Back to graph';
+  returnToGraph.addEventListener('click',function(){document.getElementById('treeDiscoveryDetails').open=false;graphFocus();});document.querySelector('.tree-nav-actions').prepend(returnToGraph);
+  function updateGuidance(){
+    if(activeTab!=='passive')return;
+    var planning=treePlanner.isPlanning(),text=planning?'Planning: tap/click or Enter/Space edits the draft. Arrow keys or search results inspect only.':'Drag to pan · scroll or pinch to zoom · select to inspect';
+    var legend=document.getElementById('treeLegendText'),host=planning?planBar:caption;
+    if(legend.textContent!==text)legend.textContent=text;
+    if(legend.parentElement!==host){if(planning)host.append(legend);else host.prepend(legend);}
+    svg.setAttribute('aria-label','Skill Web. '+(planning?'Enter or Space edits the draft. Arrow keys inspect only.':'Arrow keys explore. Enter or Space inspects.')+' I opens node actions. Tab reaches zoom controls.');
+  }
+  document.addEventListener('tree-plan-change',updateGuidance);
+  var originalSwitch=switchTab,passiveView=null;switchTab=function(tab){
+    if(activeTab==='passive')passiveView={x:view.x,y:view.y,w:view.w,h:view.h};
+    closeInspector(false);originalSwitch(tab);workspace.classList.toggle('tree-workspace-other',tab!=='passive');utilities.hidden=toolbar.hidden=tab!=='passive';
+    if(tab==='passive'){if(passiveView){view=passiveView;applyView();}updateGuidance();var id=window.treeSelectedNodeID();if(id)treeInspectNode(id,false,{source:'tab',refresh:true});}
+    else svg.setAttribute('aria-label',tab==='talents'?'Deep Delver upgrades':'Specializations');
+  };
+  updateGuidance();
+  if(window.treeSelectedNodeID())revealInspector({source:'deeplink'});
+  document.getElementById('treeSearch').placeholder='Search nodes, effects or stats…';
+  document.getElementById('treeSubtitle').textContent='Six disciplines. One connected build. Explore a node or plan your next path.';
+})();
+</script>
+{{end}}

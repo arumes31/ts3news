@@ -1,0 +1,38 @@
+/* Readable item labels within the existing portal palette. */
+.inventory-page { --inventory-rarity: var(--cmd-text); --inventory-pouch: #b89ae8; --inventory-pouch-line: #6a5c91; --inventory-radius: 3px 13px; }
+.inventory-page [data-rarity="Common"] { --inventory-rarity: #bac4d1; }
+.inventory-page [data-rarity="Uncommon"] { --inventory-rarity: var(--cmd-green); }
+.inventory-page [data-rarity="Rare"] { --inventory-rarity: #65baff; }
+.inventory-page [data-rarity="Epic"] { --inventory-rarity: #d18aff; }
+.inventory-page [data-rarity="Legendary"] { --inventory-rarity: #ffc56b; }
+.inventory-page [data-rarity="Mythic"] { --inventory-rarity: #ff8f91; }
+.inventory-page [data-rarity="Divine"] { --inventory-rarity: #fff176; }
+.inventory-page [data-rarity="Unknown"] { --inventory-rarity: #abb6c7; }
+.inventory-page .inv-name, .inventory-page .buyback-copy strong { color: var(--inventory-rarity); overflow-wrap: anywhere; }
+.inventory-page button, .inventory-page .btn { min-height: 44px; }
+.inventory-page .btn { display: inline-flex; align-items: center; }
+.inventory-page button[aria-busy="true"] { cursor: progress; }
+.inventory-page :focus-visible { outline: 2px solid var(--cmd-cyan); outline-offset: 3px; }
+.delver-shell .inventory-page .inv-inspect { min-width: 0; padding: .15rem 0; border: 0; color: var(--inventory-rarity); background: transparent; box-shadow: none; font: inherit; font-weight: 600; text-align: left; letter-spacing: normal; }
+.delver-shell .inventory-page .inv-inspect:hover { color: var(--inventory-rarity); background: transparent; text-decoration: underline; text-underline-offset: .2em; transform: none; }
+.inventory-page .inv-head { min-width: 0; }
+.inventory-page .inv-card { display: flex; flex-direction: column; min-width: 0; }
+.inventory-page .inv-card[hidden] { display: none; }
+.inventory-page .inv-actions { flex-wrap: wrap; margin-top: auto; padding-top: .65rem; }
+.inventory-page .item-inspect-hint { margin-block: .25rem; }
+.inventory-page .buyback-copy strong, .inventory-page .buyback-copy span, .inventory-page .buyback-copy small { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.inventory-page .buyback-copy small { line-height: 1.5; }
+.inventory-status { color: var(--cmd-text); margin-block: 1rem; padding: .8rem 1rem; border-left: 3px solid var(--cmd-cyan); background: var(--cmd-panel); overflow-wrap: anywhere; }
+.inventory-status:empty { margin: 0; padding: 0; border: 0; }
+.inventory-status.good { border-color: var(--cmd-green); }
+.inventory-status.bad { border-color: var(--cmd-red); }
+.inventory-page #inventoryRefresh[hidden], .inventory-page .pouch-caps small[hidden] { display: none; }
+.inventory-page .pouch-panel > button { white-space: normal; }
+@media (max-width: 380px) {
+  .inventory-page .inv-grid { grid-template-columns: minmax(0, 1fr); }
+  .inventory-page .pouch-caps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (forced-colors: active) {
+  .inventory-page .inv-name, .inventory-page .buyback-copy strong { color: LinkText; }
+  .inventory-page :focus-visible { outline-color: Highlight; }
+}

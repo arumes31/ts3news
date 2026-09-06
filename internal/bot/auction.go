@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -328,6 +329,7 @@ func (b *Bot) recoverLegacyUnidentifiedAuctionListing(id string) error {
 
 // GearDropResult describes what happened when a gear item was awarded.
 type GearDropResult struct {
+	Err      error
 	Action   string // "equipped", "listed", "inventoried"
 	ItemName string
 	Prefix   string // emoji prefix for display
@@ -337,6 +339,17 @@ type GearDropResult struct {
 // It auto-equips upgrades, auto-lists non-upgrade items on AH,
 // and puts everything else into inventory.
 func (b *Bot) awardGearDrop(uid string, g content.Gear) GearDropResult {
+	if g.Unidentified {
+		identified, cost, err := b.storeAutoIdentifiedDrop(context.Background(), uid, g)
+		if err != nil {
+			log.Printf("automatic drop identification failed: %v", err)
+			return GearDropResult{Action: "failed", Err: err}
+		}
+		return GearDropResult{
+			Action: "inventoried", ItemName: identified.Rarity.String() + " " + identified.Name,
+			Prefix: fmt.Sprintf("🔍 Identified (%dg): ", cost),
+		}
+	}
 	itemName := g.Rarity.String() + " " + g.Name
 	itemDataBytes, _ := json.Marshal(g)
 

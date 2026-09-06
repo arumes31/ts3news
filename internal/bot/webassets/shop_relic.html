@@ -1,5 +1,9 @@
 {{define "shop_relic_styles"}}
 <style>
+.delver-shell:has(.shop-console) {
+  --shop-relic-border: #796340;
+  --shop-relic-radius: 12px;
+}
 /* One featured offer, still in the searchable/sortable stock grid. */
 .delver-shell .shop-card.featured-item {
   display: grid;
@@ -7,8 +11,8 @@
   grid-template-columns: minmax(200px,.7fr) minmax(0,1.6fr);
   gap: 1rem 1.5rem;
   padding: 1.25rem;
-  border-color: #796340 !important; /* Override the shared upgrade border, not its badge. */
-  border-radius: 12px;
+  border-color: var(--shop-relic-border) !important; /* Override the shared upgrade border, not its badge. */
+  border-radius: var(--shop-relic-radius);
   background: linear-gradient(115deg,#1d2229,#111925 42%,#0a1018);
   box-shadow: none;
 }
@@ -50,7 +54,7 @@
   min-width: 0;
   overflow: hidden;
   border: 1px solid #827253;
-  border-radius: 12px;
+  border-radius: var(--shop-relic-radius);
   background: linear-gradient(135deg,#665942 0%,#252e36 13%,#101c29 42%,#080f19 72%,#403a2d);
   transform: none;
   transition: transform 420ms cubic-bezier(.16,1,.3,1);
@@ -86,8 +90,8 @@
 
 .shop-relic-inspector .item-inspector-head {
   padding: .75rem;
-  border: 1px solid #796340;
-  border-radius: 12px;
+  border: 1px solid var(--shop-relic-border);
+  border-radius: var(--shop-relic-radius);
   background: linear-gradient(115deg,#292b2b,#111925 62%);
 }
 .shop-relic-inspector .item-inspector-head h2 { text-wrap: balance; }
@@ -121,9 +125,9 @@
 {{define "shop_relic_script"}}
 <script data-cfasync="false">
 (function(){
-  var stage=document.querySelector('.shop-relic-stage');
+  var card=(window.shopCards||[]).find(function(offer){return offer.classList.contains('featured-item');});
+  var stage=card&&card.querySelector('.shop-relic-stage');
   if(!stage)return;
-  var card=stage.closest('.shop-card');
   var canAnimate=typeof Element.prototype.animate==='function';
   var motion=window.matchMedia('(prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine)');
   var frame=0,point=null,revealAnimations=[],revealObserver=null;

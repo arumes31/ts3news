@@ -47,20 +47,7 @@ func (c *abyssLiveCombat) optionsFor(
 			MaxHP: au.u.Stats.HP, PartySize: len(users), Round: c.round,
 			RepeatCount: repeatCount,
 		})
-		spellCost := skill.ManaCost
-		if spellCost <= 0 {
-			spellCost = 20
-		}
-		if chest, ok := au.u.Equipped[content.SlotChest]; ok && chest.ID == "ABYSS_ARCHMAGE_ROBES" {
-			spellCost -= 5
-		}
-		spellCost -= abyssTalentEffectiveInt(c.server.bot.loadAbyssStats(au.u.UID).UpInsight) * 2
-		if value := au.treeBonus.Pct["skill_mana_cost"]; value > 0 {
-			spellCost = int(float64(spellCost) * (1 - value))
-		}
-		if spellCost < 5 {
-			spellCost = 5
-		}
+		spellCost := combatSkillManaCost(au, skill.ManaCost, c.server.bot.loadAbyssStats(au.u.UID).UpInsight)
 		target := string(skill.TargetMode)
 		if target == "" || target == string(content.SkillTargetAllEnemy) {
 			target = "enemy"

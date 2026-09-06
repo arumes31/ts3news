@@ -103,3 +103,66 @@ test('every talent icon loads and artwork differs across all 306 nodes',async({p
   const content=await Promise.all(icons.map(async path=>{const r=await fetch(path);if(!r.ok)throw Error(path);return (await r.text()).replace(/<title>.*?<\/title>/s,'');}));return {count:icons.length,unique:new Set(content).size};
  });expect(result).toEqual({count:306,unique:306});
 });
+
+test('one connected class tree fans out into both subclass extensions', async ({page}) => {
+ await openBuild(page);
+ const canvas = page.locator('#abyssTalentCanvas');
+ await expect(canvas).toBeVisible();
+ await expect(canvas.locator('[data-talent]')).toHaveCount(51);
+ await expect(canvas.locator('[data-tree="warrior"] [data-talent]')).toHaveCount(15);
+ await expect(canvas.locator('[data-tree="vanguard"] [data-talent]')).toHaveCount(18);
+ await expect(canvas.locator('[data-tree="berserker"] [data-talent]')).toHaveCount(18);
+ for (const subclass of ['vanguard', 'berserker']) {
+  await expect(canvas.locator('[data-extends="warrior"][data-branch="'+subclass+'"]')).toHaveCount(3);
+ }
+ const layout = await canvas.evaluate(node => {
+  const main = node.querySelector('[data-tree="warrior"]').getBoundingClientRect();
+  return [...node.querySelectorAll('[data-tree="vanguard"], [data-tree="berserker"]')].every(branch => branch.getBoundingClientRect().top > main.bottom);
+ });
+ expect(layout).toBe(true);
+});
+
+test('hover and focus inspect node effects without allocating points', async ({page}) => {
+ const posts = await openBuild(page);
+ const talent = page.locator('[data-talent="warrior_t1_2"]');
+ await talent.hover();
+ await expect(page.getByRole('tooltip')).toContainText('+8% maximum HP');
+ await expect(talent).toHaveAttribute('aria-pressed', 'false');
+ await page.keyboard.press('Escape');
+ await expect(page.getByRole('tooltip')).toBeHidden();
+ await talent.focus();
+ await expect(page.locator('#abyssTalentDetailTitle')).toContainText('Vitality');
+ await expect(page.getByRole('tooltip')).toBeVisible();
+ expect(posts).toHaveLength(0);
+});
+
+test('subclass branches share foundation choices and only the chosen extension can be edited', async ({page}) => {
+ await openBuild(page);
+ await page.locator('[data-subclass-choice="vanguard"]').click();
+ await page.locator('[data-talent="vanguard_t1_1"]').click();
+ await expect(page.locator('[data-talent="vanguard_t1_1"] .ab-talent-rank')).toHaveText('1/1');
+ await expect(page.locator('[data-talent="berserker_t1_1"]')).toHaveAttribute('aria-disabled', 'true');
+ await page.locator('[data-talent="berserker_t1_1"]').click({force:true});
+ await expect(page.locator('[data-talent="berserker_t1_1"]')).toHaveAttribute('aria-pressed', 'false');
+ await page.locator('[data-subclass-choice="berserker"]').click();
+ await expect(page.locator('#abyssFoundationTree [aria-pressed=true]')).toHaveCount(5);
+ await page.locator('[data-talent="berserker_t1_1"]').click();
+ await page.locator('[data-subclass-choice="vanguard"]').click();
+ await expect(page.locator('[data-talent="vanguard_t1_1"]')).toHaveAttribute('aria-pressed', 'true');
+ await expect(page.locator('[data-talent="berserker_t1_1"]')).toHaveAttribute('aria-disabled', 'true');
+});
+
+test('tree zoom and mobile panning keep all nodes reachable without page overflow', async ({page}) => {
+ await page.setViewportSize({width:390,height:844});
+ await openBuild(page);
+ const viewport = page.locator('#abyssTalentViewport');
+ await expect(viewport).toBeVisible();
+ await page.getByRole('button', {name:'Fit talent tree',exact:true}).click();
+ expect(await viewport.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+ await page.getByRole('button', {name:'Zoom in on talent tree',exact:true}).click();
+ await page.getByRole('button', {name:'Zoom in on talent tree',exact:true}).click();
+ await page.locator('[data-subclass-choice="berserker"]').click();
+ await page.locator('[data-talent="berserker_t6_3"]').focus();
+ await expect(page.locator('#abyssTalentDetailTitle')).toContainText('Endless Renewal');
+ expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});

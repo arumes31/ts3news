@@ -1193,7 +1193,7 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 				mat, count := materialYieldForRarity(g.Gear.Rarity)
 				return b.grantMaterial(uid, mat, count)
 			}
-			b.awardGearDrop(uid, *g.Gear)
+			return b.awardGearDrop(uid, *g.Gear).Err
 		}
 	case "cons":
 		if g.ConsID != "" {

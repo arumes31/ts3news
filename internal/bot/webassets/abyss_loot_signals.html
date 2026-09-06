@@ -51,8 +51,8 @@
 {{end}}
 
 {{define "abyssLootSignals"}}
-<section class="abyss-loot-signals" aria-label="Loot progression signals">
-  <section class="abyss-pity-hud ab-loot-pity" aria-labelledby="abyssPityTitle">
+<section class="abyss-loot-signals ab-loot-summary ab-loot-summary--rows" aria-label="Loot progression signals">
+<section class="abyss-pity-hud ab-loot-pity" aria-labelledby="abyssPityTitle">
     <div class="ab-pity-head">
       <span id="abyssPityTitle">🔮 <b>Loot Pity Meter</b></span>
       <span class="muted small"><span id="pityCount">{{.LegendaryPity}}</span> / 40 to Guaranteed Legendary</span>
@@ -62,10 +62,7 @@
     </div>
     <div class="ab-pity-secondary muted small">✦ Celestial drought: <b>{{.CelestialPity}}</b> gear drops <span title="Display-only counter; Celestial drops have no guaranteed cap.">(no cap)</span></div>
   </section>
-
-  {{template "abyss-featured-drops" .FeaturedDrops}}
-
-  <section class="abyss-pity-hud ab-drop-streak" aria-labelledby="abyssDropStreakTitle">
+<section class="abyss-pity-hud ab-drop-streak" aria-labelledby="abyssDropStreakTitle">
     <div class="ab-pity-head">
       <span id="abyssDropStreakTitle"><span class="ab-drop-streak-flame" id="dropStreakFlame" data-streak="{{.DropStreak}}" aria-hidden="true">🔥</span> <b>Drop Streak</b></span>
       <span class="muted small"><span id="dropStreakCount">{{.DropStreak}}</span> {{if eq .DropStreak 1}}floor{{else}}floors{{end}} since last gear (+{{.DropStreakBonusPct}}% loot find, capped)</span>
@@ -74,5 +71,6 @@
       <div id="dropStreakFill" class="ab-pity-fill ab-pity-fill-streak" style="width: {{mulpct .DropStreak 15}}%;"></div>
     </div>
   </section>
+{{template "abyss-featured-drops" .FeaturedDrops}}
 </section>
 {{end}}

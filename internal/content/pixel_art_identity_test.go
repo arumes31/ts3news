@@ -36,6 +36,18 @@ func TestEveryCatalogEntryHasUniquePixelArtIdentity(t *testing.T) {
 	t.Logf("verified %d collision-free exact icons: %#v", len(entries), kinds)
 }
 
+func TestEveryClassSignatureHasACatalogIcon(t *testing.T) {
+	for _, class := range AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			for _, skill := range AbyssClassSkills(sub.ID) {
+				if _, ok := PixelArtByKey("skill:" + skill.ID); !ok {
+					t.Errorf("missing icon for %s", skill.Name)
+				}
+			}
+		}
+	}
+}
+
 func TestMobCatalogInitializationIsIdempotent(t *testing.T) {
 	initMobs()
 	before := len(baseMobs)

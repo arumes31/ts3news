@@ -13,6 +13,21 @@ import (
 func registerAbyssTreeE2EFixture(mux *http.ServeMux, server *WebServer) {
 	tree := content.AbyssTree()
 	edges := abyssTreeE2EEdges(tree)
+	mux.HandleFunc("/api/abyss/tree/plan_preview", func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			IDs []int `json:"ids"`
+		}
+		if readJSON(r, &request) != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid plan"})
+			return
+		}
+		analysis := analyzeAbyssTreePlan(tree, nil, request.IDs, 1000, 50, 0, abyssNodeOfTheDay(time.Now()))
+		writeJSON(w, map[string]any{"ok": true, "analysis": analysis,
+			"quote": abyssTreeMutationQuote{TokenTotal: abyssTreeRespecTokens}})
+	})
+	mux.HandleFunc("/api/abyss/tree/plan_draft", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{"ok": true, "drafts": map[string]any{}})
+	})
 	mux.HandleFunc("/abyss/tree", func(w http.ResponseWriter, _ *http.Request) {
 		progression := buildAbyssTreeProgression(tree, nil, 100, 50, 0, 500, 0)
 		rewards := buildAbyssProgressionPointRewards(4, 150, map[string]int64{"normal": 64})
@@ -30,7 +45,7 @@ func registerAbyssTreeE2EFixture(mux *http.ServeMux, server *WebServer) {
 			"DelverTalentDefs": content.DeepDelverTalents, "DelverTalentLevels": map[string]int{},
 			"SpecTalentDefs": content.SpecTalents, "Tokens": int64(1_000), "NodeGates": abyssUpgradeMinDepth,
 			"TalentMaxLevel": content.TalentMaxLevel,
-			"LimitBreakID": content.NodeLimitBreak, "SanctuaryID": content.NodeSecretSanctuary,
+			"LimitBreakID":   content.NodeLimitBreak, "SanctuaryID": content.NodeSecretSanctuary,
 			"Sockets": "{}", "ActiveKeystoneExpiry": "", "ActiveKeystoneCooldown": "",
 			"Jewels": map[string]int{}, "Loadouts": map[string]int{}, "LoadoutNames": map[string]string{},
 			"SeasonalTree": abyssSeasonalTree(time.Now()), "NodeOfDay": abyssNodeOfTheDay(time.Now()),

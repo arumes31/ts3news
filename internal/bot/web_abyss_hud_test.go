@@ -31,6 +31,32 @@ func TestAbyssRunFloorsCleared(t *testing.T) {
 	}
 }
 
+func TestAbyssRunHUDStateSoftCapAndFloorPace(t *testing.T) {
+	cap := abyssEscrowSoftCap(12)
+	for _, test := range []struct {
+		name       string
+		escrow     int64
+		floorType  string
+		wantPct    int
+		wantFloors int
+	}{
+		{name: "below cap", escrow: cap - 1, floorType: "combat", wantPct: 100, wantFloors: 2},
+		{name: "at cap", escrow: cap, floorType: "combat", wantPct: 25, wantFloors: 2},
+		{name: "unresolved event", escrow: cap + 1, floorType: "event", wantPct: 25, wantFloors: 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			run := abyssRun{Active: true, Depth: 12, CheckpointStart: 10, Escrow: test.escrow, FloorType: test.floorType}
+			state := abyssRunHUDState(run, abyssStats{}, nil)
+			if state.EscrowSoftCap != cap || state.EscrowEfficiencyPct != test.wantPct {
+				t.Fatalf("HUD cap/efficiency = %d/%d, want %d/%d", state.EscrowSoftCap, state.EscrowEfficiencyPct, cap, test.wantPct)
+			}
+			if state.FloorsCleared != test.wantFloors || state.EscrowPerFloor != test.escrow/int64(test.wantFloors) {
+				t.Fatalf("HUD pace = %d floors at %d/floor for %d escrow", state.FloorsCleared, state.EscrowPerFloor, test.escrow)
+			}
+		})
+	}
+}
+
 func TestAbyssHUDPageStateUsesAuthoritativeRunData(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {

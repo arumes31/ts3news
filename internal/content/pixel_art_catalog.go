@@ -90,7 +90,7 @@ func buildPixelArtCatalog() {
 	}
 	for index, artifact := range corruptedArtifacts {
 		entries = append(entries, PixelArtEntry{
-			Key:  fmt.Sprintf("item:artifact:%d:%s", index, artifact.Name),
+			Key:  fmt.Sprintf("item:artifact:%d", index),
 			Name: artifact.Name, Kind: "artifact", Family: "artifacts", Variant: "Corrupted",
 		})
 	}
@@ -105,6 +105,24 @@ func buildPixelArtCatalog() {
 			Key: "ultimate:" + ultimate.ID, Name: ultimate.Name, Kind: "ultimate",
 			Family: "skills", Variant: "Ultimate", Rarity: ultimate.Rarity.String(),
 		})
+	}
+	for _, class := range AbyssClasses() {
+		for _, subclass := range class.Subclasses {
+			for _, skill := range AbyssClassSkills(subclass.ID) {
+				entries = append(entries, PixelArtEntry{
+					Key: "skill:" + skill.ID, Name: skill.Name, Kind: "skill", Family: "skills",
+					Variant: string(skill.Type), Element: string(skill.Element), Rarity: skill.Rarity.String(),
+				})
+			}
+		}
+	}
+	// Bosses authored by the encounter engine also need inventory/bestiary
+	// portraits. The bot coverage test checks this list against every roster.
+	for _, name := range []string{
+		"Gorgoroth the Firelord", "Malakor the Voidweaver", "Azazoth the Slumbering Eye",
+		"Abyssus, Heart of the Void", "The Scribe Without Eyes", "Mnemos, Keeper of Names", "The Abyss That Remembers",
+	} {
+		entries = append(entries, PixelArtEntry{Key: "monster:" + name, Name: name, Kind: "monster", Family: "bosses", Variant: "AbyssBoss"})
 	}
 	seenMobs := make(map[string]struct{}, len(baseMobs)+len(TreasureGoblinNames))
 	for index, mob := range AbyssMobCatalog() {
@@ -127,6 +145,12 @@ func buildPixelArtCatalog() {
 			Key: "pet-type:" + string(mobType), Name: string(mobType) + " companion",
 			Kind: "pet", Family: "pets", Variant: string(mobType),
 		})
+	}
+	for _, action := range []struct{ key, name string }{
+		{"attack:basic_attack", "Basic Attack"}, {"defend:defend", "Defend"},
+		{"companion:focus", "Focus Target"}, {"companion:guard", "Guard Me"}, {"companion:free", "Free-for-All"},
+	} {
+		entries = append(entries, PixelArtEntry{Key: action.key, Name: action.name, Kind: "action", Family: "skills"})
 	}
 
 	sort.Slice(entries, func(i, j int) bool {
@@ -169,6 +193,10 @@ func PixelArtCatalog() []PixelArtEntry {
 // PixelArtByKey resolves a stable catalog identity to its exact generated cell.
 func PixelArtByKey(key string) (PixelArtEntry, bool) {
 	pixelArtOnce.Do(buildPixelArtCatalog)
+	if strings.HasPrefix(key, "item:artifact:") {
+		parts := strings.Split(key, ":")
+		key = strings.Join(parts[:3], ":")
+	}
 	entry, ok := pixelArtByKey[key]
 	return entry, ok
 }

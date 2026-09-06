@@ -28,6 +28,11 @@
       </select>
     </label>
   </div>
+  <div class="ab-live-mana" id="liveMana" hidden>
+    <div class="ab-live-mana-heading"><strong>MANA <span id="liveManaValue"></span></strong><span id="liveManaRegen"></span></div>
+    <div class="ab-live-mana-track" id="liveManaBar" role="progressbar" aria-label="Combat mana" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><div id="liveManaFill"></div></div>
+    <div class="ab-live-mana-detail"><span id="liveManaFeedback">Ready to cast</span><span id="liveManaStatus"></span></div>
+  </div>
   <div class="ab-pixel-stage" id="livePixelStage" aria-label="Animated combat battlefield">
     <span id="liveAnimationAnnouncement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></span>
     <div class="ab-ultimate-charge" id="liveUltimateCharge" role="status" aria-label="Ultimate readiness"><b>ULT</b><span>—</span></div>
@@ -838,7 +843,7 @@ function renderLiveCombat(state,preserveFeed){
   if(typeof updatePetCombatFrame==='function')updatePetCombatFrame(pet?{pet_name:pet.name,pet_hp:pet.hp,pet_max:pet.max_hp}:{});
   var own=(state.allies||[]).find(function(ally){return ally.is_self;})||{};
   if(typeof own.hp==='number'&&typeof own.max_hp==='number')setHP(own.hp,own.max_hp);
-  if(typeof own.mana==='number'&&typeof own.max_mana==='number')setMana(own.mana,own.max_mana);
+  if(typeof own.max_mana==='number')setMana(Number(own.mana)||0,own.max_mana);
   var ready=document.getElementById('liveReady');
   ready.disabled=state.phase!=='planning'||!state.queued||!!own.ready||!!liveReadyInFlight;
   ready.setAttribute('aria-busy',liveReadyInFlight?'true':'false');

@@ -16,12 +16,42 @@
   <section class="ab-talent-workshop" aria-labelledby="abyssTalentTitle">
    <div class="ab-talent-heading"><h3 id="abyssTalentTitle">Class talents</h3><span id="abyssTalentBudget"></span></div>
    <p id="abyssTalentProgress"></p><progress id="abyssTalentXP" value="0" max="1" aria-label="Class XP toward the next point"></progress>
-   <p id="abyssTalentPacing"></p>
-   <div id="abyssFoundationTree"></div>
-   <div id="abyssSubclassGate" class="ab-talent-gate"></div>
-   <div id="abyssSubclassTree"></div>
-   <p id="abyssTalentInspect" role="status" aria-live="polite">Inspect a talent to see its effect and requirements.</p>
-   <div class="ab-talent-actions"><button type="button" id="abyssTalentSave">Save talent path</button><button type="button" class="ghost" id="abyssTalentReset">Reset this path</button></div>
+   <details class="ab-talent-pacing"><summary>How class points are earned</summary><p id="abyssTalentPacing"></p></details>
+   <div class="ab-talent-workspace">
+    <div class="ab-talent-map">
+     <div class="ab-talent-toolbar">
+      <p id="abyssTalentPath"></p>
+      <div class="ab-talent-zoom" role="group" aria-label="Talent tree view">
+       <button type="button" id="abyssTalentZoomOut" aria-label="Zoom out of talent tree">−</button>
+       <output id="abyssTalentZoom" aria-label="Talent tree zoom">100%</output>
+       <button type="button" id="abyssTalentZoomIn" aria-label="Zoom in on talent tree">+</button>
+       <button type="button" id="abyssTalentFit" aria-label="Fit talent tree">Fit tree</button>
+      </div>
+     </div>
+     <div id="abyssTalentViewport" class="ab-talent-viewport" tabindex="0" role="region" aria-label="Connected class and subclass talent tree" aria-describedby="abyssTalentMapHelp">
+      <div id="abyssTalentSizer" class="ab-talent-sizer">
+       <div id="abyssTalentCanvas" class="ab-talent-canvas">
+        <svg id="abyssTalentConnections" class="ab-talent-connections" aria-hidden="true"></svg>
+        <div id="abyssTalentRoot" class="ab-talent-root"></div>
+        <div id="abyssFoundationTree" class="ab-talent-foundation"></div>
+        <div id="abyssSubclassGate" class="ab-talent-gate"></div>
+        <div id="abyssSubclassTree" class="ab-talent-extensions"></div>
+       </div>
+      </div>
+     </div>
+     <div class="ab-talent-legend"><span class="is-learned">Learned</span><span class="is-available">Available</span><span class="is-locked">Locked</span><span>1/1 · one point per talent</span></div>
+     <p id="abyssTalentMapHelp">Follow the arrows from your class into one subclass. Drag empty space or scroll to explore; use Tab to inspect nodes and Enter to change a choice.</p>
+    </div>
+    <aside class="ab-talent-inspector" aria-labelledby="abyssTalentDetailTitle">
+     <div class="ab-talent-detail-head"><img id="abyssTalentDetailArt" alt="" width="52" height="52" hidden><div><h4 id="abyssTalentDetailTitle">Talent details</h4><p id="abyssTalentDetailKind">Inspect any node</p></div></div>
+     <p id="abyssTalentDetailEffect">Hover or focus a talent to see its effect and requirements.</p>
+     <p id="abyssTalentDetailRequirement"></p>
+     <button type="button" id="abyssTalentDetailAction" disabled>Choose a talent</button>
+     <div class="ab-talent-rules"><h4>One connected build</h4><p>Choose one talent in each of the five class tiers. Those talents carry into either subclass.</p><p>A learned talent unlocks all choices in the next tier. Spend up to ten more points in one subclass, with at most two choices per tier and one final talent after nine points.</p><p>Switch branches to compare. Save the path you want to activate.</p></div>
+     <p id="abyssTalentInspect" role="status" aria-live="polite">No unsaved talent changes.</p>
+     <div class="ab-talent-actions"><button type="button" id="abyssTalentSave">Save talent path</button><button type="button" class="ghost" id="abyssTalentReset">Reset this path</button></div>
+    </aside>
+   </div>
   </section>
   <div id="abyssClassSignatures" class="ab-class-signatures"></div>
   <div class="ab-class-guidance"><div><h3>Your next improvement</h3><p id="abyssClassNext"></p><a href="/abyss/tree">Plan the upgrade and check its cost</a></div><div><h3>Keep the sequence working</h3><p id="abyssClassWeakness"></p><p id="abyssClassBuffs"></p></div></div>

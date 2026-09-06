@@ -87,6 +87,47 @@ func TestAbyssPresentationInitialSnapshotUsesEmptyArray(t *testing.T) {
 	}
 }
 
+func TestAbyssEmptyManaIsExplicitInSnapshot(t *testing.T) {
+	live := &abyssLiveCombat{allies: []abyssLiveCombatantView{{ID: "ally:owner", MaxMana: 100}}}
+	data, err := json.Marshal(live.snapshotFor("owner"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"mana":0`) {
+		t.Fatalf("empty mana must reach the HUD: %s", data)
+	}
+}
+
+func TestAbyssManaRecoveryAndCastStaySeparate(t *testing.T) {
+	live := &abyssLiveCombat{round: 2}
+	user := &UserInCombat{UID: "owner", Nickname: "Delver", shadow: true, live: live,
+		CurrentHP: 100, Stats: content.Stats{HP: 100, MNA: 1000, STR: 10, SPD: 10}, STRMod: 1, DEFMod: 1, SPDMod: 1,
+		Skills: []content.Skill{{ID: "bolt", Name: "Bolt", Power: 1, ManaCost: 20}},
+	}
+	users := []activeUser{{u: user, CurrentMana: 80, MaxMana: 100, skillCooldowns: map[string]int{}}}
+	mobs := []*content.Mob{{Name: "Target", Stats: content.Stats{HP: 10000, SPD: 10}, MaxHP: 10000, DEFMod: 1, SPDMod: 1}}
+	var logs []string
+	var loot []LootResult
+	dealt, taken := 0, 0
+	(&Bot{}).userTurn(users, &mobs, content.Zone{}, 1, 1, &logs, &dealt, &taken, 1, 1, nil, &loot, 2, nil,
+		map[string]abyssLiveAction{"owner": {Kind: "skill", AbilityID: "bolt", TargetID: "enemy:0", Round: 2}}, false, fixedCombatRandom{float: .9, intn: 99})
+	if len(live.presentationEvents) != 2 {
+		t.Fatalf("expected capped recovery then cast, got %+v", live.presentationEvents)
+	}
+	recovery, cast := live.presentationEvents[0], live.presentationEvents[1]
+	if recovery.Kind != "mana" || recovery.Mana == nil || *recovery.Mana != (combatManaChange{80, 100, 100}) {
+		t.Fatalf("recovery must report only actual mana gained: %+v", recovery)
+	}
+	if cast.Kind != "skill" || cast.Mana == nil || *cast.Mana != (combatManaChange{100, 80, 100}) || users[0].CurrentMana != 80 {
+		t.Fatalf("net-zero turn lost its spend: %+v, mana %d", cast, users[0].CurrentMana)
+	}
+	clone := cloneAbyssPresentationEvents(live.presentationEvents)
+	clone[0].Mana.After = 0
+	if recovery.Mana.After != 100 {
+		t.Fatal("cloned mana event mutated retained history")
+	}
+}
+
 func TestAbyssPresentationPlayerResolution(t *testing.T) {
 	for _, kind := range []string{"attack", "critical", "skill", "heal", "ultimate", "defend"} {
 		t.Run(kind, func(t *testing.T) {
@@ -124,6 +165,12 @@ func TestAbyssPresentationPlayerResolution(t *testing.T) {
 				t.Fatalf("resolved %s events = %+v", kind, live.presentationEvents)
 			}
 			event := live.presentationEvents[0]
+			if kind == "skill" || kind == "heal" {
+				data, err := json.Marshal(event)
+				if err != nil || !strings.Contains(string(data), `"mana":{"before":100,"after":90,"max":100}`) {
+					t.Fatalf("cast must preserve the exact mana debit: %s (%v)", data, err)
+				}
+			}
 			if kind == "critical" && !event.Targets[0].Critical {
 				t.Fatalf("resolved critical lost its flag: %+v", event)
 			}

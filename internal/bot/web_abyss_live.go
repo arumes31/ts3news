@@ -89,8 +89,9 @@ type abyssLiveCombatantView struct {
 	HPHidden          bool                 `json:"hp_hidden,omitempty"`
 	Shield            int                  `json:"shield,omitempty"`
 	MaxShield         int                  `json:"max_shield,omitempty"`
-	Mana              int                  `json:"mana,omitempty"`
+	Mana              int                  `json:"mana"`
 	MaxMana           int                  `json:"max_mana,omitempty"`
+	ManaRegen         int                  `json:"mana_regen,omitempty"`
 	Ready             bool                 `json:"ready,omitempty"`
 	IsPlayer          bool                 `json:"is_player,omitempty"`
 	IsSelf            bool                 `json:"is_self,omitempty"`
@@ -463,6 +464,7 @@ func (c *abyssLiveCombat) publishRound(
 			MaxShield:  max(0, au.maxShield),
 			Mana:       max(0, au.CurrentMana),
 			MaxMana:    max(0, au.MaxMana),
+			ManaRegen:  combatManaRegen(au.u),
 			Ready:      false,
 			IsPlayer:   true,
 			Element:    string(liveUserElement(au.u)),

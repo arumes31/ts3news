@@ -60,6 +60,30 @@ async function installMockGamepad(page) {
   });
 }
 
+for (const viewport of [
+  { width: 1920, height: 1080 },
+  { width: 901, height: 768 },
+  { width: 1440, height: 800 },
+  { width: 390, height: 844 },
+]) {
+  test(`loot meters stay below live combat when scrolling at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await startPlanningCombat(page);
+
+    for (const selector of ['.ab-loot-pity', '.ab-drop-streak']) {
+      const meter = page.locator(selector);
+      await meter.scrollIntoViewIfNeeded();
+      await expect(meter).toBeInViewport();
+      const layout = await meter.evaluate(element => ({
+        meterTop: element.getBoundingClientRect().top,
+        combatBottom: document.getElementById('abyssCombatCockpit').getBoundingClientRect().bottom,
+      }));
+      expect(layout.meterTop).toBeGreaterThanOrEqual(layout.combatBottom);
+    }
+  });
+}
+
 test('mobile live combat places actions below the battlefield and retires the run-action proxy', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });

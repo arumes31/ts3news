@@ -43,6 +43,7 @@ function liveArtIdentity(key){
 
 function liveCatalogArt(key,family){
   key=String(key||'');family=family||'skills';
+  key=key.replace(/^(item:artifact:\d+):.*$/, '$1');
   var manifest=window.AB_EXACT_ICON_MANIFEST||{},exact=manifest[key];
   if(!exact&&key.indexOf('appearance:')===0)exact=manifest['item:'+key.slice(11)];
   if(!exact&&key.indexOf('item:')===0&&key.split(':').length>2)exact=manifest['item:'+key.split(':')[2]];
@@ -66,6 +67,8 @@ function liveUniqueArtStyle(key,family){
 
 function liveActionArtKey(option){
   var kind=String(option.kind||'skill');
+  if(kind==='attack')return 'attack:basic_attack';
+  if(kind==='defend')return 'defend:defend';
   if(kind==='item'||kind==='relic'||kind==='artifact')kind='item';
   return kind+':'+String(option.id||option.name||'unknown');
 }

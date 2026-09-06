@@ -262,6 +262,13 @@ scanning, and required repository protections.
 
 The Abyss features an advanced, procedural loot and gear customization system:
 
+Unidentified gear is automatically identified when awarded to inventory (Abyss
+escrow gear is identified when banked). Existing inventory and equipped items are
+identified on the next portal page visit or bot cycle. Identification costs
+1 / 5 / 10 / 20 / 35 / 50 / 65 / 80 / 100 gold from Common through Eternal,
+capped at the player's available gold, so it is free at zero gold. The first
+identification each UTC day remains free. Item changes and charges commit together.
+
 *   🔮 **Loot Pity Counter**: Guaranteed Legendary or Mythic items after 40 runs without a top-tier drop.
 *   ⚒️ **Abyss Forge Customization**:
     *   **Sockets & Gemstones**: Roll gear with 1-3 empty sockets. Infuse gemstones (Ruby for HP, Sapphire for Mana, Emerald for STR, Diamond for DEF, Topaz for Crit) to add flat stats.

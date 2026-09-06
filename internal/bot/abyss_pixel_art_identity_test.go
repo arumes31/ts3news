@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 	"unicode/utf16"
+
+	"ts3news/internal/content"
 )
 
 func abyssPixelArtIdentityForTest(key string) string {
@@ -34,6 +36,9 @@ func TestEveryAbyssBossHasUniquePixelArtIdentity(t *testing.T) {
 			continue
 		}
 		seenNames[name] = struct{}{}
+		if _, ok := content.PixelArtByKey("monster:" + name); !ok {
+			t.Errorf("boss %s has no catalog portrait", name)
+		}
 		identity := abyssPixelArtIdentityForTest("monster:" + name)
 		if previous, collision := seenArt[identity]; collision {
 			t.Fatalf("boss art collision: %q and %q both use %s", previous, name, identity)

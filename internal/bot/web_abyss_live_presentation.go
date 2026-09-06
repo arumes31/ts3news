@@ -47,7 +47,14 @@ func abyssPresentationPetAbilityID(name string) string {
 
 // Presentation events describe resolved engine actions. They never schedule or
 // influence combat, and intentionally contain no absolute or maximum HP values.
+type combatManaChange struct {
+	Before int `json:"before"`
+	After  int `json:"after"`
+	Max    int `json:"max"`
+}
+
 type abyssLivePresentationEvent struct {
+	Mana        *combatManaChange              `json:"mana,omitempty"`
 	Seq         int64                          `json:"seq"`
 	Round       int                            `json:"round"`
 	Kind        string                         `json:"kind"`
@@ -95,6 +102,10 @@ func (c *abyssLiveCombat) presentationEntity(mob *content.Mob, prefix string) st
 }
 
 func (c *abyssLiveCombat) present(round int, kind, actor, abilityID, name string, element content.Element, outcomes ...abyssLivePresentationOutcome) {
+	c.presentWithMana(round, kind, actor, abilityID, name, element, nil, outcomes...)
+}
+
+func (c *abyssLiveCombat) presentWithMana(round int, kind, actor, abilityID, name string, element content.Element, mana *combatManaChange, outcomes ...abyssLivePresentationOutcome) {
 	if c == nil {
 		return
 	}
@@ -105,7 +116,8 @@ func (c *abyssLiveCombat) present(round int, kind, actor, abilityID, name string
 	}
 	c.presentationCursor++
 	c.presentationEvents = append(c.presentationEvents, abyssLivePresentationEvent{
-		Seq: c.presentationCursor, Round: round, Kind: kind, ActorID: actor,
+		Mana: mana,
+		Seq:  c.presentationCursor, Round: round, Kind: kind, ActorID: actor,
 		AbilityID: abilityID, AbilityName: name, Element: string(element),
 		Targets: append([]abyssLivePresentationOutcome(nil), outcomes...),
 	})
@@ -117,6 +129,10 @@ func (c *abyssLiveCombat) present(round int, kind, actor, abilityID, name string
 func cloneAbyssPresentationEvents(events []abyssLivePresentationEvent) []abyssLivePresentationEvent {
 	cloned := append([]abyssLivePresentationEvent{}, events...)
 	for i := range cloned {
+		if cloned[i].Mana != nil {
+			mana := *cloned[i].Mana
+			cloned[i].Mana = &mana
+		}
 		cloned[i].Targets = append([]abyssLivePresentationOutcome(nil), cloned[i].Targets...)
 	}
 	return cloned

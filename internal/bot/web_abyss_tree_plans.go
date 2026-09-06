@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -207,10 +208,41 @@ func (s *WebServer) handleAbyssTreePlanPreview(w http.ResponseWriter, r *http.Re
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 	var req struct {
-		IDs []int `json:"ids"`
+		IDs  []int  `json:"ids"`
+		Code string `json:"code"`
+		Slot int    `json:"slot"`
 	}
 	if readJSON(r, &req) != nil || len(req.IDs) > abyssTreePlanMaxNodes {
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid or oversized plan"})
+		return
+	}
+	if req.Code != "" {
+		code, err := decodeAbyssTreeBuildCode(req.Code)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		if code.Layout != content.AbyssTree().TopologyHash() {
+			writeJSON(w, map[string]any{"ok": false, "error": "build code targets another layout; import it into a draft to review compatibility"})
+			return
+		}
+		req.IDs = code.IDs
+	}
+	if req.Slot != 0 {
+		if req.Slot < 1 || req.Slot > 3 {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid loadout slot"})
+			return
+		}
+		var stored string
+		err := s.bot.DB.QueryRowContext(r.Context(), "SELECT value FROM app_meta WHERE key=$1", abyssTreeLoadoutsKey(uid)).Scan(&stored)
+		if err != nil && err != sql.ErrNoRows {
+			writeJSON(w, map[string]any{"ok": false, "error": "failed to load preset"})
+			return
+		}
+		req.IDs = loadTreeLoadouts(stored)[strconv.Itoa(req.Slot)]
+	}
+	if len(req.IDs) > abyssTreePlanMaxNodes {
+		writeJSON(w, map[string]any{"ok": false, "error": "oversized plan"})
 		return
 	}
 	analysis, err := s.currentAbyssTreePlan(r.Context(), uid, req.IDs)
@@ -218,7 +250,18 @@ func (s *WebServer) handleAbyssTreePlanPreview(w http.ResponseWriter, r *http.Re
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "analysis": analysis})
+	var lastRespec string
+	err = s.bot.DB.QueryRowContext(r.Context(), "SELECT value FROM app_meta WHERE key=$1", abyssFreeRespecKey(uid)).Scan(&lastRespec)
+	if err != nil && err != sql.ErrNoRows {
+		writeJSON(w, map[string]any{"ok": false, "error": "apply price is unavailable; try again"})
+		return
+	}
+	quote := abyssTreeMutationQuote{Action: "replace_build", TokenTotal: abyssTreeRespecTokens,
+		Free: lastRespec != abyssCurrentWeek(time.Now()), PointTotal: analysis.PlannedCost}
+	if quote.Free {
+		quote.TokenTotal = 0
+	}
+	writeJSON(w, map[string]any{"ok": true, "analysis": analysis, "quote": quote})
 }
 
 func loadAbyssTreeDrafts(stored string) map[string]abyssTreePlanDraft {

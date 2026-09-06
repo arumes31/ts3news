@@ -4,6 +4,8 @@ import (
 	"hash/fnv"
 	"image"
 	"image/color"
+	"sort"
+	"strings"
 
 	"ts3news/internal/content"
 )
@@ -34,6 +36,11 @@ func drawNode(atlas *image.NRGBA, node content.TreeNode) {
 	palette := disciplinePalettes[node.Sector]
 	seed := artSeed(node)
 	drawFrame(atlas, bounds, node.Type, palette)
+	if motif, ok := nodeMotif(node); ok {
+		drawSelectedMotif(atlas, bounds, motif, palette)
+		drawIdentitySigil(atlas, bounds, uint64(node.ID), palette)
+		return
+	}
 	switch node.Sector {
 	case 0:
 		drawWar(atlas, bounds, seed, palette)
@@ -49,6 +56,62 @@ func drawNode(atlas *image.NRGBA, node content.TreeNode) {
 		drawVoid(atlas, bounds, seed, palette)
 	}
 	drawIdentitySigil(atlas, bounds, uint64(node.ID), palette)
+}
+
+// A passive icon describes its actual bonus. The sector controls its palette
+// and the ID controls its ornament; neither may randomize the central symbol.
+func nodeMotif(node content.TreeNode) (motifKind, bool) {
+	if node.Type == content.TreeNodeSocket {
+		return motifDiamond, true
+	}
+	keys := make([]string, 0, len(node.Pct))
+	for key, value := range node.Pct {
+		if value > 0 {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		switch {
+		case strings.Contains(key, "cooldown"), strings.Contains(key, "duration"), strings.Contains(key, "spd"):
+			return motifHourglass, true
+		case strings.Contains(key, "heal"), strings.Contains(key, "hp"), strings.Contains(key, "lifesteal"):
+			return motifHeart, true
+		case strings.Contains(key, "def"), strings.Contains(key, "immunity"), strings.Contains(key, "stamina"):
+			return motifShield, true
+		case strings.Contains(key, "pet"), strings.Contains(key, "companion"):
+			return motifLeaf, true
+		case strings.Contains(key, "gold"), strings.Contains(key, "loot"), strings.Contains(key, "lck"), strings.Contains(key, "material"):
+			return motifDice, true
+		case strings.Contains(key, "token"), strings.Contains(key, "escrow"):
+			return motifKey, true
+		case strings.Contains(key, "mana"), strings.Contains(key, "int"), strings.Contains(key, "magic"), strings.Contains(key, "element"):
+			return motifDiamond, true
+		case strings.Contains(key, "dge"):
+			return motifCrescent, true
+		case strings.Contains(key, "crt"), strings.Contains(key, "ult"), strings.Contains(key, "stun"):
+			return motifBurst, true
+		case strings.Contains(key, "damage"), strings.Contains(key, "power"), strings.Contains(key, "str"):
+			return motifBlade, true
+		case strings.Contains(key, "xp"), key == "limit_break":
+			return motifCrown, true
+		}
+	}
+	for _, stat := range []struct {
+		value int
+		motif motifKind
+	}{
+		{node.Stats.HP, motifHeart}, {node.Stats.DEF, motifShield},
+		{node.Stats.STR, motifBlade}, {node.Stats.INT, motifDiamond},
+		{node.Stats.SPD, motifHourglass}, {node.Stats.LCK, motifDice},
+		{node.Stats.CRT, motifBurst}, {node.Stats.DGE, motifCrescent},
+		{node.Stats.MNA, motifRing}, {node.Stats.STA, motifShield},
+	} {
+		if stat.value > 0 {
+			return stat.motif, true
+		}
+	}
+	return motifRing, false
 }
 
 func artSeed(node content.TreeNode) uint64 {

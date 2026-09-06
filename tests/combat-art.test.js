@@ -13,6 +13,24 @@ vm.runInContext(fs.readFileSync(path.join(assets, 'abyss_combat_art.js'), 'utf8'
 const art = context.window.AbyssCombatArt;
 const catalog = context.window.AB_COMBAT_CATALOG;
 
+test('named elemental skills retain their visual theme with broad engine elements', () => {
+  for (const [name, element] of [['Fiery Bolt', 'fire'], ['Icy Bolt', 'frost'], ['Shadow Strike', 'shadow'], ['Storm Blast', 'storm'], ['Blood Drain', 'blood']]) {
+    const key = Object.keys(catalog).find(key => catalog[key].name === name);
+    assert.ok(key, name);
+    assert.equal(art.profileFor({art_key: key, element: catalog[key].element}).element, element, name);
+  }
+});
+
+test('element names do not replace an ability action and item effects have suitable forms', () => {
+  for (const [name, family] of [['Storm Heal', 'heal'], ['Storm Shield', 'shield'], ['Blood Drain', 'drain'], ['Fiery Sunder', 'quake'], ['Arcane Mend', 'heal']]) {
+    const key = Object.keys(catalog).find(key => catalog[key].name === name);
+    assert.equal(art.profileFor({art_key: key}).family, family, name);
+  }
+  assert.equal(art.profileFor({art_key: 'item:repair_kit'}).family, 'repair');
+  assert.equal(art.profileFor({art_key: 'item:phoenix_feather'}).family, 'revive');
+  assert.equal(art.profileFor({art_key: 'item:abyss_emergency_revive'}).family, 'revive');
+});
+
 test('every existing ability has an exact stable, distinct graphic and bounded animation', () => {
   const keys = Object.keys(catalog).filter(key => /^(skill:|ultimate:)/.test(key));
   assert.ok(keys.length > 1000);
@@ -42,16 +60,45 @@ test('actors preserve exact identities while using actual pose columns', () => {
     const accent = art.actorProfile(unit).accent;
     assert.ok(!accents.has(accent), `${key} duplicates an actor identity`);
     accents.add(accent);
-    const columns = ['idle', 'attack', 'cast', 'hurt', 'defeat'].map(pose => art.actorFrame(unit, pose, 1).column);
-    assert.equal(new Set(columns).size, 5, key);
+    const poses = ['idle', 'attack', 'cast', 'hurt', 'defeat'].map(pose => {
+      const frame = art.actorFrame(unit, pose, 1);
+      return frame.position + '|' + (frame.transform || '');
+    });
+    assert.equal(new Set(poses).size, 5, key);
     for (const pose of ['idle', 'attack', 'cast', 'hurt', 'defeat']) {
       const frame = art.actorFrame(unit, pose, 0);
-      assert.ok(frame.column >= 0 && frame.column < 8);
-      assert.ok(frame.row >= 0 && frame.row < 8);
-      assert.equal(frame.columns, 8);
-      assert.equal(frame.rows, 8);
+      assert.ok(frame.column >= 0 && frame.column < frame.columns);
+      assert.ok(frame.row >= 0 && frame.row < frame.rows);
     }
   }
+});
+
+test('generic companion equipment animates its own portrait instead of turning into a wolf', () => {
+  const manifest = context.window.AB_EXACT_ICON_MANIFEST;
+  for (const key of Object.keys(catalog).filter(key => /^(pets|mounts|companions)$/.test(catalog[key].family))) {
+    for (const pose of ['idle', 'attack', 'cast', 'hurt', 'defeat']) {
+      const frame = art.actorFrame({art_key: key}, pose, 0);
+      assert.equal(frame.asset, manifest[key].asset, key);
+      assert.equal(frame.column, manifest[key].column, key);
+      assert.equal(frame.row, manifest[key].row, key);
+    }
+  }
+});
+
+test('legacy artifact keys and class finisher themes resolve to their current exact identity', () => {
+  assert.equal(art.profileFor({art_key: 'item:artifact:0:Corrupted Soul'}).key, 'item:artifact:0');
+  assert.equal(art.profileFor({art_key: 'item:artifact:0:Corrupted Soul'}).exact, true);
+  assert.equal(art.profileFor({art_key: 'skill:CLASS_elementalist_finish'}).element, 'frost');
+  assert.equal(art.profileFor({art_key: 'skill:CLASS_alchemist_finish'}).element, 'fire');
+});
+
+test('companion commands and active relics show the resolved support action', () => {
+  for (const [id, family] of [['focus', 'mark'], ['guard', 'shield'], ['free', 'fang']]) {
+    const profile = art.profileFor({kind: 'companion', ability_id: id, ability_name: 'Companion command'});
+    assert.equal(profile.exact, true);
+    assert.equal(profile.family, family);
+  }
+  assert.equal(art.profileFor({kind:'relic', id:'ABYSS_RELIC', name:'Heart of the Abyss'}).family, 'restore');
 });
 
 test('all item, relic, companion, artifact and consumable identities have distinct effects', () => {

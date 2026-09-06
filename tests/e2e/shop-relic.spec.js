@@ -5,7 +5,8 @@ test('shop relic showcase gives the featured item a full row without duplicating
   await page.goto('/shop');
   const featured = page.locator('.shop-card.featured-item');
   await expect(featured.locator('.shop-relic-stage')).toBeVisible();
-  await expect(page.locator('.shop-card')).toHaveCount(49);
+  await expect(page.locator('.shop-card')).toHaveCount(12);
+  expect(await page.evaluate(() => shopCards.length)).toBe(49);
   const grid = await page.locator('#shopGrid').boundingBox();
   const card = await featured.boundingBox();
   expect(Math.abs(card.width - grid.width)).toBeLessThan(2);
@@ -30,8 +31,9 @@ test('shop relic lighting follows the pointer and resets when hidden or left', a
   await expect(stage).not.toHaveAttribute('data-lit', 'true');
   await expect.poll(() => stage.evaluate(element => element.style.getPropertyValue('--relic-rx'))).toBe('');
   await stage.hover();
+  const stageElement = await stage.elementHandle();
   await page.locator('#shopSearch').fill('no such relic');
-  await expect(stage).not.toHaveAttribute('data-lit', 'true');
+  await expect.poll(() => stageElement.getAttribute('data-lit')).not.toBe('true');
 });
 
 test('shop relic inspector reveal keeps focus, immediate dismissal and other dialogs intact', async ({ page }) => {
@@ -59,6 +61,24 @@ test('shop relic inspector reveal keeps focus, immediate dismissal and other dia
   await page.locator('.shop-card:not(.featured-item) .shop-inspect-action').first().click();
   await expect(dialog.locator('.item-inspector')).toBeVisible();
   await expect(dialog.locator('.shop-relic-inspector')).toHaveCount(0);
+});
+
+test('shop relic lighting and inspection initialize when saved filters hide it on reload', async ({ page }) => {
+  await page.goto('/shop');
+  await page.locator('#shopSearch').fill('no such relic');
+  await page.reload();
+  await expect(page.locator('#shopSearch')).toHaveValue('no such relic');
+  await expect(page.locator('.featured-item')).toHaveCount(0);
+  await page.locator('#shopReset').click();
+  const stage = page.locator('.shop-relic-stage');
+  await expect(stage).toBeVisible();
+  await stage.hover({ position: { x: 40, y: 40 } });
+  await expect(stage).toHaveAttribute('data-lit', 'true');
+  const inspect = page.locator('.featured-item .shop-inspect-action');
+  await inspect.click();
+  await expect(page.locator('.shop-relic-inspector')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(inspect).toBeFocused();
 });
 
 test('shop relic falls back to a static display when animation APIs are unavailable', async ({ page }) => {
@@ -106,7 +126,8 @@ test('shop relic uses a touch fallback and does not appear on later stock pages'
   await page.getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(stage).not.toHaveAttribute('data-lit', 'true');
   await page.getByRole('link', { name: 'Next stock page' }).click();
-  await expect(page.locator('.shop-card')).toHaveCount(240);
+  await expect(page.locator('.shop-card')).toHaveCount(12);
+  expect(await page.evaluate(() => shopCards.length)).toBe(240);
   await expect(stage).toHaveCount(0);
   expect(errors).toEqual([]);
   await context.close();

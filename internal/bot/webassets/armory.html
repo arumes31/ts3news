@@ -52,12 +52,12 @@
     <div class="armory-actions"><a href="/inventory#inventoryGear">Manage equipment</a>{{if .EnableAbyss}}<a href="/abyss#btnForgeRepairAll">Review repairs</a>{{end}}</div>
   </header>
   <div class="armory-stage">
-    <img class="armory-scene" src="{{asset "/static/armory_hall.webp"}}" alt="" width="1792" height="1024" fetchpriority="high">
+    <img class="armory-scene" src="{{if .Scene}}{{asset .Scene.Asset}}{{else}}{{asset "/static/armory_hall.webp"}}{{end}}" alt="" width="1792" height="1024" fetchpriority="high">
 <div class="gear-grid armory-gear-left" role="group" aria-label="Armour and relics">
 {{range .Slots}}{{if eq .Slot "Head" "Neck" "Shoulders" "Back" "Chest" "Wrists" "Relic" "Aura"}}{{template "armorySlot" (dict "Gear" . "EnableAbyss" $.EnableAbyss)}}{{end}}{{end}}
 </div>
-<div class="armory-portrait" role="img" aria-label="Illustrated armoured delver in a torchlit hall">
-  <p>Character illustration</p>
+<div class="armory-portrait" role="img" aria-label="{{if and .Scene .Scene.Name}}{{.Scene.Name}} character illustration{{else}}Illustrated armoured delver in a torchlit hall{{end}}">
+  <p>{{if and .Scene .Scene.Name}}{{.Scene.Name}}{{else}}Character illustration{{end}}</p>
 </div>
 <div class="gear-grid armory-gear-right" role="group" aria-label="Accessories and armour">
 {{range .Slots}}{{if eq .Slot "Hands" "Waist" "Legs" "Feet" "Finger1" "Finger2" "Trinket1" "Trinket2"}}{{template "armorySlot" (dict "Gear" . "EnableAbyss" $.EnableAbyss)}}{{end}}{{end}}

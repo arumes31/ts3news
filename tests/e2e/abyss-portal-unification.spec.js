@@ -8,6 +8,25 @@ const portalRoutes = [
   { path: '/leaderboards', heading: 'Leaderboards' },
 ];
 
+async function expectCatalogArtwork(art) {
+  await expect.poll(() => art.evaluate(node => {
+    if (node.hasAttribute('data-shop-art-pending')) return false;
+    const background = getComputedStyle(node, '::before').backgroundImage;
+    if (!background.includes('abyss_catalog_')) return false;
+    const url = background.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
+    if (!url) return false;
+    let state = node.__e2eCatalogArtwork;
+    if (!state || state.url !== url) {
+      state = node.__e2eCatalogArtwork = { url, decoded: false };
+      const image = new Image();
+      image.src = url;
+      // Poll the outcome without letting a stalled download extend the assertion.
+      image.decode().then(() => { state.decoded = image.naturalWidth > 0; }, () => {});
+    }
+    return state.decoded;
+  }), { message: 'Visible catalog artwork has loaded and decoded' }).toBe(true);
+}
+
 test('portal surfaces share the Abyss console theme without layout or script failures', async ({ page }) => {
   const failures = [];
   page.on('pageerror', error => failures.push(error.message));
@@ -39,12 +58,11 @@ test('portal surfaces share the Abyss console theme without layout or script fai
 test('armoury, inventory, shop, and auction use atlas art and expose every special', async ({ page }) => {
   for (const path of ['/armory-fixture', '/inventory', '/shop', '/ah']) {
     await page.goto(path);
-    const trigger = page.locator('.item-inspect-trigger[data-item-inspect]').first();
+    const trigger = path === '/inventory' ? page.locator('.inv-inspect').first() : page.locator('.item-inspect-trigger[data-item-inspect]').first();
     await expect(trigger).toBeVisible();
-    const art = trigger.locator('.item-art').first();
+    const art = path === '/inventory' ? page.locator('.inv-card .item-art').first() : trigger.locator('.item-art').first();
     await expect(art).toBeVisible();
-    const atlas = await art.evaluate(node => getComputedStyle(node, '::before').backgroundImage);
-    expect(atlas).toContain('abyss_catalog_');
+    await expectCatalogArtwork(art);
     await expect(art).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     await expect(art).toHaveCSS('border-top-width', '0px');
 
@@ -62,11 +80,12 @@ test('armoury, inventory, shop, and auction use atlas art and expose every speci
   await expect(page.locator('.item-inspector-special')).toHaveCount(2);
 
   await page.goto('/shop');
-  await expect(page.locator('.shop-card')).toHaveCount(49);
-  const shopAtlases = await page.locator('.shop-card .item-art').evaluateAll(nodes =>
-    nodes.map(node => getComputedStyle(node, '::before').backgroundImage)
-  );
-  expect(shopAtlases.every(asset => asset.includes('abyss_catalog_'))).toBe(true);
+  await expect(page.locator('.shop-card')).toHaveCount(12);
+  // Each rendered offer resolves to catalog artwork when it enters view.
+  for (const art of await page.locator('.shop-card .item-art').all()) {
+    await art.scrollIntoViewIfNeeded();
+    await expectCatalogArtwork(art);
+  }
   expect(new Set(await page.locator('.shop-card .item-art').evaluateAll(nodes =>
     nodes.map(node => node.dataset.artFamily)
   )).size).toBeGreaterThan(1);

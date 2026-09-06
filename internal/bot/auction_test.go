@@ -80,13 +80,22 @@ func TestAwardUnidentifiedGearStoresItInInventory(t *testing.T) {
 		MaxDurability: 80,
 		Unidentified:  true,
 	}
-	payload, err := json.Marshal(gear)
+	identified := gear
+	identified.Unidentified = false
+	payload, err := json.Marshal(identified)
 	if err != nil {
 		t.Fatal(err)
 	}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT gold FROM users.*FOR UPDATE").WithArgs("user1").
+		WillReturnRows(sqlmock.NewRows([]string{"gold"}).AddRow(200))
+	expectDailyIdentifyClaim(mock, "user1", false)
+	mock.ExpectExec("UPDATE users SET gold = gold -").WithArgs(int64(80), "user1").
+		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("INSERT INTO user_inventory").
 		WithArgs("user1", gear.ID, gear.MaxDurability, string(payload)).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
 
 	result := (&Bot{Cfg: &config.Config{}, DB: database}).awardGearDrop("user1", gear)
 	if result.Action != "inventoried" {

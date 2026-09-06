@@ -141,7 +141,11 @@ func TestAbyssVendorBuybackRoutesMigrationAndUIContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	combined := string(routes) + string(saleSource) + string(buybackSource) + string(migration) + string(page)
+	script, err := webAssets.ReadFile("webassets/inventory.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	combined := string(routes) + string(saleSource) + string(buybackSource) + string(migration) + string(page) + string(script)
 	for _, required := range []string{
 		`/api/inventory/buyback`, `recordVendorBuyback(tx`, `abyss_vendor_buybacks`,
 		`ORDER BY sold_at DESC,id DESC OFFSET $2`, `sale price + 10% handling`,

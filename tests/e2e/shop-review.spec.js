@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test('shop keeps stats, specials and equipped tradeoffs inline and filters persist', async ({ page }) => {
   await page.goto('/shop');
-  const mismatches = await page.locator('.shop-card').evaluateAll(cards => cards.flatMap(card => {
+  const mismatches = await page.evaluate(() => shopCards.flatMap(card => {
     const item = JSON.parse(card.querySelector('[data-item-inspect]').dataset.itemInspect);
     const details = card.querySelector('.shop-item-details');
     const values = [...details.querySelectorAll(':scope > .shop-item-stats > div')].map(row => [row.querySelector('dt').textContent, Number(row.querySelector('dd').textContent.replaceAll(',', ''))]);
@@ -20,7 +20,8 @@ test('shop keeps stats, specials and equipped tradeoffs inline and filters persi
   await page.reload();
   await expect(page.locator('#shopSlot')).toHaveValue('Head');
   await page.locator('#shopReset').click();
-  await expect(page.locator('.shop-card:visible')).toHaveCount(49);
+  await expect(page.locator('.shop-card')).toHaveCount(12);
+  await expect(page.locator('#shopResultCount')).toHaveText('Showing 12 of 49 items');
   await page.locator('#shopUpgrades').check();
   expect(await page.locator('.shop-card:visible').evaluateAll(cards => cards.every(card => card.dataset.upgrade === 'true'))).toBe(true);
   await page.locator('#shopReset').click();
@@ -85,6 +86,9 @@ test('unconfirmed conversion locks all wallet mutations but keeps verification r
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm exchange' }).click();
   await expect(page.locator('#shopMsg')).toContainText('result is unconfirmed');
   await expect.poll(() => page.locator('.shop-buy-action,.shop-exchange-action').evaluateAll(buttons => buttons.every(button => button.disabled))).toBe(true);
+  await page.locator('#shopMore').click();
+  await expect(page.locator('.shop-card')).toHaveCount(24);
+  await expect(page.locator('.shop-card').nth(12).locator('.shop-buy-action')).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Refresh to verify the unconfirmed shop action' })).toBeEnabled();
 });
 
@@ -136,6 +140,31 @@ test('purchase review shows exact remaining gold and returns keyboard focus', as
   await expect(button).toBeFocused();
 });
 
+test('a rejected purchase clears pending state on offers detached while waiting', async ({ page }) => {
+  let release;
+  await page.route('**/api/shop/buy', async route => {
+    await new Promise(resolve => { release = resolve; });
+    await route.fulfill({ json: { ok: false, error: 'This purchase was rejected. Please try again.' } });
+  });
+  await page.goto('/shop');
+  const originalBuy = page.locator('.shop-buy-action').first();
+  const originalItem = await originalBuy.getAttribute('data-item-name');
+  await originalBuy.click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Buy for/ }).click();
+  await expect.poll(() => Boolean(release)).toBe(true);
+  await page.locator('#shopSearch').fill('no such equipment');
+  await expect(page.locator('.shop-card')).toHaveCount(0);
+  release();
+  await expect(page.locator('#shopMsg')).toContainText('This purchase was rejected');
+  await page.locator('#shopReset').click();
+  await expect(originalBuy).toHaveAttribute('data-item-name', originalItem);
+  await expect(originalBuy).toBeEnabled();
+  await originalBuy.click();
+  await expect(page.getByRole('dialog')).toHaveAccessibleName('Confirm purchase');
+  await page.keyboard.press('Escape');
+  await expect(originalBuy).toBeFocused();
+});
+
 test('desktop exchange panel keeps both review actions reachable in a short viewport', async ({ page }) => {
   await page.setViewportSize({ width:1440, height:800 });
   await page.goto('/shop');
@@ -156,7 +185,8 @@ test('shop polish preserves heading structure and comfortable desktop controls',
   await page.goto('/shop');
   await expect(page.locator('.shop-card .inv-name .upgrade-badge')).toHaveCount(0);
   await expect(page.locator('.shop-item-badges').first()).toContainText('Featured');
-  await expect(page.locator('.shop-item-specials h4')).toHaveCount(49);
+  await expect(page.locator('.shop-item-specials h4')).toHaveCount(12);
+  expect(await page.evaluate(() => shopCards.filter(card => card.querySelector('.shop-item-specials h4')).length)).toBe(49);
   const compactControls = await page.locator('.shop-console button,.shop-console input:not([type=checkbox]),.shop-console select,.shop-exchange-jump').evaluateAll(elements => elements.filter(element => element.getClientRects().length && element.getBoundingClientRect().height<44).map(element => element.id||element.textContent));
   expect(compactControls).toEqual([]);
   await page.locator('#shopSearch').focus();

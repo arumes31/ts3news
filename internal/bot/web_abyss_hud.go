@@ -24,7 +24,7 @@ func abyssRunFloorsCleared(run abyssRun) int {
 	return floors
 }
 
-func (b *Bot) abyssHUDPageState(uid string, run abyssRun, st abyssStats, equipped map[content.GearSlot]content.Gear) abyssHUDPageState {
+func abyssRunHUDState(run abyssRun, st abyssStats, equipped map[content.GearSlot]content.Gear) abyssHUDPageState {
 	floors := abyssRunFloorsCleared(run)
 	hasLuckyCoin := false
 	if trinket, ok := equipped[content.SlotTrinket1]; ok && abyssGearActiveForCombat(trinket) && trinket.ID == "ABYSS_LUCKY_COIN" {
@@ -34,7 +34,6 @@ func (b *Bot) abyssHUDPageState(uid string, run abyssRun, st abyssStats, equippe
 	state := abyssHUDPageState{
 		FloorsCleared:       floors,
 		InterestRatePct:     rate * 100,
-		Jackpot:             b.getJackpot("abyss"),
 		EscrowSoftCap:       abyssEscrowSoftCap(run.Depth),
 		EscrowEfficiencyPct: 100,
 	}
@@ -44,6 +43,12 @@ func (b *Bot) abyssHUDPageState(uid string, run abyssRun, st abyssStats, equippe
 	if floors > 0 {
 		state.EscrowPerFloor = run.Escrow / int64(floors)
 	}
+	return state
+}
+
+func (b *Bot) abyssHUDPageState(uid string, run abyssRun, st abyssStats, equipped map[content.GearSlot]content.Gear) abyssHUDPageState {
+	state := abyssRunHUDState(run, st, equipped)
+	state.Jackpot = b.getJackpot("abyss")
 	runPacts := b.abyssRunPacts(uid)
 	runFlags := b.loadRunFlags(uid)
 	state.Pacts = abyssVisiblePacts(runPacts, runFlags)

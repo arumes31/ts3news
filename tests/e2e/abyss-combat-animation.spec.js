@@ -4,6 +4,114 @@ const SELF = 'ally:animation-tester';
 const BOSS = 'enemy:warden';
 const ADD = 'enemy:echo';
 
+test('every class action and boss resolves an exact icon in the live browser', async ({ page }) => {
+  await openCombat(page);
+  const result = await page.evaluate(() => {
+    const catalog = window.AB_COMBAT_CATALOG;
+    const keys = Object.keys(catalog).filter(key => key.startsWith('skill:CLASS_') || catalog[key].variant === 'AbyssBoss');
+    return {count: keys.length, missing: keys.filter(key => !liveCatalogArt(key)),
+      commands: [{kind:'attack'},{kind:'defend'},{kind:'companion',id:'focus'},{kind:'companion',id:'guard'},{kind:'companion',id:'free'}].map(option=>!!liveCatalogArt(liveActionArtKey(option))),
+      frost: AbyssCombatArt.profileFor({art_key: 'skill:CLASS_elementalist_finish'}).element,
+      legacyArtifact: liveCatalogArt('item:artifact:0:Corrupted Soul')};
+  });
+  expect(result.count).toBe(31);
+  expect(result.missing).toEqual([]);
+  expect(result.commands).toEqual([true, true, true, true, true]);
+  expect(result.frost).toBe('frost');
+  expect(result.legacyArtifact).not.toBeNull();
+});
+
+test('companion equipment retains its exact portrait through attack playback', async ({ page }) => {
+  const initial = planningState();
+  const companion = 'ally:portrait-companion';
+  initial.allies.push({id: companion, entity_id: companion, name: 'Novice Companion',
+    art_key: 'item:B_Companion', hp: 300, max_hp: 300, is_player: false});
+  await openCombat(page, initial);
+  const sprite = unit(page, companion).locator('.ab-actor-sprite');
+  await expect(sprite).toHaveCSS('background-image', /abyss_catalog_companions_p00/);
+  const next = structuredClone(initial);
+  next.version++;
+  next.presentation_cursor = 1;
+  next.presentation_events = [combatEvent(1, [{target_id: BOSS, damage: 25}], {actor_id: companion, kind: 'pet', ability_id: 'pet_attack'})];
+  await render(page, next);
+  await consumed(page, 1);
+  await expect(sprite).toHaveCSS('background-image', /abyss_catalog_companions_p00/);
+  await expect(sprite).toHaveAttribute('data-rig', 'portrait:companions');
+  await page.screenshot({path: test.info().outputPath('exact-companion.png')});
+});
+
+test('zero mana replaces a full meter and disables unaffordable spells', async ({ page }) => {
+  await openCombat(page);
+  const empty = planningState({ version: 11 });
+  // Legacy snapshots omitted zero; both old and new payloads must empty the HUD.
+  delete empty.allies[0].mana;
+  await render(page, empty);
+  await expect(page.locator('#liveManaBar')).toHaveAttribute('aria-valuenow', '0');
+  await expect(page.locator('#mpBar')).toHaveAttribute('aria-valuenow', '0');
+  await expect(page.locator('#liveManaStatus')).toContainText('Empty');
+  await expect(page.locator('#liveActionBar button').filter({ hasText: 'Arc Bolt' })).toBeDisabled();
+});
+
+for (const reducedMotion of ['no-preference', 'reduce']) {
+  test(`mana spending and full recovery remain visible with ${reducedMotion} motion`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion });
+    if (reducedMotion === 'reduce') await page.setViewportSize({ width: 390, height: 844 });
+    const initial = planningState();
+    initial.allies[0].mana_regen = 30;
+    await openCombat(page, initial);
+    await expect(page.locator('#liveMana')).toBeVisible();
+    await expect(page.locator('#liveManaRegen')).toHaveText('+30 / turn');
+    await page.evaluate(() => {
+      window.__manaFeedback = [];
+      new MutationObserver(() => window.__manaFeedback.push(document.getElementById('liveManaFeedback').textContent))
+        .observe(document.getElementById('liveManaFeedback'), { childList: true, subtree: true });
+    });
+    const next = structuredClone(initial);
+    next.version++;
+    next.presentation_cursor = 2;
+    next.presentation_events = [
+      combatEvent(1, [{ target_id: BOSS, damage: 80 }], {
+        kind: 'skill', ability_name: 'Arc Bolt', mana: { before: 100, after: 70, max: 100 },
+      }),
+      combatEvent(2, [], { kind: 'mana', ability_name: 'Mana recovery', mana: { before: 70, after: 100, max: 100 } }),
+    ];
+    if (reducedMotion === 'no-preference') {
+      const widthDuringCast = await page.evaluate(snapshot => {
+        window.renderLiveCombat(snapshot);
+        const fill = document.getElementById('liveManaFill');
+        const animation = fill.getAnimations()[0];
+        if (!animation) return 1;
+        // Seek within the real browser animation; process scheduling must not
+        // make a short cast unobservable to the test runner.
+        animation.pause();
+        animation.currentTime = Number(animation.effect.getTiming().duration) * .65;
+        const ratio = fill.getBoundingClientRect().width / fill.parentElement.clientWidth;
+        animation.play();
+        return ratio;
+      }, next);
+      expect(widthDuringCast).toBeLessThan(.8);
+    } else await render(page, next);
+    await consumed(page, 2);
+    const clipped = await page.evaluate(() => {
+      const stage = document.getElementById('livePixelStage').getBoundingClientRect();
+      return [...document.querySelectorAll('#livePixelStage .ab-actor-sprite')].some(sprite => {
+        const bounds = sprite.getBoundingClientRect();
+        return bounds.top < stage.top - 1 || bounds.bottom > stage.bottom + 1;
+      });
+    });
+    expect(clipped).toBe(false);
+    const feedback = await page.evaluate(() => window.__manaFeedback);
+    expect(feedback).toEqual(expect.arrayContaining(['−30 mana · Arc Bolt · 100 → 70', '+30 mana · Recovered · 70 → 100']));
+    await expect(page.locator('#liveManaBar')).toHaveAttribute('aria-valuenow', '100');
+    await render(page, next);
+    expect(await page.evaluate(() => window.__manaFeedback.length)).toBe(feedback.length);
+    if (reducedMotion === 'reduce') {
+      expect(await page.locator('#liveManaFill').evaluate(fill => fill.getAnimations().length)).toBe(0);
+    }
+    await page.screenshot({ path: test.info().outputPath('mana-combat.png') });
+  });
+}
+
 function planningState(overrides = {}) {
   return {
     ok: true,

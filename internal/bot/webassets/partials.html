@@ -13,7 +13,7 @@
 {{if eq .Nav "inventory"}}<link rel="stylesheet" href="{{asset "/static/gear_inventory_motion.css"}}">{{end}}
 {{if eq .Nav "arcade"}}<link rel="stylesheet" href="{{asset "/static/arcade.css"}}">{{end}}
 <script>window.__ASSET_VER__ = "{{appver}}";</script>
-<script src="{{asset "/static/abyss_catalog_icons.js"}}"></script>
+{{if and (ne .Nav "shop") (ne .Nav "inventory")}}<script src="{{asset "/static/abyss_catalog_icons.js"}}"></script>{{end}}
 {{template "abyss-display-locale" .}}
 {{template "abyss-quality-of-life" .}}
 </head>

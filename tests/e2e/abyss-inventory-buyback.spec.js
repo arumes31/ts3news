@@ -1,5 +1,30 @@
 const { test, expect } = require('@playwright/test');
 
+test('buyback displays the same catalog artwork as the original inventory item', async ({ page }) => {
+  await page.goto('/inventory');
+  const buyback = page.locator('.buyback-card[data-buyback-id="77"] .buyback-icon');
+  const inventory = page.locator('.inv-card[data-id="1"] .item-art');
+  const artwork = element => {
+    const style = getComputedStyle(element, '::before');
+    return { image: style.backgroundImage, position: style.backgroundPosition, size: style.backgroundSize };
+  };
+  const expected = await inventory.evaluate(artwork);
+  expect(expected.image).toContain('abyss_catalog_');
+  await expect(buyback).toBeVisible();
+  expect(await buyback.evaluate(artwork)).toEqual(expected);
+  const url = expected.image.match(/^url\(["']?(.*?)["']?\)$/)[1];
+  expect(await page.evaluate(src => new Promise(resolve => {
+    const image = new Image();
+    image.onload = () => resolve(image.naturalWidth > 0 && image.naturalHeight > 0);
+    image.onerror = () => resolve(false);
+    image.src = src;
+  }), url)).toBe(true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(buyback).toBeVisible();
+  expect(await buyback.evaluate(artwork)).toEqual(expected);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
 test('vendor buyback restores a recent exact item for the disclosed handling fee', async ({ page }) => {
   let request;
   await page.route('**/api/inventory/buyback', async route => {
