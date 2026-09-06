@@ -192,8 +192,9 @@ All gold/XP is the same economy used by the TS3 RPG, so farming the arcade or ba
 First select a successful CI run and verify its signed provenance and SBOM using
 the [GHCR deployment and migration guide](DEPLOYMENT.md). Set
 `TS3NEWS_IMAGE_DIGEST=sha256:<verified digest>` in `.env` beside your Compose file.
-CI publishes commit tags for discovery; deployment uses the immutable digest.
-Existing `latest` deployments must migrate because CI no longer updates that tag.
+CI publishes commit tags for discovery and automatically updates
+`ghcr.io/arumes31/ts3news:latest` after the current `main` image passes its scans,
+signing steps and evidence upload. The Compose setup below uses the immutable digest.
 
 Go builds require Go 1.27.1 or newer. PostgreSQL remains on the existing 15-alpine
 image and storage layout.

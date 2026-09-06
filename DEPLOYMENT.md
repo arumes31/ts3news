@@ -17,9 +17,14 @@ GitHub's artifact retention expires.
 
 The `sha-<full Git commit>` tag is a discovery aid, not immutable: a workflow rerun
 can rebuild the same commit with newer base packages. Always use the recorded
-digest. CI no longer updates `latest`; old consumers of that tag will remain on an
-old image until migrated. Never deploy a candidate just because its tag exists:
-registry scanning happens after push and a failed run may leave it behind.
+digest for reproducible deployments. CI automatically updates
+`ghcr.io/arumes31/ts3news:latest` to the same verified digest after registry scans,
+SBOM checks, both signing steps and evidence upload succeed. Runs whose commit is
+no longer the current `main` head skip this promotion, so an old rerun cannot roll
+the tag back. Updating the tag does not restart existing containers; tag-based
+deployments must pull and recreate their containers to use the new image.
+Never deploy a candidate just because its `sha-<commit>` tag exists: registry
+scanning happens after push and a failed run may leave it behind.
 
 With a current GitHub CLI, authenticate to GitHub and GHCR as needed, then verify
 both attestations. Replace the example values with the selected run's digest and
