@@ -34,8 +34,8 @@
 {{end}}
 
 {{define "abyssRunIdentityJS"}}
-var abyssBiomeContracts=[{{range $index,$choice := .RunIdentity.BiomeChoices}}{{if $index}},{{end}}{id:{{$choice.ID}},icon:{{printf "%q" $choice.Icon}},name:{{printf "%q" $choice.Name}},promise:{{printf "%q" $choice.Promise}},warning:{{printf "%q" $choice.Warning}}}{{end}}];
-var initialAbyssBoonDraft={{if .RunIdentity.Draft.Pending}}{pending:true,depth:{{.RunIdentity.Draft.Depth}},options:[{{range $index,$choice := .RunIdentity.Draft.Options}}{{if $index}},{{end}}{id:{{$choice.ID}},icon:{{printf "%q" $choice.Icon}},name:{{printf "%q" $choice.Name}},effect:{{printf "%q" $choice.Effect}},stacks:{{$choice.Stacks}}}{{end}}]}{{else}}null{{end}};
+var abyssBiomeContracts=[{{range $index,$choice := .RunIdentity.BiomeChoices}}{{if $index}},{{end}}{id:{{$choice.ID}},icon:{{jsonJS $choice.Icon}},name:{{jsonJS $choice.Name}},promise:{{jsonJS $choice.Promise}},warning:{{jsonJS $choice.Warning}}}{{end}}];
+var initialAbyssBoonDraft={{if .RunIdentity.Draft.Pending}}{pending:true,depth:{{.RunIdentity.Draft.Depth}},options:[{{range $index,$choice := .RunIdentity.Draft.Options}}{{if $index}},{{end}}{id:{{$choice.ID}},icon:{{jsonJS $choice.Icon}},name:{{jsonJS $choice.Name}},effect:{{jsonJS $choice.Effect}},stacks:{{$choice.Stacks}}}{{end}}]}{{else}}null{{end}};
 var abyssRunIdentityState=null;
 function abyssIdentityCardItems(items,empty){
   if(!items||!items.length)return '<em>'+consEsc(empty)+'</em>';
@@ -52,7 +52,7 @@ function renderAbyssRunIdentity(view){
   var biome=document.getElementById('abyssBiomeCard');if(biome&&view.biome){var oldChoices=biome.querySelector('.ab-biome-choice-list');if(oldChoices)oldChoices.remove();biome.querySelectorAll(':scope > b,:scope > small').forEach(function(el){el.remove();});var title=document.createElement('b');title.textContent=(view.biome.icon||'🧭')+' '+view.biome.name;var detail=document.createElement('small');detail.textContent=view.biome.promise+' · '+view.biome.warning+' · through floor '+Number(view.biome_until||0);biome.append(title,detail);}
 }
 function abyssBoonDraftHTML(draft){
-  return '<div class="ab-boon-choice-dialog"><h3>✦ Choose a boon</h3><p>Floor '+Number(draft.depth||0)+' offers one run-only power. The choice takes effect immediately.</p><div class="ab-boon-draft">'+(draft.options||[]).map(function(item){return '<button type="button" onclick="chooseAbyssBoon('+Number(item.id)+',this)"><b>'+consEsc(item.icon||'')+' '+consEsc(item.name||'')+'</b><span>'+consEsc(item.effect||'')+(item.stacks?' · current ×'+Number(item.stacks):'')+'</span></button>';}).join('')+'</div><div class="modal-actions"><button type="button" class="ghost" onclick="closeModal()">Decide later</button></div></div>';
+  return '<div class="ab-boon-choice-dialog"><h3>✦ Choose a boon</h3><p data-modal-description>Floor '+Number(draft.depth||0)+' offers one run-only power. The choice takes effect immediately.</p><div class="ab-boon-draft">'+(draft.options||[]).map(function(item){return '<button type="button" class="ghost" onclick="chooseAbyssBoon('+Number(item.id)+',this)"><b>'+consEsc(item.icon||'')+' '+consEsc(item.name||'')+'</b><span>'+consEsc(item.effect||'')+(item.stacks?' · current ×'+Number(item.stacks):'')+'</span></button>';}).join('')+'</div>'+(typeof abyssAutoContinue!=='undefined'&&abyssAutoContinue.enabled?'<p class="ab-boon-resume-note">Auto-continue is waiting for your choice. Your remaining descents are saved.</p>':'')+'<div class="modal-actions"><button type="button" class="ghost" onclick="closeModal()">Decide later</button></div></div>';
 }
 function renderAbyssBoonDraftTrigger(draft){
   var boonCard=document.getElementById('abyssBoonCard');if(!boonCard)return;
@@ -63,6 +63,7 @@ function renderAbyssBoonDraftTrigger(draft){
 }
 function openAbyssBoonDraft(draft){
   if(!draft||!draft.pending||!(draft.options||[]).length)return;
+  pauseAbyssAutoContinue('boon','Choose a boon; auto-continue will resume afterward.');
   openModal(abyssBoonDraftHTML(draft));
 }
 function renderAbyssBiomeContractChoices(container){
@@ -77,7 +78,7 @@ async function chooseAbyssBiome(id,button){
 }
 async function chooseAbyssBoon(id,button){
   if(button)button.disabled=true;var data=await abPost('/api/abyss/run/boon',{id:Number(id)});if(button)button.disabled=false;
-  if(!data.ok){abToast(data.error||'Could not draft boon.',false);return;}renderAbyssRunIdentity(data.run_identity);var card=document.getElementById('sharedModalCard');if(card&&card.querySelector('.ab-boon-choice-dialog'))closeModal();abToast('✦ '+data.name+' drafted · stack '+data.stacks+'.',true);
+  if(!data.ok){abToast(data.error||'Could not draft boon.',false);return;}renderAbyssRunIdentity(data.run_identity);var card=document.getElementById('sharedModalCard');if(card&&card.querySelector('.ab-boon-choice-dialog'))closeModal();resumeAbyssAutoContinueChoice('boon');abToast('✦ '+data.name+' drafted · stack '+data.stacks+'.',true);
 }
 function presentAbyssBoonDraft(draft){
   if(abyssRunIdentityState){abyssRunIdentityState.draft=draft;renderAbyssRunIdentity(abyssRunIdentityState);}else renderAbyssBoonDraftTrigger(draft);

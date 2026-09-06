@@ -231,7 +231,7 @@
       <label>Descents <input id="autoContinueCount" type="number" min="1" max="30" value="5" inputmode="numeric" onchange="normalizeAbyssAutoCount()"></label>
       <button type="button" class="ghost xs" id="autoContinueStop" onclick="stopAbyssAutoContinue('Stopped. Current combat will finish.');" hidden>Stop</button>
       <output id="autoContinueStatus" aria-live="polite">Off · enable, then Descend. Up to 30 normal descents.</output>
-      <small>Stops for choices, sanctuary, events, defeat, errors or HP below 25%. Does not bank or re-enter.</small>
+      <small>Waits for choices and resumes after events. Leave the sanctuary when ready. Stops on defeat, descent errors or HP below 25%. Does not bank or re-enter.</small>
     </section>
 
     {{template "abyssOnboardingPanel" .}}
@@ -3644,7 +3644,7 @@ async function abyssDescend(){
   }
 
   if(d.choose_floor){
-    stopAbyssAutoContinue('Paused · choose your path.');
+    pauseAbyssAutoContinue('path', 'Choose your path; auto-continue will resume afterward.');
     setBusy(false);
     openFloorChoiceModal(d.options, d.depth, hp, max);
     return;
@@ -3664,8 +3664,9 @@ async function abyssDescend(){
 }
 
 // Each continuation uses the normal interactive descent, after its result settles.
-// Deliberately session-local: reloads and reconnects never restart a batch.
-var abyssAutoContinue = { enabled: false, remaining: 0, timer: 0, waiting: false, message: '' };
+// Only a successful event-triggered refresh may carry the remaining batch forward.
+var abyssAutoRunKey = {{printf "%s/%v" .U.UID .Run.StartedAt}};
+var abyssAutoContinue = { enabled: false, remaining: 0, timer: 0, waiting: false, started: false, choice: '', eventResolved: false, reloading: false, message: '' };
 function normalizeAbyssAutoCount(){
   var input=document.getElementById('autoContinueCount');
   var count=Math.max(1,Math.min(30,Math.floor(Number(input.value)||1)));
@@ -3683,6 +3684,8 @@ function renderAbyssAutoContinue(){
 function stopAbyssAutoContinue(message){
   clearTimeout(abyssAutoContinue.timer);
   abyssAutoContinue.enabled=false;abyssAutoContinue.remaining=0;abyssAutoContinue.waiting=false;
+  abyssAutoContinue.started=false;abyssAutoContinue.choice='';abyssAutoContinue.eventResolved=false;
+  try{sessionStorage.removeItem('abyssAutoEventResume');}catch(e){}
   abyssAutoContinue.message=message||'Auto-continue stopped.';
   renderAbyssAutoContinue();
 }
@@ -3692,8 +3695,8 @@ function toggleAbyssAutoContinue(){
 }
 function beginAbyssAutoDescent(){
   clearTimeout(abyssAutoContinue.timer);
-  if(!abyssAutoContinue.enabled)return;
-  if(!abyssAutoContinue.remaining)abyssAutoContinue.remaining=normalizeAbyssAutoCount();
+  if(!abyssAutoContinue.enabled||abyssAutoContinue.waiting)return;
+  if(!abyssAutoContinue.started){abyssAutoContinue.remaining=normalizeAbyssAutoCount();abyssAutoContinue.started=true;}
   abyssAutoContinue.remaining--;abyssAutoContinue.waiting=true;
   abyssAutoContinue.message='Descending · '+abyssAutoContinue.remaining+' remaining after this descent.';
   renderAbyssAutoContinue();
@@ -3701,26 +3704,68 @@ function beginAbyssAutoDescent(){
 function settleAbyssAutoDescent(data){
   if(!abyssAutoContinue.enabled||!abyssAutoContinue.waiting)return;
   abyssAutoContinue.waiting=false;
-  if(!data||!data.ok||!data.victory||data.noncombat||data.choose_floor||data.boon_draft&&data.boon_draft.pending){
-    stopAbyssAutoContinue(data&&data.victory?'Paused for your choice.':'Stopped · review this floor before continuing.');return;
+  if(!data||!data.ok||!data.noncombat&&!data.victory){
+    stopAbyssAutoContinue('Stopped · review this floor before continuing.');return;
   }
+  if(data.noncombat){abyssAutoContinue.eventResolved=false;pauseAbyssAutoContinue('', 'Waiting for this encounter to finish.');return;}
+  if(data.boon_draft&&data.boon_draft.pending){pauseAbyssAutoContinue('boon', 'Choose a boon; auto-continue will resume afterward.');return;}
   if(!abyssAutoContinue.remaining){stopAbyssAutoContinue('Complete · selected descents finished.');return;}
   abyssAutoContinue.message='Next descent in 2 seconds · '+abyssAutoContinue.remaining+' remaining.';
   renderAbyssAutoContinue();scheduleAbyssAutoContinue();
 }
+function pauseAbyssAutoContinue(choice,message){
+  if(!abyssAutoContinue.enabled)return;
+  abyssAutoContinue.choice=choice;
+  abyssAutoContinue.message=message+' · '+abyssAutoContinue.remaining+' remaining.';
+  renderAbyssAutoContinue();scheduleAbyssAutoContinue();
+}
+function resumeAbyssAutoContinueChoice(choice){
+  if(abyssAutoContinue.choice===choice)abyssAutoContinue.choice='';
+  if(abyssAutoContinue.enabled&&abyssAutoContinue.started)scheduleAbyssAutoContinue();
+}
+function reloadAbyssAfterEvent(depth){
+  if(abyssAutoContinue.enabled&&abyssAutoContinue.started){
+    try{
+      sessionStorage.setItem('abyssAutoEventResume',JSON.stringify({run:abyssAutoRunKey,depth:Number(depth),remaining:abyssAutoContinue.remaining,count:normalizeAbyssAutoCount(),at:Date.now()}));
+      abyssAutoContinue.reloading=true;
+    }catch(e){}
+  }
+  window.location.reload();
+}
+function restoreAbyssEventContinuation(){
+  var saved;
+  try{saved=JSON.parse(sessionStorage.getItem('abyssAutoEventResume'));sessionStorage.removeItem('abyssAutoEventResume');}catch(e){return;}
+  if(!saved||saved.run!==abyssAutoRunKey||saved.depth!==curDepth||!inRun||downed||!Number.isFinite(saved.at)||Date.now()-saved.at<0||Date.now()-saved.at>30000||!Number.isInteger(saved.count)||saved.count<1||saved.count>30||!Number.isInteger(saved.remaining)||saved.remaining<0||saved.remaining>=saved.count)return;
+  abyssAutoContinue.enabled=true;abyssAutoContinue.started=true;abyssAutoContinue.remaining=saved.remaining;
+  document.getElementById('autoContinueCount').value=saved.count;normalizeAbyssAutoCount();
+  if(typeof initialAbyssBoonDraft!=='undefined'&&initialAbyssBoonDraft&&initialAbyssBoonDraft.pending)abyssAutoContinue.choice='boon';
+  abyssAutoContinue.message='Encounter refreshed · '+saved.remaining+' descents remaining.';
+  renderAbyssAutoContinue();scheduleAbyssAutoContinue();
+}
+document.addEventListener('DOMContentLoaded',restoreAbyssEventContinuation,{once:true});
 function scheduleAbyssAutoContinue(){
   clearTimeout(abyssAutoContinue.timer);
   abyssAutoContinue.timer=setTimeout(function(){
-    if(!abyssAutoContinue.enabled)return;
+    if(!abyssAutoContinue.enabled||!abyssAutoContinue.started||abyssAutoContinue.reloading)return;
     // Let the current live scene finish its animation before opening another.
     if(typeof liveCombatState!=='undefined'&&liveCombatState){scheduleAbyssAutoContinue();return;}
     var bar=document.getElementById('hpBar'),hp=Number(bar.getAttribute('aria-valuenow')),max=Number(bar.getAttribute('aria-valuemax'));
     var modal=document.getElementById('sharedModal');
-    if(busy||!inRun||downed||floorType!=='combat'||document.hidden||modal&&modal.classList.contains('open')||!(max>0)||hp/max<.25){stopAbyssAutoContinue('Paused · review the run, then enable again.');return;}
+    if(!inRun||downed||document.hidden){stopAbyssAutoContinue('Stopped · run unavailable or page hidden.');return;}
+    if(busy||abyssAutoContinue.waiting||abyssAutoContinue.choice||modal&&modal.classList.contains('open')){
+      if(!abyssAutoContinue.choice&&!abyssAutoContinue.waiting){abyssAutoContinue.message='Paused while a dialog or action is open · '+abyssAutoContinue.remaining+' remaining.';renderAbyssAutoContinue();}
+      scheduleAbyssAutoContinue();return;
+    }
+    if(floorType!=='combat'){
+      if(abyssAutoContinue.eventResolved&&floorType!=='rest'){abyssProceed();return;}
+      scheduleAbyssAutoContinue();return;
+    }
+    if(!abyssAutoContinue.remaining){stopAbyssAutoContinue('Complete · selected descents finished.');return;}
+    if(!(max>0)||hp/max<.25){stopAbyssAutoContinue('Stopped at low HP.');return;}
     abyssDescend();
   },2000);
 }
-document.addEventListener('visibilitychange',function(){if(document.hidden&&abyssAutoContinue.enabled)stopAbyssAutoContinue('Paused while the page is hidden.');});
+document.addEventListener('visibilitychange',function(){if(document.hidden&&abyssAutoContinue.enabled&&!abyssAutoContinue.reloading)stopAbyssAutoContinue('Paused while the page is hidden.');});
 
 async function playAbyssMultiFloorResults(data) {
   var floors = Array.isArray(data && data.floor_results) ? data.floor_results : [];
@@ -3769,7 +3814,8 @@ async function abyssChooseFloor(i, hp, max){
   setBusy(true); clearBanner();
   document.getElementById('abStatus').textContent='Descending…';
   var d=await abPost('/api/abyss/choose_floor',{index:i});
-  if(!d.ok){abToast(d.error||'failed',false,abyssRetryOptions(d,function(){abyssChooseFloor(i,hp,max);}));setBusy(false);return;}
+  if(!d.ok){stopAbyssAutoContinue('Stopped · path choice failed.');abToast(d.error||'failed',false,abyssRetryOptions(d,function(){abyssChooseFloor(i,hp,max);}));setBusy(false);return;}
+  resumeAbyssAutoContinueChoice('path');
   if(d.live_combat){ startLiveCombat(d, hp, max); return; }
   await processDescendResult(d, hp, max);
 }
@@ -4279,7 +4325,8 @@ async function abyssNCAction(action, payload){
     document.getElementById('ncOptions').innerHTML = '';
     document.getElementById('ncDesc').textContent = d.msg || 'Encounter complete. Leave this floor to continue your descent.';
   }
-  if(d.reload){ setTimeout(function(){window.location.reload();}, 650); }
+  if(d.resolved&&abyssAutoContinue.enabled){abyssAutoContinue.eventResolved=true;scheduleAbyssAutoContinue();}
+  if(d.reload){ setTimeout(function(){reloadAbyssAfterEvent(d.depth===undefined?curDepth:d.depth);}, 650); }
 }
 
 async function abyssProceed(){
@@ -4294,7 +4341,7 @@ async function abyssProceed(){
   if(d.vacuum_loot&&d.vacuum_loot.length) bannerMsg += ' ' + d.vacuum_loot.map(consEsc).join(' · ') + '.';
 
   setBanner(bannerMsg, 'good');
-  window.location.reload();
+  reloadAbyssAfterEvent(d.depth);
 }
 
 async function filterCoopHelpers(){

@@ -31,7 +31,18 @@
 .ab-biome-choice-list button,.ab-boon-draft button{display:grid;grid-template-columns:1fr;gap:2px;width:100%;padding:8px 10px;border:1px solid #334761;border-radius:6px;background:#151f2e;color:#edf4ff;text-align:left;cursor:pointer}
 .ab-biome-choice-list button:hover,.ab-boon-draft button:hover{border-color:#d7a83e;background:#1c2635}.ab-biome-choice-list button span,.ab-boon-draft button span{color:#9db0c8;font-size:10px}
 .ab-boon-draft-trigger{width:100%;margin-top:10px;border-color:#d7a83e;background:#2a2111;color:#ffd77b}
-.ab-boon-choice-dialog{width:min(520px,calc(100vw - 56px))}.ab-boon-choice-dialog>p{color:#9db0c8}.ab-boon-choice-dialog .ab-boon-draft{margin-top:14px}.ab-boon-choice-dialog .ab-boon-draft button{min-height:58px;padding:11px 13px}
+body:has(.abyss-command-page) .modal-card:has(.ab-boon-choice-dialog){box-sizing:border-box;width:min(560px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:24px;background:#0c121c;scrollbar-gutter:stable}
+.ab-boon-choice-dialog{width:100%;min-width:0;overflow-wrap:anywhere}
+.ab-boon-choice-dialog>p{color:#c5d2e1;font-size:14px;line-height:1.55}
+.ab-boon-choice-dialog .ab-boon-draft{grid-template-columns:minmax(0,1fr);gap:10px;margin-top:20px}
+body:has(.abyss-command-page) .modal-card .ab-boon-draft button{box-sizing:border-box;min-width:0;min-height:72px;padding:14px 16px;gap:6px;white-space:normal;overflow-wrap:anywhere;background:#172230;border-color:#53657b;box-shadow:none;font:500 15px/1.4 var(--cmd-ui,system-ui);letter-spacing:normal}
+body:has(.abyss-command-page) .modal-card .ab-boon-draft button:hover:not(:disabled){background:#233244;border-color:#f2bd5b;box-shadow:none;transform:none}
+.ab-boon-choice-dialog .ab-boon-draft button b{color:#f6dfad;font-size:16px}
+.ab-boon-choice-dialog .ab-boon-draft button span{color:#c5d2e1;font-size:14px;line-height:1.5}
+.ab-boon-choice-dialog .ab-boon-resume-note{margin:16px 0 0;color:#a8dbd5}
+.ab-boon-choice-dialog .modal-actions{flex-wrap:wrap;margin-top:20px}
+.ab-boon-choice-dialog .modal-actions button{min-height:44px;white-space:normal}
+@media(max-width:520px){body:has(.abyss-command-page) .modal-card:has(.ab-boon-choice-dialog){padding:18px}.ab-boon-choice-dialog .ab-boon-draft button{padding:12px}}
 .ab-biome-choice-rest{grid-column:1/-1;padding:10px;border:1px solid #805f24;border-radius:8px;background:#17150e}.ab-biome-choice-rest button{min-height:48px}
 @media(max-width:900px){.ab-chronicle-grid{grid-template-columns:1fr}.ab-story-track{grid-template-columns:repeat(5,1fr)}.ab-chronicle-head{align-items:flex-start;flex-direction:column}.ab-chronicle-runonly{text-align:left}}
 @media(max-width:520px){.ab-chronicle{padding:12px}.ab-story-track{grid-template-columns:repeat(2,1fr)}.ab-story-track li b{font-size:10px}}
