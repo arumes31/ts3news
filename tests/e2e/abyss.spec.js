@@ -635,14 +635,16 @@ test('desktop Abyss keeps its dark canvas and aligned stage in light system mode
     const bodyStyle = getComputedStyle(document.body);
     const panelStyle = getComputedStyle(document.querySelector('.abyss-stage'));
     const objective = box('#abCurrentObjective');
-    const elevator = box('.ab-elevator');
+    const scene = box('#stageScene');
     const dial = box('.abyss-dial');
     const controls = box('.abyss-controls');
     return {
       bodyBackground: bodyStyle.backgroundColor,
       panelBackground: panelStyle.backgroundColor,
       objectiveBottom: objective.bottom,
-      elevatorTop: elevator.top,
+      sceneTop: scene.top,
+      sceneBottom: scene.bottom,
+      elevatorDisplay: getComputedStyle(document.querySelector('.ab-elevator')).display,
       dialTop: dial.top,
       controlsTop: controls.top,
       controlsWidth: controls.width,
@@ -659,8 +661,9 @@ test('desktop Abyss keeps its dark canvas and aligned stage in light system mode
 
   expect(layout.bodyBackground).toBe('rgb(8, 11, 17)');
   expect(layout.panelBackground).not.toBe('rgb(255, 253, 248)');
-  expect(layout.objectiveBottom).toBeLessThanOrEqual(layout.elevatorTop + 1);
-  expect(Math.abs(layout.elevatorTop - layout.dialTop)).toBeLessThan(2);
+  expect(layout.elevatorDisplay).toBe('none');
+  expect(layout.objectiveBottom).toBeLessThanOrEqual(layout.sceneTop + 1);
+  expect(layout.sceneBottom).toBeLessThanOrEqual(layout.dialTop + 1);
   expect(Math.abs(layout.dialTop - layout.controlsTop)).toBeLessThan(2);
   expect(layout.controlsWidth).toBeGreaterThan(300);
   expect(layout.overflow).toEqual([]);
@@ -974,9 +977,9 @@ test('a fatal descend exposes the revive and concede decision', async ({ page })
   await expect(page.locator('#btnConcede')).toBeVisible();
 });
 
-test('planned multi-floor descent presents every combat floor in order', async ({ page }) => {
-  await fulfillAbyssAPI(page, path => path.endsWith('/descend_multi') ? {
-    ok: true, victory: true, depth: 15, risk: 20, hp: 760, max_hp: 1000,
+test('cursed elevator presents each returned combat floor in order', async ({ page }) => {
+  await fulfillAbyssAPI(page, path => path.endsWith('/descend') ? {
+    ok: true, cursed_elevator: true, victory: true, depth: 15, risk: 20, hp: 760, max_hp: 1000,
     gold: 5000, tokens: 12, bonus: 900, escrow: 13650, logs: [], loot: [],
     dura: [], timeline: [], consumables: [], run_floors_cleared: 5,
     floor_results: [13, 14, 15].map((depth, index) => ({
@@ -1010,7 +1013,7 @@ test('planned multi-floor descent presents every combat floor in order', async (
       if (receipt) window.__batchOverkillReceipts.push(receipt.textContent);
     });
   });
-  await page.locator('#btnDescendMulti').click();
+  await page.locator('#btnDescend').click();
   await expect.poll(() => page.evaluate(() => window.__batchFloors)).toEqual([13, 14, 15]);
   await expect.poll(() => page.evaluate(() => window.__batchOverkillReceipts)).toEqual([
     '💰 FINAL OVERKILL · 100 excess damage → +10g cache',
@@ -1022,38 +1025,6 @@ test('planned multi-floor descent presents every combat floor in order', async (
   await expect(page.locator('#eventChainRibbon .ab-sigil-marks .is-found')).toHaveCount(3);
   await expect(page.locator('#cartographerRouteFloors li')).toHaveCount(2);
   await expect(page.locator('#cartographerRouteFloors')).toContainText('F17');
-});
-
-test('auto-descend submits safeguards and stops after settled floor playback', async ({ page }) => {
-  let submittedRules = null;
-  await fulfillAbyssAPI(page, (path, body) => {
-    if (!path.endsWith('/descend_multi')) return { ok: false, error: 'unexpected e2e request' };
-    submittedRules = body.stop_rules;
-    return {
-      ok: true, victory: true, auto_stopped: true, stop_reason: 'legendary',
-      depth: 14, risk: 24, hp: 720, max_hp: 1000, gold: 5000, tokens: 12,
-      bonus: 800, escrow: 12800, logs: [], loot: [], dura: [], timeline: [],
-      consumables: [], run_floors_cleared: 4,
-      floor_results: [13, 14].map((depth, index) => ({
-        depth, victory: true, hp: 860 - index * 140, max_hp: 1000,
-        legendary_drop: index === 1,
-        logs: [`Floor ${depth} safety test`], loot: [], dura: [], timeline: [],
-      })),
-    };
-  });
-  await page.setViewportSize({ width: 480, height: 900 });
-  await page.goto('/abyss?active=1');
-  await page.evaluate(() => { window.reduceMotion = true; window.__batchFloors = []; document.addEventListener('abyss:batch-floor', event => window.__batchFloors.push(event.detail.depth)); });
-  await expect(page.locator('#autoDescendRules')).toBeVisible();
-  await page.locator('#autoStopDepth').fill('14');
-  await page.locator('#btnDescendMulti').click();
-  await expect.poll(() => submittedRules).toEqual({ hp_below_pct: 50, target_depth: 14, stop_on_legendary: true });
-  await expect.poll(() => page.evaluate(() => window.__batchFloors)).toEqual([13, 14]);
-  await expect(page.locator('#abStatus')).toContainText('Legendary+ drop secured');
-  await expect(page.locator('#abyssBanner')).toContainText('AUTO-DESCEND STOPPED');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
-  const css = await page.request.get('/static/abyss_auto_descend.css');
-  expect(css.status()).toBe(200);
 });
 
 test('mob affixes explain mechanics safely in tactical and pixel combat views', async ({ page }) => {

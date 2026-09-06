@@ -107,6 +107,7 @@
 {{if .Run.Comeback}}<div class="ab-comeback-note">💪 <b>Comeback:</b> the Abyss pities your losses today — +10% to all stats this run.</div>{{end}}
 
 <section class="ab-combat-cockpit {{if .Run.Active}}is-active{{end}}" id="abyssCombatCockpit" aria-label="Abyss combat cockpit">
+<div class="abyss-banner" id="abyssBanner" role="status" aria-live="polite" aria-atomic="true"></div>
 <div class="abyss-stage-row">
   <!-- Detached left sidebar: compact read-only Armoury quick-view of currently equipped gear -->
   <aside class="abyss-side-panel abyss-side-left">
@@ -224,6 +225,14 @@
       <button class="primary ab-laststand" id="btnLastStand" onclick="abyssLastStand()" style="display:none">🛡️ Last Stand (🜲 <span id="lsCost">{{.LastStandCost}}</span>)</button>
       <button class="ghost ab-concede" id="btnConcede" onclick="abyssConcede()" style="display:none">🏳️ Concede</button>
     </div>
+
+    <section class="ab-auto-continue" id="abyssAutoContinue" aria-label="Auto-continue normal descent" style="display:none">
+      <label><input id="autoContinueEnabled" type="checkbox" onchange="toggleAbyssAutoContinue()"> Auto-continue</label>
+      <label>Descents <input id="autoContinueCount" type="number" min="1" max="30" value="5" inputmode="numeric" onchange="normalizeAbyssAutoCount()"></label>
+      <button type="button" class="ghost xs" id="autoContinueStop" onclick="stopAbyssAutoContinue('Stopped. Current combat will finish.');" hidden>Stop</button>
+      <output id="autoContinueStatus" aria-live="polite">Off · enable, then Descend. Up to 30 normal descents.</output>
+      <small>Stops for choices, sanctuary, events, defeat, errors or HP below 25%. Does not bank or re-enter.</small>
+    </section>
 
     {{template "abyssOnboardingPanel" .}}
     {{template "abyssEntryPlannerPanel" .}}
@@ -405,25 +414,6 @@
       <span id="autoFocusDisplay" style="font-weight: bold; padding: 4px 8px; border-radius: 4px; border: 1px solid; font-size: 12px; display: inline-block;">Auto-Selecting...</span>
     </div>
 
-    <!-- Multi-floor queue planner (active run only) -->
-    <div class="ab-focus-row" id="multiQueuePlanner" style="display:none; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
-      <span class="ab-sub-label">Plan next floors (3-20 paths):</span>
-      <div class="ab-path-queue-editor">
-        <button class="ghost xs" id="btnQueueLess" onclick="removePathFromQueue()" aria-label="Remove one floor from the planned queue">−</button>
-        <div id="pathQueueContainer"></div>
-        <button class="ghost xs" id="btnQueueMore" onclick="addPathToQueue()" aria-label="Add one floor to the planned queue">+</button>
-      </div>
-      <fieldset class="ab-auto-stop" id="autoDescendRules">
-        <legend><span aria-hidden="true">⛔</span> Auto-stop safeguards</legend>
-        <label class="ab-auto-stop-master"><input id="autoDescendEnabled" type="checkbox" checked onchange="updateAutoDescendRulesUI()"> Armed</label>
-        <label>HP below <span class="ab-number-unit"><input id="autoStopHP" type="number" min="1" max="99" value="50" inputmode="numeric" oninput="updateAutoDescendRulesUI()"><span>%</span></span></label>
-        <label>At depth <input id="autoStopDepth" type="number" min="1" inputmode="numeric" oninput="this.dataset.manual='true';updateAutoDescendRulesUI()"></label>
-        <label><input id="autoStopLegendary" type="checkbox" checked onchange="updateAutoDescendRulesUI()"> Legendary+ secured</label>
-        <output id="autoStopSummary" aria-live="polite"></output>
-      </fieldset>
-      <button class="primary xs" id="btnDescendMulti" onclick="abyssDescendMulti()" style="margin-top:10px;" aria-label="Descend through all planned floors in sequence">⚡ Plan &amp; Descend Queue</button>
-    </div>
-
     <section class="ab-shadow-report" id="abyssShadowReport" hidden tabindex="-1" aria-live="polite" aria-labelledby="abyssShadowTitle">
       <header>
         <span class="ab-shadow-kicker">SHADOW PROJECTION · 100 TRIALS</span>
@@ -566,7 +556,6 @@
   </aside>
 </div>
 
-<div class="abyss-banner" id="abyssBanner" role="status" aria-live="polite" aria-atomic="true"></div>
 
 {{template "abyssLiveControls" .}}
 
@@ -1799,7 +1788,7 @@ async function abyssSimulateNextFloor(){
 }
 
 function setBusy(b){
-  busy=b;['btnEnter','btnDescend','btnBank','btnBank25','btnBank50','btnTransport','btnDoubleBonus','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnDescendMulti','btnQueueLess','btnQueueMore','btnSimulate'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
+  busy=b;['btnEnter','btnDescend','btnBank','btnBank25','btnBank50','btnTransport','btnDoubleBonus','btnBuildRespec','btnRevive','btnLastStand','btnConcede','btnProceed','btnSimulate'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=b;});
   ['abyssControls','abyssStage'].forEach(function(id){var el=document.getElementById(id);if(el)el.setAttribute('aria-busy',b?'true':'false');});
   if(b&&!lastActionBtn&&document.activeElement&&document.activeElement.tagName==='BUTTON')markBusyElement(document.activeElement);
   if(!b){if(lastActionBtnTimer){clearTimeout(lastActionBtnTimer);lastActionBtnTimer=null;}if(lastActionBtn){lastActionBtn.classList.remove('btn-busy');lastActionBtn=null;}abyssDescendInFlight=false;updateFloatingDescend();}
@@ -1868,6 +1857,7 @@ function renderState(){
   updateAbyssCombatCockpit();
   updateStageScene(); // UI-9/10: rest embers / event icon follow the floor type
   if(inRun && floorType && floorType !== 'combat'){
+    clearStageFx();
     show('abyssControls', false);
     show('focusPicker', false);
     show('prepPanel', false);
@@ -1902,15 +1892,8 @@ function renderState(){
   if(btnRow) btnRow.classList.toggle('ab-downed-beat', !!(inRun && downed));
   show('focusPicker', inRun && !downed);
   show('prepPanel', inRun && !downed);
-  show('multiQueuePlanner', inRun && !downed);
-  if (inRun && !downed) {
-    var container = document.getElementById('pathQueueContainer');
-    if (container && container.innerHTML === '') {
-      buildPathQueuePlanner();
-    } else {
-      updateQueueUI();
-    }
-  }
+  show('abyssAutoContinue', inRun && !downed);
+  renderAbyssAutoContinue();
 
   // Death-risk estimate on the Descend button (#21).
   var bd = document.getElementById('btnDescend');
@@ -3638,7 +3621,8 @@ async function abyssDescend(){
   // Low-HP confirm [87]
   var bar=document.getElementById('hpBar');
   var hp=Number(bar.getAttribute('aria-valuenow')), max=Number(bar.getAttribute('aria-valuemax'));
-  if(!(await confirmLowHP())){setBusy(false);return;}
+  if(!(await confirmLowHP())){stopAbyssAutoContinue('Stopped at low HP.');setBusy(false);return;}
+  beginAbyssAutoDescent();
   abyssDescendInFlight=true;updateFloatingDescend('Descending to floor '+(curDepth+1)+'…');
   markBusyBtn('btnDescend'); clearBanner();
   document.getElementById('abStatus').textContent='Descending…';
@@ -3655,10 +3639,12 @@ async function abyssDescend(){
       if(typeof d.risk==='number')setRisk(d.risk);
       renderState();
     }
+    stopAbyssAutoContinue('Stopped · descent failed.');
     abToast(d.error||'failed',false,abyssRetryOptions(d,abyssDescend));setBusy(false);return;
   }
 
   if(d.choose_floor){
+    stopAbyssAutoContinue('Paused · choose your path.');
     setBusy(false);
     openFloorChoiceModal(d.options, d.depth, hp, max);
     return;
@@ -3677,112 +3663,64 @@ async function abyssDescend(){
   await processDescendResult(d, hp, max);
 }
 
-function buildPathQueuePlanner() {
-  var container = document.getElementById('pathQueueContainer');
-  if (!container) return;
-  container.innerHTML = '';
-  var defaultCount = 5;
-  for (var i = 0; i < defaultCount; i++) {
-    addPathToQueue();
+// Each continuation uses the normal interactive descent, after its result settles.
+// Deliberately session-local: reloads and reconnects never restart a batch.
+var abyssAutoContinue = { enabled: false, remaining: 0, timer: 0, waiting: false, message: '' };
+function normalizeAbyssAutoCount(){
+  var input=document.getElementById('autoContinueCount');
+  var count=Math.max(1,Math.min(30,Math.floor(Number(input.value)||1)));
+  input.value=count;return count;
+}
+function renderAbyssAutoContinue(){
+  var control=document.getElementById('autoContinueEnabled'),count=document.getElementById('autoContinueCount'),stop=document.getElementById('autoContinueStop'),status=document.getElementById('autoContinueStatus');
+  if(!control||!abyssAutoContinue)return;
+  control.checked=abyssAutoContinue.enabled;
+  count.disabled=abyssAutoContinue.remaining>0;
+  stop.hidden=!abyssAutoContinue.enabled;
+  var liveStop=document.getElementById('autoContinueLiveStop');if(liveStop){liveStop.hidden=!abyssAutoContinue.enabled;liveStop.textContent='Stop auto-continue · '+abyssAutoContinue.remaining+' left';}
+  status.textContent=abyssAutoContinue.message||(abyssAutoContinue.enabled?'Ready · press Descend to start.':'Off · enable, then Descend. Up to 30 normal descents.');
+}
+function stopAbyssAutoContinue(message){
+  clearTimeout(abyssAutoContinue.timer);
+  abyssAutoContinue.enabled=false;abyssAutoContinue.remaining=0;abyssAutoContinue.waiting=false;
+  abyssAutoContinue.message=message||'Auto-continue stopped.';
+  renderAbyssAutoContinue();
+}
+function toggleAbyssAutoContinue(){
+  if(!document.getElementById('autoContinueEnabled').checked){stopAbyssAutoContinue();return;}
+  abyssAutoContinue.enabled=true;abyssAutoContinue.message='';normalizeAbyssAutoCount();renderAbyssAutoContinue();
+}
+function beginAbyssAutoDescent(){
+  clearTimeout(abyssAutoContinue.timer);
+  if(!abyssAutoContinue.enabled)return;
+  if(!abyssAutoContinue.remaining)abyssAutoContinue.remaining=normalizeAbyssAutoCount();
+  abyssAutoContinue.remaining--;abyssAutoContinue.waiting=true;
+  abyssAutoContinue.message='Descending · '+abyssAutoContinue.remaining+' remaining after this descent.';
+  renderAbyssAutoContinue();
+}
+function settleAbyssAutoDescent(data){
+  if(!abyssAutoContinue.enabled||!abyssAutoContinue.waiting)return;
+  abyssAutoContinue.waiting=false;
+  if(!data||!data.ok||!data.victory||data.noncombat||data.choose_floor||data.boon_draft&&data.boon_draft.pending){
+    stopAbyssAutoContinue(data&&data.victory?'Paused for your choice.':'Stopped · review this floor before continuing.');return;
   }
+  if(!abyssAutoContinue.remaining){stopAbyssAutoContinue('Complete · selected descents finished.');return;}
+  abyssAutoContinue.message='Next descent in 2 seconds · '+abyssAutoContinue.remaining+' remaining.';
+  renderAbyssAutoContinue();scheduleAbyssAutoContinue();
 }
-
-function addPathToQueue() {
-  var container = document.getElementById('pathQueueContainer');
-  if (!container) return;
-  var count = container.querySelectorAll('.ab-path-select').length;
-  if (count >= 20) return;
-  
-  var wrap = document.createElement('div');
-  wrap.style.display = 'flex';
-  wrap.style.alignItems = 'center';
-  wrap.style.gap = '4px';
-  wrap.className = 'ab-path-wrap';
-  
-  var label = document.createElement('span');
-  label.className = 'muted small';
-  label.style.fontSize = '12px';
-  label.textContent = 'F' + (curDepth + count + 1) + ':';
-  
-  var select = document.createElement('select');
-  select.className = 'ab-path-select';
-  select.style.padding = '4px 8px';
-  select.style.borderRadius = '4px';
-  select.style.background = 'rgba(255,255,255,0.05)';
-  select.style.color = '#fff';
-  select.style.border = '1px solid rgba(255,255,255,0.15)';
-  select.style.fontSize = '12px';
-  select.style.cursor = 'pointer';
-  
-  [['combat','⚔️ Combat'],['rest','🕊️ Rest'],['event','❔ Event']].forEach(function(p){
-    var o = document.createElement('option');
-    o.value = p[0];
-    o.textContent = p[1];
-    o.style.background = '#0a0d16';
-    select.appendChild(o);
-  });
-  
-  wrap.appendChild(label);
-  wrap.appendChild(select);
-  container.appendChild(wrap);
-  
-  updateQueueUI();
+function scheduleAbyssAutoContinue(){
+  clearTimeout(abyssAutoContinue.timer);
+  abyssAutoContinue.timer=setTimeout(function(){
+    if(!abyssAutoContinue.enabled)return;
+    // Let the current live scene finish its animation before opening another.
+    if(typeof liveCombatState!=='undefined'&&liveCombatState){scheduleAbyssAutoContinue();return;}
+    var bar=document.getElementById('hpBar'),hp=Number(bar.getAttribute('aria-valuenow')),max=Number(bar.getAttribute('aria-valuemax'));
+    var modal=document.getElementById('sharedModal');
+    if(busy||!inRun||downed||floorType!=='combat'||document.hidden||modal&&modal.classList.contains('open')||!(max>0)||hp/max<.25){stopAbyssAutoContinue('Paused · review the run, then enable again.');return;}
+    abyssDescend();
+  },2000);
 }
-
-function removePathFromQueue() {
-  var container = document.getElementById('pathQueueContainer');
-  if (!container) return;
-  var wraps = container.querySelectorAll('.ab-path-wrap');
-  if (wraps.length <= 3) return;
-  wraps[wraps.length - 1].remove();
-  updateQueueUI();
-}
-
-function updateQueueUI() {
-  var container = document.getElementById('pathQueueContainer');
-  if (!container) return;
-  var wraps = container.querySelectorAll('.ab-path-wrap');
-  wraps.forEach(function(wrap, idx) {
-    wrap.querySelector('span').textContent = 'F' + (curDepth + idx + 1) + ':';
-  });
-  
-  var btnLess = document.getElementById('btnQueueLess');
-  var btnMore = document.getElementById('btnQueueMore');
-  if (btnLess) btnLess.disabled = busy || wraps.length <= 3;
-  if (btnMore) btnMore.disabled = busy || wraps.length >= 20;
-  var target = document.getElementById('autoStopDepth');
-  if (target && (target.dataset.manual !== 'true' || Number(target.value) <= curDepth)) {
-    delete target.dataset.manual;
-    target.value = curDepth + wraps.length;
-  }
-  updateAutoDescendRulesUI();
-}
-
-function updateAutoDescendRulesUI() {
-  var armed = document.getElementById('autoDescendEnabled');
-  var rules = document.getElementById('autoDescendRules');
-  var hp = document.getElementById('autoStopHP');
-  var depth = document.getElementById('autoStopDepth');
-  var legendary = document.getElementById('autoStopLegendary');
-  var summary = document.getElementById('autoStopSummary');
-  if (!armed || !rules || !hp || !depth || !legendary || !summary) return;
-  var enabled = armed.checked;
-  hp.disabled = depth.disabled = legendary.disabled = !enabled;
-  rules.classList.toggle('is-disarmed', !enabled);
-  summary.textContent = enabled
-    ? 'Brake: <' + Math.max(1, Math.min(99, Number(hp.value) || 50)) + '% HP · F' + (Number(depth.value) || curDepth + 1) + (legendary.checked ? ' · Legendary+' : '')
-    : 'Safeguards disarmed';
-}
-
-function getAutoDescendRules() {
-  var enabled = document.getElementById('autoDescendEnabled');
-  if (!enabled || !enabled.checked) return {hp_below_pct:0,target_depth:0,stop_on_legendary:false};
-  return {
-    hp_below_pct: Math.max(1, Math.min(99, Number(document.getElementById('autoStopHP').value) || 50)),
-    target_depth: Math.max(1, Number(document.getElementById('autoStopDepth').value) || curDepth + 1),
-    stop_on_legendary: document.getElementById('autoStopLegendary').checked
-  };
-}
+document.addEventListener('visibilitychange',function(){if(document.hidden&&abyssAutoContinue.enabled)stopAbyssAutoContinue('Paused while the page is hidden.');});
 
 async function playAbyssMultiFloorResults(data) {
   var floors = Array.isArray(data && data.floor_results) ? data.floor_results : [];
@@ -3811,54 +3749,6 @@ async function playAbyssMultiFloorResults(data) {
     if (stage) delete stage.dataset.batchFloor;
   }
   return true;
-}
-
-async function abyssDescendMulti(retryPlan) {
-  if (busy) return;
-  retryPlan=retryPlan&&Array.isArray(retryPlan.paths)?retryPlan:null;
-  var paths=retryPlan?retryPlan.paths.slice():[];
-  if(!retryPlan)document.querySelectorAll('.ab-path-select').forEach(function(el) { paths.push(el.value); });
-  if (paths.length < 3 || paths.length > 20) {
-    abToast('Queue must have 3 to 20 floors.', false);
-    return;
-  }
-
-  var bar = document.getElementById('hpBar');
-  var hp = Number(bar.getAttribute('aria-valuenow')), max = Number(bar.getAttribute('aria-valuemax'));
-  setBusy(true);
-  if (!(await confirmLowHP())) { setBusy(false); return; }
-
-  abyssDescendInFlight=true;updateFloatingDescend('Planned descent · 0/'+paths.length);
-  markBusyBtn('btnDescendMulti'); clearBanner();
-  document.getElementById('abStatus').textContent = 'Descending queue (' + paths.length + ' floors)…';
-
-  var request={paths:paths,stop_rules:retryPlan&&retryPlan.stop_rules?retryPlan.stop_rules:getAutoDescendRules()};
-  var d = await abPost('/api/abyss/descend_multi', request);
-  if (!d.ok) {
-    // Floors cleared before the failure are already persisted — show their
-    // logs/loot and apply the returned run snapshot so depth, escrow, HP and
-    // the queue planner stay in sync with the server instead of drifting.
-    var partialFloorsPlayed = await playAbyssMultiFloorResults(d);
-    if(!partialFloorsPlayed && d.logs && d.logs.length){ await playLog(d.logs, d.loot, d.dura, d.timeline, d); resetMana(); }
-    if(typeof d.depth === 'number') setDepth(d.depth);
-    if(typeof d.escrow === 'number') setEscrow(d.escrow);
-    if(typeof d.hp === 'number') setHP(d.hp, d.max_hp);
-    if(typeof d.gold === 'number') setGold(d.gold);
-    if(typeof d.tokens === 'number') setTokens(d.tokens);
-    if(typeof d.risk === 'number') setRisk(d.risk);
-    renderState();
-    abToast(d.error || 'failed', false, abyssRetryOptions(d, function(){abyssDescendMulti(request);})); setBusy(false); return;
-  }
-
-  d.batch_floors_played = await playAbyssMultiFloorResults(d);
-  await processDescendResult(d, hp, max);
-  if (d.auto_stopped) {
-    var stopLabels = {hp:'HP safety threshold reached',depth:'Target depth reached',legendary:'Legendary+ drop secured'};
-    var stopLabel = stopLabels[d.stop_reason] || 'Auto-stop rule reached';
-    setBanner('⛔ AUTO-DESCEND STOPPED · ' + stopLabel, 'warn');
-    document.getElementById('abStatus').textContent = stopLabel + '. Review the run before continuing.';
-    abToast(stopLabel, true);
-  }
 }
 
 // Floor-choice modal: shown when abyssDescend rolls 2 candidate paths instead
@@ -3913,6 +3803,8 @@ async function processDescendResult(d, hp, max){
     displayAutoFocus(d.auto_focus);
   }
   if(d.noncombat){
+    settleAbyssAutoDescent(d);
+    clearStageFx();
 	 pendingDoubleBonus=0;
     // Rest or Event floor rolled
     floorType = d.floor_type;
@@ -3999,6 +3891,7 @@ async function processDescendResult(d, hp, max){
     drainEscrow(); // UI-148: the cache counter visually crumbles toward zero
   }
   renderState(); setBusy(false);
+  settleAbyssAutoDescent(d);
   scheduleAbyssCockpitFocus(d.victory?'btnDescend':(canRev?'btnRevive':canLastStand?'btnLastStand':'btnConcede'));
 }
 
@@ -4128,6 +4021,7 @@ async function abyssDoubleBonus(){
 
 async function abyssBank(percent,transport,retryCursed){
   if(busy)return;
+  stopAbyssAutoContinue('Stopped for banking.');
   percent=Number(percent)||0;
   transport=!!transport;
   var cursed=arguments.length>=3?!!retryCursed:(percent||transport?false:document.getElementById('cursedBank').checked);

@@ -759,3 +759,33 @@ test('empowered subclass sprites persist through authoritative combat refresh an
     state.version=21+index*2;
   }
 });
+
+
+test('live snapshots refresh overhead, player, boss and owned companion health without replaying events', async ({ page }) => {
+  const state = planningState();
+  state.allies.push({ id: 'pet:animation-tester:0', entity_id: 'pet:owned', name: 'Ember', hp: 400, max_hp: 500, role: 'Mind-controlled ally' });
+  await openCombat(page, state);
+  await expect(page.locator('#petHPBar')).toHaveAttribute('aria-valuenow', '400');
+  const next = structuredClone(state);
+  next.version += 1;
+  next.allies[0].hp = 360;
+  next.allies[1].hp = 120;
+  next.enemies[0].hp = 250;
+  await render(page, next);
+  await expect(unit(page, SELF).locator('.ab-overhead-hp em')).toHaveText('36%');
+  await expect(unit(page, BOSS).locator('.ab-overhead-hp em')).toHaveText('25%');
+  await expect(page.locator('#hpBar')).toHaveAttribute('aria-valuenow', '360');
+  await expect(page.locator('#petHPBar')).toHaveAttribute('aria-valuenow', '120');
+  await expect(page.locator('#bossHPOverlay')).toContainText('250 / 1,000');
+  await render(page, state);
+  await expect(page.locator('#hpBar')).toHaveAttribute('aria-valuenow', '360');
+  await expect(page.locator('#petHPBar')).toHaveAttribute('aria-valuenow', '120');
+  await expect(page.locator('#bossHPOverlay')).toContainText('250 / 1,000');
+  const noPet = structuredClone(next);
+  noPet.version += 1;
+  noPet.allies.pop();
+  await render(page, noPet);
+  await expect(page.locator('#petBar')).toBeHidden();
+  await page.evaluate(() => { floorType = 'rest'; eventState = {}; renderState(); });
+  await expect(page.locator('#bossHPOverlay')).toBeHidden();
+});

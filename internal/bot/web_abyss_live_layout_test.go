@@ -72,10 +72,7 @@ func TestAbyssEventStageAndBossPanelsStayScoped(t *testing.T) {
 	}
 }
 
-func TestAbyssPlannedDescentControlsContract(t *testing.T) {
-	if abyssDescendPlanMin != 3 || abyssDescendPlanMax != 20 {
-		t.Fatalf("planned descent bounds = %d..%d, want 3..20", abyssDescendPlanMin, abyssDescendPlanMax)
-	}
+func TestAbyssAutoContinueControlsContract(t *testing.T) {
 	page, err := webAssets.ReadFile("webassets/abyss.html")
 	if err != nil {
 		t.Fatal(err)
@@ -89,17 +86,17 @@ func TestAbyssPlannedDescentControlsContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	source := string(page)
-	for _, token := range []string{"3-20 paths", "count >= 20", "paths.length > 20", "floor_results", "abyss:batch-floor", "abyssFloatingDescend", "focusAbyssDescend", "autoDescendRules", "stop_rules", "auto_stopped", "Legendary+ secured"} {
+	for _, token := range []string{"autoContinueCount", "Math.min(30", "settleAbyssAutoDescent", "floor_results", "abyss:batch-floor", "abyssFloatingDescend", "focusAbyssDescend", "autoContinueStop", "interactive:true", "scheduleAbyssAutoContinue", "stopAbyssAutoContinue"} {
 		if !strings.Contains(source, token) {
-			t.Errorf("planned descent UI is missing %q", token)
+			t.Errorf("auto-continue UI is missing %q", token)
 		}
 	}
-	for _, token := range []string{".ab-path-queue-editor", "#btnQueueMore", ".ab-floating-descend"} {
+	for _, token := range []string{".ab-floating-descend"} {
 		if !strings.Contains(string(styles), token) {
-			t.Errorf("planned descent CSS is missing %q", token)
+			t.Errorf("descent CSS is missing %q", token)
 		}
 	}
-	for _, token := range []string{".ab-auto-stop", "@media (max-width: 520px)"} {
+	for _, token := range []string{".ab-auto-continue", "@media (max-width: 900px)"} {
 		if !strings.Contains(string(autoStyles), token) {
 			t.Errorf("auto-descend CSS is missing %q", token)
 		}

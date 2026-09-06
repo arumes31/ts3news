@@ -3,7 +3,8 @@
 function updatePetCombatFrame(frame){
   var bar=document.getElementById('petBar'),track=document.getElementById('petHPBar'),fill=document.getElementById('petFill'),name=document.getElementById('petName');
   var maximum=Number(frame&&frame.pet_max)||0;
-  if(!bar||!track||!fill||!name||maximum<=0)return;
+  if(!bar||!track||!fill||!name)return;
+  if(maximum<=0){bar.style.display='none';return;}
   var health=Math.max(0,Math.min(maximum,Number(frame.pet_hp)||0)),percentage=Math.round(health*100/maximum);
   name.textContent=String(frame.pet_name||'Companion');
   fill.style.width=percentage+'%';

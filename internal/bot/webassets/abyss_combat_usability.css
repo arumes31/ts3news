@@ -1,4 +1,102 @@
 /* Combat decisions stay visible; secondary information remains one disclosure away. */
+
+/* Between fights, the overview sizes to the next decision, not the battlefield. */
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: auto;
+  overflow: visible;
+}
+.abyss-command-page .ab-combat-cockpit:not(.has-live-combat) > .abyss-banner.show {
+  position: static;
+  width: auto;
+  margin: 0;
+  padding: 12px 16px;
+  transform: none;
+  box-shadow: none;
+  font: 600 .875rem/1.5 var(--cmd-ui);
+  overflow-wrap: anywhere;
+}
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) > .abyss-stage-row {
+  height: auto;
+  align-items: start;
+}
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .abyss-stage {
+  height: auto;
+  min-height: 0;
+  align-content: start;
+}
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .ab-scene {
+  position: relative;
+  inset: auto;
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 0;
+  gap: 8px;
+  transform: none;
+}
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .ab-scene-top {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+}
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) :is(.ab-biome-chip, .ab-kill-chip, .ab-boss-hp) {
+  max-width: 100%;
+  margin: 0;
+  font: 600 .8125rem/1.5 var(--cmd-ui);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .ab-buffstrip { margin: 0; justify-content: flex-start; flex-wrap: wrap; }
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) :is(.ab-buffstrip, .ab-wavepips):empty { display: none; }
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .ab-petbar { width: 100%; max-width: 420px; margin: 0; }
+.abyss-command-page .abyss-stage > .ab-expiry-warning {
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  font: 400 .8125rem/1.5 var(--cmd-ui);
+  overflow-wrap: anywhere;
+}
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) #abyssPrimaryActions {
+  position: static;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .abyss-controls > * { flex-shrink: 0; }
+.abyss-command-page .ab-combat-cockpit.has-live-combat > .abyss-banner { display: none; }
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .ab-status {
+  margin: 0 0 8px;
+  padding: 0;
+  font: 400 .875rem/1.5 var(--cmd-ui);
+}
+@media (min-width: 901px) {
+  .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .abyss-stage:not(.ab-event-stage) {
+    grid-template-columns: minmax(144px, 196px) minmax(0, 1fr);
+    gap: 12px 16px;
+    padding: 16px;
+  }
+  .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .ab-elevator { display: none; }
+  .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .abyss-side-panel { max-height: 440px; overflow: auto; }
+  .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) > #logWrap {
+    height: auto;
+    min-height: 312px;
+    max-height: 312px;
+    grid-template-rows: auto auto auto minmax(200px, 1fr) auto auto;
+  }
+  .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) > #logWrap .abyss-log { min-height: 200px; max-height: 200px; }
+}
+
+@media (max-width: 900px) {
+  .abyss-command-page .ab-combat-cockpit:not(.has-live-combat) { scroll-margin-top: 112px; }
+  .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .ab-expiry-warning { order: -2; }
+}
+
 .ab-combat-menu { display: none; }
 .ab-combat-drawers { display: flex; flex-wrap: wrap; gap: 6px; }
 .ab-combat-drawer > summary {
@@ -76,3 +174,31 @@
   .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-combat-drawer-body :is(.ab-live-forecast, .ab-live-policy, .ab-live-field) { grid-template-columns: 1fr; }
   .abyss-command-page .ab-combat-cockpit.has-live-combat .ab-combat-drawer-body select { font-size: 16px; }
 }
+
+@media (min-width: 1900px) {
+  body:has(.abyss-command-page) .wrap-wide { max-width: none; width: calc(100% - 40px); }
+  .abyss-command-page .ab-combat-cockpit:not(.has-live-combat) > .abyss-stage-row { grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(240px, 280px); }
+  .abyss-command-page .ab-combat-cockpit:not(.has-live-combat) > .abyss-stage-row > .abyss-side-panel { position: static; width: auto; height: auto; max-height: 520px; grid-column: auto; }
+  .abyss-command-page .ab-combat-cockpit:not(.has-live-combat) > .abyss-stage-row > .abyss-stage { grid-column: auto; }
+}
+
+
+
+@media (min-width: 1900px) {
+  .abyss-command-page .ab-combat-cockpit:not(.has-live-combat) .abyss-stage.ab-event-stage { grid-template-columns: 196px minmax(0, 1fr); }
+  .abyss-command-page .ab-combat-cockpit:not(.has-live-combat) .abyss-stage.ab-event-stage > .ab-noncombat-panel { max-width: none; }
+  .abyss-command-page .ab-event-stage .ab-nc-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 901px) and (min-height: 900px) {
+  .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) :is(.abyss-dial, .abyss-controls) { max-height: 280px; overflow: auto; overscroll-behavior: contain; }
+}
+
+@media (min-width: 1900px) and (min-height: 1100px) {
+  .abyss-command-page .ab-combat-cockpit.has-live-combat { max-height: 980px; }
+  .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) #abyssPrimaryActions { max-width: 1000px; }
+  .abyss-command-page .ab-combat-cockpit.has-live-combat #liveCombat > .ab-pixel-stage { max-height: 540px; }
+}
+
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .ab-event-stage .ab-scene { min-height: 24px; padding-right: 40px; }
+.abyss-command-page .ab-event-stage .ab-event-icon { position: absolute; top: 0; right: 0; margin: 0; font-size: 24px; line-height: 1; }

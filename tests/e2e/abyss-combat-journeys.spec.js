@@ -34,9 +34,9 @@ for (const width of [390, 1440]) {
   });
 }
 
-test('partially committed queue failure keeps completed floors and releases controls', async ({ page }) => {
-  await fulfillAbyssAPI(page, path => path.endsWith('/descend_multi') ? {
-    ok: false, error: 'Encounter service unavailable after two cleared floors.',
+test('partially committed cursed elevator failure keeps completed floors and releases controls', async ({ page }) => {
+  await fulfillAbyssAPI(page, path => path.endsWith('/descend') ? {
+    ok: false, cursed_elevator: true, error: 'Encounter service unavailable after two cleared floors.',
     depth: 14, hp: 760, max_hp: 1000, escrow: 9000, gold: 5000, tokens: 12, risk: 20,
     floor_results: [13, 14].map(depth => ({ depth, hp: 760, max_hp: 1000, victory: true,
       logs: [`Committed floor ${depth}`], loot: [], dura: [], timeline: [] })),
@@ -44,12 +44,12 @@ test('partially committed queue failure keeps completed floors and releases cont
   await page.goto('/abyss?active=1');
   await page.evaluate(() => { window.reduceMotion = true; window.__journeyFloors = [];
     document.addEventListener('abyss:batch-floor', event => window.__journeyFloors.push(event.detail.depth)); });
-  await page.locator('#btnDescendMulti').click();
+  await page.locator('#btnDescend').click();
   await expect.poll(() => page.evaluate(() => window.__journeyFloors)).toEqual([13, 14]);
   await expect(page.locator('#depthNum')).toHaveText('14');
   await expect.poll(() => page.evaluate(() => ({ depth: curDepth, escrow: curEscrow, busy })) )
     .toEqual({ depth: 14, escrow: 9000, busy: false });
-  await expect(page.locator('#btnDescendMulti')).toBeEnabled();
+  await expect(page.locator('#btnDescend')).toBeEnabled();
   await expect(page.locator('#abToastHost')).toContainText('Encounter service unavailable');
-  await expect(page.locator('#pathQueueContainer .ab-path-wrap').first()).toContainText('F15:');
+  await expect(page.locator('#autoContinueEnabled')).not.toBeChecked();
 });

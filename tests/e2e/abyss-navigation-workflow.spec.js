@@ -1,27 +1,15 @@
 const { test, expect } = require('@playwright/test');
 
-test('floor planner caps at 20 while its add control stays pinned', async ({ page }) => {
+test('auto-continue replaces the floor planner and caps normal descents at 30', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/abyss?active=1');
-
-  await page.evaluate(() => {
-    window.curDepth = 7;
-    window.busy = false;
-    buildPathQueuePlanner();
-  });
-  const add = page.locator('#btnQueueMore');
-  const initialX = await add.evaluate(node => node.getBoundingClientRect().x);
-
-  await page.evaluate(() => {
-    for (let index = 0; index < 30; index += 1) addPathToQueue();
-  });
-
-  await expect(page.locator('#pathQueueContainer .ab-path-select')).toHaveCount(20);
-  await expect(add).toBeDisabled();
-  await expect(add).toHaveCSS('position', 'sticky');
-  expect(await add.evaluate(node => node.getBoundingClientRect().x)).toBe(initialX);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  await expect(page.locator('#multiQueuePlanner')).toHaveCount(0);
+  await expect(page.locator('#autoContinueEnabled')).not.toBeChecked();
+  await page.locator('#autoContinueCount').fill('99');
+  await page.locator('#autoContinueEnabled').check();
+  await expect(page.locator('#autoContinueCount')).toHaveValue('30');
+  await expect(page.locator('#autoContinueStatus')).toContainText('press Descend');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
 });
 
 test('successful shop and forge actions return focus without changing scroll position', async ({ page }) => {
@@ -197,7 +185,7 @@ test('desktop cockpit shows a useful combat-log window before scrolling', async 
       controls: box('abyssControls'),
       descend: box('btnDescend'),
       descendDisplay: getComputedStyle(document.getElementById('btnDescend')).display,
-      planner: box('multiQueuePlanner'),
+      planner: box('abyssAutoContinue'),
     };
   });
   expect(actionHierarchy.actions.height).toBeGreaterThanOrEqual(36);
@@ -263,7 +251,7 @@ test('entry reload marker returns keyboard focus to Descend', async ({ page }) =
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
 });
 
-test('wide cockpit keeps the Armoury fixed in the left viewport gutter', async ({ page }) => {
+test('wide cockpit places Armoury beside the stage without unused page gutters', async ({ page }) => {
   await page.setViewportSize({ width: 1900, height: 1100 });
   await page.goto('/abyss?active=1');
 
@@ -272,8 +260,10 @@ test('wide cockpit keeps the Armoury fixed in the left viewport gutter', async (
     const stage = document.getElementById('abyssStage').getBoundingClientRect();
     return { position: getComputedStyle(document.querySelector('.abyss-side-left')).position, armoury, stage };
   });
-  expect(layout.position).toBe('fixed');
-  expect(layout.armoury.left).toBeLessThanOrEqual(12);
+  expect(layout.position).toBe('static');
+  expect(layout.armoury.left).toBeGreaterThanOrEqual(0);
+  expect(layout.armoury.left).toBeLessThan(60);
+  expect(layout.stage.width).toBeGreaterThan(950);
   expect(layout.armoury.right).toBeLessThan(layout.stage.left);
 });
 

@@ -38,6 +38,7 @@
   </div>
   <div class="ab-live-command">
     <div class="ab-live-command-head">
+      <button type="button" class="ab-live-tool" id="autoContinueLiveStop" onclick="stopAbyssAutoContinue('Stopped. Current combat will finish.');" hidden>Stop auto-continue</button>
       <div class="ab-live-queue" id="liveQueue" role="status" aria-live="polite" aria-label="Queued combat action" data-state="idle">Choose an action, then select a target.</div>
       <span class="ab-action-budget" id="liveActionBudget" role="status" title="Server-authoritative action changes remaining this round" hidden></span>
       <button class="ab-timebank" id="liveTimeBank" type="button" onclick="spendLiveTimeBank()" disabled>+2s</button>
@@ -831,6 +832,10 @@ function renderLiveCombat(state,preserveFeed){
   renderLiveWeakpoints(state);
   renderLivePixelStage(state);
   renderLiveActionBar(state);
+  var self=(state.allies||[]).find(function(ally){return ally.is_self;});
+  var petPrefix=self?'pet:'+String(self.id).replace(/^ally:/,'')+':':'';
+  var pet=(state.allies||[]).find(function(ally){return petPrefix&&String(ally.id).indexOf(petPrefix)===0&&!ally.hp_hidden;});
+  if(typeof updatePetCombatFrame==='function')updatePetCombatFrame(pet?{pet_name:pet.name,pet_hp:pet.hp,pet_max:pet.max_hp}:{});
   var own=(state.allies||[]).find(function(ally){return ally.is_self;})||{};
   if(typeof own.hp==='number'&&typeof own.max_hp==='number')setHP(own.hp,own.max_hp);
   if(typeof own.mana==='number'&&typeof own.max_mana==='number')setMana(own.mana,own.max_mana);
@@ -964,6 +969,7 @@ async function finishLiveCombat(state){
   try{sessionStorage.setItem('abyssLastReplaySession',state.session_id||'');}catch(e){}
   if(!result.ok){
     dismissFinishedLiveCombat(completedSession);
+    stopAbyssAutoContinue('Stopped · combat failed.');
     abToast(result.error||'Combat failed',false); setBusy(false); return;
   }
   document.getElementById('liveRound').textContent='COMBAT COMPLETE';

@@ -42,8 +42,8 @@ func TestAbyssStageHUDContracts(t *testing.T) {
 		"ab_hud_order", "ab_threat_history", "abyssFloorAverage",
 		"ab_boss_hp_mode", "abyssClearRating", "ab_boss_bookmarks",
 		".ab-wavepips .ab-pip:nth-child", "abyssPetStatus", "data-loyalty",
-		"ab-expiring", "Damage taken this fight", "bindLongPress",
-		"Five-floor descent", "ab-slot-mismatch", "contextmenu",
+		"ab-expiring", "Damage taken this fight", "bossHPCurrent",
+		"ab-slot-mismatch", "contextmenu",
 		"ab_run_active_ms", "ab-mana-segmented", "Run depth ",
 		"Cache split", "ab-low-hp",
 	} {
