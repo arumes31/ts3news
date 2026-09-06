@@ -226,3 +226,17 @@ func TestAbyssCoreRiskAssetsAndTabs(t *testing.T) {
 		t.Fatal("round fatigue is not wired into combat")
 	}
 }
+
+func TestAbyssFranticBankFeePreservesHighCache(t *testing.T) {
+	t.Parallel()
+	if got := abyssFranticBankFee(math.MaxInt64, 1, 100); got != 461_168_601_842_738_790 {
+		t.Fatalf("frantic fee = %d, want 461168601842738790", got)
+	}
+}
+
+func TestAbyssEchoBankSeedPreservesHighPayout(t *testing.T) {
+	t.Parallel()
+	if got := abyssEchoBankSeed(math.MaxInt64, true); got != 922_337_203_685_477_580 {
+		t.Fatalf("echo seed = %d, want 922337203685477580", got)
+	}
+}

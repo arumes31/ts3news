@@ -165,7 +165,7 @@ func abyssFranticBankFee(cache int64, currentHP, maxHP int) int64 {
 	if cache <= 0 || maxHP <= 0 || currentHP*100 >= maxHP*abyssFranticHPThresholdPct {
 		return 0
 	}
-	return cache * abyssFranticFeePct / 100
+	return abyssGoldPercent(cache, abyssFranticFeePct)
 }
 
 func abyssInsurancePercentValid(percent int) bool {
@@ -202,7 +202,7 @@ func abyssAnchorRefund(refund, escrow int64, active bool) int64 {
 }
 
 func abyssEchoBankSeed(payout int64, doubled bool) int64 {
-	seed := max(payout, int64(0)) * 5 / 100
+	seed := abyssGoldPercent(payout, 5)
 	if doubled {
 		seed *= 2
 	}
@@ -230,7 +230,7 @@ func recordAbyssRaffleEntry(tx *sql.Tx, uid string, fee int64, now time.Time) er
 	day := abyssRaffleDay(now)
 	if fee > 0 {
 		if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-			ON CONFLICT (key) DO UPDATE SET value=(COALESCE(NULLIF(app_meta.value, '')::bigint, 0) + $3)::text`,
+			ON CONFLICT (key) DO UPDATE SET value=LEAST(9223372036854775807::numeric, COALESCE(NULLIF(app_meta.value, '')::numeric, 0) + $3)::bigint::text`,
 			"abyss_raffle_pot_"+day, itoa64(fee), fee); err != nil {
 			return err
 		}

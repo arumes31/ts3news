@@ -13,6 +13,7 @@ monte_carlo_simulation.py
 simulation_requirements.md
 
 # Python cache/venv
+.cache/
 __pycache__/
 *.pyc
 venv/
@@ -26,6 +27,7 @@ temp/
 .gemini_security/
 .qodo/
 .qwen/
+.impeccable/
 .idea/
 .vscode/
 graphify-out/
@@ -43,9 +45,11 @@ graphify-out/
 /chaos_sim.exe
 *.exe
 
-
 # Generated icons
 data/icons/
+
+# Generated documentation and review artifacts
+/docs/
 
 # Container host bind-mount data (docker-compose host volumes: postgres data,
 # TS3AudioBot config/db, and the Idely client profile). Runtime state, not source.
@@ -87,6 +91,8 @@ final_fix.py
 fix_script.py
 plans/
 *.md
+!/SECURITY.md
+!/DEPLOYMENT.md
 
 .claudeignore
 scripts/

@@ -1,69 +1,54 @@
 {{define "armory"}}{{template "head" .}}
+<link rel="stylesheet" href="{{asset "/static/armory.css"}}">
 <article class="portal-page armory-console" aria-labelledby="armoryTitle">
 <header class="portal-masthead armory-masthead">
   <div class="portal-masthead-copy">
-    <p class="portal-kicker">Loadout / pre-fight readiness</p>
     <h1 id="armoryTitle">Armoury</h1>
-    <button type="button" class="ghost xs armory-number-toggle" data-item-number-toggle onclick="AbyssItemNumbers.setMode(AbyssItemNumbers.getMode()==='compact'?'exact':'compact')">Numbers: exact</button>
-    <p class="portal-lede">Read the build, catch maintenance risks, and inspect every equipped combat effect before descending.</p>
+    <p class="armory-character"><strong>{{.U.Nickname}}</strong> <span>{{.U.LevelName}} · Level {{.U.Level}}{{if gt .U.Prestige 0}} · Prestige {{.U.Prestige}}{{end}}</span></p>
   </div>
-  <dl class="portal-facts" aria-label="Delver identity">
-    <div><dt>Delver</dt><dd>{{.U.Nickname}}</dd></div>
-    <div><dt>Rank</dt><dd>{{.U.LevelName}} · Lvl {{.U.Level}}</dd></div>
-    {{if gt .U.Prestige 0}}<div><dt>Prestige</dt><dd>★ {{.U.Prestige}}</dd></div>{{end}}
-    <div><dt>Gear score</dt><dd data-item-number="{{.U.GearScore}}">{{comma .U.GearScore}}</dd></div>
-  </dl>
+  <div class="armory-summary-tools">
+    <span>Gear score <strong data-item-number="{{.U.GearScore}}">{{.U.GearScore}}</strong></span>
+    <button type="button" class="ghost xs armory-number-toggle" data-item-number-toggle onclick="AbyssItemNumbers.setMode(AbyssItemNumbers.getMode()==='compact'?'exact':'compact')">Numbers: exact</button>
+  </div>
 </header>
 
 <section class="armory-readiness" role="region" aria-labelledby="readinessTitle">
-  <div class="armory-identity" aria-label="Current delver">
-    <div class="hero-portrait" aria-hidden="true"><span class="gi" style="--gi:url({{iconURL "checked-shield"}})"></span></div>
-    <div>
-      <p class="portal-kicker">Active loadout</p>
-      <h2>{{.U.Nickname}}</h2>
-      <div class="hero-sub">
-        <span class="rank">{{.U.LevelName}}</span>
-        <span class="lvl">Level {{.U.Level}}</span>
-        {{if gt .U.Prestige 0}}<span class="prestige">Prestige {{.U.Prestige}}</span>{{end}}
-      </div>
-    </div>
-  </div>
   <div class="readiness-vitals">
-    <div class="portal-section-heading">
-      <p class="portal-kicker">Live resources</p>
-      <h2 id="readinessTitle">Combat readiness</h2>
-    </div>
-    <div class="bar hp" role="progressbar" aria-label="Current health" aria-valuetext="{{comma .U.CurrentHP}} of {{comma .U.MaxHP}} health" aria-valuenow="{{.U.CurrentHP}}" aria-valuemin="0" aria-valuemax="{{.U.MaxHP}}">
+    <h2 id="readinessTitle">Combat readiness</h2>
+    <div class="armory-resource-grid">
+    <div class="bar hp" role="progressbar" aria-label="Current health" aria-valuetext="{{.U.CurrentHP}} of {{.U.MaxHP}} health" aria-valuenow="{{.U.CurrentHP}}" aria-valuemin="0" aria-valuemax="{{.U.MaxHP}}" data-armory-resource="health">
       <span style="width:{{if .U.MaxHP}}{{mulpct .U.CurrentHP .U.MaxHP}}{{else}}0{{end}}%"></span>
-      <span class="bar-label">HP {{comma .U.CurrentHP}} / {{comma .U.MaxHP}}</span>
+      <span class="bar-label">HP <b data-item-number="{{.U.CurrentHP}}">{{.U.CurrentHP}}</b> / <b data-item-number="{{.U.MaxHP}}">{{.U.MaxHP}}</b></span>
+    </div>
+    <div class="bar xp" role="progressbar" aria-label="Level progress" aria-valuetext="{{.U.XPIntoLevel}} of {{.U.XPForNext}} experience" aria-valuenow="{{.U.XPIntoLevel}}" aria-valuemin="0" aria-valuemax="{{.U.XPForNext}}" data-armory-resource="experience">
+      <span style="width:{{mulpct .U.XPIntoLevel .U.XPForNext}}%"></span>
+      <span class="bar-label">XP <b data-item-number="{{.U.XPIntoLevel}}">{{.U.XPIntoLevel}}</b> / <b data-item-number="{{.U.XPForNext}}">{{.U.XPForNext}}</b></span>
     </div>
     <div class="readiness-capacity">
       <span>Mana capacity</span>
-      <strong data-item-number="{{.U.MaxMana}}">{{comma .U.MaxMana}}</strong>
+      <strong data-item-number="{{.U.MaxMana}}">{{.U.MaxMana}}</strong>
     </div>
-    <div class="bar xp" role="progressbar" aria-label="Level progress" aria-valuetext="{{comma .U.XPIntoLevel}} of {{comma .U.XPForNext}} experience" aria-valuenow="{{.U.XPIntoLevel}}" aria-valuemin="0" aria-valuemax="{{.U.XPForNext}}">
-      <span style="width:{{mulpct .U.XPIntoLevel .U.XPForNext}}%"></span>
-      <span class="bar-label">XP {{comma .U.XPIntoLevel}} / {{comma .U.XPForNext}}</span>
     </div>
   </div>
-  <dl class="readiness-facts" aria-label="Core combat facts">
-    <div><dt>Power</dt><dd><b data-item-number="{{.U.Stats.STR}}">{{comma .U.Stats.STR}}</b><span>Strength</span></dd></div>
-    <div><dt>Guard</dt><dd><b data-item-number="{{.U.Stats.DEF}}">{{comma .U.Stats.DEF}}</b><span>Defense</span></dd></div>
-    <div><dt>Vitality</dt><dd><b data-item-number="{{.U.Stats.HP}}">{{comma .U.Stats.HP}}</b><span>Max HP</span></dd></div>
-  </dl>
 </section>
+
+<nav class="armory-sections" aria-label="Armoury sections">
+  <a href="#loadoutTitle">Equipment</a><a href="#attributesTitle">Attributes</a>
+  {{if or .Pets .PlayerTitle .Artifact .Ultimates}}<a href="#supportTitle">Tactical kit</a>{{end}}
+  <a href="#skillsTitle">Skills</a>
+</nav>
 
 <div id="armoryStatus" class="portal-status" role="status" aria-live="polite"></div>
 
 <div class="armory-layout">
 <section class="armory-equipment" role="region" aria-labelledby="loadoutTitle">
   <header class="portal-section-head">
-    <div><p class="portal-kicker">Primary workspace</p><h2 id="loadoutTitle">Equipped loadout</h2></div>
-    <p>Inspect gear for exact stats, combat specials, provenance, and maintenance state.</p>
+    <h2 id="loadoutTitle" tabindex="-1">Equipped loadout</h2>
+    <div class="armory-actions"><a href="/inventory#inventoryGear">Manage equipment</a>{{if .EnableAbyss}}<a href="/abyss#btnForgeRepairAll">Review repairs</a>{{end}}</div>
   </header>
 <div class="gear-grid">
   {{range .Slots}}
-  <div class="gear-cell {{if .Empty}}empty{{else if .InspectJSON}}item-inspect-trigger{{end}}"{{if .InspectJSON}} data-item-inspect="{{.InspectJSON}}" tabindex="0" role="button" aria-label="Inspect {{.Name}}"{{end}}>
+  <div class="gear-cell {{if .Empty}}empty{{else if .InspectJSON}}item-inspect-trigger{{end}}" data-slot="{{.Slot}}"{{if .InspectJSON}} data-item-inspect="{{.InspectJSON}}" data-item-durability="{{.Durability}}" data-item-broken-in="{{.BrokenIn}}" tabindex="0" role="button" aria-label="Inspect {{.Name}}"{{if gt .MaxDurability 0}} aria-describedby="armoryDurability-{{.Slot}}"{{end}}{{end}}>
     <div class="gear-slot">
       {{if .Empty}}
       <span class="gi slot-gi"
@@ -71,16 +56,16 @@
       {{else}}<span class="item-art item-art-sm" data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span>{{end}}
       {{if and (not .Empty) .RarityIcon}}<span class="gi slot-gi"
         style="--gi:url({{iconURL .RarityIcon}});color:{{.RarityColor}}"></span>{{end}}
-      {{.Slot}}
+      {{if .Empty}}<a href="/inventory?slot={{.Slot}}#inventoryGear" aria-label="Find equipment for {{.Slot}}">{{.Slot}}</a>{{else}}{{.Slot}}{{end}}
     </div>
     {{if .Empty}}
-    <div class="gear-name muted">— empty —</div>
+    <div class="gear-name muted">Empty</div>
     {{else}}
     <div class="gear-name" style="color:{{.RarityColor}}">{{.Name}}</div>
     {{if .AppearanceName}}<div class="gear-meta" title="Cosmetic only">◈ Appearance: {{.AppearanceName}}</div>{{end}}
-    {{if .Unidentified}}<div class="gear-meta">Unknown · combat stats hidden and inactive</div>{{else}}<div class="gear-meta"{{if .Provenance}} title="{{.Provenance}}"{{end}}>{{.Rarity}} · CR <span data-item-number="{{printf "%.0f" .CR}}">{{printf "%.0f" .CR}}</span> · GS <span data-item-number="{{.Score}}">{{comma .Score}}</span></div>{{end}}
-    {{if gt .MaxDurability 0}}<div class="gear-durability{{if eq .Durability 0}} is-broken{{end}}">
-      <span>{{if eq .Durability 0}}Broken{{else}}Durability{{end}}</span>
+    {{if .Unidentified}}<div class="gear-meta">Unknown · combat stats hidden and inactive</div>{{else}}<div class="gear-meta"{{if .Provenance}} title="{{.Provenance}}"{{end}}>{{.Rarity}} · CR <span data-item-number="{{.CR}}" data-item-number-digits="1">{{printf "%.1f" .CR}}</span> · GS <span data-item-number="{{.Score}}">{{comma .Score}}</span></div>{{end}}
+    {{if gt .MaxDurability 0}}<div id="armoryDurability-{{.Slot}}" class="gear-durability{{if eq .Durability 0}} is-broken{{end}}">
+      <span>{{if eq .Durability 0}}Broken{{else}}Condition{{end}}</span>
       <strong>{{.Durability}} / {{.MaxDurability}} durability</strong>
     </div>{{end}}
     {{if and (not .Unidentified) .Stats}}<div class="gear-stats">{{range .Stats}}<span class="gstat">{{.Label}} <b data-item-number="{{.Value}}" data-item-number-sign="always">{{if gt .Value 0}}+{{end}}{{.Value}}</b></span>{{end}}</div>{{end}}
@@ -94,6 +79,7 @@
     {{if .EffectDesc}}<div class="gear-fxdesc">{{.EffectDesc}}</div>{{end}}
     {{if .InspectJSON}}<div class="item-inspect-hint">Inspect complete item record</div>{{end}}
     {{if .Unidentified}}<button type="button" class="primary identify-btn" aria-label="Review identification cost for {{.Slot}}" onclick="identifyGear('{{.Slot}}', this)">Review identify cost</button>{{end}}
+    <div class="armory-actions armory-gear-actions"><a href="/inventory?slot={{.Slot}}#inventoryGear">Manage {{.Slot}}</a>{{if and $.EnableAbyss (gt .MaxDurability .Durability)}}<a href="/abyss#btnForgeRepairAll">Review repairs</a>{{end}}</div>
     {{end}}
   </div>
   {{end}}
@@ -102,8 +88,7 @@
 
 <section class="armory-telemetry" aria-labelledby="attributesTitle">
   <header class="portal-section-head">
-    <div><p class="portal-kicker">Build telemetry</p><h2 id="attributesTitle">Attributes</h2></div>
-    <p>Exact combat inputs, grouped by the decisions they inform.</p>
+    <h2 id="attributesTitle" tabindex="-1">Attributes</h2>
   </header>
   <div class="stats-grid">
     <div class="stat armory-stat-primary"><span class="gi" style="--gi:url({{iconURL "biceps"}})"></span><b data-item-number="{{.U.Stats.STR}}">{{comma .U.Stats.STR}}</b><span>Strength</span></div>
@@ -121,20 +106,20 @@
 
 {{if or .Pets .PlayerTitle .Artifact .Ultimates}}
 <section class="armory-support" aria-labelledby="supportTitle">
-<header class="portal-section-head"><div><p class="portal-kicker">Battle support</p><h2 id="supportTitle">Tactical kit</h2></div><p>Automatic companions, persistent modifiers, and turn-triggered finishers.</p></header>
+<header class="portal-section-head"><h2 id="supportTitle" tabindex="-1">Tactical kit</h2><p>Companions, modifiers, and ultimates.</p></header>
 {{if .Pets}}
 <h3>Combat Pets <span class="muted small">— {{len .Pets}} captured via Mind Control, fighting at your side</span></h3>
 <div class="loadout-grid">
   {{range .Pets}}
   <div class="loadout-card pet">
-    <div class="lc-kind">🐾 {{.Type}} · Lv {{comma .Level}}</div>
+    <div class="lc-kind">🐾 {{.Type}} · Lv <b data-item-number="{{.Level}}">{{.Level}}</b></div>
     <div class="lc-name">{{.Name}}</div>
     <div class="lc-tags">
-      <span class="gtag time">❤️ {{comma .HP}}{{if .MaxHP}} / {{comma .MaxHP}}{{end}}</span>
-      <span class="gtag fx">STR {{comma .STR}}</span>
-      <span class="gtag fx">DEF {{comma .DEF}}</span>
-      <span class="gtag fx">SPD {{comma .SPD}}</span>
-      <span class="gtag xp">GS {{comma .Score}}</span>
+      <span class="gtag time">❤️ <b data-item-number="{{.HP}}">{{.HP}}</b>{{if .MaxHP}} / <b data-item-number="{{.MaxHP}}">{{.MaxHP}}</b>{{end}}</span>
+      <span class="gtag fx">STR <b data-item-number="{{.STR}}">{{.STR}}</b></span>
+      <span class="gtag fx">DEF <b data-item-number="{{.DEF}}">{{.DEF}}</b></span>
+      <span class="gtag fx">SPD <b data-item-number="{{.SPD}}">{{.SPD}}</b></span>
+      <span class="gtag xp">GS <b data-item-number="{{.Score}}">{{.Score}}</b></span>
     </div>
   </div>
   {{end}}
@@ -189,9 +174,9 @@
 </section>
 {{end}}
 
-{{if .Skills}}
 <section class="armory-skills" aria-labelledby="skillsTitle">
-<header class="portal-section-head"><div><p class="portal-kicker">Ability record</p><h2 id="skillsTitle">Skills <span class="muted small">— {{len .Skills}} learned</span></h2></div><p>Rank progress and the exact effects available to this build.</p></header>
+<header class="portal-section-head"><h2 id="skillsTitle" tabindex="-1">Skills <span class="muted small">· {{len .Skills}} learned</span></h2>{{if .EnableAbyss}}<div class="armory-actions"><a href="/abyss/tree">Open Skill Web</a></div>{{end}}</header>
+{{if .Skills}}
 <div class="skill-grid">
   {{range .Skills}}
   <div class="skill-card" style="border-color:{{.Rarity.Color}}">
@@ -206,8 +191,9 @@
   </div>
   {{end}}
 </div>
-</section>
+{{else}}<p class="muted">No skills learned yet.{{if .EnableAbyss}} Explore the <a href="/abyss/tree">Skill Web</a> to plan your build.{{end}}</p>
 {{end}}
+</section>
 </article>
 <script data-cfasync="false">
 const armoryForgeQuotesEnabled={{if .ForgeWorkbenchEnabled}}true{{else}}false{{end}};
@@ -232,18 +218,30 @@ async function identifyGear(slot, btn){
   const status=document.getElementById('armoryStatus');
   btn.disabled=true;
   btn.textContent=armoryForgeQuotesEnabled?'Checking exact cost…':'Preparing identification…';
-  status.textContent=armoryForgeQuotesEnabled?'Requesting a signed identification quote.':'Using Forge rollback mode.';
+  status.textContent=armoryForgeQuotesEnabled?'Checking the identification price. No gold is spent until you confirm.':'Preparing identification. You can review the maximum cost before confirming.';
   let commitUnconfirmed=false;
+  let quoteFailed=false;
   try{
     let quote={};
-    let prompt='Exact-price review is temporarily unavailable while Forge is in rollback mode. Identification costs at most 1,000 gold and is free if today’s allowance remains. No charge is made until you confirm.';
+    let prompt='Exact-price review is temporarily unavailable. Identification costs at most 1,000 gold and is free if today’s allowance remains. No charge is made until you confirm.';
     let cost=null;
     if(armoryForgeQuotesEnabled){
-      const quoteResponse=await fetch('/api/abyss/forge/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'identify',slot:slot,parameters:{}})});
-      const quoted=await quoteResponse.json();
-      if(!quoteResponse.ok||!quoted.ok)throw new Error(quoted.error||'Identification quote unavailable');
-      quote=quoted.quote||{};
-      cost=Number(quote.cost&&quote.cost.gold||0);
+      const controller=new AbortController();
+      const timeout=setTimeout(function(){controller.abort();},10000);
+      let failureMessage='The identification price could not be loaded. No gold was spent. Try checking the price again.';
+      try{
+        const quoteResponse=await fetch('/api/abyss/forge/quote',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'identify',slot:slot,parameters:{}})});
+        if(quoteResponse.status===401||quoteResponse.status===403)failureMessage='Your sign-in could not be verified. No gold was spent. Sign in again, then check the price.';
+        if(quoteResponse.status===429)failureMessage='Too many price requests. No gold was spent. Wait a moment, then try again.';
+        if(!quoteResponse.ok)throw new Error();
+        const quoted=await quoteResponse.json();
+        quote=quoted&&quoted.quote;
+        if(!quoted||!quoted.ok||!quote||!quote.cost||typeof quote.cost.gold!=='number'||!Number.isSafeInteger(quote.cost.gold)||quote.cost.gold<0||typeof quote.token!=='string'||!quote.token||typeof quote.confirmation_phrase!=='string'||!quote.confirmation_phrase)throw new Error();
+        cost=quote.cost.gold;
+      }catch(_){
+        quoteFailed=true;
+        throw new Error(failureMessage);
+      }finally{clearTimeout(timeout);}
       prompt=cost===0
         ? 'Your daily free identification is available. Reveal this item now?'
         : 'Identify this item for exactly '+cost.toLocaleString()+' gold? Its hidden rarity and stats will be revealed only after confirmation.';
@@ -274,7 +272,9 @@ async function identifyGear(slot, btn){
     status.textContent=error&&error.message?error.message:'Identification failed. Try again.';
     const returnTarget=commitUnconfirmed?lockArmoryForVerification(btn):btn;
     var p=document.createElement('p');p.textContent=status.textContent;
-    openModal('<h3>Identification unavailable</h3>'+p.outerHTML+'<div class="modal-actions"><button type="button" onclick="closeModal()">Close</button></div>',{returnFocus:returnTarget});
+    openModal('<h3>Identification unavailable</h3>'+p.outerHTML+'<div class="modal-actions">'+(quoteFailed?'<button type="button" data-armory-retry-quote>Check price again</button>':'')+'<button type="button" onclick="closeModal()">Close</button></div>',{returnFocus:returnTarget});
+    const retry=document.querySelector('[data-armory-retry-quote]');
+    if(retry)retry.addEventListener('click',function(){closeModal();identifyGear(slot,btn);},{once:true});
   }finally{
     if(!commitUnconfirmed){
       btn.disabled=false;
@@ -285,4 +285,15 @@ async function identifyGear(slot, btn){
 }
 </script>
 {{template "abyssItemNumbersJS" .}}
+<script data-cfasync="false">
+(function(){
+  function describeResources(){
+    document.querySelectorAll('[data-armory-resource]').forEach(function(bar){
+      bar.setAttribute('aria-valuetext',AbyssItemNumbers.exact(bar.getAttribute('aria-valuenow'))+' of '+AbyssItemNumbers.exact(bar.getAttribute('aria-valuemax'))+' '+bar.dataset.armoryResource);
+    });
+  }
+  describeResources();
+  document.addEventListener('abyssitemnumberschange',describeResources);
+})();
+</script>
 {{template "foot" .}}{{end}}

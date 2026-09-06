@@ -13,6 +13,7 @@ func commitAbyssVictoryRunState(
 	uid string,
 	escrow int64,
 	flags map[string]int64,
+	rewards ...func(*sql.Tx) error,
 ) error {
 	tx, err := database.Begin()
 	if err != nil {
@@ -30,6 +31,11 @@ func commitAbyssVictoryRunState(
 	}
 	if err := saveAbyssRunFlagsInTx(tx, uid, flags); err != nil {
 		return fmt.Errorf("save victory flags: %w", err)
+	}
+	for _, reward := range rewards {
+		if err := reward(tx); err != nil {
+			return fmt.Errorf("save victory reward: %w", err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit victory state: %w", err)

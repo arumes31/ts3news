@@ -30,12 +30,14 @@ function showAbyssEntryStep(step){
   if(!abyssEntryPanels[step])step='tier';
   abyssEntryStep=step;
   Object.keys(abyssEntryPanels).forEach(function(key){
-    abyssEntryPanels[key].forEach(function(id){var panel=document.getElementById(id);if(panel)panel.hidden=key!==step;});
+    abyssEntryPanels[key].forEach(function(id){var panel=document.getElementById(id);if(panel){panel.dataset.entryPanel=key;panel.hidden=key!==step;}});
   });
   document.querySelectorAll('[data-entry-step]').forEach(function(button){
     var active=button.dataset.entryStep===step;
     if(active)button.setAttribute('aria-current','step');else button.removeAttribute('aria-current');
     button.setAttribute('aria-selected',active?'true':'false');
+    button.tabIndex=active?0:-1;
+    button.setAttribute('aria-controls',abyssEntryPanels[button.dataset.entryStep].join(' '));
   });
   renderAbyssEntrySummary();
 }
@@ -156,6 +158,8 @@ function renderAbyssEntrySummary(){
 }
 function initAbyssEntryPlanner(){
   var planner=document.getElementById('abyssEntryPlanner');if(!planner)return;
+  var summary=document.getElementById('abyssEntrySummary'),actions=document.getElementById('abyssPrimaryActions');
+  if(summary&&actions)actions.before(summary);
   renderAbyssEntrySetupAvailability();
   document.querySelectorAll('#tierPicker input,#startPicker input,#startPicker select,#buildPicker select,#pactPicker input,#pactPicker select,#pactPicker input[type=range]').forEach(function(control){
     control.addEventListener('change',renderAbyssEntrySummary);

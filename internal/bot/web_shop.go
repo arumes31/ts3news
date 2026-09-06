@@ -2,27 +2,32 @@ package bot
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"ts3news/internal/content"
 	"ts3news/internal/leveling"
 )
 
-// Exchange rates: spend 10 gold to gain 1 XP; spend 10 XP to gain 5 gold
+// Exchange rates: initially spend 10,000 gold to gain 1 XP; spend 10 XP to gain 5 gold
 // (i.e. 2 XP per gold).
 const (
-	goldPerXP     = 10 // gold spent to gain 1 XP
-	xpPerGold     = 2  // XP spent to gain 1 gold (10 XP → 5 gold)
+	goldPerXP     = 10_000 // base gold spent to gain 1 XP, +10% per weekly purchase
+	xpPerGold     = 2      // XP spent to gain 1 gold (10 XP → 5 gold)
 	shopStockSize = 48
 )
 
-// gearPrice is the fair buy price of a gear piece, scaled by combat power and
-// rarity. Vendor/sell value is half this.
+// gearPrice is the reference gear value, scaled by combat power and rarity.
+// Vendor/sell value is half this; shop-only rarity premiums live in shopGearPrice.
 func gearPrice(g content.Gear) int64 {
-	p := int64(g.CombatRating()*12+float64(g.Stats.Score())*6) * (int64(g.Rarity) + 1)
+	base := g.CombatRating()*12 + float64(g.Stats.Score())*6
+	multiplier := max(int64(g.Rarity)+1, 1)
+	if base >= float64(math.MaxInt64/multiplier) {
+		return math.MaxInt64
+	}
+	p := int64(base) * multiplier
 	if p < 25 {
 		p = 25
 	}
@@ -72,6 +77,9 @@ func shopWindow(now time.Time) (seed int64, endsAt time.Time) {
 
 type shopItemView struct {
 	itemAtlasView
+	gear            content.Gear
+	RarityBoosted   bool
+	EternalBonusPct string
 
 	ID          string
 	Name        string
@@ -85,17 +93,12 @@ type shopItemView struct {
 	IsUpgrade   bool
 	Featured    bool // the Mythic/Divine showcase relic (priced in the millions)
 	Effects     []string
+	Stats       []statKV
+	Specials    []itemSpecialView
+	XPBonusPct  int
+	Element     string
 	InspectJSON string
-}
-
-// featuredShopPrice is the (millions-scale) price of the shop's Mythic/Divine
-// showcase relic, rising with its rarity and rolled combat power.
-func featuredShopPrice(g content.Gear) int64 {
-	base := int64(2_000_000)
-	if g.Rarity >= content.RarityDivine {
-		base = 5_000_000
-	}
-	return base + int64(g.CombatRating()*1000) + int64(g.Stats.Score())*500
+	Comparison  shopComparisonView
 }
 
 // featuredShopView builds the shop card for the seed's showcase relic.
@@ -110,6 +113,7 @@ func featuredShopView(seed int64, equippedGear map[string]content.Gear) shopItem
 		effs = append(effs, string(e))
 	}
 	return shopItemView{
+		gear:          g,
 		itemAtlasView: gearView.itemAtlasView,
 		ID:            g.ID,
 		Name:          g.Name,
@@ -119,40 +123,47 @@ func featuredShopView(seed int64, equippedGear map[string]content.Gear) shopItem
 		RarityColor:   g.Rarity.Color(),
 		CR:            g.CombatRating(),
 		Score:         g.Stats.Score(),
-		Price:         featuredShopPrice(g),
+		Price:         shopGearPrice(g),
 		IsUpgrade:     isGearUpgrade(g, equippedGear),
 		Featured:      true,
 		Effects:       effs,
+		Stats:         gearView.Stats,
+		Specials:      gearSpecialViews(g),
+		XPBonusPct:    gearView.XPBonusPct,
+		Element:       gearView.Element,
 		InspectJSON:   gearView.InspectJSON,
+		Comparison:    shopGearComparison(g, equippedGear),
 	}
 }
 
 func stockForSeed(seed int64, equippedGear map[string]content.Gear) []shopItemView {
-	stock := content.ShopStock(seed, shopStockSize)
-	out := make([]shopItemView, 0, len(stock)+1)
-	// Every rotation showcases at least one Mythic-or-higher relic, priced in the
-	// millions, pinned to the top of the list.
-	out = append(out, featuredShopView(seed, equippedGear))
-	for _, g := range stock {
-		gearView := toGearView(g.Slot, g)
+	return personalizedShopStock(seed, "", shopBuffState{}, equippedGear)
+}
 
-		out = append(out, shopItemView{
-			itemAtlasView: gearView.itemAtlasView,
-			ID:            g.ID,
-			Name:          g.Name,
-			Slot:          string(g.Slot),
-			Icon:          content.SlotIcon(g.Slot),
-			Rarity:        g.Rarity.String(),
-			RarityColor:   g.Rarity.Color(),
-			CR:            g.CombatRating(),
-			Score:         g.Stats.Score(),
-			Price:         gearPrice(g),
-			IsUpgrade:     isGearUpgrade(g, equippedGear),
-			Effects:       append([]string(nil), gearViewEffectNames(g)...),
-			InspectJSON:   gearView.InspectJSON,
-		})
+func regularShopView(g content.Gear, equippedGear map[string]content.Gear) shopItemView {
+	gearView := toGearView(g.Slot, g)
+
+	return shopItemView{
+		gear:          g,
+		itemAtlasView: gearView.itemAtlasView,
+		ID:            g.ID,
+		Name:          g.Name,
+		Slot:          string(g.Slot),
+		Icon:          content.SlotIcon(g.Slot),
+		Rarity:        g.Rarity.String(),
+		RarityColor:   g.Rarity.Color(),
+		CR:            g.CombatRating(),
+		Score:         g.Stats.Score(),
+		Price:         shopGearPrice(g),
+		IsUpgrade:     isGearUpgrade(g, equippedGear),
+		Effects:       append([]string(nil), gearViewEffectNames(g)...),
+		Stats:         gearView.Stats,
+		Specials:      gearSpecialViews(g),
+		XPBonusPct:    gearView.XPBonusPct,
+		Element:       gearView.Element,
+		InspectJSON:   gearView.InspectJSON,
+		Comparison:    shopGearComparison(g, equippedGear),
 	}
-	return out
 }
 
 func gearViewEffectNames(g content.Gear) []string {
@@ -179,35 +190,56 @@ func (s *WebServer) handleShopPage(w http.ResponseWriter, r *http.Request, uid s
 	if refreshIn < 0 {
 		refreshIn = 0
 	}
+	count, err := loadShopXPExchangeCount(s.bot.DB, uid, shopXPExchangeWeek(time.Now()))
+	if err != nil {
+		http.Error(w, "exchange pricing unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	buffs, err := loadShopBuffs(r.Context(), s.bot.DB, uid)
+	if err != nil {
+		http.Error(w, "shop bonuses unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	page, _ := strconv.ParseInt(r.URL.Query().Get("stock_page"), 10, 64)
+	pagination := shopStockPagination(seed, uid, buffs, page)
 	s.render(w, "shop", map[string]any{
-		"Title":     "Shop",
-		"Nav":       "shop",
-		"U":         u,
-		"Stock":     stockForSeed(seed, equippedGear),
-		"RefreshIn": refreshIn,
-		"GoldPerXP": goldPerXP,
-		"XPPerGold": xpPerGold,
+		"Title":           "Shop",
+		"Nav":             "shop",
+		"U":               u,
+		"Stock":           personalizedShopStockPage(seed, uid, buffs, equippedGear, pagination.Page),
+		"StockPagination": pagination,
+		"Buffs":           shopBuffViews(buffs),
+		"StockRevision":   shopStockRevision(seed, uid, buffs),
+		"RefreshIn":       refreshIn,
+		"GoldPerXP":       shopXPExchangeRate(count),
+		"PrestigeXP":      leveling.XPForLevel(PrestigeThreshold),
+		"XPPerGold":       xpPerGold,
 	})
 }
 
-// handleExchangeAPI converts between gold and XP at the fixed rates.
+// handleExchangeAPI previews or commits exchanges using the same server quote.
+// Reviewed clients submit the quoted wallet and rate; legacy callers remain valid.
 func (s *WebServer) handleExchangeAPI(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
 	var req struct {
-		Direction string `json:"direction"` // "gold_to_xp" | "xp_to_gold"
-		Amount    int64  `json:"amount"`    // amount of the input resource to spend
+		Direction        string               `json:"direction"` // "gold_to_xp" | "xp_to_gold"
+		Amount           int64                `json:"amount"`    // amount of the input resource to spend
+		Rate             int64                `json:"rate"`      // optional quote; stale prices require a new preview
+		Preview          bool                 `json:"preview"`
+		Expected         *shopExchangeBalance `json:"expected"`
+		ConfirmLevelLoss bool                 `json:"confirm_level_loss"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Amount <= 0 {
-		writeJSON(w, map[string]any{"ok": false, "error": "invalid amount"})
+		writeJSON(w, map[string]any{"ok": false, "error": "Enter a positive whole amount and try again."})
 		return
 	}
 
 	tx, err := s.bot.DB.Begin()
 	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "tx"})
+		writeJSON(w, map[string]any{"ok": false, "error": "The exchange could not start. Your balance is unchanged; try again."})
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
@@ -218,53 +250,71 @@ func (s *WebServer) handleExchangeAPI(w http.ResponseWriter, r *http.Request, ui
 	// purchases and rewards update this same row, so the lock prevents this
 	// transaction's absolute gold/XP write from erasing a concurrent change.
 	if err := tx.QueryRow("SELECT gold, xp FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&gold, &xp); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "no character"})
+		writeJSON(w, map[string]any{"ok": false, "error": "Your character balance could not be loaded. Refresh the shop and try again."})
 		return
 	}
 
-	var detail string
-	switch req.Direction {
-	case "gold_to_xp":
-		spend := req.Amount - (req.Amount % goldPerXP) // only whole XP, no wasted gold
-		if spend <= 0 {
-			writeJSON(w, map[string]any{"ok": false, "error": "need at least " + itoa(goldPerXP) + " gold"})
-			return
-		}
-		if gold < spend {
-			writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
-			return
-		}
-		gainXP := int(spend / goldPerXP)
-		gold -= spend
-		xp += gainXP
-		detail = "Spent " + FormatGold(spend) + " gold for +" + itoa(gainXP) + " XP"
-	case "xp_to_gold":
-		spend := req.Amount - (req.Amount % xpPerGold) // round down to a multiple
-		if spend <= 0 || int64(xp) < spend {
-			writeJSON(w, map[string]any{"ok": false, "error": "not enough XP"})
-			return
-		}
-		gainGold := spend / xpPerGold
-		xp -= int(spend)
-		gold += gainGold
-		detail = "Spent " + itoa(int(spend)) + " XP for +" + FormatGold(gainGold) + " gold"
-	default:
-		writeJSON(w, map[string]any{"ok": false, "error": "bad direction"})
+	if !req.Preview && req.Expected != nil && (req.Expected.Gold != gold || req.Expected.XP != xp) {
+		writeJSON(w, map[string]any{"ok": false, "review_required": true, "error": "Your balance changed. Review a fresh preview before converting."})
 		return
 	}
-
-	newLevel := leveling.LevelForXP(xp)
+	rate := int64(goldPerXP)
+	var count int64
+	week := shopXPExchangeWeek(time.Now())
+	if req.Direction == "gold_to_xp" {
+		remainingXP := int64(leveling.XPForLevel(PrestigeThreshold)) - int64(xp)
+		if remainingXP <= 0 {
+			writeJSON(w, map[string]any{"ok": false, "error": "prestige before buying more XP"})
+			return
+		}
+		count, err = loadShopXPExchangeCount(tx, uid, week)
+		if err != nil || count == math.MaxInt64 {
+			writeJSON(w, map[string]any{"ok": false, "error": "Exchange pricing is unavailable. Your balance is unchanged; try again shortly."})
+			return
+		}
+		rate = shopXPExchangeRate(count)
+		if !req.Preview && req.Rate != 0 && req.Rate != rate {
+			writeJSON(w, map[string]any{"ok": false, "error": "exchange price changed; review the new rate and try again", "gold_per_xp": rate})
+			return
+		}
+	}
+	quote, err := makeShopExchangeQuote(req.Direction, req.Amount, gold, xp, rate)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if req.Preview {
+		writeJSON(w, map[string]any{"ok": true, "quote": quote})
+		return
+	}
+	if req.Expected != nil && quote.LevelLoss && !req.ConfirmLevelLoss {
+		writeJSON(w, map[string]any{"ok": false, "review_required": true, "error": "This exchange lowers your level. Review and confirm the level loss first."})
+		return
+	}
+	if req.Direction == "gold_to_xp" {
+		history, _ := json.Marshal(shopXPExchangeState{Week: week, Count: count + 1})
+		if _, err := tx.Exec("INSERT INTO app_meta (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value", shopXPExchangeKey(uid), string(history)); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "The exchange could not be saved. Your balance is unchanged; try again."})
+			return
+		}
+	}
+	gold, xp, newLevel := quote.After.Gold, quote.After.XP, quote.After.Level
 	if _, err := tx.Exec("UPDATE users SET gold=$1, xp=$2, level=$3 WHERE client_uid=$4", gold, xp, newLevel, uid); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "save"})
+		writeJSON(w, map[string]any{"ok": false, "error": "The exchange could not be saved. Your balance is unchanged; try again."})
 		return
 	}
 	if err := tx.Commit(); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "commit"})
+		writeJSON(w, map[string]any{"ok": false, "unconfirmed": true, "error": "The exchange result could not be confirmed. Refresh to verify before trying again."})
 		return
 	}
+	var unspentGold int64
+	if req.Direction == "gold_to_xp" {
+		unspentGold = quote.Unspent
+	}
 	writeJSON(w, map[string]any{
-		"ok": true, "detail": detail, "gold": gold, "xp": xp, "level": newLevel,
-		"level_name": leveling.LevelName(newLevel),
+		"ok": true, "detail": "Exchange complete. Your balance and level are updated below.", "gold": gold, "xp": xp, "level": newLevel,
+		"level_name":  leveling.LevelName(newLevel),
+		"gold_per_xp": quote.NextRate, "unspent_gold": unspentGold,
 	})
 }
 
@@ -276,59 +326,76 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 		return
 	}
 	var req struct {
-		ID string `json:"id"`
+		ID            string `json:"id"`
+		ExpectedGold  *int64 `json:"expected_gold"`
+		StockRevision string `json:"stock_revision"`
+		StockPage     int64  `json:"stock_page"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		writeJSON(w, map[string]any{"ok": false, "error": "The purchase request could not be read. Refresh the shop and try again."})
 		return
 	}
 
-	// Only items in the current rotation are purchasable (at the server's price).
-	seed, _ := shopWindow(time.Now())
-	var chosen *shopItemView
-	for _, it := range stockForSeed(seed, nil) {
-		if it.ID == req.ID {
-			c := it
-			chosen = &c
-			break
-		}
-	}
-	if chosen == nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "item not in stock"})
-		return
-	}
-	var g content.Gear
-	var ok bool
-	if strings.HasPrefix(chosen.ID, content.FeaturedShopItemID) {
-		// The showcase relic has no catalog entry; re-roll it from the same seed so
-		// its Mythic/Divine stats and affixes are persisted onto the bought item.
-		g = content.FeaturedShopItem(seed)
-		ok = g.ID == chosen.ID
-	} else {
-		g, ok = content.GetGearByID(chosen.ID)
-	}
-	if !ok {
-		writeJSON(w, map[string]any{"ok": false, "error": "unknown gear"})
-		return
-	}
-
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "tx"})
+		writeJSON(w, map[string]any{"ok": false, "error": "The purchase could not start. Your gold is unchanged; try again."})
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", chosen.Price, uid)
+	// Token purchases lock this same wallet. Resolve stock after taking the lock
+	// so a concurrent token purchase cannot change the item being delivered.
+	var gold int64
+	if err := tx.QueryRowContext(r.Context(), "SELECT gold FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&gold); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "Your balance could not be loaded. Refresh the shop and try again."})
+		return
+	}
+	if req.ExpectedGold != nil && *req.ExpectedGold != gold {
+		writeJSON(w, map[string]any{"ok": false, "review_required": true, "error": "Your balance changed. Refresh the shop to review your current balance."})
+		return
+	}
+	buffs, err := loadShopBuffs(r.Context(), tx, uid)
 	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		writeJSON(w, map[string]any{"ok": false, "error": "Your shop bonuses could not be loaded. No gold was spent."})
+		return
+	}
+	seed, _ := shopWindow(time.Now())
+	if req.StockPage != shopStockPagination(seed, uid, buffs, req.StockPage).Page {
+		writeJSON(w, map[string]any{"ok": false, "review_required": true, "error": "This stock page changed. Refresh the shop."})
+		return
+	}
+	if (req.StockRevision != "" || buffs != (shopBuffState{})) && req.StockRevision != shopStockRevision(seed, uid, buffs) {
+		writeJSON(w, map[string]any{"ok": false, "review_required": true, "error": "Your shop bonuses or stock changed. Refresh to review the current items and prices."})
+		return
+	}
+	var chosen *shopItemView
+	for _, item := range personalizedShopStockPage(seed, uid, buffs, nil, req.StockPage) {
+		if item.ID == req.ID {
+			chosen = &item
+			break
+		}
+	}
+	if chosen == nil {
+		writeJSON(w, map[string]any{"ok": false, "review_required": true, "error": "This item is no longer in stock. Refresh the shop to see the new rotation."})
+		return
+	}
+	g := chosen.gear
+
+	query := "UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1"
+	args := []any{chosen.Price, uid}
+	if req.ExpectedGold != nil {
+		query += " AND gold = $3"
+		args = append(args, *req.ExpectedGold)
+	}
+	res, err := tx.Exec(query, args...)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "The purchase could not be saved. Your gold is unchanged; try again."})
 		return
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
+		writeJSON(w, map[string]any{"ok": false, "review_required": true, "error": "Your balance changed or you need more gold. Refresh the shop to review your current balance."})
 		return
 	}
-	var gold int64
 	var equippedMsg = ""
 	equipped := false
 	itemDataBytes, _ := json.Marshal(g)
@@ -336,7 +403,7 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 	if s.bot.shouldEquip(uid, g) {
 		// Displace and equip
 		if err := s.bot.equipGear(tx, uid, g, g.MaxDurability, string(itemDataBytes)); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "equip"})
+			writeJSON(w, map[string]any{"ok": false, "error": "This item could not be equipped. The purchase was cancelled; try again."})
 			return
 		}
 		equippedMsg = " and equipped!"
@@ -344,7 +411,7 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 	} else {
 		// Deliver to inventory
 		if _, err := tx.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1, $2, $3, $4)", uid, g.ID, g.MaxDurability, string(itemDataBytes)); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "inventory"})
+			writeJSON(w, map[string]any{"ok": false, "error": "This item could not be added to inventory. The purchase was cancelled; try again."})
 			return
 		}
 	}
@@ -352,11 +419,11 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 	// Read the post-purchase balance inside the transaction to avoid a race with
 	// other concurrent operations between commit and a separate query.
 	if err := tx.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "gold"})
+		writeJSON(w, map[string]any{"ok": false, "error": "Your remaining balance could not be checked. The purchase was cancelled; try again."})
 		return
 	}
 	if err := tx.Commit(); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "commit"})
+		writeJSON(w, map[string]any{"ok": false, "unconfirmed": true, "error": "The purchase result could not be confirmed. Refresh to verify before trying again."})
 		return
 	}
 

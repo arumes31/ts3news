@@ -9,7 +9,7 @@ import (
 	"ts3news/internal/content"
 )
 
-const maxArcadeBet = 100000
+const maxArcadeBet = 100_000_000
 
 // wheelSegments are the multipliers of the 12-segment fortune wheel (×bet).
 // Shared with the client (the canvas draws WHEEL.length slices) so the rendered
@@ -35,6 +35,8 @@ type arcadeOutcome struct {
 	Card    int      `json:"card,omitempty"`     // highlow
 	Segment int      `json:"segment"`            // wheel (index into wheelSegments)
 	Mult    float64  `json:"mult,omitempty"`     // wheel/payout multiplier
+	Chest   int      `json:"chest,omitempty"`    // vault treasure position (1–3)
+	Chance  int      `json:"chance,omitempty"`   // expedition success threshold (1–100)
 	GearWon string   `json:"gear_won,omitempty"` // gear looted on a win
 
 	JackpotWin    bool  `json:"jackpot_win,omitempty"`
@@ -54,7 +56,7 @@ func (s *WebServer) handleArcadePage(w http.ResponseWriter, r *http.Request, uid
 		"WheelJSON":    jsonJS(wheelSegments),
 		"VIP":          vip,
 		"VIPPoints":    pts,
-		"JackpotSlots": s.bot.getJackpot("slots"),
+		"JackpotSlots": s.bot.getJackpot("global"),
 		"CanDaily":     s.bot.canSpinDaily(uid),
 	})
 }
@@ -75,6 +77,11 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 	}
 	if req.Bet <= 0 || req.Bet > maxArcadeBet {
 		writeJSON(w, arcadeOutcome{OK: false, Error: "invalid bet"})
+		return
+	}
+	// Reject invalid games and choices before debiting gold or awarding VIP points.
+	if !validArcadeChoice(req.Game, req.Choice) {
+		writeJSON(w, arcadeOutcome{OK: false, Error: "invalid game or choice"})
 		return
 	}
 
@@ -178,7 +185,12 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 	writeJSON(w, out)
 }
 
-func (s *WebServer) handleDailySpinAPI(w http.ResponseWriter, _ *http.Request, uid string) {
+func (s *WebServer) handleDailySpinAPI(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		writeJSONStatus(w, http.StatusMethodNotAllowed, map[string]any{"ok": false, "error": "POST only"})
+		return
+	}
 	if !s.bot.attemptDailySpin(uid) {
 		writeJSON(w, map[string]any{"ok": false, "error": "already spun today"})
 		return
@@ -218,6 +230,9 @@ func (s *WebServer) handleDailySpinAPI(w http.ResponseWriter, _ *http.Request, u
 
 // playArcade dispatches to the individual games. Each carries a small house edge.
 func playArcade(rng *rand.Rand, game string, bet int64, choice string) arcadeOutcome {
+	if !validArcadeChoice(game, choice) {
+		return arcadeOutcome{OK: false, Error: "invalid game or choice"}
+	}
 	out := arcadeOutcome{OK: true, Game: game, Bet: bet}
 	switch game {
 	case "slots":
@@ -230,10 +245,59 @@ func playArcade(rng *rand.Rand, game string, bet int64, choice string) arcadeOut
 		out.Segment, out.Mult, out.Payout, out.Detail = playWheel(rng, bet)
 	case "highlow":
 		out.Card, out.Payout, out.Detail = playHighLow(rng, bet, choice)
+	case "vault":
+		out.Chest = rng.IntN(3) + 1
+		if itoa(out.Chest) == choice {
+			out.Payout = bet * 285 / 100
+			out.Detail = "Treasure found in chest " + choice + " — win ×2.85"
+		} else {
+			out.Detail = "Empty chest — treasure was in chest " + itoa(out.Chest)
+		}
+	case "expedition":
+		chance, multiplier := expeditionRisk(choice)
+		out.Chance, out.Mult = chance, multiplier
+		out.Roll = rng.IntN(100) + 1
+		if out.Roll <= chance {
+			out.Payout = mulBet(bet, multiplier)
+			out.Detail = "Expedition survived — win ×" + ftoa(multiplier)
+		} else {
+			out.Detail = "Expedition lost — the depths claimed your wager"
+		}
 	default:
 		return arcadeOutcome{OK: false, Error: "unknown game"}
 	}
 	return out
+}
+
+func validArcadeChoice(game, choice string) bool {
+	switch game {
+	case "slots", "dice", "wheel":
+		return choice == ""
+	case "coinflip":
+		return choice == "heads" || choice == "tails"
+	case "highlow":
+		return choice == "high" || choice == "low"
+	case "vault":
+		return choice == "1" || choice == "2" || choice == "3"
+	case "expedition":
+		return choice == "scout" || choice == "delve" || choice == "abyss"
+	default:
+		return false
+	}
+}
+
+// Each route returns 96% of wagers on average before integer rounding and bonuses.
+func expeditionRisk(choice string) (int, float64) {
+	switch choice {
+	case "scout":
+		return 80, 1.2
+	case "delve":
+		return 48, 2
+	case "abyss":
+		return 24, 4
+	default:
+		return 0, 0
+	}
 }
 
 var slotSymbols = []string{"🍒", "🍋", "🔔", "⭐", "💎", "7️⃣"}

@@ -1,8 +1,6 @@
 package bot
 
 import (
-	"math"
-
 	"ts3news/internal/content"
 )
 
@@ -12,7 +10,6 @@ type abyssHUDPageState struct {
 	EscrowEfficiencyPct int
 	FloorsCleared       int
 	InterestRatePct     float64
-	InterestTotalPct    float64
 	Jackpot             int64
 	Pacts               []abyssPact
 	IntelConcealed      bool
@@ -37,7 +34,6 @@ func (b *Bot) abyssHUDPageState(uid string, run abyssRun, st abyssStats, equippe
 	state := abyssHUDPageState{
 		FloorsCleared:       floors,
 		InterestRatePct:     rate * 100,
-		InterestTotalPct:    (math.Pow(1+rate, float64(floors)) - 1) * 100,
 		Jackpot:             b.getJackpot("abyss"),
 		EscrowSoftCap:       abyssEscrowSoftCap(run.Depth),
 		EscrowEfficiencyPct: 100,

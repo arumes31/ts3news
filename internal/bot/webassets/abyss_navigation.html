@@ -3,6 +3,7 @@
 (function(){
   'use strict';
   var sectionGroups=[
+    {key:'build',label:'My Build'},
     {key:'season',label:'🔥 Season'},
     {key:'progression',label:'🛠️ Progression'},
     {key:'observatory',label:'📡 Observatory'},
@@ -40,12 +41,47 @@
     });
     var skillWeb=document.createElement('button');skillWeb.className='ab-tab';skillWeb.type='button';skillWeb.setAttribute('role','tab');skillWeb.setAttribute('aria-selected','false');skillWeb.textContent='🌳 Skill Web';skillWeb.title='Every live node · six disciplines · opens the skill web';skillWeb.onclick=function(){window.location.href='/abyss/tree';};bar.appendChild(skillWeb);
     first.parentNode.insertBefore(bar,first);
+    buildWorkspaceSwitcher(bar,groups,initial);
     requestAnimationFrame(function(){revealTab(bar.querySelector('.ab-tab.active'));});
+  }
+  function buildWorkspaceSwitcher(bar,groups,initial){
+    var page=document.querySelector('.abyss-command-page');if(!page)return;
+    var nav=document.createElement('nav'),label=document.createElement('label'),select=document.createElement('select'),back=document.createElement('button');
+    nav.id='abyssWorkspaceNavigation';nav.className='ab-workspace-switcher';nav.setAttribute('aria-label','Abyss workspace navigation');
+    label.htmlFor='abyssWorkspaceSelect';label.textContent='Workspace';
+    select.id='abyssWorkspaceSelect';select.className='ab-select';
+    groups.forEach(function(group){var option=document.createElement('option');option.value=group.key;option.textContent=group.label;select.appendChild(option);});
+    var tree=document.createElement('option');tree.value='tree';tree.textContent='Skill Web';select.appendChild(tree);select.value=initial;
+    select.addEventListener('change',function(){
+      if(select.value==='tree'){window.location.assign('/abyss/tree');return;}
+      var tab=bar.querySelector('[data-tab-key="'+select.value+'"]');if(!tab)return;
+      tab.click();
+      var group=groups.find(function(candidate){return candidate.key===select.value;}),panel=group&&group.els[0];
+      if(panel)panel.scrollIntoView({block:'start',behavior:'auto'});
+    });
+    bar.addEventListener('click',function(event){var tab=event.target.closest('[data-tab-key]');if(tab)select.value=tab.dataset.tabKey;});
+    back.type='button';back.className='ghost';back.textContent='Back to run';
+    back.addEventListener('click',function(){if(typeof liveCombatState!=='undefined'&&liveCombatState){var center=document.getElementById('abCommandCenter');center.classList.remove('ab-combat-menu-open');document.getElementById('abCombatMenuToggle').setAttribute('aria-expanded','false');focusAbyssCockpit('liveAction',true);return;}var stage=document.getElementById('abyssStage');if(stage){stage.scrollIntoView({block:'start',behavior:'auto'});var target=document.querySelector('body.ab-mobile-actions-visible #abyssMobileActions button:not(:disabled)')||document.getElementById(inRun?'btnDescend':'btnEnter');if(target)target.focus({preventScroll:true});}});
+    nav.append(label,select,back);page.insertBefore(nav,page.firstChild);
+    function measureWorkspace(){
+      var sticky=nav.closest('.ab-command-center')||nav;
+      page.style.setProperty('--ab-workspace-height',Math.ceil(sticky.getBoundingClientRect().height)+'px');
+    }
+    // Account for wrapped controls, player text size and the combat menu.
+    var workspaceObserver=typeof ResizeObserver==='function'?new ResizeObserver(measureWorkspace):null;
+    if(workspaceObserver)workspaceObserver.observe(nav);
+    window.addEventListener('resize',measureWorkspace);
+    window.mountAbyssWorkspaceSwitcher=function(){var center=document.getElementById('abCommandCenter');if(center){center.classList.add('ab-has-workspace');if(workspaceObserver)workspaceObserver.observe(center);var status=document.getElementById('abCurrentSection');if(status)status.after(nav);else center.appendChild(nav);if(!document.getElementById('abCombatMenuToggle')){var menu=document.createElement('button'),menuSlot=document.createElement('div');menuSlot.className='ab-combat-menu';menu.id='abCombatMenuToggle';menu.type='button';menu.textContent='Workspace menu';menu.setAttribute('aria-expanded','false');menu.setAttribute('aria-controls',nav.id);menu.onclick=function(){menu.setAttribute('aria-expanded',center.classList.toggle('ab-combat-menu-open')?'true':'false');};menuSlot.appendChild(menu);center.prepend(menuSlot);}}};
+    window.mountAbyssWorkspaceSwitcher();
+    measureWorkspace();
   }
   window.buildAbyssTabs=buildAbyssTabs;
   var aliases={season:'#abyssSeasonJourney',progression:'#abyssSetBonuses',observatory:'#abyssObservatory',shop:'#abyssTokenShop',forge:'#abyssForgePanel',workshop:'#abyssWorkshop',lore:'.abyss-lore-bestiary',bestiary:'.ab-bestiary-table',leaderboards:'#lb'};
   function targetForHash(){var key=location.hash.slice(1).toLowerCase();if(key==='talents'){location.assign('/abyss/tree#talents');return null;}var selector=aliases[key]||location.hash;if(!selector)return null;try{return document.querySelector(selector);}catch(_){return null;}}
-  function activateDeepLink(){var target=targetForHash();if(!target)return;var panel=target.closest?target.closest('[data-abyss-section]'):null,key=panel&&panel.dataset.abyssSection,tab=key&&document.querySelector('.ab-tab[data-tab-key="'+key+'"]'),collapsible=target.closest?target.closest('.ab-nav-collapsible'):null;if(tab&&!tab.classList.contains('active'))tab.click();if(collapsible){var collapseButton=collapsible.querySelector('.ab-panel-collapse');collapsible.classList.remove('ab-panel-collapsed');if(collapseButton){collapseButton.setAttribute('aria-expanded','true');collapseButton.textContent=collapseButton.textContent.replace(/^Expand/,'Collapse');}try{localStorage.setItem(collapsible.dataset.collapseKey,'1');}catch(_){}}setTimeout(function(){target.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});},0);}
+  function activateDeepLink(){var target=targetForHash();if(!target)return;var panel=target.closest?target.closest('[data-abyss-section]'):null,key=panel&&panel.dataset.abyssSection,tab=key&&document.querySelector('.ab-tab[data-tab-key="'+key+'"]'),collapsible=target.closest?target.closest('.ab-nav-collapsible'):null;if(tab&&!tab.classList.contains('active'))tab.click();if(collapsible){var collapseButton=collapsible.querySelector('.ab-panel-collapse');collapsible.classList.remove('ab-panel-collapsed');if(collapseButton){collapseButton.setAttribute('aria-expanded','true');collapseButton.textContent=collapseButton.textContent.replace(/^Expand/,'Collapse');}try{localStorage.setItem(collapsible.dataset.collapseKey,'1');}catch(_){}}
+    // A direct link to maintenance must reveal the control inside its accordion.
+    for(var disclosure=target.closest('details');disclosure;disclosure=disclosure.parentElement&&disclosure.parentElement.closest('details'))disclosure.open=true;
+    setTimeout(function(){target.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});},0);}
   function persistTabs(){document.querySelectorAll('.ab-tab[data-tab-key]').forEach(function(tab){tab.addEventListener('click',function(){var key=tab.dataset.tabKey,current=location.hash.slice(1).toLowerCase();try{localStorage.setItem('abyss_section_tab',key);}catch(_){}if(current!==key){try{history.replaceState(null,'','#'+key);}catch(_){}}});});}
   function panelCount(panel){if(panel.querySelector('.ab-bestiary-table'))return panel.querySelectorAll('.ab-bestiary-table tbody tr:not(.ab-best-fam)').length;if(panel.querySelector('.ab-codex-grid'))return panel.querySelectorAll('.ab-codex-item').length;if(panel.id==='abyssRunHistory')return panel.querySelectorAll('.ab-history tbody tr:not(.ab-hist-detail)').length;return panel.querySelectorAll(':scope > div, :scope > ul > li, :scope > table tbody tr').length;}
   function initCollapsiblePanels(){document.querySelectorAll('.abyss-lore-bestiary > .abyss-panel, #abyssRunHistory').forEach(function(panel,index){var heading=panel.querySelector('h2');if(!heading)return;panel.classList.add('ab-nav-collapsible');var count=panelCount(panel),key='ab_panel_open_'+(panel.id||'library_'+index),stored=null;panel.dataset.collapseKey=key;try{stored=localStorage.getItem(key);}catch(_){}var open=stored===null?!panel.querySelector('.ab-bestiary-table'):stored==='1',button=document.createElement('button');button.type='button';button.className='ghost xs ab-panel-collapse';button.setAttribute('aria-expanded',open?'true':'false');button.textContent=(open?'Collapse':'Expand')+' · '+count;button.addEventListener('click',function(){open=!open;panel.classList.toggle('ab-panel-collapsed',!open);button.setAttribute('aria-expanded',open?'true':'false');button.textContent=(open?'Collapse':'Expand')+' · '+count;try{localStorage.setItem(key,open?'1':'0');}catch(_){}});heading.appendChild(button);panel.classList.toggle('ab-panel-collapsed',!open);});}

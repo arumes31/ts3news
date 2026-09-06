@@ -23,6 +23,9 @@ func TestLoginSetsPrivateSessionAndPublicExpiryCookies(t *testing.T) {
 	mock.ExpectQuery("SELECT client_uid FROM users WHERE web_token=\\$1").
 		WithArgs("secret-token").
 		WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("player-1"))
+	mock.ExpectExec("UPDATE users SET web_token_expires=\\$1 WHERE web_token=\\$2").
+		WithArgs(sqlmock.AnyArg(), "secret-token").
+		WillReturnResult(sqlmock.NewResult(0, 1))
 	server := &WebServer{bot: &Bot{Cfg: &config.Config{WebBaseURL: "https://example.test"}, DB: database}}
 
 	response := httptest.NewRecorder()

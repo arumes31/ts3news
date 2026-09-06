@@ -1,3 +1,10 @@
+.inv-slot-context { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; margin: 1rem 0; scroll-margin-top: 8rem; }
+.inv-slot-context label { color: #c0cede; font-size: .875rem; }
+.inv-slot-context select { min-width: 0; max-width: 100%; min-height: 44px; padding: .5rem .75rem; color: var(--cmd-text); font-size: 1rem; }
+.inv-slot-context p { margin: 0; font-size: .875rem; }
+#inventorySlotEmpty { flex-basis: 100%; }
+.inv-card[hidden] { display: none; }
+
 .inv-card[data-slot="Charm"] .inv-head > .slot-gi:first-child {
   transform-origin: 50% 4%;
   animation: gear-charm-dangle 3.4s ease-in-out infinite;

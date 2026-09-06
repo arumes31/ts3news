@@ -6,3 +6,13 @@ data/
 *.run
 .git/
 .github/
+# Local credentials, backups, tooling caches, and diagnostics are not build inputs.
+.env
+.env.*
+config.env
+*.dump
+.cache/
+.tmp/
+node_modules/
+test-results/
+*.exe

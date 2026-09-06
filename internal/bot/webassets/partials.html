@@ -6,17 +6,18 @@
 <title>{{.Title}} · TS3 RPG</title>
 <link rel="icon" type="image/svg+xml" href="{{asset "/static/favicon.svg"}}">
 <link rel="stylesheet" href="/static/style.css?v={{cssver}}">
-{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards")}}<link rel="stylesheet" href="{{asset "/static/abyss_portal.css"}}">
+{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards") (eq .Nav "arcade")}}<link rel="stylesheet" href="{{asset "/static/abyss_portal.css"}}">
 <style id="abyssCatalogAtlasAssets">.delver-shell{
 --ab-atlas-artifacts:url({{asset "/static/abyss_atlas_artifacts.png"}});--ab-atlas-auras:url({{asset "/static/abyss_atlas_auras.png"}});--ab-atlas-banners:url({{asset "/static/abyss_atlas_banners.png"}});--ab-atlas-charms:url({{asset "/static/abyss_atlas_charms.png"}});--ab-atlas-companions:url({{asset "/static/abyss_atlas_companions.png"}});--ab-atlas-emblems:url({{asset "/static/abyss_atlas_emblems.png"}});--ab-atlas-items:url({{asset "/static/abyss_atlas_items.png"}});--ab-atlas-mounts:url({{asset "/static/abyss_atlas_mounts.png"}});--ab-atlas-offhands:url({{asset "/static/abyss_atlas_offhands.png"}});--ab-atlas-pets:url({{asset "/static/abyss_atlas_pets.png"}});--ab-atlas-ranged:url({{asset "/static/abyss_atlas_ranged.png"}});--ab-atlas-relics:url({{asset "/static/abyss_atlas_relics.png"}});--ab-atlas-souls:url({{asset "/static/abyss_atlas_souls.png"}});--ab-atlas-totems:url({{asset "/static/abyss_atlas_totems.png"}})
 }</style>{{end}}
 {{if eq .Nav "inventory"}}<link rel="stylesheet" href="{{asset "/static/gear_inventory_motion.css"}}">{{end}}
+{{if eq .Nav "arcade"}}<link rel="stylesheet" href="{{asset "/static/arcade.css"}}">{{end}}
 <script>window.__ASSET_VER__ = "{{appver}}";</script>
 <script src="{{asset "/static/abyss_catalog_icons.js"}}"></script>
 {{template "abyss-display-locale" .}}
 {{template "abyss-quality-of-life" .}}
 </head>
-<body{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards")}} class="delver-shell"{{end}}>
+<body{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards") (eq .Nav "arcade")}} class="delver-shell"{{end}}>
 {{if eq .Nav "abyss"}}<a class="ab-skip-link" href="#abyssControls">Skip to run controls</a>{{end}}{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards")}}<a class="portal-skip" href="#portalMain">Skip to main content</a>{{end}}
 <header class="topbar">
   <div class="brand"><img src="{{asset "/static/favicon.svg"}}" alt="" style="width:24px;height:24px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">TS3 RPG</div>
@@ -255,9 +256,15 @@ function openItemInspector(trigger) {
   if (!trigger || !trigger.dataset.itemInspect) return;
   var item;
   try { item = JSON.parse(trigger.dataset.itemInspect); } catch (_) { return; }
+  var armory = !!trigger.closest('.armory-console');
+  function numberHTML(value, sign, digits) {
+    var number = Number(value || 0);
+    if (!armory || !window.AbyssItemNumbers) return '<b>' + (sign && number > 0 ? '+' : '') + number.toLocaleString() + '</b>';
+    return '<b data-item-number="' + number + '" data-item-number-digits="' + (digits || 0) + '" data-item-number-sign="' + (sign ? 'always' : '') + '">' + itemInspectEsc(AbyssItemNumbers.format(number, {sign:sign, digits:digits})) + '</b>';
+  }
   var stats = itemInspectList(item.stats, function(stat) {
     var value = Number(stat.value || 0);
-    return '<span><i>' + itemInspectEsc(stat.label) + '</i><b>' + (value > 0 ? '+' : '') + value.toLocaleString() + '</b></span>';
+    return '<span><i>' + itemInspectEsc(stat.label) + '</i>' + numberHTML(value, true) + '</span>';
   });
   var specials = itemInspectList(item.specials, function(special) {
     return '<div class="item-inspector-special"><b>' + itemInspectEsc(special.name) + '</b><span>' + itemInspectEsc(special.description || 'Special combat effect') + '</span></div>';
@@ -266,20 +273,32 @@ function openItemInspector(trigger) {
   if (item.element) tags.push('Element · ' + item.element);
   if (item.set_id) tags.push('Set · ' + item.set_id);
   if (item.xp_bonus_pct) tags.push((item.xp_bonus_pct > 0 ? '+' : '') + item.xp_bonus_pct + '% XP');
-  if (item.max_durability) tags.push(item.max_durability + ' max durability');
+  if (item.max_durability) {
+    var currentDurability = trigger.dataset.itemDurability;
+    if (currentDurability !== undefined && Number.isFinite(Number(currentDurability))) {
+      tags.push((Number(currentDurability) === 0 ? 'Broken · ' : '') + Number(currentDurability) + ' / ' + item.max_durability + ' durability');
+    } else tags.push(item.max_durability + ' max durability');
+  }
+  if (trigger.dataset.itemBrokenIn === 'true') tags.push('Broken in · +1% stats');
   (item.modifiers || []).forEach(function(modifier) { tags.push(modifier); });
   (item.gemstones || []).forEach(function(gemstone) { tags.push('Gem · ' + gemstone); });
   var tagHTML = itemInspectList(tags, function(tag) { return '<span>' + itemInspectEsc(tag) + '</span>'; });
   var artAsset=String(item.art_asset||'')+(window.__ASSET_VER__?'?v='+encodeURIComponent(window.__ASSET_VER__):'');
   var art = '<span class="item-art item-art-lg" data-art-family="' + itemInspectEsc(item.art_family || 'items') + '" data-art-page="' + Number(item.art_page || 0) + '" style="--item-atlas:url(&quot;' + itemInspectEsc(artAsset) + '&quot;);--art-col:' + Number(item.art_column || 0) + ';--art-row:' + Number(item.art_row || 0) + '"></span>';
+  var actions = armory ? itemInspectList(Array.from(trigger.querySelectorAll('.armory-gear-actions a')), function(link) {
+    return '<a class="btn ghost" href="' + itemInspectEsc(link.getAttribute('href')) + '">' + itemInspectEsc(link.textContent) + '</a>';
+  }) : '';
   openModal('<article class="item-inspector" style="--inspect-rarity:' + itemInspectEsc(item.rarity_color || '#e7edf6') + '">' +
-    '<header class="item-inspector-head">' + art + '<div><h2>' + itemInspectEsc(item.name) + '</h2><p>' + itemInspectEsc(item.rarity) + ' · ' + itemInspectEsc(item.slot) + '</p></div><div class="item-inspector-score">CR ' + Number(item.cr || 0).toLocaleString() + '<br>GS ' + Number(item.score || 0).toLocaleString() + '</div></header>' +
+    '<header class="item-inspector-head">' + art + '<div><h2>' + itemInspectEsc(item.name) + '</h2><p>' + itemInspectEsc(item.rarity) + ' · ' + itemInspectEsc(item.slot) + '</p></div><div class="item-inspector-score">CR ' + numberHTML(item.cr, false, 1) + '<br>GS ' + numberHTML(item.score) + '</div></header>' +
     (stats ? '<section class="item-inspector-section"><h3>Global stats</h3><div class="item-inspector-stats">' + stats + '</div></section>' : '') +
     (specials ? '<section class="item-inspector-section"><h3>All specials</h3><div class="item-inspector-specials">' + specials + '</div></section>' : '<section class="item-inspector-section"><h3>All specials</h3><p class="muted small">No special combat effects.</p></section>') +
     (tagHTML ? '<section class="item-inspector-section"><h3>Properties</h3><div class="item-inspector-tags">' + tagHTML + '</div></section>' : '') +
     (item.provenance ? '<section class="item-inspector-section"><h3>Provenance</h3><p class="muted small">' + itemInspectEsc(item.provenance) + '</p></section>' : '') +
-    '<div class="modal-actions"><button type="button" onclick="closeModal()">Close</button></div></article>', {wide:true, initialFocus:'dialog'});
-}
+    '<div class="modal-actions">' + actions + '<button type="button" onclick="closeModal()">Close</button></div></article>', {wide:true, initialFocus:'dialog'});
+  if (armory && window.AbyssItemNumbers) AbyssItemNumbers.render(document.getElementById('sharedModal'));
+  if (typeof window.addAuctionInspectorContext === 'function') window.addAuctionInspectorContext(trigger);
+{{if eq .Nav "shop"}}  if (typeof window.addShopInspectorContext === 'function') window.addShopInspectorContext(trigger);
+{{end}}}
 document.addEventListener('click', function(event) {
   var trigger = event.target.closest('[data-item-inspect]');
   if (!trigger || event.target.closest('button,a,input,select,textarea')) return;

@@ -1,0 +1,87 @@
+/* Armoury refinements preserve the shared console skin and every equipment slot. */
+.armory-console { gap: .75rem; font-variant-numeric: tabular-nums; }
+.armory-console :is(h2, .gear-cell) { scroll-margin-top: 8rem; }
+.armory-console .armory-masthead { align-items: center; gap: .65rem 1rem; padding: .85rem 1rem; }
+.armory-console .armory-masthead h1 { font-size: clamp(1.8rem, 3vw, 2.5rem); }
+.armory-character { display: flex; flex-wrap: wrap; gap: .2rem .65rem; margin: .5rem 0 0; line-height: 1.4; overflow-wrap: anywhere; }
+.armory-character strong { color: var(--cmd-text); }
+.armory-character span { color: #b5c2d4; font-size: .875rem; }
+.armory-summary-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; font-size: .875rem; color: #b5c2d4; }
+.armory-summary-tools strong { color: var(--cmd-gold); margin-inline-start: .3rem; overflow-wrap: anywhere; }
+.armory-summary-tools button { min-height: 44px; }
+.armory-console .armory-readiness { display: block; margin: 0; padding: .75rem 1rem; }
+.armory-resource-grid { display: grid; gap: .25rem .8rem; }
+.armory-console .readiness-vitals h2 { margin: 0 0 .4rem; }
+.armory-console .readiness-vitals .bar { height: auto; min-height: 28px; margin: 0; }
+.armory-console .readiness-vitals .bar-label { position: relative; padding: .25rem .4rem; line-height: 1.4; font-size: .8rem; overflow-wrap: anywhere; }
+.armory-console .readiness-vitals .bar-label b { font-weight: 600; }
+.armory-console .readiness-capacity { margin: 0; padding: .35rem .5rem; font-size: .875rem; }
+.armory-console .readiness-capacity strong { overflow-wrap: anywhere; }
+.armory-sections { display: flex; flex-wrap: wrap; gap: .25rem .5rem; padding-inline: .25rem; }
+.armory-sections a,
+.armory-actions a { display: inline-flex; align-items: center; min-height: 44px; padding: .35rem .5rem; color: #c6d5e8; font-size: .875rem; text-decoration: underline; text-underline-offset: .2em; }
+.armory-sections a { color: var(--cmd-gold); }
+.armory-console a:hover { color: #fff; }
+.armory-console a:focus-visible { outline: 2px solid var(--cmd-cyan); outline-offset: 2px; }
+.armory-actions { display: flex; flex-wrap: wrap; gap: .15rem .4rem; }
+.armory-console .portal-section-head { flex-wrap: wrap; align-items: center; gap: .25rem .6rem; margin-bottom: .65rem; padding-bottom: .45rem; }
+.armory-console .portal-section-head h2 { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; min-height: 44px; margin: 0; }
+.armory-console .armory-layout { gap: .75rem; }
+.armory-console .armory-equipment .gear-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: .5rem; }
+.armory-console .armory-equipment .gear-cell { position: relative; min-width: 0; min-height: 0; padding: .7rem; overflow-wrap: anywhere; }
+.armory-console .armory-equipment .gear-cell:not(.empty) { grid-column: span 2; }
+.armory-console .armory-equipment .gear-cell.empty { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: .25rem; min-height: 52px; padding: .5rem; opacity: 1; box-shadow: none; border-color: #29374a; }
+.armory-console .armory-equipment .gear-slot { font: 600 .875rem/1.3 var(--cmd-display); color: #c0cede; }
+.armory-console .armory-equipment .gear-cell.empty .gear-slot { min-height: 0; gap: .35rem; }
+.armory-console .armory-equipment .gear-cell:hover { transform: none; }
+.armory-console .armory-equipment .gear-cell.empty:hover { border-color: var(--cmd-cyan); background: var(--cmd-panel-raised); }
+.armory-console .gear-cell.empty .slot-gi { width: 16px; height: 16px; flex: 0 0 16px; color: #96abc4; }
+.armory-console .gear-cell.empty a { color: inherit; text-decoration: none; }
+.armory-console .gear-cell.empty a::after { position: absolute; inset: 0; content: ""; }
+.armory-console .gear-cell.empty:focus-within { outline: 2px solid var(--cmd-cyan); outline-offset: 2px; }
+.armory-console .gear-cell.empty a:focus-visible { outline: none; }
+.armory-console .gear-cell.empty .gear-name { margin: 0; color: #a8b8cd; font-size: .75rem; }
+.armory-console .armory-equipment .gear-name { line-height: 1.4; }
+.armory-console .armory-equipment .gear-meta,
+.armory-console .armory-equipment .gear-stats,
+.armory-console .armory-equipment .gear-fxdesc { font-size: .875rem; line-height: 1.5; }
+.armory-console .gear-durability { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: .25rem .65rem; font-size: .8rem; }
+.armory-console .gear-durability strong { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.armory-console .armory-equipment .identify-btn { align-self: start; min-height: 44px; margin-top: .5rem; }
+.armory-gear-actions { margin-top: .35rem; padding-top: .25rem; border-top: 1px solid var(--cmd-line); }
+.armory-gear-actions a:first-child { padding-inline-start: 0; }
+.armory-console .armory-telemetry .stat { padding: .65rem .4rem; }
+.armory-console .armory-telemetry .stat span { color: #b5c2d4; font-size: .8rem; }
+.armory-console .skill-card .sk-desc { font-size: .875rem; line-height: 1.5; }
+.armory-console .armory-support .lc-tags { font-variant-numeric: tabular-nums; }
+
+/* The shared inspector lives outside the article; keep these fixes on Armoury. */
+.delver-shell:has(.armory-console) .item-inspector { overflow-wrap: anywhere; }
+.delver-shell:has(.armory-console) .item-inspector-section { background: none; box-shadow: none; }
+.delver-shell:has(.armory-console) .item-inspector-section > p { margin-bottom: 0; }
+.delver-shell:has(.armory-console) .item-inspector-stats span { flex-wrap: wrap; gap: .25rem .5rem; min-width: 0; }
+.delver-shell:has(.armory-console) .item-inspector-stats b { min-width: 0; margin-inline-start: auto; text-align: end; }
+.delver-shell:has(.armory-console) .item-inspector-tags span { font-size: .75rem; line-height: 1.4; }
+.delver-shell:has(.armory-console) .item-inspector .modal-actions { flex-wrap: wrap; gap: .5rem; padding-top: .8rem; border-top: 1px solid var(--cmd-line); }
+.delver-shell:has(.armory-console) .item-inspector .modal-actions > * { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; max-width: 100%; padding: .5rem .8rem; font-size: .875rem; line-height: 1.3; text-align: center; }
+.delver-shell:has(.armory-console) .item-inspector .modal-actions a:hover { color: var(--cmd-text); border-color: var(--cmd-cyan); background: var(--cmd-panel-raised); text-decoration: none; }
+
+@media (min-width: 700px) {
+  .armory-resource-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(170px, .7fr); align-items: center; }
+  .armory-console .armory-masthead { flex-direction: row; }
+  .armory-console .armory-equipment .gear-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 699px) {
+  .armory-console .armory-masthead { align-items: stretch; gap: .4rem; }
+  .armory-summary-tools { justify-content: space-between; }
+  .armory-console .portal-section-head { flex-direction: row; }
+  .armory-console .armory-layout { grid-template-columns: minmax(0, 1fr); }
+  .delver-shell:has(.armory-console) .item-inspector .modal-actions > * { flex: 1 1 auto; }
+}
+
+@media (forced-colors: active) {
+  .armory-console .gear-cell.empty { border-color: CanvasText; }
+  .armory-console .gear-cell.empty :is(a, .gear-name) { color: CanvasText; }
+  .armory-console .armory-equipment .gear-cell.empty:hover { border-color: Highlight; }
+}

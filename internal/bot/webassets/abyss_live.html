@@ -28,6 +28,14 @@
       </select>
     </label>
   </div>
+  <div class="ab-pixel-stage" id="livePixelStage" aria-label="Animated combat battlefield">
+    <span id="liveAnimationAnnouncement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></span>
+    <div class="ab-ultimate-charge" id="liveUltimateCharge" role="status" aria-label="Ultimate readiness"><b>ULT</b><span>—</span></div>
+    <div class="ab-pixel-backdrop" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="ab-pixel-party" id="livePixelAllies" aria-label="Allied combatants"></div>
+    <div class="ab-pixel-party hostile" id="livePixelEnemies" aria-label="Enemy combatants"></div>
+    <div class="ab-pixel-stage-label" aria-hidden="true"><span>PARTY</span><span>HOSTILES</span></div>
+  </div>
   <div class="ab-live-command">
     <div class="ab-live-command-head">
       <div class="ab-live-queue" id="liveQueue" role="status" aria-live="polite" aria-label="Queued combat action" data-state="idle">Choose an action, then select a target.</div>
@@ -38,10 +46,38 @@
 	  <button class="ab-live-tool" type="button" onclick="toggleLiveCompact()">COMPACT</button>
 	  <button class="ab-live-tool" type="button" onclick="configureLiveShortcuts()">KEYS</button>
 	  {{template "abyssCombatFeedbackControls" .}}
+      <div class="ab-combat-drawers">
+        <details class="ab-combat-drawer" id="liveIntelDrawer">
+          <summary>Tactics &amp; party</summary>
+          <div class="ab-combat-drawer-body">
+            <div class="ab-combat-drawer-head"><strong>Tactics &amp; party</strong><span data-live-drawer-clock></span><button type="button" data-close-live-drawer>Close</button></div>
+            <p>Combat continues while this panel is open.</p>
+            <div id="liveIntelContent"></div>
+          </div>
+        </details>
+        <details class="ab-combat-drawer" id="liveSettingsDrawer">
+          <summary>Combat settings</summary>
+          <div class="ab-combat-drawer-body">
+            <div class="ab-combat-drawer-head"><strong>Combat settings</strong><span data-live-drawer-clock></span><button type="button" data-close-live-drawer>Close</button></div>
+            <p>Combat continues while this panel is open.</p>
+            <p id="livePreferenceStatus" role="status" hidden></p>
+            <div class="ab-animation-settings">
+              <label for="liveAnimationSpeed">Animation speed<select id="liveAnimationSpeed"><option value="normal">Normal</option><option value="fast">Fast</option></select></label>
+              <label for="liveAnimationEffects">Spell effects<select id="liveAnimationEffects"><option value="full">Full</option><option value="reduced">Reduced</option></select></label>
+              <small>Animations follow confirmed actions. Combat timing stays the same. Your device’s reduced-motion preference is respected.</small>
+            </div>
+            <div id="liveSettingsContent"></div>
+          </div>
+        </details>
+      </div>
     </div>
+	<p id="liveRecoveryStatus" role="status" hidden></p>
 	<div class="ab-auto-preview" id="liveAutoPreview"></div>
-	<div class="ab-weakpoints" id="liveWeakpoints" aria-label="Boss weakpoint choice" hidden></div>
-    <div class="ab-loadouts" id="liveLoadouts" aria-label="Action bar loadouts"></div>
+    <div class="ab-live-target-picker"><label for="liveTargetSelect">Target</label><select id="liveTargetSelect" onchange="selectLiveTarget(this.value)"><option value="">Choose a target</option></select><span id="liveSelectedIntent"></span></div>
+    <div class="ab-live-choices">
+      <div class="ab-weakpoints" id="liveWeakpoints" aria-label="Boss weakpoint choice" hidden></div>
+      <div class="ab-loadouts" id="liveLoadouts" aria-label="Action bar loadouts"></div>
+    </div>
     <div class="ab-actionbar" id="liveActionBar"></div>
   </div>
   <div class="ab-live-forecast">
@@ -83,13 +119,6 @@
   <aside class="ab-hazard-telegraph" id="liveHazardTelegraph" hidden>
     <strong>NEXT ROUND</strong><span id="liveHazardTelegraphText"></span>
   </aside>
-  <div class="ab-pixel-stage" id="livePixelStage" aria-label="Animated combat battlefield">
-    <div class="ab-ultimate-charge" id="liveUltimateCharge" role="status" aria-label="Ultimate readiness"><b>ULT</b><span>—</span></div>
-    <div class="ab-pixel-backdrop" aria-hidden="true"><i></i><i></i><i></i></div>
-    <div class="ab-pixel-party" id="livePixelAllies" aria-label="Allied combatants"></div>
-    <div class="ab-pixel-party hostile" id="livePixelEnemies" aria-label="Enemy combatants"></div>
-    <div class="ab-pixel-stage-label" aria-hidden="true"><span>PARTY</span><span>HOSTILES</span></div>
-  </div>
   <details class="ab-live-details">
     <summary>TACTICAL DETAILS <span>exact HP · traits · effects · break bars</span></summary>
     <div class="ab-live-field">
@@ -103,6 +132,61 @@
 </section>{{end}}
 
 {{define "abyssLiveActionBarJS"}}// ---- Live action bar -------------------------------------------------------
+var livePreferenceRequest=null, livePreferenceError=null, liveActionError=null;
+
+function initLiveDrawers(){
+  var settings=document.getElementById('liveSettingsContent'),intel=document.getElementById('liveIntelContent');
+  if(!settings||settings.dataset.initialized)return;
+  settings.dataset.initialized='true';
+  document.querySelectorAll('#liveCombat .ab-live-head > label,#liveCombat > .ab-live-policy,#liveTargetLock,#liveCombat .ab-live-command-head > button[onclick="toggleLiveCompact()"],#liveCombat .ab-live-command-head > button[onclick="configureLiveShortcuts()"],#liveCombat .ab-combat-feedback').forEach(function(node){settings.appendChild(node);});
+  document.querySelectorAll('#liveCombat > .ab-live-forecast,#liveCombat > .ab-live-details,#liveCombat > .ab-live-social-shell,#liveCombat > .ab-round-recap,#liveCombat > .ab-round-timeline').forEach(function(node){intel.appendChild(node);});
+  var tactical=intel.querySelector('.ab-live-details');if(tactical)tactical.open=true;
+  document.querySelectorAll('.ab-combat-drawer').forEach(function(drawer){
+    function close(){drawer.open=false;drawer.querySelector('summary').focus({preventScroll:true});}
+    drawer.querySelector('[data-close-live-drawer]').addEventListener('click',close);
+    drawer.addEventListener('keydown',function(event){if(event.key==='Escape'&&!document.getElementById('sharedModal').classList.contains('open')){event.preventDefault();event.stopPropagation();close();}});
+    drawer.addEventListener('toggle',function(){if(drawer.open){document.querySelectorAll('.ab-combat-drawer').forEach(function(other){if(other!==drawer)other.open=false;});positionLiveDrawer();}});
+  });
+  window.addEventListener('resize',positionLiveDrawer);
+  window.addEventListener('scroll',positionLiveDrawer,{passive:true});
+}
+
+function positionLiveDrawer(){
+  var drawer=document.querySelector('.ab-combat-drawer[open]');if(!drawer)return;
+  var top=12;
+  document.querySelectorAll('.topbar,.abyss-stats,#miniHud.show').forEach(function(node){
+    var rect=node.getBoundingClientRect();
+    if(rect.height&&rect.top<120&&rect.bottom>0)top=Math.max(top,rect.bottom+12);
+  });
+  drawer.querySelector('.ab-combat-drawer-body').style.top=top+'px';
+}
+
+function renderLiveTargetPicker(state){
+  var select=document.getElementById('liveTargetSelect');
+  var units=(state.enemies||[]).concat(state.allies||[]);
+  var options=[{id:'',label:'Choose a target',disabled:false}].concat(units.map(function(unit){
+    var enemy=String(unit.id).indexOf('enemy:')===0;
+    return {id:unit.id,label:(enemy?'Enemy: ':'Ally: ')+unit.name,disabled:unit.hp===0||(!enemy&&!unit.is_player)||(livePendingOption&&!liveTargetValid(livePendingOption,unit.id))||(liveTargetLocked&&enemy&&liveSelectedTarget&&liveSelectedTarget!==unit.id)};
+  }));
+  // Keep the native picker stable across repeated server snapshots.
+  var signature=JSON.stringify(options);
+  if(select.dataset.options!==signature){select.replaceChildren();options.forEach(function(item){var option=document.createElement('option');option.value=item.id;option.textContent=item.label;option.disabled=!!item.disabled;select.appendChild(option);});select.dataset.options=signature;}
+  select.value=liveSelectedTarget||'';select.disabled=state.phase!=='planning'||!!liveActionInFlight;
+  var selected=units.find(function(unit){return unit.id===liveSelectedTarget;});
+  var intents=state.enemy_intents||[],intent=selected&&intents.find(function(item){return item.enemy_name===selected.name;});
+  if(!intent&&!selected)intent=intents[0];
+  document.getElementById('liveSelectedIntent').textContent=intent?'Intent: '+intent.enemy_name+' · '+(intent.ability||intent.kind)+(intent.target?' → '+intent.target:''):'Intent: '+(selected?'not revealed':'choose a target');
+}
+
+function syncLiveRecoveryStatus(){
+  var status=document.getElementById('liveRecoveryStatus'),connection=document.getElementById('liveConnection');if(!status||!liveCombatState)return;
+  var reconnecting=connection&&connection.dataset.state!=='synced';
+  var message=reconnecting?'Reconnecting — actions are unconfirmed until the server responds.':'';
+  if(liveActionError)message+=(message?' ':'')+liveActionError.message+' Showing the last confirmed queue.';
+  status.hidden=!message;if(status.textContent!==message)status.textContent=message;
+  var main=document.getElementById('abStatus');
+  if(main&&['planning','resolving'].indexOf(liveCombatState.phase)>=0)main.textContent=reconnecting?'Reconnecting — waiting for the combat server.':liveCombatState.phase==='planning'?'Combat synchronized — choose an action before the round expires.':'Resolving synchronized actions…';
+}
 
 function liveEventCursor(state){
   if(!state)return -1;
@@ -115,6 +199,7 @@ function liveRequestOwns(slot,request){
 }
 
 function startLiveCombat(payload, hp, max){
+  initLiveDrawers();
   if(payload&&payload.map_route&&typeof renderAbyssCartographerRoute==='function')renderAbyssCartographerRoute(payload.map_route);
   liveStartHP=hp||Number(document.getElementById('hpBar').getAttribute('aria-valuenow'))||0;
   liveStartMaxHP=max||Number(document.getElementById('hpBar').getAttribute('aria-valuemax'))||1;
@@ -122,6 +207,7 @@ function startLiveCombat(payload, hp, max){
 	var nextSession=payload&&payload.state&&payload.state.session_id||'';
 	var sessionChanged=liveCombatSessionID!==nextSession;
 	liveCombatSessionID=nextSession;
+  if(sessionChanged){livePreferenceRequest=null;livePreferenceError=null;liveActionError=null;document.querySelectorAll('.ab-combat-drawer').forEach(function(drawer){drawer.open=false;});var menu=document.getElementById('abCombatMenuToggle');if(menu){menu.setAttribute('aria-expanded','false');document.getElementById('abCommandCenter').classList.remove('ab-combat-menu-open');}}
 	if(sessionChanged){liveRenderedLogCursor=0;liveLogRestoreApplied=false;liveActionReceipt=null;liveActionInFlight=null;liveReadyInFlight=null;liveTimeBankInFlight=null;var initialFeed=document.getElementById('liveFeed');if(initialFeed)initialFeed.replaceChildren();}
 	liveLastEventID=liveEventCursor(payload&&payload.state);
 	liveSelectedTarget=''; liveSelectedWeakpoint=''; livePendingOption=null; liveTargetLocked=false; liveRoundHistory=[];
@@ -163,10 +249,12 @@ function connectLiveCombat(){
 }
 
 function setLiveConnection(state,label){
+  if(window.AbyssCombatAnimation)window.AbyssCombatAnimation.connection(state);
   var indicator=document.getElementById('liveConnection');
   if(!indicator)return;
   indicator.dataset.state=state;
   indicator.textContent=label;
+  syncLiveRecoveryStatus();
 }
 
 function scheduleLiveReconnect(delay){
@@ -293,7 +381,7 @@ function selectLiveTarget(targetID){
 }
 
 function renderLiveActionBar(state){
-  var host=document.getElementById('liveActionBar'); host.innerHTML='';host.setAttribute('aria-busy',liveActionInFlight?'true':'false');
+  var host=document.getElementById('liveActionBar'),existing=new Map(Array.from(host.children).map(function(node){return [node.dataset.actionKey,node];})),retained=new Set();host.setAttribute('aria-busy',liveActionInFlight?'true':'false');
   var options=state.options||[];
 	var budget=state.action_budget||{},budgetExhausted=Number(budget.limit)>0&&Number(budget.remaining)<=0;
   var own=(state.allies||[]).find(function(a){return a.is_self;})||(state.allies||[])[0]||{};
@@ -319,7 +407,7 @@ function renderLiveActionBar(state){
 	  return (ai===-1?999:ai)-(bi===-1?999:bi);
 	});
   shown.forEach(function(option,index){
-    var button=document.createElement('button'); button.type='button';
+    var button=existing.get(liveActionKey(option))||document.createElement('button');button.type='button';retained.add(button);
     var unavailable=(option.cooldown||0)>0 || ((option.mana||0)>(own.mana||0)) || (option.kind==='item'&&(option.count||0)<=0) || state.phase!=='planning' || budgetExhausted || !!liveActionInFlight;
 	var recommended=liveActionMatches(option,recommendedAction);
 	var actionKey=liveActionKey(option),shortcut=liveShortcut(option,skills,items,ultimates);
@@ -331,6 +419,8 @@ function renderLiveActionBar(state){
 	var artKey=liveActionArtKey(option),iconCell=liveActionIconCell(option),identity=liveArtIdentity(artKey),exactArt=liveCatalogArt(artKey,liveActionArtFamily(option));
 	var iconClass=exactArt?'ab-pixel-icon ab-catalog-icon':'ab-pixel-icon ab-semantic-action-icon';
 	var iconStyle=exactArt?liveUniqueArtStyle(artKey,exactArt.family):'background-position:'+liveActionIconPosition(iconCell);
+
+    if(/^CLASS_/.test(option.id||'')&&window.AbyssCombatArt){var classProfile=window.AbyssCombatArt.profileFor(option);iconClass='ab-pixel-icon ab-class-action-icon';iconStyle='background-image:url(&quot;'+window.AbyssCombatArt.effectFrame(classProfile,'impact',1)+'&quot;);background-size:contain;background-position:center;background-repeat:no-repeat';}
 	button.innerHTML='<span class="ab-action-key">'+consEsc(shortcut)+'</span><span class="ab-action-pin">'+(livePinnedActions[actionKey]?'★':'☆')+'</span><span class="ab-action-icon"><span class="'+iconClass+'" data-art-signature="'+identity.signature+'" data-art-sheet="'+(exactArt?exactArt.family:'actions')+'" style="'+iconStyle+'"></span></span>'+
       '<span class="ab-action-name">'+consEsc(option.name)+'</span>'+
       '<span class="ab-action-estimate">'+liveEffectEstimate(option)+'</span>'+
@@ -341,8 +431,9 @@ function renderLiveActionBar(state){
 	button.ondragstart=function(event){event.dataTransfer.setData('text/plain',actionKey);};
 	button.ondragover=function(event){event.preventDefault();};
 	button.ondrop=function(event){event.preventDefault();reorderLiveAction(event.dataTransfer.getData('text/plain'),actionKey);};
-    host.appendChild(button);
+    if(host.children[index]!==button)host.insertBefore(button,host.children[index]||null);
   });
+  existing.forEach(function(button){if(!retained.has(button))button.remove();});
 }
 
 function renderLiveWeakpoints(state){
@@ -395,7 +486,7 @@ async function submitLiveOption(option){
   if(!liveCombatState||liveCombatState.phase!=='planning'||liveActionInFlight)return;
   var target=(option.target==='self'||option.kind==='defend')?'':liveSelectedTarget;
   var replacing=!!liveCombatState.queued;
-  setLiveActionReceipt('RECEIVED · '+option.name,1600);
+  setLiveActionReceipt('SENDING · '+option.name,1600,'submitting');
   var weakpoint=target&&target.indexOf('enemy:')===0?liveSelectedWeakpoint:'';
   var payload={session_id:liveCombatState.session_id,kind:option.kind,ability_id:option.id||'',target_id:target,weakpoint:weakpoint,round:liveCombatState.round,
 		idempotency_key:abyssRequestKey()};
@@ -408,17 +499,25 @@ async function submitLiveOption(option){
     if(!liveRequestOwns(liveActionInFlight,request))return;
     if(!response.ok){
       if(response.state)renderLiveCombat(response.state);
-      setLiveActionReceipt('REJECTED · '+(response.error||'Action rejected'),2200);
+      setLiveActionReceipt('REJECTED · '+(response.error||'Action rejected'),2200,'rejected');
+      liveActionError={version:Number(liveCombatState.version)||0,message:response.error||'Action rejected'};
+      syncLiveRecoveryStatus();
       abToast(response.error||'Action rejected',false); return;
     }
     setLiveActionReceipt((replacing?'REPLACED · ':'ACCEPTED · ')+option.name,1800);
+    liveActionError=null;
     livePendingOption=null;
     renderLiveCombat(response);
+  }catch(error){
+    if(liveRequestOwns(liveActionInFlight,request)){
+      liveActionError={version:Number(liveCombatState.version)||0,message:'Connection failed. This action was not confirmed.'};
+      syncLiveRecoveryStatus();
+    }
   }finally{
     if(liveActionInFlight===request){
       liveActionInFlight=null;
       if(actionBar)actionBar.setAttribute('aria-busy','false');
-      if(liveCombatState&&liveCombatState.phase==='planning')renderLiveActionBar(liveCombatState);
+      if(liveCombatState&&liveCombatState.phase==='planning'){renderLiveActionBar(liveCombatState);renderLiveTargetPicker(liveCombatState);}
     }
   }
 }
@@ -451,11 +550,11 @@ function liveEffectEstimate(option){
   return consEsc(option.effect_label)+' '+value;
 }
 
-function setLiveActionReceipt(text,duration){
-  var receipt={text:text,until:Date.now()+duration};
+function setLiveActionReceipt(text,duration,state){
+  var receipt={text:text,until:Date.now()+duration,state:state||'confirmed'};
   liveActionReceipt=receipt;
   var queue=document.getElementById('liveQueue');
-  if(queue)queue.textContent=text;
+  if(queue){queue.textContent=text;queue.dataset.state=receipt.state;}
   setTimeout(function(){
     if(liveActionReceipt!==receipt)return;
     liveActionReceipt=null;
@@ -464,19 +563,45 @@ function setLiveActionReceipt(text,duration){
 }
 
 async function setLiveTactic(tactic){
-  var response=await abPost('/api/abyss/combat/tactics',{tactic:tactic});
-  if(response.ok)renderLiveCombat(response,true);else abToast(response.error||'Could not change tactic',false);
+  return saveLivePreference('/api/abyss/combat/tactics',{tactic:tactic});
 }
 
 async function setLivePauseMode(mode){
-  var response=await abPost('/api/abyss/combat/pause',{mode:mode});
-  if(response.ok)renderLiveCombat(response,true);else abToast(response.error||'Could not change pause triggers',false);
+  return saveLivePreference('/api/abyss/combat/pause',{mode:mode});
 }
 
 async function setLivePolicy(){
   var payload={critical_tactic:document.getElementById('liveCriticalTactic').value,attack_priority:document.getElementById('liveAttackPriority').value,skill_priority:document.getElementById('liveSkillPriority').value,timeout_action:document.getElementById('liveTimeoutAction').value};
-  var response=await abPost('/api/abyss/combat/policy',payload);
-  if(response.ok)renderLiveCombat(response,true);else abToast(response.error||'Could not update fallback policy',false);
+  return saveLivePreference('/api/abyss/combat/policy',payload);
+}
+
+function syncLivePreferences(){
+  if(!liveCombatState)return;
+  var state=liveCombatState,policy=state.policy||{};
+  var values={liveTactic:state.tactic||'balanced',livePauseMode:state.pause_mode||'adaptive',liveCriticalTactic:policy.critical_tactic||'same',liveAttackPriority:policy.attack_priority||'lowest_hp',liveSkillPriority:policy.skill_priority||'lowest_hp',liveTimeoutAction:policy.timeout_action||'best'};
+  Object.keys(values).forEach(function(id){var control=document.getElementById(id);control.value=values[id];control.disabled=!!livePreferenceRequest||(id==='livePauseMode'&&!state.can_configure_pause);control.setAttribute('aria-busy',livePreferenceRequest?'true':'false');});
+  var status=document.getElementById('livePreferenceStatus');
+  var message=livePreferenceRequest?'Saving combat settings…':livePreferenceError?livePreferenceError.message+' Showing last confirmed settings. Try again.':'';
+  status.hidden=!message;if(status.textContent!==message)status.textContent=message;
+}
+
+async function saveLivePreference(url,payload){
+  if(!liveCombatState||livePreferenceRequest)return;
+  var request={session_id:liveCombatSessionID};livePreferenceRequest=request;livePreferenceError=null;
+  syncLivePreferences();
+  try{
+    var response=await abPost(url,payload);
+    if(!liveRequestOwns(livePreferenceRequest,request))return;
+    if(response.ok)renderLiveCombat(response,true);
+    else{
+      if(response.state)renderLiveCombat(response.state,true);
+      livePreferenceError={version:Number(liveCombatState.version)||0,message:response.error||'Could not save combat settings.'};
+    }
+  }catch(error){
+    if(liveRequestOwns(livePreferenceRequest,request))livePreferenceError={version:Number(liveCombatState.version)||0,message:'Connection failed. Settings were not confirmed.'};
+  }finally{
+    if(liveRequestOwns(livePreferenceRequest,request)){livePreferenceRequest=null;syncLivePreferences();}
+  }
 }
 
 async function liveSocial(action,value,targetID,vote){
@@ -573,16 +698,23 @@ async function spendLiveTimeBank(){
 }
 
 function updateLiveClock(){
-  if(!liveCombatState||liveCombatState.phase!=='planning')return;
+  if(!liveCombatState)return;
+  if(liveCombatState.phase!=='planning'){
+    document.getElementById('liveClock').textContent='—';
+    document.querySelectorAll('[data-live-drawer-clock]').forEach(function(node){node.textContent='Round '+liveCombatState.round+' · '+liveCombatState.phase;});
+    return;
+  }
   var left=Math.max(0,new Date(liveCombatState.deadline).getTime()-Date.now());
   var clock=document.getElementById('liveClock');
   clock.textContent=(left/1000).toFixed(1)+'s';
   clock.classList.toggle('urgent',left<1500);
+  document.querySelectorAll('[data-live-drawer-clock]').forEach(function(node){node.textContent='Round '+liveCombatState.round+' · '+clock.textContent;});
 }
 
 function toggleLiveTargetLock(){
 	liveTargetLocked=!liveTargetLocked&&!!liveSelectedTarget;
 	var button=document.getElementById('liveTargetLock');button.setAttribute('aria-pressed',liveTargetLocked?'true':'false');button.textContent=liveTargetLocked?'TARGET LOCKED':'TARGET LOCK';
+  if(liveCombatState)renderLiveTargetPicker(liveCombatState);
 }
 function toggleLiveCompact(){document.getElementById('liveCombat').classList.toggle('compact');}
 function configureLiveShortcuts(){
@@ -650,6 +782,14 @@ function renderLiveCombat(state,preserveFeed){
   if(!state||!state.ok||state.session_id!==liveCombatSessionID)return;
   var incomingVersion=liveEventCursor(state),currentVersion=liveEventCursor(liveCombatState);
   if(liveCombatState&&liveCombatState.session_id===state.session_id&&incomingVersion>=0&&currentVersion>=0&&currentVersion>incomingVersion)return;
+  if(liveSelectedTarget&&liveCombatState&&Array.isArray(state.presentation_events)){
+    var previousTarget=(liveCombatState.allies||[]).concat(liveCombatState.enemies||[]).find(function(unit){return unit.id===liveSelectedTarget;});
+    if(previousTarget&&previousTarget.entity_id){
+      var sameTarget=(state.allies||[]).concat(state.enemies||[]).find(function(unit){return unit.entity_id===previousTarget.entity_id;});
+      liveSelectedTarget=sameTarget?sameTarget.id:'';
+      if(!sameTarget){liveTargetLocked=false;liveSelectedWeakpoint='';}
+    }
+  }
   liveCombatState=state;
 	var targetStillExists=(state.allies||[]).concat(state.enemies||[]).some(function(unit){return unit.id===liveSelectedTarget&&unit.hp!==0;});
 	if(!targetStillExists){liveSelectedTarget='';liveTargetLocked=false;}
@@ -658,15 +798,10 @@ function renderLiveCombat(state,preserveFeed){
   document.getElementById('liveCombat').style.display='block';
   document.getElementById('liveRound').textContent='ROUND '+(state.round||'—')+' · '+String(state.phase||'').toUpperCase();
   document.getElementById('livePause').textContent=state.pause_reason||'';
-  document.getElementById('liveTactic').value=state.tactic||'balanced';
-  var pauseMode=document.getElementById('livePauseMode');
-  pauseMode.value=state.pause_mode||'adaptive';
-  pauseMode.disabled=!state.can_configure_pause;
-  var policy=state.policy||{};
-  document.getElementById('liveCriticalTactic').value=policy.critical_tactic||'same';
-  document.getElementById('liveAttackPriority').value=policy.attack_priority||'lowest_hp';
-  document.getElementById('liveSkillPriority').value=policy.skill_priority||'lowest_hp';
-  document.getElementById('liveTimeoutAction').value=policy.timeout_action||'best';
+  if(livePreferenceError&&Number(state.version)>livePreferenceError.version)livePreferenceError=null;
+  if(liveActionError&&Number(state.version)>liveActionError.version)liveActionError=null;
+  syncLivePreferences();
+  syncLiveRecoveryStatus();
   renderLiveSocial(state);
   document.getElementById('liveRecap').textContent=state.round_recap||'';
 	var encounterWarning=document.getElementById('liveEncounterWarning');
@@ -682,7 +817,9 @@ function renderLiveCombat(state,preserveFeed){
 	var autoPreview=document.getElementById('liveAutoPreview');
 	var recommendedAction=state.recommended&&state.recommended.action;
 	var recommendedTarget=liveActionTargetName(state,recommendedAction);
-	autoPreview.textContent=state.recommended?'TIMEOUT → '+String(recommendedAction.kind||'DEFEND').toUpperCase()+(recommendedTarget?' → '+recommendedTarget:'')+' · '+state.recommended.reason:'TIMEOUT → server-selected safe action';
+  var recommendedOption=recommendedAction&&(state.options||[]).find(function(option){return option.kind===recommendedAction.kind&&(option.id||'')===(recommendedAction.ability_id||'');});
+	autoPreview.textContent=state.recommended?'TIMEOUT → '+(recommendedOption?recommendedOption.name:String(recommendedAction.kind||'DEFEND').toUpperCase())+(recommendedTarget?' → '+recommendedTarget:'')+' · '+state.recommended.reason:'TIMEOUT → server-selected safe action';
+  renderLiveTargetPicker(state);
 	renderLiveRoundTimeline(state);
   renderLiveUltimateCharge(state);
   renderLiveEnrageWarning(state);
@@ -707,7 +844,7 @@ function renderLiveCombat(state,preserveFeed){
   timeBank.setAttribute('aria-busy',liveTimeBankInFlight?'true':'false');
   timeBank.textContent='+2s · '+bankSeconds+'s bank';
   var queue=document.getElementById('liveQueue');
-  if(liveActionReceipt&&liveActionReceipt.until>Date.now()){queue.dataset.state='confirmed';queue.textContent=liveActionReceipt.text;}
+  if(liveActionReceipt&&liveActionReceipt.until>Date.now()){queue.dataset.state=liveActionReceipt.state;queue.textContent=liveActionReceipt.text;}
 	else if(state.queued){queue.dataset.state='queued';queue.textContent=liveQueuedSummary(state);}
   else if(state.phase==='planning'){
 	var selectedUnit=(state.allies||[]).concat(state.enemies||[]).find(function(unit){return unit.id===liveSelectedTarget;});
@@ -725,6 +862,7 @@ function dismissFinishedLiveCombat(sessionID){
   var combat=document.getElementById('liveCombat');
   if(combat)combat.style.display='none';
   liveCombatState=null;
+  if(window.AbyssCombatAnimation)window.AbyssCombatAnimation.dispose();
   liveCombatSessionID='';liveActionInFlight=null;liveReadyInFlight=null;liveTimeBankInFlight=null;
   updateAbyssCombatCockpit(false);
   scheduleAbyssCockpitFocus('btnDescend');
@@ -833,7 +971,14 @@ async function finishLiveCombat(state){
   var priorReduce=reduceMotion; reduceMotion=true;
   await processDescendResult(result,liveStartHP,liveStartMaxHP);
   reduceMotion=priorReduce;
-  setTimeout(function(){dismissFinishedLiveCombat(completedSession);},900);
+  // Timer throttling can outlast the nominal animation budget. Keep the
+  // completed scene until its actual event queue has presented every outcome.
+  setTimeout(function dismissAfterPresentation(){
+    if(window.AbyssCombatAnimation&&window.AbyssCombatAnimation.isPlaying(completedSession)){
+      setTimeout(dismissAfterPresentation,50);return;
+    }
+    dismissFinishedLiveCombat(completedSession);
+  },900);
 }
 
 function resumeLiveCombatPhase(phase){

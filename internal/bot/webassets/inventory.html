@@ -41,6 +41,12 @@
   </div>
 </section>
 
+<div id="inventoryGear" class="inv-slot-context" tabindex="-1" aria-label="Inventory equipment">
+  <label for="inventorySlot">Equipment slot</label>
+  <select id="inventorySlot"><option value="">All slots</option></select>
+  <p id="inventorySlotStatus" role="status" aria-live="polite"></p>
+  <p id="inventorySlotEmpty" hidden>No unequipped items for this slot. <a href="/shop">Browse the Shop</a> or choose All slots.</p>
+</div>
 {{if .Items}}
 <div class="inv-grid">
   {{range .Items}}
@@ -110,6 +116,30 @@
     var gold = document.getElementById('goldPill'); if (gold) { gold.dataset.value = String(data.gold); gold.textContent = '🪙 ' + Number(data.gold || 0).toLocaleString(); }
     toast(data.msg || 'Consumable Pouch tailored.', true);
   }
+</script>
+<script data-cfasync="false">
+(function(){
+  var select=document.getElementById('inventorySlot'),cards=Array.from(document.querySelectorAll('.inv-card[data-slot]'));
+  var requested=new URLSearchParams(location.search).get('slot')||'';
+  if(requested.length>40)requested='';
+  var slots=Array.from(new Set(cards.map(function(card){return card.dataset.slot;})));
+  if(requested&&slots.indexOf(requested)<0)slots.push(requested);
+  slots.sort().forEach(function(slot){var option=document.createElement('option');option.value=slot;option.textContent=slot;select.appendChild(option);});
+  select.value=requested;
+  function filter(){
+    var shown=0;
+    cards.forEach(function(card){card.hidden=!!select.value&&card.dataset.slot!==select.value;if(!card.hidden)shown++;});
+    document.getElementById('inventorySlotStatus').textContent=shown+' item'+(shown===1?'':'s')+(select.value?' for '+select.value:' across all slots');
+    document.getElementById('inventorySlotEmpty').hidden=!select.value||shown>0;
+  }
+  select.addEventListener('change',function(){
+    filter();
+    var url=new URL(location.href);
+    if(select.value)url.searchParams.set('slot',select.value);else url.searchParams.delete('slot');
+    history.replaceState(null,'',url.pathname+url.search+'#inventoryGear');
+  });
+  filter();
+})();
 </script>
 {{template "abyssItemNumbersJS" .}}
 {{template "foot" .}}{{end}}

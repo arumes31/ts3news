@@ -1,0 +1,45 @@
+{{define "abyssClassesPanel"}}
+<section class="abyss-panel ab-class-workbench" id="abyssMyBuild" data-abyss-section="build" aria-labelledby="abyssMyBuildTitle">
+ <div class="ab-class-heading"><div><h2 id="abyssMyBuildTitle">My Build</h2><p>Choose your combat style. Make every skill, item and buff serve it.</p></div><a class="ghost" href="/abyss/tree">Open Skill Web</a></div>
+ <p id="abyssClassStatus" role="status" aria-live="polite">Loading your build…</p>
+ <div id="abyssClassContent" hidden>
+  <div class="ab-class-roster" id="abyssClassRoster" role="group" aria-label="Player classes"></div>
+  <div class="ab-class-detail">
+   <div class="ab-class-portrait" id="abyssClassPortrait" aria-hidden="true"></div>
+   <div class="ab-class-description"><h3 id="abyssClassName"></h3><p id="abyssClassDescription"></p>
+    <label for="abyssSubclass">Subclass</label><select id="abyssSubclass" class="ab-select"></select>
+    <p id="abyssClassSequence"></p><p id="abyssClassStats" class="ab-class-stats"></p>
+    <button type="button" id="abyssClassChoose">Use this subclass</button>
+    <button type="button" class="ghost" id="abyssClassLegacy">Use my original build</button>
+   </div>
+  </div>
+  <section class="ab-talent-workshop" aria-labelledby="abyssTalentTitle">
+   <div class="ab-talent-heading"><h3 id="abyssTalentTitle">Class talents</h3><span id="abyssTalentBudget"></span></div>
+   <p id="abyssTalentProgress"></p><progress id="abyssTalentXP" value="0" max="1" aria-label="Class XP toward the next point"></progress>
+   <p id="abyssTalentPacing"></p>
+   <div id="abyssFoundationTree"></div>
+   <div id="abyssSubclassGate" class="ab-talent-gate"></div>
+   <div id="abyssSubclassTree"></div>
+   <p id="abyssTalentInspect" role="status" aria-live="polite">Inspect a talent to see its effect and requirements.</p>
+   <div class="ab-talent-actions"><button type="button" id="abyssTalentSave">Save talent path</button><button type="button" class="ghost" id="abyssTalentReset">Reset this path</button></div>
+  </section>
+  <div id="abyssClassSignatures" class="ab-class-signatures"></div>
+  <div class="ab-class-guidance"><div><h3>Your next improvement</h3><p id="abyssClassNext"></p><a href="/abyss/tree">Plan the upgrade and check its cost</a></div><div><h3>Keep the sequence working</h3><p id="abyssClassWeakness"></p><p id="abyssClassBuffs"></p></div></div>
+  <details class="ab-class-library" open><summary>Equipped skills and learned families</summary>
+   <p>Choose up to <span id="abyssClassCapacity"></span> acquired skills. Signature and Skill Web actions are additional. Saved selections return when you switch back. Pin essential skills to protect them from automatic replacement.</p>
+   <div id="abyssClassSkills"></div><button type="button" id="abyssClassSaveSkills">Save skill build</button>
+  </details>
+  <details class="ab-class-gear" open><summary>Gear that supports your build</summary>
+   <p id="abyssClassGearAdvice"></p><p>These are item stat differences against your equipped slot, before set bonuses, enchantments and percentage modifiers. Check the full item before equipping.</p>
+   <div class="ab-class-table-wrap"><table><thead><tr><th>Candidate</th><th>Damage stat</th><th>HP</th><th>Defense</th><th>Mana</th></tr></thead><tbody id="abyssClassGear"></tbody></table></div>
+   <a href="/inventory">Compare and equip in Inventory</a>
+  </details>
+  <p class="ab-class-preservation">Your existing specializations, Skill Web allocations, equipment presets and expedition rewards remain active. Classes organize combat; expedition kits and temporary buffs still apply to the run.</p>
+ </div>
+ <button type="button" class="ghost" id="abyssClassReload">Reload build</button>
+</section>
+<link rel="stylesheet" href="/static/abyss_classes.css?v={{assetver "webassets/abyss_classes.css"}}">
+<script defer src="/static/abyss_classes.js?v={{assetver "webassets/abyss_classes.js"}}"></script>
+<script defer src="/static/abyss_class_talents.js?v={{assetver "webassets/abyss_class_talents.js"}}"></script>
+<link rel="stylesheet" href="/static/abyss_class_talents.css?v={{assetver "webassets/abyss_class_talents.css"}}">
+{{end}}

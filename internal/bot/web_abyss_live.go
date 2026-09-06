@@ -41,22 +41,25 @@ type abyssLiveAction struct {
 }
 
 type abyssLiveOption struct {
-	Kind         string   `json:"kind"`
-	ID           string   `json:"id,omitempty"`
-	Name         string   `json:"name"`
-	Description  string   `json:"description,omitempty"`
-	Target       string   `json:"target"`
-	Mana         int      `json:"mana,omitempty"`
-	Cooldown     int      `json:"cooldown,omitempty"`
-	CooldownMax  int      `json:"cooldown_max,omitempty"`
-	Count        int      `json:"count,omitempty"`
-	Power        float64  `json:"power,omitempty"`
-	EffectLabel  string   `json:"effect_label,omitempty"`
-	MinEffect    int      `json:"min_effect,omitempty"`
-	MaxEffect    int      `json:"max_effect,omitempty"`
-	Tags         []string `json:"tags,omitempty"`
-	EffectRounds int      `json:"effect_rounds,omitempty"`
-	Modifiers    []string `json:"modifiers,omitempty"`
+	BuildPriority   float64  `json:"build_priority,omitempty"`
+	BuildReason     string   `json:"build_reason,omitempty"`
+	PreferredTarget string   `json:"preferred_target,omitempty"`
+	Kind            string   `json:"kind"`
+	ID              string   `json:"id,omitempty"`
+	Name            string   `json:"name"`
+	Description     string   `json:"description,omitempty"`
+	Target          string   `json:"target"`
+	Mana            int      `json:"mana,omitempty"`
+	Cooldown        int      `json:"cooldown,omitempty"`
+	CooldownMax     int      `json:"cooldown_max,omitempty"`
+	Count           int      `json:"count,omitempty"`
+	Power           float64  `json:"power,omitempty"`
+	EffectLabel     string   `json:"effect_label,omitempty"`
+	MinEffect       int      `json:"min_effect,omitempty"`
+	MaxEffect       int      `json:"max_effect,omitempty"`
+	Tags            []string `json:"tags,omitempty"`
+	EffectRounds    int      `json:"effect_rounds,omitempty"`
+	Modifiers       []string `json:"modifiers,omitempty"`
 }
 
 type abyssLiveEffect struct {
@@ -71,34 +74,41 @@ type abyssLiveEffect struct {
 }
 
 type abyssLiveCombatantView struct {
-	ID            string               `json:"id"`
-	Name          string               `json:"name"`
-	ArtKey        string               `json:"art_key,omitempty"`
-	HP            int                  `json:"hp"`
-	MaxHP         int                  `json:"max_hp"`
-	HPHidden      bool                 `json:"hp_hidden,omitempty"`
-	Shield        int                  `json:"shield,omitempty"`
-	MaxShield     int                  `json:"max_shield,omitempty"`
-	Mana          int                  `json:"mana,omitempty"`
-	MaxMana       int                  `json:"max_mana,omitempty"`
-	Ready         bool                 `json:"ready,omitempty"`
-	IsPlayer      bool                 `json:"is_player,omitempty"`
-	IsSelf        bool                 `json:"is_self,omitempty"`
-	Element       string               `json:"element,omitempty"`
-	WeakTo        string               `json:"weak_to,omitempty"`
-	Position      string               `json:"position,omitempty"`
-	Speed         int                  `json:"speed,omitempty"`
-	Threat        int                  `json:"threat,omitempty"`
-	Role          string               `json:"role,omitempty"`
-	Faction       string               `json:"faction,omitempty"`
-	Pattern       string               `json:"pattern,omitempty"`
-	Break         int                  `json:"break,omitempty"`
-	MaxBreak      int                  `json:"max_break,omitempty"`
-	Hazard        bool                 `json:"hazard,omitempty"`
-	Revenge       bool                 `json:"revenge,omitempty"`
-	WeaknessReady bool                 `json:"weakness_ready,omitempty"`
-	Effects       []abyssLiveEffect    `json:"effects,omitempty"`
-	Weakpoints    []abyssLiveWeakpoint `json:"weakpoints,omitempty"`
+	Class             string               `json:"class,omitempty"`
+	Subclass          string               `json:"subclass,omitempty"`
+	ClassResource     int                  `json:"class_resource,omitempty"`
+	ClassResourceName string               `json:"class_resource_name,omitempty"`
+	ID                string               `json:"id"`
+	EntityID          string               `json:"entity_id,omitempty"`
+	Name              string               `json:"name"`
+	ArtKey            string               `json:"art_key,omitempty"`
+	WeaponType        string               `json:"weapon_type,omitempty"`
+	WeaponName        string               `json:"weapon_name,omitempty"`
+	HP                int                  `json:"hp"`
+	MaxHP             int                  `json:"max_hp"`
+	HPHidden          bool                 `json:"hp_hidden,omitempty"`
+	Shield            int                  `json:"shield,omitempty"`
+	MaxShield         int                  `json:"max_shield,omitempty"`
+	Mana              int                  `json:"mana,omitempty"`
+	MaxMana           int                  `json:"max_mana,omitempty"`
+	Ready             bool                 `json:"ready,omitempty"`
+	IsPlayer          bool                 `json:"is_player,omitempty"`
+	IsSelf            bool                 `json:"is_self,omitempty"`
+	Element           string               `json:"element,omitempty"`
+	WeakTo            string               `json:"weak_to,omitempty"`
+	Position          string               `json:"position,omitempty"`
+	Speed             int                  `json:"speed,omitempty"`
+	Threat            int                  `json:"threat,omitempty"`
+	Role              string               `json:"role,omitempty"`
+	Faction           string               `json:"faction,omitempty"`
+	Pattern           string               `json:"pattern,omitempty"`
+	Break             int                  `json:"break,omitempty"`
+	MaxBreak          int                  `json:"max_break,omitempty"`
+	Hazard            bool                 `json:"hazard,omitempty"`
+	Revenge           bool                 `json:"revenge,omitempty"`
+	WeaknessReady     bool                 `json:"weakness_ready,omitempty"`
+	Effects           []abyssLiveEffect    `json:"effects,omitempty"`
+	Weakpoints        []abyssLiveWeakpoint `json:"weakpoints,omitempty"`
 }
 
 type abyssLiveRecommendation struct {
@@ -135,42 +145,44 @@ type abyssLiveActionBudget struct {
 }
 
 type abyssLiveSnapshot struct {
-	OK            bool                       `json:"ok"`
-	SchemaVersion int                        `json:"schema_version"`
-	SessionID     string                     `json:"session_id"`
-	OwnerUID      string                     `json:"-"`
-	Phase         string                     `json:"phase"`
-	Round         int                        `json:"round"`
-	EnrageRound   int                        `json:"enrage_round,omitempty"`
-	Version       int64                      `json:"version"`
-	Deadline      time.Time                  `json:"deadline,omitempty"`
-	PauseReason   string                     `json:"pause_reason,omitempty"`
-	Warning       string                     `json:"encounter_warning,omitempty"`
-	Telegraph     string                     `json:"hazard_telegraph,omitempty"`
-	PauseMode     string                     `json:"pause_mode"`
-	CanConfigure  bool                       `json:"can_configure_pause,omitempty"`
-	Policy        abyssLivePolicy            `json:"policy"`
-	Tactic        string                     `json:"tactic"`
-	Allies        []abyssLiveCombatantView   `json:"allies"`
-	Enemies       []abyssLiveCombatantView   `json:"enemies"`
-	Options       []abyssLiveOption          `json:"options"`
-	Queued        *abyssLiveAction           `json:"queued,omitempty"`
-	Recommended   *abyssLiveRecommendation   `json:"recommended,omitempty"`
-	TimeBankMS    int64                      `json:"time_bank_ms,omitempty"`
-	ActionBudget  abyssLiveActionBudget      `json:"action_budget"`
-	SkillVariety  abyssSkillVarietyView      `json:"skill_variety"`
-	EnemyIntents  []abyssLiveEnemyIntent     `json:"enemy_intents,omitempty"`
-	Initiative    []abyssLiveInitiativeEntry `json:"initiative,omitempty"`
-	RecentLogs    []string                   `json:"recent_logs"`
-	LogStart      int                        `json:"log_start,omitempty"`
-	LogCursor     int                        `json:"log_cursor,omitempty"`
-	LogHistory    []string                   `json:"log_history,omitempty"`
-	RoundRecap    string                     `json:"round_recap,omitempty"`
-	RandomSeed    [2]uint64                  `json:"random_seed"`
-	RandomDraws   uint64                     `json:"random_draws"`
-	Result        map[string]any             `json:"result,omitempty"`
-	PreviousDepth int                        `json:"previous_depth,omitempty"`
-	Social        abyssLiveSocialSnapshot    `json:"social"`
+	OK                 bool                         `json:"ok"`
+	SchemaVersion      int                          `json:"schema_version"`
+	SessionID          string                       `json:"session_id"`
+	OwnerUID           string                       `json:"-"`
+	Phase              string                       `json:"phase"`
+	Round              int                          `json:"round"`
+	EnrageRound        int                          `json:"enrage_round,omitempty"`
+	Version            int64                        `json:"version"`
+	Deadline           time.Time                    `json:"deadline,omitempty"`
+	PauseReason        string                       `json:"pause_reason,omitempty"`
+	Warning            string                       `json:"encounter_warning,omitempty"`
+	Telegraph          string                       `json:"hazard_telegraph,omitempty"`
+	PauseMode          string                       `json:"pause_mode"`
+	CanConfigure       bool                         `json:"can_configure_pause,omitempty"`
+	Policy             abyssLivePolicy              `json:"policy"`
+	Tactic             string                       `json:"tactic"`
+	Allies             []abyssLiveCombatantView     `json:"allies"`
+	Enemies            []abyssLiveCombatantView     `json:"enemies"`
+	Options            []abyssLiveOption            `json:"options"`
+	Queued             *abyssLiveAction             `json:"queued,omitempty"`
+	Recommended        *abyssLiveRecommendation     `json:"recommended,omitempty"`
+	TimeBankMS         int64                        `json:"time_bank_ms,omitempty"`
+	ActionBudget       abyssLiveActionBudget        `json:"action_budget"`
+	SkillVariety       abyssSkillVarietyView        `json:"skill_variety"`
+	EnemyIntents       []abyssLiveEnemyIntent       `json:"enemy_intents,omitempty"`
+	Initiative         []abyssLiveInitiativeEntry   `json:"initiative,omitempty"`
+	PresentationEvents []abyssLivePresentationEvent `json:"presentation_events"`
+	PresentationCursor int64                        `json:"presentation_cursor"`
+	RecentLogs         []string                     `json:"recent_logs"`
+	LogStart           int                          `json:"log_start,omitempty"`
+	LogCursor          int                          `json:"log_cursor,omitempty"`
+	LogHistory         []string                     `json:"log_history,omitempty"`
+	RoundRecap         string                       `json:"round_recap,omitempty"`
+	RandomSeed         [2]uint64                    `json:"random_seed"`
+	RandomDraws        uint64                       `json:"random_draws"`
+	Result             map[string]any               `json:"result,omitempty"`
+	PreviousDepth      int                          `json:"previous_depth,omitempty"`
+	Social             abyssLiveSocialSnapshot      `json:"social"`
 }
 
 type abyssLiveCombat struct {
@@ -179,50 +191,54 @@ type abyssLiveCombat struct {
 	rngMu     sync.Mutex
 	rng       combatRandomSource
 
-	server         *WebServer
-	id             string
-	ownerUID       string
-	participants   map[string]bool
-	tactics        map[string]string
-	policies       map[string]abyssLivePolicy
-	phase          string
-	round          int
-	version        int64
-	deadline       time.Time
-	pauseReason    string
-	pauseMode      string
-	allies         []abyssLiveCombatantView
-	enemies        []abyssLiveCombatantView
-	options        map[string][]abyssLiveOption
-	queued         map[string]abyssLiveAction
-	ready          map[string]bool
-	readySignal    chan struct{}
-	timeBank       map[string]time.Duration
-	deadlineSignal chan struct{}
-	connections    map[string]int
-	reconnectRound map[string]int
-	recentLogs     []string
-	roundRecap     string
-	result         map[string]any
-	lastLogCount   int
-	idempotency    map[string]abyssLiveIdempotency
-	history        []abyssLiveEvent
-	enemyPlans     map[int]abyssLiveEnemyPlan
-	actionCounts   map[string]int
-	varietySkills  map[string]struct{}
-	skillVariety   abyssSkillVarietyView
-	bossAdaptation string
-	revengeFamily  string
-	initiative     []abyssLiveInitiativeEntry
-	social         abyssLiveSocialState
-	previousDepth  int
-	modifier       string
-	warning        string
-	telegraph      string
-	randomSeed     [2]uint64
-	randomDraws    uint64
-	createdAt      time.Time
-	finishedAt     time.Time
+	server                   *WebServer
+	id                       string
+	ownerUID                 string
+	participants             map[string]bool
+	tactics                  map[string]string
+	policies                 map[string]abyssLivePolicy
+	phase                    string
+	round                    int
+	version                  int64
+	deadline                 time.Time
+	pauseReason              string
+	pauseMode                string
+	allies                   []abyssLiveCombatantView
+	enemies                  []abyssLiveCombatantView
+	options                  map[string][]abyssLiveOption
+	queued                   map[string]abyssLiveAction
+	ready                    map[string]bool
+	readySignal              chan struct{}
+	timeBank                 map[string]time.Duration
+	deadlineSignal           chan struct{}
+	connections              map[string]int
+	reconnectRound           map[string]int
+	recentLogs               []string
+	roundRecap               string
+	result                   map[string]any
+	lastLogCount             int
+	idempotency              map[string]abyssLiveIdempotency
+	presentationEvents       []abyssLivePresentationEvent
+	presentationCursor       int64
+	presentationEntities     map[*content.Mob]map[string]string
+	presentationEntityCounts map[string]int
+	history                  []abyssLiveEvent
+	enemyPlans               map[int]abyssLiveEnemyPlan
+	actionCounts             map[string]int
+	varietySkills            map[string]struct{}
+	skillVariety             abyssSkillVarietyView
+	bossAdaptation           string
+	revengeFamily            string
+	initiative               []abyssLiveInitiativeEntry
+	social                   abyssLiveSocialState
+	previousDepth            int
+	modifier                 string
+	warning                  string
+	telegraph                string
+	randomSeed               [2]uint64
+	randomDraws              uint64
+	createdAt                time.Time
+	finishedAt               time.Time
 }
 
 func normalizeAbyssTactic(tactic string) string {
@@ -372,18 +388,20 @@ func (c *abyssLiveCombat) snapshotForLocked(uid string) abyssLiveSnapshot {
 			Remaining: actionAttemptsRemaining,
 			Limit:     abyssLiveMaxIdempotencyKeysPerRound,
 		},
-		SkillVariety:  c.skillVariety,
-		EnemyIntents:  enemyIntents,
-		Initiative:    initiative,
-		RecentLogs:    recentLogs,
-		LogStart:      max(0, c.lastLogCount-len(recentLogs)),
-		LogCursor:     c.lastLogCount,
-		RoundRecap:    c.roundRecap,
-		RandomSeed:    c.randomSeed,
-		RandomDraws:   c.randomDrawCount(),
-		Result:        c.result,
-		PreviousDepth: c.previousDepth,
-		Social:        c.socialSnapshotLocked(uid),
+		SkillVariety:       c.skillVariety,
+		EnemyIntents:       enemyIntents,
+		Initiative:         initiative,
+		PresentationEvents: c.presentationForLocked(),
+		PresentationCursor: c.presentationCursor,
+		RecentLogs:         recentLogs,
+		LogStart:           max(0, c.lastLogCount-len(recentLogs)),
+		LogCursor:          c.lastLogCount,
+		RoundRecap:         c.roundRecap,
+		RandomSeed:         c.randomSeed,
+		RandomDraws:        c.randomDrawCount(),
+		Result:             c.result,
+		PreviousDepth:      c.previousDepth,
+		Social:             c.socialSnapshotLocked(uid),
 	}
 }
 
@@ -426,44 +444,56 @@ func (c *abyssLiveCombat) publishRound(
 		if au.u.Stats.HP > 0 && au.u.CurrentHP*10 <= au.u.Stats.HP*3 {
 			critical = true
 		}
+		weaponType, weaponName := abyssPresentationWeapon(au.u)
+		subclass, _ := abyssUserStyle(au.u)
+		classArtKey := ""
+		if au.u.AbyssClass != "" {
+			classArtKey = "class:" + au.u.AbyssClass
+		}
 		allies = append(allies, abyssLiveCombatantView{
-			ID:        "ally:" + au.u.UID,
-			Name:      au.u.Nickname,
-			HP:        max(0, au.u.CurrentHP),
-			MaxHP:     max(1, au.u.Stats.HP),
-			Shield:    max(0, au.shield),
-			MaxShield: max(0, au.maxShield),
-			Mana:      max(0, au.CurrentMana),
-			MaxMana:   max(0, au.MaxMana),
-			Ready:     false,
-			IsPlayer:  true,
-			Element:   string(liveUserElement(au.u)),
-			Position:  string(au.u.Position),
-			Speed:     au.u.Stats.SPD,
-			Threat:    liveThreat(au.u),
-			Role:      c.social.preferences[au.u.UID].Role,
-			Effects:   liveAllyEffects(au),
+			ID:       "ally:" + au.u.UID,
+			EntityID: "ally:" + au.u.UID,
+			Name:     au.u.Nickname,
+			ArtKey:   classArtKey, Class: au.u.AbyssClass, Subclass: au.u.AbyssSubclass, ClassResource: au.classResource, ClassResourceName: subclass.Resource,
+			WeaponType: weaponType,
+			WeaponName: weaponName,
+			HP:         max(0, au.u.CurrentHP),
+			MaxHP:      max(1, au.u.Stats.HP),
+			Shield:     max(0, au.shield),
+			MaxShield:  max(0, au.maxShield),
+			Mana:       max(0, au.CurrentMana),
+			MaxMana:    max(0, au.MaxMana),
+			Ready:      false,
+			IsPlayer:   true,
+			Element:    string(liveUserElement(au.u)),
+			Position:   string(au.u.Position),
+			Speed:      au.u.Stats.SPD,
+			Threat:     liveThreat(au.u),
+			Role:       c.social.preferences[au.u.UID].Role,
+			Effects:    liveAllyEffects(au),
 		})
 		for petIndex, pet := range au.u.Pets {
 			if pet == nil || pet.Stats.HP <= 0 {
 				continue
 			}
 			allies = append(allies, abyssLiveCombatantView{
-				ID:      fmt.Sprintf("pet:%s:%d", au.u.UID, petIndex),
-				Name:    pet.Name,
-				HP:      max(0, pet.Stats.HP),
-				MaxHP:   max(1, pet.MaxHP),
-				Element: string(pet.Element),
-				Speed:   pet.Stats.SPD,
-				Role:    "Mind-controlled ally",
-				Faction: "Converted",
-				Effects: []abyssLiveEffect{{Name: "Mind-controlled", Duration: "Allied"}},
+				ID:       fmt.Sprintf("pet:%s:%d", au.u.UID, petIndex),
+				EntityID: c.presentationEntity(pet, "pet:"+au.u.UID),
+				Name:     pet.Name,
+				HP:       max(0, pet.Stats.HP),
+				MaxHP:    max(1, pet.MaxHP),
+				Element:  string(pet.Element),
+				Speed:    pet.Stats.SPD,
+				Role:     "Mind-controlled ally",
+				Faction:  "Converted",
+				Effects:  []abyssLiveEffect{{Name: "Mind-controlled", Duration: "Allied"}},
 			})
 		}
 	}
 	if _, support := abyssRescueSupportForUsers(users); support != nil {
 		allies = append(allies, abyssLiveCombatantView{
 			ID:       "support:explorer",
+			EntityID: "support:explorer",
 			Name:     support.Name,
 			HP:       1,
 			MaxHP:    1,
@@ -487,6 +517,7 @@ func (c *abyssLiveCombat) publishRound(
 		boss = boss || mob.Type == content.MobBoss
 		enemies = append(enemies, abyssLiveCombatantView{
 			ID:            fmt.Sprintf("enemy:%d", i),
+			EntityID:      c.presentationEntity(mob, "enemy"),
 			Name:          mob.Name,
 			ArtKey:        content.MonsterPixelArtKey(mob.Name),
 			HP:            max(0, mob.Stats.HP),

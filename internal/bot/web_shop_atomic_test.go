@@ -23,18 +23,24 @@ func TestShopExchangeLocksWalletBeforeAbsoluteBalanceWrite(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT gold, xp FROM users WHERE client_uid=$1 FOR UPDATE")).
 		WithArgs("delver").
-		WillReturnRows(sqlmock.NewRows([]string{"gold", "xp"}).AddRow(int64(100), 20))
+		WillReturnRows(sqlmock.NewRows([]string{"gold", "xp"}).AddRow(int64(100_000), 20))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT value FROM app_meta WHERE key=$1")).
+		WithArgs("shop_xp_purchases_delver").
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectExec("INSERT INTO app_meta").
+		WithArgs("shop_xp_purchases_delver", sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE users SET gold=$1, xp=$2, level=$3 WHERE client_uid=$4")).
-		WithArgs(int64(90), 21, leveling.LevelForXP(21), "delver").
+		WithArgs(int64(90_000), 21, leveling.LevelForXP(21), "delver").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
 	server := &WebServer{bot: &Bot{DB: database}}
-	request := httptest.NewRequest(http.MethodPost, "/api/shop/exchange", strings.NewReader(`{"direction":"gold_to_xp","amount":19}`))
+	request := httptest.NewRequest(http.MethodPost, "/api/shop/exchange", strings.NewReader(`{"direction":"gold_to_xp","amount":19999}`))
 	response := httptest.NewRecorder()
 	server.handleExchangeAPI(response, request, "delver")
 
-	if body := response.Body.String(); !strings.Contains(body, `"ok":true`) || !strings.Contains(body, `"gold":90`) || !strings.Contains(body, `"xp":21`) {
+	if body := response.Body.String(); !strings.Contains(body, `"ok":true`) || !strings.Contains(body, `"gold":90000`) || !strings.Contains(body, `"xp":21`) {
 		t.Fatalf("exchange response = %s", body)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -53,10 +59,13 @@ func TestShopExchangeValidationRollsBackLockedWallet(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT gold, xp FROM users WHERE client_uid=$1 FOR UPDATE")).
 		WithArgs("delver").
 		WillReturnRows(sqlmock.NewRows([]string{"gold", "xp"}).AddRow(int64(5), 20))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT value FROM app_meta WHERE key=$1")).
+		WithArgs("shop_xp_purchases_delver").
+		WillReturnError(sql.ErrNoRows)
 	mock.ExpectRollback()
 
 	server := &WebServer{bot: &Bot{DB: database}}
-	request := httptest.NewRequest(http.MethodPost, "/api/shop/exchange", strings.NewReader(`{"direction":"gold_to_xp","amount":10}`))
+	request := httptest.NewRequest(http.MethodPost, "/api/shop/exchange", strings.NewReader(`{"direction":"gold_to_xp","amount":10000}`))
 	response := httptest.NewRecorder()
 	server.handleExchangeAPI(response, request, "delver")
 
@@ -78,6 +87,8 @@ func TestShopBuyResponseReportsAutoEquip(t *testing.T) {
 	seed, _ := shopWindow(time.Now())
 	item := stockForSeed(seed, nil)[0]
 	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT gold FROM users.*FOR UPDATE").WithArgs("delver").WillReturnRows(sqlmock.NewRows([]string{"gold"}).AddRow(int64(25_000_000)))
+	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs(shopBuffKey("delver")).WillReturnError(sql.ErrNoRows)
 	mock.ExpectExec("UPDATE users SET gold = gold -").
 		WithArgs(item.Price, "delver").
 		WillReturnResult(sqlmock.NewResult(0, 1))

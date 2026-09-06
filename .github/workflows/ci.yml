@@ -6,24 +6,35 @@ on:
   pull_request:
     branches: [ main, v2_test ]
 
-# Least-privilege default for all jobs; build-docker overrides with its own
-# block to add packages: write (CodeQL: actions/missing-workflow-permissions).
+# Only the main-branch publisher can write packages or request signing tokens.
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  security:
+    uses: ./.github/workflows/security.yml
+    permissions:
+      contents: read
+      security-events: write
+
   build-go:
     name: Build and Lint Go
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version: '1.27.1'
+          check-latest: true
           cache: true
 
       - name: Install dependencies
@@ -33,7 +44,24 @@ jobs:
         run: go build -v ./...
 
       - name: Run Tests
-        run: go test -v ./...
+        run: go test -v -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Render coverage reports
+        run: |
+          go tool cover -func=coverage.out | tee coverage.txt
+          go tool cover -html=coverage.out -o coverage.html
+
+      - name: Upload coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: go-coverage
+          path: |
+            coverage.out
+            coverage.txt
+            coverage.html
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Abyss balance, targeting, malformed-input, and SSE gates
         run: go test ./internal/bot -run 'TestAbyssBalanceGate|TestAbyssTargetingProperties|FuzzAbyssMalformedActionRequest|TestAbyssSSELoad|TestAbyssContentReferences|TestAbyssDescend100ConcurrentDelvers'
@@ -45,57 +73,196 @@ jobs:
         run: go test -race ./internal/bot ./internal/content
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@63c23d5020da8f97005b6de340504130bdbe42c7 # v9
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: latest
+          version: v2.13.2
 
   build-docker:
-    name: Build Docker Image
+    name: Build and Scan Docker Image
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
-      - name: Log in to GitHub Container Registry
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+      - name: Build candidate image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ts3news:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Report all candidate image vulnerabilities
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: docker:ts3news:ci
+          grype-version: v0.118.0
+          fail-build: false
+          severity-cutoff: high
+          only-fixed: false
+          output-format: sarif
+          output-file: image-scan.sarif
+
+      # Full findings remain in the report; block high/critical findings as soon
+      # as the distributor publishes a fix. Approved by the owner on 2026-09-06.
+      - name: Gate fixable candidate image vulnerabilities
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: docker:ts3news:ci
+          grype-version: v0.118.0
+          fail-build: true
+          severity-cutoff: high
+          only-fixed: true
+          output-format: sarif
+          output-file: image-fixable.sarif
+
+      - name: Upload candidate image scan
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-image-scan
+          path: |
+            image-scan.sarif
+            image-fixable.sarif
+          retention-days: 14
+          if-no-files-found: warn
+
+  publish:
+    name: Publish and Attest GHCR Image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build-go, build-docker, abyss-browser-e2e, security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - name: Set image name
+        id: image
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: echo "name=ghcr.io/${REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+      # A SHA tag is for discovery only. Reruns can rebuild it; deploy by digest.
+      - name: Push candidate to GHCR
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
-          push: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
-          tags: ghcr.io/${{ github.repository }}:latest
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Scan the registry artifact, never a tag or a separately rebuilt image.
+      - name: Scan published digest
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: registry:${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}
+          grype-version: v0.118.0
+          fail-build: true
+          severity-cutoff: high
+          only-fixed: false
+          output-format: sarif
+          output-file: published-image-scan.sarif
+
+      - name: Generate SBOM from published digest
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          image: registry:${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}
+          format: spdx-json
+          syft-version: v1.51.1
+          output-file: sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Check SBOM includes Go dependencies
+        run: |
+          jq -e '[.packages[].externalRefs[]? | select(.referenceType == "purl") | .referenceLocator] | any(startswith("pkg:golang/github.com/lib/pq@"))' sbom.spdx.json
+
+      - name: Sign build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Sign SBOM attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: sbom.spdx.json
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Record verified deployment reference
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          echo "$IMAGE@$DIGEST" | tee image-reference.txt
+          echo "Verified image: \`$IMAGE@$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload supply-chain evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: image-supply-chain
+          path: |
+            published-image-scan.sarif
+            sbom.spdx.json
+            image-reference.txt
+          retention-days: 30
+          if-no-files-found: warn
 
   abyss-browser-e2e:
     name: Abyss Browser Journey
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version: '1.27.1'
+          check-latest: true
           cache: true
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '24'
+          node-version: '26.8.1'
           cache: npm
 
       - name: Install browser test dependencies
@@ -109,7 +276,7 @@ jobs:
 
       - name: Upload browser diagnostics
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abyss-playwright-report
           path: |

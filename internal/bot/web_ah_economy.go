@@ -15,6 +15,8 @@ type abyssEconomyNotice struct {
 	Message string `json:"message"`
 	Amount  int64  `json:"amount"`
 	When    string `json:"when"`
+	WhenISO string `json:"when_iso"`
+	Seen    bool   `json:"seen"`
 }
 
 type abyssMaterialOrderView struct {
@@ -150,55 +152,6 @@ func (s *WebServer) handleAHWatch(w http.ResponseWriter, r *http.Request, uid st
 	writeJSON(w, map[string]any{"ok": true, "watched": watched, "msg": map[bool]string{true: "Watchlist alert enabled.", false: "Watchlist alert removed."}[watched]})
 }
 
-func (s *WebServer) handleAHNotices(w http.ResponseWriter, r *http.Request, uid string) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "POST only", http.StatusMethodNotAllowed)
-		return
-	}
-	tx, err := s.bot.DB.Begin()
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	defer func() { _ = tx.Rollback() }()
-	rows, err := tx.Query(`SELECT id,kind,message,amount,created_at FROM abyss_economy_events
-		WHERE client_uid=$1 AND seen=FALSE ORDER BY created_at LIMIT 20 FOR UPDATE`, uid)
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	var notices []abyssEconomyNotice
-	for rows.Next() {
-		var notice abyssEconomyNotice
-		var created time.Time
-		if rows.Scan(&notice.ID, &notice.Kind, &notice.Message, &notice.Amount, &created) == nil {
-			notice.When = created.Format("Jan 02 15:04")
-			notices = append(notices, notice)
-		}
-	}
-	if err := rows.Err(); err != nil {
-		_ = rows.Close()
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	if err := rows.Close(); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	if len(notices) > 0 {
-		if _, err := tx.Exec(`UPDATE abyss_economy_events SET seen=TRUE WHERE id IN
-			(SELECT id FROM abyss_economy_events WHERE client_uid=$1 AND seen=FALSE ORDER BY created_at LIMIT 20)`, uid); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "db"})
-			return
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	writeJSON(w, map[string]any{"ok": true, "notices": notices})
-}
-
 func (s *WebServer) handleAHBulkRelist(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -263,7 +216,9 @@ func (s *WebServer) handleAHMaterialOrder(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err := tx.Commit(); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		// A lost commit response can leave the order and its escrow persisted.
+		writeJSON(w, map[string]any{"ok": false, "unconfirmed": true,
+			"error": "Your order could not be confirmed. Reload the Auction House to check your orders before trying again."})
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "gold": s.bot.abyssGold(uid), "msg": fmt.Sprintf("Buy order posted: %d %s at %dg each (%dg escrowed).", req.Count, req.Material, req.UnitPrice, total)})

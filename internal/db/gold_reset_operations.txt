@@ -1,0 +1,42 @@
+# Versioned gold resets
+
+`internal/db/gold_reset.go` defines `GoldEconomyVersion`, initially **1**. Bot startup calls `EnsureGoldEconomyVersion` after schema migrations and before creating the bot or starting activity. The first startup of this version resets all existing players, including offline accounts. Subsequent startups leave newly earned gold alone. New accounts use the usual initial balances.
+
+## Scope
+
+Version 1 resets spendable `users.gold`, active Abyss caches, unclaimed gold-only Abyss loot, death-cache echo seeds and repeatable echo rewards. Active and deferred echo-room display amounts are updated too.
+
+XP, levels, prestige, tokens, gear, consumables, purchased items, non-gold pending loot, run depth, insurance, bounties, event progress and combat/replay history remain intact. Reserved auction bids, material-order escrow, wagers, raffle pots and loans are outside this wallet/Abyss-cache reset; their normal settlements can award gold later.
+
+## Activation and future resets
+
+1. Take the normal database backup and stop **all** old bot/web instances before starting this version. Do not use a rolling deployment for a gold-version increase: a live fight in old code can retain a pre-reset cache in memory.
+2. Deploy and start the new binary. Version 1 is armed in this code and will apply automatically on its first startup against a database with no gold marker (or an older one).
+3. Check the startup log for `Gold economy version 1 applied` and query `app_meta` for `gold_economy_version` and `gold_reset_applied_1`.
+
+For another deliberate reset, increase `GoldEconomyVersion` to the next integer, run the reset tests, then repeat this stopped-instance deployment. Never lower the version or delete the marker to force a reset. A binary with an older version never resets balances again.
+
+The version row is inserted before it is locked, serializing simultaneous first startups. Backups, currency updates and the version marker share one transaction. Any error rolls everything back and prevents the bot from starting. Invalid version/echo metadata fails closed rather than discarding unknown data.
+
+## Audit and recovery data
+
+Each applied version creates a timestamped `gold_reset_applied_<version>` record. Before any balance changes, exact original values are saved under these `app_meta` key prefixes:
+
+- `gold_reset_backup_<version>:user:` — wallet gold by player UID.
+- `gold_reset_backup_<version>:run:` — complete original active-run rows.
+- `gold_reset_backup_<version>:loot:` — original pending gold grant rows by ID.
+- `gold_reset_backup_<version>:meta:` — original echo seed, run-flag and deferred-event metadata.
+
+Large gold values remain exact PostgreSQL integers/JSON numbers; they never pass through floating-point conversion. Existing backup keys cannot be overwritten. Keep these records until the reset has been reviewed. Recovery is an operator-controlled reconciliation using the backup: do not blindly restore balances after players have resumed earning or spending, and do not delete the applied-version marker during recovery.
+
+## Verification
+
+Use an isolated disposable PostgreSQL database. The integration tests create and remove their own uniquely named schemas; they do not invoke bot startup or inspect configured player databases.
+
+```powershell
+$env:GOLD_RESET_TEST_DATABASE_URL = 'postgres://postgres@127.0.0.1:PORT/postgres?sslmode=disable'
+go test -tags=integration ./internal/db -run '^TestGoldResetIntegration' -count=1
+go test ./...
+```
+
+Coverage includes first/reset/repeat/newer versions, newly earned wallet and cache preservation, offline/new accounts, exact large-number backups, concurrent startups, failed writes, malformed metadata, full rollback and selective preservation of non-gold progress.

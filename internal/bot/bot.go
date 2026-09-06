@@ -5,6 +5,7 @@ package bot
 
 import (
 	"bufio"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -64,6 +65,15 @@ func NewBot(cfg *config.Config) *Bot {
 	// Schema is managed by versioned, embedded migrations (golang-migrate).
 	if err := db.Migrate(database); err != nil {
 		log.Fatalf("Failed to run database migrations: %v", err)
+	}
+	resetContext, cancelReset := context.WithTimeout(context.Background(), 2*time.Minute)
+	goldResetApplied, err := db.EnsureGoldEconomyVersion(resetContext, database)
+	cancelReset()
+	if err != nil {
+		log.Fatalf("Failed to apply gold economy version: %v", err)
+	}
+	if goldResetApplied {
+		log.Printf("Gold economy version %d applied: wallet and Abyss gold reset; pre-reset values backed up", db.GoldEconomyVersion)
 	}
 
 	b := &Bot{

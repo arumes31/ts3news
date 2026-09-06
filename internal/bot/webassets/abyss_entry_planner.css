@@ -5,6 +5,11 @@
   margin: .55rem 0 .75rem;
   padding: .75rem;
 }
+/* Author styles must not override the preparation steps' hidden state. */
+.abyss-command-page [data-entry-panel][hidden] { display: none !important; }
+body:not(.ab-entry-mode) #abyssEntrySummary { display: none; }
+body.ab-entry-mode #abyssEntrySummary { margin-block: .5rem; }
+body.ab-entry-mode #abyssPrimaryActions { position: static; }
 .ab-entry-planner-head { align-items: center; display: flex; justify-content: space-between; }
 .ab-entry-planner-head strong { color: #e6edf1; display: block; font-size: .9rem; }
 .ab-entry-eyebrow,
@@ -22,7 +27,14 @@ body.ab-pact-blind #eventIntel,
 body.ab-pact-blind #depthRail { display: none; }
 #lockedCheckpointHint { color: #788e9d; font-style: italic; }
 @media (max-width: 720px) {
-  .ab-entry-steps button span { display: none; }
+  .ab-entry-steps button span { display: inline; }
+  .ab-entry-steps button { min-height: 44px; gap: .25rem; font-size: .8rem; }
+  body.ab-entry-mode #abyssDepthDial { display: none; }
+  body.ab-entry-mode #abStatus { display: none; }
+  body.ab-entry-mode .abyss-command-page #abyssEntrySummary { order: -2; }
+  body.ab-entry-mode .abyss-command-page #abyssPrimaryActions { order: -1; }
+  .ab-entry-summary strong { font-size: .875rem; line-height: 1.5; }
+  .ab-entry-summary > span:last-child { font-size: .875rem; color: #b9cbd5; }
   .ab-entry-summary { grid-template-columns: 1fr; }
   .ab-entry-summary > span:last-child { grid-column: 1; }
 }

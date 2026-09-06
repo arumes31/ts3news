@@ -60,7 +60,7 @@ async function installMockGamepad(page) {
   });
 }
 
-test('mobile live combat leads with the action deck and retires the run-action proxy', async ({ page }) => {
+test('mobile live combat places actions below the battlefield and retires the run-action proxy', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await startPlanningCombat(page);
@@ -76,6 +76,7 @@ test('mobile live combat leads with the action deck and retires the run-action p
     return {
       liveBeforeStage: !stageVisible || live.top < stage.top,
       actionBeforeStage: !stageVisible || action.top < stage.top,
+      actionBelowBattlefield: action.top >= document.getElementById('livePixelStage').getBoundingClientRect().bottom,
       actionInViewport: action.bottom > 0 && action.top < innerHeight,
       mobileHidden: mobile.hidden || getComputedStyle(mobile).display === 'none',
       mobileInert: mobile.inert,
@@ -86,14 +87,15 @@ test('mobile live combat leads with the action deck and retires the run-action p
 
   expect(layout.liveBeforeStage).toBe(true);
   expect(layout.actionBeforeStage).toBe(true);
+  expect(layout.actionBelowBattlefield).toBe(true);
   expect(layout.actionInViewport).toBe(true);
   expect(layout.mobileHidden).toBe(true);
   expect(layout.mobileInert).toBe(true);
   expect(layout.focusedDecision).toBe(true);
 });
 
-test('desktop live combat keeps vitals, battlefield, spell queue, actions, and log fully visible', async ({ page }) => {
-  const viewports = [
+// Each viewport is an independent layout contract with the normal per-test timeout.
+for (const viewport of [
     { width: 901, height: 768 },
     { width: 901, height: 1000 },
     { width: 1024, height: 768 },
@@ -104,9 +106,8 @@ test('desktop live combat keeps vitals, battlefield, spell queue, actions, and l
     { width: 1440, height: 1000 },
     { width: 1440, height: 1080 },
     { width: 1920, height: 1080 },
-  ];
-
-  for (const viewport of viewports) {
+  ]) {
+  test(`desktop live combat keeps vitals, battlefield, spell queue, actions, and log fully visible at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const state = planningState([
@@ -149,9 +150,14 @@ test('desktop live combat keeps vitals, battlefield, spell queue, actions, and l
     await expect(page.locator('#liveWeakpoints button')).toHaveCount(2);
     await expect(page.locator('#liveEncounterWarningText')).toHaveAttribute('title', state.encounter_warning);
     await expect(page.locator('#liveHazardTelegraphText')).toHaveAttribute('title', state.hazard_telegraph);
-    const compactExpected = viewport.width <= 1439 || viewport.height <= 1050;
-    if (compactExpected) await expect(page.locator('#liveCombat > .ab-live-details')).toBeHidden();
-    else await expect(page.locator('#liveCombat > .ab-live-details')).toBeVisible();
+    await page.locator('#liveIntelDrawer > summary').click();
+    await expect(page.locator('#liveIntelContent .ab-live-details')).toBeVisible();
+    await page.locator('#liveIntelDrawer [data-close-live-drawer]').click();
+    await page.locator('#liveSettingsDrawer > summary').click();
+    for (const id of ['liveTactic', 'livePauseMode', 'liveCriticalTactic']) {
+      await expect(page.locator('#' + id)).toBeVisible();
+    }
+    await page.locator('#liveSettingsDrawer [data-close-live-drawer]').click();
     await page.waitForTimeout(250);
     expect(await page.evaluate(() => scrollY), `combat focus should not scroll at ${viewport.width}x${viewport.height}`).toBeLessThanOrEqual(1);
 
@@ -159,12 +165,9 @@ test('desktop live combat keeps vitals, battlefield, spell queue, actions, and l
       const selectors = {
         health: '#hpBar',
         mana: '#mpBar',
-        tactic: '#liveTactic',
-        pauses: '#livePauseMode',
         battlefield: '#livePixelStage',
         queue: '#liveQueue',
         actions: '#liveActionBar',
-        policy: '#liveCriticalTactic',
         encounterWarning: '#liveEncounterWarning',
         hazardWarning: '#liveHazardTelegraph',
         liveFeed: '#liveFeed',
@@ -211,6 +214,7 @@ test('desktop live combat keeps vitals, battlefield, spell queue, actions, and l
       }));
     });
 
+    expect(layout.actions.top).toBeGreaterThanOrEqual(layout.battlefield.bottom);
     for (const [name, rect] of Object.entries(layout)) {
       expect(rect.visible, `${name} should render at ${viewport.width}x${viewport.height}`).toBe(true);
       expect(rect.width, `${name} should have width at ${viewport.width}x${viewport.height}`).toBeGreaterThan(0);
@@ -222,8 +226,8 @@ test('desktop live combat keeps vitals, battlefield, spell queue, actions, and l
       expect(rect.fullyUnclipped, `${name} should not be clipped by an ancestor at ${viewport.width}x${viewport.height}: ${JSON.stringify(rect)}`).toBe(true);
       expect(rect.uncovered, `${name} should not be covered at ${viewport.width}x${viewport.height}`).toBe(true);
     }
-  }
-});
+  });
+}
 
 test('live snapshots keep the visible health and mana bars synchronized', async ({ page }) => {
   const state = planningState();

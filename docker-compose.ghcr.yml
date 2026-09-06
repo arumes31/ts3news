@@ -18,7 +18,7 @@ services:
       retries: 5
 
   ts3-bot:
-    image: ghcr.io/arumes31/ts3news:latest
+    image: ghcr.io/arumes31/ts3news@${TS3NEWS_IMAGE_DIGEST:?Set TS3NEWS_IMAGE_DIGEST to a verified sha256 digest; see DEPLOYMENT.md}
     container_name: ts3-news-bot
     restart: unless-stopped
     ports:
@@ -55,7 +55,7 @@ services:
   # Enable by setting ENABLE_IDELY=true in config.env. IDELY_IDENTITY is optional:
   # when unset, Idely uses its own persistent client profile (see ./data/idely-profile).
   ts3-idely:
-    image: ghcr.io/arumes31/ts3news:latest
+    image: ghcr.io/arumes31/ts3news@${TS3NEWS_IMAGE_DIGEST:?Set TS3NEWS_IMAGE_DIGEST to a verified sha256 digest; see DEPLOYMENT.md}
     container_name: ts3-news-idely
     restart: unless-stopped
     stop_grace_period: 15s
@@ -102,7 +102,7 @@ services:
   # /app/data to uid 9999 (the image's non-root "ts3bot" user), without which
   # TS3AudioBot cannot write NLog.config / its databases and crashes on startup.
   ts3audiobot-init:
-    image: busybox:stable
+    image: busybox:1.38.0@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
     container_name: ts3-news-audiobot-init
     restart: "no"
     volumes:
@@ -133,7 +133,7 @@ services:
   # a permissive rights.toml are seeded automatically by ts3audiobot-init, so no
   # manual ts3audiobot.toml editing or `!api token` is needed for a standard setup.
   ts3audiobot:
-    image: ancieque/ts3audiobot:latest
+    image: ancieque/ts3audiobot:latest@sha256:3da81924dab980b3d2ec702cfa35c4c436dd7b5ba0b9d784d1a680a3b05a1cb1
     container_name: ts3-news-audiobot
     restart: unless-stopped
     depends_on:

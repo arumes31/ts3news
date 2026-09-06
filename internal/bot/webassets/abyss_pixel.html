@@ -5,6 +5,8 @@ var livePixelPrevious={session:'',version:-1,lastLog:'',units:{}};
 function resetLivePixelState(sessionID){
   if(sessionID===livePixelPrevious.session)return;
   livePixelPrevious={session:sessionID||'',version:-1,lastLog:'',units:{}};
+  ['livePixelAllies','livePixelEnemies'].forEach(function(id){var host=document.getElementById(id);if(host){host.replaceChildren();host._formationSlots=new Map();}});
+  if(window.AbyssCombatAnimation)window.AbyssCombatAnimation.reset(sessionID);
 }
 
 function liveSpritePosition(cell){return (cell[0]*100/3)+'% '+(cell[1]*100/2)+'%';}
@@ -147,6 +149,7 @@ function livePixelCue(unit,newLogs,previous){
 }
 
 function renderLivePixelStage(state){
+  if(Array.isArray(state.presentation_events)&&window.renderAbyssEventStage){window.renderAbyssEventStage(state);return;}
   var logs=state.recent_logs||[],lastIndex=livePixelPrevious.lastLog?logs.lastIndexOf(livePixelPrevious.lastLog):-1;
   var newLogs=lastIndex>=0?logs.slice(lastIndex+1):logs;
   emitLiveCombatFeedback(state,livePixelPrevious,newLogs);

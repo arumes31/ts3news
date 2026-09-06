@@ -138,6 +138,8 @@ test('shop makes the rotating stock immediately searchable and every purchase un
   const exactFirstPrice = new Intl.NumberFormat('en-US').format(Number(await firstCard.getAttribute('data-price')));
   await expect(firstCard.locator('.price')).toContainText(exactFirstPrice);
   await expect(firstBuy).toHaveAccessibleName(new RegExp(` for ${exactFirstPrice.replaceAll(',', '\\,')} gold$`));
+  // Full stats and special descriptions intentionally precede the purchase.
+  await firstBuy.scrollIntoViewIfNeeded();
   const firstBuyBox = await firstBuy.boundingBox();
   expect(firstBuyBox.y + firstBuyBox.height).toBeLessThanOrEqual(844);
   await expect(market.locator('.shop-card:visible')).toHaveCount(12);
@@ -234,8 +236,9 @@ test('auction listings become self-contained market cards on mobile without clip
   await expect(listing.getByRole('button', { name: 'Buy Cinder Test Blade for 1600 gold' })).toBeVisible();
   await expect(listing.getByRole('button', { name: 'Bid on Cinder Test Blade' })).toBeVisible();
   await expect(listing.getByText('4 sales')).toBeVisible();
-  await expect(listing.getByText('in 2h 15m')).toBeVisible();
-  await expect(listing.getByText('01 Sep 2026 · 01:15 UTC')).toBeVisible();
+  await listing.locator('.auction-compact-details summary').click();
+  await expect(listing.locator('.auction-compact-details').getByText('in 2h 15m')).toBeVisible();
+  await expect(listing.locator('.auction-compact-details').getByText('01 Sep 2026 · 01:15 UTC')).toBeVisible();
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
     .toBeLessThanOrEqual(1);
@@ -256,7 +259,8 @@ test('auction reviews exact material-sale proceeds before committing', async ({ 
   });
   await page.goto('/ah');
 
-  await page.getByRole('button', { name: 'Fill' }).click();
+  await page.getByRole('tab', { name: 'Orders', exact: true }).click();
+  await page.getByRole('button', { name: 'Fill', exact: true }).click();
   const quantityDialog = page.getByRole('dialog');
   const quantity = quantityDialog.getByRole('textbox', { name: /How many units/ });
   await quantity.fill('3');
@@ -335,7 +339,7 @@ test('auction rejects an unavailable bid range before opening the amount prompt'
   await expect(page.locator('#ahMsg')).toContainText('bid range is unavailable');
 });
 
-test('auction material-order cancellation stops before later prompts or a request', async ({ page }) => {
+test('auction material-order cancellation closes the draft without a request', async ({ page }) => {
   let orderRequests = 0;
   await page.route('**/api/ah/notices', route => route.fulfill({
     contentType: 'application/json',
@@ -347,11 +351,12 @@ test('auction material-order cancellation stops before later prompts or a reques
   });
   await page.goto('/ah');
 
-  await page.getByRole('button', { name: 'Post buy order' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'OK' }).click();
-  const quantityDialog = page.getByRole('dialog');
-  await expect(quantityDialog).toContainText('Quantity to buy');
-  await quantityDialog.getByRole('button', { name: 'Cancel' }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Orders', exact: true }).click();
+  await page.getByRole('button', { name: 'Post buy order', exact: true }).click();
+  const form = page.locator('#ahOrderForm');
+  await form.getByLabel('Quantity', { exact: true }).fill('3');
+  await form.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(form).toBeHidden();
+  await expect(page.getByRole('dialog')).toBeHidden();
   expect(orderRequests).toBe(0);
 });

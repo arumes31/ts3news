@@ -40,7 +40,6 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_observatory.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_wiki.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_feedback.css"}}">
-<link rel="stylesheet" href="{{asset "/static/abyss_polish.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_longterm.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_core_risk.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_core_interface.css"}}">
@@ -73,6 +72,12 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_season.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_retention.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_run_identity.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_combat_usability.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_polish.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_combat_animation.css"}}">
+<script src="{{asset "/static/abyss_combat_catalog.js"}}"></script>
+<script src="{{asset "/static/abyss_combat_art.js"}}"></script>
+<script src="{{asset "/static/abyss_combat_animation.js"}}"></script>
 <div class="abyss-command-page" data-ab-campaign="{{.SeasonJourney.Palette}}" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-expanded-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas_expanded.png"}}');--ab-expanded-icon-atlas:url('{{asset "/static/abyss_icon_atlas_expanded.png"}}');--ab-atlas-items:url('{{asset "/static/abyss_atlas_items.png"}}');--ab-atlas-skills:url('{{asset "/static/abyss_atlas_skills.png"}}');--ab-atlas-creatures:url('{{asset "/static/abyss_atlas_creatures.png"}}');--ab-atlas-bosses:url('{{asset "/static/abyss_atlas_bosses.png"}}');--ab-atlas-artifacts:url('{{asset "/static/abyss_atlas_artifacts.png"}}');--ab-atlas-companions:url('{{asset "/static/abyss_atlas_companions.png"}}');--ab-atlas-relics:url('{{asset "/static/abyss_atlas_relics.png"}}');--ab-atlas-ranged:url('{{asset "/static/abyss_atlas_ranged.png"}}');--ab-atlas-souls:url('{{asset "/static/abyss_atlas_souls.png"}}');--ab-atlas-auras:url('{{asset "/static/abyss_atlas_auras.png"}}');--ab-atlas-charms:url('{{asset "/static/abyss_atlas_charms.png"}}');--ab-atlas-mounts:url('{{asset "/static/abyss_atlas_mounts.png"}}');--ab-atlas-pets:url('{{asset "/static/abyss_atlas_pets.png"}}');--ab-atlas-emblems:url('{{asset "/static/abyss_atlas_emblems.png"}}');--ab-atlas-banners:url('{{asset "/static/abyss_atlas_banners.png"}}');--ab-atlas-totems:url('{{asset "/static/abyss_atlas_totems.png"}}');--ab-atlas-offhands:url('{{asset "/static/abyss_atlas_offhands.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Season, Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
 {{template "abyssCommandHeader" .}}
@@ -268,7 +273,8 @@
     </div>
 
     <div class="ab-startmode" id="buildPicker">
-      <span class="ab-sub-label">Starting build:</span>
+      <span class="ab-sub-label">Expedition buffs:</span>
+      <a href="#abyssMyBuild">My class &amp; skills</a>
       <label>Kit
         <select id="buildKit" class="ab-select">
           <option value="vanguard">Vanguard · +10% STR, +5 CRT</option>
@@ -639,6 +645,7 @@
 </div>
 
 <div class="abyss-cols">
+  {{template "abyssClassesPanel" .}}
   <section class="abyss-panel" id="abyssSetBonuses" data-abyss-section="progression">
     <h2>🛡️ Set Bonuses</h2>
     <p class="muted small" style="margin-bottom:12px;">Equip pieces from the same set to activate cumulative stat increases.</p>
@@ -1373,7 +1380,6 @@ var curMomentum = {{.Run.Momentum}};
 var bankStreak = {{.Stats.Streak}}; // UI-58
 var dailyAffix = '{{if .DailyMod}}{{.DailyMod}}{{end}}'; // UI-34
 var interestRatePct = Number('{{printf "%.3f" .HUD.InterestRatePct}}') || 0; // UI-60 authoritative rate
-var interestTotalPct = {{printf "%.3f" .HUD.InterestTotalPct}};
 var escrowSoftCap = {{.HUD.EscrowSoftCap}}, escrowEfficiencyPct = {{.HUD.EscrowEfficiencyPct}};
 var forgeUIState = null, forgeUIStateReceivedAt = 0, abyssSetupState = null, forgeFloorActive = false;
 var eventChainState = {{jsonJS .EventIntel.Chain}} || {active:false,sigils:0,required:3,chains:0};
@@ -1840,7 +1846,14 @@ function focusAbyssCockpit(preferred,reveal){
   var order=[preferred,'liveReady','liveAction','btnDescend','btnProceed','btnRevive','btnLastStand','btnConcede','btnEnter'];
   var action=null;
   order.some(function(id){if(!id)return false;action=abyssCockpitAction(id);return !!action;});
-  setTimeout(function(){if(action&&action.isConnected)action.focus({preventScroll:true});},reveal&&!reduceMotion?320:0);
+  var focusSession=window.liveCombatSessionID||'';
+  setTimeout(function(){
+    var current=document.activeElement,currentModal=document.getElementById('sharedModal');
+    if((window.liveCombatSessionID||'')!==focusSession||currentModal&&currentModal.classList.contains('open'))return;
+    if(current&&(/INPUT|SELECT|TEXTAREA/.test(current.tagName)||current.isContentEditable))return;
+    if(current!==active&&current!==document.body)return;
+    if(action&&action.isConnected&&!action.disabled&&action.getClientRects().length)action.focus({preventScroll:true});
+  },reveal&&!reduceMotion?320:0);
 }
 function scheduleAbyssCockpitFocus(preferred,reveal){
   if(abyssCockpitFocusTimer)clearTimeout(abyssCockpitFocusTimer);
@@ -1851,6 +1864,7 @@ function show(id, on){var el=document.getElementById(id);if(el)el.style.display=
 function setAbyssEventStage(active){var stage=document.getElementById('abyssStage');if(stage)stage.classList.toggle('ab-event-stage',!!active);}
 
 function renderState(){
+  document.body.classList.toggle('ab-entry-mode', !inRun);
   updateAbyssCombatCockpit();
   updateStageScene(); // UI-9/10: rest embers / event icon follow the floor type
   if(inRun && floorType && floorType !== 'combat'){
@@ -1955,6 +1969,18 @@ function renderConsumables(list){
   });
 }
 
+function abyssEventState(stateStr){
+  try {
+    var state = JSON.parse(stateStr || '{}');
+    return state && typeof state === 'object' && !Array.isArray(state) ? state : {};
+  } catch(e) { return {}; }
+}
+
+function abyssEventPending(){
+  var state = abyssEventState(eventState);
+  return typeof state.type === 'string' && !!state.type;
+}
+
 function renderNonCombat(floorType, stateStr){
   var panel = document.getElementById('nonCombatPanel');
   var title = document.getElementById('ncTitle');
@@ -1986,8 +2012,12 @@ function renderNonCombat(floorType, stateStr){
     if(typeof renderAbyssBiomeContractChoices==='function')renderAbyssBiomeContractChoices(options);
   } else if(floorType === 'event'){
     title.innerHTML = '❓ Mysterious Encounter';
-    var state = {};
-    try { state = JSON.parse(stateStr || '{}'); } catch(e){}
+    var state = abyssEventState(stateStr);
+    if(typeof state.type !== 'string' || !state.type){
+      title.textContent = 'Encounter complete';
+      desc.textContent = 'There is nothing left to resolve here. Leave this floor to continue your descent.';
+      return;
+    }
     
     if(state.type === 'merchant'){
       desc.innerHTML = 'You encounter a shady skeletal merchant willing to trade gear and consumables for immediate gold.';
@@ -3094,11 +3124,10 @@ function renderHudChipsNow(){
     if(curInsured>0) chips.push(['🛡️ '+curInsured+'% · ∞ floors','']);
     // UI-44: floors to the next checkpoint (every 10 depths).
     if(curDepth>0){ var toCk=10-(curDepth%10); if(toCk>0) chips.push(['⛓️ checkpoint in '+toCk,'']); }
-    // UI-60: exact per-floor interest and compounded total from authoritative run depth.
+    // UI-60: interest is limited to the depth's eligible cache principal.
     interestRatePct=Number(interestRatePct);
     if(!Number.isFinite(interestRatePct))interestRatePct=0;
-    interestTotalPct=(Math.pow(1+interestRatePct/100,runFloorsCleared)-1)*100;
-    chips.push(['📈 +'+interestRatePct.toFixed(1)+'%/floor · +'+interestTotalPct.toFixed(1)+'% total','']);
+    chips.push(['📈 +'+interestRatePct.toFixed(1)+'%/floor on up to '+fmtGold(escrowSoftCap)+' cache · excess gains at 25%','']);
     // UI-51: persisted manual/automatic reward-focus quick swap.
     chips.push([focusHUDHTML(),'focus',true]);
     // UI-52: each active pact retains its exact danger/reward breakdown.
@@ -4351,9 +4380,10 @@ async function abyssNCAction(action, payload){
   }
   
   if(d.resolved){
+    eventState = '';
     setAbyssForgeFloor(false);
     document.getElementById('ncOptions').innerHTML = '';
-    document.getElementById('ncDesc').textContent = d.msg;
+    document.getElementById('ncDesc').textContent = d.msg || 'Encounter complete. Leave this floor to continue your descent.';
   }
   if(d.reload){ setTimeout(function(){window.location.reload();}, 650); }
 }

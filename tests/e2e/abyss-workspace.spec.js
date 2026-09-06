@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-const sections = ['season', 'progression', 'observatory', 'shop', 'forge', 'social', 'lore', 'leaderboards'];
+const sections = ['build', 'season', 'progression', 'observatory', 'shop', 'forge', 'social', 'lore', 'leaderboards'];
 
 test('workspace navigation reaches every Abyss section without losing context', async ({ page }) => {
   const pageErrors = [];
@@ -35,8 +35,8 @@ test('workspace navigation reaches every Abyss section without losing context', 
   const leaderboards = rail.locator('[data-tab-key="leaderboards"]');
   await leaderboards.focus();
   await leaderboards.press('Home');
-  await expect(rail.locator('[data-tab-key="season"]')).toHaveAttribute('aria-selected', 'true');
-  await rail.locator('[data-tab-key="season"]').press('End');
+  await expect(rail.locator('[data-tab-key="build"]')).toHaveAttribute('aria-selected', 'true');
+  await rail.locator('[data-tab-key="build"]').press('End');
   await expect(leaderboards).toHaveAttribute('aria-selected', 'true');
 
   await rail.locator('[data-tab-key="social"]').click();

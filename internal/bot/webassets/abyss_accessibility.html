@@ -1,7 +1,13 @@
 {{define "abyss-accessibility"}}
 <nav class="ab-mobile-actions" id="abyssMobileActions" aria-label="Abyss run actions" hidden>
+  <div class="ab-mobile-context" id="abyssMobileContext" role="group" aria-label="Current run stakes">
+    <span>HP <strong id="abMobileHP">—</strong></span>
+    <span>Depth <strong id="abMobileDepth">—</strong></span>
+    <span>Cache at stake <strong id="abMobileCache">—</strong></span>
+    <span>Threat <strong id="abMobileThreat">—</strong></span>
+  </div>
   <button type="button" class="primary" data-mobile-action="btnDescend" aria-controls="btnDescend">⬇ Descend</button>
-  <button type="button" class="ghost" data-mobile-action="btnBank" aria-controls="btnBank">🏦 Bank</button>
+  <button type="button" class="ghost" data-mobile-action="btnBank" aria-controls="btnBank">Bank &amp; Leave</button>
   <button type="button" class="ghost" id="abyssMobileItems" aria-controls="prepPanel">🧪 Items <span id="abyssMobileItemCount">0</span></button>
 </nav>
 <div class="ab-a11y-live" id="abyssActionLive" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -21,6 +27,15 @@
 
   function actionAvailable(button){return !!(button&&button.offsetParent!==null&&!button.disabled);}
   function itemCount(){return (window.pageConsumables||[]).filter(function(item){return item.Type==='Healing'||item.Type==='Repair'||item.Type==='Buff';}).reduce(function(total,item){return total+Math.max(0,Number(item.Count)||0);},0);}
+  function syncMobileContext(){
+    [['abMobileHP','hpText'],['abMobileDepth','depthNum'],['abMobileCache','escrowVal'],['abMobileThreat','threatPct']].forEach(function(pair){
+      var target=document.getElementById(pair[0]),source=document.getElementById(pair[1]);
+      if(!target||!source)return;
+      var value=source.textContent.trim()||'—';
+      if(pair[0]==='abMobileThreat'&&document.body.classList.contains('ab-pact-blind'))value='Hidden by pact';
+      if(target.textContent!==value)target.textContent=value;
+    });
+  }
   function syncMobileActions(){
     var bar=document.getElementById('abyssMobileActions');if(!bar)return;
     var active=typeof inRun!=='undefined'&&inRun;
@@ -32,7 +47,8 @@
     bar.setAttribute('aria-hidden',show?'false':'true');
     document.body.classList.toggle('ab-mobile-run',show);
     document.body.classList.toggle('ab-mobile-actions-visible',show);
-    bar.querySelectorAll('[data-mobile-action]').forEach(function(proxy){var source=document.getElementById(proxy.dataset.mobileAction);proxy.disabled=!actionAvailable(source);});
+    bar.querySelectorAll('[data-mobile-action]').forEach(function(proxy){var source=document.getElementById(proxy.dataset.mobileAction);proxy.disabled=!actionAvailable(source);if(source){var label=withoutEmoji(source.textContent);if(proxy.textContent!==label)proxy.textContent=label;proxy.setAttribute('aria-label',label);}});
+    syncMobileContext();
     var items=document.getElementById('abyssMobileItems'),count=itemCount(),countNode=document.getElementById('abyssMobileItemCount');
     if(countNode)countNode.textContent=String(count);
     var panel=document.getElementById('prepPanel');
@@ -40,6 +56,8 @@
   }
   function initMobileActions(){
     var bar=document.getElementById('abyssMobileActions');if(!bar)return;
+    ['hpText','depthNum','escrowVal','threatPct'].forEach(function(id){var node=document.getElementById(id);if(node)new MutationObserver(syncMobileContext).observe(node,{childList:true,characterData:true,subtree:true});});
+    new ResizeObserver(function(){document.body.style.setProperty('--ab-mobile-dock-height',bar.getBoundingClientRect().height+'px');}).observe(bar);
     bar.querySelectorAll('[data-mobile-action]').forEach(function(proxy){proxy.addEventListener('click',function(){var source=document.getElementById(proxy.dataset.mobileAction);if(actionAvailable(source)){announce(proxy.textContent.trim());source.click();}});});
     var items=document.getElementById('abyssMobileItems');
     if(items)items.addEventListener('click',function(){var panel=document.getElementById('prepPanel');if(!panel||panel.offsetParent===null)return;panel.scrollIntoView({block:'center',behavior:reduceMotion?'auto':'smooth'});var use=panel.querySelector('button:not(:disabled)');if(use)use.focus();announce(itemCount()+' usable consumables');});

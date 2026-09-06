@@ -1,0 +1,200 @@
+{{define "shop_relic_styles"}}
+<style>
+/* One featured offer, still in the searchable/sortable stock grid. */
+.delver-shell .shop-card.featured-item {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(200px,.7fr) minmax(0,1.6fr);
+  gap: 1rem 1.5rem;
+  padding: 1.25rem;
+  border-color: #796340 !important; /* Override the shared upgrade border, not its badge. */
+  border-radius: 12px;
+  background: linear-gradient(115deg,#1d2229,#111925 42%,#0a1018);
+  box-shadow: none;
+}
+.delver-shell .shop-card.featured-item[hidden] { display: none; }
+.delver-shell .shop-card.featured-item:hover { transform: none; border-color: #9d8050 !important; }
+.featured-item .shop-card-inspect { display: contents; }
+.featured-item .shop-card-copy { grid-column: 2; grid-row: 1; align-self: end; }
+.featured-item .shop-card-copy .inv-name { font-size: clamp(1.3rem,1.65vw,1.8rem); line-height: 1.2; text-wrap: balance; }
+.featured-item .shop-card-copy .inv-meta { margin-top: .35rem; }
+.featured-item .shop-item-badges { margin-top: .6rem; }
+.featured-item > .shop-item-details { grid-column: 2; grid-row: 2 / 4; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; gap: 1rem 1.25rem; }
+.featured-item > .shop-item-details > :is(.shop-comparison,.shop-comparison-empty,.shop-eternal-bonus) { grid-column: 1 / -1; }
+.featured-item > .shop-card-footer { grid-column: 1; grid-row: 3; align-self: start; width: 100%; margin-top: 0; padding-top: .9rem; }
+.featured-item .shop-card-actions { grid-template-columns: minmax(0,1fr) minmax(0,1.5fr); }
+.featured-item .shop-card-actions button:focus-visible { outline: 2px solid var(--cmd-cyan); outline-offset: 3px; }
+
+.shop-ico.shop-relic-stage {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  align-self: stretch;
+  position: relative;
+  width: auto;
+  height: auto;
+  min-height: 280px;
+  max-height: 340px;
+  padding: .6rem;
+  border: 0;
+  background: transparent;
+  perspective: 850px;
+  cursor: pointer;
+}
+.shop-relic-mount {
+  display: grid;
+  position: relative;
+  isolation: isolate;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #827253;
+  border-radius: 12px;
+  background: linear-gradient(135deg,#665942 0%,#252e36 13%,#101c29 42%,#080f19 72%,#403a2d);
+  transform: none;
+  transition: transform 420ms cubic-bezier(.16,1,.3,1);
+}
+/* Inlaid metal and a bounded reflection. No text sits on the moving surface. */
+.shop-relic-mount::before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1px solid #6c66554d;
+  border-radius: 8px;
+  background: radial-gradient(ellipse at 50% 30%,#bf9b5626,transparent 65%);
+}
+.shop-relic-mount::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: -40%;
+  pointer-events: none;
+  background: linear-gradient(118deg,transparent 33%,#ffe2aa05 42%,#ffe2aa30 48%,#f1cf8d08 55%,transparent 64%);
+  opacity: .45;
+  transform: translate(var(--relic-light-x,0%),var(--relic-light-y,0%));
+  transition: opacity 320ms ease-out,transform 420ms cubic-bezier(.16,1,.3,1);
+}
+.shop-relic-stage .item-art { width: min(224px,100%); height: auto; aspect-ratio: 1; flex-basis: 224px; z-index: 1; }
+.shop-relic-stage .item-art::before { filter: brightness(1.4) drop-shadow(0 16px 9px #0009); }
+.shop-relic-stage[data-lit="true"] .shop-relic-mount {
+  transform: rotateX(var(--relic-rx,0deg)) rotateY(var(--relic-ry,0deg));
+  transition-duration: 100ms;
+}
+.shop-relic-stage[data-lit="true"] .shop-relic-mount::after { opacity: 1; transition-duration: 100ms; }
+.featured-item:focus-within .shop-relic-mount { border-color: #c3a46e; }
+
+.shop-relic-inspector .item-inspector-head {
+  padding: .75rem;
+  border: 1px solid #796340;
+  border-radius: 12px;
+  background: linear-gradient(115deg,#292b2b,#111925 62%);
+}
+.shop-relic-inspector .item-inspector-head h2 { text-wrap: balance; }
+.shop-relic-inspector .modal-actions button { min-height: 44px; }
+.shop-relic-inspector ::selection { color: var(--cmd-void); background: var(--cmd-gold); }
+
+@media (max-width: 1280px) and (min-width: 1101px) {
+  .delver-shell .shop-card.featured-item { grid-template-columns: minmax(168px,.6fr) minmax(0,1.4fr); gap: 1rem; }
+  .featured-item > .shop-item-details { grid-template-columns: 1fr; }
+  .shop-relic-stage .item-art { width: min(160px,100%); flex-basis: 160px; }
+}
+@media (max-width: 760px) {
+  .delver-shell .shop-card.featured-item { grid-template-columns: 96px minmax(0,1fr); gap: 1rem .85rem; padding: .85rem; }
+  .shop-ico.shop-relic-stage { grid-column: 1; grid-row: 1; min-height: 124px; padding: 0; }
+  .shop-relic-stage .item-art { width: min(96px,100%); flex-basis: 96px; }
+  .shop-relic-mount::before { inset: 6px; }
+  .featured-item .shop-card-copy { align-self: center; }
+  .featured-item .shop-card-copy .inv-name { font-size: 1.2rem; }
+  .featured-item > .shop-item-details { grid-column: 1 / -1; grid-row: 2; grid-template-columns: 1fr; }
+  .featured-item > .shop-card-footer { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
+  .shop-relic-mount,.shop-relic-mount::after { transition: none !important; transform: none !important; }
+  .shop-relic-stage[data-lit="true"] .shop-relic-mount::after { opacity: .45; }
+  .delver-shell:has(.shop-relic-stage) .modal-overlay,
+  .delver-shell:has(.shop-relic-stage) .modal-card { transition: none; }
+}
+</style>
+{{end}}
+
+{{define "shop_relic_script"}}
+<script data-cfasync="false">
+(function(){
+  var stage=document.querySelector('.shop-relic-stage');
+  if(!stage)return;
+  var card=stage.closest('.shop-card');
+  var canAnimate=typeof Element.prototype.animate==='function';
+  var motion=window.matchMedia('(prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine)');
+  var frame=0,point=null,revealAnimations=[],revealObserver=null;
+
+  function resetLighting(){
+    if(frame)cancelAnimationFrame(frame);
+    frame=0;
+    point=null;
+    stage.removeAttribute('data-lit');
+    ['--relic-rx','--relic-ry','--relic-light-x','--relic-light-y'].forEach(function(name){stage.style.removeProperty(name);});
+  }
+  function renderLighting(){
+    frame=0;
+    if(!point||!canAnimate||!motion.matches||document.hidden||card.hidden)return resetLighting();
+    var bounds=stage.getBoundingClientRect();
+    if(!bounds.width||!bounds.height||bounds.bottom<=0||bounds.top>=window.innerHeight)return resetLighting();
+    var x=Math.max(-1,Math.min(1,(point.x-bounds.left)/bounds.width*2-1));
+    var y=Math.max(-1,Math.min(1,(point.y-bounds.top)/bounds.height*2-1));
+    stage.style.setProperty('--relic-rx',(-y*5).toFixed(2)+'deg');
+    stage.style.setProperty('--relic-ry',(x*7).toFixed(2)+'deg');
+    stage.style.setProperty('--relic-light-x',(x*18).toFixed(2)+'%');
+    stage.style.setProperty('--relic-light-y',(y*10).toFixed(2)+'%');
+    stage.dataset.lit='true';
+  }
+  stage.addEventListener('pointermove',function(event){
+    if(!canAnimate||!motion.matches||event.pointerType==='touch')return;
+    point={x:event.clientX,y:event.clientY};
+    if(!frame)frame=requestAnimationFrame(renderLighting);
+  },{passive:true});
+  stage.addEventListener('pointerleave',resetLighting);
+  stage.addEventListener('pointercancel',resetLighting);
+  window.addEventListener('scroll',resetLighting,{passive:true});
+  window.addEventListener('blur',resetLighting);
+  new MutationObserver(function(){if(card.hidden)resetLighting();}).observe(card,{attributes:true,attributeFilter:['hidden']});
+
+  function cancelReveal(){
+    revealAnimations.forEach(function(animation){animation.cancel();});
+    revealAnimations=[];
+    if(revealObserver)revealObserver.disconnect();
+    revealObserver=null;
+  }
+  function stopEffects(){resetLighting();cancelReveal();}
+  if(motion.addEventListener)motion.addEventListener('change',stopEffects);
+  document.addEventListener('visibilitychange',function(){if(document.hidden)stopEffects();});
+  window.addEventListener('pagehide',stopEffects);
+
+  // The shared inspector owns content, focus trapping and dismissal. This hook
+  // decorates only this featured offer, never purchase or exchange reviews.
+  window.addShopInspectorContext=function(trigger){
+    cancelReveal();
+    if(trigger.closest('.shop-card')!==card)return;
+    var modal=document.getElementById('sharedModal');
+    var inspector=modal.querySelector('.item-inspector');
+    if(!inspector)return;
+    inspector.classList.add('shop-relic-inspector');
+    resetLighting();
+    // Clicking the non-focusable artwork should also return to a useful control.
+    if(!card.contains(document.activeElement))modalReturnFocus=card.querySelector('.shop-inspect-action');
+    var head=inspector.querySelector('.item-inspector-head');
+    if(!motion.matches||!head.animate)return;
+    var timing={duration:460,easing:'cubic-bezier(.16,1,.3,1)'};
+    revealAnimations=[
+      head.animate([{clipPath:'inset(0 18% 0 0 round 12px)',opacity:.7},{clipPath:'inset(0 0 0 0 round 12px)',opacity:1}],timing),
+      head.querySelector('.item-art').animate([{transform:'scale(1.35) rotate(-8deg)'},{transform:'none'}],timing)
+    ];
+    revealObserver=new MutationObserver(function(){
+      if(!modal.classList.contains('open')||!inspector.isConnected)cancelReveal();
+    });
+    revealObserver.observe(modal,{attributes:true,attributeFilter:['class'],childList:true,subtree:true});
+    Promise.all(revealAnimations.map(function(animation){return animation.finished;})).then(cancelReveal,function(){});
+  };
+})();
+</script>
+{{end}}

@@ -11,11 +11,13 @@ import (
 // house always keeps an edge and no option is exploitably player-favoured.
 var gameChoices = map[string][]string{
 	// Originals.
-	"slots":    {""},
-	"dice":     {""},
-	"coinflip": {"heads", "tails"},
-	"wheel":    {""},
-	"highlow":  {"high", "low"},
+	"slots":      {""},
+	"dice":       {""},
+	"coinflip":   {"heads", "tails"},
+	"wheel":      {""},
+	"highlow":    {"high", "low"},
+	"vault":      {"1", "2", "3"},
+	"expedition": {"scout", "delve", "abyss"},
 }
 
 func rtp(t *testing.T, game, choice string, rounds int, bet int64) float64 {

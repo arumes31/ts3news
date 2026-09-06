@@ -1,320 +1,66 @@
 {{define "arcade"}}{{template "head" .}}
-<div class="arcade-header">
-  <h1>Arcade</h1>
-  <div class="vip-badge tier-{{.VIP.Name | lower}}">
-    <span class="icon">💎</span>
-    <span class="name">{{.VIP.Name}} VIP</span>
-    <span class="pts">{{comma .VIPPoints}} pts</span>
-  </div>
-</div>
-
-<p class="muted">Wager gold across balanced games of chance. <span id="goldHere">Balance: 🪙 {{gold .U.Gold}}</span></p>
-
-<div class="bet-row">
-  <label>Bet <input type="number" id="bet" value="100" min="1" max="100000"></label>
-  <div class="quickbets">
-    <button class="ghost xs" onclick="setBet(100)">100</button>
-    <button class="ghost xs" onclick="setBet(1000)">1k</button>
-    <button class="ghost xs" onclick="mulBet(2)">×2</button>
-    <button class="ghost xs" onclick="mulBet(0.5)">½</button>
-  </div>
-  <label class="auto-bet-label"><input type="checkbox" id="autoBet"> Auto-bet</label>
-  <div id="arcadeMsg" class="toast"></div>
-</div>
-
-{{if .CanDaily}}
-<div class="daily-spin-banner">
-  <div class="info">
-    <h3>🎁 Daily Free Spin</h3>
-    <p>Your daily bonus is ready! Spin for gold or rare gear.</p>
-  </div>
-  <button class="primary" id="btn-daily" onclick="playDaily()">Claim Daily Spin</button>
-</div>
-{{end}}
-
+<a class="portal-skip" href="#portalMain">Skip to games</a>
+<div id="portalMain" class="arcade-page" style="--arcade-atlas:url('{{asset "/static/abyss_icon_atlas.png"}}')" tabindex="-1">
+<header class="arcade-masthead"><div class="arcade-identity"><span class="arcade-art art-crown" aria-hidden="true"></span><div><p class="arcade-eyebrow">The Abyss · Delver's respite</p><h1>Arcade</h1><p class="muted">Leave the depths. Test your fortune.</p></div></div><div class="arcade-account"><span class="arcade-eyebrow">Available gold</span><strong id="goldHere">{{gold .U.Gold}}</strong><span class="arcade-vip">{{.VIP.Name}} VIP · {{comma .VIPPoints}} points</span></div></header>
+<div class="arcade-toolbar"><div class="arcade-wager"><label for="bet">Wager <span class="muted">/ gold</span></label><input type="number" id="bet" value="100" min="1" max="100000000" step="1" inputmode="numeric"><div class="quickbets"><button id="bet100" class="ghost" onclick="setBet(100)">100</button><button id="bet1000" class="ghost" onclick="setBet(1000)">1k</button><button class="ghost" onclick="mulBet(0.5)" aria-label="½ — Halve wager">½</button><button class="ghost" onclick="mulBet(2)" aria-label="×2 — Double wager">×2</button></div></div><label class="arcade-auto"><input type="checkbox" id="autoBet"><span>Auto-bet<small>Relic reels · Dice · Wheel</small></span></label></div>
+<p id="arcadeMsg" class="arcade-message" role="status" aria-live="polite" aria-atomic="true">Choose a game below. Each round uses the wager above.</p>
+<nav class="arcade-game-nav" aria-label="Choose a game"><a href="#game-slots">Relic Reels</a><a href="#game-dice">Dice</a><a href="#game-coinflip">Coin</a><a href="#game-wheel">Wheel</a><a href="#game-highlow">Cards</a><a href="#game-vault">Treasure Vault</a><a href="#game-expedition">Expedition</a><a href="#game-memory">Rune Memory <small>FREE</small></a></nav>
+{{if .CanDaily}}<aside class="arcade-daily daily-spin-banner"><span class="arcade-art art-potion" aria-hidden="true"></span><div><h2>Daily tribute</h2><p>A free spin for gold or gear. No wager required.</p></div><button id="btn-daily" onclick="playDaily()">Claim daily spin</button></aside>{{end}}
 <div class="arcade-grid">
-
-  <!-- SLOTS -->
-  <div class="game-card slots-card">
-    <div class="jackpot-banner">JACKPOT: 🪙 <span id="jackpotSlots">{{gold .JackpotSlots}}</span></div>
-    <h3>🎰 Slots</h3>
-    <div class="reels" id="reels">
-      <div class="reel">
-        <div class="reelstrip" id="strip0"></div>
-      </div>
-      <div class="reel">
-        <div class="reelstrip" id="strip1"></div>
-      </div>
-      <div class="reel">
-        <div class="reelstrip" id="strip2"></div>
-      </div>
-      <div class="reel">
-        <div class="reelstrip" id="strip3"></div>
-      </div>
-      <div class="reel">
-        <div class="reelstrip" id="strip4"></div>
-      </div>
-    </div>
-    <p class="muted small">3/4/5 of a kind pay ×3 / ×16 / ×88</p>
-    <button id="btn-slots" onclick="playSlots()">Spin</button>
-  </div>
-
-  <!-- DICE -->
-  <div class="game-card">
-    <h3>🎲 Dice</h3>
-    <div class="dice-stage">
-      <div class="die" id="die"><span id="diePips">⚀</span></div>
-    </div>
-    <p class="muted small">Roll 5–6 to win ×2.4, 4 pushes</p>
-    <button id="btn-dice" onclick="playDice()">Roll</button>
-  </div>
-
-  <!-- COIN -->
-  <div class="game-card">
-    <h3>🪙 Coin Flip</h3>
-    <div class="coin-stage">
-      <div class="coin" id="coin">
-        <div class="coin-face heads">H</div>
-        <div class="coin-face tails">T</div>
-      </div>
-    </div>
-    <div class="choices">
-      <button class="ghost" id="btn-coin" onclick="playCoin('heads')">Heads</button>
-      <button class="ghost" onclick="playCoin('tails')">Tails</button>
-    </div>
-    <p class="muted small">Even-ish flip · ×1.95</p>
-  </div>
-
-  <!-- WHEEL -->
-  <div class="game-card">
-    <h3>🎡 Fortune Wheel</h3>
-    <div class="wheel-stage">
-      <div class="wheel-pointer">▼</div>
-      <canvas id="wheel" width="220" height="220"></canvas>
-    </div>
-    <button id="btn-wheel" onclick="playWheel()">Spin Wheel</button>
-  </div>
-
-  <!-- HIGH/LOW -->
-  <div class="game-card">
-    <h3>🃏 High / Low</h3>
-    <div class="card-stage">
-      <div class="pcard" id="pcard">
-        <div class="pcard-inner">
-          <div class="pcard-front">?</div>
-          <div class="pcard-back" id="cardVal">7</div>
-        </div>
-      </div>
-    </div>
-    <div class="choices">
-      <button class="ghost" id="btn-high" onclick="playHL('high')">High >7</button>
-      <button class="ghost" id="btn-low" onclick="playHL('low')">Low <7< /button>
-    </div>
-    <p class="muted small">Guess the card · ×2.0</p>
-  </div>
-
+<section class="game-card slots-card" id="game-slots" data-game="slots" aria-label="slots"><header class="game-heading"><div><p class="arcade-eyebrow">01 / Relic vault</p><h2>Relic Reels <small>Slots</small></h2></div><span class="game-tag">Up to ×88</span></header>
+<div class="arcade-jackpot"><span class="arcade-art art-crown" aria-hidden="true"></span><span>Progressive jackpot<strong><span id="jackpotSlots">{{gold .JackpotSlots}}</span> <small>gold</small></strong></span></div>
+<div class="relic-machine"><div class="machine-inscription" aria-hidden="true">✦ &nbsp; THE VAULT REMEMBERS &nbsp; ✦</div><div class="reels" id="reels" role="img" aria-label="Five relic reels, ready to spin"><div class="reel"><div class="reelstrip" id="strip0"></div></div><div class="reel"><div class="reelstrip" id="strip1"></div></div><div class="reel"><div class="reelstrip" id="strip2"></div></div><div class="reel"><div class="reelstrip" id="strip3"></div></div><div class="reel"><div class="reelstrip" id="strip4"></div></div></div><div class="machine-inscription">MATCH RELICS ANYWHERE ACROSS THE FIVE REELS</div></div>
+<div class="relic-paytable" role="group" aria-label="Slot payouts"><span>3 matching <strong>×3</strong></span><span>4 matching <strong>×16</strong></span><span>5 matching <strong>×88</strong></span></div>
+<div class="relic-key" role="group" aria-label="Relic symbols"><span><span class="arcade-art art-potion" aria-hidden="true"></span>Potion</span><span><span class="arcade-art art-gem" aria-hidden="true"></span>Sapphire</span><span><span class="arcade-art art-ring" aria-hidden="true"></span>Ring</span><span><span class="arcade-art art-rune" aria-hidden="true"></span>Rune</span><span><span class="arcade-art art-sword" aria-hidden="true"></span>Sword</span><span><span class="arcade-art art-crown" aria-hidden="true"></span>Crown</span></div>
+<div class="game-actions"><button id="btn-slots" onclick="playSlots()">Spin relics</button><p class="game-result">The vault awaits your first spin.</p></div><details class="game-rules"><summary>How the relic vault works</summary><p>Five reels draw from six equally likely relics. Three, four, or five of the same relic anywhere pay ×3, ×16, or ×88. Only the largest matching group pays. Multipliers show total gold returned, including your wager.</p></details></section><section class="game-card" id="game-dice" data-game="dice" aria-label="dice"><header class="game-heading"><div><p class="arcade-eyebrow">02 / Bone &amp; fate</p><h2>Delver's Dice</h2></div><span class="game-tag">×2.4</span></header>
+<div class="game-stage dice-stage"><div class="ritual-ring" aria-hidden="true"></div><span class="stage-caption">CAST YOUR FATE</span><div class="die" id="die" role="img" aria-label="Die: 1"><span id="diePips" class="die-pips" data-roll="1" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div></div>
+<div class="dice-guide" role="group" aria-label="Dice outcomes"><span>1 · 2 · 3<small>Lose wager</small></span><span>4<small>Bet returned</small></span><span>5 · 6<small>Win ×2.4</small></span></div><div class="game-actions"><button id="btn-dice" onclick="playDice()">Roll dice</button><p class="game-result">A five or six turns fate in your favour.</p></div><details class="game-rules"><summary>Read the bones</summary><p>One fair six-sided die. Rolls of 5 or 6 return ×2.4 your wager. A 4 returns your wager with no profit or loss. Rolls of 1–3 lose the wager.</p></details></section><section class="game-card" id="game-coinflip" data-game="coinflip" aria-label="coinflip"><header class="game-heading"><div><p class="arcade-eyebrow">03 / Light &amp; shadow</p><h2>Eclipse Coin <small>Coin Flip</small></h2></div><span class="game-tag">×1.95</span></header>
+<div class="game-stage coin-stage"><div class="ritual-ring" aria-hidden="true"></div><span class="stage-caption">TWO FACES. ONE FATE.</span><div class="coin" id="coin" role="img" aria-label="Coin: heads"><div class="coin-face heads"><span class="arcade-art art-sun" aria-hidden="true"></span><small>HEADS</small></div><div class="coin-face tails"><span class="arcade-art art-moon" aria-hidden="true"></span><small>TAILS</small></div></div></div><p class="game-hint">Choose sunlight or shadow. A match returns <b>×1.95</b>.</p>
+<div class="game-actions"><div class="choices"><button id="btn-coin" class="ghost" onclick="playCoin('heads')">Heads</button><button id="btn-coin-tails" class="ghost" onclick="playCoin('tails')">Tails</button></div><p class="game-result">Choose a face to flip the coin.</p></div><details class="game-rules"><summary>Light or shadow?</summary><p>Heads bears the sun; tails bears the moon. Each face has an equal chance. Match your chosen side to receive ×1.95 your wager; the other side loses it.</p></details></section><section class="game-card" id="game-wheel" data-game="wheel" aria-label="wheel"><header class="game-heading"><div><p class="arcade-eyebrow">04 / Circle of fortune</p><h2>Runic Wheel <small>Fortune Wheel</small></h2></div><span class="game-tag">Up to ×5</span></header>
+<div class="game-stage"><div class="wheel-stage"><div class="wheel-pointer" aria-hidden="true">▼</div><canvas id="wheel" width="440" height="440" role="img" aria-label="Twelve equal segments: eight blanks, ×1.5, ×2, ×3, and ×5">A twelve-segment fortune wheel.</canvas><span class="arcade-art art-rune wheel-seal" aria-hidden="true"></span></div></div><p class="game-hint">Twelve segments. Four rewards. Follow the golden pointer.</p>
+<div class="game-actions"><button id="btn-wheel" onclick="playWheel()">Spin wheel</button><p class="game-result">The circle is still. Set it in motion.</p></div><details class="game-rules"><summary>Decipher the wheel</summary><p>All twelve segments are equally likely. Eight blanks lose the wager; four marked segments return ×1.5, ×2, ×3, or ×5. The top pointer marks your final result.</p></details></section><section class="game-card" id="game-highlow" data-game="highlow" aria-label="highlow"><header class="game-heading"><div><p class="arcade-eyebrow">05 / The oracle's hand</p><h2>Oracle Cards <small>High / Low</small></h2></div><span class="game-tag">×2</span></header>
+<div class="game-stage card-stage"><div class="oracle-card-shadow" aria-hidden="true"></div><div class="pcard" id="pcard"><div class="pcard-inner"><div class="pcard-front" aria-hidden="false"><span class="card-corner" aria-hidden="true">✦</span><span class="arcade-art art-oracle" aria-hidden="true"></span><small>THE ORACLE</small></div><div class="pcard-back" aria-hidden="true"><span class="card-corner" aria-hidden="true">✦</span><span id="cardVal">?</span><small>FATE REVEALED</small></div></div></div></div><div class="oracle-range"><span>1–6 <small>Low</small></span><span>7 <small>House</small></span><span>8–13 <small>High</small></span></div>
+<div class="game-actions"><div class="choices"><button id="btn-low" class="ghost" onclick="playHL('low')">Low &lt;7</button><button id="btn-high" class="ghost" onclick="playHL('high')">High &gt;7</button></div><p class="game-result">Call high or low before the card is revealed.</p></div><details class="game-rules"><summary>Consult the oracle</summary><p>A card is drawn from 1–13, each equally likely. Low wins on 1–6; high wins on 8–13. A 7 loses either choice. A correct call returns ×2 your wager.</p></details></section>
 </div>
-
-
-
-<div class="lb-nav-banner">
-  <a href="/leaderboards" class="lb-nav-btn">🏆 View Leaderboards</a>
+<h2 class="arcade-section-title">Deeper into the arcade <span>Two new wagers · One free skill challenge</span></h2>
+<div class="arcade-grid arcade-expansion">
+  <section class="game-card" id="game-vault" data-game="vault" aria-label="Treasure Vault">
+    <header class="game-heading"><div><p class="arcade-eyebrow">06 / The sealed chamber</p><h2>Treasure Vault</h2></div><span class="game-tag">×2.85</span></header>
+    <p class="game-hint">Three sealed chests. One sapphire. Choose your chest to wager.</p>
+    <div class="vault-stage" role="group" aria-label="Choose a treasure chest">
+      <button class="treasure-chest ghost" onclick="playVault('1')" aria-label="Open chest 1"><span class="chest-art" aria-hidden="true"><span class="arcade-art art-gem"></span><i class="chest-lid"></i><i class="chest-base"></i><i class="chest-lock"></i></span><span class="chest-caption">Chest 1</span><small class="chest-outcome">Sealed</small></button>
+      <button class="treasure-chest ghost" onclick="playVault('2')" aria-label="Open chest 2"><span class="chest-art" aria-hidden="true"><span class="arcade-art art-gem"></span><i class="chest-lid"></i><i class="chest-base"></i><i class="chest-lock"></i></span><span class="chest-caption">Chest 2</span><small class="chest-outcome">Sealed</small></button>
+      <button class="treasure-chest ghost" onclick="playVault('3')" aria-label="Open chest 3"><span class="chest-art" aria-hidden="true"><span class="arcade-art art-gem"></span><i class="chest-lid"></i><i class="chest-base"></i><i class="chest-lock"></i></span><span class="chest-caption">Chest 3</span><small class="chest-outcome">Sealed</small></button>
+    </div>
+    <div class="vault-odds"><span>1 in 3 <small>Treasure chance</small></span><span>×2.85 <small>Total return</small></span></div>
+    <div class="game-actions"><p class="game-result">The sapphire lies behind one of these seals.</p></div>
+    <details class="game-rules"><summary>Break a seal</summary><p>Opening a chest places your wager immediately. One of three chests holds a sapphire, chosen afresh each round. Find it to receive ×2.85 your wager. Empty chests lose the wager. All three chests reveal after your choice.</p></details>
+  </section>
+  <section class="game-card" id="game-expedition" data-game="expedition" aria-label="Abyss Expedition">
+    <header class="game-heading"><div><p class="arcade-eyebrow">07 / Beyond the lantern</p><h2>Abyss Expedition</h2></div><span class="game-tag">Up to ×4</span></header>
+    <div class="expedition-scene"><div class="expedition-gate" aria-hidden="true"><span class="arcade-art art-skull"></span></div><span class="expedition-depth" id="expeditionDepth">THE OUTSKIRTS</span><div class="expedition-path" aria-hidden="true"></div><span class="arcade-art art-sword expedition-delver" aria-hidden="true"></span></div>
+    <fieldset class="expedition-routes"><legend>Choose your route</legend>
+      <label><input type="radio" name="expeditionRisk" value="scout" checked><span>Scout <small>80% · ×1.2</small></span></label>
+      <label><input type="radio" name="expeditionRisk" value="delve"><span>Delve <small>48% · ×2</small></span></label>
+      <label><input type="radio" name="expeditionRisk" value="abyss"><span>Abyss <small>24% · ×4</small></span></label>
+    </fieldset>
+    <div class="expedition-meter" role="img" aria-label="Scout: survive on rolls 1 through 80" style="--chance:80%"><span class="expedition-marker" hidden></span></div>
+    <p class="game-hint" id="expeditionHint">Survive on 1–80. Rolls 81–100 lose the wager.</p>
+    <div class="game-actions"><button id="btn-expedition" onclick="playExpedition()">Begin expedition</button><p class="game-result">Choose how far into the depths you dare to go.</p></div>
+    <details class="game-rules"><summary>Risk and reward</summary><p>A fresh roll from 1–100 decides your expedition. Scout survives on 1–80 and returns ×1.2. Delve survives on 1–48 and returns ×2. Abyss survives on 1–24 and returns ×4. Failed expeditions lose the wager. This is a standalone arcade round and does not affect an Abyss run.</p></details>
+  </section>
+  <section class="game-card" id="game-memory" data-game="memory" aria-label="Rune Memory">
+    <header class="game-heading"><div><p class="arcade-eyebrow">08 / The archivist's test</p><h2>Rune Memory</h2></div><span class="game-tag skill-tag">Free · Skill</span></header>
+    <p class="game-hint">Uncover eight matching pairs. Remember what the darkness hides.</p>
+    <div class="memory-stats"><span><strong id="memoryPairs">0 / 8</strong>Pairs</span><span><strong id="memoryMoves">0</strong>Moves</span><span><strong id="memoryTime">0:00</strong>Time</span></div>
+    <div class="memory-arena"><div id="memoryBoard" class="memory-board" role="group" aria-label="Rune memory board"></div><div class="memory-pause-cover" hidden><strong>Archive paused</strong><span>The clock is stopped. Resume when ready.</span></div></div>
+    <div class="game-actions"><button class="ghost" id="btn-memory" onclick="startMemory()">Start challenge</button><button class="ghost" id="btn-memory-pause" hidden>Pause challenge</button><p class="game-result" role="status" aria-live="polite">A free skill game. No wager, gold rewards, or gear drops.</p><p id="memoryBest" class="memory-best">Best on this browser: no completed challenge yet.</p></div>
+    <details class="game-rules"><summary>The archivist's challenge</summary><p>Reveal two tiles per move. Matching relics stay face up; mismatches turn back over. Clear all eight pairs in as few moves as possible. Time breaks a tie. The clock starts on your first reveal. Use the arrow keys, Tab and Enter, or tap a tile. Pause stops the clock and conceals the board; switching tabs pauses automatically. Starting again resets the board.</p></details>
+  </section>
 </div>
-
-<script data-cfasync="false">
-  const WHEEL = {{.WheelJSON }};
-  const SLOT_SYMS = ["🍒", "🍋", "🔔", "⭐", "💎", "7️⃣"];
-  const PIPS = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-  let isAuto = false;
-  document.getElementById('autoBet').addEventListener('change', (e) => {
-    isAuto = e.target.checked;
-  });
-
-  function setBet(v) { document.getElementById('bet').value = v; }
-  function mulBet(m) { const b = document.getElementById('bet'); b.value = Math.max(1, Math.floor(b.value * m)); }
-  function bet() { return parseInt(document.getElementById('bet').value, 10); }
-  function toast(m, ok) { var t = document.getElementById('arcadeMsg'); t.textContent = m; t.className = 'toast show ' + (ok ? 'good' : 'bad'); setTimeout(function () { t.className = 'toast'; }, 2200); }
-
-  function showResult(d) {
-    let msg = d.detail + ' — ' + (d.win ? ('won ' + d.payout + ' gold (net ' + (d.net >= 0 ? '+' : '') + d.net + ')') : ('lost ' + d.bet + ' gold'));
-    if (d.jackpot_win) { msg = "🔥 MEGA WIN! " + msg; }
-    if (d.gear_won) { msg += ' · 🎁 looted ' + d.gear_won + ' → inventory'; }
-
-    toast(msg, d.win);
-
-    document.getElementById('goldPill').textContent = '🪙 ' + d.gold;
-    document.getElementById('goldHere').textContent = 'Balance: 🪙 ' + d.gold;
-    if (d.new_jackpot) {
-      document.getElementById('jackpotSlots').textContent = d.new_jackpot.toLocaleString();
-    }
-
-    if (isAuto && d.ok && d.gold >= bet()) {
-      setTimeout(() => {
-        if (d.game === 'slots') playSlots();
-        else if (d.game === 'dice') playDice();
-        else if (d.game === 'wheel') playWheel();
-      }, 1000);
-    }
-  }
-
-  async function api(game, choice) {
-    const b = bet(); if (!b || b < 1) { toast('Enter a bet', false); return null; }
-    const r = await fetch('/api/arcade/play', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ game: game, bet: b, choice: choice || '' }) });
-    const d = await r.json();
-    if (!d.ok) { toast(d.error, false); isAuto = false; document.getElementById('autoBet').checked = false; return null; }
-    return d;
-  }
-
-  async function playDaily() {
-    disable('btn-daily', true);
-    try {
-      const r = await fetch('/api/arcade/daily-spin', { method: 'POST' });
-      const d = await r.json();
-      if (d.ok) {
-        toast(d.reward, true);
-        document.getElementById('goldPill').textContent = '🪙 ' + d.new_gold;
-        document.getElementById('goldHere').textContent = 'Balance: 🪙 ' + d.new_gold;
-        document.querySelector('.daily-spin-banner').style.display = 'none';
-      } else {
-        toast(d.error, false);
-      }
-    } finally {
-      disable('btn-daily', false);
-    }
-  }
-
-  function disable(id, on) { const b = document.getElementById(id); if (b) b.disabled = on; }
-
-  /* ---- SLOTS ---- */
-  function buildStrip(id) {
-    const el = document.getElementById(id); el.innerHTML = '';
-    for (let i = 0; i < 30; i++) { const d = document.createElement('div'); d.className = 'sym'; d.textContent = SLOT_SYMS[Math.floor(Math.random() * SLOT_SYMS.length)]; el.appendChild(d); }
-  }
-  async function playSlots() {
-    disable('btn-slots', true);
-    const card = document.querySelector('.slots-card');
-    card.classList.remove('win-glow', 'loss-shake');
-    const d = await api('slots'); if (!d) { disable('btn-slots', false); return; }
-    for (let i = 0; i < 5; i++) {
-      const strip = document.getElementById('strip' + i);
-      buildStrip('strip' + i);
-      const last = document.createElement('div'); last.className = 'sym'; last.textContent = d.symbols[i]; strip.appendChild(last);
-      strip.style.transition = 'none'; strip.style.transform = 'translateY(0)';
-      void strip.offsetHeight;
-      const dist = (strip.children.length - 1) * 72;
-      strip.style.transition = 'transform ' + (1.3 + i * 0.35) + 's cubic-bezier(.18,.7,.2,1)';
-      strip.style.transform = 'translateY(-' + dist + 'px)';
-    }
-    await sleep(1500 + 5 * 350);
-    if (d) card.classList.add(d.win ? 'win-glow' : 'loss-shake');
-    showResult(d); disable('btn-slots', false);
-  }
-
-  /* ---- DICE ---- */
-  async function playDice() {
-    disable('btn-dice', true);
-    const die = document.getElementById('die');
-    const card = die.closest('.game-card');
-    card.classList.remove('win-glow', 'loss-shake');
-    die.classList.add('rolling');
-    const d = await api('dice');
-    await sleep(900);
-    die.classList.remove('rolling');
-    if (d) {
-      document.getElementById('diePips').textContent = PIPS[d.roll - 1];
-      card.classList.add(d.win ? 'win-glow' : 'loss-shake');
-      showResult(d);
-    }
-    disable('btn-dice', false);
-  }
-
-  /* ---- COIN ---- */
-  async function playCoin(side) {
-    disable('btn-coin', true);
-    const coin = document.getElementById('coin');
-    const card = coin.closest('.game-card');
-    card.classList.remove('win-glow', 'loss-shake');
-    const d = await api('coinflip', side);
-    const turns = 5 * 360 + (d && d.side === 'tails' ? 180 : 0);
-    coin.style.transition = 'transform 1.1s cubic-bezier(.2,.8,.2,1)';
-    coin.style.transform = 'rotateY(' + turns + 'deg)';
-    await sleep(1150);
-    coin.style.transition = 'none'; coin.style.transform = 'rotateY(' + ((d && d.side === 'tails') ? 180 : 0) + 'deg)';
-    if (d) {
-      card.classList.add(d.win ? 'win-glow' : 'loss-shake');
-      showResult(d);
-    }
-    disable('btn-coin', false);
-  }
-
-  /* ---- WHEEL ---- */
-  const wc = document.getElementById('wheel'), wctx = wc.getContext('2d');
-  let wheelAngle = 0;
-  function drawWheel(angle) {
-    const n = WHEEL.length, R = 104, cx = 110, cy = 110;
-    wctx.clearRect(0, 0, 220, 220);
-    for (let i = 0; i < n; i++) {
-      const a0 = angle + i * 2 * Math.PI / n, a1 = angle + (i + 1) * 2 * Math.PI / n;
-      wctx.beginPath(); wctx.moveTo(cx, cy); wctx.arc(cx, cy, R, a0, a1); wctx.closePath();
-      const m = WHEEL[i];
-      wctx.fillStyle = m >= 10 ? '#f4c542' : m >= 3 ? '#7b6cff' : m >= 2 ? '#41c97a' : m > 0 ? '#3a7bd5' : '#262c3d';
-      wctx.fill(); wctx.strokeStyle = '#0a0c11'; wctx.lineWidth = 2; wctx.stroke();
-      wctx.save(); wctx.translate(cx, cy); wctx.rotate((a0 + a1) / 2); wctx.textAlign = 'right';
-      wctx.fillStyle = '#fff'; wctx.font = 'bold 13px sans-serif';
-      wctx.fillText(m > 0 ? ('×' + m) : '—', R - 10, 5); wctx.restore();
-    }
-    wctx.beginPath(); wctx.arc(cx, cy, 16, 0, 2 * Math.PI); wctx.fillStyle = '#0a0c11'; wctx.fill(); wctx.strokeStyle = '#f4c542'; wctx.stroke();
-  }
-  drawWheel(0);
-  async function playWheel() {
-    disable('btn-wheel', true);
-    const card = wc.closest('.game-card');
-    card.classList.remove('win-glow', 'loss-shake');
-    const d = await api('wheel'); if (!d) { disable('btn-wheel', false); return; }
-    const n = WHEEL.length;
-    const target = -Math.PI / 2 - (d.segment + 0.5) * 2 * Math.PI / n;
-    const start = wheelAngle, spins = 5 * 2 * Math.PI;
-    const end = target - spins;
-    const dur = 2600, t0 = performance.now();
-    await new Promise(res => {
-      function frame(now) {
-        const p = Math.min(1, (now - t0) / dur);
-        const e = 1 - Math.pow(1 - p, 3);
-        wheelAngle = start + (end - start) * e;
-        drawWheel(wheelAngle);
-        if (p < 1) requestAnimationFrame(frame); else res();
-      }
-      requestAnimationFrame(frame);
-    });
-    wheelAngle = target % (2 * Math.PI);
-    if (d) card.classList.add(d.win ? 'win-glow' : 'loss-shake');
-    showResult(d); disable('btn-wheel', false);
-  }
-
-  /* ---- HIGH/LOW ---- */
-  async function playHL(choice) {
-    disable('btn-high', true); disable('btn-low', true);
-    const pcard = document.getElementById('pcard');
-    const card = pcard.closest('.game-card');
-    card.classList.remove('win-glow', 'loss-shake');
-    pcard.classList.remove('flip');
-    await sleep(50);
-    const d = await api('highlow', choice);
-    if (d) {
-      document.getElementById('cardVal').textContent = d.card;
-      pcard.classList.add('flip');
-      await sleep(700);
-      card.classList.add(d.win ? 'win-glow' : 'loss-shake');
-      showResult(d);
-    }
-    disable('btn-high', false); disable('btn-low', false);
-  }
-
-
-
-  // init slot strips at rest
-  for (let i = 0; i < 5; i++) { buildStrip('strip' + i); const s = document.getElementById('strip' + i); s.style.transform = 'translateY(-' + ((s.children.length - 3) * 72) + 'px)'; }
-</script>
+<footer class="arcade-footer"><span>Wager-game payouts include your stake. Winning wagers may also drop gear. Rune Memory is free.</span><a href="/leaderboards">View leaderboards →</a></footer>
+</div>
+<script data-cfasync="false">window.ARCADE_WHEEL = {{.WheelJSON}};</script>
+<script data-cfasync="false" src="{{asset "/static/arcade.js"}}"></script>
+<script data-cfasync="false" src="{{asset "/static/arcade_memory.js"}}"></script>
 {{template "foot" .}}{{end}}

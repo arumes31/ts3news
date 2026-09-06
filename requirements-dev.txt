@@ -1,0 +1,2 @@
+# Image-atlas validation only; the bot runtime uses Python standard library.
+Pillow==12.3.0

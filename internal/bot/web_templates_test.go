@@ -100,7 +100,7 @@ func TestAbyssLivePartials(t *testing.T) {
 		server.tmpl.Lookup("abyssCombatFeedbackJS").Tree.Root.String()
 	for _, required := range []string{
 		"scheduleLiveReconnect",
-		"RECEIVED · ",
+		"SENDING · ",
 		"REPLACED · ",
 		"liveEffectEstimate",
 		"state.recommended",
@@ -120,7 +120,9 @@ func TestAbyssLivePartials(t *testing.T) {
 		"THREAT ",
 		"entry.textContent=text",
 		"if(sessionID!==liveCombatSessionID)return",
-		"setTimeout(function(){dismissFinishedLiveCombat(completedSession);},900)",
+		"setTimeout(function dismissAfterPresentation()",
+		"AbyssCombatAnimation.isPlaying(completedSession)",
+		"setTimeout(dismissAfterPresentation,50)",
 		"!resumeLiveCombatPhase(state.phase)",
 		"phase==='starting'||phase==='planning'||phase==='resolving'",
 		"reorderLiveAction",

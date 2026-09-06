@@ -704,7 +704,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 
 	for i := 0; i < count; i++ {
 		// #nosec G404 - loot rolls are not security-sensitive
-		r := rand.Float64() - lootFindBonus
+		r := rand.Float64()
 
 		// Legendary pity: once the counter reaches the cap the very next drop is a
 		// guaranteed Legendary, resolved *before* every other branch — including the
@@ -797,7 +797,9 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 		// the duplicated ones (title==ultimate=0.005, artifact==unique=0.01, gear==cons=0.10)
 		// collapse to zero-width bands and gear/title/artifact never drop. Summing them
 		// gives each type its own slice: ~0.5/0.5/1/1/2/5/10/10% before the common default.
-		fc := abyssDropForecastData(qualityMult, rareScale)
+		// Loot find boosts all categories; shifting the random value below zero
+		// incorrectly turned every bonus percentage into guaranteed ultimates.
+		fc := abyssDropForecastData(qualityMult*(1+max(lootFindBonus, 0)), rareScale)
 		cUlt := fc.Ultimate
 		cTitle := cUlt + fc.Title
 		cUniq := cTitle + fc.Unique
@@ -1199,7 +1201,9 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 		}
 	case "skill":
 		if g.Skill != nil {
-			if _, ok := b.equipSkill(uid, *g.Skill); !ok {
+			if _, ok, err := b.equipSkill(uid, *g.Skill); err != nil {
+				return err
+			} else if !ok {
 				b.autoListUnwantedItems(uid, *g.Skill)
 			}
 		}

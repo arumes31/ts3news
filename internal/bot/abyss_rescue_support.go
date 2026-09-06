@@ -117,6 +117,7 @@ func (b *Bot) applyAbyssRescueSupportTurn(
 	damage = abyssKillerDamage(damage, owner, target)
 	remainingHP := target.Stats.HP
 	target.Stats.HP -= damage
+	owner.live.presentMobDamage(0, "attack", "support:explorer", "support_strike", "Support Strike", content.ElementPhysical, target, damage, remainingHP)
 	appendAbyssExecuteThresholdLog(logs, target, remainingHP, true)
 	applyAbyssBreakDamage(target, damage, logs)
 	*totalUserDamage += damage

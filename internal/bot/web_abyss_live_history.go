@@ -55,6 +55,7 @@ func cloneAbyssLiveSnapshot(snapshot abyssLiveSnapshot) abyssLiveSnapshot {
 	snapshot.Allies = append([]abyssLiveCombatantView{}, snapshot.Allies...)
 	snapshot.Enemies = append([]abyssLiveCombatantView{}, snapshot.Enemies...)
 	snapshot.Options = append([]abyssLiveOption{}, snapshot.Options...)
+	snapshot.PresentationEvents = cloneAbyssPresentationEvents(snapshot.PresentationEvents)
 	snapshot.RecentLogs = append([]string{}, snapshot.RecentLogs...)
 	snapshot.LogHistory = append([]string{}, snapshot.LogHistory...)
 	if snapshot.Queued != nil {
