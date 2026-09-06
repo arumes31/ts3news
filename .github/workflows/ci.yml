@@ -100,23 +100,38 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Scan candidate image
+      - name: Report all candidate image vulnerabilities
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: docker:ts3news:ci
+          grype-version: v0.118.0
+          fail-build: false
+          severity-cutoff: high
+          only-fixed: false
+          output-format: sarif
+          output-file: image-scan.sarif
+
+      # Full findings remain in the report; block high/critical findings as soon
+      # as the distributor publishes a fix. Approved by the owner on 2026-09-06.
+      - name: Gate fixable candidate image vulnerabilities
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
         with:
           image: docker:ts3news:ci
           grype-version: v0.118.0
           fail-build: true
           severity-cutoff: high
-          only-fixed: false
+          only-fixed: true
           output-format: sarif
-          output-file: image-scan.sarif
+          output-file: image-fixable.sarif
 
       - name: Upload candidate image scan
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: candidate-image-scan
-          path: image-scan.sarif
+          path: |
+            image-scan.sarif
+            image-fixable.sarif
           retention-days: 14
           if-no-files-found: warn
 
