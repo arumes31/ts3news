@@ -20,8 +20,15 @@ test('portal surfaces share the Abyss console theme without layout or script fai
     await expect(page.locator('body')).toHaveClass(/delver-shell/);
     await expect(page.getByRole('heading', { name: new RegExp(route.heading, 'i') }).first()).toBeVisible();
     await expect(page.locator('link[href*="abyss_portal.css"]')).toHaveCount(1);
-    const background = await page.locator('body').evaluate(node => getComputedStyle(node).backgroundImage);
-    expect(background).toContain('linear-gradient');
+    if (route.path === '/armory-fixture') {
+      await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(12, 9, 8)');
+      const scene = page.locator('.armory-scene');
+      await expect(scene).toBeVisible();
+      expect(await scene.evaluate(image => image.complete && image.naturalWidth > 1000)).toBe(true);
+    } else {
+      const background = await page.locator('body').evaluate(node => getComputedStyle(node).backgroundImage);
+      expect(background).toContain('linear-gradient');
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
       .toBeLessThanOrEqual(1);
   }

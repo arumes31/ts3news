@@ -12,7 +12,7 @@ test('armoury leads with auditable combat readiness and the complete loadout', a
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/armory-fixture');
 
-  await expect(page.getByRole('heading', { name: 'Armoury', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Armoury Tester', exact: true })).toBeVisible();
   const readiness = page.getByRole('region', { name: 'Combat readiness' });
   await expect(readiness).toBeVisible();
   await expect(readiness.getByRole('progressbar', { name: 'Current health' })).toBeVisible();
@@ -21,15 +21,22 @@ test('armoury leads with auditable combat readiness and the complete loadout', a
   const equipment = page.getByRole('region', { name: 'Equipped loadout' });
   await expect(equipment).toBeVisible();
   await expect(equipment.locator('.gear-cell')).toHaveCount(30);
-  await expect(equipment.getByText('37 / 100 durability')).toBeVisible();
+  const blade = equipment.getByRole('button', { name: 'Inspect Measured Test Blade', exact: true });
+  await blade.hover();
+  await expect(page.getByRole('tooltip')).toBeVisible();
+  await expect(page.getByRole('tooltip')).toContainText('37 / 100 durability');
+  await page.keyboard.press('Escape');
   await expect(equipment.getByRole('button', { name: 'Review identification cost for Head' })).toBeVisible();
 
   const equipmentBox = await equipment.boundingBox();
   expect(equipmentBox.y).toBeLessThan(900);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  const durability = equipment.locator('.gear-durability').first();
-  expect(await durability.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+  await blade.focus();
+  const preview = page.getByRole('tooltip');
+  await expect(preview).toBeVisible();
+  await expect(preview).toContainText('37 / 100 durability');
+  expect(await preview.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
 });
 
 test('armoury identification reviews the signed price and preserves the irreversible commit contract', async ({ page }) => {
