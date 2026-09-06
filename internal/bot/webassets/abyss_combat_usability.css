@@ -83,13 +83,15 @@
   }
   .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .ab-elevator { display: none; }
   .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .abyss-side-panel { max-height: 440px; overflow: auto; }
+  /* Scroll the complete manifest instead of collapsing its list under the filters. */
+  .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .abyss-side-panel > * { flex-shrink: 0; }
   .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) > #logWrap {
     height: auto;
-    min-height: 312px;
-    max-height: 312px;
-    grid-template-rows: auto auto auto minmax(200px, 1fr) auto auto;
+    min-height: 352px;
+    max-height: 352px;
+    grid-template-rows: auto auto auto minmax(240px, 1fr) auto auto;
   }
-  .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) > #logWrap .abyss-log { min-height: 200px; max-height: 200px; }
+  .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) > #logWrap .abyss-log { min-height: 240px; max-height: 240px; }
 }
 
 @media (max-width: 900px) {
@@ -201,4 +203,5 @@
 }
 
 .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .ab-event-stage .ab-scene { min-height: 24px; padding-right: 40px; }
+.abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) .abyss-stage.ab-event-stage { padding-top: 24px; }
 .abyss-command-page .ab-event-stage .ab-event-icon { position: absolute; top: 0; right: 0; margin: 0; font-size: 24px; line-height: 1; }

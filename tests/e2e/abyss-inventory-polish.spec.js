@@ -35,16 +35,26 @@ test('Armoury preserves exact values and unidentified secrecy in compact mode', 
   const strength = page.locator('.stats-grid [data-item-number="123456"]');
   await expect(strength).toHaveText('123,456');
   await expect(page.getByText('Measured Test Blade')).toBeVisible();
-  await expect(page.getByText(/Broken in/)).toBeVisible();
-  await expect(page.locator('.gear-cell').filter({ hasText: 'Measured Test Blade' }).locator('.gear-meta').first())
-    .toHaveAttribute('title', 'Provenance · Abyss depth 25 · Boss: Malakor the Voidweaver · 2026-08-21 UTC');
+  await page.getByRole('button', { name: 'Inspect Measured Test Blade', exact: true }).hover();
+  const preview = page.getByRole('tooltip');
+  await expect(preview).toBeVisible();
+  await expect(preview).toContainText('Broken in · +1% stats');
+  await expect(preview).toContainText('Provenance · Abyss depth 25 · Boss: Malakor the Voidweaver · 2026-08-21 UTC');
+  await page.keyboard.press('Escape');
 
   const mystery = page.locator('.gear-cell').filter({ hasText: 'Unidentified Head' });
-  await expect(mystery).toContainText('Unknown');
+  await expect(mystery).toContainText('Unidentified');
   await expect(mystery).not.toContainText('Secret Armory Crown');
   await expect(mystery).not.toContainText('Celestial');
   await expect(mystery).not.toContainText('987654');
   await expect(mystery.locator('.gear-meta').first()).not.toHaveAttribute('title');
+  await mystery.hover();
+  await expect(preview).toBeVisible();
+  await expect(preview).toContainText('Hidden combat stats are inactive');
+  await expect(preview).not.toContainText('Celestial');
+  await expect(preview).not.toContainText('987,654');
+  await expect(preview).not.toContainText('Provenance');
+  await page.keyboard.press('Escape');
 
   const skillRank = page.locator('.skill-card').filter({ hasText: 'Earthquake' }).locator('.sk-rank');
   await expect(skillRank).toBeVisible();
