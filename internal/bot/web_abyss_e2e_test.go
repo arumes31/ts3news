@@ -3,10 +3,8 @@
 package bot
 
 import (
-	"mime"
 	"net/http"
 	"os"
-	"path"
 	"strings"
 	"sync"
 	"testing"
@@ -34,19 +32,7 @@ func TestAbyssE2EServer(t *testing.T) {
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	mux.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
-		name := strings.TrimPrefix(r.URL.Path, "/static/")
-		if name == "" || path.Clean(name) != name {
-			http.NotFound(w, r)
-			return
-		}
-		ServeAsset(
-			w,
-			r,
-			"webassets/"+name,
-			mime.TypeByExtension(path.Ext(name)),
-		)
-	})
+	mux.HandleFunc("/static/", serveStaticAsset)
 	mux.HandleFunc("/api/abyss/loot/wishlist", func(w http.ResponseWriter, r *http.Request) {
 		wishlistMu.Lock()
 		defer wishlistMu.Unlock()

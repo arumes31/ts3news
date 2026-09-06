@@ -184,11 +184,10 @@ func NewWebServer(b *Bot) (*WebServer, error) {
 	return server, nil
 }
 
-// Start runs the HTTP server (blocking). Intended to be launched in a goroutine.
-// When ctx is cancelled the server is gracefully shut down. Start returns nil on
-// a clean shutdown so callers can distinguish it from a real listen error.
-func (s *WebServer) Start(ctx context.Context, addr string) error {
+// routes builds the production router independently of the listening socket.
+func (s *WebServer) routes() *http.ServeMux {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/static/", serveStaticAsset)
 
 	// Static assets with content hashing, ETag, and Cache-Control.
 	mux.HandleFunc("/static/style.css", func(w http.ResponseWriter, r *http.Request) {
@@ -810,9 +809,16 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	mux.HandleFunc("/api/ah/material_cancel", s.authAPI(s.guardAbyssCoreAction(s.handleAHMaterialCancel)))
 	mux.HandleFunc("/api/ah/bid", s.authAPI(s.guardAbyssCoreAction(s.handleAHBid)))
 
+	return mux
+}
+
+// Start runs the HTTP server (blocking). Intended to be launched in a goroutine.
+// When ctx is cancelled the server is gracefully shut down. Start returns nil on
+// a clean shutdown so callers can distinguish it from a real listen error.
+func (s *WebServer) Start(ctx context.Context, addr string) error {
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           s.routes(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	s.mu.Lock()
