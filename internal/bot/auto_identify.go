@@ -49,7 +49,7 @@ func (b *Bot) storeAutoIdentifiedDrop(ctx context.Context, uid string, gear cont
 	if err != nil {
 		return gear, 0, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	normalCost := identifyGearCost(gear.Rarity)
 	cost, err := chargeAutoIdentification(ctx, tx, uid, normalCost, normalCost)
 	if err != nil {
@@ -78,7 +78,7 @@ func (b *Bot) autoIdentifyItems(ctx context.Context, uid string) (int, int64, er
 	if err != nil {
 		return 0, 0, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	type hiddenItem struct {
 		id   int64
 		slot string
@@ -103,12 +103,12 @@ func (b *Bot) autoIdentifyItems(ctx context.Context, uid string) (int, int64, er
 				key = &item.slot
 			}
 			if err := rows.Scan(key, &gearID, &data); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return 0, 0, err
 			}
 			gear, ok := b.makeGear(gearID, data)
 			if !ok {
-				rows.Close()
+				_ = rows.Close()
 				return 0, 0, fmt.Errorf("cannot identify unknown gear %q", gearID)
 			}
 			if gear.Unidentified {

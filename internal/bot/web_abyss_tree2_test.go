@@ -34,7 +34,7 @@ func TestChargeTreeRespecHonorsConfirmedPrice(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer db.Close()
+			defer func() { _ = db.Close() }()
 			mock.ExpectBegin()
 			query := mock.ExpectQuery("SELECT value FROM app_meta").WithArgs(abyssFreeRespecKey("delver"))
 			if tc.queryFail {
