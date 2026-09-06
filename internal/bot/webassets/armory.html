@@ -1,17 +1,79 @@
+{{define "armorySlot"}}{{with .Gear}}
+<div class="gear-cell {{if .Empty}}empty{{else if .InspectJSON}}item-inspect-trigger{{end}}{{if .Unidentified}} unidentified{{end}}" data-slot="{{.Slot}}" style="--gear-rarity:{{if .RarityColor}}{{.RarityColor}}{{else}}#8a8174{{end}}"{{if .InspectJSON}} data-item-inspect="{{.InspectJSON}}" data-item-durability="{{.Durability}}" data-item-broken-in="{{.BrokenIn}}" tabindex="0" role="button" aria-label="Inspect {{.Name}}"{{end}}>
+  <div class="gear-icon" aria-hidden="true">
+    {{if .Empty}}<span class="gi slot-gi" style="--gi:url({{iconURL .IconName}})"></span>
+    {{else}}<span class="item-art item-art-sm" data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}"></span>{{end}}
+  </div>
+  <div class="gear-copy">
+    <div class="gear-slot">{{.Slot}}</div>
+    {{if .Empty}}<a class="gear-name" href="/inventory?slot={{.Slot}}#inventoryGear" aria-label="Find equipment for {{.Slot}}">Empty slot</a>
+    {{else}}
+    <div class="gear-name">{{.Name}}</div>
+    {{if .Unidentified}}<div class="gear-meta">Unidentified</div>
+    {{else}}<div class="gear-meta">{{.Rarity}} · CR <span data-item-number="{{.CR}}" data-item-number-digits="1">{{printf "%.1f" .CR}}</span> · GS <span data-item-number="{{.Score}}">{{comma .Score}}</span></div>{{end}}
+    {{if .AppearanceName}}<div class="gear-appearance">Appearance: {{.AppearanceName}}</div>{{end}}
+    {{if .Effect}}<div class="gear-enchantment">{{.Effect}}</div>{{end}}
+    {{if .Unidentified}}<button type="button" class="identify-btn" aria-label="Review identification cost for {{.Slot}}" onclick="identifyGear('{{.Slot}}', this)">Identify item</button>{{end}}
+    {{end}}
+  </div>
+  {{if not .Empty}}
+  <div class="gear-record" hidden>
+    {{if gt .MaxDurability 0}}<div id="armoryDurability-{{.Slot}}" class="gear-durability{{if eq .Durability 0}} is-broken{{end}}"><span>{{if eq .Durability 0}}Broken{{else}}Condition{{end}}</span><strong>{{.Durability}} / {{.MaxDurability}} durability</strong></div>{{end}}
+    <div class="armory-actions armory-gear-actions"><a href="/inventory?slot={{.Slot}}#inventoryGear">Manage {{.Slot}}</a>{{if and $.EnableAbyss (gt .MaxDurability .Durability)}}<a href="/abyss#btnForgeRepairAll">Review repairs</a>{{end}}</div>
+  </div>
+  {{end}}
+</div>
+{{end}}{{end}}
+
 {{define "armory"}}{{template "head" .}}
 <link rel="stylesheet" href="{{asset "/static/armory.css"}}">
 <article class="portal-page armory-console" aria-labelledby="armoryTitle">
 <header class="portal-masthead armory-masthead">
+  <span class="armory-crest gi" aria-hidden="true" style="--gi:url({{iconURL "checked-shield"}})"></span>
   <div class="portal-masthead-copy">
-    <h1 id="armoryTitle">Armoury</h1>
-    <p class="armory-character"><strong>{{.U.Nickname}}</strong> <span>{{.U.LevelName}} · Level {{.U.Level}}{{if gt .U.Prestige 0}} · Prestige {{.U.Prestige}}{{end}}</span></p>
+    <h1 id="armoryTitle">{{.U.Nickname}}</h1>
+    <p class="armory-character"><span>Level {{.U.Level}} · {{.U.LevelName}}{{if gt .U.Prestige 0}} · Prestige {{.U.Prestige}}{{end}}</span></p>
   </div>
   <div class="armory-summary-tools">
-    <span>Gear score <strong data-item-number="{{.U.GearScore}}">{{.U.GearScore}}</strong></span>
+    <span class="armory-score"><span class="gi" aria-hidden="true" style="--gi:url({{iconURL "broadsword"}})"></span><strong data-item-number="{{.U.GearScore}}">{{.U.GearScore}}</strong> Gear score</span>
     <button type="button" class="ghost xs armory-number-toggle" data-item-number-toggle onclick="AbyssItemNumbers.setMode(AbyssItemNumbers.getMode()==='compact'?'exact':'compact')">Numbers: exact</button>
   </div>
 </header>
-
+<nav class="armory-sections" aria-label="Armoury sections">
+  <a href="#loadoutTitle" aria-current="location">Equipment</a><a href="#attributesTitle">Attributes</a>
+  {{if or .Pets .PlayerTitle .Artifact .Ultimates}}<a href="#supportTitle">Tactical kit</a>{{end}}
+  <a href="#skillsTitle">Skills</a>
+</nav>
+<div id="armoryStatus" class="portal-status" role="status" aria-live="polite"></div>
+<div class="armory-layout">
+<section class="armory-equipment" role="region" aria-labelledby="loadoutTitle">
+  <header class="portal-section-head">
+    <h2 id="loadoutTitle" tabindex="-1">Equipped loadout</h2>
+    <div class="armory-actions"><a href="/inventory#inventoryGear">Manage equipment</a>{{if .EnableAbyss}}<a href="/abyss#btnForgeRepairAll">Review repairs</a>{{end}}</div>
+  </header>
+  <div class="armory-stage">
+    <img class="armory-scene" src="{{asset "/static/armory_hall.webp"}}" alt="" width="1792" height="1024" fetchpriority="high">
+<div class="gear-grid armory-gear-left" role="group" aria-label="Armour and relics">
+{{range .Slots}}{{if eq .Slot "Head" "Neck" "Shoulders" "Back" "Chest" "Wrists" "Relic" "Aura"}}{{template "armorySlot" (dict "Gear" . "EnableAbyss" $.EnableAbyss)}}{{end}}{{end}}
+</div>
+<div class="armory-portrait" role="img" aria-label="Illustrated armoured delver in a torchlit hall">
+  <p>Character illustration</p>
+</div>
+<div class="gear-grid armory-gear-right" role="group" aria-label="Accessories and armour">
+{{range .Slots}}{{if eq .Slot "Hands" "Waist" "Legs" "Feet" "Finger1" "Finger2" "Trinket1" "Trinket2"}}{{template "armorySlot" (dict "Gear" . "EnableAbyss" $.EnableAbyss)}}{{end}}{{end}}
+</div>
+<div class="gear-grid armory-weapons" role="group" aria-label="Weapons">
+{{range .Slots}}{{if eq .Slot "MainHand" "OffHand" "Ranged"}}{{template "armorySlot" (dict "Gear" . "EnableAbyss" $.EnableAbyss)}}{{end}}{{end}}
+</div>
+</div>
+<p class="armory-inspect-guide">Hover or focus an item to inspect. Select it for the complete record.</p>
+<div class="armory-additional">
+<h3>Additional equipment</h3>
+<div class="gear-grid armory-extra-gear" role="group" aria-label="Additional equipment">
+{{range .Slots}}{{if eq .Slot "Artifact" "Soul" "Charm" "Mount" "Companion" "Pet1" "Pet2" "Emblem1" "Emblem2" "Banner" "Totem"}}{{template "armorySlot" (dict "Gear" . "EnableAbyss" $.EnableAbyss)}}{{end}}{{end}}
+</div>
+</div>
+</section>
 <section class="armory-readiness" role="region" aria-labelledby="readinessTitle">
   <div class="readiness-vitals">
     <h2 id="readinessTitle">Combat readiness</h2>
@@ -30,60 +92,6 @@
     </div>
     </div>
   </div>
-</section>
-
-<nav class="armory-sections" aria-label="Armoury sections">
-  <a href="#loadoutTitle">Equipment</a><a href="#attributesTitle">Attributes</a>
-  {{if or .Pets .PlayerTitle .Artifact .Ultimates}}<a href="#supportTitle">Tactical kit</a>{{end}}
-  <a href="#skillsTitle">Skills</a>
-</nav>
-
-<div id="armoryStatus" class="portal-status" role="status" aria-live="polite"></div>
-
-<div class="armory-layout">
-<section class="armory-equipment" role="region" aria-labelledby="loadoutTitle">
-  <header class="portal-section-head">
-    <h2 id="loadoutTitle" tabindex="-1">Equipped loadout</h2>
-    <div class="armory-actions"><a href="/inventory#inventoryGear">Manage equipment</a>{{if .EnableAbyss}}<a href="/abyss#btnForgeRepairAll">Review repairs</a>{{end}}</div>
-  </header>
-<div class="gear-grid">
-  {{range .Slots}}
-  <div class="gear-cell {{if .Empty}}empty{{else if .InspectJSON}}item-inspect-trigger{{end}}" data-slot="{{.Slot}}"{{if .InspectJSON}} data-item-inspect="{{.InspectJSON}}" data-item-durability="{{.Durability}}" data-item-broken-in="{{.BrokenIn}}" tabindex="0" role="button" aria-label="Inspect {{.Name}}"{{if gt .MaxDurability 0}} aria-describedby="armoryDurability-{{.Slot}}"{{end}}{{end}}>
-    <div class="gear-slot">
-      {{if .Empty}}
-      <span class="gi slot-gi"
-        style="--gi:url({{iconURL .IconName}}){{if not .Empty}};color:{{.RarityColor}}{{end}}"></span>
-      {{else}}<span class="item-art item-art-sm" data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span>{{end}}
-      {{if and (not .Empty) .RarityIcon}}<span class="gi slot-gi"
-        style="--gi:url({{iconURL .RarityIcon}});color:{{.RarityColor}}"></span>{{end}}
-      {{if .Empty}}<a href="/inventory?slot={{.Slot}}#inventoryGear" aria-label="Find equipment for {{.Slot}}">{{.Slot}}</a>{{else}}{{.Slot}}{{end}}
-    </div>
-    {{if .Empty}}
-    <div class="gear-name muted">Empty</div>
-    {{else}}
-    <div class="gear-name" style="color:{{.RarityColor}}">{{.Name}}</div>
-    {{if .AppearanceName}}<div class="gear-meta" title="Cosmetic only">◈ Appearance: {{.AppearanceName}}</div>{{end}}
-    {{if .Unidentified}}<div class="gear-meta">Unknown · combat stats hidden and inactive</div>{{else}}<div class="gear-meta"{{if .Provenance}} title="{{.Provenance}}"{{end}}>{{.Rarity}} · CR <span data-item-number="{{.CR}}" data-item-number-digits="1">{{printf "%.1f" .CR}}</span> · GS <span data-item-number="{{.Score}}">{{comma .Score}}</span></div>{{end}}
-    {{if gt .MaxDurability 0}}<div id="armoryDurability-{{.Slot}}" class="gear-durability{{if eq .Durability 0}} is-broken{{end}}">
-      <span>{{if eq .Durability 0}}Broken{{else}}Condition{{end}}</span>
-      <strong>{{.Durability}} / {{.MaxDurability}} durability</strong>
-    </div>{{end}}
-    {{if and (not .Unidentified) .Stats}}<div class="gear-stats">{{range .Stats}}<span class="gstat">{{.Label}} <b data-item-number="{{.Value}}" data-item-number-sign="always">{{if gt .Value 0}}+{{end}}{{.Value}}</b></span>{{end}}</div>{{end}}
-    <div class="gear-tags">
-      {{if .Element}}<span class="gtag elem">{{.Element}}</span>{{end}}
-      {{if gt .XPBonusPct 0}}<span class="gtag xp">+{{.XPBonusPct}}% XP</span>{{end}}
-      {{if .BrokenIn}}<span class="gtag fx" title="Held for at least 30 days">🧡 Broken in · +1% stats</span>{{end}}
-      {{if .Effect}}<span class="gtag fx" title="{{.EffectDesc}}"><span class="gi"
-          style="--gi:url({{iconURL .EffectIcon}})"></span> {{.Effect}}</span>{{end}}
-    </div>
-    {{if .EffectDesc}}<div class="gear-fxdesc">{{.EffectDesc}}</div>{{end}}
-    {{if .InspectJSON}}<div class="item-inspect-hint">Inspect complete item record</div>{{end}}
-    {{if .Unidentified}}<button type="button" class="primary identify-btn" aria-label="Review identification cost for {{.Slot}}" onclick="identifyGear('{{.Slot}}', this)">Review identify cost</button>{{end}}
-    <div class="armory-actions armory-gear-actions"><a href="/inventory?slot={{.Slot}}#inventoryGear">Manage {{.Slot}}</a>{{if and $.EnableAbyss (gt .MaxDurability .Durability)}}<a href="/abyss#btnForgeRepairAll">Review repairs</a>{{end}}</div>
-    {{end}}
-  </div>
-  {{end}}
-</div>
 </section>
 
 <section class="armory-telemetry" aria-labelledby="attributesTitle">
@@ -296,4 +304,5 @@ async function identifyGear(slot, btn){
   document.addEventListener('abyssitemnumberschange',describeResources);
 })();
 </script>
+<script data-cfasync="false" src="{{asset "/static/armory.js"}}" defer></script>
 {{template "foot" .}}{{end}}

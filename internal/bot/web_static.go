@@ -25,6 +25,10 @@ func serveStaticAsset(w http.ResponseWriter, r *http.Request) {
 		contentType = "application/javascript; charset=utf-8"
 	case ".png":
 		contentType = "image/png"
+	case ".webp":
+		contentType = "image/webp"
+	case ".ttf":
+		contentType = "font/ttf"
 	case ".svg":
 		contentType = "image/svg+xml"
 	default:

@@ -16,10 +16,11 @@ func TestProductionStaticAssets(t *testing.T) {
 	server := &WebServer{bot: &Bot{Cfg: &config.Config{EnableAbyss: true}}}
 	mux := server.routes()
 	types := map[string]string{
-		".css": "text/css",
-		".js":  "application/javascript",
-		".png": "image/png",
-		".svg": "image/svg+xml",
+		".css":  "text/css",
+		".js":   "application/javascript",
+		".png":  "image/png",
+		".webp": "image/webp",
+		".svg":  "image/svg+xml",
 	}
 	entries, err := fs.ReadDir(webAssets, "webassets")
 	if err != nil {
@@ -51,6 +52,21 @@ func TestProductionStaticAssets(t *testing.T) {
 				t.Errorf("Cache-Control = %q", got)
 			}
 		})
+	}
+}
+
+func TestArmoryFontAsset(t *testing.T) {
+	response := httptest.NewRecorder()
+	serveStaticAsset(response, httptest.NewRequest(http.MethodGet, "/static/fonts/cinzel.ttf", nil))
+	if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "font/ttf" {
+		t.Fatalf("font response: status %d, type %q", response.Code, response.Header().Get("Content-Type"))
+	}
+	want, err := webAssets.ReadFile("webassets/fonts/cinzel.ttf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(response.Body.Bytes(), want) {
+		t.Fatal("font response differs from embedded asset")
 	}
 }
 

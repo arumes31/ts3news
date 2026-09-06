@@ -5,7 +5,7 @@ const quote = {
   quote: { cost: { gold: 1000 }, token: 'armory-test-quote', confirmation_phrase: 'FORGE IDENTIFY' },
 };
 
-test('Armoury labels and desktop section headers share the same visual rhythm', async ({ page }) => {
+test('Armoury labels match and attributes follow the character equipment sheet', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/armory-fixture');
   const rhythm = await page.evaluate(() => {
@@ -13,11 +13,12 @@ test('Armoury labels and desktop section headers share the same visual rhythm', 
     return {
       occupiedFont: font('.gear-cell:not(.empty) .gear-slot'),
       emptyFont: font('.gear-cell.empty .gear-slot'),
-      headerDifference: Math.abs(document.querySelector('.armory-equipment .portal-section-head').getBoundingClientRect().bottom - document.querySelector('.armory-telemetry .portal-section-head').getBoundingClientRect().bottom),
+      equipmentBottom: document.querySelector('.armory-equipment').getBoundingClientRect().bottom,
+      attributesTop: document.querySelector('.armory-telemetry').getBoundingClientRect().top,
     };
   });
   expect.soft(rhythm.occupiedFont).toBe(rhythm.emptyFont);
-  expect.soft(rhythm.headerDifference).toBeLessThanOrEqual(1);
+  expect.soft(rhythm.attributesTop).toBeGreaterThan(rhythm.equipmentBottom);
 });
 
 test('empty Armoury slots have visible hover and keyboard feedback without motion', async ({ page }) => {

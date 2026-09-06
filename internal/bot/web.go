@@ -34,7 +34,7 @@ func jsonJS(v any) template.JS {
 	return template.JS(b) // #nosec G203 - trusted JSON data from server, not user input
 }
 
-//go:embed webassets/*.html webassets/*.css webassets/*.js webassets/*.svg webassets/*.png webassets/*.md webassets/icons/*.svg webassets/abyss_talents/*.svg
+//go:embed webassets/*.html webassets/*.css webassets/*.js webassets/*.svg webassets/*.png webassets/*.webp webassets/*.md webassets/fonts/* webassets/icons/*.svg webassets/abyss_talents/*.svg
 var webAssets embed.FS
 
 const (
