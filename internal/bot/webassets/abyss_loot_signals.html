@@ -4,6 +4,9 @@
     <h1>{{T "web.abyss.title"}}</h1>
     <p class="muted">{{T "web.abyss.hero_desc"}}</p>
   </div>
+  <details class="ab-daily-briefing" id="abyssDailyBriefing" {{if not .Run.Active}}open{{end}}>
+    <summary>Daily challenge &amp; bounty{{with .Bounty}} <span class="ab-bounty-progress">Bounty: <b id="bountyProg">{{comma .Progress}}</b> / {{comma .Target}}</span>{{end}}</summary>
+    <div class="ab-daily-briefing-body">
   {{if .DailyMod}}
     <div class="ab-weekly-alert">
       📅 <strong>{{T "web.abyss.weekly_title"}}</strong>
@@ -21,7 +24,6 @@
   {{with .Bounty}}
     <div class="ab-bounty-alert" id="bountyCard">
       🎯 <strong>Daily Bounty:</strong> {{.Desc}}
-      <span class="muted small ab-bounty-progress">Progress: <b id="bountyProg">{{comma .Progress}}</b> / {{comma .Target}}</span>
       <span class="muted small ab-bounty-reward">Reward: 🜲 {{.RewardTk}} + {{gold .RewardGd}}</span>
       {{if gt .Streak 0}}<span class="small ab-bounty-streak">🔥 {{.Streak}}-day streak</span>{{end}}
       <span class="ab-bounty-action" id="bountyAction">
@@ -31,14 +33,17 @@
       </span>
     </div>
   {{end}}
+    {{with .DeferredEvent}}{{if .Expired}}
+    <div class="ab-panel ab-deferred-event ab-deferred-expired">⌛ The deferred <strong>{{.Label}}</strong> expired after floor {{.ExpiresDepth}} — the moment passed.</div>
+    {{end}}{{end}}
+    </div>
+  </details>
   {{with .DeferredEvent}}
     {{if .Available}}
     <div class="ab-panel ab-deferred-event" id="deferredEventCard">
       <span>⏳ <strong>{{.Label}}</strong> waits from floor {{.OriginDepth}}. Return by floor {{.ExpiresDepth}} · {{.FloorsLeft}} floor(s) left.</span>
       <button class="ghost" type="button" onclick="abyssDeferredEventClaim()">Return to Event</button>
     </div>
-    {{else if .Expired}}
-    <div class="ab-panel ab-deferred-event ab-deferred-expired">⌛ The deferred <strong>{{.Label}}</strong> expired after floor {{.ExpiresDepth}} — the moment passed.</div>
     {{end}}
   {{end}}
 

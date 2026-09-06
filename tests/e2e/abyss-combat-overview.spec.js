@@ -26,7 +26,8 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 2560, height: 14
     expect(layout.status.bottom).toBeLessThanOrEqual(layout.actions.top);
     expect(layout.scene.bottom).toBeLessThanOrEqual(layout.actions.top);
     expect(layout.overflow).toBeLessThanOrEqual(1);
-    if (viewport.width > 900) expect(layout.stage.height).toBeLessThan(520);
+    // Tall screens now expose more run controls instead of clipping them at 280px.
+    if (viewport.width > 900) expect(layout.stage.height).toBeLessThan(viewport.height - 250);
     const actions = viewport.width > 900 ? ['#btnDescend', '#btnBank'] : ['#abyssMobileActions [data-mobile-action=btnDescend]', '#abyssMobileActions [data-mobile-action=btnBank]'];
     for (const action of actions) await expect(page.locator(action)).toBeVisible();
   });

@@ -178,6 +178,13 @@ func TestAbyssE2EServer(t *testing.T) {
 	})
 	mux.HandleFunc("/abyss", func(w http.ResponseWriter, r *http.Request) {
 		fixture := abyssGoldenFixture(r.URL.Query().Get("active") == "1")
+		if r.URL.Query().Get("briefing") == "1" {
+			fixture["DailyMod"] = "execute"
+			fixture["Bounty"] = map[string]any{
+				"Desc": "Defeat 5 Abyss bosses today", "Progress": 4, "Target": 5,
+				"RewardTk": 45, "RewardGd": int64(9000), "Streak": 3, "Met": false, "Claimed": false,
+			}
+		}
 		if chronicle := r.URL.Query().Get("chronicle"); chronicle != "" {
 			run := fixture["Run"].(abyssRun)
 			flags := map[string]int64{

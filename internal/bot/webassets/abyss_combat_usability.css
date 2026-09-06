@@ -1,5 +1,56 @@
 /* Combat decisions stay visible; secondary information remains one disclosure away. */
 
+.abyss-command-page .ab-daily-briefing { min-width: 0; }
+.abyss-command-page .ab-daily-briefing > summary { padding: 8px 10px; color: #e8d7b3; cursor: pointer; font-size: .875rem; line-height: 1.5; }
+.abyss-command-page .ab-daily-briefing .ab-bounty-progress { display: inline-block; margin-left: 12px; color: #b6dcd5; font-variant-numeric: tabular-nums; }
+.abyss-command-page .ab-daily-briefing-body { display: grid; gap: 8px; padding: 8px 10px; }
+.abyss-command-page .ab-daily-briefing-body > :is(.ab-weekly-alert, .ab-bounty-alert) { margin: 0; }
+.abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-hero { padding: 4px 12px; gap: 4px 12px; margin-bottom: 6px; }
+.abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-intro { flex: 0 0 auto; }
+.abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-intro h1 { margin: 0; font-size: 1.125rem; }
+.abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-hero > .ab-daily-briefing { flex: 1 1 auto; padding-block: 0 !important; }
+.abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-hero > .ab-daily-briefing[open] { flex-basis: 100%; }
+.abyss-command-page:has(.ab-combat-cockpit.is-active) .ab-deferred-event { font-size: .8125rem; line-height: 1.4; }
+@media (min-width: 901px) {
+  .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) .abyss-stats { margin-bottom: 6px; }
+  .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) .abyss-stats > :is(.ab-chip, .ab-api-latency) { min-height: 52px; padding: 5px 10px; }
+  .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) .abyss-stats > .ab-chip { gap: 3px; }
+  .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) .abyss-stats > .ab-stat-vitals { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: 20px 14px; align-content: center; column-gap: 8px; }
+  .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) .ab-stat-vitals > .ab-chip-label { grid-row: 1 / 3; align-self: center; }
+  .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) .ab-stat-vitals > :is(.ab-hpbar, .ab-mpbar) { grid-column: 2; margin: 0; height: 100%; }
+  .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) #abCommandCenter { margin: 6px 0; padding: 4px 10px; }
+  .abyss-command-page:has(.ab-combat-cockpit.is-active:not(.has-live-combat)) #abCommandCenter :is(button, select) { min-height: 36px; padding-block: 5px; }
+}
+@media (max-width: 600px) {
+  .abyss-command-page .ab-daily-briefing > summary { min-height: 44px; }
+  .abyss-command-page .ab-daily-briefing .ab-bounty-progress { margin-left: 8px; margin-right: 8px; }
+}
+
+/* Native rails stay discoverable; a short color pulse marks the surface being scrolled. */
+html:has(.abyss-command-page), body:has(.abyss-command-page) :is(.abyss-command-page, .abyss-command-page *, #sharedModal) {
+  scrollbar-width: auto;
+  scrollbar-color: #ac8b50 #101923;
+}
+html:has(.abyss-command-page)::-webkit-scrollbar,
+.abyss-command-page *::-webkit-scrollbar { width: 12px; height: 12px; }
+html:has(.abyss-command-page)::-webkit-scrollbar-track,
+.abyss-command-page *::-webkit-scrollbar-track { background: #101923; }
+html:has(.abyss-command-page)::-webkit-scrollbar-thumb,
+.abyss-command-page *::-webkit-scrollbar-thumb { background: #ac8b50; border: 2px solid #101923; border-radius: 8px; }
+html:has(.abyss-command-page).ab-scroll-active,
+body:has(.abyss-command-page) .ab-scroll-active { scrollbar-color: #f2c66e #101923; animation: ab-scroll-reveal .8s ease-out; }
+html:has(.abyss-command-page).ab-scroll-active::-webkit-scrollbar-thumb,
+.abyss-command-page .ab-scroll-active::-webkit-scrollbar-thumb { background: #f2c66e; }
+@keyframes ab-scroll-reveal { from { scrollbar-color: #fff0c2 #101923; } to { scrollbar-color: #f2c66e #101923; } }
+@media (prefers-reduced-motion: reduce) {
+  html:has(.abyss-command-page).ab-scroll-active,
+  body:has(.abyss-command-page) .ab-scroll-active { animation: none; }
+}
+@media (forced-colors: active) {
+  html:has(.abyss-command-page).ab-scroll-active,
+  html:has(.abyss-command-page), body:has(.abyss-command-page) :is(.abyss-command-page, .abyss-command-page *, #sharedModal, .ab-scroll-active) { scrollbar-color: auto; animation: none; }
+}
+
 /* Between fights, the overview sizes to the next decision, not the battlefield. */
 .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) {
   display: flex;
@@ -192,8 +243,14 @@
   .abyss-command-page .ab-event-stage .ab-nc-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-@media (min-width: 901px) and (min-height: 900px) {
-  .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) :is(.abyss-dial, .abyss-controls) { max-height: 280px; overflow: auto; overscroll-behavior: contain; }
+@media (min-width: 901px) {
+  .abyss-command-page .ab-combat-cockpit.is-active:not(.has-live-combat) :is(.abyss-dial, .abyss-controls) {
+    max-height: clamp(320px, calc(100dvh - 600px), 720px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    justify-content: flex-start;
+    scrollbar-gutter: stable;
+  }
 }
 
 @media (min-width: 1900px) and (min-height: 1100px) {

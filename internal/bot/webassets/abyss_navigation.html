@@ -95,6 +95,18 @@
   function showShortcuts(){openModal('<h3>⌨️ Abyss shortcuts</h3><div class="ab-shortcut-help"><span><kbd>D</kbd> Descend when available</span><span><kbd>B</kbd> Bank when available</span><span><kbd>I</kbd> Focus consumable preparation</span><span><kbd>R</kbd> Revive / Last Stand</span><span><kbd>L</kbd> Focus combat log</span><span><kbd>?</kbd> Open this guide</span></div><p class="muted small">Shortcuts pause while typing, while a dialog is open, or during live combat planning.</p><div class="modal-actions"><button id="modalOkBtn" onclick="closeModal()">Done</button></div>');}
   function initShortcuts(){document.addEventListener('keydown',function(event){var target=event.target,tag=target&&target.tagName,modal=document.getElementById('sharedModal'),live=document.querySelector('.ab-live-combat:not([hidden]),.ab-livecombat:not([hidden])');if(event.defaultPrevented||event.repeat||event.ctrlKey||event.metaKey||event.altKey||/INPUT|SELECT|TEXTAREA/.test(tag)||target&&target.isContentEditable||modal&&modal.classList.contains('open')||live&&live.offsetParent!==null)return;var key=event.key.toLowerCase(),button=null;if(key==='d')button=visibleButton('btnDescend');else if(key==='b')button=visibleButton('btnBank');else if(key==='r')button=visibleButton('btnRevive')||visibleButton('btnLastStand');else if(key==='i'){var prep=document.getElementById('prepPanel');if(prep&&prep.offsetParent!==null){event.preventDefault();prep.scrollIntoView({block:'center',behavior:window.reduceMotion?'auto':'smooth'});var item=prep.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled)');if(item)item.focus();}return;}else if(key==='l'){var log=document.getElementById('logSearch');if(log){event.preventDefault();log.focus();log.scrollIntoView({block:'center'});}return;}else if(event.key==='?'){event.preventDefault();showShortcuts();return;}if(button){event.preventDefault();flash(button);}});}
   function init(){try{document.body.classList.toggle('ab-compact',localStorage.getItem('ab_compact')==='1');}catch(_){}persistTabs();initCollapsiblePanels();initLibrarySearch();initOverflow();wrapTitleSetter('setDepth');wrapTitleSetter('setEscrow');updateAbyssTitle();initShortcuts();activateDeepLink();window.addEventListener('hashchange',activateDeepLink);}
+  function initScrollFeedback(){
+    var timers=new WeakMap();
+    document.addEventListener('scroll',function(event){
+      var target=event.target===document?document.documentElement:event.target;
+      if(!(target instanceof Element)||target!==document.documentElement&&!target.closest('.abyss-command-page,#sharedModal'))return;
+      if(target.scrollHeight<=target.clientHeight&&target.scrollWidth<=target.clientWidth)return;
+      target.classList.add('ab-scroll-active');
+      clearTimeout(timers.get(target));
+      timers.set(target,setTimeout(function(){target.classList.remove('ab-scroll-active');timers.delete(target);},900));
+    },{capture:true,passive:true});
+  }
+  initScrollFeedback();
   setTimeout(init,0);
   window.showAbyssShortcuts=showShortcuts;
   window.__abyssNavigation={activateDeepLink:activateDeepLink,updateTitle:updateAbyssTitle,showShortcuts:showShortcuts};
