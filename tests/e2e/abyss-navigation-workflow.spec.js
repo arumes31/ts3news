@@ -222,14 +222,14 @@ test('desktop cockpit shows a useful combat-log window before scrolling', async 
     const sidebar = document.querySelector('.abyss-side-right');
     const row = document.querySelector('.abyss-stage-row');
     return {
-      commandBeforeBattlefield: !!(command.compareDocumentPosition(battlefield) & Node.DOCUMENT_POSITION_FOLLOWING),
+      commandAfterBattlefield: !!(command.compareDocumentPosition(battlefield) & Node.DOCUMENT_POSITION_PRECEDING),
       commandPosition: getComputedStyle(command).position,
       sidebarOverflow: getComputedStyle(sidebar).overflow,
       sidebarBottom: sidebar.getBoundingClientRect().bottom,
       rowBottom: row.getBoundingClientRect().bottom,
     };
   });
-  expect(liveLayout.commandBeforeBattlefield).toBe(true);
+  expect(liveLayout.commandAfterBattlefield).toBe(true);
   expect(liveLayout.commandPosition).toBe('sticky');
   expect(liveLayout.sidebarOverflow).toBe('hidden');
   expect(liveLayout.sidebarBottom).toBeLessThanOrEqual(liveLayout.rowBottom + 1);

@@ -312,7 +312,7 @@ window.renderAbyssEventStage = function (state) {
       var artKey = String(unit.art_key || ((hostile ? 'monster:' : 'ally:') + String(unit.name || unit.id)));
       var art = hostile || !unit.is_player ? liveEnemyArt(unit) : null, hpHidden = hostile && !!unit.hp_hidden;
       var boss = hostile && String(unit.role || '').toLowerCase() === 'boss';
-      var elite = hostile && !boss && (/^nemesis:|behemoth|gatekeeper|lich|knight|invader/i.test(unit.name || ''));
+      var elite = hostile && !boss && (/^nemesis:/i.test(unit.name || '') || /behemoth|gatekeeper|lich|knight|invader/i.test(unit.name || ''));
       var classes = {hostile: hostile, 'ally-converted': !hostile && !unit.is_player, 'boss-tier': boss, 'elite-tier': elite, 'hp-concealed': hpHidden, shielded: !hostile && unit.shield > 0, 'weakness-ready': !!unit.weakness_ready, selected: liveSelectedTarget === unit.id, 'ab-departed': false, 'ab-defeated': button._presentationDefeated || !button._pendingDefeat && !hpHidden && unit.hp === 0};
       Object.keys(classes).forEach(function (name) { button.classList.toggle(name, classes[name]); });
       button.removeAttribute('aria-hidden');

@@ -166,3 +166,17 @@ body.ab-high-contrast:has(.abyss-command-page) { background-image: none; }
   .abyss-command-page .ab-loot-filters .ab-chip.active { background: Highlight; color: HighlightText; border-color: Highlight; }
   .abyss-command-page .ab-tier:has(input:checked) { outline: 2px solid Highlight; outline-offset: -3px; }
 }
+
+/* Keep the run decision visible with longer class/build labels and fallback fonts. */
+@media (max-width: 700px) {
+  .abyss-command-page .abyss-hero { padding: 8px 12px; }
+  .abyss-command-page .abyss-intro p { margin-block: 4px 0; font-size: .8125rem; line-height: 1.4; }
+  .abyss-command-page .abyss-stage { row-gap: 8px; }
+  .abyss-command-page .abyss-stage > .ab-current-objective { margin-block: 0; font-size: .875rem; padding: 8px; }
+  .abyss-command-page #abyssPrimaryActions { margin-block: 4px; }
+  .abyss-command-page .abyss-stats > .ab-stat-vitals { gap: 4px; }
+  .abyss-command-page .ab-stat-vitals .ab-chip-label { font-size: .75rem; line-height: 16px; }
+  .abyss-command-page .ab-entry-summary { gap: 4px; margin-block: 0; line-height: 1.4; }
+  .abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-stats { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  .abyss-command-page:has(.ab-combat-cockpit.is-active) .abyss-stats > .ab-stat-vitals { grid-column: 1; }
+}

@@ -1193,7 +1193,8 @@ test('crowded live combat can target an ordinary enemy', async ({ page }) => {
   expect(allySide.x).toBeLessThan(enemySide.x);
   const enemyUnit = await ordinary.boundingBox();
   const allyUnit = await pixelAlly.boundingBox();
-  expect(enemyUnit.y).toBeLessThan(allyUnit.y);
+// Class portraits have different heights; compare ground positions, not heads.
+  expect(enemyUnit.y + enemyUnit.height).toBeLessThanOrEqual(allyUnit.y + allyUnit.height);
   await expect(ordinary.locator('.ab-catalog-actor')).toHaveCSS('background-image', /abyss_catalog_(creatures|bosses)_p\d+/);
   await expect(ordinary).toHaveClass(/weakness-ready/);
   await expect(ordinary).toHaveClass(/weakness-open/);
