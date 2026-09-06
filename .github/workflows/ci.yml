@@ -183,16 +183,28 @@ jobs:
           cache-to: type=gha,mode=max
 
       # Scan the registry artifact, never a tag or a separately rebuilt image.
-      - name: Scan published digest
+      - name: Report all published image vulnerabilities
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: registry:${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}
+          grype-version: v0.118.0
+          fail-build: false
+          severity-cutoff: high
+          only-fixed: false
+          output-format: sarif
+          output-file: published-image-scan.sarif
+
+      # Apply the same owner-approved policy as the candidate image gate.
+      - name: Gate fixable published image vulnerabilities
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
         with:
           image: registry:${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}
           grype-version: v0.118.0
           fail-build: true
           severity-cutoff: high
-          only-fixed: false
+          only-fixed: true
           output-format: sarif
-          output-file: published-image-scan.sarif
+          output-file: published-image-fixable.sarif
 
       - name: Generate SBOM from published digest
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
@@ -240,6 +252,7 @@ jobs:
           name: image-supply-chain
           path: |
             published-image-scan.sarif
+            published-image-fixable.sarif
             sbom.spdx.json
             image-reference.txt
           retention-days: 30
