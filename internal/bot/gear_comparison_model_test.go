@@ -44,7 +44,7 @@ func TestGearComparisonMalformedSavedStatsNeverUseCatalogFallback(t *testing.T) 
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mock.ExpectQuery("SELECT slot, gear_id, item_data FROM user_gear").WithArgs("player").WillReturnRows(sqlmock.NewRows([]string{"slot", "gear_id", "item_data"}).AddRow("Head", "B_Head", `{"Stats":{"STR":"bad"}}`))
+	mock.ExpectQuery("SELECT slot, gear_id, item_data, durability FROM user_gear").WithArgs("player").WillReturnRows(sqlmock.NewRows([]string{"slot", "gear_id", "item_data"}).AddRow("Head", "B_Head", `{"Stats":{"STR":"bad"}}`))
 	got := shopGearComparison(content.Gear{Slot: content.SlotHead, Stats: content.Stats{STR: 9999}}, (&Bot{DB: db}).equippedGearUpgradeIndex("player"))
 	if !got.Unknown || got.IsUpgrade {
 		t.Fatalf("catalog fallback hid corrupt roll: %+v", got)
@@ -145,7 +145,7 @@ func TestGearComparisonUnknownOnEquipmentReadFailure(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		query := mock.ExpectQuery("SELECT slot, gear_id, item_data FROM user_gear").WithArgs("player")
+		query := mock.ExpectQuery("SELECT slot, gear_id, item_data, durability FROM user_gear").WithArgs("player")
 		if partial {
 			query.WillReturnRows(sqlmock.NewRows([]string{"slot", "gear_id", "item_data"}).AddRow("Head", "B_Head", nil).AddRow("Neck", "B_Neck", nil).RowError(1, errors.New("partial read")))
 		} else {

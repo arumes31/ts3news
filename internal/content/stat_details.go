@@ -22,7 +22,7 @@ func (s Stats) Details() []StatDetail {
 		{"CRT", "CRT%", "Critical rating; final chance depends on combat rules and caps.", s.CRT, true},
 		{"DGE", "DGE%", "Dodge rating; final chance depends on combat rules and caps.", s.DGE, true},
 		{"LCK", "LCK", "Luck used by loot and combat mechanics.", s.LCK, true},
-		{"INT", "INT", "Intelligence used by magic and class scaling.", s.INT, true},
+		{"INT", "INT", "Intelligence used by magic and class scaling; it also contributes separately to character XP bonuses.", s.INT, true},
 		{"STA", "STA", "Stamina helps resist durability loss.", s.STA, true},
 		{"CHA", "CHA", "Charisma is a flavour attribute, excluded from stat power.", s.CHA, false},
 		{"STN", "STN", "Stench is a flavour attribute, excluded from stat power.", s.STN, false},
@@ -55,7 +55,7 @@ func (g Gear) XPDetail() GearXPDetail {
 	if math.IsNaN(g.XPMultiplier) || math.IsInf(g.XPMultiplier, 0) || g.XPMultiplier < 0 {
 		return GearXPDetail{Explanation: "XP data is invalid; automatic comparison is unavailable."}
 	}
-	detail := GearXPDetail{RawBonusPct: math.Round((g.XPMultiplier-1)*1000) / 10, EffectiveBonusPct: math.Round((g.EffectiveXPMultiplier()-1)*1000) / 10, Valid: true}
+	detail := GearXPDetail{RawBonusPct: itemXPPercent(g.XPMultiplier), EffectiveBonusPct: itemXPPercent(g.EffectiveXPMultiplier()), Valid: true}
 	switch {
 	case IsPetGearSlot(g.Slot):
 		detail.Explanation = "Pet equipment does not contribute to player XP."
@@ -67,4 +67,12 @@ func (g Gear) XPDetail() GearXPDetail {
 		detail.Explanation = "The item's full XP multiplier applies; other equipment and character bonuses combine separately."
 	}
 	return detail
+}
+
+func itemXPPercent(multiplier float64) float64 {
+	value := (multiplier - 1) * 100
+	if math.Abs(value) >= 0.000001 {
+		return math.Round(value*1e9) / 1e9
+	}
+	return value
 }

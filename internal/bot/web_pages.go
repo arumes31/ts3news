@@ -33,6 +33,14 @@ type itemAtlasView struct {
 }
 
 type itemInspectView struct {
+	ID            string               `json:"id"`
+	Temper        int                  `json:"temper"`
+	BaseStats     []content.StatDetail `json:"base_stats"`
+	BrokenInBonus []content.StatDetail `json:"broken_in_bonus"`
+	BrokenInAt    string               `json:"broken_in_at"`
+	RegenRate     float64              `json:"regen_rate"`
+	Sockets       int                  `json:"sockets"`
+	Condition     *int                 `json:"condition"`
 	Name          string               `json:"name"`
 	Rarity        string               `json:"rarity"`
 	RarityColor   string               `json:"rarity_color"`
@@ -394,7 +402,7 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		Eldritch:       g.Eldritch,
 		HasRune:        g.Rune != "",
 		Prismatic:      g.Prismatic,
-		BrokenIn:       !g.Unidentified && g.BrokenIn(time.Now()),
+		BrokenIn:       !g.Unidentified && !content.IsPetGearSlot(g.Slot) && g.BrokenIn(time.Now()),
 		Provenance:     gearProvenance(g),
 	}
 	if g.Unidentified {
@@ -430,7 +438,12 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		v.EffectDesc = effDesc
 	}
 	if !g.Unidentified {
+		brokenInBonus := sentimentalValueBonus(g, time.Now())
+		if content.IsPetGearSlot(g.Slot) {
+			brokenInBonus = content.Stats{}
+		}
 		inspection := itemInspectView{
+			ID: g.ID, Temper: g.Temper, BaseStats: g.Stats.Details(), BrokenInBonus: brokenInBonus.Details(), BrokenInAt: gearBrokenInAt(g), RegenRate: gearRegenRate(g), Sockets: g.Sockets, Condition: g.ComparisonDurability,
 			Name:          v.Name,
 			Rarity:        v.Rarity,
 			RarityColor:   v.RarityColor,

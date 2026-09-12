@@ -64,7 +64,7 @@ func TestShopComparisonUsesGameplayXP(t *testing.T) {
 	candidate.XPMultiplier = 1.3
 	comparison := shopGearComparison(candidate, map[string]content.Gear{string(current.Slot): current})
 	if comparison.XPBonusDelta != 0 {
-		t.Fatalf("capped XP delta = %d, want 0", comparison.XPBonusDelta)
+		t.Fatalf("capped XP delta = %g, want 0", comparison.XPBonusDelta)
 	}
 	if view := toGearView(candidate.Slot, candidate); view.XPBonusPct != 2 {
 		t.Fatalf("displayed XP = %d, want 2", view.XPBonusPct)

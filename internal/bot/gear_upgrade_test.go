@@ -138,7 +138,7 @@ func TestEquippedGearUpgradeIndexReconstructsPersistedInstance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mock.ExpectQuery("SELECT slot, gear_id, item_data FROM user_gear").
+	mock.ExpectQuery("SELECT slot, gear_id, item_data, durability FROM user_gear").
 		WithArgs("player").
 		WillReturnRows(sqlmock.NewRows([]string{"slot", "gear_id", "item_data"}).
 			AddRow(string(content.SlotHead), forged.ID, string(payload)))

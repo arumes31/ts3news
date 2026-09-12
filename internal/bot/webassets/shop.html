@@ -43,7 +43,7 @@
     <div class="shop-grid" id="shopGrid" role="list" data-stock-revision="{{.StockRevision}}" data-stock-page="{{.StockPagination.Page}}">
       {{range $index, $item := .Stock}}
       {{if ge $index 12}}<template class="shop-stock-offer">{{end}}
-      <article class="shop-card {{if .Featured}}featured-item{{end}} {{if .IsUpgrade}}upgrade-item{{end}}" role="listitem" data-id="{{.ID}}" data-search="{{.Name}} {{.Rarity}} {{.Slot}} {{range .Specials}}{{.Name}} {{end}}" data-name="{{.Name}}" data-slot="{{.Slot}}" data-price="{{.Price}}" data-cr="{{.CR}}" data-power="{{.Comparison.Power}}" data-gain="{{.Comparison.PowerDelta}}" data-comparison="{{.Comparison.Status}}" data-order="{{$index}}" data-upgrade="{{.IsUpgrade}}" style="--shop-rarity:{{.RarityColor}}">
+      <article class="shop-card {{if .Featured}}featured-item{{end}} {{if .IsUpgrade}}upgrade-item{{end}}" role="listitem" data-id="{{.ID}}" data-search="{{.Name}} {{.Rarity}} {{.Slot}} {{range .Specials}}{{.Name}} {{end}}" data-name="{{.Name}}" data-slot="{{.Slot}}" data-price="{{.Price}}" data-cr="{{.CR}}" data-power="{{.Comparison.Power}}" data-gain="{{.Comparison.PowerDelta}}" data-comparison="{{.Comparison.Status}}" data-comparison-detail="{{.Comparison.JSON}}" data-order="{{$index}}" data-upgrade="{{.IsUpgrade}}" style="--shop-rarity:{{.RarityColor}}">
         <div class="shop-card-inspect item-inspect-trigger" data-item-inspect="{{.InspectJSON}}">
           <div class="shop-ico{{if .Featured}} shop-relic-stage{{end}}">{{if .Featured}}<div class="shop-relic-mount" aria-hidden="true">{{end}}<span class="item-art item-art-lg"{{if not .Featured}} data-shop-art-pending{{end}} data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span>{{if .Featured}}</div>{{end}}</div>
           <div class="shop-card-copy">
@@ -68,7 +68,7 @@
             <h4>{{if .EmptySlot}}Compared with an empty slot{{else}}Compared with <span>{{.EquippedName}}</span>{{end}}</h4>
             <p><strong>{{.Status}}</strong> · {{.Gains}} combat gains · {{.Losses}} combat losses</p>
             <p>Stat power {{printf "%.1f" .Power}} ({{printf "%+.1f" .PowerDelta}})</p>
-            <p>Rarity-weighted CR {{printf "%+.1f" .CRDelta}} · GS {{printf "%+d" .ScoreDelta}}{{if .XPBonusDelta}} · Effective XP bonus {{printf "%+d" .XPBonusDelta}} percentage points{{end}}</p>
+            <p>Rarity-weighted CR {{printf "%+.1f" .CRDelta}} · GS {{printf "%+d" .ScoreDelta}}{{if .XPBonusDelta}} · Effective XP bonus {{printf "%+g" .XPBonusDelta}} percentage points{{end}}</p>
             <dl class="shop-item-stats" aria-label="Stat changes versus equipped item">{{range .Changes}}<div title="{{.Description}}"><dt>{{.Label}}{{if not .Combat}} (flavour){{end}}</dt><dd class="{{if and .Combat (lt .Delta 0)}}shop-stat-loss{{else if .Combat}}shop-stat-gain{{end}}">{{comma .Before}} → {{comma .After}} ({{printf "%+d" .Delta}}{{if .HasPercent}}; {{printf "%+.1f" .Percent}}%{{end}})</dd></div>{{else}}<div><dt>Stats</dt><dd>No change</dd></div>{{end}}</dl>
             {{if .RegenDelta}}<p>Regeneration {{printf "%+.3f" .RegenDelta}} HP/s</p>{{end}}{{if .DurabilityDelta}}<p>Max durability {{printf "%+d" .DurabilityDelta}}</p>{{end}}{{if .SocketDelta}}<p>Socket capacity {{printf "%+d" .SocketDelta}}</p>{{end}}
             {{range .Reasons}}<p class="muted small">{{.}}</p>{{end}}
@@ -315,7 +315,7 @@ function refreshShopAfterEquip(button){
     action.setAttribute('aria-busy','true');
   });
   if(button)button.textContent='Equipped';
-  setTimeout(function(){location.reload();},900);
+  if(window.refreshShopComparisons){void refreshShopComparisons(button);}else setTimeout(function(){location.reload();},900);
 }
 
 function renderShopBalances(){
@@ -426,6 +426,7 @@ function filterShopStock(){
   var visible=0;
   cards.forEach(function(card){
     var matches=(!query||String(card.dataset.search||'').toLocaleLowerCase().includes(query))&&(!slot||card.dataset.slot===slot)&&(!upgrades||card.dataset.upgrade==='true')&&(!comparison||card.dataset.comparison===comparison)&&(!affordable||Number(card.dataset.price)<=shopCurrentGold);
+    matches=matches&&(!window.shopExtraMatches||shopExtraMatches(card));
     if(matches)matched++;
     var withinLimit=matched<=shopVisibleLimit;
     card.hidden=!(matches&&withinLimit);
@@ -560,7 +561,7 @@ async function buy(id, button){
   var approved;
   try{
     approved=await confirmShop(
-      '<strong>'+shopEscapeHTML(itemName)+'</strong><br>Exact total: '+shopLocaleNumber(price)+' gold · buyer fee: 0 gold.<br>Balance: '+shopLocaleNumber(expectedGold)+' → '+shopLocaleNumber(expectedGold-price)+' gold.<br>'+delivery,
+      '<strong>'+shopEscapeHTML(itemName)+'</strong><br>Exact total: '+shopLocaleNumber(price)+' gold · buyer fee: 0 gold.<br>Balance: '+shopLocaleNumber(expectedGold)+' → '+shopLocaleNumber(expectedGold-price)+' gold.<br>'+delivery+(window.shopQuickSummary?'<details><summary>Item changes</summary>'+shopEscapeHTML(shopQuickSummary(button)).replaceAll('\n','<br>')+'</details>':''),
       {title:'Confirm purchase',okLabel:'Buy for '+shopLocaleNumber(price)+' gold',cancelLabel:'Keep browsing',returnFocus:button}
     );
   }finally{shopReviewPending=false;syncShopMutationButtons();button.focus({preventScroll:true});}
@@ -653,7 +654,7 @@ function sortShopStock(){
   shopSortedCards=shopCards.slice().sort(function(a,b){
     var difference=sort==='price'?Number(a.dataset.price)-Number(b.dataset.price)
       :sort==='power'?Number(b.dataset.power)-Number(a.dataset.power)
-      :sort==='gain'?Number(b.dataset.gain)-Number(a.dataset.gain):0;
+      :sort==='gain'?Number(b.dataset.gain)-Number(a.dataset.gain):sort.startsWith('value_')&&window.shopExtraSort?shopExtraSort(a,b,sort):0;
     return difference||Number(a.dataset.order)-Number(b.dataset.order);
   });
 }
@@ -736,4 +737,5 @@ var shopLeft={{.RefreshIn}};
 })();
 </script>
 {{template "shop_relic_script" .}}
+{{template "shop-item-quickwins" .}}
 {{template "foot" .}}{{end}}

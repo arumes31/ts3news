@@ -41,16 +41,20 @@ type abyssForgeQuoteCost struct {
 }
 
 type abyssForgeOutcome struct {
-	TargetRarity  string        `json:"target_rarity,omitempty"`
-	MinimumStats  content.Stats `json:"minimum_stats"`
-	ExpectedStats content.Stats `json:"expected_stats"`
-	MaximumStats  content.Stats `json:"maximum_stats"`
-	MinimumCR     float64       `json:"minimum_cr"`
-	ExpectedCR    float64       `json:"expected_cr"`
-	MaximumCR     float64       `json:"maximum_cr"`
-	Gained        []string      `json:"gained_effects"`
-	Lost          []string      `json:"lost_effects"`
-	Consequences  []string      `json:"consequences"`
+	SuccessStats  *content.Stats `json:"success_stats,omitempty"`
+	FailureStats  *content.Stats `json:"failure_stats,omitempty"`
+	SuccessCR     float64        `json:"success_cr,omitempty"`
+	FailureCR     float64        `json:"failure_cr,omitempty"`
+	TargetRarity  string         `json:"target_rarity,omitempty"`
+	MinimumStats  content.Stats  `json:"minimum_stats"`
+	ExpectedStats content.Stats  `json:"expected_stats"`
+	MaximumStats  content.Stats  `json:"maximum_stats"`
+	MinimumCR     float64        `json:"minimum_cr"`
+	ExpectedCR    float64        `json:"expected_cr"`
+	MaximumCR     float64        `json:"maximum_cr"`
+	Gained        []string       `json:"gained_effects"`
+	Lost          []string       `json:"lost_effects"`
+	Consequences  []string       `json:"consequences"`
 }
 
 type abyssForgeQuote struct {

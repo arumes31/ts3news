@@ -291,6 +291,18 @@ func (s *WebServer) forgeMutation(operation string, next abyssTreeHandler) abyss
 			operationMetrics.cancellations.Add(1)
 		}
 		after := s.forgeAuditSnapshot(r, uid, operation, payload)
+		if success {
+			if changes := forgeActualStatChanges(before, after); len(changes) > 0 {
+				var result map[string]any
+				if json.Unmarshal(buffer.body.Bytes(), &result) == nil {
+					result["stat_changes"] = changes
+					if encoded, err := json.Marshal(result); err == nil {
+						buffer.body.Reset()
+						buffer.body.Write(encoded)
+					}
+				}
+			}
+		}
 		if forgeMutationAnomalous(before, after) {
 			s.abyssForgeOps.anomalies.Add(1)
 			log.Printf("forge anomaly detected for operation %s", operation)

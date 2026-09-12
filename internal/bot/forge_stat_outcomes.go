@@ -77,6 +77,12 @@ func exactForgeStatOutcome(operation string, before content.Gear, chance float64
 			*gearStatRef(&out.ExpectedStats, stat.Code) = int(float64(a)*(1-chance) + float64(b)*chance)
 		}
 	}
+	if operation == "temper" {
+		out.SuccessStats = &after.Stats
+		out.FailureStats = &before.Stats
+		out.SuccessCR = after.CombatRating()
+		out.FailureCR = before.CombatRating()
+	}
 	if operation == "upgrade_gear" {
 		out.TargetRarity = after.Rarity.String()
 	}

@@ -40,19 +40,32 @@ func (b *Bot) getEquippedComparisonItems(uid string) map[content.GearSlot]conten
 		}
 		return out
 	}
-	rows, err := b.DB.Query("SELECT slot, gear_id, item_data FROM user_gear WHERE client_uid = $1", uid)
+	rows, err := b.DB.Query("SELECT slot, gear_id, item_data, durability FROM user_gear WHERE client_uid = $1", uid)
 	if err != nil {
 		return unknown()
 	}
 	defer func() { _ = rows.Close() }()
 	out := map[content.GearSlot]content.Gear{}
+	columns, err := rows.Columns()
+	if err != nil {
+		return unknown()
+	}
 	for rows.Next() {
 		var slot, id string
 		var data sql.NullString
-		if rows.Scan(&slot, &id, &data) != nil {
+		var durability sql.NullInt64
+		values := []any{&slot, &id, &data}
+		if len(columns) == 4 {
+			values = append(values, &durability)
+		}
+		if rows.Scan(values...) != nil {
 			return unknown()
 		}
 		g, ok := b.makeComparisonGear(id, data)
+		if durability.Valid {
+			value := int(durability.Int64)
+			g.ComparisonDurability = &value
+		}
 		if !ok || g.Slot != content.GearSlot(slot) || !slices.Contains(content.AllSlots, g.Slot) {
 			return unknown()
 		}
@@ -77,27 +90,37 @@ type gearStatChange struct {
 }
 
 type gearComparison struct {
-	Unknown         bool                 `json:"unknown"`
-	EmptySlot       bool                 `json:"empty_slot"`
-	IsUpgrade       bool                 `json:"is_upgrade"`
-	Status          string               `json:"status"`
-	Reasons         []string             `json:"reasons"`
-	EquippedName    string               `json:"equipped_name"`
-	CRDelta         float64              `json:"cr_delta"`
-	ScoreDelta      int                  `json:"score_delta"`
-	Power           float64              `json:"power"`
-	PowerDelta      float64              `json:"power_delta"`
-	XPBonusDelta    int                  `json:"xp_bonus_delta"`
-	XP              content.GearXPDetail `json:"xp"`
-	Gains           int                  `json:"gains"`
-	Losses          int                  `json:"losses"`
-	RegenDelta      float64              `json:"regen_delta"`
-	DurabilityDelta int                  `json:"durability_delta"`
-	SocketDelta     int                  `json:"socket_delta"`
-	Stats           []statKV             `json:"stats"`
-	Changes         []gearStatChange     `json:"changes"`
-	AddedSpecials   []itemSpecialView    `json:"added_specials"`
-	RemovedSpecials []itemSpecialView    `json:"removed_specials"`
+	Unknown         bool                  `json:"unknown"`
+	EmptySlot       bool                  `json:"empty_slot"`
+	IsUpgrade       bool                  `json:"is_upgrade"`
+	Status          string                `json:"status"`
+	Reasons         []string              `json:"reasons"`
+	EquippedName    string                `json:"equipped_name"`
+	CRDelta         float64               `json:"cr_delta"`
+	ScoreDelta      int                   `json:"score_delta"`
+	Power           float64               `json:"power"`
+	PowerDelta      float64               `json:"power_delta"`
+	XPBonusDelta    float64               `json:"xp_bonus_delta"`
+	AllStats        []gearStatChange      `json:"all_stats"`
+	ManualReasons   []string              `json:"manual_reasons"`
+	RegenBefore     float64               `json:"regen_before"`
+	RegenAfter      float64               `json:"regen_after"`
+	ConditionBefore *int                  `json:"condition_before"`
+	ConditionAfter  *int                  `json:"condition_after"`
+	EquippedRarity  string                `json:"equipped_rarity"`
+	EquippedTemper  int                   `json:"equipped_temper"`
+	Version         string                `json:"version"`
+	Inputs          []comparisonItemInput `json:"inputs,omitempty"`
+	XP              content.GearXPDetail  `json:"xp"`
+	Gains           int                   `json:"gains"`
+	Losses          int                   `json:"losses"`
+	RegenDelta      float64               `json:"regen_delta"`
+	DurabilityDelta int                   `json:"durability_delta"`
+	SocketDelta     int                   `json:"socket_delta"`
+	Stats           []statKV              `json:"stats"`
+	Changes         []gearStatChange      `json:"changes"`
+	AddedSpecials   []itemSpecialView     `json:"added_specials"`
+	RemovedSpecials []itemSpecialView     `json:"removed_specials"`
 }
 
 func gearRegenRate(g content.Gear) float64 {
@@ -130,6 +153,10 @@ func gearEffectNeedsEmptySlotReview(effect content.ItemEffect) bool {
 }
 
 func compareGear(candidate, current content.Gear, occupied bool) gearComparison {
+	return compareGearAt(candidate, current, occupied, time.Now())
+}
+
+func compareGearAt(candidate, current content.Gear, occupied bool, now time.Time) gearComparison {
 	unknown := func(reason string) gearComparison {
 		return gearComparison{Unknown: true, Status: "unknown", Reasons: []string{reason}}
 	}
@@ -152,25 +179,25 @@ func compareGear(candidate, current content.Gear, occupied bool) gearComparison 
 	if !occupied {
 		current = content.Gear{Slot: candidate.Slot, XPMultiplier: 1}
 	}
-	now := time.Now()
 	beforeStats, afterStats := gearContributionStats(current, now), gearContributionStats(candidate, now)
 	r := gearComparison{EmptySlot: !occupied, EquippedName: current.Name, Power: afterStats.Power(), XP: candidate.XPDetail(),
 		CRDelta: candidate.CombatRating() - current.CombatRating(), ScoreDelta: candidate.Stats.Score() - current.Stats.Score(),
 		PowerDelta:   math.Round((afterStats.Power()-beforeStats.Power())*10) / 10,
-		XPBonusDelta: int(math.Round((candidate.EffectiveXPMultiplier() - current.EffectiveXPMultiplier()) * 100)),
+		XPBonusDelta: preciseXPDelta(candidate.EffectiveXPMultiplier(), current.EffectiveXPMultiplier()),
 		RegenDelta:   gearRegenRate(candidate) - gearRegenRate(current), DurabilityDelta: candidate.MaxDurability - current.MaxDurability, SocketDelta: candidate.Sockets - current.Sockets}
 	before, after := beforeStats.Details(), afterStats.Details()
 	if !content.IsPetGearSlot(candidate.Slot) && (current.BrokenIn(now) || candidate.BrokenIn(now)) {
 		r.Reasons = append(r.Reasons, "Stat comparison includes the current broken-in bonus.")
 	}
 	for i, stat := range after {
-		if stat.Value == before[i].Value {
-			continue
-		}
 		change := gearStatChange{Code: stat.Code, Label: stat.Label, Description: stat.Description, Combat: stat.Combat, Before: before[i].Value, After: stat.Value, Delta: stat.Value - before[i].Value}
 		if change.Before != 0 {
 			change.HasPercent = true
 			change.Percent = float64(change.Delta) / math.Abs(float64(change.Before)) * 100
+		}
+		r.AllStats = append(r.AllStats, change)
+		if change.Delta == 0 {
+			continue
 		}
 		r.Changes = append(r.Changes, change)
 		r.Stats = append(r.Stats, statKV{Label: stat.Label, Value: change.Delta})
@@ -185,13 +212,13 @@ func compareGear(candidate, current content.Gear, occupied bool) gearComparison 
 	}
 	gains, losses := r.Gains, r.Losses
 	measure := func(delta float64, gain, loss string) {
-		if delta > 1e-9 {
+		if delta > 0 {
 			gains++
 			if gain != "" {
 				r.Reasons = append(r.Reasons, gain)
 			}
 		}
-		if delta < -1e-9 {
+		if delta < 0 {
 			losses++
 			r.Reasons = append(r.Reasons, loss)
 		}
@@ -205,6 +232,7 @@ func compareGear(candidate, current content.Gear, occupied bool) gearComparison 
 		if changed {
 			contextual = true
 			r.Reasons = append(r.Reasons, reason)
+			r.ManualReasons = append(r.ManualReasons, reason)
 		}
 	}
 	if !occupied {
@@ -236,6 +264,12 @@ func compareGear(candidate, current content.Gear, occupied bool) gearComparison 
 		return out
 	}
 	oldEffects, newEffects := effects(current), effects(candidate)
+	for effect := range newEffects {
+		if gearEffectNeedsEmptySlotReview(effect) && effect != content.EffectFragile {
+			context(true, "Unknown special effect requires manual review.")
+			break
+		}
+	}
 	// Iterate the stable displayed order, while identity checks use effect IDs.
 	appendEffects := func(g content.Gear, other map[content.ItemEffect]bool) []itemSpecialView {
 		var out []itemSpecialView
@@ -277,5 +311,6 @@ func compareGear(candidate, current content.Gear, occupied bool) gearComparison 
 			r.Reasons = []string{"No effective combat-stat or XP improvement; rarity alone does not make an upgrade."}
 		}
 	}
+	enrichGearComparison(&r, candidate, current, occupied, now)
 	return r
 }

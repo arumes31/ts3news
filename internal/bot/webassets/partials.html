@@ -16,6 +16,7 @@
 {{if and (ne .Nav "shop") (ne .Nav "inventory")}}<script src="{{asset "/static/abyss_catalog_icons.js"}}"></script>{{end}}
 {{template "abyss-display-locale" .}}
 {{template "abyss-quality-of-life" .}}
+{{template "item-stats-tools" .}}
 </head>
 <body{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards") (eq .Nav "arcade")}} class="delver-shell"{{end}}>
 {{if eq .Nav "abyss"}}<a class="ab-skip-link" href="#abyssControls">Skip to run controls</a>{{end}}{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards")}}<a class="portal-skip" href="#portalMain">Skip to main content</a>{{end}}
@@ -259,7 +260,7 @@ function openItemInspector(trigger) {
   var armory = !!trigger.closest('.armory-console');
   function numberHTML(value, sign, digits) {
     var number = Number(value || 0);
-    if (!armory || !window.AbyssItemNumbers) return '<b>' + (sign && number > 0 ? '+' : '') + number.toLocaleString() + '</b>';
+    if (!armory || !window.AbyssItemNumbers || (number!==0&&Math.abs(number)<0.1)) return '<b title="'+number+'">' + ItemTools.fmt(number,sign) + '</b>';
     return '<b data-item-number="' + number + '" data-item-number-digits="' + (digits || 0) + '" data-item-number-sign="' + (sign ? 'always' : '') + '">' + itemInspectEsc(AbyssItemNumbers.format(number, {sign:sign, digits:digits})) + '</b>';
   }
   var stats = itemInspectList((item.stat_details||item.stats||[]).filter(function(stat){return Number(stat.value)!==0;}), function(stat) {

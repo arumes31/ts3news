@@ -320,15 +320,17 @@ const (
 // Gear is one equippable item: its slot, rarity, stats, and any rolled
 // affixes (sockets, enchant rune, cursed/eldritch/insured flags, etc.).
 type Gear struct {
-	ID            string
-	Name          string
-	Slot          GearSlot
-	Rarity        Rarity
-	XPMultiplier  float64
-	MaxDurability int
-	Stats         Stats
-	Special       ItemEffect
-	Element       Element
+	// ComparisonDurability is a runtime UI input, never persisted into an item roll.
+	ComparisonDurability *int `json:"-"`
+	ID                   string
+	Name                 string
+	Slot                 GearSlot
+	Rarity               Rarity
+	XPMultiplier         float64
+	MaxDurability        int
+	Stats                Stats
+	Special              ItemEffect
+	Element              Element
 
 	// BonusEffects are extra combat affixes layered on top of Special, granted to
 	// high-tier gear (e.g. Mythic/Divine forge upgrades and featured shop relics).
