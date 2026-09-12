@@ -678,16 +678,7 @@ func (s *WebServer) handleAbyssPrismaticRune(w http.ResponseWriter, r *http.Requ
 	}
 	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "prismatic rune")
 	// Find the highest combat stat and bake +5% into it.
-	bestCode, bestVal := "STR", g.Stats.STR
-	for _, code := range []string{"HP", "DEF", "SPD", "LCK", "INT", "STA", "CRT", "DGE", "MNA"} {
-		if v := *gearStatRef(&g.Stats, code); v > bestVal {
-			bestCode, bestVal = code, v
-		}
-	}
-	inc := bestVal * 5 / 100
-	if inc < 1 {
-		inc = 1
-	}
+	bestCode, inc := forgePrismaticGain(g.Stats)
 	*gearStatRef(&g.Stats, bestCode) += inc
 	g.Prismatic = true
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {

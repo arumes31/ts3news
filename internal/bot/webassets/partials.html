@@ -262,9 +262,9 @@ function openItemInspector(trigger) {
     if (!armory || !window.AbyssItemNumbers) return '<b>' + (sign && number > 0 ? '+' : '') + number.toLocaleString() + '</b>';
     return '<b data-item-number="' + number + '" data-item-number-digits="' + (digits || 0) + '" data-item-number-sign="' + (sign ? 'always' : '') + '">' + itemInspectEsc(AbyssItemNumbers.format(number, {sign:sign, digits:digits})) + '</b>';
   }
-  var stats = itemInspectList(item.stats, function(stat) {
+  var stats = itemInspectList((item.stat_details||item.stats||[]).filter(function(stat){return Number(stat.value)!==0;}), function(stat) {
     var value = Number(stat.value || 0);
-    return '<span><i>' + itemInspectEsc(stat.label) + '</i>' + numberHTML(value, true) + '</span>';
+    return '<span title="'+itemInspectEsc(stat.description||'')+'"><i>' + itemInspectEsc(stat.label) + (stat.combat===false?' (flavour)':'') + '</i>' + numberHTML(value, true) + '</span>';
   });
   var specials = itemInspectList(item.specials, function(special) {
     return '<div class="item-inspector-special"><b>' + itemInspectEsc(special.name) + '</b><span>' + itemInspectEsc(special.description || 'Special combat effect') + '</span></div>';
@@ -289,8 +289,9 @@ function openItemInspector(trigger) {
     return '<a class="btn ghost" href="' + itemInspectEsc(link.getAttribute('href')) + '">' + itemInspectEsc(link.textContent) + '</a>';
   }) : '';
   openModal('<article class="item-inspector" style="--inspect-rarity:' + itemInspectEsc(item.rarity_color || '#e7edf6') + '">' +
-    '<header class="item-inspector-head">' + art + '<div><h2>' + itemInspectEsc(item.name) + '</h2><p>' + itemInspectEsc(item.rarity) + ' · ' + itemInspectEsc(item.slot) + '</p></div><div class="item-inspector-score">CR ' + numberHTML(item.cr, false, 1) + '<br>GS ' + numberHTML(item.score) + '</div></header>' +
-    (stats ? '<section class="item-inspector-section"><h3>Global stats</h3><div class="item-inspector-stats">' + stats + '</div></section>' : '') +
+    '<header class="item-inspector-head">' + art + '<div><h2>' + itemInspectEsc(item.name) + '</h2><p>' + itemInspectEsc(item.rarity) + ' · ' + itemInspectEsc(item.slot) + '</p></div><div class="item-inspector-score">Stat power ' + numberHTML(item.stat_power, false, 1) + '<br>CR ' + numberHTML(item.cr, false, 1) + '<br>GS ' + numberHTML(item.score) + '</div></header>' +
+    (stats ? '<section class="item-inspector-section"><h3>Item stats</h3><p class="muted small">Stats include any current broken-in bonus. Stat power includes mana and excludes rarity and flavour bonuses. Final character effects depend on your build.</p><div class="item-inspector-stats">' + stats + '</div></section>' : '') +
+    (item.xp_detail ? '<section class="item-inspector-section"><h3>XP contribution</h3><p>Raw bonus '+numberHTML(item.xp_detail.raw_bonus_pct,true,1)+'% · Effective bonus '+numberHTML(item.xp_detail.effective_bonus_pct,true,1)+'%</p><p class="muted small">'+itemInspectEsc(item.xp_detail.explanation)+'</p></section>' : '') +
     (specials ? '<section class="item-inspector-section"><h3>All specials</h3><div class="item-inspector-specials">' + specials + '</div></section>' : '<section class="item-inspector-section"><h3>All specials</h3><p class="muted small">No special combat effects.</p></section>') +
     (tagHTML ? '<section class="item-inspector-section"><h3>Properties</h3><div class="item-inspector-tags">' + tagHTML + '</div></section>' : '') +
     (item.provenance ? '<section class="item-inspector-section"><h3>Provenance</h3><p class="muted small">' + itemInspectEsc(item.provenance) + '</p></section>' : '') +

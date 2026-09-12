@@ -28,8 +28,8 @@ test('shop permanent tokens cancel safely and keep separate price ladders across
   await expect(rarity.locator('.shop-buff-action')).toHaveAttribute('data-owned', '1');
   await expect(quantity.locator('.shop-buff-action')).toHaveAttribute('data-owned', '1');
   expect(requests).toEqual([
-    { kind: 'rarity', expected_owned: 0, expected_gold: 25000000 },
-    { kind: 'quantity', expected_owned: 0, expected_gold: 24000000 },
+    { kind: 'rarity', amount: 1, expected_owned: 0, expected_gold: 25000000 },
+    { kind: 'quantity', amount: 1, expected_owned: 0, expected_gold: 24000000 },
   ]);
 });
 
@@ -100,4 +100,92 @@ test('shop tokens keep growing beyond 100 percent and large stock remains paged'
   await page.locator('.shop-buy-action').first().click();
   await page.getByRole('dialog').getByRole('button', { name: /^Buy for/ }).click();
   expect((await purchase).postDataJSON().stock_page).toBe(1);
+});
+
+
+test('bulk tokens review the full price, cancel safely, and purchase both kinds', async ({ page }) => {
+  const requests = [];
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => { if (request.url().endsWith('/api/shop/buffs')) requests.push(request.postDataJSON()); });
+  await page.goto('/shop');
+  const rarity = page.locator('#shopBuff-rarity');
+  const quantity = page.locator('#shopBuff-quantity');
+  const amount = rarity.getByRole('spinbutton');
+  const action = rarity.locator('.shop-buff-action');
+  for (const invalid of ['', '0', '-1', '1.5', '999999999999999999']) {
+    await amount.fill(invalid);
+    await expect(action).toBeDisabled();
+  }
+  await amount.fill('7');
+  await expect(rarity.locator('.shop-buff-total')).toHaveText('Total: 28,000,000 gold');
+  await expect(rarity.locator('.shop-buff-affordability')).toHaveText('Need 3,000,000 more gold');
+  await expect(action).toBeDisabled();
+  await amount.fill('5');
+  await action.click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('5 permanent rarity tokens');
+  await expect(dialog).toContainText('Exact total: 15,000,000 gold');
+  await expect(dialog).toContainText('0.0% → 0.5%');
+  await expect(dialog).toContainText('25,000,000 → 10,000,000 gold');
+  await expect(dialog).toContainText('Next rarity token: 6,000,000 gold');
+  await expect(amount).toBeDisabled();
+  await page.keyboard.press('Escape');
+  expect(requests).toHaveLength(0);
+  await expect(amount).toBeEnabled();
+  await expect(action).toBeFocused();
+  await action.click();
+  await dialog.getByRole('button', { name: 'Buy for 15,000,000 gold' }).click();
+  await expect(action).toHaveAttribute('data-owned', '5');
+  await expect(quantity.locator('.shop-buff-action')).toHaveAttribute('data-price', '1000000');
+  await quantity.getByRole('spinbutton').fill('3');
+  await quantity.getByRole('button', { name: 'Buy 3 quantity tokens' }).click();
+  await expect(dialog).toContainText('0.0% → 0.3%');
+  await dialog.getByRole('button', { name: 'Buy for 6,000,000 gold' }).click();
+  await expect(quantity.locator('.shop-buff-action')).toHaveAttribute('data-owned', '3');
+  await expect(page.locator('#exState')).toHaveAttribute('data-gold', '4000000');
+  await page.reload();
+  await expect(action).toHaveAttribute('data-owned', '5');
+  await expect(quantity.locator('.shop-buff-action')).toHaveAttribute('data-owned', '3');
+  expect(requests).toEqual([
+    { kind: 'rarity', amount: 5, expected_owned: 0, expected_gold: 25000000 },
+    { kind: 'quantity', amount: 3, expected_owned: 0, expected_gold: 10000000 },
+  ]);
+  expect(errors).toEqual([]);
+});
+
+test('bulk tokens at the price cap remain usable on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/shop?buff_fixture=endless');
+  const rarity = page.locator('#shopBuff-rarity');
+  await rarity.getByRole('spinbutton').fill('3');
+  await rarity.getByRole('button', { name: 'Buy 3 rarity tokens' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('1000.0% → 1000.3%');
+  await expect(dialog).toContainText('3,000,000,000 → 0 gold');
+  await expect(dialog).toContainText('Next rarity token: 1,000,000,000 gold');
+  await dialog.getByRole('button', { name: 'Buy for 3,000,000,000 gold' }).click();
+  await expect(rarity.locator('.shop-buff-action')).toHaveAttribute('data-owned', '10003');
+  await expect(page.locator('#exState')).toHaveAttribute('data-gold', '0');
+  await rarity.scrollIntoViewIfNeeded();
+  expect((await rarity.getByRole('spinbutton').boundingBox()).height).toBeGreaterThanOrEqual(44);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: 'test-results/shop-bulk-mobile.png' });
+});
+
+
+test('a rejected bulk purchase keeps the revised amount after cancelling another review', async ({ page }) => {
+  await page.route('**/api/shop/buffs', route => route.fulfill({ json: { ok: false, error: 'Purchase could not be saved.' } }));
+  await page.goto('/shop');
+  const rarity = page.locator('#shopBuff-rarity');
+  await rarity.getByRole('spinbutton').fill('5');
+  await rarity.getByRole('button', { name: 'Buy 5 rarity tokens' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Buy for 15,000,000 gold' }).click();
+  await expect(rarity.getByRole('button')).toBeEnabled();
+  await rarity.getByRole('spinbutton').fill('3');
+  await rarity.getByRole('button', { name: 'Buy 3 rarity tokens' }).click();
+  await page.keyboard.press('Escape');
+  await expect(rarity.getByRole('button')).toHaveText('Buy 3 rarity tokens');
+  await expect(rarity.getByRole('spinbutton')).toHaveValue('3');
+  await expect(page.locator('#exState')).toHaveAttribute('data-gold', '25000000');
 });

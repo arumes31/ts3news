@@ -23,28 +23,28 @@ func TestGearShouldReplaceMatchesAutoEquipPriorities(t *testing.T) {
 		want      bool
 	}{
 		{
-			name: "higher XP multiplier wins before lower power",
+			name: "higher XP cannot override lower power",
 			candidate: content.Gear{
 				Slot: content.SlotHead, Rarity: content.RarityCommon,
 				XPMultiplier: 2, Stats: content.Stats{STR: 1},
 			},
 			current: current,
-			want:    true,
+			want:    false,
 		},
 		{
-			name: "higher rarity replaces",
+			name: "higher rarity cannot override lower power",
 			candidate: content.Gear{
 				Slot: content.SlotHead, Rarity: content.RarityDivine,
 				XPMultiplier: 1, Stats: content.Stats{STR: 1},
 			},
 			current: current,
-			want:    true,
+			want:    false,
 		},
 		{
 			name: "higher combat rating replaces",
 			candidate: content.Gear{
 				Slot: content.SlotHead, Rarity: content.RarityLegendary,
-				XPMultiplier: 1, Stats: content.Stats{STR: 2_000},
+				XPMultiplier: 1, Stats: content.Stats{STR: 2_000, DEF: 500},
 			},
 			current: current,
 			want:    true,

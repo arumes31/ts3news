@@ -3500,32 +3500,8 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 					if content.IsAbyssGearID(gearID) {
 						abyssSetCounts[gear.EffectiveSetID()]++
 					}
-					// Define which slots can have high XP multipliers (more than 20%)
-					highXPSlots := map[content.GearSlot]bool{
-						content.SlotMainHand: true,
-						content.SlotChest:    true,
-						content.SlotHead:     true,
-						content.SlotLegs:     true,
-						content.SlotFeet:     true,
-						content.SlotFinger1:  true,
-					}
-
-					// Apply XP multiplier based on slot and rarity restrictions
-					xpMultiplier := 1.0
-					if gear.Rarity >= content.RarityRare {
-						if highXPSlots[gear.Slot] {
-							// High XP slots can have full multiplier
-							xpMultiplier = gear.XPMultiplier
-						} else {
-							// Other slots limited to max 1-2% XP bonus
-							if gear.XPMultiplier > 1.02 {
-								xpMultiplier = 1.02
-							} else {
-								xpMultiplier = gear.XPMultiplier
-							}
-						}
-						mult *= xpMultiplier
-					}
+					xpMultiplier := gear.EffectiveXPMultiplier()
+					mult *= xpMultiplier
 
 					// Only show gear with XP multiplier in notes, but without durability
 					if xpMultiplier > 1.0 {
@@ -4145,28 +4121,25 @@ func (b *Bot) applyEnchantment(uid string, ench content.Enchantment) (string, bo
 // the Shop/Auction upgrade badges. It compares the exact persisted instances so
 // forge rolls and other custom item data are never flattened to catalog defaults.
 func gearShouldReplace(candidate, current content.Gear) bool {
-	if candidate.Unidentified {
+	if current.ID == comparisonUnavailableID || current.Slot != candidate.Slot {
 		return false
 	}
 	if current.Unidentified {
-		return true
+		return compareGear(candidate, content.Gear{}, false).IsUpgrade
 	}
-	if candidate.XPMultiplier > current.XPMultiplier {
-		return true
-	}
-	return candidate.Rarity > current.Rarity || candidate.CombatRating() > current.CombatRating()
+	return compareGear(candidate, current, true).IsUpgrade
 }
 
 func isGearUpgrade(candidate content.Gear, equippedGear map[string]content.Gear) bool {
-	if candidate.Unidentified || candidate.Slot == "" {
+	current, occupied := equippedGear[string(candidate.Slot)]
+	if occupied && current.Unidentified {
 		return false
 	}
-	current, ok := equippedGear[string(candidate.Slot)]
-	return !ok || gearShouldReplace(candidate, current)
+	return compareGear(candidate, current, occupied).IsUpgrade
 }
 
 func (b *Bot) equippedGearUpgradeIndex(uid string) map[string]content.Gear {
-	equipped := b.getEquippedItems(uid)
+	equipped := b.getEquippedComparisonItems(uid)
 	out := make(map[string]content.Gear, len(equipped))
 	for slot, gear := range equipped {
 		out[string(slot)] = gear
@@ -4181,9 +4154,12 @@ func (b *Bot) shouldEquip(uid string, newGear content.Gear) bool {
 	if err == sql.ErrNoRows {
 		return isGearUpgrade(newGear, nil)
 	}
-	current, ok := b.makeGear(currentID, itemData)
+	if err != nil {
+		return false
+	}
+	current, ok := b.makeComparisonGear(currentID, itemData)
 	if !ok {
-		return isGearUpgrade(newGear, nil)
+		return false
 	}
 	return gearShouldReplace(newGear, current)
 }

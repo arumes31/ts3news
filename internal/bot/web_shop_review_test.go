@@ -103,8 +103,8 @@ func TestShopExchangeRejectsChangedWalletBeforeSpending(t *testing.T) {
 }
 
 func TestShopComparisonIncludesLostStatsAndSpecials(t *testing.T) {
-	current := content.Gear{Name: "Forged helm", Slot: content.SlotHead, Stats: content.Stats{STR: 80, DEF: 20}, Special: content.EffectVampiric, XPMultiplier: 1.2}
-	candidate := content.Gear{Name: "New helm", Slot: content.SlotHead, Stats: content.Stats{STR: 100}, Special: content.EffectQuick, XPMultiplier: 1.1}
+	current := content.Gear{Name: "Forged helm", Slot: content.SlotHead, Rarity: content.RarityRare, Stats: content.Stats{STR: 80, DEF: 20}, Special: content.EffectVampiric, XPMultiplier: 1.2}
+	candidate := content.Gear{Name: "New helm", Slot: content.SlotHead, Rarity: content.RarityRare, Stats: content.Stats{STR: 100}, Special: content.EffectQuick, XPMultiplier: 1.1}
 	comparison := shopGearComparison(candidate, map[string]content.Gear{string(content.SlotHead): current})
 	changes := map[string]int{}
 	for _, stat := range comparison.Stats {

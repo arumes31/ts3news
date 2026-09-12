@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
-	"math"
 	"mime"
 	"net/http"
 	"net/url"
@@ -14,11 +13,12 @@ import (
 
 type shopBuffPurchaseRequest struct {
 	Kind          string `json:"kind"`
+	Amount        *int64 `json:"amount"`
 	ExpectedOwned *int64 `json:"expected_owned"`
 	ExpectedGold  *int64 `json:"expected_gold"`
 }
 
-// handleShopBuffAPI charges gold and activates exactly one permanent token.
+// handleShopBuffAPI charges gold and activates a batch of permanent tokens.
 // The reviewed count is a replay guard even after prices stop increasing.
 // An uncertain response must be verified, never automatically retried.
 func (s *WebServer) handleShopBuffAPI(w http.ResponseWriter, r *http.Request, uid string) {
@@ -53,6 +53,14 @@ func (s *WebServer) handleShopBuffAPI(w http.ResponseWriter, r *http.Request, ui
 		fail("Review a rarity or quantity token before buying.")
 		return
 	}
+	amount := int64(1) // Older clients omit the amount for a single token.
+	if req.Amount != nil {
+		amount = *req.Amount
+	}
+	if amount < 1 {
+		fail("Choose a positive whole number of tokens.")
+		return
+	}
 	internalFailure := func(stage string, err error) {
 		slog.ErrorContext(r.Context(), "shop buff purchase failed", "stage", stage, "error", err)
 		fail("The token purchase could not be saved. Your gold and bonuses are unchanged; try again.")
@@ -85,19 +93,19 @@ func (s *WebServer) handleShopBuffAPI(w http.ResponseWriter, r *http.Request, ui
 		writeJSON(w, map[string]any{"ok": false, "review_required": true, "error": "Your balance or token count changed. Refresh the shop and review the new price."})
 		return
 	}
-	if owned == math.MaxInt64 {
-		fail("This permanent token counter is full.")
+	price, err := shopBuffTotalPrice(owned, amount)
+	if err != nil {
+		fail(err.Error())
 		return
 	}
-	price := shopBuffPrice(owned)
 	if gold < price {
-		fail("You do not have enough gold for this token. Your permanent bonuses are unchanged.")
+		fail("You do not have enough gold for these tokens. Your permanent bonuses are unchanged.")
 		return
 	}
 	if req.Kind == "rarity" {
-		state.Rarity++
+		state.Rarity += amount
 	} else {
-		state.Quantity++
+		state.Quantity += amount
 	}
 	encoded, err := json.Marshal(state)
 	if err != nil {
@@ -127,5 +135,5 @@ func (s *WebServer) handleShopBuffAPI(w http.ResponseWriter, r *http.Request, ui
 		writeJSON(w, map[string]any{"ok": false, "unconfirmed": true, "error": "The token purchase result is unconfirmed. Refresh to verify your gold and permanent bonus before trying again."})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "kind": req.Kind, "gold": gold - price, "buffs": state, "price": price, "next_price": shopBuffPrice(owned + 1)})
+	writeJSON(w, map[string]any{"ok": true, "kind": req.Kind, "amount": amount, "gold": gold - price, "buffs": state, "price": price, "next_price": shopBuffPrice(owned + amount)})
 }

@@ -141,6 +141,20 @@ func (g Gear) CombatRating() float64 {
 	return math.Round(cr*10) / 10 // Round to 1 decimal
 }
 
+// EffectiveXPMultiplier is the gear's contribution to player XP after rarity
+// eligibility and slot caps. Pet gear contributes only to pets, not player XP.
+func (g Gear) EffectiveXPMultiplier() float64 {
+	if g.Unidentified || g.Rarity < RarityRare || IsPetGearSlot(g.Slot) {
+		return 1
+	}
+	switch g.Slot {
+	case SlotMainHand, SlotChest, SlotHead, SlotLegs, SlotFeet, SlotFinger1:
+		return g.XPMultiplier
+	default:
+		return min(g.XPMultiplier, 1.02)
+	}
+}
+
 // Scaled multiplies the combat stats by f (flavour stats left unchanged). Used
 // for the permanent per-prestige stat bonus.
 func (s Stats) Scaled(f float64) Stats {

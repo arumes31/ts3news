@@ -30,10 +30,11 @@ func TestAbyssSetDisplayMax(t *testing.T) {
 
 func TestMarkAbyssBestRunLoot(t *testing.T) {
 	rows := []runLootRow{
-		{EscrowID: 1, Slot: "weapon", CR: 120, CRDelta: 20},
-		{EscrowID: 2, Slot: "weapon", CR: 150, CRDelta: 50},
+		{EscrowID: 1, Slot: "weapon", CR: 120, StatPower: 120, CRDelta: 20, IsUpgrade: true},
+		{EscrowID: 2, Slot: "weapon", CR: 150, StatPower: 150, CRDelta: 50, IsUpgrade: true},
 		{EscrowID: 3, Slot: "armor", CR: 80, CRDelta: -10},
-		{EscrowID: 4, Slot: "ring", CR: 25, CRDelta: 25},
+		{EscrowID: 4, Slot: "ring", CR: 25, CRDelta: 25, IsUpgrade: true},
+		{EscrowID: 6, Slot: "weapon", CR: 9999, CRDelta: 9899},
 		{EscrowID: 5, ItemType: "gold"},
 	}
 
@@ -172,7 +173,7 @@ func TestCurrentRunLootManifestUsesStructuredGrantData(t *testing.T) {
 
 	gear := content.Gear{
 		ID: "ABYSS_BERSERKER_RING", Name: "Berserker Ring", Slot: content.SlotFinger1,
-		Rarity: content.RarityEpic, MaxDurability: 70, Stats: content.Stats{STR: 120},
+		Rarity: content.RarityEpic, XPMultiplier: 1.2, MaxDurability: 70, Stats: content.Stats{STR: 120},
 		Quality: 3, SetID: "predator", Corrupted: true,
 	}
 	grant, err := json.Marshal(abyssLootGrant{

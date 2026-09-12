@@ -125,13 +125,17 @@ func registerShopReviewE2EFixture(mux *http.ServeMux, server *WebServer) {
 			writeJSON(w, map[string]any{"ok": false, "review_required": true, "error": "Your balance or tokens changed. Refresh to review."})
 			return
 		}
-		price := shopBuffPrice(*owned)
-		if price > wallet.gold {
+		amount := int64(1)
+		if req.Amount != nil {
+			amount = *req.Amount
+		}
+		price, err := shopBuffTotalPrice(*owned, amount)
+		if err != nil || price > wallet.gold {
 			writeJSON(w, map[string]any{"ok": false, "error": "Not enough gold."})
 			return
 		}
 		wallet.gold -= price
-		*owned++
+		*owned += amount
 		writeJSON(w, map[string]any{"ok": true, "gold": wallet.gold, "buffs": wallet.buffs, "price": price, "next_price": shopBuffPrice(*owned)})
 	})
 }

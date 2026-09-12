@@ -39,7 +39,8 @@ function applyRunLootData(row,item){
     'loot-id':item.id,'depth':item.depth,'source':item.source,'item-type':item.item_type,
     'gear-id':item.gear_id,'slot':item.slot,'slot-icon':item.slot_icon,
     'rarity-name':item.rarity,'rarity-rank':item.rarity_rank,'score':item.score,
-    'cr':item.cr,'cr-delta':item.cr_delta,'main-stat':item.main_stat,'quality':item.quality,
+    'cr':item.cr,'cr-delta':item.cr_delta,'is-upgrade':item.is_upgrade,'main-stat':item.main_stat,'quality':item.quality,
+    'comparison':JSON.stringify(item.comparison||{}),'stat-power':item.stat_power,
     'beam-class':item.beam_class,'foil':item.foil,'doomed':item.doomed,
     'unidentified':item.unidentified,'owned':item.already_owned,'set-id':item.set_id,
     'set-count':item.set_count,'set-max':item.set_max,'corrupted':item.corrupted,
@@ -74,6 +75,8 @@ function buildAuthoritativeRunLootRow(item){
   if(item.already_owned)tag('owned','ab-owned-tag');
   if(item.set_id)tag('🧩 '+item.set_id+' '+item.set_count+'/'+item.set_max,'ab-set-tag ab-set-'+item.set_id);
   if(item.corrupted)tag('🩸 corrupted','ab-corrupt-tag');
+  if(item.is_upgrade)tag('▲ Upgrade','ab-smart-loot-tag');
+  else if(item.comparison&&item.comparison.status)tag(item.comparison.status,'ab-owned-tag');
   row.appendChild(tags);
   var detail=document.createElement('span');detail.className='ab-loot-detail';detail.hidden=true;
   var detailText=item.source||'Run cache';
@@ -82,7 +85,20 @@ function buildAuthoritativeRunLootRow(item){
   if(item.set_pity)detailText+=' · 🧩 '+(item.set_pity_label||'Set pity · 3→4');
   if(item.smart_loot)detailText+=' · 🎯 '+(item.smart_loot_label||'Smart drop');
   if(item.slot)detailText+=' · '+item.slot;
-  if(Number(item.cr)>0)detailText+=' · CR '+Math.round(Number(item.cr))+' ('+(Number(item.cr_delta)>=0?'+':'')+Math.round(Number(item.cr_delta))+')';
+  if(!item.unidentified&&item.item_type==='gear'){
+    var delta=Number(item.cr_delta)||0;
+    detailText+=' · Rarity-weighted CR '+Number(item.cr||0).toFixed(1)+' ('+(delta>=0?'+':'')+delta.toFixed(1)+')';
+    var comparison=item.comparison||{};
+    if(comparison.status)detailText+=' · '+comparison.status+' · Stat power '+Number(comparison.power||0).toFixed(1)+' ('+(comparison.power_delta>=0?'+':'')+Number(comparison.power_delta||0).toFixed(1)+')';
+    if(comparison.changes){comparison.changes.forEach(function(stat){detailText+=' · '+stat.label+' '+stat.before+' → '+stat.after+' ('+(stat.delta>0?'+':'')+stat.delta+(stat.has_percent?'; '+(stat.percent>0?'+':'')+Number(stat.percent).toFixed(1)+'%':'')+')';});}
+    else {(item.stat_changes||[]).forEach(function(stat){detailText+=' · '+stat.label+' '+(stat.value>0?'+':'')+stat.value;});}
+    (comparison.reasons||[]).forEach(function(reason){detailText+=' · '+reason;});
+    if(comparison.regen_delta)detailText+=' · Regeneration '+Number(comparison.regen_delta).toFixed(3)+' HP/s';
+    if(comparison.durability_delta)detailText+=' · Max durability '+(comparison.durability_delta>0?'+':'')+comparison.durability_delta;
+    if(comparison.socket_delta)detailText+=' · Sockets '+(comparison.socket_delta>0?'+':'')+comparison.socket_delta;
+    if(item.xp_bonus_delta)detailText+=' · XP bonus '+(item.xp_bonus_delta>0?'+':'')+item.xp_bonus_delta+' percentage points';
+    if(!item.is_upgrade&&!item.empty_slot)detailText+=' · No automatic upgrade; review stat and effect tradeoffs';
+  }
   if(Number(item.quality)>0)detailText+=' · '+item.quality+'★ quality';
   detail.textContent=detailText;row.appendChild(detail);
   if(item.can_equip_best){

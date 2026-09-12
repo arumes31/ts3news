@@ -183,10 +183,7 @@ func (s *WebServer) handleAbyssReinforce(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "reinforce")
-	inc := g.Stats.DEF * 2 / 100
-	if inc < 1 {
-		inc = 1
-	}
+	inc := forgeStatIncrement(g.Stats.DEF, 2)
 	g.Stats.DEF += inc
 	g.Reinforced++
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
@@ -237,10 +234,7 @@ func (s *WebServer) handleAbyssSharpen(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "sharpen")
-	inc := g.Stats.STR * 2 / 100
-	if inc < 1 {
-		inc = 1
-	}
+	inc := forgeStatIncrement(g.Stats.STR, 2)
 	g.Stats.STR += inc
 	g.Sharpened++
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
@@ -487,7 +481,7 @@ func (s *WebServer) handleAbyssAttune(w http.ResponseWriter, r *http.Request, ui
 		return
 	}
 	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "attune")
-	g.Stats = g.Stats.Scaled(1.05)
+	g.Stats = forgeStatUpgradeResult(g, "attune").Stats
 	g.Attuned = true
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
@@ -697,7 +691,7 @@ func (s *WebServer) handleAbyssMasterwork(w http.ResponseWriter, r *http.Request
 		return
 	}
 	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "masterwork")
-	g.Stats = g.Stats.Scaled(1.03)
+	g.Stats = forgeStatUpgradeResult(g, "masterwork").Stats
 	g.Quality++
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
