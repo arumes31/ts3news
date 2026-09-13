@@ -594,6 +594,7 @@ test('a defeated enemy omitted by the next server snapshot remains visible for i
   await consumed(page, 1);
   await expect(unit(page, BOSS)).toBeVisible();
   await expect(unit(page, BOSS)).toHaveClass(/defeated/);
+  await expect(unit(page, BOSS).locator('.ab-overhead-hp')).toBeHidden();
   const numbers = (await records(page)).filter(item => item.kind === 'number' && item.target === BOSS);
   expect(numbers.some(item => /900/.test(item.text))).toBe(true);
   expect(numbers.some(item => /defeated/i.test(item.text))).toBe(true);
@@ -609,6 +610,58 @@ test('a defeated enemy omitted by the next server snapshot remains visible for i
   }, { boss: BOSS, add: ADD })).toMatchObject({ sameBoss: true, sameAdd: true, movement: 0 });
   await unit(page, ADD).click();
   expect(await page.evaluate(() => window.liveSelectedTarget)).toBe('enemy:0');
+});
+
+test('dead enemies cannot receive attacks or spells while living targets still receive both', async ({ page }) => {
+  const initial = planningState();
+  initial.enemies[0].hp = 0;
+  await openCombat(page, initial);
+  await observePresentation(page);
+  const validity = await page.evaluate(() => ({
+    dead: liveCombatState.options.filter(option => option.target === 'enemy').map(option => liveTargetValid(option, 'enemy:0')),
+    alive: liveCombatState.options.filter(option => option.target === 'enemy').map(option => liveTargetValid(option, 'enemy:1')),
+  }));
+  expect(validity).toEqual({dead: [false, false], alive: [true, true]});
+  await expect(unit(page, BOSS).locator('.ab-overhead-hp')).toBeHidden();
+  await expect(page.locator('#liveEnemies [data-target="enemy:0"] .ab-combatant-hp')).toBeHidden();
+  const next = structuredClone(initial);
+  next.version++;
+  next.presentation_cursor = 2;
+  next.presentation_events = [
+    combatEvent(1, [{target_id: BOSS, damage: 10}, {target_id: ADD, damage: 10}]),
+    combatEvent(2, [{target_id: BOSS, damage: 20}, {target_id: ADD, damage: 20}], {
+      kind: 'skill', ability_id: 'fireball', ability_name: 'Fireball',
+    }),
+  ];
+  await render(page, next);
+  await consumed(page, 2);
+  const presented = await records(page);
+  expect(presented.filter(item => item.target === BOSS)).toEqual([]);
+  expect(presented.filter(item => item.target === ADD && item.kind === 'number').map(item => item.seq)).toEqual([1, 2]);
+});
+
+test('queued attacks and spells stop hitting a corpse after its killing blow', async ({ page }) => {
+  const initial = planningState();
+  await openCombat(page, initial);
+  await observePresentation(page);
+  const next = structuredClone(initial);
+  next.version++;
+  next.enemies = [initial.enemies[1]];
+  next.presentation_cursor = 3;
+  next.presentation_events = [
+    combatEvent(1, [{target_id: BOSS, damage: 900, defeated: true}]),
+    combatEvent(2, [{target_id: BOSS, damage: 10}]),
+    combatEvent(3, [{target_id: BOSS, damage: 20}, {target_id: ADD, damage: 20}], {
+      kind: 'skill', ability_id: 'fireball', ability_name: 'Fireball',
+    }),
+  ];
+  await render(page, next);
+  await consumed(page, 3);
+  const presented = await records(page);
+  expect(presented.some(item => item.target === BOSS && item.seq === 1 && /DEFEATED/.test(item.text))).toBe(true);
+  expect(presented.filter(item => item.target === BOSS && item.seq > 1)).toEqual([]);
+  expect(presented.some(item => item.target === ADD && item.seq === 3 && item.kind === 'number')).toBe(true);
+  await expect(unit(page, BOSS).locator('.ab-overhead-hp')).toBeHidden();
 });
 
 test('terminal event batches present all outcomes before the real combat teardown', async ({ page }) => {

@@ -52,6 +52,15 @@
     node.dataset.pose = pose;
   }
   function rest(node) { setFrame(node, node._presentationDefeated || !node._pendingDefeat && node._combatUnit && node._combatUnit.hp === 0 && !node._combatUnit.hp_hidden ? 'defeat' : 'idle', 0); }
+  function canPresentTarget(target) {
+    var node = actors.get(target.target_id);
+    if (!node) return true;
+    var unit = node._combatUnit || {};
+    if (target.status === 'revived' || target.healing > 0 && unit.hp > 0) return true;
+    // The killing blow may still be queued after the server removes the enemy.
+    // Stop subsequent hits only once that defeat has actually been presented.
+    return !node._presentationDefeated && !node.classList.contains('ab-defeated');
+  }
   function clear() {
     if (visuals) visuals.clear();
     generation++; timers.forEach(clearTimeout); timers.clear();
@@ -289,16 +298,17 @@
       later(function () { cursor = Math.max(cursor, Number(event.seq) || 0); playNext(); }, duration);
       return;
     }
-    var targets = (event.targets || []).slice(0, 24), pose = profile.pose || (event.kind === 'attack' || event.kind === 'pet' ? 'attack' : 'cast');
+    var targets = (event.targets || []).slice(0, 24).filter(canPresentTarget), pose = profile.pose || (event.kind === 'attack' || event.kind === 'pet' ? 'attack' : 'cast');
     var linked = new Set(), chainTargets = targets.filter(function (target) {
       if (!actors.has(target.target_id) || linked.has(target.target_id)) return false;
       linked.add(target.target_id); return true;
     });
     var chain = profile.family === 'lightning' && chainTargets.length > 1 && !reduced() && !compressed;
     // The server emits group Chain Attack bounces as separate, consecutive events.
-    var chainSource = event.ability_id === 'chain_attack' && previousHit && previousHit.seq === event.seq - 1 && previousHit.actor_id === event.actor_id && previousHit.round === event.round ? previousHit.target_id : event.actor_id;
+    var chainSource = event.ability_id === 'chain_attack' && previousHit && previousHit.seq === event.seq - 1 && previousHit.actor_id === event.actor_id && previousHit.round === event.round && canPresentTarget(previousHit) ? previousHit.target_id : event.actor_id;
     var area = event.kind !== 'status' && (profile.area || targets.length > 1 && pose === 'cast' && profile.family !== 'lightning');
     function hit(target) {
+      if (!canPresentTarget(target)) return;
       if (!expired) effect(event, target, profile, 'impact', Math.max(220, duration * .4));
       if (visuals) visuals.contact(event, target, actors);
       outcome(event, target);

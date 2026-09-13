@@ -24,6 +24,8 @@
 .abyss-command-page .ab-actor-sprite.ab-posed-actor::after { content: ''; display: block; position: absolute; inset: 0; background: var(--actor-accent) center / contain no-repeat; opacity: .8; clip-path: none; mix-blend-mode: normal; pointer-events: none; }
 .abyss-command-page #liveAnimationAnnouncement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .abyss-command-page .ab-pixel-unit.ab-defeated .ab-actor-sprite { opacity: .46; filter: saturate(.25); }
+.abyss-command-page .ab-pixel-unit.hostile.ab-defeated .ab-overhead-hp,
+.abyss-command-page .ab-pixel-unit.hostile[data-health="defeated"] .ab-overhead-hp { display: none; }
 .abyss-command-page .ab-event-presentation .ab-pixel-unit { animation: none; }
 .abyss-command-page .ab-event-presentation .ab-pixel-unit::before { display: none; }
 .abyss-command-page .ab-pixel-unit.ab-performing .ab-actor-sprite { filter: drop-shadow(0 0 5px #b7dbdb66); }
