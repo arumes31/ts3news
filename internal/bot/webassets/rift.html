@@ -4,6 +4,11 @@
   <header class="rift-heading"><div><p class="rift-eyebrow">THE ABYSS / SOLO ADVENTURE</p><h1>RIFT <span>BRAWL</span></h1></div><div class="rift-heading-right"><span class="rift-tag">100 MISSIONS · 10 REGIONS</span><a href="/abyss">Return to Abyss ↗</a></div></header>
   <link rel="preload" as="image" href="{{asset "/static/rift_props.png"}}" id="rift-props-asset">
   <details id="rift-campaign" class="rift-campaign" open><summary>Choose your expedition <span id="rift-progress">100 missions · 300 combat rooms</span></summary><div class="rift-campaign-tools"><label>Region <select id="rift-region" aria-label="Campaign region"><option value="all">All regions</option></select></label><label><input id="rift-auto" type="checkbox" checked> Seamless tiers · bank & continue automatically</label></div><p id="rift-level-description">Choose any mission. Jump low cover and evade glowing hazard zones.</p><div id="rift-levels" class="rift-levels" aria-label="Campaign missions"></div></details>
+  <div id="rift-campaign-tools-extra" class="rift-campaign-extra">
+    <div class="rift-filter-row"><label>Find a mission <input id="rift-mission-search" type="search" maxlength="80" placeholder="Name, number or tactic…"></label><label>Progress <select id="rift-completion"><option value="all">Any progress</option><option value="unfinished">Unfinished</option><option value="complete">Completed</option></select></label><label>Difficulty <select id="rift-difficulty"><option value="all">Any difficulty</option><option>Wayfarer</option><option>Veteran</option><option>Champion</option><option>Mythic</option></select></label><label><input id="rift-favorites-only" type="checkbox"> Favorites only</label><label><input id="rift-compact" type="checkbox"> Compact cards</label></div>
+    <div class="rift-filter-actions"><button id="rift-clear-filters" type="button">Clear filters</button><button id="rift-previous-mission" type="button">← Previous</button><button id="rift-next-mission" type="button">Next →</button><button id="rift-unfinished" type="button">Next unfinished</button><button id="rift-favorite" type="button" aria-pressed="false">☆ Favorite mission</button><button id="rift-show-selected" type="button" hidden>Show selected mission</button><span id="rift-filter-count" role="status" aria-live="polite"></span></div>
+    <p id="rift-filter-empty" hidden>No missions match these filters. Clear filters to explore the campaign.</p><details><summary>Regional progress</summary><p id="rift-region-progress"></p></details>
+  </div>
   <div class="rift-layout">
     <section class="rift-game" aria-label="Rift Brawl adventure">
       <div class="rift-stage-top"><span id="rift-room">Beyond the lantern</span><div><button id="rift-sound" type="button" aria-pressed="false">Sound on</button><button id="rift-pause" type="button" disabled>Pause <kbd>Esc</kbd></button><button id="rift-fullscreen" type="button" aria-label="Fullscreen battlefield">⛶</button></div></div>
@@ -39,5 +44,6 @@
 <script defer src="{{asset "/static/rift_bestiary.js"}}"></script>
 <script defer src="{{asset "/static/rift_audio.js"}}"></script>
 <script defer src="{{asset "/static/rift_renderer.js"}}"></script>
+<script defer src="{{asset "/static/rift_campaign.js"}}"></script>
 <script defer src="{{asset "/static/rift.js"}}"></script>
 {{template "foot" .}}{{end}}

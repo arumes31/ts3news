@@ -39,7 +39,7 @@
     if(value.status !== 'cleared' || replay) clearedAt = 0;
     else if(!clearedAt) clearedAt = performance.now();
     run=value;renderer.snapshot(run,replay);
-    if(run.level){selectedLevel=run.level.id;rooms=run.level.rooms.map(room=>room.name);}
+    if(run.level){if(['fighting','cleared'].includes(run.status))selectedLevel=run.level.id;rooms=run.level.rooms.map(room=>room.name);}
     updateCampaign();
     $('rift-transition').hidden=run.status!=='cleared'||!playing||!$('rift-auto').checked;
     $('rift-vitals').hidden=false;$('rift-name').textContent=run.build.name;$('rift-class').textContent=run.build.class;
@@ -143,6 +143,7 @@
       const id=Number(button.dataset.level);button.disabled=!!active;button.setAttribute('aria-pressed',String(id===selectedLevel));
       button.classList.toggle('completed',completed.includes(id));button.querySelector('small').textContent=completed.includes(id)?'Completed ✓':levels[id-1].difficulty;
     });
+    window.RiftCampaignTools.update(run,selectedLevel);
   }
   function campaign(){
     $('rift-levels').replaceChildren();
@@ -156,7 +157,9 @@
       button.setAttribute('aria-label','Mission '+level.id+': '+level.name);
       button.addEventListener('click',()=>{selectedLevel=level.id;updateCampaign();renderer.preview(level);message(level.name.split(' · ')[1],level.tactic+'. Three tiers, one Abyss boss.','Enter mission '+level.id,level.region_name);});
     });
-    selectedLevel=run?.level?.id||1;campaignKey='';updateCampaign();renderer.preview(levels[selectedLevel-1]);
+    $('rift-campaign').insertBefore($('rift-campaign-tools-extra'),$('rift-level-description'));
+    window.RiftCampaignTools.init(levels);
+    selectedLevel=run?.level&&['fighting','cleared'].includes(run.status)?run.level.id:window.RiftCampaignTools.preferred();campaignKey='';updateCampaign();renderer.preview(levels[selectedLevel-1]);
   }
   function loadout(){
     renderer.build(build);
@@ -177,7 +180,8 @@
       await renderer.ready;
       const data=await request('GET');build=data.build;rooms=data.rooms;run=data.run;levels=data.levels||[];loadout();campaign();window.RiftBestiary.render(data.bestiary||[]);ready=true;
       if(run){update(run,true);if(['fighting','cleared'].includes(run.status))message('Your expedition awaits.','Resume from the last confirmed moment. Your expedition bag is still here.','Resume expedition','SAVED EXPEDITION');}
-      else{$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}
+      else if(selectedLevel===1){$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}
+      else{const level=levels.find(l=>l.id===selectedLevel);message(level.name.split(' · ')[1],level.tactic+'. Three tiers, one Abyss boss.','Enter mission '+level.id,level.region_name);}
       status(root.dataset.fixture?'LOCAL PLAYTEST · Sample character and isolated rewards. No live inventory changes.':'Your Abyss character is ready. Choose up to three skills, then enter.');
       if(root.dataset.fixture)$('rift-overlay-note').textContent='Local playtest · Sample character · Isolated rewards';
     }catch(error){ready=false;$('rift-start').textContent='Reload to reconnect';status(error.message);}
@@ -198,7 +202,6 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden){startIntent++;resetInput();if(playing)pause();silence();}});
   $('rift-start').addEventListener('click',begin);$('rift-pause').addEventListener('click',()=>playing?pause():begin());
   $('rift-next').addEventListener('click',async()=>{if(await send($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?'Expedition complete. Your rewards are banked.':'Checkpoint reached. Health restored by 25%; mana refilled.');});
-  $('rift-region').addEventListener('change',()=>root.querySelectorAll('[data-level]').forEach(button=>button.hidden=$('rift-region').value!=='all'&&button.dataset.region!==$('rift-region').value));
   $('rift-auto').addEventListener('change',()=>{try{localStorage.setItem('rift-auto',String($('rift-auto').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
   $('rift-exit').addEventListener('click',()=>send('exit'));
   $('rift-fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('rift-viewport').requestFullscreen();}catch(_){status('Fullscreen is unavailable in this browser.');}});
