@@ -95,9 +95,11 @@
     room = index; stopAmbience();
     const c = audio.context; if (!c) return;
     const wind = c.createBufferSource(), filter = c.createBiquadFilter(), gain = c.createGain();
-    wind.buffer = noise; wind.loop = true; filter.type = 'lowpass'; filter.frequency.value = index === 2 ? 220 : 460; gain.gain.value = .14;
+    const region=Math.floor(index/3), tier=index%3;
+    wind.buffer = noise; wind.loop = true; filter.type = 'lowpass'; filter.frequency.value = [460,780,1100,640,350,260,500,390,180,220][region]||460; gain.gain.value = .14;
     wind.connect(filter); filter.connect(gain); gain.connect(ambient); wind.onended = () => { filter.disconnect(); gain.disconnect(); }; wind.start(); ambientNodes.push(wind);
-    (index === 2 ? [55,82.41,110] : index === 1 ? [98,146.83,196] : [130.81,196,261.63]).forEach(f => {
+    const root=[130.81,73.42,146.83,82.41,98,65.41,87.31,110,61.74,55][region]||130.81;
+    [root,root*1.5,root*2].map(f=>f*(tier===2?.75:tier===1?.9:1)).forEach(f => {
       const osc = c.createOscillator(), level = c.createGain(); osc.type = 'sine'; osc.frequency.value = f; level.gain.value = .017;
       osc.connect(level); level.connect(ambient); osc.onended = () => level.disconnect(); osc.start(); ambientNodes.push(osc);
     });

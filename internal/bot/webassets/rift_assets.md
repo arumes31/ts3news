@@ -32,7 +32,15 @@ Production entry: `/abyss/rift`, gated by EnableAbyss and existing account authe
 
 Server-owned combat uses elapsed server time capped at 200 ms and 30 Hz substeps. Each input request updates a revisioned JSON snapshot under `app_meta` key `rift_brawl:<uid>`. Updates lock the user row; gear, gold and checkpoint receipt commit in the same transaction. Retries do not grant duplicates. The gold economy epoch invalidates older runs. Never reuse the standard Abyss escrow for these rewards.
 
-Chapter I has three rooms, one boss, gold and real Abyss catalog equipment (Epic maximum early; Legendary maximum final room). Cleared rooms collect remaining drops. Banking occurs after clearing a room; defeat discards only pending finds. Equipped gear is not consumed. This chapter does not grant XP, materials, quests or season progression. Character/equipment changes made in Abyss apply on the next expedition.
+The campaign has 100 selectable missions across ten regions, with three combat rooms and a final-room boss in each mission. Ten arena blueprints combine with regional geometry, timed hazard rules, enemy formations and difficulty. `internal/rift/levels.go` owns all definitions; each selected mission's terrain and encounters are frozen in the saved run. All enemies remain drawn from the live shared Abyss catalog. Flood-fill and pursuit tests verify every room's enemy spawns are reachable.
+
+Seamless tiers are on by default: after 1.2 seconds, the browser requests `advance`. The server banks gold and gear, records mission completion, and advances the saved run in the same transaction. Pausing suspends the transition. There is no navigation or image fetch between tiers; all region and monster atlases are preloaded before play. Disable seamless tiers for manual checkpoints. Clearing mission 100 ends the campaign; any mission can be selected for a new expedition. Completion marks survive subsequent expeditions and economy changes, but active rewards still follow the existing economy-epoch checks.
+
+Rewards remain real Abyss catalog equipment (Epic maximum early; Legendary maximum final room), with gold based on the room rather than mission number. Defeat discards only pending finds. Equipped gear is not consumed. Brawl does not grant XP, materials, quests or season progression. Character/equipment changes made in Abyss apply on the next expedition.
+
+`rift_regions.png` is a generated atlas of Mossbound Ruins, Ember Forge, Glacial Crossing, Storm Spires, Venom Mire, Drowned Temple, Bloodrust Barracks, Moonlit Necropolis, Starless Rift and Obsidian Citadel. The exact generation prompt is recorded in `rift_regions_prompt.txt`. The renderer crops the authored panel boundaries and adds collision-footprint cover and telegraphed hazards. Each region has its own ambience tuning.
+
+`rift_props.png` adds eight transparent cover sprites, rendered in depth order with fighters. Its source prompt is `rift_props_prompt.txt`. Regional props include moss ruins, volcanic rune stone, ice, storm pillars, toxic roots, coral altars, rusty battlements and obsidian altars.
 
 The e2e build supplies an isolated sample character and reward store, never a production database. Its optional `?subclass=<id>` resets only the sample run for visual testing. Production never accepts a client-provided subclass or reward.
 

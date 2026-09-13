@@ -8,11 +8,16 @@
   const deaths = new Map();
   let animationTime = 0;
   let previewStyle = 'vanguard';
+  let previewLevel = null, transitionAt = -1000;
+  // Authored atlas panels have slightly different row heights. Crop inside
+  // each panel to keep neighboring regions out of the battlefield.
+  const regionRows = [0,.179,.363,.559,.755,1];
   let snapshot = null, previous = null, received = 0, camera = 0, seen = 0, runID = '', effects = [], last = 0, footstep = 0;
   const renderer = { reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches, ready: null, frameCount: 0 };
   renderer.build = build => { previewStyle = build.class; };
-  const baseImages = Promise.all(['area','boss','heroesA','heroesB','mobs','items','effects'].map(key => new Promise((resolve, reject) => {
-    const img = new Image(); img.onload = () => { images[key] = img; resolve(); }; img.onerror = () => reject(new Error('Could not load '+key+' artwork. Reload to try again.')); img.src = root.dataset[key];
+  renderer.preview = level => { previewLevel = level; };
+  const baseImages = Promise.all(['area','boss','regions','props','heroesA','heroesB','mobs','items','effects'].map(key => new Promise((resolve, reject) => {
+    const img = new Image(); img.onload = () => { images[key] = img; resolve(); }; img.onerror = () => reject(new Error('Could not load '+key+' artwork. Reload to try again.')); img.src = key==='props'?document.getElementById('rift-props-asset').href:root.dataset[key];
   })));
   renderer.ready=Promise.all([baseImages,...bestiary.assets.map(path=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{catalogImages[path]=img;resolve();};img.onerror=()=>reject(new Error('Could not load Abyss creature art. Reload to try again.'));img.src=bestiary.assetURL(path);} ))]);
   renderer.snapshot = function (run, replay) {
@@ -20,7 +25,7 @@
     const changed = runID !== run.id;
     if (changed) { runID = run.id; seen = replay ? run.counter : 0; effects = []; previous = null; deaths.clear(); }
     else previous = snapshot;
-    if (previous && previous.room !== run.room) { previous = null; effects = []; deaths.clear(); }
+    if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; effects = []; deaths.clear(); camera=0; transitionAt=animationTime; }
     snapshot = run; received = performance.now();
     [run.player,...run.enemies].forEach(unit=>{if(unit.hp<=0&&!deaths.has(unit.id))deaths.set(unit.id,replay?animationTime-1000:animationTime);});
     (run.events || []).forEach(event => {
@@ -30,7 +35,7 @@
       window.RiftAudio.play(event.kind, (event.x - run.player.x) / 700);
     });
     if (effects.length > 40) effects = effects.slice(-40);
-    window.RiftAudio.area(run.room);
+    window.RiftAudio.area((run.level?.region||0)*3+run.room);
   };
   function sprite(row, col, x, y, size, flip, alpha, atlas = 'heroesA') {
     const img = images[atlas]; if (!img) return;
@@ -108,8 +113,12 @@
     const targetCamera = snapshot ? Math.max(0,Math.min(640,snapshot.player.x-350)) : 220;
     camera += (targetCamera-camera)*Math.min(1,dt*8);
     // Slow background parallax retains the full walkable foreground.
-    const background = snapshot && snapshot.room === 2 && images.boss ? images.boss : images.area;
-    ctx.drawImage(background,0,0,background.width,background.height,-camera*.35,0,1184,540);
+    const region = snapshot?.level && ['fighting','cleared'].includes(snapshot.status) ? snapshot.level.region : previewLevel?.region;
+    const background = region !== undefined ? images.regions : snapshot?.room===2 ? images.boss : images.area;
+    if(region !== undefined){
+      const row=Math.floor(region/2), top=regionRows[row], bottom=regionRows[row+1];
+      ctx.drawImage(background,region%2*background.width/2+2,top*background.height+2,background.width/2-4,(bottom-top)*background.height-4,-camera*.35,0,1184,540);
+    }else ctx.drawImage(background,0,0,background.width,background.height,-camera*.35,0,1184,540);
     if (snapshot && snapshot.room === 1) { ctx.fillStyle='#61532316';ctx.fillRect(0,0,960,540); }
     if (!renderer.reduced) {
       for(let i=0;i<22;i++) { const x=(i*157+now*.004*(i%3+1))%1000; const y=80+(i*41)%300+Math.sin(now*.0005+i)*14; ctx.globalAlpha=.3+Math.sin(now*.001+i)*.2; ctx.fillStyle=i%3?'#a9ce8c':'#ffd98a';ctx.fillRect(x,y,2,2); }
@@ -117,6 +126,16 @@
     }
     if (!snapshot) { const index=Math.max(0,styles.indexOf(foundations[previewStyle]||previewStyle));sprite(index%6,renderer.reduced?0:Math.floor(now/650)%2,630,400,113,-1,1,index<6?'heroesA':'heroesB');return; }
     const run=snapshot;
+    const arena=run.level?.rooms[run.room];
+    (arena?.hazards||[]).forEach(h=>{
+      const phase=(run.clock+h.offset)%h.period, warning=phase<1.2, active=phase>=1.2&&phase<1.2+h.duration&&run.status==='fighting';
+      const x=h.x-camera,color={fire:'#ff9a52',ice:'#9be5ff',rune:'#d1acff',poison:'#c7ee76',thorns:'#b5d780',radiant:'#d7dfff',void:'#b194ff'}[h.kind]||'#ffbf70';
+      ctx.save();ctx.fillStyle=color;ctx.strokeStyle=color;ctx.lineWidth=active?3:1;ctx.globalAlpha=active?.55:warning?.18:.06;ctx.fillRect(x,h.y,h.w,h.h);ctx.globalAlpha=active?1:warning?.7:.2;
+      ctx.setLineDash(warning?[5,4]:[]);ctx.strokeRect(x,h.y,h.w,h.h);ctx.setLineDash([]);
+      if(warning||active){ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillText(active?'JUMP':h.kind.toUpperCase(),x+h.w/2,h.y-5);}
+      if(active&&!renderer.reduced)fx(effectRows[h.kind]??3,Math.floor(now/90)%6,x+h.w/2,h.y+h.h/2,h.w,.7);
+      ctx.restore();
+    });
     run.enemies.forEach(e => {
       if(e.hp>0 && e.windup>0 && e.kind==='boss') {
         ctx.fillStyle='#c8783b55';ctx.strokeStyle='#ffce7d';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.target_x-camera,e.target_y,125,62,0,0,Math.PI*2);ctx.fill();ctx.stroke();
@@ -134,7 +153,16 @@
     });
     const units=[...run.enemies,run.player];
     if(run.build.class==='beastmaster'&&run.player.hp>0){for(let i=0;i<Math.min(3,run.build.pets||0);i++)units.push({id:'pet'+i,kind:'wolf',x:run.player.x-run.player.facing*(55+i*36),y:run.player.y+22+i*8,hp:1,max_hp:1,facing:run.player.facing,pose:run.player.pose==='cast'?'cast':run.player.pose==='run'?'run':'idle',jump:0});}
-    units.sort((a,b)=>a.y-b.y).forEach(unit=>actor(unit,wallNow));
+    (arena?.obstacles||[]).forEach(o=>units.push({y:o.y+o.h,cover:o}));
+    units.sort((a,b)=>a.y-b.y).forEach(unit=>{
+      if(!unit.cover){actor(unit,wallNow);return;}
+      const o=unit.cover,img=images.props,index=[0,1,2,3,4,5,6,3,3,7][run.level.region],sw=img.width/4,sh=img.height/2;
+      ctx.fillStyle='#03110a70';ctx.beginPath();ctx.ellipse(o.x+o.w/2-camera,o.y+o.h-3,o.w*.58,9,0,0,Math.PI*2);ctx.fill();
+      // Each sprite's base lies at 90% of its atlas cell. Align it with
+      // the collision footprint so jumping and circling cover read clearly.
+      const width=o.w+14,height=o.h+38;
+      ctx.drawImage(img,index%4*sw,Math.floor(index/4)*sh,sw,sh,o.x-7-camera,o.y+o.h-height*.9,width,height);
+    });
     run.projectiles.forEach(p=>{
       if(p.kind==='arrow'){ctx.fillStyle='#d8b3e9';ctx.fillRect(p.x-camera-12,p.y-30,25,3);}
       else if(p.kind==='pack')sprite(4,2+Math.floor(now/70)%4,p.x-camera,p.y,70,p.vx,.85,'mobs');
@@ -148,6 +176,7 @@
     });
     if(run.status==='fighting' && !run.paused && run.player.pose==='run' && run.player.jump===0 && now-footstep>320){window.RiftAudio.play('step',0);footstep=now;}
     window.RiftAudio.tick();
+    if(now-transitionAt<500&&!renderer.reduced){ctx.fillStyle='#091914';ctx.globalAlpha=Math.max(0,.65*(1-(now-transitionAt)/500));ctx.fillRect(0,0,960,540);ctx.globalAlpha=1;}
   }
   renderer.ready.then(()=>requestAnimationFrame(render)).catch(()=>{});
   window.RiftRenderer=renderer;

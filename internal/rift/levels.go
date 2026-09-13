@@ -1,0 +1,268 @@
+package rift
+
+import (
+	"fmt"
+	"math"
+	"slices"
+	"time"
+
+	"ts3news/internal/content"
+)
+
+const LevelCount = 100
+
+type Obstacle struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+	W float64 `json:"w"`
+	H float64 `json:"h"`
+}
+
+type Hazard struct {
+	Obstacle
+	Kind     string  `json:"kind"`
+	Period   float64 `json:"period"`
+	Offset   float64 `json:"offset"`
+	Duration float64 `json:"duration"`
+}
+
+type Arena struct {
+	Name      string     `json:"name"`
+	Obstacles []Obstacle `json:"obstacles"`
+	Hazards   []Hazard   `json:"hazards"`
+}
+
+// Level is copied into the saved expedition, so content changes never alter
+// terrain underneath a player resuming a fight.
+type Level struct {
+	ID         int     `json:"id"`
+	Region     int     `json:"region"`
+	Name       string  `json:"name"`
+	RegionName string  `json:"region_name"`
+	Tactic     string  `json:"tactic"`
+	Difficulty string  `json:"difficulty"`
+	Color      string  `json:"color"`
+	Rooms      []Arena `json:"rooms"`
+}
+
+// Campaign derives all missions from ten arena blueprints and ten regional
+// rulesets. Every mission has different collision geometry and hazard timing.
+func Campaign() []Level {
+	regions := []string{"Mossbound Ruins", "Ember Forge", "Glacial Crossing", "Storm Spires", "Venom Mire", "Drowned Temple", "Bloodrust Barracks", "Moonlit Necropolis", "Starless Rift", "Obsidian Citadel"}
+	names := []string{"Pilgrim's Gate", "Broken Well", "Pillar Watch", "Crossroads", "Twin Bastions", "Serpent Walk", "Hidden Alcoves", "Shattered Bridge", "Sentinel Rows", "Crown Arena"}
+	tactics := []string{"An open approach with scattered cover", "Circle the well to flank the patrol", "Weave between staggered pillars", "Choose your crossing between four posts", "Use the gap between twin barricades", "Jump low walls along the winding route", "Draw defenders out of their alcoves", "Cross the broken spans between pulses", "Switch lanes between sentry lines", "Circle the ring and challenge its guardian"}
+	colors := []string{"#a6ce7b", "#ff9b53", "#8bdfff", "#c6a1ff", "#bcdf64", "#65ded2", "#ed8d7c", "#bec4ff", "#be98ff", "#ffc77c"}
+	kinds := []string{"thorns", "fire", "ice", "rune", "poison", "ice", "fire", "radiant", "void", "fire"}
+	// Coordinates describe low cover, with a continuous bypass above and below.
+	patterns := [][]Obstacle{
+		{{780, 360, 65, 28}},
+		{{760, 390, 110, 48}},
+		{{450, 357, 42, 32}, {790, 424, 42, 32}, {1130, 357, 42, 32}},
+		{{660, 359, 42, 27}, {930, 359, 42, 27}, {660, 434, 42, 27}, {930, 434, 42, 27}},
+		{{620, 379, 95, 52}, {1010, 379, 95, 52}},
+		{{460, 356, 90, 30}, {750, 429, 90, 30}, {1080, 356, 90, 30}},
+		{{500, 361, 100, 28}, {540, 436, 60, 28}, {1070, 361, 100, 28}, {1070, 436, 60, 28}},
+		{{480, 393, 105, 32}, {795, 393, 105, 32}, {1110, 393, 105, 32}},
+		{{490, 364, 38, 28}, {750, 426, 38, 28}, {1000, 364, 38, 28}, {1250, 426, 38, 28}},
+		{{650, 375, 40, 45}, {980, 375, 40, 45}, {800, 348, 65, 26}, {800, 444, 65, 26}},
+	}
+	levels := make([]Level, 0, LevelCount)
+	for region, regionName := range regions {
+		for layout, name := range names {
+			id := region*10 + layout + 1
+			level := Level{ID: id, Region: region, RegionName: regionName, Name: regionName + " · " + name, Tactic: tactics[layout], Color: colors[region], Difficulty: []string{"Wayfarer", "Veteran", "Champion", "Mythic"}[min(3, id/26)]}
+			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
+				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}}
+				for i, obstacle := range patterns[layout] {
+					obstacle.X += float64(region*7 + room*19)
+					obstacle.Y += float64((region+room+i)%3-1) * 4
+					obstacle.W += float64(region%4) * 3
+					arena.Obstacles = append(arena.Obstacles, obstacle)
+				}
+				for h := 0; h < 1+(layout+room)%3; h++ {
+					arena.Hazards = append(arena.Hazards, Hazard{Obstacle: Obstacle{X: 390 + float64((layout*91+region*47+room*73+h*310)%940), Y: 335 + float64((layout+region+room+h)%3)*49, W: 90 + float64(region)*5, H: 32}, Kind: kinds[region], Period: 7 - float64(region)*.23, Offset: float64((layout+room+h)%5) * .7, Duration: .8 + float64(layout%3)*.2})
+				}
+				level.Rooms = append(level.Rooms, arena)
+			}
+			levels = append(levels, level)
+		}
+	}
+	return levels
+}
+
+func NewRunAtLevel(id string, build Build, now time.Time, catalog []content.Mob, levelID int) *Run {
+	r := NewRunWithCatalog(id, build, now, catalog)
+	r.setLevel(max(1, min(LevelCount, levelID)), catalog)
+	return r
+}
+
+func (r *Run) setLevel(id int, catalog []content.Mob) {
+	level := Campaign()[id-1]
+	r.Level = &level
+	r.Room = 0
+	// The whole shared bestiary remains eligible, including future additions.
+	r.EncounterPlan = planEncounters(fmt.Sprintf("%s-level-%d", r.ID, id), catalog)
+	for room := range r.EncounterPlan {
+		actors := r.EncounterPlan[room]
+		if len(actors) == 0 {
+			continue
+		}
+		for extra := 0; extra < (id-1)%3; extra++ {
+			actors = append(actors, actors[1%len(actors)])
+		}
+		for i := range actors {
+			a := &actors[i]
+			a.ID = fmt.Sprintf("l%d-r%d-e%d", id, room, i)
+			a.X = 540 + float64(i)*170 + float64((id+room)%4)*25
+			a.Y = 330 + float64((i+id+room)%4)*48
+			a.HP *= 1 + float64(id-1)*.004
+			a.MaxHP = a.HP
+			a.Damage *= 1 + float64(id-1)*.0025
+			settle(a, level.Rooms[room].Obstacles)
+		}
+		r.EncounterPlan[room] = actors
+	}
+	r.spawnRoom()
+}
+
+func (r *Run) Arena() Arena {
+	if r.Level != nil && r.Room >= 0 && r.Room < len(r.Level.Rooms) {
+		return r.Level.Rooms[r.Room]
+	}
+	return Arena{}
+}
+
+// FinishCheckpoint is called only after rewards have been banked atomically.
+// Advancing keeps the same run, build and receipt, without a page reload.
+func (r *Run) FinishCheckpoint(kind string, catalog []content.Mob) {
+	if r.Status != "cleared" {
+		return
+	}
+	if r.Room == len(Rooms)-1 && r.Level != nil && !slices.Contains(r.CompletedLevels, r.Level.ID) {
+		r.CompletedLevels = append(r.CompletedLevels, r.Level.ID)
+		slices.Sort(r.CompletedLevels)
+	}
+	if kind == "exit" {
+		r.Status = "banked"
+		return
+	}
+	if kind == "bank" {
+		if r.Room == len(Rooms)-1 {
+			r.Status = "complete"
+		}
+		return
+	}
+	if r.NextRoom() {
+		return
+	}
+	if kind == "advance" && r.Level != nil && r.Level.ID < LevelCount {
+		r.Status = "fighting"
+		r.Player.HP = math.Min(r.Player.MaxHP, r.Player.HP+r.Player.MaxHP*.25)
+		r.Player.Mana = 100
+		// These drops are already in the real inventory; keep the receipt but
+		// bound the active snapshot to one mission's drops.
+		r.Drops = []Drop{}
+		r.setLevel(r.Level.ID+1, catalog)
+		return
+	}
+	r.Status = "complete"
+}
+
+func contains(o Obstacle, x, y, radius float64) bool {
+	return x > o.X-radius && x < o.X+o.W+radius && y > o.Y-radius && y < o.Y+o.H+radius
+}
+
+func settle(a *Actor, obstacles []Obstacle) {
+	for _, o := range obstacles {
+		if !contains(o, a.X, a.Y, 10) {
+			continue
+		}
+		distances := []float64{a.X - o.X + 10, o.X + o.W + 10 - a.X, a.Y - o.Y + 10, o.Y + o.H + 10 - a.Y}
+		switch slices.Index(distances, slices.Min(distances)) {
+		case 0:
+			a.X = o.X - 10
+		case 1:
+			a.X = o.X + o.W + 10
+		case 2:
+			a.Y = o.Y - 10
+		case 3:
+			a.Y = o.Y + o.H + 10
+		}
+	}
+	a.X = clamp(a.X, 35, Width-35)
+	a.Y = clamp(a.Y, 315, 490)
+}
+
+func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
+	obstacles := r.Arena().Obstacles
+	if a.Jump > .1 {
+		a.X = clamp(a.X+dx, 35, Width-35)
+		a.Y = clamp(a.Y+dy, 315, 490)
+		return
+	}
+	settle(a, obstacles)
+	for _, o := range obstacles {
+		if navigate && dx != 0 && contains(o, a.X+dx, a.Y, 12) {
+			// Keep the bypass until the actor is beyond this obstacle in X.
+			if a.Y < o.Y+o.H/2 {
+				a.RouteY = o.Y - 14
+			} else {
+				a.RouteY = o.Y + o.H + 14
+			}
+			a.RouteX = o.X + o.W + 15
+			if dx < 0 {
+				a.RouteX = o.X - 15
+			}
+		}
+	}
+	if navigate && a.RouteY != 0 {
+		if dx > 0 && a.X >= a.RouteX || dx < 0 && a.X <= a.RouteX {
+			a.RouteY = 0
+		} else {
+			dy = clamp(a.RouteY-a.Y, -math.Abs(dx), math.Abs(dx))
+		}
+	}
+	nextX := clamp(a.X+dx, 35, Width-35)
+	for _, o := range obstacles {
+		if contains(o, nextX, a.Y, 10) {
+			nextX = a.X
+			break
+		}
+	}
+	a.X = nextX
+	nextY := clamp(a.Y+dy, 315, 490)
+	for _, o := range obstacles {
+		if contains(o, a.X, nextY, 10) {
+			nextY = a.Y
+			break
+		}
+	}
+	a.Y = nextY
+}
+
+func (h Hazard) Phase(clock float64) float64 { return math.Mod(clock+h.Offset, h.Period) }
+
+func (r *Run) hazardTick() {
+	if r.Status != "fighting" || r.Player.Jump > .1 {
+		return
+	}
+	for i, h := range r.Arena().Hazards {
+		phase := h.Phase(r.Clock)
+		if phase < 1.2 || phase >= 1.2+h.Duration || !contains(h.Obstacle, r.Player.X, r.Player.Y, 0) {
+			continue
+		}
+		key := fmt.Sprintf("hazard-%d", i)
+		if r.SkillTimers[key] > 0 {
+			continue
+		}
+		r.SkillTimers[key] = 1
+		r.hurtPlayer(12+float64(r.Level.Region), r.Player.X, r.Player.Y)
+		switch h.Kind {
+		case "ice", "thorns", "poison":
+			r.SkillTimers["slowed"] = 1.4
+		case "void":
+			r.moveActor(&r.Player, (h.X+h.W/2-r.Player.X)*.3, 0, false)
+		}
+		r.event(h.Kind, r.Player.X, r.Player.Y, 0)
+	}
+}

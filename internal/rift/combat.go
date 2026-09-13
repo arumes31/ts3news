@@ -46,6 +46,8 @@ type Build struct {
 }
 
 type Actor struct {
+	RouteX    float64 `json:"route_x,omitempty"`
+	RouteY    float64 `json:"route_y,omitempty"`
 	Attacks   int     `json:"attacks,omitempty"`
 	ArtKey    string  `json:"art_key,omitempty"`
 	Tier      string  `json:"tier,omitempty"`
@@ -109,32 +111,34 @@ type Event struct {
 }
 
 type Run struct {
-	EncounterPlan [][]Actor          `json:"encounter_plan,omitempty"`
-	Resource      int                `json:"resource"`
-	Marked        string             `json:"marked"`
-	Barrier       float64            `json:"barrier"`
-	Schema        int                `json:"schema"`
-	ID            string             `json:"id"`
-	StartKey      string             `json:"start_key"`
-	Epoch         string             `json:"epoch"`
-	Revision      int                `json:"revision"`
-	Room          int                `json:"room"`
-	Status        string             `json:"status"`
-	Paused        bool               `json:"paused"`
-	Build         Build              `json:"build"`
-	Player        Actor              `json:"player"`
-	Enemies       []Actor            `json:"enemies"`
-	Projectiles   []Projectile       `json:"projectiles"`
-	Drops         []Drop             `json:"drops"`
-	Events        []Event            `json:"events"`
-	SkillTimers   map[string]float64 `json:"skill_timers"`
-	Gold          int64              `json:"gold"`
-	BankedGold    int64              `json:"banked_gold"`
-	BankedItems   []string           `json:"banked_items"`
-	Clock         float64            `json:"clock"`
-	LastMS        int64              `json:"last_ms"`
-	Counter       int                `json:"counter"`
-	Combo         int                `json:"combo"`
+	Level           *Level             `json:"level,omitempty"`
+	CompletedLevels []int              `json:"completed_levels,omitempty"`
+	EncounterPlan   [][]Actor          `json:"encounter_plan,omitempty"`
+	Resource        int                `json:"resource"`
+	Marked          string             `json:"marked"`
+	Barrier         float64            `json:"barrier"`
+	Schema          int                `json:"schema"`
+	ID              string             `json:"id"`
+	StartKey        string             `json:"start_key"`
+	Epoch           string             `json:"epoch"`
+	Revision        int                `json:"revision"`
+	Room            int                `json:"room"`
+	Status          string             `json:"status"`
+	Paused          bool               `json:"paused"`
+	Build           Build              `json:"build"`
+	Player          Actor              `json:"player"`
+	Enemies         []Actor            `json:"enemies"`
+	Projectiles     []Projectile       `json:"projectiles"`
+	Drops           []Drop             `json:"drops"`
+	Events          []Event            `json:"events"`
+	SkillTimers     map[string]float64 `json:"skill_timers"`
+	Gold            int64              `json:"gold"`
+	BankedGold      int64              `json:"banked_gold"`
+	BankedItems     []string           `json:"banked_items"`
+	Clock           float64            `json:"clock"`
+	LastMS          int64              `json:"last_ms"`
+	Counter         int                `json:"counter"`
+	Combo           int                `json:"combo"`
 }
 
 type Input struct {
@@ -213,6 +217,9 @@ func (r *Run) tick(in Input, dt float64) {
 	}
 	p.Guard = in.Guard && p.Jump == 0
 	speed := 235.0
+	if r.SkillTimers["slowed"] > 0 {
+		speed *= .6
+	}
 	if p.Guard {
 		speed = 75
 	}
@@ -222,8 +229,7 @@ func (r *Run) tick(in Input, dt float64) {
 		x /= length
 		y /= length
 	}
-	p.X = clamp(p.X+x*speed*dt, 35, Width-35)
-	p.Y = clamp(p.Y+y*speed*.6*dt, 315, 490)
+	r.moveActor(p, x*speed*dt, y*speed*.6*dt, false)
 	if x != 0 {
 		p.Facing = math.Copysign(1, x)
 	}
@@ -264,6 +270,7 @@ func (r *Run) tick(in Input, dt float64) {
 		r.cast(in.Skill)
 	}
 	if r.Status == "fighting" {
+		r.hazardTick()
 		for i := range r.Enemies {
 			r.enemyTick(i, dt)
 		}
@@ -448,7 +455,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 	dx, dy := p.X-e.X, p.Y-e.Y
 	if e.Kind == "treasure" && math.Abs(dx) < 240 && e.X > 55 && e.X < Width-55 {
 		e.Facing = -math.Copysign(1, dx)
-		e.X = clamp(e.X-math.Copysign(e.Speed*dt, dx), 35, Width-35)
+		r.moveActor(e, -math.Copysign(e.Speed*dt, dx), 0, true)
 		e.Pose = "run"
 		return
 	}
@@ -509,8 +516,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 		if e.Kind == "goblin" && e.Speed == 0 {
 			speed = 115
 		}
-		e.X = clamp(e.X+math.Copysign(math.Min(math.Abs(dx), speed*dt), dx), 35, Width-35)
-		e.Y += math.Copysign(math.Min(math.Abs(dy), speed*.6*dt), dy)
+		r.moveActor(e, math.Copysign(math.Min(math.Abs(dx), speed*dt), dx), math.Copysign(math.Min(math.Abs(dy), speed*.6*dt), dy), true)
 		if e.PoseTime == 0 {
 			e.Pose = "run"
 		}

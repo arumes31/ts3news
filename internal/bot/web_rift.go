@@ -25,6 +25,7 @@ import (
 var errRiftConflict = errors.New("the expedition changed; reload its saved state")
 
 type riftRequest struct {
+	LevelID   int        `json:"level_id,omitempty"`
 	Kind      string     `json:"kind"`
 	RunID     string     `json:"run_id"`
 	RequestID string     `json:"request_id"`
@@ -156,7 +157,7 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 			riftFailure(w, r, err)
 			return
 		}
-		writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "bestiary": riftBestiary(time.Now())})
+		writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "bestiary": riftBestiary(time.Now())})
 		return
 	}
 	if r.Method != http.MethodPost {
@@ -225,6 +226,9 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 }
 
 func validRiftRequest(r riftRequest) bool {
+	if r.LevelID < 0 || r.LevelID > rift.LevelCount {
+		return false
+	}
 	if len(r.RunID) > 80 || len(r.RequestID) < 16 || len(r.RequestID) > 80 || r.Revision < 0 || len(r.Input.Skill) > 100 || r.Input.X < -1 || r.Input.X > 1 || r.Input.Y < -1 || r.Input.Y > 1 || len(r.Skills) > 3 {
 		return false
 	}
@@ -236,7 +240,7 @@ func validRiftRequest(r riftRequest) bool {
 		seen[id] = true
 	}
 	switch r.Kind {
-	case "start", "step", "pause", "resume", "bank", "next", "exit":
+	case "start", "step", "pause", "resume", "bank", "next", "advance", "exit":
 		return true
 	}
 	return false
@@ -328,7 +332,12 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 		if err != nil {
 			return nil, err
 		}
-		run = rift.NewRunWithCatalog(id, build, now, riftMobCatalog(now))
+		var completed []int
+		if run != nil {
+			completed = run.CompletedLevels
+		}
+		run = rift.NewRunAtLevel(id, build, now, riftMobCatalog(now), req.LevelID)
+		run.CompletedLevels = completed
 		run.StartKey = req.RequestID
 		run.Epoch = epoch
 	} else {
@@ -350,22 +359,14 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 		case "resume":
 			run.Paused = false
 			run.LastMS = max(run.LastMS, now.UnixMilli())
-		case "bank", "exit", "next":
+		case "bank", "exit", "next", "advance":
 			if run.Status != "cleared" {
 				return nil, errRiftConflict
 			}
 			if err := bankRift(ctx, tx, uid, req.RequestID, run); err != nil {
 				return nil, err
 			}
-			if req.Kind == "exit" {
-				run.Status = "banked"
-			}
-			if req.Kind == "next" && !run.NextRoom() {
-				run.Status = "complete"
-			}
-			if req.Kind == "bank" && run.Room == len(rift.Rooms)-1 {
-				run.Status = "complete"
-			}
+			run.FinishCheckpoint(req.Kind, riftMobCatalog(now))
 			run.LastMS = max(run.LastMS, now.UnixMilli())
 		}
 		run.Revision = req.Revision
@@ -378,6 +379,7 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 				return nil, err
 			}
 			drop.Gear = &gear
+			drop.Gear.FoundBoss = riftGearOrigin(run)
 		}
 	}
 	data, err := json.Marshal(run)
@@ -391,6 +393,14 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 		return nil, err
 	}
 	return run, nil
+}
+
+func riftGearOrigin(run *rift.Run) string {
+	name := rift.Rooms[run.Room]
+	if run.Level != nil {
+		name = run.Level.Name
+	}
+	return fmt.Sprintf("Rift Brawl: %s · Tier %d", name, run.Room+1)
 }
 
 func rollRiftGear(room int, now time.Time) (content.Gear, error) {

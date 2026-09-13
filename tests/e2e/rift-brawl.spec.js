@@ -70,6 +70,7 @@ test('clear all three rooms, defeat the catalog boss and bank the expedition', a
   test.setTimeout(180_000);
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('/abyss/rift?subclass=bloodblade');
+  await page.locator('#rift-auto').uncheck();
   await page.locator('#rift-start').click();
   const held=new Set();
   async function controls(wanted){for(const key of [...held])if(!wanted.has(key)){await page.keyboard.up(key);held.delete(key);}for(const key of wanted)if(!held.has(key)){await page.keyboard.down(key);held.add(key);}}
@@ -77,7 +78,7 @@ test('clear all three rooms, defeat the catalog boss and bank the expedition', a
   while(Date.now()-started<145_000){
     const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
     expect(run.status,'expedition should remain survivable').not.toBe('defeated');
-    if(run.status==='complete'){complete=true;expect(run.banked_gold).toBe(300);expect(run.banked_items.length).toBeGreaterThanOrEqual(3);break;}
+    if(run.status==='complete'){complete=true;expect(run.banked_gold).toBe(300);expect(run.banked_items.length).toBeGreaterThanOrEqual(3);for(const drop of run.drops.filter(d=>d.gear))expect(drop.gear.found_boss).toContain(run.level.name);break;}
     if(run.status==='cleared'){
       await controls(new Set());
       await expect(page.locator('#rift-next')).toBeVisible();
@@ -134,6 +135,7 @@ test('sprite stage, keyboard combat, audio and pause recovery', async ({ page })
 
 test('checkpoint banks actual catalog loot once and survives reload', async ({ page }) => {
   await page.goto('/abyss/rift?scenario=checkpoint');
+  await page.locator('#rift-auto').uncheck();
   await expect(page.locator('#rift-start')).toHaveText('Resume expedition');
   await page.locator('#rift-start').click();
   await expect(page.locator('#rift-loot')).not.toContainText('Your next discovery');
@@ -145,6 +147,58 @@ test('checkpoint banks actual catalog loot once and survives reload', async ({ p
   await page.request.post('/api/abyss/rift', {data:{kind:'exit',run_id:banked.id,revision:banked.revision,request_id:'retry-bank-request',input:{}}});
   await page.goto('/abyss/rift');
   await expect(page.locator('#rift-banked')).toHaveText('30 gold · 1 items');
+});
+
+test('100 missions are selectable and the final region survives reload',async({page})=>{
+  const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('/abyss/rift');
+  await expect(page.locator('[data-level]')).toHaveCount(100);
+  const data=await(await page.request.get('/api/abyss/rift')).json();
+  expect(new Set(data.levels.map(l=>l.name)).size).toBe(100);
+  await page.locator('#rift-region').selectOption('9');
+  await expect(page.locator('[data-level]:visible')).toHaveCount(10);
+  await page.locator('[data-level="100"]').click();
+  await expect(page.locator('#rift-level-description')).toContainText('Obsidian Citadel');
+  await page.locator('#rift-start').click();
+  const before=await(await page.request.get('/api/abyss/rift')).json();
+  expect(before.run.level.id).toBe(100);expect(before.run.level.rooms[0].obstacles.length).toBeGreaterThan(2);
+  await page.keyboard.press('Escape');
+  await page.screenshot({path:'test-results/rift-citadel.png'});
+  await page.reload();
+  await expect(page.locator('#rift-start')).toHaveText('Resume expedition');
+  expect((await(await page.request.get('/api/abyss/rift')).json()).run.level.id).toBe(100);
+  expect(errors).toEqual([]);
+});
+
+test('seamless tiers bank once without navigation and pause stops the transition',async({page})=>{
+  await page.goto('/abyss/rift?scenario=checkpoint');
+  await page.locator('#rift-start').click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#rift-overlay-title')).toHaveText('A moment by the lantern.');
+  await page.waitForTimeout(1400);
+  const read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
+  expect((await read()).room).toBe(0);
+  let navigations=0;page.on('framenavigated',frame=>{if(frame===page.mainFrame())navigations++;});
+  const assets=[];page.on('request',request=>{if(request.resourceType()==='image')assets.push(request.url());});
+  await page.locator('#rift-start').click();
+  await expect.poll(async()=>(await read()).room).toBe(1);
+  const next=await read();expect(next.banked_gold).toBe(30);expect(next.banked_items).toHaveLength(1);
+  expect(navigations).toBe(0);expect(assets).toEqual([]);
+  await expect(page.locator('#rift-overlay')).toBeHidden();
+  await page.keyboard.press('Escape');
+});
+
+test('seamless boss clearance starts the next mission and records completion',async({page})=>{
+  await page.goto('/abyss/rift?scenario=checkpoint&room=final');
+  await page.locator('#rift-start').click();
+  const read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
+  await expect.poll(async()=>(await read()).level.id).toBe(2);
+  await page.keyboard.press('Escape');
+  const next=await read();expect(next.room).toBe(0);expect(next.completed_levels).toEqual([1]);expect(next.banked_gold).toBe(30);
+  await page.goto('/abyss/rift');
+  await expect(page.locator('#rift-progress')).toContainText('1/100 completed');
+  await expect(page.locator('[data-level="1"]')).toHaveClass(/completed/);
+  expect((await read()).level.id).toBe(2);
 });
 
 test('mobile touch controls, silent start and sound preference', async ({ page }) => {

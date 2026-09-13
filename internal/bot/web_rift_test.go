@@ -16,7 +16,7 @@ import (
 )
 
 func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
-	for _, scenario := range []string{"success", "duplicate", "state failure", "old epoch", "wrong run", "fighting"} {
+	for _, scenario := range []string{"success", "duplicate", "state failure", "old epoch", "wrong run", "fighting", "advance", "advance duplicate", "advance failure"} {
 		t.Run(scenario, func(t *testing.T) {
 			database, mock, err := sqlmock.New()
 			if err != nil {
@@ -24,16 +24,28 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 			}
 			defer database.Close()
 			run := rift.NewRun("run", rift.Build{Name: "Delver", HP: 200}, time.Unix(100, 0))
+			advance := strings.HasPrefix(scenario, "advance")
+			if advance {
+				run = rift.NewRunAtLevel("run", rift.Build{Name: "Delver", HP: 200}, time.Unix(100, 0), riftMobCatalog(time.Unix(100, 0)), 10)
+				run.Room = 2
+			}
 			run.Status = "cleared"
 			run.Epoch = "2"
 			run.Revision = 4
 			run.Drops = []rift.Drop{{ID: "drop", Gold: 30, Collected: true, Gear: &content.Gear{ID: "ABYSS_TEST", Name: "Test Blade", MaxDurability: 80}}}
 			request := riftRequest{Kind: "exit", RunID: "run", Revision: 5, RequestID: "checkpoint-request-1"}
-			if scenario == "duplicate" {
+			if advance {
+				request.Kind = "advance"
+			}
+			if scenario == "duplicate" || scenario == "advance duplicate" {
 				request.Revision = 4
 				run.Drops[0].Banked = true
 				run.Status = "banked"
 				run.BankedGold = 30
+				if advance {
+					run.Status = "cleared"
+					run.FinishCheckpoint("advance", riftMobCatalog(time.Unix(100, 0)))
+				}
 			}
 			if scenario == "old epoch" {
 				run.Epoch = "1"
@@ -52,12 +64,12 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 			mock.ExpectQuery("SELECT client_uid FROM users").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("owner"))
 			mock.ExpectQuery("SELECT COALESCE").WillReturnRows(sqlmock.NewRows([]string{"epoch"}).AddRow("2"))
 			mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("rift_brawl:owner").WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(string(data)))
-			if scenario == "success" || scenario == "state failure" {
+			if scenario == "success" || scenario == "state failure" || scenario == "advance" || scenario == "advance failure" {
 				mock.ExpectExec("SELECT set_config").WithArgs("rift_brawl", request.RequestID, "run", "").WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectExec("INSERT INTO user_inventory").WithArgs("owner", "ABYSS_TEST", 80, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 				mock.ExpectExec("UPDATE users SET gold").WithArgs(int64(30), "owner").WillReturnResult(sqlmock.NewResult(0, 1))
 				write := mock.ExpectExec("INSERT INTO app_meta").WithArgs("rift_brawl:owner", sqlmock.AnyArg())
-				if scenario == "state failure" {
+				if scenario == "state failure" || scenario == "advance failure" {
 					write.WillReturnError(errors.New("disk unavailable"))
 					mock.ExpectRollback()
 				} else {
@@ -68,9 +80,12 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 				mock.ExpectRollback()
 			}
 			out, err := (&Bot{DB: database}).updateRift(context.Background(), "owner", request, rift.Build{}, time.Unix(101, 0))
-			if scenario == "success" || scenario == "duplicate" {
+			if scenario == "success" || scenario == "duplicate" || scenario == "advance" || scenario == "advance duplicate" {
 				if err != nil || out.BankedGold != 30 {
 					t.Fatalf("bank failed: %v %+v", err, out)
+				}
+				if advance && (out.Level.ID != 11 || out.Room != 0 || out.Status != "fighting" || len(out.CompletedLevels) != 1 || out.CompletedLevels[0] != 10) {
+					t.Fatalf("advance lost persisted state: %+v", out)
 				}
 			} else if err == nil {
 				t.Fatal("invalid or failed settlement accepted")
@@ -83,9 +98,15 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 }
 
 func TestRiftRejectsUntrustedRequestsBeforeDatabase(t *testing.T) {
-	for _, scenario := range []string{"origin", "cross-site", "content-type", "forged hp", "movement", "oversize", "method"} {
+	for _, scenario := range []string{"origin", "cross-site", "content-type", "forged hp", "movement", "oversize", "method", "invalid mission", "negative mission"} {
 		t.Run(scenario, func(t *testing.T) {
 			body := `{"kind":"step","request_id":"test-request-123456","input":{"x":0}}`
+			if scenario == "invalid mission" {
+				body = `{"kind":"start","request_id":"test-request-123456","level_id":101}`
+			}
+			if scenario == "negative mission" {
+				body = `{"kind":"start","request_id":"test-request-123456","level_id":-1}`
+			}
 			if scenario == "forged hp" {
 				body = `{"kind":"step","request_id":"test-request-123456","hp":999}`
 			}
@@ -116,6 +137,39 @@ func TestRiftRejectsUntrustedRequestsBeforeDatabase(t *testing.T) {
 				t.Fatalf("untrusted request accepted: %d", w.Code)
 			}
 		})
+	}
+}
+
+func TestRiftStartRetainsCampaignProgress(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	old := rift.NewRunAtLevel("old", rift.Build{HP: 200}, time.Unix(100, 0), riftMobCatalog(time.Unix(100, 0)), 10)
+	old.Status = "complete"
+	old.Epoch = "2"
+	old.CompletedLevels = []int{1, 10}
+	old.BankedGold = 300
+	data, err := json.Marshal(old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT client_uid FROM users").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("owner"))
+	mock.ExpectQuery("SELECT COALESCE").WillReturnRows(sqlmock.NewRows([]string{"epoch"}).AddRow("2"))
+	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("rift_brawl:owner").WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(string(data)))
+	mock.ExpectExec("INSERT INTO app_meta").WithArgs("rift_brawl:owner", sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	run, err := (&Bot{DB: database}).updateRift(context.Background(), "owner", riftRequest{Kind: "start", RunID: "old", RequestID: "new-mission-request", LevelID: 42}, rift.Build{HP: 200}, time.Unix(101, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Level.ID != 42 || len(run.CompletedLevels) != 2 || run.CompletedLevels[1] != 10 || run.BankedGold != 0 || run.ID == "old" {
+		t.Fatalf("incorrect new expedition: %+v", run)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }
 

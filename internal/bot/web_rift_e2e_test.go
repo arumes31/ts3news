@@ -55,7 +55,11 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		mu.Unlock()
 		if r.URL.Query().Get("scenario") == "checkpoint" {
 			mu.Lock()
-			run := rift.NewRunWithCatalog("checkpoint", selectedBuild, time.Now(), riftMobCatalog(time.Now()))
+			run := rift.NewRunAtLevel("checkpoint", selectedBuild, time.Now(), riftMobCatalog(time.Now()), 1)
+			if r.URL.Query().Get("room") == "final" {
+				run.Room = 2
+				run.Level.Rooms[2].Hazards = nil
+			}
 			run.Status = "cleared"
 			run.Epoch = "fixture"
 			gear, lootErr := rollRiftGear(0, time.Now())
@@ -85,7 +89,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		run := runs[cookie.Value]
 		build := builds[cookie.Value]
 		if r.Method == http.MethodGet {
-			writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "bestiary": riftBestiary(time.Now())})
+			writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "bestiary": riftBestiary(time.Now())})
 			return
 		}
 		var req riftRequest
@@ -114,7 +118,12 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			if req.Skills == nil {
 				selected.Skills = build.Skills
 			}
-			run = rift.NewRunWithCatalog(req.RequestID, selected, time.Now(), riftMobCatalog(time.Now()))
+			var completed []int
+			if run != nil {
+				completed = run.CompletedLevels
+			}
+			run = rift.NewRunAtLevel(req.RequestID, selected, time.Now(), riftMobCatalog(time.Now()), req.LevelID)
+			run.CompletedLevels = completed
 			run.StartKey = req.RequestID
 			run.Epoch = "fixture"
 			runs[cookie.Value] = run
@@ -135,7 +144,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			case "resume":
 				run.Paused = false
 				run.LastMS = time.Now().UnixMilli()
-			case "bank", "exit", "next":
+			case "bank", "exit", "next", "advance":
 				if run.Status != "cleared" {
 					http.Error(w, "room not clear", 409)
 					return
@@ -152,12 +161,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 					}
 				}
 				run.Gold = 0
-				if req.Kind == "exit" {
-					run.Status = "banked"
-				}
-				if req.Kind == "next" && !run.NextRoom() {
-					run.Status = "complete"
-				}
+				run.FinishCheckpoint(req.Kind, riftMobCatalog(time.Now()))
 				run.LastMS = time.Now().UnixMilli()
 			}
 			run.Revision = req.Revision
@@ -171,6 +175,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 					return
 				}
 				drop.Gear = &gear
+				drop.Gear.FoundBoss = riftGearOrigin(run)
 			}
 		}
 		writeJSON(w, map[string]any{"ok": true, "run": run})
