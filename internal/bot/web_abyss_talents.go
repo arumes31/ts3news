@@ -9,6 +9,7 @@ package bot
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -29,7 +30,7 @@ func abyssTalentEffectiveInt(level int) int {
 
 func persistAbyssTalentUpgrade(tx *sql.Tx, uid string, cost int64, levels map[string]int) (bool, error) {
 	res, err := tx.Exec(
-		"UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1", cost, uid)
+		"/* economy:bot.persistAbyssTalentUpgrade */ UPDATE users SET abyss_tokens = abyss_tokens - GREATEST(0,$1-abyss_talent_credit), abyss_talent_credit = GREATEST(0,abyss_talent_credit-$1) WHERE client_uid=$2 AND abyss_tokens >= GREATEST(0,$1-abyss_talent_credit)", cost, uid)
 	if err != nil {
 		return false, err
 	}
@@ -71,23 +72,35 @@ func (b *Bot) abyssTalentBonus(uid string) content.TreeBonus {
 	return content.TalentBonus(b.loadAbyssTalentLevels(uid), b.abyssSpec(uid))
 }
 
-// talentLevelOf reads a prerequisite's current level, transparently spanning the
-// legacy per-column Deep-Delver nodes and the generic key→level store, so a
-// generic node can hang off a legacy leaf (e.g. Scavenger) as its parent.
-func (b *Bot) talentLevelOf(uid, key string) int {
-	if col, ok := abyssUpgradeCols[key]; ok { // col is whitelisted → safe to interpolate
-		var lvl int
-		_ = b.DB.QueryRow("SELECT "+col+" FROM users WHERE client_uid=$1", uid).Scan(&lvl)
-		return lvl
-	}
-	return b.loadAbyssTalentLevels(uid)[key]
-}
-
 // handleAbyssTalentUpgrade spends tokens on a generic talent level. The caller
 // (handleAbyssUpgrade) already holds the per-uid abyss lock, so the token debit
 // and the app_meta level bump can't race for the same player.
 func (s *WebServer) handleAbyssTalentUpgrade(w http.ResponseWriter, uid string, t content.Talent) {
-	levels := s.bot.loadAbyssTalentLevels(uid)
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	var lockedUID string
+	if err := tx.QueryRow("SELECT client_uid FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&lockedUID); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	levels := map[string]int{}
+	var raw string
+	err = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1 FOR UPDATE", abyssTalentKey(uid)).Scan(&raw)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), &levels); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
+
 	level := levels[t.Key]
 	if level >= content.TalentLevelCap(t) {
 		writeJSON(w, map[string]any{"ok": false, "error": "maxed"})
@@ -101,19 +114,21 @@ func (s *WebServer) handleAbyssTalentUpgrade(w http.ResponseWriter, uid string, 
 		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("locked — reach depth %d first", t.GateDepth)})
 		return
 	}
-	if t.Parent != "" && s.bot.talentLevelOf(uid, t.Parent) < 1 {
+	parentLevel := 1
+	if t.Parent != "" {
+		parentLevel = levels[t.Parent]
+		if col, ok := abyssUpgradeCols[t.Parent]; ok {
+			if err := tx.QueryRow("SELECT "+col+" FROM users WHERE client_uid=$1", uid).Scan(&parentLevel); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+		}
+	}
+	if parentLevel < 1 {
 		writeJSON(w, map[string]any{"ok": false, "error": "locked — upgrade the prerequisite first"})
 		return
 	}
 	cost := talentTokenCost(level)
-	// Guarded debit: only proceeds if the player still has the tokens (matches the
-	// legacy Deep-Delver spend). RowsAffected==0 means someone else spent first.
-	tx, err := s.bot.DB.Begin()
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
-	defer func() { _ = tx.Rollback() }()
 	levels[t.Key] = level + 1
 	spent, err := persistAbyssTalentUpgrade(tx, uid, cost, levels)
 	if err != nil {
@@ -128,7 +143,7 @@ func (s *WebServer) handleAbyssTalentUpgrade(w http.ResponseWriter, uid string, 
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "node": t.Key, "level": level + 1, "tokens": s.bot.abyssTokens(uid)})
+	writeJSON(w, map[string]any{"ok": true, "node": t.Key, "level": level + 1, "tokens": s.bot.abyssTokens(uid), "talent_credit": s.bot.abyssTalentCredit(uid)})
 }
 
 // abyssTalentRefund totals the tokens sunk into every generic talent (used by the
@@ -169,4 +184,11 @@ func partitionAbyssTalentLevels(levels map[string]int, scope string) (map[string
 		}
 	}
 	return reset, remaining
+}
+
+// abyssTalentCredit is build-only value: it cannot be redeemed for currency.
+func (b *Bot) abyssTalentCredit(uid string) int64 {
+	var value int64
+	_ = b.DB.QueryRow("SELECT abyss_talent_credit FROM users WHERE client_uid=$1", uid).Scan(&value)
+	return value
 }

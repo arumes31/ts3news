@@ -45,7 +45,7 @@ func (s *WebServer) handleAbyssPetCosmetic(w http.ResponseWriter, r *http.Reques
 	profile := decodeAbyssPetProfile(rawProfile)
 	charged := 0
 	if req.Key != "" && !slices.Contains(profile.OwnedCosmetics, req.Key) {
-		result, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens>=$1", abyssPetCosmeticCost, uid)
+		result, err := tx.Exec("/* economy:bot.WebServer.handleAbyssPetCosmetic */ UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens>=$1", abyssPetCosmeticCost, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return

@@ -35,3 +35,29 @@ func applyAbyssPetGear(pet *content.Mob, bonus content.Stats) {
 	pet.MaxHP = max(1, pet.MaxHP+bonus.HP)
 	pet.Stats.HP = max(0, min(currentHP, pet.MaxHP))
 }
+
+// healAbyssPet returns only health restored, never the requested overheal.
+func healAbyssPet(pet *content.Mob, amount int) int {
+	if pet == nil || pet.Stats.HP <= 0 {
+		return 0
+	}
+	pet.MaxHP = max(1, pet.MaxHP)
+	before := min(pet.Stats.HP, pet.MaxHP)
+	restored := min(max(0, amount), pet.MaxHP-before)
+	pet.Stats.HP = before + restored
+	pet.CurrentHP = pet.Stats.HP
+	return restored
+}
+
+func restoreAbyssPetHealth(pet *content.Mob, baseHP, baseMaxHP int, health *abyssPetHealthState) {
+	if pet == nil {
+		return
+	}
+	hp := min(max(0, baseHP), max(1, baseMaxHP))
+	if health != nil && health.BaseHP == baseHP && health.BaseMaxHP == baseMaxHP {
+		hp = health.HP
+	}
+	pet.MaxHP = max(1, pet.MaxHP)
+	pet.Stats.HP = min(max(0, hp), pet.MaxHP)
+	pet.CurrentHP = pet.Stats.HP
+}

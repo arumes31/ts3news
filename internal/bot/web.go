@@ -866,7 +866,7 @@ func (b *Bot) ensureWebToken(uid string) (string, error) {
 		return "", err
 	}
 	newTok := hex.EncodeToString(raw)
-	if _, err := b.DB.Exec("UPDATE users SET web_token=$1 WHERE client_uid=$2", newTok, uid); err != nil {
+	if _, err := b.DB.Exec("/* economy:bot.Bot.ensureWebToken */ UPDATE users SET web_token=$1 WHERE client_uid=$2", newTok, uid); err != nil {
 		return "", err
 	}
 	return newTok, nil
@@ -970,7 +970,7 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	// when the client never deletes its cookie. The 90-day limit only worked as
 	// a browser hint before this; the token itself was valid forever.
 	expiry := time.Now().Add(sessionLifetime)
-	if _, err := s.bot.DB.Exec("UPDATE users SET web_token_expires=$1 WHERE web_token=$2", expiry, token); err != nil {
+	if _, err := s.bot.DB.Exec("/* economy:bot.WebServer.handleLogin */ UPDATE users SET web_token_expires=$1 WHERE web_token=$2", expiry, token); err != nil {
 		writeJSONStatus(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "session error"})
 		return
 	}
@@ -1018,7 +1018,7 @@ func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 	// token leaked before logout must not keep working after it.
 	if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {
 		_, _ = s.bot.DB.Exec(
-			"UPDATE users SET web_token=NULL, web_token_expires=NULL WHERE web_token=$1",
+			"/* economy:bot.WebServer.handleLogout */ UPDATE users SET web_token=NULL, web_token_expires=NULL WHERE web_token=$1",
 			c.Value,
 		)
 	}

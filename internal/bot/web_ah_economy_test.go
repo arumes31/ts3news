@@ -23,7 +23,7 @@ func TestAHMaterialOrderDistinguishesUnconfirmedCommit(t *testing.T) {
 			defer func() { _ = db.Close() }()
 			failure := errors.New("private database failure")
 			mock.ExpectBegin()
-			reserve := mock.ExpectExec(`UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1`).
+			reserve := mock.ExpectExec(`/* economy:bot.WebServer.handleAHMaterialOrder */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1`).
 				WithArgs(int64(500), "buyer")
 			if stage == "reserve" {
 				reserve.WillReturnError(failure)

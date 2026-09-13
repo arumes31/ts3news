@@ -201,7 +201,7 @@ func (s *WebServer) handleAHMaterialOrder(w http.ResponseWriter, r *http.Request
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	res, err := tx.Exec("UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1", total, uid)
+	res, err := tx.Exec("/* economy:bot.WebServer.handleAHMaterialOrder */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1", total, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -269,7 +269,7 @@ func (s *WebServer) handleAHMaterialFill(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "corrupt order escrow"})
 		return
 	}
-	if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", payout, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAHMaterialFill */ UPDATE users SET gold=gold+$1 WHERE client_uid=$2", payout, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -320,7 +320,7 @@ func (s *WebServer) handleAHMaterialCancel(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", escrow, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAHMaterialCancel */ UPDATE users SET gold=gold+$1 WHERE client_uid=$2", escrow, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

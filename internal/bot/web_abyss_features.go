@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"ts3news/internal/content"
+	dbstore "ts3news/internal/db"
 )
 
 // ---- Crafting materials (#101-#103, #155) ---------------------------------
@@ -80,7 +81,7 @@ func grantMaterialQ(q dbExecQuerier, uid, mat string, n int) error {
 	if n <= 0 {
 		return nil
 	}
-	_, err := q.Exec(`INSERT INTO user_materials (client_uid, mat_id, count) VALUES ($1,$2,$3)
+	_, err := q.Exec(`/* economy:bot.grantMaterialQ */ INSERT INTO user_materials (client_uid, mat_id, count) VALUES ($1,$2,$3)
 	                  ON CONFLICT (client_uid, mat_id) DO UPDATE SET count = user_materials.count + $3`, uid, mat, n)
 	if err != nil {
 		return err
@@ -125,7 +126,7 @@ func spendMaterials(tx *sql.Tx, uid string, cost map[string]int) bool {
 		if n <= 0 {
 			continue
 		}
-		res, err := tx.Exec("UPDATE user_materials SET count = count - $1 WHERE client_uid=$2 AND mat_id=$3 AND count >= $1", n, uid, mat)
+		res, err := tx.Exec("/* economy:bot.spendMaterials */ UPDATE user_materials SET count = count - $1 WHERE client_uid=$2 AND mat_id=$3 AND count >= $1", n, uid, mat)
 		if err != nil {
 			return false
 		}
@@ -254,7 +255,7 @@ func (s *WebServer) handleAbyssCraft(w http.ResponseWriter, r *http.Request, uid
 	}
 	// Weekly quest progress, reset when the ISO week rolls over.
 	week := craftQuestWeek()
-	if _, err := tx.Exec(`UPDATE users SET craft_quest_done = CASE WHEN craft_quest_week = $2 THEN craft_quest_done + 1 ELSE 1 END,
+	if _, err := tx.Exec(`/* economy:bot.WebServer.handleAbyssCraft */ UPDATE users SET craft_quest_done = CASE WHEN craft_quest_week = $2 THEN craft_quest_done + 1 ELSE 1 END,
 	                                       craft_quest_week = $2 WHERE client_uid=$1`, uid, week); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -276,7 +277,7 @@ func (s *WebServer) handleAbyssCraft(w http.ResponseWriter, r *http.Request, uid
 	// debited without the rewards landing.
 	grantCons := func(consID string) bool {
 		if _, err := tx.Exec(
-			`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
+			`/* economy:bot.WebServer.handleAbyssCraft */ INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
 			 VALUES ($1, $2, 1)
 			 ON CONFLICT (client_uid, cons_id)
 			 DO UPDATE SET remaining_fights = user_consumables.remaining_fights + EXCLUDED.remaining_fights`,
@@ -305,7 +306,7 @@ func (s *WebServer) handleAbyssCraft(w http.ResponseWriter, r *http.Request, uid
 	}
 	questDone := done == craftQuestTarget
 	if questDone {
-		if _, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens + 15 WHERE client_uid=$1", uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssCraft */ UPDATE users SET abyss_tokens = abyss_tokens + 15 WHERE client_uid=$1", uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -372,6 +373,10 @@ func (s *WebServer) handleAbyssExchange(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := dbstore.SetEconomyContext(r.Context(), tx, "exchange."+req.Dir, r.Header.Get("Idempotency-Key"), "", ""); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 
 	switch req.Dir {
 	case "buy":
@@ -379,7 +384,7 @@ func (s *WebServer) handleAbyssExchange(w http.ResponseWriter, r *http.Request, 
 		if !deductGold(w, tx, uid, cost) {
 			return
 		}
-		if _, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", req.Amount, uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssExchange */ UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", req.Amount, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -387,7 +392,7 @@ func (s *WebServer) handleAbyssExchange(w http.ResponseWriter, r *http.Request, 
 		if !deductTokens(w, tx, uid, req.Amount) {
 			return
 		}
-		if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", req.Amount*abyssTokenSellGold, uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssExchange */ UPDATE users SET gold = gold + $1 WHERE client_uid=$2", req.Amount*abyssTokenSellGold, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -487,7 +492,7 @@ func (b *Bot) forgeGoldCost(uid string, base int64, r content.Rarity) int64 {
 // and advances the account-wide forge-mastery discount (AB-117).
 func (b *Bot) recordForge(uid, action, detail, cost string) {
 	_, _ = b.DB.Exec("INSERT INTO forge_history (client_uid, action, detail, cost) VALUES ($1,$2,$3,$4)", uid, action, detail, cost)
-	_, _ = b.DB.Exec("UPDATE users SET forge_rep = forge_rep + 1 WHERE client_uid=$1", uid)
+	_, _ = b.DB.Exec("/* economy:bot.Bot.recordForge */ UPDATE users SET forge_rep = forge_rep + 1 WHERE client_uid=$1", uid)
 	discipline := abyssForgeDisciplineForAction(action)
 	_, _ = b.DB.Exec(`INSERT INTO abyss_forge_progression (client_uid, discipline, mastery_xp, first_craft_date)
 		VALUES ($1,$2,15,CURRENT_DATE)
@@ -563,7 +568,7 @@ func (b *Bot) storeForgeUndoSnapshot(tx *sql.Tx, uid, snapshot string) error {
 			}
 		}
 	}
-	_, err := tx.Exec(`UPDATE users SET forge_undo=$2 WHERE client_uid=$1`, uid, snapshot)
+	_, err := tx.Exec(`/* economy:bot.Bot.storeForgeUndoSnapshot */ UPDATE users SET forge_undo=$2 WHERE client_uid=$1`, uid, snapshot)
 	return err
 }
 
@@ -668,7 +673,7 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 			return
 		}
 	}
-	if _, err := tx.Exec("UPDATE users SET forge_undo=NULLIF($2, ''), forge_undo_date=CURRENT_DATE WHERE client_uid=$1", uid, nextSnapshot); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssForgeUndo */ UPDATE users SET forge_undo=NULLIF($2, ''), forge_undo_date=CURRENT_DATE WHERE client_uid=$1", uid, nextSnapshot); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -836,12 +841,12 @@ func (s *WebServer) handleAbyssTemper(w http.ResponseWriter, r *http.Request, ui
 		if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
 			return
 		}
-		if _, err := tx.Exec("UPDATE users SET temper_fail_stacks = 0 WHERE client_uid=$1", uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssTemper */ UPDATE users SET temper_fail_stacks = 0 WHERE client_uid=$1", uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
 	} else {
-		if _, err := tx.Exec("UPDATE users SET temper_fail_stacks = temper_fail_stacks + 1 WHERE client_uid=$1", uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssTemper */ UPDATE users SET temper_fail_stacks = temper_fail_stacks + 1 WHERE client_uid=$1", uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -1641,7 +1646,7 @@ func (s *WebServer) handleAbyssAutoRepair(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
-	if _, err := s.bot.DB.ExecContext(r.Context(), "UPDATE users SET abyss_auto_repair=$1 WHERE client_uid=$2", req.On, uid); err != nil {
+	if _, err := s.bot.DB.ExecContext(r.Context(), "/* economy:bot.WebServer.handleAbyssAutoRepair */ UPDATE users SET abyss_auto_repair=$1 WHERE client_uid=$2", req.On, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -1810,7 +1815,7 @@ func (s *WebServer) handleAbyssLastStand(w http.ResponseWriter, r *http.Request,
 			return
 		}
 	}
-	if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", reviveHP, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssLastStand */ UPDATE users SET current_hp=$1 WHERE client_uid=$2", reviveHP, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -1956,7 +1961,7 @@ func (s *WebServer) handleAbyssSetSpec(w http.ResponseWriter, r *http.Request, u
 			return
 		}
 	}
-	if _, err := tx.Exec("UPDATE users SET abyss_spec=$1 WHERE client_uid=$2", req.Spec, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssSetSpec */ UPDATE users SET abyss_spec=$1 WHERE client_uid=$2", req.Spec, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -2041,7 +2046,7 @@ func (s *WebServer) handleAbyssSanctuaryBuy(w http.ResponseWriter, r *http.Reque
 	}
 	sanct[up.Key]++
 	buf, _ := json.Marshal(sanct)
-	if _, err := tx.Exec("UPDATE users SET abyss_sanctuary=$1::jsonb WHERE client_uid=$2", string(buf), uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssSanctuaryBuy */ UPDATE users SET abyss_sanctuary=$1::jsonb WHERE client_uid=$2", string(buf), uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

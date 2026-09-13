@@ -22,8 +22,8 @@ func TestSplitAbyssJackpotBoundsCreditAndRollsBackFailure(t *testing.T) {
 			defer func() { _ = database.Close() }()
 			split := int64(math.MaxInt64 / 10)
 			mock.ExpectBegin()
-			mock.ExpectExec("UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1").WithArgs(split, "winner").WillReturnResult(sqlmock.NewResult(0, 1))
-			credit := mock.ExpectExec("UPDATE users SET gold=LEAST(9223372036854775807::numeric, gold::numeric+$1)::bigint WHERE client_uid=$2").WithArgs(split, "helper")
+			mock.ExpectExec("/* economy:bot.Bot.splitAbyssJackpot */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1").WithArgs(split, "winner").WillReturnResult(sqlmock.NewResult(0, 1))
+			credit := mock.ExpectExec("/* economy:bot.Bot.splitAbyssJackpot */ UPDATE users SET gold=LEAST(9223372036854775807::numeric, gold::numeric+$1)::bigint WHERE client_uid=$2").WithArgs(split, "helper")
 			want := split
 			if fail {
 				credit.WillReturnError(errors.New("credit failed"))

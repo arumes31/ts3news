@@ -357,6 +357,11 @@ func (s *WebServer) handleAbyssImbue(w http.ResponseWriter, r *http.Request, uid
 			return
 		}
 	}
+	g.BonusEffects = g.AddedEffects()
+	if len(g.BonusEffects) >= content.BonusEffectBudget(g.Rarity) {
+		writeJSON(w, map[string]any{"ok": false, "error": "this item has filled its rarity bonus-affix budget"})
+		return
+	}
 	if !spendMaterials(tx, uid, map[string]int{"prism": 2}) {
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough Eldritch Prisms (need 2)"})
 		return

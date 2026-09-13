@@ -18,6 +18,7 @@ func abyssMindControlCapture(target *content.Mob) {
 		return
 	}
 	target.Loyalty = abyssCapturedPetLoyalty(target.Stats.HP, target.MaxHP)
+	target.MaxHP = max(1, target.MaxHP)
 	target.Stats.HP = 1
 	target.CurrentHP = 1
 }

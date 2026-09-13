@@ -23,15 +23,15 @@ for (const card of wagerCards) {
 }
 function updateWagerPreviews() {
   const wager = bet();
-  const valid = Number.isSafeInteger(wager) && wager >= 1 && wager <= 100000000;
+  const valid = Number.isSafeInteger(wager) && wager >= 100 && wager % 100 === 0 && wager <= 100000000;
   const risk = document.querySelector('input[name="expeditionRisk"]:checked').value;
-  const multipliers = { slots: 88, dice: 2.4, coinflip: 1.95, wheel: Math.max(...WHEEL), highlow: 2, vault: 2.85, expedition: { scout: 1.2, delve: 2, abyss: 4 }[risk] };
+  const multipliers = { slots: 88, dice: 2.4, coinflip: 1.93, wheel: Math.max(...WHEEL), highlow: 2.08, vault: 2.85, expedition: { scout: 1.2, delve: 2, abyss: 4 }[risk] };
   for (const card of wagerCards) {
     const game = card.dataset.game;
-    const returned = game === 'coinflip' ? Math.floor(wager * 195 / 100) : game === 'vault' ? Math.floor(wager * 285 / 100) : Math.floor(wager * multipliers[game]);
+    const returned = game === 'coinflip' ? Math.floor(wager * 193 / 100) : game === 'vault' ? Math.floor(wager * 285 / 100) : Math.floor(wager * multipliers[game]);
     card.querySelector('.game-wager').textContent = valid
       ? 'Wager ' + money(wager) + ' gold · ' + (game === 'slots' ? 'Top match returns ' : game === 'wheel' ? 'Up to ' : 'Win returns ') + money(returned) + ' gold' + (game === 'slots' ? ' + jackpot' : '')
-      : 'Enter a whole-gold wager between 1 and 100,000,000.';
+      : 'Enter a whole-gold wager in multiples of 100, up to 100,000,000.';
   }
 }
 document.getElementById('bet').addEventListener('input', updateWagerPreviews);
@@ -45,7 +45,7 @@ document.getElementById('autoBet').addEventListener('change', event => {
 });
 window.addEventListener('pagehide', stopAuto);
 document.addEventListener('visibilitychange', () => { if (document.hidden) stopAuto(); });
-function setBet(value) { document.getElementById('bet').value = Math.max(1, Math.min(100000000, Math.floor(value))); updateWagerPreviews(); }
+function setBet(value) { document.getElementById('bet').value = Math.max(100, Math.min(100000000, Math.floor(value / 100) * 100)); updateWagerPreviews(); }
 function mulBet(multiplier) { setBet(Number(document.getElementById('bet').value) * multiplier); }
 function bet() { return Number(document.getElementById('bet').value); }
 function message(text, tone = '') {
@@ -75,9 +75,21 @@ async function arcadeRequest(path, body) {
     return await response.json();
   } finally { clearTimeout(timeout); }
 }
-function requestRound(game, choice, wager) {
-  return arcadeRequest('/api/arcade/play', { game, bet: wager, choice: choice || '' });
+const pendingRoundKey = 'arcadePending:' + window.ARCADE_ACCOUNT;
+async function resolvePendingRound(body) {
+  let result;
+  try { result = await arcadeRequest('/api/arcade/play', body); }
+  catch { result = await arcadeRequest('/api/arcade/play', body); }
+  if (result.ok || /earlier economy|not enough gold|invalid bet|invalid game/.test(result.error || '')) localStorage.removeItem(pendingRoundKey);
+  return result;
 }
+async function requestRound(game, choice, wager) {
+  if (localStorage.getItem(pendingRoundKey)) throw new Error('An earlier wager is unconfirmed. Reload to recover it.');
+  const body = { game, bet: wager, choice: choice || '', request_id: crypto.randomUUID() };
+  localStorage.setItem(pendingRoundKey, JSON.stringify(body));
+  return resolvePendingRound(body);
+}
+
 function showResult(card, result) {
   const push = result.net === 0;
   const state = push ? 'push' : result.win ? 'win' : 'loss';
@@ -134,7 +146,7 @@ async function playRound(game, choice, animate) {
   const wager = bet();
   if (!Number.isSafeInteger(wager) || wager < 1 || wager > 100000000) {
     stopAuto();
-    message('Enter a whole-gold wager between 1 and 100,000,000.', 'bad');
+    message('Enter a whole-gold wager in multiples of 100, up to 100,000,000.', 'bad');
     document.getElementById('bet').focus();
     return;
   }
@@ -170,7 +182,7 @@ async function playRound(game, choice, animate) {
       if (game === 'wheel') card.querySelector('.game-hint').textContent = 'No new wheel result. Check the round message below.';
     }
     card.removeAttribute('aria-busy');
-    lockWagers(false);
+    lockWagers(!!localStorage.getItem(pendingRoundKey));
   }
   if (result?.ok && document.getElementById('autoBet').checked && !document.hidden &&
       ['slots', 'dice', 'wheel'].includes(game) && result.gold >= bet()) {
@@ -192,7 +204,7 @@ async function playDaily() {
     } else message(result.error || 'Daily tribute is unavailable.', 'bad');
   } catch (_) {
     message('Could not confirm the daily spin. Refresh to check your balance.', 'bad');
-  } finally { lockWagers(false); }
+  } finally { lockWagers(!!localStorage.getItem(pendingRoundKey)); }
 }
 function relicFor(symbol) { return SLOT_RELICS.find(relic => relic.symbol === symbol); }
 function symbolNode(relic) {
@@ -383,3 +395,18 @@ function playExpedition() {
   });
 }
 updateWagerPreviews();
+
+(async function recoverRound() {
+  const saved = localStorage.getItem(pendingRoundKey);
+  if (!saved) return;
+  stopAuto(); lockWagers(true);
+  try {
+    const body = JSON.parse(saved);
+    const result = await resolvePendingRound(body);
+    if (result.ok) {
+      const card = wagerCards.find(card => card.dataset.game === result.game);
+      if (card) showResult(card, result);
+    } else message(result.error || 'Previous wager is still unconfirmed.', 'bad');
+  } catch { message('Previous wager is unconfirmed. Reload to recover it before playing again.', 'bad'); }
+  finally { lockWagers(!!localStorage.getItem(pendingRoundKey)); }
+})();

@@ -93,7 +93,7 @@ func TestShopExchangeRejectsChangedWalletBeforeSpending(t *testing.T) {
 	mock.ExpectRollback()
 	server := &WebServer{bot: &Bot{DB: database}}
 	response := httptest.NewRecorder()
-	server.handleExchangeAPI(response, httptest.NewRequest(http.MethodPost, "/api/shop/exchange", strings.NewReader(`{"direction":"xp_to_gold","amount":100,"expected":{"gold":1000,"xp":500},"confirm_level_loss":true}`)), "delver")
+	server.handleExchangeAPI(response, httptest.NewRequest(http.MethodPost, "/api/shop/exchange", strings.NewReader(`{"direction":"gold_to_xp","amount":100,"expected":{"gold":1000,"xp":500},"confirm_level_loss":true}`)), "delver")
 	if !strings.Contains(response.Body.String(), `"review_required":true`) {
 		t.Fatalf("stale preview accepted: %s", response.Body.String())
 	}
@@ -115,23 +115,14 @@ func TestShopComparisonIncludesLostStatsAndSpecials(t *testing.T) {
 	}
 }
 
-func TestShopExchangeRequiresReviewOfLevelLoss(t *testing.T) {
-	database, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = database.Close() }()
-	mock.ExpectBegin()
-	mock.ExpectQuery("SELECT gold, xp FROM users").WithArgs("delver").WillReturnRows(sqlmock.NewRows([]string{"gold", "xp"}).AddRow(1000, 500))
-	mock.ExpectRollback()
-	server := &WebServer{bot: &Bot{DB: database}}
-	response := httptest.NewRecorder()
-	server.handleExchangeAPI(response, httptest.NewRequest(http.MethodPost, "/api/shop/exchange", strings.NewReader(`{"direction":"xp_to_gold","amount":500,"expected":{"gold":1000,"xp":500}}`)), "delver")
-	if !strings.Contains(response.Body.String(), `"review_required":true`) {
-		t.Fatalf("level loss accepted without review: %s", response.Body.String())
-	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatal(err)
+func TestShopExchangeRejectsLegacyXPReserve(t *testing.T) {
+	server := &WebServer{}
+	for _, body := range []string{`{"direction":"xp_to_gold","amount":500}`, `{"direction":"xp_to_gold","amount":500,"preview":true}`, `{"direction":"xp_to_gold","amount":500,"confirm_level_loss":true}`} {
+		response := httptest.NewRecorder()
+		server.handleExchangeAPI(response, httptest.NewRequest(http.MethodPost, "/api/shop/exchange", strings.NewReader(body)), "delver")
+		if !strings.Contains(response.Body.String(), "can no longer be redeemed") {
+			t.Fatalf("legacy XP reserve conversion accepted: %s", response.Body.String())
+		}
 	}
 }
 
@@ -142,12 +133,14 @@ func TestShopExchangeCommitFailureIsUnconfirmed(t *testing.T) {
 	}
 	defer func() { _ = database.Close() }()
 	mock.ExpectBegin()
-	mock.ExpectQuery("SELECT gold, xp FROM users").WithArgs("delver").WillReturnRows(sqlmock.NewRows([]string{"gold", "xp"}).AddRow(1000, 500))
-	mock.ExpectExec("UPDATE users SET gold=").WithArgs(int64(1250), 0, 1, "delver").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("SELECT gold, xp FROM users").WithArgs("delver").WillReturnRows(sqlmock.NewRows([]string{"gold", "xp"}).AddRow(20000, 500))
+	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("shop_xp_purchases_delver").WillReturnError(sql.ErrNoRows)
+	mock.ExpectExec("INSERT INTO app_meta").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("UPDATE users SET gold=").WithArgs(int64(10000), 501, sqlmock.AnyArg(), "delver").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit().WillReturnError(errors.New("connection lost at commit"))
 	server := &WebServer{bot: &Bot{DB: database}}
 	response := httptest.NewRecorder()
-	server.handleExchangeAPI(response, httptest.NewRequest(http.MethodPost, "/api/shop/exchange", strings.NewReader(`{"direction":"xp_to_gold","amount":500,"expected":{"gold":1000,"xp":500},"confirm_level_loss":true}`)), "delver")
+	server.handleExchangeAPI(response, httptest.NewRequest(http.MethodPost, "/api/shop/exchange", strings.NewReader(`{"direction":"gold_to_xp","amount":10000,"expected":{"gold":20000,"xp":500}}`)), "delver")
 	if !strings.Contains(response.Body.String(), `"unconfirmed":true`) {
 		t.Fatalf("ambiguous commit treated as retryable: %s", response.Body.String())
 	}

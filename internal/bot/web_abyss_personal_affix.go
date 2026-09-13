@@ -133,7 +133,7 @@ func (s *WebServer) handleAbyssPersonalAffixReroll(w http.ResponseWriter, r *htt
 		return
 	}
 	res, err = tx.Exec(
-		"UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens >= $1",
+		"/* economy:bot.WebServer.handleAbyssPersonalAffixReroll */ UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens >= $1",
 		abyssPersonalAffixRerollCost, uid,
 	)
 	if err != nil {

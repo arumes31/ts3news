@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 )
@@ -22,11 +23,11 @@ func TestAbyssPetFeedConsumesOwnedConsumableAtomically(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow(uid))
 	mock.ExpectQuery("SELECT name,level,hp,max_hp,loyalty,autoskills::text FROM user_pets").
 		WithArgs(int64(4), uid).WillReturnRows(sqlmock.NewRows([]string{"name", "level", "hp", "max_hp", "loyalty", "autoskills"}).
-		AddRow("Moss", 2, 20, 50, 80, `{}`))
+		AddRow("Moss", 2, 20, 50, 80, `{"combat_health":{"hp":20,"base_hp":20,"base_max_hp":50}}`))
 	mock.ExpectQuery("SELECT remaining_fights FROM user_consumables").WithArgs(uid, "small_health_potion").
 		WillReturnRows(sqlmock.NewRows([]string{"remaining_fights"}).AddRow(1))
 	mock.ExpectExec("DELETE FROM user_consumables").WithArgs(uid, "small_health_potion").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec("UPDATE user_pets SET level=").WithArgs(2, 50, 90, sqlmock.AnyArg(), int64(4), uid).
+	mock.ExpectExec("UPDATE user_pets SET level=").WithArgs(2, 50, 90, petProfileWithoutCombatHealth{}, int64(4), uid).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	mock.ExpectQuery("SELECT cons_id, remaining_fights FROM user_consumables").WithArgs(uid).
@@ -121,6 +122,58 @@ func TestAbyssPetGiftClaimRejectsFullStableBeforeTransfer(t *testing.T) {
 	server.handleAbyssPetGiftClaim(response, request, uid)
 	if body := response.Body.String(); !strings.Contains(body, "make room") {
 		t.Fatalf("gift claim response = %s", body)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAbyssPetFusionClearsCombatHealthAndHealsToNewMaximum(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	const uid = "fusion"
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT pet_id,name,mob_type").WithArgs(uid, int64(1), int64(2)).WillReturnRows(sqlmock.NewRows([]string{"pet_id", "name", "mob_type", "level", "hp", "max_hp", "str", "def", "spd", "loyalty", "active_slot", "autoskills"}).AddRow(1, "Keep", "Elite", 5, 20, 50, 20, 20, 20, 80, 0, `{"combat_health":{"hp":20,"base_hp":20,"base_max_hp":50}}`).AddRow(2, "Donor", "Elite", 5, 50, 50, 20, 20, 20, 80, 0, `{}`))
+	mock.ExpectExec("DELETE FROM user_pets").WithArgs(int64(2), uid).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("UPDATE user_pets SET hp=").WithArgs(55, 22, 22, 22, petProfileWithoutCombatHealth{}, int64(1), uid).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	server := &WebServer{bot: &Bot{DB: database}}
+	request := httptest.NewRequest(http.MethodPost, "/api/abyss/social/pet/fusion", strings.NewReader(`{"keep_pet_id":1,"donor_pet_id":2}`))
+	response := httptest.NewRecorder()
+	server.handleAbyssPetFusion(response, request, uid)
+	if !strings.Contains(response.Body.String(), `"ok":true`) {
+		t.Fatalf("fusion=%s", response.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAbyssPetDaycareHealingClearsOldCombatHealth(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	const uid = "daycare"
+	profile := abyssPetProfile{DaycareSince: timeNowUTC().Add(-2 * time.Hour).Format(time.RFC3339), CombatHealth: &abyssPetHealthState{HP: 20, BaseHP: 20, BaseMaxHP: 60}}
+	encoded, err := encodeAbyssPetProfile(profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT name,level,hp,max_hp,active_slot,autoskills::text").WithArgs(int64(8), uid).WillReturnRows(sqlmock.NewRows([]string{"name", "level", "hp", "max_hp", "active_slot", "autoskills"}).AddRow("Pebble", 3, 20, 60, 0, encoded))
+	mock.ExpectExec("UPDATE user_pets SET level=").WithArgs(3, 60, 60, petProfileWithoutCombatHealth{}, int64(8), uid).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	server := &WebServer{bot: &Bot{DB: database}}
+	request := httptest.NewRequest(http.MethodPost, "/api/abyss/social/pet/activity", strings.NewReader(`{"pet_id":8,"action":"daycare_claim"}`))
+	response := httptest.NewRecorder()
+	server.handleAbyssPetActivity(response, request, uid)
+	if !strings.Contains(response.Body.String(), `"ok":true`) {
+		t.Fatalf("daycare=%s", response.Body.String())
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

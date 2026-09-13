@@ -65,14 +65,14 @@ func TestPersistAbyssPetCaptureRecruitsBelowAuthoritativeLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = database.Close() }()
-	pet := &content.Mob{Name: "Mossling", Type: content.MobElite, Level: 8, Stats: content.Stats{HP: 1, STR: 12, DEF: 9, SPD: 11}, MaxHP: 80, Loyalty: 25}
+	pet := &content.Mob{Name: "Mossling", Type: content.MobElite, Level: 8, Stats: content.Stats{HP: 800, STR: 12, DEF: 9, SPD: 11}, MaxHP: 80, Loyalty: 25}
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT client_uid FROM users").WithArgs("keeper").
 		WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("keeper"))
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM user_pets WHERE client_uid=$1")).WithArgs("keeper").
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 	mock.ExpectExec("INSERT INTO user_pets").
-		WithArgs("keeper", "Mossling", string(content.MobElite), 8, 1, 80, 12, 9, 11, 25, sqlmock.AnyArg()).
+		WithArgs("keeper", "Mossling", string(content.MobElite), 8, 80, 80, 12, 9, 11, 25, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(8, 1))
 	mock.ExpectCommit()
 	result, err := (&Bot{DB: database}).persistAbyssPetCapture("keeper", pet, abyssPetCaptureCap)

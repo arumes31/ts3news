@@ -15,11 +15,14 @@ import (
 	"time"
 
 	"ts3news/internal/content"
+	dbstore "ts3news/internal/db"
 )
 
 type abyssForgeResponseWriter struct {
 	*abyssTreeBufferedResponse
-	ctx context.Context
+	ctx       context.Context
+	operation string
+	requestID string
 }
 
 func (w *abyssForgeResponseWriter) forgeContext() context.Context { return w.ctx }
@@ -32,7 +35,18 @@ func forgeContextFromWriter(w http.ResponseWriter) context.Context {
 }
 
 func (s *WebServer) beginForgeRequestTx(w http.ResponseWriter) (*sql.Tx, error) {
-	return s.bot.DB.BeginTx(forgeContextFromWriter(w), nil)
+	ctx := forgeContextFromWriter(w)
+	tx, err := s.bot.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	if response, ok := w.(*abyssForgeResponseWriter); ok && response.operation != "" {
+		if err := dbstore.SetEconomyContext(ctx, tx, "forge."+response.operation, response.requestID, "", ""); err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
+	}
+	return tx, nil
 }
 
 type abyssForgeOpsMetrics struct {
@@ -272,7 +286,7 @@ func (s *WebServer) forgeMutation(operation string, next abyssTreeHandler) abyss
 
 		before := s.forgeAuditSnapshot(r, uid, operation, payload)
 		buffer := newAbyssTreeBufferedResponse()
-		response := &abyssForgeResponseWriter{abyssTreeBufferedResponse: buffer, ctx: r.Context()}
+		response := &abyssForgeResponseWriter{abyssTreeBufferedResponse: buffer, ctx: r.Context(), operation: operation, requestID: key}
 		r.Body = io.NopCloser(bytes.NewReader(forgeHandlerPayload(payload)))
 		next(response, r, uid)
 		success := buffer.successfulJSON()

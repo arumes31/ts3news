@@ -376,7 +376,7 @@ func (b *Bot) applyAbyssRegen(uid string, equipped map[content.GearSlot]content.
 	// the dead or overshooting max HP.
 	var newHP int
 	err = tx.QueryRow(
-		`UPDATE users SET current_hp = LEAST($1, current_hp + $2)
+		`/* economy:bot.Bot.applyAbyssRegen */ UPDATE users SET current_hp = LEAST($1, current_hp + $2)
 			WHERE client_uid = $3 AND current_hp > 0 AND current_hp < $1
 			RETURNING current_hp`, maxHP, heal, uid).Scan(&newHP)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -464,7 +464,7 @@ func (b *Bot) grantConsumable(uid, consID string, fights int) {
 		fights = 1
 	}
 	_, _ = b.DB.Exec(
-		`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
+		`/* economy:bot.Bot.grantConsumable */ INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
 		 VALUES ($1, $2, $3)
 		 ON CONFLICT (client_uid, cons_id)
 		 DO UPDATE SET remaining_fights = user_consumables.remaining_fights + EXCLUDED.remaining_fights`,
@@ -481,7 +481,7 @@ func (b *Bot) autoCombineConsumable(uid, consID string) {
 		return
 	}
 	res, err := b.DB.Exec(
-		"UPDATE user_consumables SET remaining_fights = remaining_fights - $1 WHERE client_uid=$2 AND cons_id=$3 AND remaining_fights >= $1",
+		"/* economy:bot.Bot.autoCombineConsumable */ UPDATE user_consumables SET remaining_fights = remaining_fights - $1 WHERE client_uid=$2 AND cons_id=$3 AND remaining_fights >= $1",
 		recipe.Need, uid, consID)
 	if err != nil {
 		return
@@ -489,9 +489,9 @@ func (b *Bot) autoCombineConsumable(uid, consID string) {
 	if n, _ := res.RowsAffected(); n == 0 {
 		return
 	}
-	_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights<=0", uid, consID)
+	_, _ = b.DB.Exec("/* economy:bot.Bot.autoCombineConsumable */ DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights<=0", uid, consID)
 	_, _ = b.DB.Exec(
-		`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
+		`/* economy:bot.Bot.autoCombineConsumable */ INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
 		 VALUES ($1, $2, 1)
 		 ON CONFLICT (client_uid, cons_id)
 		 DO UPDATE SET remaining_fights = user_consumables.remaining_fights + 1`,
@@ -1367,7 +1367,7 @@ func (b *Bot) fightAbyssFloorMode(
 		lr, xpErr := b.awardXP(uid, "", rewardXP)
 		if xpErr == nil && convertedXP > 0 {
 			convertedGold := int64(convertedXP)
-			if _, err := b.DB.Exec("UPDATE users SET gold = gold + $2 WHERE client_uid = $1", uid, convertedGold); err == nil {
+			if _, err := b.DB.Exec("/* economy:bot.Bot.fightAbyssFloorMode */ UPDATE users SET gold = gold + $2 WHERE client_uid = $1", uid, convertedGold); err == nil {
 				logs = append(logs, fmt.Sprintf("✨ Alchemy of the Soul: converted %d XP into 🜲 %d Gold!", convertedXP, convertedGold))
 			}
 		}
@@ -1434,7 +1434,7 @@ func (b *Bot) fightAbyssFloorMode(
 	for _, d := range duraWarnings {
 		res.DuraHTML = append(res.DuraHTML, bbToHTML(d)) // [11-review] surface gear damage
 	}
-	b.recordAbyssRunFloor(uid, res)
+	b.recordAbyssRunFloor(uid, res, mode.live.measurement())
 	return abyssFightExecution{floor: res}, nil
 }
 
@@ -1858,6 +1858,7 @@ func (s *WebServer) handleAbyssPage(w http.ResponseWriter, r *http.Request, uid 
 		"AutoRepair":            autoRepair,
 		"AutoInsure":            s.bot.abyssAutoInsureEnabled(uid),
 		"RepairAllCost":         s.bot.abyssRepairAllCost(uid),
+		"TalentCredit":          s.bot.abyssTalentCredit(uid),
 		"TokenBuyGold":          int64(abyssTokenBuyGold),
 		"TokenSellGold":         int64(abyssTokenSellGold),
 		"PrestigeTier": func() map[string]string {
@@ -2144,7 +2145,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 
 	// Consume the comeback buff on entry so it is single-use
 	if comeback {
-		if _, err := tx.Exec("UPDATE users SET abyss_deaths_today = abyss_deaths_today - 3 WHERE client_uid = $1", uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssEnter */ UPDATE users SET abyss_deaths_today = abyss_deaths_today - 3 WHERE client_uid = $1", uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -2161,7 +2162,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		entryGold = 0
 	}
 	if charge := entryGold + route.GoldCost; charge > 0 {
-		res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", charge, uid)
+		res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssEnter */ UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", charge, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
@@ -2173,7 +2174,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	tokenCharge := route.TokenCost + int64(req.TokenAnte)
 	if tokenCharge > 0 {
-		res, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1", tokenCharge, uid)
+		res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssEnter */ UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1", tokenCharge, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
@@ -2186,7 +2187,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	if req.SuppressAffix {
 		var remaining int
 		err := tx.QueryRow(
-			`UPDATE user_consumables SET remaining_fights=remaining_fights-1
+			`/* economy:bot.WebServer.handleAbyssEnter */ UPDATE user_consumables SET remaining_fights=remaining_fights-1
 			 WHERE client_uid=$1 AND cons_id='abyss_affix_suppressor' AND remaining_fights > 0
 			 RETURNING remaining_fights`, uid,
 		).Scan(&remaining)
@@ -2199,7 +2200,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 			return
 		}
 		if remaining == 0 {
-			if _, err := tx.Exec("DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id='abyss_affix_suppressor'", uid); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssEnter */ DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id='abyss_affix_suppressor'", uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -2219,7 +2220,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 				charge := abyssRepairSubscriptionCharge(cost, covered)
 				canRepair := covered
 				if !covered {
-					res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", charge, uid)
+					res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssEnter */ UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", charge, uid)
 					if err != nil {
 						writeJSON(w, map[string]any{"ok": false, "error": "db"})
 						return
@@ -2233,7 +2234,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 						writeJSON(w, map[string]any{"ok": false, "error": "db"})
 						return
 					}
-					if _, err := tx.Exec("UPDATE users SET artifact_durability = 30 WHERE client_uid = $1 AND artifact_name IS NOT NULL", uid); err != nil {
+					if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssEnter */ UPDATE users SET artifact_durability = 30 WHERE client_uid = $1 AND artifact_name IS NOT NULL", uid); err != nil {
 						writeJSON(w, map[string]any{"ok": false, "error": "db"})
 						return
 					}
@@ -2254,7 +2255,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	applyAbyssRunBuild(&startUser, startBuildFlags, nil)
 	stats := startUser.Stats
 	startHP := stats.HP + int(float64(stats.HP)*content.TalentEffectiveLevel(st.UpVigor)*0.05)
-	if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", startHP, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssEnter */ UPDATE users SET current_hp=$1 WHERE client_uid=$2", startHP, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -2392,7 +2393,7 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 	}
 	// A fresh run always starts with no win streak, so a value left over from a prior
 	// run can't seed abyssStreakBuff into this run (or regular cycle combat).
-	if _, err := tx.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssEnter */ UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -2818,7 +2819,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 				s.bot.abyssScheduleNextEvent(uid, newDepth) // re-anchor the 2-6 floor cadence
 			}
 			if actualType == "rest" {
-				_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
+				_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.descendFloors */ UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
 			}
 			if mapped {
 				view := s.bot.advanceAbyssCartographerRoute(uid, newDepth)
@@ -2913,7 +2914,7 @@ func (s *WebServer) descendFloors(w http.ResponseWriter, uid string, paths []str
 		bossContractPayout += res.BossContractPayout
 		bossTokenAwarded = bossTokenAwarded || res.BossToken
 
-		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_lifetime_floors = abyss_lifetime_floors + 1 WHERE client_uid=$1", uid)
+		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.descendFloors */ UPDATE users SET abyss_lifetime_floors = abyss_lifetime_floors + 1 WHERE client_uid=$1", uid)
 
 		if res.Victory {
 			o := s.applyFloorVictory(abyssFloorVictoryInput{
@@ -3379,7 +3380,7 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 		}
 		s.bot.recordAbyssRunChoice(uid, newDepth, "resolved_floor", floorType)
 		if floorType == "rest" {
-			_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
+			_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.commitFloor */ UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
 		}
 		mapRoute := s.bot.advanceAbyssCartographerRoute(uid, newDepth)
 		writeJSON(w, map[string]any{
@@ -3616,8 +3617,8 @@ func (s *WebServer) applyFloorVictory(input abyssFloorVictoryInput) abyssFloorOu
 	}
 	s.bot.advanceAbyssProgression(uid, depth, currentHP, maxHP, modifier, weeklyRun)
 	s.bot.tickAbyssRoomEffects(uid)
-	_, _ = s.bot.DB.Exec("UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1) WHERE client_uid=$2", depth, uid)
-	_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = abyss_win_streak + 1 WHERE client_uid=$1", uid)
+	_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.applyFloorVictory */ UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1) WHERE client_uid=$2", depth, uid)
+	_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.applyFloorVictory */ UPDATE users SET abyss_win_streak = abyss_win_streak + 1 WHERE client_uid=$1", uid)
 	s.bot.settleAbyssSocialFloor(uid, depth)
 
 	// Evolving Artifacts: gains level/XP on clearing floor
@@ -3718,7 +3719,7 @@ func (s *WebServer) applyFloorDefeat(uid string, run abyssRun) (canRevive bool) 
 	s.bot.setAbyssReviveStreak(uid, streak)
 	if abyssHardcoreRun(flags) {
 		_, _ = s.bot.DB.Exec("UPDATE abyss_active SET revive_locked=TRUE WHERE client_uid=$1", uid)
-		_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
+		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.applyFloorDefeat */ UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
 		return false
 	}
 	st := s.bot.loadAbyssStats(uid)
@@ -3733,7 +3734,7 @@ func (s *WebServer) applyFloorDefeat(uid string, run abyssRun) (canRevive bool) 
 	} else if run.ReviveLocked {
 		canRevive = false
 	}
-	_, _ = s.bot.DB.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
+	_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.applyFloorDefeat */ UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
 	return canRevive
 }
 
@@ -3743,7 +3744,7 @@ func (s *WebServer) finishDescend(w http.ResponseWriter, uid string, run abyssRu
 }
 
 func (s *WebServer) finishDescendData(uid string, run abyssRun, depth int, escrowBefore int64, tier abyssTier, res abyssFloorResult, modifier string, focus string) map[string]any {
-	_, _ = s.bot.DB.Exec("UPDATE users SET abyss_lifetime_floors = abyss_lifetime_floors + 1 WHERE client_uid=$1", uid)
+	_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.finishDescendData */ UPDATE users SET abyss_lifetime_floors = abyss_lifetime_floors + 1 WHERE client_uid=$1", uid)
 
 	out := map[string]any{
 		"ok": true, "victory": res.Victory, "depth": depth,
@@ -3944,7 +3945,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", stats.HP, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssRevive */ UPDATE users SET current_hp=$1 WHERE client_uid=$2", stats.HP, uid); err != nil {
 		_ = tx.Rollback()
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -3965,7 +3966,7 @@ func (s *WebServer) handleAbyssRevive(w http.ResponseWriter, r *http.Request, ui
 	if err != nil {
 		// Roll back the heal and the revived flag so a failed combat call doesn't
 		// leave the player healed-but-unresolved or burn their one-shot revival.
-		_, _ = s.bot.DB.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", run.CurHP, uid)
+		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssRevive */ UPDATE users SET current_hp=$1 WHERE client_uid=$2", run.CurHP, uid)
 		_, _ = s.bot.DB.Exec("UPDATE abyss_active SET revived=FALSE WHERE client_uid=$1", uid)
 		writeJSON(w, map[string]any{"ok": false, "error": "combat"})
 		return
@@ -4365,7 +4366,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	if len(partyMembers) > 0 && payout > 0 {
 		partyShare = payout / int64(len(partyMembers)+1)
 		for _, memberUID := range partyMembers {
-			if _, err := tx.Exec("UPDATE users SET gold=LEAST(9223372036854775807::numeric,gold::numeric+$1)::bigint,abyss_lifetime_banked=LEAST(9223372036854775807::numeric,abyss_lifetime_banked::numeric+$1)::bigint WHERE client_uid=$2", partyShare, memberUID); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssBank */ UPDATE users SET gold=LEAST(9223372036854775807::numeric,gold::numeric+$1)::bigint,abyss_lifetime_banked=LEAST(9223372036854775807::numeric,abyss_lifetime_banked::numeric+$1)::bigint WHERE client_uid=$2", partyShare, memberUID); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -4395,13 +4396,13 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			return
 		}
 		if checkpointRefund > 0 {
-			if _, err := tx.Exec("UPDATE users SET abyss_tokens=LEAST(9223372036854775807::numeric,abyss_tokens::numeric+$1)::bigint WHERE client_uid=$2", checkpointRefund, uid); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssBank */ UPDATE users SET abyss_tokens=LEAST(9223372036854775807::numeric,abyss_tokens::numeric+$1)::bigint WHERE client_uid=$2", checkpointRefund, uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
 		}
 		if tokensGrant > 0 {
-			if _, err := tx.Exec("UPDATE users SET abyss_tokens=LEAST(9223372036854775807::numeric,abyss_tokens::numeric+$1)::bigint WHERE client_uid=$2", tokensGrant, uid); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssBank */ UPDATE users SET abyss_tokens=LEAST(9223372036854775807::numeric,abyss_tokens::numeric+$1)::bigint WHERE client_uid=$2", tokensGrant, uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -4410,7 +4411,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 
 	var gold int64
 	if payout > 0 {
-		if err := tx.QueryRow("UPDATE users SET gold = LEAST(9223372036854775807::numeric, gold::numeric + $1)::bigint WHERE client_uid=$2 RETURNING gold", payout, uid).Scan(&gold); err != nil {
+		if err := tx.QueryRow("/* economy:bot.WebServer.handleAbyssBank */ UPDATE users SET gold = LEAST(9223372036854775807::numeric, gold::numeric + $1)::bigint WHERE client_uid=$2 RETURNING gold", payout, uid).Scan(&gold); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -4455,7 +4456,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 			return
 		}
 		if err := tx.QueryRow(
-			`UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1),
+			`/* economy:bot.WebServer.handleAbyssBank */ UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1),
 			        abyss_lifetime_banked = LEAST(9223372036854775807::numeric, abyss_lifetime_banked::numeric + $2)::bigint,
 			        abyss_bank_streak = abyss_bank_streak + 1 WHERE client_uid=$3
 			 RETURNING abyss_bank_streak`,
@@ -4470,14 +4471,14 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		}
 	}
 	if req.Cursed && !continuing {
-		_, _ = tx.Exec("UPDATE users SET abyss_curse_fights = 3 WHERE client_uid=$1", uid)
+		_, _ = tx.Exec("/* economy:bot.WebServer.handleAbyssBank */ UPDATE users SET abyss_curse_fights = 3 WHERE client_uid=$1", uid)
 	}
 	if continuing {
 		if _, err := tx.Exec("UPDATE abyss_active SET escrow=$1, last_action_at=NOW() WHERE client_uid=$2", remainingEscrow, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
-		if _, err := tx.Exec("UPDATE users SET abyss_lifetime_banked = LEAST(9223372036854775807::numeric, abyss_lifetime_banked::numeric + $1)::bigint WHERE client_uid=$2", payout, uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssBank */ UPDATE users SET abyss_lifetime_banked = LEAST(9223372036854775807::numeric, abyss_lifetime_banked::numeric + $1)::bigint WHERE client_uid=$2", payout, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -4488,7 +4489,7 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 	} else {
 		// End of run: clear the per-run win streak so its combat buff (abyssStreakBuff)
 		// can't leak into regular TeamSpeak-cycle fights, which read abyss_win_streak too.
-		_, _ = tx.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
+		_, _ = tx.Exec("/* economy:bot.WebServer.handleAbyssBank */ UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid)
 		if clearAbyssRunIdentityFlags(runFlags) {
 			if err := saveRunFlags(tx, uid, runFlags); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -4728,7 +4729,7 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 		if healAmt < 50 {
 			healAmt = 50
 		}
-		_, _ = s.bot.DB.Exec("UPDATE users SET current_hp = LEAST(current_hp + $1, $2) WHERE client_uid = $3", healAmt, stats.HP, uid)
+		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE users SET current_hp = LEAST(current_hp + $1, $2) WHERE client_uid = $3", healAmt, stats.HP, uid)
 	case content.ConsumableRepair:
 		repairAmt := 30
 		if req.ConsID == "repair_kit_ii" {
@@ -4740,15 +4741,15 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 		// Repair gear
 		s.bot.ensureGearMaxDurability(uid)
 		_, _ = s.bot.DB.Exec("UPDATE user_gear SET durability = LEAST(durability + $1, "+gearMaxDurExpr+") WHERE client_uid = $2", repairAmt, uid)
-		_, _ = s.bot.DB.Exec("UPDATE users SET artifact_durability = LEAST(artifact_durability + 15, 30) WHERE client_uid = $1 AND artifact_durability > 0", uid)
+		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE users SET artifact_durability = LEAST(artifact_durability + 15, 30) WHERE client_uid = $1 AND artifact_durability > 0", uid)
 	case content.ConsumableBuff:
 		// Buffs elixirs: manual use sets them to active (3 remaining fights).
 		// Do NOT fall through to the shared delete — buffs stay owned while active.
-		_, _ = s.bot.DB.Exec("UPDATE user_consumables SET remaining_fights = 3 WHERE client_uid = $1 AND cons_id = $2", uid, req.ConsID)
+		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE user_consumables SET remaining_fights = 3 WHERE client_uid = $1 AND cons_id = $2", uid, req.ConsID)
 		s.bot.abyssSpendLoadout(uid, req.ConsID)
 		_, _ = s.bot.DB.Exec("UPDATE abyss_active SET momentum = 0 WHERE client_uid=$1", uid) // #7 momentum breaks on consumable use
 		if backlash := corruptedConsumableBacklash(req.ConsID, stats.HP); backlash > 0 {
-			_, _ = s.bot.DB.Exec("UPDATE users SET current_hp = GREATEST(0, current_hp - $1) WHERE client_uid = $2", backlash, uid)
+			_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE users SET current_hp = GREATEST(0, current_hp - $1) WHERE client_uid = $2", backlash, uid)
 		}
 		var curHP int
 		_ = s.bot.DB.QueryRow("SELECT current_hp FROM users WHERE client_uid=$1", uid).Scan(&curHP)
@@ -4774,21 +4775,21 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 			writeJSON(w, map[string]any{"ok": false, "error": "you are not downed"})
 			return
 		}
-		_, _ = s.bot.DB.Exec("UPDATE users SET current_hp = $1 WHERE client_uid = $2", stats.HP, uid)
+		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE users SET current_hp = $1 WHERE client_uid = $2", stats.HP, uid)
 	default:
 		writeJSON(w, map[string]any{"ok": false, "error": "consumable type cannot be used manually"})
 		return
 	}
 	if backlash := corruptedConsumableBacklash(req.ConsID, stats.HP); backlash > 0 {
-		_, _ = s.bot.DB.Exec("UPDATE users SET current_hp = GREATEST(0, current_hp - $1) WHERE client_uid = $2", backlash, uid)
+		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE users SET current_hp = GREATEST(0, current_hp - $1) WHERE client_uid = $2", backlash, uid)
 	}
 
 	// Consume 1 stacked item: decrement remaining_fights and only delete the row
 	// when the last one is used, so stacked grants from grantConsumable aren't all
 	// wiped by a single use.
-	res, _ := s.bot.DB.Exec("UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1 AND cons_id = $2 AND remaining_fights > 1", uid, req.ConsID)
+	res, _ := s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1 AND cons_id = $2 AND remaining_fights > 1", uid, req.ConsID)
 	if n, _ := res.RowsAffected(); n == 0 {
-		_, _ = s.bot.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2", uid, req.ConsID)
+		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2", uid, req.ConsID)
 	}
 	s.bot.abyssSpendLoadout(uid, req.ConsID)
 	_, _ = s.bot.DB.Exec("UPDATE abyss_active SET momentum = 0 WHERE client_uid=$1", uid) // #7 momentum breaks on consumable use
@@ -4876,7 +4877,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			var newGold int64
-			err := s.bot.DB.QueryRow("UPDATE users SET gold = gold - $1, current_hp = $2 WHERE client_uid = $3 AND gold >= $1 RETURNING gold", cost, stats.HP, uid).Scan(&newGold)
+			err := s.bot.DB.QueryRow("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET gold = gold - $1, current_hp = $2 WHERE client_uid = $3 AND gold >= $1 RETURNING gold", cost, stats.HP, uid).Scan(&newGold)
 			if errors.Is(err, sql.ErrNoRows) {
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
@@ -4904,7 +4905,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			}
 			defer func() { _ = tx.Rollback() }()
 			var newGold int64
-			err = tx.QueryRow("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1 RETURNING gold", cost, uid).Scan(&newGold)
+			err = tx.QueryRow("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1 RETURNING gold", cost, uid).Scan(&newGold)
 			if errors.Is(err, sql.ErrNoRows) {
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
@@ -4917,7 +4918,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			if _, err := tx.Exec("UPDATE users SET artifact_durability = 30 WHERE client_uid = $1 AND artifact_name IS NOT NULL", uid); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET artifact_durability = 30 WHERE client_uid = $1 AND artifact_name IS NOT NULL", uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -5013,7 +5014,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 
 			// Charge gold
 			var newGold int64
-			err = tx.QueryRow("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1 RETURNING gold", cost, uid).Scan(&newGold)
+			err = tx.QueryRow("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1 RETURNING gold", cost, uid).Scan(&newGold)
 			if errors.Is(err, sql.ErrNoRows) {
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
@@ -5122,7 +5123,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			var newGold int64
-			err := s.bot.DB.QueryRow("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1 RETURNING gold", item.Price, uid).Scan(&newGold)
+			err := s.bot.DB.QueryRow("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1 RETURNING gold", item.Price, uid).Scan(&newGold)
 			if errors.Is(err, sql.ErrNoRows) {
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
@@ -5171,7 +5172,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			}
 			defer func() { _ = tx.Rollback() }()
 			var newGold int64
-			err = tx.QueryRow("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1 RETURNING gold", cost, uid).Scan(&newGold)
+			err = tx.QueryRow("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1 RETURNING gold", cost, uid).Scan(&newGold)
 			if errors.Is(err, sql.ErrNoRows) {
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
@@ -5190,7 +5191,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			} else if rRoll < 0.75 {
 				prize := abyssEventOffer(600, run.EventState)
 				msg = fmt.Sprintf("Dice rolled! The familiar imp pays +%d gold!", prize)
-				if err := tx.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid = $2 RETURNING gold", prize, uid).Scan(&newGold); err != nil {
+				if err := tx.QueryRow("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET gold = gold + $1 WHERE client_uid = $2 RETURNING gold", prize, uid).Scan(&newGold); err != nil {
 					writeJSON(w, map[string]any{"ok": false, "error": "db"})
 					return
 				}
@@ -5239,7 +5240,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			if _, err := tx.Exec("UPDATE users SET abyss_curse_fights = abyss_curse_fights + 5 WHERE client_uid = $1", uid); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET abyss_curse_fights = abyss_curse_fights + 5 WHERE client_uid = $1", uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -5266,7 +5267,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			}
 			defer func() { _ = tx.Rollback() }()
 			var newGold int64
-			err = tx.QueryRow("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1 RETURNING gold", cost, uid).Scan(&newGold)
+			err = tx.QueryRow("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1 RETURNING gold", cost, uid).Scan(&newGold)
 			if errors.Is(err, sql.ErrNoRows) {
 				writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 				return
@@ -5324,7 +5325,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			defer func() { _ = tx.Rollback() }()
-			res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", cost, uid)
+			res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", cost, uid)
 			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
@@ -5338,7 +5339,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			// #nosec G404 -- non-cryptographic 50/50 card draw
 			if rand.Float64() < 0.50 {
 				prize := abyssEventOffer(500, run.EventState)
-				if err := tx.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid = $2 RETURNING gold", prize, uid).Scan(&newGold); err != nil {
+				if err := tx.QueryRow("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET gold = gold + $1 WHERE client_uid = $2 RETURNING gold", prize, uid).Scan(&newGold); err != nil {
 					writeJSON(w, map[string]any{"ok": false, "error": "db"})
 					return
 				}
@@ -5373,7 +5374,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			defer func() { _ = tx.Rollback() }()
-			if _, err := tx.Exec("UPDATE users SET current_hp = $1 WHERE client_uid = $2", stats.HP, uid); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET current_hp = $1 WHERE client_uid = $2", stats.HP, uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -5402,7 +5403,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			defer func() { _ = tx.Rollback() }()
-			if _, err := tx.Exec("UPDATE users SET current_hp = $1 WHERE client_uid = $2", stats.HP, uid); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET current_hp = $1 WHERE client_uid = $2", stats.HP, uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -5410,7 +5411,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			if _, err := tx.Exec("UPDATE users SET artifact_durability = 30 WHERE client_uid = $1 AND artifact_name IS NOT NULL", uid); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET artifact_durability = 30 WHERE client_uid = $1 AND artifact_name IS NOT NULL", uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -5459,7 +5460,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			defer func() { _ = tx.Rollback() }()
-			if _, err := tx.Exec("UPDATE users SET current_hp = $1 WHERE client_uid = $2", newHP, uid); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET current_hp = $1 WHERE client_uid = $2", newHP, uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -5548,7 +5549,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
-			if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -5641,7 +5642,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			defer func() { _ = tx.Rollback() }()
-			if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -5678,7 +5679,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			defer func() { _ = tx.Rollback() }()
-			if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -5738,7 +5739,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			defer func() { _ = tx.Rollback() }()
-			res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", stake, uid)
+			res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", stake, uid)
 			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
@@ -5753,7 +5754,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			var msg string
 			// #nosec G404 -- non-cryptographic gambling roll
 			if rand.Float64() < winP {
-				if err := tx.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", prize, uid).Scan(&newGold); err != nil {
+				if err := tx.QueryRow("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", prize, uid).Scan(&newGold); err != nil {
 					writeJSON(w, map[string]any{"ok": false, "error": "db"})
 					return
 				}
@@ -5789,13 +5790,13 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 				return
 			}
 			defer func() { _ = tx.Rollback() }()
-			res, err := tx.Exec("UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights > 1", uid, consID)
+			res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights > 1", uid, consID)
 			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
 			if n, _ := res.RowsAffected(); n == 0 {
-				if _, err := tx.Exec("DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2", uid, consID); err != nil {
+				if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2", uid, consID); err != nil {
 					writeJSON(w, map[string]any{"ok": false, "error": "db"})
 					return
 				}
@@ -5846,13 +5847,13 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			}
 			defer func() { _ = tx.Rollback() }()
 			for _, cid := range []string{id1, id2} {
-				res, err := tx.Exec("UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights > 1", uid, cid)
+				res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights > 1", uid, cid)
 				if err != nil {
 					writeJSON(w, map[string]any{"ok": false, "error": "db"})
 					return
 				}
 				if n, _ := res.RowsAffected(); n == 0 {
-					del, err := tx.Exec("DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2", uid, cid)
+					del, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2", uid, cid)
 					if err != nil {
 						writeJSON(w, map[string]any{"ok": false, "error": "db"})
 						return
@@ -5867,7 +5868,7 @@ func (s *WebServer) handleAbyssNonCombatAction(w http.ResponseWriter, r *http.Re
 			newHP := run.CurHP
 			if backfire {
 				newHP = max(1, run.CurHP-run.MaxHP/5)
-				if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
+				if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssNonCombatAction */ UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
 					writeJSON(w, map[string]any{"ok": false, "error": "db"})
 					return
 				}
@@ -6466,7 +6467,7 @@ func (s *WebServer) handleAbyssPrestige(w http.ResponseWriter, r *http.Request, 
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	_, err = tx.Exec("UPDATE users SET abyss_best_depth = 0, abyss_prestige = abyss_prestige + 1 WHERE client_uid = $1", uid)
+	_, err = tx.Exec("/* economy:bot.WebServer.handleAbyssPrestige */ UPDATE users SET abyss_best_depth = 0, abyss_prestige = abyss_prestige + 1 WHERE client_uid = $1", uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return

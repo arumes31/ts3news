@@ -25,7 +25,7 @@ func TestAbyssRaffleSettleBoundsCreditAndRollsBackFailure(t *testing.T) {
 			mock.ExpectExec(`INSERT INTO app_meta (key, value) VALUES ($1, '1') ON CONFLICT (key) DO NOTHING`).WithArgs("abyss_raffle_settled_" + day).WillReturnResult(sqlmock.NewResult(0, 1))
 			mock.ExpectQuery("SELECT value FROM app_meta WHERE key=$1").WithArgs("abyss_raffle_pot_" + day).WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(strconv.FormatInt(math.MaxInt64, 10)))
 			mock.ExpectQuery("SELECT key FROM app_meta WHERE key LIKE $1 ORDER BY key").WithArgs("abyss_raffle_entry_" + day + "_%").WillReturnRows(sqlmock.NewRows([]string{"key"}).AddRow("abyss_raffle_entry_" + day + "_winner"))
-			credit := mock.ExpectExec("UPDATE users SET gold = LEAST(9223372036854775807::numeric, gold::numeric + $1)::bigint WHERE client_uid=$2").WithArgs(int64(math.MaxInt64), "winner")
+			credit := mock.ExpectExec("/* economy:bot.Bot.abyssRaffleSettle */ UPDATE users SET gold = LEAST(9223372036854775807::numeric, gold::numeric + $1)::bigint WHERE client_uid=$2").WithArgs(int64(math.MaxInt64), "winner")
 			want := int64(math.MaxInt64)
 			if fail {
 				credit.WillReturnError(errors.New("credit failed"))

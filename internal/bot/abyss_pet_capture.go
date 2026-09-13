@@ -78,7 +78,7 @@ func (b *Bot) persistAbyssPetCapture(uid string, pet *content.Mob, limit int) (a
 		if _, err := tx.Exec(`INSERT INTO user_pets
 			(client_uid,name,mob_type,level,hp,max_hp,str,def,spd,loyalty,autoskills)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, uid, pet.Name, string(pet.Type), pet.Level,
-			max(1, pet.Stats.HP), max(1, pet.MaxHP), pet.Stats.STR, pet.Stats.DEF, pet.Stats.SPD,
+			min(max(1, pet.Stats.HP), max(1, pet.MaxHP)), max(1, pet.MaxHP), pet.Stats.STR, pet.Stats.DEF, pet.Stats.SPD,
 			min(100, max(1, pet.Loyalty)), profile); err != nil {
 			return "", err
 		}
@@ -91,7 +91,7 @@ func (b *Bot) persistAbyssPetCapture(uid string, pet *content.Mob, limit int) (a
 			(client_uid,name,mob_type,level,hp,max_hp,str,def,spd,loyalty)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 			ON CONFLICT (client_uid) DO NOTHING`, uid, pendingName, string(pet.Type), pet.Level,
-			max(1, pet.Stats.HP), max(1, pet.MaxHP), pet.Stats.STR, pet.Stats.DEF, pet.Stats.SPD,
+			min(max(1, pet.Stats.HP), max(1, pet.MaxHP)), max(1, pet.MaxHP), pet.Stats.STR, pet.Stats.DEF, pet.Stats.SPD,
 			min(100, max(1, pet.Loyalty)))
 		if err != nil {
 			return "", err
@@ -224,7 +224,7 @@ func (s *WebServer) handleAbyssPetCaptureResolve(w http.ResponseWriter, r *http.
 	if _, err := tx.Exec(`INSERT INTO user_pets
 		(client_uid,name,mob_type,level,hp,max_hp,str,def,spd,loyalty,active_slot,autoskills)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, uid, strings.TrimPrefix(pending.Name, "✦ "), pending.Type,
-		pending.Level, pending.HP, pending.MaxHP, pending.STR, pending.DEF, pending.SPD,
+		pending.Level, min(max(1, pending.HP), max(1, pending.MaxHP)), max(1, pending.MaxHP), pending.STR, pending.DEF, pending.SPD,
 		pending.Loyalty, activeSlot, pendingProfile); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return

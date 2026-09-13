@@ -195,3 +195,51 @@ func TestHandleAbyssCombatEventsRejectsFutureLastEventID(t *testing.T) {
 		t.Fatalf("future Last-Event-ID status = %d, want 400", recorder.Code)
 	}
 }
+
+func TestAbyssLiveFailedCombatArchivePersistsEveryParticipant(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New(): %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	combat := &abyssLiveCombat{
+		server:       &WebServer{bot: &Bot{DB: db}},
+		id:           "session",
+		ownerUID:     "owner",
+		participants: map[string]bool{"owner": true, "helper": true},
+		tactics:      map[string]string{},
+		options:      map[string][]abyssLiveOption{},
+		queued:       map[string]abyssLiveAction{},
+		phase:        "failed",
+		version:      7,
+		randomSeed:   [2]uint64{11, 22},
+		history: []abyssLiveEvent{{
+			ID: 7, Phase: "failed", Snapshots: map[string]abyssLiveSnapshot{},
+		}},
+	}
+	mock.ExpectBegin()
+	mock.ExpectExec("UPDATE abyss_combat_sessions").
+		WithArgs("failed", 0, int64(7), nil, "", sqlmock.AnyArg(), "session").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	for _, uid := range []string{"helper", "owner"} {
+		mock.ExpectExec("UPDATE abyss_combat_members").
+			WithArgs("", "", nil, 0, sqlmock.AnyArg(), "session", uid).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+	}
+	mock.ExpectExec("INSERT INTO app_meta").
+		WithArgs("abyss_live_replay_session_session", abyssReplayJSONMatcher{}).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	for _, uid := range []string{"helper", "owner"} {
+		mock.ExpectExec("INSERT INTO app_meta").
+			WithArgs("abyss_live_replay_user_"+uid+"_session", "session").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+	}
+	mock.ExpectCommit()
+
+	if err := combat.persist(); err != nil {
+		t.Fatalf("persist(): %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet database expectations: %v", err)
+	}
+}

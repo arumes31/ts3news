@@ -103,8 +103,8 @@
     <div class="stat armory-stat-primary"><span class="gi" style="--gi:url({{iconURL "checked-shield"}})"></span><b data-item-number="{{.U.Stats.DEF}}">{{comma .U.Stats.DEF}}</b><span>Defense</span></div>
     <div class="stat armory-stat-primary"><span class="gi" style="--gi:url({{iconURL "health-normal"}})"></span><b data-item-number="{{.U.Stats.HP}}">{{comma .U.Stats.HP}}</b><span>Max HP</span></div>
     <div class="stat"><span class="gi" style="--gi:url({{iconURL "run"}})"></span><b data-item-number="{{.U.Stats.SPD}}">{{comma .U.Stats.SPD}}</b><span>Speed</span></div>
-    <div class="stat"><span class="gi" style="--gi:url({{iconURL "bullseye"}})"></span><b data-item-number="{{.U.Stats.CRT}}">{{comma .U.Stats.CRT}}</b><span>Crit %</span></div>
-    <div class="stat"><span class="gi" style="--gi:url({{iconURL "dodging"}})"></span><b data-item-number="{{.U.Stats.DGE}}">{{comma .U.Stats.DGE}}</b><span>Dodge %</span></div>
+    <div class="stat"><span class="gi" style="--gi:url({{iconURL "bullseye"}})"></span><b data-item-number="{{.U.Stats.CRT}}">{{comma .U.Stats.CRT}}</b><span>CRT rating · {{printf "%.2f" .U.CriticalChance}}% chance</span></div>
+    <div class="stat"><span class="gi" style="--gi:url({{iconURL "dodging"}})"></span><b data-item-number="{{.U.Stats.DGE}}">{{comma .U.Stats.DGE}}</b><span>DGE rating · {{printf "%.2f" .U.DodgeChance}}% chance</span></div>
     <div class="stat"><span class="gi" style="--gi:url({{iconURL "clover"}})"></span><b data-item-number="{{.U.Stats.LCK}}">{{comma .U.Stats.LCK}}</b><span>Luck</span></div>
     <div class="stat"><span class="gi" style="--gi:url({{iconURL "brain"}})"></span><b data-item-number="{{.U.Stats.INT}}">{{comma .U.Stats.INT}}</b><span>Intellect</span></div>
     <div class="stat"><span class="gi" style="--gi:url({{iconURL "lungs"}})"></span><b data-item-number="{{.U.Stats.STA}}">{{comma .U.Stats.STA}}</b><span>Stamina</span></div>

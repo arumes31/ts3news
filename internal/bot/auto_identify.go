@@ -35,7 +35,7 @@ func chargeAutoIdentification(ctx context.Context, tx *sql.Tx, uid string, total
 	}
 	cost := capIdentifyCharge(total, gold)
 	if cost > 0 {
-		if _, err := tx.ExecContext(ctx, "UPDATE users SET gold = gold - $1 WHERE client_uid=$2", cost, uid); err != nil {
+		if _, err := tx.ExecContext(ctx, "/* economy:bot.chargeAutoIdentification */ UPDATE users SET gold = gold - $1 WHERE client_uid=$2", cost, uid); err != nil {
 			return 0, err
 		}
 	}

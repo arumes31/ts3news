@@ -26,8 +26,8 @@ func TestAbyssHistoryLoadsBoundedAuthoritativeLootSummary(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "depth", "gold_banked", "victory", "tier", "hardcore",
 			"end_reason", "loot_count", "loot_summary", "created_at", "duration_ms", "floors_cleared",
-			"audit_hash", "audit_data",
-		}).AddRow(9, 17, int64(4200), true, "hell", true, "banked", 3, []byte(`["Crown","Ward"]`), when, int64(90_000), 12, "", []byte(`{}`)))
+			"audit_hash", "audit_data", "economy_epoch",
+		}).AddRow(9, 17, int64(4200), true, "hell", true, "banked", 3, []byte(`["Crown","Ward"]`), when, int64(90_000), 12, "", []byte(`{}`), "2"))
 
 	rows := (&Bot{DB: database}).abyssHistory("player", 500)
 	if len(rows) != 1 {

@@ -457,6 +457,9 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 		if !compatible {
 			return abyssForgeQuote{}, errors.New("operation is incompatible with this gear slot")
 		}
+		if operation.ID == "imbue" && len(loaded.AddedEffects()) >= content.BonusEffectBudget(loaded.Rarity) {
+			return abyssForgeQuote{}, errors.New("this item has filled its rarity bonus-affix budget")
+		}
 		gear = &loaded
 		fingerprint = s.forgeGearFingerprint(loaded, raw, request.InvID, request.Slot)
 	}
@@ -725,6 +728,13 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 			quote.Outcome.MinimumStats, quote.Outcome.ExpectedStats, quote.Outcome.MaximumStats = after.Stats, after.Stats, after.Stats
 			quote.Outcome.MinimumCR, quote.Outcome.ExpectedCR, quote.Outcome.MaximumCR = after.CombatRating(), after.CombatRating(), after.CombatRating()
 			quote.Outcome.Gained = append(quote.Outcome.Gained, fmt.Sprintf("%d max HP restored", gear.CorruptHP))
+		}
+		if request.Slot != "" && !content.IsPetGearSlot(gear.Slot) {
+			stats, _, _, _ := s.bot.calculateTotalStats(uid, time.Now())
+			quote.Outcome.Consequences = append(quote.Outcome.Consequences, gearRatingMarginalNotes(stats, gear.Stats, quote.Outcome.ExpectedStats)...)
+		}
+		if operation.ID == "upgrade_gear" {
+			quote.Outcome.Consequences = append(quote.Outcome.Consequences, fmt.Sprintf("Target rarity allows %d bonus affixes plus its native Special; ascension fills this budget without accumulating separate tier grants.", content.BonusEffectBudget(gear.Rarity+1)))
 		}
 		equipped := s.bot.getEquippedItems(uid)
 		if operation.ID == "socket_gem" {

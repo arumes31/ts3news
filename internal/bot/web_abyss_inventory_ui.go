@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"time"
 
 	"ts3news/internal/content"
 )
@@ -173,6 +174,13 @@ func abyssLootMainStat(gear content.Gear, buildKit int64) int {
 // gear presentation from the serialized grant, never from localized label text.
 func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]content.Gear, owned map[string]bool) []runLootRow {
 	buildKit := b.loadRunFlags(uid)[abyssRunFlagBuildKit]
+	stats, _, _, _ := b.calculateTotalStats(uid, time.Now())
+	comparisonGear := map[string]content.Gear{}
+	for slot, gear := range equipped {
+		if abyssGearActiveForCombat(gear) || gear.ID == comparisonUnavailableID {
+			comparisonGear[string(slot)] = gear
+		}
+	}
 	setCounts := map[string]int{}
 	for _, gear := range abyssPlayerEquipment(equipped) {
 		if gear.SetID != "" {
@@ -253,11 +261,10 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 			} else {
 				row.CRDelta = row.CR
 			}
-			comparisonGear := map[string]content.Gear{}
-			if occupied {
-				comparisonGear[string(gear.Slot)] = current
-			}
 			comparison := shopGearComparison(gear, comparisonGear)
+			if !comparison.Unknown && !content.IsPetGearSlot(gear.Slot) {
+				comparison.Reasons = append(comparison.Reasons, gearRatingMarginalNotes(stats, comparisonGear[string(gear.Slot)].Stats, gear.Stats)...)
+			}
 			row.Comparison = comparison
 			if data, err := json.Marshal(comparison); err == nil {
 				row.ComparisonJSON = string(data)

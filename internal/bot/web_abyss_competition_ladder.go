@@ -72,7 +72,7 @@ func (s *WebServer) handleAbyssWagerJoin(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "already joined"})
 		return
 	}
-	if err := tx.QueryRow("UPDATE users SET gold=gold-$1 WHERE client_uid=$2 RETURNING gold", req.Bracket, uid).Scan(&gold); err != nil {
+	if err := tx.QueryRow("/* economy:bot.WebServer.handleAbyssWagerJoin */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2 RETURNING gold", req.Bracket, uid).Scan(&gold); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

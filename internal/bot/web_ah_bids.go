@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"ts3news/internal/content"
+	dbstore "ts3news/internal/db"
 )
 
 const abyssHiddenAuctionRefundMessage = "Bid refunded: a hidden auction item could not be delivered safely."
@@ -32,7 +33,7 @@ func (s *WebServer) handleAHBid(w http.ResponseWriter, r *http.Request, uid stri
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid bid"})
 		return
 	}
-	tx, err := s.bot.DB.Begin()
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -70,7 +71,11 @@ func (s *WebServer) handleAHBid(w http.ResponseWriter, r *http.Request, uid stri
 		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("bid must be %d–%d; use Buy Now at %d", minimum, buyNow-1, buyNow)})
 		return
 	}
-	res, err := tx.Exec("UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1", req.Amount, uid)
+	if err := dbstore.SetEconomyContext(r.Context(), tx, "auction.bid", r.Header.Get("Idempotency-Key"), "", req.ID); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	res, err := tx.Exec("/* economy:bot.WebServer.handleAHBid */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1", req.Amount, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -80,7 +85,7 @@ func (s *WebServer) handleAHBid(w http.ResponseWriter, r *http.Request, uid stri
 		return
 	}
 	if previous.Valid {
-		if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", current, previous.String); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAHBid */ UPDATE users SET gold=gold+$1 WHERE client_uid=$2", current, previous.String); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -134,7 +139,7 @@ func (b *Bot) settleAbyssAuctionBid(id string) {
 	}
 	var gear content.Gear
 	if err := json.Unmarshal(data, &gear); err != nil || gear.ID == "" || gear.ID != itemID || gear.Unidentified || gear.Attuned {
-		if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", bid, bidder); err != nil {
+		if _, err := tx.Exec("/* economy:bot.Bot.settleAbyssAuctionBid */ UPDATE users SET gold=gold+$1 WHERE client_uid=$2", bid, bidder); err != nil {
 			return
 		}
 		if _, err := tx.Exec("UPDATE auction_house SET current_bid=0,bidder_uid=NULL WHERE id=$1", id); err != nil {
@@ -156,7 +161,7 @@ func (b *Bot) settleAbyssAuctionBid(id string) {
 	}
 	salesTax := abyssAuctionSalesTax(bid)
 	sellerNet := bid - salesTax
-	if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", sellerNet, seller); err != nil {
+	if _, err := tx.Exec("/* economy:bot.Bot.settleAbyssAuctionBid */ UPDATE users SET gold=gold+$1 WHERE client_uid=$2", sellerNet, seller); err != nil {
 		return
 	}
 	if _, err := tx.Exec("UPDATE arcade_jackpots SET amount=amount+$1,updated_at=NOW() WHERE game_key='abyss'", salesTax); err != nil {

@@ -26,22 +26,24 @@ type abyssCompetitionRunRecord struct {
 }
 
 type abyssCompetitionAudit struct {
-	Version        int                   `json:"version"`
-	UID            string                `json:"uid"`
-	Depth          int                   `json:"depth"`
-	Gold           int64                 `json:"gold"`
-	Victory        bool                  `json:"victory"`
-	Tier           string                `json:"tier"`
-	Hardcore       bool                  `json:"hardcore"`
-	Build          string                `json:"build"`
-	PactMultiplier float64               `json:"pact_multiplier"`
-	StartedAt      string                `json:"started_at"`
-	EndedAt        string                `json:"ended_at"`
-	EndReason      string                `json:"end_reason"`
-	PreviousHash   string                `json:"previous_hash,omitempty"`
-	RunSeed        *[2]uint64            `json:"run_seed,omitempty"`
-	Choices        []abyssRunChoice      `json:"choices,omitempty"`
-	Floors         []abyssRunFloorRecord `json:"floors,omitempty"`
+	Cohort         *abyssMeasurementCohort `json:"cohort,omitempty"`
+	Timing         abyssCombatTiming       `json:"timing"`
+	Version        int                     `json:"version"`
+	UID            string                  `json:"uid"`
+	Depth          int                     `json:"depth"`
+	Gold           int64                   `json:"gold"`
+	Victory        bool                    `json:"victory"`
+	Tier           string                  `json:"tier"`
+	Hardcore       bool                    `json:"hardcore"`
+	Build          string                  `json:"build"`
+	PactMultiplier float64                 `json:"pact_multiplier"`
+	StartedAt      string                  `json:"started_at"`
+	EndedAt        string                  `json:"ended_at"`
+	EndReason      string                  `json:"end_reason"`
+	PreviousHash   string                  `json:"previous_hash,omitempty"`
+	RunSeed        *[2]uint64              `json:"run_seed,omitempty"`
+	Choices        []abyssRunChoice        `json:"choices,omitempty"`
+	Floors         []abyssRunFloorRecord   `json:"floors,omitempty"`
 }
 
 func abyssCompetitionWeekAt(at time.Time) (string, time.Time, time.Time) {
@@ -92,6 +94,8 @@ func (b *Bot) newAbyssCompetitionRunRecord(
 	}
 	provenance, provenanceErr := b.loadAbyssRunProvenance(uid)
 	if provenanceErr == nil {
+		audit.Cohort = provenance.Cohort
+		audit.Timing = provenance.Timing
 		seed := provenance.Seed
 		audit.RunSeed = &seed
 		audit.Choices = append([]abyssRunChoice{}, provenance.Choices...)

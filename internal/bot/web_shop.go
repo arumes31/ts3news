@@ -106,10 +106,7 @@ func featuredShopView(seed int64, equippedGear map[string]content.Gear) shopItem
 	g := content.FeaturedShopItem(seed)
 	gearView := toGearView(g.Slot, g)
 	effs := make([]string, 0, len(g.BonusEffects)+1)
-	if g.Special != content.EffectNone {
-		effs = append(effs, string(g.Special))
-	}
-	for _, e := range g.BonusEffects {
+	for _, e := range g.Effects() {
 		effs = append(effs, string(e))
 	}
 	return shopItemView{
@@ -202,11 +199,20 @@ func (s *WebServer) handleShopPage(w http.ResponseWriter, r *http.Request, uid s
 	}
 	page, _ := strconv.ParseInt(r.URL.Query().Get("stock_page"), 10, 64)
 	pagination := shopStockPagination(seed, uid, buffs, page)
+	stock := personalizedShopStockPage(seed, uid, buffs, equippedGear, pagination.Page)
+	stats := u.Stats
+	for index := range stock {
+		item := &stock[index]
+		if !item.Comparison.Unknown && !content.IsPetGearSlot(item.gear.Slot) {
+			before := equippedGear[string(item.gear.Slot)]
+			item.Comparison.Reasons = append(item.Comparison.Reasons, gearRatingMarginalNotes(stats, before.Stats, item.gear.Stats)...)
+		}
+	}
 	s.render(w, "shop", map[string]any{
 		"Title":           "Shop",
 		"Nav":             "shop",
 		"U":               u,
-		"Stock":           personalizedShopStockPage(seed, uid, buffs, equippedGear, pagination.Page),
+		"Stock":           stock,
 		"StockPagination": pagination,
 		"Buffs":           shopBuffViews(buffs),
 		"StockRevision":   shopStockRevision(seed, uid, buffs),
@@ -234,6 +240,11 @@ func (s *WebServer) handleExchangeAPI(w http.ResponseWriter, r *http.Request, ui
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Amount <= 0 {
 		writeJSON(w, map[string]any{"ok": false, "error": "Enter a positive whole amount and try again."})
+		return
+	}
+
+	if req.Direction == "xp_to_gold" {
+		writeJSON(w, map[string]any{"ok": false, "error": "XP is character progression and can no longer be redeemed for gold."})
 		return
 	}
 
@@ -299,7 +310,7 @@ func (s *WebServer) handleExchangeAPI(w http.ResponseWriter, r *http.Request, ui
 		}
 	}
 	gold, xp, newLevel := quote.After.Gold, quote.After.XP, quote.After.Level
-	if _, err := tx.Exec("UPDATE users SET gold=$1, xp=$2, level=$3 WHERE client_uid=$4", gold, xp, newLevel, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleExchangeAPI */ UPDATE users SET gold=$1, xp=$2, level=$3 WHERE client_uid=$4", gold, xp, newLevel, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "The exchange could not be saved. Your balance is unchanged; try again."})
 		return
 	}
@@ -381,7 +392,7 @@ func (s *WebServer) handleBuyAPI(w http.ResponseWriter, r *http.Request, uid str
 	}
 	g := chosen.gear
 
-	query := "UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1"
+	query := "/* economy:bot.WebServer.handleBuyAPI */ UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1"
 	args := []any{chosen.Price, uid}
 	if req.ExpectedGold != nil {
 		query += " AND gold = $3"

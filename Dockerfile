@@ -15,6 +15,7 @@ COPY internal ./internal
 # are baked into the binary.
 # Leave Go build metadata readable for image scanning and SBOM cataloging.
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o /bot ./cmd/bot
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o /economy-reset ./cmd/economy-reset
 
 # ---- Stage 2: download + extract the official TeamSpeak 3 client ----
 FROM debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132 AS tsclient
@@ -48,6 +49,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=tsclient /opt/ts3 /opt/ts3
 COPY --from=gobuilder /bot /usr/local/bin/bot
+COPY --from=gobuilder /economy-reset /usr/local/bin/economy-reset
 
 # Baked "golden" client profile: license accepted + ClientQuery plugin installed.
 # Keep the tarball at /opt so the entrypoint can re-seed it into a fresh named

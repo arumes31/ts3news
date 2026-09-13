@@ -944,7 +944,7 @@ func (b *Bot) rollAbyssLootToEscrow(uid string, mob content.Mob, zoneDifficulty 
 	} else {
 		dropStreak++
 	}
-	if _, err := b.DB.Exec("UPDATE users SET legendary_pity=$1, abyss_drop_streak=$2 WHERE client_uid=$3", legendaryPity, dropStreak, uid); err != nil {
+	if _, err := b.DB.Exec("/* economy:bot.Bot.rollAbyssLootToEscrow */ UPDATE users SET legendary_pity=$1, abyss_drop_streak=$2 WHERE client_uid=$3", legendaryPity, dropStreak, uid); err != nil {
 		log.Printf("abyss pity/streak persist failed for %s: %v", uid, err)
 	}
 	b.abyssSetCelestialPity(uid, celestialPity)
@@ -1214,12 +1214,12 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 			}
 		}
 	case "artifact":
-		if _, err := b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1",
+		if _, err := b.DB.Exec("/* economy:bot.Bot.applyAbyssLootGrant */ UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1",
 			uid, g.ArtMult, g.ArtName, g.ArtDura); err != nil {
 			return err
 		}
 	case "title":
-		res, err := b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='abyss' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())",
+		res, err := b.DB.Exec("/* economy:bot.Bot.applyAbyssLootGrant */ UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='abyss' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())",
 			uid, g.TitleName, g.TitleMult)
 		if err != nil {
 			return err
@@ -1236,7 +1236,7 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 		return b.grantAbyssUnique(uid, g.UniqName, g.UniqRar, g.UniqPow)
 	case "gold":
 		if g.Gold > 0 {
-			if _, err := b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", g.Gold, uid); err != nil {
+			if _, err := b.DB.Exec("/* economy:bot.Bot.applyAbyssLootGrant */ UPDATE users SET gold = gold + $1 WHERE client_uid=$2", g.Gold, uid); err != nil {
 				return err
 			}
 		}
@@ -1246,7 +1246,7 @@ func (b *Bot) applyAbyssLootGrant(uid string, g abyssLootGrant) error {
 		}
 	case "tokens":
 		if g.Tokens > 0 {
-			if _, err := b.DB.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", g.Tokens, uid); err != nil {
+			if _, err := b.DB.Exec("/* economy:bot.Bot.applyAbyssLootGrant */ UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", g.Tokens, uid); err != nil {
 				return err
 			}
 		}
@@ -1277,7 +1277,7 @@ func (b *Bot) grantAbyssUltimate(uid, ultID string) {
 		log.Printf("abyss ultimate grant failed for %s (%s): %v", uid, ultID, err)
 		return
 	}
-	if _, err := b.DB.Exec("UPDATE users SET ultimate_skills_count = ultimate_skills_count + 1 WHERE client_uid=$1", uid); err != nil {
+	if _, err := b.DB.Exec("/* economy:bot.Bot.grantAbyssUltimate */ UPDATE users SET ultimate_skills_count = ultimate_skills_count + 1 WHERE client_uid=$1", uid); err != nil {
 		log.Printf("abyss ultimate count update failed for %s (%s): %v", uid, ultID, err)
 	}
 	_ = b.activateUltimateIfSlotFree(uid, ultID)

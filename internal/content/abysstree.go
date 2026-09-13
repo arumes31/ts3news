@@ -72,24 +72,24 @@ func (tb TreeBonus) ApplyCombatPct(s Stats) Stats {
 		s.LCK = int(float64(s.LCK) * (1 + v))
 	}
 
-	// Unique Keystones Conversion modifiers
+	// Tree and talent conversions share a source budget: retain at least half.
 	if v := tb.Pct["str_to_spd"]; v != 0 {
-		converted := int(float64(s.STR) * v)
+		converted := int(float64(max(0, s.STR)) * min(0.5, max(0.0, v)))
 		s.SPD += converted
 		s.STR -= converted
 	}
 	if v := tb.Pct["hp_to_def"]; v != 0 {
-		converted := int(float64(s.HP) * v)
+		converted := int(float64(max(0, s.HP)) * min(0.5, max(0.0, v)))
 		s.DEF += converted / 10
 		s.HP -= converted
 	}
 	if v := tb.Pct["spd_to_dge"]; v != 0 {
-		converted := int(float64(s.SPD) * v)
+		converted := int(float64(max(0, s.SPD)) * min(0.5, max(0.0, v)))
 		s.DGE += converted
 		s.SPD -= converted
 	}
 	if v := tb.Pct["int_to_mna"]; v != 0 {
-		converted := int(float64(s.INT) * v)
+		converted := int(float64(max(0, s.INT)) * min(0.5, max(0.0, v)))
 		s.MNA += converted * 5
 		s.INT -= converted
 	}
@@ -103,6 +103,21 @@ func (tb TreeBonus) ApplyCombatPct(s Stats) Stats {
 		s.SPD = int(float64(s.SPD) * mult)
 		s.INT = int(float64(s.INT) * mult)
 	}
+
+	s.HP = max(1, s.HP)
+	s.STR = max(0, s.STR)
+	s.DEF = max(0, s.DEF)
+	s.SPD = max(0, s.SPD)
+	s.LCK = max(0, s.LCK)
+	s.INT = max(0, s.INT)
+	s.STA = max(0, s.STA)
+	s.CRT = max(0, s.CRT)
+	s.DGE = max(0, s.DGE)
+	s.MNA = max(0, s.MNA)
+	s.CHA = max(0, s.CHA)
+	s.STN = max(0, s.STN)
+	s.SHN = max(0, s.SHN)
+	s.HGR = max(0, s.HGR)
 
 	return s
 }
@@ -441,15 +456,15 @@ func buildAbyssTree() *AbyssTreeData {
 			if !isCustom && notable {
 				n.Type = "notable"
 				n.Stats = n.Stats.Scaled(3)
-				
+
 				primaryPctKey := treeSectorPctKey(sector, slot)
 				primaryPctVal := treeNotablePct(sector, ring)
 				n.Pct = map[string]float64{primaryPctKey: primaryPctVal}
-				
+
 				rSec := rand.New(rand.NewPCG(uint64(id), 999))
 				allKeys := []string{"str_pct", "hp_pct", "spd_pct", "int_pct", "gold_find", "loot_find", "escrow_bonus", "xp_gain", "token_gain", "material_yield"}
 				rSec.Shuffle(len(allKeys), func(i, j int) { allKeys[i], allKeys[j] = allKeys[j], allKeys[i] })
-				
+
 				var secKey string
 				for _, k := range allKeys {
 					if k != primaryPctKey {
@@ -521,7 +536,7 @@ func buildAbyssTree() *AbyssTreeData {
 			Stats: treeSmallStats(boundary, ring, leftSlot, bridgeID).
 				Add(treeSmallStats((boundary+1)%treeSectors, ring, rightSlot, bridgeID+10000)).Scaled(2),
 			Pct: map[string]float64{
-				treeSectorPctKey(boundary, leftSlot):       math.Round(treeNotablePct(boundary, ring)*0.5*1000) / 1000,
+				treeSectorPctKey(boundary, leftSlot):                  math.Round(treeNotablePct(boundary, ring)*0.5*1000) / 1000,
 				treeSectorPctKey((boundary+1)%treeSectors, rightSlot): math.Round(treeNotablePct((boundary+1)%treeSectors, ring)*0.5*1000) / 1000,
 			},
 		}
@@ -1053,7 +1068,7 @@ func polarXY(ring, slot float64) (float64, float64) {
 	// Bigger base + wider per-ring spacing than the original (60 + ring*34): the
 	// web now runs to 137+ rings, so spread it well out from the centre.
 	radius := 150 + ring*40
-	
+
 	// Determine sector and slot index within sector
 	slotInt := int(math.Round(slot)) % treeSlots
 	if slotInt < 0 {
@@ -1063,7 +1078,7 @@ func polarXY(ring, slot float64) (float64, float64) {
 	rel := slotInt % treeLanes
 
 	// Base center angle for the sector
-	centerAngle := (float64(sector)*6.0 + 2.5) / 36.0 * 2.0 * math.Pi - math.Pi/2.0
+	centerAngle := (float64(sector)*6.0+2.5)/36.0*2.0*math.Pi - math.Pi/2.0
 	spanHalf := math.Pi / 6.0 // 30 degrees (half of sector span)
 
 	// Angular spread saturates at ring 26: past it these linear branch formulas would
@@ -1153,9 +1168,9 @@ func treeSmallStats(sector, ring, slot, nodeID int) Stats {
 	}
 
 	grow := 1 + ring/3
-	
+
 	var s Stats
-	
+
 	// 1. Primary stats based on sector
 	switch sector {
 	case 0: // War: Strength-focused
@@ -1190,28 +1205,48 @@ func treeSmallStats(sector, ring, slot, nodeID int) Stats {
 	statPool := []string{"HP", "MNA", "STR", "DEF", "SPD", "LCK", "INT", "STA", "CRT", "DGE"}
 	secIndex := r.IntN(len(statPool))
 	secVal := 1 + r.IntN(grow+1)
-	
+
 	switch statPool[secIndex] {
 	case "HP":
-		if s.HP == 0 { s.HP = secVal * 4 }
+		if s.HP == 0 {
+			s.HP = secVal * 4
+		}
 	case "MNA":
-		if s.MNA == 0 { s.MNA = secVal * 2 }
+		if s.MNA == 0 {
+			s.MNA = secVal * 2
+		}
 	case "STR":
-		if s.STR == 0 { s.STR = secVal }
+		if s.STR == 0 {
+			s.STR = secVal
+		}
 	case "DEF":
-		if s.DEF == 0 { s.DEF = secVal }
+		if s.DEF == 0 {
+			s.DEF = secVal
+		}
 	case "SPD":
-		if s.SPD == 0 { s.SPD = secVal }
+		if s.SPD == 0 {
+			s.SPD = secVal
+		}
 	case "LCK":
-		if s.LCK == 0 { s.LCK = secVal }
+		if s.LCK == 0 {
+			s.LCK = secVal
+		}
 	case "INT":
-		if s.INT == 0 { s.INT = secVal }
+		if s.INT == 0 {
+			s.INT = secVal
+		}
 	case "STA":
-		if s.STA == 0 { s.STA = secVal }
+		if s.STA == 0 {
+			s.STA = secVal
+		}
 	case "CRT":
-		if s.CRT == 0 { s.CRT = secVal }
+		if s.CRT == 0 {
+			s.CRT = secVal
+		}
 	case "DGE":
-		if s.DGE == 0 { s.DGE = secVal }
+		if s.DGE == 0 {
+			s.DGE = secVal
+		}
 	}
 
 	// 3. Add a small tertiary raw stat if deep enough (ring > 5)
@@ -1219,16 +1254,26 @@ func treeSmallStats(sector, ring, slot, nodeID int) Stats {
 		tertIndex := (secIndex + 1 + r.IntN(len(statPool)-1)) % len(statPool)
 		tertVal := 1 + r.IntN(2)
 		switch statPool[tertIndex] {
-		case "HP": s.HP += tertVal * 3
-		case "MNA": s.MNA += tertVal * 2
-		case "STR": s.STR += tertVal
-		case "DEF": s.DEF += tertVal
-		case "SPD": s.SPD += tertVal
-		case "LCK": s.LCK += tertVal
-		case "INT": s.INT += tertVal
-		case "STA": s.STA += tertVal
-		case "CRT": s.CRT += tertVal
-		case "DGE": s.DGE += tertVal
+		case "HP":
+			s.HP += tertVal * 3
+		case "MNA":
+			s.MNA += tertVal * 2
+		case "STR":
+			s.STR += tertVal
+		case "DEF":
+			s.DEF += tertVal
+		case "SPD":
+			s.SPD += tertVal
+		case "LCK":
+			s.LCK += tertVal
+		case "INT":
+			s.INT += tertVal
+		case "STA":
+			s.STA += tertVal
+		case "CRT":
+			s.CRT += tertVal
+		case "DGE":
+			s.DGE += tertVal
 		}
 	}
 

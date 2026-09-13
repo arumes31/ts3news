@@ -172,7 +172,7 @@ func (s *WebServer) handleAbyssTraversalRoom(w http.ResponseWriter, uid string, 
 			courtesy := int64(0)
 			if state.GhostUID != "" && state.GhostUID != uid {
 				courtesy = gain / 20
-				if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", courtesy, state.GhostUID); err != nil {
+				if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssTraversalRoom */ UPDATE users SET gold=gold+$1 WHERE client_uid=$2", courtesy, state.GhostUID); err != nil {
 					writeJSON(w, map[string]any{"ok": false, "error": "db"})
 					return true
 				}
@@ -190,7 +190,7 @@ func (s *WebServer) handleAbyssTraversalRoom(w http.ResponseWriter, uid string, 
 		}
 	}
 
-	if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssTraversalRoom */ UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return true
 	}

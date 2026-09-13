@@ -116,7 +116,7 @@ func (s *WebServer) handleAbyssShopBuy(w http.ResponseWriter, r *http.Request, u
 			return
 		}
 	}
-	res, err := tx.Exec(`UPDATE users SET gold=gold-$1,abyss_tokens=abyss_tokens-$2
+	res, err := tx.Exec(`/* economy:bot.WebServer.handleAbyssShopBuy */ UPDATE users SET gold=gold-$1,abyss_tokens=abyss_tokens-$2
 		WHERE client_uid=$3 AND gold >= $1 AND abyss_tokens >= $2`, item.CostGold, chargedTokens, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})

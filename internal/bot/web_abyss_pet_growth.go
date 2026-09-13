@@ -77,6 +77,7 @@ func (s *WebServer) handleAbyssPetFusion(w http.ResponseWriter, r *http.Request,
 	}
 	keepProfile := decodeAbyssPetProfile(keep.rawProfile)
 	keepProfile.FusionRank++
+	keepProfile.CombatHealth = nil
 	encoded, err := encodeAbyssPetProfile(keepProfile)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "profile"})
@@ -152,9 +153,9 @@ func (s *WebServer) handleAbyssPetRevive(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	if feathers == 1 {
-		_, err = tx.Exec("DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id='pet_revival_scroll'", uid)
+		_, err = tx.Exec("/* economy:bot.WebServer.handleAbyssPetRevive */ DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id='pet_revival_scroll'", uid)
 	} else {
-		_, err = tx.Exec(`UPDATE user_consumables SET remaining_fights=remaining_fights-1
+		_, err = tx.Exec(`/* economy:bot.WebServer.handleAbyssPetRevive */ UPDATE user_consumables SET remaining_fights=remaining_fights-1
 			WHERE client_uid=$1 AND cons_id='pet_revival_scroll'`, uid)
 	}
 	if err != nil {
