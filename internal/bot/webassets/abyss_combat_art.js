@@ -221,6 +221,9 @@
       else if (/rogue|assassin|dagger/.test(loadout)) rig = 'rogue';
       else if (/mage|wizard|caster|staff|wand/.test(loadout) || /arcane|fire|frost|storm|void/.test(element)) rig = 'wizard';
     }
+    else if (/nhal/.test(name)) rig = 'void-lord';
+    else if (/veyra/.test(name)) rig = 'azazoth';
+    else if (/mournroot/.test(name)) rig = 'golem';
     else if (/gorgoroth/.test(name)) rig = 'gorgoroth';
     else if (/malakor/.test(name)) rig = 'malakor';
     else if (/azazoth/.test(name)) rig = 'azazoth';
@@ -279,6 +282,7 @@
       rig:actor.rig,identity:actor.identity,sigil:actor.sigil,palette:actor.palette};
     var rows = atlasRows[actor.atlas], y = rows[actor.row], height = rows[actor.row + 1] - y;
     return { asset: actor.asset, columns: 8, rows: 8, column: column, row: actor.row,
+      source: {x:column/8,y:y/1254,width:1/8,height:height/1254},
       position: (column * 100 / 7) + '% ' + (y * 100 / (1254 - height)) + '%', size: '800% ' + (125400 / height) + '%',
       rig: actor.rig, identity: actor.identity, sigil: actor.sigil, palette: actor.palette };
   }

@@ -16,6 +16,16 @@ Mob rows: Mossfang goblin, Hollow Archer, Ruinguard, Thornheart, companion wolf,
 
 `rift_audio.js` synthesizes original sound in Web Audio: attack, hit, hurt, guard, jump, footsteps, knockdown, arrow, fire, ice, void, rune, poison, radiant, pack, quake, ultimate, healing, barriers, enemy attacks/deaths, boss roar/slam/death, pickups, checkpoint, victory/defeat, UI and three area ambience arrangements. There are no licensed samples or downloaded audio files. Audio unlocks on user interaction, caps concurrent voices, and suspends on pause/hidden page. Effects/ambience volume and mute persist locally.
 
+## Shared Abyss bestiary
+
+Brawl draws its full roster live from `content.AbyssMobCatalog`, the Abyss boss roster/lore catalog, secret-boss definitions and weekly world-boss names. The shared `abyssBossMob` factory retains the same normal/twin-boss calculations used by Abyss. Each new expedition samples regular monsters without replacement when possible and a boss from the whole boss pool. A frozen ten-enemy plan preserves ongoing fights across reloads and content deployments. No separate maintained monster list or scheduled sync job exists. Coverage tests enumerate every source and prove new catalog entries and stat changes flow through automatically.
+
+The searchable in-game bestiary displays the current roster (124 entries at implementation). Creature anatomy, palettes and eight-frame attack/cast/hit/death art come from Abyss's shared `AbyssCombatArt.actorFrame`; its normalized source rectangle is also available to Canvas consumers. Brawl retains its sixteen-frame goblin, wolf and armored fighter rigs where anatomy matches, and adds movement/knockdown motion for shared creature frames. Shared asset hashes invalidate cached artwork after a content deployment. World bosses reuse matching Abyss creature rigs. The legacy Thornheart sprite remains prepared art but is no longer a fixed encounter.
+
+Stats, type and element are translated into bounded action-mode HP, damage, armor, speed, melee/ranged/boss behavior and elemental shots. Treasure goblins flee; bosses alternate telegraphed area attacks and aimed projectiles. This does not import the entire turn-based spell/status engine, weekly raid health pool or world-boss reward system into Brawl.
+
+Controls: WASD or arrows move; Space jumps (K remains an alternate), J attacks, L guards, Q/E use class abilities, 1–3 use equipped skills, R uses an owned ultimate, Escape pauses.
+
 ## Gameplay and persistence
 
 Production entry: `/abyss/rift`, gated by EnableAbyss and existing account authentication. API: `/api/abyss/rift` GET snapshot and JSON POST controls. Shared character stats, equipped gear, unlocked class signatures, equipped regular skills, pets, relic presence and owned ultimate are snapshotted at expedition start. This is action-mode tuning, not a reproduction of every turn-combat status effect. Q builds the existing subclass resource (max 3), E spends it; 1–3 use selected regular skills; R uses an owned ultimate.

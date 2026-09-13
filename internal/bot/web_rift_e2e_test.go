@@ -55,7 +55,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		mu.Unlock()
 		if r.URL.Query().Get("scenario") == "checkpoint" {
 			mu.Lock()
-			run := rift.NewRun("checkpoint", selectedBuild, time.Now())
+			run := rift.NewRunWithCatalog("checkpoint", selectedBuild, time.Now(), riftMobCatalog(time.Now()))
 			run.Status = "cleared"
 			run.Epoch = "fixture"
 			gear, lootErr := rollRiftGear(0, time.Now())
@@ -85,7 +85,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		run := runs[cookie.Value]
 		build := builds[cookie.Value]
 		if r.Method == http.MethodGet {
-			writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms})
+			writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "bestiary": riftBestiary(time.Now())})
 			return
 		}
 		var req riftRequest
@@ -114,7 +114,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			if req.Skills == nil {
 				selected.Skills = build.Skills
 			}
-			run = rift.NewRun(req.RequestID, selected, time.Now())
+			run = rift.NewRunWithCatalog(req.RequestID, selected, time.Now(), riftMobCatalog(time.Now()))
 			run.StartKey = req.RequestID
 			run.Epoch = "fixture"
 			runs[cookie.Value] = run

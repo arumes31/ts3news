@@ -2,6 +2,7 @@
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
   const images = {}, effectRows = { slash:0, hit:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, pickup:5, clear:5 };
+  const bestiary=window.RiftBestiary,catalogImages={};
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
   const deaths = new Map();
@@ -10,9 +11,10 @@
   let snapshot = null, previous = null, received = 0, camera = 0, seen = 0, runID = '', effects = [], last = 0, footstep = 0;
   const renderer = { reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches, ready: null, frameCount: 0 };
   renderer.build = build => { previewStyle = build.class; };
-  renderer.ready = Promise.all(['area','boss','heroesA','heroesB','mobs','items','effects'].map(key => new Promise((resolve, reject) => {
+  const baseImages = Promise.all(['area','boss','heroesA','heroesB','mobs','items','effects'].map(key => new Promise((resolve, reject) => {
     const img = new Image(); img.onload = () => { images[key] = img; resolve(); }; img.onerror = () => reject(new Error('Could not load '+key+' artwork. Reload to try again.')); img.src = root.dataset[key];
   })));
+  renderer.ready=Promise.all([baseImages,...bestiary.assets.map(path=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{catalogImages[path]=img;resolve();};img.onerror=()=>reject(new Error('Could not load Abyss creature art. Reload to try again.'));img.src=bestiary.assetURL(path);} ))]);
   renderer.snapshot = function (run, replay) {
     if (!run) return;
     const changed = runID !== run.id;
@@ -40,10 +42,11 @@
     ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(img,frame*img.width/6,row*img.height/6,img.width/6,img.height/6,Math.round(x-size/2),Math.round(y-size/2),size,size); ctx.restore();
   }
   function actor(unit, now) {
+    const shared=unit.art_key?bestiary.profile(unit):null;
     const index = Math.max(0,styles.indexOf(foundations[unit.kind] || unit.kind));
     const atlas = unit.id === 'player' ? (index < 6 ? 'heroesA' : 'heroesB') : 'mobs';
     const row = unit.id === 'player' ? index%6 : ({goblin:0,archer:1,knight:2,boss:3,wolf:4,spore:5}[unit.kind] ?? 0);
-    const size = unit.kind === 'boss' ? 168 : unit.kind === 'goblin' ? 80 : unit.kind === 'wolf' ? 63 : 101;
+    const size = unit.kind === 'boss' ? 168 : shared&&['rat','bat','slime','spider','goblin'].includes(shared.rig) ? 80 : unit.kind === 'wolf' ? 63 : 101;
     let x = unit.x, y = unit.y;
     if (previous && snapshot && unit.hp > 0) {
       const old = unit.id === 'player' ? previous.player : previous.enemies.find(e => e.id === unit.id);
@@ -51,7 +54,7 @@
       if (old) { x = old.x+(x-old.x)*t; y = old.y+(y-old.y)*t; }
     }
     ctx.fillStyle='#03110b70'; ctx.beginPath(); ctx.ellipse(x-camera,y+2,size*.28,7,0,0,Math.PI*2); ctx.fill();
-    if (unit.hp <= 0) { const fallen=animationTime-(deaths.get(unit.id)??0);sprite(row,fallen<320?13:14,x-camera,y,size,unit.facing,fallen<700?.85:.4,atlas);return; }
+    if (unit.hp <= 0) { const fallen=animationTime-(deaths.get(unit.id)??0);if(shared)catalogActor(unit,'defeat',x-camera,y,size,fallen<700?.85:.4);else sprite(row,fallen<320?13:14,x-camera,y,size,unit.facing,fallen<700?.85:.4,atlas);return; }
     let col = renderer.reduced ? 0 : Math.floor(animationTime/650)%2;
     if (unit.pose === 'run') col = 2+Math.floor(animationTime/105)%4;
     if (unit.pose === 'attack') col = unit.pose_time > .25 ? 8 : unit.pose_time > .12 ? 9 : 10;
@@ -63,13 +66,36 @@
     if (unit.knockdown > 0) col = 13;
     if (unit.id === 'player' && snapshot.status === 'cleared' && unit.pose !== 'run') col = 15;
     const jump = unit.jump > 0 ? Math.sin((.65-unit.jump)/.65*Math.PI)*52 : 0;
-    sprite(row,col,x-camera,y-jump,size,unit.facing,1,atlas);
+    if(shared)catalogActor(unit,unit.pose,x-camera,y-jump,size,1);else sprite(row,col,x-camera,y-jump,size,unit.facing,1,atlas);
     if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,x-camera,y-size*.4,80,.55);
     if (unit.id !== 'player' && unit.kind !== 'wolf') {
       ctx.fillStyle='#0a1715dc'; ctx.fillRect(x-camera-24,y-size*.9-8,48,5);
       ctx.fillStyle=unit.kind==='boss'?'#e9a35c':'#bc7055'; ctx.fillRect(x-camera-23,y-size*.9-7,46*unit.hp/unit.max_hp,3);
+      if(unit.art_key){ctx.font='10px monospace';ctx.textAlign='center';ctx.fillStyle='#e9efce';ctx.strokeStyle='#0a1715';ctx.lineWidth=3;ctx.strokeText(unit.name,x-camera,y-size*.9-14);ctx.fillText(unit.name,x-camera,y-size*.9-14);}
       if(snapshot.marked===unit.id){ctx.fillStyle='#8fe1cc';ctx.beginPath();ctx.moveTo(x-camera,y-size-12);ctx.lineTo(x-camera-4,y-size-18);ctx.lineTo(x-camera+4,y-size-18);ctx.fill();}
     }
+  }
+  function catalogActor(unit,pose,x,y,size,alpha){
+    const profile=bestiary.profile(unit);
+    // Keep the expanded Brawl animations for matching existing species. All
+    // other anatomy comes directly from Abyss's shared actor-frame provider.
+    const localRow={goblin:0,wolf:4,knight:2}[profile.rig];
+    let mapped=pose==='hit'?'hurt':pose==='windup'?'cast':pose==='knockdown'?'defeat':pose;
+    if(localRow!==undefined){
+      let col=renderer.reduced?0:Math.floor(animationTime/650)%2;
+      if(pose==='run')col=2+Math.floor(animationTime/105)%4;
+      if(pose==='attack')col=unit.pose_time>.25?8:unit.pose_time>.12?9:10;
+      if(pose==='windup')col=8;if(pose==='cast')col=11;if(pose==='hit')col=12;if(pose==='knockdown')col=13;if(pose==='defeat')col=14;
+      sprite(localRow,col,x,y,size,unit.facing,alpha,'mobs');
+    }else{
+      const frame=bestiary.frame(unit,mapped,Math.floor(animationTime/(pose==='run'?110:200))),img=catalogImages[frame.asset],source=frame.source;
+      if(!img||!source)return;
+      const stride=pose==='run'&&!renderer.reduced?Math.sin(animationTime/65)*3:0;
+      ctx.save();ctx.globalAlpha=alpha;ctx.translate(Math.round(x),Math.round(y+stride));ctx.scale(unit.facing<0?-1:1,1);
+      if(pose==='knockdown')ctx.rotate(-.55);
+      ctx.drawImage(img,source.x*img.width,source.y*img.height,source.width*img.width,source.height*img.height,-size/2,-size*.91,size,size);ctx.restore();
+    }
+    if(alpha===1&&profile.element!=='physical'){ctx.globalAlpha=.6;ctx.fillStyle=profile.palette[0];ctx.beginPath();ctx.ellipse(x,y+1,size*.28,4,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
   }
   function render(now) {
     requestAnimationFrame(render);

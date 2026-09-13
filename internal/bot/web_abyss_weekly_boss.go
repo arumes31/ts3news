@@ -14,6 +14,10 @@ type abyssWeeklyBossDrop struct {
 	Weight   int
 }
 
+func abyssWeeklyBossNames() []string {
+	return []string{"Nhal, the Starved Horizon", "Veyra of the Thousand Eyes", "The Iron Leviathan", "Mournroot Prime"}
+}
+
 func abyssWeeklyBossDropTable(name string) []abyssWeeklyBossDrop {
 	switch name {
 	case "Nhal, the Starved Horizon":

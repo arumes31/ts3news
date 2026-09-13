@@ -38,7 +38,9 @@
     $('rift-hp-fill').style.width=Math.max(0,100*run.player.hp/run.player.max_hp)+'%';
     $('rift-mana').textContent=Math.floor(run.player.mana)+' MP';$('rift-mana-fill').style.width=run.player.mana+'%';
     $('rift-room').textContent=(String(run.room+1).padStart(2,'0'))+' / '+(rooms[run.room]||'Mossbound Ruins');
-    const boss=run.enemies.find(e=>e.kind==='boss'&&e.hp>0);$('rift-boss').hidden=!boss;if(boss)$('rift-boss-fill').style.width=100*boss.hp/boss.max_hp+'%';
+    const boss=run.enemies.find(e=>e.kind==='boss'&&e.hp>0);$('rift-boss').hidden=!boss;if(boss){$('rift-boss-fill').style.width=100*boss.hp/boss.max_hp+'%';$('rift-boss-name').textContent=boss.name;}
+    const finalBoss=run.encounter_plan?.[2]?.find(e=>e.kind==='boss')||run.enemies.find(e=>e.kind==='boss');
+    $('rift-route-boss').textContent=finalBoss?'Defeat '+finalBoss.name:'Defeat an Abyss boss';
     $('rift-gold').textContent=run.gold;$('rift-banked').textContent=run.banked_gold+' gold · '+run.banked_items.length+' items';
     root.querySelectorAll('.rift-route li').forEach((li,i)=>{li.classList.toggle('current',i===run.room);li.classList.toggle('done',i<run.room);});
     const bag=run.drops.filter(d=>d.collected&&!d.banked&&d.gear),bagKey=bag.map(d=>d.id).join(',');
@@ -53,7 +55,7 @@
     if($('rift-signatures').dataset.ids!==specialIDs){$('rift-signatures').dataset.ids=specialIDs;$('rift-signatures').replaceChildren();specials.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.title=s.name+' · '+s.cost+' MP';text('kbd',s===run.build.ultimate?'R':i?'E':'Q',btn);text('span',s.name,btn);text('small','Ready',btn);$('rift-signatures').append(btn);hold(btn,s.id);});}
     [...$('rift-signatures').children].forEach((btn,i)=>{const s=specials[i],remaining=run.skill_timers[s.id]||0;btn.querySelector('small').textContent=remaining>0?remaining.toFixed(1)+'s':s.cost+' MP';btn.disabled=!playing||remaining>0||run.player.mana<s.cost;});
     $('rift-room-actions').hidden=run.status!=='cleared'||!playing;
-    $('rift-clear-label').textContent=run.room===2?'Thornheart has fallen':'Area secured';
+    $('rift-clear-label').textContent=run.room===2?(finalBoss?.name||'The boss')+' has fallen':'Area secured';
     $('rift-next').textContent=run.room===2?'Bank & finish expedition':'Bank & continue →';
     $('rift-pause').disabled=!playing&&run.status!=='fighting'&&run.status!=='cleared';
     $('rift-pause').textContent=playing?'Pause · Esc':'Resume · Esc';
@@ -95,7 +97,7 @@
     if($('rift-start').dataset.recover){delete $('rift-start').dataset.recover;await load();return;}
     await audio.setActive(true,run?.room||0);
     const resume=run&&(run.status==='fighting'||run.status==='cleared');
-    if(await send(resume?'resume':'start')){playing=true;$('rift-overlay').hidden=true;$('rift-pause').disabled=false;$('rift-pause').textContent='Pause · Esc';update(run,true);$('rift-canvas').focus();status('J attacks · K jumps · L guards · Q / E class abilities · 1–3 skills · R ultimate.');loop();}
+    if(await send(resume?'resume':'start')){playing=true;$('rift-overlay').hidden=true;$('rift-pause').disabled=false;$('rift-pause').textContent='Pause · Esc';update(run,true);$('rift-canvas').focus();status('WASD moves · Space jumps · J attacks · L guards · Q / E class abilities · 1–3 skills · R ultimate.');loop();}
   }
   function loadout(){
     renderer.build(build);
@@ -114,7 +116,7 @@
   async function load(){
     try{
       await renderer.ready;
-      const data=await request('GET');build=data.build;rooms=data.rooms;run=data.run;loadout();ready=true;
+      const data=await request('GET');build=data.build;rooms=data.rooms;run=data.run;loadout();window.RiftBestiary.render(data.bestiary||[]);ready=true;
       if(run){update(run,true);if(['fighting','cleared'].includes(run.status))message('Your expedition awaits.','Resume from the last confirmed moment. Your expedition bag is still here.','Resume expedition','SAVED EXPEDITION');}
       else{$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}
       status(root.dataset.fixture?'LOCAL PLAYTEST · Sample character and isolated rewards. No live inventory changes.':'Your Abyss character is ready. Choose up to three skills, then enter.');

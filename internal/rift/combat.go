@@ -2,7 +2,6 @@
 package rift
 
 import (
-	"fmt"
 	"math"
 	"time"
 
@@ -47,6 +46,14 @@ type Build struct {
 }
 
 type Actor struct {
+	Attacks   int     `json:"attacks,omitempty"`
+	ArtKey    string  `json:"art_key,omitempty"`
+	Tier      string  `json:"tier,omitempty"`
+	Element   string  `json:"element,omitempty"`
+	Damage    float64 `json:"damage,omitempty"`
+	Armor     float64 `json:"armor,omitempty"`
+	Speed     float64 `json:"speed,omitempty"`
+	Shot      string  `json:"shot,omitempty"`
 	ID        string  `json:"id"`
 	Name      string  `json:"name"`
 	Kind      string  `json:"kind"`
@@ -102,31 +109,32 @@ type Event struct {
 }
 
 type Run struct {
-	Resource    int                `json:"resource"`
-	Marked      string             `json:"marked"`
-	Barrier     float64            `json:"barrier"`
-	Schema      int                `json:"schema"`
-	ID          string             `json:"id"`
-	StartKey    string             `json:"start_key"`
-	Epoch       string             `json:"epoch"`
-	Revision    int                `json:"revision"`
-	Room        int                `json:"room"`
-	Status      string             `json:"status"`
-	Paused      bool               `json:"paused"`
-	Build       Build              `json:"build"`
-	Player      Actor              `json:"player"`
-	Enemies     []Actor            `json:"enemies"`
-	Projectiles []Projectile       `json:"projectiles"`
-	Drops       []Drop             `json:"drops"`
-	Events      []Event            `json:"events"`
-	SkillTimers map[string]float64 `json:"skill_timers"`
-	Gold        int64              `json:"gold"`
-	BankedGold  int64              `json:"banked_gold"`
-	BankedItems []string           `json:"banked_items"`
-	Clock       float64            `json:"clock"`
-	LastMS      int64              `json:"last_ms"`
-	Counter     int                `json:"counter"`
-	Combo       int                `json:"combo"`
+	EncounterPlan [][]Actor          `json:"encounter_plan,omitempty"`
+	Resource      int                `json:"resource"`
+	Marked        string             `json:"marked"`
+	Barrier       float64            `json:"barrier"`
+	Schema        int                `json:"schema"`
+	ID            string             `json:"id"`
+	StartKey      string             `json:"start_key"`
+	Epoch         string             `json:"epoch"`
+	Revision      int                `json:"revision"`
+	Room          int                `json:"room"`
+	Status        string             `json:"status"`
+	Paused        bool               `json:"paused"`
+	Build         Build              `json:"build"`
+	Player        Actor              `json:"player"`
+	Enemies       []Actor            `json:"enemies"`
+	Projectiles   []Projectile       `json:"projectiles"`
+	Drops         []Drop             `json:"drops"`
+	Events        []Event            `json:"events"`
+	SkillTimers   map[string]float64 `json:"skill_timers"`
+	Gold          int64              `json:"gold"`
+	BankedGold    int64              `json:"banked_gold"`
+	BankedItems   []string           `json:"banked_items"`
+	Clock         float64            `json:"clock"`
+	LastMS        int64              `json:"last_ms"`
+	Counter       int                `json:"counter"`
+	Combo         int                `json:"combo"`
 }
 
 type Input struct {
@@ -139,31 +147,16 @@ type Input struct {
 }
 
 func NewRun(id string, build Build, now time.Time) *Run {
-	r := &Run{Schema: 1, ID: id, Build: build, Status: "fighting", LastMS: now.UnixMilli(), SkillTimers: map[string]float64{}, Drops: []Drop{}, BankedItems: []string{}}
-	r.Player = Actor{ID: "player", Name: build.Name, Kind: build.Class, X: 160, Y: 410, HP: build.HP, MaxHP: build.HP, Mana: 100, Facing: 1}
-	r.spawnRoom()
-	return r
+	return NewRunWithCatalog(id, build, now, content.AbyssMobCatalog())
 }
 
 func (r *Run) spawnRoom() {
-	r.Enemies = []Actor{}
-	kinds := [][]string{{"goblin", "goblin", "archer"}, {"goblin", "archer", "knight", "goblin"}, {"boss", "archer", "goblin"}}[r.Room]
-	for i, kind := range kinds {
-		hp := 70.0 + float64(r.Room)*20
-		name := "Mossfang"
-		switch kind {
-		case "archer":
-			name = "Hollow Archer"
-			hp *= .8
-		case "knight":
-			name = "Ruinguard"
-			hp *= 2
-		case "boss":
-			name = "Thornheart, the Rootbound"
-			hp *= 7
-		}
-		r.Enemies = append(r.Enemies, Actor{ID: fmt.Sprintf("r%d-e%d", r.Room, i), Name: name, Kind: kind, X: 580 + float64(i)*240, Y: 355 + float64(i%3)*50, HP: hp, MaxHP: hp, Facing: -1, Cooldown: 1 + float64(i)*.3})
+	// Old saved runs retain the current room, and use the live catalog on
+	// their next room transition when they have no frozen encounter plan.
+	if len(r.EncounterPlan) != len(Rooms) {
+		r.EncounterPlan = planEncounters(r.ID, content.AbyssMobCatalog())
 	}
+	r.Enemies = append([]Actor{}, r.EncounterPlan[r.Room]...)
 	r.Projectiles = []Projectile{}
 	r.Player.X = 160
 	r.Player.Y = 410
@@ -401,11 +394,11 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	if e.HP <= 0 {
 		return
 	}
-	armor := 0.0
-	if e.Kind == "knight" {
+	armor := e.Armor
+	if e.ArtKey == "" && e.Kind == "knight" {
 		armor = .3
 	}
-	if e.Kind == "boss" {
+	if e.ArtKey == "" && e.Kind == "boss" {
 		armor = .15
 	}
 	damage *= 1 - armor*(1-clamp(pierce, 0, 1))
@@ -415,7 +408,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	r.event(effect, e.X, e.Y-30, damage)
 	if e.HP == 0 {
 		r.event(e.Kind+"_death", e.X, e.Y, 0)
-		r.Drops = append(r.Drops, Drop{ID: e.ID, X: e.X, Y: e.Y, Gold: int64(15 * (r.Room + 1)), NeedsGear: e.Kind == "boss" || e.Kind == "knight" || i == 0})
+		r.Drops = append(r.Drops, Drop{ID: e.ID, X: e.X, Y: e.Y, Gold: int64(15 * (r.Room + 1)), NeedsGear: e.Kind == "boss" || e.Kind == "knight" || e.Kind == "treasure" || i == 0})
 	}
 }
 
@@ -453,30 +446,49 @@ func (r *Run) enemyTick(i int, dt float64) {
 	}
 	p := &r.Player
 	dx, dy := p.X-e.X, p.Y-e.Y
+	if e.Kind == "treasure" && math.Abs(dx) < 240 && e.X > 55 && e.X < Width-55 {
+		e.Facing = -math.Copysign(1, dx)
+		e.X = clamp(e.X-math.Copysign(e.Speed*dt, dx), 35, Width-35)
+		e.Pose = "run"
+		return
+	}
 	if dx != 0 {
 		e.Facing = math.Copysign(1, dx)
 	}
 	if e.Windup > 0 {
 		e.Windup = math.Max(0, e.Windup-dt)
 		if e.Windup == 0 {
+			e.Attacks++
 			e.Pose = "attack"
 			e.PoseTime = .4
 			e.Cooldown = 1.6
-			if e.Kind == "archer" {
+			if e.Kind == "archer" || e.Kind == "boss" && e.ArtKey != "" && e.Attacks%2 == 0 {
 				distance := math.Max(1, math.Hypot(dx, dy))
 				r.Counter++
-				r.Projectiles = append(r.Projectiles, Projectile{ID: r.Counter, X: e.X, Y: e.Y, VX: dx / distance * 300, VY: dy / distance * 300, Power: 18, Enemy: true, Life: 4, Kind: "arrow"})
-				r.event("arrow", e.X, e.Y, 0)
+				shot := e.Shot
+				if shot == "" {
+					shot = "arrow"
+				}
+				power := e.Damage
+				if power <= 0 {
+					power = 18
+				}
+				r.Projectiles = append(r.Projectiles, Projectile{ID: r.Counter, X: e.X, Y: e.Y, VX: dx / distance * 300, VY: dy / distance * 300, Power: power, Enemy: true, Life: 4, Kind: shot})
+				r.event(shot, e.X, e.Y-30, 0)
 			} else if e.Kind == "boss" {
 				r.event("slam", e.TargetX, e.TargetY, 0)
 				if math.Abs(p.X-e.TargetX) < 125 && math.Abs(p.Y-e.TargetY) < 62 && p.Jump < .1 {
-					r.hurtPlayer(48, e.X, e.Y)
+					r.hurtPlayer(max(32, e.Damage*1.4), e.X, e.Y)
 				}
 				e.Cooldown = 2.3
 			} else {
 				r.event(e.Kind+"_attack", e.X, e.Y, 0)
 				if math.Abs(dx) < 85 && math.Abs(dy) < 33 && p.Jump < .25 {
-					r.hurtPlayer(19+float64(r.Room)*4, e.X, e.Y)
+					power := e.Damage
+					if power <= 0 {
+						power = 19 + float64(r.Room)*4
+					}
+					r.hurtPlayer(power, e.X, e.Y)
 				}
 			}
 		}
@@ -491,7 +503,10 @@ func (r *Run) enemyTick(i int, dt float64) {
 	}
 	if math.Abs(dx) > rangeX || math.Abs(dy) > 24 {
 		speed := 80.0
-		if e.Kind == "goblin" {
+		if e.Speed > 0 {
+			speed = e.Speed
+		}
+		if e.Kind == "goblin" && e.Speed == 0 {
 			speed = 115
 		}
 		e.X = clamp(e.X+math.Copysign(math.Min(math.Abs(dx), speed*dt), dx), 35, Width-35)

@@ -6,9 +6,9 @@
     <section class="rift-game" aria-label="Rift Brawl adventure">
       <div class="rift-stage-top"><span id="rift-room">Beyond the lantern</span><div><button id="rift-sound" type="button" aria-pressed="false">Sound on</button><button id="rift-pause" type="button" disabled>Pause <kbd>Esc</kbd></button><button id="rift-fullscreen" type="button" aria-label="Fullscreen battlefield">⛶</button></div></div>
       <div class="rift-viewport" id="rift-viewport">
-        <canvas id="rift-canvas" width="960" height="540" tabindex="0" aria-label="Battlefield. Move with WASD or arrow keys. J attacks, K jumps, L guards. Q and E use class abilities. 1, 2 and 3 use equipped skills. R uses your ultimate. Escape pauses.">Your browser needs Canvas support to play this adventure.</canvas>
+        <canvas id="rift-canvas" width="960" height="540" tabindex="0" aria-label="Battlefield. Move with WASD or arrow keys. Space jumps, J attacks, L guards. Q and E use class abilities. 1, 2 and 3 use equipped skills. R uses your ultimate. Escape pauses.">Your browser needs Canvas support to play this adventure.</canvas>
         <div class="rift-vitals" id="rift-vitals" hidden><div class="rift-player-line"><strong id="rift-name">Delver</strong><span id="rift-class"></span></div><div class="rift-meter hp"><span id="rift-hp-fill"></span><b id="rift-hp"></b></div><div class="rift-meter mana"><span id="rift-mana-fill"></span><b id="rift-mana"></b></div></div>
-        <div class="rift-boss" id="rift-boss" hidden><strong>THORNHEART, THE ROOTBOUND</strong><div class="rift-meter hp"><span id="rift-boss-fill"></span></div></div>
+        <div class="rift-boss" id="rift-boss" hidden><strong id="rift-boss-name">ABYSS BOSS</strong><div class="rift-meter hp"><span id="rift-boss-fill"></span></div></div>
         <div class="rift-overlay" id="rift-overlay">
           <p class="rift-eyebrow" id="rift-overlay-kicker">A NEW WAY INTO THE ABYSS</p>
           <h2 id="rift-overlay-title">The ruins<br>remember.</h2>
@@ -18,19 +18,22 @@
         </div>
         <div class="rift-room-actions" id="rift-room-actions" hidden><strong id="rift-clear-label">Area secured</strong><span>All drops here will be collected and banked.</span><div><button id="rift-next" class="rift-primary">Bank & continue →</button><button id="rift-exit">Bank & leave</button></div></div>
       </div>
-      <div class="rift-actionbar"><div class="rift-basics"><button data-hold="attack"><kbd>J</kbd><span>Attack</span></button><button data-hold="jump"><kbd>K</kbd><span>Jump</span></button><button data-hold="guard"><kbd>L</kbd><span>Guard</span></button></div><div id="rift-skills" class="rift-skills"></div><span class="rift-move-hint"><kbd>W A S D</kbd> move</span></div>
+      <div class="rift-actionbar"><div class="rift-basics"><button data-hold="attack"><kbd>J</kbd><span>Attack</span></button><button data-hold="jump" title="Space to jump; K also works"><kbd>Space</kbd><span>Jump</span></button><button data-hold="guard"><kbd>L</kbd><span>Guard</span></button></div><div id="rift-skills" class="rift-skills"></div><span class="rift-move-hint"><kbd>W A S D</kbd> move</span></div>
       <div class="rift-classbar"><div><strong id="rift-style">Abyss class abilities</strong><span id="rift-resource">Choose your class in Abyss</span></div><div id="rift-signatures" class="rift-signatures"></div></div>
       <div class="rift-touch" aria-label="Touch movement"><button data-move="left" aria-label="Move left">←</button><div><button data-move="up" aria-label="Move up">↑</button><button data-move="down" aria-label="Move down">↓</button></div><button data-move="right" aria-label="Move right">→</button></div>
       <p class="rift-status" id="rift-status" role="status" aria-live="polite">Preparing the expedition…</p>
     </section>
     <aside class="rift-sidebar">
-      <section><p class="rift-eyebrow">YOUR EXPEDITION</p><h2>Mossbound Ruins</h2><ol class="rift-route"><li class="current"><span>01</span><div>Mossbound Approach<small>Follow the old road</small></div></li><li><span>02</span><div>The Lantern Court<small>Break the stone guard</small></div></li><li><span>03</span><div>Heart of the Ruins<small>Defeat Thornheart</small></div></li></ol></section>
+      <section><p class="rift-eyebrow">YOUR EXPEDITION</p><h2>Mossbound Ruins</h2><ol class="rift-route"><li class="current"><span>01</span><div>Mossbound Approach<small>A new patrol each expedition</small></div></li><li><span>02</span><div>The Lantern Court<small>Face the Abyss bestiary</small></div></li><li><span>03</span><div>Heart of the Ruins<small id="rift-route-boss">Defeat an Abyss boss</small></div></li></ol></section>
       <section><div class="rift-section-heading"><h3>Expedition bag</h3><span class="rift-at-risk">AT RISK</span></div><p class="rift-gold"><b id="rift-gold">0</b> gold</p><ul id="rift-loot" class="rift-loot"><li class="rift-empty">Your next discovery is out there.</li></ul><p class="rift-fine">Bank after a cleared room. Defeat loses only unbanked finds.</p><div class="rift-banked"><span>Safely banked</span><strong id="rift-banked">0 gold · 0 items</strong></div></section>
       <section><h3>Your build</h3><p id="rift-build" class="rift-fine">Connecting to your Abyss character…</p><p id="rift-sequence" class="rift-fine"></p><div id="rift-loadout" class="rift-loadout"></div><details><summary>Equipped gear</summary><ul id="rift-gear" class="rift-fine"></ul></details><a class="rift-build-link" href="/abyss">Manage class & build in Abyss ↗</a><p class="rift-fine">Your selected class, subclass, permanent stats and equipped skills carry over with action-mode tuning. The loadout is fixed for this expedition.</p></section>
       <details class="rift-settings"><summary>Sound & display</summary><label>Effects <input id="rift-effects-volume" type="range" min="0" max="100" value="65"></label><label>Area ambience <input id="rift-ambience-volume" type="range" min="0" max="100" value="35"></label><label><input id="rift-reduced" type="checkbox"> Reduced visual effects</label><p class="rift-fine">Sound starts when you enter. Pausing or hiding the game silences it.</p></details>
     </aside>
   </div>
+  <details class="rift-bestiary"><summary>Abyss bestiary <span id="rift-monster-count"></span></summary><p>Every monster comes from the Abyss catalog. Each expedition draws a fresh patrol and boss. Catalog updates apply to your next expedition.</p><label for="rift-monster-search">Find a monster</label><input id="rift-monster-search" type="search" placeholder="Name or tier…"><div id="rift-monsters" class="rift-monsters" role="list"></div><p id="rift-monsters-empty" hidden>No matching monsters.</p></details>
 </div>
+<script defer src="{{asset "/static/abyss_combat_art.js"}}"></script>
+<script defer src="{{asset "/static/rift_bestiary.js"}}"></script>
 <script defer src="{{asset "/static/rift_audio.js"}}"></script>
 <script defer src="{{asset "/static/rift_renderer.js"}}"></script>
 <script defer src="{{asset "/static/rift.js"}}"></script>

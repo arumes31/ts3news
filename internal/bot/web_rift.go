@@ -156,7 +156,7 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 			riftFailure(w, r, err)
 			return
 		}
-		writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms})
+		writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "bestiary": riftBestiary(time.Now())})
 		return
 	}
 	if r.Method != http.MethodPost {
@@ -328,7 +328,7 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 		if err != nil {
 			return nil, err
 		}
-		run = rift.NewRun(id, build, now)
+		run = rift.NewRunWithCatalog(id, build, now, riftMobCatalog(now))
 		run.StartKey = req.RequestID
 		run.Epoch = epoch
 	} else {

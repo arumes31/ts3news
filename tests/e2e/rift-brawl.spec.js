@@ -1,5 +1,37 @@
 const { test, expect } = require('@playwright/test');
 
+test('bestiary mirrors the live Abyss roster and WASD/Space control combat',async({page})=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('/abyss/rift?subclass=elementalist');
+  const catalog=(await(await page.request.get('/api/abyss/rift')).json()).bestiary;
+  expect(catalog.length).toBeGreaterThan(110);
+  await expect(page.locator('#rift-monster-count')).toHaveText(catalog.length+' monsters');
+  await page.locator('.rift-bestiary summary').click();
+  await expect(page.locator('#rift-monsters article')).toHaveCount(catalog.length);
+  const rows=await page.locator('#rift-monsters article').evaluateAll(nodes=>nodes.map(n=>n.dataset.artKey));
+  expect(rows.sort()).toEqual(catalog.map(m=>m.art_key).sort());
+  const frames=await page.evaluate(list=>list.map(m=>{const f=window.RiftBestiary.frame(m,'attack',1);return {name:m.name,source:f.source,rig:f.rig};}),catalog);
+  for(const frame of frames){expect(frame.source,frame.name).toBeTruthy();expect(frame.source.width).toBeGreaterThan(0);}
+  await page.locator('#rift-monster-search').fill('Chronos');
+  await expect(page.locator('#rift-monsters article:visible')).toHaveCount(1);
+  await page.screenshot({path:'test-results/rift-bestiary.png',fullPage:true});
+  await page.locator('#rift-start').click();
+  const read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
+  let run=await read();
+  for(const [key,axis,direction] of [['d','x',1],['a','x',-1],['w','y',-1],['s','y',1]]){
+    const before=run.player[axis];await page.keyboard.down(key);
+    await expect.poll(async()=>((await read()).player[axis]-before)*direction).toBeGreaterThan(12);
+    await page.keyboard.up(key);run=await read();
+  }
+  const scroll=await page.evaluate(()=>scrollY);
+  await page.keyboard.down('Space');
+  await expect.poll(async()=>(await read()).player.jump).toBeGreaterThan(0);
+  await page.keyboard.up('Space');expect(await page.evaluate(()=>scrollY)).toBe(scroll);
+  run=await read();const ids=new Set(catalog.map(m=>m.art_key));
+  for(const room of run.encounter_plan)for(const mob of room)expect(ids.has(mob.art_key)).toBe(true);
+  await page.keyboard.press('Escape');expect(errors).toEqual([]);
+});
+
 test('empty regular loadout still supports class combat', async ({ page }) => {
   await page.goto('/abyss/rift?subclass=geomancer');
   for(const select of await page.locator('#rift-loadout select').all())await select.selectOption('');
@@ -34,7 +66,7 @@ test('all Abyss subclasses build and spend their own resource', async ({ page })
   expect(errors).toEqual([]);
 });
 
-test('clear all three rooms, defeat Thornheart and bank the expedition', async ({ page }) => {
+test('clear all three rooms, defeat the catalog boss and bank the expedition', async ({ page }) => {
   test.setTimeout(180_000);
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('/abyss/rift?subclass=bloodblade');
@@ -45,7 +77,7 @@ test('clear all three rooms, defeat Thornheart and bank the expedition', async (
   while(Date.now()-started<145_000){
     const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
     expect(run.status,'expedition should remain survivable').not.toBe('defeated');
-    if(run.status==='complete'){complete=true;expect(run.banked_gold).toBe(300);expect(run.banked_items.length).toBeGreaterThanOrEqual(4);break;}
+    if(run.status==='complete'){complete=true;expect(run.banked_gold).toBe(300);expect(run.banked_items.length).toBeGreaterThanOrEqual(3);break;}
     if(run.status==='cleared'){
       await controls(new Set());
       await expect(page.locator('#rift-next')).toBeVisible();
@@ -53,7 +85,7 @@ test('clear all three rooms, defeat Thornheart and bank the expedition', async (
       await page.locator('#rift-next').click();continue;
     }
     const p=run.player,target=run.enemies.filter(e=>e.hp>0).sort((a,b)=>Math.abs(a.x-p.x)-Math.abs(b.x-p.x))[0];
-    const dx=target.x-p.x,dy=target.y-p.y,wanted=new Set(['k']);
+    const dx=target.x-p.x,dy=target.y-p.y,wanted=new Set(['Space']);
     if(Math.abs(dy)>10)wanted.add(dy>0?'s':'w');
     if(Math.abs(dx)>60 || Math.sign(dx)!==p.facing)wanted.add(dx>0?'d':'a');
     if(Math.abs(dx)<120&&Math.abs(dy)<30){

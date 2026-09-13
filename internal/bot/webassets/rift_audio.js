@@ -74,6 +74,8 @@
       case 'goblin_attack': t(390,190,.19,.06,'sawtooth'); hiss(.08,.08,1600,pan); break;
       case 'knight_attack': hiss(.25,.2,900,pan); t(140,55,.22,.16,'triangle'); break;
       case 'goblin_death': t(440,80,.4,.075,'sawtooth'); break;
+      case 'treasure_attack': t(560,240,.13,.07,'triangle'); break;
+      case 'treasure_death': [660,990,1320].forEach((f,i)=>t(f,f*1.2,.23,.06,'triangle',i*.1)); break;
       case 'archer_death': hiss(.4,.16,4000,pan); t(600,180,.28,.04,'square'); break;
       case 'knight_death': hiss(.7,.24,1000,pan); t(100,30,.6,.18,'triangle'); break;
       case 'boss_roar': t(85,45,.9,.18,'sawtooth'); t(88,41,.8,.08,'sawtooth'); hiss(.7,.15,700,pan); break;
