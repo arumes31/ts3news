@@ -2,7 +2,7 @@
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
   const images = {}, effectRows = { slash:0, hit:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, pickup:5, clear:5 };
-  const bestiary=window.RiftBestiary,catalogImages={};
+  const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
   const deaths = new Map();
@@ -74,9 +74,8 @@
     if(shared)catalogActor(unit,unit.pose,x-camera,y-jump,size,1);else sprite(row,col,x-camera,y-jump,size,unit.facing,1,atlas);
     if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,x-camera,y-size*.4,80,.55);
     if (unit.id !== 'player' && unit.kind !== 'wolf') {
-      ctx.fillStyle='#0a1715dc'; ctx.fillRect(x-camera-24,y-size*.9-8,48,5);
-      ctx.fillStyle=unit.kind==='boss'?'#e9a35c':'#bc7055'; ctx.fillRect(x-camera-23,y-size*.9-7,46*unit.hp/unit.max_hp,3);
-      if(unit.art_key){ctx.font='10px monospace';ctx.textAlign='center';ctx.fillStyle='#e9efce';ctx.strokeStyle='#0a1715';ctx.lineWidth=3;ctx.strokeText(unit.name,x-camera,y-size*.9-14);ctx.fillText(unit.name,x-camera,y-size*.9-14);}
+      if(display.healthBars){ctx.fillStyle='#0a1715dc'; ctx.fillRect(x-camera-24,y-size*.9-8,48,5);ctx.fillStyle=unit.kind==='boss'?'#e9a35c':'#bc7055'; ctx.fillRect(x-camera-23,y-size*.9-7,46*unit.hp/unit.max_hp,3);}
+      if(unit.art_key&&(display.enemyNames==='all'||display.enemyNames==='boss'&&unit.kind==='boss')){ctx.font=(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#e9efce';ctx.strokeStyle='#0a1715';ctx.lineWidth=3;ctx.strokeText(unit.name,x-camera,y-size*.9-14);ctx.fillText(unit.name,x-camera,y-size*.9-14);}
       if(snapshot.marked===unit.id){ctx.fillStyle='#8fe1cc';ctx.beginPath();ctx.moveTo(x-camera,y-size-12);ctx.lineTo(x-camera-4,y-size-18);ctx.lineTo(x-camera+4,y-size-18);ctx.fill();}
     }
   }
@@ -104,14 +103,14 @@
   }
   function render(now) {
     requestAnimationFrame(render);
-    if (!images.area || document.hidden || !ctx) return;
+    if (!images.area || document.hidden || !ctx || now-last<1000/display.fps-1) return;
     renderer.frameCount++;
     ctx.imageSmoothingEnabled = false;
     const dt = Math.min(.05,(now-last)/1000); last = now;
     if (!snapshot || !snapshot.paused) animationTime += dt*1000;
     const wallNow = now; now = animationTime;
     const targetCamera = snapshot ? Math.max(0,Math.min(640,snapshot.player.x-350)) : 220;
-    camera += (targetCamera-camera)*Math.min(1,dt*8);
+    camera = display.cameraSmooth?camera+(targetCamera-camera)*Math.min(1,dt*8):targetCamera;
     // Slow background parallax retains the full walkable foreground.
     const region = snapshot?.level && ['fighting','cleared'].includes(snapshot.status) ? snapshot.level.region : previewLevel?.region;
     const background = region !== undefined ? images.regions : snapshot?.room===2 ? images.boss : images.area;
@@ -120,7 +119,7 @@
       ctx.drawImage(background,region%2*background.width/2+2,top*background.height+2,background.width/2-4,(bottom-top)*background.height-4,-camera*.35,0,1184,540);
     }else ctx.drawImage(background,0,0,background.width,background.height,-camera*.35,0,1184,540);
     if (snapshot && snapshot.room === 1) { ctx.fillStyle='#61532316';ctx.fillRect(0,0,960,540); }
-    if (!renderer.reduced) {
+    if (!renderer.reduced && display.particles) {
       for(let i=0;i<22;i++) { const x=(i*157+now*.004*(i%3+1))%1000; const y=80+(i*41)%300+Math.sin(now*.0005+i)*14; ctx.globalAlpha=.3+Math.sin(now*.001+i)*.2; ctx.fillStyle=i%3?'#a9ce8c':'#ffd98a';ctx.fillRect(x,y,2,2); }
       ctx.globalAlpha=1;
     }
@@ -132,6 +131,7 @@
       const x=h.x-camera,color={fire:'#ff9a52',ice:'#9be5ff',rune:'#d1acff',poison:'#c7ee76',thorns:'#b5d780',radiant:'#d7dfff',void:'#b194ff'}[h.kind]||'#ffbf70';
       ctx.save();ctx.fillStyle=color;ctx.strokeStyle=color;ctx.lineWidth=active?3:1;ctx.globalAlpha=active?.55:warning?.18:.06;ctx.fillRect(x,h.y,h.w,h.h);ctx.globalAlpha=active?1:warning?.7:.2;
       ctx.setLineDash(warning?[5,4]:[]);ctx.strokeRect(x,h.y,h.w,h.h);ctx.setLineDash([]);
+      if(display.hazardContrast&&(warning||active)){ctx.globalAlpha=1;ctx.strokeStyle='#fff8d8';ctx.lineWidth=3;ctx.setLineDash(active?[]:[8,4]);ctx.strokeRect(x-2,h.y-2,h.w+4,h.h+4);ctx.setLineDash([]);}
       if(warning||active){ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillText(active?'JUMP':h.kind.toUpperCase(),x+h.w/2,h.y-5);}
       if(active&&!renderer.reduced)fx(effectRows[h.kind]??3,Math.floor(now/90)%6,x+h.w/2,h.y+h.h/2,h.w,.7);
       ctx.restore();
@@ -144,7 +144,7 @@
     });
     (run.drops||[]).forEach(drop => {
       if(drop.collected)return;
-      const y=drop.y-8+(renderer.reduced?0:Math.sin(now/200)*3),x=drop.x-camera;
+      const y=drop.y-8+(renderer.reduced||!display.lootMotion?0:Math.sin(now/200)*3),x=drop.x-camera;
       fx(5,0,x,y,34,.7);
       const slots={weapon:0,offhand:1,head:4,helmet:4,chest:5,armor:5,feet:6,boots:6,hands:7,gloves:7,ring:12,amulet:13,relic:15};
       const icon=drop.gear?(slots[String(drop.gear.Slot).toLowerCase()]??9):8,img=images.items,size=drop.gear?36:25;
@@ -172,7 +172,7 @@
     effects.forEach(e=>{
       const age=(now-e.started)/750;
       if(effectRows[e.kind]!==undefined && (!renderer.reduced || e.kind==='pickup'))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
-      if(e.value>0 && e.kind!=='area'){ctx.font='bold 14px monospace';ctx.textAlign='center';ctx.fillStyle=e.kind==='hurt'?'#ffb2a0':'#fff0bb';ctx.strokeStyle='#14221d';ctx.lineWidth=3;const label=e.kind==='pickup'?'+'+Math.round(e.value):String(Math.round(e.value));ctx.strokeText(label,e.x-camera,e.y-age*38);ctx.fillText(label,e.x-camera,e.y-age*38);}
+      if(e.value>0 && e.kind!=='area' && (display.damageNumbers||e.kind==='pickup')){ctx.font='bold '+(14*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle=e.kind==='hurt'?'#ffb2a0':'#fff0bb';ctx.strokeStyle='#14221d';ctx.lineWidth=3;const label=e.kind==='pickup'?'+'+Math.round(e.value):String(Math.round(e.value));ctx.strokeText(label,e.x-camera,e.y-age*38);ctx.fillText(label,e.x-camera,e.y-age*38);}
     });
     if(run.status==='fighting' && !run.paused && run.player.pose==='run' && run.player.jump===0 && now-footstep>320){window.RiftAudio.play('step',0);footstep=now;}
     window.RiftAudio.tick();

@@ -1,6 +1,85 @@
 const { test, expect } = require('@playwright/test');
 const path = require('node:path');
 
+test('display presets preview explicit changes, persist custom values and reset safely',async({page})=>{
+  await page.goto('/abyss/rift');
+  await page.locator('.rift-settings > summary').click();
+  await page.locator('#rift-display-preset').selectOption('accessible');
+  await expect(page.locator('#rift-preset-description')).toContainText('Larger text');
+  await expect(page.locator('#rift-text-scale')).toHaveValue('1');
+  await page.locator('#rift-apply-preset').click();
+  await expect(page.locator('#rift-text-scale')).toHaveValue('1.25');
+  await expect(page.locator('#rift-hazard-contrast')).toBeChecked();
+  await page.locator('#rift-enemy-names').selectOption('boss');
+  await page.locator('#rift-damage-numbers').uncheck();
+  await page.reload();await page.locator('.rift-settings > summary').click();
+  await expect(page.locator('#rift-enemy-names')).toHaveValue('boss');
+  await expect(page.locator('#rift-damage-numbers')).not.toBeChecked();
+  await expect(page.locator('#rift-text-scale')).toHaveValue('1.25');
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.locator('#rift-reset-display').click();
+  await expect(page.locator('#rift-enemy-names')).toHaveValue('all');
+  await expect(page.locator('#rift-damage-numbers')).toBeChecked();
+  await expect(page.locator('#rift-text-scale')).toHaveValue('1');
+});
+
+test('corrupt display values fall back individually and low-power rendering limits frames',async({page})=>{
+  await page.addInitScript(()=>localStorage.setItem('riftDisplay',JSON.stringify({version:1,enemyNames:'boss',healthBars:'no',fps:0,textScale:1000,particles:false,damageNumbers:false,unknown:true})));
+  await page.goto('/abyss/rift');await page.locator('.rift-settings > summary').click();
+  await expect(page.locator('#rift-enemy-names')).toHaveValue('boss');
+  await expect(page.locator('#rift-enemy-health')).toBeChecked();
+  await expect(page.locator('#rift-text-scale')).toHaveValue('1');
+  await expect(page.locator('#rift-background-particles')).not.toBeChecked();
+  await page.locator('#rift-render-rate').selectOption('30');
+  const before=await page.evaluate(()=>window.RiftRenderer.frameCount);await page.waitForTimeout(1000);
+  const frames=await page.evaluate(()=>window.RiftRenderer.frameCount);
+  expect(frames-before).toBeGreaterThan(5);expect(frames-before).toBeLessThanOrEqual(33);
+});
+
+test('bestiary filters compose against the live roster and clear together',async({page})=>{
+  await page.goto('/abyss/rift');
+  const catalog=(await(await page.request.get('/api/abyss/rift')).json()).bestiary;
+  await page.locator('.rift-bestiary > summary').click();
+  const monster=catalog.find(unit=>unit.kind==='boss');
+  await page.locator('#rift-monster-tier').selectOption(monster.tier);
+  await page.locator('#rift-monster-element').selectOption(monster.element||'physical');
+  await page.locator('#rift-monster-style').selectOption('Area attacks');
+  const expected=catalog.filter(unit=>unit.kind==='boss'&&unit.tier===monster.tier&&(unit.element||'physical')===(monster.element||'physical'));
+  await expect(page.locator('#rift-monsters article:visible')).toHaveCount(expected.length);
+  await expect(page.locator('#rift-monster-matches')).toHaveText(expected.length+' of '+catalog.length+' monsters');
+  await page.locator('#rift-monster-search').fill('not an abyss monster');
+  await expect(page.locator('#rift-monsters-empty')).toBeVisible();
+  await page.locator('#rift-monster-clear').click();
+  await expect(page.locator('#rift-monsters article:visible')).toHaveCount(catalog.length);
+  await expect(page.locator('#rift-monster-search')).toBeFocused();
+});
+
+test('monster inspection is keyboard accessible and previews respect reduced motion',async({page})=>{
+  await page.goto('/abyss/rift');
+  const catalog=(await(await page.request.get('/api/abyss/rift')).json()).bestiary;
+  const monster=catalog.find(unit=>unit.kind==='boss');
+  await page.locator('.rift-bestiary > summary').click();
+  await page.locator('#rift-monster-search').fill(monster.name);
+  const inspect=page.getByRole('button',{name:'Inspect '+monster.name,exact:true});
+  await inspect.focus();await page.keyboard.press('Enter');
+  await expect(page.locator('#rift-monster-title')).toHaveText(monster.name);
+  await expect(page.locator('#rift-monster-title')).toBeFocused();
+  const health=page.locator('#rift-monster-stats > div').filter({has:page.getByText('Health',{exact:true})}).locator('dd');
+  await expect(health).toHaveText(new Intl.NumberFormat('en-US',{maximumFractionDigits:1}).format(monster.max_hp));
+  await expect(page.locator('#rift-monster-tip')).toContainText('jump or move clear');
+  await page.locator('#rift-monster-pose').selectOption('attack');
+  const position=()=>page.locator('#rift-monster-preview').evaluate(node=>node.style.backgroundPosition);
+  const first=await position();await expect.poll(position).not.toBe(first);
+  await page.locator('.rift-settings > summary').click();
+  await page.locator('#rift-reduced').check();
+  const still=await position();await page.waitForTimeout(400);expect(await position()).toBe(still);
+  await page.locator('#rift-monster-pose').selectOption('defeat');
+  const asset=await page.locator('#rift-monster-preview').evaluate(node=>node.style.backgroundImage);
+  expect(asset).toContain('/static/abyss_');
+  await page.locator('#rift-monster-pose').focus();await page.keyboard.press('Escape');await expect(page.locator('#rift-monster-detail')).toBeHidden();await expect(inspect).toBeFocused();
+});
+
 test.beforeEach(async({page})=>{
   // Fast frontend iteration against the unchanged production simulation.
   // Final release verification runs without this override.

@@ -42,11 +42,31 @@
       <details class="rift-settings"><summary>Sound & display</summary><label>Effects <input id="rift-effects-volume" type="range" min="0" max="100" value="65"></label><label>Area ambience <input id="rift-ambience-volume" type="range" min="0" max="100" value="35"></label><label><input id="rift-reduced" type="checkbox"> Reduced visual effects</label><p class="rift-fine">Sound starts when you enter. Pausing or hiding the game silences it.</p></details>
     </aside>
   </div>
-  <details class="rift-bestiary"><summary>Abyss bestiary <span id="rift-monster-count"></span></summary><p>Every monster comes from the Abyss catalog. Each expedition draws a fresh patrol and boss. Catalog updates apply to your next expedition.</p><label for="rift-monster-search">Find a monster</label><input id="rift-monster-search" type="search" placeholder="Name or tier…"><div id="rift-monsters" class="rift-monsters" role="list"></div><p id="rift-monsters-empty" hidden>No matching monsters.</p></details>
+  <details class="rift-bestiary">
+    <summary>Abyss bestiary <span id="rift-monster-count"></span></summary>
+    <p>Every monster comes from the Abyss catalog. Each expedition draws a fresh patrol and boss. Catalog updates apply to your next expedition.</p>
+    <div class="rift-bestiary-filters">
+      <label>Find a monster<input id="rift-monster-search" type="search" placeholder="Name, tier or element…"></label>
+      <label>Tier<select id="rift-monster-tier"><option value="">All tiers</option></select></label>
+      <label>Element<select id="rift-monster-element"><option value="">All elements</option></select></label>
+      <label>Attack style<select id="rift-monster-style"><option value="">All styles</option></select></label>
+      <button type="button" id="rift-monster-clear">Clear filters</button>
+    </div>
+    <p id="rift-monster-matches" role="status"></p>
+    <section id="rift-monster-detail" class="rift-monster-detail" aria-labelledby="rift-monster-title" hidden>
+      <div><h3 id="rift-monster-title" tabindex="-1"></h3><button type="button" id="rift-monster-close">Close monster details</button></div>
+      <span id="rift-monster-preview" class="rift-monster-art" aria-hidden="true"></span>
+      <label>Preview animation<select id="rift-monster-pose"><option value="idle">Idle</option><option value="run">Run</option><option value="attack">Attack</option><option value="hurt">Hurt</option><option value="defeat">Defeat</option></select></label>
+      <dl id="rift-monster-stats"></dl><p id="rift-monster-tip"></p>
+      <p class="rift-fine">Base Brawl stats. Mission difficulty and room depth scale these values in combat.</p>
+    </section>
+    <div id="rift-monsters" class="rift-monsters" role="list"></div><p id="rift-monsters-empty" hidden>No matching monsters. Clear filters or try another name.</p>
+  </details>
 </div>
 <script defer src="{{asset "/static/abyss_combat_art.js"}}"></script>
 <script defer src="{{asset "/static/rift_bestiary.js"}}"></script>
 <script defer src="{{asset "/static/rift_audio.js"}}"></script>
+<script defer src="{{asset "/static/rift_display.js"}}"></script>
 <script defer src="{{asset "/static/rift_renderer.js"}}"></script>
 <script defer src="{{asset "/static/rift_campaign.js"}}"></script>
 <script defer src="{{asset "/static/rift_hud.js"}}"></script>
