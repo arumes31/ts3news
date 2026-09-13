@@ -40,7 +40,7 @@
   }
   function checkSessionExpiry(){
     var warning=document.getElementById('abyssSessionWarning');if(!warning)return;
-    var expiry=Number(cookieValue('ts3session_exp'))*1000;
+    var expiry=Number(cookieValue('ts3ui_expiry'))*1000;
     if(!expiry){warning.hidden=true;return;}
     var remaining=expiry-Date.now();
     if(remaining<=0){warning.hidden=true;showSessionExpiry();return;}

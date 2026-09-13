@@ -67,6 +67,15 @@ func TestAccountLoginDestination(t *testing.T) {
 		{"scheme relative", "//evil.test", "/"},
 		{"backslash", "/\\evil.test", "/"},
 		{"encoded", "/%5cevil.test", "/"},
+		{"encoded authority", "/%2fevil.test", "/"},
+		{"encoded carriage return", "/%0devil.test", "/"},
+		{"opaque", "https:evil.test", "/"},
+		{"empty", "", "/"},
+		{"relative", "abyss", "/"},
+		{"invalid escape", "/%zz", "/"},
+		{"canonical local path", "/%61byss?tab=run#combat", "/abyss?tab=run#combat"},
+		{"query with external URL", "/abyss?search=https%3A%2F%2Fexample.test", "/abyss?search=https%3A%2F%2Fexample.test"},
+		{"empty query", "/abyss?", "/abyss?"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := accountDestination(tc.input); got != tc.want {

@@ -37,9 +37,10 @@ func jsonJS(v any) template.JS {
 var webAssets embed.FS
 
 const (
-	sessionCookie       = "ts3session"
-	sessionExpiryCookie = "ts3session_exp"
-	sessionLifetime     = 90 * 24 * time.Hour
+	sessionCookie = "ts3session"
+	// uiExpiryCookie is a public display hint, never an authentication credential.
+	uiExpiryCookie  = "ts3ui_expiry"
+	sessionLifetime = 90 * 24 * time.Hour
 )
 
 // WebServer is the player-facing portal: armoury, inventory, auto-battler,
@@ -978,7 +979,7 @@ func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   -1,
 	})
 	http.SetCookie(w, &http.Cookie{ // #nosec G124 - Secure flag is conditionally set based on HTTPS
-		Name:     sessionExpiryCookie,
+		Name:     uiExpiryCookie,
 		Value:    "",
 		Path:     "/",
 		Secure:   secure,

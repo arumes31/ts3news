@@ -78,7 +78,9 @@ func (s *WebServer) createAccountSession(ctx context.Context, tx *sql.Tx, uid st
 
 func (s *WebServer) setAccountSession(w http.ResponseWriter, token string, expires time.Time) {
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: token, Path: "/", HttpOnly: true, Secure: s.accountSecure(), SameSite: http.SameSiteLaxMode, Expires: expires})
-	http.SetCookie(w, &http.Cookie{Name: sessionExpiryCookie, Value: fmt.Sprintf("%d", expires.Unix()), Path: "/", Secure: s.accountSecure(), SameSite: http.SameSiteLaxMode, Expires: expires})
+	// JavaScript uses only this public timestamp to warn before expiry. The
+	// credential above stays HttpOnly, and server-side expiry remains authoritative.
+	http.SetCookie(w, &http.Cookie{Name: uiExpiryCookie, Value: fmt.Sprintf("%d", expires.Unix()), Path: "/", Secure: s.accountSecure(), SameSite: http.SameSiteLaxMode, Expires: expires})
 }
 
 // finishAccountLogin locks the identity until session issuance commits. A concurrent

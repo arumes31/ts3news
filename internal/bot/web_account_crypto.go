@@ -121,5 +121,8 @@ func accountDestination(next string) string {
 	if err != nil || u.IsAbs() || u.Host != "" || !strings.HasPrefix(u.Path, "/") || strings.HasPrefix(u.Path, "//") || strings.ContainsAny(u.Path, "\\\r\n") {
 		return "/"
 	}
-	return u.String()
+	// Rebuild from local components only. Never carry an authority, scheme or
+	// opaque URL from the caller into a Location header.
+	local := &url.URL{Path: u.Path, RawQuery: u.RawQuery, ForceQuery: u.ForceQuery, Fragment: u.Fragment}
+	return local.String()
 }
