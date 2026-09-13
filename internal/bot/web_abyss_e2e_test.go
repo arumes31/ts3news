@@ -27,6 +27,7 @@ func TestAbyssE2EServer(t *testing.T) {
 	registerAbyssClassFixture(mux)
 	registerAbyssTransportFixture(t, mux, server)
 	registerArcadePlaytest(mux, server)
+	registerRiftFixture(mux, server)
 	var wishlistMu sync.Mutex
 	wishlistState := abyssWishlistState{}
 	fontSize := "m"

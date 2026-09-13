@@ -190,6 +190,18 @@ func (s *WebServer) routes() *http.ServeMux {
 	mux.HandleFunc("/static/", serveStaticAsset)
 
 	// Static assets with content hashing, ETag, and Cache-Control.
+	for _, name := range []string{"rift.css", "rift.js", "rift_renderer.js", "rift_audio.js", "rift_area.png", "rift_boss_area.png", "rift_heroes_a.png", "rift_heroes_b.png", "rift_mobs.png", "rift_items.png", "rift_effects.png"} {
+		mux.HandleFunc("/static/"+name, func(w http.ResponseWriter, r *http.Request) {
+			kind := "application/javascript; charset=utf-8"
+			if strings.HasSuffix(name, ".css") {
+				kind = "text/css; charset=utf-8"
+			}
+			if strings.HasSuffix(name, ".png") {
+				kind = "image/png"
+			}
+			ServeAsset(w, r, "webassets/"+name, kind)
+		})
+	}
 	mux.HandleFunc("/static/style.css", func(w http.ResponseWriter, r *http.Request) {
 		ServeAsset(w, r, "webassets/style.css", "text/css; charset=utf-8")
 	})
@@ -555,6 +567,8 @@ func (s *WebServer) routes() *http.ServeMux {
 	mux.HandleFunc("/leaderboards", s.auth(s.handleLeaderboardsPage))
 
 	if s.bot.Cfg.EnableAbyss {
+		mux.HandleFunc("/abyss/rift", s.auth(s.handleRiftPage))
+		mux.HandleFunc("/api/abyss/rift", s.authAPI(s.handleRiftAPI))
 		mux.HandleFunc("/api/abyss/public/stats", s.handleAbyssPublicStats)
 		mux.HandleFunc("/api/abyss/stats", s.handleAbyssTokenStats)
 		mux.HandleFunc("/abyss", s.auth(s.handleAbyssPage))

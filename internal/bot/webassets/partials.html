@@ -27,7 +27,7 @@
   <nav class="nav">
     <a href="/" class="{{if eq .Nav "armory"}}active{{end}}">Armoury</a>
     <a href="/inventory" class="{{if eq .Nav "inventory"}}active{{end}}">Inventory</a>
-    {{if .EnableAbyss}}<a href="/abyss" class="{{if or (eq .Nav "abyss") (eq .Nav "plaza")}}active{{end}}">The Abyss</a>{{end}}
+    {{if .EnableAbyss}}<a href="/abyss" class="{{if or (eq .Nav "abyss") (eq .Nav "plaza")}}active{{end}}">The Abyss</a><a href="/abyss/rift" class="{{if eq .Nav "rift"}}active{{end}}">Rift Brawl</a>{{end}}
     <a href="/arcade" class="{{if eq .Nav "arcade"}}active{{end}}">Arcade</a>
     <a href="/leaderboards" class="{{if eq .Nav "leaderboards"}}active{{end}}">Leaderboards</a>
     <a href="/shop" class="{{if eq .Nav "shop"}}active{{end}}">Shop</a>
