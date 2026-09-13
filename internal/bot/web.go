@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"embed"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -540,6 +539,9 @@ func (s *WebServer) routes() *http.ServeMux {
 
 	// Public.
 	mux.HandleFunc("/login", s.handleLogin)
+	mux.HandleFunc("/settings", s.handleSettings)
+	mux.HandleFunc("/account/recover", s.handleAccountRecovery)
+	mux.HandleFunc("/account/password", s.handleAccountPassword)
 	mux.HandleFunc("/logout", s.handleLogout)
 	mux.HandleFunc("/denied", s.handleDenied)
 
@@ -816,6 +818,9 @@ func (s *WebServer) routes() *http.ServeMux {
 // When ctx is cancelled the server is gracefully shut down. Start returns nil on
 // a clean shutdown so callers can distinguish it from a real listen error.
 func (s *WebServer) Start(ctx context.Context, addr string) error {
+	cleanupCtx, stopCleanup := context.WithCancel(ctx)
+	defer stopCleanup()
+	go s.runAccountCleanup(cleanupCtx)
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           s.routes(),
@@ -856,20 +861,16 @@ func (s *WebServer) Shutdown(ctx context.Context) error {
 // ensureWebToken returns the user's persistent login token, generating and
 // storing one on first use.
 func (b *Bot) ensureWebToken(uid string) (string, error) {
-	var tok *string
-	err := b.DB.QueryRow("SELECT web_token FROM users WHERE client_uid=$1", uid).Scan(&tok)
-	if err == nil && tok != nil && *tok != "" {
-		return *tok, nil
-	}
-	raw := make([]byte, 16)
-	if _, err := rand.Read(raw); err != nil {
+	newToken, err := newAccountToken()
+	if err != nil {
 		return "", err
 	}
-	newTok := hex.EncodeToString(raw)
-	if _, err := b.DB.Exec("UPDATE users SET web_token=$1 WHERE client_uid=$2", newTok, uid); err != nil {
-		return "", err
-	}
-	return newTok, nil
+	var token string
+	err = b.DB.QueryRow(`UPDATE users SET
+ web_token = CASE WHEN web_token IS NULL OR web_token = '' OR web_token_expires <= NOW() THEN $1 ELSE web_token END,
+ web_token_expires = CASE WHEN web_token IS NULL OR web_token = '' OR web_token_expires IS NULL OR web_token_expires <= NOW() THEN NOW() + INTERVAL '90 days' ELSE web_token_expires END
+ WHERE client_uid=$2 RETURNING web_token`, newToken, uid).Scan(&token)
+	return token, err
 }
 
 // loginURL builds the public login link for a token.
@@ -905,20 +906,9 @@ func (b *Bot) composeLoginPM(uid string) string {
 	return msg
 }
 
-// uidForToken resolves a login token to a user UID.
+// uidForToken resolves a browser session.
 func (s *WebServer) uidForToken(token string) (string, bool) {
-	if token == "" {
-		return "", false
-	}
-	var uid string
-	err := s.bot.DB.QueryRow(
-		"SELECT client_uid FROM users WHERE web_token=$1 AND (web_token_expires IS NULL OR web_token_expires > NOW())",
-		token,
-	).Scan(&uid)
-	if err != nil {
-		return "", false
-	}
-	return uid, true
+	return s.accountSessionUID(context.Background(), token)
 }
 
 // auth wraps a handler, resolving the session cookie to a user UID and passing
@@ -927,12 +917,12 @@ func (s *WebServer) auth(h func(http.ResponseWriter, *http.Request, string)) htt
 	return func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(sessionCookie)
 		if err != nil {
-			http.Redirect(w, r, "/denied", http.StatusSeeOther)
+			http.Redirect(w, r, "/login?next="+url.QueryEscape(accountDestination(r.URL.RequestURI())), http.StatusSeeOther)
 			return
 		}
 		uid, ok := s.uidForToken(c.Value)
 		if !ok {
-			http.Redirect(w, r, "/denied", http.StatusSeeOther)
+			http.Redirect(w, r, "/login?next="+url.QueryEscape(accountDestination(r.URL.RequestURI())), http.StatusSeeOther)
 			return
 		}
 		if _, _, err := s.bot.autoIdentifyItems(r.Context(), uid); err != nil {
@@ -961,66 +951,21 @@ func (s *WebServer) authAPI(h func(http.ResponseWriter, *http.Request, string)) 
 }
 
 func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("token")
-	if _, ok := s.uidForToken(token); !ok {
-		http.Redirect(w, r, "/denied", http.StatusSeeOther)
-		return
-	}
-	// Record the session expiry server-side so expired tokens are rejected even
-	// when the client never deletes its cookie. The 90-day limit only worked as
-	// a browser hint before this; the token itself was valid forever.
-	expiry := time.Now().Add(sessionLifetime)
-	if _, err := s.bot.DB.Exec("UPDATE users SET web_token_expires=$1 WHERE web_token=$2", expiry, token); err != nil {
-		writeJSONStatus(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "session error"})
-		return
-	}
-	// Only flag the cookie Secure when the portal is served over HTTPS, so the
-	// session token never leaks over plain HTTP in production deployments while
-	// still working for local http:// development.
-	secure := strings.HasPrefix(strings.ToLower(s.bot.Cfg.WebBaseURL), "https://")
-	expires := time.Now().Add(sessionLifetime)
-	http.SetCookie(w, &http.Cookie{ // #nosec G124 - Secure flag is conditionally set based on HTTPS
-		Name:     sessionCookie,
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
-		Expires:  expires,
-	})
-	// This companion cookie contains only the expiry timestamp, never the login
-	// token. JavaScript uses it to warn players before a long-running Abyss tab
-	// loses its HttpOnly authenticated session.
-	http.SetCookie(w, &http.Cookie{ // #nosec G124 - Secure flag is conditionally set based on HTTPS
-		Name:     sessionExpiryCookie,
-		Value:    fmt.Sprintf("%d", expires.Unix()),
-		Path:     "/",
-		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
-		Expires:  expires,
-	})
-	// Honor an optional post-login destination, but only same-origin relative
-	// paths to avoid an open redirect: must start with a single "/", must not be
-	// scheme-relative ("//host") and must not start with "/\" (browsers
-	// normalize backslashes to slashes, which would re-open the "//" bypass).
-	dest := "/"
-	if next := r.URL.Query().Get("next"); strings.HasPrefix(next, "/") &&
-		!strings.HasPrefix(next, "//") && !strings.HasPrefix(next, "/\\") {
-		if u, err := url.Parse(next); err == nil && u.Scheme == "" && u.Host == "" {
-			dest = next
-		}
-	}
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	s.handleAccountLogin(w, r)
 }
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
-	// Invalidate the server-side credential, not just the browser cookie: a
-	// token leaked before logout must not keep working after it.
-	if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {
-		_, _ = s.bot.DB.Exec(
-			"UPDATE users SET web_token=NULL, web_token_expires=NULL WHERE web_token=$1",
-			c.Value,
-		)
+	accountHeaders(w)
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", "GET, POST")
+		http.Error(w, "GET or POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	if token := accountCookieValue(r, sessionCookie); token != "" {
+		if err := s.revokeAccountSession(r.Context(), token); err != nil {
+			s.accountError(w, err)
+			return
+		}
 	}
 	secure := strings.HasPrefix(strings.ToLower(s.bot.Cfg.WebBaseURL), "https://")
 	http.SetCookie(w, &http.Cookie{ // #nosec G124 - Secure flag is conditionally set based on HTTPS
@@ -1043,12 +988,8 @@ func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/denied", http.StatusSeeOther)
 }
 
-func (s *WebServer) handleDenied(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("Expires", "0")
-	w.WriteHeader(http.StatusOK)
-	s.render(w, "denied", map[string]any{"Title": "Access"})
+func (s *WebServer) handleDenied(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 // ---- Shared model & rendering -------------------------------------------

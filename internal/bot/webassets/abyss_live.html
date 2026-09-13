@@ -179,7 +179,8 @@ function renderLiveTargetPicker(state){
   if(select.dataset.options!==signature){select.replaceChildren();options.forEach(function(item){var option=document.createElement('option');option.value=item.id;option.textContent=item.label;option.disabled=!!item.disabled;select.appendChild(option);});select.dataset.options=signature;}
   select.value=liveSelectedTarget||'';select.disabled=state.phase!=='planning'||!!liveActionInFlight;
   var selected=units.find(function(unit){return unit.id===liveSelectedTarget;});
-  var intents=state.enemy_intents||[],intent=selected&&intents.find(function(item){return item.enemy_name===selected.name;});
+  var intents=state.enemy_intents||[],intent=selected&&intents.find(function(item){return item.enemy_id===selected.id;});
+  if(!intent&&selected)intent=intents.find(function(item){return !item.enemy_id&&item.enemy_name===selected.name;});
   if(!intent&&!selected)intent=intents[0];
   document.getElementById('liveSelectedIntent').textContent=intent?'Intent: '+intent.enemy_name+' · '+(intent.ability||intent.kind)+(intent.target?' → '+intent.target:''):'Intent: '+(selected?'not revealed':'choose a target');
 }
@@ -229,7 +230,9 @@ function startLiveCombat(payload, hp, max){
   scheduleAbyssCockpitFocus('liveAction',true);
 }
 
+var liveTransportGeneration=0;
 function connectLiveCombat(){
+  liveTransportGeneration++;
   if(liveCombatSource){liveCombatSource.close();liveCombatSource=null;}
   if(liveCombatPoll){clearTimeout(liveCombatPoll);liveCombatPoll=null;}
   if(liveReconnectTicker){clearInterval(liveReconnectTicker);liveReconnectTicker=null;}
@@ -250,7 +253,10 @@ function connectLiveCombat(){
     source.close();
     if(liveCombatSource!==source||liveCombatSessionID!==sourceSession)return;
     liveCombatSource=null;
-    if(!liveFinishHandled)scheduleLiveReconnect(1000);
+    // Some proxies support HTTP but reject streaming indefinitely. Continue
+    // receiving authoritative snapshots instead of retrying a dead SSE path.
+    // A new fight or page refresh may try streaming again.
+    if(!liveFinishHandled){setLiveConnection('polling','POLLING · STREAM UNAVAILABLE');pollLiveCombat();}
   };
 }
 
@@ -279,13 +285,14 @@ function scheduleLiveReconnect(delay){
 async function pollLiveCombat(){
   if(liveFinishHandled)return;
   var pollSession=liveCombatSessionID;
+  var pollGeneration=liveTransportGeneration;
   try{
     var response=await fetch('/api/abyss/combat/state',{cache:'no-store'});
     var state=await response.json();
-    if(pollSession!==liveCombatSessionID)return;
+    if(pollSession!==liveCombatSessionID||pollGeneration!==liveTransportGeneration||liveFinishHandled)return;
     if(state.ok){setLiveConnection('synced','POLL · SYNCED');renderLiveCombat(state);}
-  }catch(e){if(pollSession===liveCombatSessionID)setLiveConnection('reconnecting','POLL · RETRYING');}
-  if(pollSession===liveCombatSessionID&&!liveFinishHandled)liveCombatPoll=setTimeout(pollLiveCombat,900);
+  }catch(e){if(pollSession===liveCombatSessionID&&pollGeneration===liveTransportGeneration&&!liveFinishHandled)setLiveConnection('reconnecting','POLL · RETRYING');}
+  if(pollSession===liveCombatSessionID&&pollGeneration===liveTransportGeneration&&!liveFinishHandled)liveCombatPoll=setTimeout(pollLiveCombat,900);
 }
 
 function livePct(value,maxValue){return maxValue>0?Math.max(0,Math.min(100,Math.round(value*100/maxValue))):0;}

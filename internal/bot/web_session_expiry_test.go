@@ -20,12 +20,15 @@ func TestLoginSetsPrivateSessionAndPublicExpiryCookies(t *testing.T) {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
 	t.Cleanup(func() { _ = database.Close() })
+	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT client_uid FROM users WHERE web_token=\\$1").
 		WithArgs("secret-token").
 		WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("player-1"))
-	mock.ExpectExec("UPDATE users SET web_token_expires=\\$1 WHERE web_token=\\$2").
-		WithArgs(sqlmock.AnyArg(), "secret-token").
+	mock.ExpectExec("DELETE FROM web_sessions WHERE token_hash IN").WithArgs("player-1").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("INSERT INTO web_sessions").
+		WithArgs(sqlmock.AnyArg(), "player-1", sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
 	server := &WebServer{bot: &Bot{Cfg: &config.Config{WebBaseURL: "https://example.test"}, DB: database}}
 
 	response := httptest.NewRecorder()
@@ -36,7 +39,7 @@ func TestLoginSetsPrivateSessionAndPublicExpiryCookies(t *testing.T) {
 	}
 	auth := cookieByName(t, cookies, sessionCookie)
 	expiry := cookieByName(t, cookies, sessionExpiryCookie)
-	if !auth.HttpOnly || !auth.Secure || auth.Value != "secret-token" {
+	if !auth.HttpOnly || !auth.Secure || auth.Value == "secret-token" || len(auth.Value) != 64 {
 		t.Fatalf("authentication cookie = %+v, want secure HttpOnly token", auth)
 	}
 	if expiry.HttpOnly || !expiry.Secure {

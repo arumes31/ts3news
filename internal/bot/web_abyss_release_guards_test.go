@@ -71,8 +71,8 @@ func TestAbyssPageGoldenFixtures(t *testing.T) {
 		active bool
 		want   string
 	}{
-		{name: "threshold", want: "f6e9e67b94a341d3d81af157127626a7810edff38e1bc812304c90b38107af21"},
-		{name: "active_run", active: true, want: "1d46f813e3498b12e8fcc24a7763b4b141273f35b6576c3a02be1380d5ae1414"},
+		{name: "threshold", want: "873da7d16a2238ad1ca79be25bcad284c8972fd090b239af2cea0239073ed04b"},
+		{name: "active_run", active: true, want: "4541bb49d79f26ed6804636d9d06b47a17084c1d60d1ccc010df64d586305562"},
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -279,7 +279,7 @@ func abyssGoldenFixture(active bool) map[string]any {
 			Gold: 123456, AbyssTokens: 42, CurrentHP: 750, MaxHP: 1000,
 		},
 		"Stats": stats, "Run": run, "RunIdentity": runIdentity, "RegenPerSec": 0.0, "AutoFocus": "balanced",
-		"HUD": abyssRunHUDState(run, stats, nil),
+		"HUD":   abyssRunHUDState(run, stats, nil),
 		"Tiers": abyssTierList(stats.BestDepth), "Leaders": abyssBoards{}, "Season": "S1", "SeasonJourney": seasonJourney,
 		"Retention":   retention,
 		"Competition": abyssCompetitionView{}, "CompetitionPageSize": abyssCompetitionPageSize,

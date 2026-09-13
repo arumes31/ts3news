@@ -6,6 +6,7 @@
 <title>{{.Title}} · TS3 RPG</title>
 <link rel="icon" type="image/svg+xml" href="{{asset "/static/favicon.svg"}}">
 <link rel="stylesheet" href="/static/style.css?v={{cssver}}">
+{{if .AccountPage}}<link rel="stylesheet" href="{{asset "/static/account.css"}}"><script defer src="{{asset "/static/account.js"}}"></script>{{end}}
 {{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards") (eq .Nav "arcade")}}<link rel="stylesheet" href="{{asset "/static/abyss_portal.css"}}">
 <style id="abyssCatalogAtlasAssets">.delver-shell{
 --ab-atlas-artifacts:url({{asset "/static/abyss_atlas_artifacts.png"}});--ab-atlas-auras:url({{asset "/static/abyss_atlas_auras.png"}});--ab-atlas-banners:url({{asset "/static/abyss_atlas_banners.png"}});--ab-atlas-charms:url({{asset "/static/abyss_atlas_charms.png"}});--ab-atlas-companions:url({{asset "/static/abyss_atlas_companions.png"}});--ab-atlas-emblems:url({{asset "/static/abyss_atlas_emblems.png"}});--ab-atlas-items:url({{asset "/static/abyss_atlas_items.png"}});--ab-atlas-mounts:url({{asset "/static/abyss_atlas_mounts.png"}});--ab-atlas-offhands:url({{asset "/static/abyss_atlas_offhands.png"}});--ab-atlas-pets:url({{asset "/static/abyss_atlas_pets.png"}});--ab-atlas-ranged:url({{asset "/static/abyss_atlas_ranged.png"}});--ab-atlas-relics:url({{asset "/static/abyss_atlas_relics.png"}});--ab-atlas-souls:url({{asset "/static/abyss_atlas_souls.png"}});--ab-atlas-totems:url({{asset "/static/abyss_atlas_totems.png"}})
@@ -22,7 +23,7 @@
 {{if eq .Nav "abyss"}}<a class="ab-skip-link" href="#abyssControls">Skip to run controls</a>{{end}}{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards")}}<a class="portal-skip" href="#portalMain">Skip to main content</a>{{end}}
 <header class="topbar">
   <div class="brand"><img src="{{asset "/static/favicon.svg"}}" alt="" style="width:24px;height:24px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">TS3 RPG</div>
-  {{if .U}}
+  {{if or .U .AccountNav}}
   <nav class="nav">
     <a href="/" class="{{if eq .Nav "armory"}}active{{end}}">Armoury</a>
     <a href="/inventory" class="{{if eq .Nav "inventory"}}active{{end}}">Inventory</a>
@@ -31,11 +32,14 @@
     <a href="/leaderboards" class="{{if eq .Nav "leaderboards"}}active{{end}}">Leaderboards</a>
     <a href="/shop" class="{{if eq .Nav "shop"}}active{{end}}">Shop</a>
     <a href="/ah" class="{{if eq .Nav "ah"}}active{{end}}">Auction</a>
+    <a href="/settings" class="{{if eq .Nav "settings"}}active{{end}}">Settings</a>
   </nav>
   <div class="purse">
+    {{if .U}}
     <span class="pill gold" id="goldPill" data-value="{{.U.Gold}}">🪙 {{gold .U.Gold}}</span>
     {{if .EnableAbyss}}<span class="pill tokens" id="tokenPill" title="Abyss Tokens">🜲 {{comma .U.AbyssTokens}}</span>{{end}}
     <span class="pill xp" id="xpPill">✨ Lvl {{.U.Level}}</span>
+    {{end}}
     <a class="logout" href="/logout">Logout</a>
   </div>
   {{end}}

@@ -25,6 +25,7 @@ func TestAbyssE2EServer(t *testing.T) {
 	}
 	mux := http.NewServeMux()
 	registerAbyssClassFixture(mux)
+	registerAbyssTransportFixture(t, mux, server)
 	registerArcadePlaytest(mux, server)
 	var wishlistMu sync.Mutex
 	wishlistState := abyssWishlistState{}

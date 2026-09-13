@@ -194,6 +194,8 @@ async function observePresentation(page) {
           seq: Number(element.dataset.eventSeq),
           actor: element.dataset.actorId || '',
           target: element.dataset.targetId || '',
+          source: element.dataset.sourceId || '',
+          phase: element.classList.contains('ab-effect-travel') ? 'travel' : element.classList.contains('ab-effect-impact') ? 'impact' : element.classList.contains('ab-effect-area') ? 'area' : '',
           text: element.textContent,
           time: performance.now(),
         });
@@ -214,6 +216,142 @@ async function records(page) {
 async function consumed(page, sequence) {
   await expect(page.locator('#livePixelStage')).toHaveAttribute('data-last-event-seq', String(sequence));
   await expect(page.locator('#livePixelStage')).toHaveAttribute('data-presentation-state', /^(idle|catchup)$/);
+}
+
+test('lightning hops between confirmed mobs and resolves each hit as its link arrives', async ({ page }) => {
+  const initial = planningState();
+  initial.enemies.push({id: 'enemy:2', entity_id: 'enemy:third', name: 'Third', hp: 500, max_hp: 500});
+  await openCombat(page, initial);
+  await observePresentation(page);
+  await render(page, {...initial, version: 11, presentation_cursor: 1, presentation_events: [
+    combatEvent(1, initial.enemies.map(enemy => ({target_id: enemy.entity_id, damage: 25})), {kind: 'skill', ability_id: 'chain_lightning', ability_name: 'Chain Lightning'}),
+  ]});
+  await consumed(page, 1);
+  const seen = await records(page);
+  expect(seen.filter(item => item.phase === 'travel').map(item => [item.source, item.target])).toEqual([
+    [SELF, BOSS], [BOSS, ADD], [ADD, 'enemy:third'],
+  ]);
+  const impacts = seen.filter(item => item.phase === 'impact');
+  expect(impacts.map(item => item.target)).toEqual([BOSS, ADD, 'enemy:third']);
+  expect(impacts[1].time - impacts[0].time).toBeGreaterThan(50);
+  expect(impacts[2].time - impacts[1].time).toBeGreaterThan(50);
+  await expect(unit(page, BOSS).locator('.ab-overhead-hp em')).toHaveText('90%');
+});
+
+test('fireballs visibly cross the stage before their explosion', async ({ page }) => {
+  await openCombat(page);
+  await observePresentation(page);
+  await page.evaluate(() => {
+    window.__fireballFlight = null;
+    const observer = new MutationObserver(records => {
+      for (const record of records) for (const node of record.addedNodes) {
+        if (!(node instanceof Element) || !node.matches('.ab-effect-travel[data-ability-id="fireball"]')) continue;
+        const animation = node.getAnimations()[0];
+        const duration = Number(animation.effect.getTiming().duration);
+        animation.pause();
+        const positions = [0, .5, 1].map(progress => {
+          animation.currentTime = duration * progress;
+          const rect = node.getBoundingClientRect();
+          return {x: rect.x + rect.width / 2, y: rect.y + rect.height / 2};
+        });
+        const center = id => {
+          const rect = document.querySelector('[data-entity-id="' + id + '"] .ab-actor-sprite').getBoundingClientRect();
+          return {x: rect.x + rect.width / 2, y: rect.y + rect.height * .55};
+        };
+        window.__fireballFlight = {positions, duration, from: center(node.dataset.sourceId), to: center(node.dataset.targetId), width: parseFloat(getComputedStyle(node).width)};
+        animation.currentTime = 0; animation.play(); observer.disconnect();
+      }
+    });
+    observer.observe(document.getElementById('livePixelStage'), {childList: true});
+  });
+  await render(page, {...planningState(), version: 11, presentation_cursor: 1, presentation_events: [
+    combatEvent(1, [{target_id: BOSS, damage: 80}], {kind: 'skill', ability_id: 'fireball', ability_name: 'Fireball', element: 'fire'}),
+  ]});
+  await consumed(page, 1);
+  const flight = await page.evaluate(() => window.__fireballFlight);
+  expect(flight).not.toBeNull();
+  expect(flight.duration).toBeGreaterThan(250);
+  expect(flight.width).toBeGreaterThan(60);
+  expect(Math.abs(flight.positions[0].x - flight.from.x)).toBeLessThan(4);
+  expect(Math.abs(flight.positions[2].x - flight.to.x)).toBeLessThan(4);
+  expect(Math.abs(flight.positions[1].x - (flight.from.x + flight.to.x) / 2)).toBeLessThan(4);
+  const seen = await records(page);
+  expect(seen.find(item => item.phase === 'impact').time - seen.find(item => item.phase === 'travel').time).toBeGreaterThan(250);
+});
+
+test('server chain-attack followups jump from the previous confirmed victim', async ({ page }) => {
+  await openCombat(page);
+  await observePresentation(page);
+  await render(page, {...planningState(), version: 11, presentation_cursor: 2, presentation_events: [
+    combatEvent(1, [{target_id: BOSS, damage: 80}]),
+    combatEvent(2, [{target_id: ADD, damage: 40}], {kind: 'status', ability_id: 'chain_attack', ability_name: 'Chain Attack'}),
+  ]});
+  await consumed(page, 2);
+  expect((await records(page)).filter(item => item.phase === 'travel').map(item => [item.source, item.target])).toEqual([[BOSS, ADD]]);
+});
+
+test('lightning ignores absent actors and avoids hopping twice to the same mob', async ({ page }) => {
+  await openCombat(page);
+  await observePresentation(page);
+  await render(page, {...planningState(), version: 11, presentation_cursor: 1, presentation_events: [
+    combatEvent(1, [{target_id: BOSS, damage: 40}, {target_id: BOSS, status: 'stunned'},
+      {target_id: 'enemy:absent', damage: 20}, {target_id: ADD, damage: 20}],
+    {kind: 'skill', ability_id: 'chain_lightning', ability_name: 'Chain Lightning'}),
+  ]});
+  await consumed(page, 1);
+  const seen = await records(page);
+  expect(seen.filter(item => item.phase === 'travel').map(item => [item.source, item.target])).toEqual([[SELF, BOSS], [BOSS, ADD]]);
+  expect(seen.filter(item => item.kind === 'number').map(item => item.text)).toEqual(['−40', 'STUNNED', '−20']);
+});
+
+for (const width of [1280, 390]) {
+  test(`area spells cover confirmed targets and status badges survive reduced motion at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({width, height: 900});
+    await page.emulateMedia({reducedMotion: 'reduce'});
+    const initial = planningState();
+    initial.enemies[0].effects = [
+      {name: 'Enrage', affix: true}, {name: 'Shield'}, {name: 'Haste'}, {name: 'Regeneration'},
+      {key: 'poisoned', name: 'Poisoned', remaining_rounds: 3}, {key: 'bleeding', name: 'Bleeding', remaining_rounds: 2},
+    ];
+    await openCombat(page, initial);
+    await expect(unit(page, BOSS).locator('.ab-dot-badge.poison')).toHaveText('Poison · 3R');
+    await expect(unit(page, BOSS).locator('.ab-dot-badge.bleed')).toHaveText('Bleed · 2R');
+    await expect(unit(page, BOSS)).toHaveAccessibleName(/Poison.*Bleed/);
+    const next = {...initial, version: 11, presentation_cursor: 1, presentation_events: [
+      combatEvent(1, [{target_id: BOSS, damage: 80}, {target_id: ADD, damage: 50}], {kind: 'skill', ability_id: 'frost_nova', ability_name: 'Frost Nova'}),
+    ]};
+    // Observe the actual render frame; reduced-motion effects deliberately expire quickly.
+    const bounds = await page.evaluate(snapshot => new Promise(resolve => {
+      const observer = new MutationObserver(records => {
+        for (const record of records) for (const node of record.addedNodes) {
+          if (!(node instanceof Element) || !node.matches('.ab-effect-area')) continue;
+          const area = node.getBoundingClientRect(), stage = node.parentElement.getBoundingClientRect();
+          observer.disconnect();
+          resolve({inside: area.left >= stage.left && area.right <= stage.right + 1,
+            covers: node.dataset.targetIds.split(' ').every(id => {
+              const rect = document.querySelector('[data-entity-id="' + id + '"] .ab-actor-sprite').getBoundingClientRect();
+              return rect.left + rect.width / 2 >= area.left && rect.right - rect.width / 2 <= area.right;
+            }), border: getComputedStyle(node).borderTopStyle});
+        }
+      });
+      observer.observe(document.getElementById('livePixelStage'), {childList: true});
+      window.renderLiveCombat(snapshot);
+    }), next);
+    expect(bounds).toEqual({inside: true, covers: true, border: 'double'});
+    await page.screenshot({path: test.info().outputPath(`spell-status-${width}.png`)});
+    await consumed(page, 1);
+    await observePresentation(page);
+    await render(page, {...next, version: 12, presentation_cursor: 3, presentation_events: [
+      combatEvent(2, [{target_id: BOSS, damage: 50}], {kind: 'status', actor_id: BOSS, ability_id: 'poison', ability_name: 'Poison'}),
+      combatEvent(3, [{target_id: BOSS, damage: 20}], {kind: 'status', actor_id: BOSS, ability_id: 'bleed', ability_name: 'Bleed'}),
+    ]});
+    await consumed(page, 3);
+    expect((await records(page)).filter(item => item.kind === 'number').map(item => item.text)).toEqual(['POISON −50', 'BLEED −20']);
+    const cleansed = structuredClone(next); cleansed.version = 13; cleansed.presentation_cursor = 3; cleansed.presentation_events = [];
+    cleansed.enemies[0].effects = [];
+    await render(page, cleansed);
+    await expect(unit(page, BOSS).locator('.ab-dot-statuses')).toBeHidden();
+  });
 }
 
 test('structured events animate the named actor and targets in sequence despite identical display names', async ({ page }) => {
@@ -826,7 +964,7 @@ test('concealed regeneration uses the public healing outcome without numbers or 
   const numbers = (await records(page)).filter(item => item.kind === 'number' && item.target === BOSS);
   expect(numbers.filter(item => item.seq === 1).map(item => item.text)).toEqual(['HEAL']);
   expect(numbers.filter(item => item.seq === 2)).toEqual([]);
-  expect(numbers.filter(item => item.seq === 3).map(item => item.text)).toEqual(['HIT']);
+  expect(numbers.filter(item => item.seq === 3).map(item => item.text)).toEqual(['POISON']);
   expect(numbers.some(item => /\d/.test(item.text))).toBe(false);
 });
 

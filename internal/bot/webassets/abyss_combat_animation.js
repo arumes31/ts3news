@@ -7,6 +7,7 @@
   var session = '', cursor = 0, accepted = 0, queue = [], active = false;
   var generation = 0, timers = new Set(), animations = new Set(), actors = new Map();
   var latest = null, catchup = false, visible = true, initialized = false, batchDeadline = 0;
+  var previousHit = null;
   var motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   var speed = read('abyssAnimationSpeed', 'normal'), effects = read('abyssAnimationEffects', 'full');
   function read(key, fallback) { try { return localStorage.getItem(key) || fallback; } catch (_) { return fallback; } }
@@ -19,10 +20,10 @@
     }, delay);
     timers.add(timer); return timer;
   }
-  function animate(node, frames, duration) {
+  function animate(node, frames, duration, easing) {
     if (reduced() || !node || !node.animate) return;
     var animation;
-    try { animation = node.animate(frames, {duration: duration, easing: 'cubic-bezier(.2,.7,.3,1)'}); } catch (_) { return; }
+    try { animation = node.animate(frames, {duration: duration, easing: easing || 'cubic-bezier(.2,.7,.3,1)', fill: easing === 'linear' ? 'forwards' : 'none'}); } catch (_) { return; }
     animations.add(animation);
     animation.finished.then(function () { animations.delete(animation); }, function () { animations.delete(animation); });
   }
@@ -55,7 +56,7 @@
     if (visuals) visuals.clear();
     generation++; timers.forEach(clearTimeout); timers.clear();
     animations.forEach(function (animation) { animation.cancel(); }); animations.clear();
-    queue = []; active = false;
+    queue = []; active = false; previousHit = null;
     var host = stage();
     if (host) host.querySelectorAll('.ab-combat-effect,.ab-combat-number,.ab-combat-announcement').forEach(function (node) { node.remove(); });
     actors.forEach(function (node) {
@@ -137,6 +138,7 @@
     var from = point(source || destination), to = point(destination), node = document.createElement('span');
     node.className = 'ab-combat-effect ab-effect-' + phase;
     node.dataset.eventSeq = String(event.seq); node.dataset.actorId = event.actor_id || ''; node.dataset.targetId = target.target_id;
+    node.dataset.sourceId = sourceID || event.actor_id || '';
     node.dataset.abilityId = event.ability_id || event.kind; node.dataset.effectFamily = profile.family || 'physical';
     node.setAttribute('aria-hidden', 'true');
     if (visuals) visuals.effect(node, profile);
@@ -153,20 +155,42 @@
         node.style.backgroundSize = '100% 100%';
         node.style.transform = 'translateY(-50%) rotate(' + angle + 'deg)'; node.style.transformOrigin = '0 50%';
         if (profile.family === 'lightning') {
-          var path = 'M0 22';
-          for (var step = 1; step < 12; step++) path += ' L' + (step * 10) + ' ' + (step % 2 ? 7 : 37);
-          path += ' L120 22';
-          node.style.backgroundImage = 'url("data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 44" preserveAspectRatio="none"><path d="' + path + '" fill="none" stroke="' + profile.palette[0] + '" stroke-width="4"/></svg>') + '")';
+          var path = 'M0 22', steps = Math.max(4, Math.ceil(length / 24));
+          for (var step = 1; step < steps; step++) path += ' L' + (step * length / steps) + ' ' + (step % 2 ? 10 : 34);
+          path += ' L' + length + ' 22';
+          node.style.backgroundImage = 'url("data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + Math.max(1, length) + ' 44" preserveAspectRatio="none"><path d="' + path + '" fill="none" stroke="' + profile.palette[0] + '" stroke-width="9" opacity=".4"/><path d="' + path + '" fill="none" stroke="' + profile.palette[0] + '" stroke-width="4"/><path d="' + path + '" fill="none" stroke="#fff" stroke-width="1.5"/></svg>') + '")';
           node.style.backgroundSize = '100% 100%';
         }
         animate(node, [{opacity: 0}, {opacity: 1, offset: .18}, {opacity: .65, offset: .65}, {opacity: 0}], duration);
       } else {
         var arc = /^(arrow|volley|barrage|wave)$/.test(profile.family) ? -28 - (profile.variant % 3) * 8 : 0;
-        animate(node, [{transform: 'translate(-50%,-50%) rotate(' + angle + 'deg)'}, {offset: .5, transform: 'translate(calc(-50% + ' + dx / 2 + 'px),calc(-50% + ' + (dy / 2 + arc) + 'px)) rotate(' + angle + 'deg)'}, {transform: 'translate(calc(-50% + ' + dx + 'px),calc(-50% + ' + dy + 'px)) rotate(' + angle + 'deg)'}], duration);
+        animate(node, [{transform: 'translate(-50%,-50%) rotate(' + angle + 'deg)'}, {offset: .5, transform: 'translate(calc(-50% + ' + dx / 2 + 'px),calc(-50% + ' + (dy / 2 + arc) + 'px)) rotate(' + angle + 'deg)'}, {transform: 'translate(calc(-50% + ' + dx + 'px),calc(-50% + ' + dy + 'px)) rotate(' + angle + 'deg)'}], duration, 'linear');
       }
     } else animate(node, [{opacity: .3, transform: 'translate(-50%,-50%) scale(.55)'}, {opacity: 1, offset: .25, transform: 'translate(-50%,-50%) scale(1.1)'}, {opacity: 0, transform: 'translate(-50%,-50%) scale(1.2)'}], duration);
     stage().appendChild(node);
     if (!reduced() && !(phase === 'travel' && profile.family === 'lightning')) later(function () { if (window.AbyssCombatArt) node.style.backgroundImage = 'url("' + window.AbyssCombatArt.effectFrame(profile, phase, 1) + '")'; }, duration / 2);
+    later(function () { node.remove(); }, duration);
+  }
+  function areaEffect(event, targets, profile, duration) {
+    var points = targets.map(function (target) { return actors.get(target.target_id); }).filter(Boolean).map(point);
+    if (!points.length) return;
+    var host = stage(), node = document.createElement('span');
+    var left = Math.max(2, Math.min.apply(null, points.map(function (p) { return p.x; })) - 52);
+    var right = Math.min(host.clientWidth - 2, Math.max.apply(null, points.map(function (p) { return p.x; })) + 52);
+    var top = Math.max(2, Math.min.apply(null, points.map(function (p) { return p.y; })) - 34);
+    var bottom = Math.min(host.clientHeight - 2, Math.max.apply(null, points.map(function (p) { return p.y; })) + 42);
+    node.className = 'ab-combat-effect ab-effect-area'; node.setAttribute('aria-hidden', 'true');
+    node.dataset.eventSeq = String(event.seq); node.dataset.actorId = event.actor_id || '';
+    node.dataset.targetId = targets[0].target_id; node.dataset.targetIds = targets.map(function (t) { return t.target_id; }).join(' ');
+    node.dataset.effectFamily = profile.family; node.dataset.abilityId = event.ability_id || event.kind;
+    node.style.setProperty('--effect-color', profile.palette[0]);
+    node.style.left = (left + right) / 2 + 'px'; node.style.top = (top + bottom) / 2 + 'px';
+    node.style.width = Math.max(1, right - left) + 'px'; node.style.height = Math.max(1, bottom - top) + 'px';
+    if (visuals) visuals.effect(node, profile);
+    var old = host.querySelectorAll('.ab-combat-effect'), cap = host.dataset.visualQuality === 'low' ? 16 : 48;
+    if (old.length >= cap) old[0].remove();
+    host.appendChild(node);
+    animate(node, [{opacity: .35, transform: 'translate(-50%,-50%) scale(.85)'}, {opacity: .85, offset: .6, transform: 'translate(-50%,-50%) scale(1)'}, {opacity: 0, transform: 'translate(-50%,-50%) scale(1)'}], duration);
     later(function () { node.remove(); }, duration);
   }
   function outcome(event, target) {
@@ -178,7 +202,9 @@
       rest(actor);
     }
     var hidden = actor._combatUnit && actor._combatUnit.hp_hidden, parts = [];
-    if (!hidden && target.damage > 0) parts.push({text: (target.critical ? 'CRIT ' : '') + '−' + window.fmtNum(target.damage), kind: target.critical ? 'critical' : 'damage'});
+    var tick = event.kind === 'status' && /poison|bleed/i.exec(String(event.ability_id || '') + ' ' + String(event.ability_name || ''));
+    var tickKind = tick ? tick[0].toLowerCase() : '';
+    if (!hidden && target.damage > 0) parts.push({text: (tickKind ? tickKind.toUpperCase() + ' ' : '') + (target.critical ? 'CRIT ' : '') + '−' + window.fmtNum(target.damage), kind: tickKind || (target.critical ? 'critical' : 'damage')});
     if (!hidden && target.healing > 0) parts.push({text: '+' + window.fmtNum(target.healing), kind: 'healing'});
     if (!hidden && target.absorbed > 0) parts.push({text: 'ABSORB ' + window.fmtNum(target.absorbed), kind: 'absorb'});
     if (target.blocked) parts.push({text: 'BLOCK', kind: 'block'});
@@ -186,7 +212,7 @@
     if (target.status) parts.push({text: String(target.status).replace(/_/g, ' ').toUpperCase(), kind: 'status'});
     if (target.defeated) parts.push({text: 'DEFEATED', kind: 'defeat'});
     if (!parts.length && hidden && (target.healed || target.healing > 0)) parts.push({text: 'HEAL', kind: 'healing'});
-    else if (!parts.length && hidden && (target.damaged || target.damage > 0)) parts.push({text: 'HIT', kind: 'damage'});
+    else if (!parts.length && hidden && (target.damaged || target.damage > 0)) parts.push({text: tickKind ? tickKind.toUpperCase() : 'HIT', kind: tickKind || 'damage'});
     var anchor = point(actor), host = stage(), width = host.clientWidth;
     parts.forEach(function (part) {
       var previous = Array.from(host.querySelectorAll('.ab-combat-number')).filter(function (n) { return n.dataset.targetId === target.target_id; });
@@ -252,9 +278,11 @@
     var unit = actor && actor._combatUnit || {};
     var profile = window.AbyssCombatArt ? window.AbyssCombatArt.profileFor(Object.assign({}, event, {weapon_type: unit.weapon_type, weapon_name: unit.weapon_name})) : {family: event.element || 'physical', palette: ['#f2bd5b']};
     var fast = speed === 'fast' || (latest && latest.pause_mode === 'fast');
-    var terminal = latest && (latest.phase === 'complete' || latest.phase === 'failed');
-    var duration = Math.max(12, Math.min(fast ? 190 : 480, (batchDeadline - performance.now()) / Math.max(1, queue.length + 1)));
+    var remaining = batchDeadline - performance.now(), expired = remaining <= 0;
+    var desiredDuration = fast ? 260 : Math.min(900, Math.max(profile.duration || 540, profile.family === 'lightning' ? (event.targets || []).length * 110 + 240 : 0));
+    var duration = Math.max(12, Math.min(desiredDuration, remaining / Math.max(1, queue.length + 1)));
     if (reduced()) duration = Math.min(duration, 100);
+    var compressed = duration < 120;
     if (visuals) visuals.prepare(event, profile, actor, actors);
     manaOutcome(event, duration);
     if (event.kind === 'mana') {
@@ -262,6 +290,26 @@
       return;
     }
     var targets = (event.targets || []).slice(0, 24), pose = profile.pose || (event.kind === 'attack' || event.kind === 'pet' ? 'attack' : 'cast');
+    var linked = new Set(), chainTargets = targets.filter(function (target) {
+      if (!actors.has(target.target_id) || linked.has(target.target_id)) return false;
+      linked.add(target.target_id); return true;
+    });
+    var chain = profile.family === 'lightning' && chainTargets.length > 1 && !reduced() && !compressed;
+    // The server emits group Chain Attack bounces as separate, consecutive events.
+    var chainSource = event.ability_id === 'chain_attack' && previousHit && previousHit.seq === event.seq - 1 && previousHit.actor_id === event.actor_id && previousHit.round === event.round ? previousHit.target_id : event.actor_id;
+    var area = event.kind !== 'status' && (profile.area || targets.length > 1 && pose === 'cast' && profile.family !== 'lightning');
+    function hit(target) {
+      if (!expired) effect(event, target, profile, 'impact', Math.max(220, duration * .4));
+      if (visuals) visuals.contact(event, target, actors);
+      outcome(event, target);
+      if (visuals && !expired) visuals.hit(event, target, actors.get(target.target_id), profile);
+    }
+    function finish() {
+      if (actor) { actor.classList.remove('ab-performing'); rest(actor); }
+      var damaged = targets.filter(function (target) { return (target.damage > 0 || target.damaged) && actors.has(target.target_id); });
+      previousHit = damaged.length ? {seq: event.seq, actor_id: event.actor_id, round: event.round, target_id: damaged[damaged.length - 1].target_id} : null;
+      cursor = Math.max(cursor, Number(event.seq) || 0); mark('playing'); playNext();
+    }
     if (actor) { actor._poseEvent = event.seq; actor.classList.add('ab-performing'); setFrame(actor, pose, 0); }
     if (event.kind === 'phase') label(event.ability_name || 'PHASE CHANGE', event, 'boss');
     else if (event.kind === 'ultimate') label(event.ability_name || 'ULTIMATE', event, 'ultimate');
@@ -269,28 +317,35 @@
       var name = actor.querySelector('.ab-combat-action-name');
       if (name) name.textContent = event.ability_name || event.kind;
     }
+    // An overloaded renderer must not stretch a bounded batch into seconds of
+    // stale travel. Preserve every outcome and history entry when time runs out.
+    if (expired) { targets.forEach(hit); finish(); return; }
     later(function () {
       if (actor) setFrame(actor, pose, 1);
       if (actor && pose === 'attack') animate(actor.querySelector('.ab-actor-sprite'), [{transform: 'scaleX(var(--ab-facing,1)) translateX(0)'}, {transform: 'scaleX(var(--ab-facing,1)) translateX(' + Math.max(2, Math.min(12, Math.abs(point(actors.get(targets[0] && targets[0].target_id) || actor).x - point(actor).x) * .08)) + 'px)', offset: .45}, {transform: 'scaleX(var(--ab-facing,1)) translateX(0)'}], duration * .5);
-      targets.forEach(function (target, index) {
-        if (profile.family === 'lightning' && targets.length > 1) {
-          var linkDuration = duration * .3 / targets.length;
-          later(function () { effect(event, target, profile, 'travel', linkDuration, index ? targets[index - 1].target_id : event.actor_id); }, index * linkDuration);
-        } else effect(event, target, profile, profile.projectile || profile.family === 'lightning' ? 'travel' : 'prepare', duration * .3);
+      if (area && (!compressed || reduced())) areaEffect(event, targets, profile, Math.max(400, duration * .8));
+      if (compressed) return;
+      (chain ? chainTargets : targets).forEach(function (target, index) {
+        if (chain) {
+          var linkDuration = duration * .46 / chainTargets.length;
+          later(function () { effect(event, target, profile, 'travel', Math.max(180, linkDuration * 2), index ? chainTargets[index - 1].target_id : chainSource); }, index * linkDuration);
+          later(function () { targets.filter(function (outcome) { return outcome.target_id === target.target_id; }).forEach(hit); }, (index + 1) * linkDuration);
+        } else if (profile.projectile || profile.family === 'lightning') effect(event, target, profile, 'travel', duration * .46, chainSource);
       });
-    }, duration * .25);
+    }, duration * .18);
+    if (!compressed && targets.length && pose === 'cast' && event.kind !== 'status') effect(event, targets[0], profile, 'prepare', duration * .18);
     later(function () {
-      targets.forEach(function (target) { effect(event, target, profile, 'impact', Math.max(140, duration * .4)); outcome(event, target); if (visuals) visuals.hit(event, target, actors.get(target.target_id), profile); });
+      if (!chain) targets.forEach(hit);
+      // A departed or unrenderable target still has an authoritative result.
+      // Record it at contact without inventing a sprite or projectile endpoint.
+      else targets.filter(function (target) { return !actors.has(target.target_id); }).forEach(hit);
       var healing = targets.some(function (target) { return target.healing > 0; });
       var defeated = targets.some(function (target) { return target.defeated; });
       var cue = defeated ? 'defeat' : healing ? 'heal' : event.kind === 'ultimate' ? 'ultimate' : pose === 'cast' ? 'cast' : 'hit';
       if (window.playLiveCombatCue) window.playLiveCombatCue(cue, event.kind === 'ultimate' ? .9 : .4);
       if (!reduced() && window.pulseLiveCombatStage && (defeated || event.kind === 'ultimate')) window.pulseLiveCombatStage(cue);
-    }, duration * .56);
-    later(function () {
-      if (actor) { actor.classList.remove('ab-performing'); rest(actor); }
-      cursor = Math.max(cursor, Number(event.seq) || 0); mark('playing'); playNext();
-    }, duration);
+    }, duration * .64);
+    later(finish, duration);
   }
   function ingest(state) {
     init(); reset(state.session_id);
@@ -308,10 +363,13 @@
     }
     var sequences = new Set();
     var fresh = events.filter(function (event) { var seq = Number(event.seq); if (seq <= accepted || sequences.has(seq)) return false; sequences.add(seq); return true; }).sort(function (a, b) { return a.seq - b.seq; });
-    if (!fresh.length) return;
-    if (fresh[0].seq > accepted + 1 || queue.length + fresh.length > 48) {
+    // Every event through the advertised cursor must be present. A partial
+    // batch cannot establish an ordered timeline, even when its first event fits.
+    var contiguous = fresh.every(function (event, index) { return Number(event.seq) === accepted + index + 1; });
+    if (!contiguous || nextCursor > accepted + fresh.length || queue.length + fresh.length > 48) {
       clear(); accepted = cursor = nextCursor; mark('catchup'); return;
     }
+    if (!fresh.length) return;
     accepted = Math.max(accepted, nextCursor); queue.push.apply(queue, fresh);
     var budget = state.phase === 'complete' || state.phase === 'failed' ? 620 : speed === 'fast' || state.pause_mode === 'fast' ? 900 : 1600;
     batchDeadline = active ? Math.min(batchDeadline, performance.now() + budget) : performance.now() + budget;

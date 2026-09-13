@@ -13,6 +13,19 @@ vm.runInContext(fs.readFileSync(path.join(assets, 'abyss_combat_art.js'), 'utf8'
 const art = context.window.AbyssCombatArt;
 const catalog = context.window.AB_COMBAT_CATALOG;
 
+test('spell profiles distinguish flying fireballs, area magic and damage over time', () => {
+  const fireball = art.profileFor({kind: 'skill', ability_id: 'fireball', ability_name: 'Fireball'});
+  assert.equal(fireball.projectile, true);
+  assert.equal(fireball.element, 'fire');
+  assert.notEqual(art.effectFrame(fireball, 'travel', 0), art.effectFrame(fireball, 'impact', 0));
+  for (const name of ['Frost Nova', 'Earthquake', 'Blizzard', 'Meteor Rain']) {
+    assert.equal(art.profileFor({kind: 'skill', ability_name: name}).area, true, name);
+  }
+  assert.equal(art.profileFor({kind: 'status', ability_id: 'bleed', ability_name: 'Bleeding'}).family, 'bleed');
+  assert.equal(art.profileFor({kind: 'status', ability_id: 'bleed', ability_name: 'Bleeding'}).element, 'blood');
+  assert.equal(art.profileFor({kind: 'skill', ability_name: 'Chain Lightning'}).area, false);
+});
+
 test('named elemental skills retain their visual theme with broad engine elements', () => {
   for (const [name, element] of [['Fiery Bolt', 'fire'], ['Icy Bolt', 'frost'], ['Shadow Strike', 'shadow'], ['Storm Blast', 'storm'], ['Blood Drain', 'blood']]) {
     const key = Object.keys(catalog).find(key => catalog[key].name === name);
