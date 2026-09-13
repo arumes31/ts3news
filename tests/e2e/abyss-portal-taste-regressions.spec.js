@@ -192,8 +192,15 @@ test('shop keeps an ambiguous purchase locked until the player refreshes', async
 test('shop refreshes exact comparisons after the server confirms an auto-equip', async ({ page }) => {
   let shopLoads = 0;
   let releaseBuyResponse;
+  let releaseComparisonResponse;
   page.on('request', request => {
     if (request.isNavigationRequest() && new URL(request.url()).pathname === '/shop') shopLoads += 1;
+  });
+  await page.route('**/shop', async route => {
+    if (route.request().headers()['x-requested-with'] === 'item-comparison-refresh') {
+      await new Promise(resolve => { releaseComparisonResponse = resolve; });
+    }
+    await route.continue();
   });
   await page.route('**/api/shop/buy', async route => {
     await new Promise(resolve => { releaseBuyResponse = resolve; });
@@ -205,6 +212,7 @@ test('shop refreshes exact comparisons after the server confirms an auto-equip',
   await page.goto('/shop');
 
   const buyButton = page.getByRole('button', { name: /^Buy .+ for .+ gold$/ }).first();
+  const originalOffer = await buyButton.elementHandle();
   await buyButton.click();
   const response = page.waitForResponse('**/api/shop/buy');
   await page.getByRole('dialog').getByRole('button', { name: /^Buy for .* gold$/ }).click();
@@ -215,9 +223,16 @@ test('shop refreshes exact comparisons after the server confirms an auto-equip',
   releaseBuyResponse();
   await response;
 
+  await expect.poll(() => typeof releaseComparisonResponse).toBe('function');
   await expect(page.locator('#shopMsg')).toContainText('Refreshing equipment comparisons');
-  await expect(page.locator('.shop-buy-action').first()).toBeDisabled();
-  await expect.poll(() => shopLoads).toBe(2);
+  await expect.poll(() => page.locator('.shop-buy-action').evaluateAll(buttons =>
+    buttons.length > 0 && buttons.every(button => button.disabled)
+  )).toBe(true);
+  releaseComparisonResponse();
+  await expect(page.locator('#itemToolsStatus')).toHaveText('Equipment comparisons updated after purchase.');
+  expect(await originalOffer.evaluate(button => button.isConnected)).toBe(false);
+  await expect(page.locator('.shop-buy-action').first()).toBeEnabled();
+  expect(shopLoads).toBe(1);
   await expect(page.getByRole('heading', { name: 'Shop', exact: true })).toBeVisible();
 });
 

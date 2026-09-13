@@ -277,6 +277,10 @@ jobs:
     name: Abyss Browser Journey
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -300,13 +304,13 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Exercise enter, descend, bank, and death
-        run: npm run test:e2e
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/4
 
       - name: Upload browser diagnostics
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: abyss-playwright-report
+          name: abyss-playwright-report-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/

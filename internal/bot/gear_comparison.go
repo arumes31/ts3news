@@ -33,6 +33,12 @@ func gearContributionStats(g content.Gear, now time.Time) content.Stats {
 
 // A failed or partial equipment read must never look like an empty loadout.
 func (b *Bot) getEquippedComparisonItems(uid string) map[content.GearSlot]content.Gear {
+	return b.getEquippedComparisonItemsFrom(b.DB, uid)
+}
+
+func (b *Bot) getEquippedComparisonItemsFrom(db interface {
+	Query(string, ...any) (*sql.Rows, error)
+}, uid string) map[content.GearSlot]content.Gear {
 	unknown := func() map[content.GearSlot]content.Gear {
 		out := map[content.GearSlot]content.Gear{}
 		for _, slot := range content.AllSlots {
@@ -40,7 +46,7 @@ func (b *Bot) getEquippedComparisonItems(uid string) map[content.GearSlot]conten
 		}
 		return out
 	}
-	rows, err := b.DB.Query("SELECT slot, gear_id, item_data, durability FROM user_gear WHERE client_uid = $1", uid)
+	rows, err := db.Query("SELECT slot, gear_id, item_data, durability FROM user_gear WHERE client_uid = $1", uid)
 	if err != nil {
 		return unknown()
 	}
@@ -292,6 +298,7 @@ func compareGearAt(candidate, current content.Gear, occupied bool, now time.Time
 		}
 	}
 	context(effectReview, "Special effects change; compare their combat benefits and costs.")
+	r.Gains, r.Losses = gains, losses
 	switch {
 	case contextual || (gains > 0 && losses > 0):
 		r.Status = "tradeoff"

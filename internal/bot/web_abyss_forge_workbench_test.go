@@ -213,8 +213,10 @@ func TestIdentifyQuoteDoesNotRevealHiddenItemRoll(t *testing.T) {
 		Stats: content.Stats{HP: 123456, INT: 654321}, Special: content.ItemEffect("Vampiric"),
 		FoundBoss: "Hidden Boss",
 	}
+	currentCR := gear.CombatRating()
 	quote := abyssForgeQuote{
 		Current:          &gear,
+		CurrentCR:        &currentCR,
 		Outcome:          forgeQuoteOutcome("identify", &gear, 1),
 		DurabilityBefore: gear.MaxDurability, DurabilityAfter: gear.MaxDurability,
 		SocketsBefore: 3, SocketsAfter: 3, SetBefore: "SECRET_SET", SetAfter: "SECRET_SET",
@@ -226,13 +228,28 @@ func TestIdentifyQuoteDoesNotRevealHiddenItemRoll(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, secret := range []string{"SECRET_CELESTIAL", "Secret Crown", "654321", "Hidden Boss", "SECRET_SET", "Vampiric"} {
+	for _, secret := range []string{"SECRET_CELESTIAL", "Secret Crown", "654321", "Hidden Boss", "SECRET_SET", "Vampiric", "current_cr"} {
 		if bytes.Contains(encoded, []byte(secret)) {
 			t.Fatalf("identify quote leaked %q: %s", secret, encoded)
 		}
 	}
 	if quote.Current != nil || len(quote.Outcome.Consequences) == 0 || quote.TradeableAfter != true {
 		t.Fatalf("redacted identify quote = %+v", quote)
+	}
+}
+
+func TestIdentifyQuotePreservesIdentifiedCurrentCR(t *testing.T) {
+	for _, cr := range []float64{0, 123.4} {
+		gear := content.Gear{Slot: content.SlotHead}
+		quote := abyssForgeQuote{Current: &gear, CurrentCR: &cr}
+		redactUnidentifiedIdentifyQuote("identify", &gear, &quote)
+		encoded, err := json.Marshal(quote)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if quote.CurrentCR == nil || *quote.CurrentCR != cr || !bytes.Contains(encoded, []byte(`"current_cr":`)) {
+			t.Fatalf("identified CR was lost: %s", encoded)
+		}
 	}
 }
 

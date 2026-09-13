@@ -61,12 +61,13 @@ func exactForgeStatOutcome(operation string, before content.Gear, chance float64
 	out := abyssForgeOutcome{MinimumStats: before.Stats, MaximumStats: before.Stats, ExpectedStats: before.Stats,
 		MinimumCR: min(before.CombatRating(), after.CombatRating()), MaximumCR: max(before.CombatRating(), after.CombatRating()),
 		ExpectedCR: (1-chance)*before.CombatRating() + chance*after.CombatRating()}
-	if chance == 1 {
+	switch chance {
+	case 1:
 		out.MinimumStats, out.MaximumStats, out.ExpectedStats = after.Stats, after.Stats, after.Stats
 		out.MinimumCR, out.MaximumCR, out.ExpectedCR = after.CombatRating(), after.CombatRating(), after.CombatRating()
-	} else if chance == 0 {
+	case 0:
 		out.MinimumCR, out.MaximumCR, out.ExpectedCR = before.CombatRating(), before.CombatRating(), before.CombatRating()
-	} else {
+	default:
 		for _, stat := range before.Stats.Details() {
 			if !stat.Combat {
 				continue

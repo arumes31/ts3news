@@ -58,7 +58,7 @@ type abyssForgeOutcome struct {
 }
 
 type abyssForgeQuote struct {
-	CurrentCR          float64             `json:"current_cr"`
+	CurrentCR          *float64            `json:"current_cr,omitempty"`
 	SchemaVersion      int                 `json:"schema_version"`
 	CatalogHash        string              `json:"catalog_hash"`
 	Operation          string              `json:"operation"`
@@ -377,6 +377,7 @@ func redactUnidentifiedIdentifyQuote(operation string, gear *content.Gear, quote
 		return
 	}
 	quote.Current = nil
+	quote.CurrentCR = nil
 	quote.Outcome = abyssForgeOutcome{
 		Consequences: []string{"Hidden rarity, stats, effects, and provenance are revealed only after identification commits."},
 	}
@@ -618,7 +619,8 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 		TradeableAfter: true, Recovery: map[string]int{},
 	}
 	if gear != nil {
-		quote.CurrentCR = gear.CombatRating()
+		currentCR := gear.CombatRating()
+		quote.CurrentCR = &currentCR
 	}
 	if operation.ID == "gem_upgrade_all" && gear != nil {
 		quote.Outcome = forgeBulkGemOutcome(*gear, int(numberParameter(parameterValues, "stop_at_tier")))

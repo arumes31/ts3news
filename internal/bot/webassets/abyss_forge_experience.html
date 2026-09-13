@@ -42,17 +42,16 @@
     var option=select.options[select.selectedIndex];
     if(!option||!option.value){card.hidden=true;return;}
     card.hidden=false;
-    var name=selectedName(option),slot=option.dataset.slot||'Gear',rarity=Number(option.dataset.rarity||0),cr=Number(option.dataset.cr||0),gs=Number(option.dataset.gs||0),level=Number(option.dataset.temper||0),pity=Number(forgeUIState&&forgeUIState.temper_fail_stacks)||0;
-    var base=Math.max(20,Math.min(95,95-6*level)),chance=Math.max(20,Math.min(95,base+5*pity));
+    var name=selectedName(option),slot=option.dataset.slot||'Gear',rarity=Number(option.dataset.rarity||0),cr=Number(option.dataset.cr||0),gs=Number(option.dataset.gs||0),level=Number(option.dataset.temper||0);
     document.getElementById('forgeSelectionName').textContent=name;
     var rarityNames=['Common','Uncommon','Rare','Epic','Legendary','Mythic','Divine','Celestial','Eternal'];
     document.getElementById('forgeSelectionMeta').textContent=slot+' · '+(rarityNames[rarity]||'Unknown')+' · CR '+cr.toFixed(1)+' · GS '+gs;
     var visible=Array.prototype.slice.call(actions.querySelectorAll('button')).filter(function(button){return button.style.display!=='none';}).length;
     document.getElementById('forgeSelectionActions').textContent=visible+' applicable action'+(visible===1?'':'s');
     document.getElementById('forgeTemperChanceLabel').textContent='Awaiting current temper quote';
-    var track=document.querySelector('#forgeTemperChance .ab-forge-chance-track');track.setAttribute('aria-valuenow',String(chance));
-    document.getElementById('forgeTemperBase').style.width=base+'%';
-    var bonus=document.getElementById('forgeTemperPityBonus');bonus.style.left=base+'%';bonus.style.width=Math.max(0,chance-base)+'%';
+    var track=document.querySelector('#forgeTemperChance .ab-forge-chance-track');track.removeAttribute('aria-valuenow');
+    document.getElementById('forgeTemperBase').style.width='0%';
+    var bonus=document.getElementById('forgeTemperPityBonus');bonus.style.left='0%';bonus.style.width='0%';
     document.getElementById('forgeBefore').textContent='Now · +'+level+' · CR '+cr.toFixed(1);
     document.getElementById('forgeAfter').textContent=level>=15?'Temper cap reached':'Select an operation for an exact quote';
     priceButtons(option);

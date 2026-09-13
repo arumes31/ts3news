@@ -43,7 +43,7 @@ func TestGearComparisonMalformedSavedStatsNeverUseCatalogFallback(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	mock.ExpectQuery("SELECT slot, gear_id, item_data, durability FROM user_gear").WithArgs("player").WillReturnRows(sqlmock.NewRows([]string{"slot", "gear_id", "item_data"}).AddRow("Head", "B_Head", `{"Stats":{"STR":"bad"}}`))
 	got := shopGearComparison(content.Gear{Slot: content.SlotHead, Stats: content.Stats{STR: 9999}}, (&Bot{DB: db}).equippedGearUpgradeIndex("player"))
 	if !got.Unknown || got.IsUpgrade {

@@ -10,6 +10,22 @@ import (
 	"ts3news/internal/content"
 )
 
+func TestGearComparisonCountsAllMeasuredContributions(t *testing.T) {
+	current := content.Gear{Slot: content.SlotHead, Rarity: content.RarityRare, XPMultiplier: 1}
+	candidate := current
+	candidate.Stats.STR = 1
+	candidate.XPMultiplier = 1.1
+	candidate.RegenAmount, candidate.RegenIntervalSec = 1, 1
+	candidate.MaxDurability, candidate.Sockets, candidate.Insured = 1, 1, true
+	forward, reverse := compareGear(candidate, current, true), compareGear(current, candidate, true)
+	if forward.Gains != 6 || forward.Losses != 0 || forward.Status != "upgrade" {
+		t.Fatalf("incomplete improvement counts: %+v", forward)
+	}
+	if reverse.Gains != 0 || reverse.Losses != 6 || reverse.Status != "downgrade" {
+		t.Fatalf("incomplete loss counts: %+v", reverse)
+	}
+}
+
 func TestGearUpgradeRejectsTradeoffs(t *testing.T) {
 	current := content.Gear{Slot: content.SlotHead, Rarity: content.RarityRare, XPMultiplier: 1.1, Stats: content.Stats{STR: 100, DEF: 100, MNA: 100}}
 	for _, test := range []struct {

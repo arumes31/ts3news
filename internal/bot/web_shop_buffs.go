@@ -26,7 +26,7 @@ func shopBuffPrice(owned int64) int64 {
 // over a user-controlled amount. Reject overflow before charging the wallet.
 func shopBuffTotalPrice(owned, amount int64) (int64, error) {
 	if owned < 0 || amount < 1 || amount > math.MaxInt64-owned {
-		return 0, errors.New("Choose a valid whole number of tokens.")
+		return 0, errors.New("choose a valid whole number of tokens")
 	}
 	rising := min(amount, max(int64(999)-owned, 0))
 	var total int64
@@ -36,7 +36,7 @@ func shopBuffTotalPrice(owned, amount int64) (int64, error) {
 	capped := amount - rising
 	const capPrice = 1000 * shopBuffPriceStep
 	if capped > (math.MaxInt64-total)/capPrice {
-		return 0, errors.New("The total token price is too large.")
+		return 0, errors.New("the total token price is too large")
 	}
 	return total + capped*capPrice, nil
 }

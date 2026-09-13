@@ -151,6 +151,9 @@ func TestItemQuickwinsTinyXPChangesRetainPrecisionAndClassification(t *testing.T
 			if got.Status != status || got.IsUpgrade != (direction > 0) {
 				t.Errorf("tiny XP delta %g classified %s, want %s", direction*delta, got.Status, status)
 			}
+			if direction > 0 && (got.Gains != 1 || got.Losses != 0) || direction < 0 && (got.Gains != 0 || got.Losses != 1) {
+				t.Errorf("XP-only comparison counts = %d gains, %d losses", got.Gains, got.Losses)
+			}
 		}
 	}
 }

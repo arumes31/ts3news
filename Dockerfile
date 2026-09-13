@@ -39,7 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libfreetype6 libdbus-1-3 \
     libnss3 libglib2.0-0t64 libgl1 libegl1 libpulse0 libasound2t64 libxi6 libxtst6 \
     libxrender1 libxrandr2 libxcomposite1 libxdamage1 libxcursor1 \
-    libevent-2.1-7t64 libsm6 libice6 libxext6 libharfbuzz0b libpng16-16t64 \
+    libevent-2.1-7t64=2.1.13-stable-1~deb13u1 libsm6 libice6 libxext6 libharfbuzz0b libpng16-16t64 \
     libpci3 libxslt1.1 liblcms2-2 libatomic1 \
     && rm -rf /var/lib/apt/lists/*
 

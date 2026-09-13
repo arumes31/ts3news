@@ -147,6 +147,9 @@ func (g Gear) EffectiveXPMultiplier() float64 {
 	if g.Unidentified || g.Rarity < RarityRare || IsPetGearSlot(g.Slot) {
 		return 1
 	}
+	if g.XPMultiplier < 0 || math.IsNaN(g.XPMultiplier) || math.IsInf(g.XPMultiplier, 0) {
+		return 1
+	}
 	switch g.Slot {
 	case SlotMainHand, SlotChest, SlotHead, SlotLegs, SlotFeet, SlotFinger1:
 		return g.XPMultiplier

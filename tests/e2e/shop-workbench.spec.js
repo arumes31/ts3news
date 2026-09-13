@@ -133,6 +133,11 @@ test('maximum buff quantity respects both gold reserve and spend limit', async (
   // The first two escalating tokens cost1m+2m; three would cost6m.
   await expect(page.locator('#shopBuffAmount-rarity')).toHaveValue('2');
   await expect(page.locator('#shopBuff-rarity .shop-buff-total')).toContainText('3,000,000');
+  await expect(page.locator('#swBuffProjection-rarity')).toContainText('Planned bonus increase: 0.2%');
+  for (const amount of ['0', '']) {
+    await page.locator('#shopBuffAmount-rarity').fill(amount);
+    await expect(page.locator('#swBuffProjection-rarity')).toHaveText('Choose an amount to preview the bonus increase.');
+  }
   expect(purchases).toEqual([]);
 });
 

@@ -523,7 +523,13 @@ func (s *WebServer) handleAbyssEquipBestLoot(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, map[string]any{"ok": false, "error": "identify this item before reserving it"})
 		return
 	}
-	equipped := s.bot.getEquippedComparisonItems(uid)
+	// Hold the equipment snapshot stable through selection commit, including empty
+	// slots where row locks cannot prevent a concurrent equipGear insert.
+	if _, err := tx.ExecContext(r.Context(), "LOCK TABLE user_gear IN SHARE MODE"); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	equipped := s.bot.getEquippedComparisonItemsFrom(tx, uid)
 	comparisonGear := map[string]content.Gear{}
 	if current, ok := equipped[requested.gear.Slot]; ok && (abyssGearActiveForCombat(current) || current.ID == comparisonUnavailableID) {
 		comparisonGear[string(current.Slot)] = current

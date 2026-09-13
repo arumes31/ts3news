@@ -76,6 +76,10 @@ test('latest forge item and operation remain selected when older responses arriv
   hold = true;
   await page.locator('#forgeItemSelect').selectOption('equipped:OffHand');
   await expect.poll(() => pending.length).toBe(1);
+  await expect(page.locator('#forgeTemperChanceLabel')).toHaveText('Awaiting current temper quote');
+  await expect(page.locator('#forgeTemperChance .ab-forge-chance-track')).not.toHaveAttribute('aria-valuenow');
+  await expect(page.locator('#forgeTemperBase')).toHaveCSS('width', '0px');
+  await expect(page.locator('#forgeTemperPityBonus')).toHaveCSS('width', '0px');
   await page.locator('#forgePlanOperation').selectOption('masterwork');
   await expect.poll(() => pending.length).toBe(2);
 
@@ -174,6 +178,16 @@ test('a quote countdown expires and removes previously valid forge outcomes', as
   await expect(page.locator('#forgeAfter')).not.toContainText('456.7');
 });
 
+test('global forge operations do not require a workpiece', async ({ page }) => {
+  await openForge(page);
+  await page.locator('#forgeItemSelect').selectOption('');
+  await page.locator('#forgePlanOperation').selectOption('target_craft');
+  await expect(page.locator('#forgeUnavailableReason')).not.toContainText('Choose a workpiece');
+  await expect(page.locator('#forgeTargetCraftCommit')).not.toHaveAttribute('title', /Choose a workpiece/);
+  await page.locator('#forgePlanOperation').selectOption('temper');
+  await expect(page.locator('#forgeUnavailableReason')).toContainText('Choose a workpiece');
+});
+
 test('compact temper summary uses the canonical current item and guarded server quote', async ({ page }) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -193,6 +207,7 @@ test('compact temper summary uses the canonical current item and guarded server 
   await expect(page.locator('#forgeAfter')).toContainText('456.7');
   await expect(page.locator('#forgeAfter')).not.toContainText('≈');
   await expect(page.locator('#forgeTemperChanceLabel')).toContainText(/100(?:\.0)?%/);
+  await expect(page.locator('#forgeTemperChance .ab-forge-chance-track')).toHaveAttribute('aria-valuenow', '100');
   await expect(page.locator('#forgeQuoteChance')).toContainText('100.0%');
   await expect(page.locator('#forgeQuoteChance')).toContainText(/guard/i);
   expect(errors).toEqual([]);
