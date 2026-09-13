@@ -257,14 +257,19 @@ test('wide cockpit places Armoury beside the stage without unused page gutters',
 
   const layout = await page.evaluate(() => {
     const armoury = document.querySelector('.abyss-side-left').getBoundingClientRect();
+    const loot = document.querySelector('.abyss-side-right').getBoundingClientRect();
     const stage = document.getElementById('abyssStage').getBoundingClientRect();
-    return { position: getComputedStyle(document.querySelector('.abyss-side-left')).position, armoury, stage };
+    return { position: getComputedStyle(document.querySelector('.abyss-side-left')).position, armoury, loot, stage };
   });
   expect(layout.position).toBe('static');
   expect(layout.armoury.left).toBeGreaterThanOrEqual(0);
   expect(layout.armoury.left).toBeLessThan(60);
   expect(layout.stage.width).toBeGreaterThan(950);
   expect(layout.armoury.right).toBeLessThan(layout.stage.left);
+  for (const sidebar of [layout.armoury, layout.loot]) {
+    expect(Math.abs(sidebar.top - layout.stage.top)).toBeLessThanOrEqual(1);
+    expect(Math.abs(sidebar.bottom - layout.stage.bottom)).toBeLessThanOrEqual(1);
+  }
 });
 
 test('ultrawide lobby gives the command deck the available center lane', async ({ page }) => {
@@ -281,6 +286,7 @@ test('ultrawide lobby gives the command deck the available center lane', async (
       objective: box('#abCurrentObjective'),
       enter: box('#btnEnter'),
       loot: box('.abyss-side-right'),
+      armoury: box('.abyss-side-left'),
     };
   });
 
@@ -291,4 +297,8 @@ test('ultrawide lobby gives the command deck the available center lane', async (
   expect(layout.enter.width).toBeGreaterThan(110);
   expect(layout.enter.right).toBeLessThanOrEqual(layout.stage.right);
   expect(layout.stage.right).toBeLessThanOrEqual(layout.loot.left - 8);
+  for (const sidebar of [layout.armoury, layout.loot]) {
+    expect(Math.abs(sidebar.top - layout.stage.top)).toBeLessThanOrEqual(1);
+    expect(Math.abs(sidebar.bottom - layout.stage.bottom)).toBeLessThanOrEqual(1);
+  }
 });
