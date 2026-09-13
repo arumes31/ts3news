@@ -134,3 +134,32 @@ test('completion filters reflect confirmed regional progress',async({page})=>{
   await page.locator('#rift-show-selected').click();
   await expect(page.locator('[data-level="2"]')).toBeVisible();
 });
+
+test('combat feedback uses confirmed stats and exposes health meters',async({page})=>{
+  await page.goto('/abyss/rift?subclass=geomancer');
+  await page.locator('#rift-start').click();
+  await expect(page.locator('#rift-enemy-count')).toContainText('remaining');
+  await expect(page.getByRole('meter',{name:'Player health',exact:true})).toHaveAttribute('aria-valuemax','340');
+  await expect(page.getByRole('meter',{name:'Player mana',exact:true})).toHaveAttribute('aria-valuemax','100');
+  await page.keyboard.press('q');
+  await expect.poll(async()=>(await(await page.request.get('/api/abyss/rift')).json()).run.stats.skills_cast).toBeGreaterThan(0);
+  await expect(page.locator('#rift-barrier-state')).not.toHaveText('No barrier');
+  await page.keyboard.press('Escape');
+  const before=(await(await page.request.get('/api/abyss/rift')).json()).run.stats.seconds;
+  await page.waitForTimeout(300);
+  expect((await(await page.request.get('/api/abyss/rift')).json()).run.stats.seconds).toBe(before);
+  await page.locator('.rift-run-statistics > summary').click();
+  await expect(page.locator('#rift-statistics')).toContainText('Mana spent');
+  await expect(page.locator('#rift-announcer')).toHaveText('Expedition paused.');
+});
+
+test('reduced motion persists and the expanded mobile controls do not overflow',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/abyss/rift');
+  await page.locator('.rift-settings > summary').click();
+  await page.locator('#rift-reduced').check();
+  await page.reload();
+  await page.locator('.rift-settings > summary').click();
+  await expect(page.locator('#rift-reduced')).toBeChecked();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

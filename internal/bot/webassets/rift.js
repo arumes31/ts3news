@@ -39,6 +39,7 @@
     if(value.status !== 'cleared' || replay) clearedAt = 0;
     else if(!clearedAt) clearedAt = performance.now();
     run=value;renderer.snapshot(run,replay);
+    const controlsEnabled=playing&&['fighting','cleared'].includes(run.status)&&!run.paused;
     if(run.level){if(['fighting','cleared'].includes(run.status))selectedLevel=run.level.id;rooms=run.level.rooms.map(room=>room.name);}
     updateCampaign();
     $('rift-transition').hidden=run.status!=='cleared'||!playing||!$('rift-auto').checked;
@@ -60,11 +61,12 @@
     if(signature!==currentSkillIDs||!$('rift-skills').childElementCount){
       currentSkillIDs=signature;$('rift-skills').replaceChildren();run.build.skills.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.title=s.name+' · '+s.cost+' MP · '+s.cooldown+'s cooldown';btn.setAttribute('aria-label',s.name);text('span','',btn,'rift-skill-icon');text('kbd',String(i+1),btn);text('span',s.name,btn);text('small','Ready',btn);$('rift-skills').append(btn);hold(btn,s.id);});
     }
-    [...$('rift-skills').children].forEach((btn,i)=>{const s=run.build.skills[i],remaining=run.skill_timers[s.id]||0;btn.querySelector('small').textContent=remaining>0?remaining.toFixed(1)+'s':s.cost+' MP';btn.disabled=!playing||remaining>0||run.player.mana<s.cost;});
+    [...$('rift-skills').children].forEach((btn,i)=>{const s=run.build.skills[i],remaining=run.skill_timers[s.id]||0;btn.querySelector('small').textContent=remaining>0?remaining.toFixed(1)+'s':s.cost+' MP';btn.disabled=!controlsEnabled||remaining>0||run.player.mana<s.cost;});
     const specials=[...(run.build.signatures||[]),...(run.build.ultimate?[run.build.ultimate]:[])];
     const specialIDs=specials.map(s=>s.id).join(',');
     if($('rift-signatures').dataset.ids!==specialIDs){$('rift-signatures').dataset.ids=specialIDs;$('rift-signatures').replaceChildren();specials.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.title=s.name+' · '+s.cost+' MP';text('kbd',s===run.build.ultimate?'R':i?'E':'Q',btn);text('span',s.name,btn);text('small','Ready',btn);$('rift-signatures').append(btn);hold(btn,s.id);});}
-    [...$('rift-signatures').children].forEach((btn,i)=>{const s=specials[i],remaining=run.skill_timers[s.id]||0;btn.querySelector('small').textContent=remaining>0?remaining.toFixed(1)+'s':s.cost+' MP';btn.disabled=!playing||remaining>0||run.player.mana<s.cost;});
+    [...$('rift-signatures').children].forEach((btn,i)=>{const s=specials[i],remaining=run.skill_timers[s.id]||0;btn.querySelector('small').textContent=remaining>0?remaining.toFixed(1)+'s':s.cost+' MP';btn.disabled=!controlsEnabled||remaining>0||run.player.mana<s.cost;});
+    window.RiftHUD.update(run,playing);
     $('rift-room-actions').hidden=run.status!=='cleared'||!playing;
     $('rift-clear-label').textContent=run.room===2?(finalBoss?.name||'The boss')+' has fallen':'Area secured';
     $('rift-next').textContent=$('rift-auto').checked?'Continue now →':run.room===2?'Bank & finish expedition':'Bank & continue →';
@@ -100,7 +102,10 @@
     if(!busy){
       if(run?.status==='cleared' && $('rift-auto').checked){
         if(!clearedAt)clearedAt=performance.now();
-        if(performance.now()-clearedAt>=1200)await send('advance');
+        const remaining=Math.max(0,1.2-(performance.now()-clearedAt)/1000);
+        const next=run.room===2?levels.find(level=>level.id===(run.level?.id||0)+1)?.name:rooms[run.room+1];
+        $('rift-transition').textContent=remaining>0?'Next: '+(next||'campaign complete')+' · '+remaining.toFixed(1)+'s':'Banking rewards…';
+        if(remaining===0)await send('advance');
       }else await send('step');
     }
     if(playing)timer=setTimeout(loop,85);
@@ -208,6 +213,7 @@
   function soundLabel(){$('rift-sound').textContent=audio.muted?'Sound off':'Sound on';$('rift-sound').setAttribute('aria-pressed',String(audio.muted));}
   soundLabel();$('rift-sound').addEventListener('click',async()=>{await audio.unlock();audio.set('muted',!audio.muted);soundLabel();audio.play('ui',0);});
   [['effects','rift-effects-volume'],['ambience','rift-ambience-volume']].forEach(([key,id])=>{$(id).value=audio[key]*100;$(id).addEventListener('input',()=>audio.set(key,Number($(id).value)/100));});
-  $('rift-reduced').checked=renderer.reduced;$('rift-reduced').addEventListener('change',()=>renderer.reduced=$('rift-reduced').checked);
+  try{const reduced=JSON.parse(localStorage.getItem('riftReducedMotion'));if(typeof reduced==='boolean')renderer.reduced=reduced;}catch(_){}
+  $('rift-reduced').checked=renderer.reduced;$('rift-reduced').addEventListener('change',()=>{renderer.reduced=$('rift-reduced').checked;try{localStorage.setItem('riftReducedMotion',JSON.stringify(renderer.reduced));}catch(_){} });
   load();
 })();

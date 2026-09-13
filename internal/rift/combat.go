@@ -111,6 +111,7 @@ type Event struct {
 }
 
 type Run struct {
+	Stats           CombatStats        `json:"stats"`
 	Level           *Level             `json:"level,omitempty"`
 	CompletedLevels []int              `json:"completed_levels,omitempty"`
 	EncounterPlan   [][]Actor          `json:"encounter_plan,omitempty"`
@@ -207,6 +208,9 @@ func (r *Run) Step(in Input, now time.Time) {
 
 func (r *Run) tick(in Input, dt float64) {
 	r.Clock += dt
+	if r.Status == "fighting" {
+		r.Stats.Seconds += dt
+	}
 	p := &r.Player
 	p.Cooldown = math.Max(0, p.Cooldown-dt)
 	p.Jump = math.Max(0, p.Jump-dt)
@@ -243,11 +247,13 @@ func (r *Run) tick(in Input, dt float64) {
 		}
 	}
 	if in.Jump && p.Jump == 0 && r.SkillTimers["jump"] == 0 {
+		r.Stats.Jumps++
 		p.Jump = .65
 		r.SkillTimers["jump"] = 1.05
 		r.event("jump", p.X, p.Y, 0)
 	}
 	if in.Attack && in.Skill == "" && p.Cooldown == 0 && !p.Guard {
+		r.Stats.Attacks++
 		p.Cooldown = .38
 		p.Pose = "attack"
 		p.PoseTime = .32
@@ -326,6 +332,7 @@ func (r *Run) tick(in Input, dt float64) {
 		}
 	}
 	if alive == 0 && r.Status == "fighting" {
+		r.Stats.RoomsCleared++
 		// A secured room sweeps remaining drops into the bag before presenting
 		// its checkpoint, so displayed rewards agree with the banking receipt.
 		for i := range r.Drops {
@@ -352,6 +359,8 @@ func (r *Run) cast(id string) {
 		}
 		p := &r.Player
 		p.Mana -= skill.Cost
+		r.Stats.ManaSpent += skill.Cost
+		r.Stats.SkillsCast++
 		p.Cooldown = .35
 		p.Pose = "cast"
 		p.PoseTime = .4
@@ -364,13 +373,13 @@ func (r *Run) cast(id string) {
 		}
 		power := base * skill.Power * (1 + float64(charges)*.2)
 		if skill.Heal > 0 {
-			p.HP = math.Min(p.MaxHP, p.HP+p.MaxHP*skill.Heal)
+			r.healPlayer(p.MaxHP * skill.Heal)
 		}
 		if skill.Kind == "shield" {
 			r.Barrier = math.Min(p.MaxHP*.5, r.Barrier+25+r.Build.Armor*4)
 		} else if skill.Kind == "heal" {
 			if skill.Heal == 0 {
-				p.HP = math.Min(p.MaxHP, p.HP+p.MaxHP*.15)
+				r.healPlayer(p.MaxHP * .15)
 			}
 		} else if skill.Kind == "slash" || skill.Kind == "quake" || skill.Kind == "ultimate" {
 			rangeX, rangeY := 155.0, 60.0
@@ -409,11 +418,18 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		armor = .15
 	}
 	damage *= 1 - armor*(1-clamp(pierce, 0, 1))
+	damage = math.Min(e.HP, math.Max(0, damage))
 	e.HP = math.Max(0, e.HP-damage)
+	r.Stats.DamageDealt += damage
+	r.Stats.LargestHit = math.Max(r.Stats.LargestHit, damage)
 	e.Pose = "hit"
 	e.PoseTime = .2
 	r.event(effect, e.X, e.Y-30, damage)
 	if e.HP == 0 {
+		r.Stats.Kills++
+		if e.Kind == "boss" {
+			r.Stats.Bosses++
+		}
 		r.event(e.Kind+"_death", e.X, e.Y, 0)
 		r.Drops = append(r.Drops, Drop{ID: e.ID, X: e.X, Y: e.Y, Gold: int64(15 * (r.Room + 1)), NeedsGear: e.Kind == "boss" || e.Kind == "knight" || e.Kind == "treasure" || i == 0})
 	}
@@ -421,19 +437,29 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 
 func (r *Run) hurtPlayer(damage, x, y float64) {
 	p := &r.Player
+	if p.HP <= 0 {
+		return
+	}
+	incoming := damage
 	damage = math.Max(2, damage-r.Build.Armor*.4)
+	r.Stats.ArmorBlocked += math.Max(0, incoming-damage)
 	kind := "hurt"
 	if p.Guard && (x-p.X)*p.Facing >= 0 {
+		r.Stats.Guards++
+		r.Stats.GuardBlocked += damage * .82
 		damage *= .18
 		kind = "block"
 	}
 	if r.Barrier > 0 {
 		absorbed := math.Min(damage, r.Barrier)
+		r.Stats.BarrierBlocked += absorbed
 		r.Barrier -= absorbed
 		damage -= absorbed
 		kind = "block"
 	}
+	damage = math.Min(p.HP, damage)
 	p.HP = math.Max(0, p.HP-damage)
+	r.Stats.DamageTaken += damage
 	p.Pose = "hit"
 	p.PoseTime = .18
 	r.event(kind, p.X, p.Y-30, damage)

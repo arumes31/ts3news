@@ -36,9 +36,9 @@ func (r *Run) classCast(skill Skill) (int, string) {
 			}
 		}
 	case "bloodblade":
-		p.HP = math.Min(p.MaxHP, p.HP+p.MaxHP*.04*float64(charges))
+		r.healPlayer(p.MaxHP * .04 * float64(charges))
 	case "alchemist":
-		p.HP = math.Min(p.MaxHP, p.HP+p.MaxHP*.03*float64(charges))
+		r.healPlayer(p.MaxHP * .03 * float64(charges))
 	case "voidwalker":
 		cost := math.Min(math.Max(0, p.HP-1), p.MaxHP*.05)
 		p.HP -= cost
