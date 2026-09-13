@@ -17,7 +17,7 @@ test('Token Shop discloses and charges the server-wide demand price', async ({ p
   await expect(item).toContainText('7-day market');
   await expect(item).toContainText('hot · +10%');
   await expect(item).toContainText('24 bought');
-  const buy = item.getByRole('button');
+  const buy = item.locator('[data-shop-buy]');
   await expect(buy).toContainText('🜲 7');
   await expect(buy).toHaveAttribute('title', /Base 6 tokens · market \+10% from 24 prior-window purchases · exact total 7 tokens · fee 0/);
   await buy.click();

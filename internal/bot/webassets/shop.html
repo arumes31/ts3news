@@ -1,5 +1,6 @@
 {{define "shop"}}{{template "head" .}}
 {{template "shop_relic_styles" .}}
+<link rel="stylesheet" href="{{asset "/static/shop_workbench.css"}}">
 <header class="portal-masthead shop-masthead">
   <div>
     <h1>Shop</h1>
@@ -40,10 +41,10 @@
     </div>
 
     {{with .StockPagination}}{{if gt .Pages 1}}<p class="muted small shop-stock-page-note">Stock slots {{integer .Start}}–{{integer .End}} of {{integer .Total}} offers, including the featured relic. Search and filters apply to this page.</p>{{end}}{{end}}
-    <div class="shop-grid" id="shopGrid" role="list" data-stock-revision="{{.StockRevision}}" data-stock-page="{{.StockPagination.Page}}">
+    <div class="shop-grid" id="shopGrid" role="list" data-shop-user="{{.U.UID}}" data-stock-revision="{{.StockRevision}}" data-stock-page="{{.StockPagination.Page}}">
       {{range $index, $item := .Stock}}
       {{if ge $index 12}}<template class="shop-stock-offer">{{end}}
-      <article class="shop-card {{if .Featured}}featured-item{{end}} {{if .IsUpgrade}}upgrade-item{{end}}" role="listitem" data-id="{{.ID}}" data-search="{{.Name}} {{.Rarity}} {{.Slot}} {{range .Specials}}{{.Name}} {{end}}" data-name="{{.Name}}" data-slot="{{.Slot}}" data-price="{{.Price}}" data-cr="{{.CR}}" data-power="{{.Comparison.Power}}" data-gain="{{.Comparison.PowerDelta}}" data-comparison="{{.Comparison.Status}}" data-comparison-detail="{{.Comparison.JSON}}" data-order="{{$index}}" data-upgrade="{{.IsUpgrade}}" style="--shop-rarity:{{.RarityColor}}">
+      <article class="shop-card {{if .Featured}}featured-item{{end}} {{if .IsUpgrade}}upgrade-item{{end}}" role="listitem" data-id="{{.ID}}" data-element="{{.Element}}" data-search="{{.Name}} {{.Rarity}} {{.Slot}} {{range .Specials}}{{.Name}} {{end}}" data-name="{{.Name}}" data-slot="{{.Slot}}" data-price="{{.Price}}" data-cr="{{.CR}}" data-power="{{.Comparison.Power}}" data-gain="{{.Comparison.PowerDelta}}" data-comparison="{{.Comparison.Status}}" data-comparison-detail="{{.Comparison.JSON}}" data-order="{{$index}}" data-upgrade="{{.IsUpgrade}}" style="--shop-rarity:{{.RarityColor}}">
         <div class="shop-card-inspect item-inspect-trigger" data-item-inspect="{{.InspectJSON}}">
           <div class="shop-ico{{if .Featured}} shop-relic-stage{{end}}">{{if .Featured}}<div class="shop-relic-mount" aria-hidden="true">{{end}}<span class="item-art item-art-lg"{{if not .Featured}} data-shop-art-pending{{end}} data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span>{{if .Featured}}</div>{{end}}</div>
           <div class="shop-card-copy">
@@ -331,6 +332,7 @@ function renderShopBalances(){
   shopBalanceState.dataset.levelName=shopCurrentLevelName;
   shopBalanceState.textContent='Balance: 🪙 '+shopCompactGold(shopCurrentGold)+' / ✨ '+shopLocaleNumber(shopCurrentXP)+' XP / '+shopCurrentLevelName+' (Lvl '+shopCurrentLevel+')';
   updateShopAffordability();
+  if(window.ShopMainWorkbench)ShopMainWorkbench.balanceChanged();
 }
 
 function applyBalanceResponse(data){
@@ -425,7 +427,7 @@ function filterShopStock(){
   var matched=0;
   var visible=0;
   cards.forEach(function(card){
-    var matches=(!query||String(card.dataset.search||'').toLocaleLowerCase().includes(query))&&(!slot||card.dataset.slot===slot)&&(!upgrades||card.dataset.upgrade==='true')&&(!comparison||card.dataset.comparison===comparison)&&(!affordable||Number(card.dataset.price)<=shopCurrentGold);
+    var matches=(!query||(window.shopSearchMatches?shopSearchMatches(card.dataset.search,query):String(card.dataset.search||'').toLocaleLowerCase().includes(query)))&&(!slot||card.dataset.slot===slot)&&(!upgrades||card.dataset.upgrade==='true')&&(!comparison||card.dataset.comparison===comparison)&&(!affordable||Number(card.dataset.price)<=shopCurrentGold);
     matches=matches&&(!window.shopExtraMatches||shopExtraMatches(card));
     if(matches)matched++;
     var withinLimit=matched<=shopVisibleLimit;
@@ -534,6 +536,7 @@ async function exchange(direction, inputId, button){
     applyBalanceResponse(data);
     updateShopExchangeRate(data);
     showShopResult('Exchange complete. Balance: '+shopLocaleNumber(shopCurrentGold)+' gold, '+shopLocaleNumber(shopCurrentXP)+' XP, level '+shopCurrentLevel+'.',true,button);
+    if(window.ShopMainWorkbench)ShopMainWorkbench.receipt('Exchanged '+shopLocaleNumber(quote.spend)+' '+(direction==='gold_to_xp'?'gold':'XP')+' for '+shopLocaleNumber(quote.gain)+' '+(direction==='gold_to_xp'?'XP':'gold')+'.');
   }catch(error){
     unconfirmed=error&&error.unconfirmed===true;
     showShopResult(error.message||'The exchange could not be completed. Try again.',false,button);
@@ -582,6 +585,7 @@ async function buy(id, button){
       refreshShopAfterEquip(button);
     }
     showShopResult(message+' Remaining balance: '+shopLocaleNumber(shopCurrentGold)+' gold.',true,button);
+    if(window.ShopMainWorkbench)ShopMainWorkbench.receipt(message+' Paid '+shopLocaleNumber(price)+' gold.');
   }catch(error){
     unconfirmed=error&&error.unconfirmed===true;
     showShopResult(error.message||'The purchase could not be completed. Try again.',false,button);
@@ -620,6 +624,7 @@ async function buyShopBuff(button){
     }
     applyBalanceResponse(data);
     showShopResult(shopLocaleNumber(amount)+' '+name.toLowerCase()+' token'+(amount===1?'':'s')+' activated permanently. Refreshing your stock…',true,button);
+    if(window.ShopMainWorkbench)ShopMainWorkbench.receipt('Activated '+shopLocaleNumber(amount)+' '+kind+' tokens for '+shopLocaleNumber(price)+' gold.');
     shopRefreshPending=true;
     syncShopMutationButtons();
     button.textContent='Activated';
@@ -738,4 +743,6 @@ var shopLeft={{.RefreshIn}};
 </script>
 {{template "shop_relic_script" .}}
 {{template "shop-item-quickwins" .}}
+<script src="{{asset "/static/shop_workbench.js"}}"></script>
+<script src="{{asset "/static/shop_main_workbench.js"}}"></script>
 {{template "foot" .}}{{end}}
