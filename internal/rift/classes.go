@@ -30,11 +30,14 @@ func (r *Run) classCast(skill Skill) (int, string) {
 	p := &r.Player
 	switch r.Build.Class {
 	case "chronomancer":
-		for id, remaining := range r.SkillTimers {
-			if id != skill.ID {
-				r.SkillTimers[id] = math.Max(0, remaining-1.5)
+		// Rewind actions, never environment/status timers such as hazard-hit
+		// protection. Reducing those can make a helpful skill harm its caster.
+		for _, ability := range r.abilities() {
+			if ability.ID != skill.ID {
+				r.SkillTimers[ability.ID] = math.Max(0, r.SkillTimers[ability.ID]-1.5)
 			}
 		}
+		r.SkillTimers["jump"] = math.Max(0, r.SkillTimers["jump"]-1.5)
 	case "bloodblade":
 		r.healPlayer(p.MaxHP * .04 * float64(charges))
 	case "alchemist":

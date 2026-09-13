@@ -3,6 +3,7 @@ package rift
 
 import (
 	"math"
+	"strings"
 	"time"
 
 	"ts3news/internal/content"
@@ -156,6 +157,12 @@ func NewRun(id string, build Build, now time.Time) *Run {
 }
 
 func (r *Run) spawnRoom() {
+	r.Marked = ""
+	for key := range r.SkillTimers {
+		if strings.HasPrefix(key, "hazard-") || key == "slowed" {
+			delete(r.SkillTimers, key)
+		}
+	}
 	// Old saved runs retain the current room, and use the live catalog on
 	// their next room transition when they have no frozen encounter plan.
 	if len(r.EncounterPlan) != len(Rooms) {
@@ -252,7 +259,7 @@ func (r *Run) tick(in Input, dt float64) {
 		r.SkillTimers["jump"] = 1.05
 		r.event("jump", p.X, p.Y, 0)
 	}
-	if in.Attack && in.Skill == "" && p.Cooldown == 0 && !p.Guard {
+	if in.Attack && (in.Skill == "" || !r.canCast(in.Skill)) && p.Cooldown == 0 && !p.Guard {
 		r.Stats.Attacks++
 		p.Cooldown = .38
 		p.Pose = "attack"
@@ -347,6 +354,18 @@ func (r *Run) tick(in Input, dt float64) {
 		r.Projectiles = []Projectile{}
 		r.event("clear", p.X, p.Y, 0)
 	}
+}
+
+func (r *Run) canCast(id string) bool {
+	if r.SkillTimers[id] > 0 || r.Player.Cooldown > 0 {
+		return false
+	}
+	for _, skill := range r.abilities() {
+		if skill.ID == id {
+			return r.Player.Mana >= skill.Cost
+		}
+	}
+	return false
 }
 
 func (r *Run) cast(id string) {

@@ -4,7 +4,7 @@ const path = require('node:path');
 test.beforeEach(async({page})=>{
   // Fast frontend iteration against the unchanged production simulation.
   // Final release verification runs without this override.
-  if(process.env.RIFT_WORKSPACE_ASSETS)await page.route(/\/static\/rift\.js(?:\?|$)/,route=>route.fulfill({path:path.resolve(__dirname,'../../internal/bot/webassets/rift.js'),contentType:'application/javascript'}));
+  if(process.env.RIFT_WORKSPACE_ASSETS)await page.route(/\/static\/rift(?:_audio)?\.js(?:\?|$)/,route=>route.fulfill({path:path.resolve(__dirname,'../../internal/bot/webassets',new URL(route.request().url()).pathname.split('/').pop()),contentType:'application/javascript'}));
 });
 
 test('brief action taps survive an in-flight movement request',async({page})=>{
@@ -162,4 +162,50 @@ test('reduced motion persists and the expanded mobile controls do not overflow',
   await page.locator('.rift-settings > summary').click();
   await expect(page.locator('#rift-reduced')).toBeChecked();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('keyboard activation of action buttons performs the labeled action',async({page})=>{
+  await page.goto('/abyss/rift');await page.locator('#rift-start').click();
+  const attack=page.locator('[data-hold="attack"]');await attack.focus();await page.keyboard.press('Enter');
+  await expect.poll(async()=>(await(await page.request.get('/api/abyss/rift')).json()).run.stats.attacks).toBeGreaterThan(0);
+  await expect.poll(async()=>(await(await page.request.get('/api/abyss/rift')).json()).run.player.cooldown).toBe(0);
+  await page.keyboard.press('Space');
+  await expect.poll(async()=>(await(await page.request.get('/api/abyss/rift')).json()).run.stats.attacks).toBeGreaterThan(1);
+  expect((await(await page.request.get('/api/abyss/rift')).json()).run.stats.jumps).toBe(0);
+  await page.keyboard.press('Escape');
+});
+
+test('initial API failure has a working retry action',async({page})=>{
+  let fail=true;
+  await page.route('**/api/abyss/rift',route=>fail&&route.request().method()==='GET'?route.fulfill({status:503,body:'Temporarily unavailable'}):route.continue());
+  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toHaveText('Retry loading');
+  fail=false;await page.locator('#rift-start').click();await expect(page.locator('#rift-start')).toHaveText('Enter the ruins →');
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');
+});
+
+test('corrupt audio levels use finite defaults and closed audio can reopen',async({page})=>{
+  await page.addInitScript(()=>{localStorage.setItem('riftAudio:effects','"invalid"');localStorage.setItem('riftAudio:ambience','999');});
+  await page.goto('/abyss/rift');
+  expect(await page.evaluate(()=>window.RiftAudio.effects)).toBe(.65);
+  expect(await page.evaluate(()=>window.RiftAudio.ambience)).toBe(1);
+  await page.locator('#rift-start').click();await page.keyboard.press('Escape');
+  await page.evaluate(()=>window.RiftAudio.context.close());
+  await page.locator('#rift-start').click();
+  await expect.poll(()=>page.evaluate(()=>window.RiftAudio.context.state)).toBe('running');
+  await page.keyboard.press('Escape');
+});
+
+test('failed artwork can be reloaded from the start panel',async({page})=>{
+  let fail=true;
+  await page.route('**/static/rift_regions.png*',route=>fail?route.abort():route.continue());
+  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toHaveText('Reload artwork');
+  fail=false;await page.locator('#rift-start').click();await expect(page.locator('#rift-start')).toHaveText('Enter the ruins →');
+});
+
+test('restored browser history reloads the confirmed expedition without autoplay',async({page})=>{
+  await page.goto('/abyss/rift');await page.locator('#rift-start').click();await page.keyboard.press('Escape');
+  await expect(page.locator('#rift-overlay-title')).toHaveText('A moment by the lantern.');
+  await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));
+  await expect(page.locator('#rift-overlay-title')).toHaveText('Your expedition awaits.');
+  await expect(page.locator('#rift-start')).toHaveText('Resume expedition');
 });

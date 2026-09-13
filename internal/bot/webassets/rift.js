@@ -120,7 +120,12 @@
     if(await send('pause')&&['fighting','cleared'].includes(run.status)){message('A moment by the lantern.','Take your time. The expedition will wait.','Resume expedition','PAUSED');$('rift-pause').textContent='Resume · Esc';$('rift-room-actions').hidden=true;}
   }
   async function begin(){
-    if(busy||starting||!ready)return;
+    if(busy||starting)return;
+    if($('rift-start').dataset.retry){
+      if($('rift-start').dataset.artworkRetry==='true'){location.reload();return;}
+      delete $('rift-start').dataset.retry;$('rift-start').disabled=true;await load();return;
+    }
+    if(!ready)return;
     if($('rift-start').dataset.recover){delete $('rift-start').dataset.recover;await load();return;}
     starting=true;const intent=++startIntent;
     try{
@@ -181,19 +186,23 @@
     }
   }
   async function load(){
+    let artworkReady=false;
     try{
       await renderer.ready;
+      artworkReady=true;
       const data=await request('GET');build=data.build;rooms=data.rooms;run=data.run;levels=data.levels||[];loadout();campaign();window.RiftBestiary.render(data.bestiary||[]);ready=true;
       if(run){update(run,true);if(['fighting','cleared'].includes(run.status))message('Your expedition awaits.','Resume from the last confirmed moment. Your expedition bag is still here.','Resume expedition','SAVED EXPEDITION');}
       else if(selectedLevel===1){$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}
       else{const level=levels.find(l=>l.id===selectedLevel);message(level.name.split(' · ')[1],level.tactic+'. Three tiers, one Abyss boss.','Enter mission '+level.id,level.region_name);}
       status(root.dataset.fixture?'LOCAL PLAYTEST · Sample character and isolated rewards. No live inventory changes.':'Your Abyss character is ready. Choose up to three skills, then enter.');
       if(root.dataset.fixture)$('rift-overlay-note').textContent='Local playtest · Sample character · Isolated rewards';
-    }catch(error){ready=false;$('rift-start').textContent='Reload to reconnect';status(error.message);}
+    }catch(error){ready=false;$('rift-start').textContent=artworkReady?'Retry loading':'Reload artwork';$('rift-start').dataset.retry='true';$('rift-start').dataset.artworkRetry=String(!artworkReady);$('rift-start').disabled=false;status(error.message);}
   }
   function hold(button,value){
+    button.dataset.action=value;
     button.addEventListener('pointerdown',event=>{if(!playing||button.disabled)return;event.preventDefault();button.setPointerCapture(event.pointerId);touch.add(value);taps.add(value);button.classList.add('rift-held');});
-    const release=()=>{touch.delete(value);button.classList.remove('rift-held');};['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
+    button.addEventListener('click',event=>{if(event.detail===0&&playing&&!button.disabled)taps.add(value);});
+    const release=event=>{if(event.type!=='pointerup'&&touch.has(value))taps.delete(value);touch.delete(value);button.classList.remove('rift-held');};['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
   }
   root.querySelectorAll('[data-hold]').forEach(button=>hold(button,button.dataset.hold));root.querySelectorAll('[data-move]').forEach(button=>hold(button,button.dataset.move));
   const controlKeys=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyJ','KeyK','KeyL','KeyQ','KeyE','KeyR','Space','Digit1','Digit2','Digit3']);
@@ -201,10 +210,12 @@
     if(event.ctrlKey||event.metaKey||event.altKey||event.isComposing)return;
     if(event.code==='Escape'&&!event.repeat){if(playing)pause();else if(run&&['fighting','cleared'].includes(run.status))begin();return;}
     if(event.target.matches('input,select,textarea'))return;
+    if(event.code==='Space'&&event.target.closest('button[data-action]'))return;
     if(!playing||!controlKeys.has(event.code))return;event.preventDefault();keys.add(event.code);if(!event.repeat)taps.add(event.code);
   });
   window.addEventListener('keyup',event=>keys.delete(event.code));window.addEventListener('blur',()=>{startIntent++;resetInput();if(playing)pause();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){startIntent++;resetInput();if(playing)pause();silence();}});
+  window.addEventListener('pageshow',event=>{if(event.persisted){startIntent++;playing=false;clearTimeout(timer);resetInput();silence();load();}});
   $('rift-start').addEventListener('click',begin);$('rift-pause').addEventListener('click',()=>playing?pause():begin());
   $('rift-next').addEventListener('click',async()=>{if(await send($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?'Expedition complete. Your rewards are banked.':'Checkpoint reached. Health restored by 25%; mana refilled.');});
   $('rift-auto').addEventListener('change',()=>{try{localStorage.setItem('rift-auto',String($('rift-auto').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});

@@ -2,13 +2,15 @@
 (function () {
   'use strict';
   function setting(key, fallback) { try { const value = JSON.parse(localStorage.getItem('riftAudio:' + key)); return value === null ? fallback : value; } catch (_) { return fallback; } }
-  const audio = { context: null, muted: !!setting('muted', false), effects: Number(setting('effects', .65)), ambience: Number(setting('ambience', .35)), played: 0, voices: 0 };
+  function levelSetting(key,fallback){const value=setting(key,fallback);return typeof value==='number'&&Number.isFinite(value)?Math.max(0,Math.min(1,value)):fallback;}
+  const audio = { context: null, muted: setting('muted', false)===true, effects: levelSetting('effects', .65), ambience: levelSetting('ambience', .35), played: 0, voices: 0 };
   let master, sfx, ambient, noise, ambientNodes = [], active = false, room = -1, nextBird = 0;
   const clamp = value => Math.max(0, Math.min(1, Number(value) || 0));
   function save(key, value) { try { localStorage.setItem('riftAudio:' + key, JSON.stringify(value)); } catch (_) {} }
   function busGain(bus, value) { if (bus) bus.gain.setTargetAtTime(value, audio.context.currentTime, .03); }
   audio.unlock = async function () {
     try {
+      if(audio.context?.state==='closed'){stopAmbience();audio.context=null;audio.voices=0;}
       if (!audio.context) {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return false;
@@ -34,7 +36,7 @@
     gain.gain.setValueAtTime(0, start); gain.gain.linearRampToValueAtTime(volume, start + .008); gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
     stereo.pan.value = Math.max(-.8, Math.min(.8, pan || 0));
     source.connect(gain); gain.connect(stereo); stereo.connect(bus || sfx); audio.voices++;
-    source.onended = () => { source.disconnect(); gain.disconnect(); stereo.disconnect(); audio.voices--; };
+    source.onended = () => { source.disconnect(); gain.disconnect(); stereo.disconnect(); if(audio.context===c)audio.voices=Math.max(0,audio.voices-1); };
     source.start(start); source.stop(start + duration + .02);
   }
   function hiss(duration, volume, cutoff, pan, delay) {
@@ -44,7 +46,7 @@
     source.buffer = noise; filter.type = 'lowpass'; filter.frequency.value = cutoff;
     gain.gain.setValueAtTime(volume, start); gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
     stereo.pan.value = Math.max(-.8, Math.min(.8, pan || 0)); source.connect(filter); filter.connect(gain); gain.connect(stereo); stereo.connect(sfx); audio.voices++;
-    source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); stereo.disconnect(); audio.voices--; };
+    source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); stereo.disconnect(); if(audio.context===c)audio.voices=Math.max(0,audio.voices-1); };
     source.start(start); source.stop(start + duration + .02);
   }
   audio.play = function (kind, pan) {
