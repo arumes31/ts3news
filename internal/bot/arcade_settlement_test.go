@@ -14,23 +14,25 @@ import (
 
 func TestArcadeEffectiveGoldReturn(t *testing.T) {
 	// Include every gold liability: base payout, loss-back and the funded pool.
-	// Item awards are separate stock grants, not counted as gold payout.
+	// Paid wagers do not grant items whose resale could defeat this return budget.
 	for game, choices := range gameChoices {
 		for _, choice := range choices {
 			rng := rand.New(rand.NewPCG(947, uint64(len(game)*137+len(choice))))
-			const rounds, bet = 2_000_000, 10000
-			var base, extra int64
-			for i := 0; i < rounds; i++ {
-				out := playArcade(rng, game, bet, choice)
-				rebate, pool := arcadeLossReturns(out, arcadeVIP(5_000_000))
-				base += out.Payout + pool
-				extra += rebate
-			}
-			for _, total := range []int64{base, base + extra} {
-				rtp := float64(total) / float64(rounds*bet)
-				// 0.4 percentage-point sampling tolerance, primarily for slots.
-				if rtp < .946 || rtp > .984 {
-					t.Errorf("%s/%s total RTP %.5f outside target", game, choice, rtp)
+			const rounds = 2_000_000
+			for _, bet := range []int64{100, 10000, maxArcadeBet} {
+				var base, extra int64
+				for i := 0; i < rounds; i++ {
+					out := playArcade(rng, game, bet, choice)
+					rebate, pool := arcadeLossReturns(out, arcadeVIP(5_000_000))
+					base += out.Payout + pool
+					extra += rebate
+				}
+				for _, total := range []int64{base, base + extra} {
+					rtp := float64(total) / float64(int64(rounds)*bet)
+					// 0.4 percentage-point sampling tolerance, primarily for slots.
+					if rtp < .946 || rtp > .984 {
+						t.Errorf("%s/%s total RTP %.5f outside target", game, choice, rtp)
+					}
 				}
 			}
 		}
@@ -125,5 +127,35 @@ func TestArcadePriorEconomyReceiptIsATombstone(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestArcadePaidSettlementDoesNotMintVendableItems(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	for round := 0; round < 256; round++ {
+		mock.ExpectBegin()
+		mock.ExpectQuery("SELECT gold, vip_points").WillReturnRows(sqlmock.NewRows([]string{"gold", "vip_points"}).AddRow(1000, 5000000))
+		mock.ExpectQuery("SELECT COALESCE").WillReturnRows(sqlmock.NewRows([]string{"epoch"}).AddRow("2"))
+		mock.ExpectQuery("SELECT value FROM app_meta").WillReturnError(sql.ErrNoRows)
+		mock.ExpectExec("SELECT set_config").WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec("INSERT INTO arcade_jackpots").WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectQuery("SELECT amount FROM arcade_jackpots").WillReturnRows(sqlmock.NewRows([]string{"amount"}).AddRow(0))
+		mock.ExpectExec("UPDATE arcade_jackpots").WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectQuery("UPDATE users SET gold").WillReturnRows(sqlmock.NewRows([]string{"gold"}).AddRow(1000))
+		// Any inventory or salvage stock write is rejected by these expectations.
+		mock.ExpectExec("INSERT INTO game_results").WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec("INSERT INTO app_meta").WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+		out, err := (&Bot{DB: database}).settleArcade(context.Background(), "player", "coinflip", "heads", 100, "paid-wager-stock-test")
+		if err != nil || out.GearWon != "" {
+			t.Fatalf("paid round minted stock: %+v %v", out, err)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

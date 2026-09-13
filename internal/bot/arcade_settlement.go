@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"math/rand/v2"
 
-	"ts3news/internal/content"
 	"ts3news/internal/db"
 )
 
@@ -123,17 +122,7 @@ func (b *Bot) settleArcade(ctx context.Context, uid, game, choice string, bet in
 	if err := tx.QueryRowContext(ctx, "/* economy:bot.Bot.settleArcade */ UPDATE users SET gold=gold+$1, vip_points=$2 WHERE client_uid=$3 RETURNING gold", out.Net, points, uid).Scan(&out.Gold); err != nil {
 		return out, err
 	}
-	if out.Win && rng.IntN(100) < 15 {
-		gear := content.RandomArcadeGearDrop()
-		data, err := json.Marshal(gear)
-		if err != nil {
-			return out, err
-		}
-		if _, err := tx.ExecContext(ctx, "INSERT INTO user_inventory (client_uid,gear_id,durability,item_data) VALUES ($1,$2,$3,$4)", uid, gear.ID, gear.MaxDurability, string(data)); err != nil {
-			return out, err
-		}
-		out.GearWon = gear.Rarity.String() + " " + gear.Name
-	}
+	// Paid wagers award only budgeted gold; vendable gear would subsidize small bets.
 	if _, err := tx.ExecContext(ctx, "INSERT INTO game_results (client_uid,game,won,net) VALUES ($1,'arcade',$2,$3)", uid, out.Win, out.Net); err != nil {
 		return out, err
 	}

@@ -29,6 +29,9 @@ func abyssTalentEffectiveInt(level int) int {
 }
 
 func persistAbyssTalentUpgrade(tx *sql.Tx, uid string, cost int64, levels map[string]int) (bool, error) {
+	if cost <= 0 {
+		return false, errors.New("talent upgrade cost must be positive")
+	}
 	res, err := tx.Exec(
 		"/* economy:bot.persistAbyssTalentUpgrade */ UPDATE users SET abyss_tokens = abyss_tokens - GREATEST(0,$1-abyss_talent_credit), abyss_talent_credit = GREATEST(0,abyss_talent_credit-$1) WHERE client_uid=$2 AND abyss_tokens >= GREATEST(0,$1-abyss_talent_credit)", cost, uid)
 	if err != nil {
@@ -94,10 +97,18 @@ func (s *WebServer) handleAbyssTalentUpgrade(w http.ResponseWriter, uid string, 
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if raw != "" {
-		if err := json.Unmarshal([]byte(raw), &levels); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+	if err == nil {
+		var stored map[string]*int
+		if err := json.Unmarshal([]byte(raw), &stored); err != nil || stored == nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid talent data"})
 			return
+		}
+		for key, level := range stored {
+			if level == nil || *level < 0 {
+				writeJSON(w, map[string]any{"ok": false, "error": "invalid talent data"})
+				return
+			}
+			levels[key] = *level
 		}
 	}
 
