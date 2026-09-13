@@ -58,8 +58,8 @@ func fullEconomyResetTestDatabase(t *testing.T) *sql.DB {
 	if err := Migrate(database); err != nil {
 		t.Fatal(err)
 	}
-	if got := goldResetScalar(t, database, "SELECT version::text FROM schema_migrations WHERE dirty=FALSE"); got != "105" {
-		t.Fatalf("full schema version=%s, want105", got)
+	if got := goldResetScalar(t, database, "SELECT version::text FROM schema_migrations WHERE dirty=FALSE"); got != "106" {
+		t.Fatalf("full schema version=%s, want106", got)
 	}
 	return database
 }
