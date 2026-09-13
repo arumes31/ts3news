@@ -125,10 +125,10 @@ test('pinned offers compare their own numbers and expose all fourteen stat rows'
   await expect(table.locator('thead')).toContainText('Difference');
   await expect(table.locator('tbody tr')).toHaveCount(14);
   const rows = await table.locator('tbody tr').evaluateAll(elements => elements.map(row => ({
-    code: row.querySelector('th').textContent.replace(' (flavour)', '').replace('%', ''),
+    code: row.querySelector('th').textContent.replace(' (flavour)', '').replaceAll('%', ''),
     values: [...row.querySelectorAll('td')].slice(0, 3).map(cell => Number(cell.querySelector('[title]').title)),
   })));
-  const stat = (item, code) => (item.stat_details || item.stats).find(row => (row.code || row.label.replace('%', '')) === code)?.value || 0;
+  const stat = (item, code) => (item.stat_details || item.stats).find(row => (row.code || row.label.replaceAll('%', '')) === code)?.value || 0;
   for (const row of rows) {
     expect(row.values, row.code).toEqual([stat(first, row.code), stat(second, row.code), stat(second, row.code) - stat(first, row.code)]);
   }
@@ -156,7 +156,7 @@ test('comparison diagnostic downloads useful JSON without account or authorizati
   expect(payload.all_stats).toHaveLength(14);
   expect(payload.inputs.map(item => item.name)).toEqual([first.name, second.name]);
   for (const row of payload.all_stats) {
-    const value = item => (item.stat_details || item.stats).find(stat => (stat.code || stat.label.replace('%', '')) === row.code)?.value || 0;
+    const value = item => (item.stat_details || item.stats).find(stat => (stat.code || stat.label.replaceAll('%', '')) === row.code)?.value || 0;
     expect([row.before, row.after, row.delta], `exported ${row.code}`).toEqual([value(first), value(second), value(second) - value(first)]);
   }
   const forbidden = [];
