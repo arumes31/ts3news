@@ -403,7 +403,7 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 				newEscrow += int64(2400 + run.Depth*100)
 				msg = "🔐 Cache chosen: the vault seals a great heap into your run."
 			case "vault_tokens":
-				if _, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens+6 WHERE client_uid=$1", uid); err != nil {
+				if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssSpecialRoom */ UPDATE users SET abyss_tokens=abyss_tokens+6 WHERE client_uid=$1", uid); err != nil {
 					writeJSON(w, map[string]any{"ok": false, "error": "db"})
 					return true
 				}
@@ -498,7 +498,7 @@ func (s *WebServer) handleAbyssSpecialRoom(w http.ResponseWriter, uid string, ru
 		}
 	}
 
-	if _, err := tx.Exec("UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssSpecialRoom */ UPDATE users SET current_hp=$1 WHERE client_uid=$2", newHP, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return true
 	}

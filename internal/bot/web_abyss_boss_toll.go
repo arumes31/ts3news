@@ -110,7 +110,7 @@ func (s *WebServer) handleAbyssBossToll(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	var gold int64
-	err = tx.QueryRowContext(r.Context(), `UPDATE users SET gold=gold-$1,abyss_best_depth=GREATEST(abyss_best_depth,$2),abyss_win_streak=0
+	err = tx.QueryRowContext(r.Context(), `/* economy:bot.WebServer.handleAbyssBossToll */ UPDATE users SET gold=gold-$1,abyss_best_depth=GREATEST(abyss_best_depth,$2),abyss_win_streak=0
 		WHERE client_uid=$3 AND gold>=$1 RETURNING gold`, cost, target, uid).Scan(&gold)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough gold for the boss toll"})

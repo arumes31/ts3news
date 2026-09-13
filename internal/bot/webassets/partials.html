@@ -237,7 +237,7 @@ async function resetTalents(scope, label) {
   scope = scope || 'all';
   label = label || 'all talent and specialization skills';
   if (typeof setBusy === 'function') setBusy(true);
-  if (!(await confirmModal('Refund ' + label + '? A 🜲 10 fee is deducted from the returned tokens; other progression scopes stay intact.', {title:'Scoped Respec', okLabel:'Refund skills'}))) {
+  if (!(await confirmModal('Reset ' + label + ' for free? The full value returns as bound talent credit. Credit buys talents only; it cannot be exchanged for gold or tokens.', {title:'Scoped Respec', okLabel:'Reset for talent credit'}))) {
     if (typeof setBusy === 'function') setBusy(false);
     return;
   }

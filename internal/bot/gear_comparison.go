@@ -262,7 +262,7 @@ func compareGearAt(candidate, current content.Gear, occupied bool, now time.Time
 	}
 	effects := func(g content.Gear) map[content.ItemEffect]bool {
 		out := map[content.ItemEffect]bool{}
-		for _, e := range append([]content.ItemEffect{g.Special}, g.BonusEffects...) {
+		for _, e := range g.Effects() {
 			if e != content.EffectNone {
 				out[e] = true
 			}
@@ -280,7 +280,7 @@ func compareGearAt(candidate, current content.Gear, occupied bool, now time.Time
 	appendEffects := func(g content.Gear, other map[content.ItemEffect]bool) []itemSpecialView {
 		var out []itemSpecialView
 		seen := map[content.ItemEffect]bool{}
-		for _, e := range append([]content.ItemEffect{g.Special}, g.BonusEffects...) {
+		for _, e := range g.Effects() {
 			if e == content.EffectNone || seen[e] || other[e] {
 				continue
 			}

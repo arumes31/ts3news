@@ -858,8 +858,8 @@
               <option value="LCK">Luck</option>
               <option value="INT">Intellect</option>
               <option value="STA">Stamina</option>
-              <option value="CRT">Crit Rate</option>
-              <option value="DGE">Dodge Rate</option>
+              <option value="CRT">Critical rating</option>
+              <option value="DGE">Dodge rating</option>
             </select>
             <button class="ghost xs" onclick="forgeRecalibrate()">Recalibrate (🜲 5)</button>
           </div>
@@ -882,7 +882,7 @@
               <option value="bulwark">Bulwark (+10% Defense)</option>
               <option value="radiant">Radiant (+10% XP)</option>
               <option value="executioner">Executioner (+25% dmg vs low HP)</option>
-              <option value="focused">Focused (+10% Crit Rate)</option>
+              <option value="focused">Focused (+10% Critical rating)</option>
             </select>
             <button class="ghost xs" onclick="forgeImbue()">Imbue (2💠)</button>
           </div>
@@ -941,7 +941,7 @@
               <option value="Sapphire">Sapphire (+Mana)</option>
               <option value="Emerald">Emerald (+STR)</option>
               <option value="Diamond">Diamond (+DEF)</option>
-              <option value="Topaz">Topaz (+CRT%)</option>
+              <option value="Topaz">Topaz (+CRT rating)</option>
             </select>
             <button class="ghost xs" id="btnForgeGemTransmuteGo" onclick="forgeGemTransmute()">Transmute (150g)</button>
           </div>
@@ -957,7 +957,7 @@
               <option value="Sapphire">Sapphire (💎 +50 Mana)</option>
               <option value="Emerald">Emerald (💎 +15 STR)</option>
               <option value="Diamond">Diamond (💎 +15 DEF)</option>
-              <option value="Topaz">Topaz (💎 +5 CRT%)</option>
+              <option value="Topaz">Topaz (💎 +5 CRT rating)</option>
             </select>
             <button class="ghost xs" id="btnForgeSocketGemGo" onclick="forgeSocketGem()">Socket Gem (Cost: 50g)</button>
           </div>
@@ -1123,7 +1123,8 @@
   <!-- Token exchange (#126): 1 token = 100K gold -->
   <section class="abyss-panel" id="abyssTokenExchange" data-abyss-section="shop">
     <h2>💱 Token Exchange</h2>
-    <p class="muted small">Convert gold and Abyss Tokens at the current fixed rate.</p>
+    <p class="muted small">Tokens are spendable reserves: each can buy items or be sold for {{gold .TokenSellGold}} gold. Your wallet alone is not your total purchasing power.</p>
+    <p class="muted small">Bound talent credit: <b>{{.TalentCredit}}</b>. Used first for talent upgrades; cannot be exchanged or traded. Respecs return talent credit for free.</p>
     <div class="ab-shop-item">
       <div><b>Exchange rate</b><div class="muted small">1 🜲 = {{gold .TokenBuyGold}} to buy · {{gold .TokenSellGold}} when sold</div></div>
       <input type="number" id="exchAmount" value="1" min="1" max="1000" aria-label="Token exchange amount" style="width:70px;">
@@ -1242,7 +1243,7 @@
         <tr class="ab-hist-click {{if .Victory}}win{{else}}loss{{end}}" data-depth="{{.Depth}}" data-gold="{{.Gold}}" data-victory="{{.Victory}}" data-tier="{{.Tier}}" data-end-reason="{{.EndReason}}" data-when="{{.When}}" tabindex="0" aria-expanded="false">
           <td>{{if .Victory}}🏦{{else}}💀{{end}} 🕳️ {{.Depth}}</td>
           <td>{{gold .Gold}}</td>
-          <td class="muted small">{{.When}}</td>
+          <td class="muted small">{{.When}}<br><span>{{.EconomyLabel}}</span></td>
         </tr>
 		<tr class="ab-hist-detail" hidden><td colspan="3"><div class="ab-hist-detail-in">
 		  <b>{{if .Victory}}🏦 Banked{{else}}💀 Fell{{end}}</b> · {{.Tier}}{{if .Hardcore}} · Hardcore{{end}} · depth {{.Depth}} · {{gold .Gold}}
@@ -6177,7 +6178,7 @@ var AB_IMBUE_DESC={
   bulwark:'+10% Defense',
   radiant:'+10% XP gained',
   executioner:'+25% damage to targets below 30% HP',
-  focused:'+10% Crit Rate'
+  focused:'+10% Critical rating'
 };
 function updateImbueDesc(){
   var sel=document.getElementById('imbueSelect'), el=document.getElementById('imbueDesc');
@@ -6255,7 +6256,7 @@ function updateRebalancePreview(){
 }
 
 // UI-94: exact persisted first-gem type and tier drive the before/after diff.
-var AB_GEM_STATS={Ruby:['HP',100],Sapphire:['MNA',50],Emerald:['STR',15],Diamond:['DEF',15],Topaz:['CRT%',5]};
+var AB_GEM_STATS={Ruby:['HP',100],Sapphire:['MNA',50],Emerald:['STR',15],Diamond:['DEF',15],Topaz:['CRT rating',5]};
 function forgeGemPreview(name){
   var parts=String(name||'').split(/\s+/),base=parts[0],tier=parts[1]==='III'?3:(parts[1]==='II'?2:1),spec=AB_GEM_STATS[base];
   if(!spec)return null;

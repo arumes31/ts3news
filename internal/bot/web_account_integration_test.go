@@ -61,7 +61,7 @@ func accountTestDatabase(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatal(err)
 	}
-	migration, err := os.ReadFile("../db/migrations/0105_web_accounts.up.sql")
+	migration, err := os.ReadFile("../db/migrations/0106_web_accounts.up.sql")
 	if err != nil {
 		t.Fatal(err)
 	}

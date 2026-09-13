@@ -123,7 +123,7 @@ func (b *Bot) abyssAddGoblinTokens(uid string, n int) (int, bool) {
 		if !ok {
 			t = content.Title{Name: "Goblin King", XPMultiplier: 1.10}
 		}
-		res, err := b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='goblin' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())",
+		res, err := b.DB.Exec("/* economy:bot.Bot.abyssAddGoblinTokens */ UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='goblin' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())",
 			uid, t.Name, t.XPMultiplier)
 		if err == nil {
 			if rows, _ := res.RowsAffected(); rows > 0 {
@@ -273,7 +273,7 @@ func (b *Bot) grantConsumableStacked(uid, consID string, fights int) error {
 	}
 	stackLimit := b.abyssConsumableStackLimit(uid)
 	if _, err := b.DB.Exec(
-		`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
+		`/* economy:bot.Bot.grantConsumableStacked */ INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
 		 VALUES ($1, $2, LEAST($3, $4))
 		 ON CONFLICT (client_uid, cons_id)
 		 DO UPDATE SET remaining_fights = GREATEST(user_consumables.remaining_fights,

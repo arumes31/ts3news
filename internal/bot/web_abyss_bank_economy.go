@@ -83,7 +83,7 @@ func (s *WebServer) handleAbyssEconomyLoan(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", amount, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssEconomyLoan */ UPDATE users SET gold=gold+$1 WHERE client_uid=$2", amount, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -169,7 +169,7 @@ func (s *WebServer) handleAbyssTaxRebate(w http.ResponseWriter, r *http.Request,
 	}
 	var paid int64
 	if err := tx.QueryRow(`SELECT COALESCE(SUM(amount),0) FROM abyss_economy_events
-		WHERE client_uid=$1 AND kind='tax_paid' AND created_at>=date_trunc('week',NOW())`, uid).Scan(&paid); err != nil {
+		WHERE client_uid=$1 AND kind='tax_paid' AND created_at>=date_trunc('week',NOW()) AND created_at >= COALESCE((SELECT value::timestamptz FROM app_meta WHERE key='economy_started_at'), '-infinity'::timestamptz)`, uid).Scan(&paid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -178,7 +178,7 @@ func (s *WebServer) handleAbyssTaxRebate(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, map[string]any{"ok": false, "error": "no tax paid this week"})
 		return
 	}
-	if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", rebate, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssTaxRebate */ UPDATE users SET gold=gold+$1 WHERE client_uid=$2", rebate, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -203,14 +203,14 @@ func (b *Bot) splitAbyssJackpot(uid, helperUID string, jackpot int64) int64 {
 		return 0
 	}
 	defer func() { _ = tx.Rollback() }()
-	res, err := tx.Exec("UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1", split, uid)
+	res, err := tx.Exec("/* economy:bot.Bot.splitAbyssJackpot */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1", split, uid)
 	if err != nil {
 		return 0
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return 0
 	}
-	if _, err := tx.Exec("UPDATE users SET gold=LEAST(9223372036854775807::numeric, gold::numeric+$1)::bigint WHERE client_uid=$2", split, helperUID); err != nil {
+	if _, err := tx.Exec("/* economy:bot.Bot.splitAbyssJackpot */ UPDATE users SET gold=LEAST(9223372036854775807::numeric, gold::numeric+$1)::bigint WHERE client_uid=$2", split, helperUID); err != nil {
 		return 0
 	}
 	if _, err := tx.Exec(`INSERT INTO abyss_economy_events (client_uid,kind,message,amount)

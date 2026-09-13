@@ -866,7 +866,7 @@ func (b *Bot) ensureWebToken(uid string) (string, error) {
 		return "", err
 	}
 	var token string
-	err = b.DB.QueryRow(`UPDATE users SET
+	err = b.DB.QueryRow(`/* economy:bot.Bot.ensureWebToken */ UPDATE users SET
  web_token = CASE WHEN web_token IS NULL OR web_token = '' OR web_token_expires <= NOW() THEN $1 ELSE web_token END,
  web_token_expires = CASE WHEN web_token IS NULL OR web_token = '' OR web_token_expires IS NULL OR web_token_expires <= NOW() THEN NOW() + INTERVAL '90 days' ELSE web_token_expires END
  WHERE client_uid=$2 RETURNING web_token`, newToken, uid).Scan(&token)

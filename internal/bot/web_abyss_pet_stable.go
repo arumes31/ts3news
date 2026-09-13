@@ -169,9 +169,9 @@ func (s *WebServer) handleAbyssPetFeed(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 	if charges == 1 {
-		_, err = tx.Exec("DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2", uid, req.ConsID)
+		_, err = tx.Exec("/* economy:bot.WebServer.handleAbyssPetFeed */ DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2", uid, req.ConsID)
 	} else {
-		_, err = tx.Exec(`UPDATE user_consumables SET remaining_fights=remaining_fights-1
+		_, err = tx.Exec(`/* economy:bot.WebServer.handleAbyssPetFeed */ UPDATE user_consumables SET remaining_fights=remaining_fights-1
 			WHERE client_uid=$1 AND cons_id=$2`, uid, req.ConsID)
 	}
 	if err != nil {
@@ -187,6 +187,7 @@ func (s *WebServer) handleAbyssPetFeed(w http.ResponseWriter, r *http.Request, u
 		levelled = true
 	}
 	hp = maxHP
+	profile.CombatHealth = nil
 	loyalty = min(100, loyalty+10)
 	encoded, err := encodeAbyssPetProfile(profile)
 	if err != nil {

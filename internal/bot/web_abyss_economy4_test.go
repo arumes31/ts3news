@@ -351,6 +351,7 @@ func TestAbyssAuctionBidReservesFundsAndExtendsFinalMinute(t *testing.T) {
 	mock.ExpectQuery("SELECT seller_uid,item_type,item_id,item_data,price,current_bid,bidder_uid,expires_at").
 		WithArgs("listing-1").WillReturnRows(sqlmock.NewRows([]string{"seller_uid", "item_type", "item_id", "item_data", "price", "current_bid", "bidder_uid", "expires_at"}).
 		AddRow("seller", "gear", "G1", []byte(`{"ID":"G1"}`), 1000, 0, nil, expires))
+	mock.ExpectExec("SELECT set_config").WithArgs("auction.bid", "", "", "listing-1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1")).
 		WithArgs(int64(600), uid).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("UPDATE auction_house SET current_bid=\\$1").

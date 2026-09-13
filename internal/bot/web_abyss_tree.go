@@ -493,7 +493,12 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 	}
 
 	pctView := map[string]string{}
+	displayPct := make(map[string]float64, len(tb.Pct))
 	for k, v := range tb.Pct {
+		if k == "str_to_spd" || k == "hp_to_def" || k == "spd_to_dge" || k == "int_to_mna" {
+			v = min(.5, max(0, v))
+		}
+		displayPct[k] = v
 		pctView[treePctLabelPublic(k)] = fmt.Sprintf("%+.1f%%", v*100)
 	}
 
@@ -564,7 +569,7 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		"BonusPct":  pctView,
 		// Raw maps seed the client summary so it always mirrors the
 		// server-computed totals (socket adjacency, Temporal Shift, prestige).
-		"BonusPctRaw": tb.Pct,
+		"BonusPctRaw": displayPct,
 		"Bonus":       tb.Stats,
 		// Best depth drives the client-side mirror of the allocation floor
 		// gates (Item 62), so gated nodes are shown locked instead of
@@ -587,6 +592,8 @@ func (s *WebServer) handleAbyssTreePage(w http.ResponseWriter, r *http.Request, 
 		// (loadAbyssTalentLevels returns every generic key, spec nodes included).
 		"SpecTalentDefs": content.SpecTalents,
 		"Tokens":         s.bot.abyssTokens(uid),
+		"TalentCredit":   s.bot.abyssTalentCredit(uid),
+		"StarterSector":  s.bot.abyssStarterSector(r.Context(), uid),
 		"NodeGates":      abyssUpgradeMinDepth,
 		// Layout-derived special node IDs, injected so the client special-cases the
 		// right nodes instead of the old 1000-node literals (974/999) that drift when
@@ -1300,4 +1307,30 @@ func (s *WebServer) handleAbyssTreeRollTimeless(w http.ResponseWriter, r *http.R
 		"pct":     tb.Pct,
 		"sockets": socketMap,
 	})
+}
+
+func (b *Bot) abyssStarterSector(ctx context.Context, uid string) int {
+	state, err := b.loadAbyssClassState(ctx, uid)
+	if err != nil {
+		return 0
+	}
+	if sub, ok := content.AbyssSubclassByID(state.Selected); ok {
+		switch sub.Scaling {
+		case "DEF", "HP":
+			return 1
+		case "SPD":
+			return 2
+		case "INT", "MNA":
+			return 3
+		case "LCK":
+			return 4
+		}
+	}
+	switch state.Class {
+	case "arcanist", "mage", "cleric", "necromancer":
+		return 3
+	case "rogue":
+		return 2
+	}
+	return 0
 }

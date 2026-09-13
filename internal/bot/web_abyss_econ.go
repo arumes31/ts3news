@@ -130,14 +130,14 @@ func (b *Bot) grantAbyssTokens(uid string, n int) {
 	if n <= 0 {
 		return
 	}
-	_, _ = b.DB.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", n, uid)
+	_, _ = b.DB.Exec("/* economy:bot.Bot.grantAbyssTokens */ UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", n, uid)
 }
 
 // abyssDailyFirstDescent atomically claims the once-per-day first-descent flag,
 // returning true only for the first descend of the calendar day. [11]
 func (b *Bot) abyssDailyFirstDescent(uid string) bool {
 	res, err := b.DB.Exec(
-		`UPDATE users SET abyss_last_descent = CURRENT_DATE
+		`/* economy:bot.Bot.abyssDailyFirstDescent */ UPDATE users SET abyss_last_descent = CURRENT_DATE
 		  WHERE client_uid=$1 AND (abyss_last_descent IS NULL OR abyss_last_descent < CURRENT_DATE)`, uid)
 	if err != nil {
 		return false
@@ -190,7 +190,7 @@ func (b *Bot) taxAbyssDayGold(q dbExecQuerier, uid string, payout int64) (int64,
 		return 0, 0, nil
 	}
 	if _, err := q.Exec(
-		`UPDATE users SET abyss_day = CURRENT_DATE, abyss_day_gold = 0
+		`/* economy:bot.Bot.taxAbyssDayGold */ UPDATE users SET abyss_day = CURRENT_DATE, abyss_day_gold = 0
 		  WHERE client_uid=$1 AND (abyss_day IS NULL OR abyss_day < CURRENT_DATE)`, uid); err != nil {
 		return 0, 0, err
 	}
@@ -199,7 +199,7 @@ func (b *Bot) taxAbyssDayGold(q dbExecQuerier, uid string, payout int64) (int64,
 		return 0, 0, err
 	}
 	after, tax := abyssCapTax(payout, int64(abyssDayGoldCap)-dayGold)
-	if _, err := q.Exec("UPDATE users SET abyss_day_gold = LEAST(9223372036854775807::numeric, abyss_day_gold::numeric + $1)::bigint WHERE client_uid=$2", payout, uid); err != nil {
+	if _, err := q.Exec("/* economy:bot.Bot.taxAbyssDayGold */ UPDATE users SET abyss_day_gold = LEAST(9223372036854775807::numeric, abyss_day_gold::numeric + $1)::bigint WHERE client_uid=$2", payout, uid); err != nil {
 		return 0, 0, err
 	}
 	if tax > 0 {
@@ -257,7 +257,7 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 	}
 
 	if refund > 0 {
-		if _, err := tx.Exec("UPDATE users SET gold = LEAST(9223372036854775807::numeric, gold::numeric + $1)::bigint WHERE client_uid=$2", refund, uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.Bot.forfeitAbyss */ UPDATE users SET gold = LEAST(9223372036854775807::numeric, gold::numeric + $1)::bigint WHERE client_uid=$2", refund, uid); err != nil {
 			return abyssForfeitResult{}, err
 		}
 	}
@@ -293,12 +293,12 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 			return abyssForfeitResult{}, err
 		}
 		if !policy.CountDeath {
-			if _, err := tx.Exec("UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1) WHERE client_uid=$2", run.Depth, uid); err != nil {
+			if _, err := tx.Exec("/* economy:bot.Bot.forfeitAbyss */ UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1) WHERE client_uid=$2", run.Depth, uid); err != nil {
 				return abyssForfeitResult{}, err
 			}
 		} else {
 			if _, err := tx.Exec(
-				`UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1),
+				`/* economy:bot.Bot.forfeitAbyss */ UPDATE users SET abyss_best_depth = GREATEST(abyss_best_depth, $1),
 				        abyss_deaths = abyss_deaths + 1, abyss_bank_streak = 0 WHERE client_uid=$2`,
 				run.Depth, uid); err != nil {
 				return abyssForfeitResult{}, err
@@ -312,7 +312,7 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 				return abyssForfeitResult{}, err
 			}
 			if _, err := tx.Exec(
-				`UPDATE users SET abyss_deaths_today = CASE WHEN abyss_deaths_date = CURRENT_DATE THEN abyss_deaths_today + 1 ELSE 1 END,
+				`/* economy:bot.Bot.forfeitAbyss */ UPDATE users SET abyss_deaths_today = CASE WHEN abyss_deaths_date = CURRENT_DATE THEN abyss_deaths_today + 1 ELSE 1 END,
 				        abyss_deaths_date = CURRENT_DATE WHERE client_uid=$1`, uid); err != nil {
 				return abyssForfeitResult{}, err
 			}
@@ -320,7 +320,7 @@ func (b *Bot) forfeitAbyss(uid string, run abyssRun, endReason string) (abyssFor
 	}
 	// End of run: clear the per-run win streak so its combat buff can't leak into
 	// regular cycle combat (which reads abyss_win_streak too).
-	if _, err := tx.Exec("UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.Bot.forfeitAbyss */ UPDATE users SET abyss_win_streak = 0 WHERE client_uid=$1", uid); err != nil {
 		return abyssForfeitResult{}, err
 	}
 	if clearAbyssRunIdentityFlags(flags) {
@@ -546,7 +546,7 @@ func (b *Bot) awardCodexCompletion(uid string) bool {
 	if inserted == 0 {
 		return false
 	}
-	if _, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens+50 WHERE client_uid=$1", uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.Bot.awardCodexCompletion */ UPDATE users SET abyss_tokens=abyss_tokens+50 WHERE client_uid=$1", uid); err != nil {
 		return false
 	}
 	return tx.Commit() == nil
@@ -598,7 +598,7 @@ func (s *WebServer) handleAbyssSetBadge(w http.ResponseWriter, r *http.Request, 
 	if req.Slot == "suffix" {
 		err = s.bot.setAbyssBadgeSuffix(uid, req.Code)
 	} else {
-		_, err = s.bot.DB.Exec("UPDATE users SET abyss_active_badge=$1 WHERE client_uid=$2", req.Code, uid)
+		_, err = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssSetBadge */ UPDATE users SET abyss_active_badge=$1 WHERE client_uid=$2", req.Code, uid)
 	}
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -1000,7 +1000,7 @@ func (s *WebServer) handleAbyssSalvage(w http.ResponseWriter, r *http.Request, u
 	}
 	var gold int64
 	if total > 0 {
-		if err := tx.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", total, uid).Scan(&gold); err != nil {
+		if err := tx.QueryRow("/* economy:bot.WebServer.handleAbyssSalvage */ UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", total, uid).Scan(&gold); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -1254,7 +1254,7 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		matGained[sp.mat] += sp.matN
 	}
 	if total > 0 {
-		if _, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", total, uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssDismantle */ UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", total, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -1350,7 +1350,7 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 	if freeInsuranceUsed {
 		cost = 0
 	} else {
-		res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
+		res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssInsure */ UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
@@ -1366,7 +1366,7 @@ func (s *WebServer) handleAbyssInsure(w http.ResponseWriter, r *http.Request, ui
 	}
 	cheapskateTitle := false
 	if !freeInsuranceUsed && abyssCheapskateEligible(cost, run.Escrow) {
-		res, err := tx.Exec(`UPDATE users SET title='The Cheapskate', title_mult=1,
+		res, err := tx.Exec(`/* economy:bot.WebServer.handleAbyssInsure */ UPDATE users SET title='The Cheapskate', title_mult=1,
 			title_expires=NOW() + INTERVAL '7 days', title_source='abyss'
 			WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())
 			AND NOT EXISTS (SELECT 1 FROM app_meta WHERE key=$2)`, uid, "abyss_cheapskate_"+uid)
@@ -1487,7 +1487,7 @@ func (s *WebServer) handleAbyssUpgrade(w http.ResponseWriter, r *http.Request, u
 	var tokens int64
 	var parentLvl = 1
 
-	query := "SELECT " + col + ", abyss_tokens"
+	query := "SELECT " + col + ", abyss_tokens + abyss_talent_credit"
 	parent, hasParent := abyssUpgradeParents[req.Node]
 	if hasParent {
 		query += ", " + abyssUpgradeCols[parent]
@@ -1523,9 +1523,14 @@ func (s *WebServer) handleAbyssUpgrade(w http.ResponseWriter, r *http.Request, u
 	// Enforce the spend and level cap in one guarded statement (col is whitelisted
 	// via abyssUpgradeCols) so the token debit and increment can't overspend or
 	// exceed the max even if the pre-check raced.
+	parentGuard := ""
+	if hasParent {
+		parentGuard = " AND " + abyssUpgradeCols[parent] + ">=1"
+	}
+
 	res, err := s.bot.DB.Exec(
-		"UPDATE users SET abyss_tokens = abyss_tokens - $1, "+col+" = "+col+" + 1 "+
-			"WHERE client_uid=$2 AND abyss_tokens >= $1 AND "+col+" < $3", cost, uid, abyssUpgradeMaxLevel)
+		"/* economy:bot.WebServer.handleAbyssUpgrade */ UPDATE users SET abyss_tokens = abyss_tokens - GREATEST(0,$1-abyss_talent_credit), abyss_talent_credit = GREATEST(0,abyss_talent_credit-$1), "+col+" = "+col+" + 1 "+
+			"WHERE client_uid=$2 AND abyss_tokens >= GREATEST(0,$1-abyss_talent_credit) AND "+col+" = $3"+parentGuard, cost, uid, level)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -1534,7 +1539,7 @@ func (s *WebServer) handleAbyssUpgrade(w http.ResponseWriter, r *http.Request, u
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough tokens"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "node": req.Node, "level": level + 1, "tokens": tokens - cost})
+	writeJSON(w, map[string]any{"ok": true, "node": req.Node, "level": level + 1, "tokens": s.bot.abyssTokens(uid), "talent_credit": s.bot.abyssTalentCredit(uid)})
 }
 
 func (b *Bot) loadUnlockedLore(uid string) []int {

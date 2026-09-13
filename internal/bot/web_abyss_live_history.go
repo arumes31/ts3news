@@ -22,10 +22,12 @@ type abyssLiveEvent struct {
 }
 
 type abyssLivePersistedState struct {
-	SchemaVersion int               `json:"schema_version"`
-	RandomSeed    [2]uint64         `json:"random_seed"`
-	Snapshot      abyssLiveSnapshot `json:"snapshot"`
-	Events        []abyssLiveEvent  `json:"events"`
+	Cohort        *abyssMeasurementCohort `json:"cohort,omitempty"`
+	Timing        abyssCombatTiming       `json:"timing"`
+	SchemaVersion int                     `json:"schema_version"`
+	RandomSeed    [2]uint64               `json:"random_seed"`
+	Snapshot      abyssLiveSnapshot       `json:"snapshot"`
+	Events        []abyssLiveEvent        `json:"events"`
 }
 
 type abyssLiveReplayArchive struct {
@@ -77,6 +79,7 @@ func (c *abyssLiveCombat) encodeReplayArchive(
 	history []abyssLiveEvent,
 ) (string, error) {
 	return encodeAbyssLiveReplayArchive(c.id, c.ownerUID, abyssLivePersistedState{
+		Timing:        c.measurement(),
 		SchemaVersion: abyssLiveSnapshotSchemaVersion,
 		RandomSeed:    c.randomSeed,
 		Snapshot:      snapshot,
@@ -124,8 +127,11 @@ func archiveAbyssLiveReplayInTx(
 ) error {
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-		 ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`,
+		`INSERT INTO app_meta (key, value) VALUES ($1,
+   jsonb_set($2::jsonb,'{state,cohort}',COALESCE(
+    (SELECT state->'cohort' FROM abyss_combat_sessions WHERE session_id=$2::jsonb->>'session_id'),
+    $2::jsonb->'state'->'cohort','{}'::jsonb))::text)
+   ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`,
 		"abyss_live_replay_session_"+sessionID,
 		encoded,
 	); err != nil {

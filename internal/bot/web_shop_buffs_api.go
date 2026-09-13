@@ -112,7 +112,7 @@ func (s *WebServer) handleShopBuffAPI(w http.ResponseWriter, r *http.Request, ui
 		internalFailure("encode buffs", err)
 		return
 	}
-	result, err := tx.ExecContext(r.Context(), "UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", price, uid)
+	result, err := tx.ExecContext(r.Context(), "/* economy:bot.WebServer.handleShopBuffAPI */ UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", price, uid)
 	if err != nil {
 		internalFailure("debit wallet", err)
 		return

@@ -118,7 +118,7 @@ func TestAbyssE2EServer(t *testing.T) {
 		u := &webUser{
 			UID: "e2e-armory", Nickname: "Armoury Tester", Level: 100,
 			LevelName: "Eternal", CurrentHP: 123456, MaxHP: 234567, MaxMana: 4567,
-			GearScore: 123456, Stats: content.Stats{HP: 234567, STR: 123456, DEF: 65432},
+			GearScore: 123456, Stats: content.Stats{HP: 234567, STR: 123456, DEF: 65432, CRT: 50, DGE: 25},
 		}
 		weapon := content.Gear{
 			ID: "U_LEG_6", Name: "Measured Test Blade", Slot: content.SlotMainHand,

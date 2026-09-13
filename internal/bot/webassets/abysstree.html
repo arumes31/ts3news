@@ -449,11 +449,12 @@
 <div class="tree-head">
   <div>
     <h1 id="treeTitle">🌳 Abyss Skill Web</h1>
-    <p class="muted small" id="treeSubtitle">Thousands of nodes across six disciplines out to the far rim — every path connects. Points scale with levels, depth records, lifetime floors and prestige. Small nodes cost 1, ★ notables &amp; 🌉 bridges 2, 👑 keystones 3, 🌟 auras 50.</p>
+    <p class="muted small" id="treeSubtitle">Use Class starter path to highlight affordable choices, then preview before applying. Every point remains under your control. Combined stat conversions retain at least 50% of the source stat. Points scale with levels, depth records, lifetime floors and prestige. Small nodes cost 1, ★ notables &amp; 🌉 bridges 2, 👑 keystones 3, 🌟 auras 50.</p>
   </div>
   <div class="tree-head-right">
     <span class="pill" id="treeAvailPill">✨ <b id="treeAvail">{{.Avail}}</b> available</span>
     <span class="pill" id="treePointsPill" aria-label="Skill points spent and available">🔵 <b id="treeUsed">{{.Used}}</b> spent · <b id="treeAvailable">{{.Avail}}</b> available<span class="tree-total"> · <b id="treePoints">{{.Points}}</b> total</span></span>
+    <span class="pill" title="Build-only value; cannot be traded or exchanged">Bound talent credit: {{.TalentCredit}}</span>
     <span class="pill" id="treeTokensPill" style="display:none; color:#f4c542;">🜲 <b id="treeTokens">{{.Tokens}}</b> tokens</span>
     <button class="ghost xs" id="treeRespecBtn" onclick="treeRespec()">{{if .FreeRespec}}♻️ Respec (free this week){{else}}♻️ Respec (🜲 {{.RespecTk}}){{end}}</button>
     <button class="ghost xs" id="treeUndoBtn" style="display:none;" onclick="tryUndoAlloc()">↩️ Undo</button>
@@ -473,7 +474,8 @@
   <button class="ghost xs" onclick="buildExport()" title="Copy a shareable build code">📤 Export</button>
   <button class="ghost xs" onclick="buildImport()" title="Import a build code (normal respec cost)">📥 Import</button>
   <span class="muted small">·</span>
-  <button class="ghost xs" id="treeBeginnerBtn" onclick="toggleBeginner()" title="Highlight a suggested first 10 nodes">🧭 Beginner path</button>
+  <button class="ghost xs" id="treeBeginnerBtn" onclick="toggleBeginner()" title="Highlight an affordable starter path suited to your class">🧭 Class starter path</button>
+  <button class="ghost xs" onclick="previewStarterBuild()">Preview starter allocation</button>
   <button class="ghost xs" id="treeCanvasBtn" onclick="toggleCanvasMode()" title="Render the tree on a lightweight canvas for low-end devices">🖼️ Canvas renderer</button>
   <button class="ghost xs" id="treePathfinderBtn" style="display:none;" onclick="clearPathfinder()" title="Clear the pathfinder highlight">🎯 Clear path</button>
   <span class="pill" id="treeQueuePill" style="display:none;">📋 <b id="treeQueueCount">0</b> queued <button class="ghost xs" onclick="confirmQueuedAllocations()">Review &amp; apply</button> <button class="ghost xs" onclick="clearAllocQueue()" title="Clear the allocation queue">✕</button></span>
@@ -571,6 +573,8 @@ var talentLevels = {
   quartermaster: {{.Stats.UpQuartermaster}}
 };
 var tokenBalance = {{.Tokens}};
+var talentCredit = Number({{.TalentCredit}}) || 0;
+var starterSector = Number({{.StarterSector}}) || 0;
 var TALENT_MAX_LEVEL = {{.TalentMaxLevel}};
 var minDepths = {{jsonJS .NodeGates}};
 var activeSpec = '{{.Spec}}';
@@ -1630,12 +1634,12 @@ async function tryUpgradeTalent(key) {
     return;
   }
   var cost = (level + 1) * 10;
-  if (tokenBalance < cost) {
-    abToast('Not enough tokens (costs 🜲 ' + cost + ').', false);
+  if (tokenBalance + talentCredit < cost) {
+    abToast('Not enough tokens or bound talent credit (costs ' + cost + ').', false);
     return;
   }
   
-  if (!(await confirmModal('Upgrade ' + t.label + ' to Level ' + (level + 1) + ' for 🜲 ' + cost + ' tokens?'))) return;
+  if (!(await confirmModal('Upgrade ' + t.label + ' to Level ' + (level + 1) + ' for ' + cost + ' talent value? Bound credit is used first; remaining cost uses tokens.'))) return;
   
   if (busy) return;
   setBusy(true);
@@ -1648,6 +1652,7 @@ async function tryUpgradeTalent(key) {
   
   talentLevels[key] = d.level;
   tokenBalance = d.tokens;
+  talentCredit = Number(d.talent_credit) || 0;
   
   abToast('🜲 Upgraded ' + t.label + ' to level ' + d.level + '!', true);
   updateTokenDisplay();
@@ -1687,6 +1692,7 @@ async function trySelectSpec(spec, label) {
   
   activeSpec = d.spec;
   tokenBalance = d.tokens;
+  talentCredit = Number(d.talent_credit) || 0;
   
   abToast(d.msg || 'Specialization set!', true);
   updateTokenDisplay();
@@ -2210,17 +2216,23 @@ async function previewAndApplyTreeBuild(request,title){
 }
 
 function buildBeginnerPath(){
-  var chosen = {}, result = [];
+  var chosen = {}, result = [], remaining = Math.max(0, points-used);
   while (result.length < 10) {
     var candidates = NODES.filter(function(n){
-      if (alloc[n.id] || chosen[n.id] || gateFloor(n)>bestDepth) return false;
+      if (alloc[n.id] || chosen[n.id] || gateFloor(n)>bestDepth || effCost(n)>remaining) return false;
       return (adj[n.id]||[]).some(function(nb){ return nb===0 || alloc[nb] || chosen[nb]; });
     });
     if (!candidates.length) break;
-    candidates.sort(function(a,b){ return effCost(a)-effCost(b) || a.ring-b.ring || a.id-b.id; });
-    chosen[candidates[0].id]=true; result.push(candidates[0].id);
+    candidates.sort(function(a,b){ return Number(b.sector===starterSector)-Number(a.sector===starterSector) || effCost(a)-effCost(b) || a.ring-b.ring || a.id-b.id; });
+    chosen[candidates[0].id]=true; remaining-=effCost(candidates[0]); result.push(candidates[0].id);
   }
   return result;
+}
+async function previewStarterBuild(){
+ var starter=buildBeginnerPath();
+ if(!starter.length){abToast('No affordable starter additions are available.',false);return;}
+ var selected=Object.keys(alloc).filter(function(id){return alloc[id];}).map(Number);
+ await previewAndApplyTreeBuild({ids:selected.concat(starter)},'Preview class starter additions');
 }
 function toggleBeginner(){
   beginnerOn = !beginnerOn;

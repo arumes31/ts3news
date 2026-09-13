@@ -256,7 +256,7 @@ func chargeAbyssShadowSimulation(ctx context.Context, db *sql.DB, uid string) (i
 	var tokens int
 	err = tx.QueryRowContext(
 		ctx,
-		`UPDATE users SET abyss_tokens=abyss_tokens-$1
+		`/* economy:bot.chargeAbyssShadowSimulation */ UPDATE users SET abyss_tokens=abyss_tokens-$1
 		 WHERE client_uid=$2 AND abyss_tokens >= $1 RETURNING abyss_tokens`,
 		abyssShadowSimulationCost,
 		uid,

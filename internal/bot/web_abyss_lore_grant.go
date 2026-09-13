@@ -21,7 +21,7 @@ func grantAbyssLoreFragment(db dbOrTx, uid string, loreID int) (unlocked bool, t
 		}
 		return true, 0, nil
 	}
-	if _, err := db.Exec("UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", abyssDuplicateLoreTokens, uid); err != nil {
+	if _, err := db.Exec("/* economy:bot.grantAbyssLoreFragment */ UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", abyssDuplicateLoreTokens, uid); err != nil {
 		return false, 0, err
 	}
 	return false, abyssDuplicateLoreTokens, nil

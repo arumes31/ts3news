@@ -24,7 +24,7 @@ func (grant abyssNonCombatFocusGrant) save(tx *sql.Tx, uid string, depth int) (i
 		}
 		totalXP := currentXP + grant.XP
 		newLevel = leveling.LevelForXP(totalXP)
-		if _, err := tx.Exec("UPDATE users SET xp=$2, level=$3, last_seen=NOW() WHERE client_uid=$1", uid, totalXP, newLevel); err != nil {
+		if _, err := tx.Exec("/* economy:bot.abyssNonCombatFocusGrant.save */ UPDATE users SET xp=$2, level=$3, last_seen=NOW() WHERE client_uid=$1", uid, totalXP, newLevel); err != nil {
 			return 0, err
 		}
 	}

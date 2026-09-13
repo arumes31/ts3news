@@ -146,8 +146,8 @@ func petFocusTarget(alive []*content.Mob, focus string) *content.Mob {
 }
 
 // AB-62 Focus synergy: the auto-selected loot focus adds a matching combat
-// micro-bonus (gold focus → +2% crit, etc.).
-func abyssFocusMicroBonus(focus string) (critPct int, dmgMult float64, lifesteal int) {
+// micro-bonus (gold focus → +2 critical rating, etc.).
+func abyssFocusMicroBonus(focus string) (critRating int, dmgMult float64, lifesteal int) {
 	switch focus {
 	case "gold":
 		return 2, 1.0, 0
@@ -251,7 +251,7 @@ func (b *Bot) findCombatBackupWeapon(u *UserInCombat, bossElement content.Elemen
 func (b *Bot) grantKillChain(uid string) int {
 	stacks := 0
 	_ = b.DB.QueryRow(
-		`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, 'abyss_kill_chain', 1)
+		`/* economy:bot.Bot.grantKillChain */ INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, 'abyss_kill_chain', 1)
 		 ON CONFLICT (client_uid, cons_id) DO UPDATE SET remaining_fights = LEAST(user_consumables.remaining_fights + 1, 3)
 		 RETURNING remaining_fights`, uid).Scan(&stacks)
 	return stacks

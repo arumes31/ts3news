@@ -587,7 +587,7 @@ func (b *Bot) useLiveConsumable(
 		return false
 	}
 	result, err := b.DB.Exec(
-		`UPDATE user_consumables
+		`/* economy:bot.Bot.useLiveConsumable */ UPDATE user_consumables
 		    SET remaining_fights=remaining_fights-1
 		  WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights>0`,
 		actor.UID,
@@ -601,7 +601,7 @@ func (b *Bot) useLiveConsumable(
 		return false
 	}
 	_, _ = b.DB.Exec(
-		"DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights<=0",
+		"/* economy:bot.Bot.useLiveConsumable */ DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights<=0",
 		actor.UID,
 		consumableID,
 	)

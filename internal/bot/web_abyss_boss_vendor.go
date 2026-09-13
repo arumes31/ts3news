@@ -65,7 +65,7 @@ func (b *Bot) recordAbyssBossKillWithTokenRolls(uid, bossName string, depth int,
 		log.Printf("boss contract settlement failed for %s: %v", uid, err)
 		return false, 0, ""
 	}
-	if _, err := tx.Exec("UPDATE users SET abyss_boss_tokens=abyss_boss_tokens+$1 WHERE client_uid=$2", 1+contractPayout, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.Bot.recordAbyssBossKillWithTokenRolls */ UPDATE users SET abyss_boss_tokens=abyss_boss_tokens+$1 WHERE client_uid=$2", 1+contractPayout, uid); err != nil {
 		log.Printf("boss trophy award failed for %s: %v", uid, err)
 		return false, 0, ""
 	}
@@ -88,7 +88,7 @@ func grantAbyssBossVendorMaterial(tx *sql.Tx, uid, material string, amount int) 
 	if material == "" || amount <= 0 {
 		return nil
 	}
-	if _, err := tx.Exec(`INSERT INTO user_materials (client_uid,mat_id,count) VALUES ($1,$2,$3)
+	if _, err := tx.Exec(`/* economy:bot.grantAbyssBossVendorMaterial */ INSERT INTO user_materials (client_uid,mat_id,count) VALUES ($1,$2,$3)
 		ON CONFLICT (client_uid,mat_id) DO UPDATE SET count=user_materials.count+$3`, uid, material, amount); err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (s *WebServer) handleAbyssBossVendorBuy(w http.ResponseWriter, r *http.Requ
 	}
 	defer func() { _ = tx.Rollback() }()
 	var balance int64
-	err = tx.QueryRow(`UPDATE users SET abyss_boss_tokens=abyss_boss_tokens-$1
+	err = tx.QueryRow(`/* economy:bot.WebServer.handleAbyssBossVendorBuy */ UPDATE users SET abyss_boss_tokens=abyss_boss_tokens-$1
 		WHERE client_uid=$2 AND abyss_boss_tokens>=$1 RETURNING abyss_boss_tokens`, item.Cost, uid).Scan(&balance)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -149,7 +149,7 @@ func (s *WebServer) handleAbyssBossVendorBuy(w http.ResponseWriter, r *http.Requ
 		}
 	}
 	if item.AbyssTokens > 0 {
-		if _, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", item.AbyssTokens, uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssBossVendorBuy */ UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", item.AbyssTokens, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}

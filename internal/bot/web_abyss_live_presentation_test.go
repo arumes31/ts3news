@@ -138,8 +138,10 @@ func TestAbyssPresentationPlayerResolution(t *testing.T) {
 			}
 			action := abyssLiveAction{Kind: kind, TargetID: "enemy:0", Round: 2}
 			randomInt := 99
+			randomFloat := .9
 			if kind == "critical" {
 				user.EscrowLoot, user.Stats.CRT, action.Kind, randomInt = true, 50, "attack", 0
+				randomFloat = 0
 			}
 			if kind == "skill" || kind == "heal" {
 				user.Skills = []content.Skill{{ID: "test_spell", Name: "Test Spell", Power: 2, ManaCost: 10}}
@@ -160,7 +162,7 @@ func TestAbyssPresentationPlayerResolution(t *testing.T) {
 			var loot []LootResult
 			dealt, taken := 0, 0
 			(&Bot{}).userTurn(users, &mobs, content.Zone{}, 1, 1, &logs, &dealt, &taken, 1, 1, nil, &loot, 2, nil,
-				map[string]abyssLiveAction{"owner": action}, false, fixedCombatRandom{float: .9, intn: randomInt})
+				map[string]abyssLiveAction{"owner": action}, false, fixedCombatRandom{float: randomFloat, intn: randomInt})
 			if len(live.presentationEvents) != 1 {
 				t.Fatalf("resolved %s events = %+v", kind, live.presentationEvents)
 			}
@@ -197,14 +199,16 @@ func TestAbyssPresentationEnemyShieldAndDodge(t *testing.T) {
 		t.Run(map[bool]string{false: "shield", true: "dodge"}[dodge], func(t *testing.T) {
 			live := &abyssLiveCombat{round: 2}
 			user := &UserInCombat{UID: "owner", live: live, shadow: true, EscrowLoot: true, CurrentHP: 1000, Stats: content.Stats{HP: 1000}, DEFMod: 1}
+			randomFloat := .9
 			if dodge {
 				user.Stats.DGE = 25
+				randomFloat = 0
 			}
 			users := []activeUser{{u: user, shield: 200, maxShield: 200}}
 			mob := &content.Mob{Name: "Enemy", Stats: content.Stats{HP: 1000, STR: 100, SPD: 10}, STRMod: 1, Element: content.ElementPhysical}
 			var logs []string
 			dealt, taken := 0, 0
-			(&Bot{}).mobTurn(users, []*content.Mob{mob}, content.Zone{}, 1, &logs, &taken, &dealt, 2, false, nil, fixedCombatRandom{float: .9})
+			(&Bot{}).mobTurn(users, []*content.Mob{mob}, content.Zone{}, 1, &logs, &taken, &dealt, 2, false, nil, fixedCombatRandom{float: randomFloat})
 			if len(live.presentationEvents) != 1 {
 				t.Fatalf("enemy events = %+v", live.presentationEvents)
 			}

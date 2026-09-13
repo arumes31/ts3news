@@ -113,7 +113,7 @@ func upgradeAbyssPouch(tx *sql.Tx, uid string) (level int, gold int64, err error
 		return 0, 0, errAbyssPouchMaxed
 	}
 	cost := abyssPouchUpgradeCosts[level]
-	if err := tx.QueryRow(`UPDATE users SET gold=gold-$1
+	if err := tx.QueryRow(`/* economy:bot.upgradeAbyssPouch */ UPDATE users SET gold=gold-$1
 		WHERE client_uid=$2 AND gold >= $1 RETURNING gold`, cost, uid).Scan(&gold); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, 0, errAbyssPouchFunds

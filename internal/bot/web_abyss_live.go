@@ -238,6 +238,8 @@ type abyssLiveCombat struct {
 	telegraph                string
 	randomSeed               [2]uint64
 	randomDraws              uint64
+	timing                   abyssCombatTiming
+	resolutionStarted        time.Time
 	createdAt                time.Time
 	finishedAt               time.Time
 }
@@ -419,6 +421,9 @@ func (c *abyssLiveCombat) publishRound(
 	logs []string,
 	playerStarts bool,
 ) {
+	c.mu.Lock()
+	c.stopResolutionLocked(time.Now())
+	c.mu.Unlock()
 	logs = c.applyLiveBossAdaptation(mobs, logs)
 	options := make(map[string][]abyssLiveOption, len(users))
 	for i := range users {
@@ -639,6 +644,8 @@ func (c *abyssLiveCombat) awaitActions(
 			c.queued[au.u.UID] = c.timeoutActionLocked(au.u.UID)
 		}
 	}
+	c.timing.ActionWindowNS += min(time.Since(planningStarted), 2*time.Minute).Nanoseconds()
+	c.resolutionStarted = time.Now()
 	c.phase = "resolving"
 	c.version++
 	actions := make(map[string]abyssLiveAction, len(c.queued))
@@ -689,6 +696,7 @@ func (c *abyssLiveCombat) awaitActions(
 
 func (c *abyssLiveCombat) complete(result map[string]any) {
 	c.mu.Lock()
+	c.stopResolutionLocked(time.Now())
 	c.phase = "complete"
 	if ok, _ := result["ok"].(bool); !ok {
 		c.phase = "failed"

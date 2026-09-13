@@ -23,7 +23,7 @@ func TestDecodeAbyssTierCatalog(t *testing.T) {
 func TestDecodeAbyssTierCatalogRejectsUnsafeCatalogs(t *testing.T) {
 	t.Parallel()
 
-	valid := string(embeddedAbyssTierCatalog)
+	valid := strings.ReplaceAll(string(embeddedAbyssTierCatalog), "\r\n", "\n")
 	tests := []struct {
 		name    string
 		catalog string

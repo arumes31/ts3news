@@ -120,7 +120,7 @@ func (s *WebServer) revokeAccountSession(ctx context.Context, token string) erro
 	defer tx.Rollback()
 	// Only migrated cookies equal a TeamSpeak link credential. Revoke that link
 	// too, otherwise the logged-out cookie could be exchanged for a new session.
-	if _, err := tx.ExecContext(ctx, "UPDATE users SET web_token=NULL, web_token_expires=NULL WHERE web_token=$1", token); err != nil {
+	if _, err := tx.ExecContext(ctx, "/* economy:bot.WebServer.revokeAccountSession */ UPDATE users SET web_token=NULL, web_token_expires=NULL WHERE web_token=$1", token); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM web_sessions WHERE token_hash=$1", accountDigest(token)); err != nil {
@@ -144,7 +144,7 @@ func (b *Bot) issueAccountRecovery(ctx context.Context, uid string) (string, err
 	if err != nil {
 		return "", err
 	}
-	result, err := b.DB.ExecContext(ctx, `UPDATE users SET web_recovery_hash=$1,
+	result, err := b.DB.ExecContext(ctx, `/* economy:bot.Bot.issueAccountRecovery */ UPDATE users SET web_recovery_hash=$1,
  web_recovery_expires=NOW() + INTERVAL '10 minutes', web_recovery_issued=NOW()
  WHERE client_uid=$2 AND (web_recovery_issued IS NULL OR web_recovery_issued < NOW() - INTERVAL '1 minute')`, accountDigest(token), uid)
 	if err != nil {

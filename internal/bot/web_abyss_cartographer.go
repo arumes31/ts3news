@@ -272,7 +272,7 @@ func (s *WebServer) handleAbyssCartographerRoom(
 		cost := abyssCartographerMapCost(run.Depth)
 		err = tx.QueryRowContext(
 			ctx,
-			"UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1 RETURNING gold",
+			"/* economy:bot.WebServer.handleAbyssCartographerRoom */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1 RETURNING gold",
 			cost,
 			uid,
 		).Scan(&newGold)

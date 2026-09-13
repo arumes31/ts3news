@@ -231,7 +231,7 @@ func (s *WebServer) saveAccountPassword(w http.ResponseWriter, r *http.Request, 
 	}
 	defer tx.Rollback()
 	if recovery != "" {
-		err = tx.QueryRowContext(r.Context(), `UPDATE users SET web_password_hash=$1, web_recovery_hash=NULL,
+		err = tx.QueryRowContext(r.Context(), `/* economy:bot.WebServer.saveAccountPassword */ UPDATE users SET web_password_hash=$1, web_recovery_hash=NULL,
  web_recovery_expires=NULL, web_token=NULL, web_token_expires=NULL
  WHERE web_recovery_hash=$2 AND web_recovery_expires > NOW() RETURNING client_uid`, newHash, accountDigest(recovery)).Scan(&uid)
 	} else {
@@ -242,7 +242,7 @@ func (s *WebServer) saveAccountPassword(w http.ResponseWriter, r *http.Request, 
 			err = tx.QueryRowContext(r.Context(), "SELECT client_uid FROM web_sessions WHERE token_hash=$1 AND client_uid=$2 AND expires_at > NOW()", accountDigest(accountCookieValue(r, sessionCookie)), uid).Scan(&found)
 		}
 		if err == nil {
-			_, err = tx.ExecContext(r.Context(), `UPDATE users SET web_password_hash=$1, web_recovery_hash=NULL,
+			_, err = tx.ExecContext(r.Context(), `/* economy:bot.WebServer.saveAccountPassword */ UPDATE users SET web_password_hash=$1, web_recovery_hash=NULL,
  web_recovery_expires=NULL, web_token=NULL, web_token_expires=NULL WHERE client_uid=$2`, newHash, uid)
 		}
 	}

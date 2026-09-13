@@ -67,6 +67,7 @@ func (s *WebServer) handleAbyssPetActivity(w http.ResponseWriter, r *http.Reques
 			maxHP += max(5, maxHP/20)
 		}
 		hp = maxHP
+		profile.CombatHealth = nil
 		message = fmt.Sprintf("%s returned from daycare with %d bond XP.", name, xp)
 	case "expedition_start":
 		if activeSlot != 0 || profile.busy(now) {

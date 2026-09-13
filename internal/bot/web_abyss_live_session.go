@@ -126,7 +126,10 @@ func (s *WebServer) startAbyssLiveCombat(
 	}
 	if _, err := tx.Exec(
 		`INSERT INTO abyss_combat_sessions (session_id, owner_uid, depth, phase, state)
-		 VALUES ($1, $2, $3, 'starting', $4)`,
+		 VALUES ($1, $2, $3, 'starting', $4::jsonb || jsonb_build_object('cohort',
+   jsonb_build_object('schema',1,
+    'economy_epoch',COALESCE((SELECT value FROM app_meta WHERE key='gold_economy_version'),'unknown'),
+    'build_revision',COALESCE((SELECT value FROM app_meta WHERE key='economy_deployed_revision'),'unknown'))))`,
 		id,
 		uid,
 		run.Depth,
@@ -303,6 +306,7 @@ func (c *abyssLiveCombat) persist() error {
 		return err
 	}
 	persistedState, err := json.Marshal(abyssLivePersistedState{
+		Timing:        c.measurement(),
 		SchemaVersion: abyssLiveSnapshotSchemaVersion,
 		RandomSeed:    c.randomSeed,
 		Snapshot:      ownerSnapshot,
@@ -327,7 +331,7 @@ func (c *abyssLiveCombat) persist() error {
 		ctx,
 		`UPDATE abyss_combat_sessions
 		    SET phase=$1, round=$2, version=$3, deadline=$4,
-		        pause_reason=$5, state=$6, updated_at=NOW()
+		        pause_reason=$5, state=$6::jsonb || jsonb_build_object('cohort',COALESCE(state->'cohort','{}'::jsonb)), updated_at=NOW()
 		  WHERE session_id=$7`,
 		ownerSnapshot.Phase,
 		ownerSnapshot.Round,
