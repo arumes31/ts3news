@@ -1,5 +1,12 @@
 const { test, expect } = require('@playwright/test');
 
+async function hoverRelic(stage) {
+  await stage.scrollIntoViewIfNeeded();
+  // Scroll intentionally resets lighting; let its event finish before hovering.
+  await stage.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await stage.hover({ position: { x: 40, y: 40 } });
+}
+
 test('shop relic showcase gives the featured item a full row without duplicating stock', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/shop');
@@ -23,7 +30,7 @@ test('shop relic showcase gives the featured item a full row without duplicating
 test('shop relic lighting follows the pointer and resets when hidden or left', async ({ page }) => {
   await page.goto('/shop');
   const stage = page.locator('.shop-relic-stage');
-  await stage.hover({ position: { x: 40, y: 40 } });
+  await hoverRelic(stage);
   await expect(stage).toHaveAttribute('data-lit', 'true');
   const tilt = await stage.locator('.shop-relic-mount').evaluate(element => getComputedStyle(element).transform);
   expect(tilt).not.toBe('none');
@@ -72,7 +79,7 @@ test('shop relic lighting and inspection initialize when saved filters hide it o
   await page.locator('#shopReset').click();
   const stage = page.locator('.shop-relic-stage');
   await expect(stage).toBeVisible();
-  await stage.hover({ position: { x: 40, y: 40 } });
+  await hoverRelic(stage);
   await expect(stage).toHaveAttribute('data-lit', 'true');
   const inspect = page.locator('.featured-item .shop-inspect-action');
   await inspect.click();

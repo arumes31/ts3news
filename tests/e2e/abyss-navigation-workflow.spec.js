@@ -219,7 +219,7 @@ test('desktop cockpit shows a useful combat-log window before scrolling', async 
   });
   expect(liveLayout.commandAfterBattlefield).toBe(true);
   expect(liveLayout.commandPosition).toBe('sticky');
-  expect(liveLayout.sidebarOverflow).toBe('hidden');
+  expect(liveLayout.sidebarOverflow).toBe('auto');
   expect(liveLayout.sidebarBottom).toBeLessThanOrEqual(liveLayout.rowBottom + 1);
 });
 
