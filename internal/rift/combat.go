@@ -1,0 +1,516 @@
+// Package rift implements the server-owned simulation for solo Rift Brawl.
+package rift
+
+import (
+	"fmt"
+	"math"
+	"time"
+
+	"ts3news/internal/content"
+)
+
+const Width = 1600.0
+
+var Rooms = []string{"Mossbound Approach", "The Lantern Court", "Heart of the Ruins"}
+
+type Skill struct {
+	Role     string  `json:"role,omitempty"`
+	Damage   float64 `json:"damage,omitempty"`
+	Heal     float64 `json:"heal,omitempty"`
+	Pierce   float64 `json:"pierce,omitempty"`
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Kind     string  `json:"kind"`
+	Power    float64 `json:"power"`
+	Cost     float64 `json:"cost"`
+	Cooldown float64 `json:"cooldown"`
+}
+
+type Build struct {
+	BaseClass  string   `json:"base_class"`
+	ClassName  string   `json:"class_name"`
+	Resource   string   `json:"resource"`
+	Sequence   string   `json:"sequence"`
+	Signatures []Skill  `json:"signatures"`
+	Ultimate   *Skill   `json:"ultimate,omitempty"`
+	Pets       int      `json:"pets"`
+	Relic      bool     `json:"relic"`
+	Name       string   `json:"name"`
+	Class      string   `json:"class"`
+	Level      int      `json:"level"`
+	HP         float64  `json:"hp"`
+	Damage     float64  `json:"damage"`
+	Armor      float64  `json:"armor"`
+	Weapon     string   `json:"weapon"`
+	Skills     []Skill  `json:"skills"`
+	Gear       []string `json:"gear"`
+}
+
+type Actor struct {
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	Kind      string  `json:"kind"`
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+	HP        float64 `json:"hp"`
+	MaxHP     float64 `json:"max_hp"`
+	Mana      float64 `json:"mana"`
+	Facing    float64 `json:"facing"`
+	Cooldown  float64 `json:"cooldown"`
+	Windup    float64 `json:"windup"`
+	Jump      float64 `json:"jump"`
+	Guard     bool    `json:"guard"`
+	Pose      string  `json:"pose"`
+	PoseTime  float64 `json:"pose_time"`
+	Knockdown float64 `json:"knockdown"`
+	TargetX   float64 `json:"target_x"`
+	TargetY   float64 `json:"target_y"`
+}
+
+type Projectile struct {
+	Skill   Skill   `json:"skill"`
+	Charges int     `json:"charges"`
+	Marked  string  `json:"marked"`
+	ID      int     `json:"id"`
+	X       float64 `json:"x"`
+	Y       float64 `json:"y"`
+	VX      float64 `json:"vx"`
+	VY      float64 `json:"vy"`
+	Power   float64 `json:"power"`
+	Life    float64 `json:"life"`
+	Enemy   bool    `json:"enemy"`
+	Kind    string  `json:"kind"`
+}
+
+type Drop struct {
+	ID        string        `json:"id"`
+	X         float64       `json:"x"`
+	Y         float64       `json:"y"`
+	Gold      int64         `json:"gold"`
+	NeedsGear bool          `json:"needs_gear"`
+	Gear      *content.Gear `json:"gear,omitempty"`
+	Collected bool          `json:"collected"`
+	Banked    bool          `json:"banked"`
+}
+
+type Event struct {
+	ID    int     `json:"id"`
+	Kind  string  `json:"kind"`
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	Value float64 `json:"value,omitempty"`
+}
+
+type Run struct {
+	Resource    int                `json:"resource"`
+	Marked      string             `json:"marked"`
+	Barrier     float64            `json:"barrier"`
+	Schema      int                `json:"schema"`
+	ID          string             `json:"id"`
+	StartKey    string             `json:"start_key"`
+	Epoch       string             `json:"epoch"`
+	Revision    int                `json:"revision"`
+	Room        int                `json:"room"`
+	Status      string             `json:"status"`
+	Paused      bool               `json:"paused"`
+	Build       Build              `json:"build"`
+	Player      Actor              `json:"player"`
+	Enemies     []Actor            `json:"enemies"`
+	Projectiles []Projectile       `json:"projectiles"`
+	Drops       []Drop             `json:"drops"`
+	Events      []Event            `json:"events"`
+	SkillTimers map[string]float64 `json:"skill_timers"`
+	Gold        int64              `json:"gold"`
+	BankedGold  int64              `json:"banked_gold"`
+	BankedItems []string           `json:"banked_items"`
+	Clock       float64            `json:"clock"`
+	LastMS      int64              `json:"last_ms"`
+	Counter     int                `json:"counter"`
+	Combo       int                `json:"combo"`
+}
+
+type Input struct {
+	X      int    `json:"x"`
+	Y      int    `json:"y"`
+	Attack bool   `json:"attack"`
+	Guard  bool   `json:"guard"`
+	Jump   bool   `json:"jump"`
+	Skill  string `json:"skill"`
+}
+
+func NewRun(id string, build Build, now time.Time) *Run {
+	r := &Run{Schema: 1, ID: id, Build: build, Status: "fighting", LastMS: now.UnixMilli(), SkillTimers: map[string]float64{}, Drops: []Drop{}, BankedItems: []string{}}
+	r.Player = Actor{ID: "player", Name: build.Name, Kind: build.Class, X: 160, Y: 410, HP: build.HP, MaxHP: build.HP, Mana: 100, Facing: 1}
+	r.spawnRoom()
+	return r
+}
+
+func (r *Run) spawnRoom() {
+	r.Enemies = []Actor{}
+	kinds := [][]string{{"goblin", "goblin", "archer"}, {"goblin", "archer", "knight", "goblin"}, {"boss", "archer", "goblin"}}[r.Room]
+	for i, kind := range kinds {
+		hp := 70.0 + float64(r.Room)*20
+		name := "Mossfang"
+		switch kind {
+		case "archer":
+			name = "Hollow Archer"
+			hp *= .8
+		case "knight":
+			name = "Ruinguard"
+			hp *= 2
+		case "boss":
+			name = "Thornheart, the Rootbound"
+			hp *= 7
+		}
+		r.Enemies = append(r.Enemies, Actor{ID: fmt.Sprintf("r%d-e%d", r.Room, i), Name: name, Kind: kind, X: 580 + float64(i)*240, Y: 355 + float64(i%3)*50, HP: hp, MaxHP: hp, Facing: -1, Cooldown: 1 + float64(i)*.3})
+	}
+	r.Projectiles = []Projectile{}
+	r.Player.X = 160
+	r.Player.Y = 410
+	r.event("area", r.Player.X, r.Player.Y, float64(r.Room))
+}
+
+func (r *Run) NextRoom() bool {
+	if r.Status != "cleared" || r.Room >= len(Rooms)-1 {
+		return false
+	}
+	r.Room++
+	r.Status = "fighting"
+	r.Player.HP = math.Min(r.Player.MaxHP, r.Player.HP+r.Player.MaxHP*.25)
+	r.Player.Mana = 100
+	r.Paused = false
+	r.spawnRoom()
+	return true
+}
+
+func (r *Run) event(kind string, x, y, value float64) {
+	r.Counter++
+	r.Events = append(r.Events, Event{r.Counter, kind, x, y, value})
+	if len(r.Events) > 40 {
+		r.Events = r.Events[len(r.Events)-40:]
+	}
+}
+
+// Step uses elapsed server time, capped to avoid catch-up damage after a disconnect.
+func (r *Run) Step(in Input, now time.Time) {
+	dt := math.Max(0, math.Min(.2, float64(now.UnixMilli()-r.LastMS)/1000))
+	r.LastMS = max(r.LastMS, now.UnixMilli())
+	if r.Paused || (r.Status != "fighting" && r.Status != "cleared") {
+		return
+	}
+	for dt > .000001 {
+		slice := math.Min(dt, 1.0/30)
+		r.tick(in, slice)
+		dt -= slice
+		if r.Status == "defeated" {
+			break
+		}
+	}
+}
+
+func (r *Run) tick(in Input, dt float64) {
+	r.Clock += dt
+	p := &r.Player
+	p.Cooldown = math.Max(0, p.Cooldown-dt)
+	p.Jump = math.Max(0, p.Jump-dt)
+	p.PoseTime = math.Max(0, p.PoseTime-dt)
+	p.Mana = math.Min(100, p.Mana+dt*6)
+	for id, remaining := range r.SkillTimers {
+		r.SkillTimers[id] = math.Max(0, remaining-dt)
+	}
+	p.Guard = in.Guard && p.Jump == 0
+	speed := 235.0
+	if p.Guard {
+		speed = 75
+	}
+	x, y := float64(in.X), float64(in.Y)
+	length := math.Hypot(x, y)
+	if length > 1 {
+		x /= length
+		y /= length
+	}
+	p.X = clamp(p.X+x*speed*dt, 35, Width-35)
+	p.Y = clamp(p.Y+y*speed*.6*dt, 315, 490)
+	if x != 0 {
+		p.Facing = math.Copysign(1, x)
+	}
+	if p.PoseTime == 0 {
+		p.Pose = "idle"
+		if length > 0 {
+			p.Pose = "run"
+		}
+		if p.Guard {
+			p.Pose = "guard"
+		}
+	}
+	if in.Jump && p.Jump == 0 && r.SkillTimers["jump"] == 0 {
+		p.Jump = .65
+		r.SkillTimers["jump"] = 1.05
+		r.event("jump", p.X, p.Y, 0)
+	}
+	if in.Attack && in.Skill == "" && p.Cooldown == 0 && !p.Guard {
+		p.Cooldown = .38
+		p.Pose = "attack"
+		p.PoseTime = .32
+		r.Combo = r.Combo%3 + 1
+		r.event("slash", p.X+p.Facing*38, p.Y-25, float64(r.Combo))
+		for i := range r.Enemies {
+			e := &r.Enemies[i]
+			if e.HP > 0 && math.Abs(e.Y-p.Y) < 32 && (e.X-p.X)*p.Facing >= -10 && (e.X-p.X)*p.Facing < 95 {
+				r.hurtEnemy(i, r.Build.Damage*(1+float64(r.Combo-1)*.2), "hit")
+				if r.Combo == 3 && e.HP > 0 && e.Kind != "boss" {
+					e.Knockdown = .55
+					e.Windup = 0
+					e.X = clamp(e.X+p.Facing*35, 35, Width-35)
+					r.event("knockdown", e.X, e.Y, 0)
+				}
+			}
+		}
+	}
+	if in.Skill != "" && !p.Guard {
+		r.cast(in.Skill)
+	}
+	if r.Status == "fighting" {
+		for i := range r.Enemies {
+			r.enemyTick(i, dt)
+		}
+	}
+	shots := r.Projectiles[:0]
+	for _, shot := range r.Projectiles {
+		shot.Life -= dt
+		shot.X += shot.VX * dt
+		shot.Y += shot.VY * dt
+		if shot.Life <= 0 || shot.X < 0 || shot.X > Width {
+			continue
+		}
+		hit := false
+		if shot.Enemy {
+			if math.Abs(shot.X-p.X) < 25 && math.Abs(shot.Y-p.Y) < 23 && p.Jump < .1 {
+				r.hurtPlayer(shot.Power, shot.X, shot.Y)
+				hit = true
+			}
+		} else {
+			for i, e := range r.Enemies {
+				if e.HP > 0 && math.Abs(shot.X-e.X) < 35 && math.Abs(shot.Y-e.Y) < 30 {
+					r.skillHit(i, shot.Power, shot.Skill, shot.Charges, shot.Marked)
+					hit = true
+					break
+				}
+			}
+		}
+		if !hit {
+			shots = append(shots, shot)
+		}
+	}
+	r.Projectiles = shots
+	for i := range r.Drops {
+		d := &r.Drops[i]
+		if !d.Collected && math.Hypot(d.X-p.X, d.Y-p.Y) < 65 {
+			d.Collected = true
+			r.Gold += d.Gold
+			r.event("pickup", d.X, d.Y, float64(d.Gold))
+		}
+	}
+	if p.HP <= 0 {
+		r.Status = "defeated"
+		r.Gold = 0
+		r.Drops = []Drop{}
+		r.Projectiles = []Projectile{}
+		r.event("defeat", p.X, p.Y, 0)
+		return
+	}
+	alive := 0
+	for _, e := range r.Enemies {
+		if e.HP > 0 {
+			alive++
+		}
+	}
+	if alive == 0 && r.Status == "fighting" {
+		// A secured room sweeps remaining drops into the bag before presenting
+		// its checkpoint, so displayed rewards agree with the banking receipt.
+		for i := range r.Drops {
+			d := &r.Drops[i]
+			if !d.Collected {
+				d.Collected = true
+				r.Gold += d.Gold
+				r.event("pickup", d.X, d.Y, float64(d.Gold))
+			}
+		}
+		r.Status = "cleared"
+		r.Projectiles = []Projectile{}
+		r.event("clear", p.X, p.Y, 0)
+	}
+}
+
+func (r *Run) cast(id string) {
+	if r.SkillTimers[id] > 0 || r.Player.Cooldown > 0 {
+		return
+	}
+	for _, skill := range r.abilities() {
+		if skill.ID != id || r.Player.Mana < skill.Cost {
+			continue
+		}
+		p := &r.Player
+		p.Mana -= skill.Cost
+		p.Cooldown = .35
+		p.Pose = "cast"
+		p.PoseTime = .4
+		r.SkillTimers[id] = skill.Cooldown
+		charges, marked := r.classCast(skill)
+		r.event(skill.Kind, p.X+p.Facing*35, p.Y-35, 0)
+		base := skill.Damage
+		if base <= 0 {
+			base = r.Build.Damage
+		}
+		power := base * skill.Power * (1 + float64(charges)*.2)
+		if skill.Heal > 0 {
+			p.HP = math.Min(p.MaxHP, p.HP+p.MaxHP*skill.Heal)
+		}
+		if skill.Kind == "shield" {
+			r.Barrier = math.Min(p.MaxHP*.5, r.Barrier+25+r.Build.Armor*4)
+		} else if skill.Kind == "heal" {
+			if skill.Heal == 0 {
+				p.HP = math.Min(p.MaxHP, p.HP+p.MaxHP*.15)
+			}
+		} else if skill.Kind == "slash" || skill.Kind == "quake" || skill.Kind == "ultimate" {
+			rangeX, rangeY := 155.0, 60.0
+			if skill.Kind == "quake" {
+				rangeX, rangeY = 260, 120
+			}
+			if skill.Kind == "ultimate" {
+				rangeX, rangeY = 450, 180
+			}
+			for i, e := range r.Enemies {
+				if e.HP > 0 && math.Abs(e.X-p.X) < rangeX && math.Abs(e.Y-p.Y) < rangeY {
+					r.skillHit(i, power, skill, charges, marked)
+				}
+			}
+		} else {
+			r.Projectiles = append(r.Projectiles, Projectile{ID: r.Counter, X: p.X + p.Facing*35, Y: p.Y, VX: p.Facing * 530, Power: power, Life: 2.5, Kind: skill.Kind, Skill: skill, Charges: charges, Marked: marked})
+		}
+		return
+	}
+}
+
+func (r *Run) hurtEnemy(i int, damage float64, effect string) {
+	r.hurtEnemyPiercing(i, damage, effect, 0)
+}
+
+func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce float64) {
+	e := &r.Enemies[i]
+	if e.HP <= 0 {
+		return
+	}
+	armor := 0.0
+	if e.Kind == "knight" {
+		armor = .3
+	}
+	if e.Kind == "boss" {
+		armor = .15
+	}
+	damage *= 1 - armor*(1-clamp(pierce, 0, 1))
+	e.HP = math.Max(0, e.HP-damage)
+	e.Pose = "hit"
+	e.PoseTime = .2
+	r.event(effect, e.X, e.Y-30, damage)
+	if e.HP == 0 {
+		r.event(e.Kind+"_death", e.X, e.Y, 0)
+		r.Drops = append(r.Drops, Drop{ID: e.ID, X: e.X, Y: e.Y, Gold: int64(15 * (r.Room + 1)), NeedsGear: e.Kind == "boss" || e.Kind == "knight" || i == 0})
+	}
+}
+
+func (r *Run) hurtPlayer(damage, x, y float64) {
+	p := &r.Player
+	damage = math.Max(2, damage-r.Build.Armor*.4)
+	kind := "hurt"
+	if p.Guard && (x-p.X)*p.Facing >= 0 {
+		damage *= .18
+		kind = "block"
+	}
+	if r.Barrier > 0 {
+		absorbed := math.Min(damage, r.Barrier)
+		r.Barrier -= absorbed
+		damage -= absorbed
+		kind = "block"
+	}
+	p.HP = math.Max(0, p.HP-damage)
+	p.Pose = "hit"
+	p.PoseTime = .18
+	r.event(kind, p.X, p.Y-30, damage)
+}
+
+func (r *Run) enemyTick(i int, dt float64) {
+	e := &r.Enemies[i]
+	if e.HP <= 0 {
+		return
+	}
+	e.Cooldown = math.Max(0, e.Cooldown-dt)
+	e.PoseTime = math.Max(0, e.PoseTime-dt)
+	if e.Knockdown > 0 {
+		e.Knockdown = math.Max(0, e.Knockdown-dt)
+		e.Pose = "knockdown"
+		return
+	}
+	p := &r.Player
+	dx, dy := p.X-e.X, p.Y-e.Y
+	if dx != 0 {
+		e.Facing = math.Copysign(1, dx)
+	}
+	if e.Windup > 0 {
+		e.Windup = math.Max(0, e.Windup-dt)
+		if e.Windup == 0 {
+			e.Pose = "attack"
+			e.PoseTime = .4
+			e.Cooldown = 1.6
+			if e.Kind == "archer" {
+				distance := math.Max(1, math.Hypot(dx, dy))
+				r.Counter++
+				r.Projectiles = append(r.Projectiles, Projectile{ID: r.Counter, X: e.X, Y: e.Y, VX: dx / distance * 300, VY: dy / distance * 300, Power: 18, Enemy: true, Life: 4, Kind: "arrow"})
+				r.event("arrow", e.X, e.Y, 0)
+			} else if e.Kind == "boss" {
+				r.event("slam", e.TargetX, e.TargetY, 0)
+				if math.Abs(p.X-e.TargetX) < 125 && math.Abs(p.Y-e.TargetY) < 62 && p.Jump < .1 {
+					r.hurtPlayer(48, e.X, e.Y)
+				}
+				e.Cooldown = 2.3
+			} else {
+				r.event(e.Kind+"_attack", e.X, e.Y, 0)
+				if math.Abs(dx) < 85 && math.Abs(dy) < 33 && p.Jump < .25 {
+					r.hurtPlayer(19+float64(r.Room)*4, e.X, e.Y)
+				}
+			}
+		}
+		return
+	}
+	rangeX := 65.0
+	if e.Kind == "archer" {
+		rangeX = 430
+	}
+	if e.Kind == "boss" {
+		rangeX = 190
+	}
+	if math.Abs(dx) > rangeX || math.Abs(dy) > 24 {
+		speed := 80.0
+		if e.Kind == "goblin" {
+			speed = 115
+		}
+		e.X = clamp(e.X+math.Copysign(math.Min(math.Abs(dx), speed*dt), dx), 35, Width-35)
+		e.Y += math.Copysign(math.Min(math.Abs(dy), speed*.6*dt), dy)
+		if e.PoseTime == 0 {
+			e.Pose = "run"
+		}
+	} else if e.Cooldown == 0 {
+		e.Windup = .55
+		e.Pose = "windup"
+		e.TargetX = p.X
+		e.TargetY = p.Y
+		if e.Kind == "boss" {
+			e.Windup = 1.15
+			r.event("boss_roar", e.X, e.Y, 0)
+		}
+	} else if e.PoseTime == 0 {
+		e.Pose = "idle"
+	}
+}
+
+func clamp(value, low, high float64) float64 { return math.Max(low, math.Min(high, value)) }
