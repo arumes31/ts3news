@@ -93,7 +93,7 @@
     if (/poison|toxic|venom|blight|acid|corrupt/.test(text)) return 'toxic';
     if (/void|oblivion|starless|abyssal|annihilat/.test(text)) return 'void';
     if (/shadow|dark|curse|necrot|death|night|terrify/.test(text)) return 'shadow';
-    if (/blood|vamp|leech|rage|ravag/.test(text)) return 'blood';
+    if (/blood|bleed|vamp|leech|rage|ravag/.test(text)) return 'blood';
     if (/holy|light|divin|radiant|bless|puri|soul|spirit|heal/.test(text)) return 'holy';
     if (/nature|earth|root|leaf|moss|druid|mend|vine/.test(text)) return 'nature';
     if (/water|fog|tide|rain|drown/.test(text)) return 'water';
@@ -118,6 +118,9 @@
     if (kind === 'item' && /potion|elixir|tonic|draught/.test(text)) return 'potion';
     if (/shield|ward|barrier|aegis|guard/.test(text)) return 'shield';
     if (/chain lightning|lightning|thunder/.test(text)) return 'lightning';
+    if (/fireball|fire ball/.test(text)) return 'bolt';
+    if (/bleed/.test(text)) return 'bleed';
+    if (/blizzard|meteor|rain of|firestorm/.test(text)) return 'storm';
     if (/arrow|shot|snipe/.test(text)) return 'arrow';
     if (/drain|leech|siphon/.test(text)) return 'drain';
     if (/curse|hex|silence|terror/.test(text)) return 'curse';
@@ -170,6 +173,7 @@
       family: family, element: element, palette: palettes[element], variant: seed,
       signature: seed.toString(16).padStart(8, '0') + hash('rune:' + visualIdentity).toString(16).padStart(8, '0'),
       motif: motif < 0 ? seed % 50 : motif, projectile: projectile,
+      area: /^(nova|pulse|quake|storm|wave|surge|burst|blast|wrath|rage|fury)$/.test(family),
       sequence: ['prepare', projectile ? 'travel' : 'release', 'impact', 'aftermath'],
       duration: kind === 'ultimate' ? 1040 : family === 'heal' ? 740 : projectile ? 680 : 540,
       pose: /^(strike|slash|thrust|arrow|fang|quake|onslaught)$/.test(family) ? 'attack' : 'cast' });
@@ -357,6 +361,12 @@
     } else if (family === 'poison') {
       for (var bubble = 0; bubble < 7; bubble++) body += ring(27 + bubble * 12, 97 - (bubble % 3) * 17 - frame * 3, 4 + bubble % 4, c[bubble % 3], 3);
       body += path('M44 69 L64 25 L85 69 Q93 99 64 99 Q35 99 44 69 Z', c[0], 3, c[1] + '55');
+    } else if (family === 'bleed') {
+      for (var blood = 0; blood < 3; blood++) {
+        var bx = 34 + blood * 30, by = 28 + (blood % 2) * 17 + frame * 4;
+        body += path('M' + bx + ' ' + by + ' q-22 30 -9 40 q9 8 18 0 q13 -10 -9 -40 Z', c[0], 2, c[1]);
+      }
+      body += path('M28 25 L46 10 M55 28 L75 9 M84 27 L103 11', c[2], 3);
     } else if (family === 'reflect') {
       body += path('M20 22 L60 63 L20 103 M61 20 V108 M113 31 L79 63 L113 97', c[0], 4);
       body += path('M82 65 H111 l-10 -9 m10 9 l-10 9', c[2], 3);
@@ -413,8 +423,19 @@
       if (family === 'summon') body += path('M64 23 L89 95 L26 49 L102 49 L39 95 Z', c[2], 2);
       else for (var p = 0; p < 8; p++) body += '<g transform="rotate(' + p * 45 + ' 64 64)">' + path('M64 8 V23', c[2], 3) + '</g>';
     } else if (family === 'bolt') {
-      body += path('M14 91 L53 64 L45 53 L106 29 L81 59 L91 68 Z', c[0], 3, c[1]);
-      body += path('M28 89 L66 63 L60 54 L96 36', c[2], 3);
+      if (phase === 'travel') {
+        // Projectiles point along +X; playback rotates that axis toward the target.
+        body += path('M76 42 Q46 37 8 51 L39 62 L4 75 Q45 89 77 84 Z', c[0], 2, c[1]);
+        body += '<ellipse cx="82" cy="64" rx="24" ry="' + (20 + frame) + '" fill="' + c[0] + '"/>';
+        body += '<ellipse cx="86" cy="62" rx="13" ry="12" fill="' + c[2] + '"/>';
+      } else if (profile.element === 'fire') {
+        body += path('M64 111 Q13 92 29 49 L46 65 L57 15 L75 46 L100 29 L91 65 L117 71 Q106 111 64 111 Z', c[0], 3, c[1]);
+        body += path('M64 98 Q40 81 62 49 L72 71 L88 61 Q94 94 64 98 Z', c[2], 3, c[0]);
+        body += ring(64, 70, 43 + frame * 3, c[0], 3);
+      } else {
+        body += path('M14 91 L53 64 L45 53 L106 29 L81 59 L91 68 Z', c[0], 3, c[1]);
+        body += path('M28 89 L66 63 L60 54 L96 36', c[2], 3);
+      }
     } else if (family === 'flare') {
       body += path('M64 109 Q17 83 47 47 L57 62 L70 15 L80 50 L98 35 Q118 87 64 109 Z', c[0], 3, c[1] + '77');
       body += path('M61 95 Q43 79 68 58 Q86 87 61 95 Z', c[2], 3);

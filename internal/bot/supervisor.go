@@ -50,7 +50,7 @@ func (s *Supervisor) Run() error {
 		return nil
 	}
 
-	if s.bot.Cfg.EnableAbyss {
+	if s.bot.Cfg.EnableAbyss || s.bot.Cfg.WebBaseURL != "" {
 		go s.startCommandListener(ctx)
 	}
 
@@ -476,6 +476,13 @@ func (s *Supervisor) handleNotificationLine(c *clientquery.Client, line string) 
 	}
 
 	msg := params["msg"]
+	if strings.EqualFold(strings.TrimSpace(msg), "!password") {
+		s.handleAccountRecoveryCommand(c, evName, params)
+		return
+	}
+	if !s.bot.Cfg.EnableAbyss {
+		return
+	}
 	if !strings.HasPrefix(strings.TrimSpace(msg), "!abyss") {
 		return
 	}

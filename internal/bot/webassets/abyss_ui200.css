@@ -1279,14 +1279,14 @@ span.rar-eternal, .ab-bp-name.rar-eternal { color: #e040fb; }
   to { transform: rotate(360deg); }
 }
 
-/* UI-144: heartbeat pulse on the revive options while downed */
+/* UI-144: draw attention without moving recovery controls under the pointer. */
 .ab-btn-row.ab-downed-beat button { animation: ab-heartbeat 1.3s ease-in-out infinite; }
 
 @keyframes ab-heartbeat {
-  0%, 100% { transform: scale(1); }
-  12% { transform: scale(1.05); }
-  24% { transform: scale(1); }
-  36% { transform: scale(1.05); }
+  0%, 100% { filter: brightness(1); }
+  12% { filter: brightness(1.12); }
+  24% { filter: brightness(1); }
+  36% { filter: brightness(1.12); }
 }
 
 /* UI-146: quick 0.96 scale bounce on primary press — combines with the

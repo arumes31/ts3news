@@ -1,0 +1,76 @@
+{{define "account-login"}}{{template "head" .}}
+<section class="account-page account-narrow" aria-labelledby="accountTitle">
+  <p class="account-eyebrow">YOUR TEAMSPEAK ACCOUNT</p>
+  <h1 id="accountTitle">Welcome back.</h1>
+  <p class="account-intro">Your character, your progress. On any device.</p>
+  <div class="account-panel">
+    {{template "account-error" .}}
+    <form method="post" action="/login" class="account-form">
+      <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Next}}">
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text" value="{{.Username}}" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="100" required placeholder="fox-river-42">
+      <label for="password">Password</label>
+      <div class="account-password"><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="512"><button type="button" class="ghost" data-password-toggle="password" aria-controls="password" aria-pressed="false">Show</button></div>
+      <button type="submit" class="account-submit">Log in</button>
+      <a class="account-link" href="/account/recover">Forgot your password?</a>
+    </form>
+  </div>
+  <aside class="account-guidance"><h2>First time here?</h2><p>Open your personal login link from the TeamSpeak bot, then visit <strong>Settings</strong> to find your username and set a password.</p><p>Your TeamSpeak login link still works.</p></aside>
+</section>
+{{template "foot" .}}{{end}}
+
+{{define "account-settings"}}{{template "head" .}}
+<section class="account-page" aria-labelledby="accountTitle">
+  <p class="account-eyebrow">ACCOUNT</p><h1 id="accountTitle">Settings</h1>
+  <p class="account-intro">Take your TeamSpeak account with you.</p>
+  {{if .Saved}}<p class="account-success" role="status">Password saved. You can now log in on other devices. Other sessions have been signed out.</p>{{end}}
+  {{template "account-error" .}}
+  <div class="account-grid">
+    <section class="account-panel"><h2>Your identity</h2><p class="muted">TeamSpeak name</p><p class="account-nickname">{{.Nickname}}</p>
+      <label for="accountUsername">Login username</label>
+      <div class="account-copy"><input id="accountUsername" value="{{.Username}}" readonly autocomplete="username"><button type="button" class="ghost" data-copy-username>Copy</button></div>
+      <p id="accountCopyStatus" class="small muted" role="status" aria-live="polite">This username stays the same when your TeamSpeak name changes.</p>
+      <p class="account-status">{{if .HasPassword}}Password login enabled{{else}}Password not set{{end}}</p>
+    </section>
+    <section class="account-panel"><h2>{{if .HasPassword}}Change password{{else}}Set up password login{{end}}</h2>
+    {{if .HasPassword}}
+      <form method="post" action="/settings" class="account-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="username" value="{{.Username}}" autocomplete="username">
+        <label for="currentPassword">Current password</label><div class="account-password"><input id="currentPassword" name="current_password" type="password" autocomplete="current-password" maxlength="512" required><button type="button" class="ghost" data-password-toggle="currentPassword" aria-controls="currentPassword" aria-pressed="false">Show</button></div>
+        {{template "account-new-password" .}}
+        <p class="small muted">Saving signs out your other devices.</p><button type="submit" class="account-submit">Save password</button>
+      </form>
+    {{else}}
+      <p>Use your username and a password to sign in on mobile or another computer.</p>
+      <ol class="account-steps"><li>Send <code>!password</code> to the bot in a <strong>private TeamSpeak message</strong>.</li><li>Open the private link it sends you.</li><li>Choose your password. The link works once and expires in 10 minutes.</li></ol>
+      <p class="small muted">This confirms that the TeamSpeak identity belongs to you.</p>
+    {{end}}
+    </section>
+  </div>
+  <aside class="account-guidance"><h2>Recovery stays in TeamSpeak</h2><p>Forgot your password? Send <code>!password</code> privately to the bot using the same TeamSpeak identity. <a href="/account/recover">Recovery instructions</a></p></aside>
+</section>
+{{template "foot" .}}{{end}}
+
+{{define "account-recovery"}}{{template "head" .}}
+<section class="account-page account-narrow" aria-labelledby="accountTitle"><p class="account-eyebrow">ACCOUNT RECOVERY</p><h1 id="accountTitle">Back through TeamSpeak.</h1>
+  <p class="account-intro">Set your first password or replace a forgotten one.</p>
+  <div class="account-panel"><ol class="account-steps"><li>Connect with your original TeamSpeak identity.</li><li>Send <code>!password</code> to the bot in a <strong>private message</strong>.</li><li>Open the link in the bot's reply and choose a new password.</li></ol>
+    <p>The link expires in 10 minutes and can only be used once. Keep it private.</p><p class="muted">If the bot is offline, try when it next connects. After requesting a link, wait a minute before requesting another.</p></div>
+  <p class="account-guidance">Recovery requires access to your original TeamSpeak identity. Email recovery is not available.</p><a href="/login">Back to login</a>
+</section>{{template "foot" .}}{{end}}
+
+{{define "account-password"}}{{template "head" .}}
+<section class="account-page account-narrow" aria-labelledby="accountTitle"><p class="account-eyebrow">{{if .ValidRecovery}}TEAMSPEAK VERIFIED{{else}}RECOVERY LINK{{end}}</p><h1 id="accountTitle">Choose your password.</h1>
+  <div class="account-panel">{{template "account-error" .}}{{if .ValidRecovery}}<p>Your login username is <strong>{{.Username}}</strong>.</p>
+    <form method="post" action="/account/password" class="account-form"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="username" value="{{.Username}}" autocomplete="username">
+      {{template "account-new-password" .}}<p class="small muted">Saving signs out other devices and replaces old login links.</p><button type="submit" class="account-submit">Set password</button>
+    </form>{{else}}<a href="/account/recover">Get a new TeamSpeak link</a>{{end}}
+  </div>
+</section>{{template "foot" .}}{{end}}
+
+{{define "account-new-password"}}
+<label for="newPassword">New password</label><div class="account-password"><input id="newPassword" name="password" type="password" autocomplete="new-password" aria-describedby="passwordHelp" minlength="15" maxlength="128" required><button type="button" class="ghost" data-password-toggle="newPassword" aria-controls="newPassword" aria-pressed="false">Show</button></div>
+<p id="passwordHelp" class="small muted">Use 15–128 characters. A few memorable words work well.</p>
+<label for="confirmPassword">Confirm new password</label><input id="confirmPassword" name="confirm_password" type="password" autocomplete="new-password" minlength="15" maxlength="128" required>
+{{end}}
+{{define "account-error"}}{{if .Error}}<p class="account-error" role="alert">{{.Error}}</p>{{end}}{{end}}

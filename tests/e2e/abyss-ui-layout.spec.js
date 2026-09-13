@@ -114,7 +114,7 @@ test('a lost core-action response offers a safe manual retry with the same idemp
 test('session-expiry and API-latency feedback stay compact and readable', async ({ page }) => {
   await page.goto('/abyss?active=1');
   await page.evaluate(() => {
-    document.cookie = `ts3session_exp=${Math.floor(Date.now() / 1000) + 5 * 60}; path=/`;
+    document.cookie = `ts3ui_expiry=${Math.floor(Date.now() / 1000) + 5 * 60}; path=/`;
     window.__abyssFeedback.checkSessionExpiry();
     window.__abyssFeedback.recordLatency(140, true);
   });
